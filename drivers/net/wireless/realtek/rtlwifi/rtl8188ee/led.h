@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2009-2013  Realtek Corporation.*/
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2009-2013  Realtek Corporation.*/
 
 #ifndef __RTL92CE_LED_H__
 #define __RTL92CE_LED_H__

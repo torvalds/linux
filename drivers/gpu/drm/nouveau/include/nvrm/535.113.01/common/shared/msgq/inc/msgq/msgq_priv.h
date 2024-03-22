@@ -1,10 +1,12 @@
 #ifndef __src_common_shared_msgq_inc_msgq_msgq_priv_h__
 #define __src_common_shared_msgq_inc_msgq_msgq_priv_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2018-2019 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2018-2019 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -69,16 +71,15 @@
  * status.writePtr = head of status queue
  * status.readPtr = tail of command queue
  */
-typedef struct
-{
-    NvU32 version;   // queue version
-    NvU32 size;      // bytes, page aligned
-    NvU32 msgSize;   // entry size, bytes, must be power-of-2, 16 is minimum
-    NvU32 msgCount;  // number of entries in queue
-    NvU32 writePtr;  // message id of next slot
-    NvU32 flags;     // if set it means "i want to swap RX"
-    NvU32 rxHdrOff;  // Offset of msgqRxHeader from start of backing store.
-    NvU32 entryOff;  // Offset of entries from start of backing store.
+typedef struct {
+  NvU32 version;   // queue version
+  NvU32 size;      // bytes, page aligned
+  NvU32 msgSize;   // entry size, bytes, must be power-of-2, 16 is minimum
+  NvU32 msgCount;  // number of entries in queue
+  NvU32 writePtr;  // message id of next slot
+  NvU32 flags;     // if set it means "i want to swap RX"
+  NvU32 rxHdrOff;  // Offset of msgqRxHeader from start of backing store.
+  NvU32 entryOff;  // Offset of entries from start of backing store.
 } msgqTxHeader;
 
 /**
@@ -89,9 +90,8 @@ typedef struct
  * msgqTxHeader.  msgqTxHeader.rxHdrOff is simply the offset of readPtr
  * from the beginning of msgqTxHeader.
  */
-typedef struct
-{
-    NvU32 readPtr; // message id of last message read
+typedef struct {
+  NvU32 readPtr; // message id of last message read
 } msgqRxHeader;
 
 #endif

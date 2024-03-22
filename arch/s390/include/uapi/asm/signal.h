@@ -55,10 +55,10 @@ typedef unsigned long sigset_t;
 #define SIGIO           29
 #define SIGPOLL         SIGIO
 /*
-#define SIGLOST         29
-*/
+ #define SIGLOST         29
+ */
 #define SIGPWR          30
-#define SIGSYS		31
+#define SIGSYS    31
 #define SIGUNUSED       31
 
 /* These should not be considered constants from userland.  */
@@ -91,13 +91,13 @@ typedef unsigned long sigset_t;
  * sys_rt_sigaction system call only.
  */
 struct sigaction {
-        union {
-          __sighandler_t _sa_handler;
-          void (*_sa_sigaction)(int, struct siginfo *, void *);
-        } _u;
-        unsigned long sa_flags;
-        void (*sa_restorer)(void);
-	sigset_t sa_mask;
+  union {
+    __sighandler_t _sa_handler;
+    void (*_sa_sigaction)(int, struct siginfo *, void *);
+  } _u;
+  unsigned long sa_flags;
+  void (*sa_restorer)(void);
+  sigset_t sa_mask;
 };
 
 #define sa_handler      _u._sa_handler
@@ -106,10 +106,9 @@ struct sigaction {
 #endif /* __KERNEL__ */
 
 typedef struct sigaltstack {
-        void __user *ss_sp;
-        int ss_flags;
-	__kernel_size_t ss_size;
+  void __user *ss_sp;
+  int ss_flags;
+  __kernel_size_t ss_size;
 } stack_t;
-
 
 #endif /* _UAPI_ASMS390_SIGNAL_H */

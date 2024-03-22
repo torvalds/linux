@@ -29,43 +29,39 @@
  */
 
 static __always_inline bool arch_static_branch(struct static_key *key,
-					       bool branch)
-{
-	asm goto(".balign "__stringify(JUMP_LABEL_NOP_SIZE)"		\n"
-		 "1:							\n"
-		 "nop							\n"
-		 ".pushsection __jump_table, \"aw\"			\n"
-		 ".word 1b, %l[l_yes], %c0				\n"
-		 ".popsection						\n"
-		 : : "i" (&((char *)key)[branch]) : : l_yes);
-
-	return false;
+    bool branch) {
+  asm goto (".balign "__stringify (JUMP_LABEL_NOP_SIZE) "		\n"
+  "1:							\n"
+  "nop							\n"
+  ".pushsection __jump_table, \"aw\"			\n"
+  ".word 1b, %l[l_yes], %c0				\n"
+  ".popsection						\n"
+  : : "i" (&((char *) key)[branch]) : : l_yes);
+  return false;
 l_yes:
-	return true;
+  return true;
 }
 
 static __always_inline bool arch_static_branch_jump(struct static_key *key,
-						    bool branch)
-{
-	asm goto(".balign "__stringify(JUMP_LABEL_NOP_SIZE)"		\n"
-		 "1:							\n"
-		 "b %l[l_yes]						\n"
-		 ".pushsection __jump_table, \"aw\"			\n"
-		 ".word 1b, %l[l_yes], %c0				\n"
-		 ".popsection						\n"
-		 : : "i" (&((char *)key)[branch]) : : l_yes);
-
-	return false;
+    bool branch) {
+  asm goto (".balign "__stringify (JUMP_LABEL_NOP_SIZE) "		\n"
+  "1:							\n"
+  "b %l[l_yes]						\n"
+  ".pushsection __jump_table, \"aw\"			\n"
+  ".word 1b, %l[l_yes], %c0				\n"
+  ".popsection						\n"
+  : : "i" (&((char *) key)[branch]) : : l_yes);
+  return false;
 l_yes:
-	return true;
+  return true;
 }
 
 typedef u32 jump_label_t;
 
 struct jump_entry {
-	jump_label_t code;
-	jump_label_t target;
-	jump_label_t key;
+  jump_label_t code;
+  jump_label_t target;
+  jump_label_t key;
 };
 
 #endif  /* __ASSEMBLY__ */

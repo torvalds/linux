@@ -29,26 +29,23 @@ int output_rodata1;
 
 long output_sink1;
 
-static __noinline int get_bss_res(void)
-{
-	/* just make sure all the relocations work against .text as well */
-	return input_bss1 + input_bss2 + input_bss_weak;
+static __noinline int get_bss_res(void) {
+  /* just make sure all the relocations work against .text as well */
+  return input_bss1 + input_bss2 + input_bss_weak;
 }
 
 SEC("raw_tp/sys_enter")
-int BPF_PROG(handler1)
-{
-	output_bss1 = get_bss_res();
-	output_data1 = input_data1 + input_data2 + input_data_weak;
-	output_rodata1 = input_rodata1 + input_rodata2 + input_rodata_weak;
-
-	/* make sure we actually use above special externs, otherwise compiler
-	 * will optimize them out
-	 */
-	output_sink1 = LINUX_KERNEL_VERSION
-		       + CONFIG_BPF_SYSCALL
-		       + (long)&bpf_link_fops;
-	return 0;
+int BPF_PROG(handler1) {
+  output_bss1 = get_bss_res();
+  output_data1 = input_data1 + input_data2 + input_data_weak;
+  output_rodata1 = input_rodata1 + input_rodata2 + input_rodata_weak;
+  /* make sure we actually use above special externs, otherwise compiler
+   * will optimize them out
+   */
+  output_sink1 = LINUX_KERNEL_VERSION
+      + CONFIG_BPF_SYSCALL
+      + (long) &bpf_link_fops;
+  return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

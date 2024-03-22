@@ -8,25 +8,23 @@
 
 #include "utils.h"
 
-#define TRACE_TYPE_REG		1
-#define TRACE_TYPE_COUNTER	2
-#define TRACE_TYPE_STRING	3
-#define TRACE_TYPE_INDENT	4
-#define TRACE_TYPE_OUTDENT	5
+#define TRACE_TYPE_REG    1
+#define TRACE_TYPE_COUNTER  2
+#define TRACE_TYPE_STRING 3
+#define TRACE_TYPE_INDENT 4
+#define TRACE_TYPE_OUTDENT  5
 
-struct trace_entry
-{
-	u8 type;
-	u8 length;
-	u8 data[];
+struct trace_entry {
+  u8 type;
+  u8 length;
+  u8 data[];
 };
 
-struct trace_buffer
-{
-	u64  size;
-	bool overflow;
-	void *tail;
-	u8   data[];
+struct trace_buffer {
+  u64 size;
+  bool overflow;
+  void *tail;
+  u8 data[];
 };
 
 struct trace_buffer *trace_buffer_allocate(u64 size);

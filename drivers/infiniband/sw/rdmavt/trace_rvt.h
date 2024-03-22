@@ -15,19 +15,19 @@
 #define TRACE_SYSTEM rvt
 
 TRACE_EVENT(rvt_dbg,
-	TP_PROTO(struct rvt_dev_info *rdi,
-		 const char *msg),
-	TP_ARGS(rdi, msg),
-	TP_STRUCT__entry(
-		RDI_DEV_ENTRY(rdi)
-		__string(msg, msg)
-	),
-	TP_fast_assign(
-		RDI_DEV_ASSIGN(rdi);
-		__assign_str(msg, msg);
-	),
-	TP_printk("[%s]: %s", __get_str(dev), __get_str(msg))
-);
+    TP_PROTO(struct rvt_dev_info *rdi,
+    const char *msg),
+    TP_ARGS(rdi, msg),
+    TP_STRUCT__entry(
+    RDI_DEV_ENTRY(rdi)
+    __string(msg, msg)
+    ),
+    TP_fast_assign(
+    RDI_DEV_ASSIGN(rdi);
+    __assign_str(msg, msg);
+    ),
+    TP_printk("[%s]: %s", __get_str(dev), __get_str(msg))
+    );
 
 #endif /* __RVT_TRACE_MISC_H */
 
@@ -36,4 +36,3 @@ TRACE_EVENT(rvt_dbg,
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE trace_rvt
 #include <trace/define_trace.h>
-

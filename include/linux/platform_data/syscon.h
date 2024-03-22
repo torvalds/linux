@@ -3,7 +3,7 @@
 #define PLATFORM_DATA_SYSCON_H
 
 struct syscon_platform_data {
-	const char *label;
+  const char *label;
 };
 
 #endif

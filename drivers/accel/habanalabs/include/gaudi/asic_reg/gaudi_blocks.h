@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef GAUDI_BLOCKS_H_
 #define GAUDI_BLOCKS_H_

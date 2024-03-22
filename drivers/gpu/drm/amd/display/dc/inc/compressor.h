@@ -30,108 +30,105 @@
 #include "bios_parser_interface.h"
 
 enum fbc_compress_ratio {
-	FBC_COMPRESS_RATIO_INVALID = 0,
-	FBC_COMPRESS_RATIO_1TO1 = 1,
-	FBC_COMPRESS_RATIO_2TO1 = 2,
-	FBC_COMPRESS_RATIO_4TO1 = 4,
-	FBC_COMPRESS_RATIO_8TO1 = 8,
+  FBC_COMPRESS_RATIO_INVALID = 0,
+  FBC_COMPRESS_RATIO_1TO1 = 1,
+  FBC_COMPRESS_RATIO_2TO1 = 2,
+  FBC_COMPRESS_RATIO_4TO1 = 4,
+  FBC_COMPRESS_RATIO_8TO1 = 8,
 };
 
 union fbc_physical_address {
-	struct {
-		uint32_t low_part;
-		int32_t high_part;
-	} addr;
-	uint64_t quad_part;
+  struct {
+    uint32_t low_part;
+    int32_t high_part;
+  } addr;
+  uint64_t quad_part;
 };
 
 struct compr_addr_and_pitch_params {
-	/* enum controller_id controller_id; */
-	uint32_t inst;
-	uint32_t source_view_width;
-	uint32_t source_view_height;
+  /* enum controller_id controller_id; */
+  uint32_t inst;
+  uint32_t source_view_width;
+  uint32_t source_view_height;
 };
 
 enum fbc_hw_max_resolution_supported {
-	FBC_MAX_X = 3840,
-	FBC_MAX_Y = 2400,
-	FBC_MAX_X_SG = 1920,
-	FBC_MAX_Y_SG = 1080,
+  FBC_MAX_X = 3840,
+  FBC_MAX_Y = 2400,
+  FBC_MAX_X_SG = 1920,
+  FBC_MAX_Y_SG = 1080,
 };
 
 struct compressor;
 
 struct compressor_funcs {
-
-	void (*power_up_fbc)(struct compressor *cp);
-	void (*enable_fbc)(struct compressor *cp,
-		struct compr_addr_and_pitch_params *params);
-	void (*disable_fbc)(struct compressor *cp);
-	void (*set_fbc_invalidation_triggers)(struct compressor *cp,
-		uint32_t fbc_trigger);
-	void (*surface_address_and_pitch)(
-		struct compressor *cp,
-		struct compr_addr_and_pitch_params *params);
-	bool (*is_fbc_enabled_in_hw)(struct compressor *cp,
-		uint32_t *fbc_mapped_crtc_id);
+  void (*power_up_fbc)(struct compressor *cp);
+  void (*enable_fbc)(struct compressor *cp,
+      struct compr_addr_and_pitch_params *params);
+  void (*disable_fbc)(struct compressor *cp);
+  void (*set_fbc_invalidation_triggers)(struct compressor *cp,
+      uint32_t fbc_trigger);
+  void (*surface_address_and_pitch)(
+    struct compressor *cp,
+    struct compr_addr_and_pitch_params *params);
+  bool (*is_fbc_enabled_in_hw)(struct compressor *cp,
+      uint32_t *fbc_mapped_crtc_id);
 };
 struct compressor {
-	struct dc_context *ctx;
-	/* CONTROLLER_ID_D0 + instance, CONTROLLER_ID_UNDEFINED = 0 */
-	uint32_t attached_inst;
-	bool is_enabled;
-	const struct compressor_funcs *funcs;
-	union {
-		uint32_t raw;
-		struct {
-			uint32_t FBC_SUPPORT:1;
-			uint32_t FB_POOL:1;
-			uint32_t DYNAMIC_ALLOC:1;
-			uint32_t LPT_SUPPORT:1;
-			uint32_t LPT_MC_CONFIG:1;
-			uint32_t DUMMY_BACKEND:1;
-			uint32_t CLK_GATING_DISABLED:1;
+  struct dc_context *ctx;
+  /* CONTROLLER_ID_D0 + instance, CONTROLLER_ID_UNDEFINED = 0 */
+  uint32_t attached_inst;
+  bool is_enabled;
+  const struct compressor_funcs *funcs;
+  union {
+    uint32_t raw;
+    struct {
+      uint32_t FBC_SUPPORT : 1;
+      uint32_t FB_POOL : 1;
+      uint32_t DYNAMIC_ALLOC : 1;
+      uint32_t LPT_SUPPORT : 1;
+      uint32_t LPT_MC_CONFIG : 1;
+      uint32_t DUMMY_BACKEND : 1;
+      uint32_t CLK_GATING_DISABLED : 1;
+    } bits;
+  } options;
 
-		} bits;
-	} options;
+  union fbc_physical_address compr_surface_address;
 
-	union fbc_physical_address compr_surface_address;
+  uint32_t embedded_panel_h_size;
+  uint32_t embedded_panel_v_size;
+  uint32_t memory_bus_width;
+  uint32_t banks_num;
+  uint32_t raw_size;
+  uint32_t channel_interleave_size;
+  uint32_t dram_channels_num;
 
-	uint32_t embedded_panel_h_size;
-	uint32_t embedded_panel_v_size;
-	uint32_t memory_bus_width;
-	uint32_t banks_num;
-	uint32_t raw_size;
-	uint32_t channel_interleave_size;
-	uint32_t dram_channels_num;
-
-	uint32_t allocated_size;
-	uint32_t preferred_requested_size;
-	uint32_t lpt_channels_num;
-	enum fbc_compress_ratio min_compress_ratio;
+  uint32_t allocated_size;
+  uint32_t preferred_requested_size;
+  uint32_t lpt_channels_num;
+  enum fbc_compress_ratio min_compress_ratio;
 };
 
 struct fbc_input_info {
-	bool           dynamic_fbc_buffer_alloc;
-	unsigned int   source_view_width;
-	unsigned int   source_view_height;
-	unsigned int   num_of_active_targets;
+  bool dynamic_fbc_buffer_alloc;
+  unsigned int source_view_width;
+  unsigned int source_view_height;
+  unsigned int num_of_active_targets;
 };
 
-
 struct fbc_requested_compressed_size {
-	unsigned int   preferred_size;
-	unsigned int   preferred_size_alignment;
-	unsigned int   min_size;
-	unsigned int   min_size_alignment;
-	union {
-		struct {
-			/* Above preferedSize must be allocated in FB pool */
-			unsigned int preferred_must_be_framebuffer_pool : 1;
-			/* Above minSize must be allocated in FB pool */
-			unsigned int min_must_be_framebuffer_pool : 1;
-		} bits;
-		unsigned int flags;
-	};
+  unsigned int preferred_size;
+  unsigned int preferred_size_alignment;
+  unsigned int min_size;
+  unsigned int min_size_alignment;
+  union {
+    struct {
+      /* Above preferedSize must be allocated in FB pool */
+      unsigned int preferred_must_be_framebuffer_pool : 1;
+      /* Above minSize must be allocated in FB pool */
+      unsigned int min_must_be_framebuffer_pool : 1;
+    } bits;
+    unsigned int flags;
+  };
 };
 #endif

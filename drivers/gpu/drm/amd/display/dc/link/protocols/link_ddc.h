@@ -38,28 +38,28 @@
 #define EDID_SEGMENT_SIZE 256
 
 struct ddc_service *link_create_ddc_service(
-		struct ddc_service_init_data *ddc_init_data);
+  struct ddc_service_init_data *ddc_init_data);
 
 void link_destroy_ddc_service(struct ddc_service **ddc);
 
 void set_ddc_transaction_type(
-		struct ddc_service *ddc,
-		enum ddc_transaction_type type);
+  struct ddc_service *ddc,
+  enum ddc_transaction_type type);
 
 uint32_t link_get_aux_defer_delay(struct ddc_service *ddc);
 
 bool link_is_in_aux_transaction_mode(struct ddc_service *ddc);
 
 bool try_to_configure_aux_timeout(struct ddc_service *ddc,
-		uint32_t timeout);
+    uint32_t timeout);
 
 bool link_query_ddc_data(
-		struct ddc_service *ddc,
-		uint32_t address,
-		uint8_t *write_buf,
-		uint32_t write_size,
-		uint8_t *read_buf,
-		uint32_t read_size);
+  struct ddc_service *ddc,
+  uint32_t address,
+  uint8_t *write_buf,
+  uint32_t write_size,
+  uint8_t *read_buf,
+  uint32_t read_size);
 
 /* Attempt to submit an aux payload, retrying on timeouts, defers, and busy
  * states as outlined in the DP spec.  Returns true if the request was
@@ -70,37 +70,35 @@ bool link_query_ddc_data(
  * function in dm_helpers in order to access dpcd safely
  */
 bool link_aux_transfer_with_retries_no_mutex(struct ddc_service *ddc,
-		struct aux_payload *payload);
+    struct aux_payload *payload);
 
 bool link_configure_fixed_vs_pe_retimer(
-		struct ddc_service *ddc,
-		const uint8_t *data,
-		uint32_t length);
+  struct ddc_service *ddc,
+  const uint8_t *data,
+  uint32_t length);
 
 bool link_query_fixed_vs_pe_retimer(
-		struct ddc_service *ddc,
-		uint8_t *data,
-		uint32_t length);
+  struct ddc_service *ddc,
+  uint8_t *data,
+  uint32_t length);
 
 uint32_t link_get_fixed_vs_pe_retimer_read_address(struct dc_link *link);
 uint32_t link_get_fixed_vs_pe_retimer_write_address(struct dc_link *link);
 
-
 void write_scdc_data(
-		struct ddc_service *ddc_service,
-		uint32_t pix_clk,
-		bool lte_340_scramble);
+  struct ddc_service *ddc_service,
+  uint32_t pix_clk,
+  bool lte_340_scramble);
 
 void read_scdc_data(
-		struct ddc_service *ddc_service);
+  struct ddc_service *ddc_service);
 
 void set_dongle_type(struct ddc_service *ddc,
-		enum display_dongle_type dongle_type);
+    enum display_dongle_type dongle_type);
 
 struct ddc *get_ddc_pin(struct ddc_service *ddc_service);
 
 int link_aux_transfer_raw(struct ddc_service *ddc,
-		struct aux_payload *payload,
-		enum aux_return_code_type *operation_result);
+    struct aux_payload *payload,
+    enum aux_return_code_type *operation_result);
 #endif /* __DAL_DDC_SERVICE_H__ */
-

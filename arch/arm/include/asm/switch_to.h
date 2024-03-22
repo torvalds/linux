@@ -12,7 +12,7 @@
  * CPU.
  */
 #if defined(CONFIG_PREEMPTION) && defined(CONFIG_SMP) && defined(CONFIG_CPU_V7)
-#define __complete_pending_tlbi()	dsb(ish)
+#define __complete_pending_tlbi() dsb(ish)
 #else
 #define __complete_pending_tlbi()
 #endif
@@ -22,14 +22,16 @@
  * `prev' will never be the same as `next'.  schedule() itself
  * contains the memory barrier to tell GCC not to cache `current'.
  */
-extern struct task_struct *__switch_to(struct task_struct *, struct thread_info *, struct thread_info *);
+extern struct task_struct *__switch_to(struct task_struct *,
+    struct thread_info *,
+    struct thread_info *);
 
-#define switch_to(prev,next,last)					\
-do {									\
-	__complete_pending_tlbi();					\
-	if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || is_smp())	\
-		__this_cpu_write(__entry_task, next);			\
-	last = __switch_to(prev,task_thread_info(prev), task_thread_info(next));	\
-} while (0)
+#define switch_to(prev, next, last)         \
+  do {                  \
+    __complete_pending_tlbi();          \
+    if (IS_ENABLED(CONFIG_CURRENT_POINTER_IN_TPIDRURO) || is_smp()) \
+    __this_cpu_write(__entry_task, next);     \
+    last = __switch_to(prev, task_thread_info(prev), task_thread_info(next));  \
+  } while (0)
 
 #endif /* __ASM_ARM_SWITCH_TO_H */

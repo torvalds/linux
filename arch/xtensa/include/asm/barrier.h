@@ -11,7 +11,7 @@
 
 #include <asm/core.h>
 
-#define __mb()  ({ __asm__ __volatile__("memw" : : : "memory"); })
+#define __mb()  ({ __asm__ __volatile__ ("memw" : : : "memory"); })
 #define __rmb() barrier()
 #define __wmb() __mb()
 
@@ -22,8 +22,8 @@
 #endif
 
 #if XCHAL_HAVE_S32C1I
-#define __smp_mb__before_atomic()		barrier()
-#define __smp_mb__after_atomic()		barrier()
+#define __smp_mb__before_atomic()   barrier()
+#define __smp_mb__after_atomic()    barrier()
 #endif
 
 #include <asm-generic/barrier.h>

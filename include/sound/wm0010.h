@@ -11,7 +11,7 @@
 #define WM0010_PDATA_H
 
 struct wm0010_pdata {
-	int irq_flags;
+  int irq_flags;
 };
 
 #endif

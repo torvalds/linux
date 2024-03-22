@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd.*/
 
 #ifndef _WX_HW_H_
 #define _WX_HW_H_
@@ -7,20 +7,22 @@
 #include <linux/phy.h>
 
 int wx_phy_read_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum);
-int wx_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum, u16 value);
-int wx_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum, int regnum);
+int wx_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum,
+    u16 value);
+int wx_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum,
+    int regnum);
 int wx_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
-			     int devnum, int regnum, u16 value);
+    int devnum, int regnum, u16 value);
 void wx_intr_enable(struct wx *wx, u64 qmask);
 void wx_irq_disable(struct wx *wx);
 int wx_check_flash_load(struct wx *wx, u32 check_bit);
 void wx_control_hw(struct wx *wx, bool drv);
 int wx_mng_present(struct wx *wx);
 int wx_host_interface_command(struct wx *wx, u32 *buffer,
-			      u32 length, u32 timeout, bool return_data);
+    u32 length, u32 timeout, bool return_data);
 int wx_read_ee_hostif(struct wx *wx, u16 offset, u16 *data);
 int wx_read_ee_hostif_buffer(struct wx *wx,
-			     u16 offset, u16 words, u16 *data);
+    u16 offset, u16 words, u16 *data);
 void wx_init_eeprom_params(struct wx *wx);
 void wx_get_mac_addr(struct wx *wx, u8 *mac_addr);
 void wx_init_rx_addrs(struct wx *wx);

@@ -7,11 +7,11 @@
  */
 #include <asm/mach/arch.h>
 
-static const char *const samv7_dt_board_compat[] __initconst = {
-	"atmel,samv7",
-	NULL
+static const char * const samv7_dt_board_compat[] __initconst = {
+  "atmel,samv7",
+  NULL
 };
 
 DT_MACHINE_START(samv7_dt, "Atmel SAMV7")
-	.dt_compat	= samv7_dt_board_compat,
+.dt_compat = samv7_dt_board_compat,
 MACHINE_END

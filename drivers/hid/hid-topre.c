@@ -22,30 +22,29 @@ MODULE_LICENSE("GPL");
  * sending variable events.
  */
 static __u8 *topre_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				 unsigned int *rsize)
-{
-	if (*rsize >= 119 && rdesc[69] == 0x29 && rdesc[70] == 0xe7 &&
-						 rdesc[71] == 0x81 && rdesc[72] == 0x00) {
-		hid_info(hdev,
-			"fixing up Topre REALFORCE keyboard report descriptor\n");
-		rdesc[72] = 0x02;
-	}
-	return rdesc;
+    unsigned int *rsize) {
+  if (*rsize >= 119 && rdesc[69] == 0x29 && rdesc[70] == 0xe7
+      && rdesc[71] == 0x81 && rdesc[72] == 0x00) {
+    hid_info(hdev,
+        "fixing up Topre REALFORCE keyboard report descriptor\n");
+    rdesc[72] = 0x02;
+  }
+  return rdesc;
 }
 
 static const struct hid_device_id topre_id_table[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPRE,
-			 USB_DEVICE_ID_TOPRE_REALFORCE_R2_108) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_TOPRE,
-			 USB_DEVICE_ID_TOPRE_REALFORCE_R2_87) },
-	{ }
+  { HID_USB_DEVICE(USB_VENDOR_ID_TOPRE,
+      USB_DEVICE_ID_TOPRE_REALFORCE_R2_108) },
+  { HID_USB_DEVICE(USB_VENDOR_ID_TOPRE,
+      USB_DEVICE_ID_TOPRE_REALFORCE_R2_87) },
+  {}
 };
 MODULE_DEVICE_TABLE(hid, topre_id_table);
 
 static struct hid_driver topre_driver = {
-	.name			= "topre",
-	.id_table		= topre_id_table,
-	.report_fixup		= topre_report_fixup,
+  .name = "topre",
+  .id_table = topre_id_table,
+  .report_fixup = topre_report_fixup,
 };
 
 module_hid_driver(topre_driver);

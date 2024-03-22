@@ -32,12 +32,17 @@ extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_unk_0[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gcc_0[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_sked_0[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_unk_1[];
-extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_ctxctl_0[];
+extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_ctxctl_0
+[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_unk_0[];
-extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_esetup_0[];
-extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_tpbus_0[];
-extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_zcull_0[];
-extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_tpconf_0[];
+extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_esetup_0
+[];
+extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_tpbus_0
+[];
+extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_zcull_0
+[];
+extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_tpconf_0
+[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_unk_1[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_gcc_0[];
 extern const struct nvkm_therm_clkgate_init gk104_clkgate_blcg_init_gpc_ffb_0[];

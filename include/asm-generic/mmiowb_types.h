@@ -5,8 +5,8 @@
 #include <linux/types.h>
 
 struct mmiowb_state {
-	u16	nesting_count;
-	u16	mmiowb_pending;
+  u16 nesting_count;
+  u16 mmiowb_pending;
 };
 
-#endif	/* __ASM_GENERIC_MMIOWB_TYPES_H */
+#endif  /* __ASM_GENERIC_MMIOWB_TYPES_H */

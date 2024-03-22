@@ -5,7 +5,6 @@
  */
 #include "lkdtm.h"
 
-void noinstr lkdtm_rodata_do_nothing(void)
-{
-	/* Does nothing. We just want an architecture agnostic "return". */
+void noinstr lkdtm_rodata_do_nothing(void) {
+  /* Does nothing. We just want an architecture agnostic "return". */
 }

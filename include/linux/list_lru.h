@@ -17,59 +17,60 @@ struct mem_cgroup;
 
 /* list_lru_walk_cb has to always return one of those */
 enum lru_status {
-	LRU_REMOVED,		/* item removed from list */
-	LRU_REMOVED_RETRY,	/* item removed, but lock has been
-				   dropped and reacquired */
-	LRU_ROTATE,		/* item referenced, give another pass */
-	LRU_SKIP,		/* item cannot be locked, skip */
-	LRU_RETRY,		/* item not freeable. May drop the lock
-				   internally, but has to return locked. */
-	LRU_STOP,		/* stop lru list walking. May drop the lock
-				   internally, but has to return locked. */
+  LRU_REMOVED,    /* item removed from list */
+  LRU_REMOVED_RETRY,  /* item removed, but lock has been
+                       * dropped and reacquired */
+  LRU_ROTATE,   /* item referenced, give another pass */
+  LRU_SKIP,   /* item cannot be locked, skip */
+  LRU_RETRY,    /* item not freeable. May drop the lock
+                 * internally, but has to return locked. */
+  LRU_STOP,   /* stop lru list walking. May drop the lock
+               * internally, but has to return locked. */
 };
 
 struct list_lru_one {
-	struct list_head	list;
-	/* may become negative during memcg reparenting */
-	long			nr_items;
+  struct list_head list;
+  /* may become negative during memcg reparenting */
+  long nr_items;
 };
 
 struct list_lru_memcg {
-	struct rcu_head		rcu;
-	/* array of per cgroup per node lists, indexed by node id */
-	struct list_lru_one	node[];
+  struct rcu_head rcu;
+  /* array of per cgroup per node lists, indexed by node id */
+  struct list_lru_one node[];
 };
 
 struct list_lru_node {
-	/* protects all lists on the node, including per cgroup */
-	spinlock_t		lock;
-	/* global list, used for the root cgroup in cgroup aware lrus */
-	struct list_lru_one	lru;
-	long			nr_items;
+  /* protects all lists on the node, including per cgroup */
+  spinlock_t lock;
+  /* global list, used for the root cgroup in cgroup aware lrus */
+  struct list_lru_one lru;
+  long nr_items;
 } ____cacheline_aligned_in_smp;
 
 struct list_lru {
-	struct list_lru_node	*node;
+  struct list_lru_node *node;
 #ifdef CONFIG_MEMCG_KMEM
-	struct list_head	list;
-	int			shrinker_id;
-	bool			memcg_aware;
-	struct xarray		xa;
+  struct list_head list;
+  int shrinker_id;
+  bool memcg_aware;
+  struct xarray xa;
 #endif
 };
 
 void list_lru_destroy(struct list_lru *lru);
 int __list_lru_init(struct list_lru *lru, bool memcg_aware,
-		    struct lock_class_key *key, struct shrinker *shrinker);
+    struct lock_class_key *key, struct shrinker *shrinker);
 
-#define list_lru_init(lru)				\
-	__list_lru_init((lru), false, NULL, NULL)
-#define list_lru_init_memcg(lru, shrinker)		\
-	__list_lru_init((lru), true, NULL, shrinker)
+#define list_lru_init(lru)        \
+  __list_lru_init((lru), false, NULL, NULL)
+#define list_lru_init_memcg(lru, shrinker)    \
+  __list_lru_init((lru), true, NULL, shrinker)
 
 int memcg_list_lru_alloc(struct mem_cgroup *memcg, struct list_lru *lru,
-			 gfp_t gfp);
-void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *parent);
+    gfp_t gfp);
+void memcg_reparent_list_lrus(struct mem_cgroup *memcg,
+    struct mem_cgroup *parent);
 
 /**
  * list_lru_add: add an element to the lru list's tail
@@ -90,7 +91,7 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
  * Return: true if the list was updated, false otherwise
  */
 bool list_lru_add(struct list_lru *lru, struct list_head *item, int nid,
-		    struct mem_cgroup *memcg);
+    struct mem_cgroup *memcg);
 
 /**
  * list_lru_add_obj: add an element to the lru list's tail
@@ -119,7 +120,7 @@ bool list_lru_add_obj(struct list_lru *lru, struct list_head *item);
  * Return: true if the list was updated, false otherwise
  */
 bool list_lru_del(struct list_lru *lru, struct list_head *item, int nid,
-		    struct mem_cgroup *memcg);
+    struct mem_cgroup *memcg);
 
 /**
  * list_lru_del_obj: delete an element from the lru list
@@ -147,32 +148,28 @@ bool list_lru_del_obj(struct list_lru *lru, struct list_head *item);
  * currently held by @lru.
  */
 unsigned long list_lru_count_one(struct list_lru *lru,
-				 int nid, struct mem_cgroup *memcg);
+    int nid, struct mem_cgroup *memcg);
 unsigned long list_lru_count_node(struct list_lru *lru, int nid);
 
 static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
-						  struct shrink_control *sc)
-{
-	return list_lru_count_one(lru, sc->nid, sc->memcg);
+    struct shrink_control *sc) {
+  return list_lru_count_one(lru, sc->nid, sc->memcg);
 }
 
-static inline unsigned long list_lru_count(struct list_lru *lru)
-{
-	long count = 0;
-	int nid;
-
-	for_each_node_state(nid, N_NORMAL_MEMORY)
-		count += list_lru_count_node(lru, nid);
-
-	return count;
+static inline unsigned long list_lru_count(struct list_lru *lru) {
+  long count = 0;
+  int nid;
+  for_each_node_state(nid, N_NORMAL_MEMORY)
+  count += list_lru_count_node(lru, nid);
+  return count;
 }
 
 void list_lru_isolate(struct list_lru_one *list, struct list_head *item);
 void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
-			   struct list_head *head);
+    struct list_head *head);
 
 typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
-		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
+    struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
 
 /**
  * list_lru_walk_one: walk a @lru, isolating and disposing freeable items.
@@ -197,9 +194,9 @@ typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
  * Return: the number of objects effectively removed from the LRU.
  */
 unsigned long list_lru_walk_one(struct list_lru *lru,
-				int nid, struct mem_cgroup *memcg,
-				list_lru_walk_cb isolate, void *cb_arg,
-				unsigned long *nr_to_walk);
+    int nid, struct mem_cgroup *memcg,
+    list_lru_walk_cb isolate, void *cb_arg,
+    unsigned long *nr_to_walk);
 /**
  * list_lru_walk_one_irq: walk a @lru, isolating and disposing freeable items.
  * @lru: the lru pointer.
@@ -214,42 +211,40 @@ unsigned long list_lru_walk_one(struct list_lru *lru,
  * spin_lock_irq().
  */
 unsigned long list_lru_walk_one_irq(struct list_lru *lru,
-				    int nid, struct mem_cgroup *memcg,
-				    list_lru_walk_cb isolate, void *cb_arg,
-				    unsigned long *nr_to_walk);
+    int nid, struct mem_cgroup *memcg,
+    list_lru_walk_cb isolate, void *cb_arg,
+    unsigned long *nr_to_walk);
 unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
-				 list_lru_walk_cb isolate, void *cb_arg,
-				 unsigned long *nr_to_walk);
+    list_lru_walk_cb isolate, void *cb_arg,
+    unsigned long *nr_to_walk);
 
-static inline unsigned long
-list_lru_shrink_walk(struct list_lru *lru, struct shrink_control *sc,
-		     list_lru_walk_cb isolate, void *cb_arg)
-{
-	return list_lru_walk_one(lru, sc->nid, sc->memcg, isolate, cb_arg,
-				 &sc->nr_to_scan);
+static inline unsigned long list_lru_shrink_walk(struct list_lru *lru,
+    struct shrink_control *sc,
+    list_lru_walk_cb isolate, void *cb_arg) {
+  return list_lru_walk_one(lru, sc->nid, sc->memcg, isolate, cb_arg,
+      &sc->nr_to_scan);
 }
 
-static inline unsigned long
-list_lru_shrink_walk_irq(struct list_lru *lru, struct shrink_control *sc,
-			 list_lru_walk_cb isolate, void *cb_arg)
-{
-	return list_lru_walk_one_irq(lru, sc->nid, sc->memcg, isolate, cb_arg,
-				     &sc->nr_to_scan);
+static inline unsigned long list_lru_shrink_walk_irq(struct list_lru *lru,
+    struct shrink_control *sc,
+    list_lru_walk_cb isolate, void *cb_arg) {
+  return list_lru_walk_one_irq(lru, sc->nid, sc->memcg, isolate, cb_arg,
+      &sc->nr_to_scan);
 }
 
-static inline unsigned long
-list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
-	      void *cb_arg, unsigned long nr_to_walk)
-{
-	long isolated = 0;
-	int nid;
-
-	for_each_node_state(nid, N_NORMAL_MEMORY) {
-		isolated += list_lru_walk_node(lru, nid, isolate,
-					       cb_arg, &nr_to_walk);
-		if (nr_to_walk <= 0)
-			break;
-	}
-	return isolated;
+static inline unsigned long list_lru_walk(struct list_lru *lru,
+    list_lru_walk_cb isolate,
+    void *cb_arg, unsigned long nr_to_walk) {
+  long isolated = 0;
+  int nid;
+  for_each_node_state(nid, N_NORMAL_MEMORY) {
+    isolated += list_lru_walk_node(lru, nid, isolate,
+        cb_arg, &nr_to_walk);
+    if (nr_to_walk <= 0) {
+      break;
+    }
+  }
+  return isolated;
 }
+
 #endif /* _LRU_LIST_H */

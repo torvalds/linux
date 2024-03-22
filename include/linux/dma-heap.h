@@ -16,29 +16,29 @@ struct dma_heap;
 
 /**
  * struct dma_heap_ops - ops to operate on a given heap
- * @allocate:		allocate dmabuf and return struct dma_buf ptr
+ * @allocate:   allocate dmabuf and return struct dma_buf ptr
  *
  * allocate returns dmabuf on success, ERR_PTR(-errno) on error.
  */
 struct dma_heap_ops {
-	struct dma_buf *(*allocate)(struct dma_heap *heap,
-				    unsigned long len,
-				    unsigned long fd_flags,
-				    unsigned long heap_flags);
+  struct dma_buf *(*allocate)(struct dma_heap *heap,
+      unsigned long len,
+      unsigned long fd_flags,
+      unsigned long heap_flags);
 };
 
 /**
  * struct dma_heap_export_info - information needed to export a new dmabuf heap
- * @name:	used for debugging/device-node name
- * @ops:	ops struct for this heap
- * @priv:	heap exporter private data
+ * @name: used for debugging/device-node name
+ * @ops:  ops struct for this heap
+ * @priv: heap exporter private data
  *
  * Information needed to export a new dmabuf heap.
  */
 struct dma_heap_export_info {
-	const char *name;
-	const struct dma_heap_ops *ops;
-	void *priv;
+  const char *name;
+  const struct dma_heap_ops *ops;
+  void *priv;
 };
 
 /**
@@ -61,7 +61,7 @@ const char *dma_heap_get_name(struct dma_heap *heap);
 
 /**
  * dma_heap_add - adds a heap to dmabuf heaps
- * @exp_info:		information needed to register this heap
+ * @exp_info:   information needed to register this heap
  */
 struct dma_heap *dma_heap_add(const struct dma_heap_export_info *exp_info);
 

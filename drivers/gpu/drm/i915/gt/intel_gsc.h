@@ -28,12 +28,12 @@ struct mei_aux_device;
  * @intf.id: this interface's id number/index
  */
 struct intel_gsc {
-	struct intel_gsc_intf {
-		struct mei_aux_device *adev;
-		struct drm_i915_gem_object *gem_obj;
-		int irq;
-		unsigned int id;
-	} intf[INTEL_GSC_NUM_INTERFACES];
+  struct intel_gsc_intf {
+    struct mei_aux_device *adev;
+    struct drm_i915_gem_object *gem_obj;
+    int irq;
+    unsigned int id;
+  } intf[INTEL_GSC_NUM_INTERFACES];
 };
 
 void intel_gsc_init(struct intel_gsc *gsc, struct drm_i915_private *i915);

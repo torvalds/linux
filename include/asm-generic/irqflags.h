@@ -23,45 +23,45 @@ void arch_local_irq_restore(unsigned long flags);
 
 /* get status and disable interrupts */
 #ifndef arch_local_irq_save
-static inline unsigned long arch_local_irq_save(void)
-{
-	unsigned long flags;
-	flags = arch_local_save_flags();
-	arch_local_irq_restore(ARCH_IRQ_DISABLED);
-	return flags;
+static inline unsigned long arch_local_irq_save(void) {
+  unsigned long flags;
+  flags = arch_local_save_flags();
+  arch_local_irq_restore(ARCH_IRQ_DISABLED);
+  return flags;
 }
+
 #endif
 
 /* test flags */
 #ifndef arch_irqs_disabled_flags
-static inline int arch_irqs_disabled_flags(unsigned long flags)
-{
-	return flags == ARCH_IRQ_DISABLED;
+static inline int arch_irqs_disabled_flags(unsigned long flags) {
+  return flags == ARCH_IRQ_DISABLED;
 }
+
 #endif
 
 /* unconditionally enable interrupts */
 #ifndef arch_local_irq_enable
-static inline void arch_local_irq_enable(void)
-{
-	arch_local_irq_restore(ARCH_IRQ_ENABLED);
+static inline void arch_local_irq_enable(void) {
+  arch_local_irq_restore(ARCH_IRQ_ENABLED);
 }
+
 #endif
 
 /* unconditionally disable interrupts */
 #ifndef arch_local_irq_disable
-static inline void arch_local_irq_disable(void)
-{
-	arch_local_irq_restore(ARCH_IRQ_DISABLED);
+static inline void arch_local_irq_disable(void) {
+  arch_local_irq_restore(ARCH_IRQ_DISABLED);
 }
+
 #endif
 
 /* test hardware interrupt enable bit */
 #ifndef arch_irqs_disabled
-static inline int arch_irqs_disabled(void)
-{
-	return arch_irqs_disabled_flags(arch_local_save_flags());
+static inline int arch_irqs_disabled(void) {
+  return arch_irqs_disabled_flags(arch_local_save_flags());
 }
+
 #endif
 
 #endif /* __ASM_GENERIC_IRQFLAGS_H */

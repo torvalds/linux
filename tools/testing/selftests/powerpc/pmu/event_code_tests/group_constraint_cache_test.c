@@ -24,37 +24,28 @@
  * All events in the group should match cache select bits otherwise
  * event_open for the group will fail.
  */
-static int group_constraint_cache(void)
-{
-	struct event event, leader;
-
-	/* Check for platform support for the test */
-	SKIP_IF(platform_check_for_tests());
-
-	/* Init the events for the group contraint check for l1 cache select bits */
-	event_init(&leader, EventCode_1);
-	FAIL_IF(event_open(&leader));
-
-	event_init(&event, EventCode_2);
-
-	/* Expected to fail as sibling event doesn't request same l1 cache select bits as leader */
-	FAIL_IF(!event_open_with_group(&event, leader.fd));
-
-	event_close(&event);
-
-	/* Init the event for the group contraint l1 cache select test */
-	event_init(&event, EventCode_3);
-
-	/* Expected to succeed as sibling event request same l1 cache select bits as leader */
-	FAIL_IF(event_open_with_group(&event, leader.fd));
-
-	event_close(&leader);
-	event_close(&event);
-
-	return 0;
+static int group_constraint_cache(void) {
+  struct event event, leader;
+  /* Check for platform support for the test */
+  SKIP_IF(platform_check_for_tests());
+  /* Init the events for the group contraint check for l1 cache select bits */
+  event_init(&leader, EventCode_1);
+  FAIL_IF(event_open(&leader));
+  event_init(&event, EventCode_2);
+  /* Expected to fail as sibling event doesn't request same l1 cache select bits
+   * as leader */
+  FAIL_IF(!event_open_with_group(&event, leader.fd));
+  event_close(&event);
+  /* Init the event for the group contraint l1 cache select test */
+  event_init(&event, EventCode_3);
+  /* Expected to succeed as sibling event request same l1 cache select bits as
+   * leader */
+  FAIL_IF(event_open_with_group(&event, leader.fd));
+  event_close(&leader);
+  event_close(&event);
+  return 0;
 }
 
-int main(void)
-{
-	return test_harness(group_constraint_cache, "group_constraint_cache");
+int main(void) {
+  return test_harness(group_constraint_cache, "group_constraint_cache");
 }

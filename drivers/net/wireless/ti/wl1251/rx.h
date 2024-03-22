@@ -33,8 +33,8 @@
 #define WL1251_RX_MIN_RSSI -95
 
 #define WL1251_RX_ALIGN_TO 4
-#define WL1251_RX_ALIGN(len) (((len) + WL1251_RX_ALIGN_TO - 1) & \
-			     ~(WL1251_RX_ALIGN_TO - 1))
+#define WL1251_RX_ALIGN(len) (((len) + WL1251_RX_ALIGN_TO - 1)   \
+  & ~(WL1251_RX_ALIGN_TO - 1))
 
 #define SHORT_PREAMBLE_BIT   BIT(0)
 #define OFDM_RATE_BIT        BIT(6)
@@ -55,52 +55,52 @@
 #define RX_DESC_ENCRYPTION_MASK   0x0300
 #define RX_DESC_MEASURMENT        0x0400
 #define RX_DESC_SEQNUM_MASK       0x1800
-#define	RX_DESC_MIC_FAIL	  0x2000
-#define	RX_DESC_DECRYPT_FAIL	  0x4000
+#define RX_DESC_MIC_FAIL    0x2000
+#define RX_DESC_DECRYPT_FAIL    0x4000
 
 struct wl1251_rx_descriptor {
-	u32 timestamp; /* In microseconds */
-	u16 length; /* Paylod length, including headers */
-	u16 flags;
+  u32 timestamp; /* In microseconds */
+  u16 length; /* Paylod length, including headers */
+  u16 flags;
 
-	/*
-	 * 0 - 802.11
-	 * 1 - 802.3
-	 * 2 - IP
-	 * 3 - Raw Codec
-	 */
-	u8 type;
+  /*
+   * 0 - 802.11
+   * 1 - 802.3
+   * 2 - IP
+   * 3 - Raw Codec
+   */
+  u8 type;
 
-	/*
-	 * Received Rate:
-	 * 0x0A - 1MBPS
-	 * 0x14 - 2MBPS
-	 * 0x37 - 5_5MBPS
-	 * 0x0B - 6MBPS
-	 * 0x0F - 9MBPS
-	 * 0x6E - 11MBPS
-	 * 0x0A - 12MBPS
-	 * 0x0E - 18MBPS
-	 * 0xDC - 22MBPS
-	 * 0x09 - 24MBPS
-	 * 0x0D - 36MBPS
-	 * 0x08 - 48MBPS
-	 * 0x0C - 54MBPS
-	 */
-	u8 rate;
+  /*
+   * Received Rate:
+   * 0x0A - 1MBPS
+   * 0x14 - 2MBPS
+   * 0x37 - 5_5MBPS
+   * 0x0B - 6MBPS
+   * 0x0F - 9MBPS
+   * 0x6E - 11MBPS
+   * 0x0A - 12MBPS
+   * 0x0E - 18MBPS
+   * 0xDC - 22MBPS
+   * 0x09 - 24MBPS
+   * 0x0D - 36MBPS
+   * 0x08 - 48MBPS
+   * 0x0C - 54MBPS
+   */
+  u8 rate;
 
-	u8 mod_pre; /* Modulation and preamble */
-	u8 channel;
+  u8 mod_pre; /* Modulation and preamble */
+  u8 channel;
 
-	/*
-	 * 0 - 2.4 Ghz
-	 * 1 - 5 Ghz
-	 */
-	u8 band;
+  /*
+   * 0 - 2.4 Ghz
+   * 1 - 5 Ghz
+   */
+  u8 band;
 
-	s8 rssi; /* in dB */
-	u8 rcpi; /* in dB */
-	u8 snr; /* in dB */
+  s8 rssi; /* in dB */
+  u8 rcpi; /* in dB */
+  u8 snr; /* in dB */
 } __packed;
 
 void wl1251_rx(struct wl1251 *wl);

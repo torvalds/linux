@@ -7,11 +7,10 @@
 #define __PLAT_MXC_IRQ_COMMON_H__
 
 /* all normal IRQs can be FIQs */
-#define FIQ_START	0
+#define FIQ_START 0
 
-struct mxc_extra_irq
-{
-	int (*set_irq_fiq)(unsigned int irq, unsigned int type);
+struct mxc_extra_irq {
+  int (*set_irq_fiq)(unsigned int irq, unsigned int type);
 };
 
 #endif

@@ -7,7 +7,7 @@
 #define __XFS_SCRUB_XFILE_H__
 
 struct xfile {
-	struct file		*file;
+  struct file *file;
 };
 
 int xfile_create(const char *description, loff_t isize, struct xfile **xfilep);
@@ -15,15 +15,15 @@ void xfile_destroy(struct xfile *xf);
 
 int xfile_load(struct xfile *xf, void *buf, size_t count, loff_t pos);
 int xfile_store(struct xfile *xf, const void *buf, size_t count,
-		loff_t pos);
+    loff_t pos);
 
 loff_t xfile_seek_data(struct xfile *xf, loff_t pos);
 
-#define XFILE_MAX_FOLIO_SIZE	(PAGE_SIZE << MAX_PAGECACHE_ORDER)
+#define XFILE_MAX_FOLIO_SIZE  (PAGE_SIZE << MAX_PAGECACHE_ORDER)
 
-#define XFILE_ALLOC		(1 << 0) /* allocate folio if not present */
+#define XFILE_ALLOC   (1 << 0) /* allocate folio if not present */
 struct folio *xfile_get_folio(struct xfile *xf, loff_t offset, size_t len,
-		unsigned int flags);
+    unsigned int flags);
 void xfile_put_folio(struct xfile *xf, struct folio *folio);
 
 #endif /* __XFS_SCRUB_XFILE_H__ */

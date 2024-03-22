@@ -9,10 +9,10 @@
 #if IS_ENABLED(CONFIG_ACPI_NFIT)
 int nfit_get_smbios_id(u32 device_handle, u16 *flags);
 #else
-static inline int nfit_get_smbios_id(u32 device_handle, u16 *flags)
-{
-	return -EOPNOTSUPP;
+static inline int nfit_get_smbios_id(u32 device_handle, u16 *flags) {
+  return -EOPNOTSUPP;
 }
+
 #endif
 
 #endif /* __ACPI_NFIT_H */

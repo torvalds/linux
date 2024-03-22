@@ -32,40 +32,40 @@
 #define    CNXK_VF_SDP_R_ERR_TYPE_START            0x10400
 
 #define CNXK_VF_SDP_R_ERR_TYPE(ring)                 \
-	(CNXK_VF_SDP_R_ERR_TYPE_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_ERR_TYPE_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_CONTROL(ring)          \
-	(CNXK_VF_SDP_R_IN_CONTROL_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_CONTROL_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_ENABLE(ring)          \
-	(CNXK_VF_SDP_R_IN_ENABLE_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_ENABLE_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_INSTR_BADDR(ring)          \
-	(CNXK_VF_SDP_R_IN_INSTR_BADDR_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_INSTR_BADDR_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_INSTR_RSIZE(ring)          \
-	(CNXK_VF_SDP_R_IN_INSTR_RSIZE_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_INSTR_RSIZE_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_INSTR_DBELL(ring)          \
-	(CNXK_VF_SDP_R_IN_INSTR_DBELL_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_INSTR_DBELL_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_CNTS(ring)          \
-	(CNXK_VF_SDP_R_IN_CNTS_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_CNTS_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_INT_LEVELS(ring)          \
-	(CNXK_VF_SDP_R_IN_INT_LEVELS_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_INT_LEVELS_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_PKT_CNT(ring)          \
-	(CNXK_VF_SDP_R_IN_PKT_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_PKT_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_IN_BYTE_CNT(ring)          \
-	(CNXK_VF_SDP_R_IN_BYTE_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_IN_BYTE_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 /*------------------ R_IN Masks ----------------*/
 
 /** Rings per Virtual Function **/
 #define    CNXK_VF_R_IN_CTL_RPVF_MASK    (0xF)
-#define	   CNXK_VF_R_IN_CTL_RPVF_POS     (48)
+#define    CNXK_VF_R_IN_CTL_RPVF_POS     (48)
 
 /* Number of instructions to be read in one MAC read request.
  * setting to Max value(4)
@@ -80,7 +80,8 @@
 #define    CNXK_VF_R_IN_CTL_ESR                   (0x1ULL << 1)
 #define    CNXK_VF_R_IN_CTL_ROR                   (0x1ULL << 0)
 
-#define    CNXK_VF_R_IN_CTL_MASK     (CNXK_VF_R_IN_CTL_RDSIZE | CNXK_VF_R_IN_CTL_IS_64B)
+#define    CNXK_VF_R_IN_CTL_MASK     (CNXK_VF_R_IN_CTL_RDSIZE \
+  | CNXK_VF_R_IN_CTL_IS_64B)
 
 /*###################### RING OUT REGISTERS #########################*/
 #define    CNXK_VF_SDP_R_OUT_CNTS_START            0x10100
@@ -95,34 +96,34 @@
 #define    CNXK_VF_SDP_R_OUT_BYTE_CNT_START        0x10190
 
 #define    CNXK_VF_SDP_R_OUT_CONTROL(ring)          \
-	(CNXK_VF_SDP_R_OUT_CONTROL_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_CONTROL_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_ENABLE(ring)          \
-	(CNXK_VF_SDP_R_OUT_ENABLE_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_ENABLE_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_SLIST_BADDR(ring)          \
-	(CNXK_VF_SDP_R_OUT_SLIST_BADDR_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_SLIST_BADDR_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_SLIST_RSIZE(ring)          \
-	(CNXK_VF_SDP_R_OUT_SLIST_RSIZE_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_SLIST_RSIZE_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_SLIST_DBELL(ring)          \
-	(CNXK_VF_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_WMARK(ring)          \
-	(CNXK_VF_SDP_R_OUT_WMARK_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_WMARK_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_CNTS(ring)          \
-	(CNXK_VF_SDP_R_OUT_CNTS_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_CNTS_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_INT_LEVELS(ring)          \
-	(CNXK_VF_SDP_R_OUT_INT_LEVELS_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_INT_LEVELS_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_PKT_CNT(ring)          \
-	(CNXK_VF_SDP_R_OUT_PKT_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_PKT_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_OUT_BYTE_CNT(ring)          \
-	(CNXK_VF_SDP_R_OUT_BYTE_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_OUT_BYTE_CNT_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 /*------------------ R_OUT Masks ----------------*/
 #define    CNXK_VF_R_OUT_INT_LEVELS_BMODE            BIT_ULL(63)
@@ -140,8 +141,8 @@
 #define    CNXK_VF_R_OUT_CTL_ROR_P                   BIT_ULL(24)
 #define    CNXK_VF_R_OUT_CTL_IMODE                   BIT_ULL(23)
 
-/* ##################### Mail Box Registers ########################## */
-/* SDP PF to VF Mailbox Data Register */
+/* ##################### Mail Box Registers ##########################
+ * SDP PF to VF Mailbox Data Register*/
 #define    CNXK_VF_SDP_R_MBOX_PF_VF_DATA_START    0x10210
 /* SDP Packet PF to VF Mailbox Interrupt Register */
 #define    CNXK_VF_SDP_R_MBOX_PF_VF_INT_START     0x10220
@@ -152,11 +153,11 @@
 #define    CNXK_VF_SDP_R_MBOX_PF_VF_INT_STATUS       BIT_ULL(0)
 
 #define    CNXK_VF_SDP_R_MBOX_PF_VF_DATA(ring)          \
-	(CNXK_VF_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_MBOX_PF_VF_INT(ring)          \
-	(CNXK_VF_SDP_R_MBOX_PF_VF_INT_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_MBOX_PF_VF_INT_START + ((ring) * CNXK_VF_RING_OFFSET))
 
 #define    CNXK_VF_SDP_R_MBOX_VF_PF_DATA(ring)          \
-	(CNXK_VF_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CNXK_VF_RING_OFFSET))
+  (CNXK_VF_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CNXK_VF_RING_OFFSET))
 #endif /* _OCTEP_VF_REGS_CNXK_H_ */

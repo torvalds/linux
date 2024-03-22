@@ -16,16 +16,15 @@
  * if we have access to secure-only registers, unless
  * mcpm is registered.
  */
-static inline bool platform_has_secure_cci_access(void)
-{
-	return mcpm_is_available();
+static inline bool platform_has_secure_cci_access(void) {
+  return mcpm_is_available();
 }
 
 #else
-static inline bool platform_has_secure_cci_access(void)
-{
-	return false;
+static inline bool platform_has_secure_cci_access(void) {
+  return false;
 }
+
 #endif
 
 #endif

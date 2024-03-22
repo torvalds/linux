@@ -7,14 +7,12 @@
 
 #include <asm/ptrace.h>
 
-static inline unsigned long exception_era(struct pt_regs *regs)
-{
-	return regs->csr_era;
+static inline unsigned long exception_era(struct pt_regs *regs) {
+  return regs->csr_era;
 }
 
-static inline void compute_return_era(struct pt_regs *regs)
-{
-	regs->csr_era += 4;
+static inline void compute_return_era(struct pt_regs *regs) {
+  regs->csr_era += 4;
 }
 
 #endif /* _ASM_BRANCH_H */

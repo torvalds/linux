@@ -14,35 +14,33 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 
-static int restart_poweroff_do_poweroff(struct sys_off_data *data)
-{
-	reboot_mode = REBOOT_HARD;
-	machine_restart(NULL);
-	return NOTIFY_DONE;
+static int restart_poweroff_do_poweroff(struct sys_off_data *data) {
+  reboot_mode = REBOOT_HARD;
+  machine_restart(NULL);
+  return NOTIFY_DONE;
 }
 
-static int restart_poweroff_probe(struct platform_device *pdev)
-{
-	/* Set this handler to low priority to not override an existing handler */
-	return devm_register_sys_off_handler(&pdev->dev,
-					     SYS_OFF_MODE_POWER_OFF,
-					     SYS_OFF_PRIO_LOW,
-					     restart_poweroff_do_poweroff,
-					     NULL);
+static int restart_poweroff_probe(struct platform_device *pdev) {
+  /* Set this handler to low priority to not override an existing handler */
+  return devm_register_sys_off_handler(&pdev->dev,
+      SYS_OFF_MODE_POWER_OFF,
+      SYS_OFF_PRIO_LOW,
+      restart_poweroff_do_poweroff,
+      NULL);
 }
 
 static const struct of_device_id of_restart_poweroff_match[] = {
-	{ .compatible = "restart-poweroff", },
-	{},
+  { .compatible = "restart-poweroff", },
+  {},
 };
 MODULE_DEVICE_TABLE(of, of_restart_poweroff_match);
 
 static struct platform_driver restart_poweroff_driver = {
-	.probe = restart_poweroff_probe,
-	.driver = {
-		.name = "poweroff-restart",
-		.of_match_table = of_restart_poweroff_match,
-	},
+  .probe = restart_poweroff_probe,
+  .driver = {
+    .name = "poweroff-restart",
+    .of_match_table = of_restart_poweroff_match,
+  },
 };
 module_platform_driver(restart_poweroff_driver);
 

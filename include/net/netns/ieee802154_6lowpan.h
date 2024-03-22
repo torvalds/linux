@@ -10,13 +10,13 @@
 
 struct netns_sysctl_lowpan {
 #ifdef CONFIG_SYSCTL
-	struct ctl_table_header *frags_hdr;
+  struct ctl_table_header *frags_hdr;
 #endif
 };
 
 struct netns_ieee802154_lowpan {
-	struct netns_sysctl_lowpan sysctl;
-	struct fqdir		*fqdir;
+  struct netns_sysctl_lowpan sysctl;
+  struct fqdir *fqdir;
 };
 
 #endif

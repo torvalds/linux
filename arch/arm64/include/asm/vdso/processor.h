@@ -7,9 +7,8 @@
 
 #ifndef __ASSEMBLY__
 
-static inline void cpu_relax(void)
-{
-	asm volatile("yield" ::: "memory");
+static inline void cpu_relax(void) {
+  asm volatile ("yield" ::: "memory");
 }
 
 #endif /* __ASSEMBLY__ */

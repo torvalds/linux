@@ -78,15 +78,15 @@
  * 0111 0111 0111 // if only a single WORD is in use in the DWORD.
  */
 #define SCIC_SDS_REMOTE_NODE_SETS_PER_DWORD \
-	(sizeof(u32) * SCIC_SDS_REMOTE_NODE_SETS_PER_BYTE)
+  (sizeof(u32) * SCIC_SDS_REMOTE_NODE_SETS_PER_BYTE)
 /**
  *
  *
  * This is a count of the numeber of remote nodes that can be represented in a
  * byte
  */
-#define SCIC_SDS_REMOTE_NODES_PER_BYTE	\
-	(SCU_STP_REMOTE_NODE_COUNT * SCIC_SDS_REMOTE_NODE_SETS_PER_BYTE)
+#define SCIC_SDS_REMOTE_NODES_PER_BYTE  \
+  (SCU_STP_REMOTE_NODE_COUNT * SCIC_SDS_REMOTE_NODE_SETS_PER_BYTE)
 
 /**
  *
@@ -94,8 +94,8 @@
  * This is a count of the number of remote nodes that can be represented in a
  * DWROD
  */
-#define SCIC_SDS_REMOTE_NODES_PER_DWORD	\
-	(sizeof(u32) * SCIC_SDS_REMOTE_NODES_PER_BYTE)
+#define SCIC_SDS_REMOTE_NODES_PER_DWORD \
+  (sizeof(u32) * SCIC_SDS_REMOTE_NODES_PER_BYTE)
 
 /**
  *
@@ -135,54 +135,54 @@
  *
  */
 struct sci_remote_node_table {
-	/**
-	 * This field contains the array size in dwords
-	 */
-	u16 available_nodes_array_size;
+  /**
+   * This field contains the array size in dwords
+   */
+  u16 available_nodes_array_size;
 
-	/**
-	 * This field contains the array size of the
-	 */
-	u16 group_array_size;
+  /**
+   * This field contains the array size of the
+   */
+  u16 group_array_size;
 
-	/**
-	 * This field is the array of available remote node entries in bits.
-	 * Because of the way STP remote node data is allocated on the SCU hardware
-	 * the remote nodes must occupy three consecutive remote node context
-	 * entries.  For ease of allocation and de-allocation we have broken the
-	 * sets of three into a single nibble.  When the STP RNi is allocated all
-	 * of the bits in the nibble are cleared.  This math results in a table size
-	 * of MAX_REMOTE_NODES / CONSECUTIVE RNi ENTRIES for STP / 2 entries per byte.
-	 */
-	u32 available_remote_nodes[
-		(SCI_MAX_REMOTE_DEVICES / SCIC_SDS_REMOTE_NODES_PER_DWORD)
-		+ ((SCI_MAX_REMOTE_DEVICES % SCIC_SDS_REMOTE_NODES_PER_DWORD) != 0)];
+  /**
+   * This field is the array of available remote node entries in bits.
+   * Because of the way STP remote node data is allocated on the SCU hardware
+   * the remote nodes must occupy three consecutive remote node context
+   * entries.  For ease of allocation and de-allocation we have broken the
+   * sets of three into a single nibble.  When the STP RNi is allocated all
+   * of the bits in the nibble are cleared.  This math results in a table size
+   * of MAX_REMOTE_NODES / CONSECUTIVE RNi ENTRIES for STP / 2 entries per byte.
+   */
+  u32 available_remote_nodes[
+    (SCI_MAX_REMOTE_DEVICES / SCIC_SDS_REMOTE_NODES_PER_DWORD)
+    + ((SCI_MAX_REMOTE_DEVICES % SCIC_SDS_REMOTE_NODES_PER_DWORD) != 0)];
 
-	/**
-	 * This field is the nibble selector for the above table.  There are three
-	 * possible selectors each for fast lookup when trying to find one, two or
-	 * three remote node entries.
-	 */
-	u32 remote_node_groups[
-		SCU_STP_REMOTE_NODE_COUNT][
-		(SCI_MAX_REMOTE_DEVICES / (32 * SCU_STP_REMOTE_NODE_COUNT))
-		+ ((SCI_MAX_REMOTE_DEVICES % (32 * SCU_STP_REMOTE_NODE_COUNT)) != 0)];
-
+  /**
+   * This field is the nibble selector for the above table.  There are three
+   * possible selectors each for fast lookup when trying to find one, two or
+   * three remote node entries.
+   */
+  u32 remote_node_groups[
+    SCU_STP_REMOTE_NODE_COUNT][
+    (SCI_MAX_REMOTE_DEVICES / (32 * SCU_STP_REMOTE_NODE_COUNT))
+    + ((SCI_MAX_REMOTE_DEVICES % (32 * SCU_STP_REMOTE_NODE_COUNT)) != 0)];
 };
 
-/* --------------------------------------------------------------------------- */
+/* ---------------------------------------------------------------------------
+ * */
 
 void sci_remote_node_table_initialize(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_entries);
+  struct sci_remote_node_table *remote_node_table,
+  u32 remote_node_entries);
 
 u16 sci_remote_node_table_allocate_remote_node(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_count);
+  struct sci_remote_node_table *remote_node_table,
+  u32 remote_node_count);
 
 void sci_remote_node_table_release_remote_node_index(
-	struct sci_remote_node_table *remote_node_table,
-	u32 remote_node_count,
-	u16 remote_node_index);
+  struct sci_remote_node_table *remote_node_table,
+  u32 remote_node_count,
+  u16 remote_node_index);
 
 #endif /* _SCIC_SDS_REMOTE_NODE_TABLE_H_ */

@@ -16,7 +16,7 @@
  * @link_frequency: target pixel clock frequency
  */
 struct ov2659_platform_data {
-	s64 link_frequency;
+  s64 link_frequency;
 };
 
 #endif /* OV2659_H */

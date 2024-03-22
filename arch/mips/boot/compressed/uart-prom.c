@@ -3,7 +3,6 @@
 
 #include "decompress.h"
 
-void putc(char c)
-{
-	prom_putchar(c);
+void putc(char c) {
+  prom_putchar(c);
 }

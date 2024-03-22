@@ -80,19 +80,20 @@
 #define AR_WOW_KEEP_ALIVE_FAIL          0x00100000
 #define AR_WOW_BEACON_FAIL              0x00200000
 
-#define AR_WOW_STATUS(x)                (x & (AR_WOW_PATTERN_FOUND_MASK | \
-                                              AR_WOW_MAGIC_PAT_FOUND    | \
-                                              AR_WOW_KEEP_ALIVE_FAIL    | \
-                                              AR_WOW_BEACON_FAIL))
-#define AR_WOW_CLEAR_EVENTS(x)          (x & ~(AR_WOW_PATTERN_EN(0xff) | \
-                                               AR_WOW_MAGIC_EN |	\
-                                               AR_WOW_MAC_INTR_EN |	\
-                                               AR_WOW_BEACON_FAIL |	\
-                                               AR_WOW_KEEP_ALIVE_FAIL))
+#define AR_WOW_STATUS(x)                (x & (AR_WOW_PATTERN_FOUND_MASK   \
+  | AR_WOW_MAGIC_PAT_FOUND      \
+  | AR_WOW_KEEP_ALIVE_FAIL      \
+  | AR_WOW_BEACON_FAIL))
+#define AR_WOW_CLEAR_EVENTS(x)          (x & ~(AR_WOW_PATTERN_EN(0xff)   \
+  | AR_WOW_MAGIC_EN    \
+  | AR_WOW_MAC_INTR_EN   \
+  | AR_WOW_BEACON_FAIL   \
+  | AR_WOW_KEEP_ALIVE_FAIL))
 
 #define AR_WOW2_PATTERN_EN(x)           ((x & 0xff) << 0)
 #define AR_WOW2_PATTERN_FOUND_SHIFT     8
-#define AR_WOW2_PATTERN_FOUND(x)        (x & (0xff << AR_WOW2_PATTERN_FOUND_SHIFT))
+#define AR_WOW2_PATTERN_FOUND(x)        (x \
+  & (0xff << AR_WOW2_PATTERN_FOUND_SHIFT))
 #define AR_WOW2_PATTERN_FOUND_MASK      ((0xff) << AR_WOW2_PATTERN_FOUND_SHIFT)
 
 #define AR_WOW_STATUS2(x)               (x & AR_WOW2_PATTERN_FOUND_MASK)
@@ -125,12 +126,16 @@
 #define AR_WOW_PATTERN_SUPPORTED        0xffff
 #define AR_WOW_LENGTH_MAX               0xff
 #define AR_WOW_LEN1_SHIFT(_i)           ((0x3 - ((_i) & 0x3)) << 0x3)
-#define AR_WOW_LENGTH1_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN1_SHIFT(_i))
+#define AR_WOW_LENGTH1_MASK(_i)         (AR_WOW_LENGTH_MAX << \
+    AR_WOW_LEN1_SHIFT(_i))
 #define AR_WOW_LEN2_SHIFT(_i)           ((0x7 - ((_i) & 0x7)) << 0x3)
-#define AR_WOW_LENGTH2_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN2_SHIFT(_i))
+#define AR_WOW_LENGTH2_MASK(_i)         (AR_WOW_LENGTH_MAX << \
+    AR_WOW_LEN2_SHIFT(_i))
 #define AR_WOW_LEN3_SHIFT(_i)           ((0xb - ((_i) & 0xb)) << 0x3)
-#define AR_WOW_LENGTH3_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN3_SHIFT(_i))
+#define AR_WOW_LENGTH3_MASK(_i)         (AR_WOW_LENGTH_MAX << \
+    AR_WOW_LEN3_SHIFT(_i))
 #define AR_WOW_LEN4_SHIFT(_i)           ((0xf - ((_i) & 0xf)) << 0x3)
-#define AR_WOW_LENGTH4_MASK(_i)         (AR_WOW_LENGTH_MAX << AR_WOW_LEN4_SHIFT(_i))
+#define AR_WOW_LENGTH4_MASK(_i)         (AR_WOW_LENGTH_MAX << \
+    AR_WOW_LEN4_SHIFT(_i))
 
 #endif /* REG_WOW_H */

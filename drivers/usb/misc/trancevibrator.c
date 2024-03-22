@@ -15,110 +15,100 @@
 #define DRIVER_AUTHOR "Sam Hocevar, sam@zoy.org"
 #define DRIVER_DESC "PlayStation 2 Trance Vibrator driver"
 
-#define TRANCEVIBRATOR_VENDOR_ID	0x0b49	/* ASCII Corporation */
-#define TRANCEVIBRATOR_PRODUCT_ID	0x064f	/* Trance Vibrator */
+#define TRANCEVIBRATOR_VENDOR_ID  0x0b49  /* ASCII Corporation */
+#define TRANCEVIBRATOR_PRODUCT_ID 0x064f  /* Trance Vibrator */
 
 static const struct usb_device_id id_table[] = {
-	{ USB_DEVICE(TRANCEVIBRATOR_VENDOR_ID, TRANCEVIBRATOR_PRODUCT_ID) },
-	{ },
+  { USB_DEVICE(TRANCEVIBRATOR_VENDOR_ID, TRANCEVIBRATOR_PRODUCT_ID) },
+  {},
 };
-MODULE_DEVICE_TABLE (usb, id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 /* Driver-local specific stuff */
 struct trancevibrator {
-	struct usb_device *udev;
-	unsigned int speed;
+  struct usb_device *udev;
+  unsigned int speed;
 };
 
 static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct trancevibrator *tv = usb_get_intfdata(intf);
-
-	return sprintf(buf, "%d\n", tv->speed);
+    char *buf) {
+  struct usb_interface *intf = to_usb_interface(dev);
+  struct trancevibrator *tv = usb_get_intfdata(intf);
+  return sprintf(buf, "%d\n", tv->speed);
 }
 
 static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
-{
-	struct usb_interface *intf = to_usb_interface(dev);
-	struct trancevibrator *tv = usb_get_intfdata(intf);
-	int temp, retval, old;
-
-	retval = kstrtoint(buf, 10, &temp);
-	if (retval)
-		return retval;
-	if (temp > 255)
-		temp = 255;
-	else if (temp < 0)
-		temp = 0;
-	old = tv->speed;
-	tv->speed = temp;
-
-	dev_dbg(&tv->udev->dev, "speed = %d\n", tv->speed);
-
-	/* Set speed */
-	retval = usb_control_msg(tv->udev, usb_sndctrlpipe(tv->udev, 0),
-				 0x01, /* vendor request: set speed */
-				 USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-				 tv->speed, /* speed value */
-				 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
-	if (retval) {
-		tv->speed = old;
-		dev_dbg(&tv->udev->dev, "retval = %d\n", retval);
-		return retval;
-	}
-	return count;
+    const char *buf, size_t count) {
+  struct usb_interface *intf = to_usb_interface(dev);
+  struct trancevibrator *tv = usb_get_intfdata(intf);
+  int temp, retval, old;
+  retval = kstrtoint(buf, 10, &temp);
+  if (retval) {
+    return retval;
+  }
+  if (temp > 255) {
+    temp = 255;
+  } else if (temp < 0) {
+    temp = 0;
+  }
+  old = tv->speed;
+  tv->speed = temp;
+  dev_dbg(&tv->udev->dev, "speed = %d\n", tv->speed);
+  /* Set speed */
+  retval = usb_control_msg(tv->udev, usb_sndctrlpipe(tv->udev, 0),
+      0x01, /* vendor request: set speed */
+      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
+      tv->speed, /* speed value */
+      0, NULL, 0, USB_CTRL_SET_TIMEOUT);
+  if (retval) {
+    tv->speed = old;
+    dev_dbg(&tv->udev->dev, "retval = %d\n", retval);
+    return retval;
+  }
+  return count;
 }
+
 static DEVICE_ATTR_RW(speed);
 
 static struct attribute *tv_attrs[] = {
-	&dev_attr_speed.attr,
-	NULL,
+  &dev_attr_speed.attr,
+  NULL,
 };
 ATTRIBUTE_GROUPS(tv);
 
 static int tv_probe(struct usb_interface *interface,
-		    const struct usb_device_id *id)
-{
-	struct usb_device *udev = interface_to_usbdev(interface);
-	struct trancevibrator *dev;
-	int retval;
-
-	dev = kzalloc(sizeof(struct trancevibrator), GFP_KERNEL);
-	if (!dev) {
-		retval = -ENOMEM;
-		goto error;
-	}
-
-	dev->udev = usb_get_dev(udev);
-	usb_set_intfdata(interface, dev);
-
-	return 0;
-
+    const struct usb_device_id *id) {
+  struct usb_device *udev = interface_to_usbdev(interface);
+  struct trancevibrator *dev;
+  int retval;
+  dev = kzalloc(sizeof(struct trancevibrator), GFP_KERNEL);
+  if (!dev) {
+    retval = -ENOMEM;
+    goto error;
+  }
+  dev->udev = usb_get_dev(udev);
+  usb_set_intfdata(interface, dev);
+  return 0;
 error:
-	kfree(dev);
-	return retval;
+  kfree(dev);
+  return retval;
 }
 
-static void tv_disconnect(struct usb_interface *interface)
-{
-	struct trancevibrator *dev;
-
-	dev = usb_get_intfdata (interface);
-	usb_set_intfdata(interface, NULL);
-	usb_put_dev(dev->udev);
-	kfree(dev);
+static void tv_disconnect(struct usb_interface *interface) {
+  struct trancevibrator *dev;
+  dev = usb_get_intfdata(interface);
+  usb_set_intfdata(interface, NULL);
+  usb_put_dev(dev->udev);
+  kfree(dev);
 }
 
 /* USB subsystem object */
 static struct usb_driver tv_driver = {
-	.name =		"trancevibrator",
-	.probe =	tv_probe,
-	.disconnect =	tv_disconnect,
-	.id_table =	id_table,
-	.dev_groups =	tv_groups,
+  .name = "trancevibrator",
+  .probe = tv_probe,
+  .disconnect = tv_disconnect,
+  .id_table = id_table,
+  .dev_groups = tv_groups,
 };
 
 module_usb_driver(tv_driver);

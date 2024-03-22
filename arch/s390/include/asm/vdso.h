@@ -11,9 +11,11 @@
 #include <generated/vdso32-offsets.h>
 #endif
 
-#define VDSO64_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso64_offset_##name))
+#define VDSO64_SYMBOL(tsk, \
+      name) ((tsk)->mm->context.vdso_base + (vdso64_offset_ ## name))
 #ifdef CONFIG_COMPAT
-#define VDSO32_SYMBOL(tsk, name) ((tsk)->mm->context.vdso_base + (vdso32_offset_##name))
+#define VDSO32_SYMBOL(tsk, \
+      name) ((tsk)->mm->context.vdso_base + (vdso32_offset_ ## name))
 #else
 #define VDSO32_SYMBOL(tsk, name) (-1UL)
 #endif
@@ -25,10 +27,10 @@ int vdso_getcpu_init(void);
 #endif /* __ASSEMBLY__ */
 
 /* Default link address for the vDSO */
-#define VDSO_LBASE	0
+#define VDSO_LBASE  0
 
-#define __VVAR_PAGES	2
+#define __VVAR_PAGES  2
 
-#define VDSO_VERSION_STRING	LINUX_2.6.29
+#define VDSO_VERSION_STRING LINUX_2 .6 .29
 
 #endif /* __S390_VDSO_H__ */

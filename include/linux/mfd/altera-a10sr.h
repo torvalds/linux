@@ -67,8 +67,8 @@
  * @regmap: the regmap assigned to the parent device.
  */
 struct altr_a10sr {
-	struct device *dev;
-	struct regmap *regmap;
+  struct device *dev;
+  struct regmap *regmap;
 };
 
 #endif /* __MFD_ALTERA_A10SR_H */

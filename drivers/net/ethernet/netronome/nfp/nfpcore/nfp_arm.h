@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2017 Netronome Systems, Inc. */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+ * Copyright (C) 2015-2017 Netronome Systems, Inc.*/
 
 /*
  * nfp_arm.h
@@ -145,72 +145,72 @@
 /* Gasket CSRs */
 /* NOTE: These cannot be remapped, and are always at this location.
  */
-#define NFP_ARM_GCSR_START	(0xd6000000 + NFP_ARM_GCSR)
-#define NFP_ARM_GCSR_SIZE	SZ_64K
+#define NFP_ARM_GCSR_START  (0xd6000000 + NFP_ARM_GCSR)
+#define NFP_ARM_GCSR_SIZE SZ_64K
 
 /* BAR CSRs
  */
-#define NFP_ARM_GCSR_BULK_BITS	11
-#define NFP_ARM_GCSR_EXPA_BITS	15
-#define NFP_ARM_GCSR_EXPL_BITS	18
+#define NFP_ARM_GCSR_BULK_BITS  11
+#define NFP_ARM_GCSR_EXPA_BITS  15
+#define NFP_ARM_GCSR_EXPL_BITS  18
 
-#define NFP_ARM_GCSR_BULK_SHIFT	(40 - 11)
-#define NFP_ARM_GCSR_EXPA_SHIFT	(40 - 15)
-#define NFP_ARM_GCSR_EXPL_SHIFT	(40 - 18)
+#define NFP_ARM_GCSR_BULK_SHIFT (40 - 11)
+#define NFP_ARM_GCSR_EXPA_SHIFT (40 - 15)
+#define NFP_ARM_GCSR_EXPL_SHIFT (40 - 18)
 
-#define NFP_ARM_GCSR_BULK_SIZE	(1 << NFP_ARM_GCSR_BULK_SHIFT)
-#define NFP_ARM_GCSR_EXPA_SIZE	(1 << NFP_ARM_GCSR_EXPA_SHIFT)
-#define NFP_ARM_GCSR_EXPL_SIZE	(1 << NFP_ARM_GCSR_EXPL_SHIFT)
+#define NFP_ARM_GCSR_BULK_SIZE  (1 << NFP_ARM_GCSR_BULK_SHIFT)
+#define NFP_ARM_GCSR_EXPA_SIZE  (1 << NFP_ARM_GCSR_EXPA_SHIFT)
+#define NFP_ARM_GCSR_EXPL_SIZE  (1 << NFP_ARM_GCSR_EXPL_SHIFT)
 
 #define NFP_ARM_GCSR_EXPL2_CSR(target, action, length, \
-			       byte_mask, token, signal_master) \
-	(NFP_ARM_GCSR_EXPL2_BAR_TGT(target) | \
-	 NFP_ARM_GCSR_EXPL2_BAR_ACT(action) | \
-	 NFP_ARM_GCSR_EXPL2_BAR_LEN(length) | \
-	 NFP_ARM_GCSR_EXPL2_BAR_BYTE_MASK(byte_mask) | \
-	 NFP_ARM_GCSR_EXPL2_BAR_TOK(token) | \
-	 NFP_ARM_GCSR_EXPL2_BAR_SIGNAL_MASTER(signal_master))
+      byte_mask, token, signal_master) \
+  (NFP_ARM_GCSR_EXPL2_BAR_TGT(target)   \
+  | NFP_ARM_GCSR_EXPL2_BAR_ACT(action)   \
+  | NFP_ARM_GCSR_EXPL2_BAR_LEN(length)   \
+  | NFP_ARM_GCSR_EXPL2_BAR_BYTE_MASK(byte_mask)   \
+  | NFP_ARM_GCSR_EXPL2_BAR_TOK(token)   \
+  | NFP_ARM_GCSR_EXPL2_BAR_SIGNAL_MASTER(signal_master))
 #define NFP_ARM_GCSR_EXPL1_CSR(posted, signal_ref, data_master, data_ref) \
-	(((posted) ? NFP_ARM_GCSR_EXPL1_BAR_POSTED : 0) | \
-	 NFP_ARM_GCSR_EXPL1_BAR_SIGNAL_REF(signal_ref) | \
-	 NFP_ARM_GCSR_EXPL1_BAR_DATA_MASTER(data_master) | \
-	 NFP_ARM_GCSR_EXPL1_BAR_DATA_REF(data_ref))
+  (((posted) ? NFP_ARM_GCSR_EXPL1_BAR_POSTED : 0)   \
+  | NFP_ARM_GCSR_EXPL1_BAR_SIGNAL_REF(signal_ref)   \
+  | NFP_ARM_GCSR_EXPL1_BAR_DATA_MASTER(data_master)   \
+  | NFP_ARM_GCSR_EXPL1_BAR_DATA_REF(data_ref))
 #define NFP_ARM_GCSR_EXPL0_CSR(address) \
-	NFP_ARM_GCSR_EXPL0_BAR_ADDR((address) >> NFP_ARM_GCSR_EXPL_SHIFT)
+  NFP_ARM_GCSR_EXPL0_BAR_ADDR((address) >> NFP_ARM_GCSR_EXPL_SHIFT)
 #define NFP_ARM_GCSR_EXPL_POST_EXPECT_A(sig_ref, is_push, is_required) \
-	(NFP_ARM_GCSR_EXPL_POST_SIG_A(sig_ref) | \
-	 ((is_push) ? NFP_ARM_GCSR_EXPL_POST_SIG_A_BUS_PUSH : \
-		      NFP_ARM_GCSR_EXPL_POST_SIG_A_BUS_PULL) | \
-	 ((is_required) ? NFP_ARM_GCSR_EXPL_POST_SIG_A_VALID : 0))
+  (NFP_ARM_GCSR_EXPL_POST_SIG_A(sig_ref)   \
+  | ((is_push) ? NFP_ARM_GCSR_EXPL_POST_SIG_A_BUS_PUSH   \
+  : NFP_ARM_GCSR_EXPL_POST_SIG_A_BUS_PULL)   \
+  | ((is_required) ? NFP_ARM_GCSR_EXPL_POST_SIG_A_VALID : 0))
 #define NFP_ARM_GCSR_EXPL_POST_EXPECT_B(sig_ref, is_push, is_required) \
-	(NFP_ARM_GCSR_EXPL_POST_SIG_B(sig_ref) | \
-	 ((is_push) ? NFP_ARM_GCSR_EXPL_POST_SIG_B_BUS_PUSH : \
-		      NFP_ARM_GCSR_EXPL_POST_SIG_B_BUS_PULL) | \
-	 ((is_required) ? NFP_ARM_GCSR_EXPL_POST_SIG_B_VALID : 0))
+  (NFP_ARM_GCSR_EXPL_POST_SIG_B(sig_ref)   \
+  | ((is_push) ? NFP_ARM_GCSR_EXPL_POST_SIG_B_BUS_PUSH   \
+  : NFP_ARM_GCSR_EXPL_POST_SIG_B_BUS_PULL)   \
+  | ((is_required) ? NFP_ARM_GCSR_EXPL_POST_SIG_B_VALID : 0))
 
 #define NFP_ARM_GCSR_EXPA_CSR(mode, target, token, is_64, action, address) \
-	(((mode) ? NFP_ARM_GCSR_EXPA_BAR_TYPE_EXPL : \
-		   NFP_ARM_GCSR_EXPA_BAR_TYPE_EXPA) | \
-	 NFP_ARM_GCSR_EXPA_BAR_TGT(target) | \
-	 NFP_ARM_GCSR_EXPA_BAR_TOK(token) | \
-	 ((is_64) ? NFP_ARM_GCSR_EXPA_BAR_LEN_64BIT : \
-		    NFP_ARM_GCSR_EXPA_BAR_LEN_32BIT) | \
-	 NFP_ARM_GCSR_EXPA_BAR_ACT(action) | \
-	 NFP_ARM_GCSR_EXPA_BAR_ADDR((address) >> NFP_ARM_GCSR_EXPA_SHIFT))
+  (((mode) ? NFP_ARM_GCSR_EXPA_BAR_TYPE_EXPL   \
+  : NFP_ARM_GCSR_EXPA_BAR_TYPE_EXPA)   \
+  | NFP_ARM_GCSR_EXPA_BAR_TGT(target)   \
+  | NFP_ARM_GCSR_EXPA_BAR_TOK(token)   \
+  | ((is_64) ? NFP_ARM_GCSR_EXPA_BAR_LEN_64BIT   \
+  : NFP_ARM_GCSR_EXPA_BAR_LEN_32BIT)   \
+  | NFP_ARM_GCSR_EXPA_BAR_ACT(action)   \
+  | NFP_ARM_GCSR_EXPA_BAR_ADDR((address) >> NFP_ARM_GCSR_EXPA_SHIFT))
 
 #define NFP_ARM_GCSR_BULK_CSR(mode, target, token, is_64, address) \
-	(((mode) ? NFP_ARM_GCSR_BULK_BAR_TYPE_EXPA : \
-		   NFP_ARM_GCSR_BULK_BAR_TYPE_BULK) | \
-	 NFP_ARM_GCSR_BULK_BAR_TGT(target) | \
-	 NFP_ARM_GCSR_BULK_BAR_TOK(token) | \
-	 ((is_64) ? NFP_ARM_GCSR_BULK_BAR_LEN_64BIT : \
-		    NFP_ARM_GCSR_BULK_BAR_LEN_32BIT) | \
-	 NFP_ARM_GCSR_BULK_BAR_ADDR((address) >> NFP_ARM_GCSR_BULK_SHIFT))
+  (((mode) ? NFP_ARM_GCSR_BULK_BAR_TYPE_EXPA   \
+  : NFP_ARM_GCSR_BULK_BAR_TYPE_BULK)   \
+  | NFP_ARM_GCSR_BULK_BAR_TGT(target)   \
+  | NFP_ARM_GCSR_BULK_BAR_TOK(token)   \
+  | ((is_64) ? NFP_ARM_GCSR_BULK_BAR_LEN_64BIT   \
+  : NFP_ARM_GCSR_BULK_BAR_LEN_32BIT)   \
+  | NFP_ARM_GCSR_BULK_BAR_ADDR((address) >> NFP_ARM_GCSR_BULK_SHIFT))
 
-	/* MP Core CSRs */
-#define NFP_ARM_MPCORE_SIZE	SZ_128K
+/* MP Core CSRs */
+#define NFP_ARM_MPCORE_SIZE SZ_128K
 
-	/* PL320 CSRs */
-#define NFP_ARM_PCSR_SIZE	SZ_64K
+/* PL320 CSRs */
+#define NFP_ARM_PCSR_SIZE SZ_64K
 
 #endif /* NFP_ARM_H */

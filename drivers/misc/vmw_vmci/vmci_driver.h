@@ -15,16 +15,16 @@
 #include "vmci_context.h"
 
 enum vmci_obj_type {
-	VMCIOBJ_VMX_VM = 10,
-	VMCIOBJ_CONTEXT,
-	VMCIOBJ_SOCKET,
-	VMCIOBJ_NOT_SET,
+  VMCIOBJ_VMX_VM = 10,
+  VMCIOBJ_CONTEXT,
+  VMCIOBJ_SOCKET,
+  VMCIOBJ_NOT_SET,
 };
 
 /* For storing VMCI structures in file handles. */
 struct vmci_obj {
-	void *ptr;
-	enum vmci_obj_type type;
+  void *ptr;
+  enum vmci_obj_type type;
 };
 
 /*

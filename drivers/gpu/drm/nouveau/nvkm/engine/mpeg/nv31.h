@@ -6,27 +6,28 @@
 #include <engine/mpeg.h>
 
 struct nv31_mpeg {
-	const struct nv31_mpeg_func *func;
-	struct nvkm_engine engine;
-	struct nv31_mpeg_chan *chan;
+  const struct nv31_mpeg_func *func;
+  struct nvkm_engine engine;
+  struct nv31_mpeg_chan *chan;
 };
 
-int nv31_mpeg_new_(const struct nv31_mpeg_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_engine **);
+int nv31_mpeg_new_(const struct nv31_mpeg_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_engine **);
 
 struct nv31_mpeg_func {
-	bool (*mthd_dma)(struct nvkm_device *, u32 mthd, u32 data);
+  bool (*mthd_dma)(struct nvkm_device *, u32 mthd, u32 data);
 };
 
 #define nv31_mpeg_chan(p) container_of((p), struct nv31_mpeg_chan, object)
 #include <core/object.h>
 
 struct nv31_mpeg_chan {
-	struct nvkm_object object;
-	struct nv31_mpeg *mpeg;
-	struct nvkm_chan *fifo;
+  struct nvkm_object object;
+  struct nv31_mpeg *mpeg;
+  struct nvkm_chan *fifo;
 };
 
 int nv31_mpeg_chan_new(struct nvkm_chan *, const struct nvkm_oclass *,
-		       struct nvkm_object **);
+    struct nvkm_object **);
 #endif

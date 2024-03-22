@@ -59,10 +59,10 @@
 #define WM8350_JACK_PIN_STATUS                  0xE7
 
 /* Bit values for R08 (0x08) */
-#define WM8350_CODEC_ISEL_1_5                   0	/* x1.5 */
-#define WM8350_CODEC_ISEL_1_0                   1	/* x1.0 */
-#define WM8350_CODEC_ISEL_0_75                  2	/* x0.75 */
-#define WM8350_CODEC_ISEL_0_5                   3	/* x0.5 */
+#define WM8350_CODEC_ISEL_1_5                   0 /* x1.5 */
+#define WM8350_CODEC_ISEL_1_0                   1 /* x1.0 */
+#define WM8350_CODEC_ISEL_0_75                  2 /* x0.75 */
+#define WM8350_CODEC_ISEL_0_5                   3 /* x0.5 */
 
 #define WM8350_VMID_OFF                         0
 #define WM8350_VMID_300K                        1
@@ -485,106 +485,106 @@
 /*
  * R231 (0xE7) - Jack Status
  */
-#define WM8350_JACK_L_LVL			0x0800
+#define WM8350_JACK_L_LVL     0x0800
 #define WM8350_JACK_R_LVL                       0x0400
-#define WM8350_JACK_MICSCD_LVL			0x0200
-#define WM8350_JACK_MICSD_LVL			0x0100
+#define WM8350_JACK_MICSCD_LVL      0x0200
+#define WM8350_JACK_MICSD_LVL     0x0100
 
 /*
  * WM8350 Platform setup
  */
-#define WM8350_S_CURVE_NONE			0x0
-#define WM8350_S_CURVE_FAST			0x1
-#define WM8350_S_CURVE_MEDIUM			0x2
-#define WM8350_S_CURVE_SLOW			0x3
+#define WM8350_S_CURVE_NONE     0x0
+#define WM8350_S_CURVE_FAST     0x1
+#define WM8350_S_CURVE_MEDIUM     0x2
+#define WM8350_S_CURVE_SLOW     0x3
 
-#define WM8350_DISCHARGE_OFF			0x0
-#define WM8350_DISCHARGE_FAST			0x1
-#define WM8350_DISCHARGE_MEDIUM			0x2
-#define WM8350_DISCHARGE_SLOW			0x3
+#define WM8350_DISCHARGE_OFF      0x0
+#define WM8350_DISCHARGE_FAST     0x1
+#define WM8350_DISCHARGE_MEDIUM     0x2
+#define WM8350_DISCHARGE_SLOW     0x3
 
-#define WM8350_TIE_OFF_500R			0x0
-#define WM8350_TIE_OFF_30K			0x1
+#define WM8350_TIE_OFF_500R     0x0
+#define WM8350_TIE_OFF_30K      0x1
 
 /*
  * Clock sources & directions
  */
-#define WM8350_SYSCLK				0
+#define WM8350_SYSCLK       0
 
-#define WM8350_MCLK_SEL_PLL_MCLK		0
-#define WM8350_MCLK_SEL_PLL_DAC			1
-#define WM8350_MCLK_SEL_PLL_ADC			2
-#define WM8350_MCLK_SEL_PLL_32K			3
-#define WM8350_MCLK_SEL_MCLK			5
+#define WM8350_MCLK_SEL_PLL_MCLK    0
+#define WM8350_MCLK_SEL_PLL_DAC     1
+#define WM8350_MCLK_SEL_PLL_ADC     2
+#define WM8350_MCLK_SEL_PLL_32K     3
+#define WM8350_MCLK_SEL_MCLK      5
 
 /* clock divider id's */
-#define WM8350_ADC_CLKDIV			0
-#define WM8350_DAC_CLKDIV			1
-#define WM8350_BCLK_CLKDIV			2
-#define WM8350_OPCLK_CLKDIV			3
-#define WM8350_TO_CLKDIV			4
-#define WM8350_SYS_CLKDIV			5
-#define WM8350_DACLR_CLKDIV			6
-#define WM8350_ADCLR_CLKDIV			7
+#define WM8350_ADC_CLKDIV     0
+#define WM8350_DAC_CLKDIV     1
+#define WM8350_BCLK_CLKDIV      2
+#define WM8350_OPCLK_CLKDIV     3
+#define WM8350_TO_CLKDIV      4
+#define WM8350_SYS_CLKDIV     5
+#define WM8350_DACLR_CLKDIV     6
+#define WM8350_ADCLR_CLKDIV     7
 
 /* ADC clock dividers */
-#define WM8350_ADCDIV_1				0x0
-#define WM8350_ADCDIV_1_5			0x1
-#define WM8350_ADCDIV_2				0x2
-#define WM8350_ADCDIV_3				0x3
-#define WM8350_ADCDIV_4				0x4
-#define WM8350_ADCDIV_5_5			0x5
-#define WM8350_ADCDIV_6				0x6
+#define WM8350_ADCDIV_1       0x0
+#define WM8350_ADCDIV_1_5     0x1
+#define WM8350_ADCDIV_2       0x2
+#define WM8350_ADCDIV_3       0x3
+#define WM8350_ADCDIV_4       0x4
+#define WM8350_ADCDIV_5_5     0x5
+#define WM8350_ADCDIV_6       0x6
 
 /* ADC clock dividers */
-#define WM8350_DACDIV_1				0x0
-#define WM8350_DACDIV_1_5			0x1
-#define WM8350_DACDIV_2				0x2
-#define WM8350_DACDIV_3				0x3
-#define WM8350_DACDIV_4				0x4
-#define WM8350_DACDIV_5_5			0x5
-#define WM8350_DACDIV_6				0x6
+#define WM8350_DACDIV_1       0x0
+#define WM8350_DACDIV_1_5     0x1
+#define WM8350_DACDIV_2       0x2
+#define WM8350_DACDIV_3       0x3
+#define WM8350_DACDIV_4       0x4
+#define WM8350_DACDIV_5_5     0x5
+#define WM8350_DACDIV_6       0x6
 
 /* BCLK clock dividers */
-#define WM8350_BCLK_DIV_1			(0x0 << 4)
-#define WM8350_BCLK_DIV_1_5			(0x1 << 4)
-#define WM8350_BCLK_DIV_2			(0x2 << 4)
-#define WM8350_BCLK_DIV_3			(0x3 << 4)
-#define WM8350_BCLK_DIV_4			(0x4 << 4)
-#define WM8350_BCLK_DIV_5_5			(0x5 << 4)
-#define WM8350_BCLK_DIV_6			(0x6 << 4)
-#define WM8350_BCLK_DIV_8			(0x7 << 4)
-#define WM8350_BCLK_DIV_11			(0x8 << 4)
-#define WM8350_BCLK_DIV_12			(0x9 << 4)
-#define WM8350_BCLK_DIV_16			(0xa << 4)
-#define WM8350_BCLK_DIV_22			(0xb << 4)
-#define WM8350_BCLK_DIV_24			(0xc << 4)
-#define WM8350_BCLK_DIV_32			(0xd << 4)
-#define WM8350_BCLK_DIV_44			(0xe << 4)
-#define WM8350_BCLK_DIV_48			(0xf << 4)
+#define WM8350_BCLK_DIV_1     (0x0 << 4)
+#define WM8350_BCLK_DIV_1_5     (0x1 << 4)
+#define WM8350_BCLK_DIV_2     (0x2 << 4)
+#define WM8350_BCLK_DIV_3     (0x3 << 4)
+#define WM8350_BCLK_DIV_4     (0x4 << 4)
+#define WM8350_BCLK_DIV_5_5     (0x5 << 4)
+#define WM8350_BCLK_DIV_6     (0x6 << 4)
+#define WM8350_BCLK_DIV_8     (0x7 << 4)
+#define WM8350_BCLK_DIV_11      (0x8 << 4)
+#define WM8350_BCLK_DIV_12      (0x9 << 4)
+#define WM8350_BCLK_DIV_16      (0xa << 4)
+#define WM8350_BCLK_DIV_22      (0xb << 4)
+#define WM8350_BCLK_DIV_24      (0xc << 4)
+#define WM8350_BCLK_DIV_32      (0xd << 4)
+#define WM8350_BCLK_DIV_44      (0xe << 4)
+#define WM8350_BCLK_DIV_48      (0xf << 4)
 
 /* Sys (MCLK) clock dividers */
-#define WM8350_MCLK_DIV_1			(0x0 << 8)
-#define WM8350_MCLK_DIV_2			(0x1 << 8)
+#define WM8350_MCLK_DIV_1     (0x0 << 8)
+#define WM8350_MCLK_DIV_2     (0x1 << 8)
 
 /* OP clock dividers */
-#define WM8350_OPCLK_DIV_1			0x0
-#define WM8350_OPCLK_DIV_2			0x1
-#define WM8350_OPCLK_DIV_3			0x2
-#define WM8350_OPCLK_DIV_4			0x3
-#define WM8350_OPCLK_DIV_5_5			0x4
-#define WM8350_OPCLK_DIV_6			0x5
+#define WM8350_OPCLK_DIV_1      0x0
+#define WM8350_OPCLK_DIV_2      0x1
+#define WM8350_OPCLK_DIV_3      0x2
+#define WM8350_OPCLK_DIV_4      0x3
+#define WM8350_OPCLK_DIV_5_5      0x4
+#define WM8350_OPCLK_DIV_6      0x5
 
 /* DAI ID */
-#define WM8350_HIFI_DAI				0
+#define WM8350_HIFI_DAI       0
 
 /*
  * Audio interrupts.
  */
-#define WM8350_IRQ_CODEC_JCK_DET_L		39
-#define WM8350_IRQ_CODEC_JCK_DET_R		40
-#define WM8350_IRQ_CODEC_MICSCD			41
-#define WM8350_IRQ_CODEC_MICD			42
+#define WM8350_IRQ_CODEC_JCK_DET_L    39
+#define WM8350_IRQ_CODEC_JCK_DET_R    40
+#define WM8350_IRQ_CODEC_MICSCD     41
+#define WM8350_IRQ_CODEC_MICD     42
 
 /*
  * WM8350 Platform data.
@@ -593,28 +593,28 @@
  * Please see WM8350 datasheet for information.
  */
 struct wm8350_audio_platform_data {
-	int vmid_discharge_msecs;	/* VMID --> OFF discharge time */
-	int drain_msecs;	/* OFF drain time */
-	int cap_discharge_msecs;	/* Cap ON (from OFF) discharge time */
-	int vmid_charge_msecs;	/* vmid power up time */
-	u32 vmid_s_curve:2;	/* vmid enable s curve speed */
-	u32 dis_out4:2;		/* out4 discharge speed */
-	u32 dis_out3:2;		/* out3 discharge speed */
-	u32 dis_out2:2;		/* out2 discharge speed */
-	u32 dis_out1:2;		/* out1 discharge speed */
-	u32 vroi_out4:1;	/* out4 tie off */
-	u32 vroi_out3:1;	/* out3 tie off */
-	u32 vroi_out2:1;	/* out2 tie off */
-	u32 vroi_out1:1;	/* out1 tie off */
-	u32 vroi_enable:1;	/* enable tie off */
-	u32 codec_current_on:2;	/* current level ON */
-	u32 codec_current_standby:2;	/* current level STANDBY */
-	u32 codec_current_charge:2;	/* codec current @ vmid charge */
+  int vmid_discharge_msecs; /* VMID --> OFF discharge time */
+  int drain_msecs;  /* OFF drain time */
+  int cap_discharge_msecs;  /* Cap ON (from OFF) discharge time */
+  int vmid_charge_msecs;  /* vmid power up time */
+  u32 vmid_s_curve : 2; /* vmid enable s curve speed */
+  u32 dis_out4 : 2;   /* out4 discharge speed */
+  u32 dis_out3 : 2;   /* out3 discharge speed */
+  u32 dis_out2 : 2;   /* out2 discharge speed */
+  u32 dis_out1 : 2;   /* out1 discharge speed */
+  u32 vroi_out4 : 1;  /* out4 tie off */
+  u32 vroi_out3 : 1;  /* out3 tie off */
+  u32 vroi_out2 : 1;  /* out2 tie off */
+  u32 vroi_out1 : 1;  /* out1 tie off */
+  u32 vroi_enable : 1;  /* enable tie off */
+  u32 codec_current_on : 2; /* current level ON */
+  u32 codec_current_standby : 2;  /* current level STANDBY */
+  u32 codec_current_charge : 2; /* codec current @ vmid charge */
 };
 
 struct wm8350_codec {
-	struct platform_device *pdev;
-	struct wm8350_audio_platform_data *platform_data;
+  struct platform_device *pdev;
+  struct wm8350_audio_platform_data *platform_data;
 };
 
 #endif

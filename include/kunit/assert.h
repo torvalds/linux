@@ -24,8 +24,8 @@ struct string_stream;
  * represents an expectation or an assertion.
  */
 enum kunit_assert_type {
-	KUNIT_ASSERTION,
-	KUNIT_EXPECTATION,
+  KUNIT_ASSERTION,
+  KUNIT_EXPECTATION,
 };
 
 /**
@@ -34,8 +34,8 @@ enum kunit_assert_type {
  * @file: the file name.
  */
 struct kunit_loc {
-	int line;
-	const char *file;
+  int line;
+  const char *file;
 };
 
 #define KUNIT_CURRENT_LOC { .file = __FILE__, .line = __LINE__ }
@@ -49,12 +49,12 @@ struct kunit_loc {
 struct kunit_assert {};
 
 typedef void (*assert_format_t)(const struct kunit_assert *assert,
-				const struct va_format *message,
-				struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 void kunit_assert_prologue(const struct kunit_loc *loc,
-			   enum kunit_assert_type type,
-			   struct string_stream *stream);
+    enum kunit_assert_type type,
+    struct string_stream *stream);
 
 /**
  * struct kunit_fail_assert - Represents a plain fail expectation/assertion.
@@ -63,12 +63,12 @@ void kunit_assert_prologue(const struct kunit_loc *loc,
  * Represents a simple KUNIT_FAIL/KUNIT_ASSERT_FAILURE that always fails.
  */
 struct kunit_fail_assert {
-	struct kunit_assert assert;
+  struct kunit_assert assert;
 };
 
 void kunit_fail_assert_format(const struct kunit_assert *assert,
-			      const struct va_format *message,
-			      struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 /**
  * struct kunit_unary_assert - Represents a KUNIT_{EXPECT|ASSERT}_{TRUE|FALSE}
@@ -81,18 +81,18 @@ void kunit_fail_assert_format(const struct kunit_assert *assert,
  * KUNIT_{EXPECT|ASSERT}_{TRUE|FALSE}
  */
 struct kunit_unary_assert {
-	struct kunit_assert assert;
-	const char *condition;
-	bool expected_true;
+  struct kunit_assert assert;
+  const char *condition;
+  bool expected_true;
 };
 
 void kunit_unary_assert_format(const struct kunit_assert *assert,
-			       const struct va_format *message,
-			       struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 /**
  * struct kunit_ptr_not_err_assert - An expectation/assertion that a pointer is
- *	not NULL and not a -errno.
+ *  not NULL and not a -errno.
  * @assert: The parent of this type.
  * @text: A string representation of the expression passed to the expectation.
  * @value: The actual evaluated pointer value of the expression.
@@ -101,31 +101,31 @@ void kunit_unary_assert_format(const struct kunit_assert *assert,
  * not contain a -errno. (See IS_ERR_OR_NULL().)
  */
 struct kunit_ptr_not_err_assert {
-	struct kunit_assert assert;
-	const char *text;
-	const void *value;
+  struct kunit_assert assert;
+  const char *text;
+  const void *value;
 };
 
 void kunit_ptr_not_err_assert_format(const struct kunit_assert *assert,
-				     const struct va_format *message,
-				     struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 /**
  * struct kunit_binary_assert_text - holds strings for &struct
- *	kunit_binary_assert and friends to try and make the structs smaller.
+ *  kunit_binary_assert and friends to try and make the structs smaller.
  * @operation: A string representation of the comparison operator (e.g. "==").
  * @left_text: A string representation of the left expression (e.g. "2+2").
  * @right_text: A string representation of the right expression (e.g. "2+2").
  */
 struct kunit_binary_assert_text {
-	const char *operation;
-	const char *left_text;
-	const char *right_text;
+  const char *operation;
+  const char *left_text;
+  const char *right_text;
 };
 
 /**
  * struct kunit_binary_assert - An expectation/assertion that compares two
- *	non-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
+ *  non-pointer values (for example, KUNIT_EXPECT_EQ(test, 1 + 1, 2)).
  * @assert: The parent of this type.
  * @text: Holds the textual representations of the operands and op (e.g.  "==").
  * @left_value: The actual evaluated value of the expression in the left slot.
@@ -136,19 +136,19 @@ struct kunit_binary_assert_text {
  * KUNIT_EXPECT_EQ(test, 1 + 1, 2);
  */
 struct kunit_binary_assert {
-	struct kunit_assert assert;
-	const struct kunit_binary_assert_text *text;
-	long long left_value;
-	long long right_value;
+  struct kunit_assert assert;
+  const struct kunit_binary_assert_text *text;
+  long long left_value;
+  long long right_value;
 };
 
 void kunit_binary_assert_format(const struct kunit_assert *assert,
-				const struct va_format *message,
-				struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 /**
  * struct kunit_binary_ptr_assert - An expectation/assertion that compares two
- *	pointer values (for example, KUNIT_EXPECT_PTR_EQ(test, foo, bar)).
+ *  pointer values (for example, KUNIT_EXPECT_PTR_EQ(test, foo, bar)).
  * @assert: The parent of this type.
  * @text: Holds the textual representations of the operands and op (e.g.  "==").
  * @left_value: The actual evaluated value of the expression in the left slot.
@@ -159,19 +159,19 @@ void kunit_binary_assert_format(const struct kunit_assert *assert,
  * expectation KUNIT_EXPECT_PTR_EQ(test, foo, bar);
  */
 struct kunit_binary_ptr_assert {
-	struct kunit_assert assert;
-	const struct kunit_binary_assert_text *text;
-	const void *left_value;
-	const void *right_value;
+  struct kunit_assert assert;
+  const struct kunit_binary_assert_text *text;
+  const void *left_value;
+  const void *right_value;
 };
 
 void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
-				    const struct va_format *message,
-				    struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 /**
  * struct kunit_binary_str_assert - An expectation/assertion that compares two
- *	string values (for example, KUNIT_EXPECT_STREQ(test, foo, "bar")).
+ *  string values (for example, KUNIT_EXPECT_STREQ(test, foo, "bar")).
  * @assert: The parent of this type.
  * @text: Holds the textual representations of the operands and comparator.
  * @left_value: The actual evaluated value of the expression in the left slot.
@@ -182,19 +182,19 @@ void kunit_binary_ptr_assert_format(const struct kunit_assert *assert,
  * expectation KUNIT_EXPECT_STREQ(test, foo, "bar");
  */
 struct kunit_binary_str_assert {
-	struct kunit_assert assert;
-	const struct kunit_binary_assert_text *text;
-	const char *left_value;
-	const char *right_value;
+  struct kunit_assert assert;
+  const struct kunit_binary_assert_text *text;
+  const char *left_value;
+  const char *right_value;
 };
 
 void kunit_binary_str_assert_format(const struct kunit_assert *assert,
-				    const struct va_format *message,
-				    struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 /**
  * struct kunit_mem_assert - An expectation/assertion that compares two
- *	memory blocks.
+ *  memory blocks.
  * @assert: The parent of this type.
  * @text: Holds the textual representations of the operands and comparator.
  * @left_value: The actual evaluated value of the expression in the left slot.
@@ -207,15 +207,15 @@ void kunit_binary_str_assert_format(const struct kunit_assert *assert,
  * KUNIT_EXPECT_MEMEQ(test, foo, bar, 3);
  */
 struct kunit_mem_assert {
-	struct kunit_assert assert;
-	const struct kunit_binary_assert_text *text;
-	const void *left_value;
-	const void *right_value;
-	const size_t size;
+  struct kunit_assert assert;
+  const struct kunit_binary_assert_text *text;
+  const void *left_value;
+  const void *right_value;
+  const size_t size;
 };
 
 void kunit_mem_assert_format(const struct kunit_assert *assert,
-			     const struct va_format *message,
-			     struct string_stream *stream);
+    const struct va_format *message,
+    struct string_stream *stream);
 
 #endif /*  _KUNIT_ASSERT_H */

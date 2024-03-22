@@ -20,9 +20,9 @@
  * When CONFIG_BOOGER is not defined, we generate a (... 1, 0) pair, and when
  * the last step cherry picks the 2nd arg, we get a zero.
  */
-#define __is_defined(x)			___is_defined(x)
-#define ___is_defined(val)		____is_defined(__ARG_PLACEHOLDER_##val)
-#define ____is_defined(arg1_or_junk)	__take_second_arg(arg1_or_junk 1, 0)
+#define __is_defined(x)     ___is_defined(x)
+#define ___is_defined(val)    ____is_defined(__ARG_PLACEHOLDER_ ## val)
+#define ____is_defined(arg1_or_junk)  __take_second_arg(arg1_or_junk 1, 0)
 
 /*
  * IS_BUILTIN(CONFIG_FOO) evaluates to 1 if CONFIG_FOO is set to 'y', 0

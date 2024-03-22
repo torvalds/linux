@@ -17,7 +17,7 @@ struct input_id;
 struct regmap;
 
 int goodix_berlin_probe(struct device *dev, int irq, const struct input_id *id,
-			struct regmap *regmap);
+    struct regmap *regmap);
 
 extern const struct dev_pm_ops goodix_berlin_pm_ops;
 

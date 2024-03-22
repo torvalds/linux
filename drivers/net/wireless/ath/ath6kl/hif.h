@@ -43,7 +43,7 @@
 
 /* version 1 of the chip has only a 12K extended mbox range */
 #define HIF_MBOX0_EXT_BASE_ADDR  0x4000
-#define HIF_MBOX0_EXT_WIDTH      (12*1024)
+#define HIF_MBOX0_EXT_WIDTH      (12 * 1024)
 
 /* GMBOX addresses */
 #define HIF_GMBOX_BASE_ADDR                0x7000
@@ -56,7 +56,7 @@
 #define SDIO_IRQ_MODE_ASYNC_4BIT_IRQ   (1 << 0)
 
 /* HTC runs over mailbox 0 */
-#define HTC_MAILBOX	0
+#define HTC_MAILBOX 0
 
 #define ATH6KL_TARGET_DEBUG_INTR_MASK     0x01
 
@@ -65,22 +65,22 @@
 #define ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER      (16 * 1024)
 #define ATH6KL_SCATTER_REQS                       4
 
-#define ATH6KL_HIF_COMMUNICATION_TIMEOUT	1000
+#define ATH6KL_HIF_COMMUNICATION_TIMEOUT  1000
 
 struct bus_request {
-	struct list_head list;
+  struct list_head list;
 
-	/* request data */
-	u32 address;
+  /* request data */
+  u32 address;
 
-	u8 *buffer;
-	u32 length;
-	u32 request;
-	struct htc_packet *packet;
-	int status;
+  u8 *buffer;
+  u32 length;
+  u32 request;
+  struct htc_packet *packet;
+  int status;
 
-	/* this is a scatter request */
-	struct hif_scatter_req *scat_req;
+  /* this is a scatter request */
+  struct hif_scatter_req *scat_req;
 };
 
 /* direction of transfer (read/write) */
@@ -124,145 +124,145 @@ struct bus_request {
  */
 #define HIF_FIXED_ADDRESS           0x00000100
 #define HIF_INCREMENTAL_ADDRESS     0x00000200
-#define HIF_AMODE_MASK		  (HIF_FIXED_ADDRESS | HIF_INCREMENTAL_ADDRESS)
+#define HIF_AMODE_MASK      (HIF_FIXED_ADDRESS | HIF_INCREMENTAL_ADDRESS)
 
-#define HIF_WR_ASYNC_BYTE_INC					\
-	(HIF_WRITE | HIF_ASYNCHRONOUS |				\
-	 HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
+#define HIF_WR_ASYNC_BYTE_INC         \
+  (HIF_WRITE | HIF_ASYNCHRONOUS         \
+  | HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
 
-#define HIF_WR_ASYNC_BLOCK_INC					\
-	(HIF_WRITE | HIF_ASYNCHRONOUS |				\
-	 HIF_BLOCK_BASIS | HIF_INCREMENTAL_ADDRESS)
+#define HIF_WR_ASYNC_BLOCK_INC          \
+  (HIF_WRITE | HIF_ASYNCHRONOUS         \
+  | HIF_BLOCK_BASIS | HIF_INCREMENTAL_ADDRESS)
 
-#define HIF_WR_SYNC_BYTE_FIX					\
-	(HIF_WRITE | HIF_SYNCHRONOUS |				\
-	 HIF_BYTE_BASIS | HIF_FIXED_ADDRESS)
+#define HIF_WR_SYNC_BYTE_FIX          \
+  (HIF_WRITE | HIF_SYNCHRONOUS          \
+  | HIF_BYTE_BASIS | HIF_FIXED_ADDRESS)
 
-#define HIF_WR_SYNC_BYTE_INC					\
-	(HIF_WRITE | HIF_SYNCHRONOUS |				\
-	 HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
+#define HIF_WR_SYNC_BYTE_INC          \
+  (HIF_WRITE | HIF_SYNCHRONOUS          \
+  | HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
 
-#define HIF_WR_SYNC_BLOCK_INC					\
-	(HIF_WRITE | HIF_SYNCHRONOUS |				\
-	 HIF_BLOCK_BASIS | HIF_INCREMENTAL_ADDRESS)
+#define HIF_WR_SYNC_BLOCK_INC         \
+  (HIF_WRITE | HIF_SYNCHRONOUS          \
+  | HIF_BLOCK_BASIS | HIF_INCREMENTAL_ADDRESS)
 
-#define HIF_RD_SYNC_BYTE_INC						\
-	(HIF_READ | HIF_SYNCHRONOUS |					\
-	 HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
+#define HIF_RD_SYNC_BYTE_INC            \
+  (HIF_READ | HIF_SYNCHRONOUS           \
+  | HIF_BYTE_BASIS | HIF_INCREMENTAL_ADDRESS)
 
-#define HIF_RD_SYNC_BYTE_FIX						\
-	(HIF_READ | HIF_SYNCHRONOUS |					\
-	 HIF_BYTE_BASIS | HIF_FIXED_ADDRESS)
+#define HIF_RD_SYNC_BYTE_FIX            \
+  (HIF_READ | HIF_SYNCHRONOUS           \
+  | HIF_BYTE_BASIS | HIF_FIXED_ADDRESS)
 
-#define HIF_RD_ASYNC_BLOCK_FIX						\
-	(HIF_READ | HIF_ASYNCHRONOUS |					\
-	 HIF_BLOCK_BASIS | HIF_FIXED_ADDRESS)
+#define HIF_RD_ASYNC_BLOCK_FIX            \
+  (HIF_READ | HIF_ASYNCHRONOUS            \
+  | HIF_BLOCK_BASIS | HIF_FIXED_ADDRESS)
 
-#define HIF_RD_SYNC_BLOCK_FIX						\
-	(HIF_READ | HIF_SYNCHRONOUS |					\
-	 HIF_BLOCK_BASIS | HIF_FIXED_ADDRESS)
+#define HIF_RD_SYNC_BLOCK_FIX           \
+  (HIF_READ | HIF_SYNCHRONOUS           \
+  | HIF_BLOCK_BASIS | HIF_FIXED_ADDRESS)
 
 struct hif_scatter_item {
-	u8 *buf;
-	int len;
-	struct htc_packet *packet;
+  u8 *buf;
+  int len;
+  struct htc_packet *packet;
 };
 
 struct hif_scatter_req {
-	struct list_head list;
-	/* address for the read/write operation */
-	u32 addr;
+  struct list_head list;
+  /* address for the read/write operation */
+  u32 addr;
 
-	/* request flags */
-	u32 req;
+  /* request flags */
+  u32 req;
 
-	/* total length of entire transfer */
-	u32 len;
+  /* total length of entire transfer */
+  u32 len;
 
-	bool virt_scat;
+  bool virt_scat;
 
-	void (*complete) (struct htc_target *, struct hif_scatter_req *);
-	int status;
-	int scat_entries;
+  void (*complete)(struct htc_target *, struct hif_scatter_req *);
+  int status;
+  int scat_entries;
 
-	struct bus_request *busrequest;
-	struct scatterlist *sgentries;
+  struct bus_request *busrequest;
+  struct scatterlist *sgentries;
 
-	/* bounce buffer for upper layers to copy to/from */
-	u8 *virt_dma_buf;
+  /* bounce buffer for upper layers to copy to/from */
+  u8 *virt_dma_buf;
 
-	u32 scat_q_depth;
+  u32 scat_q_depth;
 
-	struct hif_scatter_item scat_list[];
+  struct hif_scatter_item scat_list[];
 };
 
 struct ath6kl_irq_proc_registers {
-	u8 host_int_status;
-	u8 cpu_int_status;
-	u8 error_int_status;
-	u8 counter_int_status;
-	u8 mbox_frame;
-	u8 rx_lkahd_valid;
-	u8 host_int_status2;
-	u8 gmbox_rx_avail;
-	__le32 rx_lkahd[2];
-	__le32 rx_gmbox_lkahd_alias[2];
+  u8 host_int_status;
+  u8 cpu_int_status;
+  u8 error_int_status;
+  u8 counter_int_status;
+  u8 mbox_frame;
+  u8 rx_lkahd_valid;
+  u8 host_int_status2;
+  u8 gmbox_rx_avail;
+  __le32 rx_lkahd[2];
+  __le32 rx_gmbox_lkahd_alias[2];
 } __packed;
 
 struct ath6kl_irq_enable_reg {
-	u8 int_status_en;
-	u8 cpu_int_status_en;
-	u8 err_int_status_en;
-	u8 cntr_int_status_en;
+  u8 int_status_en;
+  u8 cpu_int_status_en;
+  u8 err_int_status_en;
+  u8 cntr_int_status_en;
 } __packed;
 
 struct ath6kl_device {
-	/* protects irq_proc_reg and irq_en_reg below */
-	spinlock_t lock;
-	struct ath6kl_irq_proc_registers irq_proc_reg;
-	struct ath6kl_irq_enable_reg irq_en_reg;
-	struct htc_target *htc_cnxt;
-	struct ath6kl *ar;
+  /* protects irq_proc_reg and irq_en_reg below */
+  spinlock_t lock;
+  struct ath6kl_irq_proc_registers irq_proc_reg;
+  struct ath6kl_irq_enable_reg irq_en_reg;
+  struct htc_target *htc_cnxt;
+  struct ath6kl *ar;
 };
 
 struct ath6kl_hif_ops {
-	int (*read_write_sync)(struct ath6kl *ar, u32 addr, u8 *buf,
-			       u32 len, u32 request);
-	int (*write_async)(struct ath6kl *ar, u32 address, u8 *buffer,
-			   u32 length, u32 request, struct htc_packet *packet);
+  int (*read_write_sync)(struct ath6kl *ar, u32 addr, u8 *buf,
+      u32 len, u32 request);
+  int (*write_async)(struct ath6kl *ar, u32 address, u8 *buffer,
+      u32 length, u32 request, struct htc_packet *packet);
 
-	void (*irq_enable)(struct ath6kl *ar);
-	void (*irq_disable)(struct ath6kl *ar);
+  void (*irq_enable)(struct ath6kl *ar);
+  void (*irq_disable)(struct ath6kl *ar);
 
-	struct hif_scatter_req *(*scatter_req_get)(struct ath6kl *ar);
-	void (*scatter_req_add)(struct ath6kl *ar,
-				struct hif_scatter_req *s_req);
-	int (*enable_scatter)(struct ath6kl *ar);
-	int (*scat_req_rw) (struct ath6kl *ar,
-			    struct hif_scatter_req *scat_req);
-	void (*cleanup_scatter)(struct ath6kl *ar);
-	int (*suspend)(struct ath6kl *ar, struct cfg80211_wowlan *wow);
-	int (*resume)(struct ath6kl *ar);
-	int (*diag_read32)(struct ath6kl *ar, u32 address, u32 *value);
-	int (*diag_write32)(struct ath6kl *ar, u32 address, __le32 value);
-	int (*bmi_read)(struct ath6kl *ar, u8 *buf, u32 len);
-	int (*bmi_write)(struct ath6kl *ar, u8 *buf, u32 len);
-	int (*power_on)(struct ath6kl *ar);
-	int (*power_off)(struct ath6kl *ar);
-	void (*stop)(struct ath6kl *ar);
-	int (*pipe_send)(struct ath6kl *ar, u8 pipe, struct sk_buff *hdr_buf,
-			 struct sk_buff *buf);
-	void (*pipe_get_default)(struct ath6kl *ar, u8 *pipe_ul, u8 *pipe_dl);
-	int (*pipe_map_service)(struct ath6kl *ar, u16 service_id, u8 *pipe_ul,
-				u8 *pipe_dl);
-	u16 (*pipe_get_free_queue_number)(struct ath6kl *ar, u8 pipe);
+  struct hif_scatter_req *(*scatter_req_get)(struct ath6kl *ar);
+  void (*scatter_req_add)(struct ath6kl *ar,
+      struct hif_scatter_req *s_req);
+  int (*enable_scatter)(struct ath6kl *ar);
+  int (*scat_req_rw)(struct ath6kl *ar,
+      struct hif_scatter_req *scat_req);
+  void (*cleanup_scatter)(struct ath6kl *ar);
+  int (*suspend)(struct ath6kl *ar, struct cfg80211_wowlan *wow);
+  int (*resume)(struct ath6kl *ar);
+  int (*diag_read32)(struct ath6kl *ar, u32 address, u32 *value);
+  int (*diag_write32)(struct ath6kl *ar, u32 address, __le32 value);
+  int (*bmi_read)(struct ath6kl *ar, u8 *buf, u32 len);
+  int (*bmi_write)(struct ath6kl *ar, u8 *buf, u32 len);
+  int (*power_on)(struct ath6kl *ar);
+  int (*power_off)(struct ath6kl *ar);
+  void (*stop)(struct ath6kl *ar);
+  int (*pipe_send)(struct ath6kl *ar, u8 pipe, struct sk_buff *hdr_buf,
+      struct sk_buff *buf);
+  void (*pipe_get_default)(struct ath6kl *ar, u8 *pipe_ul, u8 *pipe_dl);
+  int (*pipe_map_service)(struct ath6kl *ar, u16 service_id, u8 *pipe_ul,
+      u8 *pipe_dl);
+  u16 (*pipe_get_free_queue_number)(struct ath6kl *ar, u8 pipe);
 };
 
 int ath6kl_hif_setup(struct ath6kl_device *dev);
 int ath6kl_hif_unmask_intrs(struct ath6kl_device *dev);
 int ath6kl_hif_mask_intrs(struct ath6kl_device *dev);
 int ath6kl_hif_poll_mboxmsg_rx(struct ath6kl_device *dev,
-			       u32 *lk_ahd, int timeout);
+    u32 *lk_ahd, int timeout);
 int ath6kl_hif_rx_control(struct ath6kl_device *dev, bool enable_rx);
 int ath6kl_hif_disable_intrs(struct ath6kl_device *dev);
 
@@ -271,6 +271,6 @@ int ath6kl_hif_intr_bh_handler(struct ath6kl *ar);
 
 /* Scatter Function and Definitions */
 int ath6kl_hif_submit_scat_req(struct ath6kl_device *dev,
-			       struct hif_scatter_req *scat_req, bool read);
+    struct hif_scatter_req *scat_req, bool read);
 
 #endif

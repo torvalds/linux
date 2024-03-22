@@ -5,8 +5,8 @@
 #include <linux/compiler.h>
 #include <uapi/linux/swab.h>
 
-unsigned long long notrace __bswapdi2(unsigned long long u)
-{
-	return ___constant_swab64(u);
+unsigned long long notrace __bswapdi2(unsigned long long u) {
+  return ___constant_swab64(u);
 }
+
 EXPORT_SYMBOL(__bswapdi2);

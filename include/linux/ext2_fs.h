@@ -25,19 +25,19 @@
 /*
  * Maximal count of links to a file
  */
-#define EXT2_LINK_MAX		32000
+#define EXT2_LINK_MAX   32000
 
-#define EXT2_SB_MAGIC_OFFSET	0x38
-#define EXT2_SB_BLOCKS_OFFSET	0x04
-#define EXT2_SB_BSIZE_OFFSET	0x18
+#define EXT2_SB_MAGIC_OFFSET  0x38
+#define EXT2_SB_BLOCKS_OFFSET 0x04
+#define EXT2_SB_BSIZE_OFFSET  0x18
 
-static inline u64 ext2_image_size(void *ext2_sb)
-{
-	__u8 *p = ext2_sb;
-	if (*(__le16 *)(p + EXT2_SB_MAGIC_OFFSET) != cpu_to_le16(EXT2_SUPER_MAGIC))
-		return 0;
-	return (u64)le32_to_cpup((__le32 *)(p + EXT2_SB_BLOCKS_OFFSET)) <<
-		le32_to_cpup((__le32 *)(p + EXT2_SB_BSIZE_OFFSET));
+static inline u64 ext2_image_size(void *ext2_sb) {
+  __u8 *p = ext2_sb;
+  if (*(__le16 *) (p + EXT2_SB_MAGIC_OFFSET) != cpu_to_le16(EXT2_SUPER_MAGIC)) {
+    return 0;
+  }
+  return (u64) le32_to_cpup((__le32 *) (p + EXT2_SB_BLOCKS_OFFSET)) <<
+    le32_to_cpup((__le32 *) (p + EXT2_SB_BSIZE_OFFSET));
 }
 
-#endif	/* _LINUX_EXT2_FS_H */
+#endif  /* _LINUX_EXT2_FS_H */

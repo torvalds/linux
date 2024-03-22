@@ -5,30 +5,30 @@
 #ifndef MPI30_IOC_H
 #define MPI30_IOC_H     1
 struct mpi3_ioc_init_request {
-	__le16                   host_tag;
-	u8                       ioc_use_only02;
-	u8                       function;
-	__le16                   ioc_use_only04;
-	u8                       ioc_use_only06;
-	u8                       msg_flags;
-	__le16                   change_count;
-	__le16                   reserved0a;
-	union mpi3_version_union    mpi_version;
-	__le64                   time_stamp;
-	u8                       reserved18;
-	u8                       who_init;
-	__le16                   reserved1a;
-	__le16                   reply_free_queue_depth;
-	__le16                   reserved1e;
-	__le64                   reply_free_queue_address;
-	__le32                   reserved28;
-	__le16                   sense_buffer_free_queue_depth;
-	__le16                   sense_buffer_length;
-	__le64                   sense_buffer_free_queue_address;
-	__le64                   driver_information_address;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
+  union mpi3_version_union mpi_version;
+  __le64 time_stamp;
+  u8 reserved18;
+  u8 who_init;
+  __le16 reserved1a;
+  __le16 reply_free_queue_depth;
+  __le16 reserved1e;
+  __le64 reply_free_queue_address;
+  __le32 reserved28;
+  __le16 sense_buffer_free_queue_depth;
+  __le16 sense_buffer_length;
+  __le64 sense_buffer_free_queue_address;
+  __le64 driver_information_address;
 };
 
-#define MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED	(0x04)
+#define MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED (0x04)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_MASK          (0x03)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_NOT_USED      (0x00)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_SEPARATED     (0x01)
@@ -40,67 +40,67 @@ struct mpi3_ioc_init_request {
 #define MPI3_WHOINIT_MANUFACTURER                        (0x04)
 
 struct mpi3_ioc_facts_request {
-	__le16                 host_tag;
-	u8                     ioc_use_only02;
-	u8                     function;
-	__le16                 ioc_use_only04;
-	u8                     ioc_use_only06;
-	u8                     msg_flags;
-	__le16                 change_count;
-	__le16                 reserved0a;
-	__le32                 reserved0c;
-	union mpi3_sge_union      sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
+  __le32 reserved0c;
+  union mpi3_sge_union sgl;
 };
 
 struct mpi3_ioc_facts_data {
-	__le16                     ioc_facts_data_length;
-	__le16                     reserved02;
-	union mpi3_version_union      mpi_version;
-	struct mpi3_comp_image_version fw_version;
-	__le32                     ioc_capabilities;
-	u8                         ioc_number;
-	u8                         who_init;
-	__le16                     max_msix_vectors;
-	__le16                     max_outstanding_requests;
-	__le16                     product_id;
-	__le16                     ioc_request_frame_size;
-	__le16                     reply_frame_size;
-	__le16                     ioc_exceptions;
-	__le16                     max_persistent_id;
-	u8                         sge_modifier_mask;
-	u8                         sge_modifier_value;
-	u8                         sge_modifier_shift;
-	u8                         protocol_flags;
-	__le16                     max_sas_initiators;
-	__le16                     max_data_length;
-	__le16                     max_sas_expanders;
-	__le16                     max_enclosures;
-	__le16                     min_dev_handle;
-	__le16                     max_dev_handle;
-	__le16                     max_pcie_switches;
-	__le16                     max_nvme;
-	__le16                     reserved38;
-	__le16                     max_vds;
-	__le16                     max_host_pds;
-	__le16                     max_adv_host_pds;
-	__le16                     max_raid_pds;
-	__le16                     max_posted_cmd_buffers;
-	__le32                     flags;
-	__le16                     max_operational_request_queues;
-	__le16                     max_operational_reply_queues;
-	__le16                     shutdown_timeout;
-	__le16                     reserved4e;
-	__le32                     diag_trace_size;
-	__le32                     diag_fw_size;
-	__le32                     diag_driver_size;
-	u8                         max_host_pd_ns_count;
-	u8                         max_adv_host_pd_ns_count;
-	u8                         max_raidpd_ns_count;
-	u8                         max_devices_per_throttle_group;
-	__le16                     io_throttle_data_length;
-	__le16                     max_io_throttle_group;
-	__le16                     io_throttle_low;
-	__le16                     io_throttle_high;
+  __le16 ioc_facts_data_length;
+  __le16 reserved02;
+  union mpi3_version_union mpi_version;
+  struct mpi3_comp_image_version fw_version;
+  __le32 ioc_capabilities;
+  u8 ioc_number;
+  u8 who_init;
+  __le16 max_msix_vectors;
+  __le16 max_outstanding_requests;
+  __le16 product_id;
+  __le16 ioc_request_frame_size;
+  __le16 reply_frame_size;
+  __le16 ioc_exceptions;
+  __le16 max_persistent_id;
+  u8 sge_modifier_mask;
+  u8 sge_modifier_value;
+  u8 sge_modifier_shift;
+  u8 protocol_flags;
+  __le16 max_sas_initiators;
+  __le16 max_data_length;
+  __le16 max_sas_expanders;
+  __le16 max_enclosures;
+  __le16 min_dev_handle;
+  __le16 max_dev_handle;
+  __le16 max_pcie_switches;
+  __le16 max_nvme;
+  __le16 reserved38;
+  __le16 max_vds;
+  __le16 max_host_pds;
+  __le16 max_adv_host_pds;
+  __le16 max_raid_pds;
+  __le16 max_posted_cmd_buffers;
+  __le32 flags;
+  __le16 max_operational_request_queues;
+  __le16 max_operational_reply_queues;
+  __le16 shutdown_timeout;
+  __le16 reserved4e;
+  __le32 diag_trace_size;
+  __le32 diag_fw_size;
+  __le32 diag_driver_size;
+  u8 max_host_pd_ns_count;
+  u8 max_adv_host_pd_ns_count;
+  u8 max_raidpd_ns_count;
+  u8 max_devices_per_throttle_group;
+  __le16 io_throttle_data_length;
+  __le16 max_io_throttle_group;
+  __le16 io_throttle_low;
+  __le16 io_throttle_high;
 };
 #define MPI3_IOCFACTS_CAPABILITY_NON_SUPERVISOR_MASK          (0x80000000)
 #define MPI3_IOCFACTS_CAPABILITY_SUPERVISOR_IOC               (0x00000000)
@@ -160,35 +160,35 @@ struct mpi3_ioc_facts_data {
 #define MPI3_IOCFACTS_IO_THROTTLE_DATA_LENGTH_NOT_REQUIRED    (0x0000)
 #define MPI3_IOCFACTS_MAX_IO_THROTTLE_GROUP_NOT_REQUIRED      (0x0000)
 struct mpi3_mgmt_passthrough_request {
-	__le16                 host_tag;
-	u8                     ioc_use_only02;
-	u8                     function;
-	__le16                 ioc_use_only04;
-	u8                     ioc_use_only06;
-	u8                     msg_flags;
-	__le16                 change_count;
-	__le16                 reserved0a;
-	__le32                 reserved0c[5];
-	union mpi3_sge_union      command_sgl;
-	union mpi3_sge_union      response_sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
+  __le32 reserved0c[5];
+  union mpi3_sge_union command_sgl;
+  union mpi3_sge_union response_sgl;
 };
 
 struct mpi3_create_request_queue_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	u8                 flags;
-	u8                 burst;
-	__le16             size;
-	__le16             queue_id;
-	__le16             reply_queue_id;
-	__le16             reserved12;
-	__le32             reserved14;
-	__le64             base_address;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 flags;
+  u8 burst;
+  __le16 size;
+  __le16 queue_id;
+  __le16 reply_queue_id;
+  __le16 reserved12;
+  __le32 reserved14;
+  __le64 base_address;
 };
 
 #define MPI3_CREATE_REQUEST_QUEUE_FLAGS_SEGMENTED_MASK          (0x80)
@@ -196,32 +196,32 @@ struct mpi3_create_request_queue_request {
 #define MPI3_CREATE_REQUEST_QUEUE_FLAGS_SEGMENTED_CONTIGUOUS    (0x00)
 #define MPI3_CREATE_REQUEST_QUEUE_SIZE_MINIMUM                  (2)
 struct mpi3_delete_request_queue_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	__le16             queue_id;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 queue_id;
 };
 
 struct mpi3_create_reply_queue_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	u8                 flags;
-	u8                 reserved0b;
-	__le16             size;
-	__le16             queue_id;
-	__le16             msix_index;
-	__le16             reserved12;
-	__le32             reserved14;
-	__le64             base_address;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 flags;
+  u8 reserved0b;
+  __le16 size;
+  __le16 queue_id;
+  __le16 msix_index;
+  __le16 reserved12;
+  __le32 reserved14;
+  __le64 base_address;
 };
 
 #define MPI3_CREATE_REPLY_QUEUE_FLAGS_SEGMENTED_MASK            (0x80)
@@ -233,25 +233,25 @@ struct mpi3_create_reply_queue_request {
 #define MPI3_CREATE_REPLY_QUEUE_FLAGS_INT_ENABLE_ENABLE         (0x01)
 #define MPI3_CREATE_REPLY_QUEUE_SIZE_MINIMUM                    (2)
 struct mpi3_delete_reply_queue_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	__le16             queue_id;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 queue_id;
 };
 
 struct mpi3_port_enable_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	__le16             reserved0a;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
 };
 
 #define MPI3_EVENT_LOG_DATA                         (0x01)
@@ -283,34 +283,34 @@ struct mpi3_port_enable_request {
 #define MPI3_EVENT_MAX_PRODUCT_SPECIFIC             (0x7f)
 #define MPI3_EVENT_NOTIFY_EVENTMASK_WORDS           (4)
 struct mpi3_event_notification_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	__le16             reserved0a;
-	__le16             sas_broadcast_primitive_masks;
-	__le16             sas_notify_primitive_masks;
-	__le32             event_masks[MPI3_EVENT_NOTIFY_EVENTMASK_WORDS];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
+  __le16 sas_broadcast_primitive_masks;
+  __le16 sas_notify_primitive_masks;
+  __le32 event_masks[MPI3_EVENT_NOTIFY_EVENTMASK_WORDS];
 };
 
 struct mpi3_event_notification_reply {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             ioc_use_only08;
-	__le16             ioc_status;
-	__le32             ioc_log_info;
-	u8                 event_data_length;
-	u8                 event;
-	__le16             ioc_change_count;
-	__le32             event_context;
-	__le32             event_data[1];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 ioc_use_only08;
+  __le16 ioc_status;
+  __le32 ioc_log_info;
+  u8 event_data_length;
+  u8 event;
+  __le16 ioc_change_count;
+  __le32 event_context;
+  __le32 event_data[1];
 };
 
 #define MPI3_EVENT_NOTIFY_MSGFLAGS_ACK_MASK                        (0x01)
@@ -320,14 +320,14 @@ struct mpi3_event_notification_reply {
 #define MPI3_EVENT_NOTIFY_MSGFLAGS_EVENT_ORIGINALITY_ORIGINAL      (0x00)
 #define MPI3_EVENT_NOTIFY_MSGFLAGS_EVENT_ORIGINALITY_REPLAY        (0x02)
 struct mpi3_event_data_gpio_interrupt {
-	u8                 gpio_num;
-	u8                 reserved01[3];
+  u8 gpio_num;
+  u8 reserved01[3];
 };
 struct mpi3_event_data_cable_management {
-	__le32             active_cable_power_requirement;
-	u8                 status;
-	u8                 receptacle_id;
-	__le16             reserved06;
+  __le32 active_cable_power_requirement;
+  u8 status;
+  u8 receptacle_id;
+  __le16 reserved06;
 };
 
 #define MPI3_EVENT_CABLE_MGMT_ACT_CABLE_PWR_INVALID     (0xffffffff)
@@ -335,39 +335,39 @@ struct mpi3_event_data_cable_management {
 #define MPI3_EVENT_CABLE_MGMT_STATUS_PRESENT                   (0x01)
 #define MPI3_EVENT_CABLE_MGMT_STATUS_DEGRADED                  (0x02)
 struct mpi3_event_ack_request {
-	__le16             host_tag;
-	u8                 ioc_use_only02;
-	u8                 function;
-	__le16             ioc_use_only04;
-	u8                 ioc_use_only06;
-	u8                 msg_flags;
-	__le16             change_count;
-	__le16             reserved0a;
-	u8                 event;
-	u8                 reserved0d[3];
-	__le32             event_context;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
+  u8 event;
+  u8 reserved0d[3];
+  __le32 event_context;
 };
 
 struct mpi3_event_data_prepare_for_reset {
-	u8                 reason_code;
-	u8                 reserved01;
-	__le16             reserved02;
+  u8 reason_code;
+  u8 reserved01;
+  __le16 reserved02;
 };
 
 #define MPI3_EVENT_PREPARE_RESET_RC_START                (0x01)
 #define MPI3_EVENT_PREPARE_RESET_RC_ABORT                (0x02)
 struct mpi3_event_data_comp_image_activation {
-	__le32            reserved00;
+  __le32 reserved00;
 };
 
 struct mpi3_event_data_device_status_change {
-	__le16             task_tag;
-	u8                 reason_code;
-	u8                 io_unit_port;
-	__le16             parent_dev_handle;
-	__le16             dev_handle;
-	__le64             wwid;
-	u8                 lun[8];
+  __le16 task_tag;
+  u8 reason_code;
+  u8 io_unit_port;
+  __le16 parent_dev_handle;
+  __le16 dev_handle;
+  __le64 wwid;
+  u8 lun[8];
 };
 
 #define MPI3_EVENT_DEV_STAT_RC_MOVED                                (0x01)
@@ -385,17 +385,17 @@ struct mpi3_event_data_device_status_change {
 #define MPI3_EVENT_DEV_STAT_RC_EXPANDER_REDUCED_FUNC_CMP            (0x41)
 #define MPI3_EVENT_DEV_STAT_RC_VD_NOT_RESPONDING                    (0x50)
 struct mpi3_event_data_energy_pack_change {
-	__le32             reserved00;
-	__le16             shutdown_timeout;
-	__le16             reserved06;
+  __le32 reserved00;
+  __le16 shutdown_timeout;
+  __le16 reserved06;
 };
 
 struct mpi3_event_data_sas_discovery {
-	u8                 flags;
-	u8                 reason_code;
-	u8                 io_unit_port;
-	u8                 reserved03;
-	__le32             discovery_status;
+  u8 flags;
+  u8 reason_code;
+  u8 io_unit_port;
+  u8 reserved03;
+  __le32 discovery_status;
 };
 
 #define MPI3_EVENT_SAS_DISC_FLAGS_DEVICE_CHANGE                 (0x02)
@@ -424,10 +424,10 @@ struct mpi3_event_data_sas_discovery {
 #define MPI3_SAS_DISC_STATUS_INVALID_SAS_ADDRESS              (0x00000002)
 #define MPI3_SAS_DISC_STATUS_LOOP_DETECTED                    (0x00000001)
 struct mpi3_event_data_sas_broadcast_primitive {
-	u8                 phy_num;
-	u8                 io_unit_port;
-	u8                 port_width;
-	u8                 primitive;
+  u8 phy_num;
+  u8 io_unit_port;
+  u8 port_width;
+  u8 primitive;
 };
 
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_CHANGE                 (0x01)
@@ -439,10 +439,10 @@ struct mpi3_event_data_sas_broadcast_primitive {
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_CHANGE0_RESERVED       (0x07)
 #define MPI3_EVENT_BROADCAST_PRIMITIVE_CHANGE1_RESERVED       (0x08)
 struct mpi3_event_data_sas_notify_primitive {
-	u8                 phy_num;
-	u8                 io_unit_port;
-	u8                 reserved02;
-	u8                 primitive;
+  u8 phy_num;
+  u8 io_unit_port;
+  u8 reserved02;
+  u8 primitive;
 };
 
 #define MPI3_EVENT_NOTIFY_PRIMITIVE_ENABLE_SPINUP         (0x01)
@@ -453,9 +453,9 @@ struct mpi3_event_data_sas_notify_primitive {
 #define MPI3_EVENT_SAS_TOPO_PHY_COUNT           (1)
 #endif
 struct mpi3_event_sas_topo_phy_entry {
-	__le16             attached_dev_handle;
-	u8                 link_rate;
-	u8                 status;
+  __le16 attached_dev_handle;
+  u8 link_rate;
+  u8 status;
 };
 
 #define MPI3_EVENT_SAS_TOPO_LR_CURRENT_MASK                 (0xf0)
@@ -484,15 +484,15 @@ struct mpi3_event_sas_topo_phy_entry {
 #define MPI3_EVENT_SAS_TOPO_PHY_RC_DELAY_NOT_RESPONDING     (0x05)
 #define MPI3_EVENT_SAS_TOPO_PHY_RC_RESPONDING               (0x06)
 struct mpi3_event_data_sas_topology_change_list {
-	__le16                             enclosure_handle;
-	__le16                             expander_dev_handle;
-	u8                                 num_phys;
-	u8                                 reserved05[3];
-	u8                                 num_entries;
-	u8                                 start_phy_num;
-	u8                                 exp_status;
-	u8                                 io_unit_port;
-	struct mpi3_event_sas_topo_phy_entry   phy_entry[MPI3_EVENT_SAS_TOPO_PHY_COUNT];
+  __le16 enclosure_handle;
+  __le16 expander_dev_handle;
+  u8 num_phys;
+  u8 reserved05[3];
+  u8 num_entries;
+  u8 start_phy_num;
+  u8 exp_status;
+  u8 io_unit_port;
+  struct mpi3_event_sas_topo_phy_entry phy_entry[MPI3_EVENT_SAS_TOPO_PHY_COUNT];
 };
 
 #define MPI3_EVENT_SAS_TOPO_ES_NO_EXPANDER              (0x00)
@@ -500,37 +500,37 @@ struct mpi3_event_data_sas_topology_change_list {
 #define MPI3_EVENT_SAS_TOPO_ES_RESPONDING               (0x03)
 #define MPI3_EVENT_SAS_TOPO_ES_DELAY_NOT_RESPONDING     (0x04)
 struct mpi3_event_data_sas_phy_counter {
-	__le64             time_stamp;
-	__le32             reserved08;
-	u8                 phy_event_code;
-	u8                 phy_num;
-	__le16             reserved0e;
-	__le32             phy_event_info;
-	u8                 counter_type;
-	u8                 threshold_window;
-	u8                 time_units;
-	u8                 reserved17;
-	__le32             event_threshold;
-	__le16             threshold_flags;
-	__le16             reserved1e;
+  __le64 time_stamp;
+  __le32 reserved08;
+  u8 phy_event_code;
+  u8 phy_num;
+  __le16 reserved0e;
+  __le32 phy_event_info;
+  u8 counter_type;
+  u8 threshold_window;
+  u8 time_units;
+  u8 reserved17;
+  __le32 event_threshold;
+  __le16 threshold_flags;
+  __le16 reserved1e;
 };
 
 struct mpi3_event_data_sas_device_disc_err {
-	__le16             dev_handle;
-	u8                 reason_code;
-	u8                 io_unit_port;
-	__le32             reserved04;
-	__le64             sas_address;
+  __le16 dev_handle;
+  u8 reason_code;
+  u8 io_unit_port;
+  __le32 reserved04;
+  __le64 sas_address;
 };
 
 #define MPI3_EVENT_SAS_DISC_ERR_RC_SMP_FAILED          (0x01)
 #define MPI3_EVENT_SAS_DISC_ERR_RC_SMP_TIMEOUT         (0x02)
 struct mpi3_event_data_pcie_enumeration {
-	u8                 flags;
-	u8                 reason_code;
-	u8                 io_unit_port;
-	u8                 reserved03;
-	__le32             enumeration_status;
+  u8 flags;
+  u8 reason_code;
+  u8 io_unit_port;
+  u8 reserved03;
+  __le32 enumeration_status;
 };
 
 #define MPI3_EVENT_PCIE_ENUM_FLAGS_DEVICE_CHANGE            (0x02)
@@ -545,13 +545,13 @@ struct mpi3_event_data_pcie_enumeration {
 #define MPI3_EVENT_PCIE_TOPO_PORT_COUNT         (1)
 #endif
 struct mpi3_event_pcie_topo_port_entry {
-	__le16             attached_dev_handle;
-	u8                 port_status;
-	u8                 reserved03;
-	u8                 current_port_info;
-	u8                 reserved05;
-	u8                 previous_port_info;
-	u8                 reserved07;
+  __le16 attached_dev_handle;
+  u8 port_status;
+  u8 reserved03;
+  u8 current_port_info;
+  u8 reserved05;
+  u8 previous_port_info;
+  u8 reserved07;
 };
 
 #define MPI3_EVENT_PCIE_TOPO_PS_NOT_RESPONDING          (0x02)
@@ -575,16 +575,17 @@ struct mpi3_event_pcie_topo_port_entry {
 #define MPI3_EVENT_PCIE_TOPO_PI_RATE_16_0               (0x05)
 #define MPI3_EVENT_PCIE_TOPO_PI_RATE_32_0               (0x06)
 struct mpi3_event_data_pcie_topology_change_list {
-	__le16                                 enclosure_handle;
-	__le16                                 switch_dev_handle;
-	u8                                     num_ports;
-	u8                                     reserved05[3];
-	u8                                     num_entries;
-	u8                                     start_port_num;
-	u8                                     switch_status;
-	u8                                     io_unit_port;
-	__le32                                 reserved0c;
-	struct mpi3_event_pcie_topo_port_entry     port_entry[MPI3_EVENT_PCIE_TOPO_PORT_COUNT];
+  __le16 enclosure_handle;
+  __le16 switch_dev_handle;
+  u8 num_ports;
+  u8 reserved05[3];
+  u8 num_entries;
+  u8 start_port_num;
+  u8 switch_status;
+  u8 io_unit_port;
+  __le32 reserved0c;
+  struct mpi3_event_pcie_topo_port_entry port_entry[
+    MPI3_EVENT_PCIE_TOPO_PORT_COUNT];
 };
 
 #define MPI3_EVENT_PCIE_TOPO_SS_NO_PCIE_SWITCH          (0x00)
@@ -592,48 +593,48 @@ struct mpi3_event_data_pcie_topology_change_list {
 #define MPI3_EVENT_PCIE_TOPO_SS_RESPONDING              (0x03)
 #define MPI3_EVENT_PCIE_TOPO_SS_DELAY_NOT_RESPONDING    (0x04)
 struct mpi3_event_data_pcie_error_threshold {
-	__le64                                 timestamp;
-	u8                                     reason_code;
-	u8                                     port;
-	__le16                                 switch_dev_handle;
-	u8                                     error;
-	u8                                     action;
-	__le16                                 threshold_count;
-	__le16                                 attached_dev_handle;
-	__le16                                 reserved12;
-	__le32                                 reserved14;
+  __le64 timestamp;
+  u8 reason_code;
+  u8 port;
+  __le16 switch_dev_handle;
+  u8 error;
+  u8 action;
+  __le16 threshold_count;
+  __le16 attached_dev_handle;
+  __le16 reserved12;
+  __le32 reserved14;
 };
 
 #define MPI3_EVENT_PCI_ERROR_RC_THRESHOLD_EXCEEDED          (0x00)
 #define MPI3_EVENT_PCI_ERROR_RC_ESCALATION                  (0x01)
 struct mpi3_event_data_sas_init_dev_status_change {
-	u8                 reason_code;
-	u8                 io_unit_port;
-	__le16             dev_handle;
-	__le32             reserved04;
-	__le64             sas_address;
+  u8 reason_code;
+  u8 io_unit_port;
+  __le16 dev_handle;
+  __le32 reserved04;
+  __le64 sas_address;
 };
 
 #define MPI3_EVENT_SAS_INIT_RC_ADDED                (0x01)
 #define MPI3_EVENT_SAS_INIT_RC_NOT_RESPONDING       (0x02)
 struct mpi3_event_data_sas_init_table_overflow {
-	__le16             max_init;
-	__le16             current_init;
-	__le32             reserved04;
-	__le64             sas_address;
+  __le16 max_init;
+  __le16 current_init;
+  __le32 reserved04;
+  __le64 sas_address;
 };
 
 struct mpi3_event_data_hard_reset_received {
-	u8                 reserved00;
-	u8                 io_unit_port;
-	__le16             reserved02;
+  u8 reserved00;
+  u8 io_unit_port;
+  __le16 reserved02;
 };
 
 struct mpi3_event_data_diag_buffer_status_change {
-	u8                 type;
-	u8                 reason_code;
-	__le16             reserved02;
-	__le32             reserved04;
+  u8 type;
+  u8 reason_code;
+  __le16 reserved02;
+  __le32 reserved04;
 };
 
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RELEASED             (0x01)
@@ -671,42 +672,42 @@ struct mpi3_event_data_diag_buffer_status_change {
 #define MPI3_PEL_STATUS_ABORTED                         (0x02)
 #define MPI3_PEL_STATUS_NOT_READY                       (0x03)
 struct mpi3_pel_seq {
-	__le32                             newest;
-	__le32                             oldest;
-	__le32                             clear;
-	__le32                             shutdown;
-	__le32                             boot;
-	__le32                             last_acknowledged;
+  __le32 newest;
+  __le32 oldest;
+  __le32 clear;
+  __le32 shutdown;
+  __le32 boot;
+  __le32 last_acknowledged;
 };
 
 struct mpi3_pel_entry {
-	__le64                             time_stamp;
-	__le32                             sequence_number;
-	__le16                             log_code;
-	__le16                             arg_type;
-	__le16                             locale;
-	u8                                 class;
-	u8                                 flags;
-	u8                                 ext_num;
-	u8                                 num_exts;
-	u8                                 arg_data_size;
-	u8                                 fixed_format_strings_size;
-	__le32                             reserved18[2];
-	__le32                             pel_info[24];
+  __le64 time_stamp;
+  __le32 sequence_number;
+  __le16 log_code;
+  __le16 arg_type;
+  __le16 locale;
+  u8 class;
+  u8 flags;
+  u8 ext_num;
+  u8 num_exts;
+  u8 arg_data_size;
+  u8 fixed_format_strings_size;
+  __le32 reserved18[2];
+  __le32 pel_info[24];
 };
 
 #define MPI3_PEL_FLAGS_COMPLETE_RESET_NEEDED                  (0x02)
 #define MPI3_PEL_FLAGS_ACK_NEEDED                             (0x01)
 struct mpi3_pel_list {
-	__le32                             log_count;
-	__le32                             reserved04;
-	struct mpi3_pel_entry                  entry[1];
+  __le32 log_count;
+  __le32 reserved04;
+  struct mpi3_pel_entry entry[1];
 };
 
 struct mpi3_pel_arg_map {
-	u8                                 arg_type;
-	u8                                 length;
-	__le16                             start_location;
+  u8 arg_type;
+  u8 length;
+  __le16 start_location;
 };
 
 #define MPI3_PEL_ARG_MAP_ARG_TYPE_APPEND_STRING                (0x00)
@@ -714,204 +715,208 @@ struct mpi3_pel_arg_map {
 #define MPI3_PEL_ARG_MAP_ARG_TYPE_STRING                       (0x02)
 #define MPI3_PEL_ARG_MAP_ARG_TYPE_BIT_FIELD                    (0x03)
 struct mpi3_pel_print_string {
-	__le16                             log_code;
-	__le16                             string_length;
-	u8                                 num_arg_map;
-	u8                                 reserved05[3];
-	struct mpi3_pel_arg_map                arg_map[1];
+  __le16 log_code;
+  __le16 string_length;
+  u8 num_arg_map;
+  u8 reserved05[3];
+  struct mpi3_pel_arg_map arg_map[1];
 };
 
 struct mpi3_pel_print_string_list {
-	__le32                             num_print_strings;
-	__le32                             residual_bytes_remain;
-	__le32                             reserved08[2];
-	struct mpi3_pel_print_string           print_string[1];
+  __le32 num_print_strings;
+  __le32 residual_bytes_remain;
+  __le32 reserved08[2];
+  struct mpi3_pel_print_string print_string[1];
 };
 
 #ifndef MPI3_PEL_ACTION_SPECIFIC_MAX
 #define MPI3_PEL_ACTION_SPECIFIC_MAX               (1)
 #endif
 struct mpi3_pel_request {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             action_specific[MPI3_PEL_ACTION_SPECIFIC_MAX];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 action_specific[MPI3_PEL_ACTION_SPECIFIC_MAX];
 };
 
 struct mpi3_pel_req_action_get_sequence_numbers {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             reserved0c[5];
-	union mpi3_sge_union                  sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 reserved0c[5];
+  union mpi3_sge_union sgl;
 };
 
 struct mpi3_pel_req_action_clear_log_marker {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	u8                                 clear_type;
-	u8                                 reserved0d[3];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  u8 clear_type;
+  u8 reserved0d[3];
 };
 
 struct mpi3_pel_req_action_get_log {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             starting_sequence_number;
-	__le16                             locale;
-	u8                                 class;
-	u8                                 reserved13;
-	__le32                             reserved14[3];
-	union mpi3_sge_union                  sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 starting_sequence_number;
+  __le16 locale;
+  u8 class;
+  u8 reserved13;
+  __le32 reserved14[3];
+  union mpi3_sge_union sgl;
 };
 
 struct mpi3_pel_req_action_get_count {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             starting_sequence_number;
-	__le16                             locale;
-	u8                                 class;
-	u8                                 reserved13;
-	__le32                             reserved14[3];
-	union mpi3_sge_union                  sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 starting_sequence_number;
+  __le16 locale;
+  u8 class;
+  u8 reserved13;
+  __le32 reserved14[3];
+  union mpi3_sge_union sgl;
 };
 
 struct mpi3_pel_req_action_wait {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             starting_sequence_number;
-	__le16                             locale;
-	u8                                 class;
-	u8                                 reserved13;
-	__le16                             wait_time;
-	__le16                             reserved16;
-	__le32                             reserved18[2];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 starting_sequence_number;
+  __le16 locale;
+  u8 class;
+  u8 reserved13;
+  __le16 wait_time;
+  __le16 reserved16;
+  __le32 reserved18[2];
 };
 
 struct mpi3_pel_req_action_abort {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             reserved0c;
-	__le16                             abort_host_tag;
-	__le16                             reserved12;
-	__le32                             reserved14;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 reserved0c;
+  __le16 abort_host_tag;
+  __le16 reserved12;
+  __le32 reserved14;
 };
 
 struct mpi3_pel_req_action_get_print_strings {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             reserved0c;
-	__le16                             start_log_code;
-	__le16                             reserved12;
-	__le32                             reserved14[3];
-	union mpi3_sge_union                  sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 reserved0c;
+  __le16 start_log_code;
+  __le16 reserved12;
+  __le32 reserved14[3];
+  union mpi3_sge_union sgl;
 };
 
 struct mpi3_pel_req_action_acknowledge {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             sequence_number;
-	__le32                             reserved10;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 sequence_number;
+  __le32 reserved10;
 };
 
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_MASK                     (0x03)
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_NO_GUIDANCE              (0x00)
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_CONTINUE_OP              (0x01)
-#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_TRANSITION_TO_FAULT      (0x02)
+#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_MASK                     ( \
+    0x03)
+#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_NO_GUIDANCE              ( \
+    0x00)
+#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_CONTINUE_OP              ( \
+    0x01)
+#define MPI3_PELACKNOWLEDGE_MSGFLAGS_SAFE_MODE_EXIT_TRANSITION_TO_FAULT      ( \
+    0x02)
 struct mpi3_pel_reply {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             ioc_use_only08;
-	__le16                             ioc_status;
-	__le32                             ioc_log_info;
-	u8                                 action;
-	u8                                 reserved11;
-	__le16                             reserved12;
-	__le16                             pe_log_status;
-	__le16                             reserved16;
-	__le32                             transfer_length;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 ioc_use_only08;
+  __le16 ioc_status;
+  __le32 ioc_log_info;
+  u8 action;
+  u8 reserved11;
+  __le16 reserved12;
+  __le16 pe_log_status;
+  __le16 reserved16;
+  __le32 transfer_length;
 };
 
 struct mpi3_ci_download_request {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 action;
-	u8                                 reserved0b;
-	__le32                             signature1;
-	__le32                             total_image_size;
-	__le32                             image_offset;
-	__le32                             segment_size;
-	__le32                             reserved1c;
-	union mpi3_sge_union                  sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 action;
+  u8 reserved0b;
+  __le32 signature1;
+  __le32 total_image_size;
+  __le32 image_offset;
+  __le32 segment_size;
+  __le32 reserved1c;
+  union mpi3_sge_union sgl;
 };
 
 #define MPI3_CI_DOWNLOAD_MSGFLAGS_LAST_SEGMENT                 (0x80)
@@ -927,19 +932,19 @@ struct mpi3_ci_download_request {
 #define MPI3_CI_DOWNLOAD_ACTION_GET_STATUS                     (0x04)
 #define MPI3_CI_DOWNLOAD_ACTION_CANCEL_OFFLINE_ACTIVATION      (0x05)
 struct mpi3_ci_download_reply {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             ioc_use_only08;
-	__le16                             ioc_status;
-	__le32                             ioc_log_info;
-	u8                                 flags;
-	u8                                 cache_dirty;
-	u8                                 pending_count;
-	u8                                 reserved13;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 ioc_use_only08;
+  __le16 ioc_status;
+  __le32 ioc_log_info;
+  u8 flags;
+  u8 cache_dirty;
+  u8 pending_count;
+  u8 reserved13;
 };
 
 #define MPI3_CI_DOWNLOAD_FLAGS_DOWNLOAD_IN_PROGRESS                  (0x80)
@@ -953,20 +958,20 @@ struct mpi3_ci_download_reply {
 #define MPI3_CI_DOWNLOAD_FLAGS_ACTIVATION_STATUS_OFFLINE_PENDING     (0x06)
 #define MPI3_CI_DOWNLOAD_FLAGS_COMPATIBLE                            (0x01)
 struct mpi3_ci_upload_request {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	__le16                             reserved0a;
-	__le32                             signature1;
-	__le32                             reserved10;
-	__le32                             image_offset;
-	__le32                             segment_size;
-	__le32                             reserved1c;
-	union mpi3_sge_union                  sgl;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 reserved0a;
+  __le32 signature1;
+  __le32 reserved10;
+  __le32 image_offset;
+  __le32 segment_size;
+  __le32 reserved1c;
+  union mpi3_sge_union sgl;
 };
 
 #define MPI3_CI_UPLOAD_MSGFLAGS_LOCATION_MASK                        (0x01)
@@ -1031,35 +1036,35 @@ struct mpi3_ci_upload_request {
 #define MPI3_CTRL_ACTION_HARD_RESET                                  (0x02)
 #define MPI3_CTRL_ACTION_CLEAR_ERROR_LOG                             (0x05)
 struct mpi3_iounit_control_request {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             change_count;
-	u8                                 reserved0a;
-	u8                                 operation;
-	__le32                             reserved0c;
-	__le64                             param64[2];
-	__le32                             param32[4];
-	__le16                             param16[4];
-	u8                                 param8[8];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  u8 reserved0a;
+  u8 operation;
+  __le32 reserved0c;
+  __le64 param64[2];
+  __le32 param32[4];
+  __le16 param16[4];
+  u8 param8[8];
 };
 
 struct mpi3_iounit_control_reply {
-	__le16                             host_tag;
-	u8                                 ioc_use_only02;
-	u8                                 function;
-	__le16                             ioc_use_only04;
-	u8                                 ioc_use_only06;
-	u8                                 msg_flags;
-	__le16                             ioc_use_only08;
-	__le16                             ioc_status;
-	__le32                             ioc_log_info;
-	__le64                             value64[2];
-	__le32                             value32[4];
-	__le16                             value16[4];
-	u8                                 value8[8];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 ioc_use_only08;
+  __le16 ioc_status;
+  __le32 ioc_log_info;
+  __le64 value64[2];
+  __le32 value32[4];
+  __le16 value16[4];
+  u8 value8[8];
 };
 #endif

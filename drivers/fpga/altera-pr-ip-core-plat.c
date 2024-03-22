@@ -12,32 +12,30 @@
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 
-static int alt_pr_platform_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	void __iomem *reg_base;
-
-	/* First mmio base is for register access */
-	reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(reg_base))
-		return PTR_ERR(reg_base);
-
-	return alt_pr_register(dev, reg_base);
+static int alt_pr_platform_probe(struct platform_device *pdev) {
+  struct device *dev = &pdev->dev;
+  void __iomem *reg_base;
+  /* First mmio base is for register access */
+  reg_base = devm_platform_ioremap_resource(pdev, 0);
+  if (IS_ERR(reg_base)) {
+    return PTR_ERR(reg_base);
+  }
+  return alt_pr_register(dev, reg_base);
 }
 
 static const struct of_device_id alt_pr_of_match[] = {
-	{ .compatible = "altr,a10-pr-ip", },
-	{},
+  { .compatible = "altr,a10-pr-ip", },
+  {},
 };
 
 MODULE_DEVICE_TABLE(of, alt_pr_of_match);
 
 static struct platform_driver alt_pr_platform_driver = {
-	.probe = alt_pr_platform_probe,
-	.driver = {
-		.name	= "alt_a10_pr_ip",
-		.of_match_table = alt_pr_of_match,
-	},
+  .probe = alt_pr_platform_probe,
+  .driver = {
+    .name = "alt_a10_pr_ip",
+    .of_match_table = alt_pr_of_match,
+  },
 };
 
 module_platform_driver(alt_pr_platform_driver);

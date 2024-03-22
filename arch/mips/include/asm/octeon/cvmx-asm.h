@@ -91,49 +91,50 @@
  * of the cores stores to the byte.
  */
 #define CVMX_PREPARE_FOR_STORE(address, offset) \
-	asm volatile ("pref 30, " CVMX_TMP_STR(offset) "(%[rbase])" : : \
-	[rbase] "d" (address))
+  asm volatile ("pref 30, " CVMX_TMP_STR(offset) "(%[rbase])" : : \
+  [rbase] "d" (address))
 /*
  * This is a command headed to the L2 controller to tell it to clear
  * its dirty bit for a block. Basically, SW is telling HW that the
  * current version of the block will not be used.
  */
 #define CVMX_DONT_WRITE_BACK(address, offset) \
-	asm volatile ("pref 29, " CVMX_TMP_STR(offset) "(%[rbase])" : : \
-	[rbase] "d" (address))
+  asm volatile ("pref 29, " CVMX_TMP_STR(offset) "(%[rbase])" : : \
+  [rbase] "d" (address))
 
 /* flush stores, invalidate entire icache */
 #define CVMX_ICACHE_INVALIDATE \
-	{ CVMX_SYNC; asm volatile ("synci 0($0)" : : ); }
+  { CVMX_SYNC; asm volatile ("synci 0($0)" : :); }
 
 /* flush stores, invalidate entire icache */
 #define CVMX_ICACHE_INVALIDATE2 \
-	{ CVMX_SYNC; asm volatile ("cache 0, 0($0)" : : ); }
+  { CVMX_SYNC; asm volatile ("cache 0, 0($0)" : :); }
 
 /* complete prefetches, invalidate entire dcache */
 #define CVMX_DCACHE_INVALIDATE \
-	{ CVMX_SYNC; asm volatile ("cache 9, 0($0)" : : ); }
+  { CVMX_SYNC; asm volatile ("cache 9, 0($0)" : :); }
 
-#define CVMX_CACHE(op, address, offset)					\
-	asm volatile ("cache " CVMX_TMP_STR(op) ", " CVMX_TMP_STR(offset) "(%[rbase])" \
-		: : [rbase] "d" (address) )
+#define CVMX_CACHE(op, address, offset)         \
+  asm volatile ("cache " CVMX_TMP_STR(op) ", " CVMX_TMP_STR(offset) "(%[rbase])" \
+  : : [rbase] "d" (address))
 /* fetch and lock the state. */
 #define CVMX_CACHE_LCKL2(address, offset) CVMX_CACHE(31, address, offset)
 /* unlock the state. */
 #define CVMX_CACHE_WBIL2(address, offset) CVMX_CACHE(23, address, offset)
 /* invalidate the cache block and clear the USED bits for the block */
 #define CVMX_CACHE_WBIL2I(address, offset) CVMX_CACHE(3, address, offset)
-/* load virtual tag and data for the L2 cache block into L2C_TAD0_TAG register */
+/* load virtual tag and data for the L2 cache block into L2C_TAD0_TAG register
+ * */
 #define CVMX_CACHE_LTGL2I(address, offset) CVMX_CACHE(7, address, offset)
 
 #define CVMX_POP(result, input) \
-	asm ("pop %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))
+  asm ("pop %[rd],%[rs]" :[rd] "=d" (result) :[rs] "d" (input))
 #define CVMX_DPOP(result, input) \
-	asm ("dpop %[rd],%[rs]" : [rd] "=d" (result) : [rs] "d" (input))
+  asm ("dpop %[rd],%[rs]" :[rd] "=d" (result) :[rs] "d" (input))
 
 /* some new cop0-like stuff */
 #define CVMX_RDHWR(result, regstr) \
-	asm volatile ("rdhwr %[rt],$" CVMX_TMP_STR(regstr) : [rt] "=d" (result))
+  asm volatile ("rdhwr %[rt],$" CVMX_TMP_STR(regstr) : [rt] "=d" (result))
 #define CVMX_RDHWRNV(result, regstr) \
-	asm ("rdhwr %[rt],$" CVMX_TMP_STR(regstr) : [rt] "=d" (result))
+  asm ("rdhwr %[rt],$" CVMX_TMP_STR(regstr) :[rt] "=d" (result))
 #endif /* __CVMX_ASM_H__ */

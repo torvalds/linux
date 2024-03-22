@@ -5,7 +5,7 @@
 #include <linux/types.h>
 
 struct xilinx_dpdma_peripheral_config {
-	bool video_group;
+  bool video_group;
 };
 
 #endif /* __LINUX_DMA_XILINX_DPDMA_H */

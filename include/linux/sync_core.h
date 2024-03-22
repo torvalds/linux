@@ -12,10 +12,9 @@
  * If your architecture returns to user-space through non-core-serializing
  * instructions, you need to write your own functions.
  */
-static inline void sync_core_before_usermode(void)
-{
+static inline void sync_core_before_usermode(void) {
 }
+
 #endif
 
 #endif /* _LINUX_SYNC_CORE_H */
-

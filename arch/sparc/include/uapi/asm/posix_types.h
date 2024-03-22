@@ -11,46 +11,46 @@
 #if defined(__sparc__) && defined(__arch64__)
 /* sparc 64 bit */
 
-typedef unsigned short 	       __kernel_old_uid_t;
-typedef unsigned short         __kernel_old_gid_t;
+typedef unsigned short __kernel_old_uid_t;
+typedef unsigned short __kernel_old_gid_t;
 #define __kernel_old_uid_t __kernel_old_uid_t
 
 /* Note this piece of asymmetry from the v9 ABI.  */
-typedef int		       __kernel_suseconds_t;
+typedef int __kernel_suseconds_t;
 #define __kernel_suseconds_t __kernel_suseconds_t
 
-typedef long		__kernel_long_t;
-typedef unsigned long	__kernel_ulong_t;
+typedef long __kernel_long_t;
+typedef unsigned long __kernel_ulong_t;
 #define __kernel_long_t __kernel_long_t
 
 struct __kernel_old_timeval {
-	__kernel_long_t tv_sec;
-	__kernel_suseconds_t tv_usec;
+  __kernel_long_t tv_sec;
+  __kernel_suseconds_t tv_usec;
 };
 #define __kernel_old_timeval __kernel_old_timeval
 
 #else
 /* sparc 32 bit */
 
-typedef unsigned int           __kernel_size_t;
-typedef int                    __kernel_ssize_t;
-typedef long int               __kernel_ptrdiff_t;
+typedef unsigned int __kernel_size_t;
+typedef int __kernel_ssize_t;
+typedef long int __kernel_ptrdiff_t;
 #define __kernel_size_t __kernel_size_t
 
-typedef unsigned short         __kernel_ipc_pid_t;
+typedef unsigned short __kernel_ipc_pid_t;
 #define __kernel_ipc_pid_t __kernel_ipc_pid_t
 
-typedef unsigned short         __kernel_uid_t;
-typedef unsigned short         __kernel_gid_t;
+typedef unsigned short __kernel_uid_t;
+typedef unsigned short __kernel_gid_t;
 #define __kernel_uid_t __kernel_uid_t
 
-typedef unsigned short         __kernel_mode_t;
+typedef unsigned short __kernel_mode_t;
 #define __kernel_mode_t __kernel_mode_t
 
-typedef long                   __kernel_daddr_t;
+typedef long __kernel_daddr_t;
 #define __kernel_daddr_t __kernel_daddr_t
 
-typedef unsigned short	       __kernel_old_dev_t;
+typedef unsigned short __kernel_old_dev_t;
 #define __kernel_old_dev_t __kernel_old_dev_t
 
 #endif /* defined(__sparc__) && defined(__arch64__) */

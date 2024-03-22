@@ -19,13 +19,14 @@
  *  - DMB guarantees SMP as well as local barrier semantics
  *    (asm-generic/barrier.h ensures sane smp_*mb if not defined here, i.e.
  *    UP: barrier(), SMP: smp_*mb == *mb)
- *  - DSYNC provides DMB+completion_of_cache_bpu_maintenance_ops hence not needed
+ *  - DSYNC provides DMB+completion_of_cache_bpu_maintenance_ops hence not
+ * needed
  *    in the general case. Plus it only provides full barrier.
  */
 
-#define mb()	asm volatile("dmb 3\n" : : : "memory")
-#define rmb()	asm volatile("dmb 1\n" : : : "memory")
-#define wmb()	asm volatile("dmb 2\n" : : : "memory")
+#define mb()  asm volatile ("dmb 3\n" : : : "memory")
+#define rmb() asm volatile ("dmb 1\n" : : : "memory")
+#define wmb() asm volatile ("dmb 2\n" : : : "memory")
 
 #else
 
@@ -35,7 +36,7 @@
  * There are no real SMP implementations of such cores.
  */
 
-#define mb()	asm volatile("sync\n" : : : "memory")
+#define mb()  asm volatile ("sync\n" : : : "memory")
 
 #endif
 

@@ -21,7 +21,7 @@
  * Max length for ccw chain.
  * XXX: Limit to 256, need to check more?
  */
-#define CCWCHAIN_LEN_MAX	256
+#define CCWCHAIN_LEN_MAX  256
 
 /**
  * struct channel_program - manage information for channel program
@@ -34,10 +34,10 @@
  * the iova parameter when calling cp_init.
  */
 struct channel_program {
-	struct list_head ccwchain_list;
-	union orb orb;
-	bool initialized;
-	struct ccw1 *guest_cp;
+  struct list_head ccwchain_list;
+  union orb orb;
+  bool initialized;
+  struct ccw1 *guest_cp;
 };
 
 int cp_init(struct channel_program *cp, union orb *orb);

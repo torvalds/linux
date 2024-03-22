@@ -11,12 +11,12 @@
 #define _DT_BINDINGS_RESET_ALTR_RST_MGR_A10SR_H
 
 /* Peripheral PHY resets */
-#define A10SR_RESET_ENET_HPS	0
-#define A10SR_RESET_PCIE	1
-#define A10SR_RESET_FILE	2
-#define A10SR_RESET_BQSPI	3
-#define A10SR_RESET_USB		4
+#define A10SR_RESET_ENET_HPS  0
+#define A10SR_RESET_PCIE  1
+#define A10SR_RESET_FILE  2
+#define A10SR_RESET_BQSPI 3
+#define A10SR_RESET_USB   4
 
-#define A10SR_RESET_NUM		5
+#define A10SR_RESET_NUM   5
 
 #endif

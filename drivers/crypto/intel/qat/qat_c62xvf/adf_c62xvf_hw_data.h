@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
-/* Copyright(c) 2015 - 2020 Intel Corporation */
+/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+ * Copyright(c) 2015 - 2020 Intel Corporation*/
 #ifndef ADF_C62XVF_HW_DATA_H_
 #define ADF_C62XVF_HW_DATA_H_
 

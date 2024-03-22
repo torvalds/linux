@@ -23,9 +23,9 @@
 
 /* DE (Demosaic) */
 struct sh_css_isp_ecd_params {
-	s32 zip_strength;
-	s32 fc_strength;
-	s32 fc_debias;
+  s32 zip_strength;
+  s32 fc_strength;
+  s32 fc_debias;
 };
 
 #endif /* __IA_CSS_DE2_PARAM_H */

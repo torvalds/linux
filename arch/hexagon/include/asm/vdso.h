@@ -11,7 +11,7 @@
 #include <linux/types.h>
 
 struct hexagon_vdso {
-	u32 rt_signal_trampoline[2];
+  u32 rt_signal_trampoline[2];
 };
 
 #endif /* __ASM_VDSO_H */

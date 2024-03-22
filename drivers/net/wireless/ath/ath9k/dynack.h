@@ -17,7 +17,7 @@
 #ifndef DYNACK_H
 #define DYNACK_H
 
-#define ATH_DYN_BUF	64
+#define ATH_DYN_BUF 64
 
 struct ath_hw;
 struct ath_node;
@@ -29,18 +29,18 @@ struct ath_node;
  * @tstamp: ACK RX timestamp buffer
  */
 struct ath_dyn_rxbuf {
-	u16 h_rb, t_rb;
-	u32 tstamp[ATH_DYN_BUF];
+  u16 h_rb, t_rb;
+  u32 tstamp[ATH_DYN_BUF];
 };
 
 struct ts_info {
-	u32 tstamp;
-	u32 dur;
+  u32 tstamp;
+  u32 dur;
 };
 
 struct haddr_pair {
-	u8 h_dest[ETH_ALEN];
-	u8 h_src[ETH_ALEN];
+  u8 h_dest[ETH_ALEN];
+  u8 h_src[ETH_ALEN];
 };
 
 /**
@@ -51,9 +51,9 @@ struct haddr_pair {
  * @ts: TX frame timestamp buffer
  */
 struct ath_dyn_txbuf {
-	u16 h_rb, t_rb;
-	struct haddr_pair addr[ATH_DYN_BUF];
-	struct ts_info ts[ATH_DYN_BUF];
+  u16 h_rb, t_rb;
+  struct haddr_pair addr[ATH_DYN_BUF];
+  struct ts_info ts[ATH_DYN_BUF];
 };
 
 /**
@@ -67,16 +67,16 @@ struct ath_dyn_txbuf {
  * @st_rbf: status ts ring buffer
  */
 struct ath_dynack {
-	bool enabled;
-	int ackto;
-	unsigned long lto;
+  bool enabled;
+  int ackto;
+  unsigned long lto;
 
-	struct list_head nodes;
+  struct list_head nodes;
 
-	/* protect timestamp queue access */
-	spinlock_t qlock;
-	struct ath_dyn_rxbuf ack_rbf;
-	struct ath_dyn_txbuf st_rbf;
+  /* protect timestamp queue access */
+  spinlock_t qlock;
+  struct ath_dyn_rxbuf ack_rbf;
+  struct ath_dyn_txbuf st_rbf;
 };
 
 #if defined(CONFIG_ATH9K_DYNACK)
@@ -86,20 +86,30 @@ void ath_dynack_node_deinit(struct ath_hw *ah, struct ath_node *an);
 void ath_dynack_init(struct ath_hw *ah);
 void ath_dynack_sample_ack_ts(struct ath_hw *ah, struct sk_buff *skb, u32 ts);
 void ath_dynack_sample_tx_ts(struct ath_hw *ah, struct sk_buff *skb,
-			     struct ath_tx_status *ts,
-			     struct ieee80211_sta *sta);
+    struct ath_tx_status *ts,
+    struct ieee80211_sta *sta);
 #else
-static inline void ath_dynack_init(struct ath_hw *ah) {}
+static inline void ath_dynack_init(struct ath_hw *ah) {
+}
+
 static inline void ath_dynack_node_init(struct ath_hw *ah,
-					struct ath_node *an) {}
+    struct ath_node *an) {
+}
+
 static inline void ath_dynack_node_deinit(struct ath_hw *ah,
-					  struct ath_node *an) {}
+    struct ath_node *an) {
+}
+
 static inline void ath_dynack_sample_ack_ts(struct ath_hw *ah,
-					    struct sk_buff *skb, u32 ts) {}
+    struct sk_buff *skb, u32 ts) {
+}
+
 static inline void ath_dynack_sample_tx_ts(struct ath_hw *ah,
-					   struct sk_buff *skb,
-					   struct ath_tx_status *ts,
-					   struct ieee80211_sta *sta) {}
+    struct sk_buff *skb,
+    struct ath_tx_status *ts,
+    struct ieee80211_sta *sta) {
+}
+
 #endif
 
 #endif /* DYNACK_H */

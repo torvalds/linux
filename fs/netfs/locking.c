@@ -19,34 +19,33 @@
  * Must be called under a lock that serializes taking new references
  * to i_dio_count, usually by inode->i_mutex.
  */
-static int inode_dio_wait_interruptible(struct inode *inode)
-{
-	if (!atomic_read(&inode->i_dio_count))
-		return 0;
-
-	wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_DIO_WAKEUP);
-	DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
-
-	for (;;) {
-		prepare_to_wait(wq, &q.wq_entry, TASK_INTERRUPTIBLE);
-		if (!atomic_read(&inode->i_dio_count))
-			break;
-		if (signal_pending(current))
-			break;
-		schedule();
-	}
-	finish_wait(wq, &q.wq_entry);
-
-	return atomic_read(&inode->i_dio_count) ? -ERESTARTSYS : 0;
+static int inode_dio_wait_interruptible(struct inode *inode) {
+  if (!atomic_read(&inode->i_dio_count)) {
+    return 0;
+  }
+  wait_queue_head_t *wq = bit_waitqueue(&inode->i_state, __I_DIO_WAKEUP);
+  DEFINE_WAIT_BIT(q, &inode->i_state, __I_DIO_WAKEUP);
+  for (;;) {
+    prepare_to_wait(wq, &q.wq_entry, TASK_INTERRUPTIBLE);
+    if (!atomic_read(&inode->i_dio_count)) {
+      break;
+    }
+    if (signal_pending(current)) {
+      break;
+    }
+    schedule();
+  }
+  finish_wait(wq, &q.wq_entry);
+  return atomic_read(&inode->i_dio_count) ? -ERESTARTSYS : 0;
 }
 
 /* Call with exclusively locked inode->i_rwsem */
-static int netfs_block_o_direct(struct netfs_inode *ictx)
-{
-	if (!test_bit(NETFS_ICTX_ODIRECT, &ictx->flags))
-		return 0;
-	clear_bit(NETFS_ICTX_ODIRECT, &ictx->flags);
-	return inode_dio_wait_interruptible(&ictx->inode);
+static int netfs_block_o_direct(struct netfs_inode *ictx) {
+  if (!test_bit(NETFS_ICTX_ODIRECT, &ictx->flags)) {
+    return 0;
+  }
+  clear_bit(NETFS_ICTX_ODIRECT, &ictx->flags);
+  return inode_dio_wait_interruptible(&ictx->inode);
 }
 
 /**
@@ -66,26 +65,29 @@ static int netfs_block_o_direct(struct netfs_inode *ictx)
  * inode->i_rwsem, meaning that those are serialised w.r.t. the reads.
  */
 int netfs_start_io_read(struct inode *inode)
-	__acquires(inode->i_rwsem)
+__acquires(inode->i_rwsem)
 {
-	struct netfs_inode *ictx = netfs_inode(inode);
+  struct netfs_inode *ictx = netfs_inode(inode);
 
-	/* Be an optimist! */
-	if (down_read_interruptible(&inode->i_rwsem) < 0)
-		return -ERESTARTSYS;
-	if (test_bit(NETFS_ICTX_ODIRECT, &ictx->flags) == 0)
-		return 0;
-	up_read(&inode->i_rwsem);
+  /* Be an optimist! */
+  if (down_read_interruptible(&inode->i_rwsem) < 0) {
+    return -ERESTARTSYS;
+  }
+  if (test_bit(NETFS_ICTX_ODIRECT, &ictx->flags) == 0) {
+    return 0;
+  }
+  up_read(&inode->i_rwsem);
 
-	/* Slow path.... */
-	if (down_write_killable(&inode->i_rwsem) < 0)
-		return -ERESTARTSYS;
-	if (netfs_block_o_direct(ictx) < 0) {
-		up_write(&inode->i_rwsem);
-		return -ERESTARTSYS;
-	}
-	downgrade_write(&inode->i_rwsem);
-	return 0;
+  /* Slow path.... */
+  if (down_write_killable(&inode->i_rwsem) < 0) {
+    return -ERESTARTSYS;
+  }
+  if (netfs_block_o_direct(ictx) < 0) {
+    up_write(&inode->i_rwsem);
+    return -ERESTARTSYS;
+  }
+  downgrade_write(&inode->i_rwsem);
+  return 0;
 }
 EXPORT_SYMBOL(netfs_start_io_read);
 
@@ -97,9 +99,9 @@ EXPORT_SYMBOL(netfs_start_io_read);
  * lock on inode->i_rwsem.
  */
 void netfs_end_io_read(struct inode *inode)
-	__releases(inode->i_rwsem)
+__releases(inode->i_rwsem)
 {
-	up_read(&inode->i_rwsem);
+  up_read(&inode->i_rwsem);
 }
 EXPORT_SYMBOL(netfs_end_io_read);
 
@@ -111,17 +113,18 @@ EXPORT_SYMBOL(netfs_end_io_read);
  * that we block all direct I/O.
  */
 int netfs_start_io_write(struct inode *inode)
-	__acquires(inode->i_rwsem)
+__acquires(inode->i_rwsem)
 {
-	struct netfs_inode *ictx = netfs_inode(inode);
+  struct netfs_inode *ictx = netfs_inode(inode);
 
-	if (down_write_killable(&inode->i_rwsem) < 0)
-		return -ERESTARTSYS;
-	if (netfs_block_o_direct(ictx) < 0) {
-		up_write(&inode->i_rwsem);
-		return -ERESTARTSYS;
-	}
-	return 0;
+  if (down_write_killable(&inode->i_rwsem) < 0) {
+    return -ERESTARTSYS;
+  }
+  if (netfs_block_o_direct(ictx) < 0) {
+    up_write(&inode->i_rwsem);
+    return -ERESTARTSYS;
+  }
+  return 0;
 }
 EXPORT_SYMBOL(netfs_start_io_write);
 
@@ -133,30 +136,28 @@ EXPORT_SYMBOL(netfs_start_io_write);
  * lock on inode->i_rwsem.
  */
 void netfs_end_io_write(struct inode *inode)
-	__releases(inode->i_rwsem)
+__releases(inode->i_rwsem)
 {
-	up_write(&inode->i_rwsem);
+  up_write(&inode->i_rwsem);
 }
 EXPORT_SYMBOL(netfs_end_io_write);
 
 /* Call with exclusively locked inode->i_rwsem */
-static int netfs_block_buffered(struct inode *inode)
-{
-	struct netfs_inode *ictx = netfs_inode(inode);
-	int ret;
-
-	if (!test_bit(NETFS_ICTX_ODIRECT, &ictx->flags)) {
-		set_bit(NETFS_ICTX_ODIRECT, &ictx->flags);
-		if (inode->i_mapping->nrpages != 0) {
-			unmap_mapping_range(inode->i_mapping, 0, 0, 0);
-			ret = filemap_fdatawait(inode->i_mapping);
-			if (ret < 0) {
-				clear_bit(NETFS_ICTX_ODIRECT, &ictx->flags);
-				return ret;
-			}
-		}
-	}
-	return 0;
+static int netfs_block_buffered(struct inode *inode) {
+  struct netfs_inode *ictx = netfs_inode(inode);
+  int ret;
+  if (!test_bit(NETFS_ICTX_ODIRECT, &ictx->flags)) {
+    set_bit(NETFS_ICTX_ODIRECT, &ictx->flags);
+    if (inode->i_mapping->nrpages != 0) {
+      unmap_mapping_range(inode->i_mapping, 0, 0, 0);
+      ret = filemap_fdatawait(inode->i_mapping);
+      if (ret < 0) {
+        clear_bit(NETFS_ICTX_ODIRECT, &ictx->flags);
+        return ret;
+      }
+    }
+  }
+  return 0;
 }
 
 /**
@@ -176,28 +177,31 @@ static int netfs_block_buffered(struct inode *inode)
  * inode->i_rwsem, meaning that those are serialised w.r.t. O_DIRECT.
  */
 int netfs_start_io_direct(struct inode *inode)
-	__acquires(inode->i_rwsem)
+__acquires(inode->i_rwsem)
 {
-	struct netfs_inode *ictx = netfs_inode(inode);
-	int ret;
+  struct netfs_inode *ictx = netfs_inode(inode);
+  int ret;
 
-	/* Be an optimist! */
-	if (down_read_interruptible(&inode->i_rwsem) < 0)
-		return -ERESTARTSYS;
-	if (test_bit(NETFS_ICTX_ODIRECT, &ictx->flags) != 0)
-		return 0;
-	up_read(&inode->i_rwsem);
+  /* Be an optimist! */
+  if (down_read_interruptible(&inode->i_rwsem) < 0) {
+    return -ERESTARTSYS;
+  }
+  if (test_bit(NETFS_ICTX_ODIRECT, &ictx->flags) != 0) {
+    return 0;
+  }
+  up_read(&inode->i_rwsem);
 
-	/* Slow path.... */
-	if (down_write_killable(&inode->i_rwsem) < 0)
-		return -ERESTARTSYS;
-	ret = netfs_block_buffered(inode);
-	if (ret < 0) {
-		up_write(&inode->i_rwsem);
-		return ret;
-	}
-	downgrade_write(&inode->i_rwsem);
-	return 0;
+  /* Slow path.... */
+  if (down_write_killable(&inode->i_rwsem) < 0) {
+    return -ERESTARTSYS;
+  }
+  ret = netfs_block_buffered(inode);
+  if (ret < 0) {
+    up_write(&inode->i_rwsem);
+    return ret;
+  }
+  downgrade_write(&inode->i_rwsem);
+  return 0;
 }
 EXPORT_SYMBOL(netfs_start_io_direct);
 
@@ -209,8 +213,8 @@ EXPORT_SYMBOL(netfs_start_io_direct);
  * lock on inode->i_rwsem.
  */
 void netfs_end_io_direct(struct inode *inode)
-	__releases(inode->i_rwsem)
+__releases(inode->i_rwsem)
 {
-	up_read(&inode->i_rwsem);
+  up_read(&inode->i_rwsem);
 }
 EXPORT_SYMBOL(netfs_end_io_direct);

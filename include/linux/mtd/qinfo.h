@@ -19,12 +19,12 @@
  * @chips - per-chip data structure
  */
 struct lpddr_private {
-	uint16_t ManufactId;
-	uint16_t DevId;
-	struct qinfo_chip *qinfo;
-	int numchips;
-	unsigned long chipshift;
-	struct flchip chips[] __counted_by(numchips);
+  uint16_t ManufactId;
+  uint16_t DevId;
+  struct qinfo_chip *qinfo;
+  int numchips;
+  unsigned long chipshift;
+  struct flchip chips[] __counted_by(numchips);
 };
 
 /* qinfo_query_info structure contains request information for
@@ -35,10 +35,10 @@ struct lpddr_private {
  * @desc - detailed description for the qinfo record
  */
 struct qinfo_query_info {
-	uint8_t	major;
-	uint8_t	minor;
-	char *id_str;
-	char *desc;
+  uint8_t major;
+  uint8_t minor;
+  char *id_str;
+  char *desc;
 };
 
 /*
@@ -54,33 +54,32 @@ struct qinfo_query_info {
  * @BlockEraseTime - Block erase 2^BlockEraseTime m-sec
  */
 struct qinfo_chip {
-	/* General device info */
-	uint16_t DevSizeShift;
-	uint16_t BufSizeShift;
-	/* Erase block information */
-	uint16_t TotalBlocksNum;
-	uint16_t UniformBlockSizeShift;
-	/* Partition information */
-	uint16_t HWPartsNum;
-	/* Optional features */
-	uint16_t SuspEraseSupp;
-	/* Operation typical time */
-	uint16_t SingleWordProgTime;
-	uint16_t ProgBufferTime;
-	uint16_t BlockEraseTime;
+  /* General device info */
+  uint16_t DevSizeShift;
+  uint16_t BufSizeShift;
+  /* Erase block information */
+  uint16_t TotalBlocksNum;
+  uint16_t UniformBlockSizeShift;
+  /* Partition information */
+  uint16_t HWPartsNum;
+  /* Optional features */
+  uint16_t SuspEraseSupp;
+  /* Operation typical time */
+  uint16_t SingleWordProgTime;
+  uint16_t ProgBufferTime;
+  uint16_t BlockEraseTime;
 };
 
 /* defines for fixup usage */
-#define LPDDR_MFR_ANY		0xffff
-#define LPDDR_ID_ANY		0xffff
-#define NUMONYX_MFGR_ID		0x0089
-#define R18_DEVICE_ID_1G	0x893c
+#define LPDDR_MFR_ANY   0xffff
+#define LPDDR_ID_ANY    0xffff
+#define NUMONYX_MFGR_ID   0x0089
+#define R18_DEVICE_ID_1G  0x893c
 
-static inline map_word lpddr_build_cmd(u_long cmd, struct map_info *map)
-{
-	map_word val = { {0} };
-	val.x[0] = cmd;
-	return val;
+static inline map_word lpddr_build_cmd(u_long cmd, struct map_info *map) {
+  map_word val = { {0} };
+  val.x[0] = cmd;
+  return val;
 }
 
 #define CMD(x) lpddr_build_cmd(x, map)
@@ -89,4 +88,3 @@ static inline map_word lpddr_build_cmd(u_long cmd, struct map_info *map)
 struct mtd_info *lpddr_cmdset(struct map_info *);
 
 #endif
-

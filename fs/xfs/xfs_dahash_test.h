@@ -9,4 +9,3 @@
 int xfs_dahash_test(void);
 
 #endif /* __XFS_DAHASH_TEST_H__ */
-

@@ -12,10 +12,10 @@
 #ifndef __ASSEMBLY__
 /* This is for V8 compliant Sparc CPUS */
 struct tt_entry {
-	unsigned long inst_one;
-	unsigned long inst_two;
-	unsigned long inst_three;
-	unsigned long inst_four;
+  unsigned long inst_one;
+  unsigned long inst_two;
+  unsigned long inst_three;
+  unsigned long inst_four;
 };
 
 /* We set this to _start in system setup. */

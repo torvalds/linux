@@ -7,39 +7,39 @@
 
 #include <linux/tracepoint.h>
 
-#define __cpu_migrate_proto			\
-	TP_PROTO(u64 timestamp,			\
-		 u32 cpu_hwid)
-#define __cpu_migrate_args			\
-	TP_ARGS(timestamp,			\
-		cpu_hwid)
+#define __cpu_migrate_proto     \
+  TP_PROTO(u64 timestamp,     \
+    u32 cpu_hwid)
+#define __cpu_migrate_args      \
+  TP_ARGS(timestamp,      \
+    cpu_hwid)
 
 DECLARE_EVENT_CLASS(cpu_migrate,
 
-	__cpu_migrate_proto,
-	__cpu_migrate_args,
+    __cpu_migrate_proto,
+    __cpu_migrate_args,
 
-	TP_STRUCT__entry(
-		__field(u64,	timestamp		)
-		__field(u32,	cpu_hwid		)
-	),
+    TP_STRUCT__entry(
+    __field(u64, timestamp)
+    __field(u32, cpu_hwid)
+    ),
 
-	TP_fast_assign(
-		__entry->timestamp = timestamp;
-		__entry->cpu_hwid = cpu_hwid;
-	),
+    TP_fast_assign(
+    __entry->timestamp = timestamp;
+    __entry->cpu_hwid = cpu_hwid;
+    ),
 
-	TP_printk("timestamp=%llu cpu_hwid=0x%08lX",
-		(unsigned long long)__entry->timestamp,
-		(unsigned long)__entry->cpu_hwid
-	)
-);
+    TP_printk("timestamp=%llu cpu_hwid=0x%08lX",
+    (unsigned long long) __entry->timestamp,
+    (unsigned long) __entry->cpu_hwid
+    )
+    );
 
-#define __define_cpu_migrate_event(name)		\
-	DEFINE_EVENT(cpu_migrate, cpu_migrate_##name,	\
-		__cpu_migrate_proto,			\
-		__cpu_migrate_args			\
-	)
+#define __define_cpu_migrate_event(name)    \
+  DEFINE_EVENT(cpu_migrate, cpu_migrate_ ## name, \
+    __cpu_migrate_proto,      \
+    __cpu_migrate_args      \
+    )
 
 __define_cpu_migrate_event(begin);
 __define_cpu_migrate_event(finish);

@@ -52,69 +52,69 @@
 /* values here are relative to the INI */
 
 enum ath9k_ani_cmd {
-	ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION = 0x1,
-	ATH9K_ANI_FIRSTEP_LEVEL = 0x2,
-	ATH9K_ANI_SPUR_IMMUNITY_LEVEL = 0x4,
-	ATH9K_ANI_MRC_CCK = 0x8,
-	ATH9K_ANI_ALL = 0xfff
+  ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION = 0x1,
+  ATH9K_ANI_FIRSTEP_LEVEL = 0x2,
+  ATH9K_ANI_SPUR_IMMUNITY_LEVEL = 0x4,
+  ATH9K_ANI_MRC_CCK = 0x8,
+  ATH9K_ANI_ALL = 0xfff
 };
 
 struct ath9k_mib_stats {
-	u32 ackrcv_bad;
-	u32 rts_bad;
-	u32 rts_good;
-	u32 fcs_bad;
-	u32 beacons;
+  u32 ackrcv_bad;
+  u32 rts_bad;
+  u32 rts_good;
+  u32 fcs_bad;
+  u32 beacons;
 };
 
 /* INI default values for ANI registers */
 struct ath9k_ani_default {
-	u16 m1ThreshLow;
-	u16 m2ThreshLow;
-	u16 m1Thresh;
-	u16 m2Thresh;
-	u16 m2CountThr;
-	u16 m2CountThrLow;
-	u16 m1ThreshLowExt;
-	u16 m2ThreshLowExt;
-	u16 m1ThreshExt;
-	u16 m2ThreshExt;
-	u16 firstep;
-	u16 firstepLow;
-	u16 cycpwrThr1;
-	u16 cycpwrThr1Ext;
+  u16 m1ThreshLow;
+  u16 m2ThreshLow;
+  u16 m1Thresh;
+  u16 m2Thresh;
+  u16 m2CountThr;
+  u16 m2CountThrLow;
+  u16 m1ThreshLowExt;
+  u16 m2ThreshLowExt;
+  u16 m1ThreshExt;
+  u16 m2ThreshExt;
+  u16 firstep;
+  u16 firstepLow;
+  u16 cycpwrThr1;
+  u16 cycpwrThr1Ext;
 };
 
 struct ar5416AniState {
-	u8 noiseImmunityLevel;
-	u8 ofdmNoiseImmunityLevel;
-	u8 cckNoiseImmunityLevel;
-	bool ofdmsTurn;
-	u8 mrcCCK;
-	u8 spurImmunityLevel;
-	u8 firstepLevel;
-	bool ofdmWeakSigDetect;
-	u32 listenTime;
-	u32 ofdmPhyErrCount;
-	u32 cckPhyErrCount;
-	struct ath9k_ani_default iniDef;
+  u8 noiseImmunityLevel;
+  u8 ofdmNoiseImmunityLevel;
+  u8 cckNoiseImmunityLevel;
+  bool ofdmsTurn;
+  u8 mrcCCK;
+  u8 spurImmunityLevel;
+  u8 firstepLevel;
+  bool ofdmWeakSigDetect;
+  u32 listenTime;
+  u32 ofdmPhyErrCount;
+  u32 cckPhyErrCount;
+  struct ath9k_ani_default iniDef;
 };
 
 struct ar5416Stats {
-	u32 ast_ani_spurup;
-	u32 ast_ani_spurdown;
-	u32 ast_ani_ofdmon;
-	u32 ast_ani_ofdmoff;
-	u32 ast_ani_cckhigh;
-	u32 ast_ani_ccklow;
-	u32 ast_ani_stepup;
-	u32 ast_ani_stepdown;
-	u32 ast_ani_ofdmerrs;
-	u32 ast_ani_cckerrs;
-	u32 ast_ani_reset;
-	u32 ast_ani_lneg_or_lzero;
-	u32 avgbrssi;
-	struct ath9k_mib_stats ast_mibstats;
+  u32 ast_ani_spurup;
+  u32 ast_ani_spurdown;
+  u32 ast_ani_ofdmon;
+  u32 ast_ani_ofdmoff;
+  u32 ast_ani_cckhigh;
+  u32 ast_ani_ccklow;
+  u32 ast_ani_stepup;
+  u32 ast_ani_stepdown;
+  u32 ast_ani_ofdmerrs;
+  u32 ast_ani_cckerrs;
+  u32 ast_ani_reset;
+  u32 ast_ani_lneg_or_lzero;
+  u32 avgbrssi;
+  struct ath9k_mib_stats ast_mibstats;
 };
 #define ah_mibStats stats.ast_mibstats
 

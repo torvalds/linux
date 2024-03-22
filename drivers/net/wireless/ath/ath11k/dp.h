@@ -19,24 +19,24 @@ struct hal_tcl_status_ring;
 struct ath11k_ext_irq_grp;
 
 struct dp_rx_tid {
-	u8 tid;
-	u32 *vaddr;
-	dma_addr_t paddr;
-	u32 size;
-	u32 ba_win_sz;
-	bool active;
+  u8 tid;
+  u32 *vaddr;
+  dma_addr_t paddr;
+  u32 size;
+  u32 ba_win_sz;
+  bool active;
 
-	/* Info related to rx fragments */
-	u32 cur_sn;
-	u16 last_frag_no;
-	u16 rx_frag_bitmap;
+  /* Info related to rx fragments */
+  u32 cur_sn;
+  u16 last_frag_no;
+  u16 rx_frag_bitmap;
 
-	struct sk_buff_head rx_frags;
-	struct hal_reo_dest_ring *dst_ring_desc;
+  struct sk_buff_head rx_frags;
+  struct hal_reo_dest_ring *dst_ring_desc;
 
-	/* Timer info related to fragments */
-	struct timer_list frag_timer;
-	struct ath11k_base *ab;
+  /* Timer info related to fragments */
+  struct timer_list frag_timer;
+  struct ath11k_base *ab;
 };
 
 #define DP_REO_DESC_FREE_THRESHOLD  64
@@ -45,144 +45,144 @@ struct dp_rx_tid {
 #define DP_MON_SERVICE_BUDGET       128
 
 struct dp_reo_cache_flush_elem {
-	struct list_head list;
-	struct dp_rx_tid data;
-	unsigned long ts;
+  struct list_head list;
+  struct dp_rx_tid data;
+  unsigned long ts;
 };
 
 struct dp_reo_cmd {
-	struct list_head list;
-	struct dp_rx_tid data;
-	int cmd_num;
-	void (*handler)(struct ath11k_dp *, void *,
-			enum hal_reo_cmd_status status);
+  struct list_head list;
+  struct dp_rx_tid data;
+  int cmd_num;
+  void (*handler)(struct ath11k_dp *, void *,
+      enum hal_reo_cmd_status status);
 };
 
 struct dp_srng {
-	u32 *vaddr_unaligned;
-	u32 *vaddr;
-	dma_addr_t paddr_unaligned;
-	dma_addr_t paddr;
-	int size;
-	u32 ring_id;
-	u8 cached;
+  u32 *vaddr_unaligned;
+  u32 *vaddr;
+  dma_addr_t paddr_unaligned;
+  dma_addr_t paddr;
+  int size;
+  u32 ring_id;
+  u8 cached;
 };
 
 struct dp_rxdma_ring {
-	struct dp_srng refill_buf_ring;
-	struct idr bufs_idr;
-	/* Protects bufs_idr */
-	spinlock_t idr_lock;
-	int bufs_max;
+  struct dp_srng refill_buf_ring;
+  struct idr bufs_idr;
+  /* Protects bufs_idr */
+  spinlock_t idr_lock;
+  int bufs_max;
 };
 
-#define ATH11K_TX_COMPL_NEXT(x)	(((x) + 1) % DP_TX_COMP_RING_SIZE)
+#define ATH11K_TX_COMPL_NEXT(x) (((x) + 1) % DP_TX_COMP_RING_SIZE)
 
 struct dp_tx_ring {
-	u8 tcl_data_ring_id;
-	struct dp_srng tcl_data_ring;
-	struct dp_srng tcl_comp_ring;
-	struct idr txbuf_idr;
-	/* Protects txbuf_idr and num_pending */
-	spinlock_t tx_idr_lock;
-	struct hal_wbm_release_ring *tx_status;
-	int tx_status_head;
-	int tx_status_tail;
+  u8 tcl_data_ring_id;
+  struct dp_srng tcl_data_ring;
+  struct dp_srng tcl_comp_ring;
+  struct idr txbuf_idr;
+  /* Protects txbuf_idr and num_pending */
+  spinlock_t tx_idr_lock;
+  struct hal_wbm_release_ring *tx_status;
+  int tx_status_head;
+  int tx_status_tail;
 };
 
 enum dp_mon_status_buf_state {
-	/* PPDU id matches in dst ring and status ring */
-	DP_MON_STATUS_MATCH,
-	/* status ring dma is not done */
-	DP_MON_STATUS_NO_DMA,
-	/* status ring is lagging, reap status ring */
-	DP_MON_STATUS_LAG,
-	/* status ring is leading, reap dst ring and drop */
-	DP_MON_STATUS_LEAD,
-	/* replinish monitor status ring */
-	DP_MON_STATUS_REPLINISH,
+  /* PPDU id matches in dst ring and status ring */
+  DP_MON_STATUS_MATCH,
+  /* status ring dma is not done */
+  DP_MON_STATUS_NO_DMA,
+  /* status ring is lagging, reap status ring */
+  DP_MON_STATUS_LAG,
+  /* status ring is leading, reap dst ring and drop */
+  DP_MON_STATUS_LEAD,
+  /* replinish monitor status ring */
+  DP_MON_STATUS_REPLINISH,
 };
 
 struct ath11k_pdev_mon_stats {
-	u32 status_ppdu_state;
-	u32 status_ppdu_start;
-	u32 status_ppdu_end;
-	u32 status_ppdu_compl;
-	u32 status_ppdu_start_mis;
-	u32 status_ppdu_end_mis;
-	u32 status_ppdu_done;
-	u32 dest_ppdu_done;
-	u32 dest_mpdu_done;
-	u32 dest_mpdu_drop;
-	u32 dup_mon_linkdesc_cnt;
-	u32 dup_mon_buf_cnt;
-	u32 dest_mon_stuck;
-	u32 dest_mon_not_reaped;
+  u32 status_ppdu_state;
+  u32 status_ppdu_start;
+  u32 status_ppdu_end;
+  u32 status_ppdu_compl;
+  u32 status_ppdu_start_mis;
+  u32 status_ppdu_end_mis;
+  u32 status_ppdu_done;
+  u32 dest_ppdu_done;
+  u32 dest_mpdu_done;
+  u32 dest_mpdu_drop;
+  u32 dup_mon_linkdesc_cnt;
+  u32 dup_mon_buf_cnt;
+  u32 dest_mon_stuck;
+  u32 dest_mon_not_reaped;
 };
 
 struct dp_full_mon_mpdu {
-	struct list_head list;
-	struct sk_buff *head;
-	struct sk_buff *tail;
+  struct list_head list;
+  struct sk_buff *head;
+  struct sk_buff *tail;
 };
 
 struct dp_link_desc_bank {
-	void *vaddr_unaligned;
-	void *vaddr;
-	dma_addr_t paddr_unaligned;
-	dma_addr_t paddr;
-	u32 size;
+  void *vaddr_unaligned;
+  void *vaddr;
+  dma_addr_t paddr_unaligned;
+  dma_addr_t paddr;
+  u32 size;
 };
 
 /* Size to enforce scatter idle list mode */
 #define DP_LINK_DESC_ALLOC_SIZE_THRESH 0x200000
 #define DP_LINK_DESC_BANKS_MAX 8
 
-#define DP_RX_DESC_COOKIE_INDEX_MAX		0x3ffff
-#define DP_RX_DESC_COOKIE_POOL_ID_MAX		0x1c0000
-#define DP_RX_DESC_COOKIE_MAX	\
-	(DP_RX_DESC_COOKIE_INDEX_MAX | DP_RX_DESC_COOKIE_POOL_ID_MAX)
+#define DP_RX_DESC_COOKIE_INDEX_MAX   0x3ffff
+#define DP_RX_DESC_COOKIE_POOL_ID_MAX   0x1c0000
+#define DP_RX_DESC_COOKIE_MAX \
+  (DP_RX_DESC_COOKIE_INDEX_MAX | DP_RX_DESC_COOKIE_POOL_ID_MAX)
 #define DP_NOT_PPDU_ID_WRAP_AROUND 20000
 
 enum ath11k_dp_ppdu_state {
-	DP_PPDU_STATUS_START,
-	DP_PPDU_STATUS_DONE,
+  DP_PPDU_STATUS_START,
+  DP_PPDU_STATUS_DONE,
 };
 
 struct ath11k_mon_data {
-	struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
-	struct hal_rx_mon_ppdu_info mon_ppdu_info;
+  struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
+  struct hal_rx_mon_ppdu_info mon_ppdu_info;
 
-	u32 mon_ppdu_status;
-	u32 mon_last_buf_cookie;
-	u64 mon_last_linkdesc_paddr;
-	u16 chan_noise_floor;
-	bool hold_mon_dst_ring;
-	enum dp_mon_status_buf_state buf_state;
-	dma_addr_t mon_status_paddr;
-	struct dp_full_mon_mpdu *mon_mpdu;
-	struct hal_sw_mon_ring_entries sw_mon_entries;
-	struct ath11k_pdev_mon_stats rx_mon_stats;
-	/* lock for monitor data */
-	spinlock_t mon_lock;
-	struct sk_buff_head rx_status_q;
+  u32 mon_ppdu_status;
+  u32 mon_last_buf_cookie;
+  u64 mon_last_linkdesc_paddr;
+  u16 chan_noise_floor;
+  bool hold_mon_dst_ring;
+  enum dp_mon_status_buf_state buf_state;
+  dma_addr_t mon_status_paddr;
+  struct dp_full_mon_mpdu *mon_mpdu;
+  struct hal_sw_mon_ring_entries sw_mon_entries;
+  struct ath11k_pdev_mon_stats rx_mon_stats;
+  /* lock for monitor data */
+  spinlock_t mon_lock;
+  struct sk_buff_head rx_status_q;
 };
 
 struct ath11k_pdev_dp {
-	u32 mac_id;
-	u32 mon_dest_ring_stuck_cnt;
-	atomic_t num_tx_pending;
-	wait_queue_head_t tx_empty_waitq;
-	struct dp_rxdma_ring rx_refill_buf_ring;
-	struct dp_srng rx_mac_buf_ring[MAX_RXDMA_PER_PDEV];
-	struct dp_srng rxdma_err_dst_ring[MAX_RXDMA_PER_PDEV];
-	struct dp_srng rxdma_mon_dst_ring;
-	struct dp_srng rxdma_mon_desc_ring;
+  u32 mac_id;
+  u32 mon_dest_ring_stuck_cnt;
+  atomic_t num_tx_pending;
+  wait_queue_head_t tx_empty_waitq;
+  struct dp_rxdma_ring rx_refill_buf_ring;
+  struct dp_srng rx_mac_buf_ring[MAX_RXDMA_PER_PDEV];
+  struct dp_srng rxdma_err_dst_ring[MAX_RXDMA_PER_PDEV];
+  struct dp_srng rxdma_mon_dst_ring;
+  struct dp_srng rxdma_mon_desc_ring;
 
-	struct dp_rxdma_ring rxdma_mon_buf_ring;
-	struct dp_rxdma_ring rx_mon_status_refill_ring[MAX_RXDMA_PER_PDEV];
-	struct ieee80211_rx_status rx_status;
-	struct ath11k_mon_data mon_data;
+  struct dp_rxdma_ring rxdma_mon_buf_ring;
+  struct dp_rxdma_ring rx_mon_status_refill_ring[MAX_RXDMA_PER_PDEV];
+  struct ieee80211_rx_status rx_status;
+  struct ath11k_mon_data mon_data;
 };
 
 #define DP_NUM_CLIENTS_MAX 64
@@ -193,45 +193,45 @@ struct ath11k_pdev_dp {
 #define DP_AVG_MPDUS_PER_TID_MAX 128
 #define DP_AVG_MSDUS_PER_MPDU 4
 
-#define DP_RX_HASH_ENABLE	1 /* Enable hash based Rx steering */
+#define DP_RX_HASH_ENABLE 1 /* Enable hash based Rx steering */
 
-#define DP_BA_WIN_SZ_MAX	256
+#define DP_BA_WIN_SZ_MAX  256
 
-#define DP_TCL_NUM_RING_MAX	3
-#define DP_TCL_NUM_RING_MAX_QCA6390	1
+#define DP_TCL_NUM_RING_MAX 3
+#define DP_TCL_NUM_RING_MAX_QCA6390 1
 
 #define DP_IDLE_SCATTER_BUFS_MAX 16
 
-#define DP_WBM_RELEASE_RING_SIZE	64
-#define DP_TCL_DATA_RING_SIZE		512
-#define DP_TCL_DATA_RING_SIZE_WCN6750	2048
-#define DP_TX_COMP_RING_SIZE		32768
-#define DP_TX_IDR_SIZE			DP_TX_COMP_RING_SIZE
-#define DP_TCL_CMD_RING_SIZE		32
-#define DP_TCL_STATUS_RING_SIZE		32
-#define DP_REO_DST_RING_MAX		4
-#define DP_REO_DST_RING_SIZE		2048
-#define DP_REO_REINJECT_RING_SIZE	32
-#define DP_RX_RELEASE_RING_SIZE		1024
-#define DP_REO_EXCEPTION_RING_SIZE	128
-#define DP_REO_CMD_RING_SIZE		256
-#define DP_REO_STATUS_RING_SIZE		2048
-#define DP_RXDMA_BUF_RING_SIZE		4096
-#define DP_RXDMA_REFILL_RING_SIZE	2048
-#define DP_RXDMA_ERR_DST_RING_SIZE	1024
-#define DP_RXDMA_MON_STATUS_RING_SIZE	1024
-#define DP_RXDMA_MONITOR_BUF_RING_SIZE	4096
-#define DP_RXDMA_MONITOR_DST_RING_SIZE	2048
-#define DP_RXDMA_MONITOR_DESC_RING_SIZE	4096
+#define DP_WBM_RELEASE_RING_SIZE  64
+#define DP_TCL_DATA_RING_SIZE   512
+#define DP_TCL_DATA_RING_SIZE_WCN6750 2048
+#define DP_TX_COMP_RING_SIZE    32768
+#define DP_TX_IDR_SIZE      DP_TX_COMP_RING_SIZE
+#define DP_TCL_CMD_RING_SIZE    32
+#define DP_TCL_STATUS_RING_SIZE   32
+#define DP_REO_DST_RING_MAX   4
+#define DP_REO_DST_RING_SIZE    2048
+#define DP_REO_REINJECT_RING_SIZE 32
+#define DP_RX_RELEASE_RING_SIZE   1024
+#define DP_REO_EXCEPTION_RING_SIZE  128
+#define DP_REO_CMD_RING_SIZE    256
+#define DP_REO_STATUS_RING_SIZE   2048
+#define DP_RXDMA_BUF_RING_SIZE    4096
+#define DP_RXDMA_REFILL_RING_SIZE 2048
+#define DP_RXDMA_ERR_DST_RING_SIZE  1024
+#define DP_RXDMA_MON_STATUS_RING_SIZE 1024
+#define DP_RXDMA_MONITOR_BUF_RING_SIZE  4096
+#define DP_RXDMA_MONITOR_DST_RING_SIZE  2048
+#define DP_RXDMA_MONITOR_DESC_RING_SIZE 4096
 
-#define DP_RX_RELEASE_RING_NUM	3
+#define DP_RX_RELEASE_RING_NUM  3
 
-#define DP_RX_BUFFER_SIZE	2048
-#define	DP_RX_BUFFER_SIZE_LITE  1024
-#define DP_RX_BUFFER_ALIGN_SIZE	128
+#define DP_RX_BUFFER_SIZE 2048
+#define DP_RX_BUFFER_SIZE_LITE  1024
+#define DP_RX_BUFFER_ALIGN_SIZE 128
 
-#define DP_RXDMA_BUF_COOKIE_BUF_ID	GENMASK(17, 0)
-#define DP_RXDMA_BUF_COOKIE_PDEV_ID	GENMASK(20, 18)
+#define DP_RXDMA_BUF_COOKIE_BUF_ID  GENMASK(17, 0)
+#define DP_RXDMA_BUF_COOKIE_PDEV_ID GENMASK(20, 18)
 
 #define DP_HW2SW_MACID(mac_id) ((mac_id) ? ((mac_id) - 1) : 0)
 #define DP_SW2HW_MACID(mac_id) ((mac_id) + 1)
@@ -244,113 +244,113 @@ struct ath11k_pdev_dp {
 #define ATH11K_SHADOW_CTRL_TIMER_INTERVAL 10
 
 struct ath11k_hp_update_timer {
-	struct timer_list timer;
-	bool started;
-	bool init;
-	u32 tx_num;
-	u32 timer_tx_num;
-	u32 ring_id;
-	u32 interval;
-	struct ath11k_base *ab;
+  struct timer_list timer;
+  bool started;
+  bool init;
+  u32 tx_num;
+  u32 timer_tx_num;
+  u32 ring_id;
+  u32 interval;
+  struct ath11k_base *ab;
 };
 
 struct ath11k_dp {
-	struct ath11k_base *ab;
-	enum ath11k_htc_ep_id eid;
-	struct completion htt_tgt_version_received;
-	u8 htt_tgt_ver_major;
-	u8 htt_tgt_ver_minor;
-	struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
-	struct dp_srng wbm_idle_ring;
-	struct dp_srng wbm_desc_rel_ring;
-	struct dp_srng tcl_cmd_ring;
-	struct dp_srng tcl_status_ring;
-	struct dp_srng reo_reinject_ring;
-	struct dp_srng rx_rel_ring;
-	struct dp_srng reo_except_ring;
-	struct dp_srng reo_cmd_ring;
-	struct dp_srng reo_status_ring;
-	struct dp_srng reo_dst_ring[DP_REO_DST_RING_MAX];
-	struct dp_tx_ring tx_ring[DP_TCL_NUM_RING_MAX];
-	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
-	struct list_head reo_cmd_list;
-	struct list_head reo_cmd_cache_flush_list;
-	struct list_head dp_full_mon_mpdu_list;
-	u32 reo_cmd_cache_flush_count;
-	/**
-	 * protects access to below fields,
-	 * - reo_cmd_list
-	 * - reo_cmd_cache_flush_list
-	 * - reo_cmd_cache_flush_count
-	 */
-	spinlock_t reo_cmd_lock;
-	struct ath11k_hp_update_timer reo_cmd_timer;
-	struct ath11k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
+  struct ath11k_base *ab;
+  enum ath11k_htc_ep_id eid;
+  struct completion htt_tgt_version_received;
+  u8 htt_tgt_ver_major;
+  u8 htt_tgt_ver_minor;
+  struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
+  struct dp_srng wbm_idle_ring;
+  struct dp_srng wbm_desc_rel_ring;
+  struct dp_srng tcl_cmd_ring;
+  struct dp_srng tcl_status_ring;
+  struct dp_srng reo_reinject_ring;
+  struct dp_srng rx_rel_ring;
+  struct dp_srng reo_except_ring;
+  struct dp_srng reo_cmd_ring;
+  struct dp_srng reo_status_ring;
+  struct dp_srng reo_dst_ring[DP_REO_DST_RING_MAX];
+  struct dp_tx_ring tx_ring[DP_TCL_NUM_RING_MAX];
+  struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
+  struct list_head reo_cmd_list;
+  struct list_head reo_cmd_cache_flush_list;
+  struct list_head dp_full_mon_mpdu_list;
+  u32 reo_cmd_cache_flush_count;
+  /**
+   * protects access to below fields,
+   * - reo_cmd_list
+   * - reo_cmd_cache_flush_list
+   * - reo_cmd_cache_flush_count
+   */
+  spinlock_t reo_cmd_lock;
+  struct ath11k_hp_update_timer reo_cmd_timer;
+  struct ath11k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
 };
 
 /* HTT definitions */
 
-#define HTT_TCL_META_DATA_TYPE			BIT(0)
-#define HTT_TCL_META_DATA_VALID_HTT		BIT(1)
+#define HTT_TCL_META_DATA_TYPE      BIT(0)
+#define HTT_TCL_META_DATA_VALID_HTT   BIT(1)
 
 /* vdev meta data */
-#define HTT_TCL_META_DATA_VDEV_ID		GENMASK(9, 2)
-#define HTT_TCL_META_DATA_PDEV_ID		GENMASK(11, 10)
-#define HTT_TCL_META_DATA_HOST_INSPECTED	BIT(12)
+#define HTT_TCL_META_DATA_VDEV_ID   GENMASK(9, 2)
+#define HTT_TCL_META_DATA_PDEV_ID   GENMASK(11, 10)
+#define HTT_TCL_META_DATA_HOST_INSPECTED  BIT(12)
 
 /* peer meta data */
-#define HTT_TCL_META_DATA_PEER_ID		GENMASK(15, 2)
+#define HTT_TCL_META_DATA_PEER_ID   GENMASK(15, 2)
 
 #define HTT_TX_WBM_COMP_STATUS_OFFSET 8
 
-#define HTT_INVALID_PEER_ID	0xffff
+#define HTT_INVALID_PEER_ID 0xffff
 
 /* HTT tx completion is overlaid in wbm_release_ring */
-#define HTT_TX_WBM_COMP_INFO0_STATUS		GENMASK(12, 9)
-#define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON	GENMASK(16, 13)
-#define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON	GENMASK(16, 13)
+#define HTT_TX_WBM_COMP_INFO0_STATUS    GENMASK(12, 9)
+#define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON GENMASK(16, 13)
+#define HTT_TX_WBM_COMP_INFO0_REINJECT_REASON GENMASK(16, 13)
 
-#define HTT_TX_WBM_COMP_INFO1_ACK_RSSI		GENMASK(31, 24)
-#define HTT_TX_WBM_COMP_INFO2_SW_PEER_ID	GENMASK(15, 0)
-#define HTT_TX_WBM_COMP_INFO2_VALID		BIT(21)
+#define HTT_TX_WBM_COMP_INFO1_ACK_RSSI    GENMASK(31, 24)
+#define HTT_TX_WBM_COMP_INFO2_SW_PEER_ID  GENMASK(15, 0)
+#define HTT_TX_WBM_COMP_INFO2_VALID   BIT(21)
 
 struct htt_tx_wbm_completion {
-	u32 info0;
-	u32 info1;
-	u32 info2;
-	u32 info3;
+  u32 info0;
+  u32 info1;
+  u32 info2;
+  u32 info3;
 } __packed;
 
 enum htt_h2t_msg_type {
-	HTT_H2T_MSG_TYPE_VERSION_REQ		= 0,
-	HTT_H2T_MSG_TYPE_SRING_SETUP		= 0xb,
-	HTT_H2T_MSG_TYPE_RX_RING_SELECTION_CFG	= 0xc,
-	HTT_H2T_MSG_TYPE_EXT_STATS_CFG		= 0x10,
-	HTT_H2T_MSG_TYPE_PPDU_STATS_CFG		= 0x11,
-	HTT_H2T_MSG_TYPE_RX_FULL_MONITOR_MODE	= 0x17,
+  HTT_H2T_MSG_TYPE_VERSION_REQ = 0,
+  HTT_H2T_MSG_TYPE_SRING_SETUP = 0xb,
+  HTT_H2T_MSG_TYPE_RX_RING_SELECTION_CFG = 0xc,
+  HTT_H2T_MSG_TYPE_EXT_STATS_CFG = 0x10,
+  HTT_H2T_MSG_TYPE_PPDU_STATS_CFG = 0x11,
+  HTT_H2T_MSG_TYPE_RX_FULL_MONITOR_MODE = 0x17,
 };
 
-#define HTT_VER_REQ_INFO_MSG_ID		GENMASK(7, 0)
+#define HTT_VER_REQ_INFO_MSG_ID   GENMASK(7, 0)
 
 struct htt_ver_req_cmd {
-	u32 ver_reg_info;
+  u32 ver_reg_info;
 } __packed;
 
 enum htt_srng_ring_type {
-	HTT_HW_TO_SW_RING,
-	HTT_SW_TO_HW_RING,
-	HTT_SW_TO_SW_RING,
+  HTT_HW_TO_SW_RING,
+  HTT_SW_TO_HW_RING,
+  HTT_SW_TO_SW_RING,
 };
 
 enum htt_srng_ring_id {
-	HTT_RXDMA_HOST_BUF_RING,
-	HTT_RXDMA_MONITOR_STATUS_RING,
-	HTT_RXDMA_MONITOR_BUF_RING,
-	HTT_RXDMA_MONITOR_DESC_RING,
-	HTT_RXDMA_MONITOR_DEST_RING,
-	HTT_HOST1_TO_FW_RXBUF_RING,
-	HTT_HOST2_TO_FW_RXBUF_RING,
-	HTT_RXDMA_NON_MONITOR_DEST_RING,
+  HTT_RXDMA_HOST_BUF_RING,
+  HTT_RXDMA_MONITOR_STATUS_RING,
+  HTT_RXDMA_MONITOR_BUF_RING,
+  HTT_RXDMA_MONITOR_DESC_RING,
+  HTT_RXDMA_MONITOR_DEST_RING,
+  HTT_HOST1_TO_FW_RXBUF_RING,
+  HTT_HOST2_TO_FW_RXBUF_RING,
+  HTT_RXDMA_NON_MONITOR_DEST_RING,
 };
 
 /* host -> target  HTT_SRING_SETUP message
@@ -480,40 +480,40 @@ enum htt_srng_ring_id {
  *           b'20:31 - reserved:  reserved for future use
  */
 
-#define HTT_SRNG_SETUP_CMD_INFO0_MSG_TYPE	GENMASK(7, 0)
-#define HTT_SRNG_SETUP_CMD_INFO0_PDEV_ID	GENMASK(15, 8)
-#define HTT_SRNG_SETUP_CMD_INFO0_RING_ID	GENMASK(23, 16)
-#define HTT_SRNG_SETUP_CMD_INFO0_RING_TYPE	GENMASK(31, 24)
+#define HTT_SRNG_SETUP_CMD_INFO0_MSG_TYPE GENMASK(7, 0)
+#define HTT_SRNG_SETUP_CMD_INFO0_PDEV_ID  GENMASK(15, 8)
+#define HTT_SRNG_SETUP_CMD_INFO0_RING_ID  GENMASK(23, 16)
+#define HTT_SRNG_SETUP_CMD_INFO0_RING_TYPE  GENMASK(31, 24)
 
-#define HTT_SRNG_SETUP_CMD_INFO1_RING_SIZE			GENMASK(15, 0)
-#define HTT_SRNG_SETUP_CMD_INFO1_RING_ENTRY_SIZE		GENMASK(23, 16)
-#define HTT_SRNG_SETUP_CMD_INFO1_RING_LOOP_CNT_DIS		BIT(25)
-#define HTT_SRNG_SETUP_CMD_INFO1_RING_FLAGS_MSI_SWAP		BIT(27)
-#define HTT_SRNG_SETUP_CMD_INFO1_RING_FLAGS_HOST_FW_SWAP	BIT(28)
-#define HTT_SRNG_SETUP_CMD_INFO1_RING_FLAGS_TLV_SWAP		BIT(29)
+#define HTT_SRNG_SETUP_CMD_INFO1_RING_SIZE      GENMASK(15, 0)
+#define HTT_SRNG_SETUP_CMD_INFO1_RING_ENTRY_SIZE    GENMASK(23, 16)
+#define HTT_SRNG_SETUP_CMD_INFO1_RING_LOOP_CNT_DIS    BIT(25)
+#define HTT_SRNG_SETUP_CMD_INFO1_RING_FLAGS_MSI_SWAP    BIT(27)
+#define HTT_SRNG_SETUP_CMD_INFO1_RING_FLAGS_HOST_FW_SWAP  BIT(28)
+#define HTT_SRNG_SETUP_CMD_INFO1_RING_FLAGS_TLV_SWAP    BIT(29)
 
-#define HTT_SRNG_SETUP_CMD_INTR_INFO_BATCH_COUNTER_THRESH	GENMASK(14, 0)
-#define HTT_SRNG_SETUP_CMD_INTR_INFO_SW_INTR_MODE		BIT(15)
-#define HTT_SRNG_SETUP_CMD_INTR_INFO_INTR_TIMER_THRESH		GENMASK(31, 16)
+#define HTT_SRNG_SETUP_CMD_INTR_INFO_BATCH_COUNTER_THRESH GENMASK(14, 0)
+#define HTT_SRNG_SETUP_CMD_INTR_INFO_SW_INTR_MODE   BIT(15)
+#define HTT_SRNG_SETUP_CMD_INTR_INFO_INTR_TIMER_THRESH    GENMASK(31, 16)
 
-#define HTT_SRNG_SETUP_CMD_INFO2_INTR_LOW_THRESH	GENMASK(15, 0)
-#define HTT_SRNG_SETUP_CMD_INFO2_PRE_FETCH_TIMER_CFG	BIT(16)
-#define HTT_SRNG_SETUP_CMD_INFO2_RESPONSE_REQUIRED	BIT(19)
+#define HTT_SRNG_SETUP_CMD_INFO2_INTR_LOW_THRESH  GENMASK(15, 0)
+#define HTT_SRNG_SETUP_CMD_INFO2_PRE_FETCH_TIMER_CFG  BIT(16)
+#define HTT_SRNG_SETUP_CMD_INFO2_RESPONSE_REQUIRED  BIT(19)
 
 struct htt_srng_setup_cmd {
-	u32 info0;
-	u32 ring_base_addr_lo;
-	u32 ring_base_addr_hi;
-	u32 info1;
-	u32 ring_head_off32_remote_addr_lo;
-	u32 ring_head_off32_remote_addr_hi;
-	u32 ring_tail_off32_remote_addr_lo;
-	u32 ring_tail_off32_remote_addr_hi;
-	u32 ring_msi_addr_lo;
-	u32 ring_msi_addr_hi;
-	u32 msi_data;
-	u32 intr_info;
-	u32 info2;
+  u32 info0;
+  u32 ring_base_addr_lo;
+  u32 ring_base_addr_hi;
+  u32 info1;
+  u32 ring_head_off32_remote_addr_lo;
+  u32 ring_head_off32_remote_addr_hi;
+  u32 ring_tail_off32_remote_addr_lo;
+  u32 ring_tail_off32_remote_addr_hi;
+  u32 ring_msi_addr_lo;
+  u32 ring_msi_addr_hi;
+  u32 msi_data;
+  u32 intr_info;
+  u32 info2;
 } __packed;
 
 /* host -> target FW  PPDU_STATS config message
@@ -550,50 +550,51 @@ struct htt_srng_setup_cmd {
  */
 
 struct htt_ppdu_stats_cfg_cmd {
-	u32 msg;
+  u32 msg;
 } __packed;
 
-#define HTT_PPDU_STATS_CFG_MSG_TYPE		GENMASK(7, 0)
-#define HTT_PPDU_STATS_CFG_SOC_STATS		BIT(8)
-#define HTT_PPDU_STATS_CFG_PDEV_ID		GENMASK(15, 9)
-#define HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK	GENMASK(31, 16)
+#define HTT_PPDU_STATS_CFG_MSG_TYPE   GENMASK(7, 0)
+#define HTT_PPDU_STATS_CFG_SOC_STATS    BIT(8)
+#define HTT_PPDU_STATS_CFG_PDEV_ID    GENMASK(15, 9)
+#define HTT_PPDU_STATS_CFG_TLV_TYPE_BITMASK GENMASK(31, 16)
 
 enum htt_ppdu_stats_tag_type {
-	HTT_PPDU_STATS_TAG_COMMON,
-	HTT_PPDU_STATS_TAG_USR_COMMON,
-	HTT_PPDU_STATS_TAG_USR_RATE,
-	HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_64,
-	HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_256,
-	HTT_PPDU_STATS_TAG_SCH_CMD_STATUS,
-	HTT_PPDU_STATS_TAG_USR_COMPLTN_COMMON,
-	HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_64,
-	HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_256,
-	HTT_PPDU_STATS_TAG_USR_COMPLTN_ACK_BA_STATUS,
-	HTT_PPDU_STATS_TAG_USR_COMPLTN_FLUSH,
-	HTT_PPDU_STATS_TAG_USR_COMMON_ARRAY,
-	HTT_PPDU_STATS_TAG_INFO,
-	HTT_PPDU_STATS_TAG_TX_MGMTCTRL_PAYLOAD,
+  HTT_PPDU_STATS_TAG_COMMON,
+  HTT_PPDU_STATS_TAG_USR_COMMON,
+  HTT_PPDU_STATS_TAG_USR_RATE,
+  HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_64,
+  HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_256,
+  HTT_PPDU_STATS_TAG_SCH_CMD_STATUS,
+  HTT_PPDU_STATS_TAG_USR_COMPLTN_COMMON,
+  HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_64,
+  HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_256,
+  HTT_PPDU_STATS_TAG_USR_COMPLTN_ACK_BA_STATUS,
+  HTT_PPDU_STATS_TAG_USR_COMPLTN_FLUSH,
+  HTT_PPDU_STATS_TAG_USR_COMMON_ARRAY,
+  HTT_PPDU_STATS_TAG_INFO,
+  HTT_PPDU_STATS_TAG_TX_MGMTCTRL_PAYLOAD,
 
-	/* New TLV's are added above to this line */
-	HTT_PPDU_STATS_TAG_MAX,
+  /* New TLV's are added above to this line */
+  HTT_PPDU_STATS_TAG_MAX,
 };
 
 #define HTT_PPDU_STATS_TAG_DEFAULT (BIT(HTT_PPDU_STATS_TAG_COMMON) \
-				   | BIT(HTT_PPDU_STATS_TAG_USR_COMMON) \
-				   | BIT(HTT_PPDU_STATS_TAG_USR_RATE) \
-				   | BIT(HTT_PPDU_STATS_TAG_SCH_CMD_STATUS) \
-				   | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_COMMON) \
-				   | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_ACK_BA_STATUS) \
-				   | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_FLUSH) \
-				   | BIT(HTT_PPDU_STATS_TAG_USR_COMMON_ARRAY))
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMMON) \
+  | BIT(HTT_PPDU_STATS_TAG_USR_RATE) \
+  | BIT(HTT_PPDU_STATS_TAG_SCH_CMD_STATUS) \
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_COMMON) \
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_ACK_BA_STATUS) \
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_FLUSH) \
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMMON_ARRAY))
 
-#define HTT_PPDU_STATS_TAG_PKTLOG  (BIT(HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_64) | \
-				    BIT(HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_256) | \
-				    BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_64) | \
-				    BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_256) | \
-				    BIT(HTT_PPDU_STATS_TAG_INFO) | \
-				    BIT(HTT_PPDU_STATS_TAG_TX_MGMTCTRL_PAYLOAD) | \
-				    HTT_PPDU_STATS_TAG_DEFAULT)
+#define HTT_PPDU_STATS_TAG_PKTLOG  (BIT( \
+    HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_64)   \
+  | BIT(HTT_PPDU_STATS_TAG_USR_MPDU_ENQ_BITMAP_256)   \
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_64)   \
+  | BIT(HTT_PPDU_STATS_TAG_USR_COMPLTN_BA_BITMAP_256)   \
+  | BIT(HTT_PPDU_STATS_TAG_INFO)   \
+  | BIT(HTT_PPDU_STATS_TAG_TX_MGMTCTRL_PAYLOAD)   \
+  | HTT_PPDU_STATS_TAG_DEFAULT)
 
 /* HTT_H2T_MSG_TYPE_RX_RING_SELECTION_CFG Message
  *
@@ -665,281 +666,290 @@ enum htt_ppdu_stats_tag_type {
  *                    Refer to CFG_TLV_FILTER_IN_FLAG defs
  */
 
-#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_MSG_TYPE	GENMASK(7, 0)
-#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PDEV_ID	GENMASK(15, 8)
-#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_RING_ID	GENMASK(23, 16)
-#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_SS		BIT(24)
-#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PS		BIT(25)
+#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_MSG_TYPE  GENMASK(7, 0)
+#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PDEV_ID GENMASK(15, 8)
+#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_RING_ID GENMASK(23, 16)
+#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_SS    BIT(24)
+#define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PS    BIT(25)
 
-#define HTT_RX_RING_SELECTION_CFG_CMD_INFO1_BUF_SIZE	GENMASK(15, 0)
+#define HTT_RX_RING_SELECTION_CFG_CMD_INFO1_BUF_SIZE  GENMASK(15, 0)
 
 enum htt_rx_filter_tlv_flags {
-	HTT_RX_FILTER_TLV_FLAGS_MPDU_START		= BIT(0),
-	HTT_RX_FILTER_TLV_FLAGS_MSDU_START		= BIT(1),
-	HTT_RX_FILTER_TLV_FLAGS_RX_PACKET		= BIT(2),
-	HTT_RX_FILTER_TLV_FLAGS_MSDU_END		= BIT(3),
-	HTT_RX_FILTER_TLV_FLAGS_MPDU_END		= BIT(4),
-	HTT_RX_FILTER_TLV_FLAGS_PACKET_HEADER		= BIT(5),
-	HTT_RX_FILTER_TLV_FLAGS_PER_MSDU_HEADER		= BIT(6),
-	HTT_RX_FILTER_TLV_FLAGS_ATTENTION		= BIT(7),
-	HTT_RX_FILTER_TLV_FLAGS_PPDU_START		= BIT(8),
-	HTT_RX_FILTER_TLV_FLAGS_PPDU_END		= BIT(9),
-	HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS	= BIT(10),
-	HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT	= BIT(11),
-	HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE	= BIT(12),
+  HTT_RX_FILTER_TLV_FLAGS_MPDU_START = BIT(0),
+  HTT_RX_FILTER_TLV_FLAGS_MSDU_START = BIT(1),
+  HTT_RX_FILTER_TLV_FLAGS_RX_PACKET = BIT(2),
+  HTT_RX_FILTER_TLV_FLAGS_MSDU_END = BIT(3),
+  HTT_RX_FILTER_TLV_FLAGS_MPDU_END = BIT(4),
+  HTT_RX_FILTER_TLV_FLAGS_PACKET_HEADER = BIT(5),
+  HTT_RX_FILTER_TLV_FLAGS_PER_MSDU_HEADER = BIT(6),
+  HTT_RX_FILTER_TLV_FLAGS_ATTENTION = BIT(7),
+  HTT_RX_FILTER_TLV_FLAGS_PPDU_START = BIT(8),
+  HTT_RX_FILTER_TLV_FLAGS_PPDU_END = BIT(9),
+  HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS = BIT(10),
+  HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT = BIT(11),
+  HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE = BIT(12),
 };
 
 enum htt_rx_mgmt_pkt_filter_tlv_flags0 {
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ		= BIT(0),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ		= BIT(1),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ		= BIT(2),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP		= BIT(3),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP		= BIT(4),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP		= BIT(5),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ	= BIT(6),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ	= BIT(7),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ	= BIT(8),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP	= BIT(9),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP	= BIT(10),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP	= BIT(11),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ		= BIT(12),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ		= BIT(13),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ		= BIT(14),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP		= BIT(15),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP		= BIT(16),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP		= BIT(17),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV	= BIT(18),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV	= BIT(19),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV	= BIT(20),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7		= BIT(21),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7		= BIT(22),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7		= BIT(23),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON		= BIT(24),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON		= BIT(25),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON		= BIT(26),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM		= BIT(27),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM		= BIT(28),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM		= BIT(29),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ = BIT(0),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ = BIT(1),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ = BIT(2),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP = BIT(3),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP = BIT(4),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP = BIT(5),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ = BIT(6),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ = BIT(7),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ = BIT(8),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP = BIT(9),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP = BIT(10),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP = BIT(11),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ = BIT(12),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ = BIT(13),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ = BIT(14),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP = BIT(15),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP = BIT(16),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP = BIT(17),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV = BIT(18),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV = BIT(19),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV = BIT(20),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7 = BIT(21),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7 = BIT(22),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7 = BIT(23),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON = BIT(24),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON = BIT(25),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON = BIT(26),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM = BIT(27),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM = BIT(28),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM = BIT(29),
 };
 
 enum htt_rx_mgmt_pkt_filter_tlv_flags1 {
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC		= BIT(0),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC		= BIT(1),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC		= BIT(2),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH		= BIT(3),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH		= BIT(4),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH		= BIT(5),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH		= BIT(6),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH		= BIT(7),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH		= BIT(8),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(9),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(10),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION		= BIT(11),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(12),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(13),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK	= BIT(14),
-	HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(15),
-	HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(16),
-	HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15	= BIT(17),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC = BIT(0),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC = BIT(1),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC = BIT(2),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH = BIT(3),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH = BIT(4),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH = BIT(5),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH = BIT(6),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH = BIT(7),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH = BIT(8),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION = BIT(9),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION = BIT(10),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION = BIT(11),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK = BIT(12),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK = BIT(13),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK = BIT(14),
+  HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15 = BIT(15),
+  HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15 = BIT(16),
+  HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15 = BIT(17),
 };
 
 enum htt_rx_ctrl_pkt_filter_tlv_flags2 {
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1	= BIT(0),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1	= BIT(1),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1	= BIT(2),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2	= BIT(3),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2	= BIT(4),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2	= BIT(5),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER	= BIT(6),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER	= BIT(7),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER	= BIT(8),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4	= BIT(9),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4	= BIT(10),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4	= BIT(11),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL	= BIT(12),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL	= BIT(13),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL	= BIT(14),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP	= BIT(15),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP	= BIT(16),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP	= BIT(17),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT	= BIT(18),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT	= BIT(19),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT	= BIT(20),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER	= BIT(21),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER	= BIT(22),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER	= BIT(23),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BAR		= BIT(24),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BAR		= BIT(25),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BAR		= BIT(26),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BA			= BIT(27),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BA			= BIT(28),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BA			= BIT(29),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1 = BIT(0),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1 = BIT(1),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1 = BIT(2),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2 = BIT(3),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2 = BIT(4),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2 = BIT(5),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER = BIT(6),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER = BIT(7),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER = BIT(8),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4 = BIT(9),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4 = BIT(10),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4 = BIT(11),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL = BIT(12),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL = BIT(13),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL = BIT(14),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP = BIT(15),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP = BIT(16),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP = BIT(17),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT = BIT(18),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT = BIT(19),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT = BIT(20),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER = BIT(21),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER = BIT(22),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER = BIT(23),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BAR = BIT(24),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BAR = BIT(25),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BAR = BIT(26),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BA = BIT(27),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BA = BIT(28),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BA = BIT(29),
 };
 
 enum htt_rx_ctrl_pkt_filter_tlv_flags3 {
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL		= BIT(0),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL		= BIT(1),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL		= BIT(2),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_RTS		= BIT(3),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_RTS		= BIT(4),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_RTS		= BIT(5),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CTS		= BIT(6),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CTS		= BIT(7),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CTS		= BIT(8),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_ACK		= BIT(9),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_ACK		= BIT(10),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_ACK		= BIT(11),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND		= BIT(12),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND		= BIT(13),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND		= BIT(14),
-	HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK		= BIT(15),
-	HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK		= BIT(16),
-	HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK		= BIT(17),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL = BIT(0),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL = BIT(1),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL = BIT(2),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_RTS = BIT(3),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_RTS = BIT(4),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_RTS = BIT(5),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CTS = BIT(6),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CTS = BIT(7),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CTS = BIT(8),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_ACK = BIT(9),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_ACK = BIT(10),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_ACK = BIT(11),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND = BIT(12),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND = BIT(13),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND = BIT(14),
+  HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK = BIT(15),
+  HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK = BIT(16),
+  HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK = BIT(17),
 };
 
 enum htt_rx_data_pkt_filter_tlv_flasg3 {
-	HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_MCAST	= BIT(18),
-	HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_MCAST	= BIT(19),
-	HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_MCAST	= BIT(20),
-	HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_UCAST	= BIT(21),
-	HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_UCAST	= BIT(22),
-	HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_UCAST	= BIT(23),
-	HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA	= BIT(24),
-	HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA	= BIT(25),
-	HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA	= BIT(26),
+  HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_MCAST = BIT(18),
+  HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_MCAST = BIT(19),
+  HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_MCAST = BIT(20),
+  HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_UCAST = BIT(21),
+  HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_UCAST = BIT(22),
+  HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_UCAST = BIT(23),
+  HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA = BIT(24),
+  HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA = BIT(25),
+  HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA = BIT(26),
 };
 
 #define HTT_RX_FP_MGMT_FILTER_FLAGS0 \
-	(HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON \
-	| HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM)
+  (HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM)
 
 #define HTT_RX_MD_MGMT_FILTER_FLAGS0 \
-	(HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON \
-	| HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM)
+  (HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON \
+  | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM)
 
 #define HTT_RX_MO_MGMT_FILTER_FLAGS0 \
-	(HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON \
-	| HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM)
+  (HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_REQ \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ASSOC_RESP \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_REQ \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_REASSOC_RESP \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_REQ \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_RESP \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_PROBE_TIMING_ADV \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_BEACON \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_ATIM)
 
-#define HTT_RX_FP_MGMT_FILTER_FLAGS1 (HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
-				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
-				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
-				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+#define HTT_RX_FP_MGMT_FILTER_FLAGS1 ( \
+    HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
+    | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
+    | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
+    | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
+    | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
 
-#define HTT_RX_MD_MGMT_FILTER_FLAGS1 (HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
-				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
-				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
-				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+#define HTT_RX_MD_MGMT_FILTER_FLAGS1 ( \
+    HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
+    | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
+    | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
+    | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
+    | HTT_RX_MD_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
 
-#define HTT_RX_MO_MGMT_FILTER_FLAGS1 (HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
-				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
-				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
-				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
-				     | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
+#define HTT_RX_MO_MGMT_FILTER_FLAGS1 ( \
+    HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DISASSOC \
+    | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_AUTH \
+    | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_DEAUTH \
+    | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION \
+    | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_ACTION_NOACK)
 
-#define HTT_RX_FP_CTRL_FILTER_FLASG2 (HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BA)
+#define HTT_RX_FP_CTRL_FILTER_FLASG2 ( \
+    HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_BA)
 
-#define HTT_RX_MD_CTRL_FILTER_FLASG2 (HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BA)
+#define HTT_RX_MD_CTRL_FILTER_FLASG2 ( \
+    HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS2_BA)
 
-#define HTT_RX_MO_CTRL_FILTER_FLASG2 (HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BA)
+#define HTT_RX_MO_CTRL_FILTER_FLASG2 ( \
+    HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_WRAPPER \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BAR \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_BA)
 
-#define HTT_RX_FP_CTRL_FILTER_FLASG3 (HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_RTS \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CTS \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_ACK \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND \
-				     | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK)
+#define HTT_RX_FP_CTRL_FILTER_FLASG3 ( \
+    HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_RTS \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CTS \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_ACK \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND \
+    | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK)
 
-#define HTT_RX_MD_CTRL_FILTER_FLASG3 (HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_RTS \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CTS \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_ACK \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND \
-				     | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK)
+#define HTT_RX_MD_CTRL_FILTER_FLASG3 ( \
+    HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_RTS \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CTS \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_ACK \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND \
+    | HTT_RX_MD_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK)
 
-#define HTT_RX_MO_CTRL_FILTER_FLASG3 (HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_RTS \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CTS \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_ACK \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND \
-				     | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK)
+#define HTT_RX_MO_CTRL_FILTER_FLASG3 ( \
+    HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_PSPOLL \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_RTS \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CTS \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_ACK \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND \
+    | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS3_CFEND_ACK)
 
 #define HTT_RX_FP_DATA_FILTER_FLASG3 (HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_MCAST \
-				     | HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_UCAST \
-				     | HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA)
+  | HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_UCAST \
+  | HTT_RX_FP_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA)
 
 #define HTT_RX_MD_DATA_FILTER_FLASG3 (HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_MCAST \
-				     | HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_UCAST \
-				     | HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA)
+  | HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_UCAST \
+  | HTT_RX_MD_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA)
 
 #define HTT_RX_MO_DATA_FILTER_FLASG3 (HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_MCAST \
-				     | HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_UCAST \
-				     | HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA)
+  | HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_UCAST \
+  | HTT_RX_MO_DATA_PKT_FILTER_TLV_FLASG3_NULL_DATA)
 
 #define HTT_RX_MON_FP_MGMT_FILTER_FLAGS0 \
-		(HTT_RX_FP_MGMT_FILTER_FLAGS0 | \
-		HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7)
+  (HTT_RX_FP_MGMT_FILTER_FLAGS0   \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7)
 
 #define HTT_RX_MON_MO_MGMT_FILTER_FLAGS0 \
-		(HTT_RX_MO_MGMT_FILTER_FLAGS0 | \
-		HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7)
+  (HTT_RX_MO_MGMT_FILTER_FLAGS0   \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS0_RESERVED_7)
 
 #define HTT_RX_MON_FP_MGMT_FILTER_FLAGS1 \
-		(HTT_RX_FP_MGMT_FILTER_FLAGS1 | \
-		HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15)
+  (HTT_RX_FP_MGMT_FILTER_FLAGS1   \
+  | HTT_RX_FP_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15)
 
 #define HTT_RX_MON_MO_MGMT_FILTER_FLAGS1 \
-		(HTT_RX_MO_MGMT_FILTER_FLAGS1 | \
-		HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15)
+  (HTT_RX_MO_MGMT_FILTER_FLAGS1   \
+  | HTT_RX_MO_MGMT_PKT_FILTER_TLV_FLAGS1_RESERVED_15)
 
 #define HTT_RX_MON_FP_CTRL_FILTER_FLASG2 \
-		(HTT_RX_FP_CTRL_FILTER_FLASG2 | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1 | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2 | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4 | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP | \
-		HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT)
+  (HTT_RX_FP_CTRL_FILTER_FLASG2   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP   \
+  | HTT_RX_FP_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT)
 
 #define HTT_RX_MON_MO_CTRL_FILTER_FLASG2 \
-		(HTT_RX_MO_CTRL_FILTER_FLASG2 | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1 | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2 | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4 | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP | \
-		HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT)
+  (HTT_RX_MO_CTRL_FILTER_FLASG2   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_1   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_2   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_TRIGGER   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_RESERVED_4   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_BF_REP_POLL   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_VHT_NDP   \
+  | HTT_RX_MO_CTRL_PKT_FILTER_TLV_FLAGS2_CTRL_FRAME_EXT)
 
 #define HTT_RX_MON_FP_CTRL_FILTER_FLASG3 HTT_RX_FP_CTRL_FILTER_FLASG3
 
@@ -950,56 +960,56 @@ enum htt_rx_data_pkt_filter_tlv_flasg3 {
 #define HTT_RX_MON_MO_DATA_FILTER_FLASG3 HTT_RX_MO_DATA_FILTER_FLASG3
 
 #define HTT_RX_MON_FILTER_TLV_FLAGS \
-		(HTT_RX_FILTER_TLV_FLAGS_MPDU_START | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_START | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE)
+  (HTT_RX_FILTER_TLV_FLAGS_MPDU_START   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_START   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE)
 
 #define HTT_RX_MON_FILTER_TLV_FLAGS_MON_STATUS_RING \
-		(HTT_RX_FILTER_TLV_FLAGS_MPDU_START | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_START | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT | \
-		HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE)
+  (HTT_RX_FILTER_TLV_FLAGS_MPDU_START   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_START   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT   \
+  | HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE)
 
 #define HTT_RX_MON_FILTER_TLV_FLAGS_MON_BUF_RING \
-		(HTT_RX_FILTER_TLV_FLAGS_MPDU_START | \
-		HTT_RX_FILTER_TLV_FLAGS_MSDU_START | \
-		HTT_RX_FILTER_TLV_FLAGS_RX_PACKET | \
-		HTT_RX_FILTER_TLV_FLAGS_MSDU_END | \
-		HTT_RX_FILTER_TLV_FLAGS_MPDU_END | \
-		HTT_RX_FILTER_TLV_FLAGS_PACKET_HEADER | \
-		HTT_RX_FILTER_TLV_FLAGS_PER_MSDU_HEADER | \
-		HTT_RX_FILTER_TLV_FLAGS_ATTENTION)
+  (HTT_RX_FILTER_TLV_FLAGS_MPDU_START   \
+  | HTT_RX_FILTER_TLV_FLAGS_MSDU_START   \
+  | HTT_RX_FILTER_TLV_FLAGS_RX_PACKET   \
+  | HTT_RX_FILTER_TLV_FLAGS_MSDU_END   \
+  | HTT_RX_FILTER_TLV_FLAGS_MPDU_END   \
+  | HTT_RX_FILTER_TLV_FLAGS_PACKET_HEADER   \
+  | HTT_RX_FILTER_TLV_FLAGS_PER_MSDU_HEADER   \
+  | HTT_RX_FILTER_TLV_FLAGS_ATTENTION)
 
 struct htt_rx_ring_selection_cfg_cmd {
-	u32 info0;
-	u32 info1;
-	u32 pkt_type_en_flags0;
-	u32 pkt_type_en_flags1;
-	u32 pkt_type_en_flags2;
-	u32 pkt_type_en_flags3;
-	u32 rx_filter_tlv;
+  u32 info0;
+  u32 info1;
+  u32 pkt_type_en_flags0;
+  u32 pkt_type_en_flags1;
+  u32 pkt_type_en_flags2;
+  u32 pkt_type_en_flags3;
+  u32 rx_filter_tlv;
 } __packed;
 
 struct htt_rx_ring_tlv_filter {
-	u32 rx_filter; /* see htt_rx_filter_tlv_flags */
-	u32 pkt_filter_flags0; /* MGMT */
-	u32 pkt_filter_flags1; /* MGMT */
-	u32 pkt_filter_flags2; /* CTRL */
-	u32 pkt_filter_flags3; /* DATA */
+  u32 rx_filter; /* see htt_rx_filter_tlv_flags */
+  u32 pkt_filter_flags0; /* MGMT */
+  u32 pkt_filter_flags1; /* MGMT */
+  u32 pkt_filter_flags2; /* CTRL */
+  u32 pkt_filter_flags3; /* DATA */
 };
 
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_MSG_TYPE	GENMASK(7, 0)
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_PDEV_ID	GENMASK(15, 8)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_MSG_TYPE GENMASK(7, 0)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_PDEV_ID  GENMASK(15, 8)
 
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ENABLE			BIT(0)
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ZERO_MPDUS_END		BIT(1)
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_NON_ZERO_MPDUS_END	BIT(2)
-#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_RELEASE_RING		GENMASK(10, 3)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ENABLE     BIT(0)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_ZERO_MPDUS_END   BIT(1)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_NON_ZERO_MPDUS_END BIT(2)
+#define HTT_RX_FULL_MON_MODE_CFG_CMD_CFG_RELEASE_RING   GENMASK(10, 3)
 
 /* Enumeration for full monitor mode destination ring select
  * 0 - REO destination ring select
@@ -1008,77 +1018,77 @@ struct htt_rx_ring_tlv_filter {
  * 3 - Release destination ring select
  */
 enum htt_rx_full_mon_release_ring {
-	HTT_RX_MON_RING_REO,
-	HTT_RX_MON_RING_FW,
-	HTT_RX_MON_RING_SW,
-	HTT_RX_MON_RING_RELEASE,
+  HTT_RX_MON_RING_REO,
+  HTT_RX_MON_RING_FW,
+  HTT_RX_MON_RING_SW,
+  HTT_RX_MON_RING_RELEASE,
 };
 
 struct htt_rx_full_monitor_mode_cfg_cmd {
-	u32 info0;
-	u32 cfg;
+  u32 info0;
+  u32 cfg;
 } __packed;
 
 /* HTT message target->host */
 
 enum htt_t2h_msg_type {
-	HTT_T2H_MSG_TYPE_VERSION_CONF,
-	HTT_T2H_MSG_TYPE_PEER_MAP	= 0x3,
-	HTT_T2H_MSG_TYPE_PEER_UNMAP	= 0x4,
-	HTT_T2H_MSG_TYPE_RX_ADDBA	= 0x5,
-	HTT_T2H_MSG_TYPE_PKTLOG		= 0x8,
-	HTT_T2H_MSG_TYPE_SEC_IND	= 0xb,
-	HTT_T2H_MSG_TYPE_PEER_MAP2	= 0x1e,
-	HTT_T2H_MSG_TYPE_PEER_UNMAP2	= 0x1f,
-	HTT_T2H_MSG_TYPE_PPDU_STATS_IND = 0x1d,
-	HTT_T2H_MSG_TYPE_EXT_STATS_CONF = 0x1c,
-	HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND = 0x24,
+  HTT_T2H_MSG_TYPE_VERSION_CONF,
+  HTT_T2H_MSG_TYPE_PEER_MAP = 0x3,
+  HTT_T2H_MSG_TYPE_PEER_UNMAP = 0x4,
+  HTT_T2H_MSG_TYPE_RX_ADDBA = 0x5,
+  HTT_T2H_MSG_TYPE_PKTLOG = 0x8,
+  HTT_T2H_MSG_TYPE_SEC_IND = 0xb,
+  HTT_T2H_MSG_TYPE_PEER_MAP2 = 0x1e,
+  HTT_T2H_MSG_TYPE_PEER_UNMAP2 = 0x1f,
+  HTT_T2H_MSG_TYPE_PPDU_STATS_IND = 0x1d,
+  HTT_T2H_MSG_TYPE_EXT_STATS_CONF = 0x1c,
+  HTT_T2H_MSG_TYPE_BKPRESSURE_EVENT_IND = 0x24,
 };
 
 #define HTT_TARGET_VERSION_MAJOR 3
 
-#define HTT_T2H_MSG_TYPE		GENMASK(7, 0)
-#define HTT_T2H_VERSION_CONF_MINOR	GENMASK(15, 8)
-#define HTT_T2H_VERSION_CONF_MAJOR	GENMASK(23, 16)
+#define HTT_T2H_MSG_TYPE    GENMASK(7, 0)
+#define HTT_T2H_VERSION_CONF_MINOR  GENMASK(15, 8)
+#define HTT_T2H_VERSION_CONF_MAJOR  GENMASK(23, 16)
 
 struct htt_t2h_version_conf_msg {
-	u32 version;
+  u32 version;
 } __packed;
 
-#define HTT_T2H_PEER_MAP_INFO_VDEV_ID	GENMASK(15, 8)
-#define HTT_T2H_PEER_MAP_INFO_PEER_ID	GENMASK(31, 16)
-#define HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16	GENMASK(15, 0)
-#define HTT_T2H_PEER_MAP_INFO1_HW_PEER_ID	GENMASK(31, 16)
-#define HTT_T2H_PEER_MAP_INFO2_AST_HASH_VAL	GENMASK(15, 0)
-#define HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_M	BIT(16)
-#define HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_S	16
+#define HTT_T2H_PEER_MAP_INFO_VDEV_ID GENMASK(15, 8)
+#define HTT_T2H_PEER_MAP_INFO_PEER_ID GENMASK(31, 16)
+#define HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16 GENMASK(15, 0)
+#define HTT_T2H_PEER_MAP_INFO1_HW_PEER_ID GENMASK(31, 16)
+#define HTT_T2H_PEER_MAP_INFO2_AST_HASH_VAL GENMASK(15, 0)
+#define HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_M BIT(16)
+#define HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_S 16
 
 struct htt_t2h_peer_map_event {
-	u32 info;
-	u32 mac_addr_l32;
-	u32 info1;
-	u32 info2;
+  u32 info;
+  u32 mac_addr_l32;
+  u32 info1;
+  u32 info2;
 } __packed;
 
-#define HTT_T2H_PEER_UNMAP_INFO_VDEV_ID	HTT_T2H_PEER_MAP_INFO_VDEV_ID
-#define HTT_T2H_PEER_UNMAP_INFO_PEER_ID	HTT_T2H_PEER_MAP_INFO_PEER_ID
+#define HTT_T2H_PEER_UNMAP_INFO_VDEV_ID HTT_T2H_PEER_MAP_INFO_VDEV_ID
+#define HTT_T2H_PEER_UNMAP_INFO_PEER_ID HTT_T2H_PEER_MAP_INFO_PEER_ID
 #define HTT_T2H_PEER_UNMAP_INFO1_MAC_ADDR_H16 \
-					HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16
+  HTT_T2H_PEER_MAP_INFO1_MAC_ADDR_H16
 #define HTT_T2H_PEER_MAP_INFO1_NEXT_HOP_M HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_M
 #define HTT_T2H_PEER_MAP_INFO1_NEXT_HOP_S HTT_T2H_PEER_MAP_INFO2_NEXT_HOP_S
 
 struct htt_t2h_peer_unmap_event {
-	u32 info;
-	u32 mac_addr_l32;
-	u32 info1;
+  u32 info;
+  u32 mac_addr_l32;
+  u32 info1;
 } __packed;
 
 struct htt_resp_msg {
-	union {
-		struct htt_t2h_version_conf_msg version_msg;
-		struct htt_t2h_peer_map_event peer_map_ev;
-		struct htt_t2h_peer_unmap_event peer_unmap_ev;
-	};
+  union {
+    struct htt_t2h_version_conf_msg version_msg;
+    struct htt_t2h_peer_map_event peer_map_ev;
+    struct htt_t2h_peer_unmap_event peer_unmap_ev;
+  };
 } __packed;
 
 #define HTT_BACKPRESSURE_EVENT_PDEV_ID_M GENMASK(15, 8)
@@ -1088,46 +1098,46 @@ struct htt_resp_msg {
 #define HTT_BACKPRESSURE_EVENT_HP_M GENMASK(15, 0)
 #define HTT_BACKPRESSURE_EVENT_TP_M GENMASK(31, 16)
 
-#define HTT_BACKPRESSURE_UMAC_RING_TYPE	0
-#define HTT_BACKPRESSURE_LMAC_RING_TYPE	1
+#define HTT_BACKPRESSURE_UMAC_RING_TYPE 0
+#define HTT_BACKPRESSURE_LMAC_RING_TYPE 1
 
 enum htt_backpressure_umac_ringid {
-	HTT_SW_RING_IDX_REO_REO2SW1_RING,
-	HTT_SW_RING_IDX_REO_REO2SW2_RING,
-	HTT_SW_RING_IDX_REO_REO2SW3_RING,
-	HTT_SW_RING_IDX_REO_REO2SW4_RING,
-	HTT_SW_RING_IDX_REO_WBM2REO_LINK_RING,
-	HTT_SW_RING_IDX_REO_REO2TCL_RING,
-	HTT_SW_RING_IDX_REO_REO2FW_RING,
-	HTT_SW_RING_IDX_REO_REO_RELEASE_RING,
-	HTT_SW_RING_IDX_WBM_PPE_RELEASE_RING,
-	HTT_SW_RING_IDX_TCL_TCL2TQM_RING,
-	HTT_SW_RING_IDX_WBM_TQM_RELEASE_RING,
-	HTT_SW_RING_IDX_WBM_REO_RELEASE_RING,
-	HTT_SW_RING_IDX_WBM_WBM2SW0_RELEASE_RING,
-	HTT_SW_RING_IDX_WBM_WBM2SW1_RELEASE_RING,
-	HTT_SW_RING_IDX_WBM_WBM2SW2_RELEASE_RING,
-	HTT_SW_RING_IDX_WBM_WBM2SW3_RELEASE_RING,
-	HTT_SW_RING_IDX_REO_REO_CMD_RING,
-	HTT_SW_RING_IDX_REO_REO_STATUS_RING,
-	HTT_SW_UMAC_RING_IDX_MAX,
+  HTT_SW_RING_IDX_REO_REO2SW1_RING,
+  HTT_SW_RING_IDX_REO_REO2SW2_RING,
+  HTT_SW_RING_IDX_REO_REO2SW3_RING,
+  HTT_SW_RING_IDX_REO_REO2SW4_RING,
+  HTT_SW_RING_IDX_REO_WBM2REO_LINK_RING,
+  HTT_SW_RING_IDX_REO_REO2TCL_RING,
+  HTT_SW_RING_IDX_REO_REO2FW_RING,
+  HTT_SW_RING_IDX_REO_REO_RELEASE_RING,
+  HTT_SW_RING_IDX_WBM_PPE_RELEASE_RING,
+  HTT_SW_RING_IDX_TCL_TCL2TQM_RING,
+  HTT_SW_RING_IDX_WBM_TQM_RELEASE_RING,
+  HTT_SW_RING_IDX_WBM_REO_RELEASE_RING,
+  HTT_SW_RING_IDX_WBM_WBM2SW0_RELEASE_RING,
+  HTT_SW_RING_IDX_WBM_WBM2SW1_RELEASE_RING,
+  HTT_SW_RING_IDX_WBM_WBM2SW2_RELEASE_RING,
+  HTT_SW_RING_IDX_WBM_WBM2SW3_RELEASE_RING,
+  HTT_SW_RING_IDX_REO_REO_CMD_RING,
+  HTT_SW_RING_IDX_REO_REO_STATUS_RING,
+  HTT_SW_UMAC_RING_IDX_MAX,
 };
 
 enum htt_backpressure_lmac_ringid {
-	HTT_SW_RING_IDX_FW2RXDMA_BUF_RING,
-	HTT_SW_RING_IDX_FW2RXDMA_STATUS_RING,
-	HTT_SW_RING_IDX_FW2RXDMA_LINK_RING,
-	HTT_SW_RING_IDX_SW2RXDMA_BUF_RING,
-	HTT_SW_RING_IDX_WBM2RXDMA_LINK_RING,
-	HTT_SW_RING_IDX_RXDMA2FW_RING,
-	HTT_SW_RING_IDX_RXDMA2SW_RING,
-	HTT_SW_RING_IDX_RXDMA2RELEASE_RING,
-	HTT_SW_RING_IDX_RXDMA2REO_RING,
-	HTT_SW_RING_IDX_MONITOR_STATUS_RING,
-	HTT_SW_RING_IDX_MONITOR_BUF_RING,
-	HTT_SW_RING_IDX_MONITOR_DESC_RING,
-	HTT_SW_RING_IDX_MONITOR_DEST_RING,
-	HTT_SW_LMAC_RING_IDX_MAX,
+  HTT_SW_RING_IDX_FW2RXDMA_BUF_RING,
+  HTT_SW_RING_IDX_FW2RXDMA_STATUS_RING,
+  HTT_SW_RING_IDX_FW2RXDMA_LINK_RING,
+  HTT_SW_RING_IDX_SW2RXDMA_BUF_RING,
+  HTT_SW_RING_IDX_WBM2RXDMA_LINK_RING,
+  HTT_SW_RING_IDX_RXDMA2FW_RING,
+  HTT_SW_RING_IDX_RXDMA2SW_RING,
+  HTT_SW_RING_IDX_RXDMA2RELEASE_RING,
+  HTT_SW_RING_IDX_RXDMA2REO_RING,
+  HTT_SW_RING_IDX_MONITOR_STATUS_RING,
+  HTT_SW_RING_IDX_MONITOR_BUF_RING,
+  HTT_SW_RING_IDX_MONITOR_DESC_RING,
+  HTT_SW_RING_IDX_MONITOR_DEST_RING,
+  HTT_SW_LMAC_RING_IDX_MAX,
 };
 
 /* ppdu stats
@@ -1176,226 +1186,226 @@ enum htt_backpressure_lmac_ringid {
 #define HTT_T2H_PPDU_STATS_INFO_PAYLOAD_SIZE GENMASK(31, 16)
 
 struct ath11k_htt_ppdu_stats_msg {
-	u32 info;
-	u32 ppdu_id;
-	u32 timestamp;
-	u32 rsvd;
-	u8 data[];
+  u32 info;
+  u32 ppdu_id;
+  u32 timestamp;
+  u32 rsvd;
+  u8 data[];
 } __packed;
 
 struct htt_tlv {
-	u32 header;
-	u8 value[];
+  u32 header;
+  u8 value[];
 } __packed;
 
-#define HTT_TLV_TAG			GENMASK(11, 0)
-#define HTT_TLV_LEN			GENMASK(23, 12)
+#define HTT_TLV_TAG     GENMASK(11, 0)
+#define HTT_TLV_LEN     GENMASK(23, 12)
 
 enum HTT_PPDU_STATS_BW {
-	HTT_PPDU_STATS_BANDWIDTH_5MHZ   = 0,
-	HTT_PPDU_STATS_BANDWIDTH_10MHZ  = 1,
-	HTT_PPDU_STATS_BANDWIDTH_20MHZ  = 2,
-	HTT_PPDU_STATS_BANDWIDTH_40MHZ  = 3,
-	HTT_PPDU_STATS_BANDWIDTH_80MHZ  = 4,
-	HTT_PPDU_STATS_BANDWIDTH_160MHZ = 5, /* includes 80+80 */
-	HTT_PPDU_STATS_BANDWIDTH_DYN    = 6,
+  HTT_PPDU_STATS_BANDWIDTH_5MHZ = 0,
+  HTT_PPDU_STATS_BANDWIDTH_10MHZ = 1,
+  HTT_PPDU_STATS_BANDWIDTH_20MHZ = 2,
+  HTT_PPDU_STATS_BANDWIDTH_40MHZ = 3,
+  HTT_PPDU_STATS_BANDWIDTH_80MHZ = 4,
+  HTT_PPDU_STATS_BANDWIDTH_160MHZ = 5, /* includes 80+80 */
+  HTT_PPDU_STATS_BANDWIDTH_DYN = 6,
 };
 
-#define HTT_PPDU_STATS_CMN_FLAGS_FRAME_TYPE_M	GENMASK(7, 0)
-#define HTT_PPDU_STATS_CMN_FLAGS_QUEUE_TYPE_M	GENMASK(15, 8)
+#define HTT_PPDU_STATS_CMN_FLAGS_FRAME_TYPE_M GENMASK(7, 0)
+#define HTT_PPDU_STATS_CMN_FLAGS_QUEUE_TYPE_M GENMASK(15, 8)
 /* bw - HTT_PPDU_STATS_BW */
-#define HTT_PPDU_STATS_CMN_FLAGS_BW_M		GENMASK(19, 16)
+#define HTT_PPDU_STATS_CMN_FLAGS_BW_M   GENMASK(19, 16)
 
 struct htt_ppdu_stats_common {
-	u32 ppdu_id;
-	u16 sched_cmdid;
-	u8 ring_id;
-	u8 num_users;
-	u32 flags; /* %HTT_PPDU_STATS_COMMON_FLAGS_*/
-	u32 chain_mask;
-	u32 fes_duration_us; /* frame exchange sequence */
-	u32 ppdu_sch_eval_start_tstmp_us;
-	u32 ppdu_sch_end_tstmp_us;
-	u32 ppdu_start_tstmp_us;
-	/* BIT [15 :  0] - phy mode (WLAN_PHY_MODE) with which ppdu was transmitted
-	 * BIT [31 : 16] - bandwidth (in MHz) with which ppdu was transmitted
-	 */
-	u16 phy_mode;
-	u16 bw_mhz;
+  u32 ppdu_id;
+  u16 sched_cmdid;
+  u8 ring_id;
+  u8 num_users;
+  u32 flags; /* %HTT_PPDU_STATS_COMMON_FLAGS_*/
+  u32 chain_mask;
+  u32 fes_duration_us; /* frame exchange sequence */
+  u32 ppdu_sch_eval_start_tstmp_us;
+  u32 ppdu_sch_end_tstmp_us;
+  u32 ppdu_start_tstmp_us;
+  /* BIT [15 :  0] - phy mode (WLAN_PHY_MODE) with which ppdu was transmitted
+   * BIT [31 : 16] - bandwidth (in MHz) with which ppdu was transmitted
+   */
+  u16 phy_mode;
+  u16 bw_mhz;
 } __packed;
 
 enum htt_ppdu_stats_gi {
-	HTT_PPDU_STATS_SGI_0_8_US,
-	HTT_PPDU_STATS_SGI_0_4_US,
-	HTT_PPDU_STATS_SGI_1_6_US,
-	HTT_PPDU_STATS_SGI_3_2_US,
+  HTT_PPDU_STATS_SGI_0_8_US,
+  HTT_PPDU_STATS_SGI_0_4_US,
+  HTT_PPDU_STATS_SGI_1_6_US,
+  HTT_PPDU_STATS_SGI_3_2_US,
 };
 
-#define HTT_PPDU_STATS_USER_RATE_INFO0_USER_POS_M	GENMASK(3, 0)
-#define HTT_PPDU_STATS_USER_RATE_INFO0_MU_GROUP_ID_M	GENMASK(11, 4)
+#define HTT_PPDU_STATS_USER_RATE_INFO0_USER_POS_M GENMASK(3, 0)
+#define HTT_PPDU_STATS_USER_RATE_INFO0_MU_GROUP_ID_M  GENMASK(11, 4)
 
-#define HTT_PPDU_STATS_USER_RATE_INFO1_RESP_TYPE_VALD_M	BIT(0)
-#define HTT_PPDU_STATS_USER_RATE_INFO1_PPDU_TYPE_M	GENMASK(5, 1)
+#define HTT_PPDU_STATS_USER_RATE_INFO1_RESP_TYPE_VALD_M BIT(0)
+#define HTT_PPDU_STATS_USER_RATE_INFO1_PPDU_TYPE_M  GENMASK(5, 1)
 
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_LTF_SIZE_M	GENMASK(1, 0)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_STBC_M		BIT(2)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_HE_RE_M		BIT(3)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_TXBF_M		GENMASK(7, 4)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_BW_M		GENMASK(11, 8)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_NSS_M		GENMASK(15, 12)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_MCS_M		GENMASK(19, 16)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_PREAMBLE_M	GENMASK(23, 20)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_GI_M		GENMASK(27, 24)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_DCM_M		BIT(28)
-#define HTT_PPDU_STATS_USER_RATE_FLAGS_LDPC_M		BIT(29)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_LTF_SIZE_M GENMASK(1, 0)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_STBC_M   BIT(2)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_HE_RE_M    BIT(3)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_TXBF_M   GENMASK(7, 4)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_BW_M   GENMASK(11, 8)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_NSS_M    GENMASK(15, 12)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_MCS_M    GENMASK(19, 16)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_PREAMBLE_M GENMASK(23, 20)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_GI_M   GENMASK(27, 24)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_DCM_M    BIT(28)
+#define HTT_PPDU_STATS_USER_RATE_FLAGS_LDPC_M   BIT(29)
 
 #define HTT_USR_RATE_PREAMBLE(_val) \
-		FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_PREAMBLE_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_PREAMBLE_M, _val)
 #define HTT_USR_RATE_BW(_val) \
-		FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_BW_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_BW_M, _val)
 #define HTT_USR_RATE_NSS(_val) \
-		FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_NSS_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_NSS_M, _val)
 #define HTT_USR_RATE_MCS(_val) \
-		FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_MCS_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_MCS_M, _val)
 #define HTT_USR_RATE_GI(_val) \
-		FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_GI_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_GI_M, _val)
 #define HTT_USR_RATE_DCM(_val) \
-		FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_DCM_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USER_RATE_FLAGS_DCM_M, _val)
 
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_LTF_SIZE_M		GENMASK(1, 0)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_STBC_M		BIT(2)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_HE_RE_M		BIT(3)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_TXBF_M		GENMASK(7, 4)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_BW_M		GENMASK(11, 8)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_NSS_M		GENMASK(15, 12)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_MCS_M		GENMASK(19, 16)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_PREAMBLE_M		GENMASK(23, 20)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_GI_M		GENMASK(27, 24)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_DCM_M		BIT(28)
-#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_LDPC_M		BIT(29)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_LTF_SIZE_M    GENMASK(1, 0)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_STBC_M    BIT(2)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_HE_RE_M   BIT(3)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_TXBF_M    GENMASK(7, 4)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_BW_M    GENMASK(11, 8)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_NSS_M   GENMASK(15, 12)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_MCS_M   GENMASK(19, 16)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_PREAMBLE_M    GENMASK(23, 20)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_GI_M    GENMASK(27, 24)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_DCM_M   BIT(28)
+#define HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_LDPC_M    BIT(29)
 
 struct htt_ppdu_stats_user_rate {
-	u8 tid_num;
-	u8 reserved0;
-	u16 sw_peer_id;
-	u32 info0; /* %HTT_PPDU_STATS_USER_RATE_INFO0_*/
-	u16 ru_end;
-	u16 ru_start;
-	u16 resp_ru_end;
-	u16 resp_ru_start;
-	u32 info1; /* %HTT_PPDU_STATS_USER_RATE_INFO1_ */
-	u32 rate_flags; /* %HTT_PPDU_STATS_USER_RATE_FLAGS_ */
-	/* Note: resp_rate_info is only valid for if resp_type is UL */
-	u32 resp_rate_flags; /* %HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_ */
+  u8 tid_num;
+  u8 reserved0;
+  u16 sw_peer_id;
+  u32 info0; /* %HTT_PPDU_STATS_USER_RATE_INFO0_*/
+  u16 ru_end;
+  u16 ru_start;
+  u16 resp_ru_end;
+  u16 resp_ru_start;
+  u32 info1; /* %HTT_PPDU_STATS_USER_RATE_INFO1_ */
+  u32 rate_flags; /* %HTT_PPDU_STATS_USER_RATE_FLAGS_ */
+  /* Note: resp_rate_info is only valid for if resp_type is UL */
+  u32 resp_rate_flags; /* %HTT_PPDU_STATS_USER_RATE_RESP_FLAGS_ */
 } __packed;
 
-#define HTT_PPDU_STATS_TX_INFO_FLAGS_RATECODE_M		GENMASK(7, 0)
-#define HTT_PPDU_STATS_TX_INFO_FLAGS_IS_AMPDU_M		BIT(8)
-#define HTT_PPDU_STATS_TX_INFO_FLAGS_BA_ACK_FAILED_M	GENMASK(10, 9)
-#define HTT_PPDU_STATS_TX_INFO_FLAGS_BW_M		GENMASK(13, 11)
-#define HTT_PPDU_STATS_TX_INFO_FLAGS_SGI_M		BIT(14)
-#define HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M		GENMASK(31, 16)
+#define HTT_PPDU_STATS_TX_INFO_FLAGS_RATECODE_M   GENMASK(7, 0)
+#define HTT_PPDU_STATS_TX_INFO_FLAGS_IS_AMPDU_M   BIT(8)
+#define HTT_PPDU_STATS_TX_INFO_FLAGS_BA_ACK_FAILED_M  GENMASK(10, 9)
+#define HTT_PPDU_STATS_TX_INFO_FLAGS_BW_M   GENMASK(13, 11)
+#define HTT_PPDU_STATS_TX_INFO_FLAGS_SGI_M    BIT(14)
+#define HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M   GENMASK(31, 16)
 
 #define HTT_TX_INFO_IS_AMSDU(_flags) \
-			FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_IS_AMPDU_M, _flags)
+  FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_IS_AMPDU_M, _flags)
 #define HTT_TX_INFO_BA_ACK_FAILED(_flags) \
-			FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_BA_ACK_FAILED_M, _flags)
+  FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_BA_ACK_FAILED_M, _flags)
 #define HTT_TX_INFO_RATECODE(_flags) \
-			FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_RATECODE_M, _flags)
+  FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_RATECODE_M, _flags)
 #define HTT_TX_INFO_PEERID(_flags) \
-			FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M, _flags)
+  FIELD_GET(HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M, _flags)
 
 struct htt_tx_ppdu_stats_info {
-	struct htt_tlv tlv_hdr;
-	u32 tx_success_bytes;
-	u32 tx_retry_bytes;
-	u32 tx_failed_bytes;
-	u32 flags; /* %HTT_PPDU_STATS_TX_INFO_FLAGS_ */
-	u16 tx_success_msdus;
-	u16 tx_retry_msdus;
-	u16 tx_failed_msdus;
-	u16 tx_duration; /* united in us */
+  struct htt_tlv tlv_hdr;
+  u32 tx_success_bytes;
+  u32 tx_retry_bytes;
+  u32 tx_failed_bytes;
+  u32 flags; /* %HTT_PPDU_STATS_TX_INFO_FLAGS_ */
+  u16 tx_success_msdus;
+  u16 tx_retry_msdus;
+  u16 tx_failed_msdus;
+  u16 tx_duration; /* united in us */
 } __packed;
 
 enum  htt_ppdu_stats_usr_compln_status {
-	HTT_PPDU_STATS_USER_STATUS_OK,
-	HTT_PPDU_STATS_USER_STATUS_FILTERED,
-	HTT_PPDU_STATS_USER_STATUS_RESP_TIMEOUT,
-	HTT_PPDU_STATS_USER_STATUS_RESP_MISMATCH,
-	HTT_PPDU_STATS_USER_STATUS_ABORT,
+  HTT_PPDU_STATS_USER_STATUS_OK,
+  HTT_PPDU_STATS_USER_STATUS_FILTERED,
+  HTT_PPDU_STATS_USER_STATUS_RESP_TIMEOUT,
+  HTT_PPDU_STATS_USER_STATUS_RESP_MISMATCH,
+  HTT_PPDU_STATS_USER_STATUS_ABORT,
 };
 
-#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_LONG_RETRY_M	GENMASK(3, 0)
-#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_SHORT_RETRY_M	GENMASK(7, 4)
-#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_IS_AMPDU_M		BIT(8)
-#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_RESP_TYPE_M		GENMASK(12, 9)
+#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_LONG_RETRY_M  GENMASK(3, 0)
+#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_SHORT_RETRY_M GENMASK(7, 4)
+#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_IS_AMPDU_M    BIT(8)
+#define HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_RESP_TYPE_M   GENMASK(12, 9)
 
 #define HTT_USR_CMPLTN_IS_AMPDU(_val) \
-	    FIELD_GET(HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_IS_AMPDU_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_IS_AMPDU_M, _val)
 #define HTT_USR_CMPLTN_LONG_RETRY(_val) \
-	    FIELD_GET(HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_LONG_RETRY_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_LONG_RETRY_M, _val)
 #define HTT_USR_CMPLTN_SHORT_RETRY(_val) \
-	    FIELD_GET(HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_SHORT_RETRY_M, _val)
+  FIELD_GET(HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_SHORT_RETRY_M, _val)
 
 struct htt_ppdu_stats_usr_cmpltn_cmn {
-	u8 status;
-	u8 tid_num;
-	u16 sw_peer_id;
-	/* RSSI value of last ack packet (units = dB above noise floor) */
-	u32 ack_rssi;
-	u16 mpdu_tried;
-	u16 mpdu_success;
-	u32 flags; /* %HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_LONG_RETRIES*/
+  u8 status;
+  u8 tid_num;
+  u16 sw_peer_id;
+  /* RSSI value of last ack packet (units = dB above noise floor) */
+  u32 ack_rssi;
+  u16 mpdu_tried;
+  u16 mpdu_success;
+  u32 flags; /* %HTT_PPDU_STATS_USR_CMPLTN_CMN_FLAGS_LONG_RETRIES*/
 } __packed;
 
-#define HTT_PPDU_STATS_ACK_BA_INFO_NUM_MPDU_M	GENMASK(8, 0)
-#define HTT_PPDU_STATS_ACK_BA_INFO_NUM_MSDU_M	GENMASK(24, 9)
-#define HTT_PPDU_STATS_ACK_BA_INFO_TID_NUM	GENMASK(31, 25)
+#define HTT_PPDU_STATS_ACK_BA_INFO_NUM_MPDU_M GENMASK(8, 0)
+#define HTT_PPDU_STATS_ACK_BA_INFO_NUM_MSDU_M GENMASK(24, 9)
+#define HTT_PPDU_STATS_ACK_BA_INFO_TID_NUM  GENMASK(31, 25)
 
-#define HTT_PPDU_STATS_NON_QOS_TID	16
+#define HTT_PPDU_STATS_NON_QOS_TID  16
 
 struct htt_ppdu_stats_usr_cmpltn_ack_ba_status {
-	u32 ppdu_id;
-	u16 sw_peer_id;
-	u16 reserved0;
-	u32 info; /* %HTT_PPDU_STATS_USR_CMPLTN_CMN_INFO_ */
-	u16 current_seq;
-	u16 start_seq;
-	u32 success_bytes;
+  u32 ppdu_id;
+  u16 sw_peer_id;
+  u16 reserved0;
+  u32 info; /* %HTT_PPDU_STATS_USR_CMPLTN_CMN_INFO_ */
+  u16 current_seq;
+  u16 start_seq;
+  u32 success_bytes;
 } __packed;
 
 struct htt_ppdu_stats_usr_cmn_array {
-	struct htt_tlv tlv_hdr;
-	u32 num_ppdu_stats;
-	/* tx_ppdu_stats_info is filled by multiple struct htt_tx_ppdu_stats_info
-	 * elements.
-	 * tx_ppdu_stats_info is variable length, with length =
-	 *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
-	 */
-	struct htt_tx_ppdu_stats_info tx_ppdu_info[];
+  struct htt_tlv tlv_hdr;
+  u32 num_ppdu_stats;
+  /* tx_ppdu_stats_info is filled by multiple struct htt_tx_ppdu_stats_info
+   * elements.
+   * tx_ppdu_stats_info is variable length, with length =
+   *     number_of_ppdu_stats * sizeof (struct htt_tx_ppdu_stats_info)
+   */
+  struct htt_tx_ppdu_stats_info tx_ppdu_info[];
 } __packed;
 
 struct htt_ppdu_user_stats {
-	u16 peer_id;
-	u32 tlv_flags;
-	bool is_valid_peer_id;
-	struct htt_ppdu_stats_user_rate rate;
-	struct htt_ppdu_stats_usr_cmpltn_cmn cmpltn_cmn;
-	struct htt_ppdu_stats_usr_cmpltn_ack_ba_status ack_ba;
+  u16 peer_id;
+  u32 tlv_flags;
+  bool is_valid_peer_id;
+  struct htt_ppdu_stats_user_rate rate;
+  struct htt_ppdu_stats_usr_cmpltn_cmn cmpltn_cmn;
+  struct htt_ppdu_stats_usr_cmpltn_ack_ba_status ack_ba;
 };
 
-#define HTT_PPDU_STATS_MAX_USERS	8
-#define HTT_PPDU_DESC_MAX_DEPTH	16
+#define HTT_PPDU_STATS_MAX_USERS  8
+#define HTT_PPDU_DESC_MAX_DEPTH 16
 
 struct htt_ppdu_stats {
-	struct htt_ppdu_stats_common common;
-	struct htt_ppdu_user_stats user_stats[HTT_PPDU_STATS_MAX_USERS];
+  struct htt_ppdu_stats_common common;
+  struct htt_ppdu_user_stats user_stats[HTT_PPDU_STATS_MAX_USERS];
 };
 
 struct htt_ppdu_stats_info {
-	u32 ppdu_id;
-	struct htt_ppdu_stats ppdu_stats;
-	struct list_head list;
+  u32 ppdu_id;
+  struct htt_ppdu_stats ppdu_stats;
+  struct list_head list;
 };
 
 /* @brief target -> host packet log message
@@ -1432,8 +1442,8 @@ struct htt_ppdu_stats_info {
  *     Value: payload size in bytes (payload size is a multiple of 4 bytes)
  */
 struct htt_pktlog_msg {
-	u32 hdr;
-	u8 payload[];
+  u32 hdr;
+  u8 payload[];
 };
 
 /* @brief host -> target FW extended statistics retrieve
@@ -1514,21 +1524,21 @@ struct htt_pktlog_msg {
  */
 
 struct htt_ext_stats_cfg_hdr {
-	u8 msg_type;
-	u8 pdev_mask;
-	u8 stats_type;
-	u8 reserved;
+  u8 msg_type;
+  u8 pdev_mask;
+  u8 stats_type;
+  u8 reserved;
 } __packed;
 
 struct htt_ext_stats_cfg_cmd {
-	struct htt_ext_stats_cfg_hdr hdr;
-	u32 cfg_param0;
-	u32 cfg_param1;
-	u32 cfg_param2;
-	u32 cfg_param3;
-	u32 reserved;
-	u32 cookie_lsb;
-	u32 cookie_msb;
+  struct htt_ext_stats_cfg_hdr hdr;
+  u32 cfg_param0;
+  u32 cfg_param1;
+  u32 cfg_param2;
+  u32 cfg_param3;
+  u32 reserved;
+  u32 cookie_lsb;
+  u32 cookie_msb;
 } __packed;
 
 /* htt stats config default params */
@@ -1565,10 +1575,10 @@ struct htt_ext_stats_cfg_cmd {
 
 /* Used to set different configs to the specified stats type.*/
 struct htt_ext_stats_cfg_params {
-	u32 cfg0;
-	u32 cfg1;
-	u32 cfg2;
-	u32 cfg3;
+  u32 cfg0;
+  u32 cfg1;
+  u32 cfg2;
+  u32 cfg3;
 };
 
 /* @brief target -> host extended statistics upload
@@ -1645,42 +1655,41 @@ struct htt_ext_stats_cfg_params {
  *       4 bytes.
  */
 
-#define HTT_T2H_EXT_STATS_INFO1_DONE	BIT(11)
+#define HTT_T2H_EXT_STATS_INFO1_DONE  BIT(11)
 #define HTT_T2H_EXT_STATS_INFO1_LENGTH   GENMASK(31, 16)
 
 struct ath11k_htt_extd_stats_msg {
-	u32 info0;
-	u64 cookie;
-	u32 info1;
-	u8 data[];
+  u32 info0;
+  u64 cookie;
+  u32 info1;
+  u8 data[];
 } __packed;
 
-#define	HTT_MAC_ADDR_L32_0	GENMASK(7, 0)
-#define	HTT_MAC_ADDR_L32_1	GENMASK(15, 8)
-#define	HTT_MAC_ADDR_L32_2	GENMASK(23, 16)
-#define	HTT_MAC_ADDR_L32_3	GENMASK(31, 24)
-#define	HTT_MAC_ADDR_H16_0	GENMASK(7, 0)
-#define	HTT_MAC_ADDR_H16_1	GENMASK(15, 8)
+#define HTT_MAC_ADDR_L32_0  GENMASK(7, 0)
+#define HTT_MAC_ADDR_L32_1  GENMASK(15, 8)
+#define HTT_MAC_ADDR_L32_2  GENMASK(23, 16)
+#define HTT_MAC_ADDR_L32_3  GENMASK(31, 24)
+#define HTT_MAC_ADDR_H16_0  GENMASK(7, 0)
+#define HTT_MAC_ADDR_H16_1  GENMASK(15, 8)
 
 struct htt_mac_addr {
-	u32 mac_addr_l32;
-	u32 mac_addr_h16;
+  u32 mac_addr_l32;
+  u32 mac_addr_h16;
 };
 
-static inline void ath11k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16, u8 *addr)
-{
-	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
-		addr_l32 = swab32(addr_l32);
-		addr_h16 = swab16(addr_h16);
-	}
-
-	memcpy(addr, &addr_l32, 4);
-	memcpy(addr + 4, &addr_h16, ETH_ALEN - 4);
+static inline void ath11k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16,
+    u8 *addr) {
+  if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)) {
+    addr_l32 = swab32(addr_l32);
+    addr_h16 = swab16(addr_h16);
+  }
+  memcpy(addr, &addr_l32, 4);
+  memcpy(addr + 4, &addr_h16, ETH_ALEN - 4);
 }
 
 int ath11k_dp_service_srng(struct ath11k_base *ab,
-			   struct ath11k_ext_irq_grp *irq_grp,
-			   int budget);
+    struct ath11k_ext_irq_grp *irq_grp,
+    int budget);
 int ath11k_dp_htt_connect(struct ath11k_dp *dp);
 void ath11k_dp_vdev_tx_attach(struct ath11k *ar, struct ath11k_vif *arvif);
 void ath11k_dp_free(struct ath11k_base *ab);
@@ -1689,28 +1698,28 @@ int ath11k_dp_pdev_alloc(struct ath11k_base *ab);
 void ath11k_dp_pdev_pre_alloc(struct ath11k_base *ab);
 void ath11k_dp_pdev_free(struct ath11k_base *ab);
 int ath11k_dp_tx_htt_srng_setup(struct ath11k_base *ab, u32 ring_id,
-				int mac_id, enum hal_ring_type ring_type);
+    int mac_id, enum hal_ring_type ring_type);
 int ath11k_dp_peer_setup(struct ath11k *ar, int vdev_id, const u8 *addr);
 void ath11k_dp_peer_cleanup(struct ath11k *ar, int vdev_id, const u8 *addr);
 void ath11k_dp_srng_cleanup(struct ath11k_base *ab, struct dp_srng *ring);
 int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
-			 enum hal_ring_type type, int ring_num,
-			 int mac_id, int num_entries);
+    enum hal_ring_type type, int ring_num,
+    int mac_id, int num_entries);
 void ath11k_dp_link_desc_cleanup(struct ath11k_base *ab,
-				 struct dp_link_desc_bank *desc_bank,
-				 u32 ring_type, struct dp_srng *ring);
+    struct dp_link_desc_bank *desc_bank,
+    u32 ring_type, struct dp_srng *ring);
 int ath11k_dp_link_desc_setup(struct ath11k_base *ab,
-			      struct dp_link_desc_bank *link_desc_banks,
-			      u32 ring_type, struct hal_srng *srng,
-			      u32 n_link_desc);
+    struct dp_link_desc_bank *link_desc_banks,
+    u32 ring_type, struct hal_srng *srng,
+    u32 n_link_desc);
 void ath11k_dp_shadow_start_timer(struct ath11k_base *ab,
-				  struct hal_srng	*srng,
-				  struct ath11k_hp_update_timer *update_timer);
+    struct hal_srng *srng,
+    struct ath11k_hp_update_timer *update_timer);
 void ath11k_dp_shadow_stop_timer(struct ath11k_base *ab,
-				 struct ath11k_hp_update_timer *update_timer);
+    struct ath11k_hp_update_timer *update_timer);
 void ath11k_dp_shadow_init_timer(struct ath11k_base *ab,
-				 struct ath11k_hp_update_timer *update_timer,
-				 u32 interval, u32 ring_id);
+    struct ath11k_hp_update_timer *update_timer,
+    u32 interval, u32 ring_id);
 void ath11k_dp_stop_shadow_timers(struct ath11k_base *ab);
 
 #endif

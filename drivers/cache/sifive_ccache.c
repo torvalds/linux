@@ -57,274 +57,251 @@ static struct riscv_cacheinfo_ops ccache_cache_ops;
 static int level;
 
 enum {
-	DIR_CORR = 0,
-	DATA_CORR,
-	DATA_UNCORR,
-	DIR_UNCORR,
+  DIR_CORR = 0,
+  DATA_CORR,
+  DATA_UNCORR,
+  DIR_UNCORR,
 };
 
 enum {
-	QUIRK_NONSTANDARD_CACHE_OPS	= BIT(0),
-	QUIRK_BROKEN_DATA_UNCORR	= BIT(1),
+  QUIRK_NONSTANDARD_CACHE_OPS = BIT(0),
+  QUIRK_BROKEN_DATA_UNCORR = BIT(1),
 };
 
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *sifive_test;
 
 static ssize_t ccache_write(struct file *file, const char __user *data,
-			    size_t count, loff_t *ppos)
-{
-	unsigned int val;
-
-	if (kstrtouint_from_user(data, count, 0, &val))
-		return -EINVAL;
-	if ((val < 0xFF) || (val >= 0x10000 && val < 0x100FF))
-		writel(val, ccache_base + SIFIVE_CCACHE_ECCINJECTERR);
-	else
-		return -EINVAL;
-	return count;
+    size_t count, loff_t *ppos) {
+  unsigned int val;
+  if (kstrtouint_from_user(data, count, 0, &val)) {
+    return -EINVAL;
+  }
+  if ((val < 0xFF) || (val >= 0x10000 && val < 0x100FF)) {
+    writel(val, ccache_base + SIFIVE_CCACHE_ECCINJECTERR);
+  } else {
+    return -EINVAL;
+  }
+  return count;
 }
 
 static const struct file_operations ccache_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.write = ccache_write
+  .owner = THIS_MODULE,
+  .open = simple_open,
+  .write = ccache_write
 };
 
-static void setup_sifive_debug(void)
-{
-	sifive_test = debugfs_create_dir("sifive_ccache_cache", NULL);
-
-	debugfs_create_file("sifive_debug_inject_error", 0200,
-			    sifive_test, NULL, &ccache_fops);
+static void setup_sifive_debug(void) {
+  sifive_test = debugfs_create_dir("sifive_ccache_cache", NULL);
+  debugfs_create_file("sifive_debug_inject_error", 0200,
+      sifive_test, NULL, &ccache_fops);
 }
+
 #endif
 
-static void ccache_config_read(void)
-{
-	u32 cfg;
-
-	cfg = readl(ccache_base + SIFIVE_CCACHE_CONFIG);
-	pr_info("%llu banks, %llu ways, sets/bank=%llu, bytes/block=%llu\n",
-		FIELD_GET(SIFIVE_CCACHE_CONFIG_BANK_MASK, cfg),
-		FIELD_GET(SIFIVE_CCACHE_CONFIG_WAYS_MASK, cfg),
-		BIT_ULL(FIELD_GET(SIFIVE_CCACHE_CONFIG_SETS_MASK, cfg)),
-		BIT_ULL(FIELD_GET(SIFIVE_CCACHE_CONFIG_BLKS_MASK, cfg)));
-
-	cfg = readl(ccache_base + SIFIVE_CCACHE_WAYENABLE);
-	pr_info("Index of the largest way enabled: %u\n", cfg);
+static void ccache_config_read(void) {
+  u32 cfg;
+  cfg = readl(ccache_base + SIFIVE_CCACHE_CONFIG);
+  pr_info("%llu banks, %llu ways, sets/bank=%llu, bytes/block=%llu\n",
+      FIELD_GET(SIFIVE_CCACHE_CONFIG_BANK_MASK, cfg),
+      FIELD_GET(SIFIVE_CCACHE_CONFIG_WAYS_MASK, cfg),
+      BIT_ULL(FIELD_GET(SIFIVE_CCACHE_CONFIG_SETS_MASK, cfg)),
+      BIT_ULL(FIELD_GET(SIFIVE_CCACHE_CONFIG_BLKS_MASK, cfg)));
+  cfg = readl(ccache_base + SIFIVE_CCACHE_WAYENABLE);
+  pr_info("Index of the largest way enabled: %u\n", cfg);
 }
 
 static const struct of_device_id sifive_ccache_ids[] = {
-	{ .compatible = "sifive,fu540-c000-ccache" },
-	{ .compatible = "sifive,fu740-c000-ccache" },
-	{ .compatible = "starfive,jh7100-ccache",
-	  .data = (void *)(QUIRK_NONSTANDARD_CACHE_OPS | QUIRK_BROKEN_DATA_UNCORR) },
-	{ .compatible = "sifive,ccache0" },
-	{ /* end of table */ }
+  { .compatible = "sifive,fu540-c000-ccache" },
+  { .compatible = "sifive,fu740-c000-ccache" },
+  { .compatible = "starfive,jh7100-ccache",
+    .data = (void *) (QUIRK_NONSTANDARD_CACHE_OPS | QUIRK_BROKEN_DATA_UNCORR) },
+  { .compatible = "sifive,ccache0" },
+  { /* end of table */ }
 };
 
 static ATOMIC_NOTIFIER_HEAD(ccache_err_chain);
 
-int register_sifive_ccache_error_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_register(&ccache_err_chain, nb);
+int register_sifive_ccache_error_notifier(struct notifier_block *nb) {
+  return atomic_notifier_chain_register(&ccache_err_chain, nb);
 }
+
 EXPORT_SYMBOL_GPL(register_sifive_ccache_error_notifier);
 
-int unregister_sifive_ccache_error_notifier(struct notifier_block *nb)
-{
-	return atomic_notifier_chain_unregister(&ccache_err_chain, nb);
+int unregister_sifive_ccache_error_notifier(struct notifier_block *nb) {
+  return atomic_notifier_chain_unregister(&ccache_err_chain, nb);
 }
+
 EXPORT_SYMBOL_GPL(unregister_sifive_ccache_error_notifier);
 
 #ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
-static void ccache_flush_range(phys_addr_t start, size_t len)
-{
-	phys_addr_t end = start + len;
-	phys_addr_t line;
-
-	if (!len)
-		return;
-
-	mb();
-	for (line = ALIGN_DOWN(start, SIFIVE_CCACHE_LINE_SIZE); line < end;
-			line += SIFIVE_CCACHE_LINE_SIZE) {
+static void ccache_flush_range(phys_addr_t start, size_t len) {
+  phys_addr_t end = start + len;
+  phys_addr_t line;
+  if (!len) {
+    return;
+  }
+  mb();
+  for (line = ALIGN_DOWN(start, SIFIVE_CCACHE_LINE_SIZE); line < end;
+      line += SIFIVE_CCACHE_LINE_SIZE) {
 #ifdef CONFIG_32BIT
-		writel(line >> 4, ccache_base + SIFIVE_CCACHE_FLUSH32);
+    writel(line >> 4, ccache_base + SIFIVE_CCACHE_FLUSH32);
 #else
-		writeq(line, ccache_base + SIFIVE_CCACHE_FLUSH64);
+    writeq(line, ccache_base + SIFIVE_CCACHE_FLUSH64);
 #endif
-		mb();
-	}
+    mb();
+  }
 }
 
 static const struct riscv_nonstd_cache_ops ccache_mgmt_ops __initconst = {
-	.wback = &ccache_flush_range,
-	.inv = &ccache_flush_range,
-	.wback_inv = &ccache_flush_range,
+  .wback = &ccache_flush_range,
+  .inv = &ccache_flush_range,
+  .wback_inv = &ccache_flush_range,
 };
 #endif /* CONFIG_RISCV_NONSTANDARD_CACHE_OPS */
 
-static int ccache_largest_wayenabled(void)
-{
-	return readl(ccache_base + SIFIVE_CCACHE_WAYENABLE) & 0xFF;
+static int ccache_largest_wayenabled(void) {
+  return readl(ccache_base + SIFIVE_CCACHE_WAYENABLE) & 0xFF;
 }
 
 static ssize_t number_of_ways_enabled_show(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	return sprintf(buf, "%u\n", ccache_largest_wayenabled());
+    struct device_attribute *attr,
+    char *buf) {
+  return sprintf(buf, "%u\n", ccache_largest_wayenabled());
 }
 
 static DEVICE_ATTR_RO(number_of_ways_enabled);
 
 static struct attribute *priv_attrs[] = {
-	&dev_attr_number_of_ways_enabled.attr,
-	NULL,
+  &dev_attr_number_of_ways_enabled.attr,
+  NULL,
 };
 
 static const struct attribute_group priv_attr_group = {
-	.attrs = priv_attrs,
+  .attrs = priv_attrs,
 };
 
 static const struct attribute_group *ccache_get_priv_group(struct cacheinfo
-							   *this_leaf)
-{
-	/* We want to use private group for composable cache only */
-	if (this_leaf->level == level)
-		return &priv_attr_group;
-	else
-		return NULL;
+    *this_leaf) {
+  /* We want to use private group for composable cache only */
+  if (this_leaf->level == level) {
+    return &priv_attr_group;
+  } else {
+    return NULL;
+  }
 }
 
-static irqreturn_t ccache_int_handler(int irq, void *device)
-{
-	unsigned int add_h, add_l;
-
-	if (irq == g_irq[DIR_CORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_LOW);
-		pr_err("DirError @ 0x%08X.%08X\n", add_h, add_l);
-		/* Reading this register clears the DirError interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
-					   SIFIVE_CCACHE_ERR_TYPE_CE,
-					   "DirECCFix");
-	}
-	if (irq == g_irq[DIR_UNCORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_LOW);
-		/* Reading this register clears the DirFail interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
-					   SIFIVE_CCACHE_ERR_TYPE_UE,
-					   "DirECCFail");
-		panic("CCACHE: DirFail @ 0x%08X.%08X\n", add_h, add_l);
-	}
-	if (irq == g_irq[DATA_CORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_LOW);
-		pr_err("DataError @ 0x%08X.%08X\n", add_h, add_l);
-		/* Reading this register clears the DataError interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
-					   SIFIVE_CCACHE_ERR_TYPE_CE,
-					   "DatECCFix");
-	}
-	if (irq == g_irq[DATA_UNCORR]) {
-		add_h = readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_HIGH);
-		add_l = readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_LOW);
-		pr_err("DataFail @ 0x%08X.%08X\n", add_h, add_l);
-		/* Reading this register clears the DataFail interrupt sig */
-		readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_COUNT);
-		atomic_notifier_call_chain(&ccache_err_chain,
-					   SIFIVE_CCACHE_ERR_TYPE_UE,
-					   "DatECCFail");
-	}
-
-	return IRQ_HANDLED;
+static irqreturn_t ccache_int_handler(int irq, void *device) {
+  unsigned int add_h, add_l;
+  if (irq == g_irq[DIR_CORR]) {
+    add_h = readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_HIGH);
+    add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_LOW);
+    pr_err("DirError @ 0x%08X.%08X\n", add_h, add_l);
+    /* Reading this register clears the DirError interrupt sig */
+    readl(ccache_base + SIFIVE_CCACHE_DIRECCFIX_COUNT);
+    atomic_notifier_call_chain(&ccache_err_chain,
+        SIFIVE_CCACHE_ERR_TYPE_CE,
+        "DirECCFix");
+  }
+  if (irq == g_irq[DIR_UNCORR]) {
+    add_h = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_HIGH);
+    add_l = readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_LOW);
+    /* Reading this register clears the DirFail interrupt sig */
+    readl(ccache_base + SIFIVE_CCACHE_DIRECCFAIL_COUNT);
+    atomic_notifier_call_chain(&ccache_err_chain,
+        SIFIVE_CCACHE_ERR_TYPE_UE,
+        "DirECCFail");
+    panic("CCACHE: DirFail @ 0x%08X.%08X\n", add_h, add_l);
+  }
+  if (irq == g_irq[DATA_CORR]) {
+    add_h = readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_HIGH);
+    add_l = readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_LOW);
+    pr_err("DataError @ 0x%08X.%08X\n", add_h, add_l);
+    /* Reading this register clears the DataError interrupt sig */
+    readl(ccache_base + SIFIVE_CCACHE_DATECCFIX_COUNT);
+    atomic_notifier_call_chain(&ccache_err_chain,
+        SIFIVE_CCACHE_ERR_TYPE_CE,
+        "DatECCFix");
+  }
+  if (irq == g_irq[DATA_UNCORR]) {
+    add_h = readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_HIGH);
+    add_l = readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_LOW);
+    pr_err("DataFail @ 0x%08X.%08X\n", add_h, add_l);
+    /* Reading this register clears the DataFail interrupt sig */
+    readl(ccache_base + SIFIVE_CCACHE_DATECCFAIL_COUNT);
+    atomic_notifier_call_chain(&ccache_err_chain,
+        SIFIVE_CCACHE_ERR_TYPE_UE,
+        "DatECCFail");
+  }
+  return IRQ_HANDLED;
 }
 
-static int __init sifive_ccache_init(void)
-{
-	struct device_node *np;
-	struct resource res;
-	int i, rc, intr_num;
-	const struct of_device_id *match;
-	unsigned long quirks;
-
-	np = of_find_matching_node_and_match(NULL, sifive_ccache_ids, &match);
-	if (!np)
-		return -ENODEV;
-
-	quirks = (uintptr_t)match->data;
-
-	if (of_address_to_resource(np, 0, &res)) {
-		rc = -ENODEV;
-		goto err_node_put;
-	}
-
-	ccache_base = ioremap(res.start, resource_size(&res));
-	if (!ccache_base) {
-		rc = -ENOMEM;
-		goto err_node_put;
-	}
-
-	if (of_property_read_u32(np, "cache-level", &level)) {
-		rc = -ENOENT;
-		goto err_unmap;
-	}
-
-	intr_num = of_property_count_u32_elems(np, "interrupts");
-	if (!intr_num) {
-		pr_err("No interrupts property\n");
-		rc = -ENODEV;
-		goto err_unmap;
-	}
-
-	for (i = 0; i < intr_num; i++) {
-		g_irq[i] = irq_of_parse_and_map(np, i);
-
-		if (i == DATA_UNCORR && (quirks & QUIRK_BROKEN_DATA_UNCORR))
-			continue;
-
-		rc = request_irq(g_irq[i], ccache_int_handler, 0, "ccache_ecc",
-				 NULL);
-		if (rc) {
-			pr_err("Could not request IRQ %d\n", g_irq[i]);
-			goto err_free_irq;
-		}
-	}
-	of_node_put(np);
-
+static int __init sifive_ccache_init(void) {
+  struct device_node *np;
+  struct resource res;
+  int i, rc, intr_num;
+  const struct of_device_id *match;
+  unsigned long quirks;
+  np = of_find_matching_node_and_match(NULL, sifive_ccache_ids, &match);
+  if (!np) {
+    return -ENODEV;
+  }
+  quirks = (uintptr_t) match->data;
+  if (of_address_to_resource(np, 0, &res)) {
+    rc = -ENODEV;
+    goto err_node_put;
+  }
+  ccache_base = ioremap(res.start, resource_size(&res));
+  if (!ccache_base) {
+    rc = -ENOMEM;
+    goto err_node_put;
+  }
+  if (of_property_read_u32(np, "cache-level", &level)) {
+    rc = -ENOENT;
+    goto err_unmap;
+  }
+  intr_num = of_property_count_u32_elems(np, "interrupts");
+  if (!intr_num) {
+    pr_err("No interrupts property\n");
+    rc = -ENODEV;
+    goto err_unmap;
+  }
+  for (i = 0; i < intr_num; i++) {
+    g_irq[i] = irq_of_parse_and_map(np, i);
+    if (i == DATA_UNCORR && (quirks & QUIRK_BROKEN_DATA_UNCORR)) {
+      continue;
+    }
+    rc = request_irq(g_irq[i], ccache_int_handler, 0, "ccache_ecc",
+        NULL);
+    if (rc) {
+      pr_err("Could not request IRQ %d\n", g_irq[i]);
+      goto err_free_irq;
+    }
+  }
+  of_node_put(np);
 #ifdef CONFIG_RISCV_NONSTANDARD_CACHE_OPS
-	if (quirks & QUIRK_NONSTANDARD_CACHE_OPS) {
-		riscv_cbom_block_size = SIFIVE_CCACHE_LINE_SIZE;
-		riscv_noncoherent_supported();
-		riscv_noncoherent_register_cache_ops(&ccache_mgmt_ops);
-	}
+  if (quirks & QUIRK_NONSTANDARD_CACHE_OPS) {
+    riscv_cbom_block_size = SIFIVE_CCACHE_LINE_SIZE;
+    riscv_noncoherent_supported();
+    riscv_noncoherent_register_cache_ops(&ccache_mgmt_ops);
+  }
 #endif
-
-	ccache_config_read();
-
-	ccache_cache_ops.get_priv_group = ccache_get_priv_group;
-	riscv_set_cacheinfo_ops(&ccache_cache_ops);
-
+  ccache_config_read();
+  ccache_cache_ops.get_priv_group = ccache_get_priv_group;
+  riscv_set_cacheinfo_ops(&ccache_cache_ops);
 #ifdef CONFIG_DEBUG_FS
-	setup_sifive_debug();
+  setup_sifive_debug();
 #endif
-	return 0;
-
+  return 0;
 err_free_irq:
-	while (--i >= 0)
-		free_irq(g_irq[i], NULL);
+  while (--i >= 0) {
+    free_irq(g_irq[i], NULL);
+  }
 err_unmap:
-	iounmap(ccache_base);
+  iounmap(ccache_base);
 err_node_put:
-	of_node_put(np);
-	return rc;
+  of_node_put(np);
+  return rc;
 }
 
 arch_initcall(sifive_ccache_init);

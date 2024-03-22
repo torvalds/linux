@@ -3,10 +3,10 @@
 #define _MEDIA_MT9V032_H
 
 struct mt9v032_platform_data {
-	unsigned int clk_pol:1;
+  unsigned int clk_pol : 1;
 
-	const s64 *link_freqs;
-	s64 link_def_freq;
+  const s64 *link_freqs;
+  s64 link_def_freq;
 };
 
 #endif

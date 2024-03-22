@@ -13,13 +13,13 @@
 #include <linux/types.h>
 
 struct sclp_ctl_sccb {
-	__u32	cmdw;
-	__u64	sccb;
+  __u32 cmdw;
+  __u64 sccb;
 } __attribute__((packed));
 
 #define SCLP_CTL_IOCTL_MAGIC 0x10
 
 #define SCLP_CTL_SCCB \
-	_IOWR(SCLP_CTL_IOCTL_MAGIC, 0x10, struct sclp_ctl_sccb)
+  _IOWR(SCLP_CTL_IOCTL_MAGIC, 0x10, struct sclp_ctl_sccb)
 
 #endif

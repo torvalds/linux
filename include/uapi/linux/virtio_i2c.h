@@ -12,13 +12,13 @@
 #include <linux/types.h>
 
 /* Virtio I2C Feature bits */
-#define VIRTIO_I2C_F_ZERO_LENGTH_REQUEST	0
+#define VIRTIO_I2C_F_ZERO_LENGTH_REQUEST  0
 
 /* The bit 0 of the @virtio_i2c_out_hdr.@flags, used to group the requests */
-#define VIRTIO_I2C_FLAGS_FAIL_NEXT	_BITUL(0)
+#define VIRTIO_I2C_FLAGS_FAIL_NEXT  _BITUL(0)
 
 /* The bit 1 of the @virtio_i2c_out_hdr.@flags, used to mark a buffer as read */
-#define VIRTIO_I2C_FLAGS_M_RD		_BITUL(1)
+#define VIRTIO_I2C_FLAGS_M_RD   _BITUL(1)
 
 /**
  * struct virtio_i2c_out_hdr - the virtio I2C message OUT header
@@ -27,9 +27,9 @@
  * @flags: used for feature extensibility
  */
 struct virtio_i2c_out_hdr {
-	__le16 addr;
-	__le16 padding;
-	__le32 flags;
+  __le16 addr;
+  __le16 padding;
+  __le32 flags;
 };
 
 /**
@@ -37,11 +37,11 @@ struct virtio_i2c_out_hdr {
  * @status: the processing result from the backend
  */
 struct virtio_i2c_in_hdr {
-	__u8 status;
+  __u8 status;
 };
 
 /* The final status written by the device */
-#define VIRTIO_I2C_MSG_OK	0
-#define VIRTIO_I2C_MSG_ERR	1
+#define VIRTIO_I2C_MSG_OK 0
+#define VIRTIO_I2C_MSG_ERR  1
 
 #endif /* _UAPI_LINUX_VIRTIO_I2C_H */

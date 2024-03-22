@@ -17,6 +17,7 @@ extern int iscsit_stop_time2retain_timer(struct iscsit_session *);
 extern void iscsit_connection_reinstatement_rcfr(struct iscsit_conn *);
 extern void iscsit_cause_connection_reinstatement(struct iscsit_conn *, int);
 extern void iscsit_fall_back_to_erl0(struct iscsit_session *);
-extern void iscsit_take_action_for_connection_exit(struct iscsit_conn *, bool *);
+extern void iscsit_take_action_for_connection_exit(struct iscsit_conn *,
+    bool *);
 
 #endif   /*** ISCSI_TARGET_ERL0_H ***/

@@ -23,26 +23,22 @@
  * The inode must be locked, and it cannot be associated with any transaction.
  * If lock_flags is non-zero the inode will be unlocked on transaction commit.
  */
-void
-xfs_trans_ijoin(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	uint			lock_flags)
-{
-	struct xfs_inode_log_item *iip;
-
-	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
-	if (ip->i_itemp == NULL)
-		xfs_inode_item_init(ip, ip->i_mount);
-	iip = ip->i_itemp;
-
-	ASSERT(iip->ili_lock_flags == 0);
-	iip->ili_lock_flags = lock_flags;
-	ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
-
-	/* Reset the per-tx dirty context and add the item to the tx. */
-	iip->ili_dirty_flags = 0;
-	xfs_trans_add_item(tp, &iip->ili_item);
+void xfs_trans_ijoin(
+    struct xfs_trans *tp,
+    struct xfs_inode *ip,
+    uint lock_flags) {
+  struct xfs_inode_log_item *iip;
+  xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
+  if (ip->i_itemp == NULL) {
+    xfs_inode_item_init(ip, ip->i_mount);
+  }
+  iip = ip->i_itemp;
+  ASSERT(iip->ili_lock_flags == 0);
+  iip->ili_lock_flags = lock_flags;
+  ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
+  /* Reset the per-tx dirty context and add the item to the tx. */
+  iip->ili_dirty_flags = 0;
+  xfs_trans_add_item(tp, &iip->ili_item);
 }
 
 /*
@@ -50,26 +46,24 @@ xfs_trans_ijoin(
  * joined to the transaction supplied. Relies on the transaction subsystem to
  * track dirty state and update/writeback the inode accordingly.
  */
-void
-xfs_trans_ichgtime(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	int			flags)
-{
-	struct inode		*inode = VFS_I(ip);
-	struct timespec64	tv;
-
-	ASSERT(tp);
-	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
-
-	tv = current_time(inode);
-
-	if (flags & XFS_ICHGTIME_MOD)
-		inode_set_mtime_to_ts(inode, tv);
-	if (flags & XFS_ICHGTIME_CHG)
-		inode_set_ctime_to_ts(inode, tv);
-	if (flags & XFS_ICHGTIME_CREATE)
-		ip->i_crtime = tv;
+void xfs_trans_ichgtime(
+    struct xfs_trans *tp,
+    struct xfs_inode *ip,
+    int flags) {
+  struct inode *inode = VFS_I(ip);
+  struct timespec64 tv;
+  ASSERT(tp);
+  xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
+  tv = current_time(inode);
+  if (flags & XFS_ICHGTIME_MOD) {
+    inode_set_mtime_to_ts(inode, tv);
+  }
+  if (flags & XFS_ICHGTIME_CHG) {
+    inode_set_ctime_to_ts(inode, tv);
+  }
+  if (flags & XFS_ICHGTIME_CREATE) {
+    ip->i_crtime = tv;
+  }
 }
 
 /*
@@ -80,49 +74,42 @@ xfs_trans_ichgtime(
  * everything else is done in the ->precommit log item operation after the
  * changes in the transaction have been completed.
  */
-void
-xfs_trans_log_inode(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	uint			flags)
-{
-	struct xfs_inode_log_item *iip = ip->i_itemp;
-	struct inode		*inode = VFS_I(ip);
-
-	ASSERT(iip);
-	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
-	ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-
-	/*
-	 * First time we log the inode in a transaction, bump the inode change
-	 * counter if it is configured for this to occur. While we have the
-	 * inode locked exclusively for metadata modification, we can usually
-	 * avoid setting XFS_ILOG_CORE if no one has queried the value since
-	 * the last time it was incremented. If we have XFS_ILOG_CORE already
-	 * set however, then go ahead and bump the i_version counter
-	 * unconditionally.
-	 */
-	if (!test_and_set_bit(XFS_LI_DIRTY, &iip->ili_item.li_flags)) {
-		if (IS_I_VERSION(inode) &&
-		    inode_maybe_inc_iversion(inode, flags & XFS_ILOG_CORE))
-			flags |= XFS_ILOG_IVERSION;
-	}
-
-	iip->ili_dirty_flags |= flags;
+void xfs_trans_log_inode(
+    struct xfs_trans *tp,
+    struct xfs_inode *ip,
+    uint flags) {
+  struct xfs_inode_log_item *iip = ip->i_itemp;
+  struct inode *inode = VFS_I(ip);
+  ASSERT(iip);
+  xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
+  ASSERT(!xfs_iflags_test(ip, XFS_ISTALE));
+  tp->t_flags |= XFS_TRANS_DIRTY;
+  /*
+   * First time we log the inode in a transaction, bump the inode change
+   * counter if it is configured for this to occur. While we have the
+   * inode locked exclusively for metadata modification, we can usually
+   * avoid setting XFS_ILOG_CORE if no one has queried the value since
+   * the last time it was incremented. If we have XFS_ILOG_CORE already
+   * set however, then go ahead and bump the i_version counter
+   * unconditionally.
+   */
+  if (!test_and_set_bit(XFS_LI_DIRTY, &iip->ili_item.li_flags)) {
+    if (IS_I_VERSION(inode)
+        && inode_maybe_inc_iversion(inode, flags & XFS_ILOG_CORE)) {
+      flags |= XFS_ILOG_IVERSION;
+    }
+  }
+  iip->ili_dirty_flags |= flags;
 }
 
-int
-xfs_trans_roll_inode(
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*ip)
-{
-	int			error;
-
-	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
-	error = xfs_trans_roll(tpp);
-	if (!error)
-		xfs_trans_ijoin(*tpp, ip, 0);
-	return error;
+int xfs_trans_roll_inode(
+    struct xfs_trans **tpp,
+    struct xfs_inode *ip) {
+  int error;
+  xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
+  error = xfs_trans_roll(tpp);
+  if (!error) {
+    xfs_trans_ijoin(*tpp, ip, 0);
+  }
+  return error;
 }

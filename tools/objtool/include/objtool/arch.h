@@ -12,59 +12,59 @@
 #include <objtool/cfi.h>
 
 enum insn_type {
-	INSN_JUMP_CONDITIONAL,
-	INSN_JUMP_UNCONDITIONAL,
-	INSN_JUMP_DYNAMIC,
-	INSN_JUMP_DYNAMIC_CONDITIONAL,
-	INSN_CALL,
-	INSN_CALL_DYNAMIC,
-	INSN_RETURN,
-	INSN_CONTEXT_SWITCH,
-	INSN_BUG,
-	INSN_NOP,
-	INSN_STAC,
-	INSN_CLAC,
-	INSN_STD,
-	INSN_CLD,
-	INSN_TRAP,
-	INSN_ENDBR,
-	INSN_OTHER,
+  INSN_JUMP_CONDITIONAL,
+  INSN_JUMP_UNCONDITIONAL,
+  INSN_JUMP_DYNAMIC,
+  INSN_JUMP_DYNAMIC_CONDITIONAL,
+  INSN_CALL,
+  INSN_CALL_DYNAMIC,
+  INSN_RETURN,
+  INSN_CONTEXT_SWITCH,
+  INSN_BUG,
+  INSN_NOP,
+  INSN_STAC,
+  INSN_CLAC,
+  INSN_STD,
+  INSN_CLD,
+  INSN_TRAP,
+  INSN_ENDBR,
+  INSN_OTHER,
 };
 
 enum op_dest_type {
-	OP_DEST_REG,
-	OP_DEST_REG_INDIRECT,
-	OP_DEST_MEM,
-	OP_DEST_PUSH,
-	OP_DEST_PUSHF,
+  OP_DEST_REG,
+  OP_DEST_REG_INDIRECT,
+  OP_DEST_MEM,
+  OP_DEST_PUSH,
+  OP_DEST_PUSHF,
 };
 
 struct op_dest {
-	enum op_dest_type type;
-	unsigned char reg;
-	int offset;
+  enum op_dest_type type;
+  unsigned char reg;
+  int offset;
 };
 
 enum op_src_type {
-	OP_SRC_REG,
-	OP_SRC_REG_INDIRECT,
-	OP_SRC_CONST,
-	OP_SRC_POP,
-	OP_SRC_POPF,
-	OP_SRC_ADD,
-	OP_SRC_AND,
+  OP_SRC_REG,
+  OP_SRC_REG_INDIRECT,
+  OP_SRC_CONST,
+  OP_SRC_POP,
+  OP_SRC_POPF,
+  OP_SRC_ADD,
+  OP_SRC_AND,
 };
 
 struct op_src {
-	enum op_src_type type;
-	unsigned char reg;
-	int offset;
+  enum op_src_type type;
+  unsigned char reg;
+  int offset;
 };
 
 struct stack_op {
-	struct stack_op *next;
-	struct op_dest dest;
-	struct op_src src;
+  struct stack_op *next;
+  struct op_dest dest;
+  struct op_src src;
 };
 
 struct instruction;
@@ -73,9 +73,10 @@ int arch_ftrace_match(char *name);
 
 void arch_initial_func_cfi_state(struct cfi_init_state *state);
 
-int arch_decode_instruction(struct objtool_file *file, const struct section *sec,
-			    unsigned long offset, unsigned int maxlen,
-			    struct instruction *insn);
+int arch_decode_instruction(struct objtool_file *file,
+    const struct section *sec,
+    unsigned long offset, unsigned int maxlen,
+    struct instruction *insn);
 
 bool arch_callee_saved_reg(unsigned char reg);
 

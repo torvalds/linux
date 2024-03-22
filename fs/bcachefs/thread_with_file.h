@@ -39,38 +39,41 @@
 struct task_struct;
 
 struct thread_with_file {
-	struct task_struct	*task;
-	int			ret;
-	bool			done;
+  struct task_struct *task;
+  int ret;
+  bool done;
 };
 
 void bch2_thread_with_file_exit(struct thread_with_file *);
 int bch2_run_thread_with_file(struct thread_with_file *,
-			      const struct file_operations *,
-			      int (*fn)(void *));
+    const struct file_operations *,
+    int (*fn)(void *));
 
 struct thread_with_stdio;
 
 struct thread_with_stdio_ops {
-	void (*exit)(struct thread_with_stdio *);
-	int (*fn)(struct thread_with_stdio *);
-	long (*unlocked_ioctl)(struct thread_with_stdio *, unsigned int, unsigned long);
+  void (*exit)(struct thread_with_stdio *);
+  int (*fn)(struct thread_with_stdio *);
+  long (*unlocked_ioctl)(struct thread_with_stdio *, unsigned int,
+      unsigned long);
 };
 
 struct thread_with_stdio {
-	struct thread_with_file	thr;
-	struct stdio_redirect	stdio;
-	const struct thread_with_stdio_ops	*ops;
+  struct thread_with_file thr;
+  struct stdio_redirect stdio;
+  const struct thread_with_stdio_ops *ops;
 };
 
 int bch2_run_thread_with_stdio(struct thread_with_stdio *,
-			       const struct thread_with_stdio_ops *);
+    const struct thread_with_stdio_ops *);
 int bch2_run_thread_with_stdout(struct thread_with_stdio *,
-				const struct thread_with_stdio_ops *);
+    const struct thread_with_stdio_ops *);
 int bch2_stdio_redirect_read(struct stdio_redirect *, char *, size_t);
 int bch2_stdio_redirect_readline(struct stdio_redirect *, char *, size_t);
 
-__printf(3, 0) ssize_t bch2_stdio_redirect_vprintf(struct stdio_redirect *, bool, const char *, va_list);
-__printf(3, 4) ssize_t bch2_stdio_redirect_printf(struct stdio_redirect *, bool, const char *, ...);
+__printf(3, 0) ssize_t bch2_stdio_redirect_vprintf(struct stdio_redirect *,
+    bool, const char *, va_list);
+__printf(3, 4) ssize_t bch2_stdio_redirect_printf(struct stdio_redirect *, bool,
+    const char *, ...);
 
 #endif /* _BCACHEFS_THREAD_WITH_FILE_H */

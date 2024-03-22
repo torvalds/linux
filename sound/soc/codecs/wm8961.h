@@ -25,7 +25,6 @@
 #define WM8961_BCLK_DIV_24  11
 #define WM8961_BCLK_DIV_32  13
 
-
 /*
  * Register values.
  */
@@ -85,7 +84,6 @@
 #define WM8961_WRITE_SEQUENCER_7                0x5D
 #define WM8961_GENERAL_TEST_1                   0xFC
 
-
 /*
  * Field Definitions.
  */
@@ -112,9 +110,12 @@
 /*
  * R1 (0x01) - Right Input volume
  */
-#define WM8961_DEVICE_ID_MASK                   0xF000  /* DEVICE_ID - [15:12] */
-#define WM8961_DEVICE_ID_SHIFT                      12  /* DEVICE_ID - [15:12] */
-#define WM8961_DEVICE_ID_WIDTH                       4  /* DEVICE_ID - [15:12] */
+#define WM8961_DEVICE_ID_MASK                   0xF000  /* DEVICE_ID - [15:12]
+                                                         * */
+#define WM8961_DEVICE_ID_SHIFT                      12  /* DEVICE_ID - [15:12]
+                                                         * */
+#define WM8961_DEVICE_ID_WIDTH                       4  /* DEVICE_ID - [15:12]
+                                                         * */
 #define WM8961_CHIP_REV_MASK                    0x0E00  /* CHIP_REV - [11:9] */
 #define WM8961_CHIP_REV_SHIFT                        9  /* CHIP_REV - [11:9] */
 #define WM8961_CHIP_REV_WIDTH                        3  /* CHIP_REV - [11:9] */
@@ -199,9 +200,12 @@
 /*
  * R6 (0x06) - ADC & DAC Control 2
  */
-#define WM8961_ADC_HPF_CUT_MASK                 0x0180  /* ADC_HPF_CUT - [8:7] */
-#define WM8961_ADC_HPF_CUT_SHIFT                     7  /* ADC_HPF_CUT - [8:7] */
-#define WM8961_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [8:7] */
+#define WM8961_ADC_HPF_CUT_MASK                 0x0180  /* ADC_HPF_CUT - [8:7]
+                                                         * */
+#define WM8961_ADC_HPF_CUT_SHIFT                     7  /* ADC_HPF_CUT - [8:7]
+                                                         * */
+#define WM8961_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [8:7]
+                                                         * */
 #define WM8961_DACPOL_MASK                      0x0060  /* DACPOL - [6:5] */
 #define WM8961_DACPOL_SHIFT                          5  /* DACPOL - [6:5] */
 #define WM8961_DACPOL_WIDTH                          2  /* DACPOL - [6:5] */
@@ -316,9 +320,12 @@
 /*
  * R15 (0x0F) - Software Reset
  */
-#define WM8961_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 - [15:0] */
-#define WM8961_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 - [15:0] */
-#define WM8961_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 - [15:0] */
+#define WM8961_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
+#define WM8961_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
+#define WM8961_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
 
 /*
  * R17 (0x11) - ALC1
@@ -484,9 +491,12 @@
 /*
  * R27 (0x1B) - Additional Control (3)
  */
-#define WM8961_SAMPLE_RATE_MASK                 0x0007  /* SAMPLE_RATE - [2:0] */
-#define WM8961_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [2:0] */
-#define WM8961_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [2:0] */
+#define WM8961_SAMPLE_RATE_MASK                 0x0007  /* SAMPLE_RATE - [2:0]
+                                                         * */
+#define WM8961_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [2:0]
+                                                         * */
+#define WM8961_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [2:0]
+                                                         * */
 
 /*
  * R28 (0x1C) - Anti-pop
@@ -510,9 +520,12 @@
 #define WM8961_CLK_TO_DIV_MASK                  0x0180  /* CLK_TO_DIV - [8:7] */
 #define WM8961_CLK_TO_DIV_SHIFT                      7  /* CLK_TO_DIV - [8:7] */
 #define WM8961_CLK_TO_DIV_WIDTH                      2  /* CLK_TO_DIV - [8:7] */
-#define WM8961_CLK_256K_DIV_MASK                0x007E  /* CLK_256K_DIV - [6:1] */
-#define WM8961_CLK_256K_DIV_SHIFT                    1  /* CLK_256K_DIV - [6:1] */
-#define WM8961_CLK_256K_DIV_WIDTH                    6  /* CLK_256K_DIV - [6:1] */
+#define WM8961_CLK_256K_DIV_MASK                0x007E  /* CLK_256K_DIV - [6:1]
+                                                         * */
+#define WM8961_CLK_256K_DIV_SHIFT                    1  /* CLK_256K_DIV - [6:1]
+                                                         * */
+#define WM8961_CLK_256K_DIV_WIDTH                    6  /* CLK_256K_DIV - [6:1]
+                                                         * */
 #define WM8961_MANUAL_MODE                      0x0001  /* MANUAL_MODE */
 #define WM8961_MANUAL_MODE_MASK                 0x0001  /* MANUAL_MODE */
 #define WM8961_MANUAL_MODE_SHIFT                     0  /* MANUAL_MODE */
@@ -601,39 +614,60 @@
 /*
  * R51 (0x33) - Class D Control 2
  */
-#define WM8961_CLASSD_ACGAIN_MASK               0x0007  /* CLASSD_ACGAIN - [2:0] */
-#define WM8961_CLASSD_ACGAIN_SHIFT                   0  /* CLASSD_ACGAIN - [2:0] */
-#define WM8961_CLASSD_ACGAIN_WIDTH                   3  /* CLASSD_ACGAIN - [2:0] */
+#define WM8961_CLASSD_ACGAIN_MASK               0x0007  /* CLASSD_ACGAIN - [2:0]
+                                                         * */
+#define WM8961_CLASSD_ACGAIN_SHIFT                   0  /* CLASSD_ACGAIN - [2:0]
+                                                         * */
+#define WM8961_CLASSD_ACGAIN_WIDTH                   3  /* CLASSD_ACGAIN - [2:0]
+                                                         * */
 
 /*
  * R56 (0x38) - Clocking 4
  */
-#define WM8961_CLK_DCS_DIV_MASK                 0x01E0  /* CLK_DCS_DIV - [8:5] */
-#define WM8961_CLK_DCS_DIV_SHIFT                     5  /* CLK_DCS_DIV - [8:5] */
-#define WM8961_CLK_DCS_DIV_WIDTH                     4  /* CLK_DCS_DIV - [8:5] */
-#define WM8961_CLK_SYS_RATE_MASK                0x001E  /* CLK_SYS_RATE - [4:1] */
-#define WM8961_CLK_SYS_RATE_SHIFT                    1  /* CLK_SYS_RATE - [4:1] */
-#define WM8961_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [4:1] */
+#define WM8961_CLK_DCS_DIV_MASK                 0x01E0  /* CLK_DCS_DIV - [8:5]
+                                                         * */
+#define WM8961_CLK_DCS_DIV_SHIFT                     5  /* CLK_DCS_DIV - [8:5]
+                                                         * */
+#define WM8961_CLK_DCS_DIV_WIDTH                     4  /* CLK_DCS_DIV - [8:5]
+                                                         * */
+#define WM8961_CLK_SYS_RATE_MASK                0x001E  /* CLK_SYS_RATE - [4:1]
+                                                         * */
+#define WM8961_CLK_SYS_RATE_SHIFT                    1  /* CLK_SYS_RATE - [4:1]
+                                                         * */
+#define WM8961_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [4:1]
+                                                         * */
 
 /*
  * R57 (0x39) - DSP Sidetone 0
  */
-#define WM8961_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8961_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8961_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8961_ADC_TO_DACR_MASK                 0x000C  /* ADC_TO_DACR - [3:2] */
-#define WM8961_ADC_TO_DACR_SHIFT                     2  /* ADC_TO_DACR - [3:2] */
-#define WM8961_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [3:2] */
+#define WM8961_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8961_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8961_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8961_ADC_TO_DACR_MASK                 0x000C  /* ADC_TO_DACR - [3:2]
+                                                         * */
+#define WM8961_ADC_TO_DACR_SHIFT                     2  /* ADC_TO_DACR - [3:2]
+                                                         * */
+#define WM8961_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [3:2]
+                                                         * */
 
 /*
  * R58 (0x3A) - DSP Sidetone 1
  */
-#define WM8961_ADCL_DAC_SVOL_MASK               0x00F0  /* ADCL_DAC_SVOL - [7:4] */
-#define WM8961_ADCL_DAC_SVOL_SHIFT                   4  /* ADCL_DAC_SVOL - [7:4] */
-#define WM8961_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [7:4] */
-#define WM8961_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2] */
-#define WM8961_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8961_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2] */
+#define WM8961_ADCL_DAC_SVOL_MASK               0x00F0  /* ADCL_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8961_ADCL_DAC_SVOL_SHIFT                   4  /* ADCL_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8961_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8961_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8961_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8961_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
 
 /*
  * R60 (0x3C) - DC Servo 0
@@ -642,26 +676,42 @@
 #define WM8961_DCS_ENA_CHAN_INL_MASK            0x0080  /* DCS_ENA_CHAN_INL */
 #define WM8961_DCS_ENA_CHAN_INL_SHIFT                7  /* DCS_ENA_CHAN_INL */
 #define WM8961_DCS_ENA_CHAN_INL_WIDTH                1  /* DCS_ENA_CHAN_INL */
-#define WM8961_DCS_TRIG_STARTUP_INL             0x0040  /* DCS_TRIG_STARTUP_INL */
-#define WM8961_DCS_TRIG_STARTUP_INL_MASK        0x0040  /* DCS_TRIG_STARTUP_INL */
-#define WM8961_DCS_TRIG_STARTUP_INL_SHIFT            6  /* DCS_TRIG_STARTUP_INL */
-#define WM8961_DCS_TRIG_STARTUP_INL_WIDTH            1  /* DCS_TRIG_STARTUP_INL */
-#define WM8961_DCS_TRIG_SERIES_INL              0x0010  /* DCS_TRIG_SERIES_INL */
-#define WM8961_DCS_TRIG_SERIES_INL_MASK         0x0010  /* DCS_TRIG_SERIES_INL */
-#define WM8961_DCS_TRIG_SERIES_INL_SHIFT             4  /* DCS_TRIG_SERIES_INL */
-#define WM8961_DCS_TRIG_SERIES_INL_WIDTH             1  /* DCS_TRIG_SERIES_INL */
+#define WM8961_DCS_TRIG_STARTUP_INL             0x0040  /* DCS_TRIG_STARTUP_INL
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_INL_MASK        0x0040  /* DCS_TRIG_STARTUP_INL
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_INL_SHIFT            6  /* DCS_TRIG_STARTUP_INL
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_INL_WIDTH            1  /* DCS_TRIG_STARTUP_INL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INL              0x0010  /* DCS_TRIG_SERIES_INL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INL_MASK         0x0010  /* DCS_TRIG_SERIES_INL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INL_SHIFT             4  /* DCS_TRIG_SERIES_INL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INL_WIDTH             1  /* DCS_TRIG_SERIES_INL
+                                                         * */
 #define WM8961_DCS_ENA_CHAN_INR                 0x0008  /* DCS_ENA_CHAN_INR */
 #define WM8961_DCS_ENA_CHAN_INR_MASK            0x0008  /* DCS_ENA_CHAN_INR */
 #define WM8961_DCS_ENA_CHAN_INR_SHIFT                3  /* DCS_ENA_CHAN_INR */
 #define WM8961_DCS_ENA_CHAN_INR_WIDTH                1  /* DCS_ENA_CHAN_INR */
-#define WM8961_DCS_TRIG_STARTUP_INR             0x0004  /* DCS_TRIG_STARTUP_INR */
-#define WM8961_DCS_TRIG_STARTUP_INR_MASK        0x0004  /* DCS_TRIG_STARTUP_INR */
-#define WM8961_DCS_TRIG_STARTUP_INR_SHIFT            2  /* DCS_TRIG_STARTUP_INR */
-#define WM8961_DCS_TRIG_STARTUP_INR_WIDTH            1  /* DCS_TRIG_STARTUP_INR */
-#define WM8961_DCS_TRIG_SERIES_INR              0x0001  /* DCS_TRIG_SERIES_INR */
-#define WM8961_DCS_TRIG_SERIES_INR_MASK         0x0001  /* DCS_TRIG_SERIES_INR */
-#define WM8961_DCS_TRIG_SERIES_INR_SHIFT             0  /* DCS_TRIG_SERIES_INR */
-#define WM8961_DCS_TRIG_SERIES_INR_WIDTH             1  /* DCS_TRIG_SERIES_INR */
+#define WM8961_DCS_TRIG_STARTUP_INR             0x0004  /* DCS_TRIG_STARTUP_INR
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_INR_MASK        0x0004  /* DCS_TRIG_STARTUP_INR
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_INR_SHIFT            2  /* DCS_TRIG_STARTUP_INR
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_INR_WIDTH            1  /* DCS_TRIG_STARTUP_INR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INR              0x0001  /* DCS_TRIG_SERIES_INR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INR_MASK         0x0001  /* DCS_TRIG_SERIES_INR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INR_SHIFT             0  /* DCS_TRIG_SERIES_INR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_INR_WIDTH             1  /* DCS_TRIG_SERIES_INR
+                                                         * */
 
 /*
  * R61 (0x3D) - DC Servo 1
@@ -670,47 +720,72 @@
 #define WM8961_DCS_ENA_CHAN_HPL_MASK            0x0080  /* DCS_ENA_CHAN_HPL */
 #define WM8961_DCS_ENA_CHAN_HPL_SHIFT                7  /* DCS_ENA_CHAN_HPL */
 #define WM8961_DCS_ENA_CHAN_HPL_WIDTH                1  /* DCS_ENA_CHAN_HPL */
-#define WM8961_DCS_TRIG_STARTUP_HPL             0x0040  /* DCS_TRIG_STARTUP_HPL */
-#define WM8961_DCS_TRIG_STARTUP_HPL_MASK        0x0040  /* DCS_TRIG_STARTUP_HPL */
-#define WM8961_DCS_TRIG_STARTUP_HPL_SHIFT            6  /* DCS_TRIG_STARTUP_HPL */
-#define WM8961_DCS_TRIG_STARTUP_HPL_WIDTH            1  /* DCS_TRIG_STARTUP_HPL */
-#define WM8961_DCS_TRIG_SERIES_HPL              0x0010  /* DCS_TRIG_SERIES_HPL */
-#define WM8961_DCS_TRIG_SERIES_HPL_MASK         0x0010  /* DCS_TRIG_SERIES_HPL */
-#define WM8961_DCS_TRIG_SERIES_HPL_SHIFT             4  /* DCS_TRIG_SERIES_HPL */
-#define WM8961_DCS_TRIG_SERIES_HPL_WIDTH             1  /* DCS_TRIG_SERIES_HPL */
+#define WM8961_DCS_TRIG_STARTUP_HPL             0x0040  /* DCS_TRIG_STARTUP_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_HPL_MASK        0x0040  /* DCS_TRIG_STARTUP_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_HPL_SHIFT            6  /* DCS_TRIG_STARTUP_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_HPL_WIDTH            1  /* DCS_TRIG_STARTUP_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPL              0x0010  /* DCS_TRIG_SERIES_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPL_MASK         0x0010  /* DCS_TRIG_SERIES_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPL_SHIFT             4  /* DCS_TRIG_SERIES_HPL
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPL_WIDTH             1  /* DCS_TRIG_SERIES_HPL
+                                                         * */
 #define WM8961_DCS_ENA_CHAN_HPR                 0x0008  /* DCS_ENA_CHAN_HPR */
 #define WM8961_DCS_ENA_CHAN_HPR_MASK            0x0008  /* DCS_ENA_CHAN_HPR */
 #define WM8961_DCS_ENA_CHAN_HPR_SHIFT                3  /* DCS_ENA_CHAN_HPR */
 #define WM8961_DCS_ENA_CHAN_HPR_WIDTH                1  /* DCS_ENA_CHAN_HPR */
-#define WM8961_DCS_TRIG_STARTUP_HPR             0x0004  /* DCS_TRIG_STARTUP_HPR */
-#define WM8961_DCS_TRIG_STARTUP_HPR_MASK        0x0004  /* DCS_TRIG_STARTUP_HPR */
-#define WM8961_DCS_TRIG_STARTUP_HPR_SHIFT            2  /* DCS_TRIG_STARTUP_HPR */
-#define WM8961_DCS_TRIG_STARTUP_HPR_WIDTH            1  /* DCS_TRIG_STARTUP_HPR */
-#define WM8961_DCS_TRIG_SERIES_HPR              0x0001  /* DCS_TRIG_SERIES_HPR */
-#define WM8961_DCS_TRIG_SERIES_HPR_MASK         0x0001  /* DCS_TRIG_SERIES_HPR */
-#define WM8961_DCS_TRIG_SERIES_HPR_SHIFT             0  /* DCS_TRIG_SERIES_HPR */
-#define WM8961_DCS_TRIG_SERIES_HPR_WIDTH             1  /* DCS_TRIG_SERIES_HPR */
+#define WM8961_DCS_TRIG_STARTUP_HPR             0x0004  /* DCS_TRIG_STARTUP_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_HPR_MASK        0x0004  /* DCS_TRIG_STARTUP_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_HPR_SHIFT            2  /* DCS_TRIG_STARTUP_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_STARTUP_HPR_WIDTH            1  /* DCS_TRIG_STARTUP_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPR              0x0001  /* DCS_TRIG_SERIES_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPR_MASK         0x0001  /* DCS_TRIG_SERIES_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPR_SHIFT             0  /* DCS_TRIG_SERIES_HPR
+                                                         * */
+#define WM8961_DCS_TRIG_SERIES_HPR_WIDTH             1  /* DCS_TRIG_SERIES_HPR
+                                                         * */
 
 /*
  * R63 (0x3F) - DC Servo 3
  */
-#define WM8961_DCS_FILT_BW_SERIES_MASK          0x0030  /* DCS_FILT_BW_SERIES - [5:4] */
-#define WM8961_DCS_FILT_BW_SERIES_SHIFT              4  /* DCS_FILT_BW_SERIES - [5:4] */
-#define WM8961_DCS_FILT_BW_SERIES_WIDTH              2  /* DCS_FILT_BW_SERIES - [5:4] */
+#define WM8961_DCS_FILT_BW_SERIES_MASK          0x0030  /* DCS_FILT_BW_SERIES -
+                                                         * [5:4] */
+#define WM8961_DCS_FILT_BW_SERIES_SHIFT              4  /* DCS_FILT_BW_SERIES -
+                                                         * [5:4] */
+#define WM8961_DCS_FILT_BW_SERIES_WIDTH              2  /* DCS_FILT_BW_SERIES -
+                                                         * [5:4] */
 
 /*
  * R65 (0x41) - DC Servo 5
  */
-#define WM8961_DCS_SERIES_NO_HP_MASK            0x007F  /* DCS_SERIES_NO_HP - [6:0] */
-#define WM8961_DCS_SERIES_NO_HP_SHIFT                0  /* DCS_SERIES_NO_HP - [6:0] */
-#define WM8961_DCS_SERIES_NO_HP_WIDTH                7  /* DCS_SERIES_NO_HP - [6:0] */
+#define WM8961_DCS_SERIES_NO_HP_MASK            0x007F  /* DCS_SERIES_NO_HP -
+                                                         * [6:0] */
+#define WM8961_DCS_SERIES_NO_HP_SHIFT                0  /* DCS_SERIES_NO_HP -
+                                                         * [6:0] */
+#define WM8961_DCS_SERIES_NO_HP_WIDTH                7  /* DCS_SERIES_NO_HP -
+                                                         * [6:0] */
 
 /*
  * R68 (0x44) - Analogue PGA Bias
  */
-#define WM8961_HP_PGAS_BIAS_MASK                0x0007  /* HP_PGAS_BIAS - [2:0] */
-#define WM8961_HP_PGAS_BIAS_SHIFT                    0  /* HP_PGAS_BIAS - [2:0] */
-#define WM8961_HP_PGAS_BIAS_WIDTH                    3  /* HP_PGAS_BIAS - [2:0] */
+#define WM8961_HP_PGAS_BIAS_MASK                0x0007  /* HP_PGAS_BIAS - [2:0]
+                                                         * */
+#define WM8961_HP_PGAS_BIAS_SHIFT                    0  /* HP_PGAS_BIAS - [2:0]
+                                                         * */
+#define WM8961_HP_PGAS_BIAS_WIDTH                    3  /* HP_PGAS_BIAS - [2:0]
+                                                         * */
 
 /*
  * R69 (0x45) - Analogue HP 0
@@ -757,9 +832,12 @@
 #define WM8961_HPR_VOL_MASK                     0x0038  /* HPR_VOL - [5:3] */
 #define WM8961_HPR_VOL_SHIFT                         3  /* HPR_VOL - [5:3] */
 #define WM8961_HPR_VOL_WIDTH                         3  /* HPR_VOL - [5:3] */
-#define WM8961_HP_BIAS_BOOST_MASK               0x0007  /* HP_BIAS_BOOST - [2:0] */
-#define WM8961_HP_BIAS_BOOST_SHIFT                   0  /* HP_BIAS_BOOST - [2:0] */
-#define WM8961_HP_BIAS_BOOST_WIDTH                   3  /* HP_BIAS_BOOST - [2:0] */
+#define WM8961_HP_BIAS_BOOST_MASK               0x0007  /* HP_BIAS_BOOST - [2:0]
+                                                         * */
+#define WM8961_HP_BIAS_BOOST_SHIFT                   0  /* HP_BIAS_BOOST - [2:0]
+                                                         * */
+#define WM8961_HP_BIAS_BOOST_WIDTH                   3  /* HP_BIAS_BOOST - [2:0]
+                                                         * */
 
 /*
  * R72 (0x48) - Charge Pump 1
@@ -783,9 +861,12 @@
 #define WM8961_WSEQ_ENA_MASK                    0x0020  /* WSEQ_ENA */
 #define WM8961_WSEQ_ENA_SHIFT                        5  /* WSEQ_ENA */
 #define WM8961_WSEQ_ENA_WIDTH                        1  /* WSEQ_ENA */
-#define WM8961_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8961_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8961_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX - [4:0] */
+#define WM8961_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8961_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8961_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
 
 /*
  * R88 (0x58) - Write Sequencer 2
@@ -816,19 +897,28 @@
 #define WM8961_WSEQ_START_MASK                  0x0080  /* WSEQ_START */
 #define WM8961_WSEQ_START_SHIFT                      7  /* WSEQ_START */
 #define WM8961_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM8961_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX - [5:0] */
-#define WM8961_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [5:0] */
-#define WM8961_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX - [5:0] */
+#define WM8961_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8961_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8961_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
 
 /*
  * R91 (0x5B) - Write Sequencer 5
  */
-#define WM8961_WSEQ_DATA_WIDTH_MASK             0x0070  /* WSEQ_DATA_WIDTH - [6:4] */
-#define WM8961_WSEQ_DATA_WIDTH_SHIFT                 4  /* WSEQ_DATA_WIDTH - [6:4] */
-#define WM8961_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH - [6:4] */
-#define WM8961_WSEQ_DATA_START_MASK             0x000F  /* WSEQ_DATA_START - [3:0] */
-#define WM8961_WSEQ_DATA_START_SHIFT                 0  /* WSEQ_DATA_START - [3:0] */
-#define WM8961_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START - [3:0] */
+#define WM8961_WSEQ_DATA_WIDTH_MASK             0x0070  /* WSEQ_DATA_WIDTH -
+                                                         * [6:4] */
+#define WM8961_WSEQ_DATA_WIDTH_SHIFT                 4  /* WSEQ_DATA_WIDTH -
+                                                         * [6:4] */
+#define WM8961_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH -
+                                                         * [6:4] */
+#define WM8961_WSEQ_DATA_START_MASK             0x000F  /* WSEQ_DATA_START -
+                                                         * [3:0] */
+#define WM8961_WSEQ_DATA_START_SHIFT                 0  /* WSEQ_DATA_START -
+                                                         * [3:0] */
+#define WM8961_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START -
+                                                         * [3:0] */
 
 /*
  * R92 (0x5C) - Write Sequencer 6

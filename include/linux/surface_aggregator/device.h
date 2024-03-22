@@ -20,7 +20,6 @@
 
 #include <linux/surface_aggregator/controller.h>
 
-
 /* -- Surface System Aggregator Module bus. --------------------------------- */
 
 /**
@@ -29,8 +28,8 @@
  * @SSAM_DOMAIN_SERIALHUB: Physical device connected via Surface Serial Hub.
  */
 enum ssam_device_domain {
-	SSAM_DOMAIN_VIRTUAL   = 0x00,
-	SSAM_DOMAIN_SERIALHUB = 0x01,
+  SSAM_DOMAIN_VIRTUAL = 0x00,
+  SSAM_DOMAIN_SERIALHUB = 0x01,
 };
 
 /**
@@ -38,7 +37,7 @@ enum ssam_device_domain {
  * @SSAM_VIRTUAL_TC_HUB: Device hub category.
  */
 enum ssam_virtual_tc {
-	SSAM_VIRTUAL_TC_HUB = 0x00,
+  SSAM_VIRTUAL_TC_HUB = 0x00,
 };
 
 /**
@@ -53,11 +52,11 @@ enum ssam_virtual_tc {
  *            such functionality.
  */
 struct ssam_device_uid {
-	u8 domain;
-	u8 category;
-	u8 target;
-	u8 instance;
-	u8 function;
+  u8 domain;
+  u8 category;
+  u8 target;
+  u8 instance;
+  u8 function;
 };
 
 /*
@@ -68,9 +67,9 @@ struct ssam_device_uid {
  * match_flags member of the device ID structure. Do not use them directly
  * with struct ssam_device_id or struct ssam_device_uid.
  */
-#define SSAM_SSH_TID_ANY	0xffff
-#define SSAM_SSH_IID_ANY	0xffff
-#define SSAM_SSH_FUN_ANY	0xffff
+#define SSAM_SSH_TID_ANY  0xffff
+#define SSAM_SSH_IID_ANY  0xffff
+#define SSAM_SSH_FUN_ANY  0xffff
 
 /**
  * SSAM_DEVICE() - Initialize a &struct ssam_device_id with the given
@@ -83,25 +82,27 @@ struct ssam_device_uid {
  *
  * Initializes a &struct ssam_device_id with the given parameters. See &struct
  * ssam_device_uid for details regarding the parameters. The special values
- * %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and %SSAM_SSH_FUN_ANY can be used to specify that
+ * %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and %SSAM_SSH_FUN_ANY can be used to
+ * specify that
  * matching should ignore target ID, instance ID, and/or sub-function,
  * respectively. This macro initializes the ``match_flags`` field based on the
  * given parameters.
  *
  * Note: The parameters @d and @cat must be valid &u8 values, the parameters
  * @tid, @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
- * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values are not
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values
+ * are not
  * allowed.
  */
-#define SSAM_DEVICE(d, cat, tid, iid, fun)					\
-	.match_flags = (((tid) != SSAM_SSH_TID_ANY) ? SSAM_MATCH_TARGET : 0)	\
-		     | (((iid) != SSAM_SSH_IID_ANY) ? SSAM_MATCH_INSTANCE : 0)	\
-		     | (((fun) != SSAM_SSH_FUN_ANY) ? SSAM_MATCH_FUNCTION : 0),	\
-	.domain   = d,								\
-	.category = cat,							\
-	.target   = __builtin_choose_expr((tid) != SSAM_SSH_TID_ANY, (tid), 0),	\
-	.instance = __builtin_choose_expr((iid) != SSAM_SSH_IID_ANY, (iid), 0),	\
-	.function = __builtin_choose_expr((fun) != SSAM_SSH_FUN_ANY, (fun), 0)
+#define SSAM_DEVICE(d, cat, tid, iid, fun)          \
+  .match_flags = (((tid) != SSAM_SSH_TID_ANY) ? SSAM_MATCH_TARGET : 0)  \
+      | (((iid) != SSAM_SSH_IID_ANY) ? SSAM_MATCH_INSTANCE : 0)  \
+      | (((fun) != SSAM_SSH_FUN_ANY) ? SSAM_MATCH_FUNCTION : 0), \
+  .domain = d,                \
+  .category = cat,              \
+  .target = __builtin_choose_expr((tid) != SSAM_SSH_TID_ANY, (tid), 0), \
+  .instance = __builtin_choose_expr((iid) != SSAM_SSH_IID_ANY, (iid), 0), \
+  .function = __builtin_choose_expr((fun) != SSAM_SSH_FUN_ANY, (fun), 0)
 
 /**
  * SSAM_VDEV() - Initialize a &struct ssam_device_id as virtual device with
@@ -114,17 +115,20 @@ struct ssam_device_uid {
  * Initializes a &struct ssam_device_id with the given parameters in the
  * virtual domain. See &struct ssam_device_uid for details regarding the
  * parameters. The special values %SSAM_SSH_TID_ANY, %SSAM_SSH_IID_ANY, and
- * %SSAM_SSH_FUN_ANY can be used to specify that matching should ignore target ID,
+ * %SSAM_SSH_FUN_ANY can be used to specify that matching should ignore target
+ * ID,
  * instance ID, and/or sub-function, respectively. This macro initializes the
  * ``match_flags`` field based on the given parameters.
  *
  * Note: The parameter @cat must be a valid &u8 value, the parameters @tid,
  * @iid, and @fun must be either valid &u8 values or %SSAM_SSH_TID_ANY,
- * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values are not
+ * %SSAM_SSH_IID_ANY, or %SSAM_SSH_FUN_ANY, respectively. Other non-&u8 values
+ * are not
  * allowed.
  */
 #define SSAM_VDEV(cat, tid, iid, fun) \
-	SSAM_DEVICE(SSAM_DOMAIN_VIRTUAL, SSAM_VIRTUAL_TC_##cat, SSAM_SSH_TID_##tid, iid, fun)
+  SSAM_DEVICE(SSAM_DOMAIN_VIRTUAL, SSAM_VIRTUAL_TC_ ## cat, \
+    SSAM_SSH_TID_ ## tid, iid, fun)
 
 /**
  * SSAM_SDEV() - Initialize a &struct ssam_device_id as physical SSH device
@@ -147,16 +151,17 @@ struct ssam_device_uid {
  * are not allowed.
  */
 #define SSAM_SDEV(cat, tid, iid, fun) \
-	SSAM_DEVICE(SSAM_DOMAIN_SERIALHUB, SSAM_SSH_TC_##cat, SSAM_SSH_TID_##tid, iid, fun)
+  SSAM_DEVICE(SSAM_DOMAIN_SERIALHUB, SSAM_SSH_TC_ ## cat, SSAM_SSH_TID_ ## tid, \
+    iid, fun)
 
 /*
  * enum ssam_device_flags - Flags for SSAM client devices.
  * @SSAM_DEVICE_HOT_REMOVED_BIT:
- *	The device has been hot-removed. Further communication with it may time
- *	out and should be avoided.
+ *  The device has been hot-removed. Further communication with it may time
+ *  out and should be avoided.
  */
 enum ssam_device_flags {
-	SSAM_DEVICE_HOT_REMOVED_BIT = 0,
+  SSAM_DEVICE_HOT_REMOVED_BIT = 0,
 };
 
 /**
@@ -167,12 +172,12 @@ enum ssam_device_flags {
  * @flags: Device state flags, see &enum ssam_device_flags.
  */
 struct ssam_device {
-	struct device dev;
-	struct ssam_controller *ctrl;
+  struct device dev;
+  struct ssam_controller *ctrl;
 
-	struct ssam_device_uid uid;
+  struct ssam_device_uid uid;
 
-	unsigned long flags;
+  unsigned long flags;
 };
 
 /**
@@ -183,12 +188,12 @@ struct ssam_device {
  * @remove:      Called when the driver is being unbound from the device.
  */
 struct ssam_device_driver {
-	struct device_driver driver;
+  struct device_driver driver;
 
-	const struct ssam_device_id *match_table;
+  const struct ssam_device_id *match_table;
 
-	int  (*probe)(struct ssam_device *sdev);
-	void (*remove)(struct ssam_device *sdev);
+  int (*probe)(struct ssam_device *sdev);
+  void (*remove)(struct ssam_device *sdev);
 };
 
 #ifdef CONFIG_SURFACE_AGGREGATOR_BUS
@@ -203,16 +208,14 @@ extern const struct device_type ssam_device_type;
  * ssam_device, i.e. the device type points to %ssam_device_type, and %false
  * otherwise.
  */
-static inline bool is_ssam_device(struct device *d)
-{
-	return d->type == &ssam_device_type;
+static inline bool is_ssam_device(struct device *d) {
+  return d->type == &ssam_device_type;
 }
 
 #else /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
-static inline bool is_ssam_device(struct device *d)
-{
-	return false;
+static inline bool is_ssam_device(struct device *d) {
+  return false;
 }
 
 #endif /* CONFIG_SURFACE_AGGREGATOR_BUS */
@@ -228,7 +231,7 @@ static inline bool is_ssam_device(struct device *d)
  * Return: Returns a pointer to the &struct ssam_device wrapping the given
  * device @d.
  */
-#define to_ssam_device(d)	container_of_const(d, struct ssam_device, dev)
+#define to_ssam_device(d) container_of_const(d, struct ssam_device, dev)
 
 /**
  * to_ssam_device_driver() - Casts the given device driver to a SSAM client
@@ -242,17 +245,21 @@ static inline bool is_ssam_device(struct device *d)
  * Return: Returns the pointer to the &struct ssam_device_driver wrapping the
  * given device driver @d.
  */
-#define to_ssam_device_driver(d)	container_of_const(d, struct ssam_device_driver, driver)
+#define to_ssam_device_driver(d)  container_of_const(d, \
+    struct ssam_device_driver, \
+    driver)
 
-const struct ssam_device_id *ssam_device_id_match(const struct ssam_device_id *table,
-						  const struct ssam_device_uid uid);
+const struct ssam_device_id *ssam_device_id_match(
+  const struct ssam_device_id *table,
+  const struct ssam_device_uid uid);
 
-const struct ssam_device_id *ssam_device_get_match(const struct ssam_device *dev);
+const struct ssam_device_id *ssam_device_get_match(
+  const struct ssam_device *dev);
 
 const void *ssam_device_get_match_data(const struct ssam_device *dev);
 
 struct ssam_device *ssam_device_alloc(struct ssam_controller *ctrl,
-				      struct ssam_device_uid uid);
+    struct ssam_device_uid uid);
 
 int ssam_device_add(struct ssam_device *sdev);
 void ssam_device_remove(struct ssam_device *sdev);
@@ -265,10 +272,9 @@ void ssam_device_remove(struct ssam_device *sdev);
  * device that communication with the device should be avoided and may lead to
  * timeouts.
  */
-static inline void ssam_device_mark_hot_removed(struct ssam_device *sdev)
-{
-	dev_dbg(&sdev->dev, "marking device as hot-removed\n");
-	set_bit(SSAM_DEVICE_HOT_REMOVED_BIT, &sdev->flags);
+static inline void ssam_device_mark_hot_removed(struct ssam_device *sdev) {
+  dev_dbg(&sdev->dev, "marking device as hot-removed\n");
+  set_bit(SSAM_DEVICE_HOT_REMOVED_BIT, &sdev->flags);
 }
 
 /**
@@ -281,9 +287,8 @@ static inline void ssam_device_mark_hot_removed(struct ssam_device *sdev)
  *
  * Return: Returns ``true`` if the device has been marked as hot-removed.
  */
-static inline bool ssam_device_is_hot_removed(struct ssam_device *sdev)
-{
-	return test_bit(SSAM_DEVICE_HOT_REMOVED_BIT, &sdev->flags);
+static inline bool ssam_device_is_hot_removed(struct ssam_device *sdev) {
+  return test_bit(SSAM_DEVICE_HOT_REMOVED_BIT, &sdev->flags);
 }
 
 /**
@@ -298,9 +303,8 @@ static inline bool ssam_device_is_hot_removed(struct ssam_device *sdev)
  *
  * Return: Returns the device provided as input.
  */
-static inline struct ssam_device *ssam_device_get(struct ssam_device *sdev)
-{
-	return sdev ? to_ssam_device(get_device(&sdev->dev)) : NULL;
+static inline struct ssam_device *ssam_device_get(struct ssam_device *sdev) {
+  return sdev ? to_ssam_device(get_device(&sdev->dev)) : NULL;
 }
 
 /**
@@ -313,10 +317,10 @@ static inline struct ssam_device *ssam_device_get(struct ssam_device *sdev)
  *
  * See ssam_device_get() for the counter-part of this function.
  */
-static inline void ssam_device_put(struct ssam_device *sdev)
-{
-	if (sdev)
-		put_device(&sdev->dev);
+static inline void ssam_device_put(struct ssam_device *sdev) {
+  if (sdev) {
+    put_device(&sdev->dev);
+  }
 }
 
 /**
@@ -326,9 +330,8 @@ static inline void ssam_device_put(struct ssam_device *sdev)
  * Return: Returns the driver-data of the given device, previously set via
  * ssam_device_set_drvdata().
  */
-static inline void *ssam_device_get_drvdata(struct ssam_device *sdev)
-{
-	return dev_get_drvdata(&sdev->dev);
+static inline void *ssam_device_get_drvdata(struct ssam_device *sdev) {
+  return dev_get_drvdata(&sdev->dev);
 }
 
 /**
@@ -336,12 +339,13 @@ static inline void *ssam_device_get_drvdata(struct ssam_device *sdev)
  * @sdev: The device to set the driver-data of.
  * @data: The data to set the device's driver-data pointer to.
  */
-static inline void ssam_device_set_drvdata(struct ssam_device *sdev, void *data)
-{
-	dev_set_drvdata(&sdev->dev, data);
+static inline void ssam_device_set_drvdata(struct ssam_device *sdev,
+    void *data) {
+  dev_set_drvdata(&sdev->dev, data);
 }
 
-int __ssam_device_driver_register(struct ssam_device_driver *d, struct module *o);
+int __ssam_device_driver_register(struct ssam_device_driver *d,
+    struct module *o);
 void ssam_device_driver_unregister(struct ssam_device_driver *d);
 
 /**
@@ -349,7 +353,7 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
  * @drv: The driver to register.
  */
 #define ssam_device_driver_register(drv) \
-	__ssam_device_driver_register(drv, THIS_MODULE)
+  __ssam_device_driver_register(drv, THIS_MODULE)
 
 /**
  * module_ssam_device_driver() - Helper macro for SSAM device driver
@@ -360,28 +364,28 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
  * module_exit(). This macro may only be used once per module and replaces the
  * aforementioned definitions.
  */
-#define module_ssam_device_driver(drv)			\
-	module_driver(drv, ssam_device_driver_register,	\
-		      ssam_device_driver_unregister)
-
+#define module_ssam_device_driver(drv)      \
+  module_driver(drv, ssam_device_driver_register, \
+    ssam_device_driver_unregister)
 
 /* -- Helpers for controller and hub devices. ------------------------------- */
 
 #ifdef CONFIG_SURFACE_AGGREGATOR_BUS
 
 int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
-			    struct fwnode_handle *node);
+    struct fwnode_handle *node);
 void ssam_remove_clients(struct device *dev);
 
 #else /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
-static inline int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
-					  struct fwnode_handle *node)
-{
-	return 0;
+static inline int __ssam_register_clients(struct device *parent,
+    struct ssam_controller *ctrl,
+    struct fwnode_handle *node) {
+  return 0;
 }
 
-static inline void ssam_remove_clients(struct device *dev) {}
+static inline void ssam_remove_clients(struct device *dev) {
+}
 
 #endif /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
@@ -400,9 +404,9 @@ static inline void ssam_remove_clients(struct device *dev) {}
  *
  * Return: Returns zero on success, nonzero on failure.
  */
-static inline int ssam_register_clients(struct device *dev, struct ssam_controller *ctrl)
-{
-	return __ssam_register_clients(dev, ctrl, dev_fwnode(dev));
+static inline int ssam_register_clients(struct device *dev,
+    struct ssam_controller *ctrl) {
+  return __ssam_register_clients(dev, ctrl, dev_fwnode(dev));
 }
 
 /**
@@ -419,11 +423,9 @@ static inline int ssam_register_clients(struct device *dev, struct ssam_controll
  *
  * Return: Returns zero on success, nonzero on failure.
  */
-static inline int ssam_device_register_clients(struct ssam_device *sdev)
-{
-	return ssam_register_clients(&sdev->dev, sdev->ctrl);
+static inline int ssam_device_register_clients(struct ssam_device *sdev) {
+  return ssam_register_clients(&sdev->dev, sdev->ctrl);
 }
-
 
 /* -- Helpers for client-device requests. ----------------------------------- */
 
@@ -451,13 +453,13 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
-#define SSAM_DEFINE_SYNC_REQUEST_CL_N(name, spec...)			\
-	SSAM_DEFINE_SYNC_REQUEST_MD_N(__raw_##name, spec)		\
-	static int name(struct ssam_device *sdev)			\
-	{								\
-		return __raw_##name(sdev->ctrl, sdev->uid.target,	\
-				    sdev->uid.instance);		\
-	}
+#define SSAM_DEFINE_SYNC_REQUEST_CL_N(name, spec ...)      \
+  SSAM_DEFINE_SYNC_REQUEST_MD_N(__raw_ ## name, spec)   \
+  static int name(struct ssam_device *sdev)     \
+  {               \
+    return __raw_ ## name(sdev->ctrl, sdev->uid.target, \
+    sdev->uid.instance);    \
+  }
 
 /**
  * SSAM_DEFINE_SYNC_REQUEST_CL_W() - Define synchronous client-device SAM
@@ -485,13 +487,13 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
-#define SSAM_DEFINE_SYNC_REQUEST_CL_W(name, atype, spec...)		\
-	SSAM_DEFINE_SYNC_REQUEST_MD_W(__raw_##name, atype, spec)	\
-	static int name(struct ssam_device *sdev, const atype *arg)	\
-	{								\
-		return __raw_##name(sdev->ctrl, sdev->uid.target,	\
-				    sdev->uid.instance, arg);		\
-	}
+#define SSAM_DEFINE_SYNC_REQUEST_CL_W(name, atype, spec ...)   \
+  SSAM_DEFINE_SYNC_REQUEST_MD_W(__raw_ ## name, atype, spec)  \
+  static int name(struct ssam_device *sdev, const atype *arg) \
+  {               \
+    return __raw_ ## name(sdev->ctrl, sdev->uid.target, \
+    sdev->uid.instance, arg);   \
+  }
 
 /**
  * SSAM_DEFINE_SYNC_REQUEST_CL_R() - Define synchronous client-device SAM
@@ -519,13 +521,13 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
-#define SSAM_DEFINE_SYNC_REQUEST_CL_R(name, rtype, spec...)		\
-	SSAM_DEFINE_SYNC_REQUEST_MD_R(__raw_##name, rtype, spec)	\
-	static int name(struct ssam_device *sdev, rtype *ret)		\
-	{								\
-		return __raw_##name(sdev->ctrl, sdev->uid.target,	\
-				    sdev->uid.instance, ret);		\
-	}
+#define SSAM_DEFINE_SYNC_REQUEST_CL_R(name, rtype, spec ...)   \
+  SSAM_DEFINE_SYNC_REQUEST_MD_R(__raw_ ## name, rtype, spec)  \
+  static int name(struct ssam_device *sdev, rtype *ret)   \
+  {               \
+    return __raw_ ## name(sdev->ctrl, sdev->uid.target, \
+    sdev->uid.instance, ret);   \
+  }
 
 /**
  * SSAM_DEFINE_SYNC_REQUEST_CL_WR() - Define synchronous client-device SAM
@@ -555,14 +557,13 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
-#define SSAM_DEFINE_SYNC_REQUEST_CL_WR(name, atype, rtype, spec...)		\
-	SSAM_DEFINE_SYNC_REQUEST_MD_WR(__raw_##name, atype, rtype, spec)	\
-	static int name(struct ssam_device *sdev, const atype *arg, rtype *ret)	\
-	{									\
-		return __raw_##name(sdev->ctrl, sdev->uid.target,		\
-				    sdev->uid.instance, arg, ret);		\
-	}
-
+#define SSAM_DEFINE_SYNC_REQUEST_CL_WR(name, atype, rtype, spec ...)   \
+  SSAM_DEFINE_SYNC_REQUEST_MD_WR(__raw_ ## name, atype, rtype, spec)  \
+  static int name(struct ssam_device *sdev, const atype *arg, rtype *ret) \
+  {                 \
+    return __raw_ ## name(sdev->ctrl, sdev->uid.target,   \
+    sdev->uid.instance, arg, ret);    \
+  }
 
 /* -- Helpers for client-device notifiers. ---------------------------------- */
 
@@ -590,18 +591,17 @@ static inline int ssam_device_register_clients(struct ssam_device *sdev)
  * event, returns the status of the event-enable EC-command.
  */
 static inline int ssam_device_notifier_register(struct ssam_device *sdev,
-						struct ssam_event_notifier *n)
-{
-	/*
-	 * Note that this check does not provide any guarantees whatsoever as
-	 * hot-removal could happen at any point and we can't protect against
-	 * it. Nevertheless, if we can detect hot-removal, bail early to avoid
-	 * communication timeouts.
-	 */
-	if (ssam_device_is_hot_removed(sdev))
-		return -ENODEV;
-
-	return ssam_notifier_register(sdev->ctrl, n);
+    struct ssam_event_notifier *n) {
+  /*
+   * Note that this check does not provide any guarantees whatsoever as
+   * hot-removal could happen at any point and we can't protect against
+   * it. Nevertheless, if we can detect hot-removal, bail early to avoid
+   * communication timeouts.
+   */
+  if (ssam_device_is_hot_removed(sdev)) {
+    return -ENODEV;
+  }
+  return ssam_notifier_register(sdev->ctrl, n);
 }
 
 /**
@@ -623,10 +623,9 @@ static inline int ssam_device_notifier_register(struct ssam_device *sdev,
  * event-disable EC-command.
  */
 static inline int ssam_device_notifier_unregister(struct ssam_device *sdev,
-						  struct ssam_event_notifier *n)
-{
-	return __ssam_notifier_unregister(sdev->ctrl, n,
-					  !ssam_device_is_hot_removed(sdev));
+    struct ssam_event_notifier *n) {
+  return __ssam_notifier_unregister(sdev->ctrl, n,
+      !ssam_device_is_hot_removed(sdev));
 }
 
 #endif /* _LINUX_SURFACE_AGGREGATOR_DEVICE_H */

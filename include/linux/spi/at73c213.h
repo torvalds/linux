@@ -18,9 +18,9 @@
  * provides a name which is used to identify it in userspace tools.
  */
 struct at73c213_board_info {
-	int		ssc_id;
-	struct clk	*dac_clk;
-	char		shortname[32];
+  int ssc_id;
+  struct clk *dac_clk;
+  char shortname[32];
 };
 
 #endif /* __LINUX_SPI_AT73C213_H */

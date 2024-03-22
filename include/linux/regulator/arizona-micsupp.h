@@ -11,8 +11,8 @@
 struct regulator_init_data;
 
 struct arizona_micsupp_pdata {
-	/** Regulator configuration for micsupp */
-	const struct regulator_init_data *init_data;
+  /** Regulator configuration for micsupp */
+  const struct regulator_init_data *init_data;
 };
 
 #endif

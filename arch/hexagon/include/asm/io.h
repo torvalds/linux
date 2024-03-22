@@ -20,12 +20,12 @@
  * _IO_BASE is pointing at what should be unused virtual space.
  */
 #define IO_SPACE_LIMIT 0xffff
-#define _IO_BASE ((void __iomem *)0xfe000000)
+#define _IO_BASE ((void __iomem *) 0xfe000000)
 
-#define IOMEM(x)        ((void __force __iomem *)(x))
+#define IOMEM(x)        ((void __force __iomem *) (x))
 
 extern int remap_area_pages(unsigned long start, unsigned long phys_addr,
-				unsigned long end, unsigned long flags);
+    unsigned long end, unsigned long flags);
 
 /* Defined in lib/io.c, needed for smc91x driver. */
 extern void __raw_readsw(const void __iomem *addr, void *data, int wordlen);
@@ -34,7 +34,7 @@ extern void __raw_writesw(void __iomem *addr, const void *data, int wordlen);
 extern void __raw_readsl(const void __iomem *addr, void *data, int wordlen);
 extern void __raw_writesl(void __iomem *addr, const void *data, int wordlen);
 
-#define readsw(p, d, l)	__raw_readsw(p, d, l)
+#define readsw(p, d, l) __raw_readsw(p, d, l)
 #define writesw(p, d, l) __raw_writesw(p, d, l)
 
 #define readsl(p, d, l)   __raw_readsl(p, d, l)
@@ -44,18 +44,16 @@ extern void __raw_writesl(void __iomem *addr, const void *data, int wordlen);
  * virt_to_phys - map virtual address to physical
  * @address:  address to map
  */
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-	return __pa(address);
+static inline unsigned long virt_to_phys(volatile void *address) {
+  return __pa(address);
 }
 
 /*
  * phys_to_virt - map physical address to virtual
  * @address: address to map
  */
-static inline void *phys_to_virt(unsigned long address)
-{
-	return __va(address);
+static inline void *phys_to_virt(unsigned long address) {
+  return __va(address);
 }
 
 /*
@@ -72,37 +70,34 @@ static inline void *phys_to_virt(unsigned long address)
  *
  * Operates on "I/O bus memory space"
  */
-static inline u8 readb(const volatile void __iomem *addr)
-{
-	u8 val;
-	asm volatile(
-		"%0 = memb(%1);"
-		: "=&r" (val)
-		: "r" (addr)
-	);
-	return val;
+static inline u8 readb(const volatile void __iomem *addr) {
+  u8 val;
+  asm volatile (
+    "%0 = memb(%1);"
+    : "=&r" (val)
+    : "r" (addr)
+    );
+  return val;
 }
 
-static inline u16 readw(const volatile void __iomem *addr)
-{
-	u16 val;
-	asm volatile(
-		"%0 = memh(%1);"
-		: "=&r" (val)
-		: "r" (addr)
-	);
-	return val;
+static inline u16 readw(const volatile void __iomem *addr) {
+  u16 val;
+  asm volatile (
+    "%0 = memh(%1);"
+    : "=&r" (val)
+    : "r" (addr)
+    );
+  return val;
 }
 
-static inline u32 readl(const volatile void __iomem *addr)
-{
-	u32 val;
-	asm volatile(
-		"%0 = memw(%1);"
-		: "=&r" (val)
-		: "r" (addr)
-	);
-	return val;
+static inline u32 readl(const volatile void __iomem *addr) {
+  u32 val;
+  asm volatile (
+    "%0 = memw(%1);"
+    : "=&r" (val)
+    : "r" (addr)
+    );
+  return val;
 }
 
 /*
@@ -111,35 +106,31 @@ static inline u32 readl(const volatile void __iomem *addr)
  * @addr:  pointer to memory
  *
  */
-static inline void writeb(u8 data, volatile void __iomem *addr)
-{
-	asm volatile(
-		"memb(%0) = %1;"
-		:
-		: "r" (addr), "r" (data)
-		: "memory"
-	);
+static inline void writeb(u8 data, volatile void __iomem *addr) {
+  asm volatile (
+    "memb(%0) = %1;"
+    :
+    : "r" (addr), "r" (data)
+    : "memory"
+    );
 }
 
-static inline void writew(u16 data, volatile void __iomem *addr)
-{
-	asm volatile(
-		"memh(%0) = %1;"
-		:
-		: "r" (addr), "r" (data)
-		: "memory"
-	);
-
+static inline void writew(u16 data, volatile void __iomem *addr) {
+  asm volatile (
+    "memh(%0) = %1;"
+    :
+    : "r" (addr), "r" (data)
+    : "memory"
+    );
 }
 
-static inline void writel(u32 data, volatile void __iomem *addr)
-{
-	asm volatile(
-		"memw(%0) = %1;"
-		:
-		: "r" (addr), "r" (data)
-		: "memory"
-	);
+static inline void writel(u32 data, volatile void __iomem *addr) {
+  asm volatile (
+    "memw(%0) = %1;"
+    :
+    : "r" (addr), "r" (data)
+    : "memory"
+    );
 }
 
 #define __raw_writeb writeb
@@ -165,30 +156,27 @@ static inline void writel(u32 data, volatile void __iomem *addr)
 /*
  * I/O memory mapping functions.
  */
-#define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | \
-		       (__HEXAGON_C_DEV << 6))
+#define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE   \
+  | (__HEXAGON_C_DEV << 6))
 
 #define __raw_writel writel
 
 static inline void memcpy_fromio(void *dst, const volatile void __iomem *src,
-	int count)
-{
-	memcpy(dst, (void *) src, count);
+    int count) {
+  memcpy(dst, (void *) src, count);
 }
 
 static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
-	int count)
-{
-	memcpy((void *) dst, src, count);
+    int count) {
+  memcpy((void *) dst, src, count);
 }
 
 static inline void memset_io(volatile void __iomem *addr, int value,
-			     size_t size)
-{
-	memset((void __force *)addr, value, size);
+    size_t size) {
+  memset((void __force *) addr, value, size);
 }
 
-#define PCI_IO_ADDR	(volatile void __iomem *)
+#define PCI_IO_ADDR (volatile void __iomem *)
 
 /*
  * inb - read byte from I/O port or something
@@ -196,19 +184,16 @@ static inline void memset_io(volatile void __iomem *addr, int value,
  *
  * Operates on "I/O bus I/O space"
  */
-static inline u8 inb(unsigned long port)
-{
-	return readb(_IO_BASE + (port & IO_SPACE_LIMIT));
+static inline u8 inb(unsigned long port) {
+  return readb(_IO_BASE + (port & IO_SPACE_LIMIT));
 }
 
-static inline u16 inw(unsigned long port)
-{
-	return readw(_IO_BASE + (port & IO_SPACE_LIMIT));
+static inline u16 inw(unsigned long port) {
+  return readw(_IO_BASE + (port & IO_SPACE_LIMIT));
 }
 
-static inline u32 inl(unsigned long port)
-{
-	return readl(_IO_BASE + (port & IO_SPACE_LIMIT));
+static inline u32 inl(unsigned long port) {
+  return readl(_IO_BASE + (port & IO_SPACE_LIMIT));
 }
 
 /*
@@ -216,19 +201,16 @@ static inline u32 inl(unsigned long port)
  * @data: data to write to
  * @addr:  address in I/O space
  */
-static inline void outb(u8 data, unsigned long port)
-{
-	writeb(data, _IO_BASE + (port & IO_SPACE_LIMIT));
+static inline void outb(u8 data, unsigned long port) {
+  writeb(data, _IO_BASE + (port & IO_SPACE_LIMIT));
 }
 
-static inline void outw(u16 data, unsigned long port)
-{
-	writew(data, _IO_BASE + (port & IO_SPACE_LIMIT));
+static inline void outw(u16 data, unsigned long port) {
+  writew(data, _IO_BASE + (port & IO_SPACE_LIMIT));
 }
 
-static inline void outl(u32 data, unsigned long port)
-{
-	writel(data, _IO_BASE + (port & IO_SPACE_LIMIT));
+static inline void outl(u32 data, unsigned long port) {
+  writel(data, _IO_BASE + (port & IO_SPACE_LIMIT));
 }
 
 #define outb_p outb
@@ -239,67 +221,61 @@ static inline void outl(u32 data, unsigned long port)
 #define inw_p inw
 #define inl_p inl
 
-static inline void insb(unsigned long port, void *buffer, int count)
-{
-	if (count) {
-		u8 *buf = buffer;
-		do {
-			u8 x = inb(port);
-			*buf++ = x;
-		} while (--count);
-	}
+static inline void insb(unsigned long port, void *buffer, int count) {
+  if (count) {
+    u8 *buf = buffer;
+    do {
+      u8 x = inb(port);
+      *buf++ = x;
+    } while (--count);
+  }
 }
 
-static inline void insw(unsigned long port, void *buffer, int count)
-{
-	if (count) {
-		u16 *buf = buffer;
-		do {
-			u16 x = inw(port);
-			*buf++ = x;
-		} while (--count);
-	}
+static inline void insw(unsigned long port, void *buffer, int count) {
+  if (count) {
+    u16 *buf = buffer;
+    do {
+      u16 x = inw(port);
+      *buf++ = x;
+    } while (--count);
+  }
 }
 
-static inline void insl(unsigned long port, void *buffer, int count)
-{
-	if (count) {
-		u32 *buf = buffer;
-		do {
-			u32 x = inw(port);
-			*buf++ = x;
-		} while (--count);
-	}
+static inline void insl(unsigned long port, void *buffer, int count) {
+  if (count) {
+    u32 *buf = buffer;
+    do {
+      u32 x = inw(port);
+      *buf++ = x;
+    } while (--count);
+  }
 }
 
-static inline void outsb(unsigned long port, const void *buffer, int count)
-{
-	if (count) {
-		const u8 *buf = buffer;
-		do {
-			outb(*buf++, port);
-		} while (--count);
-	}
+static inline void outsb(unsigned long port, const void *buffer, int count) {
+  if (count) {
+    const u8 *buf = buffer;
+    do {
+      outb(*buf++, port);
+    } while (--count);
+  }
 }
 
-static inline void outsw(unsigned long port, const void *buffer, int count)
-{
-	if (count) {
-		const u16 *buf = buffer;
-		do {
-			outw(*buf++, port);
-		} while (--count);
-	}
+static inline void outsw(unsigned long port, const void *buffer, int count) {
+  if (count) {
+    const u16 *buf = buffer;
+    do {
+      outw(*buf++, port);
+    } while (--count);
+  }
 }
 
-static inline void outsl(unsigned long port, const void *buffer, int count)
-{
-	if (count) {
-		const u32 *buf = buffer;
-		do {
-			outl(*buf++, port);
-		} while (--count);
-	}
+static inline void outsl(unsigned long port, const void *buffer, int count) {
+  if (count) {
+    const u32 *buf = buffer;
+    do {
+      outl(*buf++, port);
+    } while (--count);
+  }
 }
 
 /*

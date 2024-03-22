@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2013 - 2018 Intel Corporation.*/
 
 #ifndef _IAVF_PROTOTYPE_H_
 #define _IAVF_PROTOTYPE_H_
@@ -20,18 +20,18 @@ enum iavf_status iavf_init_adminq(struct iavf_hw *hw);
 enum iavf_status iavf_shutdown_adminq(struct iavf_hw *hw);
 void iavf_adminq_init_ring_data(struct iavf_hw *hw);
 enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
-					struct iavf_arq_event_info *e,
-					u16 *events_pending);
+    struct iavf_arq_event_info *e,
+    u16 *events_pending);
 enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
-				       struct iavf_aq_desc *desc,
-				       void *buff, /* can be NULL */
-				       u16 buff_size,
-				       struct iavf_asq_cmd_details *cmd_details);
+    struct iavf_aq_desc *desc,
+    void *buff, /* can be NULL */
+    u16 buff_size,
+    struct iavf_asq_cmd_details *cmd_details);
 bool iavf_asq_done(struct iavf_hw *hw);
 
 /* debug function for adminq */
 void iavf_debug_aq(struct iavf_hw *hw, enum iavf_debug_mask mask,
-		   void *desc, void *buffer, u16 buf_len);
+    void *desc, void *buffer, u16 buf_len);
 
 void iavf_idle_aq(struct iavf_hw *hw);
 void iavf_resume_aq(struct iavf_hw *hw);
@@ -41,22 +41,21 @@ const char *iavf_aq_str(struct iavf_hw *hw, enum iavf_admin_queue_err aq_err);
 const char *iavf_stat_str(struct iavf_hw *hw, enum iavf_status stat_err);
 
 enum iavf_status iavf_aq_set_rss_lut(struct iavf_hw *hw, u16 seid,
-				     bool pf_lut, u8 *lut, u16 lut_size);
+    bool pf_lut, u8 *lut, u16 lut_size);
 enum iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 seid,
-				     struct iavf_aqc_get_set_rss_key_data *key);
+    struct iavf_aqc_get_set_rss_key_data *key);
 
 extern struct iavf_rx_ptype_decoded iavf_ptype_lookup[];
 
-static inline struct iavf_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)
-{
-	return iavf_ptype_lookup[ptype];
+static inline struct iavf_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype) {
+  return iavf_ptype_lookup[ptype];
 }
 
 void iavf_vf_parse_hw_config(struct iavf_hw *hw,
-			     struct virtchnl_vf_resource *msg);
+    struct virtchnl_vf_resource *msg);
 enum iavf_status iavf_aq_send_msg_to_pf(struct iavf_hw *hw,
-					enum virtchnl_ops v_opcode,
-					enum iavf_status v_retval,
-					u8 *msg, u16 msglen,
-					struct iavf_asq_cmd_details *cmd_details);
+    enum virtchnl_ops v_opcode,
+    enum iavf_status v_retval,
+    u8 *msg, u16 msglen,
+    struct iavf_asq_cmd_details *cmd_details);
 #endif /* _IAVF_PROTOTYPE_H_ */

@@ -18,8 +18,8 @@
 #define _DT_BINDINGS_CLOCK_TEGRA20_CAR_H
 
 #define TEGRA20_CLK_CPU 0
-/* 1 */
-/* 2 */
+/* 1
+ * 2*/
 #define TEGRA20_CLK_AC97 3
 #define TEGRA20_CLK_RTC 4
 #define TEGRA20_CLK_TIMER 5
@@ -96,13 +96,13 @@
 /* 74 */
 #define TEGRA20_CLK_AVPUCQ 75
 #define TEGRA20_CLK_LA 76
-/* 77 */
-/* 78 */
-/* 79 */
-/* 80 */
-/* 81 */
-/* 82 */
-/* 83 */
+/* 77
+ * 78
+ * 79
+ * 80
+ * 81
+ * 82
+ * 83*/
 #define TEGRA20_CLK_IRAMA 84
 #define TEGRA20_CLK_IRAMB 85
 #define TEGRA20_CLK_IRAMC 86
@@ -156,4 +156,4 @@
 #define TEGRA20_CLK_TWD 132
 #define TEGRA20_CLK_CLK_MAX 133
 
-#endif	/* _DT_BINDINGS_CLOCK_TEGRA20_CAR_H */
+#endif  /* _DT_BINDINGS_CLOCK_TEGRA20_CAR_H */

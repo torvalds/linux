@@ -12,7 +12,7 @@
 struct device_node;
 
 void __init request_event_sources_irqs(struct device_node *np,
-				       irq_handler_t handler, const char *name);
+    irq_handler_t handler, const char *name);
 
 #include <linux/of.h>
 
@@ -34,7 +34,9 @@ int smp_query_cpu_stopped(unsigned int pcpu);
 #define QCSS_HARDWARE_ERROR -1
 #define QCSS_HARDWARE_BUSY -2
 #else
-static inline void smp_init_pseries(void) { }
+static inline void smp_init_pseries(void) {
+}
+
 #endif
 
 extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
@@ -49,7 +51,7 @@ extern unsigned long rtas_poweron_auto;
 extern void dlpar_free_cc_nodes(struct device_node *);
 extern void dlpar_free_cc_property(struct property *);
 extern struct device_node *dlpar_configure_connector(__be32,
-						struct device_node *);
+    struct device_node *);
 extern int dlpar_attach_node(struct device_node *, struct device_node *);
 extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
@@ -64,25 +66,27 @@ int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_errlog);
 int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
 int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog);
 #else
-static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
-{
-	return -EOPNOTSUPP;
+static inline int dlpar_memory(struct pseries_hp_errorlog *hp_elog) {
+  return -EOPNOTSUPP;
 }
-static inline int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog)
-{
-	return -EOPNOTSUPP;
+
+static inline int dlpar_hp_pmem(struct pseries_hp_errorlog *hp_elog) {
+  return -EOPNOTSUPP;
 }
+
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
 int dlpar_cpu(struct pseries_hp_errorlog *hp_elog);
 void pseries_cpu_hotplug_init(void);
 #else
-static inline int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
-{
-	return -EOPNOTSUPP;
+static inline int dlpar_cpu(struct pseries_hp_errorlog *hp_elog) {
+  return -EOPNOTSUPP;
 }
-static inline void pseries_cpu_hotplug_init(void) { }
+
+static inline void pseries_cpu_hotplug_init(void) {
+}
+
 #endif
 
 /* PCI root bridge prepare function override for pseries */
@@ -97,19 +101,16 @@ extern int CMO_PrPSP;
 extern int CMO_SecPSP;
 extern unsigned long CMO_PageSize;
 
-static inline int cmo_get_primary_psp(void)
-{
-	return CMO_PrPSP;
+static inline int cmo_get_primary_psp(void) {
+  return CMO_PrPSP;
 }
 
-static inline int cmo_get_secondary_psp(void)
-{
-	return CMO_SecPSP;
+static inline int cmo_get_secondary_psp(void) {
+  return CMO_SecPSP;
 }
 
-static inline unsigned long cmo_get_page_size(void)
-{
-	return CMO_PageSize;
+static inline unsigned long cmo_get_page_size(void) {
+  return CMO_PageSize;
 }
 
 int dlpar_workqueue_init(void);
@@ -120,13 +121,15 @@ void pseries_setup_security_mitigations(void);
 #ifdef CONFIG_PPC_64S_HASH_MMU
 void pseries_lpar_read_hblkrm_characteristics(void);
 #else
-static inline void pseries_lpar_read_hblkrm_characteristics(void) { }
+static inline void pseries_lpar_read_hblkrm_characteristics(void) {
+}
+
 #endif
 
 void pseries_rng_init(void);
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 struct iommu_group *pSeries_pci_device_group(struct pci_controller *hose,
-					     struct pci_dev *pdev);
+    struct pci_dev *pdev);
 #endif
 
 #endif /* _PSERIES_PSERIES_H */

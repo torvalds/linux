@@ -16,7 +16,7 @@
  *                   and/or .init.* sections.
  * [__start_rodata, __end_rodata]: contains .rodata.* sections
  * [__start_ro_after_init, __end_ro_after_init]:
- *		     contains .data..ro_after_init section
+ *         contains .data..ro_after_init section
  * [__init_begin, __init_end]: contains .init.* sections, but .init.text.*
  *                   may be out of this range on some architectures.
  * [_sinittext, _einittext]: contains .init.text.* sections
@@ -24,13 +24,13 @@
  *
  * Following global variables are optional and may be unavailable on some
  * architectures and/or kernel configurations.
- *	_text, _data
- *	__kprobes_text_start, __kprobes_text_end
- *	__entry_text_start, __entry_text_end
- *	__ctors_start, __ctors_end
- *	__irqentry_text_start, __irqentry_text_end
- *	__softirqentry_text_start, __softirqentry_text_end
- *	__start_opd, __end_opd
+ *  _text, _data
+ *  __kprobes_text_start, __kprobes_text_end
+ *  __entry_text_start, __entry_text_end
+ *  __ctors_start, __ctors_end
+ *  __irqentry_text_start, __irqentry_text_end
+ *  __softirqentry_text_start, __softirqentry_text_end
+ *  __start_opd, __end_opd
  */
 extern char _text[], _stext[], _etext[];
 extern char _data[], _sdata[], _edata[];
@@ -63,18 +63,17 @@ extern __visible const void __nosave_begin, __nosave_end;
 void *dereference_function_descriptor(void *ptr);
 void *dereference_kernel_function_descriptor(void *ptr);
 #else
-#define dereference_function_descriptor(p) ((void *)(p))
-#define dereference_kernel_function_descriptor(p) ((void *)(p))
+#define dereference_function_descriptor(p) ((void *) (p))
+#define dereference_kernel_function_descriptor(p) ((void *) (p))
 
 /* An address is simply the address of the function. */
 typedef struct {
-	unsigned long addr;
+  unsigned long addr;
 } func_desc_t;
 #endif
 
-static inline bool have_function_descriptors(void)
-{
-	return IS_ENABLED(CONFIG_HAVE_FUNCTION_DESCRIPTORS);
+static inline bool have_function_descriptors(void) {
+  return IS_ENABLED(CONFIG_HAVE_FUNCTION_DESCRIPTORS);
 }
 
 /**
@@ -89,9 +88,8 @@ static inline bool have_function_descriptors(void)
  * otherwise.
  */
 static inline bool memory_contains(void *begin, void *end, void *virt,
-				   size_t size)
-{
-	return virt >= begin && virt + size <= end;
+    size_t size) {
+  return virt >= begin && virt + size <= end;
 }
 
 /**
@@ -106,14 +104,12 @@ static inline bool memory_contains(void *begin, void *end, void *virt,
  * intersects with the region specified by @begin and @end, false otherwise.
  */
 static inline bool memory_intersects(void *begin, void *end, void *virt,
-				     size_t size)
-{
-	void *vend = virt + size;
-
-	if (virt < end && vend > begin)
-		return true;
-
-	return false;
+    size_t size) {
+  void *vend = virt + size;
+  if (virt < end && vend > begin) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -125,9 +121,8 @@ static inline bool memory_intersects(void *begin, void *end, void *virt,
  * Returns: true if the object specified by @virt and @size is entirely
  * contained within the init section, false otherwise.
  */
-static inline bool init_section_contains(void *virt, size_t size)
-{
-	return memory_contains(__init_begin, __init_end, virt, size);
+static inline bool init_section_contains(void *virt, size_t size) {
+  return memory_contains(__init_begin, __init_end, virt, size);
 }
 
 /**
@@ -139,14 +134,13 @@ static inline bool init_section_contains(void *virt, size_t size)
  * Returns: true if an object's memory region, specified by @virt and @size,
  * intersects with the init section, false otherwise.
  */
-static inline bool init_section_intersects(void *virt, size_t size)
-{
-	return memory_intersects(__init_begin, __init_end, virt, size);
+static inline bool init_section_intersects(void *virt, size_t size) {
+  return memory_intersects(__init_begin, __init_end, virt, size);
 }
 
 /**
  * is_kernel_core_data - checks if the pointer address is located in the
- *			 .data or .bss section
+ *       .data or .bss section
  *
  * @addr: address to check
  *
@@ -154,16 +148,15 @@ static inline bool init_section_intersects(void *virt, size_t size)
  * Note: On some archs it may return true for core RODATA, and false
  *       for others. But will always be true for core RW data.
  */
-static inline bool is_kernel_core_data(unsigned long addr)
-{
-	if (addr >= (unsigned long)_sdata && addr < (unsigned long)_edata)
-		return true;
-
-	if (addr >= (unsigned long)__bss_start &&
-	    addr < (unsigned long)__bss_stop)
-		return true;
-
-	return false;
+static inline bool is_kernel_core_data(unsigned long addr) {
+  if (addr >= (unsigned long) _sdata && addr < (unsigned long) _edata) {
+    return true;
+  }
+  if (addr >= (unsigned long) __bss_start
+      && addr < (unsigned long) __bss_stop) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -174,10 +167,9 @@ static inline bool is_kernel_core_data(unsigned long addr)
  *
  * Returns: true if the address is located in .rodata, false otherwise.
  */
-static inline bool is_kernel_rodata(unsigned long addr)
-{
-	return addr >= (unsigned long)__start_rodata &&
-	       addr < (unsigned long)__end_rodata;
+static inline bool is_kernel_rodata(unsigned long addr) {
+  return addr >= (unsigned long) __start_rodata
+    && addr < (unsigned long) __end_rodata;
 }
 
 /**
@@ -188,10 +180,9 @@ static inline bool is_kernel_rodata(unsigned long addr)
  *
  * Returns: true if the address is located in .init.text, false otherwise.
  */
-static inline bool is_kernel_inittext(unsigned long addr)
-{
-	return addr >= (unsigned long)_sinittext &&
-	       addr < (unsigned long)_einittext;
+static inline bool is_kernel_inittext(unsigned long addr) {
+  return addr >= (unsigned long) _sinittext
+    && addr < (unsigned long) _einittext;
 }
 
 /**
@@ -203,10 +194,9 @@ static inline bool is_kernel_inittext(unsigned long addr)
  * Returns: true if the address is located in .text, false otherwise.
  * Note: an internal helper, only check the range of _stext to _etext.
  */
-static inline bool __is_kernel_text(unsigned long addr)
-{
-	return addr >= (unsigned long)_stext &&
-	       addr < (unsigned long)_etext;
+static inline bool __is_kernel_text(unsigned long addr) {
+  return addr >= (unsigned long) _stext
+    && addr < (unsigned long) _etext;
 }
 
 /**
@@ -219,12 +209,11 @@ static inline bool __is_kernel_text(unsigned long addr)
  *       and range from __init_begin to __init_end, which can be outside
  *       of the _stext to _end range.
  */
-static inline bool __is_kernel(unsigned long addr)
-{
-	return ((addr >= (unsigned long)_stext &&
-	         addr < (unsigned long)_end) ||
-		(addr >= (unsigned long)__init_begin &&
-		 addr < (unsigned long)__init_end));
+static inline bool __is_kernel(unsigned long addr) {
+  return (addr >= (unsigned long) _stext
+    && addr < (unsigned long) _end)
+    || (addr >= (unsigned long) __init_begin
+    && addr < (unsigned long) __init_end);
 }
 
 #endif /* _ASM_GENERIC_SECTIONS_H_ */

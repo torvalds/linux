@@ -27,7 +27,9 @@ asmlinkage void kasan_early_init(void);
 extern void kasan_init(void);
 
 #else
-static inline void kasan_init(void) { }
+static inline void kasan_init(void) {
+}
+
 #endif
 
 #endif

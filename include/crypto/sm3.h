@@ -12,27 +12,27 @@
 
 #include <linux/types.h>
 
-#define SM3_DIGEST_SIZE	32
-#define SM3_BLOCK_SIZE	64
+#define SM3_DIGEST_SIZE 32
+#define SM3_BLOCK_SIZE  64
 
-#define SM3_T1		0x79CC4519
-#define SM3_T2		0x7A879D8A
+#define SM3_T1    0x79CC4519
+#define SM3_T2    0x7A879D8A
 
-#define SM3_IVA		0x7380166f
-#define SM3_IVB		0x4914b2b9
-#define SM3_IVC		0x172442d7
-#define SM3_IVD		0xda8a0600
-#define SM3_IVE		0xa96f30bc
-#define SM3_IVF		0x163138aa
-#define SM3_IVG		0xe38dee4d
-#define SM3_IVH		0xb0fb0e4e
+#define SM3_IVA   0x7380166f
+#define SM3_IVB   0x4914b2b9
+#define SM3_IVC   0x172442d7
+#define SM3_IVD   0xda8a0600
+#define SM3_IVE   0xa96f30bc
+#define SM3_IVF   0x163138aa
+#define SM3_IVG   0xe38dee4d
+#define SM3_IVH   0xb0fb0e4e
 
 extern const u8 sm3_zero_message_hash[SM3_DIGEST_SIZE];
 
 struct sm3_state {
-	u32 state[SM3_DIGEST_SIZE / 4];
-	u64 count;
-	u8 buffer[SM3_BLOCK_SIZE];
+  u32 state[SM3_DIGEST_SIZE / 4];
+  u64 count;
+  u8 buffer[SM3_BLOCK_SIZE];
 };
 
 /*
@@ -45,17 +45,16 @@ struct sm3_state {
  * For details see lib/crypto/sm3.c
  */
 
-static inline void sm3_init(struct sm3_state *sctx)
-{
-	sctx->state[0] = SM3_IVA;
-	sctx->state[1] = SM3_IVB;
-	sctx->state[2] = SM3_IVC;
-	sctx->state[3] = SM3_IVD;
-	sctx->state[4] = SM3_IVE;
-	sctx->state[5] = SM3_IVF;
-	sctx->state[6] = SM3_IVG;
-	sctx->state[7] = SM3_IVH;
-	sctx->count = 0;
+static inline void sm3_init(struct sm3_state *sctx) {
+  sctx->state[0] = SM3_IVA;
+  sctx->state[1] = SM3_IVB;
+  sctx->state[2] = SM3_IVC;
+  sctx->state[3] = SM3_IVD;
+  sctx->state[4] = SM3_IVE;
+  sctx->state[5] = SM3_IVF;
+  sctx->state[6] = SM3_IVG;
+  sctx->state[7] = SM3_IVH;
+  sctx->count = 0;
 }
 
 void sm3_update(struct sm3_state *sctx, const u8 *data, unsigned int len);

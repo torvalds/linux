@@ -18,75 +18,76 @@
 #define TRACE_SYSTEM amd_cpu
 
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE amd-pstate-trace
+#define TRACE_INCLUDE_FILE amd - pstate - trace
 
 #define TPS(x)  tracepoint_string(x)
 
 TRACE_EVENT(amd_pstate_perf,
 
-	TP_PROTO(unsigned long min_perf,
-		 unsigned long target_perf,
-		 unsigned long capacity,
-		 u64 freq,
-		 u64 mperf,
-		 u64 aperf,
-		 u64 tsc,
-		 unsigned int cpu_id,
-		 bool changed,
-		 bool fast_switch
-		 ),
+    TP_PROTO(unsigned long min_perf,
+    unsigned long target_perf,
+    unsigned long capacity,
+    u64 freq,
+    u64 mperf,
+    u64 aperf,
+    u64 tsc,
+    unsigned int cpu_id,
+    bool changed,
+    bool fast_switch
+    ),
 
-	TP_ARGS(min_perf,
-		target_perf,
-		capacity,
-		freq,
-		mperf,
-		aperf,
-		tsc,
-		cpu_id,
-		changed,
-		fast_switch
-		),
+    TP_ARGS(min_perf,
+    target_perf,
+    capacity,
+    freq,
+    mperf,
+    aperf,
+    tsc,
+    cpu_id,
+    changed,
+    fast_switch
+    ),
 
-	TP_STRUCT__entry(
-		__field(unsigned long, min_perf)
-		__field(unsigned long, target_perf)
-		__field(unsigned long, capacity)
-		__field(unsigned long long, freq)
-		__field(unsigned long long, mperf)
-		__field(unsigned long long, aperf)
-		__field(unsigned long long, tsc)
-		__field(unsigned int, cpu_id)
-		__field(bool, changed)
-		__field(bool, fast_switch)
-		),
+    TP_STRUCT__entry(
+    __field(unsigned long, min_perf)
+    __field(unsigned long, target_perf)
+    __field(unsigned long, capacity)
+    __field(unsigned long long, freq)
+    __field(unsigned long long, mperf)
+    __field(unsigned long long, aperf)
+    __field(unsigned long long, tsc)
+    __field(unsigned int, cpu_id)
+    __field(bool, changed)
+    __field(bool, fast_switch)
+    ),
 
-	TP_fast_assign(
-		__entry->min_perf = min_perf;
-		__entry->target_perf = target_perf;
-		__entry->capacity = capacity;
-		__entry->freq = freq;
-		__entry->mperf = mperf;
-		__entry->aperf = aperf;
-		__entry->tsc = tsc;
-		__entry->cpu_id = cpu_id;
-		__entry->changed = changed;
-		__entry->fast_switch = fast_switch;
-		),
+    TP_fast_assign(
+    __entry->min_perf = min_perf;
+    __entry->target_perf = target_perf;
+    __entry->capacity = capacity;
+    __entry->freq = freq;
+    __entry->mperf = mperf;
+    __entry->aperf = aperf;
+    __entry->tsc = tsc;
+    __entry->cpu_id = cpu_id;
+    __entry->changed = changed;
+    __entry->fast_switch = fast_switch;
+    ),
 
-	TP_printk("amd_min_perf=%lu amd_des_perf=%lu amd_max_perf=%lu freq=%llu mperf=%llu aperf=%llu tsc=%llu cpu_id=%u changed=%s fast_switch=%s",
-		  (unsigned long)__entry->min_perf,
-		  (unsigned long)__entry->target_perf,
-		  (unsigned long)__entry->capacity,
-		  (unsigned long long)__entry->freq,
-		  (unsigned long long)__entry->mperf,
-		  (unsigned long long)__entry->aperf,
-		  (unsigned long long)__entry->tsc,
-		  (unsigned int)__entry->cpu_id,
-		  (__entry->changed) ? "true" : "false",
-		  (__entry->fast_switch) ? "true" : "false"
-		 )
-);
+    TP_printk(
+    "amd_min_perf=%lu amd_des_perf=%lu amd_max_perf=%lu freq=%llu mperf=%llu aperf=%llu tsc=%llu cpu_id=%u changed=%s fast_switch=%s",
+    (unsigned long) __entry->min_perf,
+    (unsigned long) __entry->target_perf,
+    (unsigned long) __entry->capacity,
+    (unsigned long long) __entry->freq,
+    (unsigned long long) __entry->mperf,
+    (unsigned long long) __entry->aperf,
+    (unsigned long long) __entry->tsc,
+    (unsigned int) __entry->cpu_id,
+    (__entry->changed) ? "true" : "false",
+    (__entry->fast_switch) ? "true" : "false"
+    )
+    );
 
 #endif /* _AMD_PSTATE_TRACE_H */
 

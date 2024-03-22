@@ -24,7 +24,7 @@ extern struct pglist_data *node_data[];
 /*
  * Return a pointer to the node data for node n.
  */
-#define NODE_DATA(nid)		(node_data[nid])
+#define NODE_DATA(nid)    (node_data[nid])
 
 /*
  * Following are specific to this numa platform.

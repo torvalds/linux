@@ -14,21 +14,20 @@
  * - 2 miscellaneous 32-bit values
  */
 
-struct ipc64_perm
-{
-	__kernel_key_t		key;
-	__kernel_uid32_t	uid;
-	__kernel_gid32_t	gid;
-	__kernel_uid32_t	cuid;
-	__kernel_gid32_t	cgid;
-	__kernel_mode_t		mode;
-	unsigned short		__pad1;
-	unsigned short		seq;
+struct ipc64_perm {
+  __kernel_key_t key;
+  __kernel_uid32_t uid;
+  __kernel_gid32_t gid;
+  __kernel_uid32_t cuid;
+  __kernel_gid32_t cgid;
+  __kernel_mode_t mode;
+  unsigned short __pad1;
+  unsigned short seq;
 #ifndef __s390x__
-	unsigned short		__pad2;
+  unsigned short __pad2;
 #endif /* ! __s390x__ */
-	unsigned long		__unused1;
-	unsigned long		__unused2;
+  unsigned long __unused1;
+  unsigned long __unused2;
 };
 
 #endif /* __S390_IPCBUF_H__ */

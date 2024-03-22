@@ -36,13 +36,13 @@ struct file *eventfd_fget(int fd);
 struct eventfd_ctx *eventfd_ctx_fdget(int fd);
 struct eventfd_ctx *eventfd_ctx_fileget(struct file *file);
 void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask);
-int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
-				  __u64 *cnt);
+int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
+    wait_queue_entry_t *wait,
+    __u64 *cnt);
 void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt);
 
-static inline bool eventfd_signal_allowed(void)
-{
-	return !current->in_eventfd;
+static inline bool eventfd_signal_allowed(void) {
+  return !current->in_eventfd;
 }
 
 #else /* CONFIG_EVENTFD */
@@ -52,42 +52,32 @@ static inline bool eventfd_signal_allowed(void)
  * pretend to work in !CONFIG_EVENTFD configurations. Namely, AIO.
  */
 
-static inline struct eventfd_ctx *eventfd_ctx_fdget(int fd)
-{
-	return ERR_PTR(-ENOSYS);
+static inline struct eventfd_ctx *eventfd_ctx_fdget(int fd) {
+  return ERR_PTR(-ENOSYS);
 }
 
-static inline void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask)
-{
+static inline void eventfd_signal_mask(struct eventfd_ctx *ctx, __poll_t mask) {
 }
 
-static inline void eventfd_ctx_put(struct eventfd_ctx *ctx)
-{
-
+static inline void eventfd_ctx_put(struct eventfd_ctx *ctx) {
 }
 
 static inline int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx,
-						wait_queue_entry_t *wait, __u64 *cnt)
-{
-	return -ENOSYS;
+    wait_queue_entry_t *wait, __u64 *cnt) {
+  return -ENOSYS;
 }
 
-static inline bool eventfd_signal_allowed(void)
-{
-	return true;
+static inline bool eventfd_signal_allowed(void) {
+  return true;
 }
 
-static inline void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt)
-{
-
+static inline void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt) {
 }
 
 #endif
 
-static inline void eventfd_signal(struct eventfd_ctx *ctx)
-{
-	eventfd_signal_mask(ctx, 0);
+static inline void eventfd_signal(struct eventfd_ctx *ctx) {
+  eventfd_signal_mask(ctx, 0);
 }
 
 #endif /* _LINUX_EVENTFD_H */
-

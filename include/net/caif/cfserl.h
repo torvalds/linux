@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland
+ * Author:  Sjur Brendeland
  */
 
 #ifndef CFSERL_H_

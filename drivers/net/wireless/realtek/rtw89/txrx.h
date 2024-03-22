@@ -7,56 +7,53 @@
 
 #include "debug.h"
 
-#define DATA_RATE_MODE_CTRL_MASK	GENMASK(8, 7)
-#define DATA_RATE_MODE_CTRL_MASK_V1	GENMASK(10, 8)
-#define DATA_RATE_NOT_HT_IDX_MASK	GENMASK(3, 0)
-#define DATA_RATE_MODE_NON_HT		0x0
-#define DATA_RATE_HT_IDX_MASK		GENMASK(4, 0)
-#define DATA_RATE_HT_IDX_MASK_V1	GENMASK(4, 0)
-#define DATA_RATE_MODE_HT		0x1
-#define DATA_RATE_VHT_HE_NSS_MASK	GENMASK(6, 4)
-#define DATA_RATE_VHT_HE_IDX_MASK	GENMASK(3, 0)
-#define DATA_RATE_NSS_MASK_V1		GENMASK(7, 5)
-#define DATA_RATE_MCS_MASK_V1		GENMASK(4, 0)
-#define DATA_RATE_MODE_VHT		0x2
-#define DATA_RATE_MODE_HE		0x3
-#define DATA_RATE_MODE_EHT		0x4
+#define DATA_RATE_MODE_CTRL_MASK  GENMASK(8, 7)
+#define DATA_RATE_MODE_CTRL_MASK_V1 GENMASK(10, 8)
+#define DATA_RATE_NOT_HT_IDX_MASK GENMASK(3, 0)
+#define DATA_RATE_MODE_NON_HT   0x0
+#define DATA_RATE_HT_IDX_MASK   GENMASK(4, 0)
+#define DATA_RATE_HT_IDX_MASK_V1  GENMASK(4, 0)
+#define DATA_RATE_MODE_HT   0x1
+#define DATA_RATE_VHT_HE_NSS_MASK GENMASK(6, 4)
+#define DATA_RATE_VHT_HE_IDX_MASK GENMASK(3, 0)
+#define DATA_RATE_NSS_MASK_V1   GENMASK(7, 5)
+#define DATA_RATE_MCS_MASK_V1   GENMASK(4, 0)
+#define DATA_RATE_MODE_VHT    0x2
+#define DATA_RATE_MODE_HE   0x3
+#define DATA_RATE_MODE_EHT    0x4
 
-static inline u8 rtw89_get_data_rate_mode(struct rtw89_dev *rtwdev, u16 hw_rate)
-{
-	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
-		return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK_V1);
-
-	return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK);
+static inline u8 rtw89_get_data_rate_mode(struct rtw89_dev *rtwdev,
+    u16 hw_rate) {
+  if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+    return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK_V1);
+  }
+  return u16_get_bits(hw_rate, DATA_RATE_MODE_CTRL_MASK);
 }
 
-static inline u8 rtw89_get_data_not_ht_idx(struct rtw89_dev *rtwdev, u16 hw_rate)
-{
-	return u16_get_bits(hw_rate, DATA_RATE_NOT_HT_IDX_MASK);
+static inline u8 rtw89_get_data_not_ht_idx(struct rtw89_dev *rtwdev,
+    u16 hw_rate) {
+  return u16_get_bits(hw_rate, DATA_RATE_NOT_HT_IDX_MASK);
 }
 
-static inline u8 rtw89_get_data_ht_mcs(struct rtw89_dev *rtwdev, u16 hw_rate)
-{
-	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
-		return u16_get_bits(hw_rate, DATA_RATE_HT_IDX_MASK_V1);
-
-	return u16_get_bits(hw_rate, DATA_RATE_HT_IDX_MASK);
+static inline u8 rtw89_get_data_ht_mcs(struct rtw89_dev *rtwdev, u16 hw_rate) {
+  if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+    return u16_get_bits(hw_rate, DATA_RATE_HT_IDX_MASK_V1);
+  }
+  return u16_get_bits(hw_rate, DATA_RATE_HT_IDX_MASK);
 }
 
-static inline u8 rtw89_get_data_mcs(struct rtw89_dev *rtwdev, u16 hw_rate)
-{
-	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
-		return u16_get_bits(hw_rate, DATA_RATE_MCS_MASK_V1);
-
-	return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_IDX_MASK);
+static inline u8 rtw89_get_data_mcs(struct rtw89_dev *rtwdev, u16 hw_rate) {
+  if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+    return u16_get_bits(hw_rate, DATA_RATE_MCS_MASK_V1);
+  }
+  return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_IDX_MASK);
 }
 
-static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
-{
-	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
-		return u16_get_bits(hw_rate, DATA_RATE_NSS_MASK_V1);
-
-	return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_NSS_MASK);
+static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate) {
+  if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+    return u16_get_bits(hw_rate, DATA_RATE_NSS_MASK_V1);
+  }
+  return u16_get_bits(hw_rate, DATA_RATE_VHT_HE_NSS_MASK);
 }
 
 /* TX WD BODY DWORD 0 */
@@ -399,7 +396,7 @@ static inline u8 rtw89_get_data_nss(struct rtw89_dev *rtwdev, u16 hw_rate)
 #define AX_RXD_BIP_ENC BIT(28)
 
 struct rtw89_rxinfo_user {
-	__le32 w0;
+  __le32 w0;
 };
 
 #define RTW89_RXINFO_USER_MAC_ID_VALID BIT(0)
@@ -410,9 +407,9 @@ struct rtw89_rxinfo_user {
 #define RTW89_RXINFO_USER_MACID GENMASK(15, 8)
 
 struct rtw89_rxinfo {
-	__le32 w0;
-	__le32 w1;
-	struct rtw89_rxinfo_user user[];
+  __le32 w0;
+  __le32 w1;
+  struct rtw89_rxinfo_user user[];
 } __packed;
 
 #define RTW89_RXINFO_W0_USR_NUM GENMASK(3, 0)
@@ -428,8 +425,8 @@ struct rtw89_rxinfo {
 #define RTW89_RXINFO_W1_PLCP_LEN GENMASK(23, 16)
 
 struct rtw89_phy_sts_hdr {
-	__le32 w0;
-	__le32 w1;
+  __le32 w0;
+  __le32 w1;
 } __packed;
 
 #define RTW89_PHY_STS_HDR_W0_IE_MAP GENMASK(4, 0)
@@ -442,7 +439,7 @@ struct rtw89_phy_sts_hdr {
 #define RTW89_PHY_STS_HDR_W1_RSSI_D GENMASK(31, 24)
 
 struct rtw89_phy_sts_iehdr {
-	__le32 w0;
+  __le32 w0;
 };
 
 #define RTW89_PHY_STS_IEHDR_TYPE GENMASK(4, 0)
@@ -545,9 +542,9 @@ struct rtw89_phy_sts_iehdr {
 #define BE_RXD_WL_HD_IV_LEN_MASK GENMASK(26, 21)
 
 struct rtw89_phy_sts_ie0 {
-	__le32 w0;
-	__le32 w1;
-	__le32 w2;
+  __le32 w0;
+  __le32 w1;
+  __le32 w2;
 } __packed;
 
 #define RTW89_PHY_STS_IE01_W0_CH_IDX GENMASK(23, 16)
@@ -558,132 +555,129 @@ struct rtw89_phy_sts_ie0 {
 #define RTW89_PHY_STS_IE01_W2_EVM_MIN GENMASK(23, 16)
 
 enum rtw89_tx_channel {
-	RTW89_TXCH_ACH0	= 0,
-	RTW89_TXCH_ACH1	= 1,
-	RTW89_TXCH_ACH2	= 2,
-	RTW89_TXCH_ACH3	= 3,
-	RTW89_TXCH_ACH4	= 4,
-	RTW89_TXCH_ACH5	= 5,
-	RTW89_TXCH_ACH6	= 6,
-	RTW89_TXCH_ACH7	= 7,
-	RTW89_TXCH_CH8	= 8,  /* MGMT Band 0 */
-	RTW89_TXCH_CH9	= 9,  /* HI Band 0 */
-	RTW89_TXCH_CH10	= 10, /* MGMT Band 1 */
-	RTW89_TXCH_CH11	= 11, /* HI Band 1 */
-	RTW89_TXCH_CH12	= 12, /* FW CMD */
+  RTW89_TXCH_ACH0 = 0,
+  RTW89_TXCH_ACH1 = 1,
+  RTW89_TXCH_ACH2 = 2,
+  RTW89_TXCH_ACH3 = 3,
+  RTW89_TXCH_ACH4 = 4,
+  RTW89_TXCH_ACH5 = 5,
+  RTW89_TXCH_ACH6 = 6,
+  RTW89_TXCH_ACH7 = 7,
+  RTW89_TXCH_CH8 = 8,  /* MGMT Band 0 */
+  RTW89_TXCH_CH9 = 9,  /* HI Band 0 */
+  RTW89_TXCH_CH10 = 10, /* MGMT Band 1 */
+  RTW89_TXCH_CH11 = 11, /* HI Band 1 */
+  RTW89_TXCH_CH12 = 12, /* FW CMD */
 
-	/* keep last */
-	RTW89_TXCH_NUM,
-	RTW89_TXCH_MAX = RTW89_TXCH_NUM - 1
+  /* keep last */
+  RTW89_TXCH_NUM,
+  RTW89_TXCH_MAX = RTW89_TXCH_NUM - 1
 };
 
 enum rtw89_rx_channel {
-	RTW89_RXCH_RXQ	= 0,
-	RTW89_RXCH_RPQ	= 1,
+  RTW89_RXCH_RXQ = 0,
+  RTW89_RXCH_RPQ = 1,
 
-	/* keep last */
-	RTW89_RXCH_NUM,
-	RTW89_RXCH_MAX = RTW89_RXCH_NUM - 1
+  /* keep last */
+  RTW89_RXCH_NUM,
+  RTW89_RXCH_MAX = RTW89_RXCH_NUM - 1
 };
 
 enum rtw89_tx_qsel {
-	RTW89_TX_QSEL_BE_0		= 0x00,
-	RTW89_TX_QSEL_BK_0		= 0x01,
-	RTW89_TX_QSEL_VI_0		= 0x02,
-	RTW89_TX_QSEL_VO_0		= 0x03,
-	RTW89_TX_QSEL_BE_1		= 0x04,
-	RTW89_TX_QSEL_BK_1		= 0x05,
-	RTW89_TX_QSEL_VI_1		= 0x06,
-	RTW89_TX_QSEL_VO_1		= 0x07,
-	RTW89_TX_QSEL_BE_2		= 0x08,
-	RTW89_TX_QSEL_BK_2		= 0x09,
-	RTW89_TX_QSEL_VI_2		= 0x0a,
-	RTW89_TX_QSEL_VO_2		= 0x0b,
-	RTW89_TX_QSEL_BE_3		= 0x0c,
-	RTW89_TX_QSEL_BK_3		= 0x0d,
-	RTW89_TX_QSEL_VI_3		= 0x0e,
-	RTW89_TX_QSEL_VO_3		= 0x0f,
-	RTW89_TX_QSEL_B0_BCN		= 0x10,
-	RTW89_TX_QSEL_B0_HI		= 0x11,
-	RTW89_TX_QSEL_B0_MGMT		= 0x12,
-	RTW89_TX_QSEL_B0_NOPS		= 0x13,
-	RTW89_TX_QSEL_B0_MGMT_FAST	= 0x14,
-	/* reserved */
-	/* reserved */
-	/* reserved */
-	RTW89_TX_QSEL_B1_BCN		= 0x18,
-	RTW89_TX_QSEL_B1_HI		= 0x19,
-	RTW89_TX_QSEL_B1_MGMT		= 0x1a,
-	RTW89_TX_QSEL_B1_NOPS		= 0x1b,
-	RTW89_TX_QSEL_B1_MGMT_FAST	= 0x1c,
-	/* reserved */
-	/* reserved */
-	/* reserved */
+  RTW89_TX_QSEL_BE_0 = 0x00,
+  RTW89_TX_QSEL_BK_0 = 0x01,
+  RTW89_TX_QSEL_VI_0 = 0x02,
+  RTW89_TX_QSEL_VO_0 = 0x03,
+  RTW89_TX_QSEL_BE_1 = 0x04,
+  RTW89_TX_QSEL_BK_1 = 0x05,
+  RTW89_TX_QSEL_VI_1 = 0x06,
+  RTW89_TX_QSEL_VO_1 = 0x07,
+  RTW89_TX_QSEL_BE_2 = 0x08,
+  RTW89_TX_QSEL_BK_2 = 0x09,
+  RTW89_TX_QSEL_VI_2 = 0x0a,
+  RTW89_TX_QSEL_VO_2 = 0x0b,
+  RTW89_TX_QSEL_BE_3 = 0x0c,
+  RTW89_TX_QSEL_BK_3 = 0x0d,
+  RTW89_TX_QSEL_VI_3 = 0x0e,
+  RTW89_TX_QSEL_VO_3 = 0x0f,
+  RTW89_TX_QSEL_B0_BCN = 0x10,
+  RTW89_TX_QSEL_B0_HI = 0x11,
+  RTW89_TX_QSEL_B0_MGMT = 0x12,
+  RTW89_TX_QSEL_B0_NOPS = 0x13,
+  RTW89_TX_QSEL_B0_MGMT_FAST = 0x14,
+  /* reserved
+   * reserved
+   * reserved*/
+  RTW89_TX_QSEL_B1_BCN = 0x18,
+  RTW89_TX_QSEL_B1_HI = 0x19,
+  RTW89_TX_QSEL_B1_MGMT = 0x1a,
+  RTW89_TX_QSEL_B1_NOPS = 0x1b,
+  RTW89_TX_QSEL_B1_MGMT_FAST = 0x1c,
+  /* reserved
+   * reserved
+   * reserved*/
 };
 
-static inline u8 rtw89_core_get_qsel(struct rtw89_dev *rtwdev, u8 tid)
-{
-	switch (tid) {
-	default:
-		rtw89_warn(rtwdev, "Should use tag 1d: %d\n", tid);
-		fallthrough;
-	case 0:
-	case 3:
-		return RTW89_TX_QSEL_BE_0;
-	case 1:
-	case 2:
-		return RTW89_TX_QSEL_BK_0;
-	case 4:
-	case 5:
-		return RTW89_TX_QSEL_VI_0;
-	case 6:
-	case 7:
-		return RTW89_TX_QSEL_VO_0;
-	}
+static inline u8 rtw89_core_get_qsel(struct rtw89_dev *rtwdev, u8 tid) {
+  switch (tid) {
+    default:
+      rtw89_warn(rtwdev, "Should use tag 1d: %d\n", tid);
+      fallthrough;
+    case 0:
+    case 3:
+      return RTW89_TX_QSEL_BE_0;
+    case 1:
+    case 2:
+      return RTW89_TX_QSEL_BK_0;
+    case 4:
+    case 5:
+      return RTW89_TX_QSEL_VI_0;
+    case 6:
+    case 7:
+      return RTW89_TX_QSEL_VO_0;
+  }
 }
 
-static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel)
-{
-	switch (qsel) {
-	default:
-		rtw89_warn(rtwdev, "Cannot map qsel to dma: %d\n", qsel);
-		fallthrough;
-	case RTW89_TX_QSEL_BE_0:
-		return RTW89_TXCH_ACH0;
-	case RTW89_TX_QSEL_BK_0:
-		return RTW89_TXCH_ACH1;
-	case RTW89_TX_QSEL_VI_0:
-		return RTW89_TXCH_ACH2;
-	case RTW89_TX_QSEL_VO_0:
-		return RTW89_TXCH_ACH3;
-	case RTW89_TX_QSEL_B0_MGMT:
-		return RTW89_TXCH_CH8;
-	case RTW89_TX_QSEL_B0_HI:
-		return RTW89_TXCH_CH9;
-	case RTW89_TX_QSEL_B1_MGMT:
-		return RTW89_TXCH_CH10;
-	case RTW89_TX_QSEL_B1_HI:
-		return RTW89_TXCH_CH11;
-	}
+static inline u8 rtw89_core_get_ch_dma(struct rtw89_dev *rtwdev, u8 qsel) {
+  switch (qsel) {
+    default:
+      rtw89_warn(rtwdev, "Cannot map qsel to dma: %d\n", qsel);
+      fallthrough;
+    case RTW89_TX_QSEL_BE_0:
+      return RTW89_TXCH_ACH0;
+    case RTW89_TX_QSEL_BK_0:
+      return RTW89_TXCH_ACH1;
+    case RTW89_TX_QSEL_VI_0:
+      return RTW89_TXCH_ACH2;
+    case RTW89_TX_QSEL_VO_0:
+      return RTW89_TXCH_ACH3;
+    case RTW89_TX_QSEL_B0_MGMT:
+      return RTW89_TXCH_CH8;
+    case RTW89_TX_QSEL_B0_HI:
+      return RTW89_TXCH_CH9;
+    case RTW89_TX_QSEL_B1_MGMT:
+      return RTW89_TXCH_CH10;
+    case RTW89_TX_QSEL_B1_HI:
+      return RTW89_TXCH_CH11;
+  }
 }
 
-static inline u8 rtw89_core_get_tid_indicate(struct rtw89_dev *rtwdev, u8 tid)
-{
-	switch (tid) {
-	case 3:
-	case 2:
-	case 5:
-	case 7:
-		return 1;
-	default:
-		rtw89_warn(rtwdev, "Should use tag 1d: %d\n", tid);
-		fallthrough;
-	case 0:
-	case 1:
-	case 4:
-	case 6:
-		return 0;
-	}
+static inline u8 rtw89_core_get_tid_indicate(struct rtw89_dev *rtwdev, u8 tid) {
+  switch (tid) {
+    case 3:
+    case 2:
+    case 5:
+    case 7:
+      return 1;
+    default:
+      rtw89_warn(rtwdev, "Should use tag 1d: %d\n", tid);
+      fallthrough;
+    case 0:
+    case 1:
+    case 4:
+    case 6:
+      return 0;
+  }
 }
 
 #endif

@@ -11,8 +11,7 @@
 
 #include "pasemi.h"
 
-time64_t __init pas_get_boot_time(void)
-{
-	/* Let's just return a fake date right now */
-	return mktime64(2006, 1, 1, 12, 0, 0);
+time64_t __init pas_get_boot_time(void) {
+  /* Let's just return a fake date right now */
+  return mktime64(2006, 1, 1, 12, 0, 0);
 }

@@ -13,10 +13,10 @@
  * 31:29 identify the general type of the command and determine how exact
  * opcodes and sub-opcodes will be encoded in the remaining bits.
  */
-#define XE_INSTR_CMD_TYPE		GENMASK(31, 29)
-#define   XE_INSTR_MI			REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x0)
-#define   XE_INSTR_GSC			REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x2)
-#define   XE_INSTR_GFXPIPE		REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x3)
+#define XE_INSTR_CMD_TYPE   GENMASK(31, 29)
+#define   XE_INSTR_MI     REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x0)
+#define   XE_INSTR_GSC      REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x2)
+#define   XE_INSTR_GFXPIPE    REG_FIELD_PREP(XE_INSTR_CMD_TYPE, 0x3)
 
 /*
  * Most (but not all) instructions have a "length" field in the instruction
@@ -27,7 +27,7 @@
  * those are rare.  This definition can be used for the common case where
  * the length field is from 7:0.
  */
-#define XE_INSTR_LEN_MASK		GENMASK(7, 0)
-#define XE_INSTR_NUM_DW(x)		REG_FIELD_PREP(XE_INSTR_LEN_MASK, (x) - 2)
+#define XE_INSTR_LEN_MASK   GENMASK(7, 0)
+#define XE_INSTR_NUM_DW(x)    REG_FIELD_PREP(XE_INSTR_LEN_MASK, (x) - 2)
 
 #endif

@@ -16,13 +16,13 @@
 struct wfx_dev;
 
 struct wfx_hif {
-	struct work_struct bh;
-	struct completion ctrl_ready;
-	wait_queue_head_t tx_buffers_empty;
-	atomic_t ctrl_reg;
-	int rx_seqnum;
-	int tx_seqnum;
-	int tx_buffers_used;
+  struct work_struct bh;
+  struct completion ctrl_ready;
+  wait_queue_head_t tx_buffers_empty;
+  atomic_t ctrl_reg;
+  int rx_seqnum;
+  int tx_seqnum;
+  int tx_buffers_used;
 };
 
 void wfx_bh_register(struct wfx_dev *wdev);

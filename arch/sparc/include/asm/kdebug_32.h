@@ -27,41 +27,40 @@
 typedef unsigned int (*debugger_funct)(void);
 
 struct kernel_debug {
-	/* First the entry point into the debugger.  You jump here
-	 * to give control over to the debugger.
-	 */
-	unsigned long kdebug_entry;
-	unsigned long kdebug_trapme;   /* Figure out later... */
-	/* The following is the number of pages that the debugger has
-	 * taken from to total pool.
-	 */
-	unsigned long *kdebug_stolen_pages;
-	/* Ok, after you remap yourself and/or change the trap table
-	 * from what you were left with at boot time you have to call
-	 * this synchronization function so the debugger can check out
-	 * what you have done.
-	 */
-	debugger_funct teach_debugger;
+  /* First the entry point into the debugger.  You jump here
+   * to give control over to the debugger.
+   */
+  unsigned long kdebug_entry;
+  unsigned long kdebug_trapme;   /* Figure out later... */
+  /* The following is the number of pages that the debugger has
+   * taken from to total pool.
+   */
+  unsigned long *kdebug_stolen_pages;
+  /* Ok, after you remap yourself and/or change the trap table
+   * from what you were left with at boot time you have to call
+   * this synchronization function so the debugger can check out
+   * what you have done.
+   */
+  debugger_funct teach_debugger;
 }; /* I think that is it... */
 
 extern struct kernel_debug *linux_dbvec;
 
 /* Use this macro in C-code to enter the debugger. */
-static inline void sp_enter_debugger(void)
-{
-	__asm__ __volatile__("jmpl %0, %%o7\n\t"
-			     "nop\n\t" : :
-			     "r" (linux_dbvec) : "o7", "memory");
+static inline void sp_enter_debugger(void) {
+  __asm__ __volatile__ ("jmpl %0, %%o7\n\t"
+  "nop\n\t" : :
+  "r" (linux_dbvec) : "o7", "memory");
 }
 
 #define SP_ENTER_DEBUGGER do { \
-	     if((linux_dbvec!=0) && ((*(short *)linux_dbvec)!=-1)) \
-	       sp_enter_debugger(); \
-		       } while(0)
+    if ((linux_dbvec != 0) && ((*(short *) linux_dbvec) != -1)) \
+    sp_enter_debugger(); \
+} while (0)
 
 enum die_val {
-	DIE_UNUSED,
-	DIE_OOPS,
+  DIE_UNUSED,
+  DIE_OOPS,
 };
 
 #endif /* !(__ASSEMBLY__) */

@@ -9,13 +9,13 @@
 #include "lsdc_drv.h"
 
 int ls7a1000_output_init(struct drm_device *ddev,
-			 struct lsdc_display_pipe *dispipe,
-			 struct i2c_adapter *ddc,
-			 unsigned int index);
+    struct lsdc_display_pipe *dispipe,
+    struct i2c_adapter *ddc,
+    unsigned int index);
 
 int ls7a2000_output_init(struct drm_device *ldev,
-			 struct lsdc_display_pipe *dispipe,
-			 struct i2c_adapter *ddc,
-			 unsigned int index);
+    struct lsdc_display_pipe *dispipe,
+    struct i2c_adapter *ddc,
+    unsigned int index);
 
 #endif

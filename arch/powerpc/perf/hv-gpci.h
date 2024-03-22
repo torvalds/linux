@@ -18,9 +18,9 @@
 
 /* capability mask masks. */
 enum {
-	HV_GPCI_CM_GA = (1 << 7),
-	HV_GPCI_CM_EXPANDED = (1 << 6),
-	HV_GPCI_CM_LAB = (1 << 5)
+  HV_GPCI_CM_GA = (1 << 7),
+  HV_GPCI_CM_EXPANDED = (1 << 6),
+  HV_GPCI_CM_LAB = (1 << 5)
 };
 
 #define REQUEST_FILE "../hv-gpci-requests.h"

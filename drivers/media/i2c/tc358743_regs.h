@@ -80,8 +80,8 @@
 
 #define PLLCTL0                               0x0020
 #define MASK_PLL_PRD                          0xf000
-#define SET_PLL_PRD(prd)                      ((((prd) - 1) << 12) &\
-						MASK_PLL_PRD)
+#define SET_PLL_PRD(prd)                      ((((prd) - 1) << 12)  \
+  & MASK_PLL_PRD)
 #define MASK_PLL_FBD                          0x01ff
 #define SET_PLL_FBD(fbd)                      (((fbd) - 1) & MASK_PLL_FBD)
 
@@ -129,7 +129,6 @@
 #define MASK_D1M_HSTXVREGEN                   0x0004
 #define MASK_D0M_HSTXVREGEN                   0x0002
 #define MASK_CLM_HSTXVREGEN                   0x0001
-
 
 #define TXOPTIONCNTRL                         0x0238
 #define MASK_CONTCLKMODE                      0x00000001
@@ -181,97 +180,96 @@
 #define MASK_STRT                             0x00000001
 
 /* *** CEC (32 bit) *** */
-#define CECHCLK				      0x0028	/* 16 bits */
-#define MASK_CECHCLK			      (0x7ff << 0)
+#define CECHCLK             0x0028  /* 16 bits */
+#define MASK_CECHCLK            (0x7ff << 0)
 
-#define CECLCLK				      0x002a	/* 16 bits */
-#define MASK_CECLCLK			      (0x7ff << 0)
+#define CECLCLK             0x002a  /* 16 bits */
+#define MASK_CECLCLK            (0x7ff << 0)
 
-#define CECEN				      0x0600
-#define MASK_CECEN			      0x0001
+#define CECEN             0x0600
+#define MASK_CECEN            0x0001
 
-#define CECADD				      0x0604
-#define CECRST				      0x0608
-#define MASK_CECRESET			      0x0001
+#define CECADD              0x0604
+#define CECRST              0x0608
+#define MASK_CECRESET           0x0001
 
-#define CECREN				      0x060c
-#define MASK_CECREN			      0x0001
+#define CECREN              0x060c
+#define MASK_CECREN           0x0001
 
-#define CECRCTL1			      0x0614
-#define MASK_CECACKDIS			      (1 << 24)
-#define MASK_CECHNC			      (3 << 20)
-#define MASK_CECLNC			      (7 << 16)
-#define MASK_CECMIN			      (7 << 12)
-#define MASK_CECMAX			      (7 << 8)
-#define MASK_CECDAT			      (7 << 4)
-#define MASK_CECTOUT			      (3 << 2)
-#define MASK_CECRIHLD			      (1 << 1)
-#define MASK_CECOTH			      (1 << 0)
+#define CECRCTL1            0x0614
+#define MASK_CECACKDIS            (1 << 24)
+#define MASK_CECHNC           (3 << 20)
+#define MASK_CECLNC           (7 << 16)
+#define MASK_CECMIN           (7 << 12)
+#define MASK_CECMAX           (7 << 8)
+#define MASK_CECDAT           (7 << 4)
+#define MASK_CECTOUT            (3 << 2)
+#define MASK_CECRIHLD           (1 << 1)
+#define MASK_CECOTH           (1 << 0)
 
-#define CECRCTL2			      0x0618
-#define MASK_CECSWAV3			      (7 << 12)
-#define MASK_CECSWAV2			      (7 << 8)
-#define MASK_CECSWAV1			      (7 << 4)
-#define MASK_CECSWAV0			      (7 << 0)
+#define CECRCTL2            0x0618
+#define MASK_CECSWAV3           (7 << 12)
+#define MASK_CECSWAV2           (7 << 8)
+#define MASK_CECSWAV1           (7 << 4)
+#define MASK_CECSWAV0           (7 << 0)
 
-#define CECRCTL3			      0x061c
-#define MASK_CECWAV3			      (7 << 20)
-#define MASK_CECWAV2			      (7 << 16)
-#define MASK_CECWAV1			      (7 << 12)
-#define MASK_CECWAV0			      (7 << 8)
-#define MASK_CECACKEI			      (1 << 4)
-#define MASK_CECMINEI			      (1 << 3)
-#define MASK_CECMAXEI			      (1 << 2)
-#define MASK_CECRSTEI			      (1 << 1)
-#define MASK_CECWAVEI			      (1 << 0)
+#define CECRCTL3            0x061c
+#define MASK_CECWAV3            (7 << 20)
+#define MASK_CECWAV2            (7 << 16)
+#define MASK_CECWAV1            (7 << 12)
+#define MASK_CECWAV0            (7 << 8)
+#define MASK_CECACKEI           (1 << 4)
+#define MASK_CECMINEI           (1 << 3)
+#define MASK_CECMAXEI           (1 << 2)
+#define MASK_CECRSTEI           (1 << 1)
+#define MASK_CECWAVEI           (1 << 0)
 
-#define CECTEN				      0x0620
-#define MASK_CECTBUSY			      (1 << 1)
-#define MASK_CECTEN			      (1 << 0)
+#define CECTEN              0x0620
+#define MASK_CECTBUSY           (1 << 1)
+#define MASK_CECTEN           (1 << 0)
 
-#define CECTCTL				      0x0628
-#define MASK_CECSTRS			      (7 << 20)
-#define MASK_CECSPRD			      (7 << 16)
-#define MASK_CECDTRS			      (7 << 12)
-#define MASK_CECDPRD			      (15 << 8)
-#define MASK_CECBRD			      (1 << 4)
-#define MASK_CECFREE			      (15 << 0)
+#define CECTCTL             0x0628
+#define MASK_CECSTRS            (7 << 20)
+#define MASK_CECSPRD            (7 << 16)
+#define MASK_CECDTRS            (7 << 12)
+#define MASK_CECDPRD            (15 << 8)
+#define MASK_CECBRD           (1 << 4)
+#define MASK_CECFREE            (15 << 0)
 
-#define CECRSTAT			      0x062c
-#define MASK_CECRIWA			      (1 << 6)
-#define MASK_CECRIOR			      (1 << 5)
-#define MASK_CECRIACK			      (1 << 4)
-#define MASK_CECRIMIN			      (1 << 3)
-#define MASK_CECRIMAX			      (1 << 2)
-#define MASK_CECRISTA			      (1 << 1)
-#define MASK_CECRIEND			      (1 << 0)
+#define CECRSTAT            0x062c
+#define MASK_CECRIWA            (1 << 6)
+#define MASK_CECRIOR            (1 << 5)
+#define MASK_CECRIACK           (1 << 4)
+#define MASK_CECRIMIN           (1 << 3)
+#define MASK_CECRIMAX           (1 << 2)
+#define MASK_CECRISTA           (1 << 1)
+#define MASK_CECRIEND           (1 << 0)
 
-#define CECTSTAT			      0x0630
-#define MASK_CECTIUR			      (1 << 4)
-#define MASK_CECTIACK			      (1 << 3)
-#define MASK_CECTIAL			      (1 << 2)
-#define MASK_CECTIEND			      (1 << 1)
+#define CECTSTAT            0x0630
+#define MASK_CECTIUR            (1 << 4)
+#define MASK_CECTIACK           (1 << 3)
+#define MASK_CECTIAL            (1 << 2)
+#define MASK_CECTIEND           (1 << 1)
 
-#define CECRBUF1			      0x0634
-#define MASK_CECRACK			      (1 << 9)
-#define MASK_CECEOM			      (1 << 8)
-#define MASK_CECRBYTE			      (0xff << 0)
+#define CECRBUF1            0x0634
+#define MASK_CECRACK            (1 << 9)
+#define MASK_CECEOM           (1 << 8)
+#define MASK_CECRBYTE           (0xff << 0)
 
-#define CECTBUF1			      0x0674
-#define MASK_CECTEOM			      (1 << 8)
-#define MASK_CECTBYTE			      (0xff << 0)
+#define CECTBUF1            0x0674
+#define MASK_CECTEOM            (1 << 8)
+#define MASK_CECTBYTE           (0xff << 0)
 
-#define CECRCTR				      0x06b4
-#define MASK_CECRCTR			      (0x1f << 0)
+#define CECRCTR             0x06b4
+#define MASK_CECRCTR            (0x1f << 0)
 
-#define CECIMSK				      0x06c0
-#define MASK_CECTIM			      (1 << 1)
-#define MASK_CECRIM			      (1 << 0)
+#define CECIMSK             0x06c0
+#define MASK_CECTIM           (1 << 1)
+#define MASK_CECRIM           (1 << 0)
 
-#define CECICLR				      0x06cc
-#define MASK_CECTICLR			      (1 << 1)
-#define MASK_CECRICLR			      (1 << 0)
-
+#define CECICLR             0x06cc
+#define MASK_CECTICLR           (1 << 1)
+#define MASK_CECRICLR           (1 << 0)
 
 #define HDMI_INT0                             0x8500
 #define MASK_I_KEY                            0x80
@@ -420,23 +418,22 @@
 #define MASK_PHY_SYSCLK_IND                   0x02
 #define MASK_PHY_CTL                          0x01
 
-
 #define PHY_CTL1                              0x8532 /* Not in REF_01 */
 #define MASK_PHY_AUTO_RST1                    0xf0
 #define MASK_PHY_AUTO_RST1_OFF                0x00
-#define SET_PHY_AUTO_RST1_US(us)             ((((us) / 200) << 4) & \
-						MASK_PHY_AUTO_RST1)
+#define SET_PHY_AUTO_RST1_US(us)             ((((us) / 200) << 4)   \
+  & MASK_PHY_AUTO_RST1)
 #define MASK_FREQ_RANGE_MODE                  0x0f
-#define SET_FREQ_RANGE_MODE_CYCLES(cycles)   (((cycles) - 1) & \
-						MASK_FREQ_RANGE_MODE)
+#define SET_FREQ_RANGE_MODE_CYCLES(cycles)   (((cycles) - 1)   \
+  & MASK_FREQ_RANGE_MODE)
 
 #define PHY_CTL2                              0x8533 /* Not in REF_01 */
 #define MASK_PHY_AUTO_RST4                    0x04
 #define MASK_PHY_AUTO_RST3                    0x02
 #define MASK_PHY_AUTO_RST2                    0x01
-#define MASK_PHY_AUTO_RSTn                    (MASK_PHY_AUTO_RST4 | \
-						MASK_PHY_AUTO_RST3 | \
-						MASK_PHY_AUTO_RST2)
+#define MASK_PHY_AUTO_RSTn                    (MASK_PHY_AUTO_RST4   \
+  | MASK_PHY_AUTO_RST3   \
+  | MASK_PHY_AUTO_RST2)
 
 #define PHY_EN                                0x8534
 #define MASK_ENABLE_PHY                       0x01
@@ -683,8 +680,8 @@
 
 #define DIV_MODE                              0x8665 /* Not in REF_01 */
 #define MASK_DIV_DLY                          0xf0
-#define SET_DIV_DLY_MS(milliseconds)         ((((milliseconds) / 100) << 4) & \
-						MASK_DIV_DLY)
+#define SET_DIV_DLY_MS(milliseconds)         ((((milliseconds) / 100) << 4)   \
+  & MASK_DIV_DLY)
 #define MASK_DIV_MODE                         0x01
 
 #define NCO_F0_MOD                            0x8670
@@ -704,11 +701,11 @@
 
 #define NO_PKT_LIMIT                          0x870B
 #define MASK_NO_ACP_LIMIT                     0xf0
-#define SET_NO_ACP_LIMIT_MS(milliseconds)    ((((milliseconds) / 80) << 4) & \
-						MASK_NO_ACP_LIMIT)
+#define SET_NO_ACP_LIMIT_MS(milliseconds)    ((((milliseconds) / 80) << 4)   \
+  & MASK_NO_ACP_LIMIT)
 #define MASK_NO_AVI_LIMIT                     0x0f
-#define SET_NO_AVI_LIMIT_MS(milliseconds)    (((milliseconds) / 80) & \
-						MASK_NO_AVI_LIMIT)
+#define SET_NO_AVI_LIMIT_MS(milliseconds)    (((milliseconds) / 80)   \
+  & MASK_NO_AVI_LIMIT)
 
 #define NO_PKT_CLR                            0x870C
 #define MASK_NO_VS_CLR                        0x40

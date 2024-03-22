@@ -21,57 +21,54 @@
 #define LSDC_GEM_DOMAIN_VRAM            0x4
 
 struct lsdc_bo {
-	struct ttm_buffer_object tbo;
+  struct ttm_buffer_object tbo;
 
-	/* Protected by gem.mutex */
-	struct list_head list;
+  /* Protected by gem.mutex */
+  struct list_head list;
 
-	struct iosys_map map;
+  struct iosys_map map;
 
-	unsigned int vmap_count;
-	/* cross device driver sharing reference count */
-	unsigned int sharing_count;
+  unsigned int vmap_count;
+  /* cross device driver sharing reference count */
+  unsigned int sharing_count;
 
-	struct ttm_bo_kmap_obj kmap;
-	void *kptr;
-	bool is_iomem;
+  struct ttm_bo_kmap_obj kmap;
+  void *kptr;
+  bool is_iomem;
 
-	size_t size;
+  size_t size;
 
-	u32 initial_domain;
+  u32 initial_domain;
 
-	struct ttm_placement placement;
-	struct ttm_place placements[4];
+  struct ttm_placement placement;
+  struct ttm_place placements[4];
 };
 
-static inline struct ttm_buffer_object *to_ttm_bo(struct drm_gem_object *gem)
-{
-	return container_of(gem, struct ttm_buffer_object, base);
+static inline struct ttm_buffer_object *to_ttm_bo(struct drm_gem_object *gem) {
+  return container_of(gem, struct ttm_buffer_object, base);
 }
 
-static inline struct lsdc_bo *to_lsdc_bo(struct ttm_buffer_object *tbo)
-{
-	return container_of(tbo, struct lsdc_bo, tbo);
+static inline struct lsdc_bo *to_lsdc_bo(struct ttm_buffer_object *tbo) {
+  return container_of(tbo, struct lsdc_bo, tbo);
 }
 
-static inline struct lsdc_bo *gem_to_lsdc_bo(struct drm_gem_object *gem)
-{
-	return container_of(gem, struct lsdc_bo, tbo.base);
+static inline struct lsdc_bo *gem_to_lsdc_bo(struct drm_gem_object *gem) {
+  return container_of(gem, struct lsdc_bo, tbo.base);
 }
 
 const char *lsdc_mem_type_to_str(uint32_t mem_type);
 const char *lsdc_domain_to_str(u32 domain);
 
 struct lsdc_bo *lsdc_bo_create(struct drm_device *ddev,
-			       u32 domain,
-			       size_t size,
-			       bool kernel,
-			       struct sg_table *sg,
-			       struct dma_resv *resv);
+    u32 domain,
+    size_t size,
+    bool kernel,
+    struct sg_table *sg,
+    struct dma_resv *resv);
 
 struct lsdc_bo *lsdc_bo_create_kernel_pinned(struct drm_device *ddev,
-					     u32 domain,
-					     size_t size);
+    u32 domain,
+    size_t size);
 
 void lsdc_bo_free_kernel_pinned(struct lsdc_bo *lbo);
 

@@ -21,34 +21,29 @@
  */
 #include "priv.h"
 
-static void *
-r535_sec2_dtor(struct nvkm_engine *engine)
-{
-	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-
-	nvkm_falcon_dtor(&sec2->falcon);
-	return sec2;
+static void *r535_sec2_dtor(struct nvkm_engine *engine) {
+  struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+  nvkm_falcon_dtor(&sec2->falcon);
+  return sec2;
 }
 
 static const struct nvkm_engine_func
-r535_sec2 = {
-	.dtor = r535_sec2_dtor,
+    r535_sec2 = {
+  .dtor = r535_sec2_dtor,
 };
 
-int
-r535_sec2_new(const struct nvkm_sec2_func *func, struct nvkm_device *device,
-	      enum nvkm_subdev_type type, int inst, u32 addr, struct nvkm_sec2 **psec2)
-{
-	struct nvkm_sec2 *sec2;
-	int ret;
-
-	if (!(sec2 = *psec2 = kzalloc(sizeof(*sec2), GFP_KERNEL)))
-		return -ENOMEM;
-
-	ret = nvkm_engine_ctor(&r535_sec2, device, type, inst, true, &sec2->engine);
-	if (ret)
-		return ret;
-
-	return nvkm_falcon_ctor(func->flcn, &sec2->engine.subdev, sec2->engine.subdev.name,
-				addr, &sec2->falcon);
+int r535_sec2_new(const struct nvkm_sec2_func *func, struct nvkm_device *device,
+    enum nvkm_subdev_type type, int inst, u32 addr, struct nvkm_sec2 **psec2) {
+  struct nvkm_sec2 *sec2;
+  int ret;
+  if (!(sec2 = *psec2 = kzalloc(sizeof(*sec2), GFP_KERNEL))) {
+    return -ENOMEM;
+  }
+  ret = nvkm_engine_ctor(&r535_sec2, device, type, inst, true, &sec2->engine);
+  if (ret) {
+    return ret;
+  }
+  return nvkm_falcon_ctor(func->flcn, &sec2->engine.subdev,
+      sec2->engine.subdev.name,
+      addr, &sec2->falcon);
 }

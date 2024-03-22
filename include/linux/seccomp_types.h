@@ -20,15 +20,15 @@ struct seccomp_filter;
  *          is no read locking.
  */
 struct seccomp {
-	int mode;
-	atomic_t filter_count;
-	struct seccomp_filter *filter;
+  int mode;
+  atomic_t filter_count;
+  struct seccomp_filter *filter;
 };
 
 #else
 
-struct seccomp { };
-struct seccomp_filter { };
+struct seccomp {};
+struct seccomp_filter {};
 
 #endif
 

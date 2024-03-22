@@ -20,18 +20,18 @@
 #include <asm/ptrace.h>
 
 struct fiq_handler {
-	struct fiq_handler *next;
-	/* Name
-	 */
-	const char *name;
-	/* Called to ask driver to relinquish/
-	 * reacquire FIQ
-	 * return zero to accept, or -<errno>
-	 */
-	int (*fiq_op)(void *, int relinquish);
-	/* data for the relinquish/reacquire functions
-	 */
-	void *dev_id;
+  struct fiq_handler *next;
+  /* Name
+   */
+  const char *name;
+  /* Called to ask driver to relinquish/
+   * reacquire FIQ
+   * return zero to accept, or -<errno>
+   */
+  int (*fiq_op)(void *, int relinquish);
+  /* data for the relinquish/reacquire functions
+   */
+  void *dev_id;
 };
 
 extern int claim_fiq(struct fiq_handler *f);
@@ -44,14 +44,12 @@ extern void disable_fiq(int fiq);
 extern void __set_fiq_regs(unsigned long const *regs);
 extern void __get_fiq_regs(unsigned long *regs);
 
-static inline void set_fiq_regs(struct pt_regs const *regs)
-{
-	__set_fiq_regs(&regs->ARM_r8);
+static inline void set_fiq_regs(struct pt_regs const *regs) {
+  __set_fiq_regs(&regs->ARM_r8);
 }
 
-static inline void get_fiq_regs(struct pt_regs *regs)
-{
-	__get_fiq_regs(&regs->ARM_r8);
+static inline void get_fiq_regs(struct pt_regs *regs) {
+  __get_fiq_regs(&regs->ARM_r8);
 }
 
 #endif

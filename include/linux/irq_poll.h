@@ -6,15 +6,15 @@ struct irq_poll;
 typedef int (irq_poll_fn)(struct irq_poll *, int);
 
 struct irq_poll {
-	struct list_head list;
-	unsigned long state;
-	int weight;
-	irq_poll_fn *poll;
+  struct list_head list;
+  unsigned long state;
+  int weight;
+  irq_poll_fn *poll;
 };
 
 enum {
-	IRQ_POLL_F_SCHED	= 0,
-	IRQ_POLL_F_DISABLE	= 1,
+  IRQ_POLL_F_SCHED = 0,
+  IRQ_POLL_F_DISABLE = 1,
 };
 
 extern void irq_poll_sched(struct irq_poll *);

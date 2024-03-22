@@ -46,7 +46,7 @@
 struct ib_uverbs_device;
 
 void uverbs_destroy_ufile_hw(struct ib_uverbs_file *ufile,
-			     enum rdma_remove_reason reason);
+    enum rdma_remove_reason reason);
 
 int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs);
 
@@ -59,13 +59,13 @@ int uobj_destroy(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs);
  * The action will be finalized only when uverbs_finalize_object or
  * uverbs_finalize_objects are called.
  */
-struct ib_uobject *
-uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
-			     s64 id, struct uverbs_attr_bundle *attrs);
+struct ib_uobject *uverbs_get_uobject_from_file(u16 object_id,
+    enum uverbs_obj_access access,
+    s64 id, struct uverbs_attr_bundle *attrs);
 
 void uverbs_finalize_object(struct ib_uobject *uobj,
-			    enum uverbs_obj_access access, bool hw_obj_valid,
-			    bool commit, struct uverbs_attr_bundle *attrs);
+    enum uverbs_obj_access access, bool hw_obj_valid,
+    bool commit, struct uverbs_attr_bundle *attrs);
 
 int uverbs_output_written(const struct uverbs_attr_bundle *bundle, size_t idx);
 
@@ -85,41 +85,41 @@ struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs);
  */
 
 struct uverbs_api_ioctl_method {
-	int(__rcu *handler)(struct uverbs_attr_bundle *attrs);
-	DECLARE_BITMAP(attr_mandatory, UVERBS_API_ATTR_BKEY_LEN);
-	u16 bundle_size;
-	u8 use_stack:1;
-	u8 driver_method:1;
-	u8 disabled:1;
-	u8 has_udata:1;
-	u8 key_bitmap_len;
-	u8 destroy_bkey;
+  int(__rcu * handler) (struct uverbs_attr_bundle *attrs);
+  DECLARE_BITMAP(attr_mandatory, UVERBS_API_ATTR_BKEY_LEN);
+  u16 bundle_size;
+  u8 use_stack : 1;
+  u8 driver_method : 1;
+  u8 disabled : 1;
+  u8 has_udata : 1;
+  u8 key_bitmap_len;
+  u8 destroy_bkey;
 };
 
 struct uverbs_api_write_method {
-	int (*handler)(struct uverbs_attr_bundle *attrs);
-	u8 disabled:1;
-	u8 is_ex:1;
-	u8 has_udata:1;
-	u8 has_resp:1;
-	u8 req_size;
-	u8 resp_size;
+  int (*handler)(struct uverbs_attr_bundle *attrs);
+  u8 disabled : 1;
+  u8 is_ex : 1;
+  u8 has_udata : 1;
+  u8 has_resp : 1;
+  u8 req_size;
+  u8 resp_size;
 };
 
 struct uverbs_api_attr {
-	struct uverbs_attr_spec spec;
+  struct uverbs_attr_spec spec;
 };
 
 struct uverbs_api {
-	/* radix tree contains struct uverbs_api_* pointers */
-	struct radix_tree_root radix;
-	enum rdma_driver_id driver_id;
+  /* radix tree contains struct uverbs_api_* pointers */
+  struct radix_tree_root radix;
+  enum rdma_driver_id driver_id;
 
-	unsigned int num_write;
-	unsigned int num_write_ex;
-	struct uverbs_api_write_method notsupp_method;
-	const struct uverbs_api_write_method **write_methods;
-	const struct uverbs_api_write_method **write_ex_methods;
+  unsigned int num_write;
+  unsigned int num_write_ex;
+  struct uverbs_api_write_method notsupp_method;
+  const struct uverbs_api_write_method **write_methods;
+  const struct uverbs_api_write_method **write_ex_methods;
 };
 
 /*
@@ -127,19 +127,17 @@ struct uverbs_api {
  * Note:
  * -ENOMSG means that any object is allowed to match during lookup.
  */
-static inline const struct uverbs_api_object *
-uapi_get_object(struct uverbs_api *uapi, u16 object_id)
-{
-	const struct uverbs_api_object *res;
-
-	if (object_id == UVERBS_IDR_ANY_OBJECT)
-		return ERR_PTR(-ENOMSG);
-
-	res = radix_tree_lookup(&uapi->radix, uapi_key_obj(object_id));
-	if (!res)
-		return ERR_PTR(-ENOENT);
-
-	return res;
+static inline const struct uverbs_api_object *uapi_get_object(
+    struct uverbs_api *uapi, u16 object_id) {
+  const struct uverbs_api_object *res;
+  if (object_id == UVERBS_IDR_ANY_OBJECT) {
+    return ERR_PTR(-ENOMSG);
+  }
+  res = radix_tree_lookup(&uapi->radix, uapi_key_obj(object_id));
+  if (!res) {
+    return ERR_PTR(-ENOENT);
+  }
+  return res;
 }
 
 char *uapi_key_format(char *S, unsigned int key);
@@ -148,7 +146,7 @@ void uverbs_disassociate_api_pre(struct ib_uverbs_device *uverbs_dev);
 void uverbs_disassociate_api(struct uverbs_api *uapi);
 void uverbs_destroy_api(struct uverbs_api *uapi);
 void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
-			      unsigned int num_attrs);
+    unsigned int num_attrs);
 void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile);
 
 extern const struct uapi_definition uverbs_def_obj_async_fd[];
@@ -164,28 +162,27 @@ extern const struct uapi_definition uverbs_def_obj_srq[];
 extern const struct uapi_definition uverbs_def_obj_wq[];
 extern const struct uapi_definition uverbs_def_write_intf[];
 
-static inline const struct uverbs_api_write_method *
-uapi_get_method(const struct uverbs_api *uapi, u32 command)
-{
-	u32 cmd_idx = command & IB_USER_VERBS_CMD_COMMAND_MASK;
-
-	if (command & ~(u32)(IB_USER_VERBS_CMD_FLAG_EXTENDED |
-			     IB_USER_VERBS_CMD_COMMAND_MASK))
-		return ERR_PTR(-EINVAL);
-
-	if (command & IB_USER_VERBS_CMD_FLAG_EXTENDED) {
-		if (cmd_idx >= uapi->num_write_ex)
-			return ERR_PTR(-EOPNOTSUPP);
-		return uapi->write_ex_methods[cmd_idx];
-	}
-
-	if (cmd_idx >= uapi->num_write)
-		return ERR_PTR(-EOPNOTSUPP);
-	return uapi->write_methods[cmd_idx];
+static inline const struct uverbs_api_write_method *uapi_get_method(
+    const struct uverbs_api *uapi, u32 command) {
+  u32 cmd_idx = command & IB_USER_VERBS_CMD_COMMAND_MASK;
+  if (command & ~(u32) (IB_USER_VERBS_CMD_FLAG_EXTENDED
+      | IB_USER_VERBS_CMD_COMMAND_MASK)) {
+    return ERR_PTR(-EINVAL);
+  }
+  if (command & IB_USER_VERBS_CMD_FLAG_EXTENDED) {
+    if (cmd_idx >= uapi->num_write_ex) {
+      return ERR_PTR(-EOPNOTSUPP);
+    }
+    return uapi->write_ex_methods[cmd_idx];
+  }
+  if (cmd_idx >= uapi->num_write) {
+    return ERR_PTR(-EOPNOTSUPP);
+  }
+  return uapi->write_methods[cmd_idx];
 }
 
 void uverbs_fill_udata(struct uverbs_attr_bundle *bundle,
-		       struct ib_udata *udata, unsigned int attr_in,
-		       unsigned int attr_out);
+    struct ib_udata *udata, unsigned int attr_in,
+    unsigned int attr_out);
 
 #endif /* RDMA_CORE_H */

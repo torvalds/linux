@@ -15,12 +15,12 @@ int __init early_xdbc_parse_parameter(char *s, int keep_early);
 int __init early_xdbc_setup_hardware(void);
 void __init early_xdbc_register_console(void);
 #else
-static inline int __init early_xdbc_setup_hardware(void)
-{
-	return -ENODEV;
+static inline int __init early_xdbc_setup_hardware(void) {
+  return -ENODEV;
 }
-static inline void __init early_xdbc_register_console(void)
-{
+
+static inline void __init early_xdbc_register_console(void) {
 }
+
 #endif /* CONFIG_EARLY_PRINTK_USB_XDBC */
 #endif /* __LINUX_XHCI_DBGP_H */

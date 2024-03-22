@@ -4,9 +4,9 @@
 #define _NLS_UCS2_DATA_H
 
 struct UniCaseRange {
-	wchar_t start;
-	wchar_t end;
-	signed char *table;
+  wchar_t start;
+  wchar_t end;
+  signed char *table;
 };
 
 extern signed char NlsUniUpperTable[512];

@@ -36,7 +36,7 @@
 #define RF_MASK             0x7F
 
 #define VNT_RF_MAX_POWER    0x3f
-#define	VNT_RF_REG_LEN      0x17 /* 24 bit length */
+#define VNT_RF_REG_LEN      0x17 /* 24 bit length */
 
 int vnt_rf_write_embedded(struct vnt_private *priv, u32 data);
 int vnt_rf_setpower(struct vnt_private *priv, struct ieee80211_channel *ch);

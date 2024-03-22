@@ -24,13 +24,14 @@
  * Returns the guest absolute address that corresponds to the passed guest real
  * address @gra of by applying the given prefix.
  */
-static inline unsigned long _kvm_s390_real_to_abs(u32 prefix, unsigned long gra)
-{
-	if (gra < 2 * PAGE_SIZE)
-		gra += prefix;
-	else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE)
-		gra -= prefix;
-	return gra;
+static inline unsigned long _kvm_s390_real_to_abs(u32 prefix,
+    unsigned long gra) {
+  if (gra < 2 * PAGE_SIZE) {
+    gra += prefix;
+  } else if (gra >= prefix && gra < prefix + 2 * PAGE_SIZE) {
+    gra -= prefix;
+  }
+  return gra;
 }
 
 /**
@@ -42,9 +43,8 @@ static inline unsigned long _kvm_s390_real_to_abs(u32 prefix, unsigned long gra)
  * address @gra of a virtual guest cpu by applying its prefix.
  */
 static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
-						 unsigned long gra)
-{
-	return _kvm_s390_real_to_abs(kvm_s390_get_prefix(vcpu), gra);
+    unsigned long gra) {
+  return _kvm_s390_real_to_abs(kvm_s390_get_prefix(vcpu), gra);
 }
 
 /**
@@ -61,13 +61,14 @@ static inline unsigned long kvm_s390_real_to_abs(struct kvm_vcpu *vcpu,
  * mode) of @ga will be zeroed and the remaining bits will be returned.
  */
 static inline unsigned long _kvm_s390_logical_to_effective(psw_t *psw,
-							   unsigned long ga)
-{
-	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_64BIT)
-		return ga;
-	if (psw_bits(*psw).eaba == PSW_BITS_AMODE_31BIT)
-		return ga & ((1UL << 31) - 1);
-	return ga & ((1UL << 24) - 1);
+    unsigned long ga) {
+  if (psw_bits(*psw).eaba == PSW_BITS_AMODE_64BIT) {
+    return ga;
+  }
+  if (psw_bits(*psw).eaba == PSW_BITS_AMODE_31BIT) {
+    return ga & ((1UL << 31) - 1);
+  }
+  return ga & ((1UL << 24) - 1);
 }
 
 /**
@@ -84,9 +85,8 @@ static inline unsigned long _kvm_s390_logical_to_effective(psw_t *psw,
  * of @ga will be zeroed and the remaining bits will be returned.
  */
 static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
-							  unsigned long ga)
-{
-	return _kvm_s390_logical_to_effective(&vcpu->arch.sie_block->gpsw, ga);
+    unsigned long ga) {
+  return _kvm_s390_logical_to_effective(&vcpu->arch.sie_block->gpsw, ga);
 }
 
 /*
@@ -113,20 +113,20 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
  * Returns zero on success or -EFAULT on error.
  *
  * Note: an error indicates that either the kernel is out of memory or
- *	 the guest memory mapping is broken. In any case the best solution
- *	 would be to terminate the guest.
- *	 It is wrong to inject a guest exception.
+ *   the guest memory mapping is broken. In any case the best solution
+ *   would be to terminate the guest.
+ *   It is wrong to inject a guest exception.
  */
-#define put_guest_lc(vcpu, x, gra)				\
-({								\
-	struct kvm_vcpu *__vcpu = (vcpu);			\
-	__typeof__(*(gra)) __x = (x);				\
-	unsigned long __gpa;					\
-								\
-	__gpa = (unsigned long)(gra);				\
-	__gpa += kvm_s390_get_prefix(__vcpu);			\
-	kvm_write_guest(__vcpu->kvm, __gpa, &__x, sizeof(__x));	\
-})
+#define put_guest_lc(vcpu, x, gra)        \
+  ({                \
+    struct kvm_vcpu *__vcpu = (vcpu);     \
+    __typeof__(*(gra)) __x = (x);       \
+    unsigned long __gpa;          \
+                \
+    __gpa = (unsigned long) (gra);       \
+    __gpa += kvm_s390_get_prefix(__vcpu);     \
+    kvm_write_guest(__vcpu->kvm, __gpa, &__x, sizeof(__x)); \
+  })
 
 /**
  * write_guest_lc - copy data from kernel space to guest vcpu's lowcore
@@ -141,17 +141,15 @@ static inline unsigned long kvm_s390_logical_to_effective(struct kvm_vcpu *vcpu,
  * Returns zero on success or -EFAULT on error.
  *
  * Note: an error indicates that either the kernel is out of memory or
- *	 the guest memory mapping is broken. In any case the best solution
- *	 would be to terminate the guest.
- *	 It is wrong to inject a guest exception.
+ *   the guest memory mapping is broken. In any case the best solution
+ *   would be to terminate the guest.
+ *   It is wrong to inject a guest exception.
  */
 static inline __must_check
 int write_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
-		   unsigned long len)
-{
-	unsigned long gpa = gra + kvm_s390_get_prefix(vcpu);
-
-	return kvm_write_guest(vcpu->kvm, gpa, data, len);
+    unsigned long len) {
+  unsigned long gpa = gra + kvm_s390_get_prefix(vcpu);
+  return kvm_write_guest(vcpu->kvm, gpa, data, len);
 }
 
 /**
@@ -167,47 +165,47 @@ int write_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
  * Returns zero on success or -EFAULT on error.
  *
  * Note: an error indicates that either the kernel is out of memory or
- *	 the guest memory mapping is broken. In any case the best solution
- *	 would be to terminate the guest.
- *	 It is wrong to inject a guest exception.
+ *   the guest memory mapping is broken. In any case the best solution
+ *   would be to terminate the guest.
+ *   It is wrong to inject a guest exception.
  */
 static inline __must_check
 int read_guest_lc(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
-		  unsigned long len)
-{
-	unsigned long gpa = gra + kvm_s390_get_prefix(vcpu);
-
-	return kvm_read_guest(vcpu->kvm, gpa, data, len);
+    unsigned long len) {
+  unsigned long gpa = gra + kvm_s390_get_prefix(vcpu);
+  return kvm_read_guest(vcpu->kvm, gpa, data, len);
 }
 
 enum gacc_mode {
-	GACC_FETCH,
-	GACC_STORE,
-	GACC_IFETCH,
+  GACC_FETCH,
+  GACC_STORE,
+  GACC_IFETCH,
 };
 
-int guest_translate_address_with_key(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
-				     unsigned long *gpa, enum gacc_mode mode,
-				     u8 access_key);
+int guest_translate_address_with_key(struct kvm_vcpu *vcpu, unsigned long gva,
+    u8 ar,
+    unsigned long *gpa, enum gacc_mode mode,
+    u8 access_key);
 
 int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
-		    unsigned long length, enum gacc_mode mode, u8 access_key);
+    unsigned long length, enum gacc_mode mode, u8 access_key);
 
 int check_gpa_range(struct kvm *kvm, unsigned long gpa, unsigned long length,
-		    enum gacc_mode mode, u8 access_key);
+    enum gacc_mode mode, u8 access_key);
 
 int access_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, void *data,
-			      unsigned long len, enum gacc_mode mode, u8 access_key);
+    unsigned long len, enum gacc_mode mode, u8 access_key);
 
 int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
-			  void *data, unsigned long len, enum gacc_mode mode,
-			  u8 access_key);
+    void *data, unsigned long len, enum gacc_mode mode,
+    u8 access_key);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
-		      void *data, unsigned long len, enum gacc_mode mode);
+    void *data, unsigned long len, enum gacc_mode mode);
 
-int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, __uint128_t *old,
-			       __uint128_t new, u8 access_key, bool *success);
+int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len,
+    __uint128_t *old,
+    __uint128_t new, u8 access_key, bool *success);
 
 /**
  * write_guest_with_key - copy data from kernel space to guest space
@@ -238,29 +236,28 @@ int cmpxchg_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, int len, __uint128_t 
  * this function returns.
  *
  * Returns:  - zero on success
- *	     - a negative value if e.g. the guest mapping is broken or in
- *	       case of out-of-memory. In this case the contents of pgm are
- *	       undefined. Also parts of @data may have been copied to guest
- *	       space.
- *	     - a positive value if an access exception happened. In this case
- *	       the returned value is the program interruption code and the
- *	       contents of pgm may be used to inject an exception into the
- *	       guest. No data has been copied to guest space.
+ *       - a negative value if e.g. the guest mapping is broken or in
+ *         case of out-of-memory. In this case the contents of pgm are
+ *         undefined. Also parts of @data may have been copied to guest
+ *         space.
+ *       - a positive value if an access exception happened. In this case
+ *         the returned value is the program interruption code and the
+ *         contents of pgm may be used to inject an exception into the
+ *         guest. No data has been copied to guest space.
  *
  * Note: in case an access exception is recognized no data has been copied to
- *	 guest space (this is also true, if the to be copied data would cross
- *	 one or more page boundaries in guest space).
- *	 Therefore this function may be used for nullifying and suppressing
- *	 instruction emulation.
- *	 It may also be used for terminating instructions, if it is undefined
- *	 if data has been changed in guest space in case of an exception.
+ *   guest space (this is also true, if the to be copied data would cross
+ *   one or more page boundaries in guest space).
+ *   Therefore this function may be used for nullifying and suppressing
+ *   instruction emulation.
+ *   It may also be used for terminating instructions, if it is undefined
+ *   if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
 int write_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
-			 void *data, unsigned long len, u8 access_key)
-{
-	return access_guest_with_key(vcpu, ga, ar, data, len, GACC_STORE,
-				     access_key);
+    void *data, unsigned long len, u8 access_key) {
+  return access_guest_with_key(vcpu, ga, ar, data, len, GACC_STORE,
+      access_key);
 }
 
 /**
@@ -276,11 +273,9 @@ int write_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
  */
 static inline __must_check
 int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
-		unsigned long len)
-{
-	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
-
-	return write_guest_with_key(vcpu, ga, ar, data, len, access_key);
+    unsigned long len) {
+  u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+  return write_guest_with_key(vcpu, ga, ar, data, len, access_key);
 }
 
 /**
@@ -299,10 +294,9 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
  */
 static inline __must_check
 int read_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
-			void *data, unsigned long len, u8 access_key)
-{
-	return access_guest_with_key(vcpu, ga, ar, data, len, GACC_FETCH,
-				     access_key);
+    void *data, unsigned long len, u8 access_key) {
+  return access_guest_with_key(vcpu, ga, ar, data, len, GACC_FETCH,
+      access_key);
 }
 
 /**
@@ -320,11 +314,9 @@ int read_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
  */
 static inline __must_check
 int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
-	       unsigned long len)
-{
-	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
-
-	return read_guest_with_key(vcpu, ga, ar, data, len, access_key);
+    unsigned long len) {
+  u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+  return read_guest_with_key(vcpu, ga, ar, data, len, access_key);
 }
 
 /**
@@ -343,12 +335,10 @@ int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
  */
 static inline __must_check
 int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
-		     unsigned long len)
-{
-	u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
-
-	return access_guest_with_key(vcpu, ga, 0, data, len, GACC_IFETCH,
-				     access_key);
+    unsigned long len) {
+  u8 access_key = psw_bits(vcpu->arch.sie_block->gpsw).key;
+  return access_guest_with_key(vcpu, ga, 0, data, len, GACC_IFETCH,
+      access_key);
 }
 
 /**
@@ -369,9 +359,8 @@ int read_guest_instr(struct kvm_vcpu *vcpu, unsigned long ga, void *data,
  */
 static inline __must_check
 int write_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
-		    unsigned long len)
-{
-	return kvm_write_guest(vcpu->kvm, gpa, data, len);
+    unsigned long len) {
+  return kvm_write_guest(vcpu->kvm, gpa, data, len);
 }
 
 /**
@@ -392,9 +381,8 @@ int write_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
  */
 static inline __must_check
 int read_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
-		   unsigned long len)
-{
-	return kvm_read_guest(vcpu->kvm, gpa, data, len);
+    unsigned long len) {
+  return kvm_read_guest(vcpu->kvm, gpa, data, len);
 }
 
 /**
@@ -415,9 +403,8 @@ int read_guest_abs(struct kvm_vcpu *vcpu, unsigned long gpa, void *data,
  */
 static inline __must_check
 int write_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
-		     unsigned long len)
-{
-	return access_guest_real(vcpu, gra, data, len, 1);
+    unsigned long len) {
+  return access_guest_real(vcpu, gra, data, len, 1);
 }
 
 /**
@@ -438,9 +425,8 @@ int write_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
  */
 static inline __must_check
 int read_guest_real(struct kvm_vcpu *vcpu, unsigned long gra, void *data,
-		    unsigned long len)
-{
-	return access_guest_real(vcpu, gra, data, len, 0);
+    unsigned long len) {
+  return access_guest_real(vcpu, gra, data, len, 0);
 }
 
 void ipte_lock(struct kvm *kvm);
@@ -453,6 +439,6 @@ int kvm_s390_check_low_addr_prot_real(struct kvm_vcpu *vcpu, unsigned long gra);
 #define PEI_NOT_PTE 4
 
 int kvm_s390_shadow_fault(struct kvm_vcpu *vcpu, struct gmap *shadow,
-			  unsigned long saddr, unsigned long *datptr);
+    unsigned long saddr, unsigned long *datptr);
 
 #endif /* __KVM_S390_GACCESS_H */

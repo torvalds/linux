@@ -9,44 +9,44 @@
 #define MAX_ENTRIES 11
 
 struct test_val {
-	unsigned int index;
-	int foo[MAX_ENTRIES];
+  unsigned int index;
+  int foo[MAX_ENTRIES];
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, int);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, int);
+  __type(value, struct test_val);
 } map_array_48b SEC(".maps");
 
 struct other_val {
-	long long foo;
-	long long bar;
+  long long foo;
+  long long bar;
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, struct other_val);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, struct other_val);
 } map_hash_16b SEC(".maps");
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, struct test_val);
 } map_hash_48b SEC(".maps");
 
 SEC("socket")
 __description("map access: known scalar += value_ptr unknown vs const")
-__success __failure_unpriv
-__msg_unpriv("R1 tried to add from different maps, paths or scalars")
+__success __failure_unpriv __msg_unpriv(
+    "R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void value_ptr_unknown_vs_const(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_unknown_vs_const(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -69,22 +69,22 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr const vs unknown")
-__success __failure_unpriv
-__msg_unpriv("R1 tried to add from different maps, paths or scalars")
+__success __failure_unpriv __msg_unpriv(
+    "R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void value_ptr_const_vs_unknown(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_const_vs_unknown(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -107,22 +107,22 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr const vs const (ne)")
-__success __failure_unpriv
-__msg_unpriv("R1 tried to add from different maps, paths or scalars")
+__success __failure_unpriv __msg_unpriv(
+    "R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void ptr_const_vs_const_ne(void)
-{
-	asm volatile ("					\
+__naked void ptr_const_vs_const_ne(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -143,20 +143,20 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr const vs const (eq)")
 __success __success_unpriv __retval(1)
-__naked void ptr_const_vs_const_eq(void)
-{
-	asm volatile ("					\
+__naked void ptr_const_vs_const_eq(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -177,20 +177,20 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr unknown vs unknown (eq)")
 __success __success_unpriv __retval(1)
-__naked void ptr_unknown_vs_unknown_eq(void)
-{
-	asm volatile ("					\
+__naked void ptr_unknown_vs_unknown_eq(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -215,22 +215,22 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr unknown vs unknown (lt)")
-__success __failure_unpriv
-__msg_unpriv("R1 tried to add from different maps, paths or scalars")
+__success __failure_unpriv __msg_unpriv(
+    "R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void ptr_unknown_vs_unknown_lt(void)
-{
-	asm volatile ("					\
+__naked void ptr_unknown_vs_unknown_lt(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -255,22 +255,22 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr unknown vs unknown (gt)")
-__success __failure_unpriv
-__msg_unpriv("R1 tried to add from different maps, paths or scalars")
+__success __failure_unpriv __msg_unpriv(
+    "R1 tried to add from different maps, paths or scalars")
 __retval(1)
-__naked void ptr_unknown_vs_unknown_gt(void)
-{
-	asm volatile ("					\
+__naked void ptr_unknown_vs_unknown_gt(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -295,20 +295,20 @@ l4_%=:	r1 += r0;					\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr from different maps")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_from_different_maps(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_from_different_maps(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -325,22 +325,22 @@ l1_%=:	call %[bpf_map_lookup_elem];			\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar from different maps")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 min value is outside of the allowed memory range")
 __retval(1)
-__naked void known_scalar_from_different_maps(void)
-{
-	asm volatile ("					\
+__naked void known_scalar_from_different_maps(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -358,20 +358,21 @@ l1_%=:	call %[bpf_map_lookup_elem];			\
 	r0 = *(u8*)(r0 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_16b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_16b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
-__description("map access: known scalar += value_ptr from different maps, but same value properties")
+__description(
+    "map access: known scalar += value_ptr from different maps, but same value properties")
 __success __success_unpriv __retval(1)
-__naked void maps_but_same_value_properties(void)
-{
-	asm volatile ("					\
+__naked void maps_but_same_value_properties(void) {
+  asm volatile (
+    "					\
 	r0 = *(u32*)(r1 + %[__sk_buff_len]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -388,21 +389,21 @@ l1_%=:	call %[bpf_map_lookup_elem];			\
 	r0 = *(u8*)(r1 + 0);				\
 l2_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_addr(map_hash_48b),
-	  __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_addr(map_hash_48b),
+    __imm_const(__sk_buff_len, offsetof(struct __sk_buff, len))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: mixing value pointer and scalar, 1")
 __success __failure_unpriv __msg_unpriv("R2 pointer comparison prohibited")
 __retval(0)
-__naked void value_pointer_and_scalar_1(void)
-{
-	asm volatile ("					\
+__naked void value_pointer_and_scalar_1(void) {
+  asm volatile (
+    "					\
 	/* load map value pointer into r0 and r2 */	\
 	r0 = 1;						\
 	r1 = %[map_array_48b] ll;			\
@@ -442,19 +443,19 @@ l4_%=:	/* fake-dead code; targeted from branch A to	\
 	r0 = *(u8*)(r0 + 0);				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: mixing value pointer and scalar, 2")
 __success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
 __retval(0)
-__naked void value_pointer_and_scalar_2(void)
-{
-	asm volatile ("					\
+__naked void value_pointer_and_scalar_2(void) {
+  asm volatile (
+    "					\
 	/* load map value pointer into r0 and r2 */	\
 	r0 = 1;						\
 	r1 = %[map_array_48b] ll;			\
@@ -495,18 +496,18 @@ l4_%=:	/* fake-dead code; targeted from branch A to	\
 	r0 = *(u8*)(r0 + 0);				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("sanitation: alu with different scalars 1")
 __success __success_unpriv __retval(0x100000)
-__naked void alu_with_different_scalars_1(void)
-{
-	asm volatile ("					\
+__naked void alu_with_different_scalars_1(void) {
+  asm volatile (
+    "					\
 	r0 = 1;						\
 	r1 = %[map_array_48b] ll;			\
 	r2 = r10;					\
@@ -526,18 +527,18 @@ l1_%=:	r2 = 42;					\
 l2_%=:	r2 += r3;					\
 	r0 = r2;					\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("sanitation: alu with different scalars 2")
 __success __success_unpriv __retval(0)
-__naked void alu_with_different_scalars_2(void)
-{
-	asm volatile ("					\
+__naked void alu_with_different_scalars_2(void) {
+  asm volatile (
+    "					\
 	r0 = 1;						\
 	r1 = %[map_array_48b] ll;			\
 	r6 = r1;					\
@@ -558,19 +559,19 @@ __naked void alu_with_different_scalars_2(void)
 	r0 += %[einval];				\
 	r0 += %[einval];				\
 	exit;						\
-"	:
-	: __imm(bpf_map_delete_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_const(einval, EINVAL)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_delete_elem),
+    __imm_addr(map_array_48b),
+    __imm_const(einval, EINVAL)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("sanitation: alu with different scalars 3")
 __success __success_unpriv __retval(0)
-__naked void alu_with_different_scalars_3(void)
-{
-	asm volatile ("					\
+__naked void alu_with_different_scalars_3(void) {
+  asm volatile (
+    "					\
 	r0 = %[einval];					\
 	r0 *= -1;					\
 	r7 = r0;					\
@@ -583,19 +584,19 @@ __naked void alu_with_different_scalars_3(void)
 	r0 += %[einval];				\
 	r0 += %[einval];				\
 	exit;						\
-"	:
-	: __imm_const(einval, EINVAL)
-	: __clobber_all);
+" :
+    : __imm_const(einval, EINVAL)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, upper oob arith, test 1")
-__success __failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 pointer arithmetic of map value goes out of range")
 __retval(1)
-__naked void upper_oob_arith_test_1(void)
-{
-	asm volatile ("					\
+__naked void upper_oob_arith_test_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -609,20 +610,20 @@ __naked void upper_oob_arith_test_1(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, upper oob arith, test 2")
-__success __failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 pointer arithmetic of map value goes out of range")
 __retval(1)
-__naked void upper_oob_arith_test_2(void)
-{
-	asm volatile ("					\
+__naked void upper_oob_arith_test_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -636,18 +637,18 @@ __naked void upper_oob_arith_test_2(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, upper oob arith, test 3")
 __success __success_unpriv __retval(1)
-__naked void upper_oob_arith_test_3(void)
-{
-	asm volatile ("					\
+__naked void upper_oob_arith_test_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -661,20 +662,20 @@ __naked void upper_oob_arith_test_3(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar, lower oob arith, test 1")
 __failure __msg("R0 min value is outside of the allowed memory range")
-__failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
-__naked void lower_oob_arith_test_1(void)
-{
-	asm volatile ("					\
+__failure_unpriv __msg_unpriv(
+    "R0 pointer arithmetic of map value goes out of range")
+__naked void lower_oob_arith_test_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -689,20 +690,20 @@ __naked void lower_oob_arith_test_1(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar, lower oob arith, test 2")
-__success __failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 pointer arithmetic of map value goes out of range")
 __retval(1)
-__naked void lower_oob_arith_test_2(void)
-{
-	asm volatile ("					\
+__naked void lower_oob_arith_test_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -719,18 +720,18 @@ __naked void lower_oob_arith_test_2(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar, lower oob arith, test 3")
 __success __success_unpriv __retval(1)
-__naked void lower_oob_arith_test_3(void)
-{
-	asm volatile ("					\
+__naked void lower_oob_arith_test_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -745,18 +746,18 @@ __naked void lower_oob_arith_test_3(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar += value_ptr")
 __success __success_unpriv __retval(1)
-__naked void access_known_scalar_value_ptr_1(void)
-{
-	asm volatile ("					\
+__naked void access_known_scalar_value_ptr_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -769,18 +770,18 @@ __naked void access_known_scalar_value_ptr_1(void)
 	r0 = *(u8*)(r1 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 1")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_known_scalar_1(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -793,19 +794,19 @@ __naked void value_ptr_known_scalar_1(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 2")
 __failure __msg("invalid access to map value")
 __failure_unpriv
-__naked void value_ptr_known_scalar_2_1(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_2_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -818,19 +819,19 @@ __naked void value_ptr_known_scalar_2_1(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 3")
 __failure __msg("invalid access to map value")
 __failure_unpriv
-__naked void value_ptr_known_scalar_3(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -843,18 +844,18 @@ __naked void value_ptr_known_scalar_3(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 4")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_known_scalar_4(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_4(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -871,18 +872,18 @@ __naked void value_ptr_known_scalar_4(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 5")
 __success __success_unpriv __retval(0xabcdef12)
-__naked void value_ptr_known_scalar_5(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_5(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -894,19 +895,19 @@ __naked void value_ptr_known_scalar_5(void)
 	r1 += r0;					\
 	r0 = *(u32*)(r1 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_const(__imm_0, (6 + 1) * sizeof(int))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_const(__imm_0, (6 + 1) * sizeof(int))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += known scalar, 6")
 __success __success_unpriv __retval(0xabcdef12)
-__naked void value_ptr_known_scalar_6(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_6(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -920,20 +921,20 @@ __naked void value_ptr_known_scalar_6(void)
 	r0 += r1;					\
 	r0 = *(u32*)(r0 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b),
-	  __imm_const(__imm_0, (3 + 1) * sizeof(int)),
-	  __imm_const(__imm_1, 3 * sizeof(int))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b),
+    __imm_const(__imm_0, (3 + 1) * sizeof(int)),
+    __imm_const(__imm_1, 3 * sizeof(int))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += N, value_ptr -= N known scalar")
 __success __success_unpriv __retval(0x12345678)
-__naked void value_ptr_n_known_scalar(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_n_known_scalar(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -948,18 +949,18 @@ __naked void value_ptr_n_known_scalar(void)
 	r0 -= r1;					\
 	r0 = *(u32*)(r0 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: unknown scalar += value_ptr, 1")
 __success __success_unpriv __retval(1)
-__naked void unknown_scalar_value_ptr_1(void)
-{
-	asm volatile ("					\
+__naked void unknown_scalar_value_ptr_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -973,18 +974,18 @@ __naked void unknown_scalar_value_ptr_1(void)
 	r0 = *(u8*)(r1 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: unknown scalar += value_ptr, 2")
 __success __success_unpriv __retval(0xabcdef12) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void unknown_scalar_value_ptr_2(void)
-{
-	asm volatile ("					\
+__naked void unknown_scalar_value_ptr_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -997,20 +998,20 @@ __naked void unknown_scalar_value_ptr_2(void)
 	r1 += r0;					\
 	r0 = *(u32*)(r1 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: unknown scalar += value_ptr, 3")
-__success __failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 pointer arithmetic of map value goes out of range")
 __retval(0xabcdef12) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void unknown_scalar_value_ptr_3(void)
-{
-	asm volatile ("					\
+__naked void unknown_scalar_value_ptr_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1027,10 +1028,10 @@ __naked void unknown_scalar_value_ptr_3(void)
 	r1 += r0;					\
 	r0 = *(u32*)(r1 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
@@ -1038,9 +1039,9 @@ __description("map access: unknown scalar += value_ptr, 4")
 __failure __msg("R1 max value is outside of the allowed memory range")
 __msg_unpriv("R1 pointer arithmetic of map value goes out of range")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void unknown_scalar_value_ptr_4(void)
-{
-	asm volatile ("					\
+__naked void unknown_scalar_value_ptr_4(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1055,18 +1056,18 @@ __naked void unknown_scalar_value_ptr_4(void)
 	r1 += r0;					\
 	r0 = *(u32*)(r1 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += unknown scalar, 1")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_unknown_scalar_1(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_unknown_scalar_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1080,18 +1081,18 @@ __naked void value_ptr_unknown_scalar_1(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += unknown scalar, 2")
 __success __success_unpriv __retval(0xabcdef12) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void value_ptr_unknown_scalar_2_1(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_unknown_scalar_2_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1104,18 +1105,18 @@ __naked void value_ptr_unknown_scalar_2_1(void)
 	r0 += r1;					\
 	r0 = *(u32*)(r0 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += unknown scalar, 3")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_unknown_scalar_3(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_unknown_scalar_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1136,19 +1137,19 @@ __naked void value_ptr_unknown_scalar_3(void)
 l1_%=:	exit;						\
 l0_%=:	r0 = 2;						\
 	goto l1_%=;					\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr += value_ptr")
 __failure __msg("R0 pointer += pointer prohibited")
 __failure_unpriv
-__naked void access_value_ptr_value_ptr_1(void)
-{
-	asm volatile ("					\
+__naked void access_value_ptr_value_ptr_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1160,19 +1161,19 @@ __naked void access_value_ptr_value_ptr_1(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: known scalar -= value_ptr")
 __failure __msg("R1 tried to subtract pointer from scalar")
 __failure_unpriv
-__naked void access_known_scalar_value_ptr_2(void)
-{
-	asm volatile ("					\
+__naked void access_known_scalar_value_ptr_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1185,19 +1186,19 @@ __naked void access_known_scalar_value_ptr_2(void)
 	r0 = *(u8*)(r1 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar")
 __failure __msg("R0 min value is outside of the allowed memory range")
 __failure_unpriv
-__naked void access_value_ptr_known_scalar(void)
-{
-	asm volatile ("					\
+__naked void access_value_ptr_known_scalar(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1210,18 +1211,18 @@ __naked void access_value_ptr_known_scalar(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= known scalar, 2")
 __success __success_unpriv __retval(1)
-__naked void value_ptr_known_scalar_2_2(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_known_scalar_2_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1236,19 +1237,19 @@ __naked void value_ptr_known_scalar_2_2(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: unknown scalar -= value_ptr")
 __failure __msg("R1 tried to subtract pointer from scalar")
 __failure_unpriv
-__naked void access_unknown_scalar_value_ptr(void)
-{
-	asm volatile ("					\
+__naked void access_unknown_scalar_value_ptr(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1262,19 +1263,19 @@ __naked void access_unknown_scalar_value_ptr(void)
 	r0 = *(u8*)(r1 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= unknown scalar")
 __failure __msg("R0 min value is negative")
 __failure_unpriv
-__naked void access_value_ptr_unknown_scalar(void)
-{
-	asm volatile ("					\
+__naked void access_value_ptr_unknown_scalar(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1288,20 +1289,20 @@ __naked void access_value_ptr_unknown_scalar(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= unknown scalar, 2")
-__success __failure_unpriv
-__msg_unpriv("R0 pointer arithmetic of map value goes out of range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 pointer arithmetic of map value goes out of range")
 __retval(1)
-__naked void value_ptr_unknown_scalar_2_2(void)
-{
-	asm volatile ("					\
+__naked void value_ptr_unknown_scalar_2_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1319,19 +1320,19 @@ __naked void value_ptr_unknown_scalar_2_2(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: value_ptr -= value_ptr")
 __failure __msg("R0 invalid mem access 'scalar'")
 __msg_unpriv("R0 pointer -= pointer prohibited")
-__naked void access_value_ptr_value_ptr_2(void)
-{
-	asm volatile ("					\
+__naked void access_value_ptr_value_ptr_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -1343,19 +1344,19 @@ __naked void access_value_ptr_value_ptr_2(void)
 	r1 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map access: trying to leak tainted dst reg")
 __failure __msg("math between map_value pointer and 4294967295 is not allowed")
 __failure_unpriv
-__naked void to_leak_tainted_dst_reg(void)
-{
-	asm volatile ("					\
+__naked void to_leak_tainted_dst_reg(void) {
+  asm volatile (
+    "					\
 	r0 = 0;						\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -1372,18 +1373,18 @@ l0_%=:	r2 = r0;					\
 	*(u64*)(r0 + 0) = r2;				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 SEC("tc")
 __description("32bit pkt_ptr -= scalar")
 __success __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void _32bit_pkt_ptr_scalar(void)
-{
-	asm volatile ("					\
+__naked void _32bit_pkt_ptr_scalar(void) {
+  asm volatile (
+    "					\
 	r8 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	r7 = *(u32*)(r1 + %[__sk_buff_data]);		\
 	r6 = r7;					\
@@ -1393,18 +1394,18 @@ __naked void _32bit_pkt_ptr_scalar(void)
 	w6 -= w4;					\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
-	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+    __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+    : __clobber_all);
 }
 
 SEC("tc")
 __description("32bit scalar -= pkt_ptr")
 __success __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void _32bit_scalar_pkt_ptr(void)
-{
-	asm volatile ("					\
+__naked void _32bit_scalar_pkt_ptr(void) {
+  asm volatile (
+    "					\
 	r8 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	r7 = *(u32*)(r1 + %[__sk_buff_data]);		\
 	r6 = r7;					\
@@ -1414,10 +1415,10 @@ __naked void _32bit_scalar_pkt_ptr(void)
 	w4 -= w7;					\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
-	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+    __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

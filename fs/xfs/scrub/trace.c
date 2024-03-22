@@ -28,20 +28,18 @@
 #include "scrub/fscounters.h"
 
 /* Figure out which block the btree cursor was pointing to. */
-static inline xfs_fsblock_t
-xchk_btree_cur_fsbno(
-	struct xfs_btree_cur	*cur,
-	int			level)
-{
-	if (level < cur->bc_nlevels && cur->bc_levels[level].bp)
-		return XFS_DADDR_TO_FSB(cur->bc_mp,
-				xfs_buf_daddr(cur->bc_levels[level].bp));
-
-	if (level == cur->bc_nlevels - 1 &&
-	    cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
-		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_ino.ip->i_ino);
-
-	return NULLFSBLOCK;
+static inline xfs_fsblock_t xchk_btree_cur_fsbno(
+    struct xfs_btree_cur *cur,
+    int level) {
+  if (level < cur->bc_nlevels && cur->bc_levels[level].bp) {
+    return XFS_DADDR_TO_FSB(cur->bc_mp,
+        xfs_buf_daddr(cur->bc_levels[level].bp));
+  }
+  if (level == cur->bc_nlevels - 1
+      && cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
+    return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_ino.ip->i_ino);
+  }
+  return NULLFSBLOCK;
 }
 
 /*

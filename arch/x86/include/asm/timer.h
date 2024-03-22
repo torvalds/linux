@@ -27,9 +27,9 @@ extern bool using_native_sched_clock(void);
  * See the comment near cycles_2_ns() for details on how we compute (b).
  */
 struct cyc2ns_data {
-	u32 cyc2ns_mul;
-	u32 cyc2ns_shift;
-	u64 cyc2ns_offset;
+  u32 cyc2ns_mul;
+  u32 cyc2ns_shift;
+  u64 cyc2ns_offset;
 }; /* 16 bytes */
 
 extern void cyc2ns_read_begin(struct cyc2ns_data *);

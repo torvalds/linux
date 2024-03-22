@@ -121,12 +121,11 @@ uint64_t xxh64(const void *input, size_t length, uint64_t seed);
  */
 
 static inline unsigned long xxhash(const void *input, size_t length,
-				   uint64_t seed)
-{
+    uint64_t seed) {
 #if BITS_PER_LONG == 64
-       return xxh64(input, length, seed);
+  return xxh64(input, length, seed);
 #else
-       return xxh32(input, length, seed);
+  return xxh32(input, length, seed);
 #endif
 }
 
@@ -144,27 +143,27 @@ static inline unsigned long xxhash(const void *input, size_t length,
  * struct xxh32_state - private xxh32 state, do not use members directly
  */
 struct xxh32_state {
-	uint32_t total_len_32;
-	uint32_t large_len;
-	uint32_t v1;
-	uint32_t v2;
-	uint32_t v3;
-	uint32_t v4;
-	uint32_t mem32[4];
-	uint32_t memsize;
+  uint32_t total_len_32;
+  uint32_t large_len;
+  uint32_t v1;
+  uint32_t v2;
+  uint32_t v3;
+  uint32_t v4;
+  uint32_t mem32[4];
+  uint32_t memsize;
 };
 
 /**
  * struct xxh32_state - private xxh64 state, do not use members directly
  */
 struct xxh64_state {
-	uint64_t total_len;
-	uint64_t v1;
-	uint64_t v2;
-	uint64_t v3;
-	uint64_t v4;
-	uint64_t mem64[4];
-	uint32_t memsize;
+  uint64_t total_len;
+  uint64_t v1;
+  uint64_t v2;
+  uint64_t v3;
+  uint64_t v4;
+  uint64_t mem64[4];
+  uint32_t memsize;
 };
 
 /**

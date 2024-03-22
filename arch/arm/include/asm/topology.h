@@ -24,12 +24,15 @@
 
 /* Replace task scheduler's default thermal pressure API */
 #define arch_scale_thermal_pressure topology_get_thermal_pressure
-#define arch_update_thermal_pressure	topology_update_thermal_pressure
+#define arch_update_thermal_pressure  topology_update_thermal_pressure
 
 #else
 
-static inline void init_cpu_topology(void) { }
-static inline void store_cpu_topology(unsigned int cpuid) { }
+static inline void init_cpu_topology(void) {
+}
+
+static inline void store_cpu_topology(unsigned int cpuid) {
+}
 
 #endif
 

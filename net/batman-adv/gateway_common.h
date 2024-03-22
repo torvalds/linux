@@ -13,16 +13,16 @@
  * enum batadv_bandwidth_units - bandwidth unit types
  */
 enum batadv_bandwidth_units {
-	/** @BATADV_BW_UNIT_KBIT: unit type kbit */
-	BATADV_BW_UNIT_KBIT,
+  /** @BATADV_BW_UNIT_KBIT: unit type kbit */
+  BATADV_BW_UNIT_KBIT,
 
-	/** @BATADV_BW_UNIT_MBIT: unit type mbit */
-	BATADV_BW_UNIT_MBIT,
+  /** @BATADV_BW_UNIT_MBIT: unit type mbit */
+  BATADV_BW_UNIT_MBIT,
 };
 
-#define BATADV_GW_MODE_OFF_NAME	"off"
-#define BATADV_GW_MODE_CLIENT_NAME	"client"
-#define BATADV_GW_MODE_SERVER_NAME	"server"
+#define BATADV_GW_MODE_OFF_NAME "off"
+#define BATADV_GW_MODE_CLIENT_NAME  "client"
+#define BATADV_GW_MODE_SERVER_NAME  "server"
 
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv);
 void batadv_gw_init(struct batadv_priv *bat_priv);

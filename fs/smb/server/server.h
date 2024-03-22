@@ -12,38 +12,38 @@
  * Server state type
  */
 enum {
-	SERVER_STATE_STARTING_UP,
-	SERVER_STATE_RUNNING,
-	SERVER_STATE_RESETTING,
-	SERVER_STATE_SHUTTING_DOWN,
+  SERVER_STATE_STARTING_UP,
+  SERVER_STATE_RUNNING,
+  SERVER_STATE_RESETTING,
+  SERVER_STATE_SHUTTING_DOWN,
 };
 
 /*
  * Server global config string index
  */
 enum {
-	SERVER_CONF_NETBIOS_NAME,
-	SERVER_CONF_SERVER_STRING,
-	SERVER_CONF_WORK_GROUP,
+  SERVER_CONF_NETBIOS_NAME,
+  SERVER_CONF_SERVER_STRING,
+  SERVER_CONF_WORK_GROUP,
 };
 
 struct ksmbd_server_config {
-	unsigned int		flags;
-	unsigned int		state;
-	short			signing;
-	short			enforced_signing;
-	short			min_protocol;
-	short			max_protocol;
-	unsigned short		tcp_port;
-	unsigned short		ipc_timeout;
-	unsigned long		ipc_last_active;
-	unsigned long		deadtime;
-	unsigned int		share_fake_fscaps;
-	struct smb_sid		domain_sid;
-	unsigned int		auth_mechs;
-	unsigned int		max_connections;
+  unsigned int flags;
+  unsigned int state;
+  short signing;
+  short enforced_signing;
+  short min_protocol;
+  short max_protocol;
+  unsigned short tcp_port;
+  unsigned short ipc_timeout;
+  unsigned long ipc_last_active;
+  unsigned long deadtime;
+  unsigned int share_fake_fscaps;
+  struct smb_sid domain_sid;
+  unsigned int auth_mechs;
+  unsigned int max_connections;
 
-	char			*conf[SERVER_CONF_WORK_GROUP + 1];
+  char *conf[SERVER_CONF_WORK_GROUP + 1];
 };
 
 extern struct ksmbd_server_config server_conf;
@@ -56,14 +56,12 @@ char *ksmbd_netbios_name(void);
 char *ksmbd_server_string(void);
 char *ksmbd_work_group(void);
 
-static inline int ksmbd_server_running(void)
-{
-	return READ_ONCE(server_conf.state) == SERVER_STATE_RUNNING;
+static inline int ksmbd_server_running(void) {
+  return READ_ONCE(server_conf.state) == SERVER_STATE_RUNNING;
 }
 
-static inline int ksmbd_server_configurable(void)
-{
-	return READ_ONCE(server_conf.state) < SERVER_STATE_RESETTING;
+static inline int ksmbd_server_configurable(void) {
+  return READ_ONCE(server_conf.state) < SERVER_STATE_RESETTING;
 }
 
 int server_queue_ctrl_init_work(void);

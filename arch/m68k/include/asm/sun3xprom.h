@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Useful PROM locations */
+/* SPDX-License-Identifier: GPL-2.0
+ * Useful PROM locations*/
 
 #ifndef SUN3X_PROM_H
 #define SUN3X_PROM_H

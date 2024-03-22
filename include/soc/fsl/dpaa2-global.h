@@ -12,38 +12,38 @@
 #include "dpaa2-fd.h"
 
 struct dpaa2_dq {
-	union {
-		struct common {
-			u8 verb;
-			u8 reserved[63];
-		} common;
-		struct dq {
-			u8 verb;
-			u8 stat;
-			__le16 seqnum;
-			__le16 oprid;
-			u8 reserved;
-			u8 tok;
-			__le32 fqid;
-			u32 reserved2;
-			__le32 fq_byte_cnt;
-			__le32 fq_frm_cnt;
-			__le64 fqd_ctx;
-			u8 fd[32];
-		} dq;
-		struct scn {
-			u8 verb;
-			u8 stat;
-			u8 state;
-			u8 reserved;
-			__le32 rid_tok;
-			__le64 ctx;
-		} scn;
-	};
+  union {
+    struct common {
+      u8 verb;
+      u8 reserved[63];
+    } common;
+    struct dq {
+      u8 verb;
+      u8 stat;
+      __le16 seqnum;
+      __le16 oprid;
+      u8 reserved;
+      u8 tok;
+      __le32 fqid;
+      u32 reserved2;
+      __le32 fq_byte_cnt;
+      __le32 fq_frm_cnt;
+      __le64 fqd_ctx;
+      u8 fd[32];
+    } dq;
+    struct scn {
+      u8 verb;
+      u8 stat;
+      u8 state;
+      u8 reserved;
+      __le32 rid_tok;
+      __le64 ctx;
+    } scn;
+  };
 };
 
-/* Parsing frame dequeue results */
-/* FQ empty */
+/* Parsing frame dequeue results
+ * FQ empty*/
 #define DPAA2_DQ_STAT_FQEMPTY       0x80
 /* FQ held active */
 #define DPAA2_DQ_STAT_HELDACTIVE    0x40
@@ -58,16 +58,15 @@ struct dpaa2_dq {
 /* volatile dequeue command is expired */
 #define DPAA2_DQ_STAT_EXPIRED       0x01
 
-#define DQ_FQID_MASK		0x00FFFFFF
-#define DQ_FRAME_COUNT_MASK	0x00FFFFFF
+#define DQ_FQID_MASK    0x00FFFFFF
+#define DQ_FRAME_COUNT_MASK 0x00FFFFFF
 
 /**
  * dpaa2_dq_flags() - Get the stat field of dequeue response
  * @dq: the dequeue result.
  */
-static inline u32 dpaa2_dq_flags(const struct dpaa2_dq *dq)
-{
-	return dq->dq.stat;
+static inline u32 dpaa2_dq_flags(const struct dpaa2_dq *dq) {
+  return dq->dq.stat;
 }
 
 /**
@@ -77,9 +76,8 @@ static inline u32 dpaa2_dq_flags(const struct dpaa2_dq *dq)
  *
  * Return 1 for volatile(pull) dequeue, 0 for static dequeue.
  */
-static inline int dpaa2_dq_is_pull(const struct dpaa2_dq *dq)
-{
-	return (int)(dpaa2_dq_flags(dq) & DPAA2_DQ_STAT_VOLATILE);
+static inline int dpaa2_dq_is_pull(const struct dpaa2_dq *dq) {
+  return (int) (dpaa2_dq_flags(dq) & DPAA2_DQ_STAT_VOLATILE);
 }
 
 /**
@@ -88,9 +86,8 @@ static inline int dpaa2_dq_is_pull(const struct dpaa2_dq *dq)
  *
  * Return boolean.
  */
-static inline bool dpaa2_dq_is_pull_complete(const struct dpaa2_dq *dq)
-{
-	return !!(dpaa2_dq_flags(dq) & DPAA2_DQ_STAT_EXPIRED);
+static inline bool dpaa2_dq_is_pull_complete(const struct dpaa2_dq *dq) {
+  return !!(dpaa2_dq_flags(dq) & DPAA2_DQ_STAT_EXPIRED);
 }
 
 /**
@@ -101,9 +98,8 @@ static inline bool dpaa2_dq_is_pull_complete(const struct dpaa2_dq *dq)
  *
  * Return seqnum.
  */
-static inline u16 dpaa2_dq_seqnum(const struct dpaa2_dq *dq)
-{
-	return le16_to_cpu(dq->dq.seqnum);
+static inline u16 dpaa2_dq_seqnum(const struct dpaa2_dq *dq) {
+  return le16_to_cpu(dq->dq.seqnum);
 }
 
 /**
@@ -114,9 +110,8 @@ static inline u16 dpaa2_dq_seqnum(const struct dpaa2_dq *dq)
  *
  * Return odpid.
  */
-static inline u16 dpaa2_dq_odpid(const struct dpaa2_dq *dq)
-{
-	return le16_to_cpu(dq->dq.oprid);
+static inline u16 dpaa2_dq_odpid(const struct dpaa2_dq *dq) {
+  return le16_to_cpu(dq->dq.oprid);
 }
 
 /**
@@ -125,9 +120,8 @@ static inline u16 dpaa2_dq_odpid(const struct dpaa2_dq *dq)
  *
  * Return fqid.
  */
-static inline u32 dpaa2_dq_fqid(const struct dpaa2_dq *dq)
-{
-	return le32_to_cpu(dq->dq.fqid) & DQ_FQID_MASK;
+static inline u32 dpaa2_dq_fqid(const struct dpaa2_dq *dq) {
+  return le32_to_cpu(dq->dq.fqid) & DQ_FQID_MASK;
 }
 
 /**
@@ -136,9 +130,8 @@ static inline u32 dpaa2_dq_fqid(const struct dpaa2_dq *dq)
  *
  * Return the byte count remaining in the FQ.
  */
-static inline u32 dpaa2_dq_byte_count(const struct dpaa2_dq *dq)
-{
-	return le32_to_cpu(dq->dq.fq_byte_cnt);
+static inline u32 dpaa2_dq_byte_count(const struct dpaa2_dq *dq) {
+  return le32_to_cpu(dq->dq.fq_byte_cnt);
 }
 
 /**
@@ -147,9 +140,8 @@ static inline u32 dpaa2_dq_byte_count(const struct dpaa2_dq *dq)
  *
  * Return the frame count remaining in the FQ.
  */
-static inline u32 dpaa2_dq_frame_count(const struct dpaa2_dq *dq)
-{
-	return le32_to_cpu(dq->dq.fq_frm_cnt) & DQ_FRAME_COUNT_MASK;
+static inline u32 dpaa2_dq_frame_count(const struct dpaa2_dq *dq) {
+  return le32_to_cpu(dq->dq.fq_frm_cnt) & DQ_FRAME_COUNT_MASK;
 }
 
 /**
@@ -158,9 +150,8 @@ static inline u32 dpaa2_dq_frame_count(const struct dpaa2_dq *dq)
  *
  * Return the frame queue context.
  */
-static inline u64 dpaa2_dq_fqd_ctx(const struct dpaa2_dq *dq)
-{
-	return le64_to_cpu(dq->dq.fqd_ctx);
+static inline u64 dpaa2_dq_fqd_ctx(const struct dpaa2_dq *dq) {
+  return le64_to_cpu(dq->dq.fqd_ctx);
 }
 
 /**
@@ -169,24 +160,22 @@ static inline u64 dpaa2_dq_fqd_ctx(const struct dpaa2_dq *dq)
  *
  * Return the frame descriptor.
  */
-static inline const struct dpaa2_fd *dpaa2_dq_fd(const struct dpaa2_dq *dq)
-{
-	return (const struct dpaa2_fd *)&dq->dq.fd[0];
+static inline const struct dpaa2_fd *dpaa2_dq_fd(const struct dpaa2_dq *dq) {
+  return (const struct dpaa2_fd *) &dq->dq.fd[0];
 }
 
-#define DPAA2_CSCN_SIZE		sizeof(struct dpaa2_dq)
-#define DPAA2_CSCN_ALIGN	16
-#define DPAA2_CSCN_STATE_CG	BIT(0)
+#define DPAA2_CSCN_SIZE   sizeof(struct dpaa2_dq)
+#define DPAA2_CSCN_ALIGN  16
+#define DPAA2_CSCN_STATE_CG BIT(0)
 
 /**
  * dpaa2_cscn_state_congested() - Check congestion state
  * @cscn: congestion SCN (delivered to WQ or memory)
  *
-i * Return true is congested.
+ * i * Return true is congested.
  */
-static inline bool dpaa2_cscn_state_congested(struct dpaa2_dq *cscn)
-{
-	return !!(cscn->scn.state & DPAA2_CSCN_STATE_CG);
+static inline bool dpaa2_cscn_state_congested(struct dpaa2_dq *cscn) {
+  return !!(cscn->scn.state & DPAA2_CSCN_STATE_CG);
 }
 
 #endif /* __FSL_DPAA2_GLOBAL_H */

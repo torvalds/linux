@@ -4,7 +4,8 @@
 
 #include <asm-generic/mman-common.h>
 
-/* We need this because we need to have tools/include/uapi/ included in the tools
+/* We need this because we need to have tools/include/uapi/ included in the
+ * tools
  * header search path to get access to stuff that is not yet in the system's
  * copy of the files in that directory, but since this cset:
  *
@@ -16,8 +17,8 @@
  * from each of the per arch mman.h headers.
  */
 #ifndef MAP_SHARED
-#define MAP_SHARED	0x01		/* Share changes */
-#define MAP_PRIVATE	0x02		/* Changes are private */
-#define MAP_SHARED_VALIDATE 0x03	/* share + validate extension flags */
+#define MAP_SHARED  0x01    /* Share changes */
+#define MAP_PRIVATE 0x02    /* Changes are private */
+#define MAP_SHARED_VALIDATE 0x03  /* share + validate extension flags */
 #endif
 #endif // __ASM_GENERIC_MMAN_COMMON_TOOLS_ONLY_H

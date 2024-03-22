@@ -10,19 +10,14 @@ void ci_hdrc_host_driver_init(void);
 
 #else
 
-static inline int ci_hdrc_host_init(struct ci_hdrc *ci)
-{
-	return -ENXIO;
+static inline int ci_hdrc_host_init(struct ci_hdrc *ci) {
+  return -ENXIO;
 }
 
-static inline void ci_hdrc_host_destroy(struct ci_hdrc *ci)
-{
-
+static inline void ci_hdrc_host_destroy(struct ci_hdrc *ci) {
 }
 
-static inline void ci_hdrc_host_driver_init(void)
-{
-
+static inline void ci_hdrc_host_driver_init(void) {
 }
 
 #endif

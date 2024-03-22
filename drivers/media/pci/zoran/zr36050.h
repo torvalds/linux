@@ -12,32 +12,32 @@
 
 /* data stored for each zoran jpeg codec chip */
 struct zr36050 {
-	char name[32];
-	int num;
-	/* io datastructure */
-	struct videocodec *codec;
-	// last coder status
-	__u8 status1;
-	// actual coder setup
-	int mode;
+  char name[32];
+  int num;
+  /* io datastructure */
+  struct videocodec *codec;
+  // last coder status
+  __u8 status1;
+  // actual coder setup
+  int mode;
 
-	__u16 width;
-	__u16 height;
+  __u16 width;
+  __u16 height;
 
-	__u16 bitrate_ctrl;
+  __u16 bitrate_ctrl;
 
-	__u32 total_code_vol;
-	__u32 real_code_vol;
-	__u16 max_block_vol;
+  __u32 total_code_vol;
+  __u32 real_code_vol;
+  __u16 max_block_vol;
 
-	__u8 h_samp_ratio[8];
-	__u8 v_samp_ratio[8];
-	__u16 scalefact;
-	__u16 dri;
+  __u8 h_samp_ratio[8];
+  __u8 v_samp_ratio[8];
+  __u16 scalefact;
+  __u16 dri;
 
-	/* com/app marker */
-	struct jpeg_com_marker com;
-	struct jpeg_app_marker app;
+  /* com/app marker */
+  struct jpeg_com_marker com;
+  struct jpeg_app_marker app;
 };
 
 /* zr36050 register addresses */
@@ -162,4 +162,4 @@ struct zr36050 {
 
 int zr36050_init_module(void);
 void zr36050_cleanup_module(void);
-#endif				/*fndef ZR36050_H */
+#endif        /*fndef ZR36050_H */

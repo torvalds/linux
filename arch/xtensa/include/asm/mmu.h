@@ -14,9 +14,9 @@
 #else
 
 typedef struct {
-	unsigned long asid[NR_CPUS];
-	unsigned int cpu;
+  unsigned long asid[NR_CPUS];
+  unsigned int cpu;
 } mm_context_t;
 
 #endif /* CONFIG_MMU */
-#endif	/* _XTENSA_MMU_H */
+#endif  /* _XTENSA_MMU_H */

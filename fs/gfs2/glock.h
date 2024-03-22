@@ -15,27 +15,27 @@
 /* Options for hostdata parser */
 
 enum {
-	Opt_jid,
-	Opt_id,
-	Opt_first,
-	Opt_nodir,
-	Opt_err,
+  Opt_jid,
+  Opt_id,
+  Opt_first,
+  Opt_nodir,
+  Opt_err,
 };
 
 /*
  * lm_lockname types
  */
 
-#define LM_TYPE_RESERVED	0x00
-#define LM_TYPE_NONDISK		0x01
-#define LM_TYPE_INODE		0x02
-#define LM_TYPE_RGRP		0x03
-#define LM_TYPE_META		0x04
-#define LM_TYPE_IOPEN		0x05
-#define LM_TYPE_FLOCK		0x06
-#define LM_TYPE_PLOCK		0x07
-#define LM_TYPE_QUOTA		0x08
-#define LM_TYPE_JOURNAL		0x09
+#define LM_TYPE_RESERVED  0x00
+#define LM_TYPE_NONDISK   0x01
+#define LM_TYPE_INODE   0x02
+#define LM_TYPE_RGRP    0x03
+#define LM_TYPE_META    0x04
+#define LM_TYPE_IOPEN   0x05
+#define LM_TYPE_FLOCK   0x06
+#define LM_TYPE_PLOCK   0x07
+#define LM_TYPE_QUOTA   0x08
+#define LM_TYPE_JOURNAL   0x09
 
 /*
  * lm_lock() states
@@ -44,10 +44,10 @@ enum {
  * DEFERRED is compatible with DEFERRED, not with SHARED or EX.
  */
 
-#define LM_ST_UNLOCKED		0
-#define LM_ST_EXCLUSIVE		1
-#define LM_ST_DEFERRED		2
-#define LM_ST_SHARED		3
+#define LM_ST_UNLOCKED    0
+#define LM_ST_EXCLUSIVE   1
+#define LM_ST_DEFERRED    2
+#define LM_ST_SHARED    3
 
 /*
  * lm_lock() flags
@@ -74,18 +74,18 @@ enum {
  * same node can share it.
  */
 
-#define LM_FLAG_TRY		0x0001
-#define LM_FLAG_TRY_1CB		0x0002
-#define LM_FLAG_NOEXP		0x0004
-#define LM_FLAG_ANY		0x0008
-#define LM_FLAG_NODE_SCOPE	0x0020
-#define GL_ASYNC		0x0040
-#define GL_EXACT		0x0080
-#define GL_SKIP			0x0100
-#define GL_NOPID		0x0200
-#define GL_NOCACHE		0x0400
-#define GL_NOBLOCK		0x0800
-  
+#define LM_FLAG_TRY   0x0001
+#define LM_FLAG_TRY_1CB   0x0002
+#define LM_FLAG_NOEXP   0x0004
+#define LM_FLAG_ANY   0x0008
+#define LM_FLAG_NODE_SCOPE  0x0020
+#define GL_ASYNC    0x0040
+#define GL_EXACT    0x0080
+#define GL_SKIP     0x0100
+#define GL_NOPID    0x0200
+#define GL_NOCACHE    0x0400
+#define GL_NOBLOCK    0x0800
+
 /*
  * lm_async_cb return flags
  *
@@ -97,93 +97,92 @@ enum {
  *
  */
 
-#define LM_OUT_ST_MASK		0x00000003
-#define LM_OUT_CANCELED		0x00000008
-#define LM_OUT_ERROR		0x00000004
+#define LM_OUT_ST_MASK    0x00000003
+#define LM_OUT_CANCELED   0x00000008
+#define LM_OUT_ERROR    0x00000004
 
 /*
  * lm_recovery_done() messages
  */
 
-#define LM_RD_GAVEUP		308
-#define LM_RD_SUCCESS		309
+#define LM_RD_GAVEUP    308
+#define LM_RD_SUCCESS   309
 
-#define GLR_TRYFAILED		13
+#define GLR_TRYFAILED   13
 
-#define GL_GLOCK_MAX_HOLD        (long)(HZ / 5)
-#define GL_GLOCK_DFT_HOLD        (long)(HZ / 5)
-#define GL_GLOCK_MIN_HOLD        (long)(10)
-#define GL_GLOCK_HOLD_INCR       (long)(HZ / 20)
-#define GL_GLOCK_HOLD_DECR       (long)(HZ / 40)
+#define GL_GLOCK_MAX_HOLD        (long) (HZ / 5)
+#define GL_GLOCK_DFT_HOLD        (long) (HZ / 5)
+#define GL_GLOCK_MIN_HOLD        (long) (10)
+#define GL_GLOCK_HOLD_INCR       (long) (HZ / 20)
+#define GL_GLOCK_HOLD_DECR       (long) (HZ / 40)
 
 struct lm_lockops {
-	const char *lm_proto_name;
-	int (*lm_mount) (struct gfs2_sbd *sdp, const char *table);
-	void (*lm_first_done) (struct gfs2_sbd *sdp);
-	void (*lm_recovery_result) (struct gfs2_sbd *sdp, unsigned int jid,
-				    unsigned int result);
-	void (*lm_unmount) (struct gfs2_sbd *sdp);
-	void (*lm_withdraw) (struct gfs2_sbd *sdp);
-	void (*lm_put_lock) (struct gfs2_glock *gl);
-	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,
-			unsigned int flags);
-	void (*lm_cancel) (struct gfs2_glock *gl);
-	const match_table_t *lm_tokens;
+  const char *lm_proto_name;
+  int (*lm_mount)(struct gfs2_sbd *sdp, const char *table);
+  void (*lm_first_done)(struct gfs2_sbd *sdp);
+  void (*lm_recovery_result)(struct gfs2_sbd *sdp, unsigned int jid,
+      unsigned int result);
+  void (*lm_unmount)(struct gfs2_sbd *sdp);
+  void (*lm_withdraw)(struct gfs2_sbd *sdp);
+  void (*lm_put_lock)(struct gfs2_glock *gl);
+  int (*lm_lock)(struct gfs2_glock *gl, unsigned int req_state,
+      unsigned int flags);
+  void (*lm_cancel)(struct gfs2_glock *gl);
+  const match_table_t *lm_tokens;
 };
 
 struct gfs2_glock_aspace {
-	struct gfs2_glock glock;
-	struct address_space mapping;
+  struct gfs2_glock glock;
+  struct address_space mapping;
 };
 
-static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
-{
-	struct gfs2_holder *gh;
-	struct pid *pid;
-
-	/* Look in glock's list of holders for one with current task as owner */
-	spin_lock(&gl->gl_lockref.lock);
-	pid = task_pid(current);
-	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
-		if (!test_bit(HIF_HOLDER, &gh->gh_iflags))
-			break;
-		if (gh->gh_owner_pid == pid)
-			goto out;
-	}
-	gh = NULL;
+static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(
+    struct gfs2_glock *gl) {
+  struct gfs2_holder *gh;
+  struct pid *pid;
+  /* Look in glock's list of holders for one with current task as owner */
+  spin_lock(&gl->gl_lockref.lock);
+  pid = task_pid(current);
+  list_for_each_entry(gh, &gl->gl_holders, gh_list) {
+    if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
+      break;
+    }
+    if (gh->gh_owner_pid == pid) {
+      goto out;
+    }
+  }
+  gh = NULL;
 out:
-	spin_unlock(&gl->gl_lockref.lock);
-
-	return gh;
+  spin_unlock(&gl->gl_lockref.lock);
+  return gh;
 }
 
-static inline struct address_space *gfs2_glock2aspace(struct gfs2_glock *gl)
-{
-	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
-		struct gfs2_glock_aspace *gla =
-			container_of(gl, struct gfs2_glock_aspace, glock);
-		return &gla->mapping;
-	}
-	return NULL;
+static inline struct address_space *gfs2_glock2aspace(struct gfs2_glock *gl) {
+  if (gl->gl_ops->go_flags & GLOF_ASPACE) {
+    struct gfs2_glock_aspace *gla
+      = container_of(gl, struct gfs2_glock_aspace, glock);
+    return &gla->mapping;
+  }
+  return NULL;
 }
 
 int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
-		   const struct gfs2_glock_operations *glops,
-		   int create, struct gfs2_glock **glp);
+    const struct gfs2_glock_operations *glops,
+    int create, struct gfs2_glock **glp);
 struct gfs2_glock *gfs2_glock_hold(struct gfs2_glock *gl);
 void gfs2_glock_put(struct gfs2_glock *gl);
 void gfs2_glock_queue_put(struct gfs2_glock *gl);
 
 void __gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
-		        u16 flags, struct gfs2_holder *gh,
-		        unsigned long ip);
+    u16 flags, struct gfs2_holder *gh,
+    unsigned long ip);
 static inline void gfs2_holder_init(struct gfs2_glock *gl, unsigned int state,
-				    u16 flags, struct gfs2_holder *gh) {
-	__gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
+    u16 flags, struct gfs2_holder *gh) {
+  __gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
 }
 
 void gfs2_holder_reinit(unsigned int state, u16 flags,
-		        struct gfs2_holder *gh);
+    struct gfs2_holder *gh);
 void gfs2_holder_uninit(struct gfs2_holder *gh);
 int gfs2_glock_nq(struct gfs2_holder *gh);
 int gfs2_glock_poll(struct gfs2_holder *gh);
@@ -195,24 +194,27 @@ void gfs2_glock_dq(struct gfs2_holder *gh);
 void gfs2_glock_dq_wait(struct gfs2_holder *gh);
 void gfs2_glock_dq_uninit(struct gfs2_holder *gh);
 int gfs2_glock_nq_num(struct gfs2_sbd *sdp, u64 number,
-		      const struct gfs2_glock_operations *glops,
-		      unsigned int state, u16 flags,
-		      struct gfs2_holder *gh);
+    const struct gfs2_glock_operations *glops,
+    unsigned int state, u16 flags,
+    struct gfs2_holder *gh);
 int gfs2_glock_nq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs);
 void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl,
-			    bool fsid);
-#define GLOCK_BUG_ON(gl,x) do { if (unlikely(x)) {		\
-			gfs2_dump_glock(NULL, gl, true);	\
-			BUG(); } } while(0)
-#define gfs2_glock_assert_warn(gl, x) do { if (unlikely(!(x))) {	\
-			gfs2_dump_glock(NULL, gl, true);		\
-			gfs2_assert_warn((gl)->gl_name.ln_sbd, (x)); } } \
-	while (0)
-#define gfs2_glock_assert_withdraw(gl, x) do { if (unlikely(!(x))) {	\
-			gfs2_dump_glock(NULL, gl, true);		\
-			gfs2_assert_withdraw((gl)->gl_name.ln_sbd, (x)); } } \
-	while (0)
+    bool fsid);
+#define GLOCK_BUG_ON(gl, x) do { if (unlikely(x)) {    \
+                                   gfs2_dump_glock(NULL, gl, true);  \
+                                   BUG(); } } while (0)
+#define gfs2_glock_assert_warn(gl, x) do { if (unlikely(!(x))) {  \
+                                             gfs2_dump_glock(NULL, gl, true);    \
+                                             gfs2_assert_warn( \
+    (gl)->gl_name.ln_sbd, (x)); } } \
+  while (0)
+#define gfs2_glock_assert_withdraw(gl, x) do { if (unlikely(!(x))) {  \
+                                                 gfs2_dump_glock(NULL, gl, \
+    true);    \
+                                                 gfs2_assert_withdraw( \
+    (gl)->gl_name.ln_sbd, (x)); } } \
+  while (0)
 
 __printf(2, 3)
 void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
@@ -228,18 +230,15 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
  */
 
 static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
-				     unsigned int state, u16 flags,
-				     struct gfs2_holder *gh)
-{
-	int error;
-
-	__gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
-
-	error = gfs2_glock_nq(gh);
-	if (error)
-		gfs2_holder_uninit(gh);
-
-	return error;
+    unsigned int state, u16 flags,
+    struct gfs2_holder *gh) {
+  int error;
+  __gfs2_holder_init(gl, state, flags, gh, _RET_IP_);
+  error = gfs2_glock_nq(gh);
+  if (error) {
+    gfs2_holder_uninit(gh);
+  }
+  return error;
 }
 
 void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
@@ -266,19 +265,16 @@ void glock_clear_object(struct gfs2_glock *gl, void *object);
 
 extern const struct lm_lockops gfs2_dlm_ops;
 
-static inline void gfs2_holder_mark_uninitialized(struct gfs2_holder *gh)
-{
-	gh->gh_gl = NULL;
+static inline void gfs2_holder_mark_uninitialized(struct gfs2_holder *gh) {
+  gh->gh_gl = NULL;
 }
 
-static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
-{
-	return gh->gh_gl;
+static inline bool gfs2_holder_initialized(struct gfs2_holder *gh) {
+  return gh->gh_gl;
 }
 
-static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
-{
-	return !list_empty(&gh->gh_list);
+static inline bool gfs2_holder_queued(struct gfs2_holder *gh) {
+  return !list_empty(&gh->gh_list);
 }
 
 void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);

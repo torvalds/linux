@@ -26,36 +26,37 @@
 #if !defined(CONFIG_ATH_TRACEPOINTS)
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(name, proto, ...) static inline void trace_ ## name(proto) {}
+#define TRACE_EVENT(name, proto, \
+      ...) static inline void trace_ ## name(proto) {}
 
 #endif /* CONFIG_ATH_TRACEPOINTS */
 
 TRACE_EVENT(ath_log,
 
-	    TP_PROTO(struct wiphy *wiphy,
-		     struct va_format *vaf),
+    TP_PROTO(struct wiphy *wiphy,
+    struct va_format *vaf),
 
-	    TP_ARGS(wiphy, vaf),
+    TP_ARGS(wiphy, vaf),
 
-	    TP_STRUCT__entry(
-		    __string(device, wiphy_name(wiphy))
-		    __string(driver, KBUILD_MODNAME)
-		    __vstring(msg, vaf->fmt, vaf->va)
-	    ),
+    TP_STRUCT__entry(
+    __string(device, wiphy_name(wiphy))
+    __string(driver, KBUILD_MODNAME)
+    __vstring(msg, vaf->fmt, vaf->va)
+    ),
 
-	    TP_fast_assign(
-		    __assign_str(device, wiphy_name(wiphy));
-		    __assign_str(driver, KBUILD_MODNAME);
-		    __assign_vstr(msg, vaf->fmt, vaf->va);
-	    ),
+    TP_fast_assign(
+    __assign_str(device, wiphy_name(wiphy));
+    __assign_str(driver, KBUILD_MODNAME);
+    __assign_vstr(msg, vaf->fmt, vaf->va);
+    ),
 
-	    TP_printk(
-		    "%s %s %s",
-		    __get_str(driver),
-		    __get_str(device),
-		    __get_str(msg)
-	    )
-);
+    TP_printk(
+    "%s %s %s",
+    __get_str(driver),
+    __get_str(device),
+    __get_str(msg)
+    )
+    );
 
 #endif /* _TRACE_H || TRACE_HEADER_MULTI_READ */
 

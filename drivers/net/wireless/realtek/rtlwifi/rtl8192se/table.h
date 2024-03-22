@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2009-2012  Realtek Corporation.*/
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __INC_HAL8192SE_FW_IMG_H
 #define __INC_HAL8192SE_FW_IMG_H
@@ -28,4 +28,3 @@ extern u32 rtl8192semac_2t_array[MAC_2T_ARRAYLENGTH];
 extern u32 rtl8192seagctab_array[AGCTAB_ARRAYLENGTH];
 
 #endif
-

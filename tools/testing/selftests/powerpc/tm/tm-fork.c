@@ -18,26 +18,22 @@
 #include "utils.h"
 #include "tm.h"
 
-int test_fork(void)
-{
-	SKIP_IF(!have_htm());
-	SKIP_IF(htm_is_synthetic());
-
-	asm __volatile__(
-		"tbegin.;"
-		"blt    1f; "
-		"li     0, 2;"  /* fork syscall */
-		"sc  ;"
-		"tend.;"
-		"1: ;"
-		: : : "memory", "r0");
-	/* If we reach here, we've passed.  Otherwise we've probably crashed
-	 * the kernel */
-
-	return 0;
+int test_fork(void) {
+  SKIP_IF(!have_htm());
+  SKIP_IF(htm_is_synthetic());
+  asm __volatile__ (
+    "tbegin.;"
+    "blt    1f; "
+    "li     0, 2;"  /* fork syscall */
+    "sc  ;"
+    "tend.;"
+    "1: ;"
+    : : : "memory", "r0");
+  /* If we reach here, we've passed.  Otherwise we've probably crashed
+   * the kernel */
+  return 0;
 }
 
-int main(int argc, char *argv[])
-{
-	return test_harness(test_fork, "tm_fork");
+int main(int argc, char *argv[]) {
+  return test_harness(test_fork, "tm_fork");
 }

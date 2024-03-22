@@ -6,8 +6,8 @@
 #include <asm/types.h>
 
 struct cgroup_value {
-	__u32 egress_pkts;
-	__u32 ingress_pkts;
+  __u32 egress_pkts;
+  __u32 ingress_pkts;
 };
 
 #endif

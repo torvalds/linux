@@ -17,8 +17,8 @@
 #define __IA_CSS_AA2_TYPES_H
 
 /* @file
-* CSS-API header file for Anti-Aliasing parameters.
-*/
+ * CSS-API header file for Anti-Aliasing parameters.
+ */
 
 /* Anti-Aliasing configuration.
  *
@@ -39,9 +39,9 @@
  *     ISP2: BAA2 is used.
  */
 struct ia_css_aa_config {
-	u16 strength;	/** Strength of the filter.
-					u0.13, [0,8191],
-					default/ineffective 0 */
+  u16 strength; /** Strength of the filter.
+                 * u0.13, [0,8191],
+                 * default/ineffective 0 */
 };
 
 #endif /* __IA_CSS_AA2_TYPES_H */

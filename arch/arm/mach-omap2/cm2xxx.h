@@ -16,10 +16,10 @@
 #include "prcm-common.h"
 #include "cm2xxx_3xxx.h"
 
-#define OMAP2420_CM_REGADDR(module, reg)				\
-			OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
-#define OMAP2430_CM_REGADDR(module, reg)				\
-			OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
+#define OMAP2420_CM_REGADDR(module, reg)        \
+  OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE + (module) + (reg))
+#define OMAP2430_CM_REGADDR(module, reg)        \
+  OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
 
 /*
  * Module specific CM register offsets from CM_BASE + domain offset
@@ -29,15 +29,14 @@
 
 /* OMAP2-specific register offsets */
 
-#define OMAP24XX_CM_FCLKEN2				0x0004
-#define OMAP24XX_CM_ICLKEN4				0x001c
-#define OMAP24XX_CM_AUTOIDLE4				0x003c
-#define OMAP24XX_CM_IDLEST4				0x002c
+#define OMAP24XX_CM_FCLKEN2       0x0004
+#define OMAP24XX_CM_ICLKEN4       0x001c
+#define OMAP24XX_CM_AUTOIDLE4       0x003c
+#define OMAP24XX_CM_IDLEST4       0x002c
 
 /* CM_IDLEST bit field values to indicate deasserted IdleReq */
 
-#define OMAP24XX_CM_IDLEST_VAL				0
-
+#define OMAP24XX_CM_IDLEST_VAL        0
 
 /* Clock management domain register get/set */
 
@@ -51,7 +50,7 @@ extern int omap2xxx_cm_mpu_retention_allowed(void);
 extern u32 omap2xxx_cm_get_core_clk_src(void);
 extern u32 omap2xxx_cm_get_core_pll_config(void);
 extern void omap2xxx_cm_set_mod_dividers(u32 mpu, u32 dsp, u32 gfx, u32 core,
-					 u32 mdm);
+    u32 mdm);
 
 int __init omap2xxx_cm_init(const struct omap_prcm_init_data *data);
 

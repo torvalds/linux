@@ -12,9 +12,9 @@
 #include <uapi/asm/sgx.h>
 #include "sgx.h"
 
-#define SGX_EINIT_SPIN_COUNT	20
-#define SGX_EINIT_SLEEP_COUNT	50
-#define SGX_EINIT_SLEEP_TIME	20
+#define SGX_EINIT_SPIN_COUNT  20
+#define SGX_EINIT_SLEEP_COUNT 50
+#define SGX_EINIT_SLEEP_TIME  20
 
 extern u64 sgx_attributes_reserved_mask;
 extern u64 sgx_xfrm_reserved_mask;

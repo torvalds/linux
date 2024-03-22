@@ -4,7 +4,6 @@
 
 #include <asm/sni.h>
 
-
 /*
  * Names.
  */
@@ -23,49 +22,43 @@ static int i8042_aux_irq;
 
 static void __iomem *kbd_iobase;
 
-#define I8042_COMMAND_REG	(kbd_iobase + 0x64UL)
-#define I8042_DATA_REG		(kbd_iobase + 0x60UL)
+#define I8042_COMMAND_REG (kbd_iobase + 0x64UL)
+#define I8042_DATA_REG    (kbd_iobase + 0x60UL)
 
-static inline int i8042_read_data(void)
-{
-	return readb(kbd_iobase + 0x60UL);
+static inline int i8042_read_data(void) {
+  return readb(kbd_iobase + 0x60UL);
 }
 
-static inline int i8042_read_status(void)
-{
-	return readb(kbd_iobase + 0x64UL);
+static inline int i8042_read_status(void) {
+  return readb(kbd_iobase + 0x64UL);
 }
 
-static inline void i8042_write_data(int val)
-{
-	writeb(val, kbd_iobase + 0x60UL);
+static inline void i8042_write_data(int val) {
+  writeb(val, kbd_iobase + 0x60UL);
 }
 
-static inline void i8042_write_command(int val)
-{
-	writeb(val, kbd_iobase + 0x64UL);
-}
-static inline int i8042_platform_init(void)
-{
-	/* RM200 is strange ... */
-	if (sni_brd_type == SNI_BRD_RM200) {
-		kbd_iobase = ioremap(0x16000000, 4);
-		i8042_kbd_irq = 33;
-		i8042_aux_irq = 44;
-	} else {
-		kbd_iobase = ioremap(0x14000000, 4);
-		i8042_kbd_irq = 1;
-		i8042_aux_irq = 12;
-	}
-	if (!kbd_iobase)
-		return -ENOMEM;
-
-	return 0;
+static inline void i8042_write_command(int val) {
+  writeb(val, kbd_iobase + 0x64UL);
 }
 
-static inline void i8042_platform_exit(void)
-{
+static inline int i8042_platform_init(void) {
+  /* RM200 is strange ... */
+  if (sni_brd_type == SNI_BRD_RM200) {
+    kbd_iobase = ioremap(0x16000000, 4);
+    i8042_kbd_irq = 33;
+    i8042_aux_irq = 44;
+  } else {
+    kbd_iobase = ioremap(0x14000000, 4);
+    i8042_kbd_irq = 1;
+    i8042_aux_irq = 12;
+  }
+  if (!kbd_iobase) {
+    return -ENOMEM;
+  }
+  return 0;
+}
 
+static inline void i8042_platform_exit(void) {
 }
 
 #endif /* _I8042_SNIRM_H */

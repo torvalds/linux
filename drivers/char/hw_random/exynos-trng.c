@@ -44,184 +44,151 @@
 #define EXYNOS_TRNG_FIFO_LEN       (8)
 #define EXYNOS_TRNG_CLOCK_RATE     (500000)
 
-
 struct exynos_trng_dev {
-	struct device    *dev;
-	void __iomem     *mem;
-	struct clk       *clk;
-	struct hwrng rng;
+  struct device *dev;
+  void __iomem *mem;
+  struct clk *clk;
+  struct hwrng rng;
 };
 
 static int exynos_trng_do_read(struct hwrng *rng, void *data, size_t max,
-			       bool wait)
-{
-	struct exynos_trng_dev *trng;
-	int val;
-
-	max = min_t(size_t, max, (EXYNOS_TRNG_FIFO_LEN * 4));
-
-	trng = (struct exynos_trng_dev *)rng->priv;
-
-	writel_relaxed(max * 8, trng->mem + EXYNOS_TRNG_FIFO_CTRL);
-	val = readl_poll_timeout(trng->mem + EXYNOS_TRNG_FIFO_CTRL, val,
-				 val == 0, 200, 1000000);
-	if (val < 0)
-		return val;
-
-	memcpy_fromio(data, trng->mem + EXYNOS_TRNG_FIFO_0, max);
-
-	return max;
+    bool wait) {
+  struct exynos_trng_dev *trng;
+  int val;
+  max = min_t(size_t, max, (EXYNOS_TRNG_FIFO_LEN * 4));
+  trng = (struct exynos_trng_dev *) rng->priv;
+  writel_relaxed(max * 8, trng->mem + EXYNOS_TRNG_FIFO_CTRL);
+  val = readl_poll_timeout(trng->mem + EXYNOS_TRNG_FIFO_CTRL, val,
+      val == 0, 200, 1000000);
+  if (val < 0) {
+    return val;
+  }
+  memcpy_fromio(data, trng->mem + EXYNOS_TRNG_FIFO_0, max);
+  return max;
 }
 
-static int exynos_trng_init(struct hwrng *rng)
-{
-	struct exynos_trng_dev *trng = (struct exynos_trng_dev *)rng->priv;
-	unsigned long sss_rate;
-	u32 val;
-
-	sss_rate = clk_get_rate(trng->clk);
-
-	/*
-	 * For most TRNG circuits the clock frequency of under 500 kHz
-	 * is safe.
-	 */
-	val = sss_rate / (EXYNOS_TRNG_CLOCK_RATE * 2);
-	if (val > 0x7fff) {
-		dev_err(trng->dev, "clock divider too large: %d", val);
-		return -ERANGE;
-	}
-	val = val << 1;
-	writel_relaxed(val, trng->mem + EXYNOS_TRNG_CLKDIV);
-
-	/* Enable the generator. */
-	val = EXYNOS_TRNG_CTRL_RNGEN;
-	writel_relaxed(val, trng->mem + EXYNOS_TRNG_CTRL);
-
-	/*
-	 * Disable post-processing. /dev/hwrng is supposed to deliver
-	 * unprocessed data.
-	 */
-	writel_relaxed(0, trng->mem + EXYNOS_TRNG_POST_CTRL);
-
-	return 0;
+static int exynos_trng_init(struct hwrng *rng) {
+  struct exynos_trng_dev *trng = (struct exynos_trng_dev *) rng->priv;
+  unsigned long sss_rate;
+  u32 val;
+  sss_rate = clk_get_rate(trng->clk);
+  /*
+   * For most TRNG circuits the clock frequency of under 500 kHz
+   * is safe.
+   */
+  val = sss_rate / (EXYNOS_TRNG_CLOCK_RATE * 2);
+  if (val > 0x7fff) {
+    dev_err(trng->dev, "clock divider too large: %d", val);
+    return -ERANGE;
+  }
+  val = val << 1;
+  writel_relaxed(val, trng->mem + EXYNOS_TRNG_CLKDIV);
+  /* Enable the generator. */
+  val = EXYNOS_TRNG_CTRL_RNGEN;
+  writel_relaxed(val, trng->mem + EXYNOS_TRNG_CTRL);
+  /*
+   * Disable post-processing. /dev/hwrng is supposed to deliver
+   * unprocessed data.
+   */
+  writel_relaxed(0, trng->mem + EXYNOS_TRNG_POST_CTRL);
+  return 0;
 }
 
-static int exynos_trng_probe(struct platform_device *pdev)
-{
-	struct exynos_trng_dev *trng;
-	int ret = -ENOMEM;
-
-	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
-	if (!trng)
-		return ret;
-
-	trng->rng.name = devm_kstrdup(&pdev->dev, dev_name(&pdev->dev),
-				      GFP_KERNEL);
-	if (!trng->rng.name)
-		return ret;
-
-	trng->rng.init = exynos_trng_init;
-	trng->rng.read = exynos_trng_do_read;
-	trng->rng.priv = (unsigned long) trng;
-
-	platform_set_drvdata(pdev, trng);
-	trng->dev = &pdev->dev;
-
-	trng->mem = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(trng->mem))
-		return PTR_ERR(trng->mem);
-
-	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_resume_and_get(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not get runtime PM.\n");
-		goto err_pm_get;
-	}
-
-	trng->clk = devm_clk_get(&pdev->dev, "secss");
-	if (IS_ERR(trng->clk)) {
-		ret = PTR_ERR(trng->clk);
-		dev_err(&pdev->dev, "Could not get clock.\n");
-		goto err_clock;
-	}
-
-	ret = clk_prepare_enable(trng->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not enable the clk.\n");
-		goto err_clock;
-	}
-
-	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
-	if (ret) {
-		dev_err(&pdev->dev, "Could not register hwrng device.\n");
-		goto err_register;
-	}
-
-	dev_info(&pdev->dev, "Exynos True Random Number Generator.\n");
-
-	return 0;
-
+static int exynos_trng_probe(struct platform_device *pdev) {
+  struct exynos_trng_dev *trng;
+  int ret = -ENOMEM;
+  trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
+  if (!trng) {
+    return ret;
+  }
+  trng->rng.name = devm_kstrdup(&pdev->dev, dev_name(&pdev->dev),
+      GFP_KERNEL);
+  if (!trng->rng.name) {
+    return ret;
+  }
+  trng->rng.init = exynos_trng_init;
+  trng->rng.read = exynos_trng_do_read;
+  trng->rng.priv = (unsigned long) trng;
+  platform_set_drvdata(pdev, trng);
+  trng->dev = &pdev->dev;
+  trng->mem = devm_platform_ioremap_resource(pdev, 0);
+  if (IS_ERR(trng->mem)) {
+    return PTR_ERR(trng->mem);
+  }
+  pm_runtime_enable(&pdev->dev);
+  ret = pm_runtime_resume_and_get(&pdev->dev);
+  if (ret < 0) {
+    dev_err(&pdev->dev, "Could not get runtime PM.\n");
+    goto err_pm_get;
+  }
+  trng->clk = devm_clk_get(&pdev->dev, "secss");
+  if (IS_ERR(trng->clk)) {
+    ret = PTR_ERR(trng->clk);
+    dev_err(&pdev->dev, "Could not get clock.\n");
+    goto err_clock;
+  }
+  ret = clk_prepare_enable(trng->clk);
+  if (ret) {
+    dev_err(&pdev->dev, "Could not enable the clk.\n");
+    goto err_clock;
+  }
+  ret = devm_hwrng_register(&pdev->dev, &trng->rng);
+  if (ret) {
+    dev_err(&pdev->dev, "Could not register hwrng device.\n");
+    goto err_register;
+  }
+  dev_info(&pdev->dev, "Exynos True Random Number Generator.\n");
+  return 0;
 err_register:
-	clk_disable_unprepare(trng->clk);
-
+  clk_disable_unprepare(trng->clk);
 err_clock:
-	pm_runtime_put_noidle(&pdev->dev);
-
+  pm_runtime_put_noidle(&pdev->dev);
 err_pm_get:
-	pm_runtime_disable(&pdev->dev);
-
-	return ret;
+  pm_runtime_disable(&pdev->dev);
+  return ret;
 }
 
-static void exynos_trng_remove(struct platform_device *pdev)
-{
-	struct exynos_trng_dev *trng =  platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(trng->clk);
-
-	pm_runtime_put_sync(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+static void exynos_trng_remove(struct platform_device *pdev) {
+  struct exynos_trng_dev *trng = platform_get_drvdata(pdev);
+  clk_disable_unprepare(trng->clk);
+  pm_runtime_put_sync(&pdev->dev);
+  pm_runtime_disable(&pdev->dev);
 }
 
-static int exynos_trng_suspend(struct device *dev)
-{
-	pm_runtime_put_sync(dev);
-
-	return 0;
+static int exynos_trng_suspend(struct device *dev) {
+  pm_runtime_put_sync(dev);
+  return 0;
 }
 
-static int exynos_trng_resume(struct device *dev)
-{
-	int ret;
-
-	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0) {
-		dev_err(dev, "Could not get runtime PM.\n");
-		return ret;
-	}
-
-	return 0;
+static int exynos_trng_resume(struct device *dev) {
+  int ret;
+  ret = pm_runtime_resume_and_get(dev);
+  if (ret < 0) {
+    dev_err(dev, "Could not get runtime PM.\n");
+    return ret;
+  }
+  return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(exynos_trng_pm_ops, exynos_trng_suspend,
-			 exynos_trng_resume);
+    exynos_trng_resume);
 
 static const struct of_device_id exynos_trng_dt_match[] = {
-	{
-		.compatible = "samsung,exynos5250-trng",
-	},
-	{ },
+  {
+    .compatible = "samsung,exynos5250-trng",
+  },
+  {},
 };
 MODULE_DEVICE_TABLE(of, exynos_trng_dt_match);
 
 static struct platform_driver exynos_trng_driver = {
-	.driver = {
-		.name = "exynos-trng",
-		.pm = pm_sleep_ptr(&exynos_trng_pm_ops),
-		.of_match_table = exynos_trng_dt_match,
-	},
-	.probe = exynos_trng_probe,
-	.remove_new = exynos_trng_remove,
+  .driver = {
+    .name = "exynos-trng",
+    .pm = pm_sleep_ptr(&exynos_trng_pm_ops),
+    .of_match_table = exynos_trng_dt_match,
+  },
+  .probe = exynos_trng_probe,
+  .remove_new = exynos_trng_remove,
 };
 
 module_platform_driver(exynos_trng_driver);

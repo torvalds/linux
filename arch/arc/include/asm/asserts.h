@@ -16,19 +16,19 @@ void chk_opt_weak(char *opt_name, bool hw_exists, bool opt_ena);
  * Check required config option:
  *  - panic in case of OPT enabled but corresponding HW absent.
  *  - warn in case of OPT disabled but corresponding HW exists.
-*/
-#define CHK_OPT_STRICT(opt_name, hw_exists)				\
-({									\
-	chk_opt_strict(#opt_name, hw_exists, IS_ENABLED(opt_name));	\
-})
+ */
+#define CHK_OPT_STRICT(opt_name, hw_exists)       \
+  ({                  \
+    chk_opt_strict(#opt_name, hw_exists, IS_ENABLED(opt_name)); \
+  })
 
 /*
  * Check optional config option:
  *  - panic in case of OPT enabled but corresponding HW absent.
-*/
-#define CHK_OPT_WEAK(opt_name, hw_exists)				\
-({									\
-	chk_opt_weak(#opt_name, hw_exists, IS_ENABLED(opt_name));	\
-})
+ */
+#define CHK_OPT_WEAK(opt_name, hw_exists)       \
+  ({                  \
+    chk_opt_weak(#opt_name, hw_exists, IS_ENABLED(opt_name)); \
+  })
 
 #endif /* __ASM_ARC_ASSERTS_H */

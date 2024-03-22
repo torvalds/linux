@@ -3,7 +3,6 @@
  * Copyright 2004-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
-
 #ifndef __ASM_ARCH_MXC_COMMON_H__
 #define __ASM_ARCH_MXC_COMMON_H__
 
@@ -44,20 +43,20 @@ void imx27_pm_init(void);
 void imx5_pmu_init(void);
 
 enum mxc_cpu_pwr_mode {
-	WAIT_CLOCKED,		/* wfi only */
-	WAIT_UNCLOCKED,		/* WAIT */
-	WAIT_UNCLOCKED_POWER_OFF,	/* WAIT + SRPG */
-	STOP_POWER_ON,		/* just STOP */
-	STOP_POWER_OFF,		/* STOP + SRPG */
+  WAIT_CLOCKED,   /* wfi only */
+  WAIT_UNCLOCKED,   /* WAIT */
+  WAIT_UNCLOCKED_POWER_OFF, /* WAIT + SRPG */
+  STOP_POWER_ON,    /* just STOP */
+  STOP_POWER_OFF,   /* STOP + SRPG */
 };
 
 enum ulp_cpu_pwr_mode {
-	ULP_PM_HSRUN,    /* High speed run mode */
-	ULP_PM_RUN,      /* Run mode */
-	ULP_PM_WAIT,     /* Wait mode */
-	ULP_PM_STOP,     /* Stop mode */
-	ULP_PM_VLPS,     /* Very low power stop mode */
-	ULP_PM_VLLS,     /* very low leakage stop mode */
+  ULP_PM_HSRUN,    /* High speed run mode */
+  ULP_PM_RUN,      /* Run mode */
+  ULP_PM_WAIT,     /* Wait mode */
+  ULP_PM_STOP,     /* Stop mode */
+  ULP_PM_VLPS,     /* Very low power stop mode */
+  ULP_PM_VLLS,     /* very low leakage stop mode */
 };
 
 void imx_enable_cpu(int cpu, bool enable);
@@ -69,8 +68,12 @@ void v7_secondary_startup(void);
 void imx_scu_map_io(void);
 void imx_smp_prepare(void);
 #else
-static inline void imx_scu_map_io(void) {}
-static inline void imx_smp_prepare(void) {}
+static inline void imx_scu_map_io(void) {
+}
+
+static inline void imx_smp_prepare(void) {
+}
+
 #endif
 void imx_src_init(void);
 void imx7_src_init(void);
@@ -97,9 +100,13 @@ void imx53_suspend(void __iomem *ocram_vbase);
 extern const u32 imx53_suspend_sz;
 void imx6_suspend(void __iomem *ocram_vbase);
 #else
-static inline void imx53_suspend(void __iomem *ocram_vbase) {}
+static inline void imx53_suspend(void __iomem *ocram_vbase) {
+}
+
 static const u32 imx53_suspend_sz;
-static inline void imx6_suspend(void __iomem *ocram_vbase) {}
+static inline void imx6_suspend(void __iomem *ocram_vbase) {
+}
+
 #endif
 
 void v7_cpu_resume(void);
@@ -116,20 +123,29 @@ void imx7ulp_pm_init(void);
 void imx51_pm_init(void);
 void imx53_pm_init(void);
 #else
-static inline void imx51_pm_init(void) {}
-static inline void imx53_pm_init(void) {}
+static inline void imx51_pm_init(void) {
+}
+
+static inline void imx53_pm_init(void) {
+}
+
 #endif
 
 #ifdef CONFIG_NEON
 int mx51_neon_fixup(void);
 #else
-static inline int mx51_neon_fixup(void) { return 0; }
+static inline int mx51_neon_fixup(void) {
+  return 0;
+}
+
 #endif
 
 #ifdef CONFIG_CACHE_L2X0
 void imx_init_l2cache(void);
 #else
-static inline void imx_init_l2cache(void) {}
+static inline void imx_init_l2cache(void) {
+}
+
 #endif
 
 extern const struct smp_operations imx_smp_ops;

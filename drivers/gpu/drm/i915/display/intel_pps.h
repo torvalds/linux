@@ -18,10 +18,11 @@ struct intel_dp;
 struct intel_encoder;
 
 intel_wakeref_t intel_pps_lock(struct intel_dp *intel_dp);
-intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp, intel_wakeref_t wakeref);
+intel_wakeref_t intel_pps_unlock(struct intel_dp *intel_dp,
+    intel_wakeref_t wakeref);
 
-#define with_intel_pps_lock(dp, wf)						\
-	for ((wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
+#define with_intel_pps_lock(dp, wf)           \
+  for ((wf) = intel_pps_lock(dp); (wf); (wf) = intel_pps_unlock((dp), (wf)))
 
 void intel_pps_backlight_on(struct intel_dp *intel_dp);
 void intel_pps_backlight_off(struct intel_dp *intel_dp);
@@ -46,7 +47,7 @@ void intel_pps_encoder_reset(struct intel_dp *intel_dp);
 void intel_pps_reset_all(struct drm_i915_private *i915);
 
 void vlv_pps_init(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state);
+    const struct intel_crtc_state *crtc_state);
 
 void intel_pps_unlock_regs_wa(struct drm_i915_private *i915);
 void intel_pps_setup(struct drm_i915_private *i915);

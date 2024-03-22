@@ -2,18 +2,18 @@
 /*
  *  Copyright IBM Corp. 2001, 2023
  *  Author(s): Robert Burroughs
- *	       Eric Rossman (edrossma@us.ibm.com)
+ *         Eric Rossman (edrossma@us.ibm.com)
  *
  *  Hotplug & misc device support: Jochen Roehrig (roehrig@de.ibm.com)
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
- *  MSGTYPE restruct:		  Holger Dengler <hd@linux.vnet.ibm.com>
+ *  MSGTYPE restruct:     Holger Dengler <hd@linux.vnet.ibm.com>
  */
 
 #ifndef _ZCRYPT_MSGTYPE50_H_
 #define _ZCRYPT_MSGTYPE50_H_
 
-#define MSGTYPE50_NAME			"zcrypt_msgtype50"
-#define MSGTYPE50_VARIANT_DEFAULT	0
+#define MSGTYPE50_NAME      "zcrypt_msgtype50"
+#define MSGTYPE50_VARIANT_DEFAULT 0
 
 #define MSGTYPE50_CRB3_MAX_MSG_SIZE 0x710 /* sizeof(struct type50_crb3_msg) */
 

@@ -17,30 +17,30 @@
 #include <linux/rio.h>
 
 extern int __rio_local_read_config_32(struct rio_mport *port, u32 offset,
-				      u32 * data);
+    u32 *data);
 extern int __rio_local_write_config_32(struct rio_mport *port, u32 offset,
-				       u32 data);
+    u32 data);
 extern int __rio_local_read_config_16(struct rio_mport *port, u32 offset,
-				      u16 * data);
+    u16 *data);
 extern int __rio_local_write_config_16(struct rio_mport *port, u32 offset,
-				       u16 data);
+    u16 data);
 extern int __rio_local_read_config_8(struct rio_mport *port, u32 offset,
-				     u8 * data);
+    u8 *data);
 extern int __rio_local_write_config_8(struct rio_mport *port, u32 offset,
-				      u8 data);
+    u8 data);
 
 extern int rio_mport_read_config_32(struct rio_mport *port, u16 destid,
-				    u8 hopcount, u32 offset, u32 * data);
+    u8 hopcount, u32 offset, u32 *data);
 extern int rio_mport_write_config_32(struct rio_mport *port, u16 destid,
-				     u8 hopcount, u32 offset, u32 data);
+    u8 hopcount, u32 offset, u32 data);
 extern int rio_mport_read_config_16(struct rio_mport *port, u16 destid,
-				    u8 hopcount, u32 offset, u16 * data);
+    u8 hopcount, u32 offset, u16 *data);
 extern int rio_mport_write_config_16(struct rio_mport *port, u16 destid,
-				     u8 hopcount, u32 offset, u16 data);
+    u8 hopcount, u32 offset, u16 data);
 extern int rio_mport_read_config_8(struct rio_mport *port, u16 destid,
-				   u8 hopcount, u32 offset, u8 * data);
+    u8 hopcount, u32 offset, u8 *data);
 extern int rio_mport_write_config_8(struct rio_mport *port, u16 destid,
-				    u8 hopcount, u32 offset, u8 data);
+    u8 hopcount, u32 offset, u8 data);
 
 /**
  * rio_local_read_config_32 - Read 32 bits from local configuration space
@@ -52,9 +52,8 @@ extern int rio_mport_write_config_8(struct rio_mport *port, u16 destid,
  * device's configuration space.
  */
 static inline int rio_local_read_config_32(struct rio_mport *port, u32 offset,
-					   u32 * data)
-{
-	return __rio_local_read_config_32(port, offset, data);
+    u32 *data) {
+  return __rio_local_read_config_32(port, offset, data);
 }
 
 /**
@@ -67,9 +66,8 @@ static inline int rio_local_read_config_32(struct rio_mport *port, u32 offset,
  * device's configuration space.
  */
 static inline int rio_local_write_config_32(struct rio_mport *port, u32 offset,
-					    u32 data)
-{
-	return __rio_local_write_config_32(port, offset, data);
+    u32 data) {
+  return __rio_local_write_config_32(port, offset, data);
 }
 
 /**
@@ -82,9 +80,8 @@ static inline int rio_local_write_config_32(struct rio_mport *port, u32 offset,
  * device's configuration space.
  */
 static inline int rio_local_read_config_16(struct rio_mport *port, u32 offset,
-					   u16 * data)
-{
-	return __rio_local_read_config_16(port, offset, data);
+    u16 *data) {
+  return __rio_local_read_config_16(port, offset, data);
 }
 
 /**
@@ -98,9 +95,8 @@ static inline int rio_local_read_config_16(struct rio_mport *port, u32 offset,
  */
 
 static inline int rio_local_write_config_16(struct rio_mport *port, u32 offset,
-					    u16 data)
-{
-	return __rio_local_write_config_16(port, offset, data);
+    u16 data) {
+  return __rio_local_write_config_16(port, offset, data);
 }
 
 /**
@@ -113,9 +109,8 @@ static inline int rio_local_write_config_16(struct rio_mport *port, u32 offset,
  * device's configuration space.
  */
 static inline int rio_local_read_config_8(struct rio_mport *port, u32 offset,
-					  u8 * data)
-{
-	return __rio_local_read_config_8(port, offset, data);
+    u8 *data) {
+  return __rio_local_read_config_8(port, offset, data);
 }
 
 /**
@@ -128,9 +123,8 @@ static inline int rio_local_read_config_8(struct rio_mport *port, u32 offset,
  * device's configuration space.
  */
 static inline int rio_local_write_config_8(struct rio_mport *port, u32 offset,
-					   u8 data)
-{
-	return __rio_local_write_config_8(port, offset, data);
+    u8 data) {
+  return __rio_local_write_config_8(port, offset, data);
 }
 
 /**
@@ -143,11 +137,10 @@ static inline int rio_local_write_config_8(struct rio_mport *port, u32 offset,
  * RIO device's configuration space.
  */
 static inline int rio_read_config_32(struct rio_dev *rdev, u32 offset,
-				     u32 * data)
-{
-	return rio_mport_read_config_32(rdev->net->hport, rdev->destid,
-					rdev->hopcount, offset, data);
-};
+    u32 *data) {
+  return rio_mport_read_config_32(rdev->net->hport, rdev->destid,
+      rdev->hopcount, offset, data);
+}
 
 /**
  * rio_write_config_32 - Write 32 bits to configuration space
@@ -159,11 +152,10 @@ static inline int rio_read_config_32(struct rio_dev *rdev, u32 offset,
  * RIO device's configuration space.
  */
 static inline int rio_write_config_32(struct rio_dev *rdev, u32 offset,
-				      u32 data)
-{
-	return rio_mport_write_config_32(rdev->net->hport, rdev->destid,
-					 rdev->hopcount, offset, data);
-};
+    u32 data) {
+  return rio_mport_write_config_32(rdev->net->hport, rdev->destid,
+      rdev->hopcount, offset, data);
+}
 
 /**
  * rio_read_config_16 - Read 16 bits from configuration space
@@ -175,11 +167,10 @@ static inline int rio_write_config_32(struct rio_dev *rdev, u32 offset,
  * RIO device's configuration space.
  */
 static inline int rio_read_config_16(struct rio_dev *rdev, u32 offset,
-				     u16 * data)
-{
-	return rio_mport_read_config_16(rdev->net->hport, rdev->destid,
-					rdev->hopcount, offset, data);
-};
+    u16 *data) {
+  return rio_mport_read_config_16(rdev->net->hport, rdev->destid,
+      rdev->hopcount, offset, data);
+}
 
 /**
  * rio_write_config_16 - Write 16 bits to configuration space
@@ -191,11 +182,10 @@ static inline int rio_read_config_16(struct rio_dev *rdev, u32 offset,
  * RIO device's configuration space.
  */
 static inline int rio_write_config_16(struct rio_dev *rdev, u32 offset,
-				      u16 data)
-{
-	return rio_mport_write_config_16(rdev->net->hport, rdev->destid,
-					 rdev->hopcount, offset, data);
-};
+    u16 data) {
+  return rio_mport_write_config_16(rdev->net->hport, rdev->destid,
+      rdev->hopcount, offset, data);
+}
 
 /**
  * rio_read_config_8 - Read 8 bits from configuration space
@@ -206,11 +196,11 @@ static inline int rio_write_config_16(struct rio_dev *rdev, u32 offset,
  * Reads 8 bits of data from the specified offset within the
  * RIO device's configuration space.
  */
-static inline int rio_read_config_8(struct rio_dev *rdev, u32 offset, u8 * data)
-{
-	return rio_mport_read_config_8(rdev->net->hport, rdev->destid,
-				       rdev->hopcount, offset, data);
-};
+static inline int rio_read_config_8(struct rio_dev *rdev, u32 offset,
+    u8 *data) {
+  return rio_mport_read_config_8(rdev->net->hport, rdev->destid,
+      rdev->hopcount, offset, data);
+}
 
 /**
  * rio_write_config_8 - Write 8 bits to configuration space
@@ -221,14 +211,14 @@ static inline int rio_read_config_8(struct rio_dev *rdev, u32 offset, u8 * data)
  * Writes 8 bits of data to the specified offset within the
  * RIO device's configuration space.
  */
-static inline int rio_write_config_8(struct rio_dev *rdev, u32 offset, u8 data)
-{
-	return rio_mport_write_config_8(rdev->net->hport, rdev->destid,
-					rdev->hopcount, offset, data);
-};
+static inline int rio_write_config_8(struct rio_dev *rdev, u32 offset,
+    u8 data) {
+  return rio_mport_write_config_8(rdev->net->hport, rdev->destid,
+      rdev->hopcount, offset, data);
+}
 
 extern int rio_mport_send_doorbell(struct rio_mport *mport, u16 destid,
-				   u16 data);
+    u16 data);
 
 /**
  * rio_send_doorbell - Send a doorbell message to a device
@@ -238,10 +228,9 @@ extern int rio_mport_send_doorbell(struct rio_mport *mport, u16 destid,
  * Send a doorbell message to a RIO device. The doorbell message
  * has a 16-bit info field provided by the @data argument.
  */
-static inline int rio_send_doorbell(struct rio_dev *rdev, u16 data)
-{
-	return rio_mport_send_doorbell(rdev->net->hport, rdev->destid, data);
-};
+static inline int rio_send_doorbell(struct rio_dev *rdev, u16 data) {
+  return rio_mport_send_doorbell(rdev->net->hport, rdev->destid, data);
+}
 
 /**
  * rio_init_mbox_res - Initialize a RIO mailbox resource
@@ -253,12 +242,11 @@ static inline int rio_send_doorbell(struct rio_dev *rdev, u16 data)
  * for use as a mailbox resource.  It initializes a range of
  * mailboxes using the start and end arguments.
  */
-static inline void rio_init_mbox_res(struct resource *res, int start, int end)
-{
-	memset(res, 0, sizeof(struct resource));
-	res->start = start;
-	res->end = end;
-	res->flags = RIO_RESOURCE_MAILBOX;
+static inline void rio_init_mbox_res(struct resource *res, int start, int end) {
+  memset(res, 0, sizeof(struct resource));
+  res->start = start;
+  res->end = end;
+  res->flags = RIO_RESOURCE_MAILBOX;
 }
 
 /**
@@ -271,12 +259,12 @@ static inline void rio_init_mbox_res(struct resource *res, int start, int end)
  * for use as a doorbell resource.  It initializes a range of
  * doorbell messages using the start and end arguments.
  */
-static inline void rio_init_dbell_res(struct resource *res, u16 start, u16 end)
-{
-	memset(res, 0, sizeof(struct resource));
-	res->start = start;
-	res->end = end;
-	res->flags = RIO_RESOURCE_DOORBELL;
+static inline void rio_init_dbell_res(struct resource *res, u16 start,
+    u16 end) {
+  memset(res, 0, sizeof(struct resource));
+  res->start = start;
+  res->end = end;
+  res->flags = RIO_RESOURCE_DOORBELL;
 }
 
 /**
@@ -288,13 +276,13 @@ static inline void rio_init_dbell_res(struct resource *res, u16 start, u16 end)
  * specific device.  The assembly vendor and assembly device fields
  * will be set to %RIO_ANY_ID.
  */
-#define RIO_DEVICE(dev,ven) \
-	.did = (dev), .vid = (ven), \
-	.asm_did = RIO_ANY_ID, .asm_vid = RIO_ANY_ID
+#define RIO_DEVICE(dev, ven) \
+  .did = (dev), .vid = (ven), \
+  .asm_did = RIO_ANY_ID, .asm_vid = RIO_ANY_ID
 
 /* Mailbox management */
 extern int rio_request_outb_mbox(struct rio_mport *, void *, int, int,
-				 void (*)(struct rio_mport *, void *,int, int));
+    void (*)(struct rio_mport *, void *, int, int));
 extern int rio_release_outb_mbox(struct rio_mport *, int);
 
 /**
@@ -309,15 +297,14 @@ extern int rio_release_outb_mbox(struct rio_mport *, int);
  * transmission. Returns 0 on success.
  */
 static inline int rio_add_outb_message(struct rio_mport *mport,
-				       struct rio_dev *rdev, int mbox,
-				       void *buffer, size_t len)
-{
-	return mport->ops->add_outb_message(mport, rdev, mbox,
-						   buffer, len);
+    struct rio_dev *rdev, int mbox,
+    void *buffer, size_t len) {
+  return mport->ops->add_outb_message(mport, rdev, mbox,
+      buffer, len);
 }
 
 extern int rio_request_inb_mbox(struct rio_mport *, void *, int, int,
-				void (*)(struct rio_mport *, void *, int, int));
+    void (*)(struct rio_mport *, void *, int, int));
 extern int rio_release_inb_mbox(struct rio_mport *, int);
 
 /**
@@ -330,9 +317,8 @@ extern int rio_release_inb_mbox(struct rio_mport *, int);
  * 0 on success.
  */
 static inline int rio_add_inb_buffer(struct rio_mport *mport, int mbox,
-				     void *buffer)
-{
-	return mport->ops->add_inb_buffer(mport, mbox, buffer);
+    void *buffer) {
+  return mport->ops->add_inb_buffer(mport, mbox, buffer);
 }
 
 /**
@@ -342,14 +328,13 @@ static inline int rio_add_inb_buffer(struct rio_mport *mport, int mbox,
  *
  * Get a RIO message from an inbound mailbox queue. Returns 0 on success.
  */
-static inline void *rio_get_inb_message(struct rio_mport *mport, int mbox)
-{
-	return mport->ops->get_inb_message(mport, mbox);
+static inline void *rio_get_inb_message(struct rio_mport *mport, int mbox) {
+  return mport->ops->get_inb_message(mport, mbox);
 }
 
 /* Doorbell management */
 extern int rio_request_inb_dbell(struct rio_mport *, void *, u16, u16,
-				 void (*)(struct rio_mport *, void *, u16, u16, u16));
+    void (*)(struct rio_mport *, void *, u16, u16, u16));
 extern int rio_release_inb_dbell(struct rio_mport *, u16, u16);
 extern struct resource *rio_request_outb_dbell(struct rio_dev *, u16, u16);
 extern int rio_release_outb_dbell(struct rio_dev *, struct resource *);
@@ -363,25 +348,25 @@ void rio_release_region(struct rio_dev *, int);
 
 /* Memory mapping functions */
 extern int rio_map_inb_region(struct rio_mport *mport, dma_addr_t local,
-			u64 rbase, u32 size, u32 rflags);
+    u64 rbase, u32 size, u32 rflags);
 extern void rio_unmap_inb_region(struct rio_mport *mport, dma_addr_t lstart);
 extern int rio_map_outb_region(struct rio_mport *mport, u16 destid, u64 rbase,
-			u32 size, u32 rflags, dma_addr_t *local);
+    u32 size, u32 rflags, dma_addr_t *local);
 extern void rio_unmap_outb_region(struct rio_mport *mport,
-				  u16 destid, u64 rstart);
+    u16 destid, u64 rstart);
 
 /* Port-Write management */
 extern int rio_request_inb_pwrite(struct rio_dev *,
-			int (*)(struct rio_dev *, union rio_pw_msg*, int));
+    int (*)(struct rio_dev *, union rio_pw_msg *, int));
 extern int rio_release_inb_pwrite(struct rio_dev *);
 extern int rio_add_mport_pw_handler(struct rio_mport *mport, void *dev_id,
-			int (*pwcback)(struct rio_mport *mport, void *dev_id,
-			union rio_pw_msg *msg, int step));
+    int (*pwcback)(struct rio_mport *mport, void *dev_id,
+    union rio_pw_msg *msg, int step));
 extern int rio_del_mport_pw_handler(struct rio_mport *mport, void *dev_id,
-			int (*pwcback)(struct rio_mport *mport, void *dev_id,
-			union rio_pw_msg *msg, int step));
+    int (*pwcback)(struct rio_mport *mport, void *dev_id,
+    union rio_pw_msg *msg, int step));
 extern int rio_inb_pwrite_handler(struct rio_mport *mport,
-				  union rio_pw_msg *pw_msg);
+    union rio_pw_msg *pw_msg);
 extern void rio_pw_enable(struct rio_mport *mport, int enable);
 
 /* LDM support */
@@ -395,13 +380,13 @@ extern struct dma_chan *rio_request_dma(struct rio_dev *rdev);
 extern struct dma_chan *rio_request_mport_dma(struct rio_mport *mport);
 extern void rio_release_dma(struct dma_chan *dchan);
 extern struct dma_async_tx_descriptor *rio_dma_prep_slave_sg(
-		struct rio_dev *rdev, struct dma_chan *dchan,
-		struct rio_dma_data *data,
-		enum dma_transfer_direction direction, unsigned long flags);
+  struct rio_dev *rdev, struct dma_chan *dchan,
+  struct rio_dma_data *data,
+  enum dma_transfer_direction direction, unsigned long flags);
 extern struct dma_async_tx_descriptor *rio_dma_prep_xfer(
-		struct dma_chan *dchan,	u16 destid,
-		struct rio_dma_data *data,
-		enum dma_transfer_direction direction, unsigned long flags);
+  struct dma_chan *dchan, u16 destid,
+  struct rio_dma_data *data,
+  enum dma_transfer_direction direction, unsigned long flags);
 #endif
 
 /**
@@ -411,9 +396,8 @@ extern struct dma_async_tx_descriptor *rio_dma_prep_xfer(
  * Get the unique RIO device identifier. Returns the device
  * identifier string.
  */
-static inline const char *rio_name(struct rio_dev *rdev)
-{
-	return dev_name(&rdev->dev);
+static inline const char *rio_name(struct rio_dev *rdev) {
+  return dev_name(&rdev->dev);
 }
 
 /**
@@ -423,9 +407,8 @@ static inline const char *rio_name(struct rio_dev *rdev)
  * Get RIO driver specific data. Returns a pointer to the
  * driver specific data.
  */
-static inline void *rio_get_drvdata(struct rio_dev *rdev)
-{
-	return dev_get_drvdata(&rdev->dev);
+static inline void *rio_get_drvdata(struct rio_dev *rdev) {
+  return dev_get_drvdata(&rdev->dev);
 }
 
 /**
@@ -436,9 +419,8 @@ static inline void *rio_get_drvdata(struct rio_dev *rdev)
  * Set RIO driver specific data. device struct driver data pointer
  * is set to the @data argument.
  */
-static inline void rio_set_drvdata(struct rio_dev *rdev, void *data)
-{
-	dev_set_drvdata(&rdev->dev, data);
+static inline void rio_set_drvdata(struct rio_dev *rdev, void *data) {
+  dev_set_drvdata(&rdev->dev, data);
 }
 
 /* Misc driver helpers */
@@ -446,4 +428,4 @@ extern u16 rio_local_get_device_id(struct rio_mport *port);
 extern void rio_local_set_device_id(struct rio_mport *port, u16 did);
 extern int rio_init_mports(void);
 
-#endif				/* LINUX_RIO_DRV_H */
+#endif        /* LINUX_RIO_DRV_H */

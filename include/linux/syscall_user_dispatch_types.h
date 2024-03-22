@@ -7,10 +7,10 @@
 #ifdef CONFIG_GENERIC_ENTRY
 
 struct syscall_user_dispatch {
-	char __user	*selector;
-	unsigned long	offset;
-	unsigned long	len;
-	bool		on_dispatch;
+  char __user *selector;
+  unsigned long offset;
+  unsigned long len;
+  bool on_dispatch;
 };
 
 #else

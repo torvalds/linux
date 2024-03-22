@@ -4,32 +4,33 @@
 #define nvkm_mc(p) container_of((p), struct nvkm_mc, subdev)
 #include <subdev/mc.h>
 
-int nvkm_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		 struct nvkm_mc **);
+int nvkm_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_mc **);
 
 struct nvkm_mc_map {
-	u32 stat;
-	enum nvkm_subdev_type type;
-	int inst;
-	bool noauto;
+  u32 stat;
+  enum nvkm_subdev_type type;
+  int inst;
+  bool noauto;
 };
 
 struct nvkm_mc_func {
-	void (*init)(struct nvkm_mc *);
+  void (*init)(struct nvkm_mc *);
 
-	const struct nvkm_intr_func *intr;
-	const struct nvkm_intr_data *intrs;
-	bool intr_nonstall;
+  const struct nvkm_intr_func *intr;
+  const struct nvkm_intr_data *intrs;
+  bool intr_nonstall;
 
-	const struct nvkm_mc_device_func {
-		bool (*enabled)(struct nvkm_mc *, u32 mask);
-		void (*enable)(struct nvkm_mc *, u32 mask);
-		void (*disable)(struct nvkm_mc *, u32 mask);
-	} *device;
+  const struct nvkm_mc_device_func {
+    bool (*enabled)(struct nvkm_mc *, u32 mask);
+    void (*enable)(struct nvkm_mc *, u32 mask);
+    void (*disable)(struct nvkm_mc *, u32 mask);
+  } *device;
 
-	const struct nvkm_mc_map *reset;
+  const struct nvkm_mc_map *reset;
 
-	void (*unk260)(struct nvkm_mc *, u32);
+  void (*unk260)(struct nvkm_mc *, u32);
 };
 
 void nv04_mc_init(struct nvkm_mc *);

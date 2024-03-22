@@ -17,19 +17,19 @@ extern const struct file_operations debugfs_open_proxy_file_operations;
 extern const struct file_operations debugfs_full_proxy_file_operations;
 
 struct debugfs_fsdata {
-	const struct file_operations *real_fops;
-	union {
-		/* automount_fn is used when real_fops is NULL */
-		debugfs_automount_t automount;
-		struct {
-			refcount_t active_users;
-			struct completion active_users_drained;
+  const struct file_operations *real_fops;
+  union {
+    /* automount_fn is used when real_fops is NULL */
+    debugfs_automount_t automount;
+    struct {
+      refcount_t active_users;
+      struct completion active_users_drained;
 
-			/* protect cancellations */
-			struct mutex cancellations_mtx;
-			struct list_head cancellations;
-		};
-	};
+      /* protect cancellations */
+      struct mutex cancellations_mtx;
+      struct list_head cancellations;
+    };
+  };
 };
 
 /*
@@ -41,8 +41,8 @@ struct debugfs_fsdata {
 #define DEBUGFS_FSDATA_IS_REAL_FOPS_BIT BIT(0)
 
 /* Access BITS */
-#define DEBUGFS_ALLOW_API	BIT(0)
-#define DEBUGFS_ALLOW_MOUNT	BIT(1)
+#define DEBUGFS_ALLOW_API BIT(0)
+#define DEBUGFS_ALLOW_MOUNT BIT(1)
 
 #ifdef CONFIG_DEBUG_FS_ALLOW_ALL
 #define DEFAULT_DEBUGFS_ALLOW_BITS (DEBUGFS_ALLOW_MOUNT | DEBUGFS_ALLOW_API)

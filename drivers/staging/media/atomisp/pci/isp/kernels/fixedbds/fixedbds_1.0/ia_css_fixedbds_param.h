@@ -27,7 +27,7 @@
 #endif
 
 struct sh_css_isp_bds_params {
-	int baf_strength;
+  int baf_strength;
 };
 
 #endif /* __IA_CSS_FIXEDBDS_PARAM_H */

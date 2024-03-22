@@ -7,8 +7,8 @@
 #include <linux/workqueue.h>
 
 enum {
-	ICQ_EXITED		= 1 << 2,
-	ICQ_DESTROYED		= 1 << 3,
+  ICQ_EXITED = 1 << 2,
+  ICQ_DESTROYED = 1 << 3,
 };
 
 /*
@@ -23,18 +23,18 @@ enum {
  * the first member followed by private members and using its size and
  * align.  For example,
  *
- *	struct snail_io_cq {
- *		struct io_cq	icq;
- *		int		poke_snail;
- *		int		feed_snail;
- *	};
+ *  struct snail_io_cq {
+ *    struct io_cq  icq;
+ *    int   poke_snail;
+ *    int   feed_snail;
+ *  };
  *
- *	struct elevator_type snail_elv_type {
- *		.ops =		{ ... },
- *		.icq_size =	sizeof(struct snail_io_cq),
- *		.icq_align =	__alignof__(struct snail_io_cq),
- *		...
- *	};
+ *  struct elevator_type snail_elv_type {
+ *    .ops =    { ... },
+ *    .icq_size = sizeof(struct snail_io_cq),
+ *    .icq_align =  __alignof__(struct snail_io_cq),
+ *    ...
+ *  };
  *
  * If icq_size is set, block core will manage icq's.  All requests will
  * have its ->elv.icq field set before elevator_ops->elevator_set_req_fn()
@@ -71,25 +71,25 @@ enum {
  *   requires reverse-order double lock dance.
  */
 struct io_cq {
-	struct request_queue	*q;
-	struct io_context	*ioc;
+  struct request_queue *q;
+  struct io_context *ioc;
 
-	/*
-	 * q_node and ioc_node link io_cq through icq_list of q and ioc
-	 * respectively.  Both fields are unused once ioc_exit_icq() is
-	 * called and shared with __rcu_icq_cache and __rcu_head which are
-	 * used for RCU free of io_cq.
-	 */
-	union {
-		struct list_head	q_node;
-		struct kmem_cache	*__rcu_icq_cache;
-	};
-	union {
-		struct hlist_node	ioc_node;
-		struct rcu_head		__rcu_head;
-	};
+  /*
+   * q_node and ioc_node link io_cq through icq_list of q and ioc
+   * respectively.  Both fields are unused once ioc_exit_icq() is
+   * called and shared with __rcu_icq_cache and __rcu_head which are
+   * used for RCU free of io_cq.
+   */
+  union {
+    struct list_head q_node;
+    struct kmem_cache *__rcu_icq_cache;
+  };
+  union {
+    struct hlist_node ioc_node;
+    struct rcu_head __rcu_head;
+  };
 
-	unsigned int		flags;
+  unsigned int flags;
 };
 
 /*
@@ -97,20 +97,20 @@ struct io_cq {
  * and kmalloc'ed. These could be shared between processes.
  */
 struct io_context {
-	atomic_long_t refcount;
-	atomic_t active_ref;
+  atomic_long_t refcount;
+  atomic_t active_ref;
 
-	unsigned short ioprio;
+  unsigned short ioprio;
 
 #ifdef CONFIG_BLK_ICQ
-	/* all the fields below are protected by this lock */
-	spinlock_t lock;
+  /* all the fields below are protected by this lock */
+  spinlock_t lock;
 
-	struct radix_tree_root	icq_tree;
-	struct io_cq __rcu	*icq_hint;
-	struct hlist_head	icq_list;
+  struct radix_tree_root icq_tree;
+  struct io_cq __rcu *icq_hint;
+  struct hlist_head icq_list;
 
-	struct work_struct release_work;
+  struct work_struct release_work;
 #endif /* CONFIG_BLK_ICQ */
 };
 
@@ -119,20 +119,25 @@ struct task_struct;
 void put_io_context(struct io_context *ioc);
 void exit_io_context(struct task_struct *task);
 int __copy_io(unsigned long clone_flags, struct task_struct *tsk);
-static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
-{
-	if (!current->io_context)
-		return 0;
-	return __copy_io(clone_flags, tsk);
+static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk) {
+  if (!current->io_context) {
+    return 0;
+  }
+  return __copy_io(clone_flags, tsk);
 }
+
 #else
 struct io_context;
-static inline void put_io_context(struct io_context *ioc) { }
-static inline void exit_io_context(struct task_struct *task) { }
-static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk)
-{
-	return 0;
+static inline void put_io_context(struct io_context *ioc) {
 }
+
+static inline void exit_io_context(struct task_struct *task) {
+}
+
+static inline int copy_io(unsigned long clone_flags, struct task_struct *tsk) {
+  return 0;
+}
+
 #endif /* CONFIG_BLOCK */
 
 #endif /* IOCONTEXT_H */

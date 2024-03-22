@@ -14,12 +14,11 @@
 
 /* phy_companion to take care of VBUS, ID and srp capabilities */
 struct phy_companion {
+  /* effective for A-peripheral, ignored for B devices */
+  int (*set_vbus)(struct phy_companion *x, bool enabled);
 
-	/* effective for A-peripheral, ignored for B devices */
-	int	(*set_vbus)(struct phy_companion *x, bool enabled);
-
-	/* for B devices only:  start session with A-Host */
-	int	(*start_srp)(struct phy_companion *x);
+  /* for B devices only:  start session with A-Host */
+  int (*start_srp)(struct phy_companion *x);
 };
 
 #endif /* __DRIVERS_PHY_COMPANION_H */

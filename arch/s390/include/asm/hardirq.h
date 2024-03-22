@@ -20,9 +20,8 @@
 #define __ARCH_IRQ_STAT
 #define __ARCH_IRQ_EXIT_IRQS_DISABLED
 
-static inline void ack_bad_irq(unsigned int irq)
-{
-	printk(KERN_CRIT "unexpected IRQ trap at vector %02x\n", irq);
+static inline void ack_bad_irq(unsigned int irq) {
+  printk(KERN_CRIT "unexpected IRQ trap at vector %02x\n", irq);
 }
 
 #endif /* __ASM_HARDIRQ_H */

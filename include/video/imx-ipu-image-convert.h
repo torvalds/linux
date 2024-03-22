@@ -14,38 +14,38 @@ struct ipu_image_convert_ctx;
 /**
  * struct ipu_image_convert_run - image conversion run request struct
  *
- * @ctx:	the conversion context
- * @in_phys:	dma addr of input image buffer for this run
- * @out_phys:	dma addr of output image buffer for this run
- * @status:	completion status of this run
+ * @ctx:  the conversion context
+ * @in_phys:  dma addr of input image buffer for this run
+ * @out_phys: dma addr of output image buffer for this run
+ * @status: completion status of this run
  */
 struct ipu_image_convert_run {
-	struct ipu_image_convert_ctx *ctx;
+  struct ipu_image_convert_ctx *ctx;
 
-	dma_addr_t in_phys;
-	dma_addr_t out_phys;
+  dma_addr_t in_phys;
+  dma_addr_t out_phys;
 
-	int status;
+  int status;
 
-	/* internal to image converter, callers don't touch */
-	struct list_head list;
+  /* internal to image converter, callers don't touch */
+  struct list_head list;
 };
 
 /**
  * ipu_image_convert_cb_t - conversion callback function prototype
  *
- * @run:	the completed conversion run pointer
- * @ctx:	a private context pointer for the callback
+ * @run:  the completed conversion run pointer
+ * @ctx:  a private context pointer for the callback
  */
 typedef void (*ipu_image_convert_cb_t)(struct ipu_image_convert_run *run,
-				       void *ctx);
+    void *ctx);
 
 /**
  * ipu_image_convert_enum_format() - enumerate the image converter's
- *	supported input and output pixel formats.
+ *  supported input and output pixel formats.
  *
- * @index:	pixel format index
- * @fourcc:	v4l2 fourcc for this index
+ * @index:  pixel format index
+ * @fourcc: v4l2 fourcc for this index
  *
  * Returns 0 with a valid index and fills in v4l2 fourcc, -EINVAL otherwise.
  *
@@ -56,39 +56,39 @@ int ipu_image_convert_enum_format(int index, u32 *fourcc);
 /**
  * ipu_image_convert_adjust() - adjust input/output images to IPU restrictions.
  *
- * @in:		input image format, adjusted on return
- * @out:	output image format, adjusted on return
- * @rot_mode:	rotation mode
+ * @in:   input image format, adjusted on return
+ * @out:  output image format, adjusted on return
+ * @rot_mode: rotation mode
  *
  * In V4L2, drivers can call ipu_image_convert_adjust() in .try_fmt.
  */
 void ipu_image_convert_adjust(struct ipu_image *in, struct ipu_image *out,
-			      enum ipu_rotate_mode rot_mode);
+    enum ipu_rotate_mode rot_mode);
 
 /**
  * ipu_image_convert_verify() - verify that input/output image formats
  *         and rotation mode meet IPU restrictions.
  *
- * @in:		input image format
- * @out:	output image format
- * @rot_mode:	rotation mode
+ * @in:   input image format
+ * @out:  output image format
+ * @rot_mode: rotation mode
  *
  * Returns 0 if the formats and rotation mode meet IPU restrictions,
  * -EINVAL otherwise.
  */
 int ipu_image_convert_verify(struct ipu_image *in, struct ipu_image *out,
-			     enum ipu_rotate_mode rot_mode);
+    enum ipu_rotate_mode rot_mode);
 
 /**
  * ipu_image_convert_prepare() - prepare a conversion context.
  *
- * @ipu:	the IPU handle to use for the conversions
- * @ic_task:	the IC task to use for the conversions
- * @in:		input image format
- * @out:	output image format
- * @rot_mode:	rotation mode
- * @complete:	run completion callback
- * @complete_context:	a context pointer for the completion callback
+ * @ipu:  the IPU handle to use for the conversions
+ * @ic_task:  the IC task to use for the conversions
+ * @in:   input image format
+ * @out:  output image format
+ * @rot_mode: rotation mode
+ * @complete: run completion callback
+ * @complete_context: a context pointer for the completion callback
  *
  * Returns an opaque conversion context pointer on success, error pointer
  * on failure. The input/output formats and rotation mode must already meet
@@ -96,12 +96,12 @@ int ipu_image_convert_verify(struct ipu_image *in, struct ipu_image *out,
  *
  * In V4L2, drivers should call ipu_image_convert_prepare() at streamon.
  */
-struct ipu_image_convert_ctx *
-ipu_image_convert_prepare(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
-			  struct ipu_image *in, struct ipu_image *out,
-			  enum ipu_rotate_mode rot_mode,
-			  ipu_image_convert_cb_t complete,
-			  void *complete_context);
+struct ipu_image_convert_ctx *ipu_image_convert_prepare(struct ipu_soc *ipu,
+    enum ipu_ic_task ic_task,
+    struct ipu_image *in, struct ipu_image *out,
+    enum ipu_rotate_mode rot_mode,
+    ipu_image_convert_cb_t complete,
+    void *complete_context);
 
 /**
  * ipu_image_convert_unprepare() - unprepare a conversion context.
@@ -152,13 +152,13 @@ void ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx);
 /**
  * ipu_image_convert() - asynchronous image conversion request
  *
- * @ipu:	the IPU handle to use for the conversion
- * @ic_task:	the IC task to use for the conversion
- * @in:		input image format
- * @out:	output image format
- * @rot_mode:	rotation mode
- * @complete:	run completion callback
- * @complete_context:	a context pointer for the completion callback
+ * @ipu:  the IPU handle to use for the conversion
+ * @ic_task:  the IC task to use for the conversion
+ * @in:   input image format
+ * @out:  output image format
+ * @rot_mode: rotation mode
+ * @complete: run completion callback
+ * @complete_context: a context pointer for the completion callback
  *
  * Request a single image conversion. Returns the run that has been queued.
  * A conversion context is automatically created and is available in run->ctx.
@@ -169,21 +169,21 @@ void ipu_image_convert_abort(struct ipu_image_convert_ctx *ctx);
  * the prepared context in run->ctx. The caller is responsible for unpreparing
  * the context when no more conversion requests are needed.
  */
-struct ipu_image_convert_run *
-ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
-		  struct ipu_image *in, struct ipu_image *out,
-		  enum ipu_rotate_mode rot_mode,
-		  ipu_image_convert_cb_t complete,
-		  void *complete_context);
+struct ipu_image_convert_run *ipu_image_convert(struct ipu_soc *ipu,
+    enum ipu_ic_task ic_task,
+    struct ipu_image *in, struct ipu_image *out,
+    enum ipu_rotate_mode rot_mode,
+    ipu_image_convert_cb_t complete,
+    void *complete_context);
 
 /**
  * ipu_image_convert_sync() - synchronous single image conversion request
  *
- * @ipu:	the IPU handle to use for the conversion
- * @ic_task:	the IC task to use for the conversion
- * @in:		input image format
- * @out:	output image format
- * @rot_mode:	rotation mode
+ * @ipu:  the IPU handle to use for the conversion
+ * @ic_task:  the IC task to use for the conversion
+ * @in:   input image format
+ * @out:  output image format
+ * @rot_mode: rotation mode
  *
  * Carry out a single image conversion. Returns when the conversion
  * completes. The input/output formats and rotation mode must already
@@ -191,8 +191,7 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
  * and the run freed on return.
  */
 int ipu_image_convert_sync(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
-			   struct ipu_image *in, struct ipu_image *out,
-			   enum ipu_rotate_mode rot_mode);
-
+    struct ipu_image *in, struct ipu_image *out,
+    enum ipu_rotate_mode rot_mode);
 
 #endif /* __IMX_IPU_IMAGE_CONVERT_H__ */

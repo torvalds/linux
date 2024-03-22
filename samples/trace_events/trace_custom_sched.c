@@ -36,20 +36,17 @@
  *
  * Where <event> is the event to attach.
  */
-static void fct(struct tracepoint *tp, void *priv)
-{
-	trace_custom_event_sched_switch_update(tp);
-	trace_custom_event_sched_waking_update(tp);
+static void fct(struct tracepoint *tp, void *priv) {
+  trace_custom_event_sched_switch_update(tp);
+  trace_custom_event_sched_waking_update(tp);
 }
 
-static int __init trace_sched_init(void)
-{
-	for_each_kernel_tracepoint(fct, NULL);
-	return 0;
+static int __init trace_sched_init(void) {
+  for_each_kernel_tracepoint(fct, NULL);
+  return 0;
 }
 
-static void __exit trace_sched_exit(void)
-{
+static void __exit trace_sched_exit(void) {
 }
 
 module_init(trace_sched_init);

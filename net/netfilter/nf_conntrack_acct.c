@@ -22,7 +22,6 @@ static bool nf_ct_acct __read_mostly;
 module_param_named(acct, nf_ct_acct, bool, 0644);
 MODULE_PARM_DESC(acct, "Enable connection tracking flow accounting.");
 
-void nf_conntrack_acct_pernet_init(struct net *net)
-{
-	net->ct.sysctl_acct = nf_ct_acct;
+void nf_conntrack_acct_pernet_init(struct net *net) {
+  net->ct.sysctl_acct = nf_ct_acct;
 }

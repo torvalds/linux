@@ -206,7 +206,7 @@
 #define UBI_IOCEBISMAP _IOR(UBI_VOL_IOC_MAGIC, 5, __s32)
 /* Set an UBI volume property */
 #define UBI_IOCSETVOLPROP _IOW(UBI_VOL_IOC_MAGIC, 6, \
-			       struct ubi_set_vol_prop_req)
+    struct ubi_set_vol_prop_req)
 /* Create a R/O block device on top of an UBI volume */
 #define UBI_IOCVOLCRBLK _IOW(UBI_VOL_IOC_MAGIC, 7, struct ubi_blkcreate_req)
 /* Remove the R/O block device */
@@ -225,8 +225,8 @@
  * @UBI_STATIC_VOLUME:  static volume
  */
 enum {
-	UBI_DYNAMIC_VOLUME = 3,
-	UBI_STATIC_VOLUME  = 4,
+  UBI_DYNAMIC_VOLUME = 3,
+  UBI_STATIC_VOLUME = 4,
 };
 
 /*
@@ -237,7 +237,7 @@ enum {
  *                             eraseblocks on dynamic volumes
  */
 enum {
-	UBI_VOL_PROP_DIRECT_WRITE = 1,
+  UBI_VOL_PROP_DIRECT_WRITE = 1,
 };
 
 /**
@@ -289,28 +289,28 @@ enum {
  * after doing full scanning.
  */
 struct ubi_attach_req {
-	__s32 ubi_num;
-	__s32 mtd_num;
-	__s32 vid_hdr_offset;
-	__s16 max_beb_per1024;
-	__s8 disable_fm;
-	__s8 need_resv_pool;
-	__s8 padding[8];
+  __s32 ubi_num;
+  __s32 mtd_num;
+  __s32 vid_hdr_offset;
+  __s16 max_beb_per1024;
+  __s8 disable_fm;
+  __s8 need_resv_pool;
+  __s8 padding[8];
 };
 
 /*
  * UBI volume flags.
  *
  * @UBI_VOL_SKIP_CRC_CHECK_FLG: skip the CRC check done on a static volume at
- *				open time. Only valid for static volumes and
- *				should only be used if the volume user has a
- *				way to verify data integrity
+ *        open time. Only valid for static volumes and
+ *        should only be used if the volume user has a
+ *        way to verify data integrity
  */
 enum {
-	UBI_VOL_SKIP_CRC_CHECK_FLG = 0x1,
+  UBI_VOL_SKIP_CRC_CHECK_FLG = 0x1,
 };
 
-#define UBI_VOL_VALID_FLGS	(UBI_VOL_SKIP_CRC_CHECK_FLG)
+#define UBI_VOL_VALID_FLGS  (UBI_VOL_SKIP_CRC_CHECK_FLG)
 
 /**
  * struct ubi_mkvol_req - volume description data structure used in
@@ -330,7 +330,7 @@ enum {
  * The @alignment field specifies the required alignment of the volume logical
  * eraseblock. This means, that the size of logical eraseblocks will be aligned
  * to this number, i.e.,
- *	(UBI device logical eraseblock size) mod (@alignment) = 0.
+ *  (UBI device logical eraseblock size) mod (@alignment) = 0.
  *
  * To put it differently, the logical eraseblock of this volume may be slightly
  * shortened in order to make it properly aligned. The alignment has to be
@@ -344,14 +344,14 @@ enum {
  * BLOBs, without caring about how to properly align them.
  */
 struct ubi_mkvol_req {
-	__s32 vol_id;
-	__s32 alignment;
-	__s64 bytes;
-	__s8 vol_type;
-	__u8 flags;
-	__s16 name_len;
-	__s8 padding2[4];
-	char name[UBI_MAX_VOLUME_NAME + 1];
+  __s32 vol_id;
+  __s32 alignment;
+  __s64 bytes;
+  __s8 vol_type;
+  __u8 flags;
+  __s16 name_len;
+  __s8 padding2[4];
+  char name[UBI_MAX_VOLUME_NAME + 1];
 } __packed;
 
 /**
@@ -366,8 +366,8 @@ struct ubi_mkvol_req {
  * zero number of bytes).
  */
 struct ubi_rsvol_req {
-	__s64 bytes;
-	__s32 vol_id;
+  __s64 bytes;
+  __s32 vol_id;
 } __packed;
 
 /**
@@ -402,14 +402,14 @@ struct ubi_rsvol_req {
  * re-name request.
  */
 struct ubi_rnvol_req {
-	__s32 count;
-	__s8 padding1[12];
-	struct {
-		__s32 vol_id;
-		__s16 name_len;
-		__s8  padding2[2];
-		char    name[UBI_MAX_VOLUME_NAME + 1];
-	} ents[UBI_MAX_RNVOL];
+  __s32 count;
+  __s8 padding1[12];
+  struct {
+    __s32 vol_id;
+    __s16 name_len;
+    __s8 padding2[2];
+    char name[UBI_MAX_VOLUME_NAME + 1];
+  } ents[UBI_MAX_RNVOL];
 } __packed;
 
 /**
@@ -430,10 +430,10 @@ struct ubi_rnvol_req {
  * set @dtype to 3 (unknown).
  */
 struct ubi_leb_change_req {
-	__s32 lnum;
-	__s32 bytes;
-	__s8  dtype; /* obsolete, do not use! */
-	__s8  padding[7];
+  __s32 lnum;
+  __s32 bytes;
+  __s8 dtype; /* obsolete, do not use! */
+  __s8 padding[7];
 } __packed;
 
 /**
@@ -443,11 +443,10 @@ struct ubi_leb_change_req {
  * @padding: reserved for future, not used, has to be zeroed
  */
 struct ubi_map_req {
-	__s32 lnum;
-	__s8  dtype; /* obsolete, do not use! */
-	__s8  padding[3];
+  __s32 lnum;
+  __s8 dtype; /* obsolete, do not use! */
+  __s8 padding[3];
 } __packed;
-
 
 /**
  * struct ubi_set_vol_prop_req - a data structure used to set an UBI volume
@@ -457,9 +456,9 @@ struct ubi_map_req {
  * @value: value to set
  */
 struct ubi_set_vol_prop_req {
-	__u8  property;
-	__u8  padding[7];
-	__u64 value;
+  __u8 property;
+  __u8 padding[7];
+  __u64 value;
 }  __packed;
 
 /**
@@ -467,7 +466,7 @@ struct ubi_set_vol_prop_req {
  * @padding: reserved for future, not used, has to be zeroed
  */
 struct ubi_blkcreate_req {
-	__s8  padding[128];
+  __s8 padding[128];
 }  __packed;
 
 #endif /* __UBI_USER_H__ */

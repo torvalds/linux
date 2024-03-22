@@ -5,8 +5,8 @@
 
 #ifndef __ASSEMBLY__
 
-#define CACHE_FLUSH_IS_SAFE	1
-#define BUFMAX			2048
+#define CACHE_FLUSH_IS_SAFE 1
+#define BUFMAX      2048
 
 /*
  * 32 32-bit general purpose registers (r0-r31)
@@ -16,12 +16,11 @@
  * ------
  *  57 registers
  */
-#define NUMREGBYTES	(57 * 4)
+#define NUMREGBYTES (57 * 4)
 
-#define BREAK_INSTR_SIZE	4
-static inline void arch_kgdb_breakpoint(void)
-{
-	__asm__ __volatile__("brki r16, 0x18;");
+#define BREAK_INSTR_SIZE  4
+static inline void arch_kgdb_breakpoint(void) {
+  __asm__ __volatile__ ("brki r16, 0x18;");
 }
 
 struct pt_regs;

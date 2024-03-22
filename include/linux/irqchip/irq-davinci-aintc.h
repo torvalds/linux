@@ -17,9 +17,9 @@
  *         each interrupt
  */
 struct davinci_aintc_config {
-	struct resource reg;
-	unsigned int num_irqs;
-	u8 *prios;
+  struct resource reg;
+  unsigned int num_irqs;
+  u8 *prios;
 };
 
 void davinci_aintc_init(const struct davinci_aintc_config *config);

@@ -61,57 +61,55 @@
  * On failure, this returns a null endpoint descriptor.
  */
 struct usb_ep *usb_ep_autoconfig_ss(
-	struct usb_gadget		*gadget,
-	struct usb_endpoint_descriptor	*desc,
-	struct usb_ss_ep_comp_descriptor *ep_comp
-)
-{
-	struct usb_ep	*ep;
-
-	if (gadget->ops->match_ep) {
-		ep = gadget->ops->match_ep(gadget, desc, ep_comp);
-		if (ep)
-			goto found_ep;
-	}
-
-	/* Second, look at endpoints until an unclaimed one looks usable */
-	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
-		if (usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp))
-			goto found_ep;
-	}
-
-	/* Fail */
-	return NULL;
+    struct usb_gadget *gadget,
+    struct usb_endpoint_descriptor *desc,
+    struct usb_ss_ep_comp_descriptor *ep_comp) {
+  struct usb_ep *ep;
+  if (gadget->ops->match_ep) {
+    ep = gadget->ops->match_ep(gadget, desc, ep_comp);
+    if (ep) {
+      goto found_ep;
+    }
+  }
+  /* Second, look at endpoints until an unclaimed one looks usable */
+  list_for_each_entry(ep, &gadget->ep_list, ep_list) {
+    if (usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp)) {
+      goto found_ep;
+    }
+  }
+  /* Fail */
+  return NULL;
 found_ep:
-
-	/*
-	 * If the protocol driver hasn't yet decided on wMaxPacketSize
-	 * and wants to know the maximum possible, provide the info.
-	 */
-	if (desc->wMaxPacketSize == 0)
-		desc->wMaxPacketSize = cpu_to_le16(ep->maxpacket_limit);
-
-	/* report address */
-	desc->bEndpointAddress &= USB_DIR_IN;
-	if (isdigit(ep->name[2])) {
-		u8 num = simple_strtoul(&ep->name[2], NULL, 10);
-		desc->bEndpointAddress |= num;
-	} else if (desc->bEndpointAddress & USB_DIR_IN) {
-		if (++gadget->in_epnum > 15)
-			return NULL;
-		desc->bEndpointAddress = USB_DIR_IN | gadget->in_epnum;
-	} else {
-		if (++gadget->out_epnum > 15)
-			return NULL;
-		desc->bEndpointAddress |= gadget->out_epnum;
-	}
-
-	ep->address = desc->bEndpointAddress;
-	ep->desc = NULL;
-	ep->comp_desc = NULL;
-	ep->claimed = true;
-	return ep;
+  /*
+   * If the protocol driver hasn't yet decided on wMaxPacketSize
+   * and wants to know the maximum possible, provide the info.
+   */
+  if (desc->wMaxPacketSize == 0) {
+    desc->wMaxPacketSize = cpu_to_le16(ep->maxpacket_limit);
+  }
+  /* report address */
+  desc->bEndpointAddress &= USB_DIR_IN;
+  if (isdigit(ep->name[2])) {
+    u8 num = simple_strtoul(&ep->name[2], NULL, 10);
+    desc->bEndpointAddress |= num;
+  } else if (desc->bEndpointAddress & USB_DIR_IN) {
+    if (++gadget->in_epnum > 15) {
+      return NULL;
+    }
+    desc->bEndpointAddress = USB_DIR_IN | gadget->in_epnum;
+  } else {
+    if (++gadget->out_epnum > 15) {
+      return NULL;
+    }
+    desc->bEndpointAddress |= gadget->out_epnum;
+  }
+  ep->address = desc->bEndpointAddress;
+  ep->desc = NULL;
+  ep->comp_desc = NULL;
+  ep->claimed = true;
+  return ep;
 }
+
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
 
 /**
@@ -119,8 +117,8 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
  * descriptor
  * @gadget: The device to which the endpoint must belong.
  * @desc: Endpoint descriptor, with endpoint direction and transfer mode
- *	initialized.  For periodic transfers, the maximum packet
- *	size must also be initialized.  This is modified on success.
+ *  initialized.  For periodic transfers, the maximum packet
+ *  size must also be initialized.  This is modified on success.
  *
  * By choosing an endpoint to use with the specified descriptor, this
  * routine simplifies writing gadget drivers that work with multiple
@@ -147,31 +145,27 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig_ss);
  * On failure, this returns a null endpoint descriptor.
  */
 struct usb_ep *usb_ep_autoconfig(
-	struct usb_gadget		*gadget,
-	struct usb_endpoint_descriptor	*desc
-)
-{
-	struct usb_ep	*ep;
-	u8		type;
-
-	ep = usb_ep_autoconfig_ss(gadget, desc, NULL);
-	if (!ep)
-		return NULL;
-
-	type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
-
-	/* report (variable) full speed bulk maxpacket */
-	if (type == USB_ENDPOINT_XFER_BULK) {
-		int size = ep->maxpacket_limit;
-
-		/* min() doesn't work on bitfields with gcc-3.5 */
-		if (size > 64)
-			size = 64;
-		desc->wMaxPacketSize = cpu_to_le16(size);
-	}
-
-	return ep;
+    struct usb_gadget *gadget,
+    struct usb_endpoint_descriptor *desc) {
+  struct usb_ep *ep;
+  u8 type;
+  ep = usb_ep_autoconfig_ss(gadget, desc, NULL);
+  if (!ep) {
+    return NULL;
+  }
+  type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+  /* report (variable) full speed bulk maxpacket */
+  if (type == USB_ENDPOINT_XFER_BULK) {
+    int size = ep->maxpacket_limit;
+    /* min() doesn't work on bitfields with gcc-3.5 */
+    if (size > 64) {
+      size = 64;
+    }
+    desc->wMaxPacketSize = cpu_to_le16(size);
+  }
+  return ep;
 }
+
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
 
 /**
@@ -184,11 +178,11 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
  * which was released is no longer valid and shouldn't be used in
  * context of function which released it.
  */
-void usb_ep_autoconfig_release(struct usb_ep *ep)
-{
-	ep->claimed = false;
-	ep->driver_data = NULL;
+void usb_ep_autoconfig_release(struct usb_ep *ep) {
+  ep->claimed = false;
+  ep->driver_data = NULL;
 }
+
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_release);
 
 /**
@@ -200,15 +194,14 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig_release);
  * state such as ep->claimed and the record of assigned endpoints
  * used by usb_ep_autoconfig().
  */
-void usb_ep_autoconfig_reset (struct usb_gadget *gadget)
-{
-	struct usb_ep	*ep;
-
-	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
-		ep->claimed = false;
-		ep->driver_data = NULL;
-	}
-	gadget->in_epnum = 0;
-	gadget->out_epnum = 0;
+void usb_ep_autoconfig_reset(struct usb_gadget *gadget) {
+  struct usb_ep *ep;
+  list_for_each_entry(ep, &gadget->ep_list, ep_list) {
+    ep->claimed = false;
+    ep->driver_data = NULL;
+  }
+  gadget->in_epnum = 0;
+  gadget->out_epnum = 0;
 }
+
 EXPORT_SYMBOL_GPL(usb_ep_autoconfig_reset);

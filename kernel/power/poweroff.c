@@ -16,30 +16,27 @@
  * callback we use.
  */
 
-static void do_poweroff(struct work_struct *dummy)
-{
-	kernel_power_off();
+static void do_poweroff(struct work_struct *dummy) {
+  kernel_power_off();
 }
 
 static DECLARE_WORK(poweroff_work, do_poweroff);
 
-static void handle_poweroff(u8 key)
-{
-	/* run sysrq poweroff on boot cpu */
-	schedule_work_on(cpumask_first(cpu_online_mask), &poweroff_work);
+static void handle_poweroff(u8 key) {
+  /* run sysrq poweroff on boot cpu */
+  schedule_work_on(cpumask_first(cpu_online_mask), &poweroff_work);
 }
 
-static const struct sysrq_key_op	sysrq_poweroff_op = {
-	.handler        = handle_poweroff,
-	.help_msg       = "poweroff(o)",
-	.action_msg     = "Power Off",
-	.enable_mask	= SYSRQ_ENABLE_BOOT,
+static const struct sysrq_key_op sysrq_poweroff_op = {
+  .handler = handle_poweroff,
+  .help_msg = "poweroff(o)",
+  .action_msg = "Power Off",
+  .enable_mask = SYSRQ_ENABLE_BOOT,
 };
 
-static int __init pm_sysrq_init(void)
-{
-	register_sysrq_key('o', &sysrq_poweroff_op);
-	return 0;
+static int __init pm_sysrq_init(void) {
+  register_sysrq_key('o', &sysrq_poweroff_op);
+  return 0;
 }
 
 subsys_initcall(pm_sysrq_init);

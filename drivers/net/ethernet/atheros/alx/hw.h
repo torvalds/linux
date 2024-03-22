@@ -99,58 +99,58 @@
  *   31     End of packet                 31     End of packet
  */
 struct alx_txd {
-	__le16 len;
-	__le16 vlan_tag;
-	__le32 word1;
-	union {
-		__le64 addr;
-		struct {
-			__le32 pkt_len;
-			__le32 resvd;
-		} l;
-	} adrl;
+  __le16 len;
+  __le16 vlan_tag;
+  __le32 word1;
+  union {
+    __le64 addr;
+    struct {
+      __le32 pkt_len;
+      __le32 resvd;
+    } l;
+  } adrl;
 } __packed;
 
 /* tpd word 1 */
-#define TPD_CXSUMSTART_MASK		0x00FF
-#define TPD_CXSUMSTART_SHIFT		0
-#define TPD_L4HDROFFSET_MASK		0x00FF
-#define TPD_L4HDROFFSET_SHIFT		0
-#define TPD_CXSUM_EN_MASK		0x0001
-#define TPD_CXSUM_EN_SHIFT		8
-#define TPD_IP_XSUM_MASK		0x0001
-#define TPD_IP_XSUM_SHIFT		9
-#define TPD_TCP_XSUM_MASK		0x0001
-#define TPD_TCP_XSUM_SHIFT		10
-#define TPD_UDP_XSUM_MASK		0x0001
-#define TPD_UDP_XSUM_SHIFT		11
-#define TPD_LSO_EN_MASK			0x0001
-#define TPD_LSO_EN_SHIFT		12
-#define TPD_LSO_V2_MASK			0x0001
-#define TPD_LSO_V2_SHIFT		13
-#define TPD_VLTAGGED_MASK		0x0001
-#define TPD_VLTAGGED_SHIFT		14
-#define TPD_INS_VLTAG_MASK		0x0001
-#define TPD_INS_VLTAG_SHIFT		15
-#define TPD_IPV4_MASK			0x0001
-#define TPD_IPV4_SHIFT			16
-#define TPD_ETHTYPE_MASK		0x0001
-#define TPD_ETHTYPE_SHIFT		17
-#define TPD_CXSUMOFFSET_MASK		0x00FF
-#define TPD_CXSUMOFFSET_SHIFT		18
-#define TPD_MSS_MASK			0x1FFF
-#define TPD_MSS_SHIFT			18
-#define TPD_EOP_MASK			0x0001
-#define TPD_EOP_SHIFT			31
+#define TPD_CXSUMSTART_MASK   0x00FF
+#define TPD_CXSUMSTART_SHIFT    0
+#define TPD_L4HDROFFSET_MASK    0x00FF
+#define TPD_L4HDROFFSET_SHIFT   0
+#define TPD_CXSUM_EN_MASK   0x0001
+#define TPD_CXSUM_EN_SHIFT    8
+#define TPD_IP_XSUM_MASK    0x0001
+#define TPD_IP_XSUM_SHIFT   9
+#define TPD_TCP_XSUM_MASK   0x0001
+#define TPD_TCP_XSUM_SHIFT    10
+#define TPD_UDP_XSUM_MASK   0x0001
+#define TPD_UDP_XSUM_SHIFT    11
+#define TPD_LSO_EN_MASK     0x0001
+#define TPD_LSO_EN_SHIFT    12
+#define TPD_LSO_V2_MASK     0x0001
+#define TPD_LSO_V2_SHIFT    13
+#define TPD_VLTAGGED_MASK   0x0001
+#define TPD_VLTAGGED_SHIFT    14
+#define TPD_INS_VLTAG_MASK    0x0001
+#define TPD_INS_VLTAG_SHIFT   15
+#define TPD_IPV4_MASK     0x0001
+#define TPD_IPV4_SHIFT      16
+#define TPD_ETHTYPE_MASK    0x0001
+#define TPD_ETHTYPE_SHIFT   17
+#define TPD_CXSUMOFFSET_MASK    0x00FF
+#define TPD_CXSUMOFFSET_SHIFT   18
+#define TPD_MSS_MASK      0x1FFF
+#define TPD_MSS_SHIFT     18
+#define TPD_EOP_MASK      0x0001
+#define TPD_EOP_SHIFT     31
 
-#define DESC_GET(_x, _name) ((_x) >> _name##SHIFT & _name##MASK)
+#define DESC_GET(_x, _name) ((_x) >> _name ## SHIFT & _name ## MASK)
 
 /* Receive Free Descriptor */
 struct alx_rfd {
-	__le64 addr;		/* data buffer address, length is
-				 * declared in register --- every
-				 * buffer has the same size
-				 */
+  __le64 addr;    /* data buffer address, length is
+                   * declared in register --- every
+                   * buffer has the same size
+                   */
 } __packed;
 
 /* Receive Return Descriptor, contains 4 32-bit words.
@@ -237,151 +237,150 @@ struct alx_rfd {
  *   31      Updated, indicate to driver that this RRD is refreshed.
  */
 struct alx_rrd {
-	__le32 word0;
-	__le32 rss_hash;
-	__le32 word2;
-	__le32 word3;
+  __le32 word0;
+  __le32 rss_hash;
+  __le32 word2;
+  __le32 word3;
 } __packed;
 
 /* rrd word 0 */
-#define RRD_XSUM_MASK		0xFFFF
-#define RRD_XSUM_SHIFT		0
-#define RRD_NOR_MASK		0x000F
-#define RRD_NOR_SHIFT		16
-#define RRD_SI_MASK		0x0FFF
-#define RRD_SI_SHIFT		20
+#define RRD_XSUM_MASK   0xFFFF
+#define RRD_XSUM_SHIFT    0
+#define RRD_NOR_MASK    0x000F
+#define RRD_NOR_SHIFT   16
+#define RRD_SI_MASK   0x0FFF
+#define RRD_SI_SHIFT    20
 
 /* rrd word 2 */
-#define RRD_VLTAG_MASK		0xFFFF
-#define RRD_VLTAG_SHIFT		0
-#define RRD_PID_MASK		0x00FF
-#define RRD_PID_SHIFT		16
+#define RRD_VLTAG_MASK    0xFFFF
+#define RRD_VLTAG_SHIFT   0
+#define RRD_PID_MASK    0x00FF
+#define RRD_PID_SHIFT   16
 /* non-ip packet */
-#define RRD_PID_NONIP		0
+#define RRD_PID_NONIP   0
 /* ipv4(only) */
-#define RRD_PID_IPV4		1
+#define RRD_PID_IPV4    1
 /* tcp/ipv6 */
-#define RRD_PID_IPV6TCP		2
+#define RRD_PID_IPV6TCP   2
 /* tcp/ipv4 */
-#define RRD_PID_IPV4TCP		3
+#define RRD_PID_IPV4TCP   3
 /* udp/ipv6 */
-#define RRD_PID_IPV6UDP		4
+#define RRD_PID_IPV6UDP   4
 /* udp/ipv4 */
-#define RRD_PID_IPV4UDP		5
+#define RRD_PID_IPV4UDP   5
 /* ipv6(only) */
-#define RRD_PID_IPV6		6
+#define RRD_PID_IPV6    6
 /* LLDP packet */
-#define RRD_PID_LLDP		7
+#define RRD_PID_LLDP    7
 /* 1588 packet */
-#define RRD_PID_1588		8
-#define RRD_RSSQ_MASK		0x0007
-#define RRD_RSSQ_SHIFT		25
-#define RRD_RSSALG_MASK		0x000F
-#define RRD_RSSALG_SHIFT	28
-#define RRD_RSSALG_TCPV6	0x1
-#define RRD_RSSALG_IPV6		0x2
-#define RRD_RSSALG_TCPV4	0x4
-#define RRD_RSSALG_IPV4		0x8
+#define RRD_PID_1588    8
+#define RRD_RSSQ_MASK   0x0007
+#define RRD_RSSQ_SHIFT    25
+#define RRD_RSSALG_MASK   0x000F
+#define RRD_RSSALG_SHIFT  28
+#define RRD_RSSALG_TCPV6  0x1
+#define RRD_RSSALG_IPV6   0x2
+#define RRD_RSSALG_TCPV4  0x4
+#define RRD_RSSALG_IPV4   0x8
 
 /* rrd word 3 */
-#define RRD_PKTLEN_MASK		0x3FFF
-#define RRD_PKTLEN_SHIFT	0
-#define RRD_ERR_L4_MASK		0x0001
-#define RRD_ERR_L4_SHIFT	14
-#define RRD_ERR_IPV4_MASK	0x0001
-#define RRD_ERR_IPV4_SHIFT	15
-#define RRD_VLTAGGED_MASK	0x0001
-#define RRD_VLTAGGED_SHIFT	16
-#define RRD_OLD_PID_MASK	0x0007
-#define RRD_OLD_PID_SHIFT	17
-#define RRD_ERR_RES_MASK	0x0001
-#define RRD_ERR_RES_SHIFT	20
-#define RRD_ERR_FCS_MASK	0x0001
-#define RRD_ERR_FCS_SHIFT	21
-#define RRD_ERR_FAE_MASK	0x0001
-#define RRD_ERR_FAE_SHIFT	22
-#define RRD_ERR_TRUNC_MASK	0x0001
-#define RRD_ERR_TRUNC_SHIFT	23
-#define RRD_ERR_RUNT_MASK	0x0001
-#define RRD_ERR_RUNT_SHIFT	24
-#define RRD_ERR_ICMP_MASK	0x0001
-#define RRD_ERR_ICMP_SHIFT	25
-#define RRD_BCAST_MASK		0x0001
-#define RRD_BCAST_SHIFT		26
-#define RRD_MCAST_MASK		0x0001
-#define RRD_MCAST_SHIFT		27
-#define RRD_ETHTYPE_MASK	0x0001
-#define RRD_ETHTYPE_SHIFT	28
-#define RRD_ERR_FIFOV_MASK	0x0001
-#define RRD_ERR_FIFOV_SHIFT	29
-#define RRD_ERR_LEN_MASK	0x0001
-#define RRD_ERR_LEN_SHIFT	30
-#define RRD_UPDATED_MASK	0x0001
-#define RRD_UPDATED_SHIFT	31
+#define RRD_PKTLEN_MASK   0x3FFF
+#define RRD_PKTLEN_SHIFT  0
+#define RRD_ERR_L4_MASK   0x0001
+#define RRD_ERR_L4_SHIFT  14
+#define RRD_ERR_IPV4_MASK 0x0001
+#define RRD_ERR_IPV4_SHIFT  15
+#define RRD_VLTAGGED_MASK 0x0001
+#define RRD_VLTAGGED_SHIFT  16
+#define RRD_OLD_PID_MASK  0x0007
+#define RRD_OLD_PID_SHIFT 17
+#define RRD_ERR_RES_MASK  0x0001
+#define RRD_ERR_RES_SHIFT 20
+#define RRD_ERR_FCS_MASK  0x0001
+#define RRD_ERR_FCS_SHIFT 21
+#define RRD_ERR_FAE_MASK  0x0001
+#define RRD_ERR_FAE_SHIFT 22
+#define RRD_ERR_TRUNC_MASK  0x0001
+#define RRD_ERR_TRUNC_SHIFT 23
+#define RRD_ERR_RUNT_MASK 0x0001
+#define RRD_ERR_RUNT_SHIFT  24
+#define RRD_ERR_ICMP_MASK 0x0001
+#define RRD_ERR_ICMP_SHIFT  25
+#define RRD_BCAST_MASK    0x0001
+#define RRD_BCAST_SHIFT   26
+#define RRD_MCAST_MASK    0x0001
+#define RRD_MCAST_SHIFT   27
+#define RRD_ETHTYPE_MASK  0x0001
+#define RRD_ETHTYPE_SHIFT 28
+#define RRD_ERR_FIFOV_MASK  0x0001
+#define RRD_ERR_FIFOV_SHIFT 29
+#define RRD_ERR_LEN_MASK  0x0001
+#define RRD_ERR_LEN_SHIFT 30
+#define RRD_UPDATED_MASK  0x0001
+#define RRD_UPDATED_SHIFT 31
 
-
-#define ALX_MAX_SETUP_LNK_CYCLE	50
+#define ALX_MAX_SETUP_LNK_CYCLE 50
 
 /* for FlowControl */
-#define ALX_FC_RX		0x01
-#define ALX_FC_TX		0x02
-#define ALX_FC_ANEG		0x04
+#define ALX_FC_RX   0x01
+#define ALX_FC_TX   0x02
+#define ALX_FC_ANEG   0x04
 
 /* for sleep control */
-#define ALX_SLEEP_WOL_PHY	0x00000001
-#define ALX_SLEEP_WOL_MAGIC	0x00000002
-#define ALX_SLEEP_CIFS		0x00000004
-#define ALX_SLEEP_ACTIVE	(ALX_SLEEP_WOL_PHY | \
-				 ALX_SLEEP_WOL_MAGIC | \
-				 ALX_SLEEP_CIFS)
+#define ALX_SLEEP_WOL_PHY 0x00000001
+#define ALX_SLEEP_WOL_MAGIC 0x00000002
+#define ALX_SLEEP_CIFS    0x00000004
+#define ALX_SLEEP_ACTIVE  (ALX_SLEEP_WOL_PHY   \
+  | ALX_SLEEP_WOL_MAGIC   \
+  | ALX_SLEEP_CIFS)
 
 /* for RSS hash type */
-#define ALX_RSS_HASH_TYPE_IPV4		0x1
-#define ALX_RSS_HASH_TYPE_IPV4_TCP	0x2
-#define ALX_RSS_HASH_TYPE_IPV6		0x4
-#define ALX_RSS_HASH_TYPE_IPV6_TCP	0x8
-#define ALX_RSS_HASH_TYPE_ALL		(ALX_RSS_HASH_TYPE_IPV4 | \
-					 ALX_RSS_HASH_TYPE_IPV4_TCP | \
-					 ALX_RSS_HASH_TYPE_IPV6 | \
-					 ALX_RSS_HASH_TYPE_IPV6_TCP)
-#define ALX_FRAME_PAD		16
-#define ALX_RAW_MTU(_mtu)	(_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
-#define ALX_MAX_FRAME_LEN(_mtu)	(ALIGN((ALX_RAW_MTU(_mtu) + ALX_FRAME_PAD), 8))
-#define ALX_DEF_RXBUF_SIZE	ALX_MAX_FRAME_LEN(1500)
-#define ALX_MAX_JUMBO_PKT_SIZE	(9*1024)
-#define ALX_MAX_TSO_PKT_SIZE	(7*1024)
-#define ALX_MAX_FRAME_SIZE	ALX_MAX_JUMBO_PKT_SIZE
+#define ALX_RSS_HASH_TYPE_IPV4    0x1
+#define ALX_RSS_HASH_TYPE_IPV4_TCP  0x2
+#define ALX_RSS_HASH_TYPE_IPV6    0x4
+#define ALX_RSS_HASH_TYPE_IPV6_TCP  0x8
+#define ALX_RSS_HASH_TYPE_ALL   (ALX_RSS_HASH_TYPE_IPV4   \
+  | ALX_RSS_HASH_TYPE_IPV4_TCP   \
+  | ALX_RSS_HASH_TYPE_IPV6   \
+  | ALX_RSS_HASH_TYPE_IPV6_TCP)
+#define ALX_FRAME_PAD   16
+#define ALX_RAW_MTU(_mtu) (_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
+#define ALX_MAX_FRAME_LEN(_mtu) (ALIGN((ALX_RAW_MTU(_mtu) + ALX_FRAME_PAD), 8))
+#define ALX_DEF_RXBUF_SIZE  ALX_MAX_FRAME_LEN(1500)
+#define ALX_MAX_JUMBO_PKT_SIZE  (9 * 1024)
+#define ALX_MAX_TSO_PKT_SIZE  (7 * 1024)
+#define ALX_MAX_FRAME_SIZE  ALX_MAX_JUMBO_PKT_SIZE
 
-#define ALX_MAX_RX_QUEUES	8
-#define ALX_MAX_TX_QUEUES	4
-#define ALX_MAX_HANDLED_INTRS	5
+#define ALX_MAX_RX_QUEUES 8
+#define ALX_MAX_TX_QUEUES 4
+#define ALX_MAX_HANDLED_INTRS 5
 
-#define ALX_ISR_MISC		(ALX_ISR_PCIE_LNKDOWN | \
-				 ALX_ISR_DMAW | \
-				 ALX_ISR_DMAR | \
-				 ALX_ISR_SMB | \
-				 ALX_ISR_MANU | \
-				 ALX_ISR_TIMER)
+#define ALX_ISR_MISC    (ALX_ISR_PCIE_LNKDOWN   \
+  | ALX_ISR_DMAW   \
+  | ALX_ISR_DMAR   \
+  | ALX_ISR_SMB   \
+  | ALX_ISR_MANU   \
+  | ALX_ISR_TIMER)
 
-#define ALX_ISR_FATAL		(ALX_ISR_PCIE_LNKDOWN | \
-				 ALX_ISR_DMAW | ALX_ISR_DMAR)
+#define ALX_ISR_FATAL   (ALX_ISR_PCIE_LNKDOWN   \
+  | ALX_ISR_DMAW | ALX_ISR_DMAR)
 
-#define ALX_ISR_ALERT		(ALX_ISR_RXF_OV | \
-				 ALX_ISR_TXF_UR | \
-				 ALX_ISR_RFD_UR)
+#define ALX_ISR_ALERT   (ALX_ISR_RXF_OV   \
+  | ALX_ISR_TXF_UR   \
+  | ALX_ISR_RFD_UR)
 
-#define ALX_ISR_ALL_QUEUES	(ALX_ISR_TX_Q0 | \
-				 ALX_ISR_TX_Q1 | \
-				 ALX_ISR_TX_Q2 | \
-				 ALX_ISR_TX_Q3 | \
-				 ALX_ISR_RX_Q0 | \
-				 ALX_ISR_RX_Q1 | \
-				 ALX_ISR_RX_Q2 | \
-				 ALX_ISR_RX_Q3 | \
-				 ALX_ISR_RX_Q4 | \
-				 ALX_ISR_RX_Q5 | \
-				 ALX_ISR_RX_Q6 | \
-				 ALX_ISR_RX_Q7)
+#define ALX_ISR_ALL_QUEUES  (ALX_ISR_TX_Q0   \
+  | ALX_ISR_TX_Q1   \
+  | ALX_ISR_TX_Q2   \
+  | ALX_ISR_TX_Q3   \
+  | ALX_ISR_RX_Q0   \
+  | ALX_ISR_RX_Q1   \
+  | ALX_ISR_RX_Q2   \
+  | ALX_ISR_RX_Q3   \
+  | ALX_ISR_RX_Q4   \
+  | ALX_ISR_RX_Q5   \
+  | ALX_ISR_RX_Q6   \
+  | ALX_ISR_RX_Q7)
 
 /* Statistics counters collected by the MAC
  *
@@ -390,157 +389,147 @@ struct alx_rrd {
  * See ethtool.c
  */
 struct alx_hw_stats {
-	/* rx */
-	u64 rx_ok;		/* good RX packets */
-	u64 rx_bcast;		/* good RX broadcast packets */
-	u64 rx_mcast;		/* good RX multicast packets */
-	u64 rx_pause;		/* RX pause frames */
-	u64 rx_ctrl;		/* RX control packets other than pause frames */
-	u64 rx_fcs_err;		/* RX packets with bad FCS */
-	u64 rx_len_err;		/* RX packets with length != actual size */
-	u64 rx_byte_cnt;	/* good bytes received. FCS is NOT included */
-	u64 rx_runt;		/* RX packets < 64 bytes with good FCS */
-	u64 rx_frag;		/* RX packets < 64 bytes with bad FCS */
-	u64 rx_sz_64B;		/* 64 byte RX packets */
-	u64 rx_sz_127B;		/* 65-127 byte RX packets */
-	u64 rx_sz_255B;		/* 128-255 byte RX packets */
-	u64 rx_sz_511B;		/* 256-511 byte RX packets */
-	u64 rx_sz_1023B;	/* 512-1023 byte RX packets */
-	u64 rx_sz_1518B;	/* 1024-1518 byte RX packets */
-	u64 rx_sz_max;		/* 1519 byte to MTU RX packets */
-	u64 rx_ov_sz;		/* truncated RX packets, size > MTU */
-	u64 rx_ov_rxf;		/* frames dropped due to RX FIFO overflow */
-	u64 rx_ov_rrd;		/* frames dropped due to RRD overflow */
-	u64 rx_align_err;	/* alignment errors */
-	u64 rx_bc_byte_cnt;	/* RX broadcast bytes, excluding FCS */
-	u64 rx_mc_byte_cnt;	/* RX multicast bytes, excluding FCS */
-	u64 rx_err_addr;	/* packets dropped due to address filtering */
+  /* rx */
+  u64 rx_ok;    /* good RX packets */
+  u64 rx_bcast;   /* good RX broadcast packets */
+  u64 rx_mcast;   /* good RX multicast packets */
+  u64 rx_pause;   /* RX pause frames */
+  u64 rx_ctrl;    /* RX control packets other than pause frames */
+  u64 rx_fcs_err;   /* RX packets with bad FCS */
+  u64 rx_len_err;   /* RX packets with length != actual size */
+  u64 rx_byte_cnt;  /* good bytes received. FCS is NOT included */
+  u64 rx_runt;    /* RX packets < 64 bytes with good FCS */
+  u64 rx_frag;    /* RX packets < 64 bytes with bad FCS */
+  u64 rx_sz_64B;    /* 64 byte RX packets */
+  u64 rx_sz_127B;   /* 65-127 byte RX packets */
+  u64 rx_sz_255B;   /* 128-255 byte RX packets */
+  u64 rx_sz_511B;   /* 256-511 byte RX packets */
+  u64 rx_sz_1023B;  /* 512-1023 byte RX packets */
+  u64 rx_sz_1518B;  /* 1024-1518 byte RX packets */
+  u64 rx_sz_max;    /* 1519 byte to MTU RX packets */
+  u64 rx_ov_sz;   /* truncated RX packets, size > MTU */
+  u64 rx_ov_rxf;    /* frames dropped due to RX FIFO overflow */
+  u64 rx_ov_rrd;    /* frames dropped due to RRD overflow */
+  u64 rx_align_err; /* alignment errors */
+  u64 rx_bc_byte_cnt; /* RX broadcast bytes, excluding FCS */
+  u64 rx_mc_byte_cnt; /* RX multicast bytes, excluding FCS */
+  u64 rx_err_addr;  /* packets dropped due to address filtering */
 
-	/* tx */
-	u64 tx_ok;		/* good TX packets */
-	u64 tx_bcast;		/* good TX broadcast packets */
-	u64 tx_mcast;		/* good TX multicast packets */
-	u64 tx_pause;		/* TX pause frames */
-	u64 tx_exc_defer;	/* TX packets deferred excessively */
-	u64 tx_ctrl;		/* TX control frames, excluding pause frames */
-	u64 tx_defer;		/* TX packets deferred */
-	u64 tx_byte_cnt;	/* bytes transmitted, FCS is NOT included */
-	u64 tx_sz_64B;		/* 64 byte TX packets */
-	u64 tx_sz_127B;		/* 65-127 byte TX packets */
-	u64 tx_sz_255B;		/* 128-255 byte TX packets */
-	u64 tx_sz_511B;		/* 256-511 byte TX packets */
-	u64 tx_sz_1023B;	/* 512-1023 byte TX packets */
-	u64 tx_sz_1518B;	/* 1024-1518 byte TX packets */
-	u64 tx_sz_max;		/* 1519 byte to MTU TX packets */
-	u64 tx_single_col;	/* packets TX after a single collision */
-	u64 tx_multi_col;	/* packets TX after multiple collisions */
-	u64 tx_late_col;	/* TX packets with late collisions */
-	u64 tx_abort_col;	/* TX packets aborted w/excessive collisions */
-	u64 tx_underrun;	/* TX packets aborted due to TX FIFO underrun
-				 * or TRD FIFO underrun
-				 */
-	u64 tx_trd_eop;		/* reads beyond the EOP into the next frame
-				 * when TRD was not written timely
-				 */
-	u64 tx_len_err;		/* TX packets where length != actual size */
-	u64 tx_trunc;		/* TX packets truncated due to size > MTU */
-	u64 tx_bc_byte_cnt;	/* broadcast bytes transmitted, excluding FCS */
-	u64 tx_mc_byte_cnt;	/* multicast bytes transmitted, excluding FCS */
-	u64 update;
+  /* tx */
+  u64 tx_ok;    /* good TX packets */
+  u64 tx_bcast;   /* good TX broadcast packets */
+  u64 tx_mcast;   /* good TX multicast packets */
+  u64 tx_pause;   /* TX pause frames */
+  u64 tx_exc_defer; /* TX packets deferred excessively */
+  u64 tx_ctrl;    /* TX control frames, excluding pause frames */
+  u64 tx_defer;   /* TX packets deferred */
+  u64 tx_byte_cnt;  /* bytes transmitted, FCS is NOT included */
+  u64 tx_sz_64B;    /* 64 byte TX packets */
+  u64 tx_sz_127B;   /* 65-127 byte TX packets */
+  u64 tx_sz_255B;   /* 128-255 byte TX packets */
+  u64 tx_sz_511B;   /* 256-511 byte TX packets */
+  u64 tx_sz_1023B;  /* 512-1023 byte TX packets */
+  u64 tx_sz_1518B;  /* 1024-1518 byte TX packets */
+  u64 tx_sz_max;    /* 1519 byte to MTU TX packets */
+  u64 tx_single_col;  /* packets TX after a single collision */
+  u64 tx_multi_col; /* packets TX after multiple collisions */
+  u64 tx_late_col;  /* TX packets with late collisions */
+  u64 tx_abort_col; /* TX packets aborted w/excessive collisions */
+  u64 tx_underrun;  /* TX packets aborted due to TX FIFO underrun
+                     * or TRD FIFO underrun
+                     */
+  u64 tx_trd_eop;   /* reads beyond the EOP into the next frame
+                     * when TRD was not written timely
+                     */
+  u64 tx_len_err;   /* TX packets where length != actual size */
+  u64 tx_trunc;   /* TX packets truncated due to size > MTU */
+  u64 tx_bc_byte_cnt; /* broadcast bytes transmitted, excluding FCS */
+  u64 tx_mc_byte_cnt; /* multicast bytes transmitted, excluding FCS */
+  u64 update;
 };
-
 
 /* maximum interrupt vectors for msix */
-#define ALX_MAX_MSIX_INTRS	16
+#define ALX_MAX_MSIX_INTRS  16
 
-#define ALX_GET_FIELD(_data, _field)					\
-	(((_data) >> _field ## _SHIFT) & _field ## _MASK)
+#define ALX_GET_FIELD(_data, _field)          \
+  (((_data) >> _field ## _SHIFT) & _field ## _MASK)
 
-#define ALX_SET_FIELD(_data, _field, _value)	do {			\
-		(_data) &= ~(_field ## _MASK << _field ## _SHIFT);	\
-		(_data) |= ((_value) & _field ## _MASK) << _field ## _SHIFT;\
-	} while (0)
+#define ALX_SET_FIELD(_data, _field, _value)  do {      \
+    (_data) &= ~(_field ## _MASK << _field ## _SHIFT);  \
+    (_data) |= ((_value) & _field ## _MASK) << _field ## _SHIFT; \
+} while (0)
 
 struct alx_hw {
-	struct pci_dev *pdev;
-	u8 __iomem *hw_addr;
+  struct pci_dev *pdev;
+  u8 __iomem *hw_addr;
 
-	/* current & permanent mac addr */
-	u8 mac_addr[ETH_ALEN];
-	u8 perm_addr[ETH_ALEN];
+  /* current & permanent mac addr */
+  u8 mac_addr[ETH_ALEN];
+  u8 perm_addr[ETH_ALEN];
 
-	u16 mtu;
-	u16 imt;
-	u8 dma_chnl;
-	u8 max_dma_chnl;
-	/* tpd threshold to trig INT */
-	u32 ith_tpd;
-	u32 rx_ctrl;
-	u32 mc_hash[2];
+  u16 mtu;
+  u16 imt;
+  u8 dma_chnl;
+  u8 max_dma_chnl;
+  /* tpd threshold to trig INT */
+  u32 ith_tpd;
+  u32 rx_ctrl;
+  u32 mc_hash[2];
 
-	u32 smb_timer;
-	/* SPEED_* + DUPLEX_*, SPEED_UNKNOWN if link is down */
-	int link_speed;
-	u8 duplex;
+  u32 smb_timer;
+  /* SPEED_* + DUPLEX_*, SPEED_UNKNOWN if link is down */
+  int link_speed;
+  u8 duplex;
 
-	/* auto-neg advertisement or force mode config */
-	u8 flowctrl;
-	u32 adv_cfg;
+  /* auto-neg advertisement or force mode config */
+  u8 flowctrl;
+  u32 adv_cfg;
 
-	spinlock_t mdio_lock;
-	struct mdio_if_info mdio;
-	u16 phy_id[2];
+  spinlock_t mdio_lock;
+  struct mdio_if_info mdio;
+  u16 phy_id[2];
 
-	/* PHY link patch flag */
-	bool lnk_patch;
+  /* PHY link patch flag */
+  bool lnk_patch;
 
-	/* cumulated stats from the hardware (registers are cleared on read) */
-	struct alx_hw_stats stats;
+  /* cumulated stats from the hardware (registers are cleared on read) */
+  struct alx_hw_stats stats;
 };
 
-static inline int alx_hw_revision(struct alx_hw *hw)
-{
-	return hw->pdev->revision >> ALX_PCI_REVID_SHIFT;
+static inline int alx_hw_revision(struct alx_hw *hw) {
+  return hw->pdev->revision >> ALX_PCI_REVID_SHIFT;
 }
 
-static inline bool alx_hw_with_cr(struct alx_hw *hw)
-{
-	return hw->pdev->revision & 1;
+static inline bool alx_hw_with_cr(struct alx_hw *hw) {
+  return hw->pdev->revision & 1;
 }
 
-static inline bool alx_hw_giga(struct alx_hw *hw)
-{
-	return hw->pdev->device & 1;
+static inline bool alx_hw_giga(struct alx_hw *hw) {
+  return hw->pdev->device & 1;
 }
 
-static inline void alx_write_mem8(struct alx_hw *hw, u32 reg, u8 val)
-{
-	writeb(val, hw->hw_addr + reg);
+static inline void alx_write_mem8(struct alx_hw *hw, u32 reg, u8 val) {
+  writeb(val, hw->hw_addr + reg);
 }
 
-static inline void alx_write_mem16(struct alx_hw *hw, u32 reg, u16 val)
-{
-	writew(val, hw->hw_addr + reg);
+static inline void alx_write_mem16(struct alx_hw *hw, u32 reg, u16 val) {
+  writew(val, hw->hw_addr + reg);
 }
 
-static inline u16 alx_read_mem16(struct alx_hw *hw, u32 reg)
-{
-	return readw(hw->hw_addr + reg);
+static inline u16 alx_read_mem16(struct alx_hw *hw, u32 reg) {
+  return readw(hw->hw_addr + reg);
 }
 
-static inline void alx_write_mem32(struct alx_hw *hw, u32 reg, u32 val)
-{
-	writel(val, hw->hw_addr + reg);
+static inline void alx_write_mem32(struct alx_hw *hw, u32 reg, u32 val) {
+  writel(val, hw->hw_addr + reg);
 }
 
-static inline u32 alx_read_mem32(struct alx_hw *hw, u32 reg)
-{
-	return readl(hw->hw_addr + reg);
+static inline u32 alx_read_mem32(struct alx_hw *hw, u32 reg) {
+  return readl(hw->hw_addr + reg);
 }
 
-static inline void alx_post_write(struct alx_hw *hw)
-{
-	readl(hw->hw_addr);
+static inline void alx_post_write(struct alx_hw *hw) {
+  readl(hw->hw_addr);
 }
 
 int alx_get_perm_macaddr(struct alx_hw *hw, u8 *addr);
@@ -566,19 +555,23 @@ void alx_disable_rss(struct alx_hw *hw);
 bool alx_get_phy_info(struct alx_hw *hw);
 void alx_update_hw_stats(struct alx_hw *hw);
 
-static inline u32 alx_speed_to_ethadv(int speed, u8 duplex)
-{
-	if (speed == SPEED_1000 && duplex == DUPLEX_FULL)
-		return ADVERTISED_1000baseT_Full;
-	if (speed == SPEED_100 && duplex == DUPLEX_FULL)
-		return ADVERTISED_100baseT_Full;
-	if (speed == SPEED_100 && duplex== DUPLEX_HALF)
-		return ADVERTISED_100baseT_Half;
-	if (speed == SPEED_10 && duplex == DUPLEX_FULL)
-		return ADVERTISED_10baseT_Full;
-	if (speed == SPEED_10 && duplex == DUPLEX_HALF)
-		return ADVERTISED_10baseT_Half;
-	return 0;
+static inline u32 alx_speed_to_ethadv(int speed, u8 duplex) {
+  if (speed == SPEED_1000 && duplex == DUPLEX_FULL) {
+    return ADVERTISED_1000baseT_Full;
+  }
+  if (speed == SPEED_100 && duplex == DUPLEX_FULL) {
+    return ADVERTISED_100baseT_Full;
+  }
+  if (speed == SPEED_100 && duplex == DUPLEX_HALF) {
+    return ADVERTISED_100baseT_Half;
+  }
+  if (speed == SPEED_10 && duplex == DUPLEX_FULL) {
+    return ADVERTISED_10baseT_Full;
+  }
+  if (speed == SPEED_10 && duplex == DUPLEX_HALF) {
+    return ADVERTISED_10baseT_Half;
+  }
+  return 0;
 }
 
 #endif

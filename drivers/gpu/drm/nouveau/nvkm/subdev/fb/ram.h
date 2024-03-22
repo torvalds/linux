@@ -3,37 +3,37 @@
 #define __NVKM_FB_RAM_PRIV_H__
 #include "priv.h"
 
-int  nvkm_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   enum nvkm_ram_type, u64 size, struct nvkm_ram *);
-int  nvkm_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   enum nvkm_ram_type, u64 size, struct nvkm_ram **);
+int nvkm_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
+    enum nvkm_ram_type, u64 size, struct nvkm_ram *);
+int nvkm_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
+    enum nvkm_ram_type, u64 size, struct nvkm_ram **);
 void nvkm_ram_del(struct nvkm_ram **);
-int  nvkm_ram_init(struct nvkm_ram *);
+int nvkm_ram_init(struct nvkm_ram *);
 
 extern const struct nvkm_ram_func nv04_ram_func;
 
-int  nv50_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   struct nvkm_ram *);
+int nv50_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
+    struct nvkm_ram *);
 
 int gf100_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   struct nvkm_ram **);
-int  gf100_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
-		    struct nvkm_ram *);
-u32  gf100_ram_probe_fbp(const struct nvkm_ram_func *,
-			 struct nvkm_device *, int, int *);
-u32  gf100_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
-				struct nvkm_device *, int, int *);
-u32  gf100_ram_probe_fbpa_amount(struct nvkm_device *, int);
+    struct nvkm_ram **);
+int gf100_ram_ctor(const struct nvkm_ram_func *, struct nvkm_fb *,
+    struct nvkm_ram *);
+u32 gf100_ram_probe_fbp(const struct nvkm_ram_func *,
+    struct nvkm_device *, int, int *);
+u32 gf100_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
+    struct nvkm_device *, int, int *);
+u32 gf100_ram_probe_fbpa_amount(struct nvkm_device *, int);
 int gf100_ram_init(struct nvkm_ram *);
 int gf100_ram_calc(struct nvkm_ram *, u32);
 int gf100_ram_prog(struct nvkm_ram *);
 void gf100_ram_tidy(struct nvkm_ram *);
 
 u32 gf108_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
-			       struct nvkm_device *, int, int *);
+    struct nvkm_device *, int, int *);
 
 int gk104_ram_new_(const struct nvkm_ram_func *, struct nvkm_fb *,
-		   struct nvkm_ram **);
+    struct nvkm_ram **);
 void *gk104_ram_dtor(struct nvkm_ram *);
 int gk104_ram_init(struct nvkm_ram *);
 int gk104_ram_calc(struct nvkm_ram *, u32);
@@ -41,10 +41,10 @@ int gk104_ram_prog(struct nvkm_ram *);
 void gk104_ram_tidy(struct nvkm_ram *);
 
 u32 gm107_ram_probe_fbp(const struct nvkm_ram_func *,
-			struct nvkm_device *, int, int *);
+    struct nvkm_device *, int, int *);
 
 u32 gm200_ram_probe_fbp_amount(const struct nvkm_ram_func *, u32,
-			       struct nvkm_device *, int, int *);
+    struct nvkm_device *, int, int *);
 
 /* RAM type-specific MR calculation routines */
 int nvkm_sddr2_calc(struct nvkm_ram *);

@@ -3,7 +3,7 @@
  * PRU-ICSS Subsystem user interfaces
  *
  * Copyright (C) 2015-2023 Texas Instruments Incorporated - http://www.ti.com
- *	MD Danish Anwar <danishanwar@ti.com>
+ *  MD Danish Anwar <danishanwar@ti.com>
  */
 
 #ifndef _SOC_TI_PRUSS_H_
@@ -57,12 +57,12 @@
  *
  * Return: 0 on success, or an error code otherwise
  */
-static int pruss_cfg_read(struct pruss *pruss, unsigned int reg, unsigned int *val)
-{
-	if (IS_ERR_OR_NULL(pruss))
-		return -EINVAL;
-
-	return regmap_read(pruss->cfg_regmap, reg, val);
+static int pruss_cfg_read(struct pruss *pruss, unsigned int reg,
+    unsigned int *val) {
+  if (IS_ERR_OR_NULL(pruss)) {
+    return -EINVAL;
+  }
+  return regmap_read(pruss->cfg_regmap, reg, val);
 }
 
 /**
@@ -77,12 +77,11 @@ static int pruss_cfg_read(struct pruss *pruss, unsigned int reg, unsigned int *v
  * Return: 0 on success, or an error code otherwise
  */
 static int pruss_cfg_update(struct pruss *pruss, unsigned int reg,
-			    unsigned int mask, unsigned int val)
-{
-	if (IS_ERR_OR_NULL(pruss))
-		return -EINVAL;
-
-	return regmap_update_bits(pruss->cfg_regmap, reg, mask, val);
+    unsigned int mask, unsigned int val) {
+  if (IS_ERR_OR_NULL(pruss)) {
+    return -EINVAL;
+  }
+  return regmap_update_bits(pruss->cfg_regmap, reg, mask, val);
 }
 
 #endif  /* _SOC_TI_PRUSS_H_ */

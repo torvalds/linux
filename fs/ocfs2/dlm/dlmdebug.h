@@ -13,10 +13,10 @@ void dlm_print_one_mle(struct dlm_master_list_entry *mle);
 #ifdef CONFIG_DEBUG_FS
 
 struct debug_lockres {
-	int dl_len;
-	char *dl_buf;
-	struct dlm_ctxt *dl_ctxt;
-	struct dlm_lock_resource *dl_res;
+  int dl_len;
+  char *dl_buf;
+  struct dlm_ctxt *dl_ctxt;
+  struct dlm_lock_resource *dl_res;
 };
 
 void dlm_debug_init(struct dlm_ctxt *dlm);
@@ -29,21 +29,20 @@ void dlm_destroy_debugfs_root(void);
 
 #else
 
-static inline void dlm_debug_init(struct dlm_ctxt *dlm)
-{
-}
-static inline void dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
-{
-}
-static inline void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
-{
-}
-static inline void dlm_create_debugfs_root(void)
-{
-}
-static inline void dlm_destroy_debugfs_root(void)
-{
+static inline void dlm_debug_init(struct dlm_ctxt *dlm) {
 }
 
-#endif	/* CONFIG_DEBUG_FS */
-#endif	/* DLMDEBUG_H */
+static inline void dlm_create_debugfs_subroot(struct dlm_ctxt *dlm) {
+}
+
+static inline void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm) {
+}
+
+static inline void dlm_create_debugfs_root(void) {
+}
+
+static inline void dlm_destroy_debugfs_root(void) {
+}
+
+#endif  /* CONFIG_DEBUG_FS */
+#endif  /* DLMDEBUG_H */

@@ -7,21 +7,21 @@
 #include <linux/bug.h>
 
 struct memregion_info {
-	int target_node;
-	struct range range;
+  int target_node;
+  struct range range;
 };
 
 #ifdef CONFIG_MEMREGION
 int memregion_alloc(gfp_t gfp);
 void memregion_free(int id);
 #else
-static inline int memregion_alloc(gfp_t gfp)
-{
-	return -ENOMEM;
+static inline int memregion_alloc(gfp_t gfp) {
+  return -ENOMEM;
 }
-static inline void memregion_free(int id)
-{
+
+static inline void memregion_free(int id) {
 }
+
 #endif
 
 /**
@@ -49,15 +49,14 @@ static inline void memregion_free(int id)
 int cpu_cache_invalidate_memregion(int res_desc);
 bool cpu_cache_has_invalidate_memregion(void);
 #else
-static inline bool cpu_cache_has_invalidate_memregion(void)
-{
-	return false;
+static inline bool cpu_cache_has_invalidate_memregion(void) {
+  return false;
 }
 
-static inline int cpu_cache_invalidate_memregion(int res_desc)
-{
-	WARN_ON_ONCE("CPU cache invalidation required");
-	return -ENXIO;
+static inline int cpu_cache_invalidate_memregion(int res_desc) {
+  WARN_ON_ONCE("CPU cache invalidation required");
+  return -ENXIO;
 }
+
 #endif
 #endif /* _MEMREGION_H_ */

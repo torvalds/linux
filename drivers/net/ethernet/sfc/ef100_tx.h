@@ -22,7 +22,8 @@ unsigned int ef100_tx_max_skb_descs(struct efx_nic *efx);
 
 int ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event);
 
-netdev_tx_t ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
+netdev_tx_t ef100_enqueue_skb(struct efx_tx_queue *tx_queue,
+    struct sk_buff *skb);
 int __ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
-			struct efx_rep *efv);
+    struct efx_rep *efv);
 #endif

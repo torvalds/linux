@@ -19,7 +19,7 @@ unsigned long next_prime_number(unsigned long x);
  * instead.
  */
 #define for_each_prime_number(prime, max) \
-	for_each_prime_number_from((prime), 2, (max))
+  for_each_prime_number_from((prime), 2, (max))
 
 /**
  * for_each_prime_number_from - iterate over each prime upto a value
@@ -33,6 +33,6 @@ unsigned long next_prime_number(unsigned long x);
  * termination.
  */
 #define for_each_prime_number_from(prime, from, max) \
-	for (prime = (from); prime <= (max); prime = next_prime_number(prime))
+  for (prime = (from); prime <= (max); prime = next_prime_number(prime))
 
 #endif /* !__LINUX_PRIME_NUMBERS_H */

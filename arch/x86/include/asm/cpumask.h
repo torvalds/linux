@@ -11,28 +11,27 @@ extern void setup_cpu_local_masks(void);
  * provide an arch_ special for them to avoid instrumentation.
  */
 #if NR_CPUS > 1
-static __always_inline bool arch_cpu_online(int cpu)
-{
-	return arch_test_bit(cpu, cpumask_bits(cpu_online_mask));
+static __always_inline bool arch_cpu_online(int cpu) {
+  return arch_test_bit(cpu, cpumask_bits(cpu_online_mask));
 }
 
-static __always_inline void arch_cpumask_clear_cpu(int cpu, struct cpumask *dstp)
-{
-	arch_clear_bit(cpumask_check(cpu), cpumask_bits(dstp));
+static __always_inline void arch_cpumask_clear_cpu(int cpu,
+    struct cpumask *dstp) {
+  arch_clear_bit(cpumask_check(cpu), cpumask_bits(dstp));
 }
+
 #else
-static __always_inline bool arch_cpu_online(int cpu)
-{
-	return cpu == 0;
+static __always_inline bool arch_cpu_online(int cpu) {
+  return cpu == 0;
 }
 
-static __always_inline void arch_cpumask_clear_cpu(int cpu, struct cpumask *dstp)
-{
-	return;
+static __always_inline void arch_cpumask_clear_cpu(int cpu,
+    struct cpumask *dstp) {
 }
+
 #endif
 
-#define arch_cpu_is_offline(cpu)	unlikely(!arch_cpu_online(cpu))
+#define arch_cpu_is_offline(cpu)  unlikely(!arch_cpu_online(cpu))
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_X86_CPUMASK_H */

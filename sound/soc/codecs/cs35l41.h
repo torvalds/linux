@@ -24,18 +24,19 @@
 extern const struct dev_pm_ops cs35l41_pm_ops;
 
 struct cs35l41_private {
-	struct wm_adsp dsp; /* needs to be first member */
-	struct snd_soc_codec *codec;
-	struct cs35l41_hw_cfg hw_cfg;
-	struct device *dev;
-	struct regmap *regmap;
-	struct regulator_bulk_data supplies[CS35L41_NUM_SUPPLIES];
-	int irq;
-	/* GPIO for /RST */
-	struct gpio_desc *reset_gpio;
+  struct wm_adsp dsp; /* needs to be first member */
+  struct snd_soc_codec *codec;
+  struct cs35l41_hw_cfg hw_cfg;
+  struct device *dev;
+  struct regmap *regmap;
+  struct regulator_bulk_data supplies[CS35L41_NUM_SUPPLIES];
+  int irq;
+  /* GPIO for /RST */
+  struct gpio_desc *reset_gpio;
 };
 
-int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *hw_cfg);
+int cs35l41_probe(struct cs35l41_private *cs35l41,
+    const struct cs35l41_hw_cfg *hw_cfg);
 void cs35l41_remove(struct cs35l41_private *cs35l41);
 
 #endif /*__CS35L41_H__*/

@@ -7,7 +7,7 @@
 #include <linux/uuid.h>
 
 #define MEI_NFC_UUID UUID_LE(0x0bb17a78, 0x2a8e, 0x4c50, \
-		0x94, 0xd4, 0x50, 0x26, 0x67, 0x23, 0x77, 0x5c)
+    0x94, 0xd4, 0x50, 0x26, 0x67, 0x23, 0x77, 0x5c)
 #define MEI_NFC_HEADER_SIZE 10
 #define MEI_NFC_MAX_HCI_PAYLOAD 300
 
@@ -16,7 +16,7 @@
  *
  * @cldev: mei client device
  * @hdev:   nfc hci device
-
+ *
  * @send_wq: send completion wait queue
  * @fw_ivn: NFC Interface Version Number
  * @vendor_id: NFC manufacturer ID
@@ -29,20 +29,20 @@
  *    and prevents normal operation.
  */
 struct nfc_mei_phy {
-	struct mei_cl_device *cldev;
-	struct nfc_hci_dev *hdev;
+  struct mei_cl_device *cldev;
+  struct nfc_hci_dev *hdev;
 
-	wait_queue_head_t send_wq;
-	u8 fw_ivn;
-	u8 vendor_id;
-	u8 radio_type;
-	u8 reserved;
+  wait_queue_head_t send_wq;
+  u8 fw_ivn;
+  u8 vendor_id;
+  u8 radio_type;
+  u8 reserved;
 
-	u16 req_id;
-	u16 recv_req_id;
+  u16 req_id;
+  u16 recv_req_id;
 
-	int powered;
-	int hard_fault;
+  int powered;
+  int hard_fault;
 };
 
 extern const struct nfc_phy_ops mei_phy_ops;

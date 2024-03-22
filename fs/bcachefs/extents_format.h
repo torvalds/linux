@@ -37,7 +37,8 @@
  *
  * Each pointer may have its own bch_extent_crc32/64. When doing a replicated
  * write, we will initially write all the replicas in the same format, with the
- * same checksum type and compression format - however, when copygc runs later (or
+ * same checksum type and compression format - however, when copygc runs later
+ *(or
  * tiering/cache promotion, anything that moves data), it is not in general
  * going to rewrite all the pointers at once - one of the replicas may be in a
  * bucket on one device that has very little fragmentation while another lives
@@ -59,9 +60,9 @@
  * type of a given entry with a scheme similar to utf8 (except we're encoding a
  * type, not a size), encoding the type in the position of the first set bit:
  *
- * bch_extent_crc32	- 0b1
- * bch_extent_ptr	- 0b10
- * bch_extent_crc64	- 0b100
+ * bch_extent_crc32 - 0b1
+ * bch_extent_ptr - 0b10
+ * bch_extent_crc64 - 0b100
  *
  * We do it this way because bch_extent_crc32 is _very_ constrained on bits (and
  * bch_extent_crc64 is the least constrained).
@@ -73,223 +74,223 @@
  * is neither checksummed nor compressed.
  */
 
-#define BCH_EXTENT_ENTRY_TYPES()		\
-	x(ptr,			0)		\
-	x(crc32,		1)		\
-	x(crc64,		2)		\
-	x(crc128,		3)		\
-	x(stripe_ptr,		4)		\
-	x(rebalance,		5)
-#define BCH_EXTENT_ENTRY_MAX	6
+#define BCH_EXTENT_ENTRY_TYPES()    \
+  x(ptr, 0)    \
+  x(crc32, 1)    \
+  x(crc64, 2)    \
+  x(crc128, 3)    \
+  x(stripe_ptr, 4)    \
+  x(rebalance, 5)
+#define BCH_EXTENT_ENTRY_MAX  6
 
 enum bch_extent_entry_type {
-#define x(f, n) BCH_EXTENT_ENTRY_##f = n,
-	BCH_EXTENT_ENTRY_TYPES()
+#define x(f, n) BCH_EXTENT_ENTRY_ ## f = n,
+  BCH_EXTENT_ENTRY_TYPES()
 #undef x
 };
 
 /* Compressed/uncompressed size are stored biased by 1: */
 struct bch_extent_crc32 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u32			type:2,
-				_compressed_size:7,
-				_uncompressed_size:7,
-				offset:7,
-				_unused:1,
-				csum_type:4,
-				compression_type:4;
-	__u32			csum;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u32			csum;
-	__u32			compression_type:4,
-				csum_type:4,
-				_unused:1,
-				offset:7,
-				_uncompressed_size:7,
-				_compressed_size:7,
-				type:2;
+  __u32 type : 2,
+      _compressed_size : 7,
+      _uncompressed_size : 7,
+      offset : 7,
+      _unused : 1,
+      csum_type : 4,
+      compression_type : 4;
+  __u32 csum;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+  __u32 csum;
+  __u32 compression_type : 4,
+      csum_type : 4,
+      _unused : 1,
+      offset : 7,
+      _uncompressed_size : 7,
+      _compressed_size : 7,
+      type : 2;
 #endif
 } __packed __aligned(8);
 
-#define CRC32_SIZE_MAX		(1U << 7)
-#define CRC32_NONCE_MAX		0
+#define CRC32_SIZE_MAX    (1U << 7)
+#define CRC32_NONCE_MAX   0
 
 struct bch_extent_crc64 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:3,
-				_compressed_size:9,
-				_uncompressed_size:9,
-				offset:9,
-				nonce:10,
-				csum_type:4,
-				compression_type:4,
-				csum_hi:16;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			csum_hi:16,
-				compression_type:4,
-				csum_type:4,
-				nonce:10,
-				offset:9,
-				_uncompressed_size:9,
-				_compressed_size:9,
-				type:3;
+  __u64 type : 3,
+      _compressed_size : 9,
+      _uncompressed_size : 9,
+      offset : 9,
+      nonce : 10,
+      csum_type : 4,
+      compression_type : 4,
+      csum_hi : 16;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+  __u64 csum_hi : 16,
+      compression_type : 4,
+      csum_type : 4,
+      nonce : 10,
+      offset : 9,
+      _uncompressed_size : 9,
+      _compressed_size : 9,
+      type : 3;
 #endif
-	__u64			csum_lo;
+  __u64 csum_lo;
 } __packed __aligned(8);
 
-#define CRC64_SIZE_MAX		(1U << 9)
-#define CRC64_NONCE_MAX		((1U << 10) - 1)
+#define CRC64_SIZE_MAX    (1U << 9)
+#define CRC64_NONCE_MAX   ((1U << 10) - 1)
 
 struct bch_extent_crc128 {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:4,
-				_compressed_size:13,
-				_uncompressed_size:13,
-				offset:13,
-				nonce:13,
-				csum_type:4,
-				compression_type:4;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			compression_type:4,
-				csum_type:4,
-				nonce:13,
-				offset:13,
-				_uncompressed_size:13,
-				_compressed_size:13,
-				type:4;
+  __u64 type : 4,
+      _compressed_size : 13,
+      _uncompressed_size : 13,
+      offset : 13,
+      nonce : 13,
+      csum_type : 4,
+      compression_type : 4;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+  __u64 compression_type : 4,
+      csum_type : 4,
+      nonce : 13,
+      offset : 13,
+      _uncompressed_size : 13,
+      _compressed_size : 13,
+      type : 4;
 #endif
-	struct bch_csum		csum;
+  struct bch_csum csum;
 } __packed __aligned(8);
 
-#define CRC128_SIZE_MAX		(1U << 13)
-#define CRC128_NONCE_MAX	((1U << 13) - 1)
+#define CRC128_SIZE_MAX   (1U << 13)
+#define CRC128_NONCE_MAX  ((1U << 13) - 1)
 
 /*
  * @reservation - pointer hasn't been written to, just reserved
  */
 struct bch_extent_ptr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:1,
-				cached:1,
-				unused:1,
-				unwritten:1,
-				offset:44, /* 8 petabytes */
-				dev:8,
-				gen:8;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			gen:8,
-				dev:8,
-				offset:44,
-				unwritten:1,
-				unused:1,
-				cached:1,
-				type:1;
+  __u64 type : 1,
+      cached : 1,
+      unused : 1,
+      unwritten : 1,
+      offset : 44, /* 8 petabytes */
+      dev : 8,
+      gen : 8;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+  __u64 gen : 8,
+      dev : 8,
+      offset : 44,
+      unwritten : 1,
+      unused : 1,
+      cached : 1,
+      type : 1;
 #endif
 } __packed __aligned(8);
 
 struct bch_extent_stripe_ptr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:5,
-				block:8,
-				redundancy:4,
-				idx:47;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			idx:47,
-				redundancy:4,
-				block:8,
-				type:5;
+  __u64 type : 5,
+      block : 8,
+      redundancy : 4,
+      idx : 47;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+  __u64 idx : 47,
+      redundancy : 4,
+      block : 8,
+      type : 5;
 #endif
 };
 
 struct bch_extent_rebalance {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:6,
-				unused:34,
-				compression:8, /* enum bch_compression_opt */
-				target:16;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			target:16,
-				compression:8,
-				unused:34,
-				type:6;
+  __u64 type : 6,
+      unused : 34,
+      compression : 8, /* enum bch_compression_opt */
+      target : 16;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+  __u64 target : 16,
+      compression : 8,
+      unused : 34,
+      type : 6;
 #endif
 };
 
 union bch_extent_entry {
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ||  __BITS_PER_LONG == 64
-	unsigned long			type;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ || __BITS_PER_LONG == 64
+  unsigned long type;
 #elif __BITS_PER_LONG == 32
-	struct {
-		unsigned long		pad;
-		unsigned long		type;
-	};
+  struct {
+    unsigned long pad;
+    unsigned long type;
+  };
 #else
 #error edit for your odd byteorder.
 #endif
 
-#define x(f, n) struct bch_extent_##f	f;
-	BCH_EXTENT_ENTRY_TYPES()
+#define x(f, n) struct bch_extent_ ## f f;
+  BCH_EXTENT_ENTRY_TYPES()
 #undef x
 };
 
 struct bch_btree_ptr {
-	struct bch_val		v;
+  struct bch_val v;
 
-	__u64			_data[0];
-	struct bch_extent_ptr	start[];
+  __u64 _data[0];
+  struct bch_extent_ptr start[];
 } __packed __aligned(8);
 
 struct bch_btree_ptr_v2 {
-	struct bch_val		v;
+  struct bch_val v;
 
-	__u64			mem_ptr;
-	__le64			seq;
-	__le16			sectors_written;
-	__le16			flags;
-	struct bpos		min_key;
-	__u64			_data[0];
-	struct bch_extent_ptr	start[];
+  __u64 mem_ptr;
+  __le64 seq;
+  __le16 sectors_written;
+  __le16 flags;
+  struct bpos min_key;
+  __u64 _data[0];
+  struct bch_extent_ptr start[];
 } __packed __aligned(8);
 
-LE16_BITMASK(BTREE_PTR_RANGE_UPDATED,	struct bch_btree_ptr_v2, flags, 0, 1);
+LE16_BITMASK(BTREE_PTR_RANGE_UPDATED, struct bch_btree_ptr_v2, flags, 0, 1);
 
 struct bch_extent {
-	struct bch_val		v;
+  struct bch_val v;
 
-	__u64			_data[0];
-	union bch_extent_entry	start[];
+  __u64 _data[0];
+  union bch_extent_entry start[];
 } __packed __aligned(8);
 
 /* Maximum size (in u64s) a single pointer could be: */
-#define BKEY_EXTENT_PTR_U64s_MAX\
-	((sizeof(struct bch_extent_crc128) +			\
-	  sizeof(struct bch_extent_ptr)) / sizeof(__u64))
+#define BKEY_EXTENT_PTR_U64s_MAX \
+  ((sizeof(struct bch_extent_crc128)        \
+  + sizeof(struct bch_extent_ptr)) / sizeof(__u64))
 
 /* Maximum possible size of an entire extent value: */
-#define BKEY_EXTENT_VAL_U64s_MAX				\
-	(1 + BKEY_EXTENT_PTR_U64s_MAX * (BCH_REPLICAS_MAX + 1))
+#define BKEY_EXTENT_VAL_U64s_MAX        \
+  (1 + BKEY_EXTENT_PTR_U64s_MAX * (BCH_REPLICAS_MAX + 1))
 
 /* * Maximum possible size of an entire extent, key + value: */
-#define BKEY_EXTENT_U64s_MAX		(BKEY_U64s + BKEY_EXTENT_VAL_U64s_MAX)
+#define BKEY_EXTENT_U64s_MAX    (BKEY_U64s + BKEY_EXTENT_VAL_U64s_MAX)
 
 /* Btree pointers don't carry around checksums: */
-#define BKEY_BTREE_PTR_VAL_U64s_MAX				\
-	((sizeof(struct bch_btree_ptr_v2) +			\
-	  sizeof(struct bch_extent_ptr) * BCH_REPLICAS_MAX) / sizeof(__u64))
-#define BKEY_BTREE_PTR_U64s_MAX					\
-	(BKEY_U64s + BKEY_BTREE_PTR_VAL_U64s_MAX)
+#define BKEY_BTREE_PTR_VAL_U64s_MAX       \
+  ((sizeof(struct bch_btree_ptr_v2)       \
+  + sizeof(struct bch_extent_ptr) * BCH_REPLICAS_MAX) / sizeof(__u64))
+#define BKEY_BTREE_PTR_U64s_MAX         \
+  (BKEY_U64s + BKEY_BTREE_PTR_VAL_U64s_MAX)
 
 struct bch_reservation {
-	struct bch_val		v;
+  struct bch_val v;
 
-	__le32			generation;
-	__u8			nr_replicas;
-	__u8			pad[3];
+  __le32 generation;
+  __u8 nr_replicas;
+  __u8 pad[3];
 } __packed __aligned(8);
 
 struct bch_inline_data {
-	struct bch_val		v;
-	u8			data[];
+  struct bch_val v;
+  u8 data[];
 };
 
 #endif /* _BCACHEFS_EXTENTS_FORMAT_H */

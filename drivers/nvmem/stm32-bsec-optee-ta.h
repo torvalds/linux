@@ -11,7 +11,7 @@
  * @ctx: the OP-TEE context on success
  *
  * Return:
- *	On success, 0. On failure, -errno.
+ *  On success, 0. On failure, -errno.
  */
 int stm32_bsec_optee_ta_open(struct tee_context **ctx);
 
@@ -33,10 +33,10 @@ void stm32_bsec_optee_ta_close(void *ctx);
  * @bytes: number of bytes to read
  *
  * Return:
- *	On success, 0. On failure, -errno.
+ *  On success, 0. On failure, -errno.
  */
 int stm32_bsec_optee_ta_read(struct tee_context *ctx, unsigned int offset,
-			     void *buf, size_t bytes);
+    void *buf, size_t bytes);
 
 /**
  * stm32_bsec_optee_ta_write() - nvmem write access using TA client driver
@@ -47,34 +47,31 @@ int stm32_bsec_optee_ta_read(struct tee_context *ctx, unsigned int offset,
  * @bytes: number of bytes to write
  *
  * Return:
- *	On success, 0. On failure, -errno.
+ *  On success, 0. On failure, -errno.
  */
 int stm32_bsec_optee_ta_write(struct tee_context *ctx, unsigned int lower,
-			      unsigned int offset, void *buf, size_t bytes);
+    unsigned int offset, void *buf, size_t bytes);
 
 #else
 
-static inline int stm32_bsec_optee_ta_open(struct tee_context **ctx)
-{
-	return -EOPNOTSUPP;
+static inline int stm32_bsec_optee_ta_open(struct tee_context **ctx) {
+  return -EOPNOTSUPP;
 }
 
-static inline void stm32_bsec_optee_ta_close(void *ctx)
-{
+static inline void stm32_bsec_optee_ta_close(void *ctx) {
 }
 
 static inline int stm32_bsec_optee_ta_read(struct tee_context *ctx,
-					   unsigned int offset, void *buf,
-					   size_t bytes)
-{
-	return -EOPNOTSUPP;
+    unsigned int offset, void *buf,
+    size_t bytes) {
+  return -EOPNOTSUPP;
 }
 
 static inline int stm32_bsec_optee_ta_write(struct tee_context *ctx,
-					    unsigned int lower,
-					    unsigned int offset, void *buf,
-					    size_t bytes)
-{
-	return -EOPNOTSUPP;
+    unsigned int lower,
+    unsigned int offset, void *buf,
+    size_t bytes) {
+  return -EOPNOTSUPP;
 }
+
 #endif /* CONFIG_NVMEM_STM32_BSEC_OPTEE_TA */

@@ -6,14 +6,19 @@
 #include <core/falcon.h>
 
 struct nvkm_nvdec {
-	const struct nvkm_nvdec_func *func;
-	struct nvkm_engine engine;
-	struct nvkm_falcon falcon;
+  const struct nvkm_nvdec_func *func;
+  struct nvkm_engine engine;
+  struct nvkm_falcon falcon;
 };
 
-int gm107_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_nvdec **);
-int tu102_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_nvdec **);
-int ga100_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_nvdec **);
-int ga102_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_nvdec **);
-int ad102_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_nvdec **);
+int gm107_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst,
+    struct nvkm_nvdec **);
+int tu102_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst,
+    struct nvkm_nvdec **);
+int ga100_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst,
+    struct nvkm_nvdec **);
+int ga102_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst,
+    struct nvkm_nvdec **);
+int ad102_nvdec_new(struct nvkm_device *, enum nvkm_subdev_type, int inst,
+    struct nvkm_nvdec **);
 #endif

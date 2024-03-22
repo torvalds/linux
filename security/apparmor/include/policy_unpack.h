@@ -16,38 +16,37 @@
 #include <linux/dcache.h>
 #include <linux/workqueue.h>
 
-
 struct aa_load_ent {
-	struct list_head list;
-	struct aa_profile *new;
-	struct aa_profile *old;
-	struct aa_profile *rename;
-	const char *ns_name;
+  struct list_head list;
+  struct aa_profile *new;
+  struct aa_profile *old;
+  struct aa_profile *rename;
+  const char *ns_name;
 };
 
 void aa_load_ent_free(struct aa_load_ent *ent);
 struct aa_load_ent *aa_load_ent_alloc(void);
 
-#define PACKED_FLAG_HAT		1
-#define PACKED_FLAG_DEBUG1	2
-#define PACKED_FLAG_DEBUG2	4
+#define PACKED_FLAG_HAT   1
+#define PACKED_FLAG_DEBUG1  2
+#define PACKED_FLAG_DEBUG2  4
 
-#define PACKED_MODE_ENFORCE	0
-#define PACKED_MODE_COMPLAIN	1
-#define PACKED_MODE_KILL	2
-#define PACKED_MODE_UNCONFINED	3
-#define PACKED_MODE_USER	4
+#define PACKED_MODE_ENFORCE 0
+#define PACKED_MODE_COMPLAIN  1
+#define PACKED_MODE_KILL  2
+#define PACKED_MODE_UNCONFINED  3
+#define PACKED_MODE_USER  4
 
 struct aa_ns;
 
 enum {
-	AAFS_LOADDATA_ABI = 0,
-	AAFS_LOADDATA_REVISION,
-	AAFS_LOADDATA_HASH,
-	AAFS_LOADDATA_DATA,
-	AAFS_LOADDATA_COMPRESSED_SIZE,
-	AAFS_LOADDATA_DIR,		/* must be last actual entry */
-	AAFS_LOADDATA_NDENTS		/* count of entries */
+  AAFS_LOADDATA_ABI = 0,
+  AAFS_LOADDATA_REVISION,
+  AAFS_LOADDATA_HASH,
+  AAFS_LOADDATA_DATA,
+  AAFS_LOADDATA_COMPRESSED_SIZE,
+  AAFS_LOADDATA_DIR,    /* must be last actual entry */
+  AAFS_LOADDATA_NDENTS    /* count of entries */
 };
 
 /*
@@ -60,19 +59,19 @@ enum {
  */
 
 enum aa_code {
-	AA_U8,
-	AA_U16,
-	AA_U32,
-	AA_U64,
-	AA_NAME,		/* same as string except it is items name */
-	AA_STRING,
-	AA_BLOB,
-	AA_STRUCT,
-	AA_STRUCTEND,
-	AA_LIST,
-	AA_LISTEND,
-	AA_ARRAY,
-	AA_ARRAYEND,
+  AA_U8,
+  AA_U16,
+  AA_U32,
+  AA_U64,
+  AA_NAME,    /* same as string except it is items name */
+  AA_STRING,
+  AA_BLOB,
+  AA_STRUCT,
+  AA_STRUCTEND,
+  AA_LIST,
+  AA_LISTEND,
+  AA_ARRAY,
+  AA_ARRAYEND,
 };
 
 /*
@@ -81,10 +80,10 @@ enum aa_code {
  * the unpack routines.
  */
 struct aa_ext {
-	void *start;
-	void *end;
-	void *pos;		/* pointer to current position in the buffer */
-	u32 version;
+  void *start;
+  void *end;
+  void *pos;    /* pointer to current position in the buffer */
+  u32 version;
 };
 
 /*
@@ -97,23 +96,23 @@ struct aa_ext {
  * considered dead.
  */
 struct aa_loaddata {
-	struct kref count;
-	struct list_head list;
-	struct work_struct work;
-	struct dentry *dents[AAFS_LOADDATA_NDENTS];
-	struct aa_ns *ns;
-	char *name;
-	size_t size;			/* the original size of the payload */
-	size_t compressed_size;		/* the compressed size of the payload */
-	long revision;			/* the ns policy revision this caused */
-	int abi;
-	unsigned char *hash;
+  struct kref count;
+  struct list_head list;
+  struct work_struct work;
+  struct dentry *dents[AAFS_LOADDATA_NDENTS];
+  struct aa_ns *ns;
+  char *name;
+  size_t size;      /* the original size of the payload */
+  size_t compressed_size;   /* the compressed size of the payload */
+  long revision;      /* the ns policy revision this caused */
+  int abi;
+  unsigned char *hash;
 
-	/* Pointer to payload. If @compressed_size > 0, then this is the
-	 * compressed version of the payload, else it is the uncompressed
-	 * version (with the size indicated by @size).
-	 */
-	char *data;
+  /* Pointer to payload. If @compressed_size > 0, then this is the
+   * compressed version of the payload, else it is the uncompressed
+   * version (with the size indicated by @size).
+   */
+  char *data;
 };
 
 int aa_unpack(struct aa_loaddata *udata, struct list_head *lh, const char **ns);
@@ -128,13 +127,11 @@ int aa_unpack(struct aa_loaddata *udata, struct list_head *lh, const char **ns);
  *
  * Use only from inode->i_private and @data->list found references
  */
-static inline struct aa_loaddata *
-__aa_get_loaddata(struct aa_loaddata *data)
-{
-	if (data && kref_get_unless_zero(&(data->count)))
-		return data;
-
-	return NULL;
+static inline struct aa_loaddata *__aa_get_loaddata(struct aa_loaddata *data) {
+  if (data && kref_get_unless_zero(&(data->count))) {
+    return data;
+  }
+  return NULL;
 }
 
 /**
@@ -145,24 +142,20 @@ __aa_get_loaddata(struct aa_loaddata *data)
  * Requires: @data to have a valid reference count on it. It is a bug
  *           if the race to reap can be encountered when it is used.
  */
-static inline struct aa_loaddata *
-aa_get_loaddata(struct aa_loaddata *data)
-{
-	struct aa_loaddata *tmp = __aa_get_loaddata(data);
-
-	AA_BUG(data && !tmp);
-
-	return tmp;
+static inline struct aa_loaddata *aa_get_loaddata(struct aa_loaddata *data) {
+  struct aa_loaddata *tmp = __aa_get_loaddata(data);
+  AA_BUG(data && !tmp);
+  return tmp;
 }
 
 void __aa_loaddata_update(struct aa_loaddata *data, long revision);
 bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r);
 void aa_loaddata_kref(struct kref *kref);
 struct aa_loaddata *aa_loaddata_alloc(size_t size);
-static inline void aa_put_loaddata(struct aa_loaddata *data)
-{
-	if (data)
-		kref_put(&data->count, aa_loaddata_kref);
+static inline void aa_put_loaddata(struct aa_loaddata *data) {
+  if (data) {
+    kref_put(&data->count, aa_loaddata_kref);
+  }
 }
 
 #if IS_ENABLED(CONFIG_KUNIT)

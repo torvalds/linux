@@ -21,10 +21,10 @@
 #ifndef __INLINE_RMGR__
 #define STORAGE_CLASS_RMGR_H extern
 #define STORAGE_CLASS_RMGR_C
-#else				/* __INLINE_RMGR__ */
+#else       /* __INLINE_RMGR__ */
 #define STORAGE_CLASS_RMGR_H static inline
 #define STORAGE_CLASS_RMGR_C static inline
-#endif				/* __INLINE_RMGR__ */
+#endif        /* __INLINE_RMGR__ */
 
 /**
  * @brief Initialize resource manager (host/common)
@@ -44,30 +44,30 @@ void ia_css_rmgr_uninit(void);
  * struct ia_css_rmgr_<type>_handle;
  *
  * STORAGE_CLASS_RMGR_H void ia_css_rmgr_init_<type>(
- *	struct ia_css_rmgr_<type>_pool *pool);
+ *  struct ia_css_rmgr_<type>_pool *pool);
  *
  * STORAGE_CLASS_RMGR_H void ia_css_rmgr_uninit_<type>(
- *	struct ia_css_rmgr_<type>_pool *pool);
+ *  struct ia_css_rmgr_<type>_pool *pool);
  *
  * STORAGE_CLASS_RMGR_H void ia_css_rmgr_acq_<type>(
- *	struct ia_css_rmgr_<type>_pool *pool,
- *	struct ia_css_rmgr_<type>_handle **handle);
+ *  struct ia_css_rmgr_<type>_pool *pool,
+ *  struct ia_css_rmgr_<type>_handle **handle);
  *
  * STORAGE_CLASS_RMGR_H void ia_css_rmgr_rel_<type>(
- *	struct ia_css_rmgr_<type>_pool *pool,
- *	struct ia_css_rmgr_<type>_handle **handle);
+ *  struct ia_css_rmgr_<type>_pool *pool,
+ *  struct ia_css_rmgr_<type>_handle **handle);
  *
  *****************************************************************
  * Interface definition - refcounting (host/common)
  *****************************************************************
  *
  * void ia_css_rmgr_refcount_retain_<type>(
- *	struct ia_css_rmgr_<type>_handle **handle);
+ *  struct ia_css_rmgr_<type>_handle **handle);
  *
  * void ia_css_rmgr_refcount_release_<type>(
- *	struct ia_css_rmgr_<type>_handle **handle);
+ *  struct ia_css_rmgr_<type>_handle **handle);
  */
 
 #include "ia_css_rmgr_vbuf.h"
 
-#endif	/* _IA_CSS_RMGR_H */
+#endif  /* _IA_CSS_RMGR_H */

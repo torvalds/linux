@@ -1,10 +1,12 @@
 #ifndef __src_nvidia_generated_g_allclasses_h__
 #define __src_nvidia_generated_g_allclasses_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2021-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2021-2021 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

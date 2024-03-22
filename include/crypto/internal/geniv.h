@@ -13,15 +13,15 @@
 #include <linux/types.h>
 
 struct aead_geniv_ctx {
-	spinlock_t lock;
-	struct crypto_aead *child;
-	struct crypto_sync_skcipher *sknull;
-	u8 salt[] __attribute__ ((aligned(__alignof__(u32))));
+  spinlock_t lock;
+  struct crypto_aead *child;
+  struct crypto_sync_skcipher *sknull;
+  u8 salt[] __attribute__ ((aligned(__alignof__(u32))));
 };
 
 struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
-				       struct rtattr **tb);
+    struct rtattr **tb);
 int aead_init_geniv(struct crypto_aead *tfm);
 void aead_exit_geniv(struct crypto_aead *tfm);
 
-#endif	/* _CRYPTO_INTERNAL_GENIV_H */
+#endif  /* _CRYPTO_INTERNAL_GENIV_H */

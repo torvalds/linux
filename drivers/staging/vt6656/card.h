@@ -17,9 +17,9 @@
 
 /* init card type */
 
-#define CB_MAX_CHANNEL_24G	14
-#define CB_MAX_CHANNEL_5G	42 /* add channel9(5045MHz), 41==>42 */
-#define CB_MAX_CHANNEL		(CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)
+#define CB_MAX_CHANNEL_24G  14
+#define CB_MAX_CHANNEL_5G 42 /* add channel9(5045MHz), 41==>42 */
+#define CB_MAX_CHANNEL    (CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)
 
 struct vnt_private;
 
@@ -29,11 +29,11 @@ int vnt_update_ifs(struct vnt_private *priv);
 void vnt_update_top_rates(struct vnt_private *priv);
 bool vnt_ofdm_min_rate(struct vnt_private *priv);
 int vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
-		   u64 time_stamp, u64 local_tsf);
+    u64 time_stamp, u64 local_tsf);
 bool vnt_clear_current_tsf(struct vnt_private *priv);
 int vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval);
 int vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
-			 u16 beacon_interval);
+    u16 beacon_interval);
 u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval);
 u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2);
 int vnt_radio_power_off(struct vnt_private *priv);

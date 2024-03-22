@@ -17,7 +17,7 @@ int lan937x_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data);
 int lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val);
 int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu);
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
-			      struct phylink_config *config);
+    struct phylink_config *config);
 void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port);
 int lan937x_set_ageing_time(struct ksz_device *dev, unsigned int msecs);
 int lan937x_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val);

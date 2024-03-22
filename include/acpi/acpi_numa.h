@@ -9,7 +9,7 @@
 #if MAX_NUMNODES > 256
 #define MAX_PXM_DOMAINS MAX_NUMNODES
 #else
-#define MAX_PXM_DOMAINS (256)	/* Old pxm spec is defined 8 bit */
+#define MAX_PXM_DOMAINS (256) /* Old pxm spec is defined 8 bit */
 #endif
 
 extern int pxm_to_node(int);
@@ -21,25 +21,25 @@ extern void disable_srat(void);
 extern void bad_srat(void);
 extern int srat_disabled(void);
 
-#else				/* CONFIG_ACPI_NUMA */
-static inline void disable_srat(void)
-{
+#else       /* CONFIG_ACPI_NUMA */
+static inline void disable_srat(void) {
 }
-static inline int pxm_to_node(int pxm)
-{
-	return 0;
+
+static inline int pxm_to_node(int pxm) {
+  return 0;
 }
-static inline int node_to_pxm(int node)
-{
-	return 0;
+
+static inline int node_to_pxm(int node) {
+  return 0;
 }
-#endif				/* CONFIG_ACPI_NUMA */
+
+#endif        /* CONFIG_ACPI_NUMA */
 
 #ifdef CONFIG_ACPI_HMAT
 extern void disable_hmat(void);
-#else				/* CONFIG_ACPI_HMAT */
-static inline void disable_hmat(void)
-{
+#else       /* CONFIG_ACPI_HMAT */
+static inline void disable_hmat(void) {
 }
-#endif				/* CONFIG_ACPI_HMAT */
-#endif				/* __ACPI_NUMA_H */
+
+#endif        /* CONFIG_ACPI_HMAT */
+#endif        /* __ACPI_NUMA_H */

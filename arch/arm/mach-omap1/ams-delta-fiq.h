@@ -22,21 +22,21 @@
  * Interrupt number used for passing control from FIQ to IRQ.
  * IRQ12, described as reserved, has been selected.
  */
-#define INT_DEFERRED_FIQ	INT_1510_RES12
+#define INT_DEFERRED_FIQ  INT_1510_RES12
 /*
  * Base address of an interrupt handler that the INT_DEFERRED_FIQ belongs to.
  */
 #if (INT_DEFERRED_FIQ < IH2_BASE)
-#define DEFERRED_FIQ_IH_BASE	OMAP_IH1_BASE
+#define DEFERRED_FIQ_IH_BASE  OMAP_IH1_BASE
 #else
-#define DEFERRED_FIQ_IH_BASE	OMAP_IH2_BASE
+#define DEFERRED_FIQ_IH_BASE  OMAP_IH2_BASE
 #endif
 
 #ifndef __ASSEMBLER__
 extern unsigned char qwerty_fiqin_start, qwerty_fiqin_end;
 
 extern void __init ams_delta_init_fiq(struct gpio_chip *chip,
-				      struct platform_device *pdev);
+    struct platform_device *pdev);
 #endif
 
 #endif

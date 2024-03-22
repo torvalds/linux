@@ -6,4 +6,4 @@
 
 extern struct ratelimit_state net_ratelimit_state;
 
-#endif	/* _LINUX_NET_RATELIMIT_H */
+#endif  /* _LINUX_NET_RATELIMIT_H */

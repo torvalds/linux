@@ -22,7 +22,8 @@
 #define TX_QUEUE_NO         8
 
 #define DEVICE_NAME         "vt6655"
-#define DEVICE_FULL_DRV_NAM "VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver"
+#define DEVICE_FULL_DRV_NAM \
+  "VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver"
 
 #ifndef MAJOR_VERSION
 #define MAJOR_VERSION       1

@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_PCIE_DBI_REGS_H_
 #define ASIC_REG_PCIE_DBI_REGS_H_
@@ -48,7 +48,8 @@
 
 #define mmPCIE_DBI_PCI_CAP_PTR_REG 0x4C02034
 
-#define mmPCIE_DBI_MAX_LATENCY_MIN_GRANT_INTERRUPT_PIN_INTERRUPT_LINE_REG 0x4C0203C
+#define mmPCIE_DBI_MAX_LATENCY_MIN_GRANT_INTERRUPT_PIN_INTERRUPT_LINE_REG \
+  0x4C0203C
 
 #define mmPCIE_DBI_CAP_ID_NXT_PTR_REG 0x4C02040
 

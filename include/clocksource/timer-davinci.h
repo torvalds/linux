@@ -13,9 +13,9 @@
 #include <linux/ioport.h>
 
 enum {
-	DAVINCI_TIMER_CLOCKEVENT_IRQ,
-	DAVINCI_TIMER_CLOCKSOURCE_IRQ,
-	DAVINCI_TIMER_NUM_IRQS,
+  DAVINCI_TIMER_CLOCKEVENT_IRQ,
+  DAVINCI_TIMER_CLOCKSOURCE_IRQ,
+  DAVINCI_TIMER_NUM_IRQS,
 };
 
 /**
@@ -33,12 +33,12 @@ enum {
  * driver still configures the top half to run in free-run mode.
  */
 struct davinci_timer_cfg {
-	struct resource reg;
-	struct resource irq[DAVINCI_TIMER_NUM_IRQS];
-	unsigned int cmp_off;
+  struct resource reg;
+  struct resource irq[DAVINCI_TIMER_NUM_IRQS];
+  unsigned int cmp_off;
 };
 
 int __init davinci_timer_register(struct clk *clk,
-				  const struct davinci_timer_cfg *data);
+    const struct davinci_timer_cfg *data);
 
 #endif /* __TIMER_DAVINCI_H__ */

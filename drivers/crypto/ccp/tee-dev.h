@@ -17,9 +17,9 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
-#define TEE_DEFAULT_CMD_TIMEOUT		(10 * MSEC_PER_SEC)
-#define TEE_DEFAULT_RING_TIMEOUT	10
-#define MAX_BUFFER_SIZE			988
+#define TEE_DEFAULT_CMD_TIMEOUT   (10 * MSEC_PER_SEC)
+#define TEE_DEFAULT_RING_TIMEOUT  10
+#define MAX_BUFFER_SIZE     988
 
 /**
  * struct tee_init_ring_cmd - Command to init TEE ring buffer
@@ -28,12 +28,12 @@
  * @size:      size of ring buffer in bytes
  */
 struct tee_init_ring_cmd {
-	u32 low_addr;
-	u32 hi_addr;
-	u32 size;
+  u32 low_addr;
+  u32 hi_addr;
+  u32 size;
 };
 
-#define MAX_RING_BUFFER_ENTRIES		32
+#define MAX_RING_BUFFER_ENTRIES   32
 
 /**
  * struct ring_buf_manager - Helper structure to manage ring buffer.
@@ -43,19 +43,19 @@ struct tee_init_ring_cmd {
  * @wptr:        index to the last written entry in ring buffer
  */
 struct ring_buf_manager {
-	struct mutex mutex;	/* synchronizes access to ring buffer */
-	void *ring_start;
-	u32 ring_size;
-	phys_addr_t ring_pa;
-	u32 wptr;
+  struct mutex mutex; /* synchronizes access to ring buffer */
+  void *ring_start;
+  u32 ring_size;
+  phys_addr_t ring_pa;
+  u32 wptr;
 };
 
 struct psp_tee_device {
-	struct device *dev;
-	struct psp_device *psp;
-	void __iomem *io_regs;
-	struct tee_vdata *vdata;
-	struct ring_buf_manager rb_mgr;
+  struct device *dev;
+  struct psp_device *psp;
+  void __iomem *io_regs;
+  struct tee_vdata *vdata;
+  struct ring_buf_manager rb_mgr;
 };
 
 /**
@@ -65,9 +65,9 @@ struct psp_tee_device {
  * @TEE_CMD_STATE_COMPLETED: command processing completed
  */
 enum tee_cmd_state {
-	TEE_CMD_STATE_INIT,
-	TEE_CMD_STATE_PROCESS,
-	TEE_CMD_STATE_COMPLETED,
+  TEE_CMD_STATE_INIT,
+  TEE_CMD_STATE_PROCESS,
+  TEE_CMD_STATE_COMPLETED,
 };
 
 /**
@@ -78,10 +78,10 @@ enum tee_cmd_state {
  * @CMD_RESPONSE_COPIED:       driver has copied response from TEE
  */
 enum cmd_resp_state {
-	CMD_RESPONSE_INVALID,
-	CMD_WAITING_FOR_RESPONSE,
-	CMD_RESPONSE_TIMEDOUT,
-	CMD_RESPONSE_COPIED,
+  CMD_RESPONSE_INVALID,
+  CMD_WAITING_FOR_RESPONSE,
+  CMD_RESPONSE_TIMEDOUT,
+  CMD_RESPONSE_COPIED,
 };
 
 /**
@@ -94,19 +94,19 @@ enum cmd_resp_state {
  * @pdata:       private data (currently unused)
  * @res1:        reserved region
  * @buf:         TEE command specific buffer
- * @flag:	 refers to &enum cmd_resp_state
+ * @flag:  refers to &enum cmd_resp_state
  */
 struct tee_ring_cmd {
-	u32 cmd_id;
-	u32 cmd_state;
-	u32 status;
-	u32 res0[1];
-	u64 pdata;
-	u32 res1[2];
-	u8 buf[MAX_BUFFER_SIZE];
-	u32 flag;
+  u32 cmd_id;
+  u32 cmd_state;
+  u32 status;
+  u32 res0[1];
+  u64 pdata;
+  u32 res1[2];
+  u8 buf[MAX_BUFFER_SIZE];
+  u32 flag;
 
-	/* Total size: 1024 bytes */
+  /* Total size: 1024 bytes */
 } __packed;
 
 int tee_dev_init(struct psp_device *psp);

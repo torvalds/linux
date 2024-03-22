@@ -20,11 +20,11 @@ struct dpu_hw_mdp;
  * @bpc_numer : numerator of byte per clk
  */
 struct traffic_shaper_cfg {
-	bool en;
-	bool rd_client;
-	u32 client_id;
-	u32 bpc_denom;
-	u64 bpc_numer;
+  bool en;
+  bool rd_client;
+  u32 client_id;
+  u32 bpc_denom;
+  u64 bpc_numer;
 };
 
 /**
@@ -36,10 +36,10 @@ struct traffic_shaper_cfg {
  *              flushed
  */
 struct split_pipe_cfg {
-	bool en;
-	enum dpu_intf_mode mode;
-	enum dpu_intf intf;
-	bool split_flush_en;
+  bool en;
+  enum dpu_intf_mode mode;
+  enum dpu_intf intf;
+  bool split_flush_en;
 };
 
 /**
@@ -48,8 +48,8 @@ struct split_pipe_cfg {
  * @sspp: source pipe status
  */
 struct dpu_danger_safe_status {
-	u8 mdp;
-	u8 sspp[SSPP_MAX];
+  u8 mdp;
+  u8 sspp[SSPP_MAX];
 };
 
 /**
@@ -61,10 +61,10 @@ struct dpu_danger_safe_status {
  * @vsync_source: vsync source selection
  */
 struct dpu_vsync_source_cfg {
-	u32 pp_count;
-	u32 frame_rate;
-	u32 ppnumber[PINGPONG_MAX];
-	u32 vsync_source;
+  u32 pp_count;
+  u32 frame_rate;
+  u32 ppnumber[PINGPONG_MAX];
+  u32 vsync_source;
 };
 
 /**
@@ -75,72 +75,72 @@ struct dpu_vsync_source_cfg {
  * @setup_traffic_shaper : programs traffic shaper control
  */
 struct dpu_hw_mdp_ops {
-	/** setup_split_pipe() : Registers are not double buffered, thisk
-	 * function should be called before timing control enable
-	 * @mdp  : mdp top context driver
-	 * @cfg  : upper and lower part of pipe configuration
-	 */
-	void (*setup_split_pipe)(struct dpu_hw_mdp *mdp,
-			struct split_pipe_cfg *p);
+  /** setup_split_pipe() : Registers are not double buffered, thisk
+   * function should be called before timing control enable
+   * @mdp  : mdp top context driver
+   * @cfg  : upper and lower part of pipe configuration
+   */
+  void (*setup_split_pipe)(struct dpu_hw_mdp *mdp,
+      struct split_pipe_cfg *p);
 
-	/**
-	 * setup_traffic_shaper() : Setup traffic shaper control
-	 * @mdp  : mdp top context driver
-	 * @cfg  : traffic shaper configuration
-	 */
-	void (*setup_traffic_shaper)(struct dpu_hw_mdp *mdp,
-			struct traffic_shaper_cfg *cfg);
+  /**
+   * setup_traffic_shaper() : Setup traffic shaper control
+   * @mdp  : mdp top context driver
+   * @cfg  : traffic shaper configuration
+   */
+  void (*setup_traffic_shaper)(struct dpu_hw_mdp *mdp,
+      struct traffic_shaper_cfg *cfg);
 
-	/**
-	 * setup_clk_force_ctrl - set clock force control
-	 * @mdp: mdp top context driver
-	 * @clk_ctrl: clock to be controlled
-	 * @enable: force on enable
-	 * @return: if the clock is forced-on by this function
-	 */
-	bool (*setup_clk_force_ctrl)(struct dpu_hw_mdp *mdp,
-			enum dpu_clk_ctrl_type clk_ctrl, bool enable);
+  /**
+   * setup_clk_force_ctrl - set clock force control
+   * @mdp: mdp top context driver
+   * @clk_ctrl: clock to be controlled
+   * @enable: force on enable
+   * @return: if the clock is forced-on by this function
+   */
+  bool (*setup_clk_force_ctrl)(struct dpu_hw_mdp *mdp,
+      enum dpu_clk_ctrl_type clk_ctrl, bool enable);
 
-	/**
-	 * get_danger_status - get danger status
-	 * @mdp: mdp top context driver
-	 * @status: Pointer to danger safe status
-	 */
-	void (*get_danger_status)(struct dpu_hw_mdp *mdp,
-			struct dpu_danger_safe_status *status);
+  /**
+   * get_danger_status - get danger status
+   * @mdp: mdp top context driver
+   * @status: Pointer to danger safe status
+   */
+  void (*get_danger_status)(struct dpu_hw_mdp *mdp,
+      struct dpu_danger_safe_status *status);
 
-	/**
-	 * setup_vsync_source - setup vsync source configuration details
-	 * @mdp: mdp top context driver
-	 * @cfg: vsync source selection configuration
-	 */
-	void (*setup_vsync_source)(struct dpu_hw_mdp *mdp,
-				struct dpu_vsync_source_cfg *cfg);
+  /**
+   * setup_vsync_source - setup vsync source configuration details
+   * @mdp: mdp top context driver
+   * @cfg: vsync source selection configuration
+   */
+  void (*setup_vsync_source)(struct dpu_hw_mdp *mdp,
+      struct dpu_vsync_source_cfg *cfg);
 
-	/**
-	 * get_safe_status - get safe status
-	 * @mdp: mdp top context driver
-	 * @status: Pointer to danger safe status
-	 */
-	void (*get_safe_status)(struct dpu_hw_mdp *mdp,
-			struct dpu_danger_safe_status *status);
+  /**
+   * get_safe_status - get safe status
+   * @mdp: mdp top context driver
+   * @status: Pointer to danger safe status
+   */
+  void (*get_safe_status)(struct dpu_hw_mdp *mdp,
+      struct dpu_danger_safe_status *status);
 
-	/**
-	 * intf_audio_select - select the external interface for audio
-	 * @mdp: mdp top context driver
-	 */
-	void (*intf_audio_select)(struct dpu_hw_mdp *mdp);
+  /**
+   * intf_audio_select - select the external interface for audio
+   * @mdp: mdp top context driver
+   */
+  void (*intf_audio_select)(struct dpu_hw_mdp *mdp);
 };
 
 struct dpu_hw_mdp {
-	struct dpu_hw_blk base;
-	struct dpu_hw_blk_reg_map hw;
+  struct dpu_hw_blk base;
+  struct dpu_hw_blk_reg_map hw;
 
-	/* top */
-	const struct dpu_mdp_cfg *caps;
+  /* top */
+  const struct dpu_mdp_cfg *caps;
 
-	/* ops */
-	struct dpu_hw_mdp_ops ops;
+  /* ops */
+  struct dpu_hw_mdp_ops ops;
 };
 
 /**
@@ -151,9 +151,9 @@ struct dpu_hw_mdp {
  * @m:    Pointer to mdss catalog data
  */
 struct dpu_hw_mdp *dpu_hw_mdptop_init(struct drm_device *dev,
-				      const struct dpu_mdp_cfg *cfg,
-				      void __iomem *addr,
-				      const struct dpu_mdss_cfg *m);
+    const struct dpu_mdp_cfg *cfg,
+    void __iomem *addr,
+    const struct dpu_mdss_cfg *m);
 
 void dpu_hw_mdp_destroy(struct dpu_hw_mdp *mdp);
 

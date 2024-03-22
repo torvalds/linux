@@ -10,11 +10,11 @@
 #include <sound/soc-acpi-intel-match.h>
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_cfl_machines[] = {
-	{},
+  {},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_cfl_machines);
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_cfl_sdw_machines[] = {
-	{}
+  {}
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_cfl_sdw_machines);

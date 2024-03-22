@@ -14,8 +14,8 @@
  * PSeries firmware will only send/recv up to 16 bytes of character data per
  * hcall.
  */
-#define MAX_VIO_PUT_CHARS	16
-#define SIZE_VIO_GET_CHARS	16
+#define MAX_VIO_PUT_CHARS 16
+#define SIZE_VIO_GET_CHARS  16
 
 /*
  * Vio firmware always attempts to fetch MAX_VIO_GET_CHARS chars.  The 'count'

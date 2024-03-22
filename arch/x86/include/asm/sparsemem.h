@@ -11,22 +11,22 @@
  * 1) we will not split memory into more chunks than will fit into the flags
  *    field of the struct page
  *
- * SECTION_SIZE_BITS		2^n: size of each section
- * MAX_PHYSMEM_BITS		2^n: max size of physical address space
+ * SECTION_SIZE_BITS    2^n: size of each section
+ * MAX_PHYSMEM_BITS   2^n: max size of physical address space
  *
  */
 
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_X86_PAE
-#  define SECTION_SIZE_BITS	29
-#  define MAX_PHYSMEM_BITS	36
-# else
-#  define SECTION_SIZE_BITS	26
-#  define MAX_PHYSMEM_BITS	32
-# endif
+#ifdef CONFIG_X86_PAE
+#define SECTION_SIZE_BITS 29
+#define MAX_PHYSMEM_BITS  36
+#else
+#define SECTION_SIZE_BITS 26
+#define MAX_PHYSMEM_BITS  32
+#endif
 #else /* CONFIG_X86_32 */
-# define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
-# define MAX_PHYSMEM_BITS	(pgtable_l5_enabled() ? 52 : 46)
+#define SECTION_SIZE_BITS  27 /* matt - 128 is convenient right now */
+#define MAX_PHYSMEM_BITS (pgtable_l5_enabled() ? 52 : 46)
 #endif
 
 #endif /* CONFIG_SPARSEMEM */

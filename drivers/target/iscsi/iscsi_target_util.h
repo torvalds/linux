@@ -5,7 +5,7 @@
 #include <linux/types.h>
 #include <scsi/iscsi_proto.h>        /* itt_t */
 
-#define MARKER_SIZE	8
+#define MARKER_SIZE 8
 
 struct iscsit_cmd;
 struct iscsit_conn;
@@ -19,32 +19,43 @@ extern void iscsit_free_r2t(struct iscsi_r2t *, struct iscsit_cmd *);
 extern void iscsit_free_r2ts_from_list(struct iscsit_cmd *);
 extern struct iscsit_cmd *iscsit_alloc_cmd(struct iscsit_conn *, gfp_t);
 extern struct iscsit_cmd *iscsit_allocate_cmd(struct iscsit_conn *, int);
-extern struct iscsi_seq *iscsit_get_seq_holder_for_datain(struct iscsit_cmd *, u32);
+extern struct iscsi_seq *iscsit_get_seq_holder_for_datain(struct iscsit_cmd *,
+    u32);
 extern struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsit_cmd *);
 extern struct iscsi_r2t *iscsit_get_holder_for_r2tsn(struct iscsit_cmd *, u32);
 extern int iscsit_sequence_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
-			       unsigned char * ,__be32 cmdsn);
-extern int iscsit_check_unsolicited_dataout(struct iscsit_cmd *, unsigned char *);
+    unsigned char *, __be32 cmdsn);
+extern int iscsit_check_unsolicited_dataout(struct iscsit_cmd *,
+    unsigned char *);
 extern struct iscsit_cmd *iscsit_find_cmd_from_itt_or_dump(struct iscsit_conn *,
-			itt_t, u32);
+    itt_t, u32);
 extern struct iscsit_cmd *iscsit_find_cmd_from_ttt(struct iscsit_conn *, u32);
-extern int iscsit_find_cmd_for_recovery(struct iscsit_session *, struct iscsit_cmd **,
-			struct iscsi_conn_recovery **, itt_t);
-extern void iscsit_add_cmd_to_immediate_queue(struct iscsit_cmd *, struct iscsit_conn *, u8);
-extern struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(struct iscsit_conn *);
-extern int iscsit_add_cmd_to_response_queue(struct iscsit_cmd *, struct iscsit_conn *, u8);
-extern struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(struct iscsit_conn *);
-extern void iscsit_remove_cmd_from_tx_queues(struct iscsit_cmd *, struct iscsit_conn *);
+extern int iscsit_find_cmd_for_recovery(struct iscsit_session *,
+    struct iscsit_cmd **,
+    struct iscsi_conn_recovery **, itt_t);
+extern void iscsit_add_cmd_to_immediate_queue(struct iscsit_cmd *,
+    struct iscsit_conn *, u8);
+extern struct iscsi_queue_req *iscsit_get_cmd_from_immediate_queue(
+  struct iscsit_conn *);
+extern int iscsit_add_cmd_to_response_queue(struct iscsit_cmd *,
+    struct iscsit_conn *, u8);
+extern struct iscsi_queue_req *iscsit_get_cmd_from_response_queue(
+  struct iscsit_conn *);
+extern void iscsit_remove_cmd_from_tx_queues(struct iscsit_cmd *,
+    struct iscsit_conn *);
 extern bool iscsit_conn_all_queues_empty(struct iscsit_conn *);
 extern void iscsit_free_queue_reqs_for_conn(struct iscsit_conn *);
 extern void iscsit_release_cmd(struct iscsit_cmd *);
 extern void __iscsit_free_cmd(struct iscsit_cmd *, bool);
 extern void iscsit_free_cmd(struct iscsit_cmd *, bool);
-extern bool iscsit_check_session_usage_count(struct iscsit_session *sess, bool can_sleep);
+extern bool iscsit_check_session_usage_count(struct iscsit_session *sess,
+    bool can_sleep);
 extern void iscsit_dec_session_usage_count(struct iscsit_session *);
 extern void iscsit_inc_session_usage_count(struct iscsit_session *);
-extern struct iscsit_conn *iscsit_get_conn_from_cid(struct iscsit_session *, u16);
-extern struct iscsit_conn *iscsit_get_conn_from_cid_rcfr(struct iscsit_session *, u16);
+extern struct iscsit_conn *iscsit_get_conn_from_cid(struct iscsit_session *,
+    u16);
+extern struct iscsit_conn *iscsit_get_conn_from_cid_rcfr(
+  struct iscsit_session *, u16);
 extern void iscsit_check_conn_usage_count(struct iscsit_conn *);
 extern void iscsit_dec_conn_usage_count(struct iscsit_conn *);
 extern void iscsit_inc_conn_usage_count(struct iscsit_conn *);
@@ -57,9 +68,11 @@ extern void __iscsit_start_nopin_timer(struct iscsit_conn *);
 extern void iscsit_start_nopin_timer(struct iscsit_conn *);
 extern void iscsit_stop_nopin_timer(struct iscsit_conn *);
 extern void iscsit_login_timeout(struct timer_list *t);
-extern void iscsit_start_login_timer(struct iscsit_conn *, struct task_struct *kthr);
+extern void iscsit_start_login_timer(struct iscsit_conn *,
+    struct task_struct *kthr);
 extern void iscsit_stop_login_timer(struct iscsit_conn *);
-extern int iscsit_set_login_timer_kworker(struct iscsit_conn *, struct task_struct *kthr);
+extern int iscsit_set_login_timer_kworker(struct iscsit_conn *,
+    struct task_struct *kthr);
 extern int iscsit_send_tx_data(struct iscsit_cmd *, struct iscsit_conn *, int);
 extern int iscsit_fe_sendpage_sg(struct iscsit_cmd *, struct iscsit_conn *);
 extern int iscsit_tx_login_rsp(struct iscsit_conn *, u8, u8);

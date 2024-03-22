@@ -22,148 +22,130 @@
 
 #include "vitesse-vsc73xx.h"
 
-#define VSC73XX_CMD_PLATFORM_BLOCK_SHIFT		14
-#define VSC73XX_CMD_PLATFORM_BLOCK_MASK			0x7
-#define VSC73XX_CMD_PLATFORM_SUBBLOCK_SHIFT		10
-#define VSC73XX_CMD_PLATFORM_SUBBLOCK_MASK		0xf
-#define VSC73XX_CMD_PLATFORM_REGISTER_SHIFT		2
+#define VSC73XX_CMD_PLATFORM_BLOCK_SHIFT    14
+#define VSC73XX_CMD_PLATFORM_BLOCK_MASK     0x7
+#define VSC73XX_CMD_PLATFORM_SUBBLOCK_SHIFT   10
+#define VSC73XX_CMD_PLATFORM_SUBBLOCK_MASK    0xf
+#define VSC73XX_CMD_PLATFORM_REGISTER_SHIFT   2
 
 /*
  * struct vsc73xx_platform - VSC73xx Platform state container
  */
 struct vsc73xx_platform {
-	struct platform_device	*pdev;
-	void __iomem		*base_addr;
-	struct vsc73xx		vsc;
+  struct platform_device *pdev;
+  void __iomem *base_addr;
+  struct vsc73xx vsc;
 };
 
 static const struct vsc73xx_ops vsc73xx_platform_ops;
 
-static u32 vsc73xx_make_addr(u8 block, u8 subblock, u8 reg)
-{
-	u32 ret;
-
-	ret = (block & VSC73XX_CMD_PLATFORM_BLOCK_MASK)
-	    << VSC73XX_CMD_PLATFORM_BLOCK_SHIFT;
-	ret |= (subblock & VSC73XX_CMD_PLATFORM_SUBBLOCK_MASK)
-	    << VSC73XX_CMD_PLATFORM_SUBBLOCK_SHIFT;
-	ret |= reg << VSC73XX_CMD_PLATFORM_REGISTER_SHIFT;
-
-	return ret;
+static u32 vsc73xx_make_addr(u8 block, u8 subblock, u8 reg) {
+  u32 ret;
+  ret = (block & VSC73XX_CMD_PLATFORM_BLOCK_MASK)
+      << VSC73XX_CMD_PLATFORM_BLOCK_SHIFT;
+  ret |= (subblock & VSC73XX_CMD_PLATFORM_SUBBLOCK_MASK)
+      << VSC73XX_CMD_PLATFORM_SUBBLOCK_SHIFT;
+  ret |= reg << VSC73XX_CMD_PLATFORM_REGISTER_SHIFT;
+  return ret;
 }
 
 static int vsc73xx_platform_read(struct vsc73xx *vsc, u8 block, u8 subblock,
-				 u8 reg, u32 *val)
-{
-	struct vsc73xx_platform *vsc_platform = vsc->priv;
-	u32 offset;
-
-	if (!vsc73xx_is_addr_valid(block, subblock))
-		return -EINVAL;
-
-	offset = vsc73xx_make_addr(block, subblock, reg);
-	/* By default vsc73xx running in big-endian mode.
-	 * (See "Register Addressing" section 5.5.3 in the VSC7385 manual.)
-	 */
-	*val = ioread32be(vsc_platform->base_addr + offset);
-
-	return 0;
+    u8 reg, u32 *val) {
+  struct vsc73xx_platform *vsc_platform = vsc->priv;
+  u32 offset;
+  if (!vsc73xx_is_addr_valid(block, subblock)) {
+    return -EINVAL;
+  }
+  offset = vsc73xx_make_addr(block, subblock, reg);
+  /* By default vsc73xx running in big-endian mode.
+   * (See "Register Addressing" section 5.5.3 in the VSC7385 manual.)
+   */
+  *val = ioread32be(vsc_platform->base_addr + offset);
+  return 0;
 }
 
 static int vsc73xx_platform_write(struct vsc73xx *vsc, u8 block, u8 subblock,
-				  u8 reg, u32 val)
-{
-	struct vsc73xx_platform *vsc_platform = vsc->priv;
-	u32 offset;
-
-	if (!vsc73xx_is_addr_valid(block, subblock))
-		return -EINVAL;
-
-	offset = vsc73xx_make_addr(block, subblock, reg);
-	iowrite32be(val, vsc_platform->base_addr + offset);
-
-	return 0;
+    u8 reg, u32 val) {
+  struct vsc73xx_platform *vsc_platform = vsc->priv;
+  u32 offset;
+  if (!vsc73xx_is_addr_valid(block, subblock)) {
+    return -EINVAL;
+  }
+  offset = vsc73xx_make_addr(block, subblock, reg);
+  iowrite32be(val, vsc_platform->base_addr + offset);
+  return 0;
 }
 
-static int vsc73xx_platform_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct vsc73xx_platform *vsc_platform;
-	int ret;
-
-	vsc_platform = devm_kzalloc(dev, sizeof(*vsc_platform), GFP_KERNEL);
-	if (!vsc_platform)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, vsc_platform);
-	vsc_platform->pdev = pdev;
-	vsc_platform->vsc.dev = dev;
-	vsc_platform->vsc.priv = vsc_platform;
-	vsc_platform->vsc.ops = &vsc73xx_platform_ops;
-
-	/* obtain I/O memory space */
-	vsc_platform->base_addr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(vsc_platform->base_addr)) {
-		dev_err(&pdev->dev, "cannot request I/O memory space\n");
-		ret = -ENXIO;
-		return ret;
-	}
-
-	return vsc73xx_probe(&vsc_platform->vsc);
+static int vsc73xx_platform_probe(struct platform_device *pdev) {
+  struct device *dev = &pdev->dev;
+  struct vsc73xx_platform *vsc_platform;
+  int ret;
+  vsc_platform = devm_kzalloc(dev, sizeof(*vsc_platform), GFP_KERNEL);
+  if (!vsc_platform) {
+    return -ENOMEM;
+  }
+  platform_set_drvdata(pdev, vsc_platform);
+  vsc_platform->pdev = pdev;
+  vsc_platform->vsc.dev = dev;
+  vsc_platform->vsc.priv = vsc_platform;
+  vsc_platform->vsc.ops = &vsc73xx_platform_ops;
+  /* obtain I/O memory space */
+  vsc_platform->base_addr = devm_platform_ioremap_resource(pdev, 0);
+  if (IS_ERR(vsc_platform->base_addr)) {
+    dev_err(&pdev->dev, "cannot request I/O memory space\n");
+    ret = -ENXIO;
+    return ret;
+  }
+  return vsc73xx_probe(&vsc_platform->vsc);
 }
 
-static void vsc73xx_platform_remove(struct platform_device *pdev)
-{
-	struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
-
-	if (!vsc_platform)
-		return;
-
-	vsc73xx_remove(&vsc_platform->vsc);
+static void vsc73xx_platform_remove(struct platform_device *pdev) {
+  struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
+  if (!vsc_platform) {
+    return;
+  }
+  vsc73xx_remove(&vsc_platform->vsc);
 }
 
-static void vsc73xx_platform_shutdown(struct platform_device *pdev)
-{
-	struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
-
-	if (!vsc_platform)
-		return;
-
-	vsc73xx_shutdown(&vsc_platform->vsc);
-
-	platform_set_drvdata(pdev, NULL);
+static void vsc73xx_platform_shutdown(struct platform_device *pdev) {
+  struct vsc73xx_platform *vsc_platform = platform_get_drvdata(pdev);
+  if (!vsc_platform) {
+    return;
+  }
+  vsc73xx_shutdown(&vsc_platform->vsc);
+  platform_set_drvdata(pdev, NULL);
 }
 
 static const struct vsc73xx_ops vsc73xx_platform_ops = {
-	.read = vsc73xx_platform_read,
-	.write = vsc73xx_platform_write,
+  .read = vsc73xx_platform_read,
+  .write = vsc73xx_platform_write,
 };
 
 static const struct of_device_id vsc73xx_of_match[] = {
-	{
-		.compatible = "vitesse,vsc7385",
-	},
-	{
-		.compatible = "vitesse,vsc7388",
-	},
-	{
-		.compatible = "vitesse,vsc7395",
-	},
-	{
-		.compatible = "vitesse,vsc7398",
-	},
-	{ },
+  {
+    .compatible = "vitesse,vsc7385",
+  },
+  {
+    .compatible = "vitesse,vsc7388",
+  },
+  {
+    .compatible = "vitesse,vsc7395",
+  },
+  {
+    .compatible = "vitesse,vsc7398",
+  },
+  {},
 };
 MODULE_DEVICE_TABLE(of, vsc73xx_of_match);
 
 static struct platform_driver vsc73xx_platform_driver = {
-	.probe = vsc73xx_platform_probe,
-	.remove_new = vsc73xx_platform_remove,
-	.shutdown = vsc73xx_platform_shutdown,
-	.driver = {
-		.name = "vsc73xx-platform",
-		.of_match_table = vsc73xx_of_match,
-	},
+  .probe = vsc73xx_platform_probe,
+  .remove_new = vsc73xx_platform_remove,
+  .shutdown = vsc73xx_platform_shutdown,
+  .driver = {
+    .name = "vsc73xx-platform",
+    .of_match_table = vsc73xx_of_match,
+  },
 };
 module_platform_driver(vsc73xx_platform_driver);
 

@@ -17,27 +17,27 @@
 struct intel_uc;
 
 struct intel_uc_ops {
-	int (*sanitize)(struct intel_uc *uc);
-	void (*init_fw)(struct intel_uc *uc);
-	void (*fini_fw)(struct intel_uc *uc);
-	int (*init)(struct intel_uc *uc);
-	void (*fini)(struct intel_uc *uc);
-	int (*init_hw)(struct intel_uc *uc);
-	void (*fini_hw)(struct intel_uc *uc);
-	void (*resume_mappings)(struct intel_uc *uc);
+  int (*sanitize)(struct intel_uc *uc);
+  void (*init_fw)(struct intel_uc *uc);
+  void (*fini_fw)(struct intel_uc *uc);
+  int (*init)(struct intel_uc *uc);
+  void (*fini)(struct intel_uc *uc);
+  int (*init_hw)(struct intel_uc *uc);
+  void (*fini_hw)(struct intel_uc *uc);
+  void (*resume_mappings)(struct intel_uc *uc);
 };
 
 struct intel_uc {
-	struct intel_uc_ops const *ops;
-	struct intel_gsc_uc gsc;
-	struct intel_guc guc;
-	struct intel_huc huc;
+  struct intel_uc_ops const *ops;
+  struct intel_gsc_uc gsc;
+  struct intel_guc guc;
+  struct intel_huc huc;
 
-	/* Snapshot of GuC log from last failed load */
-	struct drm_i915_gem_object *load_err_log;
+  /* Snapshot of GuC log from last failed load */
+  struct drm_i915_gem_object *load_err_log;
 
-	bool reset_in_progress;
-	bool fw_table_invalid;
+  bool reset_in_progress;
+  bool fw_table_invalid;
 };
 
 void intel_uc_init_early(struct intel_uc *uc);
@@ -76,15 +76,15 @@ int intel_uc_runtime_resume(struct intel_uc *uc);
  */
 
 #define __uc_state_checker(x, func, state, required) \
-static inline bool intel_uc_##state##_##func(struct intel_uc *uc) \
-{ \
-	return intel_##func##_is_##required(&uc->x); \
-}
+  static inline bool intel_uc_ ## state ## _ ## func(struct intel_uc *uc) \
+  { \
+    return intel_ ## func ## _is_ ## required(&uc->x); \
+  }
 
 #define uc_state_checkers(x, func) \
-__uc_state_checker(x, func, supports, supported) \
-__uc_state_checker(x, func, wants, wanted) \
-__uc_state_checker(x, func, uses, used)
+  __uc_state_checker(x, func, supports, supported) \
+  __uc_state_checker(x, func, wants, wanted) \
+  __uc_state_checker(x, func, uses, used)
 
 uc_state_checkers(guc, guc);
 uc_state_checkers(huc, huc);
@@ -96,18 +96,17 @@ uc_state_checkers(gsc, gsc_uc);
 #undef uc_state_checkers
 #undef __uc_state_checker
 
-static inline int intel_uc_wait_for_idle(struct intel_uc *uc, long timeout)
-{
-	return intel_guc_wait_for_idle(&uc->guc, timeout);
+static inline int intel_uc_wait_for_idle(struct intel_uc *uc, long timeout) {
+  return intel_guc_wait_for_idle(&uc->guc, timeout);
 }
 
 #define intel_uc_ops_function(_NAME, _OPS, _TYPE, _RET) \
-static inline _TYPE intel_uc_##_NAME(struct intel_uc *uc) \
-{ \
-	if (uc->ops->_OPS) \
-		return uc->ops->_OPS(uc); \
-	return _RET; \
-}
+  static inline _TYPE intel_uc_ ## _NAME(struct intel_uc *uc) \
+  { \
+    if (uc->ops->_OPS) \
+    return uc->ops->_OPS(uc); \
+    return _RET; \
+  }
 intel_uc_ops_function(sanitize, sanitize, int, 0);
 intel_uc_ops_function(fetch_firmwares, init_fw, void, );
 intel_uc_ops_function(cleanup_firmwares, fini_fw, void, );

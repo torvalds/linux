@@ -46,12 +46,12 @@
  * linkage errors occur due the compiler generating the wrong code to access
  * that section.
  */
-#define __PCPU_ATTRS(sec)						\
-	__percpu __attribute__((section(PER_CPU_BASE_SECTION sec)))	\
-	PER_CPU_ATTRIBUTES
+#define __PCPU_ATTRS(sec)           \
+  __percpu __attribute__((section(PER_CPU_BASE_SECTION sec))) \
+  PER_CPU_ATTRIBUTES
 
-#define __PCPU_DUMMY_ATTRS						\
-	__section(".discard") __attribute__((unused))
+#define __PCPU_DUMMY_ATTRS            \
+  __section(".discard") __attribute__((unused))
 
 /*
  * s390 and alpha modules require percpu variables to be defined as
@@ -83,46 +83,46 @@
  * such that hidden weak symbol collision, which will cause unrelated
  * variables to share the same address, can be detected during build.
  */
-#define DECLARE_PER_CPU_SECTION(type, name, sec)			\
-	extern __PCPU_DUMMY_ATTRS char __pcpu_scope_##name;		\
-	extern __PCPU_ATTRS(sec) __typeof__(type) name
+#define DECLARE_PER_CPU_SECTION(type, name, sec)      \
+  extern __PCPU_DUMMY_ATTRS char __pcpu_scope_ ## name;   \
+  extern __PCPU_ATTRS(sec) __typeof__(type) name
 
-#define DEFINE_PER_CPU_SECTION(type, name, sec)				\
-	__PCPU_DUMMY_ATTRS char __pcpu_scope_##name;			\
-	extern __PCPU_DUMMY_ATTRS char __pcpu_unique_##name;		\
-	__PCPU_DUMMY_ATTRS char __pcpu_unique_##name;			\
-	extern __PCPU_ATTRS(sec) __typeof__(type) name;			\
-	__PCPU_ATTRS(sec) __weak __typeof__(type) name
+#define DEFINE_PER_CPU_SECTION(type, name, sec)       \
+  __PCPU_DUMMY_ATTRS char __pcpu_scope_ ## name;      \
+  extern __PCPU_DUMMY_ATTRS char __pcpu_unique_ ## name;    \
+  __PCPU_DUMMY_ATTRS char __pcpu_unique_ ## name;     \
+  extern __PCPU_ATTRS(sec) __typeof__(type) name;     \
+  __PCPU_ATTRS(sec) __weak __typeof__(type) name
 #else
 /*
  * Normal declaration and definition macros.
  */
-#define DECLARE_PER_CPU_SECTION(type, name, sec)			\
-	extern __PCPU_ATTRS(sec) __typeof__(type) name
+#define DECLARE_PER_CPU_SECTION(type, name, sec)      \
+  extern __PCPU_ATTRS(sec) __typeof__(type) name
 
-#define DEFINE_PER_CPU_SECTION(type, name, sec)				\
-	__PCPU_ATTRS(sec) __typeof__(type) name
+#define DEFINE_PER_CPU_SECTION(type, name, sec)       \
+  __PCPU_ATTRS(sec) __typeof__(type) name
 #endif
 
 /*
  * Variant on the per-CPU variable declaration/definition theme used for
  * ordinary per-CPU variables.
  */
-#define DECLARE_PER_CPU(type, name)					\
-	DECLARE_PER_CPU_SECTION(type, name, "")
+#define DECLARE_PER_CPU(type, name)         \
+  DECLARE_PER_CPU_SECTION(type, name, "")
 
-#define DEFINE_PER_CPU(type, name)					\
-	DEFINE_PER_CPU_SECTION(type, name, "")
+#define DEFINE_PER_CPU(type, name)          \
+  DEFINE_PER_CPU_SECTION(type, name, "")
 
 /*
  * Declaration/definition used for per-CPU variables that must come first in
  * the set of variables.
  */
-#define DECLARE_PER_CPU_FIRST(type, name)				\
-	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
+#define DECLARE_PER_CPU_FIRST(type, name)       \
+  DECLARE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
 
-#define DEFINE_PER_CPU_FIRST(type, name)				\
-	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
+#define DEFINE_PER_CPU_FIRST(type, name)        \
+  DEFINE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
 
 /*
  * Declaration/definition used for per-CPU variables that must be cacheline
@@ -135,54 +135,54 @@
  * is updated by that CPU alone, but the data from across all CPUs is collated
  * by a CPU processing a read from a proc file.
  */
-#define DECLARE_PER_CPU_SHARED_ALIGNED(type, name)			\
-	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
-	____cacheline_aligned_in_smp
+#define DECLARE_PER_CPU_SHARED_ALIGNED(type, name)      \
+  DECLARE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
+  ____cacheline_aligned_in_smp
 
-#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)			\
-	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
-	____cacheline_aligned_in_smp
+#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)     \
+  DEFINE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
+  ____cacheline_aligned_in_smp
 
-#define DECLARE_PER_CPU_ALIGNED(type, name)				\
-	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_ALIGNED_SECTION)	\
-	____cacheline_aligned
+#define DECLARE_PER_CPU_ALIGNED(type, name)       \
+  DECLARE_PER_CPU_SECTION(type, name, PER_CPU_ALIGNED_SECTION)  \
+  ____cacheline_aligned
 
-#define DEFINE_PER_CPU_ALIGNED(type, name)				\
-	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_ALIGNED_SECTION)	\
-	____cacheline_aligned
+#define DEFINE_PER_CPU_ALIGNED(type, name)        \
+  DEFINE_PER_CPU_SECTION(type, name, PER_CPU_ALIGNED_SECTION) \
+  ____cacheline_aligned
 
 /*
  * Declaration/definition used for per-CPU variables that must be page aligned.
  */
-#define DECLARE_PER_CPU_PAGE_ALIGNED(type, name)			\
-	DECLARE_PER_CPU_SECTION(type, name, "..page_aligned")		\
-	__aligned(PAGE_SIZE)
+#define DECLARE_PER_CPU_PAGE_ALIGNED(type, name)      \
+  DECLARE_PER_CPU_SECTION(type, name, "..page_aligned")   \
+  __aligned(PAGE_SIZE)
 
-#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)				\
-	DEFINE_PER_CPU_SECTION(type, name, "..page_aligned")		\
-	__aligned(PAGE_SIZE)
+#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)       \
+  DEFINE_PER_CPU_SECTION(type, name, "..page_aligned")    \
+  __aligned(PAGE_SIZE)
 
 /*
  * Declaration/definition used for per-CPU variables that must be read mostly.
  */
-#define DECLARE_PER_CPU_READ_MOSTLY(type, name)			\
-	DECLARE_PER_CPU_SECTION(type, name, "..read_mostly")
+#define DECLARE_PER_CPU_READ_MOSTLY(type, name)     \
+  DECLARE_PER_CPU_SECTION(type, name, "..read_mostly")
 
-#define DEFINE_PER_CPU_READ_MOSTLY(type, name)				\
-	DEFINE_PER_CPU_SECTION(type, name, "..read_mostly")
+#define DEFINE_PER_CPU_READ_MOSTLY(type, name)        \
+  DEFINE_PER_CPU_SECTION(type, name, "..read_mostly")
 
 /*
  * Declaration/definition used for per-CPU variables that should be accessed
  * as decrypted when memory encryption is enabled in the guest.
  */
 #ifdef CONFIG_AMD_MEM_ENCRYPT
-#define DECLARE_PER_CPU_DECRYPTED(type, name)				\
-	DECLARE_PER_CPU_SECTION(type, name, "..decrypted")
+#define DECLARE_PER_CPU_DECRYPTED(type, name)       \
+  DECLARE_PER_CPU_SECTION(type, name, "..decrypted")
 
-#define DEFINE_PER_CPU_DECRYPTED(type, name)				\
-	DEFINE_PER_CPU_SECTION(type, name, "..decrypted")
+#define DEFINE_PER_CPU_DECRYPTED(type, name)        \
+  DEFINE_PER_CPU_SECTION(type, name, "..decrypted")
 #else
-#define DEFINE_PER_CPU_DECRYPTED(type, name)	DEFINE_PER_CPU(type, name)
+#define DEFINE_PER_CPU_DECRYPTED(type, name)  DEFINE_PER_CPU(type, name)
 #endif
 
 /*
@@ -214,11 +214,11 @@
  * + 0 is required in order to convert the pointer type from a
  * potential array type to a pointer to a single item of the array.
  */
-#define __verify_pcpu_ptr(ptr)						\
-do {									\
-	const void __percpu *__vpp_verify = (typeof((ptr) + 0))NULL;	\
-	(void)__vpp_verify;						\
-} while (0)
+#define __verify_pcpu_ptr(ptr)            \
+  do {                  \
+    const void __percpu *__vpp_verify = (typeof((ptr) + 0))NULL;  \
+    (void) __vpp_verify;           \
+  } while (0)
 
 #ifdef CONFIG_SMP
 
@@ -227,78 +227,78 @@ do {									\
  * to prevent the compiler from making incorrect assumptions about the
  * pointer value.  The weird cast keeps both GCC and sparse happy.
  */
-#define SHIFT_PERCPU_PTR(__p, __offset)					\
-	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
+#define SHIFT_PERCPU_PTR(__p, __offset)         \
+  RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
 
-#define per_cpu_ptr(ptr, cpu)						\
-({									\
-	__verify_pcpu_ptr(ptr);						\
-	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)));			\
-})
+#define per_cpu_ptr(ptr, cpu)           \
+  ({                  \
+    __verify_pcpu_ptr(ptr);           \
+    SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)));     \
+  })
 
-#define raw_cpu_ptr(ptr)						\
-({									\
-	__verify_pcpu_ptr(ptr);						\
-	arch_raw_cpu_ptr(ptr);						\
-})
+#define raw_cpu_ptr(ptr)            \
+  ({                  \
+    __verify_pcpu_ptr(ptr);           \
+    arch_raw_cpu_ptr(ptr);            \
+  })
 
 #ifdef CONFIG_DEBUG_PREEMPT
-#define this_cpu_ptr(ptr)						\
-({									\
-	__verify_pcpu_ptr(ptr);						\
-	SHIFT_PERCPU_PTR(ptr, my_cpu_offset);				\
-})
+#define this_cpu_ptr(ptr)           \
+  ({                  \
+    __verify_pcpu_ptr(ptr);           \
+    SHIFT_PERCPU_PTR(ptr, my_cpu_offset);       \
+  })
 #else
 #define this_cpu_ptr(ptr) raw_cpu_ptr(ptr)
 #endif
 
-#else	/* CONFIG_SMP */
+#else /* CONFIG_SMP */
 
-#define VERIFY_PERCPU_PTR(__p)						\
-({									\
-	__verify_pcpu_ptr(__p);						\
-	(typeof(*(__p)) __kernel __force *)(__p);			\
-})
+#define VERIFY_PERCPU_PTR(__p)            \
+  ({                  \
+    __verify_pcpu_ptr(__p);           \
+    (typeof(*(__p)) __kernel __force *)(__p);     \
+  })
 
-#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR(ptr); })
-#define raw_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
-#define this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
+#define per_cpu_ptr(ptr, cpu) ({ (void) (cpu); VERIFY_PERCPU_PTR(ptr); })
+#define raw_cpu_ptr(ptr)  per_cpu_ptr(ptr, 0)
+#define this_cpu_ptr(ptr) raw_cpu_ptr(ptr)
 
-#endif	/* CONFIG_SMP */
+#endif  /* CONFIG_SMP */
 
-#define per_cpu(var, cpu)	(*per_cpu_ptr(&(var), cpu))
+#define per_cpu(var, cpu) (*per_cpu_ptr(&(var), cpu))
 
 /*
  * Must be an lvalue. Since @var must be a simple identifier,
  * we force a syntax error here if it isn't.
  */
-#define get_cpu_var(var)						\
-(*({									\
-	preempt_disable();						\
-	this_cpu_ptr(&var);						\
-}))
+#define get_cpu_var(var)            \
+  (*({                  \
+    preempt_disable();            \
+    this_cpu_ptr(&var);           \
+  }))
 
 /*
  * The weird & is necessary because sparse considers (void)(var) to be
  * a direct dereference of percpu variable (var).
  */
-#define put_cpu_var(var)						\
-do {									\
-	(void)&(var);							\
-	preempt_enable();						\
-} while (0)
+#define put_cpu_var(var)            \
+  do {                  \
+    (void) &(var);             \
+    preempt_enable();           \
+  } while (0)
 
-#define get_cpu_ptr(var)						\
-({									\
-	preempt_disable();						\
-	this_cpu_ptr(var);						\
-})
+#define get_cpu_ptr(var)            \
+  ({                  \
+    preempt_disable();            \
+    this_cpu_ptr(var);            \
+  })
 
-#define put_cpu_ptr(var)						\
-do {									\
-	(void)(var);							\
-	preempt_enable();						\
-} while (0)
+#define put_cpu_ptr(var)            \
+  do {                  \
+    (void) (var);              \
+    preempt_enable();           \
+  } while (0)
 
 /*
  * Branching function to split up a function into a set of functions that
@@ -310,66 +310,84 @@ extern void __bad_size_call_parameter(void);
 #ifdef CONFIG_DEBUG_PREEMPT
 extern void __this_cpu_preempt_check(const char *op);
 #else
-static __always_inline void __this_cpu_preempt_check(const char *op) { }
+static __always_inline void __this_cpu_preempt_check(const char *op) {
+}
+
 #endif
 
-#define __pcpu_size_call_return(stem, variable)				\
-({									\
-	typeof(variable) pscr_ret__;					\
-	__verify_pcpu_ptr(&(variable));					\
-	switch(sizeof(variable)) {					\
-	case 1: pscr_ret__ = stem##1(variable); break;			\
-	case 2: pscr_ret__ = stem##2(variable); break;			\
-	case 4: pscr_ret__ = stem##4(variable); break;			\
-	case 8: pscr_ret__ = stem##8(variable); break;			\
-	default:							\
-		__bad_size_call_parameter(); break;			\
-	}								\
-	pscr_ret__;							\
-})
+#define __pcpu_size_call_return(stem, variable)       \
+  ({                  \
+    typeof(variable) pscr_ret__;          \
+    __verify_pcpu_ptr(&(variable));         \
+    switch (sizeof(variable)) {          \
+      case 1: \
+        pscr_ret__ = stem ## 1 (variable); break;      \
+      case 2: \
+        pscr_ret__ = stem ## 2 (variable); break;      \
+      case 4: \
+        pscr_ret__ = stem ## 4 (variable); break;      \
+      case 8: \
+        pscr_ret__ = stem ## 8 (variable); break;      \
+      default:              \
+        __bad_size_call_parameter(); break;     \
+    }               \
+    pscr_ret__;             \
+  })
 
-#define __pcpu_size_call_return2(stem, variable, ...)			\
-({									\
-	typeof(variable) pscr2_ret__;					\
-	__verify_pcpu_ptr(&(variable));					\
-	switch(sizeof(variable)) {					\
-	case 1: pscr2_ret__ = stem##1(variable, __VA_ARGS__); break;	\
-	case 2: pscr2_ret__ = stem##2(variable, __VA_ARGS__); break;	\
-	case 4: pscr2_ret__ = stem##4(variable, __VA_ARGS__); break;	\
-	case 8: pscr2_ret__ = stem##8(variable, __VA_ARGS__); break;	\
-	default:							\
-		__bad_size_call_parameter(); break;			\
-	}								\
-	pscr2_ret__;							\
-})
+#define __pcpu_size_call_return2(stem, variable, ...)     \
+  ({                  \
+    typeof(variable) pscr2_ret__;         \
+    __verify_pcpu_ptr(&(variable));         \
+    switch (sizeof(variable)) {          \
+      case 1: \
+        pscr2_ret__ = stem ## 1 (variable, __VA_ARGS__); break;  \
+      case 2: \
+        pscr2_ret__ = stem ## 2 (variable, __VA_ARGS__); break;  \
+      case 4: \
+        pscr2_ret__ = stem ## 4 (variable, __VA_ARGS__); break;  \
+      case 8: \
+        pscr2_ret__ = stem ## 8 (variable, __VA_ARGS__); break;  \
+      default:              \
+        __bad_size_call_parameter(); break;     \
+    }               \
+    pscr2_ret__;              \
+  })
 
-#define __pcpu_size_call_return2bool(stem, variable, ...)		\
-({									\
-	bool pscr2_ret__;						\
-	__verify_pcpu_ptr(&(variable));					\
-	switch(sizeof(variable)) {					\
-	case 1: pscr2_ret__ = stem##1(variable, __VA_ARGS__); break;	\
-	case 2: pscr2_ret__ = stem##2(variable, __VA_ARGS__); break;	\
-	case 4: pscr2_ret__ = stem##4(variable, __VA_ARGS__); break;	\
-	case 8: pscr2_ret__ = stem##8(variable, __VA_ARGS__); break;	\
-	default:							\
-		__bad_size_call_parameter(); break;			\
-	}								\
-	pscr2_ret__;							\
-})
+#define __pcpu_size_call_return2bool(stem, variable, ...)   \
+  ({                  \
+    bool pscr2_ret__;           \
+    __verify_pcpu_ptr(&(variable));         \
+    switch (sizeof(variable)) {          \
+      case 1: \
+        pscr2_ret__ = stem ## 1 (variable, __VA_ARGS__); break;  \
+      case 2: \
+        pscr2_ret__ = stem ## 2 (variable, __VA_ARGS__); break;  \
+      case 4: \
+        pscr2_ret__ = stem ## 4 (variable, __VA_ARGS__); break;  \
+      case 8: \
+        pscr2_ret__ = stem ## 8 (variable, __VA_ARGS__); break;  \
+      default:              \
+        __bad_size_call_parameter(); break;     \
+    }               \
+    pscr2_ret__;              \
+  })
 
-#define __pcpu_size_call(stem, variable, ...)				\
-do {									\
-	__verify_pcpu_ptr(&(variable));					\
-	switch(sizeof(variable)) {					\
-		case 1: stem##1(variable, __VA_ARGS__);break;		\
-		case 2: stem##2(variable, __VA_ARGS__);break;		\
-		case 4: stem##4(variable, __VA_ARGS__);break;		\
-		case 8: stem##8(variable, __VA_ARGS__);break;		\
-		default: 						\
-			__bad_size_call_parameter();break;		\
-	}								\
-} while (0)
+#define __pcpu_size_call(stem, variable, ...)       \
+  do {                  \
+    __verify_pcpu_ptr(&(variable));         \
+    switch (sizeof(variable)) {          \
+      case 1: \
+        stem ## 1 (variable, __VA_ARGS__); break;   \
+      case 2: \
+        stem ## 2 (variable, __VA_ARGS__); break;   \
+      case 4: \
+        stem ## 4 (variable, __VA_ARGS__); break;   \
+      case 8: \
+        stem ## 8 (variable, __VA_ARGS__); break;   \
+      default:            \
+        __bad_size_call_parameter(); break;    \
+    }               \
+  } while (0)
 
 /*
  * this_cpu operations (C) 2008-2013 Christoph Lameter <cl@linux.com>
@@ -405,104 +423,111 @@ do {									\
  * interrupt occurred and the same percpu variable was modified from the
  * interrupt context.
  */
-#define raw_cpu_read(pcp)		__pcpu_size_call_return(raw_cpu_read_, pcp)
-#define raw_cpu_write(pcp, val)		__pcpu_size_call(raw_cpu_write_, pcp, val)
-#define raw_cpu_add(pcp, val)		__pcpu_size_call(raw_cpu_add_, pcp, val)
-#define raw_cpu_and(pcp, val)		__pcpu_size_call(raw_cpu_and_, pcp, val)
-#define raw_cpu_or(pcp, val)		__pcpu_size_call(raw_cpu_or_, pcp, val)
-#define raw_cpu_add_return(pcp, val)	__pcpu_size_call_return2(raw_cpu_add_return_, pcp, val)
-#define raw_cpu_xchg(pcp, nval)		__pcpu_size_call_return2(raw_cpu_xchg_, pcp, nval)
+#define raw_cpu_read(pcp)   __pcpu_size_call_return(raw_cpu_read_, pcp)
+#define raw_cpu_write(pcp, val)   __pcpu_size_call(raw_cpu_write_, pcp, val)
+#define raw_cpu_add(pcp, val)   __pcpu_size_call(raw_cpu_add_, pcp, val)
+#define raw_cpu_and(pcp, val)   __pcpu_size_call(raw_cpu_and_, pcp, val)
+#define raw_cpu_or(pcp, val)    __pcpu_size_call(raw_cpu_or_, pcp, val)
+#define raw_cpu_add_return(pcp, val)  __pcpu_size_call_return2( \
+    raw_cpu_add_return_, pcp, val)
+#define raw_cpu_xchg(pcp, nval)   __pcpu_size_call_return2(raw_cpu_xchg_, pcp, \
+    nval)
 #define raw_cpu_cmpxchg(pcp, oval, nval) \
-	__pcpu_size_call_return2(raw_cpu_cmpxchg_, pcp, oval, nval)
+  __pcpu_size_call_return2(raw_cpu_cmpxchg_, pcp, oval, nval)
 #define raw_cpu_try_cmpxchg(pcp, ovalp, nval) \
-	__pcpu_size_call_return2bool(raw_cpu_try_cmpxchg_, pcp, ovalp, nval)
-#define raw_cpu_sub(pcp, val)		raw_cpu_add(pcp, -(val))
-#define raw_cpu_inc(pcp)		raw_cpu_add(pcp, 1)
-#define raw_cpu_dec(pcp)		raw_cpu_sub(pcp, 1)
-#define raw_cpu_sub_return(pcp, val)	raw_cpu_add_return(pcp, -(typeof(pcp))(val))
-#define raw_cpu_inc_return(pcp)		raw_cpu_add_return(pcp, 1)
-#define raw_cpu_dec_return(pcp)		raw_cpu_add_return(pcp, -1)
+  __pcpu_size_call_return2bool(raw_cpu_try_cmpxchg_, pcp, ovalp, nval)
+#define raw_cpu_sub(pcp, val)   raw_cpu_add(pcp, -(val))
+#define raw_cpu_inc(pcp)    raw_cpu_add(pcp, 1)
+#define raw_cpu_dec(pcp)    raw_cpu_sub(pcp, 1)
+#define raw_cpu_sub_return(pcp, val)  raw_cpu_add_return(pcp, \
+    -(typeof(pcp))(val))
+#define raw_cpu_inc_return(pcp)   raw_cpu_add_return(pcp, 1)
+#define raw_cpu_dec_return(pcp)   raw_cpu_add_return(pcp, -1)
 
 /*
  * Operations for contexts that are safe from preemption/interrupts.  These
  * operations verify that preemption is disabled.
  */
-#define __this_cpu_read(pcp)						\
-({									\
-	__this_cpu_preempt_check("read");				\
-	raw_cpu_read(pcp);						\
-})
+#define __this_cpu_read(pcp)            \
+  ({                  \
+    __this_cpu_preempt_check("read");       \
+    raw_cpu_read(pcp);            \
+  })
 
-#define __this_cpu_write(pcp, val)					\
-({									\
-	__this_cpu_preempt_check("write");				\
-	raw_cpu_write(pcp, val);					\
-})
+#define __this_cpu_write(pcp, val)          \
+  ({                  \
+    __this_cpu_preempt_check("write");        \
+    raw_cpu_write(pcp, val);          \
+  })
 
-#define __this_cpu_add(pcp, val)					\
-({									\
-	__this_cpu_preempt_check("add");				\
-	raw_cpu_add(pcp, val);						\
-})
+#define __this_cpu_add(pcp, val)          \
+  ({                  \
+    __this_cpu_preempt_check("add");        \
+    raw_cpu_add(pcp, val);            \
+  })
 
-#define __this_cpu_and(pcp, val)					\
-({									\
-	__this_cpu_preempt_check("and");				\
-	raw_cpu_and(pcp, val);						\
-})
+#define __this_cpu_and(pcp, val)          \
+  ({                  \
+    __this_cpu_preempt_check("and");        \
+    raw_cpu_and(pcp, val);            \
+  })
 
-#define __this_cpu_or(pcp, val)						\
-({									\
-	__this_cpu_preempt_check("or");					\
-	raw_cpu_or(pcp, val);						\
-})
+#define __this_cpu_or(pcp, val)           \
+  ({                  \
+    __this_cpu_preempt_check("or");         \
+    raw_cpu_or(pcp, val);           \
+  })
 
-#define __this_cpu_add_return(pcp, val)					\
-({									\
-	__this_cpu_preempt_check("add_return");				\
-	raw_cpu_add_return(pcp, val);					\
-})
+#define __this_cpu_add_return(pcp, val)         \
+  ({                  \
+    __this_cpu_preempt_check("add_return");       \
+    raw_cpu_add_return(pcp, val);         \
+  })
 
-#define __this_cpu_xchg(pcp, nval)					\
-({									\
-	__this_cpu_preempt_check("xchg");				\
-	raw_cpu_xchg(pcp, nval);					\
-})
+#define __this_cpu_xchg(pcp, nval)          \
+  ({                  \
+    __this_cpu_preempt_check("xchg");       \
+    raw_cpu_xchg(pcp, nval);          \
+  })
 
-#define __this_cpu_cmpxchg(pcp, oval, nval)				\
-({									\
-	__this_cpu_preempt_check("cmpxchg");				\
-	raw_cpu_cmpxchg(pcp, oval, nval);				\
-})
+#define __this_cpu_cmpxchg(pcp, oval, nval)       \
+  ({                  \
+    __this_cpu_preempt_check("cmpxchg");        \
+    raw_cpu_cmpxchg(pcp, oval, nval);       \
+  })
 
-#define __this_cpu_sub(pcp, val)	__this_cpu_add(pcp, -(typeof(pcp))(val))
-#define __this_cpu_inc(pcp)		__this_cpu_add(pcp, 1)
-#define __this_cpu_dec(pcp)		__this_cpu_sub(pcp, 1)
-#define __this_cpu_sub_return(pcp, val)	__this_cpu_add_return(pcp, -(typeof(pcp))(val))
-#define __this_cpu_inc_return(pcp)	__this_cpu_add_return(pcp, 1)
-#define __this_cpu_dec_return(pcp)	__this_cpu_add_return(pcp, -1)
+#define __this_cpu_sub(pcp, val)  __this_cpu_add(pcp, -(typeof(pcp))(val))
+#define __this_cpu_inc(pcp)   __this_cpu_add(pcp, 1)
+#define __this_cpu_dec(pcp)   __this_cpu_sub(pcp, 1)
+#define __this_cpu_sub_return(pcp, val) __this_cpu_add_return(pcp, \
+    -(typeof(pcp))(val))
+#define __this_cpu_inc_return(pcp)  __this_cpu_add_return(pcp, 1)
+#define __this_cpu_dec_return(pcp)  __this_cpu_add_return(pcp, -1)
 
 /*
  * Operations with implied preemption/interrupt protection.  These
  * operations can be used without worrying about preemption or interrupt.
  */
-#define this_cpu_read(pcp)		__pcpu_size_call_return(this_cpu_read_, pcp)
-#define this_cpu_write(pcp, val)	__pcpu_size_call(this_cpu_write_, pcp, val)
-#define this_cpu_add(pcp, val)		__pcpu_size_call(this_cpu_add_, pcp, val)
-#define this_cpu_and(pcp, val)		__pcpu_size_call(this_cpu_and_, pcp, val)
-#define this_cpu_or(pcp, val)		__pcpu_size_call(this_cpu_or_, pcp, val)
-#define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
-#define this_cpu_xchg(pcp, nval)	__pcpu_size_call_return2(this_cpu_xchg_, pcp, nval)
+#define this_cpu_read(pcp)    __pcpu_size_call_return(this_cpu_read_, pcp)
+#define this_cpu_write(pcp, val)  __pcpu_size_call(this_cpu_write_, pcp, val)
+#define this_cpu_add(pcp, val)    __pcpu_size_call(this_cpu_add_, pcp, val)
+#define this_cpu_and(pcp, val)    __pcpu_size_call(this_cpu_and_, pcp, val)
+#define this_cpu_or(pcp, val)   __pcpu_size_call(this_cpu_or_, pcp, val)
+#define this_cpu_add_return(pcp, val) __pcpu_size_call_return2( \
+    this_cpu_add_return_, pcp, val)
+#define this_cpu_xchg(pcp, nval)  __pcpu_size_call_return2(this_cpu_xchg_, pcp, \
+    nval)
 #define this_cpu_cmpxchg(pcp, oval, nval) \
-	__pcpu_size_call_return2(this_cpu_cmpxchg_, pcp, oval, nval)
+  __pcpu_size_call_return2(this_cpu_cmpxchg_, pcp, oval, nval)
 #define this_cpu_try_cmpxchg(pcp, ovalp, nval) \
-	__pcpu_size_call_return2bool(this_cpu_try_cmpxchg_, pcp, ovalp, nval)
-#define this_cpu_sub(pcp, val)		this_cpu_add(pcp, -(typeof(pcp))(val))
-#define this_cpu_inc(pcp)		this_cpu_add(pcp, 1)
-#define this_cpu_dec(pcp)		this_cpu_sub(pcp, 1)
-#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(typeof(pcp))(val))
-#define this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
-#define this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
+  __pcpu_size_call_return2bool(this_cpu_try_cmpxchg_, pcp, ovalp, nval)
+#define this_cpu_sub(pcp, val)    this_cpu_add(pcp, -(typeof(pcp))(val))
+#define this_cpu_inc(pcp)   this_cpu_add(pcp, 1)
+#define this_cpu_dec(pcp)   this_cpu_sub(pcp, 1)
+#define this_cpu_sub_return(pcp, val) this_cpu_add_return(pcp, \
+    -(typeof(pcp))(val))
+#define this_cpu_inc_return(pcp)  this_cpu_add_return(pcp, 1)
+#define this_cpu_dec_return(pcp)  this_cpu_add_return(pcp, -1)
 
 #endif /* __ASSEMBLY__ */
 #endif /* _LINUX_PERCPU_DEFS_H */

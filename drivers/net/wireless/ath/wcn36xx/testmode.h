@@ -17,30 +17,29 @@
 #include "wcn36xx.h"
 
 struct ftm_rsp_msg {
-	u16 msg_id;
-	u16 msg_body_length;
-	u32 resp_status;
-	u8 msg_response[];
+  u16 msg_id;
+  u16 msg_body_length;
+  u32 resp_status;
+  u8 msg_response[];
 } __packed;
 
 /* The request buffer of FTM which contains a byte of command and the request */
 struct ftm_payload {
-	u16 ftm_cmd_type;
-	struct ftm_rsp_msg ftm_cmd_msg;
+  u16 ftm_cmd_type;
+  struct ftm_rsp_msg ftm_cmd_msg;
 } __packed;
 
 #define MSG_GET_BUILD_RELEASE_NUMBER 0x32A2
 
 #ifdef CONFIG_NL80211_TESTMODE
 int wcn36xx_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   void *data, int len);
+    void *data, int len);
 
 #else
 static inline int wcn36xx_tm_cmd(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				void *data, int len)
-{
-	return 0;
+    struct ieee80211_vif *vif,
+    void *data, int len) {
+  return 0;
 }
 
 #endif

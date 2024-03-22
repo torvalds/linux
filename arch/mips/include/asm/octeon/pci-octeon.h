@@ -19,7 +19,7 @@
 #define CVMX_PCIE_BAR1_PHYS_SIZE (1ull << 28)
 
 /*
- * The RC base of BAR1.	 gen1 has a 39-bit BAR2, gen2 has 41-bit BAR2,
+ * The RC base of BAR1.  gen1 has a 39-bit BAR2, gen2 has 41-bit BAR2,
  * place BAR1 so it is the same for both.
  */
 #define CVMX_PCIE_BAR1_RC_BASE (1ull << 41)
@@ -30,7 +30,7 @@
  * function needs to change for PCI or PCIe based hosts.
  */
 extern int (*octeon_pcibios_map_irq)(const struct pci_dev *dev,
-				     u8 slot, u8 pin);
+    u8 slot, u8 pin);
 
 /*
  * For PCI (not PCIe) the BAR2 base address.
@@ -47,14 +47,14 @@ extern u64 octeon_bar1_pci_phys;
  * OCTEON_DMA_BAR_TYPE_BIG
  */
 #define OCTEON_PCI_BAR1_HOLE_BITS 5
-#define OCTEON_PCI_BAR1_HOLE_SIZE (1ul<<(OCTEON_PCI_BAR1_HOLE_BITS+3))
+#define OCTEON_PCI_BAR1_HOLE_SIZE (1ul << (OCTEON_PCI_BAR1_HOLE_BITS + 3))
 
 enum octeon_dma_bar_type {
-	OCTEON_DMA_BAR_TYPE_INVALID,
-	OCTEON_DMA_BAR_TYPE_SMALL,
-	OCTEON_DMA_BAR_TYPE_BIG,
-	OCTEON_DMA_BAR_TYPE_PCIE,
-	OCTEON_DMA_BAR_TYPE_PCIE2
+  OCTEON_DMA_BAR_TYPE_INVALID,
+  OCTEON_DMA_BAR_TYPE_SMALL,
+  OCTEON_DMA_BAR_TYPE_BIG,
+  OCTEON_DMA_BAR_TYPE_PCIE,
+  OCTEON_DMA_BAR_TYPE_PCIE2
 };
 
 /*

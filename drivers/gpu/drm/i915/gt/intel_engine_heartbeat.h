@@ -12,7 +12,7 @@ struct intel_gt;
 void intel_engine_init_heartbeat(struct intel_engine_cs *engine);
 
 int intel_engine_set_heartbeat(struct intel_engine_cs *engine,
-			       unsigned long delay);
+    unsigned long delay);
 
 void intel_engine_park_heartbeat(struct intel_engine_cs *engine);
 void intel_engine_unpark_heartbeat(struct intel_engine_cs *engine);

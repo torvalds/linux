@@ -2,7 +2,8 @@
 /*
  * vivid-osd.h - output overlay support functions.
  *
- * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights
+ *reserved.
  */
 
 #ifndef _VIVID_OSD_H_

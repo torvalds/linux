@@ -7,29 +7,29 @@
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/threads.h>
-#include <asm/mmu.h>			/* For sub-arch specific PPC_PIN_SIZE */
+#include <asm/mmu.h>      /* For sub-arch specific PPC_PIN_SIZE */
 
 #endif /* __ASSEMBLY__ */
 
-#define PTE_INDEX_SIZE	PTE_SHIFT
-#define PMD_INDEX_SIZE	0
-#define PUD_INDEX_SIZE	0
-#define PGD_INDEX_SIZE	(32 - PGDIR_SHIFT)
+#define PTE_INDEX_SIZE  PTE_SHIFT
+#define PMD_INDEX_SIZE  0
+#define PUD_INDEX_SIZE  0
+#define PGD_INDEX_SIZE  (32 - PGDIR_SHIFT)
 
-#define PMD_CACHE_INDEX	PMD_INDEX_SIZE
-#define PUD_CACHE_INDEX	PUD_INDEX_SIZE
+#define PMD_CACHE_INDEX PMD_INDEX_SIZE
+#define PUD_CACHE_INDEX PUD_INDEX_SIZE
 
 #ifndef __ASSEMBLY__
-#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)
-#define PMD_TABLE_SIZE	0
-#define PUD_TABLE_SIZE	0
-#define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
+#define PTE_TABLE_SIZE  (sizeof(pte_t) << PTE_INDEX_SIZE)
+#define PMD_TABLE_SIZE  0
+#define PUD_TABLE_SIZE  0
+#define PGD_TABLE_SIZE  (sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 #define PMD_MASKED_BITS (PTE_TABLE_SIZE - 1)
-#endif	/* __ASSEMBLY__ */
+#endif  /* __ASSEMBLY__ */
 
-#define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
-#define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
+#define PTRS_PER_PTE  (1 << PTE_INDEX_SIZE)
+#define PTRS_PER_PGD  (1 << PGD_INDEX_SIZE)
 
 /*
  * The normal case is that PTEs are 32-bits and we have a 1-page
@@ -42,17 +42,17 @@
  * -Matt
  */
 /* PGDIR_SHIFT determines what a top-level page table entry can map */
-#define PGDIR_SHIFT	(PAGE_SHIFT + PTE_INDEX_SIZE)
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
+#define PGDIR_SHIFT (PAGE_SHIFT + PTE_INDEX_SIZE)
+#define PGDIR_SIZE  (1UL << PGDIR_SHIFT)
+#define PGDIR_MASK  (~(PGDIR_SIZE - 1))
 
 /* Bits to mask out from a PGD to get to the PUD page */
-#define PGD_MASKED_BITS		0
+#define PGD_MASKED_BITS   0
 
-#define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
+#define USER_PTRS_PER_PGD (TASK_SIZE / PGDIR_SIZE)
 
 #define pgd_ERROR(e) \
-	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+  pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
@@ -60,12 +60,12 @@
  * virtual space that goes below PKMAP and FIXMAP
  */
 
-#define FIXADDR_SIZE	0
+#define FIXADDR_SIZE  0
 #ifdef CONFIG_KASAN
 #include <asm/kasan.h>
-#define FIXADDR_TOP	(KASAN_SHADOW_START - PAGE_SIZE)
+#define FIXADDR_TOP (KASAN_SHADOW_START - PAGE_SIZE)
 #else
-#define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
+#define FIXADDR_TOP ((unsigned long) (-PAGE_SIZE))
 #endif
 
 /*
@@ -74,14 +74,14 @@
  * and ioremap space
  */
 #ifdef CONFIG_HIGHMEM
-#define IOREMAP_TOP	PKMAP_BASE
+#define IOREMAP_TOP PKMAP_BASE
 #else
-#define IOREMAP_TOP	FIXADDR_START
+#define IOREMAP_TOP FIXADDR_START
 #endif
 
 /* PPC32 shares vmalloc area with ioremap */
-#define IOREMAP_START	VMALLOC_START
-#define IOREMAP_END	VMALLOC_END
+#define IOREMAP_START VMALLOC_START
+#define IOREMAP_END VMALLOC_END
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
@@ -102,15 +102,18 @@
  */
 #define VMALLOC_OFFSET (0x1000000) /* 16M */
 #ifdef PPC_PIN_SIZE
-#define VMALLOC_START (((ALIGN((long)high_memory, PPC_PIN_SIZE) + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
+#define VMALLOC_START (((ALIGN((long) high_memory, \
+    PPC_PIN_SIZE) + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET - 1)))
 #else
-#define VMALLOC_START ((((long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
+#define VMALLOC_START ((((long) high_memory + VMALLOC_OFFSET) \
+  & ~(VMALLOC_OFFSET - 1)))
 #endif
 
 #ifdef CONFIG_KASAN_VMALLOC
-#define VMALLOC_END	ALIGN_DOWN(ioremap_bot, PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
+#define VMALLOC_END ALIGN_DOWN(ioremap_bot, \
+    PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
 #else
-#define VMALLOC_END	ioremap_bot
+#define VMALLOC_END ioremap_bot
 #endif
 
 /*
@@ -136,7 +139,7 @@
  * Platform who don't just pre-define the value so we don't override it here.
  */
 #ifndef PTE_RPN_SHIFT
-#define PTE_RPN_SHIFT	(PAGE_SHIFT)
+#define PTE_RPN_SHIFT (PAGE_SHIFT)
 #endif
 
 /*
@@ -144,21 +147,20 @@
  * 64-bit PTEs.
  */
 #ifdef CONFIG_PTE_64BIT
-#define PTE_RPN_MASK	(~((1ULL << PTE_RPN_SHIFT) - 1))
+#define PTE_RPN_MASK  (~((1ULL << PTE_RPN_SHIFT) - 1))
 #define MAX_POSSIBLE_PHYSMEM_BITS 36
 #else
-#define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
+#define PTE_RPN_MASK  (~((1UL << PTE_RPN_SHIFT) - 1))
 #define MAX_POSSIBLE_PHYSMEM_BITS 32
 #endif
 
 #ifndef __ASSEMBLY__
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
-#define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
-#define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	*pmdp = __pmd(0);
+#define pmd_none(pmd)   (!pmd_val(pmd))
+#define pmd_bad(pmd)    (pmd_val(pmd) & _PMD_BAD)
+#define pmd_present(pmd)  (pmd_val(pmd) & _PMD_PRESENT_MASK)
+static inline void pmd_clear(pmd_t *pmdp) {
+  *pmdp = __pmd(0);
 }
 
 /*
@@ -169,14 +171,14 @@ static inline void pmd_clear(pmd_t *pmdp)
  * of the pte page.  -- paulus
  */
 #ifndef CONFIG_BOOKE
-#define pmd_pfn(pmd)		(pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_pfn(pmd)    (pmd_val(pmd) >> PAGE_SHIFT)
 #else
-#define pmd_page_vaddr(pmd)	\
-	((const void *)(pmd_val(pmd) & ~(PTE_TABLE_SIZE - 1)))
-#define pmd_pfn(pmd)		(__pa(pmd_val(pmd)) >> PAGE_SHIFT)
+#define pmd_page_vaddr(pmd) \
+  ((const void *) (pmd_val(pmd) & ~(PTE_TABLE_SIZE - 1)))
+#define pmd_pfn(pmd)    (__pa(pmd_val(pmd)) >> PAGE_SHIFT)
 #endif
 
-#define pmd_page(pmd)		pfn_to_page(pmd_pfn(pmd))
+#define pmd_page(pmd)   pfn_to_page(pmd_pfn(pmd))
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
@@ -192,14 +194,15 @@ static inline void pmd_clear(pmd_t *pmdp)
  *
  * For 64bit PTEs, the offset is extended by 32bit.
  */
-#define __swp_type(entry)		((entry).val & 0x1f)
-#define __swp_offset(entry)		((entry).val >> 5)
-#define __swp_entry(type, offset)	((swp_entry_t) { ((type) & 0x1f) | ((offset) << 5) })
-#define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
-#define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
+#define __swp_type(entry)   ((entry).val & 0x1f)
+#define __swp_offset(entry)   ((entry).val >> 5)
+#define __swp_entry(type, \
+      offset) ((swp_entry_t) { ((type) & 0x1f) | ((offset) << 5) })
+#define __pte_to_swp_entry(pte)   ((swp_entry_t) { pte_val(pte) >> 3 })
+#define __swp_entry_to_pte(x)   ((pte_t) { (x).val << 3 })
 
 /* We borrow LSB 2 to store the exclusive marker in swap PTEs. */
-#define _PAGE_SWP_EXCLUSIVE	0x000004
+#define _PAGE_SWP_EXCLUSIVE 0x000004
 
 #endif /* !__ASSEMBLY__ */
 

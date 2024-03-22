@@ -73,7 +73,8 @@
 #define FEATURE_CPUOFF_BIT                  38
 #define FEATURE_STAPM_BIT                   39
 #define FEATURE_S0I3_BIT                    40
-#define FEATURE_DF_LIGHT_CSTATE             41   // shift the order or DFCstate annd DF light Cstate
+#define FEATURE_DF_LIGHT_CSTATE             41   // shift the order or DFCstate
+                                                 // annd DF light Cstate
 #define FEATURE_PERF_LIMIT_BIT              42
 #define FEATURE_CORE_DLDO_BIT               43
 //#define FEATURE_RSMU_LOW_POWER_BIT          44 //temp removal for DVO
@@ -114,11 +115,11 @@ typedef struct {
   uint32_t DstateFun            : 4;
   uint32_t DstateDev            : 4;
   // MP1_EXT_SCRATCH2
-  uint32_t P2JobHandler         :32;
+  uint32_t P2JobHandler         : 32;
   // MP1_EXT_SCRATCH3
-  uint32_t PostCode             :32;
+  uint32_t PostCode             : 32;
   // MP1_EXT_SCRATCH4
-  uint32_t MsgPortBusy          :15;
+  uint32_t MsgPortBusy          : 15;
   uint32_t RsmuPmiP1Pending     : 1;
   uint32_t RsmuPmiP2PendingCnt  : 8;
   uint32_t DfCstateExitPending  : 1;
@@ -128,9 +129,8 @@ typedef struct {
   uint32_t Mp0ClkPending        : 1;
   uint32_t spare2               : 3;
   // MP1_EXT_SCRATCH5
-  uint32_t IdleMask             :32;
+  uint32_t IdleMask             : 32;
 } FwStatus_t;
-
 
 #pragma pack(pop)
 

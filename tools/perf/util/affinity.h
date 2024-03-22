@@ -5,9 +5,9 @@
 #include <stdbool.h>
 
 struct affinity {
-	unsigned long *orig_cpus;
-	unsigned long *sched_cpus;
-	bool changed;
+  unsigned long *orig_cpus;
+  unsigned long *sched_cpus;
+  bool changed;
 };
 
 void affinity__cleanup(struct affinity *a);

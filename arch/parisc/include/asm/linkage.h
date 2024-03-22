@@ -13,27 +13,28 @@
  * In parisc assembly a semicolon marks a comment while a
  * exclamation mark is used to separate independent lines.
  */
-#define ASM_NL	!
+#define ASM_NL  !
 
 #ifdef __ASSEMBLY__
 
 #define ENTRY(name) \
-	ALIGN	!\
-name:		ASM_NL\
-	.export name
+  ALIGN ! \
+name: \
+  ASM_NL \
+  .export name
 
 #define ENTRY_CFI(name, ...) \
-	ENTRY(name)	ASM_NL\
-	.proc		ASM_NL\
-	.callinfo __VA_ARGS__	ASM_NL\
-	.entry		ASM_NL\
-	CFI_STARTPROC
+  ENTRY(name) ASM_NL \
+  .proc ASM_NL \
+  .callinfo __VA_ARGS__ ASM_NL \
+  .entry ASM_NL \
+  CFI_STARTPROC
 
 #define ENDPROC_CFI(name) \
-	CFI_ENDPROC	ASM_NL\
-	.exit		ASM_NL\
-	.procend	ASM_NL\
-	ENDPROC(name)
+  CFI_ENDPROC ASM_NL \
+  .exit ASM_NL \
+  .procend ASM_NL \
+  ENDPROC(name)
 
 #endif /* __ASSEMBLY__ */
 

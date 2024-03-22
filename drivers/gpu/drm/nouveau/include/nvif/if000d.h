@@ -3,10 +3,10 @@
 #include "if000c.h"
 
 struct nv04_vmm_vn {
-	/* nvif_vmm_vX ... */
+  /* nvif_vmm_vX ... */
 };
 
 struct nv04_vmm_map_vn {
-	/* nvif_vmm_map_vX ... */
+  /* nvif_vmm_map_vX ... */
 };
 #endif

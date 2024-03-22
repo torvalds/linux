@@ -21,22 +21,22 @@ extern void fps_fmuls(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2);
 extern void fps_fsubs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2);
 
 extern void fps_fmadds(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
-		       u32 *src3);
+    u32 *src3);
 extern void fps_fmsubs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
-		       u32 *src3);
+    u32 *src3);
 extern void fps_fnmadds(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
-		        u32 *src3);
+    u32 *src3);
 extern void fps_fnmsubs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
-		        u32 *src3);
+    u32 *src3);
 extern void fps_fsel(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
-		     u32 *src3);
+    u32 *src3);
 
-#define FPD_ONE_IN(name) extern void fpd_ ## name(u64 *fpscr, u32 *cr, \
-				u64 *dst, u64 *src1);
-#define FPD_TWO_IN(name) extern void fpd_ ## name(u64 *fpscr, u32 *cr, \
-				u64 *dst, u64 *src1, u64 *src2);
-#define FPD_THREE_IN(name) extern void fpd_ ## name(u64 *fpscr, u32 *cr, \
-				u64 *dst, u64 *src1, u64 *src2, u64 *src3);
+#define FPD_ONE_IN(name) extern void fpd_ ## name(u64 * fpscr, u32 * cr, \
+    u64 * dst, u64 * src1);
+#define FPD_TWO_IN(name) extern void fpd_ ## name(u64 * fpscr, u32 * cr, \
+    u64 * dst, u64 * src1, u64 * src2);
+#define FPD_THREE_IN(name) extern void fpd_ ## name(u64 * fpscr, u32 * cr, \
+    u64 * dst, u64 * src1, u64 * src2, u64 * src3);
 
 extern void fpd_fcmpu(u64 *fpscr, u32 *cr, u64 *src1, u64 *src2);
 extern void fpd_fcmpo(u64 *fpscr, u32 *cr, u64 *src1, u64 *src2);

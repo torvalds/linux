@@ -16,26 +16,26 @@
  * @FW_UPLOAD_PROG_MAX: Maximum progress code marker
  */
 enum fw_upload_prog {
-	FW_UPLOAD_PROG_IDLE,
-	FW_UPLOAD_PROG_RECEIVING,
-	FW_UPLOAD_PROG_PREPARING,
-	FW_UPLOAD_PROG_TRANSFERRING,
-	FW_UPLOAD_PROG_PROGRAMMING,
-	FW_UPLOAD_PROG_MAX
+  FW_UPLOAD_PROG_IDLE,
+  FW_UPLOAD_PROG_RECEIVING,
+  FW_UPLOAD_PROG_PREPARING,
+  FW_UPLOAD_PROG_TRANSFERRING,
+  FW_UPLOAD_PROG_PROGRAMMING,
+  FW_UPLOAD_PROG_MAX
 };
 
 struct fw_upload_priv {
-	struct fw_upload *fw_upload;
-	struct module *module;
-	const char *name;
-	const struct fw_upload_ops *ops;
-	struct mutex lock;		  /* protect data structure contents */
-	struct work_struct work;
-	const u8 *data;			  /* pointer to update data */
-	u32 remaining_size;		  /* size remaining to transfer */
-	enum fw_upload_prog progress;
-	enum fw_upload_prog err_progress; /* progress at time of failure */
-	enum fw_upload_err err_code;	  /* security manager error code */
+  struct fw_upload *fw_upload;
+  struct module *module;
+  const char *name;
+  const struct fw_upload_ops *ops;
+  struct mutex lock;      /* protect data structure contents */
+  struct work_struct work;
+  const u8 *data;       /* pointer to update data */
+  u32 remaining_size;     /* size remaining to transfer */
+  enum fw_upload_prog progress;
+  enum fw_upload_prog err_progress; /* progress at time of failure */
+  enum fw_upload_err err_code;    /* security manager error code */
 };
 
 #endif /* __SYSFS_UPLOAD_H */

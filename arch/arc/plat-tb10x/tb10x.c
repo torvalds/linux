@@ -11,10 +11,10 @@
 #include <asm/mach_desc.h>
 
 static const char *tb10x_compat[] __initdata = {
-	"abilis,arc-tb10x",
-	NULL,
+  "abilis,arc-tb10x",
+  NULL,
 };
 
 MACHINE_START(TB10x, "tb10x")
-	.dt_compat	= tb10x_compat,
+.dt_compat = tb10x_compat,
 MACHINE_END

@@ -92,9 +92,9 @@
  * increment it on the next change. After that, we can clear the flag and
  * avoid incrementing it again until it has again been queried.
  */
-#define I_VERSION_QUERIED_SHIFT	(1)
-#define I_VERSION_QUERIED	(1ULL << (I_VERSION_QUERIED_SHIFT - 1))
-#define I_VERSION_INCREMENT	(1ULL << I_VERSION_QUERIED_SHIFT)
+#define I_VERSION_QUERIED_SHIFT (1)
+#define I_VERSION_QUERIED (1ULL << (I_VERSION_QUERIED_SHIFT - 1))
+#define I_VERSION_INCREMENT (1ULL << I_VERSION_QUERIED_SHIFT)
 
 /**
  * inode_set_iversion_raw - set i_version to the specified raw value
@@ -107,10 +107,8 @@
  * For example, the NFS client stores its NFSv4 change attribute in this way,
  * and the AFS client stores the data_version from the server here.
  */
-static inline void
-inode_set_iversion_raw(struct inode *inode, u64 val)
-{
-	atomic64_set(&inode->i_version, val);
+static inline void inode_set_iversion_raw(struct inode *inode, u64 val) {
+  atomic64_set(&inode->i_version, val);
 }
 
 /**
@@ -124,10 +122,8 @@ inode_set_iversion_raw(struct inode *inode, u64 val)
  * With those filesystems, we want to treat the i_version as an entirely
  * opaque value.
  */
-static inline u64
-inode_peek_iversion_raw(const struct inode *inode)
-{
-	return atomic64_read(&inode->i_version);
+static inline u64 inode_peek_iversion_raw(const struct inode *inode) {
+  return atomic64_read(&inode->i_version);
 }
 
 /**
@@ -138,15 +134,13 @@ inode_peek_iversion_raw(const struct inode *inode)
  * Some self-managed filesystems (e.g Ceph) will only update the i_version
  * value if the new value is larger than the one we already have.
  */
-static inline void
-inode_set_max_iversion_raw(struct inode *inode, u64 val)
-{
-	u64 cur = inode_peek_iversion_raw(inode);
-
-	do {
-		if (cur > val)
-			break;
-	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, val));
+static inline void inode_set_max_iversion_raw(struct inode *inode, u64 val) {
+  u64 cur = inode_peek_iversion_raw(inode);
+  do {
+    if (cur > val) {
+      break;
+    }
+  } while (!atomic64_try_cmpxchg(&inode->i_version, &cur, val));
 }
 
 /**
@@ -161,10 +155,8 @@ inode_set_max_iversion_raw(struct inode *inode, u64 val)
  * In this case, we do not set the QUERIED flag since we know that this value
  * has never been queried.
  */
-static inline void
-inode_set_iversion(struct inode *inode, u64 val)
-{
-	inode_set_iversion_raw(inode, val << I_VERSION_QUERIED_SHIFT);
+static inline void inode_set_iversion(struct inode *inode, u64 val) {
+  inode_set_iversion_raw(inode, val << I_VERSION_QUERIED_SHIFT);
 }
 
 /**
@@ -183,11 +175,9 @@ inode_set_iversion(struct inode *inode, u64 val)
  * that it was, to ensure that we don't end up handing out the same value for
  * different versions of the same inode.
  */
-static inline void
-inode_set_iversion_queried(struct inode *inode, u64 val)
-{
-	inode_set_iversion_raw(inode, (val << I_VERSION_QUERIED_SHIFT) |
-				I_VERSION_QUERIED);
+static inline void inode_set_iversion_queried(struct inode *inode, u64 val) {
+  inode_set_iversion_raw(inode, (val << I_VERSION_QUERIED_SHIFT)
+      | I_VERSION_QUERIED);
 }
 
 bool inode_maybe_inc_iversion(struct inode *inode, bool force);
@@ -199,10 +189,8 @@ bool inode_maybe_inc_iversion(struct inode *inode, bool force);
  * Forcbily increment the i_version field. This always results in a change to
  * the observable value.
  */
-static inline void
-inode_inc_iversion(struct inode *inode)
-{
-	inode_maybe_inc_iversion(inode, true);
+static inline void inode_inc_iversion(struct inode *inode) {
+  inode_maybe_inc_iversion(inode, true);
 }
 
 /**
@@ -212,10 +200,8 @@ inode_inc_iversion(struct inode *inode)
  * Returns whether the inode->i_version counter needs incrementing on the next
  * change. Just fetch the value and check the QUERIED flag.
  */
-static inline bool
-inode_iversion_need_inc(struct inode *inode)
-{
-	return inode_peek_iversion_raw(inode) & I_VERSION_QUERIED;
+static inline bool inode_iversion_need_inc(struct inode *inode) {
+  return inode_peek_iversion_raw(inode) & I_VERSION_QUERIED;
 }
 
 /**
@@ -229,10 +215,8 @@ inode_iversion_need_inc(struct inode *inode)
  * mostly treats it as opaque, but in the case where it holds a write
  * delegation, it must increment the value itself. This function does that.
  */
-static inline void
-inode_inc_iversion_raw(struct inode *inode)
-{
-	atomic64_inc(&inode->i_version);
+static inline void inode_inc_iversion_raw(struct inode *inode) {
+  atomic64_inc(&inode->i_version);
 }
 
 /**
@@ -246,23 +230,19 @@ inode_inc_iversion_raw(struct inode *inode)
  * on disk. In that situation, it's not necessary to flag it as having been
  * viewed, as the result won't be used to gauge changes from that point.
  */
-static inline u64
-inode_peek_iversion(const struct inode *inode)
-{
-	return inode_peek_iversion_raw(inode) >> I_VERSION_QUERIED_SHIFT;
+static inline u64 inode_peek_iversion(const struct inode *inode) {
+  return inode_peek_iversion_raw(inode) >> I_VERSION_QUERIED_SHIFT;
 }
 
 /*
  * For filesystems without any sort of change attribute, the best we can
  * do is fake one up from the ctime:
  */
-static inline u64 time_to_chattr(const struct timespec64 *t)
-{
-	u64 chattr = t->tv_sec;
-
-	chattr <<= 32;
-	chattr += t->tv_nsec;
-	return chattr;
+static inline u64 time_to_chattr(const struct timespec64 *t) {
+  u64 chattr = t->tv_sec;
+  chattr <<= 32;
+  chattr += t->tv_nsec;
+  return chattr;
 }
 
 u64 inode_query_iversion(struct inode *inode);
@@ -275,10 +255,8 @@ u64 inode_query_iversion(struct inode *inode);
  * Compare the current raw i_version counter with a previous one. Returns true
  * if they are the same or false if they are different.
  */
-static inline bool
-inode_eq_iversion_raw(const struct inode *inode, u64 old)
-{
-	return inode_peek_iversion_raw(inode) == old;
+static inline bool inode_eq_iversion_raw(const struct inode *inode, u64 old) {
+  return inode_peek_iversion_raw(inode) == old;
 }
 
 /**
@@ -292,9 +270,8 @@ inode_eq_iversion_raw(const struct inode *inode, u64 old)
  * Note that we don't need to set the QUERIED flag in this case, as the value
  * in the inode is not being recorded for later use.
  */
-static inline bool
-inode_eq_iversion(const struct inode *inode, u64 old)
-{
-	return inode_peek_iversion(inode) == old;
+static inline bool inode_eq_iversion(const struct inode *inode, u64 old) {
+  return inode_peek_iversion(inode) == old;
 }
+
 #endif

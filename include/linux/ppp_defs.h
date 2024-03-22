@@ -20,9 +20,8 @@
  * Protocol is valid if the value is odd and the least significant bit of the
  * most significant octet is 0 (see RFC 1661, section 2).
  */
-static inline bool ppp_proto_is_valid(u16 proto)
-{
-	return !!((proto & 0x0101) == 0x0001);
+static inline bool ppp_proto_is_valid(u16 proto) {
+  return !!((proto & 0x0101) == 0x0001);
 }
 
 #endif /* _PPP_DEFS_H_ */

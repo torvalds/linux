@@ -7,9 +7,8 @@
  */
 
 #ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+PA header file-- do not include this header file for non - PA builds.
 #endif
-
 
 /*
  *  These macros are designed to be portable to all machines that have
@@ -24,29 +23,30 @@
  */
 
 #ifndef HOSTWDSZ
-#define	HOSTWDSZ	32
+#define HOSTWDSZ  32
 #endif
-
 
 /*###########################  Macros  ######################################*/
 
 /*-------------------------------------------------------------------------
- * NewDeclareBitField_Reference - Declare a structure similar to the simulator
- * function "DeclBitfR" except its use is restricted to occur within a larger
- * enclosing structure or union definition.  This declaration is an unnamed
- * structure with the argument, name, as the member name and the argument,
- * uname, as the element name. 
- *----------------------------------------------------------------------- */
-#define Bitfield_extract(start, length, object) 	\
-    ((object) >> (HOSTWDSZ - (start) - (length)) & 	\
-    ((unsigned)-1 >> (HOSTWDSZ - (length))))
+* NewDeclareBitField_Reference - Declare a structure similar to the simulator
+* function "DeclBitfR" except its use is restricted to occur within a larger
+* enclosing structure or union definition.  This declaration is an unnamed
+* structure with the argument, name, as the member name and the argument,
+* uname, as the element name.
+*----------------------------------------------------------------------- */
+#define Bitfield_extract(start, length, object)   \
+  ((object) >> (HOSTWDSZ - (start) - (length))    \
+  & ((unsigned) -1 >> (HOSTWDSZ - (length))))
 
 #define Bitfield_signed_extract(start, length, object) \
-    ((int)((object) << start) >> (HOSTWDSZ - (length)))
+  ((int) ((object) << start) >> (HOSTWDSZ - (length)))
 
-#define Bitfield_mask(start, len, object)		\
-    ((object) & (((unsigned)-1 >> (HOSTWDSZ-len)) << (HOSTWDSZ-start-len)))
+#define Bitfield_mask(start, len, object)   \
+  ((object) & (((unsigned) -1 >> (HOSTWDSZ - len)) << (HOSTWDSZ - start - len)))
 
-#define Bitfield_deposit(value,start,len,object)  object = \
-    ((object) & ~(((unsigned)-1 >> (HOSTWDSZ-len)) << (HOSTWDSZ-start-len))) | \
-    (((value) & ((unsigned)-1 >> (HOSTWDSZ-len))) << (HOSTWDSZ-start-len))
+#define Bitfield_deposit(value, start, len, object)  object   \
+    = ((object) \
+      & ~(((unsigned) -1 >> (HOSTWDSZ - len)) << (HOSTWDSZ - start - len)))   \
+      | (((value) & ((unsigned) -1 >> (HOSTWDSZ - len))) << \
+      (HOSTWDSZ - start - len))

@@ -6,16 +6,16 @@
 #include <linux/pkt_cls.h>
 
 struct tc_connmark {
-	tc_gen;
-	__u16 zone;
+  tc_gen;
+  __u16 zone;
 };
 
 enum {
-	TCA_CONNMARK_UNSPEC,
-	TCA_CONNMARK_PARMS,
-	TCA_CONNMARK_TM,
-	TCA_CONNMARK_PAD,
-	__TCA_CONNMARK_MAX
+  TCA_CONNMARK_UNSPEC,
+  TCA_CONNMARK_PARMS,
+  TCA_CONNMARK_TM,
+  TCA_CONNMARK_PAD,
+  __TCA_CONNMARK_MAX
 };
 #define TCA_CONNMARK_MAX (__TCA_CONNMARK_MAX - 1)
 

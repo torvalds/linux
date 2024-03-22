@@ -39,20 +39,20 @@ struct voltagedomain;
  * XXX VALID should probably be a shift, not a mask
  */
 struct omap_vc_common {
-	u32 cmd_on_mask;
-	u32 valid;
-	u8 bypass_val_reg;
-	u8 data_shift;
-	u8 slaveaddr_shift;
-	u8 regaddr_shift;
-	u8 cmd_on_shift;
-	u8 cmd_onlp_shift;
-	u8 cmd_ret_shift;
-	u8 cmd_off_shift;
-	u8 i2c_cfg_reg;
-	u8 i2c_cfg_clear_mask;
-	u8 i2c_cfg_hsen_mask;
-	u8 i2c_mcode_mask;
+  u32 cmd_on_mask;
+  u32 valid;
+  u8 bypass_val_reg;
+  u8 data_shift;
+  u8 slaveaddr_shift;
+  u8 regaddr_shift;
+  u8 cmd_on_shift;
+  u8 cmd_onlp_shift;
+  u8 cmd_ret_shift;
+  u8 cmd_off_shift;
+  u8 i2c_cfg_reg;
+  u8 i2c_cfg_clear_mask;
+  u8 i2c_cfg_hsen_mask;
+  u8 i2c_mcode_mask;
 };
 
 /* omap_vc_channel.flags values */
@@ -81,25 +81,25 @@ struct omap_vc_common {
  * @flags: VC channel-specific flags (optional)
  */
 struct omap_vc_channel {
-	/* channel state */
-	u16 i2c_slave_addr;
-	u16 volt_reg_addr;
-	u16 cmd_reg_addr;
-	u8 cfg_channel;
-	bool i2c_high_speed;
+  /* channel state */
+  u16 i2c_slave_addr;
+  u16 volt_reg_addr;
+  u16 cmd_reg_addr;
+  u8 cfg_channel;
+  bool i2c_high_speed;
 
-	/* register access data */
-	const struct omap_vc_common *common;
-	u32 smps_sa_mask;
-	u32 smps_volra_mask;
-	u32 smps_cmdra_mask;
-	u8 cmdval_reg;
-	u8 smps_sa_reg;
-	u8 smps_volra_reg;
-	u8 smps_cmdra_reg;
-	u8 cfg_channel_reg;
-	u8 cfg_channel_sa_shift;
-	u8 flags;
+  /* register access data */
+  const struct omap_vc_common *common;
+  u32 smps_sa_mask;
+  u32 smps_volra_mask;
+  u32 smps_cmdra_mask;
+  u8 cmdval_reg;
+  u8 smps_sa_reg;
+  u8 smps_volra_reg;
+  u8 smps_cmdra_reg;
+  u8 cfg_channel_reg;
+  u8 cfg_channel_sa_shift;
+  u8 flags;
 };
 
 extern struct omap_vc_channel omap3_vc_mpu;
@@ -121,13 +121,12 @@ void omap4_vc_set_pmic_signaling(int core_next_state);
 
 void omap_vc_init_channel(struct voltagedomain *voltdm);
 int omap_vc_pre_scale(struct voltagedomain *voltdm,
-		      unsigned long target_volt,
-		      u8 *target_vsel, u8 *current_vsel);
+    unsigned long target_volt,
+    u8 *target_vsel, u8 *current_vsel);
 void omap_vc_post_scale(struct voltagedomain *voltdm,
-			unsigned long target_volt,
-			u8 target_vsel, u8 current_vsel);
+    unsigned long target_volt,
+    u8 target_vsel, u8 current_vsel);
 int omap_vc_bypass_scale(struct voltagedomain *voltdm,
-			 unsigned long target_volt);
+    unsigned long target_volt);
 
 #endif
-

@@ -13,10 +13,10 @@
 #include "a4xx.xml.h"
 
 struct a4xx_gpu {
-	struct adreno_gpu base;
+  struct adreno_gpu base;
 
-	/* if OCMEM is used for GMEM: */
-	struct adreno_ocmem ocmem;
+  /* if OCMEM is used for GMEM: */
+  struct adreno_ocmem ocmem;
 };
 #define to_a4xx_gpu(x) container_of(x, struct a4xx_gpu, base)
 

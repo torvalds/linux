@@ -3,25 +3,25 @@
 #define __NVIF_CL0080_H__
 
 struct nv_device_v0 {
-	__u8  version;
-	__u8  priv;
-	__u8  pad02[6];
-	__u64 device;	/* device identifier, ~0 for client default */
+  __u8 version;
+  __u8 priv;
+  __u8 pad02[6];
+  __u64 device; /* device identifier, ~0 for client default */
 };
 
 #define NV_DEVICE_V0_INFO                                                  0x00
 #define NV_DEVICE_V0_TIME                                                  0x01
 
 struct nv_device_info_v0 {
-	__u8  version;
+  __u8 version;
 #define NV_DEVICE_INFO_V0_IGP                                              0x00
 #define NV_DEVICE_INFO_V0_PCI                                              0x01
 #define NV_DEVICE_INFO_V0_AGP                                              0x02
 #define NV_DEVICE_INFO_V0_PCIE                                             0x03
 #define NV_DEVICE_INFO_V0_SOC                                              0x04
-	__u8  platform;
-	__u16 chipset;	/* from NV_PMC_BOOT_0 */
-	__u8  revision;	/* from NV_PMC_BOOT_0 */
+  __u8 platform;
+  __u16 chipset;  /* from NV_PMC_BOOT_0 */
+  __u8 revision; /* from NV_PMC_BOOT_0 */
 #define NV_DEVICE_INFO_V0_TNT                                              0x01
 #define NV_DEVICE_INFO_V0_CELSIUS                                          0x02
 #define NV_DEVICE_INFO_V0_KELVIN                                           0x03
@@ -36,28 +36,28 @@ struct nv_device_info_v0 {
 #define NV_DEVICE_INFO_V0_TURING                                           0x0c
 #define NV_DEVICE_INFO_V0_AMPERE                                           0x0d
 #define NV_DEVICE_INFO_V0_ADA                                              0x0e
-	__u8  family;
-	__u8  pad06[2];
-	__u64 ram_size;
-	__u64 ram_user;
-	char  chip[16];
-	char  name[64];
+  __u8 family;
+  __u8 pad06[2];
+  __u64 ram_size;
+  __u64 ram_user;
+  char chip[16];
+  char name[64];
 };
 
 struct nv_device_info_v1 {
-	__u8  version;
-	__u8  count;
-	__u8  pad02[6];
-	struct nv_device_info_v1_data {
-		__u64 mthd; /* NV_DEVICE_INFO_* (see below). */
-		__u64 data;
-	} data[];
+  __u8 version;
+  __u8 count;
+  __u8 pad02[6];
+  struct nv_device_info_v1_data {
+    __u64 mthd; /* NV_DEVICE_INFO_* (see below). */
+    __u64 data;
+  } data[];
 };
 
 struct nv_device_time_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u64 time;
+  __u8 version;
+  __u8 pad01[7];
+  __u64 time;
 };
 
 #define NV_DEVICE_INFO_UNIT                               (0xffffffffULL << 32)

@@ -21,7 +21,9 @@ extern void __dt_setup_arch(void *bph);
 extern int __dt_register_buses(const char *bus0, const char *bus1);
 
 #else /* !CONFIG_USE_OF */
-static inline void device_tree_init(void) { }
+static inline void device_tree_init(void) {
+}
+
 #endif /* !CONFIG_USE_OF */
 
 extern char *mips_get_machine_name(void);

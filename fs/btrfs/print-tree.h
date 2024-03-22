@@ -7,7 +7,7 @@
 #define BTRFS_PRINT_TREE_H
 
 /* Buffer size to contain tree name and possibly additional data (offset) */
-#define BTRFS_ROOT_NAME_BUF_LEN				48
+#define BTRFS_ROOT_NAME_BUF_LEN       48
 
 struct extent_buffer;
 struct btrfs_key;

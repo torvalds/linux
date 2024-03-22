@@ -17,14 +17,14 @@
 
 EXPORT_SYMBOL(empty_zero_page);
 
-unsigned int __sync_fetch_and_and_4(volatile void *p, unsigned int v)
-{
-	BUG();
+unsigned int __sync_fetch_and_and_4(volatile void *p, unsigned int v) {
+  BUG();
 }
+
 EXPORT_SYMBOL(__sync_fetch_and_and_4);
 
-unsigned int __sync_fetch_and_or_4(volatile void *p, unsigned int v)
-{
-	BUG();
+unsigned int __sync_fetch_and_or_4(volatile void *p, unsigned int v) {
+  BUG();
 }
+
 EXPORT_SYMBOL(__sync_fetch_and_or_4);

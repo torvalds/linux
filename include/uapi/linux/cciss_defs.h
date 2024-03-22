@@ -6,7 +6,7 @@
 
 /* general boundary definitions */
 #define SENSEINFOBYTES          32 /* note that this value may vary
-				      between host implementations */
+                                    * between host implementations */
 
 /* Command Status value */
 #define CMD_SUCCESS             0x0000
@@ -21,7 +21,7 @@
 #define CMD_ABORT_FAILED        0x0009
 #define CMD_UNSOLICITED_ABORT   0x000A
 #define CMD_TIMEOUT             0x000B
-#define CMD_UNABORTABLE		0x000C
+#define CMD_UNABORTABLE   0x000C
 
 /* transfer direction */
 #define XFER_NONE               0x00
@@ -37,8 +37,8 @@
 #define ATTR_ACA                0x07
 
 /* cdb type */
-#define TYPE_CMD				0x00
-#define TYPE_MSG				0x01
+#define TYPE_CMD        0x00
+#define TYPE_MSG        0x01
 
 /* Type defs used in the following structs */
 #define BYTE __u8
@@ -46,7 +46,7 @@
 #define HWORD __u16
 #define DWORD __u32
 
-#define CISS_MAX_LUN	1024
+#define CISS_MAX_LUN  1024
 
 #define LEVEL2LUN   1 /* index into Target(x) structure, due to byte swapping */
 #define LEVEL3LUN   0
@@ -55,75 +55,75 @@
 
 /* Command List Structure */
 typedef union _SCSI3Addr_struct {
-   struct {
+  struct {
     BYTE Dev;
-    BYTE Bus:6;
-    BYTE Mode:2;        /* b00 */
+    BYTE Bus : 6;
+    BYTE Mode : 2;        /* b00 */
   } PeripDev;
-   struct {
+  struct {
     BYTE DevLSB;
-    BYTE DevMSB:6;
-    BYTE Mode:2;        /* b01 */
+    BYTE DevMSB : 6;
+    BYTE Mode : 2;        /* b01 */
   } LogDev;
-   struct {
-    BYTE Dev:5;
-    BYTE Bus:3;
-    BYTE Targ:6;
-    BYTE Mode:2;        /* b10 */
+  struct {
+    BYTE Dev : 5;
+    BYTE Bus : 3;
+    BYTE Targ : 6;
+    BYTE Mode : 2;        /* b10 */
   } LogUnit;
 } SCSI3Addr_struct;
 
 typedef struct _PhysDevAddr_struct {
-  DWORD             TargetId:24;
-  DWORD             Bus:6;
-  DWORD             Mode:2;
-  SCSI3Addr_struct  Target[2]; /* 2 level target device addr */
+  DWORD TargetId : 24;
+  DWORD Bus : 6;
+  DWORD Mode : 2;
+  SCSI3Addr_struct Target[2]; /* 2 level target device addr */
 } PhysDevAddr_struct;
 
 typedef struct _LogDevAddr_struct {
-  DWORD            VolId:30;
-  DWORD            Mode:2;
-  BYTE             reserved[4];
+  DWORD VolId : 30;
+  DWORD Mode : 2;
+  BYTE reserved[4];
 } LogDevAddr_struct;
 
 typedef union _LUNAddr_struct {
-  BYTE               LunAddrBytes[8];
-  SCSI3Addr_struct   SCSI3Lun[4];
+  BYTE LunAddrBytes[8];
+  SCSI3Addr_struct SCSI3Lun[4];
   PhysDevAddr_struct PhysDev;
-  LogDevAddr_struct  LogDev;
+  LogDevAddr_struct LogDev;
 } LUNAddr_struct;
 
 typedef struct _RequestBlock_struct {
-  BYTE   CDBLen;
+  BYTE CDBLen;
   struct {
-    BYTE Type:3;
-    BYTE Attribute:3;
-    BYTE Direction:2;
+    BYTE Type : 3;
+    BYTE Attribute : 3;
+    BYTE Direction : 2;
   } Type;
-  HWORD  Timeout;
-  BYTE   CDB[16];
+  HWORD Timeout;
+  BYTE CDB[16];
 } RequestBlock_struct;
 
-typedef union _MoreErrInfo_struct{
+typedef union _MoreErrInfo_struct {
   struct {
-    BYTE  Reserved[3];
-    BYTE  Type;
+    BYTE Reserved[3];
+    BYTE Type;
     DWORD ErrorInfo;
   } Common_Info;
-  struct{
-    BYTE  Reserved[2];
-    BYTE  offense_size; /* size of offending entry */
-    BYTE  offense_num;  /* byte # of offense 0-base */
+  struct {
+    BYTE Reserved[2];
+    BYTE offense_size; /* size of offending entry */
+    BYTE offense_num;  /* byte # of offense 0-base */
     DWORD offense_value;
   } Invalid_Cmd;
 } MoreErrInfo_struct;
 typedef struct _ErrorInfo_struct {
-  BYTE               ScsiStatus;
-  BYTE               SenseLen;
-  HWORD              CommandStatus;
-  DWORD              ResidualCnt;
+  BYTE ScsiStatus;
+  BYTE SenseLen;
+  HWORD CommandStatus;
+  DWORD ResidualCnt;
   MoreErrInfo_struct MoreErrInfo;
-  BYTE               SenseInfo[SENSEINFOBYTES];
+  BYTE SenseInfo[SENSEINFOBYTES];
 } ErrorInfo_struct;
 
 #pragma pack()

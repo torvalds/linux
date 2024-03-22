@@ -23,24 +23,24 @@
  */
 
 /* Curves IDs */
-#define ECC_CURVE_NIST_P192	0x0001
-#define ECC_CURVE_NIST_P256	0x0002
-#define ECC_CURVE_NIST_P384	0x0003
+#define ECC_CURVE_NIST_P192 0x0001
+#define ECC_CURVE_NIST_P256 0x0002
+#define ECC_CURVE_NIST_P384 0x0003
 
 /**
  * struct ecdh - define an ECDH private key
  *
- * @key:	Private ECDH key
- * @key_size:	Size of the private ECDH key
+ * @key:  Private ECDH key
+ * @key_size: Size of the private ECDH key
  */
 struct ecdh {
-	char *key;
-	unsigned short key_size;
+  char *key;
+  unsigned short key_size;
 };
 
 /**
  * crypto_ecdh_key_len() - Obtain the size of the private ECDH key
- * @params:	private ECDH key
+ * @params: private ECDH key
  *
  * This function returns the packet ECDH key size. A caller can use that
  * with the provided ECDH private key reference to obtain the required
@@ -52,30 +52,30 @@ unsigned int crypto_ecdh_key_len(const struct ecdh *params);
 
 /**
  * crypto_ecdh_encode_key() - encode the private key
- * @buf:	Buffer allocated by the caller to hold the packet ECDH
- *		private key. The buffer should be at least crypto_ecdh_key_len
- *		bytes in size.
- * @len:	Length of the packet private key buffer
- * @p:		Buffer with the caller-specified private key
+ * @buf:  Buffer allocated by the caller to hold the packet ECDH
+ *    private key. The buffer should be at least crypto_ecdh_key_len
+ *    bytes in size.
+ * @len:  Length of the packet private key buffer
+ * @p:    Buffer with the caller-specified private key
  *
  * The ECDH implementations operate on a packet representation of the private
  * key.
  *
- * Return:	-EINVAL if buffer has insufficient size, 0 on success
+ * Return:  -EINVAL if buffer has insufficient size, 0 on success
  */
 int crypto_ecdh_encode_key(char *buf, unsigned int len, const struct ecdh *p);
 
 /**
  * crypto_ecdh_decode_key() - decode a private key
- * @buf:	Buffer holding a packet key that should be decoded
- * @len:	Length of the packet private key buffer
- * @p:		Buffer allocated by the caller that is filled with the
- *		unpacked ECDH private key.
+ * @buf:  Buffer holding a packet key that should be decoded
+ * @len:  Length of the packet private key buffer
+ * @p:    Buffer allocated by the caller that is filled with the
+ *    unpacked ECDH private key.
  *
  * The unpacking obtains the private key by pointing @p to the correct location
  * in @buf. Thus, both pointers refer to the same memory.
  *
- * Return:	-EINVAL if buffer has insufficient size, 0 on success
+ * Return:  -EINVAL if buffer has insufficient size, 0 on success
  */
 int crypto_ecdh_decode_key(const char *buf, unsigned int len, struct ecdh *p);
 

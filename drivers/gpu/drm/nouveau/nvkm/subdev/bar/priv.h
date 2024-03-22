@@ -5,24 +5,24 @@
 #include <subdev/bar.h>
 
 int r535_bar_new_(const struct nvkm_bar_func *,
-		  struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bar **);
+    struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bar **);
 
 void nvkm_bar_ctor(const struct nvkm_bar_func *, struct nvkm_device *,
-		   enum nvkm_subdev_type, int, struct nvkm_bar *);
+    enum nvkm_subdev_type, int, struct nvkm_bar *);
 
 struct nvkm_bar_func {
-	void *(*dtor)(struct nvkm_bar *);
-	int (*oneinit)(struct nvkm_bar *);
-	void (*init)(struct nvkm_bar *);
+  void *(*dtor)(struct nvkm_bar *);
+  int (*oneinit)(struct nvkm_bar *);
+  void (*init)(struct nvkm_bar *);
 
-	struct {
-		void (*init)(struct nvkm_bar *);
-		void (*fini)(struct nvkm_bar *);
-		void (*wait)(struct nvkm_bar *);
-		struct nvkm_vmm *(*vmm)(struct nvkm_bar *);
-	} bar1, bar2;
+  struct {
+    void (*init)(struct nvkm_bar *);
+    void (*fini)(struct nvkm_bar *);
+    void (*wait)(struct nvkm_bar *);
+    struct nvkm_vmm *(*vmm)(struct nvkm_bar *);
+  } bar1, bar2;
 
-	void (*flush)(struct nvkm_bar *);
+  void (*flush)(struct nvkm_bar *);
 };
 
 void nv50_bar_bar1_fini(struct nvkm_bar *);

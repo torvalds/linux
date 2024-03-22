@@ -12,8 +12,8 @@
 #include <linux/module.h>
 
 struct rxe_recv_sockets {
-	struct socket *sk4;
-	struct socket *sk6;
+  struct socket *sk4;
+  struct socket *sk6;
 };
 
 int rxe_net_add(const char *ibdev_name, struct net_device *ndev);

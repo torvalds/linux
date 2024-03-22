@@ -5,8 +5,7 @@
 
 #else /* __ASSEMBLY__ */
 
-static inline void mmcif_update_progress(int nr)
-{
+static inline void mmcif_update_progress(int nr) {
 }
 
 #endif /* __ASSEMBLY__ */

@@ -15,15 +15,15 @@
 #define ATH11K_THERMAL_SYNC_TIMEOUT_HZ (5 * HZ)
 
 struct ath11k_thermal {
-	struct thermal_cooling_device *cdev;
-	struct completion wmi_sync;
+  struct thermal_cooling_device *cdev;
+  struct completion wmi_sync;
 
-	/* protected by conf_mutex */
-	u32 throttle_state;
-	/* temperature value in Celsius degree
-	 * protected by data_lock
-	 */
-	int temperature;
+  /* protected by conf_mutex */
+  u32 throttle_state;
+  /* temperature value in Celsius degree
+   * protected by data_lock
+   */
+  int temperature;
 };
 
 #if IS_REACHABLE(CONFIG_THERMAL)
@@ -32,23 +32,20 @@ void ath11k_thermal_unregister(struct ath11k_base *ab);
 int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state);
 void ath11k_thermal_event_temperature(struct ath11k *ar, int temperature);
 #else
-static inline int ath11k_thermal_register(struct ath11k_base *ab)
-{
-	return 0;
+static inline int ath11k_thermal_register(struct ath11k_base *ab) {
+  return 0;
 }
 
-static inline void ath11k_thermal_unregister(struct ath11k_base *ab)
-{
+static inline void ath11k_thermal_unregister(struct ath11k_base *ab) {
 }
 
-static inline int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state)
-{
-	return 0;
+static inline int ath11k_thermal_set_throttling(struct ath11k *ar,
+    u32 throttle_state) {
+  return 0;
 }
 
 static inline void ath11k_thermal_event_temperature(struct ath11k *ar,
-						    int temperature)
-{
+    int temperature) {
 }
 
 #endif

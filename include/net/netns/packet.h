@@ -9,8 +9,8 @@
 #include <linux/mutex.h>
 
 struct netns_packet {
-	struct mutex		sklist_lock;
-	struct hlist_head	sklist;
+  struct mutex sklist_lock;
+  struct hlist_head sklist;
 };
 
 #endif /* __NETNS_PACKET_H__ */

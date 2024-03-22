@@ -20,13 +20,13 @@
  *  https://kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook.html
  *
  */
-#define __READ_ONCE(x)							\
-({									\
-	__unqual_scalar_typeof(x) __x =					\
-		(*(volatile typeof(__x) *)(&(x)));			\
-	mb();								\
-	(typeof(x))__x;							\
-})
+#define __READ_ONCE(x)              \
+  ({                  \
+    __unqual_scalar_typeof(x) __x           \
+      = (*(volatile typeof(__x) *)(&(x)));      \
+    mb();               \
+    (typeof(x))__x;             \
+  })
 
 #endif /* CONFIG_SMP */
 

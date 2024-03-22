@@ -28,22 +28,23 @@
  * This 6-step sequence was found by Yevgen Voronenko's implementation
  * of the Hcub algorithm at http://spiral.ece.cmu.edu/mcm/gen.html.
  */
-static inline u32 __attribute_const__ __hash_32(u32 x)
-{
-	u32 a, b, c;
-
-	/*
-	 * Phase 1: Compute  a = (x << 19) + x,
-	 * b = (x << 9) + a, c = (x << 23) + b.
-	 */
-	a = x << 19;		/* Two shifts can't be paired */
-	b = x << 9;	a += x;
-	c = x << 23;	b += a;
-			c += b;
-	/* Phase 2: Return (b<<11) + (c<<6) + (a<<3) - c */
-	b <<= 11;
-	a += c << 3;	b -= c;
-	return (a << 3) + b;
+static inline u32 __attribute_const__ __hash_32(u32 x) {
+  u32 a, b, c;
+  /*
+   * Phase 1: Compute  a = (x << 19) + x,
+   * b = (x << 9) + a, c = (x << 23) + b.
+   */
+  a = x << 19;    /* Two shifts can't be paired */
+  b = x << 9;
+  a += x;
+  c = x << 23;
+  b += a;
+  c += b;
+  /* Phase 2: Return (b<<11) + (c<<6) + (a<<3) - c */
+  b <<= 11;
+  a += c << 3;
+  b -= c;
+  return (a << 3) + b;
 }
 
 #if BITS_PER_LONG == 64
@@ -83,7 +84,6 @@ static inline u32 __attribute_const__ __hash_32(u32 x)
  * can fit into the scheduling slots left over.
  */
 
-
 /*
  * This _ASSIGN(dst, src) macro performs "dst = src", but prevents GCC
  * from inferring anything about the value assigned to "dest".
@@ -103,7 +103,7 @@ static inline u32 __attribute_const__ __hash_32(u32 x)
  * Because the PA-8xxx is out of order, I'm not sure how much this matters,
  * but why make it more difficult for the processor than necessary?
  */
-#define _ASSIGN(dst, src, ...) asm("" : "=r" (dst) : "0" (src), ##__VA_ARGS__)
+#define _ASSIGN(dst, src, ...) asm ("" : "=r" (dst) : "0" (src), ## __VA_ARGS__)
 
 /*
  * Multiply by GOLDEN_RATIO_64 = 0x0x61C8864680B583EB using a heavily
@@ -114,33 +114,41 @@ static inline u32 __attribute_const__ __hash_32(u32 x)
  *
  * You are not expected to understand this.
  */
-static __always_inline u32 __attribute_const__
-hash_64(u64 a, unsigned int bits)
-{
-	u64 b, c, d;
-
-	/*
-	 * Encourage GCC to move a dynamic shift to %sar early,
-	 * thereby freeing up an additional temporary register.
-	 */
-	if (!__builtin_constant_p(bits))
-		asm("" : "=q" (bits) : "0" (64 - bits));
-	else
-		bits = 64 - bits;
-
-	_ASSIGN(b, a*5);	c = a << 13;
-	b = (b << 2) + a;	_ASSIGN(d, a << 17);
-	a = b + (a << 1);	c += d;
-	d = a << 10;		_ASSIGN(a, a << 19);
-	d = a - d;		_ASSIGN(a, a << 4, "X" (d));
-	c += b;			a += b;
-	d -= c;			c += a << 1;
-	a += c << 3;		_ASSIGN(b, b << (7+31), "X" (c), "X" (d));
-	a <<= 31;		b += d;
-	a += b;
-	return a >> bits;
+static __always_inline u32 __attribute_const__ hash_64(u64 a,
+    unsigned int bits) {
+  u64 b, c, d;
+  /*
+   * Encourage GCC to move a dynamic shift to %sar early,
+   * thereby freeing up an additional temporary register.
+   */
+  if (!__builtin_constant_p(bits)) {
+    asm ("" : "=q" (bits) : "0" (64 - bits));
+  } else {
+    bits = 64 - bits;
+  }
+  _ASSIGN(b, a * 5);
+  c = a << 13;
+  b = (b << 2) + a;
+  _ASSIGN(d, a << 17);
+  a = b + (a << 1);
+  c += d;
+  d = a << 10;
+  _ASSIGN(a, a << 19);
+  d = a - d;
+  _ASSIGN(a, a << 4, "X" (d));
+  c += b;
+  a += b;
+  d -= c;
+  c += a << 1;
+  a += c << 3;
+  _ASSIGN(b, b << (7 + 31), "X" (c), "X" (d));
+  a <<= 31;
+  b += d;
+  a += b;
+  return a >> bits;
 }
-#undef _ASSIGN	/* We're a widely-used header file, so don't litter! */
+
+#undef _ASSIGN  /* We're a widely-used header file, so don't litter! */
 
 #endif /* BITS_PER_LONG == 64 */
 

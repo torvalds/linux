@@ -17,8 +17,12 @@ void ssam_bus_unregister(void);
 
 #else /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
-static inline int ssam_bus_register(void) { return 0; }
-static inline void ssam_bus_unregister(void) {}
+static inline int ssam_bus_register(void) {
+  return 0;
+}
+
+static inline void ssam_bus_unregister(void) {
+}
 
 #endif /* CONFIG_SURFACE_AGGREGATOR_BUS */
 #endif /* _SURFACE_AGGREGATOR_BUS_H */

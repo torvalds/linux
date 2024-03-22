@@ -18,4 +18,3 @@ int sdio_register_bus(void);
 void sdio_unregister_bus(void);
 
 #endif
-

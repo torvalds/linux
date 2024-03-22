@@ -27,15 +27,15 @@ struct seq_file;
  * struct sbitmap_word - Word in a &struct sbitmap.
  */
 struct sbitmap_word {
-	/**
-	 * @word: word holding free bits
-	 */
-	unsigned long word;
+  /**
+   * @word: word holding free bits
+   */
+  unsigned long word;
 
-	/**
-	 * @cleared: word holding cleared bits
-	 */
-	unsigned long cleared ____cacheline_aligned_in_smp;
+  /**
+   * @cleared: word holding cleared bits
+   */
+  unsigned long cleared ____cacheline_aligned_in_smp;
 } ____cacheline_aligned_in_smp;
 
 /**
@@ -45,38 +45,38 @@ struct sbitmap_word {
  * trades off higher memory usage for better scalability.
  */
 struct sbitmap {
-	/**
-	 * @depth: Number of bits used in the whole bitmap.
-	 */
-	unsigned int depth;
+  /**
+   * @depth: Number of bits used in the whole bitmap.
+   */
+  unsigned int depth;
 
-	/**
-	 * @shift: log2(number of bits used per word)
-	 */
-	unsigned int shift;
+  /**
+   * @shift: log2(number of bits used per word)
+   */
+  unsigned int shift;
 
-	/**
-	 * @map_nr: Number of words (cachelines) being used for the bitmap.
-	 */
-	unsigned int map_nr;
+  /**
+   * @map_nr: Number of words (cachelines) being used for the bitmap.
+   */
+  unsigned int map_nr;
 
-	/**
-	 * @round_robin: Allocate bits in strict round-robin order.
-	 */
-	bool round_robin;
+  /**
+   * @round_robin: Allocate bits in strict round-robin order.
+   */
+  bool round_robin;
 
-	/**
-	 * @map: Allocated bitmap.
-	 */
-	struct sbitmap_word *map;
+  /**
+   * @map: Allocated bitmap.
+   */
+  struct sbitmap_word *map;
 
-	/*
-	 * @alloc_hint: Cache of last successfully allocated or freed bit.
-	 *
-	 * This is per-cpu, which allows multiple users to stick to different
-	 * cachelines until the map is exhausted.
-	 */
-	unsigned int __percpu *alloc_hint;
+  /*
+   * @alloc_hint: Cache of last successfully allocated or freed bit.
+   *
+   * This is per-cpu, which allows multiple users to stick to different
+   * cachelines until the map is exhausted.
+   */
+  unsigned int __percpu *alloc_hint;
 };
 
 #define SBQ_WAIT_QUEUES 8
@@ -86,10 +86,10 @@ struct sbitmap {
  * struct sbq_wait_state - Wait queue in a &struct sbitmap_queue.
  */
 struct sbq_wait_state {
-	/**
-	 * @wait: Wait queue.
-	 */
-	wait_queue_head_t wait;
+  /**
+   * @wait: Wait queue.
+   */
+  wait_queue_head_t wait;
 } ____cacheline_aligned_in_smp;
 
 /**
@@ -102,48 +102,48 @@ struct sbq_wait_state {
  * to sleep.
  */
 struct sbitmap_queue {
-	/**
-	 * @sb: Scalable bitmap.
-	 */
-	struct sbitmap sb;
+  /**
+   * @sb: Scalable bitmap.
+   */
+  struct sbitmap sb;
 
-	/**
-	 * @wake_batch: Number of bits which must be freed before we wake up any
-	 * waiters.
-	 */
-	unsigned int wake_batch;
+  /**
+   * @wake_batch: Number of bits which must be freed before we wake up any
+   * waiters.
+   */
+  unsigned int wake_batch;
 
-	/**
-	 * @wake_index: Next wait queue in @ws to wake up.
-	 */
-	atomic_t wake_index;
+  /**
+   * @wake_index: Next wait queue in @ws to wake up.
+   */
+  atomic_t wake_index;
 
-	/**
-	 * @ws: Wait queues.
-	 */
-	struct sbq_wait_state *ws;
+  /**
+   * @ws: Wait queues.
+   */
+  struct sbq_wait_state *ws;
 
-	/*
-	 * @ws_active: count of currently active ws waitqueues
-	 */
-	atomic_t ws_active;
+  /*
+   * @ws_active: count of currently active ws waitqueues
+   */
+  atomic_t ws_active;
 
-	/**
-	 * @min_shallow_depth: The minimum shallow depth which may be passed to
-	 * sbitmap_queue_get_shallow()
-	 */
-	unsigned int min_shallow_depth;
+  /**
+   * @min_shallow_depth: The minimum shallow depth which may be passed to
+   * sbitmap_queue_get_shallow()
+   */
+  unsigned int min_shallow_depth;
 
-	/**
-	 * @completion_cnt: Number of bits cleared passed to the
-	 * wakeup function.
-	 */
-	atomic_t completion_cnt;
+  /**
+   * @completion_cnt: Number of bits cleared passed to the
+   * wakeup function.
+   */
+  atomic_t completion_cnt;
 
-	/**
-	 * @wakeup_cnt: Number of thread wake ups issued.
-	 */
-	atomic_t wakeup_cnt;
+  /**
+   * @wakeup_cnt: Number of thread wake ups issued.
+   */
+  atomic_t wakeup_cnt;
 };
 
 /**
@@ -163,25 +163,24 @@ struct sbitmap_queue {
  * Return: Zero on success or negative errno on failure.
  */
 int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
-		      gfp_t flags, int node, bool round_robin, bool alloc_hint);
+    gfp_t flags, int node, bool round_robin, bool alloc_hint);
 
 /* sbitmap internal helper */
-static inline unsigned int __map_depth(const struct sbitmap *sb, int index)
-{
-	if (index == sb->map_nr - 1)
-		return sb->depth - (index << sb->shift);
-	return 1U << sb->shift;
+static inline unsigned int __map_depth(const struct sbitmap *sb, int index) {
+  if (index == sb->map_nr - 1) {
+    return sb->depth - (index << sb->shift);
+  }
+  return 1U << sb->shift;
 }
 
 /**
  * sbitmap_free() - Free memory used by a &struct sbitmap.
  * @sb: Bitmap to free.
  */
-static inline void sbitmap_free(struct sbitmap *sb)
-{
-	free_percpu(sb->alloc_hint);
-	kvfree(sb->map);
-	sb->map = NULL;
+static inline void sbitmap_free(struct sbitmap *sb) {
+  free_percpu(sb->alloc_hint);
+  kvfree(sb->map);
+  sb->map = NULL;
 }
 
 /**
@@ -245,49 +244,48 @@ typedef bool (*sb_for_each_fn)(struct sbitmap *, unsigned int, void *);
  * callback will hopefully get optimized away.
  */
 static inline void __sbitmap_for_each_set(struct sbitmap *sb,
-					  unsigned int start,
-					  sb_for_each_fn fn, void *data)
-{
-	unsigned int index;
-	unsigned int nr;
-	unsigned int scanned = 0;
-
-	if (start >= sb->depth)
-		start = 0;
-	index = SB_NR_TO_INDEX(sb, start);
-	nr = SB_NR_TO_BIT(sb, start);
-
-	while (scanned < sb->depth) {
-		unsigned long word;
-		unsigned int depth = min_t(unsigned int,
-					   __map_depth(sb, index) - nr,
-					   sb->depth - scanned);
-
-		scanned += depth;
-		word = sb->map[index].word & ~sb->map[index].cleared;
-		if (!word)
-			goto next;
-
-		/*
-		 * On the first iteration of the outer loop, we need to add the
-		 * bit offset back to the size of the word for find_next_bit().
-		 * On all other iterations, nr is zero, so this is a noop.
-		 */
-		depth += nr;
-		while (1) {
-			nr = find_next_bit(&word, depth, nr);
-			if (nr >= depth)
-				break;
-			if (!fn(sb, (index << sb->shift) + nr, data))
-				return;
-
-			nr++;
-		}
+    unsigned int start,
+    sb_for_each_fn fn, void *data) {
+  unsigned int index;
+  unsigned int nr;
+  unsigned int scanned = 0;
+  if (start >= sb->depth) {
+    start = 0;
+  }
+  index = SB_NR_TO_INDEX(sb, start);
+  nr = SB_NR_TO_BIT(sb, start);
+  while (scanned < sb->depth) {
+    unsigned long word;
+    unsigned int depth = min_t(unsigned int,
+        __map_depth(sb, index) - nr,
+        sb->depth - scanned);
+    scanned += depth;
+    word = sb->map[index].word & ~sb->map[index].cleared;
+    if (!word) {
+      goto next;
+    }
+    /*
+     * On the first iteration of the outer loop, we need to add the
+     * bit offset back to the size of the word for find_next_bit().
+     * On all other iterations, nr is zero, so this is a noop.
+     */
+    depth += nr;
+    while (1) {
+      nr = find_next_bit(&word, depth, nr);
+      if (nr >= depth) {
+        break;
+      }
+      if (!fn(sb, (index << sb->shift) + nr, data)) {
+        return;
+      }
+      nr++;
+    }
 next:
-		nr = 0;
-		if (++index >= sb->map_nr)
-			index = 0;
-	}
+    nr = 0;
+    if (++index >= sb->map_nr) {
+      index = 0;
+    }
+  }
 }
 
 /**
@@ -297,27 +295,23 @@ next:
  * @data: Pointer to pass to callback.
  */
 static inline void sbitmap_for_each_set(struct sbitmap *sb, sb_for_each_fn fn,
-					void *data)
-{
-	__sbitmap_for_each_set(sb, 0, fn, data);
+    void *data) {
+  __sbitmap_for_each_set(sb, 0, fn, data);
 }
 
 static inline unsigned long *__sbitmap_word(struct sbitmap *sb,
-					    unsigned int bitnr)
-{
-	return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
+    unsigned int bitnr) {
+  return &sb->map[SB_NR_TO_INDEX(sb, bitnr)].word;
 }
 
 /* Helpers equivalent to the operations in asm/bitops.h and linux/bitmap.h */
 
-static inline void sbitmap_set_bit(struct sbitmap *sb, unsigned int bitnr)
-{
-	set_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
+static inline void sbitmap_set_bit(struct sbitmap *sb, unsigned int bitnr) {
+  set_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
 }
 
-static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
-{
-	clear_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
+static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr) {
+  clear_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
 }
 
 /*
@@ -326,46 +320,41 @@ static inline void sbitmap_clear_bit(struct sbitmap *sb, unsigned int bitnr)
  * the caller doing sbitmap_deferred_clear() if a given index is full, which
  * will clear the previously freed entries in the corresponding ->word.
  */
-static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb, unsigned int bitnr)
-{
-	unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
-
-	set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
+static inline void sbitmap_deferred_clear_bit(struct sbitmap *sb,
+    unsigned int bitnr) {
+  unsigned long *addr = &sb->map[SB_NR_TO_INDEX(sb, bitnr)].cleared;
+  set_bit(SB_NR_TO_BIT(sb, bitnr), addr);
 }
 
 /*
  * Pair of sbitmap_get, and this one applies both cleared bit and
  * allocation hint.
  */
-static inline void sbitmap_put(struct sbitmap *sb, unsigned int bitnr)
-{
-	sbitmap_deferred_clear_bit(sb, bitnr);
-
-	if (likely(sb->alloc_hint && !sb->round_robin && bitnr < sb->depth))
-		*raw_cpu_ptr(sb->alloc_hint) = bitnr;
+static inline void sbitmap_put(struct sbitmap *sb, unsigned int bitnr) {
+  sbitmap_deferred_clear_bit(sb, bitnr);
+  if (likely(sb->alloc_hint && !sb->round_robin && bitnr < sb->depth)) {
+    *raw_cpu_ptr(sb->alloc_hint) = bitnr;
+  }
 }
 
-static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr)
-{
-	return test_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
+static inline int sbitmap_test_bit(struct sbitmap *sb, unsigned int bitnr) {
+  return test_bit(SB_NR_TO_BIT(sb, bitnr), __sbitmap_word(sb, bitnr));
 }
 
-static inline int sbitmap_calculate_shift(unsigned int depth)
-{
-	int	shift = ilog2(BITS_PER_LONG);
-
-	/*
-	 * If the bitmap is small, shrink the number of bits per word so
-	 * we spread over a few cachelines, at least. If less than 4
-	 * bits, just forget about it, it's not going to work optimally
-	 * anyway.
-	 */
-	if (depth >= 4) {
-		while ((4U << shift) > depth)
-			shift--;
-	}
-
-	return shift;
+static inline int sbitmap_calculate_shift(unsigned int depth) {
+  int shift = ilog2(BITS_PER_LONG);
+  /*
+   * If the bitmap is small, shrink the number of bits per word so
+   * we spread over a few cachelines, at least. If less than 4
+   * bits, just forget about it, it's not going to work optimally
+   * anyway.
+   */
+  if (depth >= 4) {
+    while ((4U << shift) > depth) {
+      shift--;
+    }
+  }
+  return shift;
 }
 
 /**
@@ -376,7 +365,6 @@ static inline int sbitmap_calculate_shift(unsigned int depth)
  * This is intended for debugging. The format may change at any time.
  */
 void sbitmap_show(struct sbitmap *sb, struct seq_file *m);
-
 
 /**
  * sbitmap_weight() - Return how many set and not cleared bits in a &struct
@@ -411,17 +399,16 @@ void sbitmap_bitmap_show(struct sbitmap *sb, struct seq_file *m);
  * Return: Zero on success or negative errno on failure.
  */
 int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
-			    int shift, bool round_robin, gfp_t flags, int node);
+    int shift, bool round_robin, gfp_t flags, int node);
 
 /**
  * sbitmap_queue_free() - Free memory used by a &struct sbitmap_queue.
  *
  * @sbq: Bitmap queue to free.
  */
-static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
-{
-	kfree(sbq->ws);
-	sbitmap_free(&sbq->sb);
+static inline void sbitmap_queue_free(struct sbitmap_queue *sbq) {
+  kfree(sbq->ws);
+  sbitmap_free(&sbq->sb);
 }
 
 /**
@@ -433,7 +420,7 @@ static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
  * by depth. This interface is for HCTX shared tags or queue shared tags.
  */
 void sbitmap_queue_recalculate_wake_batch(struct sbitmap_queue *sbq,
-					    unsigned int users);
+    unsigned int users);
 
 /**
  * sbitmap_queue_resize() - Resize a &struct sbitmap_queue.
@@ -466,7 +453,7 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq);
  * get the absolute tag value.
  */
 unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
-					unsigned int *offset);
+    unsigned int *offset);
 
 /**
  * sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
@@ -482,7 +469,7 @@ unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
  * Return: Non-negative allocated bit number if successful, -1 otherwise.
  */
 int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
-			      unsigned int shallow_depth);
+    unsigned int shallow_depth);
 
 /**
  * sbitmap_queue_get() - Try to allocate a free bit from a &struct
@@ -494,14 +481,12 @@ int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
  * Return: Non-negative allocated bit number if successful, -1 otherwise.
  */
 static inline int sbitmap_queue_get(struct sbitmap_queue *sbq,
-				    unsigned int *cpu)
-{
-	int nr;
-
-	*cpu = get_cpu();
-	nr = __sbitmap_queue_get(sbq);
-	put_cpu();
-	return nr;
+    unsigned int *cpu) {
+  int nr;
+  *cpu = get_cpu();
+  nr = __sbitmap_queue_get(sbq);
+  put_cpu();
+  return nr;
 }
 
 /**
@@ -519,7 +504,7 @@ static inline int sbitmap_queue_get(struct sbitmap_queue *sbq,
  * in missed wakeups.
  */
 void sbitmap_queue_min_shallow_depth(struct sbitmap_queue *sbq,
-				     unsigned int min_shallow_depth);
+    unsigned int min_shallow_depth);
 
 /**
  * sbitmap_queue_clear() - Free an allocated bit and wake up waiters on a
@@ -529,7 +514,7 @@ void sbitmap_queue_min_shallow_depth(struct sbitmap_queue *sbq,
  * @cpu: CPU the bit was allocated on.
  */
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
-			 unsigned int cpu);
+    unsigned int cpu);
 
 /**
  * sbitmap_queue_clear_batch() - Free a batch of allocated bits
@@ -540,18 +525,16 @@ void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
  * @nr_tags: number of tags in array
  */
 void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
-				int *tags, int nr_tags);
+    int *tags, int nr_tags);
 
-static inline int sbq_index_inc(int index)
-{
-	return (index + 1) & (SBQ_WAIT_QUEUES - 1);
+static inline int sbq_index_inc(int index) {
+  return (index + 1) & (SBQ_WAIT_QUEUES - 1);
 }
 
-static inline void sbq_index_atomic_inc(atomic_t *index)
-{
-	int old = atomic_read(index);
-	int new = sbq_index_inc(old);
-	atomic_cmpxchg(index, old, new);
+static inline void sbq_index_atomic_inc(atomic_t *index) {
+  int old = atomic_read(index);
+  int new = sbq_index_inc(old);
+  atomic_cmpxchg(index, old, new);
 }
 
 /**
@@ -561,13 +544,11 @@ static inline void sbq_index_atomic_inc(atomic_t *index)
  * @wait_index: A counter per "user" of @sbq.
  */
 static inline struct sbq_wait_state *sbq_wait_ptr(struct sbitmap_queue *sbq,
-						  atomic_t *wait_index)
-{
-	struct sbq_wait_state *ws;
-
-	ws = &sbq->ws[atomic_read(wait_index)];
-	sbq_index_atomic_inc(wait_index);
-	return ws;
+    atomic_t *wait_index) {
+  struct sbq_wait_state *ws;
+  ws = &sbq->ws[atomic_read(wait_index)];
+  sbq_index_atomic_inc(wait_index);
+  return ws;
 }
 
 /**
@@ -596,40 +577,40 @@ void sbitmap_queue_wake_up(struct sbitmap_queue *sbq, int nr);
 void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m);
 
 struct sbq_wait {
-	struct sbitmap_queue *sbq;	/* if set, sbq_wait is accounted */
-	struct wait_queue_entry wait;
+  struct sbitmap_queue *sbq;  /* if set, sbq_wait is accounted */
+  struct wait_queue_entry wait;
 };
 
-#define DEFINE_SBQ_WAIT(name)							\
-	struct sbq_wait name = {						\
-		.sbq = NULL,							\
-		.wait = {							\
-			.private	= current,				\
-			.func		= autoremove_wake_function,		\
-			.entry		= LIST_HEAD_INIT((name).wait.entry),	\
-		}								\
-	}
+#define DEFINE_SBQ_WAIT(name)             \
+  struct sbq_wait name = {            \
+    .sbq = NULL,              \
+    .wait = {             \
+      .private = current,        \
+      .func = autoremove_wake_function,   \
+      .entry = LIST_HEAD_INIT((name).wait.entry),  \
+    }               \
+  }
 
 /*
  * Wrapper around prepare_to_wait_exclusive(), which maintains some extra
  * internal state.
  */
 void sbitmap_prepare_to_wait(struct sbitmap_queue *sbq,
-				struct sbq_wait_state *ws,
-				struct sbq_wait *sbq_wait, int state);
+    struct sbq_wait_state *ws,
+    struct sbq_wait *sbq_wait, int state);
 
 /*
  * Must be paired with sbitmap_prepare_to_wait().
  */
 void sbitmap_finish_wait(struct sbitmap_queue *sbq, struct sbq_wait_state *ws,
-				struct sbq_wait *sbq_wait);
+    struct sbq_wait *sbq_wait);
 
 /*
  * Wrapper around add_wait_queue(), which maintains some extra internal state
  */
 void sbitmap_add_wait_queue(struct sbitmap_queue *sbq,
-			    struct sbq_wait_state *ws,
-			    struct sbq_wait *sbq_wait);
+    struct sbq_wait_state *ws,
+    struct sbq_wait *sbq_wait);
 
 /*
  * Must be paired with sbitmap_add_wait_queue()

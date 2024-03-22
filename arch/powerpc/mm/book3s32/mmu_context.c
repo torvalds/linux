@@ -41,94 +41,88 @@ void *abatron_pteptrs[2];
  * particularly on SMP systems.
  *  -- paulus.
  */
-#define NO_CONTEXT      	((unsigned long) -1)
-#define LAST_CONTEXT    	32767
-#define FIRST_CONTEXT    	1
+#define NO_CONTEXT        ((unsigned long) -1)
+#define LAST_CONTEXT      32767
+#define FIRST_CONTEXT     1
 
 static unsigned long next_mmu_context;
 static unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
 
-unsigned long __init_new_context(void)
-{
-	unsigned long ctx = next_mmu_context;
-
-	while (test_and_set_bit(ctx, context_map)) {
-		ctx = find_next_zero_bit(context_map, LAST_CONTEXT+1, ctx);
-		if (ctx > LAST_CONTEXT)
-			ctx = 0;
-	}
-	next_mmu_context = (ctx + 1) & LAST_CONTEXT;
-
-	return ctx;
+unsigned long __init_new_context(void) {
+  unsigned long ctx = next_mmu_context;
+  while (test_and_set_bit(ctx, context_map)) {
+    ctx = find_next_zero_bit(context_map, LAST_CONTEXT + 1, ctx);
+    if (ctx > LAST_CONTEXT) {
+      ctx = 0;
+    }
+  }
+  next_mmu_context = (ctx + 1) & LAST_CONTEXT;
+  return ctx;
 }
+
 EXPORT_SYMBOL_GPL(__init_new_context);
 
 /*
  * Set up the context for a new address space.
  */
-int init_new_context(struct task_struct *t, struct mm_struct *mm)
-{
-	mm->context.id = __init_new_context();
-	mm->context.sr0 = CTX_TO_VSID(mm->context.id, 0);
-
-	if (IS_ENABLED(CONFIG_PPC_KUEP))
-		mm->context.sr0 |= SR_NX;
-	if (!kuap_is_disabled())
-		mm->context.sr0 |= SR_KS;
-
-	return 0;
+int init_new_context(struct task_struct *t, struct mm_struct *mm) {
+  mm->context.id = __init_new_context();
+  mm->context.sr0 = CTX_TO_VSID(mm->context.id, 0);
+  if (IS_ENABLED(CONFIG_PPC_KUEP)) {
+    mm->context.sr0 |= SR_NX;
+  }
+  if (!kuap_is_disabled()) {
+    mm->context.sr0 |= SR_KS;
+  }
+  return 0;
 }
 
 /*
  * Free a context ID. Make sure to call this with preempt disabled!
  */
-void __destroy_context(unsigned long ctx)
-{
-	clear_bit(ctx, context_map);
+void __destroy_context(unsigned long ctx) {
+  clear_bit(ctx, context_map);
 }
+
 EXPORT_SYMBOL_GPL(__destroy_context);
 
 /*
  * We're finished using the context for an address space.
  */
-void destroy_context(struct mm_struct *mm)
-{
-	preempt_disable();
-	if (mm->context.id != NO_CONTEXT) {
-		__destroy_context(mm->context.id);
-		mm->context.id = NO_CONTEXT;
-	}
-	preempt_enable();
+void destroy_context(struct mm_struct *mm) {
+  preempt_disable();
+  if (mm->context.id != NO_CONTEXT) {
+    __destroy_context(mm->context.id);
+    mm->context.id = NO_CONTEXT;
+  }
+  preempt_enable();
 }
 
 /*
  * Initialize the context management stuff.
  */
-void __init mmu_context_init(void)
-{
-	/* Reserve context 0 for kernel use */
-	context_map[0] = (1 << FIRST_CONTEXT) - 1;
-	next_mmu_context = FIRST_CONTEXT;
+void __init mmu_context_init(void) {
+  /* Reserve context 0 for kernel use */
+  context_map[0] = (1 << FIRST_CONTEXT) - 1;
+  next_mmu_context = FIRST_CONTEXT;
 }
 
-void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk)
-{
-	long id = next->context.id;
-
-	if (id < 0)
-		panic("mm_struct %p has no context ID", next);
-
-	isync();
-
-	update_user_segments(next->context.sr0);
-
-	if (IS_ENABLED(CONFIG_BDI_SWITCH))
-		abatron_pteptrs[1] = next->pgd;
-
-	if (!mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		mtspr(SPRN_SDR1, rol32(__pa(next->pgd), 4) & 0xffff01ff);
-
-	mb();	/* sync */
-	isync();
+void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
+    struct task_struct *tsk) {
+  long id = next->context.id;
+  if (id < 0) {
+    panic("mm_struct %p has no context ID", next);
+  }
+  isync();
+  update_user_segments(next->context.sr0);
+  if (IS_ENABLED(CONFIG_BDI_SWITCH)) {
+    abatron_pteptrs[1] = next->pgd;
+  }
+  if (!mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
+    mtspr(SPRN_SDR1, rol32(__pa(next->pgd), 4) & 0xffff01ff);
+  }
+  mb(); /* sync */
+  isync();
 }
+
 EXPORT_SYMBOL(switch_mmu_context);

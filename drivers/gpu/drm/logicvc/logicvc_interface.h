@@ -15,11 +15,11 @@
 struct logicvc_drm;
 
 struct logicvc_interface {
-	struct drm_encoder drm_encoder;
-	struct drm_connector drm_connector;
+  struct drm_encoder drm_encoder;
+  struct drm_connector drm_connector;
 
-	struct drm_panel *drm_panel;
-	struct drm_bridge *drm_bridge;
+  struct drm_panel *drm_panel;
+  struct drm_bridge *drm_bridge;
 };
 
 void logicvc_interface_attach_crtc(struct logicvc_drm *logicvc);

@@ -18,27 +18,27 @@
 #include "mem-events.h"
 #include "env.h"
 
-void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
-{
+void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused) {
 #ifdef HAVE_AUXTRACE_SUPPORT
-	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
-		pmu->auxtrace = true;
-		pmu->selectable = true;
-		pmu->perf_event_attr_init_default = intel_pt_pmu_default_config;
-	}
-	if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME)) {
-		pmu->auxtrace = true;
-		pmu->selectable = true;
-	}
+  if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
+    pmu->auxtrace = true;
+    pmu->selectable = true;
+    pmu->perf_event_attr_init_default = intel_pt_pmu_default_config;
+  }
+  if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME)) {
+    pmu->auxtrace = true;
+    pmu->selectable = true;
+  }
 #endif
-
-	if (x86__is_amd_cpu()) {
-		if (!strcmp(pmu->name, "ibs_op"))
-			pmu->mem_events = perf_mem_events_amd;
-	} else if (pmu->is_core) {
-		if (perf_pmu__have_event(pmu, "mem-loads-aux"))
-			pmu->mem_events = perf_mem_events_intel_aux;
-		else
-			pmu->mem_events = perf_mem_events_intel;
-	}
+  if (x86__is_amd_cpu()) {
+    if (!strcmp(pmu->name, "ibs_op")) {
+      pmu->mem_events = perf_mem_events_amd;
+    }
+  } else if (pmu->is_core) {
+    if (perf_pmu__have_event(pmu, "mem-loads-aux")) {
+      pmu->mem_events = perf_mem_events_intel_aux;
+    } else {
+      pmu->mem_events = perf_mem_events_intel;
+    }
+  }
 }

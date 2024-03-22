@@ -31,23 +31,23 @@
 struct arch_vdso_data {};
 #endif
 
-#define VDSO_BASES	(CLOCK_TAI + 1)
-#define VDSO_HRES	(BIT(CLOCK_REALTIME)		| \
-			 BIT(CLOCK_MONOTONIC)		| \
-			 BIT(CLOCK_BOOTTIME)		| \
-			 BIT(CLOCK_TAI))
-#define VDSO_COARSE	(BIT(CLOCK_REALTIME_COARSE)	| \
-			 BIT(CLOCK_MONOTONIC_COARSE))
-#define VDSO_RAW	(BIT(CLOCK_MONOTONIC_RAW))
+#define VDSO_BASES  (CLOCK_TAI + 1)
+#define VDSO_HRES (BIT(CLOCK_REALTIME)      \
+  | BIT(CLOCK_MONOTONIC)     \
+  | BIT(CLOCK_BOOTTIME)      \
+  | BIT(CLOCK_TAI))
+#define VDSO_COARSE (BIT(CLOCK_REALTIME_COARSE)   \
+  | BIT(CLOCK_MONOTONIC_COARSE))
+#define VDSO_RAW  (BIT(CLOCK_MONOTONIC_RAW))
 
-#define CS_HRES_COARSE	0
-#define CS_RAW		1
-#define CS_BASES	(CS_RAW + 1)
+#define CS_HRES_COARSE  0
+#define CS_RAW    1
+#define CS_BASES  (CS_RAW + 1)
 
 /**
  * struct vdso_timestamp - basetime per clock_id
- * @sec:	seconds
- * @nsec:	nanoseconds
+ * @sec:  seconds
+ * @nsec: nanoseconds
  *
  * There is one vdso_timestamp object in vvar for each vDSO-accelerated
  * clock_id. For high-resolution clocks, this encodes the time
@@ -58,26 +58,26 @@ struct arch_vdso_data {};
  * vdso_data.cs[x].shift.
  */
 struct vdso_timestamp {
-	u64	sec;
-	u64	nsec;
+  u64 sec;
+  u64 nsec;
 };
 
 /**
  * struct vdso_data - vdso datapage representation
- * @seq:		timebase sequence counter
- * @clock_mode:		clock mode
- * @cycle_last:		timebase at clocksource init
- * @mask:		clocksource mask
- * @mult:		clocksource multiplier
- * @shift:		clocksource shift
- * @basetime[clock_id]:	basetime per clock_id
- * @offset[clock_id]:	time namespace offset per clock_id
- * @tz_minuteswest:	minutes west of Greenwich
- * @tz_dsttime:		type of DST correction
- * @hrtimer_res:	hrtimer resolution
- * @__unused:		unused
- * @arch_data:		architecture specific data (optional, defaults
- *			to an empty struct)
+ * @seq:    timebase sequence counter
+ * @clock_mode:   clock mode
+ * @cycle_last:   timebase at clocksource init
+ * @mask:   clocksource mask
+ * @mult:   clocksource multiplier
+ * @shift:    clocksource shift
+ * @basetime[clock_id]: basetime per clock_id
+ * @offset[clock_id]: time namespace offset per clock_id
+ * @tz_minuteswest: minutes west of Greenwich
+ * @tz_dsttime:   type of DST correction
+ * @hrtimer_res:  hrtimer resolution
+ * @__unused:   unused
+ * @arch_data:    architecture specific data (optional, defaults
+ *      to an empty struct)
  *
  * vdso_data will be accessed by 64 bit and compat code at the same time
  * so we should be careful before modifying this structure.
@@ -94,25 +94,25 @@ struct vdso_timestamp {
  * offset must be zero.
  */
 struct vdso_data {
-	u32			seq;
+  u32 seq;
 
-	s32			clock_mode;
-	u64			cycle_last;
-	u64			mask;
-	u32			mult;
-	u32			shift;
+  s32 clock_mode;
+  u64 cycle_last;
+  u64 mask;
+  u32 mult;
+  u32 shift;
 
-	union {
-		struct vdso_timestamp	basetime[VDSO_BASES];
-		struct timens_offset	offset[VDSO_BASES];
-	};
+  union {
+    struct vdso_timestamp basetime[VDSO_BASES];
+    struct timens_offset offset[VDSO_BASES];
+  };
 
-	s32			tz_minuteswest;
-	s32			tz_dsttime;
-	u32			hrtimer_res;
-	u32			__unused;
+  s32 tz_minuteswest;
+  s32 tz_dsttime;
+  u32 hrtimer_res;
+  u32     __unused;
 
-	struct arch_vdso_data	arch_data;
+  struct arch_vdso_data arch_data;
 };
 
 /*
@@ -125,14 +125,15 @@ struct vdso_data {
  * relocation, and this is what we need.
  */
 extern struct vdso_data _vdso_data[CS_BASES] __attribute__((visibility("hidden")));
-extern struct vdso_data _timens_data[CS_BASES] __attribute__((visibility("hidden")));
+extern struct vdso_data _timens_data[CS_BASES] __attribute__((visibility(
+    "hidden")));
 
 /**
  * union vdso_data_store - Generic vDSO data page
  */
 union vdso_data_store {
-	struct vdso_data	data[CS_BASES];
-	u8			page[PAGE_SIZE];
+  struct vdso_data data[CS_BASES];
+  u8 page[PAGE_SIZE];
 };
 
 /*

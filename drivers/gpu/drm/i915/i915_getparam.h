@@ -10,6 +10,6 @@ struct drm_device;
 struct drm_file;
 
 int i915_getparam_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
+    struct drm_file *file_priv);
 
 #endif /* __I915_GETPARAM_H__ */

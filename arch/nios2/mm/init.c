@@ -43,103 +43,86 @@ pgd_t *pgd_current;
  * The parameters are pointers to where to stick the starting and ending
  * addresses of available kernel virtual memory.
  */
-void __init paging_init(void)
-{
-	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-
-	pagetable_init();
-	pgd_current = swapper_pg_dir;
-
-	max_zone_pfn[ZONE_NORMAL] = max_mapnr;
-
-	/* pass the memory from the bootmem allocator to the main allocator */
-	free_area_init(max_zone_pfn);
-
-	flush_dcache_range((unsigned long)empty_zero_page,
-			(unsigned long)empty_zero_page + PAGE_SIZE);
+void __init paging_init(void) {
+  unsigned long max_zone_pfn[MAX_NR_ZONES] = {
+    0
+  };
+  pagetable_init();
+  pgd_current = swapper_pg_dir;
+  max_zone_pfn[ZONE_NORMAL] = max_mapnr;
+  /* pass the memory from the bootmem allocator to the main allocator */
+  free_area_init(max_zone_pfn);
+  flush_dcache_range((unsigned long) empty_zero_page,
+      (unsigned long) empty_zero_page + PAGE_SIZE);
 }
 
-void __init mem_init(void)
-{
-	unsigned long end_mem   = memory_end; /* this must not include
-						kernel stack at top */
-
-	pr_debug("mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
-
-	end_mem &= PAGE_MASK;
-	high_memory = __va(end_mem);
-
-	/* this will put all memory onto the freelists */
-	memblock_free_all();
+void __init mem_init(void) {
+  unsigned long end_mem = memory_end; /* this must not include
+                                      * kernel stack at top */
+  pr_debug("mem_init: start=%lx, end=%lx\n", memory_start, memory_end);
+  end_mem &= PAGE_MASK;
+  high_memory = __va(end_mem);
+  /* this will put all memory onto the freelists */
+  memblock_free_all();
 }
 
-void __init mmu_init(void)
-{
-	flush_tlb_all();
+void __init mmu_init(void) {
+  flush_tlb_all();
 }
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
 pte_t invalid_pte_table[PTRS_PER_PTE] __aligned(PAGE_SIZE);
 static struct page *kuser_page[1];
 
-static int alloc_kuser_page(void)
-{
-	extern char __kuser_helper_start[], __kuser_helper_end[];
-	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
-	unsigned long vpage;
-
-	vpage = get_zeroed_page(GFP_ATOMIC);
-	if (!vpage)
-		return -ENOMEM;
-
-	/* Copy kuser helpers */
-	memcpy((void *)vpage, __kuser_helper_start, kuser_sz);
-
-	flush_icache_range(vpage, vpage + KUSER_SIZE);
-	kuser_page[0] = virt_to_page(vpage);
-
-	return 0;
+static int alloc_kuser_page(void) {
+  extern char __kuser_helper_start[], __kuser_helper_end[];
+  int kuser_sz = __kuser_helper_end - __kuser_helper_start;
+  unsigned long vpage;
+  vpage = get_zeroed_page(GFP_ATOMIC);
+  if (!vpage) {
+    return -ENOMEM;
+  }
+  /* Copy kuser helpers */
+  memcpy((void *) vpage, __kuser_helper_start, kuser_sz);
+  flush_icache_range(vpage, vpage + KUSER_SIZE);
+  kuser_page[0] = virt_to_page(vpage);
+  return 0;
 }
+
 arch_initcall(alloc_kuser_page);
 
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
-{
-	struct mm_struct *mm = current->mm;
-	int ret;
-
-	mmap_write_lock(mm);
-
-	/* Map kuser helpers to user space address */
-	ret = install_special_mapping(mm, KUSER_BASE, KUSER_SIZE,
-				      VM_READ | VM_EXEC | VM_MAYREAD |
-				      VM_MAYEXEC, kuser_page);
-
-	mmap_write_unlock(mm);
-
-	return ret;
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp) {
+  struct mm_struct *mm = current->mm;
+  int ret;
+  mmap_write_lock(mm);
+  /* Map kuser helpers to user space address */
+  ret = install_special_mapping(mm, KUSER_BASE, KUSER_SIZE,
+      VM_READ | VM_EXEC | VM_MAYREAD
+      | VM_MAYEXEC, kuser_page);
+  mmap_write_unlock(mm);
+  return ret;
 }
 
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	return (vma->vm_start == KUSER_BASE) ? "[kuser]" : NULL;
+const char *arch_vma_name(struct vm_area_struct *vma) {
+  return (vma->vm_start == KUSER_BASE) ? "[kuser]" : NULL;
 }
 
 static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= MKP(0, 0, 0),
-	[VM_READ]					= MKP(0, 0, 1),
-	[VM_WRITE]					= MKP(0, 0, 0),
-	[VM_WRITE | VM_READ]				= MKP(0, 0, 1),
-	[VM_EXEC]					= MKP(1, 0, 0),
-	[VM_EXEC | VM_READ]				= MKP(1, 0, 1),
-	[VM_EXEC | VM_WRITE]				= MKP(1, 0, 0),
-	[VM_EXEC | VM_WRITE | VM_READ]			= MKP(1, 0, 1),
-	[VM_SHARED]					= MKP(0, 0, 0),
-	[VM_SHARED | VM_READ]				= MKP(0, 0, 1),
-	[VM_SHARED | VM_WRITE]				= MKP(0, 1, 0),
-	[VM_SHARED | VM_WRITE | VM_READ]		= MKP(0, 1, 1),
-	[VM_SHARED | VM_EXEC]				= MKP(1, 0, 0),
-	[VM_SHARED | VM_EXEC | VM_READ]			= MKP(1, 0, 1),
-	[VM_SHARED | VM_EXEC | VM_WRITE]		= MKP(1, 1, 0),
-	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= MKP(1, 1, 1)
+  [VM_NONE] = MKP(0, 0, 0),
+  [VM_READ] = MKP(0, 0, 1),
+  [VM_WRITE] = MKP(0, 0, 0),
+  [VM_WRITE | VM_READ] = MKP(0, 0, 1),
+  [VM_EXEC] = MKP(1, 0, 0),
+  [VM_EXEC | VM_READ] = MKP(1, 0, 1),
+  [VM_EXEC | VM_WRITE] = MKP(1, 0, 0),
+  [VM_EXEC | VM_WRITE | VM_READ] = MKP(1, 0, 1),
+  [VM_SHARED] = MKP(0, 0, 0),
+  [VM_SHARED | VM_READ] = MKP(0, 0, 1),
+  [VM_SHARED | VM_WRITE] = MKP(0, 1, 0),
+  [VM_SHARED | VM_WRITE | VM_READ] = MKP(0, 1, 1),
+  [VM_SHARED | VM_EXEC] = MKP(1, 0, 0),
+  [VM_SHARED | VM_EXEC | VM_READ] = MKP(1, 0, 1),
+  [VM_SHARED | VM_EXEC | VM_WRITE] = MKP(1, 1, 0),
+  [VM_SHARED | VM_EXEC | VM_WRITE | VM_READ] = MKP(1, 1, 1)
 };
 DECLARE_VM_GET_PAGE_PROT

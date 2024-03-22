@@ -3,9 +3,9 @@
 #define __INCLUDED_TEA6415C__
 
 /* the tea6415c's design is quite brain-dead. although there are
-   8 inputs and 6 outputs, these aren't enumerated in any way. because
-   I don't want to say "connect input pin 20 to output pin 17", I define
-   a "virtual" pin-order. */
+ * 8 inputs and 6 outputs, these aren't enumerated in any way. because
+ * I don't want to say "connect input pin 20 to output pin 17", I define
+ * a "virtual" pin-order. */
 
 /* input pins */
 #define TEA6415C_OUTPUT1 18

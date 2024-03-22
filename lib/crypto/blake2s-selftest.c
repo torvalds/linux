@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights
+ * Reserved.
  */
 
 #include <crypto/internal/blake2s.h>
@@ -18,48 +19,49 @@
  *
  * #include <openssl/evp.h>
  *
- * #define BLAKE2S_TESTVEC_COUNT	256
+ * #define BLAKE2S_TESTVEC_COUNT  256
  *
  * static void print_vec(const uint8_t vec[], int len)
  * {
- *	int i;
+ *  int i;
  *
- *	printf("  { ");
- *	for (i = 0; i < len; i++) {
- *		if (i && (i % 12) == 0)
- *			printf("\n    ");
- *		printf("0x%02x, ", vec[i]);
- *	}
- *	printf("},\n");
+ *  printf("  { ");
+ *  for (i = 0; i < len; i++) {
+ *    if (i && (i % 12) == 0)
+ *      printf("\n    ");
+ *    printf("0x%02x, ", vec[i]);
+ *  }
+ *  printf("},\n");
  * }
  *
  * int main(void)
  * {
- *	uint8_t key[BLAKE2S_KEYBYTES];
- *	uint8_t buf[BLAKE2S_TESTVEC_COUNT];
- *	uint8_t hash[BLAKE2S_OUTBYTES];
- *	int i, j;
+ *  uint8_t key[BLAKE2S_KEYBYTES];
+ *  uint8_t buf[BLAKE2S_TESTVEC_COUNT];
+ *  uint8_t hash[BLAKE2S_OUTBYTES];
+ *  int i, j;
  *
- *	key[0] = key[1] = 1;
- *	for (i = 2; i < BLAKE2S_KEYBYTES; ++i)
- *		key[i] = key[i - 2] + key[i - 1];
+ *  key[0] = key[1] = 1;
+ *  for (i = 2; i < BLAKE2S_KEYBYTES; ++i)
+ *    key[i] = key[i - 2] + key[i - 1];
  *
- *	for (i = 0; i < BLAKE2S_TESTVEC_COUNT; ++i)
- *		buf[i] = (uint8_t)i;
+ *  for (i = 0; i < BLAKE2S_TESTVEC_COUNT; ++i)
+ *    buf[i] = (uint8_t)i;
  *
- *	printf("static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {\n");
+ *  printf("static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst =
+ *{\n");
  *
- *	for (i = 0; i < BLAKE2S_TESTVEC_COUNT; ++i) {
- *		int outlen = 1 + i % BLAKE2S_OUTBYTES;
- *		int keylen = (13 * i) % (BLAKE2S_KEYBYTES + 1);
+ *  for (i = 0; i < BLAKE2S_TESTVEC_COUNT; ++i) {
+ *    int outlen = 1 + i % BLAKE2S_OUTBYTES;
+ *    int keylen = (13 * i) % (BLAKE2S_KEYBYTES + 1);
  *
- *		blake2s(hash, buf, key + BLAKE2S_KEYBYTES - keylen, outlen, i,
- *			keylen);
- *		print_vec(hash, outlen);
- *	}
- *	printf("};\n\n");
+ *    blake2s(hash, buf, key + BLAKE2S_KEYBYTES - keylen, outlen, i,
+ *      keylen);
+ *    print_vec(hash, outlen);
+ *  }
+ *  printf("};\n\n");
  *
- *	return 0;
+ *  return 0;
  *}
  */
 static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
@@ -545,107 +547,95 @@ static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
     0xd6, 0x98, 0x6b, 0x07, 0x10, 0x65, 0x52, 0x65, },
 };
 
-static bool __init noinline_for_stack blake2s_digest_test(void)
-{
-	u8 key[BLAKE2S_KEY_SIZE];
-	u8 buf[ARRAY_SIZE(blake2s_testvecs)];
-	u8 hash[BLAKE2S_HASH_SIZE];
-	struct blake2s_state state;
-	bool success = true;
-	int i, l;
-
-	key[0] = key[1] = 1;
-	for (i = 2; i < sizeof(key); ++i)
-		key[i] = key[i - 2] + key[i - 1];
-
-	for (i = 0; i < sizeof(buf); ++i)
-		buf[i] = (u8)i;
-
-	for (i = l = 0; i < ARRAY_SIZE(blake2s_testvecs); l = (l + 37) % ++i) {
-		int outlen = 1 + i % BLAKE2S_HASH_SIZE;
-		int keylen = (13 * i) % (BLAKE2S_KEY_SIZE + 1);
-
-		blake2s(hash, buf, key + BLAKE2S_KEY_SIZE - keylen, outlen, i,
-			keylen);
-		if (memcmp(hash, blake2s_testvecs[i], outlen)) {
-			pr_err("blake2s self-test %d: FAIL\n", i + 1);
-			success = false;
-		}
-
-		if (!keylen)
-			blake2s_init(&state, outlen);
-		else
-			blake2s_init_key(&state, outlen,
-					 key + BLAKE2S_KEY_SIZE - keylen,
-					 keylen);
-
-		blake2s_update(&state, buf, l);
-		blake2s_update(&state, buf + l, i - l);
-		blake2s_final(&state, hash);
-		if (memcmp(hash, blake2s_testvecs[i], outlen)) {
-			pr_err("blake2s init/update/final self-test %d: FAIL\n",
-			       i + 1);
-			success = false;
-		}
-	}
-
-	return success;
+static bool __init noinline_for_stack blake2s_digest_test(void) {
+  u8 key[BLAKE2S_KEY_SIZE];
+  u8 buf[ARRAY_SIZE(blake2s_testvecs)];
+  u8 hash[BLAKE2S_HASH_SIZE];
+  struct blake2s_state state;
+  bool success = true;
+  int i, l;
+  key[0] = key[1] = 1;
+  for (i = 2; i < sizeof(key); ++i) {
+    key[i] = key[i - 2] + key[i - 1];
+  }
+  for (i = 0; i < sizeof(buf); ++i) {
+    buf[i] = (u8) i;
+  }
+  for (i = l = 0; i < ARRAY_SIZE(blake2s_testvecs); l = (l + 37) % ++i) {
+    int outlen = 1 + i % BLAKE2S_HASH_SIZE;
+    int keylen = (13 * i) % (BLAKE2S_KEY_SIZE + 1);
+    blake2s(hash, buf, key + BLAKE2S_KEY_SIZE - keylen, outlen, i,
+        keylen);
+    if (memcmp(hash, blake2s_testvecs[i], outlen)) {
+      pr_err("blake2s self-test %d: FAIL\n", i + 1);
+      success = false;
+    }
+    if (!keylen) {
+      blake2s_init(&state, outlen);
+    } else {
+      blake2s_init_key(&state, outlen,
+          key + BLAKE2S_KEY_SIZE - keylen,
+          keylen);
+    }
+    blake2s_update(&state, buf, l);
+    blake2s_update(&state, buf + l, i - l);
+    blake2s_final(&state, hash);
+    if (memcmp(hash, blake2s_testvecs[i], outlen)) {
+      pr_err("blake2s init/update/final self-test %d: FAIL\n",
+          i + 1);
+      success = false;
+    }
+  }
+  return success;
 }
 
-static bool __init noinline_for_stack blake2s_random_test(void)
-{
-	struct blake2s_state state;
-	bool success = true;
-	int i, l;
-
-	for (i = 0; i < 32; ++i) {
-		enum { TEST_ALIGNMENT = 16 };
-		u8 blocks[BLAKE2S_BLOCK_SIZE * 2 + TEST_ALIGNMENT - 1]
-					__aligned(TEST_ALIGNMENT);
-		u8 *unaligned_block = blocks + BLAKE2S_BLOCK_SIZE;
-		struct blake2s_state state1, state2;
-
-		get_random_bytes(blocks, sizeof(blocks));
-		get_random_bytes(&state, sizeof(state));
-
-#if defined(CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC) && \
-    defined(CONFIG_CRYPTO_ARCH_HAVE_LIB_BLAKE2S)
-		memcpy(&state1, &state, sizeof(state1));
-		memcpy(&state2, &state, sizeof(state2));
-		blake2s_compress(&state1, blocks, 2, BLAKE2S_BLOCK_SIZE);
-		blake2s_compress_generic(&state2, blocks, 2, BLAKE2S_BLOCK_SIZE);
-		if (memcmp(&state1, &state2, sizeof(state1))) {
-			pr_err("blake2s random compress self-test %d: FAIL\n",
-			       i + 1);
-			success = false;
-		}
+static bool __init noinline_for_stack blake2s_random_test(void) {
+  struct blake2s_state state;
+  bool success = true;
+  int i, l;
+  for (i = 0; i < 32; ++i) {
+    enum {
+      TEST_ALIGNMENT = 16
+    };
+    u8 blocks[BLAKE2S_BLOCK_SIZE * 2 + TEST_ALIGNMENT - 1]
+    __aligned(TEST_ALIGNMENT);
+    u8 *unaligned_block = blocks + BLAKE2S_BLOCK_SIZE;
+    struct blake2s_state state1, state2;
+    get_random_bytes(blocks, sizeof(blocks));
+    get_random_bytes(&state, sizeof(state));
+#if defined(CONFIG_CRYPTO_LIB_BLAKE2S_GENERIC)    \
+    && defined(CONFIG_CRYPTO_ARCH_HAVE_LIB_BLAKE2S)
+    memcpy(&state1, &state, sizeof(state1));
+    memcpy(&state2, &state, sizeof(state2));
+    blake2s_compress(&state1, blocks, 2, BLAKE2S_BLOCK_SIZE);
+    blake2s_compress_generic(&state2, blocks, 2, BLAKE2S_BLOCK_SIZE);
+    if (memcmp(&state1, &state2, sizeof(state1))) {
+      pr_err("blake2s random compress self-test %d: FAIL\n",
+          i + 1);
+      success = false;
+    }
 #endif
-
-		memcpy(&state1, &state, sizeof(state1));
-		blake2s_compress(&state1, blocks, 1, BLAKE2S_BLOCK_SIZE);
-		for (l = 1; l < TEST_ALIGNMENT; ++l) {
-			memcpy(unaligned_block + l, blocks,
-			       BLAKE2S_BLOCK_SIZE);
-			memcpy(&state2, &state, sizeof(state2));
-			blake2s_compress(&state2, unaligned_block + l, 1,
-					 BLAKE2S_BLOCK_SIZE);
-			if (memcmp(&state1, &state2, sizeof(state1))) {
-				pr_err("blake2s random compress align %d self-test %d: FAIL\n",
-				       l, i + 1);
-				success = false;
-			}
-		}
-	}
-
-	return success;
+    memcpy(&state1, &state, sizeof(state1));
+    blake2s_compress(&state1, blocks, 1, BLAKE2S_BLOCK_SIZE);
+    for (l = 1; l < TEST_ALIGNMENT; ++l) {
+      memcpy(unaligned_block + l, blocks,
+          BLAKE2S_BLOCK_SIZE);
+      memcpy(&state2, &state, sizeof(state2));
+      blake2s_compress(&state2, unaligned_block + l, 1,
+          BLAKE2S_BLOCK_SIZE);
+      if (memcmp(&state1, &state2, sizeof(state1))) {
+        pr_err("blake2s random compress align %d self-test %d: FAIL\n",
+            l, i + 1);
+        success = false;
+      }
+    }
+  }
+  return success;
 }
 
-bool __init blake2s_selftest(void)
-{
-	bool success;
-
-	success = blake2s_digest_test();
-	success &= blake2s_random_test();
-
-	return success;
+bool __init blake2s_selftest(void) {
+  bool success;
+  success = blake2s_digest_test();
+  success &= blake2s_random_test();
+  return success;
 }

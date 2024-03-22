@@ -27,22 +27,22 @@
 
 /* OB (Optical Black) */
 struct sh_css_isp_ob_stream_config {
-	unsigned int isp_pipe_version;
-	unsigned int raw_bit_depth;
+  unsigned int isp_pipe_version;
+  unsigned int raw_bit_depth;
 };
 
 struct sh_css_isp_ob_params {
-	s32 blacklevel_gr;
-	s32 blacklevel_r;
-	s32 blacklevel_b;
-	s32 blacklevel_gb;
-	s32 area_start_bq;
-	s32 area_length_bq;
-	s32 area_length_bq_inverse;
+  s32 blacklevel_gr;
+  s32 blacklevel_r;
+  s32 blacklevel_b;
+  s32 blacklevel_gb;
+  s32 area_start_bq;
+  s32 area_length_bq;
+  s32 area_length_bq_inverse;
 };
 
 struct sh_css_isp_ob_vmem_params {
-	VMEM_ARRAY(vmask, OBAREA_MASK_SIZE);
+  VMEM_ARRAY(vmask, OBAREA_MASK_SIZE);
 };
 
 #endif /* __IA_CSS_OB_PARAM_H */

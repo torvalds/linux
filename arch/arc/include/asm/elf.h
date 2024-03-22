@@ -10,22 +10,22 @@
 #include <linux/elf-em.h>
 #include <uapi/asm/elf.h>
 
-#define EM_ARC_INUSE		(IS_ENABLED(CONFIG_ISA_ARCOMPACT) ? \
-					EM_ARCOMPACT : EM_ARCV2)
+#define EM_ARC_INUSE    (IS_ENABLED(CONFIG_ISA_ARCOMPACT)   \
+  ? EM_ARCOMPACT : EM_ARCV2)
 
 /* ARC Relocations (kernel Modules only) */
-#define  R_ARC_32		0x4
-#define  R_ARC_32_ME		0x1B
-#define  R_ARC_32_PCREL		0x31
+#define  R_ARC_32   0x4
+#define  R_ARC_32_ME    0x1B
+#define  R_ARC_32_PCREL   0x31
 
 /*to set parameters in the core dumps */
-#define ELF_ARCH		EM_ARC_INUSE
-#define ELF_CLASS		ELFCLASS32
+#define ELF_ARCH    EM_ARC_INUSE
+#define ELF_CLASS   ELFCLASS32
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#define ELF_DATA		ELFDATA2MSB
+#define ELF_DATA    ELFDATA2MSB
 #else
-#define ELF_DATA		ELFDATA2LSB
+#define ELF_DATA    ELFDATA2LSB
 #endif
 
 /*
@@ -35,11 +35,11 @@
  */
 struct elf32_hdr;
 extern int elf_check_arch(const struct elf32_hdr *);
-#define elf_check_arch	elf_check_arch
+#define elf_check_arch  elf_check_arch
 
 #define CORE_DUMP_USE_REGSET
 
-#define ELF_EXEC_PAGESIZE	PAGE_SIZE
+#define ELF_EXEC_PAGESIZE PAGE_SIZE
 
 /*
  * This is the location that an ET_DYN program is loaded if exec'ed.  Typical
@@ -47,26 +47,26 @@ extern int elf_check_arch(const struct elf32_hdr *);
  * the loader.  We need to make sure that it is out of the way of the program
  * that it will "exec", and that there is sufficient room for the brk.
  */
-#define ELF_ET_DYN_BASE		(2UL * TASK_SIZE / 3)
+#define ELF_ET_DYN_BASE   (2UL * TASK_SIZE / 3)
 
 /*
  * When the program starts, a1 contains a pointer to a function to be
  * registered with atexit, as per the SVR4 ABI.  A value of 0 means we
  * have no such handler.
  */
-#define ELF_PLAT_INIT(_r, load_addr)	((_r)->r0 = 0)
+#define ELF_PLAT_INIT(_r, load_addr)  ((_r)->r0 = 0)
 
 /*
  * This yields a mask that user programs can use to figure out what
  * instruction set this cpu supports.
  */
-#define ELF_HWCAP	(0)
+#define ELF_HWCAP (0)
 
 /*
  * This yields a string that ld.so will use to load implementation
  * specific libraries for optimization.  This is more specific in
  * intent than poking at uname or /proc/cpuinfo.
  */
-#define ELF_PLATFORM	(NULL)
+#define ELF_PLATFORM  (NULL)
 
 #endif

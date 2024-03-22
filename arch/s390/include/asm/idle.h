@@ -12,11 +12,11 @@
 #include <linux/device.h>
 
 struct s390_idle_data {
-	unsigned long idle_count;
-	unsigned long idle_time;
-	unsigned long clock_idle_enter;
-	unsigned long timer_idle_enter;
-	unsigned long mt_cycles_enter[8];
+  unsigned long idle_count;
+  unsigned long idle_time;
+  unsigned long clock_idle_enter;
+  unsigned long timer_idle_enter;
+  unsigned long mt_cycles_enter[8];
 };
 
 extern struct device_attribute dev_attr_idle_count;

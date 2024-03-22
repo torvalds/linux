@@ -11,13 +11,13 @@
 
 #include <linux/greybus.h>
 
-#define FW_NAME_PREFIX	"gmp_"
+#define FW_NAME_PREFIX  "gmp_"
 
 /*
  * Length of the string in format: "FW_NAME_PREFIX""%08x_%08x_%08x_%08x_%s.tftf"
  *                                  (3 + 1 + 4 * (8 + 1) + 10 + 1 + 4 + 1)
  */
-#define FW_NAME_SIZE		56
+#define FW_NAME_SIZE    56
 
 /* Firmware Management Protocol specific functions */
 int fw_mgmt_init(void);

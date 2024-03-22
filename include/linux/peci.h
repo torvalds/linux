@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2018-2021 Intel Corporation */
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright (c) 2018-2021 Intel Corporation*/
 
 #ifndef __LINUX_PECI_H
 #define __LINUX_PECI_H
@@ -26,7 +26,8 @@ struct peci_request;
  * differences by exposing a common interface for PECI core.
  */
 struct peci_controller_ops {
-	int (*xfer)(struct peci_controller *controller, u8 addr, struct peci_request *req);
+  int (*xfer)(struct peci_controller *controller, u8 addr,
+      struct peci_request *req);
 };
 
 /**
@@ -41,18 +42,17 @@ struct peci_controller_ops {
  * Each PECI controller can communicate with one or more PECI devices.
  */
 struct peci_controller {
-	struct device dev;
-	const struct peci_controller_ops *ops;
-	struct mutex bus_lock; /* held for the duration of xfer */
-	u8 id;
+  struct device dev;
+  const struct peci_controller_ops *ops;
+  struct mutex bus_lock; /* held for the duration of xfer */
+  u8 id;
 };
 
 struct peci_controller *devm_peci_controller_add(struct device *parent,
-						 const struct peci_controller_ops *ops);
+    const struct peci_controller_ops *ops);
 
-static inline struct peci_controller *to_peci_controller(void *d)
-{
-	return container_of(d, struct peci_controller, dev);
+static inline struct peci_controller *to_peci_controller(void *d) {
+  return container_of(d, struct peci_controller, dev);
 }
 
 /**
@@ -72,20 +72,19 @@ static inline struct peci_controller *to_peci_controller(void *d)
  * managing the device.
  */
 struct peci_device {
-	struct device dev;
-	struct {
-		u16 family;
-		u8 model;
-		u8 peci_revision;
-		u8 socket_id;
-	} info;
-	u8 addr;
-	bool deleted;
+  struct device dev;
+  struct {
+    u16 family;
+    u8 model;
+    u8 peci_revision;
+    u8 socket_id;
+  } info;
+  u8 addr;
+  bool deleted;
 };
 
-static inline struct peci_device *to_peci_device(struct device *d)
-{
-	return container_of(d, struct peci_device, dev);
+static inline struct peci_device *to_peci_device(struct device *d) {
+  return container_of(d, struct peci_device, dev);
 }
 
 /**
@@ -102,11 +101,11 @@ static inline struct peci_device *to_peci_device(struct device *d)
  * a response received from PECI responder (RX).
  */
 struct peci_request {
-	struct peci_device *device;
-	struct {
-		u8 buf[PECI_REQUEST_MAX_BUF_SIZE];
-		u8 len;
-	} rx, tx;
+  struct peci_device *device;
+  struct {
+    u8 buf[PECI_REQUEST_MAX_BUF_SIZE];
+    u8 len;
+  } rx, tx;
 };
 
 #endif /* __LINUX_PECI_H */

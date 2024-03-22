@@ -14,14 +14,14 @@ struct ptr_ring *tap_get_ptr_ring(struct file *file);
 #else
 #include <linux/err.h>
 #include <linux/errno.h>
-static inline struct socket *tap_get_socket(struct file *f)
-{
-	return ERR_PTR(-EINVAL);
+static inline struct socket *tap_get_socket(struct file *f) {
+  return ERR_PTR(-EINVAL);
 }
-static inline struct ptr_ring *tap_get_ptr_ring(struct file *f)
-{
-	return ERR_PTR(-EINVAL);
+
+static inline struct ptr_ring *tap_get_ptr_ring(struct file *f) {
+  return ERR_PTR(-EINVAL);
 }
+
 #endif /* CONFIG_TAP */
 
 /*
@@ -33,20 +33,20 @@ static inline struct ptr_ring *tap_get_ptr_ring(struct file *f)
 struct tap_queue;
 
 struct tap_dev {
-	struct net_device	*dev;
-	u16			flags;
-	/* This array tracks active taps. */
-	struct tap_queue    __rcu *taps[MAX_TAP_QUEUES];
-	/* This list tracks all taps (both enabled and disabled) */
-	struct list_head	queue_list;
-	int			numvtaps;
-	int			numqueues;
-	netdev_features_t	tap_features;
-	int			minor;
+  struct net_device *dev;
+  u16 flags;
+  /* This array tracks active taps. */
+  struct tap_queue __rcu *taps[MAX_TAP_QUEUES];
+  /* This list tracks all taps (both enabled and disabled) */
+  struct list_head queue_list;
+  int numvtaps;
+  int numqueues;
+  netdev_features_t tap_features;
+  int minor;
 
-	void (*update_features)(struct tap_dev *tap, netdev_features_t features);
-	void (*count_tx_dropped)(struct tap_dev *tap);
-	void (*count_rx_dropped)(struct tap_dev *tap);
+  void (*update_features)(struct tap_dev *tap, netdev_features_t features);
+  void (*count_tx_dropped)(struct tap_dev *tap);
+  void (*count_rx_dropped)(struct tap_dev *tap);
 };
 
 /*
@@ -61,16 +61,16 @@ struct tap_dev {
  */
 
 struct tap_queue {
-	struct sock sk;
-	struct socket sock;
-	int vnet_hdr_sz;
-	struct tap_dev __rcu *tap;
-	struct file *file;
-	unsigned int flags;
-	u16 queue_index;
-	bool enabled;
-	struct list_head next;
-	struct ptr_ring ring;
+  struct sock sk;
+  struct socket sock;
+  int vnet_hdr_sz;
+  struct tap_dev __rcu *tap;
+  struct file *file;
+  unsigned int flags;
+  u16 queue_index;
+  bool enabled;
+  struct list_head next;
+  struct ptr_ring ring;
 };
 
 rx_handler_result_t tap_handle_frame(struct sk_buff **pskb);
@@ -79,7 +79,7 @@ int tap_get_minor(dev_t major, struct tap_dev *tap);
 void tap_free_minor(dev_t major, struct tap_dev *tap);
 int tap_queue_resize(struct tap_dev *tap);
 int tap_create_cdev(struct cdev *tap_cdev, dev_t *tap_major,
-		    const char *device_name, struct module *module);
+    const char *device_name, struct module *module);
 void tap_destroy_cdev(dev_t major, struct cdev *tap_cdev);
 
 #endif /*_LINUX_IF_TAP_H_*/

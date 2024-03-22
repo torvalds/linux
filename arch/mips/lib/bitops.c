@@ -11,27 +11,24 @@
 #include <linux/irqflags.h>
 #include <linux/export.h>
 
-
 /**
  * __mips_set_bit - Atomically set a bit in memory.  This is called by
  * set_bit() if it cannot find a faster solution.
  * @nr: the bit to set
  * @addr: the address to start counting from
  */
-void __mips_set_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	volatile unsigned long *a = &addr[BIT_WORD(nr)];
-	unsigned int bit = nr % BITS_PER_LONG;
-	unsigned long mask;
-	unsigned long flags;
-
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	*a |= mask;
-	raw_local_irq_restore(flags);
+void __mips_set_bit(unsigned long nr, volatile unsigned long *addr) {
+  volatile unsigned long *a = &addr[BIT_WORD(nr)];
+  unsigned int bit = nr % BITS_PER_LONG;
+  unsigned long mask;
+  unsigned long flags;
+  mask = 1UL << bit;
+  raw_local_irq_save(flags);
+  *a |= mask;
+  raw_local_irq_restore(flags);
 }
-EXPORT_SYMBOL(__mips_set_bit);
 
+EXPORT_SYMBOL(__mips_set_bit);
 
 /**
  * __mips_clear_bit - Clears a bit in memory.  This is called by clear_bit() if
@@ -39,41 +36,37 @@ EXPORT_SYMBOL(__mips_set_bit);
  * @nr: Bit to clear
  * @addr: Address to start counting from
  */
-void __mips_clear_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	volatile unsigned long *a = &addr[BIT_WORD(nr)];
-	unsigned int bit = nr % BITS_PER_LONG;
-	unsigned long mask;
-	unsigned long flags;
-
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	*a &= ~mask;
-	raw_local_irq_restore(flags);
+void __mips_clear_bit(unsigned long nr, volatile unsigned long *addr) {
+  volatile unsigned long *a = &addr[BIT_WORD(nr)];
+  unsigned int bit = nr % BITS_PER_LONG;
+  unsigned long mask;
+  unsigned long flags;
+  mask = 1UL << bit;
+  raw_local_irq_save(flags);
+  *a &= ~mask;
+  raw_local_irq_restore(flags);
 }
+
 EXPORT_SYMBOL(__mips_clear_bit);
 
-
 /**
- * __mips_change_bit - Toggle a bit in memory.	This is called by change_bit()
+ * __mips_change_bit - Toggle a bit in memory.  This is called by change_bit()
  * if it cannot find a faster solution.
  * @nr: Bit to change
  * @addr: Address to start counting from
  */
-void __mips_change_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	volatile unsigned long *a = &addr[BIT_WORD(nr)];
-	unsigned int bit = nr % BITS_PER_LONG;
-	unsigned long mask;
-	unsigned long flags;
-
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	*a ^= mask;
-	raw_local_irq_restore(flags);
+void __mips_change_bit(unsigned long nr, volatile unsigned long *addr) {
+  volatile unsigned long *a = &addr[BIT_WORD(nr)];
+  unsigned int bit = nr % BITS_PER_LONG;
+  unsigned long mask;
+  unsigned long flags;
+  mask = 1UL << bit;
+  raw_local_irq_save(flags);
+  *a ^= mask;
+  raw_local_irq_restore(flags);
 }
-EXPORT_SYMBOL(__mips_change_bit);
 
+EXPORT_SYMBOL(__mips_change_bit);
 
 /**
  * __mips_test_and_set_bit_lock - Set a bit and return its old value.  This is
@@ -82,23 +75,21 @@ EXPORT_SYMBOL(__mips_change_bit);
  * @addr: Address to count from
  */
 int __mips_test_and_set_bit_lock(unsigned long nr,
-				 volatile unsigned long *addr)
-{
-	volatile unsigned long *a = &addr[BIT_WORD(nr)];
-	unsigned int bit = nr % BITS_PER_LONG;
-	unsigned long mask;
-	unsigned long flags;
-	int res;
-
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	res = (mask & *a) != 0;
-	*a |= mask;
-	raw_local_irq_restore(flags);
-	return res;
+    volatile unsigned long *addr) {
+  volatile unsigned long *a = &addr[BIT_WORD(nr)];
+  unsigned int bit = nr % BITS_PER_LONG;
+  unsigned long mask;
+  unsigned long flags;
+  int res;
+  mask = 1UL << bit;
+  raw_local_irq_save(flags);
+  res = (mask & *a) != 0;
+  *a |= mask;
+  raw_local_irq_restore(flags);
+  return res;
 }
-EXPORT_SYMBOL(__mips_test_and_set_bit_lock);
 
+EXPORT_SYMBOL(__mips_test_and_set_bit_lock);
 
 /**
  * __mips_test_and_clear_bit - Clear a bit and return its old value.  This is
@@ -106,57 +97,51 @@ EXPORT_SYMBOL(__mips_test_and_set_bit_lock);
  * @nr: Bit to clear
  * @addr: Address to count from
  */
-int __mips_test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	volatile unsigned long *a = &addr[BIT_WORD(nr)];
-	unsigned int bit = nr % BITS_PER_LONG;
-	unsigned long mask;
-	unsigned long flags;
-	int res;
-
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	res = (mask & *a) != 0;
-	*a &= ~mask;
-	raw_local_irq_restore(flags);
-	return res;
+int __mips_test_and_clear_bit(unsigned long nr, volatile unsigned long *addr) {
+  volatile unsigned long *a = &addr[BIT_WORD(nr)];
+  unsigned int bit = nr % BITS_PER_LONG;
+  unsigned long mask;
+  unsigned long flags;
+  int res;
+  mask = 1UL << bit;
+  raw_local_irq_save(flags);
+  res = (mask & *a) != 0;
+  *a &= ~mask;
+  raw_local_irq_restore(flags);
+  return res;
 }
+
 EXPORT_SYMBOL(__mips_test_and_clear_bit);
 
-
 /**
- * __mips_test_and_change_bit - Change a bit and return its old value.	This is
+ * __mips_test_and_change_bit - Change a bit and return its old value.  This is
  * called by test_and_change_bit() if it cannot find a faster solution.
  * @nr: Bit to change
  * @addr: Address to count from
  */
-int __mips_test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	volatile unsigned long *a = &addr[BIT_WORD(nr)];
-	unsigned int bit = nr % BITS_PER_LONG;
-	unsigned long mask;
-	unsigned long flags;
-	int res;
-
-	mask = 1UL << bit;
-	raw_local_irq_save(flags);
-	res = (mask & *a) != 0;
-	*a ^= mask;
-	raw_local_irq_restore(flags);
-	return res;
+int __mips_test_and_change_bit(unsigned long nr, volatile unsigned long *addr) {
+  volatile unsigned long *a = &addr[BIT_WORD(nr)];
+  unsigned int bit = nr % BITS_PER_LONG;
+  unsigned long mask;
+  unsigned long flags;
+  int res;
+  mask = 1UL << bit;
+  raw_local_irq_save(flags);
+  res = (mask & *a) != 0;
+  *a ^= mask;
+  raw_local_irq_restore(flags);
+  return res;
 }
+
 EXPORT_SYMBOL(__mips_test_and_change_bit);
 
 bool __mips_xor_is_negative_byte(unsigned long mask,
-		volatile unsigned long *addr)
-{
-	unsigned long flags;
-	unsigned long data;
-
-	raw_local_irq_save(flags);
-	data = *addr;
-	*addr = data ^ mask;
-	raw_local_irq_restore(flags);
-
-	return (data & BIT(7)) != 0;
+    volatile unsigned long *addr) {
+  unsigned long flags;
+  unsigned long data;
+  raw_local_irq_save(flags);
+  data = *addr;
+  *addr = data ^ mask;
+  raw_local_irq_restore(flags);
+  return (data & BIT(7)) != 0;
 }

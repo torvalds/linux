@@ -13,67 +13,59 @@
 /*
  * Send inter-processor interrupt
  */
-static void up_send_ipi_single(int cpu, unsigned int action)
-{
-	panic(KERN_ERR "%s called", __func__);
+static void up_send_ipi_single(int cpu, unsigned int action) {
+  panic(KERN_ERR "%s called", __func__);
 }
 
 static inline void up_send_ipi_mask(const struct cpumask *mask,
-				    unsigned int action)
-{
-	panic(KERN_ERR "%s called", __func__);
+    unsigned int action) {
+  panic(KERN_ERR "%s called", __func__);
 }
 
 /*
  *  After we've done initial boot, this function is called to allow the
  *  board code to clean up state, if needed
  */
-static void up_init_secondary(void)
-{
+static void up_init_secondary(void) {
 }
 
-static void up_smp_finish(void)
-{
+static void up_smp_finish(void) {
 }
 
 /*
  * Firmware CPU startup hook
  */
-static int up_boot_secondary(int cpu, struct task_struct *idle)
-{
-	return 0;
+static int up_boot_secondary(int cpu, struct task_struct *idle) {
+  return 0;
 }
 
-static void __init up_smp_setup(void)
-{
+static void __init up_smp_setup(void) {
 }
 
-static void __init up_prepare_cpus(unsigned int max_cpus)
-{
+static void __init up_prepare_cpus(unsigned int max_cpus) {
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int up_cpu_disable(void)
-{
-	return -ENOSYS;
+static int up_cpu_disable(void) {
+  return -ENOSYS;
 }
 
-static void up_cpu_die(unsigned int cpu)
-{
-	BUG();
+static void up_cpu_die(unsigned int cpu) {
+  BUG();
 }
+
 #endif
 
 const struct plat_smp_ops up_smp_ops = {
-	.send_ipi_single	= up_send_ipi_single,
-	.send_ipi_mask		= up_send_ipi_mask,
-	.init_secondary		= up_init_secondary,
-	.smp_finish		= up_smp_finish,
-	.boot_secondary		= up_boot_secondary,
-	.smp_setup		= up_smp_setup,
-	.prepare_cpus		= up_prepare_cpus,
+  .send_ipi_single = up_send_ipi_single,
+  .send_ipi_mask = up_send_ipi_mask,
+  .init_secondary = up_init_secondary,
+  .smp_finish = up_smp_finish,
+  .boot_secondary = up_boot_secondary,
+  .smp_setup = up_smp_setup,
+  .prepare_cpus = up_prepare_cpus,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_disable		= up_cpu_disable,
-	.cpu_die		= up_cpu_die,
+  .cpu_disable = up_cpu_disable,
+  .cpu_die = up_cpu_die,
 #endif
 };

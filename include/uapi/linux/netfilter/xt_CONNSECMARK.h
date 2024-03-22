@@ -5,12 +5,12 @@
 #include <linux/types.h>
 
 enum {
-	CONNSECMARK_SAVE = 1,
-	CONNSECMARK_RESTORE,
+  CONNSECMARK_SAVE = 1,
+  CONNSECMARK_RESTORE,
 };
 
 struct xt_connsecmark_target_info {
-	__u8 mode;
+  __u8 mode;
 };
 
 #endif /*_XT_CONNSECMARK_H_target */

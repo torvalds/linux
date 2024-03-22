@@ -13,8 +13,8 @@
 #include "audio_manager.h"
 
 int gb_audio_manager_module_create(struct gb_audio_manager_module **module,
-				   struct kset *manager_kset, int id,
-				   struct gb_audio_manager_module_descriptor *desc);
+    struct kset *manager_kset, int id,
+    struct gb_audio_manager_module_descriptor *desc);
 
 /* module destroyed via kobject_put */
 

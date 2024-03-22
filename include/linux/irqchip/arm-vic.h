@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 
-void vic_init(void __iomem *base, unsigned int irq_start, u32 vic_sources, u32 resume_sources);
+void vic_init(void __iomem *base, unsigned int irq_start, u32 vic_sources,
+    u32 resume_sources);
 
 #endif

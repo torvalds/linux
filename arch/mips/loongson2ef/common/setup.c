@@ -11,20 +11,18 @@
 
 #include <loongson.h>
 
-static void wbflush_loongson(void)
-{
-	asm(".set\tpush\n\t"
-	    ".set\tnoreorder\n\t"
-	    ".set mips3\n\t"
-	    "sync\n\t"
-	    "nop\n\t"
-	    ".set\tpop\n\t"
-	    ".set mips0\n\t");
+static void wbflush_loongson(void) {
+  asm (".set\tpush\n\t"
+  ".set\tnoreorder\n\t"
+  ".set mips3\n\t"
+  "sync\n\t"
+  "nop\n\t"
+  ".set\tpop\n\t"
+  ".set mips0\n\t");
 }
 
 void (*__wbflush)(void) = wbflush_loongson;
 EXPORT_SYMBOL(__wbflush);
 
-void __init plat_mem_setup(void)
-{
+void __init plat_mem_setup(void) {
 }

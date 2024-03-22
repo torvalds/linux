@@ -96,7 +96,7 @@
 
 //PPSMC Reset Types for driver msg argument
 #define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET        0x1
-#define PPSMC_RESET_TYPE_DRIVER_MODE_2_RESET	      0x2
+#define PPSMC_RESET_TYPE_DRIVER_MODE_2_RESET        0x2
 #define PPSMC_RESET_TYPE_DRIVER_MODE_3_RESET        0x3
 
 //PPSMC Reset Types for driver msg argument

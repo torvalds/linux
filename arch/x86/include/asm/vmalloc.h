@@ -9,16 +9,15 @@
 
 #ifdef CONFIG_X86_64
 #define arch_vmap_pud_supported arch_vmap_pud_supported
-static inline bool arch_vmap_pud_supported(pgprot_t prot)
-{
-	return boot_cpu_has(X86_FEATURE_GBPAGES);
+static inline bool arch_vmap_pud_supported(pgprot_t prot) {
+  return boot_cpu_has(X86_FEATURE_GBPAGES);
 }
+
 #endif
 
 #define arch_vmap_pmd_supported arch_vmap_pmd_supported
-static inline bool arch_vmap_pmd_supported(pgprot_t prot)
-{
-	return boot_cpu_has(X86_FEATURE_PSE);
+static inline bool arch_vmap_pmd_supported(pgprot_t prot) {
+  return boot_cpu_has(X86_FEATURE_PSE);
 }
 
 #endif

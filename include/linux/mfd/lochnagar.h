@@ -16,8 +16,8 @@
 #define CIRRUS_LOCHNAGAR_H
 
 enum lochnagar_type {
-	LOCHNAGAR1,
-	LOCHNAGAR2,
+  LOCHNAGAR1,
+  LOCHNAGAR2,
 };
 
 /**
@@ -31,12 +31,12 @@ enum lochnagar_type {
  * the last update.
  */
 struct lochnagar {
-	enum lochnagar_type type;
-	struct device *dev;
-	struct regmap *regmap;
+  enum lochnagar_type type;
+  struct device *dev;
+  struct regmap *regmap;
 
-	/* Lock to protect updates to the analogue configuration */
-	struct mutex analogue_config_lock;
+  /* Lock to protect updates to the analogue configuration */
+  struct mutex analogue_config_lock;
 };
 
 /* Register Addresses */

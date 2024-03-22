@@ -4,4 +4,4 @@
  * Copyright (c)  2003-2013 QLogic Corporation
  */
 
-#define QLA4XXX_DRIVER_VERSION	"5.04.00-k6"
+#define QLA4XXX_DRIVER_VERSION  "5.04.00-k6"

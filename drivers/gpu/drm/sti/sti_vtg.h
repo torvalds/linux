@@ -22,11 +22,11 @@ struct notifier_block;
 
 struct sti_vtg *of_vtg_find(struct device_node *np);
 void sti_vtg_set_config(struct sti_vtg *vtg,
-		const struct drm_display_mode *mode);
+    const struct drm_display_mode *mode);
 int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
-			    struct drm_crtc *crtc);
+    struct drm_crtc *crtc);
 int sti_vtg_unregister_client(struct sti_vtg *vtg,
-		struct notifier_block *nb);
+    struct notifier_block *nb);
 
 u32 sti_vtg_get_line_number(struct drm_display_mode mode, int y);
 u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x);

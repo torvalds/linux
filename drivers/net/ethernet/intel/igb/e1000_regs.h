@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2007 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2007 - 2018 Intel Corporation.*/
 
 #ifndef _E1000_REGS_H_
 #define _E1000_REGS_H_
@@ -63,9 +63,9 @@
 #define E1000_I2C_DATA_IN   0x00001000  /* I2C- Data In */
 #define E1000_I2C_CLK_OE_N  0x00002000  /* I2C- Clock Output Enable */
 #define E1000_I2C_CLK_IN    0x00004000  /* I2C- Clock In */
-#define E1000_MPHY_ADDR_CTRL	0x0024 /* GbE MPHY Address Control */
-#define E1000_MPHY_DATA		0x0E10 /* GBE MPHY Data */
-#define E1000_MPHY_STAT		0x0E0C /* GBE MPHY Statistics */
+#define E1000_MPHY_ADDR_CTRL  0x0024 /* GbE MPHY Address Control */
+#define E1000_MPHY_DATA   0x0E10 /* GBE MPHY Data */
+#define E1000_MPHY_STAT   0x0E0C /* GBE MPHY Statistics */
 
 /* IEEE 1588 TIMESYNCH */
 #define E1000_TSYNCRXCTL 0x0B620 /* Rx Time Sync Control register - RW */
@@ -110,27 +110,27 @@
 #define E1000_RQDPC(_n) (0x0C030 + ((_n) * 0x40))
 
 /* DMA Coalescing registers */
-#define E1000_DMACR	0x02508 /* Control Register */
-#define E1000_DMCTXTH	0x03550 /* Transmit Threshold */
-#define E1000_DMCTLX	0x02514 /* Time to Lx Request */
-#define E1000_DMCRTRH	0x05DD0 /* Receive Packet Rate Threshold */
-#define E1000_DMCCNT	0x05DD4 /* Current Rx Count */
-#define E1000_FCRTC	0x02170 /* Flow Control Rx high watermark */
+#define E1000_DMACR 0x02508 /* Control Register */
+#define E1000_DMCTXTH 0x03550 /* Transmit Threshold */
+#define E1000_DMCTLX  0x02514 /* Time to Lx Request */
+#define E1000_DMCRTRH 0x05DD0 /* Receive Packet Rate Threshold */
+#define E1000_DMCCNT  0x05DD4 /* Current Rx Count */
+#define E1000_FCRTC 0x02170 /* Flow Control Rx high watermark */
 
 /* TX Rate Limit Registers */
-#define E1000_RTTDQSEL	0x3604 /* Tx Desc Plane Queue Select - WO */
-#define E1000_RTTBCNRM	0x3690 /* Tx BCN Rate-scheduler MMW */
-#define E1000_RTTBCNRC	0x36B0 /* Tx BCN Rate-Scheduler Config - WO */
+#define E1000_RTTDQSEL  0x3604 /* Tx Desc Plane Queue Select - WO */
+#define E1000_RTTBCNRM  0x3690 /* Tx BCN Rate-scheduler MMW */
+#define E1000_RTTBCNRC  0x36B0 /* Tx BCN Rate-Scheduler Config - WO */
 
 /* Split and Replication RX Control - RW */
-#define E1000_RXPBS	0x02404 /* Rx Packet Buffer Size - RW */
+#define E1000_RXPBS 0x02404 /* Rx Packet Buffer Size - RW */
 
 /* Thermal sensor configuration and status registers */
-#define E1000_THMJT	0x08100 /* Junction Temperature */
-#define E1000_THLOWTC	0x08104 /* Low Threshold Control */
-#define E1000_THMIDTC	0x08108 /* Mid Threshold Control */
-#define E1000_THHIGHTC	0x0810C /* High Threshold Control */
-#define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
+#define E1000_THMJT 0x08100 /* Junction Temperature */
+#define E1000_THLOWTC 0x08104 /* Low Threshold Control */
+#define E1000_THMIDTC 0x08108 /* Mid Threshold Control */
+#define E1000_THHIGHTC  0x0810C /* High Threshold Control */
+#define E1000_THSTAT  0x08110 /* Thermal Sensor Status */
 
 /* Convenience macros
  *
@@ -140,44 +140,44 @@
  * E1000_RDBAL_REG(current_rx_queue)
  */
 #define E1000_RDBAL(_n)   ((_n) < 4 ? (0x02800 + ((_n) * 0x100)) \
-				    : (0x0C000 + ((_n) * 0x40)))
+  : (0x0C000 + ((_n) * 0x40)))
 #define E1000_RDBAH(_n)   ((_n) < 4 ? (0x02804 + ((_n) * 0x100)) \
-				    : (0x0C004 + ((_n) * 0x40)))
+  : (0x0C004 + ((_n) * 0x40)))
 #define E1000_RDLEN(_n)   ((_n) < 4 ? (0x02808 + ((_n) * 0x100)) \
-				    : (0x0C008 + ((_n) * 0x40)))
+  : (0x0C008 + ((_n) * 0x40)))
 #define E1000_SRRCTL(_n)  ((_n) < 4 ? (0x0280C + ((_n) * 0x100)) \
-				    : (0x0C00C + ((_n) * 0x40)))
+  : (0x0C00C + ((_n) * 0x40)))
 #define E1000_RDH(_n)     ((_n) < 4 ? (0x02810 + ((_n) * 0x100)) \
-				    : (0x0C010 + ((_n) * 0x40)))
+  : (0x0C010 + ((_n) * 0x40)))
 #define E1000_RDT(_n)     ((_n) < 4 ? (0x02818 + ((_n) * 0x100)) \
-				    : (0x0C018 + ((_n) * 0x40)))
+  : (0x0C018 + ((_n) * 0x40)))
 #define E1000_RXDCTL(_n)  ((_n) < 4 ? (0x02828 + ((_n) * 0x100)) \
-				    : (0x0C028 + ((_n) * 0x40)))
+  : (0x0C028 + ((_n) * 0x40)))
 #define E1000_TDBAL(_n)   ((_n) < 4 ? (0x03800 + ((_n) * 0x100)) \
-				    : (0x0E000 + ((_n) * 0x40)))
+  : (0x0E000 + ((_n) * 0x40)))
 #define E1000_TDBAH(_n)   ((_n) < 4 ? (0x03804 + ((_n) * 0x100)) \
-				    : (0x0E004 + ((_n) * 0x40)))
+  : (0x0E004 + ((_n) * 0x40)))
 #define E1000_TDLEN(_n)   ((_n) < 4 ? (0x03808 + ((_n) * 0x100)) \
-				    : (0x0E008 + ((_n) * 0x40)))
+  : (0x0E008 + ((_n) * 0x40)))
 #define E1000_TDH(_n)     ((_n) < 4 ? (0x03810 + ((_n) * 0x100)) \
-				    : (0x0E010 + ((_n) * 0x40)))
+  : (0x0E010 + ((_n) * 0x40)))
 #define E1000_TDT(_n)     ((_n) < 4 ? (0x03818 + ((_n) * 0x100)) \
-				    : (0x0E018 + ((_n) * 0x40)))
+  : (0x0E018 + ((_n) * 0x40)))
 #define E1000_TXDCTL(_n)  ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) \
-				    : (0x0E028 + ((_n) * 0x40)))
-#define E1000_RXCTL(_n)	  ((_n) < 4 ? (0x02814 + ((_n) * 0x100)) : \
-				      (0x0C014 + ((_n) * 0x40)))
-#define E1000_DCA_RXCTRL(_n)	E1000_RXCTL(_n)
-#define E1000_TXCTL(_n)   ((_n) < 4 ? (0x03814 + ((_n) * 0x100)) : \
-				      (0x0E014 + ((_n) * 0x40)))
+  : (0x0E028 + ((_n) * 0x40)))
+#define E1000_RXCTL(_n)   ((_n) < 4 ? (0x02814 + ((_n) * 0x100))   \
+  : (0x0C014 + ((_n) * 0x40)))
+#define E1000_DCA_RXCTRL(_n)  E1000_RXCTL(_n)
+#define E1000_TXCTL(_n)   ((_n) < 4 ? (0x03814 + ((_n) * 0x100))   \
+  : (0x0E014 + ((_n) * 0x40)))
 #define E1000_DCA_TXCTRL(_n) E1000_TXCTL(_n)
 #define E1000_TDWBAL(_n)  ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) \
-				    : (0x0E038 + ((_n) * 0x40)))
+  : (0x0E038 + ((_n) * 0x40)))
 #define E1000_TDWBAH(_n)  ((_n) < 4 ? (0x0383C + ((_n) * 0x100)) \
-				    : (0x0E03C + ((_n) * 0x40)))
+  : (0x0E03C + ((_n) * 0x40)))
 
-#define E1000_RXPBS	0x02404  /* Rx Packet Buffer Size - RW */
-#define E1000_TXPBS	0x03404  /* Tx Packet Buffer Size - RW */
+#define E1000_RXPBS 0x02404  /* Rx Packet Buffer Size - RW */
+#define E1000_TXPBS 0x03404  /* Tx Packet Buffer Size - RW */
 
 #define E1000_TDFH     0x03410  /* TX Data FIFO Head - RW */
 #define E1000_TDFT     0x03418  /* TX Data FIFO Tail - RW */
@@ -284,11 +284,11 @@
 #define E1000_RA       0x05400  /* Receive Address - RW Array */
 #define E1000_RA2      0x054E0  /* 2nd half of Rx address array - RW Array */
 #define E1000_PSRTYPE(_i)       (0x05480 + ((_i) * 4))
-#define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
-					(0x054E0 + ((_i - 16) * 8)))
-#define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
-					(0x054E4 + ((_i - 16) * 8)))
-#define E1000_VLAPQF	0x055B0  /* VLAN Priority Queue Filter VLAPQF */
+#define E1000_RAL(_i)  (((_i) <= 15) ? (0x05400 + ((_i) * 8))   \
+  : (0x054E0 + ((_i - 16) * 8)))
+#define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8))   \
+  : (0x054E4 + ((_i - 16) * 8)))
+#define E1000_VLAPQF  0x055B0  /* VLAN Priority Queue Filter VLAPQF */
 #define E1000_IP4AT_REG(_i)     (0x05840 + ((_i) * 8))
 #define E1000_IP6AT_REG(_i)     (0x05880 + ((_i) * 4))
 #define E1000_WUPM_REG(_i)      (0x05A00 + ((_i) * 4))
@@ -338,7 +338,7 @@
 #define E1000_UTA       0x0A000 /* Unicast Table Array - RW */
 #define E1000_IOVTCL    0x05BBC /* IOV Control Register */
 #define E1000_TXSWC     0x05ACC /* Tx Switch Control */
-#define E1000_LVMMC	0x03548 /* Last VM Misbehavior cause */
+#define E1000_LVMMC 0x03548 /* Last VM Misbehavior cause */
 /* These act per VF so an array friendly macro is used */
 #define E1000_P2VMAILBOX(_n)   (0x00C00 + (4 * (_n)))
 #define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
@@ -353,65 +353,65 @@ u32 igb_rd32(struct e1000_hw *hw, u32 reg);
 
 /* write operations, indexed using DWORDS */
 #define wr32(reg, val) \
-do { \
-	u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
-	if (!E1000_REMOVED(hw_addr)) \
-		writel((val), &hw_addr[(reg)]); \
-} while (0)
+  do { \
+    u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
+    if (!E1000_REMOVED(hw_addr)) \
+    writel((val), &hw_addr[(reg)]); \
+  } while (0)
 
 #define rd32(reg) (igb_rd32(hw, reg))
 
-#define wrfl() ((void)rd32(E1000_STATUS))
+#define wrfl() ((void) rd32(E1000_STATUS))
 
 #define array_wr32(reg, offset, value) \
-	wr32((reg) + ((offset) << 2), (value))
+  wr32((reg) + ((offset) << 2), (value))
 
 #define array_rd32(reg, offset) (igb_rd32(hw, reg + ((offset) << 2)))
 
 /* DMA Coalescing registers */
-#define E1000_PCIEMISC	0x05BB8 /* PCIE misc config register */
+#define E1000_PCIEMISC  0x05BB8 /* PCIE misc config register */
 
 /* Energy Efficient Ethernet "EEE" register */
-#define E1000_IPCNFG	0x0E38 /* Internal PHY Configuration */
-#define E1000_EEER	0x0E30 /* Energy Efficient Ethernet */
-#define E1000_EEE_SU	0X0E34 /* EEE Setup */
-#define E1000_EMIADD	0x10   /* Extended Memory Indirect Address */
-#define E1000_EMIDATA	0x11   /* Extended Memory Indirect Data */
-#define E1000_MMDAC	13     /* MMD Access Control */
-#define E1000_MMDAAD	14     /* MMD Access Address/Data */
+#define E1000_IPCNFG  0x0E38 /* Internal PHY Configuration */
+#define E1000_EEER  0x0E30 /* Energy Efficient Ethernet */
+#define E1000_EEE_SU  0X0E34 /* EEE Setup */
+#define E1000_EMIADD  0x10   /* Extended Memory Indirect Address */
+#define E1000_EMIDATA 0x11   /* Extended Memory Indirect Data */
+#define E1000_MMDAC 13     /* MMD Access Control */
+#define E1000_MMDAAD  14     /* MMD Access Address/Data */
 
 /* Thermal Sensor Register */
-#define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
+#define E1000_THSTAT  0x08110 /* Thermal Sensor Status */
 
 /* OS2BMC Registers */
-#define E1000_B2OSPC	0x08FE0 /* BMC2OS packets sent by BMC */
-#define E1000_B2OGPRC	0x04158 /* BMC2OS packets received by host */
-#define E1000_O2BGPTC	0x08FE4 /* OS2BMC packets received by BMC */
-#define E1000_O2BSPC	0x0415C /* OS2BMC packets transmitted by host */
+#define E1000_B2OSPC  0x08FE0 /* BMC2OS packets sent by BMC */
+#define E1000_B2OGPRC 0x04158 /* BMC2OS packets received by host */
+#define E1000_O2BGPTC 0x08FE4 /* OS2BMC packets received by BMC */
+#define E1000_O2BSPC  0x0415C /* OS2BMC packets transmitted by host */
 
-#define E1000_SRWR		0x12018  /* Shadow Ram Write Register - RW */
-#define E1000_I210_FLMNGCTL	0x12038
-#define E1000_I210_FLMNGDATA	0x1203C
-#define E1000_I210_FLMNGCNT	0x12040
+#define E1000_SRWR    0x12018  /* Shadow Ram Write Register - RW */
+#define E1000_I210_FLMNGCTL 0x12038
+#define E1000_I210_FLMNGDATA  0x1203C
+#define E1000_I210_FLMNGCNT 0x12040
 
-#define E1000_I210_FLSWCTL	0x12048
-#define E1000_I210_FLSWDATA	0x1204C
-#define E1000_I210_FLSWCNT	0x12050
+#define E1000_I210_FLSWCTL  0x12048
+#define E1000_I210_FLSWDATA 0x1204C
+#define E1000_I210_FLSWCNT  0x12050
 
-#define E1000_I210_FLA		0x1201C
+#define E1000_I210_FLA    0x1201C
 
-#define E1000_I210_DTXMXPKTSZ	0x355C
+#define E1000_I210_DTXMXPKTSZ 0x355C
 
-#define E1000_I210_TXDCTL(_n)	(0x0E028 + ((_n) * 0x40))
+#define E1000_I210_TXDCTL(_n) (0x0E028 + ((_n) * 0x40))
 
-#define E1000_I210_TQAVCTRL	0x3570
-#define E1000_I210_TQAVCC(_n)	(0x3004 + ((_n) * 0x40))
-#define E1000_I210_TQAVHC(_n)	(0x300C + ((_n) * 0x40))
+#define E1000_I210_TQAVCTRL 0x3570
+#define E1000_I210_TQAVCC(_n) (0x3004 + ((_n) * 0x40))
+#define E1000_I210_TQAVHC(_n) (0x300C + ((_n) * 0x40))
 
-#define E1000_I210_RR2DCDELAY	0x5BF4
+#define E1000_I210_RR2DCDELAY 0x5BF4
 
-#define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
-#define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
+#define E1000_INVM_DATA_REG(_n) (0x12120 + 4 * (_n))
+#define E1000_INVM_SIZE   64 /* Number of INVM Data Registers */
 
 #define E1000_REMOVED(h) unlikely(!(h))
 

@@ -17,28 +17,28 @@ struct qed_dev;
 struct qede_dev;
 
 enum qede_rdma_event {
-	QEDE_UP,
-	QEDE_DOWN,
-	QEDE_CHANGE_ADDR,
-	QEDE_CLOSE,
-	QEDE_CHANGE_MTU,
+  QEDE_UP,
+  QEDE_DOWN,
+  QEDE_CHANGE_ADDR,
+  QEDE_CLOSE,
+  QEDE_CHANGE_MTU,
 };
 
 struct qede_rdma_event_work {
-	struct list_head list;
-	struct work_struct work;
-	void *ptr;
-	enum qede_rdma_event event;
+  struct list_head list;
+  struct work_struct work;
+  void *ptr;
+  enum qede_rdma_event event;
 };
 
 struct qedr_driver {
-	unsigned char name[32];
+  unsigned char name[32];
 
-	struct qedr_dev* (*add)(struct qed_dev *, struct pci_dev *,
-				struct net_device *);
+  struct qedr_dev *(*add)(struct qed_dev *, struct pci_dev *,
+      struct net_device *);
 
-	void (*remove)(struct qedr_dev *);
-	void (*notify)(struct qedr_dev *, enum qede_rdma_event);
+  void (*remove)(struct qedr_dev *);
+  void (*notify)(struct qedr_dev *, enum qede_rdma_event);
 };
 
 /* APIs for RDMA driver to register callback handlers,
@@ -59,15 +59,22 @@ void qede_rdma_event_change_mtu(struct qede_dev *edev);
 
 #else
 static inline int qede_rdma_dev_add(struct qede_dev *dev,
-				    bool recovery)
-{
-	return 0;
+    bool recovery) {
+  return 0;
 }
 
-static inline void qede_rdma_dev_event_open(struct qede_dev *dev) {}
-static inline void qede_rdma_dev_event_close(struct qede_dev *dev) {}
+static inline void qede_rdma_dev_event_open(struct qede_dev *dev) {
+}
+
+static inline void qede_rdma_dev_event_close(struct qede_dev *dev) {
+}
+
 static inline void qede_rdma_dev_remove(struct qede_dev *dev,
-					bool recovery) {}
-static inline void qede_rdma_event_changeaddr(struct qede_dev *edr) {}
+    bool recovery) {
+}
+
+static inline void qede_rdma_event_changeaddr(struct qede_dev *edr) {
+}
+
 #endif
 #endif

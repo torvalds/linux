@@ -22,7 +22,8 @@
 
 void PSvDisablePowerSaving(struct vnt_private *priv);
 
-void PSvEnablePowerSaving(struct vnt_private *priv, unsigned short wListenInterval);
+void PSvEnablePowerSaving(struct vnt_private *priv,
+    unsigned short wListenInterval);
 
 bool PSbIsNextTBTTWakeUp(struct vnt_private *priv);
 

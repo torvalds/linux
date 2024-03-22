@@ -15,7 +15,8 @@
 /* ACPICA external files should not include ACPICA headers directly. */
 
 #if !defined(BUILDING_ACPICA) && !defined(_LINUX_ACPI_H)
-#error "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
+#error \
+  "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
 #endif
 
 #endif
@@ -75,8 +76,8 @@
 
 /* External globals for __KERNEL__, stubs is needed */
 
-#define ACPI_GLOBAL(t,a)
-#define ACPI_INIT_GLOBAL(t,a,b)
+#define ACPI_GLOBAL(t, a)
+#define ACPI_INIT_GLOBAL(t, a, b)
 
 /* Generating stubs for configurable ACPICA macros */
 
@@ -90,17 +91,17 @@
 /* External interface for __KERNEL__, stub is needed */
 
 #define ACPI_EXTERNAL_RETURN_STATUS(prototype) \
-	static ACPI_INLINE prototype {return(AE_NOT_CONFIGURED);}
+  static ACPI_INLINE prototype {return AE_NOT_CONFIGURED;}
 #define ACPI_EXTERNAL_RETURN_OK(prototype) \
-	static ACPI_INLINE prototype {return(AE_OK);}
+  static ACPI_INLINE prototype {return AE_OK;}
 #define ACPI_EXTERNAL_RETURN_VOID(prototype) \
-	static ACPI_INLINE prototype {return;}
+  static ACPI_INLINE prototype {return;}
 #define ACPI_EXTERNAL_RETURN_UINT32(prototype) \
-	static ACPI_INLINE prototype {return(0);}
+  static ACPI_INLINE prototype {return 0;}
 #define ACPI_EXTERNAL_RETURN_PTR(prototype) \
-	static ACPI_INLINE prototype {return(NULL);}
+  static ACPI_INLINE prototype {return NULL;}
 
-#endif				/* CONFIG_ACPI */
+#endif        /* CONFIG_ACPI */
 
 /* Host-dependent types and defines for in-kernel ACPICA */
 
@@ -116,7 +117,7 @@
 
 #define acpi_uintptr_t                      uintptr_t
 
-#define ACPI_TO_INTEGER(p)                  ((uintptr_t)(p))
+#define ACPI_TO_INTEGER(p)                  ((uintptr_t) (p))
 #define ACPI_OFFSET(d, f)                   offsetof(d, f)
 
 /* Use native linux version of acpi_os_allocate_zeroed */
@@ -173,9 +174,9 @@
 /*
  * Linux wants to use designated initializers for function pointer structs.
  */
-#define ACPI_STRUCT_INIT(field, value)	.field = value
+#define ACPI_STRUCT_INIT(field, value)  .field = value
 
-#else				/* !__KERNEL__ */
+#else       /* !__KERNEL__ */
 
 #define ACPI_USE_STANDARD_HEADERS
 
@@ -201,10 +202,10 @@
 #define ACPI_FLUSH_CPU_CACHE()
 #define ACPI_CAST_PTHREAD_T(pthread) ((acpi_thread_id) (pthread))
 
-#if defined(__ia64__)    || (defined(__x86_64__) && !defined(__ILP32__)) ||\
-	defined(__aarch64__) || defined(__PPC64__) ||\
-	defined(__s390x__)   || defined(__loongarch__) ||\
-	(defined(__riscv) && (defined(__LP64__) || defined(_LP64)))
+#if defined(__ia64__) || (defined(__x86_64__) && !defined(__ILP32__))   \
+  || defined(__aarch64__) || defined(__PPC64__)   \
+  || defined(__s390x__) || defined(__loongarch__)   \
+  || (defined(__riscv) && (defined(__LP64__) || defined(_LP64)))
 #define ACPI_MACHINE_WIDTH          64
 #define COMPILER_DEPENDENT_INT64    long
 #define COMPILER_DEPENDENT_UINT64   unsigned long
@@ -220,6 +221,6 @@
 #define __cdecl
 #endif
 
-#endif				/* __KERNEL__ */
+#endif        /* __KERNEL__ */
 
-#endif				/* __ACLINUX_H__ */
+#endif        /* __ACLINUX_H__ */

@@ -31,7 +31,8 @@
  * Cell specific address maps
  */
 
-#define GP_FIFO_BASE   ((hrt_address)0x0000000000090104)		/* This is NOT a base address */
+#define GP_FIFO_BASE   ((hrt_address) 0x0000000000090104)    /* This is NOT a
+                                                              * base address */
 
 /* ISP */
 extern const hrt_address ISP_CTRL_BASE[N_ISP_ID];

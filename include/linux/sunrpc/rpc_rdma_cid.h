@@ -17,8 +17,8 @@
  * transport implementations.
  */
 struct rpc_rdma_cid {
-	u32			ci_queue_id;
-	int			ci_completion_id;
+  u32 ci_queue_id;
+  int ci_completion_id;
 };
 
-#endif	/* RPC_RDMA_CID_H */
+#endif  /* RPC_RDMA_CID_H */

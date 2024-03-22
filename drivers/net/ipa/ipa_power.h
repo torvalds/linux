@@ -17,7 +17,7 @@ extern const struct dev_pm_ops ipa_pm_ops;
 
 /**
  * ipa_core_clock_rate() - Return the current IPA core clock rate
- * @ipa:	IPA structure
+ * @ipa:  IPA structure
  *
  * Return: The current clock rate (in Hz), or 0.
  */
@@ -25,38 +25,38 @@ u32 ipa_core_clock_rate(struct ipa *ipa);
 
 /**
  * ipa_power_retention() - Control register retention on power collapse
- * @ipa:	IPA pointer
- * @enable:	Whether retention should be enabled or disabled
+ * @ipa:  IPA pointer
+ * @enable: Whether retention should be enabled or disabled
  */
 void ipa_power_retention(struct ipa *ipa, bool enable);
 
 /**
  * ipa_power_setup() - Set up IPA power management
- * @ipa:	IPA pointer
+ * @ipa:  IPA pointer
  *
- * Return:	0 if successful, or a negative error code
+ * Return:  0 if successful, or a negative error code
  */
 int ipa_power_setup(struct ipa *ipa);
 
 /**
  * ipa_power_teardown() - Inverse of ipa_power_setup()
- * @ipa:	IPA pointer
+ * @ipa:  IPA pointer
  */
 void ipa_power_teardown(struct ipa *ipa);
 
 /**
  * ipa_power_init() - Initialize IPA power management
- * @dev:	IPA device
- * @data:	Clock configuration data
+ * @dev:  IPA device
+ * @data: Clock configuration data
  *
- * Return:	A pointer to an ipa_power structure, or a pointer-coded error
+ * Return:  A pointer to an ipa_power structure, or a pointer-coded error
  */
 struct ipa_power *ipa_power_init(struct device *dev,
-				 const struct ipa_power_data *data);
+    const struct ipa_power_data *data);
 
 /**
  * ipa_power_exit() - Inverse of ipa_power_init()
- * @power:	IPA power pointer
+ * @power:  IPA power pointer
  */
 void ipa_power_exit(struct ipa_power *power);
 

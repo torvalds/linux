@@ -3,7 +3,7 @@
  * PRUSS Remote Processor specific types
  *
  * Copyright (C) 2014-2020 Texas Instruments Incorporated - https://www.ti.com/
- *	Suman Anna <s-anna@ti.com>
+ *  Suman Anna <s-anna@ti.com>
  */
 
 #ifndef _PRU_RPROC_H_
@@ -22,9 +22,9 @@
  * channels per interrupt).
  */
 struct pruss_int_map {
-	u8 event;
-	u8 chnl;
-	u8 host;
+  u8 event;
+  u8 chnl;
+  u8 host;
 };
 
 /**
@@ -38,9 +38,9 @@ struct pruss_int_map {
  * describes resource entry format.
  */
 struct pru_irq_rsc {
-	u8 type;
-	u8 num_evts;
-	struct pruss_int_map pru_intc_map[];
+  u8 type;
+  u8 num_evts;
+  struct pruss_int_map pru_intc_map[];
 } __packed;
 
-#endif	/* _PRU_RPROC_H_ */
+#endif  /* _PRU_RPROC_H_ */

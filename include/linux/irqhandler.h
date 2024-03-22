@@ -9,6 +9,6 @@
 
 struct irq_desc;
 
-typedef	void (*irq_flow_handler_t)(struct irq_desc *desc);
+typedef void (*irq_flow_handler_t)(struct irq_desc *desc);
 
 #endif

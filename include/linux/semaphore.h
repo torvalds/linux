@@ -13,17 +13,17 @@
 
 /* Please don't access any members of this structure directly */
 struct semaphore {
-	raw_spinlock_t		lock;
-	unsigned int		count;
-	struct list_head	wait_list;
+  raw_spinlock_t lock;
+  unsigned int count;
+  struct list_head wait_list;
 };
 
-#define __SEMAPHORE_INITIALIZER(name, n)				\
-{									\
-	.lock		= __RAW_SPIN_LOCK_UNLOCKED((name).lock),	\
-	.count		= n,						\
-	.wait_list	= LIST_HEAD_INIT((name).wait_list),		\
-}
+#define __SEMAPHORE_INITIALIZER(name, n)        \
+  {                 \
+    .lock = __RAW_SPIN_LOCK_UNLOCKED((name).lock),  \
+    .count = n,            \
+    .wait_list = LIST_HEAD_INIT((name).wait_list),   \
+  }
 
 /*
  * Unlike mutexes, binary semaphores do not have an owner, so up() can
@@ -31,14 +31,13 @@ struct semaphore {
  * It is also safe to call down_trylock() and up() from interrupt
  * context.
  */
-#define DEFINE_SEMAPHORE(_name, _n)	\
-	struct semaphore _name = __SEMAPHORE_INITIALIZER(_name, _n)
+#define DEFINE_SEMAPHORE(_name, _n) \
+  struct semaphore _name = __SEMAPHORE_INITIALIZER(_name, _n)
 
-static inline void sema_init(struct semaphore *sem, int val)
-{
-	static struct lock_class_key __key;
-	*sem = (struct semaphore) __SEMAPHORE_INITIALIZER(*sem, val);
-	lockdep_init_map(&sem->lock.dep_map, "semaphore->lock", &__key, 0);
+static inline void sema_init(struct semaphore *sem, int val) {
+  static struct lock_class_key __key;
+  *sem = (struct semaphore) __SEMAPHORE_INITIALIZER(*sem, val);
+  lockdep_init_map(&sem->lock.dep_map, "semaphore->lock", &__key, 0);
 }
 
 extern void down(struct semaphore *sem);

@@ -14,52 +14,52 @@
  */
 
 struct hdlcdrv_params {
-	int iobase;
-	int irq;
-	int dma;
-	int dma2;
-	int seriobase;
-	int pariobase;
-	int midiiobase;
-};	
+  int iobase;
+  int irq;
+  int dma;
+  int dma2;
+  int seriobase;
+  int pariobase;
+  int midiiobase;
+};
 
 struct hdlcdrv_channel_params {
-	int tx_delay;  /* the transmitter keyup delay in 10ms units */
-	int tx_tail;   /* the transmitter keyoff delay in 10ms units */
-	int slottime;  /* the slottime in 10ms; usually 10 = 100ms */
-	int ppersist;  /* the p-persistence 0..255 */
-	int fulldup;   /* some driver do not support full duplex, setting */
-	               /* this just makes them send even if DCD is on */
-};	
+  int tx_delay;  /* the transmitter keyup delay in 10ms units */
+  int tx_tail;   /* the transmitter keyoff delay in 10ms units */
+  int slottime;  /* the slottime in 10ms; usually 10 = 100ms */
+  int ppersist;  /* the p-persistence 0..255 */
+  int fulldup;   /* some driver do not support full duplex, setting
+                  * this just makes them send even if DCD is on*/
+};
 
 struct hdlcdrv_old_channel_state {
-  	int ptt;
-  	int dcd;
-  	int ptt_keyed;
+  int ptt;
+  int dcd;
+  int ptt_keyed;
 };
 
 struct hdlcdrv_channel_state {
- 	int ptt;
- 	int dcd;
- 	int ptt_keyed;
- 	unsigned long tx_packets;
- 	unsigned long tx_errors;
- 	unsigned long rx_packets;
- 	unsigned long rx_errors;
+  int ptt;
+  int dcd;
+  int ptt_keyed;
+  unsigned long tx_packets;
+  unsigned long tx_errors;
+  unsigned long rx_packets;
+  unsigned long rx_errors;
 };
 
 struct hdlcdrv_ioctl {
-	int cmd;
-	union {
-		struct hdlcdrv_params mp;
-		struct hdlcdrv_channel_params cp;
-		struct hdlcdrv_channel_state cs;
-		struct hdlcdrv_old_channel_state ocs;
-		unsigned int calibrate;
-		unsigned char bits;
-		char modename[128];
-		char drivername[32];
-	} data;
+  int cmd;
+  union {
+    struct hdlcdrv_params mp;
+    struct hdlcdrv_channel_params cp;
+    struct hdlcdrv_channel_state cs;
+    struct hdlcdrv_old_channel_state ocs;
+    unsigned int calibrate;
+    unsigned char bits;
+    char modename[128];
+    char drivername[32];
+  } data;
 };
 
 /* -------------------------------------------------------------------- */
@@ -93,16 +93,15 @@ struct hdlcdrv_ioctl {
 /*
  * mask of needed modem parameters, returned by HDLCDRVCTL_MODEMPARMASK
  */
-#define HDLCDRV_PARMASK_IOBASE      (1<<0)
-#define HDLCDRV_PARMASK_IRQ         (1<<1)
-#define HDLCDRV_PARMASK_DMA         (1<<2)
-#define HDLCDRV_PARMASK_DMA2        (1<<3)
-#define HDLCDRV_PARMASK_SERIOBASE   (1<<4)
-#define HDLCDRV_PARMASK_PARIOBASE   (1<<5)
-#define HDLCDRV_PARMASK_MIDIIOBASE  (1<<6)
+#define HDLCDRV_PARMASK_IOBASE      (1 << 0)
+#define HDLCDRV_PARMASK_IRQ         (1 << 1)
+#define HDLCDRV_PARMASK_DMA         (1 << 2)
+#define HDLCDRV_PARMASK_DMA2        (1 << 3)
+#define HDLCDRV_PARMASK_SERIOBASE   (1 << 4)
+#define HDLCDRV_PARMASK_PARIOBASE   (1 << 5)
+#define HDLCDRV_PARMASK_MIDIIOBASE  (1 << 6)
 
 /* -------------------------------------------------------------------- */
-
 
 /* -------------------------------------------------------------------- */
 

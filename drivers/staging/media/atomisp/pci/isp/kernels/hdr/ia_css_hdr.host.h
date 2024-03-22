@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Release Version: irci_stable_candrpv_0415_20150521_0458 */
+/* SPDX-License-Identifier: GPL-2.0
+ * Release Version: irci_stable_candrpv_0415_20150521_0458*/
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -22,10 +22,9 @@
 
 extern const struct ia_css_hdr_config default_hdr_config;
 
-void
-ia_css_hdr_init_config(
-    struct sh_css_isp_hdr_params *to,
-    const struct ia_css_hdr_config *from,
-    unsigned int size);
+void ia_css_hdr_init_config(
+  struct sh_css_isp_hdr_params *to,
+  const struct ia_css_hdr_config *from,
+  unsigned int size);
 
 #endif /* __IA_CSS_HDR_HOST_H */

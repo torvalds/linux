@@ -8,10 +8,11 @@
 SEC("socket")
 __description("ARG_PTR_TO_LONG uninitialized")
 __success
-__failure_unpriv __msg_unpriv("invalid indirect read from stack R4 off -16+0 size 8")
-__naked void arg_ptr_to_long_uninitialized(void)
-{
-	asm volatile ("					\
+__failure_unpriv __msg_unpriv(
+    "invalid indirect read from stack R4 off -16+0 size 8")
+__naked void arg_ptr_to_long_uninitialized(void) {
+  asm volatile (
+    "					\
 	/* bpf_strtoul arg1 (buf) */			\
 	r7 = r10;					\
 	r7 += -8;					\
@@ -29,20 +30,20 @@ __naked void arg_ptr_to_long_uninitialized(void)
 	call %[bpf_strtoul];				\
 	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_strtoul)
-	: __clobber_all);
+" :
+    : __imm(bpf_strtoul)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("ARG_PTR_TO_LONG half-uninitialized")
 /* in privileged mode reads from uninitialized stack locations are permitted */
-__success __failure_unpriv
-__msg_unpriv("invalid indirect read from stack R4 off -16+4 size 8")
+__success __failure_unpriv __msg_unpriv(
+    "invalid indirect read from stack R4 off -16+4 size 8")
 __retval(0)
-__naked void ptr_to_long_half_uninitialized(void)
-{
-	asm volatile ("					\
+__naked void ptr_to_long_half_uninitialized(void) {
+  asm volatile (
+    "					\
 	/* bpf_strtoul arg1 (buf) */			\
 	r7 = r10;					\
 	r7 += -8;					\
@@ -61,17 +62,17 @@ __naked void ptr_to_long_half_uninitialized(void)
 	call %[bpf_strtoul];				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_strtoul)
-	: __clobber_all);
+" :
+    : __imm(bpf_strtoul)
+    : __clobber_all);
 }
 
 SEC("cgroup/sysctl")
 __description("ARG_PTR_TO_LONG misaligned")
 __failure __msg("misaligned stack access off 0+-20+0 size 8")
-__naked void arg_ptr_to_long_misaligned(void)
-{
-	asm volatile ("					\
+__naked void arg_ptr_to_long_misaligned(void) {
+  asm volatile (
+    "					\
 	/* bpf_strtoul arg1 (buf) */			\
 	r7 = r10;					\
 	r7 += -8;					\
@@ -92,17 +93,17 @@ __naked void arg_ptr_to_long_misaligned(void)
 	call %[bpf_strtoul];				\
 	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_strtoul)
-	: __clobber_all);
+" :
+    : __imm(bpf_strtoul)
+    : __clobber_all);
 }
 
 SEC("cgroup/sysctl")
 __description("ARG_PTR_TO_LONG size < sizeof(long)")
 __failure __msg("invalid indirect access to stack R4 off=-4 size=8")
-__naked void to_long_size_sizeof_long(void)
-{
-	asm volatile ("					\
+__naked void to_long_size_sizeof_long(void) {
+  asm volatile (
+    "					\
 	/* bpf_strtoul arg1 (buf) */			\
 	r7 = r10;					\
 	r7 += -16;					\
@@ -121,17 +122,17 @@ __naked void to_long_size_sizeof_long(void)
 	call %[bpf_strtoul];				\
 	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_strtoul)
-	: __clobber_all);
+" :
+    : __imm(bpf_strtoul)
+    : __clobber_all);
 }
 
 SEC("cgroup/sysctl")
 __description("ARG_PTR_TO_LONG initialized")
 __success
-__naked void arg_ptr_to_long_initialized(void)
-{
-	asm volatile ("					\
+__naked void arg_ptr_to_long_initialized(void) {
+  asm volatile (
+    "					\
 	/* bpf_strtoul arg1 (buf) */			\
 	r7 = r10;					\
 	r7 += -8;					\
@@ -150,9 +151,9 @@ __naked void arg_ptr_to_long_initialized(void)
 	call %[bpf_strtoul];				\
 	r0 = 1;						\
 	exit;						\
-"	:
-	: __imm(bpf_strtoul)
-	: __clobber_all);
+" :
+    : __imm(bpf_strtoul)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

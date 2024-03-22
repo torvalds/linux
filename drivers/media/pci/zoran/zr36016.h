@@ -10,21 +10,21 @@
 
 /* data stored for each zoran jpeg codec chip */
 struct zr36016 {
-	char name[32];
-	int num;
-	/* io datastructure */
-	struct videocodec *codec;
-	// coder status
-	__u8 version;
-	// actual coder setup
-	int mode;
+  char name[32];
+  int num;
+  /* io datastructure */
+  struct videocodec *codec;
+  // coder status
+  __u8 version;
+  // actual coder setup
+  int mode;
 
-	__u16 xoff;
-	__u16 yoff;
-	__u16 width;
-	__u16 height;
-	__u16 xdec;
-	__u16 ydec;
+  __u16 xoff;
+  __u16 yoff;
+  __u16 width;
+  __u16 height;
+  __u16 xdec;
+  __u16 ydec;
 };
 
 /* direct  register addresses */
@@ -91,4 +91,4 @@ struct zr36016 {
 
 int zr36016_init_module(void);
 void zr36016_cleanup_module(void);
-#endif				/*fndef ZR36016_H */
+#endif        /*fndef ZR36016_H */

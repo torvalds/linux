@@ -3,8 +3,8 @@
  * Copyright (C) 2003 Bernardo Innocenti <bernie@develer.com>
  *
  * Based on former do_div() implementation from asm-parisc/div64.h:
- *	Copyright (C) 1999 Hewlett-Packard Co
- *	Copyright (C) 1999 David Mosberger-Tang <davidm@hpl.hp.com>
+ *  Copyright (C) 1999 Hewlett-Packard Co
+ *  Copyright (C) 1999 David Mosberger-Tang <davidm@hpl.hp.com>
  *
  *
  * Generic C version of 64bit/32bit division and modulo, with
@@ -29,65 +29,62 @@
 #if BITS_PER_LONG == 32
 
 #ifndef __div64_32
-uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base)
-{
-	uint64_t rem = *n;
-	uint64_t b = base;
-	uint64_t res, d = 1;
-	uint32_t high = rem >> 32;
-
-	/* Reduce the thing a bit first */
-	res = 0;
-	if (high >= base) {
-		high /= base;
-		res = (uint64_t) high << 32;
-		rem -= (uint64_t) (high*base) << 32;
-	}
-
-	while ((int64_t)b > 0 && b < rem) {
-		b = b+b;
-		d = d+d;
-	}
-
-	do {
-		if (rem >= b) {
-			rem -= b;
-			res += d;
-		}
-		b >>= 1;
-		d >>= 1;
-	} while (d);
-
-	*n = res;
-	return rem;
+uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base) {
+  uint64_t rem = *n;
+  uint64_t b = base;
+  uint64_t res, d = 1;
+  uint32_t high = rem >> 32;
+  /* Reduce the thing a bit first */
+  res = 0;
+  if (high >= base) {
+    high /= base;
+    res = (uint64_t) high << 32;
+    rem -= (uint64_t) (high * base) << 32;
+  }
+  while ((int64_t) b > 0 && b < rem) {
+    b = b + b;
+    d = d + d;
+  }
+  do {
+    if (rem >= b) {
+      rem -= b;
+      res += d;
+    }
+    b >>= 1;
+    d >>= 1;
+  } while (d);
+  *n = res;
+  return rem;
 }
+
 EXPORT_SYMBOL(__div64_32);
 #endif
 
 #ifndef div_s64_rem
-s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
-{
-	u64 quotient;
-
-	if (dividend < 0) {
-		quotient = div_u64_rem(-dividend, abs(divisor), (u32 *)remainder);
-		*remainder = -*remainder;
-		if (divisor > 0)
-			quotient = -quotient;
-	} else {
-		quotient = div_u64_rem(dividend, abs(divisor), (u32 *)remainder);
-		if (divisor < 0)
-			quotient = -quotient;
-	}
-	return quotient;
+s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder) {
+  u64 quotient;
+  if (dividend < 0) {
+    quotient = div_u64_rem(-dividend, abs(divisor), (u32 *) remainder);
+    *remainder = -*remainder;
+    if (divisor > 0) {
+      quotient = -quotient;
+    }
+  } else {
+    quotient = div_u64_rem(dividend, abs(divisor), (u32 *) remainder);
+    if (divisor < 0) {
+      quotient = -quotient;
+    }
+  }
+  return quotient;
 }
+
 EXPORT_SYMBOL(div_s64_rem);
 #endif
 
 /*
  * div64_u64_rem - unsigned 64bit divide with 64bit divisor and remainder
- * @dividend:	64bit dividend
- * @divisor:	64bit divisor
+ * @dividend: 64bit dividend
+ * @divisor:  64bit divisor
  * @remainder:  64bit remainder
  *
  * This implementation is a comparable to algorithm used by div64_u64.
@@ -96,38 +93,35 @@ EXPORT_SYMBOL(div_s64_rem);
  * systems.
  */
 #ifndef div64_u64_rem
-u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
-{
-	u32 high = divisor >> 32;
-	u64 quot;
-
-	if (high == 0) {
-		u32 rem32;
-		quot = div_u64_rem(dividend, divisor, &rem32);
-		*remainder = rem32;
-	} else {
-		int n = fls(high);
-		quot = div_u64(dividend >> n, divisor >> n);
-
-		if (quot != 0)
-			quot--;
-
-		*remainder = dividend - quot * divisor;
-		if (*remainder >= divisor) {
-			quot++;
-			*remainder -= divisor;
-		}
-	}
-
-	return quot;
+u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder) {
+  u32 high = divisor >> 32;
+  u64 quot;
+  if (high == 0) {
+    u32 rem32;
+    quot = div_u64_rem(dividend, divisor, &rem32);
+    *remainder = rem32;
+  } else {
+    int n = fls(high);
+    quot = div_u64(dividend >> n, divisor >> n);
+    if (quot != 0) {
+      quot--;
+    }
+    *remainder = dividend - quot * divisor;
+    if (*remainder >= divisor) {
+      quot++;
+      *remainder -= divisor;
+    }
+  }
+  return quot;
 }
+
 EXPORT_SYMBOL(div64_u64_rem);
 #endif
 
 /*
  * div64_u64 - unsigned 64bit divide with 64bit divisor
- * @dividend:	64bit dividend
- * @divisor:	64bit divisor
+ * @dividend: 64bit dividend
+ * @divisor:  64bit divisor
  *
  * This implementation is a modified version of the algorithm proposed
  * by the book 'Hacker's Delight'.  The original source and full proof
@@ -136,38 +130,35 @@ EXPORT_SYMBOL(div64_u64_rem);
  * 'http://www.hackersdelight.org/hdcodetxt/divDouble.c.txt'
  */
 #ifndef div64_u64
-u64 div64_u64(u64 dividend, u64 divisor)
-{
-	u32 high = divisor >> 32;
-	u64 quot;
-
-	if (high == 0) {
-		quot = div_u64(dividend, divisor);
-	} else {
-		int n = fls(high);
-		quot = div_u64(dividend >> n, divisor >> n);
-
-		if (quot != 0)
-			quot--;
-		if ((dividend - quot * divisor) >= divisor)
-			quot++;
-	}
-
-	return quot;
+u64 div64_u64(u64 dividend, u64 divisor) {
+  u32 high = divisor >> 32;
+  u64 quot;
+  if (high == 0) {
+    quot = div_u64(dividend, divisor);
+  } else {
+    int n = fls(high);
+    quot = div_u64(dividend >> n, divisor >> n);
+    if (quot != 0) {
+      quot--;
+    }
+    if ((dividend - quot * divisor) >= divisor) {
+      quot++;
+    }
+  }
+  return quot;
 }
+
 EXPORT_SYMBOL(div64_u64);
 #endif
 
 #ifndef div64_s64
-s64 div64_s64(s64 dividend, s64 divisor)
-{
-	s64 quot, t;
-
-	quot = div64_u64(abs(dividend), abs(divisor));
-	t = (dividend ^ divisor) >> 63;
-
-	return (quot ^ t) - t;
+s64 div64_s64(s64 dividend, s64 divisor) {
+  s64 quot, t;
+  quot = div64_u64(abs(dividend), abs(divisor));
+  t = (dividend ^ divisor) >> 63;
+  return (quot ^ t) - t;
 }
+
 EXPORT_SYMBOL(div64_s64);
 #endif
 
@@ -177,64 +168,62 @@ EXPORT_SYMBOL(div64_s64);
  * Iterative div/mod for use when dividend is not expected to be much
  * bigger than divisor.
  */
-u32 iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)
-{
-	return __iter_div_u64_rem(dividend, divisor, remainder);
+u32 iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder) {
+  return __iter_div_u64_rem(dividend, divisor, remainder);
 }
+
 EXPORT_SYMBOL(iter_div_u64_rem);
 
 #ifndef mul_u64_u64_div_u64
-u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 c)
-{
-	u64 res = 0, div, rem;
-	int shift;
-
-	/* can a * b overflow ? */
-	if (ilog2(a) + ilog2(b) > 62) {
-		/*
-		 * Note that the algorithm after the if block below might lose
-		 * some precision and the result is more exact for b > a. So
-		 * exchange a and b if a is bigger than b.
-		 *
-		 * For example with a = 43980465100800, b = 100000000, c = 1000000000
-		 * the below calculation doesn't modify b at all because div == 0
-		 * and then shift becomes 45 + 26 - 62 = 9 and so the result
-		 * becomes 4398035251080. However with a and b swapped the exact
-		 * result is calculated (i.e. 4398046510080).
-		 */
-		if (a > b)
-			swap(a, b);
-
-		/*
-		 * (b * a) / c is equal to
-		 *
-		 *      (b / c) * a +
-		 *      (b % c) * a / c
-		 *
-		 * if nothing overflows. Can the 1st multiplication
-		 * overflow? Yes, but we do not care: this can only
-		 * happen if the end result can't fit in u64 anyway.
-		 *
-		 * So the code below does
-		 *
-		 *      res = (b / c) * a;
-		 *      b = b % c;
-		 */
-		div = div64_u64_rem(b, c, &rem);
-		res = div * a;
-		b = rem;
-
-		shift = ilog2(a) + ilog2(b) - 62;
-		if (shift > 0) {
-			/* drop precision */
-			b >>= shift;
-			c >>= shift;
-			if (!c)
-				return res;
-		}
-	}
-
-	return res + div64_u64(a * b, c);
+u64 mul_u64_u64_div_u64(u64 a, u64 b, u64 c) {
+  u64 res = 0, div, rem;
+  int shift;
+  /* can a * b overflow ? */
+  if (ilog2(a) + ilog2(b) > 62) {
+    /*
+     * Note that the algorithm after the if block below might lose
+     * some precision and the result is more exact for b > a. So
+     * exchange a and b if a is bigger than b.
+     *
+     * For example with a = 43980465100800, b = 100000000, c = 1000000000
+     * the below calculation doesn't modify b at all because div == 0
+     * and then shift becomes 45 + 26 - 62 = 9 and so the result
+     * becomes 4398035251080. However with a and b swapped the exact
+     * result is calculated (i.e. 4398046510080).
+     */
+    if (a > b) {
+      swap(a, b);
+    }
+    /*
+     * (b * a) / c is equal to
+     *
+     *      (b / c) * a +
+     *      (b % c) * a / c
+     *
+     * if nothing overflows. Can the 1st multiplication
+     * overflow? Yes, but we do not care: this can only
+     * happen if the end result can't fit in u64 anyway.
+     *
+     * So the code below does
+     *
+     *      res = (b / c) * a;
+     *      b = b % c;
+     */
+    div = div64_u64_rem(b, c, &rem);
+    res = div * a;
+    b = rem;
+    shift = ilog2(a) + ilog2(b) - 62;
+    if (shift > 0) {
+      /* drop precision */
+      b >>= shift;
+      c >>= shift;
+      if (!c) {
+        return res;
+      }
+    }
+  }
+  return res + div64_u64(a * b, c);
 }
+
 EXPORT_SYMBOL(mul_u64_u64_div_u64);
 #endif

@@ -12,12 +12,12 @@ struct ib_device;
 struct rdma_ah_attr;
 
 enum rdma_lag_flags {
-	RDMA_LAG_FLAGS_HASH_ALL_SLAVES = 1 << 0
+  RDMA_LAG_FLAGS_HASH_ALL_SLAVES = 1 << 0
 };
 
 void rdma_lag_put_ah_roce_slave(struct net_device *xmit_slave);
 struct net_device *rdma_lag_get_ah_roce_slave(struct ib_device *device,
-					      struct rdma_ah_attr *ah_attr,
-					      gfp_t flags);
+    struct rdma_ah_attr *ah_attr,
+    gfp_t flags);
 
 #endif /* _RDMA_LAG_H_ */

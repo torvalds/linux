@@ -23,26 +23,24 @@
  * stall waiting for the register to become valid if such is added
  * to the coldfire at some stage.
  */
-#define	DELAY_ALIGN	".balignw 4, 0x4a8e\n\t"
+#define DELAY_ALIGN ".balignw 4, 0x4a8e\n\t"
 #else
 /*
  * No instruction alignment required for other m68k types.
  */
-#define	DELAY_ALIGN
+#define DELAY_ALIGN
 #endif
 
-static inline void __delay(unsigned long loops)
-{
-	__asm__ __volatile__ (
-		DELAY_ALIGN
-		"1: subql #1,%0\n\t"
-		"jcc 1b"
-		: "=d" (loops)
-		: "0" (loops));
+static inline void __delay(unsigned long loops) {
+  __asm__ __volatile__ (
+    DELAY_ALIGN
+    "1: subql #1,%0\n\t"
+    "jcc 1b"
+    : "=d" (loops)
+    : "0" (loops));
 }
 
 extern void __bad_udelay(void);
-
 
 #ifdef CONFIG_CPU_HAS_NO_MULDIV64
 /*
@@ -50,21 +48,19 @@ extern void __bad_udelay(void);
  * multiply instruction. So we need to handle them a little differently.
  * We use a bit of shifting and a single 32*32->32 multiply to get close.
  */
-#define	HZSCALE		(268435456 / (1000000 / HZ))
+#define HZSCALE   (268435456 / (1000000 / HZ))
 
-#define	__const_udelay(u) \
-	__delay(((((u) * HZSCALE) >> 11) * (loops_per_jiffy >> 11)) >> 6)
+#define __const_udelay(u) \
+  __delay(((((u) * HZSCALE) >> 11) * (loops_per_jiffy >> 11)) >> 6)
 
 #else
 
-static inline void __xdelay(unsigned long xloops)
-{
-	unsigned long tmp;
-
-	__asm__ ("mulul %2,%0:%1"
-		: "=d" (xloops), "=d" (tmp)
-		: "d" (xloops), "1" (loops_per_jiffy));
-	__delay(xloops * HZ);
+static inline void __xdelay(unsigned long xloops) {
+  unsigned long tmp;
+  __asm__ ("mulul %2,%0:%1"
+  : "=d" (xloops), "=d" (tmp)
+  : "d" (xloops), "1" (loops_per_jiffy));
+  __delay(xloops * HZ);
 }
 
 /*
@@ -72,13 +68,12 @@ static inline void __xdelay(unsigned long xloops)
  * the const factor (4295 = 2**32 / 1000000) can be optimized out when
  * the delay is a const.
  */
-#define	__const_udelay(n)	(__xdelay((n) * 4295))
+#define __const_udelay(n) (__xdelay((n) * 4295))
 
 #endif
 
-static inline void __udelay(unsigned long usecs)
-{
-	__const_udelay(usecs);
+static inline void __udelay(unsigned long usecs) {
+  __const_udelay(usecs);
 }
 
 /*
@@ -88,8 +83,8 @@ static inline void __udelay(unsigned long usecs)
  * first constant multiplications gets optimized away if the delay is
  * a constant)
  */
-#define udelay(n) (__builtin_constant_p(n) ? \
-	((n) > 20000 ? __bad_udelay() : __const_udelay(n)) : __udelay(n))
+#define udelay(n) (__builtin_constant_p(n)   \
+  ? ((n) > 20000 ? __bad_udelay() : __const_udelay(n)) : __udelay(n))
 
 /*
  * nanosecond delay:
@@ -111,15 +106,15 @@ static inline void __udelay(unsigned long usecs)
  * This is a macro so that the const version can factor out the first
  * multiply and shift.
  */
-#define	HZSCALE		(268435456 / (1000000 / HZ))
+#define HZSCALE   (268435456 / (1000000 / HZ))
 
-static inline void ndelay(unsigned long nsec)
-{
-	__delay(DIV_ROUND_UP(nsec *
-			     ((((HZSCALE) >> 11) *
-			       (loops_per_jiffy >> 11)) >> 6),
-			     1000));
+static inline void ndelay(unsigned long nsec) {
+  __delay(DIV_ROUND_UP(nsec
+      * ((((HZSCALE) >> 11)
+      * (loops_per_jiffy >> 11)) >> 6),
+      1000));
 }
+
 #define ndelay(n) ndelay(n)
 
 #endif /* defined(_M68K_DELAY_H) */

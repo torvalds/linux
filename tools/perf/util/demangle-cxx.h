@@ -12,5 +12,4 @@ char *cxx_demangle_sym(const char *str, bool params, bool modifiers);
 }
 #endif
 
-
 #endif /* __PERF_DEMANGLE_CXX */

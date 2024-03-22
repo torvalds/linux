@@ -32,7 +32,8 @@ struct display_mode_lib;
 
 // Function: dml_rq_dlg_get_rq_reg
 //  Main entry point for test to get the register values out of this DML class.
-//  This function calls <get_rq_param> and <extract_rq_regs> functions to calculate
+//  This function calls <get_rq_param> and <extract_rq_regs> functions to
+// calculate
 //  and then populate the rq_regs struct
 // Input:
 //  pipe_param - pipe source configuration (e.g. vp, pitch, scaling, dest, etc.)
@@ -40,8 +41,8 @@ struct display_mode_lib;
 //  rq_regs - struct that holds all the RQ registers field value.
 //            See also: <display_rq_regs_st>
 void dml30_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib,
-		display_rq_regs_st *rq_regs,
-		const display_pipe_params_st *pipe_param);
+    display_rq_regs_st *rq_regs,
+    const display_pipe_params_st *pipe_param);
 
 // Function: dml_rq_dlg_get_dlg_reg
 //   Calculate and return DLG and TTU register struct given the system setting
@@ -51,19 +52,21 @@ void dml30_rq_dlg_get_rq_reg(struct display_mode_lib *mode_lib,
 // Input:
 //  e2e_pipe_param - "compacted" array of e2e pipe param struct
 //  num_pipes - num of active "pipe" or "route"
-//  pipe_idx - index that identifies the e2e_pipe_param that corresponding to this dlg
-//  cstate - 0: when calculate min_ttu_vblank it is assumed cstate is not required. 1: Normal mode, cstate is considered.
+//  pipe_idx - index that identifies the e2e_pipe_param that corresponding to
+// this dlg
+//  cstate - 0: when calculate min_ttu_vblank it is assumed cstate is not
+// required. 1: Normal mode, cstate is considered.
 //           Added for legacy or unrealistic timing tests.
-void dml30_rq_dlg_get_dlg_reg(struct display_mode_lib             *mode_lib,
-		display_dlg_regs_st          *dlg_regs,
-		display_ttu_regs_st          *ttu_regs,
-		const display_e2e_pipe_params_st   *e2e_pipe_param,
-		const unsigned int            num_pipes,
-		const unsigned int            pipe_idx,
-		const bool                    cstate_en,
-		const bool                    pstate_en,
-		const bool                    vm_en,
-		const bool                    ignore_viewport_pos,
-		const bool                    immediate_flip_support);
+void dml30_rq_dlg_get_dlg_reg(struct display_mode_lib *mode_lib,
+    display_dlg_regs_st *dlg_regs,
+    display_ttu_regs_st *ttu_regs,
+    const display_e2e_pipe_params_st *e2e_pipe_param,
+    const unsigned int num_pipes,
+    const unsigned int pipe_idx,
+    const bool cstate_en,
+    const bool pstate_en,
+    const bool vm_en,
+    const bool ignore_viewport_pos,
+    const bool immediate_flip_support);
 
 #endif

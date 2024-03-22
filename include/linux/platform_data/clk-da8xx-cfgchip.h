@@ -15,7 +15,7 @@
  * @cfgchip: CFGCHIP syscon regmap
  */
 struct da8xx_cfgchip_clk_platform_data {
-	struct regmap *cfgchip;
+  struct regmap *cfgchip;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_CLK_DA8XX_CFGCHIP_H__ */

@@ -9,13 +9,13 @@
 #define _SUNQE_H
 
 /* QEC global registers. */
-#define GLOB_CTRL	0x00UL		/* Control			*/
-#define GLOB_STAT	0x04UL		/* Status			*/
-#define GLOB_PSIZE	0x08UL		/* Packet Size			*/
-#define GLOB_MSIZE	0x0cUL		/* Local-memory Size		*/
-#define GLOB_RSIZE	0x10UL		/* Receive partition size	*/
-#define GLOB_TSIZE	0x14UL		/* Transmit partition size	*/
-#define GLOB_REG_SIZE	0x18UL
+#define GLOB_CTRL 0x00UL    /* Control      */
+#define GLOB_STAT 0x04UL    /* Status     */
+#define GLOB_PSIZE  0x08UL    /* Packet Size      */
+#define GLOB_MSIZE  0x0cUL    /* Local-memory Size    */
+#define GLOB_RSIZE  0x10UL    /* Receive partition size */
+#define GLOB_TSIZE  0x14UL    /* Transmit partition size  */
+#define GLOB_REG_SIZE 0x18UL
 
 #define GLOB_CTRL_MMODE       0x40000000 /* MACE qec mode            */
 #define GLOB_CTRL_BMODE       0x10000000 /* BigMAC qec mode          */
@@ -43,21 +43,21 @@
 #define GLOB_STAT_PER_QE(status, channel) (((status) >> ((channel) * 4)) & 0xf)
 
 /* The following registers are for per-qe channel information/status. */
-#define CREG_CTRL	0x00UL	/* Control                   */
-#define CREG_STAT	0x04UL	/* Status                    */
-#define CREG_RXDS	0x08UL	/* RX descriptor ring ptr    */
-#define CREG_TXDS	0x0cUL	/* TX descriptor ring ptr    */
-#define CREG_RIMASK	0x10UL	/* RX Interrupt Mask         */
-#define CREG_TIMASK	0x14UL	/* TX Interrupt Mask         */
-#define CREG_QMASK	0x18UL	/* QEC Error Interrupt Mask  */
-#define CREG_MMASK	0x1cUL	/* MACE Error Interrupt Mask */
-#define CREG_RXWBUFPTR	0x20UL	/* Local memory rx write ptr */
-#define CREG_RXRBUFPTR	0x24UL	/* Local memory rx read ptr  */
-#define CREG_TXWBUFPTR	0x28UL	/* Local memory tx write ptr */
-#define CREG_TXRBUFPTR	0x2cUL	/* Local memory tx read ptr  */
-#define CREG_CCNT	0x30UL	/* Collision Counter         */
-#define CREG_PIPG	0x34UL	/* Inter-Frame Gap           */
-#define CREG_REG_SIZE	0x38UL
+#define CREG_CTRL 0x00UL  /* Control                   */
+#define CREG_STAT 0x04UL  /* Status                    */
+#define CREG_RXDS 0x08UL  /* RX descriptor ring ptr    */
+#define CREG_TXDS 0x0cUL  /* TX descriptor ring ptr    */
+#define CREG_RIMASK 0x10UL  /* RX Interrupt Mask         */
+#define CREG_TIMASK 0x14UL  /* TX Interrupt Mask         */
+#define CREG_QMASK  0x18UL  /* QEC Error Interrupt Mask  */
+#define CREG_MMASK  0x1cUL  /* MACE Error Interrupt Mask */
+#define CREG_RXWBUFPTR  0x20UL  /* Local memory rx write ptr */
+#define CREG_RXRBUFPTR  0x24UL  /* Local memory rx read ptr  */
+#define CREG_TXWBUFPTR  0x28UL  /* Local memory tx write ptr */
+#define CREG_TXRBUFPTR  0x2cUL  /* Local memory tx read ptr  */
+#define CREG_CCNT 0x30UL  /* Collision Counter         */
+#define CREG_PIPG 0x34UL  /* Inter-Frame Gap           */
+#define CREG_REG_SIZE 0x38UL
 
 #define CREG_CTRL_RXOFF       0x00000004  /* Disable this qe's receiver*/
 #define CREG_CTRL_RESET       0x00000002  /* Reset this qe channel     */
@@ -90,14 +90,15 @@
 #define CREG_STAT_RXPERR      0x00000002  /* Receive Parity Error      */
 #define CREG_STAT_RXSERR      0x00000001  /* Receive SBUS Error ACK    */
 
-#define CREG_STAT_ERRORS      (CREG_STAT_EDEFER|CREG_STAT_CLOSS|CREG_STAT_ERETRIES|     \
-			       CREG_STAT_LCOLL|CREG_STAT_FUFLOW|CREG_STAT_JERROR|       \
-			       CREG_STAT_BERROR|CREG_STAT_CCOFLOW|CREG_STAT_TXDERROR|   \
-			       CREG_STAT_TXLERR|CREG_STAT_TXPERR|CREG_STAT_TXSERR|      \
-			       CREG_STAT_RCCOFLOW|CREG_STAT_RUOFLOW|CREG_STAT_MCOFLOW| \
-			       CREG_STAT_RXFOFLOW|CREG_STAT_RLCOLL|CREG_STAT_FCOFLOW|   \
-			       CREG_STAT_CECOFLOW|CREG_STAT_RXDROP|CREG_STAT_RXSMALL|   \
-			       CREG_STAT_RXLERR|CREG_STAT_RXPERR|CREG_STAT_RXSERR)
+#define CREG_STAT_ERRORS      (CREG_STAT_EDEFER | CREG_STAT_CLOSS \
+  | CREG_STAT_ERETRIES      \
+  | CREG_STAT_LCOLL | CREG_STAT_FUFLOW | CREG_STAT_JERROR        \
+  | CREG_STAT_BERROR | CREG_STAT_CCOFLOW | CREG_STAT_TXDERROR    \
+  | CREG_STAT_TXLERR | CREG_STAT_TXPERR | CREG_STAT_TXSERR       \
+  | CREG_STAT_RCCOFLOW | CREG_STAT_RUOFLOW | CREG_STAT_MCOFLOW  \
+  | CREG_STAT_RXFOFLOW | CREG_STAT_RLCOLL | CREG_STAT_FCOFLOW    \
+  | CREG_STAT_CECOFLOW | CREG_STAT_RXDROP | CREG_STAT_RXSMALL    \
+  | CREG_STAT_RXLERR | CREG_STAT_RXPERR | CREG_STAT_RXSERR)
 
 #define CREG_QMASK_COFLOW     0x00100000  /* CollCntr overflow         */
 #define CREG_QMASK_TXDERROR   0x00080000  /* TXD error                 */
@@ -127,39 +128,39 @@
 #define CREG_PIPG_WMASK       0x0000000f  /* SBUS Wait Mask            */
 
 /* Per-channel AMD 79C940 MACE registers. */
-#define MREGS_RXFIFO	0x00UL	/* Receive FIFO                   */
-#define MREGS_TXFIFO	0x01UL	/* Transmit FIFO                  */
-#define MREGS_TXFCNTL	0x02UL	/* Transmit Frame Control         */
-#define MREGS_TXFSTAT	0x03UL	/* Transmit Frame Status          */
-#define MREGS_TXRCNT	0x04UL	/* Transmit Retry Count           */
-#define MREGS_RXFCNTL	0x05UL	/* Receive Frame Control          */
-#define MREGS_RXFSTAT	0x06UL	/* Receive Frame Status           */
-#define MREGS_FFCNT	0x07UL	/* FIFO Frame Count               */
-#define MREGS_IREG	0x08UL	/* Interrupt Register             */
-#define MREGS_IMASK	0x09UL	/* Interrupt Mask                 */
-#define MREGS_POLL	0x0aUL	/* POLL Register                  */
-#define MREGS_BCONFIG	0x0bUL	/* BIU Config                     */
-#define MREGS_FCONFIG	0x0cUL	/* FIFO Config                    */
-#define MREGS_MCONFIG	0x0dUL	/* MAC Config                     */
-#define MREGS_PLSCONFIG	0x0eUL	/* PLS Config                     */
-#define MREGS_PHYCONFIG	0x0fUL	/* PHY Config                     */
-#define MREGS_CHIPID1	0x10UL	/* Chip-ID, low bits              */
-#define MREGS_CHIPID2	0x11UL	/* Chip-ID, high bits             */
-#define MREGS_IACONFIG	0x12UL	/* Internal Address Config        */
-	/* 0x13UL, reserved */
-#define MREGS_FILTER	0x14UL	/* Logical Address Filter         */
-#define MREGS_ETHADDR	0x15UL	/* Our Ethernet Address           */
-	/* 0x16UL, reserved */
-	/* 0x17UL, reserved */
-#define MREGS_MPCNT	0x18UL	/* Missed Packet Count            */
-	/* 0x19UL, reserved */
-#define MREGS_RPCNT	0x1aUL	/* Runt Packet Count              */
-#define MREGS_RCCNT	0x1bUL	/* RX Collision Count             */
-	/* 0x1cUL, reserved */
-#define MREGS_UTEST	0x1dUL	/* User Test                      */
-#define MREGS_RTEST1	0x1eUL	/* Reserved Test 1                */
-#define MREGS_RTEST2	0x1fUL	/* Reserved Test 2                */
-#define MREGS_REG_SIZE	0x20UL
+#define MREGS_RXFIFO  0x00UL  /* Receive FIFO                   */
+#define MREGS_TXFIFO  0x01UL  /* Transmit FIFO                  */
+#define MREGS_TXFCNTL 0x02UL  /* Transmit Frame Control         */
+#define MREGS_TXFSTAT 0x03UL  /* Transmit Frame Status          */
+#define MREGS_TXRCNT  0x04UL  /* Transmit Retry Count           */
+#define MREGS_RXFCNTL 0x05UL  /* Receive Frame Control          */
+#define MREGS_RXFSTAT 0x06UL  /* Receive Frame Status           */
+#define MREGS_FFCNT 0x07UL  /* FIFO Frame Count               */
+#define MREGS_IREG  0x08UL  /* Interrupt Register             */
+#define MREGS_IMASK 0x09UL  /* Interrupt Mask                 */
+#define MREGS_POLL  0x0aUL  /* POLL Register                  */
+#define MREGS_BCONFIG 0x0bUL  /* BIU Config                     */
+#define MREGS_FCONFIG 0x0cUL  /* FIFO Config                    */
+#define MREGS_MCONFIG 0x0dUL  /* MAC Config                     */
+#define MREGS_PLSCONFIG 0x0eUL  /* PLS Config                     */
+#define MREGS_PHYCONFIG 0x0fUL  /* PHY Config                     */
+#define MREGS_CHIPID1 0x10UL  /* Chip-ID, low bits              */
+#define MREGS_CHIPID2 0x11UL  /* Chip-ID, high bits             */
+#define MREGS_IACONFIG  0x12UL  /* Internal Address Config        */
+/* 0x13UL, reserved */
+#define MREGS_FILTER  0x14UL  /* Logical Address Filter         */
+#define MREGS_ETHADDR 0x15UL  /* Our Ethernet Address           */
+/* 0x16UL, reserved
+ * 0x17UL, reserved*/
+#define MREGS_MPCNT 0x18UL  /* Missed Packet Count            */
+/* 0x19UL, reserved */
+#define MREGS_RPCNT 0x1aUL  /* Runt Packet Count              */
+#define MREGS_RCCNT 0x1bUL  /* RX Collision Count             */
+/* 0x1cUL, reserved */
+#define MREGS_UTEST 0x1dUL  /* User Test                      */
+#define MREGS_RTEST1  0x1eUL  /* Reserved Test 1                */
+#define MREGS_RTEST2  0x1fUL  /* Reserved Test 2                */
+#define MREGS_REG_SIZE  0x20UL
 
 #define MREGS_TXFCNTL_DRETRY        0x80 /* Retry disable                  */
 #define MREGS_TXFCNTL_DFCS          0x08 /* Disable TX FCS                 */
@@ -266,8 +267,8 @@
 #define MREGS_UTEST_NOLOOP          0x00 /* No loopback                    */
 
 struct qe_rxd {
-	u32 rx_flags;
-	u32 rx_addr;
+  u32 rx_flags;
+  u32 rx_addr;
 };
 
 #define RXD_OWN      0x80000000 /* Ownership.      */
@@ -275,8 +276,8 @@ struct qe_rxd {
 #define RXD_LENGTH   0x000007ff /* Packet Length.  */
 
 struct qe_txd {
-	u32 tx_flags;
-	u32 tx_addr;
+  u32 tx_flags;
+  u32 tx_addr;
 };
 
 #define TXD_OWN      0x80000000 /* Ownership.      */
@@ -297,55 +298,55 @@ struct qe_txd {
 #define PREV_TX(num)       (((num) - 1) & (TX_RING_MAXSIZE - 1))
 
 #define TX_BUFFS_AVAIL(qp)                                    \
-        (((qp)->tx_old <= (qp)->tx_new) ?                     \
-	  (qp)->tx_old + (TX_RING_SIZE - 1) - (qp)->tx_new :  \
-			    (qp)->tx_old - (qp)->tx_new - 1)
+  (((qp)->tx_old <= (qp)->tx_new)                       \
+  ? (qp)->tx_old + (TX_RING_SIZE - 1) - (qp)->tx_new    \
+  : (qp)->tx_old - (qp)->tx_new - 1)
 
 struct qe_init_block {
-	struct qe_rxd qe_rxd[RX_RING_MAXSIZE];
-	struct qe_txd qe_txd[TX_RING_MAXSIZE];
+  struct qe_rxd qe_rxd[RX_RING_MAXSIZE];
+  struct qe_txd qe_txd[TX_RING_MAXSIZE];
 };
 
 #define qib_offset(mem, elem) \
-((__u32)((unsigned long)(&(((struct qe_init_block *)0)->mem[elem]))))
+  ((__u32) ((unsigned long) (&(((struct qe_init_block *) 0)->mem[elem]))))
 
 struct sunqe;
 
 struct sunqec {
-	void __iomem		*gregs;		/* QEC Global Registers         */
-	struct sunqe		*qes[4];	/* Each child MACE              */
-	unsigned int            qec_bursts;	/* Support burst sizes          */
-	struct platform_device	*op;		/* QEC's OF device              */
-	struct sunqec		*next_module;	/* List of all QECs in system   */
+  void __iomem *gregs;   /* QEC Global Registers         */
+  struct sunqe *qes[4];  /* Each child MACE              */
+  unsigned int qec_bursts; /* Support burst sizes          */
+  struct platform_device *op;    /* QEC's OF device              */
+  struct sunqec *next_module; /* List of all QECs in system   */
 };
 
-#define PKT_BUF_SZ	1664
-#define RXD_PKT_SZ	1664
+#define PKT_BUF_SZ  1664
+#define RXD_PKT_SZ  1664
 
 struct sunqe_buffers {
-	u8	tx_buf[TX_RING_SIZE][PKT_BUF_SZ];
-	u8	__pad[2];
-	u8	rx_buf[RX_RING_SIZE][PKT_BUF_SZ];
+  u8 tx_buf[TX_RING_SIZE][PKT_BUF_SZ];
+  u8 __pad[2];
+  u8 rx_buf[RX_RING_SIZE][PKT_BUF_SZ];
 };
 
 #define qebuf_offset(mem, elem) \
-((__u32)((unsigned long)(&(((struct sunqe_buffers *)0)->mem[elem][0]))))
+  ((__u32) ((unsigned long) (&(((struct sunqe_buffers *) 0)->mem[elem][0]))))
 
 struct sunqe {
-	void __iomem			*qcregs;		/* QEC per-channel Registers   */
-	void __iomem			*mregs;		/* Per-channel MACE Registers  */
-	struct qe_init_block      	*qe_block;	/* RX and TX descriptors       */
-	dma_addr_t			qblock_dvma;	/* RX and TX descriptors       */
-	spinlock_t			lock;		/* Protects txfull state       */
-	int                        	rx_new, rx_old;	/* RX ring extents	       */
-	int			   	tx_new, tx_old;	/* TX ring extents	       */
-	struct sunqe_buffers		*buffers;	/* CPU visible address.        */
-	dma_addr_t			buffers_dvma;	/* DVMA visible address.       */
-	struct sunqec			*parent;
-	u8				mconfig;	/* Base MACE mconfig value     */
-	struct platform_device		*op;		/* QE's OF device struct       */
-	struct net_device		*dev;		/* QE's netdevice struct       */
-	int				channel;	/* Who am I?                   */
+  void __iomem *qcregs;    /* QEC per-channel Registers   */
+  void __iomem *mregs;   /* Per-channel MACE Registers  */
+  struct qe_init_block *qe_block;  /* RX and TX descriptors       */
+  dma_addr_t qblock_dvma;  /* RX and TX descriptors       */
+  spinlock_t lock;   /* Protects txfull state       */
+  int rx_new, rx_old; /* RX ring extents         */
+  int tx_new, tx_old; /* TX ring extents         */
+  struct sunqe_buffers *buffers; /* CPU visible address.        */
+  dma_addr_t buffers_dvma; /* DVMA visible address.       */
+  struct sunqec *parent;
+  u8 mconfig;  /* Base MACE mconfig value     */
+  struct platform_device *op;    /* QE's OF device struct       */
+  struct net_device *dev;   /* QE's netdevice struct       */
+  int channel;  /* Who am I?                   */
 };
 
 #endif /* !(_SUNQE_H) */

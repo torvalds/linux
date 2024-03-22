@@ -13,22 +13,23 @@ struct xe_device;
 struct xe_gt;
 
 /**
- * struct xe_pat_table_entry - The pat_index encoding and other meta information.
+ * struct xe_pat_table_entry - The pat_index encoding and other meta
+ *information.
  */
 struct xe_pat_table_entry {
-	/**
-	 * @value: The platform specific value encoding the various memory
-	 * attributes (this maps to some fixed pat_index). So things like
-	 * caching, coherency, compression etc can be encoded here.
-	 */
-	u32 value;
+  /**
+   * @value: The platform specific value encoding the various memory
+   * attributes (this maps to some fixed pat_index). So things like
+   * caching, coherency, compression etc can be encoded here.
+   */
+  u32 value;
 
-	/**
-	 * @coh_mode: The GPU coherency mode that @value maps to.
-	 */
+  /**
+   * @coh_mode: The GPU coherency mode that @value maps to.
+   */
 #define XE_COH_NONE          1
 #define XE_COH_AT_LEAST_1WAY 2
-	u16 coh_mode;
+  u16 coh_mode;
 };
 
 /**

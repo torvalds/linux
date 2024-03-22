@@ -9,20 +9,20 @@
 #include <linux/qed/qed_if.h>
 
 struct fcoe_task_params {
-	/* Output parameter [set/filled by the HSI function] */
-	struct fcoe_task_context *context;
+  /* Output parameter [set/filled by the HSI function] */
+  struct fcoe_task_context *context;
 
-	/* Output parameter [set/filled by the HSI function] */
-	struct fcoe_wqe *sqe;
-	enum fcoe_task_type task_type;
-	u32 tx_io_size; /* in bytes */
-	u32 rx_io_size; /* in bytes */
-	u32 conn_cid;
-	u16 itid;
-	u8 cq_rss_number;
+  /* Output parameter [set/filled by the HSI function] */
+  struct fcoe_wqe *sqe;
+  enum fcoe_task_type task_type;
+  u32 tx_io_size; /* in bytes */
+  u32 rx_io_size; /* in bytes */
+  u32 conn_cid;
+  u16 itid;
+  u8 cq_rss_number;
 
-	 /* Whether it's Tape device or not (0=Disk, 1=Tape) */
-	u8 is_tape_device;
+  /* Whether it's Tape device or not (0=Disk, 1=Tape) */
+  u8 is_tape_device;
 };
 
 /**
@@ -36,10 +36,10 @@ struct fcoe_task_params {
  * @param fcp_cmnd_payload - FCP CMD Payload
  */
 int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
-	struct scsi_sgl_task_params *sgl_task_params,
-	struct regpair sense_data_buffer_phys_addr,
-	u32 task_retry_id,
-	u8 fcp_cmd_payload[32]);
+    struct scsi_sgl_task_params *sgl_task_params,
+    struct regpair sense_data_buffer_phys_addr,
+    u32 task_retry_id,
+    u8 fcp_cmd_payload[32]);
 
 /**
  * @brief init_initiator_midpath_fcoe_task - Initializes FCoE task context for
@@ -49,15 +49,15 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
  * @param mid_path_fc_header - FC header
  * @param tx_sgl_task_params - Pointer to Tx SGL task params
  * @param rx_sgl_task_params - Pointer to Rx SGL task params
- * @param fw_to_place_fc_header	- Indication if the FW will place the FC header
+ * @param fw_to_place_fc_header - Indication if the FW will place the FC header
  * in addition to the data arrives.
  */
 int init_initiator_midpath_unsolicited_fcoe_task(
-	struct fcoe_task_params *task_params,
-	struct fcoe_tx_mid_path_params *mid_path_fc_header,
-	struct scsi_sgl_task_params *tx_sgl_task_params,
-	struct scsi_sgl_task_params *rx_sgl_task_params,
-	u8 fw_to_place_fc_header);
+  struct fcoe_task_params *task_params,
+  struct fcoe_tx_mid_path_params *mid_path_fc_header,
+  struct scsi_sgl_task_params *tx_sgl_task_params,
+  struct scsi_sgl_task_params *rx_sgl_task_params,
+  u8 fw_to_place_fc_header);
 
 /**
  * @brief init_initiator_abort_fcoe_task - Initializes FCoE task context for
@@ -85,6 +85,6 @@ int init_initiator_cleanup_fcoe_task(struct fcoe_task_params *task_params);
  * @param desired_offset - The desired offest the task will be re-sent from
  */
 int init_initiator_sequence_recovery_fcoe_task(
-	struct fcoe_task_params *task_params,
-	u32 desired_offset);
+  struct fcoe_task_params *task_params,
+  u32 desired_offset);
 #endif

@@ -23,12 +23,11 @@
 #include "amdgpu.h"
 #include "df_v4_6_2.h"
 
-static bool df_v4_6_2_query_ras_poison_mode(struct amdgpu_device *adev)
-{
-	/* return true since related regs are inaccessible */
-	return true;
+static bool df_v4_6_2_query_ras_poison_mode(struct amdgpu_device *adev) {
+  /* return true since related regs are inaccessible */
+  return true;
 }
 
 const struct amdgpu_df_funcs df_v4_6_2_funcs = {
-	.query_ras_poison_mode = df_v4_6_2_query_ras_poison_mode,
+  .query_ras_poison_mode = df_v4_6_2_query_ras_poison_mode,
 };

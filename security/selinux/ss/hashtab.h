@@ -19,26 +19,26 @@
 #define HASHTAB_MAX_NODES U32_MAX
 
 struct hashtab_key_params {
-	u32 (*hash)(const void *key); /* hash func */
-	int (*cmp)(const void *key1, const void *key2); /* comparison func */
+  u32 (*hash)(const void *key); /* hash func */
+  int (*cmp)(const void *key1, const void *key2); /* comparison func */
 };
 
 struct hashtab_node {
-	void *key;
-	void *datum;
-	struct hashtab_node *next;
+  void *key;
+  void *datum;
+  struct hashtab_node *next;
 };
 
 struct hashtab {
-	struct hashtab_node **htable; /* hash table */
-	u32 size; /* number of slots in hash table */
-	u32 nel; /* number of elements in hash table */
+  struct hashtab_node **htable; /* hash table */
+  u32 size; /* number of slots in hash table */
+  u32 nel; /* number of elements in hash table */
 };
 
 struct hashtab_info {
-	u32 slots_used;
-	u32 max_chain_len;
-	u64 chain2_len_sum;
+  u32 slots_used;
+  u32 max_chain_len;
+  u64 chain2_len_sum;
 };
 
 /*
@@ -49,7 +49,7 @@ struct hashtab_info {
 int hashtab_init(struct hashtab *h, u32 nel_hint);
 
 int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst, void *key,
-		     void *datum);
+    void *datum);
 
 /*
  * Inserts the specified (key, datum) pair into the specified hash table.
@@ -57,35 +57,32 @@ int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst, void *key,
  * Returns -ENOMEM on memory allocation error,
  * -EEXIST if there is already an entry with the same key,
  * -EINVAL for general errors or
-  0 otherwise.
+ * 0 otherwise.
  */
 static inline int hashtab_insert(struct hashtab *h, void *key, void *datum,
-				 struct hashtab_key_params key_params)
-{
-	u32 hvalue;
-	struct hashtab_node *prev, *cur;
-
-	cond_resched();
-
-	if (!h->size || h->nel == HASHTAB_MAX_NODES)
-		return -EINVAL;
-
-	hvalue = key_params.hash(key) & (h->size - 1);
-	prev = NULL;
-	cur = h->htable[hvalue];
-	while (cur) {
-		int cmp = key_params.cmp(key, cur->key);
-
-		if (cmp == 0)
-			return -EEXIST;
-		if (cmp < 0)
-			break;
-		prev = cur;
-		cur = cur->next;
-	}
-
-	return __hashtab_insert(h, prev ? &prev->next : &h->htable[hvalue], key,
-				datum);
+    struct hashtab_key_params key_params) {
+  u32 hvalue;
+  struct hashtab_node *prev, *cur;
+  cond_resched();
+  if (!h->size || h->nel == HASHTAB_MAX_NODES) {
+    return -EINVAL;
+  }
+  hvalue = key_params.hash(key) & (h->size - 1);
+  prev = NULL;
+  cur = h->htable[hvalue];
+  while (cur) {
+    int cmp = key_params.cmp(key, cur->key);
+    if (cmp == 0) {
+      return -EEXIST;
+    }
+    if (cmp < 0) {
+      break;
+    }
+    prev = cur;
+    cur = cur->next;
+  }
+  return __hashtab_insert(h, prev ? &prev->next : &h->htable[hvalue], key,
+      datum);
 }
 
 /*
@@ -95,26 +92,25 @@ static inline int hashtab_insert(struct hashtab *h, void *key, void *datum,
  * the datum of the entry otherwise.
  */
 static inline void *hashtab_search(struct hashtab *h, const void *key,
-				   struct hashtab_key_params key_params)
-{
-	u32 hvalue;
-	struct hashtab_node *cur;
-
-	if (!h->size)
-		return NULL;
-
-	hvalue = key_params.hash(key) & (h->size - 1);
-	cur = h->htable[hvalue];
-	while (cur) {
-		int cmp = key_params.cmp(key, cur->key);
-
-		if (cmp == 0)
-			return cur->datum;
-		if (cmp < 0)
-			break;
-		cur = cur->next;
-	}
-	return NULL;
+    struct hashtab_key_params key_params) {
+  u32 hvalue;
+  struct hashtab_node *cur;
+  if (!h->size) {
+    return NULL;
+  }
+  hvalue = key_params.hash(key) & (h->size - 1);
+  cur = h->htable[hvalue];
+  while (cur) {
+    int cmp = key_params.cmp(key, cur->key);
+    if (cmp == 0) {
+      return cur->datum;
+    }
+    if (cmp < 0) {
+      break;
+    }
+    cur = cur->next;
+  }
+  return NULL;
 }
 
 /*
@@ -134,21 +130,20 @@ void hashtab_destroy(struct hashtab *h);
  * return to its caller.
  */
 int hashtab_map(struct hashtab *h, int (*apply)(void *k, void *d, void *args),
-		void *args);
+    void *args);
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
-		      int (*copy)(struct hashtab_node *new,
-				  struct hashtab_node *orig, void *args),
-		      int (*destroy)(void *k, void *d, void *args), void *args);
+    int (*copy)(struct hashtab_node *new,
+    struct hashtab_node *orig, void *args),
+    int (*destroy)(void *k, void *d, void *args), void *args);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEBUG
 /* Fill info with some hash table statistics */
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info);
 #else
-static inline void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
-{
-	return;
+static inline void hashtab_stat(struct hashtab *h, struct hashtab_info *info) {
 }
+
 #endif
 
 #endif /* _SS_HASHTAB_H */

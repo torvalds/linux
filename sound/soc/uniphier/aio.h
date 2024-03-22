@@ -17,27 +17,27 @@
 struct platform_device;
 
 enum ID_PORT_TYPE {
-	PORT_TYPE_UNKNOWN,
-	PORT_TYPE_I2S,
-	PORT_TYPE_SPDIF,
-	PORT_TYPE_EVE,
-	PORT_TYPE_CONV,
+  PORT_TYPE_UNKNOWN,
+  PORT_TYPE_I2S,
+  PORT_TYPE_SPDIF,
+  PORT_TYPE_EVE,
+  PORT_TYPE_CONV,
 };
 
 enum ID_PORT_DIR {
-	PORT_DIR_OUTPUT,
-	PORT_DIR_INPUT,
+  PORT_DIR_OUTPUT,
+  PORT_DIR_INPUT,
 };
 
 enum IEC61937_PC {
-	IEC61937_PC_AC3   = 0x0001,
-	IEC61937_PC_PAUSE = 0x0003,
-	IEC61937_PC_MPA   = 0x0004,
-	IEC61937_PC_MP3   = 0x0005,
-	IEC61937_PC_DTS1  = 0x000b,
-	IEC61937_PC_DTS2  = 0x000c,
-	IEC61937_PC_DTS3  = 0x000d,
-	IEC61937_PC_AAC   = 0x0007,
+  IEC61937_PC_AC3 = 0x0001,
+  IEC61937_PC_PAUSE = 0x0003,
+  IEC61937_PC_MPA = 0x0004,
+  IEC61937_PC_MP3 = 0x0005,
+  IEC61937_PC_DTS1 = 0x000b,
+  IEC61937_PC_DTS2 = 0x000c,
+  IEC61937_PC_DTS3 = 0x000d,
+  IEC61937_PC_AAC = 0x0007,
 };
 
 /* IEC61937 Repetition period of data-burst in IEC60958 frames */
@@ -152,8 +152,8 @@ enum IEC61937_PC {
  *       A meaning of this value depends specification of SoC.
  */
 struct uniphier_aio_selector {
-	int map;
-	int hw;
+  int map;
+  int hw;
 };
 
 /**
@@ -191,116 +191,114 @@ struct uniphier_aio_selector {
  *   (CPU) -> rb -> ch -> oif -> (HW SRC) -> iif -> och -> orb -> (CPU)
  */
 struct uniphier_aio_swmap {
-	int type;
-	int dir;
+  int type;
+  int dir;
 
-	struct uniphier_aio_selector ch;
-	struct uniphier_aio_selector rb;
-	struct uniphier_aio_selector iport;
-	struct uniphier_aio_selector iif;
-	struct uniphier_aio_selector oport;
-	struct uniphier_aio_selector oif;
-	struct uniphier_aio_selector och;
+  struct uniphier_aio_selector ch;
+  struct uniphier_aio_selector rb;
+  struct uniphier_aio_selector iport;
+  struct uniphier_aio_selector iif;
+  struct uniphier_aio_selector oport;
+  struct uniphier_aio_selector oif;
+  struct uniphier_aio_selector och;
 };
 
 struct uniphier_aio_spec {
-	const char *name;
-	const char *gname;
-	struct uniphier_aio_swmap swm;
+  const char *name;
+  const char *gname;
+  struct uniphier_aio_swmap swm;
 };
 
 struct uniphier_aio_pll {
-	bool enable;
-	unsigned int freq;
+  bool enable;
+  unsigned int freq;
 };
 
 struct uniphier_aio_chip_spec {
-	const struct uniphier_aio_spec *specs;
-	int num_specs;
-	const struct uniphier_aio_pll *plls;
-	int num_plls;
-	struct snd_soc_dai_driver *dais;
-	int num_dais;
+  const struct uniphier_aio_spec *specs;
+  int num_specs;
+  const struct uniphier_aio_pll *plls;
+  int num_plls;
+  struct snd_soc_dai_driver *dais;
+  int num_dais;
 
-	/* DMA access mode, this is workaround for DMA hungup */
-	int addr_ext;
+  /* DMA access mode, this is workaround for DMA hungup */
+  int addr_ext;
 };
 
 struct uniphier_aio_sub {
-	struct uniphier_aio *aio;
+  struct uniphier_aio *aio;
 
-	/* Guard sub->rd_offs and wr_offs from IRQ handler. */
-	spinlock_t lock;
+  /* Guard sub->rd_offs and wr_offs from IRQ handler. */
+  spinlock_t lock;
 
-	const struct uniphier_aio_swmap *swm;
-	const struct uniphier_aio_spec *spec;
+  const struct uniphier_aio_swmap *swm;
+  const struct uniphier_aio_spec *spec;
 
-	/* For PCM audio */
-	struct snd_pcm_substream *substream;
-	struct snd_pcm_hw_params params;
-	int vol;
+  /* For PCM audio */
+  struct snd_pcm_substream *substream;
+  struct snd_pcm_hw_params params;
+  int vol;
 
-	/* For compress audio */
-	struct snd_compr_stream *cstream;
-	struct snd_compr_params cparams;
-	unsigned char *compr_area;
-	dma_addr_t compr_addr;
-	size_t compr_bytes;
-	int pass_through;
-	enum IEC61937_PC iec_pc;
-	bool iec_header;
+  /* For compress audio */
+  struct snd_compr_stream *cstream;
+  struct snd_compr_params cparams;
+  unsigned char *compr_area;
+  dma_addr_t compr_addr;
+  size_t compr_bytes;
+  int pass_through;
+  enum IEC61937_PC iec_pc;
+  bool iec_header;
 
-	/* Both PCM and compress audio */
-	bool use_mmap;
-	int setting;
-	int running;
-	u64 rd_offs;
-	u64 wr_offs;
-	u32 threshold;
-	u64 rd_org;
-	u64 wr_org;
-	u64 rd_total;
-	u64 wr_total;
+  /* Both PCM and compress audio */
+  bool use_mmap;
+  int setting;
+  int running;
+  u64 rd_offs;
+  u64 wr_offs;
+  u32 threshold;
+  u64 rd_org;
+  u64 wr_org;
+  u64 rd_total;
+  u64 wr_total;
 };
 
 struct uniphier_aio {
-	struct uniphier_aio_chip *chip;
+  struct uniphier_aio_chip *chip;
 
-	struct uniphier_aio_sub sub[2];
+  struct uniphier_aio_sub sub[2];
 
-	unsigned int fmt;
-	/* Set one of AUD_CLK_X */
-	int clk_in;
-	int clk_out;
-	/* Set one of AUD_PLL_X */
-	int pll_in;
-	int pll_out;
-	/* Set one of AUD_PLLDIV_X */
-	int plldiv;
+  unsigned int fmt;
+  /* Set one of AUD_CLK_X */
+  int clk_in;
+  int clk_out;
+  /* Set one of AUD_PLL_X */
+  int pll_in;
+  int pll_out;
+  /* Set one of AUD_PLLDIV_X */
+  int plldiv;
 };
 
 struct uniphier_aio_chip {
-	struct platform_device *pdev;
-	const struct uniphier_aio_chip_spec *chip_spec;
+  struct platform_device *pdev;
+  const struct uniphier_aio_chip_spec *chip_spec;
 
-	struct uniphier_aio *aios;
-	int num_aios;
-	int num_wup_aios;
-	struct uniphier_aio_pll *plls;
-	int num_plls;
+  struct uniphier_aio *aios;
+  int num_aios;
+  int num_wup_aios;
+  struct uniphier_aio_pll *plls;
+  int num_plls;
 
-	struct clk *clk;
-	struct reset_control *rst;
-	struct regmap *regmap;
-	struct regmap *regmap_sg;
-	int active;
+  struct clk *clk;
+  struct reset_control *rst;
+  struct regmap *regmap;
+  struct regmap *regmap_sg;
+  int active;
 };
 
-static inline struct uniphier_aio *uniphier_priv(struct snd_soc_dai *dai)
-{
-	struct uniphier_aio_chip *chip = snd_soc_dai_get_drvdata(dai);
-
-	return &chip->aios[dai->id];
+static inline struct uniphier_aio *uniphier_priv(struct snd_soc_dai *dai) {
+  struct uniphier_aio_chip *chip = snd_soc_dai_get_drvdata(dai);
+  return &chip->aios[dai->id];
 }
 
 int uniphier_aiodma_soc_register_platform(struct platform_device *pdev);
@@ -322,21 +320,21 @@ u64 aio_rb_space_to_end(struct uniphier_aio_sub *sub);
 
 void aio_iecout_set_enable(struct uniphier_aio_chip *chip, bool enable);
 int aio_chip_set_pll(struct uniphier_aio_chip *chip, int pll_id,
-		     unsigned int freq);
+    unsigned int freq);
 void aio_chip_init(struct uniphier_aio_chip *chip);
 int aio_init(struct uniphier_aio_sub *sub);
 void aio_port_reset(struct uniphier_aio_sub *sub);
 int aio_port_set_param(struct uniphier_aio_sub *sub, int pass_through,
-		       const struct snd_pcm_hw_params *params);
+    const struct snd_pcm_hw_params *params);
 void aio_port_set_enable(struct uniphier_aio_sub *sub, int enable);
 int aio_port_get_volume(struct uniphier_aio_sub *sub);
 void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol);
 int aio_if_set_param(struct uniphier_aio_sub *sub, int pass_through);
 int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
-			      enum IEC61937_PC pc);
+    enum IEC61937_PC pc);
 void aio_src_reset(struct uniphier_aio_sub *sub);
 int aio_src_set_param(struct uniphier_aio_sub *sub,
-		      const struct snd_pcm_hw_params *params);
+    const struct snd_pcm_hw_params *params);
 int aio_srcif_set_param(struct uniphier_aio_sub *sub);
 int aio_srcch_set_param(struct uniphier_aio_sub *sub);
 void aio_srcch_set_enable(struct uniphier_aio_sub *sub, int enable);
@@ -345,9 +343,9 @@ int aiodma_ch_set_param(struct uniphier_aio_sub *sub);
 void aiodma_ch_set_enable(struct uniphier_aio_sub *sub, int enable);
 int aiodma_rb_set_threshold(struct uniphier_aio_sub *sub, u64 size, u32 th);
 int aiodma_rb_set_buffer(struct uniphier_aio_sub *sub, u64 start, u64 end,
-			 int period);
+    int period);
 void aiodma_rb_sync(struct uniphier_aio_sub *sub, u64 start, u64 size,
-		    int period);
+    int period);
 bool aiodma_rb_is_irq(struct uniphier_aio_sub *sub);
 void aiodma_rb_clear_irq(struct uniphier_aio_sub *sub);
 

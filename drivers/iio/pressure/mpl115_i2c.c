@@ -14,49 +14,45 @@
 
 #include "mpl115.h"
 
-static int mpl115_i2c_init(struct device *dev)
-{
-	return 0;
+static int mpl115_i2c_init(struct device *dev) {
+  return 0;
 }
 
-static int mpl115_i2c_read(struct device *dev, u8 address)
-{
-	return i2c_smbus_read_word_swapped(to_i2c_client(dev), address);
+static int mpl115_i2c_read(struct device *dev, u8 address) {
+  return i2c_smbus_read_word_swapped(to_i2c_client(dev), address);
 }
 
-static int mpl115_i2c_write(struct device *dev, u8 address, u8 value)
-{
-	return i2c_smbus_write_byte_data(to_i2c_client(dev), address, value);
+static int mpl115_i2c_write(struct device *dev, u8 address, u8 value) {
+  return i2c_smbus_write_byte_data(to_i2c_client(dev), address, value);
 }
 
 static const struct mpl115_ops mpl115_i2c_ops = {
-	.init = mpl115_i2c_init,
-	.read = mpl115_i2c_read,
-	.write = mpl115_i2c_write,
+  .init = mpl115_i2c_init,
+  .read = mpl115_i2c_read,
+  .write = mpl115_i2c_write,
 };
 
-static int mpl115_i2c_probe(struct i2c_client *client)
-{
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
-		return -EOPNOTSUPP;
-
-	return mpl115_probe(&client->dev, id->name, &mpl115_i2c_ops);
+static int mpl115_i2c_probe(struct i2c_client *client) {
+  const struct i2c_device_id *id = i2c_client_get_device_id(client);
+  if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
+    return -EOPNOTSUPP;
+  }
+  return mpl115_probe(&client->dev, id->name, &mpl115_i2c_ops);
 }
 
 static const struct i2c_device_id mpl115_i2c_id[] = {
-	{ "mpl115", 0 },
-	{ }
+  { "mpl115", 0 },
+  {}
 };
 MODULE_DEVICE_TABLE(i2c, mpl115_i2c_id);
 
 static struct i2c_driver mpl115_i2c_driver = {
-	.driver = {
-		.name	= "mpl115",
-		.pm = pm_ptr(&mpl115_dev_pm_ops),
-	},
-	.probe = mpl115_i2c_probe,
-	.id_table = mpl115_i2c_id,
+  .driver = {
+    .name = "mpl115",
+    .pm = pm_ptr(&mpl115_dev_pm_ops),
+  },
+  .probe = mpl115_i2c_probe,
+  .id_table = mpl115_i2c_id,
 };
 module_i2c_driver(mpl115_i2c_driver);
 

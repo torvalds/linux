@@ -65,7 +65,7 @@
 
 /* Xen also maps grant references at pfn = mfn.
  * This feature flag is deprecated and should not be used.
-#define XENFEAT_grant_map_identity        12
+ #define XENFEAT_grant_map_identity        12
  */
 
 /* Guest can use XENMEMF_vnode to specify virtual node for memory op. */

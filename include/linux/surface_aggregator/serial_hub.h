@@ -18,35 +18,34 @@
 #include <linux/list.h>
 #include <linux/types.h>
 
-
 /* -- Data structures for SAM-over-SSH communication. ----------------------- */
 
 /**
  * enum ssh_frame_type - Frame types for SSH frames.
  *
  * @SSH_FRAME_TYPE_DATA_SEQ:
- *	Indicates a data frame, followed by a payload with the length specified
- *	in the ``struct ssh_frame.len`` field. This frame is sequenced, meaning
- *	that an ACK is required.
+ *  Indicates a data frame, followed by a payload with the length specified
+ *  in the ``struct ssh_frame.len`` field. This frame is sequenced, meaning
+ *  that an ACK is required.
  *
  * @SSH_FRAME_TYPE_DATA_NSQ:
- *	Same as %SSH_FRAME_TYPE_DATA_SEQ, but unsequenced, meaning that the
- *	message does not have to be ACKed.
+ *  Same as %SSH_FRAME_TYPE_DATA_SEQ, but unsequenced, meaning that the
+ *  message does not have to be ACKed.
  *
  * @SSH_FRAME_TYPE_ACK:
- *	Indicates an ACK message.
+ *  Indicates an ACK message.
  *
  * @SSH_FRAME_TYPE_NAK:
- *	Indicates an error response for previously sent frame. In general, this
- *	means that the frame and/or payload is malformed, e.g. a CRC is wrong.
- *	For command-type payloads, this can also mean that the command is
- *	invalid.
+ *  Indicates an error response for previously sent frame. In general, this
+ *  means that the frame and/or payload is malformed, e.g. a CRC is wrong.
+ *  For command-type payloads, this can also mean that the command is
+ *  invalid.
  */
 enum ssh_frame_type {
-	SSH_FRAME_TYPE_DATA_SEQ = 0x80,
-	SSH_FRAME_TYPE_DATA_NSQ = 0x00,
-	SSH_FRAME_TYPE_ACK      = 0x40,
-	SSH_FRAME_TYPE_NAK      = 0x04,
+  SSH_FRAME_TYPE_DATA_SEQ = 0x80,
+  SSH_FRAME_TYPE_DATA_NSQ = 0x00,
+  SSH_FRAME_TYPE_ACK = 0x40,
+  SSH_FRAME_TYPE_NAK = 0x04,
 };
 
 /**
@@ -57,9 +56,9 @@ enum ssh_frame_type {
  * @seq:  The sequence number for this message/exchange.
  */
 struct ssh_frame {
-	u8 type;
-	__le16 len;
-	u8 seq;
+  u8 type;
+  __le16 len;
+  u8 seq;
 } __packed;
 
 static_assert(sizeof(struct ssh_frame) == 4);
@@ -70,7 +69,7 @@ static_assert(sizeof(struct ssh_frame) == 4);
  * This is the physical maximum length of the protocol. Implementations may
  * set a more constrained limit.
  */
-#define SSH_FRAME_MAX_PAYLOAD_SIZE	U16_MAX
+#define SSH_FRAME_MAX_PAYLOAD_SIZE  U16_MAX
 
 /**
  * enum ssh_payload_type - Type indicator for the SSH payload.
@@ -78,7 +77,7 @@ static_assert(sizeof(struct ssh_frame) == 4);
  *                    payload.
  */
 enum ssh_payload_type {
-	SSH_PLD_TYPE_CMD = 0x80,
+  SSH_PLD_TYPE_CMD = 0x80,
 };
 
 /**
@@ -94,13 +93,13 @@ enum ssh_payload_type {
  * @cid:  Command ID.
  */
 struct ssh_command {
-	u8 type;
-	u8 tc;
-	u8 tid;
-	u8 sid;
-	u8 iid;
-	__le16 rqid;
-	u8 cid;
+  u8 type;
+  u8 tc;
+  u8 tid;
+  u8 sid;
+  u8 iid;
+  __le16 rqid;
+  u8 cid;
 } __packed;
 
 static_assert(sizeof(struct ssh_command) == 8);
@@ -112,7 +111,7 @@ static_assert(sizeof(struct ssh_command) == 8);
  * set a more constrained limit.
  */
 #define SSH_COMMAND_MAX_PAYLOAD_SIZE \
-	(SSH_FRAME_MAX_PAYLOAD_SIZE - sizeof(struct ssh_command))
+  (SSH_FRAME_MAX_PAYLOAD_SIZE - sizeof(struct ssh_command))
 
 /*
  * SSH_MSG_LEN_BASE - Base-length of a SSH message.
@@ -120,7 +119,7 @@ static_assert(sizeof(struct ssh_command) == 8);
  * This is the minimum number of bytes required to form a message. The actual
  * message length is SSH_MSG_LEN_BASE plus the length of the frame payload.
  */
-#define SSH_MSG_LEN_BASE	(sizeof(struct ssh_frame) + 3ull * sizeof(u16))
+#define SSH_MSG_LEN_BASE  (sizeof(struct ssh_frame) + 3ull * sizeof(u16))
 
 /*
  * SSH_MSG_LEN_CTRL - Length of a SSH control message.
@@ -128,7 +127,7 @@ static_assert(sizeof(struct ssh_command) == 8);
  * This is the length of a SSH control message, which is equal to a SSH
  * message without any payload.
  */
-#define SSH_MSG_LEN_CTRL	SSH_MSG_LEN_BASE
+#define SSH_MSG_LEN_CTRL  SSH_MSG_LEN_BASE
 
 /**
  * SSH_MESSAGE_LENGTH() - Compute length of SSH message.
@@ -146,7 +145,7 @@ static_assert(sizeof(struct ssh_command) == 8);
  * specified size.
  */
 #define SSH_COMMAND_MESSAGE_LENGTH(payload_size) \
-	SSH_MESSAGE_LENGTH(sizeof(struct ssh_command) + (payload_size))
+  SSH_MESSAGE_LENGTH(sizeof(struct ssh_command) + (payload_size))
 
 /**
  * SSH_MSGOFFSET_FRAME() - Compute offset in SSH message to specified field in
@@ -158,7 +157,7 @@ static_assert(sizeof(struct ssh_command) == 8);
  * account.
  */
 #define SSH_MSGOFFSET_FRAME(field) \
-	(sizeof(u16) + offsetof(struct ssh_frame, field))
+  (sizeof(u16) + offsetof(struct ssh_frame, field))
 
 /**
  * SSH_MSGOFFSET_COMMAND() - Compute offset in SSH message to specified field
@@ -170,13 +169,13 @@ static_assert(sizeof(struct ssh_command) == 8);
  * frame CRC (u16) between frame and command into account.
  */
 #define SSH_MSGOFFSET_COMMAND(field) \
-	(2ull * sizeof(u16) + sizeof(struct ssh_frame) \
-		+ offsetof(struct ssh_command, field))
+  (2ull * sizeof(u16) + sizeof(struct ssh_frame) \
+  + offsetof(struct ssh_command, field))
 
 /*
  * SSH_MSG_SYN - SSH message synchronization (SYN) bytes as u16.
  */
-#define SSH_MSG_SYN		((u16)0x55aa)
+#define SSH_MSG_SYN   ((u16) 0x55aa)
 
 /**
  * ssh_crc() - Compute CRC for SSH messages.
@@ -186,9 +185,8 @@ static_assert(sizeof(struct ssh_command) == 8);
  * Return: Returns the CRC computed on the provided data, as used for SSH
  * messages.
  */
-static inline u16 ssh_crc(const u8 *buf, size_t len)
-{
-	return crc_itu_t(0xffff, buf, len);
+static inline u16 ssh_crc(const u8 *buf, size_t len) {
+  return crc_itu_t(0xffff, buf, len);
 }
 
 /*
@@ -199,12 +197,12 @@ static inline u16 ssh_crc(const u8 *buf, size_t len)
  * exception of zero, which is not an event ID. Thus, this is also the
  * absolute maximum number of event handlers that can be registered.
  */
-#define SSH_NUM_EVENTS		38
+#define SSH_NUM_EVENTS    38
 
 /*
  * SSH_NUM_TARGETS - The number of communication targets used in the protocol.
  */
-#define SSH_NUM_TARGETS		2
+#define SSH_NUM_TARGETS   2
 
 /**
  * ssh_rqid_next_valid() - Return the next valid request ID.
@@ -214,54 +212,48 @@ static inline u16 ssh_crc(const u8 *buf, size_t len)
  * provided to this function. This function skips any request IDs reserved for
  * events.
  */
-static inline u16 ssh_rqid_next_valid(u16 rqid)
-{
-	return rqid > 0 ? rqid + 1u : rqid + SSH_NUM_EVENTS + 1u;
+static inline u16 ssh_rqid_next_valid(u16 rqid) {
+  return rqid > 0 ? rqid + 1u : rqid + SSH_NUM_EVENTS + 1u;
 }
 
 /**
  * ssh_rqid_to_event() - Convert request ID to its corresponding event ID.
  * @rqid: The request ID to convert.
  */
-static inline u16 ssh_rqid_to_event(u16 rqid)
-{
-	return rqid - 1u;
+static inline u16 ssh_rqid_to_event(u16 rqid) {
+  return rqid - 1u;
 }
 
 /**
  * ssh_rqid_is_event() - Check if given request ID is a valid event ID.
  * @rqid: The request ID to check.
  */
-static inline bool ssh_rqid_is_event(u16 rqid)
-{
-	return ssh_rqid_to_event(rqid) < SSH_NUM_EVENTS;
+static inline bool ssh_rqid_is_event(u16 rqid) {
+  return ssh_rqid_to_event(rqid) < SSH_NUM_EVENTS;
 }
 
 /**
  * ssh_tc_to_rqid() - Convert target category to its corresponding request ID.
  * @tc: The target category to convert.
  */
-static inline u16 ssh_tc_to_rqid(u8 tc)
-{
-	return tc;
+static inline u16 ssh_tc_to_rqid(u8 tc) {
+  return tc;
 }
 
 /**
  * ssh_tid_to_index() - Convert target ID to its corresponding target index.
  * @tid: The target ID to convert.
  */
-static inline u8 ssh_tid_to_index(u8 tid)
-{
-	return tid - 1u;
+static inline u8 ssh_tid_to_index(u8 tid) {
+  return tid - 1u;
 }
 
 /**
  * ssh_tid_is_valid() - Check if target ID is valid/supported.
  * @tid: The target ID to check.
  */
-static inline bool ssh_tid_is_valid(u8 tid)
-{
-	return ssh_tid_to_index(tid) < SSH_NUM_TARGETS;
+static inline bool ssh_tid_is_valid(u8 tid) {
+  return ssh_tid_to_index(tid) < SSH_NUM_TARGETS;
 }
 
 /**
@@ -274,8 +266,8 @@ static inline bool ssh_tid_is_valid(u8 tid)
  * life-time is managed (i.e. it is allocated/freed) via another pointer.
  */
 struct ssam_span {
-	u8    *ptr;
-	size_t len;
+  u8 *ptr;
+  size_t len;
 };
 
 /**
@@ -287,11 +279,11 @@ struct ssam_span {
  * @SSAM_SSH_TID_SURFLINK: SurfLink connector.
  */
 enum ssam_ssh_tid {
-	SSAM_SSH_TID_HOST     = 0x00,
-	SSAM_SSH_TID_SAM      = 0x01,
-	SSAM_SSH_TID_KIP      = 0x02,
-	SSAM_SSH_TID_DEBUG    = 0x03,
-	SSAM_SSH_TID_SURFLINK = 0x04,
+  SSAM_SSH_TID_HOST = 0x00,
+  SSAM_SSH_TID_SAM = 0x01,
+  SSAM_SSH_TID_KIP = 0x02,
+  SSAM_SSH_TID_DEBUG = 0x03,
+  SSAM_SSH_TID_SURFLINK = 0x04,
 };
 
 /*
@@ -306,47 +298,47 @@ enum ssam_ssh_tid {
  * Windows driver.
  */
 enum ssam_ssh_tc {
-				  /* Category 0x00 is invalid for EC use. */
-	SSAM_SSH_TC_SAM  = 0x01,  /* Generic system functionality, real-time clock. */
-	SSAM_SSH_TC_BAT  = 0x02,  /* Battery/power subsystem. */
-	SSAM_SSH_TC_TMP  = 0x03,  /* Thermal subsystem. */
-	SSAM_SSH_TC_PMC  = 0x04,
-	SSAM_SSH_TC_FAN  = 0x05,
-	SSAM_SSH_TC_PoM  = 0x06,
-	SSAM_SSH_TC_DBG  = 0x07,
-	SSAM_SSH_TC_KBD  = 0x08,  /* Legacy keyboard (Laptop 1/2). */
-	SSAM_SSH_TC_FWU  = 0x09,
-	SSAM_SSH_TC_UNI  = 0x0a,
-	SSAM_SSH_TC_LPC  = 0x0b,
-	SSAM_SSH_TC_TCL  = 0x0c,
-	SSAM_SSH_TC_SFL  = 0x0d,
-	SSAM_SSH_TC_KIP  = 0x0e,  /* Manages detachable peripherals (Pro X/8 keyboard cover) */
-	SSAM_SSH_TC_EXT  = 0x0f,
-	SSAM_SSH_TC_BLD  = 0x10,
-	SSAM_SSH_TC_BAS  = 0x11,  /* Detachment system (Surface Book 2/3). */
-	SSAM_SSH_TC_SEN  = 0x12,
-	SSAM_SSH_TC_SRQ  = 0x13,
-	SSAM_SSH_TC_MCU  = 0x14,
-	SSAM_SSH_TC_HID  = 0x15,  /* Generic HID input subsystem. */
-	SSAM_SSH_TC_TCH  = 0x16,
-	SSAM_SSH_TC_BKL  = 0x17,
-	SSAM_SSH_TC_TAM  = 0x18,
-	SSAM_SSH_TC_ACC0 = 0x19,
-	SSAM_SSH_TC_UFI  = 0x1a,
-	SSAM_SSH_TC_USC  = 0x1b,
-	SSAM_SSH_TC_PEN  = 0x1c,
-	SSAM_SSH_TC_VID  = 0x1d,
-	SSAM_SSH_TC_AUD  = 0x1e,
-	SSAM_SSH_TC_SMC  = 0x1f,
-	SSAM_SSH_TC_KPD  = 0x20,
-	SSAM_SSH_TC_REG  = 0x21,  /* Extended event registry. */
-	SSAM_SSH_TC_SPT  = 0x22,
-	SSAM_SSH_TC_SYS  = 0x23,
-	SSAM_SSH_TC_ACC1 = 0x24,
-	SSAM_SSH_TC_SHB  = 0x25,
-	SSAM_SSH_TC_POS  = 0x26,  /* For obtaining Laptop Studio screen position. */
+  /* Category 0x00 is invalid for EC use. */
+  SSAM_SSH_TC_SAM = 0x01,  /* Generic system functionality, real-time clock. */
+  SSAM_SSH_TC_BAT = 0x02,  /* Battery/power subsystem. */
+  SSAM_SSH_TC_TMP = 0x03,  /* Thermal subsystem. */
+  SSAM_SSH_TC_PMC = 0x04,
+  SSAM_SSH_TC_FAN = 0x05,
+  SSAM_SSH_TC_PoM = 0x06,
+  SSAM_SSH_TC_DBG = 0x07,
+  SSAM_SSH_TC_KBD = 0x08,  /* Legacy keyboard (Laptop 1/2). */
+  SSAM_SSH_TC_FWU = 0x09,
+  SSAM_SSH_TC_UNI = 0x0a,
+  SSAM_SSH_TC_LPC = 0x0b,
+  SSAM_SSH_TC_TCL = 0x0c,
+  SSAM_SSH_TC_SFL = 0x0d,
+  SSAM_SSH_TC_KIP = 0x0e,  /* Manages detachable peripherals (Pro X/8 keyboard
+                            * cover) */
+  SSAM_SSH_TC_EXT = 0x0f,
+  SSAM_SSH_TC_BLD = 0x10,
+  SSAM_SSH_TC_BAS = 0x11,  /* Detachment system (Surface Book 2/3). */
+  SSAM_SSH_TC_SEN = 0x12,
+  SSAM_SSH_TC_SRQ = 0x13,
+  SSAM_SSH_TC_MCU = 0x14,
+  SSAM_SSH_TC_HID = 0x15,  /* Generic HID input subsystem. */
+  SSAM_SSH_TC_TCH = 0x16,
+  SSAM_SSH_TC_BKL = 0x17,
+  SSAM_SSH_TC_TAM = 0x18,
+  SSAM_SSH_TC_ACC0 = 0x19,
+  SSAM_SSH_TC_UFI = 0x1a,
+  SSAM_SSH_TC_USC = 0x1b,
+  SSAM_SSH_TC_PEN = 0x1c,
+  SSAM_SSH_TC_VID = 0x1d,
+  SSAM_SSH_TC_AUD = 0x1e,
+  SSAM_SSH_TC_SMC = 0x1f,
+  SSAM_SSH_TC_KPD = 0x20,
+  SSAM_SSH_TC_REG = 0x21,  /* Extended event registry. */
+  SSAM_SSH_TC_SPT = 0x22,
+  SSAM_SSH_TC_SYS = 0x23,
+  SSAM_SSH_TC_ACC1 = 0x24,
+  SSAM_SSH_TC_SHB = 0x25,
+  SSAM_SSH_TC_POS = 0x26,  /* For obtaining Laptop Studio screen position. */
 };
-
 
 /* -- Packet transport layer (ptl). ----------------------------------------- */
 
@@ -358,17 +350,17 @@ enum ssam_ssh_tc {
  * @SSH_PACKET_PRIORITY_ACK:   Base priority for ACK packets.
  */
 enum ssh_packet_base_priority {
-	SSH_PACKET_PRIORITY_FLUSH = 0,	/* same as DATA to sequence flush */
-	SSH_PACKET_PRIORITY_DATA  = 0,
-	SSH_PACKET_PRIORITY_NAK   = 1,
-	SSH_PACKET_PRIORITY_ACK   = 2,
+  SSH_PACKET_PRIORITY_FLUSH = 0,  /* same as DATA to sequence flush */
+  SSH_PACKET_PRIORITY_DATA = 0,
+  SSH_PACKET_PRIORITY_NAK = 1,
+  SSH_PACKET_PRIORITY_ACK = 2,
 };
 
 /*
  * Same as SSH_PACKET_PRIORITY() below, only with actual values.
  */
 #define __SSH_PACKET_PRIORITY(base, try) \
-	(((base) << 4) | ((try) & 0x0f))
+  (((base) << 4) | ((try) & 0x0f))
 
 /**
  * SSH_PACKET_PRIORITY() - Compute packet priority from base priority and
@@ -386,7 +378,7 @@ enum ssh_packet_base_priority {
  * higher number means a higher priority.
  */
 #define SSH_PACKET_PRIORITY(base, try) \
-	__SSH_PACKET_PRIORITY(SSH_PACKET_PRIORITY_##base, (try))
+  __SSH_PACKET_PRIORITY(SSH_PACKET_PRIORITY_ ## base, (try))
 
 /**
  * ssh_packet_priority_get_try() - Get number of tries from packet priority.
@@ -395,9 +387,8 @@ enum ssh_packet_base_priority {
  * Return: Returns the number of tries encoded in the specified packet
  * priority.
  */
-static inline u8 ssh_packet_priority_get_try(u8 priority)
-{
-	return priority & 0x0f;
+static inline u8 ssh_packet_priority_get_try(u8 priority) {
+  return priority & 0x0f;
 }
 
 /**
@@ -406,43 +397,42 @@ static inline u8 ssh_packet_priority_get_try(u8 priority)
  *
  * Return: Returns the base priority encoded in the given packet priority.
  */
-static inline u8 ssh_packet_priority_get_base(u8 priority)
-{
-	return (priority & 0xf0) >> 4;
+static inline u8 ssh_packet_priority_get_base(u8 priority) {
+  return (priority & 0xf0) >> 4;
 }
 
 enum ssh_packet_flags {
-	/* state flags */
-	SSH_PACKET_SF_LOCKED_BIT,
-	SSH_PACKET_SF_QUEUED_BIT,
-	SSH_PACKET_SF_PENDING_BIT,
-	SSH_PACKET_SF_TRANSMITTING_BIT,
-	SSH_PACKET_SF_TRANSMITTED_BIT,
-	SSH_PACKET_SF_ACKED_BIT,
-	SSH_PACKET_SF_CANCELED_BIT,
-	SSH_PACKET_SF_COMPLETED_BIT,
+  /* state flags */
+  SSH_PACKET_SF_LOCKED_BIT,
+  SSH_PACKET_SF_QUEUED_BIT,
+  SSH_PACKET_SF_PENDING_BIT,
+  SSH_PACKET_SF_TRANSMITTING_BIT,
+  SSH_PACKET_SF_TRANSMITTED_BIT,
+  SSH_PACKET_SF_ACKED_BIT,
+  SSH_PACKET_SF_CANCELED_BIT,
+  SSH_PACKET_SF_COMPLETED_BIT,
 
-	/* type flags */
-	SSH_PACKET_TY_FLUSH_BIT,
-	SSH_PACKET_TY_SEQUENCED_BIT,
-	SSH_PACKET_TY_BLOCKING_BIT,
+  /* type flags */
+  SSH_PACKET_TY_FLUSH_BIT,
+  SSH_PACKET_TY_SEQUENCED_BIT,
+  SSH_PACKET_TY_BLOCKING_BIT,
 
-	/* mask for state flags */
-	SSH_PACKET_FLAGS_SF_MASK =
-		  BIT(SSH_PACKET_SF_LOCKED_BIT)
-		| BIT(SSH_PACKET_SF_QUEUED_BIT)
-		| BIT(SSH_PACKET_SF_PENDING_BIT)
-		| BIT(SSH_PACKET_SF_TRANSMITTING_BIT)
-		| BIT(SSH_PACKET_SF_TRANSMITTED_BIT)
-		| BIT(SSH_PACKET_SF_ACKED_BIT)
-		| BIT(SSH_PACKET_SF_CANCELED_BIT)
-		| BIT(SSH_PACKET_SF_COMPLETED_BIT),
+  /* mask for state flags */
+  SSH_PACKET_FLAGS_SF_MASK
+    = BIT(SSH_PACKET_SF_LOCKED_BIT)
+      | BIT(SSH_PACKET_SF_QUEUED_BIT)
+      | BIT(SSH_PACKET_SF_PENDING_BIT)
+      | BIT(SSH_PACKET_SF_TRANSMITTING_BIT)
+      | BIT(SSH_PACKET_SF_TRANSMITTED_BIT)
+      | BIT(SSH_PACKET_SF_ACKED_BIT)
+      | BIT(SSH_PACKET_SF_CANCELED_BIT)
+      | BIT(SSH_PACKET_SF_COMPLETED_BIT),
 
-	/* mask for type flags */
-	SSH_PACKET_FLAGS_TY_MASK =
-		  BIT(SSH_PACKET_TY_FLUSH_BIT)
-		| BIT(SSH_PACKET_TY_SEQUENCED_BIT)
-		| BIT(SSH_PACKET_TY_BLOCKING_BIT),
+  /* mask for type flags */
+  SSH_PACKET_FLAGS_TY_MASK
+    = BIT(SSH_PACKET_TY_FLUSH_BIT)
+      | BIT(SSH_PACKET_TY_SEQUENCED_BIT)
+      | BIT(SSH_PACKET_TY_BLOCKING_BIT),
 };
 
 struct ssh_ptl;
@@ -461,8 +451,8 @@ struct ssh_packet;
  *            not in use by the transport system any more.
  */
 struct ssh_packet_ops {
-	void (*release)(struct ssh_packet *p);
-	void (*complete)(struct ssh_packet *p, int status);
+  void (*release)(struct ssh_packet *p);
+  void (*complete)(struct ssh_packet *p, int status);
 };
 
 /**
@@ -484,28 +474,28 @@ struct ssh_packet_ops {
  *            before or in-between transmission attempts. Used for the packet
  *            timeout implementation. Must only be accessed while holding the
  *            pending lock after first submission.
- * @queue_node:	The list node for the packet queue.
+ * @queue_node: The list node for the packet queue.
  * @pending_node: The list node for the set of pending packets.
  * @ops:      Packet operations.
  */
 struct ssh_packet {
-	struct ssh_ptl *ptl;
-	struct kref refcnt;
+  struct ssh_ptl *ptl;
+  struct kref refcnt;
 
-	u8 priority;
+  u8 priority;
 
-	struct {
-		size_t len;
-		u8 *ptr;
-	} data;
+  struct {
+    size_t len;
+    u8 *ptr;
+  } data;
 
-	unsigned long state;
-	ktime_t timestamp;
+  unsigned long state;
+  ktime_t timestamp;
 
-	struct list_head queue_node;
-	struct list_head pending_node;
+  struct list_head queue_node;
+  struct list_head pending_node;
 
-	const struct ssh_packet_ops *ops;
+  const struct ssh_packet_ops *ops;
 };
 
 struct ssh_packet *ssh_packet_get(struct ssh_packet *p);
@@ -525,45 +515,44 @@ void ssh_packet_put(struct ssh_packet *p);
  * callback has been called. During this time, the memory may not be altered
  * in any way.
  */
-static inline void ssh_packet_set_data(struct ssh_packet *p, u8 *ptr, size_t len)
-{
-	p->data.ptr = ptr;
-	p->data.len = len;
+static inline void ssh_packet_set_data(struct ssh_packet *p, u8 *ptr,
+    size_t len) {
+  p->data.ptr = ptr;
+  p->data.len = len;
 }
-
 
 /* -- Request transport layer (rtl). ---------------------------------------- */
 
 enum ssh_request_flags {
-	/* state flags */
-	SSH_REQUEST_SF_LOCKED_BIT,
-	SSH_REQUEST_SF_QUEUED_BIT,
-	SSH_REQUEST_SF_PENDING_BIT,
-	SSH_REQUEST_SF_TRANSMITTING_BIT,
-	SSH_REQUEST_SF_TRANSMITTED_BIT,
-	SSH_REQUEST_SF_RSPRCVD_BIT,
-	SSH_REQUEST_SF_CANCELED_BIT,
-	SSH_REQUEST_SF_COMPLETED_BIT,
+  /* state flags */
+  SSH_REQUEST_SF_LOCKED_BIT,
+  SSH_REQUEST_SF_QUEUED_BIT,
+  SSH_REQUEST_SF_PENDING_BIT,
+  SSH_REQUEST_SF_TRANSMITTING_BIT,
+  SSH_REQUEST_SF_TRANSMITTED_BIT,
+  SSH_REQUEST_SF_RSPRCVD_BIT,
+  SSH_REQUEST_SF_CANCELED_BIT,
+  SSH_REQUEST_SF_COMPLETED_BIT,
 
-	/* type flags */
-	SSH_REQUEST_TY_FLUSH_BIT,
-	SSH_REQUEST_TY_HAS_RESPONSE_BIT,
+  /* type flags */
+  SSH_REQUEST_TY_FLUSH_BIT,
+  SSH_REQUEST_TY_HAS_RESPONSE_BIT,
 
-	/* mask for state flags */
-	SSH_REQUEST_FLAGS_SF_MASK =
-		  BIT(SSH_REQUEST_SF_LOCKED_BIT)
-		| BIT(SSH_REQUEST_SF_QUEUED_BIT)
-		| BIT(SSH_REQUEST_SF_PENDING_BIT)
-		| BIT(SSH_REQUEST_SF_TRANSMITTING_BIT)
-		| BIT(SSH_REQUEST_SF_TRANSMITTED_BIT)
-		| BIT(SSH_REQUEST_SF_RSPRCVD_BIT)
-		| BIT(SSH_REQUEST_SF_CANCELED_BIT)
-		| BIT(SSH_REQUEST_SF_COMPLETED_BIT),
+  /* mask for state flags */
+  SSH_REQUEST_FLAGS_SF_MASK
+    = BIT(SSH_REQUEST_SF_LOCKED_BIT)
+      | BIT(SSH_REQUEST_SF_QUEUED_BIT)
+      | BIT(SSH_REQUEST_SF_PENDING_BIT)
+      | BIT(SSH_REQUEST_SF_TRANSMITTING_BIT)
+      | BIT(SSH_REQUEST_SF_TRANSMITTED_BIT)
+      | BIT(SSH_REQUEST_SF_RSPRCVD_BIT)
+      | BIT(SSH_REQUEST_SF_CANCELED_BIT)
+      | BIT(SSH_REQUEST_SF_COMPLETED_BIT),
 
-	/* mask for type flags */
-	SSH_REQUEST_FLAGS_TY_MASK =
-		  BIT(SSH_REQUEST_TY_FLUSH_BIT)
-		| BIT(SSH_REQUEST_TY_HAS_RESPONSE_BIT),
+  /* mask for type flags */
+  SSH_REQUEST_FLAGS_TY_MASK
+    = BIT(SSH_REQUEST_TY_FLUSH_BIT)
+      | BIT(SSH_REQUEST_TY_HAS_RESPONSE_BIT),
 };
 
 struct ssh_rtl;
@@ -594,10 +583,10 @@ struct ssh_request;
  *            request is not in use by the transport systems any more.
  */
 struct ssh_request_ops {
-	void (*release)(struct ssh_request *rqst);
-	void (*complete)(struct ssh_request *rqst,
-			 const struct ssh_command *cmd,
-			 const struct ssam_span *data, int status);
+  void (*release)(struct ssh_request *rqst);
+  void (*complete)(struct ssh_request *rqst,
+      const struct ssh_command *cmd,
+      const struct ssam_span *data, int status);
 };
 
 /**
@@ -615,13 +604,13 @@ struct ssh_request_ops {
  * @ops:    Request Operations.
  */
 struct ssh_request {
-	struct ssh_packet packet;
-	struct list_head node;
+  struct ssh_packet packet;
+  struct list_head node;
 
-	unsigned long state;
-	ktime_t timestamp;
+  unsigned long state;
+  ktime_t timestamp;
 
-	const struct ssh_request_ops *ops;
+  const struct ssh_request_ops *ops;
 };
 
 /**
@@ -634,9 +623,8 @@ struct ssh_request {
  *
  * Return: Returns the &struct ssh_request wrapping the provided packet.
  */
-static inline struct ssh_request *to_ssh_request(struct ssh_packet *p)
-{
-	return container_of(p, struct ssh_request, packet);
+static inline struct ssh_request *to_ssh_request(struct ssh_packet *p) {
+  return container_of(p, struct ssh_request, packet);
 }
 
 /**
@@ -650,9 +638,8 @@ static inline struct ssh_request *to_ssh_request(struct ssh_packet *p)
  *
  * Return: Returns the request provided as input.
  */
-static inline struct ssh_request *ssh_request_get(struct ssh_request *r)
-{
-	return r ? to_ssh_request(ssh_packet_get(&r->packet)) : NULL;
+static inline struct ssh_request *ssh_request_get(struct ssh_request *r) {
+  return r ? to_ssh_request(ssh_packet_get(&r->packet)) : NULL;
 }
 
 /**
@@ -667,10 +654,10 @@ static inline struct ssh_request *ssh_request_get(struct ssh_request *r)
  *
  * See also ssh_request_get(), ssh_packet_put().
  */
-static inline void ssh_request_put(struct ssh_request *r)
-{
-	if (r)
-		ssh_packet_put(&r->packet);
+static inline void ssh_request_put(struct ssh_request *r) {
+  if (r) {
+    ssh_packet_put(&r->packet);
+  }
 }
 
 /**
@@ -683,9 +670,9 @@ static inline void ssh_request_put(struct ssh_request *r)
  * buffer. Does not copy the actual message data, just sets the buffer pointer
  * and length. Refer to ssh_packet_set_data() for more details.
  */
-static inline void ssh_request_set_data(struct ssh_request *r, u8 *ptr, size_t len)
-{
-	ssh_packet_set_data(&r->packet, ptr, len);
+static inline void ssh_request_set_data(struct ssh_request *r, u8 *ptr,
+    size_t len) {
+  ssh_packet_set_data(&r->packet, ptr, len);
 }
 
 #endif /* _LINUX_SURFACE_AGGREGATOR_SERIAL_HUB_H */

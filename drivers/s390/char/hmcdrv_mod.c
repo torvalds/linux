@@ -31,33 +31,28 @@ module_param_named(cachesize, hmcdrv_mod_cachesize, ulong, S_IRUGO);
 /**
  * hmcdrv_mod_init() - module init function
  */
-static int __init hmcdrv_mod_init(void)
-{
-	int rc = hmcdrv_ftp_probe(); /* perform w/o cache */
-
-	if (rc)
-		return rc;
-
-	rc = hmcdrv_cache_startup(hmcdrv_mod_cachesize);
-
-	if (rc)
-		return rc;
-
-	rc = hmcdrv_dev_init();
-
-	if (rc)
-		hmcdrv_cache_shutdown();
-
-	return rc;
+static int __init hmcdrv_mod_init(void) {
+  int rc = hmcdrv_ftp_probe(); /* perform w/o cache */
+  if (rc) {
+    return rc;
+  }
+  rc = hmcdrv_cache_startup(hmcdrv_mod_cachesize);
+  if (rc) {
+    return rc;
+  }
+  rc = hmcdrv_dev_init();
+  if (rc) {
+    hmcdrv_cache_shutdown();
+  }
+  return rc;
 }
 
 /**
  * hmcdrv_mod_exit() - module exit function
  */
-static void __exit hmcdrv_mod_exit(void)
-{
-	hmcdrv_dev_exit();
-	hmcdrv_cache_shutdown();
+static void __exit hmcdrv_mod_exit(void) {
+  hmcdrv_dev_exit();
+  hmcdrv_cache_shutdown();
 }
 
 module_init(hmcdrv_mod_init);

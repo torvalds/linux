@@ -11,8 +11,9 @@ struct drm_device;
 struct dma_buf;
 
 struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
-					     struct dma_buf *dma_buf);
+    struct dma_buf *dma_buf);
 
-struct dma_buf *i915_gem_prime_export(struct drm_gem_object *gem_obj, int flags);
+struct dma_buf *i915_gem_prime_export(struct drm_gem_object *gem_obj,
+    int flags);
 
 #endif /* __I915_GEM_DMABUF_H__ */

@@ -17,9 +17,17 @@ bool dt_cpu_ftrs_init(void *fdt);
 void dt_cpu_ftrs_scan(void);
 bool dt_cpu_ftrs_in_use(void);
 #else
-static inline bool dt_cpu_ftrs_init(void *fdt) { return false; }
-static inline void dt_cpu_ftrs_scan(void) { }
-static inline bool dt_cpu_ftrs_in_use(void) { return false; }
+static inline bool dt_cpu_ftrs_init(void *fdt) {
+  return false;
+}
+
+static inline void dt_cpu_ftrs_scan(void) {
+}
+
+static inline bool dt_cpu_ftrs_in_use(void) {
+  return false;
+}
+
 #endif
 
 #endif /* __ASM_POWERPC_DT_CPU_FTRS_H */

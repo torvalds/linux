@@ -8,41 +8,42 @@
 #include <subcmd/parse-options.h>
 
 struct opts {
-	/* actions: */
-	bool dump_orc;
-	bool hack_jump_label;
-	bool hack_noinstr;
-	bool hack_skylake;
-	bool ibt;
-	bool mcount;
-	bool noinstr;
-	bool orc;
-	bool retpoline;
-	bool rethunk;
-	bool unret;
-	bool sls;
-	bool stackval;
-	bool static_call;
-	bool uaccess;
-	int prefix;
-	bool cfi;
+  /* actions: */
+  bool dump_orc;
+  bool hack_jump_label;
+  bool hack_noinstr;
+  bool hack_skylake;
+  bool ibt;
+  bool mcount;
+  bool noinstr;
+  bool orc;
+  bool retpoline;
+  bool rethunk;
+  bool unret;
+  bool sls;
+  bool stackval;
+  bool static_call;
+  bool uaccess;
+  int prefix;
+  bool cfi;
 
-	/* options: */
-	bool backtrace;
-	bool backup;
-	bool dryrun;
-	bool link;
-	bool mnop;
-	bool module;
-	bool no_unreachable;
-	bool sec_address;
-	bool stats;
-	bool verbose;
+  /* options: */
+  bool backtrace;
+  bool backup;
+  bool dryrun;
+  bool link;
+  bool mnop;
+  bool module;
+  bool no_unreachable;
+  bool sec_address;
+  bool stats;
+  bool verbose;
 };
 
 extern struct opts opts;
 
-extern int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
+extern int cmd_parse_options(int argc, const char **argv,
+    const char * const usage[]);
 
 extern int objtool_run(int argc, const char **argv);
 

@@ -5,11 +5,11 @@
 
 #include <kunit/test.h>
 
-#define MCTP_DEV_TEST_MTU	68
+#define MCTP_DEV_TEST_MTU 68
 
 struct mctp_test_dev {
-	struct net_device *ndev;
-	struct mctp_dev *mdev;
+  struct net_device *ndev;
+  struct mctp_dev *mdev;
 };
 
 struct mctp_test_dev;

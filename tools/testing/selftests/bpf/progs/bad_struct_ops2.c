@@ -11,4 +11,5 @@ char _license[] SEC("license") = "GPL";
  * BPF object file would fail.
  */
 SEC("struct_ops/foo")
-void foo(void) {}
+void foo(void) {
+}

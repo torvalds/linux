@@ -3,7 +3,7 @@
 #define _NETNS_NFTABLES_H_
 
 struct netns_nftables {
-	u8			gencursor;
+  u8 gencursor;
 };
 
 #endif

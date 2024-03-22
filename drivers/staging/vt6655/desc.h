@@ -61,7 +61,7 @@
 
 /* max transmit or receive buffer size */
 #define CB_MAX_BUF_SIZE     2900U
-					/* NOTE: must be multiple of 4 */
+/* NOTE: must be multiple of 4 */
 #define CB_MAX_TX_BUF_SIZE          CB_MAX_BUF_SIZE
 #define CB_MAX_RX_BUF_SIZE_NORMAL   CB_MAX_BUF_SIZE
 
@@ -73,12 +73,12 @@
 #define CB_MIN_TX_DESC      16
 
 #define CB_MAX_RECEIVED_PACKETS     16
-				/*
-				 * limit our receive routine to indicating
-				 * this many at a time for 2 reasons:
-				 * 1. driver flow control to protocol layer
-				 * 2. limit the time used in ISR routine
-				 */
+/*
+ * limit our receive routine to indicating
+ * this many at a time for 2 reasons:
+ * 1. driver flow control to protocol layer
+ * 2. limit the time used in ISR routine
+ */
 
 #define CB_EXTRA_RD_NUM     32
 #define CB_RD_NUM           32
@@ -154,96 +154,96 @@
  */
 
 struct vnt_rd_info {
-	struct sk_buff *skb;
-	dma_addr_t  skb_dma;
+  struct sk_buff *skb;
+  dma_addr_t skb_dma;
 };
 
 struct vnt_rdes0 {
-	volatile __le16 res_count;
+  volatile __le16 res_count;
 #ifdef __BIG_ENDIAN
-	union {
-		volatile u16 f15_reserved;
-		struct {
-			volatile u8 f8_reserved1;
-			volatile u8 owner:1;
-			volatile u8 f7_reserved:7;
-		} __packed;
-	} __packed;
+  union {
+    volatile u16 f15_reserved;
+    struct {
+      volatile u8 f8_reserved1;
+      volatile u8 owner : 1;
+      volatile u8 f7_reserved : 7;
+    } __packed;
+  } __packed;
 #else
-	u16 f15_reserved:15;
-	u16 owner:1;
+  u16 f15_reserved : 15;
+  u16 owner : 1;
 #endif
 } __packed;
 
 struct vnt_rdes1 {
-	__le16 req_count;
-	u16 reserved;
+  __le16 req_count;
+  u16 reserved;
 } __packed;
 
 /* Rx descriptor*/
 struct vnt_rx_desc {
-	volatile struct vnt_rdes0 rd0;
-	volatile struct vnt_rdes1 rd1;
-	volatile __le32 buff_addr;
-	volatile __le32 next_desc;
-	struct vnt_rx_desc *next __aligned(8);
-	struct vnt_rd_info *rd_info __aligned(8);
+  volatile struct vnt_rdes0 rd0;
+  volatile struct vnt_rdes1 rd1;
+  volatile __le32 buff_addr;
+  volatile __le32 next_desc;
+  struct vnt_rx_desc *next __aligned(8);
+  struct vnt_rd_info *rd_info __aligned(8);
 } __packed;
 
 struct vnt_tdes0 {
-	volatile u8 tsr0;
-	volatile u8 tsr1;
+  volatile u8 tsr0;
+  volatile u8 tsr1;
 #ifdef __BIG_ENDIAN
-	union {
-		volatile u16 f15_txtime;
-		struct {
-			volatile u8 f8_reserved;
-			volatile u8 owner:1;
-			volatile u8 f7_reserved:7;
-		} __packed;
-	} __packed;
+  union {
+    volatile u16 f15_txtime;
+    struct {
+      volatile u8 f8_reserved;
+      volatile u8 owner : 1;
+      volatile u8 f7_reserved : 7;
+    } __packed;
+  } __packed;
 #else
-	volatile u16 f15_txtime:15;
-	volatile u16 owner:1;
+  volatile u16 f15_txtime : 15;
+  volatile u16 owner : 1;
 #endif
 } __packed;
 
 struct vnt_tdes1 {
-	volatile __le16 req_count;
-	volatile u8 tcr;
-	volatile u8 reserved;
+  volatile __le16 req_count;
+  volatile u8 tcr;
+  volatile u8 reserved;
 } __packed;
 
 struct vnt_td_info {
-	void *mic_hdr;
-	struct sk_buff *skb;
-	unsigned char *buf;
-	dma_addr_t buf_dma;
-	u16 req_count;
-	u8 flags;
+  void *mic_hdr;
+  struct sk_buff *skb;
+  unsigned char *buf;
+  dma_addr_t buf_dma;
+  u16 req_count;
+  u8 flags;
 };
 
 /* transmit descriptor */
 struct vnt_tx_desc {
-	volatile struct vnt_tdes0 td0;
-	volatile struct vnt_tdes1 td1;
-	volatile __le32 buff_addr;
-	volatile __le32 next_desc;
-	struct vnt_tx_desc *next __aligned(8);
-	struct vnt_td_info *td_info __aligned(8);
+  volatile struct vnt_tdes0 td0;
+  volatile struct vnt_tdes1 td1;
+  volatile __le32 buff_addr;
+  volatile __le32 next_desc;
+  struct vnt_tx_desc *next __aligned(8);
+  struct vnt_td_info *td_info __aligned(8);
 } __packed;
 
 /* Length, Service, and Signal fields of Phy for Tx */
 struct vnt_phy_field {
-	u8 signal;
-	u8 service;
-	__le16 len;
+  u8 signal;
+  u8 service;
+  __le16 len;
 } __packed;
 
 union vnt_phy_field_swap {
-	struct vnt_phy_field field_read;
-	u16 swap[2];
-	u32 field_write;
+  struct vnt_phy_field field_read;
+  u16 swap[2];
+  u32 field_write;
 };
 
 #endif /* __DESC_H__ */

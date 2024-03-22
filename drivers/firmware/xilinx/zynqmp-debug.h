@@ -17,8 +17,12 @@
 void zynqmp_pm_api_debugfs_init(void);
 void zynqmp_pm_api_debugfs_exit(void);
 #else
-static inline void zynqmp_pm_api_debugfs_init(void) { }
-static inline void zynqmp_pm_api_debugfs_exit(void) { }
+static inline void zynqmp_pm_api_debugfs_init(void) {
+}
+
+static inline void zynqmp_pm_api_debugfs_exit(void) {
+}
+
 #endif
 
 #endif /* __FIRMWARE_ZYNQMP_DEBUG_H__ */

@@ -5,4 +5,3 @@
 #define KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE 40
 
 #endif /* _ASM_ARM64_KVM_TYPES_H */
-

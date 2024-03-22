@@ -15,7 +15,7 @@ struct rmi_device;
  * The interrupt source count in the function descriptor can represent up to
  * 6 interrupt sources in the normal manner.
  */
-#define RMI_FN_MAX_IRQS	6
+#define RMI_FN_MAX_IRQS 6
 
 /**
  * struct rmi_function - represents the implementation of an RMI4
@@ -34,18 +34,18 @@ struct rmi_device;
  * @node: entry in device's list of functions
  */
 struct rmi_function {
-	struct rmi_function_descriptor fd;
-	struct rmi_device *rmi_dev;
-	struct device dev;
-	struct list_head node;
+  struct rmi_function_descriptor fd;
+  struct rmi_device *rmi_dev;
+  struct device dev;
+  struct list_head node;
 
-	unsigned int num_of_irqs;
-	int irq[RMI_FN_MAX_IRQS];
-	unsigned int irq_pos;
-	unsigned long irq_mask[];
+  unsigned int num_of_irqs;
+  int irq[RMI_FN_MAX_IRQS];
+  unsigned int irq_pos;
+  unsigned long irq_mask[];
 };
 
-#define to_rmi_function(d)	container_of(d, struct rmi_function, dev)
+#define to_rmi_function(d)  container_of(d, struct rmi_function, dev)
 
 bool rmi_is_function_device(struct device *dev);
 
@@ -73,38 +73,37 @@ void rmi_unregister_function(struct rmi_function *);
  * All callbacks are expected to return 0 on success, error code on failure.
  */
 struct rmi_function_handler {
-	struct device_driver driver;
+  struct device_driver driver;
 
-	u8 func;
+  u8 func;
 
-	int (*probe)(struct rmi_function *fn);
-	void (*remove)(struct rmi_function *fn);
-	int (*config)(struct rmi_function *fn);
-	int (*reset)(struct rmi_function *fn);
-	irqreturn_t (*attention)(int irq, void *ctx);
-	int (*suspend)(struct rmi_function *fn);
-	int (*resume)(struct rmi_function *fn);
+  int (*probe)(struct rmi_function *fn);
+  void (*remove)(struct rmi_function *fn);
+  int (*config)(struct rmi_function *fn);
+  int (*reset)(struct rmi_function *fn);
+  irqreturn_t (*attention)(int irq, void *ctx);
+  int (*suspend)(struct rmi_function *fn);
+  int (*resume)(struct rmi_function *fn);
 };
 
 #define to_rmi_function_handler(d) \
-		container_of(d, struct rmi_function_handler, driver)
+  container_of(d, struct rmi_function_handler, driver)
 
 int __must_check __rmi_register_function_handler(struct rmi_function_handler *,
-						 struct module *, const char *);
+    struct module *, const char *);
 #define rmi_register_function_handler(handler) \
-	__rmi_register_function_handler(handler, THIS_MODULE, KBUILD_MODNAME)
+  __rmi_register_function_handler(handler, THIS_MODULE, KBUILD_MODNAME)
 
 void rmi_unregister_function_handler(struct rmi_function_handler *);
 
 #define to_rmi_driver(d) \
-	container_of(d, struct rmi_driver, driver)
+  container_of(d, struct rmi_driver, driver)
 
 #define to_rmi_device(d) container_of(d, struct rmi_device, dev)
 
-static inline struct rmi_device_platform_data *
-rmi_get_platform_data(struct rmi_device *d)
-{
-	return &d->xport->pdata;
+static inline struct rmi_device_platform_data *rmi_get_platform_data(
+    struct rmi_device *d) {
+  return &d->xport->pdata;
 }
 
 bool rmi_is_physical_device(struct device *dev);
@@ -116,9 +115,8 @@ bool rmi_is_physical_device(struct device *dev);
  * Calls for a reset of each function implemented by a specific device.
  * Returns 0 on success or a negative error code.
  */
-static inline int rmi_reset(struct rmi_device *d)
-{
-	return d->driver->reset_handler(d);
+static inline int rmi_reset(struct rmi_device *d) {
+  return d->driver->reset_handler(d);
 }
 
 /**
@@ -131,9 +129,8 @@ static inline int rmi_reset(struct rmi_device *d)
  * into memory pointed by @buf. It returns 0 on success or a negative
  * error code.
  */
-static inline int rmi_read(struct rmi_device *d, u16 addr, u8 *buf)
-{
-	return d->xport->ops->read_block(d->xport, addr, buf, 1);
+static inline int rmi_read(struct rmi_device *d, u16 addr, u8 *buf) {
+  return d->xport->ops->read_block(d->xport, addr, buf, 1);
 }
 
 /**
@@ -148,9 +145,8 @@ static inline int rmi_read(struct rmi_device *d, u16 addr, u8 *buf)
  * error code.
  */
 static inline int rmi_read_block(struct rmi_device *d, u16 addr,
-				 void *buf, size_t len)
-{
-	return d->xport->ops->read_block(d->xport, addr, buf, len);
+    void *buf, size_t len) {
+  return d->xport->ops->read_block(d->xport, addr, buf, len);
 }
 
 /**
@@ -162,9 +158,8 @@ static inline int rmi_read_block(struct rmi_device *d, u16 addr,
  * Writes a single byte using the underlying transport protocol. It
  * returns zero on success or a negative error code.
  */
-static inline int rmi_write(struct rmi_device *d, u16 addr, u8 data)
-{
-	return d->xport->ops->write_block(d->xport, addr, &data, 1);
+static inline int rmi_write(struct rmi_device *d, u16 addr, u8 data) {
+  return d->xport->ops->write_block(d->xport, addr, &data, 1);
 }
 
 /**
@@ -178,9 +173,8 @@ static inline int rmi_write(struct rmi_device *d, u16 addr, u8 data)
  * protocol.  It returns the amount of bytes written or a negative error code.
  */
 static inline int rmi_write_block(struct rmi_device *d, u16 addr,
-				  const void *buf, size_t len)
-{
-	return d->xport->ops->write_block(d->xport, addr, buf, len);
+    const void *buf, size_t len) {
+  return d->xport->ops->write_block(d->xport, addr, buf, len);
 }
 
 int rmi_for_each_dev(void *data, int (*func)(struct device *dev, void *data));
@@ -188,12 +182,12 @@ int rmi_for_each_dev(void *data, int (*func)(struct device *dev, void *data));
 extern const struct bus_type rmi_bus_type;
 
 int rmi_of_property_read_u32(struct device *dev, u32 *result,
-				const char *prop, bool optional);
+    const char *prop, bool optional);
 
-#define RMI_DEBUG_CORE			BIT(0)
-#define RMI_DEBUG_XPORT			BIT(1)
-#define RMI_DEBUG_FN			BIT(2)
-#define RMI_DEBUG_2D_SENSOR		BIT(3)
+#define RMI_DEBUG_CORE      BIT(0)
+#define RMI_DEBUG_XPORT     BIT(1)
+#define RMI_DEBUG_FN      BIT(2)
+#define RMI_DEBUG_2D_SENSOR   BIT(3)
 
 void rmi_dbg(int flags, struct device *dev, const char *fmt, ...);
 #endif

@@ -12,47 +12,44 @@
 #include <lantiq_soc.h>
 
 /* Bias and regulator Setup Register */
-#define DCDC_BIAS_VREG0	0xa
+#define DCDC_BIAS_VREG0 0xa
 /* Bias and regulator Setup Register */
-#define DCDC_BIAS_VREG1	0xb
+#define DCDC_BIAS_VREG1 0xb
 
-#define dcdc_w8(x, y)	ltq_w8((x), dcdc_membase + (y))
-#define dcdc_r8(x)	ltq_r8(dcdc_membase + (x))
+#define dcdc_w8(x, y) ltq_w8((x), dcdc_membase + (y))
+#define dcdc_r8(x)  ltq_r8(dcdc_membase + (x))
 
 static void __iomem *dcdc_membase;
 
-static int dcdc_probe(struct platform_device *pdev)
-{
-	dcdc_membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(dcdc_membase))
-		return PTR_ERR(dcdc_membase);
-
-	dev_info(&pdev->dev, "Core Voltage : %d mV\n",
-		dcdc_r8(DCDC_BIAS_VREG1) * 8);
-
-	return 0;
+static int dcdc_probe(struct platform_device *pdev) {
+  dcdc_membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+  if (IS_ERR(dcdc_membase)) {
+    return PTR_ERR(dcdc_membase);
+  }
+  dev_info(&pdev->dev, "Core Voltage : %d mV\n",
+      dcdc_r8(DCDC_BIAS_VREG1) * 8);
+  return 0;
 }
 
 static const struct of_device_id dcdc_match[] = {
-	{ .compatible = "lantiq,dcdc-xrx200" },
-	{},
+  { .compatible = "lantiq,dcdc-xrx200" },
+  {},
 };
 
 static struct platform_driver dcdc_driver = {
-	.probe = dcdc_probe,
-	.driver = {
-		.name = "dcdc-xrx200",
-		.of_match_table = dcdc_match,
-	},
+  .probe = dcdc_probe,
+  .driver = {
+    .name = "dcdc-xrx200",
+    .of_match_table = dcdc_match,
+  },
 };
 
-int __init dcdc_init(void)
-{
-	int ret = platform_driver_register(&dcdc_driver);
-
-	if (ret)
-		pr_info("dcdc: Error registering platform driver\n");
-	return ret;
+int __init dcdc_init(void) {
+  int ret = platform_driver_register(&dcdc_driver);
+  if (ret) {
+    pr_info("dcdc: Error registering platform driver\n");
+  }
+  return ret;
 }
 
 arch_initcall(dcdc_init);

@@ -16,9 +16,9 @@
 #include <asm/mcs_spinlock.h>
 
 struct mcs_spinlock {
-	struct mcs_spinlock *next;
-	int locked; /* 1 if lock acquired */
-	int count;  /* nesting count, see qspinlock.c */
+  struct mcs_spinlock *next;
+  int locked; /* 1 if lock acquired */
+  int count;  /* nesting count, see qspinlock.c */
 };
 
 #ifndef arch_mcs_spin_lock_contended
@@ -29,10 +29,10 @@ struct mcs_spinlock {
  * ARM64 would like to do spin-waiting instead of purely
  * spinning, and smp_cond_load_acquire() provides that behavior.
  */
-#define arch_mcs_spin_lock_contended(l)					\
-do {									\
-	smp_cond_load_acquire(l, VAL);					\
-} while (0)
+#define arch_mcs_spin_lock_contended(l)         \
+  do {                  \
+    smp_cond_load_acquire(l, VAL);          \
+  } while (0)
 #endif
 
 #ifndef arch_mcs_spin_unlock_contended
@@ -41,8 +41,8 @@ do {									\
  * operations in the critical section has been completed before
  * unlocking.
  */
-#define arch_mcs_spin_unlock_contended(l)				\
-	smp_store_release((l), 1)
+#define arch_mcs_spin_unlock_contended(l)       \
+  smp_store_release((l), 1)
 #endif
 
 /*
@@ -62,36 +62,32 @@ do {									\
  * in mcs_spin_unlock().
  */
 static inline
-void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-{
-	struct mcs_spinlock *prev;
-
-	/* Init node */
-	node->locked = 0;
-	node->next   = NULL;
-
-	/*
-	 * We rely on the full barrier with global transitivity implied by the
-	 * below xchg() to order the initialization stores above against any
-	 * observation of @node. And to provide the ACQUIRE ordering associated
-	 * with a LOCK primitive.
-	 */
-	prev = xchg(lock, node);
-	if (likely(prev == NULL)) {
-		/*
-		 * Lock acquired, don't need to set node->locked to 1. Threads
-		 * only spin on its own node->locked value for lock acquisition.
-		 * However, since this thread can immediately acquire the lock
-		 * and does not proceed to spin on its own node->locked, this
-		 * value won't be used. If a debug mode is needed to
-		 * audit lock status, then set node->locked value here.
-		 */
-		return;
-	}
-	WRITE_ONCE(prev->next, node);
-
-	/* Wait until the lock holder passes the lock down. */
-	arch_mcs_spin_lock_contended(&node->locked);
+void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node) {
+  struct mcs_spinlock *prev;
+  /* Init node */
+  node->locked = 0;
+  node->next = NULL;
+  /*
+   * We rely on the full barrier with global transitivity implied by the
+   * below xchg() to order the initialization stores above against any
+   * observation of @node. And to provide the ACQUIRE ordering associated
+   * with a LOCK primitive.
+   */
+  prev = xchg(lock, node);
+  if (likely(prev == NULL)) {
+    /*
+     * Lock acquired, don't need to set node->locked to 1. Threads
+     * only spin on its own node->locked value for lock acquisition.
+     * However, since this thread can immediately acquire the lock
+     * and does not proceed to spin on its own node->locked, this
+     * value won't be used. If a debug mode is needed to
+     * audit lock status, then set node->locked value here.
+     */
+    return;
+  }
+  WRITE_ONCE(prev->next, node);
+  /* Wait until the lock holder passes the lock down. */
+  arch_mcs_spin_lock_contended(&node->locked);
 }
 
 /*
@@ -99,23 +95,22 @@ void mcs_spin_lock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
  * was used to acquire the lock.
  */
 static inline
-void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node)
-{
-	struct mcs_spinlock *next = READ_ONCE(node->next);
-
-	if (likely(!next)) {
-		/*
-		 * Release the lock by setting it to NULL
-		 */
-		if (likely(cmpxchg_release(lock, node, NULL) == node))
-			return;
-		/* Wait until the next pointer is set */
-		while (!(next = READ_ONCE(node->next)))
-			cpu_relax();
-	}
-
-	/* Pass lock to next waiter. */
-	arch_mcs_spin_unlock_contended(&next->locked);
+void mcs_spin_unlock(struct mcs_spinlock **lock, struct mcs_spinlock *node) {
+  struct mcs_spinlock *next = READ_ONCE(node->next);
+  if (likely(!next)) {
+    /*
+     * Release the lock by setting it to NULL
+     */
+    if (likely(cmpxchg_release(lock, node, NULL) == node)) {
+      return;
+    }
+    /* Wait until the next pointer is set */
+    while (!(next = READ_ONCE(node->next))) {
+      cpu_relax();
+    }
+  }
+  /* Pass lock to next waiter. */
+  arch_mcs_spin_unlock_contended(&next->locked);
 }
 
 #endif /* __LINUX_MCS_SPINLOCK_H */

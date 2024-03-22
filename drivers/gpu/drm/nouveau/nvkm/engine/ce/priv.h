@@ -4,7 +4,7 @@
 #include <engine/ce.h>
 
 int r535_ce_new(const struct nvkm_engine_func *, struct nvkm_device *,
-		enum nvkm_subdev_type, int, struct nvkm_engine **);
+    enum nvkm_subdev_type, int, struct nvkm_engine **);
 
 void gt215_ce_intr(struct nvkm_falcon *, struct nvkm_chan *);
 void gk104_ce_intr(struct nvkm_engine *);

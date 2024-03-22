@@ -8,22 +8,21 @@
 
 #ifdef CONFIG_NL80211_TESTMODE
 
-void ath11k_tm_wmi_event(struct ath11k_base *ab, u32 cmd_id, struct sk_buff *skb);
+void ath11k_tm_wmi_event(struct ath11k_base *ab, u32 cmd_id,
+    struct sk_buff *skb);
 int ath11k_tm_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		  void *data, int len);
+    void *data, int len);
 
 #else
 
 static inline void ath11k_tm_wmi_event(struct ath11k_base *ab, u32 cmd_id,
-				       struct sk_buff *skb)
-{
+    struct sk_buff *skb) {
 }
 
 static inline int ath11k_tm_cmd(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				void *data, int len)
-{
-	return 0;
+    struct ieee80211_vif *vif,
+    void *data, int len) {
+  return 0;
 }
 
 #endif

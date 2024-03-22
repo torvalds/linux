@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_class_cl2080_notification_h__
 #define __src_common_sdk_nvidia_inc_class_cl2080_notification_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES.
+ *All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -31,7 +33,8 @@
 #define NV2080_NOTIFIERS_DP_IRQ                                    (7)
 
 #define NV2080_ENGINE_TYPE_GRAPHICS                   (0x00000001)
-#define NV2080_ENGINE_TYPE_GR0                        NV2080_ENGINE_TYPE_GRAPHICS
+#define NV2080_ENGINE_TYPE_GR0                        \
+  NV2080_ENGINE_TYPE_GRAPHICS
 
 #define NV2080_ENGINE_TYPE_COPY0                      (0x00000009)
 
@@ -39,7 +42,11 @@
 #define NV2080_ENGINE_TYPE_NVDEC0                     NV2080_ENGINE_TYPE_BSP
 
 #define NV2080_ENGINE_TYPE_MSENC                      (0x0000001b)
-#define NV2080_ENGINE_TYPE_NVENC0                      NV2080_ENGINE_TYPE_MSENC  /* Mutually exclusive alias */
+#define NV2080_ENGINE_TYPE_NVENC0                      NV2080_ENGINE_TYPE_MSENC  /*
+                                                                                  * Mutually
+                                                                                  * exclusive
+                                                                                  * alias
+                                                                                  * */
 
 #define NV2080_ENGINE_TYPE_SW                         (0x00000022)
 
@@ -51,12 +58,12 @@
 #define NV2080_ENGINE_TYPE_OFA                        (0x00000033)
 
 typedef struct {
-    NvU32 plugDisplayMask;
-    NvU32 unplugDisplayMask;
+  NvU32 plugDisplayMask;
+  NvU32 unplugDisplayMask;
 } Nv2080HotplugNotification;
 
 typedef struct Nv2080DpIrqNotificationRec {
-    NvU32 displayId;
+  NvU32 displayId;
 } Nv2080DpIrqNotification;
 
 #endif

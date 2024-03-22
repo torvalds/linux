@@ -7,6 +7,6 @@
 #define __ASM_ARC_EXEC_H
 
 /* Align to 16b */
-#define arch_align_stack(p) ((unsigned long)(p) & ~0xf)
+#define arch_align_stack(p) ((unsigned long) (p) & ~0xf)
 
 #endif

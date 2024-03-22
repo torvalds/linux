@@ -12,25 +12,24 @@
 
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
-#include <linux/nilfs2_api.h>		/* nilfs_cpstat */
-#include <linux/nilfs2_ondisk.h>	/* nilfs_inode, nilfs_checkpoint */
-
+#include <linux/nilfs2_api.h>   /* nilfs_cpstat */
+#include <linux/nilfs2_ondisk.h>  /* nilfs_inode, nilfs_checkpoint */
 
 int nilfs_cpfile_read_checkpoint(struct inode *cpfile, __u64 cno,
-				 struct nilfs_root *root, struct inode *ifile);
+    struct nilfs_root *root, struct inode *ifile);
 int nilfs_cpfile_create_checkpoint(struct inode *cpfile, __u64 cno);
 int nilfs_cpfile_finalize_checkpoint(struct inode *cpfile, __u64 cno,
-				     struct nilfs_root *root, __u64 blkinc,
-				     time64_t ctime, bool minor);
+    struct nilfs_root *root, __u64 blkinc,
+    time64_t ctime, bool minor);
 int nilfs_cpfile_delete_checkpoints(struct inode *, __u64, __u64);
 int nilfs_cpfile_delete_checkpoint(struct inode *, __u64);
 int nilfs_cpfile_change_cpmode(struct inode *, __u64, int);
 int nilfs_cpfile_is_snapshot(struct inode *, __u64);
 int nilfs_cpfile_get_stat(struct inode *, struct nilfs_cpstat *);
 ssize_t nilfs_cpfile_get_cpinfo(struct inode *, __u64 *, int, void *,
-				unsigned int, size_t);
+    unsigned int, size_t);
 
 int nilfs_cpfile_read(struct super_block *sb, size_t cpsize,
-		      struct nilfs_inode *raw_inode, struct inode **inodep);
+    struct nilfs_inode *raw_inode, struct inode **inodep);
 
-#endif	/* _NILFS_CPFILE_H */
+#endif  /* _NILFS_CPFILE_H */

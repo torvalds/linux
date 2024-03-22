@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
- *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
- *
- ******************************************************************************/
+*
+* Copyright(c) 2013 Realtek Corporation. All rights reserved.
+*
+******************************************************************************/
 #ifndef __MP_PRECOMP_H__
 #define __MP_PRECOMP_H__
 
 #include <drv_types.h>
 #include <hal_data.h>
 
-#define BT_TMP_BUF_SIZE	100
+#define BT_TMP_BUF_SIZE 100
 
 #ifdef bEnable
 #undef bEnable

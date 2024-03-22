@@ -5,7 +5,6 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */
 
-
 #ifndef _SPARC_TIMER_H
 #define _SPARC_TIMER_H
 
@@ -28,9 +27,8 @@
  *
  * To compensate for this add one to the value.
  */
-static inline unsigned int timer_value(unsigned int value)
-{
-	return (value + 1) << TIMER_VALUE_SHIFT;
+static inline unsigned int timer_value(unsigned int value) {
+  return (value + 1) << TIMER_VALUE_SHIFT;
 }
 
 extern volatile u32 __iomem *master_l10_counter;

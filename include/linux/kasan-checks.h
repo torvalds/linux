@@ -19,14 +19,16 @@
 bool __kasan_check_read(const volatile void *p, unsigned int size);
 bool __kasan_check_write(const volatile void *p, unsigned int size);
 #else
-static inline bool __kasan_check_read(const volatile void *p, unsigned int size)
-{
-	return true;
+static inline bool __kasan_check_read(const volatile void *p,
+    unsigned int size) {
+  return true;
 }
-static inline bool __kasan_check_write(const volatile void *p, unsigned int size)
-{
-	return true;
+
+static inline bool __kasan_check_write(const volatile void *p,
+    unsigned int size) {
+  return true;
 }
+
 #endif
 
 /*
@@ -37,14 +39,15 @@ static inline bool __kasan_check_write(const volatile void *p, unsigned int size
 #define kasan_check_read __kasan_check_read
 #define kasan_check_write __kasan_check_write
 #else
-static inline bool kasan_check_read(const volatile void *p, unsigned int size)
-{
-	return true;
+static inline bool kasan_check_read(const volatile void *p, unsigned int size) {
+  return true;
 }
-static inline bool kasan_check_write(const volatile void *p, unsigned int size)
-{
-	return true;
+
+static inline bool kasan_check_write(const volatile void *p,
+    unsigned int size) {
+  return true;
 }
+
 #endif
 
 #endif

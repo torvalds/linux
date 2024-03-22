@@ -24,22 +24,21 @@
  * Setup the architecture
  *
  */
-static void __init asp834x_setup_arch(void)
-{
-	mpc83xx_setup_arch();
-	mpc834x_usb_cfg();
+static void __init asp834x_setup_arch(void) {
+  mpc83xx_setup_arch();
+  mpc834x_usb_cfg();
 }
 
 machine_device_initcall(asp834x, mpc83xx_declare_of_platform_devices);
 
 define_machine(asp834x) {
-	.name			= "ASP8347E",
-	.compatible		= "analogue-and-micro,asp8347e",
-	.setup_arch		= asp834x_setup_arch,
-	.discover_phbs		= mpc83xx_setup_pci,
-	.init_IRQ		= mpc83xx_ipic_init_IRQ,
-	.get_irq		= ipic_get_irq,
-	.restart		= mpc83xx_restart,
-	.time_init		= mpc83xx_time_init,
-	.progress		= udbg_progress,
+  .name = "ASP8347E",
+  .compatible = "analogue-and-micro,asp8347e",
+  .setup_arch = asp834x_setup_arch,
+  .discover_phbs = mpc83xx_setup_pci,
+  .init_IRQ = mpc83xx_ipic_init_IRQ,
+  .get_irq = ipic_get_irq,
+  .restart = mpc83xx_restart,
+  .time_init = mpc83xx_time_init,
+  .progress = udbg_progress,
 };

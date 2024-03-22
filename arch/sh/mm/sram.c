@@ -21,15 +21,15 @@
  */
 struct gen_pool *sram_pool;
 
-static int __init sram_pool_init(void)
-{
-	/*
-	 * This is a global pool, we don't care about node locality.
-	 */
-	sram_pool = gen_pool_create(1, -1);
-	if (unlikely(!sram_pool))
-		return -ENOMEM;
-
-	return 0;
+static int __init sram_pool_init(void) {
+  /*
+   * This is a global pool, we don't care about node locality.
+   */
+  sram_pool = gen_pool_create(1, -1);
+  if (unlikely(!sram_pool)) {
+    return -ENOMEM;
+  }
+  return 0;
 }
+
 core_initcall(sram_pool_init);

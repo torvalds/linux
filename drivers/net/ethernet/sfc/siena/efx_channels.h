@@ -26,7 +26,7 @@ void efx_siena_start_eventq(struct efx_channel *channel);
 void efx_siena_stop_eventq(struct efx_channel *channel);
 
 int efx_siena_realloc_channels(struct efx_nic *efx, u32 rxq_entries,
-			       u32 txq_entries);
+    u32 txq_entries);
 void efx_siena_set_channel_names(struct efx_nic *efx);
 int efx_siena_init_channels(struct efx_nic *efx);
 int efx_siena_probe_channels(struct efx_nic *efx);

@@ -16,13 +16,13 @@
 #define WAVE521C_DUAL_CODE              0x521d  // wave521 dual core
 #define WAVE521E1_CODE                  0x5211
 
-#define PRODUCT_CODE_W_SERIES(x) ({					\
-		int c = x;						\
-		((c) == WAVE517_CODE ||	(c) == WAVE537_CODE ||		\
-		 (c) == WAVE511_CODE || (c) == WAVE521_CODE ||		\
-		 (c) == WAVE521E1_CODE || (c) == WAVE521C_CODE ||	\
-		 (c) == WAVE521C_DUAL_CODE);				\
-})
+#define PRODUCT_CODE_W_SERIES(x) ({         \
+    int c = x;            \
+    ((c) == WAVE517_CODE || (c) == WAVE537_CODE       \
+    || (c) == WAVE511_CODE || (c) == WAVE521_CODE       \
+    || (c) == WAVE521E1_CODE || (c) == WAVE521C_CODE    \
+    || (c) == WAVE521C_DUAL_CODE);        \
+  })
 
 #define WAVE517_WORKBUF_SIZE            (2 * 1024 * 1024)
 #define WAVE521ENC_WORKBUF_SIZE         (128 * 1024)      //HEVC 128K, AVC 40K
@@ -44,9 +44,9 @@
 #define USE_SRC_PRI_AXI         1
 #define DEFAULT_SRC_AXI         USE_SRC_PRP_AXI
 
-/************************************************************************/
-/* VPU COMMON MEMORY                                                    */
-/************************************************************************/
+/* **********************************************************************
+ * VPU COMMON MEMORY
+ ************************************************************************/
 #define VLC_BUF_NUM                     (2)
 
 #define COMMAND_QUEUE_DEPTH             (2)
@@ -59,7 +59,8 @@
 #define WAVE5_TEMPBUF_OFFSET            WAVE5_MAX_CODE_BUF_SIZE
 #define WAVE5_TEMPBUF_SIZE              (1024 * 1024)
 
-#define SIZE_COMMON                 (WAVE5_MAX_CODE_BUF_SIZE + WAVE5_TEMPBUF_SIZE)
+#define SIZE_COMMON                 (WAVE5_MAX_CODE_BUF_SIZE \
+  + WAVE5_TEMPBUF_SIZE)
 
 //=====4. VPU REPORT MEMORY  ======================//
 

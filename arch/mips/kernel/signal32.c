@@ -31,49 +31,53 @@ typedef void (*vfptr_t)(void);
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 
-asmlinkage int sys32_sigsuspend(compat_sigset_t __user *uset)
-{
-	return compat_sys_rt_sigsuspend(uset, sizeof(compat_sigset_t));
+asmlinkage int sys32_sigsuspend(compat_sigset_t __user *uset) {
+  return compat_sys_rt_sigsuspend(uset, sizeof(compat_sigset_t));
 }
 
-SYSCALL_DEFINE3(32_sigaction, long, sig, const struct compat_sigaction __user *, act,
-	struct compat_sigaction __user *, oact)
+SYSCALL_DEFINE3(32_sigaction, long, sig, const struct compat_sigaction __user *,
+    act,
+    struct compat_sigaction __user *, oact)
 {
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-	int err = 0;
+  struct k_sigaction new_ka, old_ka;
+  int ret;
+  int err = 0;
 
-	if (act) {
-		old_sigset_t mask;
-		s32 handler;
+  if (act) {
+    old_sigset_t mask;
+    s32 handler;
 
-		if (!access_ok(act, sizeof(*act)))
-			return -EFAULT;
-		err |= __get_user(handler, &act->sa_handler);
-		new_ka.sa.sa_handler = (void __user *)(s64)handler;
-		err |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		err |= __get_user(mask, &act->sa_mask.sig[0]);
-		if (err)
-			return -EFAULT;
+    if (!access_ok(act, sizeof(*act))) {
+      return -EFAULT;
+    }
+    err |= __get_user(handler, &act->sa_handler);
+    new_ka.sa.sa_handler = (void __user *) (s64) handler;
+    err |= __get_user(new_ka.sa.sa_flags, &act->sa_flags);
+    err |= __get_user(mask, &act->sa_mask.sig[0]);
+    if (err) {
+      return -EFAULT;
+    }
 
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
+    siginitset(&new_ka.sa.sa_mask, mask);
+  }
 
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
+  ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
-	if (!ret && oact) {
-		if (!access_ok(oact, sizeof(*oact)))
-			return -EFAULT;
-		err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		err |= __put_user((u32)(u64)old_ka.sa.sa_handler,
-				  &oact->sa_handler);
-		err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
-		err |= __put_user(0, &oact->sa_mask.sig[1]);
-		err |= __put_user(0, &oact->sa_mask.sig[2]);
-		err |= __put_user(0, &oact->sa_mask.sig[3]);
-		if (err)
-			return -EFAULT;
-	}
+  if (!ret && oact) {
+    if (!access_ok(oact, sizeof(*oact))) {
+      return -EFAULT;
+    }
+    err |= __put_user(old_ka.sa.sa_flags, &oact->sa_flags);
+    err |= __put_user((u32) (u64) old_ka.sa.sa_handler,
+        &oact->sa_handler);
+    err |= __put_user(old_ka.sa.sa_mask.sig[0], oact->sa_mask.sig);
+    err |= __put_user(0, &oact->sa_mask.sig[1]);
+    err |= __put_user(0, &oact->sa_mask.sig[2]);
+    err |= __put_user(0, &oact->sa_mask.sig[3]);
+    if (err) {
+      return -EFAULT;
+    }
+  }
 
-	return ret;
+  return ret;
 }

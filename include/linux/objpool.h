@@ -47,11 +47,11 @@
  * always moving forward in the loop of [0, 2^32).
  */
 struct objpool_slot {
-	uint32_t            head;
-	uint32_t            tail;
-	uint32_t            last;
-	uint32_t            mask;
-	void               *entries[];
+  uint32_t head;
+  uint32_t tail;
+  uint32_t last;
+  uint32_t mask;
+  void *entries[];
 } __packed;
 
 struct objpool_head;
@@ -79,20 +79,20 @@ typedef int (*objpool_fini_cb)(struct objpool_head *head, void *context);
  * @context:    caller-provided context
  */
 struct objpool_head {
-	int                     obj_size;
-	int                     nr_objs;
-	int                     nr_cpus;
-	int                     capacity;
-	gfp_t                   gfp;
-	refcount_t              ref;
-	unsigned long           flags;
-	struct objpool_slot   **cpu_slots;
-	objpool_fini_cb         release;
-	void                   *context;
+  int obj_size;
+  int nr_objs;
+  int nr_cpus;
+  int capacity;
+  gfp_t gfp;
+  refcount_t ref;
+  unsigned long flags;
+  struct objpool_slot **cpu_slots;
+  objpool_fini_cb release;
+  void *context;
 };
 
-#define OBJPOOL_NR_OBJECT_MAX	(1UL << 24) /* maximum numbers of total objects */
-#define OBJPOOL_OBJECT_SIZE_MAX	(1UL << 16) /* maximum size of an object */
+#define OBJPOOL_NR_OBJECT_MAX (1UL << 24) /* maximum numbers of total objects */
+#define OBJPOOL_OBJECT_SIZE_MAX (1UL << 16) /* maximum size of an object */
 
 /**
  * objpool_init() - initialize objpool and pre-allocated objects
@@ -115,8 +115,8 @@ struct objpool_head {
  * reclamation).
  */
 int objpool_init(struct objpool_head *pool, int nr_objs, int object_size,
-		 gfp_t gfp, void *context, objpool_init_obj_cb objinit,
-		 objpool_fini_cb release);
+    gfp_t gfp, void *context, objpool_init_obj_cb objinit,
+    objpool_fini_cb release);
 
 /**
  * objpool_pop() - allocate an object from objpool

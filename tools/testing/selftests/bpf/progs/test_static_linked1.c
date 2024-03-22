@@ -12,18 +12,15 @@ int var1 = -1;
 const volatile int rovar1;
 
 /* same "subprog" name in both files */
-static __noinline int subprog(int x)
-{
-	/* but different formula */
-	return x * 2;
+static __noinline int subprog(int x) {
+  /* but different formula */
+  return x * 2;
 }
 
 SEC("raw_tp/sys_enter")
-int handler1(const void *ctx)
-{
-	var1 = subprog(rovar1) + static_var1 + static_var2;
-
-	return 0;
+int handler1(const void *ctx) {
+  var1 = subprog(rovar1) + static_var1 + static_var2;
+  return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

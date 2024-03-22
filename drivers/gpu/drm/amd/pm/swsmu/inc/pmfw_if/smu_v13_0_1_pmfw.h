@@ -30,7 +30,7 @@
 
 #define ENABLE_DEBUG_FEATURES
 
-// Firmware features 
+// Firmware features
 // Feature Control Defines
 #define FEATURE_CCLK_DPM_BIT                 0
 #define FEATURE_FAN_CONTROLLER_BIT           1
@@ -72,7 +72,8 @@
 #define FEATURE_CPUOFF_BIT                  37
 #define FEATURE_STAPM_BIT                   38
 #define FEATURE_S0I3_BIT                    39
-#define FEATURE_DF_LIGHT_CSTATE             40   // shift the order or DFCstate annd DF light Cstate
+#define FEATURE_DF_LIGHT_CSTATE             40   // shift the order or DFCstate
+                                                 // annd DF light Cstate
 #define FEATURE_PERF_LIMIT_BIT              41
 #define FEATURE_CORE_DLDO_BIT               42
 #define FEATURE_RSMU_LOW_POWER_BIT          43
@@ -92,7 +93,7 @@
 #define FEATURE_ZSTATES_ECO_BIT             57
 #define FEATURE_CC6_BIT                     58
 #define FEATURE_DS_UMCCLK_BIT               59
-#define FEATURE_DS_HSPCLK_BIT               60 
+#define FEATURE_DS_HSPCLK_BIT               60
 #define NUM_FEATURES                        61
 
 typedef struct {
@@ -115,12 +116,12 @@ typedef struct {
   uint32_t DstateFun            : 4;
   uint32_t DstateDev            : 4;
   // MP1_EXT_SCRATCH2
-  uint32_t P2JobHandler         :24;
+  uint32_t P2JobHandler         : 24;
   uint32_t RsmuPmiP2FinishedCnt : 8;
   // MP1_EXT_SCRATCH3
-  uint32_t PostCode             :32;
+  uint32_t PostCode             : 32;
   // MP1_EXT_SCRATCH4
-  uint32_t MsgPortBusy          :15;
+  uint32_t MsgPortBusy          : 15;
   uint32_t RsmuPmiP1Pending     : 1;
   uint32_t DfCstateExitPending  : 1;
   uint32_t Pc6EntryPending      : 1;
@@ -130,11 +131,10 @@ typedef struct {
   uint32_t spare2               : 3;
   uint32_t RsmuPmiP2PendingCnt  : 8;
   // MP1_EXT_SCRATCH5
-  uint32_t IdleMask             :32;
+  uint32_t IdleMask             : 32;
   // MP1_EXT_SCRATCH6 = RTOS threads' status
   // MP1_EXT_SCRATCH7 = RTOS Current Job
 } FwStatus_t;
-
 
 #pragma pack(pop)
 

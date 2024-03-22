@@ -4,20 +4,20 @@
 
 #include <linux/types.h>
 
-#define VDUSE_BASE	0x81
+#define VDUSE_BASE  0x81
 
 /* The ioctls for control device (/dev/vduse/control) */
 
-#define VDUSE_API_VERSION	0
+#define VDUSE_API_VERSION 0
 
 /*
  * Get the version of VDUSE API that kernel supported (VDUSE_API_VERSION).
  * This is used for future extension.
  */
-#define VDUSE_GET_API_VERSION	_IOR(VDUSE_BASE, 0x00, __u64)
+#define VDUSE_GET_API_VERSION _IOR(VDUSE_BASE, 0x00, __u64)
 
 /* Set the version of VDUSE API that userspace supported. */
-#define VDUSE_SET_API_VERSION	_IOW(VDUSE_BASE, 0x01, __u64)
+#define VDUSE_SET_API_VERSION _IOW(VDUSE_BASE, 0x01, __u64)
 
 /**
  * struct vduse_dev_config - basic configuration of a VDUSE device
@@ -34,31 +34,33 @@
  * Structure used by VDUSE_CREATE_DEV ioctl to create VDUSE device.
  */
 struct vduse_dev_config {
-#define VDUSE_NAME_MAX	256
-	char name[VDUSE_NAME_MAX];
-	__u32 vendor_id;
-	__u32 device_id;
-	__u64 features;
-	__u32 vq_num;
-	__u32 vq_align;
-	__u32 reserved[13];
-	__u32 config_size;
-	__u8 config[];
+#define VDUSE_NAME_MAX  256
+  char name[VDUSE_NAME_MAX];
+  __u32 vendor_id;
+  __u32 device_id;
+  __u64 features;
+  __u32 vq_num;
+  __u32 vq_align;
+  __u32 reserved[13];
+  __u32 config_size;
+  __u8 config[];
 };
 
-/* Create a VDUSE device which is represented by a char device (/dev/vduse/$NAME) */
-#define VDUSE_CREATE_DEV	_IOW(VDUSE_BASE, 0x02, struct vduse_dev_config)
+/* Create a VDUSE device which is represented by a char device
+ * (/dev/vduse/$NAME) */
+#define VDUSE_CREATE_DEV  _IOW(VDUSE_BASE, 0x02, struct vduse_dev_config)
 
 /*
  * Destroy a VDUSE device. Make sure there are no more references
  * to the char device (/dev/vduse/$NAME).
  */
-#define VDUSE_DESTROY_DEV	_IOW(VDUSE_BASE, 0x03, char[VDUSE_NAME_MAX])
+#define VDUSE_DESTROY_DEV _IOW(VDUSE_BASE, 0x03, char[VDUSE_NAME_MAX])
 
 /* The ioctls for VDUSE device (/dev/vduse/$NAME) */
 
 /**
- * struct vduse_iotlb_entry - entry of IOTLB to describe one IOVA region [start, last]
+ * struct vduse_iotlb_entry - entry of IOTLB to describe one IOVA region [start,
+ * last]
  * @offset: the mmap offset on returned file descriptor
  * @start: start of the IOVA region
  * @last: last of the IOVA region
@@ -67,13 +69,13 @@ struct vduse_dev_config {
  * Structure used by VDUSE_IOTLB_GET_FD ioctl to find an overlapped IOVA region.
  */
 struct vduse_iotlb_entry {
-	__u64 offset;
-	__u64 start;
-	__u64 last;
+  __u64 offset;
+  __u64 start;
+  __u64 last;
 #define VDUSE_ACCESS_RO 0x1
 #define VDUSE_ACCESS_WO 0x2
 #define VDUSE_ACCESS_RW 0x3
-	__u8 perm;
+  __u8 perm;
 };
 
 /*
@@ -81,14 +83,14 @@ struct vduse_iotlb_entry {
  * and return the corresponding file descriptor. Return -EINVAL means the
  * IOVA region doesn't exist. Caller should set start and last fields.
  */
-#define VDUSE_IOTLB_GET_FD	_IOWR(VDUSE_BASE, 0x10, struct vduse_iotlb_entry)
+#define VDUSE_IOTLB_GET_FD  _IOWR(VDUSE_BASE, 0x10, struct vduse_iotlb_entry)
 
 /*
  * Get the negotiated virtio features. It's a subset of the features in
  * struct vduse_dev_config which can be accepted by virtio driver. It's
  * only valid after FEATURES_OK status bit is set.
  */
-#define VDUSE_DEV_GET_FEATURES	_IOR(VDUSE_BASE, 0x11, __u64)
+#define VDUSE_DEV_GET_FEATURES  _IOR(VDUSE_BASE, 0x11, __u64)
 
 /**
  * struct vduse_config_data - data used to update configuration space
@@ -100,19 +102,19 @@ struct vduse_iotlb_entry {
  * configuration space.
  */
 struct vduse_config_data {
-	__u32 offset;
-	__u32 length;
-	__u8 buffer[];
+  __u32 offset;
+  __u32 length;
+  __u8 buffer[];
 };
 
 /* Set device configuration space */
-#define VDUSE_DEV_SET_CONFIG	_IOW(VDUSE_BASE, 0x12, struct vduse_config_data)
+#define VDUSE_DEV_SET_CONFIG  _IOW(VDUSE_BASE, 0x12, struct vduse_config_data)
 
 /*
  * Inject a config interrupt. It's usually used to notify virtio driver
  * that device configuration space has changed.
  */
-#define VDUSE_DEV_INJECT_CONFIG_IRQ	_IO(VDUSE_BASE, 0x13)
+#define VDUSE_DEV_INJECT_CONFIG_IRQ _IO(VDUSE_BASE, 0x13)
 
 /**
  * struct vduse_vq_config - basic configuration of a virtqueue
@@ -123,23 +125,23 @@ struct vduse_config_data {
  * Structure used by VDUSE_VQ_SETUP ioctl to setup a virtqueue.
  */
 struct vduse_vq_config {
-	__u32 index;
-	__u16 max_size;
-	__u16 reserved[13];
+  __u32 index;
+  __u16 max_size;
+  __u16 reserved[13];
 };
 
 /*
  * Setup the specified virtqueue. Make sure all virtqueues have been
  * configured before the device is attached to vDPA bus.
  */
-#define VDUSE_VQ_SETUP		_IOW(VDUSE_BASE, 0x14, struct vduse_vq_config)
+#define VDUSE_VQ_SETUP    _IOW(VDUSE_BASE, 0x14, struct vduse_vq_config)
 
 /**
  * struct vduse_vq_state_split - split virtqueue state
  * @avail_index: available index
  */
 struct vduse_vq_state_split {
-	__u16 avail_index;
+  __u16 avail_index;
 };
 
 /**
@@ -150,10 +152,10 @@ struct vduse_vq_state_split {
  * @last_used_idx: used index
  */
 struct vduse_vq_state_packed {
-	__u16 last_avail_counter;
-	__u16 last_avail_idx;
-	__u16 last_used_counter;
-	__u16 last_used_idx;
+  __u16 last_avail_counter;
+  __u16 last_avail_idx;
+  __u16 last_used_counter;
+  __u16 last_used_idx;
 };
 
 /**
@@ -170,20 +172,20 @@ struct vduse_vq_state_packed {
  * Structure used by VDUSE_VQ_GET_INFO ioctl to get virtqueue's information.
  */
 struct vduse_vq_info {
-	__u32 index;
-	__u32 num;
-	__u64 desc_addr;
-	__u64 driver_addr;
-	__u64 device_addr;
-	union {
-		struct vduse_vq_state_split split;
-		struct vduse_vq_state_packed packed;
-	};
-	__u8 ready;
+  __u32 index;
+  __u32 num;
+  __u64 desc_addr;
+  __u64 driver_addr;
+  __u64 device_addr;
+  union {
+    struct vduse_vq_state_split split;
+    struct vduse_vq_state_packed packed;
+  };
+  __u8 ready;
 };
 
 /* Get the specified virtqueue's information. Caller should set index field. */
-#define VDUSE_VQ_GET_INFO	_IOWR(VDUSE_BASE, 0x15, struct vduse_vq_info)
+#define VDUSE_VQ_GET_INFO _IOWR(VDUSE_BASE, 0x15, struct vduse_vq_info)
 
 /**
  * struct vduse_vq_eventfd - eventfd configuration for a virtqueue
@@ -193,22 +195,22 @@ struct vduse_vq_info {
  * Structure used by VDUSE_VQ_SETUP_KICKFD ioctl to setup kick eventfd.
  */
 struct vduse_vq_eventfd {
-	__u32 index;
+  __u32 index;
 #define VDUSE_EVENTFD_DEASSIGN -1
-	int fd;
+  int fd;
 };
 
 /*
  * Setup kick eventfd for specified virtqueue. The kick eventfd is used
  * by VDUSE kernel module to notify userspace to consume the avail vring.
  */
-#define VDUSE_VQ_SETUP_KICKFD	_IOW(VDUSE_BASE, 0x16, struct vduse_vq_eventfd)
+#define VDUSE_VQ_SETUP_KICKFD _IOW(VDUSE_BASE, 0x16, struct vduse_vq_eventfd)
 
 /*
  * Inject an interrupt for specific virtqueue. It's used to notify virtio driver
  * to consume the used vring.
  */
-#define VDUSE_VQ_INJECT_IRQ	_IOW(VDUSE_BASE, 0x17, __u32)
+#define VDUSE_VQ_INJECT_IRQ _IOW(VDUSE_BASE, 0x17, __u32)
 
 /**
  * struct vduse_iova_umem - userspace memory configuration for one IOVA region
@@ -221,17 +223,17 @@ struct vduse_vq_eventfd {
  * ioctls to register/de-register userspace memory for IOVA regions
  */
 struct vduse_iova_umem {
-	__u64 uaddr;
-	__u64 iova;
-	__u64 size;
-	__u64 reserved[3];
+  __u64 uaddr;
+  __u64 iova;
+  __u64 size;
+  __u64 reserved[3];
 };
 
 /* Register userspace memory for IOVA regions */
-#define VDUSE_IOTLB_REG_UMEM	_IOW(VDUSE_BASE, 0x18, struct vduse_iova_umem)
+#define VDUSE_IOTLB_REG_UMEM  _IOW(VDUSE_BASE, 0x18, struct vduse_iova_umem)
 
 /* De-register the userspace memory. Caller should set iova and size field. */
-#define VDUSE_IOTLB_DEREG_UMEM	_IOW(VDUSE_BASE, 0x19, struct vduse_iova_umem)
+#define VDUSE_IOTLB_DEREG_UMEM  _IOW(VDUSE_BASE, 0x19, struct vduse_iova_umem)
 
 /**
  * struct vduse_iova_info - information of one IOVA region
@@ -244,18 +246,18 @@ struct vduse_iova_umem {
  * one IOVA region.
  */
 struct vduse_iova_info {
-	__u64 start;
-	__u64 last;
+  __u64 start;
+  __u64 last;
 #define VDUSE_IOVA_CAP_UMEM (1 << 0)
-	__u64 capability;
-	__u64 reserved[3];
+  __u64 capability;
+  __u64 reserved[3];
 };
 
 /*
  * Find the first IOVA region that overlaps with the range [start, last]
  * and return some information on it. Caller should set start and last fields.
  */
-#define VDUSE_IOTLB_GET_INFO	_IOWR(VDUSE_BASE, 0x1a, struct vduse_iova_info)
+#define VDUSE_IOTLB_GET_INFO  _IOWR(VDUSE_BASE, 0x1a, struct vduse_iova_info)
 
 /* The control messages definition for read(2)/write(2) on /dev/vduse/$NAME */
 
@@ -267,9 +269,9 @@ struct vduse_iova_info {
  *                      specified IOVA range via VDUSE_IOTLB_GET_FD ioctl
  */
 enum vduse_req_type {
-	VDUSE_GET_VQ_STATE,
-	VDUSE_SET_STATUS,
-	VDUSE_UPDATE_IOTLB,
+  VDUSE_GET_VQ_STATE,
+  VDUSE_SET_STATUS,
+  VDUSE_UPDATE_IOTLB,
 };
 
 /**
@@ -279,11 +281,11 @@ enum vduse_req_type {
  * @packed: packed virtqueue state
  */
 struct vduse_vq_state {
-	__u32 index;
-	union {
-		struct vduse_vq_state_split split;
-		struct vduse_vq_state_packed packed;
-	};
+  __u32 index;
+  union {
+    struct vduse_vq_state_split split;
+    struct vduse_vq_state_packed packed;
+  };
 };
 
 /**
@@ -291,7 +293,7 @@ struct vduse_vq_state {
  * @status: device status
  */
 struct vduse_dev_status {
-	__u8 status;
+  __u8 status;
 };
 
 /**
@@ -300,8 +302,8 @@ struct vduse_dev_status {
  * @last: last of the IOVA range
  */
 struct vduse_iova_range {
-	__u64 start;
-	__u64 last;
+  __u64 start;
+  __u64 last;
 };
 
 /**
@@ -317,15 +319,15 @@ struct vduse_iova_range {
  * Structure used by read(2) on /dev/vduse/$NAME.
  */
 struct vduse_dev_request {
-	__u32 type;
-	__u32 request_id;
-	__u32 reserved[4];
-	union {
-		struct vduse_vq_state vq_state;
-		struct vduse_dev_status s;
-		struct vduse_iova_range iova;
-		__u32 padding[32];
-	};
+  __u32 type;
+  __u32 request_id;
+  __u32 reserved[4];
+  union {
+    struct vduse_vq_state vq_state;
+    struct vduse_dev_status s;
+    struct vduse_iova_range iova;
+    __u32 padding[32];
+  };
 };
 
 /**
@@ -339,15 +341,15 @@ struct vduse_dev_request {
  * Structure used by write(2) on /dev/vduse/$NAME.
  */
 struct vduse_dev_response {
-	__u32 request_id;
-#define VDUSE_REQ_RESULT_OK	0x00
-#define VDUSE_REQ_RESULT_FAILED	0x01
-	__u32 result;
-	__u32 reserved[4];
-	union {
-		struct vduse_vq_state vq_state;
-		__u32 padding[32];
-	};
+  __u32 request_id;
+#define VDUSE_REQ_RESULT_OK 0x00
+#define VDUSE_REQ_RESULT_FAILED 0x01
+  __u32 result;
+  __u32 reserved[4];
+  union {
+    struct vduse_vq_state vq_state;
+    __u32 padding[32];
+  };
 };
 
 #endif /* _UAPI_VDUSE_H_ */

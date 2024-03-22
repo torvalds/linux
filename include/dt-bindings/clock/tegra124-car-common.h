@@ -18,15 +18,15 @@
 #ifndef _DT_BINDINGS_CLOCK_TEGRA124_CAR_COMMON_H
 #define _DT_BINDINGS_CLOCK_TEGRA124_CAR_COMMON_H
 
-/* 0 */
-/* 1 */
-/* 2 */
+/* 0
+ * 1
+ * 2*/
 #define TEGRA124_CLK_ISPB 3
 #define TEGRA124_CLK_RTC 4
 #define TEGRA124_CLK_TIMER 5
 #define TEGRA124_CLK_UARTA 6
-/* 7 (register bit affects uartb and vfir) */
-/* 8 */
+/* 7 (register bit affects uartb and vfir)
+ * 8*/
 #define TEGRA124_CLK_SDMMC2 9
 /* 10 (register bit affects spdif_in and spdif_out) */
 #define TEGRA124_CLK_I2S1 11
@@ -37,12 +37,12 @@
 /* 16 */
 #define TEGRA124_CLK_PWM 17
 #define TEGRA124_CLK_I2S2 18
-/* 20 (register bit affects vi and vi_sensor) */
-/* 21 */
+/* 20 (register bit affects vi and vi_sensor)
+ * 21*/
 #define TEGRA124_CLK_USBD 22
 #define TEGRA124_CLK_ISP 23
-/* 26 */
-/* 25 */
+/* 26
+ * 25*/
 #define TEGRA124_CLK_DISP2 26
 #define TEGRA124_CLK_DISP1 27
 #define TEGRA124_CLK_HOST1X 28
@@ -55,9 +55,9 @@
 #define TEGRA124_CLK_APBDMA 34
 /* 35 */
 #define TEGRA124_CLK_KBC 36
-/* 37 */
-/* 38 */
-/* 39 (register bit affects fuse and fuse_burn) */
+/* 37
+ * 38
+ * 39 (register bit affects fuse and fuse_burn)*/
 #define TEGRA124_CLK_KFUSE 40
 #define TEGRA124_CLK_SBC1 41
 #define TEGRA124_CLK_NOR 42
@@ -93,8 +93,8 @@
 #define TEGRA124_CLK_OWR 71
 #define TEGRA124_CLK_AFI 72
 #define TEGRA124_CLK_CSITE 73
-/* 74 */
-/* 75 */
+/* 74
+ * 75*/
 #define TEGRA124_CLK_LA 76
 #define TEGRA124_CLK_TRACE 77
 #define TEGRA124_CLK_SOC_THERM 78
@@ -103,22 +103,22 @@
 #define TEGRA124_CLK_I2CSLOW 81
 #define TEGRA124_CLK_DSIB 82
 #define TEGRA124_CLK_TSEC 83
-/* 84 */
-/* 85 */
-/* 86 */
-/* 87 */
-/* 88 */
+/* 84
+ * 85
+ * 86
+ * 87
+ * 88*/
 #define TEGRA124_CLK_XUSB_HOST 89
 /* 90 */
 #define TEGRA124_CLK_MSENC 91
 #define TEGRA124_CLK_CSUS 92
-/* 93 */
-/* 94 */
-/* 95 (bit affects xusb_dev and xusb_dev_src) */
+/* 93
+ * 94
+ * 95 (bit affects xusb_dev and xusb_dev_src)*/
 
-/* 96 */
-/* 97 */
-/* 98 */
+/* 96
+ * 97
+ * 98*/
 #define TEGRA124_CLK_MSELECT 99
 #define TEGRA124_CLK_TSENSOR 100
 #define TEGRA124_CLK_I2S3 101
@@ -151,21 +151,21 @@
 
 #define TEGRA124_CLK_HDA2HDMI 128
 #define TEGRA124_CLK_SATA_COLD 129
-/* 130 */
-/* 131 */
-/* 132 */
-/* 133 */
-/* 134 */
-/* 135 */
+/* 130
+ * 131
+ * 132
+ * 133
+ * 134
+ * 135*/
 #define TEGRA124_CLK_CEC 136
-/* 137 */
-/* 138 */
-/* 139 */
-/* 140 */
-/* 141 */
-/* 142 */
-/* 143 (bit affects xusb_falcon_src, xusb_fs_src, */
-/*      xusb_host_src and xusb_ss_src) */
+/* 137
+ * 138
+ * 139
+ * 140
+ * 141
+ * 142
+ * 143 (bit affects xusb_falcon_src, xusb_fs_src,
+ *      xusb_host_src and xusb_ss_src)*/
 #define TEGRA124_CLK_CILAB 144
 #define TEGRA124_CLK_CILCD 145
 #define TEGRA124_CLK_CILE 146
@@ -179,26 +179,26 @@
 #define TEGRA124_CLK_ADX 154
 /* 155 (bit affects dfll_ref and dfll_soc) */
 #define TEGRA124_CLK_XUSB_SS 156
-/* 157 */
-/* 158 */
-/* 159 */
+/* 157
+ * 158
+ * 159*/
 
-/* 160 */
-/* 161 */
-/* 162 */
-/* 163 */
-/* 164 */
-/* 165 */
+/* 160
+ * 161
+ * 162
+ * 163
+ * 164
+ * 165*/
 #define TEGRA124_CLK_I2C6 166
-/* 167 */
-/* 168 */
-/* 169 */
-/* 170 */
+/* 167
+ * 168
+ * 169
+ * 170*/
 #define TEGRA124_CLK_VIM2_CLK 171
-/* 172 */
-/* 173 */
-/* 174 */
-/* 175 */
+/* 172
+ * 173
+ * 174
+ * 175*/
 #define TEGRA124_CLK_HDMI_AUDIO 176
 #define TEGRA124_CLK_CLK72MHZ 177
 #define TEGRA124_CLK_VIC03 178
@@ -209,12 +209,12 @@
 /* 183 */
 #define TEGRA124_CLK_GPU 184
 #define TEGRA124_CLK_AMX1 185
-/* 186 */
-/* 187 */
-/* 188 */
-/* 189 */
-/* 190 */
-/* 191 */
+/* 186
+ * 187
+ * 188
+ * 189
+ * 190
+ * 191*/
 #define TEGRA124_CLK_UARTB 192
 #define TEGRA124_CLK_VFIR 193
 #define TEGRA124_CLK_SPDIF_IN 194
@@ -253,8 +253,8 @@
 #define TEGRA124_CLK_PLL_U_60M 224
 #define TEGRA124_CLK_PLL_U_48M 225
 #define TEGRA124_CLK_PLL_U_12M 226
-/* 227 */
-/* 228 */
+/* 227
+ * 228*/
 #define TEGRA124_CLK_PLL_RE_VCO 229
 #define TEGRA124_CLK_PLL_RE_OUT 230
 #define TEGRA124_CLK_PLL_E 231
@@ -271,13 +271,13 @@
 #define TEGRA124_CLK_AUDIO3 242
 #define TEGRA124_CLK_AUDIO4 243
 #define TEGRA124_CLK_SPDIF 244
-/* 245 */
-/* 246 */
-/* 247 */
-/* 248 */
+/* 245
+ * 246
+ * 247
+ * 248*/
 #define TEGRA124_CLK_OSC 249
-/* 250 */
-/* 251 */
+/* 250
+ * 251*/
 #define TEGRA124_CLK_XUSB_HOST_SRC 252
 #define TEGRA124_CLK_XUSB_FALCON_SRC 253
 #define TEGRA124_CLK_XUSB_FS_SRC 254
@@ -289,8 +289,8 @@
 #define TEGRA124_CLK_SCLK 259
 #define TEGRA124_CLK_HCLK 260
 #define TEGRA124_CLK_PCLK 261
-/* 262 */
-/* 263 */
+/* 262
+ * 263*/
 #define TEGRA124_CLK_DFLL_REF 264
 #define TEGRA124_CLK_DFLL_SOC 265
 #define TEGRA124_CLK_VI_SENSOR2 266
@@ -301,44 +301,44 @@
 #define TEGRA124_CLK_PLL_DP 271
 #define TEGRA124_CLK_PLL_E_MUX 272
 #define TEGRA124_CLK_PLL_D_DSI_OUT 273
-/* 274 */
-/* 275 */
-/* 276 */
-/* 277 */
-/* 278 */
-/* 279 */
-/* 280 */
-/* 281 */
-/* 282 */
-/* 283 */
-/* 284 */
-/* 285 */
-/* 286 */
-/* 287 */
+/* 274
+ * 275
+ * 276
+ * 277
+ * 278
+ * 279
+ * 280
+ * 281
+ * 282
+ * 283
+ * 284
+ * 285
+ * 286
+ * 287*/
 
-/* 288 */
-/* 289 */
-/* 290 */
-/* 291 */
-/* 292 */
-/* 293 */
-/* 294 */
-/* 295 */
-/* 296 */
-/* 297 */
-/* 298 */
-/* 299 */
+/* 288
+ * 289
+ * 290
+ * 291
+ * 292
+ * 293
+ * 294
+ * 295
+ * 296
+ * 297
+ * 298
+ * 299*/
 #define TEGRA124_CLK_AUDIO0_MUX 300
 #define TEGRA124_CLK_AUDIO1_MUX 301
 #define TEGRA124_CLK_AUDIO2_MUX 302
 #define TEGRA124_CLK_AUDIO3_MUX 303
 #define TEGRA124_CLK_AUDIO4_MUX 304
 #define TEGRA124_CLK_SPDIF_MUX 305
-/* 306 */
-/* 307 */
-/* 308 */
-/* 309 */
-/* 310 */
+/* 306
+ * 307
+ * 308
+ * 309
+ * 310*/
 #define TEGRA124_CLK_SOR0_LVDS 311 /* deprecated */
 #define TEGRA124_CLK_SOR0_OUT 311
 #define TEGRA124_CLK_XUSB_SS_DIV2 312
@@ -346,4 +346,4 @@
 #define TEGRA124_CLK_PLL_M_UD 313
 #define TEGRA124_CLK_PLL_C_UD 314
 
-#endif	/* _DT_BINDINGS_CLOCK_TEGRA124_CAR_COMMON_H */
+#endif  /* _DT_BINDINGS_CLOCK_TEGRA124_CAR_COMMON_H */

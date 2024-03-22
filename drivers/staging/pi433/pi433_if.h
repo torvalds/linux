@@ -11,7 +11,7 @@
  * interface such as RFM69HCW, RFM12, RFM95 and so on.
  *
  * Copyright (C) 2016 Wolf-Entwicklungen
- *	Marcus Wolf <linux@wolf-entwicklungen.de>
+ *  Marcus Wolf <linux@wolf-entwicklungen.de>
  */
 
 #ifndef PI433_H
@@ -23,8 +23,8 @@
 /*---------------------------------------------------------------------------*/
 
 enum option_on_off {
-	OPTION_OFF,
-	OPTION_ON
+  OPTION_OFF,
+  OPTION_ON
 };
 
 /* IOCTL structs and commands */
@@ -48,33 +48,33 @@ enum option_on_off {
  *
  * NOTE: struct layout is the same in 64bit and 32bit userspace.
  */
-#define PI433_TX_CFG_IOCTL_NR	0
+#define PI433_TX_CFG_IOCTL_NR 0
 struct pi433_tx_cfg {
-	__u32			frequency;
-	__u16			bit_rate;
-	__u32			dev_frequency;
-	enum modulation		modulation;
-	enum mod_shaping	mod_shaping;
+  __u32 frequency;
+  __u16 bit_rate;
+  __u32 dev_frequency;
+  enum modulation modulation;
+  enum mod_shaping mod_shaping;
 
-	enum pa_ramp		pa_ramp;
+  enum pa_ramp pa_ramp;
 
-	enum tx_start_condition	tx_start_condition;
+  enum tx_start_condition tx_start_condition;
 
-	__u16			repetitions;
+  __u16 repetitions;
 
-	/* packet format */
-	enum option_on_off	enable_preamble;
-	enum option_on_off	enable_sync;
-	enum option_on_off	enable_length_byte;
-	enum option_on_off	enable_address_byte;
-	enum option_on_off	enable_crc;
+  /* packet format */
+  enum option_on_off enable_preamble;
+  enum option_on_off enable_sync;
+  enum option_on_off enable_length_byte;
+  enum option_on_off enable_address_byte;
+  enum option_on_off enable_crc;
 
-	__u16			preamble_length;
-	__u8			sync_length;
-	__u8			fixed_message_length;
+  __u16 preamble_length;
+  __u8 sync_length;
+  __u8 fixed_message_length;
 
-	__u8			sync_pattern[8];
-	__u8			address_byte;
+  __u8 sync_pattern[8];
+  __u8 address_byte;
 };
 
 /**
@@ -96,53 +96,57 @@ struct pi433_tx_cfg {
  *
  * NOTE: struct layout is the same in 64bit and 32bit userspace.
  */
-#define PI433_RX_CFG_IOCTL_NR	1
+#define PI433_RX_CFG_IOCTL_NR 1
 struct pi433_rx_cfg {
-	__u32			frequency;
-	__u16			bit_rate;
-	__u32			dev_frequency;
+  __u32 frequency;
+  __u16 bit_rate;
+  __u32 dev_frequency;
 
-	enum modulation		modulation;
+  enum modulation modulation;
 
-	__u8			rssi_threshold;
-	enum threshold_decrement threshold_decrement;
-	enum antenna_impedance	antenna_impedance;
-	enum lna_gain		lna_gain;
-	enum mantisse		bw_mantisse;	/* normal: 0x50 */
-	__u8			bw_exponent;	/* during AFC: 0x8b */
-	enum dagc		dagc;
+  __u8 rssi_threshold;
+  enum threshold_decrement threshold_decrement;
+  enum antenna_impedance antenna_impedance;
+  enum lna_gain lna_gain;
+  enum mantisse bw_mantisse;  /* normal: 0x50 */
+  __u8 bw_exponent;  /* during AFC: 0x8b */
+  enum dagc dagc;
 
-	/* packet format */
-	enum option_on_off	enable_sync;
+  /* packet format */
+  enum option_on_off enable_sync;
 
-	/* should be used in combination with sync, only */
-	enum option_on_off	enable_length_byte;
+  /* should be used in combination with sync, only */
+  enum option_on_off enable_length_byte;
 
-	/* operational with sync, only */
-	enum address_filtering	enable_address_filtering;
+  /* operational with sync, only */
+  enum address_filtering enable_address_filtering;
 
-	/* only operational, if sync on and fixed length or length byte is used */
-	enum option_on_off	enable_crc;
+  /* only operational, if sync on and fixed length or length byte is used */
+  enum option_on_off enable_crc;
 
-	__u8			sync_length;
-	__u8			fixed_message_length;
-	__u32			bytes_to_drop;
+  __u8 sync_length;
+  __u8 fixed_message_length;
+  __u32 bytes_to_drop;
 
-	__u8			sync_pattern[8];
-	__u8			node_address;
-	__u8			broadcast_address;
+  __u8 sync_pattern[8];
+  __u8 node_address;
+  __u8 broadcast_address;
 };
 
-#define PI433_IOC_MAGIC	'r'
+#define PI433_IOC_MAGIC 'r'
 
 #define PI433_IOC_RD_TX_CFG                                             \
-	_IOR(PI433_IOC_MAGIC, PI433_TX_CFG_IOCTL_NR, char[sizeof(struct pi433_tx_cfg)])
+  _IOR(PI433_IOC_MAGIC, PI433_TX_CFG_IOCTL_NR, \
+    char[sizeof(struct pi433_tx_cfg)])
 #define PI433_IOC_WR_TX_CFG                                             \
-	_IOW(PI433_IOC_MAGIC, PI433_TX_CFG_IOCTL_NR, char[sizeof(struct pi433_tx_cfg)])
+  _IOW(PI433_IOC_MAGIC, PI433_TX_CFG_IOCTL_NR, \
+    char[sizeof(struct pi433_tx_cfg)])
 
 #define PI433_IOC_RD_RX_CFG                                             \
-	_IOR(PI433_IOC_MAGIC, PI433_RX_CFG_IOCTL_NR, char[sizeof(struct pi433_rx_cfg)])
+  _IOR(PI433_IOC_MAGIC, PI433_RX_CFG_IOCTL_NR, \
+    char[sizeof(struct pi433_rx_cfg)])
 #define PI433_IOC_WR_RX_CFG                                             \
-	_IOW(PI433_IOC_MAGIC, PI433_RX_CFG_IOCTL_NR, char[sizeof(struct pi433_rx_cfg)])
+  _IOW(PI433_IOC_MAGIC, PI433_RX_CFG_IOCTL_NR, \
+    char[sizeof(struct pi433_rx_cfg)])
 
 #endif /* PI433_H */

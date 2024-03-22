@@ -5,6 +5,6 @@
 #include <asm/page.h>
 #include <asm/cache.h>
 
-#define cpu_dcache_is_aliasing()	(NIOS2_DCACHE_SIZE > PAGE_SIZE)
+#define cpu_dcache_is_aliasing()  (NIOS2_DCACHE_SIZE > PAGE_SIZE)
 
 #endif

@@ -15,49 +15,39 @@
  * code like cache bits, thresholding or marked bit.
  */
 
-static int group_constraint_pmc56(void)
-{
-	struct event event;
-
-	/* Check for platform support for the test */
-	SKIP_IF(platform_check_for_tests());
-
-	/*
-	 * Events using PMC5 and PMC6 with cache bit
-	 * set in event code is expected to fail.
-	 */
-	event_init(&event, 0x2500fa);
-	FAIL_IF(!event_open(&event));
-
-	event_init(&event, 0x2600f4);
-	FAIL_IF(!event_open(&event));
-
-	/*
-	 * PMC5 and PMC6 only supports base events:
-	 * ie 500fa and 600f4. Other combinations
-	 * should fail.
-	 */
-	event_init(&event, 0x501e0);
-	FAIL_IF(!event_open(&event));
-
-	event_init(&event, 0x6001e);
-	FAIL_IF(!event_open(&event));
-
-	event_init(&event, 0x501fa);
-	FAIL_IF(!event_open(&event));
-
-	/*
-	 * Events using PMC5 and PMC6 with random
-	 * sampling bits set in event code should fail
-	 * to schedule.
-	 */
-	event_init(&event, 0x35340500fa);
-	FAIL_IF(!event_open(&event));
-
-	return 0;
+static int group_constraint_pmc56(void) {
+  struct event event;
+  /* Check for platform support for the test */
+  SKIP_IF(platform_check_for_tests());
+  /*
+   * Events using PMC5 and PMC6 with cache bit
+   * set in event code is expected to fail.
+   */
+  event_init(&event, 0x2500fa);
+  FAIL_IF(!event_open(&event));
+  event_init(&event, 0x2600f4);
+  FAIL_IF(!event_open(&event));
+  /*
+   * PMC5 and PMC6 only supports base events:
+   * ie 500fa and 600f4. Other combinations
+   * should fail.
+   */
+  event_init(&event, 0x501e0);
+  FAIL_IF(!event_open(&event));
+  event_init(&event, 0x6001e);
+  FAIL_IF(!event_open(&event));
+  event_init(&event, 0x501fa);
+  FAIL_IF(!event_open(&event));
+  /*
+   * Events using PMC5 and PMC6 with random
+   * sampling bits set in event code should fail
+   * to schedule.
+   */
+  event_init(&event, 0x35340500fa);
+  FAIL_IF(!event_open(&event));
+  return 0;
 }
 
-int main(void)
-{
-	return test_harness(group_constraint_pmc56, "group_constraint_pmc56");
+int main(void) {
+  return test_harness(group_constraint_pmc56, "group_constraint_pmc56");
 }

@@ -13,8 +13,8 @@
 /* ---------------------------------------------------------------------- */
 
 /* This macro is allowed for *constants* only, gcc must calculate it
-   at compile time.  Remember -- no floats in kernel mode */
-#define MSP_CARRIER(freq) ((int)((float)(freq / 18.432) * (1 << 24)))
+ * at compile time.  Remember -- no floats in kernel mode */
+#define MSP_CARRIER(freq) ((int) ((float) (freq / 18.432) * (1 << 24)))
 
 #define MSP_MODE_AM_DETECT   0
 #define MSP_MODE_FM_RADIO    2
@@ -53,77 +53,75 @@ extern bool msp_dolby;
 extern int msp_stereo_thresh;
 
 enum msp3400_pads {
-	MSP3400_PAD_IF_INPUT,
-	MSP3400_PAD_OUT,
-	MSP3400_NUM_PADS
+  MSP3400_PAD_IF_INPUT,
+  MSP3400_PAD_OUT,
+  MSP3400_NUM_PADS
 };
 
 struct msp_state {
-	struct v4l2_subdev sd;
-	struct v4l2_ctrl_handler hdl;
-	int rev1, rev2;
-	int ident;
-	u8 has_nicam;
-	u8 has_radio;
-	u8 has_headphones;
-	u8 has_ntsc_jp_d_k3;
-	u8 has_scart2;
-	u8 has_scart3;
-	u8 has_scart4;
-	u8 has_scart2_out;
-	u8 has_scart2_out_volume;
-	u8 has_i2s_conf;
-	u8 has_subwoofer;
-	u8 has_sound_processing;
-	u8 has_virtual_dolby_surround;
-	u8 has_dolby_pro_logic;
-	u8 force_btsc;
+  struct v4l2_subdev sd;
+  struct v4l2_ctrl_handler hdl;
+  int rev1, rev2;
+  int ident;
+  u8 has_nicam;
+  u8 has_radio;
+  u8 has_headphones;
+  u8 has_ntsc_jp_d_k3;
+  u8 has_scart2;
+  u8 has_scart3;
+  u8 has_scart4;
+  u8 has_scart2_out;
+  u8 has_scart2_out_volume;
+  u8 has_i2s_conf;
+  u8 has_subwoofer;
+  u8 has_sound_processing;
+  u8 has_virtual_dolby_surround;
+  u8 has_dolby_pro_logic;
+  u8 force_btsc;
 
-	int radio;
-	int opmode;
-	int std;
-	int mode;
-	v4l2_std_id v4l2_std, detected_std;
-	int nicam_on;
-	int acb;
-	int in_scart;
-	int i2s_mode;
-	int main, second;	/* sound carrier */
-	int input;
-	u32 route_in;
-	u32 route_out;
+  int radio;
+  int opmode;
+  int std;
+  int mode;
+  v4l2_std_id v4l2_std, detected_std;
+  int nicam_on;
+  int acb;
+  int in_scart;
+  int i2s_mode;
+  int main, second; /* sound carrier */
+  int input;
+  u32 route_in;
+  u32 route_out;
 
-	/* v4l2 */
-	int audmode;
-	int rxsubchans;
+  /* v4l2 */
+  int audmode;
+  int rxsubchans;
 
-	struct {
-		/* volume cluster */
-		struct v4l2_ctrl *volume;
-		struct v4l2_ctrl *muted;
-	};
+  struct {
+    /* volume cluster */
+    struct v4l2_ctrl *volume;
+    struct v4l2_ctrl *muted;
+  };
 
-	int scan_in_progress;
+  int scan_in_progress;
 
-	/* thread */
-	struct task_struct   *kthread;
-	wait_queue_head_t    wq;
-	unsigned int         restart:1;
-	unsigned int         watch_stereo:1;
+  /* thread */
+  struct task_struct *kthread;
+  wait_queue_head_t wq;
+  unsigned int restart : 1;
+  unsigned int watch_stereo : 1;
 
 #if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
-	struct media_pad pads[MSP3400_NUM_PADS];
+  struct media_pad pads[MSP3400_NUM_PADS];
 #endif
 };
 
-static inline struct msp_state *to_state(struct v4l2_subdev *sd)
-{
-	return container_of(sd, struct msp_state, sd);
+static inline struct msp_state *to_state(struct v4l2_subdev *sd) {
+  return container_of(sd, struct msp_state, sd);
 }
 
-static inline struct msp_state *ctrl_to_state(struct v4l2_ctrl *ctrl)
-{
-	return container_of(ctrl->handler, struct msp_state, hdl);
+static inline struct msp_state *ctrl_to_state(struct v4l2_ctrl *ctrl) {
+  return container_of(ctrl->handler, struct msp_state, hdl);
 }
 
 /* msp3400-driver.c */

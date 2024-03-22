@@ -21,19 +21,18 @@
 #include <linux/of_platform.h>
 
 static const struct of_device_id ppc44x_of_bus[] __initconst = {
-	{ .compatible = "ibm,plb4", },
-	{ .compatible = "ibm,opb", },
-	{ .compatible = "ibm,ebc", },
-	{ .compatible = "simple-bus", },
-	{},
+  { .compatible = "ibm,plb4", },
+  { .compatible = "ibm,opb", },
+  { .compatible = "ibm,ebc", },
+  { .compatible = "simple-bus", },
+  {},
 };
 
-static int __init ppc44x_device_probe(void)
-{
-	of_platform_bus_probe(NULL, ppc44x_of_bus, NULL);
-
-	return 0;
+static int __init ppc44x_device_probe(void) {
+  of_platform_bus_probe(NULL, ppc44x_of_bus, NULL);
+  return 0;
 }
+
 machine_device_initcall(ppc44x_simple, ppc44x_device_probe);
 
 /* This is the list of boards that can be supported by this simple
@@ -46,40 +45,37 @@ machine_device_initcall(ppc44x_simple, ppc44x_device_probe);
  * board.c file for it rather than adding it to this list.
  */
 static char *board[] __initdata = {
-	"amcc,arches",
-	"amcc,bamboo",
-	"apm,bluestone",
-	"amcc,glacier",
-	"ibm,ebony",
-	"amcc,eiger",
-	"amcc,katmai",
-	"amcc,rainier",
-	"amcc,redwood",
-	"amcc,sequoia",
-	"amcc,taishan",
-	"amcc,yosemite",
-	"mosaixtech,icon"
+  "amcc,arches",
+  "amcc,bamboo",
+  "apm,bluestone",
+  "amcc,glacier",
+  "ibm,ebony",
+  "amcc,eiger",
+  "amcc,katmai",
+  "amcc,rainier",
+  "amcc,redwood",
+  "amcc,sequoia",
+  "amcc,taishan",
+  "amcc,yosemite",
+  "mosaixtech,icon"
 };
 
-static int __init ppc44x_probe(void)
-{
-	int i = 0;
-
-	for (i = 0; i < ARRAY_SIZE(board); i++) {
-		if (of_machine_is_compatible(board[i])) {
-			pci_set_flags(PCI_REASSIGN_ALL_RSRC);
-			return 1;
-		}
-	}
-
-	return 0;
+static int __init ppc44x_probe(void) {
+  int i = 0;
+  for (i = 0; i < ARRAY_SIZE(board); i++) {
+    if (of_machine_is_compatible(board[i])) {
+      pci_set_flags(PCI_REASSIGN_ALL_RSRC);
+      return 1;
+    }
+  }
+  return 0;
 }
 
 define_machine(ppc44x_simple) {
-	.name = "PowerPC 44x Platform",
-	.probe = ppc44x_probe,
-	.progress = udbg_progress,
-	.init_IRQ = uic_init_tree,
-	.get_irq = uic_get_irq,
-	.restart = ppc4xx_reset_system,
+  .name = "PowerPC 44x Platform",
+  .probe = ppc44x_probe,
+  .progress = udbg_progress,
+  .init_IRQ = uic_init_tree,
+  .get_irq = uic_get_irq,
+  .restart = ppc4xx_reset_system,
 };

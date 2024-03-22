@@ -15,11 +15,11 @@ struct xfs_perag;
  * count hits zero.
  */
 struct xfs_defer_drain {
-	/* Number of items pending in some part of the filesystem. */
-	atomic_t		dr_count;
+  /* Number of items pending in some part of the filesystem. */
+  atomic_t dr_count;
 
-	/* Queue to wait for dri_count to go to zero */
-	struct wait_queue_head	dr_waiters;
+  /* Queue to wait for dri_count to go to zero */
+  struct wait_queue_head dr_waiters;
 };
 
 void xfs_defer_drain_init(struct xfs_defer_drain *dr);
@@ -62,7 +62,7 @@ void xfs_drain_wait_enable(void);
  * until the item is finished or cancelled.
  */
 struct xfs_perag *xfs_perag_intent_get(struct xfs_mount *mp,
-		xfs_agnumber_t agno);
+    xfs_agnumber_t agno);
 void xfs_perag_intent_put(struct xfs_perag *pag);
 
 void xfs_perag_intent_hold(struct xfs_perag *pag);
@@ -71,16 +71,20 @@ void xfs_perag_intent_rele(struct xfs_perag *pag);
 int xfs_perag_intent_drain(struct xfs_perag *pag);
 bool xfs_perag_intent_busy(struct xfs_perag *pag);
 #else
-struct xfs_defer_drain { /* empty */ };
+struct xfs_defer_drain { /* empty */
+};
 
-#define xfs_defer_drain_free(dr)		((void)0)
-#define xfs_defer_drain_init(dr)		((void)0)
+#define xfs_defer_drain_free(dr)    ((void) 0)
+#define xfs_defer_drain_init(dr)    ((void) 0)
 
-#define xfs_perag_intent_get(mp, agno)		xfs_perag_get((mp), (agno))
-#define xfs_perag_intent_put(pag)		xfs_perag_put(pag)
+#define xfs_perag_intent_get(mp, agno)    xfs_perag_get((mp), (agno))
+#define xfs_perag_intent_put(pag)   xfs_perag_put(pag)
 
-static inline void xfs_perag_intent_hold(struct xfs_perag *pag) { }
-static inline void xfs_perag_intent_rele(struct xfs_perag *pag) { }
+static inline void xfs_perag_intent_hold(struct xfs_perag *pag) {
+}
+
+static inline void xfs_perag_intent_rele(struct xfs_perag *pag) {
+}
 
 #endif /* CONFIG_XFS_DRAIN_INTENTS */
 

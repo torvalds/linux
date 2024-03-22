@@ -21,44 +21,44 @@
  * user.  We can also therefore share the same irq source ID.
  */
 struct kvm_kernel_irqfd_resampler {
-	struct kvm *kvm;
-	/*
-	 * List of resampling struct _irqfd objects sharing this gsi.
-	 * RCU list modified under kvm->irqfds.resampler_lock
-	 */
-	struct list_head list;
-	struct kvm_irq_ack_notifier notifier;
-	/*
-	 * Entry in list of kvm->irqfd.resampler_list.  Use for sharing
-	 * resamplers among irqfds on the same gsi.
-	 * RCU list modified under kvm->irqfds.resampler_lock
-	 */
-	struct list_head link;
+  struct kvm *kvm;
+  /*
+   * List of resampling struct _irqfd objects sharing this gsi.
+   * RCU list modified under kvm->irqfds.resampler_lock
+   */
+  struct list_head list;
+  struct kvm_irq_ack_notifier notifier;
+  /*
+   * Entry in list of kvm->irqfd.resampler_list.  Use for sharing
+   * resamplers among irqfds on the same gsi.
+   * RCU list modified under kvm->irqfds.resampler_lock
+   */
+  struct list_head link;
 };
 
 struct kvm_kernel_irqfd {
-	/* Used for MSI fast-path */
-	struct kvm *kvm;
-	wait_queue_entry_t wait;
-	/* Update side is protected by irqfds.lock */
-	struct kvm_kernel_irq_routing_entry irq_entry;
-	seqcount_spinlock_t irq_entry_sc;
-	/* Used for level IRQ fast-path */
-	int gsi;
-	struct work_struct inject;
-	/* The resampler used by this irqfd (resampler-only) */
-	struct kvm_kernel_irqfd_resampler *resampler;
-	/* Eventfd notified on resample (resampler-only) */
-	struct eventfd_ctx *resamplefd;
-	/* Entry in list of irqfds for a resampler (resampler-only) */
-	struct list_head resampler_link;
-	/* Used for setup/shutdown */
-	struct eventfd_ctx *eventfd;
-	struct list_head list;
-	poll_table pt;
-	struct work_struct shutdown;
-	struct irq_bypass_consumer consumer;
-	struct irq_bypass_producer *producer;
+  /* Used for MSI fast-path */
+  struct kvm *kvm;
+  wait_queue_entry_t wait;
+  /* Update side is protected by irqfds.lock */
+  struct kvm_kernel_irq_routing_entry irq_entry;
+  seqcount_spinlock_t irq_entry_sc;
+  /* Used for level IRQ fast-path */
+  int gsi;
+  struct work_struct inject;
+  /* The resampler used by this irqfd (resampler-only) */
+  struct kvm_kernel_irqfd_resampler *resampler;
+  /* Eventfd notified on resample (resampler-only) */
+  struct eventfd_ctx *resamplefd;
+  /* Entry in list of irqfds for a resampler (resampler-only) */
+  struct list_head resampler_link;
+  /* Used for setup/shutdown */
+  struct eventfd_ctx *eventfd;
+  struct list_head list;
+  poll_table pt;
+  struct work_struct shutdown;
+  struct irq_bypass_consumer consumer;
+  struct irq_bypass_producer *producer;
 };
 
 #endif /* __LINUX_KVM_IRQFD_H */

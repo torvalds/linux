@@ -11,7 +11,8 @@
 MODULE_LICENSE("GPL");
 
 #ifndef __ARM_NEON__
-#error You should compile this file with '-march=armv7-a -mfloat-abi=softfp -mfpu=neon'
+#error \
+  You should compile this file with '-march=armv7-a -mfloat-abi=softfp -mfpu=neon'
 #endif
 
 /*
@@ -28,10 +29,10 @@ MODULE_LICENSE("GPL");
 #include <asm-generic/xor.h>
 
 struct xor_block_template const xor_block_neon_inner = {
-	.name	= "__inner_neon__",
-	.do_2	= xor_8regs_2,
-	.do_3	= xor_8regs_3,
-	.do_4	= xor_8regs_4,
-	.do_5	= xor_8regs_5,
+  .name = "__inner_neon__",
+  .do_2 = xor_8regs_2,
+  .do_3 = xor_8regs_3,
+  .do_4 = xor_8regs_4,
+  .do_5 = xor_8regs_5,
 };
 EXPORT_SYMBOL(xor_block_neon_inner);

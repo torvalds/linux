@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/* Copyright (C) 2019 IBM Corp.  */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (C) 2019 IBM Corp.*/
 
 #ifndef ASPEED_PINMUX_H
 #define ASPEED_PINMUX_H
@@ -30,16 +30,19 @@
  * D6 is a pin with a single function (beside GPIO); a high priority signal
  * that participates in one function:
  *
- * Ball | Default | P0 Signal | P0 Expression               | P1 Signal | P1 Expression | Other
+ * Ball | Default | P0 Signal | P0 Expression               | P1 Signal | P1
+ * Expression | Other
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
- *  D6    GPIOA0    MAC1LINK    SCU80[0]=1                                                GPIOA0
+ *  D6    GPIOA0    MAC1LINK    SCU80[0]=1
+ *                                               GPIOA0
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
  *
  * C5 is a multi-signal pin (high and low priority signals). Here we touch
  * different registers for the different functions that enable each signal:
  *
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
- *  C5    GPIOA4    SCL9        SCU90[22]=1                   TIMER5      SCU80[4]=1      GPIOA4
+ *  C5    GPIOA4    SCL9        SCU90[22]=1                   TIMER5
+ *     SCU80[4]=1      GPIOA4
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
  *
  * E19 is a single-signal pin with two functions that influence the active
@@ -48,7 +51,8 @@
  * OR-relationship have the same meaning.
  *
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
- *  E19   GPIOB4    LPCRST#     SCU80[12]=1 | Strap[14]=1                                 GPIOB4
+ *  E19   GPIOB4    LPCRST#     SCU80[12]=1 | Strap[14]=1
+ *                                GPIOB4
  * -----+---------+-----------+-----------------------------+-----------+---------------+----------
  *
  * For example, pin B19 has a low-priority signal that's enabled by two
@@ -57,9 +61,12 @@
  * addition to B19. Both of the low priority functions as well as the high
  * priority function must be disabled for GPIOF1 to be used.
  *
- * Ball | Default | P0 Signal | P0 Expression                           | P1 Signal | P1 Expression                          | Other
+ * Ball | Default | P0 Signal | P0 Expression                           | P1
+ * Signal | P1 Expression                          | Other
  * -----+---------+-----------+-----------------------------------------+-----------+----------------------------------------+----------
- *  B19   GPIOF1    NDCD4       SCU80[25]=1                               SIOPBI#     SCUA4[12]=1 | Strap[19]=0                GPIOF1
+ *  B19   GPIOF1    NDCD4       SCU80[25]=1
+ *                              SIOPBI#     SCUA4[12]=1 | Strap[19]=0
+ *               GPIOF1
  * -----+---------+-----------+-----------------------------------------+-----------+----------------------------------------+----------
  *
  * For pin E18, the SoC ANDs the expected state of three bits to determine the
@@ -70,7 +77,8 @@
  * * SCU90[31]: Select SPI interface CS# output
  *
  * -----+---------+-----------+-----------------------------------------+-----------+----------------------------------------+----------
- *  E18   GPIOB7    EXTRST#     SCU3C[3]=1 & SCU80[15]=1 & SCU90[31]=0    SPICS1#     SCU3C[3]=1 & SCU80[15]=1 & SCU90[31]=1   GPIOB7
+ *  E18   GPIOB7    EXTRST#     SCU3C[3]=1 & SCU80[15]=1 & SCU90[31]=0
+ *   SPICS1#     SCU3C[3]=1 & SCU80[15]=1 & SCU90[31]=1   GPIOB7
  * -----+---------+-----------+-----------------------------------------+-----------+----------------------------------------+----------
  *
  * (Bits SCU3C[3] and SCU80[15] appear to only be used in the expressions for
@@ -78,9 +86,11 @@
  *
  * Pin T5 is a multi-signal pin with a more complex configuration:
  *
- * Ball | Default | P0 Signal | P0 Expression                | P1 Signal | P1 Expression | Other
+ * Ball | Default | P0 Signal | P0 Expression                | P1 Signal | P1
+ * Expression | Other
  * -----+---------+-----------+------------------------------+-----------+---------------+----------
- *  T5    GPIOL1    VPIDE       SCU90[5:4]!=0 & SCU84[17]=1    NDCD1       SCU84[17]=1     GPIOL1
+ *  T5    GPIOL1    VPIDE       SCU90[5:4]!=0 & SCU84[17]=1    NDCD1
+ *      SCU84[17]=1     GPIOL1
  * -----+---------+-----------+------------------------------+-----------+---------------+----------
  *
  * The high priority signal configuration is best thought of in terms of its
@@ -94,7 +104,8 @@
  * Re-writing:
  *
  * -----+---------+-----------+------------------------------+-----------+---------------+----------
- *  T5    GPIOL1    VPIDE      (SCU90[5:4]=1 & SCU84[17]=1)    NDCD1       SCU84[17]=1     GPIOL1
+ *  T5    GPIOL1    VPIDE      (SCU90[5:4]=1 & SCU84[17]=1)    NDCD1
+ *      SCU84[17]=1     GPIOL1
  *                             | (SCU90[5:4]=2 & SCU84[17]=1)
  *                             | (SCU90[5:4]=3 & SCU84[17]=1)
  * -----+---------+-----------+------------------------------+-----------+---------------+----------
@@ -107,8 +118,10 @@
  * W1 and U5:
  *
  * -----+---------+-----------+------------------------------+-----------+---------------+----------
- *  W1    GPIOL6    VPIB0       SCU90[5:4]=3 & SCU84[22]=1     TXD1        SCU84[22]=1     GPIOL6
- *  U5    GPIOL7    VPIB1       SCU90[5:4]=3 & SCU84[23]=1     RXD1        SCU84[23]=1     GPIOL7
+ *  W1    GPIOL6    VPIB0       SCU90[5:4]=3 & SCU84[22]=1     TXD1
+ *       SCU84[22]=1     GPIOL6
+ *  U5    GPIOL7    VPIB1       SCU90[5:4]=3 & SCU84[23]=1     RXD1
+ *       SCU84[23]=1     GPIOL7
  * -----+---------+-----------+------------------------------+-----------+---------------+----------
  *
  * The examples of T5 and W1 are particularly fertile, as they also demonstrate
@@ -130,10 +143,13 @@
  * interest will stomp on the state of other UART signals when disabling the
  * VPI functions on the current pin.
  *
- * Ball |  Default   | P0 Signal | P0 Expression             | P1 Signal | P1 Expression | Other
+ * Ball |  Default   | P0 Signal | P0 Expression             | P1 Signal | P1
+ * Expression | Other
  * -----+------------+-----------+---------------------------+-----------+---------------+------------
- *  A12   RGMII1TXCK   GPIOT0      SCUA0[0]=1                  RMII1TXEN   Strap[6]=0      RGMII1TXCK
- *  B12   RGMII1TXCTL  GPIOT1      SCUA0[1]=1                  –           Strap[6]=0      RGMII1TXCTL
+ *  A12   RGMII1TXCK   GPIOT0      SCUA0[0]=1                  RMII1TXEN
+ *  Strap[6]=0      RGMII1TXCK
+ *  B12   RGMII1TXCTL  GPIOT1      SCUA0[1]=1                  –
+ *          Strap[6]=0      RGMII1TXCTL
  * -----+------------+-----------+---------------------------+-----------+---------------+------------
  *
  * A12 demonstrates that the "Other" signal isn't always GPIO - in this case
@@ -419,31 +435,31 @@
  *
  */
 
-#define ASPEED_IP_SCU		0
-#define ASPEED_IP_GFX		1
-#define ASPEED_IP_LPC		2
-#define ASPEED_NR_PINMUX_IPS	3
+#define ASPEED_IP_SCU   0
+#define ASPEED_IP_GFX   1
+#define ASPEED_IP_LPC   2
+#define ASPEED_NR_PINMUX_IPS  3
 
- /**
-  * A signal descriptor, which describes the register, bits and the
-  * enable/disable values that should be compared or written.
-  *
-  * @ip: The IP block identifier, used as an index into the regmap array in
-  *      struct aspeed_pinctrl_data
-  * @reg: The register offset with respect to the base address of the IP block
-  * @mask: The mask to apply to the register. The lowest set bit of the mask is
-  *        used to derive the shift value.
-  * @enable: The value that enables the function. Value should be in the LSBs,
-  *          not at the position of the mask.
-  * @disable: The value that disables the function. Value should be in the
-  *           LSBs, not at the position of the mask.
-  */
+/**
+ * A signal descriptor, which describes the register, bits and the
+ * enable/disable values that should be compared or written.
+ *
+ * @ip: The IP block identifier, used as an index into the regmap array in
+ *      struct aspeed_pinctrl_data
+ * @reg: The register offset with respect to the base address of the IP block
+ * @mask: The mask to apply to the register. The lowest set bit of the mask is
+ *        used to derive the shift value.
+ * @enable: The value that enables the function. Value should be in the LSBs,
+ *          not at the position of the mask.
+ * @disable: The value that disables the function. Value should be in the
+ *           LSBs, not at the position of the mask.
+ */
 struct aspeed_sig_desc {
-	unsigned int ip;
-	unsigned int reg;
-	u32 mask;
-	u32 enable;
-	u32 disable;
+  unsigned int ip;
+  unsigned int reg;
+  u32 mask;
+  u32 enable;
+  u32 disable;
 };
 
 /**
@@ -461,10 +477,10 @@ struct aspeed_sig_desc {
  *         function expression
  */
 struct aspeed_sig_expr {
-	const char *signal;
-	const char *function;
-	int ndescs;
-	const struct aspeed_sig_desc *descs;
+  const char *signal;
+  const char *function;
+  int ndescs;
+  const struct aspeed_sig_desc *descs;
 };
 
 /**
@@ -478,14 +494,14 @@ struct aspeed_sig_expr {
  *
  */
 struct aspeed_pin_desc {
-	const char *name;
-	const struct aspeed_sig_expr ***prios;
+  const char *name;
+  const struct aspeed_sig_expr ***prios;
 };
 
 /* Macro hell */
 
 #define SIG_DESC_IP_BIT(ip, reg, idx, val) \
-	{ ip, reg, BIT_MASK(idx), val, (((val) + 1) & 1) }
+  { ip, reg, BIT_MASK(idx), val, (((val) + 1) & 1) }
 
 /**
  * Short-hand macro for describing an SCU descriptor enabled by the state of
@@ -496,7 +512,7 @@ struct aspeed_pin_desc {
  * @val: The value (0 or 1) that enables the function
  */
 #define SIG_DESC_BIT(reg, idx, val) \
-	SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, val)
+  SIG_DESC_IP_BIT(ASPEED_IP_SCU, reg, idx, val)
 
 #define SIG_DESC_IP_SET(ip, reg, idx) SIG_DESC_IP_BIT(ip, reg, idx, 1)
 
@@ -512,18 +528,18 @@ struct aspeed_pin_desc {
 
 #define SIG_DESC_LIST_SYM(sig, group) sig_descs_ ## sig ## _ ## group
 #define SIG_DESC_LIST_DECL(sig, group, ...) \
-	static const struct aspeed_sig_desc SIG_DESC_LIST_SYM(sig, group)[] = \
-		{ __VA_ARGS__ }
+  static const struct aspeed_sig_desc SIG_DESC_LIST_SYM(sig, group)[] = \
+  { __VA_ARGS__ }
 
 #define SIG_EXPR_SYM(sig, group) sig_expr_ ## sig ## _ ## group
 #define SIG_EXPR_DECL_(sig, group, func) \
-	static const struct aspeed_sig_expr SIG_EXPR_SYM(sig, group) = \
-	{ \
-		.signal = #sig, \
-		.function = #func, \
-		.ndescs = ARRAY_SIZE(SIG_DESC_LIST_SYM(sig, group)), \
-		.descs = &(SIG_DESC_LIST_SYM(sig, group))[0], \
-	}
+  static const struct aspeed_sig_expr SIG_EXPR_SYM(sig, group) = \
+  { \
+    .signal = #sig, \
+    .function = #func, \
+    .ndescs = ARRAY_SIZE(SIG_DESC_LIST_SYM(sig, group)), \
+    .descs = &(SIG_DESC_LIST_SYM(sig, group))[0], \
+  }
 
 /**
  * Declare a signal expression.
@@ -543,8 +559,8 @@ struct aspeed_pin_desc {
  *              { HW_STRAP1, GENMASK(1, 0), 0, 0 });
  */
 #define SIG_EXPR_DECL(sig, group, func, ...) \
-	SIG_DESC_LIST_DECL(sig, group, __VA_ARGS__); \
-	SIG_EXPR_DECL_(sig, group, func)
+  SIG_DESC_LIST_DECL(sig, group, __VA_ARGS__); \
+  SIG_EXPR_DECL_(sig, group, func)
 
 /**
  * Declare a pointer to a signal expression
@@ -572,8 +588,8 @@ struct aspeed_pin_desc {
  *              SIG_EXPR_PTR(ROMD8, ROM16S));
  */
 #define SIG_EXPR_LIST_DECL(sig, group, ...) \
-	static const struct aspeed_sig_expr *SIG_EXPR_LIST_SYM(sig, group)[] =\
-		{ __VA_ARGS__, NULL }
+  static const struct aspeed_sig_expr *SIG_EXPR_LIST_SYM(sig, group)[] = \
+  { __VA_ARGS__, NULL }
 
 #define stringify(x) #x
 #define istringify(x) stringify(x)
@@ -592,9 +608,9 @@ struct aspeed_pin_desc {
  * signals available on a pin.
  */
 #define SIG_EXPR_LIST_ALIAS(pin, sig, group) \
-	static const struct aspeed_sig_expr *\
-		SIG_EXPR_LIST_SYM(pin, sig)[ARRAY_SIZE(SIG_EXPR_LIST_SYM(sig, group))] \
-		__attribute__((alias(istringify(SIG_EXPR_LIST_SYM(sig, group)))))
+  static const struct aspeed_sig_expr * \
+  SIG_EXPR_LIST_SYM(pin, sig)[ARRAY_SIZE(SIG_EXPR_LIST_SYM(sig, group))] \
+  __attribute__((alias(istringify(SIG_EXPR_LIST_SYM(sig, group)))))
 
 /**
  * A short-hand macro for declaring a function expression and an expression
@@ -610,10 +626,10 @@ struct aspeed_pin_desc {
  *     SIG_EXPR_LIST_DECL_SINGLE(A18, NCTS6, NCTS6, SIG_DESC_SET(SCU90, 7));
  */
 #define SIG_EXPR_LIST_DECL_SESG(pin, sig, func, ...) \
-	SIG_DESC_LIST_DECL(sig, func, __VA_ARGS__); \
-	SIG_EXPR_DECL_(sig, func, func); \
-	SIG_EXPR_LIST_DECL(sig, func, SIG_EXPR_PTR(sig, func)); \
-	SIG_EXPR_LIST_ALIAS(pin, sig, func)
+  SIG_DESC_LIST_DECL(sig, func, __VA_ARGS__); \
+  SIG_EXPR_DECL_(sig, func, func); \
+  SIG_EXPR_LIST_DECL(sig, func, SIG_EXPR_PTR(sig, func)); \
+  SIG_EXPR_LIST_ALIAS(pin, sig, func)
 
 /**
  * Similar to the above, but for pins with a single expression (SE) and
@@ -626,10 +642,10 @@ struct aspeed_pin_desc {
  * @...: Function descriptors that define the function expression
  */
 #define SIG_EXPR_LIST_DECL_SEMG(pin, sig, group, func, ...) \
-	SIG_DESC_LIST_DECL(sig, group, __VA_ARGS__); \
-	SIG_EXPR_DECL_(sig, group, func); \
-	SIG_EXPR_LIST_DECL(sig, group, SIG_EXPR_PTR(sig, group)); \
-	SIG_EXPR_LIST_ALIAS(pin, sig, group)
+  SIG_DESC_LIST_DECL(sig, group, __VA_ARGS__); \
+  SIG_EXPR_DECL_(sig, group, func); \
+  SIG_EXPR_LIST_DECL(sig, group, SIG_EXPR_PTR(sig, group)); \
+  SIG_EXPR_LIST_ALIAS(pin, sig, group)
 
 /**
  * Similar to the above, but for pins with a dual expressions (DE)
@@ -642,10 +658,10 @@ struct aspeed_pin_desc {
  * @...: Function descriptors that define the function expression
  */
 #define SIG_EXPR_LIST_DECL_DESG(pin, sig, f0, f1) \
-	SIG_EXPR_LIST_DECL(sig, f0, \
-			   SIG_EXPR_PTR(sig, f0), \
-			   SIG_EXPR_PTR(sig, f1)); \
-	SIG_EXPR_LIST_ALIAS(pin, sig, f0)
+  SIG_EXPR_LIST_DECL(sig, f0, \
+    SIG_EXPR_PTR(sig, f0), \
+    SIG_EXPR_PTR(sig, f1)); \
+  SIG_EXPR_LIST_ALIAS(pin, sig, f0)
 
 #define SIG_EXPR_LIST_PTR(sig, group) SIG_EXPR_LIST_SYM(sig, group)
 
@@ -654,10 +670,10 @@ struct aspeed_pin_desc {
 #define PIN_SYM(pin) pin_ ## pin
 
 #define PIN_DECL_(pin, ...) \
-	static const struct aspeed_sig_expr **PIN_EXPRS_SYM(pin)[] = \
-		{ __VA_ARGS__, NULL }; \
-	static const struct aspeed_pin_desc PIN_SYM(pin) = \
-		{ #pin, PIN_EXPRS_PTR(pin) }
+  static const struct aspeed_sig_expr **PIN_EXPRS_SYM(pin)[] = \
+  { __VA_ARGS__, NULL }; \
+  static const struct aspeed_pin_desc PIN_SYM(pin) = \
+  { #pin, PIN_EXPRS_PTR(pin) }
 
 /**
  * Declare a single signal pin
@@ -673,9 +689,9 @@ struct aspeed_pin_desc {
  *     PIN_DECL_1(E3, GPIOK0, SCL5);
  */
 #define PIN_DECL_1(pin, other, sig) \
-	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
-		  SIG_EXPR_LIST_PTR(pin, other))
+  SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+  PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
+    SIG_EXPR_LIST_PTR(pin, other))
 
 /**
  * Single signal, single function pin declaration
@@ -690,11 +706,11 @@ struct aspeed_pin_desc {
  *    SSSF_PIN_DECL(A4, GPIOA2, TIMER3, SIG_DESC_SET(SCU80, 2));
  */
 #define SSSF_PIN_DECL(pin, other, sig, ...) \
-	SIG_EXPR_LIST_DECL_SESG(pin, sig, sig, __VA_ARGS__); \
-	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
-		  SIG_EXPR_LIST_PTR(pin, other)); \
-	FUNC_GROUP_DECL(sig, pin)
+  SIG_EXPR_LIST_DECL_SESG(pin, sig, sig, __VA_ARGS__); \
+  SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+  PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, sig), \
+    SIG_EXPR_LIST_PTR(pin, other)); \
+  FUNC_GROUP_DECL(sig, pin)
 /**
  * Declare a two-signal pin
  *
@@ -715,107 +731,105 @@ struct aspeed_pin_desc {
  *     PIN_DECL_2(A8, GPIOH0, ROMD8, NCTS6);
  */
 #define PIN_DECL_2(pin, other, high, low) \
-	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, \
-			SIG_EXPR_LIST_PTR(pin, high), \
-			SIG_EXPR_LIST_PTR(pin, low), \
-			SIG_EXPR_LIST_PTR(pin, other))
+  SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+  PIN_DECL_(pin, \
+    SIG_EXPR_LIST_PTR(pin, high), \
+    SIG_EXPR_LIST_PTR(pin, low), \
+    SIG_EXPR_LIST_PTR(pin, other))
 
 #define PIN_DECL_3(pin, other, high, medium, low) \
-	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, \
-			SIG_EXPR_LIST_PTR(pin, high), \
-			SIG_EXPR_LIST_PTR(pin, medium), \
-			SIG_EXPR_LIST_PTR(pin, low), \
-			SIG_EXPR_LIST_PTR(pin, other))
+  SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+  PIN_DECL_(pin, \
+    SIG_EXPR_LIST_PTR(pin, high), \
+    SIG_EXPR_LIST_PTR(pin, medium), \
+    SIG_EXPR_LIST_PTR(pin, low), \
+    SIG_EXPR_LIST_PTR(pin, other))
 
 #define PIN_DECL_4(pin, other, prio1, prio2, prio3, prio4) \
-	SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
-	PIN_DECL_(pin, \
-			SIG_EXPR_LIST_PTR(pin, prio1), \
-			SIG_EXPR_LIST_PTR(pin, prio2), \
-			SIG_EXPR_LIST_PTR(pin, prio3), \
-			SIG_EXPR_LIST_PTR(pin, prio4), \
-			SIG_EXPR_LIST_PTR(pin, other))
+  SIG_EXPR_LIST_DECL_SESG(pin, other, other); \
+  PIN_DECL_(pin, \
+    SIG_EXPR_LIST_PTR(pin, prio1), \
+    SIG_EXPR_LIST_PTR(pin, prio2), \
+    SIG_EXPR_LIST_PTR(pin, prio3), \
+    SIG_EXPR_LIST_PTR(pin, prio4), \
+    SIG_EXPR_LIST_PTR(pin, other))
 
 #define GROUP_SYM(group) group_pins_ ## group
 #define GROUP_DECL(group, ...) \
-	static const int GROUP_SYM(group)[] = { __VA_ARGS__ }
+  static const int GROUP_SYM(group)[] = { __VA_ARGS__ }
 
 #define FUNC_SYM(func) func_groups_ ## func
 #define FUNC_DECL_(func, ...) \
-	static const char *FUNC_SYM(func)[] = { __VA_ARGS__ }
+  static const char *FUNC_SYM(func)[] = { __VA_ARGS__ }
 
 #define FUNC_DECL_1(func, group) FUNC_DECL_(func, #group)
 #define FUNC_DECL_2(func, one, two) FUNC_DECL_(func, #one, #two)
 #define FUNC_DECL_3(func, one, two, three) FUNC_DECL_(func, #one, #two, #three)
 
 #define FUNC_GROUP_DECL(func, ...) \
-	GROUP_DECL(func, __VA_ARGS__); \
-	FUNC_DECL_(func, #func)
-
+  GROUP_DECL(func, __VA_ARGS__); \
+  FUNC_DECL_(func, #func)
 
 #define GPIO_PIN_DECL(pin, gpio) \
-	SIG_EXPR_LIST_DECL_SESG(pin, gpio, gpio); \
-	PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, gpio))
+  SIG_EXPR_LIST_DECL_SESG(pin, gpio, gpio); \
+  PIN_DECL_(pin, SIG_EXPR_LIST_PTR(pin, gpio))
 
 struct aspeed_pin_group {
-	const char *name;
-	const unsigned int *pins;
-	const unsigned int npins;
+  const char *name;
+  const unsigned int *pins;
+  const unsigned int npins;
 };
 
 #define ASPEED_PINCTRL_GROUP(name_) { \
-	.name = #name_, \
-	.pins = &(GROUP_SYM(name_))[0], \
-	.npins = ARRAY_SIZE(GROUP_SYM(name_)), \
+    .name = #name_, \
+    .pins = &(GROUP_SYM(name_))[0], \
+    .npins = ARRAY_SIZE(GROUP_SYM(name_)), \
 }
 
 struct aspeed_pin_function {
-	const char *name;
-	const char *const *groups;
-	unsigned int ngroups;
+  const char *name;
+  const char * const *groups;
+  unsigned int ngroups;
 };
 
 #define ASPEED_PINCTRL_FUNC(name_, ...) { \
-	.name = #name_, \
-	.groups = &FUNC_SYM(name_)[0], \
-	.ngroups = ARRAY_SIZE(FUNC_SYM(name_)), \
+    .name = #name_, \
+    .groups = &FUNC_SYM(name_)[0], \
+    .ngroups = ARRAY_SIZE(FUNC_SYM(name_)), \
 }
 
 struct aspeed_pinmux_data;
 
 struct aspeed_pinmux_ops {
-	int (*eval)(struct aspeed_pinmux_data *ctx,
-		    const struct aspeed_sig_expr *expr, bool enabled);
-	int (*set)(struct aspeed_pinmux_data *ctx,
-		   const struct aspeed_sig_expr *expr, bool enabled);
+  int (*eval)(struct aspeed_pinmux_data *ctx,
+      const struct aspeed_sig_expr *expr, bool enabled);
+  int (*set)(struct aspeed_pinmux_data *ctx,
+      const struct aspeed_sig_expr *expr, bool enabled);
 };
 
 struct aspeed_pinmux_data {
-	struct device *dev;
-	struct regmap *maps[ASPEED_NR_PINMUX_IPS];
+  struct device *dev;
+  struct regmap *maps[ASPEED_NR_PINMUX_IPS];
 
-	const struct aspeed_pinmux_ops *ops;
+  const struct aspeed_pinmux_ops *ops;
 
-	const struct aspeed_pin_group *groups;
-	const unsigned int ngroups;
+  const struct aspeed_pin_group *groups;
+  const unsigned int ngroups;
 
-	const struct aspeed_pin_function *functions;
-	const unsigned int nfunctions;
+  const struct aspeed_pin_function *functions;
+  const unsigned int nfunctions;
 };
 
 int aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc, bool enabled,
-			 struct regmap *map);
+    struct regmap *map);
 
 int aspeed_sig_expr_eval(struct aspeed_pinmux_data *ctx,
-			 const struct aspeed_sig_expr *expr, bool enabled);
+    const struct aspeed_sig_expr *expr, bool enabled);
 
 static inline int aspeed_sig_expr_set(struct aspeed_pinmux_data *ctx,
-				      const struct aspeed_sig_expr *expr,
-				      bool enabled)
-{
-	return ctx->ops->set(ctx, expr, enabled);
+    const struct aspeed_sig_expr *expr,
+    bool enabled) {
+  return ctx->ops->set(ctx, expr, enabled);
 }
 
 #endif /* ASPEED_PINMUX_H */

@@ -7,13 +7,13 @@
 #define __DTS_APPLE_MULTI_DIE_CPP_H
 
 #ifndef __stringify
-#define __stringify_1(x...)     #x
-#define __stringify(x...)       __stringify_1(x)
+#define __stringify_1(x ...)     #x
+#define __stringify(x ...)       __stringify_1(x)
 #endif
 
 #ifndef __concat
-#define __concat_1(x, y...)     x ## y
-#define __concat(x, y...)       __concat_1(x, y)
+#define __concat_1(x, y ...)     x ## y
+#define __concat(x, y ...)       __concat_1(x, y)
 #endif
 
 #define DIE_NODE(a) __concat(a, DIE)

@@ -10,9 +10,9 @@ struct block_device;
 extern struct list_head dm_verity_loadpin_trusted_root_digests;
 
 struct dm_verity_loadpin_trusted_root_digest {
-	struct list_head node;
-	unsigned int len;
-	u8 data[] __counted_by(len);
+  struct list_head node;
+  unsigned int len;
+  u8 data[] __counted_by(len);
 };
 
 #if IS_ENABLED(CONFIG_SECURITY_LOADPIN_VERITY)
@@ -20,8 +20,9 @@ bool dm_verity_loadpin_is_bdev_trusted(struct block_device *bdev);
 #else
 static inline bool dm_verity_loadpin_is_bdev_trusted(struct block_device *bdev)
 {
-	return false;
+  return false;
 }
+
 #endif
 
 #endif /* __LINUX_DM_VERITY_LOADPIN_H */

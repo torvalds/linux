@@ -35,9 +35,8 @@
  * Returns: true if there's enough unused space in the seq_buf buffer
  * to fit the amount of new data according to @len.
  */
-static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
-{
-	return s->len + len <= s->size;
+static bool seq_buf_can_fit(struct seq_buf *s, size_t len) {
+  return s->len + len <= s->size;
 }
 
 /**
@@ -47,11 +46,9 @@ static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
  *
  * Returns: zero on success, non-zero otherwise.
  */
-int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
-{
-	unsigned int len = seq_buf_used(s);
-
-	return seq_write(m, s->buffer, len);
+int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s) {
+  unsigned int len = seq_buf_used(s);
+  return seq_write(m, s->buffer, len);
 }
 
 /**
@@ -64,21 +61,18 @@ int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
  *
  * Returns: zero on success, -1 on overflow.
  */
-int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
-{
-	int len;
-
-	WARN_ON(s->size == 0);
-
-	if (s->len < s->size) {
-		len = vsnprintf(s->buffer + s->len, s->size - s->len, fmt, args);
-		if (s->len + len < s->size) {
-			s->len += len;
-			return 0;
-		}
-	}
-	seq_buf_set_overflow(s);
-	return -1;
+int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args) {
+  int len;
+  WARN_ON(s->size == 0);
+  if (s->len < s->size) {
+    len = vsnprintf(s->buffer + s->len, s->size - s->len, fmt, args);
+    if (s->len + len < s->size) {
+      s->len += len;
+      return 0;
+    }
+  }
+  seq_buf_set_overflow(s);
+  return -1;
 }
 
 /**
@@ -90,17 +84,15 @@ int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
  *
  * Returns: zero on success, -1 on overflow.
  */
-int seq_buf_printf(struct seq_buf *s, const char *fmt, ...)
-{
-	va_list ap;
-	int ret;
-
-	va_start(ap, fmt);
-	ret = seq_buf_vprintf(s, fmt, ap);
-	va_end(ap);
-
-	return ret;
+int seq_buf_printf(struct seq_buf *s, const char *fmt, ...) {
+  va_list ap;
+  int ret;
+  va_start(ap, fmt);
+  ret = seq_buf_vprintf(s, fmt, ap);
+  va_end(ap);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(seq_buf_printf);
 
 /**
@@ -112,25 +104,23 @@ EXPORT_SYMBOL_GPL(seq_buf_printf);
  * makes sure that the buffer in @s is NUL-terminated and safe to read
  * as a string.
  */
-void seq_buf_do_printk(struct seq_buf *s, const char *lvl)
-{
-	const char *start, *lf;
-
-	if (s->size == 0 || s->len == 0)
-		return;
-
-	start = seq_buf_str(s);
-	while ((lf = strchr(start, '\n'))) {
-		int len = lf - start + 1;
-
-		printk("%s%.*s", lvl, len, start);
-		start = ++lf;
-	}
-
-	/* No trailing LF */
-	if (start < s->buffer + s->len)
-		printk("%s%s\n", lvl, start);
+void seq_buf_do_printk(struct seq_buf *s, const char *lvl) {
+  const char *start, *lf;
+  if (s->size == 0 || s->len == 0) {
+    return;
+  }
+  start = seq_buf_str(s);
+  while ((lf = strchr(start, '\n'))) {
+    int len = lf - start + 1;
+    printk("%s%.*s", lvl, len, start);
+    start = ++lf;
+  }
+  /* No trailing LF */
+  if (start < s->buffer + s->len) {
+    printk("%s%s\n", lvl, start);
+  }
 }
+
 EXPORT_SYMBOL_GPL(seq_buf_do_printk);
 
 #ifdef CONFIG_BINARY_PRINTF
@@ -151,23 +141,21 @@ EXPORT_SYMBOL_GPL(seq_buf_do_printk);
  *
  * Returns: zero on success, -1 on overflow.
  */
-int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
-{
-	unsigned int len = seq_buf_buffer_left(s);
-	int ret;
-
-	WARN_ON(s->size == 0);
-
-	if (s->len < s->size) {
-		ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
-		if (s->len + ret < s->size) {
-			s->len += ret;
-			return 0;
-		}
-	}
-	seq_buf_set_overflow(s);
-	return -1;
+int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary) {
+  unsigned int len = seq_buf_buffer_left(s);
+  int ret;
+  WARN_ON(s->size == 0);
+  if (s->len < s->size) {
+    ret = bstr_printf(s->buffer + s->len, len, fmt, binary);
+    if (s->len + ret < s->size) {
+      s->len += ret;
+      return 0;
+    }
+  }
+  seq_buf_set_overflow(s);
+  return -1;
 }
+
 #endif /* CONFIG_BINARY_PRINTF */
 
 /**
@@ -179,24 +167,21 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
  *
  * Returns: zero on success, -1 on overflow.
  */
-int seq_buf_puts(struct seq_buf *s, const char *str)
-{
-	size_t len = strlen(str);
-
-	WARN_ON(s->size == 0);
-
-	/* Add 1 to len for the trailing null byte which must be there */
-	len += 1;
-
-	if (seq_buf_can_fit(s, len)) {
-		memcpy(s->buffer + s->len, str, len);
-		/* Don't count the trailing null byte against the capacity */
-		s->len += len - 1;
-		return 0;
-	}
-	seq_buf_set_overflow(s);
-	return -1;
+int seq_buf_puts(struct seq_buf *s, const char *str) {
+  size_t len = strlen(str);
+  WARN_ON(s->size == 0);
+  /* Add 1 to len for the trailing null byte which must be there */
+  len += 1;
+  if (seq_buf_can_fit(s, len)) {
+    memcpy(s->buffer + s->len, str, len);
+    /* Don't count the trailing null byte against the capacity */
+    s->len += len - 1;
+    return 0;
+  }
+  seq_buf_set_overflow(s);
+  return -1;
 }
+
 EXPORT_SYMBOL_GPL(seq_buf_puts);
 
 /**
@@ -208,17 +193,16 @@ EXPORT_SYMBOL_GPL(seq_buf_puts);
  *
  * Returns: zero on success, -1 on overflow.
  */
-int seq_buf_putc(struct seq_buf *s, unsigned char c)
-{
-	WARN_ON(s->size == 0);
-
-	if (seq_buf_can_fit(s, 1)) {
-		s->buffer[s->len++] = c;
-		return 0;
-	}
-	seq_buf_set_overflow(s);
-	return -1;
+int seq_buf_putc(struct seq_buf *s, unsigned char c) {
+  WARN_ON(s->size == 0);
+  if (seq_buf_can_fit(s, 1)) {
+    s->buffer[s->len++] = c;
+    return 0;
+  }
+  seq_buf_set_overflow(s);
+  return -1;
 }
+
 EXPORT_SYMBOL_GPL(seq_buf_putc);
 
 /**
@@ -233,21 +217,19 @@ EXPORT_SYMBOL_GPL(seq_buf_putc);
  *
  * Returns: zero on success, -1 on overflow.
  */
-int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len)
-{
-	WARN_ON(s->size == 0);
-
-	if (seq_buf_can_fit(s, len)) {
-		memcpy(s->buffer + s->len, mem, len);
-		s->len += len;
-		return 0;
-	}
-	seq_buf_set_overflow(s);
-	return -1;
+int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len) {
+  WARN_ON(s->size == 0);
+  if (seq_buf_can_fit(s, len)) {
+    memcpy(s->buffer + s->len, mem, len);
+    s->len += len;
+    return 0;
+  }
+  seq_buf_set_overflow(s);
+  return -1;
 }
 
-#define MAX_MEMHEX_BYTES	8U
-#define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)
+#define MAX_MEMHEX_BYTES  8U
+#define HEX_CHARS   (MAX_MEMHEX_BYTES * 2 + 1)
 
 /**
  * seq_buf_putmem_hex - write raw memory into the buffer in ASCII hex
@@ -262,41 +244,36 @@ int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len)
  * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
-		       unsigned int len)
-{
-	unsigned char hex[HEX_CHARS];
-	const unsigned char *data = mem;
-	unsigned int start_len;
-	int i, j;
-
-	WARN_ON(s->size == 0);
-
-	BUILD_BUG_ON(MAX_MEMHEX_BYTES * 2 >= HEX_CHARS);
-
-	while (len) {
-		start_len = min(len, MAX_MEMHEX_BYTES);
+    unsigned int len) {
+  unsigned char hex[HEX_CHARS];
+  const unsigned char *data = mem;
+  unsigned int start_len;
+  int i, j;
+  WARN_ON(s->size == 0);
+  BUILD_BUG_ON(MAX_MEMHEX_BYTES * 2 >= HEX_CHARS);
+  while (len) {
+    start_len = min(len, MAX_MEMHEX_BYTES);
 #ifdef __BIG_ENDIAN
-		for (i = 0, j = 0; i < start_len; i++) {
+    for (i = 0, j = 0; i < start_len; i++) {
 #else
-		for (i = start_len-1, j = 0; i >= 0; i--) {
+    for (i = start_len - 1, j = 0; i >= 0; i--) {
 #endif
-			hex[j++] = hex_asc_hi(data[i]);
-			hex[j++] = hex_asc_lo(data[i]);
-		}
-		if (WARN_ON_ONCE(j == 0 || j/2 > len))
-			break;
-
-		/* j increments twice per loop */
-		hex[j++] = ' ';
-
-		seq_buf_putmem(s, hex, j);
-		if (seq_buf_has_overflowed(s))
-			return -1;
-
-		len -= start_len;
-		data += start_len;
-	}
-	return 0;
+      hex[j++] = hex_asc_hi(data[i]);
+      hex[j++] = hex_asc_lo(data[i]);
+    }
+    if (WARN_ON_ONCE(j == 0 || j / 2 > len)) {
+      break;
+    }
+    /* j increments twice per loop */
+    hex[j++] = ' ';
+    seq_buf_putmem(s, hex, j);
+    if (seq_buf_has_overflowed(s)) {
+      return -1;
+    }
+    len -= start_len;
+    data += start_len;
+  }
+  return 0;
 }
 
 /**
@@ -309,25 +286,22 @@ int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
  *
  * Returns: the number of written bytes on success, -1 on overflow.
  */
-int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
-{
-	char *buf;
-	size_t size = seq_buf_get_buf(s, &buf);
-	int res = -1;
-
-	WARN_ON(s->size == 0);
-
-	if (size) {
-		char *p = d_path(path, buf, size);
-		if (!IS_ERR(p)) {
-			char *end = mangle_path(buf, p, esc);
-			if (end)
-				res = end - buf;
-		}
-	}
-	seq_buf_commit(s, res);
-
-	return res;
+int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc) {
+  char *buf;
+  size_t size = seq_buf_get_buf(s, &buf);
+  int res = -1;
+  WARN_ON(s->size == 0);
+  if (size) {
+    char *p = d_path(path, buf, size);
+    if (!IS_ERR(p)) {
+      char *end = mangle_path(buf, p, esc);
+      if (end) {
+        res = end - buf;
+      }
+    }
+  }
+  seq_buf_commit(s, res);
+  return res;
 }
 
 /**
@@ -352,27 +326,26 @@ int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
  *
  * Returns -EFAULT if the copy to userspace fails.
  */
-int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, size_t start, int cnt)
-{
-	int len;
-	int ret;
-
-	if (!cnt)
-		return 0;
-
-	len = seq_buf_used(s);
-
-	if (len <= start)
-		return -EBUSY;
-
-	len -= start;
-	if (cnt > len)
-		cnt = len;
-	ret = copy_to_user(ubuf, s->buffer + start, cnt);
-	if (ret == cnt)
-		return -EFAULT;
-
-	return cnt - ret;
+int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, size_t start,
+    int cnt) {
+  int len;
+  int ret;
+  if (!cnt) {
+    return 0;
+  }
+  len = seq_buf_used(s);
+  if (len <= start) {
+    return -EBUSY;
+  }
+  len -= start;
+  if (cnt > len) {
+    cnt = len;
+  }
+  ret = copy_to_user(ubuf, s->buffer + start, cnt);
+  if (ret == cnt) {
+    return -EFAULT;
+  }
+  return cnt - ret;
 }
 
 /**
@@ -392,7 +365,7 @@ int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, size_t start, int cnt)
  *
  * linebuf size is maximal length for one line.
  * 32 * 3 - maximum bytes per line, each printed into 2 chars + 1 for
- *	separating space
+ *  separating space
  * 2 - spaces separating hex dump and ASCII representation
  * 32 - ASCII representation
  * 1 - terminating '\0'
@@ -400,39 +373,36 @@ int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, size_t start, int cnt)
  * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_hex_dump(struct seq_buf *s, const char *prefix_str, int prefix_type,
-		     int rowsize, int groupsize,
-		     const void *buf, size_t len, bool ascii)
-{
-	const u8 *ptr = buf;
-	int i, linelen, remaining = len;
-	unsigned char linebuf[32 * 3 + 2 + 32 + 1];
-	int ret;
-
-	if (rowsize != 16 && rowsize != 32)
-		rowsize = 16;
-
-	for (i = 0; i < len; i += rowsize) {
-		linelen = min(remaining, rowsize);
-		remaining -= rowsize;
-
-		hex_dump_to_buffer(ptr + i, linelen, rowsize, groupsize,
-				   linebuf, sizeof(linebuf), ascii);
-
-		switch (prefix_type) {
-		case DUMP_PREFIX_ADDRESS:
-			ret = seq_buf_printf(s, "%s%p: %s\n",
-			       prefix_str, ptr + i, linebuf);
-			break;
-		case DUMP_PREFIX_OFFSET:
-			ret = seq_buf_printf(s, "%s%.8x: %s\n",
-					     prefix_str, i, linebuf);
-			break;
-		default:
-			ret = seq_buf_printf(s, "%s%s\n", prefix_str, linebuf);
-			break;
-		}
-		if (ret)
-			return ret;
-	}
-	return 0;
+    int rowsize, int groupsize,
+    const void *buf, size_t len, bool ascii) {
+  const u8 *ptr = buf;
+  int i, linelen, remaining = len;
+  unsigned char linebuf[32 * 3 + 2 + 32 + 1];
+  int ret;
+  if (rowsize != 16 && rowsize != 32) {
+    rowsize = 16;
+  }
+  for (i = 0; i < len; i += rowsize) {
+    linelen = min(remaining, rowsize);
+    remaining -= rowsize;
+    hex_dump_to_buffer(ptr + i, linelen, rowsize, groupsize,
+        linebuf, sizeof(linebuf), ascii);
+    switch (prefix_type) {
+      case DUMP_PREFIX_ADDRESS:
+        ret = seq_buf_printf(s, "%s%p: %s\n",
+            prefix_str, ptr + i, linebuf);
+        break;
+      case DUMP_PREFIX_OFFSET:
+        ret = seq_buf_printf(s, "%s%.8x: %s\n",
+            prefix_str, i, linebuf);
+        break;
+      default:
+        ret = seq_buf_printf(s, "%s%s\n", prefix_str, linebuf);
+        break;
+    }
+    if (ret) {
+      return ret;
+    }
+  }
+  return 0;
 }

@@ -253,4 +253,4 @@
 #define V_RSPD_INR_VEC(x) ((x) << S_RSPD_INR_VEC)
 #define G_RSPD_INR_VEC(x) (((x) >> S_RSPD_INR_VEC) & M_RSPD_INR_VEC)
 
-#endif				/* _SGE_DEFS_H */
+#endif        /* _SGE_DEFS_H */

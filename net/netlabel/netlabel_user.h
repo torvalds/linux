@@ -30,11 +30,10 @@
  * netlbl_netlink_auditinfo - Fetch the audit information from a NETLINK msg
  * @audit_info: NetLabel audit information
  */
-static inline void netlbl_netlink_auditinfo(struct netlbl_audit *audit_info)
-{
-	security_current_getsecid_subj(&audit_info->secid);
-	audit_info->loginuid = audit_get_loginuid(current);
-	audit_info->sessionid = audit_get_sessionid(current);
+static inline void netlbl_netlink_auditinfo(struct netlbl_audit *audit_info) {
+  security_current_getsecid_subj(&audit_info->secid);
+  audit_info->loginuid = audit_get_loginuid(current);
+  audit_info->sessionid = audit_get_sessionid(current);
 }
 
 /* NetLabel NETLINK I/O functions */
@@ -44,6 +43,6 @@ int netlbl_netlink_init(void);
 /* NetLabel Audit Functions */
 
 struct audit_buffer *netlbl_audit_start_common(int type,
-					      struct netlbl_audit *audit_info);
+    struct netlbl_audit *audit_info);
 
 #endif

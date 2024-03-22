@@ -24,42 +24,41 @@ struct samsung_usb2_phy_instance;
 struct samsung_usb2_phy_config;
 
 struct samsung_usb2_phy_instance {
-	const struct samsung_usb2_common_phy *cfg;
-	struct phy *phy;
-	struct samsung_usb2_phy_driver *drv;
-	int int_cnt;
-	int ext_cnt;
+  const struct samsung_usb2_common_phy *cfg;
+  struct phy *phy;
+  struct samsung_usb2_phy_driver *drv;
+  int int_cnt;
+  int ext_cnt;
 };
 
 struct samsung_usb2_phy_driver {
-	const struct samsung_usb2_phy_config *cfg;
-	struct clk *clk;
-	struct clk *ref_clk;
-	struct regulator *vbus;
-	unsigned long ref_rate;
-	u32 ref_reg_val;
-	struct device *dev;
-	void __iomem *reg_phy;
-	struct regmap *reg_pmu;
-	struct regmap *reg_sys;
-	spinlock_t lock;
-	struct samsung_usb2_phy_instance instances[];
+  const struct samsung_usb2_phy_config *cfg;
+  struct clk *clk;
+  struct clk *ref_clk;
+  struct regulator *vbus;
+  unsigned long ref_rate;
+  u32 ref_reg_val;
+  struct device *dev;
+  void __iomem *reg_phy;
+  struct regmap *reg_pmu;
+  struct regmap *reg_sys;
+  spinlock_t lock;
+  struct samsung_usb2_phy_instance instances[];
 };
 
 struct samsung_usb2_common_phy {
-	int (*power_on)(struct samsung_usb2_phy_instance *);
-	int (*power_off)(struct samsung_usb2_phy_instance *);
-	unsigned int id;
-	char *label;
+  int (*power_on)(struct samsung_usb2_phy_instance *);
+  int (*power_off)(struct samsung_usb2_phy_instance *);
+  unsigned int id;
+  char *label;
 };
 
-
 struct samsung_usb2_phy_config {
-	const struct samsung_usb2_common_phy *phys;
-	int (*rate_to_clk)(unsigned long, u32 *);
-	unsigned int num_phys;
-	bool has_mode_switch;
-	bool has_refclk_sel;
+  const struct samsung_usb2_common_phy *phys;
+  int (*rate_to_clk)(unsigned long, u32 *);
+  unsigned int num_phys;
+  bool has_mode_switch;
+  bool has_refclk_sel;
 };
 
 extern const struct samsung_usb2_phy_config exynos3250_usb2_phy_config;

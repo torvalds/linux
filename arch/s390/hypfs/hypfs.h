@@ -23,10 +23,10 @@
 extern struct dentry *hypfs_mkdir(struct dentry *parent, const char *name);
 
 extern struct dentry *hypfs_create_u64(struct dentry *dir, const char *name,
-				       __u64 value);
+    __u64 value);
 
 extern struct dentry *hypfs_create_str(struct dentry *dir, const char *name,
-				       char *string);
+    char *string);
 
 /* LPAR Hypervisor */
 extern int hypfs_diag_init(void);
@@ -48,34 +48,34 @@ void hypfs_sprp_exit(void);
 
 int __hypfs_fs_init(void);
 
-static inline int hypfs_fs_init(void)
-{
-	if (IS_ENABLED(CONFIG_S390_HYPFS_FS))
-		return __hypfs_fs_init();
-	return 0;
+static inline int hypfs_fs_init(void) {
+  if (IS_ENABLED(CONFIG_S390_HYPFS_FS)) {
+    return __hypfs_fs_init();
+  }
+  return 0;
 }
 
 /* debugfs interface */
 struct hypfs_dbfs_file;
 
 struct hypfs_dbfs_data {
-	void			*buf;
-	void			*buf_free_ptr;
-	size_t			size;
-	struct hypfs_dbfs_file	*dbfs_file;
+  void *buf;
+  void *buf_free_ptr;
+  size_t size;
+  struct hypfs_dbfs_file *dbfs_file;
 };
 
 struct hypfs_dbfs_file {
-	const char	*name;
-	int		(*data_create)(void **data, void **data_free_ptr,
-				       size_t *size);
-	void		(*data_free)(const void *buf_free_ptr);
-	long		(*unlocked_ioctl) (struct file *, unsigned int,
-					   unsigned long);
+  const char *name;
+  int (*data_create)(void **data, void **data_free_ptr,
+      size_t *size);
+  void (*data_free)(const void *buf_free_ptr);
+  long (*unlocked_ioctl)(struct file *, unsigned int,
+      unsigned long);
 
-	/* Private data for hypfs_dbfs.c */
-	struct mutex		lock;
-	struct dentry		*dentry;
+  /* Private data for hypfs_dbfs.c */
+  struct mutex lock;
+  struct dentry *dentry;
 };
 
 extern void hypfs_dbfs_exit(void);

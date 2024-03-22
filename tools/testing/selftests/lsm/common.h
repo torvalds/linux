@@ -7,25 +7,25 @@
 
 #ifndef lsm_get_self_attr
 static inline int lsm_get_self_attr(unsigned int attr, struct lsm_ctx *ctx,
-				    __u32 *size, __u32 flags)
-{
-	return syscall(__NR_lsm_get_self_attr, attr, ctx, size, flags);
+    __u32 *size, __u32 flags) {
+  return syscall(__NR_lsm_get_self_attr, attr, ctx, size, flags);
 }
+
 #endif
 
 #ifndef lsm_set_self_attr
 static inline int lsm_set_self_attr(unsigned int attr, struct lsm_ctx *ctx,
-				    __u32 size, __u32 flags)
-{
-	return syscall(__NR_lsm_set_self_attr, attr, ctx, size, flags);
+    __u32 size, __u32 flags) {
+  return syscall(__NR_lsm_set_self_attr, attr, ctx, size, flags);
 }
+
 #endif
 
 #ifndef lsm_list_modules
-static inline int lsm_list_modules(__u64 *ids, __u32 *size, __u32 flags)
-{
-	return syscall(__NR_lsm_list_modules, ids, size, flags);
+static inline int lsm_list_modules(__u64 *ids, __u32 *size, __u32 flags) {
+  return syscall(__NR_lsm_list_modules, ids, size, flags);
 }
+
 #endif
 
 extern int read_proc_attr(const char *attr, char *value, size_t size);

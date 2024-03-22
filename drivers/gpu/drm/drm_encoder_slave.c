@@ -30,13 +30,13 @@
 
 /**
  * drm_i2c_encoder_init - Initialize an I2C slave encoder
- * @dev:	DRM device.
+ * @dev:  DRM device.
  * @encoder:    Encoder to be attached to the I2C device. You aren't
- *		required to have called drm_encoder_init() before.
- * @adap:	I2C adapter that will be used to communicate with
- *		the device.
- * @info:	Information that will be used to create the I2C device.
- *		Required fields are @addr and @type.
+ *    required to have called drm_encoder_init() before.
+ * @adap: I2C adapter that will be used to communicate with
+ *    the device.
+ * @info: Information that will be used to create the I2C device.
+ *    Required fields are @addr and @type.
  *
  * Create an I2C device on the specified bus (the module containing its
  * driver is transparently loaded) and attach it to the specified
@@ -50,133 +50,123 @@
  * -ENODEV is returned when no matching driver is found.
  */
 int drm_i2c_encoder_init(struct drm_device *dev,
-			 struct drm_encoder_slave *encoder,
-			 struct i2c_adapter *adap,
-			 const struct i2c_board_info *info)
-{
-	struct module *module = NULL;
-	struct i2c_client *client;
-	struct drm_i2c_encoder_driver *encoder_drv;
-	int err = 0;
-
-	request_module("%s%s", I2C_MODULE_PREFIX, info->type);
-
-	client = i2c_new_client_device(adap, info);
-	if (!i2c_client_has_driver(client)) {
-		err = -ENODEV;
-		goto fail_unregister;
-	}
-
-	module = client->dev.driver->owner;
-	if (!try_module_get(module)) {
-		err = -ENODEV;
-		goto fail_unregister;
-	}
-
-	encoder->bus_priv = client;
-
-	encoder_drv = to_drm_i2c_encoder_driver(to_i2c_driver(client->dev.driver));
-
-	err = encoder_drv->encoder_init(client, dev, encoder);
-	if (err)
-		goto fail_module_put;
-
-	if (info->platform_data)
-		encoder->slave_funcs->set_config(&encoder->base,
-						 info->platform_data);
-
-	return 0;
-
+    struct drm_encoder_slave *encoder,
+    struct i2c_adapter *adap,
+    const struct i2c_board_info *info) {
+  struct module *module = NULL;
+  struct i2c_client *client;
+  struct drm_i2c_encoder_driver *encoder_drv;
+  int err = 0;
+  request_module("%s%s", I2C_MODULE_PREFIX, info->type);
+  client = i2c_new_client_device(adap, info);
+  if (!i2c_client_has_driver(client)) {
+    err = -ENODEV;
+    goto fail_unregister;
+  }
+  module = client->dev.driver->owner;
+  if (!try_module_get(module)) {
+    err = -ENODEV;
+    goto fail_unregister;
+  }
+  encoder->bus_priv = client;
+  encoder_drv = to_drm_i2c_encoder_driver(to_i2c_driver(client->dev.driver));
+  err = encoder_drv->encoder_init(client, dev, encoder);
+  if (err) {
+    goto fail_module_put;
+  }
+  if (info->platform_data) {
+    encoder->slave_funcs->set_config(&encoder->base,
+        info->platform_data);
+  }
+  return 0;
 fail_module_put:
-	module_put(module);
+  module_put(module);
 fail_unregister:
-	i2c_unregister_device(client);
-	return err;
+  i2c_unregister_device(client);
+  return err;
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_init);
 
 /**
  * drm_i2c_encoder_destroy - Unregister the I2C device backing an encoder
- * @drm_encoder:	Encoder to be unregistered.
+ * @drm_encoder:  Encoder to be unregistered.
  *
  * This should be called from the @destroy method of an I2C slave
  * encoder driver once I2C access is no longer needed.
  */
-void drm_i2c_encoder_destroy(struct drm_encoder *drm_encoder)
-{
-	struct drm_encoder_slave *encoder = to_encoder_slave(drm_encoder);
-	struct i2c_client *client = drm_i2c_encoder_get_client(drm_encoder);
-	struct module *module = client->dev.driver->owner;
-
-	i2c_unregister_device(client);
-	encoder->bus_priv = NULL;
-
-	module_put(module);
+void drm_i2c_encoder_destroy(struct drm_encoder *drm_encoder) {
+  struct drm_encoder_slave *encoder = to_encoder_slave(drm_encoder);
+  struct i2c_client *client = drm_i2c_encoder_get_client(drm_encoder);
+  struct module *module = client->dev.driver->owner;
+  i2c_unregister_device(client);
+  encoder->bus_priv = NULL;
+  module_put(module);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_destroy);
 
 /*
  * Wrapper fxns which can be plugged in to drm_encoder_helper_funcs:
  */
 
-static inline const struct drm_encoder_slave_funcs *
-get_slave_funcs(struct drm_encoder *enc)
-{
-	return to_encoder_slave(enc)->slave_funcs;
+static inline const struct drm_encoder_slave_funcs *get_slave_funcs(
+    struct drm_encoder *enc) {
+  return to_encoder_slave(enc)->slave_funcs;
 }
 
-void drm_i2c_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-	get_slave_funcs(encoder)->dpms(encoder, mode);
+void drm_i2c_encoder_dpms(struct drm_encoder *encoder, int mode) {
+  get_slave_funcs(encoder)->dpms(encoder, mode);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_dpms);
 
 bool drm_i2c_encoder_mode_fixup(struct drm_encoder *encoder,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	if (!get_slave_funcs(encoder)->mode_fixup)
-		return true;
-
-	return get_slave_funcs(encoder)->mode_fixup(encoder, mode, adjusted_mode);
+    const struct drm_display_mode *mode,
+    struct drm_display_mode *adjusted_mode) {
+  if (!get_slave_funcs(encoder)->mode_fixup) {
+    return true;
+  }
+  return get_slave_funcs(encoder)->mode_fixup(encoder, mode, adjusted_mode);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_mode_fixup);
 
-void drm_i2c_encoder_prepare(struct drm_encoder *encoder)
-{
-	drm_i2c_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+void drm_i2c_encoder_prepare(struct drm_encoder *encoder) {
+  drm_i2c_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_prepare);
 
-void drm_i2c_encoder_commit(struct drm_encoder *encoder)
-{
-	drm_i2c_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+void drm_i2c_encoder_commit(struct drm_encoder *encoder) {
+  drm_i2c_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_commit);
 
 void drm_i2c_encoder_mode_set(struct drm_encoder *encoder,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	get_slave_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
+    struct drm_display_mode *mode,
+    struct drm_display_mode *adjusted_mode) {
+  get_slave_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_mode_set);
 
 enum drm_connector_status drm_i2c_encoder_detect(struct drm_encoder *encoder,
-	    struct drm_connector *connector)
-{
-	return get_slave_funcs(encoder)->detect(encoder, connector);
+    struct drm_connector *connector) {
+  return get_slave_funcs(encoder)->detect(encoder, connector);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_detect);
 
-void drm_i2c_encoder_save(struct drm_encoder *encoder)
-{
-	get_slave_funcs(encoder)->save(encoder);
+void drm_i2c_encoder_save(struct drm_encoder *encoder) {
+  get_slave_funcs(encoder)->save(encoder);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_save);
 
-void drm_i2c_encoder_restore(struct drm_encoder *encoder)
-{
-	get_slave_funcs(encoder)->restore(encoder);
+void drm_i2c_encoder_restore(struct drm_encoder *encoder) {
+  get_slave_funcs(encoder)->restore(encoder);
 }
+
 EXPORT_SYMBOL(drm_i2c_encoder_restore);

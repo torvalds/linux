@@ -14,6 +14,6 @@
 struct resource;
 
 int intel_spi_probe(struct device *dev, struct resource *mem,
-		    const struct intel_spi_boardinfo *info);
+    const struct intel_spi_boardinfo *info);
 
 #endif /* SPI_INTEL_H */

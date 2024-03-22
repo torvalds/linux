@@ -28,118 +28,102 @@
 #include "gca/gfx_7_2_sh_mask.h"
 
 static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
-				   struct qcm_process_device *qpd,
-				   enum cache_policy default_policy,
-				   enum cache_policy alternate_policy,
-				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size);
+    struct qcm_process_device *qpd,
+    enum cache_policy default_policy,
+    enum cache_policy alternate_policy,
+    void __user *alternate_aperture_base,
+    uint64_t alternate_aperture_size);
 static int update_qpd_cik(struct device_queue_manager *dqm,
-			  struct qcm_process_device *qpd);
+    struct qcm_process_device *qpd);
 static void init_sdma_vm(struct device_queue_manager *dqm,
-			 struct queue *q,
-			 struct qcm_process_device *qpd);
+    struct queue *q,
+    struct qcm_process_device *qpd);
 
 void device_queue_manager_init_cik(
-	struct device_queue_manager_asic_ops *asic_ops)
-{
-	asic_ops->set_cache_memory_policy = set_cache_memory_policy_cik;
-	asic_ops->update_qpd = update_qpd_cik;
-	asic_ops->init_sdma_vm = init_sdma_vm;
-	asic_ops->mqd_manager_init = mqd_manager_init_cik;
+    struct device_queue_manager_asic_ops *asic_ops) {
+  asic_ops->set_cache_memory_policy = set_cache_memory_policy_cik;
+  asic_ops->update_qpd = update_qpd_cik;
+  asic_ops->init_sdma_vm = init_sdma_vm;
+  asic_ops->mqd_manager_init = mqd_manager_init_cik;
 }
 
-static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble)
-{
-	/* In 64-bit mode, we can only control the top 3 bits of the LDS,
-	 * scratch and GPUVM apertures.
-	 * The hardware fills in the remaining 59 bits according to the
-	 * following pattern:
-	 * LDS:		X0000000'00000000 - X0000001'00000000 (4GB)
-	 * Scratch:	X0000001'00000000 - X0000002'00000000 (4GB)
-	 * GPUVM:	Y0010000'00000000 - Y0020000'00000000 (1TB)
-	 *
-	 * (where X/Y is the configurable nybble with the low-bit 0)
-	 *
-	 * LDS and scratch will have the same top nybble programmed in the
-	 * top 3 bits of SH_MEM_BASES.PRIVATE_BASE.
-	 * GPUVM can have a different top nybble programmed in the
-	 * top 3 bits of SH_MEM_BASES.SHARED_BASE.
-	 * We don't bother to support different top nybbles
-	 * for LDS/Scratch and GPUVM.
-	 */
-
-	WARN_ON((top_address_nybble & 1) || top_address_nybble > 0xE ||
-		top_address_nybble == 0);
-
-	return PRIVATE_BASE(top_address_nybble << 12) |
-			SHARED_BASE(top_address_nybble << 12);
+static uint32_t compute_sh_mem_bases_64bit(unsigned int top_address_nybble) {
+  /* In 64-bit mode, we can only control the top 3 bits of the LDS,
+   * scratch and GPUVM apertures.
+   * The hardware fills in the remaining 59 bits according to the
+   * following pattern:
+   * LDS:   X0000000'00000000 - X0000001'00000000 (4GB)
+   * Scratch: X0000001'00000000 - X0000002'00000000 (4GB)
+   * GPUVM: Y0010000'00000000 - Y0020000'00000000 (1TB)
+   *
+   * (where X/Y is the configurable nybble with the low-bit 0)
+   *
+   * LDS and scratch will have the same top nybble programmed in the
+   * top 3 bits of SH_MEM_BASES.PRIVATE_BASE.
+   * GPUVM can have a different top nybble programmed in the
+   * top 3 bits of SH_MEM_BASES.SHARED_BASE.
+   * We don't bother to support different top nybbles
+   * for LDS/Scratch and GPUVM.
+   */
+  WARN_ON((top_address_nybble & 1) || top_address_nybble > 0xE
+      || top_address_nybble == 0);
+  return PRIVATE_BASE(top_address_nybble << 12)
+    | SHARED_BASE(top_address_nybble << 12);
 }
 
 static bool set_cache_memory_policy_cik(struct device_queue_manager *dqm,
-				   struct qcm_process_device *qpd,
-				   enum cache_policy default_policy,
-				   enum cache_policy alternate_policy,
-				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size)
-{
-	uint32_t default_mtype;
-	uint32_t ape1_mtype;
-
-	default_mtype = (default_policy == cache_policy_coherent) ?
-			MTYPE_NONCACHED :
-			MTYPE_CACHED;
-
-	ape1_mtype = (alternate_policy == cache_policy_coherent) ?
-			MTYPE_NONCACHED :
-			MTYPE_CACHED;
-
-	qpd->sh_mem_config = (qpd->sh_mem_config & PTR32)
-			| ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
-			| DEFAULT_MTYPE(default_mtype)
-			| APE1_MTYPE(ape1_mtype);
-
-	return true;
+    struct qcm_process_device *qpd,
+    enum cache_policy default_policy,
+    enum cache_policy alternate_policy,
+    void __user *alternate_aperture_base,
+    uint64_t alternate_aperture_size) {
+  uint32_t default_mtype;
+  uint32_t ape1_mtype;
+  default_mtype = (default_policy == cache_policy_coherent)
+      ? MTYPE_NONCACHED
+      : MTYPE_CACHED;
+  ape1_mtype = (alternate_policy == cache_policy_coherent)
+      ? MTYPE_NONCACHED
+      : MTYPE_CACHED;
+  qpd->sh_mem_config = (qpd->sh_mem_config & PTR32)
+      | ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
+      | DEFAULT_MTYPE(default_mtype)
+      | APE1_MTYPE(ape1_mtype);
+  return true;
 }
 
 static int update_qpd_cik(struct device_queue_manager *dqm,
-			  struct qcm_process_device *qpd)
-{
-	struct kfd_process_device *pdd;
-	unsigned int temp;
-
-	pdd = qpd_to_pdd(qpd);
-
-	/* check if sh_mem_config register already configured */
-	if (qpd->sh_mem_config == 0) {
-		qpd->sh_mem_config =
-			ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED) |
-			DEFAULT_MTYPE(MTYPE_NONCACHED) |
-			APE1_MTYPE(MTYPE_NONCACHED);
-		qpd->sh_mem_ape1_limit = 0;
-		qpd->sh_mem_ape1_base = 0;
-	}
-
-	/* On dGPU we're always in GPUVM64 addressing mode with 64-bit
-	 * aperture addresses.
-	 */
-	temp = get_sh_mem_bases_nybble_64(pdd);
-	qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
-
-	pr_debug("is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",
-		qpd->pqm->process->is_32bit_user_mode, temp, qpd->sh_mem_bases);
-
-	return 0;
+    struct qcm_process_device *qpd) {
+  struct kfd_process_device *pdd;
+  unsigned int temp;
+  pdd = qpd_to_pdd(qpd);
+  /* check if sh_mem_config register already configured */
+  if (qpd->sh_mem_config == 0) {
+    qpd->sh_mem_config
+      = ALIGNMENT_MODE(SH_MEM_ALIGNMENT_MODE_UNALIGNED)
+        | DEFAULT_MTYPE(MTYPE_NONCACHED)
+        | APE1_MTYPE(MTYPE_NONCACHED);
+    qpd->sh_mem_ape1_limit = 0;
+    qpd->sh_mem_ape1_base = 0;
+  }
+  /* On dGPU we're always in GPUVM64 addressing mode with 64-bit
+   * aperture addresses.
+   */
+  temp = get_sh_mem_bases_nybble_64(pdd);
+  qpd->sh_mem_bases = compute_sh_mem_bases_64bit(temp);
+  pr_debug("is32bit process: %d sh_mem_bases nybble: 0x%X and register 0x%X\n",
+      qpd->pqm->process->is_32bit_user_mode, temp, qpd->sh_mem_bases);
+  return 0;
 }
 
 static void init_sdma_vm(struct device_queue_manager *dqm,
-			 struct queue *q,
-			 struct qcm_process_device *qpd)
-{
-	/* On dGPU we're always in GPUVM64 addressing mode with 64-bit
-	 * aperture addresses.
-	 */
-	q->properties.sdma_vm_addr =
-		((get_sh_mem_bases_nybble_64(qpd_to_pdd(qpd))) <<
-		 SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE__SHIFT) &
-		SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE_MASK;
+    struct queue *q,
+    struct qcm_process_device *qpd) {
+  /* On dGPU we're always in GPUVM64 addressing mode with 64-bit
+   * aperture addresses.
+   */
+  q->properties.sdma_vm_addr
+    = ((get_sh_mem_bases_nybble_64(qpd_to_pdd(qpd))) <<
+      SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE__SHIFT)
+      & SDMA0_RLC0_VIRTUAL_ADDR__SHARED_BASE_MASK;
 }

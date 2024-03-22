@@ -13,67 +13,67 @@
 #include <asm/spitfire.h>
 
 void xor_vis_2(unsigned long bytes, unsigned long * __restrict p1,
-	       const unsigned long * __restrict p2);
+    const unsigned long * __restrict p2);
 void xor_vis_3(unsigned long bytes, unsigned long * __restrict p1,
-	       const unsigned long * __restrict p2,
-	       const unsigned long * __restrict p3);
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3);
 void xor_vis_4(unsigned long bytes, unsigned long * __restrict p1,
-	       const unsigned long * __restrict p2,
-	       const unsigned long * __restrict p3,
-	       const unsigned long * __restrict p4);
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3,
+    const unsigned long * __restrict p4);
 void xor_vis_5(unsigned long bytes, unsigned long * __restrict p1,
-	       const unsigned long * __restrict p2,
-	       const unsigned long * __restrict p3,
-	       const unsigned long * __restrict p4,
-	       const unsigned long * __restrict p5);
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3,
+    const unsigned long * __restrict p4,
+    const unsigned long * __restrict p5);
 
 /* XXX Ugh, write cheetah versions... -DaveM */
 
 static struct xor_block_template xor_block_VIS = {
-        .name	= "VIS",
-        .do_2	= xor_vis_2,
-        .do_3	= xor_vis_3,
-        .do_4	= xor_vis_4,
-        .do_5	= xor_vis_5,
+  .name = "VIS",
+  .do_2 = xor_vis_2,
+  .do_3 = xor_vis_3,
+  .do_4 = xor_vis_4,
+  .do_5 = xor_vis_5,
 };
 
 void xor_niagara_2(unsigned long bytes, unsigned long * __restrict p1,
-		   const unsigned long * __restrict p2);
+    const unsigned long * __restrict p2);
 void xor_niagara_3(unsigned long bytes, unsigned long * __restrict p1,
-		   const unsigned long * __restrict p2,
-		   const unsigned long * __restrict p3);
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3);
 void xor_niagara_4(unsigned long bytes, unsigned long * __restrict p1,
-		   const unsigned long * __restrict p2,
-		   const unsigned long * __restrict p3,
-		   const unsigned long * __restrict p4);
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3,
+    const unsigned long * __restrict p4);
 void xor_niagara_5(unsigned long bytes, unsigned long * __restrict p1,
-		   const unsigned long * __restrict p2,
-		   const unsigned long * __restrict p3,
-		   const unsigned long * __restrict p4,
-		   const unsigned long * __restrict p5);
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3,
+    const unsigned long * __restrict p4,
+    const unsigned long * __restrict p5);
 
 static struct xor_block_template xor_block_niagara = {
-        .name	= "Niagara",
-        .do_2	= xor_niagara_2,
-        .do_3	= xor_niagara_3,
-        .do_4	= xor_niagara_4,
-        .do_5	= xor_niagara_5,
+  .name = "Niagara",
+  .do_2 = xor_niagara_2,
+  .do_3 = xor_niagara_3,
+  .do_4 = xor_niagara_4,
+  .do_5 = xor_niagara_5,
 };
 
 #undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES				\
-	do {						\
-		xor_speed(&xor_block_VIS);		\
-		xor_speed(&xor_block_niagara);		\
-	} while (0)
+#define XOR_TRY_TEMPLATES       \
+  do {            \
+    xor_speed(&xor_block_VIS);    \
+    xor_speed(&xor_block_niagara);    \
+  } while (0)
 
 /* For VIS for everything except Niagara.  */
 #define XOR_SELECT_TEMPLATE(FASTEST) \
-	((tlb_type == hypervisor && \
-	  (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA2 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA3 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA4 || \
-	   sun4v_chip_type == SUN4V_CHIP_NIAGARA5)) ? \
-	 &xor_block_niagara : \
-	 &xor_block_VIS)
+  ((tlb_type == hypervisor    \
+  && (sun4v_chip_type == SUN4V_CHIP_NIAGARA1    \
+  || sun4v_chip_type == SUN4V_CHIP_NIAGARA2    \
+  || sun4v_chip_type == SUN4V_CHIP_NIAGARA3    \
+  || sun4v_chip_type == SUN4V_CHIP_NIAGARA4    \
+  || sun4v_chip_type == SUN4V_CHIP_NIAGARA5))   \
+  ? &xor_block_niagara   \
+  : &xor_block_VIS)

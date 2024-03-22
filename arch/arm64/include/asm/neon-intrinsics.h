@@ -16,12 +16,12 @@
 
 #ifdef __INT64_TYPE__
 #undef __INT64_TYPE__
-#define __INT64_TYPE__		long long
+#define __INT64_TYPE__    long long
 #endif
 
 #ifdef __UINT64_TYPE__
 #undef __UINT64_TYPE__
-#define __UINT64_TYPE__		unsigned long long
+#define __UINT64_TYPE__   unsigned long long
 #endif
 
 /*

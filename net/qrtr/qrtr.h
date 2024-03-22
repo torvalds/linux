@@ -18,9 +18,9 @@ struct sk_buff;
  * call kfree_skb() on failure, or consume_skb() on success.
  */
 struct qrtr_endpoint {
-	int (*xmit)(struct qrtr_endpoint *ep, struct sk_buff *skb);
-	/* private: not for endpoint use */
-	struct qrtr_node *node;
+  int (*xmit)(struct qrtr_endpoint *ep, struct sk_buff *skb);
+  /* private: not for endpoint use */
+  struct qrtr_node *node;
 };
 
 int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid);

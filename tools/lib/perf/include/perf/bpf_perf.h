@@ -21,8 +21,8 @@
  * perf_events will be freed.
  */
 struct perf_event_attr_map_entry {
-	__u32 link_id;
-	__u32 diff_map_id;
+  __u32 link_id;
+  __u32 diff_map_id;
 };
 
 /* default attr_map name */

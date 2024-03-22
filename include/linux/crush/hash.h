@@ -3,9 +3,9 @@
 #define CEPH_CRUSH_HASH_H
 
 #ifdef __KERNEL__
-# include <linux/types.h>
+#include <linux/types.h>
 #else
-# include "crush_compat.h"
+#include "crush_compat.h"
 #endif
 
 #define CRUSH_HASH_RJENKINS1   0
@@ -19,6 +19,6 @@ extern __u32 crush_hash32_2(int type, __u32 a, __u32 b);
 extern __u32 crush_hash32_3(int type, __u32 a, __u32 b, __u32 c);
 extern __u32 crush_hash32_4(int type, __u32 a, __u32 b, __u32 c, __u32 d);
 extern __u32 crush_hash32_5(int type, __u32 a, __u32 b, __u32 c, __u32 d,
-			    __u32 e);
+    __u32 e);
 
 #endif

@@ -41,24 +41,25 @@
 
 /* The sub-arch has lwsync */
 #if defined(CONFIG_PPC64) || defined(CONFIG_PPC_E500MC)
-#    define SMPWMB      LWSYNC
+#define SMPWMB      LWSYNC
 #elif defined(CONFIG_BOOKE)
-#    define SMPWMB      mbar
+#define SMPWMB      mbar
 #else
-#    define SMPWMB      eieio
+#define SMPWMB      eieio
 #endif
 
-/* clang defines this macro for a builtin, which will not work with runtime patching */
+/* clang defines this macro for a builtin, which will not work with runtime
+ * patching */
 #undef __lwsync
-#define __lwsync()	__asm__ __volatile__ (stringify_in_c(LWSYNC) : : :"memory")
-#define __dma_rmb()	__lwsync()
-#define __dma_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
+#define __lwsync()  __asm__ __volatile__ (stringify_in_c(LWSYNC) : : : "memory")
+#define __dma_rmb() __lwsync()
+#define __dma_wmb() __asm__ __volatile__ (stringify_in_c(SMPWMB) : : : "memory")
 
-#define __smp_lwsync()	__lwsync()
+#define __smp_lwsync()  __lwsync()
 
-#define __smp_mb()	__mb()
-#define __smp_rmb()	__lwsync()
-#define __smp_wmb()	__asm__ __volatile__ (stringify_in_c(SMPWMB) : : :"memory")
+#define __smp_mb()  __mb()
+#define __smp_rmb() __lwsync()
+#define __smp_wmb() __asm__ __volatile__ (stringify_in_c(SMPWMB) : : : "memory")
 
 /*
  * This is a barrier which prevents following instructions from being
@@ -66,23 +67,23 @@
  * x is a variable loaded from memory, this prevents following
  * instructions from being executed until the load has been performed.
  */
-#define data_barrier(x)	\
-	asm volatile("twi 0,%0,0; isync" : : "r" (x) : "memory");
+#define data_barrier(x) \
+  asm volatile ("twi 0,%0,0; isync" : : "r" (x) : "memory");
 
-#define __smp_store_release(p, v)						\
-do {									\
-	compiletime_assert_atomic_type(*p);				\
-	__smp_lwsync();							\
-	WRITE_ONCE(*p, v);						\
-} while (0)
+#define __smp_store_release(p, v)           \
+  do {                  \
+    compiletime_assert_atomic_type(*p);       \
+    __smp_lwsync();             \
+    WRITE_ONCE(*p, v);            \
+  } while (0)
 
-#define __smp_load_acquire(p)						\
-({									\
-	typeof(*p) ___p1 = READ_ONCE(*p);				\
-	compiletime_assert_atomic_type(*p);				\
-	__smp_lwsync();							\
-	___p1;								\
-})
+#define __smp_load_acquire(p)           \
+  ({                  \
+    typeof(*p) ___p1 = READ_ONCE(*p);       \
+    compiletime_assert_atomic_type(*p);       \
+    __smp_lwsync();             \
+    ___p1;                \
+  })
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #define NOSPEC_BARRIER_SLOT   nop
@@ -112,7 +113,7 @@ do {									\
  * access or data transfer caused by subsequent instructions is
  * initiated.
  */
-#define pmem_wmb() __asm__ __volatile__(PPC_PHWSYNC ::: "memory")
+#define pmem_wmb() __asm__ __volatile__ (PPC_PHWSYNC ::: "memory")
 
 #include <asm-generic/barrier.h>
 

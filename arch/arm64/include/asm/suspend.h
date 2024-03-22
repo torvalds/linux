@@ -10,12 +10,12 @@
  * the stack, which must be 16-byte aligned on v8
  */
 struct cpu_suspend_ctx {
-	/*
-	 * This struct must be kept in sync with
-	 * cpu_do_{suspend/resume} in mm/proc.S
-	 */
-	u64 ctx_regs[NR_CTX_REGS];
-	u64 sp;
+  /*
+   * This struct must be kept in sync with
+   * cpu_do_{suspend/resume} in mm/proc.S
+   */
+  u64 ctx_regs[NR_CTX_REGS];
+  u64 sp;
 } __aligned(16);
 
 /*
@@ -31,8 +31,8 @@ struct cpu_suspend_ctx {
  * finisher.
  */
 struct sleep_stack_data {
-	struct cpu_suspend_ctx	system_regs;
-	unsigned long		callee_saved_regs[NR_CALLEE_SAVED_REGS];
+  struct cpu_suspend_ctx system_regs;
+  unsigned long callee_saved_regs[NR_CALLEE_SAVED_REGS];
 };
 
 extern unsigned long *sleep_save_stash;

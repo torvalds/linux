@@ -12,10 +12,10 @@
 #include <bpf/bpf_core_read.h>
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__type(key, struct sockaddr_in);
-	__type(value, struct sockaddr_in);
-	__uint(max_entries, 256);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __type(key, struct sockaddr_in);
+  __type(value, struct sockaddr_in);
+  __uint(max_entries, 256);
 } dnat_map SEC(".maps");
 
 /* kprobe is NOT a stable ABI
@@ -28,24 +28,22 @@ struct {
  */
 SEC("ksyscall/connect")
 int BPF_KSYSCALL(bpf_prog1, int fd, struct sockaddr_in *uservaddr,
-		 int addrlen)
-{
-	struct sockaddr_in new_addr, orig_addr = {};
-	struct sockaddr_in *mapped_addr;
-
-	if (addrlen > sizeof(orig_addr))
-		return 0;
-
-	if (bpf_probe_read_user(&orig_addr, sizeof(orig_addr), uservaddr) != 0)
-		return 0;
-
-	mapped_addr = bpf_map_lookup_elem(&dnat_map, &orig_addr);
-	if (mapped_addr != NULL) {
-		memcpy(&new_addr, mapped_addr, sizeof(new_addr));
-		bpf_probe_write_user(uservaddr, &new_addr,
-				     sizeof(new_addr));
-	}
-	return 0;
+    int addrlen) {
+  struct sockaddr_in new_addr, orig_addr = {};
+  struct sockaddr_in *mapped_addr;
+  if (addrlen > sizeof(orig_addr)) {
+    return 0;
+  }
+  if (bpf_probe_read_user(&orig_addr, sizeof(orig_addr), uservaddr) != 0) {
+    return 0;
+  }
+  mapped_addr = bpf_map_lookup_elem(&dnat_map, &orig_addr);
+  if (mapped_addr != NULL) {
+    memcpy(&new_addr, mapped_addr, sizeof(new_addr));
+    bpf_probe_write_user(uservaddr, &new_addr,
+        sizeof(new_addr));
+  }
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

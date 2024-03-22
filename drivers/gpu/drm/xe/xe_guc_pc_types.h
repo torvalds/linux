@@ -13,22 +13,22 @@
  * struct xe_guc_pc - GuC Power Conservation (PC)
  */
 struct xe_guc_pc {
-	/** @bo: GGTT buffer object that is shared with GuC PC */
-	struct xe_bo *bo;
-	/** @rp0_freq: HW RP0 frequency - The Maximum one */
-	u32 rp0_freq;
-	/** @rpe_freq: HW RPe frequency - The Efficient one */
-	u32 rpe_freq;
-	/** @rpn_freq: HW RPN frequency - The Minimum one */
-	u32 rpn_freq;
-	/** @user_requested_min: Stash the minimum requested freq by user */
-	u32 user_requested_min;
-	/** @user_requested_max: Stash the maximum requested freq by user */
-	u32 user_requested_max;
-	/** @freq_lock: Let's protect the frequencies */
-	struct mutex freq_lock;
-	/** @freq_ready: Only handle freq changes, if they are really ready */
-	bool freq_ready;
+  /** @bo: GGTT buffer object that is shared with GuC PC */
+  struct xe_bo *bo;
+  /** @rp0_freq: HW RP0 frequency - The Maximum one */
+  u32 rp0_freq;
+  /** @rpe_freq: HW RPe frequency - The Efficient one */
+  u32 rpe_freq;
+  /** @rpn_freq: HW RPN frequency - The Minimum one */
+  u32 rpn_freq;
+  /** @user_requested_min: Stash the minimum requested freq by user */
+  u32 user_requested_min;
+  /** @user_requested_max: Stash the maximum requested freq by user */
+  u32 user_requested_max;
+  /** @freq_lock: Let's protect the frequencies */
+  struct mutex freq_lock;
+  /** @freq_ready: Only handle freq changes, if they are really ready */
+  bool freq_ready;
 };
 
-#endif	/* _XE_GUC_PC_TYPES_H_ */
+#endif  /* _XE_GUC_PC_TYPES_H_ */

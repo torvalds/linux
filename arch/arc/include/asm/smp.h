@@ -36,41 +36,42 @@ extern void start_kernel_secondary(void);
  * API expected BY platform smp code (FROM arch smp code)
  *
  * smp_ipi_irq_setup:
- *	Takes @cpu and @hwirq to which the arch-common ISR is hooked up
+ *  Takes @cpu and @hwirq to which the arch-common ISR is hooked up
  */
 extern int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq);
 
 /*
- * struct plat_smp_ops	- SMP callbacks provided by platform to ARC SMP
+ * struct plat_smp_ops  - SMP callbacks provided by platform to ARC SMP
  *
- * @info:		SoC SMP specific info for /proc/cpuinfo etc
- * @init_early_smp:	A SMP specific h/w block can init itself
- * 			Could be common across platforms so not covered by
- * 			mach_desc->init_early()
- * @init_per_cpu:	Called for each core so SMP h/w block driver can do
- * 			any needed setup per cpu (e.g. IPI request)
- * @cpu_kick:		For Master to kickstart a cpu (optionally at a PC)
- * @ipi_send:		To send IPI to a @cpu
- * @ips_clear:		To clear IPI received at @irq
+ * @info:   SoC SMP specific info for /proc/cpuinfo etc
+ * @init_early_smp: A SMP specific h/w block can init itself
+ *      Could be common across platforms so not covered by
+ *      mach_desc->init_early()
+ * @init_per_cpu: Called for each core so SMP h/w block driver can do
+ *      any needed setup per cpu (e.g. IPI request)
+ * @cpu_kick:   For Master to kickstart a cpu (optionally at a PC)
+ * @ipi_send:   To send IPI to a @cpu
+ * @ips_clear:    To clear IPI received at @irq
  */
 struct plat_smp_ops {
-	const char 	*info;
-	void		(*init_early_smp)(void);
-	void		(*init_per_cpu)(int cpu);
-	void		(*cpu_kick)(int cpu, unsigned long pc);
-	void		(*ipi_send)(int cpu);
-	void		(*ipi_clear)(int irq);
+  const char *info;
+  void (*init_early_smp)(void);
+  void (*init_per_cpu)(int cpu);
+  void (*cpu_kick)(int cpu, unsigned long pc);
+  void (*ipi_send)(int cpu);
+  void (*ipi_clear)(int irq);
 };
 
 /* TBD: stop exporting it for direct population by platform */
-extern struct plat_smp_ops  plat_smp_ops;
+extern struct plat_smp_ops plat_smp_ops;
 
 #else /* CONFIG_SMP */
 
-static inline void smp_init_cpus(void) {}
-static inline const char *arc_platform_smp_cpuinfo(void)
-{
-	return "";
+static inline void smp_init_cpus(void) {
+}
+
+static inline const char *arc_platform_smp_cpuinfo(void) {
+  return "";
 }
 
 #endif  /* !CONFIG_SMP */
@@ -83,21 +84,21 @@ static inline const char *arc_platform_smp_cpuinfo(void)
  * However despite these, we provide the IRQ disabling variant
  *
  * (1) These insn were introduced only in 4.10 release. So for older released
- *	support needed.
+ *  support needed.
  *
  * (2) In a SMP setup, the LLOCK/SCOND atomicity across CPUs needs to be
- *	gaurantted by the platform (not something which core handles).
- *	Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
- *	disabling for atomicity.
+ *  gaurantted by the platform (not something which core handles).
+ *  Assuming a platform won't, SMP Linux needs to use spinlocks + local IRQ
+ *  disabling for atomicity.
  *
- *	However exported spinlock API is not usable due to cyclic hdr deps
- *	(even after system.h disintegration upstream)
- *	asm/bitops.h -> linux/spinlock.h -> linux/preempt.h
- *		-> linux/thread_info.h -> linux/bitops.h -> asm/bitops.h
+ *  However exported spinlock API is not usable due to cyclic hdr deps
+ *  (even after system.h disintegration upstream)
+ *  asm/bitops.h -> linux/spinlock.h -> linux/preempt.h
+ *    -> linux/thread_info.h -> linux/bitops.h -> asm/bitops.h
  *
- *	So the workaround is to use the lowest level arch spinlock API.
- *	The exported spinlock API is smart enough to be NOP for !CONFIG_SMP,
- *	but same is not true for ARCH backend, hence the need for 2 variants
+ *  So the workaround is to use the lowest level arch spinlock API.
+ *  The exported spinlock API is smart enough to be NOP for !CONFIG_SMP,
+ *  but same is not true for ARCH backend, hence the need for 2 variants
  */
 #ifndef CONFIG_ARC_HAS_LLSC
 
@@ -108,23 +109,23 @@ static inline const char *arc_platform_smp_cpuinfo(void)
 
 extern arch_spinlock_t smp_atomic_ops_lock;
 
-#define atomic_ops_lock(flags)	do {		\
-	local_irq_save(flags);			\
-	arch_spin_lock(&smp_atomic_ops_lock);	\
+#define atomic_ops_lock(flags)  do {    \
+    local_irq_save(flags);      \
+    arch_spin_lock(&smp_atomic_ops_lock); \
 } while (0)
 
-#define atomic_ops_unlock(flags) do {		\
-	arch_spin_unlock(&smp_atomic_ops_lock);	\
-	local_irq_restore(flags);		\
+#define atomic_ops_unlock(flags) do {   \
+    arch_spin_unlock(&smp_atomic_ops_lock); \
+    local_irq_restore(flags);   \
 } while (0)
 
 #else /* !CONFIG_SMP */
 
-#define atomic_ops_lock(flags)		local_irq_save(flags)
-#define atomic_ops_unlock(flags)	local_irq_restore(flags)
+#define atomic_ops_lock(flags)    local_irq_save(flags)
+#define atomic_ops_unlock(flags)  local_irq_restore(flags)
 
 #endif /* !CONFIG_SMP */
 
-#endif	/* !CONFIG_ARC_HAS_LLSC */
+#endif  /* !CONFIG_ARC_HAS_LLSC */
 
 #endif

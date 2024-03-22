@@ -34,30 +34,30 @@
  */
 
 #ifndef smp_rmb
-# define smp_rmb()	rmb()
+#define smp_rmb()  rmb()
 #endif
 
 #ifndef smp_wmb
-# define smp_wmb()	wmb()
+#define smp_wmb()  wmb()
 #endif
 
 #ifndef smp_mb
-# define smp_mb()	mb()
+#define smp_mb() mb()
 #endif
 
 #ifndef smp_store_release
-# define smp_store_release(p, v)		\
-do {						\
-	smp_mb();				\
-	WRITE_ONCE(*p, v);			\
-} while (0)
+#define smp_store_release(p, v)    \
+  do {            \
+    smp_mb();       \
+    WRITE_ONCE(*p, v);      \
+  } while (0)
 #endif
 
 #ifndef smp_load_acquire
-# define smp_load_acquire(p)			\
-({						\
-	typeof(*p) ___p1 = READ_ONCE(*p);	\
-	smp_mb();				\
-	___p1;					\
-})
+#define smp_load_acquire(p)      \
+  ({            \
+    typeof(*p) ___p1 = READ_ONCE(*p); \
+    smp_mb();       \
+    ___p1;          \
+  })
 #endif

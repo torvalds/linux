@@ -16,7 +16,7 @@
 #define MAX98520_R2027_THERM_FOLDBACK_EN 0x2027
 #define MAX98520_R2030_CLK_MON_CTRL 0x2030
 #define MAX98520_R2037_ERR_MON_CTRL 0x2037
-#define MAX98520_R2040_PCM_MODE_CFG	0x2040
+#define MAX98520_R2040_PCM_MODE_CFG 0x2040
 #define MAX98520_R2041_PCM_CLK_SETUP 0x2041
 #define MAX98520_R2042_PCM_SR_SETUP 0x2042
 #define MAX98520_R2043_PCM_RX_SRC1 0x2043
@@ -130,7 +130,7 @@
 #define MAX98520_CFG_SPK_MODE_SHIFT (3)
 
 /* MAX98520_R20D0_DHT_CFG1 */
-#define MAX98520_DHT_VROT_PNT_SHIFT	(0)
+#define MAX98520_DHT_VROT_PNT_SHIFT (0)
 
 /* MAX98520_R20D1_LIMITER_CFG1 */
 #define MAX98520_DHT_SUPPLY_HR_SHIFT (0)
@@ -150,10 +150,9 @@
 #define MAX98520_FLT_EN_SHIFT (4)
 
 struct max98520_priv {
-	struct regmap *regmap;
-	struct gpio_desc *reset_gpio;
-	unsigned int ch_size;
-	bool tdm_mode;
+  struct regmap *regmap;
+  struct gpio_desc *reset_gpio;
+  unsigned int ch_size;
+  bool tdm_mode;
 };
 #endif
-

@@ -13,57 +13,59 @@ struct nvkm_runq;
 struct nvkm_vctx;
 
 struct nvkm_fifo_func {
-	void (*dtor)(struct nvkm_fifo *);
+  void (*dtor)(struct nvkm_fifo *);
 
-	int (*chid_nr)(struct nvkm_fifo *);
-	int (*chid_ctor)(struct nvkm_fifo *, int nr);
-	int (*runq_nr)(struct nvkm_fifo *);
-	int (*runl_ctor)(struct nvkm_fifo *);
+  int (*chid_nr)(struct nvkm_fifo *);
+  int (*chid_ctor)(struct nvkm_fifo *, int nr);
+  int (*runq_nr)(struct nvkm_fifo *);
+  int (*runl_ctor)(struct nvkm_fifo *);
 
-	void (*init)(struct nvkm_fifo *);
-	void (*init_pbdmas)(struct nvkm_fifo *, u32 mask);
+  void (*init)(struct nvkm_fifo *);
+  void (*init_pbdmas)(struct nvkm_fifo *, u32 mask);
 
-	irqreturn_t (*intr)(struct nvkm_inth *);
-	void (*intr_mmu_fault_unit)(struct nvkm_fifo *, int unit);
-	void (*intr_ctxsw_timeout)(struct nvkm_fifo *, u32 engm);
+  irqreturn_t (*intr)(struct nvkm_inth *);
+  void (*intr_mmu_fault_unit)(struct nvkm_fifo *, int unit);
+  void (*intr_ctxsw_timeout)(struct nvkm_fifo *, u32 engm);
 
-	const struct nvkm_fifo_func_mmu_fault {
-		void (*recover)(struct nvkm_fifo *, struct nvkm_fault_data *);
-		const struct nvkm_enum *access;
-		const struct nvkm_enum *engine;
-		const struct nvkm_enum *reason;
-		const struct nvkm_enum *hubclient;
-		const struct nvkm_enum *gpcclient;
-	} *mmu_fault;
+  const struct nvkm_fifo_func_mmu_fault {
+    void (*recover)(struct nvkm_fifo *, struct nvkm_fault_data *);
+    const struct nvkm_enum *access;
+    const struct nvkm_enum *engine;
+    const struct nvkm_enum *reason;
+    const struct nvkm_enum *hubclient;
+    const struct nvkm_enum *gpcclient;
+  } *mmu_fault;
 
-	void (*pause)(struct nvkm_fifo *, unsigned long *);
-	void (*start)(struct nvkm_fifo *, unsigned long *);
+  void (*pause)(struct nvkm_fifo *, unsigned long *);
+  void (*start)(struct nvkm_fifo *, unsigned long *);
 
-	int (*nonstall_ctor)(struct nvkm_fifo *);
-	const struct nvkm_event_func *nonstall;
+  int (*nonstall_ctor)(struct nvkm_fifo *);
+  const struct nvkm_event_func *nonstall;
 
-	const struct nvkm_runl_func *runl;
-	const struct nvkm_runq_func *runq;
-	const struct nvkm_engn_func *engn;
-	const struct nvkm_engn_func *engn_sw;
-	const struct nvkm_engn_func *engn_ce;
+  const struct nvkm_runl_func *runl;
+  const struct nvkm_runq_func *runq;
+  const struct nvkm_engn_func *engn;
+  const struct nvkm_engn_func *engn_sw;
+  const struct nvkm_engn_func *engn_ce;
 
-	struct nvkm_fifo_func_cgrp {
-		struct nvkm_sclass user;
-		const struct nvkm_cgrp_func *func;
-		bool force;
-	} cgrp;
+  struct nvkm_fifo_func_cgrp {
+    struct nvkm_sclass user;
+    const struct nvkm_cgrp_func *func;
+    bool force;
+  } cgrp;
 
-	struct nvkm_fifo_func_chan {
-		struct nvkm_sclass user;
-		const struct nvkm_chan_func *func;
-	} chan;
+  struct nvkm_fifo_func_chan {
+    struct nvkm_sclass user;
+    const struct nvkm_chan_func *func;
+  } chan;
 };
 
-int r535_fifo_new(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_fifo **);
-int nvkm_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_fifo **);
+int r535_fifo_new(const struct nvkm_fifo_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_fifo **);
+int nvkm_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_fifo **);
 
 int nv04_fifo_chid_ctor(struct nvkm_fifo *, int);
 int nv04_fifo_runl_ctor(struct nvkm_fifo *);
@@ -96,7 +98,8 @@ void nv50_chan_unbind(struct nvkm_chan *);
 void nv50_chan_start(struct nvkm_chan *);
 void nv50_chan_stop(struct nvkm_chan *);
 void nv50_chan_preempt(struct nvkm_chan *);
-int nv50_eobj_ramht_add(struct nvkm_engn *, struct nvkm_object *, struct nvkm_chan *);
+int nv50_eobj_ramht_add(struct nvkm_engn *, struct nvkm_object *,
+    struct nvkm_chan *);
 void nv50_eobj_ramht_del(struct nvkm_chan *, int);
 
 extern const struct nvkm_event_func g84_fifo_nonstall;
@@ -186,10 +189,12 @@ void gv100_runl_insert_chan(struct nvkm_chan *, struct nvkm_memory *, u64);
 void gv100_runl_preempt(struct nvkm_runl *);
 extern const struct nvkm_runq_func gv100_runq;
 extern const struct nvkm_engn_func gv100_engn;
-void gv100_ectx_bind(struct nvkm_engn *, struct nvkm_cctx *, struct nvkm_chan *);
+void gv100_ectx_bind(struct nvkm_engn *, struct nvkm_cctx *,
+    struct nvkm_chan *);
 extern const struct nvkm_engn_func gv100_engn_ce;
 int gv100_ectx_ce_ctor(struct nvkm_engn *, struct nvkm_vctx *);
-void gv100_ectx_ce_bind(struct nvkm_engn *, struct nvkm_cctx *, struct nvkm_chan *);
+void gv100_ectx_ce_bind(struct nvkm_engn *, struct nvkm_cctx *,
+    struct nvkm_chan *);
 extern const struct nvkm_chan_func_userd gv100_chan_userd;
 extern const struct nvkm_chan_func_ramfc gv100_chan_ramfc;
 
@@ -206,8 +211,10 @@ extern const struct nvkm_engn_func ga100_engn_ce;
 extern const struct nvkm_cgrp_func ga100_cgrp;
 extern const struct nvkm_chan_func ga100_chan;
 
-int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,
-		   void *argv, u32 argc, struct nvkm_object **);
-int nvkm_ucgrp_new(struct nvkm_fifo *, const struct nvkm_oclass *, void *argv, u32 argc,
-		   struct nvkm_object **);
+int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *,
+    const struct nvkm_oclass *,
+    void *argv, u32 argc, struct nvkm_object **);
+int nvkm_ucgrp_new(struct nvkm_fifo *, const struct nvkm_oclass *, void *argv,
+    u32 argc,
+    struct nvkm_object **);
 #endif

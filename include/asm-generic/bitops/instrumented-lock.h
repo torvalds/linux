@@ -20,11 +20,10 @@
  *
  * This operation is atomic and provides release barrier semantics.
  */
-static inline void clear_bit_unlock(long nr, volatile unsigned long *addr)
-{
-	kcsan_release();
-	instrument_atomic_write(addr + BIT_WORD(nr), sizeof(long));
-	arch_clear_bit_unlock(nr, addr);
+static inline void clear_bit_unlock(long nr, volatile unsigned long *addr) {
+  kcsan_release();
+  instrument_atomic_write(addr + BIT_WORD(nr), sizeof(long));
+  arch_clear_bit_unlock(nr, addr);
 }
 
 /**
@@ -36,11 +35,10 @@ static inline void clear_bit_unlock(long nr, volatile unsigned long *addr)
  * memory operation. It can be used for an unlock if no other CPUs can
  * concurrently modify other bits in the word.
  */
-static inline void __clear_bit_unlock(long nr, volatile unsigned long *addr)
-{
-	kcsan_release();
-	instrument_write(addr + BIT_WORD(nr), sizeof(long));
-	arch___clear_bit_unlock(nr, addr);
+static inline void __clear_bit_unlock(long nr, volatile unsigned long *addr) {
+  kcsan_release();
+  instrument_write(addr + BIT_WORD(nr), sizeof(long));
+  arch___clear_bit_unlock(nr, addr);
 }
 
 /**
@@ -52,10 +50,10 @@ static inline void __clear_bit_unlock(long nr, volatile unsigned long *addr)
  * the returned value is 0.
  * It can be used to implement bit locks.
  */
-static inline bool test_and_set_bit_lock(long nr, volatile unsigned long *addr)
-{
-	instrument_atomic_read_write(addr + BIT_WORD(nr), sizeof(long));
-	return arch_test_and_set_bit_lock(nr, addr);
+static inline bool test_and_set_bit_lock(long nr,
+    volatile unsigned long *addr) {
+  instrument_atomic_read_write(addr + BIT_WORD(nr), sizeof(long));
+  return arch_test_and_set_bit_lock(nr, addr);
 }
 
 /**
@@ -73,10 +71,10 @@ static inline bool test_and_set_bit_lock(long nr, volatile unsigned long *addr)
  * Return: Whether the top bit of the byte is set.
  */
 static inline bool xor_unlock_is_negative_byte(unsigned long mask,
-		volatile unsigned long *addr)
-{
-	kcsan_release();
-	instrument_atomic_write(addr, sizeof(long));
-	return arch_xor_unlock_is_negative_byte(mask, addr);
+    volatile unsigned long *addr) {
+  kcsan_release();
+  instrument_atomic_write(addr, sizeof(long));
+  return arch_xor_unlock_is_negative_byte(mask, addr);
 }
+
 #endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_LOCK_H */

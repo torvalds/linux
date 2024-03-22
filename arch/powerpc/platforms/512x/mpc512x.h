@@ -15,4 +15,4 @@ extern int __init mpc5121_clk_init(void);
 const char *__init mpc512x_select_psc_compat(void);
 extern void __noreturn mpc512x_restart(char *cmd);
 
-#endif				/* __MPC512X_H__ */
+#endif        /* __MPC512X_H__ */

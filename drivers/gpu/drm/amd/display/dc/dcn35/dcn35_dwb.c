@@ -25,34 +25,32 @@
 #include "reg_helper.h"
 #include "dcn35_dwb.h"
 
-#define REG(reg)\
-	dwbc30->dwbc_regs->reg
+#define REG(reg) \
+  dwbc30->dwbc_regs->reg
 
 #define CTX \
-	dwbc30->base.ctx
+  dwbc30->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name)                                             \
-	((const struct dcn35_dwbc_shift *)(dwbc30->dwbc_shift))->field_name, \
-		((const struct dcn35_dwbc_mask *)(dwbc30->dwbc_mask))        \
-			->field_name
+  ((const struct dcn35_dwbc_shift *) (dwbc30->dwbc_shift))->field_name, \
+  ((const struct dcn35_dwbc_mask *) (dwbc30->dwbc_mask))        \
+  ->field_name
 
 #define DC_LOGGER \
-	dwbc30->base.ctx->logger
+  dwbc30->base.ctx->logger
 
 void dcn35_dwbc_construct(struct dcn30_dwbc *dwbc30,
-	struct dc_context *ctx,
-	const struct dcn30_dwbc_registers *dwbc_regs,
-	const struct dcn35_dwbc_shift *dwbc_shift,
-	const struct dcn35_dwbc_mask *dwbc_mask,
-	int inst)
-{
-	dcn30_dwbc_construct(dwbc30, ctx, dwbc_regs,
-			     (const struct dcn30_dwbc_shift *)dwbc_shift,
-			     (const struct dcn30_dwbc_mask *)dwbc_mask, inst);
+    struct dc_context *ctx,
+    const struct dcn30_dwbc_registers *dwbc_regs,
+    const struct dcn35_dwbc_shift *dwbc_shift,
+    const struct dcn35_dwbc_mask *dwbc_mask,
+    int inst) {
+  dcn30_dwbc_construct(dwbc30, ctx, dwbc_regs,
+      (const struct dcn30_dwbc_shift *) dwbc_shift,
+      (const struct dcn30_dwbc_mask *) dwbc_mask, inst);
 }
 
-void dcn35_dwbc_set_fgcg(struct dcn30_dwbc *dwbc30, bool enable)
-{
-	REG_UPDATE(DWB_ENABLE_CLK_CTRL, DWB_FGCG_REP_DIS, !enable);
+void dcn35_dwbc_set_fgcg(struct dcn30_dwbc *dwbc30, bool enable) {
+  REG_UPDATE(DWB_ENABLE_CLK_CTRL, DWB_FGCG_REP_DIS, !enable);
 }

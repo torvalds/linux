@@ -49,25 +49,25 @@
  * fully-chunked NFS message (read chunks are the largest). Note only
  * a single chunk type per message is supported currently.
  */
-#define RPCRDMA_MIN_SLOT_TABLE	(4U)
-#define RPCRDMA_DEF_SLOT_TABLE	(128U)
-#define RPCRDMA_MAX_SLOT_TABLE	(16384U)
+#define RPCRDMA_MIN_SLOT_TABLE  (4U)
+#define RPCRDMA_DEF_SLOT_TABLE  (128U)
+#define RPCRDMA_MAX_SLOT_TABLE  (16384U)
 
-#define RPCRDMA_MIN_INLINE  (1024)	/* min inline thresh */
-#define RPCRDMA_DEF_INLINE  (4096)	/* default inline thresh */
-#define RPCRDMA_MAX_INLINE  (65536)	/* max inline thresh */
+#define RPCRDMA_MIN_INLINE  (1024)  /* min inline thresh */
+#define RPCRDMA_DEF_INLINE  (4096)  /* default inline thresh */
+#define RPCRDMA_MAX_INLINE  (65536) /* max inline thresh */
 
 /* Memory registration strategies, by number.
  * This is part of a kernel / user space API. Do not remove. */
 enum rpcrdma_memreg {
-	RPCRDMA_BOUNCEBUFFERS = 0,
-	RPCRDMA_REGISTER,
-	RPCRDMA_MEMWINDOWS,
-	RPCRDMA_MEMWINDOWS_ASYNC,
-	RPCRDMA_MTHCAFMR,
-	RPCRDMA_FRWR,
-	RPCRDMA_ALLPHYSICAL,
-	RPCRDMA_LAST
+  RPCRDMA_BOUNCEBUFFERS = 0,
+  RPCRDMA_REGISTER,
+  RPCRDMA_MEMWINDOWS,
+  RPCRDMA_MEMWINDOWS_ASYNC,
+  RPCRDMA_MTHCAFMR,
+  RPCRDMA_FRWR,
+  RPCRDMA_ALLPHYSICAL,
+  RPCRDMA_LAST
 };
 
 #endif /* _LINUX_SUNRPC_XPRTRDMA_H */

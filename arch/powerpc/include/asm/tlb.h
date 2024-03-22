@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *	TLB shootdown specifics for powerpc
+ *  TLB shootdown specifics for powerpc
  *
  * Copyright (C) 2002 Anton Blanchard, IBM Corp.
  * Copyright (C) 2002 Paul Mackerras, IBM Corp.
@@ -20,8 +20,8 @@
 #include <linux/pagemap.h>
 
 static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
-					  unsigned long address);
-#define __tlb_remove_tlb_entry	__tlb_remove_tlb_entry
+    unsigned long address);
+#define __tlb_remove_tlb_entry  __tlb_remove_tlb_entry
 
 #define tlb_flush tlb_flush
 extern void tlb_flush(struct mmu_gather *tlb);
@@ -35,58 +35,56 @@ extern void tlb_flush(struct mmu_gather *tlb);
  * We still do TLB invalidate in the __pte_free_tlb routine before we
  * add the page table pages to mmu gather table batch.
  */
-#define tlb_needs_table_invalidate()	radix_enabled()
+#define tlb_needs_table_invalidate()  radix_enabled()
 
 /* Get the generic bits... */
 #include <asm-generic/tlb.h>
 
 static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
-					  unsigned long address)
-{
+    unsigned long address) {
 #ifdef CONFIG_PPC_BOOK3S_32
-	if (pte_val(*ptep) & _PAGE_HASHPTE)
-		flush_hash_entry(tlb->mm, ptep, address);
+  if (pte_val(*ptep) & _PAGE_HASHPTE) {
+    flush_hash_entry(tlb->mm, ptep, address);
+  }
 #endif
 }
 
 #ifdef CONFIG_SMP
-static inline int mm_is_core_local(struct mm_struct *mm)
-{
-	return cpumask_subset(mm_cpumask(mm),
-			      topology_sibling_cpumask(smp_processor_id()));
+static inline int mm_is_core_local(struct mm_struct *mm) {
+  return cpumask_subset(mm_cpumask(mm),
+      topology_sibling_cpumask(smp_processor_id()));
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
-static inline int mm_is_thread_local(struct mm_struct *mm)
-{
-	if (atomic_read(&mm->context.active_cpus) > 1)
-		return false;
-	return cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm));
+static inline int mm_is_thread_local(struct mm_struct *mm) {
+  if (atomic_read(&mm->context.active_cpus) > 1) {
+    return false;
+  }
+  return cpumask_test_cpu(smp_processor_id(), mm_cpumask(mm));
 }
+
 #else /* CONFIG_PPC_BOOK3S_64 */
-static inline int mm_is_thread_local(struct mm_struct *mm)
-{
-	return cpumask_equal(mm_cpumask(mm),
-			      cpumask_of(smp_processor_id()));
+static inline int mm_is_thread_local(struct mm_struct *mm) {
+  return cpumask_equal(mm_cpumask(mm),
+      cpumask_of(smp_processor_id()));
 }
+
 #endif /* !CONFIG_PPC_BOOK3S_64 */
 
 #else /* CONFIG_SMP */
-static inline int mm_is_core_local(struct mm_struct *mm)
-{
-	return 1;
+static inline int mm_is_core_local(struct mm_struct *mm) {
+  return 1;
 }
 
-static inline int mm_is_thread_local(struct mm_struct *mm)
-{
-	return 1;
+static inline int mm_is_thread_local(struct mm_struct *mm) {
+  return 1;
 }
+
 #endif
 
 #define arch_supports_page_table_move arch_supports_page_table_move
-static inline bool arch_supports_page_table_move(void)
-{
-	return radix_enabled();
+static inline bool arch_supports_page_table_move(void) {
+  return radix_enabled();
 }
 
 #endif /* __KERNEL__ */

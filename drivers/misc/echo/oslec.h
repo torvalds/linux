@@ -15,13 +15,13 @@
 #define __OSLEC_H
 
 /* Mask bits for the adaption mode */
-#define ECHO_CAN_USE_ADAPTION	0x01
-#define ECHO_CAN_USE_NLP	0x02
-#define ECHO_CAN_USE_CNG	0x04
-#define ECHO_CAN_USE_CLIP	0x08
-#define ECHO_CAN_USE_TX_HPF	0x10
-#define ECHO_CAN_USE_RX_HPF	0x20
-#define ECHO_CAN_DISABLE	0x40
+#define ECHO_CAN_USE_ADAPTION 0x01
+#define ECHO_CAN_USE_NLP  0x02
+#define ECHO_CAN_USE_CNG  0x04
+#define ECHO_CAN_USE_CLIP 0x08
+#define ECHO_CAN_USE_TX_HPF 0x10
+#define ECHO_CAN_USE_RX_HPF 0x20
+#define ECHO_CAN_DISABLE  0x40
 
 /**
  * oslec_state: G.168 echo canceller descriptor.
@@ -51,7 +51,8 @@ void oslec_free(struct oslec_state *ec);
 void oslec_flush(struct oslec_state *ec);
 
 /**
- * oslec_adaption_mode - set the adaption mode of a voice echo canceller context.
+ * oslec_adaption_mode - set the adaption mode of a voice echo canceller
+ * context.
  * @ec The echo canceller context.
  * @adaption_mode: The mode.
  */

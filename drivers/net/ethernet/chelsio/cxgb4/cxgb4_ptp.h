@@ -36,30 +36,28 @@
 #define __CXGB4_PTP_H__
 
 /* Maximum parts-per-billion adjustment that is acceptable */
-#define MAX_PTP_FREQ_ADJ		1000000
-#define PTP_CLOCK_MAX_ADJTIME		10000000 /* 10 ms */
+#define MAX_PTP_FREQ_ADJ    1000000
+#define PTP_CLOCK_MAX_ADJTIME   10000000 /* 10 ms */
 
-#define PTP_MIN_LENGTH			63
-#define PTP_IN_TRANSMIT_PACKET_MAXNUM	240
-#define PTP_EVENT_PORT			319
+#define PTP_MIN_LENGTH      63
+#define PTP_IN_TRANSMIT_PACKET_MAXNUM 240
+#define PTP_EVENT_PORT      319
 
 enum ptp_rx_filter_mode {
-	PTP_TS_NONE = 0,
-	PTP_TS_L2,
-	PTP_TS_L4,
-	PTP_TS_L2_L4
+  PTP_TS_NONE = 0,
+  PTP_TS_L2,
+  PTP_TS_L4,
+  PTP_TS_L2_L4
 };
 
 struct port_info;
 
-static inline bool cxgb4_xmit_with_hwtstamp(struct sk_buff *skb)
-{
-	return skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP;
+static inline bool cxgb4_xmit_with_hwtstamp(struct sk_buff *skb) {
+  return skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP;
 }
 
-static inline void cxgb4_xmit_hwtstamp_pending(struct sk_buff *skb)
-{
-	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+static inline void cxgb4_xmit_hwtstamp_pending(struct sk_buff *skb) {
+  skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 }
 
 void cxgb4_ptp_init(struct adapter *adap);

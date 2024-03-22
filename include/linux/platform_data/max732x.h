@@ -5,7 +5,7 @@
 /* platform data for the MAX732x 8/16-bit I/O expander driver */
 
 struct max732x_platform_data {
-	/* number of the first GPIO */
-	unsigned	gpio_base;
+  /* number of the first GPIO */
+  unsigned gpio_base;
 };
 #endif /* __LINUX_I2C_MAX732X_H */

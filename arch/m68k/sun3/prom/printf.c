@@ -20,36 +20,31 @@ extern int kgdb_initialized;
 
 static char ppbuf[1024];
 
-void
-prom_printf(char *fmt, ...)
-{
-	va_list args;
-	char ch, *bptr;
-
-	va_start(args, fmt);
-
+void prom_printf(char *fmt, ...) {
+  va_list args;
+  char ch, *bptr;
+  va_start(args, fmt);
 #ifdef CONFIG_KGDB
-	ppbuf[0] = 'O';
-	vsprintf(ppbuf + 1, fmt, args) + 1;
+  ppbuf[0] = 'O';
+  vsprintf(ppbuf + 1, fmt, args) + 1;
 #else
-	vsprintf(ppbuf, fmt, args);
+  vsprintf(ppbuf, fmt, args);
 #endif
-
-	bptr = ppbuf;
-
+  bptr = ppbuf;
 #ifdef CONFIG_KGDB
-	if (kgdb_initialized) {
-		pr_info("kgdb_initialized = %d\n", kgdb_initialized);
-		putpacket(bptr, 1);
-	} else
+  if (kgdb_initialized) {
+    pr_info("kgdb_initialized = %d\n", kgdb_initialized);
+    putpacket(bptr, 1);
+  } else
 #else
-	while((ch = *(bptr++)) != 0) {
-		if(ch == '\n')
-			prom_putchar('\r');
-
-		prom_putchar(ch);
-	}
+  while ((ch = *(bptr++)) != 0) {
+    if (ch == '\n') {
+      prom_putchar('\r');
+    }
+    prom_putchar(ch);
+  }
 #endif
-	va_end(args);
-	return;
+  {
+    va_end(args);
+  }
 }

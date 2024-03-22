@@ -12,18 +12,17 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("raw_tracepoint/consume_skb")
-int while_true(volatile struct pt_regs* ctx)
-{
-	int i = 0;
-
-	while (true) {
-		if (PT_REGS_RC(ctx) & 1)
-			i += 3;
-		else
-			i += 7;
-		if (i > 40)
-			break;
-	}
-
-	return i;
+int while_true(volatile struct pt_regs *ctx) {
+  int i = 0;
+  while (true) {
+    if (PT_REGS_RC(ctx) & 1) {
+      i += 3;
+    } else {
+      i += 7;
+    }
+    if (i > 40) {
+      break;
+    }
+  }
+  return i;
 }

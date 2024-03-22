@@ -16,20 +16,20 @@
 
 /* HVA command types */
 enum hva_hw_cmd_type {
-	/* RESERVED = 0x00 */
-	/* RESERVED = 0x01 */
-	H264_ENC = 0x02,
-	/* RESERVED = 0x03 */
-	/* RESERVED = 0x04 */
-	/* RESERVED = 0x05 */
-	/* RESERVED = 0x06 */
-	/* RESERVED = 0x07 */
-	REMOVE_CLIENT = 0x08,
-	FREEZE_CLIENT = 0x09,
-	START_CLIENT = 0x0A,
-	FREEZE_ALL = 0x0B,
-	START_ALL = 0x0C,
-	REMOVE_ALL = 0x0D
+  /* RESERVED = 0x00
+   * RESERVED = 0x01*/
+  H264_ENC = 0x02,
+  /* RESERVED = 0x03
+   * RESERVED = 0x04
+   * RESERVED = 0x05
+   * RESERVED = 0x06
+   * RESERVED = 0x07*/
+  REMOVE_CLIENT = 0x08,
+  FREEZE_CLIENT = 0x09,
+  START_CLIENT = 0x0A,
+  FREEZE_ALL = 0x0B,
+  START_ALL = 0x0C,
+  REMOVE_ALL = 0x0D
 };
 
 int hva_hw_probe(struct platform_device *pdev, struct hva_dev *hva);
@@ -37,7 +37,7 @@ void hva_hw_remove(struct hva_dev *hva);
 int hva_hw_runtime_suspend(struct device *dev);
 int hva_hw_runtime_resume(struct device *dev);
 int hva_hw_execute_task(struct hva_ctx *ctx, enum hva_hw_cmd_type cmd,
-			struct hva_buffer *task);
+    struct hva_buffer *task);
 #ifdef CONFIG_VIDEO_STI_HVA_DEBUGFS
 void hva_hw_dump_regs(struct hva_dev *hva, struct seq_file *s);
 #endif

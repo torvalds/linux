@@ -654,14 +654,14 @@
 #define MAX98390_DSM_PARAM_MIN_SIZE 670
 
 struct max98390_priv {
-	struct regmap *regmap;
-	unsigned int sysclk;
-	unsigned int provider;
-	unsigned int tdm_mode;
-	unsigned int v_l_slot;
-	unsigned int i_l_slot;
-	unsigned int ref_rdc_value;
-	unsigned int ambient_temp_value;
-	const char *dsm_param_name;
+  struct regmap *regmap;
+  unsigned int sysclk;
+  unsigned int provider;
+  unsigned int tdm_mode;
+  unsigned int v_l_slot;
+  unsigned int i_l_slot;
+  unsigned int ref_rdc_value;
+  unsigned int ambient_temp_value;
+  const char *dsm_param_name;
 };
 #endif

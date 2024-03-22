@@ -26,7 +26,7 @@ extern int fg_console, last_console, want_console;
 int vc_allocate(unsigned int console);
 int vc_cons_allocated(unsigned int console);
 int __vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines,
-		bool from_user);
+    bool from_user);
 struct vc_data *vc_deallocate(unsigned int console);
 void reset_palette(struct vc_data *vc);
 void do_blank_screen(int entering_gfx);
@@ -44,9 +44,8 @@ void redraw_screen(struct vc_data *vc, int is_switch);
 #define switch_screen(x) redraw_screen(x, 1)
 
 static inline int vc_resize(struct vc_data *vc, unsigned int cols,
-			    unsigned int lines)
-{
-	return __vc_resize(vc, cols, lines, false);
+    unsigned int lines) {
+  return __vc_resize(vc, cols, lines, false);
 }
 
 struct tty_struct;
@@ -57,63 +56,63 @@ int tioclinux(struct tty_struct *tty, unsigned long arg);
 
 struct unipair;
 
-int con_set_trans_old(unsigned char __user * table);
-int con_get_trans_old(unsigned char __user * table);
-int con_set_trans_new(unsigned short __user * table);
-int con_get_trans_new(unsigned short __user * table);
+int con_set_trans_old(unsigned char __user *table);
+int con_get_trans_old(unsigned char __user *table);
+int con_set_trans_new(unsigned short __user *table);
+int con_get_trans_new(unsigned short __user *table);
 int con_clear_unimap(struct vc_data *vc);
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list);
-int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list);
+int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
+    struct unipair __user *list);
 int con_set_default_unimap(struct vc_data *vc);
 void con_free_unimap(struct vc_data *vc);
 int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 
 #else
-static inline int con_set_trans_old(unsigned char __user *table)
-{
-	return 0;
+static inline int con_set_trans_old(unsigned char __user *table) {
+  return 0;
 }
-static inline int con_get_trans_old(unsigned char __user *table)
-{
-	return -EINVAL;
+
+static inline int con_get_trans_old(unsigned char __user *table) {
+  return -EINVAL;
 }
-static inline int con_set_trans_new(unsigned short __user *table)
-{
-	return 0;
+
+static inline int con_set_trans_new(unsigned short __user *table) {
+  return 0;
 }
-static inline int con_get_trans_new(unsigned short __user *table)
-{
-	return -EINVAL;
+
+static inline int con_get_trans_new(unsigned short __user *table) {
+  return -EINVAL;
 }
-static inline int con_clear_unimap(struct vc_data *vc)
-{
-	return 0;
+
+static inline int con_clear_unimap(struct vc_data *vc) {
+  return 0;
 }
+
 static inline
-int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
-{
-	return 0;
+int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list) {
+  return 0;
 }
+
 static inline
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
-		   struct unipair __user *list)
-{
-	return -EINVAL;
+    struct unipair __user *list) {
+  return -EINVAL;
 }
-static inline int con_set_default_unimap(struct vc_data *vc)
-{
-	return 0;
+
+static inline int con_set_default_unimap(struct vc_data *vc) {
+  return 0;
 }
-static inline void con_free_unimap(struct vc_data *vc)
-{
+
+static inline void con_free_unimap(struct vc_data *vc) {
 }
-static inline void con_protect_unimap(struct vc_data *vc, int rdonly)
-{
+
+static inline void con_protect_unimap(struct vc_data *vc, int rdonly) {
 }
+
 static inline
-int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
-{
-	return 0;
+int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc) {
+  return 0;
 }
 
 #endif
@@ -124,7 +123,7 @@ int vt_waitactive(int n);
 void change_console(struct vc_data *new_vc);
 void reset_vc(struct vc_data *vc);
 int do_unbind_con_driver(const struct consw *csw, int first, int last,
-			 int deflt);
+    int deflt);
 int vty_init(const struct file_operations *console_fops);
 
 extern bool vt_dont_switch;
@@ -132,9 +131,9 @@ extern int default_utf8;
 extern int global_cursor_default;
 
 struct vt_spawn_console {
-	spinlock_t lock;
-	struct pid *pid;
-	int sig;
+  spinlock_t lock;
+  struct pid *pid;
+  int sig;
 };
 extern struct vt_spawn_console vt_spawn_con;
 
@@ -143,8 +142,8 @@ int vt_move_to_console(unsigned int vt, int alloc);
 /* Interfaces for VC notification of character events (for accessibility etc) */
 
 struct vt_notifier_param {
-	struct vc_data *vc;	/* VC on which the update happened */
-	unsigned int c;		/* Printed char */
+  struct vc_data *vc; /* VC on which the update happened */
+  unsigned int c;   /* Printed char */
 };
 
 int register_vt_notifier(struct notifier_block *nb);
@@ -157,9 +156,9 @@ int vt_do_diacrit(unsigned int cmd, void __user *up, int eperm);
 int vt_do_kdskbmode(unsigned int console, unsigned int arg);
 int vt_do_kdskbmeta(unsigned int console, unsigned int arg);
 int vt_do_kbkeycode_ioctl(int cmd, struct kbkeycode __user *user_kbkc,
-			  int perm);
+    int perm);
 int vt_do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm,
-		     unsigned int console);
+    unsigned int console);
 int vt_do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm);
 int vt_do_kdskled(unsigned int console, int cmd, unsigned long arg, int perm);
 int vt_do_kdgkbmode(unsigned int console);

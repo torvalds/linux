@@ -21,7 +21,6 @@
  * with structures hard coded to 16 bits, such as in filesystems)
  */
 
-
 /*
  * This is the "overflow" UID and GID. They are used to signify uid/gid
  * overflow to old programs when they request uid/gid information but are
@@ -38,26 +37,27 @@ extern int overflowgid;
 extern void __bad_uid(void);
 extern void __bad_gid(void);
 
-#define DEFAULT_OVERFLOWUID	65534
-#define DEFAULT_OVERFLOWGID	65534
+#define DEFAULT_OVERFLOWUID 65534
+#define DEFAULT_OVERFLOWGID 65534
 
 #ifdef CONFIG_UID16
 
 /* prevent uid mod 65536 effect by returning a default value for high UIDs */
-#define high2lowuid(uid) ((uid) & ~0xFFFF ? (old_uid_t)overflowuid : (old_uid_t)(uid))
-#define high2lowgid(gid) ((gid) & ~0xFFFF ? (old_gid_t)overflowgid : (old_gid_t)(gid))
+#define high2lowuid(uid) ((uid) \
+  & ~0xFFFF ? (old_uid_t) overflowuid : (old_uid_t) (uid))
+#define high2lowgid(gid) ((gid) \
+  & ~0xFFFF ? (old_gid_t) overflowgid : (old_gid_t) (gid))
 /*
  * -1 is different in 16 bits than it is in 32 bits
  * these macros are used by chown(), setreuid(), ...,
  */
-#define low2highuid(uid) ((uid) == (old_uid_t)-1 ? (uid_t)-1 : (uid_t)(uid))
-#define low2highgid(gid) ((gid) == (old_gid_t)-1 ? (gid_t)-1 : (gid_t)(gid))
+#define low2highuid(uid) ((uid) == (old_uid_t) -1 ? (uid_t) -1 : (uid_t) (uid))
+#define low2highgid(gid) ((gid) == (old_gid_t) -1 ? (gid_t) -1 : (gid_t) (gid))
 
 #define __convert_uid(size, uid) \
-	(size >= sizeof(uid) ? (uid) : high2lowuid(uid))
+  (size >= sizeof(uid) ? (uid) : high2lowuid(uid))
 #define __convert_gid(size, gid) \
-	(size >= sizeof(gid) ? (gid) : high2lowgid(gid))
-	
+  (size >= sizeof(gid) ? (gid) : high2lowgid(gid))
 
 #else
 
@@ -67,8 +67,10 @@ extern void __bad_gid(void);
 #endif /* !CONFIG_UID16 */
 
 /* uid/gid input should be always 32bit uid_t */
-#define SET_UID(var, uid) do { (var) = __convert_uid(sizeof(var), (uid)); } while (0)
-#define SET_GID(var, gid) do { (var) = __convert_gid(sizeof(var), (gid)); } while (0)
+#define SET_UID(var, uid) do { (var) = __convert_uid(sizeof(var), (uid)); \
+} while (0)
+#define SET_GID(var, gid) do { (var) = __convert_gid(sizeof(var), (gid)); \
+} while (0)
 
 /*
  * Everything below this line is needed on all architectures, to deal with
@@ -82,17 +84,19 @@ extern void __bad_gid(void);
 extern int fs_overflowuid;
 extern int fs_overflowgid;
 
-#define DEFAULT_FS_OVERFLOWUID	65534
-#define DEFAULT_FS_OVERFLOWGID	65534
+#define DEFAULT_FS_OVERFLOWUID  65534
+#define DEFAULT_FS_OVERFLOWGID  65534
 
 /*
  * Since these macros are used in architectures that only need limited
  * 16-bit UID back compatibility, we won't use old_uid_t and old_gid_t
  */
-#define fs_high2lowuid(uid) ((uid) & ~0xFFFF ? (uid16_t)fs_overflowuid : (uid16_t)(uid))
-#define fs_high2lowgid(gid) ((gid) & ~0xFFFF ? (gid16_t)fs_overflowgid : (gid16_t)(gid))
+#define fs_high2lowuid(uid) ((uid) \
+  & ~0xFFFF ? (uid16_t) fs_overflowuid : (uid16_t) (uid))
+#define fs_high2lowgid(gid) ((gid) \
+  & ~0xFFFF ? (gid16_t) fs_overflowgid : (gid16_t) (gid))
 
-#define low_16_bits(x)	((x) & 0xFFFF)
-#define high_16_bits(x)	(((x) & 0xFFFF0000) >> 16)
+#define low_16_bits(x)  ((x) & 0xFFFF)
+#define high_16_bits(x) (((x) & 0xFFFF0000) >> 16)
 
 #endif /* _LINUX_HIGHUID_H */

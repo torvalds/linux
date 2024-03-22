@@ -23,11 +23,11 @@ struct usb_device;
 /**
  * media_device_usb_allocate() - Allocate and return struct &media device
  *
- * @udev:		struct &usb_device pointer
- * @module_name:	should be filled with %KBUILD_MODNAME
- * @owner:		struct module pointer %THIS_MODULE for the driver.
- *			%THIS_MODULE is null for a built-in driver.
- *			It is safe even when %THIS_MODULE is null.
+ * @udev:   struct &usb_device pointer
+ * @module_name:  should be filled with %KBUILD_MODNAME
+ * @owner:    struct module pointer %THIS_MODULE for the driver.
+ *      %THIS_MODULE is null for a built-in driver.
+ *      It is safe even when %THIS_MODULE is null.
  *
  * This interface should be called to allocate a Media Device when multiple
  * drivers share usb_device and the media device. This interface allocates
@@ -36,28 +36,32 @@ struct usb_device;
  *
  */
 struct media_device *media_device_usb_allocate(struct usb_device *udev,
-					       const char *module_name,
-					       struct module *owner);
+    const char *module_name,
+    struct module *owner);
 /**
  * media_device_delete() - Release media device. Calls kref_put().
  *
- * @mdev:		struct &media_device pointer
- * @module_name:	should be filled with %KBUILD_MODNAME
- * @owner:		struct module pointer %THIS_MODULE for the driver.
- *			%THIS_MODULE is null for a built-in driver.
- *			It is safe even when %THIS_MODULE is null.
+ * @mdev:   struct &media_device pointer
+ * @module_name:  should be filled with %KBUILD_MODNAME
+ * @owner:    struct module pointer %THIS_MODULE for the driver.
+ *      %THIS_MODULE is null for a built-in driver.
+ *      It is safe even when %THIS_MODULE is null.
  *
  * This interface should be called to put Media Device Instance kref.
  */
 void media_device_delete(struct media_device *mdev, const char *module_name,
-			 struct module *owner);
+    struct module *owner);
 #else
 static inline struct media_device *media_device_usb_allocate(
-			struct usb_device *udev, const char *module_name,
-			struct module *owner)
-			{ return NULL; }
+    struct usb_device *udev, const char *module_name,
+    struct module *owner) {
+  return NULL;
+}
+
 static inline void media_device_delete(
-			struct media_device *mdev, const char *module_name,
-			struct module *owner) { }
+    struct media_device *mdev, const char *module_name,
+    struct module *owner) {
+}
+
 #endif /* CONFIG_MEDIA_CONTROLLER && CONFIG_USB */
 #endif /* _MEDIA_DEV_ALLOCATOR_H */

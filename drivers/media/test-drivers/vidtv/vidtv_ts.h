@@ -21,29 +21,29 @@
 #define TS_FILL_BYTE 0xff /* the byte used in packet stuffing */
 
 struct vidtv_mpeg_ts_adaption {
-	u8 length;
-	struct {
-		u8 extension:1;
-		u8 private_data:1;
-		u8 splicing_point:1;
-		u8 OPCR:1;
-		u8 PCR:1;
-		u8 priority:1;
-		u8 random_access:1;
-		u8 discontinued:1;
-	} __packed;
-	u8 data[];
+  u8 length;
+  struct {
+    u8 extension : 1;
+    u8 private_data : 1;
+    u8 splicing_point : 1;
+    u8 OPCR : 1;
+    u8 PCR : 1;
+    u8 priority : 1;
+    u8 random_access : 1;
+    u8 discontinued : 1;
+  } __packed;
+  u8 data[];
 } __packed;
 
 struct vidtv_mpeg_ts {
-	u8 sync_byte;
-	__be16 bitfield; /* tei: 1, payload_start:1 priority: 1, pid:13 */
-	struct {
-		u8 continuity_counter:4;
-		u8 payload:1;
-		u8 adaptation_field:1;
-		u8 scrambling:2;
-	} __packed;
+  u8 sync_byte;
+  __be16 bitfield; /* tei: 1, payload_start:1 priority: 1, pid:13 */
+  struct {
+    u8 continuity_counter : 4;
+    u8 payload : 1;
+    u8 adaptation_field : 1;
+    u8 scrambling : 2;
+  } __packed;
 } __packed;
 
 /**
@@ -56,12 +56,12 @@ struct vidtv_mpeg_ts {
  * @pcr: A sample from the system clock.
  */
 struct pcr_write_args {
-	void *dest_buf;
-	u32 dest_offset;
-	u16 pid;
-	u32 buf_sz;
-	u8 *continuity_counter;
-	u64 pcr;
+  void *dest_buf;
+  u32 dest_offset;
+  u16 pid;
+  u32 buf_sz;
+  u8 *continuity_counter;
+  u64 pcr;
 };
 
 /**
@@ -72,10 +72,10 @@ struct pcr_write_args {
  * @continuity_counter: The TS continuity_counter.
  */
 struct null_packet_write_args {
-	void *dest_buf;
-	u32 dest_offset;
-	u32 buf_sz;
-	u8 *continuity_counter;
+  void *dest_buf;
+  u32 dest_offset;
+  u32 buf_sz;
+  u8 *continuity_counter;
 };
 
 /* Increment the continuity counter */

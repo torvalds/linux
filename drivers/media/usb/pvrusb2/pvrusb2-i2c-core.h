@@ -11,5 +11,4 @@ struct pvr2_hdw;
 void pvr2_i2c_core_init(struct pvr2_hdw *);
 void pvr2_i2c_core_done(struct pvr2_hdw *);
 
-
 #endif /* __PVRUSB2_I2C_ADAPTER_H */

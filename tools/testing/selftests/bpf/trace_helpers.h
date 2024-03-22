@@ -4,12 +4,12 @@
 
 #include <bpf/libbpf.h>
 
-#define __ALIGN_MASK(x, mask)	(((x)+(mask))&~(mask))
-#define ALIGN(x, a)		__ALIGN_MASK(x, (typeof(x))(a)-1)
+#define __ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
+#define ALIGN(x, a)   __ALIGN_MASK(x, (typeof(x))(a) - 1)
 
 struct ksym {
-	long addr;
-	char *name;
+  long addr;
+  char *name;
 };
 struct ksyms;
 

@@ -1,10 +1,12 @@
 #ifndef __src_nvidia_inc_kernel_gpu_gsp_gsp_fw_heap_h__
 #define __src_nvidia_inc_kernel_gpu_gsp_gsp_fw_heap_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,8 +28,11 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define GSP_FW_HEAP_PARAM_SIZE_PER_GB_FB                  (96 << 10)   // All architectures
+#define GSP_FW_HEAP_PARAM_SIZE_PER_GB_FB                  (96 << 10)   // All
+                                                                       // architectures
 
-#define GSP_FW_HEAP_PARAM_CLIENT_ALLOC_SIZE      ((48 << 10) * 2048)   // Support 2048 channels
+#define GSP_FW_HEAP_PARAM_CLIENT_ALLOC_SIZE      ((48 << 10) * 2048)   // Support
+                                                                       // 2048
+                                                                       // channels
 
 #endif

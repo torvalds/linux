@@ -15,10 +15,10 @@
 #define WM8350_WDOG_MODE_MASK                   0x0030
 #define WM8350_WDOG_TO_MASK                     0x0007
 
-#define WM8350_IRQ_SYS_WDOG_TO			24
+#define WM8350_IRQ_SYS_WDOG_TO      24
 
 struct wm8350_wdt {
-	struct platform_device *pdev;
+  struct platform_device *pdev;
 };
 
 #endif

@@ -12,11 +12,11 @@ extern struct mnt_idmap nop_mnt_idmap;
 extern struct user_namespace init_user_ns;
 
 typedef struct {
-	uid_t val;
+  uid_t val;
 } vfsuid_t;
 
 typedef struct {
-	gid_t val;
+  gid_t val;
 } vfsgid_t;
 
 static_assert(sizeof(vfsuid_t) == sizeof(kuid_t));
@@ -25,45 +25,39 @@ static_assert(offsetof(vfsuid_t, val) == offsetof(kuid_t, val));
 static_assert(offsetof(vfsgid_t, val) == offsetof(kgid_t, val));
 
 #ifdef CONFIG_MULTIUSER
-static inline uid_t __vfsuid_val(vfsuid_t uid)
-{
-	return uid.val;
+static inline uid_t __vfsuid_val(vfsuid_t uid) {
+  return uid.val;
 }
 
-static inline gid_t __vfsgid_val(vfsgid_t gid)
-{
-	return gid.val;
+static inline gid_t __vfsgid_val(vfsgid_t gid) {
+  return gid.val;
 }
+
 #else
-static inline uid_t __vfsuid_val(vfsuid_t uid)
-{
-	return 0;
+static inline uid_t __vfsuid_val(vfsuid_t uid) {
+  return 0;
 }
 
-static inline gid_t __vfsgid_val(vfsgid_t gid)
-{
-	return 0;
+static inline gid_t __vfsgid_val(vfsgid_t gid) {
+  return 0;
 }
+
 #endif
 
-static inline bool vfsuid_valid(vfsuid_t uid)
-{
-	return __vfsuid_val(uid) != (uid_t)-1;
+static inline bool vfsuid_valid(vfsuid_t uid) {
+  return __vfsuid_val(uid) != (uid_t) -1;
 }
 
-static inline bool vfsgid_valid(vfsgid_t gid)
-{
-	return __vfsgid_val(gid) != (gid_t)-1;
+static inline bool vfsgid_valid(vfsgid_t gid) {
+  return __vfsgid_val(gid) != (gid_t) -1;
 }
 
-static inline bool vfsuid_eq(vfsuid_t left, vfsuid_t right)
-{
-	return vfsuid_valid(left) && __vfsuid_val(left) == __vfsuid_val(right);
+static inline bool vfsuid_eq(vfsuid_t left, vfsuid_t right) {
+  return vfsuid_valid(left) && __vfsuid_val(left) == __vfsuid_val(right);
 }
 
-static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right)
-{
-	return vfsgid_valid(left) && __vfsgid_val(left) == __vfsgid_val(right);
+static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right) {
+  return vfsgid_valid(left) && __vfsgid_val(left) == __vfsgid_val(right);
 }
 
 /**
@@ -76,9 +70,8 @@ static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right)
  * Return: true if @vfsuid and @kuid have the same value, false if not.
  * Comparison between two invalid uids returns false.
  */
-static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
-{
-	return vfsuid_valid(vfsuid) && __vfsuid_val(vfsuid) == __kuid_val(kuid);
+static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid) {
+  return vfsuid_valid(vfsuid) && __vfsuid_val(vfsuid) == __kuid_val(kuid);
 }
 
 /**
@@ -91,9 +84,8 @@ static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
  * Return: true if @vfsgid and @kgid have the same value, false if not.
  * Comparison between two invalid gids returns false.
  */
-static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid)
-{
-	return vfsgid_valid(vfsgid) && __vfsgid_val(vfsgid) == __kgid_val(kgid);
+static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid) {
+  return vfsgid_valid(vfsgid) && __vfsgid_val(vfsgid) == __kgid_val(kgid);
 }
 
 /*
@@ -119,16 +111,16 @@ struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
 void mnt_idmap_put(struct mnt_idmap *idmap);
 
 vfsuid_t make_vfsuid(struct mnt_idmap *idmap,
-		     struct user_namespace *fs_userns, kuid_t kuid);
+    struct user_namespace *fs_userns, kuid_t kuid);
 
 vfsgid_t make_vfsgid(struct mnt_idmap *idmap,
-		     struct user_namespace *fs_userns, kgid_t kgid);
+    struct user_namespace *fs_userns, kgid_t kgid);
 
 kuid_t from_vfsuid(struct mnt_idmap *idmap,
-		   struct user_namespace *fs_userns, vfsuid_t vfsuid);
+    struct user_namespace *fs_userns, vfsuid_t vfsuid);
 
 kgid_t from_vfsgid(struct mnt_idmap *idmap,
-		   struct user_namespace *fs_userns, vfsgid_t vfsgid);
+    struct user_namespace *fs_userns, vfsgid_t vfsgid);
 
 /**
  * vfsuid_has_fsmapping - check whether a vfsuid maps into the filesystem
@@ -143,16 +135,14 @@ kgid_t from_vfsgid(struct mnt_idmap *idmap,
  * Return: true if @vfsuid has a mapping in the filesystem, false if not.
  */
 static inline bool vfsuid_has_fsmapping(struct mnt_idmap *idmap,
-					struct user_namespace *fs_userns,
-					vfsuid_t vfsuid)
-{
-	return uid_valid(from_vfsuid(idmap, fs_userns, vfsuid));
+    struct user_namespace *fs_userns,
+    vfsuid_t vfsuid) {
+  return uid_valid(from_vfsuid(idmap, fs_userns, vfsuid));
 }
 
 static inline bool vfsuid_has_mapping(struct user_namespace *userns,
-				      vfsuid_t vfsuid)
-{
-	return from_kuid(userns, AS_KUIDT(vfsuid)) != (uid_t)-1;
+    vfsuid_t vfsuid) {
+  return from_kuid(userns, AS_KUIDT(vfsuid)) != (uid_t) -1;
 }
 
 /**
@@ -163,9 +153,8 @@ static inline bool vfsuid_has_mapping(struct user_namespace *userns,
  *
  * Return: a kuid with the value of @vfsuid
  */
-static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid)
-{
-	return AS_KUIDT(vfsuid);
+static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid) {
+  return AS_KUIDT(vfsuid);
 }
 
 /**
@@ -181,16 +170,14 @@ static inline kuid_t vfsuid_into_kuid(vfsuid_t vfsuid)
  * Return: true if @vfsgid has a mapping in the filesystem, false if not.
  */
 static inline bool vfsgid_has_fsmapping(struct mnt_idmap *idmap,
-					struct user_namespace *fs_userns,
-					vfsgid_t vfsgid)
-{
-	return gid_valid(from_vfsgid(idmap, fs_userns, vfsgid));
+    struct user_namespace *fs_userns,
+    vfsgid_t vfsgid) {
+  return gid_valid(from_vfsgid(idmap, fs_userns, vfsgid));
 }
 
 static inline bool vfsgid_has_mapping(struct user_namespace *userns,
-				      vfsgid_t vfsgid)
-{
-	return from_kgid(userns, AS_KGIDT(vfsgid)) != (gid_t)-1;
+    vfsgid_t vfsgid) {
+  return from_kgid(userns, AS_KGIDT(vfsgid)) != (gid_t) -1;
 }
 
 /**
@@ -201,9 +188,8 @@ static inline bool vfsgid_has_mapping(struct user_namespace *userns,
  *
  * Return: a kgid with the value of @vfsgid
  */
-static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
-{
-	return AS_KGIDT(vfsgid);
+static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid) {
+  return AS_KGIDT(vfsgid);
 }
 
 /**
@@ -220,9 +206,8 @@ static inline kgid_t vfsgid_into_kgid(vfsgid_t vfsgid)
  * Return: the caller's current fsuid mapped up according to @idmap.
  */
 static inline kuid_t mapped_fsuid(struct mnt_idmap *idmap,
-				  struct user_namespace *fs_userns)
-{
-	return from_vfsuid(idmap, fs_userns, VFSUIDT_INIT(current_fsuid()));
+    struct user_namespace *fs_userns) {
+  return from_vfsuid(idmap, fs_userns, VFSUIDT_INIT(current_fsuid()));
 }
 
 /**
@@ -239,9 +224,8 @@ static inline kuid_t mapped_fsuid(struct mnt_idmap *idmap,
  * Return: the caller's current fsgid mapped up according to @idmap.
  */
 static inline kgid_t mapped_fsgid(struct mnt_idmap *idmap,
-				  struct user_namespace *fs_userns)
-{
-	return from_vfsgid(idmap, fs_userns, VFSGIDT_INIT(current_fsgid()));
+    struct user_namespace *fs_userns) {
+  return from_vfsgid(idmap, fs_userns, VFSGIDT_INIT(current_fsgid()));
 }
 
 #endif /* _LINUX_MNT_IDMAPPING_H */

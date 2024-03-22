@@ -1,44 +1,44 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2021, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2021, Intel Corporation.*/
 
 #ifndef _ICE_PTP_HW_H_
 #define _ICE_PTP_HW_H_
 #include <linux/dpll.h>
 
 enum ice_ptp_tmr_cmd {
-	ICE_PTP_INIT_TIME,
-	ICE_PTP_INIT_INCVAL,
-	ICE_PTP_ADJ_TIME,
-	ICE_PTP_ADJ_TIME_AT_TIME,
-	ICE_PTP_READ_TIME,
-	ICE_PTP_NOP,
+  ICE_PTP_INIT_TIME,
+  ICE_PTP_INIT_INCVAL,
+  ICE_PTP_ADJ_TIME,
+  ICE_PTP_ADJ_TIME_AT_TIME,
+  ICE_PTP_READ_TIME,
+  ICE_PTP_NOP,
 };
 
 enum ice_ptp_serdes {
-	ICE_PTP_SERDES_1G,
-	ICE_PTP_SERDES_10G,
-	ICE_PTP_SERDES_25G,
-	ICE_PTP_SERDES_40G,
-	ICE_PTP_SERDES_50G,
-	ICE_PTP_SERDES_100G
+  ICE_PTP_SERDES_1G,
+  ICE_PTP_SERDES_10G,
+  ICE_PTP_SERDES_25G,
+  ICE_PTP_SERDES_40G,
+  ICE_PTP_SERDES_50G,
+  ICE_PTP_SERDES_100G
 };
 
 enum ice_ptp_link_spd {
-	ICE_PTP_LNK_SPD_1G,
-	ICE_PTP_LNK_SPD_10G,
-	ICE_PTP_LNK_SPD_25G,
-	ICE_PTP_LNK_SPD_25G_RS,
-	ICE_PTP_LNK_SPD_40G,
-	ICE_PTP_LNK_SPD_50G,
-	ICE_PTP_LNK_SPD_50G_RS,
-	ICE_PTP_LNK_SPD_100G_RS,
-	NUM_ICE_PTP_LNK_SPD /* Must be last */
+  ICE_PTP_LNK_SPD_1G,
+  ICE_PTP_LNK_SPD_10G,
+  ICE_PTP_LNK_SPD_25G,
+  ICE_PTP_LNK_SPD_25G_RS,
+  ICE_PTP_LNK_SPD_40G,
+  ICE_PTP_LNK_SPD_50G,
+  ICE_PTP_LNK_SPD_50G_RS,
+  ICE_PTP_LNK_SPD_100G_RS,
+  NUM_ICE_PTP_LNK_SPD /* Must be last */
 };
 
 enum ice_ptp_fec_mode {
-	ICE_PTP_FEC_MODE_NONE,
-	ICE_PTP_FEC_MODE_CLAUSE74,
-	ICE_PTP_FEC_MODE_RS_FEC
+  ICE_PTP_FEC_MODE_NONE,
+  ICE_PTP_FEC_MODE_CLAUSE74,
+  ICE_PTP_FEC_MODE_RS_FEC
 };
 
 /**
@@ -51,9 +51,9 @@ enum ice_ptp_fec_mode {
  * E822 devices
  */
 struct ice_time_ref_info_e82x {
-	u64 pll_freq;
-	u64 nominal_incval;
-	u8 pps_delay;
+  u64 pll_freq;
+  u64 nominal_incval;
+  u8 pps_delay;
 };
 
 /**
@@ -81,17 +81,17 @@ struct ice_time_ref_info_e82x {
  * or the Reed Solomon gearbox marker for RS-FEC.
  */
 struct ice_vernier_info_e82x {
-	u32 tx_par_clk;
-	u32 rx_par_clk;
-	u32 tx_pcs_clk;
-	u32 rx_pcs_clk;
-	u32 tx_desk_rsgb_par;
-	u32 rx_desk_rsgb_par;
-	u32 tx_desk_rsgb_pcs;
-	u32 rx_desk_rsgb_pcs;
-	u32 tx_fixed_delay;
-	u32 pmd_adj_divisor;
-	u32 rx_fixed_delay;
+  u32 tx_par_clk;
+  u32 rx_par_clk;
+  u32 tx_pcs_clk;
+  u32 rx_pcs_clk;
+  u32 tx_desk_rsgb_par;
+  u32 rx_desk_rsgb_par;
+  u32 tx_desk_rsgb_pcs;
+  u32 rx_desk_rsgb_pcs;
+  u32 tx_fixed_delay;
+  u32 pmd_adj_divisor;
+  u32 rx_fixed_delay;
 };
 
 /**
@@ -105,81 +105,81 @@ struct ice_vernier_info_e82x {
  * selected TIME_REF frequency.
  */
 struct ice_cgu_pll_params_e82x {
-	u32 refclk_pre_div;
-	u32 feedback_div;
-	u32 frac_n_div;
-	u32 post_pll_div;
+  u32 refclk_pre_div;
+  u32 feedback_div;
+  u32 frac_n_div;
+  u32 post_pll_div;
 };
 
-#define E810C_QSFP_C827_0_HANDLE	2
-#define E810C_QSFP_C827_1_HANDLE	3
+#define E810C_QSFP_C827_0_HANDLE  2
+#define E810C_QSFP_C827_1_HANDLE  3
 enum ice_e810_c827_idx {
-	C827_0,
-	C827_1
+  C827_0,
+  C827_1
 };
 
 enum ice_phy_rclk_pins {
-	ICE_RCLKA_PIN = 0,		/* SCL pin */
-	ICE_RCLKB_PIN,			/* SDA pin */
+  ICE_RCLKA_PIN = 0,    /* SCL pin */
+  ICE_RCLKB_PIN,      /* SDA pin */
 };
 
-#define ICE_E810_RCLK_PINS_NUM		(ICE_RCLKB_PIN + 1)
-#define ICE_E82X_RCLK_PINS_NUM		(ICE_RCLKA_PIN + 1)
-#define E810T_CGU_INPUT_C827(_phy, _pin) ((_phy) * ICE_E810_RCLK_PINS_NUM + \
-					  (_pin) + ZL_REF1P)
+#define ICE_E810_RCLK_PINS_NUM    (ICE_RCLKB_PIN + 1)
+#define ICE_E82X_RCLK_PINS_NUM    (ICE_RCLKA_PIN + 1)
+#define E810T_CGU_INPUT_C827(_phy, _pin) ((_phy) * ICE_E810_RCLK_PINS_NUM   \
+  + (_pin) + ZL_REF1P)
 
 enum ice_zl_cgu_in_pins {
-	ZL_REF0P = 0,
-	ZL_REF0N,
-	ZL_REF1P,
-	ZL_REF1N,
-	ZL_REF2P,
-	ZL_REF2N,
-	ZL_REF3P,
-	ZL_REF3N,
-	ZL_REF4P,
-	ZL_REF4N,
-	NUM_ZL_CGU_INPUT_PINS
+  ZL_REF0P = 0,
+  ZL_REF0N,
+  ZL_REF1P,
+  ZL_REF1N,
+  ZL_REF2P,
+  ZL_REF2N,
+  ZL_REF3P,
+  ZL_REF3N,
+  ZL_REF4P,
+  ZL_REF4N,
+  NUM_ZL_CGU_INPUT_PINS
 };
 
 enum ice_zl_cgu_out_pins {
-	ZL_OUT0 = 0,
-	ZL_OUT1,
-	ZL_OUT2,
-	ZL_OUT3,
-	ZL_OUT4,
-	ZL_OUT5,
-	ZL_OUT6,
-	NUM_ZL_CGU_OUTPUT_PINS
+  ZL_OUT0 = 0,
+  ZL_OUT1,
+  ZL_OUT2,
+  ZL_OUT3,
+  ZL_OUT4,
+  ZL_OUT5,
+  ZL_OUT6,
+  NUM_ZL_CGU_OUTPUT_PINS
 };
 
 enum ice_si_cgu_in_pins {
-	SI_REF0P = 0,
-	SI_REF0N,
-	SI_REF1P,
-	SI_REF1N,
-	SI_REF2P,
-	SI_REF2N,
-	SI_REF3,
-	SI_REF4,
-	NUM_SI_CGU_INPUT_PINS
+  SI_REF0P = 0,
+  SI_REF0N,
+  SI_REF1P,
+  SI_REF1N,
+  SI_REF2P,
+  SI_REF2N,
+  SI_REF3,
+  SI_REF4,
+  NUM_SI_CGU_INPUT_PINS
 };
 
 enum ice_si_cgu_out_pins {
-	SI_OUT0 = 0,
-	SI_OUT1,
-	SI_OUT2,
-	SI_OUT3,
-	SI_OUT4,
-	NUM_SI_CGU_OUTPUT_PINS
+  SI_OUT0 = 0,
+  SI_OUT1,
+  SI_OUT2,
+  SI_OUT3,
+  SI_OUT4,
+  NUM_SI_CGU_OUTPUT_PINS
 };
 
 struct ice_cgu_pin_desc {
-	char *name;
-	u8 index;
-	enum dpll_pin_type type;
-	u32 freq_supp_num;
-	struct dpll_pin_frequency *freq_supp;
+  char *name;
+  u8 index;
+  enum dpll_pin_type type;
+  u32 freq_supp_num;
+  struct dpll_pin_frequency *freq_supp;
 };
 
 extern const struct
@@ -225,9 +225,8 @@ void ice_ptp_reset_ts_memory_quad_e82x(struct ice_hw *hw, u8 quad);
  *
  * Returns the current TIME_REF from the capabilities structure.
  */
-static inline enum ice_time_ref_freq ice_e82x_time_ref(struct ice_hw *hw)
-{
-	return hw->func_caps.ts_func_info.time_ref;
+static inline enum ice_time_ref_freq ice_e82x_time_ref(struct ice_hw *hw) {
+  return hw->func_caps.ts_func_info.time_ref;
 }
 
 /**
@@ -238,25 +237,21 @@ static inline enum ice_time_ref_freq ice_e82x_time_ref(struct ice_hw *hw)
  * Update the TIME_REF in the capabilities structure in response to some
  * change, such as an update to the CGU registers.
  */
-static inline void
-ice_set_e82x_time_ref(struct ice_hw *hw, enum ice_time_ref_freq time_ref)
-{
-	hw->func_caps.ts_func_info.time_ref = time_ref;
+static inline void ice_set_e82x_time_ref(struct ice_hw *hw,
+    enum ice_time_ref_freq time_ref) {
+  hw->func_caps.ts_func_info.time_ref = time_ref;
 }
 
-static inline u64 ice_e82x_pll_freq(enum ice_time_ref_freq time_ref)
-{
-	return e822_time_ref[time_ref].pll_freq;
+static inline u64 ice_e82x_pll_freq(enum ice_time_ref_freq time_ref) {
+  return e822_time_ref[time_ref].pll_freq;
 }
 
-static inline u64 ice_e82x_nominal_incval(enum ice_time_ref_freq time_ref)
-{
-	return e822_time_ref[time_ref].nominal_incval;
+static inline u64 ice_e82x_nominal_incval(enum ice_time_ref_freq time_ref) {
+  return e822_time_ref[time_ref].nominal_incval;
 }
 
-static inline u64 ice_e82x_pps_delay(enum ice_time_ref_freq time_ref)
-{
-	return e822_time_ref[time_ref].pps_delay;
+static inline u64 ice_e82x_pps_delay(enum ice_time_ref_freq time_ref) {
+  return e822_time_ref[time_ref].pps_delay;
 }
 
 /* E822 Vernier calibration functions */
@@ -272,46 +267,46 @@ int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data);
 int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data);
 bool ice_is_pca9575_present(struct ice_hw *hw);
 enum dpll_pin_type ice_cgu_get_pin_type(struct ice_hw *hw, u8 pin, bool input);
-struct dpll_pin_frequency *
-ice_cgu_get_pin_freq_supp(struct ice_hw *hw, u8 pin, bool input, u8 *num);
+struct dpll_pin_frequency *ice_cgu_get_pin_freq_supp(struct ice_hw *hw, u8 pin,
+    bool input, u8 *num);
 const char *ice_cgu_get_pin_name(struct ice_hw *hw, u8 pin, bool input);
 int ice_get_cgu_state(struct ice_hw *hw, u8 dpll_idx,
-		      enum dpll_lock_status last_dpll_state, u8 *pin,
-		      u8 *ref_state, u8 *eec_mode, s64 *phase_offset,
-		      enum dpll_lock_status *dpll_state);
+    enum dpll_lock_status last_dpll_state, u8 *pin,
+    u8 *ref_state, u8 *eec_mode, s64 *phase_offset,
+    enum dpll_lock_status *dpll_state);
 int ice_get_cgu_rclk_pin_info(struct ice_hw *hw, u8 *base_idx, u8 *pin_num);
 
 void ice_ptp_init_phy_model(struct ice_hw *hw);
 int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
-				      unsigned long *caps);
+    unsigned long *caps);
 
-#define PFTSYN_SEM_BYTES	4
+#define PFTSYN_SEM_BYTES  4
 
-#define ICE_PTP_CLOCK_INDEX_0	0x00
-#define ICE_PTP_CLOCK_INDEX_1	0x01
+#define ICE_PTP_CLOCK_INDEX_0 0x00
+#define ICE_PTP_CLOCK_INDEX_1 0x01
 
 /* PHY timer commands */
-#define SEL_CPK_SRC	8
-#define SEL_PHY_SRC	3
+#define SEL_CPK_SRC 8
+#define SEL_PHY_SRC 3
 
 /* Time Sync command Definitions */
-#define GLTSYN_CMD_INIT_TIME		BIT(0)
-#define GLTSYN_CMD_INIT_INCVAL		BIT(1)
-#define GLTSYN_CMD_INIT_TIME_INCVAL	(BIT(0) | BIT(1))
-#define GLTSYN_CMD_ADJ_TIME		BIT(2)
-#define GLTSYN_CMD_ADJ_INIT_TIME	(BIT(2) | BIT(3))
-#define GLTSYN_CMD_READ_TIME		BIT(7)
+#define GLTSYN_CMD_INIT_TIME    BIT(0)
+#define GLTSYN_CMD_INIT_INCVAL    BIT(1)
+#define GLTSYN_CMD_INIT_TIME_INCVAL (BIT(0) | BIT(1))
+#define GLTSYN_CMD_ADJ_TIME   BIT(2)
+#define GLTSYN_CMD_ADJ_INIT_TIME  (BIT(2) | BIT(3))
+#define GLTSYN_CMD_READ_TIME    BIT(7)
 
 /* PHY port Time Sync command definitions */
-#define PHY_CMD_INIT_TIME		BIT(0)
-#define PHY_CMD_INIT_INCVAL		BIT(1)
-#define PHY_CMD_ADJ_TIME		(BIT(0) | BIT(1))
-#define PHY_CMD_ADJ_TIME_AT_TIME	(BIT(0) | BIT(2))
-#define PHY_CMD_READ_TIME		(BIT(0) | BIT(1) | BIT(2))
+#define PHY_CMD_INIT_TIME   BIT(0)
+#define PHY_CMD_INIT_INCVAL   BIT(1)
+#define PHY_CMD_ADJ_TIME    (BIT(0) | BIT(1))
+#define PHY_CMD_ADJ_TIME_AT_TIME  (BIT(0) | BIT(2))
+#define PHY_CMD_READ_TIME   (BIT(0) | BIT(1) | BIT(2))
 
-#define TS_CMD_MASK_E810		0xFF
-#define TS_CMD_MASK			0xF
-#define SYNC_EXEC_CMD			0x3
+#define TS_CMD_MASK_E810    0xFF
+#define TS_CMD_MASK     0xF
+#define SYNC_EXEC_CMD     0x3
 
 /* Macros to derive port low and high addresses on both quads */
 #define P_Q0_L(a, p) ((((a) + (0x2000 * (p)))) & 0xFFFF)
@@ -320,233 +315,233 @@ int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
 #define P_Q1_H(a, p) ((((a) - (0x2000 * ((p) - ICE_PORTS_PER_QUAD)))) >> 16)
 
 /* PHY QUAD register base addresses */
-#define Q_0_BASE			0x94000
-#define Q_1_BASE			0x114000
+#define Q_0_BASE      0x94000
+#define Q_1_BASE      0x114000
 
 /* Timestamp memory reset registers */
-#define Q_REG_TS_CTRL			0x618
-#define Q_REG_TS_CTRL_S			0
-#define Q_REG_TS_CTRL_M			BIT(0)
+#define Q_REG_TS_CTRL     0x618
+#define Q_REG_TS_CTRL_S     0
+#define Q_REG_TS_CTRL_M     BIT(0)
 
 /* Timestamp availability status registers */
-#define Q_REG_TX_MEMORY_STATUS_L	0xCF0
-#define Q_REG_TX_MEMORY_STATUS_U	0xCF4
+#define Q_REG_TX_MEMORY_STATUS_L  0xCF0
+#define Q_REG_TX_MEMORY_STATUS_U  0xCF4
 
 /* Tx FIFO status registers */
-#define Q_REG_FIFO23_STATUS		0xCF8
-#define Q_REG_FIFO01_STATUS		0xCFC
-#define Q_REG_FIFO02_S			0
-#define Q_REG_FIFO02_M			ICE_M(0x3FF, 0)
-#define Q_REG_FIFO13_S			10
-#define Q_REG_FIFO13_M			ICE_M(0x3FF, 10)
+#define Q_REG_FIFO23_STATUS   0xCF8
+#define Q_REG_FIFO01_STATUS   0xCFC
+#define Q_REG_FIFO02_S      0
+#define Q_REG_FIFO02_M      ICE_M(0x3FF, 0)
+#define Q_REG_FIFO13_S      10
+#define Q_REG_FIFO13_M      ICE_M(0x3FF, 10)
 
 /* Interrupt control Config registers */
-#define Q_REG_TX_MEM_GBL_CFG		0xC08
-#define Q_REG_TX_MEM_GBL_CFG_LANE_TYPE_S	0
-#define Q_REG_TX_MEM_GBL_CFG_LANE_TYPE_M	BIT(0)
-#define Q_REG_TX_MEM_GBL_CFG_TX_TYPE_S	1
-#define Q_REG_TX_MEM_GBL_CFG_TX_TYPE_M	ICE_M(0xFF, 1)
-#define Q_REG_TX_MEM_GBL_CFG_INTR_THR_S	9
+#define Q_REG_TX_MEM_GBL_CFG    0xC08
+#define Q_REG_TX_MEM_GBL_CFG_LANE_TYPE_S  0
+#define Q_REG_TX_MEM_GBL_CFG_LANE_TYPE_M  BIT(0)
+#define Q_REG_TX_MEM_GBL_CFG_TX_TYPE_S  1
+#define Q_REG_TX_MEM_GBL_CFG_TX_TYPE_M  ICE_M(0xFF, 1)
+#define Q_REG_TX_MEM_GBL_CFG_INTR_THR_S 9
 #define Q_REG_TX_MEM_GBL_CFG_INTR_THR_M ICE_M(0x3F, 9)
-#define Q_REG_TX_MEM_GBL_CFG_INTR_ENA_S	15
-#define Q_REG_TX_MEM_GBL_CFG_INTR_ENA_M	BIT(15)
+#define Q_REG_TX_MEM_GBL_CFG_INTR_ENA_S 15
+#define Q_REG_TX_MEM_GBL_CFG_INTR_ENA_M BIT(15)
 
 /* Tx Timestamp data registers */
-#define Q_REG_TX_MEMORY_BANK_START	0xA00
+#define Q_REG_TX_MEMORY_BANK_START  0xA00
 
 /* PHY port register base addresses */
-#define P_0_BASE			0x80000
-#define P_4_BASE			0x106000
+#define P_0_BASE      0x80000
+#define P_4_BASE      0x106000
 
 /* Timestamp init registers */
-#define P_REG_RX_TIMER_INC_PRE_L	0x46C
-#define P_REG_RX_TIMER_INC_PRE_U	0x470
-#define P_REG_TX_TIMER_INC_PRE_L	0x44C
-#define P_REG_TX_TIMER_INC_PRE_U	0x450
+#define P_REG_RX_TIMER_INC_PRE_L  0x46C
+#define P_REG_RX_TIMER_INC_PRE_U  0x470
+#define P_REG_TX_TIMER_INC_PRE_L  0x44C
+#define P_REG_TX_TIMER_INC_PRE_U  0x450
 
 /* Timestamp match and adjust target registers */
-#define P_REG_RX_TIMER_CNT_ADJ_L	0x474
-#define P_REG_RX_TIMER_CNT_ADJ_U	0x478
-#define P_REG_TX_TIMER_CNT_ADJ_L	0x454
-#define P_REG_TX_TIMER_CNT_ADJ_U	0x458
+#define P_REG_RX_TIMER_CNT_ADJ_L  0x474
+#define P_REG_RX_TIMER_CNT_ADJ_U  0x478
+#define P_REG_TX_TIMER_CNT_ADJ_L  0x454
+#define P_REG_TX_TIMER_CNT_ADJ_U  0x458
 
 /* Timestamp capture registers */
-#define P_REG_RX_CAPTURE_L		0x4D8
-#define P_REG_RX_CAPTURE_U		0x4DC
-#define P_REG_TX_CAPTURE_L		0x4B4
-#define P_REG_TX_CAPTURE_U		0x4B8
+#define P_REG_RX_CAPTURE_L    0x4D8
+#define P_REG_RX_CAPTURE_U    0x4DC
+#define P_REG_TX_CAPTURE_L    0x4B4
+#define P_REG_TX_CAPTURE_U    0x4B8
 
 /* Timestamp PHY incval registers */
-#define P_REG_TIMETUS_L			0x410
-#define P_REG_TIMETUS_U			0x414
+#define P_REG_TIMETUS_L     0x410
+#define P_REG_TIMETUS_U     0x414
 
-#define P_REG_40B_LOW_M			0xFF
-#define P_REG_40B_HIGH_S		8
+#define P_REG_40B_LOW_M     0xFF
+#define P_REG_40B_HIGH_S    8
 
 /* PHY window length registers */
-#define P_REG_WL			0x40C
+#define P_REG_WL      0x40C
 
-#define PTP_VERNIER_WL			0x111ed
+#define PTP_VERNIER_WL      0x111ed
 
 /* PHY start registers */
-#define P_REG_PS			0x408
-#define P_REG_PS_START_S		0
-#define P_REG_PS_START_M		BIT(0)
-#define P_REG_PS_BYPASS_MODE_S		1
-#define P_REG_PS_BYPASS_MODE_M		BIT(1)
-#define P_REG_PS_ENA_CLK_S		2
-#define P_REG_PS_ENA_CLK_M		BIT(2)
-#define P_REG_PS_LOAD_OFFSET_S		3
-#define P_REG_PS_LOAD_OFFSET_M		BIT(3)
-#define P_REG_PS_SFT_RESET_S		11
-#define P_REG_PS_SFT_RESET_M		BIT(11)
+#define P_REG_PS      0x408
+#define P_REG_PS_START_S    0
+#define P_REG_PS_START_M    BIT(0)
+#define P_REG_PS_BYPASS_MODE_S    1
+#define P_REG_PS_BYPASS_MODE_M    BIT(1)
+#define P_REG_PS_ENA_CLK_S    2
+#define P_REG_PS_ENA_CLK_M    BIT(2)
+#define P_REG_PS_LOAD_OFFSET_S    3
+#define P_REG_PS_LOAD_OFFSET_M    BIT(3)
+#define P_REG_PS_SFT_RESET_S    11
+#define P_REG_PS_SFT_RESET_M    BIT(11)
 
 /* PHY offset valid registers */
-#define P_REG_TX_OV_STATUS		0x4D4
-#define P_REG_TX_OV_STATUS_OV_S		0
-#define P_REG_TX_OV_STATUS_OV_M		BIT(0)
-#define P_REG_RX_OV_STATUS		0x4F8
-#define P_REG_RX_OV_STATUS_OV_S		0
-#define P_REG_RX_OV_STATUS_OV_M		BIT(0)
+#define P_REG_TX_OV_STATUS    0x4D4
+#define P_REG_TX_OV_STATUS_OV_S   0
+#define P_REG_TX_OV_STATUS_OV_M   BIT(0)
+#define P_REG_RX_OV_STATUS    0x4F8
+#define P_REG_RX_OV_STATUS_OV_S   0
+#define P_REG_RX_OV_STATUS_OV_M   BIT(0)
 
 /* PHY offset ready registers */
-#define P_REG_TX_OR			0x45C
-#define P_REG_RX_OR			0x47C
+#define P_REG_TX_OR     0x45C
+#define P_REG_RX_OR     0x47C
 
 /* PHY total offset registers */
-#define P_REG_TOTAL_RX_OFFSET_L		0x460
-#define P_REG_TOTAL_RX_OFFSET_U		0x464
-#define P_REG_TOTAL_TX_OFFSET_L		0x440
-#define P_REG_TOTAL_TX_OFFSET_U		0x444
+#define P_REG_TOTAL_RX_OFFSET_L   0x460
+#define P_REG_TOTAL_RX_OFFSET_U   0x464
+#define P_REG_TOTAL_TX_OFFSET_L   0x440
+#define P_REG_TOTAL_TX_OFFSET_U   0x444
 
 /* Timestamp PAR/PCS registers */
-#define P_REG_UIX66_10G_40G_L		0x480
-#define P_REG_UIX66_10G_40G_U		0x484
-#define P_REG_UIX66_25G_100G_L		0x488
-#define P_REG_UIX66_25G_100G_U		0x48C
-#define P_REG_DESK_PAR_RX_TUS_L		0x490
-#define P_REG_DESK_PAR_RX_TUS_U		0x494
-#define P_REG_DESK_PAR_TX_TUS_L		0x498
-#define P_REG_DESK_PAR_TX_TUS_U		0x49C
-#define P_REG_DESK_PCS_RX_TUS_L		0x4A0
-#define P_REG_DESK_PCS_RX_TUS_U		0x4A4
-#define P_REG_DESK_PCS_TX_TUS_L		0x4A8
-#define P_REG_DESK_PCS_TX_TUS_U		0x4AC
-#define P_REG_PAR_RX_TUS_L		0x420
-#define P_REG_PAR_RX_TUS_U		0x424
-#define P_REG_PAR_TX_TUS_L		0x428
-#define P_REG_PAR_TX_TUS_U		0x42C
-#define P_REG_PCS_RX_TUS_L		0x430
-#define P_REG_PCS_RX_TUS_U		0x434
-#define P_REG_PCS_TX_TUS_L		0x438
-#define P_REG_PCS_TX_TUS_U		0x43C
-#define P_REG_PAR_RX_TIME_L		0x4F0
-#define P_REG_PAR_RX_TIME_U		0x4F4
-#define P_REG_PAR_TX_TIME_L		0x4CC
-#define P_REG_PAR_TX_TIME_U		0x4D0
-#define P_REG_PAR_PCS_RX_OFFSET_L	0x4E8
-#define P_REG_PAR_PCS_RX_OFFSET_U	0x4EC
-#define P_REG_PAR_PCS_TX_OFFSET_L	0x4C4
-#define P_REG_PAR_PCS_TX_OFFSET_U	0x4C8
-#define P_REG_LINK_SPEED		0x4FC
-#define P_REG_LINK_SPEED_SERDES_S	0
-#define P_REG_LINK_SPEED_SERDES_M	ICE_M(0x7, 0)
-#define P_REG_LINK_SPEED_FEC_MODE_S	3
-#define P_REG_LINK_SPEED_FEC_MODE_M	ICE_M(0x3, 3)
-#define P_REG_LINK_SPEED_FEC_MODE(reg)			\
-	(((reg) & P_REG_LINK_SPEED_FEC_MODE_M) >>	\
-	 P_REG_LINK_SPEED_FEC_MODE_S)
+#define P_REG_UIX66_10G_40G_L   0x480
+#define P_REG_UIX66_10G_40G_U   0x484
+#define P_REG_UIX66_25G_100G_L    0x488
+#define P_REG_UIX66_25G_100G_U    0x48C
+#define P_REG_DESK_PAR_RX_TUS_L   0x490
+#define P_REG_DESK_PAR_RX_TUS_U   0x494
+#define P_REG_DESK_PAR_TX_TUS_L   0x498
+#define P_REG_DESK_PAR_TX_TUS_U   0x49C
+#define P_REG_DESK_PCS_RX_TUS_L   0x4A0
+#define P_REG_DESK_PCS_RX_TUS_U   0x4A4
+#define P_REG_DESK_PCS_TX_TUS_L   0x4A8
+#define P_REG_DESK_PCS_TX_TUS_U   0x4AC
+#define P_REG_PAR_RX_TUS_L    0x420
+#define P_REG_PAR_RX_TUS_U    0x424
+#define P_REG_PAR_TX_TUS_L    0x428
+#define P_REG_PAR_TX_TUS_U    0x42C
+#define P_REG_PCS_RX_TUS_L    0x430
+#define P_REG_PCS_RX_TUS_U    0x434
+#define P_REG_PCS_TX_TUS_L    0x438
+#define P_REG_PCS_TX_TUS_U    0x43C
+#define P_REG_PAR_RX_TIME_L   0x4F0
+#define P_REG_PAR_RX_TIME_U   0x4F4
+#define P_REG_PAR_TX_TIME_L   0x4CC
+#define P_REG_PAR_TX_TIME_U   0x4D0
+#define P_REG_PAR_PCS_RX_OFFSET_L 0x4E8
+#define P_REG_PAR_PCS_RX_OFFSET_U 0x4EC
+#define P_REG_PAR_PCS_TX_OFFSET_L 0x4C4
+#define P_REG_PAR_PCS_TX_OFFSET_U 0x4C8
+#define P_REG_LINK_SPEED    0x4FC
+#define P_REG_LINK_SPEED_SERDES_S 0
+#define P_REG_LINK_SPEED_SERDES_M ICE_M(0x7, 0)
+#define P_REG_LINK_SPEED_FEC_MODE_S 3
+#define P_REG_LINK_SPEED_FEC_MODE_M ICE_M(0x3, 3)
+#define P_REG_LINK_SPEED_FEC_MODE(reg)      \
+  (((reg) & P_REG_LINK_SPEED_FEC_MODE_M) >> \
+  P_REG_LINK_SPEED_FEC_MODE_S)
 
 /* PHY timestamp related registers */
-#define P_REG_PMD_ALIGNMENT		0x0FC
-#define P_REG_RX_80_TO_160_CNT		0x6FC
-#define P_REG_RX_80_TO_160_CNT_RXCYC_S	0
-#define P_REG_RX_80_TO_160_CNT_RXCYC_M	BIT(0)
-#define P_REG_RX_40_TO_160_CNT		0x8FC
-#define P_REG_RX_40_TO_160_CNT_RXCYC_S	0
-#define P_REG_RX_40_TO_160_CNT_RXCYC_M	ICE_M(0x3, 0)
+#define P_REG_PMD_ALIGNMENT   0x0FC
+#define P_REG_RX_80_TO_160_CNT    0x6FC
+#define P_REG_RX_80_TO_160_CNT_RXCYC_S  0
+#define P_REG_RX_80_TO_160_CNT_RXCYC_M  BIT(0)
+#define P_REG_RX_40_TO_160_CNT    0x8FC
+#define P_REG_RX_40_TO_160_CNT_RXCYC_S  0
+#define P_REG_RX_40_TO_160_CNT_RXCYC_M  ICE_M(0x3, 0)
 
 /* Rx FIFO status registers */
-#define P_REG_RX_OV_FS			0x4F8
-#define P_REG_RX_OV_FS_FIFO_STATUS_S	2
-#define P_REG_RX_OV_FS_FIFO_STATUS_M	ICE_M(0x3FF, 2)
+#define P_REG_RX_OV_FS      0x4F8
+#define P_REG_RX_OV_FS_FIFO_STATUS_S  2
+#define P_REG_RX_OV_FS_FIFO_STATUS_M  ICE_M(0x3FF, 2)
 
 /* Timestamp command registers */
-#define P_REG_TX_TMR_CMD		0x448
-#define P_REG_RX_TMR_CMD		0x468
+#define P_REG_TX_TMR_CMD    0x448
+#define P_REG_RX_TMR_CMD    0x468
 
 /* E810 timesync enable register */
-#define ETH_GLTSYN_ENA(_i)		(0x03000348 + ((_i) * 4))
+#define ETH_GLTSYN_ENA(_i)    (0x03000348 + ((_i) * 4))
 
 /* E810 shadow init time registers */
-#define ETH_GLTSYN_SHTIME_0(i)		(0x03000368 + ((i) * 32))
-#define ETH_GLTSYN_SHTIME_L(i)		(0x0300036C + ((i) * 32))
+#define ETH_GLTSYN_SHTIME_0(i)    (0x03000368 + ((i) * 32))
+#define ETH_GLTSYN_SHTIME_L(i)    (0x0300036C + ((i) * 32))
 
 /* E810 shadow time adjust registers */
-#define ETH_GLTSYN_SHADJ_L(_i)		(0x03000378 + ((_i) * 32))
-#define ETH_GLTSYN_SHADJ_H(_i)		(0x0300037C + ((_i) * 32))
+#define ETH_GLTSYN_SHADJ_L(_i)    (0x03000378 + ((_i) * 32))
+#define ETH_GLTSYN_SHADJ_H(_i)    (0x0300037C + ((_i) * 32))
 
 /* E810 timer command register */
-#define ETH_GLTSYN_CMD			0x03000344
+#define ETH_GLTSYN_CMD      0x03000344
 
 /* Source timer incval macros */
-#define INCVAL_HIGH_M			0xFF
+#define INCVAL_HIGH_M     0xFF
 
 /* Timestamp block macros */
-#define TS_VALID			BIT(0)
-#define TS_LOW_M			0xFFFFFFFF
-#define TS_HIGH_M			0xFF
-#define TS_HIGH_S			32
+#define TS_VALID      BIT(0)
+#define TS_LOW_M      0xFFFFFFFF
+#define TS_HIGH_M     0xFF
+#define TS_HIGH_S     32
 
-#define TS_PHY_LOW_M			0xFF
-#define TS_PHY_HIGH_M			0xFFFFFFFF
-#define TS_PHY_HIGH_S			8
+#define TS_PHY_LOW_M      0xFF
+#define TS_PHY_HIGH_M     0xFFFFFFFF
+#define TS_PHY_HIGH_S     8
 
-#define BYTES_PER_IDX_ADDR_L_U		8
-#define BYTES_PER_IDX_ADDR_L		4
+#define BYTES_PER_IDX_ADDR_L_U    8
+#define BYTES_PER_IDX_ADDR_L    4
 
 /* Tx timestamp low latency read definitions */
-#define TS_LL_READ_RETRIES		200
-#define TS_LL_READ_TS_HIGH		GENMASK(23, 16)
-#define TS_LL_READ_TS_IDX		GENMASK(29, 24)
-#define TS_LL_READ_TS_INTR		BIT(30)
-#define TS_LL_READ_TS			BIT(31)
+#define TS_LL_READ_RETRIES    200
+#define TS_LL_READ_TS_HIGH    GENMASK(23, 16)
+#define TS_LL_READ_TS_IDX   GENMASK(29, 24)
+#define TS_LL_READ_TS_INTR    BIT(30)
+#define TS_LL_READ_TS     BIT(31)
 
 /* Internal PHY timestamp address */
 #define TS_L(a, idx) ((a) + ((idx) * BYTES_PER_IDX_ADDR_L_U))
-#define TS_H(a, idx) ((a) + ((idx) * BYTES_PER_IDX_ADDR_L_U +		\
-			     BYTES_PER_IDX_ADDR_L))
+#define TS_H(a, idx) ((a) + ((idx) * BYTES_PER_IDX_ADDR_L_U     \
+  + BYTES_PER_IDX_ADDR_L))
 
 /* External PHY timestamp address */
-#define TS_EXT(a, port, idx) ((a) + (0x1000 * (port)) +			\
-				 ((idx) * BYTES_PER_IDX_ADDR_L_U))
+#define TS_EXT(a, port, idx) ((a) + (0x1000 * (port))       \
+  + ((idx) * BYTES_PER_IDX_ADDR_L_U))
 
-#define LOW_TX_MEMORY_BANK_START	0x03090000
-#define HIGH_TX_MEMORY_BANK_START	0x03090004
+#define LOW_TX_MEMORY_BANK_START  0x03090000
+#define HIGH_TX_MEMORY_BANK_START 0x03090004
 
 /* E810T SMA controller pin control */
-#define ICE_SMA1_DIR_EN_E810T		BIT(4)
-#define ICE_SMA1_TX_EN_E810T		BIT(5)
-#define ICE_SMA2_UFL2_RX_DIS_E810T	BIT(3)
-#define ICE_SMA2_DIR_EN_E810T		BIT(6)
-#define ICE_SMA2_TX_EN_E810T		BIT(7)
+#define ICE_SMA1_DIR_EN_E810T   BIT(4)
+#define ICE_SMA1_TX_EN_E810T    BIT(5)
+#define ICE_SMA2_UFL2_RX_DIS_E810T  BIT(3)
+#define ICE_SMA2_DIR_EN_E810T   BIT(6)
+#define ICE_SMA2_TX_EN_E810T    BIT(7)
 
-#define ICE_SMA1_MASK_E810T	(ICE_SMA1_DIR_EN_E810T | \
-				 ICE_SMA1_TX_EN_E810T)
-#define ICE_SMA2_MASK_E810T	(ICE_SMA2_UFL2_RX_DIS_E810T | \
-				 ICE_SMA2_DIR_EN_E810T | \
-				 ICE_SMA2_TX_EN_E810T)
-#define ICE_ALL_SMA_MASK_E810T	(ICE_SMA1_MASK_E810T | \
-				 ICE_SMA2_MASK_E810T)
+#define ICE_SMA1_MASK_E810T (ICE_SMA1_DIR_EN_E810T   \
+  | ICE_SMA1_TX_EN_E810T)
+#define ICE_SMA2_MASK_E810T (ICE_SMA2_UFL2_RX_DIS_E810T   \
+  | ICE_SMA2_DIR_EN_E810T   \
+  | ICE_SMA2_TX_EN_E810T)
+#define ICE_ALL_SMA_MASK_E810T  (ICE_SMA1_MASK_E810T   \
+  | ICE_SMA2_MASK_E810T)
 
-#define ICE_SMA_MIN_BIT_E810T	3
-#define ICE_SMA_MAX_BIT_E810T	7
-#define ICE_PCA9575_P1_OFFSET	8
+#define ICE_SMA_MIN_BIT_E810T 3
+#define ICE_SMA_MAX_BIT_E810T 7
+#define ICE_PCA9575_P1_OFFSET 8
 
 /* E810T PCA9575 IO controller registers */
-#define ICE_PCA9575_P0_IN	0x0
+#define ICE_PCA9575_P0_IN 0x0
 
 /* E810T PCA9575 IO controller pin control */
-#define ICE_E810T_P0_GNSS_PRSNT_N	BIT(4)
+#define ICE_E810T_P0_GNSS_PRSNT_N BIT(4)
 
 #endif /* _ICE_PTP_HW_H_ */

@@ -17,19 +17,20 @@ struct drm_i915_private;
 
 #ifdef I915
 void g4x_hdmi_init(struct drm_i915_private *dev_priv,
-		   i915_reg_t hdmi_reg, enum port port);
+    i915_reg_t hdmi_reg, enum port port);
 int g4x_hdmi_connector_atomic_check(struct drm_connector *connector,
-				    struct drm_atomic_state *state);
+    struct drm_atomic_state *state);
 #else
 static inline void g4x_hdmi_init(struct drm_i915_private *dev_priv,
-				 i915_reg_t hdmi_reg, int port)
-{
+    i915_reg_t hdmi_reg, int port) {
 }
-static inline int g4x_hdmi_connector_atomic_check(struct drm_connector *connector,
-						  struct drm_atomic_state *state)
-{
-	return 0;
+
+static inline int g4x_hdmi_connector_atomic_check(
+    struct drm_connector *connector,
+    struct drm_atomic_state *state) {
+  return 0;
 }
+
 #endif
 
 #endif

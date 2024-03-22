@@ -40,47 +40,47 @@
  */
 
 struct lsdc_pixpll_parms {
-	unsigned int ref_clock;
-	unsigned int div_ref;
-	unsigned int loopc;
-	unsigned int div_out;
+  unsigned int ref_clock;
+  unsigned int div_ref;
+  unsigned int loopc;
+  unsigned int div_out;
 };
 
 struct lsdc_pixpll;
 
 struct lsdc_pixpll_funcs {
-	int (*setup)(struct lsdc_pixpll * const this);
+  int (*setup)(struct lsdc_pixpll * const this);
 
-	int (*compute)(struct lsdc_pixpll * const this,
-		       unsigned int clock,
-		       struct lsdc_pixpll_parms *pout);
+  int (*compute)(struct lsdc_pixpll * const this,
+      unsigned int clock,
+      struct lsdc_pixpll_parms *pout);
 
-	int (*update)(struct lsdc_pixpll * const this,
-		      struct lsdc_pixpll_parms const *pin);
+  int (*update)(struct lsdc_pixpll * const this,
+      struct lsdc_pixpll_parms const *pin);
 
-	unsigned int (*get_rate)(struct lsdc_pixpll * const this);
+  unsigned int (*get_rate)(struct lsdc_pixpll * const this);
 
-	void (*print)(struct lsdc_pixpll * const this,
-		      struct drm_printer *printer);
+  void (*print)(struct lsdc_pixpll * const this,
+      struct drm_printer *printer);
 };
 
 struct lsdc_pixpll {
-	const struct lsdc_pixpll_funcs *funcs;
+  const struct lsdc_pixpll_funcs *funcs;
 
-	struct drm_device *ddev;
+  struct drm_device *ddev;
 
-	/* PLL register offset */
-	u32 reg_base;
-	/* PLL register size in bytes */
-	u32 reg_size;
+  /* PLL register offset */
+  u32 reg_base;
+  /* PLL register size in bytes */
+  u32 reg_size;
 
-	void __iomem *mmio;
+  void __iomem *mmio;
 
-	struct lsdc_pixpll_parms *priv;
+  struct lsdc_pixpll_parms *priv;
 };
 
 int lsdc_pixpll_init(struct lsdc_pixpll * const this,
-		     struct drm_device *ddev,
-		     unsigned int index);
+    struct drm_device *ddev,
+    unsigned int index);
 
 #endif

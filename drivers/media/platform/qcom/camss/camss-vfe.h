@@ -31,138 +31,138 @@
 /* Frame drop value. VAL + UPDATES - 1 should not exceed 31 */
 #define VFE_FRAME_DROP_VAL 30
 
-#define vfe_line_array(ptr_line)	\
-	((const struct vfe_line (*)[]) &(ptr_line)[-(ptr_line)->id])
+#define vfe_line_array(ptr_line)  \
+  ((const struct vfe_line (*) []) & (ptr_line)[-(ptr_line)->id])
 
-#define to_vfe(ptr_line)	\
-	container_of(vfe_line_array(ptr_line), struct vfe_device, line)
+#define to_vfe(ptr_line)  \
+  container_of(vfe_line_array(ptr_line), struct vfe_device, line)
 
 enum vfe_output_state {
-	VFE_OUTPUT_OFF,
-	VFE_OUTPUT_RESERVED,
-	VFE_OUTPUT_SINGLE,
-	VFE_OUTPUT_CONTINUOUS,
-	VFE_OUTPUT_IDLE,
-	VFE_OUTPUT_STOPPING,
-	VFE_OUTPUT_ON,
+  VFE_OUTPUT_OFF,
+  VFE_OUTPUT_RESERVED,
+  VFE_OUTPUT_SINGLE,
+  VFE_OUTPUT_CONTINUOUS,
+  VFE_OUTPUT_IDLE,
+  VFE_OUTPUT_STOPPING,
+  VFE_OUTPUT_ON,
 };
 
 enum vfe_line_id {
-	VFE_LINE_NONE = -1,
-	VFE_LINE_RDI0 = 0,
-	VFE_LINE_RDI1 = 1,
-	VFE_LINE_RDI2 = 2,
-	VFE_LINE_PIX = 3,
-	VFE_LINE_NUM_MAX = 4
+  VFE_LINE_NONE = -1,
+  VFE_LINE_RDI0 = 0,
+  VFE_LINE_RDI1 = 1,
+  VFE_LINE_RDI2 = 2,
+  VFE_LINE_PIX = 3,
+  VFE_LINE_NUM_MAX = 4
 };
 
 struct vfe_output {
-	u8 wm_num;
-	u8 wm_idx[3];
+  u8 wm_num;
+  u8 wm_idx[3];
 
-	struct camss_buffer *buf[2];
-	struct camss_buffer *last_buffer;
-	struct list_head pending_bufs;
+  struct camss_buffer *buf[2];
+  struct camss_buffer *last_buffer;
+  struct list_head pending_bufs;
 
-	unsigned int drop_update_idx;
+  unsigned int drop_update_idx;
 
-	union {
-		struct {
-			int active_buf;
-			int wait_sof;
-		} gen1;
-		struct {
-			int active_num;
-		} gen2;
-	};
-	enum vfe_output_state state;
-	unsigned int sequence;
+  union {
+    struct {
+      int active_buf;
+      int wait_sof;
+    } gen1;
+    struct {
+      int active_num;
+    } gen2;
+  };
+  enum vfe_output_state state;
+  unsigned int sequence;
 
-	int wait_reg_update;
-	struct completion sof;
-	struct completion reg_update;
+  int wait_reg_update;
+  struct completion sof;
+  struct completion reg_update;
 };
 
 struct vfe_line {
-	enum vfe_line_id id;
-	struct v4l2_subdev subdev;
-	struct media_pad pads[MSM_VFE_PADS_NUM];
-	struct v4l2_mbus_framefmt fmt[MSM_VFE_PADS_NUM];
-	struct v4l2_rect compose;
-	struct v4l2_rect crop;
-	struct camss_video video_out;
-	struct vfe_output output;
-	const struct vfe_format *formats;
-	unsigned int nformats;
+  enum vfe_line_id id;
+  struct v4l2_subdev subdev;
+  struct media_pad pads[MSM_VFE_PADS_NUM];
+  struct v4l2_mbus_framefmt fmt[MSM_VFE_PADS_NUM];
+  struct v4l2_rect compose;
+  struct v4l2_rect crop;
+  struct camss_video video_out;
+  struct vfe_output output;
+  const struct vfe_format *formats;
+  unsigned int nformats;
 };
 
 struct vfe_device;
 
 struct vfe_hw_ops {
-	void (*enable_irq_common)(struct vfe_device *vfe);
-	void (*global_reset)(struct vfe_device *vfe);
-	u32 (*hw_version)(struct vfe_device *vfe);
-	irqreturn_t (*isr)(int irq, void *dev);
-	void (*isr_read)(struct vfe_device *vfe, u32 *value0, u32 *value1);
-	void (*pm_domain_off)(struct vfe_device *vfe);
-	int (*pm_domain_on)(struct vfe_device *vfe);
-	void (*reg_update)(struct vfe_device *vfe, enum vfe_line_id line_id);
-	void (*reg_update_clear)(struct vfe_device *vfe,
-				 enum vfe_line_id line_id);
-	void (*subdev_init)(struct device *dev, struct vfe_device *vfe);
-	int (*vfe_disable)(struct vfe_line *line);
-	int (*vfe_enable)(struct vfe_line *line);
-	int (*vfe_halt)(struct vfe_device *vfe);
-	void (*violation_read)(struct vfe_device *vfe);
-	void (*vfe_wm_stop)(struct vfe_device *vfe, u8 wm);
+  void (*enable_irq_common)(struct vfe_device *vfe);
+  void (*global_reset)(struct vfe_device *vfe);
+  u32 (*hw_version)(struct vfe_device *vfe);
+  irqreturn_t (*isr)(int irq, void *dev);
+  void (*isr_read)(struct vfe_device *vfe, u32 *value0, u32 *value1);
+  void (*pm_domain_off)(struct vfe_device *vfe);
+  int (*pm_domain_on)(struct vfe_device *vfe);
+  void (*reg_update)(struct vfe_device *vfe, enum vfe_line_id line_id);
+  void (*reg_update_clear)(struct vfe_device *vfe,
+      enum vfe_line_id line_id);
+  void (*subdev_init)(struct device *dev, struct vfe_device *vfe);
+  int (*vfe_disable)(struct vfe_line *line);
+  int (*vfe_enable)(struct vfe_line *line);
+  int (*vfe_halt)(struct vfe_device *vfe);
+  void (*violation_read)(struct vfe_device *vfe);
+  void (*vfe_wm_stop)(struct vfe_device *vfe, u8 wm);
 };
 
 struct vfe_isr_ops {
-	void (*reset_ack)(struct vfe_device *vfe);
-	void (*halt_ack)(struct vfe_device *vfe);
-	void (*reg_update)(struct vfe_device *vfe, enum vfe_line_id line_id);
-	void (*sof)(struct vfe_device *vfe, enum vfe_line_id line_id);
-	void (*comp_done)(struct vfe_device *vfe, u8 comp);
-	void (*wm_done)(struct vfe_device *vfe, u8 wm);
+  void (*reset_ack)(struct vfe_device *vfe);
+  void (*halt_ack)(struct vfe_device *vfe);
+  void (*reg_update)(struct vfe_device *vfe, enum vfe_line_id line_id);
+  void (*sof)(struct vfe_device *vfe, enum vfe_line_id line_id);
+  void (*comp_done)(struct vfe_device *vfe, u8 comp);
+  void (*wm_done)(struct vfe_device *vfe, u8 wm);
 };
 
 struct vfe_device {
-	struct camss *camss;
-	u8 id;
-	void __iomem *base;
-	u32 irq;
-	char irq_name[30];
-	struct camss_clock *clock;
-	int nclocks;
-	struct completion reset_complete;
-	struct completion halt_complete;
-	struct mutex power_lock;
-	int power_count;
-	struct mutex stream_lock;
-	int stream_count;
-	spinlock_t output_lock;
-	enum vfe_line_id wm_output_map[MSM_VFE_IMAGE_MASTERS_NUM];
-	struct vfe_line line[VFE_LINE_NUM_MAX];
-	u8 line_num;
-	u32 reg_update;
-	u8 was_streaming;
-	const struct vfe_hw_ops *ops;
-	const struct vfe_hw_ops_gen1 *ops_gen1;
-	struct vfe_isr_ops isr_ops;
-	struct camss_video_ops video_ops;
-	struct device *genpd;
-	struct device_link *genpd_link;
+  struct camss *camss;
+  u8 id;
+  void __iomem *base;
+  u32 irq;
+  char irq_name[30];
+  struct camss_clock *clock;
+  int nclocks;
+  struct completion reset_complete;
+  struct completion halt_complete;
+  struct mutex power_lock;
+  int power_count;
+  struct mutex stream_lock;
+  int stream_count;
+  spinlock_t output_lock;
+  enum vfe_line_id wm_output_map[MSM_VFE_IMAGE_MASTERS_NUM];
+  struct vfe_line line[VFE_LINE_NUM_MAX];
+  u8 line_num;
+  u32 reg_update;
+  u8 was_streaming;
+  const struct vfe_hw_ops *ops;
+  const struct vfe_hw_ops_gen1 *ops_gen1;
+  struct vfe_isr_ops isr_ops;
+  struct camss_video_ops video_ops;
+  struct device *genpd;
+  struct device_link *genpd_link;
 };
 
 struct camss_subdev_resources;
 
 int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
-			const struct camss_subdev_resources *res, u8 id);
+    const struct camss_subdev_resources *res, u8 id);
 
 void msm_vfe_genpd_cleanup(struct vfe_device *vfe);
 
 int msm_vfe_register_entities(struct vfe_device *vfe,
-			      struct v4l2_device *v4l2_dev);
+    struct v4l2_device *v4l2_dev);
 
 void msm_vfe_unregister_entities(struct vfe_device *vfe);
 
@@ -171,7 +171,8 @@ void msm_vfe_unregister_entities(struct vfe_device *vfe);
  * @output: VFE output
  * @buffer: Video buffer
  */
-void vfe_buf_add_pending(struct vfe_output *output, struct camss_buffer *buffer);
+void vfe_buf_add_pending(struct vfe_output *output,
+    struct camss_buffer *buffer);
 
 struct camss_buffer *vfe_buf_get_pending(struct vfe_output *output);
 

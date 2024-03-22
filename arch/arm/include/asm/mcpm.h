@@ -16,12 +16,12 @@
  * (assembly) code simpler.  When this starts to grow then we'll have
  * to consider dynamic allocation.
  */
-#define MAX_CPUS_PER_CLUSTER	4
+#define MAX_CPUS_PER_CLUSTER  4
 
 #ifdef CONFIG_MCPM_QUAD_CLUSTER
-#define MAX_NR_CLUSTERS		4
+#define MAX_NR_CLUSTERS   4
 #else
-#define MAX_NR_CLUSTERS		2
+#define MAX_NR_CLUSTERS   2
 #endif
 
 #ifndef __ASSEMBLY__
@@ -49,7 +49,7 @@ void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr);
  * address must be physical, and if 0 then nothing will happen.
  */
 void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
-			 unsigned long poke_phys_addr, unsigned long poke_val);
+    unsigned long poke_phys_addr, unsigned long poke_val);
 
 /*
  * CPU/cluster power operations API for higher subsystems to use.
@@ -108,7 +108,7 @@ void mcpm_cpu_power_down(void);
 
 /**
  * mcpm_wait_for_cpu_powerdown - wait for a specified CPU to halt, and
- *	make sure it is powered off
+ *  make sure it is powered off
  *
  * @cpu: CPU number within given cluster
  * @cluster: cluster number for the CPU
@@ -126,8 +126,8 @@ void mcpm_cpu_power_down(void);
  * called mcpm_cpu_power_down() or has committed to doing so.
  *
  * @return:
- *	- zero if the CPU is in a safely parked state
- *	- nonzero otherwise (e.g., timeout)
+ *  - zero if the CPU is in a safely parked state
+ *  - nonzero otherwise (e.g., timeout)
  */
 int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
 
@@ -182,7 +182,8 @@ int mcpm_cpu_powered_up(void);
  *
  * cpu_powerdown_prepare:
  * Configure given CPU for power down. Called on target CPU with MCPM lock
- * held and IRQs disabled. Power down must be effective only at the next WFI instruction.
+ * held and IRQs disabled. Power down must be effective only at the next WFI
+ * instruction.
  *
  * cluster_powerdown_prepare:
  * Configure given cluster for power down. Called on one CPU from target
@@ -216,16 +217,16 @@ int mcpm_cpu_powered_up(void);
  * negative error code.
  */
 struct mcpm_platform_ops {
-	int (*cpu_powerup)(unsigned int cpu, unsigned int cluster);
-	int (*cluster_powerup)(unsigned int cluster);
-	void (*cpu_suspend_prepare)(unsigned int cpu, unsigned int cluster);
-	void (*cpu_powerdown_prepare)(unsigned int cpu, unsigned int cluster);
-	void (*cluster_powerdown_prepare)(unsigned int cluster);
-	void (*cpu_cache_disable)(void);
-	void (*cluster_cache_disable)(void);
-	void (*cpu_is_up)(unsigned int cpu, unsigned int cluster);
-	void (*cluster_is_up)(unsigned int cluster);
-	int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
+  int (*cpu_powerup)(unsigned int cpu, unsigned int cluster);
+  int (*cluster_powerup)(unsigned int cluster);
+  void (*cpu_suspend_prepare)(unsigned int cpu, unsigned int cluster);
+  void (*cpu_powerdown_prepare)(unsigned int cpu, unsigned int cluster);
+  void (*cluster_powerdown_prepare)(unsigned int cluster);
+  void (*cpu_cache_disable)(void);
+  void (*cluster_cache_disable)(void);
+  void (*cpu_is_up)(unsigned int cpu, unsigned int cluster);
+  void (*cluster_is_up)(unsigned int cluster);
+  int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
 };
 
 /**
@@ -241,7 +242,7 @@ int __init mcpm_platform_register(const struct mcpm_platform_ops *ops);
  * mcpm_sync_init - Initialize the cluster synchronization support
  *
  * @power_up_setup: platform specific function invoked during very
- * 		    early CPU/cluster bringup stage.
+ *        early CPU/cluster bringup stage.
  *
  * This prepares memory used by vlocks and the MCPM state machine used
  * across CPUs that may have their caches active or inactive. Must be
@@ -255,7 +256,7 @@ int __init mcpm_platform_register(const struct mcpm_platform_ops *ops);
  * point.
  */
 int __init mcpm_sync_init(
-	void (*power_up_setup)(unsigned int affinity_level));
+  void (*power_up_setup)(unsigned int affinity_level));
 
 /**
  * mcpm_loopback - make a run through the MCPM low-level code
@@ -269,7 +270,8 @@ int __init mcpm_sync_init(
  * hotplugged in. The MCPM state machine is set as if the cluster was
  * initialized meaning the power_up_setup callback passed to mcpm_sync_init()
  * will be invoked for all affinity levels. This may be useful to initialize
- * some resources such as enabling the CCI that requires the cache to be off, or simply for testing purposes.
+ * some resources such as enabling the CCI that requires the cache to be off, or
+ * simply for testing purposes.
  */
 int __init mcpm_loopback(void (*cache_disable)(void));
 
@@ -282,25 +284,25 @@ void __init mcpm_smp_set_ops(void);
  * to match.
  */
 struct mcpm_sync_struct {
-	/* individual CPU states */
-	struct {
-		s8 cpu __aligned(__CACHE_WRITEBACK_GRANULE);
-	} cpus[MAX_CPUS_PER_CLUSTER];
+  /* individual CPU states */
+  struct {
+    s8 cpu __aligned(__CACHE_WRITEBACK_GRANULE);
+  } cpus[MAX_CPUS_PER_CLUSTER];
 
-	/* cluster state */
-	s8 cluster __aligned(__CACHE_WRITEBACK_GRANULE);
+  /* cluster state */
+  s8 cluster __aligned(__CACHE_WRITEBACK_GRANULE);
 
-	/* inbound-side state */
-	s8 inbound __aligned(__CACHE_WRITEBACK_GRANULE);
+  /* inbound-side state */
+  s8 inbound __aligned(__CACHE_WRITEBACK_GRANULE);
 };
 
 struct sync_struct {
-	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
+  struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
 };
 
 #else
 
-/* 
+/*
  * asm-offsets.h causes trouble when included in .c files, and cacheflush.h
  * cannot be included in asm files.  Let's work around the conflict like this.
  */
@@ -310,29 +312,29 @@ struct sync_struct {
 #endif /* ! __ASSEMBLY__ */
 
 /* Definitions for mcpm_sync_struct */
-#define CPU_DOWN		0x11
-#define CPU_COMING_UP		0x12
-#define CPU_UP			0x13
-#define CPU_GOING_DOWN		0x14
+#define CPU_DOWN    0x11
+#define CPU_COMING_UP   0x12
+#define CPU_UP      0x13
+#define CPU_GOING_DOWN    0x14
 
-#define CLUSTER_DOWN		0x21
-#define CLUSTER_UP		0x22
-#define CLUSTER_GOING_DOWN	0x23
+#define CLUSTER_DOWN    0x21
+#define CLUSTER_UP    0x22
+#define CLUSTER_GOING_DOWN  0x23
 
-#define INBOUND_NOT_COMING_UP	0x31
-#define INBOUND_COMING_UP	0x32
+#define INBOUND_NOT_COMING_UP 0x31
+#define INBOUND_COMING_UP 0x32
 
 /*
  * Offsets for the mcpm_sync_struct members, for use in asm.
  * We don't want to make them global to the kernel via asm-offsets.c.
  */
-#define MCPM_SYNC_CLUSTER_CPUS	0
-#define MCPM_SYNC_CPU_SIZE	__CACHE_WRITEBACK_GRANULE
+#define MCPM_SYNC_CLUSTER_CPUS  0
+#define MCPM_SYNC_CPU_SIZE  __CACHE_WRITEBACK_GRANULE
 #define MCPM_SYNC_CLUSTER_CLUSTER \
-	(MCPM_SYNC_CLUSTER_CPUS + MCPM_SYNC_CPU_SIZE * MAX_CPUS_PER_CLUSTER)
+  (MCPM_SYNC_CLUSTER_CPUS + MCPM_SYNC_CPU_SIZE * MAX_CPUS_PER_CLUSTER)
 #define MCPM_SYNC_CLUSTER_INBOUND \
-	(MCPM_SYNC_CLUSTER_CLUSTER + __CACHE_WRITEBACK_GRANULE)
+  (MCPM_SYNC_CLUSTER_CLUSTER + __CACHE_WRITEBACK_GRANULE)
 #define MCPM_SYNC_CLUSTER_SIZE \
-	(MCPM_SYNC_CLUSTER_INBOUND + __CACHE_WRITEBACK_GRANULE)
+  (MCPM_SYNC_CLUSTER_INBOUND + __CACHE_WRITEBACK_GRANULE)
 
 #endif

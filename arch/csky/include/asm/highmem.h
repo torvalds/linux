@@ -25,8 +25,8 @@ extern pte_t *pkmap_page_table;
  * chunk of RAM.
  */
 #define LAST_PKMAP 1024
-#define LAST_PKMAP_MASK (LAST_PKMAP-1)
-#define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
+#define LAST_PKMAP_MASK (LAST_PKMAP - 1)
+#define PKMAP_NR(virt)  ((virt - PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
 #define ARCH_HAS_KMAP_FLUSH_TLB
@@ -34,8 +34,8 @@ extern void kmap_flush_tlb(unsigned long addr);
 
 #define flush_cache_kmaps() do {} while (0)
 
-#define arch_kmap_local_post_map(vaddr, pteval)	kmap_flush_tlb(vaddr)
-#define arch_kmap_local_post_unmap(vaddr)	kmap_flush_tlb(vaddr)
+#define arch_kmap_local_post_map(vaddr, pteval) kmap_flush_tlb(vaddr)
+#define arch_kmap_local_post_unmap(vaddr) kmap_flush_tlb(vaddr)
 
 extern void kmap_init(void);
 

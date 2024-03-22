@@ -12,16 +12,16 @@
  * for kernel really starts from compiler's shadow offset +
  * 'kernel address space start' >> KASAN_SHADOW_SCALE_SHIFT
  */
-#define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET + \
-					((-1UL << __VIRTUAL_MASK_SHIFT) >> \
-						KASAN_SHADOW_SCALE_SHIFT))
+#define KASAN_SHADOW_START      (KASAN_SHADOW_OFFSET   \
+  + ((-1UL << __VIRTUAL_MASK_SHIFT) >> \
+  KASAN_SHADOW_SCALE_SHIFT))
 /*
  * 47 bits for kernel address -> (47 - KASAN_SHADOW_SCALE_SHIFT) bits for shadow
  * 56 bits for kernel address -> (56 - KASAN_SHADOW_SCALE_SHIFT) bits for shadow
  */
-#define KASAN_SHADOW_END        (KASAN_SHADOW_START + \
-					(1ULL << (__VIRTUAL_MASK_SHIFT - \
-						  KASAN_SHADOW_SCALE_SHIFT)))
+#define KASAN_SHADOW_END        (KASAN_SHADOW_START   \
+  + (1ULL << (__VIRTUAL_MASK_SHIFT   \
+  - KASAN_SHADOW_SCALE_SHIFT)))
 
 #ifndef __ASSEMBLY__
 
@@ -30,10 +30,16 @@ void __init kasan_early_init(void);
 void __init kasan_init(void);
 void __init kasan_populate_shadow_for_vaddr(void *va, size_t size, int nid);
 #else
-static inline void kasan_early_init(void) { }
-static inline void kasan_init(void) { }
+static inline void kasan_early_init(void) {
+}
+
+static inline void kasan_init(void) {
+}
+
 static inline void kasan_populate_shadow_for_vaddr(void *va, size_t size,
-						   int nid) { }
+    int nid) {
+}
+
 #endif
 
 #endif

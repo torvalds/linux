@@ -29,14 +29,14 @@
  * @v4l2_caps: V4L2 capabilities of the whole device (see VIDIOC_QUERYCAP)
  */
 struct xvip_composite_device {
-	struct v4l2_device v4l2_dev;
-	struct media_device media_dev;
-	struct device *dev;
+  struct v4l2_device v4l2_dev;
+  struct media_device media_dev;
+  struct device *dev;
 
-	struct v4l2_async_notifier notifier;
+  struct v4l2_async_notifier notifier;
 
-	struct list_head dmas;
-	u32 v4l2_caps;
+  struct list_head dmas;
+  u32 v4l2_caps;
 };
 
 #endif /* __XILINX_VIPP_H__ */

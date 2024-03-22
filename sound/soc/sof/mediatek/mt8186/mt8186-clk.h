@@ -13,9 +13,9 @@ struct snd_sof_dev;
 
 /* DSP clock */
 enum adsp_clk_id {
-	CLK_TOP_AUDIODSP,
-	CLK_TOP_ADSP_BUS,
-	ADSP_CLK_MAX
+  CLK_TOP_AUDIODSP,
+  CLK_TOP_ADSP_BUS,
+  ADSP_CLK_MAX
 };
 
 int mt8186_adsp_init_clock(struct snd_sof_dev *sdev);

@@ -19,9 +19,9 @@ struct mm_struct;
  */
 #ifndef enter_lazy_tlb
 static inline void enter_lazy_tlb(struct mm_struct *mm,
-			struct task_struct *tsk)
-{
+    struct task_struct *tsk) {
 }
+
 #endif
 
 /**
@@ -32,10 +32,10 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
  */
 #ifndef init_new_context
 static inline int init_new_context(struct task_struct *tsk,
-			struct mm_struct *mm)
-{
-	return 0;
+    struct mm_struct *mm) {
+  return 0;
 }
+
 #endif
 
 /**
@@ -43,34 +43,36 @@ static inline int init_new_context(struct task_struct *tsk,
  * @mm: old mm struct
  */
 #ifndef destroy_context
-static inline void destroy_context(struct mm_struct *mm)
-{
+static inline void destroy_context(struct mm_struct *mm) {
 }
+
 #endif
 
 /**
- * activate_mm - called after exec switches the current task to a new mm, to switch to it
+ * activate_mm - called after exec switches the current task to a new mm, to
+ * switch to it
  * @prev_mm: previous mm of this task
  * @next_mm: new mm
  */
 #ifndef activate_mm
 static inline void activate_mm(struct mm_struct *prev_mm,
-			       struct mm_struct *next_mm)
-{
-	switch_mm(prev_mm, next_mm, current);
+    struct mm_struct *next_mm) {
+  switch_mm(prev_mm, next_mm, current);
 }
+
 #endif
 
 /**
- * dectivate_mm - called when an mm is released after exit or exec switches away from it
+ * dectivate_mm - called when an mm is released after exit or exec switches away
+ * from it
  * @tsk: the task
  * @mm:  the old mm
  */
 #ifndef deactivate_mm
 static inline void deactivate_mm(struct task_struct *tsk,
-			struct mm_struct *mm)
-{
+    struct mm_struct *mm) {
 }
+
 #endif
 
 #endif /* __ASM_GENERIC_MMU_CONTEXT_H */

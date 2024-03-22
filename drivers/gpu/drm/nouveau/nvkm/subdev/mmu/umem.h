@@ -5,21 +5,21 @@
 #include "mem.h"
 
 struct nvkm_umem {
-	struct nvkm_object object;
-	struct nvkm_mmu *mmu;
-	u8 type:8;
-	bool mappable:1;
-	bool io:1;
+  struct nvkm_object object;
+  struct nvkm_mmu *mmu;
+  u8 type : 8;
+  bool mappable : 1;
+  bool io : 1;
 
-	struct nvkm_memory *memory;
-	struct list_head head;
+  struct nvkm_memory *memory;
+  struct list_head head;
 
-	union {
-		struct nvkm_vma *bar;
-		void *map;
-	};
+  union {
+    struct nvkm_vma *bar;
+    void *map;
+  };
 };
 
 int nvkm_umem_new(const struct nvkm_oclass *, void *argv, u32 argc,
-		  struct nvkm_object **);
+    struct nvkm_object **);
 #endif

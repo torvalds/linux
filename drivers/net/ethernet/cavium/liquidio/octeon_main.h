@@ -26,9 +26,9 @@
 #include <linux/sched/signal.h>
 
 #if BITS_PER_LONG == 32
-#define CVM_CAST64(v) ((long long)(v))
+#define CVM_CAST64(v) ((long long) (v))
 #elif BITS_PER_LONG == 64
-#define CVM_CAST64(v) ((long long)(long)(v))
+#define CVM_CAST64(v) ((long long) (long) (v))
 #else
 #error "Unknown system architecture"
 #endif
@@ -36,10 +36,10 @@
 #define DRV_NAME "LiquidIO"
 
 struct octeon_device_priv {
-	/** Tasklet structures for this device. */
-	struct tasklet_struct droq_tasklet;
-	unsigned long napi_mask;
-	struct octeon_device *dev;
+  /** Tasklet structures for this device. */
+  struct tasklet_struct droq_tasklet;
+  unsigned long napi_mask;
+  struct octeon_device *dev;
 };
 
 /** This structure is used by NIC driver to store information required
@@ -47,42 +47,41 @@ struct octeon_device_priv {
  * Bytes offset below assume worst-case of a 64-bit system.
  */
 struct octnet_buf_free_info {
-	/** Bytes 1-8.  Pointer to network device private structure. */
-	struct lio *lio;
+  /** Bytes 1-8.  Pointer to network device private structure. */
+  struct lio *lio;
 
-	/** Bytes 9-16.  Pointer to sk_buff. */
-	struct sk_buff *skb;
+  /** Bytes 9-16.  Pointer to sk_buff. */
+  struct sk_buff *skb;
 
-	/** Bytes 17-24.  Pointer to gather list. */
-	struct octnic_gather *g;
+  /** Bytes 17-24.  Pointer to gather list. */
+  struct octnic_gather *g;
 
-	/** Bytes 25-32. Physical address of skb->data or gather list. */
-	u64 dptr;
+  /** Bytes 25-32. Physical address of skb->data or gather list. */
+  u64 dptr;
 
-	/** Bytes 33-47. Piggybacked soft command, if any */
-	struct octeon_soft_command *sc;
+  /** Bytes 33-47. Piggybacked soft command, if any */
+  struct octeon_soft_command *sc;
 };
 
 /* BQL-related functions */
 int octeon_report_sent_bytes_to_bql(void *buf, int reqtype);
 void octeon_update_tx_completion_counters(void *buf, int reqtype,
-					  unsigned int *pkts_compl,
-					  unsigned int *bytes_compl);
+    unsigned int *pkts_compl,
+    unsigned int *bytes_compl);
 void octeon_report_tx_completion_to_bql(void *txq, unsigned int pkts_compl,
-					unsigned int bytes_compl);
+    unsigned int bytes_compl);
 void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac);
 
 void octeon_schedule_rxq_oom_work(struct octeon_device *oct,
-				  struct octeon_droq *droq);
+    struct octeon_droq *droq);
 
 /** Swap 8B blocks */
-static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
-{
-	while (blocks) {
-		cpu_to_be64s(data);
-		blocks--;
-		data++;
-	}
+static inline void octeon_swap_8B_data(u64 *data, u32 blocks) {
+  while (blocks) {
+    cpu_to_be64s(data);
+    blocks--;
+    data++;
+  }
 }
 
 /**
@@ -90,16 +89,16 @@ static inline void octeon_swap_8B_data(u64 *data, u32 blocks)
  * @param oct Pointer to Octeon device
  * @param baridx bar index
  */
-static inline void octeon_unmap_pci_barx(struct octeon_device *oct, int baridx)
-{
-	dev_dbg(&oct->pci_dev->dev, "Freeing PCI mapped regions for Bar%d\n",
-		baridx);
-
-	if (oct->mmio[baridx].done)
-		iounmap(oct->mmio[baridx].hw_addr);
-
-	if (oct->mmio[baridx].start)
-		pci_release_region(oct->pci_dev, baridx * 2);
+static inline void octeon_unmap_pci_barx(struct octeon_device *oct,
+    int baridx) {
+  dev_dbg(&oct->pci_dev->dev, "Freeing PCI mapped regions for Bar%d\n",
+      baridx);
+  if (oct->mmio[baridx].done) {
+    iounmap(oct->mmio[baridx].hw_addr);
+  }
+  if (oct->mmio[baridx].start) {
+    pci_release_region(oct->pci_dev, baridx * 2);
+  }
 }
 
 /**
@@ -109,57 +108,49 @@ static inline void octeon_unmap_pci_barx(struct octeon_device *oct, int baridx)
  * @param max_map_len maximum length of mapped memory
  */
 static inline int octeon_map_pci_barx(struct octeon_device *oct,
-				      int baridx, int max_map_len)
-{
-	u32 mapped_len = 0;
-
-	if (pci_request_region(oct->pci_dev, baridx * 2, DRV_NAME)) {
-		dev_err(&oct->pci_dev->dev, "pci_request_region failed for bar %d\n",
-			baridx);
-		return 1;
-	}
-
-	oct->mmio[baridx].start = pci_resource_start(oct->pci_dev, baridx * 2);
-	oct->mmio[baridx].len = pci_resource_len(oct->pci_dev, baridx * 2);
-
-	mapped_len = oct->mmio[baridx].len;
-	if (!mapped_len)
-		goto err_release_region;
-
-	if (max_map_len && (mapped_len > max_map_len))
-		mapped_len = max_map_len;
-
-	oct->mmio[baridx].hw_addr =
-		ioremap(oct->mmio[baridx].start, mapped_len);
-	oct->mmio[baridx].mapped_len = mapped_len;
-
-	dev_dbg(&oct->pci_dev->dev, "BAR%d start: 0x%llx mapped %u of %u bytes\n",
-		baridx, oct->mmio[baridx].start, mapped_len,
-		oct->mmio[baridx].len);
-
-	if (!oct->mmio[baridx].hw_addr) {
-		dev_err(&oct->pci_dev->dev, "error ioremap for bar %d\n",
-			baridx);
-		goto err_release_region;
-	}
-	oct->mmio[baridx].done = 1;
-
-	return 0;
-
+    int baridx, int max_map_len) {
+  u32 mapped_len = 0;
+  if (pci_request_region(oct->pci_dev, baridx * 2, DRV_NAME)) {
+    dev_err(&oct->pci_dev->dev, "pci_request_region failed for bar %d\n",
+        baridx);
+    return 1;
+  }
+  oct->mmio[baridx].start = pci_resource_start(oct->pci_dev, baridx * 2);
+  oct->mmio[baridx].len = pci_resource_len(oct->pci_dev, baridx * 2);
+  mapped_len = oct->mmio[baridx].len;
+  if (!mapped_len) {
+    goto err_release_region;
+  }
+  if (max_map_len && (mapped_len > max_map_len)) {
+    mapped_len = max_map_len;
+  }
+  oct->mmio[baridx].hw_addr
+    = ioremap(oct->mmio[baridx].start, mapped_len);
+  oct->mmio[baridx].mapped_len = mapped_len;
+  dev_dbg(&oct->pci_dev->dev, "BAR%d start: 0x%llx mapped %u of %u bytes\n",
+      baridx, oct->mmio[baridx].start, mapped_len,
+      oct->mmio[baridx].len);
+  if (!oct->mmio[baridx].hw_addr) {
+    dev_err(&oct->pci_dev->dev, "error ioremap for bar %d\n",
+        baridx);
+    goto err_release_region;
+  }
+  oct->mmio[baridx].done = 1;
+  return 0;
 err_release_region:
-	pci_release_region(oct->pci_dev, baridx * 2);
-	return 1;
+  pci_release_region(oct->pci_dev, baridx * 2);
+  return 1;
 }
 
 /* input parameter:
  * sc: pointer to a soft request
  * timeout: milli sec which an application wants to wait for the
-	    response of the request.
+ *    response of the request.
  *          0: the request will wait until its response gets back
- *	       from the firmware within LIO_SC_MAX_TMO_MS milli sec.
- *	       It the response does not return within
- *	       LIO_SC_MAX_TMO_MS milli sec, lio_process_ordered_list()
- *	       will move the request to zombie response list.
+ *         from the firmware within LIO_SC_MAX_TMO_MS milli sec.
+ *         It the response does not return within
+ *         LIO_SC_MAX_TMO_MS milli sec, lio_process_ordered_list()
+ *         will move the request to zombie response list.
  *
  * return value:
  * 0: got the response from firmware for the sc request.
@@ -181,40 +172,36 @@ err_release_region:
  * and lio_process_ordered_list()/callback function to free a
  * sc strucutre.
  */
-static inline int
-wait_for_sc_completion_timeout(struct octeon_device *oct_dev,
-			       struct octeon_soft_command *sc,
-			       unsigned long timeout)
-{
-	int errno = 0;
-	long timeout_jiff;
-
-	if (timeout)
-		timeout_jiff = msecs_to_jiffies(timeout);
-	else
-		timeout_jiff = MAX_SCHEDULE_TIMEOUT;
-
-	timeout_jiff =
-		wait_for_completion_interruptible_timeout(&sc->complete,
-							  timeout_jiff);
-	if (timeout_jiff == 0) {
-		dev_err(&oct_dev->pci_dev->dev, "%s: sc is timeout\n",
-			__func__);
-		WRITE_ONCE(sc->caller_is_done, true);
-		errno = -ETIME;
-	} else if (timeout_jiff == -ERESTARTSYS) {
-		dev_err(&oct_dev->pci_dev->dev, "%s: sc is interrupted\n",
-			__func__);
-		WRITE_ONCE(sc->caller_is_done, true);
-		errno = -EINTR;
-	} else  if (sc->sc_status == OCTEON_REQUEST_TIMEOUT) {
-		dev_err(&oct_dev->pci_dev->dev, "%s: sc has fatal timeout\n",
-			__func__);
-		WRITE_ONCE(sc->caller_is_done, true);
-		errno = -EBUSY;
-	}
-
-	return errno;
+static inline int wait_for_sc_completion_timeout(struct octeon_device *oct_dev,
+    struct octeon_soft_command *sc,
+    unsigned long timeout) {
+  int errno = 0;
+  long timeout_jiff;
+  if (timeout) {
+    timeout_jiff = msecs_to_jiffies(timeout);
+  } else {
+    timeout_jiff = MAX_SCHEDULE_TIMEOUT;
+  }
+  timeout_jiff
+    = wait_for_completion_interruptible_timeout(&sc->complete,
+      timeout_jiff);
+  if (timeout_jiff == 0) {
+    dev_err(&oct_dev->pci_dev->dev, "%s: sc is timeout\n",
+        __func__);
+    WRITE_ONCE(sc->caller_is_done, true);
+    errno = -ETIME;
+  } else if (timeout_jiff == -ERESTARTSYS) {
+    dev_err(&oct_dev->pci_dev->dev, "%s: sc is interrupted\n",
+        __func__);
+    WRITE_ONCE(sc->caller_is_done, true);
+    errno = -EINTR;
+  } else if (sc->sc_status == OCTEON_REQUEST_TIMEOUT) {
+    dev_err(&oct_dev->pci_dev->dev, "%s: sc has fatal timeout\n",
+        __func__);
+    WRITE_ONCE(sc->caller_is_done, true);
+    errno = -EBUSY;
+  }
+  return errno;
 }
 
 #ifndef ROUNDUP4

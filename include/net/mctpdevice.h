@@ -17,34 +17,34 @@
 struct mctp_sk_key;
 
 struct mctp_dev {
-	struct net_device	*dev;
+  struct net_device *dev;
 
-	refcount_t		refs;
+  refcount_t refs;
 
-	unsigned int		net;
+  unsigned int net;
 
-	const struct mctp_netdev_ops *ops;
+  const struct mctp_netdev_ops *ops;
 
-	/* Only modified under RTNL. Reads have addrs_lock held */
-	u8			*addrs;
-	size_t			num_addrs;
-	spinlock_t		addrs_lock;
+  /* Only modified under RTNL. Reads have addrs_lock held */
+  u8 *addrs;
+  size_t num_addrs;
+  spinlock_t addrs_lock;
 
-	struct rcu_head		rcu;
+  struct rcu_head rcu;
 };
 
 struct mctp_netdev_ops {
-	void			(*release_flow)(struct mctp_dev *dev,
-						struct mctp_sk_key *key);
+  void (*release_flow)(struct mctp_dev *dev,
+      struct mctp_sk_key *key);
 };
 
-#define MCTP_INITIAL_DEFAULT_NET	1
+#define MCTP_INITIAL_DEFAULT_NET  1
 
 struct mctp_dev *mctp_dev_get_rtnl(const struct net_device *dev);
 struct mctp_dev *__mctp_dev_get(const struct net_device *dev);
 
 int mctp_register_netdev(struct net_device *dev,
-			 const struct mctp_netdev_ops *ops);
+    const struct mctp_netdev_ops *ops);
 void mctp_unregister_netdev(struct net_device *dev);
 
 void mctp_dev_hold(struct mctp_dev *mdev);

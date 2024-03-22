@@ -5,15 +5,16 @@
 #include <engine/dma.h>
 
 struct nvkm_dmaobj_func {
-	int (*bind)(struct nvkm_dmaobj *, struct nvkm_gpuobj *, int align,
-		    struct nvkm_gpuobj **);
+  int (*bind)(struct nvkm_dmaobj *, struct nvkm_gpuobj *, int align,
+      struct nvkm_gpuobj **);
 };
 
-int nvkm_dma_new_(const struct nvkm_dma_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_dma **);
+int nvkm_dma_new_(const struct nvkm_dma_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_dma **);
 
 struct nvkm_dma_func {
-	int (*class_new)(struct nvkm_dma *, const struct nvkm_oclass *,
-			 void *data, u32 size, struct nvkm_dmaobj **);
+  int (*class_new)(struct nvkm_dma *, const struct nvkm_oclass *,
+      void *data, u32 size, struct nvkm_dmaobj **);
 };
 #endif

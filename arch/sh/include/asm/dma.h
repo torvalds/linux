@@ -18,31 +18,31 @@
  * channel configuration. Consult your DMAC documentation and module
  * implementation for further clues.
  */
-#define DMA_MODE_READ		0x00
-#define DMA_MODE_WRITE		0x01
-#define DMA_MODE_MASK		0x01
+#define DMA_MODE_READ   0x00
+#define DMA_MODE_WRITE    0x01
+#define DMA_MODE_MASK   0x01
 
-#define DMA_AUTOINIT		0x10
+#define DMA_AUTOINIT    0x10
 
 /*
  * DMAC (dma_info) flags
  */
 enum {
-	DMAC_CHANNELS_CONFIGURED	= 0x01,
-	DMAC_CHANNELS_TEI_CAPABLE	= 0x02,	/* Transfer end interrupt */
+  DMAC_CHANNELS_CONFIGURED = 0x01,
+  DMAC_CHANNELS_TEI_CAPABLE = 0x02, /* Transfer end interrupt */
 };
 
 /*
  * DMA channel capabilities / flags
  */
 enum {
-	DMA_CONFIGURED			= 0x01,
+  DMA_CONFIGURED = 0x01,
 
-	/*
-	 * Transfer end interrupt, inherited from DMAC.
-	 * wait_queue used in dma_wait_for_completion.
-	 */
-	DMA_TEI_CAPABLE			= 0x02,
+  /*
+   * Transfer end interrupt, inherited from DMAC.
+   * wait_queue used in dma_wait_for_completion.
+   */
+  DMA_TEI_CAPABLE = 0x02,
 };
 
 extern spinlock_t dma_spin_lock;
@@ -50,76 +50,76 @@ extern spinlock_t dma_spin_lock;
 struct dma_channel;
 
 struct dma_ops {
-	int (*request)(struct dma_channel *chan);
-	void (*free)(struct dma_channel *chan);
+  int (*request)(struct dma_channel *chan);
+  void (*free)(struct dma_channel *chan);
 
-	int (*get_residue)(struct dma_channel *chan);
-	int (*xfer)(struct dma_channel *chan);
-	int (*configure)(struct dma_channel *chan, unsigned long flags);
-	int (*extend)(struct dma_channel *chan, unsigned long op, void *param);
+  int (*get_residue)(struct dma_channel *chan);
+  int (*xfer)(struct dma_channel *chan);
+  int (*configure)(struct dma_channel *chan, unsigned long flags);
+  int (*extend)(struct dma_channel *chan, unsigned long op, void *param);
 };
 
 struct dma_channel {
-	char dev_id[16];		/* unique name per DMAC of channel */
+  char dev_id[16];    /* unique name per DMAC of channel */
 
-	unsigned int chan;		/* DMAC channel number */
-	unsigned int vchan;		/* Virtual channel number */
+  unsigned int chan;    /* DMAC channel number */
+  unsigned int vchan;   /* Virtual channel number */
 
-	unsigned int mode;
-	unsigned int count;
+  unsigned int mode;
+  unsigned int count;
 
-	unsigned long sar;
-	unsigned long dar;
+  unsigned long sar;
+  unsigned long dar;
 
-	const char **caps;
+  const char **caps;
 
-	unsigned long flags;
-	atomic_t busy;
+  unsigned long flags;
+  atomic_t busy;
 
-	wait_queue_head_t wait_queue;
+  wait_queue_head_t wait_queue;
 
-	struct device dev;
-	void *priv_data;
+  struct device dev;
+  void *priv_data;
 };
 
 struct dma_info {
-	struct platform_device *pdev;
+  struct platform_device *pdev;
 
-	const char *name;
-	unsigned int nr_channels;
-	unsigned long flags;
+  const char *name;
+  unsigned int nr_channels;
+  unsigned long flags;
 
-	struct dma_ops *ops;
-	struct dma_channel *channels;
+  struct dma_ops *ops;
+  struct dma_channel *channels;
 
-	struct list_head list;
-	int first_channel_nr;
-	int first_vchannel_nr;
+  struct list_head list;
+  int first_channel_nr;
+  int first_vchannel_nr;
 };
 
 struct dma_chan_caps {
-	int ch_num;
-	const char **caplist;
+  int ch_num;
+  const char **caplist;
 };
 
 #define to_dma_channel(channel) container_of(channel, struct dma_channel, dev)
 
 /* arch/sh/drivers/dma/dma-api.c */
 extern int dma_xfer(unsigned int chan, unsigned long from,
-		    unsigned long to, size_t size, unsigned int mode);
+    unsigned long to, size_t size, unsigned int mode);
 
-#define dma_write(chan, from, to, size)	\
-	dma_xfer(chan, from, to, size, DMA_MODE_WRITE)
-#define dma_write_page(chan, from, to)	\
-	dma_write(chan, from, to, PAGE_SIZE)
+#define dma_write(chan, from, to, size) \
+  dma_xfer(chan, from, to, size, DMA_MODE_WRITE)
+#define dma_write_page(chan, from, to)  \
+  dma_write(chan, from, to, PAGE_SIZE)
 
-#define dma_read(chan, from, to, size)	\
-	dma_xfer(chan, from, to, size, DMA_MODE_READ)
-#define dma_read_page(chan, from, to)	\
-	dma_read(chan, from, to, PAGE_SIZE)
+#define dma_read(chan, from, to, size)  \
+  dma_xfer(chan, from, to, size, DMA_MODE_READ)
+#define dma_read_page(chan, from, to) \
+  dma_read(chan, from, to, PAGE_SIZE)
 
 extern int request_dma_bycap(const char **dmac, const char **caps,
-			     const char *dev_id);
+    const char *dev_id);
 extern int get_dma_residue(unsigned int chan);
 extern struct dma_info *get_dma_info(unsigned int chan);
 extern struct dma_channel *get_dma_channel(unsigned int chan);

@@ -28,7 +28,7 @@
  * phase to setup the `CTB based communication`_ that will be used afterwards.
  */
 
-#define GUC_MAX_MMIO_MSG_LEN		4
+#define GUC_MAX_MMIO_MSG_LEN    4
 
 /**
  * DOC: MMIO HXG Message

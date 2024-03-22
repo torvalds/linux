@@ -23,51 +23,48 @@
 
 #include <core/memory.h>
 
-int
-gk20a_vmm_aper(enum nvkm_memory_target target)
-{
-	switch (target) {
-	case NVKM_MEM_TARGET_NCOH: return 0;
-	default:
-		return -EINVAL;
-	}
+int gk20a_vmm_aper(enum nvkm_memory_target target) {
+  switch (target) {
+    case NVKM_MEM_TARGET_NCOH:
+      return 0;
+    default:
+      return -EINVAL;
+  }
 }
 
 static const struct nvkm_vmm_func
-gk20a_vmm_17 = {
-	.join = gf100_vmm_join,
-	.part = gf100_vmm_part,
-	.aper = gf100_vmm_aper,
-	.valid = gf100_vmm_valid,
-	.flush = gf100_vmm_flush,
-	.invalidate_pdb = gf100_vmm_invalidate_pdb,
-	.page = {
-		{ 17, &gk104_vmm_desc_17_17[0], NVKM_VMM_PAGE_xxHC },
-		{ 12, &gk104_vmm_desc_17_12[0], NVKM_VMM_PAGE_xxHx },
-		{}
-	}
+    gk20a_vmm_17 = {
+  .join = gf100_vmm_join,
+  .part = gf100_vmm_part,
+  .aper = gf100_vmm_aper,
+  .valid = gf100_vmm_valid,
+  .flush = gf100_vmm_flush,
+  .invalidate_pdb = gf100_vmm_invalidate_pdb,
+  .page = {
+    { 17, &gk104_vmm_desc_17_17[0], NVKM_VMM_PAGE_xxHC },
+    { 12, &gk104_vmm_desc_17_12[0], NVKM_VMM_PAGE_xxHx },
+    {}
+  }
 };
 
 static const struct nvkm_vmm_func
-gk20a_vmm_16 = {
-	.join = gf100_vmm_join,
-	.part = gf100_vmm_part,
-	.aper = gf100_vmm_aper,
-	.valid = gf100_vmm_valid,
-	.flush = gf100_vmm_flush,
-	.invalidate_pdb = gf100_vmm_invalidate_pdb,
-	.page = {
-		{ 16, &gk104_vmm_desc_16_16[0], NVKM_VMM_PAGE_xxHC },
-		{ 12, &gk104_vmm_desc_16_12[0], NVKM_VMM_PAGE_xxHx },
-		{}
-	}
+    gk20a_vmm_16 = {
+  .join = gf100_vmm_join,
+  .part = gf100_vmm_part,
+  .aper = gf100_vmm_aper,
+  .valid = gf100_vmm_valid,
+  .flush = gf100_vmm_flush,
+  .invalidate_pdb = gf100_vmm_invalidate_pdb,
+  .page = {
+    { 16, &gk104_vmm_desc_16_16[0], NVKM_VMM_PAGE_xxHC },
+    { 12, &gk104_vmm_desc_16_12[0], NVKM_VMM_PAGE_xxHx },
+    {}
+  }
 };
 
-int
-gk20a_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
-	      void *argv, u32 argc, struct lock_class_key *key,
-	      const char *name, struct nvkm_vmm **pvmm)
-{
-	return gf100_vmm_new_(&gk20a_vmm_16, &gk20a_vmm_17, mmu, managed, addr,
-			      size, argv, argc, key, name, pvmm);
+int gk20a_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+    void *argv, u32 argc, struct lock_class_key *key,
+    const char *name, struct nvkm_vmm **pvmm) {
+  return gf100_vmm_new_(&gk20a_vmm_16, &gk20a_vmm_17, mmu, managed, addr,
+      size, argv, argc, key, name, pvmm);
 }

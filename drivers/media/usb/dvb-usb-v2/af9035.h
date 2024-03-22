@@ -23,85 +23,85 @@
 #include "si2157.h"
 
 struct reg_val {
-	u32 reg;
-	u8  val;
+  u32 reg;
+  u8 val;
 };
 
 struct reg_val_mask {
-	u32 reg;
-	u8  val;
-	u8  mask;
+  u32 reg;
+  u8 val;
+  u8 mask;
 };
 
 struct usb_req {
-	u8  cmd;
-	u8  mbox;
-	u8  wlen;
-	u8  *wbuf;
-	u8  rlen;
-	u8  *rbuf;
+  u8 cmd;
+  u8 mbox;
+  u8 wlen;
+  u8 *wbuf;
+  u8 rlen;
+  u8 *rbuf;
 };
 
 struct state {
 #define BUF_LEN 64
-	u8 buf[BUF_LEN];
-	u8 seq; /* packet sequence number */
-	u8 prechip_version;
-	u8 chip_version;
-	u16 chip_type;
-	u8 eeprom[256];
-	bool no_eeprom;
-	u8 ir_mode;
-	u8 ir_type;
-	u8 dual_mode:1;
-	u8 no_read:1;
-	u8 af9033_i2c_addr[2];
-	u8 it930x_addresses;
-	struct af9033_config af9033_config[2];
-	struct af9033_ops ops;
-	#define AF9035_I2C_CLIENT_MAX 4
-	struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
-	struct i2c_adapter *i2c_adapter_demod;
-	struct platform_device *platform_device_tuner[2];
+  u8 buf[BUF_LEN];
+  u8 seq; /* packet sequence number */
+  u8 prechip_version;
+  u8 chip_version;
+  u16 chip_type;
+  u8 eeprom[256];
+  bool no_eeprom;
+  u8 ir_mode;
+  u8 ir_type;
+  u8 dual_mode : 1;
+  u8 no_read : 1;
+  u8 af9033_i2c_addr[2];
+  u8 it930x_addresses;
+  struct af9033_config af9033_config[2];
+  struct af9033_ops ops;
+#define AF9035_I2C_CLIENT_MAX 4
+  struct i2c_client *i2c_client[AF9035_I2C_CLIENT_MAX];
+  struct i2c_adapter *i2c_adapter_demod;
+  struct platform_device *platform_device_tuner[2];
 };
 
 struct address_table {
-	u8 frontend_i2c_addr;
-	u8 tuner_i2c_addr;
-	u8 tuner_if_port;
+  u8 frontend_i2c_addr;
+  u8 tuner_i2c_addr;
+  u8 tuner_if_port;
 };
 
 static const struct address_table it930x_addresses_table[] = {
-	{ 0x67, 0x63, 1 },
-	{ 0x64, 0x60, 0 },
+  { 0x67, 0x63, 1 },
+  { 0x64, 0x60, 0 },
 };
 
 static const u32 clock_lut_af9035[] = {
-	20480000, /*      FPGA */
-	16384000, /* 16.38 MHz */
-	20480000, /* 20.48 MHz */
-	36000000, /* 36.00 MHz */
-	30000000, /* 30.00 MHz */
-	26000000, /* 26.00 MHz */
-	28000000, /* 28.00 MHz */
-	32000000, /* 32.00 MHz */
-	34000000, /* 34.00 MHz */
-	24000000, /* 24.00 MHz */
-	22000000, /* 22.00 MHz */
-	12000000, /* 12.00 MHz */
+  20480000, /*      FPGA */
+  16384000, /* 16.38 MHz */
+  20480000, /* 20.48 MHz */
+  36000000, /* 36.00 MHz */
+  30000000, /* 30.00 MHz */
+  26000000, /* 26.00 MHz */
+  28000000, /* 28.00 MHz */
+  32000000, /* 32.00 MHz */
+  34000000, /* 34.00 MHz */
+  24000000, /* 24.00 MHz */
+  22000000, /* 22.00 MHz */
+  12000000, /* 12.00 MHz */
 };
 
 static const u32 clock_lut_it9135[] = {
-	12000000, /* 12.00 MHz */
-	20480000, /* 20.48 MHz */
-	36000000, /* 36.00 MHz */
-	30000000, /* 30.00 MHz */
-	26000000, /* 26.00 MHz */
-	28000000, /* 28.00 MHz */
-	32000000, /* 32.00 MHz */
-	34000000, /* 34.00 MHz */
-	24000000, /* 24.00 MHz */
-	22000000, /* 22.00 MHz */
+  12000000, /* 12.00 MHz */
+  20480000, /* 20.48 MHz */
+  36000000, /* 36.00 MHz */
+  30000000, /* 30.00 MHz */
+  26000000, /* 26.00 MHz */
+  28000000, /* 28.00 MHz */
+  32000000, /* 32.00 MHz */
+  34000000, /* 34.00 MHz */
+  24000000, /* 24.00 MHz */
+  22000000, /* 22.00 MHz */
 };
 
 #define AF9035_FIRMWARE_AF9035 "dvb-usb-af9035-02.fw"

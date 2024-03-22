@@ -4,7 +4,8 @@
 
 #include <asm/ibt.h>
 
-void __lockfunc __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked);
+void __lockfunc __pv_queued_spin_unlock_slowpath(struct qspinlock *lock,
+    u8 locked);
 
 /*
  * For x86-64, PV_CALLEE_SAVE_REGS_THUNK() saves and restores 8 64-bit
@@ -15,7 +16,7 @@ void __lockfunc __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 lock
 #ifdef CONFIG_64BIT
 
 __PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath, ".spinlock.text");
-#define __pv_queued_spin_unlock	__pv_queued_spin_unlock
+#define __pv_queued_spin_unlock __pv_queued_spin_unlock
 
 /*
  * Optimized assembly version of __raw_callee_save___pv_queued_spin_unlock
@@ -25,11 +26,11 @@ __PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath, ".spinlock.text");
  *
  * void __lockfunc __pv_queued_spin_unlock(struct qspinlock *lock)
  * {
- *	u8 lockval = cmpxchg(&lock->locked, _Q_LOCKED_VAL, 0);
+ *  u8 lockval = cmpxchg(&lock->locked, _Q_LOCKED_VAL, 0);
  *
- *	if (likely(lockval == _Q_LOCKED_VAL))
- *		return;
- *	pv_queued_spin_unlock_slowpath(lock, lockval);
+ *  if (likely(lockval == _Q_LOCKED_VAL))
+ *    return;
+ *  pv_queued_spin_unlock_slowpath(lock, lockval);
  * }
  *
  * For x86-64,
@@ -37,27 +38,27 @@ __PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath, ".spinlock.text");
  *   rsi = lockval           (second argument)
  *   rdx = internal variable (set to 0)
  */
-#define PV_UNLOCK_ASM							\
-	FRAME_BEGIN							\
-	"push  %rdx\n\t"						\
-	"mov   $0x1,%eax\n\t"						\
-	"xor   %edx,%edx\n\t"						\
-	LOCK_PREFIX "cmpxchg %dl,(%rdi)\n\t"				\
-	"cmp   $0x1,%al\n\t"						\
-	"jne   .slowpath\n\t"						\
-	"pop   %rdx\n\t"						\
-	FRAME_END							\
-	ASM_RET								\
-	".slowpath:\n\t"						\
-	"push   %rsi\n\t"						\
-	"movzbl %al,%esi\n\t"						\
-	"call __raw_callee_save___pv_queued_spin_unlock_slowpath\n\t"	\
-	"pop    %rsi\n\t"						\
-	"pop    %rdx\n\t"						\
-	FRAME_END
+#define PV_UNLOCK_ASM             \
+  FRAME_BEGIN             \
+  "push  %rdx\n\t"            \
+  "mov   $0x1,%eax\n\t"           \
+  "xor   %edx,%edx\n\t"           \
+  LOCK_PREFIX "cmpxchg %dl,(%rdi)\n\t"        \
+  "cmp   $0x1,%al\n\t"            \
+  "jne   .slowpath\n\t"           \
+  "pop   %rdx\n\t"            \
+  FRAME_END             \
+  ASM_RET               \
+  ".slowpath:\n\t"            \
+  "push   %rsi\n\t"           \
+  "movzbl %al,%esi\n\t"           \
+  "call __raw_callee_save___pv_queued_spin_unlock_slowpath\n\t" \
+  "pop    %rsi\n\t"           \
+  "pop    %rdx\n\t"           \
+  FRAME_END
 
 DEFINE_ASM_FUNC(__raw_callee_save___pv_queued_spin_unlock,
-		PV_UNLOCK_ASM, .spinlock.text);
+    PV_UNLOCK_ASM, .spinlock.text);
 
 #else /* CONFIG_64BIT */
 

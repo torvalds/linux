@@ -16,8 +16,8 @@
  * @num_irqs: number of HW interrupts supported by the controller
  */
 struct davinci_cp_intc_config {
-	struct resource reg;
-	unsigned int num_irqs;
+  struct resource reg;
+  unsigned int num_irqs;
 };
 
 int davinci_cp_intc_init(const struct davinci_cp_intc_config *config);

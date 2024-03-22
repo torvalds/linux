@@ -22,172 +22,157 @@
 struct scripting_context *scripting_context;
 
 void scripting_context__update(struct scripting_context *c,
-			       union perf_event *event,
-			       struct perf_sample *sample,
-			       struct evsel *evsel,
-			       struct addr_location *al,
-			       struct addr_location *addr_al)
-{
-	c->event_data = sample->raw_data;
-	c->pevent = NULL;
+    union perf_event *event,
+    struct perf_sample *sample,
+    struct evsel *evsel,
+    struct addr_location *al,
+    struct addr_location *addr_al) {
+  c->event_data = sample->raw_data;
+  c->pevent = NULL;
 #ifdef HAVE_LIBTRACEEVENT
-	if (evsel->tp_format)
-		c->pevent = evsel->tp_format->tep;
+  if (evsel->tp_format) {
+    c->pevent = evsel->tp_format->tep;
+  }
 #endif
-	c->event = event;
-	c->sample = sample;
-	c->evsel = evsel;
-	c->al = al;
-	c->addr_al = addr_al;
+  c->event = event;
+  c->sample = sample;
+  c->evsel = evsel;
+  c->al = al;
+  c->addr_al = addr_al;
 }
 
-static int flush_script_unsupported(void)
-{
-	return 0;
+static int flush_script_unsupported(void) {
+  return 0;
 }
 
-static int stop_script_unsupported(void)
-{
-	return 0;
+static int stop_script_unsupported(void) {
+  return 0;
 }
 
 static void process_event_unsupported(union perf_event *event __maybe_unused,
-				      struct perf_sample *sample __maybe_unused,
-				      struct evsel *evsel __maybe_unused,
-				      struct addr_location *al __maybe_unused,
-				      struct addr_location *addr_al __maybe_unused)
-{
+    struct perf_sample *sample __maybe_unused,
+    struct evsel *evsel __maybe_unused,
+    struct addr_location *al __maybe_unused,
+    struct addr_location *addr_al __maybe_unused) {
 }
 
-static void print_python_unsupported_msg(void)
-{
-	fprintf(stderr, "Python scripting not supported."
-		"  Install libpython and rebuild perf to enable it.\n"
-		"For example:\n  # apt-get install python-dev (ubuntu)"
-		"\n  # yum install python-devel (Fedora)"
-		"\n  etc.\n");
+static void print_python_unsupported_msg(void) {
+  fprintf(stderr, "Python scripting not supported."
+      "  Install libpython and rebuild perf to enable it.\n"
+      "For example:\n  # apt-get install python-dev (ubuntu)"
+      "\n  # yum install python-devel (Fedora)"
+      "\n  etc.\n");
 }
 
 static int python_start_script_unsupported(const char *script __maybe_unused,
-					   int argc __maybe_unused,
-					   const char **argv __maybe_unused,
-					   struct perf_session *session __maybe_unused)
-{
-	print_python_unsupported_msg();
-
-	return -1;
+    int argc __maybe_unused,
+    const char **argv __maybe_unused,
+    struct perf_session *session __maybe_unused) {
+  print_python_unsupported_msg();
+  return -1;
 }
 
 static int python_generate_script_unsupported(struct tep_handle *pevent
-					      __maybe_unused,
-					      const char *outfile
-					      __maybe_unused)
-{
-	print_python_unsupported_msg();
-
-	return -1;
+    __maybe_unused,
+    const char *outfile
+    __maybe_unused) {
+  print_python_unsupported_msg();
+  return -1;
 }
 
 struct scripting_ops python_scripting_unsupported_ops = {
-	.name = "Python",
-	.dirname = "python",
-	.start_script = python_start_script_unsupported,
-	.flush_script = flush_script_unsupported,
-	.stop_script = stop_script_unsupported,
-	.process_event = process_event_unsupported,
-	.generate_script = python_generate_script_unsupported,
+  .name = "Python",
+  .dirname = "python",
+  .start_script = python_start_script_unsupported,
+  .flush_script = flush_script_unsupported,
+  .stop_script = stop_script_unsupported,
+  .process_event = process_event_unsupported,
+  .generate_script = python_generate_script_unsupported,
 };
 
-static void register_python_scripting(struct scripting_ops *scripting_ops)
-{
-	if (scripting_context == NULL)
-		scripting_context = malloc(sizeof(*scripting_context));
-
-       if (scripting_context == NULL ||
-	   script_spec_register("Python", scripting_ops) ||
-	   script_spec_register("py", scripting_ops)) {
-		pr_err("Error registering Python script extension: disabling it\n");
-		zfree(&scripting_context);
-	}
+static void register_python_scripting(struct scripting_ops *scripting_ops) {
+  if (scripting_context == NULL) {
+    scripting_context = malloc(sizeof(*scripting_context));
+  }
+  if (scripting_context == NULL
+      || script_spec_register("Python", scripting_ops)
+      || script_spec_register("py", scripting_ops)) {
+    pr_err("Error registering Python script extension: disabling it\n");
+    zfree(&scripting_context);
+  }
 }
 
 #ifndef HAVE_LIBPYTHON_SUPPORT
-void setup_python_scripting(void)
-{
-	register_python_scripting(&python_scripting_unsupported_ops);
+void setup_python_scripting(void) {
+  register_python_scripting(&python_scripting_unsupported_ops);
 }
+
 #else
 extern struct scripting_ops python_scripting_ops;
 
-void setup_python_scripting(void)
-{
-	register_python_scripting(&python_scripting_ops);
+void setup_python_scripting(void) {
+  register_python_scripting(&python_scripting_ops);
 }
+
 #endif
 
 #ifdef HAVE_LIBTRACEEVENT
-static void print_perl_unsupported_msg(void)
-{
-	fprintf(stderr, "Perl scripting not supported."
-		"  Install libperl and rebuild perf to enable it.\n"
-		"For example:\n  # apt-get install libperl-dev (ubuntu)"
-		"\n  # yum install 'perl(ExtUtils::Embed)' (Fedora)"
-		"\n  etc.\n");
+static void print_perl_unsupported_msg(void) {
+  fprintf(stderr, "Perl scripting not supported."
+      "  Install libperl and rebuild perf to enable it.\n"
+      "For example:\n  # apt-get install libperl-dev (ubuntu)"
+      "\n  # yum install 'perl(ExtUtils::Embed)' (Fedora)"
+      "\n  etc.\n");
 }
 
 static int perl_start_script_unsupported(const char *script __maybe_unused,
-					 int argc __maybe_unused,
-					 const char **argv __maybe_unused,
-					 struct perf_session *session __maybe_unused)
-{
-	print_perl_unsupported_msg();
-
-	return -1;
+    int argc __maybe_unused,
+    const char **argv __maybe_unused,
+    struct perf_session *session __maybe_unused) {
+  print_perl_unsupported_msg();
+  return -1;
 }
 
 static int perl_generate_script_unsupported(struct tep_handle *pevent
-					    __maybe_unused,
-					    const char *outfile __maybe_unused)
-{
-	print_perl_unsupported_msg();
-
-	return -1;
+    __maybe_unused,
+    const char *outfile __maybe_unused) {
+  print_perl_unsupported_msg();
+  return -1;
 }
 
 struct scripting_ops perl_scripting_unsupported_ops = {
-	.name = "Perl",
-	.dirname = "perl",
-	.start_script = perl_start_script_unsupported,
-	.flush_script = flush_script_unsupported,
-	.stop_script = stop_script_unsupported,
-	.process_event = process_event_unsupported,
-	.generate_script = perl_generate_script_unsupported,
+  .name = "Perl",
+  .dirname = "perl",
+  .start_script = perl_start_script_unsupported,
+  .flush_script = flush_script_unsupported,
+  .stop_script = stop_script_unsupported,
+  .process_event = process_event_unsupported,
+  .generate_script = perl_generate_script_unsupported,
 };
 
-static void register_perl_scripting(struct scripting_ops *scripting_ops)
-{
-	if (scripting_context == NULL)
-		scripting_context = malloc(sizeof(*scripting_context));
-
-       if (scripting_context == NULL ||
-	   script_spec_register("Perl", scripting_ops) ||
-	   script_spec_register("pl", scripting_ops)) {
-		pr_err("Error registering Perl script extension: disabling it\n");
-		zfree(&scripting_context);
-	}
+static void register_perl_scripting(struct scripting_ops *scripting_ops) {
+  if (scripting_context == NULL) {
+    scripting_context = malloc(sizeof(*scripting_context));
+  }
+  if (scripting_context == NULL
+      || script_spec_register("Perl", scripting_ops)
+      || script_spec_register("pl", scripting_ops)) {
+    pr_err("Error registering Perl script extension: disabling it\n");
+    zfree(&scripting_context);
+  }
 }
 
 #ifndef HAVE_LIBPERL_SUPPORT
-void setup_perl_scripting(void)
-{
-	register_perl_scripting(&perl_scripting_unsupported_ops);
+void setup_perl_scripting(void) {
+  register_perl_scripting(&perl_scripting_unsupported_ops);
 }
+
 #else
 extern struct scripting_ops perl_scripting_ops;
 
-void setup_perl_scripting(void)
-{
-	register_perl_scripting(&perl_scripting_ops);
+void setup_perl_scripting(void) {
+  register_perl_scripting(&perl_scripting_ops);
 }
+
 #endif
 #endif

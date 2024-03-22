@@ -39,9 +39,9 @@
  *
  * T = __pa_symbol(__hyp_idmap_text_start)
  * if (T & BIT(VA_BITS - 1))
- *	HYP_VA_MIN = 0  //idmap in upper half
+ *  HYP_VA_MIN = 0  //idmap in upper half
  * else
- *	HYP_VA_MIN = 1 << (VA_BITS - 1)
+ *  HYP_VA_MIN = 1 << (VA_BITS - 1)
  * HYP_VA_MAX = HYP_VA_MIN + (1 << (VA_BITS - 1)) - 1
  *
  * When using VHE, there are no separate hyp mappings and all KVM
@@ -59,8 +59,8 @@
  * tmp: temporary register
  */
 .macro hyp_pa reg, tmp
-	ldr_l	\tmp, hyp_physvirt_offset
-	add	\reg, \reg, \tmp
+ldr_l \ tmp, hyp_physvirt_offset
+add \ reg, \ reg, \ tmp
 .endm
 
 /*
@@ -74,19 +74,19 @@
  * specific registers encoded in the instructions).
  */
 .macro hyp_kimg_va reg, tmp
-	/* Convert hyp VA -> PA. */
-	hyp_pa	\reg, \tmp
+/* Convert hyp VA -> PA. */
+hyp_pa  \ reg, \ tmp
 
-	/* Load kimage_voffset. */
+/* Load kimage_voffset. */
 alternative_cb ARM64_ALWAYS_SYSTEM, kvm_get_kimage_voffset
-	movz	\tmp, #0
-	movk	\tmp, #0, lsl #16
-	movk	\tmp, #0, lsl #32
-	movk	\tmp, #0, lsl #48
+movz  \ tmp, #0
+movk  \ tmp, #0, lsl #16
+movk  \ tmp, #0, lsl #32
+movk  \ tmp, #0, lsl #48
 alternative_cb_end
 
-	/* Convert PA -> kimg VA. */
-	add	\reg, \reg, \tmp
+/* Convert PA -> kimg VA. */
+add \ reg, \ reg, \ tmp
 .endm
 
 #else
@@ -100,11 +100,11 @@ alternative_cb_end
 #include <asm/kvm_host.h>
 
 void kvm_update_va_mask(struct alt_instr *alt,
-			__le32 *origptr, __le32 *updptr, int nr_inst);
+    __le32 *origptr, __le32 *updptr, int nr_inst);
 void kvm_compute_layout(void);
 void kvm_apply_hyp_relocations(void);
 
-#define __hyp_pa(x) (((phys_addr_t)(x)) + hyp_physvirt_offset)
+#define __hyp_pa(x) (((phys_addr_t) (x)) + hyp_physvirt_offset)
 
 /*
  * Convert a kernel VA into a HYP VA.
@@ -116,37 +116,37 @@ void kvm_apply_hyp_relocations(void);
  * perform the register allocation (kvm_update_va_mask() uses the
  * specific registers encoded in the instructions).
  */
-static __always_inline unsigned long __kern_hyp_va(unsigned long v)
-{
-/*
- * This #ifndef is an optimisation for when this is called from VHE hyp
- * context.  When called from a VHE non-hyp context, kvm_update_va_mask() will
- * replace the instructions with `nop`s.
- */
+static __always_inline unsigned long __kern_hyp_va(unsigned long v) {
+  /*
+   * This #ifndef is an optimisation for when this is called from VHE hyp
+   * context.  When called from a VHE non-hyp context, kvm_update_va_mask() will
+   * replace the instructions with `nop`s.
+   */
 #ifndef __KVM_VHE_HYPERVISOR__
-	asm volatile(ALTERNATIVE_CB("and %0, %0, #1\n"         /* mask with va_mask */
-				    "ror %0, %0, #1\n"         /* rotate to the first tag bit */
-				    "add %0, %0, #0\n"         /* insert the low 12 bits of the tag */
-				    "add %0, %0, #0, lsl 12\n" /* insert the top 12 bits of the tag */
-				    "ror %0, %0, #63\n",       /* rotate back */
-				    ARM64_ALWAYS_SYSTEM,
-				    kvm_update_va_mask)
-		     : "+r" (v));
+  asm volatile (ALTERNATIVE_CB("and %0, %0, #1\n"         /* mask with va_mask
+                                                           * */
+      "ror %0, %0, #1\n"         /* rotate to the first tag bit */
+      "add %0, %0, #0\n"         /* insert the low 12 bits of the tag */
+      "add %0, %0, #0, lsl 12\n" /* insert the top 12 bits of the tag */
+      "ror %0, %0, #63\n",       /* rotate back */
+      ARM64_ALWAYS_SYSTEM,
+      kvm_update_va_mask)
+  : "+r" (v));
 #endif
-	return v;
+  return v;
 }
 
-#define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
+#define kern_hyp_va(v)  ((typeof(v))(__kern_hyp_va((unsigned long) (v))))
 
 /*
  * We currently support using a VM-specified IPA size. For backward
  * compatibility, the default IPA size is fixed to 40bits.
  */
-#define KVM_PHYS_SHIFT	(40)
+#define KVM_PHYS_SHIFT  (40)
 
-#define kvm_phys_shift(mmu)		VTCR_EL2_IPA((mmu)->vtcr)
-#define kvm_phys_size(mmu)		(_AC(1, ULL) << kvm_phys_shift(mmu))
-#define kvm_phys_mask(mmu)		(kvm_phys_size(mmu) - _AC(1, ULL))
+#define kvm_phys_shift(mmu)   VTCR_EL2_IPA((mmu)->vtcr)
+#define kvm_phys_size(mmu)    (_AC(1, ULL) << kvm_phys_shift(mmu))
+#define kvm_phys_mask(mmu)    (kvm_phys_size(mmu) - _AC(1, ULL))
 
 #include <asm/kvm_pgtable.h>
 #include <asm/stage2_pgtable.h>
@@ -155,22 +155,23 @@ int kvm_share_hyp(void *from, void *to);
 void kvm_unshare_hyp(void *from, void *to);
 int create_hyp_mappings(void *from, void *to, enum kvm_pgtable_prot prot);
 int __create_hyp_mappings(unsigned long start, unsigned long size,
-			  unsigned long phys, enum kvm_pgtable_prot prot);
+    unsigned long phys, enum kvm_pgtable_prot prot);
 int hyp_alloc_private_va_range(size_t size, unsigned long *haddr);
 int create_hyp_io_mappings(phys_addr_t phys_addr, size_t size,
-			   void __iomem **kaddr,
-			   void __iomem **haddr);
+    void __iomem **kaddr,
+    void __iomem **haddr);
 int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
-			     void **haddr);
+    void **haddr);
 int create_hyp_stack(phys_addr_t phys_addr, unsigned long *haddr);
 void __init free_hyp_pgds(void);
 
 void stage2_unmap_vm(struct kvm *kvm);
-int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu, unsigned long type);
+int kvm_init_stage2_mmu(struct kvm *kvm, struct kvm_s2_mmu *mmu,
+    unsigned long type);
 void kvm_uninit_stage2_mmu(struct kvm *kvm);
 void kvm_free_stage2_pgd(struct kvm_s2_mmu *mmu);
 int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,
-			  phys_addr_t pa, unsigned long size, bool writable);
+    phys_addr_t pa, unsigned long size, bool writable);
 
 int kvm_handle_guest_abort(struct kvm_vcpu *vcpu);
 
@@ -179,83 +180,73 @@ phys_addr_t kvm_get_idmap_vector(void);
 int __init kvm_mmu_init(u32 *hyp_va_bits);
 
 static inline void *__kvm_vector_slot2addr(void *base,
-					   enum arm64_hyp_spectre_vector slot)
-{
-	int idx = slot - (slot != HYP_VECTOR_DIRECT);
-
-	return base + (idx * SZ_2K);
+    enum arm64_hyp_spectre_vector slot) {
+  int idx = slot - (slot != HYP_VECTOR_DIRECT);
+  return base + (idx * SZ_2K);
 }
 
 struct kvm;
 
-#define kvm_flush_dcache_to_poc(a,l)	\
-	dcache_clean_inval_poc((unsigned long)(a), (unsigned long)(a)+(l))
+#define kvm_flush_dcache_to_poc(a, l)  \
+  dcache_clean_inval_poc((unsigned long) (a), (unsigned long) (a) + (l))
 
-static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
-{
-	u64 cache_bits = SCTLR_ELx_M | SCTLR_ELx_C;
-	int reg;
-
-	if (vcpu_is_el2(vcpu))
-		reg = SCTLR_EL2;
-	else
-		reg = SCTLR_EL1;
-
-	return (vcpu_read_sys_reg(vcpu, reg) & cache_bits) == cache_bits;
+static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu) {
+  u64 cache_bits = SCTLR_ELx_M | SCTLR_ELx_C;
+  int reg;
+  if (vcpu_is_el2(vcpu)) {
+    reg = SCTLR_EL2;
+  } else {
+    reg = SCTLR_EL1;
+  }
+  return (vcpu_read_sys_reg(vcpu, reg) & cache_bits) == cache_bits;
 }
 
-static inline void __clean_dcache_guest_page(void *va, size_t size)
-{
-	/*
-	 * With FWB, we ensure that the guest always accesses memory using
-	 * cacheable attributes, and we don't have to clean to PoC when
-	 * faulting in pages. Furthermore, FWB implies IDC, so cleaning to
-	 * PoU is not required either in this case.
-	 */
-	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
-		return;
-
-	kvm_flush_dcache_to_poc(va, size);
+static inline void __clean_dcache_guest_page(void *va, size_t size) {
+  /*
+   * With FWB, we ensure that the guest always accesses memory using
+   * cacheable attributes, and we don't have to clean to PoC when
+   * faulting in pages. Furthermore, FWB implies IDC, so cleaning to
+   * PoU is not required either in this case.
+   */
+  if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB)) {
+    return;
+  }
+  kvm_flush_dcache_to_poc(va, size);
 }
 
-static inline size_t __invalidate_icache_max_range(void)
-{
-	u8 iminline;
-	u64 ctr;
-
-	asm volatile(ALTERNATIVE_CB("movz %0, #0\n"
-				    "movk %0, #0, lsl #16\n"
-				    "movk %0, #0, lsl #32\n"
-				    "movk %0, #0, lsl #48\n",
-				    ARM64_ALWAYS_SYSTEM,
-				    kvm_compute_final_ctr_el0)
-		     : "=r" (ctr));
-
-	iminline = SYS_FIELD_GET(CTR_EL0, IminLine, ctr) + 2;
-	return MAX_DVM_OPS << iminline;
+static inline size_t __invalidate_icache_max_range(void) {
+  u8 iminline;
+  u64 ctr;
+  asm volatile (ALTERNATIVE_CB("movz %0, #0\n"
+      "movk %0, #0, lsl #16\n"
+      "movk %0, #0, lsl #32\n"
+      "movk %0, #0, lsl #48\n",
+      ARM64_ALWAYS_SYSTEM,
+      kvm_compute_final_ctr_el0)
+  : "=r" (ctr));
+  iminline = SYS_FIELD_GET(CTR_EL0, IminLine, ctr) + 2;
+  return MAX_DVM_OPS << iminline;
 }
 
-static inline void __invalidate_icache_guest_page(void *va, size_t size)
-{
-	/*
-	 * Blow the whole I-cache if it is aliasing (i.e. VIPT) or the
-	 * invalidation range exceeds our arbitrary limit on invadations by
-	 * cache line.
-	 */
-	if (icache_is_aliasing() || size > __invalidate_icache_max_range())
-		icache_inval_all_pou();
-	else
-		icache_inval_pou((unsigned long)va, (unsigned long)va + size);
+static inline void __invalidate_icache_guest_page(void *va, size_t size) {
+  /*
+   * Blow the whole I-cache if it is aliasing (i.e. VIPT) or the
+   * invalidation range exceeds our arbitrary limit on invadations by
+   * cache line.
+   */
+  if (icache_is_aliasing() || size > __invalidate_icache_max_range()) {
+    icache_inval_all_pou();
+  } else {
+    icache_inval_pou((unsigned long) va, (unsigned long) va + size);
+  }
 }
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
 
-static inline unsigned int kvm_get_vmid_bits(void)
-{
-	int reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
-
-	return get_vmid_bits(reg);
+static inline unsigned int kvm_get_vmid_bits(void) {
+  int reg = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
+  return get_vmid_bits(reg);
 }
 
 /*
@@ -264,44 +255,36 @@ static inline unsigned int kvm_get_vmid_bits(void)
  * can immediately drop the lock again.
  */
 static inline int kvm_read_guest_lock(struct kvm *kvm,
-				      gpa_t gpa, void *data, unsigned long len)
-{
-	int srcu_idx = srcu_read_lock(&kvm->srcu);
-	int ret = kvm_read_guest(kvm, gpa, data, len);
-
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-
-	return ret;
+    gpa_t gpa, void *data, unsigned long len) {
+  int srcu_idx = srcu_read_lock(&kvm->srcu);
+  int ret = kvm_read_guest(kvm, gpa, data, len);
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
 
 static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
-				       const void *data, unsigned long len)
-{
-	int srcu_idx = srcu_read_lock(&kvm->srcu);
-	int ret = kvm_write_guest(kvm, gpa, data, len);
-
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-
-	return ret;
+    const void *data, unsigned long len) {
+  int srcu_idx = srcu_read_lock(&kvm->srcu);
+  int ret = kvm_write_guest(kvm, gpa, data, len);
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
 
-#define kvm_phys_to_vttbr(addr)		phys_to_ttbr(addr)
+#define kvm_phys_to_vttbr(addr)   phys_to_ttbr(addr)
 
 /*
  * When this is (directly or indirectly) used on the TLB invalidation
  * path, we rely on a previously issued DSB so that page table updates
  * and VMID reads are correctly ordered.
  */
-static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
-{
-	struct kvm_vmid *vmid = &mmu->vmid;
-	u64 vmid_field, baddr;
-	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
-
-	baddr = mmu->pgd_phys;
-	vmid_field = atomic64_read(&vmid->id) << VTTBR_VMID_SHIFT;
-	vmid_field &= VTTBR_VMID_MASK(kvm_arm_vmid_bits);
-	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
+static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu) {
+  struct kvm_vmid *vmid = &mmu->vmid;
+  u64 vmid_field, baddr;
+  u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
+  baddr = mmu->pgd_phys;
+  vmid_field = atomic64_read(&vmid->id) << VTTBR_VMID_SHIFT;
+  vmid_field &= VTTBR_VMID_MASK(kvm_arm_vmid_bits);
+  return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
 }
 
 /*
@@ -309,22 +292,20 @@ static __always_inline u64 kvm_get_vttbr(struct kvm_s2_mmu *mmu)
  * and interrupts disabled.
  */
 static __always_inline void __load_stage2(struct kvm_s2_mmu *mmu,
-					  struct kvm_arch *arch)
-{
-	write_sysreg(mmu->vtcr, vtcr_el2);
-	write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
-
-	/*
-	 * ARM errata 1165522 and 1530923 require the actual execution of the
-	 * above before we can switch to the EL1/EL0 translation regime used by
-	 * the guest.
-	 */
-	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
+    struct kvm_arch *arch) {
+  write_sysreg(mmu->vtcr, vtcr_el2);
+  write_sysreg(kvm_get_vttbr(mmu), vttbr_el2);
+  /*
+   * ARM errata 1165522 and 1530923 require the actual execution of the
+   * above before we can switch to the EL1/EL0 translation regime used by
+   * the guest.
+   */
+  asm (ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
 }
 
-static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu)
-{
-	return container_of(mmu->arch, struct kvm, arch);
+static inline struct kvm *kvm_s2_mmu_to_kvm(struct kvm_s2_mmu *mmu) {
+  return container_of(mmu->arch, struct kvm, arch);
 }
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ARM64_KVM_MMU_H__ */

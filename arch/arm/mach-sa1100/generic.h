@@ -14,9 +14,9 @@ extern void __init sa1100_init_gpio(void);
 extern void sa11x0_restart(enum reboot_mode, const char *);
 extern void sa11x0_init_late(void);
 
-#define SET_BANK(__nr,__start,__size) \
-	mi->bank[__nr].start = (__start), \
-	mi->bank[__nr].size = (__size)
+#define SET_BANK(__nr, __start, __size) \
+  mi->bank[__nr].start = (__start), \
+  mi->bank[__nr].size = (__size)
 
 extern void sa1110_mb_enable(void);
 extern void sa1110_mb_disable(void);
@@ -28,7 +28,7 @@ struct flash_platform_data;
 struct resource;
 
 void sa11x0_register_mtd(struct flash_platform_data *flash,
-			 struct resource *res, int nr);
+    struct resource *res, int nr);
 
 struct mcp_plat_data;
 void sa11x0_ppc_configure_mcp(void);
@@ -40,7 +40,10 @@ void sa11x0_register_lcd(struct sa1100fb_mach_info *inf);
 #ifdef CONFIG_PM
 int sa11x0_pm_init(void);
 #else
-static inline int sa11x0_pm_init(void) { return 0; }
+static inline int sa11x0_pm_init(void) {
+  return 0;
+}
+
 #endif
 
 int sa11xx_clk_init(void);
@@ -51,5 +54,5 @@ void sa11x0_register_pcmcia(int socket, struct gpiod_lookup_table *);
 struct fixed_voltage_config;
 struct regulator_consumer_supply;
 int sa11x0_register_fixed_regulator(int n, struct fixed_voltage_config *cfg,
-	struct regulator_consumer_supply *supplies, unsigned num_supplies,
-	bool uses_gpio);
+    struct regulator_consumer_supply *supplies, unsigned num_supplies,
+    bool uses_gpio);

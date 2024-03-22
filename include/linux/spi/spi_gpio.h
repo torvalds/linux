@@ -19,7 +19,7 @@
  * @num_chipselect: how many target devices to allow
  */
 struct spi_gpio_platform_data {
-	u16		num_chipselect;
+  u16 num_chipselect;
 };
 
 #endif /* __LINUX_SPI_GPIO_H */

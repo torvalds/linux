@@ -17,45 +17,45 @@
 #include "optee_private.h"
 
 TRACE_EVENT(optee_invoke_fn_begin,
-	TP_PROTO(struct optee_rpc_param *param),
-	TP_ARGS(param),
+    TP_PROTO(struct optee_rpc_param *param),
+    TP_ARGS(param),
 
-	TP_STRUCT__entry(
-		__field(void *, param)
-		__array(u32, args, 8)
-	),
+    TP_STRUCT__entry(
+    __field(void *, param)
+    __array(u32, args, 8)
+    ),
 
-	TP_fast_assign(
-		__entry->param = param;
-		BUILD_BUG_ON(sizeof(*param) < sizeof(__entry->args));
-		memcpy(__entry->args, param, sizeof(__entry->args));
-	),
+    TP_fast_assign(
+    __entry->param = param;
+    BUILD_BUG_ON(sizeof(*param) < sizeof(__entry->args));
+    memcpy(__entry->args, param, sizeof(__entry->args));
+    ),
 
-	TP_printk("param=%p (%x, %x, %x, %x, %x, %x, %x, %x)", __entry->param,
-		  __entry->args[0], __entry->args[1], __entry->args[2],
-		  __entry->args[3], __entry->args[4], __entry->args[5],
-		  __entry->args[6], __entry->args[7])
-);
+    TP_printk("param=%p (%x, %x, %x, %x, %x, %x, %x, %x)", __entry->param,
+    __entry->args[0], __entry->args[1], __entry->args[2],
+    __entry->args[3], __entry->args[4], __entry->args[5],
+    __entry->args[6], __entry->args[7])
+    );
 
 TRACE_EVENT(optee_invoke_fn_end,
-	TP_PROTO(struct optee_rpc_param *param, struct arm_smccc_res *res),
-	TP_ARGS(param, res),
+    TP_PROTO(struct optee_rpc_param *param, struct arm_smccc_res *res),
+    TP_ARGS(param, res),
 
-	TP_STRUCT__entry(
-		__field(void *, param)
-		__array(unsigned long, rets, 4)
-	),
+    TP_STRUCT__entry(
+    __field(void *, param)
+    __array(unsigned long, rets, 4)
+    ),
 
-	TP_fast_assign(
-		__entry->param = param;
-		BUILD_BUG_ON(sizeof(*res) < sizeof(__entry->rets));
-		memcpy(__entry->rets, res, sizeof(__entry->rets));
-	),
+    TP_fast_assign(
+    __entry->param = param;
+    BUILD_BUG_ON(sizeof(*res) < sizeof(__entry->rets));
+    memcpy(__entry->rets, res, sizeof(__entry->rets));
+    ),
 
-	TP_printk("param=%p ret (%lx, %lx, %lx, %lx)", __entry->param,
-		  __entry->rets[0], __entry->rets[1], __entry->rets[2],
-		  __entry->rets[3])
-);
+    TP_printk("param=%p ret (%lx, %lx, %lx, %lx)", __entry->param,
+    __entry->rets[0], __entry->rets[1], __entry->rets[2],
+    __entry->rets[3])
+    );
 #endif /* _TRACE_OPTEE_H */
 
 #undef TRACE_INCLUDE_PATH

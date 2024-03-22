@@ -15,42 +15,37 @@
 #include "debug.h"
 
 int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
-			       size_t len)
-{
-	void *dump;
-	size_t ramsize;
-	int err;
-
-	ramsize = brcmf_bus_get_ramsize(bus);
-	if (!ramsize)
-		return -ENOTSUPP;
-
-	dump = vzalloc(len + ramsize);
-	if (!dump)
-		return -ENOMEM;
-
-	if (data && len > 0)
-		memcpy(dump, data, len);
-	err = brcmf_bus_get_memdump(bus, dump + len, ramsize);
-	if (err) {
-		vfree(dump);
-		return err;
-	}
-
-	dev_coredumpv(bus->dev, dump, len + ramsize, GFP_KERNEL);
-
-	return 0;
+    size_t len) {
+  void *dump;
+  size_t ramsize;
+  int err;
+  ramsize = brcmf_bus_get_ramsize(bus);
+  if (!ramsize) {
+    return -ENOTSUPP;
+  }
+  dump = vzalloc(len + ramsize);
+  if (!dump) {
+    return -ENOMEM;
+  }
+  if (data && len > 0) {
+    memcpy(dump, data, len);
+  }
+  err = brcmf_bus_get_memdump(bus, dump + len, ramsize);
+  if (err) {
+    vfree(dump);
+    return err;
+  }
+  dev_coredumpv(bus->dev, dump, len + ramsize, GFP_KERNEL);
+  return 0;
 }
 
-struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr)
-{
-	return drvr->wiphy->debugfsdir;
+struct dentry *brcmf_debugfs_get_devdir(struct brcmf_pub *drvr) {
+  return drvr->wiphy->debugfsdir;
 }
 
 void brcmf_debugfs_add_entry(struct brcmf_pub *drvr, const char *fn,
-			    int (*read_fn)(struct seq_file *seq, void *data))
-{
-	WARN(!drvr->wiphy->debugfsdir, "wiphy not (yet) registered\n");
-	debugfs_create_devm_seqfile(drvr->bus_if->dev, fn,
-				    drvr->wiphy->debugfsdir, read_fn);
+    int (*read_fn)(struct seq_file *seq, void *data)) {
+  WARN(!drvr->wiphy->debugfsdir, "wiphy not (yet) registered\n");
+  debugfs_create_devm_seqfile(drvr->bus_if->dev, fn,
+      drvr->wiphy->debugfsdir, read_fn);
 }

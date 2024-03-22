@@ -10,7 +10,8 @@
  * The pin function ID is a tuple of
  * <pin mux_id>
  * mux_id consists of
- * function + (direction << 2) + (gpio_oconf << 4) + (gpio_iconfa << 8) + (gpio_iconfb << 10)
+ * function + (direction << 2) + (gpio_oconf << 4) + (gpio_iconfa << 8) +
+ *(gpio_iconfb << 10)
  *
  * function:      0 - Primary function
  *                1 - Alternate function

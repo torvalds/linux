@@ -17,12 +17,12 @@
 #include <asm/sn/sn0/arch.h>
 #endif
 
-#define cputonasid(cpu)		(sn_cpu_info[(cpu)].p_nasid)
-#define cputoslice(cpu)		(sn_cpu_info[(cpu)].p_slice)
+#define cputonasid(cpu)   (sn_cpu_info[(cpu)].p_nasid)
+#define cputoslice(cpu)   (sn_cpu_info[(cpu)].p_slice)
 
-#define INVALID_NASID		(nasid_t)-1
-#define INVALID_PNODEID		(pnodeid_t)-1
-#define INVALID_MODULE		(moduleid_t)-1
-#define INVALID_PARTID		(partid_t)-1
+#define INVALID_NASID   (nasid_t) -1
+#define INVALID_PNODEID   (pnodeid_t) -1
+#define INVALID_MODULE    (moduleid_t) -1
+#define INVALID_PARTID    (partid_t) -1
 
 #endif /* _ASM_SN_ARCH_H */

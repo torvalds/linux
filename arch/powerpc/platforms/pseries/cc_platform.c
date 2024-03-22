@@ -13,14 +13,13 @@
 #include <asm/machdep.h>
 #include <asm/svm.h>
 
-bool cc_platform_has(enum cc_attr attr)
-{
-	switch (attr) {
-	case CC_ATTR_MEM_ENCRYPT:
-		return is_secure_guest();
-
-	default:
-		return false;
-	}
+bool cc_platform_has(enum cc_attr attr) {
+  switch (attr) {
+    case CC_ATTR_MEM_ENCRYPT:
+      return is_secure_guest();
+    default:
+      return false;
+  }
 }
+
 EXPORT_SYMBOL_GPL(cc_platform_has);

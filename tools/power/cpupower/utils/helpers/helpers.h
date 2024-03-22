@@ -43,50 +43,54 @@ extern struct bitmask *cpus_chosen;
  * Debug output is sent to stderr, do:
  * cpupower monitor 2>/tmp/debug
  * to split debug output away from normal output
-*/
+ */
 #ifdef DEBUG
 extern int be_verbose;
 
-#define dprint(fmt, ...) {					\
-		if (be_verbose) {				\
-			fprintf(stderr, "%s: " fmt,		\
-				__func__, ##__VA_ARGS__);	\
-		}						\
-	}
+#define dprint(fmt, ...) {          \
+    if (be_verbose) {       \
+      fprintf(stderr, "%s: " fmt,   \
+    __func__, ## __VA_ARGS__); \
+    }           \
+}
 #else
-static inline void dprint(const char *fmt, ...) { }
+static inline void dprint(const char *fmt, ...) {
+}
+
 #endif
 extern int be_verbose;
 /* Global verbose (-v) stuff *********************************/
 
 /* cpuid and cpuinfo helpers  **************************/
-enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
-			  X86_VENDOR_AMD, X86_VENDOR_HYGON, X86_VENDOR_MAX};
+enum cpupower_cpu_vendor {
+  X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
+  X86_VENDOR_AMD, X86_VENDOR_HYGON, X86_VENDOR_MAX
+};
 
-#define CPUPOWER_CAP_INV_TSC		0x00000001
-#define CPUPOWER_CAP_APERF		0x00000002
-#define CPUPOWER_CAP_AMD_CPB		0x00000004
-#define CPUPOWER_CAP_PERF_BIAS		0x00000008
-#define CPUPOWER_CAP_HAS_TURBO_RATIO	0x00000010
-#define CPUPOWER_CAP_IS_SNB		0x00000020
-#define CPUPOWER_CAP_INTEL_IDA		0x00000040
-#define CPUPOWER_CAP_AMD_RDPRU		0x00000080
-#define CPUPOWER_CAP_AMD_HW_PSTATE	0x00000100
-#define CPUPOWER_CAP_AMD_PSTATEDEF	0x00000200
-#define CPUPOWER_CAP_AMD_CPB_MSR	0x00000400
-#define CPUPOWER_CAP_AMD_PSTATE		0x00000800
+#define CPUPOWER_CAP_INV_TSC    0x00000001
+#define CPUPOWER_CAP_APERF    0x00000002
+#define CPUPOWER_CAP_AMD_CPB    0x00000004
+#define CPUPOWER_CAP_PERF_BIAS    0x00000008
+#define CPUPOWER_CAP_HAS_TURBO_RATIO  0x00000010
+#define CPUPOWER_CAP_IS_SNB   0x00000020
+#define CPUPOWER_CAP_INTEL_IDA    0x00000040
+#define CPUPOWER_CAP_AMD_RDPRU    0x00000080
+#define CPUPOWER_CAP_AMD_HW_PSTATE  0x00000100
+#define CPUPOWER_CAP_AMD_PSTATEDEF  0x00000200
+#define CPUPOWER_CAP_AMD_CPB_MSR  0x00000400
+#define CPUPOWER_CAP_AMD_PSTATE   0x00000800
 
-#define CPUPOWER_AMD_CPBDIS		0x02000000
+#define CPUPOWER_AMD_CPBDIS   0x02000000
 
 #define MAX_HW_PSTATES 10
 
 struct cpupower_cpu_info {
-	enum cpupower_cpu_vendor vendor;
-	unsigned int family;
-	unsigned int model;
-	unsigned int stepping;
-	/* CPU capabilities read out from cpuid */
-	unsigned long long caps;
+  enum cpupower_cpu_vendor vendor;
+  unsigned int family;
+  unsigned int model;
+  unsigned int stepping;
+  /* CPU capabilities read out from cpuid */
+  unsigned long long caps;
 };
 
 /* get_cpu_info
@@ -99,7 +103,6 @@ struct cpupower_cpu_info {
  */
 extern int get_cpu_info(struct cpupower_cpu_info *cpu_info);
 extern struct cpupower_cpu_info cpupower_cpu_info;
-
 
 /* cpuid and cpuinfo helpers  **************************/
 
@@ -125,29 +128,29 @@ extern int cpupower_set_turbo_boost(int turbo_boost);
 /* PCI stuff ****************************/
 extern int amd_pci_get_num_boost_states(int *active, int *states);
 extern struct pci_dev *pci_acc_init(struct pci_access **pacc, int domain,
-				    int bus, int slot, int func, int vendor,
-				    int dev);
+    int bus, int slot, int func, int vendor,
+    int dev);
 extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
-					      int slot, int func);
+    int slot, int func);
 
 /* PCI stuff ****************************/
 
 /* AMD HW pstate decoding **************************/
 
 extern int decode_pstates(unsigned int cpu, int boost_states,
-			  unsigned long *pstates, int *no);
+    unsigned long *pstates, int *no);
 
 /* AMD HW pstate decoding **************************/
 
 extern int cpufreq_has_boost_support(unsigned int cpu, int *support,
-				     int *active, int * states);
+    int *active, int *states);
 
 /* AMD P-State stuff **************************/
 bool cpupower_amd_pstate_enabled(void);
 void amd_pstate_boost_init(unsigned int cpu,
-			   int *support, int *active);
+    int *support, int *active);
 void amd_pstate_show_perf_and_freq(unsigned int cpu,
-				   int no_rounding);
+    int no_rounding);
 
 /* AMD P-State stuff **************************/
 
@@ -159,52 +162,84 @@ unsigned int cpuid_ebx(unsigned int op);
 unsigned int cpuid_ecx(unsigned int op);
 unsigned int cpuid_edx(unsigned int op);
 
-/* cpuid and cpuinfo helpers  **************************/
-/* X86 ONLY ********************************************/
+/* cpuid and cpuinfo helpers  *************************
+ * X86 ONLY ********************************************/
 #else
 static inline int decode_pstates(unsigned int cpu, int boost_states,
-				 unsigned long *pstates, int *no)
-{ return -1; };
+    unsigned long *pstates, int *no) {
+  return -1;
+}
 
-static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val)
-{ return -1; };
-static inline int write_msr(int cpu, unsigned int idx, unsigned long long val)
-{ return -1; };
-static inline int cpupower_intel_set_perf_bias(unsigned int cpu, unsigned int val)
-{ return -1; };
-static inline int cpupower_intel_get_perf_bias(unsigned int cpu)
-{ return -1; };
-static inline unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu)
-{ return 0; };
+static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val) {
+  return -1;
+}
 
-static inline int cpupower_set_epp(unsigned int cpu, char *epp)
-{ return -1; };
-static inline int cpupower_set_amd_pstate_mode(char *mode)
-{ return -1; };
-static inline int cpupower_set_turbo_boost(int turbo_boost)
-{ return -1; };
+static inline int write_msr(int cpu, unsigned int idx, unsigned long long val) {
+  return -1;
+}
+
+static inline int cpupower_intel_set_perf_bias(unsigned int cpu,
+    unsigned int val) {
+  return -1;
+}
+
+static inline int cpupower_intel_get_perf_bias(unsigned int cpu) {
+  return -1;
+}
+
+static inline unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu) {
+  return 0;
+}
+
+static inline int cpupower_set_epp(unsigned int cpu, char *epp) {
+  return -1;
+}
+
+static inline int cpupower_set_amd_pstate_mode(char *mode) {
+  return -1;
+}
+
+static inline int cpupower_set_turbo_boost(int turbo_boost) {
+  return -1;
+}
 
 /* Read/Write msr ****************************/
 
 static inline int cpufreq_has_boost_support(unsigned int cpu, int *support,
-					    int *active, int * states)
-{ return -1; }
+    int *active, int *states) {
+  return -1;
+}
 
-static inline bool cpupower_amd_pstate_enabled(void)
-{ return false; }
+static inline bool cpupower_amd_pstate_enabled(void) {
+  return false;
+}
+
 static inline void amd_pstate_boost_init(unsigned int cpu, int *support,
-					 int *active)
-{}
+    int *active) {
+}
+
 static inline void amd_pstate_show_perf_and_freq(unsigned int cpu,
-						 int no_rounding)
-{}
+    int no_rounding) {
+}
 
 /* cpuid and cpuinfo helpers  **************************/
 
-static inline unsigned int cpuid_eax(unsigned int op) { return 0; };
-static inline unsigned int cpuid_ebx(unsigned int op) { return 0; };
-static inline unsigned int cpuid_ecx(unsigned int op) { return 0; };
-static inline unsigned int cpuid_edx(unsigned int op) { return 0; };
+static inline unsigned int cpuid_eax(unsigned int op) {
+  return 0;
+}
+
+static inline unsigned int cpuid_ebx(unsigned int op) {
+  return 0;
+}
+
+static inline unsigned int cpuid_ecx(unsigned int op) {
+  return 0;
+}
+
+static inline unsigned int cpuid_edx(unsigned int op) {
+  return 0;
+}
+
 #endif /* defined(__i386__) || defined(__x86_64__) */
 
 /*

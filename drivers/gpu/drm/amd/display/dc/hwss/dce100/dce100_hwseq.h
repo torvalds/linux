@@ -1,5 +1,5 @@
 /*
-* Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,16 +35,15 @@ struct dc_state;
 void dce100_hw_sequencer_construct(struct dc *dc);
 
 void dce100_prepare_bandwidth(
-		struct dc *dc,
-		struct dc_state *context);
+  struct dc *dc,
+  struct dc_state *context);
 
 void dce100_optimize_bandwidth(
-		struct dc *dc,
-		struct dc_state *context);
+  struct dc *dc,
+  struct dc_state *context);
 
 bool dce100_enable_display_power_gating(struct dc *dc, uint8_t controller_id,
-					struct dc_bios *dcb,
-					enum pipe_gating_control power_gating);
+    struct dc_bios *dcb,
+    enum pipe_gating_control power_gating);
 
 #endif /* __DC_HWSS_DCE100_H__ */
-

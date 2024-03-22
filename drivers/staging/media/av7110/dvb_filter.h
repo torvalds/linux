@@ -21,21 +21,20 @@
 
 #include <media/demux.h>
 
-typedef int (dvb_filter_pes2ts_cb_t) (void *, unsigned char *);
+typedef int (dvb_filter_pes2ts_cb_t)(void *, unsigned char *);
 
 struct dvb_filter_pes2ts {
-	unsigned char buf[188];
-	unsigned char cc;
-	dvb_filter_pes2ts_cb_t *cb;
-	void *priv;
+  unsigned char buf[188];
+  unsigned char cc;
+  dvb_filter_pes2ts_cb_t *cb;
+  void *priv;
 };
 
 void dvb_filter_pes2ts_init(struct dvb_filter_pes2ts *p2ts, unsigned short pid,
-			    dvb_filter_pes2ts_cb_t *cb, void *priv);
+    dvb_filter_pes2ts_cb_t *cb, void *priv);
 
 int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
-		      int len, int payload_start);
-
+    int len, int payload_start);
 
 #define PROG_STREAM_MAP  0xBC
 #define PRIVATE_STREAM1  0xBD
@@ -78,7 +77,6 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 #define INIT_DISP_HORIZONTAL_SIZE   540
 #define INIT_DISP_VERTICAL_SIZE     576
 
-
 //flags2
 #define PTS_DTS_FLAGS    0xC0
 #define ESCR_FLAG        0x20
@@ -119,48 +117,47 @@ int dvb_filter_pes2ts(struct dvb_filter_pes2ts *p2ts, unsigned char *pes,
 #define PIECE_RATE     0x40
 #define SEAM_SPLICE    0x20
 
-
 #define MAX_PLENGTH 0xFFFF
-#define MMAX_PLENGTH (256*MAX_PLENGTH)
+#define MMAX_PLENGTH (256 * MAX_PLENGTH)
 
 #ifndef IPACKS
 #define IPACKS 2048
 #endif
 
 struct ipack {
-	int size;
-	int found;
-	u8 *buf;
-	u8 cid;
-	u32 plength;
-	u8 plen[2];
-	u8 flag1;
-	u8 flag2;
-	u8 hlength;
-	u8 pts[5];
-	u16 *pid;
-	int mpeg;
-	u8 check;
-	int which;
-	int done;
-	void *data;
-	void (*func)(u8 *buf,  int size, void *priv);
-	int count;
-	int repack_subids;
+  int size;
+  int found;
+  u8 *buf;
+  u8 cid;
+  u32 plength;
+  u8 plen[2];
+  u8 flag1;
+  u8 flag2;
+  u8 hlength;
+  u8 pts[5];
+  u16 *pid;
+  int mpeg;
+  u8 check;
+  int which;
+  int done;
+  void *data;
+  void (*func)(u8 *buf, int size, void *priv);
+  int count;
+  int repack_subids;
 };
 
 struct dvb_video_info {
-	u32 horizontal_size;
-	u32 vertical_size;
-	u32 aspect_ratio;
-	u32 framerate;
-	u32 video_format;
-	u32 bit_rate;
-	u32 comp_bit_rate;
-	u32 vbv_buffer_size;
-	s16 vbv_delay;
-	u32 CSPF;
-	u32 off;
+  u32 horizontal_size;
+  u32 vertical_size;
+  u32 aspect_ratio;
+  u32 framerate;
+  u32 video_format;
+  u32 bit_rate;
+  u32 comp_bit_rate;
+  u32 vbv_buffer_size;
+  s16 vbv_delay;
+  u32 CSPF;
+  u32 off;
 };
 
 #define OFF_SIZE 4
@@ -169,74 +166,74 @@ struct dvb_video_info {
 #define VIDEO_FRAME_PICTURE 0x03
 
 struct mpg_picture {
-	int       channel;
-	struct dvb_video_info vinfo;
-	u32      *sequence_gop_header;
-	u32      *picture_header;
-	s32       time_code;
-	int       low_delay;
-	int       closed_gop;
-	int       broken_link;
-	int       sequence_header_flag;
-	int       gop_flag;
-	int       sequence_end_flag;
+  int channel;
+  struct dvb_video_info vinfo;
+  u32 *sequence_gop_header;
+  u32 *picture_header;
+  s32 time_code;
+  int low_delay;
+  int closed_gop;
+  int broken_link;
+  int sequence_header_flag;
+  int gop_flag;
+  int sequence_end_flag;
 
-	u8        profile_and_level;
-	s32       picture_coding_parameter;
-	u32       matrix[32];
-	s8        matrix_change_flag;
+  u8 profile_and_level;
+  s32 picture_coding_parameter;
+  u32 matrix[32];
+  s8 matrix_change_flag;
 
-	u8        picture_header_parameter;
+  u8 picture_header_parameter;
   /* bit 0 - 2: bwd f code
-     bit 3    : fpb vector
-     bit 4 - 6: fwd f code
-     bit 7    : fpf vector */
+  *  bit 3    : fpb vector
+  *  bit 4 - 6: fwd f code
+  *  bit 7    : fpf vector */
 
-	int       mpeg1_flag;
-	int       progressive_sequence;
-	int       sequence_display_extension_flag;
-	u32       sequence_header_data;
-	s16       last_frame_centre_horizontal_offset;
-	s16       last_frame_centre_vertical_offset;
+  int mpeg1_flag;
+  int progressive_sequence;
+  int sequence_display_extension_flag;
+  u32 sequence_header_data;
+  s16 last_frame_centre_horizontal_offset;
+  s16 last_frame_centre_vertical_offset;
 
-	u32       pts[2]; /* [0] 1st field, [1] 2nd field */
-	int       top_field_first;
-	int       repeat_first_field;
-	int       progressive_frame;
-	int       bank;
-	int       forward_bank;
-	int       backward_bank;
-	int       compress;
-	s16       frame_centre_horizontal_offset[OFF_SIZE];
-		  /* [0-2] 1st field, [3] 2nd field */
-	s16       frame_centre_vertical_offset[OFF_SIZE];
-		  /* [0-2] 1st field, [3] 2nd field */
-	s16       temporal_reference[2];
-		  /* [0] 1st field, [1] 2nd field */
+  u32 pts[2]; /* [0] 1st field, [1] 2nd field */
+  int top_field_first;
+  int repeat_first_field;
+  int progressive_frame;
+  int bank;
+  int forward_bank;
+  int backward_bank;
+  int compress;
+  s16 frame_centre_horizontal_offset[OFF_SIZE];
+  /* [0-2] 1st field, [3] 2nd field */
+  s16 frame_centre_vertical_offset[OFF_SIZE];
+  /* [0-2] 1st field, [3] 2nd field */
+  s16 temporal_reference[2];
+  /* [0] 1st field, [1] 2nd field */
 
-	s8        picture_coding_type[2];
-		  /* [0] 1st field, [1] 2nd field */
-	s8        picture_structure[2];
-		  /* [0] 1st field, [1] 2nd field */
-	s8        picture_display_extension_flag[2];
-		  /* [0] 1st field, [1] 2nd field */
-		  /* picture_display_extenion() 0:no 1:exit*/
-	s8        pts_flag[2];
-		  /* [0] 1st field, [1] 2nd field */
+  s8 picture_coding_type[2];
+  /* [0] 1st field, [1] 2nd field */
+  s8 picture_structure[2];
+  /* [0] 1st field, [1] 2nd field */
+  s8 picture_display_extension_flag[2];
+  /* [0] 1st field, [1] 2nd field
+   * picture_display_extenion() 0:no 1:exit*/
+  s8 pts_flag[2];
+  /* [0] 1st field, [1] 2nd field */
 };
 
 struct dvb_audio_info {
-	int layer;
-	u32 bit_rate;
-	u32 frequency;
-	u32 mode;
-	u32 mode_extension ;
-	u32 emphasis;
-	u32 framesize;
-	u32 off;
+  int layer;
+  u32 bit_rate;
+  u32 frequency;
+  u32 mode;
+  u32 mode_extension;
+  u32 emphasis;
+  u32 framesize;
+  u32 off;
 };
 
-int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai, int pr);
-
+int dvb_filter_get_ac3info(u8 *mbuf, int count, struct dvb_audio_info *ai,
+    int pr);
 
 #endif

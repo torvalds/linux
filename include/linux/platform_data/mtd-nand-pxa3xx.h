@@ -11,15 +11,15 @@
  * to device tree if you need more.
  */
 struct pxa3xx_nand_platform_data {
-	/* Keep OBM/bootloader NFC timing configuration */
-	bool keep_config;
-	/* Use a flash-based bad block table */
-	bool flash_bbt;
-	/* Requested ECC strength and ECC step size */
-	int ecc_strength, ecc_step_size;
-	/* Partitions */
-	const struct mtd_partition *parts;
-	unsigned int nr_parts;
+  /* Keep OBM/bootloader NFC timing configuration */
+  bool keep_config;
+  /* Use a flash-based bad block table */
+  bool flash_bbt;
+  /* Requested ECC strength and ECC step size */
+  int ecc_strength, ecc_step_size;
+  /* Partitions */
+  const struct mtd_partition *parts;
+  unsigned int nr_parts;
 };
 
 extern void pxa3xx_set_nand_info(struct pxa3xx_nand_platform_data *info);

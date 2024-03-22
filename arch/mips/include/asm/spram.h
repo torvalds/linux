@@ -5,7 +5,9 @@
 #if defined(CONFIG_MIPS_SPRAM)
 extern void spram_config(void);
 #else
-static inline void spram_config(void) { }
+static inline void spram_config(void) {
+}
+
 #endif /* CONFIG_MIPS_SPRAM */
 
 #endif /* _MIPS_SPRAM_H */

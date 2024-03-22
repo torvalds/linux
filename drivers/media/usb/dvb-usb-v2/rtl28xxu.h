@@ -57,77 +57,76 @@
 #define CMD_I2C_DA_RD    0x0600
 #define CMD_I2C_DA_WR    0x0610
 
-
 struct rtl28xxu_dev {
-	u8 buf[128];
-	u8 chip_id;
-	u8 tuner;
-	char *tuner_name;
-	u8 page; /* integrated demod active register page */
-	struct i2c_adapter *demod_i2c_adapter;
-	bool rc_active;
-	bool new_i2c_write;
-	struct i2c_client *i2c_client_demod;
-	struct i2c_client *i2c_client_tuner;
-	struct i2c_client *i2c_client_slave_demod;
-	struct platform_device *platform_device_sdr;
-	#define SLAVE_DEMOD_NONE           0
-	#define SLAVE_DEMOD_MN88472        1
-	#define SLAVE_DEMOD_MN88473        2
-	#define SLAVE_DEMOD_SI2168         3
-	#define SLAVE_DEMOD_CXD2837ER      4
-	unsigned int slave_demod:3;
-	union {
-		struct rtl2830_platform_data rtl2830_platform_data;
-		struct rtl2832_platform_data rtl2832_platform_data;
-	};
+  u8 buf[128];
+  u8 chip_id;
+  u8 tuner;
+  char *tuner_name;
+  u8 page; /* integrated demod active register page */
+  struct i2c_adapter *demod_i2c_adapter;
+  bool rc_active;
+  bool new_i2c_write;
+  struct i2c_client *i2c_client_demod;
+  struct i2c_client *i2c_client_tuner;
+  struct i2c_client *i2c_client_slave_demod;
+  struct platform_device *platform_device_sdr;
+#define SLAVE_DEMOD_NONE           0
+#define SLAVE_DEMOD_MN88472        1
+#define SLAVE_DEMOD_MN88473        2
+#define SLAVE_DEMOD_SI2168         3
+#define SLAVE_DEMOD_CXD2837ER      4
+  unsigned int slave_demod : 3;
+  union {
+    struct rtl2830_platform_data rtl2830_platform_data;
+    struct rtl2832_platform_data rtl2832_platform_data;
+  };
 };
 
 enum rtl28xxu_chip_id {
-	CHIP_ID_NONE,
-	CHIP_ID_RTL2831U,
-	CHIP_ID_RTL2832U,
+  CHIP_ID_NONE,
+  CHIP_ID_RTL2831U,
+  CHIP_ID_RTL2832U,
 };
 
 /* XXX: Hack. This must be keep sync with rtl2832 demod driver. */
 enum rtl28xxu_tuner {
-	TUNER_NONE,
+  TUNER_NONE,
 
-	TUNER_RTL2830_QT1010          = 0x10,
-	TUNER_RTL2830_MT2060,
-	TUNER_RTL2830_MXL5005S,
+  TUNER_RTL2830_QT1010 = 0x10,
+  TUNER_RTL2830_MT2060,
+  TUNER_RTL2830_MXL5005S,
 
-	TUNER_RTL2832_MT2266          = 0x20,
-	TUNER_RTL2832_FC2580,
-	TUNER_RTL2832_MT2063,
-	TUNER_RTL2832_MAX3543,
-	TUNER_RTL2832_TUA9001,
-	TUNER_RTL2832_MXL5007T,
-	TUNER_RTL2832_FC0012,
-	TUNER_RTL2832_E4000,
-	TUNER_RTL2832_TDA18272,
-	TUNER_RTL2832_FC0013,
-	TUNER_RTL2832_R820T,
-	TUNER_RTL2832_R828D,
-	TUNER_RTL2832_SI2157,
+  TUNER_RTL2832_MT2266 = 0x20,
+  TUNER_RTL2832_FC2580,
+  TUNER_RTL2832_MT2063,
+  TUNER_RTL2832_MAX3543,
+  TUNER_RTL2832_TUA9001,
+  TUNER_RTL2832_MXL5007T,
+  TUNER_RTL2832_FC0012,
+  TUNER_RTL2832_E4000,
+  TUNER_RTL2832_TDA18272,
+  TUNER_RTL2832_FC0013,
+  TUNER_RTL2832_R820T,
+  TUNER_RTL2832_R828D,
+  TUNER_RTL2832_SI2157,
 };
 
 struct rtl28xxu_req {
-	u16 value;
-	u16 index;
-	u16 size;
-	u8 *data;
+  u16 value;
+  u16 index;
+  u16 size;
+  u8 *data;
 };
 
 struct rtl28xxu_reg_val {
-	u16 reg;
-	u8 val;
+  u16 reg;
+  u8 val;
 };
 
 struct rtl28xxu_reg_val_mask {
-	u16 reg;
-	u8 val;
-	u8 mask;
+  u16 reg;
+  u8 val;
+  u8 mask;
 };
 
 /*

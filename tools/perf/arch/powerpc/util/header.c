@@ -11,40 +11,30 @@
 #include "metricgroup.h"
 #include <api/fs/fs.h>
 
-int
-get_cpuid(char *buffer, size_t sz)
-{
-	unsigned long pvr;
-	int nb;
-
-	pvr = mfspr(SPRN_PVR);
-
-	nb = scnprintf(buffer, sz, "%lu,%lu$", PVR_VER(pvr), PVR_REV(pvr));
-
-	/* look for end marker to ensure the entire data fit */
-	if (strchr(buffer, '$')) {
-		buffer[nb-1] = '\0';
-		return 0;
-	}
-	return ENOBUFS;
+int get_cpuid(char *buffer, size_t sz) {
+  unsigned long pvr;
+  int nb;
+  pvr = mfspr(SPRN_PVR);
+  nb = scnprintf(buffer, sz, "%lu,%lu$", PVR_VER(pvr), PVR_REV(pvr));
+  /* look for end marker to ensure the entire data fit */
+  if (strchr(buffer, '$')) {
+    buffer[nb - 1] = '\0';
+    return 0;
+  }
+  return ENOBUFS;
 }
 
-char *
-get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
-{
-	char *bufp;
-
-	if (asprintf(&bufp, "0x%.8lx", mfspr(SPRN_PVR)) < 0)
-		bufp = NULL;
-
-	return bufp;
+char *get_cpuid_str(struct perf_pmu *pmu __maybe_unused) {
+  char *bufp;
+  if (asprintf(&bufp, "0x%.8lx", mfspr(SPRN_PVR)) < 0) {
+    bufp = NULL;
+  }
+  return bufp;
 }
 
-int arch_get_runtimeparam(const struct pmu_metric *pm)
-{
-	int count;
-	char path[PATH_MAX] = "/devices/hv_24x7/interface/";
-
-	strcat(path, pm->aggr_mode == PerChip ? "sockets" : "coresperchip");
-	return sysfs__read_int(path, &count) < 0 ? 1 : count;
+int arch_get_runtimeparam(const struct pmu_metric *pm) {
+  int count;
+  char path[PATH_MAX] = "/devices/hv_24x7/interface/";
+  strcat(path, pm->aggr_mode == PerChip ? "sockets" : "coresperchip");
+  return sysfs__read_int(path, &count) < 0 ? 1 : count;
 }

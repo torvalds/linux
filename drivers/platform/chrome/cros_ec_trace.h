@@ -19,56 +19,61 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(cros_ec_request_start,
-	TP_PROTO(struct cros_ec_command *cmd),
-	TP_ARGS(cmd),
-	TP_STRUCT__entry(
-		__field(uint32_t, version)
-		__field(uint32_t, offset)
-		__field(uint32_t, command)
-		__field(uint32_t, outsize)
-		__field(uint32_t, insize)
-	),
-	TP_fast_assign(
-		__entry->version = cmd->version;
-		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
-		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
-		__entry->outsize = cmd->outsize;
-		__entry->insize = cmd->insize;
-	),
-	TP_printk("version: %u, offset: %d, command: %s, outsize: %u, insize: %u",
-		  __entry->version, __entry->offset,
-		  __print_symbolic(__entry->command, EC_CMDS),
-		  __entry->outsize, __entry->insize)
-);
+    TP_PROTO(struct cros_ec_command *cmd),
+    TP_ARGS(cmd),
+    TP_STRUCT__entry(
+    __field(uint32_t, version)
+    __field(uint32_t, offset)
+    __field(uint32_t, command)
+    __field(uint32_t, outsize)
+    __field(uint32_t, insize)
+    ),
+    TP_fast_assign(
+    __entry->version = cmd->version;
+    __entry->offset = cmd->command
+    / EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
+    __entry->command = cmd->command
+    % EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
+    __entry->outsize = cmd->outsize;
+    __entry->insize = cmd->insize;
+    ),
+    TP_printk("version: %u, offset: %d, command: %s, outsize: %u, insize: %u",
+    __entry->version, __entry->offset,
+    __print_symbolic(__entry->command, EC_CMDS),
+    __entry->outsize, __entry->insize)
+    );
 
 TRACE_EVENT(cros_ec_request_done,
-	TP_PROTO(struct cros_ec_command *cmd, int retval),
-	TP_ARGS(cmd, retval),
-	TP_STRUCT__entry(
-		__field(uint32_t, version)
-		__field(uint32_t, offset)
-		__field(uint32_t, command)
-		__field(uint32_t, outsize)
-		__field(uint32_t, insize)
-		__field(uint32_t, result)
-		__field(int, retval)
-	),
-	TP_fast_assign(
-		__entry->version = cmd->version;
-		__entry->offset = cmd->command / EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
-		__entry->command = cmd->command % EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
-		__entry->outsize = cmd->outsize;
-		__entry->insize = cmd->insize;
-		__entry->result = cmd->result;
-		__entry->retval = retval;
-	),
-	TP_printk("version: %u, offset: %d, command: %s, outsize: %u, insize: %u, ec result: %s, retval: %u",
-		  __entry->version, __entry->offset,
-		  __print_symbolic(__entry->command, EC_CMDS),
-		  __entry->outsize, __entry->insize,
-		  __print_symbolic(__entry->result, EC_RESULT),
-		  __entry->retval)
-);
+    TP_PROTO(struct cros_ec_command *cmd, int retval),
+    TP_ARGS(cmd, retval),
+    TP_STRUCT__entry(
+    __field(uint32_t, version)
+    __field(uint32_t, offset)
+    __field(uint32_t, command)
+    __field(uint32_t, outsize)
+    __field(uint32_t, insize)
+    __field(uint32_t, result)
+    __field(int, retval)
+    ),
+    TP_fast_assign(
+    __entry->version = cmd->version;
+    __entry->offset = cmd->command
+    / EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
+    __entry->command = cmd->command
+    % EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX);
+    __entry->outsize = cmd->outsize;
+    __entry->insize = cmd->insize;
+    __entry->result = cmd->result;
+    __entry->retval = retval;
+    ),
+    TP_printk(
+    "version: %u, offset: %d, command: %s, outsize: %u, insize: %u, ec result: %s, retval: %u",
+    __entry->version, __entry->offset,
+    __print_symbolic(__entry->command, EC_CMDS),
+    __entry->outsize, __entry->insize,
+    __print_symbolic(__entry->result, EC_RESULT),
+    __entry->retval)
+    );
 
 #endif /* _CROS_EC_TRACE_H_ */
 

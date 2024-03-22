@@ -6,50 +6,50 @@
 #include <asm/cachetlb_32.h>
 
 #define flush_cache_all() \
-	sparc32_cachetlb_ops->cache_all()
+  sparc32_cachetlb_ops->cache_all()
 #define flush_cache_mm(mm) \
-	sparc32_cachetlb_ops->cache_mm(mm)
+  sparc32_cachetlb_ops->cache_mm(mm)
 #define flush_cache_dup_mm(mm) \
-	sparc32_cachetlb_ops->cache_mm(mm)
-#define flush_cache_range(vma,start,end) \
-	sparc32_cachetlb_ops->cache_range(vma, start, end)
-#define flush_cache_page(vma,addr,pfn) \
-	sparc32_cachetlb_ops->cache_page(vma, addr)
-#define flush_icache_range(start, end)		do { } while (0)
+  sparc32_cachetlb_ops->cache_mm(mm)
+#define flush_cache_range(vma, start, end) \
+  sparc32_cachetlb_ops->cache_range(vma, start, end)
+#define flush_cache_page(vma, addr, pfn) \
+  sparc32_cachetlb_ops->cache_page(vma, addr)
+#define flush_icache_range(start, end)    do {} while (0)
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
-		memcpy(dst, src, len);				\
-	} while (0)
+  do {              \
+    flush_cache_page(vma, vaddr, page_to_pfn(page)); \
+    memcpy(dst, src, len);        \
+  } while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
-		memcpy(dst, src, len);				\
-	} while (0)
+  do {              \
+    flush_cache_page(vma, vaddr, page_to_pfn(page)); \
+    memcpy(dst, src, len);        \
+  } while (0)
 
 #define __flush_page_to_ram(addr) \
-	sparc32_cachetlb_ops->page_to_ram(addr)
-#define flush_sig_insns(mm,insn_addr) \
-	sparc32_cachetlb_ops->sig_insns(mm, insn_addr)
+  sparc32_cachetlb_ops->page_to_ram(addr)
+#define flush_sig_insns(mm, insn_addr) \
+  sparc32_cachetlb_ops->sig_insns(mm, insn_addr)
 #define flush_page_for_dma(addr) \
-	sparc32_cachetlb_ops->page_for_dma(addr)
+  sparc32_cachetlb_ops->page_for_dma(addr)
 
 void sparc_flush_page_to_ram(struct page *page);
 void sparc_flush_folio_to_ram(struct folio *folio);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-#define flush_dcache_folio(folio)		sparc_flush_folio_to_ram(folio)
-static inline void flush_dcache_page(struct page *page)
-{
-	flush_dcache_folio(page_folio(page));
+#define flush_dcache_folio(folio)   sparc_flush_folio_to_ram(folio)
+static inline void flush_dcache_page(struct page *page) {
+  flush_dcache_folio(page_folio(page));
 }
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
-#define flush_cache_vmap(start, end)		flush_cache_all()
-#define flush_cache_vmap_early(start, end)	do { } while (0)
-#define flush_cache_vunmap(start, end)		flush_cache_all()
+#define flush_dcache_mmap_lock(mapping)   do {} while (0)
+#define flush_dcache_mmap_unlock(mapping) do {} while (0)
+
+#define flush_cache_vmap(start, end)    flush_cache_all()
+#define flush_cache_vmap_early(start, end)  do {} while (0)
+#define flush_cache_vunmap(start, end)    flush_cache_all()
 
 /* When a context switch happens we must flush all user windows so that
  * the windows of the current process are flushed onto its stack. This

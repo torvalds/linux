@@ -37,7 +37,6 @@
  *
  */
 
-
 #include <linux/sunrpc/gss_api.h>
 
 #define SIZEOF_INT 4
@@ -61,21 +60,21 @@
 #define G_REFLECT                                (-2045022961L)
 #define G_WRONG_TOKID                            (-2045022960L)
 
-#define g_OID_equal(o1,o2) \
-   (((o1)->len == (o2)->len) && \
-    (memcmp((o1)->data,(o2)->data,(int) (o1)->len) == 0))
+#define g_OID_equal(o1, o2) \
+  (((o1)->len == (o2)->len)    \
+  && (memcmp((o1)->data, (o2)->data, (int) (o1)->len) == 0))
 
 u32 g_verify_token_header(
-     struct xdr_netobj *mech,
-     int *body_size,
-     unsigned char **buf_in,
-     int toksize);
+  struct xdr_netobj *mech,
+  int *body_size,
+  unsigned char **buf_in,
+  int toksize);
 
 int g_token_size(
-     struct xdr_netobj *mech,
-     unsigned int body_size);
+  struct xdr_netobj *mech,
+  unsigned int body_size);
 
 void g_make_token_header(
-     struct xdr_netobj *mech,
-     int body_size,
-     unsigned char **buf);
+  struct xdr_netobj *mech,
+  int body_size,
+  unsigned char **buf);

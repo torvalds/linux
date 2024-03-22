@@ -32,7 +32,7 @@
 
 /* This should be vamem_data_t, but that breaks the pipe generator */
 struct sh_css_isp_ctc_vamem_params {
-	u16 ctc[SH_CSS_ISP_CTC_TABLE_SIZE];
+  u16 ctc[SH_CSS_ISP_CTC_TABLE_SIZE];
 };
 
 #endif /* __IA_CSS_CTC_PARAM_H */

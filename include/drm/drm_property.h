@@ -38,17 +38,17 @@
  * decoding for each value. This is used for example for the rotation property.
  */
 struct drm_property_enum {
-	/**
-	 * @value: numeric property value for this enum entry
-	 *
-	 * If the property has the type &DRM_MODE_PROP_BITMASK, @value stores a
-	 * bitshift, not a bitmask. In other words, the enum entry is enabled
-	 * if the bit number @value is set in the property's value. This enum
-	 * entry has the bitmask ``1 << value``.
-	 */
-	uint64_t value;
-	struct list_head head;
-	char name[DRM_PROP_NAME_LEN];
+  /**
+   * @value: numeric property value for this enum entry
+   *
+   * If the property has the type &DRM_MODE_PROP_BITMASK, @value stores a
+   * bitshift, not a bitmask. In other words, the enum entry is enabled
+   * if the bit number @value is set in the property's value. This enum
+   * entry has the bitmask ``1 << value``.
+   */
+  uint64_t value;
+  struct list_head head;
+  char name[DRM_PROP_NAME_LEN];
 };
 
 /**
@@ -78,123 +78,125 @@ struct drm_property_enum {
  * the CRTC) is exposed as a property with the DRM_MODE_PROP_ATOMIC flag set.
  */
 struct drm_property {
-	/**
-	 * @head: per-device list of properties, for cleanup.
-	 */
-	struct list_head head;
+  /**
+   * @head: per-device list of properties, for cleanup.
+   */
+  struct list_head head;
 
-	/**
-	 * @base: base KMS object
-	 */
-	struct drm_mode_object base;
+  /**
+   * @base: base KMS object
+   */
+  struct drm_mode_object base;
 
-	/**
-	 * @flags:
-	 *
-	 * Property flags and type. A property needs to be one of the following
-	 * types:
-	 *
-	 * DRM_MODE_PROP_RANGE
-	 *     Range properties report their minimum and maximum admissible unsigned values.
-	 *     The KMS core verifies that values set by application fit in that
-	 *     range. The range is unsigned. Range properties are created using
-	 *     drm_property_create_range().
-	 *
-	 * DRM_MODE_PROP_SIGNED_RANGE
-	 *     Range properties report their minimum and maximum admissible unsigned values.
-	 *     The KMS core verifies that values set by application fit in that
-	 *     range. The range is signed. Range properties are created using
-	 *     drm_property_create_signed_range().
-	 *
-	 * DRM_MODE_PROP_ENUM
-	 *     Enumerated properties take a numerical value that ranges from 0 to
-	 *     the number of enumerated values defined by the property minus one,
-	 *     and associate a free-formed string name to each value. Applications
-	 *     can retrieve the list of defined value-name pairs and use the
-	 *     numerical value to get and set property instance values. Enum
-	 *     properties are created using drm_property_create_enum().
-	 *
-	 * DRM_MODE_PROP_BITMASK
-	 *     Bitmask properties are enumeration properties that additionally
-	 *     restrict all enumerated values to the 0..63 range. Bitmask property
-	 *     instance values combine one or more of the enumerated bits defined
-	 *     by the property. Bitmask properties are created using
-	 *     drm_property_create_bitmask().
-	 *
-	 * DRM_MODE_PROP_OBJECT
-	 *     Object properties are used to link modeset objects. This is used
-	 *     extensively in the atomic support to create the display pipeline,
-	 *     by linking &drm_framebuffer to &drm_plane, &drm_plane to
-	 *     &drm_crtc and &drm_connector to &drm_crtc. An object property can
-	 *     only link to a specific type of &drm_mode_object, this limit is
-	 *     enforced by the core. Object properties are created using
-	 *     drm_property_create_object().
-	 *
-	 *     Object properties work like blob properties, but in a more
-	 *     general fashion. They are limited to atomic drivers and must have
-	 *     the DRM_MODE_PROP_ATOMIC flag set.
-	 *
-	 * DRM_MODE_PROP_BLOB
-	 *     Blob properties store a binary blob without any format restriction.
-	 *     The binary blobs are created as KMS standalone objects, and blob
-	 *     property instance values store the ID of their associated blob
-	 *     object. Blob properties are created by calling
-	 *     drm_property_create() with DRM_MODE_PROP_BLOB as the type.
-	 *
-	 *     Actual blob objects to contain blob data are created using
-	 *     drm_property_create_blob(), or through the corresponding IOCTL.
-	 *
-	 *     Besides the built-in limit to only accept blob objects blob
-	 *     properties work exactly like object properties. The only reasons
-	 *     blob properties exist is backwards compatibility with existing
-	 *     userspace.
-	 *
-	 * In addition a property can have any combination of the below flags:
-	 *
-	 * DRM_MODE_PROP_ATOMIC
-	 *     Set for properties which encode atomic modeset state. Such
-	 *     properties are not exposed to legacy userspace.
-	 *
-	 * DRM_MODE_PROP_IMMUTABLE
-	 *     Set for properties whose values cannot be changed by
-	 *     userspace. The kernel is allowed to update the value of these
-	 *     properties. This is generally used to expose probe state to
-	 *     userspace, e.g. the EDID, or the connector path property on DP
-	 *     MST sinks. Kernel can update the value of an immutable property
-	 *     by calling drm_object_property_set_value().
-	 */
-	uint32_t flags;
+  /**
+   * @flags:
+   *
+   * Property flags and type. A property needs to be one of the following
+   * types:
+   *
+   * DRM_MODE_PROP_RANGE
+   *     Range properties report their minimum and maximum admissible unsigned
+   * values.
+   *     The KMS core verifies that values set by application fit in that
+   *     range. The range is unsigned. Range properties are created using
+   *     drm_property_create_range().
+   *
+   * DRM_MODE_PROP_SIGNED_RANGE
+   *     Range properties report their minimum and maximum admissible unsigned
+   * values.
+   *     The KMS core verifies that values set by application fit in that
+   *     range. The range is signed. Range properties are created using
+   *     drm_property_create_signed_range().
+   *
+   * DRM_MODE_PROP_ENUM
+   *     Enumerated properties take a numerical value that ranges from 0 to
+   *     the number of enumerated values defined by the property minus one,
+   *     and associate a free-formed string name to each value. Applications
+   *     can retrieve the list of defined value-name pairs and use the
+   *     numerical value to get and set property instance values. Enum
+   *     properties are created using drm_property_create_enum().
+   *
+   * DRM_MODE_PROP_BITMASK
+   *     Bitmask properties are enumeration properties that additionally
+   *     restrict all enumerated values to the 0..63 range. Bitmask property
+   *     instance values combine one or more of the enumerated bits defined
+   *     by the property. Bitmask properties are created using
+   *     drm_property_create_bitmask().
+   *
+   * DRM_MODE_PROP_OBJECT
+   *     Object properties are used to link modeset objects. This is used
+   *     extensively in the atomic support to create the display pipeline,
+   *     by linking &drm_framebuffer to &drm_plane, &drm_plane to
+   *     &drm_crtc and &drm_connector to &drm_crtc. An object property can
+   *     only link to a specific type of &drm_mode_object, this limit is
+   *     enforced by the core. Object properties are created using
+   *     drm_property_create_object().
+   *
+   *     Object properties work like blob properties, but in a more
+   *     general fashion. They are limited to atomic drivers and must have
+   *     the DRM_MODE_PROP_ATOMIC flag set.
+   *
+   * DRM_MODE_PROP_BLOB
+   *     Blob properties store a binary blob without any format restriction.
+   *     The binary blobs are created as KMS standalone objects, and blob
+   *     property instance values store the ID of their associated blob
+   *     object. Blob properties are created by calling
+   *     drm_property_create() with DRM_MODE_PROP_BLOB as the type.
+   *
+   *     Actual blob objects to contain blob data are created using
+   *     drm_property_create_blob(), or through the corresponding IOCTL.
+   *
+   *     Besides the built-in limit to only accept blob objects blob
+   *     properties work exactly like object properties. The only reasons
+   *     blob properties exist is backwards compatibility with existing
+   *     userspace.
+   *
+   * In addition a property can have any combination of the below flags:
+   *
+   * DRM_MODE_PROP_ATOMIC
+   *     Set for properties which encode atomic modeset state. Such
+   *     properties are not exposed to legacy userspace.
+   *
+   * DRM_MODE_PROP_IMMUTABLE
+   *     Set for properties whose values cannot be changed by
+   *     userspace. The kernel is allowed to update the value of these
+   *     properties. This is generally used to expose probe state to
+   *     userspace, e.g. the EDID, or the connector path property on DP
+   *     MST sinks. Kernel can update the value of an immutable property
+   *     by calling drm_object_property_set_value().
+   */
+  uint32_t flags;
 
-	/**
-	 * @name: symbolic name of the properties
-	 */
-	char name[DRM_PROP_NAME_LEN];
+  /**
+   * @name: symbolic name of the properties
+   */
+  char name[DRM_PROP_NAME_LEN];
 
-	/**
-	 * @num_values: size of the @values array.
-	 */
-	uint32_t num_values;
+  /**
+   * @num_values: size of the @values array.
+   */
+  uint32_t num_values;
 
-	/**
-	 * @values:
-	 *
-	 * Array with limits and values for the property. The
-	 * interpretation of these limits is dependent upon the type per @flags.
-	 */
-	uint64_t *values;
+  /**
+   * @values:
+   *
+   * Array with limits and values for the property. The
+   * interpretation of these limits is dependent upon the type per @flags.
+   */
+  uint64_t *values;
 
-	/**
-	 * @dev: DRM device
-	 */
-	struct drm_device *dev;
+  /**
+   * @dev: DRM device
+   */
+  struct drm_device *dev;
 
-	/**
-	 * @enum_list:
-	 *
-	 * List of &drm_prop_enum_list structures with the symbolic names for
-	 * enum and bitmask values.
-	 */
-	struct list_head enum_list;
+  /**
+   * @enum_list:
+   *
+   * List of &drm_prop_enum_list structures with the symbolic names for
+   * enum and bitmask values.
+   */
+  struct list_head enum_list;
 };
 
 /**
@@ -202,7 +204,7 @@ struct drm_property {
  * @base: base KMS object
  * @dev: DRM device
  * @head_global: entry on the global blob list in
- * 	&drm_mode_config.property_blob_list.
+ *  &drm_mode_config.property_blob_list.
  * @head_file: entry on the per-file blob list in &drm_file.blobs list.
  * @length: size of the blob in bytes, invariant over the lifetime of the object
  * @data: actual data, embedded at the end of this structure
@@ -214,17 +216,17 @@ struct drm_property {
  * drm_property_blob_put(). They are created using drm_property_create_blob().
  */
 struct drm_property_blob {
-	struct drm_mode_object base;
-	struct drm_device *dev;
-	struct list_head head_global;
-	struct list_head head_file;
-	size_t length;
-	void *data;
+  struct drm_mode_object base;
+  struct drm_device *dev;
+  struct list_head head_global;
+  struct list_head head_file;
+  size_t length;
+  void *data;
 };
 
 struct drm_prop_enum_list {
-	int type;
-	const char *name;
+  int type;
+  const char *name;
 };
 
 #define obj_to_property(x) container_of(x, struct drm_property, base)
@@ -239,60 +241,61 @@ struct drm_prop_enum_list {
  * a bit special for historical reasons.
  */
 static inline bool drm_property_type_is(struct drm_property *property,
-					uint32_t type)
-{
-	/* instanceof for props.. handles extended type vs original types: */
-	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
-		return (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) == type;
-	return property->flags & type;
+    uint32_t type) {
+  /* instanceof for props.. handles extended type vs original types: */
+  if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) {
+    return (property->flags & DRM_MODE_PROP_EXTENDED_TYPE) == type;
+  }
+  return property->flags & type;
 }
 
 struct drm_property *drm_property_create(struct drm_device *dev,
-					 u32 flags, const char *name,
-					 int num_values);
+    u32 flags, const char *name,
+    int num_values);
 struct drm_property *drm_property_create_enum(struct drm_device *dev,
-					      u32 flags, const char *name,
-					      const struct drm_prop_enum_list *props,
-					      int num_values);
+    u32 flags, const char *name,
+    const struct drm_prop_enum_list *props,
+    int num_values);
 struct drm_property *drm_property_create_bitmask(struct drm_device *dev,
-						 u32 flags, const char *name,
-						 const struct drm_prop_enum_list *props,
-						 int num_props,
-						 uint64_t supported_bits);
+    u32 flags, const char *name,
+    const struct drm_prop_enum_list *props,
+    int num_props,
+    uint64_t supported_bits);
 struct drm_property *drm_property_create_range(struct drm_device *dev,
-					       u32 flags, const char *name,
-					       uint64_t min, uint64_t max);
+    u32 flags, const char *name,
+    uint64_t min, uint64_t max);
 struct drm_property *drm_property_create_signed_range(struct drm_device *dev,
-						      u32 flags, const char *name,
-						      int64_t min, int64_t max);
+    u32 flags, const char *name,
+    int64_t min, int64_t max);
 struct drm_property *drm_property_create_object(struct drm_device *dev,
-						u32 flags, const char *name,
-						uint32_t type);
+    u32 flags, const char *name,
+    uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev,
-					      u32 flags, const char *name);
+    u32 flags, const char *name);
 int drm_property_add_enum(struct drm_property *property,
-			  uint64_t value, const char *name);
-void drm_property_destroy(struct drm_device *dev, struct drm_property *property);
+    uint64_t value, const char *name);
+void drm_property_destroy(struct drm_device *dev,
+    struct drm_property *property);
 
 struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
-						   size_t length,
-						   const void *data);
+    size_t length,
+    const void *data);
 struct drm_property_blob *drm_property_lookup_blob(struct drm_device *dev,
-						   uint32_t id);
+    uint32_t id);
 int drm_property_replace_blob_from_id(struct drm_device *dev,
-				      struct drm_property_blob **blob,
-				      uint64_t blob_id,
-				      ssize_t expected_size,
-				      ssize_t expected_elem_size,
-				      bool *replaced);
+    struct drm_property_blob **blob,
+    uint64_t blob_id,
+    ssize_t expected_size,
+    ssize_t expected_elem_size,
+    bool *replaced);
 int drm_property_replace_global_blob(struct drm_device *dev,
-				     struct drm_property_blob **replace,
-				     size_t length,
-				     const void *data,
-				     struct drm_mode_object *obj_holds_id,
-				     struct drm_property *prop_holds_id);
+    struct drm_property_blob **replace,
+    size_t length,
+    const void *data,
+    struct drm_mode_object *obj_holds_id,
+    struct drm_property *prop_holds_id);
 bool drm_property_replace_blob(struct drm_property_blob **blob,
-			       struct drm_property_blob *new_blob);
+    struct drm_property_blob *new_blob);
 struct drm_property_blob *drm_property_blob_get(struct drm_property_blob *blob);
 void drm_property_blob_put(struct drm_property_blob *blob);
 
@@ -305,12 +308,11 @@ void drm_property_blob_put(struct drm_property_blob *blob);
  * This function looks up the property object specified by id and returns it.
  */
 static inline struct drm_property *drm_property_find(struct drm_device *dev,
-						     struct drm_file *file_priv,
-						     uint32_t id)
-{
-	struct drm_mode_object *mo;
-	mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_PROPERTY);
-	return mo ? obj_to_property(mo) : NULL;
+    struct drm_file *file_priv,
+    uint32_t id) {
+  struct drm_mode_object *mo;
+  mo = drm_mode_object_find(dev, file_priv, id, DRM_MODE_OBJECT_PROPERTY);
+  return mo ? obj_to_property(mo) : NULL;
 }
 
 #endif

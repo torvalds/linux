@@ -11,8 +11,8 @@
 struct intel_gt;
 
 struct intel_hwconfig {
-	u32 size;
-	void *ptr;
+  u32 size;
+  void *ptr;
 };
 
 int intel_gt_init_hwconfig(struct intel_gt *gt);

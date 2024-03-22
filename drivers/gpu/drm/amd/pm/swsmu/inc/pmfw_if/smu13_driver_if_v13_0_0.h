@@ -112,21 +112,21 @@
 #define NUM_FEATURES                          64
 
 #define ALLOWED_FEATURE_CTRL_DEFAULT 0xFFFFFFFFFFFFFFFFULL
-#define ALLOWED_FEATURE_CTRL_SCPM	((1 << FEATURE_DPM_GFXCLK_BIT) | \
-									(1 << FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT) | \
-									(1 << FEATURE_DPM_UCLK_BIT) | \
-									(1 << FEATURE_DPM_FCLK_BIT) | \
-									(1 << FEATURE_DPM_SOCCLK_BIT) | \
-									(1 << FEATURE_DPM_MP0CLK_BIT) | \
-									(1 << FEATURE_DPM_LINK_BIT) | \
-									(1 << FEATURE_DPM_DCN_BIT) | \
-									(1 << FEATURE_DS_GFXCLK_BIT) | \
-									(1 << FEATURE_DS_SOCCLK_BIT) | \
-									(1 << FEATURE_DS_FCLK_BIT) | \
-									(1 << FEATURE_DS_LCLK_BIT) | \
-									(1 << FEATURE_DS_DCFCLK_BIT) | \
-									(1 << FEATURE_DS_UCLK_BIT) | \
-									(1ULL << FEATURE_DS_VCN_BIT))
+#define ALLOWED_FEATURE_CTRL_SCPM ((1 << FEATURE_DPM_GFXCLK_BIT)   \
+  | (1 << FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT)   \
+  | (1 << FEATURE_DPM_UCLK_BIT)   \
+  | (1 << FEATURE_DPM_FCLK_BIT)   \
+  | (1 << FEATURE_DPM_SOCCLK_BIT)   \
+  | (1 << FEATURE_DPM_MP0CLK_BIT)   \
+  | (1 << FEATURE_DPM_LINK_BIT)   \
+  | (1 << FEATURE_DPM_DCN_BIT)   \
+  | (1 << FEATURE_DS_GFXCLK_BIT)   \
+  | (1 << FEATURE_DS_SOCCLK_BIT)   \
+  | (1 << FEATURE_DS_FCLK_BIT)   \
+  | (1 << FEATURE_DS_LCLK_BIT)   \
+  | (1 << FEATURE_DS_DCFCLK_BIT)   \
+  | (1 << FEATURE_DS_UCLK_BIT)   \
+  | (1ULL << FEATURE_DS_VCN_BIT))
 
 //For use with feature control messages
 typedef enum {
@@ -137,7 +137,6 @@ typedef enum {
   FEATURE_PWR_GFX,
   FEATURE_PWR_DOMAIN_COUNT,
 } FEATURE_PWR_DOMAIN_e;
-
 
 // Debug Overrides Bitmask
 #define DEBUG_OVERRIDE_DISABLE_VOLT_LINK_VCN_FCLK      0x00000001
@@ -239,7 +238,6 @@ typedef enum {
 #define LED_DISPLAY_PCIE_BIT               1
 #define LED_DISPLAY_ERROR_BIT              2
 
-
 #define MEM_TEMP_READ_OUT_OF_BAND_BIT          0
 #define MEM_TEMP_READ_IN_BAND_REFRESH_BIT      1
 #define MEM_TEMP_READ_IN_BAND_DUMMY_PSTATE_BIT 2
@@ -282,15 +280,15 @@ typedef enum {
 } I2cControllerPort_e;
 
 typedef enum {
-	I2C_CONTROLLER_NAME_VR_GFX = 0,
-	I2C_CONTROLLER_NAME_VR_SOC,
-	I2C_CONTROLLER_NAME_VR_VMEMP,
-	I2C_CONTROLLER_NAME_VR_VDDIO,
-	I2C_CONTROLLER_NAME_LIQUID0,
-	I2C_CONTROLLER_NAME_LIQUID1,
-	I2C_CONTROLLER_NAME_PLX,
-	I2C_CONTROLLER_NAME_FAN_INTAKE,
-	I2C_CONTROLLER_NAME_COUNT,
+  I2C_CONTROLLER_NAME_VR_GFX = 0,
+  I2C_CONTROLLER_NAME_VR_SOC,
+  I2C_CONTROLLER_NAME_VR_VMEMP,
+  I2C_CONTROLLER_NAME_VR_VDDIO,
+  I2C_CONTROLLER_NAME_LIQUID0,
+  I2C_CONTROLLER_NAME_LIQUID1,
+  I2C_CONTROLLER_NAME_PLX,
+  I2C_CONTROLLER_NAME_FAN_INTAKE,
+  I2C_CONTROLLER_NAME_COUNT,
 } I2cControllerName_e;
 
 typedef enum {
@@ -308,23 +306,23 @@ typedef enum {
 } I2cControllerThrottler_e;
 
 typedef enum {
-	I2C_CONTROLLER_PROTOCOL_VR_XPDE132G5,
-	I2C_CONTROLLER_PROTOCOL_VR_IR35217,
-	I2C_CONTROLLER_PROTOCOL_TMP_MAX31875,
-	I2C_CONTROLLER_PROTOCOL_INA3221,
-	I2C_CONTROLLER_PROTOCOL_TMP_MAX6604,
-	I2C_CONTROLLER_PROTOCOL_COUNT,
+  I2C_CONTROLLER_PROTOCOL_VR_XPDE132G5,
+  I2C_CONTROLLER_PROTOCOL_VR_IR35217,
+  I2C_CONTROLLER_PROTOCOL_TMP_MAX31875,
+  I2C_CONTROLLER_PROTOCOL_INA3221,
+  I2C_CONTROLLER_PROTOCOL_TMP_MAX6604,
+  I2C_CONTROLLER_PROTOCOL_COUNT,
 } I2cControllerProtocol_e;
 
 typedef struct {
-  uint8_t   Enabled;
-  uint8_t   Speed;
-  uint8_t   SlaveAddress;
-  uint8_t   ControllerPort;
-  uint8_t   ControllerName;
-  uint8_t   ThermalThrotter;
-  uint8_t   I2cProtocol;
-  uint8_t   PaddingConfig;
+  uint8_t Enabled;
+  uint8_t Speed;
+  uint8_t SlaveAddress;
+  uint8_t ControllerPort;
+  uint8_t ControllerName;
+  uint8_t ThermalThrotter;
+  uint8_t I2cProtocol;
+  uint8_t PaddingConfig;
 } I2cControllerConfig_t;
 
 typedef enum {
@@ -358,16 +356,17 @@ typedef enum {
 
 typedef struct {
   uint8_t ReadWriteData;  //Return data for read. Data to send for write
-  uint8_t CmdConfig; //Includes whether associated command should have a stop or restart command, and is a read or write
+  uint8_t CmdConfig; //Includes whether associated command should have a stop or
+                     // restart command, and is a read or write
 } SwI2cCmd_t; //SW I2C Command Table
 
 typedef struct {
-  uint8_t     I2CcontrollerPort; //CKSVII2C0(0) or //CKSVII2C1(1)
-  uint8_t     I2CSpeed;          //Use I2cSpeed_e to indicate speed to select
-  uint8_t     SlaveAddress;      //Slave address of device
-  uint8_t     NumCmds;           //Number of commands
+  uint8_t I2CcontrollerPort; //CKSVII2C0(0) or //CKSVII2C1(1)
+  uint8_t I2CSpeed;          //Use I2cSpeed_e to indicate speed to select
+  uint8_t SlaveAddress;      //Slave address of device
+  uint8_t NumCmds;           //Number of commands
 
-  SwI2cCmd_t  SwI2cCmds[MAX_SW_I2C_COMMANDS];
+  SwI2cCmd_t SwI2cCmds[MAX_SW_I2C_COMMANDS];
 } SwI2cRequest_t; // SW I2C Request Table
 
 typedef struct {
@@ -388,7 +387,7 @@ typedef struct {
 } EccInfo_t;
 
 typedef struct {
-  EccInfo_t  EccInfo[24];
+  EccInfo_t EccInfo[24];
 } EccInfoTable_t;
 
 //D3HOT sequences
@@ -459,7 +458,6 @@ typedef enum {
   VOLTAGE_MODE_COUNT,
 } VOLTAGE_MODE_e;
 
-
 typedef enum {
   AVFS_VOLTAGE_GFX = 0,
   AVFS_VOLTAGE_SOC,
@@ -499,16 +497,18 @@ typedef enum {
 } PwrConfig_e;
 
 typedef struct {
-  uint8_t        Padding;
-  uint8_t        SnapToDiscrete;      // 0 - Fine grained DPM, 1 - Discrete DPM
-  uint8_t        NumDiscreteLevels;   // Set to 2 (Fmin, Fmax) when using fine grained DPM, otherwise set to # discrete levels used
-  uint8_t        CalculateFopt;       // Indication whether FW should calculate Fopt or use values below. Reference FOPT_CALC_e
-  LinearInt_t    ConversionToAvfsClk; // Transfer function to AVFS Clock (GHz->GHz)
-  uint32_t       Padding3[3];
-  uint16_t       Padding4;
-  uint16_t       FoptimalDc;          //Foptimal frequency in DC power mode.
-  uint16_t       FoptimalAc;          //Foptimal frequency in AC power mode.
-  uint16_t       Padding2;
+  uint8_t Padding;
+  uint8_t SnapToDiscrete;      // 0 - Fine grained DPM, 1 - Discrete DPM
+  uint8_t NumDiscreteLevels;   // Set to 2 (Fmin, Fmax) when using fine grained
+                               // DPM, otherwise set to # discrete levels used
+  uint8_t CalculateFopt;       // Indication whether FW should calculate Fopt or
+                               // use values below. Reference FOPT_CALC_e
+  LinearInt_t ConversionToAvfsClk; // Transfer function to AVFS Clock (GHz->GHz)
+  uint32_t Padding3[3];
+  uint16_t Padding4;
+  uint16_t FoptimalDc;          //Foptimal frequency in DC power mode.
+  uint16_t FoptimalAc;          //Foptimal frequency in AC power mode.
+  uint16_t Padding2;
 } DpmDescriptor_t;
 
 typedef enum  {
@@ -677,92 +677,91 @@ typedef enum {
 #define PP_OD_FEATURE_TEMPERATURE_BIT 10
 #define PP_OD_FEATURE_COUNT 13
 
-// VBIOS or PPLIB configures telemetry slope and offset. Only slope expected to be set for SVI3
+// VBIOS or PPLIB configures telemetry slope and offset. Only slope expected to
+// be set for SVI3
 // Slope Q1.7, Offset Q1.2
 typedef struct {
-  int8_t   Offset; // in Amps
-  uint8_t  Padding;
+  int8_t Offset; // in Amps
+  uint8_t Padding;
   uint16_t MaxCurrent; // in Amps
 } SviTelemetryScale_t;
 
 #define PP_NUM_OD_VF_CURVE_POINTS PP_NUM_RTAVFS_PWL_ZONES + 1
 
 typedef enum {
-	FAN_MODE_AUTO = 0,
-	FAN_MODE_MANUAL_LINEAR,
+  FAN_MODE_AUTO = 0,
+  FAN_MODE_MANUAL_LINEAR,
 } FanMode_e;
 
 typedef struct {
   uint32_t FeatureCtrlMask;
 
   //Voltage control
-  int16_t                VoltageOffsetPerZoneBoundary[PP_NUM_OD_VF_CURVE_POINTS];
+  int16_t VoltageOffsetPerZoneBoundary[PP_NUM_OD_VF_CURVE_POINTS];
 
-  uint32_t               Reserved;
+  uint32_t Reserved;
 
   //Frequency changes
-  int16_t                GfxclkFmin;           // MHz
-  int16_t                GfxclkFmax;           // MHz
-  uint16_t               UclkFmin;             // MHz
-  uint16_t               UclkFmax;             // MHz
+  int16_t GfxclkFmin;           // MHz
+  int16_t GfxclkFmax;           // MHz
+  uint16_t UclkFmin;             // MHz
+  uint16_t UclkFmax;             // MHz
 
   //PPT
-  int16_t                Ppt;         // %
-  int16_t                Tdc;
+  int16_t Ppt;         // %
+  int16_t Tdc;
 
   //Fan control
-  uint8_t                FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
-  uint8_t                FanLinearTempPoints[NUM_OD_FAN_MAX_POINTS];
-  uint16_t               FanMinimumPwm;
-  uint16_t               AcousticTargetRpmThreshold;
-  uint16_t               AcousticLimitRpmThreshold;
-  uint16_t               FanTargetTemperature; // Degree Celcius
-  uint8_t                FanZeroRpmEnable;
-  uint8_t                FanZeroRpmStopTemp;
-  uint8_t                FanMode;
-  uint8_t                MaxOpTemp;
+  uint8_t FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
+  uint8_t FanLinearTempPoints[NUM_OD_FAN_MAX_POINTS];
+  uint16_t FanMinimumPwm;
+  uint16_t AcousticTargetRpmThreshold;
+  uint16_t AcousticLimitRpmThreshold;
+  uint16_t FanTargetTemperature; // Degree Celcius
+  uint8_t FanZeroRpmEnable;
+  uint8_t FanZeroRpmStopTemp;
+  uint8_t FanMode;
+  uint8_t MaxOpTemp;
 
-  uint32_t               Spare[13];
-  uint32_t               MmHubPadding[8]; // SMU internal use. Adding here instead of external as a workaround
+  uint32_t Spare[13];
+  uint32_t MmHubPadding[8]; // SMU internal use. Adding here instead of external
+                            // as a workaround
 } OverDriveTable_t;
 
 typedef struct {
   OverDriveTable_t OverDriveTable;
-
 } OverDriveTableExternal_t;
 
 typedef struct {
   uint32_t FeatureCtrlMask;
 
   int16_t VoltageOffsetPerZoneBoundary;
-  uint16_t               Reserved1;
+  uint16_t Reserved1;
 
-  uint16_t               Reserved2;
+  uint16_t Reserved2;
 
-  int16_t               GfxclkFmin;           // MHz
-  int16_t               GfxclkFmax;           // MHz
-  uint16_t               UclkFmin;             // MHz
-  uint16_t               UclkFmax;             // MHz
+  int16_t GfxclkFmin;           // MHz
+  int16_t GfxclkFmax;           // MHz
+  uint16_t UclkFmin;             // MHz
+  uint16_t UclkFmax;             // MHz
 
   //PPT
-  int16_t                Ppt;         // %
-  int16_t                Tdc;
+  int16_t Ppt;         // %
+  int16_t Tdc;
 
-  uint8_t                FanLinearPwmPoints;
-  uint8_t                FanLinearTempPoints;
-  uint16_t               FanMinimumPwm;
-  uint16_t               AcousticTargetRpmThreshold;
-  uint16_t               AcousticLimitRpmThreshold;
-  uint16_t               FanTargetTemperature; // Degree Celcius
-  uint8_t                FanZeroRpmEnable;
-  uint8_t                FanZeroRpmStopTemp;
-  uint8_t                FanMode;
-  uint8_t                MaxOpTemp;
+  uint8_t FanLinearPwmPoints;
+  uint8_t FanLinearTempPoints;
+  uint16_t FanMinimumPwm;
+  uint16_t AcousticTargetRpmThreshold;
+  uint16_t AcousticLimitRpmThreshold;
+  uint16_t FanTargetTemperature; // Degree Celcius
+  uint8_t FanZeroRpmEnable;
+  uint8_t FanZeroRpmStopTemp;
+  uint8_t FanMode;
+  uint8_t MaxOpTemp;
 
-  uint32_t               Spare[13];
-
+  uint32_t Spare[13];
 } OverDriveLimits_t;
-
 
 typedef enum {
   BOARD_GPIO_SMUIO_0,
@@ -867,20 +866,18 @@ typedef struct {
   uint16_t Padding2;
 
   uint32_t Spare[8];
-
 } BootValues_t;
 
-
 typedef struct {
-   uint16_t Power[PPT_THROTTLER_COUNT][POWER_SOURCE_COUNT]; // Watts
+  uint16_t Power[PPT_THROTTLER_COUNT][POWER_SOURCE_COUNT]; // Watts
   uint16_t Tdc[TDC_THROTTLER_COUNT];             // Amps
 
   uint16_t Temperature[TEMP_COUNT]; // Celsius
 
-  uint8_t  PwmLimitMin;
-  uint8_t  PwmLimitMax;
-  uint8_t  FanTargetTemperature;
-  uint8_t  Spare1[1];
+  uint8_t PwmLimitMin;
+  uint8_t PwmLimitMax;
+  uint8_t FanTargetTemperature;
+  uint8_t Spare1[1];
 
   uint16_t AcousticTargetRpmThresholdMin;
   uint16_t AcousticTargetRpmThresholdMax;
@@ -888,17 +885,16 @@ typedef struct {
   uint16_t AcousticLimitRpmThresholdMin;
   uint16_t AcousticLimitRpmThresholdMax;
 
-  uint16_t  PccLimitMin;
-  uint16_t  PccLimitMax;
+  uint16_t PccLimitMin;
+  uint16_t PccLimitMax;
 
-  uint16_t  FanStopTempMin;
-  uint16_t  FanStopTempMax;
-  uint16_t  FanStartTempMin;
-  uint16_t  FanStartTempMax;
+  uint16_t FanStopTempMin;
+  uint16_t FanStopTempMax;
+  uint16_t FanStartTempMin;
+  uint16_t FanStartTempMax;
 
-  uint16_t  PowerMinPpt0[POWER_SOURCE_COUNT];
+  uint16_t PowerMinPpt0[POWER_SOURCE_COUNT];
   uint32_t Spare[11];
-
 } MsgLimits_t;
 
 typedef struct {
@@ -913,23 +909,22 @@ typedef struct {
 } DriverReportedClocks_t;
 
 typedef struct {
-  uint8_t           DcBtcEnabled;
-  uint8_t           Padding[3];
+  uint8_t DcBtcEnabled;
+  uint8_t Padding[3];
 
-  uint16_t          DcTol;            // mV Q2
-  uint16_t          DcBtcGb;       // mV Q2
+  uint16_t DcTol;            // mV Q2
+  uint16_t DcBtcGb;       // mV Q2
 
-  uint16_t          DcBtcMin;       // mV Q2
-  uint16_t          DcBtcMax;       // mV Q2
+  uint16_t DcBtcMin;       // mV Q2
+  uint16_t DcBtcMax;       // mV Q2
 
-  LinearInt_t       DcBtcGbScalar;
-
+  LinearInt_t DcBtcGbScalar;
 } AvfsDcBtcParams_t;
 
 typedef struct {
-  uint16_t       AvfsTemp[AVFS_TEMP_COUNT]; //in degrees C
-  uint16_t      VftFMin;  // in MHz
-  uint16_t      VInversion; // in mV Q2
+  uint16_t AvfsTemp[AVFS_TEMP_COUNT]; //in degrees C
+  uint16_t VftFMin;  // in MHz
+  uint16_t VInversion; // in mV Q2
   QuadraticInt_t qVft[AVFS_TEMP_COUNT];
   QuadraticInt_t qAvfsGb;
   QuadraticInt_t qAvfsGb2;
@@ -938,52 +933,88 @@ typedef struct {
 typedef struct {
   // SECTION: Version
 
-  uint32_t Version; // should be unique to each SKU(i.e if any value changes in below structure then this value must be different)
+  uint32_t Version; // should be unique to each SKU(i.e if any value changes in
+                    // below structure then this value must be different)
 
   // SECTION: Feature Control
-  uint32_t FeaturesToRun[NUM_FEATURES / 32]; // Features that PMFW will attempt to enable. Use FEATURE_*_BIT as mapping
+  uint32_t FeaturesToRun[NUM_FEATURES / 32]; // Features that PMFW will attempt
+                                             // to enable. Use FEATURE_*_BIT as
+                                             // mapping
 
   // SECTION: Miscellaneous Configuration
-  uint8_t      TotalPowerConfig;    // Determines how PMFW calculates the power. Use defines from PwrConfig_e
-  uint8_t      CustomerVariant; //To specify if this PPTable is intended for a particular customer. Use defines from CUSTOMER_VARIANT_e
-  uint8_t      MemoryTemperatureTypeMask; // Bit mapping indicating which methods of memory temperature reading are enabled. Use defines from MEM_TEMP_*BIT
-  uint8_t      SmartShiftVersion; // Determine what SmartShift feature version is supported Use defines from SMARTSHIFT_VERSION_e
+  uint8_t TotalPowerConfig;    // Determines how PMFW calculates the power. Use
+                               // defines from PwrConfig_e
+  uint8_t CustomerVariant; //To specify if this PPTable is intended for a
+                           // particular customer. Use defines from
+                           // CUSTOMER_VARIANT_e
+  uint8_t MemoryTemperatureTypeMask; // Bit mapping indicating which methods of
+                                     // memory temperature reading are enabled.
+                                     // Use defines from MEM_TEMP_*BIT
+  uint8_t SmartShiftVersion; // Determine what SmartShift feature version is
+                             // supported Use defines from SMARTSHIFT_VERSION_e
 
   // SECTION: Infrastructure Limits
-  uint16_t SocketPowerLimitAc[PPT_THROTTLER_COUNT]; // In Watts. Power limit that PMFW attempts to control to in AC mode. Multiple limits supported
-  uint16_t SocketPowerLimitDc[PPT_THROTTLER_COUNT];  // In Watts. Power limit that PMFW attempts to control to in DC mode. Multiple limits supported
+  uint16_t SocketPowerLimitAc[PPT_THROTTLER_COUNT]; // In Watts. Power limit
+                                                    // that PMFW attempts to
+                                                    // control to in AC mode.
+                                                    // Multiple limits supported
+  uint16_t SocketPowerLimitDc[PPT_THROTTLER_COUNT];  // In Watts. Power limit
+                                                     // that PMFW attempts to
+                                                     // control to in DC mode.
+                                                     // Multiple limits
+                                                     // supported
 
   uint16_t SocketPowerLimitSmartShift2; // In Watts. Power limit used SmartShift
 
-  //if set to 1, SocketPowerLimitAc and SocketPowerLimitDc will be interpreted as legacy programs(i.e absolute power). If 0, all except index 0 will be scalars
+  //if set to 1, SocketPowerLimitAc and SocketPowerLimitDc will be interpreted
+  // as legacy programs(i.e absolute power). If 0, all except index 0 will be
+  // scalars
   //relative index 0
-  uint8_t  EnableLegacyPptLimit;
-  uint8_t  UseInputTelemetry; //applicable to SVI3 only and only to be set if VRs support
-  uint8_t  SmartShiftMinReportedPptinDcs; //minimum possible active power consumption for this SKU. Used for SmartShift power reporting
+  uint8_t EnableLegacyPptLimit;
+  uint8_t UseInputTelemetry; //applicable to SVI3 only and only to be set if VRs
+                             // support
+  uint8_t SmartShiftMinReportedPptinDcs; //minimum possible active power
+                                         // consumption for this SKU. Used for
+                                         // SmartShift power reporting
 
-  uint8_t  PaddingPpt[1];
+  uint8_t PaddingPpt[1];
 
-  uint16_t VrTdcLimit[TDC_THROTTLER_COUNT];             // In Amperes. Current limit associated with VR regulator maximum temperature
+  uint16_t VrTdcLimit[TDC_THROTTLER_COUNT];             // In Amperes. Current
+                                                        // limit associated with
+                                                        // VR regulator maximum
+                                                        // temperature
 
-  uint16_t PlatformTdcLimit[TDC_THROTTLER_COUNT];             // In Amperes. Current limit associated with platform maximum temperature per VR current rail
+  uint16_t PlatformTdcLimit[TDC_THROTTLER_COUNT];             // In Amperes.
+                                                              // Current limit
+                                                              // associated with
+                                                              // platform
+                                                              // maximum
+                                                              // temperature per
+                                                              // VR current rail
 
-  uint16_t TemperatureLimit[TEMP_COUNT]; // In degrees Celsius. Temperature limit associated with each input
+  uint16_t TemperatureLimit[TEMP_COUNT]; // In degrees Celsius. Temperature
+                                         // limit associated with each input
 
-  uint16_t HwCtfTempLimit; // In degrees Celsius. Temperature above which HW will trigger CTF. Consumed by VBIOS only
+  uint16_t HwCtfTempLimit; // In degrees Celsius. Temperature above which HW
+                           // will trigger CTF. Consumed by VBIOS only
 
   uint16_t PaddingInfra;
 
-  // Per year normalized Vmax state failure rates (sum of the two domains divided by life time in years)
+  // Per year normalized Vmax state failure rates (sum of the two domains
+  // divided by life time in years)
   uint32_t FitControllerFailureRateLimit; //in IEEE float
   //Expected GFX Duty Cycle at Vmax.
   uint32_t FitControllerGfxDutyCycle; // in IEEE float
   //Expected SOC Duty Cycle at Vmax.
   uint32_t FitControllerSocDutyCycle; // in IEEE float
 
-  //This offset will be deducted from the controller output to before it goes through the SOC Vset limiter block.
+  //This offset will be deducted from the controller output to before it goes
+  // through the SOC Vset limiter block.
   uint32_t FitControllerSocOffset;  //in IEEE float
 
-  uint32_t     GfxApccPlusResidencyLimit; // Percentage value. Used by APCC+ controller to control PCC residency to some value
+  uint32_t GfxApccPlusResidencyLimit; // Percentage value. Used by APCC+
+                                      // controller to control PCC residency to
+                                      // some value
 
   // SECTION: Throttler settings
   uint32_t ThrottlerControlMask;   // See THROTTLER_*_BIT for mapping
@@ -992,176 +1023,237 @@ typedef struct {
   uint32_t FwDStateMask;           // See FW_DSTATE_*_BIT for mapping
 
   // SECTION: Voltage Control Parameters
-  uint16_t  UlvVoltageOffset[PMFW_VOLT_PLANE_COUNT]; // In mV(Q2). ULV offset used in either GFX_ULV or SOC_ULV(part of FW_DSTATE)
+  uint16_t UlvVoltageOffset[PMFW_VOLT_PLANE_COUNT]; // In mV(Q2). ULV offset
+                                                    // used in either GFX_ULV or
+                                                    // SOC_ULV(part of
+                                                    // FW_DSTATE)
 
-  uint16_t     UlvVoltageOffsetU; // In mV(Q2). ULV offset used in either U_ULV(part of FW_DSTATE)
-  uint16_t     DeepUlvVoltageOffsetSoc;        // In mV(Q2)  Long Idle Vmin (deep ULV), for VDD_SOC as part of FW_DSTATE
+  uint16_t UlvVoltageOffsetU; // In mV(Q2). ULV offset used in either U_ULV(part
+                              // of FW_DSTATE)
+  uint16_t DeepUlvVoltageOffsetSoc;        // In mV(Q2)  Long Idle Vmin (deep
+                                           // ULV), for VDD_SOC as part of
+                                           // FW_DSTATE
 
   // Voltage Limits
-  uint16_t     DefaultMaxVoltage[PMFW_VOLT_PLANE_COUNT]; // In mV(Q2) Maximum voltage without FIT controller enabled
-  uint16_t     BoostMaxVoltage[PMFW_VOLT_PLANE_COUNT]; // In mV(Q2) Maximum voltage with FIT controller enabled
+  uint16_t DefaultMaxVoltage[PMFW_VOLT_PLANE_COUNT]; // In mV(Q2) Maximum
+                                                     // voltage without FIT
+                                                     // controller enabled
+  uint16_t BoostMaxVoltage[PMFW_VOLT_PLANE_COUNT]; // In mV(Q2) Maximum voltage
+                                                   // with FIT controller
+                                                   // enabled
 
   //Vmin Optimizations
-  int16_t         VminTempHystersis[PMFW_VOLT_PLANE_COUNT]; // Celsius Temperature hysteresis for switching between low/high temperature values for Vmin
-  int16_t         VminTempThreshold[PMFW_VOLT_PLANE_COUNT]; // Celsius Temperature threshold for switching between low/high temperature values for Vmin
-  uint16_t        Vmin_Hot_T0[PMFW_VOLT_PLANE_COUNT];            //In mV(Q2) Initial (pre-aging) Vset to be used at hot.
-  uint16_t        Vmin_Cold_T0[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2) Initial (pre-aging) Vset to be used at cold.
-  uint16_t        Vmin_Hot_Eol[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2) End-of-life Vset to be used at hot.
-  uint16_t        Vmin_Cold_Eol[PMFW_VOLT_PLANE_COUNT];          //In mV(Q2) End-of-life Vset to be used at cold.
-  uint16_t        Vmin_Aging_Offset[PMFW_VOLT_PLANE_COUNT];      //In mV(Q2) Worst-case aging margin
-  uint16_t        Spare_Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
-  uint16_t        Spare_Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
+  int16_t VminTempHystersis[PMFW_VOLT_PLANE_COUNT]; // Celsius Temperature
+                                                    // hysteresis for switching
+                                                    // between low/high
+                                                    // temperature values for
+                                                    // Vmin
+  int16_t VminTempThreshold[PMFW_VOLT_PLANE_COUNT]; // Celsius Temperature
+                                                    // threshold for switching
+                                                    // between low/high
+                                                    // temperature values for
+                                                    // Vmin
+  uint16_t Vmin_Hot_T0[PMFW_VOLT_PLANE_COUNT];            //In mV(Q2) Initial
+                                                          // (pre-aging) Vset to
+                                                          // be used at hot.
+  uint16_t Vmin_Cold_T0[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2) Initial
+                                                          // (pre-aging) Vset to
+                                                          // be used at cold.
+  uint16_t Vmin_Hot_Eol[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2)
+                                                          // End-of-life Vset to
+                                                          // be used at hot.
+  uint16_t Vmin_Cold_Eol[PMFW_VOLT_PLANE_COUNT];          //In mV(Q2)
+                                                          // End-of-life Vset to
+                                                          // be used at cold.
+  uint16_t Vmin_Aging_Offset[PMFW_VOLT_PLANE_COUNT];      //In mV(Q2) Worst-case
+                                                          // aging margin
+  uint16_t Spare_Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2)
+                                                                // Platform
+                                                                // offset apply
+                                                                // to T0 Hot
+  uint16_t Spare_Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2)
+                                                                // Platform
+                                                                // offset apply
+                                                                // to T0 Cold
 
-  //This is a fixed/minimum VMIN aging degradation offset which is applied at T0. This reflects the minimum amount of aging already accounted for.
-  uint16_t        VcBtcFixedVminAgingOffset[PMFW_VOLT_PLANE_COUNT];
-  //Linear offset or GB term to account for mis-correlation between PSM and Vmin shift trends across parts.
-  uint16_t        VcBtcVmin2PsmDegrationGb[PMFW_VOLT_PLANE_COUNT];
+  //This is a fixed/minimum VMIN aging degradation offset which is applied at
+  // T0. This reflects the minimum amount of aging already accounted for.
+  uint16_t VcBtcFixedVminAgingOffset[PMFW_VOLT_PLANE_COUNT];
+  //Linear offset or GB term to account for mis-correlation between PSM and Vmin
+  // shift trends across parts.
+  uint16_t VcBtcVmin2PsmDegrationGb[PMFW_VOLT_PLANE_COUNT];
   //Scalar coefficient of the PSM aging degradation function
-  uint32_t        VcBtcPsmA[PMFW_VOLT_PLANE_COUNT];                   // A_PSM
+  uint32_t VcBtcPsmA[PMFW_VOLT_PLANE_COUNT];                   // A_PSM
   //Exponential coefficient of the PSM aging degradation function
-  uint32_t        VcBtcPsmB[PMFW_VOLT_PLANE_COUNT];                   // B_PSM
-  //Scalar coefficient of the VMIN aging degradation function. Specified as worst case between hot and cold.
-  uint32_t        VcBtcVminA[PMFW_VOLT_PLANE_COUNT];                  // A_VMIN
-  //Exponential coefficient of the VMIN aging degradation function. Specified as worst case between hot and cold.
-  uint32_t        VcBtcVminB[PMFW_VOLT_PLANE_COUNT];                  // B_VMIN
+  uint32_t VcBtcPsmB[PMFW_VOLT_PLANE_COUNT];                   // B_PSM
+  //Scalar coefficient of the VMIN aging degradation function. Specified as
+  // worst case between hot and cold.
+  uint32_t VcBtcVminA[PMFW_VOLT_PLANE_COUNT];                  // A_VMIN
+  //Exponential coefficient of the VMIN aging degradation function. Specified as
+  // worst case between hot and cold.
+  uint32_t VcBtcVminB[PMFW_VOLT_PLANE_COUNT];                  // B_VMIN
 
-  uint8_t        PerPartVminEnabled[PMFW_VOLT_PLANE_COUNT];
-  uint8_t        VcBtcEnabled[PMFW_VOLT_PLANE_COUNT];
+  uint8_t PerPartVminEnabled[PMFW_VOLT_PLANE_COUNT];
+  uint8_t VcBtcEnabled[PMFW_VOLT_PLANE_COUNT];
 
-  uint16_t SocketPowerLimitAcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF in ms
-  uint16_t SocketPowerLimitDcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF in ms
+  uint16_t SocketPowerLimitAcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF
+                                                       // in ms
+  uint16_t SocketPowerLimitDcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF
+                                                       // in ms
 
   QuadraticInt_t Vmin_droop;
-  uint32_t       SpareVmin[9];
-
+  uint32_t SpareVmin[9];
 
   //SECTION: DPM Configuration 1
   DpmDescriptor_t DpmDescriptor[PPCLK_COUNT];
 
-  uint16_t       FreqTableGfx      [NUM_GFXCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableVclk     [NUM_VCLK_DPM_LEVELS    ];     // In MHz
-  uint16_t       FreqTableDclk     [NUM_DCLK_DPM_LEVELS    ];     // In MHz
-  uint16_t       FreqTableSocclk   [NUM_SOCCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableUclk     [NUM_UCLK_DPM_LEVELS    ];     // In MHz
-  uint16_t       FreqTableDispclk  [NUM_DISPCLK_DPM_LEVELS ];     // In MHz
-  uint16_t       FreqTableDppClk   [NUM_DPPCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableDprefclk [NUM_DPREFCLK_DPM_LEVELS];     // In MHz
-  uint16_t       FreqTableDcfclk   [NUM_DCFCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableDtbclk   [NUM_DTBCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableFclk     [NUM_FCLK_DPM_LEVELS    ];     // In MHz
+  uint16_t FreqTableGfx[NUM_GFXCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableVclk[NUM_VCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDclk[NUM_DCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableSocclk[NUM_SOCCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableUclk[NUM_UCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDispclk[NUM_DISPCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDppClk[NUM_DPPCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDprefclk[NUM_DPREFCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDcfclk[NUM_DCFCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDtbclk[NUM_DTBCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableFclk[NUM_FCLK_DPM_LEVELS];     // In MHz
 
-  uint32_t       DcModeMaxFreq     [PPCLK_COUNT            ];     // In MHz
+  uint32_t DcModeMaxFreq[PPCLK_COUNT];     // In MHz
 
   // SECTION: DPM Configuration 2
-  uint16_t       Mp0clkFreq        [NUM_MP0CLK_DPM_LEVELS];       // in MHz
-  uint16_t       Mp0DpmVoltage     [NUM_MP0CLK_DPM_LEVELS];       // mV(Q2)
+  uint16_t Mp0clkFreq[NUM_MP0CLK_DPM_LEVELS];       // in MHz
+  uint16_t Mp0DpmVoltage[NUM_MP0CLK_DPM_LEVELS];       // mV(Q2)
 
-  uint8_t         GfxclkSpare[2];
-  uint16_t        GfxclkFreqCap;
+  uint8_t GfxclkSpare[2];
+  uint16_t GfxclkFreqCap;
 
   //GFX Idle Power Settings
-  uint16_t        GfxclkFgfxoffEntry;   // in Mhz
-  uint16_t        GfxclkFgfxoffExitImu; // in Mhz
-  uint16_t        GfxclkFgfxoffExitRlc; // in Mhz
-  uint16_t        GfxclkThrottleClock;  //Used primarily in DCS
-  uint8_t         EnableGfxPowerStagesGpio; //Genlk_vsync GPIO flag used to control gfx power stages
-  uint8_t         GfxIdlePadding;
+  uint16_t GfxclkFgfxoffEntry;   // in Mhz
+  uint16_t GfxclkFgfxoffExitImu; // in Mhz
+  uint16_t GfxclkFgfxoffExitRlc; // in Mhz
+  uint16_t GfxclkThrottleClock;  //Used primarily in DCS
+  uint8_t EnableGfxPowerStagesGpio; //Genlk_vsync GPIO flag used to control gfx
+                                    // power stages
+  uint8_t GfxIdlePadding;
 
-  uint8_t          SmsRepairWRCKClkDivEn;
-  uint8_t          SmsRepairWRCKClkDivVal;
-  uint8_t          GfxOffEntryEarlyMGCGEn;
-  uint8_t          GfxOffEntryForceCGCGEn;
-  uint8_t          GfxOffEntryForceCGCGDelayEn;
-  uint8_t          GfxOffEntryForceCGCGDelayVal; // in microseconds
+  uint8_t SmsRepairWRCKClkDivEn;
+  uint8_t SmsRepairWRCKClkDivVal;
+  uint8_t GfxOffEntryEarlyMGCGEn;
+  uint8_t GfxOffEntryForceCGCGEn;
+  uint8_t GfxOffEntryForceCGCGDelayEn;
+  uint8_t GfxOffEntryForceCGCGDelayVal; // in microseconds
 
-  uint16_t        GfxclkFreqGfxUlv; // in MHz
-  uint8_t         GfxIdlePadding2[2];
+  uint16_t GfxclkFreqGfxUlv; // in MHz
+  uint8_t GfxIdlePadding2[2];
 
-  uint32_t        GfxOffEntryHysteresis;
-  uint32_t        GfxoffSpare[15];
+  uint32_t GfxOffEntryHysteresis;
+  uint32_t GfxoffSpare[15];
 
   // GFX GPO
-  uint32_t        DfllBtcMasterScalerM;
-  int32_t         DfllBtcMasterScalerB;
-  uint32_t        DfllBtcSlaveScalerM;
-  int32_t         DfllBtcSlaveScalerB;
+  uint32_t DfllBtcMasterScalerM;
+  int32_t DfllBtcMasterScalerB;
+  uint32_t DfllBtcSlaveScalerM;
+  int32_t DfllBtcSlaveScalerB;
 
-  uint32_t        DfllPccAsWaitCtrl; //GDFLL_AS_WAIT_CTRL_PCC register value to be passed to RLC msg
-  uint32_t        DfllPccAsStepCtrl; //GDFLL_AS_STEP_CTRL_PCC register value to be passed to RLC msg
+  uint32_t DfllPccAsWaitCtrl; //GDFLL_AS_WAIT_CTRL_PCC register value to be
+                              // passed to RLC msg
+  uint32_t DfllPccAsStepCtrl; //GDFLL_AS_STEP_CTRL_PCC register value to be
+                              // passed to RLC msg
 
-  uint32_t        DfllL2FrequencyBoostM; //Unitless (float)
-  uint32_t        DfllL2FrequencyBoostB; //In MHz (integer)
-  uint32_t        GfxGpoSpare[8];
+  uint32_t DfllL2FrequencyBoostM; //Unitless (float)
+  uint32_t DfllL2FrequencyBoostB; //In MHz (integer)
+  uint32_t GfxGpoSpare[8];
 
   // GFX DCS
 
-  uint16_t        DcsGfxOffVoltage;     //Voltage in mV(Q2) applied to VDDGFX when entering DCS GFXOFF phase
-  uint16_t        PaddingDcs;
+  uint16_t DcsGfxOffVoltage;     //Voltage in mV(Q2) applied to VDDGFX when
+                                 // entering DCS GFXOFF phase
+  uint16_t PaddingDcs;
 
-  uint16_t        DcsMinGfxOffTime;     //Minimum amount of time PMFW shuts GFX OFF as part of GFX DCS phase
-  uint16_t        DcsMaxGfxOffTime;      //Maximum amount of time PMFW can shut GFX OFF as part of GFX DCS phase at a stretch.
+  uint16_t DcsMinGfxOffTime;     //Minimum amount of time PMFW shuts GFX OFF as
+                                 // part of GFX DCS phase
+  uint16_t DcsMaxGfxOffTime;      //Maximum amount of time PMFW can shut GFX OFF
+                                  // as part of GFX DCS phase at a stretch.
 
-  uint32_t        DcsMinCreditAccum;    //Min amount of positive credit accumulation before waking GFX up as part of DCS.
+  uint32_t DcsMinCreditAccum;    //Min amount of positive credit accumulation
+                                 // before waking GFX up as part of DCS.
 
-  uint16_t        DcsExitHysteresis;    //The min amount of time power credit accumulator should have a value > 0 before SMU exits the DCS throttling phase.
-  uint16_t        DcsTimeout;           //This is the amount of time SMU FW waits for RLC to put GFX into GFXOFF before reverting to the fallback mechanism of throttling GFXCLK to Fmin.
+  uint16_t DcsExitHysteresis;    //The min amount of time power credit
+                                 // accumulator should have a value > 0 before
+                                 // SMU exits the DCS throttling phase.
+  uint16_t DcsTimeout;           //This is the amount of time SMU FW waits for
+                                 // RLC to put GFX into GFXOFF before reverting
+                                 // to the fallback mechanism of throttling
+                                 // GFXCLK to Fmin.
 
-  uint8_t         FoptEnabled;
-  uint8_t         DcsSpare2[3];
-  uint32_t        DcsFoptM;             //Tuning paramters to shift Fopt calculation
-  uint32_t        DcsFoptB;             //Tuning paramters to shift Fopt calculation
+  uint8_t FoptEnabled;
+  uint8_t DcsSpare2[3];
+  uint32_t DcsFoptM;             //Tuning paramters to shift Fopt calculation
+  uint32_t DcsFoptB;             //Tuning paramters to shift Fopt calculation
 
-  uint32_t        DcsSpare[11];
+  uint32_t DcsSpare[11];
 
   // UCLK section
-  uint16_t     ShadowFreqTableUclk[NUM_UCLK_DPM_LEVELS];     // In MHz
-  uint8_t      UseStrobeModeOptimizations; //Set to indicate that FW should use strobe mode optimizations
-  uint8_t      PaddingMem[3];
+  uint16_t ShadowFreqTableUclk[NUM_UCLK_DPM_LEVELS];     // In MHz
+  uint8_t UseStrobeModeOptimizations; //Set to indicate that FW should use
+                                      // strobe mode optimizations
+  uint8_t PaddingMem[3];
 
-  uint8_t      UclkDpmPstates     [NUM_UCLK_DPM_LEVELS];     // 4 DPM states, 0-P0, 1-P1, 2-P2, 3-P3.
-  uint8_t      FreqTableUclkDiv  [NUM_UCLK_DPM_LEVELS    ];     // 0:Div-1, 1:Div-1/2, 2:Div-1/4, 3:Div-1/8
+  uint8_t UclkDpmPstates[NUM_UCLK_DPM_LEVELS];     // 4 DPM states, 0-P0, 1-P1,
+                                                   // 2-P2, 3-P3.
+  uint8_t FreqTableUclkDiv[NUM_UCLK_DPM_LEVELS];     // 0:Div-1, 1:Div-1/2,
+                                                     // 2:Div-1/4, 3:Div-1/8
 
-  uint16_t     MemVmempVoltage   [NUM_UCLK_DPM_LEVELS];         // mV(Q2)
-  uint16_t     MemVddioVoltage    [NUM_UCLK_DPM_LEVELS];         // mV(Q2)
+  uint16_t MemVmempVoltage[NUM_UCLK_DPM_LEVELS];         // mV(Q2)
+  uint16_t MemVddioVoltage[NUM_UCLK_DPM_LEVELS];         // mV(Q2)
 
   //FCLK Section
 
-  uint8_t      FclkDpmUPstates[NUM_FCLK_DPM_LEVELS]; // U P-state ID associated with each FCLK DPM state.
-  uint16_t     FclkDpmVddU[NUM_FCLK_DPM_LEVELS]; // mV(Q2) Vset U voltage associated with each FCLK DPM state.
-  uint16_t     FclkDpmUSpeed[NUM_FCLK_DPM_LEVELS]; //U speed associated with each FCLK DPM state
-  uint16_t     FclkDpmDisallowPstateFreq;  //Frequency which FW will target when indicated that display config cannot support P-state. Set to 0 use FW calculated value
-  uint16_t     PaddingFclk;
+  uint8_t FclkDpmUPstates[NUM_FCLK_DPM_LEVELS]; // U P-state ID associated with
+                                                // each FCLK DPM state.
+  uint16_t FclkDpmVddU[NUM_FCLK_DPM_LEVELS]; // mV(Q2) Vset U voltage associated
+                                             // with each FCLK DPM state.
+  uint16_t FclkDpmUSpeed[NUM_FCLK_DPM_LEVELS]; //U speed associated with each
+                                               // FCLK DPM state
+  uint16_t FclkDpmDisallowPstateFreq;  //Frequency which FW will target when
+                                       // indicated that display config cannot
+                                       // support P-state. Set to 0 use FW
+                                       // calculated value
+  uint16_t PaddingFclk;
 
   // Link DPM Settings
-  uint8_t      PcieGenSpeed[NUM_LINK_LEVELS];           ///< 0:PciE-gen1 1:PciE-gen2 2:PciE-gen3 3:PciE-gen4
-  uint8_t      PcieLaneCount[NUM_LINK_LEVELS];          ///< 1=x1, 2=x2, 3=x4, 4=x8, 5=x12, 6=x16
-  uint16_t     LclkFreq[NUM_LINK_LEVELS];
+  uint8_t PcieGenSpeed[NUM_LINK_LEVELS];           ///< 0:PciE-gen1 1:PciE-gen2
+                                                   // 2:PciE-gen3 3:PciE-gen4
+  uint8_t PcieLaneCount[NUM_LINK_LEVELS];          ///< 1=x1, 2=x2, 3=x4, 4=x8,
+                                                   // 5=x12, 6=x16
+  uint16_t LclkFreq[NUM_LINK_LEVELS];
 
   // SECTION: Fan Control
-  uint16_t     FanStopTemp[TEMP_COUNT];          //Celsius
-  uint16_t     FanStartTemp[TEMP_COUNT];         //Celsius
+  uint16_t FanStopTemp[TEMP_COUNT];          //Celsius
+  uint16_t FanStartTemp[TEMP_COUNT];         //Celsius
 
-  uint16_t     FanGain[TEMP_COUNT];
-  uint16_t     FanGainPadding;
+  uint16_t FanGain[TEMP_COUNT];
+  uint16_t FanGainPadding;
 
-  uint16_t     FanPwmMin;
-  uint16_t     AcousticTargetRpmThreshold;
-  uint16_t     AcousticLimitRpmThreshold;
-  uint16_t     FanMaximumRpm;
-  uint16_t     MGpuAcousticLimitRpmThreshold;
-  uint16_t     FanTargetGfxclk;
-  uint32_t     TempInputSelectMask;
-  uint8_t      FanZeroRpmEnable;
-  uint8_t      FanTachEdgePerRev;
-  uint16_t     FanTargetTemperature[TEMP_COUNT];
+  uint16_t FanPwmMin;
+  uint16_t AcousticTargetRpmThreshold;
+  uint16_t AcousticLimitRpmThreshold;
+  uint16_t FanMaximumRpm;
+  uint16_t MGpuAcousticLimitRpmThreshold;
+  uint16_t FanTargetGfxclk;
+  uint32_t TempInputSelectMask;
+  uint8_t FanZeroRpmEnable;
+  uint8_t FanTachEdgePerRev;
+  uint16_t FanTargetTemperature[TEMP_COUNT];
 
   // The following are AFC override parameters. Leave at 0 to use FW defaults.
-  int16_t      FuzzyFan_ErrorSetDelta;
-  int16_t      FuzzyFan_ErrorRateSetDelta;
-  int16_t      FuzzyFan_PwmSetDelta;
-  uint16_t     FuzzyFan_Reserved;
+  int16_t FuzzyFan_ErrorSetDelta;
+  int16_t FuzzyFan_ErrorRateSetDelta;
+  int16_t FuzzyFan_PwmSetDelta;
+  uint16_t FuzzyFan_Reserved;
 
-  uint16_t     FwCtfLimit[TEMP_COUNT];
+  uint16_t FwCtfLimit[TEMP_COUNT];
 
   uint16_t IntakeTempEnableRPM;
   int16_t IntakeTempOffsetTemp;
@@ -1174,60 +1266,60 @@ typedef struct {
   uint16_t FanAbnormalTriggerRpmCoeff;
   uint16_t FanAbnormalDetectionEnable;
 
-  uint8_t      FanIntakeSensorSupport;
-  uint8_t      FanIntakePadding[3];
-  uint32_t     FanSpare[13];
+  uint8_t FanIntakeSensorSupport;
+  uint8_t FanIntakePadding[3];
+  uint32_t FanSpare[13];
 
   // SECTION: VDD_GFX AVFS
 
-  uint8_t      OverrideGfxAvfsFuses;
-  uint8_t      GfxAvfsPadding[3];
+  uint8_t OverrideGfxAvfsFuses;
+  uint8_t GfxAvfsPadding[3];
 
-  uint32_t     L2HwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT]; //see fusedoc for encoding
-  uint32_t     SeHwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT];
+  uint32_t L2HwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT]; //see fusedoc for encoding
+  uint32_t SeHwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT];
 
-  uint32_t     CommonRtAvfs[PP_GRTAVFS_FW_COMMON_FUSE_COUNT];
+  uint32_t CommonRtAvfs[PP_GRTAVFS_FW_COMMON_FUSE_COUNT];
 
-  uint32_t     L2FwRtAvfsFuses[PP_GRTAVFS_FW_SEP_FUSE_COUNT];
-  uint32_t     SeFwRtAvfsFuses[PP_GRTAVFS_FW_SEP_FUSE_COUNT];
+  uint32_t L2FwRtAvfsFuses[PP_GRTAVFS_FW_SEP_FUSE_COUNT];
+  uint32_t SeFwRtAvfsFuses[PP_GRTAVFS_FW_SEP_FUSE_COUNT];
 
-  uint32_t    Droop_PWL_F[PP_NUM_RTAVFS_PWL_ZONES];
-  uint32_t    Droop_PWL_a[PP_NUM_RTAVFS_PWL_ZONES];
-  uint32_t    Droop_PWL_b[PP_NUM_RTAVFS_PWL_ZONES];
-  uint32_t    Droop_PWL_c[PP_NUM_RTAVFS_PWL_ZONES];
+  uint32_t Droop_PWL_F[PP_NUM_RTAVFS_PWL_ZONES];
+  uint32_t Droop_PWL_a[PP_NUM_RTAVFS_PWL_ZONES];
+  uint32_t Droop_PWL_b[PP_NUM_RTAVFS_PWL_ZONES];
+  uint32_t Droop_PWL_c[PP_NUM_RTAVFS_PWL_ZONES];
 
-  uint32_t   Static_PWL_Offset[PP_NUM_RTAVFS_PWL_ZONES];
+  uint32_t Static_PWL_Offset[PP_NUM_RTAVFS_PWL_ZONES];
 
-  uint32_t   dGbV_dT_vmin;
-  uint32_t   dGbV_dT_vmax;
+  uint32_t dGbV_dT_vmin;
+  uint32_t dGbV_dT_vmax;
 
   //Unused: PMFW-9370
-  uint32_t   V2F_vmin_range_low;
-  uint32_t   V2F_vmin_range_high;
-  uint32_t   V2F_vmax_range_low;
-  uint32_t   V2F_vmax_range_high;
+  uint32_t V2F_vmin_range_low;
+  uint32_t V2F_vmin_range_high;
+  uint32_t V2F_vmax_range_low;
+  uint32_t V2F_vmax_range_high;
 
   AvfsDcBtcParams_t DcBtcGfxParams;
 
-  uint32_t   GfxAvfsSpare[32];
+  uint32_t GfxAvfsSpare[32];
 
   //SECTION: VDD_SOC AVFS
 
-  uint8_t      OverrideSocAvfsFuses;
-  uint8_t      MinSocAvfsRevision;
-  uint8_t      SocAvfsPadding[2];
+  uint8_t OverrideSocAvfsFuses;
+  uint8_t MinSocAvfsRevision;
+  uint8_t SocAvfsPadding[2];
 
   AvfsFuseOverride_t SocAvfsFuseOverride[AVFS_D_COUNT];
 
-  DroopInt_t        dBtcGbSoc[AVFS_D_COUNT];            // GHz->V BtcGb
+  DroopInt_t dBtcGbSoc[AVFS_D_COUNT];            // GHz->V BtcGb
 
-  LinearInt_t       qAgingGb[AVFS_D_COUNT];          // GHz->V
+  LinearInt_t qAgingGb[AVFS_D_COUNT];          // GHz->V
 
-  QuadraticInt_t    qStaticVoltageOffset[AVFS_D_COUNT]; // GHz->V
+  QuadraticInt_t qStaticVoltageOffset[AVFS_D_COUNT]; // GHz->V
 
   AvfsDcBtcParams_t DcBtcSocParams[AVFS_D_COUNT];
 
-  uint32_t   SocAvfsSpare[32];
+  uint32_t SocAvfsSpare[32];
 
   //SECTION: Boot clock and voltage values
   BootValues_t BootValues;
@@ -1244,128 +1336,140 @@ typedef struct {
   uint32_t reserved[22];
 
   // SECTION: Advanced Options
-  uint32_t          DebugOverrides;
+  uint32_t DebugOverrides;
 
   // Section: Total Board Power idle vs active coefficients
-  uint8_t     TotalBoardPowerSupport;
-  uint8_t     TotalBoardPowerPadding[3];
+  uint8_t TotalBoardPowerSupport;
+  uint8_t TotalBoardPowerPadding[3];
 
-  int16_t     TotalIdleBoardPowerM;
-  int16_t     TotalIdleBoardPowerB;
-  int16_t     TotalBoardPowerM;
-  int16_t     TotalBoardPowerB;
+  int16_t TotalIdleBoardPowerM;
+  int16_t TotalIdleBoardPowerB;
+  int16_t TotalBoardPowerM;
+  int16_t TotalBoardPowerB;
 
   //PMFW-11158
   QuadraticInt_t qFeffCoeffGameClock[POWER_SOURCE_COUNT];
   QuadraticInt_t qFeffCoeffBaseClock[POWER_SOURCE_COUNT];
   QuadraticInt_t qFeffCoeffBoostClock[POWER_SOURCE_COUNT];
 
-  uint16_t TemperatureLimit_Hynix; // In degrees Celsius. Memory temperature limit associated with Hynix
-  uint16_t TemperatureLimit_Micron; // In degrees Celsius. Memory temperature limit associated with Micron
+  uint16_t TemperatureLimit_Hynix; // In degrees Celsius. Memory temperature
+                                   // limit associated with Hynix
+  uint16_t TemperatureLimit_Micron; // In degrees Celsius. Memory temperature
+                                    // limit associated with Micron
   uint16_t TemperatureFwCtfLimit_Hynix;
   uint16_t TemperatureFwCtfLimit_Micron;
 
   // SECTION: Sku Reserved
-  uint32_t         Spare[41];
+  uint32_t Spare[41];
 
   // Padding for MMHUB - do not modify this
-  uint32_t     MmHubPadding[8];
-
+  uint32_t MmHubPadding[8];
 } SkuTable_t;
 
 typedef struct {
   // SECTION: Version
-  uint32_t    Version; //should be unique to each board type
-
+  uint32_t Version; //should be unique to each board type
 
   // SECTION: I2C Control
-  I2cControllerConfig_t  I2cControllers[NUM_I2C_CONTROLLERS];
+  I2cControllerConfig_t I2cControllers[NUM_I2C_CONTROLLERS];
 
   // SECTION: SVI2 Board Parameters
-  uint8_t      VddGfxVrMapping;   // Use VR_MAPPING* bitfields
-  uint8_t      VddSocVrMapping;   // Use VR_MAPPING* bitfields
-  uint8_t      VddMem0VrMapping;  // Use VR_MAPPING* bitfields
-  uint8_t      VddMem1VrMapping;  // Use VR_MAPPING* bitfields
+  uint8_t VddGfxVrMapping;   // Use VR_MAPPING* bitfields
+  uint8_t VddSocVrMapping;   // Use VR_MAPPING* bitfields
+  uint8_t VddMem0VrMapping;  // Use VR_MAPPING* bitfields
+  uint8_t VddMem1VrMapping;  // Use VR_MAPPING* bitfields
 
-  uint8_t      GfxUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
-  uint8_t      SocUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
-  uint8_t      VmempUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
-  uint8_t      VddioUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV mode
+  uint8_t GfxUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV
+                                   // mode
+  uint8_t SocUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV
+                                   // mode
+  uint8_t VmempUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV
+                                     // mode
+  uint8_t VddioUlvPhaseSheddingMask; // set this to 1 to set PSI0/1 to 1 in ULV
+                                     // mode
 
   //SECTION SVI3 Board Parameters
-  uint8_t      SlaveAddrMapping[SVI_PLANE_COUNT];
-  uint8_t      VrPsiSupport[SVI_PLANE_COUNT];
+  uint8_t SlaveAddrMapping[SVI_PLANE_COUNT];
+  uint8_t VrPsiSupport[SVI_PLANE_COUNT];
 
-  uint8_t      PaddingPsi[SVI_PLANE_COUNT];
-  uint8_t      EnablePsi6[SVI_PLANE_COUNT];       // only applicable in SVI3
+  uint8_t PaddingPsi[SVI_PLANE_COUNT];
+  uint8_t EnablePsi6[SVI_PLANE_COUNT];       // only applicable in SVI3
 
   // SECTION: Voltage Regulator Settings
   SviTelemetryScale_t SviTelemetryScale[SVI_PLANE_COUNT];
-  uint32_t     VoltageTelemetryRatio[SVI_PLANE_COUNT]; // This is used for VDDIO  Svi2 Div Ratio workaround. It has 16 fractional bits (Q16.16)
+  uint32_t VoltageTelemetryRatio[SVI_PLANE_COUNT]; // This is used for VDDIO
+                                                   //  Svi2 Div Ratio
+                                                   // workaround. It has 16
+                                                   // fractional bits (Q16.16)
 
-  uint8_t      DownSlewRateVr[SVI_PLANE_COUNT];
+  uint8_t DownSlewRateVr[SVI_PLANE_COUNT];
 
   // SECTION: GPIO Settings
 
-  uint8_t      LedOffGpio;
-  uint8_t      FanOffGpio;
-  uint8_t      GfxVrPowerStageOffGpio;
+  uint8_t LedOffGpio;
+  uint8_t FanOffGpio;
+  uint8_t GfxVrPowerStageOffGpio;
 
-  uint8_t      AcDcGpio;        // GPIO pin configured for AC/DC switching
-  uint8_t      AcDcPolarity;    // GPIO polarity for AC/DC switching
-  uint8_t      VR0HotGpio;      // GPIO pin configured for VR0 HOT event
-  uint8_t      VR0HotPolarity;  // GPIO polarity for VR0 HOT event
+  uint8_t AcDcGpio;        // GPIO pin configured for AC/DC switching
+  uint8_t AcDcPolarity;    // GPIO polarity for AC/DC switching
+  uint8_t VR0HotGpio;      // GPIO pin configured for VR0 HOT event
+  uint8_t VR0HotPolarity;  // GPIO polarity for VR0 HOT event
 
-  uint8_t      GthrGpio;        // GPIO pin configured for GTHR Event
-  uint8_t      GthrPolarity;    // replace GPIO polarity for GTHR
+  uint8_t GthrGpio;        // GPIO pin configured for GTHR Event
+  uint8_t GthrPolarity;    // replace GPIO polarity for GTHR
 
   // LED Display Settings
-  uint8_t      LedPin0;         // GPIO number for LedPin[0]
-  uint8_t      LedPin1;         // GPIO number for LedPin[1]
-  uint8_t      LedPin2;         // GPIO number for LedPin[2]
-  uint8_t      LedEnableMask;
+  uint8_t LedPin0;         // GPIO number for LedPin[0]
+  uint8_t LedPin1;         // GPIO number for LedPin[1]
+  uint8_t LedPin2;         // GPIO number for LedPin[2]
+  uint8_t LedEnableMask;
 
-  uint8_t      LedPcie;        // GPIO number for PCIE results
-  uint8_t      LedError;       // GPIO number for Error Cases
+  uint8_t LedPcie;        // GPIO number for PCIE results
+  uint8_t LedError;       // GPIO number for Error Cases
 
   // SECTION: Clock Spread Spectrum
 
   // UCLK Spread Spectrum
-  uint8_t      UclkTrainingModeSpreadPercent;
-  uint8_t      UclkSpreadPadding;
-  uint16_t     UclkSpreadFreq;      // kHz
+  uint8_t UclkTrainingModeSpreadPercent;
+  uint8_t UclkSpreadPadding;
+  uint16_t UclkSpreadFreq;      // kHz
 
   // UCLK Spread Spectrum
-  uint8_t      UclkSpreadPercent[MEM_VENDOR_COUNT];
+  uint8_t UclkSpreadPercent[MEM_VENDOR_COUNT];
 
-  uint8_t      GfxclkSpreadEnable;
+  uint8_t GfxclkSpreadEnable;
 
   // FCLK Spread Spectrum
-  uint8_t      FclkSpreadPercent;   // Q4.4
-  uint16_t     FclkSpreadFreq;      // kHz
+  uint8_t FclkSpreadPercent;   // Q4.4
+  uint16_t FclkSpreadFreq;      // kHz
 
   // Section: Memory Config
-  uint8_t      DramWidth; // Width of interface to the channel for each DRAM module. See DRAM_BIT_WIDTH_TYPE_e
-  uint8_t      PaddingMem1[7];
+  uint8_t DramWidth; // Width of interface to the channel for each DRAM module.
+                     // See DRAM_BIT_WIDTH_TYPE_e
+  uint8_t PaddingMem1[7];
 
   // SECTION: UMC feature flags
-  uint8_t      HsrEnabled;
-  uint8_t      VddqOffEnabled;
-  uint8_t      PaddingUmcFlags[2];
+  uint8_t HsrEnabled;
+  uint8_t VddqOffEnabled;
+  uint8_t PaddingUmcFlags[2];
 
-  uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
-  uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
+  uint32_t PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will
+                                    // wait after power good is established or
+                                    // PSI0 command is issued
+  uint32_t BacoEntryDelay; // in milliseconds. Amount of time FW will wait to
+                           // trigger BACO entry after receiving entry
+                           // notification from OS
 
-  uint8_t     FuseWritePowerMuxPresent;
-  uint8_t     FuseWritePadding[3];
+  uint8_t FuseWritePowerMuxPresent;
+  uint8_t FuseWritePadding[3];
 
   // SECTION: Board Reserved
-  uint32_t     BoardSpare[63];
+  uint32_t BoardSpare[63];
 
   // SECTION: Structure Padding
 
   // Padding for MMHUB - do not modify this
-  uint32_t     MmHubPadding[8];
+  uint32_t MmHubPadding[8];
 } BoardTable_t;
 
 #pragma pack(push, 1)
@@ -1377,48 +1481,45 @@ typedef struct {
 
 typedef struct {
   // Time constant parameters for clock averages in ms
-  uint16_t     GfxclkAverageLpfTau;
-  uint16_t     FclkAverageLpfTau;
-  uint16_t     UclkAverageLpfTau;
-  uint16_t     GfxActivityLpfTau;
-  uint16_t     UclkActivityLpfTau;
-  uint16_t     SocketPowerLpfTau;
-  uint16_t     VcnClkAverageLpfTau;
-  uint16_t     VcnUsageAverageLpfTau;
+  uint16_t GfxclkAverageLpfTau;
+  uint16_t FclkAverageLpfTau;
+  uint16_t UclkAverageLpfTau;
+  uint16_t GfxActivityLpfTau;
+  uint16_t UclkActivityLpfTau;
+  uint16_t SocketPowerLpfTau;
+  uint16_t VcnClkAverageLpfTau;
+  uint16_t VcnUsageAverageLpfTau;
 } DriverSmuConfig_t;
 
 typedef struct {
   DriverSmuConfig_t DriverSmuConfig;
 
-  uint32_t     Spare[8];
+  uint32_t Spare[8];
   // Padding - ignore
-  uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } DriverSmuConfigExternal_t;
 
-
 typedef struct {
+  uint16_t FreqTableGfx[NUM_GFXCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableVclk[NUM_VCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDclk[NUM_DCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableSocclk[NUM_SOCCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableUclk[NUM_UCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDispclk[NUM_DISPCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDppClk[NUM_DPPCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDprefclk[NUM_DPREFCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDcfclk[NUM_DCFCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableDtbclk[NUM_DTBCLK_DPM_LEVELS];     // In MHz
+  uint16_t FreqTableFclk[NUM_FCLK_DPM_LEVELS];     // In MHz
 
-  uint16_t       FreqTableGfx      [NUM_GFXCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableVclk     [NUM_VCLK_DPM_LEVELS    ];     // In MHz
-  uint16_t       FreqTableDclk     [NUM_DCLK_DPM_LEVELS    ];     // In MHz
-  uint16_t       FreqTableSocclk   [NUM_SOCCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableUclk     [NUM_UCLK_DPM_LEVELS    ];     // In MHz
-  uint16_t       FreqTableDispclk  [NUM_DISPCLK_DPM_LEVELS ];     // In MHz
-  uint16_t       FreqTableDppClk   [NUM_DPPCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableDprefclk [NUM_DPREFCLK_DPM_LEVELS];     // In MHz
-  uint16_t       FreqTableDcfclk   [NUM_DCFCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableDtbclk   [NUM_DTBCLK_DPM_LEVELS  ];     // In MHz
-  uint16_t       FreqTableFclk     [NUM_FCLK_DPM_LEVELS    ];     // In MHz
+  uint16_t DcModeMaxFreq[PPCLK_COUNT];     // In MHz
 
-  uint16_t       DcModeMaxFreq     [PPCLK_COUNT            ];     // In MHz
-
-  uint16_t       Padding;
+  uint16_t Padding;
 
   uint32_t Spare[32];
 
   // Padding - ignore
-  uint32_t     MmHubPadding[8]; // SMU internal use
-
+  uint32_t MmHubPadding[8]; // SMU internal use
 } DriverInfoTable_t;
 
 typedef struct {
@@ -1429,12 +1530,13 @@ typedef struct {
   uint16_t AverageGfxclkFrequencyPostDs;
   uint16_t AverageFclkFrequencyPreDs;
   uint16_t AverageFclkFrequencyPostDs;
-  uint16_t AverageMemclkFrequencyPreDs  ; // this is scaled to actual memory clock
-  uint16_t AverageMemclkFrequencyPostDs  ; // this is scaled to actual memory clock
-  uint16_t AverageVclk0Frequency  ;
-  uint16_t AverageDclk0Frequency  ;
-  uint16_t AverageVclk1Frequency  ;
-  uint16_t AverageDclk1Frequency  ;
+  uint16_t AverageMemclkFrequencyPreDs; // this is scaled to actual memory clock
+  uint16_t AverageMemclkFrequencyPostDs; // this is scaled to actual memory
+                                         // clock
+  uint16_t AverageVclk0Frequency;
+  uint16_t AverageDclk0Frequency;
+  uint16_t AverageVclk1Frequency;
+  uint16_t AverageDclk1Frequency;
   uint16_t PCIeBusy;
   uint16_t dGPU_W_MAX;
   uint16_t padding;
@@ -1444,10 +1546,10 @@ typedef struct {
   uint16_t AvgVoltage[SVI_PLANE_COUNT];
   uint16_t AvgCurrent[SVI_PLANE_COUNT];
 
-  uint16_t AverageGfxActivity    ;
-  uint16_t AverageUclkActivity   ;
-  uint16_t Vcn0ActivityPercentage  ;
-  uint16_t Vcn1ActivityPercentage  ;
+  uint16_t AverageGfxActivity;
+  uint16_t AverageUclkActivity;
+  uint16_t Vcn0ActivityPercentage;
+  uint16_t Vcn1ActivityPercentage;
 
   uint32_t EnergyAccumulator;
   uint16_t AverageSocketPower;
@@ -1456,13 +1558,12 @@ typedef struct {
   uint16_t AvgTemperature[TEMP_COUNT];
   uint16_t AvgTemperatureFanIntake;
 
-  uint8_t  PcieRate               ;
-  uint8_t  PcieWidth              ;
+  uint8_t PcieRate;
+  uint8_t PcieWidth;
 
-  uint8_t  AvgFanPwm;
-  uint8_t  Padding[1];
+  uint8_t AvgFanPwm;
+  uint8_t Padding[1];
   uint16_t AvgFanRpm;
-
 
   uint8_t ThrottlingPercentage[THROTTLER_COUNT];
   uint8_t VmaxThrottlingPercentage;
@@ -1481,7 +1582,6 @@ typedef struct {
 
   uint32_t PublicSerialNumberLower;
   uint32_t PublicSerialNumberUpper;
-
 } SmuMetrics_t;
 
 typedef struct {
@@ -1489,14 +1589,13 @@ typedef struct {
   uint32_t Spare[29];
 
   // Padding - ignore
-  uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } SmuMetricsExternal_t;
 
 typedef struct {
-  uint8_t  WmSetting;
-  uint8_t  Flags;
-  uint8_t  Padding[2];
-
+  uint8_t WmSetting;
+  uint8_t Flags;
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -1515,71 +1614,68 @@ typedef struct {
 
 typedef struct {
   Watermarks_t Watermarks;
-  uint32_t  Spare[16];
+  uint32_t Spare[16];
 
-  uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } WatermarksExternal_t;
 
 typedef struct {
   uint16_t avgPsmCount[214];
   uint16_t minPsmCount[214];
-  float    avgPsmVoltage[214];
-  float    minPsmVoltage[214];
+  float avgPsmVoltage[214];
+  float minPsmVoltage[214];
 } AvfsDebugTable_t;
 
 typedef struct {
   AvfsDebugTable_t AvfsDebugTable;
 
-  uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } AvfsDebugTableExternal_t;
 
-
 typedef struct {
-  uint8_t   Gfx_ActiveHystLimit;
-  uint8_t   Gfx_IdleHystLimit;
-  uint8_t   Gfx_FPS;
-  uint8_t   Gfx_MinActiveFreqType;
-  uint8_t   Gfx_BoosterFreqType;
-  uint8_t   PaddingGfx;
-  uint16_t  Gfx_MinActiveFreq;              // MHz
-  uint16_t  Gfx_BoosterFreq;                // MHz
-  uint16_t  Gfx_PD_Data_time_constant;      // Time constant of PD controller in ms
-  uint32_t  Gfx_PD_Data_limit_a;            // Q16
-  uint32_t  Gfx_PD_Data_limit_b;            // Q16
-  uint32_t  Gfx_PD_Data_limit_c;            // Q16
-  uint32_t  Gfx_PD_Data_error_coeff;        // Q16
-  uint32_t  Gfx_PD_Data_error_rate_coeff;   // Q16
+  uint8_t Gfx_ActiveHystLimit;
+  uint8_t Gfx_IdleHystLimit;
+  uint8_t Gfx_FPS;
+  uint8_t Gfx_MinActiveFreqType;
+  uint8_t Gfx_BoosterFreqType;
+  uint8_t PaddingGfx;
+  uint16_t Gfx_MinActiveFreq;              // MHz
+  uint16_t Gfx_BoosterFreq;                // MHz
+  uint16_t Gfx_PD_Data_time_constant;      // Time constant of PD controller in
+                                           // ms
+  uint32_t Gfx_PD_Data_limit_a;            // Q16
+  uint32_t Gfx_PD_Data_limit_b;            // Q16
+  uint32_t Gfx_PD_Data_limit_c;            // Q16
+  uint32_t Gfx_PD_Data_error_coeff;        // Q16
+  uint32_t Gfx_PD_Data_error_rate_coeff;   // Q16
 
-  uint8_t   Fclk_ActiveHystLimit;
-  uint8_t   Fclk_IdleHystLimit;
-  uint8_t   Fclk_FPS;
-  uint8_t   Fclk_MinActiveFreqType;
-  uint8_t   Fclk_BoosterFreqType;
-  uint8_t   PaddingFclk;
-  uint16_t  Fclk_MinActiveFreq;              // MHz
-  uint16_t  Fclk_BoosterFreq;                // MHz
-  uint16_t  Fclk_PD_Data_time_constant;      // Time constant of PD controller in ms
-  uint32_t  Fclk_PD_Data_limit_a;            // Q16
-  uint32_t  Fclk_PD_Data_limit_b;            // Q16
-  uint32_t  Fclk_PD_Data_limit_c;            // Q16
-  uint32_t  Fclk_PD_Data_error_coeff;        // Q16
-  uint32_t  Fclk_PD_Data_error_rate_coeff;   // Q16
+  uint8_t Fclk_ActiveHystLimit;
+  uint8_t Fclk_IdleHystLimit;
+  uint8_t Fclk_FPS;
+  uint8_t Fclk_MinActiveFreqType;
+  uint8_t Fclk_BoosterFreqType;
+  uint8_t PaddingFclk;
+  uint16_t Fclk_MinActiveFreq;              // MHz
+  uint16_t Fclk_BoosterFreq;                // MHz
+  uint16_t Fclk_PD_Data_time_constant;      // Time constant of PD controller in
+                                            // ms
+  uint32_t Fclk_PD_Data_limit_a;            // Q16
+  uint32_t Fclk_PD_Data_limit_b;            // Q16
+  uint32_t Fclk_PD_Data_limit_c;            // Q16
+  uint32_t Fclk_PD_Data_error_coeff;        // Q16
+  uint32_t Fclk_PD_Data_error_rate_coeff;   // Q16
 
-  uint32_t  Mem_UpThreshold_Limit[NUM_UCLK_DPM_LEVELS];          // Q16
-  uint8_t   Mem_UpHystLimit[NUM_UCLK_DPM_LEVELS];
-  uint8_t   Mem_DownHystLimit[NUM_UCLK_DPM_LEVELS];
-  uint16_t  Mem_Fps;
-  uint8_t   padding[2];
-
+  uint32_t Mem_UpThreshold_Limit[NUM_UCLK_DPM_LEVELS];          // Q16
+  uint8_t Mem_UpHystLimit[NUM_UCLK_DPM_LEVELS];
+  uint8_t Mem_DownHystLimit[NUM_UCLK_DPM_LEVELS];
+  uint16_t Mem_Fps;
+  uint8_t padding[2];
 } DpmActivityMonitorCoeffInt_t;
-
 
 typedef struct {
   DpmActivityMonitorCoeffInt_t DpmActivityMonitorCoeffInt;
-  uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } DpmActivityMonitorCoeffIntExternal_t;
-
-
 
 // Workload bits
 #define WORKLOAD_PPLIB_DEFAULT_BIT        0
@@ -1591,7 +1687,6 @@ typedef struct {
 #define WORKLOAD_PPLIB_CUSTOM_BIT         6
 #define WORKLOAD_PPLIB_WINDOW_3D_BIT      7
 #define WORKLOAD_PPLIB_COUNT              8
-
 
 // These defines are used with the following messages:
 // SMC_MSG_TransferTableDram2Smu

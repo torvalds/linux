@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_NIF_RTR_CTRL_3_REGS_H_
 #define ASIC_REG_NIF_RTR_CTRL_3_REGS_H_

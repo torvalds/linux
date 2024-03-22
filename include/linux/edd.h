@@ -25,5 +25,5 @@
 
 #ifndef __ASSEMBLY__
 extern struct edd edd;
-#endif				/*!__ASSEMBLY__ */
-#endif				/* _LINUX_EDD_H */
+#endif        /*!__ASSEMBLY__ */
+#endif        /* _LINUX_EDD_H */

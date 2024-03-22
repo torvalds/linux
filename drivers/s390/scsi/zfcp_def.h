@@ -44,7 +44,7 @@
 /********************* FSF SPECIFIC DEFINES *********************************/
 
 /* ATTENTION: value must not be used by hardware */
-#define FSF_QTCB_UNSOLICITED_STATUS		0x6305
+#define FSF_QTCB_UNSOLICITED_STATUS   0x6305
 
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
@@ -52,40 +52,40 @@
  * Note, the leftmost 12 status bits (3 nibbles) are common among adapter, port
  * and unit. This is a mask for bitwise 'and' with status values.
  */
-#define ZFCP_COMMON_FLAGS			0xfff00000
+#define ZFCP_COMMON_FLAGS     0xfff00000
 
 /* common status bits */
-#define ZFCP_STATUS_COMMON_RUNNING		0x40000000
-#define ZFCP_STATUS_COMMON_ERP_FAILED		0x20000000
-#define ZFCP_STATUS_COMMON_UNBLOCKED		0x10000000
+#define ZFCP_STATUS_COMMON_RUNNING    0x40000000
+#define ZFCP_STATUS_COMMON_ERP_FAILED   0x20000000
+#define ZFCP_STATUS_COMMON_UNBLOCKED    0x10000000
 #define ZFCP_STATUS_COMMON_OPEN                 0x04000000
-#define ZFCP_STATUS_COMMON_ERP_INUSE		0x01000000
-#define ZFCP_STATUS_COMMON_ACCESS_DENIED	0x00800000
-#define ZFCP_STATUS_COMMON_ACCESS_BOXED		0x00400000
-#define ZFCP_STATUS_COMMON_NOESC		0x00200000
+#define ZFCP_STATUS_COMMON_ERP_INUSE    0x01000000
+#define ZFCP_STATUS_COMMON_ACCESS_DENIED  0x00800000
+#define ZFCP_STATUS_COMMON_ACCESS_BOXED   0x00400000
+#define ZFCP_STATUS_COMMON_NOESC    0x00200000
 
 /* adapter status */
-#define ZFCP_STATUS_ADAPTER_MB_ACT		0x00000001
-#define ZFCP_STATUS_ADAPTER_QDIOUP		0x00000002
-#define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED	0x00000004
-#define ZFCP_STATUS_ADAPTER_XCONFIG_OK		0x00000008
-#define ZFCP_STATUS_ADAPTER_HOST_CON_INIT	0x00000010
-#define ZFCP_STATUS_ADAPTER_ERP_PENDING		0x00000100
-#define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED	0x00000200
-#define ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED	0x00000400
+#define ZFCP_STATUS_ADAPTER_MB_ACT    0x00000001
+#define ZFCP_STATUS_ADAPTER_QDIOUP    0x00000002
+#define ZFCP_STATUS_ADAPTER_SIOSL_ISSUED  0x00000004
+#define ZFCP_STATUS_ADAPTER_XCONFIG_OK    0x00000008
+#define ZFCP_STATUS_ADAPTER_HOST_CON_INIT 0x00000010
+#define ZFCP_STATUS_ADAPTER_ERP_PENDING   0x00000100
+#define ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED  0x00000200
+#define ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED  0x00000400
 
 /* remote port status */
-#define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
-#define ZFCP_STATUS_PORT_LINK_TEST		0x00000002
+#define ZFCP_STATUS_PORT_PHYS_OPEN    0x00000001
+#define ZFCP_STATUS_PORT_LINK_TEST    0x00000002
 
 /* FSF request status (this does not have a common part) */
-#define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
-#define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
-#define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED	0x00000040
+#define ZFCP_STATUS_FSFREQ_ERROR    0x00000008
+#define ZFCP_STATUS_FSFREQ_CLEANUP    0x00000010
+#define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED 0x00000040
 #define ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED       0x00000080
 #define ZFCP_STATUS_FSFREQ_TMFUNCFAILED         0x00000200
 #define ZFCP_STATUS_FSFREQ_DISMISSED            0x00001000
-#define ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE	0x00020000
+#define ZFCP_STATUS_FSFREQ_XDATAINCOMPLETE  0x00020000
 
 /************************* STRUCTURE DEFINITIONS *****************************/
 
@@ -101,10 +101,10 @@
  * zfcp_dbf_rec_run_lvl(), zfcp_dbf_rec_run(), &zfcp_dbf_rec_running.rec_action.
  */
 enum zfcp_erp_act_type {
-	ZFCP_ERP_ACTION_REOPEN_LUN	   = 1,
-	ZFCP_ERP_ACTION_REOPEN_PORT	   = 2,
-	ZFCP_ERP_ACTION_REOPEN_PORT_FORCED = 3,
-	ZFCP_ERP_ACTION_REOPEN_ADAPTER	   = 4,
+  ZFCP_ERP_ACTION_REOPEN_LUN = 1,
+  ZFCP_ERP_ACTION_REOPEN_PORT = 2,
+  ZFCP_ERP_ACTION_REOPEN_PORT_FORCED = 3,
+  ZFCP_ERP_ACTION_REOPEN_ADAPTER = 4,
 };
 
 /*
@@ -113,139 +113,141 @@ enum zfcp_erp_act_type {
  * &zfcp_dbf_rec_running.rec_step.
  */
 enum zfcp_erp_steps {
-	ZFCP_ERP_STEP_UNINITIALIZED	= 0x0000,
-	ZFCP_ERP_STEP_PHYS_PORT_CLOSING	= 0x0010,
-	ZFCP_ERP_STEP_PORT_CLOSING	= 0x0100,
-	ZFCP_ERP_STEP_PORT_OPENING	= 0x0800,
-	ZFCP_ERP_STEP_LUN_CLOSING	= 0x1000,
-	ZFCP_ERP_STEP_LUN_OPENING	= 0x2000,
+  ZFCP_ERP_STEP_UNINITIALIZED = 0x0000,
+  ZFCP_ERP_STEP_PHYS_PORT_CLOSING = 0x0010,
+  ZFCP_ERP_STEP_PORT_CLOSING = 0x0100,
+  ZFCP_ERP_STEP_PORT_OPENING = 0x0800,
+  ZFCP_ERP_STEP_LUN_CLOSING = 0x1000,
+  ZFCP_ERP_STEP_LUN_OPENING = 0x2000,
 };
 
 struct zfcp_erp_action {
-	struct list_head list;
-	enum zfcp_erp_act_type type;  /* requested action code */
-	struct zfcp_adapter *adapter; /* device which should be recovered */
-	struct zfcp_port *port;
-	struct scsi_device *sdev;
-	u32		status;	      /* recovery status */
-	enum zfcp_erp_steps	step;	/* active step of this erp action */
-	u64			fsf_req_id;
-	struct timer_list timer;
+  struct list_head list;
+  enum zfcp_erp_act_type type;  /* requested action code */
+  struct zfcp_adapter *adapter; /* device which should be recovered */
+  struct zfcp_port *port;
+  struct scsi_device *sdev;
+  u32 status;       /* recovery status */
+  enum zfcp_erp_steps step; /* active step of this erp action */
+  u64 fsf_req_id;
+  struct timer_list timer;
 };
 
 /* holds various memory pools of an adapter */
 struct zfcp_adapter_mempool {
-	mempool_t *erp_req;
-	mempool_t *gid_pn_req;
-	mempool_t *scsi_req;
-	mempool_t *scsi_abort;
-	mempool_t *status_read_req;
-	mempool_t *sr_data;
-	mempool_t *gid_pn;
-	mempool_t *qtcb_pool;
+  mempool_t *erp_req;
+  mempool_t *gid_pn_req;
+  mempool_t *scsi_req;
+  mempool_t *scsi_abort;
+  mempool_t *status_read_req;
+  mempool_t *sr_data;
+  mempool_t *gid_pn;
+  mempool_t *qtcb_pool;
 };
 
 struct zfcp_adapter {
-	struct kref		ref;
-	u64			peer_wwnn;	   /* P2P peer WWNN */
-	u64			peer_wwpn;	   /* P2P peer WWPN */
-	u32			peer_d_id;	   /* P2P peer D_ID */
-	struct ccw_device       *ccw_device;	   /* S/390 ccw device */
-	struct zfcp_qdio	*qdio;
-	u32			hydra_version;	   /* Hydra version */
-	u32			fsf_lic_version;
-	u32			adapter_features;  /* FCP channel features */
-	u32			connection_features; /* host connection features */
-	u32			hardware_version;  /* of FCP channel */
-	u32			fc_security_algorithms; /* of FCP channel */
-	u32			fc_security_algorithms_old; /* of FCP channel */
-	u16			timer_ticks;       /* time int for a tick */
-	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
-	struct list_head	port_list;	   /* remote port list */
-	rwlock_t		port_list_lock;    /* port list lock */
-	u64			req_no;		   /* unique FSF req number */
-	struct zfcp_reqlist	*req_list;
-	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
-	rwlock_t		abort_lock;        /* Protects against SCSI
-						      stack abort/command
-						      completion races */
-	atomic_t		stat_miss;	   /* # missing status reads*/
-	unsigned int		stat_read_buf_num;
-	struct work_struct	stat_work;
-	atomic_t		status;	           /* status of this adapter */
-	struct list_head	erp_ready_head;	   /* error recovery for this
-						      adapter/devices */
-	wait_queue_head_t	erp_ready_wq;
-	struct list_head	erp_running_head;
-	rwlock_t		erp_lock;
-	wait_queue_head_t	erp_done_wqh;
-	struct zfcp_erp_action	erp_action;	   /* pending error recovery */
-	atomic_t		erp_counter;
-	u32			erp_total_count;   /* total nr of enqueued erp
-						      actions */
-	u32			erp_low_mem_count; /* nr of erp actions waiting
-						      for memory */
-	struct task_struct	*erp_thread;
-	struct zfcp_fc_wka_ports *gs;		   /* generic services */
-	struct zfcp_dbf		*dbf;		   /* debug traces */
-	struct zfcp_adapter_mempool	pool;      /* Adapter memory pools */
-	struct fc_host_statistics *fc_stats;
-	struct fsf_qtcb_bottom_port *stats_reset_data;
-	unsigned long		stats_reset;
-	struct delayed_work	scan_work;
-	struct work_struct	ns_up_work;
-	struct service_level	service_level;
-	struct workqueue_struct	*work_queue;
-	struct device_dma_parameters dma_parms;
-	struct zfcp_fc_events events;
-	unsigned long		next_port_scan;
-	struct zfcp_diag_adapter	*diagnostics;
-	struct work_struct	version_change_lost_work;
+  struct kref ref;
+  u64 peer_wwnn;     /* P2P peer WWNN */
+  u64 peer_wwpn;     /* P2P peer WWPN */
+  u32 peer_d_id;     /* P2P peer D_ID */
+  struct ccw_device *ccw_device;     /* S/390 ccw device */
+  struct zfcp_qdio *qdio;
+  u32 hydra_version;     /* Hydra version */
+  u32 fsf_lic_version;
+  u32 adapter_features;  /* FCP channel features */
+  u32 connection_features; /* host connection features */
+  u32 hardware_version;  /* of FCP channel */
+  u32 fc_security_algorithms; /* of FCP channel */
+  u32 fc_security_algorithms_old; /* of FCP channel */
+  u16 timer_ticks;       /* time int for a tick */
+  struct Scsi_Host *scsi_host;    /* Pointer to mid-layer */
+  struct list_head port_list;     /* remote port list */
+  rwlock_t port_list_lock;    /* port list lock */
+  u64 req_no;      /* unique FSF req number */
+  struct zfcp_reqlist *req_list;
+  u32 fsf_req_seq_no;    /* FSF cmnd seq number */
+  rwlock_t abort_lock;        /* Protects against SCSI
+                               * stack abort/command
+                               * completion races */
+  atomic_t stat_miss;     /* # missing status reads*/
+  unsigned int stat_read_buf_num;
+  struct work_struct stat_work;
+  atomic_t status;            /* status of this adapter */
+  struct list_head erp_ready_head;    /* error recovery for this
+                                       * adapter/devices */
+  wait_queue_head_t erp_ready_wq;
+  struct list_head erp_running_head;
+  rwlock_t erp_lock;
+  wait_queue_head_t erp_done_wqh;
+  struct zfcp_erp_action erp_action;    /* pending error recovery */
+  atomic_t erp_counter;
+  u32 erp_total_count;   /* total nr of enqueued erp
+                          * actions */
+  u32 erp_low_mem_count; /* nr of erp actions waiting
+                          * for memory */
+  struct task_struct *erp_thread;
+  struct zfcp_fc_wka_ports *gs;      /* generic services */
+  struct zfcp_dbf *dbf;      /* debug traces */
+  struct zfcp_adapter_mempool pool;      /* Adapter memory pools */
+  struct fc_host_statistics *fc_stats;
+  struct fsf_qtcb_bottom_port *stats_reset_data;
+  unsigned long stats_reset;
+  struct delayed_work scan_work;
+  struct work_struct ns_up_work;
+  struct service_level service_level;
+  struct workqueue_struct *work_queue;
+  struct device_dma_parameters dma_parms;
+  struct zfcp_fc_events events;
+  unsigned long next_port_scan;
+  struct zfcp_diag_adapter *diagnostics;
+  struct work_struct version_change_lost_work;
 };
 
 struct zfcp_port {
-	struct device          dev;
-	struct fc_rport        *rport;         /* rport of fc transport class */
-	struct list_head       list;	       /* list of remote ports */
-	struct zfcp_adapter    *adapter;       /* adapter used to access port */
-	struct list_head	unit_list;	/* head of logical unit list */
-	rwlock_t		unit_list_lock; /* unit list lock */
-	atomic_t		units;	       /* zfcp_unit count */
-	atomic_t	       status;	       /* status of this remote port */
-	u64		       wwnn;	       /* WWNN if known */
-	u64		       wwpn;	       /* WWPN */
-	u32		       d_id;	       /* D_ID */
-	u32		       handle;	       /* handle assigned by FSF */
-	struct zfcp_erp_action erp_action;     /* pending error recovery */
-	atomic_t	       erp_counter;
-	u32                    maxframe_size;
-	u32                    supported_classes;
-	u32                    connection_info;
-	u32                    connection_info_old;
-	struct work_struct     gid_pn_work;
-	struct work_struct     test_link_work;
-	struct work_struct     rport_work;
-	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
-	unsigned int		starget_id;
+  struct device dev;
+  struct fc_rport *rport;         /* rport of fc transport class */
+  struct list_head list;         /* list of remote ports */
+  struct zfcp_adapter *adapter;       /* adapter used to access port */
+  struct list_head unit_list;  /* head of logical unit list */
+  rwlock_t unit_list_lock; /* unit list lock */
+  atomic_t units;         /* zfcp_unit count */
+  atomic_t status;         /* status of this remote port */
+  u64 wwnn;         /* WWNN if known */
+  u64 wwpn;         /* WWPN */
+  u32 d_id;         /* D_ID */
+  u32 handle;         /* handle assigned by FSF */
+  struct zfcp_erp_action erp_action;     /* pending error recovery */
+  atomic_t erp_counter;
+  u32 maxframe_size;
+  u32 supported_classes;
+  u32 connection_info;
+  u32 connection_info_old;
+  struct work_struct gid_pn_work;
+  struct work_struct test_link_work;
+  struct work_struct rport_work;
+  enum {
+    RPORT_NONE, RPORT_ADD, RPORT_DEL
+  }  rport_task;
+  unsigned int starget_id;
 };
 
 struct zfcp_latency_record {
-	u32 min;
-	u32 max;
-	u64 sum;
+  u32 min;
+  u32 max;
+  u64 sum;
 };
 
 struct zfcp_latency_cont {
-	struct zfcp_latency_record channel;
-	struct zfcp_latency_record fabric;
-	u64 counter;
+  struct zfcp_latency_record channel;
+  struct zfcp_latency_record fabric;
+  u64 counter;
 };
 
 struct zfcp_latencies {
-	struct zfcp_latency_cont read;
-	struct zfcp_latency_cont write;
-	struct zfcp_latency_cont cmd;
-	spinlock_t lock;
+  struct zfcp_latency_cont read;
+  struct zfcp_latency_cont write;
+  struct zfcp_latency_cont cmd;
+  spinlock_t lock;
 };
 
 /**
@@ -261,11 +263,11 @@ struct zfcp_latencies {
  * running I/O and recovery is in struct zfcp_scsi_dev.
  */
 struct zfcp_unit {
-	struct device		dev;
-	struct list_head	list;
-	struct zfcp_port	*port;
-	u64			fcp_lun;
-	struct work_struct	scsi_work;
+  struct device dev;
+  struct list_head list;
+  struct zfcp_port *port;
+  u64 fcp_lun;
+  struct work_struct scsi_work;
 };
 
 /**
@@ -278,33 +280,30 @@ struct zfcp_unit {
  * @port: zfcp_port where this LUN belongs to
  */
 struct zfcp_scsi_dev {
-	atomic_t		status;
-	u32			lun_handle;
-	struct zfcp_erp_action	erp_action;
-	atomic_t		erp_counter;
-	struct zfcp_latencies	latencies;
-	struct zfcp_port	*port;
+  atomic_t status;
+  u32 lun_handle;
+  struct zfcp_erp_action erp_action;
+  atomic_t erp_counter;
+  struct zfcp_latencies latencies;
+  struct zfcp_port *port;
 };
 
 /**
  * sdev_to_zfcp - Access zfcp LUN data for SCSI device
  * @sdev: scsi_device where to get the zfcp_scsi_dev pointer
  */
-static inline struct zfcp_scsi_dev *sdev_to_zfcp(struct scsi_device *sdev)
-{
-	return scsi_transport_device_data(sdev);
+static inline struct zfcp_scsi_dev *sdev_to_zfcp(struct scsi_device *sdev) {
+  return scsi_transport_device_data(sdev);
 }
 
 /**
  * zfcp_scsi_dev_lun - Return SCSI device LUN as 64 bit FCP LUN
  * @sdev: SCSI device where to get the LUN from
  */
-static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
-{
-	u64 fcp_lun;
-
-	int_to_scsilun(sdev->lun, (struct scsi_lun *)&fcp_lun);
-	return fcp_lun;
+static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev) {
+  u64 fcp_lun;
+  int_to_scsilun(sdev->lun, (struct scsi_lun *) &fcp_lun);
+  return fcp_lun;
 }
 
 /**
@@ -324,30 +323,29 @@ static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
  * @handler: handler which should be called to process response
  */
 struct zfcp_fsf_req {
-	struct list_head	list;
-	u64			req_id;
-	struct zfcp_adapter	*adapter;
-	struct zfcp_qdio_req	qdio_req;
-	struct completion	completion;
-	u32			status;
-	struct fsf_qtcb		*qtcb;
-	void			*data;
-	struct timer_list	timer;
-	struct zfcp_erp_action	*erp_action;
-	mempool_t		*pool;
-	unsigned long long	issued;
-	void			(*handler)(struct zfcp_fsf_req *);
+  struct list_head list;
+  u64 req_id;
+  struct zfcp_adapter *adapter;
+  struct zfcp_qdio_req qdio_req;
+  struct completion completion;
+  u32 status;
+  struct fsf_qtcb *qtcb;
+  void *data;
+  struct timer_list timer;
+  struct zfcp_erp_action *erp_action;
+  mempool_t *pool;
+  unsigned long long issued;
+  void (*handler)(struct zfcp_fsf_req *);
 };
 
 static inline
-int zfcp_adapter_multi_buffer_active(struct zfcp_adapter *adapter)
-{
-	return atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_MB_ACT;
+int zfcp_adapter_multi_buffer_active(struct zfcp_adapter *adapter) {
+  return atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_MB_ACT;
 }
 
 static inline bool zfcp_fsf_req_is_status_read_buffer(struct zfcp_fsf_req *req)
 {
-	return req->qtcb == NULL;
+  return req->qtcb == NULL;
 }
 
 #endif /* ZFCP_DEF_H */

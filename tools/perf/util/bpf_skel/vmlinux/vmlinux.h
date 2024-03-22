@@ -23,160 +23,160 @@ typedef int pid_t;
 typedef __s64 time64_t;
 
 struct timespec64 {
-        time64_t        tv_sec;
-        long int        tv_nsec;
+  time64_t tv_sec;
+  long int tv_nsec;
 };
 
 enum cgroup_subsys_id {
-	perf_event_cgrp_id  = 8,
+  perf_event_cgrp_id = 8,
 };
 
 enum {
-	HI_SOFTIRQ = 0,
-	TIMER_SOFTIRQ,
-	NET_TX_SOFTIRQ,
-	NET_RX_SOFTIRQ,
-	BLOCK_SOFTIRQ,
-	IRQ_POLL_SOFTIRQ,
-	TASKLET_SOFTIRQ,
-	SCHED_SOFTIRQ,
-	HRTIMER_SOFTIRQ,
-	RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
+  HI_SOFTIRQ = 0,
+  TIMER_SOFTIRQ,
+  NET_TX_SOFTIRQ,
+  NET_RX_SOFTIRQ,
+  BLOCK_SOFTIRQ,
+  IRQ_POLL_SOFTIRQ,
+  TASKLET_SOFTIRQ,
+  SCHED_SOFTIRQ,
+  HRTIMER_SOFTIRQ,
+  RCU_SOFTIRQ,    /* Preferable RCU should always be the last softirq */
 
-	NR_SOFTIRQS
+  NR_SOFTIRQS
 };
 
 typedef struct {
-	s64	counter;
+  s64 counter;
 } __attribute__((preserve_access_index)) atomic64_t;
 
 typedef atomic64_t atomic_long_t;
 
 struct raw_spinlock {
-	int rawlock;
+  int rawlock;
 } __attribute__((preserve_access_index));
 
 typedef struct raw_spinlock raw_spinlock_t;
 
 typedef struct {
-	struct raw_spinlock rlock;
+  struct raw_spinlock rlock;
 } __attribute__((preserve_access_index)) spinlock_t;
 
 struct sighand_struct {
-	spinlock_t siglock;
+  spinlock_t siglock;
 } __attribute__((preserve_access_index));
 
 struct rw_semaphore {
-	atomic_long_t owner;
+  atomic_long_t owner;
 } __attribute__((preserve_access_index));
 
 struct mutex {
-	atomic_long_t owner;
+  atomic_long_t owner;
 } __attribute__((preserve_access_index));
 
 struct kernfs_node {
-	u64 id;
+  u64 id;
 } __attribute__((preserve_access_index));
 
 struct cgroup {
-	struct kernfs_node *kn;
-	int                level;
+  struct kernfs_node *kn;
+  int level;
 }  __attribute__((preserve_access_index));
 
 struct cgroup_subsys_state {
-	struct cgroup *cgroup;
+  struct cgroup *cgroup;
 } __attribute__((preserve_access_index));
 
 struct css_set {
-	struct cgroup_subsys_state *subsys[13];
-	struct cgroup *dfl_cgrp;
+  struct cgroup_subsys_state *subsys[13];
+  struct cgroup *dfl_cgrp;
 } __attribute__((preserve_access_index));
 
 struct mm_struct {
-	struct rw_semaphore mmap_lock;
+  struct rw_semaphore mmap_lock;
 } __attribute__((preserve_access_index));
 
 struct task_struct {
-	unsigned int	      flags;
-	struct mm_struct      *mm;
-	pid_t		      pid;
-	pid_t		      tgid;
-	char		      comm[16];
-	struct sighand_struct *sighand;
-	struct css_set	      *cgroups;
+  unsigned int flags;
+  struct mm_struct *mm;
+  pid_t pid;
+  pid_t tgid;
+  char comm[16];
+  struct sighand_struct *sighand;
+  struct css_set *cgroups;
 } __attribute__((preserve_access_index));
 
 struct trace_entry {
-	short unsigned int type;
-	unsigned char	   flags;
-	unsigned char	   preempt_count;
-	int		   pid;
+  short unsigned int type;
+  unsigned char flags;
+  unsigned char preempt_count;
+  int pid;
 } __attribute__((preserve_access_index));
 
 struct trace_event_raw_irq_handler_entry {
-	struct trace_entry ent;
-	int		   irq;
-	u32		   __data_loc_name;
-	char		   __data[];
+  struct trace_entry ent;
+  int irq;
+  u32 __data_loc_name;
+  char __data[];
 } __attribute__((preserve_access_index));
 
 struct trace_event_raw_irq_handler_exit {
-	struct trace_entry ent;
-	int		   irq;
-	int		   ret;
-	char		   __data[];
+  struct trace_entry ent;
+  int irq;
+  int ret;
+  char __data[];
 } __attribute__((preserve_access_index));
 
 struct trace_event_raw_softirq {
-	struct trace_entry ent;
-	unsigned int	   vec;
-	char		   __data[];
+  struct trace_entry ent;
+  unsigned int vec;
+  char __data[];
 } __attribute__((preserve_access_index));
 
 struct trace_event_raw_workqueue_execute_start {
-	struct trace_entry ent;
-	void		   *work;
-	void		   *function;
-	char		   __data[];
+  struct trace_entry ent;
+  void *work;
+  void *function;
+  char __data[];
 } __attribute__((preserve_access_index));
 
 struct trace_event_raw_workqueue_execute_end {
-	struct trace_entry ent;
-	void		   *work;
-	void		   *function;
-	char		  __data[];
+  struct trace_entry ent;
+  void *work;
+  void *function;
+  char __data[];
 } __attribute__((preserve_access_index));
 
 struct trace_event_raw_workqueue_activate_work {
-	struct trace_entry ent;
-	void		   *work;
-	char		   __data[];
+  struct trace_entry ent;
+  void *work;
+  char __data[];
 } __attribute__((preserve_access_index));
 
 struct perf_sample_data {
-	u64			 addr;
-	u64			 period;
-	union perf_sample_weight weight;
-	u64			 txn;
-	union perf_mem_data_src	 data_src;
-	u64			 ip;
-	struct {
-		u32		 pid;
-		u32		 tid;
-	} tid_entry;
-	u64			 time;
-	u64			 id;
-	struct {
-		u32		 cpu;
-	} cpu_entry;
-	u64			 phys_addr;
-	u64			 data_page_size;
-	u64			 code_page_size;
+  u64 addr;
+  u64 period;
+  union perf_sample_weight weight;
+  u64 txn;
+  union perf_mem_data_src data_src;
+  u64 ip;
+  struct {
+    u32 pid;
+    u32 tid;
+  } tid_entry;
+  u64 time;
+  u64 id;
+  struct {
+    u32 cpu;
+  } cpu_entry;
+  u64 phys_addr;
+  u64 data_page_size;
+  u64 code_page_size;
 } __attribute__((__aligned__(64))) __attribute__((preserve_access_index));
 
 struct bpf_perf_event_data_kern {
-	struct perf_sample_data *data;
-	struct perf_event	*event;
+  struct perf_sample_data *data;
+  struct perf_event *event;
 } __attribute__((preserve_access_index));
 
 /*

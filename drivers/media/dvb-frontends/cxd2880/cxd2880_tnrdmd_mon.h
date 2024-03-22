@@ -14,16 +14,16 @@
 #include "cxd2880_tnrdmd.h"
 
 int cxd2880_tnrdmd_mon_rf_lvl(struct cxd2880_tnrdmd *tnr_dmd,
-			      int *rf_lvl_db);
+    int *rf_lvl_db);
 
 int cxd2880_tnrdmd_mon_rf_lvl_sub(struct cxd2880_tnrdmd *tnr_dmd,
-				  int *rf_lvl_db);
+    int *rf_lvl_db);
 
 int cxd2880_tnrdmd_mon_internal_cpu_status(struct cxd2880_tnrdmd
-					   *tnr_dmd, u16 *status);
+    *tnr_dmd, u16 *status);
 
 int cxd2880_tnrdmd_mon_internal_cpu_status_sub(struct
-					       cxd2880_tnrdmd
-					       *tnr_dmd,
-					       u16 *status);
+    cxd2880_tnrdmd
+    *tnr_dmd,
+    u16 *status);
 #endif

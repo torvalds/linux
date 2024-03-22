@@ -43,37 +43,37 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  *
  * .. code-block:: c
  *
- *	struct kunit_kmalloc_params {
- *		size_t size;
- *		gfp_t gfp;
- *	};
+ *  struct kunit_kmalloc_params {
+ *    size_t size;
+ *    gfp_t gfp;
+ *  };
  *
- *	static int kunit_kmalloc_init(struct kunit_resource *res, void *context)
- *	{
- *		struct kunit_kmalloc_params *params = context;
- *		res->data = kmalloc(params->size, params->gfp);
+ *  static int kunit_kmalloc_init(struct kunit_resource *res, void *context)
+ *  {
+ *    struct kunit_kmalloc_params *params = context;
+ *    res->data = kmalloc(params->size, params->gfp);
  *
- *		if (!res->data)
- *			return -ENOMEM;
+ *    if (!res->data)
+ *      return -ENOMEM;
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
- *	static void kunit_kmalloc_free(struct kunit_resource *res)
- *	{
- *		kfree(res->data);
- *	}
+ *  static void kunit_kmalloc_free(struct kunit_resource *res)
+ *  {
+ *    kfree(res->data);
+ *  }
  *
- *	void *kunit_kmalloc(struct kunit *test, size_t size, gfp_t gfp)
- *	{
- *		struct kunit_kmalloc_params params;
+ *  void *kunit_kmalloc(struct kunit *test, size_t size, gfp_t gfp)
+ *  {
+ *    struct kunit_kmalloc_params params;
  *
- *		params.size = size;
- *		params.gfp = gfp;
+ *    params.size = size;
+ *    params.gfp = gfp;
  *
- *		return kunit_alloc_resource(test, kunit_kmalloc_init,
- *			kunit_kmalloc_free, gfp, &params);
- *	}
+ *    return kunit_alloc_resource(test, kunit_kmalloc_init,
+ *      kunit_kmalloc_free, gfp, &params);
+ *  }
  *
  * Resources can also be named, with lookup/removal done on a name
  * basis also.  kunit_add_named_resource(), kunit_find_named_resource()
@@ -81,61 +81,58 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  * unique within the test instance.
  */
 struct kunit_resource {
-	void *data;
-	const char *name;
-	kunit_resource_free_t free;
+  void *data;
+  const char *name;
+  kunit_resource_free_t free;
 
-	/* private: internal use only. */
-	struct kref refcount;
-	struct list_head node;
-	bool should_kfree;
+  /* private: internal use only. */
+  struct kref refcount;
+  struct list_head node;
+  bool should_kfree;
 };
 
 /**
  * kunit_get_resource() - Hold resource for use.  Should not need to be used
- *			  by most users as we automatically get resources
- *			  retrieved by kunit_find_resource*().
+ *        by most users as we automatically get resources
+ *        retrieved by kunit_find_resource*().
  * @res: resource
  */
-static inline void kunit_get_resource(struct kunit_resource *res)
-{
-	kref_get(&res->refcount);
+static inline void kunit_get_resource(struct kunit_resource *res) {
+  kref_get(&res->refcount);
 }
 
 /*
  * Called when refcount reaches zero via kunit_put_resource();
  * should not be called directly.
  */
-static inline void kunit_release_resource(struct kref *kref)
-{
-	struct kunit_resource *res = container_of(kref, struct kunit_resource,
-						  refcount);
-
-	if (res->free)
-		res->free(res);
-
-	/* 'res' is valid here, as if should_kfree is set, res->free may not free
-	 * 'res' itself, just res->data
-	 */
-	if (res->should_kfree)
-		kfree(res);
+static inline void kunit_release_resource(struct kref *kref) {
+  struct kunit_resource *res = container_of(kref, struct kunit_resource,
+      refcount);
+  if (res->free) {
+    res->free(res);
+  }
+  /* 'res' is valid here, as if should_kfree is set, res->free may not free
+   * 'res' itself, just res->data
+   */
+  if (res->should_kfree) {
+    kfree(res);
+  }
 }
 
 /**
  * kunit_put_resource() - When caller is done with retrieved resource,
- *			  kunit_put_resource() should be called to drop
- *			  reference count.  The resource list maintains
- *			  a reference count on resources, so if no users
- *			  are utilizing a resource and it is removed from
- *			  the resource list, it will be freed via the
- *			  associated free function (if any).  Only
- *			  needs to be used if we alloc_and_get() or
- *			  find() resource.
+ *        kunit_put_resource() should be called to drop
+ *        reference count.  The resource list maintains
+ *        a reference count on resources, so if no users
+ *        are utilizing a resource and it is removed from
+ *        the resource list, it will be freed via the
+ *        associated free function (if any).  Only
+ *        needs to be used if we alloc_and_get() or
+ *        find() resource.
  * @res: resource
  */
-static inline void kunit_put_resource(struct kunit_resource *res)
-{
-	kref_put(&res->refcount, kunit_release_resource);
+static inline void kunit_put_resource(struct kunit_resource *res) {
+  kref_put(&res->refcount, kunit_release_resource);
 }
 
 /**
@@ -145,39 +142,38 @@ static inline void kunit_put_resource(struct kunit_resource *res)
  * @test: The test context object.
  * @init: a user-supplied function to initialize the result (if needed).  If
  *        none is supplied, the resource data value is simply set to @data.
- *	  If an init function is supplied, @data is passed to it instead.
+ *    If an init function is supplied, @data is passed to it instead.
  * @free: a user-supplied function to free the resource (if needed).
  * @res: The resource.
  * @data: value to pass to init function or set in resource data field.
  */
 int __kunit_add_resource(struct kunit *test,
-			 kunit_resource_init_t init,
-			 kunit_resource_free_t free,
-			 struct kunit_resource *res,
-			 void *data);
+    kunit_resource_init_t init,
+    kunit_resource_free_t free,
+    struct kunit_resource *res,
+    void *data);
 
 /**
  * kunit_add_resource() - Add a *test managed resource*.
  * @test: The test context object.
  * @init: a user-supplied function to initialize the result (if needed).  If
  *        none is supplied, the resource data value is simply set to @data.
- *	  If an init function is supplied, @data is passed to it instead.
+ *    If an init function is supplied, @data is passed to it instead.
  * @free: a user-supplied function to free the resource (if needed).
  * @res: The resource.
  * @data: value to pass to init function or set in resource data field.
  */
 static inline int kunit_add_resource(struct kunit *test,
-				     kunit_resource_init_t init,
-				     kunit_resource_free_t free,
-				     struct kunit_resource *res,
-				     void *data)
-{
-	res->should_kfree = false;
-	return __kunit_add_resource(test, init, free, res, data);
+    kunit_resource_init_t init,
+    kunit_resource_free_t free,
+    struct kunit_resource *res,
+    void *data) {
+  res->should_kfree = false;
+  return __kunit_add_resource(test, init, free, res, data);
 }
 
-static inline struct kunit_resource *
-kunit_find_named_resource(struct kunit *test, const char *name);
+static inline struct kunit_resource *kunit_find_named_resource(
+  struct kunit *test, const char *name);
 
 /**
  * kunit_add_named_resource() - Add a named *test managed resource*.
@@ -189,31 +185,28 @@ kunit_find_named_resource(struct kunit *test, const char *name);
  * @data: value to pass to init function or set in resource data field.
  */
 static inline int kunit_add_named_resource(struct kunit *test,
-					   kunit_resource_init_t init,
-					   kunit_resource_free_t free,
-					   struct kunit_resource *res,
-					   const char *name,
-					   void *data)
-{
-	struct kunit_resource *existing;
-
-	if (!name)
-		return -EINVAL;
-
-	existing = kunit_find_named_resource(test, name);
-	if (existing) {
-		kunit_put_resource(existing);
-		return -EEXIST;
-	}
-
-	res->name = name;
-	res->should_kfree = false;
-
-	return __kunit_add_resource(test, init, free, res, data);
+    kunit_resource_init_t init,
+    kunit_resource_free_t free,
+    struct kunit_resource *res,
+    const char *name,
+    void *data) {
+  struct kunit_resource *existing;
+  if (!name) {
+    return -EINVAL;
+  }
+  existing = kunit_find_named_resource(test, name);
+  if (existing) {
+    kunit_put_resource(existing);
+    return -EEXIST;
+  }
+  res->name = name;
+  res->should_kfree = false;
+  return __kunit_add_resource(test, init, free, res, data);
 }
 
 /**
- * kunit_alloc_and_get_resource() - Allocates and returns a *test managed resource*.
+ * kunit_alloc_and_get_resource() - Allocates and returns a *test managed
+ * resource*.
  * @test: The test context object.
  * @init: a user supplied function to initialize the resource.
  * @free: a user supplied function to free the resource (if needed).
@@ -233,32 +226,29 @@ static inline int kunit_add_named_resource(struct kunit *test,
  * specify an @internal_gfp that is compatible with the use context of your
  * resource.
  */
-static inline struct kunit_resource *
-kunit_alloc_and_get_resource(struct kunit *test,
-			     kunit_resource_init_t init,
-			     kunit_resource_free_t free,
-			     gfp_t internal_gfp,
-			     void *context)
-{
-	struct kunit_resource *res;
-	int ret;
-
-	res = kzalloc(sizeof(*res), internal_gfp);
-	if (!res)
-		return NULL;
-
-	res->should_kfree = true;
-
-	ret = __kunit_add_resource(test, init, free, res, context);
-	if (!ret) {
-		/*
-		 * bump refcount for get; kunit_resource_put() should be called
-		 * when done.
-		 */
-		kunit_get_resource(res);
-		return res;
-	}
-	return NULL;
+static inline struct kunit_resource *kunit_alloc_and_get_resource(
+    struct kunit *test,
+    kunit_resource_init_t init,
+    kunit_resource_free_t free,
+    gfp_t internal_gfp,
+    void *context) {
+  struct kunit_resource *res;
+  int ret;
+  res = kzalloc(sizeof(*res), internal_gfp);
+  if (!res) {
+    return NULL;
+  }
+  res->should_kfree = true;
+  ret = __kunit_add_resource(test, init, free, res, context);
+  if (!ret) {
+    /*
+     * bump refcount for get; kunit_resource_put() should be called
+     * when done.
+     */
+    kunit_get_resource(res);
+    return res;
+  }
+  return NULL;
 }
 
 /**
@@ -278,27 +268,25 @@ kunit_alloc_and_get_resource(struct kunit *test,
  * resource.
  */
 static inline void *kunit_alloc_resource(struct kunit *test,
-					 kunit_resource_init_t init,
-					 kunit_resource_free_t free,
-					 gfp_t internal_gfp,
-					 void *context)
-{
-	struct kunit_resource *res;
-
-	res = kzalloc(sizeof(*res), internal_gfp);
-	if (!res)
-		return NULL;
-
-	res->should_kfree = true;
-	if (!__kunit_add_resource(test, init, free, res, context))
-		return res->data;
-
-	return NULL;
+    kunit_resource_init_t init,
+    kunit_resource_free_t free,
+    gfp_t internal_gfp,
+    void *context) {
+  struct kunit_resource *res;
+  res = kzalloc(sizeof(*res), internal_gfp);
+  if (!res) {
+    return NULL;
+  }
+  res->should_kfree = true;
+  if (!__kunit_add_resource(test, init, free, res, context)) {
+    return res->data;
+  }
+  return NULL;
 }
 
 typedef bool (*kunit_resource_match_t)(struct kunit *test,
-				       struct kunit_resource *res,
-				       void *match_data);
+    struct kunit_resource *res,
+    void *match_data);
 
 /**
  * kunit_resource_name_match() - Match a resource with the same name.
@@ -307,10 +295,9 @@ typedef bool (*kunit_resource_match_t)(struct kunit *test,
  * @match_name: The name to match against.
  */
 static inline bool kunit_resource_name_match(struct kunit *test,
-					     struct kunit_resource *res,
-					     void *match_name)
-{
-	return res->name && strcmp(res->name, match_name) == 0;
+    struct kunit_resource *res,
+    void *match_name) {
+  return res->name && strcmp(res->name, match_name) == 0;
 }
 
 /**
@@ -319,27 +306,21 @@ static inline bool kunit_resource_name_match(struct kunit *test,
  * @match: match function to be applied to resources/match data.
  * @match_data: data to be used in matching.
  */
-static inline struct kunit_resource *
-kunit_find_resource(struct kunit *test,
-		    kunit_resource_match_t match,
-		    void *match_data)
-{
-	struct kunit_resource *res, *found = NULL;
-	unsigned long flags;
-
-	spin_lock_irqsave(&test->lock, flags);
-
-	list_for_each_entry_reverse(res, &test->resources, node) {
-		if (match(test, res, (void *)match_data)) {
-			found = res;
-			kunit_get_resource(found);
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(&test->lock, flags);
-
-	return found;
+static inline struct kunit_resource *kunit_find_resource(struct kunit *test,
+    kunit_resource_match_t match,
+    void *match_data) {
+  struct kunit_resource *res, *found = NULL;
+  unsigned long flags;
+  spin_lock_irqsave(&test->lock, flags);
+  list_for_each_entry_reverse(res, &test->resources, node) {
+    if (match(test, res, (void *) match_data)) {
+      found = res;
+      kunit_get_resource(found);
+      break;
+    }
+  }
+  spin_unlock_irqrestore(&test->lock, flags);
+  return found;
 }
 
 /**
@@ -347,12 +328,11 @@ kunit_find_resource(struct kunit *test,
  * @test: Test case to which the resource belongs.
  * @name: match name.
  */
-static inline struct kunit_resource *
-kunit_find_named_resource(struct kunit *test,
-			  const char *name)
-{
-	return kunit_find_resource(test, kunit_resource_name_match,
-				   (void *)name);
+static inline struct kunit_resource *kunit_find_named_resource(
+    struct kunit *test,
+    const char *name) {
+  return kunit_find_resource(test, kunit_resource_name_match,
+      (void *) name);
 }
 
 /**
@@ -365,19 +345,18 @@ kunit_find_named_resource(struct kunit *test,
  * 0 if kunit_resource is found and freed, -ENOENT if not found.
  */
 int kunit_destroy_resource(struct kunit *test,
-			   kunit_resource_match_t match,
-			   void *match_data);
+    kunit_resource_match_t match,
+    void *match_data);
 
 static inline int kunit_destroy_named_resource(struct kunit *test,
-					       const char *name)
-{
-	return kunit_destroy_resource(test, kunit_resource_name_match,
-				      (void *)name);
+    const char *name) {
+  return kunit_destroy_resource(test, kunit_resource_name_match,
+      (void *) name);
 }
 
 /**
  * kunit_remove_resource() - remove resource from resource list associated with
- *			     test.
+ *           test.
  * @test: The test context object.
  * @res: The resource to be removed.
  *
@@ -403,13 +382,12 @@ typedef void (kunit_action_t)(void *);
  * directly to kunit_action_t, as casting function pointers will break
  * control flow integrity (CFI), leading to crashes.
  */
-#define KUNIT_DEFINE_ACTION_WRAPPER(wrapper, orig, arg_type)	\
-	static void wrapper(void *in)				\
-	{							\
-		arg_type arg = (arg_type)in;			\
-		orig(arg);					\
-	}
-
+#define KUNIT_DEFINE_ACTION_WRAPPER(wrapper, orig, arg_type)  \
+  static void wrapper(void *in)       \
+  {             \
+    arg_type arg = (arg_type) in;      \
+    orig(arg);          \
+  }
 
 /**
  * kunit_add_action() - Call a function when the test ends.
@@ -448,7 +426,8 @@ int kunit_add_action(struct kunit *test, kunit_action_t *action, void *ctx);
  * functions are called even if the test aborts early due to, e.g., a failed
  * assertion.
  *
- * If the action cannot be created (e.g., due to the system being out of memory),
+ * If the action cannot be created (e.g., due to the system being out of
+ * memory),
  * then action(ctx) will be called immediately, and an error will be returned.
  *
  * See also: devm_add_action_or_reset() for the devres equivalent.
@@ -457,7 +436,7 @@ int kunit_add_action(struct kunit *test, kunit_action_t *action, void *ctx);
  *   0 on success, an error if the action could not be deferred.
  */
 int kunit_add_action_or_reset(struct kunit *test, kunit_action_t *action,
-			      void *ctx);
+    void *ctx);
 
 /**
  * kunit_remove_action() - Cancel a matching deferred action.
@@ -474,8 +453,8 @@ int kunit_add_action_or_reset(struct kunit *test, kunit_action_t *action,
  * See also: devm_remove_action() for the devres equivalent.
  */
 void kunit_remove_action(struct kunit *test,
-			 kunit_action_t *action,
-			 void *ctx);
+    kunit_action_t *action,
+    void *ctx);
 
 /**
  * kunit_release_action() - Run a matching action call immediately.
@@ -498,6 +477,6 @@ void kunit_remove_action(struct kunit *test,
  * See also: devm_release_action() for the devres equivalent.
  */
 void kunit_release_action(struct kunit *test,
-			  kunit_action_t *action,
-			  void *ctx);
+    kunit_action_t *action,
+    void *ctx);
 #endif /* _KUNIT_RESOURCE_H */

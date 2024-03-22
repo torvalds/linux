@@ -17,9 +17,9 @@
 #ifndef _DT_BINDINGS_CLOCK_TEGRA210_CAR_H
 #define _DT_BINDINGS_CLOCK_TEGRA210_CAR_H
 
-/* 0 */
-/* 1 */
-/* 2 */
+/* 0
+ * 1
+ * 2*/
 #define TEGRA210_CLK_ISPB 3
 #define TEGRA210_CLK_RTC 4
 #define TEGRA210_CLK_TIMER 5
@@ -36,13 +36,13 @@
 /* 16 */
 #define TEGRA210_CLK_PWM 17
 #define TEGRA210_CLK_I2S2 18
-/* 19 */
-/* 20 (register bit affects vi and vi_sensor) */
-/* 21 */
+/* 19
+ * 20 (register bit affects vi and vi_sensor)
+ * 21*/
 #define TEGRA210_CLK_USBD 22
 #define TEGRA210_CLK_ISPA 23
-/* 24 */
-/* 25 */
+/* 24
+ * 25*/
 #define TEGRA210_CLK_DISP2 26
 #define TEGRA210_CLK_DISP1 27
 #define TEGRA210_CLK_HOST1X 28
@@ -53,23 +53,23 @@
 #define TEGRA210_CLK_MC 32
 #define TEGRA210_CLK_AHBDMA 33
 #define TEGRA210_CLK_APBDMA 34
-/* 35 */
-/* 36 */
-/* 37 */
+/* 35
+ * 36
+ * 37*/
 #define TEGRA210_CLK_PMC 38
 /* 39 (register bit affects fuse and fuse_burn) */
 #define TEGRA210_CLK_KFUSE 40
 #define TEGRA210_CLK_SBC1 41
-/* 42 */
-/* 43 */
+/* 42
+ * 43*/
 #define TEGRA210_CLK_SBC2 44
 /* 45 */
 #define TEGRA210_CLK_SBC3 46
 #define TEGRA210_CLK_I2C5 47
 #define TEGRA210_CLK_DSIA 48
-/* 49 */
-/* 50 */
-/* 51 */
+/* 49
+ * 50
+ * 51*/
 #define TEGRA210_CLK_CSI 52
 /* 53 */
 #define TEGRA210_CLK_I2C2 54
@@ -77,10 +77,10 @@
 #define TEGRA210_CLK_MIPI_CAL 56
 #define TEGRA210_CLK_EMC 57
 #define TEGRA210_CLK_USB2 58
-/* 59 */
-/* 60 */
-/* 61 */
-/* 62 */
+/* 59
+ * 60
+ * 61
+ * 62*/
 #define TEGRA210_CLK_BSEV 63
 
 /* 64 */
@@ -93,8 +93,8 @@
 #define TEGRA210_CLK_OWR 71
 #define TEGRA210_CLK_AFI 72
 #define TEGRA210_CLK_CSITE 73
-/* 74 */
-/* 75 */
+/* 74
+ * 75*/
 #define TEGRA210_CLK_LA 76
 /* 77 */
 #define TEGRA210_CLK_SOC_THERM 78
@@ -103,41 +103,41 @@
 #define TEGRA210_CLK_I2CSLOW 81
 #define TEGRA210_CLK_DSIB 82
 #define TEGRA210_CLK_TSEC 83
-/* 84 */
-/* 85 */
-/* 86 */
-/* 87 */
-/* 88 */
+/* 84
+ * 85
+ * 86
+ * 87
+ * 88*/
 #define TEGRA210_CLK_XUSB_HOST 89
-/* 90 */
-/* 91 */
+/* 90
+ * 91*/
 #define TEGRA210_CLK_CSUS 92
-/* 93 */
-/* 94 */
-/* 95 (bit affects xusb_dev and xusb_dev_src) */
+/* 93
+ * 94
+ * 95 (bit affects xusb_dev and xusb_dev_src)*/
 
-/* 96 */
-/* 97 */
-/* 98 */
+/* 96
+ * 97
+ * 98*/
 #define TEGRA210_CLK_MSELECT 99
 #define TEGRA210_CLK_TSENSOR 100
 #define TEGRA210_CLK_I2S3 101
 #define TEGRA210_CLK_I2S4 102
 #define TEGRA210_CLK_I2C4 103
-/* 104 */
-/* 105 */
+/* 104
+ * 105*/
 #define TEGRA210_CLK_D_AUDIO 106
 #define TEGRA210_CLK_APB2APE 107
-/* 108 */
-/* 109 */
-/* 110 */
+/* 108
+ * 109
+ * 110*/
 #define TEGRA210_CLK_HDA2CODEC_2X 111
-/* 112 */
-/* 113 */
-/* 114 */
-/* 115 */
-/* 116 */
-/* 117 */
+/* 112
+ * 113
+ * 114
+ * 115
+ * 116
+ * 117*/
 #define TEGRA210_CLK_SPDIF_2X 118
 #define TEGRA210_CLK_ACTMON 119
 #define TEGRA210_CLK_EXTERN1 120
@@ -146,25 +146,25 @@
 #define TEGRA210_CLK_SATA_OOB 123
 #define TEGRA210_CLK_SATA 124
 #define TEGRA210_CLK_HDA 125
-/* 126 */
-/* 127 */
+/* 126
+ * 127*/
 
 #define TEGRA210_CLK_HDA2HDMI 128
-/* 129 */
-/* 130 */
-/* 131 */
-/* 132 */
-/* 133 */
-/* 134 */
-/* 135 */
+/* 129
+ * 130
+ * 131
+ * 132
+ * 133
+ * 134
+ * 135*/
 #define TEGRA210_CLK_CEC 136
-/* 137 */
-/* 138 */
-/* 139 */
-/* 140 */
-/* 141 */
-/* 142 */
-/* (bit affects xusb_falcon_src, xusb_fs_src, xusb_host_src and xusb_ss_src) */
+/* 137
+ * 138
+ * 139
+ * 140
+ * 141
+ * 142
+ * (bit affects xusb_falcon_src, xusb_fs_src, xusb_host_src and xusb_ss_src)*/
 #define TEGRA210_CLK_XUSB_GATE 143
 #define TEGRA210_CLK_CILAB 144
 #define TEGRA210_CLK_CILCD 145
@@ -172,38 +172,38 @@
 #define TEGRA210_CLK_DSIALP 147
 #define TEGRA210_CLK_DSIBLP 148
 #define TEGRA210_CLK_ENTROPY 149
-/* 150 */
-/* 151 */
+/* 150
+ * 151*/
 #define TEGRA210_CLK_DP2 152
-/* 153 */
-/* 154 */
-/* 155 (bit affects dfll_ref and dfll_soc) */
+/* 153
+ * 154
+ * 155 (bit affects dfll_ref and dfll_soc)*/
 #define TEGRA210_CLK_XUSB_SS 156
-/* 157 */
-/* 158 */
-/* 159 */
+/* 157
+ * 158
+ * 159*/
 
 /* 160 */
 #define TEGRA210_CLK_DMIC1 161
 #define TEGRA210_CLK_DMIC2 162
-/* 163 */
-/* 164 */
-/* 165 */
+/* 163
+ * 164
+ * 165*/
 #define TEGRA210_CLK_I2C6 166
-/* 167 */
-/* 168 */
-/* 169 */
-/* 170 */
+/* 167
+ * 168
+ * 169
+ * 170*/
 #define TEGRA210_CLK_VIM2_CLK 171
 /* 172 */
 #define TEGRA210_CLK_MIPIBIF 173
-/* 174 */
-/* 175 */
-/* 176 */
+/* 174
+ * 175
+ * 176*/
 #define TEGRA210_CLK_CLK72MHZ 177
 #define TEGRA210_CLK_VIC03 178
-/* 179 */
-/* 180 */
+/* 179
+ * 180*/
 #define TEGRA210_CLK_DPAUX 181
 #define TEGRA210_CLK_SOR0 182
 #define TEGRA210_CLK_SOR1 183
@@ -213,8 +213,8 @@
 #define TEGRA210_CLK_PLL_P_OUT_ADSP 187
 /* 188 ((bit affects pll_a_out_adsp and pll_a_out0_out_adsp)*/
 #define TEGRA210_CLK_PLL_G_REF 189
-/* 190 */
-/* 191 */
+/* 190
+ * 191*/
 
 /* 192 */
 #define TEGRA210_CLK_SDMMC_LEGACY 193
@@ -224,12 +224,12 @@
 #define TEGRA210_CLK_DMIC3 197
 #define TEGRA210_CLK_APE 198
 #define TEGRA210_CLK_ADSP 199
-/* 200 */
-/* 201 */
+/* 200
+ * 201*/
 #define TEGRA210_CLK_MAUD 202
-/* 203 */
-/* 204 */
-/* 205 */
+/* 203
+ * 204
+ * 205*/
 #define TEGRA210_CLK_TSECB 206
 #define TEGRA210_CLK_DPAUX1 207
 #define TEGRA210_CLK_VI_I2C 208
@@ -237,18 +237,17 @@
 #define TEGRA210_CLK_USB2_TRK 210
 #define TEGRA210_CLK_QSPI 211
 #define TEGRA210_CLK_UARTAPE 212
-/* 213 */
-/* 214 */
-/* 215 */
-/* 216 */
-/* 217 */
+/* 213
+ * 214
+ * 215
+ * 216
+ * 217*/
 #define TEGRA210_CLK_ADSP_NEON 218
 #define TEGRA210_CLK_NVENC 219
 #define TEGRA210_CLK_IQC2 220
 #define TEGRA210_CLK_IQC1 221
 #define TEGRA210_CLK_SOR_SAFE 222
 #define TEGRA210_CLK_PLL_P_OUT_CPU 223
-
 
 #define TEGRA210_CLK_UARTB 224
 #define TEGRA210_CLK_VFIR 225
@@ -308,8 +307,8 @@
 #define TEGRA210_CLK_SPDIF 276
 /* 277 */
 #define TEGRA210_CLK_QSPI_PM 278
-/* 279 */
-/* 280 */
+/* 279
+ * 280*/
 #define TEGRA210_CLK_SOR0_LVDS 281 /* deprecated */
 #define TEGRA210_CLK_SOR0_OUT 281
 #define TEGRA210_CLK_SOR1_OUT 282
@@ -359,28 +358,28 @@
 /* 325 */
 #define TEGRA210_CLK_OSC 326
 #define TEGRA210_CLK_CSI_TPG 327
-/* 328 */
-/* 329 */
-/* 330 */
-/* 331 */
-/* 332 */
-/* 333 */
-/* 334 */
-/* 335 */
-/* 336 */
-/* 337 */
-/* 338 */
-/* 339 */
-/* 340 */
-/* 341 */
-/* 342 */
-/* 343 */
-/* 344 */
-/* 345 */
-/* 346 */
-/* 347 */
-/* 348 */
-/* 349 */
+/* 328
+ * 329
+ * 330
+ * 331
+ * 332
+ * 333
+ * 334
+ * 335
+ * 336
+ * 337
+ * 338
+ * 339
+ * 340
+ * 341
+ * 342
+ * 343
+ * 344
+ * 345
+ * 346
+ * 347
+ * 348
+ * 349*/
 
 #define TEGRA210_CLK_AUDIO0_MUX 350
 #define TEGRA210_CLK_AUDIO1_MUX 351
@@ -388,9 +387,9 @@
 #define TEGRA210_CLK_AUDIO3_MUX 353
 #define TEGRA210_CLK_AUDIO4_MUX 354
 #define TEGRA210_CLK_SPDIF_MUX 355
-/* 356 */
-/* 357 */
-/* 358 */
+/* 356
+ * 357
+ * 358*/
 #define TEGRA210_CLK_DSIA_MUX 359
 #define TEGRA210_CLK_DSIB_MUX 360
 /* 361 */
@@ -411,4 +410,4 @@
 
 #define TEGRA210_CLK_CLK_MAX 394
 
-#endif	/* _DT_BINDINGS_CLOCK_TEGRA210_CAR_H */
+#endif  /* _DT_BINDINGS_CLOCK_TEGRA210_CAR_H */

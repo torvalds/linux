@@ -28,6 +28,6 @@
 #endif
 
 /* Bitmask values returned from kern_features system call.  */
-#define KERN_FEATURE_MIXED_MODE_STACK	0x00000001
+#define KERN_FEATURE_MIXED_MODE_STACK 0x00000001
 
 #endif /* _UAPI_SPARC_UNISTD_H */

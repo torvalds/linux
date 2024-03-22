@@ -74,32 +74,32 @@
 #define _PXG_SYNG_FREE_RUN_REG_WIDTH   1
 #define _PXG_SYNG_PAUSE_REG_WIDTH      1
 /*
-#define _PXG_SYNG_NOF_FRAME_REG_WIDTH  <sync_gen_cnt_width>
-#define _PXG_SYNG_NOF_PIXEL_REG_WIDTH  <sync_gen_cnt_width>
-#define _PXG_SYNG_NOF_LINE_REG_WIDTH   <sync_gen_cnt_width>
-#define _PXG_SYNG_HBLANK_CYC_REG_WIDTH <sync_gen_cnt_width>
-#define _PXG_SYNG_VBLANK_CYC_REG_WIDTH <sync_gen_cnt_width>
-#define _PXG_SYNG_STAT_HCNT_REG_WIDTH  <sync_gen_cnt_width>
-#define _PXG_SYNG_STAT_VCNT_REG_WIDTH  <sync_gen_cnt_width>
-#define _PXG_SYNG_STAT_FCNT_REG_WIDTH  <sync_gen_cnt_width>
-*/
+ #define _PXG_SYNG_NOF_FRAME_REG_WIDTH  <sync_gen_cnt_width>
+ #define _PXG_SYNG_NOF_PIXEL_REG_WIDTH  <sync_gen_cnt_width>
+ #define _PXG_SYNG_NOF_LINE_REG_WIDTH   <sync_gen_cnt_width>
+ #define _PXG_SYNG_HBLANK_CYC_REG_WIDTH <sync_gen_cnt_width>
+ #define _PXG_SYNG_VBLANK_CYC_REG_WIDTH <sync_gen_cnt_width>
+ #define _PXG_SYNG_STAT_HCNT_REG_WIDTH  <sync_gen_cnt_width>
+ #define _PXG_SYNG_STAT_VCNT_REG_WIDTH  <sync_gen_cnt_width>
+ #define _PXG_SYNG_STAT_FCNT_REG_WIDTH  <sync_gen_cnt_width>
+ */
 #define _PXG_SYNG_STAT_DONE_REG_WIDTH  1
 #define _PXG_TPG_MODE_REG_WIDTH        2
 /*
-#define _PXG_TPG_HCNT_MASK_REG_WIDTH   <sync_gen_cnt_width>
-#define _PXG_TPG_VCNT_MASK_REG_WIDTH   <sync_gen_cnt_width>
-#define _PXG_TPG_XYCNT_MASK_REG_WIDTH  <pixle_width>
-*/
+ #define _PXG_TPG_HCNT_MASK_REG_WIDTH   <sync_gen_cnt_width>
+ #define _PXG_TPG_VCNT_MASK_REG_WIDTH   <sync_gen_cnt_width>
+ #define _PXG_TPG_XYCNT_MASK_REG_WIDTH  <pixle_width>
+ */
 #define _PXG_TPG_HCNT_DELTA_REG_WIDTH  4
 #define _PXG_TPG_VCNT_DELTA_REG_WIDTH  4
 /*
-#define _PXG_TPG_R1_REG_WIDTH          <pixle_width>
-#define _PXG_TPG_G1_REG_WIDTH          <pixle_width>
-#define _PXG_TPG_B1_REG_WIDTH          <pixle_width>
-#define _PXG_TPG_R2_REG_WIDTH          <pixle_width>
-#define _PXG_TPG_G2_REG_WIDTH          <pixle_width>
-#define _PXG_TPG_B2_REG_WIDTH          <pixle_width>
-*/
+ #define _PXG_TPG_R1_REG_WIDTH          <pixle_width>
+ #define _PXG_TPG_G1_REG_WIDTH          <pixle_width>
+ #define _PXG_TPG_B1_REG_WIDTH          <pixle_width>
+ #define _PXG_TPG_R2_REG_WIDTH          <pixle_width>
+ #define _PXG_TPG_G2_REG_WIDTH          <pixle_width>
+ #define _PXG_TPG_B2_REG_WIDTH          <pixle_width>
+ */
 #define _PXG_FIFO_DEPTH                2
 /* MISC */
 #define _PXG_ENABLE_REG_VAL            1

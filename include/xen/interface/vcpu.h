@@ -12,9 +12,9 @@
 
 /*
  * Prototype for this hypercall is:
- *	int vcpu_op(int cmd, int vcpuid, void *extra_args)
- * @cmd		   == VCPUOP_??? (VCPU operation).
- * @vcpuid	   == VCPU to operate on.
+ *  int vcpu_op(int cmd, int vcpuid, void *extra_args)
+ * @cmd      == VCPUOP_??? (VCPU operation).
+ * @vcpuid     == VCPU to operate on.
  * @extra_args == Operation-specific extra arguments (NULL if none).
  */
 
@@ -23,56 +23,56 @@
  * newly-initialised VCPU will not run until it is brought up by VCPUOP_up.
  *
  * @extra_arg == pointer to vcpu_guest_context structure containing initial
- *				 state for the VCPU.
+ *         state for the VCPU.
  */
-#define VCPUOP_initialise			 0
+#define VCPUOP_initialise      0
 
 /*
  * Bring up a VCPU. This makes the VCPU runnable. This operation will fail
  * if the VCPU has not been initialised (VCPUOP_initialise).
  */
-#define VCPUOP_up					 1
+#define VCPUOP_up          1
 
 /*
  * Bring down a VCPU (i.e., make it non-runnable).
  * There are a few caveats that callers should observe:
- *	1. This operation may return, and VCPU_is_up may return false, before the
- *	   VCPU stops running (i.e., the command is asynchronous). It is a good
- *	   idea to ensure that the VCPU has entered a non-critical loop before
- *	   bringing it down. Alternatively, this operation is guaranteed
- *	   synchronous if invoked by the VCPU itself.
- *	2. After a VCPU is initialised, there is currently no way to drop all its
- *	   references to domain memory. Even a VCPU that is down still holds
- *	   memory references via its pagetable base pointer and GDT. It is good
- *	   practise to move a VCPU onto an 'idle' or default page table, LDT and
- *	   GDT before bringing it down.
+ *  1. This operation may return, and VCPU_is_up may return false, before the
+ *     VCPU stops running (i.e., the command is asynchronous). It is a good
+ *     idea to ensure that the VCPU has entered a non-critical loop before
+ *     bringing it down. Alternatively, this operation is guaranteed
+ *     synchronous if invoked by the VCPU itself.
+ *  2. After a VCPU is initialised, there is currently no way to drop all its
+ *     references to domain memory. Even a VCPU that is down still holds
+ *     memory references via its pagetable base pointer and GDT. It is good
+ *     practise to move a VCPU onto an 'idle' or default page table, LDT and
+ *     GDT before bringing it down.
  */
-#define VCPUOP_down					 2
+#define VCPUOP_down          2
 
 /* Returns 1 if the given VCPU is up. */
-#define VCPUOP_is_up				 3
+#define VCPUOP_is_up         3
 
 /*
  * Return information about the state and running time of a VCPU.
  * @extra_arg == pointer to vcpu_runstate_info structure.
  */
-#define VCPUOP_get_runstate_info	 4
+#define VCPUOP_get_runstate_info   4
 struct vcpu_runstate_info {
-	/* VCPU's current state (RUNSTATE_*). */
-	int		 state;
-	/* When was current state entered (system time, ns)? */
-	uint64_t state_entry_time;
-	/*
-	 * Update indicator set in state_entry_time:
-	 * When activated via VMASST_TYPE_runstate_update_flag, set during
-	 * updates in guest memory mapped copy of vcpu_runstate_info.
-	 */
-#define XEN_RUNSTATE_UPDATE	(1ULL << 63)
-	/*
-	 * Time spent in each RUNSTATE_* (ns). The sum of these times is
-	 * guaranteed not to drift from system time.
-	 */
-	uint64_t time[4];
+  /* VCPU's current state (RUNSTATE_*). */
+  int state;
+  /* When was current state entered (system time, ns)? */
+  uint64_t state_entry_time;
+  /*
+   * Update indicator set in state_entry_time:
+   * When activated via VMASST_TYPE_runstate_update_flag, set during
+   * updates in guest memory mapped copy of vcpu_runstate_info.
+   */
+#define XEN_RUNSTATE_UPDATE (1ULL << 63)
+  /*
+   * Time spent in each RUNSTATE_* (ns). The sum of these times is
+   * guaranteed not to drift from system time.
+   */
+  uint64_t time[4];
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_runstate_info);
 
@@ -97,22 +97,22 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_runstate_info);
  * Register a shared memory area from which the guest may obtain its own
  * runstate information without needing to execute a hypercall.
  * Notes:
- *	1. The registered address may be virtual or physical, depending on the
- *	   platform. The virtual address should be registered on x86 systems.
- *	2. Only one shared area may be registered per VCPU. The shared area is
- *	   updated by the hypervisor each time the VCPU is scheduled. Thus
- *	   runstate.state will always be RUNSTATE_running and
- *	   runstate.state_entry_time will indicate the system time at which the
- *	   VCPU was last scheduled to run.
+ *  1. The registered address may be virtual or physical, depending on the
+ *     platform. The virtual address should be registered on x86 systems.
+ *  2. Only one shared area may be registered per VCPU. The shared area is
+ *     updated by the hypervisor each time the VCPU is scheduled. Thus
+ *     runstate.state will always be RUNSTATE_running and
+ *     runstate.state_entry_time will indicate the system time at which the
+ *     VCPU was last scheduled to run.
  * @extra_arg == pointer to vcpu_register_runstate_memory_area structure.
  */
 #define VCPUOP_register_runstate_memory_area 5
 struct vcpu_register_runstate_memory_area {
-		union {
-				GUEST_HANDLE(vcpu_runstate_info) h;
-				struct vcpu_runstate_info *v;
-				uint64_t p;
-		} addr;
+  union {
+    GUEST_HANDLE(vcpu_runstate_info) h;
+    struct vcpu_runstate_info *v;
+    uint64_t p;
+  } addr;
 };
 
 /*
@@ -120,10 +120,10 @@ struct vcpu_register_runstate_memory_area {
  * which can be set via these commands. Periods smaller than one millisecond
  * may not be supported.
  */
-#define VCPUOP_set_periodic_timer	 6 /* arg == vcpu_set_periodic_timer_t */
-#define VCPUOP_stop_periodic_timer	 7 /* arg == NULL */
+#define VCPUOP_set_periodic_timer  6 /* arg == vcpu_set_periodic_timer_t */
+#define VCPUOP_stop_periodic_timer   7 /* arg == NULL */
 struct vcpu_set_periodic_timer {
-		uint64_t period_ns;
+  uint64_t period_ns;
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_set_periodic_timer);
 
@@ -131,16 +131,16 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_set_periodic_timer);
  * Set or stop a VCPU's single-shot timer. Every VCPU has one single-shot
  * timer which can be set via these commands.
  */
-#define VCPUOP_set_singleshot_timer	 8 /* arg == vcpu_set_singleshot_timer_t */
+#define VCPUOP_set_singleshot_timer  8 /* arg == vcpu_set_singleshot_timer_t */
 #define VCPUOP_stop_singleshot_timer 9 /* arg == NULL */
 struct vcpu_set_singleshot_timer {
-		uint64_t timeout_abs_ns;
-		uint32_t flags;			   /* VCPU_SSHOTTMR_??? */
+  uint64_t timeout_abs_ns;
+  uint32_t flags;        /* VCPU_SSHOTTMR_??? */
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_set_singleshot_timer);
 
-/* Flags to VCPUOP_set_singleshot_timer. */
- /* Require the timeout to be in the future (return -ETIME if it's passed). */
+/* Flags to VCPUOP_set_singleshot_timer.
+ * Require the timeout to be in the future (return -ETIME if it's passed).*/
 #define _VCPU_SSHOTTMR_future (0)
 #define VCPU_SSHOTTMR_future  (1U << _VCPU_SSHOTTMR_future)
 
@@ -153,9 +153,9 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_set_singleshot_timer);
  */
 #define VCPUOP_register_vcpu_info   10  /* arg == struct vcpu_info */
 struct vcpu_register_vcpu_info {
-    uint64_t mfn;    /* mfn of page to place vcpu_info */
-    uint32_t offset; /* offset within page */
-    uint32_t rsvd;   /* unused */
+  uint64_t mfn;    /* mfn of page to place vcpu_info */
+  uint32_t offset; /* offset within page */
+  uint32_t rsvd;   /* unused */
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_register_vcpu_info);
 
@@ -170,11 +170,11 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_register_vcpu_info);
  */
 #define VCPUOP_get_physid           12 /* arg == vcpu_get_physid_t */
 struct vcpu_get_physid {
-	uint64_t phys_id;
+  uint64_t phys_id;
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_get_physid);
-#define xen_vcpu_physid_to_x86_apicid(physid) ((uint32_t)(physid))
-#define xen_vcpu_physid_to_x86_acpiid(physid) ((uint32_t)((physid) >> 32))
+#define xen_vcpu_physid_to_x86_apicid(physid) ((uint32_t) (physid))
+#define xen_vcpu_physid_to_x86_acpiid(physid) ((uint32_t) ((physid) >> 32))
 
 /*
  * Register a memory location to get a secondary copy of the vcpu time
@@ -195,11 +195,11 @@ DEFINE_GUEST_HANDLE_STRUCT(vcpu_get_physid);
 #define VCPUOP_register_vcpu_time_memory_area   13
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_time_info);
 struct vcpu_register_time_memory_area {
-	union {
-		GUEST_HANDLE(vcpu_time_info) h;
-		struct pvclock_vcpu_time_info *v;
-		uint64_t p;
-	} addr;
+  union {
+    GUEST_HANDLE(vcpu_time_info) h;
+    struct pvclock_vcpu_time_info *v;
+    uint64_t p;
+  } addr;
 };
 DEFINE_GUEST_HANDLE_STRUCT(vcpu_register_time_memory_area);
 

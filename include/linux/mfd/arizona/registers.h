@@ -128,15 +128,15 @@
 #define ARIZONA_ACCESSORY_DETECT_MODE_1          0x293
 #define ARIZONA_HEADPHONE_DETECT_1               0x29B
 #define ARIZONA_HEADPHONE_DETECT_2               0x29C
-#define ARIZONA_HP_DACVAL			 0x29F
+#define ARIZONA_HP_DACVAL      0x29F
 #define ARIZONA_MICD_CLAMP_CONTROL               0x2A2
 #define ARIZONA_MIC_DETECT_1                     0x2A3
 #define ARIZONA_MIC_DETECT_2                     0x2A4
 #define ARIZONA_MIC_DETECT_3                     0x2A5
-#define ARIZONA_MIC_DETECT_LEVEL_1		 0x2A6
-#define ARIZONA_MIC_DETECT_LEVEL_2		 0x2A7
-#define ARIZONA_MIC_DETECT_LEVEL_3		 0x2A8
-#define ARIZONA_MIC_DETECT_LEVEL_4		 0x2A9
+#define ARIZONA_MIC_DETECT_LEVEL_1     0x2A6
+#define ARIZONA_MIC_DETECT_LEVEL_2     0x2A7
+#define ARIZONA_MIC_DETECT_LEVEL_3     0x2A8
+#define ARIZONA_MIC_DETECT_LEVEL_4     0x2A9
 #define ARIZONA_MIC_DETECT_4                     0x2AB
 #define ARIZONA_MIC_NOISE_MIX_CONTROL_1          0x2C3
 #define ARIZONA_ISOLATION_CONTROL                0x2CB
@@ -1194,16 +1194,22 @@
 /*
  * R0 (0x00) - software reset
  */
-#define ARIZONA_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 - [15:0] */
-#define ARIZONA_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 - [15:0] */
-#define ARIZONA_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 - [15:0] */
+#define ARIZONA_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 -
+                                                          * [15:0] */
+#define ARIZONA_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 -
+                                                          * [15:0] */
+#define ARIZONA_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 -
+                                                          * [15:0] */
 
 /*
  * R1 (0x01) - Device Revision
  */
-#define ARIZONA_DEVICE_REVISION_MASK             0x00FF  /* DEVICE_REVISION - [7:0] */
-#define ARIZONA_DEVICE_REVISION_SHIFT                 0  /* DEVICE_REVISION - [7:0] */
-#define ARIZONA_DEVICE_REVISION_WIDTH                 8  /* DEVICE_REVISION - [7:0] */
+#define ARIZONA_DEVICE_REVISION_MASK             0x00FF  /* DEVICE_REVISION -
+                                                          * [7:0] */
+#define ARIZONA_DEVICE_REVISION_SHIFT                 0  /* DEVICE_REVISION -
+                                                          * [7:0] */
+#define ARIZONA_DEVICE_REVISION_WIDTH                 8  /* DEVICE_REVISION -
+                                                          * [7:0] */
 
 /*
  * R8 (0x08) - Ctrl IF SPI CFG 1
@@ -1216,16 +1222,22 @@
 #define ARIZONA_SPI_4WIRE_MASK                   0x0008  /* SPI_4WIRE */
 #define ARIZONA_SPI_4WIRE_SHIFT                       3  /* SPI_4WIRE */
 #define ARIZONA_SPI_4WIRE_WIDTH                       1  /* SPI_4WIRE */
-#define ARIZONA_SPI_AUTO_INC_MASK                0x0003  /* SPI_AUTO_INC - [1:0] */
-#define ARIZONA_SPI_AUTO_INC_SHIFT                    0  /* SPI_AUTO_INC - [1:0] */
-#define ARIZONA_SPI_AUTO_INC_WIDTH                    2  /* SPI_AUTO_INC - [1:0] */
+#define ARIZONA_SPI_AUTO_INC_MASK                0x0003  /* SPI_AUTO_INC - [1:0]
+                                                          * */
+#define ARIZONA_SPI_AUTO_INC_SHIFT                    0  /* SPI_AUTO_INC - [1:0]
+                                                          * */
+#define ARIZONA_SPI_AUTO_INC_WIDTH                    2  /* SPI_AUTO_INC - [1:0]
+                                                          * */
 
 /*
  * R9 (0x09) - Ctrl IF I2C1 CFG 1
  */
-#define ARIZONA_I2C1_AUTO_INC_MASK               0x0003  /* I2C1_AUTO_INC - [1:0] */
-#define ARIZONA_I2C1_AUTO_INC_SHIFT                   0  /* I2C1_AUTO_INC - [1:0] */
-#define ARIZONA_I2C1_AUTO_INC_WIDTH                   2  /* I2C1_AUTO_INC - [1:0] */
+#define ARIZONA_I2C1_AUTO_INC_MASK               0x0003  /* I2C1_AUTO_INC -
+                                                          * [1:0] */
+#define ARIZONA_I2C1_AUTO_INC_SHIFT                   0  /* I2C1_AUTO_INC -
+                                                          * [1:0] */
+#define ARIZONA_I2C1_AUTO_INC_WIDTH                   2  /* I2C1_AUTO_INC -
+                                                          * [1:0] */
 
 /*
  * R13 (0x0D) - Ctrl IF Status 1
@@ -1254,9 +1266,12 @@
 #define ARIZONA_WSEQ_ENA_MASK                    0x0200  /* WSEQ_ENA */
 #define ARIZONA_WSEQ_ENA_SHIFT                        9  /* WSEQ_ENA */
 #define ARIZONA_WSEQ_ENA_WIDTH                        1  /* WSEQ_ENA */
-#define ARIZONA_WSEQ_START_INDEX_MASK            0x01FF  /* WSEQ_START_INDEX - [8:0] */
-#define ARIZONA_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [8:0] */
-#define ARIZONA_WSEQ_START_INDEX_WIDTH                9  /* WSEQ_START_INDEX - [8:0] */
+#define ARIZONA_WSEQ_START_INDEX_MASK            0x01FF  /* WSEQ_START_INDEX -
+                                                          * [8:0] */
+#define ARIZONA_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                          * [8:0] */
+#define ARIZONA_WSEQ_START_INDEX_WIDTH                9  /* WSEQ_START_INDEX -
+                                                          * [8:0] */
 
 /*
  * R23 (0x17) - Write Sequencer Ctrl 1
@@ -1265,9 +1280,12 @@
 #define ARIZONA_WSEQ_BUSY_MASK                   0x0200  /* WSEQ_BUSY */
 #define ARIZONA_WSEQ_BUSY_SHIFT                       9  /* WSEQ_BUSY */
 #define ARIZONA_WSEQ_BUSY_WIDTH                       1  /* WSEQ_BUSY */
-#define ARIZONA_WSEQ_CURRENT_INDEX_MASK          0x01FF  /* WSEQ_CURRENT_INDEX - [8:0] */
-#define ARIZONA_WSEQ_CURRENT_INDEX_SHIFT              0  /* WSEQ_CURRENT_INDEX - [8:0] */
-#define ARIZONA_WSEQ_CURRENT_INDEX_WIDTH              9  /* WSEQ_CURRENT_INDEX - [8:0] */
+#define ARIZONA_WSEQ_CURRENT_INDEX_MASK          0x01FF  /* WSEQ_CURRENT_INDEX -
+                                                          * [8:0] */
+#define ARIZONA_WSEQ_CURRENT_INDEX_SHIFT              0  /* WSEQ_CURRENT_INDEX -
+                                                          * [8:0] */
+#define ARIZONA_WSEQ_CURRENT_INDEX_WIDTH              9  /* WSEQ_CURRENT_INDEX -
+                                                          * [8:0] */
 
 /*
  * R24 (0x18) - Write Sequencer Ctrl 2
@@ -1292,12 +1310,18 @@
 /*
  * R32 (0x20) - Tone Generator 1
  */
-#define ARIZONA_TONE_RATE_MASK                   0x7800  /* TONE_RATE - [14:11] */
-#define ARIZONA_TONE_RATE_SHIFT                      11  /* TONE_RATE - [14:11] */
-#define ARIZONA_TONE_RATE_WIDTH                       4  /* TONE_RATE - [14:11] */
-#define ARIZONA_TONE_OFFSET_MASK                 0x0300  /* TONE_OFFSET - [9:8] */
-#define ARIZONA_TONE_OFFSET_SHIFT                     8  /* TONE_OFFSET - [9:8] */
-#define ARIZONA_TONE_OFFSET_WIDTH                     2  /* TONE_OFFSET - [9:8] */
+#define ARIZONA_TONE_RATE_MASK                   0x7800  /* TONE_RATE - [14:11]
+                                                          * */
+#define ARIZONA_TONE_RATE_SHIFT                      11  /* TONE_RATE - [14:11]
+                                                          * */
+#define ARIZONA_TONE_RATE_WIDTH                       4  /* TONE_RATE - [14:11]
+                                                          * */
+#define ARIZONA_TONE_OFFSET_MASK                 0x0300  /* TONE_OFFSET - [9:8]
+                                                          * */
+#define ARIZONA_TONE_OFFSET_SHIFT                     8  /* TONE_OFFSET - [9:8]
+                                                          * */
+#define ARIZONA_TONE_OFFSET_WIDTH                     2  /* TONE_OFFSET - [9:8]
+                                                          * */
 #define ARIZONA_TONE2_OVD                        0x0020  /* TONE2_OVD */
 #define ARIZONA_TONE2_OVD_MASK                   0x0020  /* TONE2_OVD */
 #define ARIZONA_TONE2_OVD_SHIFT                       5  /* TONE2_OVD */
@@ -1318,9 +1342,12 @@
 /*
  * R33 (0x21) - Tone Generator 2
  */
-#define ARIZONA_TONE1_LVL_0_MASK                 0xFFFF  /* TONE1_LVL - [15:0] */
-#define ARIZONA_TONE1_LVL_0_SHIFT                     0  /* TONE1_LVL - [15:0] */
-#define ARIZONA_TONE1_LVL_0_WIDTH                    16  /* TONE1_LVL - [15:0] */
+#define ARIZONA_TONE1_LVL_0_MASK                 0xFFFF  /* TONE1_LVL - [15:0]
+                                                          * */
+#define ARIZONA_TONE1_LVL_0_SHIFT                     0  /* TONE1_LVL - [15:0]
+                                                          * */
+#define ARIZONA_TONE1_LVL_0_WIDTH                    16  /* TONE1_LVL - [15:0]
+                                                          * */
 
 /*
  * R34 (0x22) - Tone Generator 3
@@ -1332,9 +1359,12 @@
 /*
  * R35 (0x23) - Tone Generator 4
  */
-#define ARIZONA_TONE2_LVL_0_MASK                 0xFFFF  /* TONE2_LVL - [15:0] */
-#define ARIZONA_TONE2_LVL_0_SHIFT                     0  /* TONE2_LVL - [15:0] */
-#define ARIZONA_TONE2_LVL_0_WIDTH                    16  /* TONE2_LVL - [15:0] */
+#define ARIZONA_TONE2_LVL_0_MASK                 0xFFFF  /* TONE2_LVL - [15:0]
+                                                          * */
+#define ARIZONA_TONE2_LVL_0_SHIFT                     0  /* TONE2_LVL - [15:0]
+                                                          * */
+#define ARIZONA_TONE2_LVL_0_WIDTH                    16  /* TONE2_LVL - [15:0]
+                                                          * */
 
 /*
  * R36 (0x24) - Tone Generator 5
@@ -1346,12 +1376,18 @@
 /*
  * R48 (0x30) - PWM Drive 1
  */
-#define ARIZONA_PWM_RATE_MASK                    0x7800  /* PWM_RATE - [14:11] */
-#define ARIZONA_PWM_RATE_SHIFT                       11  /* PWM_RATE - [14:11] */
-#define ARIZONA_PWM_RATE_WIDTH                        4  /* PWM_RATE - [14:11] */
-#define ARIZONA_PWM_CLK_SEL_MASK                 0x0700  /* PWM_CLK_SEL - [10:8] */
-#define ARIZONA_PWM_CLK_SEL_SHIFT                     8  /* PWM_CLK_SEL - [10:8] */
-#define ARIZONA_PWM_CLK_SEL_WIDTH                     3  /* PWM_CLK_SEL - [10:8] */
+#define ARIZONA_PWM_RATE_MASK                    0x7800  /* PWM_RATE - [14:11]
+                                                          * */
+#define ARIZONA_PWM_RATE_SHIFT                       11  /* PWM_RATE - [14:11]
+                                                          * */
+#define ARIZONA_PWM_RATE_WIDTH                        4  /* PWM_RATE - [14:11]
+                                                          * */
+#define ARIZONA_PWM_CLK_SEL_MASK                 0x0700  /* PWM_CLK_SEL - [10:8]
+                                                          * */
+#define ARIZONA_PWM_CLK_SEL_SHIFT                     8  /* PWM_CLK_SEL - [10:8]
+                                                          * */
+#define ARIZONA_PWM_CLK_SEL_WIDTH                     3  /* PWM_CLK_SEL - [10:8]
+                                                          * */
 #define ARIZONA_PWM2_OVD                         0x0020  /* PWM2_OVD */
 #define ARIZONA_PWM2_OVD_MASK                    0x0020  /* PWM2_OVD */
 #define ARIZONA_PWM2_OVD_SHIFT                        5  /* PWM2_OVD */
@@ -1386,14 +1422,22 @@
 /*
  * R64 (0x40) - Wake control
  */
-#define ARIZONA_WKUP_MICD_CLAMP_FALL             0x0080  /* WKUP_MICD_CLAMP_FALL */
-#define ARIZONA_WKUP_MICD_CLAMP_FALL_MASK        0x0080  /* WKUP_MICD_CLAMP_FALL */
-#define ARIZONA_WKUP_MICD_CLAMP_FALL_SHIFT            7  /* WKUP_MICD_CLAMP_FALL */
-#define ARIZONA_WKUP_MICD_CLAMP_FALL_WIDTH            1  /* WKUP_MICD_CLAMP_FALL */
-#define ARIZONA_WKUP_MICD_CLAMP_RISE             0x0040  /* WKUP_MICD_CLAMP_RISE */
-#define ARIZONA_WKUP_MICD_CLAMP_RISE_MASK        0x0040  /* WKUP_MICD_CLAMP_RISE */
-#define ARIZONA_WKUP_MICD_CLAMP_RISE_SHIFT            6  /* WKUP_MICD_CLAMP_RISE */
-#define ARIZONA_WKUP_MICD_CLAMP_RISE_WIDTH            1  /* WKUP_MICD_CLAMP_RISE */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL             0x0080  /* WKUP_MICD_CLAMP_FALL
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL_MASK        0x0080  /* WKUP_MICD_CLAMP_FALL
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL_SHIFT            7  /* WKUP_MICD_CLAMP_FALL
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_FALL_WIDTH            1  /* WKUP_MICD_CLAMP_FALL
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE             0x0040  /* WKUP_MICD_CLAMP_RISE
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE_MASK        0x0040  /* WKUP_MICD_CLAMP_RISE
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE_SHIFT            6  /* WKUP_MICD_CLAMP_RISE
+                                                          * */
+#define ARIZONA_WKUP_MICD_CLAMP_RISE_WIDTH            1  /* WKUP_MICD_CLAMP_RISE
+                                                          * */
 #define ARIZONA_WKUP_GP5_FALL                    0x0020  /* WKUP_GP5_FALL */
 #define ARIZONA_WKUP_GP5_FALL_MASK               0x0020  /* WKUP_GP5_FALL */
 #define ARIZONA_WKUP_GP5_FALL_SHIFT                   5  /* WKUP_GP5_FALL */
@@ -1486,93 +1530,162 @@
 /*
  * R97 (0x61) - Sample Rate Sequence Select 1
  */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR_MASK 0x01FF  /* WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR_SHIFT      0  /* WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR_WIDTH      9  /* WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR_MASK 0x01FF  /*
+                                                                 * WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR
+                                                                 * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR_SHIFT      0  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR
+                                                                  * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR_WIDTH      9  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_A_SEQ_ADDR
+                                                                  * - [8:0] */
 
 /*
  * R98 (0x62) - Sample Rate Sequence Select 2
  */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR_MASK 0x01FF  /* WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR_SHIFT      0  /* WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR_WIDTH      9  /* WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR_MASK 0x01FF  /*
+                                                                 * WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR
+                                                                 * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR_SHIFT      0  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR
+                                                                  * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR_WIDTH      9  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_B_SEQ_ADDR
+                                                                  * - [8:0] */
 
 /*
  * R99 (0x63) - Sample Rate Sequence Select 3
  */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR_MASK 0x01FF  /* WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR_SHIFT      0  /* WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR_WIDTH      9  /* WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR_MASK 0x01FF  /*
+                                                                 * WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR
+                                                                 * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR_SHIFT      0  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR
+                                                                  * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR_WIDTH      9  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_C_SEQ_ADDR
+                                                                  * - [8:0] */
 
 /*
  * R100 (0x64) - Sample Rate Sequence Select 4
  */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR_MASK 0x01FF  /* WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR_SHIFT      0  /* WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR_WIDTH      9  /* WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR_MASK 0x01FF  /*
+                                                                 * WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR
+                                                                 * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR_SHIFT      0  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR
+                                                                  * - [8:0] */
+#define ARIZONA_WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR_WIDTH      9  /*
+                                                                  * WSEQ_SAMPLE_RATE_DETECT_D_SEQ_ADDR
+                                                                  * - [8:0] */
 
 /*
  * R104 (0x68) - Always On Triggers Sequence Select 1
  */
-#define ARIZONA_WSEQ_GP5_RISE_SEQ_ADDR_MASK      0x01FF  /* WSEQ_GP5_RISE_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_GP5_RISE_SEQ_ADDR_SHIFT          0  /* WSEQ_GP5_RISE_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_GP5_RISE_SEQ_ADDR_WIDTH          9  /* WSEQ_GP5_RISE_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_GP5_RISE_SEQ_ADDR_MASK      0x01FF  /*
+                                                          * WSEQ_GP5_RISE_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_GP5_RISE_SEQ_ADDR_SHIFT          0  /*
+                                                          * WSEQ_GP5_RISE_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_GP5_RISE_SEQ_ADDR_WIDTH          9  /*
+                                                          * WSEQ_GP5_RISE_SEQ_ADDR
+                                                          * - [8:0] */
 
 /*
  * R105 (0x69) - Always On Triggers Sequence Select 2
  */
-#define ARIZONA_WSEQ_GP5_FALL_SEQ_ADDR_MASK      0x01FF  /* WSEQ_GP5_FALL_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_GP5_FALL_SEQ_ADDR_SHIFT          0  /* WSEQ_GP5_FALL_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_GP5_FALL_SEQ_ADDR_WIDTH          9  /* WSEQ_GP5_FALL_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_GP5_FALL_SEQ_ADDR_MASK      0x01FF  /*
+                                                          * WSEQ_GP5_FALL_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_GP5_FALL_SEQ_ADDR_SHIFT          0  /*
+                                                          * WSEQ_GP5_FALL_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_GP5_FALL_SEQ_ADDR_WIDTH          9  /*
+                                                          * WSEQ_GP5_FALL_SEQ_ADDR
+                                                          * - [8:0] */
 
 /*
  * R106 (0x6A) - Always On Triggers Sequence Select 3
  */
-#define ARIZONA_WSEQ_JD1_RISE_SEQ_ADDR_MASK      0x01FF  /* WSEQ_JD1_RISE_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD1_RISE_SEQ_ADDR_SHIFT          0  /* WSEQ_JD1_RISE_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD1_RISE_SEQ_ADDR_WIDTH          9  /* WSEQ_JD1_RISE_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_JD1_RISE_SEQ_ADDR_MASK      0x01FF  /*
+                                                          * WSEQ_JD1_RISE_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD1_RISE_SEQ_ADDR_SHIFT          0  /*
+                                                          * WSEQ_JD1_RISE_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD1_RISE_SEQ_ADDR_WIDTH          9  /*
+                                                          * WSEQ_JD1_RISE_SEQ_ADDR
+                                                          * - [8:0] */
 
 /*
  * R107 (0x6B) - Always On Triggers Sequence Select 4
  */
-#define ARIZONA_WSEQ_JD1_FALL_SEQ_ADDR_MASK      0x01FF  /* WSEQ_JD1_FALL_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD1_FALL_SEQ_ADDR_SHIFT          0  /* WSEQ_JD1_FALL_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD1_FALL_SEQ_ADDR_WIDTH          9  /* WSEQ_JD1_FALL_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_JD1_FALL_SEQ_ADDR_MASK      0x01FF  /*
+                                                          * WSEQ_JD1_FALL_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD1_FALL_SEQ_ADDR_SHIFT          0  /*
+                                                          * WSEQ_JD1_FALL_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD1_FALL_SEQ_ADDR_WIDTH          9  /*
+                                                          * WSEQ_JD1_FALL_SEQ_ADDR
+                                                          * - [8:0] */
 
 /*
  * R108 (0x6C) - Always On Triggers Sequence Select 5
  */
-#define ARIZONA_WSEQ_JD2_RISE_SEQ_ADDR_MASK      0x01FF  /* WSEQ_JD2_RISE_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD2_RISE_SEQ_ADDR_SHIFT          0  /* WSEQ_JD2_RISE_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD2_RISE_SEQ_ADDR_WIDTH          9  /* WSEQ_JD2_RISE_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_JD2_RISE_SEQ_ADDR_MASK      0x01FF  /*
+                                                          * WSEQ_JD2_RISE_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD2_RISE_SEQ_ADDR_SHIFT          0  /*
+                                                          * WSEQ_JD2_RISE_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD2_RISE_SEQ_ADDR_WIDTH          9  /*
+                                                          * WSEQ_JD2_RISE_SEQ_ADDR
+                                                          * - [8:0] */
 
 /*
  * R109 (0x6D) - Always On Triggers Sequence Select 6
  */
-#define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_MASK      0x01FF  /* WSEQ_JD2_FALL_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_SHIFT          0  /* WSEQ_JD2_FALL_SEQ_ADDR - [8:0] */
-#define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_WIDTH          9  /* WSEQ_JD2_FALL_SEQ_ADDR - [8:0] */
+#define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_MASK      0x01FF  /*
+                                                          * WSEQ_JD2_FALL_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_SHIFT          0  /*
+                                                          * WSEQ_JD2_FALL_SEQ_ADDR
+                                                          * - [8:0] */
+#define ARIZONA_WSEQ_JD2_FALL_SEQ_ADDR_WIDTH          9  /*
+                                                          * WSEQ_JD2_FALL_SEQ_ADDR
+                                                          * - [8:0] */
 
 /*
  * R112 (0x70) - Comfort Noise Generator
  */
-#define ARIZONA_NOISE_GEN_RATE_MASK              0x7800  /* NOISE_GEN_RATE - [14:11] */
-#define ARIZONA_NOISE_GEN_RATE_SHIFT                 11  /* NOISE_GEN_RATE - [14:11] */
-#define ARIZONA_NOISE_GEN_RATE_WIDTH                  4  /* NOISE_GEN_RATE - [14:11] */
+#define ARIZONA_NOISE_GEN_RATE_MASK              0x7800  /* NOISE_GEN_RATE -
+                                                          * [14:11] */
+#define ARIZONA_NOISE_GEN_RATE_SHIFT                 11  /* NOISE_GEN_RATE -
+                                                          * [14:11] */
+#define ARIZONA_NOISE_GEN_RATE_WIDTH                  4  /* NOISE_GEN_RATE -
+                                                          * [14:11] */
 #define ARIZONA_NOISE_GEN_ENA                    0x0020  /* NOISE_GEN_ENA */
 #define ARIZONA_NOISE_GEN_ENA_MASK               0x0020  /* NOISE_GEN_ENA */
 #define ARIZONA_NOISE_GEN_ENA_SHIFT                   5  /* NOISE_GEN_ENA */
 #define ARIZONA_NOISE_GEN_ENA_WIDTH                   1  /* NOISE_GEN_ENA */
-#define ARIZONA_NOISE_GEN_GAIN_MASK              0x001F  /* NOISE_GEN_GAIN - [4:0] */
-#define ARIZONA_NOISE_GEN_GAIN_SHIFT                  0  /* NOISE_GEN_GAIN - [4:0] */
-#define ARIZONA_NOISE_GEN_GAIN_WIDTH                  5  /* NOISE_GEN_GAIN - [4:0] */
+#define ARIZONA_NOISE_GEN_GAIN_MASK              0x001F  /* NOISE_GEN_GAIN -
+                                                          * [4:0] */
+#define ARIZONA_NOISE_GEN_GAIN_SHIFT                  0  /* NOISE_GEN_GAIN -
+                                                          * [4:0] */
+#define ARIZONA_NOISE_GEN_GAIN_WIDTH                  5  /* NOISE_GEN_GAIN -
+                                                          * [4:0] */
 
 /*
  * R144 (0x90) - Haptics Control 1
  */
-#define ARIZONA_HAP_RATE_MASK                    0x7800  /* HAP_RATE - [14:11] */
-#define ARIZONA_HAP_RATE_SHIFT                       11  /* HAP_RATE - [14:11] */
-#define ARIZONA_HAP_RATE_WIDTH                        4  /* HAP_RATE - [14:11] */
+#define ARIZONA_HAP_RATE_MASK                    0x7800  /* HAP_RATE - [14:11]
+                                                          * */
+#define ARIZONA_HAP_RATE_SHIFT                       11  /* HAP_RATE - [14:11]
+                                                          * */
+#define ARIZONA_HAP_RATE_WIDTH                        4  /* HAP_RATE - [14:11]
+                                                          * */
 #define ARIZONA_ONESHOT_TRIG                     0x0010  /* ONESHOT_TRIG */
 #define ARIZONA_ONESHOT_TRIG_MASK                0x0010  /* ONESHOT_TRIG */
 #define ARIZONA_ONESHOT_TRIG_SHIFT                    4  /* ONESHOT_TRIG */
@@ -1595,44 +1708,62 @@
 /*
  * R146 (0x92) - Haptics phase 1 intensity
  */
-#define ARIZONA_PHASE1_INTENSITY_MASK            0x00FF  /* PHASE1_INTENSITY - [7:0] */
-#define ARIZONA_PHASE1_INTENSITY_SHIFT                0  /* PHASE1_INTENSITY - [7:0] */
-#define ARIZONA_PHASE1_INTENSITY_WIDTH                8  /* PHASE1_INTENSITY - [7:0] */
+#define ARIZONA_PHASE1_INTENSITY_MASK            0x00FF  /* PHASE1_INTENSITY -
+                                                          * [7:0] */
+#define ARIZONA_PHASE1_INTENSITY_SHIFT                0  /* PHASE1_INTENSITY -
+                                                          * [7:0] */
+#define ARIZONA_PHASE1_INTENSITY_WIDTH                8  /* PHASE1_INTENSITY -
+                                                          * [7:0] */
 
 /*
  * R147 (0x93) - Haptics phase 1 duration
  */
-#define ARIZONA_PHASE1_DURATION_MASK             0x01FF  /* PHASE1_DURATION - [8:0] */
-#define ARIZONA_PHASE1_DURATION_SHIFT                 0  /* PHASE1_DURATION - [8:0] */
-#define ARIZONA_PHASE1_DURATION_WIDTH                 9  /* PHASE1_DURATION - [8:0] */
+#define ARIZONA_PHASE1_DURATION_MASK             0x01FF  /* PHASE1_DURATION -
+                                                          * [8:0] */
+#define ARIZONA_PHASE1_DURATION_SHIFT                 0  /* PHASE1_DURATION -
+                                                          * [8:0] */
+#define ARIZONA_PHASE1_DURATION_WIDTH                 9  /* PHASE1_DURATION -
+                                                          * [8:0] */
 
 /*
  * R148 (0x94) - Haptics phase 2 intensity
  */
-#define ARIZONA_PHASE2_INTENSITY_MASK            0x00FF  /* PHASE2_INTENSITY - [7:0] */
-#define ARIZONA_PHASE2_INTENSITY_SHIFT                0  /* PHASE2_INTENSITY - [7:0] */
-#define ARIZONA_PHASE2_INTENSITY_WIDTH                8  /* PHASE2_INTENSITY - [7:0] */
+#define ARIZONA_PHASE2_INTENSITY_MASK            0x00FF  /* PHASE2_INTENSITY -
+                                                          * [7:0] */
+#define ARIZONA_PHASE2_INTENSITY_SHIFT                0  /* PHASE2_INTENSITY -
+                                                          * [7:0] */
+#define ARIZONA_PHASE2_INTENSITY_WIDTH                8  /* PHASE2_INTENSITY -
+                                                          * [7:0] */
 
 /*
  * R149 (0x95) - Haptics phase 2 duration
  */
-#define ARIZONA_PHASE2_DURATION_MASK             0x07FF  /* PHASE2_DURATION - [10:0] */
-#define ARIZONA_PHASE2_DURATION_SHIFT                 0  /* PHASE2_DURATION - [10:0] */
-#define ARIZONA_PHASE2_DURATION_WIDTH                11  /* PHASE2_DURATION - [10:0] */
+#define ARIZONA_PHASE2_DURATION_MASK             0x07FF  /* PHASE2_DURATION -
+                                                          * [10:0] */
+#define ARIZONA_PHASE2_DURATION_SHIFT                 0  /* PHASE2_DURATION -
+                                                          * [10:0] */
+#define ARIZONA_PHASE2_DURATION_WIDTH                11  /* PHASE2_DURATION -
+                                                          * [10:0] */
 
 /*
  * R150 (0x96) - Haptics phase 3 intensity
  */
-#define ARIZONA_PHASE3_INTENSITY_MASK            0x00FF  /* PHASE3_INTENSITY - [7:0] */
-#define ARIZONA_PHASE3_INTENSITY_SHIFT                0  /* PHASE3_INTENSITY - [7:0] */
-#define ARIZONA_PHASE3_INTENSITY_WIDTH                8  /* PHASE3_INTENSITY - [7:0] */
+#define ARIZONA_PHASE3_INTENSITY_MASK            0x00FF  /* PHASE3_INTENSITY -
+                                                          * [7:0] */
+#define ARIZONA_PHASE3_INTENSITY_SHIFT                0  /* PHASE3_INTENSITY -
+                                                          * [7:0] */
+#define ARIZONA_PHASE3_INTENSITY_WIDTH                8  /* PHASE3_INTENSITY -
+                                                          * [7:0] */
 
 /*
  * R151 (0x97) - Haptics phase 3 duration
  */
-#define ARIZONA_PHASE3_DURATION_MASK             0x01FF  /* PHASE3_DURATION - [8:0] */
-#define ARIZONA_PHASE3_DURATION_SHIFT                 0  /* PHASE3_DURATION - [8:0] */
-#define ARIZONA_PHASE3_DURATION_WIDTH                 9  /* PHASE3_DURATION - [8:0] */
+#define ARIZONA_PHASE3_DURATION_MASK             0x01FF  /* PHASE3_DURATION -
+                                                          * [8:0] */
+#define ARIZONA_PHASE3_DURATION_SHIFT                 0  /* PHASE3_DURATION -
+                                                          * [8:0] */
+#define ARIZONA_PHASE3_DURATION_WIDTH                 9  /* PHASE3_DURATION -
+                                                          * [8:0] */
 
 /*
  * R152 (0x98) - Haptics Status
@@ -1649,9 +1780,12 @@
 #define ARIZONA_CLK_32K_ENA_MASK                 0x0040  /* CLK_32K_ENA */
 #define ARIZONA_CLK_32K_ENA_SHIFT                     6  /* CLK_32K_ENA */
 #define ARIZONA_CLK_32K_ENA_WIDTH                     1  /* CLK_32K_ENA */
-#define ARIZONA_CLK_32K_SRC_MASK                 0x0003  /* CLK_32K_SRC - [1:0] */
-#define ARIZONA_CLK_32K_SRC_SHIFT                     0  /* CLK_32K_SRC - [1:0] */
-#define ARIZONA_CLK_32K_SRC_WIDTH                     2  /* CLK_32K_SRC - [1:0] */
+#define ARIZONA_CLK_32K_SRC_MASK                 0x0003  /* CLK_32K_SRC - [1:0]
+                                                          * */
+#define ARIZONA_CLK_32K_SRC_SHIFT                     0  /* CLK_32K_SRC - [1:0]
+                                                          * */
+#define ARIZONA_CLK_32K_SRC_WIDTH                     2  /* CLK_32K_SRC - [1:0]
+                                                          * */
 
 /*
  * R257 (0x101) - System Clock 1
@@ -1660,100 +1794,148 @@
 #define ARIZONA_SYSCLK_FRAC_MASK                 0x8000  /* SYSCLK_FRAC */
 #define ARIZONA_SYSCLK_FRAC_SHIFT                    15  /* SYSCLK_FRAC */
 #define ARIZONA_SYSCLK_FRAC_WIDTH                     1  /* SYSCLK_FRAC */
-#define ARIZONA_SYSCLK_FREQ_MASK                 0x0700  /* SYSCLK_FREQ - [10:8] */
-#define ARIZONA_SYSCLK_FREQ_SHIFT                     8  /* SYSCLK_FREQ - [10:8] */
-#define ARIZONA_SYSCLK_FREQ_WIDTH                     3  /* SYSCLK_FREQ - [10:8] */
+#define ARIZONA_SYSCLK_FREQ_MASK                 0x0700  /* SYSCLK_FREQ - [10:8]
+                                                          * */
+#define ARIZONA_SYSCLK_FREQ_SHIFT                     8  /* SYSCLK_FREQ - [10:8]
+                                                          * */
+#define ARIZONA_SYSCLK_FREQ_WIDTH                     3  /* SYSCLK_FREQ - [10:8]
+                                                          * */
 #define ARIZONA_SYSCLK_ENA                       0x0040  /* SYSCLK_ENA */
 #define ARIZONA_SYSCLK_ENA_MASK                  0x0040  /* SYSCLK_ENA */
 #define ARIZONA_SYSCLK_ENA_SHIFT                      6  /* SYSCLK_ENA */
 #define ARIZONA_SYSCLK_ENA_WIDTH                      1  /* SYSCLK_ENA */
-#define ARIZONA_SYSCLK_SRC_MASK                  0x000F  /* SYSCLK_SRC - [3:0] */
-#define ARIZONA_SYSCLK_SRC_SHIFT                      0  /* SYSCLK_SRC - [3:0] */
-#define ARIZONA_SYSCLK_SRC_WIDTH                      4  /* SYSCLK_SRC - [3:0] */
+#define ARIZONA_SYSCLK_SRC_MASK                  0x000F  /* SYSCLK_SRC - [3:0]
+                                                          * */
+#define ARIZONA_SYSCLK_SRC_SHIFT                      0  /* SYSCLK_SRC - [3:0]
+                                                          * */
+#define ARIZONA_SYSCLK_SRC_WIDTH                      4  /* SYSCLK_SRC - [3:0]
+                                                          * */
 
 /*
  * R258 (0x102) - Sample rate 1
  */
-#define ARIZONA_SAMPLE_RATE_1_MASK               0x001F  /* SAMPLE_RATE_1 - [4:0] */
-#define ARIZONA_SAMPLE_RATE_1_SHIFT                   0  /* SAMPLE_RATE_1 - [4:0] */
-#define ARIZONA_SAMPLE_RATE_1_WIDTH                   5  /* SAMPLE_RATE_1 - [4:0] */
+#define ARIZONA_SAMPLE_RATE_1_MASK               0x001F  /* SAMPLE_RATE_1 -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_1_SHIFT                   0  /* SAMPLE_RATE_1 -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_1_WIDTH                   5  /* SAMPLE_RATE_1 -
+                                                          * [4:0] */
 
 /*
  * R259 (0x103) - Sample rate 2
  */
-#define ARIZONA_SAMPLE_RATE_2_MASK               0x001F  /* SAMPLE_RATE_2 - [4:0] */
-#define ARIZONA_SAMPLE_RATE_2_SHIFT                   0  /* SAMPLE_RATE_2 - [4:0] */
-#define ARIZONA_SAMPLE_RATE_2_WIDTH                   5  /* SAMPLE_RATE_2 - [4:0] */
+#define ARIZONA_SAMPLE_RATE_2_MASK               0x001F  /* SAMPLE_RATE_2 -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_2_SHIFT                   0  /* SAMPLE_RATE_2 -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_2_WIDTH                   5  /* SAMPLE_RATE_2 -
+                                                          * [4:0] */
 
 /*
  * R260 (0x104) - Sample rate 3
  */
-#define ARIZONA_SAMPLE_RATE_3_MASK               0x001F  /* SAMPLE_RATE_3 - [4:0] */
-#define ARIZONA_SAMPLE_RATE_3_SHIFT                   0  /* SAMPLE_RATE_3 - [4:0] */
-#define ARIZONA_SAMPLE_RATE_3_WIDTH                   5  /* SAMPLE_RATE_3 - [4:0] */
+#define ARIZONA_SAMPLE_RATE_3_MASK               0x001F  /* SAMPLE_RATE_3 -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_3_SHIFT                   0  /* SAMPLE_RATE_3 -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_3_WIDTH                   5  /* SAMPLE_RATE_3 -
+                                                          * [4:0] */
 
 /*
  * R266 (0x10A) - Sample rate 1 status
  */
-#define ARIZONA_SAMPLE_RATE_1_STS_MASK           0x001F  /* SAMPLE_RATE_1_STS - [4:0] */
-#define ARIZONA_SAMPLE_RATE_1_STS_SHIFT               0  /* SAMPLE_RATE_1_STS - [4:0] */
-#define ARIZONA_SAMPLE_RATE_1_STS_WIDTH               5  /* SAMPLE_RATE_1_STS - [4:0] */
+#define ARIZONA_SAMPLE_RATE_1_STS_MASK           0x001F  /* SAMPLE_RATE_1_STS -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_1_STS_SHIFT               0  /* SAMPLE_RATE_1_STS -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_1_STS_WIDTH               5  /* SAMPLE_RATE_1_STS -
+                                                          * [4:0] */
 
 /*
  * R267 (0x10B) - Sample rate 2 status
  */
-#define ARIZONA_SAMPLE_RATE_2_STS_MASK           0x001F  /* SAMPLE_RATE_2_STS - [4:0] */
-#define ARIZONA_SAMPLE_RATE_2_STS_SHIFT               0  /* SAMPLE_RATE_2_STS - [4:0] */
-#define ARIZONA_SAMPLE_RATE_2_STS_WIDTH               5  /* SAMPLE_RATE_2_STS - [4:0] */
+#define ARIZONA_SAMPLE_RATE_2_STS_MASK           0x001F  /* SAMPLE_RATE_2_STS -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_2_STS_SHIFT               0  /* SAMPLE_RATE_2_STS -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_2_STS_WIDTH               5  /* SAMPLE_RATE_2_STS -
+                                                          * [4:0] */
 
 /*
  * R268 (0x10C) - Sample rate 3 status
  */
-#define ARIZONA_SAMPLE_RATE_3_STS_MASK           0x001F  /* SAMPLE_RATE_3_STS - [4:0] */
-#define ARIZONA_SAMPLE_RATE_3_STS_SHIFT               0  /* SAMPLE_RATE_3_STS - [4:0] */
-#define ARIZONA_SAMPLE_RATE_3_STS_WIDTH               5  /* SAMPLE_RATE_3_STS - [4:0] */
+#define ARIZONA_SAMPLE_RATE_3_STS_MASK           0x001F  /* SAMPLE_RATE_3_STS -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_3_STS_SHIFT               0  /* SAMPLE_RATE_3_STS -
+                                                          * [4:0] */
+#define ARIZONA_SAMPLE_RATE_3_STS_WIDTH               5  /* SAMPLE_RATE_3_STS -
+                                                          * [4:0] */
 
 /*
  * R274 (0x112) - Async clock 1
  */
-#define ARIZONA_ASYNC_CLK_FREQ_MASK              0x0700  /* ASYNC_CLK_FREQ - [10:8] */
-#define ARIZONA_ASYNC_CLK_FREQ_SHIFT                  8  /* ASYNC_CLK_FREQ - [10:8] */
-#define ARIZONA_ASYNC_CLK_FREQ_WIDTH                  3  /* ASYNC_CLK_FREQ - [10:8] */
+#define ARIZONA_ASYNC_CLK_FREQ_MASK              0x0700  /* ASYNC_CLK_FREQ -
+                                                          * [10:8] */
+#define ARIZONA_ASYNC_CLK_FREQ_SHIFT                  8  /* ASYNC_CLK_FREQ -
+                                                          * [10:8] */
+#define ARIZONA_ASYNC_CLK_FREQ_WIDTH                  3  /* ASYNC_CLK_FREQ -
+                                                          * [10:8] */
 #define ARIZONA_ASYNC_CLK_ENA                    0x0040  /* ASYNC_CLK_ENA */
 #define ARIZONA_ASYNC_CLK_ENA_MASK               0x0040  /* ASYNC_CLK_ENA */
 #define ARIZONA_ASYNC_CLK_ENA_SHIFT                   6  /* ASYNC_CLK_ENA */
 #define ARIZONA_ASYNC_CLK_ENA_WIDTH                   1  /* ASYNC_CLK_ENA */
-#define ARIZONA_ASYNC_CLK_SRC_MASK               0x000F  /* ASYNC_CLK_SRC - [3:0] */
-#define ARIZONA_ASYNC_CLK_SRC_SHIFT                   0  /* ASYNC_CLK_SRC - [3:0] */
-#define ARIZONA_ASYNC_CLK_SRC_WIDTH                   4  /* ASYNC_CLK_SRC - [3:0] */
+#define ARIZONA_ASYNC_CLK_SRC_MASK               0x000F  /* ASYNC_CLK_SRC -
+                                                          * [3:0] */
+#define ARIZONA_ASYNC_CLK_SRC_SHIFT                   0  /* ASYNC_CLK_SRC -
+                                                          * [3:0] */
+#define ARIZONA_ASYNC_CLK_SRC_WIDTH                   4  /* ASYNC_CLK_SRC -
+                                                          * [3:0] */
 
 /*
  * R275 (0x113) - Async sample rate 1
  */
-#define ARIZONA_ASYNC_SAMPLE_RATE_1_MASK         0x001F  /* ASYNC_SAMPLE_RATE_1 - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_1_SHIFT             0  /* ASYNC_SAMPLE_RATE_1 - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_1_WIDTH             5  /* ASYNC_SAMPLE_RATE_1 - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_MASK         0x001F  /* ASYNC_SAMPLE_RATE_1
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_SHIFT             0  /* ASYNC_SAMPLE_RATE_1
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_WIDTH             5  /* ASYNC_SAMPLE_RATE_1
+                                                          * - [4:0] */
 
 /*
  * R276 (0x114) - Async sample rate 2
  */
-#define ARIZONA_ASYNC_SAMPLE_RATE_2_MASK         0x001F  /* ASYNC_SAMPLE_RATE_2 - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_2_SHIFT             0  /* ASYNC_SAMPLE_RATE_2 - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_2_WIDTH             5  /* ASYNC_SAMPLE_RATE_2 - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_MASK         0x001F  /* ASYNC_SAMPLE_RATE_2
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_SHIFT             0  /* ASYNC_SAMPLE_RATE_2
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_WIDTH             5  /* ASYNC_SAMPLE_RATE_2
+                                                          * - [4:0] */
 
 /*
  * R283 (0x11B) - Async sample rate 1 status
  */
-#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_MASK     0x001F  /* ASYNC_SAMPLE_RATE_1_STS - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_SHIFT         0  /* ASYNC_SAMPLE_RATE_1_STS - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_WIDTH         5  /* ASYNC_SAMPLE_RATE_1_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_MASK     0x001F  /*
+                                                          * ASYNC_SAMPLE_RATE_1_STS
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_SHIFT         0  /*
+                                                          * ASYNC_SAMPLE_RATE_1_STS
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_1_STS_WIDTH         5  /*
+                                                          * ASYNC_SAMPLE_RATE_1_STS
+                                                          * - [4:0] */
 
 /*
  * R284 (0x11C) - Async sample rate 2 status
  */
-#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_MASK     0x001F  /* ASYNC_SAMPLE_RATE_2_STS - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_SHIFT         0  /* ASYNC_SAMPLE_RATE_2_STS - [4:0] */
-#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_WIDTH         5  /* ASYNC_SAMPLE_RATE_2_STS - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_MASK     0x001F  /*
+                                                          * ASYNC_SAMPLE_RATE_2_STS
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_SHIFT         0  /*
+                                                          * ASYNC_SAMPLE_RATE_2_STS
+                                                          * - [4:0] */
+#define ARIZONA_ASYNC_SAMPLE_RATE_2_STS_WIDTH         5  /*
+                                                          * ASYNC_SAMPLE_RATE_2_STS
+                                                          * - [4:0] */
 
 /*
  * R329 (0x149) - Output system clock
@@ -1776,12 +1958,18 @@
 #define ARIZONA_OPCLK_ASYNC_ENA_MASK             0x8000  /* OPCLK_ASYNC_ENA */
 #define ARIZONA_OPCLK_ASYNC_ENA_SHIFT                15  /* OPCLK_ASYNC_ENA */
 #define ARIZONA_OPCLK_ASYNC_ENA_WIDTH                 1  /* OPCLK_ASYNC_ENA */
-#define ARIZONA_OPCLK_ASYNC_DIV_MASK             0x00F8  /* OPCLK_ASYNC_DIV - [7:3] */
-#define ARIZONA_OPCLK_ASYNC_DIV_SHIFT                 3  /* OPCLK_ASYNC_DIV - [7:3] */
-#define ARIZONA_OPCLK_ASYNC_DIV_WIDTH                 5  /* OPCLK_ASYNC_DIV - [7:3] */
-#define ARIZONA_OPCLK_ASYNC_SEL_MASK             0x0007  /* OPCLK_ASYNC_SEL - [2:0] */
-#define ARIZONA_OPCLK_ASYNC_SEL_SHIFT                 0  /* OPCLK_ASYNC_SEL - [2:0] */
-#define ARIZONA_OPCLK_ASYNC_SEL_WIDTH                 3  /* OPCLK_ASYNC_SEL - [2:0] */
+#define ARIZONA_OPCLK_ASYNC_DIV_MASK             0x00F8  /* OPCLK_ASYNC_DIV -
+                                                          * [7:3] */
+#define ARIZONA_OPCLK_ASYNC_DIV_SHIFT                 3  /* OPCLK_ASYNC_DIV -
+                                                          * [7:3] */
+#define ARIZONA_OPCLK_ASYNC_DIV_WIDTH                 5  /* OPCLK_ASYNC_DIV -
+                                                          * [7:3] */
+#define ARIZONA_OPCLK_ASYNC_SEL_MASK             0x0007  /* OPCLK_ASYNC_SEL -
+                                                          * [2:0] */
+#define ARIZONA_OPCLK_ASYNC_SEL_SHIFT                 0  /* OPCLK_ASYNC_SEL -
+                                                          * [2:0] */
+#define ARIZONA_OPCLK_ASYNC_SEL_WIDTH                 3  /* OPCLK_ASYNC_SEL -
+                                                          * [2:0] */
 
 /*
  * R338 (0x152) - Rate Estimator 1
@@ -1801,30 +1989,42 @@
 /*
  * R339 (0x153) - Rate Estimator 2
  */
-#define ARIZONA_SAMPLE_RATE_DETECT_A_MASK        0x001F  /* SAMPLE_RATE_DETECT_A - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_A_SHIFT            0  /* SAMPLE_RATE_DETECT_A - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_A_WIDTH            5  /* SAMPLE_RATE_DETECT_A - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_A_MASK        0x001F  /* SAMPLE_RATE_DETECT_A
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_A_SHIFT            0  /* SAMPLE_RATE_DETECT_A
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_A_WIDTH            5  /* SAMPLE_RATE_DETECT_A
+                                                          * - [4:0] */
 
 /*
  * R340 (0x154) - Rate Estimator 3
  */
-#define ARIZONA_SAMPLE_RATE_DETECT_B_MASK        0x001F  /* SAMPLE_RATE_DETECT_B - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_B_SHIFT            0  /* SAMPLE_RATE_DETECT_B - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_B_WIDTH            5  /* SAMPLE_RATE_DETECT_B - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_B_MASK        0x001F  /* SAMPLE_RATE_DETECT_B
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_B_SHIFT            0  /* SAMPLE_RATE_DETECT_B
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_B_WIDTH            5  /* SAMPLE_RATE_DETECT_B
+                                                          * - [4:0] */
 
 /*
  * R341 (0x155) - Rate Estimator 4
  */
-#define ARIZONA_SAMPLE_RATE_DETECT_C_MASK        0x001F  /* SAMPLE_RATE_DETECT_C - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_C_SHIFT            0  /* SAMPLE_RATE_DETECT_C - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_C_WIDTH            5  /* SAMPLE_RATE_DETECT_C - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_C_MASK        0x001F  /* SAMPLE_RATE_DETECT_C
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_C_SHIFT            0  /* SAMPLE_RATE_DETECT_C
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_C_WIDTH            5  /* SAMPLE_RATE_DETECT_C
+                                                          * - [4:0] */
 
 /*
  * R342 (0x156) - Rate Estimator 5
  */
-#define ARIZONA_SAMPLE_RATE_DETECT_D_MASK        0x001F  /* SAMPLE_RATE_DETECT_D - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_D_SHIFT            0  /* SAMPLE_RATE_DETECT_D - [4:0] */
-#define ARIZONA_SAMPLE_RATE_DETECT_D_WIDTH            5  /* SAMPLE_RATE_DETECT_D - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_D_MASK        0x001F  /* SAMPLE_RATE_DETECT_D
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_D_SHIFT            0  /* SAMPLE_RATE_DETECT_D
+                                                          * - [4:0] */
+#define ARIZONA_SAMPLE_RATE_DETECT_D_WIDTH            5  /* SAMPLE_RATE_DETECT_D
+                                                          * - [4:0] */
 
 /*
  * R353 (0x161) - Dynamic Frequency Scaling 1
@@ -1859,47 +2059,72 @@
 /*
  * R371 (0x173) - FLL1 Control 3
  */
-#define ARIZONA_FLL1_THETA_MASK                  0xFFFF  /* FLL1_THETA - [15:0] */
-#define ARIZONA_FLL1_THETA_SHIFT                      0  /* FLL1_THETA - [15:0] */
-#define ARIZONA_FLL1_THETA_WIDTH                     16  /* FLL1_THETA - [15:0] */
+#define ARIZONA_FLL1_THETA_MASK                  0xFFFF  /* FLL1_THETA - [15:0]
+                                                          * */
+#define ARIZONA_FLL1_THETA_SHIFT                      0  /* FLL1_THETA - [15:0]
+                                                          * */
+#define ARIZONA_FLL1_THETA_WIDTH                     16  /* FLL1_THETA - [15:0]
+                                                          * */
 
 /*
  * R372 (0x174) - FLL1 Control 4
  */
-#define ARIZONA_FLL1_LAMBDA_MASK                 0xFFFF  /* FLL1_LAMBDA - [15:0] */
-#define ARIZONA_FLL1_LAMBDA_SHIFT                     0  /* FLL1_LAMBDA - [15:0] */
-#define ARIZONA_FLL1_LAMBDA_WIDTH                    16  /* FLL1_LAMBDA - [15:0] */
+#define ARIZONA_FLL1_LAMBDA_MASK                 0xFFFF  /* FLL1_LAMBDA - [15:0]
+                                                          * */
+#define ARIZONA_FLL1_LAMBDA_SHIFT                     0  /* FLL1_LAMBDA - [15:0]
+                                                          * */
+#define ARIZONA_FLL1_LAMBDA_WIDTH                    16  /* FLL1_LAMBDA - [15:0]
+                                                          * */
 
 /*
  * R373 (0x175) - FLL1 Control 5
  */
-#define ARIZONA_FLL1_FRATIO_MASK                 0x0F00  /* FLL1_FRATIO - [11:8] */
-#define ARIZONA_FLL1_FRATIO_SHIFT                     8  /* FLL1_FRATIO - [11:8] */
-#define ARIZONA_FLL1_FRATIO_WIDTH                     4  /* FLL1_FRATIO - [11:8] */
-#define ARIZONA_FLL1_OUTDIV_MASK                 0x000E  /* FLL1_OUTDIV - [3:1] */
-#define ARIZONA_FLL1_OUTDIV_SHIFT                     1  /* FLL1_OUTDIV - [3:1] */
-#define ARIZONA_FLL1_OUTDIV_WIDTH                     3  /* FLL1_OUTDIV - [3:1] */
+#define ARIZONA_FLL1_FRATIO_MASK                 0x0F00  /* FLL1_FRATIO - [11:8]
+                                                          * */
+#define ARIZONA_FLL1_FRATIO_SHIFT                     8  /* FLL1_FRATIO - [11:8]
+                                                          * */
+#define ARIZONA_FLL1_FRATIO_WIDTH                     4  /* FLL1_FRATIO - [11:8]
+                                                          * */
+#define ARIZONA_FLL1_OUTDIV_MASK                 0x000E  /* FLL1_OUTDIV - [3:1]
+                                                          * */
+#define ARIZONA_FLL1_OUTDIV_SHIFT                     1  /* FLL1_OUTDIV - [3:1]
+                                                          * */
+#define ARIZONA_FLL1_OUTDIV_WIDTH                     3  /* FLL1_OUTDIV - [3:1]
+                                                          * */
 
 /*
  * R374 (0x176) - FLL1 Control 6
  */
-#define ARIZONA_FLL1_CLK_REF_DIV_MASK            0x00C0  /* FLL1_CLK_REF_DIV - [7:6] */
-#define ARIZONA_FLL1_CLK_REF_DIV_SHIFT                6  /* FLL1_CLK_REF_DIV - [7:6] */
-#define ARIZONA_FLL1_CLK_REF_DIV_WIDTH                2  /* FLL1_CLK_REF_DIV - [7:6] */
-#define ARIZONA_FLL1_CLK_REF_SRC_MASK            0x000F  /* FLL1_CLK_REF_SRC - [3:0] */
-#define ARIZONA_FLL1_CLK_REF_SRC_SHIFT                0  /* FLL1_CLK_REF_SRC - [3:0] */
-#define ARIZONA_FLL1_CLK_REF_SRC_WIDTH                4  /* FLL1_CLK_REF_SRC - [3:0] */
+#define ARIZONA_FLL1_CLK_REF_DIV_MASK            0x00C0  /* FLL1_CLK_REF_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL1_CLK_REF_DIV_SHIFT                6  /* FLL1_CLK_REF_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL1_CLK_REF_DIV_WIDTH                2  /* FLL1_CLK_REF_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL1_CLK_REF_SRC_MASK            0x000F  /* FLL1_CLK_REF_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL1_CLK_REF_SRC_SHIFT                0  /* FLL1_CLK_REF_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL1_CLK_REF_SRC_WIDTH                4  /* FLL1_CLK_REF_SRC -
+                                                          * [3:0] */
 
 /*
  * R375 (0x177) - FLL1 Loop Filter Test 1
  */
-#define ARIZONA_FLL1_FRC_INTEG_UPD               0x8000  /* FLL1_FRC_INTEG_UPD */
-#define ARIZONA_FLL1_FRC_INTEG_UPD_MASK          0x8000  /* FLL1_FRC_INTEG_UPD */
-#define ARIZONA_FLL1_FRC_INTEG_UPD_SHIFT             15  /* FLL1_FRC_INTEG_UPD */
-#define ARIZONA_FLL1_FRC_INTEG_UPD_WIDTH              1  /* FLL1_FRC_INTEG_UPD */
-#define ARIZONA_FLL1_FRC_INTEG_VAL_MASK          0x0FFF  /* FLL1_FRC_INTEG_VAL - [11:0] */
-#define ARIZONA_FLL1_FRC_INTEG_VAL_SHIFT              0  /* FLL1_FRC_INTEG_VAL - [11:0] */
-#define ARIZONA_FLL1_FRC_INTEG_VAL_WIDTH             12  /* FLL1_FRC_INTEG_VAL - [11:0] */
+#define ARIZONA_FLL1_FRC_INTEG_UPD               0x8000  /* FLL1_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL1_FRC_INTEG_UPD_MASK          0x8000  /* FLL1_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL1_FRC_INTEG_UPD_SHIFT             15  /* FLL1_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL1_FRC_INTEG_UPD_WIDTH              1  /* FLL1_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL1_FRC_INTEG_VAL_MASK          0x0FFF  /* FLL1_FRC_INTEG_VAL -
+                                                          * [11:0] */
+#define ARIZONA_FLL1_FRC_INTEG_VAL_SHIFT              0  /* FLL1_FRC_INTEG_VAL -
+                                                          * [11:0] */
+#define ARIZONA_FLL1_FRC_INTEG_VAL_WIDTH             12  /* FLL1_FRC_INTEG_VAL -
+                                                          * [11:0] */
 
 /*
  * R377 (0x179) - FLL1 Control 7
@@ -1919,40 +2144,58 @@
 /*
  * R386 (0x182) - FLL1 Synchroniser 2
  */
-#define ARIZONA_FLL1_SYNC_N_MASK                 0x03FF  /* FLL1_SYNC_N - [9:0] */
-#define ARIZONA_FLL1_SYNC_N_SHIFT                     0  /* FLL1_SYNC_N - [9:0] */
-#define ARIZONA_FLL1_SYNC_N_WIDTH                    10  /* FLL1_SYNC_N - [9:0] */
+#define ARIZONA_FLL1_SYNC_N_MASK                 0x03FF  /* FLL1_SYNC_N - [9:0]
+                                                          * */
+#define ARIZONA_FLL1_SYNC_N_SHIFT                     0  /* FLL1_SYNC_N - [9:0]
+                                                          * */
+#define ARIZONA_FLL1_SYNC_N_WIDTH                    10  /* FLL1_SYNC_N - [9:0]
+                                                          * */
 
 /*
  * R387 (0x183) - FLL1 Synchroniser 3
  */
-#define ARIZONA_FLL1_SYNC_THETA_MASK             0xFFFF  /* FLL1_SYNC_THETA - [15:0] */
-#define ARIZONA_FLL1_SYNC_THETA_SHIFT                 0  /* FLL1_SYNC_THETA - [15:0] */
-#define ARIZONA_FLL1_SYNC_THETA_WIDTH                16  /* FLL1_SYNC_THETA - [15:0] */
+#define ARIZONA_FLL1_SYNC_THETA_MASK             0xFFFF  /* FLL1_SYNC_THETA -
+                                                          * [15:0] */
+#define ARIZONA_FLL1_SYNC_THETA_SHIFT                 0  /* FLL1_SYNC_THETA -
+                                                          * [15:0] */
+#define ARIZONA_FLL1_SYNC_THETA_WIDTH                16  /* FLL1_SYNC_THETA -
+                                                          * [15:0] */
 
 /*
  * R388 (0x184) - FLL1 Synchroniser 4
  */
-#define ARIZONA_FLL1_SYNC_LAMBDA_MASK            0xFFFF  /* FLL1_SYNC_LAMBDA - [15:0] */
-#define ARIZONA_FLL1_SYNC_LAMBDA_SHIFT                0  /* FLL1_SYNC_LAMBDA - [15:0] */
-#define ARIZONA_FLL1_SYNC_LAMBDA_WIDTH               16  /* FLL1_SYNC_LAMBDA - [15:0] */
+#define ARIZONA_FLL1_SYNC_LAMBDA_MASK            0xFFFF  /* FLL1_SYNC_LAMBDA -
+                                                          * [15:0] */
+#define ARIZONA_FLL1_SYNC_LAMBDA_SHIFT                0  /* FLL1_SYNC_LAMBDA -
+                                                          * [15:0] */
+#define ARIZONA_FLL1_SYNC_LAMBDA_WIDTH               16  /* FLL1_SYNC_LAMBDA -
+                                                          * [15:0] */
 
 /*
  * R389 (0x185) - FLL1 Synchroniser 5
  */
-#define ARIZONA_FLL1_SYNC_FRATIO_MASK            0x0700  /* FLL1_SYNC_FRATIO - [10:8] */
-#define ARIZONA_FLL1_SYNC_FRATIO_SHIFT                8  /* FLL1_SYNC_FRATIO - [10:8] */
-#define ARIZONA_FLL1_SYNC_FRATIO_WIDTH                3  /* FLL1_SYNC_FRATIO - [10:8] */
+#define ARIZONA_FLL1_SYNC_FRATIO_MASK            0x0700  /* FLL1_SYNC_FRATIO -
+                                                          * [10:8] */
+#define ARIZONA_FLL1_SYNC_FRATIO_SHIFT                8  /* FLL1_SYNC_FRATIO -
+                                                          * [10:8] */
+#define ARIZONA_FLL1_SYNC_FRATIO_WIDTH                3  /* FLL1_SYNC_FRATIO -
+                                                          * [10:8] */
 
 /*
  * R390 (0x186) - FLL1 Synchroniser 6
  */
-#define ARIZONA_FLL1_CLK_SYNC_DIV_MASK           0x00C0  /* FLL1_CLK_SYNC_DIV - [7:6] */
-#define ARIZONA_FLL1_CLK_SYNC_DIV_SHIFT               6  /* FLL1_CLK_SYNC_DIV - [7:6] */
-#define ARIZONA_FLL1_CLK_SYNC_DIV_WIDTH               2  /* FLL1_CLK_SYNC_DIV - [7:6] */
-#define ARIZONA_FLL1_CLK_SYNC_SRC_MASK           0x000F  /* FLL1_CLK_SYNC_SRC - [3:0] */
-#define ARIZONA_FLL1_CLK_SYNC_SRC_SHIFT               0  /* FLL1_CLK_SYNC_SRC - [3:0] */
-#define ARIZONA_FLL1_CLK_SYNC_SRC_WIDTH               4  /* FLL1_CLK_SYNC_SRC - [3:0] */
+#define ARIZONA_FLL1_CLK_SYNC_DIV_MASK           0x00C0  /* FLL1_CLK_SYNC_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL1_CLK_SYNC_DIV_SHIFT               6  /* FLL1_CLK_SYNC_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL1_CLK_SYNC_DIV_WIDTH               2  /* FLL1_CLK_SYNC_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL1_CLK_SYNC_SRC_MASK           0x000F  /* FLL1_CLK_SYNC_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL1_CLK_SYNC_SRC_SHIFT               0  /* FLL1_CLK_SYNC_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL1_CLK_SYNC_SRC_WIDTH               4  /* FLL1_CLK_SYNC_SRC -
+                                                          * [3:0] */
 
 /*
  * R391 (0x187) - FLL1 Synchroniser 7
@@ -1968,22 +2211,34 @@
 /*
  * R393 (0x189) - FLL1 Spread Spectrum
  */
-#define ARIZONA_FLL1_SS_AMPL_MASK                0x0030  /* FLL1_SS_AMPL - [5:4] */
-#define ARIZONA_FLL1_SS_AMPL_SHIFT                    4  /* FLL1_SS_AMPL - [5:4] */
-#define ARIZONA_FLL1_SS_AMPL_WIDTH                    2  /* FLL1_SS_AMPL - [5:4] */
-#define ARIZONA_FLL1_SS_FREQ_MASK                0x000C  /* FLL1_SS_FREQ - [3:2] */
-#define ARIZONA_FLL1_SS_FREQ_SHIFT                    2  /* FLL1_SS_FREQ - [3:2] */
-#define ARIZONA_FLL1_SS_FREQ_WIDTH                    2  /* FLL1_SS_FREQ - [3:2] */
-#define ARIZONA_FLL1_SS_SEL_MASK                 0x0003  /* FLL1_SS_SEL - [1:0] */
-#define ARIZONA_FLL1_SS_SEL_SHIFT                     0  /* FLL1_SS_SEL - [1:0] */
-#define ARIZONA_FLL1_SS_SEL_WIDTH                     2  /* FLL1_SS_SEL - [1:0] */
+#define ARIZONA_FLL1_SS_AMPL_MASK                0x0030  /* FLL1_SS_AMPL - [5:4]
+                                                          * */
+#define ARIZONA_FLL1_SS_AMPL_SHIFT                    4  /* FLL1_SS_AMPL - [5:4]
+                                                          * */
+#define ARIZONA_FLL1_SS_AMPL_WIDTH                    2  /* FLL1_SS_AMPL - [5:4]
+                                                          * */
+#define ARIZONA_FLL1_SS_FREQ_MASK                0x000C  /* FLL1_SS_FREQ - [3:2]
+                                                          * */
+#define ARIZONA_FLL1_SS_FREQ_SHIFT                    2  /* FLL1_SS_FREQ - [3:2]
+                                                          * */
+#define ARIZONA_FLL1_SS_FREQ_WIDTH                    2  /* FLL1_SS_FREQ - [3:2]
+                                                          * */
+#define ARIZONA_FLL1_SS_SEL_MASK                 0x0003  /* FLL1_SS_SEL - [1:0]
+                                                          * */
+#define ARIZONA_FLL1_SS_SEL_SHIFT                     0  /* FLL1_SS_SEL - [1:0]
+                                                          * */
+#define ARIZONA_FLL1_SS_SEL_WIDTH                     2  /* FLL1_SS_SEL - [1:0]
+                                                          * */
 
 /*
  * R394 (0x18A) - FLL1 GPIO Clock
  */
-#define ARIZONA_FLL1_GPDIV_MASK                  0x00FE  /* FLL1_GPDIV - [7:1] */
-#define ARIZONA_FLL1_GPDIV_SHIFT                      1  /* FLL1_GPDIV - [7:1] */
-#define ARIZONA_FLL1_GPDIV_WIDTH                      7  /* FLL1_GPDIV - [7:1] */
+#define ARIZONA_FLL1_GPDIV_MASK                  0x00FE  /* FLL1_GPDIV - [7:1]
+                                                          * */
+#define ARIZONA_FLL1_GPDIV_SHIFT                      1  /* FLL1_GPDIV - [7:1]
+                                                          * */
+#define ARIZONA_FLL1_GPDIV_WIDTH                      7  /* FLL1_GPDIV - [7:1]
+                                                          * */
 #define ARIZONA_FLL1_GPDIV_ENA                   0x0001  /* FLL1_GPDIV_ENA */
 #define ARIZONA_FLL1_GPDIV_ENA_MASK              0x0001  /* FLL1_GPDIV_ENA */
 #define ARIZONA_FLL1_GPDIV_ENA_SHIFT                  0  /* FLL1_GPDIV_ENA */
@@ -2015,47 +2270,72 @@
 /*
  * R403 (0x193) - FLL2 Control 3
  */
-#define ARIZONA_FLL2_THETA_MASK                  0xFFFF  /* FLL2_THETA - [15:0] */
-#define ARIZONA_FLL2_THETA_SHIFT                      0  /* FLL2_THETA - [15:0] */
-#define ARIZONA_FLL2_THETA_WIDTH                     16  /* FLL2_THETA - [15:0] */
+#define ARIZONA_FLL2_THETA_MASK                  0xFFFF  /* FLL2_THETA - [15:0]
+                                                          * */
+#define ARIZONA_FLL2_THETA_SHIFT                      0  /* FLL2_THETA - [15:0]
+                                                          * */
+#define ARIZONA_FLL2_THETA_WIDTH                     16  /* FLL2_THETA - [15:0]
+                                                          * */
 
 /*
  * R404 (0x194) - FLL2 Control 4
  */
-#define ARIZONA_FLL2_LAMBDA_MASK                 0xFFFF  /* FLL2_LAMBDA - [15:0] */
-#define ARIZONA_FLL2_LAMBDA_SHIFT                     0  /* FLL2_LAMBDA - [15:0] */
-#define ARIZONA_FLL2_LAMBDA_WIDTH                    16  /* FLL2_LAMBDA - [15:0] */
+#define ARIZONA_FLL2_LAMBDA_MASK                 0xFFFF  /* FLL2_LAMBDA - [15:0]
+                                                          * */
+#define ARIZONA_FLL2_LAMBDA_SHIFT                     0  /* FLL2_LAMBDA - [15:0]
+                                                          * */
+#define ARIZONA_FLL2_LAMBDA_WIDTH                    16  /* FLL2_LAMBDA - [15:0]
+                                                          * */
 
 /*
  * R405 (0x195) - FLL2 Control 5
  */
-#define ARIZONA_FLL2_FRATIO_MASK                 0x0700  /* FLL2_FRATIO - [10:8] */
-#define ARIZONA_FLL2_FRATIO_SHIFT                     8  /* FLL2_FRATIO - [10:8] */
-#define ARIZONA_FLL2_FRATIO_WIDTH                     3  /* FLL2_FRATIO - [10:8] */
-#define ARIZONA_FLL2_OUTDIV_MASK                 0x000E  /* FLL2_OUTDIV - [3:1] */
-#define ARIZONA_FLL2_OUTDIV_SHIFT                     1  /* FLL2_OUTDIV - [3:1] */
-#define ARIZONA_FLL2_OUTDIV_WIDTH                     3  /* FLL2_OUTDIV - [3:1] */
+#define ARIZONA_FLL2_FRATIO_MASK                 0x0700  /* FLL2_FRATIO - [10:8]
+                                                          * */
+#define ARIZONA_FLL2_FRATIO_SHIFT                     8  /* FLL2_FRATIO - [10:8]
+                                                          * */
+#define ARIZONA_FLL2_FRATIO_WIDTH                     3  /* FLL2_FRATIO - [10:8]
+                                                          * */
+#define ARIZONA_FLL2_OUTDIV_MASK                 0x000E  /* FLL2_OUTDIV - [3:1]
+                                                          * */
+#define ARIZONA_FLL2_OUTDIV_SHIFT                     1  /* FLL2_OUTDIV - [3:1]
+                                                          * */
+#define ARIZONA_FLL2_OUTDIV_WIDTH                     3  /* FLL2_OUTDIV - [3:1]
+                                                          * */
 
 /*
  * R406 (0x196) - FLL2 Control 6
  */
-#define ARIZONA_FLL2_CLK_REF_DIV_MASK            0x00C0  /* FLL2_CLK_REF_DIV - [7:6] */
-#define ARIZONA_FLL2_CLK_REF_DIV_SHIFT                6  /* FLL2_CLK_REF_DIV - [7:6] */
-#define ARIZONA_FLL2_CLK_REF_DIV_WIDTH                2  /* FLL2_CLK_REF_DIV - [7:6] */
-#define ARIZONA_FLL2_CLK_REF_SRC_MASK            0x000F  /* FLL2_CLK_REF_SRC - [3:0] */
-#define ARIZONA_FLL2_CLK_REF_SRC_SHIFT                0  /* FLL2_CLK_REF_SRC - [3:0] */
-#define ARIZONA_FLL2_CLK_REF_SRC_WIDTH                4  /* FLL2_CLK_REF_SRC - [3:0] */
+#define ARIZONA_FLL2_CLK_REF_DIV_MASK            0x00C0  /* FLL2_CLK_REF_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL2_CLK_REF_DIV_SHIFT                6  /* FLL2_CLK_REF_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL2_CLK_REF_DIV_WIDTH                2  /* FLL2_CLK_REF_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL2_CLK_REF_SRC_MASK            0x000F  /* FLL2_CLK_REF_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL2_CLK_REF_SRC_SHIFT                0  /* FLL2_CLK_REF_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL2_CLK_REF_SRC_WIDTH                4  /* FLL2_CLK_REF_SRC -
+                                                          * [3:0] */
 
 /*
  * R407 (0x197) - FLL2 Loop Filter Test 1
  */
-#define ARIZONA_FLL2_FRC_INTEG_UPD               0x8000  /* FLL2_FRC_INTEG_UPD */
-#define ARIZONA_FLL2_FRC_INTEG_UPD_MASK          0x8000  /* FLL2_FRC_INTEG_UPD */
-#define ARIZONA_FLL2_FRC_INTEG_UPD_SHIFT             15  /* FLL2_FRC_INTEG_UPD */
-#define ARIZONA_FLL2_FRC_INTEG_UPD_WIDTH              1  /* FLL2_FRC_INTEG_UPD */
-#define ARIZONA_FLL2_FRC_INTEG_VAL_MASK          0x0FFF  /* FLL2_FRC_INTEG_VAL - [11:0] */
-#define ARIZONA_FLL2_FRC_INTEG_VAL_SHIFT              0  /* FLL2_FRC_INTEG_VAL - [11:0] */
-#define ARIZONA_FLL2_FRC_INTEG_VAL_WIDTH             12  /* FLL2_FRC_INTEG_VAL - [11:0] */
+#define ARIZONA_FLL2_FRC_INTEG_UPD               0x8000  /* FLL2_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL2_FRC_INTEG_UPD_MASK          0x8000  /* FLL2_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL2_FRC_INTEG_UPD_SHIFT             15  /* FLL2_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL2_FRC_INTEG_UPD_WIDTH              1  /* FLL2_FRC_INTEG_UPD
+                                                          * */
+#define ARIZONA_FLL2_FRC_INTEG_VAL_MASK          0x0FFF  /* FLL2_FRC_INTEG_VAL -
+                                                          * [11:0] */
+#define ARIZONA_FLL2_FRC_INTEG_VAL_SHIFT              0  /* FLL2_FRC_INTEG_VAL -
+                                                          * [11:0] */
+#define ARIZONA_FLL2_FRC_INTEG_VAL_WIDTH             12  /* FLL2_FRC_INTEG_VAL -
+                                                          * [11:0] */
 
 /*
  * R409 (0x199) - FLL2 Control 7
@@ -2075,40 +2355,58 @@
 /*
  * R418 (0x1A2) - FLL2 Synchroniser 2
  */
-#define ARIZONA_FLL2_SYNC_N_MASK                 0x03FF  /* FLL2_SYNC_N - [9:0] */
-#define ARIZONA_FLL2_SYNC_N_SHIFT                     0  /* FLL2_SYNC_N - [9:0] */
-#define ARIZONA_FLL2_SYNC_N_WIDTH                    10  /* FLL2_SYNC_N - [9:0] */
+#define ARIZONA_FLL2_SYNC_N_MASK                 0x03FF  /* FLL2_SYNC_N - [9:0]
+                                                          * */
+#define ARIZONA_FLL2_SYNC_N_SHIFT                     0  /* FLL2_SYNC_N - [9:0]
+                                                          * */
+#define ARIZONA_FLL2_SYNC_N_WIDTH                    10  /* FLL2_SYNC_N - [9:0]
+                                                          * */
 
 /*
  * R419 (0x1A3) - FLL2 Synchroniser 3
  */
-#define ARIZONA_FLL2_SYNC_THETA_MASK             0xFFFF  /* FLL2_SYNC_THETA - [15:0] */
-#define ARIZONA_FLL2_SYNC_THETA_SHIFT                 0  /* FLL2_SYNC_THETA - [15:0] */
-#define ARIZONA_FLL2_SYNC_THETA_WIDTH                16  /* FLL2_SYNC_THETA - [15:0] */
+#define ARIZONA_FLL2_SYNC_THETA_MASK             0xFFFF  /* FLL2_SYNC_THETA -
+                                                          * [15:0] */
+#define ARIZONA_FLL2_SYNC_THETA_SHIFT                 0  /* FLL2_SYNC_THETA -
+                                                          * [15:0] */
+#define ARIZONA_FLL2_SYNC_THETA_WIDTH                16  /* FLL2_SYNC_THETA -
+                                                          * [15:0] */
 
 /*
  * R420 (0x1A4) - FLL2 Synchroniser 4
  */
-#define ARIZONA_FLL2_SYNC_LAMBDA_MASK            0xFFFF  /* FLL2_SYNC_LAMBDA - [15:0] */
-#define ARIZONA_FLL2_SYNC_LAMBDA_SHIFT                0  /* FLL2_SYNC_LAMBDA - [15:0] */
-#define ARIZONA_FLL2_SYNC_LAMBDA_WIDTH               16  /* FLL2_SYNC_LAMBDA - [15:0] */
+#define ARIZONA_FLL2_SYNC_LAMBDA_MASK            0xFFFF  /* FLL2_SYNC_LAMBDA -
+                                                          * [15:0] */
+#define ARIZONA_FLL2_SYNC_LAMBDA_SHIFT                0  /* FLL2_SYNC_LAMBDA -
+                                                          * [15:0] */
+#define ARIZONA_FLL2_SYNC_LAMBDA_WIDTH               16  /* FLL2_SYNC_LAMBDA -
+                                                          * [15:0] */
 
 /*
  * R421 (0x1A5) - FLL2 Synchroniser 5
  */
-#define ARIZONA_FLL2_SYNC_FRATIO_MASK            0x0700  /* FLL2_SYNC_FRATIO - [10:8] */
-#define ARIZONA_FLL2_SYNC_FRATIO_SHIFT                8  /* FLL2_SYNC_FRATIO - [10:8] */
-#define ARIZONA_FLL2_SYNC_FRATIO_WIDTH                3  /* FLL2_SYNC_FRATIO - [10:8] */
+#define ARIZONA_FLL2_SYNC_FRATIO_MASK            0x0700  /* FLL2_SYNC_FRATIO -
+                                                          * [10:8] */
+#define ARIZONA_FLL2_SYNC_FRATIO_SHIFT                8  /* FLL2_SYNC_FRATIO -
+                                                          * [10:8] */
+#define ARIZONA_FLL2_SYNC_FRATIO_WIDTH                3  /* FLL2_SYNC_FRATIO -
+                                                          * [10:8] */
 
 /*
  * R422 (0x1A6) - FLL2 Synchroniser 6
  */
-#define ARIZONA_FLL2_CLK_SYNC_DIV_MASK           0x00C0  /* FLL2_CLK_SYNC_DIV - [7:6] */
-#define ARIZONA_FLL2_CLK_SYNC_DIV_SHIFT               6  /* FLL2_CLK_SYNC_DIV - [7:6] */
-#define ARIZONA_FLL2_CLK_SYNC_DIV_WIDTH               2  /* FLL2_CLK_SYNC_DIV - [7:6] */
-#define ARIZONA_FLL2_CLK_SYNC_SRC_MASK           0x000F  /* FLL2_CLK_SYNC_SRC - [3:0] */
-#define ARIZONA_FLL2_CLK_SYNC_SRC_SHIFT               0  /* FLL2_CLK_SYNC_SRC - [3:0] */
-#define ARIZONA_FLL2_CLK_SYNC_SRC_WIDTH               4  /* FLL2_CLK_SYNC_SRC - [3:0] */
+#define ARIZONA_FLL2_CLK_SYNC_DIV_MASK           0x00C0  /* FLL2_CLK_SYNC_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL2_CLK_SYNC_DIV_SHIFT               6  /* FLL2_CLK_SYNC_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL2_CLK_SYNC_DIV_WIDTH               2  /* FLL2_CLK_SYNC_DIV -
+                                                          * [7:6] */
+#define ARIZONA_FLL2_CLK_SYNC_SRC_MASK           0x000F  /* FLL2_CLK_SYNC_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL2_CLK_SYNC_SRC_SHIFT               0  /* FLL2_CLK_SYNC_SRC -
+                                                          * [3:0] */
+#define ARIZONA_FLL2_CLK_SYNC_SRC_WIDTH               4  /* FLL2_CLK_SYNC_SRC -
+                                                          * [3:0] */
 
 /*
  * R423 (0x1A7) - FLL2 Synchroniser 7
@@ -2124,22 +2422,34 @@
 /*
  * R425 (0x1A9) - FLL2 Spread Spectrum
  */
-#define ARIZONA_FLL2_SS_AMPL_MASK                0x0030  /* FLL2_SS_AMPL - [5:4] */
-#define ARIZONA_FLL2_SS_AMPL_SHIFT                    4  /* FLL2_SS_AMPL - [5:4] */
-#define ARIZONA_FLL2_SS_AMPL_WIDTH                    2  /* FLL2_SS_AMPL - [5:4] */
-#define ARIZONA_FLL2_SS_FREQ_MASK                0x000C  /* FLL2_SS_FREQ - [3:2] */
-#define ARIZONA_FLL2_SS_FREQ_SHIFT                    2  /* FLL2_SS_FREQ - [3:2] */
-#define ARIZONA_FLL2_SS_FREQ_WIDTH                    2  /* FLL2_SS_FREQ - [3:2] */
-#define ARIZONA_FLL2_SS_SEL_MASK                 0x0003  /* FLL2_SS_SEL - [1:0] */
-#define ARIZONA_FLL2_SS_SEL_SHIFT                     0  /* FLL2_SS_SEL - [1:0] */
-#define ARIZONA_FLL2_SS_SEL_WIDTH                     2  /* FLL2_SS_SEL - [1:0] */
+#define ARIZONA_FLL2_SS_AMPL_MASK                0x0030  /* FLL2_SS_AMPL - [5:4]
+                                                          * */
+#define ARIZONA_FLL2_SS_AMPL_SHIFT                    4  /* FLL2_SS_AMPL - [5:4]
+                                                          * */
+#define ARIZONA_FLL2_SS_AMPL_WIDTH                    2  /* FLL2_SS_AMPL - [5:4]
+                                                          * */
+#define ARIZONA_FLL2_SS_FREQ_MASK                0x000C  /* FLL2_SS_FREQ - [3:2]
+                                                          * */
+#define ARIZONA_FLL2_SS_FREQ_SHIFT                    2  /* FLL2_SS_FREQ - [3:2]
+                                                          * */
+#define ARIZONA_FLL2_SS_FREQ_WIDTH                    2  /* FLL2_SS_FREQ - [3:2]
+                                                          * */
+#define ARIZONA_FLL2_SS_SEL_MASK                 0x0003  /* FLL2_SS_SEL - [1:0]
+                                                          * */
+#define ARIZONA_FLL2_SS_SEL_SHIFT                     0  /* FLL2_SS_SEL - [1:0]
+                                                          * */
+#define ARIZONA_FLL2_SS_SEL_WIDTH                     2  /* FLL2_SS_SEL - [1:0]
+                                                          * */
 
 /*
  * R426 (0x1AA) - FLL2 GPIO Clock
  */
-#define ARIZONA_FLL2_GPDIV_MASK                  0x00FE  /* FLL2_GPDIV - [7:1] */
-#define ARIZONA_FLL2_GPDIV_SHIFT                      1  /* FLL2_GPDIV - [7:1] */
-#define ARIZONA_FLL2_GPDIV_WIDTH                      7  /* FLL2_GPDIV - [7:1] */
+#define ARIZONA_FLL2_GPDIV_MASK                  0x00FE  /* FLL2_GPDIV - [7:1]
+                                                          * */
+#define ARIZONA_FLL2_GPDIV_SHIFT                      1  /* FLL2_GPDIV - [7:1]
+                                                          * */
+#define ARIZONA_FLL2_GPDIV_WIDTH                      7  /* FLL2_GPDIV - [7:1]
+                                                          * */
 #define ARIZONA_FLL2_GPDIV_ENA                   0x0001  /* FLL2_GPDIV_ENA */
 #define ARIZONA_FLL2_GPDIV_ENA_MASK              0x0001  /* FLL2_GPDIV_ENA */
 #define ARIZONA_FLL2_GPDIV_ENA_SHIFT                  0  /* FLL2_GPDIV_ENA */
@@ -2164,9 +2474,12 @@
 /*
  * R528 (0x210) - LDO1 Control 1
  */
-#define ARIZONA_LDO1_VSEL_MASK                   0x07E0  /* LDO1_VSEL - [10:5] */
-#define ARIZONA_LDO1_VSEL_SHIFT                       5  /* LDO1_VSEL - [10:5] */
-#define ARIZONA_LDO1_VSEL_WIDTH                       6  /* LDO1_VSEL - [10:5] */
+#define ARIZONA_LDO1_VSEL_MASK                   0x07E0  /* LDO1_VSEL - [10:5]
+                                                          * */
+#define ARIZONA_LDO1_VSEL_SHIFT                       5  /* LDO1_VSEL - [10:5]
+                                                          * */
+#define ARIZONA_LDO1_VSEL_WIDTH                       6  /* LDO1_VSEL - [10:5]
+                                                          * */
 #define ARIZONA_LDO1_FAST                        0x0010  /* LDO1_FAST */
 #define ARIZONA_LDO1_FAST_MASK                   0x0010  /* LDO1_FAST */
 #define ARIZONA_LDO1_FAST_SHIFT                       4  /* LDO1_FAST */
@@ -2194,9 +2507,12 @@
 /*
  * R531 (0x213) - LDO2 Control 1
  */
-#define ARIZONA_LDO2_VSEL_MASK                   0x07E0  /* LDO2_VSEL - [10:5] */
-#define ARIZONA_LDO2_VSEL_SHIFT                       5  /* LDO2_VSEL - [10:5] */
-#define ARIZONA_LDO2_VSEL_WIDTH                       6  /* LDO2_VSEL - [10:5] */
+#define ARIZONA_LDO2_VSEL_MASK                   0x07E0  /* LDO2_VSEL - [10:5]
+                                                          * */
+#define ARIZONA_LDO2_VSEL_SHIFT                       5  /* LDO2_VSEL - [10:5]
+                                                          * */
+#define ARIZONA_LDO2_VSEL_WIDTH                       6  /* LDO2_VSEL - [10:5]
+                                                          * */
 #define ARIZONA_LDO2_FAST                        0x0010  /* LDO2_FAST */
 #define ARIZONA_LDO2_FAST_MASK                   0x0010  /* LDO2_FAST */
 #define ARIZONA_LDO2_FAST_SHIFT                       4  /* LDO2_FAST */
@@ -2354,26 +2670,38 @@
 #define ARIZONA_ACCDET_SRC_MASK                  0x2000  /* ACCDET_SRC */
 #define ARIZONA_ACCDET_SRC_SHIFT                     13  /* ACCDET_SRC */
 #define ARIZONA_ACCDET_SRC_WIDTH                      1  /* ACCDET_SRC */
-#define ARIZONA_ACCDET_MODE_MASK                 0x0007  /* ACCDET_MODE - [2:0] */
-#define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [2:0] */
-#define ARIZONA_ACCDET_MODE_WIDTH                     3  /* ACCDET_MODE - [2:0] */
+#define ARIZONA_ACCDET_MODE_MASK                 0x0007  /* ACCDET_MODE - [2:0]
+                                                          * */
+#define ARIZONA_ACCDET_MODE_SHIFT                     0  /* ACCDET_MODE - [2:0]
+                                                          * */
+#define ARIZONA_ACCDET_MODE_WIDTH                     3  /* ACCDET_MODE - [2:0]
+                                                          * */
 
 /*
  * R667 (0x29B) - Headphone Detect 1
  */
-#define ARIZONA_HP_IMPEDANCE_RANGE_MASK          0x0600  /* HP_IMPEDANCE_RANGE - [10:9] */
-#define ARIZONA_HP_IMPEDANCE_RANGE_SHIFT              9  /* HP_IMPEDANCE_RANGE - [10:9] */
-#define ARIZONA_HP_IMPEDANCE_RANGE_WIDTH              2  /* HP_IMPEDANCE_RANGE - [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_MASK          0x0600  /* HP_IMPEDANCE_RANGE -
+                                                          * [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_SHIFT              9  /* HP_IMPEDANCE_RANGE -
+                                                          * [10:9] */
+#define ARIZONA_HP_IMPEDANCE_RANGE_WIDTH              2  /* HP_IMPEDANCE_RANGE -
+                                                          * [10:9] */
 #define ARIZONA_HP_STEP_SIZE                     0x0100  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_MASK                0x0100  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_SHIFT                    8  /* HP_STEP_SIZE */
 #define ARIZONA_HP_STEP_SIZE_WIDTH                    1  /* HP_STEP_SIZE */
-#define ARIZONA_HP_HOLDTIME_MASK                 0x00E0  /* HP_HOLDTIME - [7:5] */
-#define ARIZONA_HP_HOLDTIME_SHIFT                     5  /* HP_HOLDTIME - [7:5] */
-#define ARIZONA_HP_HOLDTIME_WIDTH                     3  /* HP_HOLDTIME - [7:5] */
-#define ARIZONA_HP_CLK_DIV_MASK                  0x0018  /* HP_CLK_DIV - [4:3] */
-#define ARIZONA_HP_CLK_DIV_SHIFT                      3  /* HP_CLK_DIV - [4:3] */
-#define ARIZONA_HP_CLK_DIV_WIDTH                      2  /* HP_CLK_DIV - [4:3] */
+#define ARIZONA_HP_HOLDTIME_MASK                 0x00E0  /* HP_HOLDTIME - [7:5]
+                                                          * */
+#define ARIZONA_HP_HOLDTIME_SHIFT                     5  /* HP_HOLDTIME - [7:5]
+                                                          * */
+#define ARIZONA_HP_HOLDTIME_WIDTH                     3  /* HP_HOLDTIME - [7:5]
+                                                          * */
+#define ARIZONA_HP_CLK_DIV_MASK                  0x0018  /* HP_CLK_DIV - [4:3]
+                                                          * */
+#define ARIZONA_HP_CLK_DIV_SHIFT                      3  /* HP_CLK_DIV - [4:3]
+                                                          * */
+#define ARIZONA_HP_CLK_DIV_WIDTH                      2  /* HP_CLK_DIV - [4:3]
+                                                          * */
 #define ARIZONA_HP_IDAC_STEER                    0x0004  /* HP_IDAC_STEER */
 #define ARIZONA_HP_IDAC_STEER_MASK               0x0004  /* HP_IDAC_STEER */
 #define ARIZONA_HP_IDAC_STEER_SHIFT                   2  /* HP_IDAC_STEER */
@@ -2412,22 +2740,34 @@
 /*
  * R674 (0x2A2) - MICD clamp control
  */
-#define ARIZONA_MICD_CLAMP_MODE_MASK             0x000F  /* MICD_CLAMP_MODE - [3:0] */
-#define ARIZONA_MICD_CLAMP_MODE_SHIFT                 0  /* MICD_CLAMP_MODE - [3:0] */
-#define ARIZONA_MICD_CLAMP_MODE_WIDTH                 4  /* MICD_CLAMP_MODE - [3:0] */
+#define ARIZONA_MICD_CLAMP_MODE_MASK             0x000F  /* MICD_CLAMP_MODE -
+                                                          * [3:0] */
+#define ARIZONA_MICD_CLAMP_MODE_SHIFT                 0  /* MICD_CLAMP_MODE -
+                                                          * [3:0] */
+#define ARIZONA_MICD_CLAMP_MODE_WIDTH                 4  /* MICD_CLAMP_MODE -
+                                                          * [3:0] */
 
 /*
  * R675 (0x2A3) - Mic Detect 1
  */
-#define ARIZONA_MICD_BIAS_STARTTIME_MASK         0xF000  /* MICD_BIAS_STARTTIME - [15:12] */
-#define ARIZONA_MICD_BIAS_STARTTIME_SHIFT            12  /* MICD_BIAS_STARTTIME - [15:12] */
-#define ARIZONA_MICD_BIAS_STARTTIME_WIDTH             4  /* MICD_BIAS_STARTTIME - [15:12] */
-#define ARIZONA_MICD_RATE_MASK                   0x0F00  /* MICD_RATE - [11:8] */
-#define ARIZONA_MICD_RATE_SHIFT                       8  /* MICD_RATE - [11:8] */
-#define ARIZONA_MICD_RATE_WIDTH                       4  /* MICD_RATE - [11:8] */
-#define ARIZONA_MICD_BIAS_SRC_MASK               0x0030  /* MICD_BIAS_SRC - [5:4] */
-#define ARIZONA_MICD_BIAS_SRC_SHIFT                   4  /* MICD_BIAS_SRC - [5:4] */
-#define ARIZONA_MICD_BIAS_SRC_WIDTH                   2  /* MICD_BIAS_SRC - [5:4] */
+#define ARIZONA_MICD_BIAS_STARTTIME_MASK         0xF000  /* MICD_BIAS_STARTTIME
+                                                          * - [15:12] */
+#define ARIZONA_MICD_BIAS_STARTTIME_SHIFT            12  /* MICD_BIAS_STARTTIME
+                                                          * - [15:12] */
+#define ARIZONA_MICD_BIAS_STARTTIME_WIDTH             4  /* MICD_BIAS_STARTTIME
+                                                          * - [15:12] */
+#define ARIZONA_MICD_RATE_MASK                   0x0F00  /* MICD_RATE - [11:8]
+                                                          * */
+#define ARIZONA_MICD_RATE_SHIFT                       8  /* MICD_RATE - [11:8]
+                                                          * */
+#define ARIZONA_MICD_RATE_WIDTH                       4  /* MICD_RATE - [11:8]
+                                                          * */
+#define ARIZONA_MICD_BIAS_SRC_MASK               0x0030  /* MICD_BIAS_SRC -
+                                                          * [5:4] */
+#define ARIZONA_MICD_BIAS_SRC_SHIFT                   4  /* MICD_BIAS_SRC -
+                                                          * [5:4] */
+#define ARIZONA_MICD_BIAS_SRC_WIDTH                   2  /* MICD_BIAS_SRC -
+                                                          * [5:4] */
 #define ARIZONA_MICD_DBTIME                      0x0002  /* MICD_DBTIME */
 #define ARIZONA_MICD_DBTIME_MASK                 0x0002  /* MICD_DBTIME */
 #define ARIZONA_MICD_DBTIME_SHIFT                     1  /* MICD_DBTIME */
@@ -2440,9 +2780,12 @@
 /*
  * R676 (0x2A4) - Mic Detect 2
  */
-#define ARIZONA_MICD_LVL_SEL_MASK                0x00FF  /* MICD_LVL_SEL - [7:0] */
-#define ARIZONA_MICD_LVL_SEL_SHIFT                    0  /* MICD_LVL_SEL - [7:0] */
-#define ARIZONA_MICD_LVL_SEL_WIDTH                    8  /* MICD_LVL_SEL - [7:0] */
+#define ARIZONA_MICD_LVL_SEL_MASK                0x00FF  /* MICD_LVL_SEL - [7:0]
+                                                          * */
+#define ARIZONA_MICD_LVL_SEL_SHIFT                    0  /* MICD_LVL_SEL - [7:0]
+                                                          * */
+#define ARIZONA_MICD_LVL_SEL_WIDTH                    8  /* MICD_LVL_SEL - [7:0]
+                                                          * */
 
 /*
  * R677 (0x2A5) - Mic Detect 3
@@ -2471,19 +2814,28 @@
 /*
  * R683 (0x2AB) - Mic Detect 4
  */
-#define ARIZONA_MICDET_ADCVAL_DIFF_MASK          0xFF00  /* MICDET_ADCVAL_DIFF - [15:8] */
-#define ARIZONA_MICDET_ADCVAL_DIFF_SHIFT              8  /* MICDET_ADCVAL_DIFF - [15:8] */
-#define ARIZONA_MICDET_ADCVAL_DIFF_WIDTH              8  /* MICDET_ADCVAL_DIFF - [15:8] */
-#define ARIZONA_MICDET_ADCVAL_MASK               0x007F  /* MICDET_ADCVAL - [15:8] */
-#define ARIZONA_MICDET_ADCVAL_SHIFT                   0  /* MICDET_ADCVAL - [15:8] */
-#define ARIZONA_MICDET_ADCVAL_WIDTH                   7  /* MICDET_ADCVAL - [15:8] */
+#define ARIZONA_MICDET_ADCVAL_DIFF_MASK          0xFF00  /* MICDET_ADCVAL_DIFF -
+                                                          * [15:8] */
+#define ARIZONA_MICDET_ADCVAL_DIFF_SHIFT              8  /* MICDET_ADCVAL_DIFF -
+                                                          * [15:8] */
+#define ARIZONA_MICDET_ADCVAL_DIFF_WIDTH              8  /* MICDET_ADCVAL_DIFF -
+                                                          * [15:8] */
+#define ARIZONA_MICDET_ADCVAL_MASK               0x007F  /* MICDET_ADCVAL -
+                                                          * [15:8] */
+#define ARIZONA_MICDET_ADCVAL_SHIFT                   0  /* MICDET_ADCVAL -
+                                                          * [15:8] */
+#define ARIZONA_MICDET_ADCVAL_WIDTH                   7  /* MICDET_ADCVAL -
+                                                          * [15:8] */
 
 /*
  * R707 (0x2C3) - Mic noise mix control 1
  */
-#define ARIZONA_MICMUTE_RATE_MASK                0x7800  /* MICMUTE_RATE - [14:11] */
-#define ARIZONA_MICMUTE_RATE_SHIFT                   11  /* MICMUTE_RATE - [14:11] */
-#define ARIZONA_MICMUTE_RATE_WIDTH                    4  /* MICMUTE_RATE - [14:11] */
+#define ARIZONA_MICMUTE_RATE_MASK                0x7800  /* MICMUTE_RATE -
+                                                          * [14:11] */
+#define ARIZONA_MICMUTE_RATE_SHIFT                   11  /* MICMUTE_RATE -
+                                                          * [14:11] */
+#define ARIZONA_MICMUTE_RATE_WIDTH                    4  /* MICMUTE_RATE -
+                                                          * [14:11] */
 #define ARIZONA_MICMUTE_MIX_ENA                  0x0040  /* MICMUTE_MIX_ENA */
 #define ARIZONA_MICMUTE_MIX_ENA_MASK             0x0040  /* MICMUTE_MIX_ENA */
 #define ARIZONA_MICMUTE_MIX_ENA_SHIFT                 6  /* MICMUTE_MIX_ENA */
@@ -2555,12 +2907,18 @@
 /*
  * R777 (0x309) - Input Volume Ramp
  */
-#define ARIZONA_IN_VD_RAMP_MASK                  0x0070  /* IN_VD_RAMP - [6:4] */
-#define ARIZONA_IN_VD_RAMP_SHIFT                      4  /* IN_VD_RAMP - [6:4] */
-#define ARIZONA_IN_VD_RAMP_WIDTH                      3  /* IN_VD_RAMP - [6:4] */
-#define ARIZONA_IN_VI_RAMP_MASK                  0x0007  /* IN_VI_RAMP - [2:0] */
-#define ARIZONA_IN_VI_RAMP_SHIFT                      0  /* IN_VI_RAMP - [2:0] */
-#define ARIZONA_IN_VI_RAMP_WIDTH                      3  /* IN_VI_RAMP - [2:0] */
+#define ARIZONA_IN_VD_RAMP_MASK                  0x0070  /* IN_VD_RAMP - [6:4]
+                                                          * */
+#define ARIZONA_IN_VD_RAMP_SHIFT                      4  /* IN_VD_RAMP - [6:4]
+                                                          * */
+#define ARIZONA_IN_VD_RAMP_WIDTH                      3  /* IN_VD_RAMP - [6:4]
+                                                          * */
+#define ARIZONA_IN_VI_RAMP_MASK                  0x0007  /* IN_VI_RAMP - [2:0]
+                                                          * */
+#define ARIZONA_IN_VI_RAMP_SHIFT                      0  /* IN_VI_RAMP - [2:0]
+                                                          * */
+#define ARIZONA_IN_VI_RAMP_WIDTH                      3  /* IN_VI_RAMP - [2:0]
+                                                          * */
 
 /*
  * R780 (0x30C) - HPF Control
@@ -2578,18 +2936,24 @@
 #define ARIZONA_IN1_OSR_MASK                     0x6000  /* IN1_OSR - [14:13] */
 #define ARIZONA_IN1_OSR_SHIFT                        13  /* IN1_OSR - [14:13] */
 #define ARIZONA_IN1_OSR_WIDTH                         2  /* IN1_OSR - [14:13] */
-#define ARIZONA_IN1_DMIC_SUP_MASK                0x1800  /* IN1_DMIC_SUP - [12:11] */
-#define ARIZONA_IN1_DMIC_SUP_SHIFT                   11  /* IN1_DMIC_SUP - [12:11] */
-#define ARIZONA_IN1_DMIC_SUP_WIDTH                    2  /* IN1_DMIC_SUP - [12:11] */
+#define ARIZONA_IN1_DMIC_SUP_MASK                0x1800  /* IN1_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN1_DMIC_SUP_SHIFT                   11  /* IN1_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN1_DMIC_SUP_WIDTH                    2  /* IN1_DMIC_SUP -
+                                                          * [12:11] */
 #define ARIZONA_IN1_MODE_MASK                    0x0400  /* IN1_MODE - [10] */
 #define ARIZONA_IN1_MODE_SHIFT                       10  /* IN1_MODE - [10] */
 #define ARIZONA_IN1_MODE_WIDTH                        1  /* IN1_MODE - [10] */
 #define ARIZONA_IN1_SINGLE_ENDED_MASK            0x0200  /* IN1_MODE - [9] */
 #define ARIZONA_IN1_SINGLE_ENDED_SHIFT                9  /* IN1_MODE - [9] */
 #define ARIZONA_IN1_SINGLE_ENDED_WIDTH                1  /* IN1_MODE - [9] */
-#define ARIZONA_IN1L_PGA_VOL_MASK                0x00FE  /* IN1L_PGA_VOL - [7:1] */
-#define ARIZONA_IN1L_PGA_VOL_SHIFT                    1  /* IN1L_PGA_VOL - [7:1] */
-#define ARIZONA_IN1L_PGA_VOL_WIDTH                    7  /* IN1L_PGA_VOL - [7:1] */
+#define ARIZONA_IN1L_PGA_VOL_MASK                0x00FE  /* IN1L_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN1L_PGA_VOL_SHIFT                    1  /* IN1L_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN1L_PGA_VOL_WIDTH                    7  /* IN1L_PGA_VOL - [7:1]
+                                                          * */
 
 /*
  * R785 (0x311) - ADC Digital Volume 1L
@@ -2608,16 +2972,22 @@
 #define ARIZONA_IN1L_MUTE_MASK                   0x0100  /* IN1L_MUTE */
 #define ARIZONA_IN1L_MUTE_SHIFT                       8  /* IN1L_MUTE */
 #define ARIZONA_IN1L_MUTE_WIDTH                       1  /* IN1L_MUTE */
-#define ARIZONA_IN1L_DIG_VOL_MASK                0x00FF  /* IN1L_DIG_VOL - [7:0] */
-#define ARIZONA_IN1L_DIG_VOL_SHIFT                    0  /* IN1L_DIG_VOL - [7:0] */
-#define ARIZONA_IN1L_DIG_VOL_WIDTH                    8  /* IN1L_DIG_VOL - [7:0] */
+#define ARIZONA_IN1L_DIG_VOL_MASK                0x00FF  /* IN1L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN1L_DIG_VOL_SHIFT                    0  /* IN1L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN1L_DIG_VOL_WIDTH                    8  /* IN1L_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R786 (0x312) - DMIC1L Control
  */
-#define ARIZONA_IN1_DMICL_DLY_MASK               0x003F  /* IN1_DMICL_DLY - [5:0] */
-#define ARIZONA_IN1_DMICL_DLY_SHIFT                   0  /* IN1_DMICL_DLY - [5:0] */
-#define ARIZONA_IN1_DMICL_DLY_WIDTH                   6  /* IN1_DMICL_DLY - [5:0] */
+#define ARIZONA_IN1_DMICL_DLY_MASK               0x003F  /* IN1_DMICL_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN1_DMICL_DLY_SHIFT                   0  /* IN1_DMICL_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN1_DMICL_DLY_WIDTH                   6  /* IN1_DMICL_DLY -
+                                                          * [5:0] */
 
 /*
  * R788 (0x314) - IN1R Control
@@ -2625,9 +2995,12 @@
 #define ARIZONA_IN1R_HPF_MASK                    0x8000  /* IN1R_HPF - [15] */
 #define ARIZONA_IN1R_HPF_SHIFT                       15  /* IN1R_HPF - [15] */
 #define ARIZONA_IN1R_HPF_WIDTH                        1  /* IN1R_HPF - [15] */
-#define ARIZONA_IN1R_PGA_VOL_MASK                0x00FE  /* IN1R_PGA_VOL - [7:1] */
-#define ARIZONA_IN1R_PGA_VOL_SHIFT                    1  /* IN1R_PGA_VOL - [7:1] */
-#define ARIZONA_IN1R_PGA_VOL_WIDTH                    7  /* IN1R_PGA_VOL - [7:1] */
+#define ARIZONA_IN1R_PGA_VOL_MASK                0x00FE  /* IN1R_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN1R_PGA_VOL_SHIFT                    1  /* IN1R_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN1R_PGA_VOL_WIDTH                    7  /* IN1R_PGA_VOL - [7:1]
+                                                          * */
 
 /*
  * R789 (0x315) - ADC Digital Volume 1R
@@ -2646,16 +3019,22 @@
 #define ARIZONA_IN1R_MUTE_MASK                   0x0100  /* IN1R_MUTE */
 #define ARIZONA_IN1R_MUTE_SHIFT                       8  /* IN1R_MUTE */
 #define ARIZONA_IN1R_MUTE_WIDTH                       1  /* IN1R_MUTE */
-#define ARIZONA_IN1R_DIG_VOL_MASK                0x00FF  /* IN1R_DIG_VOL - [7:0] */
-#define ARIZONA_IN1R_DIG_VOL_SHIFT                    0  /* IN1R_DIG_VOL - [7:0] */
-#define ARIZONA_IN1R_DIG_VOL_WIDTH                    8  /* IN1R_DIG_VOL - [7:0] */
+#define ARIZONA_IN1R_DIG_VOL_MASK                0x00FF  /* IN1R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN1R_DIG_VOL_SHIFT                    0  /* IN1R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN1R_DIG_VOL_WIDTH                    8  /* IN1R_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R790 (0x316) - DMIC1R Control
  */
-#define ARIZONA_IN1_DMICR_DLY_MASK               0x003F  /* IN1_DMICR_DLY - [5:0] */
-#define ARIZONA_IN1_DMICR_DLY_SHIFT                   0  /* IN1_DMICR_DLY - [5:0] */
-#define ARIZONA_IN1_DMICR_DLY_WIDTH                   6  /* IN1_DMICR_DLY - [5:0] */
+#define ARIZONA_IN1_DMICR_DLY_MASK               0x003F  /* IN1_DMICR_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN1_DMICR_DLY_SHIFT                   0  /* IN1_DMICR_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN1_DMICR_DLY_WIDTH                   6  /* IN1_DMICR_DLY -
+                                                          * [5:0] */
 
 /*
  * R792 (0x318) - IN2L Control
@@ -2666,18 +3045,24 @@
 #define ARIZONA_IN2_OSR_MASK                     0x6000  /* IN2_OSR - [14:13] */
 #define ARIZONA_IN2_OSR_SHIFT                        13  /* IN2_OSR - [14:13] */
 #define ARIZONA_IN2_OSR_WIDTH                         2  /* IN2_OSR - [14:13] */
-#define ARIZONA_IN2_DMIC_SUP_MASK                0x1800  /* IN2_DMIC_SUP - [12:11] */
-#define ARIZONA_IN2_DMIC_SUP_SHIFT                   11  /* IN2_DMIC_SUP - [12:11] */
-#define ARIZONA_IN2_DMIC_SUP_WIDTH                    2  /* IN2_DMIC_SUP - [12:11] */
+#define ARIZONA_IN2_DMIC_SUP_MASK                0x1800  /* IN2_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN2_DMIC_SUP_SHIFT                   11  /* IN2_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN2_DMIC_SUP_WIDTH                    2  /* IN2_DMIC_SUP -
+                                                          * [12:11] */
 #define ARIZONA_IN2_MODE_MASK                    0x0400  /* IN2_MODE - [10] */
 #define ARIZONA_IN2_MODE_SHIFT                       10  /* IN2_MODE - [10] */
 #define ARIZONA_IN2_MODE_WIDTH                        1  /* IN2_MODE - [10] */
 #define ARIZONA_IN2_SINGLE_ENDED_MASK            0x0200  /* IN2_MODE - [9] */
 #define ARIZONA_IN2_SINGLE_ENDED_SHIFT                9  /* IN2_MODE - [9] */
 #define ARIZONA_IN2_SINGLE_ENDED_WIDTH                1  /* IN2_MODE - [9] */
-#define ARIZONA_IN2L_PGA_VOL_MASK                0x00FE  /* IN2L_PGA_VOL - [7:1] */
-#define ARIZONA_IN2L_PGA_VOL_SHIFT                    1  /* IN2L_PGA_VOL - [7:1] */
-#define ARIZONA_IN2L_PGA_VOL_WIDTH                    7  /* IN2L_PGA_VOL - [7:1] */
+#define ARIZONA_IN2L_PGA_VOL_MASK                0x00FE  /* IN2L_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN2L_PGA_VOL_SHIFT                    1  /* IN2L_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN2L_PGA_VOL_WIDTH                    7  /* IN2L_PGA_VOL - [7:1]
+                                                          * */
 
 /*
  * R793 (0x319) - ADC Digital Volume 2L
@@ -2696,16 +3081,22 @@
 #define ARIZONA_IN2L_MUTE_MASK                   0x0100  /* IN2L_MUTE */
 #define ARIZONA_IN2L_MUTE_SHIFT                       8  /* IN2L_MUTE */
 #define ARIZONA_IN2L_MUTE_WIDTH                       1  /* IN2L_MUTE */
-#define ARIZONA_IN2L_DIG_VOL_MASK                0x00FF  /* IN2L_DIG_VOL - [7:0] */
-#define ARIZONA_IN2L_DIG_VOL_SHIFT                    0  /* IN2L_DIG_VOL - [7:0] */
-#define ARIZONA_IN2L_DIG_VOL_WIDTH                    8  /* IN2L_DIG_VOL - [7:0] */
+#define ARIZONA_IN2L_DIG_VOL_MASK                0x00FF  /* IN2L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN2L_DIG_VOL_SHIFT                    0  /* IN2L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN2L_DIG_VOL_WIDTH                    8  /* IN2L_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R794 (0x31A) - DMIC2L Control
  */
-#define ARIZONA_IN2_DMICL_DLY_MASK               0x003F  /* IN2_DMICL_DLY - [5:0] */
-#define ARIZONA_IN2_DMICL_DLY_SHIFT                   0  /* IN2_DMICL_DLY - [5:0] */
-#define ARIZONA_IN2_DMICL_DLY_WIDTH                   6  /* IN2_DMICL_DLY - [5:0] */
+#define ARIZONA_IN2_DMICL_DLY_MASK               0x003F  /* IN2_DMICL_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN2_DMICL_DLY_SHIFT                   0  /* IN2_DMICL_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN2_DMICL_DLY_WIDTH                   6  /* IN2_DMICL_DLY -
+                                                          * [5:0] */
 
 /*
  * R796 (0x31C) - IN2R Control
@@ -2713,9 +3104,12 @@
 #define ARIZONA_IN2R_HPF_MASK                    0x8000  /* IN2R_HPF - [15] */
 #define ARIZONA_IN2R_HPF_SHIFT                       15  /* IN2R_HPF - [15] */
 #define ARIZONA_IN2R_HPF_WIDTH                        1  /* IN2R_HPF - [15] */
-#define ARIZONA_IN2R_PGA_VOL_MASK                0x00FE  /* IN2R_PGA_VOL - [7:1] */
-#define ARIZONA_IN2R_PGA_VOL_SHIFT                    1  /* IN2R_PGA_VOL - [7:1] */
-#define ARIZONA_IN2R_PGA_VOL_WIDTH                    7  /* IN2R_PGA_VOL - [7:1] */
+#define ARIZONA_IN2R_PGA_VOL_MASK                0x00FE  /* IN2R_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN2R_PGA_VOL_SHIFT                    1  /* IN2R_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN2R_PGA_VOL_WIDTH                    7  /* IN2R_PGA_VOL - [7:1]
+                                                          * */
 
 /*
  * R797 (0x31D) - ADC Digital Volume 2R
@@ -2728,16 +3122,22 @@
 #define ARIZONA_IN2R_MUTE_MASK                   0x0100  /* IN2R_MUTE */
 #define ARIZONA_IN2R_MUTE_SHIFT                       8  /* IN2R_MUTE */
 #define ARIZONA_IN2R_MUTE_WIDTH                       1  /* IN2R_MUTE */
-#define ARIZONA_IN2R_DIG_VOL_MASK                0x00FF  /* IN2R_DIG_VOL - [7:0] */
-#define ARIZONA_IN2R_DIG_VOL_SHIFT                    0  /* IN2R_DIG_VOL - [7:0] */
-#define ARIZONA_IN2R_DIG_VOL_WIDTH                    8  /* IN2R_DIG_VOL - [7:0] */
+#define ARIZONA_IN2R_DIG_VOL_MASK                0x00FF  /* IN2R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN2R_DIG_VOL_SHIFT                    0  /* IN2R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN2R_DIG_VOL_WIDTH                    8  /* IN2R_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R798 (0x31E) - DMIC2R Control
  */
-#define ARIZONA_IN2_DMICR_DLY_MASK               0x003F  /* IN2_DMICR_DLY - [5:0] */
-#define ARIZONA_IN2_DMICR_DLY_SHIFT                   0  /* IN2_DMICR_DLY - [5:0] */
-#define ARIZONA_IN2_DMICR_DLY_WIDTH                   6  /* IN2_DMICR_DLY - [5:0] */
+#define ARIZONA_IN2_DMICR_DLY_MASK               0x003F  /* IN2_DMICR_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN2_DMICR_DLY_SHIFT                   0  /* IN2_DMICR_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN2_DMICR_DLY_WIDTH                   6  /* IN2_DMICR_DLY -
+                                                          * [5:0] */
 
 /*
  * R800 (0x320) - IN3L Control
@@ -2748,18 +3148,24 @@
 #define ARIZONA_IN3_OSR_MASK                     0x6000  /* IN3_OSR - [14:13] */
 #define ARIZONA_IN3_OSR_SHIFT                        13  /* IN3_OSR - [14:13] */
 #define ARIZONA_IN3_OSR_WIDTH                         2  /* IN3_OSR - [14:13] */
-#define ARIZONA_IN3_DMIC_SUP_MASK                0x1800  /* IN3_DMIC_SUP - [12:11] */
-#define ARIZONA_IN3_DMIC_SUP_SHIFT                   11  /* IN3_DMIC_SUP - [12:11] */
-#define ARIZONA_IN3_DMIC_SUP_WIDTH                    2  /* IN3_DMIC_SUP - [12:11] */
+#define ARIZONA_IN3_DMIC_SUP_MASK                0x1800  /* IN3_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN3_DMIC_SUP_SHIFT                   11  /* IN3_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN3_DMIC_SUP_WIDTH                    2  /* IN3_DMIC_SUP -
+                                                          * [12:11] */
 #define ARIZONA_IN3_MODE_MASK                    0x0400  /* IN3_MODE - [10] */
 #define ARIZONA_IN3_MODE_SHIFT                       10  /* IN3_MODE - [10] */
 #define ARIZONA_IN3_MODE_WIDTH                        1  /* IN3_MODE - [10] */
 #define ARIZONA_IN3_SINGLE_ENDED_MASK            0x0200  /* IN3_MODE - [9] */
 #define ARIZONA_IN3_SINGLE_ENDED_SHIFT                9  /* IN3_MODE - [9] */
 #define ARIZONA_IN3_SINGLE_ENDED_WIDTH                1  /* IN3_MODE - [9] */
-#define ARIZONA_IN3L_PGA_VOL_MASK                0x00FE  /* IN3L_PGA_VOL - [7:1] */
-#define ARIZONA_IN3L_PGA_VOL_SHIFT                    1  /* IN3L_PGA_VOL - [7:1] */
-#define ARIZONA_IN3L_PGA_VOL_WIDTH                    7  /* IN3L_PGA_VOL - [7:1] */
+#define ARIZONA_IN3L_PGA_VOL_MASK                0x00FE  /* IN3L_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN3L_PGA_VOL_SHIFT                    1  /* IN3L_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN3L_PGA_VOL_WIDTH                    7  /* IN3L_PGA_VOL - [7:1]
+                                                          * */
 
 /*
  * R801 (0x321) - ADC Digital Volume 3L
@@ -2772,16 +3178,22 @@
 #define ARIZONA_IN3L_MUTE_MASK                   0x0100  /* IN3L_MUTE */
 #define ARIZONA_IN3L_MUTE_SHIFT                       8  /* IN3L_MUTE */
 #define ARIZONA_IN3L_MUTE_WIDTH                       1  /* IN3L_MUTE */
-#define ARIZONA_IN3L_DIG_VOL_MASK                0x00FF  /* IN3L_DIG_VOL - [7:0] */
-#define ARIZONA_IN3L_DIG_VOL_SHIFT                    0  /* IN3L_DIG_VOL - [7:0] */
-#define ARIZONA_IN3L_DIG_VOL_WIDTH                    8  /* IN3L_DIG_VOL - [7:0] */
+#define ARIZONA_IN3L_DIG_VOL_MASK                0x00FF  /* IN3L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN3L_DIG_VOL_SHIFT                    0  /* IN3L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN3L_DIG_VOL_WIDTH                    8  /* IN3L_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R802 (0x322) - DMIC3L Control
  */
-#define ARIZONA_IN3_DMICL_DLY_MASK               0x003F  /* IN3_DMICL_DLY - [5:0] */
-#define ARIZONA_IN3_DMICL_DLY_SHIFT                   0  /* IN3_DMICL_DLY - [5:0] */
-#define ARIZONA_IN3_DMICL_DLY_WIDTH                   6  /* IN3_DMICL_DLY - [5:0] */
+#define ARIZONA_IN3_DMICL_DLY_MASK               0x003F  /* IN3_DMICL_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN3_DMICL_DLY_SHIFT                   0  /* IN3_DMICL_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN3_DMICL_DLY_WIDTH                   6  /* IN3_DMICL_DLY -
+                                                          * [5:0] */
 
 /*
  * R804 (0x324) - IN3R Control
@@ -2789,9 +3201,12 @@
 #define ARIZONA_IN3R_HPF_MASK                    0x8000  /* IN3R_HPF - [15] */
 #define ARIZONA_IN3R_HPF_SHIFT                       15  /* IN3R_HPF - [15] */
 #define ARIZONA_IN3R_HPF_WIDTH                        1  /* IN3R_HPF - [15] */
-#define ARIZONA_IN3R_PGA_VOL_MASK                0x00FE  /* IN3R_PGA_VOL - [7:1] */
-#define ARIZONA_IN3R_PGA_VOL_SHIFT                    1  /* IN3R_PGA_VOL - [7:1] */
-#define ARIZONA_IN3R_PGA_VOL_WIDTH                    7  /* IN3R_PGA_VOL - [7:1] */
+#define ARIZONA_IN3R_PGA_VOL_MASK                0x00FE  /* IN3R_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN3R_PGA_VOL_SHIFT                    1  /* IN3R_PGA_VOL - [7:1]
+                                                          * */
+#define ARIZONA_IN3R_PGA_VOL_WIDTH                    7  /* IN3R_PGA_VOL - [7:1]
+                                                          * */
 
 /*
  * R805 (0x325) - ADC Digital Volume 3R
@@ -2804,16 +3219,22 @@
 #define ARIZONA_IN3R_MUTE_MASK                   0x0100  /* IN3R_MUTE */
 #define ARIZONA_IN3R_MUTE_SHIFT                       8  /* IN3R_MUTE */
 #define ARIZONA_IN3R_MUTE_WIDTH                       1  /* IN3R_MUTE */
-#define ARIZONA_IN3R_DIG_VOL_MASK                0x00FF  /* IN3R_DIG_VOL - [7:0] */
-#define ARIZONA_IN3R_DIG_VOL_SHIFT                    0  /* IN3R_DIG_VOL - [7:0] */
-#define ARIZONA_IN3R_DIG_VOL_WIDTH                    8  /* IN3R_DIG_VOL - [7:0] */
+#define ARIZONA_IN3R_DIG_VOL_MASK                0x00FF  /* IN3R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN3R_DIG_VOL_SHIFT                    0  /* IN3R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN3R_DIG_VOL_WIDTH                    8  /* IN3R_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R806 (0x326) - DMIC3R Control
  */
-#define ARIZONA_IN3_DMICR_DLY_MASK               0x003F  /* IN3_DMICR_DLY - [5:0] */
-#define ARIZONA_IN3_DMICR_DLY_SHIFT                   0  /* IN3_DMICR_DLY - [5:0] */
-#define ARIZONA_IN3_DMICR_DLY_WIDTH                   6  /* IN3_DMICR_DLY - [5:0] */
+#define ARIZONA_IN3_DMICR_DLY_MASK               0x003F  /* IN3_DMICR_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN3_DMICR_DLY_SHIFT                   0  /* IN3_DMICR_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN3_DMICR_DLY_WIDTH                   6  /* IN3_DMICR_DLY -
+                                                          * [5:0] */
 
 /*
  * R808 (0x328) - IN4 Control
@@ -2824,9 +3245,12 @@
 #define ARIZONA_IN4_OSR_MASK                     0x6000  /* IN4_OSR - [14:13] */
 #define ARIZONA_IN4_OSR_SHIFT                        13  /* IN4_OSR - [14:13] */
 #define ARIZONA_IN4_OSR_WIDTH                         2  /* IN4_OSR - [14:13] */
-#define ARIZONA_IN4_DMIC_SUP_MASK                0x1800  /* IN4_DMIC_SUP - [12:11] */
-#define ARIZONA_IN4_DMIC_SUP_SHIFT                   11  /* IN4_DMIC_SUP - [12:11] */
-#define ARIZONA_IN4_DMIC_SUP_WIDTH                    2  /* IN4_DMIC_SUP - [12:11] */
+#define ARIZONA_IN4_DMIC_SUP_MASK                0x1800  /* IN4_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN4_DMIC_SUP_SHIFT                   11  /* IN4_DMIC_SUP -
+                                                          * [12:11] */
+#define ARIZONA_IN4_DMIC_SUP_WIDTH                    2  /* IN4_DMIC_SUP -
+                                                          * [12:11] */
 
 /*
  * R809 (0x329) - ADC Digital Volume 4L
@@ -2839,16 +3263,22 @@
 #define ARIZONA_IN4L_MUTE_MASK                   0x0100  /* IN4L_MUTE */
 #define ARIZONA_IN4L_MUTE_SHIFT                       8  /* IN4L_MUTE */
 #define ARIZONA_IN4L_MUTE_WIDTH                       1  /* IN4L_MUTE */
-#define ARIZONA_IN4L_DIG_VOL_MASK                0x00FF  /* IN4L_DIG_VOL - [7:0] */
-#define ARIZONA_IN4L_DIG_VOL_SHIFT                    0  /* IN4L_DIG_VOL - [7:0] */
-#define ARIZONA_IN4L_DIG_VOL_WIDTH                    8  /* IN4L_DIG_VOL - [7:0] */
+#define ARIZONA_IN4L_DIG_VOL_MASK                0x00FF  /* IN4L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN4L_DIG_VOL_SHIFT                    0  /* IN4L_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN4L_DIG_VOL_WIDTH                    8  /* IN4L_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R810 (0x32A) - DMIC4L Control
  */
-#define ARIZONA_IN4L_DMIC_DLY_MASK               0x003F  /* IN4L_DMIC_DLY - [5:0] */
-#define ARIZONA_IN4L_DMIC_DLY_SHIFT                   0  /* IN4L_DMIC_DLY - [5:0] */
-#define ARIZONA_IN4L_DMIC_DLY_WIDTH                   6  /* IN4L_DMIC_DLY - [5:0] */
+#define ARIZONA_IN4L_DMIC_DLY_MASK               0x003F  /* IN4L_DMIC_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN4L_DMIC_DLY_SHIFT                   0  /* IN4L_DMIC_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN4L_DMIC_DLY_WIDTH                   6  /* IN4L_DMIC_DLY -
+                                                          * [5:0] */
 
 /*
  * R812 (0x32C) - IN4R Control
@@ -2868,16 +3298,22 @@
 #define ARIZONA_IN4R_MUTE_MASK                   0x0100  /* IN4R_MUTE */
 #define ARIZONA_IN4R_MUTE_SHIFT                       8  /* IN4R_MUTE */
 #define ARIZONA_IN4R_MUTE_WIDTH                       1  /* IN4R_MUTE */
-#define ARIZONA_IN4R_DIG_VOL_MASK                0x00FF  /* IN4R_DIG_VOL - [7:0] */
-#define ARIZONA_IN4R_DIG_VOL_SHIFT                    0  /* IN4R_DIG_VOL - [7:0] */
-#define ARIZONA_IN4R_DIG_VOL_WIDTH                    8  /* IN4R_DIG_VOL - [7:0] */
+#define ARIZONA_IN4R_DIG_VOL_MASK                0x00FF  /* IN4R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN4R_DIG_VOL_SHIFT                    0  /* IN4R_DIG_VOL - [7:0]
+                                                          * */
+#define ARIZONA_IN4R_DIG_VOL_WIDTH                    8  /* IN4R_DIG_VOL - [7:0]
+                                                          * */
 
 /*
  * R814 (0x32E) - DMIC4R Control
  */
-#define ARIZONA_IN4R_DMIC_DLY_MASK               0x003F  /* IN4R_DMIC_DLY - [5:0] */
-#define ARIZONA_IN4R_DMIC_DLY_SHIFT                   0  /* IN4R_DMIC_DLY - [5:0] */
-#define ARIZONA_IN4R_DMIC_DLY_WIDTH                   6  /* IN4R_DMIC_DLY - [5:0] */
+#define ARIZONA_IN4R_DMIC_DLY_MASK               0x003F  /* IN4R_DMIC_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN4R_DMIC_DLY_SHIFT                   0  /* IN4R_DMIC_DLY -
+                                                          * [5:0] */
+#define ARIZONA_IN4R_DMIC_DLY_WIDTH                   6  /* IN4R_DMIC_DLY -
+                                                          * [5:0] */
 
 /*
  * R1024 (0x400) - Output Enables 1
@@ -2962,19 +3398,28 @@
 /*
  * R1032 (0x408) - Output Rate 1
  */
-#define ARIZONA_OUT_RATE_MASK                    0x7800  /* OUT_RATE - [14:11] */
-#define ARIZONA_OUT_RATE_SHIFT                       11  /* OUT_RATE - [14:11] */
-#define ARIZONA_OUT_RATE_WIDTH                        4  /* OUT_RATE - [14:11] */
+#define ARIZONA_OUT_RATE_MASK                    0x7800  /* OUT_RATE - [14:11]
+                                                          * */
+#define ARIZONA_OUT_RATE_SHIFT                       11  /* OUT_RATE - [14:11]
+                                                          * */
+#define ARIZONA_OUT_RATE_WIDTH                        4  /* OUT_RATE - [14:11]
+                                                          * */
 
 /*
  * R1033 (0x409) - Output Volume Ramp
  */
-#define ARIZONA_OUT_VD_RAMP_MASK                 0x0070  /* OUT_VD_RAMP - [6:4] */
-#define ARIZONA_OUT_VD_RAMP_SHIFT                     4  /* OUT_VD_RAMP - [6:4] */
-#define ARIZONA_OUT_VD_RAMP_WIDTH                     3  /* OUT_VD_RAMP - [6:4] */
-#define ARIZONA_OUT_VI_RAMP_MASK                 0x0007  /* OUT_VI_RAMP - [2:0] */
-#define ARIZONA_OUT_VI_RAMP_SHIFT                     0  /* OUT_VI_RAMP - [2:0] */
-#define ARIZONA_OUT_VI_RAMP_WIDTH                     3  /* OUT_VI_RAMP - [2:0] */
+#define ARIZONA_OUT_VD_RAMP_MASK                 0x0070  /* OUT_VD_RAMP - [6:4]
+                                                          * */
+#define ARIZONA_OUT_VD_RAMP_SHIFT                     4  /* OUT_VD_RAMP - [6:4]
+                                                          * */
+#define ARIZONA_OUT_VD_RAMP_WIDTH                     3  /* OUT_VD_RAMP - [6:4]
+                                                          * */
+#define ARIZONA_OUT_VI_RAMP_MASK                 0x0007  /* OUT_VI_RAMP - [2:0]
+                                                          * */
+#define ARIZONA_OUT_VI_RAMP_SHIFT                     0  /* OUT_VI_RAMP - [2:0]
+                                                          * */
+#define ARIZONA_OUT_VI_RAMP_WIDTH                     3  /* OUT_VI_RAMP - [2:0]
+                                                          * */
 
 /*
  * R1040 (0x410) - Output Path Config 1L
@@ -2991,12 +3436,18 @@
 #define ARIZONA_OUT1_MONO_MASK                   0x1000  /* OUT1_MONO */
 #define ARIZONA_OUT1_MONO_SHIFT                      12  /* OUT1_MONO */
 #define ARIZONA_OUT1_MONO_WIDTH                       1  /* OUT1_MONO */
-#define ARIZONA_OUT1L_ANC_SRC_MASK               0x0C00  /* OUT1L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT1L_ANC_SRC_SHIFT                  10  /* OUT1L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT1L_ANC_SRC_WIDTH                   2  /* OUT1L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT1L_PGA_VOL_MASK               0x00FE  /* OUT1L_PGA_VOL - [7:1] */
-#define ARIZONA_OUT1L_PGA_VOL_SHIFT                   1  /* OUT1L_PGA_VOL - [7:1] */
-#define ARIZONA_OUT1L_PGA_VOL_WIDTH                   7  /* OUT1L_PGA_VOL - [7:1] */
+#define ARIZONA_OUT1L_ANC_SRC_MASK               0x0C00  /* OUT1L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT1L_ANC_SRC_SHIFT                  10  /* OUT1L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT1L_ANC_SRC_WIDTH                   2  /* OUT1L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT1L_PGA_VOL_MASK               0x00FE  /* OUT1L_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT1L_PGA_VOL_SHIFT                   1  /* OUT1L_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT1L_PGA_VOL_WIDTH                   7  /* OUT1L_PGA_VOL -
+                                                          * [7:1] */
 
 /*
  * R1041 (0x411) - DAC Digital Volume 1L
@@ -3016,26 +3467,38 @@
 /*
  * R1042 (0x412) - DAC Volume Limit 1L
  */
-#define ARIZONA_OUT1L_VOL_LIM_MASK               0x00FF  /* OUT1L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT1L_VOL_LIM_SHIFT                   0  /* OUT1L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT1L_VOL_LIM_WIDTH                   8  /* OUT1L_VOL_LIM - [7:0] */
+#define ARIZONA_OUT1L_VOL_LIM_MASK               0x00FF  /* OUT1L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT1L_VOL_LIM_SHIFT                   0  /* OUT1L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT1L_VOL_LIM_WIDTH                   8  /* OUT1L_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1043 (0x413) - Noise Gate Select 1L
  */
-#define ARIZONA_OUT1L_NGATE_SRC_MASK             0x0FFF  /* OUT1L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT1L_NGATE_SRC_SHIFT                 0  /* OUT1L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT1L_NGATE_SRC_WIDTH                12  /* OUT1L_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT1L_NGATE_SRC_MASK             0x0FFF  /* OUT1L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT1L_NGATE_SRC_SHIFT                 0  /* OUT1L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT1L_NGATE_SRC_WIDTH                12  /* OUT1L_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1044 (0x414) - Output Path Config 1R
  */
-#define ARIZONA_OUT1R_ANC_SRC_MASK               0x0C00  /* OUT1R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT1R_ANC_SRC_SHIFT                  10  /* OUT1R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT1R_ANC_SRC_WIDTH                   2  /* OUT1R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT1R_PGA_VOL_MASK               0x00FE  /* OUT1R_PGA_VOL - [7:1] */
-#define ARIZONA_OUT1R_PGA_VOL_SHIFT                   1  /* OUT1R_PGA_VOL - [7:1] */
-#define ARIZONA_OUT1R_PGA_VOL_WIDTH                   7  /* OUT1R_PGA_VOL - [7:1] */
+#define ARIZONA_OUT1R_ANC_SRC_MASK               0x0C00  /* OUT1R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT1R_ANC_SRC_SHIFT                  10  /* OUT1R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT1R_ANC_SRC_WIDTH                   2  /* OUT1R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT1R_PGA_VOL_MASK               0x00FE  /* OUT1R_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT1R_PGA_VOL_SHIFT                   1  /* OUT1R_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT1R_PGA_VOL_WIDTH                   7  /* OUT1R_PGA_VOL -
+                                                          * [7:1] */
 
 /*
  * R1045 (0x415) - DAC Digital Volume 1R
@@ -3055,16 +3518,22 @@
 /*
  * R1046 (0x416) - DAC Volume Limit 1R
  */
-#define ARIZONA_OUT1R_VOL_LIM_MASK               0x00FF  /* OUT1R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT1R_VOL_LIM_SHIFT                   0  /* OUT1R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT1R_VOL_LIM_WIDTH                   8  /* OUT1R_VOL_LIM - [7:0] */
+#define ARIZONA_OUT1R_VOL_LIM_MASK               0x00FF  /* OUT1R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT1R_VOL_LIM_SHIFT                   0  /* OUT1R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT1R_VOL_LIM_WIDTH                   8  /* OUT1R_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1047 (0x417) - Noise Gate Select 1R
  */
-#define ARIZONA_OUT1R_NGATE_SRC_MASK             0x0FFF  /* OUT1R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT1R_NGATE_SRC_SHIFT                 0  /* OUT1R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT1R_NGATE_SRC_WIDTH                12  /* OUT1R_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT1R_NGATE_SRC_MASK             0x0FFF  /* OUT1R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT1R_NGATE_SRC_SHIFT                 0  /* OUT1R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT1R_NGATE_SRC_WIDTH                12  /* OUT1R_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1048 (0x418) - Output Path Config 2L
@@ -3081,12 +3550,18 @@
 #define ARIZONA_OUT2_MONO_MASK                   0x1000  /* OUT2_MONO */
 #define ARIZONA_OUT2_MONO_SHIFT                      12  /* OUT2_MONO */
 #define ARIZONA_OUT2_MONO_WIDTH                       1  /* OUT2_MONO */
-#define ARIZONA_OUT2L_ANC_SRC_MASK               0x0C00  /* OUT2L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT2L_ANC_SRC_SHIFT                  10  /* OUT2L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT2L_ANC_SRC_WIDTH                   2  /* OUT2L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT2L_PGA_VOL_MASK               0x00FE  /* OUT2L_PGA_VOL - [7:1] */
-#define ARIZONA_OUT2L_PGA_VOL_SHIFT                   1  /* OUT2L_PGA_VOL - [7:1] */
-#define ARIZONA_OUT2L_PGA_VOL_WIDTH                   7  /* OUT2L_PGA_VOL - [7:1] */
+#define ARIZONA_OUT2L_ANC_SRC_MASK               0x0C00  /* OUT2L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT2L_ANC_SRC_SHIFT                  10  /* OUT2L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT2L_ANC_SRC_WIDTH                   2  /* OUT2L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT2L_PGA_VOL_MASK               0x00FE  /* OUT2L_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT2L_PGA_VOL_SHIFT                   1  /* OUT2L_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT2L_PGA_VOL_WIDTH                   7  /* OUT2L_PGA_VOL -
+                                                          * [7:1] */
 
 /*
  * R1049 (0x419) - DAC Digital Volume 2L
@@ -3106,26 +3581,38 @@
 /*
  * R1050 (0x41A) - DAC Volume Limit 2L
  */
-#define ARIZONA_OUT2L_VOL_LIM_MASK               0x00FF  /* OUT2L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT2L_VOL_LIM_SHIFT                   0  /* OUT2L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT2L_VOL_LIM_WIDTH                   8  /* OUT2L_VOL_LIM - [7:0] */
+#define ARIZONA_OUT2L_VOL_LIM_MASK               0x00FF  /* OUT2L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT2L_VOL_LIM_SHIFT                   0  /* OUT2L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT2L_VOL_LIM_WIDTH                   8  /* OUT2L_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1051 (0x41B) - Noise Gate Select 2L
  */
-#define ARIZONA_OUT2L_NGATE_SRC_MASK             0x0FFF  /* OUT2L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT2L_NGATE_SRC_SHIFT                 0  /* OUT2L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT2L_NGATE_SRC_WIDTH                12  /* OUT2L_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT2L_NGATE_SRC_MASK             0x0FFF  /* OUT2L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT2L_NGATE_SRC_SHIFT                 0  /* OUT2L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT2L_NGATE_SRC_WIDTH                12  /* OUT2L_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1052 (0x41C) - Output Path Config 2R
  */
-#define ARIZONA_OUT2R_ANC_SRC_MASK               0x0C00  /* OUT2R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT2R_ANC_SRC_SHIFT                  10  /* OUT2R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT2R_ANC_SRC_WIDTH                   2  /* OUT2R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT2R_PGA_VOL_MASK               0x00FE  /* OUT2R_PGA_VOL - [7:1] */
-#define ARIZONA_OUT2R_PGA_VOL_SHIFT                   1  /* OUT2R_PGA_VOL - [7:1] */
-#define ARIZONA_OUT2R_PGA_VOL_WIDTH                   7  /* OUT2R_PGA_VOL - [7:1] */
+#define ARIZONA_OUT2R_ANC_SRC_MASK               0x0C00  /* OUT2R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT2R_ANC_SRC_SHIFT                  10  /* OUT2R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT2R_ANC_SRC_WIDTH                   2  /* OUT2R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT2R_PGA_VOL_MASK               0x00FE  /* OUT2R_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT2R_PGA_VOL_SHIFT                   1  /* OUT2R_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT2R_PGA_VOL_WIDTH                   7  /* OUT2R_PGA_VOL -
+                                                          * [7:1] */
 
 /*
  * R1053 (0x41D) - DAC Digital Volume 2R
@@ -3145,16 +3632,22 @@
 /*
  * R1054 (0x41E) - DAC Volume Limit 2R
  */
-#define ARIZONA_OUT2R_VOL_LIM_MASK               0x00FF  /* OUT2R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT2R_VOL_LIM_SHIFT                   0  /* OUT2R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT2R_VOL_LIM_WIDTH                   8  /* OUT2R_VOL_LIM - [7:0] */
+#define ARIZONA_OUT2R_VOL_LIM_MASK               0x00FF  /* OUT2R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT2R_VOL_LIM_SHIFT                   0  /* OUT2R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT2R_VOL_LIM_WIDTH                   8  /* OUT2R_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1055 (0x41F) - Noise Gate Select 2R
  */
-#define ARIZONA_OUT2R_NGATE_SRC_MASK             0x0FFF  /* OUT2R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT2R_NGATE_SRC_SHIFT                 0  /* OUT2R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT2R_NGATE_SRC_WIDTH                12  /* OUT2R_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT2R_NGATE_SRC_MASK             0x0FFF  /* OUT2R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT2R_NGATE_SRC_SHIFT                 0  /* OUT2R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT2R_NGATE_SRC_WIDTH                12  /* OUT2R_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1056 (0x420) - Output Path Config 3L
@@ -3171,12 +3664,18 @@
 #define ARIZONA_OUT3_MONO_MASK                   0x1000  /* OUT3_MONO */
 #define ARIZONA_OUT3_MONO_SHIFT                      12  /* OUT3_MONO */
 #define ARIZONA_OUT3_MONO_WIDTH                       1  /* OUT3_MONO */
-#define ARIZONA_OUT3L_ANC_SRC_MASK               0x0C00  /* OUT3L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT3L_ANC_SRC_SHIFT                  10  /* OUT3L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT3L_ANC_SRC_WIDTH                   2  /* OUT3L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT3L_PGA_VOL_MASK               0x00FE  /* OUT3L_PGA_VOL - [7:1] */
-#define ARIZONA_OUT3L_PGA_VOL_SHIFT                   1  /* OUT3L_PGA_VOL - [7:1] */
-#define ARIZONA_OUT3L_PGA_VOL_WIDTH                   7  /* OUT3L_PGA_VOL - [7:1] */
+#define ARIZONA_OUT3L_ANC_SRC_MASK               0x0C00  /* OUT3L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT3L_ANC_SRC_SHIFT                  10  /* OUT3L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT3L_ANC_SRC_WIDTH                   2  /* OUT3L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT3L_PGA_VOL_MASK               0x00FE  /* OUT3L_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT3L_PGA_VOL_SHIFT                   1  /* OUT3L_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT3L_PGA_VOL_WIDTH                   7  /* OUT3L_PGA_VOL -
+                                                          * [7:1] */
 
 /*
  * R1057 (0x421) - DAC Digital Volume 3L
@@ -3196,23 +3695,32 @@
 /*
  * R1058 (0x422) - DAC Volume Limit 3L
  */
-#define ARIZONA_OUT3L_VOL_LIM_MASK               0x00FF  /* OUT3L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT3L_VOL_LIM_SHIFT                   0  /* OUT3L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT3L_VOL_LIM_WIDTH                   8  /* OUT3L_VOL_LIM - [7:0] */
+#define ARIZONA_OUT3L_VOL_LIM_MASK               0x00FF  /* OUT3L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT3L_VOL_LIM_SHIFT                   0  /* OUT3L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT3L_VOL_LIM_WIDTH                   8  /* OUT3L_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1059 (0x423) - Noise Gate Select 3L
  */
-#define ARIZONA_OUT3_NGATE_SRC_MASK              0x0FFF  /* OUT3_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT3_NGATE_SRC_SHIFT                  0  /* OUT3_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT3_NGATE_SRC_WIDTH                 12  /* OUT3_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT3_NGATE_SRC_MASK              0x0FFF  /* OUT3_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT3_NGATE_SRC_SHIFT                  0  /* OUT3_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT3_NGATE_SRC_WIDTH                 12  /* OUT3_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1060 (0x424) - Output Path Config 3R
  */
-#define ARIZONA_OUT3R_PGA_VOL_MASK               0x00FE  /* OUT3R_PGA_VOL - [7:1] */
-#define ARIZONA_OUT3R_PGA_VOL_SHIFT                   1  /* OUT3R_PGA_VOL - [7:1] */
-#define ARIZONA_OUT3R_PGA_VOL_WIDTH                   7  /* OUT3R_PGA_VOL - [7:1] */
+#define ARIZONA_OUT3R_PGA_VOL_MASK               0x00FE  /* OUT3R_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT3R_PGA_VOL_SHIFT                   1  /* OUT3R_PGA_VOL -
+                                                          * [7:1] */
+#define ARIZONA_OUT3R_PGA_VOL_WIDTH                   7  /* OUT3R_PGA_VOL -
+                                                          * [7:1] */
 
 /*
  * R1061 (0x425) - DAC Digital Volume 3R
@@ -3232,12 +3740,18 @@
 /*
  * R1062 (0x426) - DAC Volume Limit 3R
  */
-#define ARIZONA_OUT3R_ANC_SRC_MASK               0x0C00  /* OUT3R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT3R_ANC_SRC_SHIFT                  10  /* OUT3R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT3R_ANC_SRC_WIDTH                   2  /* OUT3R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT3R_VOL_LIM_MASK               0x00FF  /* OUT3R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT3R_VOL_LIM_SHIFT                   0  /* OUT3R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT3R_VOL_LIM_WIDTH                   8  /* OUT3R_VOL_LIM - [7:0] */
+#define ARIZONA_OUT3R_ANC_SRC_MASK               0x0C00  /* OUT3R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT3R_ANC_SRC_SHIFT                  10  /* OUT3R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT3R_ANC_SRC_WIDTH                   2  /* OUT3R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT3R_VOL_LIM_MASK               0x00FF  /* OUT3R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT3R_VOL_LIM_SHIFT                   0  /* OUT3R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT3R_VOL_LIM_WIDTH                   8  /* OUT3R_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1064 (0x428) - Output Path Config 4L
@@ -3246,9 +3760,12 @@
 #define ARIZONA_OUT4_OSR_MASK                    0x2000  /* OUT4_OSR */
 #define ARIZONA_OUT4_OSR_SHIFT                       13  /* OUT4_OSR */
 #define ARIZONA_OUT4_OSR_WIDTH                        1  /* OUT4_OSR */
-#define ARIZONA_OUT4L_ANC_SRC_MASK               0x0C00  /* OUT4L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT4L_ANC_SRC_SHIFT                  10  /* OUT4L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT4L_ANC_SRC_WIDTH                   2  /* OUT4L_ANC_SRC - [11:10] */
+#define ARIZONA_OUT4L_ANC_SRC_MASK               0x0C00  /* OUT4L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT4L_ANC_SRC_SHIFT                  10  /* OUT4L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT4L_ANC_SRC_WIDTH                   2  /* OUT4L_ANC_SRC -
+                                                          * [11:10] */
 
 /*
  * R1065 (0x429) - DAC Digital Volume 4L
@@ -3268,23 +3785,32 @@
 /*
  * R1066 (0x42A) - Out Volume 4L
  */
-#define ARIZONA_OUT4L_VOL_LIM_MASK               0x00FF  /* OUT4L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT4L_VOL_LIM_SHIFT                   0  /* OUT4L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT4L_VOL_LIM_WIDTH                   8  /* OUT4L_VOL_LIM - [7:0] */
+#define ARIZONA_OUT4L_VOL_LIM_MASK               0x00FF  /* OUT4L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT4L_VOL_LIM_SHIFT                   0  /* OUT4L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT4L_VOL_LIM_WIDTH                   8  /* OUT4L_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1067 (0x42B) - Noise Gate Select 4L
  */
-#define ARIZONA_OUT4L_NGATE_SRC_MASK             0x0FFF  /* OUT4L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT4L_NGATE_SRC_SHIFT                 0  /* OUT4L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT4L_NGATE_SRC_WIDTH                12  /* OUT4L_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT4L_NGATE_SRC_MASK             0x0FFF  /* OUT4L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT4L_NGATE_SRC_SHIFT                 0  /* OUT4L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT4L_NGATE_SRC_WIDTH                12  /* OUT4L_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1068 (0x42C) - Output Path Config 4R
  */
-#define ARIZONA_OUT4R_ANC_SRC_MASK               0x0C00  /* OUT4R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT4R_ANC_SRC_SHIFT                  10  /* OUT4R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT4R_ANC_SRC_WIDTH                   2  /* OUT4R_ANC_SRC - [11:10] */
+#define ARIZONA_OUT4R_ANC_SRC_MASK               0x0C00  /* OUT4R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT4R_ANC_SRC_SHIFT                  10  /* OUT4R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT4R_ANC_SRC_WIDTH                   2  /* OUT4R_ANC_SRC -
+                                                          * [11:10] */
 
 /*
  * R1069 (0x42D) - DAC Digital Volume 4R
@@ -3304,16 +3830,22 @@
 /*
  * R1070 (0x42E) - Out Volume 4R
  */
-#define ARIZONA_OUT4R_VOL_LIM_MASK               0x00FF  /* OUT4R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT4R_VOL_LIM_SHIFT                   0  /* OUT4R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT4R_VOL_LIM_WIDTH                   8  /* OUT4R_VOL_LIM - [7:0] */
+#define ARIZONA_OUT4R_VOL_LIM_MASK               0x00FF  /* OUT4R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT4R_VOL_LIM_SHIFT                   0  /* OUT4R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT4R_VOL_LIM_WIDTH                   8  /* OUT4R_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1071 (0x42F) - Noise Gate Select 4R
  */
-#define ARIZONA_OUT4R_NGATE_SRC_MASK             0x0FFF  /* OUT4R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT4R_NGATE_SRC_SHIFT                 0  /* OUT4R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT4R_NGATE_SRC_WIDTH                12  /* OUT4R_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT4R_NGATE_SRC_MASK             0x0FFF  /* OUT4R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT4R_NGATE_SRC_SHIFT                 0  /* OUT4R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT4R_NGATE_SRC_WIDTH                12  /* OUT4R_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1072 (0x430) - Output Path Config 5L
@@ -3322,9 +3854,12 @@
 #define ARIZONA_OUT5_OSR_MASK                    0x2000  /* OUT5_OSR */
 #define ARIZONA_OUT5_OSR_SHIFT                       13  /* OUT5_OSR */
 #define ARIZONA_OUT5_OSR_WIDTH                        1  /* OUT5_OSR */
-#define ARIZONA_OUT5L_ANC_SRC_MASK               0x0C00  /* OUT5L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT5L_ANC_SRC_SHIFT                  10  /* OUT5L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT5L_ANC_SRC_WIDTH                   2  /* OUT5L_ANC_SRC - [11:10] */
+#define ARIZONA_OUT5L_ANC_SRC_MASK               0x0C00  /* OUT5L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT5L_ANC_SRC_SHIFT                  10  /* OUT5L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT5L_ANC_SRC_WIDTH                   2  /* OUT5L_ANC_SRC -
+                                                          * [11:10] */
 
 /*
  * R1073 (0x431) - DAC Digital Volume 5L
@@ -3344,23 +3879,32 @@
 /*
  * R1074 (0x432) - DAC Volume Limit 5L
  */
-#define ARIZONA_OUT5L_VOL_LIM_MASK               0x00FF  /* OUT5L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT5L_VOL_LIM_SHIFT                   0  /* OUT5L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT5L_VOL_LIM_WIDTH                   8  /* OUT5L_VOL_LIM - [7:0] */
+#define ARIZONA_OUT5L_VOL_LIM_MASK               0x00FF  /* OUT5L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT5L_VOL_LIM_SHIFT                   0  /* OUT5L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT5L_VOL_LIM_WIDTH                   8  /* OUT5L_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1075 (0x433) - Noise Gate Select 5L
  */
-#define ARIZONA_OUT5L_NGATE_SRC_MASK             0x0FFF  /* OUT5L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT5L_NGATE_SRC_SHIFT                 0  /* OUT5L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT5L_NGATE_SRC_WIDTH                12  /* OUT5L_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT5L_NGATE_SRC_MASK             0x0FFF  /* OUT5L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT5L_NGATE_SRC_SHIFT                 0  /* OUT5L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT5L_NGATE_SRC_WIDTH                12  /* OUT5L_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1076 (0x434) - Output Path Config 5R
  */
-#define ARIZONA_OUT5R_ANC_SRC_MASK               0x0C00  /* OUT5R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT5R_ANC_SRC_SHIFT                  10  /* OUT5R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT5R_ANC_SRC_WIDTH                   2  /* OUT5R_ANC_SRC - [11:10] */
+#define ARIZONA_OUT5R_ANC_SRC_MASK               0x0C00  /* OUT5R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT5R_ANC_SRC_SHIFT                  10  /* OUT5R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT5R_ANC_SRC_WIDTH                   2  /* OUT5R_ANC_SRC -
+                                                          * [11:10] */
 
 /*
  * R1077 (0x435) - DAC Digital Volume 5R
@@ -3380,16 +3924,22 @@
 /*
  * R1078 (0x436) - DAC Volume Limit 5R
  */
-#define ARIZONA_OUT5R_VOL_LIM_MASK               0x00FF  /* OUT5R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT5R_VOL_LIM_SHIFT                   0  /* OUT5R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT5R_VOL_LIM_WIDTH                   8  /* OUT5R_VOL_LIM - [7:0] */
+#define ARIZONA_OUT5R_VOL_LIM_MASK               0x00FF  /* OUT5R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT5R_VOL_LIM_SHIFT                   0  /* OUT5R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT5R_VOL_LIM_WIDTH                   8  /* OUT5R_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1079 (0x437) - Noise Gate Select 5R
  */
-#define ARIZONA_OUT5R_NGATE_SRC_MASK             0x0FFF  /* OUT5R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT5R_NGATE_SRC_SHIFT                 0  /* OUT5R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT5R_NGATE_SRC_WIDTH                12  /* OUT5R_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT5R_NGATE_SRC_MASK             0x0FFF  /* OUT5R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT5R_NGATE_SRC_SHIFT                 0  /* OUT5R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT5R_NGATE_SRC_WIDTH                12  /* OUT5R_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1080 (0x438) - Output Path Config 6L
@@ -3398,9 +3948,12 @@
 #define ARIZONA_OUT6_OSR_MASK                    0x2000  /* OUT6_OSR */
 #define ARIZONA_OUT6_OSR_SHIFT                       13  /* OUT6_OSR */
 #define ARIZONA_OUT6_OSR_WIDTH                        1  /* OUT6_OSR */
-#define ARIZONA_OUT6L_ANC_SRC_MASK               0x0C00  /* OUT6L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT6L_ANC_SRC_SHIFT                  10  /* OUT6L_ANC_SRC - [11:10] */
-#define ARIZONA_OUT6L_ANC_SRC_WIDTH                   2  /* OUT6L_ANC_SRC - [11:10] */
+#define ARIZONA_OUT6L_ANC_SRC_MASK               0x0C00  /* OUT6L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT6L_ANC_SRC_SHIFT                  10  /* OUT6L_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT6L_ANC_SRC_WIDTH                   2  /* OUT6L_ANC_SRC -
+                                                          * [11:10] */
 
 /*
  * R1081 (0x439) - DAC Digital Volume 6L
@@ -3420,23 +3973,32 @@
 /*
  * R1082 (0x43A) - DAC Volume Limit 6L
  */
-#define ARIZONA_OUT6L_VOL_LIM_MASK               0x00FF  /* OUT6L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT6L_VOL_LIM_SHIFT                   0  /* OUT6L_VOL_LIM - [7:0] */
-#define ARIZONA_OUT6L_VOL_LIM_WIDTH                   8  /* OUT6L_VOL_LIM - [7:0] */
+#define ARIZONA_OUT6L_VOL_LIM_MASK               0x00FF  /* OUT6L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT6L_VOL_LIM_SHIFT                   0  /* OUT6L_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT6L_VOL_LIM_WIDTH                   8  /* OUT6L_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1083 (0x43B) - Noise Gate Select 6L
  */
-#define ARIZONA_OUT6L_NGATE_SRC_MASK             0x0FFF  /* OUT6L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT6L_NGATE_SRC_SHIFT                 0  /* OUT6L_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT6L_NGATE_SRC_WIDTH                12  /* OUT6L_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT6L_NGATE_SRC_MASK             0x0FFF  /* OUT6L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT6L_NGATE_SRC_SHIFT                 0  /* OUT6L_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT6L_NGATE_SRC_WIDTH                12  /* OUT6L_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1084 (0x43C) - Output Path Config 6R
  */
-#define ARIZONA_OUT6R_ANC_SRC_MASK               0x0C00  /* OUT6R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT6R_ANC_SRC_SHIFT                  10  /* OUT6R_ANC_SRC - [11:10] */
-#define ARIZONA_OUT6R_ANC_SRC_WIDTH                   2  /* OUT6R_ANC_SRC - [11:10] */
+#define ARIZONA_OUT6R_ANC_SRC_MASK               0x0C00  /* OUT6R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT6R_ANC_SRC_SHIFT                  10  /* OUT6R_ANC_SRC -
+                                                          * [11:10] */
+#define ARIZONA_OUT6R_ANC_SRC_WIDTH                   2  /* OUT6R_ANC_SRC -
+                                                          * [11:10] */
 
 /*
  * R1085 (0x43D) - DAC Digital Volume 6R
@@ -3456,16 +4018,22 @@
 /*
  * R1086 (0x43E) - DAC Volume Limit 6R
  */
-#define ARIZONA_OUT6R_VOL_LIM_MASK               0x00FF  /* OUT6R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT6R_VOL_LIM_SHIFT                   0  /* OUT6R_VOL_LIM - [7:0] */
-#define ARIZONA_OUT6R_VOL_LIM_WIDTH                   8  /* OUT6R_VOL_LIM - [7:0] */
+#define ARIZONA_OUT6R_VOL_LIM_MASK               0x00FF  /* OUT6R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT6R_VOL_LIM_SHIFT                   0  /* OUT6R_VOL_LIM -
+                                                          * [7:0] */
+#define ARIZONA_OUT6R_VOL_LIM_WIDTH                   8  /* OUT6R_VOL_LIM -
+                                                          * [7:0] */
 
 /*
  * R1087 (0x43F) - Noise Gate Select 6R
  */
-#define ARIZONA_OUT6R_NGATE_SRC_MASK             0x0FFF  /* OUT6R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT6R_NGATE_SRC_SHIFT                 0  /* OUT6R_NGATE_SRC - [11:0] */
-#define ARIZONA_OUT6R_NGATE_SRC_WIDTH                12  /* OUT6R_NGATE_SRC - [11:0] */
+#define ARIZONA_OUT6R_NGATE_SRC_MASK             0x0FFF  /* OUT6R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT6R_NGATE_SRC_SHIFT                 0  /* OUT6R_NGATE_SRC -
+                                                          * [11:0] */
+#define ARIZONA_OUT6R_NGATE_SRC_WIDTH                12  /* OUT6R_NGATE_SRC -
+                                                          * [11:0] */
 
 /*
  * R1088 (0x440) - DRE Enable
@@ -3522,79 +4090,137 @@
 /*
  * R1089 (0x441) - DRE Control 1
  */
-#define ARIZONA_DRE_ENV_TC_FAST_MASK             0x0F00  /* DRE_ENV_TC_FAST - [11:8] */
-#define ARIZONA_DRE_ENV_TC_FAST_SHIFT                 8  /* DRE_ENV_TC_FAST - [11:8] */
-#define ARIZONA_DRE_ENV_TC_FAST_WIDTH                 4  /* DRE_ENV_TC_FAST - [11:8] */
+#define ARIZONA_DRE_ENV_TC_FAST_MASK             0x0F00  /* DRE_ENV_TC_FAST -
+                                                          * [11:8] */
+#define ARIZONA_DRE_ENV_TC_FAST_SHIFT                 8  /* DRE_ENV_TC_FAST -
+                                                          * [11:8] */
+#define ARIZONA_DRE_ENV_TC_FAST_WIDTH                 4  /* DRE_ENV_TC_FAST -
+                                                          * [11:8] */
 
 /*
  * R1090 (0x442) - DRE Control 2
  */
-#define ARIZONA_DRE_T_LOW_MASK                   0x3F00  /* DRE_T_LOW - [13:8] */
-#define ARIZONA_DRE_T_LOW_SHIFT                       8  /* DRE_T_LOW - [13:8] */
-#define ARIZONA_DRE_T_LOW_WIDTH                       6  /* DRE_T_LOW - [13:8] */
-#define ARIZONA_DRE_ALOG_VOL_DELAY_MASK          0x000F  /* DRE_ALOG_VOL_DELAY - [3:0] */
-#define ARIZONA_DRE_ALOG_VOL_DELAY_SHIFT              0  /* DRE_ALOG_VOL_DELAY - [3:0] */
-#define ARIZONA_DRE_ALOG_VOL_DELAY_WIDTH              4  /* DRE_ALOG_VOL_DELAY - [3:0] */
+#define ARIZONA_DRE_T_LOW_MASK                   0x3F00  /* DRE_T_LOW - [13:8]
+                                                          * */
+#define ARIZONA_DRE_T_LOW_SHIFT                       8  /* DRE_T_LOW - [13:8]
+                                                          * */
+#define ARIZONA_DRE_T_LOW_WIDTH                       6  /* DRE_T_LOW - [13:8]
+                                                          * */
+#define ARIZONA_DRE_ALOG_VOL_DELAY_MASK          0x000F  /* DRE_ALOG_VOL_DELAY -
+                                                          * [3:0] */
+#define ARIZONA_DRE_ALOG_VOL_DELAY_SHIFT              0  /* DRE_ALOG_VOL_DELAY -
+                                                          * [3:0] */
+#define ARIZONA_DRE_ALOG_VOL_DELAY_WIDTH              4  /* DRE_ALOG_VOL_DELAY -
+                                                          * [3:0] */
 
 /*
  * R1091 (0x443) - DRE Control 3
  */
-#define ARIZONA_DRE_GAIN_SHIFT_MASK              0xC000  /* DRE_GAIN_SHIFT - [15:14] */
-#define ARIZONA_DRE_GAIN_SHIFT_SHIFT                 14  /* DRE_GAIN_SHIFT - [15:14] */
-#define ARIZONA_DRE_GAIN_SHIFT_WIDTH                  2  /* DRE_GAIN_SHIFT - [15:14] */
-#define ARIZONA_DRE_LOW_LEVEL_ABS_MASK           0x000F  /* LOW_LEVEL_ABS - [3:0] */
-#define ARIZONA_DRE_LOW_LEVEL_ABS_SHIFT               0  /* LOW_LEVEL_ABS - [3:0] */
-#define ARIZONA_DRE_LOW_LEVEL_ABS_WIDTH               4  /* LOW_LEVEL_ABS - [3:0] */
+#define ARIZONA_DRE_GAIN_SHIFT_MASK              0xC000  /* DRE_GAIN_SHIFT -
+                                                          * [15:14] */
+#define ARIZONA_DRE_GAIN_SHIFT_SHIFT                 14  /* DRE_GAIN_SHIFT -
+                                                          * [15:14] */
+#define ARIZONA_DRE_GAIN_SHIFT_WIDTH                  2  /* DRE_GAIN_SHIFT -
+                                                          * [15:14] */
+#define ARIZONA_DRE_LOW_LEVEL_ABS_MASK           0x000F  /* LOW_LEVEL_ABS -
+                                                          * [3:0] */
+#define ARIZONA_DRE_LOW_LEVEL_ABS_SHIFT               0  /* LOW_LEVEL_ABS -
+                                                          * [3:0] */
+#define ARIZONA_DRE_LOW_LEVEL_ABS_WIDTH               4  /* LOW_LEVEL_ABS -
+                                                          * [3:0] */
 
 /* R486 (0x448) - EDRE_Enable
  */
-#define ARIZONA_EDRE_OUT4L_THR2_ENA              0x0200  /* EDRE_OUT4L_THR2_ENA */
-#define ARIZONA_EDRE_OUT4L_THR2_ENA_MASK         0x0200  /* EDRE_OUT4L_THR2_ENA */
-#define ARIZONA_EDRE_OUT4L_THR2_ENA_SHIFT             9  /* EDRE_OUT4L_THR2_ENA */
-#define ARIZONA_EDRE_OUT4L_THR2_ENA_WIDTH             1  /* EDRE_OUT4L_THR2_ENA */
-#define ARIZONA_EDRE_OUT4R_THR2_ENA              0x0100  /* EDRE_OUT4R_THR2_ENA */
-#define ARIZONA_EDRE_OUT4R_THR2_ENA_MASK         0x0100  /* EDRE_OUT4R_THR2_ENA */
-#define ARIZONA_EDRE_OUT4R_THR2_ENA_SHIFT             8  /* EDRE_OUT4R_THR2_ENA */
-#define ARIZONA_EDRE_OUT4R_THR2_ENA_WIDTH             1  /* EDRE_OUT4R_THR2_ENA */
-#define ARIZONA_EDRE_OUT4L_THR1_ENA              0x0080  /* EDRE_OUT4L_THR1_ENA */
-#define ARIZONA_EDRE_OUT4L_THR1_ENA_MASK         0x0080  /* EDRE_OUT4L_THR1_ENA */
-#define ARIZONA_EDRE_OUT4L_THR1_ENA_SHIFT             7  /* EDRE_OUT4L_THR1_ENA */
-#define ARIZONA_EDRE_OUT4L_THR1_ENA_WIDTH             1  /* EDRE_OUT4L_THR1_ENA */
-#define ARIZONA_EDRE_OUT4R_THR1_ENA              0x0040  /* EDRE_OUT4R_THR1_ENA */
-#define ARIZONA_EDRE_OUT4R_THR1_ENA_MASK         0x0040  /* EDRE_OUT4R_THR1_ENA */
-#define ARIZONA_EDRE_OUT4R_THR1_ENA_SHIFT             6  /* EDRE_OUT4R_THR1_ENA */
-#define ARIZONA_EDRE_OUT4R_THR1_ENA_WIDTH             1  /* EDRE_OUT4R_THR1_ENA */
-#define ARIZONA_EDRE_OUT3L_THR1_ENA              0x0020  /* EDRE_OUT3L_THR1_ENA */
-#define ARIZONA_EDRE_OUT3L_THR1_ENA_MASK         0x0020  /* EDRE_OUT3L_THR1_ENA */
-#define ARIZONA_EDRE_OUT3L_THR1_ENA_SHIFT             5  /* EDRE_OUT3L_THR1_ENA */
-#define ARIZONA_EDRE_OUT3L_THR1_ENA_WIDTH             1  /* EDRE_OUT3L_THR1_ENA */
-#define ARIZONA_EDRE_OUT3R_THR1_ENA              0x0010  /* EDRE_OUT3R_THR1_ENA */
-#define ARIZONA_EDRE_OUT3R_THR1_ENA_MASK         0x0010  /* EDRE_OUT3R_THR1_ENA */
-#define ARIZONA_EDRE_OUT3R_THR1_ENA_SHIFT             4  /* EDRE_OUT3R_THR1_ENA */
-#define ARIZONA_EDRE_OUT3R_THR1_ENA_WIDTH             1  /* EDRE_OUT3R_THR1_ENA */
-#define ARIZONA_EDRE_OUT2L_THR1_ENA              0x0008  /* EDRE_OUT2L_THR1_ENA */
-#define ARIZONA_EDRE_OUT2L_THR1_ENA_MASK         0x0008  /* EDRE_OUT2L_THR1_ENA */
-#define ARIZONA_EDRE_OUT2L_THR1_ENA_SHIFT             3  /* EDRE_OUT2L_THR1_ENA */
-#define ARIZONA_EDRE_OUT2L_THR1_ENA_WIDTH             1  /* EDRE_OUT2L_THR1_ENA */
-#define ARIZONA_EDRE_OUT2R_THR1_ENA              0x0004  /* EDRE_OUT2R_THR1_ENA */
-#define ARIZONA_EDRE_OUT2R_THR1_ENA_MASK         0x0004  /* EDRE_OUT2R_THR1_ENA */
-#define ARIZONA_EDRE_OUT2R_THR1_ENA_SHIFT             2  /* EDRE_OUT2R_THR1_ENA */
-#define ARIZONA_EDRE_OUT2R_THR1_ENA_WIDTH             1  /* EDRE_OUT2R_THR1_ENA */
-#define ARIZONA_EDRE_OUT1L_THR1_ENA              0x0002  /* EDRE_OUT1L_THR1_ENA */
-#define ARIZONA_EDRE_OUT1L_THR1_ENA_MASK         0x0002  /* EDRE_OUT1L_THR1_ENA */
-#define ARIZONA_EDRE_OUT1L_THR1_ENA_SHIFT             1  /* EDRE_OUT1L_THR1_ENA */
-#define ARIZONA_EDRE_OUT1L_THR1_ENA_WIDTH             1  /* EDRE_OUT1L_THR1_ENA */
-#define ARIZONA_EDRE_OUT1R_THR1_ENA              0x0001  /* EDRE_OUT1R_THR1_ENA */
-#define ARIZONA_EDRE_OUT1R_THR1_ENA_MASK         0x0001  /* EDRE_OUT1R_THR1_ENA */
-#define ARIZONA_EDRE_OUT1R_THR1_ENA_SHIFT             0  /* EDRE_OUT1R_THR1_ENA */
-#define ARIZONA_EDRE_OUT1R_THR1_ENA_WIDTH             1  /* EDRE_OUT1R_THR1_ENA */
+#define ARIZONA_EDRE_OUT4L_THR2_ENA              0x0200  /* EDRE_OUT4L_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR2_ENA_MASK         0x0200  /* EDRE_OUT4L_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR2_ENA_SHIFT             9  /* EDRE_OUT4L_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR2_ENA_WIDTH             1  /* EDRE_OUT4L_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR2_ENA              0x0100  /* EDRE_OUT4R_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR2_ENA_MASK         0x0100  /* EDRE_OUT4R_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR2_ENA_SHIFT             8  /* EDRE_OUT4R_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR2_ENA_WIDTH             1  /* EDRE_OUT4R_THR2_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR1_ENA              0x0080  /* EDRE_OUT4L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR1_ENA_MASK         0x0080  /* EDRE_OUT4L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR1_ENA_SHIFT             7  /* EDRE_OUT4L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4L_THR1_ENA_WIDTH             1  /* EDRE_OUT4L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR1_ENA              0x0040  /* EDRE_OUT4R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR1_ENA_MASK         0x0040  /* EDRE_OUT4R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR1_ENA_SHIFT             6  /* EDRE_OUT4R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT4R_THR1_ENA_WIDTH             1  /* EDRE_OUT4R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3L_THR1_ENA              0x0020  /* EDRE_OUT3L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3L_THR1_ENA_MASK         0x0020  /* EDRE_OUT3L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3L_THR1_ENA_SHIFT             5  /* EDRE_OUT3L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3L_THR1_ENA_WIDTH             1  /* EDRE_OUT3L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3R_THR1_ENA              0x0010  /* EDRE_OUT3R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3R_THR1_ENA_MASK         0x0010  /* EDRE_OUT3R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3R_THR1_ENA_SHIFT             4  /* EDRE_OUT3R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT3R_THR1_ENA_WIDTH             1  /* EDRE_OUT3R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2L_THR1_ENA              0x0008  /* EDRE_OUT2L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2L_THR1_ENA_MASK         0x0008  /* EDRE_OUT2L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2L_THR1_ENA_SHIFT             3  /* EDRE_OUT2L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2L_THR1_ENA_WIDTH             1  /* EDRE_OUT2L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2R_THR1_ENA              0x0004  /* EDRE_OUT2R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2R_THR1_ENA_MASK         0x0004  /* EDRE_OUT2R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2R_THR1_ENA_SHIFT             2  /* EDRE_OUT2R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT2R_THR1_ENA_WIDTH             1  /* EDRE_OUT2R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1L_THR1_ENA              0x0002  /* EDRE_OUT1L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1L_THR1_ENA_MASK         0x0002  /* EDRE_OUT1L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1L_THR1_ENA_SHIFT             1  /* EDRE_OUT1L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1L_THR1_ENA_WIDTH             1  /* EDRE_OUT1L_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1R_THR1_ENA              0x0001  /* EDRE_OUT1R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1R_THR1_ENA_MASK         0x0001  /* EDRE_OUT1R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1R_THR1_ENA_SHIFT             0  /* EDRE_OUT1R_THR1_ENA
+                                                          * */
+#define ARIZONA_EDRE_OUT1R_THR1_ENA_WIDTH             1  /* EDRE_OUT1R_THR1_ENA
+                                                          * */
 
 /*
  * R1104 (0x450) - DAC AEC Control 1
  */
-#define ARIZONA_AEC_LOOPBACK_SRC_MASK            0x003C  /* AEC_LOOPBACK_SRC - [5:2] */
-#define ARIZONA_AEC_LOOPBACK_SRC_SHIFT                2  /* AEC_LOOPBACK_SRC - [5:2] */
-#define ARIZONA_AEC_LOOPBACK_SRC_WIDTH                4  /* AEC_LOOPBACK_SRC - [5:2] */
+#define ARIZONA_AEC_LOOPBACK_SRC_MASK            0x003C  /* AEC_LOOPBACK_SRC -
+                                                          * [5:2] */
+#define ARIZONA_AEC_LOOPBACK_SRC_SHIFT                2  /* AEC_LOOPBACK_SRC -
+                                                          * [5:2] */
+#define ARIZONA_AEC_LOOPBACK_SRC_WIDTH                4  /* AEC_LOOPBACK_SRC -
+                                                          * [5:2] */
 #define ARIZONA_AEC_ENA_STS                      0x0002  /* AEC_ENA_STS */
 #define ARIZONA_AEC_ENA_STS_MASK                 0x0002  /* AEC_ENA_STS */
 #define ARIZONA_AEC_ENA_STS_SHIFT                     1  /* AEC_ENA_STS */
@@ -3607,9 +4233,12 @@
 /*
  * R1112 (0x458) - Noise Gate Control
  */
-#define ARIZONA_NGATE_HOLD_MASK                  0x0030  /* NGATE_HOLD - [5:4] */
-#define ARIZONA_NGATE_HOLD_SHIFT                      4  /* NGATE_HOLD - [5:4] */
-#define ARIZONA_NGATE_HOLD_WIDTH                      2  /* NGATE_HOLD - [5:4] */
+#define ARIZONA_NGATE_HOLD_MASK                  0x0030  /* NGATE_HOLD - [5:4]
+                                                          * */
+#define ARIZONA_NGATE_HOLD_SHIFT                      4  /* NGATE_HOLD - [5:4]
+                                                          * */
+#define ARIZONA_NGATE_HOLD_WIDTH                      2  /* NGATE_HOLD - [5:4]
+                                                          * */
 #define ARIZONA_NGATE_THR_MASK                   0x000E  /* NGATE_THR - [3:1] */
 #define ARIZONA_NGATE_THR_SHIFT                       1  /* NGATE_THR - [3:1] */
 #define ARIZONA_NGATE_THR_WIDTH                       3  /* NGATE_THR - [3:1] */
@@ -3633,9 +4262,12 @@
 #define ARIZONA_SPK1_MUTE_ENDIAN_MASK            0x0100  /* SPK1_MUTE_ENDIAN */
 #define ARIZONA_SPK1_MUTE_ENDIAN_SHIFT                8  /* SPK1_MUTE_ENDIAN */
 #define ARIZONA_SPK1_MUTE_ENDIAN_WIDTH                1  /* SPK1_MUTE_ENDIAN */
-#define ARIZONA_SPK1_MUTE_SEQ1_MASK              0x00FF  /* SPK1_MUTE_SEQ1 - [7:0] */
-#define ARIZONA_SPK1_MUTE_SEQ1_SHIFT                  0  /* SPK1_MUTE_SEQ1 - [7:0] */
-#define ARIZONA_SPK1_MUTE_SEQ1_WIDTH                  8  /* SPK1_MUTE_SEQ1 - [7:0] */
+#define ARIZONA_SPK1_MUTE_SEQ1_MASK              0x00FF  /* SPK1_MUTE_SEQ1 -
+                                                          * [7:0] */
+#define ARIZONA_SPK1_MUTE_SEQ1_SHIFT                  0  /* SPK1_MUTE_SEQ1 -
+                                                          * [7:0] */
+#define ARIZONA_SPK1_MUTE_SEQ1_WIDTH                  8  /* SPK1_MUTE_SEQ1 -
+                                                          * [7:0] */
 
 /*
  * R1169 (0x491) - PDM SPK1 CTRL 2
@@ -3660,9 +4292,12 @@
 #define ARIZONA_SPK2_MUTE_ENDIAN_MASK            0x0100  /* SPK2_MUTE_ENDIAN */
 #define ARIZONA_SPK2_MUTE_ENDIAN_SHIFT                8  /* SPK2_MUTE_ENDIAN */
 #define ARIZONA_SPK2_MUTE_ENDIAN_WIDTH                1  /* SPK2_MUTE_ENDIAN */
-#define ARIZONA_SPK2_MUTE_SEQ_MASK               0x00FF  /* SPK2_MUTE_SEQ - [7:0] */
-#define ARIZONA_SPK2_MUTE_SEQ_SHIFT                   0  /* SPK2_MUTE_SEQ - [7:0] */
-#define ARIZONA_SPK2_MUTE_SEQ_WIDTH                   8  /* SPK2_MUTE_SEQ - [7:0] */
+#define ARIZONA_SPK2_MUTE_SEQ_MASK               0x00FF  /* SPK2_MUTE_SEQ -
+                                                          * [7:0] */
+#define ARIZONA_SPK2_MUTE_SEQ_SHIFT                   0  /* SPK2_MUTE_SEQ -
+                                                          * [7:0] */
+#define ARIZONA_SPK2_MUTE_SEQ_WIDTH                   8  /* SPK2_MUTE_SEQ -
+                                                          * [7:0] */
 
 /*
  * R1171 (0x493) - PDM SPK2 CTRL 2
@@ -3699,16 +4334,22 @@
 /*
  * R1188 (0x4A4) HP Test Ctrl 1
  */
-#define ARIZONA_HP1_TST_CAP_SEL_MASK             0x0003  /* HP1_TST_CAP_SEL - [1:0] */
-#define ARIZONA_HP1_TST_CAP_SEL_SHIFT                 0  /* HP1_TST_CAP_SEL - [1:0] */
-#define ARIZONA_HP1_TST_CAP_SEL_WIDTH                 2  /* HP1_TST_CAP_SEL - [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_MASK             0x0003  /* HP1_TST_CAP_SEL -
+                                                          * [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_SHIFT                 0  /* HP1_TST_CAP_SEL -
+                                                          * [1:0] */
+#define ARIZONA_HP1_TST_CAP_SEL_WIDTH                 2  /* HP1_TST_CAP_SEL -
+                                                          * [1:0] */
 
 /*
  * R1244 (0x4DC) - DAC comp 1
  */
-#define ARIZONA_OUT_COMP_COEFF_MASK              0xFFFF  /* OUT_COMP_COEFF - [15:0] */
-#define ARIZONA_OUT_COMP_COEFF_SHIFT                  0  /* OUT_COMP_COEFF - [15:0] */
-#define ARIZONA_OUT_COMP_COEFF_WIDTH                 16  /* OUT_COMP_COEFF - [15:0] */
+#define ARIZONA_OUT_COMP_COEFF_MASK              0xFFFF  /* OUT_COMP_COEFF -
+                                                          * [15:0] */
+#define ARIZONA_OUT_COMP_COEFF_SHIFT                  0  /* OUT_COMP_COEFF -
+                                                          * [15:0] */
+#define ARIZONA_OUT_COMP_COEFF_WIDTH                 16  /* OUT_COMP_COEFF -
+                                                          * [15:0] */
 
 /*
  * R1245 (0x4DD) - DAC comp 2
@@ -3717,17 +4358,24 @@
 #define ARIZONA_OUT_COMP_COEFF_1_MASK            0x0002  /* OUT_COMP_COEFF */
 #define ARIZONA_OUT_COMP_COEFF_1_SHIFT                1  /* OUT_COMP_COEFF */
 #define ARIZONA_OUT_COMP_COEFF_1_WIDTH                1  /* OUT_COMP_COEFF */
-#define ARIZONA_OUT_COMP_COEFF_SEL               0x0001  /* OUT_COMP_COEFF_SEL */
-#define ARIZONA_OUT_COMP_COEFF_SEL_MASK          0x0001  /* OUT_COMP_COEFF_SEL */
-#define ARIZONA_OUT_COMP_COEFF_SEL_SHIFT              0  /* OUT_COMP_COEFF_SEL */
-#define ARIZONA_OUT_COMP_COEFF_SEL_WIDTH              1  /* OUT_COMP_COEFF_SEL */
+#define ARIZONA_OUT_COMP_COEFF_SEL               0x0001  /* OUT_COMP_COEFF_SEL
+                                                          * */
+#define ARIZONA_OUT_COMP_COEFF_SEL_MASK          0x0001  /* OUT_COMP_COEFF_SEL
+                                                          * */
+#define ARIZONA_OUT_COMP_COEFF_SEL_SHIFT              0  /* OUT_COMP_COEFF_SEL
+                                                          * */
+#define ARIZONA_OUT_COMP_COEFF_SEL_WIDTH              1  /* OUT_COMP_COEFF_SEL
+                                                          * */
 
 /*
  * R1246 (0x4DE) - DAC comp 3
  */
-#define ARIZONA_AEC_COMP_COEFF_MASK              0xFFFF  /* AEC_COMP_COEFF - [15:0] */
-#define ARIZONA_AEC_COMP_COEFF_SHIFT                  0  /* AEC_COMP_COEFF - [15:0] */
-#define ARIZONA_AEC_COMP_COEFF_WIDTH                 16  /* AEC_COMP_COEFF - [15:0] */
+#define ARIZONA_AEC_COMP_COEFF_MASK              0xFFFF  /* AEC_COMP_COEFF -
+                                                          * [15:0] */
+#define ARIZONA_AEC_COMP_COEFF_SHIFT                  0  /* AEC_COMP_COEFF -
+                                                          * [15:0] */
+#define ARIZONA_AEC_COMP_COEFF_WIDTH                 16  /* AEC_COMP_COEFF -
+                                                          * [15:0] */
 
 /*
  * R1247 (0x4DF) - DAC comp 4
@@ -3736,10 +4384,14 @@
 #define ARIZONA_AEC_COMP_COEFF_1_MASK            0x0002  /* AEC_COMP_COEFF */
 #define ARIZONA_AEC_COMP_COEFF_1_SHIFT                1  /* AEC_COMP_COEFF */
 #define ARIZONA_AEC_COMP_COEFF_1_WIDTH                1  /* AEC_COMP_COEFF */
-#define ARIZONA_AEC_COMP_COEFF_SEL               0x0001  /* AEC_COMP_COEFF_SEL */
-#define ARIZONA_AEC_COMP_COEFF_SEL_MASK          0x0001  /* AEC_COMP_COEFF_SEL */
-#define ARIZONA_AEC_COMP_COEFF_SEL_SHIFT              0  /* AEC_COMP_COEFF_SEL */
-#define ARIZONA_AEC_COMP_COEFF_SEL_WIDTH              1  /* AEC_COMP_COEFF_SEL */
+#define ARIZONA_AEC_COMP_COEFF_SEL               0x0001  /* AEC_COMP_COEFF_SEL
+                                                          * */
+#define ARIZONA_AEC_COMP_COEFF_SEL_MASK          0x0001  /* AEC_COMP_COEFF_SEL
+                                                          * */
+#define ARIZONA_AEC_COMP_COEFF_SEL_SHIFT              0  /* AEC_COMP_COEFF_SEL
+                                                          * */
+#define ARIZONA_AEC_COMP_COEFF_SEL_WIDTH              1  /* AEC_COMP_COEFF_SEL
+                                                          * */
 
 /*
  * R1280 (0x500) - AIF1 BCLK Ctrl
@@ -3756,9 +4408,12 @@
 #define ARIZONA_AIF1_BCLK_MSTR_MASK              0x0020  /* AIF1_BCLK_MSTR */
 #define ARIZONA_AIF1_BCLK_MSTR_SHIFT                  5  /* AIF1_BCLK_MSTR */
 #define ARIZONA_AIF1_BCLK_MSTR_WIDTH                  1  /* AIF1_BCLK_MSTR */
-#define ARIZONA_AIF1_BCLK_FREQ_MASK              0x001F  /* AIF1_BCLK_FREQ - [4:0] */
-#define ARIZONA_AIF1_BCLK_FREQ_SHIFT                  0  /* AIF1_BCLK_FREQ - [4:0] */
-#define ARIZONA_AIF1_BCLK_FREQ_WIDTH                  5  /* AIF1_BCLK_FREQ - [4:0] */
+#define ARIZONA_AIF1_BCLK_FREQ_MASK              0x001F  /* AIF1_BCLK_FREQ -
+                                                          * [4:0] */
+#define ARIZONA_AIF1_BCLK_FREQ_SHIFT                  0  /* AIF1_BCLK_FREQ -
+                                                          * [4:0] */
+#define ARIZONA_AIF1_BCLK_FREQ_WIDTH                  5  /* AIF1_BCLK_FREQ -
+                                                          * [4:0] */
 
 /*
  * R1281 (0x501) - AIF1 Tx Pin Ctrl
@@ -3803,9 +4458,12 @@
 /*
  * R1283 (0x503) - AIF1 Rate Ctrl
  */
-#define ARIZONA_AIF1_RATE_MASK                   0x7800  /* AIF1_RATE - [14:11] */
-#define ARIZONA_AIF1_RATE_SHIFT                      11  /* AIF1_RATE - [14:11] */
-#define ARIZONA_AIF1_RATE_WIDTH                       4  /* AIF1_RATE - [14:11] */
+#define ARIZONA_AIF1_RATE_MASK                   0x7800  /* AIF1_RATE - [14:11]
+                                                          * */
+#define ARIZONA_AIF1_RATE_SHIFT                      11  /* AIF1_RATE - [14:11]
+                                                          * */
+#define ARIZONA_AIF1_RATE_WIDTH                       4  /* AIF1_RATE - [14:11]
+                                                          * */
 #define ARIZONA_AIF1_TRI                         0x0040  /* AIF1_TRI */
 #define ARIZONA_AIF1_TRI_MASK                    0x0040  /* AIF1_TRI */
 #define ARIZONA_AIF1_TRI_SHIFT                        6  /* AIF1_TRI */
@@ -3821,148 +4479,214 @@
 /*
  * R1285 (0x505) - AIF1 Tx BCLK Rate
  */
-#define ARIZONA_AIF1TX_BCPF_MASK                 0x1FFF  /* AIF1TX_BCPF - [12:0] */
-#define ARIZONA_AIF1TX_BCPF_SHIFT                     0  /* AIF1TX_BCPF - [12:0] */
-#define ARIZONA_AIF1TX_BCPF_WIDTH                    13  /* AIF1TX_BCPF - [12:0] */
+#define ARIZONA_AIF1TX_BCPF_MASK                 0x1FFF  /* AIF1TX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF1TX_BCPF_SHIFT                     0  /* AIF1TX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF1TX_BCPF_WIDTH                    13  /* AIF1TX_BCPF - [12:0]
+                                                          * */
 
 /*
  * R1286 (0x506) - AIF1 Rx BCLK Rate
  */
-#define ARIZONA_AIF1RX_BCPF_MASK                 0x1FFF  /* AIF1RX_BCPF - [12:0] */
-#define ARIZONA_AIF1RX_BCPF_SHIFT                     0  /* AIF1RX_BCPF - [12:0] */
-#define ARIZONA_AIF1RX_BCPF_WIDTH                    13  /* AIF1RX_BCPF - [12:0] */
+#define ARIZONA_AIF1RX_BCPF_MASK                 0x1FFF  /* AIF1RX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF1RX_BCPF_SHIFT                     0  /* AIF1RX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF1RX_BCPF_WIDTH                    13  /* AIF1RX_BCPF - [12:0]
+                                                          * */
 
 /*
  * R1287 (0x507) - AIF1 Frame Ctrl 1
  */
-#define ARIZONA_AIF1TX_WL_MASK                   0x3F00  /* AIF1TX_WL - [13:8] */
-#define ARIZONA_AIF1TX_WL_SHIFT                       8  /* AIF1TX_WL - [13:8] */
-#define ARIZONA_AIF1TX_WL_WIDTH                       6  /* AIF1TX_WL - [13:8] */
-#define ARIZONA_AIF1TX_SLOT_LEN_MASK             0x00FF  /* AIF1TX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF1TX_SLOT_LEN_SHIFT                 0  /* AIF1TX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF1TX_SLOT_LEN_WIDTH                 8  /* AIF1TX_SLOT_LEN - [7:0] */
+#define ARIZONA_AIF1TX_WL_MASK                   0x3F00  /* AIF1TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF1TX_WL_SHIFT                       8  /* AIF1TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF1TX_WL_WIDTH                       6  /* AIF1TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF1TX_SLOT_LEN_MASK             0x00FF  /* AIF1TX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF1TX_SLOT_LEN_SHIFT                 0  /* AIF1TX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF1TX_SLOT_LEN_WIDTH                 8  /* AIF1TX_SLOT_LEN -
+                                                          * [7:0] */
 
 /*
  * R1288 (0x508) - AIF1 Frame Ctrl 2
  */
-#define ARIZONA_AIF1RX_WL_MASK                   0x3F00  /* AIF1RX_WL - [13:8] */
-#define ARIZONA_AIF1RX_WL_SHIFT                       8  /* AIF1RX_WL - [13:8] */
-#define ARIZONA_AIF1RX_WL_WIDTH                       6  /* AIF1RX_WL - [13:8] */
-#define ARIZONA_AIF1RX_SLOT_LEN_MASK             0x00FF  /* AIF1RX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF1RX_SLOT_LEN_SHIFT                 0  /* AIF1RX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF1RX_SLOT_LEN_WIDTH                 8  /* AIF1RX_SLOT_LEN - [7:0] */
+#define ARIZONA_AIF1RX_WL_MASK                   0x3F00  /* AIF1RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF1RX_WL_SHIFT                       8  /* AIF1RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF1RX_WL_WIDTH                       6  /* AIF1RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF1RX_SLOT_LEN_MASK             0x00FF  /* AIF1RX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF1RX_SLOT_LEN_SHIFT                 0  /* AIF1RX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF1RX_SLOT_LEN_WIDTH                 8  /* AIF1RX_SLOT_LEN -
+                                                          * [7:0] */
 
 /*
  * R1289 (0x509) - AIF1 Frame Ctrl 3
  */
-#define ARIZONA_AIF1TX1_SLOT_MASK                0x003F  /* AIF1TX1_SLOT - [5:0] */
-#define ARIZONA_AIF1TX1_SLOT_SHIFT                    0  /* AIF1TX1_SLOT - [5:0] */
-#define ARIZONA_AIF1TX1_SLOT_WIDTH                    6  /* AIF1TX1_SLOT - [5:0] */
+#define ARIZONA_AIF1TX1_SLOT_MASK                0x003F  /* AIF1TX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX1_SLOT_SHIFT                    0  /* AIF1TX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX1_SLOT_WIDTH                    6  /* AIF1TX1_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1290 (0x50A) - AIF1 Frame Ctrl 4
  */
-#define ARIZONA_AIF1TX2_SLOT_MASK                0x003F  /* AIF1TX2_SLOT - [5:0] */
-#define ARIZONA_AIF1TX2_SLOT_SHIFT                    0  /* AIF1TX2_SLOT - [5:0] */
-#define ARIZONA_AIF1TX2_SLOT_WIDTH                    6  /* AIF1TX2_SLOT - [5:0] */
+#define ARIZONA_AIF1TX2_SLOT_MASK                0x003F  /* AIF1TX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX2_SLOT_SHIFT                    0  /* AIF1TX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX2_SLOT_WIDTH                    6  /* AIF1TX2_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1291 (0x50B) - AIF1 Frame Ctrl 5
  */
-#define ARIZONA_AIF1TX3_SLOT_MASK                0x003F  /* AIF1TX3_SLOT - [5:0] */
-#define ARIZONA_AIF1TX3_SLOT_SHIFT                    0  /* AIF1TX3_SLOT - [5:0] */
-#define ARIZONA_AIF1TX3_SLOT_WIDTH                    6  /* AIF1TX3_SLOT - [5:0] */
+#define ARIZONA_AIF1TX3_SLOT_MASK                0x003F  /* AIF1TX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX3_SLOT_SHIFT                    0  /* AIF1TX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX3_SLOT_WIDTH                    6  /* AIF1TX3_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1292 (0x50C) - AIF1 Frame Ctrl 6
  */
-#define ARIZONA_AIF1TX4_SLOT_MASK                0x003F  /* AIF1TX4_SLOT - [5:0] */
-#define ARIZONA_AIF1TX4_SLOT_SHIFT                    0  /* AIF1TX4_SLOT - [5:0] */
-#define ARIZONA_AIF1TX4_SLOT_WIDTH                    6  /* AIF1TX4_SLOT - [5:0] */
+#define ARIZONA_AIF1TX4_SLOT_MASK                0x003F  /* AIF1TX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX4_SLOT_SHIFT                    0  /* AIF1TX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX4_SLOT_WIDTH                    6  /* AIF1TX4_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1293 (0x50D) - AIF1 Frame Ctrl 7
  */
-#define ARIZONA_AIF1TX5_SLOT_MASK                0x003F  /* AIF1TX5_SLOT - [5:0] */
-#define ARIZONA_AIF1TX5_SLOT_SHIFT                    0  /* AIF1TX5_SLOT - [5:0] */
-#define ARIZONA_AIF1TX5_SLOT_WIDTH                    6  /* AIF1TX5_SLOT - [5:0] */
+#define ARIZONA_AIF1TX5_SLOT_MASK                0x003F  /* AIF1TX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX5_SLOT_SHIFT                    0  /* AIF1TX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX5_SLOT_WIDTH                    6  /* AIF1TX5_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1294 (0x50E) - AIF1 Frame Ctrl 8
  */
-#define ARIZONA_AIF1TX6_SLOT_MASK                0x003F  /* AIF1TX6_SLOT - [5:0] */
-#define ARIZONA_AIF1TX6_SLOT_SHIFT                    0  /* AIF1TX6_SLOT - [5:0] */
-#define ARIZONA_AIF1TX6_SLOT_WIDTH                    6  /* AIF1TX6_SLOT - [5:0] */
+#define ARIZONA_AIF1TX6_SLOT_MASK                0x003F  /* AIF1TX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX6_SLOT_SHIFT                    0  /* AIF1TX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX6_SLOT_WIDTH                    6  /* AIF1TX6_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1295 (0x50F) - AIF1 Frame Ctrl 9
  */
-#define ARIZONA_AIF1TX7_SLOT_MASK                0x003F  /* AIF1TX7_SLOT - [5:0] */
-#define ARIZONA_AIF1TX7_SLOT_SHIFT                    0  /* AIF1TX7_SLOT - [5:0] */
-#define ARIZONA_AIF1TX7_SLOT_WIDTH                    6  /* AIF1TX7_SLOT - [5:0] */
+#define ARIZONA_AIF1TX7_SLOT_MASK                0x003F  /* AIF1TX7_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX7_SLOT_SHIFT                    0  /* AIF1TX7_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX7_SLOT_WIDTH                    6  /* AIF1TX7_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1296 (0x510) - AIF1 Frame Ctrl 10
  */
-#define ARIZONA_AIF1TX8_SLOT_MASK                0x003F  /* AIF1TX8_SLOT - [5:0] */
-#define ARIZONA_AIF1TX8_SLOT_SHIFT                    0  /* AIF1TX8_SLOT - [5:0] */
-#define ARIZONA_AIF1TX8_SLOT_WIDTH                    6  /* AIF1TX8_SLOT - [5:0] */
+#define ARIZONA_AIF1TX8_SLOT_MASK                0x003F  /* AIF1TX8_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX8_SLOT_SHIFT                    0  /* AIF1TX8_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1TX8_SLOT_WIDTH                    6  /* AIF1TX8_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1297 (0x511) - AIF1 Frame Ctrl 11
  */
-#define ARIZONA_AIF1RX1_SLOT_MASK                0x003F  /* AIF1RX1_SLOT - [5:0] */
-#define ARIZONA_AIF1RX1_SLOT_SHIFT                    0  /* AIF1RX1_SLOT - [5:0] */
-#define ARIZONA_AIF1RX1_SLOT_WIDTH                    6  /* AIF1RX1_SLOT - [5:0] */
+#define ARIZONA_AIF1RX1_SLOT_MASK                0x003F  /* AIF1RX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX1_SLOT_SHIFT                    0  /* AIF1RX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX1_SLOT_WIDTH                    6  /* AIF1RX1_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1298 (0x512) - AIF1 Frame Ctrl 12
  */
-#define ARIZONA_AIF1RX2_SLOT_MASK                0x003F  /* AIF1RX2_SLOT - [5:0] */
-#define ARIZONA_AIF1RX2_SLOT_SHIFT                    0  /* AIF1RX2_SLOT - [5:0] */
-#define ARIZONA_AIF1RX2_SLOT_WIDTH                    6  /* AIF1RX2_SLOT - [5:0] */
+#define ARIZONA_AIF1RX2_SLOT_MASK                0x003F  /* AIF1RX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX2_SLOT_SHIFT                    0  /* AIF1RX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX2_SLOT_WIDTH                    6  /* AIF1RX2_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1299 (0x513) - AIF1 Frame Ctrl 13
  */
-#define ARIZONA_AIF1RX3_SLOT_MASK                0x003F  /* AIF1RX3_SLOT - [5:0] */
-#define ARIZONA_AIF1RX3_SLOT_SHIFT                    0  /* AIF1RX3_SLOT - [5:0] */
-#define ARIZONA_AIF1RX3_SLOT_WIDTH                    6  /* AIF1RX3_SLOT - [5:0] */
+#define ARIZONA_AIF1RX3_SLOT_MASK                0x003F  /* AIF1RX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX3_SLOT_SHIFT                    0  /* AIF1RX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX3_SLOT_WIDTH                    6  /* AIF1RX3_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1300 (0x514) - AIF1 Frame Ctrl 14
  */
-#define ARIZONA_AIF1RX4_SLOT_MASK                0x003F  /* AIF1RX4_SLOT - [5:0] */
-#define ARIZONA_AIF1RX4_SLOT_SHIFT                    0  /* AIF1RX4_SLOT - [5:0] */
-#define ARIZONA_AIF1RX4_SLOT_WIDTH                    6  /* AIF1RX4_SLOT - [5:0] */
+#define ARIZONA_AIF1RX4_SLOT_MASK                0x003F  /* AIF1RX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX4_SLOT_SHIFT                    0  /* AIF1RX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX4_SLOT_WIDTH                    6  /* AIF1RX4_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1301 (0x515) - AIF1 Frame Ctrl 15
  */
-#define ARIZONA_AIF1RX5_SLOT_MASK                0x003F  /* AIF1RX5_SLOT - [5:0] */
-#define ARIZONA_AIF1RX5_SLOT_SHIFT                    0  /* AIF1RX5_SLOT - [5:0] */
-#define ARIZONA_AIF1RX5_SLOT_WIDTH                    6  /* AIF1RX5_SLOT - [5:0] */
+#define ARIZONA_AIF1RX5_SLOT_MASK                0x003F  /* AIF1RX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX5_SLOT_SHIFT                    0  /* AIF1RX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX5_SLOT_WIDTH                    6  /* AIF1RX5_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1302 (0x516) - AIF1 Frame Ctrl 16
  */
-#define ARIZONA_AIF1RX6_SLOT_MASK                0x003F  /* AIF1RX6_SLOT - [5:0] */
-#define ARIZONA_AIF1RX6_SLOT_SHIFT                    0  /* AIF1RX6_SLOT - [5:0] */
-#define ARIZONA_AIF1RX6_SLOT_WIDTH                    6  /* AIF1RX6_SLOT - [5:0] */
+#define ARIZONA_AIF1RX6_SLOT_MASK                0x003F  /* AIF1RX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX6_SLOT_SHIFT                    0  /* AIF1RX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX6_SLOT_WIDTH                    6  /* AIF1RX6_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1303 (0x517) - AIF1 Frame Ctrl 17
  */
-#define ARIZONA_AIF1RX7_SLOT_MASK                0x003F  /* AIF1RX7_SLOT - [5:0] */
-#define ARIZONA_AIF1RX7_SLOT_SHIFT                    0  /* AIF1RX7_SLOT - [5:0] */
-#define ARIZONA_AIF1RX7_SLOT_WIDTH                    6  /* AIF1RX7_SLOT - [5:0] */
+#define ARIZONA_AIF1RX7_SLOT_MASK                0x003F  /* AIF1RX7_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX7_SLOT_SHIFT                    0  /* AIF1RX7_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX7_SLOT_WIDTH                    6  /* AIF1RX7_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1304 (0x518) - AIF1 Frame Ctrl 18
  */
-#define ARIZONA_AIF1RX8_SLOT_MASK                0x003F  /* AIF1RX8_SLOT - [5:0] */
-#define ARIZONA_AIF1RX8_SLOT_SHIFT                    0  /* AIF1RX8_SLOT - [5:0] */
-#define ARIZONA_AIF1RX8_SLOT_WIDTH                    6  /* AIF1RX8_SLOT - [5:0] */
+#define ARIZONA_AIF1RX8_SLOT_MASK                0x003F  /* AIF1RX8_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX8_SLOT_SHIFT                    0  /* AIF1RX8_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF1RX8_SLOT_WIDTH                    6  /* AIF1RX8_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1305 (0x519) - AIF1 Tx Enables
@@ -4059,9 +4783,12 @@
 #define ARIZONA_AIF2_BCLK_MSTR_MASK              0x0020  /* AIF2_BCLK_MSTR */
 #define ARIZONA_AIF2_BCLK_MSTR_SHIFT                  5  /* AIF2_BCLK_MSTR */
 #define ARIZONA_AIF2_BCLK_MSTR_WIDTH                  1  /* AIF2_BCLK_MSTR */
-#define ARIZONA_AIF2_BCLK_FREQ_MASK              0x001F  /* AIF2_BCLK_FREQ - [4:0] */
-#define ARIZONA_AIF2_BCLK_FREQ_SHIFT                  0  /* AIF2_BCLK_FREQ - [4:0] */
-#define ARIZONA_AIF2_BCLK_FREQ_WIDTH                  5  /* AIF2_BCLK_FREQ - [4:0] */
+#define ARIZONA_AIF2_BCLK_FREQ_MASK              0x001F  /* AIF2_BCLK_FREQ -
+                                                          * [4:0] */
+#define ARIZONA_AIF2_BCLK_FREQ_SHIFT                  0  /* AIF2_BCLK_FREQ -
+                                                          * [4:0] */
+#define ARIZONA_AIF2_BCLK_FREQ_WIDTH                  5  /* AIF2_BCLK_FREQ -
+                                                          * [4:0] */
 
 /*
  * R1345 (0x541) - AIF2 Tx Pin Ctrl
@@ -4106,9 +4833,12 @@
 /*
  * R1347 (0x543) - AIF2 Rate Ctrl
  */
-#define ARIZONA_AIF2_RATE_MASK                   0x7800  /* AIF2_RATE - [14:11] */
-#define ARIZONA_AIF2_RATE_SHIFT                      11  /* AIF2_RATE - [14:11] */
-#define ARIZONA_AIF2_RATE_WIDTH                       4  /* AIF2_RATE - [14:11] */
+#define ARIZONA_AIF2_RATE_MASK                   0x7800  /* AIF2_RATE - [14:11]
+                                                          * */
+#define ARIZONA_AIF2_RATE_SHIFT                      11  /* AIF2_RATE - [14:11]
+                                                          * */
+#define ARIZONA_AIF2_RATE_WIDTH                       4  /* AIF2_RATE - [14:11]
+                                                          * */
 #define ARIZONA_AIF2_TRI                         0x0040  /* AIF2_TRI */
 #define ARIZONA_AIF2_TRI_MASK                    0x0040  /* AIF2_TRI */
 #define ARIZONA_AIF2_TRI_SHIFT                        6  /* AIF2_TRI */
@@ -4124,121 +4854,174 @@
 /*
  * R1349 (0x545) - AIF2 Tx BCLK Rate
  */
-#define ARIZONA_AIF2TX_BCPF_MASK                 0x1FFF  /* AIF2TX_BCPF - [12:0] */
-#define ARIZONA_AIF2TX_BCPF_SHIFT                     0  /* AIF2TX_BCPF - [12:0] */
-#define ARIZONA_AIF2TX_BCPF_WIDTH                    13  /* AIF2TX_BCPF - [12:0] */
+#define ARIZONA_AIF2TX_BCPF_MASK                 0x1FFF  /* AIF2TX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF2TX_BCPF_SHIFT                     0  /* AIF2TX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF2TX_BCPF_WIDTH                    13  /* AIF2TX_BCPF - [12:0]
+                                                          * */
 
 /*
  * R1350 (0x546) - AIF2 Rx BCLK Rate
  */
-#define ARIZONA_AIF2RX_BCPF_MASK                 0x1FFF  /* AIF2RX_BCPF - [12:0] */
-#define ARIZONA_AIF2RX_BCPF_SHIFT                     0  /* AIF2RX_BCPF - [12:0] */
-#define ARIZONA_AIF2RX_BCPF_WIDTH                    13  /* AIF2RX_BCPF - [12:0] */
+#define ARIZONA_AIF2RX_BCPF_MASK                 0x1FFF  /* AIF2RX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF2RX_BCPF_SHIFT                     0  /* AIF2RX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF2RX_BCPF_WIDTH                    13  /* AIF2RX_BCPF - [12:0]
+                                                          * */
 
 /*
  * R1351 (0x547) - AIF2 Frame Ctrl 1
  */
-#define ARIZONA_AIF2TX_WL_MASK                   0x3F00  /* AIF2TX_WL - [13:8] */
-#define ARIZONA_AIF2TX_WL_SHIFT                       8  /* AIF2TX_WL - [13:8] */
-#define ARIZONA_AIF2TX_WL_WIDTH                       6  /* AIF2TX_WL - [13:8] */
-#define ARIZONA_AIF2TX_SLOT_LEN_MASK             0x00FF  /* AIF2TX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF2TX_SLOT_LEN_SHIFT                 0  /* AIF2TX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF2TX_SLOT_LEN_WIDTH                 8  /* AIF2TX_SLOT_LEN - [7:0] */
+#define ARIZONA_AIF2TX_WL_MASK                   0x3F00  /* AIF2TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF2TX_WL_SHIFT                       8  /* AIF2TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF2TX_WL_WIDTH                       6  /* AIF2TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF2TX_SLOT_LEN_MASK             0x00FF  /* AIF2TX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF2TX_SLOT_LEN_SHIFT                 0  /* AIF2TX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF2TX_SLOT_LEN_WIDTH                 8  /* AIF2TX_SLOT_LEN -
+                                                          * [7:0] */
 
 /*
  * R1352 (0x548) - AIF2 Frame Ctrl 2
  */
-#define ARIZONA_AIF2RX_WL_MASK                   0x3F00  /* AIF2RX_WL - [13:8] */
-#define ARIZONA_AIF2RX_WL_SHIFT                       8  /* AIF2RX_WL - [13:8] */
-#define ARIZONA_AIF2RX_WL_WIDTH                       6  /* AIF2RX_WL - [13:8] */
-#define ARIZONA_AIF2RX_SLOT_LEN_MASK             0x00FF  /* AIF2RX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF2RX_SLOT_LEN_SHIFT                 0  /* AIF2RX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF2RX_SLOT_LEN_WIDTH                 8  /* AIF2RX_SLOT_LEN - [7:0] */
+#define ARIZONA_AIF2RX_WL_MASK                   0x3F00  /* AIF2RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF2RX_WL_SHIFT                       8  /* AIF2RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF2RX_WL_WIDTH                       6  /* AIF2RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF2RX_SLOT_LEN_MASK             0x00FF  /* AIF2RX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF2RX_SLOT_LEN_SHIFT                 0  /* AIF2RX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF2RX_SLOT_LEN_WIDTH                 8  /* AIF2RX_SLOT_LEN -
+                                                          * [7:0] */
 
 /*
  * R1353 (0x549) - AIF2 Frame Ctrl 3
  */
-#define ARIZONA_AIF2TX1_SLOT_MASK                0x003F  /* AIF2TX1_SLOT - [5:0] */
-#define ARIZONA_AIF2TX1_SLOT_SHIFT                    0  /* AIF2TX1_SLOT - [5:0] */
-#define ARIZONA_AIF2TX1_SLOT_WIDTH                    6  /* AIF2TX1_SLOT - [5:0] */
+#define ARIZONA_AIF2TX1_SLOT_MASK                0x003F  /* AIF2TX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX1_SLOT_SHIFT                    0  /* AIF2TX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX1_SLOT_WIDTH                    6  /* AIF2TX1_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1354 (0x54A) - AIF2 Frame Ctrl 4
  */
-#define ARIZONA_AIF2TX2_SLOT_MASK                0x003F  /* AIF2TX2_SLOT - [5:0] */
-#define ARIZONA_AIF2TX2_SLOT_SHIFT                    0  /* AIF2TX2_SLOT - [5:0] */
-#define ARIZONA_AIF2TX2_SLOT_WIDTH                    6  /* AIF2TX2_SLOT - [5:0] */
+#define ARIZONA_AIF2TX2_SLOT_MASK                0x003F  /* AIF2TX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX2_SLOT_SHIFT                    0  /* AIF2TX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX2_SLOT_WIDTH                    6  /* AIF2TX2_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1355 (0x54B) - AIF2 Frame Ctrl 5
  */
-#define ARIZONA_AIF2TX3_SLOT_MASK                0x003F  /* AIF2TX3_SLOT - [5:0] */
-#define ARIZONA_AIF2TX3_SLOT_SHIFT                    0  /* AIF2TX3_SLOT - [5:0] */
-#define ARIZONA_AIF2TX3_SLOT_WIDTH                    6  /* AIF2TX3_SLOT - [5:0] */
+#define ARIZONA_AIF2TX3_SLOT_MASK                0x003F  /* AIF2TX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX3_SLOT_SHIFT                    0  /* AIF2TX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX3_SLOT_WIDTH                    6  /* AIF2TX3_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1356 (0x54C) - AIF2 Frame Ctrl 6
  */
-#define ARIZONA_AIF2TX4_SLOT_MASK                0x003F  /* AIF2TX4_SLOT - [5:0] */
-#define ARIZONA_AIF2TX4_SLOT_SHIFT                    0  /* AIF2TX4_SLOT - [5:0] */
-#define ARIZONA_AIF2TX4_SLOT_WIDTH                    6  /* AIF2TX4_SLOT - [5:0] */
-
+#define ARIZONA_AIF2TX4_SLOT_MASK                0x003F  /* AIF2TX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX4_SLOT_SHIFT                    0  /* AIF2TX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX4_SLOT_WIDTH                    6  /* AIF2TX4_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1357 (0x54D) - AIF2 Frame Ctrl 7
  */
-#define ARIZONA_AIF2TX5_SLOT_MASK                0x003F  /* AIF2TX5_SLOT - [5:0] */
-#define ARIZONA_AIF2TX5_SLOT_SHIFT                    0  /* AIF2TX5_SLOT - [5:0] */
-#define ARIZONA_AIF2TX5_SLOT_WIDTH                    6  /* AIF2TX5_SLOT - [5:0] */
+#define ARIZONA_AIF2TX5_SLOT_MASK                0x003F  /* AIF2TX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX5_SLOT_SHIFT                    0  /* AIF2TX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX5_SLOT_WIDTH                    6  /* AIF2TX5_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1358 (0x54E) - AIF2 Frame Ctrl 8
  */
-#define ARIZONA_AIF2TX6_SLOT_MASK                0x003F  /* AIF2TX6_SLOT - [5:0] */
-#define ARIZONA_AIF2TX6_SLOT_SHIFT                    0  /* AIF2TX6_SLOT - [5:0] */
-#define ARIZONA_AIF2TX6_SLOT_WIDTH                    6  /* AIF2TX6_SLOT - [5:0] */
+#define ARIZONA_AIF2TX6_SLOT_MASK                0x003F  /* AIF2TX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX6_SLOT_SHIFT                    0  /* AIF2TX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2TX6_SLOT_WIDTH                    6  /* AIF2TX6_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1361 (0x551) - AIF2 Frame Ctrl 11
  */
-#define ARIZONA_AIF2RX1_SLOT_MASK                0x003F  /* AIF2RX1_SLOT - [5:0] */
-#define ARIZONA_AIF2RX1_SLOT_SHIFT                    0  /* AIF2RX1_SLOT - [5:0] */
-#define ARIZONA_AIF2RX1_SLOT_WIDTH                    6  /* AIF2RX1_SLOT - [5:0] */
+#define ARIZONA_AIF2RX1_SLOT_MASK                0x003F  /* AIF2RX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX1_SLOT_SHIFT                    0  /* AIF2RX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX1_SLOT_WIDTH                    6  /* AIF2RX1_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1362 (0x552) - AIF2 Frame Ctrl 12
  */
-#define ARIZONA_AIF2RX2_SLOT_MASK                0x003F  /* AIF2RX2_SLOT - [5:0] */
-#define ARIZONA_AIF2RX2_SLOT_SHIFT                    0  /* AIF2RX2_SLOT - [5:0] */
-#define ARIZONA_AIF2RX2_SLOT_WIDTH                    6  /* AIF2RX2_SLOT - [5:0] */
+#define ARIZONA_AIF2RX2_SLOT_MASK                0x003F  /* AIF2RX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX2_SLOT_SHIFT                    0  /* AIF2RX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX2_SLOT_WIDTH                    6  /* AIF2RX2_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1363 (0x553) - AIF2 Frame Ctrl 13
  */
-#define ARIZONA_AIF2RX3_SLOT_MASK                0x003F  /* AIF2RX3_SLOT - [5:0] */
-#define ARIZONA_AIF2RX3_SLOT_SHIFT                    0  /* AIF2RX3_SLOT - [5:0] */
-#define ARIZONA_AIF2RX3_SLOT_WIDTH                    6  /* AIF2RX3_SLOT - [5:0] */
+#define ARIZONA_AIF2RX3_SLOT_MASK                0x003F  /* AIF2RX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX3_SLOT_SHIFT                    0  /* AIF2RX3_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX3_SLOT_WIDTH                    6  /* AIF2RX3_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1364 (0x554) - AIF2 Frame Ctrl 14
  */
-#define ARIZONA_AIF2RX4_SLOT_MASK                0x003F  /* AIF2RX4_SLOT - [5:0] */
-#define ARIZONA_AIF2RX4_SLOT_SHIFT                    0  /* AIF2RX4_SLOT - [5:0] */
-#define ARIZONA_AIF2RX4_SLOT_WIDTH                    6  /* AIF2RX4_SLOT - [5:0] */
+#define ARIZONA_AIF2RX4_SLOT_MASK                0x003F  /* AIF2RX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX4_SLOT_SHIFT                    0  /* AIF2RX4_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX4_SLOT_WIDTH                    6  /* AIF2RX4_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1365 (0x555) - AIF2 Frame Ctrl 15
  */
-#define ARIZONA_AIF2RX5_SLOT_MASK                0x003F  /* AIF2RX5_SLOT - [5:0] */
-#define ARIZONA_AIF2RX5_SLOT_SHIFT                    0  /* AIF2RX5_SLOT - [5:0] */
-#define ARIZONA_AIF2RX5_SLOT_WIDTH                    6  /* AIF2RX5_SLOT - [5:0] */
+#define ARIZONA_AIF2RX5_SLOT_MASK                0x003F  /* AIF2RX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX5_SLOT_SHIFT                    0  /* AIF2RX5_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX5_SLOT_WIDTH                    6  /* AIF2RX5_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1366 (0x556) - AIF2 Frame Ctrl 16
  */
-#define ARIZONA_AIF2RX6_SLOT_MASK                0x003F  /* AIF2RX6_SLOT - [5:0] */
-#define ARIZONA_AIF2RX6_SLOT_SHIFT                    0  /* AIF2RX6_SLOT - [5:0] */
-#define ARIZONA_AIF2RX6_SLOT_WIDTH                    6  /* AIF2RX6_SLOT - [5:0] */
+#define ARIZONA_AIF2RX6_SLOT_MASK                0x003F  /* AIF2RX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX6_SLOT_SHIFT                    0  /* AIF2RX6_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF2RX6_SLOT_WIDTH                    6  /* AIF2RX6_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1369 (0x559) - AIF2 Tx Enables
@@ -4319,9 +5102,12 @@
 #define ARIZONA_AIF3_BCLK_MSTR_MASK              0x0020  /* AIF3_BCLK_MSTR */
 #define ARIZONA_AIF3_BCLK_MSTR_SHIFT                  5  /* AIF3_BCLK_MSTR */
 #define ARIZONA_AIF3_BCLK_MSTR_WIDTH                  1  /* AIF3_BCLK_MSTR */
-#define ARIZONA_AIF3_BCLK_FREQ_MASK              0x001F  /* AIF3_BCLK_FREQ - [4:0] */
-#define ARIZONA_AIF3_BCLK_FREQ_SHIFT                  0  /* AIF3_BCLK_FREQ - [4:0] */
-#define ARIZONA_AIF3_BCLK_FREQ_WIDTH                  5  /* AIF3_BCLK_FREQ - [4:0] */
+#define ARIZONA_AIF3_BCLK_FREQ_MASK              0x001F  /* AIF3_BCLK_FREQ -
+                                                          * [4:0] */
+#define ARIZONA_AIF3_BCLK_FREQ_SHIFT                  0  /* AIF3_BCLK_FREQ -
+                                                          * [4:0] */
+#define ARIZONA_AIF3_BCLK_FREQ_WIDTH                  5  /* AIF3_BCLK_FREQ -
+                                                          * [4:0] */
 
 /*
  * R1409 (0x581) - AIF3 Tx Pin Ctrl
@@ -4366,9 +5152,12 @@
 /*
  * R1411 (0x583) - AIF3 Rate Ctrl
  */
-#define ARIZONA_AIF3_RATE_MASK                   0x7800  /* AIF3_RATE - [14:11] */
-#define ARIZONA_AIF3_RATE_SHIFT                      11  /* AIF3_RATE - [14:11] */
-#define ARIZONA_AIF3_RATE_WIDTH                       4  /* AIF3_RATE - [14:11] */
+#define ARIZONA_AIF3_RATE_MASK                   0x7800  /* AIF3_RATE - [14:11]
+                                                          * */
+#define ARIZONA_AIF3_RATE_SHIFT                      11  /* AIF3_RATE - [14:11]
+                                                          * */
+#define ARIZONA_AIF3_RATE_WIDTH                       4  /* AIF3_RATE - [14:11]
+                                                          * */
 #define ARIZONA_AIF3_TRI                         0x0040  /* AIF3_TRI */
 #define ARIZONA_AIF3_TRI_MASK                    0x0040  /* AIF3_TRI */
 #define ARIZONA_AIF3_TRI_SHIFT                        6  /* AIF3_TRI */
@@ -4384,64 +5173,94 @@
 /*
  * R1413 (0x585) - AIF3 Tx BCLK Rate
  */
-#define ARIZONA_AIF3TX_BCPF_MASK                 0x1FFF  /* AIF3TX_BCPF - [12:0] */
-#define ARIZONA_AIF3TX_BCPF_SHIFT                     0  /* AIF3TX_BCPF - [12:0] */
-#define ARIZONA_AIF3TX_BCPF_WIDTH                    13  /* AIF3TX_BCPF - [12:0] */
+#define ARIZONA_AIF3TX_BCPF_MASK                 0x1FFF  /* AIF3TX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF3TX_BCPF_SHIFT                     0  /* AIF3TX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF3TX_BCPF_WIDTH                    13  /* AIF3TX_BCPF - [12:0]
+                                                          * */
 
 /*
  * R1414 (0x586) - AIF3 Rx BCLK Rate
  */
-#define ARIZONA_AIF3RX_BCPF_MASK                 0x1FFF  /* AIF3RX_BCPF - [12:0] */
-#define ARIZONA_AIF3RX_BCPF_SHIFT                     0  /* AIF3RX_BCPF - [12:0] */
-#define ARIZONA_AIF3RX_BCPF_WIDTH                    13  /* AIF3RX_BCPF - [12:0] */
+#define ARIZONA_AIF3RX_BCPF_MASK                 0x1FFF  /* AIF3RX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF3RX_BCPF_SHIFT                     0  /* AIF3RX_BCPF - [12:0]
+                                                          * */
+#define ARIZONA_AIF3RX_BCPF_WIDTH                    13  /* AIF3RX_BCPF - [12:0]
+                                                          * */
 
 /*
  * R1415 (0x587) - AIF3 Frame Ctrl 1
  */
-#define ARIZONA_AIF3TX_WL_MASK                   0x3F00  /* AIF3TX_WL - [13:8] */
-#define ARIZONA_AIF3TX_WL_SHIFT                       8  /* AIF3TX_WL - [13:8] */
-#define ARIZONA_AIF3TX_WL_WIDTH                       6  /* AIF3TX_WL - [13:8] */
-#define ARIZONA_AIF3TX_SLOT_LEN_MASK             0x00FF  /* AIF3TX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF3TX_SLOT_LEN_SHIFT                 0  /* AIF3TX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF3TX_SLOT_LEN_WIDTH                 8  /* AIF3TX_SLOT_LEN - [7:0] */
+#define ARIZONA_AIF3TX_WL_MASK                   0x3F00  /* AIF3TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF3TX_WL_SHIFT                       8  /* AIF3TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF3TX_WL_WIDTH                       6  /* AIF3TX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF3TX_SLOT_LEN_MASK             0x00FF  /* AIF3TX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF3TX_SLOT_LEN_SHIFT                 0  /* AIF3TX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF3TX_SLOT_LEN_WIDTH                 8  /* AIF3TX_SLOT_LEN -
+                                                          * [7:0] */
 
 /*
  * R1416 (0x588) - AIF3 Frame Ctrl 2
  */
-#define ARIZONA_AIF3RX_WL_MASK                   0x3F00  /* AIF3RX_WL - [13:8] */
-#define ARIZONA_AIF3RX_WL_SHIFT                       8  /* AIF3RX_WL - [13:8] */
-#define ARIZONA_AIF3RX_WL_WIDTH                       6  /* AIF3RX_WL - [13:8] */
-#define ARIZONA_AIF3RX_SLOT_LEN_MASK             0x00FF  /* AIF3RX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF3RX_SLOT_LEN_SHIFT                 0  /* AIF3RX_SLOT_LEN - [7:0] */
-#define ARIZONA_AIF3RX_SLOT_LEN_WIDTH                 8  /* AIF3RX_SLOT_LEN - [7:0] */
+#define ARIZONA_AIF3RX_WL_MASK                   0x3F00  /* AIF3RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF3RX_WL_SHIFT                       8  /* AIF3RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF3RX_WL_WIDTH                       6  /* AIF3RX_WL - [13:8]
+                                                          * */
+#define ARIZONA_AIF3RX_SLOT_LEN_MASK             0x00FF  /* AIF3RX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF3RX_SLOT_LEN_SHIFT                 0  /* AIF3RX_SLOT_LEN -
+                                                          * [7:0] */
+#define ARIZONA_AIF3RX_SLOT_LEN_WIDTH                 8  /* AIF3RX_SLOT_LEN -
+                                                          * [7:0] */
 
 /*
  * R1417 (0x589) - AIF3 Frame Ctrl 3
  */
-#define ARIZONA_AIF3TX1_SLOT_MASK                0x003F  /* AIF3TX1_SLOT - [5:0] */
-#define ARIZONA_AIF3TX1_SLOT_SHIFT                    0  /* AIF3TX1_SLOT - [5:0] */
-#define ARIZONA_AIF3TX1_SLOT_WIDTH                    6  /* AIF3TX1_SLOT - [5:0] */
+#define ARIZONA_AIF3TX1_SLOT_MASK                0x003F  /* AIF3TX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3TX1_SLOT_SHIFT                    0  /* AIF3TX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3TX1_SLOT_WIDTH                    6  /* AIF3TX1_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1418 (0x58A) - AIF3 Frame Ctrl 4
  */
-#define ARIZONA_AIF3TX2_SLOT_MASK                0x003F  /* AIF3TX2_SLOT - [5:0] */
-#define ARIZONA_AIF3TX2_SLOT_SHIFT                    0  /* AIF3TX2_SLOT - [5:0] */
-#define ARIZONA_AIF3TX2_SLOT_WIDTH                    6  /* AIF3TX2_SLOT - [5:0] */
+#define ARIZONA_AIF3TX2_SLOT_MASK                0x003F  /* AIF3TX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3TX2_SLOT_SHIFT                    0  /* AIF3TX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3TX2_SLOT_WIDTH                    6  /* AIF3TX2_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1425 (0x591) - AIF3 Frame Ctrl 11
  */
-#define ARIZONA_AIF3RX1_SLOT_MASK                0x003F  /* AIF3RX1_SLOT - [5:0] */
-#define ARIZONA_AIF3RX1_SLOT_SHIFT                    0  /* AIF3RX1_SLOT - [5:0] */
-#define ARIZONA_AIF3RX1_SLOT_WIDTH                    6  /* AIF3RX1_SLOT - [5:0] */
+#define ARIZONA_AIF3RX1_SLOT_MASK                0x003F  /* AIF3RX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3RX1_SLOT_SHIFT                    0  /* AIF3RX1_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3RX1_SLOT_WIDTH                    6  /* AIF3RX1_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1426 (0x592) - AIF3 Frame Ctrl 12
  */
-#define ARIZONA_AIF3RX2_SLOT_MASK                0x003F  /* AIF3RX2_SLOT - [5:0] */
-#define ARIZONA_AIF3RX2_SLOT_SHIFT                    0  /* AIF3RX2_SLOT - [5:0] */
-#define ARIZONA_AIF3RX2_SLOT_WIDTH                    6  /* AIF3RX2_SLOT - [5:0] */
+#define ARIZONA_AIF3RX2_SLOT_MASK                0x003F  /* AIF3RX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3RX2_SLOT_SHIFT                    0  /* AIF3RX2_SLOT - [5:0]
+                                                          * */
+#define ARIZONA_AIF3RX2_SLOT_WIDTH                    6  /* AIF3RX2_SLOT - [5:0]
+                                                          * */
 
 /*
  * R1433 (0x599) - AIF3 Tx Enables
@@ -4562,89 +5381,140 @@
 #define ARIZONA_SLIMCLK_SRC_MASK                 0x0010  /* SLIMCLK_SRC */
 #define ARIZONA_SLIMCLK_SRC_SHIFT                     4  /* SLIMCLK_SRC */
 #define ARIZONA_SLIMCLK_SRC_WIDTH                     1  /* SLIMCLK_SRC */
-#define ARIZONA_FRAMER_REF_GEAR_MASK             0x000F  /* FRAMER_REF_GEAR - [3:0] */
-#define ARIZONA_FRAMER_REF_GEAR_SHIFT                 0  /* FRAMER_REF_GEAR - [3:0] */
-#define ARIZONA_FRAMER_REF_GEAR_WIDTH                 4  /* FRAMER_REF_GEAR - [3:0] */
+#define ARIZONA_FRAMER_REF_GEAR_MASK             0x000F  /* FRAMER_REF_GEAR -
+                                                          * [3:0] */
+#define ARIZONA_FRAMER_REF_GEAR_SHIFT                 0  /* FRAMER_REF_GEAR -
+                                                          * [3:0] */
+#define ARIZONA_FRAMER_REF_GEAR_WIDTH                 4  /* FRAMER_REF_GEAR -
+                                                          * [3:0] */
 
 /*
  * R1509 (0x5E5) - SLIMbus Rates 1
  */
-#define ARIZONA_SLIMRX2_RATE_MASK                0x7800  /* SLIMRX2_RATE - [14:11] */
-#define ARIZONA_SLIMRX2_RATE_SHIFT                   11  /* SLIMRX2_RATE - [14:11] */
-#define ARIZONA_SLIMRX2_RATE_WIDTH                    4  /* SLIMRX2_RATE - [14:11] */
-#define ARIZONA_SLIMRX1_RATE_MASK                0x0078  /* SLIMRX1_RATE - [6:3] */
-#define ARIZONA_SLIMRX1_RATE_SHIFT                    3  /* SLIMRX1_RATE - [6:3] */
-#define ARIZONA_SLIMRX1_RATE_WIDTH                    4  /* SLIMRX1_RATE - [6:3] */
+#define ARIZONA_SLIMRX2_RATE_MASK                0x7800  /* SLIMRX2_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX2_RATE_SHIFT                   11  /* SLIMRX2_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX2_RATE_WIDTH                    4  /* SLIMRX2_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX1_RATE_MASK                0x0078  /* SLIMRX1_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX1_RATE_SHIFT                    3  /* SLIMRX1_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX1_RATE_WIDTH                    4  /* SLIMRX1_RATE - [6:3]
+                                                          * */
 
 /*
  * R1510 (0x5E6) - SLIMbus Rates 2
  */
-#define ARIZONA_SLIMRX4_RATE_MASK                0x7800  /* SLIMRX4_RATE - [14:11] */
-#define ARIZONA_SLIMRX4_RATE_SHIFT                   11  /* SLIMRX4_RATE - [14:11] */
-#define ARIZONA_SLIMRX4_RATE_WIDTH                    4  /* SLIMRX4_RATE - [14:11] */
-#define ARIZONA_SLIMRX3_RATE_MASK                0x0078  /* SLIMRX3_RATE - [6:3] */
-#define ARIZONA_SLIMRX3_RATE_SHIFT                    3  /* SLIMRX3_RATE - [6:3] */
-#define ARIZONA_SLIMRX3_RATE_WIDTH                    4  /* SLIMRX3_RATE - [6:3] */
+#define ARIZONA_SLIMRX4_RATE_MASK                0x7800  /* SLIMRX4_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX4_RATE_SHIFT                   11  /* SLIMRX4_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX4_RATE_WIDTH                    4  /* SLIMRX4_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX3_RATE_MASK                0x0078  /* SLIMRX3_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX3_RATE_SHIFT                    3  /* SLIMRX3_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX3_RATE_WIDTH                    4  /* SLIMRX3_RATE - [6:3]
+                                                          * */
 
 /*
  * R1511 (0x5E7) - SLIMbus Rates 3
  */
-#define ARIZONA_SLIMRX6_RATE_MASK                0x7800  /* SLIMRX6_RATE - [14:11] */
-#define ARIZONA_SLIMRX6_RATE_SHIFT                   11  /* SLIMRX6_RATE - [14:11] */
-#define ARIZONA_SLIMRX6_RATE_WIDTH                    4  /* SLIMRX6_RATE - [14:11] */
-#define ARIZONA_SLIMRX5_RATE_MASK                0x0078  /* SLIMRX5_RATE - [6:3] */
-#define ARIZONA_SLIMRX5_RATE_SHIFT                    3  /* SLIMRX5_RATE - [6:3] */
-#define ARIZONA_SLIMRX5_RATE_WIDTH                    4  /* SLIMRX5_RATE - [6:3] */
+#define ARIZONA_SLIMRX6_RATE_MASK                0x7800  /* SLIMRX6_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX6_RATE_SHIFT                   11  /* SLIMRX6_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX6_RATE_WIDTH                    4  /* SLIMRX6_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX5_RATE_MASK                0x0078  /* SLIMRX5_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX5_RATE_SHIFT                    3  /* SLIMRX5_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX5_RATE_WIDTH                    4  /* SLIMRX5_RATE - [6:3]
+                                                          * */
 
 /*
  * R1512 (0x5E8) - SLIMbus Rates 4
  */
-#define ARIZONA_SLIMRX8_RATE_MASK                0x7800  /* SLIMRX8_RATE - [14:11] */
-#define ARIZONA_SLIMRX8_RATE_SHIFT                   11  /* SLIMRX8_RATE - [14:11] */
-#define ARIZONA_SLIMRX8_RATE_WIDTH                    4  /* SLIMRX8_RATE - [14:11] */
-#define ARIZONA_SLIMRX7_RATE_MASK                0x0078  /* SLIMRX7_RATE - [6:3] */
-#define ARIZONA_SLIMRX7_RATE_SHIFT                    3  /* SLIMRX7_RATE - [6:3] */
-#define ARIZONA_SLIMRX7_RATE_WIDTH                    4  /* SLIMRX7_RATE - [6:3] */
+#define ARIZONA_SLIMRX8_RATE_MASK                0x7800  /* SLIMRX8_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX8_RATE_SHIFT                   11  /* SLIMRX8_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX8_RATE_WIDTH                    4  /* SLIMRX8_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMRX7_RATE_MASK                0x0078  /* SLIMRX7_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX7_RATE_SHIFT                    3  /* SLIMRX7_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMRX7_RATE_WIDTH                    4  /* SLIMRX7_RATE - [6:3]
+                                                          * */
 
 /*
  * R1513 (0x5E9) - SLIMbus Rates 5
  */
-#define ARIZONA_SLIMTX2_RATE_MASK                0x7800  /* SLIMTX2_RATE - [14:11] */
-#define ARIZONA_SLIMTX2_RATE_SHIFT                   11  /* SLIMTX2_RATE - [14:11] */
-#define ARIZONA_SLIMTX2_RATE_WIDTH                    4  /* SLIMTX2_RATE - [14:11] */
-#define ARIZONA_SLIMTX1_RATE_MASK                0x0078  /* SLIMTX1_RATE - [6:3] */
-#define ARIZONA_SLIMTX1_RATE_SHIFT                    3  /* SLIMTX1_RATE - [6:3] */
-#define ARIZONA_SLIMTX1_RATE_WIDTH                    4  /* SLIMTX1_RATE - [6:3] */
+#define ARIZONA_SLIMTX2_RATE_MASK                0x7800  /* SLIMTX2_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX2_RATE_SHIFT                   11  /* SLIMTX2_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX2_RATE_WIDTH                    4  /* SLIMTX2_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX1_RATE_MASK                0x0078  /* SLIMTX1_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX1_RATE_SHIFT                    3  /* SLIMTX1_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX1_RATE_WIDTH                    4  /* SLIMTX1_RATE - [6:3]
+                                                          * */
 
 /*
  * R1514 (0x5EA) - SLIMbus Rates 6
  */
-#define ARIZONA_SLIMTX4_RATE_MASK                0x7800  /* SLIMTX4_RATE - [14:11] */
-#define ARIZONA_SLIMTX4_RATE_SHIFT                   11  /* SLIMTX4_RATE - [14:11] */
-#define ARIZONA_SLIMTX4_RATE_WIDTH                    4  /* SLIMTX4_RATE - [14:11] */
-#define ARIZONA_SLIMTX3_RATE_MASK                0x0078  /* SLIMTX3_RATE - [6:3] */
-#define ARIZONA_SLIMTX3_RATE_SHIFT                    3  /* SLIMTX3_RATE - [6:3] */
-#define ARIZONA_SLIMTX3_RATE_WIDTH                    4  /* SLIMTX3_RATE - [6:3] */
+#define ARIZONA_SLIMTX4_RATE_MASK                0x7800  /* SLIMTX4_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX4_RATE_SHIFT                   11  /* SLIMTX4_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX4_RATE_WIDTH                    4  /* SLIMTX4_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX3_RATE_MASK                0x0078  /* SLIMTX3_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX3_RATE_SHIFT                    3  /* SLIMTX3_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX3_RATE_WIDTH                    4  /* SLIMTX3_RATE - [6:3]
+                                                          * */
 
 /*
  * R1515 (0x5EB) - SLIMbus Rates 7
  */
-#define ARIZONA_SLIMTX6_RATE_MASK                0x7800  /* SLIMTX6_RATE - [14:11] */
-#define ARIZONA_SLIMTX6_RATE_SHIFT                   11  /* SLIMTX6_RATE - [14:11] */
-#define ARIZONA_SLIMTX6_RATE_WIDTH                    4  /* SLIMTX6_RATE - [14:11] */
-#define ARIZONA_SLIMTX5_RATE_MASK                0x0078  /* SLIMTX5_RATE - [6:3] */
-#define ARIZONA_SLIMTX5_RATE_SHIFT                    3  /* SLIMTX5_RATE - [6:3] */
-#define ARIZONA_SLIMTX5_RATE_WIDTH                    4  /* SLIMTX5_RATE - [6:3] */
+#define ARIZONA_SLIMTX6_RATE_MASK                0x7800  /* SLIMTX6_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX6_RATE_SHIFT                   11  /* SLIMTX6_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX6_RATE_WIDTH                    4  /* SLIMTX6_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX5_RATE_MASK                0x0078  /* SLIMTX5_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX5_RATE_SHIFT                    3  /* SLIMTX5_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX5_RATE_WIDTH                    4  /* SLIMTX5_RATE - [6:3]
+                                                          * */
 
 /*
  * R1516 (0x5EC) - SLIMbus Rates 8
  */
-#define ARIZONA_SLIMTX8_RATE_MASK                0x7800  /* SLIMTX8_RATE - [14:11] */
-#define ARIZONA_SLIMTX8_RATE_SHIFT                   11  /* SLIMTX8_RATE - [14:11] */
-#define ARIZONA_SLIMTX8_RATE_WIDTH                    4  /* SLIMTX8_RATE - [14:11] */
-#define ARIZONA_SLIMTX7_RATE_MASK                0x0078  /* SLIMTX7_RATE - [6:3] */
-#define ARIZONA_SLIMTX7_RATE_SHIFT                    3  /* SLIMTX7_RATE - [6:3] */
-#define ARIZONA_SLIMTX7_RATE_WIDTH                    4  /* SLIMTX7_RATE - [6:3] */
+#define ARIZONA_SLIMTX8_RATE_MASK                0x7800  /* SLIMTX8_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX8_RATE_SHIFT                   11  /* SLIMTX8_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX8_RATE_WIDTH                    4  /* SLIMTX8_RATE -
+                                                          * [14:11] */
+#define ARIZONA_SLIMTX7_RATE_MASK                0x0078  /* SLIMTX7_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX7_RATE_SHIFT                    3  /* SLIMTX7_RATE - [6:3]
+                                                          * */
+#define ARIZONA_SLIMTX7_RATE_WIDTH                    4  /* SLIMTX7_RATE - [6:3]
+                                                          * */
 
 /*
  * R1525 (0x5F5) - SLIMbus RX Channel Enable
@@ -4805,9 +5675,12 @@
 /*
  * R3088 (0xC10) - GPIO Debounce Config
  */
-#define ARIZONA_GP_DBTIME_MASK                   0xF000  /* GP_DBTIME - [15:12] */
-#define ARIZONA_GP_DBTIME_SHIFT                      12  /* GP_DBTIME - [15:12] */
-#define ARIZONA_GP_DBTIME_WIDTH                       4  /* GP_DBTIME - [15:12] */
+#define ARIZONA_GP_DBTIME_MASK                   0xF000  /* GP_DBTIME - [15:12]
+                                                          * */
+#define ARIZONA_GP_DBTIME_SHIFT                      12  /* GP_DBTIME - [15:12]
+                                                          * */
+#define ARIZONA_GP_DBTIME_WIDTH                       4  /* GP_DBTIME - [15:12]
+                                                          * */
 
 /*
  * R3096 (0xC18) - GP Switch 1
@@ -4975,22 +5848,38 @@
 /*
  * R3329 (0xD01) - Interrupt Status 2
  */
-#define ARIZONA_DSP4_RAM_RDY_EINT1               0x0800  /* DSP4_RAM_RDY_EINT1 */
-#define ARIZONA_DSP4_RAM_RDY_EINT1_MASK          0x0800  /* DSP4_RAM_RDY_EINT1 */
-#define ARIZONA_DSP4_RAM_RDY_EINT1_SHIFT             11  /* DSP4_RAM_RDY_EINT1 */
-#define ARIZONA_DSP4_RAM_RDY_EINT1_WIDTH              1  /* DSP4_RAM_RDY_EINT1 */
-#define ARIZONA_DSP3_RAM_RDY_EINT1               0x0400  /* DSP3_RAM_RDY_EINT1 */
-#define ARIZONA_DSP3_RAM_RDY_EINT1_MASK          0x0400  /* DSP3_RAM_RDY_EINT1 */
-#define ARIZONA_DSP3_RAM_RDY_EINT1_SHIFT             10  /* DSP3_RAM_RDY_EINT1 */
-#define ARIZONA_DSP3_RAM_RDY_EINT1_WIDTH              1  /* DSP3_RAM_RDY_EINT1 */
-#define ARIZONA_DSP2_RAM_RDY_EINT1               0x0200  /* DSP2_RAM_RDY_EINT1 */
-#define ARIZONA_DSP2_RAM_RDY_EINT1_MASK          0x0200  /* DSP2_RAM_RDY_EINT1 */
-#define ARIZONA_DSP2_RAM_RDY_EINT1_SHIFT              9  /* DSP2_RAM_RDY_EINT1 */
-#define ARIZONA_DSP2_RAM_RDY_EINT1_WIDTH              1  /* DSP2_RAM_RDY_EINT1 */
-#define ARIZONA_DSP1_RAM_RDY_EINT1               0x0100  /* DSP1_RAM_RDY_EINT1 */
-#define ARIZONA_DSP1_RAM_RDY_EINT1_MASK          0x0100  /* DSP1_RAM_RDY_EINT1 */
-#define ARIZONA_DSP1_RAM_RDY_EINT1_SHIFT              8  /* DSP1_RAM_RDY_EINT1 */
-#define ARIZONA_DSP1_RAM_RDY_EINT1_WIDTH              1  /* DSP1_RAM_RDY_EINT1 */
+#define ARIZONA_DSP4_RAM_RDY_EINT1               0x0800  /* DSP4_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP4_RAM_RDY_EINT1_MASK          0x0800  /* DSP4_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP4_RAM_RDY_EINT1_SHIFT             11  /* DSP4_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP4_RAM_RDY_EINT1_WIDTH              1  /* DSP4_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP3_RAM_RDY_EINT1               0x0400  /* DSP3_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP3_RAM_RDY_EINT1_MASK          0x0400  /* DSP3_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP3_RAM_RDY_EINT1_SHIFT             10  /* DSP3_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP3_RAM_RDY_EINT1_WIDTH              1  /* DSP3_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP2_RAM_RDY_EINT1               0x0200  /* DSP2_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP2_RAM_RDY_EINT1_MASK          0x0200  /* DSP2_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP2_RAM_RDY_EINT1_SHIFT              9  /* DSP2_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP2_RAM_RDY_EINT1_WIDTH              1  /* DSP2_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT1               0x0100  /* DSP1_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT1_MASK          0x0100  /* DSP1_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT1_SHIFT              8  /* DSP1_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT1_WIDTH              1  /* DSP1_RAM_RDY_EINT1
+                                                          * */
 #define ARIZONA_DSP_IRQ8_EINT1                   0x0080  /* DSP_IRQ8_EINT1 */
 #define ARIZONA_DSP_IRQ8_EINT1_MASK              0x0080  /* DSP_IRQ8_EINT1 */
 #define ARIZONA_DSP_IRQ8_EINT1_SHIFT                  7  /* DSP_IRQ8_EINT1 */
@@ -5027,14 +5916,26 @@
 /*
  * R3330 (0xD02) - Interrupt Status 3
  */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT1          0x8000  /* SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT1_MASK     0x8000  /* SPK_OVERHEAD_WARN_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT1_SHIFT        15  /* SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT1_WIDTH         1  /* SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_EINT1               0x4000  /* SPK_OVERHEAT_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_EINT1_MASK          0x4000  /* SPK_OVERHEAT_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_EINT1_SHIFT             14  /* SPK_OVERHEAT_EINT1 */
-#define ARIZONA_SPK_OVERHEAT_EINT1_WIDTH              1  /* SPK_OVERHEAT_EINT1 */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT1          0x8000  /*
+                                                          * SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT1_MASK     0x8000  /*
+                                                          * SPK_OVERHEAD_WARN_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT1_SHIFT        15  /*
+                                                          * SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT1_WIDTH         1  /*
+                                                          * SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT1               0x4000  /* SPK_OVERHEAT_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT1_MASK          0x4000  /* SPK_OVERHEAT_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT1_SHIFT             14  /* SPK_OVERHEAT_EINT1
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT1_WIDTH              1  /* SPK_OVERHEAT_EINT1
+                                                          * */
 #define ARIZONA_HPDET_EINT1                      0x2000  /* HPDET_EINT1 */
 #define ARIZONA_HPDET_EINT1_MASK                 0x2000  /* HPDET_EINT1 */
 #define ARIZONA_HPDET_EINT1_SHIFT                    13  /* HPDET_EINT1 */
@@ -5047,14 +5948,22 @@
 #define ARIZONA_WSEQ_DONE_EINT1_MASK             0x0800  /* WSEQ_DONE_EINT1 */
 #define ARIZONA_WSEQ_DONE_EINT1_SHIFT                11  /* WSEQ_DONE_EINT1 */
 #define ARIZONA_WSEQ_DONE_EINT1_WIDTH                 1  /* WSEQ_DONE_EINT1 */
-#define ARIZONA_DRC2_SIG_DET_EINT1               0x0400  /* DRC2_SIG_DET_EINT1 */
-#define ARIZONA_DRC2_SIG_DET_EINT1_MASK          0x0400  /* DRC2_SIG_DET_EINT1 */
-#define ARIZONA_DRC2_SIG_DET_EINT1_SHIFT             10  /* DRC2_SIG_DET_EINT1 */
-#define ARIZONA_DRC2_SIG_DET_EINT1_WIDTH              1  /* DRC2_SIG_DET_EINT1 */
-#define ARIZONA_DRC1_SIG_DET_EINT1               0x0200  /* DRC1_SIG_DET_EINT1 */
-#define ARIZONA_DRC1_SIG_DET_EINT1_MASK          0x0200  /* DRC1_SIG_DET_EINT1 */
-#define ARIZONA_DRC1_SIG_DET_EINT1_SHIFT              9  /* DRC1_SIG_DET_EINT1 */
-#define ARIZONA_DRC1_SIG_DET_EINT1_WIDTH              1  /* DRC1_SIG_DET_EINT1 */
+#define ARIZONA_DRC2_SIG_DET_EINT1               0x0400  /* DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC2_SIG_DET_EINT1_MASK          0x0400  /* DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC2_SIG_DET_EINT1_SHIFT             10  /* DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC2_SIG_DET_EINT1_WIDTH              1  /* DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT1               0x0200  /* DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT1_MASK          0x0200  /* DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT1_SHIFT              9  /* DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT1_WIDTH              1  /* DRC1_SIG_DET_EINT1
+                                                          * */
 #define ARIZONA_ASRC2_LOCK_EINT1                 0x0100  /* ASRC2_LOCK_EINT1 */
 #define ARIZONA_ASRC2_LOCK_EINT1_MASK            0x0100  /* ASRC2_LOCK_EINT1 */
 #define ARIZONA_ASRC2_LOCK_EINT1_SHIFT                8  /* ASRC2_LOCK_EINT1 */
@@ -5063,10 +5972,14 @@
 #define ARIZONA_ASRC1_LOCK_EINT1_MASK            0x0080  /* ASRC1_LOCK_EINT1 */
 #define ARIZONA_ASRC1_LOCK_EINT1_SHIFT                7  /* ASRC1_LOCK_EINT1 */
 #define ARIZONA_ASRC1_LOCK_EINT1_WIDTH                1  /* ASRC1_LOCK_EINT1 */
-#define ARIZONA_UNDERCLOCKED_EINT1               0x0040  /* UNDERCLOCKED_EINT1 */
-#define ARIZONA_UNDERCLOCKED_EINT1_MASK          0x0040  /* UNDERCLOCKED_EINT1 */
-#define ARIZONA_UNDERCLOCKED_EINT1_SHIFT              6  /* UNDERCLOCKED_EINT1 */
-#define ARIZONA_UNDERCLOCKED_EINT1_WIDTH              1  /* UNDERCLOCKED_EINT1 */
+#define ARIZONA_UNDERCLOCKED_EINT1               0x0040  /* UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_UNDERCLOCKED_EINT1_MASK          0x0040  /* UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_UNDERCLOCKED_EINT1_SHIFT              6  /* UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_UNDERCLOCKED_EINT1_WIDTH              1  /* UNDERCLOCKED_EINT1
+                                                          * */
 #define ARIZONA_OVERCLOCKED_EINT1                0x0020  /* OVERCLOCKED_EINT1 */
 #define ARIZONA_OVERCLOCKED_EINT1_MASK           0x0020  /* OVERCLOCKED_EINT1 */
 #define ARIZONA_OVERCLOCKED_EINT1_SHIFT               5  /* OVERCLOCKED_EINT1 */
@@ -5083,18 +5996,30 @@
 #define ARIZONA_CLKGEN_ERR_EINT1_MASK            0x0002  /* CLKGEN_ERR_EINT1 */
 #define ARIZONA_CLKGEN_ERR_EINT1_SHIFT                1  /* CLKGEN_ERR_EINT1 */
 #define ARIZONA_CLKGEN_ERR_EINT1_WIDTH                1  /* CLKGEN_ERR_EINT1 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1           0x0001  /* CLKGEN_ERR_ASYNC_EINT1 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1_MASK      0x0001  /* CLKGEN_ERR_ASYNC_EINT1 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1_SHIFT          0  /* CLKGEN_ERR_ASYNC_EINT1 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1_WIDTH          1  /* CLKGEN_ERR_ASYNC_EINT1 */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1           0x0001  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1_MASK      0x0001  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1_SHIFT          0  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT1_WIDTH          1  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
 
 /*
  * R3331 (0xD03) - Interrupt Status 4
  */
-#define ARIZONA_ASRC_CFG_ERR_EINT1               0x8000  /* ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_ASRC_CFG_ERR_EINT1_MASK          0x8000  /* ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_ASRC_CFG_ERR_EINT1_SHIFT             15  /* ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_ASRC_CFG_ERR_EINT1_WIDTH              1  /* ASRC_CFG_ERR_EINT1 */
+#define ARIZONA_ASRC_CFG_ERR_EINT1               0x8000  /* ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ASRC_CFG_ERR_EINT1_MASK          0x8000  /* ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ASRC_CFG_ERR_EINT1_SHIFT             15  /* ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ASRC_CFG_ERR_EINT1_WIDTH              1  /* ASRC_CFG_ERR_EINT1
+                                                          * */
 #define ARIZONA_AIF3_ERR_EINT1                   0x4000  /* AIF3_ERR_EINT1 */
 #define ARIZONA_AIF3_ERR_EINT1_MASK              0x4000  /* AIF3_ERR_EINT1 */
 #define ARIZONA_AIF3_ERR_EINT1_SHIFT                 14  /* AIF3_ERR_EINT1 */
@@ -5111,26 +6036,54 @@
 #define ARIZONA_CTRLIF_ERR_EINT1_MASK            0x0800  /* CTRLIF_ERR_EINT1 */
 #define ARIZONA_CTRLIF_ERR_EINT1_SHIFT               11  /* CTRLIF_ERR_EINT1 */
 #define ARIZONA_CTRLIF_ERR_EINT1_WIDTH                1  /* CTRLIF_ERR_EINT1 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1       0x0400  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1_MASK  0x0400  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1_SHIFT     10  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1_WIDTH      1  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1          0x0200  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1_MASK     0x0200  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1_SHIFT         9  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1_WIDTH         1  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT1             0x0100  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT1_MASK        0x0100  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT1_SHIFT            8  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT1_WIDTH            1  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT1              0x0080  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT1_MASK         0x0080  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT1_SHIFT             7  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT1_WIDTH             1  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT1              0x0040  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT1_MASK         0x0040  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT1_SHIFT             6  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT1_WIDTH             1  /* ISRC2_CFG_ERR_EINT1 */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1       0x0400  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT1
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1_MASK  0x0400  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT1
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1_SHIFT     10  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT1
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT1_WIDTH      1  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT1
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1          0x0200  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1_MASK     0x0200  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1_SHIFT         9  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT1_WIDTH         1  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT1             0x0100  /* SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT1_MASK        0x0100  /* SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT1_SHIFT            8  /* SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT1_WIDTH            1  /* SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT1              0x0080  /* ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT1_MASK         0x0080  /* ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT1_SHIFT             7  /* ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT1_WIDTH             1  /* ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT1              0x0040  /* ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT1_MASK         0x0040  /* ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT1_SHIFT             6  /* ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT1_WIDTH             1  /* ISRC2_CFG_ERR_EINT1
+                                                          * */
 #define ARIZONA_HP3R_DONE_EINT1                  0x0020  /* HP3R_DONE_EINT1 */
 #define ARIZONA_HP3R_DONE_EINT1_MASK             0x0020  /* HP3R_DONE_EINT1 */
 #define ARIZONA_HP3R_DONE_EINT1_SHIFT                 5  /* HP3R_DONE_EINT1 */
@@ -5174,34 +6127,86 @@
 #define ARIZONA_V2_AIF1_ERR_EINT1_MASK             0x2000  /* AIF1_ERR_EINT1 */
 #define ARIZONA_V2_AIF1_ERR_EINT1_SHIFT                13  /* AIF1_ERR_EINT1 */
 #define ARIZONA_V2_AIF1_ERR_EINT1_WIDTH                 1  /* AIF1_ERR_EINT1 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT1                0x1000  /* CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT1_MASK           0x1000  /* CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT1_SHIFT              12  /* CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT1_WIDTH               1  /* CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1      0x0800  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1_MASK 0x0800  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1_SHIFT    11  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1_WIDTH     1  /* MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1         0x0400  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1_MASK    0x0400  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1_SHIFT       10  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1_WIDTH        1  /* ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1            0x0200  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1_MASK       0x0200  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1_SHIFT           9  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1_WIDTH           1  /* SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1             0x0100  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1_MASK        0x0100  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1_SHIFT            8  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1_WIDTH            1  /* ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1             0x0080  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1_MASK        0x0080  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1_SHIFT            7  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1_WIDTH            1  /* ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1             0x0040  /* ISRC3_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1_MASK        0x0040  /* ISRC3_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1_SHIFT            6  /* ISRC3_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1_WIDTH            1  /* ISRC3_CFG_ERR_EINT1 */
+#define ARIZONA_V2_CTRLIF_ERR_EINT1                0x1000  /* CTRLIF_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_CTRLIF_ERR_EINT1_MASK           0x1000  /* CTRLIF_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_CTRLIF_ERR_EINT1_SHIFT              12  /* CTRLIF_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_CTRLIF_ERR_EINT1_WIDTH               1  /* CTRLIF_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1      0x0800  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT1
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1_MASK 0x0800  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT1
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1_SHIFT    11  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT1
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT1_WIDTH     1  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT1
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1         0x0400  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1_MASK    0x0400  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1_SHIFT       10  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT1_WIDTH        1  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1            0x0200  /*
+                                                            * SYSCLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1_MASK       0x0200  /*
+                                                            * SYSCLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1_SHIFT           9  /*
+                                                            * SYSCLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT1_WIDTH           1  /*
+                                                            * SYSCLK_ENA_LOW_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1             0x0100  /*
+                                                            * ISRC1_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1_MASK        0x0100  /*
+                                                            * ISRC1_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1_SHIFT            8  /*
+                                                            * ISRC1_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT1_WIDTH            1  /*
+                                                            * ISRC1_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1             0x0080  /*
+                                                            * ISRC2_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1_MASK        0x0080  /*
+                                                            * ISRC2_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1_SHIFT            7  /*
+                                                            * ISRC2_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT1_WIDTH            1  /*
+                                                            * ISRC2_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1             0x0040  /*
+                                                            * ISRC3_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1_MASK        0x0040  /*
+                                                            * ISRC3_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1_SHIFT            6  /*
+                                                            * ISRC3_CFG_ERR_EINT1
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT1_WIDTH            1  /*
+                                                            * ISRC3_CFG_ERR_EINT1
+                                                            * */
 
 /*
  * R3332 (0xD04) - Interrupt Status 5
@@ -5210,22 +6215,34 @@
 #define ARIZONA_BOOT_DONE_EINT1_MASK             0x0100  /* BOOT_DONE_EINT1 */
 #define ARIZONA_BOOT_DONE_EINT1_SHIFT                 8  /* BOOT_DONE_EINT1 */
 #define ARIZONA_BOOT_DONE_EINT1_WIDTH                 1  /* BOOT_DONE_EINT1 */
-#define ARIZONA_DCS_DAC_DONE_EINT1               0x0080  /* DCS_DAC_DONE_EINT1 */
-#define ARIZONA_DCS_DAC_DONE_EINT1_MASK          0x0080  /* DCS_DAC_DONE_EINT1 */
-#define ARIZONA_DCS_DAC_DONE_EINT1_SHIFT              7  /* DCS_DAC_DONE_EINT1 */
-#define ARIZONA_DCS_DAC_DONE_EINT1_WIDTH              1  /* DCS_DAC_DONE_EINT1 */
+#define ARIZONA_DCS_DAC_DONE_EINT1               0x0080  /* DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_DCS_DAC_DONE_EINT1_MASK          0x0080  /* DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_DCS_DAC_DONE_EINT1_SHIFT              7  /* DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_DCS_DAC_DONE_EINT1_WIDTH              1  /* DCS_DAC_DONE_EINT1
+                                                          * */
 #define ARIZONA_DCS_HP_DONE_EINT1                0x0040  /* DCS_HP_DONE_EINT1 */
 #define ARIZONA_DCS_HP_DONE_EINT1_MASK           0x0040  /* DCS_HP_DONE_EINT1 */
 #define ARIZONA_DCS_HP_DONE_EINT1_SHIFT               6  /* DCS_HP_DONE_EINT1 */
 #define ARIZONA_DCS_HP_DONE_EINT1_WIDTH               1  /* DCS_HP_DONE_EINT1 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT1              0x0002  /* FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT1_MASK         0x0002  /* FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT1_SHIFT             1  /* FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT1_WIDTH             1  /* FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT1              0x0001  /* FLL1_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT1_MASK         0x0001  /* FLL1_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT1_SHIFT             0  /* FLL1_CLOCK_OK_EINT1 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT1_WIDTH             1  /* FLL1_CLOCK_OK_EINT1 */
+#define ARIZONA_FLL2_CLOCK_OK_EINT1              0x0002  /* FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL2_CLOCK_OK_EINT1_MASK         0x0002  /* FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL2_CLOCK_OK_EINT1_SHIFT             1  /* FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL2_CLOCK_OK_EINT1_WIDTH             1  /* FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT1              0x0001  /* FLL1_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT1_MASK         0x0001  /* FLL1_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT1_SHIFT             0  /* FLL1_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT1_WIDTH             1  /* FLL1_CLOCK_OK_EINT1
+                                                          * */
 
 /*
  * R3332 (0xD05) - Interrupt Status 5 (Alternate layout)
@@ -5233,22 +6250,38 @@
  * Alternate layout used on later devices, note only fields that have moved
  * are specified
  */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT1            0x0008  /* ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT1_MASK       0x0008  /* ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT1_SHIFT           3  /* ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT1_WIDTH           1  /* ASRC_CFG_ERR_EINT1 */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT1            0x0008  /* ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT1_MASK       0x0008  /* ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT1_SHIFT           3  /* ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT1_WIDTH           1  /* ASRC_CFG_ERR_EINT1
+                                                          * */
 
 /*
  * R3333 (0xD05) - Interrupt Status 6
  */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT1         0x8000  /* DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT1_MASK    0x8000  /* DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT1_SHIFT       15  /* DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT1_WIDTH        1  /* DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_SPK_SHUTDOWN_EINT1               0x4000  /* SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_SPK_SHUTDOWN_EINT1_MASK          0x4000  /* SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_SPK_SHUTDOWN_EINT1_SHIFT             14  /* SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_SPK_SHUTDOWN_EINT1_WIDTH              1  /* SPK_SHUTDOWN_EINT1 */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT1         0x8000  /*
+                                                          * DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT1_MASK    0x8000  /*
+                                                          * DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT1_SHIFT       15  /*
+                                                          * DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT1_WIDTH        1  /*
+                                                          * DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT1               0x4000  /* SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT1_MASK          0x4000  /* SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT1_SHIFT             14  /* SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT1_WIDTH              1  /* SPK_SHUTDOWN_EINT1
+                                                          * */
 #define ARIZONA_SPK1R_SHORT_EINT1                0x2000  /* SPK1R_SHORT_EINT1 */
 #define ARIZONA_SPK1R_SHORT_EINT1_MASK           0x2000  /* SPK1R_SHORT_EINT1 */
 #define ARIZONA_SPK1R_SHORT_EINT1_SHIFT              13  /* SPK1R_SHORT_EINT1 */
@@ -5329,10 +6362,18 @@
 /*
  * R3337 (0xD09) - Interrupt Status 2 Mask
  */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT1            0x0100  /* IM_DSP1_RAM_RDY_EINT1 */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT1_MASK       0x0100  /* IM_DSP1_RAM_RDY_EINT1 */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT1_SHIFT           8  /* IM_DSP1_RAM_RDY_EINT1 */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT1_WIDTH           1  /* IM_DSP1_RAM_RDY_EINT1 */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT1            0x0100  /*
+                                                          * IM_DSP1_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT1_MASK       0x0100  /*
+                                                          * IM_DSP1_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT1_SHIFT           8  /*
+                                                          * IM_DSP1_RAM_RDY_EINT1
+                                                          * */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT1_WIDTH           1  /*
+                                                          * IM_DSP1_RAM_RDY_EINT1
+                                                          * */
 #define ARIZONA_IM_DSP_IRQ2_EINT1                0x0002  /* IM_DSP_IRQ2_EINT1 */
 #define ARIZONA_IM_DSP_IRQ2_EINT1_MASK           0x0002  /* IM_DSP_IRQ2_EINT1 */
 #define ARIZONA_IM_DSP_IRQ2_EINT1_SHIFT               1  /* IM_DSP_IRQ2_EINT1 */
@@ -5345,14 +6386,30 @@
 /*
  * R3338 (0xD0A) - Interrupt Status 3 Mask
  */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1       0x8000  /* IM_SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1_MASK  0x8000  /* IM_SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1_SHIFT     15  /* IM_SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1_WIDTH      1  /* IM_SPK_OVERHEAT_WARN_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT1            0x4000  /* IM_SPK_OVERHEAT_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT1_MASK       0x4000  /* IM_SPK_OVERHEAT_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT1_SHIFT          14  /* IM_SPK_OVERHEAT_EINT1 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT1_WIDTH           1  /* IM_SPK_OVERHEAT_EINT1 */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1       0x8000  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1_MASK  0x8000  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1_SHIFT     15  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT1_WIDTH      1  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT1            0x4000  /*
+                                                          * IM_SPK_OVERHEAT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT1_MASK       0x4000  /*
+                                                          * IM_SPK_OVERHEAT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT1_SHIFT          14  /*
+                                                          * IM_SPK_OVERHEAT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT1_WIDTH           1  /*
+                                                          * IM_SPK_OVERHEAT_EINT1
+                                                          * */
 #define ARIZONA_IM_HPDET_EINT1                   0x2000  /* IM_HPDET_EINT1 */
 #define ARIZONA_IM_HPDET_EINT1_MASK              0x2000  /* IM_HPDET_EINT1 */
 #define ARIZONA_IM_HPDET_EINT1_SHIFT                 13  /* IM_HPDET_EINT1 */
@@ -5361,58 +6418,126 @@
 #define ARIZONA_IM_MICDET_EINT1_MASK             0x1000  /* IM_MICDET_EINT1 */
 #define ARIZONA_IM_MICDET_EINT1_SHIFT                12  /* IM_MICDET_EINT1 */
 #define ARIZONA_IM_MICDET_EINT1_WIDTH                 1  /* IM_MICDET_EINT1 */
-#define ARIZONA_IM_WSEQ_DONE_EINT1               0x0800  /* IM_WSEQ_DONE_EINT1 */
-#define ARIZONA_IM_WSEQ_DONE_EINT1_MASK          0x0800  /* IM_WSEQ_DONE_EINT1 */
-#define ARIZONA_IM_WSEQ_DONE_EINT1_SHIFT             11  /* IM_WSEQ_DONE_EINT1 */
-#define ARIZONA_IM_WSEQ_DONE_EINT1_WIDTH              1  /* IM_WSEQ_DONE_EINT1 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT1            0x0400  /* IM_DRC2_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT1_MASK       0x0400  /* IM_DRC2_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT1_SHIFT          10  /* IM_DRC2_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT1_WIDTH           1  /* IM_DRC2_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT1            0x0200  /* IM_DRC1_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT1_MASK       0x0200  /* IM_DRC1_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT1_SHIFT           9  /* IM_DRC1_SIG_DET_EINT1 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT1_WIDTH           1  /* IM_DRC1_SIG_DET_EINT1 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT1              0x0100  /* IM_ASRC2_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT1_MASK         0x0100  /* IM_ASRC2_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT1_SHIFT             8  /* IM_ASRC2_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT1_WIDTH             1  /* IM_ASRC2_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT1              0x0080  /* IM_ASRC1_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT1_MASK         0x0080  /* IM_ASRC1_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT1_SHIFT             7  /* IM_ASRC1_LOCK_EINT1 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT1_WIDTH             1  /* IM_ASRC1_LOCK_EINT1 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT1            0x0040  /* IM_UNDERCLOCKED_EINT1 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT1_MASK       0x0040  /* IM_UNDERCLOCKED_EINT1 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT1_SHIFT           6  /* IM_UNDERCLOCKED_EINT1 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT1_WIDTH           1  /* IM_UNDERCLOCKED_EINT1 */
-#define ARIZONA_IM_OVERCLOCKED_EINT1             0x0020  /* IM_OVERCLOCKED_EINT1 */
-#define ARIZONA_IM_OVERCLOCKED_EINT1_MASK        0x0020  /* IM_OVERCLOCKED_EINT1 */
-#define ARIZONA_IM_OVERCLOCKED_EINT1_SHIFT            5  /* IM_OVERCLOCKED_EINT1 */
-#define ARIZONA_IM_OVERCLOCKED_EINT1_WIDTH            1  /* IM_OVERCLOCKED_EINT1 */
-#define ARIZONA_IM_FLL2_LOCK_EINT1               0x0008  /* IM_FLL2_LOCK_EINT1 */
-#define ARIZONA_IM_FLL2_LOCK_EINT1_MASK          0x0008  /* IM_FLL2_LOCK_EINT1 */
-#define ARIZONA_IM_FLL2_LOCK_EINT1_SHIFT              3  /* IM_FLL2_LOCK_EINT1 */
-#define ARIZONA_IM_FLL2_LOCK_EINT1_WIDTH              1  /* IM_FLL2_LOCK_EINT1 */
-#define ARIZONA_IM_FLL1_LOCK_EINT1               0x0004  /* IM_FLL1_LOCK_EINT1 */
-#define ARIZONA_IM_FLL1_LOCK_EINT1_MASK          0x0004  /* IM_FLL1_LOCK_EINT1 */
-#define ARIZONA_IM_FLL1_LOCK_EINT1_SHIFT              2  /* IM_FLL1_LOCK_EINT1 */
-#define ARIZONA_IM_FLL1_LOCK_EINT1_WIDTH              1  /* IM_FLL1_LOCK_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT1              0x0002  /* IM_CLKGEN_ERR_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT1_MASK         0x0002  /* IM_CLKGEN_ERR_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT1_SHIFT             1  /* IM_CLKGEN_ERR_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT1_WIDTH             1  /* IM_CLKGEN_ERR_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1        0x0001  /* IM_CLKGEN_ERR_ASYNC_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1_MASK   0x0001  /* IM_CLKGEN_ERR_ASYNC_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1_SHIFT       0  /* IM_CLKGEN_ERR_ASYNC_EINT1 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1_WIDTH       1  /* IM_CLKGEN_ERR_ASYNC_EINT1 */
+#define ARIZONA_IM_WSEQ_DONE_EINT1               0x0800  /* IM_WSEQ_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_WSEQ_DONE_EINT1_MASK          0x0800  /* IM_WSEQ_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_WSEQ_DONE_EINT1_SHIFT             11  /* IM_WSEQ_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_WSEQ_DONE_EINT1_WIDTH              1  /* IM_WSEQ_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT1            0x0400  /*
+                                                          * IM_DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT1_MASK       0x0400  /*
+                                                          * IM_DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT1_SHIFT          10  /*
+                                                          * IM_DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT1_WIDTH           1  /*
+                                                          * IM_DRC2_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT1            0x0200  /*
+                                                          * IM_DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT1_MASK       0x0200  /*
+                                                          * IM_DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT1_SHIFT           9  /*
+                                                          * IM_DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT1_WIDTH           1  /*
+                                                          * IM_DRC1_SIG_DET_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT1              0x0100  /* IM_ASRC2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT1_MASK         0x0100  /* IM_ASRC2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT1_SHIFT             8  /* IM_ASRC2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT1_WIDTH             1  /* IM_ASRC2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT1              0x0080  /* IM_ASRC1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT1_MASK         0x0080  /* IM_ASRC1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT1_SHIFT             7  /* IM_ASRC1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT1_WIDTH             1  /* IM_ASRC1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT1            0x0040  /*
+                                                          * IM_UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT1_MASK       0x0040  /*
+                                                          * IM_UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT1_SHIFT           6  /*
+                                                          * IM_UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT1_WIDTH           1  /*
+                                                          * IM_UNDERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT1             0x0020  /* IM_OVERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT1_MASK        0x0020  /* IM_OVERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT1_SHIFT            5  /* IM_OVERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT1_WIDTH            1  /* IM_OVERCLOCKED_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT1               0x0008  /* IM_FLL2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT1_MASK          0x0008  /* IM_FLL2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT1_SHIFT              3  /* IM_FLL2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT1_WIDTH              1  /* IM_FLL2_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT1               0x0004  /* IM_FLL1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT1_MASK          0x0004  /* IM_FLL1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT1_SHIFT              2  /* IM_FLL1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT1_WIDTH              1  /* IM_FLL1_LOCK_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT1              0x0002  /* IM_CLKGEN_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT1_MASK         0x0002  /* IM_CLKGEN_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT1_SHIFT             1  /* IM_CLKGEN_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT1_WIDTH             1  /* IM_CLKGEN_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1        0x0001  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1_MASK   0x0001  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1_SHIFT       0  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT1_WIDTH       1  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT1
+                                                          * */
 
 /*
  * R3339 (0xD0B) - Interrupt Status 4 Mask
  */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT1            0x8000  /* IM_ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT1_MASK       0x8000  /* IM_ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT1_SHIFT          15  /* IM_ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT1_WIDTH           1  /* IM_ASRC_CFG_ERR_EINT1 */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT1            0x8000  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT1_MASK       0x8000  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT1_SHIFT          15  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT1_WIDTH           1  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
 #define ARIZONA_IM_AIF3_ERR_EINT1                0x4000  /* IM_AIF3_ERR_EINT1 */
 #define ARIZONA_IM_AIF3_ERR_EINT1_MASK           0x4000  /* IM_AIF3_ERR_EINT1 */
 #define ARIZONA_IM_AIF3_ERR_EINT1_SHIFT              14  /* IM_AIF3_ERR_EINT1 */
@@ -5425,54 +6550,122 @@
 #define ARIZONA_IM_AIF1_ERR_EINT1_MASK           0x1000  /* IM_AIF1_ERR_EINT1 */
 #define ARIZONA_IM_AIF1_ERR_EINT1_SHIFT              12  /* IM_AIF1_ERR_EINT1 */
 #define ARIZONA_IM_AIF1_ERR_EINT1_WIDTH               1  /* IM_AIF1_ERR_EINT1 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT1              0x0800  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT1_MASK         0x0800  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT1_SHIFT            11  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT1_WIDTH             1  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1    0x0400  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1_MASK 0x0400  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1_SHIFT     10  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1_WIDTH      1  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1       0x0200  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1_MASK  0x0200  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1_SHIFT      9  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1_WIDTH      1  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1          0x0100  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1_MASK     0x0100  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1_SHIFT         8  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1_WIDTH         1  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1           0x0080  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1_MASK      0x0080  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1_SHIFT          7  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1_WIDTH          1  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1           0x0040  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1_MASK      0x0040  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1_SHIFT          6  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1_WIDTH          1  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_IM_HP3R_DONE_EINT1               0x0020  /* IM_HP3R_DONE_EINT1 */
-#define ARIZONA_IM_HP3R_DONE_EINT1_MASK          0x0020  /* IM_HP3R_DONE_EINT1 */
-#define ARIZONA_IM_HP3R_DONE_EINT1_SHIFT              5  /* IM_HP3R_DONE_EINT1 */
-#define ARIZONA_IM_HP3R_DONE_EINT1_WIDTH              1  /* IM_HP3R_DONE_EINT1 */
-#define ARIZONA_IM_HP3L_DONE_EINT1               0x0010  /* IM_HP3L_DONE_EINT1 */
-#define ARIZONA_IM_HP3L_DONE_EINT1_MASK          0x0010  /* IM_HP3L_DONE_EINT1 */
-#define ARIZONA_IM_HP3L_DONE_EINT1_SHIFT              4  /* IM_HP3L_DONE_EINT1 */
-#define ARIZONA_IM_HP3L_DONE_EINT1_WIDTH              1  /* IM_HP3L_DONE_EINT1 */
-#define ARIZONA_IM_HP2R_DONE_EINT1               0x0008  /* IM_HP2R_DONE_EINT1 */
-#define ARIZONA_IM_HP2R_DONE_EINT1_MASK          0x0008  /* IM_HP2R_DONE_EINT1 */
-#define ARIZONA_IM_HP2R_DONE_EINT1_SHIFT              3  /* IM_HP2R_DONE_EINT1 */
-#define ARIZONA_IM_HP2R_DONE_EINT1_WIDTH              1  /* IM_HP2R_DONE_EINT1 */
-#define ARIZONA_IM_HP2L_DONE_EINT1               0x0004  /* IM_HP2L_DONE_EINT1 */
-#define ARIZONA_IM_HP2L_DONE_EINT1_MASK          0x0004  /* IM_HP2L_DONE_EINT1 */
-#define ARIZONA_IM_HP2L_DONE_EINT1_SHIFT              2  /* IM_HP2L_DONE_EINT1 */
-#define ARIZONA_IM_HP2L_DONE_EINT1_WIDTH              1  /* IM_HP2L_DONE_EINT1 */
-#define ARIZONA_IM_HP1R_DONE_EINT1               0x0002  /* IM_HP1R_DONE_EINT1 */
-#define ARIZONA_IM_HP1R_DONE_EINT1_MASK          0x0002  /* IM_HP1R_DONE_EINT1 */
-#define ARIZONA_IM_HP1R_DONE_EINT1_SHIFT              1  /* IM_HP1R_DONE_EINT1 */
-#define ARIZONA_IM_HP1R_DONE_EINT1_WIDTH              1  /* IM_HP1R_DONE_EINT1 */
-#define ARIZONA_IM_HP1L_DONE_EINT1               0x0001  /* IM_HP1L_DONE_EINT1 */
-#define ARIZONA_IM_HP1L_DONE_EINT1_MASK          0x0001  /* IM_HP1L_DONE_EINT1 */
-#define ARIZONA_IM_HP1L_DONE_EINT1_SHIFT              0  /* IM_HP1L_DONE_EINT1 */
-#define ARIZONA_IM_HP1L_DONE_EINT1_WIDTH              1  /* IM_HP1L_DONE_EINT1 */
+#define ARIZONA_IM_CTRLIF_ERR_EINT1              0x0800  /* IM_CTRLIF_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CTRLIF_ERR_EINT1_MASK         0x0800  /* IM_CTRLIF_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CTRLIF_ERR_EINT1_SHIFT            11  /* IM_CTRLIF_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_CTRLIF_ERR_EINT1_WIDTH             1  /* IM_CTRLIF_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1    0x0400  /*
+                                                          * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                          * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1_MASK 0x0400  /*
+                                                            * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                            * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1_SHIFT     10  /*
+                                                             * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                             * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT1_WIDTH      1  /*
+                                                             * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                             * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1       0x0200  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1_MASK  0x0200  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1_SHIFT      9  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT1_WIDTH      1  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1          0x0100  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1_MASK     0x0100  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1_SHIFT         8  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT1_WIDTH         1  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1           0x0080  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1_MASK      0x0080  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1_SHIFT          7  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT1_WIDTH          1  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1           0x0040  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1_MASK      0x0040  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1_SHIFT          6  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT1_WIDTH          1  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT1               0x0020  /* IM_HP3R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT1_MASK          0x0020  /* IM_HP3R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT1_SHIFT              5  /* IM_HP3R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT1_WIDTH              1  /* IM_HP3R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT1               0x0010  /* IM_HP3L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT1_MASK          0x0010  /* IM_HP3L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT1_SHIFT              4  /* IM_HP3L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT1_WIDTH              1  /* IM_HP3L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT1               0x0008  /* IM_HP2R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT1_MASK          0x0008  /* IM_HP2R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT1_SHIFT              3  /* IM_HP2R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT1_WIDTH              1  /* IM_HP2R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT1               0x0004  /* IM_HP2L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT1_MASK          0x0004  /* IM_HP2L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT1_SHIFT              2  /* IM_HP2L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT1_WIDTH              1  /* IM_HP2L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT1               0x0002  /* IM_HP1R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT1_MASK          0x0002  /* IM_HP1R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT1_SHIFT              1  /* IM_HP1R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT1_WIDTH              1  /* IM_HP1R_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT1               0x0001  /* IM_HP1L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT1_MASK          0x0001  /* IM_HP1L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT1_SHIFT              0  /* IM_HP1L_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT1_WIDTH              1  /* IM_HP1L_DONE_EINT1
+                                                          * */
 
 /*
  * R3339 (0xD0B) - Interrupt Status 4 Mask (Alternate layout)
@@ -5480,70 +6673,182 @@
  * Alternate layout used on later devices, note only fields that have moved
  * are specified
  */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT1                  0x8000  /* IM_AIF3_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT1_MASK             0x8000  /* IM_AIF3_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT1_SHIFT                15  /* IM_AIF3_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT1_WIDTH                 1  /* IM_AIF3_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT1                  0x4000  /* IM_AIF2_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT1_MASK             0x4000  /* IM_AIF2_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT1_SHIFT                14  /* IM_AIF2_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT1_WIDTH                 1  /* IM_AIF2_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT1                  0x2000  /* IM_AIF1_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT1_MASK             0x2000  /* IM_AIF1_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT1_SHIFT                13  /* IM_AIF1_ERR_EINT1 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT1_WIDTH                 1  /* IM_AIF1_ERR_EINT1 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1                0x1000  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1_MASK           0x1000  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1_SHIFT              12  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1_WIDTH               1  /* IM_CTRLIF_ERR_EINT1 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1      0x0800  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1_MASK 0x0800  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1_SHIFT    11  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1_WIDTH     1  /* IM_MIXER_DROPPED_SAMPLE_EINT1 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1         0x0400  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1_MASK    0x0400  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1_SHIFT       10  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1_WIDTH        1  /* IM_ASYNC_CLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1            0x0200  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1_MASK       0x0200  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1_SHIFT           9  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1_WIDTH           1  /* IM_SYSCLK_ENA_LOW_EINT1 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1             0x0100  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1_MASK        0x0100  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1_SHIFT            8  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1_WIDTH            1  /* IM_ISRC1_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1             0x0080  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1_MASK        0x0080  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1_SHIFT            7  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1_WIDTH            1  /* IM_ISRC2_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1             0x0040  /* IM_ISRC3_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1_MASK        0x0040  /* IM_ISRC3_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1_SHIFT            6  /* IM_ISRC3_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1_WIDTH            1  /* IM_ISRC3_CFG_ERR_EINT1 */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT1                  0x8000  /*
+                                                               * IM_AIF3_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT1_MASK             0x8000  /*
+                                                               * IM_AIF3_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT1_SHIFT                15  /*
+                                                               * IM_AIF3_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT1_WIDTH                 1  /*
+                                                               * IM_AIF3_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT1                  0x4000  /*
+                                                               * IM_AIF2_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT1_MASK             0x4000  /*
+                                                               * IM_AIF2_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT1_SHIFT                14  /*
+                                                               * IM_AIF2_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT1_WIDTH                 1  /*
+                                                               * IM_AIF2_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT1                  0x2000  /*
+                                                               * IM_AIF1_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT1_MASK             0x2000  /*
+                                                               * IM_AIF1_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT1_SHIFT                13  /*
+                                                               * IM_AIF1_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT1_WIDTH                 1  /*
+                                                               * IM_AIF1_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1                0x1000  /*
+                                                               * IM_CTRLIF_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1_MASK           0x1000  /*
+                                                               * IM_CTRLIF_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1_SHIFT              12  /*
+                                                               * IM_CTRLIF_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT1_WIDTH               1  /*
+                                                               * IM_CTRLIF_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1      0x0800  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1_MASK 0x0800  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1_SHIFT    11  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT1_WIDTH     1  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1         0x0400  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1_MASK    0x0400  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1_SHIFT       10  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT1_WIDTH        1  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1            0x0200  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1_MASK       0x0200  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1_SHIFT           9  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT1_WIDTH           1  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1             0x0100  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1_MASK        0x0100  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1_SHIFT            8  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT1_WIDTH            1  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1             0x0080  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1_MASK        0x0080  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1_SHIFT            7  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT1_WIDTH            1  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1             0x0040  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1_MASK        0x0040  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1_SHIFT            6  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT1
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT1_WIDTH            1  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT1
+                                                               * */
 
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask
  */
-#define ARIZONA_IM_BOOT_DONE_EINT1               0x0100  /* IM_BOOT_DONE_EINT1 */
-#define ARIZONA_IM_BOOT_DONE_EINT1_MASK          0x0100  /* IM_BOOT_DONE_EINT1 */
-#define ARIZONA_IM_BOOT_DONE_EINT1_SHIFT              8  /* IM_BOOT_DONE_EINT1 */
-#define ARIZONA_IM_BOOT_DONE_EINT1_WIDTH              1  /* IM_BOOT_DONE_EINT1 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT1            0x0080  /* IM_DCS_DAC_DONE_EINT1 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT1_MASK       0x0080  /* IM_DCS_DAC_DONE_EINT1 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT1_SHIFT           7  /* IM_DCS_DAC_DONE_EINT1 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT1_WIDTH           1  /* IM_DCS_DAC_DONE_EINT1 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT1             0x0040  /* IM_DCS_HP_DONE_EINT1 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT1_MASK        0x0040  /* IM_DCS_HP_DONE_EINT1 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT1_SHIFT            6  /* IM_DCS_HP_DONE_EINT1 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT1_WIDTH            1  /* IM_DCS_HP_DONE_EINT1 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1           0x0002  /* IM_FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1_MASK      0x0002  /* IM_FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1_SHIFT          1  /* IM_FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1_WIDTH          1  /* IM_FLL2_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1           0x0001  /* IM_FLL1_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1_MASK      0x0001  /* IM_FLL1_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1_SHIFT          0  /* IM_FLL1_CLOCK_OK_EINT1 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1_WIDTH          1  /* IM_FLL1_CLOCK_OK_EINT1 */
+#define ARIZONA_IM_BOOT_DONE_EINT1               0x0100  /* IM_BOOT_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_BOOT_DONE_EINT1_MASK          0x0100  /* IM_BOOT_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_BOOT_DONE_EINT1_SHIFT              8  /* IM_BOOT_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_BOOT_DONE_EINT1_WIDTH              1  /* IM_BOOT_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT1            0x0080  /*
+                                                          * IM_DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT1_MASK       0x0080  /*
+                                                          * IM_DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT1_SHIFT           7  /*
+                                                          * IM_DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT1_WIDTH           1  /*
+                                                          * IM_DCS_DAC_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT1             0x0040  /* IM_DCS_HP_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT1_MASK        0x0040  /* IM_DCS_HP_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT1_SHIFT            6  /* IM_DCS_HP_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT1_WIDTH            1  /* IM_DCS_HP_DONE_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1           0x0002  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1_MASK      0x0002  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1_SHIFT          1  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT1_WIDTH          1  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1           0x0001  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1_MASK      0x0001  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1_SHIFT          0  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT1
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT1_WIDTH          1  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT1
+                                                          * */
 
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask (Alternate layout)
@@ -5551,78 +6856,158 @@
  * Alternate layout used on later devices, note only fields that have moved
  * are specified
  */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1         0x0008  /* IM_ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1_MASK    0x0008  /* IM_ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1_SHIFT        3  /* IM_ASRC_CFG_ERR_EINT1 */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1_WIDTH        1  /* IM_ASRC_CFG_ERR_EINT1 */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1         0x0008  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1_MASK    0x0008  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1_SHIFT        3  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT1_WIDTH        1  /*
+                                                          * IM_ASRC_CFG_ERR_EINT1
+                                                          * */
 
 /*
  * R3341 (0xD0D) - Interrupt Status 6 Mask
  */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1      0x8000  /* IM_DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1_MASK 0x8000  /* IM_DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1_SHIFT    15  /* IM_DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1_WIDTH     1  /* IM_DSP_SHARED_WR_COLL_EINT1 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT1            0x4000  /* IM_SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT1_MASK       0x4000  /* IM_SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT1_SHIFT          14  /* IM_SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT1_WIDTH           1  /* IM_SPK_SHUTDOWN_EINT1 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT1             0x2000  /* IM_SPK1R_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT1_MASK        0x2000  /* IM_SPK1R_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT1_SHIFT           13  /* IM_SPK1R_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT1_WIDTH            1  /* IM_SPK1R_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT1             0x1000  /* IM_SPK1L_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT1_MASK        0x1000  /* IM_SPK1L_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT1_SHIFT           12  /* IM_SPK1L_SHORT_EINT1 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT1_WIDTH            1  /* IM_SPK1L_SHORT_EINT1 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT1             0x0800  /* IM_HP3R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT1_MASK        0x0800  /* IM_HP3R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT1_SHIFT           11  /* IM_HP3R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT1_WIDTH            1  /* IM_HP3R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT1             0x0400  /* IM_HP3R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT1_MASK        0x0400  /* IM_HP3R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT1_SHIFT           10  /* IM_HP3R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT1_WIDTH            1  /* IM_HP3R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT1             0x0200  /* IM_HP3L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT1_MASK        0x0200  /* IM_HP3L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT1_SHIFT            9  /* IM_HP3L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT1_WIDTH            1  /* IM_HP3L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT1             0x0100  /* IM_HP3L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT1_MASK        0x0100  /* IM_HP3L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT1_SHIFT            8  /* IM_HP3L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT1_WIDTH            1  /* IM_HP3L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT1             0x0080  /* IM_HP2R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT1_MASK        0x0080  /* IM_HP2R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT1_SHIFT            7  /* IM_HP2R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT1_WIDTH            1  /* IM_HP2R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT1             0x0040  /* IM_HP2R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT1_MASK        0x0040  /* IM_HP2R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT1_SHIFT            6  /* IM_HP2R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT1_WIDTH            1  /* IM_HP2R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT1             0x0020  /* IM_HP2L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT1_MASK        0x0020  /* IM_HP2L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT1_SHIFT            5  /* IM_HP2L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT1_WIDTH            1  /* IM_HP2L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT1             0x0010  /* IM_HP2L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT1_MASK        0x0010  /* IM_HP2L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT1_SHIFT            4  /* IM_HP2L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT1_WIDTH            1  /* IM_HP2L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT1             0x0008  /* IM_HP1R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT1_MASK        0x0008  /* IM_HP1R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT1_SHIFT            3  /* IM_HP1R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT1_WIDTH            1  /* IM_HP1R_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT1             0x0004  /* IM_HP1R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT1_MASK        0x0004  /* IM_HP1R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT1_SHIFT            2  /* IM_HP1R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT1_WIDTH            1  /* IM_HP1R_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT1             0x0002  /* IM_HP1L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT1_MASK        0x0002  /* IM_HP1L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT1_SHIFT            1  /* IM_HP1L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT1_WIDTH            1  /* IM_HP1L_SC_NEG_EINT1 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT1             0x0001  /* IM_HP1L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT1_MASK        0x0001  /* IM_HP1L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT1_SHIFT            0  /* IM_HP1L_SC_POS_EINT1 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT1_WIDTH            1  /* IM_HP1L_SC_POS_EINT1 */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1      0x8000  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1_MASK 0x8000  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1_SHIFT    15  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT1_WIDTH     1  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT1            0x4000  /*
+                                                          * IM_SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT1_MASK       0x4000  /*
+                                                          * IM_SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT1_SHIFT          14  /*
+                                                          * IM_SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT1_WIDTH           1  /*
+                                                          * IM_SPK_SHUTDOWN_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT1             0x2000  /* IM_SPK1R_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT1_MASK        0x2000  /* IM_SPK1R_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT1_SHIFT           13  /* IM_SPK1R_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT1_WIDTH            1  /* IM_SPK1R_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT1             0x1000  /* IM_SPK1L_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT1_MASK        0x1000  /* IM_SPK1L_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT1_SHIFT           12  /* IM_SPK1L_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT1_WIDTH            1  /* IM_SPK1L_SHORT_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT1             0x0800  /* IM_HP3R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT1_MASK        0x0800  /* IM_HP3R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT1_SHIFT           11  /* IM_HP3R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT1_WIDTH            1  /* IM_HP3R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT1             0x0400  /* IM_HP3R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT1_MASK        0x0400  /* IM_HP3R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT1_SHIFT           10  /* IM_HP3R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT1_WIDTH            1  /* IM_HP3R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT1             0x0200  /* IM_HP3L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT1_MASK        0x0200  /* IM_HP3L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT1_SHIFT            9  /* IM_HP3L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT1_WIDTH            1  /* IM_HP3L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT1             0x0100  /* IM_HP3L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT1_MASK        0x0100  /* IM_HP3L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT1_SHIFT            8  /* IM_HP3L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT1_WIDTH            1  /* IM_HP3L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT1             0x0080  /* IM_HP2R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT1_MASK        0x0080  /* IM_HP2R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT1_SHIFT            7  /* IM_HP2R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT1_WIDTH            1  /* IM_HP2R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT1             0x0040  /* IM_HP2R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT1_MASK        0x0040  /* IM_HP2R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT1_SHIFT            6  /* IM_HP2R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT1_WIDTH            1  /* IM_HP2R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT1             0x0020  /* IM_HP2L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT1_MASK        0x0020  /* IM_HP2L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT1_SHIFT            5  /* IM_HP2L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT1_WIDTH            1  /* IM_HP2L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT1             0x0010  /* IM_HP2L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT1_MASK        0x0010  /* IM_HP2L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT1_SHIFT            4  /* IM_HP2L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT1_WIDTH            1  /* IM_HP2L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT1             0x0008  /* IM_HP1R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT1_MASK        0x0008  /* IM_HP1R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT1_SHIFT            3  /* IM_HP1R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT1_WIDTH            1  /* IM_HP1R_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT1             0x0004  /* IM_HP1R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT1_MASK        0x0004  /* IM_HP1R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT1_SHIFT            2  /* IM_HP1R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT1_WIDTH            1  /* IM_HP1R_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT1             0x0002  /* IM_HP1L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT1_MASK        0x0002  /* IM_HP1L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT1_SHIFT            1  /* IM_HP1L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT1_WIDTH            1  /* IM_HP1L_SC_NEG_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT1             0x0001  /* IM_HP1L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT1_MASK        0x0001  /* IM_HP1L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT1_SHIFT            0  /* IM_HP1L_SC_POS_EINT1
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT1_WIDTH            1  /* IM_HP1L_SC_POS_EINT1
+                                                          * */
 
 /*
  * R3343 (0xD0F) - Interrupt Control
@@ -5655,10 +7040,14 @@
 /*
  * R3345 (0xD11) - IRQ2 Status 2
  */
-#define ARIZONA_DSP1_RAM_RDY_EINT2               0x0100  /* DSP1_RAM_RDY_EINT2 */
-#define ARIZONA_DSP1_RAM_RDY_EINT2_MASK          0x0100  /* DSP1_RAM_RDY_EINT2 */
-#define ARIZONA_DSP1_RAM_RDY_EINT2_SHIFT              8  /* DSP1_RAM_RDY_EINT2 */
-#define ARIZONA_DSP1_RAM_RDY_EINT2_WIDTH              1  /* DSP1_RAM_RDY_EINT2 */
+#define ARIZONA_DSP1_RAM_RDY_EINT2               0x0100  /* DSP1_RAM_RDY_EINT2
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT2_MASK          0x0100  /* DSP1_RAM_RDY_EINT2
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT2_SHIFT              8  /* DSP1_RAM_RDY_EINT2
+                                                          * */
+#define ARIZONA_DSP1_RAM_RDY_EINT2_WIDTH              1  /* DSP1_RAM_RDY_EINT2
+                                                          * */
 #define ARIZONA_DSP_IRQ2_EINT2                   0x0002  /* DSP_IRQ2_EINT2 */
 #define ARIZONA_DSP_IRQ2_EINT2_MASK              0x0002  /* DSP_IRQ2_EINT2 */
 #define ARIZONA_DSP_IRQ2_EINT2_SHIFT                  1  /* DSP_IRQ2_EINT2 */
@@ -5671,14 +7060,26 @@
 /*
  * R3346 (0xD12) - IRQ2 Status 3
  */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT2          0x8000  /* SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT2_MASK     0x8000  /* SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT2_SHIFT        15  /* SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_WARN_EINT2_WIDTH         1  /* SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_EINT2               0x4000  /* SPK_OVERHEAT_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_EINT2_MASK          0x4000  /* SPK_OVERHEAT_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_EINT2_SHIFT             14  /* SPK_OVERHEAT_EINT2 */
-#define ARIZONA_SPK_OVERHEAT_EINT2_WIDTH              1  /* SPK_OVERHEAT_EINT2 */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT2          0x8000  /*
+                                                          * SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT2_MASK     0x8000  /*
+                                                          * SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT2_SHIFT        15  /*
+                                                          * SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_EINT2_WIDTH         1  /*
+                                                          * SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT2               0x4000  /* SPK_OVERHEAT_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT2_MASK          0x4000  /* SPK_OVERHEAT_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT2_SHIFT             14  /* SPK_OVERHEAT_EINT2
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_EINT2_WIDTH              1  /* SPK_OVERHEAT_EINT2
+                                                          * */
 #define ARIZONA_HPDET_EINT2                      0x2000  /* HPDET_EINT2 */
 #define ARIZONA_HPDET_EINT2_MASK                 0x2000  /* HPDET_EINT2 */
 #define ARIZONA_HPDET_EINT2_SHIFT                    13  /* HPDET_EINT2 */
@@ -5691,14 +7092,22 @@
 #define ARIZONA_WSEQ_DONE_EINT2_MASK             0x0800  /* WSEQ_DONE_EINT2 */
 #define ARIZONA_WSEQ_DONE_EINT2_SHIFT                11  /* WSEQ_DONE_EINT2 */
 #define ARIZONA_WSEQ_DONE_EINT2_WIDTH                 1  /* WSEQ_DONE_EINT2 */
-#define ARIZONA_DRC2_SIG_DET_EINT2               0x0400  /* DRC2_SIG_DET_EINT2 */
-#define ARIZONA_DRC2_SIG_DET_EINT2_MASK          0x0400  /* DRC2_SIG_DET_EINT2 */
-#define ARIZONA_DRC2_SIG_DET_EINT2_SHIFT             10  /* DRC2_SIG_DET_EINT2 */
-#define ARIZONA_DRC2_SIG_DET_EINT2_WIDTH              1  /* DRC2_SIG_DET_EINT2 */
-#define ARIZONA_DRC1_SIG_DET_EINT2               0x0200  /* DRC1_SIG_DET_EINT2 */
-#define ARIZONA_DRC1_SIG_DET_EINT2_MASK          0x0200  /* DRC1_SIG_DET_EINT2 */
-#define ARIZONA_DRC1_SIG_DET_EINT2_SHIFT              9  /* DRC1_SIG_DET_EINT2 */
-#define ARIZONA_DRC1_SIG_DET_EINT2_WIDTH              1  /* DRC1_SIG_DET_EINT2 */
+#define ARIZONA_DRC2_SIG_DET_EINT2               0x0400  /* DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC2_SIG_DET_EINT2_MASK          0x0400  /* DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC2_SIG_DET_EINT2_SHIFT             10  /* DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC2_SIG_DET_EINT2_WIDTH              1  /* DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT2               0x0200  /* DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT2_MASK          0x0200  /* DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT2_SHIFT              9  /* DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_DRC1_SIG_DET_EINT2_WIDTH              1  /* DRC1_SIG_DET_EINT2
+                                                          * */
 #define ARIZONA_ASRC2_LOCK_EINT2                 0x0100  /* ASRC2_LOCK_EINT2 */
 #define ARIZONA_ASRC2_LOCK_EINT2_MASK            0x0100  /* ASRC2_LOCK_EINT2 */
 #define ARIZONA_ASRC2_LOCK_EINT2_SHIFT                8  /* ASRC2_LOCK_EINT2 */
@@ -5707,10 +7116,14 @@
 #define ARIZONA_ASRC1_LOCK_EINT2_MASK            0x0080  /* ASRC1_LOCK_EINT2 */
 #define ARIZONA_ASRC1_LOCK_EINT2_SHIFT                7  /* ASRC1_LOCK_EINT2 */
 #define ARIZONA_ASRC1_LOCK_EINT2_WIDTH                1  /* ASRC1_LOCK_EINT2 */
-#define ARIZONA_UNDERCLOCKED_EINT2               0x0040  /* UNDERCLOCKED_EINT2 */
-#define ARIZONA_UNDERCLOCKED_EINT2_MASK          0x0040  /* UNDERCLOCKED_EINT2 */
-#define ARIZONA_UNDERCLOCKED_EINT2_SHIFT              6  /* UNDERCLOCKED_EINT2 */
-#define ARIZONA_UNDERCLOCKED_EINT2_WIDTH              1  /* UNDERCLOCKED_EINT2 */
+#define ARIZONA_UNDERCLOCKED_EINT2               0x0040  /* UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_UNDERCLOCKED_EINT2_MASK          0x0040  /* UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_UNDERCLOCKED_EINT2_SHIFT              6  /* UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_UNDERCLOCKED_EINT2_WIDTH              1  /* UNDERCLOCKED_EINT2
+                                                          * */
 #define ARIZONA_OVERCLOCKED_EINT2                0x0020  /* OVERCLOCKED_EINT2 */
 #define ARIZONA_OVERCLOCKED_EINT2_MASK           0x0020  /* OVERCLOCKED_EINT2 */
 #define ARIZONA_OVERCLOCKED_EINT2_SHIFT               5  /* OVERCLOCKED_EINT2 */
@@ -5727,18 +7140,30 @@
 #define ARIZONA_CLKGEN_ERR_EINT2_MASK            0x0002  /* CLKGEN_ERR_EINT2 */
 #define ARIZONA_CLKGEN_ERR_EINT2_SHIFT                1  /* CLKGEN_ERR_EINT2 */
 #define ARIZONA_CLKGEN_ERR_EINT2_WIDTH                1  /* CLKGEN_ERR_EINT2 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2           0x0001  /* CLKGEN_ERR_ASYNC_EINT2 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2_MASK      0x0001  /* CLKGEN_ERR_ASYNC_EINT2 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2_SHIFT          0  /* CLKGEN_ERR_ASYNC_EINT2 */
-#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2_WIDTH          1  /* CLKGEN_ERR_ASYNC_EINT2 */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2           0x0001  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2_MASK      0x0001  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2_SHIFT          0  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_EINT2_WIDTH          1  /*
+                                                          * CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
 
 /*
  * R3347 (0xD13) - IRQ2 Status 4
  */
-#define ARIZONA_ASRC_CFG_ERR_EINT2               0x8000  /* ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_ASRC_CFG_ERR_EINT2_MASK          0x8000  /* ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_ASRC_CFG_ERR_EINT2_SHIFT             15  /* ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_ASRC_CFG_ERR_EINT2_WIDTH              1  /* ASRC_CFG_ERR_EINT2 */
+#define ARIZONA_ASRC_CFG_ERR_EINT2               0x8000  /* ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ASRC_CFG_ERR_EINT2_MASK          0x8000  /* ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ASRC_CFG_ERR_EINT2_SHIFT             15  /* ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ASRC_CFG_ERR_EINT2_WIDTH              1  /* ASRC_CFG_ERR_EINT2
+                                                          * */
 #define ARIZONA_AIF3_ERR_EINT2                   0x4000  /* AIF3_ERR_EINT2 */
 #define ARIZONA_AIF3_ERR_EINT2_MASK              0x4000  /* AIF3_ERR_EINT2 */
 #define ARIZONA_AIF3_ERR_EINT2_SHIFT                 14  /* AIF3_ERR_EINT2 */
@@ -5755,26 +7180,54 @@
 #define ARIZONA_CTRLIF_ERR_EINT2_MASK            0x0800  /* CTRLIF_ERR_EINT2 */
 #define ARIZONA_CTRLIF_ERR_EINT2_SHIFT               11  /* CTRLIF_ERR_EINT2 */
 #define ARIZONA_CTRLIF_ERR_EINT2_WIDTH                1  /* CTRLIF_ERR_EINT2 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2       0x0400  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2_MASK  0x0400  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2_SHIFT     10  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2_WIDTH      1  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2          0x0200  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2_MASK     0x0200  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2_SHIFT         9  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2_WIDTH         1  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT2             0x0100  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT2_MASK        0x0100  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT2_SHIFT            8  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_SYSCLK_ENA_LOW_EINT2_WIDTH            1  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT2              0x0080  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT2_MASK         0x0080  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT2_SHIFT             7  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC1_CFG_ERR_EINT2_WIDTH             1  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT2              0x0040  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT2_MASK         0x0040  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT2_SHIFT             6  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_ISRC2_CFG_ERR_EINT2_WIDTH             1  /* ISRC2_CFG_ERR_EINT2 */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2       0x0400  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT2
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2_MASK  0x0400  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT2
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2_SHIFT     10  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT2
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_EINT2_WIDTH      1  /*
+                                                          * MIXER_DROPPED_SAMPLE_EINT2
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2          0x0200  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2_MASK     0x0200  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2_SHIFT         9  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_EINT2_WIDTH         1  /*
+                                                          * ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT2             0x0100  /* SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT2_MASK        0x0100  /* SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT2_SHIFT            8  /* SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_EINT2_WIDTH            1  /* SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT2              0x0080  /* ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT2_MASK         0x0080  /* ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT2_SHIFT             7  /* ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC1_CFG_ERR_EINT2_WIDTH             1  /* ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT2              0x0040  /* ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT2_MASK         0x0040  /* ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT2_SHIFT             6  /* ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_ISRC2_CFG_ERR_EINT2_WIDTH             1  /* ISRC2_CFG_ERR_EINT2
+                                                          * */
 #define ARIZONA_HP3R_DONE_EINT2                  0x0020  /* HP3R_DONE_EINT2 */
 #define ARIZONA_HP3R_DONE_EINT2_MASK             0x0020  /* HP3R_DONE_EINT2 */
 #define ARIZONA_HP3R_DONE_EINT2_SHIFT                 5  /* HP3R_DONE_EINT2 */
@@ -5818,34 +7271,86 @@
 #define ARIZONA_V2_AIF1_ERR_EINT2_MASK             0x2000  /* AIF1_ERR_EINT2 */
 #define ARIZONA_V2_AIF1_ERR_EINT2_SHIFT                13  /* AIF1_ERR_EINT2 */
 #define ARIZONA_V2_AIF1_ERR_EINT2_WIDTH                 1  /* AIF1_ERR_EINT2 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT2                0x1000  /* CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT2_MASK           0x1000  /* CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT2_SHIFT              12  /* CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_CTRLIF_ERR_EINT2_WIDTH               1  /* CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2      0x0800  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2_MASK 0x0800  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2_SHIFT    11  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2_WIDTH     1  /* MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2         0x0400  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2_MASK    0x0400  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2_SHIFT       10  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2_WIDTH        1  /* ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2            0x0200  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2_MASK       0x0200  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2_SHIFT           9  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2_WIDTH           1  /* SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2             0x0100  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2_MASK        0x0100  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2_SHIFT            8  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2_WIDTH            1  /* ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2             0x0080  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2_MASK        0x0080  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2_SHIFT            7  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2_WIDTH            1  /* ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2             0x0040  /* ISRC3_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2_MASK        0x0040  /* ISRC3_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2_SHIFT            6  /* ISRC3_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2_WIDTH            1  /* ISRC3_CFG_ERR_EINT2 */
+#define ARIZONA_V2_CTRLIF_ERR_EINT2                0x1000  /* CTRLIF_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_CTRLIF_ERR_EINT2_MASK           0x1000  /* CTRLIF_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_CTRLIF_ERR_EINT2_SHIFT              12  /* CTRLIF_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_CTRLIF_ERR_EINT2_WIDTH               1  /* CTRLIF_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2      0x0800  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT2
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2_MASK 0x0800  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT2
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2_SHIFT    11  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT2
+                                                            * */
+#define ARIZONA_V2_MIXER_DROPPED_SAMPLE_EINT2_WIDTH     1  /*
+                                                            * MIXER_DROPPED_SAMPLE_EINT2
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2         0x0400  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2_MASK    0x0400  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2_SHIFT       10  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_ASYNC_CLK_ENA_LOW_EINT2_WIDTH        1  /*
+                                                            * ASYNC_CLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2            0x0200  /*
+                                                            * SYSCLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2_MASK       0x0200  /*
+                                                            * SYSCLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2_SHIFT           9  /*
+                                                            * SYSCLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_SYSCLK_ENA_LOW_EINT2_WIDTH           1  /*
+                                                            * SYSCLK_ENA_LOW_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2             0x0100  /*
+                                                            * ISRC1_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2_MASK        0x0100  /*
+                                                            * ISRC1_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2_SHIFT            8  /*
+                                                            * ISRC1_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC1_CFG_ERR_EINT2_WIDTH            1  /*
+                                                            * ISRC1_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2             0x0080  /*
+                                                            * ISRC2_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2_MASK        0x0080  /*
+                                                            * ISRC2_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2_SHIFT            7  /*
+                                                            * ISRC2_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC2_CFG_ERR_EINT2_WIDTH            1  /*
+                                                            * ISRC2_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2             0x0040  /*
+                                                            * ISRC3_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2_MASK        0x0040  /*
+                                                            * ISRC3_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2_SHIFT            6  /*
+                                                            * ISRC3_CFG_ERR_EINT2
+                                                            * */
+#define ARIZONA_V2_ISRC3_CFG_ERR_EINT2_WIDTH            1  /*
+                                                            * ISRC3_CFG_ERR_EINT2
+                                                            * */
 
 /*
  * R3348 (0xD14) - IRQ2 Status 5
@@ -5854,22 +7359,34 @@
 #define ARIZONA_BOOT_DONE_EINT2_MASK             0x0100  /* BOOT_DONE_EINT2 */
 #define ARIZONA_BOOT_DONE_EINT2_SHIFT                 8  /* BOOT_DONE_EINT2 */
 #define ARIZONA_BOOT_DONE_EINT2_WIDTH                 1  /* BOOT_DONE_EINT2 */
-#define ARIZONA_DCS_DAC_DONE_EINT2               0x0080  /* DCS_DAC_DONE_EINT2 */
-#define ARIZONA_DCS_DAC_DONE_EINT2_MASK          0x0080  /* DCS_DAC_DONE_EINT2 */
-#define ARIZONA_DCS_DAC_DONE_EINT2_SHIFT              7  /* DCS_DAC_DONE_EINT2 */
-#define ARIZONA_DCS_DAC_DONE_EINT2_WIDTH              1  /* DCS_DAC_DONE_EINT2 */
+#define ARIZONA_DCS_DAC_DONE_EINT2               0x0080  /* DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_DCS_DAC_DONE_EINT2_MASK          0x0080  /* DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_DCS_DAC_DONE_EINT2_SHIFT              7  /* DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_DCS_DAC_DONE_EINT2_WIDTH              1  /* DCS_DAC_DONE_EINT2
+                                                          * */
 #define ARIZONA_DCS_HP_DONE_EINT2                0x0040  /* DCS_HP_DONE_EINT2 */
 #define ARIZONA_DCS_HP_DONE_EINT2_MASK           0x0040  /* DCS_HP_DONE_EINT2 */
 #define ARIZONA_DCS_HP_DONE_EINT2_SHIFT               6  /* DCS_HP_DONE_EINT2 */
 #define ARIZONA_DCS_HP_DONE_EINT2_WIDTH               1  /* DCS_HP_DONE_EINT2 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT2              0x0002  /* FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT2_MASK         0x0002  /* FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT2_SHIFT             1  /* FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL2_CLOCK_OK_EINT2_WIDTH             1  /* FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT2              0x0001  /* FLL1_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT2_MASK         0x0001  /* FLL1_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT2_SHIFT             0  /* FLL1_CLOCK_OK_EINT2 */
-#define ARIZONA_FLL1_CLOCK_OK_EINT2_WIDTH             1  /* FLL1_CLOCK_OK_EINT2 */
+#define ARIZONA_FLL2_CLOCK_OK_EINT2              0x0002  /* FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL2_CLOCK_OK_EINT2_MASK         0x0002  /* FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL2_CLOCK_OK_EINT2_SHIFT             1  /* FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL2_CLOCK_OK_EINT2_WIDTH             1  /* FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT2              0x0001  /* FLL1_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT2_MASK         0x0001  /* FLL1_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT2_SHIFT             0  /* FLL1_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_FLL1_CLOCK_OK_EINT2_WIDTH             1  /* FLL1_CLOCK_OK_EINT2
+                                                          * */
 
 /*
  * R3348 (0xD14) - IRQ2 Status 5 (Alternate layout)
@@ -5877,22 +7394,38 @@
  * Alternate layout used on later devices, note only fields that have moved
  * are specified
  */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT2            0x0008  /* ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT2_MASK       0x0008  /* ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT2_SHIFT           3  /* ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_V2_ASRC_CFG_ERR_EINT2_WIDTH           1  /* ASRC_CFG_ERR_EINT2 */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT2            0x0008  /* ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT2_MASK       0x0008  /* ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT2_SHIFT           3  /* ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_V2_ASRC_CFG_ERR_EINT2_WIDTH           1  /* ASRC_CFG_ERR_EINT2
+                                                          * */
 
 /*
  * R3349 (0xD15) - IRQ2 Status 6
  */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT2         0x8000  /* DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT2_MASK    0x8000  /* DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT2_SHIFT       15  /* DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_DSP_SHARED_WR_COLL_EINT2_WIDTH        1  /* DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_SPK_SHUTDOWN_EINT2               0x4000  /* SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_SPK_SHUTDOWN_EINT2_MASK          0x4000  /* SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_SPK_SHUTDOWN_EINT2_SHIFT             14  /* SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_SPK_SHUTDOWN_EINT2_WIDTH              1  /* SPK_SHUTDOWN_EINT2 */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT2         0x8000  /*
+                                                          * DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT2_MASK    0x8000  /*
+                                                          * DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT2_SHIFT       15  /*
+                                                          * DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_EINT2_WIDTH        1  /*
+                                                          * DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT2               0x4000  /* SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT2_MASK          0x4000  /* SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT2_SHIFT             14  /* SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_SPK_SHUTDOWN_EINT2_WIDTH              1  /* SPK_SHUTDOWN_EINT2
+                                                          * */
 #define ARIZONA_SPK1R_SHORT_EINT2                0x2000  /* SPK1R_SHORT_EINT2 */
 #define ARIZONA_SPK1R_SHORT_EINT2_MASK           0x2000  /* SPK1R_SHORT_EINT2 */
 #define ARIZONA_SPK1R_SHORT_EINT2_SHIFT              13  /* SPK1R_SHORT_EINT2 */
@@ -5973,10 +7506,18 @@
 /*
  * R3353 (0xD19) - IRQ2 Status 2 Mask
  */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT2            0x0100  /* IM_DSP1_RAM_RDY_EINT2 */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT2_MASK       0x0100  /* IM_DSP1_RAM_RDY_EINT2 */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT2_SHIFT           8  /* IM_DSP1_RAM_RDY_EINT2 */
-#define ARIZONA_IM_DSP1_RAM_RDY_EINT2_WIDTH           1  /* IM_DSP1_RAM_RDY_EINT2 */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT2            0x0100  /*
+                                                          * IM_DSP1_RAM_RDY_EINT2
+                                                          * */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT2_MASK       0x0100  /*
+                                                          * IM_DSP1_RAM_RDY_EINT2
+                                                          * */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT2_SHIFT           8  /*
+                                                          * IM_DSP1_RAM_RDY_EINT2
+                                                          * */
+#define ARIZONA_IM_DSP1_RAM_RDY_EINT2_WIDTH           1  /*
+                                                          * IM_DSP1_RAM_RDY_EINT2
+                                                          * */
 #define ARIZONA_IM_DSP_IRQ2_EINT2                0x0002  /* IM_DSP_IRQ2_EINT2 */
 #define ARIZONA_IM_DSP_IRQ2_EINT2_MASK           0x0002  /* IM_DSP_IRQ2_EINT2 */
 #define ARIZONA_IM_DSP_IRQ2_EINT2_SHIFT               1  /* IM_DSP_IRQ2_EINT2 */
@@ -5989,14 +7530,30 @@
 /*
  * R3354 (0xD1A) - IRQ2 Status 3 Mask
  */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2       0x8000  /* IM_SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2_MASK  0x8000  /* IM_SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2_SHIFT     15  /* IM_SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2_WIDTH      1  /* IM_SPK_OVERHEAT_WARN_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT2            0x4000  /* IM_SPK_OVERHEAT_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT2_MASK       0x4000  /* IM_SPK_OVERHEAT_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT2_SHIFT          14  /* IM_SPK_OVERHEAT_EINT2 */
-#define ARIZONA_IM_SPK_OVERHEAT_EINT2_WIDTH           1  /* IM_SPK_OVERHEAT_EINT2 */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2       0x8000  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2_MASK  0x8000  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2_SHIFT     15  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_WARN_EINT2_WIDTH      1  /*
+                                                          * IM_SPK_OVERHEAT_WARN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT2            0x4000  /*
+                                                          * IM_SPK_OVERHEAT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT2_MASK       0x4000  /*
+                                                          * IM_SPK_OVERHEAT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT2_SHIFT          14  /*
+                                                          * IM_SPK_OVERHEAT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_OVERHEAT_EINT2_WIDTH           1  /*
+                                                          * IM_SPK_OVERHEAT_EINT2
+                                                          * */
 #define ARIZONA_IM_HPDET_EINT2                   0x2000  /* IM_HPDET_EINT2 */
 #define ARIZONA_IM_HPDET_EINT2_MASK              0x2000  /* IM_HPDET_EINT2 */
 #define ARIZONA_IM_HPDET_EINT2_SHIFT                 13  /* IM_HPDET_EINT2 */
@@ -6005,58 +7562,126 @@
 #define ARIZONA_IM_MICDET_EINT2_MASK             0x1000  /* IM_MICDET_EINT2 */
 #define ARIZONA_IM_MICDET_EINT2_SHIFT                12  /* IM_MICDET_EINT2 */
 #define ARIZONA_IM_MICDET_EINT2_WIDTH                 1  /* IM_MICDET_EINT2 */
-#define ARIZONA_IM_WSEQ_DONE_EINT2               0x0800  /* IM_WSEQ_DONE_EINT2 */
-#define ARIZONA_IM_WSEQ_DONE_EINT2_MASK          0x0800  /* IM_WSEQ_DONE_EINT2 */
-#define ARIZONA_IM_WSEQ_DONE_EINT2_SHIFT             11  /* IM_WSEQ_DONE_EINT2 */
-#define ARIZONA_IM_WSEQ_DONE_EINT2_WIDTH              1  /* IM_WSEQ_DONE_EINT2 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT2            0x0400  /* IM_DRC2_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT2_MASK       0x0400  /* IM_DRC2_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT2_SHIFT          10  /* IM_DRC2_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC2_SIG_DET_EINT2_WIDTH           1  /* IM_DRC2_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT2            0x0200  /* IM_DRC1_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT2_MASK       0x0200  /* IM_DRC1_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT2_SHIFT           9  /* IM_DRC1_SIG_DET_EINT2 */
-#define ARIZONA_IM_DRC1_SIG_DET_EINT2_WIDTH           1  /* IM_DRC1_SIG_DET_EINT2 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT2              0x0100  /* IM_ASRC2_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT2_MASK         0x0100  /* IM_ASRC2_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT2_SHIFT             8  /* IM_ASRC2_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC2_LOCK_EINT2_WIDTH             1  /* IM_ASRC2_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT2              0x0080  /* IM_ASRC1_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT2_MASK         0x0080  /* IM_ASRC1_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT2_SHIFT             7  /* IM_ASRC1_LOCK_EINT2 */
-#define ARIZONA_IM_ASRC1_LOCK_EINT2_WIDTH             1  /* IM_ASRC1_LOCK_EINT2 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT2            0x0040  /* IM_UNDERCLOCKED_EINT2 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT2_MASK       0x0040  /* IM_UNDERCLOCKED_EINT2 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT2_SHIFT           6  /* IM_UNDERCLOCKED_EINT2 */
-#define ARIZONA_IM_UNDERCLOCKED_EINT2_WIDTH           1  /* IM_UNDERCLOCKED_EINT2 */
-#define ARIZONA_IM_OVERCLOCKED_EINT2             0x0020  /* IM_OVERCLOCKED_EINT2 */
-#define ARIZONA_IM_OVERCLOCKED_EINT2_MASK        0x0020  /* IM_OVERCLOCKED_EINT2 */
-#define ARIZONA_IM_OVERCLOCKED_EINT2_SHIFT            5  /* IM_OVERCLOCKED_EINT2 */
-#define ARIZONA_IM_OVERCLOCKED_EINT2_WIDTH            1  /* IM_OVERCLOCKED_EINT2 */
-#define ARIZONA_IM_FLL2_LOCK_EINT2               0x0008  /* IM_FLL2_LOCK_EINT2 */
-#define ARIZONA_IM_FLL2_LOCK_EINT2_MASK          0x0008  /* IM_FLL2_LOCK_EINT2 */
-#define ARIZONA_IM_FLL2_LOCK_EINT2_SHIFT              3  /* IM_FLL2_LOCK_EINT2 */
-#define ARIZONA_IM_FLL2_LOCK_EINT2_WIDTH              1  /* IM_FLL2_LOCK_EINT2 */
-#define ARIZONA_IM_FLL1_LOCK_EINT2               0x0004  /* IM_FLL1_LOCK_EINT2 */
-#define ARIZONA_IM_FLL1_LOCK_EINT2_MASK          0x0004  /* IM_FLL1_LOCK_EINT2 */
-#define ARIZONA_IM_FLL1_LOCK_EINT2_SHIFT              2  /* IM_FLL1_LOCK_EINT2 */
-#define ARIZONA_IM_FLL1_LOCK_EINT2_WIDTH              1  /* IM_FLL1_LOCK_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT2              0x0002  /* IM_CLKGEN_ERR_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT2_MASK         0x0002  /* IM_CLKGEN_ERR_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT2_SHIFT             1  /* IM_CLKGEN_ERR_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_EINT2_WIDTH             1  /* IM_CLKGEN_ERR_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2        0x0001  /* IM_CLKGEN_ERR_ASYNC_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2_MASK   0x0001  /* IM_CLKGEN_ERR_ASYNC_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2_SHIFT       0  /* IM_CLKGEN_ERR_ASYNC_EINT2 */
-#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2_WIDTH       1  /* IM_CLKGEN_ERR_ASYNC_EINT2 */
+#define ARIZONA_IM_WSEQ_DONE_EINT2               0x0800  /* IM_WSEQ_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_WSEQ_DONE_EINT2_MASK          0x0800  /* IM_WSEQ_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_WSEQ_DONE_EINT2_SHIFT             11  /* IM_WSEQ_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_WSEQ_DONE_EINT2_WIDTH              1  /* IM_WSEQ_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT2            0x0400  /*
+                                                          * IM_DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT2_MASK       0x0400  /*
+                                                          * IM_DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT2_SHIFT          10  /*
+                                                          * IM_DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC2_SIG_DET_EINT2_WIDTH           1  /*
+                                                          * IM_DRC2_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT2            0x0200  /*
+                                                          * IM_DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT2_MASK       0x0200  /*
+                                                          * IM_DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT2_SHIFT           9  /*
+                                                          * IM_DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_DRC1_SIG_DET_EINT2_WIDTH           1  /*
+                                                          * IM_DRC1_SIG_DET_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT2              0x0100  /* IM_ASRC2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT2_MASK         0x0100  /* IM_ASRC2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT2_SHIFT             8  /* IM_ASRC2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC2_LOCK_EINT2_WIDTH             1  /* IM_ASRC2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT2              0x0080  /* IM_ASRC1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT2_MASK         0x0080  /* IM_ASRC1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT2_SHIFT             7  /* IM_ASRC1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC1_LOCK_EINT2_WIDTH             1  /* IM_ASRC1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT2            0x0040  /*
+                                                          * IM_UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT2_MASK       0x0040  /*
+                                                          * IM_UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT2_SHIFT           6  /*
+                                                          * IM_UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_UNDERCLOCKED_EINT2_WIDTH           1  /*
+                                                          * IM_UNDERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT2             0x0020  /* IM_OVERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT2_MASK        0x0020  /* IM_OVERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT2_SHIFT            5  /* IM_OVERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_OVERCLOCKED_EINT2_WIDTH            1  /* IM_OVERCLOCKED_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT2               0x0008  /* IM_FLL2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT2_MASK          0x0008  /* IM_FLL2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT2_SHIFT              3  /* IM_FLL2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_LOCK_EINT2_WIDTH              1  /* IM_FLL2_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT2               0x0004  /* IM_FLL1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT2_MASK          0x0004  /* IM_FLL1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT2_SHIFT              2  /* IM_FLL1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_LOCK_EINT2_WIDTH              1  /* IM_FLL1_LOCK_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT2              0x0002  /* IM_CLKGEN_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT2_MASK         0x0002  /* IM_CLKGEN_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT2_SHIFT             1  /* IM_CLKGEN_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_EINT2_WIDTH             1  /* IM_CLKGEN_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2        0x0001  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2_MASK   0x0001  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2_SHIFT       0  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
+#define ARIZONA_IM_CLKGEN_ERR_ASYNC_EINT2_WIDTH       1  /*
+                                                          * IM_CLKGEN_ERR_ASYNC_EINT2
+                                                          * */
 
 /*
  * R3355 (0xD1B) - IRQ2 Status 4 Mask
  */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT2            0x8000  /* IM_ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT2_MASK       0x8000  /* IM_ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT2_SHIFT          15  /* IM_ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ASRC_CFG_ERR_EINT2_WIDTH           1  /* IM_ASRC_CFG_ERR_EINT2 */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT2            0x8000  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT2_MASK       0x8000  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT2_SHIFT          15  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ASRC_CFG_ERR_EINT2_WIDTH           1  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
 #define ARIZONA_IM_AIF3_ERR_EINT2                0x4000  /* IM_AIF3_ERR_EINT2 */
 #define ARIZONA_IM_AIF3_ERR_EINT2_MASK           0x4000  /* IM_AIF3_ERR_EINT2 */
 #define ARIZONA_IM_AIF3_ERR_EINT2_SHIFT              14  /* IM_AIF3_ERR_EINT2 */
@@ -6069,54 +7694,122 @@
 #define ARIZONA_IM_AIF1_ERR_EINT2_MASK           0x1000  /* IM_AIF1_ERR_EINT2 */
 #define ARIZONA_IM_AIF1_ERR_EINT2_SHIFT              12  /* IM_AIF1_ERR_EINT2 */
 #define ARIZONA_IM_AIF1_ERR_EINT2_WIDTH               1  /* IM_AIF1_ERR_EINT2 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT2              0x0800  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT2_MASK         0x0800  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT2_SHIFT            11  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_IM_CTRLIF_ERR_EINT2_WIDTH             1  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2    0x0400  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2_MASK 0x0400  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2_SHIFT     10  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2_WIDTH      1  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2       0x0200  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2_MASK  0x0200  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2_SHIFT      9  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2_WIDTH      1  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2          0x0100  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2_MASK     0x0100  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2_SHIFT         8  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2_WIDTH         1  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2           0x0080  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2_MASK      0x0080  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2_SHIFT          7  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2_WIDTH          1  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2           0x0040  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2_MASK      0x0040  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2_SHIFT          6  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2_WIDTH          1  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_IM_HP3R_DONE_EINT2               0x0020  /* IM_HP3R_DONE_EINT2 */
-#define ARIZONA_IM_HP3R_DONE_EINT2_MASK          0x0020  /* IM_HP3R_DONE_EINT2 */
-#define ARIZONA_IM_HP3R_DONE_EINT2_SHIFT              5  /* IM_HP3R_DONE_EINT2 */
-#define ARIZONA_IM_HP3R_DONE_EINT2_WIDTH              1  /* IM_HP3R_DONE_EINT2 */
-#define ARIZONA_IM_HP3L_DONE_EINT2               0x0010  /* IM_HP3L_DONE_EINT2 */
-#define ARIZONA_IM_HP3L_DONE_EINT2_MASK          0x0010  /* IM_HP3L_DONE_EINT2 */
-#define ARIZONA_IM_HP3L_DONE_EINT2_SHIFT              4  /* IM_HP3L_DONE_EINT2 */
-#define ARIZONA_IM_HP3L_DONE_EINT2_WIDTH              1  /* IM_HP3L_DONE_EINT2 */
-#define ARIZONA_IM_HP2R_DONE_EINT2               0x0008  /* IM_HP2R_DONE_EINT2 */
-#define ARIZONA_IM_HP2R_DONE_EINT2_MASK          0x0008  /* IM_HP2R_DONE_EINT2 */
-#define ARIZONA_IM_HP2R_DONE_EINT2_SHIFT              3  /* IM_HP2R_DONE_EINT2 */
-#define ARIZONA_IM_HP2R_DONE_EINT2_WIDTH              1  /* IM_HP2R_DONE_EINT2 */
-#define ARIZONA_IM_HP2L_DONE_EINT2               0x0004  /* IM_HP2L_DONE_EINT2 */
-#define ARIZONA_IM_HP2L_DONE_EINT2_MASK          0x0004  /* IM_HP2L_DONE_EINT2 */
-#define ARIZONA_IM_HP2L_DONE_EINT2_SHIFT              2  /* IM_HP2L_DONE_EINT2 */
-#define ARIZONA_IM_HP2L_DONE_EINT2_WIDTH              1  /* IM_HP2L_DONE_EINT2 */
-#define ARIZONA_IM_HP1R_DONE_EINT2               0x0002  /* IM_HP1R_DONE_EINT2 */
-#define ARIZONA_IM_HP1R_DONE_EINT2_MASK          0x0002  /* IM_HP1R_DONE_EINT2 */
-#define ARIZONA_IM_HP1R_DONE_EINT2_SHIFT              1  /* IM_HP1R_DONE_EINT2 */
-#define ARIZONA_IM_HP1R_DONE_EINT2_WIDTH              1  /* IM_HP1R_DONE_EINT2 */
-#define ARIZONA_IM_HP1L_DONE_EINT2               0x0001  /* IM_HP1L_DONE_EINT2 */
-#define ARIZONA_IM_HP1L_DONE_EINT2_MASK          0x0001  /* IM_HP1L_DONE_EINT2 */
-#define ARIZONA_IM_HP1L_DONE_EINT2_SHIFT              0  /* IM_HP1L_DONE_EINT2 */
-#define ARIZONA_IM_HP1L_DONE_EINT2_WIDTH              1  /* IM_HP1L_DONE_EINT2 */
+#define ARIZONA_IM_CTRLIF_ERR_EINT2              0x0800  /* IM_CTRLIF_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CTRLIF_ERR_EINT2_MASK         0x0800  /* IM_CTRLIF_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CTRLIF_ERR_EINT2_SHIFT            11  /* IM_CTRLIF_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_CTRLIF_ERR_EINT2_WIDTH             1  /* IM_CTRLIF_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2    0x0400  /*
+                                                          * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                          * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2_MASK 0x0400  /*
+                                                            * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                            * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2_SHIFT     10  /*
+                                                             * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                             * */
+#define ARIZONA_IM_MIXER_DROPPED_SAMPLE_EINT2_WIDTH      1  /*
+                                                             * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                             * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2       0x0200  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2_MASK  0x0200  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2_SHIFT      9  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_ASYNC_CLK_ENA_LOW_EINT2_WIDTH      1  /*
+                                                          * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2          0x0100  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2_MASK     0x0100  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2_SHIFT         8  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_SYSCLK_ENA_LOW_EINT2_WIDTH         1  /*
+                                                          * IM_SYSCLK_ENA_LOW_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2           0x0080  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2_MASK      0x0080  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2_SHIFT          7  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC1_CFG_ERR_EINT2_WIDTH          1  /*
+                                                          * IM_ISRC1_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2           0x0040  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2_MASK      0x0040  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2_SHIFT          6  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_ISRC2_CFG_ERR_EINT2_WIDTH          1  /*
+                                                          * IM_ISRC2_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT2               0x0020  /* IM_HP3R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT2_MASK          0x0020  /* IM_HP3R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT2_SHIFT              5  /* IM_HP3R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_DONE_EINT2_WIDTH              1  /* IM_HP3R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT2               0x0010  /* IM_HP3L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT2_MASK          0x0010  /* IM_HP3L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT2_SHIFT              4  /* IM_HP3L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_DONE_EINT2_WIDTH              1  /* IM_HP3L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT2               0x0008  /* IM_HP2R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT2_MASK          0x0008  /* IM_HP2R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT2_SHIFT              3  /* IM_HP2R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_DONE_EINT2_WIDTH              1  /* IM_HP2R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT2               0x0004  /* IM_HP2L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT2_MASK          0x0004  /* IM_HP2L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT2_SHIFT              2  /* IM_HP2L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_DONE_EINT2_WIDTH              1  /* IM_HP2L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT2               0x0002  /* IM_HP1R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT2_MASK          0x0002  /* IM_HP1R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT2_SHIFT              1  /* IM_HP1R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_DONE_EINT2_WIDTH              1  /* IM_HP1R_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT2               0x0001  /* IM_HP1L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT2_MASK          0x0001  /* IM_HP1L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT2_SHIFT              0  /* IM_HP1L_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_DONE_EINT2_WIDTH              1  /* IM_HP1L_DONE_EINT2
+                                                          * */
 
 /*
  * R3355 (0xD1B) - IRQ2 Status 4 Mask (Alternate layout)
@@ -6124,71 +7817,183 @@
  * Alternate layout used on later devices, note only fields that have moved
  * are specified
  */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT2                  0x8000  /* IM_AIF3_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT2_MASK             0x8000  /* IM_AIF3_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT2_SHIFT                15  /* IM_AIF3_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF3_ERR_EINT2_WIDTH                 1  /* IM_AIF3_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT2                  0x4000  /* IM_AIF2_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT2_MASK             0x4000  /* IM_AIF2_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT2_SHIFT                14  /* IM_AIF2_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF2_ERR_EINT2_WIDTH                 1  /* IM_AIF2_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT2                  0x2000  /* IM_AIF1_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT2_MASK             0x2000  /* IM_AIF1_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT2_SHIFT                13  /* IM_AIF1_ERR_EINT2 */
-#define ARIZONA_V2_IM_AIF1_ERR_EINT2_WIDTH                 1  /* IM_AIF1_ERR_EINT2 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2                0x1000  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2_MASK           0x1000  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2_SHIFT              12  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2_WIDTH               1  /* IM_CTRLIF_ERR_EINT2 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2      0x0800  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2_MASK 0x0800  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2_SHIFT    11  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2_WIDTH     1  /* IM_MIXER_DROPPED_SAMPLE_EINT2 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2         0x0400  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2_MASK    0x0400  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2_SHIFT       10  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2_WIDTH        1  /* IM_ASYNC_CLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2            0x0200  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2_MASK       0x0200  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2_SHIFT           9  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2_WIDTH           1  /* IM_SYSCLK_ENA_LOW_EINT2 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2             0x0100  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2_MASK        0x0100  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2_SHIFT            8  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2_WIDTH            1  /* IM_ISRC1_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2             0x0080  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2_MASK        0x0080  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2_SHIFT            7  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2_WIDTH            1  /* IM_ISRC2_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2             0x0040  /* IM_ISRC3_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2_MASK        0x0040  /* IM_ISRC3_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2_SHIFT            6  /* IM_ISRC3_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2_WIDTH            1  /* IM_ISRC3_CFG_ERR_EINT2 */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT2                  0x8000  /*
+                                                               * IM_AIF3_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT2_MASK             0x8000  /*
+                                                               * IM_AIF3_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT2_SHIFT                15  /*
+                                                               * IM_AIF3_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF3_ERR_EINT2_WIDTH                 1  /*
+                                                               * IM_AIF3_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT2                  0x4000  /*
+                                                               * IM_AIF2_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT2_MASK             0x4000  /*
+                                                               * IM_AIF2_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT2_SHIFT                14  /*
+                                                               * IM_AIF2_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF2_ERR_EINT2_WIDTH                 1  /*
+                                                               * IM_AIF2_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT2                  0x2000  /*
+                                                               * IM_AIF1_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT2_MASK             0x2000  /*
+                                                               * IM_AIF1_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT2_SHIFT                13  /*
+                                                               * IM_AIF1_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_AIF1_ERR_EINT2_WIDTH                 1  /*
+                                                               * IM_AIF1_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2                0x1000  /*
+                                                               * IM_CTRLIF_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2_MASK           0x1000  /*
+                                                               * IM_CTRLIF_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2_SHIFT              12  /*
+                                                               * IM_CTRLIF_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_CTRLIF_ERR_EINT2_WIDTH               1  /*
+                                                               * IM_CTRLIF_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2      0x0800  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2_MASK 0x0800  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2_SHIFT    11  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_MIXER_DROPPED_SAMPLE_EINT2_WIDTH     1  /*
+                                                               * IM_MIXER_DROPPED_SAMPLE_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2         0x0400  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2_MASK    0x0400  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2_SHIFT       10  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ASYNC_CLK_ENA_LOW_EINT2_WIDTH        1  /*
+                                                               * IM_ASYNC_CLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2            0x0200  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2_MASK       0x0200  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2_SHIFT           9  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_SYSCLK_ENA_LOW_EINT2_WIDTH           1  /*
+                                                               * IM_SYSCLK_ENA_LOW_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2             0x0100  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2_MASK        0x0100  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2_SHIFT            8  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC1_CFG_ERR_EINT2_WIDTH            1  /*
+                                                               * IM_ISRC1_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2             0x0080  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2_MASK        0x0080  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2_SHIFT            7  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC2_CFG_ERR_EINT2_WIDTH            1  /*
+                                                               * IM_ISRC2_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2             0x0040  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2_MASK        0x0040  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2_SHIFT            6  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT2
+                                                               * */
+#define ARIZONA_V2_IM_ISRC3_CFG_ERR_EINT2_WIDTH            1  /*
+                                                               * IM_ISRC3_CFG_ERR_EINT2
+                                                               * */
 
 /*
  * R3356 (0xD1C) - IRQ2 Status 5 Mask
  */
 
-#define ARIZONA_IM_BOOT_DONE_EINT2               0x0100  /* IM_BOOT_DONE_EINT2 */
-#define ARIZONA_IM_BOOT_DONE_EINT2_MASK          0x0100  /* IM_BOOT_DONE_EINT2 */
-#define ARIZONA_IM_BOOT_DONE_EINT2_SHIFT              8  /* IM_BOOT_DONE_EINT2 */
-#define ARIZONA_IM_BOOT_DONE_EINT2_WIDTH              1  /* IM_BOOT_DONE_EINT2 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT2            0x0080  /* IM_DCS_DAC_DONE_EINT2 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT2_MASK       0x0080  /* IM_DCS_DAC_DONE_EINT2 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT2_SHIFT           7  /* IM_DCS_DAC_DONE_EINT2 */
-#define ARIZONA_IM_DCS_DAC_DONE_EINT2_WIDTH           1  /* IM_DCS_DAC_DONE_EINT2 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT2             0x0040  /* IM_DCS_HP_DONE_EINT2 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT2_MASK        0x0040  /* IM_DCS_HP_DONE_EINT2 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT2_SHIFT            6  /* IM_DCS_HP_DONE_EINT2 */
-#define ARIZONA_IM_DCS_HP_DONE_EINT2_WIDTH            1  /* IM_DCS_HP_DONE_EINT2 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2           0x0002  /* IM_FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2_MASK      0x0002  /* IM_FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2_SHIFT          1  /* IM_FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2_WIDTH          1  /* IM_FLL2_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2           0x0001  /* IM_FLL1_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2_MASK      0x0001  /* IM_FLL1_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2_SHIFT          0  /* IM_FLL1_CLOCK_OK_EINT2 */
-#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2_WIDTH          1  /* IM_FLL1_CLOCK_OK_EINT2 */
+#define ARIZONA_IM_BOOT_DONE_EINT2               0x0100  /* IM_BOOT_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_BOOT_DONE_EINT2_MASK          0x0100  /* IM_BOOT_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_BOOT_DONE_EINT2_SHIFT              8  /* IM_BOOT_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_BOOT_DONE_EINT2_WIDTH              1  /* IM_BOOT_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT2            0x0080  /*
+                                                          * IM_DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT2_MASK       0x0080  /*
+                                                          * IM_DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT2_SHIFT           7  /*
+                                                          * IM_DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_DAC_DONE_EINT2_WIDTH           1  /*
+                                                          * IM_DCS_DAC_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT2             0x0040  /* IM_DCS_HP_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT2_MASK        0x0040  /* IM_DCS_HP_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT2_SHIFT            6  /* IM_DCS_HP_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_DCS_HP_DONE_EINT2_WIDTH            1  /* IM_DCS_HP_DONE_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2           0x0002  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2_MASK      0x0002  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2_SHIFT          1  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL2_CLOCK_OK_EINT2_WIDTH          1  /*
+                                                          * IM_FLL2_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2           0x0001  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2_MASK      0x0001  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2_SHIFT          0  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT2
+                                                          * */
+#define ARIZONA_IM_FLL1_CLOCK_OK_EINT2_WIDTH          1  /*
+                                                          * IM_FLL1_CLOCK_OK_EINT2
+                                                          * */
 
 /*
  * R3340 (0xD0C) - Interrupt Status 5 Mask (Alternate layout)
@@ -6196,78 +8001,158 @@
  * Alternate layout used on later devices, note only fields that have moved
  * are specified
  */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2         0x0008  /* IM_ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2_MASK    0x0008  /* IM_ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2_SHIFT        3  /* IM_ASRC_CFG_ERR_EINT2 */
-#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2_WIDTH        1  /* IM_ASRC_CFG_ERR_EINT2 */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2         0x0008  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2_MASK    0x0008  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2_SHIFT        3  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
+#define ARIZONA_V2_IM_ASRC_CFG_ERR_EINT2_WIDTH        1  /*
+                                                          * IM_ASRC_CFG_ERR_EINT2
+                                                          * */
 
 /*
  * R3357 (0xD1D) - IRQ2 Status 6 Mask
  */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2      0x8000  /* IM_DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2_MASK 0x8000  /* IM_DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2_SHIFT    15  /* IM_DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2_WIDTH     1  /* IM_DSP_SHARED_WR_COLL_EINT2 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT2            0x4000  /* IM_SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT2_MASK       0x4000  /* IM_SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT2_SHIFT          14  /* IM_SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_IM_SPK_SHUTDOWN_EINT2_WIDTH           1  /* IM_SPK_SHUTDOWN_EINT2 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT2             0x2000  /* IM_SPK1R_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT2_MASK        0x2000  /* IM_SPK1R_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT2_SHIFT           13  /* IM_SPK1R_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1R_SHORT_EINT2_WIDTH            1  /* IM_SPK1R_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT2             0x1000  /* IM_SPK1L_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT2_MASK        0x1000  /* IM_SPK1L_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT2_SHIFT           12  /* IM_SPK1L_SHORT_EINT2 */
-#define ARIZONA_IM_SPK1L_SHORT_EINT2_WIDTH            1  /* IM_SPK1L_SHORT_EINT2 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT2             0x0800  /* IM_HP3R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT2_MASK        0x0800  /* IM_HP3R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT2_SHIFT           11  /* IM_HP3R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3R_SC_NEG_EINT2_WIDTH            1  /* IM_HP3R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT2             0x0400  /* IM_HP3R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT2_MASK        0x0400  /* IM_HP3R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT2_SHIFT           10  /* IM_HP3R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3R_SC_POS_EINT2_WIDTH            1  /* IM_HP3R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT2             0x0200  /* IM_HP3L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT2_MASK        0x0200  /* IM_HP3L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT2_SHIFT            9  /* IM_HP3L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3L_SC_NEG_EINT2_WIDTH            1  /* IM_HP3L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT2             0x0100  /* IM_HP3L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT2_MASK        0x0100  /* IM_HP3L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT2_SHIFT            8  /* IM_HP3L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP3L_SC_POS_EINT2_WIDTH            1  /* IM_HP3L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT2             0x0080  /* IM_HP2R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT2_MASK        0x0080  /* IM_HP2R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT2_SHIFT            7  /* IM_HP2R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2R_SC_NEG_EINT2_WIDTH            1  /* IM_HP2R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT2             0x0040  /* IM_HP2R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT2_MASK        0x0040  /* IM_HP2R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT2_SHIFT            6  /* IM_HP2R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2R_SC_POS_EINT2_WIDTH            1  /* IM_HP2R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT2             0x0020  /* IM_HP2L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT2_MASK        0x0020  /* IM_HP2L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT2_SHIFT            5  /* IM_HP2L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2L_SC_NEG_EINT2_WIDTH            1  /* IM_HP2L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT2             0x0010  /* IM_HP2L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT2_MASK        0x0010  /* IM_HP2L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT2_SHIFT            4  /* IM_HP2L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP2L_SC_POS_EINT2_WIDTH            1  /* IM_HP2L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT2             0x0008  /* IM_HP1R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT2_MASK        0x0008  /* IM_HP1R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT2_SHIFT            3  /* IM_HP1R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1R_SC_NEG_EINT2_WIDTH            1  /* IM_HP1R_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT2             0x0004  /* IM_HP1R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT2_MASK        0x0004  /* IM_HP1R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT2_SHIFT            2  /* IM_HP1R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1R_SC_POS_EINT2_WIDTH            1  /* IM_HP1R_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT2             0x0002  /* IM_HP1L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT2_MASK        0x0002  /* IM_HP1L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT2_SHIFT            1  /* IM_HP1L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1L_SC_NEG_EINT2_WIDTH            1  /* IM_HP1L_SC_NEG_EINT2 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT2             0x0001  /* IM_HP1L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT2_MASK        0x0001  /* IM_HP1L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT2_SHIFT            0  /* IM_HP1L_SC_POS_EINT2 */
-#define ARIZONA_IM_HP1L_SC_POS_EINT2_WIDTH            1  /* IM_HP1L_SC_POS_EINT2 */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2      0x8000  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2_MASK 0x8000  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2_SHIFT    15  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_IM_DSP_SHARED_WR_COLL_EINT2_WIDTH     1  /*
+                                                          * IM_DSP_SHARED_WR_COLL_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT2            0x4000  /*
+                                                          * IM_SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT2_MASK       0x4000  /*
+                                                          * IM_SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT2_SHIFT          14  /*
+                                                          * IM_SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK_SHUTDOWN_EINT2_WIDTH           1  /*
+                                                          * IM_SPK_SHUTDOWN_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT2             0x2000  /* IM_SPK1R_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT2_MASK        0x2000  /* IM_SPK1R_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT2_SHIFT           13  /* IM_SPK1R_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1R_SHORT_EINT2_WIDTH            1  /* IM_SPK1R_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT2             0x1000  /* IM_SPK1L_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT2_MASK        0x1000  /* IM_SPK1L_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT2_SHIFT           12  /* IM_SPK1L_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_SPK1L_SHORT_EINT2_WIDTH            1  /* IM_SPK1L_SHORT_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT2             0x0800  /* IM_HP3R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT2_MASK        0x0800  /* IM_HP3R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT2_SHIFT           11  /* IM_HP3R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_NEG_EINT2_WIDTH            1  /* IM_HP3R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT2             0x0400  /* IM_HP3R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT2_MASK        0x0400  /* IM_HP3R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT2_SHIFT           10  /* IM_HP3R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3R_SC_POS_EINT2_WIDTH            1  /* IM_HP3R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT2             0x0200  /* IM_HP3L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT2_MASK        0x0200  /* IM_HP3L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT2_SHIFT            9  /* IM_HP3L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_NEG_EINT2_WIDTH            1  /* IM_HP3L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT2             0x0100  /* IM_HP3L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT2_MASK        0x0100  /* IM_HP3L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT2_SHIFT            8  /* IM_HP3L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP3L_SC_POS_EINT2_WIDTH            1  /* IM_HP3L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT2             0x0080  /* IM_HP2R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT2_MASK        0x0080  /* IM_HP2R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT2_SHIFT            7  /* IM_HP2R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_NEG_EINT2_WIDTH            1  /* IM_HP2R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT2             0x0040  /* IM_HP2R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT2_MASK        0x0040  /* IM_HP2R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT2_SHIFT            6  /* IM_HP2R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2R_SC_POS_EINT2_WIDTH            1  /* IM_HP2R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT2             0x0020  /* IM_HP2L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT2_MASK        0x0020  /* IM_HP2L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT2_SHIFT            5  /* IM_HP2L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_NEG_EINT2_WIDTH            1  /* IM_HP2L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT2             0x0010  /* IM_HP2L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT2_MASK        0x0010  /* IM_HP2L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT2_SHIFT            4  /* IM_HP2L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP2L_SC_POS_EINT2_WIDTH            1  /* IM_HP2L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT2             0x0008  /* IM_HP1R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT2_MASK        0x0008  /* IM_HP1R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT2_SHIFT            3  /* IM_HP1R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_NEG_EINT2_WIDTH            1  /* IM_HP1R_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT2             0x0004  /* IM_HP1R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT2_MASK        0x0004  /* IM_HP1R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT2_SHIFT            2  /* IM_HP1R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1R_SC_POS_EINT2_WIDTH            1  /* IM_HP1R_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT2             0x0002  /* IM_HP1L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT2_MASK        0x0002  /* IM_HP1L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT2_SHIFT            1  /* IM_HP1L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_NEG_EINT2_WIDTH            1  /* IM_HP1L_SC_NEG_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT2             0x0001  /* IM_HP1L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT2_MASK        0x0001  /* IM_HP1L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT2_SHIFT            0  /* IM_HP1L_SC_POS_EINT2
+                                                          * */
+#define ARIZONA_IM_HP1L_SC_POS_EINT2_WIDTH            1  /* IM_HP1L_SC_POS_EINT2
+                                                          * */
 
 /*
  * R3359 (0xD1F) - IRQ2 Control
@@ -6296,10 +8181,18 @@
 /*
  * R3361 (0xD21) - Interrupt Raw Status 3
  */
-#define ARIZONA_SPK_OVERHEAT_WARN_STS            0x8000  /* SPK_OVERHEAT_WARN_STS */
-#define ARIZONA_SPK_OVERHEAT_WARN_STS_MASK       0x8000  /* SPK_OVERHEAT_WARN_STS */
-#define ARIZONA_SPK_OVERHEAT_WARN_STS_SHIFT          15  /* SPK_OVERHEAT_WARN_STS */
-#define ARIZONA_SPK_OVERHEAT_WARN_STS_WIDTH           1  /* SPK_OVERHEAT_WARN_STS */
+#define ARIZONA_SPK_OVERHEAT_WARN_STS            0x8000  /*
+                                                          * SPK_OVERHEAT_WARN_STS
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_STS_MASK       0x8000  /*
+                                                          * SPK_OVERHEAT_WARN_STS
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_STS_SHIFT          15  /*
+                                                          * SPK_OVERHEAT_WARN_STS
+                                                          * */
+#define ARIZONA_SPK_OVERHEAT_WARN_STS_WIDTH           1  /*
+                                                          * SPK_OVERHEAT_WARN_STS
+                                                          * */
 #define ARIZONA_SPK_OVERHEAT_STS                 0x4000  /* SPK_OVERHEAT_STS */
 #define ARIZONA_SPK_OVERHEAT_STS_MASK            0x4000  /* SPK_OVERHEAT_STS */
 #define ARIZONA_SPK_OVERHEAT_STS_SHIFT               14  /* SPK_OVERHEAT_STS */
@@ -6352,10 +8245,14 @@
 #define ARIZONA_CLKGEN_ERR_STS_MASK              0x0002  /* CLKGEN_ERR_STS */
 #define ARIZONA_CLKGEN_ERR_STS_SHIFT                  1  /* CLKGEN_ERR_STS */
 #define ARIZONA_CLKGEN_ERR_STS_WIDTH                  1  /* CLKGEN_ERR_STS */
-#define ARIZONA_CLKGEN_ERR_ASYNC_STS             0x0001  /* CLKGEN_ERR_ASYNC_STS */
-#define ARIZONA_CLKGEN_ERR_ASYNC_STS_MASK        0x0001  /* CLKGEN_ERR_ASYNC_STS */
-#define ARIZONA_CLKGEN_ERR_ASYNC_STS_SHIFT            0  /* CLKGEN_ERR_ASYNC_STS */
-#define ARIZONA_CLKGEN_ERR_ASYNC_STS_WIDTH            1  /* CLKGEN_ERR_ASYNC_STS */
+#define ARIZONA_CLKGEN_ERR_ASYNC_STS             0x0001  /* CLKGEN_ERR_ASYNC_STS
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_STS_MASK        0x0001  /* CLKGEN_ERR_ASYNC_STS
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_STS_SHIFT            0  /* CLKGEN_ERR_ASYNC_STS
+                                                          * */
+#define ARIZONA_CLKGEN_ERR_ASYNC_STS_WIDTH            1  /* CLKGEN_ERR_ASYNC_STS
+                                                          * */
 
 /*
  * R3362 (0xD22) - Interrupt Raw Status 4
@@ -6380,18 +8277,38 @@
 #define ARIZONA_CTRLIF_ERR_STS_MASK              0x0800  /* CTRLIF_ERR_STS */
 #define ARIZONA_CTRLIF_ERR_STS_SHIFT                 11  /* CTRLIF_ERR_STS */
 #define ARIZONA_CTRLIF_ERR_STS_WIDTH                  1  /* CTRLIF_ERR_STS */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_STS         0x0400  /* MIXER_DROPPED_SAMPLE_STS */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_STS_MASK    0x0400  /* MIXER_DROPPED_SAMPLE_STS */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_STS_SHIFT       10  /* MIXER_DROPPED_SAMPLE_STS */
-#define ARIZONA_MIXER_DROPPED_SAMPLE_STS_WIDTH        1  /* MIXER_DROPPED_SAMPLE_STS */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_STS            0x0200  /* ASYNC_CLK_ENA_LOW_STS */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_STS_MASK       0x0200  /* ASYNC_CLK_ENA_LOW_STS */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_STS_SHIFT           9  /* ASYNC_CLK_ENA_LOW_STS */
-#define ARIZONA_ASYNC_CLK_ENA_LOW_STS_WIDTH           1  /* ASYNC_CLK_ENA_LOW_STS */
-#define ARIZONA_SYSCLK_ENA_LOW_STS               0x0100  /* SYSCLK_ENA_LOW_STS */
-#define ARIZONA_SYSCLK_ENA_LOW_STS_MASK          0x0100  /* SYSCLK_ENA_LOW_STS */
-#define ARIZONA_SYSCLK_ENA_LOW_STS_SHIFT              8  /* SYSCLK_ENA_LOW_STS */
-#define ARIZONA_SYSCLK_ENA_LOW_STS_WIDTH              1  /* SYSCLK_ENA_LOW_STS */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_STS         0x0400  /*
+                                                          * MIXER_DROPPED_SAMPLE_STS
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_STS_MASK    0x0400  /*
+                                                          * MIXER_DROPPED_SAMPLE_STS
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_STS_SHIFT       10  /*
+                                                          * MIXER_DROPPED_SAMPLE_STS
+                                                          * */
+#define ARIZONA_MIXER_DROPPED_SAMPLE_STS_WIDTH        1  /*
+                                                          * MIXER_DROPPED_SAMPLE_STS
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_STS            0x0200  /*
+                                                          * ASYNC_CLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_STS_MASK       0x0200  /*
+                                                          * ASYNC_CLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_STS_SHIFT           9  /*
+                                                          * ASYNC_CLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_ASYNC_CLK_ENA_LOW_STS_WIDTH           1  /*
+                                                          * ASYNC_CLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_STS               0x0100  /* SYSCLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_STS_MASK          0x0100  /* SYSCLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_STS_SHIFT              8  /* SYSCLK_ENA_LOW_STS
+                                                          * */
+#define ARIZONA_SYSCLK_ENA_LOW_STS_WIDTH              1  /* SYSCLK_ENA_LOW_STS
+                                                          * */
 #define ARIZONA_ISRC1_CFG_ERR_STS                0x0080  /* ISRC1_CFG_ERR_STS */
 #define ARIZONA_ISRC1_CFG_ERR_STS_MASK           0x0080  /* ISRC1_CFG_ERR_STS */
 #define ARIZONA_ISRC1_CFG_ERR_STS_SHIFT               7  /* ISRC1_CFG_ERR_STS */
@@ -6452,166 +8369,442 @@
 /*
  * R3364 (0xD24) - Interrupt Raw Status 6
  */
-#define ARIZONA_PWM_OVERCLOCKED_STS              0x2000  /* PWM_OVERCLOCKED_STS */
-#define ARIZONA_PWM_OVERCLOCKED_STS_MASK         0x2000  /* PWM_OVERCLOCKED_STS */
-#define ARIZONA_PWM_OVERCLOCKED_STS_SHIFT            13  /* PWM_OVERCLOCKED_STS */
-#define ARIZONA_PWM_OVERCLOCKED_STS_WIDTH             1  /* PWM_OVERCLOCKED_STS */
-#define ARIZONA_FX_CORE_OVERCLOCKED_STS          0x1000  /* FX_CORE_OVERCLOCKED_STS */
-#define ARIZONA_FX_CORE_OVERCLOCKED_STS_MASK     0x1000  /* FX_CORE_OVERCLOCKED_STS */
-#define ARIZONA_FX_CORE_OVERCLOCKED_STS_SHIFT        12  /* FX_CORE_OVERCLOCKED_STS */
-#define ARIZONA_FX_CORE_OVERCLOCKED_STS_WIDTH         1  /* FX_CORE_OVERCLOCKED_STS */
-#define ARIZONA_DAC_SYS_OVERCLOCKED_STS          0x0400  /* DAC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_DAC_SYS_OVERCLOCKED_STS_MASK     0x0400  /* DAC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_DAC_SYS_OVERCLOCKED_STS_SHIFT        10  /* DAC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_DAC_SYS_OVERCLOCKED_STS_WIDTH         1  /* DAC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_DAC_WARP_OVERCLOCKED_STS         0x0200  /* DAC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_DAC_WARP_OVERCLOCKED_STS_MASK    0x0200  /* DAC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_DAC_WARP_OVERCLOCKED_STS_SHIFT        9  /* DAC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_DAC_WARP_OVERCLOCKED_STS_WIDTH        1  /* DAC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ADC_OVERCLOCKED_STS              0x0100  /* ADC_OVERCLOCKED_STS */
-#define ARIZONA_ADC_OVERCLOCKED_STS_MASK         0x0100  /* ADC_OVERCLOCKED_STS */
-#define ARIZONA_ADC_OVERCLOCKED_STS_SHIFT             8  /* ADC_OVERCLOCKED_STS */
-#define ARIZONA_ADC_OVERCLOCKED_STS_WIDTH             1  /* ADC_OVERCLOCKED_STS */
-#define ARIZONA_MIXER_OVERCLOCKED_STS            0x0080  /* MIXER_OVERCLOCKED_STS */
-#define ARIZONA_MIXER_OVERCLOCKED_STS_MASK       0x0080  /* MIXER_OVERCLOCKED_STS */
-#define ARIZONA_MIXER_OVERCLOCKED_STS_SHIFT           7  /* MIXER_OVERCLOCKED_STS */
-#define ARIZONA_MIXER_OVERCLOCKED_STS_WIDTH           1  /* MIXER_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS       0x0040  /* AIF3_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS_MASK  0x0040  /* AIF3_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS_SHIFT      6  /* AIF3_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS_WIDTH      1  /* AIF3_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS       0x0020  /* AIF2_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS_MASK  0x0020  /* AIF2_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS_SHIFT      5  /* AIF2_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS_WIDTH      1  /* AIF2_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS       0x0010  /* AIF1_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS_MASK  0x0010  /* AIF1_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS_SHIFT      4  /* AIF1_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS_WIDTH      1  /* AIF1_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS        0x0008  /* AIF3_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS_MASK   0x0008  /* AIF3_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS_SHIFT       3  /* AIF3_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS_WIDTH       1  /* AIF3_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS        0x0004  /* AIF2_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS_MASK   0x0004  /* AIF2_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS_SHIFT       2  /* AIF2_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS_WIDTH       1  /* AIF2_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS        0x0002  /* AIF1_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS_MASK   0x0002  /* AIF1_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS_SHIFT       1  /* AIF1_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS_WIDTH       1  /* AIF1_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS         0x0001  /* PAD_CTRL_OVERCLOCKED_STS */
-#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS_MASK    0x0001  /* PAD_CTRL_OVERCLOCKED_STS */
-#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS_SHIFT        0  /* PAD_CTRL_OVERCLOCKED_STS */
-#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS_WIDTH        1  /* PAD_CTRL_OVERCLOCKED_STS */
+#define ARIZONA_PWM_OVERCLOCKED_STS              0x2000  /* PWM_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PWM_OVERCLOCKED_STS_MASK         0x2000  /* PWM_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PWM_OVERCLOCKED_STS_SHIFT            13  /* PWM_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PWM_OVERCLOCKED_STS_WIDTH             1  /* PWM_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_CORE_OVERCLOCKED_STS          0x1000  /*
+                                                          * FX_CORE_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_CORE_OVERCLOCKED_STS_MASK     0x1000  /*
+                                                          * FX_CORE_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_CORE_OVERCLOCKED_STS_SHIFT        12  /*
+                                                          * FX_CORE_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_CORE_OVERCLOCKED_STS_WIDTH         1  /*
+                                                          * FX_CORE_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_SYS_OVERCLOCKED_STS          0x0400  /*
+                                                          * DAC_SYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_SYS_OVERCLOCKED_STS_MASK     0x0400  /*
+                                                          * DAC_SYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_SYS_OVERCLOCKED_STS_SHIFT        10  /*
+                                                          * DAC_SYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_SYS_OVERCLOCKED_STS_WIDTH         1  /*
+                                                          * DAC_SYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_WARP_OVERCLOCKED_STS         0x0200  /*
+                                                          * DAC_WARP_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_WARP_OVERCLOCKED_STS_MASK    0x0200  /*
+                                                          * DAC_WARP_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_WARP_OVERCLOCKED_STS_SHIFT        9  /*
+                                                          * DAC_WARP_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_WARP_OVERCLOCKED_STS_WIDTH        1  /*
+                                                          * DAC_WARP_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_OVERCLOCKED_STS              0x0100  /* ADC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_OVERCLOCKED_STS_MASK         0x0100  /* ADC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_OVERCLOCKED_STS_SHIFT             8  /* ADC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_OVERCLOCKED_STS_WIDTH             1  /* ADC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_OVERCLOCKED_STS            0x0080  /*
+                                                          * MIXER_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_OVERCLOCKED_STS_MASK       0x0080  /*
+                                                          * MIXER_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_OVERCLOCKED_STS_SHIFT           7  /*
+                                                          * MIXER_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_OVERCLOCKED_STS_WIDTH           1  /*
+                                                          * MIXER_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS       0x0040  /*
+                                                          * AIF3_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS_MASK  0x0040  /*
+                                                          * AIF3_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS_SHIFT      6  /*
+                                                          * AIF3_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_ASYNC_OVERCLOCKED_STS_WIDTH      1  /*
+                                                          * AIF3_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS       0x0020  /*
+                                                          * AIF2_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS_MASK  0x0020  /*
+                                                          * AIF2_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS_SHIFT      5  /*
+                                                          * AIF2_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_ASYNC_OVERCLOCKED_STS_WIDTH      1  /*
+                                                          * AIF2_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS       0x0010  /*
+                                                          * AIF1_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS_MASK  0x0010  /*
+                                                          * AIF1_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS_SHIFT      4  /*
+                                                          * AIF1_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_ASYNC_OVERCLOCKED_STS_WIDTH      1  /*
+                                                          * AIF1_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS        0x0008  /*
+                                                          * AIF3_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS_MASK   0x0008  /*
+                                                          * AIF3_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS_SHIFT       3  /*
+                                                          * AIF3_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_SYNC_OVERCLOCKED_STS_WIDTH       1  /*
+                                                          * AIF3_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS        0x0004  /*
+                                                          * AIF2_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS_MASK   0x0004  /*
+                                                          * AIF2_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS_SHIFT       2  /*
+                                                          * AIF2_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_SYNC_OVERCLOCKED_STS_WIDTH       1  /*
+                                                          * AIF2_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS        0x0002  /*
+                                                          * AIF1_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS_MASK   0x0002  /*
+                                                          * AIF1_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS_SHIFT       1  /*
+                                                          * AIF1_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_SYNC_OVERCLOCKED_STS_WIDTH       1  /*
+                                                          * AIF1_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS         0x0001  /*
+                                                          * PAD_CTRL_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS_MASK    0x0001  /*
+                                                          * PAD_CTRL_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS_SHIFT        0  /*
+                                                          * PAD_CTRL_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_PAD_CTRL_OVERCLOCKED_STS_WIDTH        1  /*
+                                                          * PAD_CTRL_OVERCLOCKED_STS
+                                                          * */
 
 /*
  * R3365 (0xD25) - Interrupt Raw Status 7
  */
-#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS   0x8000  /* SLIMBUS_SUBSYS_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS_MASK 0x8000  /* SLIMBUS_SUBSYS_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS_SHIFT     15  /* SLIMBUS_SUBSYS_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS_WIDTH      1  /* SLIMBUS_SUBSYS_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS    0x4000  /* SLIMBUS_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS_MASK 0x4000  /* SLIMBUS_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS_SHIFT     14  /* SLIMBUS_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS_WIDTH      1  /* SLIMBUS_ASYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS     0x2000  /* SLIMBUS_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS_MASK 0x2000  /* SLIMBUS_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS_SHIFT     13  /* SLIMBUS_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS_WIDTH      1  /* SLIMBUS_SYNC_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS   0x1000  /* ASRC_ASYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS_MASK 0x1000  /* ASRC_ASYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS_SHIFT     12  /* ASRC_ASYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS_WIDTH      1  /* ASRC_ASYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS  0x0800  /* ASRC_ASYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS_MASK 0x0800  /* ASRC_ASYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS_SHIFT     11  /* ASRC_ASYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS_WIDTH      1  /* ASRC_ASYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS    0x0400  /* ASRC_SYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS_MASK 0x0400  /* ASRC_SYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS_SHIFT     10  /* ASRC_SYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS_WIDTH      1  /* ASRC_SYNC_SYS_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS   0x0200  /* ASRC_SYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS_MASK 0x0200  /* ASRC_SYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS_SHIFT      9  /* ASRC_SYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS_WIDTH      1  /* ASRC_SYNC_WARP_OVERCLOCKED_STS */
-#define ARIZONA_ADSP2_1_OVERCLOCKED_STS          0x0008  /* ADSP2_1_OVERCLOCKED_STS */
-#define ARIZONA_ADSP2_1_OVERCLOCKED_STS_MASK     0x0008  /* ADSP2_1_OVERCLOCKED_STS */
-#define ARIZONA_ADSP2_1_OVERCLOCKED_STS_SHIFT         3  /* ADSP2_1_OVERCLOCKED_STS */
-#define ARIZONA_ADSP2_1_OVERCLOCKED_STS_WIDTH         1  /* ADSP2_1_OVERCLOCKED_STS */
-#define ARIZONA_ISRC3_OVERCLOCKED_STS            0x0004  /* ISRC3_OVERCLOCKED_STS */
-#define ARIZONA_ISRC3_OVERCLOCKED_STS_MASK       0x0004  /* ISRC3_OVERCLOCKED_STS */
-#define ARIZONA_ISRC3_OVERCLOCKED_STS_SHIFT           2  /* ISRC3_OVERCLOCKED_STS */
-#define ARIZONA_ISRC3_OVERCLOCKED_STS_WIDTH           1  /* ISRC3_OVERCLOCKED_STS */
-#define ARIZONA_ISRC2_OVERCLOCKED_STS            0x0002  /* ISRC2_OVERCLOCKED_STS */
-#define ARIZONA_ISRC2_OVERCLOCKED_STS_MASK       0x0002  /* ISRC2_OVERCLOCKED_STS */
-#define ARIZONA_ISRC2_OVERCLOCKED_STS_SHIFT           1  /* ISRC2_OVERCLOCKED_STS */
-#define ARIZONA_ISRC2_OVERCLOCKED_STS_WIDTH           1  /* ISRC2_OVERCLOCKED_STS */
-#define ARIZONA_ISRC1_OVERCLOCKED_STS            0x0001  /* ISRC1_OVERCLOCKED_STS */
-#define ARIZONA_ISRC1_OVERCLOCKED_STS_MASK       0x0001  /* ISRC1_OVERCLOCKED_STS */
-#define ARIZONA_ISRC1_OVERCLOCKED_STS_SHIFT           0  /* ISRC1_OVERCLOCKED_STS */
-#define ARIZONA_ISRC1_OVERCLOCKED_STS_WIDTH           1  /* ISRC1_OVERCLOCKED_STS */
+#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS   0x8000  /*
+                                                          * SLIMBUS_SUBSYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS_MASK 0x8000  /*
+                                                             * SLIMBUS_SUBSYS_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS_SHIFT     15  /*
+                                                              * SLIMBUS_SUBSYS_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_SLIMBUS_SUBSYS_OVERCLOCKED_STS_WIDTH      1  /*
+                                                              * SLIMBUS_SUBSYS_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS    0x4000  /*
+                                                          * SLIMBUS_ASYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS_MASK 0x4000  /*
+                                                            * SLIMBUS_ASYNC_OVERCLOCKED_STS
+                                                            * */
+#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS_SHIFT     14  /*
+                                                             * SLIMBUS_ASYNC_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_SLIMBUS_ASYNC_OVERCLOCKED_STS_WIDTH      1  /*
+                                                             * SLIMBUS_ASYNC_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS     0x2000  /*
+                                                          * SLIMBUS_SYNC_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS_MASK 0x2000  /*
+                                                           * SLIMBUS_SYNC_OVERCLOCKED_STS
+                                                           * */
+#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS_SHIFT     13  /*
+                                                            * SLIMBUS_SYNC_OVERCLOCKED_STS
+                                                            * */
+#define ARIZONA_SLIMBUS_SYNC_OVERCLOCKED_STS_WIDTH      1  /*
+                                                            * SLIMBUS_SYNC_OVERCLOCKED_STS
+                                                            * */
+#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS   0x1000  /*
+                                                          * ASRC_ASYNC_SYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS_MASK 0x1000  /*
+                                                             * ASRC_ASYNC_SYS_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS_SHIFT     12  /*
+                                                              * ASRC_ASYNC_SYS_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_ASRC_ASYNC_SYS_OVERCLOCKED_STS_WIDTH      1  /*
+                                                              * ASRC_ASYNC_SYS_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS  0x0800  /*
+                                                          * ASRC_ASYNC_WARP_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS_MASK 0x0800  /*
+                                                              * ASRC_ASYNC_WARP_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS_SHIFT     11  /*
+                                                               * ASRC_ASYNC_WARP_OVERCLOCKED_STS
+                                                               * */
+#define ARIZONA_ASRC_ASYNC_WARP_OVERCLOCKED_STS_WIDTH      1  /*
+                                                               * ASRC_ASYNC_WARP_OVERCLOCKED_STS
+                                                               * */
+#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS    0x0400  /*
+                                                          * ASRC_SYNC_SYS_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS_MASK 0x0400  /*
+                                                            * ASRC_SYNC_SYS_OVERCLOCKED_STS
+                                                            * */
+#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS_SHIFT     10  /*
+                                                             * ASRC_SYNC_SYS_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_ASRC_SYNC_SYS_OVERCLOCKED_STS_WIDTH      1  /*
+                                                             * ASRC_SYNC_SYS_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS   0x0200  /*
+                                                          * ASRC_SYNC_WARP_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS_MASK 0x0200  /*
+                                                             * ASRC_SYNC_WARP_OVERCLOCKED_STS
+                                                             * */
+#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS_SHIFT      9  /*
+                                                              * ASRC_SYNC_WARP_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_ASRC_SYNC_WARP_OVERCLOCKED_STS_WIDTH      1  /*
+                                                              * ASRC_SYNC_WARP_OVERCLOCKED_STS
+                                                              * */
+#define ARIZONA_ADSP2_1_OVERCLOCKED_STS          0x0008  /*
+                                                          * ADSP2_1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADSP2_1_OVERCLOCKED_STS_MASK     0x0008  /*
+                                                          * ADSP2_1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADSP2_1_OVERCLOCKED_STS_SHIFT         3  /*
+                                                          * ADSP2_1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADSP2_1_OVERCLOCKED_STS_WIDTH         1  /*
+                                                          * ADSP2_1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_OVERCLOCKED_STS            0x0004  /*
+                                                          * ISRC3_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_OVERCLOCKED_STS_MASK       0x0004  /*
+                                                          * ISRC3_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_OVERCLOCKED_STS_SHIFT           2  /*
+                                                          * ISRC3_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_OVERCLOCKED_STS_WIDTH           1  /*
+                                                          * ISRC3_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_OVERCLOCKED_STS            0x0002  /*
+                                                          * ISRC2_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_OVERCLOCKED_STS_MASK       0x0002  /*
+                                                          * ISRC2_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_OVERCLOCKED_STS_SHIFT           1  /*
+                                                          * ISRC2_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_OVERCLOCKED_STS_WIDTH           1  /*
+                                                          * ISRC2_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_OVERCLOCKED_STS            0x0001  /*
+                                                          * ISRC1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_OVERCLOCKED_STS_MASK       0x0001  /*
+                                                          * ISRC1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_OVERCLOCKED_STS_SHIFT           0  /*
+                                                          * ISRC1_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_OVERCLOCKED_STS_WIDTH           1  /*
+                                                          * ISRC1_OVERCLOCKED_STS
+                                                          * */
 
 /*
  * R3366 (0xD26) - Interrupt Raw Status 8
  */
-#define ARIZONA_SPDIF_OVERCLOCKED_STS            0x8000  /* SPDIF_OVERCLOCKED_STS */
-#define ARIZONA_SPDIF_OVERCLOCKED_STS_MASK       0x8000  /* SPDIF_OVERCLOCKED_STS */
-#define ARIZONA_SPDIF_OVERCLOCKED_STS_SHIFT          15  /* SPDIF_OVERCLOCKED_STS */
-#define ARIZONA_SPDIF_OVERCLOCKED_STS_WIDTH           1  /* SPDIF_OVERCLOCKED_STS */
-#define ARIZONA_AIF3_UNDERCLOCKED_STS            0x0400  /* AIF3_UNDERCLOCKED_STS */
-#define ARIZONA_AIF3_UNDERCLOCKED_STS_MASK       0x0400  /* AIF3_UNDERCLOCKED_STS */
-#define ARIZONA_AIF3_UNDERCLOCKED_STS_SHIFT          10  /* AIF3_UNDERCLOCKED_STS */
-#define ARIZONA_AIF3_UNDERCLOCKED_STS_WIDTH           1  /* AIF3_UNDERCLOCKED_STS */
-#define ARIZONA_AIF2_UNDERCLOCKED_STS            0x0200  /* AIF2_UNDERCLOCKED_STS */
-#define ARIZONA_AIF2_UNDERCLOCKED_STS_MASK       0x0200  /* AIF2_UNDERCLOCKED_STS */
-#define ARIZONA_AIF2_UNDERCLOCKED_STS_SHIFT           9  /* AIF2_UNDERCLOCKED_STS */
-#define ARIZONA_AIF2_UNDERCLOCKED_STS_WIDTH           1  /* AIF2_UNDERCLOCKED_STS */
-#define ARIZONA_AIF1_UNDERCLOCKED_STS            0x0100  /* AIF1_UNDERCLOCKED_STS */
-#define ARIZONA_AIF1_UNDERCLOCKED_STS_MASK       0x0100  /* AIF1_UNDERCLOCKED_STS */
-#define ARIZONA_AIF1_UNDERCLOCKED_STS_SHIFT           8  /* AIF1_UNDERCLOCKED_STS */
-#define ARIZONA_AIF1_UNDERCLOCKED_STS_WIDTH           1  /* AIF1_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC3_UNDERCLOCKED_STS           0x0080  /* ISRC3_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC3_UNDERCLOCKED_STS_MASK      0x0080  /* ISRC3_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC3_UNDERCLOCKED_STS_SHIFT          7  /* ISRC3_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC3_UNDERCLOCKED_STS_WIDTH          1  /* ISRC3_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC2_UNDERCLOCKED_STS           0x0040  /* ISRC2_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC2_UNDERCLOCKED_STS_MASK      0x0040  /* ISRC2_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC2_UNDERCLOCKED_STS_SHIFT          6  /* ISRC2_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC2_UNDERCLOCKED_STS_WIDTH          1  /* ISRC2_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC1_UNDERCLOCKED_STS           0x0020  /* ISRC1_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC1_UNDERCLOCKED_STS_MASK      0x0020  /* ISRC1_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC1_UNDERCLOCKED_STS_SHIFT          5  /* ISRC1_UNDERCLOCKED_STS */
-#define ARIZONA_ISRC1_UNDERCLOCKED_STS_WIDTH          1  /* ISRC1_UNDERCLOCKED_STS */
-#define ARIZONA_FX_UNDERCLOCKED_STS              0x0010  /* FX_UNDERCLOCKED_STS */
-#define ARIZONA_FX_UNDERCLOCKED_STS_MASK         0x0010  /* FX_UNDERCLOCKED_STS */
-#define ARIZONA_FX_UNDERCLOCKED_STS_SHIFT             4  /* FX_UNDERCLOCKED_STS */
-#define ARIZONA_FX_UNDERCLOCKED_STS_WIDTH             1  /* FX_UNDERCLOCKED_STS */
-#define ARIZONA_ASRC_UNDERCLOCKED_STS            0x0008  /* ASRC_UNDERCLOCKED_STS */
-#define ARIZONA_ASRC_UNDERCLOCKED_STS_MASK       0x0008  /* ASRC_UNDERCLOCKED_STS */
-#define ARIZONA_ASRC_UNDERCLOCKED_STS_SHIFT           3  /* ASRC_UNDERCLOCKED_STS */
-#define ARIZONA_ASRC_UNDERCLOCKED_STS_WIDTH           1  /* ASRC_UNDERCLOCKED_STS */
-#define ARIZONA_DAC_UNDERCLOCKED_STS             0x0004  /* DAC_UNDERCLOCKED_STS */
-#define ARIZONA_DAC_UNDERCLOCKED_STS_MASK        0x0004  /* DAC_UNDERCLOCKED_STS */
-#define ARIZONA_DAC_UNDERCLOCKED_STS_SHIFT            2  /* DAC_UNDERCLOCKED_STS */
-#define ARIZONA_DAC_UNDERCLOCKED_STS_WIDTH            1  /* DAC_UNDERCLOCKED_STS */
-#define ARIZONA_ADC_UNDERCLOCKED_STS             0x0002  /* ADC_UNDERCLOCKED_STS */
-#define ARIZONA_ADC_UNDERCLOCKED_STS_MASK        0x0002  /* ADC_UNDERCLOCKED_STS */
-#define ARIZONA_ADC_UNDERCLOCKED_STS_SHIFT            1  /* ADC_UNDERCLOCKED_STS */
-#define ARIZONA_ADC_UNDERCLOCKED_STS_WIDTH            1  /* ADC_UNDERCLOCKED_STS */
-#define ARIZONA_MIXER_UNDERCLOCKED_STS           0x0001  /* MIXER_UNDERCLOCKED_STS */
-#define ARIZONA_MIXER_UNDERCLOCKED_STS_MASK      0x0001  /* MIXER_UNDERCLOCKED_STS */
-#define ARIZONA_MIXER_UNDERCLOCKED_STS_SHIFT          0  /* MIXER_UNDERCLOCKED_STS */
-#define ARIZONA_MIXER_UNDERCLOCKED_STS_WIDTH          1  /* MIXER_UNDERCLOCKED_STS */
+#define ARIZONA_SPDIF_OVERCLOCKED_STS            0x8000  /*
+                                                          * SPDIF_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_SPDIF_OVERCLOCKED_STS_MASK       0x8000  /*
+                                                          * SPDIF_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_SPDIF_OVERCLOCKED_STS_SHIFT          15  /*
+                                                          * SPDIF_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_SPDIF_OVERCLOCKED_STS_WIDTH           1  /*
+                                                          * SPDIF_OVERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_UNDERCLOCKED_STS            0x0400  /*
+                                                          * AIF3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_UNDERCLOCKED_STS_MASK       0x0400  /*
+                                                          * AIF3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_UNDERCLOCKED_STS_SHIFT          10  /*
+                                                          * AIF3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF3_UNDERCLOCKED_STS_WIDTH           1  /*
+                                                          * AIF3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_UNDERCLOCKED_STS            0x0200  /*
+                                                          * AIF2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_UNDERCLOCKED_STS_MASK       0x0200  /*
+                                                          * AIF2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_UNDERCLOCKED_STS_SHIFT           9  /*
+                                                          * AIF2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF2_UNDERCLOCKED_STS_WIDTH           1  /*
+                                                          * AIF2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_UNDERCLOCKED_STS            0x0100  /*
+                                                          * AIF1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_UNDERCLOCKED_STS_MASK       0x0100  /*
+                                                          * AIF1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_UNDERCLOCKED_STS_SHIFT           8  /*
+                                                          * AIF1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_AIF1_UNDERCLOCKED_STS_WIDTH           1  /*
+                                                          * AIF1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_UNDERCLOCKED_STS           0x0080  /*
+                                                          * ISRC3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_UNDERCLOCKED_STS_MASK      0x0080  /*
+                                                          * ISRC3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_UNDERCLOCKED_STS_SHIFT          7  /*
+                                                          * ISRC3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC3_UNDERCLOCKED_STS_WIDTH          1  /*
+                                                          * ISRC3_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_UNDERCLOCKED_STS           0x0040  /*
+                                                          * ISRC2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_UNDERCLOCKED_STS_MASK      0x0040  /*
+                                                          * ISRC2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_UNDERCLOCKED_STS_SHIFT          6  /*
+                                                          * ISRC2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC2_UNDERCLOCKED_STS_WIDTH          1  /*
+                                                          * ISRC2_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_UNDERCLOCKED_STS           0x0020  /*
+                                                          * ISRC1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_UNDERCLOCKED_STS_MASK      0x0020  /*
+                                                          * ISRC1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_UNDERCLOCKED_STS_SHIFT          5  /*
+                                                          * ISRC1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ISRC1_UNDERCLOCKED_STS_WIDTH          1  /*
+                                                          * ISRC1_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_UNDERCLOCKED_STS              0x0010  /* FX_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_UNDERCLOCKED_STS_MASK         0x0010  /* FX_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_UNDERCLOCKED_STS_SHIFT             4  /* FX_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_FX_UNDERCLOCKED_STS_WIDTH             1  /* FX_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_UNDERCLOCKED_STS            0x0008  /*
+                                                          * ASRC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_UNDERCLOCKED_STS_MASK       0x0008  /*
+                                                          * ASRC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_UNDERCLOCKED_STS_SHIFT           3  /*
+                                                          * ASRC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ASRC_UNDERCLOCKED_STS_WIDTH           1  /*
+                                                          * ASRC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_UNDERCLOCKED_STS             0x0004  /* DAC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_UNDERCLOCKED_STS_MASK        0x0004  /* DAC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_UNDERCLOCKED_STS_SHIFT            2  /* DAC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_DAC_UNDERCLOCKED_STS_WIDTH            1  /* DAC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_UNDERCLOCKED_STS             0x0002  /* ADC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_UNDERCLOCKED_STS_MASK        0x0002  /* ADC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_UNDERCLOCKED_STS_SHIFT            1  /* ADC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_ADC_UNDERCLOCKED_STS_WIDTH            1  /* ADC_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_UNDERCLOCKED_STS           0x0001  /*
+                                                          * MIXER_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_UNDERCLOCKED_STS_MASK      0x0001  /*
+                                                          * MIXER_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_UNDERCLOCKED_STS_SHIFT          0  /*
+                                                          * MIXER_UNDERCLOCKED_STS
+                                                          * */
+#define ARIZONA_MIXER_UNDERCLOCKED_STS_WIDTH          1  /*
+                                                          * MIXER_UNDERCLOCKED_STS
+                                                          * */
 
 /*
  * R3368 (0xD28) - Interrupt Raw Status 9
  */
-#define ARIZONA_DSP_SHARED_WR_COLL_STS           0x8000  /* DSP_SHARED_WR_COLL_STS */
-#define ARIZONA_DSP_SHARED_WR_COLL_STS_MASK      0x8000  /* DSP_SHARED_WR_COLL_STS */
-#define ARIZONA_DSP_SHARED_WR_COLL_STS_SHIFT         15  /* DSP_SHARED_WR_COLL_STS */
-#define ARIZONA_DSP_SHARED_WR_COLL_STS_WIDTH          1  /* DSP_SHARED_WR_COLL_STS */
+#define ARIZONA_DSP_SHARED_WR_COLL_STS           0x8000  /*
+                                                          * DSP_SHARED_WR_COLL_STS
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_STS_MASK      0x8000  /*
+                                                          * DSP_SHARED_WR_COLL_STS
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_STS_SHIFT         15  /*
+                                                          * DSP_SHARED_WR_COLL_STS
+                                                          * */
+#define ARIZONA_DSP_SHARED_WR_COLL_STS_WIDTH          1  /*
+                                                          * DSP_SHARED_WR_COLL_STS
+                                                          * */
 #define ARIZONA_SPK_SHUTDOWN_STS                 0x4000  /* SPK_SHUTDOWN_STS */
 #define ARIZONA_SPK_SHUTDOWN_STS_MASK            0x4000  /* SPK_SHUTDOWN_STS */
 #define ARIZONA_SPK_SHUTDOWN_STS_SHIFT               14  /* SPK_SHUTDOWN_STS */
@@ -6700,14 +8893,30 @@
 /*
  * R3408 (0xD50) - AOD wkup and trig
  */
-#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS         0x0080  /* MICD_CLAMP_FALL_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_MASK    0x0080  /* MICD_CLAMP_FALL_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_SHIFT        7  /* MICD_CLAMP_FALL_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_WIDTH        1  /* MICD_CLAMP_FALL_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS         0x0040  /* MICD_CLAMP_RISE_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_MASK    0x0040  /* MICD_CLAMP_RISE_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_SHIFT        6  /* MICD_CLAMP_RISE_TRIG_STS */
-#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_WIDTH        1  /* MICD_CLAMP_RISE_TRIG_STS */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS         0x0080  /*
+                                                          * MICD_CLAMP_FALL_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_MASK    0x0080  /*
+                                                          * MICD_CLAMP_FALL_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_SHIFT        7  /*
+                                                          * MICD_CLAMP_FALL_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_TRIG_STS_WIDTH        1  /*
+                                                          * MICD_CLAMP_FALL_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS         0x0040  /*
+                                                          * MICD_CLAMP_RISE_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_MASK    0x0040  /*
+                                                          * MICD_CLAMP_RISE_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_SHIFT        6  /*
+                                                          * MICD_CLAMP_RISE_TRIG_STS
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_TRIG_STS_WIDTH        1  /*
+                                                          * MICD_CLAMP_RISE_TRIG_STS
+                                                          * */
 #define ARIZONA_GP5_FALL_TRIG_STS                0x0020  /* GP5_FALL_TRIG_STS */
 #define ARIZONA_GP5_FALL_TRIG_STS_MASK           0x0020  /* GP5_FALL_TRIG_STS */
 #define ARIZONA_GP5_FALL_TRIG_STS_SHIFT               5  /* GP5_FALL_TRIG_STS */
@@ -6736,12 +8945,24 @@
 /*
  * R3409 (0xD51) - AOD IRQ1
  */
-#define ARIZONA_MICD_CLAMP_FALL_EINT1            0x0080  /* MICD_CLAMP_FALL_EINT1 */
-#define ARIZONA_MICD_CLAMP_FALL_EINT1_MASK       0x0080  /* MICD_CLAMP_FALL_EINT1 */
-#define ARIZONA_MICD_CLAMP_FALL_EINT1_SHIFT           7  /* MICD_CLAMP_FALL_EINT1 */
-#define ARIZONA_MICD_CLAMP_RISE_EINT1            0x0040  /* MICD_CLAMP_RISE_EINT1 */
-#define ARIZONA_MICD_CLAMP_RISE_EINT1_MASK       0x0040  /* MICD_CLAMP_RISE_EINT1 */
-#define ARIZONA_MICD_CLAMP_RISE_EINT1_SHIFT           6  /* MICD_CLAMP_RISE_EINT1 */
+#define ARIZONA_MICD_CLAMP_FALL_EINT1            0x0080  /*
+                                                          * MICD_CLAMP_FALL_EINT1
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_EINT1_MASK       0x0080  /*
+                                                          * MICD_CLAMP_FALL_EINT1
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_EINT1_SHIFT           7  /*
+                                                          * MICD_CLAMP_FALL_EINT1
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_EINT1            0x0040  /*
+                                                          * MICD_CLAMP_RISE_EINT1
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_EINT1_MASK       0x0040  /*
+                                                          * MICD_CLAMP_RISE_EINT1
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_EINT1_SHIFT           6  /*
+                                                          * MICD_CLAMP_RISE_EINT1
+                                                          * */
 #define ARIZONA_GP5_FALL_EINT1                   0x0020  /* GP5_FALL_EINT1 */
 #define ARIZONA_GP5_FALL_EINT1_MASK              0x0020  /* GP5_FALL_EINT1 */
 #define ARIZONA_GP5_FALL_EINT1_SHIFT                  5  /* GP5_FALL_EINT1 */
@@ -6770,12 +8991,24 @@
 /*
  * R3410 (0xD52) - AOD IRQ2
  */
-#define ARIZONA_MICD_CLAMP_FALL_EINT2            0x0080  /* MICD_CLAMP_FALL_EINT2 */
-#define ARIZONA_MICD_CLAMP_FALL_EINT2_MASK       0x0080  /* MICD_CLAMP_FALL_EINT2 */
-#define ARIZONA_MICD_CLAMP_FALL_EINT2_SHIFT           7  /* MICD_CLAMP_FALL_EINT2 */
-#define ARIZONA_MICD_CLAMP_RISE_EINT2            0x0040  /* MICD_CLAMP_RISE_EINT2 */
-#define ARIZONA_MICD_CLAMP_RISE_EINT2_MASK       0x0040  /* MICD_CLAMP_RISE_EINT2 */
-#define ARIZONA_MICD_CLAMP_RISE_EINT2_SHIFT           6  /* MICD_CLAMP_RISE_EINT2 */
+#define ARIZONA_MICD_CLAMP_FALL_EINT2            0x0080  /*
+                                                          * MICD_CLAMP_FALL_EINT2
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_EINT2_MASK       0x0080  /*
+                                                          * MICD_CLAMP_FALL_EINT2
+                                                          * */
+#define ARIZONA_MICD_CLAMP_FALL_EINT2_SHIFT           7  /*
+                                                          * MICD_CLAMP_FALL_EINT2
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_EINT2            0x0040  /*
+                                                          * MICD_CLAMP_RISE_EINT2
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_EINT2_MASK       0x0040  /*
+                                                          * MICD_CLAMP_RISE_EINT2
+                                                          * */
+#define ARIZONA_MICD_CLAMP_RISE_EINT2_SHIFT           6  /*
+                                                          * MICD_CLAMP_RISE_EINT2
+                                                          * */
 #define ARIZONA_GP5_FALL_EINT2                   0x0020  /* GP5_FALL_EINT2 */
 #define ARIZONA_GP5_FALL_EINT2_MASK              0x0020  /* GP5_FALL_EINT2 */
 #define ARIZONA_GP5_FALL_EINT2_SHIFT                  5  /* GP5_FALL_EINT2 */
@@ -6910,15 +9143,24 @@
 /*
  * R3600 (0xE10) - EQ1_1
  */
-#define ARIZONA_EQ1_B1_GAIN_MASK                 0xF800  /* EQ1_B1_GAIN - [15:11] */
-#define ARIZONA_EQ1_B1_GAIN_SHIFT                    11  /* EQ1_B1_GAIN - [15:11] */
-#define ARIZONA_EQ1_B1_GAIN_WIDTH                     5  /* EQ1_B1_GAIN - [15:11] */
-#define ARIZONA_EQ1_B2_GAIN_MASK                 0x07C0  /* EQ1_B2_GAIN - [10:6] */
-#define ARIZONA_EQ1_B2_GAIN_SHIFT                     6  /* EQ1_B2_GAIN - [10:6] */
-#define ARIZONA_EQ1_B2_GAIN_WIDTH                     5  /* EQ1_B2_GAIN - [10:6] */
-#define ARIZONA_EQ1_B3_GAIN_MASK                 0x003E  /* EQ1_B3_GAIN - [5:1] */
-#define ARIZONA_EQ1_B3_GAIN_SHIFT                     1  /* EQ1_B3_GAIN - [5:1] */
-#define ARIZONA_EQ1_B3_GAIN_WIDTH                     5  /* EQ1_B3_GAIN - [5:1] */
+#define ARIZONA_EQ1_B1_GAIN_MASK                 0xF800  /* EQ1_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ1_B1_GAIN_SHIFT                    11  /* EQ1_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ1_B1_GAIN_WIDTH                     5  /* EQ1_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ1_B2_GAIN_MASK                 0x07C0  /* EQ1_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ1_B2_GAIN_SHIFT                     6  /* EQ1_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ1_B2_GAIN_WIDTH                     5  /* EQ1_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ1_B3_GAIN_MASK                 0x003E  /* EQ1_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ1_B3_GAIN_SHIFT                     1  /* EQ1_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ1_B3_GAIN_WIDTH                     5  /* EQ1_B3_GAIN - [5:1]
+                                                          * */
 #define ARIZONA_EQ1_ENA                          0x0001  /* EQ1_ENA */
 #define ARIZONA_EQ1_ENA_MASK                     0x0001  /* EQ1_ENA */
 #define ARIZONA_EQ1_ENA_SHIFT                         0  /* EQ1_ENA */
@@ -6927,12 +9169,18 @@
 /*
  * R3601 (0xE11) - EQ1_2
  */
-#define ARIZONA_EQ1_B4_GAIN_MASK                 0xF800  /* EQ1_B4_GAIN - [15:11] */
-#define ARIZONA_EQ1_B4_GAIN_SHIFT                    11  /* EQ1_B4_GAIN - [15:11] */
-#define ARIZONA_EQ1_B4_GAIN_WIDTH                     5  /* EQ1_B4_GAIN - [15:11] */
-#define ARIZONA_EQ1_B5_GAIN_MASK                 0x07C0  /* EQ1_B5_GAIN - [10:6] */
-#define ARIZONA_EQ1_B5_GAIN_SHIFT                     6  /* EQ1_B5_GAIN - [10:6] */
-#define ARIZONA_EQ1_B5_GAIN_WIDTH                     5  /* EQ1_B5_GAIN - [10:6] */
+#define ARIZONA_EQ1_B4_GAIN_MASK                 0xF800  /* EQ1_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ1_B4_GAIN_SHIFT                    11  /* EQ1_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ1_B4_GAIN_WIDTH                     5  /* EQ1_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ1_B5_GAIN_MASK                 0x07C0  /* EQ1_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ1_B5_GAIN_SHIFT                     6  /* EQ1_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ1_B5_GAIN_WIDTH                     5  /* EQ1_B5_GAIN - [10:6]
+                                                          * */
 #define ARIZONA_EQ1_B1_MODE                      0x0001  /* EQ1_B1_MODE */
 #define ARIZONA_EQ1_B1_MODE_MASK                 0x0001  /* EQ1_B1_MODE */
 #define ARIZONA_EQ1_B1_MODE_SHIFT                     0  /* EQ1_B1_MODE */
@@ -6955,9 +9203,12 @@
 /*
  * R3604 (0xE14) - EQ1_5
  */
-#define ARIZONA_EQ1_B1_PG_MASK                   0xFFFF  /* EQ1_B1_PG - [15:0] */
-#define ARIZONA_EQ1_B1_PG_SHIFT                       0  /* EQ1_B1_PG - [15:0] */
-#define ARIZONA_EQ1_B1_PG_WIDTH                      16  /* EQ1_B1_PG - [15:0] */
+#define ARIZONA_EQ1_B1_PG_MASK                   0xFFFF  /* EQ1_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B1_PG_SHIFT                       0  /* EQ1_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B1_PG_WIDTH                      16  /* EQ1_B1_PG - [15:0]
+                                                          * */
 
 /*
  * R3605 (0xE15) - EQ1_6
@@ -6983,9 +9234,12 @@
 /*
  * R3608 (0xE18) - EQ1_9
  */
-#define ARIZONA_EQ1_B2_PG_MASK                   0xFFFF  /* EQ1_B2_PG - [15:0] */
-#define ARIZONA_EQ1_B2_PG_SHIFT                       0  /* EQ1_B2_PG - [15:0] */
-#define ARIZONA_EQ1_B2_PG_WIDTH                      16  /* EQ1_B2_PG - [15:0] */
+#define ARIZONA_EQ1_B2_PG_MASK                   0xFFFF  /* EQ1_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B2_PG_SHIFT                       0  /* EQ1_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B2_PG_WIDTH                      16  /* EQ1_B2_PG - [15:0]
+                                                          * */
 
 /*
  * R3609 (0xE19) - EQ1_10
@@ -7011,9 +9265,12 @@
 /*
  * R3612 (0xE1C) - EQ1_13
  */
-#define ARIZONA_EQ1_B3_PG_MASK                   0xFFFF  /* EQ1_B3_PG - [15:0] */
-#define ARIZONA_EQ1_B3_PG_SHIFT                       0  /* EQ1_B3_PG - [15:0] */
-#define ARIZONA_EQ1_B3_PG_WIDTH                      16  /* EQ1_B3_PG - [15:0] */
+#define ARIZONA_EQ1_B3_PG_MASK                   0xFFFF  /* EQ1_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B3_PG_SHIFT                       0  /* EQ1_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B3_PG_WIDTH                      16  /* EQ1_B3_PG - [15:0]
+                                                          * */
 
 /*
  * R3613 (0xE1D) - EQ1_14
@@ -7039,9 +9296,12 @@
 /*
  * R3616 (0xE20) - EQ1_17
  */
-#define ARIZONA_EQ1_B4_PG_MASK                   0xFFFF  /* EQ1_B4_PG - [15:0] */
-#define ARIZONA_EQ1_B4_PG_SHIFT                       0  /* EQ1_B4_PG - [15:0] */
-#define ARIZONA_EQ1_B4_PG_WIDTH                      16  /* EQ1_B4_PG - [15:0] */
+#define ARIZONA_EQ1_B4_PG_MASK                   0xFFFF  /* EQ1_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B4_PG_SHIFT                       0  /* EQ1_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B4_PG_WIDTH                      16  /* EQ1_B4_PG - [15:0]
+                                                          * */
 
 /*
  * R3617 (0xE21) - EQ1_18
@@ -7060,9 +9320,12 @@
 /*
  * R3619 (0xE23) - EQ1_20
  */
-#define ARIZONA_EQ1_B5_PG_MASK                   0xFFFF  /* EQ1_B5_PG - [15:0] */
-#define ARIZONA_EQ1_B5_PG_SHIFT                       0  /* EQ1_B5_PG - [15:0] */
-#define ARIZONA_EQ1_B5_PG_WIDTH                      16  /* EQ1_B5_PG - [15:0] */
+#define ARIZONA_EQ1_B5_PG_MASK                   0xFFFF  /* EQ1_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B5_PG_SHIFT                       0  /* EQ1_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ1_B5_PG_WIDTH                      16  /* EQ1_B5_PG - [15:0]
+                                                          * */
 
 /*
  * R3620 (0xE24) - EQ1_21
@@ -7074,15 +9337,24 @@
 /*
  * R3622 (0xE26) - EQ2_1
  */
-#define ARIZONA_EQ2_B1_GAIN_MASK                 0xF800  /* EQ2_B1_GAIN - [15:11] */
-#define ARIZONA_EQ2_B1_GAIN_SHIFT                    11  /* EQ2_B1_GAIN - [15:11] */
-#define ARIZONA_EQ2_B1_GAIN_WIDTH                     5  /* EQ2_B1_GAIN - [15:11] */
-#define ARIZONA_EQ2_B2_GAIN_MASK                 0x07C0  /* EQ2_B2_GAIN - [10:6] */
-#define ARIZONA_EQ2_B2_GAIN_SHIFT                     6  /* EQ2_B2_GAIN - [10:6] */
-#define ARIZONA_EQ2_B2_GAIN_WIDTH                     5  /* EQ2_B2_GAIN - [10:6] */
-#define ARIZONA_EQ2_B3_GAIN_MASK                 0x003E  /* EQ2_B3_GAIN - [5:1] */
-#define ARIZONA_EQ2_B3_GAIN_SHIFT                     1  /* EQ2_B3_GAIN - [5:1] */
-#define ARIZONA_EQ2_B3_GAIN_WIDTH                     5  /* EQ2_B3_GAIN - [5:1] */
+#define ARIZONA_EQ2_B1_GAIN_MASK                 0xF800  /* EQ2_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ2_B1_GAIN_SHIFT                    11  /* EQ2_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ2_B1_GAIN_WIDTH                     5  /* EQ2_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ2_B2_GAIN_MASK                 0x07C0  /* EQ2_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ2_B2_GAIN_SHIFT                     6  /* EQ2_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ2_B2_GAIN_WIDTH                     5  /* EQ2_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ2_B3_GAIN_MASK                 0x003E  /* EQ2_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ2_B3_GAIN_SHIFT                     1  /* EQ2_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ2_B3_GAIN_WIDTH                     5  /* EQ2_B3_GAIN - [5:1]
+                                                          * */
 #define ARIZONA_EQ2_ENA                          0x0001  /* EQ2_ENA */
 #define ARIZONA_EQ2_ENA_MASK                     0x0001  /* EQ2_ENA */
 #define ARIZONA_EQ2_ENA_SHIFT                         0  /* EQ2_ENA */
@@ -7091,12 +9363,18 @@
 /*
  * R3623 (0xE27) - EQ2_2
  */
-#define ARIZONA_EQ2_B4_GAIN_MASK                 0xF800  /* EQ2_B4_GAIN - [15:11] */
-#define ARIZONA_EQ2_B4_GAIN_SHIFT                    11  /* EQ2_B4_GAIN - [15:11] */
-#define ARIZONA_EQ2_B4_GAIN_WIDTH                     5  /* EQ2_B4_GAIN - [15:11] */
-#define ARIZONA_EQ2_B5_GAIN_MASK                 0x07C0  /* EQ2_B5_GAIN - [10:6] */
-#define ARIZONA_EQ2_B5_GAIN_SHIFT                     6  /* EQ2_B5_GAIN - [10:6] */
-#define ARIZONA_EQ2_B5_GAIN_WIDTH                     5  /* EQ2_B5_GAIN - [10:6] */
+#define ARIZONA_EQ2_B4_GAIN_MASK                 0xF800  /* EQ2_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ2_B4_GAIN_SHIFT                    11  /* EQ2_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ2_B4_GAIN_WIDTH                     5  /* EQ2_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ2_B5_GAIN_MASK                 0x07C0  /* EQ2_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ2_B5_GAIN_SHIFT                     6  /* EQ2_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ2_B5_GAIN_WIDTH                     5  /* EQ2_B5_GAIN - [10:6]
+                                                          * */
 #define ARIZONA_EQ2_B1_MODE                      0x0001  /* EQ2_B1_MODE */
 #define ARIZONA_EQ2_B1_MODE_MASK                 0x0001  /* EQ2_B1_MODE */
 #define ARIZONA_EQ2_B1_MODE_SHIFT                     0  /* EQ2_B1_MODE */
@@ -7119,9 +9397,12 @@
 /*
  * R3626 (0xE2A) - EQ2_5
  */
-#define ARIZONA_EQ2_B1_PG_MASK                   0xFFFF  /* EQ2_B1_PG - [15:0] */
-#define ARIZONA_EQ2_B1_PG_SHIFT                       0  /* EQ2_B1_PG - [15:0] */
-#define ARIZONA_EQ2_B1_PG_WIDTH                      16  /* EQ2_B1_PG - [15:0] */
+#define ARIZONA_EQ2_B1_PG_MASK                   0xFFFF  /* EQ2_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B1_PG_SHIFT                       0  /* EQ2_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B1_PG_WIDTH                      16  /* EQ2_B1_PG - [15:0]
+                                                          * */
 
 /*
  * R3627 (0xE2B) - EQ2_6
@@ -7147,9 +9428,12 @@
 /*
  * R3630 (0xE2E) - EQ2_9
  */
-#define ARIZONA_EQ2_B2_PG_MASK                   0xFFFF  /* EQ2_B2_PG - [15:0] */
-#define ARIZONA_EQ2_B2_PG_SHIFT                       0  /* EQ2_B2_PG - [15:0] */
-#define ARIZONA_EQ2_B2_PG_WIDTH                      16  /* EQ2_B2_PG - [15:0] */
+#define ARIZONA_EQ2_B2_PG_MASK                   0xFFFF  /* EQ2_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B2_PG_SHIFT                       0  /* EQ2_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B2_PG_WIDTH                      16  /* EQ2_B2_PG - [15:0]
+                                                          * */
 
 /*
  * R3631 (0xE2F) - EQ2_10
@@ -7175,9 +9459,12 @@
 /*
  * R3634 (0xE32) - EQ2_13
  */
-#define ARIZONA_EQ2_B3_PG_MASK                   0xFFFF  /* EQ2_B3_PG - [15:0] */
-#define ARIZONA_EQ2_B3_PG_SHIFT                       0  /* EQ2_B3_PG - [15:0] */
-#define ARIZONA_EQ2_B3_PG_WIDTH                      16  /* EQ2_B3_PG - [15:0] */
+#define ARIZONA_EQ2_B3_PG_MASK                   0xFFFF  /* EQ2_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B3_PG_SHIFT                       0  /* EQ2_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B3_PG_WIDTH                      16  /* EQ2_B3_PG - [15:0]
+                                                          * */
 
 /*
  * R3635 (0xE33) - EQ2_14
@@ -7203,9 +9490,12 @@
 /*
  * R3638 (0xE36) - EQ2_17
  */
-#define ARIZONA_EQ2_B4_PG_MASK                   0xFFFF  /* EQ2_B4_PG - [15:0] */
-#define ARIZONA_EQ2_B4_PG_SHIFT                       0  /* EQ2_B4_PG - [15:0] */
-#define ARIZONA_EQ2_B4_PG_WIDTH                      16  /* EQ2_B4_PG - [15:0] */
+#define ARIZONA_EQ2_B4_PG_MASK                   0xFFFF  /* EQ2_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B4_PG_SHIFT                       0  /* EQ2_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B4_PG_WIDTH                      16  /* EQ2_B4_PG - [15:0]
+                                                          * */
 
 /*
  * R3639 (0xE37) - EQ2_18
@@ -7224,9 +9514,12 @@
 /*
  * R3641 (0xE39) - EQ2_20
  */
-#define ARIZONA_EQ2_B5_PG_MASK                   0xFFFF  /* EQ2_B5_PG - [15:0] */
-#define ARIZONA_EQ2_B5_PG_SHIFT                       0  /* EQ2_B5_PG - [15:0] */
-#define ARIZONA_EQ2_B5_PG_WIDTH                      16  /* EQ2_B5_PG - [15:0] */
+#define ARIZONA_EQ2_B5_PG_MASK                   0xFFFF  /* EQ2_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B5_PG_SHIFT                       0  /* EQ2_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ2_B5_PG_WIDTH                      16  /* EQ2_B5_PG - [15:0]
+                                                          * */
 
 /*
  * R3642 (0xE3A) - EQ2_21
@@ -7238,15 +9531,24 @@
 /*
  * R3644 (0xE3C) - EQ3_1
  */
-#define ARIZONA_EQ3_B1_GAIN_MASK                 0xF800  /* EQ3_B1_GAIN - [15:11] */
-#define ARIZONA_EQ3_B1_GAIN_SHIFT                    11  /* EQ3_B1_GAIN - [15:11] */
-#define ARIZONA_EQ3_B1_GAIN_WIDTH                     5  /* EQ3_B1_GAIN - [15:11] */
-#define ARIZONA_EQ3_B2_GAIN_MASK                 0x07C0  /* EQ3_B2_GAIN - [10:6] */
-#define ARIZONA_EQ3_B2_GAIN_SHIFT                     6  /* EQ3_B2_GAIN - [10:6] */
-#define ARIZONA_EQ3_B2_GAIN_WIDTH                     5  /* EQ3_B2_GAIN - [10:6] */
-#define ARIZONA_EQ3_B3_GAIN_MASK                 0x003E  /* EQ3_B3_GAIN - [5:1] */
-#define ARIZONA_EQ3_B3_GAIN_SHIFT                     1  /* EQ3_B3_GAIN - [5:1] */
-#define ARIZONA_EQ3_B3_GAIN_WIDTH                     5  /* EQ3_B3_GAIN - [5:1] */
+#define ARIZONA_EQ3_B1_GAIN_MASK                 0xF800  /* EQ3_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ3_B1_GAIN_SHIFT                    11  /* EQ3_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ3_B1_GAIN_WIDTH                     5  /* EQ3_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ3_B2_GAIN_MASK                 0x07C0  /* EQ3_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ3_B2_GAIN_SHIFT                     6  /* EQ3_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ3_B2_GAIN_WIDTH                     5  /* EQ3_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ3_B3_GAIN_MASK                 0x003E  /* EQ3_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ3_B3_GAIN_SHIFT                     1  /* EQ3_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ3_B3_GAIN_WIDTH                     5  /* EQ3_B3_GAIN - [5:1]
+                                                          * */
 #define ARIZONA_EQ3_ENA                          0x0001  /* EQ3_ENA */
 #define ARIZONA_EQ3_ENA_MASK                     0x0001  /* EQ3_ENA */
 #define ARIZONA_EQ3_ENA_SHIFT                         0  /* EQ3_ENA */
@@ -7255,12 +9557,18 @@
 /*
  * R3645 (0xE3D) - EQ3_2
  */
-#define ARIZONA_EQ3_B4_GAIN_MASK                 0xF800  /* EQ3_B4_GAIN - [15:11] */
-#define ARIZONA_EQ3_B4_GAIN_SHIFT                    11  /* EQ3_B4_GAIN - [15:11] */
-#define ARIZONA_EQ3_B4_GAIN_WIDTH                     5  /* EQ3_B4_GAIN - [15:11] */
-#define ARIZONA_EQ3_B5_GAIN_MASK                 0x07C0  /* EQ3_B5_GAIN - [10:6] */
-#define ARIZONA_EQ3_B5_GAIN_SHIFT                     6  /* EQ3_B5_GAIN - [10:6] */
-#define ARIZONA_EQ3_B5_GAIN_WIDTH                     5  /* EQ3_B5_GAIN - [10:6] */
+#define ARIZONA_EQ3_B4_GAIN_MASK                 0xF800  /* EQ3_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ3_B4_GAIN_SHIFT                    11  /* EQ3_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ3_B4_GAIN_WIDTH                     5  /* EQ3_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ3_B5_GAIN_MASK                 0x07C0  /* EQ3_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ3_B5_GAIN_SHIFT                     6  /* EQ3_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ3_B5_GAIN_WIDTH                     5  /* EQ3_B5_GAIN - [10:6]
+                                                          * */
 #define ARIZONA_EQ3_B1_MODE                      0x0001  /* EQ3_B1_MODE */
 #define ARIZONA_EQ3_B1_MODE_MASK                 0x0001  /* EQ3_B1_MODE */
 #define ARIZONA_EQ3_B1_MODE_SHIFT                     0  /* EQ3_B1_MODE */
@@ -7283,9 +9591,12 @@
 /*
  * R3648 (0xE40) - EQ3_5
  */
-#define ARIZONA_EQ3_B1_PG_MASK                   0xFFFF  /* EQ3_B1_PG - [15:0] */
-#define ARIZONA_EQ3_B1_PG_SHIFT                       0  /* EQ3_B1_PG - [15:0] */
-#define ARIZONA_EQ3_B1_PG_WIDTH                      16  /* EQ3_B1_PG - [15:0] */
+#define ARIZONA_EQ3_B1_PG_MASK                   0xFFFF  /* EQ3_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B1_PG_SHIFT                       0  /* EQ3_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B1_PG_WIDTH                      16  /* EQ3_B1_PG - [15:0]
+                                                          * */
 
 /*
  * R3649 (0xE41) - EQ3_6
@@ -7311,9 +9622,12 @@
 /*
  * R3652 (0xE44) - EQ3_9
  */
-#define ARIZONA_EQ3_B2_PG_MASK                   0xFFFF  /* EQ3_B2_PG - [15:0] */
-#define ARIZONA_EQ3_B2_PG_SHIFT                       0  /* EQ3_B2_PG - [15:0] */
-#define ARIZONA_EQ3_B2_PG_WIDTH                      16  /* EQ3_B2_PG - [15:0] */
+#define ARIZONA_EQ3_B2_PG_MASK                   0xFFFF  /* EQ3_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B2_PG_SHIFT                       0  /* EQ3_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B2_PG_WIDTH                      16  /* EQ3_B2_PG - [15:0]
+                                                          * */
 
 /*
  * R3653 (0xE45) - EQ3_10
@@ -7339,9 +9653,12 @@
 /*
  * R3656 (0xE48) - EQ3_13
  */
-#define ARIZONA_EQ3_B3_PG_MASK                   0xFFFF  /* EQ3_B3_PG - [15:0] */
-#define ARIZONA_EQ3_B3_PG_SHIFT                       0  /* EQ3_B3_PG - [15:0] */
-#define ARIZONA_EQ3_B3_PG_WIDTH                      16  /* EQ3_B3_PG - [15:0] */
+#define ARIZONA_EQ3_B3_PG_MASK                   0xFFFF  /* EQ3_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B3_PG_SHIFT                       0  /* EQ3_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B3_PG_WIDTH                      16  /* EQ3_B3_PG - [15:0]
+                                                          * */
 
 /*
  * R3657 (0xE49) - EQ3_14
@@ -7367,9 +9684,12 @@
 /*
  * R3660 (0xE4C) - EQ3_17
  */
-#define ARIZONA_EQ3_B4_PG_MASK                   0xFFFF  /* EQ3_B4_PG - [15:0] */
-#define ARIZONA_EQ3_B4_PG_SHIFT                       0  /* EQ3_B4_PG - [15:0] */
-#define ARIZONA_EQ3_B4_PG_WIDTH                      16  /* EQ3_B4_PG - [15:0] */
+#define ARIZONA_EQ3_B4_PG_MASK                   0xFFFF  /* EQ3_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B4_PG_SHIFT                       0  /* EQ3_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B4_PG_WIDTH                      16  /* EQ3_B4_PG - [15:0]
+                                                          * */
 
 /*
  * R3661 (0xE4D) - EQ3_18
@@ -7388,9 +9708,12 @@
 /*
  * R3663 (0xE4F) - EQ3_20
  */
-#define ARIZONA_EQ3_B5_PG_MASK                   0xFFFF  /* EQ3_B5_PG - [15:0] */
-#define ARIZONA_EQ3_B5_PG_SHIFT                       0  /* EQ3_B5_PG - [15:0] */
-#define ARIZONA_EQ3_B5_PG_WIDTH                      16  /* EQ3_B5_PG - [15:0] */
+#define ARIZONA_EQ3_B5_PG_MASK                   0xFFFF  /* EQ3_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B5_PG_SHIFT                       0  /* EQ3_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ3_B5_PG_WIDTH                      16  /* EQ3_B5_PG - [15:0]
+                                                          * */
 
 /*
  * R3664 (0xE50) - EQ3_21
@@ -7402,15 +9725,24 @@
 /*
  * R3666 (0xE52) - EQ4_1
  */
-#define ARIZONA_EQ4_B1_GAIN_MASK                 0xF800  /* EQ4_B1_GAIN - [15:11] */
-#define ARIZONA_EQ4_B1_GAIN_SHIFT                    11  /* EQ4_B1_GAIN - [15:11] */
-#define ARIZONA_EQ4_B1_GAIN_WIDTH                     5  /* EQ4_B1_GAIN - [15:11] */
-#define ARIZONA_EQ4_B2_GAIN_MASK                 0x07C0  /* EQ4_B2_GAIN - [10:6] */
-#define ARIZONA_EQ4_B2_GAIN_SHIFT                     6  /* EQ4_B2_GAIN - [10:6] */
-#define ARIZONA_EQ4_B2_GAIN_WIDTH                     5  /* EQ4_B2_GAIN - [10:6] */
-#define ARIZONA_EQ4_B3_GAIN_MASK                 0x003E  /* EQ4_B3_GAIN - [5:1] */
-#define ARIZONA_EQ4_B3_GAIN_SHIFT                     1  /* EQ4_B3_GAIN - [5:1] */
-#define ARIZONA_EQ4_B3_GAIN_WIDTH                     5  /* EQ4_B3_GAIN - [5:1] */
+#define ARIZONA_EQ4_B1_GAIN_MASK                 0xF800  /* EQ4_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ4_B1_GAIN_SHIFT                    11  /* EQ4_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ4_B1_GAIN_WIDTH                     5  /* EQ4_B1_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ4_B2_GAIN_MASK                 0x07C0  /* EQ4_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ4_B2_GAIN_SHIFT                     6  /* EQ4_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ4_B2_GAIN_WIDTH                     5  /* EQ4_B2_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ4_B3_GAIN_MASK                 0x003E  /* EQ4_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ4_B3_GAIN_SHIFT                     1  /* EQ4_B3_GAIN - [5:1]
+                                                          * */
+#define ARIZONA_EQ4_B3_GAIN_WIDTH                     5  /* EQ4_B3_GAIN - [5:1]
+                                                          * */
 #define ARIZONA_EQ4_ENA                          0x0001  /* EQ4_ENA */
 #define ARIZONA_EQ4_ENA_MASK                     0x0001  /* EQ4_ENA */
 #define ARIZONA_EQ4_ENA_SHIFT                         0  /* EQ4_ENA */
@@ -7419,12 +9751,18 @@
 /*
  * R3667 (0xE53) - EQ4_2
  */
-#define ARIZONA_EQ4_B4_GAIN_MASK                 0xF800  /* EQ4_B4_GAIN - [15:11] */
-#define ARIZONA_EQ4_B4_GAIN_SHIFT                    11  /* EQ4_B4_GAIN - [15:11] */
-#define ARIZONA_EQ4_B4_GAIN_WIDTH                     5  /* EQ4_B4_GAIN - [15:11] */
-#define ARIZONA_EQ4_B5_GAIN_MASK                 0x07C0  /* EQ4_B5_GAIN - [10:6] */
-#define ARIZONA_EQ4_B5_GAIN_SHIFT                     6  /* EQ4_B5_GAIN - [10:6] */
-#define ARIZONA_EQ4_B5_GAIN_WIDTH                     5  /* EQ4_B5_GAIN - [10:6] */
+#define ARIZONA_EQ4_B4_GAIN_MASK                 0xF800  /* EQ4_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ4_B4_GAIN_SHIFT                    11  /* EQ4_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ4_B4_GAIN_WIDTH                     5  /* EQ4_B4_GAIN -
+                                                          * [15:11] */
+#define ARIZONA_EQ4_B5_GAIN_MASK                 0x07C0  /* EQ4_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ4_B5_GAIN_SHIFT                     6  /* EQ4_B5_GAIN - [10:6]
+                                                          * */
+#define ARIZONA_EQ4_B5_GAIN_WIDTH                     5  /* EQ4_B5_GAIN - [10:6]
+                                                          * */
 #define ARIZONA_EQ4_B1_MODE                      0x0001  /* EQ4_B1_MODE */
 #define ARIZONA_EQ4_B1_MODE_MASK                 0x0001  /* EQ4_B1_MODE */
 #define ARIZONA_EQ4_B1_MODE_SHIFT                     0  /* EQ4_B1_MODE */
@@ -7447,9 +9785,12 @@
 /*
  * R3670 (0xE56) - EQ4_5
  */
-#define ARIZONA_EQ4_B1_PG_MASK                   0xFFFF  /* EQ4_B1_PG - [15:0] */
-#define ARIZONA_EQ4_B1_PG_SHIFT                       0  /* EQ4_B1_PG - [15:0] */
-#define ARIZONA_EQ4_B1_PG_WIDTH                      16  /* EQ4_B1_PG - [15:0] */
+#define ARIZONA_EQ4_B1_PG_MASK                   0xFFFF  /* EQ4_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B1_PG_SHIFT                       0  /* EQ4_B1_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B1_PG_WIDTH                      16  /* EQ4_B1_PG - [15:0]
+                                                          * */
 
 /*
  * R3671 (0xE57) - EQ4_6
@@ -7475,9 +9816,12 @@
 /*
  * R3674 (0xE5A) - EQ4_9
  */
-#define ARIZONA_EQ4_B2_PG_MASK                   0xFFFF  /* EQ4_B2_PG - [15:0] */
-#define ARIZONA_EQ4_B2_PG_SHIFT                       0  /* EQ4_B2_PG - [15:0] */
-#define ARIZONA_EQ4_B2_PG_WIDTH                      16  /* EQ4_B2_PG - [15:0] */
+#define ARIZONA_EQ4_B2_PG_MASK                   0xFFFF  /* EQ4_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B2_PG_SHIFT                       0  /* EQ4_B2_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B2_PG_WIDTH                      16  /* EQ4_B2_PG - [15:0]
+                                                          * */
 
 /*
  * R3675 (0xE5B) - EQ4_10
@@ -7503,9 +9847,12 @@
 /*
  * R3678 (0xE5E) - EQ4_13
  */
-#define ARIZONA_EQ4_B3_PG_MASK                   0xFFFF  /* EQ4_B3_PG - [15:0] */
-#define ARIZONA_EQ4_B3_PG_SHIFT                       0  /* EQ4_B3_PG - [15:0] */
-#define ARIZONA_EQ4_B3_PG_WIDTH                      16  /* EQ4_B3_PG - [15:0] */
+#define ARIZONA_EQ4_B3_PG_MASK                   0xFFFF  /* EQ4_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B3_PG_SHIFT                       0  /* EQ4_B3_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B3_PG_WIDTH                      16  /* EQ4_B3_PG - [15:0]
+                                                          * */
 
 /*
  * R3679 (0xE5F) - EQ4_14
@@ -7531,9 +9878,12 @@
 /*
  * R3682 (0xE62) - EQ4_17
  */
-#define ARIZONA_EQ4_B4_PG_MASK                   0xFFFF  /* EQ4_B4_PG - [15:0] */
-#define ARIZONA_EQ4_B4_PG_SHIFT                       0  /* EQ4_B4_PG - [15:0] */
-#define ARIZONA_EQ4_B4_PG_WIDTH                      16  /* EQ4_B4_PG - [15:0] */
+#define ARIZONA_EQ4_B4_PG_MASK                   0xFFFF  /* EQ4_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B4_PG_SHIFT                       0  /* EQ4_B4_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B4_PG_WIDTH                      16  /* EQ4_B4_PG - [15:0]
+                                                          * */
 
 /*
  * R3683 (0xE63) - EQ4_18
@@ -7552,9 +9902,12 @@
 /*
  * R3685 (0xE65) - EQ4_20
  */
-#define ARIZONA_EQ4_B5_PG_MASK                   0xFFFF  /* EQ4_B5_PG - [15:0] */
-#define ARIZONA_EQ4_B5_PG_SHIFT                       0  /* EQ4_B5_PG - [15:0] */
-#define ARIZONA_EQ4_B5_PG_WIDTH                      16  /* EQ4_B5_PG - [15:0] */
+#define ARIZONA_EQ4_B5_PG_MASK                   0xFFFF  /* EQ4_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B5_PG_SHIFT                       0  /* EQ4_B5_PG - [15:0]
+                                                          * */
+#define ARIZONA_EQ4_B5_PG_WIDTH                      16  /* EQ4_B5_PG - [15:0]
+                                                          * */
 
 /*
  * R3686 (0xE66) - EQ4_21
@@ -7566,12 +9919,18 @@
 /*
  * R3712 (0xE80) - DRC1 ctrl1
  */
-#define ARIZONA_DRC1_SIG_DET_RMS_MASK            0xF800  /* DRC1_SIG_DET_RMS - [15:11] */
-#define ARIZONA_DRC1_SIG_DET_RMS_SHIFT               11  /* DRC1_SIG_DET_RMS - [15:11] */
-#define ARIZONA_DRC1_SIG_DET_RMS_WIDTH                5  /* DRC1_SIG_DET_RMS - [15:11] */
-#define ARIZONA_DRC1_SIG_DET_PK_MASK             0x0600  /* DRC1_SIG_DET_PK - [10:9] */
-#define ARIZONA_DRC1_SIG_DET_PK_SHIFT                 9  /* DRC1_SIG_DET_PK - [10:9] */
-#define ARIZONA_DRC1_SIG_DET_PK_WIDTH                 2  /* DRC1_SIG_DET_PK - [10:9] */
+#define ARIZONA_DRC1_SIG_DET_RMS_MASK            0xF800  /* DRC1_SIG_DET_RMS -
+                                                          * [15:11] */
+#define ARIZONA_DRC1_SIG_DET_RMS_SHIFT               11  /* DRC1_SIG_DET_RMS -
+                                                          * [15:11] */
+#define ARIZONA_DRC1_SIG_DET_RMS_WIDTH                5  /* DRC1_SIG_DET_RMS -
+                                                          * [15:11] */
+#define ARIZONA_DRC1_SIG_DET_PK_MASK             0x0600  /* DRC1_SIG_DET_PK -
+                                                          * [10:9] */
+#define ARIZONA_DRC1_SIG_DET_PK_SHIFT                 9  /* DRC1_SIG_DET_PK -
+                                                          * [10:9] */
+#define ARIZONA_DRC1_SIG_DET_PK_WIDTH                 2  /* DRC1_SIG_DET_PK -
+                                                          * [10:9] */
 #define ARIZONA_DRC1_NG_ENA                      0x0100  /* DRC1_NG_ENA */
 #define ARIZONA_DRC1_NG_ENA_MASK                 0x0100  /* DRC1_NG_ENA */
 #define ARIZONA_DRC1_NG_ENA_SHIFT                     8  /* DRC1_NG_ENA */
@@ -7614,64 +9973,106 @@
 #define ARIZONA_DRC1_DCY_MASK                    0x01E0  /* DRC1_DCY - [8:5] */
 #define ARIZONA_DRC1_DCY_SHIFT                        5  /* DRC1_DCY - [8:5] */
 #define ARIZONA_DRC1_DCY_WIDTH                        4  /* DRC1_DCY - [8:5] */
-#define ARIZONA_DRC1_MINGAIN_MASK                0x001C  /* DRC1_MINGAIN - [4:2] */
-#define ARIZONA_DRC1_MINGAIN_SHIFT                    2  /* DRC1_MINGAIN - [4:2] */
-#define ARIZONA_DRC1_MINGAIN_WIDTH                    3  /* DRC1_MINGAIN - [4:2] */
-#define ARIZONA_DRC1_MAXGAIN_MASK                0x0003  /* DRC1_MAXGAIN - [1:0] */
-#define ARIZONA_DRC1_MAXGAIN_SHIFT                    0  /* DRC1_MAXGAIN - [1:0] */
-#define ARIZONA_DRC1_MAXGAIN_WIDTH                    2  /* DRC1_MAXGAIN - [1:0] */
+#define ARIZONA_DRC1_MINGAIN_MASK                0x001C  /* DRC1_MINGAIN - [4:2]
+                                                          * */
+#define ARIZONA_DRC1_MINGAIN_SHIFT                    2  /* DRC1_MINGAIN - [4:2]
+                                                          * */
+#define ARIZONA_DRC1_MINGAIN_WIDTH                    3  /* DRC1_MINGAIN - [4:2]
+                                                          * */
+#define ARIZONA_DRC1_MAXGAIN_MASK                0x0003  /* DRC1_MAXGAIN - [1:0]
+                                                          * */
+#define ARIZONA_DRC1_MAXGAIN_SHIFT                    0  /* DRC1_MAXGAIN - [1:0]
+                                                          * */
+#define ARIZONA_DRC1_MAXGAIN_WIDTH                    2  /* DRC1_MAXGAIN - [1:0]
+                                                          * */
 
 /*
  * R3714 (0xE82) - DRC1 ctrl3
  */
-#define ARIZONA_DRC1_NG_MINGAIN_MASK             0xF000  /* DRC1_NG_MINGAIN - [15:12] */
-#define ARIZONA_DRC1_NG_MINGAIN_SHIFT                12  /* DRC1_NG_MINGAIN - [15:12] */
-#define ARIZONA_DRC1_NG_MINGAIN_WIDTH                 4  /* DRC1_NG_MINGAIN - [15:12] */
-#define ARIZONA_DRC1_NG_EXP_MASK                 0x0C00  /* DRC1_NG_EXP - [11:10] */
-#define ARIZONA_DRC1_NG_EXP_SHIFT                    10  /* DRC1_NG_EXP - [11:10] */
-#define ARIZONA_DRC1_NG_EXP_WIDTH                     2  /* DRC1_NG_EXP - [11:10] */
-#define ARIZONA_DRC1_QR_THR_MASK                 0x0300  /* DRC1_QR_THR - [9:8] */
-#define ARIZONA_DRC1_QR_THR_SHIFT                     8  /* DRC1_QR_THR - [9:8] */
-#define ARIZONA_DRC1_QR_THR_WIDTH                     2  /* DRC1_QR_THR - [9:8] */
-#define ARIZONA_DRC1_QR_DCY_MASK                 0x00C0  /* DRC1_QR_DCY - [7:6] */
-#define ARIZONA_DRC1_QR_DCY_SHIFT                     6  /* DRC1_QR_DCY - [7:6] */
-#define ARIZONA_DRC1_QR_DCY_WIDTH                     2  /* DRC1_QR_DCY - [7:6] */
-#define ARIZONA_DRC1_HI_COMP_MASK                0x0038  /* DRC1_HI_COMP - [5:3] */
-#define ARIZONA_DRC1_HI_COMP_SHIFT                    3  /* DRC1_HI_COMP - [5:3] */
-#define ARIZONA_DRC1_HI_COMP_WIDTH                    3  /* DRC1_HI_COMP - [5:3] */
-#define ARIZONA_DRC1_LO_COMP_MASK                0x0007  /* DRC1_LO_COMP - [2:0] */
-#define ARIZONA_DRC1_LO_COMP_SHIFT                    0  /* DRC1_LO_COMP - [2:0] */
-#define ARIZONA_DRC1_LO_COMP_WIDTH                    3  /* DRC1_LO_COMP - [2:0] */
+#define ARIZONA_DRC1_NG_MINGAIN_MASK             0xF000  /* DRC1_NG_MINGAIN -
+                                                          * [15:12] */
+#define ARIZONA_DRC1_NG_MINGAIN_SHIFT                12  /* DRC1_NG_MINGAIN -
+                                                          * [15:12] */
+#define ARIZONA_DRC1_NG_MINGAIN_WIDTH                 4  /* DRC1_NG_MINGAIN -
+                                                          * [15:12] */
+#define ARIZONA_DRC1_NG_EXP_MASK                 0x0C00  /* DRC1_NG_EXP -
+                                                          * [11:10] */
+#define ARIZONA_DRC1_NG_EXP_SHIFT                    10  /* DRC1_NG_EXP -
+                                                          * [11:10] */
+#define ARIZONA_DRC1_NG_EXP_WIDTH                     2  /* DRC1_NG_EXP -
+                                                          * [11:10] */
+#define ARIZONA_DRC1_QR_THR_MASK                 0x0300  /* DRC1_QR_THR - [9:8]
+                                                          * */
+#define ARIZONA_DRC1_QR_THR_SHIFT                     8  /* DRC1_QR_THR - [9:8]
+                                                          * */
+#define ARIZONA_DRC1_QR_THR_WIDTH                     2  /* DRC1_QR_THR - [9:8]
+                                                          * */
+#define ARIZONA_DRC1_QR_DCY_MASK                 0x00C0  /* DRC1_QR_DCY - [7:6]
+                                                          * */
+#define ARIZONA_DRC1_QR_DCY_SHIFT                     6  /* DRC1_QR_DCY - [7:6]
+                                                          * */
+#define ARIZONA_DRC1_QR_DCY_WIDTH                     2  /* DRC1_QR_DCY - [7:6]
+                                                          * */
+#define ARIZONA_DRC1_HI_COMP_MASK                0x0038  /* DRC1_HI_COMP - [5:3]
+                                                          * */
+#define ARIZONA_DRC1_HI_COMP_SHIFT                    3  /* DRC1_HI_COMP - [5:3]
+                                                          * */
+#define ARIZONA_DRC1_HI_COMP_WIDTH                    3  /* DRC1_HI_COMP - [5:3]
+                                                          * */
+#define ARIZONA_DRC1_LO_COMP_MASK                0x0007  /* DRC1_LO_COMP - [2:0]
+                                                          * */
+#define ARIZONA_DRC1_LO_COMP_SHIFT                    0  /* DRC1_LO_COMP - [2:0]
+                                                          * */
+#define ARIZONA_DRC1_LO_COMP_WIDTH                    3  /* DRC1_LO_COMP - [2:0]
+                                                          * */
 
 /*
  * R3715 (0xE83) - DRC1 ctrl4
  */
-#define ARIZONA_DRC1_KNEE_IP_MASK                0x07E0  /* DRC1_KNEE_IP - [10:5] */
-#define ARIZONA_DRC1_KNEE_IP_SHIFT                    5  /* DRC1_KNEE_IP - [10:5] */
-#define ARIZONA_DRC1_KNEE_IP_WIDTH                    6  /* DRC1_KNEE_IP - [10:5] */
-#define ARIZONA_DRC1_KNEE_OP_MASK                0x001F  /* DRC1_KNEE_OP - [4:0] */
-#define ARIZONA_DRC1_KNEE_OP_SHIFT                    0  /* DRC1_KNEE_OP - [4:0] */
-#define ARIZONA_DRC1_KNEE_OP_WIDTH                    5  /* DRC1_KNEE_OP - [4:0] */
+#define ARIZONA_DRC1_KNEE_IP_MASK                0x07E0  /* DRC1_KNEE_IP -
+                                                          * [10:5] */
+#define ARIZONA_DRC1_KNEE_IP_SHIFT                    5  /* DRC1_KNEE_IP -
+                                                          * [10:5] */
+#define ARIZONA_DRC1_KNEE_IP_WIDTH                    6  /* DRC1_KNEE_IP -
+                                                          * [10:5] */
+#define ARIZONA_DRC1_KNEE_OP_MASK                0x001F  /* DRC1_KNEE_OP - [4:0]
+                                                          * */
+#define ARIZONA_DRC1_KNEE_OP_SHIFT                    0  /* DRC1_KNEE_OP - [4:0]
+                                                          * */
+#define ARIZONA_DRC1_KNEE_OP_WIDTH                    5  /* DRC1_KNEE_OP - [4:0]
+                                                          * */
 
 /*
  * R3716 (0xE84) - DRC1 ctrl5
  */
-#define ARIZONA_DRC1_KNEE2_IP_MASK               0x03E0  /* DRC1_KNEE2_IP - [9:5] */
-#define ARIZONA_DRC1_KNEE2_IP_SHIFT                   5  /* DRC1_KNEE2_IP - [9:5] */
-#define ARIZONA_DRC1_KNEE2_IP_WIDTH                   5  /* DRC1_KNEE2_IP - [9:5] */
-#define ARIZONA_DRC1_KNEE2_OP_MASK               0x001F  /* DRC1_KNEE2_OP - [4:0] */
-#define ARIZONA_DRC1_KNEE2_OP_SHIFT                   0  /* DRC1_KNEE2_OP - [4:0] */
-#define ARIZONA_DRC1_KNEE2_OP_WIDTH                   5  /* DRC1_KNEE2_OP - [4:0] */
+#define ARIZONA_DRC1_KNEE2_IP_MASK               0x03E0  /* DRC1_KNEE2_IP -
+                                                          * [9:5] */
+#define ARIZONA_DRC1_KNEE2_IP_SHIFT                   5  /* DRC1_KNEE2_IP -
+                                                          * [9:5] */
+#define ARIZONA_DRC1_KNEE2_IP_WIDTH                   5  /* DRC1_KNEE2_IP -
+                                                          * [9:5] */
+#define ARIZONA_DRC1_KNEE2_OP_MASK               0x001F  /* DRC1_KNEE2_OP -
+                                                          * [4:0] */
+#define ARIZONA_DRC1_KNEE2_OP_SHIFT                   0  /* DRC1_KNEE2_OP -
+                                                          * [4:0] */
+#define ARIZONA_DRC1_KNEE2_OP_WIDTH                   5  /* DRC1_KNEE2_OP -
+                                                          * [4:0] */
 
 /*
  * R3721 (0xE89) - DRC2 ctrl1
  */
-#define ARIZONA_DRC2_SIG_DET_RMS_MASK            0xF800  /* DRC2_SIG_DET_RMS - [15:11] */
-#define ARIZONA_DRC2_SIG_DET_RMS_SHIFT               11  /* DRC2_SIG_DET_RMS - [15:11] */
-#define ARIZONA_DRC2_SIG_DET_RMS_WIDTH                5  /* DRC2_SIG_DET_RMS - [15:11] */
-#define ARIZONA_DRC2_SIG_DET_PK_MASK             0x0600  /* DRC2_SIG_DET_PK - [10:9] */
-#define ARIZONA_DRC2_SIG_DET_PK_SHIFT                 9  /* DRC2_SIG_DET_PK - [10:9] */
-#define ARIZONA_DRC2_SIG_DET_PK_WIDTH                 2  /* DRC2_SIG_DET_PK - [10:9] */
+#define ARIZONA_DRC2_SIG_DET_RMS_MASK            0xF800  /* DRC2_SIG_DET_RMS -
+                                                          * [15:11] */
+#define ARIZONA_DRC2_SIG_DET_RMS_SHIFT               11  /* DRC2_SIG_DET_RMS -
+                                                          * [15:11] */
+#define ARIZONA_DRC2_SIG_DET_RMS_WIDTH                5  /* DRC2_SIG_DET_RMS -
+                                                          * [15:11] */
+#define ARIZONA_DRC2_SIG_DET_PK_MASK             0x0600  /* DRC2_SIG_DET_PK -
+                                                          * [10:9] */
+#define ARIZONA_DRC2_SIG_DET_PK_SHIFT                 9  /* DRC2_SIG_DET_PK -
+                                                          * [10:9] */
+#define ARIZONA_DRC2_SIG_DET_PK_WIDTH                 2  /* DRC2_SIG_DET_PK -
+                                                          * [10:9] */
 #define ARIZONA_DRC2_NG_ENA                      0x0100  /* DRC2_NG_ENA */
 #define ARIZONA_DRC2_NG_ENA_MASK                 0x0100  /* DRC2_NG_ENA */
 #define ARIZONA_DRC2_NG_ENA_SHIFT                     8  /* DRC2_NG_ENA */
@@ -7714,54 +10115,90 @@
 #define ARIZONA_DRC2_DCY_MASK                    0x01E0  /* DRC2_DCY - [8:5] */
 #define ARIZONA_DRC2_DCY_SHIFT                        5  /* DRC2_DCY - [8:5] */
 #define ARIZONA_DRC2_DCY_WIDTH                        4  /* DRC2_DCY - [8:5] */
-#define ARIZONA_DRC2_MINGAIN_MASK                0x001C  /* DRC2_MINGAIN - [4:2] */
-#define ARIZONA_DRC2_MINGAIN_SHIFT                    2  /* DRC2_MINGAIN - [4:2] */
-#define ARIZONA_DRC2_MINGAIN_WIDTH                    3  /* DRC2_MINGAIN - [4:2] */
-#define ARIZONA_DRC2_MAXGAIN_MASK                0x0003  /* DRC2_MAXGAIN - [1:0] */
-#define ARIZONA_DRC2_MAXGAIN_SHIFT                    0  /* DRC2_MAXGAIN - [1:0] */
-#define ARIZONA_DRC2_MAXGAIN_WIDTH                    2  /* DRC2_MAXGAIN - [1:0] */
+#define ARIZONA_DRC2_MINGAIN_MASK                0x001C  /* DRC2_MINGAIN - [4:2]
+                                                          * */
+#define ARIZONA_DRC2_MINGAIN_SHIFT                    2  /* DRC2_MINGAIN - [4:2]
+                                                          * */
+#define ARIZONA_DRC2_MINGAIN_WIDTH                    3  /* DRC2_MINGAIN - [4:2]
+                                                          * */
+#define ARIZONA_DRC2_MAXGAIN_MASK                0x0003  /* DRC2_MAXGAIN - [1:0]
+                                                          * */
+#define ARIZONA_DRC2_MAXGAIN_SHIFT                    0  /* DRC2_MAXGAIN - [1:0]
+                                                          * */
+#define ARIZONA_DRC2_MAXGAIN_WIDTH                    2  /* DRC2_MAXGAIN - [1:0]
+                                                          * */
 
 /*
  * R3723 (0xE8B) - DRC2 ctrl3
  */
-#define ARIZONA_DRC2_NG_MINGAIN_MASK             0xF000  /* DRC2_NG_MINGAIN - [15:12] */
-#define ARIZONA_DRC2_NG_MINGAIN_SHIFT                12  /* DRC2_NG_MINGAIN - [15:12] */
-#define ARIZONA_DRC2_NG_MINGAIN_WIDTH                 4  /* DRC2_NG_MINGAIN - [15:12] */
-#define ARIZONA_DRC2_NG_EXP_MASK                 0x0C00  /* DRC2_NG_EXP - [11:10] */
-#define ARIZONA_DRC2_NG_EXP_SHIFT                    10  /* DRC2_NG_EXP - [11:10] */
-#define ARIZONA_DRC2_NG_EXP_WIDTH                     2  /* DRC2_NG_EXP - [11:10] */
-#define ARIZONA_DRC2_QR_THR_MASK                 0x0300  /* DRC2_QR_THR - [9:8] */
-#define ARIZONA_DRC2_QR_THR_SHIFT                     8  /* DRC2_QR_THR - [9:8] */
-#define ARIZONA_DRC2_QR_THR_WIDTH                     2  /* DRC2_QR_THR - [9:8] */
-#define ARIZONA_DRC2_QR_DCY_MASK                 0x00C0  /* DRC2_QR_DCY - [7:6] */
-#define ARIZONA_DRC2_QR_DCY_SHIFT                     6  /* DRC2_QR_DCY - [7:6] */
-#define ARIZONA_DRC2_QR_DCY_WIDTH                     2  /* DRC2_QR_DCY - [7:6] */
-#define ARIZONA_DRC2_HI_COMP_MASK                0x0038  /* DRC2_HI_COMP - [5:3] */
-#define ARIZONA_DRC2_HI_COMP_SHIFT                    3  /* DRC2_HI_COMP - [5:3] */
-#define ARIZONA_DRC2_HI_COMP_WIDTH                    3  /* DRC2_HI_COMP - [5:3] */
-#define ARIZONA_DRC2_LO_COMP_MASK                0x0007  /* DRC2_LO_COMP - [2:0] */
-#define ARIZONA_DRC2_LO_COMP_SHIFT                    0  /* DRC2_LO_COMP - [2:0] */
-#define ARIZONA_DRC2_LO_COMP_WIDTH                    3  /* DRC2_LO_COMP - [2:0] */
+#define ARIZONA_DRC2_NG_MINGAIN_MASK             0xF000  /* DRC2_NG_MINGAIN -
+                                                          * [15:12] */
+#define ARIZONA_DRC2_NG_MINGAIN_SHIFT                12  /* DRC2_NG_MINGAIN -
+                                                          * [15:12] */
+#define ARIZONA_DRC2_NG_MINGAIN_WIDTH                 4  /* DRC2_NG_MINGAIN -
+                                                          * [15:12] */
+#define ARIZONA_DRC2_NG_EXP_MASK                 0x0C00  /* DRC2_NG_EXP -
+                                                          * [11:10] */
+#define ARIZONA_DRC2_NG_EXP_SHIFT                    10  /* DRC2_NG_EXP -
+                                                          * [11:10] */
+#define ARIZONA_DRC2_NG_EXP_WIDTH                     2  /* DRC2_NG_EXP -
+                                                          * [11:10] */
+#define ARIZONA_DRC2_QR_THR_MASK                 0x0300  /* DRC2_QR_THR - [9:8]
+                                                          * */
+#define ARIZONA_DRC2_QR_THR_SHIFT                     8  /* DRC2_QR_THR - [9:8]
+                                                          * */
+#define ARIZONA_DRC2_QR_THR_WIDTH                     2  /* DRC2_QR_THR - [9:8]
+                                                          * */
+#define ARIZONA_DRC2_QR_DCY_MASK                 0x00C0  /* DRC2_QR_DCY - [7:6]
+                                                          * */
+#define ARIZONA_DRC2_QR_DCY_SHIFT                     6  /* DRC2_QR_DCY - [7:6]
+                                                          * */
+#define ARIZONA_DRC2_QR_DCY_WIDTH                     2  /* DRC2_QR_DCY - [7:6]
+                                                          * */
+#define ARIZONA_DRC2_HI_COMP_MASK                0x0038  /* DRC2_HI_COMP - [5:3]
+                                                          * */
+#define ARIZONA_DRC2_HI_COMP_SHIFT                    3  /* DRC2_HI_COMP - [5:3]
+                                                          * */
+#define ARIZONA_DRC2_HI_COMP_WIDTH                    3  /* DRC2_HI_COMP - [5:3]
+                                                          * */
+#define ARIZONA_DRC2_LO_COMP_MASK                0x0007  /* DRC2_LO_COMP - [2:0]
+                                                          * */
+#define ARIZONA_DRC2_LO_COMP_SHIFT                    0  /* DRC2_LO_COMP - [2:0]
+                                                          * */
+#define ARIZONA_DRC2_LO_COMP_WIDTH                    3  /* DRC2_LO_COMP - [2:0]
+                                                          * */
 
 /*
  * R3724 (0xE8C) - DRC2 ctrl4
  */
-#define ARIZONA_DRC2_KNEE_IP_MASK                0x07E0  /* DRC2_KNEE_IP - [10:5] */
-#define ARIZONA_DRC2_KNEE_IP_SHIFT                    5  /* DRC2_KNEE_IP - [10:5] */
-#define ARIZONA_DRC2_KNEE_IP_WIDTH                    6  /* DRC2_KNEE_IP - [10:5] */
-#define ARIZONA_DRC2_KNEE_OP_MASK                0x001F  /* DRC2_KNEE_OP - [4:0] */
-#define ARIZONA_DRC2_KNEE_OP_SHIFT                    0  /* DRC2_KNEE_OP - [4:0] */
-#define ARIZONA_DRC2_KNEE_OP_WIDTH                    5  /* DRC2_KNEE_OP - [4:0] */
+#define ARIZONA_DRC2_KNEE_IP_MASK                0x07E0  /* DRC2_KNEE_IP -
+                                                          * [10:5] */
+#define ARIZONA_DRC2_KNEE_IP_SHIFT                    5  /* DRC2_KNEE_IP -
+                                                          * [10:5] */
+#define ARIZONA_DRC2_KNEE_IP_WIDTH                    6  /* DRC2_KNEE_IP -
+                                                          * [10:5] */
+#define ARIZONA_DRC2_KNEE_OP_MASK                0x001F  /* DRC2_KNEE_OP - [4:0]
+                                                          * */
+#define ARIZONA_DRC2_KNEE_OP_SHIFT                    0  /* DRC2_KNEE_OP - [4:0]
+                                                          * */
+#define ARIZONA_DRC2_KNEE_OP_WIDTH                    5  /* DRC2_KNEE_OP - [4:0]
+                                                          * */
 
 /*
  * R3725 (0xE8D) - DRC2 ctrl5
  */
-#define ARIZONA_DRC2_KNEE2_IP_MASK               0x03E0  /* DRC2_KNEE2_IP - [9:5] */
-#define ARIZONA_DRC2_KNEE2_IP_SHIFT                   5  /* DRC2_KNEE2_IP - [9:5] */
-#define ARIZONA_DRC2_KNEE2_IP_WIDTH                   5  /* DRC2_KNEE2_IP - [9:5] */
-#define ARIZONA_DRC2_KNEE2_OP_MASK               0x001F  /* DRC2_KNEE2_OP - [4:0] */
-#define ARIZONA_DRC2_KNEE2_OP_SHIFT                   0  /* DRC2_KNEE2_OP - [4:0] */
-#define ARIZONA_DRC2_KNEE2_OP_WIDTH                   5  /* DRC2_KNEE2_OP - [4:0] */
+#define ARIZONA_DRC2_KNEE2_IP_MASK               0x03E0  /* DRC2_KNEE2_IP -
+                                                          * [9:5] */
+#define ARIZONA_DRC2_KNEE2_IP_SHIFT                   5  /* DRC2_KNEE2_IP -
+                                                          * [9:5] */
+#define ARIZONA_DRC2_KNEE2_IP_WIDTH                   5  /* DRC2_KNEE2_IP -
+                                                          * [9:5] */
+#define ARIZONA_DRC2_KNEE2_OP_MASK               0x001F  /* DRC2_KNEE2_OP -
+                                                          * [4:0] */
+#define ARIZONA_DRC2_KNEE2_OP_SHIFT                   0  /* DRC2_KNEE2_OP -
+                                                          * [4:0] */
+#define ARIZONA_DRC2_KNEE2_OP_WIDTH                   5  /* DRC2_KNEE2_OP -
+                                                          * [4:0] */
 
 /*
  * R3776 (0xEC0) - HPLPF1_1
@@ -7778,9 +10215,12 @@
 /*
  * R3777 (0xEC1) - HPLPF1_2
  */
-#define ARIZONA_LHPF1_COEFF_MASK                 0xFFFF  /* LHPF1_COEFF - [15:0] */
-#define ARIZONA_LHPF1_COEFF_SHIFT                     0  /* LHPF1_COEFF - [15:0] */
-#define ARIZONA_LHPF1_COEFF_WIDTH                    16  /* LHPF1_COEFF - [15:0] */
+#define ARIZONA_LHPF1_COEFF_MASK                 0xFFFF  /* LHPF1_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF1_COEFF_SHIFT                     0  /* LHPF1_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF1_COEFF_WIDTH                    16  /* LHPF1_COEFF - [15:0]
+                                                          * */
 
 /*
  * R3780 (0xEC4) - HPLPF2_1
@@ -7797,9 +10237,12 @@
 /*
  * R3781 (0xEC5) - HPLPF2_2
  */
-#define ARIZONA_LHPF2_COEFF_MASK                 0xFFFF  /* LHPF2_COEFF - [15:0] */
-#define ARIZONA_LHPF2_COEFF_SHIFT                     0  /* LHPF2_COEFF - [15:0] */
-#define ARIZONA_LHPF2_COEFF_WIDTH                    16  /* LHPF2_COEFF - [15:0] */
+#define ARIZONA_LHPF2_COEFF_MASK                 0xFFFF  /* LHPF2_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF2_COEFF_SHIFT                     0  /* LHPF2_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF2_COEFF_WIDTH                    16  /* LHPF2_COEFF - [15:0]
+                                                          * */
 
 /*
  * R3784 (0xEC8) - HPLPF3_1
@@ -7816,9 +10259,12 @@
 /*
  * R3785 (0xEC9) - HPLPF3_2
  */
-#define ARIZONA_LHPF3_COEFF_MASK                 0xFFFF  /* LHPF3_COEFF - [15:0] */
-#define ARIZONA_LHPF3_COEFF_SHIFT                     0  /* LHPF3_COEFF - [15:0] */
-#define ARIZONA_LHPF3_COEFF_WIDTH                    16  /* LHPF3_COEFF - [15:0] */
+#define ARIZONA_LHPF3_COEFF_MASK                 0xFFFF  /* LHPF3_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF3_COEFF_SHIFT                     0  /* LHPF3_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF3_COEFF_WIDTH                    16  /* LHPF3_COEFF - [15:0]
+                                                          * */
 
 /*
  * R3788 (0xECC) - HPLPF4_1
@@ -7835,9 +10281,12 @@
 /*
  * R3789 (0xECD) - HPLPF4_2
  */
-#define ARIZONA_LHPF4_COEFF_MASK                 0xFFFF  /* LHPF4_COEFF - [15:0] */
-#define ARIZONA_LHPF4_COEFF_SHIFT                     0  /* LHPF4_COEFF - [15:0] */
-#define ARIZONA_LHPF4_COEFF_WIDTH                    16  /* LHPF4_COEFF - [15:0] */
+#define ARIZONA_LHPF4_COEFF_MASK                 0xFFFF  /* LHPF4_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF4_COEFF_SHIFT                     0  /* LHPF4_COEFF - [15:0]
+                                                          * */
+#define ARIZONA_LHPF4_COEFF_WIDTH                    16  /* LHPF4_COEFF - [15:0]
+                                                          * */
 
 /*
  * R3808 (0xEE0) - ASRC_ENABLE
@@ -7862,33 +10311,48 @@
 /*
  * R3810 (0xEE2) - ASRC_RATE1
  */
-#define ARIZONA_ASRC_RATE1_MASK                  0x7800  /* ASRC_RATE1 - [14:11] */
-#define ARIZONA_ASRC_RATE1_SHIFT                     11  /* ASRC_RATE1 - [14:11] */
-#define ARIZONA_ASRC_RATE1_WIDTH                      4  /* ASRC_RATE1 - [14:11] */
+#define ARIZONA_ASRC_RATE1_MASK                  0x7800  /* ASRC_RATE1 - [14:11]
+                                                          * */
+#define ARIZONA_ASRC_RATE1_SHIFT                     11  /* ASRC_RATE1 - [14:11]
+                                                          * */
+#define ARIZONA_ASRC_RATE1_WIDTH                      4  /* ASRC_RATE1 - [14:11]
+                                                          * */
 
 /*
  * R3811 (0xEE3) - ASRC_RATE2
  */
-#define ARIZONA_ASRC_RATE2_MASK                  0x7800  /* ASRC_RATE2 - [14:11] */
-#define ARIZONA_ASRC_RATE2_SHIFT                     11  /* ASRC_RATE2 - [14:11] */
-#define ARIZONA_ASRC_RATE2_WIDTH                      4  /* ASRC_RATE2 - [14:11] */
+#define ARIZONA_ASRC_RATE2_MASK                  0x7800  /* ASRC_RATE2 - [14:11]
+                                                          * */
+#define ARIZONA_ASRC_RATE2_SHIFT                     11  /* ASRC_RATE2 - [14:11]
+                                                          * */
+#define ARIZONA_ASRC_RATE2_WIDTH                      4  /* ASRC_RATE2 - [14:11]
+                                                          * */
 
 /*
  * R3824 (0xEF0) - ISRC 1 CTRL 1
  */
-#define ARIZONA_ISRC1_FSH_MASK                   0x7800  /* ISRC1_FSH - [14:11] */
-#define ARIZONA_ISRC1_FSH_SHIFT                      11  /* ISRC1_FSH - [14:11] */
-#define ARIZONA_ISRC1_FSH_WIDTH                       4  /* ISRC1_FSH - [14:11] */
-#define ARIZONA_ISRC1_CLK_SEL_MASK               0x0700  /* ISRC1_CLK_SEL - [10:8] */
-#define ARIZONA_ISRC1_CLK_SEL_SHIFT                   8  /* ISRC1_CLK_SEL - [10:8] */
-#define ARIZONA_ISRC1_CLK_SEL_WIDTH                   3  /* ISRC1_CLK_SEL - [10:8] */
+#define ARIZONA_ISRC1_FSH_MASK                   0x7800  /* ISRC1_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC1_FSH_SHIFT                      11  /* ISRC1_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC1_FSH_WIDTH                       4  /* ISRC1_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC1_CLK_SEL_MASK               0x0700  /* ISRC1_CLK_SEL -
+                                                          * [10:8] */
+#define ARIZONA_ISRC1_CLK_SEL_SHIFT                   8  /* ISRC1_CLK_SEL -
+                                                          * [10:8] */
+#define ARIZONA_ISRC1_CLK_SEL_WIDTH                   3  /* ISRC1_CLK_SEL -
+                                                          * [10:8] */
 
 /*
  * R3825 (0xEF1) - ISRC 1 CTRL 2
  */
-#define ARIZONA_ISRC1_FSL_MASK                   0x7800  /* ISRC1_FSL - [14:11] */
-#define ARIZONA_ISRC1_FSL_SHIFT                      11  /* ISRC1_FSL - [14:11] */
-#define ARIZONA_ISRC1_FSL_WIDTH                       4  /* ISRC1_FSL - [14:11] */
+#define ARIZONA_ISRC1_FSL_MASK                   0x7800  /* ISRC1_FSL - [14:11]
+                                                          * */
+#define ARIZONA_ISRC1_FSL_SHIFT                      11  /* ISRC1_FSL - [14:11]
+                                                          * */
+#define ARIZONA_ISRC1_FSL_WIDTH                       4  /* ISRC1_FSL - [14:11]
+                                                          * */
 
 /*
  * R3826 (0xEF2) - ISRC 1 CTRL 3
@@ -7933,19 +10397,28 @@
 /*
  * R3827 (0xEF3) - ISRC 2 CTRL 1
  */
-#define ARIZONA_ISRC2_FSH_MASK                   0x7800  /* ISRC2_FSH - [14:11] */
-#define ARIZONA_ISRC2_FSH_SHIFT                      11  /* ISRC2_FSH - [14:11] */
-#define ARIZONA_ISRC2_FSH_WIDTH                       4  /* ISRC2_FSH - [14:11] */
-#define ARIZONA_ISRC2_CLK_SEL_MASK               0x0700  /* ISRC2_CLK_SEL - [10:8] */
-#define ARIZONA_ISRC2_CLK_SEL_SHIFT                   8  /* ISRC2_CLK_SEL - [10:8] */
-#define ARIZONA_ISRC2_CLK_SEL_WIDTH                   3  /* ISRC2_CLK_SEL - [10:8] */
+#define ARIZONA_ISRC2_FSH_MASK                   0x7800  /* ISRC2_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC2_FSH_SHIFT                      11  /* ISRC2_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC2_FSH_WIDTH                       4  /* ISRC2_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC2_CLK_SEL_MASK               0x0700  /* ISRC2_CLK_SEL -
+                                                          * [10:8] */
+#define ARIZONA_ISRC2_CLK_SEL_SHIFT                   8  /* ISRC2_CLK_SEL -
+                                                          * [10:8] */
+#define ARIZONA_ISRC2_CLK_SEL_WIDTH                   3  /* ISRC2_CLK_SEL -
+                                                          * [10:8] */
 
 /*
  * R3828 (0xEF4) - ISRC 2 CTRL 2
  */
-#define ARIZONA_ISRC2_FSL_MASK                   0x7800  /* ISRC2_FSL - [14:11] */
-#define ARIZONA_ISRC2_FSL_SHIFT                      11  /* ISRC2_FSL - [14:11] */
-#define ARIZONA_ISRC2_FSL_WIDTH                       4  /* ISRC2_FSL - [14:11] */
+#define ARIZONA_ISRC2_FSL_MASK                   0x7800  /* ISRC2_FSL - [14:11]
+                                                          * */
+#define ARIZONA_ISRC2_FSL_SHIFT                      11  /* ISRC2_FSL - [14:11]
+                                                          * */
+#define ARIZONA_ISRC2_FSL_WIDTH                       4  /* ISRC2_FSL - [14:11]
+                                                          * */
 
 /*
  * R3829 (0xEF5) - ISRC 2 CTRL 3
@@ -7990,19 +10463,28 @@
 /*
  * R3830 (0xEF6) - ISRC 3 CTRL 1
  */
-#define ARIZONA_ISRC3_FSH_MASK                   0x7800  /* ISRC3_FSH - [14:11] */
-#define ARIZONA_ISRC3_FSH_SHIFT                      11  /* ISRC3_FSH - [14:11] */
-#define ARIZONA_ISRC3_FSH_WIDTH                       4  /* ISRC3_FSH - [14:11] */
-#define ARIZONA_ISRC3_CLK_SEL_MASK               0x0700  /* ISRC3_CLK_SEL - [10:8] */
-#define ARIZONA_ISRC3_CLK_SEL_SHIFT                   8  /* ISRC3_CLK_SEL - [10:8] */
-#define ARIZONA_ISRC3_CLK_SEL_WIDTH                   3  /* ISRC3_CLK_SEL - [10:8] */
+#define ARIZONA_ISRC3_FSH_MASK                   0x7800  /* ISRC3_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC3_FSH_SHIFT                      11  /* ISRC3_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC3_FSH_WIDTH                       4  /* ISRC3_FSH - [14:11]
+                                                          * */
+#define ARIZONA_ISRC3_CLK_SEL_MASK               0x0700  /* ISRC3_CLK_SEL -
+                                                          * [10:8] */
+#define ARIZONA_ISRC3_CLK_SEL_SHIFT                   8  /* ISRC3_CLK_SEL -
+                                                          * [10:8] */
+#define ARIZONA_ISRC3_CLK_SEL_WIDTH                   3  /* ISRC3_CLK_SEL -
+                                                          * [10:8] */
 
 /*
  * R3831 (0xEF7) - ISRC 3 CTRL 2
  */
-#define ARIZONA_ISRC3_FSL_MASK                   0x7800  /* ISRC3_FSL - [14:11] */
-#define ARIZONA_ISRC3_FSL_SHIFT                      11  /* ISRC3_FSL - [14:11] */
-#define ARIZONA_ISRC3_FSL_WIDTH                       4  /* ISRC3_FSL - [14:11] */
+#define ARIZONA_ISRC3_FSL_MASK                   0x7800  /* ISRC3_FSL - [14:11]
+                                                          * */
+#define ARIZONA_ISRC3_FSL_SHIFT                      11  /* ISRC3_FSL - [14:11]
+                                                          * */
+#define ARIZONA_ISRC3_FSL_WIDTH                       4  /* ISRC3_FSL - [14:11]
+                                                          * */
 
 /*
  * R3832 (0xEF8) - ISRC 3 CTRL 3
@@ -8083,33 +10565,48 @@
 /*
  * R3841 (0xF01) - ANC SRC
  */
-#define ARIZONA_IN_RXANCR_SEL_MASK               0x0070  /* IN_RXANCR_SEL - [4:6] */
-#define ARIZONA_IN_RXANCR_SEL_SHIFT                   4  /* IN_RXANCR_SEL - [4:6] */
-#define ARIZONA_IN_RXANCR_SEL_WIDTH                   3  /* IN_RXANCR_SEL - [4:6] */
-#define ARIZONA_IN_RXANCL_SEL_MASK               0x0007  /* IN_RXANCL_SEL - [0:2] */
-#define ARIZONA_IN_RXANCL_SEL_SHIFT                   0  /* IN_RXANCL_SEL - [0:2] */
-#define ARIZONA_IN_RXANCL_SEL_WIDTH                   3  /* IN_RXANCL_SEL - [0:2] */
+#define ARIZONA_IN_RXANCR_SEL_MASK               0x0070  /* IN_RXANCR_SEL -
+                                                          * [4:6] */
+#define ARIZONA_IN_RXANCR_SEL_SHIFT                   4  /* IN_RXANCR_SEL -
+                                                          * [4:6] */
+#define ARIZONA_IN_RXANCR_SEL_WIDTH                   3  /* IN_RXANCR_SEL -
+                                                          * [4:6] */
+#define ARIZONA_IN_RXANCL_SEL_MASK               0x0007  /* IN_RXANCL_SEL -
+                                                          * [0:2] */
+#define ARIZONA_IN_RXANCL_SEL_SHIFT                   0  /* IN_RXANCL_SEL -
+                                                          * [0:2] */
+#define ARIZONA_IN_RXANCL_SEL_WIDTH                   3  /* IN_RXANCL_SEL -
+                                                          * [0:2] */
 
 /*
  * R3863 (0xF17) - FCL ADC Reformatter Control
  */
-#define ARIZONA_FCL_MIC_MODE_SEL                 0x000C  /* FCL_MIC_MODE_SEL - [2:3] */
-#define ARIZONA_FCL_MIC_MODE_SEL_SHIFT                2  /* FCL_MIC_MODE_SEL - [2:3] */
-#define ARIZONA_FCL_MIC_MODE_SEL_WIDTH                2  /* FCL_MIC_MODE_SEL - [2:3] */
+#define ARIZONA_FCL_MIC_MODE_SEL                 0x000C  /* FCL_MIC_MODE_SEL -
+                                                          * [2:3] */
+#define ARIZONA_FCL_MIC_MODE_SEL_SHIFT                2  /* FCL_MIC_MODE_SEL -
+                                                          * [2:3] */
+#define ARIZONA_FCL_MIC_MODE_SEL_WIDTH                2  /* FCL_MIC_MODE_SEL -
+                                                          * [2:3] */
 
 /*
  * R3954 (0xF72) - FCR ADC Reformatter Control
  */
-#define ARIZONA_FCR_MIC_MODE_SEL                 0x000C  /* FCR_MIC_MODE_SEL - [2:3] */
-#define ARIZONA_FCR_MIC_MODE_SEL_SHIFT                2  /* FCR_MIC_MODE_SEL - [2:3] */
-#define ARIZONA_FCR_MIC_MODE_SEL_WIDTH                2  /* FCR_MIC_MODE_SEL - [2:3] */
+#define ARIZONA_FCR_MIC_MODE_SEL                 0x000C  /* FCR_MIC_MODE_SEL -
+                                                          * [2:3] */
+#define ARIZONA_FCR_MIC_MODE_SEL_SHIFT                2  /* FCR_MIC_MODE_SEL -
+                                                          * [2:3] */
+#define ARIZONA_FCR_MIC_MODE_SEL_WIDTH                2  /* FCR_MIC_MODE_SEL -
+                                                          * [2:3] */
 
 /*
  * R4352 (0x1100) - DSP1 Control 1
  */
-#define ARIZONA_DSP1_RATE_MASK                   0x7800  /* DSP1_RATE - [14:11] */
-#define ARIZONA_DSP1_RATE_SHIFT                      11  /* DSP1_RATE - [14:11] */
-#define ARIZONA_DSP1_RATE_WIDTH                       4  /* DSP1_RATE - [14:11] */
+#define ARIZONA_DSP1_RATE_MASK                   0x7800  /* DSP1_RATE - [14:11]
+                                                          * */
+#define ARIZONA_DSP1_RATE_SHIFT                      11  /* DSP1_RATE - [14:11]
+                                                          * */
+#define ARIZONA_DSP1_RATE_WIDTH                       4  /* DSP1_RATE - [14:11]
+                                                          * */
 #define ARIZONA_DSP1_MEM_ENA                     0x0010  /* DSP1_MEM_ENA */
 #define ARIZONA_DSP1_MEM_ENA_MASK                0x0010  /* DSP1_MEM_ENA */
 #define ARIZONA_DSP1_MEM_ENA_SHIFT                    4  /* DSP1_MEM_ENA */
@@ -8130,9 +10627,12 @@
 /*
  * R4353 (0x1101) - DSP1 Clocking 1
  */
-#define ARIZONA_DSP1_CLK_SEL_MASK                0x0007  /* DSP1_CLK_SEL - [2:0] */
-#define ARIZONA_DSP1_CLK_SEL_SHIFT                    0  /* DSP1_CLK_SEL - [2:0] */
-#define ARIZONA_DSP1_CLK_SEL_WIDTH                    3  /* DSP1_CLK_SEL - [2:0] */
+#define ARIZONA_DSP1_CLK_SEL_MASK                0x0007  /* DSP1_CLK_SEL - [2:0]
+                                                          * */
+#define ARIZONA_DSP1_CLK_SEL_SHIFT                    0  /* DSP1_CLK_SEL - [2:0]
+                                                          * */
+#define ARIZONA_DSP1_CLK_SEL_WIDTH                    3  /* DSP1_CLK_SEL - [2:0]
+                                                          * */
 
 /*
  * R4356 (0x1104) - DSP1 Status 1
@@ -8153,8 +10653,14 @@
 #define ARIZONA_DSP1_PONG_FULL_MASK              0x4000  /* DSP1_PONG_FULL */
 #define ARIZONA_DSP1_PONG_FULL_SHIFT                 14  /* DSP1_PONG_FULL */
 #define ARIZONA_DSP1_PONG_FULL_WIDTH                  1  /* DSP1_PONG_FULL */
-#define ARIZONA_DSP1_WDMA_ACTIVE_CHANNELS_MASK   0x00FF  /* DSP1_WDMA_ACTIVE_CHANNELS - [7:0] */
-#define ARIZONA_DSP1_WDMA_ACTIVE_CHANNELS_SHIFT       0  /* DSP1_WDMA_ACTIVE_CHANNELS - [7:0] */
-#define ARIZONA_DSP1_WDMA_ACTIVE_CHANNELS_WIDTH       8  /* DSP1_WDMA_ACTIVE_CHANNELS - [7:0] */
+#define ARIZONA_DSP1_WDMA_ACTIVE_CHANNELS_MASK   0x00FF  /*
+                                                          * DSP1_WDMA_ACTIVE_CHANNELS
+                                                          * - [7:0] */
+#define ARIZONA_DSP1_WDMA_ACTIVE_CHANNELS_SHIFT       0  /*
+                                                          * DSP1_WDMA_ACTIVE_CHANNELS
+                                                          * - [7:0] */
+#define ARIZONA_DSP1_WDMA_ACTIVE_CHANNELS_WIDTH       8  /*
+                                                          * DSP1_WDMA_ACTIVE_CHANNELS
+                                                          * - [7:0] */
 
 #endif

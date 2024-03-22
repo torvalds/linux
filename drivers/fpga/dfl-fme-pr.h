@@ -28,9 +28,9 @@
  * @port_id: indicate which port this region connected to.
  */
 struct dfl_fme_region {
-	struct platform_device *region;
-	struct list_head node;
-	int port_id;
+  struct platform_device *region;
+  struct list_head node;
+  int port_id;
 };
 
 /**
@@ -41,9 +41,9 @@ struct dfl_fme_region {
  * @region_id: region id (same as port_id).
  */
 struct dfl_fme_region_pdata {
-	struct platform_device *mgr;
-	struct platform_device *br;
-	int region_id;
+  struct platform_device *mgr;
+  struct platform_device *br;
+  int region_id;
 };
 
 /**
@@ -53,8 +53,8 @@ struct dfl_fme_region_pdata {
  * @node: used to link fme_bridge to a list.
  */
 struct dfl_fme_bridge {
-	struct platform_device *br;
-	struct list_head node;
+  struct platform_device *br;
+  struct list_head node;
 };
 
 /**
@@ -64,8 +64,8 @@ struct dfl_fme_bridge {
  * @port_id: port id.
  */
 struct dfl_fme_br_pdata {
-	struct dfl_fpga_cdev *cdev;
-	int port_id;
+  struct dfl_fpga_cdev *cdev;
+  int port_id;
 };
 
 /**
@@ -74,11 +74,11 @@ struct dfl_fme_br_pdata {
  * @ioaddr: mapped io address for FME manager platform device.
  */
 struct dfl_fme_mgr_pdata {
-	void __iomem *ioaddr;
+  void __iomem *ioaddr;
 };
 
-#define DFL_FPGA_FME_MGR	"dfl-fme-mgr"
-#define DFL_FPGA_FME_BRIDGE	"dfl-fme-bridge"
-#define DFL_FPGA_FME_REGION	"dfl-fme-region"
+#define DFL_FPGA_FME_MGR  "dfl-fme-mgr"
+#define DFL_FPGA_FME_BRIDGE "dfl-fme-bridge"
+#define DFL_FPGA_FME_REGION "dfl-fme-region"
 
 #endif /* __DFL_FME_PR_H */

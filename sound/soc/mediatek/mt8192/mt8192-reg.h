@@ -11,16 +11,16 @@
 
 /* reg bit enum */
 enum {
-	MT8192_MEMIF_PBUF_SIZE_32_BYTES,
-	MT8192_MEMIF_PBUF_SIZE_64_BYTES,
-	MT8192_MEMIF_PBUF_SIZE_128_BYTES,
-	MT8192_MEMIF_PBUF_SIZE_256_BYTES,
-	MT8192_MEMIF_PBUF_SIZE_NUM,
+  MT8192_MEMIF_PBUF_SIZE_32_BYTES,
+  MT8192_MEMIF_PBUF_SIZE_64_BYTES,
+  MT8192_MEMIF_PBUF_SIZE_128_BYTES,
+  MT8192_MEMIF_PBUF_SIZE_256_BYTES,
+  MT8192_MEMIF_PBUF_SIZE_NUM,
 };
 
 /*****************************************************************************
- *                  R E G I S T E R       D E F I N I T I O N
- *****************************************************************************/
+*                  R E G I S T E R       D E F I N I T I O N
+*****************************************************************************/
 /* AUDIO_TOP_CON3 */
 #define BCK_INVERSE_SFT                              3
 #define BCK_INVERSE_MASK                             0x1

@@ -19,74 +19,63 @@
 
 static void __iomem *uimask;
 
-static ssize_t
-show_intc_userimask(struct device *dev,
-		    struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", (__raw_readl(uimask) >> 4) & 0xf);
+static ssize_t show_intc_userimask(struct device *dev,
+    struct device_attribute *attr, char *buf) {
+  return sprintf(buf, "%d\n", (__raw_readl(uimask) >> 4) & 0xf);
 }
 
-static ssize_t
-store_intc_userimask(struct device *dev,
-		     struct device_attribute *attr,
-		     const char *buf, size_t count)
-{
-	unsigned long level;
-
-	level = simple_strtoul(buf, NULL, 10);
-
-	/*
-	 * Minimal acceptable IRQ levels are in the 2 - 16 range, but
-	 * these are chomped so as to not interfere with normal IRQs.
-	 *
-	 * Level 1 is a special case on some CPUs in that it's not
-	 * directly settable, but given that USERIMASK cuts off below a
-	 * certain level, we don't care about this limitation here.
-	 * Level 0 on the other hand equates to user masking disabled.
-	 *
-	 * We use the default priority level as a cut off so that only
-	 * special case opt-in IRQs can be mangled.
-	 */
-	if (level >= intc_get_dfl_prio_level())
-		return -EINVAL;
-
-	__raw_writel(0xa5 << 24 | level << 4, uimask);
-
-	return count;
+static ssize_t store_intc_userimask(struct device *dev,
+    struct device_attribute *attr,
+    const char *buf, size_t count) {
+  unsigned long level;
+  level = simple_strtoul(buf, NULL, 10);
+  /*
+   * Minimal acceptable IRQ levels are in the 2 - 16 range, but
+   * these are chomped so as to not interfere with normal IRQs.
+   *
+   * Level 1 is a special case on some CPUs in that it's not
+   * directly settable, but given that USERIMASK cuts off below a
+   * certain level, we don't care about this limitation here.
+   * Level 0 on the other hand equates to user masking disabled.
+   *
+   * We use the default priority level as a cut off so that only
+   * special case opt-in IRQs can be mangled.
+   */
+  if (level >= intc_get_dfl_prio_level()) {
+    return -EINVAL;
+  }
+  __raw_writel(0xa5 << 24 | level << 4, uimask);
+  return count;
 }
 
 static DEVICE_ATTR(userimask, S_IRUSR | S_IWUSR,
-		   show_intc_userimask, store_intc_userimask);
+    show_intc_userimask, store_intc_userimask);
 
-
-static int __init userimask_sysdev_init(void)
-{
-	struct device *dev_root;
-	int ret = 0;
-
-	if (unlikely(!uimask))
-		return -ENXIO;
-
-	dev_root = bus_get_dev_root(&intc_subsys);
-	if (dev_root) {
-		ret = device_create_file(dev_root, &dev_attr_userimask);
-		put_device(dev_root);
-	}
-	return ret;
+static int __init userimask_sysdev_init(void) {
+  struct device *dev_root;
+  int ret = 0;
+  if (unlikely(!uimask)) {
+    return -ENXIO;
+  }
+  dev_root = bus_get_dev_root(&intc_subsys);
+  if (dev_root) {
+    ret = device_create_file(dev_root, &dev_attr_userimask);
+    put_device(dev_root);
+  }
+  return ret;
 }
+
 late_initcall(userimask_sysdev_init);
 
-int register_intc_userimask(unsigned long addr)
-{
-	if (unlikely(uimask))
-		return -EBUSY;
-
-	uimask = ioremap(addr, SZ_4K);
-	if (unlikely(!uimask))
-		return -ENOMEM;
-
-	pr_info("userimask support registered for levels 0 -> %d\n",
-		intc_get_dfl_prio_level() - 1);
-
-	return 0;
+int register_intc_userimask(unsigned long addr) {
+  if (unlikely(uimask)) {
+    return -EBUSY;
+  }
+  uimask = ioremap(addr, SZ_4K);
+  if (unlikely(!uimask)) {
+    return -ENOMEM;
+  }
+  pr_info("userimask support registered for levels 0 -> %d\n",
+      intc_get_dfl_prio_level() - 1);
+  return 0;
 }

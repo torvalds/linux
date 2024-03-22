@@ -36,6 +36,6 @@
 #include "dmub_srv.h"
 
 enum dmub_status dmub_srv_stat_get_notification(struct dmub_srv *dmub,
-						struct dmub_notification *notify);
+    struct dmub_notification *notify);
 
 #endif /* _DMUB_SRV_STAT_H_ */

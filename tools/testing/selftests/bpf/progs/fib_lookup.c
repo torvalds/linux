@@ -11,12 +11,10 @@ int fib_lookup_ret = 0;
 int lookup_flags = 0;
 
 SEC("tc")
-int fib_lookup(struct __sk_buff *skb)
-{
-	fib_lookup_ret = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params),
-					lookup_flags);
-
-	return TC_ACT_SHOT;
+int fib_lookup(struct __sk_buff *skb) {
+  fib_lookup_ret = bpf_fib_lookup(skb, &fib_params, sizeof(fib_params),
+      lookup_flags);
+  return TC_ACT_SHOT;
 }
 
 char _license[] SEC("license") = "GPL";

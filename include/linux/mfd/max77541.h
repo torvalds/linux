@@ -69,8 +69,8 @@
 #define MAX77541_MAX_REGULATORS 2
 
 enum max7754x_ids {
-	MAX77540 = 1,
-	MAX77541,
+  MAX77540 = 1,
+  MAX77541,
 };
 
 struct regmap;
@@ -78,14 +78,14 @@ struct regmap_irq_chip_data;
 struct i2c_client;
 
 struct max77541 {
-	struct i2c_client *i2c;
-	struct regmap *regmap;
-	enum max7754x_ids id;
+  struct i2c_client *i2c;
+  struct regmap *regmap;
+  enum max7754x_ids id;
 
-	struct regmap_irq_chip_data *irq_data;
-	struct regmap_irq_chip_data *irq_buck;
-	struct regmap_irq_chip_data *irq_topsys;
-	struct regmap_irq_chip_data *irq_adc;
+  struct regmap_irq_chip_data *irq_data;
+  struct regmap_irq_chip_data *irq_buck;
+  struct regmap_irq_chip_data *irq_topsys;
+  struct regmap_irq_chip_data *irq_adc;
 };
 
 #endif /* __MFD_MAX77541_H */

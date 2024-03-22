@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080fb_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080fb_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2006-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2006-2021 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,24 +30,26 @@
 
 #define NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MEM_TYPES   17U
 
-typedef NvBool NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG[NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MEM_TYPES];
+typedef NvBool NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG[
+      NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MEM_TYPES];
 
 typedef struct NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO {
-    NV_DECLARE_ALIGNED(NvU64 base, 8);
-    NV_DECLARE_ALIGNED(NvU64 limit, 8);
-    NV_DECLARE_ALIGNED(NvU64 reserved, 8);
-    NvU32                                                  performance;
-    NvBool                                                 supportCompressed;
-    NvBool                                                 supportISO;
-    NvBool                                                 bProtected;
-    NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG blackList;
+  NV_DECLARE_ALIGNED(NvU64 base, 8);
+  NV_DECLARE_ALIGNED(NvU64 limit, 8);
+  NV_DECLARE_ALIGNED(NvU64 reserved, 8);
+  NvU32 performance;
+  NvBool supportCompressed;
+  NvBool supportISO;
+  NvBool bProtected;
+  NV2080_CTRL_CMD_FB_GET_FB_REGION_SURFACE_MEM_TYPE_FLAG blackList;
 } NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO;
 
 #define NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MAX_ENTRIES 16U
 
 typedef struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS {
-    NvU32 numFBRegions;
-    NV_DECLARE_ALIGNED(NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO fbRegion[NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MAX_ENTRIES], 8);
+  NvU32 numFBRegions;
+  NV_DECLARE_ALIGNED(NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO fbRegion[
+        NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_MAX_ENTRIES], 8);
 } NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS;
 
 #endif

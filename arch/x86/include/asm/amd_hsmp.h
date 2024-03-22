@@ -8,9 +8,9 @@
 #if IS_ENABLED(CONFIG_AMD_HSMP)
 int hsmp_send_message(struct hsmp_message *msg);
 #else
-static inline int hsmp_send_message(struct hsmp_message *msg)
-{
-	return -ENODEV;
+static inline int hsmp_send_message(struct hsmp_message *msg) {
+  return -ENODEV;
 }
+
 #endif
 #endif /*_ASM_X86_AMD_HSMP_H_*/

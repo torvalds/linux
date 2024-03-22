@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    Retrieve encoded MAC address from ATMEL ttpci_eeprom serial 2-wire EEPROM,
-    decode it and store it in associated adapter net device
-
-    Robert Schlabbach	GMX
-    Michael Glaum	KVH Industries
-    Holger Waechtler	Convergence
-
-
-*/
+ *  Retrieve encoded MAC address from ATMEL ttpci_eeprom serial 2-wire EEPROM,
+ *  decode it and store it in associated adapter net device
+ *
+ *  Robert Schlabbach GMX
+ *  Michael Glaum KVH Industries
+ *  Holger Waechtler  Convergence
+ *
+ *
+ */
 
 #ifndef __TTPCI_EEPROM_H__
 #define __TTPCI_EEPROM_H__

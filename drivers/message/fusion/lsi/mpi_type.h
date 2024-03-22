@@ -27,7 +27,6 @@
 #ifndef MPI_TYPE_H
 #define MPI_TYPE_H
 
-
 /*******************************************************************************
  * Define MPI_POINTER if it hasn't already been defined. By default MPI_POINTER
  * is defined to be a near pointer. MPI_POINTER can be defined as a far pointer
@@ -37,48 +36,41 @@
 #define MPI_POINTER     *
 #endif
 
-
 /*****************************************************************************
 *
 *               B a s i c    T y p e s
 *
 *****************************************************************************/
 
-typedef signed   char   S8;
-typedef unsigned char   U8;
-typedef signed   short  S16;
-typedef unsigned short  U16;
+typedef signed char S8;
+typedef unsigned char U8;
+typedef signed short S16;
+typedef unsigned short U16;
 
-
-typedef int32_t   S32;
+typedef int32_t S32;
 typedef u_int32_t U32;
 
-typedef struct _S64
-{
-    U32          Low;
-    S32          High;
+typedef struct _S64 {
+  U32 Low;
+  S32 High;
 } S64;
 
-typedef struct _U64
-{
-    U32          Low;
-    U32          High;
+typedef struct _U64 {
+  U32 Low;
+  U32 High;
 } U64;
 
+/* **************************************************************************
+ *  Pointers
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  Pointers                                                                */
-/****************************************************************************/
-
-typedef S8      *PS8;
-typedef U8      *PU8;
-typedef S16     *PS16;
-typedef U16     *PU16;
-typedef S32     *PS32;
-typedef U32     *PU32;
-typedef S64     *PS64;
-typedef U64     *PU64;
-
+typedef S8 *PS8;
+typedef U8 *PU8;
+typedef S16 *PS16;
+typedef U16 *PU16;
+typedef S32 *PS32;
+typedef U32 *PU32;
+typedef S64 *PS64;
+typedef U64 *PU64;
 
 #endif
-

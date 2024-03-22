@@ -5,10 +5,10 @@
 #ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
 void do_softirq_own_stack(void);
 #else
-static inline void do_softirq_own_stack(void)
-{
-	__do_softirq();
+static inline void do_softirq_own_stack(void) {
+  __do_softirq();
 }
+
 #endif
 
 #endif

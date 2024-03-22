@@ -17,20 +17,20 @@
 #define BPF_MINOR_VERSION 1
 
 /*
- *	Try and keep these values and structures similar to BSD, especially
- *	the BPF code definitions which need to match so you can share filters
+ *  Try and keep these values and structures similar to BSD, especially
+ *  the BPF code definitions which need to match so you can share filters
  */
- 
-struct sock_filter {	/* Filter block */
-	__u16	code;   /* Actual filter code */
-	__u8	jt;	/* Jump true */
-	__u8	jf;	/* Jump false */
-	__u32	k;      /* Generic multiuse field */
+
+struct sock_filter {  /* Filter block */
+  __u16 code;   /* Actual filter code */
+  __u8 jt; /* Jump true */
+  __u8 jf; /* Jump false */
+  __u32 k;      /* Generic multiuse field */
 };
 
-struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
-	unsigned short		len;	/* Number of filter blocks */
-	struct sock_filter __user *filter;
+struct sock_fprog { /* Required for SO_ATTACH_FILTER. */
+  unsigned short len;  /* Number of filter blocks */
+  struct sock_filter __user *filter;
 };
 
 /* ret - BPF_K and BPF_X also apply */
@@ -46,10 +46,10 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
  * Macros for filter block array initializers.
  */
 #ifndef BPF_STMT
-#define BPF_STMT(code, k) { (unsigned short)(code), 0, 0, k }
+#define BPF_STMT(code, k) { (unsigned short) (code), 0, 0, k }
 #endif
 #ifndef BPF_JUMP
-#define BPF_JUMP(code, k, jt, jf) { (unsigned short)(code), jt, jf, k }
+#define BPF_JUMP(code, k, jt, jf) { (unsigned short) (code), jt, jf, k }
 #endif
 
 /*
@@ -58,33 +58,33 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 #define BPF_MEMWORDS 16
 
 /* RATIONALE. Negative offsets are invalid in BPF.
-   We use them to reference ancillary data.
-   Unlike introduction new instructions, it does not break
-   existing compilers/optimizers.
+ * We use them to reference ancillary data.
+ * Unlike introduction new instructions, it does not break
+ * existing compilers/optimizers.
  */
 #define SKF_AD_OFF    (-0x1000)
 #define SKF_AD_PROTOCOL 0
-#define SKF_AD_PKTTYPE 	4
-#define SKF_AD_IFINDEX 	8
-#define SKF_AD_NLATTR	12
-#define SKF_AD_NLATTR_NEST	16
-#define SKF_AD_MARK 	20
-#define SKF_AD_QUEUE	24
-#define SKF_AD_HATYPE	28
-#define SKF_AD_RXHASH	32
-#define SKF_AD_CPU	36
-#define SKF_AD_ALU_XOR_X	40
-#define SKF_AD_VLAN_TAG	44
+#define SKF_AD_PKTTYPE  4
+#define SKF_AD_IFINDEX  8
+#define SKF_AD_NLATTR 12
+#define SKF_AD_NLATTR_NEST  16
+#define SKF_AD_MARK   20
+#define SKF_AD_QUEUE  24
+#define SKF_AD_HATYPE 28
+#define SKF_AD_RXHASH 32
+#define SKF_AD_CPU  36
+#define SKF_AD_ALU_XOR_X  40
+#define SKF_AD_VLAN_TAG 44
 #define SKF_AD_VLAN_TAG_PRESENT 48
-#define SKF_AD_PAY_OFFSET	52
-#define SKF_AD_RANDOM	56
-#define SKF_AD_VLAN_TPID	60
-#define SKF_AD_MAX	64
+#define SKF_AD_PAY_OFFSET 52
+#define SKF_AD_RANDOM 56
+#define SKF_AD_VLAN_TPID  60
+#define SKF_AD_MAX  64
 
-#define SKF_NET_OFF	(-0x100000)
-#define SKF_LL_OFF	(-0x200000)
+#define SKF_NET_OFF (-0x100000)
+#define SKF_LL_OFF  (-0x200000)
 
-#define BPF_NET_OFF	SKF_NET_OFF
-#define BPF_LL_OFF	SKF_LL_OFF
+#define BPF_NET_OFF SKF_NET_OFF
+#define BPF_LL_OFF  SKF_LL_OFF
 
 #endif /* _UAPI__LINUX_FILTER_H__ */

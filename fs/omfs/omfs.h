@@ -9,39 +9,37 @@
 
 /* In-memory structures */
 struct omfs_sb_info {
-	u64 s_num_blocks;
-	u64 s_bitmap_ino;
-	u64 s_root_ino;
-	u32 s_blocksize;
-	u32 s_mirrors;
-	u32 s_sys_blocksize;
-	u32 s_clustersize;
-	int s_block_shift;
-	unsigned long **s_imap;
-	int s_imap_size;
-	struct mutex s_bitmap_lock;
-	kuid_t s_uid;
-	kgid_t s_gid;
-	int s_dmask;
-	int s_fmask;
+  u64 s_num_blocks;
+  u64 s_bitmap_ino;
+  u64 s_root_ino;
+  u32 s_blocksize;
+  u32 s_mirrors;
+  u32 s_sys_blocksize;
+  u32 s_clustersize;
+  int s_block_shift;
+  unsigned long **s_imap;
+  int s_imap_size;
+  struct mutex s_bitmap_lock;
+  kuid_t s_uid;
+  kgid_t s_gid;
+  int s_dmask;
+  int s_fmask;
 };
 
 /* convert a cluster number to a scaled block number */
-static inline sector_t clus_to_blk(struct omfs_sb_info *sbi, sector_t block)
-{
-	return block << sbi->s_block_shift;
+static inline sector_t clus_to_blk(struct omfs_sb_info *sbi, sector_t block) {
+  return block << sbi->s_block_shift;
 }
 
-static inline struct omfs_sb_info *OMFS_SB(struct super_block *sb)
-{
-	return sb->s_fs_info;
+static inline struct omfs_sb_info *OMFS_SB(struct super_block *sb) {
+  return sb->s_fs_info;
 }
 
 /* bitmap.c */
 extern unsigned long omfs_count_free(struct super_block *sb);
 extern int omfs_allocate_block(struct super_block *sb, u64 block);
 extern int omfs_allocate_range(struct super_block *sb, int min_request,
-			int max_request, u64 *return_block, int *return_size);
+    int max_request, u64 *return_block, int *return_size);
 extern int omfs_clear_range(struct super_block *sb, u64 block, int count);
 
 /* dir.c */
@@ -49,7 +47,7 @@ extern const struct file_operations omfs_dir_operations;
 extern const struct inode_operations omfs_dir_inops;
 extern int omfs_make_empty(struct inode *inode, struct super_block *sb);
 extern int omfs_is_bad(struct omfs_sb_info *sbi, struct omfs_header *header,
-			u64 fsblock);
+    u64 fsblock);
 
 /* file.c */
 extern const struct file_operations omfs_file_operations;

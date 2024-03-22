@@ -16,7 +16,7 @@
  * Same maximum frequency deviation on the slower side as in
  * sound/usb/endpoint.c. Value is expressed in per-mil deviation.
  */
-#define FBACK_SLOW_MAX	250
+#define FBACK_SLOW_MAX  250
 
 /*
  * Maximum frequency deviation on the faster side, default value for UAC1/2.
@@ -28,74 +28,70 @@
 
 /* Feature Unit parameters */
 struct uac_fu_params {
-	int id;			/* Feature Unit ID */
+  int id;     /* Feature Unit ID */
 
-	bool mute_present;	/* mute control enable */
+  bool mute_present;  /* mute control enable */
 
-	bool volume_present;	/* volume control enable */
-	s16 volume_min;		/* min volume in 1/256 dB */
-	s16 volume_max;		/* max volume in 1/256 dB */
-	s16 volume_res;		/* volume resolution in 1/256 dB */
+  bool volume_present;  /* volume control enable */
+  s16 volume_min;   /* min volume in 1/256 dB */
+  s16 volume_max;   /* max volume in 1/256 dB */
+  s16 volume_res;   /* volume resolution in 1/256 dB */
 };
 
 struct uac_params {
-	/* playback */
-	int p_chmask;	/* channel mask */
-	int p_srates[UAC_MAX_RATES];	/* available rates in Hz (0 terminated list) */
-	int p_ssize;	/* sample size */
-	struct uac_fu_params p_fu;	/* Feature Unit parameters */
+  /* playback */
+  int p_chmask; /* channel mask */
+  int p_srates[UAC_MAX_RATES];  /* available rates in Hz (0 terminated list) */
+  int p_ssize;  /* sample size */
+  struct uac_fu_params p_fu;  /* Feature Unit parameters */
 
-	/* capture */
-	int c_chmask;	/* channel mask */
-	int c_srates[UAC_MAX_RATES];	/* available rates in Hz (0 terminated list) */
-	int c_ssize;	/* sample size */
-	struct uac_fu_params c_fu;	/* Feature Unit parameters */
+  /* capture */
+  int c_chmask; /* channel mask */
+  int c_srates[UAC_MAX_RATES];  /* available rates in Hz (0 terminated list) */
+  int c_ssize;  /* sample size */
+  struct uac_fu_params c_fu;  /* Feature Unit parameters */
 
-	/* rates are dynamic, in uac_rtd_params */
+  /* rates are dynamic, in uac_rtd_params */
 
-	int req_number; /* number of preallocated requests */
-	int fb_max;	/* upper frequency drift feedback limit per-mil */
+  int req_number; /* number of preallocated requests */
+  int fb_max; /* upper frequency drift feedback limit per-mil */
 };
 
 struct g_audio {
-	struct usb_function func;
-	struct usb_gadget *gadget;
+  struct usb_function func;
+  struct usb_gadget *gadget;
 
-	struct usb_ep *in_ep;
+  struct usb_ep *in_ep;
 
-	struct usb_ep *out_ep;
-	/* feedback IN endpoint corresponding to out_ep */
-	struct usb_ep *in_ep_fback;
+  struct usb_ep *out_ep;
+  /* feedback IN endpoint corresponding to out_ep */
+  struct usb_ep *in_ep_fback;
 
-	/* Max packet size for all in_ep possible speeds */
-	unsigned int in_ep_maxpsize;
-	/* Max packet size for all out_ep possible speeds */
-	unsigned int out_ep_maxpsize;
+  /* Max packet size for all in_ep possible speeds */
+  unsigned int in_ep_maxpsize;
+  /* Max packet size for all out_ep possible speeds */
+  unsigned int out_ep_maxpsize;
 
-	/* Notify UAC driver about control change */
-	int (*notify)(struct g_audio *g_audio, int unit_id, int cs);
+  /* Notify UAC driver about control change */
+  int (*notify)(struct g_audio *g_audio, int unit_id, int cs);
 
-	/* The ALSA Sound Card it represents on the USB-Client side */
-	struct snd_uac_chip *uac;
+  /* The ALSA Sound Card it represents on the USB-Client side */
+  struct snd_uac_chip *uac;
 
-	struct uac_params params;
+  struct uac_params params;
 };
 
-static inline struct g_audio *func_to_g_audio(struct usb_function *f)
-{
-	return container_of(f, struct g_audio, func);
+static inline struct g_audio *func_to_g_audio(struct usb_function *f) {
+  return container_of(f, struct g_audio, func);
 }
 
-static inline uint num_channels(uint chanmask)
-{
-	uint num = 0;
-
-	while (chanmask) {
-		num += (chanmask & 1);
-		chanmask >>= 1;
-	}
-
-	return num;
+static inline uint num_channels(uint chanmask) {
+  uint num = 0;
+  while (chanmask) {
+    num += (chanmask & 1);
+    chanmask >>= 1;
+  }
+  return num;
 }
 
 /*
@@ -112,7 +108,7 @@ static inline uint num_channels(uint chanmask)
  * Returns zero on success, or a negative error on failure.
  */
 int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
-					const char *card_name);
+    const char *card_name);
 void g_audio_cleanup(struct g_audio *g_audio);
 
 int u_audio_start_capture(struct g_audio *g_audio);

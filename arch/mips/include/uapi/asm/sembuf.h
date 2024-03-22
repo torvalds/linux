@@ -15,21 +15,21 @@
 
 #ifdef __mips64
 struct semid64_ds {
-	struct ipc64_perm sem_perm;		/* permissions .. see ipc.h */
-	long		 sem_otime;		/* last semop time */
-	long		 sem_ctime;		/* last change time */
-	unsigned long	sem_nsems;		/* no. of semaphores in array */
-	unsigned long	__unused1;
-	unsigned long	__unused2;
+  struct ipc64_perm sem_perm;   /* permissions .. see ipc.h */
+  long sem_otime;   /* last semop time */
+  long sem_ctime;   /* last change time */
+  unsigned long sem_nsems;    /* no. of semaphores in array */
+  unsigned long __unused1;
+  unsigned long __unused2;
 };
 #else
 struct semid64_ds {
-	struct ipc64_perm sem_perm;		/* permissions .. see ipc.h */
-	unsigned long   sem_otime;		/* last semop time */
-	unsigned long   sem_ctime;		/* last change time */
-	unsigned long	sem_nsems;		/* no. of semaphores in array */
-	unsigned long	sem_otime_high;
-	unsigned long	sem_ctime_high;
+  struct ipc64_perm sem_perm;   /* permissions .. see ipc.h */
+  unsigned long sem_otime;    /* last semop time */
+  unsigned long sem_ctime;    /* last change time */
+  unsigned long sem_nsems;    /* no. of semaphores in array */
+  unsigned long sem_otime_high;
+  unsigned long sem_ctime_high;
 };
 #endif
 

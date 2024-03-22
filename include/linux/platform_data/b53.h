@@ -23,15 +23,15 @@
 #include <linux/platform_data/dsa.h>
 
 struct b53_platform_data {
-	/* Must be first such that dsa_register_switch() can access it */
-	struct dsa_chip_data cd;
+  /* Must be first such that dsa_register_switch() can access it */
+  struct dsa_chip_data cd;
 
-	u32 chip_id;
-	u16 enabled_ports;
+  u32 chip_id;
+  u16 enabled_ports;
 
-	/* only used by MMAP'd driver */
-	unsigned big_endian:1;
-	void __iomem *regs;
+  /* only used by MMAP'd driver */
+  unsigned big_endian : 1;
+  void __iomem *regs;
 };
 
 #endif

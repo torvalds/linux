@@ -25,8 +25,8 @@
  */
 
 struct ia_css_qplane_configuration {
-	const struct sh_css_sp_pipeline *pipe;
-	const struct ia_css_frame_info  *info;
+  const struct sh_css_sp_pipeline *pipe;
+  const struct ia_css_frame_info *info;
 };
 
 #endif /* __IA_CSS_QPLANE_TYPES_H */

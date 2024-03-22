@@ -2,9 +2,8 @@
 
 #include <linux/vmcore_info.h>
 
-void arch_crash_save_vmcoreinfo(void)
-{
+void arch_crash_save_vmcoreinfo(void) {
 #ifdef CONFIG_ARM_LPAE
-	VMCOREINFO_CONFIG(ARM_LPAE);
+  VMCOREINFO_CONFIG(ARM_LPAE);
 #endif
 }

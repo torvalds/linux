@@ -22,36 +22,34 @@
  ****************************************************************************/
 
 /****************************************************************************
- * PCI setup
- ****************************************************************************/
-static int __init mss2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	int irq;
-
-	/*
-	 * Check for devices with hard-wired IRQs.
-	 */
-	irq = orion5x_pci_map_irq(dev, slot, pin);
-	if (irq != -1)
-		return irq;
-
-	return -1;
+* PCI setup
+****************************************************************************/
+static int __init mss2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin) {
+  int irq;
+  /*
+   * Check for devices with hard-wired IRQs.
+   */
+  irq = orion5x_pci_map_irq(dev, slot, pin);
+  if (irq != -1) {
+    return irq;
+  }
+  return -1;
 }
 
 static struct hw_pci mss2_pci __initdata = {
-	.nr_controllers = 2,
-	.setup		= orion5x_pci_sys_setup,
-	.scan		= orion5x_pci_sys_scan_bus,
-	.map_irq	= mss2_pci_map_irq,
+  .nr_controllers = 2,
+  .setup = orion5x_pci_sys_setup,
+  .scan = orion5x_pci_sys_scan_bus,
+  .map_irq = mss2_pci_map_irq,
 };
 
-static int __init mss2_pci_init(void)
-{
-	if (machine_is_mss2())
-		pci_common_init(&mss2_pci);
-
-	return 0;
+static int __init mss2_pci_init(void) {
+  if (machine_is_mss2()) {
+    pci_common_init(&mss2_pci);
+  }
+  return 0;
 }
+
 subsys_initcall(mss2_pci_init);
 
 /*****************************************************************************
@@ -63,24 +61,20 @@ subsys_initcall(mss2_pci_init);
  * - The board reboots
  * - U-boot starts and go into an idle mode until the user press "power"
  */
-static void mss2_power_off(void)
-{
-	u32 reg;
-
-	/*
-	 * Enable and issue soft reset
-	 */
-	reg = readl(RSTOUTn_MASK);
-	reg |= 1 << 2;
-	writel(reg, RSTOUTn_MASK);
-
-	reg = readl(CPU_SOFT_RESET);
-	reg |= 1;
-	writel(reg, CPU_SOFT_RESET);
+static void mss2_power_off(void) {
+  u32 reg;
+  /*
+   * Enable and issue soft reset
+   */
+  reg = readl(RSTOUTn_MASK);
+  reg |= 1 << 2;
+  writel(reg, RSTOUTn_MASK);
+  reg = readl(CPU_SOFT_RESET);
+  reg |= 1;
+  writel(reg, CPU_SOFT_RESET);
 }
 
-void __init mss2_init(void)
-{
-	/* register mss2 specific power-off method */
-	pm_power_off = mss2_power_off;
+void __init mss2_init(void) {
+  /* register mss2 specific power-off method */
+  pm_power_off = mss2_power_off;
 }

@@ -5,8 +5,8 @@
  */
 
 /* Registers */
-#define HPLANCE_ID		0x01		/* DIO register: ID byte */
-#define HPLANCE_STATUS		0x03		/* DIO register: interrupt enable/status */
+#define HPLANCE_ID    0x01    /* DIO register: ID byte */
+#define HPLANCE_STATUS    0x03    /* DIO register: interrupt enable/status */
 
 /* Control and status bits for the status register */
 #define LE_IE 0x80                                /* interrupt enable */
@@ -24,4 +24,5 @@
 #define HPLANCE_IDOFF 0                           /* board baseaddr */
 #define HPLANCE_REGOFF 0x4000                     /* lance registers */
 #define HPLANCE_MEMOFF 0x8000                     /* struct lance_init_block */
-#define HPLANCE_NVRAMOFF 0xC008                   /* etheraddress as one *nibble* per byte */
+#define HPLANCE_NVRAMOFF 0xC008                   /* etheraddress as one
+                                                  * *nibble* per byte */

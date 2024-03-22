@@ -144,35 +144,35 @@
 #define WORKLOAD_PPLIB_COUNT              6
 
 typedef struct {
-	/* MP1_EXT_SCRATCH0 */
-	uint32_t CurrLevel_ACP     : 4;
-	uint32_t CurrLevel_ISP     : 4;
-	uint32_t CurrLevel_VCN     : 4;
-	uint32_t CurrLevel_LCLK    : 4;
-	uint32_t CurrLevel_MP0CLK  : 4;
-	uint32_t CurrLevel_FCLK    : 4;
-	uint32_t CurrLevel_SOCCLK  : 4;
-	uint32_t CurrLevel_DCEFCLK : 4;
-	/* MP1_EXT_SCRATCH1 */
-	uint32_t TargLevel_ACP     : 4;
-	uint32_t TargLevel_ISP     : 4;
-	uint32_t TargLevel_VCN     : 4;
-	uint32_t TargLevel_LCLK    : 4;
-	uint32_t TargLevel_MP0CLK  : 4;
-	uint32_t TargLevel_FCLK    : 4;
-	uint32_t TargLevel_SOCCLK  : 4;
-	uint32_t TargLevel_DCEFCLK : 4;
-	/* MP1_EXT_SCRATCH2 */
-	uint32_t CurrLevel_SHUBCLK  : 4;
-	uint32_t TargLevel_SHUBCLK  : 4;
-	uint32_t InUlv              : 1;
-	uint32_t InS0i2             : 1;
-	uint32_t InWhisperMode      : 1;
-	uint32_t Reserved           : 21;
-	/* MP1_EXT_SCRATCH3-4 */
-	uint32_t Reserved2[2];
-	/* MP1_EXT_SCRATCH5 */
-	uint32_t FeatureStatus[NUM_FEATURES / 32];
+  /* MP1_EXT_SCRATCH0 */
+  uint32_t CurrLevel_ACP     : 4;
+  uint32_t CurrLevel_ISP     : 4;
+  uint32_t CurrLevel_VCN     : 4;
+  uint32_t CurrLevel_LCLK    : 4;
+  uint32_t CurrLevel_MP0CLK  : 4;
+  uint32_t CurrLevel_FCLK    : 4;
+  uint32_t CurrLevel_SOCCLK  : 4;
+  uint32_t CurrLevel_DCEFCLK : 4;
+  /* MP1_EXT_SCRATCH1 */
+  uint32_t TargLevel_ACP     : 4;
+  uint32_t TargLevel_ISP     : 4;
+  uint32_t TargLevel_VCN     : 4;
+  uint32_t TargLevel_LCLK    : 4;
+  uint32_t TargLevel_MP0CLK  : 4;
+  uint32_t TargLevel_FCLK    : 4;
+  uint32_t TargLevel_SOCCLK  : 4;
+  uint32_t TargLevel_DCEFCLK : 4;
+  /* MP1_EXT_SCRATCH2 */
+  uint32_t CurrLevel_SHUBCLK  : 4;
+  uint32_t TargLevel_SHUBCLK  : 4;
+  uint32_t InUlv              : 1;
+  uint32_t InS0i2             : 1;
+  uint32_t InWhisperMode      : 1;
+  uint32_t Reserved           : 21;
+  /* MP1_EXT_SCRATCH3-4 */
+  uint32_t Reserved2[2];
+  /* MP1_EXT_SCRATCH5 */
+  uint32_t FeatureStatus[NUM_FEATURES / 32];
 } FwStatus_t;
 
 #define TABLE_BIOS_IF            0 /* Called by BIOS */

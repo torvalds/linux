@@ -7,15 +7,15 @@
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 void do_BUG(const char *file, int line);
-#define BUG() do {					\
-	do_BUG(__FILE__, __LINE__);			\
-	barrier_before_unreachable();			\
-	__builtin_trap();				\
+#define BUG() do {          \
+    do_BUG(__FILE__, __LINE__);     \
+    barrier_before_unreachable();     \
+    __builtin_trap();       \
 } while (0)
 #else
-#define BUG() do {					\
-	barrier_before_unreachable();			\
-	__builtin_trap();				\
+#define BUG() do {          \
+    barrier_before_unreachable();     \
+    __builtin_trap();       \
 } while (0)
 #endif
 

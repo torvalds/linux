@@ -13,19 +13,19 @@
 struct gpio_desc;
 
 struct expresswire_timing {
-	unsigned long poweroff_us;
-	unsigned long detect_delay_us;
-	unsigned long detect_us;
-	unsigned long data_start_us;
-	unsigned long end_of_data_low_us;
-	unsigned long end_of_data_high_us;
-	unsigned long short_bitset_us;
-	unsigned long long_bitset_us;
+  unsigned long poweroff_us;
+  unsigned long detect_delay_us;
+  unsigned long detect_us;
+  unsigned long data_start_us;
+  unsigned long end_of_data_low_us;
+  unsigned long end_of_data_high_us;
+  unsigned long short_bitset_us;
+  unsigned long long_bitset_us;
 };
 
 struct expresswire_common_props {
-	struct gpio_desc *ctrl_gpio;
-	struct expresswire_timing timing;
+  struct gpio_desc *ctrl_gpio;
+  struct expresswire_timing timing;
 };
 
 void expresswire_power_off(struct expresswire_common_props *props);

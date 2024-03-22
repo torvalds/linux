@@ -4,8 +4,8 @@
  * Copyright (C) 2018 Bootlin
  *
  * Author:
- *	Peter Pan <peterpandong@micron.com>
- *	Boris Brezillon <boris.brezillon@bootlin.com>
+ *  Peter Pan <peterpandong@micron.com>
+ *  Boris Brezillon <boris.brezillon@bootlin.com>
  */
 
 #ifndef __LINUX_SPI_MEM_H
@@ -13,78 +13,78 @@
 
 #include <linux/spi/spi.h>
 
-#define SPI_MEM_OP_CMD(__opcode, __buswidth)			\
-	{							\
-		.buswidth = __buswidth,				\
-		.opcode = __opcode,				\
-		.nbytes = 1,					\
-	}
+#define SPI_MEM_OP_CMD(__opcode, __buswidth)      \
+  {             \
+    .buswidth = __buswidth,       \
+    .opcode = __opcode,       \
+    .nbytes = 1,          \
+  }
 
-#define SPI_MEM_OP_ADDR(__nbytes, __val, __buswidth)		\
-	{							\
-		.nbytes = __nbytes,				\
-		.val = __val,					\
-		.buswidth = __buswidth,				\
-	}
+#define SPI_MEM_OP_ADDR(__nbytes, __val, __buswidth)    \
+  {             \
+    .nbytes = __nbytes,       \
+    .val = __val,         \
+    .buswidth = __buswidth,       \
+  }
 
-#define SPI_MEM_OP_NO_ADDR	{ }
+#define SPI_MEM_OP_NO_ADDR  {}
 
-#define SPI_MEM_OP_DUMMY(__nbytes, __buswidth)			\
-	{							\
-		.nbytes = __nbytes,				\
-		.buswidth = __buswidth,				\
-	}
+#define SPI_MEM_OP_DUMMY(__nbytes, __buswidth)      \
+  {             \
+    .nbytes = __nbytes,       \
+    .buswidth = __buswidth,       \
+  }
 
-#define SPI_MEM_OP_NO_DUMMY	{ }
+#define SPI_MEM_OP_NO_DUMMY {}
 
-#define SPI_MEM_OP_DATA_IN(__nbytes, __buf, __buswidth)		\
-	{							\
-		.dir = SPI_MEM_DATA_IN,				\
-		.nbytes = __nbytes,				\
-		.buf.in = __buf,				\
-		.buswidth = __buswidth,				\
-	}
+#define SPI_MEM_OP_DATA_IN(__nbytes, __buf, __buswidth)   \
+  {             \
+    .dir = SPI_MEM_DATA_IN,       \
+    .nbytes = __nbytes,       \
+    .buf.in = __buf,        \
+    .buswidth = __buswidth,       \
+  }
 
-#define SPI_MEM_OP_DATA_OUT(__nbytes, __buf, __buswidth)	\
-	{							\
-		.dir = SPI_MEM_DATA_OUT,			\
-		.nbytes = __nbytes,				\
-		.buf.out = __buf,				\
-		.buswidth = __buswidth,				\
-	}
+#define SPI_MEM_OP_DATA_OUT(__nbytes, __buf, __buswidth)  \
+  {             \
+    .dir = SPI_MEM_DATA_OUT,      \
+    .nbytes = __nbytes,       \
+    .buf.out = __buf,       \
+    .buswidth = __buswidth,       \
+  }
 
-#define SPI_MEM_OP_NO_DATA	{ }
+#define SPI_MEM_OP_NO_DATA  {}
 
 /**
  * enum spi_mem_data_dir - describes the direction of a SPI memory data
- *			   transfer from the controller perspective
+ *         transfer from the controller perspective
  * @SPI_MEM_NO_DATA: no data transferred
  * @SPI_MEM_DATA_IN: data coming from the SPI memory
  * @SPI_MEM_DATA_OUT: data sent to the SPI memory
  */
 enum spi_mem_data_dir {
-	SPI_MEM_NO_DATA,
-	SPI_MEM_DATA_IN,
-	SPI_MEM_DATA_OUT,
+  SPI_MEM_NO_DATA,
+  SPI_MEM_DATA_IN,
+  SPI_MEM_DATA_OUT,
 };
 
 /**
  * struct spi_mem_op - describes a SPI memory operation
  * @cmd.nbytes: number of opcode bytes (only 1 or 2 are valid). The opcode is
- *		sent MSB-first.
+ *    sent MSB-first.
  * @cmd.buswidth: number of IO lines used to transmit the command
  * @cmd.opcode: operation opcode
  * @cmd.dtr: whether the command opcode should be sent in DTR mode or not
  * @addr.nbytes: number of address bytes to send. Can be zero if the operation
- *		 does not need to send an address
+ *     does not need to send an address
  * @addr.buswidth: number of IO lines used to transmit the address cycles
  * @addr.dtr: whether the address should be sent in DTR mode or not
  * @addr.val: address value. This value is always sent MSB first on the bus.
- *	      Note that only @addr.nbytes are taken into account in this
- *	      address value, so users should make sure the value fits in the
- *	      assigned number of bytes.
+ *        Note that only @addr.nbytes are taken into account in this
+ *        address value, so users should make sure the value fits in the
+ *        assigned number of bytes.
  * @dummy.nbytes: number of dummy bytes to send after an opcode or address. Can
- *		  be zero if the operation does not require dummy bytes
+ *      be zero if the operation does not require dummy bytes
  * @dummy.buswidth: number of IO lanes used to transmit the dummy bytes
  * @dummy.dtr: whether the dummy bytes should be sent in DTR mode or not
  * @data.buswidth: number of IO lanes used to send/receive the data
@@ -92,60 +92,60 @@ enum spi_mem_data_dir {
  * @data.ecc: whether error correction is required or not
  * @data.dir: direction of the transfer
  * @data.nbytes: number of data bytes to send/receive. Can be zero if the
- *		 operation does not involve transferring data
+ *     operation does not involve transferring data
  * @data.buf.in: input buffer (must be DMA-able)
  * @data.buf.out: output buffer (must be DMA-able)
  */
 struct spi_mem_op {
-	struct {
-		u8 nbytes;
-		u8 buswidth;
-		u8 dtr : 1;
-		u8 __pad : 7;
-		u16 opcode;
-	} cmd;
+  struct {
+    u8 nbytes;
+    u8 buswidth;
+    u8 dtr : 1;
+    u8 __pad : 7;
+    u16 opcode;
+  } cmd;
 
-	struct {
-		u8 nbytes;
-		u8 buswidth;
-		u8 dtr : 1;
-		u8 __pad : 7;
-		u64 val;
-	} addr;
+  struct {
+    u8 nbytes;
+    u8 buswidth;
+    u8 dtr : 1;
+    u8 __pad : 7;
+    u64 val;
+  } addr;
 
-	struct {
-		u8 nbytes;
-		u8 buswidth;
-		u8 dtr : 1;
-		u8 __pad : 7;
-	} dummy;
+  struct {
+    u8 nbytes;
+    u8 buswidth;
+    u8 dtr : 1;
+    u8 __pad : 7;
+  } dummy;
 
-	struct {
-		u8 buswidth;
-		u8 dtr : 1;
-		u8 ecc : 1;
-		u8 __pad : 6;
-		enum spi_mem_data_dir dir;
-		unsigned int nbytes;
-		union {
-			void *in;
-			const void *out;
-		} buf;
-	} data;
+  struct {
+    u8 buswidth;
+    u8 dtr : 1;
+    u8 ecc : 1;
+    u8 __pad : 6;
+    enum spi_mem_data_dir dir;
+    unsigned int nbytes;
+    union {
+      void *in;
+      const void *out;
+    } buf;
+  } data;
 };
 
-#define SPI_MEM_OP(__cmd, __addr, __dummy, __data)		\
-	{							\
-		.cmd = __cmd,					\
-		.addr = __addr,					\
-		.dummy = __dummy,				\
-		.data = __data,					\
-	}
+#define SPI_MEM_OP(__cmd, __addr, __dummy, __data)    \
+  {             \
+    .cmd = __cmd,         \
+    .addr = __addr,         \
+    .dummy = __dummy,       \
+    .data = __data,         \
+  }
 
 /**
  * struct spi_mem_dirmap_info - Direct mapping information
  * @op_tmpl: operation template that should be used by the direct mapping when
- *	     the memory device is accessed
+ *       the memory device is accessed
  * @offset: absolute offset this direct mapping is pointing to
  * @length: length in byte of this direct mapping
  *
@@ -156,9 +156,9 @@ struct spi_mem_op {
  * direction is directly encoded in the ->op_tmpl.data.dir field.
  */
 struct spi_mem_dirmap_info {
-	struct spi_mem_op op_tmpl;
-	u64 offset;
-	u64 length;
+  struct spi_mem_op op_tmpl;
+  u64 offset;
+  u64 length;
 };
 
 /**
@@ -166,11 +166,11 @@ struct spi_mem_dirmap_info {
  * @mem: the SPI memory device this direct mapping is attached to
  * @info: information passed at direct mapping creation time
  * @nodirmap: set to 1 if the SPI controller does not implement
- *	      ->mem_ops->dirmap_create() or when this function returned an
- *	      error. If @nodirmap is true, all spi_mem_dirmap_{read,write}()
- *	      calls will use spi_mem_exec_op() to access the memory. This is a
- *	      degraded mode that allows spi_mem drivers to use the same code
- *	      no matter whether the controller supports direct mapping or not
+ *        ->mem_ops->dirmap_create() or when this function returned an
+ *        error. If @nodirmap is true, all spi_mem_dirmap_{read,write}()
+ *        calls will use spi_mem_exec_op() to access the memory. This is a
+ *        degraded mode that allows spi_mem drivers to use the same code
+ *        no matter whether the controller supports direct mapping or not
  * @priv: field pointing to controller specific data
  *
  * Common part of a direct mapping descriptor. This object is created by
@@ -179,10 +179,10 @@ struct spi_mem_dirmap_info {
  * field.
  */
 struct spi_mem_dirmap_desc {
-	struct spi_mem *mem;
-	struct spi_mem_dirmap_info info;
-	unsigned int nodirmap;
-	void *priv;
+  struct spi_mem *mem;
+  struct spi_mem_dirmap_info info;
+  unsigned int nodirmap;
+  void *priv;
 };
 
 /**
@@ -198,66 +198,64 @@ struct spi_mem_dirmap_desc {
  * mem devices through a io-mapped region.
  */
 struct spi_mem {
-	struct spi_device *spi;
-	void *drvpriv;
-	const char *name;
+  struct spi_device *spi;
+  void *drvpriv;
+  const char *name;
 };
 
 /**
  * struct spi_mem_set_drvdata() - attach driver private data to a SPI mem
- *				  device
+ *          device
  * @mem: memory device
  * @data: data to attach to the memory device
  */
-static inline void spi_mem_set_drvdata(struct spi_mem *mem, void *data)
-{
-	mem->drvpriv = data;
+static inline void spi_mem_set_drvdata(struct spi_mem *mem, void *data) {
+  mem->drvpriv = data;
 }
 
 /**
  * struct spi_mem_get_drvdata() - get driver private data attached to a SPI mem
- *				  device
+ *          device
  * @mem: memory device
  *
  * Return: the data attached to the mem device.
  */
-static inline void *spi_mem_get_drvdata(struct spi_mem *mem)
-{
-	return mem->drvpriv;
+static inline void *spi_mem_get_drvdata(struct spi_mem *mem) {
+  return mem->drvpriv;
 }
 
 /**
  * struct spi_controller_mem_ops - SPI memory operations
  * @adjust_op_size: shrink the data xfer of an operation to match controller's
- *		    limitations (can be alignment or max RX/TX size
- *		    limitations)
+ *        limitations (can be alignment or max RX/TX size
+ *        limitations)
  * @supports_op: check if an operation is supported by the controller
  * @exec_op: execute a SPI memory operation
  *           not all driver provides supports_op(), so it can return -EOPNOTSUPP
  *           if the op is not supported by the driver/controller
  * @get_name: get a custom name for the SPI mem device from the controller.
- *	      This might be needed if the controller driver has been ported
- *	      to use the SPI mem layer and a custom name is used to keep
- *	      mtdparts compatible.
- *	      Note that if the implementation of this function allocates memory
- *	      dynamically, then it should do so with devm_xxx(), as we don't
- *	      have a ->free_name() function.
+ *        This might be needed if the controller driver has been ported
+ *        to use the SPI mem layer and a custom name is used to keep
+ *        mtdparts compatible.
+ *        Note that if the implementation of this function allocates memory
+ *        dynamically, then it should do so with devm_xxx(), as we don't
+ *        have a ->free_name() function.
  * @dirmap_create: create a direct mapping descriptor that can later be used to
- *		   access the memory device. This method is optional
+ *       access the memory device. This method is optional
  * @dirmap_destroy: destroy a memory descriptor previous created by
- *		    ->dirmap_create()
+ *        ->dirmap_create()
  * @dirmap_read: read data from the memory device using the direct mapping
- *		 created by ->dirmap_create(). The function can return less
- *		 data than requested (for example when the request is crossing
- *		 the currently mapped area), and the caller of
- *		 spi_mem_dirmap_read() is responsible for calling it again in
- *		 this case.
+ *     created by ->dirmap_create(). The function can return less
+ *     data than requested (for example when the request is crossing
+ *     the currently mapped area), and the caller of
+ *     spi_mem_dirmap_read() is responsible for calling it again in
+ *     this case.
  * @dirmap_write: write data to the memory device using the direct mapping
- *		  created by ->dirmap_create(). The function can return less
- *		  data than requested (for example when the request is crossing
- *		  the currently mapped area), and the caller of
- *		  spi_mem_dirmap_write() is responsible for calling it again in
- *		  this case.
+ *      created by ->dirmap_create(). The function can return less
+ *      data than requested (for example when the request is crossing
+ *      the currently mapped area), and the caller of
+ *      spi_mem_dirmap_write() is responsible for calling it again in
+ *      this case.
  * @poll_status: poll memory device status until (status & mask) == match or
  *               when the timeout has expired. It fills the data buffer with
  *               the last status value.
@@ -273,24 +271,24 @@ static inline void *spi_mem_get_drvdata(struct spi_mem *mem)
  * use DMA to access this direct mapping.
  */
 struct spi_controller_mem_ops {
-	int (*adjust_op_size)(struct spi_mem *mem, struct spi_mem_op *op);
-	bool (*supports_op)(struct spi_mem *mem,
-			    const struct spi_mem_op *op);
-	int (*exec_op)(struct spi_mem *mem,
-		       const struct spi_mem_op *op);
-	const char *(*get_name)(struct spi_mem *mem);
-	int (*dirmap_create)(struct spi_mem_dirmap_desc *desc);
-	void (*dirmap_destroy)(struct spi_mem_dirmap_desc *desc);
-	ssize_t (*dirmap_read)(struct spi_mem_dirmap_desc *desc,
-			       u64 offs, size_t len, void *buf);
-	ssize_t (*dirmap_write)(struct spi_mem_dirmap_desc *desc,
-				u64 offs, size_t len, const void *buf);
-	int (*poll_status)(struct spi_mem *mem,
-			   const struct spi_mem_op *op,
-			   u16 mask, u16 match,
-			   unsigned long initial_delay_us,
-			   unsigned long polling_rate_us,
-			   unsigned long timeout_ms);
+  int (*adjust_op_size)(struct spi_mem *mem, struct spi_mem_op *op);
+  bool (*supports_op)(struct spi_mem *mem,
+      const struct spi_mem_op *op);
+  int (*exec_op)(struct spi_mem *mem,
+      const struct spi_mem_op *op);
+  const char *(*get_name)(struct spi_mem *mem);
+  int (*dirmap_create)(struct spi_mem_dirmap_desc *desc);
+  void (*dirmap_destroy)(struct spi_mem_dirmap_desc *desc);
+  ssize_t (*dirmap_read)(struct spi_mem_dirmap_desc *desc,
+      u64 offs, size_t len, void *buf);
+  ssize_t (*dirmap_write)(struct spi_mem_dirmap_desc *desc,
+      u64 offs, size_t len, const void *buf);
+  int (*poll_status)(struct spi_mem *mem,
+      const struct spi_mem_op *op,
+      u16 mask, u16 match,
+      unsigned long initial_delay_us,
+      unsigned long polling_rate_us,
+      unsigned long timeout_ms);
 };
 
 /**
@@ -299,18 +297,18 @@ struct spi_controller_mem_ops {
  * @ecc: Supports operations with error correction
  */
 struct spi_controller_mem_caps {
-	bool dtr;
-	bool ecc;
+  bool dtr;
+  bool ecc;
 };
 
-#define spi_mem_controller_is_capable(ctlr, cap)	\
-	((ctlr)->mem_caps && (ctlr)->mem_caps->cap)
+#define spi_mem_controller_is_capable(ctlr, cap)  \
+  ((ctlr)->mem_caps && (ctlr)->mem_caps->cap)
 
 /**
  * struct spi_mem_driver - SPI memory driver
  * @spidrv: inherit from a SPI driver
  * @probe: probe a SPI memory. Usually where detection/initialization takes
- *	   place
+ *     place
  * @remove: remove a SPI memory
  * @shutdown: take appropriate action when the system is shutdown
  *
@@ -323,88 +321,85 @@ struct spi_controller_mem_caps {
  * useless fields to the spi_device object.
  */
 struct spi_mem_driver {
-	struct spi_driver spidrv;
-	int (*probe)(struct spi_mem *mem);
-	int (*remove)(struct spi_mem *mem);
-	void (*shutdown)(struct spi_mem *mem);
+  struct spi_driver spidrv;
+  int (*probe)(struct spi_mem *mem);
+  int (*remove)(struct spi_mem *mem);
+  void (*shutdown)(struct spi_mem *mem);
 };
 
 #if IS_ENABLED(CONFIG_SPI_MEM)
 int spi_controller_dma_map_mem_op_data(struct spi_controller *ctlr,
-				       const struct spi_mem_op *op,
-				       struct sg_table *sg);
+    const struct spi_mem_op *op,
+    struct sg_table *sg);
 
 void spi_controller_dma_unmap_mem_op_data(struct spi_controller *ctlr,
-					  const struct spi_mem_op *op,
-					  struct sg_table *sg);
+    const struct spi_mem_op *op,
+    struct sg_table *sg);
 
 bool spi_mem_default_supports_op(struct spi_mem *mem,
-				 const struct spi_mem_op *op);
+    const struct spi_mem_op *op);
 #else
-static inline int
-spi_controller_dma_map_mem_op_data(struct spi_controller *ctlr,
-				   const struct spi_mem_op *op,
-				   struct sg_table *sg)
-{
-	return -ENOTSUPP;
+static inline int spi_controller_dma_map_mem_op_data(
+    struct spi_controller *ctlr,
+    const struct spi_mem_op *op,
+    struct sg_table *sg) {
+  return -ENOTSUPP;
 }
 
-static inline void
-spi_controller_dma_unmap_mem_op_data(struct spi_controller *ctlr,
-				     const struct spi_mem_op *op,
-				     struct sg_table *sg)
-{
+static inline void spi_controller_dma_unmap_mem_op_data(
+    struct spi_controller *ctlr,
+    const struct spi_mem_op *op,
+    struct sg_table *sg) {
 }
 
 static inline
 bool spi_mem_default_supports_op(struct spi_mem *mem,
-				 const struct spi_mem_op *op)
-{
-	return false;
+    const struct spi_mem_op *op) {
+  return false;
 }
+
 #endif /* CONFIG_SPI_MEM */
 
 int spi_mem_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op);
 
 bool spi_mem_supports_op(struct spi_mem *mem,
-			 const struct spi_mem_op *op);
+    const struct spi_mem_op *op);
 
 int spi_mem_exec_op(struct spi_mem *mem,
-		    const struct spi_mem_op *op);
+    const struct spi_mem_op *op);
 
 const char *spi_mem_get_name(struct spi_mem *mem);
 
-struct spi_mem_dirmap_desc *
-spi_mem_dirmap_create(struct spi_mem *mem,
-		      const struct spi_mem_dirmap_info *info);
+struct spi_mem_dirmap_desc *spi_mem_dirmap_create(struct spi_mem *mem,
+    const struct spi_mem_dirmap_info *info);
 void spi_mem_dirmap_destroy(struct spi_mem_dirmap_desc *desc);
 ssize_t spi_mem_dirmap_read(struct spi_mem_dirmap_desc *desc,
-			    u64 offs, size_t len, void *buf);
+    u64 offs, size_t len, void *buf);
 ssize_t spi_mem_dirmap_write(struct spi_mem_dirmap_desc *desc,
-			     u64 offs, size_t len, const void *buf);
-struct spi_mem_dirmap_desc *
-devm_spi_mem_dirmap_create(struct device *dev, struct spi_mem *mem,
-			   const struct spi_mem_dirmap_info *info);
+    u64 offs, size_t len, const void *buf);
+struct spi_mem_dirmap_desc *devm_spi_mem_dirmap_create(struct device *dev,
+    struct spi_mem *mem,
+    const struct spi_mem_dirmap_info *info);
 void devm_spi_mem_dirmap_destroy(struct device *dev,
-				 struct spi_mem_dirmap_desc *desc);
+    struct spi_mem_dirmap_desc *desc);
 
 int spi_mem_poll_status(struct spi_mem *mem,
-			const struct spi_mem_op *op,
-			u16 mask, u16 match,
-			unsigned long initial_delay_us,
-			unsigned long polling_delay_us,
-			u16 timeout_ms);
+    const struct spi_mem_op *op,
+    u16 mask, u16 match,
+    unsigned long initial_delay_us,
+    unsigned long polling_delay_us,
+    u16 timeout_ms);
 
 int spi_mem_driver_register_with_owner(struct spi_mem_driver *drv,
-				       struct module *owner);
+    struct module *owner);
 
 void spi_mem_driver_unregister(struct spi_mem_driver *drv);
 
 #define spi_mem_driver_register(__drv)                                  \
-	spi_mem_driver_register_with_owner(__drv, THIS_MODULE)
+  spi_mem_driver_register_with_owner(__drv, THIS_MODULE)
 
 #define module_spi_mem_driver(__drv)                                    \
-	module_driver(__drv, spi_mem_driver_register,                   \
-		      spi_mem_driver_unregister)
+  module_driver(__drv, spi_mem_driver_register,                   \
+    spi_mem_driver_unregister)
 
 #endif /* __LINUX_SPI_MEM_H */

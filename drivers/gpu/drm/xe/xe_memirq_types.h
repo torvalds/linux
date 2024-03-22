@@ -11,11 +11,11 @@
 struct xe_bo;
 
 /* ISR */
-#define XE_MEMIRQ_STATUS_OFFSET		0x0
+#define XE_MEMIRQ_STATUS_OFFSET   0x0
 /* IIR */
-#define XE_MEMIRQ_SOURCE_OFFSET		0x400
+#define XE_MEMIRQ_SOURCE_OFFSET   0x400
 /* IMR */
-#define XE_MEMIRQ_ENABLE_OFFSET		0x440
+#define XE_MEMIRQ_ENABLE_OFFSET   0x440
 
 /**
  * struct xe_memirq - Data used by the `Memory Based Interrupts`_.
@@ -27,11 +27,11 @@ struct xe_bo;
  * @enabled: internal flag used to control processing of the interrupts.
  */
 struct xe_memirq {
-	struct xe_bo *bo;
-	struct iosys_map source;
-	struct iosys_map status;
-	struct iosys_map mask;
-	bool enabled;
+  struct xe_bo *bo;
+  struct iosys_map source;
+  struct iosys_map status;
+  struct iosys_map mask;
+  bool enabled;
 };
 
 #endif

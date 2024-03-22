@@ -8,71 +8,78 @@
 
 extern char *lkdtm_kernel_info;
 
-#define pr_expected_config(kconfig)				\
-do {								\
-	if (IS_ENABLED(kconfig)) 				\
-		pr_err("Unexpected! This %s was built with " #kconfig "=y\n", \
-			lkdtm_kernel_info);			\
-	else							\
-		pr_warn("This is probably expected, since this %s was built *without* " #kconfig "=y\n", \
-			lkdtm_kernel_info);			\
-} while (0)
+#define pr_expected_config(kconfig)       \
+  do {                \
+    if (IS_ENABLED(kconfig))        \
+    pr_err("Unexpected! This %s was built with " #kconfig "=y\n", \
+    lkdtm_kernel_info);     \
+    else              \
+    pr_warn( \
+    "This is probably expected, since this %s was built *without* " #kconfig "=y\n", \
+    lkdtm_kernel_info);     \
+  } while (0)
 
 #ifndef MODULE
 int lkdtm_check_bool_cmdline(const char *param);
-#define pr_expected_config_param(kconfig, param)		\
-do {								\
-	if (IS_ENABLED(kconfig)) {				\
-		switch (lkdtm_check_bool_cmdline(param)) {	\
-		case 0:						\
-			pr_warn("This is probably expected, since this %s was built with " #kconfig "=y but booted with '" param "=N'\n", \
-				lkdtm_kernel_info);		\
-			break;					\
-		case 1:						\
-			pr_err("Unexpected! This %s was built with " #kconfig "=y and booted with '" param "=Y'\n", \
-				lkdtm_kernel_info);		\
-			break;					\
-		default:					\
-			pr_err("Unexpected! This %s was built with " #kconfig "=y (and booted without '" param "' specified)\n", \
-				lkdtm_kernel_info);		\
-		}						\
-	} else {						\
-		switch (lkdtm_check_bool_cmdline(param)) {	\
-		case 0:						\
-			pr_warn("This is probably expected, as this %s was built *without* " #kconfig "=y and booted with '" param "=N'\n", \
-				lkdtm_kernel_info);		\
-			break;					\
-		case 1:						\
-			pr_err("Unexpected! This %s was built *without* " #kconfig "=y but booted with '" param "=Y'\n", \
-				lkdtm_kernel_info);		\
-			break;					\
-		default:					\
-			pr_err("This is probably expected, since this %s was built *without* " #kconfig "=y (and booted without '" param "' specified)\n", \
-				lkdtm_kernel_info);		\
-			break;					\
-		}						\
-	}							\
-} while (0)
+#define pr_expected_config_param(kconfig, param)    \
+  do {                \
+    if (IS_ENABLED(kconfig)) {        \
+      switch (lkdtm_check_bool_cmdline(param)) {  \
+        case 0:           \
+          pr_warn( \
+    "This is probably expected, since this %s was built with " #kconfig "=y but booted with '" param "=N'\n", \
+    lkdtm_kernel_info);   \
+          break;          \
+        case 1:           \
+          pr_err( \
+    "Unexpected! This %s was built with " #kconfig "=y and booted with '" param "=Y'\n", \
+    lkdtm_kernel_info);   \
+          break;          \
+        default:          \
+          pr_err( \
+    "Unexpected! This %s was built with " #kconfig "=y (and booted without '" param "' specified)\n", \
+    lkdtm_kernel_info);   \
+      }           \
+    } else {            \
+      switch (lkdtm_check_bool_cmdline(param)) {  \
+        case 0:           \
+          pr_warn( \
+    "This is probably expected, as this %s was built *without* " #kconfig "=y and booted with '" param "=N'\n", \
+    lkdtm_kernel_info);   \
+          break;          \
+        case 1:           \
+          pr_err( \
+    "Unexpected! This %s was built *without* " #kconfig "=y but booted with '" param "=Y'\n", \
+    lkdtm_kernel_info);   \
+          break;          \
+        default:          \
+          pr_err( \
+    "This is probably expected, since this %s was built *without* " #kconfig "=y (and booted without '" param "' specified)\n", \
+    lkdtm_kernel_info);   \
+          break;          \
+      }           \
+    }             \
+  } while (0)
 #else
 #define pr_expected_config_param(kconfig, param) pr_expected_config(kconfig)
 #endif
 
 /* Crash types. */
 struct crashtype {
-	const char *name;
-	void (*func)(void);
+  const char *name;
+  void (*func)(void);
 };
 
-#define CRASHTYPE(_name)			\
-	{					\
-		.name = __stringify(_name),	\
-		.func = lkdtm_ ## _name,	\
-	}
+#define CRASHTYPE(_name)      \
+  {         \
+    .name = __stringify(_name), \
+    .func = lkdtm_ ## _name,  \
+  }
 
 /* Category's collection of crashtypes. */
 struct crashtype_category {
-	struct crashtype *crashtypes;
-	size_t len;
+  struct crashtype *crashtypes;
+  size_t len;
 };
 
 /* Each category's crashtypes list. */

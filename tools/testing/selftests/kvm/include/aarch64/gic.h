@@ -7,22 +7,22 @@
 #define SELFTEST_KVM_GIC_H
 
 enum gic_type {
-	GIC_V3,
-	GIC_TYPE_MAX,
+  GIC_V3,
+  GIC_TYPE_MAX,
 };
 
-#define MIN_SGI			0
-#define MIN_PPI			16
-#define MIN_SPI			32
-#define MAX_SPI			1019
-#define IAR_SPURIOUS		1023
+#define MIN_SGI     0
+#define MIN_PPI     16
+#define MIN_SPI     32
+#define MAX_SPI     1019
+#define IAR_SPURIOUS    1023
 
-#define INTID_IS_SGI(intid)	(0       <= (intid) && (intid) < MIN_PPI)
-#define INTID_IS_PPI(intid)	(MIN_PPI <= (intid) && (intid) < MIN_SPI)
-#define INTID_IS_SPI(intid)	(MIN_SPI <= (intid) && (intid) <= MAX_SPI)
+#define INTID_IS_SGI(intid) (0 <= (intid) && (intid) < MIN_PPI)
+#define INTID_IS_PPI(intid) (MIN_PPI <= (intid) && (intid) < MIN_SPI)
+#define INTID_IS_SPI(intid) (MIN_SPI <= (intid) && (intid) <= MAX_SPI)
 
 void gic_init(enum gic_type type, unsigned int nr_cpus,
-		void *dist_base, void *redist_base);
+    void *dist_base, void *redist_base);
 void gic_irq_enable(unsigned int intid);
 void gic_irq_disable(unsigned int intid);
 unsigned int gic_get_and_ack_irq(void);

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: MIT */
-/* Copyright (C) 2017 Oracle Corporation */
+/* SPDX-License-Identifier: MIT
+ * Copyright (C) 2017 Oracle Corporation*/
 
 #ifndef __UAPI_VBOX_ERR_H__
 #define __UAPI_VBOX_ERR_H__

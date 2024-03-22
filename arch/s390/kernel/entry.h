@@ -19,7 +19,8 @@ void mcck_int_handler(void);
 void restart_int_handler(void);
 void early_pgm_check_handler(void);
 
-struct task_struct *__switch_to_asm(struct task_struct *prev, struct task_struct *next);
+struct task_struct *__switch_to_asm(struct task_struct *prev,
+    struct task_struct *next);
 void __ret_from_fork(struct task_struct *prev, struct pt_regs *regs);
 void __do_pgm_check(struct pt_regs *regs);
 void __do_syscall(struct pt_regs *regs, int per_trap);
@@ -31,9 +32,9 @@ void do_secure_storage_access(struct pt_regs *regs);
 void do_non_secure_storage_access(struct pt_regs *regs);
 void do_secure_storage_violation(struct pt_regs *regs);
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str);
-void kernel_stack_overflow(struct pt_regs * regs);
+void kernel_stack_overflow(struct pt_regs *regs);
 void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
-		     struct pt_regs *regs);
+    struct pt_regs *regs);
 
 void do_io_irq(struct pt_regs *regs);
 void do_ext_irq(struct pt_regs *regs);
@@ -41,7 +42,8 @@ void do_restart(void *arg);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);
-unsigned long prepare_ftrace_return(unsigned long parent, unsigned long sp, unsigned long ip);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long sp,
+    unsigned long ip);
 
 struct s390_mmap_arg_struct;
 struct fadvise64_64_args;
@@ -55,7 +57,8 @@ long sys_s390_runtime_instr(int command, int signum);
 long sys_s390_guarded_storage(int command, struct gs_cb __user *);
 long sys_s390_pci_mmio_write(unsigned long, const void __user *, size_t);
 long sys_s390_pci_mmio_read(unsigned long, void __user *, size_t);
-long sys_s390_sthyi(unsigned long function_code, void __user *buffer, u64 __user *return_code, unsigned long flags);
+long sys_s390_sthyi(unsigned long function_code, void __user *buffer,
+    u64 __user *return_code, unsigned long flags);
 
 DECLARE_PER_CPU(u64, mt_cycles[8]);
 

@@ -40,8 +40,8 @@
 #ifdef CONFIG_HUGETLB_PAGE
 #define HPAGE_SHIFT 22
 #define HPAGE_SIZE (1UL << HPAGE_SHIFT)
-#define HPAGE_MASK (~(HPAGE_SIZE-1))
-#define HUGETLB_PAGE_ORDER (HPAGE_SHIFT-PAGE_SHIFT)
+#define HPAGE_MASK (~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER (HPAGE_SHIFT - PAGE_SHIFT)
 #define HVM_HUGEPAGE_SIZE 0x5
 #endif
 
@@ -62,9 +62,15 @@
  * Null intermediate page table level (pmd, pud) definitions will come from
  * asm-generic/pagetable-nopmd.h and asm-generic/pagetable-nopud.h
  */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct {
+  unsigned long pte;
+} pte_t;
+typedef struct {
+  unsigned long pgd;
+} pgd_t;
+typedef struct {
+  unsigned long pgprot;
+} pgprot_t;
 typedef struct page *pgtable_t;
 
 #define pte_val(x)     ((x).pte)
@@ -82,8 +88,8 @@ typedef struct page *pgtable_t;
  * MIPS says they're only used during mem_init.
  * also, check if we need a PHYS_OFFSET.
  */
-#define __pa(x) ((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
-#define __va(x) ((void *)((unsigned long)(x) - PHYS_OFFSET + PAGE_OFFSET))
+#define __pa(x) ((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __va(x) ((void *) ((unsigned long) (x) - PHYS_OFFSET + PAGE_OFFSET))
 
 /* The "page frame" descriptor is defined in linux/mm.h */
 struct page;
@@ -92,31 +98,30 @@ struct page;
 #define virt_to_page(kaddr) pfn_to_page(PFN_DOWN(__pa(kaddr)))
 
 /* Default vm area behavior is non-executable.  */
-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+#define VM_DATA_DEFAULT_FLAGS VM_DATA_FLAGS_NON_EXEC
 
 #define virt_addr_valid(kaddr) pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 /*  Need to not use a define for linesize; may move this to another file.  */
-static inline void clear_page(void *page)
-{
-	/*  This can only be done on pages with L1 WB cache */
-	asm volatile(
-		"	loop0(1f,%1);\n"
-		"1:	{ dczeroa(%0);\n"
-		"	  %0 = add(%0,#32); }:endloop0\n"
-		: "+r" (page)
-		: "r" (PAGE_SIZE/32)
-		: "lc0", "sa0", "memory"
-	);
+static inline void clear_page(void *page) {
+  /*  This can only be done on pages with L1 WB cache */
+  asm volatile (
+    "	loop0(1f,%1);\n"
+    "1:	{ dczeroa(%0);\n"
+    "	  %0 = add(%0,#32); }:endloop0\n"
+    : "+r" (page)
+    : "r" (PAGE_SIZE / 32)
+    : "lc0", "sa0", "memory"
+    );
 }
 
-#define copy_page(to, from)	memcpy((to), (from), PAGE_SIZE)
+#define copy_page(to, from) memcpy((to), (from), PAGE_SIZE)
 
 /*
  * Under assumption that kernel always "sees" user map...
  */
-#define clear_user_page(page, vaddr, pg)	clear_page(page)
-#define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
+#define clear_user_page(page, vaddr, pg)  clear_page(page)
+#define copy_user_page(to, from, vaddr, pg) copy_page(to, from)
 
 /*
  * page_to_phys - convert page to physical address
@@ -124,12 +129,11 @@ static inline void clear_page(void *page)
  */
 #define page_to_phys(page)      (page_to_pfn(page) << PAGE_SHIFT)
 
-static inline unsigned long virt_to_pfn(const void *kaddr)
-{
-	return __pa(kaddr) >> PAGE_SHIFT;
+static inline unsigned long virt_to_pfn(const void *kaddr) {
+  return __pa(kaddr) >> PAGE_SHIFT;
 }
 
-#define page_to_virt(page)	__va(page_to_phys(page))
+#define page_to_virt(page)  __va(page_to_phys(page))
 
 #include <asm/mem-layout.h>
 #include <asm-generic/memory_model.h>

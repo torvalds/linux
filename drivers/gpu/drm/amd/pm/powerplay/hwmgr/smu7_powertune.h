@@ -49,7 +49,6 @@
 #define ixDIDT_TCP_STALL_CTRL 0x0064
 #define ixDIDT_TCP_TUNING_CTRL 0x0065
 
-
 int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr);
 int smu7_disable_smc_cac(struct pp_hwmgr *hwmgr);
 int smu7_enable_power_containment(struct pp_hwmgr *hwmgr);
@@ -59,4 +58,3 @@ int smu7_power_control_set_level(struct pp_hwmgr *hwmgr);
 int smu7_enable_didt_config(struct pp_hwmgr *hwmgr);
 int smu7_disable_didt_config(struct pp_hwmgr *hwmgr);
 #endif  /* DGPU_POWERTUNE_H */
-

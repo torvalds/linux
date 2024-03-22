@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018-2021, Mellanox Technologies inc.  All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+ * Copyright (c) 2018-2021, Mellanox Technologies inc.  All rights reserved.*/
 
 #ifndef __LIB_MLX5_EQ_H__
 #define __LIB_MLX5_EQ_H__
@@ -10,69 +10,63 @@
 #define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
 
 struct mlx5_eq_tasklet {
-	struct list_head      list;
-	struct list_head      process_list;
-	struct tasklet_struct task;
-	spinlock_t            lock; /* lock completion tasklet list */
+  struct list_head list;
+  struct list_head process_list;
+  struct tasklet_struct task;
+  spinlock_t lock; /* lock completion tasklet list */
 };
 
 struct mlx5_cq_table {
-	spinlock_t              lock;	/* protect radix tree */
-	struct radix_tree_root  tree;
+  spinlock_t lock; /* protect radix tree */
+  struct radix_tree_root tree;
 };
 
 struct mlx5_eq {
-	struct mlx5_frag_buf_ctrl fbc;
-	struct mlx5_frag_buf    frag_buf;
-	struct mlx5_core_dev    *dev;
-	struct mlx5_cq_table    cq_table;
-	__be32 __iomem	        *doorbell;
-	u32                     cons_index;
-	unsigned int            vecidx;
-	unsigned int            irqn;
-	u8                      eqn;
-	struct mlx5_rsc_debug   *dbg;
-	struct mlx5_irq         *irq;
+  struct mlx5_frag_buf_ctrl fbc;
+  struct mlx5_frag_buf frag_buf;
+  struct mlx5_core_dev *dev;
+  struct mlx5_cq_table cq_table;
+  __be32 __iomem *doorbell;
+  u32 cons_index;
+  unsigned int vecidx;
+  unsigned int irqn;
+  u8 eqn;
+  struct mlx5_rsc_debug *dbg;
+  struct mlx5_irq *irq;
 };
 
 struct mlx5_eq_async {
-	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
-	spinlock_t              lock; /* To avoid irq EQ handle races with resiliency flows */
+  struct mlx5_eq core;
+  struct notifier_block irq_nb;
+  spinlock_t lock; /* To avoid irq EQ handle races with resiliency flows */
 };
 
 struct mlx5_eq_comp {
-	struct mlx5_eq          core;
-	struct notifier_block   irq_nb;
-	struct mlx5_eq_tasklet  tasklet_ctx;
-	struct list_head        list;
+  struct mlx5_eq core;
+  struct notifier_block irq_nb;
+  struct mlx5_eq_tasklet tasklet_ctx;
+  struct list_head list;
 };
 
-static inline u32 eq_get_size(struct mlx5_eq *eq)
-{
-	return eq->fbc.sz_m1 + 1;
+static inline u32 eq_get_size(struct mlx5_eq *eq) {
+  return eq->fbc.sz_m1 + 1;
 }
 
-static inline struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry)
-{
-	return mlx5_frag_buf_get_wqe(&eq->fbc, entry);
+static inline struct mlx5_eqe *get_eqe(struct mlx5_eq *eq, u32 entry) {
+  return mlx5_frag_buf_get_wqe(&eq->fbc, entry);
 }
 
-static inline struct mlx5_eqe *next_eqe_sw(struct mlx5_eq *eq)
-{
-	struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & eq->fbc.sz_m1);
-
-	return (eqe->owner ^ (eq->cons_index >> eq->fbc.log_sz)) & 1 ? NULL : eqe;
+static inline struct mlx5_eqe *next_eqe_sw(struct mlx5_eq *eq) {
+  struct mlx5_eqe *eqe = get_eqe(eq, eq->cons_index & eq->fbc.sz_m1);
+  return (eqe->owner ^ (eq->cons_index >> eq->fbc.log_sz)) & 1 ? NULL : eqe;
 }
 
-static inline void eq_update_ci(struct mlx5_eq *eq, int arm)
-{
-	__be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
-	u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
-
-	__raw_writel((__force u32)cpu_to_be32(val), addr);
-	/* We still want ordering, just not swabbing, so add a barrier */
-	mb();
+static inline void eq_update_ci(struct mlx5_eq *eq, int arm) {
+  __be32 __iomem *addr = eq->doorbell + (arm ? 0 : 2);
+  u32 val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
+  __raw_writel((__force u32) cpu_to_be32(val), addr);
+  /* We still want ordering, just not swabbing, so add a barrier */
+  mb();
 }
 
 int mlx5_eq_table_init(struct mlx5_core_dev *dev);
@@ -103,6 +97,7 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev);
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev);
 #endif
 
-int mlx5_comp_irqn_get(struct mlx5_core_dev *dev, int vector, unsigned int *irqn);
+int mlx5_comp_irqn_get(struct mlx5_core_dev *dev, int vector,
+    unsigned int *irqn);
 
 #endif

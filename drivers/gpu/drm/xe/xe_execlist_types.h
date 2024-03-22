@@ -16,34 +16,34 @@ struct xe_hw_engine;
 struct xe_execlist_exec_queue;
 
 struct xe_execlist_port {
-	struct xe_hw_engine *hwe;
+  struct xe_hw_engine *hwe;
 
-	spinlock_t lock;
+  spinlock_t lock;
 
-	struct list_head active[XE_EXEC_QUEUE_PRIORITY_COUNT];
+  struct list_head active[XE_EXEC_QUEUE_PRIORITY_COUNT];
 
-	u32 last_ctx_id;
+  u32 last_ctx_id;
 
-	struct xe_execlist_exec_queue *running_exl;
+  struct xe_execlist_exec_queue *running_exl;
 
-	struct timer_list irq_fail;
+  struct timer_list irq_fail;
 };
 
 struct xe_execlist_exec_queue {
-	struct xe_exec_queue *q;
+  struct xe_exec_queue *q;
 
-	struct drm_gpu_scheduler sched;
+  struct drm_gpu_scheduler sched;
 
-	struct drm_sched_entity entity;
+  struct drm_sched_entity entity;
 
-	struct xe_execlist_port *port;
+  struct xe_execlist_port *port;
 
-	bool has_run;
+  bool has_run;
 
-	struct work_struct fini_async;
+  struct work_struct fini_async;
 
-	enum xe_exec_queue_priority active_priority;
-	struct list_head active_link;
+  enum xe_exec_queue_priority active_priority;
+  struct list_head active_link;
 };
 
 #endif

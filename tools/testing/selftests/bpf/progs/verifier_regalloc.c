@@ -8,23 +8,23 @@
 #define MAX_ENTRIES 11
 
 struct test_val {
-	unsigned int index;
-	int foo[MAX_ENTRIES];
+  unsigned int index;
+  int foo[MAX_ENTRIES];
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, struct test_val);
 } map_hash_48b SEC(".maps");
 
 SEC("tracepoint")
 __description("regalloc basic")
 __success __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_basic(void)
-{
-	asm volatile ("					\
+__naked void regalloc_basic(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -42,19 +42,19 @@ __naked void regalloc_basic(void)
 	r7 += r2;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc negative")
 __failure __msg("invalid access to map value, value_size=48 off=48 size=1")
-__naked void regalloc_negative(void)
-{
-	asm volatile ("					\
+__naked void regalloc_negative(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -72,19 +72,19 @@ __naked void regalloc_negative(void)
 	r7 += r2;					\
 	r0 = *(u8*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc src_reg mark")
 __success __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_src_reg_mark(void)
-{
-	asm volatile ("					\
+__naked void regalloc_src_reg_mark(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -103,20 +103,20 @@ __naked void regalloc_src_reg_mark(void)
 	r7 += r2;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc src_reg negative")
 __failure __msg("invalid access to map value, value_size=48 off=44 size=8")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_src_reg_negative(void)
-{
-	asm volatile ("					\
+__naked void regalloc_src_reg_negative(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -135,19 +135,19 @@ __naked void regalloc_src_reg_negative(void)
 	r7 += r2;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc and spill")
 __success __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_and_spill(void)
-{
-	asm volatile ("					\
+__naked void regalloc_and_spill(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -170,20 +170,20 @@ __naked void regalloc_and_spill(void)
 	r7 += r3;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc and spill negative")
 __failure __msg("invalid access to map value, value_size=48 off=48 size=8")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_and_spill_negative(void)
-{
-	asm volatile ("					\
+__naked void regalloc_and_spill_negative(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -206,19 +206,19 @@ __naked void regalloc_and_spill_negative(void)
 	r7 += r3;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc three regs")
 __success __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_three_regs(void)
-{
-	asm volatile ("					\
+__naked void regalloc_three_regs(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -238,19 +238,19 @@ __naked void regalloc_three_regs(void)
 	r7 += r4;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc after call")
 __success __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_after_call(void)
-{
-	asm volatile ("					\
+__naked void regalloc_after_call(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -270,28 +270,27 @@ __naked void regalloc_after_call(void)
 	r7 += r9;					\
 	r0 = *(u64*)(r7 + 0);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 static __naked __noinline __attribute__((used))
-void regalloc_after_call__1(void)
-{
-	asm volatile ("					\
+void regalloc_after_call__1(void) {
+  asm volatile ("					\
 	r0 = 0;						\
 	exit;						\
-"	::: __clobber_all);
+" ::: __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc in callee")
 __success __flag(BPF_F_ANY_ALIGNMENT)
-__naked void regalloc_in_callee(void)
-{
-	asm volatile ("					\
+__naked void regalloc_in_callee(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -307,17 +306,17 @@ __naked void regalloc_in_callee(void)
 	r3 = r7;					\
 	call regalloc_in_callee__1;			\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 static __naked __noinline __attribute__((used))
-void regalloc_in_callee__1(void)
-{
-	asm volatile ("					\
+void regalloc_in_callee__1(void) {
+  asm volatile (
+    "					\
 	if r1 s> 20 goto l0_%=;				\
 	if r2 s< 0 goto l0_%=;				\
 	r3 += r1;					\
@@ -326,15 +325,15 @@ void regalloc_in_callee__1(void)
 	exit;						\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	::: __clobber_all);
+" ::: __clobber_all);
 }
 
 SEC("tracepoint")
 __description("regalloc, spill, JEQ")
 __success
-__naked void regalloc_spill_jeq(void)
-{
-	asm volatile ("					\
+__naked void regalloc_spill_jeq(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -354,11 +353,11 @@ l1_%=:	/* The verifier will walk the rest two more times with r0 == 20 and r0 ==
 	/* Buggy verifier will think that r3 == 20 here */\
 	r0 = *(u64*)(r3 + 0);		/* read from map_value */\
 l2_%=:	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

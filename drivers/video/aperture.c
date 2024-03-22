@@ -31,32 +31,32 @@
  *
  * .. code-block:: c
  *
- *	static int example_probe(struct platform_device *pdev)
- *	{
- *		struct resource *mem;
- *		resource_size_t base, size;
- *		int ret;
+ *  static int example_probe(struct platform_device *pdev)
+ *  {
+ *    struct resource *mem;
+ *    resource_size_t base, size;
+ *    int ret;
  *
- *		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
- *		if (!mem)
- *			return -ENODEV;
- *		base = mem->start;
- *		size = resource_size(mem);
+ *    mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ *    if (!mem)
+ *      return -ENODEV;
+ *    base = mem->start;
+ *    size = resource_size(mem);
  *
- *		ret = aperture_remove_conflicting_devices(base, size, "example");
- *		if (ret)
- *			return ret;
+ *    ret = aperture_remove_conflicting_devices(base, size, "example");
+ *    if (ret)
+ *      return ret;
  *
- *		// Initialize the hardware
- *		...
+ *    // Initialize the hardware
+ *    ...
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
- *	static const struct platform_driver example_driver = {
- *		.probe = example_probe,
- *		...
- *	};
+ *  static const struct platform_driver example_driver = {
+ *    .probe = example_probe,
+ *    ...
+ *  };
  *
  * The given example reads the platform device's I/O-memory range from the
  * device instance. An active framebuffer will be located within this range.
@@ -81,40 +81,40 @@
  *
  * .. code-block:: c
  *
- *	static int generic_probe(struct platform_device *pdev)
- *	{
- *		struct resource *mem;
- *		resource_size_t base, size;
+ *  static int generic_probe(struct platform_device *pdev)
+ *  {
+ *    struct resource *mem;
+ *    resource_size_t base, size;
  *
- *		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
- *		if (!mem)
- *			return -ENODEV;
- *		base = mem->start;
- *		size = resource_size(mem);
+ *    mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+ *    if (!mem)
+ *      return -ENODEV;
+ *    base = mem->start;
+ *    size = resource_size(mem);
  *
- *		ret = devm_aperture_acquire_for_platform_device(pdev, base, size);
- *		if (ret)
- *			return ret;
+ *    ret = devm_aperture_acquire_for_platform_device(pdev, base, size);
+ *    if (ret)
+ *      return ret;
  *
- *		// Initialize the hardware
- *		...
+ *    // Initialize the hardware
+ *    ...
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
- *	static int generic_remove(struct platform_device *)
- *	{
- *		// Hot-unplug the device
- *		...
+ *  static int generic_remove(struct platform_device *)
+ *  {
+ *    // Hot-unplug the device
+ *    ...
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
- *	static const struct platform_driver generic_driver = {
- *		.probe = generic_probe,
- *		.remove = generic_remove,
- *		...
- *	};
+ *  static const struct platform_driver generic_driver = {
+ *    .probe = generic_probe,
+ *    .remove = generic_remove,
+ *    ...
+ *  };
  *
  * The similar to the previous example, the generic driver claims ownership
  * of the framebuffer memory from its probe function. This will fail if the
@@ -131,97 +131,84 @@
  */
 
 struct aperture_range {
-	struct device *dev;
-	resource_size_t base;
-	resource_size_t size;
-	struct list_head lh;
-	void (*detach)(struct device *dev);
+  struct device *dev;
+  resource_size_t base;
+  resource_size_t size;
+  struct list_head lh;
+  void (*detach)(struct device *dev);
 };
 
 static LIST_HEAD(apertures);
 static DEFINE_MUTEX(apertures_lock);
 
 static bool overlap(resource_size_t base1, resource_size_t end1,
-		    resource_size_t base2, resource_size_t end2)
-{
-	return (base1 < end2) && (end1 > base2);
+    resource_size_t base2, resource_size_t end2) {
+  return (base1 < end2) && (end1 > base2);
 }
 
-static void devm_aperture_acquire_release(void *data)
-{
-	struct aperture_range *ap = data;
-	bool detached = !ap->dev;
-
-	if (detached)
-		return;
-
-	mutex_lock(&apertures_lock);
-	list_del(&ap->lh);
-	mutex_unlock(&apertures_lock);
+static void devm_aperture_acquire_release(void *data) {
+  struct aperture_range *ap = data;
+  bool detached = !ap->dev;
+  if (detached) {
+    return;
+  }
+  mutex_lock(&apertures_lock);
+  list_del(&ap->lh);
+  mutex_unlock(&apertures_lock);
 }
 
 static int devm_aperture_acquire(struct device *dev,
-				 resource_size_t base, resource_size_t size,
-				 void (*detach)(struct device *))
-{
-	size_t end = base + size;
-	struct list_head *pos;
-	struct aperture_range *ap;
-
-	mutex_lock(&apertures_lock);
-
-	list_for_each(pos, &apertures) {
-		ap = container_of(pos, struct aperture_range, lh);
-		if (overlap(base, end, ap->base, ap->base + ap->size)) {
-			mutex_unlock(&apertures_lock);
-			return -EBUSY;
-		}
-	}
-
-	ap = devm_kzalloc(dev, sizeof(*ap), GFP_KERNEL);
-	if (!ap) {
-		mutex_unlock(&apertures_lock);
-		return -ENOMEM;
-	}
-
-	ap->dev = dev;
-	ap->base = base;
-	ap->size = size;
-	ap->detach = detach;
-	INIT_LIST_HEAD(&ap->lh);
-
-	list_add(&ap->lh, &apertures);
-
-	mutex_unlock(&apertures_lock);
-
-	return devm_add_action_or_reset(dev, devm_aperture_acquire_release, ap);
+    resource_size_t base, resource_size_t size,
+    void (*detach)(struct device *)) {
+  size_t end = base + size;
+  struct list_head *pos;
+  struct aperture_range *ap;
+  mutex_lock(&apertures_lock);
+  list_for_each(pos, &apertures) {
+    ap = container_of(pos, struct aperture_range, lh);
+    if (overlap(base, end, ap->base, ap->base + ap->size)) {
+      mutex_unlock(&apertures_lock);
+      return -EBUSY;
+    }
+  }
+  ap = devm_kzalloc(dev, sizeof(*ap), GFP_KERNEL);
+  if (!ap) {
+    mutex_unlock(&apertures_lock);
+    return -ENOMEM;
+  }
+  ap->dev = dev;
+  ap->base = base;
+  ap->size = size;
+  ap->detach = detach;
+  INIT_LIST_HEAD(&ap->lh);
+  list_add(&ap->lh, &apertures);
+  mutex_unlock(&apertures_lock);
+  return devm_add_action_or_reset(dev, devm_aperture_acquire_release, ap);
 }
 
-static void aperture_detach_platform_device(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	/*
-	 * Remove the device from the device hierarchy. This is the right thing
-	 * to do for firmware-based fb drivers, such as EFI, VESA or VGA. After
-	 * the new driver takes over the hardware, the firmware device's state
-	 * will be lost.
-	 *
-	 * For non-platform devices, a new callback would be required.
-	 *
-	 * If the aperture helpers ever need to handle native drivers, this call
-	 * would only have to unplug the DRM device, so that the hardware device
-	 * stays around after detachment.
-	 */
-	platform_device_unregister(pdev);
+static void aperture_detach_platform_device(struct device *dev) {
+  struct platform_device *pdev = to_platform_device(dev);
+  /*
+   * Remove the device from the device hierarchy. This is the right thing
+   * to do for firmware-based fb drivers, such as EFI, VESA or VGA. After
+   * the new driver takes over the hardware, the firmware device's state
+   * will be lost.
+   *
+   * For non-platform devices, a new callback would be required.
+   *
+   * If the aperture helpers ever need to handle native drivers, this call
+   * would only have to unplug the DRM device, so that the hardware device
+   * stays around after detachment.
+   */
+  platform_device_unregister(pdev);
 }
 
 /**
  * devm_aperture_acquire_for_platform_device - Acquires ownership of an aperture
  *                                             on behalf of a platform device.
- * @pdev:	the platform device to own the aperture
- * @base:	the aperture's byte offset in physical memory
- * @size:	the aperture size in bytes
+ * @pdev: the platform device to own the aperture
+ * @base: the aperture's byte offset in physical memory
+ * @size: the aperture size in bytes
  *
  * Installs the given device as the new owner of the aperture. The function
  * expects the aperture to be provided by a platform device. If another
@@ -237,37 +224,33 @@ static void aperture_detach_platform_device(struct device *dev)
  * 0 on success, or a negative errno value otherwise.
  */
 int devm_aperture_acquire_for_platform_device(struct platform_device *pdev,
-					      resource_size_t base,
-					      resource_size_t size)
-{
-	return devm_aperture_acquire(&pdev->dev, base, size, aperture_detach_platform_device);
+    resource_size_t base,
+    resource_size_t size) {
+  return devm_aperture_acquire(&pdev->dev, base, size,
+      aperture_detach_platform_device);
 }
+
 EXPORT_SYMBOL(devm_aperture_acquire_for_platform_device);
 
-static void aperture_detach_devices(resource_size_t base, resource_size_t size)
-{
-	resource_size_t end = base + size;
-	struct list_head *pos, *n;
-
-	mutex_lock(&apertures_lock);
-
-	list_for_each_safe(pos, n, &apertures) {
-		struct aperture_range *ap = container_of(pos, struct aperture_range, lh);
-		struct device *dev = ap->dev;
-
-		if (WARN_ON_ONCE(!dev))
-			continue;
-
-		if (!overlap(base, end, ap->base, ap->base + ap->size))
-			continue;
-
-		ap->dev = NULL; /* detach from device */
-		list_del(&ap->lh);
-
-		ap->detach(dev);
-	}
-
-	mutex_unlock(&apertures_lock);
+static void aperture_detach_devices(resource_size_t base,
+    resource_size_t size) {
+  resource_size_t end = base + size;
+  struct list_head *pos, *n;
+  mutex_lock(&apertures_lock);
+  list_for_each_safe(pos, n, &apertures) {
+    struct aperture_range *ap = container_of(pos, struct aperture_range, lh);
+    struct device *dev = ap->dev;
+    if (WARN_ON_ONCE(!dev)) {
+      continue;
+    }
+    if (!overlap(base, end, ap->base, ap->base + ap->size)) {
+      continue;
+    }
+    ap->dev = NULL; /* detach from device */
+    list_del(&ap->lh);
+    ap->detach(dev);
+  }
+  mutex_unlock(&apertures_lock);
 }
 
 /**
@@ -281,28 +264,28 @@ static void aperture_detach_devices(resource_size_t base, resource_size_t size)
  * Returns:
  * 0 on success, or a negative errno code otherwise
  */
-int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t size,
-					const char *name)
-{
-	/*
-	 * If a driver asked to unregister a platform device registered by
-	 * sysfb, then can be assumed that this is a driver for a display
-	 * that is set up by the system firmware and has a generic driver.
-	 *
-	 * Drivers for devices that don't have a generic driver will never
-	 * ask for this, so let's assume that a real driver for the display
-	 * was already probed and prevent sysfb to register devices later.
-	 */
-	sysfb_disable();
-
-	aperture_detach_devices(base, size);
-
-	return 0;
+int aperture_remove_conflicting_devices(resource_size_t base,
+    resource_size_t size,
+    const char *name) {
+  /*
+   * If a driver asked to unregister a platform device registered by
+   * sysfb, then can be assumed that this is a driver for a display
+   * that is set up by the system firmware and has a generic driver.
+   *
+   * Drivers for devices that don't have a generic driver will never
+   * ask for this, so let's assume that a real driver for the display
+   * was already probed and prevent sysfb to register devices later.
+   */
+  sysfb_disable();
+  aperture_detach_devices(base, size);
+  return 0;
 }
+
 EXPORT_SYMBOL(aperture_remove_conflicting_devices);
 
 /**
- * __aperture_remove_legacy_vga_devices - remove legacy VGA devices of a PCI devices
+ * __aperture_remove_legacy_vga_devices - remove legacy VGA devices of a PCI
+ *devices
  * @pdev: PCI device
  *
  * This function removes VGA devices provided by @pdev, such as a VGA
@@ -322,18 +305,18 @@ EXPORT_SYMBOL(aperture_remove_conflicting_devices);
  * Returns:
  * 0 on success, or a negative errno code otherwise
  */
-int __aperture_remove_legacy_vga_devices(struct pci_dev *pdev)
-{
-	/* VGA framebuffer */
-	aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
-
-	/* VGA textmode console */
-	return vga_remove_vgacon(pdev);
+int __aperture_remove_legacy_vga_devices(struct pci_dev *pdev) {
+  /* VGA framebuffer */
+  aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
+  /* VGA textmode console */
+  return vga_remove_vgacon(pdev);
 }
+
 EXPORT_SYMBOL(__aperture_remove_legacy_vga_devices);
 
 /**
- * aperture_remove_conflicting_pci_devices - remove existing framebuffers for PCI devices
+ * aperture_remove_conflicting_pci_devices - remove existing framebuffers for
+ *PCI devices
  * @pdev: PCI device
  * @name: a descriptive name of the requesting driver
  *
@@ -344,36 +327,34 @@ EXPORT_SYMBOL(__aperture_remove_legacy_vga_devices);
  * Returns:
  * 0 on success, or a negative errno code otherwise
  */
-int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev, const char *name)
-{
-	bool primary = false;
-	resource_size_t base, size;
-	int bar, ret = 0;
-
-	if (pdev == vga_default_device())
-		primary = true;
-
-	if (primary)
-		sysfb_disable();
-
-	for (bar = 0; bar < PCI_STD_NUM_BARS; ++bar) {
-		if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM))
-			continue;
-
-		base = pci_resource_start(pdev, bar);
-		size = pci_resource_len(pdev, bar);
-		aperture_detach_devices(base, size);
-	}
-
-	/*
-	 * If this is the primary adapter, there could be a VGA device
-	 * that consumes the VGA framebuffer I/O range. Remove this
-	 * device as well.
-	 */
-	if (primary)
-		ret = __aperture_remove_legacy_vga_devices(pdev);
-
-	return ret;
-
+int aperture_remove_conflicting_pci_devices(struct pci_dev *pdev,
+    const char *name) {
+  bool primary = false;
+  resource_size_t base, size;
+  int bar, ret = 0;
+  if (pdev == vga_default_device()) {
+    primary = true;
+  }
+  if (primary) {
+    sysfb_disable();
+  }
+  for (bar = 0; bar < PCI_STD_NUM_BARS; ++bar) {
+    if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
+      continue;
+    }
+    base = pci_resource_start(pdev, bar);
+    size = pci_resource_len(pdev, bar);
+    aperture_detach_devices(base, size);
+  }
+  /*
+   * If this is the primary adapter, there could be a VGA device
+   * that consumes the VGA framebuffer I/O range. Remove this
+   * device as well.
+   */
+  if (primary) {
+    ret = __aperture_remove_legacy_vga_devices(pdev);
+  }
+  return ret;
 }
+
 EXPORT_SYMBOL(aperture_remove_conflicting_pci_devices);

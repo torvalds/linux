@@ -12,19 +12,19 @@
 
 #include "tb.h"
 
-#define NVM_MIN_SIZE		SZ_32K
-#define NVM_MAX_SIZE		SZ_1M
-#define NVM_DATA_DWORDS		16
+#define NVM_MIN_SIZE    SZ_32K
+#define NVM_MAX_SIZE    SZ_1M
+#define NVM_DATA_DWORDS   16
 
 /* Intel specific NVM offsets */
-#define INTEL_NVM_DEVID			0x05
-#define INTEL_NVM_VERSION		0x08
-#define INTEL_NVM_CSS			0x10
-#define INTEL_NVM_FLASH_SIZE		0x45
+#define INTEL_NVM_DEVID     0x05
+#define INTEL_NVM_VERSION   0x08
+#define INTEL_NVM_CSS     0x10
+#define INTEL_NVM_FLASH_SIZE    0x45
 
 /* ASMedia specific NVM offsets */
-#define ASMEDIA_NVM_DATE		0x1c
-#define ASMEDIA_NVM_VERSION		0x28
+#define ASMEDIA_NVM_DATE    0x1c
+#define ASMEDIA_NVM_VERSION   0x28
 
 static DEFINE_IDA(nvm_ida);
 
@@ -35,9 +35,9 @@ static DEFINE_IDA(nvm_ida);
  * @write_headers: Writes headers before the rest of the image (optional)
  */
 struct tb_nvm_vendor_ops {
-	int (*read_version)(struct tb_nvm *nvm);
-	int (*validate)(struct tb_nvm *nvm);
-	int (*write_headers)(struct tb_nvm *nvm);
+  int (*read_version)(struct tb_nvm *nvm);
+  int (*validate)(struct tb_nvm *nvm);
+  int (*write_headers)(struct tb_nvm *nvm);
 };
 
 /**
@@ -49,229 +49,205 @@ struct tb_nvm_vendor_ops {
  * NVM firmware upgrade is disabled for the device.
  */
 struct tb_nvm_vendor {
-	u16 vendor;
-	const struct tb_nvm_vendor_ops *vops;
+  u16 vendor;
+  const struct tb_nvm_vendor_ops *vops;
 };
 
-static int intel_switch_nvm_version(struct tb_nvm *nvm)
-{
-	struct tb_switch *sw = tb_to_switch(nvm->dev);
-	u32 val, nvm_size, hdr_size;
-	int ret;
-
-	/*
-	 * If the switch is in safe-mode the only accessible portion of
-	 * the NVM is the non-active one where userspace is expected to
-	 * write new functional NVM.
-	 */
-	if (sw->safe_mode)
-		return 0;
-
-	ret = tb_switch_nvm_read(sw, INTEL_NVM_FLASH_SIZE, &val, sizeof(val));
-	if (ret)
-		return ret;
-
-	hdr_size = sw->generation < 3 ? SZ_8K : SZ_16K;
-	nvm_size = (SZ_1M << (val & 7)) / 8;
-	nvm_size = (nvm_size - hdr_size) / 2;
-
-	ret = tb_switch_nvm_read(sw, INTEL_NVM_VERSION, &val, sizeof(val));
-	if (ret)
-		return ret;
-
-	nvm->major = (val >> 16) & 0xff;
-	nvm->minor = (val >> 8) & 0xff;
-	nvm->active_size = nvm_size;
-
-	return 0;
+static int intel_switch_nvm_version(struct tb_nvm *nvm) {
+  struct tb_switch *sw = tb_to_switch(nvm->dev);
+  u32 val, nvm_size, hdr_size;
+  int ret;
+  /*
+   * If the switch is in safe-mode the only accessible portion of
+   * the NVM is the non-active one where userspace is expected to
+   * write new functional NVM.
+   */
+  if (sw->safe_mode) {
+    return 0;
+  }
+  ret = tb_switch_nvm_read(sw, INTEL_NVM_FLASH_SIZE, &val, sizeof(val));
+  if (ret) {
+    return ret;
+  }
+  hdr_size = sw->generation < 3 ? SZ_8K : SZ_16K;
+  nvm_size = (SZ_1M << (val & 7)) / 8;
+  nvm_size = (nvm_size - hdr_size) / 2;
+  ret = tb_switch_nvm_read(sw, INTEL_NVM_VERSION, &val, sizeof(val));
+  if (ret) {
+    return ret;
+  }
+  nvm->major = (val >> 16) & 0xff;
+  nvm->minor = (val >> 8) & 0xff;
+  nvm->active_size = nvm_size;
+  return 0;
 }
 
-static int intel_switch_nvm_validate(struct tb_nvm *nvm)
-{
-	struct tb_switch *sw = tb_to_switch(nvm->dev);
-	unsigned int image_size, hdr_size;
-	u16 ds_size, device_id;
-	u8 *buf = nvm->buf;
-
-	image_size = nvm->buf_data_size;
-
-	/*
-	 * FARB pointer must point inside the image and must at least
-	 * contain parts of the digital section we will be reading here.
-	 */
-	hdr_size = (*(u32 *)buf) & 0xffffff;
-	if (hdr_size + INTEL_NVM_DEVID + 2 >= image_size)
-		return -EINVAL;
-
-	/* Digital section start should be aligned to 4k page */
-	if (!IS_ALIGNED(hdr_size, SZ_4K))
-		return -EINVAL;
-
-	/*
-	 * Read digital section size and check that it also fits inside
-	 * the image.
-	 */
-	ds_size = *(u16 *)(buf + hdr_size);
-	if (ds_size >= image_size)
-		return -EINVAL;
-
-	if (sw->safe_mode)
-		return 0;
-
-	/*
-	 * Make sure the device ID in the image matches the one
-	 * we read from the switch config space.
-	 */
-	device_id = *(u16 *)(buf + hdr_size + INTEL_NVM_DEVID);
-	if (device_id != sw->config.device_id)
-		return -EINVAL;
-
-	/* Skip headers in the image */
-	nvm->buf_data_start = buf + hdr_size;
-	nvm->buf_data_size = image_size - hdr_size;
-
-	return 0;
+static int intel_switch_nvm_validate(struct tb_nvm *nvm) {
+  struct tb_switch *sw = tb_to_switch(nvm->dev);
+  unsigned int image_size, hdr_size;
+  u16 ds_size, device_id;
+  u8 *buf = nvm->buf;
+  image_size = nvm->buf_data_size;
+  /*
+   * FARB pointer must point inside the image and must at least
+   * contain parts of the digital section we will be reading here.
+   */
+  hdr_size = (*(u32 *) buf) & 0xffffff;
+  if (hdr_size + INTEL_NVM_DEVID + 2 >= image_size) {
+    return -EINVAL;
+  }
+  /* Digital section start should be aligned to 4k page */
+  if (!IS_ALIGNED(hdr_size, SZ_4K)) {
+    return -EINVAL;
+  }
+  /*
+   * Read digital section size and check that it also fits inside
+   * the image.
+   */
+  ds_size = *(u16 *) (buf + hdr_size);
+  if (ds_size >= image_size) {
+    return -EINVAL;
+  }
+  if (sw->safe_mode) {
+    return 0;
+  }
+  /*
+   * Make sure the device ID in the image matches the one
+   * we read from the switch config space.
+   */
+  device_id = *(u16 *) (buf + hdr_size + INTEL_NVM_DEVID);
+  if (device_id != sw->config.device_id) {
+    return -EINVAL;
+  }
+  /* Skip headers in the image */
+  nvm->buf_data_start = buf + hdr_size;
+  nvm->buf_data_size = image_size - hdr_size;
+  return 0;
 }
 
-static int intel_switch_nvm_write_headers(struct tb_nvm *nvm)
-{
-	struct tb_switch *sw = tb_to_switch(nvm->dev);
-
-	if (sw->generation < 3) {
-		int ret;
-
-		/* Write CSS headers first */
-		ret = dma_port_flash_write(sw->dma_port,
-			DMA_PORT_CSS_ADDRESS, nvm->buf + INTEL_NVM_CSS,
-			DMA_PORT_CSS_MAX_SIZE);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+static int intel_switch_nvm_write_headers(struct tb_nvm *nvm) {
+  struct tb_switch *sw = tb_to_switch(nvm->dev);
+  if (sw->generation < 3) {
+    int ret;
+    /* Write CSS headers first */
+    ret = dma_port_flash_write(sw->dma_port,
+        DMA_PORT_CSS_ADDRESS, nvm->buf + INTEL_NVM_CSS,
+        DMA_PORT_CSS_MAX_SIZE);
+    if (ret) {
+      return ret;
+    }
+  }
+  return 0;
 }
 
 static const struct tb_nvm_vendor_ops intel_switch_nvm_ops = {
-	.read_version = intel_switch_nvm_version,
-	.validate = intel_switch_nvm_validate,
-	.write_headers = intel_switch_nvm_write_headers,
+  .read_version = intel_switch_nvm_version,
+  .validate = intel_switch_nvm_validate,
+  .write_headers = intel_switch_nvm_write_headers,
 };
 
-static int asmedia_switch_nvm_version(struct tb_nvm *nvm)
-{
-	struct tb_switch *sw = tb_to_switch(nvm->dev);
-	u32 val;
-	int ret;
-
-	ret = tb_switch_nvm_read(sw, ASMEDIA_NVM_VERSION, &val, sizeof(val));
-	if (ret)
-		return ret;
-
-	nvm->major = (val << 16) & 0xff0000;
-	nvm->major |= val & 0x00ff00;
-	nvm->major |= (val >> 16) & 0x0000ff;
-
-	ret = tb_switch_nvm_read(sw, ASMEDIA_NVM_DATE, &val, sizeof(val));
-	if (ret)
-		return ret;
-
-	nvm->minor = (val << 16) & 0xff0000;
-	nvm->minor |= val & 0x00ff00;
-	nvm->minor |= (val >> 16) & 0x0000ff;
-
-	/* ASMedia NVM size is fixed to 512k */
-	nvm->active_size = SZ_512K;
-
-	return 0;
+static int asmedia_switch_nvm_version(struct tb_nvm *nvm) {
+  struct tb_switch *sw = tb_to_switch(nvm->dev);
+  u32 val;
+  int ret;
+  ret = tb_switch_nvm_read(sw, ASMEDIA_NVM_VERSION, &val, sizeof(val));
+  if (ret) {
+    return ret;
+  }
+  nvm->major = (val << 16) & 0xff0000;
+  nvm->major |= val & 0x00ff00;
+  nvm->major |= (val >> 16) & 0x0000ff;
+  ret = tb_switch_nvm_read(sw, ASMEDIA_NVM_DATE, &val, sizeof(val));
+  if (ret) {
+    return ret;
+  }
+  nvm->minor = (val << 16) & 0xff0000;
+  nvm->minor |= val & 0x00ff00;
+  nvm->minor |= (val >> 16) & 0x0000ff;
+  /* ASMedia NVM size is fixed to 512k */
+  nvm->active_size = SZ_512K;
+  return 0;
 }
 
 static const struct tb_nvm_vendor_ops asmedia_switch_nvm_ops = {
-	.read_version = asmedia_switch_nvm_version,
+  .read_version = asmedia_switch_nvm_version,
 };
 
 /* Router vendor NVM support table */
 static const struct tb_nvm_vendor switch_nvm_vendors[] = {
-	{ 0x174c, &asmedia_switch_nvm_ops },
-	{ PCI_VENDOR_ID_INTEL, &intel_switch_nvm_ops },
-	{ 0x8087, &intel_switch_nvm_ops },
+  { 0x174c, &asmedia_switch_nvm_ops },
+  { PCI_VENDOR_ID_INTEL, &intel_switch_nvm_ops },
+  { 0x8087, &intel_switch_nvm_ops },
 };
 
-static int intel_retimer_nvm_version(struct tb_nvm *nvm)
-{
-	struct tb_retimer *rt = tb_to_retimer(nvm->dev);
-	u32 val, nvm_size;
-	int ret;
-
-	ret = tb_retimer_nvm_read(rt, INTEL_NVM_VERSION, &val, sizeof(val));
-	if (ret)
-		return ret;
-
-	nvm->major = (val >> 16) & 0xff;
-	nvm->minor = (val >> 8) & 0xff;
-
-	ret = tb_retimer_nvm_read(rt, INTEL_NVM_FLASH_SIZE, &val, sizeof(val));
-	if (ret)
-		return ret;
-
-	nvm_size = (SZ_1M << (val & 7)) / 8;
-	nvm_size = (nvm_size - SZ_16K) / 2;
-	nvm->active_size = nvm_size;
-
-	return 0;
+static int intel_retimer_nvm_version(struct tb_nvm *nvm) {
+  struct tb_retimer *rt = tb_to_retimer(nvm->dev);
+  u32 val, nvm_size;
+  int ret;
+  ret = tb_retimer_nvm_read(rt, INTEL_NVM_VERSION, &val, sizeof(val));
+  if (ret) {
+    return ret;
+  }
+  nvm->major = (val >> 16) & 0xff;
+  nvm->minor = (val >> 8) & 0xff;
+  ret = tb_retimer_nvm_read(rt, INTEL_NVM_FLASH_SIZE, &val, sizeof(val));
+  if (ret) {
+    return ret;
+  }
+  nvm_size = (SZ_1M << (val & 7)) / 8;
+  nvm_size = (nvm_size - SZ_16K) / 2;
+  nvm->active_size = nvm_size;
+  return 0;
 }
 
-static int intel_retimer_nvm_validate(struct tb_nvm *nvm)
-{
-	struct tb_retimer *rt = tb_to_retimer(nvm->dev);
-	unsigned int image_size, hdr_size;
-	u8 *buf = nvm->buf;
-	u16 ds_size, device;
-
-	image_size = nvm->buf_data_size;
-
-	/*
-	 * FARB pointer must point inside the image and must at least
-	 * contain parts of the digital section we will be reading here.
-	 */
-	hdr_size = (*(u32 *)buf) & 0xffffff;
-	if (hdr_size + INTEL_NVM_DEVID + 2 >= image_size)
-		return -EINVAL;
-
-	/* Digital section start should be aligned to 4k page */
-	if (!IS_ALIGNED(hdr_size, SZ_4K))
-		return -EINVAL;
-
-	/*
-	 * Read digital section size and check that it also fits inside
-	 * the image.
-	 */
-	ds_size = *(u16 *)(buf + hdr_size);
-	if (ds_size >= image_size)
-		return -EINVAL;
-
-	/*
-	 * Make sure the device ID in the image matches the retimer
-	 * hardware.
-	 */
-	device = *(u16 *)(buf + hdr_size + INTEL_NVM_DEVID);
-	if (device != rt->device)
-		return -EINVAL;
-
-	/* Skip headers in the image */
-	nvm->buf_data_start = buf + hdr_size;
-	nvm->buf_data_size = image_size - hdr_size;
-
-	return 0;
+static int intel_retimer_nvm_validate(struct tb_nvm *nvm) {
+  struct tb_retimer *rt = tb_to_retimer(nvm->dev);
+  unsigned int image_size, hdr_size;
+  u8 *buf = nvm->buf;
+  u16 ds_size, device;
+  image_size = nvm->buf_data_size;
+  /*
+   * FARB pointer must point inside the image and must at least
+   * contain parts of the digital section we will be reading here.
+   */
+  hdr_size = (*(u32 *) buf) & 0xffffff;
+  if (hdr_size + INTEL_NVM_DEVID + 2 >= image_size) {
+    return -EINVAL;
+  }
+  /* Digital section start should be aligned to 4k page */
+  if (!IS_ALIGNED(hdr_size, SZ_4K)) {
+    return -EINVAL;
+  }
+  /*
+   * Read digital section size and check that it also fits inside
+   * the image.
+   */
+  ds_size = *(u16 *) (buf + hdr_size);
+  if (ds_size >= image_size) {
+    return -EINVAL;
+  }
+  /*
+   * Make sure the device ID in the image matches the retimer
+   * hardware.
+   */
+  device = *(u16 *) (buf + hdr_size + INTEL_NVM_DEVID);
+  if (device != rt->device) {
+    return -EINVAL;
+  }
+  /* Skip headers in the image */
+  nvm->buf_data_start = buf + hdr_size;
+  nvm->buf_data_size = image_size - hdr_size;
+  return 0;
 }
 
 static const struct tb_nvm_vendor_ops intel_retimer_nvm_ops = {
-	.read_version = intel_retimer_nvm_version,
-	.validate = intel_retimer_nvm_validate,
+  .read_version = intel_retimer_nvm_version,
+  .validate = intel_retimer_nvm_validate,
 };
 
 /* Retimer vendor NVM support table */
 static const struct tb_nvm_vendor retimer_nvm_vendors[] = {
-	{ 0x8087, &intel_retimer_nvm_ops },
+  { 0x8087, &intel_retimer_nvm_ops },
 };
 
 /**
@@ -282,65 +258,54 @@ static const struct tb_nvm_vendor retimer_nvm_vendors[] = {
  * of error returns ERR_PTR(). Specifically returns %-EOPNOTSUPP if the
  * NVM format of the @dev is not known by the kernel.
  */
-struct tb_nvm *tb_nvm_alloc(struct device *dev)
-{
-	const struct tb_nvm_vendor_ops *vops = NULL;
-	struct tb_nvm *nvm;
-	int ret, i;
-
-	if (tb_is_switch(dev)) {
-		const struct tb_switch *sw = tb_to_switch(dev);
-
-		for (i = 0; i < ARRAY_SIZE(switch_nvm_vendors); i++) {
-			const struct tb_nvm_vendor *v = &switch_nvm_vendors[i];
-
-			if (v->vendor == sw->config.vendor_id) {
-				vops = v->vops;
-				break;
-			}
-		}
-
-		if (!vops) {
-			tb_sw_dbg(sw, "router NVM format of vendor %#x unknown\n",
-				  sw->config.vendor_id);
-			return ERR_PTR(-EOPNOTSUPP);
-		}
-	} else if (tb_is_retimer(dev)) {
-		const struct tb_retimer *rt = tb_to_retimer(dev);
-
-		for (i = 0; i < ARRAY_SIZE(retimer_nvm_vendors); i++) {
-			const struct tb_nvm_vendor *v = &retimer_nvm_vendors[i];
-
-			if (v->vendor == rt->vendor) {
-				vops = v->vops;
-				break;
-			}
-		}
-
-		if (!vops) {
-			dev_dbg(dev, "retimer NVM format of vendor %#x unknown\n",
-				rt->vendor);
-			return ERR_PTR(-EOPNOTSUPP);
-		}
-	} else {
-		return ERR_PTR(-EOPNOTSUPP);
-	}
-
-	nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
-	if (!nvm)
-		return ERR_PTR(-ENOMEM);
-
-	ret = ida_alloc(&nvm_ida, GFP_KERNEL);
-	if (ret < 0) {
-		kfree(nvm);
-		return ERR_PTR(ret);
-	}
-
-	nvm->id = ret;
-	nvm->dev = dev;
-	nvm->vops = vops;
-
-	return nvm;
+struct tb_nvm *tb_nvm_alloc(struct device *dev) {
+  const struct tb_nvm_vendor_ops *vops = NULL;
+  struct tb_nvm *nvm;
+  int ret, i;
+  if (tb_is_switch(dev)) {
+    const struct tb_switch *sw = tb_to_switch(dev);
+    for (i = 0; i < ARRAY_SIZE(switch_nvm_vendors); i++) {
+      const struct tb_nvm_vendor *v = &switch_nvm_vendors[i];
+      if (v->vendor == sw->config.vendor_id) {
+        vops = v->vops;
+        break;
+      }
+    }
+    if (!vops) {
+      tb_sw_dbg(sw, "router NVM format of vendor %#x unknown\n",
+          sw->config.vendor_id);
+      return ERR_PTR(-EOPNOTSUPP);
+    }
+  } else if (tb_is_retimer(dev)) {
+    const struct tb_retimer *rt = tb_to_retimer(dev);
+    for (i = 0; i < ARRAY_SIZE(retimer_nvm_vendors); i++) {
+      const struct tb_nvm_vendor *v = &retimer_nvm_vendors[i];
+      if (v->vendor == rt->vendor) {
+        vops = v->vops;
+        break;
+      }
+    }
+    if (!vops) {
+      dev_dbg(dev, "retimer NVM format of vendor %#x unknown\n",
+          rt->vendor);
+      return ERR_PTR(-EOPNOTSUPP);
+    }
+  } else {
+    return ERR_PTR(-EOPNOTSUPP);
+  }
+  nvm = kzalloc(sizeof(*nvm), GFP_KERNEL);
+  if (!nvm) {
+    return ERR_PTR(-ENOMEM);
+  }
+  ret = ida_alloc(&nvm_ida, GFP_KERNEL);
+  if (ret < 0) {
+    kfree(nvm);
+    return ERR_PTR(ret);
+  }
+  nvm->id = ret;
+  nvm->dev = dev;
+  nvm->vops = vops;
+  return nvm;
 }
 
 /**
@@ -351,14 +316,12 @@ struct tb_nvm *tb_nvm_alloc(struct device *dev)
  * active NVM version. Returns %0 in case of success and negative errno
  * otherwise.
  */
-int tb_nvm_read_version(struct tb_nvm *nvm)
-{
-	const struct tb_nvm_vendor_ops *vops = nvm->vops;
-
-	if (vops && vops->read_version)
-		return vops->read_version(nvm);
-
-	return -EOPNOTSUPP;
+int tb_nvm_read_version(struct tb_nvm *nvm) {
+  const struct tb_nvm_vendor_ops *vops = nvm->vops;
+  if (vops && vops->read_version) {
+    return vops->read_version(nvm);
+  }
+  return -EOPNOTSUPP;
 }
 
 /**
@@ -372,29 +335,27 @@ int tb_nvm_read_version(struct tb_nvm *nvm)
  *
  * If the validation does not pass then returns negative errno.
  */
-int tb_nvm_validate(struct tb_nvm *nvm)
-{
-	const struct tb_nvm_vendor_ops *vops = nvm->vops;
-	unsigned int image_size;
-	u8 *buf = nvm->buf;
-
-	if (!buf)
-		return -EINVAL;
-	if (!vops)
-		return -EOPNOTSUPP;
-
-	/* Just do basic image size checks */
-	image_size = nvm->buf_data_size;
-	if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE)
-		return -EINVAL;
-
-	/*
-	 * Set the default data start in the buffer. The validate method
-	 * below can change this if needed.
-	 */
-	nvm->buf_data_start = buf;
-
-	return vops->validate ? vops->validate(nvm) : 0;
+int tb_nvm_validate(struct tb_nvm *nvm) {
+  const struct tb_nvm_vendor_ops *vops = nvm->vops;
+  unsigned int image_size;
+  u8 *buf = nvm->buf;
+  if (!buf) {
+    return -EINVAL;
+  }
+  if (!vops) {
+    return -EOPNOTSUPP;
+  }
+  /* Just do basic image size checks */
+  image_size = nvm->buf_data_size;
+  if (image_size < NVM_MIN_SIZE || image_size > NVM_MAX_SIZE) {
+    return -EINVAL;
+  }
+  /*
+   * Set the default data start in the buffer. The validate method
+   * below can change this if needed.
+   */
+  nvm->buf_data_start = buf;
+  return vops->validate ? vops->validate(nvm) : 0;
 }
 
 /**
@@ -407,48 +368,42 @@ int tb_nvm_validate(struct tb_nvm *nvm)
  *
  * Returns %0 in case of success and negative errno otherwise.
  */
-int tb_nvm_write_headers(struct tb_nvm *nvm)
-{
-	const struct tb_nvm_vendor_ops *vops = nvm->vops;
-
-	return vops->write_headers ? vops->write_headers(nvm) : 0;
+int tb_nvm_write_headers(struct tb_nvm *nvm) {
+  const struct tb_nvm_vendor_ops *vops = nvm->vops;
+  return vops->write_headers ? vops->write_headers(nvm) : 0;
 }
 
 /**
  * tb_nvm_add_active() - Adds active NVMem device to NVM
  * @nvm: NVM structure
  * @reg_read: Pointer to the function to read the NVM (passed directly to the
- *	      NVMem device)
+ *        NVMem device)
  *
  * Registers new active NVmem device for @nvm. The @reg_read is called
  * directly from NVMem so it must handle possible concurrent access if
  * needed. The first parameter passed to @reg_read is @nvm structure.
  * Returns %0 in success and negative errno otherwise.
  */
-int tb_nvm_add_active(struct tb_nvm *nvm, nvmem_reg_read_t reg_read)
-{
-	struct nvmem_config config;
-	struct nvmem_device *nvmem;
-
-	memset(&config, 0, sizeof(config));
-
-	config.name = "nvm_active";
-	config.reg_read = reg_read;
-	config.read_only = true;
-	config.id = nvm->id;
-	config.stride = 4;
-	config.word_size = 4;
-	config.size = nvm->active_size;
-	config.dev = nvm->dev;
-	config.owner = THIS_MODULE;
-	config.priv = nvm;
-
-	nvmem = nvmem_register(&config);
-	if (IS_ERR(nvmem))
-		return PTR_ERR(nvmem);
-
-	nvm->active = nvmem;
-	return 0;
+int tb_nvm_add_active(struct tb_nvm *nvm, nvmem_reg_read_t reg_read) {
+  struct nvmem_config config;
+  struct nvmem_device *nvmem;
+  memset(&config, 0, sizeof(config));
+  config.name = "nvm_active";
+  config.reg_read = reg_read;
+  config.read_only = true;
+  config.id = nvm->id;
+  config.stride = 4;
+  config.word_size = 4;
+  config.size = nvm->active_size;
+  config.dev = nvm->dev;
+  config.owner = THIS_MODULE;
+  config.priv = nvm;
+  nvmem = nvmem_register(&config);
+  if (IS_ERR(nvmem)) {
+    return PTR_ERR(nvmem);
+  }
+  nvm->active = nvmem;
+  return 0;
 }
 
 /**
@@ -463,25 +418,24 @@ int tb_nvm_add_active(struct tb_nvm *nvm, nvmem_reg_read_t reg_read)
  * from @offset.
  */
 int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
-		     size_t bytes)
-{
-	if (!nvm->buf) {
-		nvm->buf = vmalloc(NVM_MAX_SIZE);
-		if (!nvm->buf)
-			return -ENOMEM;
-	}
-
-	nvm->flushed = false;
-	nvm->buf_data_size = offset + bytes;
-	memcpy(nvm->buf + offset, val, bytes);
-	return 0;
+    size_t bytes) {
+  if (!nvm->buf) {
+    nvm->buf = vmalloc(NVM_MAX_SIZE);
+    if (!nvm->buf) {
+      return -ENOMEM;
+    }
+  }
+  nvm->flushed = false;
+  nvm->buf_data_size = offset + bytes;
+  memcpy(nvm->buf + offset, val, bytes);
+  return 0;
 }
 
 /**
  * tb_nvm_add_non_active() - Adds non-active NVMem device to NVM
  * @nvm: NVM structure
  * @reg_write: Pointer to the function to write the NVM (passed directly
- *	       to the NVMem device)
+ *         to the NVMem device)
  *
  * Registers new non-active NVmem device for @nvm. The @reg_write is called
  * directly from NVMem so it must handle possible concurrent access if
@@ -490,30 +444,26 @@ int tb_nvm_write_buf(struct tb_nvm *nvm, unsigned int offset, void *val,
  *
  * Returns %0 in success and negative errno otherwise.
  */
-int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write)
-{
-	struct nvmem_config config;
-	struct nvmem_device *nvmem;
-
-	memset(&config, 0, sizeof(config));
-
-	config.name = "nvm_non_active";
-	config.reg_write = reg_write;
-	config.root_only = true;
-	config.id = nvm->id;
-	config.stride = 4;
-	config.word_size = 4;
-	config.size = NVM_MAX_SIZE;
-	config.dev = nvm->dev;
-	config.owner = THIS_MODULE;
-	config.priv = nvm;
-
-	nvmem = nvmem_register(&config);
-	if (IS_ERR(nvmem))
-		return PTR_ERR(nvmem);
-
-	nvm->non_active = nvmem;
-	return 0;
+int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write) {
+  struct nvmem_config config;
+  struct nvmem_device *nvmem;
+  memset(&config, 0, sizeof(config));
+  config.name = "nvm_non_active";
+  config.reg_write = reg_write;
+  config.root_only = true;
+  config.id = nvm->id;
+  config.stride = 4;
+  config.word_size = 4;
+  config.size = NVM_MAX_SIZE;
+  config.dev = nvm->dev;
+  config.owner = THIS_MODULE;
+  config.priv = nvm;
+  nvmem = nvmem_register(&config);
+  if (IS_ERR(nvmem)) {
+    return PTR_ERR(nvmem);
+  }
+  nvm->non_active = nvmem;
+  return 0;
 }
 
 /**
@@ -522,15 +472,14 @@ int tb_nvm_add_non_active(struct tb_nvm *nvm, nvmem_reg_write_t reg_write)
  *
  * Releases NVM and the NVMem devices if they were registered.
  */
-void tb_nvm_free(struct tb_nvm *nvm)
-{
-	if (nvm) {
-		nvmem_unregister(nvm->non_active);
-		nvmem_unregister(nvm->active);
-		vfree(nvm->buf);
-		ida_free(&nvm_ida, nvm->id);
-	}
-	kfree(nvm);
+void tb_nvm_free(struct tb_nvm *nvm) {
+  if (nvm) {
+    nvmem_unregister(nvm->non_active);
+    nvmem_unregister(nvm->active);
+    vfree(nvm->buf);
+    ida_free(&nvm_ida, nvm->id);
+  }
+  kfree(nvm);
 }
 
 /**
@@ -548,37 +497,31 @@ void tb_nvm_free(struct tb_nvm *nvm)
  * Returns %0 on success and negative errno otherwise.
  */
 int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
-		     unsigned int retries, read_block_fn read_block,
-		     void *read_block_data)
-{
-	do {
-		unsigned int dwaddress, dwords, offset;
-		u8 data[NVM_DATA_DWORDS * 4];
-		size_t nbytes;
-		int ret;
-
-		offset = address & 3;
-		nbytes = min_t(size_t, size + offset, NVM_DATA_DWORDS * 4);
-
-		dwaddress = address / 4;
-		dwords = ALIGN(nbytes, 4) / 4;
-
-		ret = read_block(read_block_data, dwaddress, data, dwords);
-		if (ret) {
-			if (ret != -ENODEV && retries--)
-				continue;
-			return ret;
-		}
-
-		nbytes -= offset;
-		memcpy(buf, data + offset, nbytes);
-
-		size -= nbytes;
-		address += nbytes;
-		buf += nbytes;
-	} while (size > 0);
-
-	return 0;
+    unsigned int retries, read_block_fn read_block,
+    void *read_block_data) {
+  do {
+    unsigned int dwaddress, dwords, offset;
+    u8 data[NVM_DATA_DWORDS * 4];
+    size_t nbytes;
+    int ret;
+    offset = address & 3;
+    nbytes = min_t(size_t, size + offset, NVM_DATA_DWORDS * 4);
+    dwaddress = address / 4;
+    dwords = ALIGN(nbytes, 4) / 4;
+    ret = read_block(read_block_data, dwaddress, data, dwords);
+    if (ret) {
+      if (ret != -ENODEV && retries--) {
+        continue;
+      }
+      return ret;
+    }
+    nbytes -= offset;
+    memcpy(buf, data + offset, nbytes);
+    size -= nbytes;
+    address += nbytes;
+    buf += nbytes;
+  } while (size > 0);
+  return 0;
 }
 
 /**
@@ -595,40 +538,34 @@ int tb_nvm_read_data(unsigned int address, void *buf, size_t size,
  * Returns %0 on success and negative errno otherwise.
  */
 int tb_nvm_write_data(unsigned int address, const void *buf, size_t size,
-		      unsigned int retries, write_block_fn write_block,
-		      void *write_block_data)
-{
-	do {
-		unsigned int offset, dwaddress;
-		u8 data[NVM_DATA_DWORDS * 4];
-		size_t nbytes;
-		int ret;
-
-		offset = address & 3;
-		nbytes = min_t(u32, size + offset, NVM_DATA_DWORDS * 4);
-
-		memcpy(data + offset, buf, nbytes);
-
-		dwaddress = address / 4;
-		ret = write_block(write_block_data, dwaddress, data, nbytes / 4);
-		if (ret) {
-			if (ret == -ETIMEDOUT) {
-				if (retries--)
-					continue;
-				ret = -EIO;
-			}
-			return ret;
-		}
-
-		size -= nbytes;
-		address += nbytes;
-		buf += nbytes;
-	} while (size > 0);
-
-	return 0;
+    unsigned int retries, write_block_fn write_block,
+    void *write_block_data) {
+  do {
+    unsigned int offset, dwaddress;
+    u8 data[NVM_DATA_DWORDS * 4];
+    size_t nbytes;
+    int ret;
+    offset = address & 3;
+    nbytes = min_t(u32, size + offset, NVM_DATA_DWORDS * 4);
+    memcpy(data + offset, buf, nbytes);
+    dwaddress = address / 4;
+    ret = write_block(write_block_data, dwaddress, data, nbytes / 4);
+    if (ret) {
+      if (ret == -ETIMEDOUT) {
+        if (retries--) {
+          continue;
+        }
+        ret = -EIO;
+      }
+      return ret;
+    }
+    size -= nbytes;
+    address += nbytes;
+    buf += nbytes;
+  } while (size > 0);
+  return 0;
 }
 
-void tb_nvm_exit(void)
-{
-	ida_destroy(&nvm_ida);
+void tb_nvm_exit(void) {
+  ida_destroy(&nvm_ida);
 }

@@ -27,34 +27,31 @@
 
 #include "dcn30/dcn30_hubbub.h"
 
+#define HUBBUB_REG_LIST_DCN301(id) \
+  HUBBUB_REG_LIST_DCN30(id), \
+  HUBBUB_HVM_REG_LIST()
 
-#define HUBBUB_REG_LIST_DCN301(id)\
-	HUBBUB_REG_LIST_DCN30(id), \
-	HUBBUB_HVM_REG_LIST()
-
-
-#define HUBBUB_MASK_SH_LIST_DCN301(mask_sh)\
-	HUBBUB_MASK_SH_LIST_DCN30(mask_sh), \
-	HUBBUB_SF(DCHVM_CTRL0, HOSTVM_INIT_REQ, mask_sh), \
-	HUBBUB_SF(DCHVM_MEM_CTRL, HVM_GPUVMRET_PWR_REQ_DIS, mask_sh), \
-	HUBBUB_SF(DCHVM_MEM_CTRL, HVM_GPUVMRET_FORCE_REQ, mask_sh), \
-	HUBBUB_SF(DCHVM_MEM_CTRL, HVM_GPUVMRET_POWER_STATUS, mask_sh), \
-	HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DISPCLK_R_GATE_DIS, mask_sh), \
-	HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DISPCLK_G_GATE_DIS, mask_sh), \
-	HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DCFCLK_R_GATE_DIS, mask_sh), \
-	HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DCFCLK_G_GATE_DIS, mask_sh), \
-	HUBBUB_SF(DCHVM_CLK_CTRL, TR_REQ_REQCLKREQ_MODE, mask_sh), \
-	HUBBUB_SF(DCHVM_CLK_CTRL, TW_RSP_COMPCLKREQ_MODE, mask_sh), \
-	HUBBUB_SF(DCHVM_RIOMMU_CTRL0, HOSTVM_PREFETCH_REQ, mask_sh), \
-	HUBBUB_SF(DCHVM_RIOMMU_CTRL0, HOSTVM_POWERSTATUS, mask_sh), \
-	HUBBUB_SF(DCHVM_RIOMMU_STAT0, RIOMMU_ACTIVE, mask_sh), \
-	HUBBUB_SF(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, mask_sh)
+#define HUBBUB_MASK_SH_LIST_DCN301(mask_sh) \
+  HUBBUB_MASK_SH_LIST_DCN30(mask_sh), \
+  HUBBUB_SF(DCHVM_CTRL0, HOSTVM_INIT_REQ, mask_sh), \
+  HUBBUB_SF(DCHVM_MEM_CTRL, HVM_GPUVMRET_PWR_REQ_DIS, mask_sh), \
+  HUBBUB_SF(DCHVM_MEM_CTRL, HVM_GPUVMRET_FORCE_REQ, mask_sh), \
+  HUBBUB_SF(DCHVM_MEM_CTRL, HVM_GPUVMRET_POWER_STATUS, mask_sh), \
+  HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DISPCLK_R_GATE_DIS, mask_sh), \
+  HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DISPCLK_G_GATE_DIS, mask_sh), \
+  HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DCFCLK_R_GATE_DIS, mask_sh), \
+  HUBBUB_SF(DCHVM_CLK_CTRL, HVM_DCFCLK_G_GATE_DIS, mask_sh), \
+  HUBBUB_SF(DCHVM_CLK_CTRL, TR_REQ_REQCLKREQ_MODE, mask_sh), \
+  HUBBUB_SF(DCHVM_CLK_CTRL, TW_RSP_COMPCLKREQ_MODE, mask_sh), \
+  HUBBUB_SF(DCHVM_RIOMMU_CTRL0, HOSTVM_PREFETCH_REQ, mask_sh), \
+  HUBBUB_SF(DCHVM_RIOMMU_CTRL0, HOSTVM_POWERSTATUS, mask_sh), \
+  HUBBUB_SF(DCHVM_RIOMMU_STAT0, RIOMMU_ACTIVE, mask_sh), \
+  HUBBUB_SF(DCHVM_RIOMMU_STAT0, HOSTVM_PREFETCH_DONE, mask_sh)
 
 void hubbub301_construct(struct dcn20_hubbub *hubbub3,
-	struct dc_context *ctx,
-	const struct dcn_hubbub_registers *hubbub_regs,
-	const struct dcn_hubbub_shift *hubbub_shift,
-	const struct dcn_hubbub_mask *hubbub_mask);
-
+    struct dc_context *ctx,
+    const struct dcn_hubbub_registers *hubbub_regs,
+    const struct dcn_hubbub_shift *hubbub_shift,
+    const struct dcn_hubbub_mask *hubbub_mask);
 
 #endif /* DAL_DC_DCN301_DCN301_HUBBUB_H_ */

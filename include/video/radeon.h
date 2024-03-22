@@ -2,16 +2,14 @@
 #ifndef _RADEON_H
 #define _RADEON_H
 
-
-#define RADEON_REGSIZE			0x4000
-
+#define RADEON_REGSIZE      0x4000
 
 #define MM_INDEX                               0x0000
 #define MM_DATA                                0x0004
 #define BUS_CNTL                               0x0030
 #define HI_STAT                                0x004C
 #define BUS_CNTL1                              0x0034
-#define I2C_CNTL_1			       0x0094
+#define I2C_CNTL_1             0x0094
 #define CNFG_CNTL                              0x00E0
 #define CNFG_MEMSIZE                           0x00F8
 #define CNFG_APER_0_BASE                       0x0100
@@ -25,9 +23,9 @@
 #define PAD_CTLR_MISC                          0x0aa0
 #define AGP_CNTL                               0x0174
 #define BM_STATUS                              0x0160
-#define CAP0_TRIG_CNTL			       0x0950
-#define CAP1_TRIG_CNTL		               0x09c0
-#define VIPH_CONTROL			       0x0C40
+#define CAP0_TRIG_CNTL             0x0950
+#define CAP1_TRIG_CNTL                   0x09c0
+#define VIPH_CONTROL             0x0C40
 #define VENDOR_ID                              0x0F00
 #define DEVICE_ID                              0x0F02
 #define COMMAND                                0x0F04
@@ -128,7 +126,7 @@
 #define GEN_INT_CNTL                           0x0040
 #define GEN_INT_STATUS                         0x0044
 #define CRTC_EXT_CNTL                          0x0054
-#define RB3D_CNTL			       0x1C3C
+#define RB3D_CNTL            0x1C3C
 #define WAIT_UNTIL                             0x1720
 #define ISYNC_CNTL                             0x1724
 #define RBBM_GUICNTL                           0x172C
@@ -183,8 +181,8 @@
 #define CUR_CLR1                               0x0270
 #define FP_HORZ_VERT_ACTIVE                    0x0278
 #define CRTC_MORE_CNTL                         0x027C
-#define CRTC_H_CUTOFF_ACTIVE_EN                (1<<4)
-#define CRTC_V_CUTOFF_ACTIVE_EN                (1<<5)
+#define CRTC_H_CUTOFF_ACTIVE_EN                (1 << 4)
+#define CRTC_V_CUTOFF_ACTIVE_EN                (1 << 5)
 #define DAC_EXT_CNTL                           0x0280
 #define FP_GEN_CNTL                            0x0284
 #define FP_HORZ_STRETCH                        0x028C
@@ -193,9 +191,9 @@
 #define FP_V_SYNC_STRT_WID                     0x02C8
 #define AUX_WINDOW_HORZ_CNTL                   0x02D8
 #define AUX_WINDOW_VERT_CNTL                   0x02DC
-//#define DDA_CONFIG			       0x02e0
-//#define DDA_ON_OFF			       0x02e4
-#define DVI_I2C_CNTL_1			       0x02e4
+//#define DDA_CONFIG             0x02e0
+//#define DDA_ON_OFF             0x02e4
+#define DVI_I2C_CNTL_1             0x02e4
 #define GRPH_BUFFER_CNTL                       0x02F0
 #define GRPH2_BUFFER_CNTL                      0x03F0
 #define VGA_BUFFER_CNTL                        0x02F4
@@ -340,9 +338,9 @@
 #define SRC_Y                                  0x1418
 #define SRC_X_Y                                0x1590
 #define SRC_Y_X                                0x1434
-#define DST_Y_X				       0x1438
-#define DST_WIDTH_HEIGHT		       0x1598
-#define DST_HEIGHT_WIDTH		       0x143c
+#define DST_Y_X              0x1438
+#define DST_WIDTH_HEIGHT           0x1598
+#define DST_HEIGHT_WIDTH           0x143c
 #define DST_OFFSET                             0x1404
 #define SRC_CLUT_ADDRESS                       0x1780
 #define SRC_CLUT_DATA                          0x1784
@@ -386,15 +384,15 @@
 #define SC_TOP_LEFT                            0x16EC
 #define SC_BOTTOM_RIGHT                        0x16F0
 #define SRC_SC_BOTTOM_RIGHT                    0x16F4
-#define RB2D_DSTCACHE_MODE		       0x3428
-#define RB2D_DSTCACHE_CTLSTAT_broken	       0x342C /* do not use */
-#define LVDS_GEN_CNTL			       0x02d0
-#define LVDS_PLL_CNTL			       0x02d4
+#define RB2D_DSTCACHE_MODE           0x3428
+#define RB2D_DSTCACHE_CTLSTAT_broken         0x342C /* do not use */
+#define LVDS_GEN_CNTL            0x02d0
+#define LVDS_PLL_CNTL            0x02d4
 #define FP2_GEN_CNTL                           0x0288
 #define TMDS_CNTL                              0x0294
-#define TMDS_CRC			       0x02a0
-#define TMDS_TRANSMITTER_CNTL		       0x02a4
-#define MPP_TB_CONFIG            	       0x01c0
+#define TMDS_CRC             0x02a0
+#define TMDS_TRANSMITTER_CNTL          0x02a4
+#define MPP_TB_CONFIG                    0x01c0
 #define PAMAC0_DLY_CNTL                        0x0a94
 #define PAMAC1_DLY_CNTL                        0x0a98
 #define PAMAC2_DLY_CNTL                        0x0a9c
@@ -403,15 +401,15 @@
 #define VGA_DDA_ON_OFF                         0x02ec
 #define TV_MASTER_CNTL                         0x0800
 
-//#define BASE_CODE			       0x0f0b
-#define BIOS_0_SCRATCH			       0x0010
-#define BIOS_1_SCRATCH			       0x0014
-#define BIOS_2_SCRATCH			       0x0018
-#define BIOS_3_SCRATCH			       0x001c
-#define BIOS_4_SCRATCH			       0x0020
-#define BIOS_5_SCRATCH			       0x0024
-#define BIOS_6_SCRATCH			       0x0028
-#define BIOS_7_SCRATCH			       0x002c
+//#define BASE_CODE            0x0f0b
+#define BIOS_0_SCRATCH             0x0010
+#define BIOS_1_SCRATCH             0x0014
+#define BIOS_2_SCRATCH             0x0018
+#define BIOS_3_SCRATCH             0x001c
+#define BIOS_4_SCRATCH             0x0020
+#define BIOS_5_SCRATCH             0x0024
+#define BIOS_6_SCRATCH             0x0028
+#define BIOS_7_SCRATCH             0x002c
 
 #define HDP_SOFT_RESET                         (1 << 26)
 
@@ -451,23 +449,23 @@
 #define P2PLL_CNTL                                 0x002a
 #define P2PLL_REF_DIV                              0x002b
 #define PIXCLKS_CNTL                               0x002d
-#define SCLK_MORE_CNTL				   0x0035
+#define SCLK_MORE_CNTL           0x0035
 
 /* MCLK_CNTL bit constants */
-#define FORCEON_MCLKA				   (1 << 16)
-#define FORCEON_MCLKB         		   	   (1 << 17)
-#define FORCEON_YCLKA         	    	   	   (1 << 18)
-#define FORCEON_YCLKB         		   	   (1 << 19)
-#define FORCEON_MC            		   	   (1 << 20)
-#define FORCEON_AIC           		   	   (1 << 21)
+#define FORCEON_MCLKA          (1 << 16)
+#define FORCEON_MCLKB                    (1 << 17)
+#define FORCEON_YCLKA                        (1 << 18)
+#define FORCEON_YCLKB                    (1 << 19)
+#define FORCEON_MC                       (1 << 20)
+#define FORCEON_AIC                      (1 << 21)
 
 /* SCLK_CNTL bit constants */
-#define DYN_STOP_LAT_MASK			   0x00007ff8
-#define CP_MAX_DYN_STOP_LAT			   0x0008
-#define SCLK_FORCEON_MASK			   0xffff8000
+#define DYN_STOP_LAT_MASK        0x00007ff8
+#define CP_MAX_DYN_STOP_LAT        0x0008
+#define SCLK_FORCEON_MASK        0xffff8000
 
 /* SCLK_MORE_CNTL bit constants */
-#define SCLK_MORE_FORCEON			   0x0700
+#define SCLK_MORE_FORCEON        0x0700
 
 /* BUS_CNTL bit constants */
 #define BUS_DBL_RESYNC                             0x00000001
@@ -500,38 +498,36 @@
 #define PIX2CLK_SRC_SEL_PSCANCLK                   0x01
 #define PIX2CLK_SRC_SEL_BYTECLK                    0x02
 #define PIX2CLK_SRC_SEL_P2PLLCLK                   0x03
-#define PIX2CLK_ALWAYS_ONb                         (1<<6)
-#define PIX2CLK_DAC_ALWAYS_ONb                     (1<<7)
+#define PIX2CLK_ALWAYS_ONb                         (1 << 6)
+#define PIX2CLK_DAC_ALWAYS_ONb                     (1 << 7)
 #define PIXCLK_TV_SRC_SEL                          (1 << 8)
 #define PIXCLK_LVDS_ALWAYS_ONb                     (1 << 14)
 #define PIXCLK_TMDS_ALWAYS_ONb                     (1 << 15)
-
 
 /* CLOCK_CNTL_INDEX bit constants */
 #define PLL_WR_EN                                  0x00000080
 
 /* CNFG_CNTL bit constants */
 #define CFG_VGA_RAM_EN                             0x00000100
-#define CFG_ATI_REV_ID_MASK			   (0xf << 16)
-#define CFG_ATI_REV_A11				   (0 << 16)
-#define CFG_ATI_REV_A12				   (1 << 16)
-#define CFG_ATI_REV_A13				   (2 << 16)
+#define CFG_ATI_REV_ID_MASK        (0xf << 16)
+#define CFG_ATI_REV_A11          (0 << 16)
+#define CFG_ATI_REV_A12          (1 << 16)
+#define CFG_ATI_REV_A13          (2 << 16)
 
 /* CRTC_EXT_CNTL bit constants */
 #define VGA_ATI_LINEAR                             0x00000008
 #define VGA_128KAP_PAGING                          0x00000010
-#define	XCRT_CNT_EN				   (1 << 6)
-#define CRTC_HSYNC_DIS				   (1 << 8)
-#define CRTC_VSYNC_DIS				   (1 << 9)
-#define CRTC_DISPLAY_DIS			   (1 << 10)
-#define CRTC_CRT_ON				   (1 << 15)
-
+#define XCRT_CNT_EN          (1 << 6)
+#define CRTC_HSYNC_DIS           (1 << 8)
+#define CRTC_VSYNC_DIS           (1 << 9)
+#define CRTC_DISPLAY_DIS         (1 << 10)
+#define CRTC_CRT_ON          (1 << 15)
 
 /* DSTCACHE_CTLSTAT bit constants */
-#define RB2D_DC_FLUSH_2D			   (1 << 0)
-#define RB2D_DC_FREE_2D				   (1 << 2)
-#define RB2D_DC_FLUSH_ALL			   (RB2D_DC_FLUSH_2D | RB2D_DC_FREE_2D)
-#define RB2D_DC_BUSY				   (1 << 31)
+#define RB2D_DC_FLUSH_2D         (1 << 0)
+#define RB2D_DC_FREE_2D          (1 << 2)
+#define RB2D_DC_FLUSH_ALL        (RB2D_DC_FLUSH_2D | RB2D_DC_FREE_2D)
+#define RB2D_DC_BUSY           (1 << 31)
 
 /* DSTCACHE_MODE bits constants */
 #define RB2D_DC_AUTOFLUSH_ENABLE                   (1 << 8)
@@ -540,10 +536,10 @@
 /* CRTC_GEN_CNTL bit constants */
 #define CRTC_DBL_SCAN_EN                           0x00000001
 #define CRTC_CUR_EN                                0x00010000
-#define CRTC_INTERLACE_EN			   (1 << 1)
-#define CRTC_BYPASS_LUT_EN     			   (1 << 14)
-#define CRTC_EXT_DISP_EN      			   (1 << 24)
-#define CRTC_EN					   (1 << 25)
+#define CRTC_INTERLACE_EN        (1 << 1)
+#define CRTC_BYPASS_LUT_EN             (1 << 14)
+#define CRTC_EXT_DISP_EN               (1 << 24)
+#define CRTC_EN            (1 << 25)
 #define CRTC_DISP_REQ_EN_B                         (1 << 26)
 
 /* CRTC_STATUS bit constants */
@@ -559,69 +555,68 @@
 #define CUR_LOCK                                   0x80000000
 
 /* GPIO bit constants */
-#define GPIO_A_0		(1 <<  0)
-#define GPIO_A_1		(1 <<  1)
-#define GPIO_Y_0		(1 <<  8)
-#define GPIO_Y_1		(1 <<  9)
-#define GPIO_EN_0		(1 << 16)
-#define GPIO_EN_1		(1 << 17)
-#define GPIO_MASK_0		(1 << 24)
-#define GPIO_MASK_1		(1 << 25)
-#define VGA_DDC_DATA_OUTPUT	GPIO_A_0
-#define VGA_DDC_CLK_OUTPUT	GPIO_A_1
-#define VGA_DDC_DATA_INPUT	GPIO_Y_0
-#define VGA_DDC_CLK_INPUT	GPIO_Y_1
-#define VGA_DDC_DATA_OUT_EN	GPIO_EN_0
-#define VGA_DDC_CLK_OUT_EN	GPIO_EN_1
-
+#define GPIO_A_0    (1 << 0)
+#define GPIO_A_1    (1 << 1)
+#define GPIO_Y_0    (1 << 8)
+#define GPIO_Y_1    (1 << 9)
+#define GPIO_EN_0   (1 << 16)
+#define GPIO_EN_1   (1 << 17)
+#define GPIO_MASK_0   (1 << 24)
+#define GPIO_MASK_1   (1 << 25)
+#define VGA_DDC_DATA_OUTPUT GPIO_A_0
+#define VGA_DDC_CLK_OUTPUT  GPIO_A_1
+#define VGA_DDC_DATA_INPUT  GPIO_Y_0
+#define VGA_DDC_CLK_INPUT GPIO_Y_1
+#define VGA_DDC_DATA_OUT_EN GPIO_EN_0
+#define VGA_DDC_CLK_OUT_EN  GPIO_EN_1
 
 /* FP bit constants */
-#define FP_CRTC_H_TOTAL_MASK			   0x000003ff
-#define FP_CRTC_H_DISP_MASK			   0x01ff0000
-#define FP_CRTC_V_TOTAL_MASK			   0x00000fff
-#define FP_CRTC_V_DISP_MASK			   0x0fff0000
-#define FP_H_SYNC_STRT_CHAR_MASK		   0x00001ff8
-#define FP_H_SYNC_WID_MASK			   0x003f0000
-#define FP_V_SYNC_STRT_MASK			   0x00000fff
-#define FP_V_SYNC_WID_MASK			   0x001f0000
-#define FP_CRTC_H_TOTAL_SHIFT			   0x00000000
-#define FP_CRTC_H_DISP_SHIFT			   0x00000010
-#define FP_CRTC_V_TOTAL_SHIFT			   0x00000000
-#define FP_CRTC_V_DISP_SHIFT			   0x00000010
-#define FP_H_SYNC_STRT_CHAR_SHIFT		   0x00000003
-#define FP_H_SYNC_WID_SHIFT			   0x00000010
-#define FP_V_SYNC_STRT_SHIFT			   0x00000000
-#define FP_V_SYNC_WID_SHIFT			   0x00000010
+#define FP_CRTC_H_TOTAL_MASK         0x000003ff
+#define FP_CRTC_H_DISP_MASK        0x01ff0000
+#define FP_CRTC_V_TOTAL_MASK         0x00000fff
+#define FP_CRTC_V_DISP_MASK        0x0fff0000
+#define FP_H_SYNC_STRT_CHAR_MASK       0x00001ff8
+#define FP_H_SYNC_WID_MASK         0x003f0000
+#define FP_V_SYNC_STRT_MASK        0x00000fff
+#define FP_V_SYNC_WID_MASK         0x001f0000
+#define FP_CRTC_H_TOTAL_SHIFT        0x00000000
+#define FP_CRTC_H_DISP_SHIFT         0x00000010
+#define FP_CRTC_V_TOTAL_SHIFT        0x00000000
+#define FP_CRTC_V_DISP_SHIFT         0x00000010
+#define FP_H_SYNC_STRT_CHAR_SHIFT      0x00000003
+#define FP_H_SYNC_WID_SHIFT        0x00000010
+#define FP_V_SYNC_STRT_SHIFT         0x00000000
+#define FP_V_SYNC_WID_SHIFT        0x00000010
 
 /* FP_GEN_CNTL bit constants */
-#define FP_FPON					   (1 << 0)
-#define FP_TMDS_EN				   (1 << 2)
+#define FP_FPON            (1 << 0)
+#define FP_TMDS_EN           (1 << 2)
 #define FP_PANEL_FORMAT                            (1 << 3)
-#define FP_EN_TMDS				   (1 << 7)
-#define FP_DETECT_SENSE				   (1 << 8)
+#define FP_EN_TMDS           (1 << 7)
+#define FP_DETECT_SENSE          (1 << 8)
 #define R200_FP_SOURCE_SEL_MASK                    (3 << 10)
 #define R200_FP_SOURCE_SEL_CRTC1                   (0 << 10)
 #define R200_FP_SOURCE_SEL_CRTC2                   (1 << 10)
 #define R200_FP_SOURCE_SEL_RMX                     (2 << 10)
 #define R200_FP_SOURCE_SEL_TRANS                   (3 << 10)
-#define FP_SEL_CRTC1				   (0 << 13)
-#define FP_SEL_CRTC2				   (1 << 13)
+#define FP_SEL_CRTC1           (0 << 13)
+#define FP_SEL_CRTC2           (1 << 13)
 #define FP_USE_VGA_HSYNC                           (1 << 14)
-#define FP_CRTC_DONT_SHADOW_HPAR		   (1 << 15)
-#define FP_CRTC_DONT_SHADOW_VPAR		   (1 << 16)
-#define FP_CRTC_DONT_SHADOW_HEND		   (1 << 17)
-#define FP_CRTC_USE_SHADOW_VEND			   (1 << 18)
-#define FP_RMX_HVSYNC_CONTROL_EN		   (1 << 20)
-#define FP_DFP_SYNC_SEL				   (1 << 21)
-#define FP_CRTC_LOCK_8DOT			   (1 << 22)
-#define FP_CRT_SYNC_SEL				   (1 << 23)
-#define FP_USE_SHADOW_EN			   (1 << 24)
-#define FP_CRT_SYNC_ALT				   (1 << 26)
+#define FP_CRTC_DONT_SHADOW_HPAR       (1 << 15)
+#define FP_CRTC_DONT_SHADOW_VPAR       (1 << 16)
+#define FP_CRTC_DONT_SHADOW_HEND       (1 << 17)
+#define FP_CRTC_USE_SHADOW_VEND        (1 << 18)
+#define FP_RMX_HVSYNC_CONTROL_EN       (1 << 20)
+#define FP_DFP_SYNC_SEL          (1 << 21)
+#define FP_CRTC_LOCK_8DOT        (1 << 22)
+#define FP_CRT_SYNC_SEL          (1 << 23)
+#define FP_USE_SHADOW_EN         (1 << 24)
+#define FP_CRT_SYNC_ALT          (1 << 26)
 
 /* FP2_GEN_CNTL bit constants */
-#define FP2_BLANK_EN             (1 <<  1)
-#define FP2_ON                   (1 <<  2)
-#define FP2_PANEL_FORMAT         (1 <<  3)
+#define FP2_BLANK_EN             (1 << 1)
+#define FP2_ON                   (1 << 2)
+#define FP2_PANEL_FORMAT         (1 << 3)
 #define FP2_SOURCE_SEL_MASK      (3 << 10)
 #define FP2_SOURCE_SEL_CRTC2     (1 << 10)
 #define FP2_SRC_SEL_MASK         (3 << 13)
@@ -636,73 +631,71 @@
 #define FP2_DV0_EN               (1 << 25)
 #define FP2_DV0_RATE_SEL_SDR     (1 << 26)
 
-
 /* LVDS_GEN_CNTL bit constants */
-#define LVDS_ON					   (1 << 0)
-#define LVDS_DISPLAY_DIS			   (1 << 1)
-#define LVDS_PANEL_TYPE				   (1 << 2)
-#define LVDS_PANEL_FORMAT			   (1 << 3)
-#define LVDS_EN					   (1 << 7)
-#define LVDS_BL_MOD_LEVEL_MASK			   0x0000ff00
-#define LVDS_BL_MOD_LEVEL_SHIFT			   8
-#define LVDS_BL_MOD_EN				   (1 << 16)
-#define LVDS_DIGON				   (1 << 18)
-#define LVDS_BLON				   (1 << 19)
-#define LVDS_SEL_CRTC2				   (1 << 23)
-#define LVDS_STATE_MASK	\
-	(LVDS_ON | LVDS_DISPLAY_DIS | LVDS_BL_MOD_LEVEL_MASK | LVDS_BLON)
+#define LVDS_ON            (1 << 0)
+#define LVDS_DISPLAY_DIS         (1 << 1)
+#define LVDS_PANEL_TYPE          (1 << 2)
+#define LVDS_PANEL_FORMAT        (1 << 3)
+#define LVDS_EN            (1 << 7)
+#define LVDS_BL_MOD_LEVEL_MASK         0x0000ff00
+#define LVDS_BL_MOD_LEVEL_SHIFT        8
+#define LVDS_BL_MOD_EN           (1 << 16)
+#define LVDS_DIGON           (1 << 18)
+#define LVDS_BLON          (1 << 19)
+#define LVDS_SEL_CRTC2           (1 << 23)
+#define LVDS_STATE_MASK \
+  (LVDS_ON | LVDS_DISPLAY_DIS | LVDS_BL_MOD_LEVEL_MASK | LVDS_BLON)
 
 /* LVDS_PLL_CNTL bit constatns */
-#define HSYNC_DELAY_SHIFT			   0x1c
-#define HSYNC_DELAY_MASK			   (0xf << 0x1c)
+#define HSYNC_DELAY_SHIFT        0x1c
+#define HSYNC_DELAY_MASK         (0xf << 0x1c)
 
 /* TMDS_TRANSMITTER_CNTL bit constants */
-#define TMDS_PLL_EN				   (1 << 0)
-#define TMDS_PLLRST				   (1 << 1)
-#define TMDS_RAN_PAT_RST			   (1 << 7)
-#define TMDS_ICHCSEL				   (1 << 28)
+#define TMDS_PLL_EN          (1 << 0)
+#define TMDS_PLLRST          (1 << 1)
+#define TMDS_RAN_PAT_RST         (1 << 7)
+#define TMDS_ICHCSEL           (1 << 28)
 
 /* FP_HORZ_STRETCH bit constants */
-#define HORZ_STRETCH_RATIO_MASK			   0xffff
-#define HORZ_STRETCH_RATIO_MAX			   4096
-#define HORZ_PANEL_SIZE				   (0x1ff << 16)
-#define HORZ_PANEL_SHIFT			   16
-#define HORZ_STRETCH_PIXREP			   (0 << 25)
-#define HORZ_STRETCH_BLEND			   (1 << 26)
-#define HORZ_STRETCH_ENABLE			   (1 << 25)
-#define HORZ_AUTO_RATIO				   (1 << 27)
-#define HORZ_FP_LOOP_STRETCH			   (0x7 << 28)
-#define HORZ_AUTO_RATIO_INC			   (1 << 31)
-
+#define HORZ_STRETCH_RATIO_MASK        0xffff
+#define HORZ_STRETCH_RATIO_MAX         4096
+#define HORZ_PANEL_SIZE          (0x1ff << 16)
+#define HORZ_PANEL_SHIFT         16
+#define HORZ_STRETCH_PIXREP        (0 << 25)
+#define HORZ_STRETCH_BLEND         (1 << 26)
+#define HORZ_STRETCH_ENABLE        (1 << 25)
+#define HORZ_AUTO_RATIO          (1 << 27)
+#define HORZ_FP_LOOP_STRETCH         (0x7 << 28)
+#define HORZ_AUTO_RATIO_INC        (1 << 31)
 
 /* FP_VERT_STRETCH bit constants */
-#define VERT_STRETCH_RATIO_MASK			   0xfff
-#define VERT_STRETCH_RATIO_MAX			   4096
-#define VERT_PANEL_SIZE				   (0xfff << 12)
-#define VERT_PANEL_SHIFT			   12
-#define VERT_STRETCH_LINREP			   (0 << 26)
-#define VERT_STRETCH_BLEND			   (1 << 26)
-#define VERT_STRETCH_ENABLE			   (1 << 25)
-#define VERT_AUTO_RATIO_EN			   (1 << 27)
-#define VERT_FP_LOOP_STRETCH			   (0x7 << 28)
-#define VERT_STRETCH_RESERVED			   0xf1000000
+#define VERT_STRETCH_RATIO_MASK        0xfff
+#define VERT_STRETCH_RATIO_MAX         4096
+#define VERT_PANEL_SIZE          (0xfff << 12)
+#define VERT_PANEL_SHIFT         12
+#define VERT_STRETCH_LINREP        (0 << 26)
+#define VERT_STRETCH_BLEND         (1 << 26)
+#define VERT_STRETCH_ENABLE        (1 << 25)
+#define VERT_AUTO_RATIO_EN         (1 << 27)
+#define VERT_FP_LOOP_STRETCH         (0x7 << 28)
+#define VERT_STRETCH_RESERVED        0xf1000000
 
 /* DAC_CNTL bit constants */
 #define DAC_8BIT_EN                                0x00000100
 #define DAC_4BPP_PIX_ORDER                         0x00000200
 #define DAC_CRC_EN                                 0x00080000
-#define DAC_MASK_ALL				   (0xff << 24)
+#define DAC_MASK_ALL           (0xff << 24)
 #define DAC_PDWN                                   (1 << 15)
-#define DAC_EXPAND_MODE				   (1 << 14)
-#define DAC_VGA_ADR_EN				   (1 << 13)
-#define DAC_RANGE_CNTL				   (3 <<  0)
-#define DAC_RANGE_CNTL_MASK    			   0x03
-#define DAC_BLANKING				   (1 <<  2)
-#define DAC_CMP_EN                                 (1 <<  3)
-#define DAC_CMP_OUTPUT                             (1 <<  7)
+#define DAC_EXPAND_MODE          (1 << 14)
+#define DAC_VGA_ADR_EN           (1 << 13)
+#define DAC_RANGE_CNTL           (3 << 0)
+#define DAC_RANGE_CNTL_MASK            0x03
+#define DAC_BLANKING           (1 << 2)
+#define DAC_CMP_EN                                 (1 << 3)
+#define DAC_CMP_OUTPUT                             (1 << 7)
 
 /* DAC_CNTL2 bit constants */
-#define DAC2_EXPAND_MODE			   (1 << 14)
+#define DAC2_EXPAND_MODE         (1 << 14)
 #define DAC2_CMP_EN                                (1 << 7)
 #define DAC2_PALETTE_ACCESS_CNTL                   (1 << 5)
 
@@ -729,37 +722,36 @@
 #define MEM_ARBITER_STATUS_BUSY                    0x00400000
 #define MEM_REQ_UNLOCK                             0x00000000
 #define MEM_REQ_LOCK                               0x00800000
-#define MEM_NUM_CHANNELS_MASK 			   0x00000001
+#define MEM_NUM_CHANNELS_MASK          0x00000001
 #define MEM_USE_B_CH_ONLY                          0x00000002
 #define RV100_MEM_HALF_MODE                        0x00000008
 #define R300_MEM_NUM_CHANNELS_MASK                 0x00000003
 #define R300_MEM_USE_CD_CH_ONLY                    0x00000004
 
-
 /* RBBM_SOFT_RESET bit constants */
-#define SOFT_RESET_CP           		   (1 <<  0)
-#define SOFT_RESET_HI           		   (1 <<  1)
-#define SOFT_RESET_SE           		   (1 <<  2)
-#define SOFT_RESET_RE           		   (1 <<  3)
-#define SOFT_RESET_PP           		   (1 <<  4)
-#define SOFT_RESET_E2           		   (1 <<  5)
-#define SOFT_RESET_RB           		   (1 <<  6)
-#define SOFT_RESET_HDP          		   (1 <<  7)
+#define SOFT_RESET_CP                  (1 << 0)
+#define SOFT_RESET_HI                  (1 << 1)
+#define SOFT_RESET_SE                  (1 << 2)
+#define SOFT_RESET_RE                  (1 << 3)
+#define SOFT_RESET_PP                  (1 << 4)
+#define SOFT_RESET_E2                  (1 << 5)
+#define SOFT_RESET_RB                  (1 << 6)
+#define SOFT_RESET_HDP                 (1 << 7)
 
 /* WAIT_UNTIL bit constants */
-#define WAIT_DMA_GUI_IDLE			   (1 << 9)
-#define WAIT_2D_IDLECLEAN			   (1 << 16)
+#define WAIT_DMA_GUI_IDLE        (1 << 9)
+#define WAIT_2D_IDLECLEAN        (1 << 16)
 
 /* SURFACE_CNTL bit constants */
-#define SURF_TRANSLATION_DIS			   (1 << 8)
-#define NONSURF_AP0_SWP_16BPP			   (1 << 20)
-#define NONSURF_AP0_SWP_32BPP			   (1 << 21)
-#define NONSURF_AP1_SWP_16BPP			   (1 << 22)
-#define NONSURF_AP1_SWP_32BPP			   (1 << 23)
+#define SURF_TRANSLATION_DIS         (1 << 8)
+#define NONSURF_AP0_SWP_16BPP        (1 << 20)
+#define NONSURF_AP0_SWP_32BPP        (1 << 21)
+#define NONSURF_AP1_SWP_16BPP        (1 << 22)
+#define NONSURF_AP1_SWP_32BPP        (1 << 23)
 
 /* DEFAULT_SC_BOTTOM_RIGHT bit constants */
-#define DEFAULT_SC_RIGHT_MAX			   (0x1fff << 0)
-#define DEFAULT_SC_BOTTOM_MAX			   (0x1fff << 16)
+#define DEFAULT_SC_RIGHT_MAX         (0x1fff << 0)
+#define DEFAULT_SC_BOTTOM_MAX        (0x1fff << 16)
 
 /* MM_INDEX bit constants */
 #define MM_APER                                    0x80000000
@@ -777,7 +769,6 @@
 #define COMPARE_DESTINATION                        0x00000000
 #define COMPARE_SOURCE                             0x01000000
 #define COMPARE_SRC_AND_DST                        0x02000000
-
 
 /* DP_CNTL bit constants */
 #define DST_X_RIGHT_TO_LEFT                        0x00000000
@@ -799,7 +790,6 @@
 #define DST_RASTER_STALL                           0x00010000
 #define DST_POLY_EDGE                              0x00040000
 
-
 /* DP_CNTL_YDIR_XDIR_YMAJOR bit constants (short version of DP_CNTL) */
 #define DST_X_MAJOR_S                              0x00000000
 #define DST_Y_MAJOR_S                              0x00000001
@@ -807,7 +797,6 @@
 #define DST_Y_TOP_TO_BOTTOM_S                      0x00008000
 #define DST_X_RIGHT_TO_LEFT_S                      0x00000000
 #define DST_X_LEFT_TO_RIGHT_S                      0x80000000
-
 
 /* DP_DATATYPE bit constants */
 #define DST_8BPP                                   0x00000002
@@ -829,8 +818,7 @@
 #define BYTE_ORDER_MSB_TO_LSB                      0x00000000
 #define BYTE_ORDER_LSB_TO_MSB                      0x40000000
 #define DP_CONVERSION_TEMP                         0x80000000
-#define HOST_BIG_ENDIAN_EN			   (1 << 29)
-
+#define HOST_BIG_ENDIAN_EN         (1 << 29)
 
 /* DP_GUI_MASTER_CNTL bit constants */
 #define GMC_SRC_PITCH_OFFSET_DEFAULT               0x00000000
@@ -885,16 +873,16 @@
 #define GMC_AUX_CLIP_CLEAR                         0x20000000
 #define GMC_WRITE_MASK_LEAVE                       0x00000000
 #define GMC_WRITE_MASK_SET                         0x40000000
-#define GMC_CLR_CMP_CNTL_DIS      		   (1 << 28)
-#define GMC_SRC_DATATYPE_COLOR			   (3 << 12)
-#define ROP3_S                			   0x00cc0000
-#define ROP3_SRCCOPY				   0x00cc0000
-#define ROP3_P                			   0x00f00000
-#define ROP3_PATCOPY				   0x00f00000
-#define DP_SRC_SOURCE_MASK        		   (7    << 24)
-#define GMC_BRUSH_NONE            		   (15   <<  4)
-#define DP_SRC_SOURCE_MEMORY			   (2    << 24)
-#define GMC_BRUSH_SOLIDCOLOR			   0x000000d0
+#define GMC_CLR_CMP_CNTL_DIS             (1 << 28)
+#define GMC_SRC_DATATYPE_COLOR         (3 << 12)
+#define ROP3_S                         0x00cc0000
+#define ROP3_SRCCOPY           0x00cc0000
+#define ROP3_P                         0x00f00000
+#define ROP3_PATCOPY           0x00f00000
+#define DP_SRC_SOURCE_MASK               (7 << 24)
+#define GMC_BRUSH_NONE                   (15 << 4)
+#define DP_SRC_SOURCE_MEMORY         (2 << 24)
+#define GMC_BRUSH_SOLIDCOLOR         0x000000d0
 
 /* DP_MIX bit constants */
 #define DP_SRC_RECT                                0x00000200
@@ -920,8 +908,8 @@
 #define VCLK_SRC_SEL_MASK                          0x03
 #define VCLK_SRC_SEL_CPUCLK                        0x00
 #define VCLK_SRC_SEL_PSCANCLK                      0x01
-#define VCLK_SRC_SEL_BYTECLK	                   0x02
-#define VCLK_SRC_SEL_PPLLCLK			   0x03
+#define VCLK_SRC_SEL_BYTECLK                     0x02
+#define VCLK_SRC_SEL_PPLLCLK         0x03
 #define PIXCLK_ALWAYS_ONb                          0x00000040
 #define PIXCLK_DAC_ALWAYS_ONb                      0x00000080
 
@@ -981,32 +969,31 @@
 
 /* masks */
 
-#define CNFG_MEMSIZE_MASK		0x1f000000
-#define MEM_CFG_TYPE			0x40000000
-#define DST_OFFSET_MASK			0x003fffff
-#define DST_PITCH_MASK			0x3fc00000
-#define DEFAULT_TILE_MASK		0xc0000000
-#define	PPLL_DIV_SEL_MASK		0x00000300
-#define	PPLL_RESET			0x00000001
-#define	PPLL_SLEEP			0x00000002
-#define PPLL_ATOMIC_UPDATE_EN		0x00010000
-#define PPLL_REF_DIV_MASK		0x000003ff
-#define	PPLL_FB3_DIV_MASK		0x000007ff
-#define	PPLL_POST3_DIV_MASK		0x00070000
-#define PPLL_ATOMIC_UPDATE_R		0x00008000
-#define PPLL_ATOMIC_UPDATE_W		0x00008000
-#define	PPLL_VGA_ATOMIC_UPDATE_EN	0x00020000
-#define R300_PPLL_REF_DIV_ACC_MASK	(0x3ff << 18)
-#define R300_PPLL_REF_DIV_ACC_SHIFT	18
+#define CNFG_MEMSIZE_MASK   0x1f000000
+#define MEM_CFG_TYPE      0x40000000
+#define DST_OFFSET_MASK     0x003fffff
+#define DST_PITCH_MASK      0x3fc00000
+#define DEFAULT_TILE_MASK   0xc0000000
+#define PPLL_DIV_SEL_MASK   0x00000300
+#define PPLL_RESET      0x00000001
+#define PPLL_SLEEP      0x00000002
+#define PPLL_ATOMIC_UPDATE_EN   0x00010000
+#define PPLL_REF_DIV_MASK   0x000003ff
+#define PPLL_FB3_DIV_MASK   0x000007ff
+#define PPLL_POST3_DIV_MASK   0x00070000
+#define PPLL_ATOMIC_UPDATE_R    0x00008000
+#define PPLL_ATOMIC_UPDATE_W    0x00008000
+#define PPLL_VGA_ATOMIC_UPDATE_EN 0x00020000
+#define R300_PPLL_REF_DIV_ACC_MASK  (0x3ff << 18)
+#define R300_PPLL_REF_DIV_ACC_SHIFT 18
 
-#define GUI_ACTIVE			0x80000000
-
+#define GUI_ACTIVE      0x80000000
 
 #define MC_IND_INDEX                           0x01F8
 #define MC_IND_DATA                            0x01FC
 
 /* PAD_CTLR_STRENGTH */
-#define PAD_MANUAL_OVERRIDE		0x80000000
+#define PAD_MANUAL_OVERRIDE   0x80000000
 
 // pllCLK_PIN_CNTL
 #define CLK_PIN_CNTL__OSC_EN_MASK                          0x00000001L
@@ -1035,29 +1022,29 @@
 #define CLK_PIN_CNTL__PWRSEQ_DELAY_MASK                    0xff000000L
 
 // pllCLK_PWRMGT_CNTL
-#define	CLK_PWRMGT_CNTL__MPLL_PWRMGT_OFF__SHIFT         0x00000000
-#define	CLK_PWRMGT_CNTL__SPLL_PWRMGT_OFF__SHIFT         0x00000001
-#define	CLK_PWRMGT_CNTL__PPLL_PWRMGT_OFF__SHIFT         0x00000002
-#define	CLK_PWRMGT_CNTL__P2PLL_PWRMGT_OFF__SHIFT        0x00000003
-#define	CLK_PWRMGT_CNTL__MCLK_TURNOFF__SHIFT            0x00000004
-#define	CLK_PWRMGT_CNTL__SCLK_TURNOFF__SHIFT            0x00000005
-#define	CLK_PWRMGT_CNTL__PCLK_TURNOFF__SHIFT            0x00000006
-#define	CLK_PWRMGT_CNTL__P2CLK_TURNOFF__SHIFT           0x00000007
-#define	CLK_PWRMGT_CNTL__MC_CH_MODE__SHIFT              0x00000008
-#define	CLK_PWRMGT_CNTL__TEST_MODE__SHIFT               0x00000009
-#define	CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN__SHIFT          0x0000000a
-#define	CLK_PWRMGT_CNTL__ENGINE_DYNCLK_MODE__SHIFT      0x0000000c
-#define	CLK_PWRMGT_CNTL__ACTIVE_HILO_LAT__SHIFT         0x0000000d
-#define	CLK_PWRMGT_CNTL__DISP_DYN_STOP_LAT__SHIFT       0x0000000f
-#define	CLK_PWRMGT_CNTL__MC_BUSY__SHIFT                 0x00000010
-#define	CLK_PWRMGT_CNTL__MC_INT_CNTL__SHIFT             0x00000011
-#define	CLK_PWRMGT_CNTL__MC_SWITCH__SHIFT               0x00000012
-#define	CLK_PWRMGT_CNTL__DLL_READY__SHIFT               0x00000013
-#define	CLK_PWRMGT_CNTL__DISP_PM__SHIFT                 0x00000014
-#define	CLK_PWRMGT_CNTL__DYN_STOP_MODE__SHIFT           0x00000015
-#define	CLK_PWRMGT_CNTL__CG_NO1_DEBUG__SHIFT            0x00000018
-#define	CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF__SHIFT        0x0000001e
-#define	CLK_PWRMGT_CNTL__TVCLK_TURNOFF__SHIFT           0x0000001f
+#define CLK_PWRMGT_CNTL__MPLL_PWRMGT_OFF__SHIFT         0x00000000
+#define CLK_PWRMGT_CNTL__SPLL_PWRMGT_OFF__SHIFT         0x00000001
+#define CLK_PWRMGT_CNTL__PPLL_PWRMGT_OFF__SHIFT         0x00000002
+#define CLK_PWRMGT_CNTL__P2PLL_PWRMGT_OFF__SHIFT        0x00000003
+#define CLK_PWRMGT_CNTL__MCLK_TURNOFF__SHIFT            0x00000004
+#define CLK_PWRMGT_CNTL__SCLK_TURNOFF__SHIFT            0x00000005
+#define CLK_PWRMGT_CNTL__PCLK_TURNOFF__SHIFT            0x00000006
+#define CLK_PWRMGT_CNTL__P2CLK_TURNOFF__SHIFT           0x00000007
+#define CLK_PWRMGT_CNTL__MC_CH_MODE__SHIFT              0x00000008
+#define CLK_PWRMGT_CNTL__TEST_MODE__SHIFT               0x00000009
+#define CLK_PWRMGT_CNTL__GLOBAL_PMAN_EN__SHIFT          0x0000000a
+#define CLK_PWRMGT_CNTL__ENGINE_DYNCLK_MODE__SHIFT      0x0000000c
+#define CLK_PWRMGT_CNTL__ACTIVE_HILO_LAT__SHIFT         0x0000000d
+#define CLK_PWRMGT_CNTL__DISP_DYN_STOP_LAT__SHIFT       0x0000000f
+#define CLK_PWRMGT_CNTL__MC_BUSY__SHIFT                 0x00000010
+#define CLK_PWRMGT_CNTL__MC_INT_CNTL__SHIFT             0x00000011
+#define CLK_PWRMGT_CNTL__MC_SWITCH__SHIFT               0x00000012
+#define CLK_PWRMGT_CNTL__DLL_READY__SHIFT               0x00000013
+#define CLK_PWRMGT_CNTL__DISP_PM__SHIFT                 0x00000014
+#define CLK_PWRMGT_CNTL__DYN_STOP_MODE__SHIFT           0x00000015
+#define CLK_PWRMGT_CNTL__CG_NO1_DEBUG__SHIFT            0x00000018
+#define CLK_PWRMGT_CNTL__TVPLL_PWRMGT_OFF__SHIFT        0x0000001e
+#define CLK_PWRMGT_CNTL__TVCLK_TURNOFF__SHIFT           0x0000001f
 
 // pllP2PLL_CNTL
 #define P2PLL_CNTL__P2PLL_RESET_MASK                       0x00000001L
@@ -1085,18 +1072,17 @@
 #define P2PLL_CNTL__P2PLL_DISABLE_AUTO_RESET               0x00080000L
 
 // pllPIXCLKS_CNTL
-#define	PIXCLKS_CNTL__PIX2CLK_SRC_SEL__SHIFT               0x00000000
-#define	PIXCLKS_CNTL__PIX2CLK_INVERT__SHIFT                0x00000004
-#define	PIXCLKS_CNTL__PIX2CLK_SRC_INVERT__SHIFT            0x00000005
-#define	PIXCLKS_CNTL__PIX2CLK_ALWAYS_ONb__SHIFT            0x00000006
-#define	PIXCLKS_CNTL__PIX2CLK_DAC_ALWAYS_ONb__SHIFT        0x00000007
-#define	PIXCLKS_CNTL__PIXCLK_TV_SRC_SEL__SHIFT             0x00000008
-#define	PIXCLKS_CNTL__PIXCLK_BLEND_ALWAYS_ONb__SHIFT       0x0000000b
-#define	PIXCLKS_CNTL__PIXCLK_GV_ALWAYS_ONb__SHIFT          0x0000000c
-#define	PIXCLKS_CNTL__PIXCLK_DIG_TMDS_ALWAYS_ONb__SHIFT    0x0000000d
-#define	PIXCLKS_CNTL__PIXCLK_LVDS_ALWAYS_ONb__SHIFT        0x0000000e
-#define	PIXCLKS_CNTL__PIXCLK_TMDS_ALWAYS_ONb__SHIFT        0x0000000f
-
+#define PIXCLKS_CNTL__PIX2CLK_SRC_SEL__SHIFT               0x00000000
+#define PIXCLKS_CNTL__PIX2CLK_INVERT__SHIFT                0x00000004
+#define PIXCLKS_CNTL__PIX2CLK_SRC_INVERT__SHIFT            0x00000005
+#define PIXCLKS_CNTL__PIX2CLK_ALWAYS_ONb__SHIFT            0x00000006
+#define PIXCLKS_CNTL__PIX2CLK_DAC_ALWAYS_ONb__SHIFT        0x00000007
+#define PIXCLKS_CNTL__PIXCLK_TV_SRC_SEL__SHIFT             0x00000008
+#define PIXCLKS_CNTL__PIXCLK_BLEND_ALWAYS_ONb__SHIFT       0x0000000b
+#define PIXCLKS_CNTL__PIXCLK_GV_ALWAYS_ONb__SHIFT          0x0000000c
+#define PIXCLKS_CNTL__PIXCLK_DIG_TMDS_ALWAYS_ONb__SHIFT    0x0000000d
+#define PIXCLKS_CNTL__PIXCLK_LVDS_ALWAYS_ONb__SHIFT        0x0000000e
+#define PIXCLKS_CNTL__PIXCLK_TMDS_ALWAYS_ONb__SHIFT        0x0000000f
 
 // pllPIXCLKS_CNTL
 #define PIXCLKS_CNTL__PIX2CLK_SRC_SEL_MASK                 0x00000003L
@@ -1118,7 +1104,6 @@
 #define PIXCLKS_CNTL__R300_P2G2CLK_ALWAYS_ONb              (1 << 18)
 #define PIXCLKS_CNTL__R300_P2G2CLK_DAC_ALWAYS_ONb          (1 << 19)
 #define PIXCLKS_CNTL__R300_DISP_DAC_PIXCLK_DAC2_BLANK_OFF  (1 << 23)
-
 
 // pllP2PLL_DIV_0
 #define P2PLL_DIV_0__P2PLL_FB_DIV_MASK                     0x000007ffL
@@ -1160,21 +1145,21 @@
 #define SCLK_CNTL__FORCE_TV_SCLK                        0x20000000L
 #define SCLK_CNTL__FORCE_SUBPIC                         0x40000000L
 #define SCLK_CNTL__FORCE_OV0                            0x80000000L
-#define SCLK_CNTL__R300_FORCE_VAP                       (1<<21)
-#define SCLK_CNTL__R300_FORCE_SR                        (1<<25)
-#define SCLK_CNTL__R300_FORCE_PX                        (1<<26)
-#define SCLK_CNTL__R300_FORCE_TX                        (1<<27)
-#define SCLK_CNTL__R300_FORCE_US                        (1<<28)
-#define SCLK_CNTL__R300_FORCE_SU                        (1<<30)
+#define SCLK_CNTL__R300_FORCE_VAP                       (1 << 21)
+#define SCLK_CNTL__R300_FORCE_SR                        (1 << 25)
+#define SCLK_CNTL__R300_FORCE_PX                        (1 << 26)
+#define SCLK_CNTL__R300_FORCE_TX                        (1 << 27)
+#define SCLK_CNTL__R300_FORCE_US                        (1 << 28)
+#define SCLK_CNTL__R300_FORCE_SU                        (1 << 30)
 #define SCLK_CNTL__FORCEON_MASK                         0xffff8000L
 
 // pllSCLK_CNTL2
-#define SCLK_CNTL2__R300_TCL_MAX_DYN_STOP_LAT           (1<<10)
-#define SCLK_CNTL2__R300_GA_MAX_DYN_STOP_LAT            (1<<11)
-#define SCLK_CNTL2__R300_CBA_MAX_DYN_STOP_LAT           (1<<12)
-#define SCLK_CNTL2__R300_FORCE_TCL                      (1<<13)
-#define SCLK_CNTL2__R300_FORCE_CBA                      (1<<14)
-#define SCLK_CNTL2__R300_FORCE_GA                       (1<<15)
+#define SCLK_CNTL2__R300_TCL_MAX_DYN_STOP_LAT           (1 << 10)
+#define SCLK_CNTL2__R300_GA_MAX_DYN_STOP_LAT            (1 << 11)
+#define SCLK_CNTL2__R300_CBA_MAX_DYN_STOP_LAT           (1 << 12)
+#define SCLK_CNTL2__R300_FORCE_TCL                      (1 << 13)
+#define SCLK_CNTL2__R300_FORCE_CBA                      (1 << 14)
+#define SCLK_CNTL2__R300_FORCE_GA                       (1 << 15)
 
 // SCLK_MORE_CNTL
 #define SCLK_MORE_CNTL__DISPREGS_MAX_DYN_STOP_LAT          0x00000001L
@@ -1259,7 +1244,7 @@
 #define VCLK_ECP_CNTL__ECP_DIV_MASK                        0x00000300L
 #define VCLK_ECP_CNTL__ECP_FORCE_ON                        0x00040000L
 #define VCLK_ECP_CNTL__SUBCLK_FORCE_ON                     0x00080000L
-#define VCLK_ECP_CNTL__R300_DISP_DAC_PIXCLK_DAC_BLANK_OFF  (1<<23)
+#define VCLK_ECP_CNTL__R300_DISP_DAC_PIXCLK_DAC_BLANK_OFF  (1 << 23)
 
 // PLL_PWRMGT_CNTL
 #define PLL_PWRMGT_CNTL__MPLL_TURNOFF_MASK                 0x00000001L
@@ -1365,18 +1350,18 @@
 #define BUS_CNTL1__AGPCLK_VALID                            0x80000000L
 
 // BUS_CNTL1
-#define	BUS_CNTL1__PMI_IO_DISABLE__SHIFT                   0x00000000
-#define	BUS_CNTL1__PMI_MEM_DISABLE__SHIFT                  0x00000001
-#define	BUS_CNTL1__PMI_BM_DISABLE__SHIFT                   0x00000002
-#define	BUS_CNTL1__PMI_INT_DISABLE__SHIFT                  0x00000003
-#define	BUS_CNTL1__BUS2_IMMEDIATE_PMI_DISABLE__SHIFT       0x00000005
-#define	BUS_CNTL1__BUS2_VGA_REG_COHERENCY_DIS__SHIFT       0x00000008
-#define	BUS_CNTL1__BUS2_VGA_MEM_COHERENCY_DIS__SHIFT       0x00000009
-#define	BUS_CNTL1__BUS2_HDP_REG_COHERENCY_DIS__SHIFT       0x0000000a
-#define	BUS_CNTL1__BUS2_GUI_INITIATOR_COHERENCY_DIS__SHIFT 0x0000000b
-#define	BUS_CNTL1__MOBILE_PLATFORM_SEL__SHIFT              0x0000001a
-#define	BUS_CNTL1__SEND_SBA_LATENCY__SHIFT                 0x0000001c
-#define	BUS_CNTL1__AGPCLK_VALID__SHIFT                     0x0000001f
+#define BUS_CNTL1__PMI_IO_DISABLE__SHIFT                   0x00000000
+#define BUS_CNTL1__PMI_MEM_DISABLE__SHIFT                  0x00000001
+#define BUS_CNTL1__PMI_BM_DISABLE__SHIFT                   0x00000002
+#define BUS_CNTL1__PMI_INT_DISABLE__SHIFT                  0x00000003
+#define BUS_CNTL1__BUS2_IMMEDIATE_PMI_DISABLE__SHIFT       0x00000005
+#define BUS_CNTL1__BUS2_VGA_REG_COHERENCY_DIS__SHIFT       0x00000008
+#define BUS_CNTL1__BUS2_VGA_MEM_COHERENCY_DIS__SHIFT       0x00000009
+#define BUS_CNTL1__BUS2_HDP_REG_COHERENCY_DIS__SHIFT       0x0000000a
+#define BUS_CNTL1__BUS2_GUI_INITIATOR_COHERENCY_DIS__SHIFT 0x0000000b
+#define BUS_CNTL1__MOBILE_PLATFORM_SEL__SHIFT              0x0000001a
+#define BUS_CNTL1__SEND_SBA_LATENCY__SHIFT                 0x0000001c
+#define BUS_CNTL1__AGPCLK_VALID__SHIFT                     0x0000001f
 
 // CRTC_OFFSET_CNTL
 #define CRTC_OFFSET_CNTL__CRTC_TILE_LINE_MASK              0x0000000fL
@@ -1497,27 +1482,27 @@
 #define AGP_CNTL__AGP_MISC_MASK                            0xc0000000L
 
 // AGP_CNTL
-#define	AGP_CNTL__MAX_IDLE_CLK__SHIFT                      0x00000000
-#define	AGP_CNTL__HOLD_RD_FIFO__SHIFT                      0x00000008
-#define	AGP_CNTL__HOLD_RQ_FIFO__SHIFT                      0x00000009
-#define	AGP_CNTL__EN_2X_STBB__SHIFT                        0x0000000a
-#define	AGP_CNTL__FORCE_FULL_SBA__SHIFT                    0x0000000b
-#define	AGP_CNTL__SBA_DIS__SHIFT                           0x0000000c
-#define	AGP_CNTL__AGP_REV_ID__SHIFT                        0x0000000d
-#define	AGP_CNTL__REG_CRIPPLE_AGP4X__SHIFT                 0x0000000e
-#define	AGP_CNTL__REG_CRIPPLE_AGP2X4X__SHIFT               0x0000000f
-#define	AGP_CNTL__FORCE_INT_VREF__SHIFT                    0x00000010
-#define	AGP_CNTL__PENDING_SLOTS_VAL__SHIFT                 0x00000011
-#define	AGP_CNTL__PENDING_SLOTS_SEL__SHIFT                 0x00000013
-#define	AGP_CNTL__EN_EXTENDED_AD_STB_2X__SHIFT             0x00000014
-#define	AGP_CNTL__DIS_QUEUED_GNT_FIX__SHIFT                0x00000015
-#define	AGP_CNTL__EN_RDATA2X4X_MULTIRESET__SHIFT           0x00000016
-#define	AGP_CNTL__EN_RBFCALM__SHIFT                        0x00000017
-#define	AGP_CNTL__FORCE_EXT_VREF__SHIFT                    0x00000018
-#define	AGP_CNTL__DIS_RBF__SHIFT                           0x00000019
-#define	AGP_CNTL__DELAY_FIRST_SBA_EN__SHIFT                0x0000001a
-#define	AGP_CNTL__DELAY_FIRST_SBA_VAL__SHIFT               0x0000001b
-#define	AGP_CNTL__AGP_MISC__SHIFT                          0x0000001e
+#define AGP_CNTL__MAX_IDLE_CLK__SHIFT                      0x00000000
+#define AGP_CNTL__HOLD_RD_FIFO__SHIFT                      0x00000008
+#define AGP_CNTL__HOLD_RQ_FIFO__SHIFT                      0x00000009
+#define AGP_CNTL__EN_2X_STBB__SHIFT                        0x0000000a
+#define AGP_CNTL__FORCE_FULL_SBA__SHIFT                    0x0000000b
+#define AGP_CNTL__SBA_DIS__SHIFT                           0x0000000c
+#define AGP_CNTL__AGP_REV_ID__SHIFT                        0x0000000d
+#define AGP_CNTL__REG_CRIPPLE_AGP4X__SHIFT                 0x0000000e
+#define AGP_CNTL__REG_CRIPPLE_AGP2X4X__SHIFT               0x0000000f
+#define AGP_CNTL__FORCE_INT_VREF__SHIFT                    0x00000010
+#define AGP_CNTL__PENDING_SLOTS_VAL__SHIFT                 0x00000011
+#define AGP_CNTL__PENDING_SLOTS_SEL__SHIFT                 0x00000013
+#define AGP_CNTL__EN_EXTENDED_AD_STB_2X__SHIFT             0x00000014
+#define AGP_CNTL__DIS_QUEUED_GNT_FIX__SHIFT                0x00000015
+#define AGP_CNTL__EN_RDATA2X4X_MULTIRESET__SHIFT           0x00000016
+#define AGP_CNTL__EN_RBFCALM__SHIFT                        0x00000017
+#define AGP_CNTL__FORCE_EXT_VREF__SHIFT                    0x00000018
+#define AGP_CNTL__DIS_RBF__SHIFT                           0x00000019
+#define AGP_CNTL__DELAY_FIRST_SBA_EN__SHIFT                0x0000001a
+#define AGP_CNTL__DELAY_FIRST_SBA_VAL__SHIFT               0x0000001b
+#define AGP_CNTL__AGP_MISC__SHIFT                          0x0000001e
 
 // DISP_MISC_CNTL
 #define DISP_MISC_CNTL__SOFT_RESET_GRPH_PP_MASK            0x00000001L
@@ -1589,54 +1574,54 @@
 #define MC_IND_DATA__MC_IND_DATA_MASK                      0xffffffffL
 
 // MC_CHP_IO_CNTL_A1
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWN_CKA__SHIFT            0x00000000
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWN_AA__SHIFT             0x00000001
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWN_DQMA__SHIFT           0x00000002
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWN_DQSA__SHIFT           0x00000003
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWP_CKA__SHIFT            0x00000004
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWP_AA__SHIFT             0x00000005
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWP_DQMA__SHIFT           0x00000006
-#define	MC_CHP_IO_CNTL_A1__MEM_SLEWP_DQSA__SHIFT           0x00000007
-#define	MC_CHP_IO_CNTL_A1__MEM_PREAMP_AA__SHIFT            0x00000008
-#define	MC_CHP_IO_CNTL_A1__MEM_PREAMP_DQMA__SHIFT          0x00000009
-#define	MC_CHP_IO_CNTL_A1__MEM_PREAMP_DQSA__SHIFT          0x0000000a
-#define	MC_CHP_IO_CNTL_A1__MEM_IO_MODEA__SHIFT             0x0000000c
-#define	MC_CHP_IO_CNTL_A1__MEM_REC_CKA__SHIFT              0x0000000e
-#define	MC_CHP_IO_CNTL_A1__MEM_REC_AA__SHIFT               0x00000010
-#define	MC_CHP_IO_CNTL_A1__MEM_REC_DQMA__SHIFT             0x00000012
-#define	MC_CHP_IO_CNTL_A1__MEM_REC_DQSA__SHIFT             0x00000014
-#define	MC_CHP_IO_CNTL_A1__MEM_SYNC_PHASEA__SHIFT          0x00000016
-#define	MC_CHP_IO_CNTL_A1__MEM_SYNC_CENTERA__SHIFT         0x00000017
-#define	MC_CHP_IO_CNTL_A1__MEM_SYNC_ENA__SHIFT             0x00000018
-#define	MC_CHP_IO_CNTL_A1__MEM_CLK_SELA__SHIFT             0x0000001a
-#define	MC_CHP_IO_CNTL_A1__MEM_CLK_INVA__SHIFT             0x0000001c
-#define	MC_CHP_IO_CNTL_A1__MEM_DATA_ENIMP_A__SHIFT         0x0000001e
-#define	MC_CHP_IO_CNTL_A1__MEM_CNTL_ENIMP_A__SHIFT         0x0000001f
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWN_CKA__SHIFT            0x00000000
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWN_AA__SHIFT             0x00000001
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWN_DQMA__SHIFT           0x00000002
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWN_DQSA__SHIFT           0x00000003
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWP_CKA__SHIFT            0x00000004
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWP_AA__SHIFT             0x00000005
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWP_DQMA__SHIFT           0x00000006
+#define MC_CHP_IO_CNTL_A1__MEM_SLEWP_DQSA__SHIFT           0x00000007
+#define MC_CHP_IO_CNTL_A1__MEM_PREAMP_AA__SHIFT            0x00000008
+#define MC_CHP_IO_CNTL_A1__MEM_PREAMP_DQMA__SHIFT          0x00000009
+#define MC_CHP_IO_CNTL_A1__MEM_PREAMP_DQSA__SHIFT          0x0000000a
+#define MC_CHP_IO_CNTL_A1__MEM_IO_MODEA__SHIFT             0x0000000c
+#define MC_CHP_IO_CNTL_A1__MEM_REC_CKA__SHIFT              0x0000000e
+#define MC_CHP_IO_CNTL_A1__MEM_REC_AA__SHIFT               0x00000010
+#define MC_CHP_IO_CNTL_A1__MEM_REC_DQMA__SHIFT             0x00000012
+#define MC_CHP_IO_CNTL_A1__MEM_REC_DQSA__SHIFT             0x00000014
+#define MC_CHP_IO_CNTL_A1__MEM_SYNC_PHASEA__SHIFT          0x00000016
+#define MC_CHP_IO_CNTL_A1__MEM_SYNC_CENTERA__SHIFT         0x00000017
+#define MC_CHP_IO_CNTL_A1__MEM_SYNC_ENA__SHIFT             0x00000018
+#define MC_CHP_IO_CNTL_A1__MEM_CLK_SELA__SHIFT             0x0000001a
+#define MC_CHP_IO_CNTL_A1__MEM_CLK_INVA__SHIFT             0x0000001c
+#define MC_CHP_IO_CNTL_A1__MEM_DATA_ENIMP_A__SHIFT         0x0000001e
+#define MC_CHP_IO_CNTL_A1__MEM_CNTL_ENIMP_A__SHIFT         0x0000001f
 
 // MC_CHP_IO_CNTL_B1
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWN_CKB__SHIFT            0x00000000
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWN_AB__SHIFT             0x00000001
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWN_DQMB__SHIFT           0x00000002
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWN_DQSB__SHIFT           0x00000003
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWP_CKB__SHIFT            0x00000004
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWP_AB__SHIFT             0x00000005
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWP_DQMB__SHIFT           0x00000006
-#define	MC_CHP_IO_CNTL_B1__MEM_SLEWP_DQSB__SHIFT           0x00000007
-#define	MC_CHP_IO_CNTL_B1__MEM_PREAMP_AB__SHIFT            0x00000008
-#define	MC_CHP_IO_CNTL_B1__MEM_PREAMP_DQMB__SHIFT          0x00000009
-#define	MC_CHP_IO_CNTL_B1__MEM_PREAMP_DQSB__SHIFT          0x0000000a
-#define	MC_CHP_IO_CNTL_B1__MEM_IO_MODEB__SHIFT             0x0000000c
-#define	MC_CHP_IO_CNTL_B1__MEM_REC_CKB__SHIFT              0x0000000e
-#define	MC_CHP_IO_CNTL_B1__MEM_REC_AB__SHIFT               0x00000010
-#define	MC_CHP_IO_CNTL_B1__MEM_REC_DQMB__SHIFT             0x00000012
-#define	MC_CHP_IO_CNTL_B1__MEM_REC_DQSB__SHIFT             0x00000014
-#define	MC_CHP_IO_CNTL_B1__MEM_SYNC_PHASEB__SHIFT          0x00000016
-#define	MC_CHP_IO_CNTL_B1__MEM_SYNC_CENTERB__SHIFT         0x00000017
-#define	MC_CHP_IO_CNTL_B1__MEM_SYNC_ENB__SHIFT             0x00000018
-#define	MC_CHP_IO_CNTL_B1__MEM_CLK_SELB__SHIFT             0x0000001a
-#define	MC_CHP_IO_CNTL_B1__MEM_CLK_INVB__SHIFT             0x0000001c
-#define	MC_CHP_IO_CNTL_B1__MEM_DATA_ENIMP_B__SHIFT         0x0000001e
-#define	MC_CHP_IO_CNTL_B1__MEM_CNTL_ENIMP_B__SHIFT         0x0000001f
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWN_CKB__SHIFT            0x00000000
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWN_AB__SHIFT             0x00000001
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWN_DQMB__SHIFT           0x00000002
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWN_DQSB__SHIFT           0x00000003
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWP_CKB__SHIFT            0x00000004
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWP_AB__SHIFT             0x00000005
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWP_DQMB__SHIFT           0x00000006
+#define MC_CHP_IO_CNTL_B1__MEM_SLEWP_DQSB__SHIFT           0x00000007
+#define MC_CHP_IO_CNTL_B1__MEM_PREAMP_AB__SHIFT            0x00000008
+#define MC_CHP_IO_CNTL_B1__MEM_PREAMP_DQMB__SHIFT          0x00000009
+#define MC_CHP_IO_CNTL_B1__MEM_PREAMP_DQSB__SHIFT          0x0000000a
+#define MC_CHP_IO_CNTL_B1__MEM_IO_MODEB__SHIFT             0x0000000c
+#define MC_CHP_IO_CNTL_B1__MEM_REC_CKB__SHIFT              0x0000000e
+#define MC_CHP_IO_CNTL_B1__MEM_REC_AB__SHIFT               0x00000010
+#define MC_CHP_IO_CNTL_B1__MEM_REC_DQMB__SHIFT             0x00000012
+#define MC_CHP_IO_CNTL_B1__MEM_REC_DQSB__SHIFT             0x00000014
+#define MC_CHP_IO_CNTL_B1__MEM_SYNC_PHASEB__SHIFT          0x00000016
+#define MC_CHP_IO_CNTL_B1__MEM_SYNC_CENTERB__SHIFT         0x00000017
+#define MC_CHP_IO_CNTL_B1__MEM_SYNC_ENB__SHIFT             0x00000018
+#define MC_CHP_IO_CNTL_B1__MEM_CLK_SELB__SHIFT             0x0000001a
+#define MC_CHP_IO_CNTL_B1__MEM_CLK_INVB__SHIFT             0x0000001c
+#define MC_CHP_IO_CNTL_B1__MEM_DATA_ENIMP_B__SHIFT         0x0000001e
+#define MC_CHP_IO_CNTL_B1__MEM_CNTL_ENIMP_B__SHIFT         0x0000001f
 
 // MC_CHP_IO_CNTL_A1
 #define MC_CHP_IO_CNTL_A1__MEM_SLEWN_CKA_MASK              0x00000001L
@@ -1744,18 +1729,18 @@
 #define MEM_SDRAM_MODE_REG__MEM_SDRAM_RESET                0x80000000L
 
 // MEM_SDRAM_MODE_REG
-#define	MEM_SDRAM_MODE_REG__MEM_MODE_REG__SHIFT            0x00000000
-#define	MEM_SDRAM_MODE_REG__MEM_WR_LATENCY__SHIFT          0x00000010
-#define	MEM_SDRAM_MODE_REG__MEM_CAS_LATENCY__SHIFT         0x00000014
-#define	MEM_SDRAM_MODE_REG__MEM_CMD_LATENCY__SHIFT         0x00000017
-#define	MEM_SDRAM_MODE_REG__MEM_STR_LATENCY__SHIFT         0x00000018
-#define	MEM_SDRAM_MODE_REG__MEM_FALL_OUT_CMD__SHIFT        0x00000019
-#define	MEM_SDRAM_MODE_REG__MEM_FALL_OUT_DATA__SHIFT       0x0000001a
-#define	MEM_SDRAM_MODE_REG__MEM_FALL_OUT_STR__SHIFT        0x0000001b
-#define	MEM_SDRAM_MODE_REG__MC_INIT_COMPLETE__SHIFT        0x0000001c
-#define	MEM_SDRAM_MODE_REG__MEM_DDR_DLL__SHIFT             0x0000001d
-#define	MEM_SDRAM_MODE_REG__MEM_CFG_TYPE__SHIFT            0x0000001e
-#define	MEM_SDRAM_MODE_REG__MEM_SDRAM_RESET__SHIFT         0x0000001f
+#define MEM_SDRAM_MODE_REG__MEM_MODE_REG__SHIFT            0x00000000
+#define MEM_SDRAM_MODE_REG__MEM_WR_LATENCY__SHIFT          0x00000010
+#define MEM_SDRAM_MODE_REG__MEM_CAS_LATENCY__SHIFT         0x00000014
+#define MEM_SDRAM_MODE_REG__MEM_CMD_LATENCY__SHIFT         0x00000017
+#define MEM_SDRAM_MODE_REG__MEM_STR_LATENCY__SHIFT         0x00000018
+#define MEM_SDRAM_MODE_REG__MEM_FALL_OUT_CMD__SHIFT        0x00000019
+#define MEM_SDRAM_MODE_REG__MEM_FALL_OUT_DATA__SHIFT       0x0000001a
+#define MEM_SDRAM_MODE_REG__MEM_FALL_OUT_STR__SHIFT        0x0000001b
+#define MEM_SDRAM_MODE_REG__MC_INIT_COMPLETE__SHIFT        0x0000001c
+#define MEM_SDRAM_MODE_REG__MEM_DDR_DLL__SHIFT             0x0000001d
+#define MEM_SDRAM_MODE_REG__MEM_CFG_TYPE__SHIFT            0x0000001e
+#define MEM_SDRAM_MODE_REG__MEM_SDRAM_RESET__SHIFT         0x0000001f
 
 // MEM_REFRESH_CNTL
 #define MEM_REFRESH_CNTL__MEM_REFRESH_RATE_MASK            0x000000ffL
@@ -1989,6 +1974,4 @@
 #define ixR300_MC_DLL_CNTL                         0x002f
 #define NB_TOM                                     0x15C
 
-
-#endif	/* _RADEON_H */
-
+#endif  /* _RADEON_H */

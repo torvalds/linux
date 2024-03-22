@@ -40,32 +40,32 @@
  * fix-mapped?
  */
 enum fixed_addresses {
-	/*
-	 * The FIX_CMAP entries are used by kmap_coherent() to get virtual
-	 * addresses which are of a known color, and so their values are
-	 * important. __fix_to_virt(FIX_CMAP_END - n) must give an address
-	 * which is the same color as a page (n<<PAGE_SHIFT).
-	 */
+  /*
+   * The FIX_CMAP entries are used by kmap_coherent() to get virtual
+   * addresses which are of a known color, and so their values are
+   * important. __fix_to_virt(FIX_CMAP_END - n) must give an address
+   * which is the same color as a page (n<<PAGE_SHIFT).
+   */
 #define FIX_N_COLOURS 8
-	FIX_CMAP_BEGIN,
-	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS) - 1,
+  FIX_CMAP_BEGIN,
+  FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * NR_CPUS) - 1,
 
 #ifdef CONFIG_IOREMAP_FIXED
-	/*
-	 * FIX_IOREMAP entries are useful for mapping physical address
-	 * space before ioremap() is useable, e.g. really early in boot
-	 * before kmalloc() is working.
-	 */
-#define FIX_N_IOREMAPS	32
-	FIX_IOREMAP_BEGIN,
-	FIX_IOREMAP_END = FIX_IOREMAP_BEGIN + FIX_N_IOREMAPS - 1,
+  /*
+   * FIX_IOREMAP entries are useful for mapping physical address
+   * space before ioremap() is useable, e.g. really early in boot
+   * before kmalloc() is working.
+   */
+#define FIX_N_IOREMAPS  32
+  FIX_IOREMAP_BEGIN,
+  FIX_IOREMAP_END = FIX_IOREMAP_BEGIN + FIX_N_IOREMAPS - 1,
 #endif
 
-	__end_of_fixed_addresses
+  __end_of_fixed_addresses
 };
 
 extern void __set_fixmap(enum fixed_addresses idx,
-			 unsigned long phys, pgprot_t flags);
+    unsigned long phys, pgprot_t flags);
 extern void __clear_fixmap(enum fixed_addresses idx, pgprot_t flags);
 
 /*
@@ -75,9 +75,9 @@ extern void __clear_fixmap(enum fixed_addresses idx, pgprot_t flags);
  * the start of the fixmap, and leave one page empty
  * at the top of mem..
  */
-#define FIXADDR_TOP	(P4SEG - PAGE_SIZE)
-#define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_TOP (P4SEG - PAGE_SIZE)
+#define FIXADDR_SIZE  (__end_of_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_START (FIXADDR_TOP - FIXADDR_SIZE)
 
 #define FIXMAP_PAGE_NOCACHE PAGE_KERNEL_NOCACHE
 

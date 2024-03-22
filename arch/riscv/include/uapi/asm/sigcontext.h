@@ -9,16 +9,16 @@
 #include <asm/ptrace.h>
 
 /* The Magic number for signal context frame header. */
-#define RISCV_V_MAGIC	0x53465457
-#define END_MAGIC	0x0
+#define RISCV_V_MAGIC 0x53465457
+#define END_MAGIC 0x0
 
 /* The size of END signal context header. */
-#define END_HDR_SIZE	0x0
+#define END_HDR_SIZE  0x0
 
 #ifndef __ASSEMBLY__
 
 struct __sc_riscv_v_state {
-	struct __riscv_v_ext_state v_state;
+  struct __riscv_v_ext_state v_state;
 } __attribute__((aligned(16)));
 
 /*
@@ -28,11 +28,11 @@ struct __sc_riscv_v_state {
  * it is restored by sys_rt_sigreturn.
  */
 struct sigcontext {
-	struct user_regs_struct sc_regs;
-	union {
-		union __riscv_fp_state sc_fpregs;
-		struct __riscv_extra_ext_header sc_extdesc;
-	};
+  struct user_regs_struct sc_regs;
+  union {
+    union __riscv_fp_state sc_fpregs;
+    struct __riscv_extra_ext_header sc_extdesc;
+  };
 };
 
 #endif /*!__ASSEMBLY__*/

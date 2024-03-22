@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    cs5345.h - definition for cs5345 inputs and outputs
-
-    Copyright (C) 2007 Hans Verkuil (hverkuil@xs4all.nl)
-
-*/
+ *  cs5345.h - definition for cs5345 inputs and outputs
+ *
+ *  Copyright (C) 2007 Hans Verkuil (hverkuil@xs4all.nl)
+ *
+ */
 
 #ifndef _CS5345_H_
 #define _CS5345_H_

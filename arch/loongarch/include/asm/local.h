@@ -11,60 +11,51 @@
 #include <asm/cmpxchg.h>
 
 typedef struct {
-	atomic_long_t a;
+  atomic_long_t a;
 } local_t;
 
-#define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
+#define LOCAL_INIT(i) { ATOMIC_LONG_INIT(i) }
 
-#define local_read(l)	atomic_long_read(&(l)->a)
+#define local_read(l) atomic_long_read(&(l)->a)
 #define local_set(l, i) atomic_long_set(&(l)->a, (i))
 
 #define local_add(i, l) atomic_long_add((i), (&(l)->a))
 #define local_sub(i, l) atomic_long_sub((i), (&(l)->a))
-#define local_inc(l)	atomic_long_inc(&(l)->a)
-#define local_dec(l)	atomic_long_dec(&(l)->a)
+#define local_inc(l)  atomic_long_inc(&(l)->a)
+#define local_dec(l)  atomic_long_dec(&(l)->a)
 
 /*
  * Same as above, but return the result value
  */
-static inline long local_add_return(long i, local_t *l)
-{
-	unsigned long result;
-
-	__asm__ __volatile__(
-	"   " __AMADD " %1, %2, %0      \n"
-	: "+ZB" (l->a.counter), "=&r" (result)
-	: "r" (i)
-	: "memory");
-	result = result + i;
-
-	return result;
+static inline long local_add_return(long i, local_t *l) {
+  unsigned long result;
+  __asm__ __volatile__ (
+    "   " __AMADD " %1, %2, %0      \n"
+    : "+ZB" (l->a.counter), "=&r" (result)
+    : "r" (i)
+    : "memory");
+  result = result + i;
+  return result;
 }
 
-static inline long local_sub_return(long i, local_t *l)
-{
-	unsigned long result;
-
-	__asm__ __volatile__(
-	"   " __AMADD "%1, %2, %0       \n"
-	: "+ZB" (l->a.counter), "=&r" (result)
-	: "r" (-i)
-	: "memory");
-
-	result = result - i;
-
-	return result;
+static inline long local_sub_return(long i, local_t *l) {
+  unsigned long result;
+  __asm__ __volatile__ (
+    "   " __AMADD "%1, %2, %0       \n"
+    : "+ZB" (l->a.counter), "=&r" (result)
+    : "r" (-i)
+    : "memory");
+  result = result - i;
+  return result;
 }
 
-static inline long local_cmpxchg(local_t *l, long old, long new)
-{
-	return cmpxchg_local(&l->a.counter, old, new);
+static inline long local_cmpxchg(local_t *l, long old, long new) {
+  return cmpxchg_local(&l->a.counter, old, new);
 }
 
-static inline bool local_try_cmpxchg(local_t *l, long *old, long new)
-{
-	return try_cmpxchg_local(&l->a.counter,
-				 (typeof(l->a.counter) *) old, new);
+static inline bool local_try_cmpxchg(local_t *l, long *old, long new) {
+  return try_cmpxchg_local(&l->a.counter,
+      (typeof(l->a.counter) *)old, new);
 }
 
 #define local_xchg(l, n) (atomic_long_xchg((&(l)->a), (n)))
@@ -78,17 +69,14 @@ static inline bool local_try_cmpxchg(local_t *l, long *old, long new)
  * Atomically adds @a to @l, if @v was not already @u.
  * Returns true if the addition was done.
  */
-static inline bool
-local_add_unless(local_t *l, long a, long u)
-{
-	long c = local_read(l);
-
-	do {
-		if (unlikely(c == u))
-			return false;
-	} while (!local_try_cmpxchg(l, &c, c + a));
-
-	return true;
+static inline bool local_add_unless(local_t *l, long a, long u) {
+  long c = local_read(l);
+  do {
+    if (unlikely(c == u)) {
+      return false;
+    }
+  } while (!local_try_cmpxchg(l, &c, c + a));
+  return true;
 }
 
 #define local_inc_not_zero(l) local_add_unless((l), 1, 0)
@@ -143,9 +131,9 @@ local_add_unless(local_t *l, long a, long u)
  * a variable, not an address.
  */
 
-#define __local_inc(l)		((l)->a.counter++)
-#define __local_dec(l)		((l)->a.counter++)
-#define __local_add(i, l)	((l)->a.counter += (i))
-#define __local_sub(i, l)	((l)->a.counter -= (i))
+#define __local_inc(l)    ((l)->a.counter++)
+#define __local_dec(l)    ((l)->a.counter++)
+#define __local_add(i, l) ((l)->a.counter += (i))
+#define __local_sub(i, l) ((l)->a.counter -= (i))
 
 #endif /* _ARCH_LOONGARCH_LOCAL_H */

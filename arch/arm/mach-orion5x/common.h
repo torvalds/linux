@@ -70,13 +70,17 @@ extern void __init tag_fixup_mem32(struct tag *, char **);
 #ifdef CONFIG_MACH_MSS2_DT
 extern void mss2_init(void);
 #else
-static inline void mss2_init(void) {}
+static inline void mss2_init(void) {
+}
+
 #endif
 
 #ifdef CONFIG_MACH_D2NET_DT
 void d2net_init(void);
 #else
-static inline void d2net_init(void) {}
+static inline void d2net_init(void) {
+}
+
 #endif
 
 /*****************************************************************************
@@ -86,7 +90,7 @@ static inline void d2net_init(void) {}
  * These are not preempt-safe.  Locks, if needed, must be taken
  * care of by the caller.
  */
-#define orion5x_setbits(r, mask)	writel(readl(r) | (mask), (r))
-#define orion5x_clrbits(r, mask)	writel(readl(r) & ~(mask), (r))
+#define orion5x_setbits(r, mask)  writel(readl(r) | (mask), (r))
+#define orion5x_clrbits(r, mask)  writel(readl(r) & ~(mask), (r))
 
 #endif

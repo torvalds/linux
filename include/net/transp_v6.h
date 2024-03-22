@@ -35,32 +35,31 @@ void tcpv6_exit(void);
 
 /* this does all the common and the specific ctl work */
 void ip6_datagram_recv_ctl(struct sock *sk, struct msghdr *msg,
-			   struct sk_buff *skb);
+    struct sk_buff *skb);
 void ip6_datagram_recv_common_ctl(struct sock *sk, struct msghdr *msg,
-				  struct sk_buff *skb);
+    struct sk_buff *skb);
 void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
-				    struct sk_buff *skb);
+    struct sk_buff *skb);
 
 int ip6_datagram_send_ctl(struct net *net, struct sock *sk, struct msghdr *msg,
-			  struct flowi6 *fl6, struct ipcm6_cookie *ipc6);
+    struct flowi6 *fl6, struct ipcm6_cookie *ipc6);
 
 void __ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp,
-			       __u16 srcp, __u16 destp, int rqueue, int bucket);
-static inline void
-ip6_dgram_sock_seq_show(struct seq_file *seq, struct sock *sp, __u16 srcp,
-			__u16 destp, int bucket)
-{
-	__ip6_dgram_sock_seq_show(seq, sp, srcp, destp, sk_rmem_alloc_get(sp),
-				  bucket);
+    __u16 srcp, __u16 destp, int rqueue, int bucket);
+static inline void ip6_dgram_sock_seq_show(struct seq_file *seq,
+    struct sock *sp, __u16 srcp,
+    __u16 destp, int bucket) {
+  __ip6_dgram_sock_seq_show(seq, sp, srcp, destp, sk_rmem_alloc_get(sp),
+      bucket);
 }
 
 #define LOOPBACK4_IPV6 cpu_to_be32(0x7f000006)
 
-#define IPV6_SEQ_DGRAM_HEADER					       \
-	"  sl  "						       \
-	"local_address                         "		       \
-	"remote_address                        "		       \
-	"st tx_queue rx_queue tr tm->when retrnsmt"		       \
-	"   uid  timeout inode ref pointer drops\n"
+#define IPV6_SEQ_DGRAM_HEADER                \
+  "  sl  "                   \
+  "local_address                         "           \
+  "remote_address                        "           \
+  "st tx_queue rx_queue tr tm->when retrnsmt"          \
+  "   uid  timeout inode ref pointer drops\n"
 
 #endif

@@ -29,26 +29,26 @@
  * @num_msi: Number of MSI's supported by the device
  */
 struct cdx_dev_params {
-	struct cdx_controller *cdx;
-	struct device *parent;
-	u16 vendor;
-	u16 device;
-	u16 subsys_vendor;
-	u16 subsys_device;
-	u8 bus_num;
-	u8 dev_num;
-	struct resource res[MAX_CDX_DEV_RESOURCES];
-	u8 res_count;
-	u32 req_id;
-	u32 class;
-	u8 revision;
-	u32 msi_dev_id;
-	u32 num_msi;
+  struct cdx_controller *cdx;
+  struct device *parent;
+  u16 vendor;
+  u16 device;
+  u16 subsys_vendor;
+  u16 subsys_device;
+  u8 bus_num;
+  u8 dev_num;
+  struct resource res[MAX_CDX_DEV_RESOURCES];
+  u8 res_count;
+  u32 req_id;
+  u32 class;
+  u8 revision;
+  u32 msi_dev_id;
+  u32 num_msi;
 };
 
 /**
  * cdx_register_controller - Register a CDX controller and its ports
- *		on the CDX bus.
+ *    on the CDX bus.
  * @cdx: The CDX controller to register
  *
  * Return: -errno on failure, 0 on success.
@@ -63,9 +63,9 @@ void cdx_unregister_controller(struct cdx_controller *cdx);
 
 /**
  * cdx_device_add - Add a CDX device. This function adds a CDX device
- *		on the CDX bus as per the device parameters provided
- *		by caller. It also creates and registers an associated
- *		Linux generic device.
+ *    on the CDX bus as per the device parameters provided
+ *    by caller. It also creates and registers an associated
+ *    Linux generic device.
  * @dev_params: device parameters associated with the device to be created.
  *
  * Return: -errno on failure, 0 on success.
@@ -74,12 +74,13 @@ int cdx_device_add(struct cdx_dev_params *dev_params);
 
 /**
  * cdx_bus_add - Add a CDX bus. This function adds a bus on the CDX bus
- *		subsystem. It creates a CDX device for the corresponding bus and
- *		also registers an associated Linux generic device.
+ *    subsystem. It creates a CDX device for the corresponding bus and
+ *    also registers an associated Linux generic device.
  * @cdx: Associated CDX controller
  * @us_num: Bus number
  *
- * Return: associated Linux generic device pointer on success or NULL on failure.
+ * Return: associated Linux generic device pointer on success or NULL on
+ * failure.
  */
 struct device *cdx_bus_add(struct cdx_controller *cdx, u8 bus_num);
 

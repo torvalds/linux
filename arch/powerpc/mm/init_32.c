@@ -49,7 +49,7 @@
 #error "You must adjust CONFIG_LOWMEM_SIZE or CONFIG_KERNEL_START"
 #endif
 #endif
-#define MAX_LOW_MEM	CONFIG_LOWMEM_SIZE
+#define MAX_LOW_MEM CONFIG_LOWMEM_SIZE
 
 phys_addr_t total_memory;
 phys_addr_t total_lowmem;
@@ -78,57 +78,48 @@ unsigned long __max_low_memory = MAX_LOW_MEM;
  * including both RAM and possibly some I/O regions,
  * and sets up the page tables and the MMU hardware ready to go.
  */
-void __init MMU_init(void)
-{
-	if (ppc_md.progress)
-		ppc_md.progress("MMU:enter", 0x111);
-
-	total_lowmem = total_memory = memblock_end_of_DRAM() - memstart_addr;
-	lowmem_end_addr = memstart_addr + total_lowmem;
-
+void __init MMU_init(void) {
+  if (ppc_md.progress) {
+    ppc_md.progress("MMU:enter", 0x111);
+  }
+  total_lowmem = total_memory = memblock_end_of_DRAM() - memstart_addr;
+  lowmem_end_addr = memstart_addr + total_lowmem;
 #ifdef CONFIG_PPC_85xx
-	/* Freescale Book-E parts expect lowmem to be mapped by fixed TLB
-	 * entries, so we need to adjust lowmem to match the amount we can map
-	 * in the fixed entries */
-	adjust_total_lowmem();
+  /* Freescale Book-E parts expect lowmem to be mapped by fixed TLB
+   * entries, so we need to adjust lowmem to match the amount we can map
+   * in the fixed entries */
+  adjust_total_lowmem();
 #endif /* CONFIG_PPC_85xx */
-
-	if (total_lowmem > __max_low_memory) {
-		total_lowmem = __max_low_memory;
-		lowmem_end_addr = memstart_addr + total_lowmem;
+  if (total_lowmem > __max_low_memory) {
+    total_lowmem = __max_low_memory;
+    lowmem_end_addr = memstart_addr + total_lowmem;
 #ifndef CONFIG_HIGHMEM
-		total_memory = total_lowmem;
-		memblock_enforce_memory_limit(total_lowmem);
+    total_memory = total_lowmem;
+    memblock_enforce_memory_limit(total_lowmem);
 #endif /* CONFIG_HIGHMEM */
-	}
-
-	/* Initialize the MMU hardware */
-	if (ppc_md.progress)
-		ppc_md.progress("MMU:hw init", 0x300);
-	MMU_init_hw();
-
-	/* Map in all of RAM starting at KERNELBASE */
-	if (ppc_md.progress)
-		ppc_md.progress("MMU:mapin", 0x301);
-	mapin_ram();
-
-	/* Initialize early top-down ioremap allocator */
-	ioremap_bot = IOREMAP_TOP;
-
-	if (ppc_md.progress)
-		ppc_md.progress("MMU:exit", 0x211);
-
-	/* From now on, btext is no longer BAT mapped if it was at all */
+  }
+  /* Initialize the MMU hardware */
+  if (ppc_md.progress) {
+    ppc_md.progress("MMU:hw init", 0x300);
+  }
+  MMU_init_hw();
+  /* Map in all of RAM starting at KERNELBASE */
+  if (ppc_md.progress) {
+    ppc_md.progress("MMU:mapin", 0x301);
+  }
+  mapin_ram();
+  /* Initialize early top-down ioremap allocator */
+  ioremap_bot = IOREMAP_TOP;
+  if (ppc_md.progress) {
+    ppc_md.progress("MMU:exit", 0x211);
+  }
+  /* From now on, btext is no longer BAT mapped if it was at all */
 #ifdef CONFIG_BOOTX_TEXT
-	btext_unmap();
+  btext_unmap();
 #endif
-
-	kasan_mmu_init();
-
-	setup_kup();
-
-	update_mmu_feature_fixups(MMU_FTR_KUAP);
-
-	/* Shortly after that, the entire linear mapping will be available */
-	memblock_set_current_limit(lowmem_end_addr);
+  kasan_mmu_init();
+  setup_kup();
+  update_mmu_feature_fixups(MMU_FTR_KUAP);
+  /* Shortly after that, the entire linear mapping will be available */
+  memblock_set_current_limit(lowmem_end_addr);
 }

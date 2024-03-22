@@ -10,9 +10,9 @@
 #include <asm/ibt.h>
 
 #ifndef CONFIG_SMP
-#define cpu_physical_id(cpu)			boot_cpu_physical_apicid
-#define cpu_acpi_id(cpu)			0
-#define safe_smp_processor_id()			0
+#define cpu_physical_id(cpu)      boot_cpu_physical_apicid
+#define cpu_acpi_id(cpu)      0
+#define safe_smp_processor_id()     0
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -33,28 +33,32 @@ extern bool handle_guest_split_lock(unsigned long ip);
 extern void handle_bus_lock(struct pt_regs *regs);
 u8 get_this_hybrid_cpu_type(void);
 #else
-static inline void __init sld_setup(struct cpuinfo_x86 *c) {}
-static inline bool handle_user_split_lock(struct pt_regs *regs, long error_code)
-{
-	return false;
+static inline void __init sld_setup(struct cpuinfo_x86 *c) {
 }
 
-static inline bool handle_guest_split_lock(unsigned long ip)
-{
-	return false;
+static inline bool handle_user_split_lock(struct pt_regs *regs,
+    long error_code) {
+  return false;
 }
 
-static inline void handle_bus_lock(struct pt_regs *regs) {}
-
-static inline u8 get_this_hybrid_cpu_type(void)
-{
-	return 0;
+static inline bool handle_guest_split_lock(unsigned long ip) {
+  return false;
 }
+
+static inline void handle_bus_lock(struct pt_regs *regs) {
+}
+
+static inline u8 get_this_hybrid_cpu_type(void) {
+  return 0;
+}
+
 #endif
 #ifdef CONFIG_IA32_FEAT_CTL
 void init_ia32_feat_ctl(struct cpuinfo_x86 *c);
 #else
-static inline void init_ia32_feat_ctl(struct cpuinfo_x86 *c) {}
+static inline void init_ia32_feat_ctl(struct cpuinfo_x86 *c) {
+}
+
 #endif
 
 extern __noendbr void cet_disable(void);

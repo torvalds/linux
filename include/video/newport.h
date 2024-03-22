@@ -5,32 +5,35 @@
  *            hardware.
  *
  * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
- * 
+ *
  * Ulf Carlsson - Compatibility with the IRIX structures added
  */
 
 #ifndef _SGI_NEWPORT_H
 #define _SGI_NEWPORT_H
 
-
 typedef volatile unsigned int npireg_t;
 
 union npfloat {
-	volatile float flt;
-	npireg_t       word;
+  volatile float flt;
+  npireg_t word;
 };
 
 typedef union npfloat npfreg_t;
 
 union np_dcb {
-	npireg_t byword;
-	struct { volatile unsigned short s0, s1; } byshort;
-	struct { volatile unsigned char b0, b1, b2, b3; } bybytes;
+  npireg_t byword;
+  struct {
+    volatile unsigned short s0, s1;
+  } byshort;
+  struct {
+    volatile unsigned char b0, b1, b2, b3;
+  } bybytes;
 };
 
 struct newport_rexregs {
-	npireg_t drawmode1;      /* GL extra mode bits */
-	
+  npireg_t drawmode1;      /* GL extra mode bits */
+
 #define DM1_PLANES         0x00000007
 #define    DM1_NOPLANES    0x00000000
 #define    DM1_RGBPLANES   0x00000001
@@ -38,7 +41,7 @@ struct newport_rexregs {
 #define    DM1_OLAYPLANES  0x00000004
 #define    DM1_PUPPLANES   0x00000005
 #define    DM1_CIDPLANES   0x00000006
-	
+
 #define NPORT_DMODE1_DDMASK      0x00000018
 #define NPORT_DMODE1_DD4         0x00000000
 #define NPORT_DMODE1_DD8         0x00000008
@@ -97,16 +100,16 @@ struct newport_rexregs {
 #define NPORT_DMODE1_LONAND      0xe0000000
 #define NPORT_DMODE1_LOONE       0xf0000000
 
-	npireg_t drawmode0;      /* REX command register */
+  npireg_t drawmode0;      /* REX command register */
 
-	/* These bits define the graphics opcode being performed. */
+  /* These bits define the graphics opcode being performed. */
 #define NPORT_DMODE0_OPMASK   0x00000003 /* Opcode mask */
 #define NPORT_DMODE0_NOP      0x00000000 /* No operation */
 #define NPORT_DMODE0_RD       0x00000001 /* Read operation */
 #define NPORT_DMODE0_DRAW     0x00000002 /* Draw operation */
 #define NPORT_DMODE0_S2S      0x00000003 /* Screen to screen operation */
 
-	/* The following decide what addressing mode(s) are to be used */
+  /* The following decide what addressing mode(s) are to be used */
 #define NPORT_DMODE0_AMMASK   0x0000001c /* Address mode mask */
 #define NPORT_DMODE0_SPAN     0x00000000 /* Spanning address mode */
 #define NPORT_DMODE0_BLOCK    0x00000004 /* Block address mode */
@@ -116,7 +119,7 @@ struct newport_rexregs {
 #define NPORT_DMODE0_TLINE    0x00000014 /* Tline address mode */
 #define NPORT_DMODE0_BLINE    0x00000018 /* Bline address mode */
 
-	/* And now some misc. operation control bits. */
+  /* And now some misc. operation control bits. */
 #define NPORT_DMODE0_DOSETUP  0x00000020
 #define NPORT_DMODE0_CHOST    0x00000040
 #define NPORT_DMODE0_AHOST    0x00000080
@@ -137,65 +140,65 @@ struct newport_rexregs {
 #define NPORT_DMODE0_ENDPF    0x00400000
 #define NPORT_DMODE0_YSTR     0x00800000
 
-	npireg_t lsmode;      /* Mode for line stipple ops */
-	npireg_t lspattern;   /* Pattern for line stipple ops */
-	npireg_t lspatsave;   /* Backup save pattern */
-	npireg_t zpattern;    /* Pixel zpattern */
-	npireg_t colorback;   /* Background color */
-	npireg_t colorvram;   /* Clear color for fast vram */
-	npireg_t alpharef;    /* Reference value for afunctions */
-	unsigned int pad0;
-	npireg_t smask0x;     /* Window GL relative screen mask 0 */
-	npireg_t smask0y;     /* Window GL relative screen mask 0 */
-	npireg_t _setup;
-	npireg_t _stepz;
-	npireg_t _lsrestore;
-	npireg_t _lssave;
+  npireg_t lsmode;      /* Mode for line stipple ops */
+  npireg_t lspattern;   /* Pattern for line stipple ops */
+  npireg_t lspatsave;   /* Backup save pattern */
+  npireg_t zpattern;    /* Pixel zpattern */
+  npireg_t colorback;   /* Background color */
+  npireg_t colorvram;   /* Clear color for fast vram */
+  npireg_t alpharef;    /* Reference value for afunctions */
+  unsigned int pad0;
+  npireg_t smask0x;     /* Window GL relative screen mask 0 */
+  npireg_t smask0y;     /* Window GL relative screen mask 0 */
+  npireg_t _setup;
+  npireg_t _stepz;
+  npireg_t _lsrestore;
+  npireg_t _lssave;
 
-	unsigned int _pad1[0x30];
+  unsigned int _pad1[0x30];
 
-	/* Iterators, full state for context switch */
-	npfreg_t _xstart;	/* X-start point (current) */
-	npfreg_t _ystart;	/* Y-start point (current) */
-	npfreg_t _xend;		/* x-end point */
-	npfreg_t _yend;		/* y-end point */
-	npireg_t xsave;		/* copy of xstart integer value for BLOCk addressing MODE */
-	npireg_t xymove;	/* x.y offset from xstart, ystart for relative operations */
-	npfreg_t bresd;
-	npfreg_t bress1;
-	npireg_t bresoctinc1;
-	volatile int bresrndinc2;
-	npireg_t brese1;
-	npireg_t bress2;
-	npireg_t aweight0;
-	npireg_t aweight1;
-	npfreg_t xstartf;
-	npfreg_t ystartf;
-	npfreg_t xendf;
-	npfreg_t yendf;
-	npireg_t xstarti;
-	npfreg_t xendf1;
-	npireg_t xystarti;
-	npireg_t xyendi;
-	npireg_t xstartendi;
+  /* Iterators, full state for context switch */
+  npfreg_t _xstart; /* X-start point (current) */
+  npfreg_t _ystart; /* Y-start point (current) */
+  npfreg_t _xend;   /* x-end point */
+  npfreg_t _yend;   /* y-end point */
+  npireg_t xsave;   /* copy of xstart integer value for BLOCk addressing MODE */
+  npireg_t xymove;  /* x.y offset from xstart, ystart for relative operations */
+  npfreg_t bresd;
+  npfreg_t bress1;
+  npireg_t bresoctinc1;
+  volatile int bresrndinc2;
+  npireg_t brese1;
+  npireg_t bress2;
+  npireg_t aweight0;
+  npireg_t aweight1;
+  npfreg_t xstartf;
+  npfreg_t ystartf;
+  npfreg_t xendf;
+  npfreg_t yendf;
+  npireg_t xstarti;
+  npfreg_t xendf1;
+  npireg_t xystarti;
+  npireg_t xyendi;
+  npireg_t xstartendi;
 
-	unsigned int _unused2[0x29];
+  unsigned int _unused2[0x29];
 
-	npfreg_t colorred;
-	npfreg_t coloralpha;
-	npfreg_t colorgrn;
-	npfreg_t colorblue;
-	npfreg_t slopered;
-	npfreg_t slopealpha;
-	npfreg_t slopegrn;
-	npfreg_t slopeblue;
-	npireg_t wrmask;
-	npireg_t colori;
-	npfreg_t colorx;
-	npfreg_t slopered1;
-	npireg_t hostrw0;
-	npireg_t hostrw1;
-	npireg_t dcbmode;
+  npfreg_t colorred;
+  npfreg_t coloralpha;
+  npfreg_t colorgrn;
+  npfreg_t colorblue;
+  npfreg_t slopered;
+  npfreg_t slopealpha;
+  npfreg_t slopegrn;
+  npfreg_t slopeblue;
+  npireg_t wrmask;
+  npireg_t colori;
+  npfreg_t colorx;
+  npfreg_t slopered1;
+  npireg_t hostrw0;
+  npireg_t hostrw1;
+  npireg_t dcbmode;
 #define NPORT_DMODE_WMASK   0x00000003
 #define NPORT_DMODE_W4      0x00000000
 #define NPORT_DMODE_W1      0x00000001
@@ -224,24 +227,24 @@ struct newport_rexregs {
 #define NPORT_DMODE_CSMASK  0x0f800000
 #define NPORT_DMODE_SENDIAN 0x10000000
 
-	unsigned int _unused3;
+  unsigned int _unused3;
 
-	union np_dcb dcbdata0;
-	npireg_t dcbdata1;
+  union np_dcb dcbdata0;
+  npireg_t dcbdata1;
 };
 
 struct newport_cregs {
-	npireg_t smask1x;
-	npireg_t smask1y;
-	npireg_t smask2x;
-	npireg_t smask2y;
-	npireg_t smask3x;
-	npireg_t smask3y;
-	npireg_t smask4x;
-	npireg_t smask4y;
-	npireg_t topscan;
-	npireg_t xywin;
-	npireg_t clipmode;
+  npireg_t smask1x;
+  npireg_t smask1y;
+  npireg_t smask2x;
+  npireg_t smask2y;
+  npireg_t smask3x;
+  npireg_t smask3y;
+  npireg_t smask4x;
+  npireg_t smask4y;
+  npireg_t topscan;
+  npireg_t xywin;
+  npireg_t clipmode;
 #define NPORT_CMODE_SM0   0x00000001
 #define NPORT_CMODE_SM1   0x00000002
 #define NPORT_CMODE_SM2   0x00000004
@@ -249,8 +252,8 @@ struct newport_cregs {
 #define NPORT_CMODE_SM4   0x00000010
 #define NPORT_CMODE_CMSK  0x00001e00
 
-	unsigned int _unused0;
-	unsigned int config;
+  unsigned int _unused0;
+  unsigned int config;
 #define NPORT_CFG_G32MD   0x00000001
 #define NPORT_CFG_BWIDTH  0x00000002
 #define NPORT_CFG_ERCVR   0x00000004
@@ -267,8 +270,8 @@ struct newport_cregs {
 #define NPORT_CFG_VRMSK   0x000e0000
 #define NPORT_CFG_FBTYP   0x00100000
 
-	npireg_t _unused1;
-	npireg_t status;
+  npireg_t _unused1;
+  npireg_t status;
 #define NPORT_STAT_VERS   0x00000007
 #define NPORT_STAT_GBUSY  0x00000008
 #define NPORT_STAT_BBUSY  0x00000010
@@ -279,78 +282,78 @@ struct newport_cregs {
 #define NPORT_STAT_BFIRQ  0x00080000
 #define NPORT_STAT_GFIRQ  0x00100000
 
-	npireg_t ustatus;
-	npireg_t dcbreset;
+  npireg_t ustatus;
+  npireg_t dcbreset;
 };
 
 struct newport_regs {
-	struct newport_rexregs set;
-	unsigned int _unused0[0x16e];
-	struct newport_rexregs go;
-	unsigned int _unused1[0x22e];
-	struct newport_cregs cset;
-	unsigned int _unused2[0x1ef];
-	struct newport_cregs cgo;
+  struct newport_rexregs set;
+  unsigned int _unused0[0x16e];
+  struct newport_rexregs go;
+  unsigned int _unused1[0x22e];
+  struct newport_cregs cset;
+  unsigned int _unused2[0x1ef];
+  struct newport_cregs cgo;
 };
 
 typedef struct {
-	unsigned int drawmode1;
-	unsigned int drawmode0;
-	unsigned int lsmode;   
-	unsigned int lspattern;
-	unsigned int lspatsave;
-	unsigned int zpattern; 
-	unsigned int colorback;
-	unsigned int colorvram;
-	unsigned int alpharef; 
-	unsigned int smask0x;  
-	unsigned int smask0y;  
-	unsigned int _xstart;  
-	unsigned int _ystart;  
-	unsigned int _xend;    
-	unsigned int _yend;    
-	unsigned int xsave;    
-	unsigned int xymove;   
-	unsigned int bresd;    
-	unsigned int bress1;   
-	unsigned int bresoctinc1;
-	unsigned int bresrndinc2;
-	unsigned int brese1;     
-	unsigned int bress2;     
-	
-	unsigned int aweight0;    
-	unsigned int aweight1;    
-	unsigned int colorred;    
-	unsigned int coloralpha;  
-	unsigned int colorgrn;    
-	unsigned int colorblue;   
-	unsigned int slopered;    
-	unsigned int slopealpha;  
-	unsigned int slopegrn;    
-	unsigned int slopeblue;   
-	unsigned int wrmask;      
-	unsigned int hostrw0;     
-	unsigned int hostrw1;     
-	
-        /* configregs */
-	
-	unsigned int smask1x;    
-	unsigned int smask1y;    
-	unsigned int smask2x;    
-	unsigned int smask2y;    
-	unsigned int smask3x;    
-	unsigned int smask3y;    
-	unsigned int smask4x;    
-	unsigned int smask4y;    
-	unsigned int topscan;    
-	unsigned int xywin;      
-	unsigned int clipmode;   
-	unsigned int config;     
-	
-        /* dcb registers */
-	unsigned int dcbmode;   
-	unsigned int dcbdata0;  
-	unsigned int dcbdata1;
+  unsigned int drawmode1;
+  unsigned int drawmode0;
+  unsigned int lsmode;
+  unsigned int lspattern;
+  unsigned int lspatsave;
+  unsigned int zpattern;
+  unsigned int colorback;
+  unsigned int colorvram;
+  unsigned int alpharef;
+  unsigned int smask0x;
+  unsigned int smask0y;
+  unsigned int _xstart;
+  unsigned int _ystart;
+  unsigned int _xend;
+  unsigned int _yend;
+  unsigned int xsave;
+  unsigned int xymove;
+  unsigned int bresd;
+  unsigned int bress1;
+  unsigned int bresoctinc1;
+  unsigned int bresrndinc2;
+  unsigned int brese1;
+  unsigned int bress2;
+
+  unsigned int aweight0;
+  unsigned int aweight1;
+  unsigned int colorred;
+  unsigned int coloralpha;
+  unsigned int colorgrn;
+  unsigned int colorblue;
+  unsigned int slopered;
+  unsigned int slopealpha;
+  unsigned int slopegrn;
+  unsigned int slopeblue;
+  unsigned int wrmask;
+  unsigned int hostrw0;
+  unsigned int hostrw1;
+
+  /* configregs */
+
+  unsigned int smask1x;
+  unsigned int smask1y;
+  unsigned int smask2x;
+  unsigned int smask2y;
+  unsigned int smask3x;
+  unsigned int smask3y;
+  unsigned int smask4x;
+  unsigned int smask4y;
+  unsigned int topscan;
+  unsigned int xywin;
+  unsigned int clipmode;
+  unsigned int config;
+
+  /* dcb registers */
+  unsigned int dcbmode;
+  unsigned int dcbdata0;
+  unsigned int dcbdata1;
 } newport_ctx;
 
 /* Reading/writing VC2 registers. */
@@ -384,23 +387,21 @@ typedef struct {
 #define VC2_IREG_CONFIG        0x20
 
 static inline void newport_vc2_set(struct newport_regs *regs,
-				   unsigned char vc2ireg,
-				   unsigned short val)
-{
-	regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_INDEX | NPORT_DMODE_W3 |
-			   NPORT_DMODE_ECINC | VC2_PROTOCOL);
-	regs->set.dcbdata0.byword = (vc2ireg << 24) | (val << 8);
+    unsigned char vc2ireg,
+    unsigned short val) {
+  regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_INDEX | NPORT_DMODE_W3
+      | NPORT_DMODE_ECINC | VC2_PROTOCOL);
+  regs->set.dcbdata0.byword = (vc2ireg << 24) | (val << 8);
 }
 
 static inline unsigned short newport_vc2_get(struct newport_regs *regs,
-					     unsigned char vc2ireg)
-{
-	regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_INDEX | NPORT_DMODE_W1 |
-			   NPORT_DMODE_ECINC | VC2_PROTOCOL);
-	regs->set.dcbdata0.bybytes.b3 = vc2ireg;
-	regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_IREG | NPORT_DMODE_W2 |
-			   NPORT_DMODE_ECINC | VC2_PROTOCOL);
-	return regs->set.dcbdata0.byshort.s1;
+    unsigned char vc2ireg) {
+  regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_INDEX | NPORT_DMODE_W1
+      | NPORT_DMODE_ECINC | VC2_PROTOCOL);
+  regs->set.dcbdata0.bybytes.b3 = vc2ireg;
+  regs->set.dcbmode = (NPORT_DMODE_AVC2 | VC2_REGADDR_IREG | NPORT_DMODE_W2
+      | NPORT_DMODE_ECINC | VC2_PROTOCOL);
+  return regs->set.dcbdata0.byshort.s1;
 }
 
 /* VC2 Control register bits */
@@ -427,47 +428,45 @@ static inline unsigned short newport_vc2_get(struct newport_regs *regs,
 #define NCMAP_PROTOCOL       (0x00008000 | 0x00040000 | 0x00800000)
 
 static __inline__ void newport_cmap_setaddr(struct newport_regs *regs,
-					unsigned short addr)
-{
-	regs->set.dcbmode = (NPORT_DMODE_ACMALL | NCMAP_PROTOCOL |
-			   NPORT_DMODE_SENDIAN | NPORT_DMODE_ECINC |
-			   NCMAP_REGADDR_AREG | NPORT_DMODE_W2);
-	regs->set.dcbdata0.byshort.s1 = addr;
-	regs->set.dcbmode = (NPORT_DMODE_ACMALL | NCMAP_PROTOCOL |
-			   NCMAP_REGADDR_PBUF | NPORT_DMODE_W3);
+    unsigned short addr) {
+  regs->set.dcbmode = (NPORT_DMODE_ACMALL | NCMAP_PROTOCOL
+      | NPORT_DMODE_SENDIAN | NPORT_DMODE_ECINC
+      | NCMAP_REGADDR_AREG | NPORT_DMODE_W2);
+  regs->set.dcbdata0.byshort.s1 = addr;
+  regs->set.dcbmode = (NPORT_DMODE_ACMALL | NCMAP_PROTOCOL
+      | NCMAP_REGADDR_PBUF | NPORT_DMODE_W3);
 }
 
 static __inline__ void newport_cmap_setrgb(struct newport_regs *regs,
-				       unsigned char red,
-				       unsigned char green,
-				       unsigned char blue)
-{
-	regs->set.dcbdata0.byword =
-		(red << 24) |
-		(green << 16) |
-		(blue << 8);
+    unsigned char red,
+    unsigned char green,
+    unsigned char blue) {
+  regs->set.dcbdata0.byword
+    = (red << 24)
+      | (green << 16)
+      | (blue << 8);
 }
 
 /* Miscellaneous NEWPORT routines. */
 #define BUSY_TIMEOUT 100000
-static __inline__ int newport_wait(struct newport_regs *regs)
-{
-	int t = BUSY_TIMEOUT;
-
-	while (--t)
-		if (!(regs->cset.status & NPORT_STAT_GBUSY))
-			break;
-	return !t;
+static __inline__ int newport_wait(struct newport_regs *regs) {
+  int t = BUSY_TIMEOUT;
+  while (--t) {
+    if (!(regs->cset.status & NPORT_STAT_GBUSY)) {
+      break;
+    }
+  }
+  return !t;
 }
 
-static __inline__ int newport_bfwait(struct newport_regs *regs)
-{
-	int t = BUSY_TIMEOUT;
-
-	while (--t)
-		if(!(regs->cset.status & NPORT_STAT_BBUSY))
-			break;
-	return !t;
+static __inline__ int newport_bfwait(struct newport_regs *regs) {
+  int t = BUSY_TIMEOUT;
+  while (--t) {
+    if (!(regs->cset.status & NPORT_STAT_BBUSY)) {
+      break;
+    }
+  }
+  return !t;
 }
 
 /*
@@ -491,16 +490,16 @@ static __inline__ int newport_bfwait(struct newport_regs *regs)
 
 /* DCBADDR (4 bits): display bus slave address */
 #define DCB_ADDR_SHIFT   7
-#define DCB_VC2          (0 <<  DCB_ADDR_SHIFT)
-#define DCB_CMAP_ALL     (1 <<  DCB_ADDR_SHIFT)
-#define DCB_CMAP0        (2 <<  DCB_ADDR_SHIFT)
-#define DCB_CMAP1        (3 <<  DCB_ADDR_SHIFT)
-#define DCB_XMAP_ALL     (4 <<  DCB_ADDR_SHIFT)
-#define DCB_XMAP0        (5 <<  DCB_ADDR_SHIFT)
-#define DCB_XMAP1        (6 <<  DCB_ADDR_SHIFT)
-#define DCB_BT445        (7 <<  DCB_ADDR_SHIFT)
-#define DCB_VCC1         (8 <<  DCB_ADDR_SHIFT)
-#define DCB_VAB1         (9 <<  DCB_ADDR_SHIFT)
+#define DCB_VC2          (0 << DCB_ADDR_SHIFT)
+#define DCB_CMAP_ALL     (1 << DCB_ADDR_SHIFT)
+#define DCB_CMAP0        (2 << DCB_ADDR_SHIFT)
+#define DCB_CMAP1        (3 << DCB_ADDR_SHIFT)
+#define DCB_XMAP_ALL     (4 << DCB_ADDR_SHIFT)
+#define DCB_XMAP0        (5 << DCB_ADDR_SHIFT)
+#define DCB_XMAP1        (6 << DCB_ADDR_SHIFT)
+#define DCB_BT445        (7 << DCB_ADDR_SHIFT)
+#define DCB_VCC1         (8 << DCB_ADDR_SHIFT)
+#define DCB_VAB1         (9 << DCB_ADDR_SHIFT)
 #define DCB_LG3_BDVERS0  (10 << DCB_ADDR_SHIFT)
 #define DCB_LG3_ICS1562  (11 << DCB_ADDR_SHIFT)
 #define DCB_RESERVED     (15 << DCB_ADDR_SHIFT)
@@ -513,72 +512,68 @@ static __inline__ int newport_bfwait(struct newport_regs *regs)
 #define DCB_CSHOLD_SHIFT  18
 #define DCB_CSSETUP_SHIFT 23
 
-/* XMAP9 specific defines */
-/*   XMAP9 -- registers as seen on the DCBMODE register*/
-#   define XM9_CRS_CONFIG            (0 << DCB_CRS_SHIFT)
-#       define XM9_PUPMODE           (1 << 0)
-#       define XM9_ODD_PIXEL         (1 << 1)
-#       define XM9_8_BITPLANES       (1 << 2)
-#       define XM9_SLOW_DCB          (1 << 3)
-#       define XM9_VIDEO_RGBMAP_MASK (3 << 4)
-#       define XM9_EXPRESS_VIDEO     (1 << 6)
-#       define XM9_VIDEO_OPTION      (1 << 7)
-#   define XM9_CRS_REVISION          (1 << DCB_CRS_SHIFT)
-#   define XM9_CRS_FIFO_AVAIL        (2 << DCB_CRS_SHIFT)
-#       define XM9_FIFO_0_AVAIL      0
-#       define XM9_FIFO_1_AVAIL      1
-#       define XM9_FIFO_2_AVAIL      3
-#       define XM9_FIFO_3_AVAIL      2
-#       define XM9_FIFO_FULL         XM9_FIFO_0_AVAIL
-#       define XM9_FIFO_EMPTY        XM9_FIFO_3_AVAIL
-#   define XM9_CRS_CURS_CMAP_MSB     (3 << DCB_CRS_SHIFT)
-#   define XM9_CRS_PUP_CMAP_MSB      (4 << DCB_CRS_SHIFT)
-#   define XM9_CRS_MODE_REG_DATA     (5 << DCB_CRS_SHIFT)
-#   define XM9_CRS_MODE_REG_INDEX    (7 << DCB_CRS_SHIFT)
+/* XMAP9 specific defines
+ *   XMAP9 -- registers as seen on the DCBMODE register*/
+#define XM9_CRS_CONFIG            (0 << DCB_CRS_SHIFT)
+#define XM9_PUPMODE           (1 << 0)
+#define XM9_ODD_PIXEL         (1 << 1)
+#define XM9_8_BITPLANES       (1 << 2)
+#define XM9_SLOW_DCB          (1 << 3)
+#define XM9_VIDEO_RGBMAP_MASK (3 << 4)
+#define XM9_EXPRESS_VIDEO     (1 << 6)
+#define XM9_VIDEO_OPTION      (1 << 7)
+#define XM9_CRS_REVISION          (1 << DCB_CRS_SHIFT)
+#define XM9_CRS_FIFO_AVAIL        (2 << DCB_CRS_SHIFT)
+#define XM9_FIFO_0_AVAIL      0
+#define XM9_FIFO_1_AVAIL      1
+#define XM9_FIFO_2_AVAIL      3
+#define XM9_FIFO_3_AVAIL      2
+#define XM9_FIFO_FULL         XM9_FIFO_0_AVAIL
+#define XM9_FIFO_EMPTY        XM9_FIFO_3_AVAIL
+#define XM9_CRS_CURS_CMAP_MSB     (3 << DCB_CRS_SHIFT)
+#define XM9_CRS_PUP_CMAP_MSB      (4 << DCB_CRS_SHIFT)
+#define XM9_CRS_MODE_REG_DATA     (5 << DCB_CRS_SHIFT)
+#define XM9_CRS_MODE_REG_INDEX    (7 << DCB_CRS_SHIFT)
 
+#define DCB_CYCLES(setup, hold, width)                \
+  ((hold << DCB_CSHOLD_SHIFT)       \
+  | (setup << DCB_CSSETUP_SHIFT)     \
+  | (width << DCB_CSWIDTH_SHIFT))
 
-#define DCB_CYCLES(setup,hold,width)                \
-                  ((hold << DCB_CSHOLD_SHIFT)  |    \
-		   (setup << DCB_CSSETUP_SHIFT)|    \
-		   (width << DCB_CSWIDTH_SHIFT))
+#define W_DCB_XMAP9_PROTOCOL       DCB_CYCLES(2, 1, 0)
+#define WSLOW_DCB_XMAP9_PROTOCOL   DCB_CYCLES(5, 5, 0)
+#define WAYSLOW_DCB_XMAP9_PROTOCOL DCB_CYCLES(12, 12, 0)
+#define R_DCB_XMAP9_PROTOCOL       DCB_CYCLES(2, 1, 3)
 
-#define W_DCB_XMAP9_PROTOCOL       DCB_CYCLES (2, 1, 0)
-#define WSLOW_DCB_XMAP9_PROTOCOL   DCB_CYCLES (5, 5, 0)
-#define WAYSLOW_DCB_XMAP9_PROTOCOL DCB_CYCLES (12, 12, 0)
-#define R_DCB_XMAP9_PROTOCOL       DCB_CYCLES (2, 1, 3)
-
-static __inline__ void
-xmap9FIFOWait (struct newport_regs *rex)
-{
-        rex->set.dcbmode = DCB_XMAP0 | XM9_CRS_FIFO_AVAIL |
-		DCB_DATAWIDTH_1 | R_DCB_XMAP9_PROTOCOL;
-        newport_bfwait (rex);
-	
-        while ((rex->set.dcbdata0.bybytes.b3 & 3) != XM9_FIFO_EMPTY)
-		;
+static __inline__ void xmap9FIFOWait(struct newport_regs *rex) {
+  rex->set.dcbmode = DCB_XMAP0 | XM9_CRS_FIFO_AVAIL
+      | DCB_DATAWIDTH_1 | R_DCB_XMAP9_PROTOCOL;
+  newport_bfwait(rex);
+  while ((rex->set.dcbdata0.bybytes.b3 & 3) != XM9_FIFO_EMPTY) {
+  }
 }
 
-static __inline__ void
-xmap9SetModeReg (struct newport_regs *rex, unsigned int modereg, unsigned int data24, int cfreq)
-{
-        if (cfreq > 119)
-            rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA |
-                        DCB_DATAWIDTH_4 | W_DCB_XMAP9_PROTOCOL;
-        else if (cfreq > 59)
-            rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA |
-		    DCB_DATAWIDTH_4 | WSLOW_DCB_XMAP9_PROTOCOL;    
-        else
-            rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA |
-                        DCB_DATAWIDTH_4 | WAYSLOW_DCB_XMAP9_PROTOCOL; 
-        rex->set.dcbdata0.byword = ((modereg) << 24) | (data24 & 0xffffff);
+static __inline__ void xmap9SetModeReg(struct newport_regs *rex,
+    unsigned int modereg,
+    unsigned int data24, int cfreq) {
+  if (cfreq > 119) {
+    rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA
+        | DCB_DATAWIDTH_4 | W_DCB_XMAP9_PROTOCOL;
+  } else if (cfreq > 59) {
+    rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA
+        | DCB_DATAWIDTH_4 | WSLOW_DCB_XMAP9_PROTOCOL;
+  } else {
+    rex->set.dcbmode = DCB_XMAP_ALL | XM9_CRS_MODE_REG_DATA
+        | DCB_DATAWIDTH_4 | WAYSLOW_DCB_XMAP9_PROTOCOL;
+  }
+  rex->set.dcbdata0.byword = ((modereg) << 24) | (data24 & 0xffffff);
 }
 
-#define BT445_PROTOCOL		DCB_CYCLES(1,1,3)
+#define BT445_PROTOCOL    DCB_CYCLES(1, 1, 3)
 
-#define BT445_CSR_ADDR_REG	(0 << DCB_CRS_SHIFT)
-#define BT445_CSR_REVISION	(2 << DCB_CRS_SHIFT)
+#define BT445_CSR_ADDR_REG  (0 << DCB_CRS_SHIFT)
+#define BT445_CSR_REVISION  (2 << DCB_CRS_SHIFT)
 
-#define BT445_REVISION_REG	0x01
+#define BT445_REVISION_REG  0x01
 
 #endif /* !(_SGI_NEWPORT_H) */
-

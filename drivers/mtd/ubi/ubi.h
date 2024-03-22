@@ -103,11 +103,11 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
  * may callers, so it does not worth the risk of introducing a bug
  */
 enum {
-	UBI_IO_FF = 1,
-	UBI_IO_FF_BITFLIPS,
-	UBI_IO_BAD_HDR,
-	UBI_IO_BAD_HDR_EBADMSG,
-	UBI_IO_BITFLIPS,
+  UBI_IO_FF = 1,
+  UBI_IO_FF_BITFLIPS,
+  UBI_IO_BAD_HDR,
+  UBI_IO_BAD_HDR_EBADMSG,
+  UBI_IO_BITFLIPS,
 };
 
 /*
@@ -126,12 +126,12 @@ enum {
  * MOVE_RETRY: retry scrubbing the PEB
  */
 enum {
-	MOVE_CANCEL_RACE = 1,
-	MOVE_SOURCE_RD_ERR,
-	MOVE_TARGET_RD_ERR,
-	MOVE_TARGET_WR_ERR,
-	MOVE_TARGET_BITFLIPS,
-	MOVE_RETRY,
+  MOVE_CANCEL_RACE = 1,
+  MOVE_SOURCE_RD_ERR,
+  MOVE_TARGET_RD_ERR,
+  MOVE_TARGET_WR_ERR,
+  MOVE_TARGET_BITFLIPS,
+  MOVE_RETRY,
 };
 
 /*
@@ -141,19 +141,19 @@ enum {
  * UBI_BAD_FASTMAP: A fastmap was found but it's unusable
  */
 enum {
-	UBI_NO_FASTMAP = 1,
-	UBI_BAD_FASTMAP,
+  UBI_NO_FASTMAP = 1,
+  UBI_BAD_FASTMAP,
 };
 
 /**
  * struct ubi_vid_io_buf - VID buffer used to read/write VID info to/from the
- *			   flash.
+ *         flash.
  * @hdr: a pointer to the VID header stored in buffer
  * @buffer: underlying buffer
  */
 struct ubi_vid_io_buf {
-	struct ubi_vid_hdr *hdr;
-	void *buffer;
+  struct ubi_vid_hdr *hdr;
+  void *buffer;
 };
 
 /**
@@ -168,12 +168,12 @@ struct ubi_vid_io_buf {
  * RB-trees. See WL sub-system for details.
  */
 struct ubi_wl_entry {
-	union {
-		struct rb_node rb;
-		struct list_head list;
-	} u;
-	int ec;
-	int pnum;
+  union {
+    struct rb_node rb;
+    struct list_head list;
+  } u;
+  int ec;
+  int pnum;
 };
 
 /**
@@ -191,11 +191,11 @@ struct ubi_wl_entry {
  * See EBA sub-system for details.
  */
 struct ubi_ltree_entry {
-	struct rb_node rb;
-	int vol_id;
-	int lnum;
-	int users;
-	struct rw_semaphore mutex;
+  struct rb_node rb;
+  int vol_id;
+  int lnum;
+  int users;
+  struct rw_semaphore mutex;
 };
 
 /**
@@ -212,11 +212,11 @@ struct ubi_ltree_entry {
  * the job.
  */
 struct ubi_rename_entry {
-	int new_name_len;
-	char new_name[UBI_VOL_NAME_MAX + 1];
-	int remove;
-	struct ubi_volume_desc *desc;
-	struct list_head list;
+  int new_name_len;
+  char new_name[UBI_VOL_NAME_MAX + 1];
+  int remove;
+  struct ubi_volume_desc *desc;
+  struct list_head list;
 };
 
 struct ubi_volume_desc;
@@ -230,11 +230,11 @@ struct ubi_volume_desc;
  * @max_wl_pool_size: maximal size of the pool used by the WL sub-system
  */
 struct ubi_fastmap_layout {
-	struct ubi_wl_entry *e[UBI_FM_MAX_BLOCKS];
-	int to_be_tortured[UBI_FM_MAX_BLOCKS];
-	int used_blocks;
-	int max_pool_size;
-	int max_wl_pool_size;
+  struct ubi_wl_entry *e[UBI_FM_MAX_BLOCKS];
+  int to_be_tortured[UBI_FM_MAX_BLOCKS];
+  int used_blocks;
+  int max_pool_size;
+  int max_wl_pool_size;
 };
 
 /**
@@ -250,10 +250,10 @@ struct ubi_fastmap_layout {
  *
  */
 struct ubi_fm_pool {
-	int pebs[UBI_FM_MAX_POOL_SIZE];
-	int used;
-	int size;
-	int max_size;
+  int pebs[UBI_FM_MAX_POOL_SIZE];
+  int used;
+  int size;
+  int max_size;
 };
 
 /**
@@ -267,8 +267,8 @@ struct ubi_fm_pool {
  * One can query the position of a LEB by calling ubi_eba_get_ldesc().
  */
 struct ubi_eba_leb_desc {
-	int lnum;
-	int pnum;
+  int lnum;
+  int pnum;
 };
 
 /**
@@ -307,8 +307,8 @@ struct ubi_eba_leb_desc {
  *
  * @eba_tbl: EBA table of this volume (LEB->PEB mapping)
  * @skip_check: %1 if CRC check of this static volume should be skipped.
- *		Directly reflects the presence of the
- *		%UBI_VTBL_SKIP_CRC_CHECK_FLG flag in the vtbl entry
+ *    Directly reflects the presence of the
+ *    %UBI_VTBL_SKIP_CRC_CHECK_FLG flag in the vtbl entry
  * @checked: %1 if this static volume was checked
  * @corrupted: %1 if the volume is corrupted (static volumes only)
  * @upd_marker: %1 if the update marker is set for this volume
@@ -328,45 +328,45 @@ struct ubi_eba_leb_desc {
  * the moment or is damaged because of an unclean reboot.
  */
 struct ubi_volume {
-	struct device dev;
-	struct cdev cdev;
-	struct ubi_device *ubi;
-	int vol_id;
-	int ref_count;
-	int readers;
-	int writers;
-	int exclusive;
-	int metaonly;
-	bool is_dead;
+  struct device dev;
+  struct cdev cdev;
+  struct ubi_device *ubi;
+  int vol_id;
+  int ref_count;
+  int readers;
+  int writers;
+  int exclusive;
+  int metaonly;
+  bool is_dead;
 
-	int reserved_pebs;
-	int vol_type;
-	int usable_leb_size;
-	int used_ebs;
-	int last_eb_bytes;
-	long long used_bytes;
-	int alignment;
-	int data_pad;
-	int name_len;
-	char name[UBI_VOL_NAME_MAX + 1];
+  int reserved_pebs;
+  int vol_type;
+  int usable_leb_size;
+  int used_ebs;
+  int last_eb_bytes;
+  long long used_bytes;
+  int alignment;
+  int data_pad;
+  int name_len;
+  char name[UBI_VOL_NAME_MAX + 1];
 
-	int upd_ebs;
-	int ch_lnum;
-	long long upd_bytes;
-	long long upd_received;
-	void *upd_buf;
+  int upd_ebs;
+  int ch_lnum;
+  long long upd_bytes;
+  long long upd_received;
+  void *upd_buf;
 
-	struct ubi_eba_table *eba_tbl;
-	unsigned int skip_check:1;
-	unsigned int checked:1;
-	unsigned int corrupted:1;
-	unsigned int upd_marker:1;
-	unsigned int updating:1;
-	unsigned int changing_leb:1;
-	unsigned int direct_writes:1;
+  struct ubi_eba_table *eba_tbl;
+  unsigned int skip_check : 1;
+  unsigned int checked : 1;
+  unsigned int corrupted : 1;
+  unsigned int upd_marker : 1;
+  unsigned int updating : 1;
+  unsigned int changing_leb : 1;
+  unsigned int direct_writes : 1;
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
-	unsigned long *checkmap;
+  unsigned long *checkmap;
 #endif
 };
 
@@ -377,8 +377,8 @@ struct ubi_volume {
  * or %UBI_METAONLY)
  */
 struct ubi_volume_desc {
-	struct ubi_volume *vol;
-	int mode;
+  struct ubi_volume *vol;
+  int mode;
 };
 
 /**
@@ -409,29 +409,29 @@ struct ubi_volume_desc {
  * @dfs_emulate_failures: debugfs entry to control the fault injection type
  */
 struct ubi_debug_info {
-	unsigned int chk_gen:1;
-	unsigned int chk_io:1;
-	unsigned int chk_fastmap:1;
-	unsigned int disable_bgt:1;
-	unsigned int emulate_bitflips:1;
-	unsigned int emulate_io_failures:1;
-	unsigned int emulate_power_cut:2;
-	unsigned int power_cut_counter;
-	unsigned int power_cut_min;
-	unsigned int power_cut_max;
-	unsigned int emulate_failures;
-	char dfs_dir_name[UBI_DFS_DIR_LEN + 1];
-	struct dentry *dfs_dir;
-	struct dentry *dfs_chk_gen;
-	struct dentry *dfs_chk_io;
-	struct dentry *dfs_chk_fastmap;
-	struct dentry *dfs_disable_bgt;
-	struct dentry *dfs_emulate_bitflips;
-	struct dentry *dfs_emulate_io_failures;
-	struct dentry *dfs_emulate_power_cut;
-	struct dentry *dfs_power_cut_min;
-	struct dentry *dfs_power_cut_max;
-	struct dentry *dfs_emulate_failures;
+  unsigned int chk_gen : 1;
+  unsigned int chk_io : 1;
+  unsigned int chk_fastmap : 1;
+  unsigned int disable_bgt : 1;
+  unsigned int emulate_bitflips : 1;
+  unsigned int emulate_io_failures : 1;
+  unsigned int emulate_power_cut : 2;
+  unsigned int power_cut_counter;
+  unsigned int power_cut_min;
+  unsigned int power_cut_max;
+  unsigned int emulate_failures;
+  char dfs_dir_name[UBI_DFS_DIR_LEN + 1];
+  struct dentry *dfs_dir;
+  struct dentry *dfs_chk_gen;
+  struct dentry *dfs_chk_io;
+  struct dentry *dfs_chk_fastmap;
+  struct dentry *dfs_disable_bgt;
+  struct dentry *dfs_emulate_bitflips;
+  struct dentry *dfs_emulate_io_failures;
+  struct dentry *dfs_emulate_power_cut;
+  struct dentry *dfs_power_cut_min;
+  struct dentry *dfs_power_cut_max;
+  struct dentry *dfs_emulate_failures;
 };
 
 /**
@@ -477,7 +477,7 @@ struct ubi_debug_info {
  * @fm: in-memory data structure of the currently used fastmap
  * @fm_pool: in-memory data structure of the fastmap pool
  * @fm_wl_pool: in-memory data structure of the fastmap pool used by the WL
- *		sub-system
+ *    sub-system
  * @fm_protect: serializes ubi_update_fastmap(), protects @fm_buf and makes sure
  * that critical sections cannot be interrupted by ubi_update_fastmap()
  * @fm_buf: vmalloc()'d buffer which holds the raw fastmap
@@ -499,9 +499,9 @@ struct ubi_debug_info {
  *      protected from the wear-leveling worker)
  * @pq_head: protection queue head
  * @wl_lock: protects the @used, @free, @pq, @pq_head, @lookuptbl, @move_from,
- *	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
- *	     @erroneous, @erroneous_peb_count, @fm_work_scheduled, @fm_pool,
- *	     and @fm_wl_pool fields
+ *       @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
+ *       @erroneous, @erroneous_peb_count, @fm_work_scheduled, @fm_pool,
+ *       and @fm_wl_pool fields
  * @move_mutex: serializes eraseblock moves
  * @work_sem: used to wait for all the scheduled works to finish and prevent
  * new works from being submitted
@@ -553,106 +553,106 @@ struct ubi_debug_info {
  * @dbg: debugging information for this UBI device
  */
 struct ubi_device {
-	struct cdev cdev;
-	struct device dev;
-	int ubi_num;
-	char ubi_name[sizeof(UBI_NAME_STR)+5];
-	int vol_count;
-	struct ubi_volume *volumes[UBI_MAX_VOLUMES+UBI_INT_VOL_COUNT];
-	spinlock_t volumes_lock;
-	int ref_count;
-	int image_seq;
-	bool is_dead;
+  struct cdev cdev;
+  struct device dev;
+  int ubi_num;
+  char ubi_name[sizeof(UBI_NAME_STR) + 5];
+  int vol_count;
+  struct ubi_volume *volumes[UBI_MAX_VOLUMES + UBI_INT_VOL_COUNT];
+  spinlock_t volumes_lock;
+  int ref_count;
+  int image_seq;
+  bool is_dead;
 
-	int rsvd_pebs;
-	int avail_pebs;
-	int beb_rsvd_pebs;
-	int beb_rsvd_level;
-	int bad_peb_limit;
+  int rsvd_pebs;
+  int avail_pebs;
+  int beb_rsvd_pebs;
+  int beb_rsvd_level;
+  int bad_peb_limit;
 
-	int autoresize_vol_id;
-	int vtbl_slots;
-	int vtbl_size;
-	struct ubi_vtbl_record *vtbl;
-	struct mutex device_mutex;
+  int autoresize_vol_id;
+  int vtbl_slots;
+  int vtbl_size;
+  struct ubi_vtbl_record *vtbl;
+  struct mutex device_mutex;
 
-	int max_ec;
-	/* Note, mean_ec is not updated run-time - should be fixed */
-	int mean_ec;
+  int max_ec;
+  /* Note, mean_ec is not updated run-time - should be fixed */
+  int mean_ec;
 
-	/* EBA sub-system's stuff */
-	unsigned long long global_sqnum;
-	spinlock_t ltree_lock;
-	struct rb_root ltree;
-	struct mutex alc_mutex;
+  /* EBA sub-system's stuff */
+  unsigned long long global_sqnum;
+  spinlock_t ltree_lock;
+  struct rb_root ltree;
+  struct mutex alc_mutex;
 
-	/* Fastmap stuff */
-	int fm_disabled;
-	struct ubi_fastmap_layout *fm;
-	struct ubi_fm_pool fm_pool;
-	struct ubi_fm_pool fm_wl_pool;
-	struct rw_semaphore fm_eba_sem;
-	struct rw_semaphore fm_protect;
-	void *fm_buf;
-	size_t fm_size;
-	struct work_struct fm_work;
-	int fm_work_scheduled;
-	int fast_attach;
-	struct ubi_wl_entry *fm_anchor;
-	int fm_do_produce_anchor;
-	int fm_pool_rsv_cnt;
+  /* Fastmap stuff */
+  int fm_disabled;
+  struct ubi_fastmap_layout *fm;
+  struct ubi_fm_pool fm_pool;
+  struct ubi_fm_pool fm_wl_pool;
+  struct rw_semaphore fm_eba_sem;
+  struct rw_semaphore fm_protect;
+  void *fm_buf;
+  size_t fm_size;
+  struct work_struct fm_work;
+  int fm_work_scheduled;
+  int fast_attach;
+  struct ubi_wl_entry *fm_anchor;
+  int fm_do_produce_anchor;
+  int fm_pool_rsv_cnt;
 
-	/* Wear-leveling sub-system's stuff */
-	struct rb_root used;
-	struct rb_root erroneous;
-	struct rb_root free;
-	int free_count;
-	struct rb_root scrub;
-	struct list_head pq[UBI_PROT_QUEUE_LEN];
-	int pq_head;
-	spinlock_t wl_lock;
-	struct mutex move_mutex;
-	struct rw_semaphore work_sem;
-	int wl_scheduled;
-	struct ubi_wl_entry **lookuptbl;
-	struct ubi_wl_entry *move_from;
-	struct ubi_wl_entry *move_to;
-	int move_to_put;
-	struct list_head works;
-	int works_count;
-	struct task_struct *bgt_thread;
-	int thread_enabled;
-	char bgt_name[sizeof(UBI_BGT_NAME_PATTERN)+2];
+  /* Wear-leveling sub-system's stuff */
+  struct rb_root used;
+  struct rb_root erroneous;
+  struct rb_root free;
+  int free_count;
+  struct rb_root scrub;
+  struct list_head pq[UBI_PROT_QUEUE_LEN];
+  int pq_head;
+  spinlock_t wl_lock;
+  struct mutex move_mutex;
+  struct rw_semaphore work_sem;
+  int wl_scheduled;
+  struct ubi_wl_entry **lookuptbl;
+  struct ubi_wl_entry *move_from;
+  struct ubi_wl_entry *move_to;
+  int move_to_put;
+  struct list_head works;
+  int works_count;
+  struct task_struct *bgt_thread;
+  int thread_enabled;
+  char bgt_name[sizeof(UBI_BGT_NAME_PATTERN) + 2];
 
-	/* I/O sub-system's stuff */
-	long long flash_size;
-	int peb_count;
-	int peb_size;
-	int bad_peb_count;
-	int good_peb_count;
-	int corr_peb_count;
-	int erroneous_peb_count;
-	int max_erroneous;
-	int min_io_size;
-	int hdrs_min_io_size;
-	int ro_mode;
-	int leb_size;
-	int leb_start;
-	int ec_hdr_alsize;
-	int vid_hdr_alsize;
-	int vid_hdr_offset;
-	int vid_hdr_aloffset;
-	int vid_hdr_shift;
-	unsigned int bad_allowed:1;
-	unsigned int nor_flash:1;
-	int max_write_size;
-	struct mtd_info *mtd;
+  /* I/O sub-system's stuff */
+  long long flash_size;
+  int peb_count;
+  int peb_size;
+  int bad_peb_count;
+  int good_peb_count;
+  int corr_peb_count;
+  int erroneous_peb_count;
+  int max_erroneous;
+  int min_io_size;
+  int hdrs_min_io_size;
+  int ro_mode;
+  int leb_size;
+  int leb_start;
+  int ec_hdr_alsize;
+  int vid_hdr_alsize;
+  int vid_hdr_offset;
+  int vid_hdr_aloffset;
+  int vid_hdr_shift;
+  unsigned int bad_allowed : 1;
+  unsigned int nor_flash : 1;
+  int max_write_size;
+  struct mtd_info *mtd;
 
-	void *peb_buf;
-	struct mutex buf_mutex;
-	struct mutex ckvol_mutex;
+  void *peb_buf;
+  struct mutex buf_mutex;
+  struct mutex ckvol_mutex;
 
-	struct ubi_debug_info dbg;
+  struct ubi_debug_info dbg;
 };
 
 /**
@@ -673,17 +673,17 @@ struct ubi_device {
  * volume, the @vol_id and @lnum fields are initialized to %UBI_UNKNOWN.
  */
 struct ubi_ainf_peb {
-	int ec;
-	int pnum;
-	int vol_id;
-	int lnum;
-	unsigned int scrub:1;
-	unsigned int copy_flag:1;
-	unsigned long long sqnum;
-	union {
-		struct rb_node rb;
-		struct list_head list;
-	} u;
+  int ec;
+  int pnum;
+  int vol_id;
+  int lnum;
+  unsigned int scrub : 1;
+  unsigned int copy_flag : 1;
+  unsigned long long sqnum;
+  union {
+    struct rb_node rb;
+    struct list_head list;
+  } u;
 };
 
 /**
@@ -708,16 +708,16 @@ struct ubi_ainf_peb {
  * device.
  */
 struct ubi_ainf_volume {
-	int vol_id;
-	int highest_lnum;
-	int leb_count;
-	int vol_type;
-	int used_ebs;
-	int last_data_size;
-	int data_pad;
-	int compat;
-	struct rb_node rb;
-	struct rb_root root;
+  int vol_id;
+  int highest_lnum;
+  int leb_count;
+  int vol_type;
+  int used_ebs;
+  int last_data_size;
+  int data_pad;
+  int compat;
+  struct rb_node rb;
+  struct rb_root root;
 };
 
 /**
@@ -741,7 +741,7 @@ struct ubi_ainf_volume {
  * @highest_vol_id: highest volume ID
  * @is_empty: flag indicating whether the MTD device is empty or not
  * @force_full_scan: flag indicating whether we need to do a full scan and drop
-		     all existing Fastmap data structures
+ *       all existing Fastmap data structures
  * @min_ec: lowest erase counter value
  * @max_ec: highest erase counter value
  * @max_sqnum: highest sequence number value
@@ -757,30 +757,30 @@ struct ubi_ainf_volume {
  * error-recovery and so on.
  */
 struct ubi_attach_info {
-	struct rb_root volumes;
-	struct list_head corr;
-	struct list_head free;
-	struct list_head erase;
-	struct list_head alien;
-	struct list_head fastmap;
-	int corr_peb_count;
-	int empty_peb_count;
-	int alien_peb_count;
-	int bad_peb_count;
-	int maybe_bad_peb_count;
-	int vols_found;
-	int highest_vol_id;
-	int is_empty;
-	int force_full_scan;
-	int min_ec;
-	int max_ec;
-	unsigned long long max_sqnum;
-	int mean_ec;
-	uint64_t ec_sum;
-	int ec_count;
-	struct kmem_cache *aeb_slab_cache;
-	struct ubi_ec_hdr *ech;
-	struct ubi_vid_io_buf *vidb;
+  struct rb_root volumes;
+  struct list_head corr;
+  struct list_head free;
+  struct list_head erase;
+  struct list_head alien;
+  struct list_head fastmap;
+  int corr_peb_count;
+  int empty_peb_count;
+  int alien_peb_count;
+  int bad_peb_count;
+  int maybe_bad_peb_count;
+  int vols_found;
+  int highest_vol_id;
+  int is_empty;
+  int force_full_scan;
+  int min_ec;
+  int max_ec;
+  unsigned long long max_sqnum;
+  int mean_ec;
+  uint64_t ec_sum;
+  int ec_count;
+  struct kmem_cache *aeb_slab_cache;
+  struct ubi_ec_hdr *ech;
+  struct ubi_vid_io_buf *vidb;
 };
 
 /**
@@ -799,13 +799,13 @@ struct ubi_attach_info {
  * case of failure.
  */
 struct ubi_work {
-	struct list_head list;
-	int (*func)(struct ubi_device *ubi, struct ubi_work *wrk, int shutdown);
-	/* The below fields are only relevant to erasure works */
-	struct ubi_wl_entry *e;
-	int vol_id;
-	int lnum;
-	int torture;
+  struct list_head list;
+  int (*func)(struct ubi_device *ubi, struct ubi_work *wrk, int shutdown);
+  /* The below fields are only relevant to erasure works */
+  struct ubi_wl_entry *e;
+  int vol_id;
+  int lnum;
+  int torture;
 };
 
 #include "debug.h"
@@ -820,24 +820,24 @@ extern struct blocking_notifier_head ubi_notifiers;
 
 /* attach.c */
 struct ubi_ainf_peb *ubi_alloc_aeb(struct ubi_attach_info *ai, int pnum,
-				   int ec);
+    int ec);
 void ubi_free_aeb(struct ubi_attach_info *ai, struct ubi_ainf_peb *aeb);
 int ubi_add_to_av(struct ubi_device *ubi, struct ubi_attach_info *ai, int pnum,
-		  int ec, const struct ubi_vid_hdr *vid_hdr, int bitflips);
+    int ec, const struct ubi_vid_hdr *vid_hdr, int bitflips);
 struct ubi_ainf_volume *ubi_add_av(struct ubi_attach_info *ai, int vol_id);
 struct ubi_ainf_volume *ubi_find_av(const struct ubi_attach_info *ai,
-				    int vol_id);
+    int vol_id);
 void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av);
 struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
-				       struct ubi_attach_info *ai);
+    struct ubi_attach_info *ai);
 int ubi_attach(struct ubi_device *ubi, int force_scan);
 void ubi_destroy_ai(struct ubi_attach_info *ai);
 
 /* vtbl.c */
 int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
-			   struct ubi_vtbl_record *vtbl_rec);
+    struct ubi_vtbl_record *vtbl_rec);
 int ubi_vtbl_rename_volumes(struct ubi_device *ubi,
-			    struct list_head *rename_list);
+    struct list_head *rename_list);
 int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_attach_info *ai);
 
 /* vmt.c */
@@ -850,62 +850,61 @@ void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 
 /* upd.c */
 int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
-		     long long bytes);
+    long long bytes);
 int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
-			 const void __user *buf, int count);
+    const void __user *buf, int count);
 int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
-			 const struct ubi_leb_change_req *req);
+    const struct ubi_leb_change_req *req);
 int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
-			     const void __user *buf, int count);
+    const void __user *buf, int count);
 
 /* misc.c */
 int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
-		      int length);
+    int length);
 int ubi_check_volume(struct ubi_device *ubi, int vol_id);
 void ubi_update_reserved(struct ubi_device *ubi);
 void ubi_calculate_reserved(struct ubi_device *ubi);
 int ubi_check_pattern(const void *buf, uint8_t patt, int size);
 
-static inline bool ubi_leb_valid(struct ubi_volume *vol, int lnum)
-{
-	return lnum >= 0 && lnum < vol->reserved_pebs;
+static inline bool ubi_leb_valid(struct ubi_volume *vol, int lnum) {
+  return lnum >= 0 && lnum < vol->reserved_pebs;
 }
 
 /* eba.c */
 struct ubi_eba_table *ubi_eba_create_table(struct ubi_volume *vol,
-					   int nentries);
+    int nentries);
 void ubi_eba_destroy_table(struct ubi_eba_table *tbl);
 void ubi_eba_copy_table(struct ubi_volume *vol, struct ubi_eba_table *dst,
-			int nentries);
+    int nentries);
 void ubi_eba_replace_table(struct ubi_volume *vol, struct ubi_eba_table *tbl);
 void ubi_eba_get_ldesc(struct ubi_volume *vol, int lnum,
-		       struct ubi_eba_leb_desc *ldesc);
+    struct ubi_eba_leb_desc *ldesc);
 bool ubi_eba_is_mapped(struct ubi_volume *vol, int lnum);
 int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
-		      int lnum);
+    int lnum);
 int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
-		     void *buf, int offset, int len, int check);
+    void *buf, int offset, int len, int check);
 int ubi_eba_read_leb_sg(struct ubi_device *ubi, struct ubi_volume *vol,
-			struct ubi_sgl *sgl, int lnum, int offset, int len,
-			int check);
+    struct ubi_sgl *sgl, int lnum, int offset, int len,
+    int check);
 int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
-		      const void *buf, int offset, int len);
+    const void *buf, int offset, int len);
 int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
-			 int lnum, const void *buf, int len, int used_ebs);
+    int lnum, const void *buf, int len, int used_ebs);
 int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
-			      int lnum, const void *buf, int len);
+    int lnum, const void *buf, int len);
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
-		     struct ubi_vid_io_buf *vidb);
+    struct ubi_vid_io_buf *vidb);
 int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai);
 unsigned long long ubi_next_sqnum(struct ubi_device *ubi);
 int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
-		   struct ubi_attach_info *ai_scan);
+    struct ubi_attach_info *ai_scan);
 
 /* wl.c */
 int ubi_sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e, int torture);
 int ubi_wl_get_peb(struct ubi_device *ubi);
 int ubi_wl_put_peb(struct ubi_device *ubi, int vol_id, int lnum,
-		   int pnum, int torture);
+    int pnum, int torture);
 int ubi_wl_flush(struct ubi_device *ubi, int vol_id, int lnum);
 int ubi_wl_scrub_peb(struct ubi_device *ubi, int pnum);
 int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai);
@@ -913,7 +912,7 @@ void ubi_wl_close(struct ubi_device *ubi);
 int ubi_thread(void *u);
 struct ubi_wl_entry *ubi_wl_get_fm_peb(struct ubi_device *ubi, int anchor);
 int ubi_wl_put_fm_peb(struct ubi_device *ubi, struct ubi_wl_entry *used_e,
-		      int lnum, int torture);
+    int lnum, int torture);
 int ubi_is_erase_work(struct ubi_work *wrk);
 void ubi_refill_pools_and_lock(struct ubi_device *ubi);
 int ubi_ensure_anchor_pebs(struct ubi_device *ubi);
@@ -921,34 +920,34 @@ int ubi_bitflip_check(struct ubi_device *ubi, int pnum, int force_scrub);
 
 /* io.c */
 int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
-		int len);
+    int len);
 int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
-		 int len);
+    int len);
 int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture);
 int ubi_io_is_bad(const struct ubi_device *ubi, int pnum);
 int ubi_io_mark_bad(const struct ubi_device *ubi, int pnum);
 int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
-		       struct ubi_ec_hdr *ec_hdr, int verbose);
+    struct ubi_ec_hdr *ec_hdr, int verbose);
 int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
-			struct ubi_ec_hdr *ec_hdr);
+    struct ubi_ec_hdr *ec_hdr);
 int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
-			struct ubi_vid_io_buf *vidb, int verbose);
+    struct ubi_vid_io_buf *vidb, int verbose);
 int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
-			 struct ubi_vid_io_buf *vidb);
+    struct ubi_vid_io_buf *vidb);
 
 /* build.c */
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
-		       int vid_hdr_offset, int max_beb_per1024,
-		       bool disable_fm, bool need_resv_pool);
+    int vid_hdr_offset, int max_beb_per1024,
+    bool disable_fm, bool need_resv_pool);
 int ubi_detach_mtd_dev(int ubi_num, int anyway);
 struct ubi_device *ubi_get_device(int ubi_num);
 void ubi_put_device(struct ubi_device *ubi);
 struct ubi_device *ubi_get_by_major(int major);
 int ubi_major2num(int major);
 int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol,
-		      int ntype);
+    int ntype);
 int ubi_notify_all(struct ubi_device *ubi, int ntype,
-		   struct notifier_block *nb);
+    struct notifier_block *nb);
 int ubi_enumerate_volumes(struct notifier_block *nb);
 void ubi_free_all_volumes(struct ubi_device *ubi);
 void ubi_free_internal_volumes(struct ubi_device *ubi);
@@ -956,24 +955,33 @@ void ubi_free_internal_volumes(struct ubi_device *ubi);
 /* kapi.c */
 void ubi_do_get_device_info(struct ubi_device *ubi, struct ubi_device_info *di);
 void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
-			    struct ubi_volume_info *vi);
+    struct ubi_volume_info *vi);
 int ubi_get_num_by_path(const char *pathname, int *ubi_num, int *vol_id);
 /* scan.c */
 int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
-		      int pnum, const struct ubi_vid_hdr *vid_hdr);
+    int pnum, const struct ubi_vid_hdr *vid_hdr);
 
 /* fastmap.c */
 #ifdef CONFIG_MTD_UBI_FASTMAP
 size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
-		     struct ubi_attach_info *scan_ai);
+    struct ubi_attach_info *scan_ai);
 int ubi_fastmap_init_checkmap(struct ubi_volume *vol, int leb_count);
 void ubi_fastmap_destroy_checkmap(struct ubi_volume *vol);
 #else
-static inline int ubi_update_fastmap(struct ubi_device *ubi) { return 0; }
-static inline int ubi_fastmap_init_checkmap(struct ubi_volume *vol, int leb_count) { return 0; }
-static inline void ubi_fastmap_destroy_checkmap(struct ubi_volume *vol) {}
+static inline int ubi_update_fastmap(struct ubi_device *ubi) {
+  return 0;
+}
+
+static inline int ubi_fastmap_init_checkmap(struct ubi_volume *vol,
+    int leb_count) {
+  return 0;
+}
+
+static inline void ubi_fastmap_destroy_checkmap(struct ubi_volume *vol) {
+}
+
 #endif
 
 /* block.c */
@@ -983,16 +991,21 @@ void ubiblock_exit(void);
 int ubiblock_create(struct ubi_volume_info *vi);
 int ubiblock_remove(struct ubi_volume_info *vi);
 #else
-static inline int ubiblock_init(void) { return 0; }
-static inline void ubiblock_exit(void) {}
-static inline int ubiblock_create(struct ubi_volume_info *vi)
-{
-	return -ENOSYS;
+static inline int ubiblock_init(void) {
+  return 0;
 }
-static inline int ubiblock_remove(struct ubi_volume_info *vi)
-{
-	return -ENOSYS;
+
+static inline void ubiblock_exit(void) {
 }
+
+static inline int ubiblock_create(struct ubi_volume_info *vi) {
+  return -ENOSYS;
+}
+
+static inline int ubiblock_remove(struct ubi_volume_info *vi) {
+  return -ENOSYS;
+}
+
 #endif
 
 /*
@@ -1001,8 +1014,8 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
  * @e: a pointer to a ubi_wl_entry to use as cursor
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  */
-#define ubi_for_each_free_peb(ubi, e, tmp_rb)	\
-	ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->free, u.rb)
+#define ubi_for_each_free_peb(ubi, e, tmp_rb) \
+  ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->free, u.rb)
 
 /*
  * ubi_for_each_used_peb - walk the UBI used RB tree.
@@ -1010,8 +1023,8 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
  * @e: a pointer to a ubi_wl_entry to use as cursor
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  */
-#define ubi_for_each_used_peb(ubi, e, tmp_rb)	\
-	ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->used, u.rb)
+#define ubi_for_each_used_peb(ubi, e, tmp_rb) \
+  ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->used, u.rb)
 
 /*
  * ubi_for_each_scub_peb - walk the UBI scub RB tree.
@@ -1019,8 +1032,8 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
  * @e: a pointer to a ubi_wl_entry to use as cursor
  * @pos: a pointer to RB-tree entry type to use as a loop counter
  */
-#define ubi_for_each_scrub_peb(ubi, e, tmp_rb)	\
-	ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->scrub, u.rb)
+#define ubi_for_each_scrub_peb(ubi, e, tmp_rb)  \
+  ubi_rb_for_each_entry((tmp_rb), (e), &(ubi)->scrub, u.rb)
 
 /*
  * ubi_for_each_protected_peb - walk the UBI protection queue.
@@ -1028,9 +1041,9 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
  * @i: a integer used as counter
  * @e: a pointer to a ubi_wl_entry to use as cursor
  */
-#define ubi_for_each_protected_peb(ubi, i, e)	\
-	for ((i) = 0; (i) < UBI_PROT_QUEUE_LEN; (i)++)	\
-		list_for_each_entry((e), &(ubi->pq[(i)]), u.list)
+#define ubi_for_each_protected_peb(ubi, i, e) \
+  for ((i) = 0; (i) < UBI_PROT_QUEUE_LEN; (i)++)  \
+  list_for_each_entry((e), &(ubi->pq[(i)]), u.list)
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.
@@ -1040,11 +1053,11 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
  * @member: the name of the 'struct rb_node' within the RB-tree entry
  */
 #define ubi_rb_for_each_entry(rb, pos, root, member)                         \
-	for (rb = rb_first(root),                                            \
-	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL);     \
-	     rb;                                                             \
-	     rb = rb_next(rb),                                               \
-	     pos = (rb ? container_of(rb, typeof(*pos), member) : NULL))
+  for (rb = rb_first(root),                                            \
+      pos = (rb ? container_of(rb, typeof(*pos), member) : NULL);     \
+      rb;                                                             \
+      rb = rb_next(rb),                                               \
+      pos = (rb ? container_of(rb, typeof(*pos), member) : NULL))
 
 /*
  * ubi_move_aeb_to_list - move a PEB from the volume tree to a list.
@@ -1054,11 +1067,10 @@ static inline int ubiblock_remove(struct ubi_volume_info *vi)
  * @list: the list to move to
  */
 static inline void ubi_move_aeb_to_list(struct ubi_ainf_volume *av,
-					 struct ubi_ainf_peb *aeb,
-					 struct list_head *list)
-{
-		rb_erase(&aeb->u.rb, &av->root);
-		list_add_tail(&aeb->u.list, list);
+    struct ubi_ainf_peb *aeb,
+    struct list_head *list) {
+  rb_erase(&aeb->u.rb, &av->root);
+  list_add_tail(&aeb->u.list, list);
 }
 
 /**
@@ -1068,14 +1080,13 @@ static inline void ubi_move_aeb_to_list(struct ubi_ainf_volume *av,
  * @buf: the underlying buffer
  */
 static inline void ubi_init_vid_buf(const struct ubi_device *ubi,
-				    struct ubi_vid_io_buf *vidb,
-				    void *buf)
-{
-	if (buf)
-		memset(buf, 0, ubi->vid_hdr_alsize);
-
-	vidb->buffer = buf;
-	vidb->hdr = buf + ubi->vid_hdr_shift;
+    struct ubi_vid_io_buf *vidb,
+    void *buf) {
+  if (buf) {
+    memset(buf, 0, ubi->vid_hdr_alsize);
+  }
+  vidb->buffer = buf;
+  vidb->hdr = buf + ubi->vid_hdr_shift;
 }
 
 /**
@@ -1083,60 +1094,53 @@ static inline void ubi_init_vid_buf(const struct ubi_device *ubi,
  * @ubi: the UBI device
  * @gfp_flags: GFP flags to use for the allocation
  */
-static inline struct ubi_vid_io_buf *
-ubi_alloc_vid_buf(const struct ubi_device *ubi, gfp_t gfp_flags)
-{
-	struct ubi_vid_io_buf *vidb;
-	void *buf;
-
-	vidb = kzalloc(sizeof(*vidb), gfp_flags);
-	if (!vidb)
-		return NULL;
-
-	buf = kmalloc(ubi->vid_hdr_alsize, gfp_flags);
-	if (!buf) {
-		kfree(vidb);
-		return NULL;
-	}
-
-	ubi_init_vid_buf(ubi, vidb, buf);
-
-	return vidb;
+static inline struct ubi_vid_io_buf *ubi_alloc_vid_buf(
+    const struct ubi_device *ubi, gfp_t gfp_flags) {
+  struct ubi_vid_io_buf *vidb;
+  void *buf;
+  vidb = kzalloc(sizeof(*vidb), gfp_flags);
+  if (!vidb) {
+    return NULL;
+  }
+  buf = kmalloc(ubi->vid_hdr_alsize, gfp_flags);
+  if (!buf) {
+    kfree(vidb);
+    return NULL;
+  }
+  ubi_init_vid_buf(ubi, vidb, buf);
+  return vidb;
 }
 
 /**
  * ubi_free_vid_buf - Free a VID buffer
  * @vidb: the VID buffer to free
  */
-static inline void ubi_free_vid_buf(struct ubi_vid_io_buf *vidb)
-{
-	if (!vidb)
-		return;
-
-	kfree(vidb->buffer);
-	kfree(vidb);
+static inline void ubi_free_vid_buf(struct ubi_vid_io_buf *vidb) {
+  if (!vidb) {
+    return;
+  }
+  kfree(vidb->buffer);
+  kfree(vidb);
 }
 
 /**
  * ubi_get_vid_hdr - Get the VID header attached to a VID buffer
  * @vidb: VID buffer
  */
-static inline struct ubi_vid_hdr *ubi_get_vid_hdr(struct ubi_vid_io_buf *vidb)
-{
-	return vidb->hdr;
+static inline struct ubi_vid_hdr *ubi_get_vid_hdr(struct ubi_vid_io_buf *vidb) {
+  return vidb->hdr;
 }
 
 /**
  * ubi_ro_mode - switch to read-only mode.
  * @ubi: UBI device description object
  */
-static inline void ubi_ro_mode(struct ubi_device *ubi)
-{
-	if (!ubi->ro_mode) {
-		ubi->ro_mode = 1;
-		ubi_warn(ubi, "switch to read-only mode");
-		dump_stack();
-	}
+static inline void ubi_ro_mode(struct ubi_device *ubi) {
+  if (!ubi->ro_mode) {
+    ubi->ro_mode = 1;
+    ubi_warn(ubi, "switch to read-only mode");
+    dump_stack();
+  }
 }
 
 /*
@@ -1145,10 +1149,9 @@ static inline void ubi_ro_mode(struct ubi_device *ubi)
  * physical eraseblock.
  */
 static inline int ubi_io_read_data(const struct ubi_device *ubi, void *buf,
-				   int pnum, int offset, int len)
-{
-	ubi_assert(offset >= 0);
-	return ubi_io_read(ubi, buf, pnum, offset + ubi->leb_start, len);
+    int pnum, int offset, int len) {
+  ubi_assert(offset >= 0);
+  return ubi_io_read(ubi, buf, pnum, offset + ubi->leb_start, len);
 }
 
 /*
@@ -1157,16 +1160,14 @@ static inline int ubi_io_read_data(const struct ubi_device *ubi, void *buf,
  * physical eraseblock.
  */
 static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,
-				    int pnum, int offset, int len)
-{
-	ubi_assert(offset >= 0);
-
-	if (ubi_dbg_power_cut(ubi, MASK_POWER_CUT_DATA)) {
-		ubi_warn(ubi, "XXXXX emulating a power cut when writing data XXXXX");
-		ubi_ro_mode(ubi);
-		return -EROFS;
-	}
-	return ubi_io_write(ubi, buf, pnum, offset + ubi->leb_start, len);
+    int pnum, int offset, int len) {
+  ubi_assert(offset >= 0);
+  if (ubi_dbg_power_cut(ubi, MASK_POWER_CUT_DATA)) {
+    ubi_warn(ubi, "XXXXX emulating a power cut when writing data XXXXX");
+    ubi_ro_mode(ubi);
+    return -EROFS;
+  }
+  return ubi_io_write(ubi, buf, pnum, offset + ubi->leb_start, len);
 }
 
 /**
@@ -1174,12 +1175,12 @@ static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,
  * @ubi: UBI device description object
  * @vol_id: volume ID
  */
-static inline int vol_id2idx(const struct ubi_device *ubi, int vol_id)
-{
-	if (vol_id >= UBI_INTERNAL_VOL_START)
-		return vol_id - UBI_INTERNAL_VOL_START + ubi->vtbl_slots;
-	else
-		return vol_id;
+static inline int vol_id2idx(const struct ubi_device *ubi, int vol_id) {
+  if (vol_id >= UBI_INTERNAL_VOL_START) {
+    return vol_id - UBI_INTERNAL_VOL_START + ubi->vtbl_slots;
+  } else {
+    return vol_id;
+  }
 }
 
 /**
@@ -1187,27 +1188,25 @@ static inline int vol_id2idx(const struct ubi_device *ubi, int vol_id)
  * @ubi: UBI device description object
  * @idx: table index
  */
-static inline int idx2vol_id(const struct ubi_device *ubi, int idx)
-{
-	if (idx >= ubi->vtbl_slots)
-		return idx - ubi->vtbl_slots + UBI_INTERNAL_VOL_START;
-	else
-		return idx;
+static inline int idx2vol_id(const struct ubi_device *ubi, int idx) {
+  if (idx >= ubi->vtbl_slots) {
+    return idx - ubi->vtbl_slots + UBI_INTERNAL_VOL_START;
+  } else {
+    return idx;
+  }
 }
 
 /**
  * ubi_is_fm_vol - check whether a volume ID is a Fastmap volume.
  * @vol_id: volume ID
  */
-static inline bool ubi_is_fm_vol(int vol_id)
-{
-	switch (vol_id) {
-		case UBI_FM_SB_VOLUME_ID:
-		case UBI_FM_DATA_VOLUME_ID:
-		return true;
-	}
-
-	return false;
+static inline bool ubi_is_fm_vol(int vol_id) {
+  switch (vol_id) {
+    case UBI_FM_SB_VOLUME_ID:
+    case UBI_FM_DATA_VOLUME_ID:
+      return true;
+  }
+  return false;
 }
 
 /**
@@ -1218,19 +1217,18 @@ static inline bool ubi_is_fm_vol(int vol_id)
  * This function returns a wear leveling object if @pnum relates to the current
  * fastmap, @NULL otherwise.
  */
-static inline struct ubi_wl_entry *ubi_find_fm_block(const struct ubi_device *ubi,
-						     int pnum)
-{
-	int i;
-
-	if (ubi->fm) {
-		for (i = 0; i < ubi->fm->used_blocks; i++) {
-			if (ubi->fm->e[i]->pnum == pnum)
-				return ubi->fm->e[i];
-		}
-	}
-
-	return NULL;
+static inline struct ubi_wl_entry *ubi_find_fm_block(
+    const struct ubi_device *ubi,
+    int pnum) {
+  int i;
+  if (ubi->fm) {
+    for (i = 0; i < ubi->fm->used_blocks; i++) {
+      if (ubi->fm->e[i]->pnum == pnum) {
+        return ubi->fm->e[i];
+      }
+    }
+  }
+  return NULL;
 }
 
 #endif /* !__UBI_UBI_H__ */

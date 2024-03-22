@@ -10,23 +10,21 @@
 #include <linux/io.h>
 
 struct mgb4_regs {
-	resource_size_t mapbase;
-	resource_size_t mapsize;
-	void __iomem *membase;
+  resource_size_t mapbase;
+  resource_size_t mapsize;
+  void __iomem *membase;
 };
 
 #define mgb4_write_reg(regs, offset, val) \
-	iowrite32(val, (regs)->membase + (offset))
+  iowrite32(val, (regs)->membase + (offset))
 #define  mgb4_read_reg(regs, offset) \
-	ioread32((regs)->membase + (offset))
+  ioread32((regs)->membase + (offset))
 
 static inline void mgb4_mask_reg(struct mgb4_regs *regs, u32 reg, u32 mask,
-				 u32 val)
-{
-	u32 ret = mgb4_read_reg(regs, reg);
-
-	val |= ret & ~mask;
-	mgb4_write_reg(regs, reg, val);
+    u32 val) {
+  u32 ret = mgb4_read_reg(regs, reg);
+  val |= ret & ~mask;
+  mgb4_write_reg(regs, reg, val);
 }
 
 int mgb4_regs_map(struct resource *res, struct mgb4_regs *regs);

@@ -3,8 +3,8 @@
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
-#ifndef	__XFS_REFCOUNT_ITEM_H__
-#define	__XFS_REFCOUNT_ITEM_H__
+#ifndef __XFS_REFCOUNT_ITEM_H__
+#define __XFS_REFCOUNT_ITEM_H__
 
 /*
  * There are (currently) two pairs of refcount btree redo item types:
@@ -30,7 +30,7 @@ struct kmem_cache;
 /*
  * Max number of extents in fast allocation path.
  */
-#define	XFS_CUI_MAX_FAST_EXTENTS	16
+#define XFS_CUI_MAX_FAST_EXTENTS  16
 
 /*
  * This is the "refcount update intent" log item.  It is used to log
@@ -43,18 +43,16 @@ struct kmem_cache;
  * more details.
  */
 struct xfs_cui_log_item {
-	struct xfs_log_item		cui_item;
-	atomic_t			cui_refcount;
-	atomic_t			cui_next_extent;
-	struct xfs_cui_log_format	cui_format;
+  struct xfs_log_item cui_item;
+  atomic_t cui_refcount;
+  atomic_t cui_next_extent;
+  struct xfs_cui_log_format cui_format;
 };
 
-static inline size_t
-xfs_cui_log_item_sizeof(
-	unsigned int		nr)
-{
-	return offsetof(struct xfs_cui_log_item, cui_format) +
-			xfs_cui_log_format_sizeof(nr);
+static inline size_t xfs_cui_log_item_sizeof(
+    unsigned int nr) {
+  return offsetof(struct xfs_cui_log_item, cui_format)
+    + xfs_cui_log_format_sizeof(nr);
 }
 
 /*
@@ -63,12 +61,12 @@ xfs_cui_log_item_sizeof(
  * have been performed.
  */
 struct xfs_cud_log_item {
-	struct xfs_log_item		cud_item;
-	struct xfs_cui_log_item		*cud_cuip;
-	struct xfs_cud_log_format	cud_format;
+  struct xfs_log_item cud_item;
+  struct xfs_cui_log_item *cud_cuip;
+  struct xfs_cud_log_format cud_format;
 };
 
-extern struct kmem_cache	*xfs_cui_cache;
-extern struct kmem_cache	*xfs_cud_cache;
+extern struct kmem_cache *xfs_cui_cache;
+extern struct kmem_cache *xfs_cud_cache;
 
-#endif	/* __XFS_REFCOUNT_ITEM_H__ */
+#endif  /* __XFS_REFCOUNT_ITEM_H__ */

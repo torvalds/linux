@@ -19,19 +19,19 @@
 #include <generated/bounds.h>
 
 #define USE_CMPXCHG_LOCKREF \
-	(IS_ENABLED(CONFIG_ARCH_USE_CMPXCHG_LOCKREF) && \
-	 IS_ENABLED(CONFIG_SMP) && SPINLOCK_SIZE <= 4)
+  (IS_ENABLED(CONFIG_ARCH_USE_CMPXCHG_LOCKREF)    \
+  && IS_ENABLED(CONFIG_SMP) && SPINLOCK_SIZE <= 4)
 
 struct lockref {
-	union {
+  union {
 #if USE_CMPXCHG_LOCKREF
-		aligned_u64 lock_count;
+    aligned_u64 lock_count;
 #endif
-		struct {
-			spinlock_t lock;
-			int count;
-		};
-	};
+    struct {
+      spinlock_t lock;
+      int count;
+    };
+  };
 };
 
 extern void lockref_get(struct lockref *);
@@ -44,9 +44,8 @@ extern void lockref_mark_dead(struct lockref *);
 extern int lockref_get_not_dead(struct lockref *);
 
 /* Must be called under spinlock for reliable results */
-static inline bool __lockref_is_dead(const struct lockref *l)
-{
-	return ((int)l->count < 0);
+static inline bool __lockref_is_dead(const struct lockref *l) {
+  return (int) l->count < 0;
 }
 
 #endif /* __LINUX_LOCKREF_H */

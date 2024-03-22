@@ -4,7 +4,7 @@
  */
 
 #ifndef SD_FLAG
-# error "Incorrect import of SD flags definitions"
+#error "Incorrect import of SD flags definitions"
 #endif
 
 /*
@@ -95,7 +95,7 @@ SD_FLAG(SD_ASYM_CPUCAPACITY, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)
  * capacity values.
  *
  * SHARED_PARENT: Set from the topmost domain down to the first domain where
- *		  all available CPU capacities are visible
+ *      all available CPU capacities are visible
  * NEEDS_GROUPS: Per-CPU capacity is asymmetric between groups.
  */
 SD_FLAG(SD_ASYM_CPUCAPACITY_FULL, SDF_SHARED_PARENT | SDF_NEEDS_GROUPS)

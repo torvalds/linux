@@ -10,10 +10,10 @@
 #include "clk-regmap.h"
 
 struct clk_regmap_div {
-	u32			reg;
-	u32			shift;
-	u32			width;
-	struct clk_regmap	clkr;
+  u32 reg;
+  u32 shift;
+  u32 width;
+  struct clk_regmap clkr;
 };
 
 extern const struct clk_ops clk_regmap_div_ops;

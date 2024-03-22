@@ -1,18 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
-	<http://rt2x00.serialmonkey.com>
-
+ * Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+ * <http://rt2x00.serialmonkey.com>
+ *
  */
 
 /*
-	Module: rt2x00dump
-	Abstract:
-		Data structures for the rt2x00debug & userspace.
-
-		The declarations in this file can be used by both rt2x00
-		and userspace and therefore should be kept together in
-		this file.
+ * Module: rt2x00dump
+ * Abstract:
+ *  Data structures for the rt2x00debug & userspace.
+ *
+ *  The declarations in this file can be used by both rt2x00
+ *  and userspace and therefore should be kept together in
+ *  this file.
  */
 
 #ifndef RT2X00DUMP_H
@@ -38,9 +38,9 @@
  *   [rt2x00dump header][hardware descriptor][ieee802.11 frame]
  *
  * rt2x00dump header: The description of the dumped frame, as well as
- *	additional information useful for debugging. See &rt2x00dump_hdr.
+ *  additional information useful for debugging. See &rt2x00dump_hdr.
  * hardware descriptor: Descriptor that was used to receive or transmit
- *	the frame.
+ *  the frame.
  * ieee802.11 frame: The actual frame that was received or transmitted.
  */
 
@@ -51,17 +51,17 @@
  * @DUMP_FRAME_RXDONE: This frame has been received by the hardware.
  * @DUMP_FRAME_TX: This frame is queued for transmission to the hardware.
  * @DUMP_FRAME_TXDONE: This frame indicates the device has handled
- *	the tx event which has either succeeded or failed. A frame
- *	with this type should also have been reported with as a
- *	%DUMP_FRAME_TX frame.
+ *  the tx event which has either succeeded or failed. A frame
+ *  with this type should also have been reported with as a
+ *  %DUMP_FRAME_TX frame.
  * @DUMP_FRAME_BEACON: This beacon frame is queued for transmission to the
- *	hardware.
+ *  hardware.
  */
 enum rt2x00_dump_type {
-	DUMP_FRAME_RXDONE = 1,
-	DUMP_FRAME_TX = 2,
-	DUMP_FRAME_TXDONE = 3,
-	DUMP_FRAME_BEACON = 4,
+  DUMP_FRAME_RXDONE = 1,
+  DUMP_FRAME_TX = 2,
+  DUMP_FRAME_TXDONE = 3,
+  DUMP_FRAME_BEACON = 4,
 };
 
 /**
@@ -77,11 +77,11 @@ enum rt2x00_dump_type {
  * (although they will not handle all data passed to them in the dump).
  *
  * @version: Header version should always be set to %DUMP_HEADER_VERSION.
- *	This field must be checked by userspace to determine if it can
- *	handle this frame.
+ *  This field must be checked by userspace to determine if it can
+ *  handle this frame.
  * @header_length: The length of the &rt2x00dump_hdr structure. This is
- *	used for compatibility reasons so userspace can easily determine
- *	the location of the next field in the dump.
+ *  used for compatibility reasons so userspace can easily determine
+ *  the location of the next field in the dump.
  * @desc_length: The length of the device descriptor.
  * @data_length: The length of the frame data (including the ieee802.11 header.
  * @chip_rt: RT chipset
@@ -94,23 +94,23 @@ enum rt2x00_dump_type {
  * @timestamp_usec: Timestamp - microseconds
  */
 struct rt2x00dump_hdr {
-	__le32 version;
-#define DUMP_HEADER_VERSION	3
+  __le32 version;
+#define DUMP_HEADER_VERSION 3
 
-	__le32 header_length;
-	__le32 desc_length;
-	__le32 data_length;
+  __le32 header_length;
+  __le32 desc_length;
+  __le32 data_length;
 
-	__le16 chip_rt;
-	__le16 chip_rf;
-	__le16 chip_rev;
+  __le16 chip_rt;
+  __le16 chip_rf;
+  __le16 chip_rev;
 
-	__le16 type;
-	__u8 queue_index;
-	__u8 entry_index;
+  __le16 type;
+  __u8 queue_index;
+  __u8 entry_index;
 
-	__le32 timestamp_sec;
-	__le32 timestamp_usec;
+  __le32 timestamp_sec;
+  __le32 timestamp_usec;
 };
 
 #endif /* RT2X00DUMP_H */

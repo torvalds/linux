@@ -58,8 +58,8 @@
 #define WM8994_MICBIAS                          0x3A
 #define WM8994_LDO_1                            0x3B
 #define WM8994_LDO_2                            0x3C
-#define WM8958_MICBIAS1				0x3D
-#define WM8958_MICBIAS2				0x3E
+#define WM8958_MICBIAS1       0x3D
+#define WM8958_MICBIAS2       0x3E
 #define WM8994_CHARGE_PUMP_1                    0x4C
 #define WM8958_CHARGE_PUMP_2                    0x4D
 #define WM8994_CLASS_W_1                        0x51
@@ -67,7 +67,7 @@
 #define WM8994_DC_SERVO_2                       0x55
 #define WM8994_DC_SERVO_4                       0x57
 #define WM8994_DC_SERVO_READBACK                0x58
-#define WM8994_DC_SERVO_4E			0x59
+#define WM8994_DC_SERVO_4E      0x59
 #define WM8994_ANALOGUE_HP_1                    0x60
 #define WM8958_MIC_DETECT_1                     0xD0
 #define WM8958_MIC_DETECT_2                     0xD1
@@ -245,7 +245,7 @@
 #define WM8994_GPIO_4                           0x703
 #define WM8994_GPIO_5                           0x704
 #define WM8994_GPIO_6                           0x705
-#define WM1811_JACKDET_CTRL			0x705
+#define WM1811_JACKDET_CTRL     0x705
 #define WM8994_GPIO_7                           0x706
 #define WM8994_GPIO_8                           0x707
 #define WM8994_GPIO_9                           0x708
@@ -1131,19 +1131,28 @@
 /*
  * R6 (0x06) - Power Management (6)
  */
-#define WM8958_AIF3ADC_SRC_MASK                 0x0600  /* AIF3ADC_SRC - [10:9] */
-#define WM8958_AIF3ADC_SRC_SHIFT                     9  /* AIF3ADC_SRC - [10:9] */
-#define WM8958_AIF3ADC_SRC_WIDTH                     2  /* AIF3ADC_SRC - [10:9] */
-#define WM8958_AIF2DAC_SRC_MASK                 0x0180  /* AIF2DAC_SRC - [8:7] */
-#define WM8958_AIF2DAC_SRC_SHIFT                     7  /* AIF2DAC_SRC - [8:7] */
-#define WM8958_AIF2DAC_SRC_WIDTH                     2  /* AIF2DAC_SRC - [8:7] */
+#define WM8958_AIF3ADC_SRC_MASK                 0x0600  /* AIF3ADC_SRC - [10:9]
+                                                         * */
+#define WM8958_AIF3ADC_SRC_SHIFT                     9  /* AIF3ADC_SRC - [10:9]
+                                                         * */
+#define WM8958_AIF3ADC_SRC_WIDTH                     2  /* AIF3ADC_SRC - [10:9]
+                                                         * */
+#define WM8958_AIF2DAC_SRC_MASK                 0x0180  /* AIF2DAC_SRC - [8:7]
+                                                         * */
+#define WM8958_AIF2DAC_SRC_SHIFT                     7  /* AIF2DAC_SRC - [8:7]
+                                                         * */
+#define WM8958_AIF2DAC_SRC_WIDTH                     2  /* AIF2DAC_SRC - [8:7]
+                                                         * */
 #define WM8994_AIF3_TRI                         0x0020  /* AIF3_TRI */
 #define WM8994_AIF3_TRI_MASK                    0x0020  /* AIF3_TRI */
 #define WM8994_AIF3_TRI_SHIFT                        5  /* AIF3_TRI */
 #define WM8994_AIF3_TRI_WIDTH                        1  /* AIF3_TRI */
-#define WM8994_AIF3_ADCDAT_SRC_MASK             0x0018  /* AIF3_ADCDAT_SRC - [4:3] */
-#define WM8994_AIF3_ADCDAT_SRC_SHIFT                 3  /* AIF3_ADCDAT_SRC - [4:3] */
-#define WM8994_AIF3_ADCDAT_SRC_WIDTH                 2  /* AIF3_ADCDAT_SRC - [4:3] */
+#define WM8994_AIF3_ADCDAT_SRC_MASK             0x0018  /* AIF3_ADCDAT_SRC -
+                                                         * [4:3] */
+#define WM8994_AIF3_ADCDAT_SRC_SHIFT                 3  /* AIF3_ADCDAT_SRC -
+                                                         * [4:3] */
+#define WM8994_AIF3_ADCDAT_SRC_WIDTH                 2  /* AIF3_ADCDAT_SRC -
+                                                         * [4:3] */
 #define WM8994_AIF2_ADCDAT_SRC                  0x0004  /* AIF2_ADCDAT_SRC */
 #define WM8994_AIF2_ADCDAT_SRC_MASK             0x0004  /* AIF2_ADCDAT_SRC */
 #define WM8994_AIF2_ADCDAT_SRC_SHIFT                 2  /* AIF2_ADCDAT_SRC */
@@ -1264,9 +1273,12 @@
 #define WM8994_HPOUT1L_MUTE_N_MASK              0x0040  /* HPOUT1L_MUTE_N */
 #define WM8994_HPOUT1L_MUTE_N_SHIFT                  6  /* HPOUT1L_MUTE_N */
 #define WM8994_HPOUT1L_MUTE_N_WIDTH                  1  /* HPOUT1L_MUTE_N */
-#define WM8994_HPOUT1L_VOL_MASK                 0x003F  /* HPOUT1L_VOL - [5:0] */
-#define WM8994_HPOUT1L_VOL_SHIFT                     0  /* HPOUT1L_VOL - [5:0] */
-#define WM8994_HPOUT1L_VOL_WIDTH                     6  /* HPOUT1L_VOL - [5:0] */
+#define WM8994_HPOUT1L_VOL_MASK                 0x003F  /* HPOUT1L_VOL - [5:0]
+                                                         * */
+#define WM8994_HPOUT1L_VOL_SHIFT                     0  /* HPOUT1L_VOL - [5:0]
+                                                         * */
+#define WM8994_HPOUT1L_VOL_WIDTH                     6  /* HPOUT1L_VOL - [5:0]
+                                                         * */
 
 /*
  * R29 (0x1D) - Right Output Volume
@@ -1283,9 +1295,12 @@
 #define WM8994_HPOUT1R_MUTE_N_MASK              0x0040  /* HPOUT1R_MUTE_N */
 #define WM8994_HPOUT1R_MUTE_N_SHIFT                  6  /* HPOUT1R_MUTE_N */
 #define WM8994_HPOUT1R_MUTE_N_WIDTH                  1  /* HPOUT1R_MUTE_N */
-#define WM8994_HPOUT1R_VOL_MASK                 0x003F  /* HPOUT1R_VOL - [5:0] */
-#define WM8994_HPOUT1R_VOL_SHIFT                     0  /* HPOUT1R_VOL - [5:0] */
-#define WM8994_HPOUT1R_VOL_WIDTH                     6  /* HPOUT1R_VOL - [5:0] */
+#define WM8994_HPOUT1R_VOL_MASK                 0x003F  /* HPOUT1R_VOL - [5:0]
+                                                         * */
+#define WM8994_HPOUT1R_VOL_SHIFT                     0  /* HPOUT1R_VOL - [5:0]
+                                                         * */
+#define WM8994_HPOUT1R_VOL_WIDTH                     6  /* HPOUT1R_VOL - [5:0]
+                                                         * */
 
 /*
  * R30 (0x1E) - Line Outputs Volume
@@ -1342,9 +1357,12 @@
 #define WM8994_MIXOUTL_MUTE_N_MASK              0x0040  /* MIXOUTL_MUTE_N */
 #define WM8994_MIXOUTL_MUTE_N_SHIFT                  6  /* MIXOUTL_MUTE_N */
 #define WM8994_MIXOUTL_MUTE_N_WIDTH                  1  /* MIXOUTL_MUTE_N */
-#define WM8994_MIXOUTL_VOL_MASK                 0x003F  /* MIXOUTL_VOL - [5:0] */
-#define WM8994_MIXOUTL_VOL_SHIFT                     0  /* MIXOUTL_VOL - [5:0] */
-#define WM8994_MIXOUTL_VOL_WIDTH                     6  /* MIXOUTL_VOL - [5:0] */
+#define WM8994_MIXOUTL_VOL_MASK                 0x003F  /* MIXOUTL_VOL - [5:0]
+                                                         * */
+#define WM8994_MIXOUTL_VOL_SHIFT                     0  /* MIXOUTL_VOL - [5:0]
+                                                         * */
+#define WM8994_MIXOUTL_VOL_WIDTH                     6  /* MIXOUTL_VOL - [5:0]
+                                                         * */
 
 /*
  * R33 (0x21) - Right OPGA Volume
@@ -1361,9 +1379,12 @@
 #define WM8994_MIXOUTR_MUTE_N_MASK              0x0040  /* MIXOUTR_MUTE_N */
 #define WM8994_MIXOUTR_MUTE_N_SHIFT                  6  /* MIXOUTR_MUTE_N */
 #define WM8994_MIXOUTR_MUTE_N_WIDTH                  1  /* MIXOUTR_MUTE_N */
-#define WM8994_MIXOUTR_VOL_MASK                 0x003F  /* MIXOUTR_VOL - [5:0] */
-#define WM8994_MIXOUTR_VOL_SHIFT                     0  /* MIXOUTR_VOL - [5:0] */
-#define WM8994_MIXOUTR_VOL_WIDTH                     6  /* MIXOUTR_VOL - [5:0] */
+#define WM8994_MIXOUTR_VOL_MASK                 0x003F  /* MIXOUTR_VOL - [5:0]
+                                                         * */
+#define WM8994_MIXOUTR_VOL_SHIFT                     0  /* MIXOUTR_VOL - [5:0]
+                                                         * */
+#define WM8994_MIXOUTR_VOL_WIDTH                     6  /* MIXOUTR_VOL - [5:0]
+                                                         * */
 
 /*
  * R34 (0x22) - SPKMIXL Attenuation
@@ -1380,17 +1401,24 @@
 #define WM8994_IN1LP_SPKMIXL_VOL_MASK           0x0010  /* IN1LP_SPKMIXL_VOL */
 #define WM8994_IN1LP_SPKMIXL_VOL_SHIFT               4  /* IN1LP_SPKMIXL_VOL */
 #define WM8994_IN1LP_SPKMIXL_VOL_WIDTH               1  /* IN1LP_SPKMIXL_VOL */
-#define WM8994_MIXOUTL_SPKMIXL_VOL              0x0008  /* MIXOUTL_SPKMIXL_VOL */
-#define WM8994_MIXOUTL_SPKMIXL_VOL_MASK         0x0008  /* MIXOUTL_SPKMIXL_VOL */
-#define WM8994_MIXOUTL_SPKMIXL_VOL_SHIFT             3  /* MIXOUTL_SPKMIXL_VOL */
-#define WM8994_MIXOUTL_SPKMIXL_VOL_WIDTH             1  /* MIXOUTL_SPKMIXL_VOL */
+#define WM8994_MIXOUTL_SPKMIXL_VOL              0x0008  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
+#define WM8994_MIXOUTL_SPKMIXL_VOL_MASK         0x0008  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
+#define WM8994_MIXOUTL_SPKMIXL_VOL_SHIFT             3  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
+#define WM8994_MIXOUTL_SPKMIXL_VOL_WIDTH             1  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
 #define WM8994_DAC1L_SPKMIXL_VOL                0x0004  /* DAC1L_SPKMIXL_VOL */
 #define WM8994_DAC1L_SPKMIXL_VOL_MASK           0x0004  /* DAC1L_SPKMIXL_VOL */
 #define WM8994_DAC1L_SPKMIXL_VOL_SHIFT               2  /* DAC1L_SPKMIXL_VOL */
 #define WM8994_DAC1L_SPKMIXL_VOL_WIDTH               1  /* DAC1L_SPKMIXL_VOL */
-#define WM8994_SPKMIXL_VOL_MASK                 0x0003  /* SPKMIXL_VOL - [1:0] */
-#define WM8994_SPKMIXL_VOL_SHIFT                     0  /* SPKMIXL_VOL - [1:0] */
-#define WM8994_SPKMIXL_VOL_WIDTH                     2  /* SPKMIXL_VOL - [1:0] */
+#define WM8994_SPKMIXL_VOL_MASK                 0x0003  /* SPKMIXL_VOL - [1:0]
+                                                         * */
+#define WM8994_SPKMIXL_VOL_SHIFT                     0  /* SPKMIXL_VOL - [1:0]
+                                                         * */
+#define WM8994_SPKMIXL_VOL_WIDTH                     2  /* SPKMIXL_VOL - [1:0]
+                                                         * */
 
 /*
  * R35 (0x23) - SPKMIXR Attenuation
@@ -1411,17 +1439,24 @@
 #define WM8994_IN1RP_SPKMIXR_VOL_MASK           0x0010  /* IN1RP_SPKMIXR_VOL */
 #define WM8994_IN1RP_SPKMIXR_VOL_SHIFT               4  /* IN1RP_SPKMIXR_VOL */
 #define WM8994_IN1RP_SPKMIXR_VOL_WIDTH               1  /* IN1RP_SPKMIXR_VOL */
-#define WM8994_MIXOUTR_SPKMIXR_VOL              0x0008  /* MIXOUTR_SPKMIXR_VOL */
-#define WM8994_MIXOUTR_SPKMIXR_VOL_MASK         0x0008  /* MIXOUTR_SPKMIXR_VOL */
-#define WM8994_MIXOUTR_SPKMIXR_VOL_SHIFT             3  /* MIXOUTR_SPKMIXR_VOL */
-#define WM8994_MIXOUTR_SPKMIXR_VOL_WIDTH             1  /* MIXOUTR_SPKMIXR_VOL */
+#define WM8994_MIXOUTR_SPKMIXR_VOL              0x0008  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
+#define WM8994_MIXOUTR_SPKMIXR_VOL_MASK         0x0008  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
+#define WM8994_MIXOUTR_SPKMIXR_VOL_SHIFT             3  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
+#define WM8994_MIXOUTR_SPKMIXR_VOL_WIDTH             1  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
 #define WM8994_DAC1R_SPKMIXR_VOL                0x0004  /* DAC1R_SPKMIXR_VOL */
 #define WM8994_DAC1R_SPKMIXR_VOL_MASK           0x0004  /* DAC1R_SPKMIXR_VOL */
 #define WM8994_DAC1R_SPKMIXR_VOL_SHIFT               2  /* DAC1R_SPKMIXR_VOL */
 #define WM8994_DAC1R_SPKMIXR_VOL_WIDTH               1  /* DAC1R_SPKMIXR_VOL */
-#define WM8994_SPKMIXR_VOL_MASK                 0x0003  /* SPKMIXR_VOL - [1:0] */
-#define WM8994_SPKMIXR_VOL_SHIFT                     0  /* SPKMIXR_VOL - [1:0] */
-#define WM8994_SPKMIXR_VOL_WIDTH                     2  /* SPKMIXR_VOL - [1:0] */
+#define WM8994_SPKMIXR_VOL_MASK                 0x0003  /* SPKMIXR_VOL - [1:0]
+                                                         * */
+#define WM8994_SPKMIXR_VOL_SHIFT                     0  /* SPKMIXR_VOL - [1:0]
+                                                         * */
+#define WM8994_SPKMIXR_VOL_WIDTH                     2  /* SPKMIXR_VOL - [1:0]
+                                                         * */
 
 /*
  * R36 (0x24) - SPKOUT Mixers
@@ -1454,12 +1489,18 @@
 /*
  * R37 (0x25) - ClassD
  */
-#define WM8994_SPKOUTL_BOOST_MASK               0x0038  /* SPKOUTL_BOOST - [5:3] */
-#define WM8994_SPKOUTL_BOOST_SHIFT                   3  /* SPKOUTL_BOOST - [5:3] */
-#define WM8994_SPKOUTL_BOOST_WIDTH                   3  /* SPKOUTL_BOOST - [5:3] */
-#define WM8994_SPKOUTR_BOOST_MASK               0x0007  /* SPKOUTR_BOOST - [2:0] */
-#define WM8994_SPKOUTR_BOOST_SHIFT                   0  /* SPKOUTR_BOOST - [2:0] */
-#define WM8994_SPKOUTR_BOOST_WIDTH                   3  /* SPKOUTR_BOOST - [2:0] */
+#define WM8994_SPKOUTL_BOOST_MASK               0x0038  /* SPKOUTL_BOOST - [5:3]
+                                                         * */
+#define WM8994_SPKOUTL_BOOST_SHIFT                   3  /* SPKOUTL_BOOST - [5:3]
+                                                         * */
+#define WM8994_SPKOUTL_BOOST_WIDTH                   3  /* SPKOUTL_BOOST - [5:3]
+                                                         * */
+#define WM8994_SPKOUTR_BOOST_MASK               0x0007  /* SPKOUTR_BOOST - [2:0]
+                                                         * */
+#define WM8994_SPKOUTR_BOOST_SHIFT                   0  /* SPKOUTR_BOOST - [2:0]
+                                                         * */
+#define WM8994_SPKOUTR_BOOST_WIDTH                   3  /* SPKOUTR_BOOST - [2:0]
+                                                         * */
 
 /*
  * R38 (0x26) - Speaker Volume Left
@@ -1476,9 +1517,12 @@
 #define WM8994_SPKOUTL_MUTE_N_MASK              0x0040  /* SPKOUTL_MUTE_N */
 #define WM8994_SPKOUTL_MUTE_N_SHIFT                  6  /* SPKOUTL_MUTE_N */
 #define WM8994_SPKOUTL_MUTE_N_WIDTH                  1  /* SPKOUTL_MUTE_N */
-#define WM8994_SPKOUTL_VOL_MASK                 0x003F  /* SPKOUTL_VOL - [5:0] */
-#define WM8994_SPKOUTL_VOL_SHIFT                     0  /* SPKOUTL_VOL - [5:0] */
-#define WM8994_SPKOUTL_VOL_WIDTH                     6  /* SPKOUTL_VOL - [5:0] */
+#define WM8994_SPKOUTL_VOL_MASK                 0x003F  /* SPKOUTL_VOL - [5:0]
+                                                         * */
+#define WM8994_SPKOUTL_VOL_SHIFT                     0  /* SPKOUTL_VOL - [5:0]
+                                                         * */
+#define WM8994_SPKOUTL_VOL_WIDTH                     6  /* SPKOUTL_VOL - [5:0]
+                                                         * */
 
 /*
  * R39 (0x27) - Speaker Volume Right
@@ -1495,9 +1539,12 @@
 #define WM8994_SPKOUTR_MUTE_N_MASK              0x0040  /* SPKOUTR_MUTE_N */
 #define WM8994_SPKOUTR_MUTE_N_SHIFT                  6  /* SPKOUTR_MUTE_N */
 #define WM8994_SPKOUTR_MUTE_N_WIDTH                  1  /* SPKOUTR_MUTE_N */
-#define WM8994_SPKOUTR_VOL_MASK                 0x003F  /* SPKOUTR_VOL - [5:0] */
-#define WM8994_SPKOUTR_VOL_SHIFT                     0  /* SPKOUTR_VOL - [5:0] */
-#define WM8994_SPKOUTR_VOL_WIDTH                     6  /* SPKOUTR_VOL - [5:0] */
+#define WM8994_SPKOUTR_VOL_MASK                 0x003F  /* SPKOUTR_VOL - [5:0]
+                                                         * */
+#define WM8994_SPKOUTR_VOL_SHIFT                     0  /* SPKOUTR_VOL - [5:0]
+                                                         * */
+#define WM8994_SPKOUTR_VOL_WIDTH                     6  /* SPKOUTR_VOL - [5:0]
+                                                         * */
 
 /*
  * R40 (0x28) - Input Mixer (2)
@@ -1554,9 +1601,12 @@
 #define WM8994_IN1L_MIXINL_VOL_MASK             0x0010  /* IN1L_MIXINL_VOL */
 #define WM8994_IN1L_MIXINL_VOL_SHIFT                 4  /* IN1L_MIXINL_VOL */
 #define WM8994_IN1L_MIXINL_VOL_WIDTH                 1  /* IN1L_MIXINL_VOL */
-#define WM8994_MIXOUTL_MIXINL_VOL_MASK          0x0007  /* MIXOUTL_MIXINL_VOL - [2:0] */
-#define WM8994_MIXOUTL_MIXINL_VOL_SHIFT              0  /* MIXOUTL_MIXINL_VOL - [2:0] */
-#define WM8994_MIXOUTL_MIXINL_VOL_WIDTH              3  /* MIXOUTL_MIXINL_VOL - [2:0] */
+#define WM8994_MIXOUTL_MIXINL_VOL_MASK          0x0007  /* MIXOUTL_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXOUTL_MIXINL_VOL_SHIFT              0  /* MIXOUTL_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXOUTL_MIXINL_VOL_WIDTH              3  /* MIXOUTL_MIXINL_VOL -
+                                                         * [2:0] */
 
 /*
  * R42 (0x2A) - Input Mixer (4)
@@ -1577,29 +1627,44 @@
 #define WM8994_IN1R_MIXINR_VOL_MASK             0x0010  /* IN1R_MIXINR_VOL */
 #define WM8994_IN1R_MIXINR_VOL_SHIFT                 4  /* IN1R_MIXINR_VOL */
 #define WM8994_IN1R_MIXINR_VOL_WIDTH                 1  /* IN1R_MIXINR_VOL */
-#define WM8994_MIXOUTR_MIXINR_VOL_MASK          0x0007  /* MIXOUTR_MIXINR_VOL - [2:0] */
-#define WM8994_MIXOUTR_MIXINR_VOL_SHIFT              0  /* MIXOUTR_MIXINR_VOL - [2:0] */
-#define WM8994_MIXOUTR_MIXINR_VOL_WIDTH              3  /* MIXOUTR_MIXINR_VOL - [2:0] */
+#define WM8994_MIXOUTR_MIXINR_VOL_MASK          0x0007  /* MIXOUTR_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXOUTR_MIXINR_VOL_SHIFT              0  /* MIXOUTR_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXOUTR_MIXINR_VOL_WIDTH              3  /* MIXOUTR_MIXINR_VOL -
+                                                         * [2:0] */
 
 /*
  * R43 (0x2B) - Input Mixer (5)
  */
-#define WM8994_IN1LP_MIXINL_VOL_MASK            0x01C0  /* IN1LP_MIXINL_VOL - [8:6] */
-#define WM8994_IN1LP_MIXINL_VOL_SHIFT                6  /* IN1LP_MIXINL_VOL - [8:6] */
-#define WM8994_IN1LP_MIXINL_VOL_WIDTH                3  /* IN1LP_MIXINL_VOL - [8:6] */
-#define WM8994_IN2LRP_MIXINL_VOL_MASK           0x0007  /* IN2LRP_MIXINL_VOL - [2:0] */
-#define WM8994_IN2LRP_MIXINL_VOL_SHIFT               0  /* IN2LRP_MIXINL_VOL - [2:0] */
-#define WM8994_IN2LRP_MIXINL_VOL_WIDTH               3  /* IN2LRP_MIXINL_VOL - [2:0] */
+#define WM8994_IN1LP_MIXINL_VOL_MASK            0x01C0  /* IN1LP_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN1LP_MIXINL_VOL_SHIFT                6  /* IN1LP_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN1LP_MIXINL_VOL_WIDTH                3  /* IN1LP_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2LRP_MIXINL_VOL_MASK           0x0007  /* IN2LRP_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8994_IN2LRP_MIXINL_VOL_SHIFT               0  /* IN2LRP_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8994_IN2LRP_MIXINL_VOL_WIDTH               3  /* IN2LRP_MIXINL_VOL -
+                                                         * [2:0] */
 
 /*
  * R44 (0x2C) - Input Mixer (6)
  */
-#define WM8994_IN1RP_MIXINR_VOL_MASK            0x01C0  /* IN1RP_MIXINR_VOL - [8:6] */
-#define WM8994_IN1RP_MIXINR_VOL_SHIFT                6  /* IN1RP_MIXINR_VOL - [8:6] */
-#define WM8994_IN1RP_MIXINR_VOL_WIDTH                3  /* IN1RP_MIXINR_VOL - [8:6] */
-#define WM8994_IN2LRP_MIXINR_VOL_MASK           0x0007  /* IN2LRP_MIXINR_VOL - [2:0] */
-#define WM8994_IN2LRP_MIXINR_VOL_SHIFT               0  /* IN2LRP_MIXINR_VOL - [2:0] */
-#define WM8994_IN2LRP_MIXINR_VOL_WIDTH               3  /* IN2LRP_MIXINR_VOL - [2:0] */
+#define WM8994_IN1RP_MIXINR_VOL_MASK            0x01C0  /* IN1RP_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN1RP_MIXINR_VOL_SHIFT                6  /* IN1RP_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN1RP_MIXINR_VOL_WIDTH                3  /* IN1RP_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2LRP_MIXINR_VOL_MASK           0x0007  /* IN2LRP_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8994_IN2LRP_MIXINR_VOL_SHIFT               0  /* IN2LRP_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8994_IN2LRP_MIXINR_VOL_WIDTH               3  /* IN2LRP_MIXINR_VOL -
+                                                         * [2:0] */
 
 /*
  * R45 (0x2D) - Output Mixer (1)
@@ -1684,66 +1749,114 @@
 /*
  * R47 (0x2F) - Output Mixer (3)
  */
-#define WM8994_IN2LP_MIXOUTL_VOL_MASK           0x0E00  /* IN2LP_MIXOUTL_VOL - [11:9] */
-#define WM8994_IN2LP_MIXOUTL_VOL_SHIFT               9  /* IN2LP_MIXOUTL_VOL - [11:9] */
-#define WM8994_IN2LP_MIXOUTL_VOL_WIDTH               3  /* IN2LP_MIXOUTL_VOL - [11:9] */
-#define WM8994_IN2LN_MIXOUTL_VOL_MASK           0x01C0  /* IN2LN_MIXOUTL_VOL - [8:6] */
-#define WM8994_IN2LN_MIXOUTL_VOL_SHIFT               6  /* IN2LN_MIXOUTL_VOL - [8:6] */
-#define WM8994_IN2LN_MIXOUTL_VOL_WIDTH               3  /* IN2LN_MIXOUTL_VOL - [8:6] */
-#define WM8994_IN1R_MIXOUTL_VOL_MASK            0x0038  /* IN1R_MIXOUTL_VOL - [5:3] */
-#define WM8994_IN1R_MIXOUTL_VOL_SHIFT                3  /* IN1R_MIXOUTL_VOL - [5:3] */
-#define WM8994_IN1R_MIXOUTL_VOL_WIDTH                3  /* IN1R_MIXOUTL_VOL - [5:3] */
-#define WM8994_IN1L_MIXOUTL_VOL_MASK            0x0007  /* IN1L_MIXOUTL_VOL - [2:0] */
-#define WM8994_IN1L_MIXOUTL_VOL_SHIFT                0  /* IN1L_MIXOUTL_VOL - [2:0] */
-#define WM8994_IN1L_MIXOUTL_VOL_WIDTH                3  /* IN1L_MIXOUTL_VOL - [2:0] */
+#define WM8994_IN2LP_MIXOUTL_VOL_MASK           0x0E00  /* IN2LP_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2LP_MIXOUTL_VOL_SHIFT               9  /* IN2LP_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2LP_MIXOUTL_VOL_WIDTH               3  /* IN2LP_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2LN_MIXOUTL_VOL_MASK           0x01C0  /* IN2LN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2LN_MIXOUTL_VOL_SHIFT               6  /* IN2LN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2LN_MIXOUTL_VOL_WIDTH               3  /* IN2LN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN1R_MIXOUTL_VOL_MASK            0x0038  /* IN1R_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8994_IN1R_MIXOUTL_VOL_SHIFT                3  /* IN1R_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8994_IN1R_MIXOUTL_VOL_WIDTH                3  /* IN1R_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8994_IN1L_MIXOUTL_VOL_MASK            0x0007  /* IN1L_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8994_IN1L_MIXOUTL_VOL_SHIFT                0  /* IN1L_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8994_IN1L_MIXOUTL_VOL_WIDTH                3  /* IN1L_MIXOUTL_VOL -
+                                                         * [2:0] */
 
 /*
  * R48 (0x30) - Output Mixer (4)
  */
-#define WM8994_IN2RP_MIXOUTR_VOL_MASK           0x0E00  /* IN2RP_MIXOUTR_VOL - [11:9] */
-#define WM8994_IN2RP_MIXOUTR_VOL_SHIFT               9  /* IN2RP_MIXOUTR_VOL - [11:9] */
-#define WM8994_IN2RP_MIXOUTR_VOL_WIDTH               3  /* IN2RP_MIXOUTR_VOL - [11:9] */
-#define WM8994_IN2RN_MIXOUTR_VOL_MASK           0x01C0  /* IN2RN_MIXOUTR_VOL - [8:6] */
-#define WM8994_IN2RN_MIXOUTR_VOL_SHIFT               6  /* IN2RN_MIXOUTR_VOL - [8:6] */
-#define WM8994_IN2RN_MIXOUTR_VOL_WIDTH               3  /* IN2RN_MIXOUTR_VOL - [8:6] */
-#define WM8994_IN1L_MIXOUTR_VOL_MASK            0x0038  /* IN1L_MIXOUTR_VOL - [5:3] */
-#define WM8994_IN1L_MIXOUTR_VOL_SHIFT                3  /* IN1L_MIXOUTR_VOL - [5:3] */
-#define WM8994_IN1L_MIXOUTR_VOL_WIDTH                3  /* IN1L_MIXOUTR_VOL - [5:3] */
-#define WM8994_IN1R_MIXOUTR_VOL_MASK            0x0007  /* IN1R_MIXOUTR_VOL - [2:0] */
-#define WM8994_IN1R_MIXOUTR_VOL_SHIFT                0  /* IN1R_MIXOUTR_VOL - [2:0] */
-#define WM8994_IN1R_MIXOUTR_VOL_WIDTH                3  /* IN1R_MIXOUTR_VOL - [2:0] */
+#define WM8994_IN2RP_MIXOUTR_VOL_MASK           0x0E00  /* IN2RP_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2RP_MIXOUTR_VOL_SHIFT               9  /* IN2RP_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2RP_MIXOUTR_VOL_WIDTH               3  /* IN2RP_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2RN_MIXOUTR_VOL_MASK           0x01C0  /* IN2RN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2RN_MIXOUTR_VOL_SHIFT               6  /* IN2RN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2RN_MIXOUTR_VOL_WIDTH               3  /* IN2RN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN1L_MIXOUTR_VOL_MASK            0x0038  /* IN1L_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8994_IN1L_MIXOUTR_VOL_SHIFT                3  /* IN1L_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8994_IN1L_MIXOUTR_VOL_WIDTH                3  /* IN1L_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8994_IN1R_MIXOUTR_VOL_MASK            0x0007  /* IN1R_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8994_IN1R_MIXOUTR_VOL_SHIFT                0  /* IN1R_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8994_IN1R_MIXOUTR_VOL_WIDTH                3  /* IN1R_MIXOUTR_VOL -
+                                                         * [2:0] */
 
 /*
  * R49 (0x31) - Output Mixer (5)
  */
-#define WM8994_DAC1L_MIXOUTL_VOL_MASK           0x0E00  /* DAC1L_MIXOUTL_VOL - [11:9] */
-#define WM8994_DAC1L_MIXOUTL_VOL_SHIFT               9  /* DAC1L_MIXOUTL_VOL - [11:9] */
-#define WM8994_DAC1L_MIXOUTL_VOL_WIDTH               3  /* DAC1L_MIXOUTL_VOL - [11:9] */
-#define WM8994_IN2RN_MIXOUTL_VOL_MASK           0x01C0  /* IN2RN_MIXOUTL_VOL - [8:6] */
-#define WM8994_IN2RN_MIXOUTL_VOL_SHIFT               6  /* IN2RN_MIXOUTL_VOL - [8:6] */
-#define WM8994_IN2RN_MIXOUTL_VOL_WIDTH               3  /* IN2RN_MIXOUTL_VOL - [8:6] */
-#define WM8994_MIXINR_MIXOUTL_VOL_MASK          0x0038  /* MIXINR_MIXOUTL_VOL - [5:3] */
-#define WM8994_MIXINR_MIXOUTL_VOL_SHIFT              3  /* MIXINR_MIXOUTL_VOL - [5:3] */
-#define WM8994_MIXINR_MIXOUTL_VOL_WIDTH              3  /* MIXINR_MIXOUTL_VOL - [5:3] */
-#define WM8994_MIXINL_MIXOUTL_VOL_MASK          0x0007  /* MIXINL_MIXOUTL_VOL - [2:0] */
-#define WM8994_MIXINL_MIXOUTL_VOL_SHIFT              0  /* MIXINL_MIXOUTL_VOL - [2:0] */
-#define WM8994_MIXINL_MIXOUTL_VOL_WIDTH              3  /* MIXINL_MIXOUTL_VOL - [2:0] */
+#define WM8994_DAC1L_MIXOUTL_VOL_MASK           0x0E00  /* DAC1L_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8994_DAC1L_MIXOUTL_VOL_SHIFT               9  /* DAC1L_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8994_DAC1L_MIXOUTL_VOL_WIDTH               3  /* DAC1L_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2RN_MIXOUTL_VOL_MASK           0x01C0  /* IN2RN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2RN_MIXOUTL_VOL_SHIFT               6  /* IN2RN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2RN_MIXOUTL_VOL_WIDTH               3  /* IN2RN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8994_MIXINR_MIXOUTL_VOL_MASK          0x0038  /* MIXINR_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8994_MIXINR_MIXOUTL_VOL_SHIFT              3  /* MIXINR_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8994_MIXINR_MIXOUTL_VOL_WIDTH              3  /* MIXINR_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8994_MIXINL_MIXOUTL_VOL_MASK          0x0007  /* MIXINL_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXINL_MIXOUTL_VOL_SHIFT              0  /* MIXINL_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXINL_MIXOUTL_VOL_WIDTH              3  /* MIXINL_MIXOUTL_VOL -
+                                                         * [2:0] */
 
 /*
  * R50 (0x32) - Output Mixer (6)
  */
-#define WM8994_DAC1R_MIXOUTR_VOL_MASK           0x0E00  /* DAC1R_MIXOUTR_VOL - [11:9] */
-#define WM8994_DAC1R_MIXOUTR_VOL_SHIFT               9  /* DAC1R_MIXOUTR_VOL - [11:9] */
-#define WM8994_DAC1R_MIXOUTR_VOL_WIDTH               3  /* DAC1R_MIXOUTR_VOL - [11:9] */
-#define WM8994_IN2LN_MIXOUTR_VOL_MASK           0x01C0  /* IN2LN_MIXOUTR_VOL - [8:6] */
-#define WM8994_IN2LN_MIXOUTR_VOL_SHIFT               6  /* IN2LN_MIXOUTR_VOL - [8:6] */
-#define WM8994_IN2LN_MIXOUTR_VOL_WIDTH               3  /* IN2LN_MIXOUTR_VOL - [8:6] */
-#define WM8994_MIXINL_MIXOUTR_VOL_MASK          0x0038  /* MIXINL_MIXOUTR_VOL - [5:3] */
-#define WM8994_MIXINL_MIXOUTR_VOL_SHIFT              3  /* MIXINL_MIXOUTR_VOL - [5:3] */
-#define WM8994_MIXINL_MIXOUTR_VOL_WIDTH              3  /* MIXINL_MIXOUTR_VOL - [5:3] */
-#define WM8994_MIXINR_MIXOUTR_VOL_MASK          0x0007  /* MIXINR_MIXOUTR_VOL - [2:0] */
-#define WM8994_MIXINR_MIXOUTR_VOL_SHIFT              0  /* MIXINR_MIXOUTR_VOL - [2:0] */
-#define WM8994_MIXINR_MIXOUTR_VOL_WIDTH              3  /* MIXINR_MIXOUTR_VOL - [2:0] */
+#define WM8994_DAC1R_MIXOUTR_VOL_MASK           0x0E00  /* DAC1R_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8994_DAC1R_MIXOUTR_VOL_SHIFT               9  /* DAC1R_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8994_DAC1R_MIXOUTR_VOL_WIDTH               3  /* DAC1R_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8994_IN2LN_MIXOUTR_VOL_MASK           0x01C0  /* IN2LN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2LN_MIXOUTR_VOL_SHIFT               6  /* IN2LN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8994_IN2LN_MIXOUTR_VOL_WIDTH               3  /* IN2LN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8994_MIXINL_MIXOUTR_VOL_MASK          0x0038  /* MIXINL_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8994_MIXINL_MIXOUTR_VOL_SHIFT              3  /* MIXINL_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8994_MIXINL_MIXOUTR_VOL_WIDTH              3  /* MIXINL_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8994_MIXINR_MIXOUTR_VOL_MASK          0x0007  /* MIXINR_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXINR_MIXOUTR_VOL_SHIFT              0  /* MIXINR_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8994_MIXINR_MIXOUTR_VOL_WIDTH              3  /* MIXINR_MIXOUTR_VOL -
+                                                         * [2:0] */
 
 /*
  * R51 (0x33) - HPOUT2 Mixer
@@ -1752,26 +1865,42 @@
 #define WM8994_IN2LRP_TO_HPOUT2_MASK            0x0020  /* IN2LRP_TO_HPOUT2 */
 #define WM8994_IN2LRP_TO_HPOUT2_SHIFT                5  /* IN2LRP_TO_HPOUT2 */
 #define WM8994_IN2LRP_TO_HPOUT2_WIDTH                1  /* IN2LRP_TO_HPOUT2 */
-#define WM8994_MIXOUTLVOL_TO_HPOUT2             0x0010  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTLVOL_TO_HPOUT2_MASK        0x0010  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTLVOL_TO_HPOUT2_SHIFT            4  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTLVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTRVOL_TO_HPOUT2             0x0008  /* MIXOUTRVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTRVOL_TO_HPOUT2_MASK        0x0008  /* MIXOUTRVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTRVOL_TO_HPOUT2_SHIFT            3  /* MIXOUTRVOL_TO_HPOUT2 */
-#define WM8994_MIXOUTRVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTRVOL_TO_HPOUT2 */
+#define WM8994_MIXOUTLVOL_TO_HPOUT2             0x0010  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTLVOL_TO_HPOUT2_MASK        0x0010  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTLVOL_TO_HPOUT2_SHIFT            4  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTLVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTRVOL_TO_HPOUT2             0x0008  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTRVOL_TO_HPOUT2_MASK        0x0008  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTRVOL_TO_HPOUT2_SHIFT            3  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
+#define WM8994_MIXOUTRVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
 
 /*
  * R52 (0x34) - Line Mixer (1)
  */
-#define WM8994_MIXOUTL_TO_LINEOUT1N             0x0040  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8994_MIXOUTL_TO_LINEOUT1N_MASK        0x0040  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8994_MIXOUTL_TO_LINEOUT1N_SHIFT            6  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8994_MIXOUTL_TO_LINEOUT1N_WIDTH            1  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8994_MIXOUTR_TO_LINEOUT1N             0x0020  /* MIXOUTR_TO_LINEOUT1N */
-#define WM8994_MIXOUTR_TO_LINEOUT1N_MASK        0x0020  /* MIXOUTR_TO_LINEOUT1N */
-#define WM8994_MIXOUTR_TO_LINEOUT1N_SHIFT            5  /* MIXOUTR_TO_LINEOUT1N */
-#define WM8994_MIXOUTR_TO_LINEOUT1N_WIDTH            1  /* MIXOUTR_TO_LINEOUT1N */
+#define WM8994_MIXOUTL_TO_LINEOUT1N             0x0040  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT1N_MASK        0x0040  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT1N_SHIFT            6  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT1N_WIDTH            1  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT1N             0x0020  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT1N_MASK        0x0020  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT1N_SHIFT            5  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT1N_WIDTH            1  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
 #define WM8994_LINEOUT1_MODE                    0x0010  /* LINEOUT1_MODE */
 #define WM8994_LINEOUT1_MODE_MASK               0x0010  /* LINEOUT1_MODE */
 #define WM8994_LINEOUT1_MODE_SHIFT                   4  /* LINEOUT1_MODE */
@@ -1784,22 +1913,34 @@
 #define WM8994_IN1L_TO_LINEOUT1P_MASK           0x0002  /* IN1L_TO_LINEOUT1P */
 #define WM8994_IN1L_TO_LINEOUT1P_SHIFT               1  /* IN1L_TO_LINEOUT1P */
 #define WM8994_IN1L_TO_LINEOUT1P_WIDTH               1  /* IN1L_TO_LINEOUT1P */
-#define WM8994_MIXOUTL_TO_LINEOUT1P             0x0001  /* MIXOUTL_TO_LINEOUT1P */
-#define WM8994_MIXOUTL_TO_LINEOUT1P_MASK        0x0001  /* MIXOUTL_TO_LINEOUT1P */
-#define WM8994_MIXOUTL_TO_LINEOUT1P_SHIFT            0  /* MIXOUTL_TO_LINEOUT1P */
-#define WM8994_MIXOUTL_TO_LINEOUT1P_WIDTH            1  /* MIXOUTL_TO_LINEOUT1P */
+#define WM8994_MIXOUTL_TO_LINEOUT1P             0x0001  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT1P_MASK        0x0001  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT1P_SHIFT            0  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT1P_WIDTH            1  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
 
 /*
  * R53 (0x35) - Line Mixer (2)
  */
-#define WM8994_MIXOUTR_TO_LINEOUT2N             0x0040  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8994_MIXOUTR_TO_LINEOUT2N_MASK        0x0040  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8994_MIXOUTR_TO_LINEOUT2N_SHIFT            6  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8994_MIXOUTR_TO_LINEOUT2N_WIDTH            1  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8994_MIXOUTL_TO_LINEOUT2N             0x0020  /* MIXOUTL_TO_LINEOUT2N */
-#define WM8994_MIXOUTL_TO_LINEOUT2N_MASK        0x0020  /* MIXOUTL_TO_LINEOUT2N */
-#define WM8994_MIXOUTL_TO_LINEOUT2N_SHIFT            5  /* MIXOUTL_TO_LINEOUT2N */
-#define WM8994_MIXOUTL_TO_LINEOUT2N_WIDTH            1  /* MIXOUTL_TO_LINEOUT2N */
+#define WM8994_MIXOUTR_TO_LINEOUT2N             0x0040  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT2N_MASK        0x0040  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT2N_SHIFT            6  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT2N_WIDTH            1  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT2N             0x0020  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT2N_MASK        0x0020  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT2N_SHIFT            5  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
+#define WM8994_MIXOUTL_TO_LINEOUT2N_WIDTH            1  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
 #define WM8994_LINEOUT2_MODE                    0x0010  /* LINEOUT2_MODE */
 #define WM8994_LINEOUT2_MODE_MASK               0x0010  /* LINEOUT2_MODE */
 #define WM8994_LINEOUT2_MODE_SHIFT                   4  /* LINEOUT2_MODE */
@@ -1812,10 +1953,14 @@
 #define WM8994_IN1R_TO_LINEOUT2P_MASK           0x0002  /* IN1R_TO_LINEOUT2P */
 #define WM8994_IN1R_TO_LINEOUT2P_SHIFT               1  /* IN1R_TO_LINEOUT2P */
 #define WM8994_IN1R_TO_LINEOUT2P_WIDTH               1  /* IN1R_TO_LINEOUT2P */
-#define WM8994_MIXOUTR_TO_LINEOUT2P             0x0001  /* MIXOUTR_TO_LINEOUT2P */
-#define WM8994_MIXOUTR_TO_LINEOUT2P_MASK        0x0001  /* MIXOUTR_TO_LINEOUT2P */
-#define WM8994_MIXOUTR_TO_LINEOUT2P_SHIFT            0  /* MIXOUTR_TO_LINEOUT2P */
-#define WM8994_MIXOUTR_TO_LINEOUT2P_WIDTH            1  /* MIXOUTR_TO_LINEOUT2P */
+#define WM8994_MIXOUTR_TO_LINEOUT2P             0x0001  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT2P_MASK        0x0001  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT2P_SHIFT            0  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
+#define WM8994_MIXOUTR_TO_LINEOUT2P_WIDTH            1  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
 
 /*
  * R54 (0x36) - Speaker Mixer
@@ -1880,10 +2025,14 @@
 /*
  * R56 (0x38) - AntiPOP (1)
  */
-#define WM8994_LINEOUT_VMID_BUF_ENA             0x0080  /* LINEOUT_VMID_BUF_ENA */
-#define WM8994_LINEOUT_VMID_BUF_ENA_MASK        0x0080  /* LINEOUT_VMID_BUF_ENA */
-#define WM8994_LINEOUT_VMID_BUF_ENA_SHIFT            7  /* LINEOUT_VMID_BUF_ENA */
-#define WM8994_LINEOUT_VMID_BUF_ENA_WIDTH            1  /* LINEOUT_VMID_BUF_ENA */
+#define WM8994_LINEOUT_VMID_BUF_ENA             0x0080  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
+#define WM8994_LINEOUT_VMID_BUF_ENA_MASK        0x0080  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
+#define WM8994_LINEOUT_VMID_BUF_ENA_SHIFT            7  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
+#define WM8994_LINEOUT_VMID_BUF_ENA_WIDTH            1  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
 #define WM8994_HPOUT2_IN_ENA                    0x0040  /* HPOUT2_IN_ENA */
 #define WM8994_HPOUT2_IN_ENA_MASK               0x0040  /* HPOUT2_IN_ENA */
 #define WM8994_HPOUT2_IN_ENA_SHIFT                   6  /* HPOUT2_IN_ENA */
@@ -1900,9 +2049,12 @@
 /*
  * R57 (0x39) - AntiPOP (2)
  */
-#define WM1811_JACKDET_MODE_MASK                0x0180  /* JACKDET_MODE - [8:7] */
-#define WM1811_JACKDET_MODE_SHIFT                    7  /* JACKDET_MODE - [8:7] */
-#define WM1811_JACKDET_MODE_WIDTH                    2  /* JACKDET_MODE - [8:7] */
+#define WM1811_JACKDET_MODE_MASK                0x0180  /* JACKDET_MODE - [8:7]
+                                                         * */
+#define WM1811_JACKDET_MODE_SHIFT                    7  /* JACKDET_MODE - [8:7]
+                                                         * */
+#define WM1811_JACKDET_MODE_WIDTH                    2  /* JACKDET_MODE - [8:7]
+                                                         * */
 #define WM8994_MICB2_DISCH                      0x0100  /* MICB2_DISCH */
 #define WM8994_MICB2_DISCH_MASK                 0x0100  /* MICB2_DISCH */
 #define WM8994_MICB2_DISCH_SHIFT                     8  /* MICB2_DISCH */
@@ -2047,9 +2199,12 @@
 /*
  * R81 (0x51) - Class W (1)
  */
-#define WM8994_CP_DYN_SRC_SEL_MASK              0x0300  /* CP_DYN_SRC_SEL - [9:8] */
-#define WM8994_CP_DYN_SRC_SEL_SHIFT                  8  /* CP_DYN_SRC_SEL - [9:8] */
-#define WM8994_CP_DYN_SRC_SEL_WIDTH                  2  /* CP_DYN_SRC_SEL - [9:8] */
+#define WM8994_CP_DYN_SRC_SEL_MASK              0x0300  /* CP_DYN_SRC_SEL -
+                                                         * [9:8] */
+#define WM8994_CP_DYN_SRC_SEL_SHIFT                  8  /* CP_DYN_SRC_SEL -
+                                                         * [9:8] */
+#define WM8994_CP_DYN_SRC_SEL_WIDTH                  2  /* CP_DYN_SRC_SEL -
+                                                         * [9:8] */
 #define WM8994_CP_DYN_PWR                       0x0001  /* CP_DYN_PWR */
 #define WM8994_CP_DYN_PWR_MASK                  0x0001  /* CP_DYN_PWR */
 #define WM8994_CP_DYN_PWR_SHIFT                      0  /* CP_DYN_PWR */
@@ -2102,35 +2257,56 @@
 /*
  * R85 (0x55) - DC Servo (2)
  */
-#define WM8994_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8994_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8994_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8994_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 - [3:0] */
-#define WM8994_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 - [3:0] */
-#define WM8994_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 - [3:0] */
+#define WM8994_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 -
+                                                         * [11:5] */
+#define WM8994_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 -
+                                                         * [11:5] */
+#define WM8994_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 -
+                                                         * [11:5] */
+#define WM8994_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
+#define WM8994_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
+#define WM8994_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
 
 /*
  * R87 (0x57) - DC Servo (4)
  */
-#define WM8994_DCS_DAC_WR_VAL_1_MASK            0xFF00  /* DCS_DAC_WR_VAL_1 - [15:8] */
-#define WM8994_DCS_DAC_WR_VAL_1_SHIFT                8  /* DCS_DAC_WR_VAL_1 - [15:8] */
-#define WM8994_DCS_DAC_WR_VAL_1_WIDTH                8  /* DCS_DAC_WR_VAL_1 - [15:8] */
-#define WM8994_DCS_DAC_WR_VAL_0_MASK            0x00FF  /* DCS_DAC_WR_VAL_0 - [7:0] */
-#define WM8994_DCS_DAC_WR_VAL_0_SHIFT                0  /* DCS_DAC_WR_VAL_0 - [7:0] */
-#define WM8994_DCS_DAC_WR_VAL_0_WIDTH                8  /* DCS_DAC_WR_VAL_0 - [7:0] */
+#define WM8994_DCS_DAC_WR_VAL_1_MASK            0xFF00  /* DCS_DAC_WR_VAL_1 -
+                                                         * [15:8] */
+#define WM8994_DCS_DAC_WR_VAL_1_SHIFT                8  /* DCS_DAC_WR_VAL_1 -
+                                                         * [15:8] */
+#define WM8994_DCS_DAC_WR_VAL_1_WIDTH                8  /* DCS_DAC_WR_VAL_1 -
+                                                         * [15:8] */
+#define WM8994_DCS_DAC_WR_VAL_0_MASK            0x00FF  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
+#define WM8994_DCS_DAC_WR_VAL_0_SHIFT                0  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
+#define WM8994_DCS_DAC_WR_VAL_0_WIDTH                8  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
 
 /*
  * R88 (0x58) - DC Servo Readback
  */
-#define WM8994_DCS_CAL_COMPLETE_MASK            0x0300  /* DCS_CAL_COMPLETE - [9:8] */
-#define WM8994_DCS_CAL_COMPLETE_SHIFT                8  /* DCS_CAL_COMPLETE - [9:8] */
-#define WM8994_DCS_CAL_COMPLETE_WIDTH                2  /* DCS_CAL_COMPLETE - [9:8] */
-#define WM8994_DCS_DAC_WR_COMPLETE_MASK         0x0030  /* DCS_DAC_WR_COMPLETE - [5:4] */
-#define WM8994_DCS_DAC_WR_COMPLETE_SHIFT             4  /* DCS_DAC_WR_COMPLETE - [5:4] */
-#define WM8994_DCS_DAC_WR_COMPLETE_WIDTH             2  /* DCS_DAC_WR_COMPLETE - [5:4] */
-#define WM8994_DCS_STARTUP_COMPLETE_MASK        0x0003  /* DCS_STARTUP_COMPLETE - [1:0] */
-#define WM8994_DCS_STARTUP_COMPLETE_SHIFT            0  /* DCS_STARTUP_COMPLETE - [1:0] */
-#define WM8994_DCS_STARTUP_COMPLETE_WIDTH            2  /* DCS_STARTUP_COMPLETE - [1:0] */
+#define WM8994_DCS_CAL_COMPLETE_MASK            0x0300  /* DCS_CAL_COMPLETE -
+                                                         * [9:8] */
+#define WM8994_DCS_CAL_COMPLETE_SHIFT                8  /* DCS_CAL_COMPLETE -
+                                                         * [9:8] */
+#define WM8994_DCS_CAL_COMPLETE_WIDTH                2  /* DCS_CAL_COMPLETE -
+                                                         * [9:8] */
+#define WM8994_DCS_DAC_WR_COMPLETE_MASK         0x0030  /* DCS_DAC_WR_COMPLETE -
+                                                         * [5:4] */
+#define WM8994_DCS_DAC_WR_COMPLETE_SHIFT             4  /* DCS_DAC_WR_COMPLETE -
+                                                         * [5:4] */
+#define WM8994_DCS_DAC_WR_COMPLETE_WIDTH             2  /* DCS_DAC_WR_COMPLETE -
+                                                         * [5:4] */
+#define WM8994_DCS_STARTUP_COMPLETE_MASK        0x0003  /* DCS_STARTUP_COMPLETE
+                                                         * - [1:0] */
+#define WM8994_DCS_STARTUP_COMPLETE_SHIFT            0  /* DCS_STARTUP_COMPLETE
+                                                         * - [1:0] */
+#define WM8994_DCS_STARTUP_COMPLETE_WIDTH            2  /* DCS_STARTUP_COMPLETE
+                                                         * - [1:0] */
 
 /*
  * R96 (0x60) - Analogue HP (1)
@@ -2167,9 +2343,12 @@
 /*
  * R208 (0xD0) - Mic Detect 1
  */
-#define WM8958_MICD_BIAS_STARTTIME_MASK         0xF000  /* MICD_BIAS_STARTTIME - [15:12] */
-#define WM8958_MICD_BIAS_STARTTIME_SHIFT            12  /* MICD_BIAS_STARTTIME - [15:12] */
-#define WM8958_MICD_BIAS_STARTTIME_WIDTH             4  /* MICD_BIAS_STARTTIME - [15:12] */
+#define WM8958_MICD_BIAS_STARTTIME_MASK         0xF000  /* MICD_BIAS_STARTTIME -
+                                                         * [15:12] */
+#define WM8958_MICD_BIAS_STARTTIME_SHIFT            12  /* MICD_BIAS_STARTTIME -
+                                                         * [15:12] */
+#define WM8958_MICD_BIAS_STARTTIME_WIDTH             4  /* MICD_BIAS_STARTTIME -
+                                                         * [15:12] */
 #define WM8958_MICD_RATE_MASK                   0x0F00  /* MICD_RATE - [11:8] */
 #define WM8958_MICD_RATE_SHIFT                       8  /* MICD_RATE - [11:8] */
 #define WM8958_MICD_RATE_WIDTH                       4  /* MICD_RATE - [11:8] */
@@ -2185,9 +2364,12 @@
 /*
  * R209 (0xD1) - Mic Detect 2
  */
-#define WM8958_MICD_LVL_SEL_MASK                0x00FF  /* MICD_LVL_SEL - [7:0] */
-#define WM8958_MICD_LVL_SEL_SHIFT                    0  /* MICD_LVL_SEL - [7:0] */
-#define WM8958_MICD_LVL_SEL_WIDTH                    8  /* MICD_LVL_SEL - [7:0] */
+#define WM8958_MICD_LVL_SEL_MASK                0x00FF  /* MICD_LVL_SEL - [7:0]
+                                                         * */
+#define WM8958_MICD_LVL_SEL_SHIFT                    0  /* MICD_LVL_SEL - [7:0]
+                                                         * */
+#define WM8958_MICD_LVL_SEL_WIDTH                    8  /* MICD_LVL_SEL - [7:0]
+                                                         * */
 
 /*
  * R210 (0xD2) - Mic Detect 3
@@ -2249,9 +2431,12 @@
 #define WM8994_WSEQ_START_MASK                  0x0100  /* WSEQ_START */
 #define WM8994_WSEQ_START_SHIFT                      8  /* WSEQ_START */
 #define WM8994_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM8994_WSEQ_START_INDEX_MASK            0x007F  /* WSEQ_START_INDEX - [6:0] */
-#define WM8994_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [6:0] */
-#define WM8994_WSEQ_START_INDEX_WIDTH                7  /* WSEQ_START_INDEX - [6:0] */
+#define WM8994_WSEQ_START_INDEX_MASK            0x007F  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
+#define WM8994_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
+#define WM8994_WSEQ_START_INDEX_WIDTH                7  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
 
 /*
  * R273 (0x111) - Write Sequencer Ctrl (2)
@@ -2260,16 +2445,22 @@
 #define WM8994_WSEQ_BUSY_MASK                   0x0100  /* WSEQ_BUSY */
 #define WM8994_WSEQ_BUSY_SHIFT                       8  /* WSEQ_BUSY */
 #define WM8994_WSEQ_BUSY_WIDTH                       1  /* WSEQ_BUSY */
-#define WM8994_WSEQ_CURRENT_INDEX_MASK          0x007F  /* WSEQ_CURRENT_INDEX - [6:0] */
-#define WM8994_WSEQ_CURRENT_INDEX_SHIFT              0  /* WSEQ_CURRENT_INDEX - [6:0] */
-#define WM8994_WSEQ_CURRENT_INDEX_WIDTH              7  /* WSEQ_CURRENT_INDEX - [6:0] */
+#define WM8994_WSEQ_CURRENT_INDEX_MASK          0x007F  /* WSEQ_CURRENT_INDEX -
+                                                         * [6:0] */
+#define WM8994_WSEQ_CURRENT_INDEX_SHIFT              0  /* WSEQ_CURRENT_INDEX -
+                                                         * [6:0] */
+#define WM8994_WSEQ_CURRENT_INDEX_WIDTH              7  /* WSEQ_CURRENT_INDEX -
+                                                         * [6:0] */
 
 /*
  * R512 (0x200) - AIF1 Clocking (1)
  */
-#define WM8994_AIF1CLK_SRC_MASK                 0x0018  /* AIF1CLK_SRC - [4:3] */
-#define WM8994_AIF1CLK_SRC_SHIFT                     3  /* AIF1CLK_SRC - [4:3] */
-#define WM8994_AIF1CLK_SRC_WIDTH                     2  /* AIF1CLK_SRC - [4:3] */
+#define WM8994_AIF1CLK_SRC_MASK                 0x0018  /* AIF1CLK_SRC - [4:3]
+                                                         * */
+#define WM8994_AIF1CLK_SRC_SHIFT                     3  /* AIF1CLK_SRC - [4:3]
+                                                         * */
+#define WM8994_AIF1CLK_SRC_WIDTH                     2  /* AIF1CLK_SRC - [4:3]
+                                                         * */
 #define WM8994_AIF1CLK_INV                      0x0004  /* AIF1CLK_INV */
 #define WM8994_AIF1CLK_INV_MASK                 0x0004  /* AIF1CLK_INV */
 #define WM8994_AIF1CLK_INV_SHIFT                     2  /* AIF1CLK_INV */
@@ -2286,19 +2477,28 @@
 /*
  * R513 (0x201) - AIF1 Clocking (2)
  */
-#define WM8994_AIF1DAC_DIV_MASK                 0x0038  /* AIF1DAC_DIV - [5:3] */
-#define WM8994_AIF1DAC_DIV_SHIFT                     3  /* AIF1DAC_DIV - [5:3] */
-#define WM8994_AIF1DAC_DIV_WIDTH                     3  /* AIF1DAC_DIV - [5:3] */
-#define WM8994_AIF1ADC_DIV_MASK                 0x0007  /* AIF1ADC_DIV - [2:0] */
-#define WM8994_AIF1ADC_DIV_SHIFT                     0  /* AIF1ADC_DIV - [2:0] */
-#define WM8994_AIF1ADC_DIV_WIDTH                     3  /* AIF1ADC_DIV - [2:0] */
+#define WM8994_AIF1DAC_DIV_MASK                 0x0038  /* AIF1DAC_DIV - [5:3]
+                                                         * */
+#define WM8994_AIF1DAC_DIV_SHIFT                     3  /* AIF1DAC_DIV - [5:3]
+                                                         * */
+#define WM8994_AIF1DAC_DIV_WIDTH                     3  /* AIF1DAC_DIV - [5:3]
+                                                         * */
+#define WM8994_AIF1ADC_DIV_MASK                 0x0007  /* AIF1ADC_DIV - [2:0]
+                                                         * */
+#define WM8994_AIF1ADC_DIV_SHIFT                     0  /* AIF1ADC_DIV - [2:0]
+                                                         * */
+#define WM8994_AIF1ADC_DIV_WIDTH                     3  /* AIF1ADC_DIV - [2:0]
+                                                         * */
 
 /*
  * R516 (0x204) - AIF2 Clocking (1)
  */
-#define WM8994_AIF2CLK_SRC_MASK                 0x0018  /* AIF2CLK_SRC - [4:3] */
-#define WM8994_AIF2CLK_SRC_SHIFT                     3  /* AIF2CLK_SRC - [4:3] */
-#define WM8994_AIF2CLK_SRC_WIDTH                     2  /* AIF2CLK_SRC - [4:3] */
+#define WM8994_AIF2CLK_SRC_MASK                 0x0018  /* AIF2CLK_SRC - [4:3]
+                                                         * */
+#define WM8994_AIF2CLK_SRC_SHIFT                     3  /* AIF2CLK_SRC - [4:3]
+                                                         * */
+#define WM8994_AIF2CLK_SRC_WIDTH                     2  /* AIF2CLK_SRC - [4:3]
+                                                         * */
 #define WM8994_AIF2CLK_INV                      0x0004  /* AIF2CLK_INV */
 #define WM8994_AIF2CLK_INV_MASK                 0x0004  /* AIF2CLK_INV */
 #define WM8994_AIF2CLK_INV_SHIFT                     2  /* AIF2CLK_INV */
@@ -2315,12 +2515,18 @@
 /*
  * R517 (0x205) - AIF2 Clocking (2)
  */
-#define WM8994_AIF2DAC_DIV_MASK                 0x0038  /* AIF2DAC_DIV - [5:3] */
-#define WM8994_AIF2DAC_DIV_SHIFT                     3  /* AIF2DAC_DIV - [5:3] */
-#define WM8994_AIF2DAC_DIV_WIDTH                     3  /* AIF2DAC_DIV - [5:3] */
-#define WM8994_AIF2ADC_DIV_MASK                 0x0007  /* AIF2ADC_DIV - [2:0] */
-#define WM8994_AIF2ADC_DIV_SHIFT                     0  /* AIF2ADC_DIV - [2:0] */
-#define WM8994_AIF2ADC_DIV_WIDTH                     3  /* AIF2ADC_DIV - [2:0] */
+#define WM8994_AIF2DAC_DIV_MASK                 0x0038  /* AIF2DAC_DIV - [5:3]
+                                                         * */
+#define WM8994_AIF2DAC_DIV_SHIFT                     3  /* AIF2DAC_DIV - [5:3]
+                                                         * */
+#define WM8994_AIF2DAC_DIV_WIDTH                     3  /* AIF2DAC_DIV - [5:3]
+                                                         * */
+#define WM8994_AIF2ADC_DIV_MASK                 0x0007  /* AIF2ADC_DIV - [2:0]
+                                                         * */
+#define WM8994_AIF2ADC_DIV_SHIFT                     0  /* AIF2ADC_DIV - [2:0]
+                                                         * */
+#define WM8994_AIF2ADC_DIV_WIDTH                     3  /* AIF2ADC_DIV - [2:0]
+                                                         * */
 
 /*
  * R520 (0x208) - Clocking (1)
@@ -2373,9 +2579,12 @@
 #define WM8994_AIF1_SR_MASK                     0x00F0  /* AIF1_SR - [7:4] */
 #define WM8994_AIF1_SR_SHIFT                         4  /* AIF1_SR - [7:4] */
 #define WM8994_AIF1_SR_WIDTH                         4  /* AIF1_SR - [7:4] */
-#define WM8994_AIF1CLK_RATE_MASK                0x000F  /* AIF1CLK_RATE - [3:0] */
-#define WM8994_AIF1CLK_RATE_SHIFT                    0  /* AIF1CLK_RATE - [3:0] */
-#define WM8994_AIF1CLK_RATE_WIDTH                    4  /* AIF1CLK_RATE - [3:0] */
+#define WM8994_AIF1CLK_RATE_MASK                0x000F  /* AIF1CLK_RATE - [3:0]
+                                                         * */
+#define WM8994_AIF1CLK_RATE_SHIFT                    0  /* AIF1CLK_RATE - [3:0]
+                                                         * */
+#define WM8994_AIF1CLK_RATE_WIDTH                    4  /* AIF1CLK_RATE - [3:0]
+                                                         * */
 
 /*
  * R529 (0x211) - AIF2 Rate
@@ -2383,9 +2592,12 @@
 #define WM8994_AIF2_SR_MASK                     0x00F0  /* AIF2_SR - [7:4] */
 #define WM8994_AIF2_SR_SHIFT                         4  /* AIF2_SR - [7:4] */
 #define WM8994_AIF2_SR_WIDTH                         4  /* AIF2_SR - [7:4] */
-#define WM8994_AIF2CLK_RATE_MASK                0x000F  /* AIF2CLK_RATE - [3:0] */
-#define WM8994_AIF2CLK_RATE_SHIFT                    0  /* AIF2CLK_RATE - [3:0] */
-#define WM8994_AIF2CLK_RATE_WIDTH                    4  /* AIF2CLK_RATE - [3:0] */
+#define WM8994_AIF2CLK_RATE_MASK                0x000F  /* AIF2CLK_RATE - [3:0]
+                                                         * */
+#define WM8994_AIF2CLK_RATE_SHIFT                    0  /* AIF2CLK_RATE - [3:0]
+                                                         * */
+#define WM8994_AIF2CLK_RATE_WIDTH                    4  /* AIF2CLK_RATE - [3:0]
+                                                         * */
 
 /*
  * R530 (0x212) - Rate Status
@@ -2413,15 +2625,24 @@
 /*
  * R545 (0x221) - FLL1 Control (2)
  */
-#define WM8994_FLL1_OUTDIV_MASK                 0x3F00  /* FLL1_OUTDIV - [13:8] */
-#define WM8994_FLL1_OUTDIV_SHIFT                     8  /* FLL1_OUTDIV - [13:8] */
-#define WM8994_FLL1_OUTDIV_WIDTH                     6  /* FLL1_OUTDIV - [13:8] */
-#define WM8994_FLL1_CTRL_RATE_MASK              0x0070  /* FLL1_CTRL_RATE - [6:4] */
-#define WM8994_FLL1_CTRL_RATE_SHIFT                  4  /* FLL1_CTRL_RATE - [6:4] */
-#define WM8994_FLL1_CTRL_RATE_WIDTH                  3  /* FLL1_CTRL_RATE - [6:4] */
-#define WM8994_FLL1_FRATIO_MASK                 0x0007  /* FLL1_FRATIO - [2:0] */
-#define WM8994_FLL1_FRATIO_SHIFT                     0  /* FLL1_FRATIO - [2:0] */
-#define WM8994_FLL1_FRATIO_WIDTH                     3  /* FLL1_FRATIO - [2:0] */
+#define WM8994_FLL1_OUTDIV_MASK                 0x3F00  /* FLL1_OUTDIV - [13:8]
+                                                         * */
+#define WM8994_FLL1_OUTDIV_SHIFT                     8  /* FLL1_OUTDIV - [13:8]
+                                                         * */
+#define WM8994_FLL1_OUTDIV_WIDTH                     6  /* FLL1_OUTDIV - [13:8]
+                                                         * */
+#define WM8994_FLL1_CTRL_RATE_MASK              0x0070  /* FLL1_CTRL_RATE -
+                                                         * [6:4] */
+#define WM8994_FLL1_CTRL_RATE_SHIFT                  4  /* FLL1_CTRL_RATE -
+                                                         * [6:4] */
+#define WM8994_FLL1_CTRL_RATE_WIDTH                  3  /* FLL1_CTRL_RATE -
+                                                         * [6:4] */
+#define WM8994_FLL1_FRATIO_MASK                 0x0007  /* FLL1_FRATIO - [2:0]
+                                                         * */
+#define WM8994_FLL1_FRATIO_SHIFT                     0  /* FLL1_FRATIO - [2:0]
+                                                         * */
+#define WM8994_FLL1_FRATIO_WIDTH                     3  /* FLL1_FRATIO - [2:0]
+                                                         * */
 
 /*
  * R546 (0x222) - FLL1 Control (3)
@@ -2436,9 +2657,12 @@
 #define WM8994_FLL1_N_MASK                      0x7FE0  /* FLL1_N - [14:5] */
 #define WM8994_FLL1_N_SHIFT                          5  /* FLL1_N - [14:5] */
 #define WM8994_FLL1_N_WIDTH                         10  /* FLL1_N - [14:5] */
-#define WM8994_FLL1_LOOP_GAIN_MASK              0x000F  /* FLL1_LOOP_GAIN - [3:0] */
-#define WM8994_FLL1_LOOP_GAIN_SHIFT                  0  /* FLL1_LOOP_GAIN - [3:0] */
-#define WM8994_FLL1_LOOP_GAIN_WIDTH                  4  /* FLL1_LOOP_GAIN - [3:0] */
+#define WM8994_FLL1_LOOP_GAIN_MASK              0x000F  /* FLL1_LOOP_GAIN -
+                                                         * [3:0] */
+#define WM8994_FLL1_LOOP_GAIN_SHIFT                  0  /* FLL1_LOOP_GAIN -
+                                                         * [3:0] */
+#define WM8994_FLL1_LOOP_GAIN_WIDTH                  4  /* FLL1_LOOP_GAIN -
+                                                         * [3:0] */
 
 /*
  * R548 (0x224) - FLL1 Control (5)
@@ -2447,33 +2671,48 @@
 #define WM8958_FLL1_BYP_MASK                    0x8000  /* FLL1_BYP */
 #define WM8958_FLL1_BYP_SHIFT                       15  /* FLL1_BYP */
 #define WM8958_FLL1_BYP_WIDTH                        1  /* FLL1_BYP */
-#define WM8994_FLL1_FRC_NCO_VAL_MASK            0x1F80  /* FLL1_FRC_NCO_VAL - [12:7] */
-#define WM8994_FLL1_FRC_NCO_VAL_SHIFT                7  /* FLL1_FRC_NCO_VAL - [12:7] */
-#define WM8994_FLL1_FRC_NCO_VAL_WIDTH                6  /* FLL1_FRC_NCO_VAL - [12:7] */
+#define WM8994_FLL1_FRC_NCO_VAL_MASK            0x1F80  /* FLL1_FRC_NCO_VAL -
+                                                         * [12:7] */
+#define WM8994_FLL1_FRC_NCO_VAL_SHIFT                7  /* FLL1_FRC_NCO_VAL -
+                                                         * [12:7] */
+#define WM8994_FLL1_FRC_NCO_VAL_WIDTH                6  /* FLL1_FRC_NCO_VAL -
+                                                         * [12:7] */
 #define WM8994_FLL1_FRC_NCO                     0x0040  /* FLL1_FRC_NCO */
 #define WM8994_FLL1_FRC_NCO_MASK                0x0040  /* FLL1_FRC_NCO */
 #define WM8994_FLL1_FRC_NCO_SHIFT                    6  /* FLL1_FRC_NCO */
 #define WM8994_FLL1_FRC_NCO_WIDTH                    1  /* FLL1_FRC_NCO */
-#define WM8994_FLL1_REFCLK_DIV_MASK             0x0018  /* FLL1_REFCLK_DIV - [4:3] */
-#define WM8994_FLL1_REFCLK_DIV_SHIFT                 3  /* FLL1_REFCLK_DIV - [4:3] */
-#define WM8994_FLL1_REFCLK_DIV_WIDTH                 2  /* FLL1_REFCLK_DIV - [4:3] */
-#define WM8994_FLL1_REFCLK_SRC_MASK             0x0003  /* FLL1_REFCLK_SRC - [1:0] */
-#define WM8994_FLL1_REFCLK_SRC_SHIFT                 0  /* FLL1_REFCLK_SRC - [1:0] */
-#define WM8994_FLL1_REFCLK_SRC_WIDTH                 2  /* FLL1_REFCLK_SRC - [1:0] */
+#define WM8994_FLL1_REFCLK_DIV_MASK             0x0018  /* FLL1_REFCLK_DIV -
+                                                         * [4:3] */
+#define WM8994_FLL1_REFCLK_DIV_SHIFT                 3  /* FLL1_REFCLK_DIV -
+                                                         * [4:3] */
+#define WM8994_FLL1_REFCLK_DIV_WIDTH                 2  /* FLL1_REFCLK_DIV -
+                                                         * [4:3] */
+#define WM8994_FLL1_REFCLK_SRC_MASK             0x0003  /* FLL1_REFCLK_SRC -
+                                                         * [1:0] */
+#define WM8994_FLL1_REFCLK_SRC_SHIFT                 0  /* FLL1_REFCLK_SRC -
+                                                         * [1:0] */
+#define WM8994_FLL1_REFCLK_SRC_WIDTH                 2  /* FLL1_REFCLK_SRC -
+                                                         * [1:0] */
 
 /*
  * R550 (0x226) - FLL1 EFS 1
  */
-#define WM8958_FLL1_LAMBDA_MASK                 0xFFFF  /* FLL1_LAMBDA - [15:0] */
-#define WM8958_FLL1_LAMBDA_SHIFT                     0  /* FLL1_LAMBDA - [15:0] */
-#define WM8958_FLL1_LAMBDA_WIDTH                    16  /* FLL1_LAMBDA - [15:0] */
+#define WM8958_FLL1_LAMBDA_MASK                 0xFFFF  /* FLL1_LAMBDA - [15:0]
+                                                         * */
+#define WM8958_FLL1_LAMBDA_SHIFT                     0  /* FLL1_LAMBDA - [15:0]
+                                                         * */
+#define WM8958_FLL1_LAMBDA_WIDTH                    16  /* FLL1_LAMBDA - [15:0]
+                                                         * */
 
 /*
  * R551 (0x227) - FLL1 EFS 2
  */
-#define WM8958_FLL1_LFSR_SEL_MASK               0x0006  /* FLL1_LFSR_SEL - [2:1] */
-#define WM8958_FLL1_LFSR_SEL_SHIFT                   1  /* FLL1_LFSR_SEL - [2:1] */
-#define WM8958_FLL1_LFSR_SEL_WIDTH                   2  /* FLL1_LFSR_SEL - [2:1] */
+#define WM8958_FLL1_LFSR_SEL_MASK               0x0006  /* FLL1_LFSR_SEL - [2:1]
+                                                         * */
+#define WM8958_FLL1_LFSR_SEL_SHIFT                   1  /* FLL1_LFSR_SEL - [2:1]
+                                                         * */
+#define WM8958_FLL1_LFSR_SEL_WIDTH                   2  /* FLL1_LFSR_SEL - [2:1]
+                                                         * */
 #define WM8958_FLL1_EFS_ENA                     0x0001  /* FLL1_EFS_ENA */
 #define WM8958_FLL1_EFS_ENA_MASK                0x0001  /* FLL1_EFS_ENA */
 #define WM8958_FLL1_EFS_ENA_SHIFT                    0  /* FLL1_EFS_ENA */
@@ -2498,15 +2737,24 @@
 /*
  * R577 (0x241) - FLL2 Control (2)
  */
-#define WM8994_FLL2_OUTDIV_MASK                 0x3F00  /* FLL2_OUTDIV - [13:8] */
-#define WM8994_FLL2_OUTDIV_SHIFT                     8  /* FLL2_OUTDIV - [13:8] */
-#define WM8994_FLL2_OUTDIV_WIDTH                     6  /* FLL2_OUTDIV - [13:8] */
-#define WM8994_FLL2_CTRL_RATE_MASK              0x0070  /* FLL2_CTRL_RATE - [6:4] */
-#define WM8994_FLL2_CTRL_RATE_SHIFT                  4  /* FLL2_CTRL_RATE - [6:4] */
-#define WM8994_FLL2_CTRL_RATE_WIDTH                  3  /* FLL2_CTRL_RATE - [6:4] */
-#define WM8994_FLL2_FRATIO_MASK                 0x0007  /* FLL2_FRATIO - [2:0] */
-#define WM8994_FLL2_FRATIO_SHIFT                     0  /* FLL2_FRATIO - [2:0] */
-#define WM8994_FLL2_FRATIO_WIDTH                     3  /* FLL2_FRATIO - [2:0] */
+#define WM8994_FLL2_OUTDIV_MASK                 0x3F00  /* FLL2_OUTDIV - [13:8]
+                                                         * */
+#define WM8994_FLL2_OUTDIV_SHIFT                     8  /* FLL2_OUTDIV - [13:8]
+                                                         * */
+#define WM8994_FLL2_OUTDIV_WIDTH                     6  /* FLL2_OUTDIV - [13:8]
+                                                         * */
+#define WM8994_FLL2_CTRL_RATE_MASK              0x0070  /* FLL2_CTRL_RATE -
+                                                         * [6:4] */
+#define WM8994_FLL2_CTRL_RATE_SHIFT                  4  /* FLL2_CTRL_RATE -
+                                                         * [6:4] */
+#define WM8994_FLL2_CTRL_RATE_WIDTH                  3  /* FLL2_CTRL_RATE -
+                                                         * [6:4] */
+#define WM8994_FLL2_FRATIO_MASK                 0x0007  /* FLL2_FRATIO - [2:0]
+                                                         * */
+#define WM8994_FLL2_FRATIO_SHIFT                     0  /* FLL2_FRATIO - [2:0]
+                                                         * */
+#define WM8994_FLL2_FRATIO_WIDTH                     3  /* FLL2_FRATIO - [2:0]
+                                                         * */
 
 /*
  * R578 (0x242) - FLL2 Control (3)
@@ -2521,9 +2769,12 @@
 #define WM8994_FLL2_N_MASK                      0x7FE0  /* FLL2_N - [14:5] */
 #define WM8994_FLL2_N_SHIFT                          5  /* FLL2_N - [14:5] */
 #define WM8994_FLL2_N_WIDTH                         10  /* FLL2_N - [14:5] */
-#define WM8994_FLL2_LOOP_GAIN_MASK              0x000F  /* FLL2_LOOP_GAIN - [3:0] */
-#define WM8994_FLL2_LOOP_GAIN_SHIFT                  0  /* FLL2_LOOP_GAIN - [3:0] */
-#define WM8994_FLL2_LOOP_GAIN_WIDTH                  4  /* FLL2_LOOP_GAIN - [3:0] */
+#define WM8994_FLL2_LOOP_GAIN_MASK              0x000F  /* FLL2_LOOP_GAIN -
+                                                         * [3:0] */
+#define WM8994_FLL2_LOOP_GAIN_SHIFT                  0  /* FLL2_LOOP_GAIN -
+                                                         * [3:0] */
+#define WM8994_FLL2_LOOP_GAIN_WIDTH                  4  /* FLL2_LOOP_GAIN -
+                                                         * [3:0] */
 
 /*
  * R580 (0x244) - FLL2 Control (5)
@@ -2532,33 +2783,48 @@
 #define WM8958_FLL2_BYP_MASK                    0x8000  /* FLL2_BYP */
 #define WM8958_FLL2_BYP_SHIFT                       15  /* FLL2_BYP */
 #define WM8958_FLL2_BYP_WIDTH                        1  /* FLL2_BYP */
-#define WM8994_FLL2_FRC_NCO_VAL_MASK            0x1F80  /* FLL2_FRC_NCO_VAL - [12:7] */
-#define WM8994_FLL2_FRC_NCO_VAL_SHIFT                7  /* FLL2_FRC_NCO_VAL - [12:7] */
-#define WM8994_FLL2_FRC_NCO_VAL_WIDTH                6  /* FLL2_FRC_NCO_VAL - [12:7] */
+#define WM8994_FLL2_FRC_NCO_VAL_MASK            0x1F80  /* FLL2_FRC_NCO_VAL -
+                                                         * [12:7] */
+#define WM8994_FLL2_FRC_NCO_VAL_SHIFT                7  /* FLL2_FRC_NCO_VAL -
+                                                         * [12:7] */
+#define WM8994_FLL2_FRC_NCO_VAL_WIDTH                6  /* FLL2_FRC_NCO_VAL -
+                                                         * [12:7] */
 #define WM8994_FLL2_FRC_NCO                     0x0040  /* FLL2_FRC_NCO */
 #define WM8994_FLL2_FRC_NCO_MASK                0x0040  /* FLL2_FRC_NCO */
 #define WM8994_FLL2_FRC_NCO_SHIFT                    6  /* FLL2_FRC_NCO */
 #define WM8994_FLL2_FRC_NCO_WIDTH                    1  /* FLL2_FRC_NCO */
-#define WM8994_FLL2_REFCLK_DIV_MASK             0x0018  /* FLL2_REFCLK_DIV - [4:3] */
-#define WM8994_FLL2_REFCLK_DIV_SHIFT                 3  /* FLL2_REFCLK_DIV - [4:3] */
-#define WM8994_FLL2_REFCLK_DIV_WIDTH                 2  /* FLL2_REFCLK_DIV - [4:3] */
-#define WM8994_FLL2_REFCLK_SRC_MASK             0x0003  /* FLL2_REFCLK_SRC - [1:0] */
-#define WM8994_FLL2_REFCLK_SRC_SHIFT                 0  /* FLL2_REFCLK_SRC - [1:0] */
-#define WM8994_FLL2_REFCLK_SRC_WIDTH                 2  /* FLL2_REFCLK_SRC - [1:0] */
+#define WM8994_FLL2_REFCLK_DIV_MASK             0x0018  /* FLL2_REFCLK_DIV -
+                                                         * [4:3] */
+#define WM8994_FLL2_REFCLK_DIV_SHIFT                 3  /* FLL2_REFCLK_DIV -
+                                                         * [4:3] */
+#define WM8994_FLL2_REFCLK_DIV_WIDTH                 2  /* FLL2_REFCLK_DIV -
+                                                         * [4:3] */
+#define WM8994_FLL2_REFCLK_SRC_MASK             0x0003  /* FLL2_REFCLK_SRC -
+                                                         * [1:0] */
+#define WM8994_FLL2_REFCLK_SRC_SHIFT                 0  /* FLL2_REFCLK_SRC -
+                                                         * [1:0] */
+#define WM8994_FLL2_REFCLK_SRC_WIDTH                 2  /* FLL2_REFCLK_SRC -
+                                                         * [1:0] */
 
 /*
  * R582 (0x246) - FLL2 EFS 1
  */
-#define WM8958_FLL2_LAMBDA_MASK                 0xFFFF  /* FLL2_LAMBDA - [15:0] */
-#define WM8958_FLL2_LAMBDA_SHIFT                     0  /* FLL2_LAMBDA - [15:0] */
-#define WM8958_FLL2_LAMBDA_WIDTH                    16  /* FLL2_LAMBDA - [15:0] */
+#define WM8958_FLL2_LAMBDA_MASK                 0xFFFF  /* FLL2_LAMBDA - [15:0]
+                                                         * */
+#define WM8958_FLL2_LAMBDA_SHIFT                     0  /* FLL2_LAMBDA - [15:0]
+                                                         * */
+#define WM8958_FLL2_LAMBDA_WIDTH                    16  /* FLL2_LAMBDA - [15:0]
+                                                         * */
 
 /*
  * R583 (0x247) - FLL2 EFS 2
  */
-#define WM8958_FLL2_LFSR_SEL_MASK               0x0006  /* FLL2_LFSR_SEL - [2:1] */
-#define WM8958_FLL2_LFSR_SEL_SHIFT                   1  /* FLL2_LFSR_SEL - [2:1] */
-#define WM8958_FLL2_LFSR_SEL_WIDTH                   2  /* FLL2_LFSR_SEL - [2:1] */
+#define WM8958_FLL2_LFSR_SEL_MASK               0x0006  /* FLL2_LFSR_SEL - [2:1]
+                                                         * */
+#define WM8958_FLL2_LFSR_SEL_SHIFT                   1  /* FLL2_LFSR_SEL - [2:1]
+                                                         * */
+#define WM8958_FLL2_LFSR_SEL_WIDTH                   2  /* FLL2_LFSR_SEL - [2:1]
+                                                         * */
 #define WM8958_FLL2_EFS_ENA                     0x0001  /* FLL2_EFS_ENA */
 #define WM8958_FLL2_EFS_ENA_MASK                0x0001  /* FLL2_EFS_ENA */
 #define WM8958_FLL2_EFS_ENA_SHIFT                    0  /* FLL2_EFS_ENA */
@@ -2605,9 +2871,12 @@
 #define WM8994_AIF1DACR_SRC_MASK                0x4000  /* AIF1DACR_SRC */
 #define WM8994_AIF1DACR_SRC_SHIFT                   14  /* AIF1DACR_SRC */
 #define WM8994_AIF1DACR_SRC_WIDTH                    1  /* AIF1DACR_SRC */
-#define WM8994_AIF1DAC_BOOST_MASK               0x0C00  /* AIF1DAC_BOOST - [11:10] */
-#define WM8994_AIF1DAC_BOOST_SHIFT                  10  /* AIF1DAC_BOOST - [11:10] */
-#define WM8994_AIF1DAC_BOOST_WIDTH                   2  /* AIF1DAC_BOOST - [11:10] */
+#define WM8994_AIF1DAC_BOOST_MASK               0x0C00  /* AIF1DAC_BOOST -
+                                                         * [11:10] */
+#define WM8994_AIF1DAC_BOOST_SHIFT                  10  /* AIF1DAC_BOOST -
+                                                         * [11:10] */
+#define WM8994_AIF1DAC_BOOST_WIDTH                   2  /* AIF1DAC_BOOST -
+                                                         * [11:10] */
 #define WM8994_AIF1_MONO                        0x0100  /* AIF1_MONO */
 #define WM8994_AIF1_MONO_MASK                   0x0100  /* AIF1_MONO */
 #define WM8994_AIF1_MONO_SHIFT                       8  /* AIF1_MONO */
@@ -2656,9 +2925,12 @@
 /*
  * R771 (0x303) - AIF1 BCLK
  */
-#define WM8994_AIF1_BCLK_DIV_MASK               0x01F0  /* AIF1_BCLK_DIV - [8:4] */
-#define WM8994_AIF1_BCLK_DIV_SHIFT                   4  /* AIF1_BCLK_DIV - [8:4] */
-#define WM8994_AIF1_BCLK_DIV_WIDTH                   5  /* AIF1_BCLK_DIV - [8:4] */
+#define WM8994_AIF1_BCLK_DIV_MASK               0x01F0  /* AIF1_BCLK_DIV - [8:4]
+                                                         * */
+#define WM8994_AIF1_BCLK_DIV_SHIFT                   4  /* AIF1_BCLK_DIV - [8:4]
+                                                         * */
+#define WM8994_AIF1_BCLK_DIV_WIDTH                   5  /* AIF1_BCLK_DIV - [8:4]
+                                                         * */
 
 /*
  * R772 (0x304) - AIF1ADC LRCLK
@@ -2671,9 +2943,12 @@
 #define WM8994_AIF1ADC_LRCLK_DIR_MASK           0x0800  /* AIF1ADC_LRCLK_DIR */
 #define WM8994_AIF1ADC_LRCLK_DIR_SHIFT              11  /* AIF1ADC_LRCLK_DIR */
 #define WM8994_AIF1ADC_LRCLK_DIR_WIDTH               1  /* AIF1ADC_LRCLK_DIR */
-#define WM8994_AIF1ADC_RATE_MASK                0x07FF  /* AIF1ADC_RATE - [10:0] */
-#define WM8994_AIF1ADC_RATE_SHIFT                    0  /* AIF1ADC_RATE - [10:0] */
-#define WM8994_AIF1ADC_RATE_WIDTH                   11  /* AIF1ADC_RATE - [10:0] */
+#define WM8994_AIF1ADC_RATE_MASK                0x07FF  /* AIF1ADC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF1ADC_RATE_SHIFT                    0  /* AIF1ADC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF1ADC_RATE_WIDTH                   11  /* AIF1ADC_RATE - [10:0]
+                                                         * */
 
 /*
  * R773 (0x305) - AIF1DAC LRCLK
@@ -2686,9 +2961,12 @@
 #define WM8994_AIF1DAC_LRCLK_DIR_MASK           0x0800  /* AIF1DAC_LRCLK_DIR */
 #define WM8994_AIF1DAC_LRCLK_DIR_SHIFT              11  /* AIF1DAC_LRCLK_DIR */
 #define WM8994_AIF1DAC_LRCLK_DIR_WIDTH               1  /* AIF1DAC_LRCLK_DIR */
-#define WM8994_AIF1DAC_RATE_MASK                0x07FF  /* AIF1DAC_RATE - [10:0] */
-#define WM8994_AIF1DAC_RATE_SHIFT                    0  /* AIF1DAC_RATE - [10:0] */
-#define WM8994_AIF1DAC_RATE_WIDTH                   11  /* AIF1DAC_RATE - [10:0] */
+#define WM8994_AIF1DAC_RATE_MASK                0x07FF  /* AIF1DAC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF1DAC_RATE_SHIFT                    0  /* AIF1DAC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF1DAC_RATE_WIDTH                   11  /* AIF1DAC_RATE - [10:0]
+                                                         * */
 
 /*
  * R774 (0x306) - AIF1DAC Data
@@ -2767,9 +3045,12 @@
 #define WM8994_AIF2DAC_TDM_CHAN_MASK            0x1000  /* AIF2DAC_TDM_CHAN */
 #define WM8994_AIF2DAC_TDM_CHAN_SHIFT               12  /* AIF2DAC_TDM_CHAN */
 #define WM8994_AIF2DAC_TDM_CHAN_WIDTH                1  /* AIF2DAC_TDM_CHAN */
-#define WM8994_AIF2DAC_BOOST_MASK               0x0C00  /* AIF2DAC_BOOST - [11:10] */
-#define WM8994_AIF2DAC_BOOST_SHIFT                  10  /* AIF2DAC_BOOST - [11:10] */
-#define WM8994_AIF2DAC_BOOST_WIDTH                   2  /* AIF2DAC_BOOST - [11:10] */
+#define WM8994_AIF2DAC_BOOST_MASK               0x0C00  /* AIF2DAC_BOOST -
+                                                         * [11:10] */
+#define WM8994_AIF2DAC_BOOST_SHIFT                  10  /* AIF2DAC_BOOST -
+                                                         * [11:10] */
+#define WM8994_AIF2DAC_BOOST_WIDTH                   2  /* AIF2DAC_BOOST -
+                                                         * [11:10] */
 #define WM8994_AIF2_MONO                        0x0100  /* AIF2_MONO */
 #define WM8994_AIF2_MONO_MASK                   0x0100  /* AIF2_MONO */
 #define WM8994_AIF2_MONO_SHIFT                       8  /* AIF2_MONO */
@@ -2818,9 +3099,12 @@
 /*
  * R787 (0x313) - AIF2 BCLK
  */
-#define WM8994_AIF2_BCLK_DIV_MASK               0x01F0  /* AIF2_BCLK_DIV - [8:4] */
-#define WM8994_AIF2_BCLK_DIV_SHIFT                   4  /* AIF2_BCLK_DIV - [8:4] */
-#define WM8994_AIF2_BCLK_DIV_WIDTH                   5  /* AIF2_BCLK_DIV - [8:4] */
+#define WM8994_AIF2_BCLK_DIV_MASK               0x01F0  /* AIF2_BCLK_DIV - [8:4]
+                                                         * */
+#define WM8994_AIF2_BCLK_DIV_SHIFT                   4  /* AIF2_BCLK_DIV - [8:4]
+                                                         * */
+#define WM8994_AIF2_BCLK_DIV_WIDTH                   5  /* AIF2_BCLK_DIV - [8:4]
+                                                         * */
 
 /*
  * R788 (0x314) - AIF2ADC LRCLK
@@ -2829,9 +3113,12 @@
 #define WM8994_AIF2ADC_LRCLK_DIR_MASK           0x0800  /* AIF2ADC_LRCLK_DIR */
 #define WM8994_AIF2ADC_LRCLK_DIR_SHIFT              11  /* AIF2ADC_LRCLK_DIR */
 #define WM8994_AIF2ADC_LRCLK_DIR_WIDTH               1  /* AIF2ADC_LRCLK_DIR */
-#define WM8994_AIF2ADC_RATE_MASK                0x07FF  /* AIF2ADC_RATE - [10:0] */
-#define WM8994_AIF2ADC_RATE_SHIFT                    0  /* AIF2ADC_RATE - [10:0] */
-#define WM8994_AIF2ADC_RATE_WIDTH                   11  /* AIF2ADC_RATE - [10:0] */
+#define WM8994_AIF2ADC_RATE_MASK                0x07FF  /* AIF2ADC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF2ADC_RATE_SHIFT                    0  /* AIF2ADC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF2ADC_RATE_WIDTH                   11  /* AIF2ADC_RATE - [10:0]
+                                                         * */
 
 /*
  * R789 (0x315) - AIF2DAC LRCLK
@@ -2840,9 +3127,12 @@
 #define WM8994_AIF2DAC_LRCLK_DIR_MASK           0x0800  /* AIF2DAC_LRCLK_DIR */
 #define WM8994_AIF2DAC_LRCLK_DIR_SHIFT              11  /* AIF2DAC_LRCLK_DIR */
 #define WM8994_AIF2DAC_LRCLK_DIR_WIDTH               1  /* AIF2DAC_LRCLK_DIR */
-#define WM8994_AIF2DAC_RATE_MASK                0x07FF  /* AIF2DAC_RATE - [10:0] */
-#define WM8994_AIF2DAC_RATE_SHIFT                    0  /* AIF2DAC_RATE - [10:0] */
-#define WM8994_AIF2DAC_RATE_WIDTH                   11  /* AIF2DAC_RATE - [10:0] */
+#define WM8994_AIF2DAC_RATE_MASK                0x07FF  /* AIF2DAC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF2DAC_RATE_SHIFT                    0  /* AIF2DAC_RATE - [10:0]
+                                                         * */
+#define WM8994_AIF2DAC_RATE_WIDTH                   11  /* AIF2DAC_RATE - [10:0]
+                                                         * */
 
 /*
  * R790 (0x316) - AIF2DAC Data
@@ -2885,9 +3175,12 @@
 /*
  * R801 (0x321) - AIF3 Control (2)
  */
-#define WM8958_AIF3DAC_BOOST_MASK               0x0C00  /* AIF3DAC_BOOST - [11:10] */
-#define WM8958_AIF3DAC_BOOST_SHIFT                  10  /* AIF3DAC_BOOST - [11:10] */
-#define WM8958_AIF3DAC_BOOST_WIDTH                   2  /* AIF3DAC_BOOST - [11:10] */
+#define WM8958_AIF3DAC_BOOST_MASK               0x0C00  /* AIF3DAC_BOOST -
+                                                         * [11:10] */
+#define WM8958_AIF3DAC_BOOST_SHIFT                  10  /* AIF3DAC_BOOST -
+                                                         * [11:10] */
+#define WM8958_AIF3DAC_BOOST_WIDTH                   2  /* AIF3DAC_BOOST -
+                                                         * [11:10] */
 #define WM8958_AIF3DAC_COMP                     0x0010  /* AIF3DAC_COMP */
 #define WM8958_AIF3DAC_COMP_MASK                0x0010  /* AIF3DAC_COMP */
 #define WM8958_AIF3DAC_COMP_SHIFT                    4  /* AIF3DAC_COMP */
@@ -2932,9 +3225,12 @@
 #define WM8994_AIF1ADC1_VU_MASK                 0x0100  /* AIF1ADC1_VU */
 #define WM8994_AIF1ADC1_VU_SHIFT                     8  /* AIF1ADC1_VU */
 #define WM8994_AIF1ADC1_VU_WIDTH                     1  /* AIF1ADC1_VU */
-#define WM8994_AIF1ADC1L_VOL_MASK               0x00FF  /* AIF1ADC1L_VOL - [7:0] */
-#define WM8994_AIF1ADC1L_VOL_SHIFT                   0  /* AIF1ADC1L_VOL - [7:0] */
-#define WM8994_AIF1ADC1L_VOL_WIDTH                   8  /* AIF1ADC1L_VOL - [7:0] */
+#define WM8994_AIF1ADC1L_VOL_MASK               0x00FF  /* AIF1ADC1L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC1L_VOL_SHIFT                   0  /* AIF1ADC1L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC1L_VOL_WIDTH                   8  /* AIF1ADC1L_VOL - [7:0]
+                                                         * */
 
 /*
  * R1025 (0x401) - AIF1 ADC1 Right Volume
@@ -2943,9 +3239,12 @@
 #define WM8994_AIF1ADC1_VU_MASK                 0x0100  /* AIF1ADC1_VU */
 #define WM8994_AIF1ADC1_VU_SHIFT                     8  /* AIF1ADC1_VU */
 #define WM8994_AIF1ADC1_VU_WIDTH                     1  /* AIF1ADC1_VU */
-#define WM8994_AIF1ADC1R_VOL_MASK               0x00FF  /* AIF1ADC1R_VOL - [7:0] */
-#define WM8994_AIF1ADC1R_VOL_SHIFT                   0  /* AIF1ADC1R_VOL - [7:0] */
-#define WM8994_AIF1ADC1R_VOL_WIDTH                   8  /* AIF1ADC1R_VOL - [7:0] */
+#define WM8994_AIF1ADC1R_VOL_MASK               0x00FF  /* AIF1ADC1R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC1R_VOL_SHIFT                   0  /* AIF1ADC1R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC1R_VOL_WIDTH                   8  /* AIF1ADC1R_VOL - [7:0]
+                                                         * */
 
 /*
  * R1026 (0x402) - AIF1 DAC1 Left Volume
@@ -2954,9 +3253,12 @@
 #define WM8994_AIF1DAC1_VU_MASK                 0x0100  /* AIF1DAC1_VU */
 #define WM8994_AIF1DAC1_VU_SHIFT                     8  /* AIF1DAC1_VU */
 #define WM8994_AIF1DAC1_VU_WIDTH                     1  /* AIF1DAC1_VU */
-#define WM8994_AIF1DAC1L_VOL_MASK               0x00FF  /* AIF1DAC1L_VOL - [7:0] */
-#define WM8994_AIF1DAC1L_VOL_SHIFT                   0  /* AIF1DAC1L_VOL - [7:0] */
-#define WM8994_AIF1DAC1L_VOL_WIDTH                   8  /* AIF1DAC1L_VOL - [7:0] */
+#define WM8994_AIF1DAC1L_VOL_MASK               0x00FF  /* AIF1DAC1L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC1L_VOL_SHIFT                   0  /* AIF1DAC1L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC1L_VOL_WIDTH                   8  /* AIF1DAC1L_VOL - [7:0]
+                                                         * */
 
 /*
  * R1027 (0x403) - AIF1 DAC1 Right Volume
@@ -2965,9 +3267,12 @@
 #define WM8994_AIF1DAC1_VU_MASK                 0x0100  /* AIF1DAC1_VU */
 #define WM8994_AIF1DAC1_VU_SHIFT                     8  /* AIF1DAC1_VU */
 #define WM8994_AIF1DAC1_VU_WIDTH                     1  /* AIF1DAC1_VU */
-#define WM8994_AIF1DAC1R_VOL_MASK               0x00FF  /* AIF1DAC1R_VOL - [7:0] */
-#define WM8994_AIF1DAC1R_VOL_SHIFT                   0  /* AIF1DAC1R_VOL - [7:0] */
-#define WM8994_AIF1DAC1R_VOL_WIDTH                   8  /* AIF1DAC1R_VOL - [7:0] */
+#define WM8994_AIF1DAC1R_VOL_MASK               0x00FF  /* AIF1DAC1R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC1R_VOL_SHIFT                   0  /* AIF1DAC1R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC1R_VOL_WIDTH                   8  /* AIF1DAC1R_VOL - [7:0]
+                                                         * */
 
 /*
  * R1028 (0x404) - AIF1 ADC2 Left Volume
@@ -2976,9 +3281,12 @@
 #define WM8994_AIF1ADC2_VU_MASK                 0x0100  /* AIF1ADC2_VU */
 #define WM8994_AIF1ADC2_VU_SHIFT                     8  /* AIF1ADC2_VU */
 #define WM8994_AIF1ADC2_VU_WIDTH                     1  /* AIF1ADC2_VU */
-#define WM8994_AIF1ADC2L_VOL_MASK               0x00FF  /* AIF1ADC2L_VOL - [7:0] */
-#define WM8994_AIF1ADC2L_VOL_SHIFT                   0  /* AIF1ADC2L_VOL - [7:0] */
-#define WM8994_AIF1ADC2L_VOL_WIDTH                   8  /* AIF1ADC2L_VOL - [7:0] */
+#define WM8994_AIF1ADC2L_VOL_MASK               0x00FF  /* AIF1ADC2L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC2L_VOL_SHIFT                   0  /* AIF1ADC2L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC2L_VOL_WIDTH                   8  /* AIF1ADC2L_VOL - [7:0]
+                                                         * */
 
 /*
  * R1029 (0x405) - AIF1 ADC2 Right Volume
@@ -2987,9 +3295,12 @@
 #define WM8994_AIF1ADC2_VU_MASK                 0x0100  /* AIF1ADC2_VU */
 #define WM8994_AIF1ADC2_VU_SHIFT                     8  /* AIF1ADC2_VU */
 #define WM8994_AIF1ADC2_VU_WIDTH                     1  /* AIF1ADC2_VU */
-#define WM8994_AIF1ADC2R_VOL_MASK               0x00FF  /* AIF1ADC2R_VOL - [7:0] */
-#define WM8994_AIF1ADC2R_VOL_SHIFT                   0  /* AIF1ADC2R_VOL - [7:0] */
-#define WM8994_AIF1ADC2R_VOL_WIDTH                   8  /* AIF1ADC2R_VOL - [7:0] */
+#define WM8994_AIF1ADC2R_VOL_MASK               0x00FF  /* AIF1ADC2R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC2R_VOL_SHIFT                   0  /* AIF1ADC2R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1ADC2R_VOL_WIDTH                   8  /* AIF1ADC2R_VOL - [7:0]
+                                                         * */
 
 /*
  * R1030 (0x406) - AIF1 DAC2 Left Volume
@@ -2998,9 +3309,12 @@
 #define WM8994_AIF1DAC2_VU_MASK                 0x0100  /* AIF1DAC2_VU */
 #define WM8994_AIF1DAC2_VU_SHIFT                     8  /* AIF1DAC2_VU */
 #define WM8994_AIF1DAC2_VU_WIDTH                     1  /* AIF1DAC2_VU */
-#define WM8994_AIF1DAC2L_VOL_MASK               0x00FF  /* AIF1DAC2L_VOL - [7:0] */
-#define WM8994_AIF1DAC2L_VOL_SHIFT                   0  /* AIF1DAC2L_VOL - [7:0] */
-#define WM8994_AIF1DAC2L_VOL_WIDTH                   8  /* AIF1DAC2L_VOL - [7:0] */
+#define WM8994_AIF1DAC2L_VOL_MASK               0x00FF  /* AIF1DAC2L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC2L_VOL_SHIFT                   0  /* AIF1DAC2L_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC2L_VOL_WIDTH                   8  /* AIF1DAC2L_VOL - [7:0]
+                                                         * */
 
 /*
  * R1031 (0x407) - AIF1 DAC2 Right Volume
@@ -3009,9 +3323,12 @@
 #define WM8994_AIF1DAC2_VU_MASK                 0x0100  /* AIF1DAC2_VU */
 #define WM8994_AIF1DAC2_VU_SHIFT                     8  /* AIF1DAC2_VU */
 #define WM8994_AIF1DAC2_VU_WIDTH                     1  /* AIF1DAC2_VU */
-#define WM8994_AIF1DAC2R_VOL_MASK               0x00FF  /* AIF1DAC2R_VOL - [7:0] */
-#define WM8994_AIF1DAC2R_VOL_SHIFT                   0  /* AIF1DAC2R_VOL - [7:0] */
-#define WM8994_AIF1DAC2R_VOL_WIDTH                   8  /* AIF1DAC2R_VOL - [7:0] */
+#define WM8994_AIF1DAC2R_VOL_MASK               0x00FF  /* AIF1DAC2R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC2R_VOL_SHIFT                   0  /* AIF1DAC2R_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF1DAC2R_VOL_WIDTH                   8  /* AIF1DAC2R_VOL - [7:0]
+                                                         * */
 
 /*
  * R1040 (0x410) - AIF1 ADC1 Filters
@@ -3020,9 +3337,12 @@
 #define WM8994_AIF1ADC_4FS_MASK                 0x8000  /* AIF1ADC_4FS */
 #define WM8994_AIF1ADC_4FS_SHIFT                    15  /* AIF1ADC_4FS */
 #define WM8994_AIF1ADC_4FS_WIDTH                     1  /* AIF1ADC_4FS */
-#define WM8994_AIF1ADC1_HPF_CUT_MASK            0x6000  /* AIF1ADC1_HPF_CUT - [14:13] */
-#define WM8994_AIF1ADC1_HPF_CUT_SHIFT               13  /* AIF1ADC1_HPF_CUT - [14:13] */
-#define WM8994_AIF1ADC1_HPF_CUT_WIDTH                2  /* AIF1ADC1_HPF_CUT - [14:13] */
+#define WM8994_AIF1ADC1_HPF_CUT_MASK            0x6000  /* AIF1ADC1_HPF_CUT -
+                                                         * [14:13] */
+#define WM8994_AIF1ADC1_HPF_CUT_SHIFT               13  /* AIF1ADC1_HPF_CUT -
+                                                         * [14:13] */
+#define WM8994_AIF1ADC1_HPF_CUT_WIDTH                2  /* AIF1ADC1_HPF_CUT -
+                                                         * [14:13] */
 #define WM8994_AIF1ADC1L_HPF                    0x1000  /* AIF1ADC1L_HPF */
 #define WM8994_AIF1ADC1L_HPF_MASK               0x1000  /* AIF1ADC1L_HPF */
 #define WM8994_AIF1ADC1L_HPF_SHIFT                  12  /* AIF1ADC1L_HPF */
@@ -3035,9 +3355,12 @@
 /*
  * R1041 (0x411) - AIF1 ADC2 Filters
  */
-#define WM8994_AIF1ADC2_HPF_CUT_MASK            0x6000  /* AIF1ADC2_HPF_CUT - [14:13] */
-#define WM8994_AIF1ADC2_HPF_CUT_SHIFT               13  /* AIF1ADC2_HPF_CUT - [14:13] */
-#define WM8994_AIF1ADC2_HPF_CUT_WIDTH                2  /* AIF1ADC2_HPF_CUT - [14:13] */
+#define WM8994_AIF1ADC2_HPF_CUT_MASK            0x6000  /* AIF1ADC2_HPF_CUT -
+                                                         * [14:13] */
+#define WM8994_AIF1ADC2_HPF_CUT_SHIFT               13  /* AIF1ADC2_HPF_CUT -
+                                                         * [14:13] */
+#define WM8994_AIF1ADC2_HPF_CUT_WIDTH                2  /* AIF1ADC2_HPF_CUT -
+                                                         * [14:13] */
 #define WM8994_AIF1ADC2L_HPF                    0x1000  /* AIF1ADC2L_HPF */
 #define WM8994_AIF1ADC2L_HPF_MASK               0x1000  /* AIF1ADC2L_HPF */
 #define WM8994_AIF1ADC2L_HPF_SHIFT                  12  /* AIF1ADC2L_HPF */
@@ -3062,20 +3385,30 @@
 #define WM8994_AIF1DAC1_MUTERATE_MASK           0x0020  /* AIF1DAC1_MUTERATE */
 #define WM8994_AIF1DAC1_MUTERATE_SHIFT               5  /* AIF1DAC1_MUTERATE */
 #define WM8994_AIF1DAC1_MUTERATE_WIDTH               1  /* AIF1DAC1_MUTERATE */
-#define WM8994_AIF1DAC1_UNMUTE_RAMP             0x0010  /* AIF1DAC1_UNMUTE_RAMP */
-#define WM8994_AIF1DAC1_UNMUTE_RAMP_MASK        0x0010  /* AIF1DAC1_UNMUTE_RAMP */
-#define WM8994_AIF1DAC1_UNMUTE_RAMP_SHIFT            4  /* AIF1DAC1_UNMUTE_RAMP */
-#define WM8994_AIF1DAC1_UNMUTE_RAMP_WIDTH            1  /* AIF1DAC1_UNMUTE_RAMP */
-#define WM8994_AIF1DAC1_DEEMP_MASK              0x0006  /* AIF1DAC1_DEEMP - [2:1] */
-#define WM8994_AIF1DAC1_DEEMP_SHIFT                  1  /* AIF1DAC1_DEEMP - [2:1] */
-#define WM8994_AIF1DAC1_DEEMP_WIDTH                  2  /* AIF1DAC1_DEEMP - [2:1] */
+#define WM8994_AIF1DAC1_UNMUTE_RAMP             0x0010  /* AIF1DAC1_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC1_UNMUTE_RAMP_MASK        0x0010  /* AIF1DAC1_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC1_UNMUTE_RAMP_SHIFT            4  /* AIF1DAC1_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC1_UNMUTE_RAMP_WIDTH            1  /* AIF1DAC1_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC1_DEEMP_MASK              0x0006  /* AIF1DAC1_DEEMP -
+                                                         * [2:1] */
+#define WM8994_AIF1DAC1_DEEMP_SHIFT                  1  /* AIF1DAC1_DEEMP -
+                                                         * [2:1] */
+#define WM8994_AIF1DAC1_DEEMP_WIDTH                  2  /* AIF1DAC1_DEEMP -
+                                                         * [2:1] */
 
 /*
  * R1057 (0x421) - AIF1 DAC1 Filters (2)
  */
-#define WM8994_AIF1DAC1_3D_GAIN_MASK            0x3E00  /* AIF1DAC1_3D_GAIN - [13:9] */
-#define WM8994_AIF1DAC1_3D_GAIN_SHIFT                9  /* AIF1DAC1_3D_GAIN - [13:9] */
-#define WM8994_AIF1DAC1_3D_GAIN_WIDTH                5  /* AIF1DAC1_3D_GAIN - [13:9] */
+#define WM8994_AIF1DAC1_3D_GAIN_MASK            0x3E00  /* AIF1DAC1_3D_GAIN -
+                                                         * [13:9] */
+#define WM8994_AIF1DAC1_3D_GAIN_SHIFT                9  /* AIF1DAC1_3D_GAIN -
+                                                         * [13:9] */
+#define WM8994_AIF1DAC1_3D_GAIN_WIDTH                5  /* AIF1DAC1_3D_GAIN -
+                                                         * [13:9] */
 #define WM8994_AIF1DAC1_3D_ENA                  0x0100  /* AIF1DAC1_3D_ENA */
 #define WM8994_AIF1DAC1_3D_ENA_MASK             0x0100  /* AIF1DAC1_3D_ENA */
 #define WM8994_AIF1DAC1_3D_ENA_SHIFT                 8  /* AIF1DAC1_3D_ENA */
@@ -3096,20 +3429,30 @@
 #define WM8994_AIF1DAC2_MUTERATE_MASK           0x0020  /* AIF1DAC2_MUTERATE */
 #define WM8994_AIF1DAC2_MUTERATE_SHIFT               5  /* AIF1DAC2_MUTERATE */
 #define WM8994_AIF1DAC2_MUTERATE_WIDTH               1  /* AIF1DAC2_MUTERATE */
-#define WM8994_AIF1DAC2_UNMUTE_RAMP             0x0010  /* AIF1DAC2_UNMUTE_RAMP */
-#define WM8994_AIF1DAC2_UNMUTE_RAMP_MASK        0x0010  /* AIF1DAC2_UNMUTE_RAMP */
-#define WM8994_AIF1DAC2_UNMUTE_RAMP_SHIFT            4  /* AIF1DAC2_UNMUTE_RAMP */
-#define WM8994_AIF1DAC2_UNMUTE_RAMP_WIDTH            1  /* AIF1DAC2_UNMUTE_RAMP */
-#define WM8994_AIF1DAC2_DEEMP_MASK              0x0006  /* AIF1DAC2_DEEMP - [2:1] */
-#define WM8994_AIF1DAC2_DEEMP_SHIFT                  1  /* AIF1DAC2_DEEMP - [2:1] */
-#define WM8994_AIF1DAC2_DEEMP_WIDTH                  2  /* AIF1DAC2_DEEMP - [2:1] */
+#define WM8994_AIF1DAC2_UNMUTE_RAMP             0x0010  /* AIF1DAC2_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC2_UNMUTE_RAMP_MASK        0x0010  /* AIF1DAC2_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC2_UNMUTE_RAMP_SHIFT            4  /* AIF1DAC2_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC2_UNMUTE_RAMP_WIDTH            1  /* AIF1DAC2_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF1DAC2_DEEMP_MASK              0x0006  /* AIF1DAC2_DEEMP -
+                                                         * [2:1] */
+#define WM8994_AIF1DAC2_DEEMP_SHIFT                  1  /* AIF1DAC2_DEEMP -
+                                                         * [2:1] */
+#define WM8994_AIF1DAC2_DEEMP_WIDTH                  2  /* AIF1DAC2_DEEMP -
+                                                         * [2:1] */
 
 /*
  * R1059 (0x423) - AIF1 DAC2 Filters (2)
  */
-#define WM8994_AIF1DAC2_3D_GAIN_MASK            0x3E00  /* AIF1DAC2_3D_GAIN - [13:9] */
-#define WM8994_AIF1DAC2_3D_GAIN_SHIFT                9  /* AIF1DAC2_3D_GAIN - [13:9] */
-#define WM8994_AIF1DAC2_3D_GAIN_WIDTH                5  /* AIF1DAC2_3D_GAIN - [13:9] */
+#define WM8994_AIF1DAC2_3D_GAIN_MASK            0x3E00  /* AIF1DAC2_3D_GAIN -
+                                                         * [13:9] */
+#define WM8994_AIF1DAC2_3D_GAIN_SHIFT                9  /* AIF1DAC2_3D_GAIN -
+                                                         * [13:9] */
+#define WM8994_AIF1DAC2_3D_GAIN_WIDTH                5  /* AIF1DAC2_3D_GAIN -
+                                                         * [13:9] */
 #define WM8994_AIF1DAC2_3D_ENA                  0x0100  /* AIF1DAC2_3D_ENA */
 #define WM8994_AIF1DAC2_3D_ENA_MASK             0x0100  /* AIF1DAC2_3D_ENA */
 #define WM8994_AIF1DAC2_3D_ENA_SHIFT                 8  /* AIF1DAC2_3D_ENA */
@@ -3118,12 +3461,18 @@
 /*
  * R1072 (0x430) - AIF1 DAC1 Noise Gate
  */
-#define WM8958_AIF1DAC1_NG_HLD_MASK             0x0060  /* AIF1DAC1_NG_HLD - [6:5] */
-#define WM8958_AIF1DAC1_NG_HLD_SHIFT                 5  /* AIF1DAC1_NG_HLD - [6:5] */
-#define WM8958_AIF1DAC1_NG_HLD_WIDTH                 2  /* AIF1DAC1_NG_HLD - [6:5] */
-#define WM8958_AIF1DAC1_NG_THR_MASK             0x000E  /* AIF1DAC1_NG_THR - [3:1] */
-#define WM8958_AIF1DAC1_NG_THR_SHIFT                 1  /* AIF1DAC1_NG_THR - [3:1] */
-#define WM8958_AIF1DAC1_NG_THR_WIDTH                 3  /* AIF1DAC1_NG_THR - [3:1] */
+#define WM8958_AIF1DAC1_NG_HLD_MASK             0x0060  /* AIF1DAC1_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF1DAC1_NG_HLD_SHIFT                 5  /* AIF1DAC1_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF1DAC1_NG_HLD_WIDTH                 2  /* AIF1DAC1_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF1DAC1_NG_THR_MASK             0x000E  /* AIF1DAC1_NG_THR -
+                                                         * [3:1] */
+#define WM8958_AIF1DAC1_NG_THR_SHIFT                 1  /* AIF1DAC1_NG_THR -
+                                                         * [3:1] */
+#define WM8958_AIF1DAC1_NG_THR_WIDTH                 3  /* AIF1DAC1_NG_THR -
+                                                         * [3:1] */
 #define WM8958_AIF1DAC1_NG_ENA                  0x0001  /* AIF1DAC1_NG_ENA */
 #define WM8958_AIF1DAC1_NG_ENA_MASK             0x0001  /* AIF1DAC1_NG_ENA */
 #define WM8958_AIF1DAC1_NG_ENA_SHIFT                 0  /* AIF1DAC1_NG_ENA */
@@ -3132,12 +3481,18 @@
 /*
  * R1073 (0x431) - AIF1 DAC2 Noise Gate
  */
-#define WM8958_AIF1DAC2_NG_HLD_MASK             0x0060  /* AIF1DAC2_NG_HLD - [6:5] */
-#define WM8958_AIF1DAC2_NG_HLD_SHIFT                 5  /* AIF1DAC2_NG_HLD - [6:5] */
-#define WM8958_AIF1DAC2_NG_HLD_WIDTH                 2  /* AIF1DAC2_NG_HLD - [6:5] */
-#define WM8958_AIF1DAC2_NG_THR_MASK             0x000E  /* AIF1DAC2_NG_THR - [3:1] */
-#define WM8958_AIF1DAC2_NG_THR_SHIFT                 1  /* AIF1DAC2_NG_THR - [3:1] */
-#define WM8958_AIF1DAC2_NG_THR_WIDTH                 3  /* AIF1DAC2_NG_THR - [3:1] */
+#define WM8958_AIF1DAC2_NG_HLD_MASK             0x0060  /* AIF1DAC2_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF1DAC2_NG_HLD_SHIFT                 5  /* AIF1DAC2_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF1DAC2_NG_HLD_WIDTH                 2  /* AIF1DAC2_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF1DAC2_NG_THR_MASK             0x000E  /* AIF1DAC2_NG_THR -
+                                                         * [3:1] */
+#define WM8958_AIF1DAC2_NG_THR_SHIFT                 1  /* AIF1DAC2_NG_THR -
+                                                         * [3:1] */
+#define WM8958_AIF1DAC2_NG_THR_WIDTH                 3  /* AIF1DAC2_NG_THR -
+                                                         * [3:1] */
 #define WM8958_AIF1DAC2_NG_ENA                  0x0001  /* AIF1DAC2_NG_ENA */
 #define WM8958_AIF1DAC2_NG_ENA_MASK             0x0001  /* AIF1DAC2_NG_ENA */
 #define WM8958_AIF1DAC2_NG_ENA_SHIFT                 0  /* AIF1DAC2_NG_ENA */
@@ -3146,28 +3501,42 @@
 /*
  * R1088 (0x440) - AIF1 DRC1 (1)
  */
-#define WM8994_AIF1DRC1_SIG_DET_RMS_MASK        0xF800  /* AIF1DRC1_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF1DRC1_SIG_DET_RMS_SHIFT           11  /* AIF1DRC1_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF1DRC1_SIG_DET_RMS_WIDTH            5  /* AIF1DRC1_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF1DRC1_SIG_DET_PK_MASK         0x0600  /* AIF1DRC1_SIG_DET_PK - [10:9] */
-#define WM8994_AIF1DRC1_SIG_DET_PK_SHIFT             9  /* AIF1DRC1_SIG_DET_PK - [10:9] */
-#define WM8994_AIF1DRC1_SIG_DET_PK_WIDTH             2  /* AIF1DRC1_SIG_DET_PK - [10:9] */
+#define WM8994_AIF1DRC1_SIG_DET_RMS_MASK        0xF800  /* AIF1DRC1_SIG_DET_RMS
+                                                         * - [15:11] */
+#define WM8994_AIF1DRC1_SIG_DET_RMS_SHIFT           11  /* AIF1DRC1_SIG_DET_RMS
+                                                         * - [15:11] */
+#define WM8994_AIF1DRC1_SIG_DET_RMS_WIDTH            5  /* AIF1DRC1_SIG_DET_RMS
+                                                         * - [15:11] */
+#define WM8994_AIF1DRC1_SIG_DET_PK_MASK         0x0600  /* AIF1DRC1_SIG_DET_PK -
+                                                         * [10:9] */
+#define WM8994_AIF1DRC1_SIG_DET_PK_SHIFT             9  /* AIF1DRC1_SIG_DET_PK -
+                                                         * [10:9] */
+#define WM8994_AIF1DRC1_SIG_DET_PK_WIDTH             2  /* AIF1DRC1_SIG_DET_PK -
+                                                         * [10:9] */
 #define WM8994_AIF1DRC1_NG_ENA                  0x0100  /* AIF1DRC1_NG_ENA */
 #define WM8994_AIF1DRC1_NG_ENA_MASK             0x0100  /* AIF1DRC1_NG_ENA */
 #define WM8994_AIF1DRC1_NG_ENA_SHIFT                 8  /* AIF1DRC1_NG_ENA */
 #define WM8994_AIF1DRC1_NG_ENA_WIDTH                 1  /* AIF1DRC1_NG_ENA */
-#define WM8994_AIF1DRC1_SIG_DET_MODE            0x0080  /* AIF1DRC1_SIG_DET_MODE */
-#define WM8994_AIF1DRC1_SIG_DET_MODE_MASK       0x0080  /* AIF1DRC1_SIG_DET_MODE */
-#define WM8994_AIF1DRC1_SIG_DET_MODE_SHIFT           7  /* AIF1DRC1_SIG_DET_MODE */
-#define WM8994_AIF1DRC1_SIG_DET_MODE_WIDTH           1  /* AIF1DRC1_SIG_DET_MODE */
+#define WM8994_AIF1DRC1_SIG_DET_MODE            0x0080  /* AIF1DRC1_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_MODE_MASK       0x0080  /* AIF1DRC1_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_MODE_SHIFT           7  /* AIF1DRC1_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_MODE_WIDTH           1  /* AIF1DRC1_SIG_DET_MODE
+                                                         * */
 #define WM8994_AIF1DRC1_SIG_DET                 0x0040  /* AIF1DRC1_SIG_DET */
 #define WM8994_AIF1DRC1_SIG_DET_MASK            0x0040  /* AIF1DRC1_SIG_DET */
 #define WM8994_AIF1DRC1_SIG_DET_SHIFT                6  /* AIF1DRC1_SIG_DET */
 #define WM8994_AIF1DRC1_SIG_DET_WIDTH                1  /* AIF1DRC1_SIG_DET */
-#define WM8994_AIF1DRC1_KNEE2_OP_ENA            0x0020  /* AIF1DRC1_KNEE2_OP_ENA */
-#define WM8994_AIF1DRC1_KNEE2_OP_ENA_MASK       0x0020  /* AIF1DRC1_KNEE2_OP_ENA */
-#define WM8994_AIF1DRC1_KNEE2_OP_ENA_SHIFT           5  /* AIF1DRC1_KNEE2_OP_ENA */
-#define WM8994_AIF1DRC1_KNEE2_OP_ENA_WIDTH           1  /* AIF1DRC1_KNEE2_OP_ENA */
+#define WM8994_AIF1DRC1_KNEE2_OP_ENA            0x0020  /* AIF1DRC1_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF1DRC1_KNEE2_OP_ENA_MASK       0x0020  /* AIF1DRC1_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF1DRC1_KNEE2_OP_ENA_SHIFT           5  /* AIF1DRC1_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF1DRC1_KNEE2_OP_ENA_WIDTH           1  /* AIF1DRC1_KNEE2_OP_ENA
+                                                         * */
 #define WM8994_AIF1DRC1_QR                      0x0010  /* AIF1DRC1_QR */
 #define WM8994_AIF1DRC1_QR_MASK                 0x0010  /* AIF1DRC1_QR */
 #define WM8994_AIF1DRC1_QR_SHIFT                     4  /* AIF1DRC1_QR */
@@ -3192,86 +3561,142 @@
 /*
  * R1089 (0x441) - AIF1 DRC1 (2)
  */
-#define WM8994_AIF1DRC1_ATK_MASK                0x1E00  /* AIF1DRC1_ATK - [12:9] */
-#define WM8994_AIF1DRC1_ATK_SHIFT                    9  /* AIF1DRC1_ATK - [12:9] */
-#define WM8994_AIF1DRC1_ATK_WIDTH                    4  /* AIF1DRC1_ATK - [12:9] */
-#define WM8994_AIF1DRC1_DCY_MASK                0x01E0  /* AIF1DRC1_DCY - [8:5] */
-#define WM8994_AIF1DRC1_DCY_SHIFT                    5  /* AIF1DRC1_DCY - [8:5] */
-#define WM8994_AIF1DRC1_DCY_WIDTH                    4  /* AIF1DRC1_DCY - [8:5] */
-#define WM8994_AIF1DRC1_MINGAIN_MASK            0x001C  /* AIF1DRC1_MINGAIN - [4:2] */
-#define WM8994_AIF1DRC1_MINGAIN_SHIFT                2  /* AIF1DRC1_MINGAIN - [4:2] */
-#define WM8994_AIF1DRC1_MINGAIN_WIDTH                3  /* AIF1DRC1_MINGAIN - [4:2] */
-#define WM8994_AIF1DRC1_MAXGAIN_MASK            0x0003  /* AIF1DRC1_MAXGAIN - [1:0] */
-#define WM8994_AIF1DRC1_MAXGAIN_SHIFT                0  /* AIF1DRC1_MAXGAIN - [1:0] */
-#define WM8994_AIF1DRC1_MAXGAIN_WIDTH                2  /* AIF1DRC1_MAXGAIN - [1:0] */
+#define WM8994_AIF1DRC1_ATK_MASK                0x1E00  /* AIF1DRC1_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF1DRC1_ATK_SHIFT                    9  /* AIF1DRC1_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF1DRC1_ATK_WIDTH                    4  /* AIF1DRC1_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF1DRC1_DCY_MASK                0x01E0  /* AIF1DRC1_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF1DRC1_DCY_SHIFT                    5  /* AIF1DRC1_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF1DRC1_DCY_WIDTH                    4  /* AIF1DRC1_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF1DRC1_MINGAIN_MASK            0x001C  /* AIF1DRC1_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF1DRC1_MINGAIN_SHIFT                2  /* AIF1DRC1_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF1DRC1_MINGAIN_WIDTH                3  /* AIF1DRC1_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF1DRC1_MAXGAIN_MASK            0x0003  /* AIF1DRC1_MAXGAIN -
+                                                         * [1:0] */
+#define WM8994_AIF1DRC1_MAXGAIN_SHIFT                0  /* AIF1DRC1_MAXGAIN -
+                                                         * [1:0] */
+#define WM8994_AIF1DRC1_MAXGAIN_WIDTH                2  /* AIF1DRC1_MAXGAIN -
+                                                         * [1:0] */
 
 /*
  * R1090 (0x442) - AIF1 DRC1 (3)
  */
-#define WM8994_AIF1DRC1_NG_MINGAIN_MASK         0xF000  /* AIF1DRC1_NG_MINGAIN - [15:12] */
-#define WM8994_AIF1DRC1_NG_MINGAIN_SHIFT            12  /* AIF1DRC1_NG_MINGAIN - [15:12] */
-#define WM8994_AIF1DRC1_NG_MINGAIN_WIDTH             4  /* AIF1DRC1_NG_MINGAIN - [15:12] */
-#define WM8994_AIF1DRC1_NG_EXP_MASK             0x0C00  /* AIF1DRC1_NG_EXP - [11:10] */
-#define WM8994_AIF1DRC1_NG_EXP_SHIFT                10  /* AIF1DRC1_NG_EXP - [11:10] */
-#define WM8994_AIF1DRC1_NG_EXP_WIDTH                 2  /* AIF1DRC1_NG_EXP - [11:10] */
-#define WM8994_AIF1DRC1_QR_THR_MASK             0x0300  /* AIF1DRC1_QR_THR - [9:8] */
-#define WM8994_AIF1DRC1_QR_THR_SHIFT                 8  /* AIF1DRC1_QR_THR - [9:8] */
-#define WM8994_AIF1DRC1_QR_THR_WIDTH                 2  /* AIF1DRC1_QR_THR - [9:8] */
-#define WM8994_AIF1DRC1_QR_DCY_MASK             0x00C0  /* AIF1DRC1_QR_DCY - [7:6] */
-#define WM8994_AIF1DRC1_QR_DCY_SHIFT                 6  /* AIF1DRC1_QR_DCY - [7:6] */
-#define WM8994_AIF1DRC1_QR_DCY_WIDTH                 2  /* AIF1DRC1_QR_DCY - [7:6] */
-#define WM8994_AIF1DRC1_HI_COMP_MASK            0x0038  /* AIF1DRC1_HI_COMP - [5:3] */
-#define WM8994_AIF1DRC1_HI_COMP_SHIFT                3  /* AIF1DRC1_HI_COMP - [5:3] */
-#define WM8994_AIF1DRC1_HI_COMP_WIDTH                3  /* AIF1DRC1_HI_COMP - [5:3] */
-#define WM8994_AIF1DRC1_LO_COMP_MASK            0x0007  /* AIF1DRC1_LO_COMP - [2:0] */
-#define WM8994_AIF1DRC1_LO_COMP_SHIFT                0  /* AIF1DRC1_LO_COMP - [2:0] */
-#define WM8994_AIF1DRC1_LO_COMP_WIDTH                3  /* AIF1DRC1_LO_COMP - [2:0] */
+#define WM8994_AIF1DRC1_NG_MINGAIN_MASK         0xF000  /* AIF1DRC1_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF1DRC1_NG_MINGAIN_SHIFT            12  /* AIF1DRC1_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF1DRC1_NG_MINGAIN_WIDTH             4  /* AIF1DRC1_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF1DRC1_NG_EXP_MASK             0x0C00  /* AIF1DRC1_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF1DRC1_NG_EXP_SHIFT                10  /* AIF1DRC1_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF1DRC1_NG_EXP_WIDTH                 2  /* AIF1DRC1_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF1DRC1_QR_THR_MASK             0x0300  /* AIF1DRC1_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF1DRC1_QR_THR_SHIFT                 8  /* AIF1DRC1_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF1DRC1_QR_THR_WIDTH                 2  /* AIF1DRC1_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF1DRC1_QR_DCY_MASK             0x00C0  /* AIF1DRC1_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF1DRC1_QR_DCY_SHIFT                 6  /* AIF1DRC1_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF1DRC1_QR_DCY_WIDTH                 2  /* AIF1DRC1_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF1DRC1_HI_COMP_MASK            0x0038  /* AIF1DRC1_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF1DRC1_HI_COMP_SHIFT                3  /* AIF1DRC1_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF1DRC1_HI_COMP_WIDTH                3  /* AIF1DRC1_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF1DRC1_LO_COMP_MASK            0x0007  /* AIF1DRC1_LO_COMP -
+                                                         * [2:0] */
+#define WM8994_AIF1DRC1_LO_COMP_SHIFT                0  /* AIF1DRC1_LO_COMP -
+                                                         * [2:0] */
+#define WM8994_AIF1DRC1_LO_COMP_WIDTH                3  /* AIF1DRC1_LO_COMP -
+                                                         * [2:0] */
 
 /*
  * R1091 (0x443) - AIF1 DRC1 (4)
  */
-#define WM8994_AIF1DRC1_KNEE_IP_MASK            0x07E0  /* AIF1DRC1_KNEE_IP - [10:5] */
-#define WM8994_AIF1DRC1_KNEE_IP_SHIFT                5  /* AIF1DRC1_KNEE_IP - [10:5] */
-#define WM8994_AIF1DRC1_KNEE_IP_WIDTH                6  /* AIF1DRC1_KNEE_IP - [10:5] */
-#define WM8994_AIF1DRC1_KNEE_OP_MASK            0x001F  /* AIF1DRC1_KNEE_OP - [4:0] */
-#define WM8994_AIF1DRC1_KNEE_OP_SHIFT                0  /* AIF1DRC1_KNEE_OP - [4:0] */
-#define WM8994_AIF1DRC1_KNEE_OP_WIDTH                5  /* AIF1DRC1_KNEE_OP - [4:0] */
+#define WM8994_AIF1DRC1_KNEE_IP_MASK            0x07E0  /* AIF1DRC1_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF1DRC1_KNEE_IP_SHIFT                5  /* AIF1DRC1_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF1DRC1_KNEE_IP_WIDTH                6  /* AIF1DRC1_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF1DRC1_KNEE_OP_MASK            0x001F  /* AIF1DRC1_KNEE_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC1_KNEE_OP_SHIFT                0  /* AIF1DRC1_KNEE_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC1_KNEE_OP_WIDTH                5  /* AIF1DRC1_KNEE_OP -
+                                                         * [4:0] */
 
 /*
  * R1092 (0x444) - AIF1 DRC1 (5)
  */
-#define WM8994_AIF1DRC1_KNEE2_IP_MASK           0x03E0  /* AIF1DRC1_KNEE2_IP - [9:5] */
-#define WM8994_AIF1DRC1_KNEE2_IP_SHIFT               5  /* AIF1DRC1_KNEE2_IP - [9:5] */
-#define WM8994_AIF1DRC1_KNEE2_IP_WIDTH               5  /* AIF1DRC1_KNEE2_IP - [9:5] */
-#define WM8994_AIF1DRC1_KNEE2_OP_MASK           0x001F  /* AIF1DRC1_KNEE2_OP - [4:0] */
-#define WM8994_AIF1DRC1_KNEE2_OP_SHIFT               0  /* AIF1DRC1_KNEE2_OP - [4:0] */
-#define WM8994_AIF1DRC1_KNEE2_OP_WIDTH               5  /* AIF1DRC1_KNEE2_OP - [4:0] */
+#define WM8994_AIF1DRC1_KNEE2_IP_MASK           0x03E0  /* AIF1DRC1_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF1DRC1_KNEE2_IP_SHIFT               5  /* AIF1DRC1_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF1DRC1_KNEE2_IP_WIDTH               5  /* AIF1DRC1_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF1DRC1_KNEE2_OP_MASK           0x001F  /* AIF1DRC1_KNEE2_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC1_KNEE2_OP_SHIFT               0  /* AIF1DRC1_KNEE2_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC1_KNEE2_OP_WIDTH               5  /* AIF1DRC1_KNEE2_OP -
+                                                         * [4:0] */
 
 /*
  * R1104 (0x450) - AIF1 DRC2 (1)
  */
-#define WM8994_AIF1DRC2_SIG_DET_RMS_MASK        0xF800  /* AIF1DRC2_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF1DRC2_SIG_DET_RMS_SHIFT           11  /* AIF1DRC2_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF1DRC2_SIG_DET_RMS_WIDTH            5  /* AIF1DRC2_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF1DRC2_SIG_DET_PK_MASK         0x0600  /* AIF1DRC2_SIG_DET_PK - [10:9] */
-#define WM8994_AIF1DRC2_SIG_DET_PK_SHIFT             9  /* AIF1DRC2_SIG_DET_PK - [10:9] */
-#define WM8994_AIF1DRC2_SIG_DET_PK_WIDTH             2  /* AIF1DRC2_SIG_DET_PK - [10:9] */
+#define WM8994_AIF1DRC2_SIG_DET_RMS_MASK        0xF800  /* AIF1DRC2_SIG_DET_RMS
+                                                         * - [15:11] */
+#define WM8994_AIF1DRC2_SIG_DET_RMS_SHIFT           11  /* AIF1DRC2_SIG_DET_RMS
+                                                         * - [15:11] */
+#define WM8994_AIF1DRC2_SIG_DET_RMS_WIDTH            5  /* AIF1DRC2_SIG_DET_RMS
+                                                         * - [15:11] */
+#define WM8994_AIF1DRC2_SIG_DET_PK_MASK         0x0600  /* AIF1DRC2_SIG_DET_PK -
+                                                         * [10:9] */
+#define WM8994_AIF1DRC2_SIG_DET_PK_SHIFT             9  /* AIF1DRC2_SIG_DET_PK -
+                                                         * [10:9] */
+#define WM8994_AIF1DRC2_SIG_DET_PK_WIDTH             2  /* AIF1DRC2_SIG_DET_PK -
+                                                         * [10:9] */
 #define WM8994_AIF1DRC2_NG_ENA                  0x0100  /* AIF1DRC2_NG_ENA */
 #define WM8994_AIF1DRC2_NG_ENA_MASK             0x0100  /* AIF1DRC2_NG_ENA */
 #define WM8994_AIF1DRC2_NG_ENA_SHIFT                 8  /* AIF1DRC2_NG_ENA */
 #define WM8994_AIF1DRC2_NG_ENA_WIDTH                 1  /* AIF1DRC2_NG_ENA */
-#define WM8994_AIF1DRC2_SIG_DET_MODE            0x0080  /* AIF1DRC2_SIG_DET_MODE */
-#define WM8994_AIF1DRC2_SIG_DET_MODE_MASK       0x0080  /* AIF1DRC2_SIG_DET_MODE */
-#define WM8994_AIF1DRC2_SIG_DET_MODE_SHIFT           7  /* AIF1DRC2_SIG_DET_MODE */
-#define WM8994_AIF1DRC2_SIG_DET_MODE_WIDTH           1  /* AIF1DRC2_SIG_DET_MODE */
+#define WM8994_AIF1DRC2_SIG_DET_MODE            0x0080  /* AIF1DRC2_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_MODE_MASK       0x0080  /* AIF1DRC2_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_MODE_SHIFT           7  /* AIF1DRC2_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_MODE_WIDTH           1  /* AIF1DRC2_SIG_DET_MODE
+                                                         * */
 #define WM8994_AIF1DRC2_SIG_DET                 0x0040  /* AIF1DRC2_SIG_DET */
 #define WM8994_AIF1DRC2_SIG_DET_MASK            0x0040  /* AIF1DRC2_SIG_DET */
 #define WM8994_AIF1DRC2_SIG_DET_SHIFT                6  /* AIF1DRC2_SIG_DET */
 #define WM8994_AIF1DRC2_SIG_DET_WIDTH                1  /* AIF1DRC2_SIG_DET */
-#define WM8994_AIF1DRC2_KNEE2_OP_ENA            0x0020  /* AIF1DRC2_KNEE2_OP_ENA */
-#define WM8994_AIF1DRC2_KNEE2_OP_ENA_MASK       0x0020  /* AIF1DRC2_KNEE2_OP_ENA */
-#define WM8994_AIF1DRC2_KNEE2_OP_ENA_SHIFT           5  /* AIF1DRC2_KNEE2_OP_ENA */
-#define WM8994_AIF1DRC2_KNEE2_OP_ENA_WIDTH           1  /* AIF1DRC2_KNEE2_OP_ENA */
+#define WM8994_AIF1DRC2_KNEE2_OP_ENA            0x0020  /* AIF1DRC2_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF1DRC2_KNEE2_OP_ENA_MASK       0x0020  /* AIF1DRC2_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF1DRC2_KNEE2_OP_ENA_SHIFT           5  /* AIF1DRC2_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF1DRC2_KNEE2_OP_ENA_WIDTH           1  /* AIF1DRC2_KNEE2_OP_ENA
+                                                         * */
 #define WM8994_AIF1DRC2_QR                      0x0010  /* AIF1DRC2_QR */
 #define WM8994_AIF1DRC2_QR_MASK                 0x0010  /* AIF1DRC2_QR */
 #define WM8994_AIF1DRC2_QR_SHIFT                     4  /* AIF1DRC2_QR */
@@ -3296,73 +3721,124 @@
 /*
  * R1105 (0x451) - AIF1 DRC2 (2)
  */
-#define WM8994_AIF1DRC2_ATK_MASK                0x1E00  /* AIF1DRC2_ATK - [12:9] */
-#define WM8994_AIF1DRC2_ATK_SHIFT                    9  /* AIF1DRC2_ATK - [12:9] */
-#define WM8994_AIF1DRC2_ATK_WIDTH                    4  /* AIF1DRC2_ATK - [12:9] */
-#define WM8994_AIF1DRC2_DCY_MASK                0x01E0  /* AIF1DRC2_DCY - [8:5] */
-#define WM8994_AIF1DRC2_DCY_SHIFT                    5  /* AIF1DRC2_DCY - [8:5] */
-#define WM8994_AIF1DRC2_DCY_WIDTH                    4  /* AIF1DRC2_DCY - [8:5] */
-#define WM8994_AIF1DRC2_MINGAIN_MASK            0x001C  /* AIF1DRC2_MINGAIN - [4:2] */
-#define WM8994_AIF1DRC2_MINGAIN_SHIFT                2  /* AIF1DRC2_MINGAIN - [4:2] */
-#define WM8994_AIF1DRC2_MINGAIN_WIDTH                3  /* AIF1DRC2_MINGAIN - [4:2] */
-#define WM8994_AIF1DRC2_MAXGAIN_MASK            0x0003  /* AIF1DRC2_MAXGAIN - [1:0] */
-#define WM8994_AIF1DRC2_MAXGAIN_SHIFT                0  /* AIF1DRC2_MAXGAIN - [1:0] */
-#define WM8994_AIF1DRC2_MAXGAIN_WIDTH                2  /* AIF1DRC2_MAXGAIN - [1:0] */
+#define WM8994_AIF1DRC2_ATK_MASK                0x1E00  /* AIF1DRC2_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF1DRC2_ATK_SHIFT                    9  /* AIF1DRC2_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF1DRC2_ATK_WIDTH                    4  /* AIF1DRC2_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF1DRC2_DCY_MASK                0x01E0  /* AIF1DRC2_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF1DRC2_DCY_SHIFT                    5  /* AIF1DRC2_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF1DRC2_DCY_WIDTH                    4  /* AIF1DRC2_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF1DRC2_MINGAIN_MASK            0x001C  /* AIF1DRC2_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF1DRC2_MINGAIN_SHIFT                2  /* AIF1DRC2_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF1DRC2_MINGAIN_WIDTH                3  /* AIF1DRC2_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF1DRC2_MAXGAIN_MASK            0x0003  /* AIF1DRC2_MAXGAIN -
+                                                         * [1:0] */
+#define WM8994_AIF1DRC2_MAXGAIN_SHIFT                0  /* AIF1DRC2_MAXGAIN -
+                                                         * [1:0] */
+#define WM8994_AIF1DRC2_MAXGAIN_WIDTH                2  /* AIF1DRC2_MAXGAIN -
+                                                         * [1:0] */
 
 /*
  * R1106 (0x452) - AIF1 DRC2 (3)
  */
-#define WM8994_AIF1DRC2_NG_MINGAIN_MASK         0xF000  /* AIF1DRC2_NG_MINGAIN - [15:12] */
-#define WM8994_AIF1DRC2_NG_MINGAIN_SHIFT            12  /* AIF1DRC2_NG_MINGAIN - [15:12] */
-#define WM8994_AIF1DRC2_NG_MINGAIN_WIDTH             4  /* AIF1DRC2_NG_MINGAIN - [15:12] */
-#define WM8994_AIF1DRC2_NG_EXP_MASK             0x0C00  /* AIF1DRC2_NG_EXP - [11:10] */
-#define WM8994_AIF1DRC2_NG_EXP_SHIFT                10  /* AIF1DRC2_NG_EXP - [11:10] */
-#define WM8994_AIF1DRC2_NG_EXP_WIDTH                 2  /* AIF1DRC2_NG_EXP - [11:10] */
-#define WM8994_AIF1DRC2_QR_THR_MASK             0x0300  /* AIF1DRC2_QR_THR - [9:8] */
-#define WM8994_AIF1DRC2_QR_THR_SHIFT                 8  /* AIF1DRC2_QR_THR - [9:8] */
-#define WM8994_AIF1DRC2_QR_THR_WIDTH                 2  /* AIF1DRC2_QR_THR - [9:8] */
-#define WM8994_AIF1DRC2_QR_DCY_MASK             0x00C0  /* AIF1DRC2_QR_DCY - [7:6] */
-#define WM8994_AIF1DRC2_QR_DCY_SHIFT                 6  /* AIF1DRC2_QR_DCY - [7:6] */
-#define WM8994_AIF1DRC2_QR_DCY_WIDTH                 2  /* AIF1DRC2_QR_DCY - [7:6] */
-#define WM8994_AIF1DRC2_HI_COMP_MASK            0x0038  /* AIF1DRC2_HI_COMP - [5:3] */
-#define WM8994_AIF1DRC2_HI_COMP_SHIFT                3  /* AIF1DRC2_HI_COMP - [5:3] */
-#define WM8994_AIF1DRC2_HI_COMP_WIDTH                3  /* AIF1DRC2_HI_COMP - [5:3] */
-#define WM8994_AIF1DRC2_LO_COMP_MASK            0x0007  /* AIF1DRC2_LO_COMP - [2:0] */
-#define WM8994_AIF1DRC2_LO_COMP_SHIFT                0  /* AIF1DRC2_LO_COMP - [2:0] */
-#define WM8994_AIF1DRC2_LO_COMP_WIDTH                3  /* AIF1DRC2_LO_COMP - [2:0] */
+#define WM8994_AIF1DRC2_NG_MINGAIN_MASK         0xF000  /* AIF1DRC2_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF1DRC2_NG_MINGAIN_SHIFT            12  /* AIF1DRC2_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF1DRC2_NG_MINGAIN_WIDTH             4  /* AIF1DRC2_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF1DRC2_NG_EXP_MASK             0x0C00  /* AIF1DRC2_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF1DRC2_NG_EXP_SHIFT                10  /* AIF1DRC2_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF1DRC2_NG_EXP_WIDTH                 2  /* AIF1DRC2_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF1DRC2_QR_THR_MASK             0x0300  /* AIF1DRC2_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF1DRC2_QR_THR_SHIFT                 8  /* AIF1DRC2_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF1DRC2_QR_THR_WIDTH                 2  /* AIF1DRC2_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF1DRC2_QR_DCY_MASK             0x00C0  /* AIF1DRC2_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF1DRC2_QR_DCY_SHIFT                 6  /* AIF1DRC2_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF1DRC2_QR_DCY_WIDTH                 2  /* AIF1DRC2_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF1DRC2_HI_COMP_MASK            0x0038  /* AIF1DRC2_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF1DRC2_HI_COMP_SHIFT                3  /* AIF1DRC2_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF1DRC2_HI_COMP_WIDTH                3  /* AIF1DRC2_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF1DRC2_LO_COMP_MASK            0x0007  /* AIF1DRC2_LO_COMP -
+                                                         * [2:0] */
+#define WM8994_AIF1DRC2_LO_COMP_SHIFT                0  /* AIF1DRC2_LO_COMP -
+                                                         * [2:0] */
+#define WM8994_AIF1DRC2_LO_COMP_WIDTH                3  /* AIF1DRC2_LO_COMP -
+                                                         * [2:0] */
 
 /*
  * R1107 (0x453) - AIF1 DRC2 (4)
  */
-#define WM8994_AIF1DRC2_KNEE_IP_MASK            0x07E0  /* AIF1DRC2_KNEE_IP - [10:5] */
-#define WM8994_AIF1DRC2_KNEE_IP_SHIFT                5  /* AIF1DRC2_KNEE_IP - [10:5] */
-#define WM8994_AIF1DRC2_KNEE_IP_WIDTH                6  /* AIF1DRC2_KNEE_IP - [10:5] */
-#define WM8994_AIF1DRC2_KNEE_OP_MASK            0x001F  /* AIF1DRC2_KNEE_OP - [4:0] */
-#define WM8994_AIF1DRC2_KNEE_OP_SHIFT                0  /* AIF1DRC2_KNEE_OP - [4:0] */
-#define WM8994_AIF1DRC2_KNEE_OP_WIDTH                5  /* AIF1DRC2_KNEE_OP - [4:0] */
+#define WM8994_AIF1DRC2_KNEE_IP_MASK            0x07E0  /* AIF1DRC2_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF1DRC2_KNEE_IP_SHIFT                5  /* AIF1DRC2_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF1DRC2_KNEE_IP_WIDTH                6  /* AIF1DRC2_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF1DRC2_KNEE_OP_MASK            0x001F  /* AIF1DRC2_KNEE_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC2_KNEE_OP_SHIFT                0  /* AIF1DRC2_KNEE_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC2_KNEE_OP_WIDTH                5  /* AIF1DRC2_KNEE_OP -
+                                                         * [4:0] */
 
 /*
  * R1108 (0x454) - AIF1 DRC2 (5)
  */
-#define WM8994_AIF1DRC2_KNEE2_IP_MASK           0x03E0  /* AIF1DRC2_KNEE2_IP - [9:5] */
-#define WM8994_AIF1DRC2_KNEE2_IP_SHIFT               5  /* AIF1DRC2_KNEE2_IP - [9:5] */
-#define WM8994_AIF1DRC2_KNEE2_IP_WIDTH               5  /* AIF1DRC2_KNEE2_IP - [9:5] */
-#define WM8994_AIF1DRC2_KNEE2_OP_MASK           0x001F  /* AIF1DRC2_KNEE2_OP - [4:0] */
-#define WM8994_AIF1DRC2_KNEE2_OP_SHIFT               0  /* AIF1DRC2_KNEE2_OP - [4:0] */
-#define WM8994_AIF1DRC2_KNEE2_OP_WIDTH               5  /* AIF1DRC2_KNEE2_OP - [4:0] */
+#define WM8994_AIF1DRC2_KNEE2_IP_MASK           0x03E0  /* AIF1DRC2_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF1DRC2_KNEE2_IP_SHIFT               5  /* AIF1DRC2_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF1DRC2_KNEE2_IP_WIDTH               5  /* AIF1DRC2_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF1DRC2_KNEE2_OP_MASK           0x001F  /* AIF1DRC2_KNEE2_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC2_KNEE2_OP_SHIFT               0  /* AIF1DRC2_KNEE2_OP -
+                                                         * [4:0] */
+#define WM8994_AIF1DRC2_KNEE2_OP_WIDTH               5  /* AIF1DRC2_KNEE2_OP -
+                                                         * [4:0] */
 
 /*
  * R1152 (0x480) - AIF1 DAC1 EQ Gains (1)
  */
-#define WM8994_AIF1DAC1_EQ_B1_GAIN_MASK         0xF800  /* AIF1DAC1_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF1DAC1_EQ_B1_GAIN_SHIFT            11  /* AIF1DAC1_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF1DAC1_EQ_B1_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF1DAC1_EQ_B2_GAIN_MASK         0x07C0  /* AIF1DAC1_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF1DAC1_EQ_B2_GAIN_SHIFT             6  /* AIF1DAC1_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF1DAC1_EQ_B2_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF1DAC1_EQ_B3_GAIN_MASK         0x003E  /* AIF1DAC1_EQ_B3_GAIN - [5:1] */
-#define WM8994_AIF1DAC1_EQ_B3_GAIN_SHIFT             1  /* AIF1DAC1_EQ_B3_GAIN - [5:1] */
-#define WM8994_AIF1DAC1_EQ_B3_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B3_GAIN - [5:1] */
+#define WM8994_AIF1DAC1_EQ_B1_GAIN_MASK         0xF800  /* AIF1DAC1_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC1_EQ_B1_GAIN_SHIFT            11  /* AIF1DAC1_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC1_EQ_B1_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC1_EQ_B2_GAIN_MASK         0x07C0  /* AIF1DAC1_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC1_EQ_B2_GAIN_SHIFT             6  /* AIF1DAC1_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC1_EQ_B2_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC1_EQ_B3_GAIN_MASK         0x003E  /* AIF1DAC1_EQ_B3_GAIN -
+                                                         * [5:1] */
+#define WM8994_AIF1DAC1_EQ_B3_GAIN_SHIFT             1  /* AIF1DAC1_EQ_B3_GAIN -
+                                                         * [5:1] */
+#define WM8994_AIF1DAC1_EQ_B3_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B3_GAIN -
+                                                         * [5:1] */
 #define WM8994_AIF1DAC1_EQ_ENA                  0x0001  /* AIF1DAC1_EQ_ENA */
 #define WM8994_AIF1DAC1_EQ_ENA_MASK             0x0001  /* AIF1DAC1_EQ_ENA */
 #define WM8994_AIF1DAC1_EQ_ENA_SHIFT                 0  /* AIF1DAC1_EQ_ENA */
@@ -3371,151 +3847,220 @@
 /*
  * R1153 (0x481) - AIF1 DAC1 EQ Gains (2)
  */
-#define WM8994_AIF1DAC1_EQ_B4_GAIN_MASK         0xF800  /* AIF1DAC1_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF1DAC1_EQ_B4_GAIN_SHIFT            11  /* AIF1DAC1_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF1DAC1_EQ_B4_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF1DAC1_EQ_B5_GAIN_MASK         0x07C0  /* AIF1DAC1_EQ_B5_GAIN - [10:6] */
-#define WM8994_AIF1DAC1_EQ_B5_GAIN_SHIFT             6  /* AIF1DAC1_EQ_B5_GAIN - [10:6] */
-#define WM8994_AIF1DAC1_EQ_B5_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B5_GAIN - [10:6] */
+#define WM8994_AIF1DAC1_EQ_B4_GAIN_MASK         0xF800  /* AIF1DAC1_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC1_EQ_B4_GAIN_SHIFT            11  /* AIF1DAC1_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC1_EQ_B4_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC1_EQ_B5_GAIN_MASK         0x07C0  /* AIF1DAC1_EQ_B5_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC1_EQ_B5_GAIN_SHIFT             6  /* AIF1DAC1_EQ_B5_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC1_EQ_B5_GAIN_WIDTH             5  /* AIF1DAC1_EQ_B5_GAIN -
+                                                         * [10:6] */
 
 /*
  * R1154 (0x482) - AIF1 DAC1 EQ Band 1 A
  */
-#define WM8994_AIF1DAC1_EQ_B1_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B1_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B1_A_SHIFT                0  /* AIF1DAC1_EQ_B1_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B1_A_WIDTH               16  /* AIF1DAC1_EQ_B1_A - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B1_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_A_SHIFT                0  /* AIF1DAC1_EQ_B1_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_A_WIDTH               16  /* AIF1DAC1_EQ_B1_A -
+                                                         * [15:0] */
 
 /*
  * R1155 (0x483) - AIF1 DAC1 EQ Band 1 B
  */
-#define WM8994_AIF1DAC1_EQ_B1_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B1_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B1_B_SHIFT                0  /* AIF1DAC1_EQ_B1_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B1_B_WIDTH               16  /* AIF1DAC1_EQ_B1_B - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B1_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_B_SHIFT                0  /* AIF1DAC1_EQ_B1_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_B_WIDTH               16  /* AIF1DAC1_EQ_B1_B -
+                                                         * [15:0] */
 
 /*
  * R1156 (0x484) - AIF1 DAC1 EQ Band 1 PG
  */
-#define WM8994_AIF1DAC1_EQ_B1_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B1_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B1_PG_SHIFT               0  /* AIF1DAC1_EQ_B1_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B1_PG_WIDTH              16  /* AIF1DAC1_EQ_B1_PG - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B1_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_PG_SHIFT               0  /* AIF1DAC1_EQ_B1_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B1_PG_WIDTH              16  /* AIF1DAC1_EQ_B1_PG -
+                                                         * [15:0] */
 
 /*
  * R1157 (0x485) - AIF1 DAC1 EQ Band 2 A
  */
-#define WM8994_AIF1DAC1_EQ_B2_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B2_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_A_SHIFT                0  /* AIF1DAC1_EQ_B2_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_A_WIDTH               16  /* AIF1DAC1_EQ_B2_A - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B2_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_A_SHIFT                0  /* AIF1DAC1_EQ_B2_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_A_WIDTH               16  /* AIF1DAC1_EQ_B2_A -
+                                                         * [15:0] */
 
 /*
  * R1158 (0x486) - AIF1 DAC1 EQ Band 2 B
  */
-#define WM8994_AIF1DAC1_EQ_B2_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B2_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_B_SHIFT                0  /* AIF1DAC1_EQ_B2_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_B_WIDTH               16  /* AIF1DAC1_EQ_B2_B - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B2_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_B_SHIFT                0  /* AIF1DAC1_EQ_B2_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_B_WIDTH               16  /* AIF1DAC1_EQ_B2_B -
+                                                         * [15:0] */
 
 /*
  * R1159 (0x487) - AIF1 DAC1 EQ Band 2 C
  */
-#define WM8994_AIF1DAC1_EQ_B2_C_MASK            0xFFFF  /* AIF1DAC1_EQ_B2_C - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_C_SHIFT                0  /* AIF1DAC1_EQ_B2_C - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_C_WIDTH               16  /* AIF1DAC1_EQ_B2_C - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_C_MASK            0xFFFF  /* AIF1DAC1_EQ_B2_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_C_SHIFT                0  /* AIF1DAC1_EQ_B2_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_C_WIDTH               16  /* AIF1DAC1_EQ_B2_C -
+                                                         * [15:0] */
 
 /*
  * R1160 (0x488) - AIF1 DAC1 EQ Band 2 PG
  */
-#define WM8994_AIF1DAC1_EQ_B2_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B2_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_PG_SHIFT               0  /* AIF1DAC1_EQ_B2_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B2_PG_WIDTH              16  /* AIF1DAC1_EQ_B2_PG - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B2_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_PG_SHIFT               0  /* AIF1DAC1_EQ_B2_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B2_PG_WIDTH              16  /* AIF1DAC1_EQ_B2_PG -
+                                                         * [15:0] */
 
 /*
  * R1161 (0x489) - AIF1 DAC1 EQ Band 3 A
  */
-#define WM8994_AIF1DAC1_EQ_B3_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B3_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_A_SHIFT                0  /* AIF1DAC1_EQ_B3_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_A_WIDTH               16  /* AIF1DAC1_EQ_B3_A - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B3_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_A_SHIFT                0  /* AIF1DAC1_EQ_B3_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_A_WIDTH               16  /* AIF1DAC1_EQ_B3_A -
+                                                         * [15:0] */
 
 /*
  * R1162 (0x48A) - AIF1 DAC1 EQ Band 3 B
  */
-#define WM8994_AIF1DAC1_EQ_B3_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B3_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_B_SHIFT                0  /* AIF1DAC1_EQ_B3_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_B_WIDTH               16  /* AIF1DAC1_EQ_B3_B - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B3_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_B_SHIFT                0  /* AIF1DAC1_EQ_B3_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_B_WIDTH               16  /* AIF1DAC1_EQ_B3_B -
+                                                         * [15:0] */
 
 /*
  * R1163 (0x48B) - AIF1 DAC1 EQ Band 3 C
  */
-#define WM8994_AIF1DAC1_EQ_B3_C_MASK            0xFFFF  /* AIF1DAC1_EQ_B3_C - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_C_SHIFT                0  /* AIF1DAC1_EQ_B3_C - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_C_WIDTH               16  /* AIF1DAC1_EQ_B3_C - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_C_MASK            0xFFFF  /* AIF1DAC1_EQ_B3_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_C_SHIFT                0  /* AIF1DAC1_EQ_B3_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_C_WIDTH               16  /* AIF1DAC1_EQ_B3_C -
+                                                         * [15:0] */
 
 /*
  * R1164 (0x48C) - AIF1 DAC1 EQ Band 3 PG
  */
-#define WM8994_AIF1DAC1_EQ_B3_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B3_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_PG_SHIFT               0  /* AIF1DAC1_EQ_B3_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B3_PG_WIDTH              16  /* AIF1DAC1_EQ_B3_PG - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B3_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_PG_SHIFT               0  /* AIF1DAC1_EQ_B3_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B3_PG_WIDTH              16  /* AIF1DAC1_EQ_B3_PG -
+                                                         * [15:0] */
 
 /*
  * R1165 (0x48D) - AIF1 DAC1 EQ Band 4 A
  */
-#define WM8994_AIF1DAC1_EQ_B4_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B4_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_A_SHIFT                0  /* AIF1DAC1_EQ_B4_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_A_WIDTH               16  /* AIF1DAC1_EQ_B4_A - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B4_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_A_SHIFT                0  /* AIF1DAC1_EQ_B4_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_A_WIDTH               16  /* AIF1DAC1_EQ_B4_A -
+                                                         * [15:0] */
 
 /*
  * R1166 (0x48E) - AIF1 DAC1 EQ Band 4 B
  */
-#define WM8994_AIF1DAC1_EQ_B4_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B4_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_B_SHIFT                0  /* AIF1DAC1_EQ_B4_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_B_WIDTH               16  /* AIF1DAC1_EQ_B4_B - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B4_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_B_SHIFT                0  /* AIF1DAC1_EQ_B4_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_B_WIDTH               16  /* AIF1DAC1_EQ_B4_B -
+                                                         * [15:0] */
 
 /*
  * R1167 (0x48F) - AIF1 DAC1 EQ Band 4 C
  */
-#define WM8994_AIF1DAC1_EQ_B4_C_MASK            0xFFFF  /* AIF1DAC1_EQ_B4_C - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_C_SHIFT                0  /* AIF1DAC1_EQ_B4_C - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_C_WIDTH               16  /* AIF1DAC1_EQ_B4_C - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_C_MASK            0xFFFF  /* AIF1DAC1_EQ_B4_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_C_SHIFT                0  /* AIF1DAC1_EQ_B4_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_C_WIDTH               16  /* AIF1DAC1_EQ_B4_C -
+                                                         * [15:0] */
 
 /*
  * R1168 (0x490) - AIF1 DAC1 EQ Band 4 PG
  */
-#define WM8994_AIF1DAC1_EQ_B4_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B4_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_PG_SHIFT               0  /* AIF1DAC1_EQ_B4_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B4_PG_WIDTH              16  /* AIF1DAC1_EQ_B4_PG - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B4_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_PG_SHIFT               0  /* AIF1DAC1_EQ_B4_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B4_PG_WIDTH              16  /* AIF1DAC1_EQ_B4_PG -
+                                                         * [15:0] */
 
 /*
  * R1169 (0x491) - AIF1 DAC1 EQ Band 5 A
  */
-#define WM8994_AIF1DAC1_EQ_B5_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B5_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B5_A_SHIFT                0  /* AIF1DAC1_EQ_B5_A - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B5_A_WIDTH               16  /* AIF1DAC1_EQ_B5_A - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_A_MASK            0xFFFF  /* AIF1DAC1_EQ_B5_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_A_SHIFT                0  /* AIF1DAC1_EQ_B5_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_A_WIDTH               16  /* AIF1DAC1_EQ_B5_A -
+                                                         * [15:0] */
 
 /*
  * R1170 (0x492) - AIF1 DAC1 EQ Band 5 B
  */
-#define WM8994_AIF1DAC1_EQ_B5_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B5_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B5_B_SHIFT                0  /* AIF1DAC1_EQ_B5_B - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B5_B_WIDTH               16  /* AIF1DAC1_EQ_B5_B - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_B_MASK            0xFFFF  /* AIF1DAC1_EQ_B5_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_B_SHIFT                0  /* AIF1DAC1_EQ_B5_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_B_WIDTH               16  /* AIF1DAC1_EQ_B5_B -
+                                                         * [15:0] */
 
 /*
  * R1171 (0x493) - AIF1 DAC1 EQ Band 5 PG
  */
-#define WM8994_AIF1DAC1_EQ_B5_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B5_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B5_PG_SHIFT               0  /* AIF1DAC1_EQ_B5_PG - [15:0] */
-#define WM8994_AIF1DAC1_EQ_B5_PG_WIDTH              16  /* AIF1DAC1_EQ_B5_PG - [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_PG_MASK           0xFFFF  /* AIF1DAC1_EQ_B5_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_PG_SHIFT               0  /* AIF1DAC1_EQ_B5_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC1_EQ_B5_PG_WIDTH              16  /* AIF1DAC1_EQ_B5_PG -
+                                                         * [15:0] */
 
 /*
  * R1184 (0x4A0) - AIF1 DAC2 EQ Gains (1)
  */
-#define WM8994_AIF1DAC2_EQ_B1_GAIN_MASK         0xF800  /* AIF1DAC2_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF1DAC2_EQ_B1_GAIN_SHIFT            11  /* AIF1DAC2_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF1DAC2_EQ_B1_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF1DAC2_EQ_B2_GAIN_MASK         0x07C0  /* AIF1DAC2_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF1DAC2_EQ_B2_GAIN_SHIFT             6  /* AIF1DAC2_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF1DAC2_EQ_B2_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF1DAC2_EQ_B3_GAIN_MASK         0x003E  /* AIF1DAC2_EQ_B3_GAIN - [5:1] */
-#define WM8994_AIF1DAC2_EQ_B3_GAIN_SHIFT             1  /* AIF1DAC2_EQ_B3_GAIN - [5:1] */
-#define WM8994_AIF1DAC2_EQ_B3_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B3_GAIN - [5:1] */
+#define WM8994_AIF1DAC2_EQ_B1_GAIN_MASK         0xF800  /* AIF1DAC2_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC2_EQ_B1_GAIN_SHIFT            11  /* AIF1DAC2_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC2_EQ_B1_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC2_EQ_B2_GAIN_MASK         0x07C0  /* AIF1DAC2_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC2_EQ_B2_GAIN_SHIFT             6  /* AIF1DAC2_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC2_EQ_B2_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC2_EQ_B3_GAIN_MASK         0x003E  /* AIF1DAC2_EQ_B3_GAIN -
+                                                         * [5:1] */
+#define WM8994_AIF1DAC2_EQ_B3_GAIN_SHIFT             1  /* AIF1DAC2_EQ_B3_GAIN -
+                                                         * [5:1] */
+#define WM8994_AIF1DAC2_EQ_B3_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B3_GAIN -
+                                                         * [5:1] */
 #define WM8994_AIF1DAC2_EQ_ENA                  0x0001  /* AIF1DAC2_EQ_ENA */
 #define WM8994_AIF1DAC2_EQ_ENA_MASK             0x0001  /* AIF1DAC2_EQ_ENA */
 #define WM8994_AIF1DAC2_EQ_ENA_SHIFT                 0  /* AIF1DAC2_EQ_ENA */
@@ -3524,138 +4069,198 @@
 /*
  * R1185 (0x4A1) - AIF1 DAC2 EQ Gains (2)
  */
-#define WM8994_AIF1DAC2_EQ_B4_GAIN_MASK         0xF800  /* AIF1DAC2_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF1DAC2_EQ_B4_GAIN_SHIFT            11  /* AIF1DAC2_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF1DAC2_EQ_B4_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF1DAC2_EQ_B5_GAIN_MASK         0x07C0  /* AIF1DAC2_EQ_B5_GAIN - [10:6] */
-#define WM8994_AIF1DAC2_EQ_B5_GAIN_SHIFT             6  /* AIF1DAC2_EQ_B5_GAIN - [10:6] */
-#define WM8994_AIF1DAC2_EQ_B5_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B5_GAIN - [10:6] */
+#define WM8994_AIF1DAC2_EQ_B4_GAIN_MASK         0xF800  /* AIF1DAC2_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC2_EQ_B4_GAIN_SHIFT            11  /* AIF1DAC2_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC2_EQ_B4_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF1DAC2_EQ_B5_GAIN_MASK         0x07C0  /* AIF1DAC2_EQ_B5_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC2_EQ_B5_GAIN_SHIFT             6  /* AIF1DAC2_EQ_B5_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF1DAC2_EQ_B5_GAIN_WIDTH             5  /* AIF1DAC2_EQ_B5_GAIN -
+                                                         * [10:6] */
 
 /*
  * R1186 (0x4A2) - AIF1 DAC2 EQ Band 1 A
  */
-#define WM8994_AIF1DAC2_EQ_B1_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B1_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B1_A_SHIFT                0  /* AIF1DAC2_EQ_B1_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B1_A_WIDTH               16  /* AIF1DAC2_EQ_B1_A - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B1_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_A_SHIFT                0  /* AIF1DAC2_EQ_B1_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_A_WIDTH               16  /* AIF1DAC2_EQ_B1_A -
+                                                         * [15:0] */
 
 /*
  * R1187 (0x4A3) - AIF1 DAC2 EQ Band 1 B
  */
-#define WM8994_AIF1DAC2_EQ_B1_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B1_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B1_B_SHIFT                0  /* AIF1DAC2_EQ_B1_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B1_B_WIDTH               16  /* AIF1DAC2_EQ_B1_B - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B1_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_B_SHIFT                0  /* AIF1DAC2_EQ_B1_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_B_WIDTH               16  /* AIF1DAC2_EQ_B1_B -
+                                                         * [15:0] */
 
 /*
  * R1188 (0x4A4) - AIF1 DAC2 EQ Band 1 PG
  */
-#define WM8994_AIF1DAC2_EQ_B1_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B1_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B1_PG_SHIFT               0  /* AIF1DAC2_EQ_B1_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B1_PG_WIDTH              16  /* AIF1DAC2_EQ_B1_PG - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B1_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_PG_SHIFT               0  /* AIF1DAC2_EQ_B1_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B1_PG_WIDTH              16  /* AIF1DAC2_EQ_B1_PG -
+                                                         * [15:0] */
 
 /*
  * R1189 (0x4A5) - AIF1 DAC2 EQ Band 2 A
  */
-#define WM8994_AIF1DAC2_EQ_B2_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B2_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_A_SHIFT                0  /* AIF1DAC2_EQ_B2_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_A_WIDTH               16  /* AIF1DAC2_EQ_B2_A - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B2_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_A_SHIFT                0  /* AIF1DAC2_EQ_B2_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_A_WIDTH               16  /* AIF1DAC2_EQ_B2_A -
+                                                         * [15:0] */
 
 /*
  * R1190 (0x4A6) - AIF1 DAC2 EQ Band 2 B
  */
-#define WM8994_AIF1DAC2_EQ_B2_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B2_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_B_SHIFT                0  /* AIF1DAC2_EQ_B2_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_B_WIDTH               16  /* AIF1DAC2_EQ_B2_B - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B2_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_B_SHIFT                0  /* AIF1DAC2_EQ_B2_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_B_WIDTH               16  /* AIF1DAC2_EQ_B2_B -
+                                                         * [15:0] */
 
 /*
  * R1191 (0x4A7) - AIF1 DAC2 EQ Band 2 C
  */
-#define WM8994_AIF1DAC2_EQ_B2_C_MASK            0xFFFF  /* AIF1DAC2_EQ_B2_C - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_C_SHIFT                0  /* AIF1DAC2_EQ_B2_C - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_C_WIDTH               16  /* AIF1DAC2_EQ_B2_C - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_C_MASK            0xFFFF  /* AIF1DAC2_EQ_B2_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_C_SHIFT                0  /* AIF1DAC2_EQ_B2_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_C_WIDTH               16  /* AIF1DAC2_EQ_B2_C -
+                                                         * [15:0] */
 
 /*
  * R1192 (0x4A8) - AIF1 DAC2 EQ Band 2 PG
  */
-#define WM8994_AIF1DAC2_EQ_B2_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B2_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_PG_SHIFT               0  /* AIF1DAC2_EQ_B2_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B2_PG_WIDTH              16  /* AIF1DAC2_EQ_B2_PG - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B2_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_PG_SHIFT               0  /* AIF1DAC2_EQ_B2_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B2_PG_WIDTH              16  /* AIF1DAC2_EQ_B2_PG -
+                                                         * [15:0] */
 
 /*
  * R1193 (0x4A9) - AIF1 DAC2 EQ Band 3 A
  */
-#define WM8994_AIF1DAC2_EQ_B3_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B3_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_A_SHIFT                0  /* AIF1DAC2_EQ_B3_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_A_WIDTH               16  /* AIF1DAC2_EQ_B3_A - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B3_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_A_SHIFT                0  /* AIF1DAC2_EQ_B3_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_A_WIDTH               16  /* AIF1DAC2_EQ_B3_A -
+                                                         * [15:0] */
 
 /*
  * R1194 (0x4AA) - AIF1 DAC2 EQ Band 3 B
  */
-#define WM8994_AIF1DAC2_EQ_B3_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B3_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_B_SHIFT                0  /* AIF1DAC2_EQ_B3_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_B_WIDTH               16  /* AIF1DAC2_EQ_B3_B - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B3_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_B_SHIFT                0  /* AIF1DAC2_EQ_B3_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_B_WIDTH               16  /* AIF1DAC2_EQ_B3_B -
+                                                         * [15:0] */
 
 /*
  * R1195 (0x4AB) - AIF1 DAC2 EQ Band 3 C
  */
-#define WM8994_AIF1DAC2_EQ_B3_C_MASK            0xFFFF  /* AIF1DAC2_EQ_B3_C - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_C_SHIFT                0  /* AIF1DAC2_EQ_B3_C - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_C_WIDTH               16  /* AIF1DAC2_EQ_B3_C - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_C_MASK            0xFFFF  /* AIF1DAC2_EQ_B3_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_C_SHIFT                0  /* AIF1DAC2_EQ_B3_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_C_WIDTH               16  /* AIF1DAC2_EQ_B3_C -
+                                                         * [15:0] */
 
 /*
  * R1196 (0x4AC) - AIF1 DAC2 EQ Band 3 PG
  */
-#define WM8994_AIF1DAC2_EQ_B3_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B3_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_PG_SHIFT               0  /* AIF1DAC2_EQ_B3_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B3_PG_WIDTH              16  /* AIF1DAC2_EQ_B3_PG - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B3_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_PG_SHIFT               0  /* AIF1DAC2_EQ_B3_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B3_PG_WIDTH              16  /* AIF1DAC2_EQ_B3_PG -
+                                                         * [15:0] */
 
 /*
  * R1197 (0x4AD) - AIF1 DAC2 EQ Band 4 A
  */
-#define WM8994_AIF1DAC2_EQ_B4_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B4_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_A_SHIFT                0  /* AIF1DAC2_EQ_B4_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_A_WIDTH               16  /* AIF1DAC2_EQ_B4_A - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B4_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_A_SHIFT                0  /* AIF1DAC2_EQ_B4_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_A_WIDTH               16  /* AIF1DAC2_EQ_B4_A -
+                                                         * [15:0] */
 
 /*
  * R1198 (0x4AE) - AIF1 DAC2 EQ Band 4 B
  */
-#define WM8994_AIF1DAC2_EQ_B4_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B4_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_B_SHIFT                0  /* AIF1DAC2_EQ_B4_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_B_WIDTH               16  /* AIF1DAC2_EQ_B4_B - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B4_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_B_SHIFT                0  /* AIF1DAC2_EQ_B4_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_B_WIDTH               16  /* AIF1DAC2_EQ_B4_B -
+                                                         * [15:0] */
 
 /*
  * R1199 (0x4AF) - AIF1 DAC2 EQ Band 4 C
  */
-#define WM8994_AIF1DAC2_EQ_B4_C_MASK            0xFFFF  /* AIF1DAC2_EQ_B4_C - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_C_SHIFT                0  /* AIF1DAC2_EQ_B4_C - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_C_WIDTH               16  /* AIF1DAC2_EQ_B4_C - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_C_MASK            0xFFFF  /* AIF1DAC2_EQ_B4_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_C_SHIFT                0  /* AIF1DAC2_EQ_B4_C -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_C_WIDTH               16  /* AIF1DAC2_EQ_B4_C -
+                                                         * [15:0] */
 
 /*
  * R1200 (0x4B0) - AIF1 DAC2 EQ Band 4 PG
  */
-#define WM8994_AIF1DAC2_EQ_B4_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B4_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_PG_SHIFT               0  /* AIF1DAC2_EQ_B4_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B4_PG_WIDTH              16  /* AIF1DAC2_EQ_B4_PG - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B4_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_PG_SHIFT               0  /* AIF1DAC2_EQ_B4_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B4_PG_WIDTH              16  /* AIF1DAC2_EQ_B4_PG -
+                                                         * [15:0] */
 
 /*
  * R1201 (0x4B1) - AIF1 DAC2 EQ Band 5 A
  */
-#define WM8994_AIF1DAC2_EQ_B5_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B5_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B5_A_SHIFT                0  /* AIF1DAC2_EQ_B5_A - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B5_A_WIDTH               16  /* AIF1DAC2_EQ_B5_A - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_A_MASK            0xFFFF  /* AIF1DAC2_EQ_B5_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_A_SHIFT                0  /* AIF1DAC2_EQ_B5_A -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_A_WIDTH               16  /* AIF1DAC2_EQ_B5_A -
+                                                         * [15:0] */
 
 /*
  * R1202 (0x4B2) - AIF1 DAC2 EQ Band 5 B
  */
-#define WM8994_AIF1DAC2_EQ_B5_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B5_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B5_B_SHIFT                0  /* AIF1DAC2_EQ_B5_B - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B5_B_WIDTH               16  /* AIF1DAC2_EQ_B5_B - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_B_MASK            0xFFFF  /* AIF1DAC2_EQ_B5_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_B_SHIFT                0  /* AIF1DAC2_EQ_B5_B -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_B_WIDTH               16  /* AIF1DAC2_EQ_B5_B -
+                                                         * [15:0] */
 
 /*
  * R1203 (0x4B3) - AIF1 DAC2 EQ Band 5 PG
  */
-#define WM8994_AIF1DAC2_EQ_B5_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B5_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B5_PG_SHIFT               0  /* AIF1DAC2_EQ_B5_PG - [15:0] */
-#define WM8994_AIF1DAC2_EQ_B5_PG_WIDTH              16  /* AIF1DAC2_EQ_B5_PG - [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_PG_MASK           0xFFFF  /* AIF1DAC2_EQ_B5_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_PG_SHIFT               0  /* AIF1DAC2_EQ_B5_PG -
+                                                         * [15:0] */
+#define WM8994_AIF1DAC2_EQ_B5_PG_WIDTH              16  /* AIF1DAC2_EQ_B5_PG -
+                                                         * [15:0] */
 
 /*
  * R1280 (0x500) - AIF2 ADC Left Volume
@@ -3664,9 +4269,12 @@
 #define WM8994_AIF2ADC_VU_MASK                  0x0100  /* AIF2ADC_VU */
 #define WM8994_AIF2ADC_VU_SHIFT                      8  /* AIF2ADC_VU */
 #define WM8994_AIF2ADC_VU_WIDTH                      1  /* AIF2ADC_VU */
-#define WM8994_AIF2ADCL_VOL_MASK                0x00FF  /* AIF2ADCL_VOL - [7:0] */
-#define WM8994_AIF2ADCL_VOL_SHIFT                    0  /* AIF2ADCL_VOL - [7:0] */
-#define WM8994_AIF2ADCL_VOL_WIDTH                    8  /* AIF2ADCL_VOL - [7:0] */
+#define WM8994_AIF2ADCL_VOL_MASK                0x00FF  /* AIF2ADCL_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2ADCL_VOL_SHIFT                    0  /* AIF2ADCL_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2ADCL_VOL_WIDTH                    8  /* AIF2ADCL_VOL - [7:0]
+                                                         * */
 
 /*
  * R1281 (0x501) - AIF2 ADC Right Volume
@@ -3675,9 +4283,12 @@
 #define WM8994_AIF2ADC_VU_MASK                  0x0100  /* AIF2ADC_VU */
 #define WM8994_AIF2ADC_VU_SHIFT                      8  /* AIF2ADC_VU */
 #define WM8994_AIF2ADC_VU_WIDTH                      1  /* AIF2ADC_VU */
-#define WM8994_AIF2ADCR_VOL_MASK                0x00FF  /* AIF2ADCR_VOL - [7:0] */
-#define WM8994_AIF2ADCR_VOL_SHIFT                    0  /* AIF2ADCR_VOL - [7:0] */
-#define WM8994_AIF2ADCR_VOL_WIDTH                    8  /* AIF2ADCR_VOL - [7:0] */
+#define WM8994_AIF2ADCR_VOL_MASK                0x00FF  /* AIF2ADCR_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2ADCR_VOL_SHIFT                    0  /* AIF2ADCR_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2ADCR_VOL_WIDTH                    8  /* AIF2ADCR_VOL - [7:0]
+                                                         * */
 
 /*
  * R1282 (0x502) - AIF2 DAC Left Volume
@@ -3686,9 +4297,12 @@
 #define WM8994_AIF2DAC_VU_MASK                  0x0100  /* AIF2DAC_VU */
 #define WM8994_AIF2DAC_VU_SHIFT                      8  /* AIF2DAC_VU */
 #define WM8994_AIF2DAC_VU_WIDTH                      1  /* AIF2DAC_VU */
-#define WM8994_AIF2DACL_VOL_MASK                0x00FF  /* AIF2DACL_VOL - [7:0] */
-#define WM8994_AIF2DACL_VOL_SHIFT                    0  /* AIF2DACL_VOL - [7:0] */
-#define WM8994_AIF2DACL_VOL_WIDTH                    8  /* AIF2DACL_VOL - [7:0] */
+#define WM8994_AIF2DACL_VOL_MASK                0x00FF  /* AIF2DACL_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2DACL_VOL_SHIFT                    0  /* AIF2DACL_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2DACL_VOL_WIDTH                    8  /* AIF2DACL_VOL - [7:0]
+                                                         * */
 
 /*
  * R1283 (0x503) - AIF2 DAC Right Volume
@@ -3697,9 +4311,12 @@
 #define WM8994_AIF2DAC_VU_MASK                  0x0100  /* AIF2DAC_VU */
 #define WM8994_AIF2DAC_VU_SHIFT                      8  /* AIF2DAC_VU */
 #define WM8994_AIF2DAC_VU_WIDTH                      1  /* AIF2DAC_VU */
-#define WM8994_AIF2DACR_VOL_MASK                0x00FF  /* AIF2DACR_VOL - [7:0] */
-#define WM8994_AIF2DACR_VOL_SHIFT                    0  /* AIF2DACR_VOL - [7:0] */
-#define WM8994_AIF2DACR_VOL_WIDTH                    8  /* AIF2DACR_VOL - [7:0] */
+#define WM8994_AIF2DACR_VOL_MASK                0x00FF  /* AIF2DACR_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2DACR_VOL_SHIFT                    0  /* AIF2DACR_VOL - [7:0]
+                                                         * */
+#define WM8994_AIF2DACR_VOL_WIDTH                    8  /* AIF2DACR_VOL - [7:0]
+                                                         * */
 
 /*
  * R1296 (0x510) - AIF2 ADC Filters
@@ -3708,9 +4325,12 @@
 #define WM8994_AIF2ADC_4FS_MASK                 0x8000  /* AIF2ADC_4FS */
 #define WM8994_AIF2ADC_4FS_SHIFT                    15  /* AIF2ADC_4FS */
 #define WM8994_AIF2ADC_4FS_WIDTH                     1  /* AIF2ADC_4FS */
-#define WM8994_AIF2ADC_HPF_CUT_MASK             0x6000  /* AIF2ADC_HPF_CUT - [14:13] */
-#define WM8994_AIF2ADC_HPF_CUT_SHIFT                13  /* AIF2ADC_HPF_CUT - [14:13] */
-#define WM8994_AIF2ADC_HPF_CUT_WIDTH                 2  /* AIF2ADC_HPF_CUT - [14:13] */
+#define WM8994_AIF2ADC_HPF_CUT_MASK             0x6000  /* AIF2ADC_HPF_CUT -
+                                                         * [14:13] */
+#define WM8994_AIF2ADC_HPF_CUT_SHIFT                13  /* AIF2ADC_HPF_CUT -
+                                                         * [14:13] */
+#define WM8994_AIF2ADC_HPF_CUT_WIDTH                 2  /* AIF2ADC_HPF_CUT -
+                                                         * [14:13] */
 #define WM8994_AIF2ADCL_HPF                     0x1000  /* AIF2ADCL_HPF */
 #define WM8994_AIF2ADCL_HPF_MASK                0x1000  /* AIF2ADCL_HPF */
 #define WM8994_AIF2ADCL_HPF_SHIFT                   12  /* AIF2ADCL_HPF */
@@ -3735,20 +4355,30 @@
 #define WM8994_AIF2DAC_MUTERATE_MASK            0x0020  /* AIF2DAC_MUTERATE */
 #define WM8994_AIF2DAC_MUTERATE_SHIFT                5  /* AIF2DAC_MUTERATE */
 #define WM8994_AIF2DAC_MUTERATE_WIDTH                1  /* AIF2DAC_MUTERATE */
-#define WM8994_AIF2DAC_UNMUTE_RAMP              0x0010  /* AIF2DAC_UNMUTE_RAMP */
-#define WM8994_AIF2DAC_UNMUTE_RAMP_MASK         0x0010  /* AIF2DAC_UNMUTE_RAMP */
-#define WM8994_AIF2DAC_UNMUTE_RAMP_SHIFT             4  /* AIF2DAC_UNMUTE_RAMP */
-#define WM8994_AIF2DAC_UNMUTE_RAMP_WIDTH             1  /* AIF2DAC_UNMUTE_RAMP */
-#define WM8994_AIF2DAC_DEEMP_MASK               0x0006  /* AIF2DAC_DEEMP - [2:1] */
-#define WM8994_AIF2DAC_DEEMP_SHIFT                   1  /* AIF2DAC_DEEMP - [2:1] */
-#define WM8994_AIF2DAC_DEEMP_WIDTH                   2  /* AIF2DAC_DEEMP - [2:1] */
+#define WM8994_AIF2DAC_UNMUTE_RAMP              0x0010  /* AIF2DAC_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF2DAC_UNMUTE_RAMP_MASK         0x0010  /* AIF2DAC_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF2DAC_UNMUTE_RAMP_SHIFT             4  /* AIF2DAC_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF2DAC_UNMUTE_RAMP_WIDTH             1  /* AIF2DAC_UNMUTE_RAMP
+                                                         * */
+#define WM8994_AIF2DAC_DEEMP_MASK               0x0006  /* AIF2DAC_DEEMP - [2:1]
+                                                         * */
+#define WM8994_AIF2DAC_DEEMP_SHIFT                   1  /* AIF2DAC_DEEMP - [2:1]
+                                                         * */
+#define WM8994_AIF2DAC_DEEMP_WIDTH                   2  /* AIF2DAC_DEEMP - [2:1]
+                                                         * */
 
 /*
  * R1313 (0x521) - AIF2 DAC Filters (2)
  */
-#define WM8994_AIF2DAC_3D_GAIN_MASK             0x3E00  /* AIF2DAC_3D_GAIN - [13:9] */
-#define WM8994_AIF2DAC_3D_GAIN_SHIFT                 9  /* AIF2DAC_3D_GAIN - [13:9] */
-#define WM8994_AIF2DAC_3D_GAIN_WIDTH                 5  /* AIF2DAC_3D_GAIN - [13:9] */
+#define WM8994_AIF2DAC_3D_GAIN_MASK             0x3E00  /* AIF2DAC_3D_GAIN -
+                                                         * [13:9] */
+#define WM8994_AIF2DAC_3D_GAIN_SHIFT                 9  /* AIF2DAC_3D_GAIN -
+                                                         * [13:9] */
+#define WM8994_AIF2DAC_3D_GAIN_WIDTH                 5  /* AIF2DAC_3D_GAIN -
+                                                         * [13:9] */
 #define WM8994_AIF2DAC_3D_ENA                   0x0100  /* AIF2DAC_3D_ENA */
 #define WM8994_AIF2DAC_3D_ENA_MASK              0x0100  /* AIF2DAC_3D_ENA */
 #define WM8994_AIF2DAC_3D_ENA_SHIFT                  8  /* AIF2DAC_3D_ENA */
@@ -3757,12 +4387,18 @@
 /*
  * R1328 (0x530) - AIF2 DAC Noise Gate
  */
-#define WM8958_AIF2DAC_NG_HLD_MASK              0x0060  /* AIF2DAC_NG_HLD - [6:5] */
-#define WM8958_AIF2DAC_NG_HLD_SHIFT                  5  /* AIF2DAC_NG_HLD - [6:5] */
-#define WM8958_AIF2DAC_NG_HLD_WIDTH                  2  /* AIF2DAC_NG_HLD - [6:5] */
-#define WM8958_AIF2DAC_NG_THR_MASK              0x000E  /* AIF2DAC_NG_THR - [3:1] */
-#define WM8958_AIF2DAC_NG_THR_SHIFT                  1  /* AIF2DAC_NG_THR - [3:1] */
-#define WM8958_AIF2DAC_NG_THR_WIDTH                  3  /* AIF2DAC_NG_THR - [3:1] */
+#define WM8958_AIF2DAC_NG_HLD_MASK              0x0060  /* AIF2DAC_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF2DAC_NG_HLD_SHIFT                  5  /* AIF2DAC_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF2DAC_NG_HLD_WIDTH                  2  /* AIF2DAC_NG_HLD -
+                                                         * [6:5] */
+#define WM8958_AIF2DAC_NG_THR_MASK              0x000E  /* AIF2DAC_NG_THR -
+                                                         * [3:1] */
+#define WM8958_AIF2DAC_NG_THR_SHIFT                  1  /* AIF2DAC_NG_THR -
+                                                         * [3:1] */
+#define WM8958_AIF2DAC_NG_THR_WIDTH                  3  /* AIF2DAC_NG_THR -
+                                                         * [3:1] */
 #define WM8958_AIF2DAC_NG_ENA                   0x0001  /* AIF2DAC_NG_ENA */
 #define WM8958_AIF2DAC_NG_ENA_MASK              0x0001  /* AIF2DAC_NG_ENA */
 #define WM8958_AIF2DAC_NG_ENA_SHIFT                  0  /* AIF2DAC_NG_ENA */
@@ -3771,28 +4407,42 @@
 /*
  * R1344 (0x540) - AIF2 DRC (1)
  */
-#define WM8994_AIF2DRC_SIG_DET_RMS_MASK         0xF800  /* AIF2DRC_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF2DRC_SIG_DET_RMS_SHIFT            11  /* AIF2DRC_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF2DRC_SIG_DET_RMS_WIDTH             5  /* AIF2DRC_SIG_DET_RMS - [15:11] */
-#define WM8994_AIF2DRC_SIG_DET_PK_MASK          0x0600  /* AIF2DRC_SIG_DET_PK - [10:9] */
-#define WM8994_AIF2DRC_SIG_DET_PK_SHIFT              9  /* AIF2DRC_SIG_DET_PK - [10:9] */
-#define WM8994_AIF2DRC_SIG_DET_PK_WIDTH              2  /* AIF2DRC_SIG_DET_PK - [10:9] */
+#define WM8994_AIF2DRC_SIG_DET_RMS_MASK         0xF800  /* AIF2DRC_SIG_DET_RMS -
+                                                         * [15:11] */
+#define WM8994_AIF2DRC_SIG_DET_RMS_SHIFT            11  /* AIF2DRC_SIG_DET_RMS -
+                                                         * [15:11] */
+#define WM8994_AIF2DRC_SIG_DET_RMS_WIDTH             5  /* AIF2DRC_SIG_DET_RMS -
+                                                         * [15:11] */
+#define WM8994_AIF2DRC_SIG_DET_PK_MASK          0x0600  /* AIF2DRC_SIG_DET_PK -
+                                                         * [10:9] */
+#define WM8994_AIF2DRC_SIG_DET_PK_SHIFT              9  /* AIF2DRC_SIG_DET_PK -
+                                                         * [10:9] */
+#define WM8994_AIF2DRC_SIG_DET_PK_WIDTH              2  /* AIF2DRC_SIG_DET_PK -
+                                                         * [10:9] */
 #define WM8994_AIF2DRC_NG_ENA                   0x0100  /* AIF2DRC_NG_ENA */
 #define WM8994_AIF2DRC_NG_ENA_MASK              0x0100  /* AIF2DRC_NG_ENA */
 #define WM8994_AIF2DRC_NG_ENA_SHIFT                  8  /* AIF2DRC_NG_ENA */
 #define WM8994_AIF2DRC_NG_ENA_WIDTH                  1  /* AIF2DRC_NG_ENA */
-#define WM8994_AIF2DRC_SIG_DET_MODE             0x0080  /* AIF2DRC_SIG_DET_MODE */
-#define WM8994_AIF2DRC_SIG_DET_MODE_MASK        0x0080  /* AIF2DRC_SIG_DET_MODE */
-#define WM8994_AIF2DRC_SIG_DET_MODE_SHIFT            7  /* AIF2DRC_SIG_DET_MODE */
-#define WM8994_AIF2DRC_SIG_DET_MODE_WIDTH            1  /* AIF2DRC_SIG_DET_MODE */
+#define WM8994_AIF2DRC_SIG_DET_MODE             0x0080  /* AIF2DRC_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_MODE_MASK        0x0080  /* AIF2DRC_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_MODE_SHIFT            7  /* AIF2DRC_SIG_DET_MODE
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_MODE_WIDTH            1  /* AIF2DRC_SIG_DET_MODE
+                                                         * */
 #define WM8994_AIF2DRC_SIG_DET                  0x0040  /* AIF2DRC_SIG_DET */
 #define WM8994_AIF2DRC_SIG_DET_MASK             0x0040  /* AIF2DRC_SIG_DET */
 #define WM8994_AIF2DRC_SIG_DET_SHIFT                 6  /* AIF2DRC_SIG_DET */
 #define WM8994_AIF2DRC_SIG_DET_WIDTH                 1  /* AIF2DRC_SIG_DET */
-#define WM8994_AIF2DRC_KNEE2_OP_ENA             0x0020  /* AIF2DRC_KNEE2_OP_ENA */
-#define WM8994_AIF2DRC_KNEE2_OP_ENA_MASK        0x0020  /* AIF2DRC_KNEE2_OP_ENA */
-#define WM8994_AIF2DRC_KNEE2_OP_ENA_SHIFT            5  /* AIF2DRC_KNEE2_OP_ENA */
-#define WM8994_AIF2DRC_KNEE2_OP_ENA_WIDTH            1  /* AIF2DRC_KNEE2_OP_ENA */
+#define WM8994_AIF2DRC_KNEE2_OP_ENA             0x0020  /* AIF2DRC_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF2DRC_KNEE2_OP_ENA_MASK        0x0020  /* AIF2DRC_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF2DRC_KNEE2_OP_ENA_SHIFT            5  /* AIF2DRC_KNEE2_OP_ENA
+                                                         * */
+#define WM8994_AIF2DRC_KNEE2_OP_ENA_WIDTH            1  /* AIF2DRC_KNEE2_OP_ENA
+                                                         * */
 #define WM8994_AIF2DRC_QR                       0x0010  /* AIF2DRC_QR */
 #define WM8994_AIF2DRC_QR_MASK                  0x0010  /* AIF2DRC_QR */
 #define WM8994_AIF2DRC_QR_SHIFT                      4  /* AIF2DRC_QR */
@@ -3817,73 +4467,124 @@
 /*
  * R1345 (0x541) - AIF2 DRC (2)
  */
-#define WM8994_AIF2DRC_ATK_MASK                 0x1E00  /* AIF2DRC_ATK - [12:9] */
-#define WM8994_AIF2DRC_ATK_SHIFT                     9  /* AIF2DRC_ATK - [12:9] */
-#define WM8994_AIF2DRC_ATK_WIDTH                     4  /* AIF2DRC_ATK - [12:9] */
-#define WM8994_AIF2DRC_DCY_MASK                 0x01E0  /* AIF2DRC_DCY - [8:5] */
-#define WM8994_AIF2DRC_DCY_SHIFT                     5  /* AIF2DRC_DCY - [8:5] */
-#define WM8994_AIF2DRC_DCY_WIDTH                     4  /* AIF2DRC_DCY - [8:5] */
-#define WM8994_AIF2DRC_MINGAIN_MASK             0x001C  /* AIF2DRC_MINGAIN - [4:2] */
-#define WM8994_AIF2DRC_MINGAIN_SHIFT                 2  /* AIF2DRC_MINGAIN - [4:2] */
-#define WM8994_AIF2DRC_MINGAIN_WIDTH                 3  /* AIF2DRC_MINGAIN - [4:2] */
-#define WM8994_AIF2DRC_MAXGAIN_MASK             0x0003  /* AIF2DRC_MAXGAIN - [1:0] */
-#define WM8994_AIF2DRC_MAXGAIN_SHIFT                 0  /* AIF2DRC_MAXGAIN - [1:0] */
-#define WM8994_AIF2DRC_MAXGAIN_WIDTH                 2  /* AIF2DRC_MAXGAIN - [1:0] */
+#define WM8994_AIF2DRC_ATK_MASK                 0x1E00  /* AIF2DRC_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF2DRC_ATK_SHIFT                     9  /* AIF2DRC_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF2DRC_ATK_WIDTH                     4  /* AIF2DRC_ATK - [12:9]
+                                                         * */
+#define WM8994_AIF2DRC_DCY_MASK                 0x01E0  /* AIF2DRC_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF2DRC_DCY_SHIFT                     5  /* AIF2DRC_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF2DRC_DCY_WIDTH                     4  /* AIF2DRC_DCY - [8:5]
+                                                         * */
+#define WM8994_AIF2DRC_MINGAIN_MASK             0x001C  /* AIF2DRC_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF2DRC_MINGAIN_SHIFT                 2  /* AIF2DRC_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF2DRC_MINGAIN_WIDTH                 3  /* AIF2DRC_MINGAIN -
+                                                         * [4:2] */
+#define WM8994_AIF2DRC_MAXGAIN_MASK             0x0003  /* AIF2DRC_MAXGAIN -
+                                                         * [1:0] */
+#define WM8994_AIF2DRC_MAXGAIN_SHIFT                 0  /* AIF2DRC_MAXGAIN -
+                                                         * [1:0] */
+#define WM8994_AIF2DRC_MAXGAIN_WIDTH                 2  /* AIF2DRC_MAXGAIN -
+                                                         * [1:0] */
 
 /*
  * R1346 (0x542) - AIF2 DRC (3)
  */
-#define WM8994_AIF2DRC_NG_MINGAIN_MASK          0xF000  /* AIF2DRC_NG_MINGAIN - [15:12] */
-#define WM8994_AIF2DRC_NG_MINGAIN_SHIFT             12  /* AIF2DRC_NG_MINGAIN - [15:12] */
-#define WM8994_AIF2DRC_NG_MINGAIN_WIDTH              4  /* AIF2DRC_NG_MINGAIN - [15:12] */
-#define WM8994_AIF2DRC_NG_EXP_MASK              0x0C00  /* AIF2DRC_NG_EXP - [11:10] */
-#define WM8994_AIF2DRC_NG_EXP_SHIFT                 10  /* AIF2DRC_NG_EXP - [11:10] */
-#define WM8994_AIF2DRC_NG_EXP_WIDTH                  2  /* AIF2DRC_NG_EXP - [11:10] */
-#define WM8994_AIF2DRC_QR_THR_MASK              0x0300  /* AIF2DRC_QR_THR - [9:8] */
-#define WM8994_AIF2DRC_QR_THR_SHIFT                  8  /* AIF2DRC_QR_THR - [9:8] */
-#define WM8994_AIF2DRC_QR_THR_WIDTH                  2  /* AIF2DRC_QR_THR - [9:8] */
-#define WM8994_AIF2DRC_QR_DCY_MASK              0x00C0  /* AIF2DRC_QR_DCY - [7:6] */
-#define WM8994_AIF2DRC_QR_DCY_SHIFT                  6  /* AIF2DRC_QR_DCY - [7:6] */
-#define WM8994_AIF2DRC_QR_DCY_WIDTH                  2  /* AIF2DRC_QR_DCY - [7:6] */
-#define WM8994_AIF2DRC_HI_COMP_MASK             0x0038  /* AIF2DRC_HI_COMP - [5:3] */
-#define WM8994_AIF2DRC_HI_COMP_SHIFT                 3  /* AIF2DRC_HI_COMP - [5:3] */
-#define WM8994_AIF2DRC_HI_COMP_WIDTH                 3  /* AIF2DRC_HI_COMP - [5:3] */
-#define WM8994_AIF2DRC_LO_COMP_MASK             0x0007  /* AIF2DRC_LO_COMP - [2:0] */
-#define WM8994_AIF2DRC_LO_COMP_SHIFT                 0  /* AIF2DRC_LO_COMP - [2:0] */
-#define WM8994_AIF2DRC_LO_COMP_WIDTH                 3  /* AIF2DRC_LO_COMP - [2:0] */
+#define WM8994_AIF2DRC_NG_MINGAIN_MASK          0xF000  /* AIF2DRC_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF2DRC_NG_MINGAIN_SHIFT             12  /* AIF2DRC_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF2DRC_NG_MINGAIN_WIDTH              4  /* AIF2DRC_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8994_AIF2DRC_NG_EXP_MASK              0x0C00  /* AIF2DRC_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF2DRC_NG_EXP_SHIFT                 10  /* AIF2DRC_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF2DRC_NG_EXP_WIDTH                  2  /* AIF2DRC_NG_EXP -
+                                                         * [11:10] */
+#define WM8994_AIF2DRC_QR_THR_MASK              0x0300  /* AIF2DRC_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF2DRC_QR_THR_SHIFT                  8  /* AIF2DRC_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF2DRC_QR_THR_WIDTH                  2  /* AIF2DRC_QR_THR -
+                                                         * [9:8] */
+#define WM8994_AIF2DRC_QR_DCY_MASK              0x00C0  /* AIF2DRC_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF2DRC_QR_DCY_SHIFT                  6  /* AIF2DRC_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF2DRC_QR_DCY_WIDTH                  2  /* AIF2DRC_QR_DCY -
+                                                         * [7:6] */
+#define WM8994_AIF2DRC_HI_COMP_MASK             0x0038  /* AIF2DRC_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF2DRC_HI_COMP_SHIFT                 3  /* AIF2DRC_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF2DRC_HI_COMP_WIDTH                 3  /* AIF2DRC_HI_COMP -
+                                                         * [5:3] */
+#define WM8994_AIF2DRC_LO_COMP_MASK             0x0007  /* AIF2DRC_LO_COMP -
+                                                         * [2:0] */
+#define WM8994_AIF2DRC_LO_COMP_SHIFT                 0  /* AIF2DRC_LO_COMP -
+                                                         * [2:0] */
+#define WM8994_AIF2DRC_LO_COMP_WIDTH                 3  /* AIF2DRC_LO_COMP -
+                                                         * [2:0] */
 
 /*
  * R1347 (0x543) - AIF2 DRC (4)
  */
-#define WM8994_AIF2DRC_KNEE_IP_MASK             0x07E0  /* AIF2DRC_KNEE_IP - [10:5] */
-#define WM8994_AIF2DRC_KNEE_IP_SHIFT                 5  /* AIF2DRC_KNEE_IP - [10:5] */
-#define WM8994_AIF2DRC_KNEE_IP_WIDTH                 6  /* AIF2DRC_KNEE_IP - [10:5] */
-#define WM8994_AIF2DRC_KNEE_OP_MASK             0x001F  /* AIF2DRC_KNEE_OP - [4:0] */
-#define WM8994_AIF2DRC_KNEE_OP_SHIFT                 0  /* AIF2DRC_KNEE_OP - [4:0] */
-#define WM8994_AIF2DRC_KNEE_OP_WIDTH                 5  /* AIF2DRC_KNEE_OP - [4:0] */
+#define WM8994_AIF2DRC_KNEE_IP_MASK             0x07E0  /* AIF2DRC_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF2DRC_KNEE_IP_SHIFT                 5  /* AIF2DRC_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF2DRC_KNEE_IP_WIDTH                 6  /* AIF2DRC_KNEE_IP -
+                                                         * [10:5] */
+#define WM8994_AIF2DRC_KNEE_OP_MASK             0x001F  /* AIF2DRC_KNEE_OP -
+                                                         * [4:0] */
+#define WM8994_AIF2DRC_KNEE_OP_SHIFT                 0  /* AIF2DRC_KNEE_OP -
+                                                         * [4:0] */
+#define WM8994_AIF2DRC_KNEE_OP_WIDTH                 5  /* AIF2DRC_KNEE_OP -
+                                                         * [4:0] */
 
 /*
  * R1348 (0x544) - AIF2 DRC (5)
  */
-#define WM8994_AIF2DRC_KNEE2_IP_MASK            0x03E0  /* AIF2DRC_KNEE2_IP - [9:5] */
-#define WM8994_AIF2DRC_KNEE2_IP_SHIFT                5  /* AIF2DRC_KNEE2_IP - [9:5] */
-#define WM8994_AIF2DRC_KNEE2_IP_WIDTH                5  /* AIF2DRC_KNEE2_IP - [9:5] */
-#define WM8994_AIF2DRC_KNEE2_OP_MASK            0x001F  /* AIF2DRC_KNEE2_OP - [4:0] */
-#define WM8994_AIF2DRC_KNEE2_OP_SHIFT                0  /* AIF2DRC_KNEE2_OP - [4:0] */
-#define WM8994_AIF2DRC_KNEE2_OP_WIDTH                5  /* AIF2DRC_KNEE2_OP - [4:0] */
+#define WM8994_AIF2DRC_KNEE2_IP_MASK            0x03E0  /* AIF2DRC_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF2DRC_KNEE2_IP_SHIFT                5  /* AIF2DRC_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF2DRC_KNEE2_IP_WIDTH                5  /* AIF2DRC_KNEE2_IP -
+                                                         * [9:5] */
+#define WM8994_AIF2DRC_KNEE2_OP_MASK            0x001F  /* AIF2DRC_KNEE2_OP -
+                                                         * [4:0] */
+#define WM8994_AIF2DRC_KNEE2_OP_SHIFT                0  /* AIF2DRC_KNEE2_OP -
+                                                         * [4:0] */
+#define WM8994_AIF2DRC_KNEE2_OP_WIDTH                5  /* AIF2DRC_KNEE2_OP -
+                                                         * [4:0] */
 
 /*
  * R1408 (0x580) - AIF2 EQ Gains (1)
  */
-#define WM8994_AIF2DAC_EQ_B1_GAIN_MASK          0xF800  /* AIF2DAC_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF2DAC_EQ_B1_GAIN_SHIFT             11  /* AIF2DAC_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF2DAC_EQ_B1_GAIN_WIDTH              5  /* AIF2DAC_EQ_B1_GAIN - [15:11] */
-#define WM8994_AIF2DAC_EQ_B2_GAIN_MASK          0x07C0  /* AIF2DAC_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF2DAC_EQ_B2_GAIN_SHIFT              6  /* AIF2DAC_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF2DAC_EQ_B2_GAIN_WIDTH              5  /* AIF2DAC_EQ_B2_GAIN - [10:6] */
-#define WM8994_AIF2DAC_EQ_B3_GAIN_MASK          0x003E  /* AIF2DAC_EQ_B3_GAIN - [5:1] */
-#define WM8994_AIF2DAC_EQ_B3_GAIN_SHIFT              1  /* AIF2DAC_EQ_B3_GAIN - [5:1] */
-#define WM8994_AIF2DAC_EQ_B3_GAIN_WIDTH              5  /* AIF2DAC_EQ_B3_GAIN - [5:1] */
+#define WM8994_AIF2DAC_EQ_B1_GAIN_MASK          0xF800  /* AIF2DAC_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF2DAC_EQ_B1_GAIN_SHIFT             11  /* AIF2DAC_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF2DAC_EQ_B1_GAIN_WIDTH              5  /* AIF2DAC_EQ_B1_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF2DAC_EQ_B2_GAIN_MASK          0x07C0  /* AIF2DAC_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF2DAC_EQ_B2_GAIN_SHIFT              6  /* AIF2DAC_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF2DAC_EQ_B2_GAIN_WIDTH              5  /* AIF2DAC_EQ_B2_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF2DAC_EQ_B3_GAIN_MASK          0x003E  /* AIF2DAC_EQ_B3_GAIN -
+                                                         * [5:1] */
+#define WM8994_AIF2DAC_EQ_B3_GAIN_SHIFT              1  /* AIF2DAC_EQ_B3_GAIN -
+                                                         * [5:1] */
+#define WM8994_AIF2DAC_EQ_B3_GAIN_WIDTH              5  /* AIF2DAC_EQ_B3_GAIN -
+                                                         * [5:1] */
 #define WM8994_AIF2DAC_EQ_ENA                   0x0001  /* AIF2DAC_EQ_ENA */
 #define WM8994_AIF2DAC_EQ_ENA_MASK              0x0001  /* AIF2DAC_EQ_ENA */
 #define WM8994_AIF2DAC_EQ_ENA_SHIFT                  0  /* AIF2DAC_EQ_ENA */
@@ -3892,148 +4593,214 @@
 /*
  * R1409 (0x581) - AIF2 EQ Gains (2)
  */
-#define WM8994_AIF2DAC_EQ_B4_GAIN_MASK          0xF800  /* AIF2DAC_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF2DAC_EQ_B4_GAIN_SHIFT             11  /* AIF2DAC_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF2DAC_EQ_B4_GAIN_WIDTH              5  /* AIF2DAC_EQ_B4_GAIN - [15:11] */
-#define WM8994_AIF2DAC_EQ_B5_GAIN_MASK          0x07C0  /* AIF2DAC_EQ_B5_GAIN - [10:6] */
-#define WM8994_AIF2DAC_EQ_B5_GAIN_SHIFT              6  /* AIF2DAC_EQ_B5_GAIN - [10:6] */
-#define WM8994_AIF2DAC_EQ_B5_GAIN_WIDTH              5  /* AIF2DAC_EQ_B5_GAIN - [10:6] */
+#define WM8994_AIF2DAC_EQ_B4_GAIN_MASK          0xF800  /* AIF2DAC_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF2DAC_EQ_B4_GAIN_SHIFT             11  /* AIF2DAC_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF2DAC_EQ_B4_GAIN_WIDTH              5  /* AIF2DAC_EQ_B4_GAIN -
+                                                         * [15:11] */
+#define WM8994_AIF2DAC_EQ_B5_GAIN_MASK          0x07C0  /* AIF2DAC_EQ_B5_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF2DAC_EQ_B5_GAIN_SHIFT              6  /* AIF2DAC_EQ_B5_GAIN -
+                                                         * [10:6] */
+#define WM8994_AIF2DAC_EQ_B5_GAIN_WIDTH              5  /* AIF2DAC_EQ_B5_GAIN -
+                                                         * [10:6] */
 
 /*
  * R1410 (0x582) - AIF2 EQ Band 1 A
  */
-#define WM8994_AIF2DAC_EQ_B1_A_MASK             0xFFFF  /* AIF2DAC_EQ_B1_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B1_A_SHIFT                 0  /* AIF2DAC_EQ_B1_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B1_A_WIDTH                16  /* AIF2DAC_EQ_B1_A - [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_A_MASK             0xFFFF  /* AIF2DAC_EQ_B1_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_A_SHIFT                 0  /* AIF2DAC_EQ_B1_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_A_WIDTH                16  /* AIF2DAC_EQ_B1_A -
+                                                         * [15:0] */
 
 /*
  * R1411 (0x583) - AIF2 EQ Band 1 B
  */
-#define WM8994_AIF2DAC_EQ_B1_B_MASK             0xFFFF  /* AIF2DAC_EQ_B1_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B1_B_SHIFT                 0  /* AIF2DAC_EQ_B1_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B1_B_WIDTH                16  /* AIF2DAC_EQ_B1_B - [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_B_MASK             0xFFFF  /* AIF2DAC_EQ_B1_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_B_SHIFT                 0  /* AIF2DAC_EQ_B1_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_B_WIDTH                16  /* AIF2DAC_EQ_B1_B -
+                                                         * [15:0] */
 
 /*
  * R1412 (0x584) - AIF2 EQ Band 1 PG
  */
-#define WM8994_AIF2DAC_EQ_B1_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B1_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B1_PG_SHIFT                0  /* AIF2DAC_EQ_B1_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B1_PG_WIDTH               16  /* AIF2DAC_EQ_B1_PG - [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B1_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_PG_SHIFT                0  /* AIF2DAC_EQ_B1_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B1_PG_WIDTH               16  /* AIF2DAC_EQ_B1_PG -
+                                                         * [15:0] */
 
 /*
  * R1413 (0x585) - AIF2 EQ Band 2 A
  */
-#define WM8994_AIF2DAC_EQ_B2_A_MASK             0xFFFF  /* AIF2DAC_EQ_B2_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_A_SHIFT                 0  /* AIF2DAC_EQ_B2_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_A_WIDTH                16  /* AIF2DAC_EQ_B2_A - [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_A_MASK             0xFFFF  /* AIF2DAC_EQ_B2_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_A_SHIFT                 0  /* AIF2DAC_EQ_B2_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_A_WIDTH                16  /* AIF2DAC_EQ_B2_A -
+                                                         * [15:0] */
 
 /*
  * R1414 (0x586) - AIF2 EQ Band 2 B
  */
-#define WM8994_AIF2DAC_EQ_B2_B_MASK             0xFFFF  /* AIF2DAC_EQ_B2_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_B_SHIFT                 0  /* AIF2DAC_EQ_B2_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_B_WIDTH                16  /* AIF2DAC_EQ_B2_B - [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_B_MASK             0xFFFF  /* AIF2DAC_EQ_B2_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_B_SHIFT                 0  /* AIF2DAC_EQ_B2_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_B_WIDTH                16  /* AIF2DAC_EQ_B2_B -
+                                                         * [15:0] */
 
 /*
  * R1415 (0x587) - AIF2 EQ Band 2 C
  */
-#define WM8994_AIF2DAC_EQ_B2_C_MASK             0xFFFF  /* AIF2DAC_EQ_B2_C - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_C_SHIFT                 0  /* AIF2DAC_EQ_B2_C - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_C_WIDTH                16  /* AIF2DAC_EQ_B2_C - [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_C_MASK             0xFFFF  /* AIF2DAC_EQ_B2_C -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_C_SHIFT                 0  /* AIF2DAC_EQ_B2_C -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_C_WIDTH                16  /* AIF2DAC_EQ_B2_C -
+                                                         * [15:0] */
 
 /*
  * R1416 (0x588) - AIF2 EQ Band 2 PG
  */
-#define WM8994_AIF2DAC_EQ_B2_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B2_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_PG_SHIFT                0  /* AIF2DAC_EQ_B2_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B2_PG_WIDTH               16  /* AIF2DAC_EQ_B2_PG - [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B2_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_PG_SHIFT                0  /* AIF2DAC_EQ_B2_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B2_PG_WIDTH               16  /* AIF2DAC_EQ_B2_PG -
+                                                         * [15:0] */
 
 /*
  * R1417 (0x589) - AIF2 EQ Band 3 A
  */
-#define WM8994_AIF2DAC_EQ_B3_A_MASK             0xFFFF  /* AIF2DAC_EQ_B3_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_A_SHIFT                 0  /* AIF2DAC_EQ_B3_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_A_WIDTH                16  /* AIF2DAC_EQ_B3_A - [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_A_MASK             0xFFFF  /* AIF2DAC_EQ_B3_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_A_SHIFT                 0  /* AIF2DAC_EQ_B3_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_A_WIDTH                16  /* AIF2DAC_EQ_B3_A -
+                                                         * [15:0] */
 
 /*
  * R1418 (0x58A) - AIF2 EQ Band 3 B
  */
-#define WM8994_AIF2DAC_EQ_B3_B_MASK             0xFFFF  /* AIF2DAC_EQ_B3_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_B_SHIFT                 0  /* AIF2DAC_EQ_B3_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_B_WIDTH                16  /* AIF2DAC_EQ_B3_B - [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_B_MASK             0xFFFF  /* AIF2DAC_EQ_B3_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_B_SHIFT                 0  /* AIF2DAC_EQ_B3_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_B_WIDTH                16  /* AIF2DAC_EQ_B3_B -
+                                                         * [15:0] */
 
 /*
  * R1419 (0x58B) - AIF2 EQ Band 3 C
  */
-#define WM8994_AIF2DAC_EQ_B3_C_MASK             0xFFFF  /* AIF2DAC_EQ_B3_C - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_C_SHIFT                 0  /* AIF2DAC_EQ_B3_C - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_C_WIDTH                16  /* AIF2DAC_EQ_B3_C - [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_C_MASK             0xFFFF  /* AIF2DAC_EQ_B3_C -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_C_SHIFT                 0  /* AIF2DAC_EQ_B3_C -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_C_WIDTH                16  /* AIF2DAC_EQ_B3_C -
+                                                         * [15:0] */
 
 /*
  * R1420 (0x58C) - AIF2 EQ Band 3 PG
  */
-#define WM8994_AIF2DAC_EQ_B3_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B3_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_PG_SHIFT                0  /* AIF2DAC_EQ_B3_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B3_PG_WIDTH               16  /* AIF2DAC_EQ_B3_PG - [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B3_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_PG_SHIFT                0  /* AIF2DAC_EQ_B3_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B3_PG_WIDTH               16  /* AIF2DAC_EQ_B3_PG -
+                                                         * [15:0] */
 
 /*
  * R1421 (0x58D) - AIF2 EQ Band 4 A
  */
-#define WM8994_AIF2DAC_EQ_B4_A_MASK             0xFFFF  /* AIF2DAC_EQ_B4_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_A_SHIFT                 0  /* AIF2DAC_EQ_B4_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_A_WIDTH                16  /* AIF2DAC_EQ_B4_A - [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_A_MASK             0xFFFF  /* AIF2DAC_EQ_B4_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_A_SHIFT                 0  /* AIF2DAC_EQ_B4_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_A_WIDTH                16  /* AIF2DAC_EQ_B4_A -
+                                                         * [15:0] */
 
 /*
  * R1422 (0x58E) - AIF2 EQ Band 4 B
  */
-#define WM8994_AIF2DAC_EQ_B4_B_MASK             0xFFFF  /* AIF2DAC_EQ_B4_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_B_SHIFT                 0  /* AIF2DAC_EQ_B4_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_B_WIDTH                16  /* AIF2DAC_EQ_B4_B - [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_B_MASK             0xFFFF  /* AIF2DAC_EQ_B4_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_B_SHIFT                 0  /* AIF2DAC_EQ_B4_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_B_WIDTH                16  /* AIF2DAC_EQ_B4_B -
+                                                         * [15:0] */
 
 /*
  * R1423 (0x58F) - AIF2 EQ Band 4 C
  */
-#define WM8994_AIF2DAC_EQ_B4_C_MASK             0xFFFF  /* AIF2DAC_EQ_B4_C - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_C_SHIFT                 0  /* AIF2DAC_EQ_B4_C - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_C_WIDTH                16  /* AIF2DAC_EQ_B4_C - [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_C_MASK             0xFFFF  /* AIF2DAC_EQ_B4_C -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_C_SHIFT                 0  /* AIF2DAC_EQ_B4_C -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_C_WIDTH                16  /* AIF2DAC_EQ_B4_C -
+                                                         * [15:0] */
 
 /*
  * R1424 (0x590) - AIF2 EQ Band 4 PG
  */
-#define WM8994_AIF2DAC_EQ_B4_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B4_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_PG_SHIFT                0  /* AIF2DAC_EQ_B4_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B4_PG_WIDTH               16  /* AIF2DAC_EQ_B4_PG - [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B4_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_PG_SHIFT                0  /* AIF2DAC_EQ_B4_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B4_PG_WIDTH               16  /* AIF2DAC_EQ_B4_PG -
+                                                         * [15:0] */
 
 /*
  * R1425 (0x591) - AIF2 EQ Band 5 A
  */
-#define WM8994_AIF2DAC_EQ_B5_A_MASK             0xFFFF  /* AIF2DAC_EQ_B5_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B5_A_SHIFT                 0  /* AIF2DAC_EQ_B5_A - [15:0] */
-#define WM8994_AIF2DAC_EQ_B5_A_WIDTH                16  /* AIF2DAC_EQ_B5_A - [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_A_MASK             0xFFFF  /* AIF2DAC_EQ_B5_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_A_SHIFT                 0  /* AIF2DAC_EQ_B5_A -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_A_WIDTH                16  /* AIF2DAC_EQ_B5_A -
+                                                         * [15:0] */
 
 /*
  * R1426 (0x592) - AIF2 EQ Band 5 B
  */
-#define WM8994_AIF2DAC_EQ_B5_B_MASK             0xFFFF  /* AIF2DAC_EQ_B5_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B5_B_SHIFT                 0  /* AIF2DAC_EQ_B5_B - [15:0] */
-#define WM8994_AIF2DAC_EQ_B5_B_WIDTH                16  /* AIF2DAC_EQ_B5_B - [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_B_MASK             0xFFFF  /* AIF2DAC_EQ_B5_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_B_SHIFT                 0  /* AIF2DAC_EQ_B5_B -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_B_WIDTH                16  /* AIF2DAC_EQ_B5_B -
+                                                         * [15:0] */
 
 /*
  * R1427 (0x593) - AIF2 EQ Band 5 PG
  */
-#define WM8994_AIF2DAC_EQ_B5_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B5_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B5_PG_SHIFT                0  /* AIF2DAC_EQ_B5_PG - [15:0] */
-#define WM8994_AIF2DAC_EQ_B5_PG_WIDTH               16  /* AIF2DAC_EQ_B5_PG - [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_PG_MASK            0xFFFF  /* AIF2DAC_EQ_B5_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_PG_SHIFT                0  /* AIF2DAC_EQ_B5_PG -
+                                                         * [15:0] */
+#define WM8994_AIF2DAC_EQ_B5_PG_WIDTH               16  /* AIF2DAC_EQ_B5_PG -
+                                                         * [15:0] */
 
 /*
  * R1536 (0x600) - DAC1 Mixer Volumes
  */
-#define WM8994_ADCR_DAC1_VOL_MASK               0x01E0  /* ADCR_DAC1_VOL - [8:5] */
-#define WM8994_ADCR_DAC1_VOL_SHIFT                   5  /* ADCR_DAC1_VOL - [8:5] */
-#define WM8994_ADCR_DAC1_VOL_WIDTH                   4  /* ADCR_DAC1_VOL - [8:5] */
-#define WM8994_ADCL_DAC1_VOL_MASK               0x000F  /* ADCL_DAC1_VOL - [3:0] */
-#define WM8994_ADCL_DAC1_VOL_SHIFT                   0  /* ADCL_DAC1_VOL - [3:0] */
-#define WM8994_ADCL_DAC1_VOL_WIDTH                   4  /* ADCL_DAC1_VOL - [3:0] */
+#define WM8994_ADCR_DAC1_VOL_MASK               0x01E0  /* ADCR_DAC1_VOL - [8:5]
+                                                         * */
+#define WM8994_ADCR_DAC1_VOL_SHIFT                   5  /* ADCR_DAC1_VOL - [8:5]
+                                                         * */
+#define WM8994_ADCR_DAC1_VOL_WIDTH                   4  /* ADCR_DAC1_VOL - [8:5]
+                                                         * */
+#define WM8994_ADCL_DAC1_VOL_MASK               0x000F  /* ADCL_DAC1_VOL - [3:0]
+                                                         * */
+#define WM8994_ADCL_DAC1_VOL_SHIFT                   0  /* ADCL_DAC1_VOL - [3:0]
+                                                         * */
+#define WM8994_ADCL_DAC1_VOL_WIDTH                   4  /* ADCL_DAC1_VOL - [3:0]
+                                                         * */
 
 /*
  * R1537 (0x601) - DAC1 Left Mixer Routing
@@ -4086,12 +4853,18 @@
 /*
  * R1539 (0x603) - DAC2 Mixer Volumes
  */
-#define WM8994_ADCR_DAC2_VOL_MASK               0x01E0  /* ADCR_DAC2_VOL - [8:5] */
-#define WM8994_ADCR_DAC2_VOL_SHIFT                   5  /* ADCR_DAC2_VOL - [8:5] */
-#define WM8994_ADCR_DAC2_VOL_WIDTH                   4  /* ADCR_DAC2_VOL - [8:5] */
-#define WM8994_ADCL_DAC2_VOL_MASK               0x000F  /* ADCL_DAC2_VOL - [3:0] */
-#define WM8994_ADCL_DAC2_VOL_SHIFT                   0  /* ADCL_DAC2_VOL - [3:0] */
-#define WM8994_ADCL_DAC2_VOL_WIDTH                   4  /* ADCL_DAC2_VOL - [3:0] */
+#define WM8994_ADCR_DAC2_VOL_MASK               0x01E0  /* ADCR_DAC2_VOL - [8:5]
+                                                         * */
+#define WM8994_ADCR_DAC2_VOL_SHIFT                   5  /* ADCR_DAC2_VOL - [8:5]
+                                                         * */
+#define WM8994_ADCR_DAC2_VOL_WIDTH                   4  /* ADCR_DAC2_VOL - [8:5]
+                                                         * */
+#define WM8994_ADCL_DAC2_VOL_MASK               0x000F  /* ADCL_DAC2_VOL - [3:0]
+                                                         * */
+#define WM8994_ADCL_DAC2_VOL_SHIFT                   0  /* ADCL_DAC2_VOL - [3:0]
+                                                         * */
+#define WM8994_ADCL_DAC2_VOL_WIDTH                   4  /* ADCL_DAC2_VOL - [3:0]
+                                                         * */
 
 /*
  * R1540 (0x604) - DAC2 Left Mixer Routing
@@ -4148,10 +4921,14 @@
 #define WM8994_ADC1L_TO_AIF1ADC1L_MASK          0x0002  /* ADC1L_TO_AIF1ADC1L */
 #define WM8994_ADC1L_TO_AIF1ADC1L_SHIFT              1  /* ADC1L_TO_AIF1ADC1L */
 #define WM8994_ADC1L_TO_AIF1ADC1L_WIDTH              1  /* ADC1L_TO_AIF1ADC1L */
-#define WM8994_AIF2DACL_TO_AIF1ADC1L            0x0001  /* AIF2DACL_TO_AIF1ADC1L */
-#define WM8994_AIF2DACL_TO_AIF1ADC1L_MASK       0x0001  /* AIF2DACL_TO_AIF1ADC1L */
-#define WM8994_AIF2DACL_TO_AIF1ADC1L_SHIFT           0  /* AIF2DACL_TO_AIF1ADC1L */
-#define WM8994_AIF2DACL_TO_AIF1ADC1L_WIDTH           1  /* AIF2DACL_TO_AIF1ADC1L */
+#define WM8994_AIF2DACL_TO_AIF1ADC1L            0x0001  /* AIF2DACL_TO_AIF1ADC1L
+                                                         * */
+#define WM8994_AIF2DACL_TO_AIF1ADC1L_MASK       0x0001  /* AIF2DACL_TO_AIF1ADC1L
+                                                         * */
+#define WM8994_AIF2DACL_TO_AIF1ADC1L_SHIFT           0  /* AIF2DACL_TO_AIF1ADC1L
+                                                         * */
+#define WM8994_AIF2DACL_TO_AIF1ADC1L_WIDTH           1  /* AIF2DACL_TO_AIF1ADC1L
+                                                         * */
 
 /*
  * R1543 (0x607) - AIF1 ADC1 Right Mixer Routing
@@ -4160,10 +4937,14 @@
 #define WM8994_ADC1R_TO_AIF1ADC1R_MASK          0x0002  /* ADC1R_TO_AIF1ADC1R */
 #define WM8994_ADC1R_TO_AIF1ADC1R_SHIFT              1  /* ADC1R_TO_AIF1ADC1R */
 #define WM8994_ADC1R_TO_AIF1ADC1R_WIDTH              1  /* ADC1R_TO_AIF1ADC1R */
-#define WM8994_AIF2DACR_TO_AIF1ADC1R            0x0001  /* AIF2DACR_TO_AIF1ADC1R */
-#define WM8994_AIF2DACR_TO_AIF1ADC1R_MASK       0x0001  /* AIF2DACR_TO_AIF1ADC1R */
-#define WM8994_AIF2DACR_TO_AIF1ADC1R_SHIFT           0  /* AIF2DACR_TO_AIF1ADC1R */
-#define WM8994_AIF2DACR_TO_AIF1ADC1R_WIDTH           1  /* AIF2DACR_TO_AIF1ADC1R */
+#define WM8994_AIF2DACR_TO_AIF1ADC1R            0x0001  /* AIF2DACR_TO_AIF1ADC1R
+                                                         * */
+#define WM8994_AIF2DACR_TO_AIF1ADC1R_MASK       0x0001  /* AIF2DACR_TO_AIF1ADC1R
+                                                         * */
+#define WM8994_AIF2DACR_TO_AIF1ADC1R_SHIFT           0  /* AIF2DACR_TO_AIF1ADC1R
+                                                         * */
+#define WM8994_AIF2DACR_TO_AIF1ADC1R_WIDTH           1  /* AIF2DACR_TO_AIF1ADC1R
+                                                         * */
 
 /*
  * R1544 (0x608) - AIF1 ADC2 Left Mixer Routing
@@ -4172,10 +4953,14 @@
 #define WM8994_ADC2L_TO_AIF1ADC2L_MASK          0x0002  /* ADC2L_TO_AIF1ADC2L */
 #define WM8994_ADC2L_TO_AIF1ADC2L_SHIFT              1  /* ADC2L_TO_AIF1ADC2L */
 #define WM8994_ADC2L_TO_AIF1ADC2L_WIDTH              1  /* ADC2L_TO_AIF1ADC2L */
-#define WM8994_AIF2DACL_TO_AIF1ADC2L            0x0001  /* AIF2DACL_TO_AIF1ADC2L */
-#define WM8994_AIF2DACL_TO_AIF1ADC2L_MASK       0x0001  /* AIF2DACL_TO_AIF1ADC2L */
-#define WM8994_AIF2DACL_TO_AIF1ADC2L_SHIFT           0  /* AIF2DACL_TO_AIF1ADC2L */
-#define WM8994_AIF2DACL_TO_AIF1ADC2L_WIDTH           1  /* AIF2DACL_TO_AIF1ADC2L */
+#define WM8994_AIF2DACL_TO_AIF1ADC2L            0x0001  /* AIF2DACL_TO_AIF1ADC2L
+                                                         * */
+#define WM8994_AIF2DACL_TO_AIF1ADC2L_MASK       0x0001  /* AIF2DACL_TO_AIF1ADC2L
+                                                         * */
+#define WM8994_AIF2DACL_TO_AIF1ADC2L_SHIFT           0  /* AIF2DACL_TO_AIF1ADC2L
+                                                         * */
+#define WM8994_AIF2DACL_TO_AIF1ADC2L_WIDTH           1  /* AIF2DACL_TO_AIF1ADC2L
+                                                         * */
 
 /*
  * R1545 (0x609) - AIF1 ADC2 Right mixer Routing
@@ -4184,10 +4969,14 @@
 #define WM8994_ADC2R_TO_AIF1ADC2R_MASK          0x0002  /* ADC2R_TO_AIF1ADC2R */
 #define WM8994_ADC2R_TO_AIF1ADC2R_SHIFT              1  /* ADC2R_TO_AIF1ADC2R */
 #define WM8994_ADC2R_TO_AIF1ADC2R_WIDTH              1  /* ADC2R_TO_AIF1ADC2R */
-#define WM8994_AIF2DACR_TO_AIF1ADC2R            0x0001  /* AIF2DACR_TO_AIF1ADC2R */
-#define WM8994_AIF2DACR_TO_AIF1ADC2R_MASK       0x0001  /* AIF2DACR_TO_AIF1ADC2R */
-#define WM8994_AIF2DACR_TO_AIF1ADC2R_SHIFT           0  /* AIF2DACR_TO_AIF1ADC2R */
-#define WM8994_AIF2DACR_TO_AIF1ADC2R_WIDTH           1  /* AIF2DACR_TO_AIF1ADC2R */
+#define WM8994_AIF2DACR_TO_AIF1ADC2R            0x0001  /* AIF2DACR_TO_AIF1ADC2R
+                                                         * */
+#define WM8994_AIF2DACR_TO_AIF1ADC2R_MASK       0x0001  /* AIF2DACR_TO_AIF1ADC2R
+                                                         * */
+#define WM8994_AIF2DACR_TO_AIF1ADC2R_SHIFT           0  /* AIF2DACR_TO_AIF1ADC2R
+                                                         * */
+#define WM8994_AIF2DACR_TO_AIF1ADC2R_WIDTH           1  /* AIF2DACR_TO_AIF1ADC2R
+                                                         * */
 
 /*
  * R1552 (0x610) - DAC1 Left Volume
@@ -4447,18 +5236,30 @@
 #define WM8994_FIFOS_ERR_EINT_MASK              0x1000  /* FIFOS_ERR_EINT */
 #define WM8994_FIFOS_ERR_EINT_SHIFT                 12  /* FIFOS_ERR_EINT */
 #define WM8994_FIFOS_ERR_EINT_WIDTH                  1  /* FIFOS_ERR_EINT */
-#define WM8994_AIF2DRC_SIG_DET_EINT             0x0800  /* AIF2DRC_SIG_DET_EINT */
-#define WM8994_AIF2DRC_SIG_DET_EINT_MASK        0x0800  /* AIF2DRC_SIG_DET_EINT */
-#define WM8994_AIF2DRC_SIG_DET_EINT_SHIFT           11  /* AIF2DRC_SIG_DET_EINT */
-#define WM8994_AIF2DRC_SIG_DET_EINT_WIDTH            1  /* AIF2DRC_SIG_DET_EINT */
-#define WM8994_AIF1DRC2_SIG_DET_EINT            0x0400  /* AIF1DRC2_SIG_DET_EINT */
-#define WM8994_AIF1DRC2_SIG_DET_EINT_MASK       0x0400  /* AIF1DRC2_SIG_DET_EINT */
-#define WM8994_AIF1DRC2_SIG_DET_EINT_SHIFT          10  /* AIF1DRC2_SIG_DET_EINT */
-#define WM8994_AIF1DRC2_SIG_DET_EINT_WIDTH           1  /* AIF1DRC2_SIG_DET_EINT */
-#define WM8994_AIF1DRC1_SIG_DET_EINT            0x0200  /* AIF1DRC1_SIG_DET_EINT */
-#define WM8994_AIF1DRC1_SIG_DET_EINT_MASK       0x0200  /* AIF1DRC1_SIG_DET_EINT */
-#define WM8994_AIF1DRC1_SIG_DET_EINT_SHIFT           9  /* AIF1DRC1_SIG_DET_EINT */
-#define WM8994_AIF1DRC1_SIG_DET_EINT_WIDTH           1  /* AIF1DRC1_SIG_DET_EINT */
+#define WM8994_AIF2DRC_SIG_DET_EINT             0x0800  /* AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_EINT_MASK        0x0800  /* AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_EINT_SHIFT           11  /* AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_EINT_WIDTH            1  /* AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_EINT            0x0400  /* AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_EINT_MASK       0x0400  /* AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_EINT_SHIFT          10  /* AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_EINT_WIDTH           1  /* AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_EINT            0x0200  /* AIF1DRC1_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_EINT_MASK       0x0200  /* AIF1DRC1_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_EINT_SHIFT           9  /* AIF1DRC1_SIG_DET_EINT
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_EINT_WIDTH           1  /* AIF1DRC1_SIG_DET_EINT
+                                                         * */
 #define WM8994_SRC2_LOCK_EINT                   0x0100  /* SRC2_LOCK_EINT */
 #define WM8994_SRC2_LOCK_EINT_MASK              0x0100  /* SRC2_LOCK_EINT */
 #define WM8994_SRC2_LOCK_EINT_SHIFT                  8  /* SRC2_LOCK_EINT */
@@ -4515,18 +5316,30 @@
 #define WM8994_FIFOS_ERR_STS_MASK               0x1000  /* FIFOS_ERR_STS */
 #define WM8994_FIFOS_ERR_STS_SHIFT                  12  /* FIFOS_ERR_STS */
 #define WM8994_FIFOS_ERR_STS_WIDTH                   1  /* FIFOS_ERR_STS */
-#define WM8994_AIF2DRC_SIG_DET_STS              0x0800  /* AIF2DRC_SIG_DET_STS */
-#define WM8994_AIF2DRC_SIG_DET_STS_MASK         0x0800  /* AIF2DRC_SIG_DET_STS */
-#define WM8994_AIF2DRC_SIG_DET_STS_SHIFT            11  /* AIF2DRC_SIG_DET_STS */
-#define WM8994_AIF2DRC_SIG_DET_STS_WIDTH             1  /* AIF2DRC_SIG_DET_STS */
-#define WM8994_AIF1DRC2_SIG_DET_STS             0x0400  /* AIF1DRC2_SIG_DET_STS */
-#define WM8994_AIF1DRC2_SIG_DET_STS_MASK        0x0400  /* AIF1DRC2_SIG_DET_STS */
-#define WM8994_AIF1DRC2_SIG_DET_STS_SHIFT           10  /* AIF1DRC2_SIG_DET_STS */
-#define WM8994_AIF1DRC2_SIG_DET_STS_WIDTH            1  /* AIF1DRC2_SIG_DET_STS */
-#define WM8994_AIF1DRC1_SIG_DET_STS             0x0200  /* AIF1DRC1_SIG_DET_STS */
-#define WM8994_AIF1DRC1_SIG_DET_STS_MASK        0x0200  /* AIF1DRC1_SIG_DET_STS */
-#define WM8994_AIF1DRC1_SIG_DET_STS_SHIFT            9  /* AIF1DRC1_SIG_DET_STS */
-#define WM8994_AIF1DRC1_SIG_DET_STS_WIDTH            1  /* AIF1DRC1_SIG_DET_STS */
+#define WM8994_AIF2DRC_SIG_DET_STS              0x0800  /* AIF2DRC_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_STS_MASK         0x0800  /* AIF2DRC_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_STS_SHIFT            11  /* AIF2DRC_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF2DRC_SIG_DET_STS_WIDTH             1  /* AIF2DRC_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_STS             0x0400  /* AIF1DRC2_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_STS_MASK        0x0400  /* AIF1DRC2_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_STS_SHIFT           10  /* AIF1DRC2_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC2_SIG_DET_STS_WIDTH            1  /* AIF1DRC2_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_STS             0x0200  /* AIF1DRC1_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_STS_MASK        0x0200  /* AIF1DRC1_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_STS_SHIFT            9  /* AIF1DRC1_SIG_DET_STS
+                                                         * */
+#define WM8994_AIF1DRC1_SIG_DET_STS_WIDTH            1  /* AIF1DRC1_SIG_DET_STS
+                                                         * */
 #define WM8994_SRC2_LOCK_STS                    0x0100  /* SRC2_LOCK_STS */
 #define WM8994_SRC2_LOCK_STS_MASK               0x0100  /* SRC2_LOCK_STS */
 #define WM8994_SRC2_LOCK_STS_SHIFT                   8  /* SRC2_LOCK_STS */
@@ -4631,18 +5444,42 @@
 #define WM8994_IM_FIFOS_ERR_EINT_MASK           0x1000  /* IM_FIFOS_ERR_EINT */
 #define WM8994_IM_FIFOS_ERR_EINT_SHIFT              12  /* IM_FIFOS_ERR_EINT */
 #define WM8994_IM_FIFOS_ERR_EINT_WIDTH               1  /* IM_FIFOS_ERR_EINT */
-#define WM8994_IM_AIF2DRC_SIG_DET_EINT          0x0800  /* IM_AIF2DRC_SIG_DET_EINT */
-#define WM8994_IM_AIF2DRC_SIG_DET_EINT_MASK     0x0800  /* IM_AIF2DRC_SIG_DET_EINT */
-#define WM8994_IM_AIF2DRC_SIG_DET_EINT_SHIFT        11  /* IM_AIF2DRC_SIG_DET_EINT */
-#define WM8994_IM_AIF2DRC_SIG_DET_EINT_WIDTH         1  /* IM_AIF2DRC_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC2_SIG_DET_EINT         0x0400  /* IM_AIF1DRC2_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC2_SIG_DET_EINT_MASK    0x0400  /* IM_AIF1DRC2_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC2_SIG_DET_EINT_SHIFT       10  /* IM_AIF1DRC2_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC2_SIG_DET_EINT_WIDTH        1  /* IM_AIF1DRC2_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC1_SIG_DET_EINT         0x0200  /* IM_AIF1DRC1_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC1_SIG_DET_EINT_MASK    0x0200  /* IM_AIF1DRC1_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC1_SIG_DET_EINT_SHIFT        9  /* IM_AIF1DRC1_SIG_DET_EINT */
-#define WM8994_IM_AIF1DRC1_SIG_DET_EINT_WIDTH        1  /* IM_AIF1DRC1_SIG_DET_EINT */
+#define WM8994_IM_AIF2DRC_SIG_DET_EINT          0x0800  /*
+                                                         * IM_AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF2DRC_SIG_DET_EINT_MASK     0x0800  /*
+                                                         * IM_AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF2DRC_SIG_DET_EINT_SHIFT        11  /*
+                                                         * IM_AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF2DRC_SIG_DET_EINT_WIDTH         1  /*
+                                                         * IM_AIF2DRC_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC2_SIG_DET_EINT         0x0400  /*
+                                                         * IM_AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC2_SIG_DET_EINT_MASK    0x0400  /*
+                                                         * IM_AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC2_SIG_DET_EINT_SHIFT       10  /*
+                                                         * IM_AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC2_SIG_DET_EINT_WIDTH        1  /*
+                                                         * IM_AIF1DRC2_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC1_SIG_DET_EINT         0x0200  /*
+                                                         * IM_AIF1DRC1_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC1_SIG_DET_EINT_MASK    0x0200  /*
+                                                         * IM_AIF1DRC1_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC1_SIG_DET_EINT_SHIFT        9  /*
+                                                         * IM_AIF1DRC1_SIG_DET_EINT
+                                                         * */
+#define WM8994_IM_AIF1DRC1_SIG_DET_EINT_WIDTH        1  /*
+                                                         * IM_AIF1DRC1_SIG_DET_EINT
+                                                         * */
 #define WM8994_IM_SRC2_LOCK_EINT                0x0100  /* IM_SRC2_LOCK_EINT */
 #define WM8994_IM_SRC2_LOCK_EINT_MASK           0x0100  /* IM_SRC2_LOCK_EINT */
 #define WM8994_IM_SRC2_LOCK_EINT_SHIFT               8  /* IM_SRC2_LOCK_EINT */
@@ -4738,53 +5575,80 @@
 /*
  * R2560 (0xA00) - DSP2_MagicNum
  */
-#define WM8958_DSP2_MAGIC_NUM_MASK              0xFFFF  /* DSP2_MAGIC_NUM - [15:0] */
-#define WM8958_DSP2_MAGIC_NUM_SHIFT                  0  /* DSP2_MAGIC_NUM - [15:0] */
-#define WM8958_DSP2_MAGIC_NUM_WIDTH                 16  /* DSP2_MAGIC_NUM - [15:0] */
+#define WM8958_DSP2_MAGIC_NUM_MASK              0xFFFF  /* DSP2_MAGIC_NUM -
+                                                         * [15:0] */
+#define WM8958_DSP2_MAGIC_NUM_SHIFT                  0  /* DSP2_MAGIC_NUM -
+                                                         * [15:0] */
+#define WM8958_DSP2_MAGIC_NUM_WIDTH                 16  /* DSP2_MAGIC_NUM -
+                                                         * [15:0] */
 
 /*
  * R2561 (0xA01) - DSP2_ReleaseYear
  */
-#define WM8958_DSP2_RELEASE_YEAR_MASK           0xFFFF  /* DSP2_RELEASE_YEAR - [15:0] */
-#define WM8958_DSP2_RELEASE_YEAR_SHIFT               0  /* DSP2_RELEASE_YEAR - [15:0] */
-#define WM8958_DSP2_RELEASE_YEAR_WIDTH              16  /* DSP2_RELEASE_YEAR - [15:0] */
+#define WM8958_DSP2_RELEASE_YEAR_MASK           0xFFFF  /* DSP2_RELEASE_YEAR -
+                                                         * [15:0] */
+#define WM8958_DSP2_RELEASE_YEAR_SHIFT               0  /* DSP2_RELEASE_YEAR -
+                                                         * [15:0] */
+#define WM8958_DSP2_RELEASE_YEAR_WIDTH              16  /* DSP2_RELEASE_YEAR -
+                                                         * [15:0] */
 
 /*
  * R2562 (0xA02) - DSP2_ReleaseMonthDay
  */
-#define WM8958_DSP2_RELEASE_MONTH_MASK          0xFF00  /* DSP2_RELEASE_MONTH - [15:8] */
-#define WM8958_DSP2_RELEASE_MONTH_SHIFT              8  /* DSP2_RELEASE_MONTH - [15:8] */
-#define WM8958_DSP2_RELEASE_MONTH_WIDTH              8  /* DSP2_RELEASE_MONTH - [15:8] */
-#define WM8958_DSP2_RELEASE_DAY_MASK            0x00FF  /* DSP2_RELEASE_DAY - [7:0] */
-#define WM8958_DSP2_RELEASE_DAY_SHIFT                0  /* DSP2_RELEASE_DAY - [7:0] */
-#define WM8958_DSP2_RELEASE_DAY_WIDTH                8  /* DSP2_RELEASE_DAY - [7:0] */
+#define WM8958_DSP2_RELEASE_MONTH_MASK          0xFF00  /* DSP2_RELEASE_MONTH -
+                                                         * [15:8] */
+#define WM8958_DSP2_RELEASE_MONTH_SHIFT              8  /* DSP2_RELEASE_MONTH -
+                                                         * [15:8] */
+#define WM8958_DSP2_RELEASE_MONTH_WIDTH              8  /* DSP2_RELEASE_MONTH -
+                                                         * [15:8] */
+#define WM8958_DSP2_RELEASE_DAY_MASK            0x00FF  /* DSP2_RELEASE_DAY -
+                                                         * [7:0] */
+#define WM8958_DSP2_RELEASE_DAY_SHIFT                0  /* DSP2_RELEASE_DAY -
+                                                         * [7:0] */
+#define WM8958_DSP2_RELEASE_DAY_WIDTH                8  /* DSP2_RELEASE_DAY -
+                                                         * [7:0] */
 
 /*
  * R2563 (0xA03) - DSP2_ReleaseTime
  */
-#define WM8958_DSP2_RELEASE_HOURS_MASK          0xFF00  /* DSP2_RELEASE_HOURS - [15:8] */
-#define WM8958_DSP2_RELEASE_HOURS_SHIFT              8  /* DSP2_RELEASE_HOURS - [15:8] */
-#define WM8958_DSP2_RELEASE_HOURS_WIDTH              8  /* DSP2_RELEASE_HOURS - [15:8] */
-#define WM8958_DSP2_RELEASE_MINS_MASK           0x00FF  /* DSP2_RELEASE_MINS - [7:0] */
-#define WM8958_DSP2_RELEASE_MINS_SHIFT               0  /* DSP2_RELEASE_MINS - [7:0] */
-#define WM8958_DSP2_RELEASE_MINS_WIDTH               8  /* DSP2_RELEASE_MINS - [7:0] */
+#define WM8958_DSP2_RELEASE_HOURS_MASK          0xFF00  /* DSP2_RELEASE_HOURS -
+                                                         * [15:8] */
+#define WM8958_DSP2_RELEASE_HOURS_SHIFT              8  /* DSP2_RELEASE_HOURS -
+                                                         * [15:8] */
+#define WM8958_DSP2_RELEASE_HOURS_WIDTH              8  /* DSP2_RELEASE_HOURS -
+                                                         * [15:8] */
+#define WM8958_DSP2_RELEASE_MINS_MASK           0x00FF  /* DSP2_RELEASE_MINS -
+                                                         * [7:0] */
+#define WM8958_DSP2_RELEASE_MINS_SHIFT               0  /* DSP2_RELEASE_MINS -
+                                                         * [7:0] */
+#define WM8958_DSP2_RELEASE_MINS_WIDTH               8  /* DSP2_RELEASE_MINS -
+                                                         * [7:0] */
 
 /*
  * R2564 (0xA04) - DSP2_VerMajMin
  */
-#define WM8958_DSP2_MAJOR_VER_MASK              0xFF00  /* DSP2_MAJOR_VER - [15:8] */
-#define WM8958_DSP2_MAJOR_VER_SHIFT                  8  /* DSP2_MAJOR_VER - [15:8] */
-#define WM8958_DSP2_MAJOR_VER_WIDTH                  8  /* DSP2_MAJOR_VER - [15:8] */
-#define WM8958_DSP2_MINOR_VER_MASK              0x00FF  /* DSP2_MINOR_VER - [7:0] */
-#define WM8958_DSP2_MINOR_VER_SHIFT                  0  /* DSP2_MINOR_VER - [7:0] */
-#define WM8958_DSP2_MINOR_VER_WIDTH                  8  /* DSP2_MINOR_VER - [7:0] */
+#define WM8958_DSP2_MAJOR_VER_MASK              0xFF00  /* DSP2_MAJOR_VER -
+                                                         * [15:8] */
+#define WM8958_DSP2_MAJOR_VER_SHIFT                  8  /* DSP2_MAJOR_VER -
+                                                         * [15:8] */
+#define WM8958_DSP2_MAJOR_VER_WIDTH                  8  /* DSP2_MAJOR_VER -
+                                                         * [15:8] */
+#define WM8958_DSP2_MINOR_VER_MASK              0x00FF  /* DSP2_MINOR_VER -
+                                                         * [7:0] */
+#define WM8958_DSP2_MINOR_VER_SHIFT                  0  /* DSP2_MINOR_VER -
+                                                         * [7:0] */
+#define WM8958_DSP2_MINOR_VER_WIDTH                  8  /* DSP2_MINOR_VER -
+                                                         * [7:0] */
 
 /*
  * R2565 (0xA05) - DSP2_VerBuild
  */
-#define WM8958_DSP2_BUILD_VER_MASK              0xFFFF  /* DSP2_BUILD_VER - [15:0] */
-#define WM8958_DSP2_BUILD_VER_SHIFT                  0  /* DSP2_BUILD_VER - [15:0] */
-#define WM8958_DSP2_BUILD_VER_WIDTH                 16  /* DSP2_BUILD_VER - [15:0] */
+#define WM8958_DSP2_BUILD_VER_MASK              0xFFFF  /* DSP2_BUILD_VER -
+                                                         * [15:0] */
+#define WM8958_DSP2_BUILD_VER_SHIFT                  0  /* DSP2_BUILD_VER -
+                                                         * [15:0] */
+#define WM8958_DSP2_BUILD_VER_WIDTH                 16  /* DSP2_BUILD_VER -
+                                                         * [15:0] */
 
 /*
  * R2573 (0xA0D) - DSP2_ExecControl

@@ -21,24 +21,20 @@
 #include <asm/sections.h>
 #include <asm/fw/fw.h>
 
-/* determined physical memory size, not overridden by command line args	 */
+/* determined physical memory size, not overridden by command line args  */
 unsigned long physical_memsize = 0L;
 
-static void free_init_pages_eva_malta(void *begin, void *end)
-{
-	free_init_pages("unused kernel", __pa_symbol((unsigned long *)begin),
-			__pa_symbol((unsigned long *)end));
+static void free_init_pages_eva_malta(void *begin, void *end) {
+  free_init_pages("unused kernel", __pa_symbol((unsigned long *) begin),
+      __pa_symbol((unsigned long *) end));
 }
 
-void __init fw_meminit(void)
-{
-	bool eva = IS_ENABLED(CONFIG_EVA);
-
-	free_init_pages_eva = eva ? free_init_pages_eva_malta : NULL;
+void __init fw_meminit(void) {
+  bool eva = IS_ENABLED(CONFIG_EVA);
+  free_init_pages_eva = eva ? free_init_pages_eva_malta : NULL;
 }
 
-phys_addr_t mips_cdmm_phys_base(void)
-{
-	/* This address is "typically unused" */
-	return 0x1fc10000;
+phys_addr_t mips_cdmm_phys_base(void) {
+  /* This address is "typically unused" */
+  return 0x1fc10000;
 }

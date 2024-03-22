@@ -25,9 +25,9 @@
 #include <linux/types.h>
 
 enum userio_cmd_type {
-	USERIO_CMD_REGISTER = 0,
-	USERIO_CMD_SET_PORT_TYPE = 1,
-	USERIO_CMD_SEND_INTERRUPT = 2
+  USERIO_CMD_REGISTER = 0,
+  USERIO_CMD_SET_PORT_TYPE = 1,
+  USERIO_CMD_SEND_INTERRUPT = 2
 };
 
 /*
@@ -38,8 +38,8 @@ enum userio_cmd_type {
  * argument for the command, if there is one.
  */
 struct userio_cmd {
-	__u8 type;
-	__u8 data;
+  __u8 type;
+  __u8 data;
 } __attribute__((__packed__));
 
 #endif /* !_USERIO_H */

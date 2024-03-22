@@ -5,15 +5,15 @@
 #include "kvm_util.h"
 
 struct guest_mode {
-	bool supported;
-	bool enabled;
+  bool supported;
+  bool enabled;
 };
 
 extern struct guest_mode guest_modes[NUM_VM_MODES];
 
 #define guest_mode_append(mode, enabled) ({ \
-	guest_modes[mode] = (struct guest_mode){ (enabled), (enabled) }; \
-})
+    guest_modes[mode] = (struct guest_mode){ (enabled), (enabled) }; \
+  })
 
 void guest_modes_append_default(void);
 void for_each_guest_mode(void (*func)(enum vm_guest_mode, void *), void *arg);

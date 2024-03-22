@@ -9,40 +9,40 @@
 
 DECLARE_EVENT_CLASS(bpf_test_finish,
 
-	TP_PROTO(int *err),
+    TP_PROTO(int *err),
 
-	TP_ARGS(err),
+    TP_ARGS(err),
 
-	TP_STRUCT__entry(
-		__field(int, err)
-	),
+    TP_STRUCT__entry(
+    __field(int, err)
+    ),
 
-	TP_fast_assign(
-		__entry->err = *err;
-	),
+    TP_fast_assign(
+    __entry->err = *err;
+    ),
 
-	TP_printk("bpf_test_finish with err=%d", __entry->err)
-);
+    TP_printk("bpf_test_finish with err=%d", __entry->err)
+    );
 
 #ifdef DEFINE_EVENT_WRITABLE
 #undef BPF_TEST_RUN_DEFINE_EVENT
-#define BPF_TEST_RUN_DEFINE_EVENT(template, call, proto, args, size)	\
-	DEFINE_EVENT_WRITABLE(template, call, PARAMS(proto),		\
-			      PARAMS(args), size)
+#define BPF_TEST_RUN_DEFINE_EVENT(template, call, proto, args, size)  \
+  DEFINE_EVENT_WRITABLE(template, call, PARAMS(proto),    \
+    PARAMS(args), size)
 #else
 #undef BPF_TEST_RUN_DEFINE_EVENT
-#define BPF_TEST_RUN_DEFINE_EVENT(template, call, proto, args, size)	\
-	DEFINE_EVENT(template, call, PARAMS(proto), PARAMS(args))
+#define BPF_TEST_RUN_DEFINE_EVENT(template, call, proto, args, size)  \
+  DEFINE_EVENT(template, call, PARAMS(proto), PARAMS(args))
 #endif
 
 BPF_TEST_RUN_DEFINE_EVENT(bpf_test_finish, bpf_test_finish,
 
-	TP_PROTO(int *err),
+    TP_PROTO(int *err),
 
-	TP_ARGS(err),
+    TP_ARGS(err),
 
-	sizeof(int)
-);
+    sizeof(int)
+    );
 
 #endif
 

@@ -9,10 +9,9 @@
 __u64 ext_called = 0;
 
 SEC("freplace/test_pkt_md_access")
-int test_pkt_md_access_new(struct __sk_buff *skb)
-{
-	ext_called = skb->len;
-	return 0;
+int test_pkt_md_access_new(struct __sk_buff *skb) {
+  ext_called = skb->len;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

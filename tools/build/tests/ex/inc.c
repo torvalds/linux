@@ -3,7 +3,6 @@
 #include "krava.h"
 #endif
 
-int inc(void)
-{
-	return 0;
+int inc(void) {
+  return 0;
 }

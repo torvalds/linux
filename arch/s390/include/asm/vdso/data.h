@@ -5,8 +5,8 @@
 #include <linux/types.h>
 
 struct arch_vdso_data {
-	__s64 tod_steering_delta;
-	__u64 tod_steering_end;
+  __s64 tod_steering_delta;
+  __u64 tod_steering_end;
 };
 
 #endif /* __S390_ASM_VDSO_DATA_H */

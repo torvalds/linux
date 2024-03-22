@@ -21,30 +21,24 @@
  */
 #include "nv50.h"
 
-static void *
-r535_devinit_dtor(struct nvkm_devinit *devinit)
-{
-	kfree(devinit->func);
-	return devinit;
+static void *r535_devinit_dtor(struct nvkm_devinit *devinit) {
+  kfree(devinit->func);
+  return devinit;
 }
 
-int
-r535_devinit_new(const struct nvkm_devinit_func *hw,
-		 struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-		 struct nvkm_devinit **pdevinit)
-{
-	struct nvkm_devinit_func *rm;
-	int ret;
-
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
-		return -ENOMEM;
-
-	rm->dtor = r535_devinit_dtor;
-	rm->post = hw->post;
-
-	ret = nv50_devinit_new_(rm, device, type, inst, pdevinit);
-	if (ret)
-		kfree(rm);
-
-	return ret;
+int r535_devinit_new(const struct nvkm_devinit_func *hw,
+    struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+    struct nvkm_devinit **pdevinit) {
+  struct nvkm_devinit_func *rm;
+  int ret;
+  if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL))) {
+    return -ENOMEM;
+  }
+  rm->dtor = r535_devinit_dtor;
+  rm->post = hw->post;
+  ret = nv50_devinit_new_(rm, device, type, inst, pdevinit);
+  if (ret) {
+    kfree(rm);
+  }
+  return ret;
 }

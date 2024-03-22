@@ -15,23 +15,23 @@
 #include <linux/bits.h>
 
 /* CSI-2 or CCP-2 */
-#define CCS_PLL_BUS_TYPE_CSI2_DPHY				0x00
-#define CCS_PLL_BUS_TYPE_CSI2_CPHY				0x01
+#define CCS_PLL_BUS_TYPE_CSI2_DPHY        0x00
+#define CCS_PLL_BUS_TYPE_CSI2_CPHY        0x01
 
-/* Old SMIA and implementation specific flags */
-/* op pix clock is for all lanes in total normally */
-#define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			BIT(0)
-#define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
+/* Old SMIA and implementation specific flags
+ * op pix clock is for all lanes in total normally*/
+#define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE      BIT(0)
+#define CCS_PLL_FLAG_NO_OP_CLOCKS       BIT(1)
 /* CCS PLL flags */
-#define CCS_PLL_FLAG_LANE_SPEED_MODEL				BIT(2)
-#define CCS_PLL_FLAG_LINK_DECOUPLED				BIT(3)
-#define CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER				BIT(4)
-#define CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV			BIT(5)
-#define CCS_PLL_FLAG_FIFO_DERATING				BIT(6)
-#define CCS_PLL_FLAG_FIFO_OVERRATING				BIT(7)
-#define CCS_PLL_FLAG_DUAL_PLL					BIT(8)
-#define CCS_PLL_FLAG_OP_SYS_DDR					BIT(9)
-#define CCS_PLL_FLAG_OP_PIX_DDR					BIT(10)
+#define CCS_PLL_FLAG_LANE_SPEED_MODEL       BIT(2)
+#define CCS_PLL_FLAG_LINK_DECOUPLED       BIT(3)
+#define CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER       BIT(4)
+#define CCS_PLL_FLAG_FLEXIBLE_OP_PIX_CLK_DIV      BIT(5)
+#define CCS_PLL_FLAG_FIFO_DERATING        BIT(6)
+#define CCS_PLL_FLAG_FIFO_OVERRATING        BIT(7)
+#define CCS_PLL_FLAG_DUAL_PLL         BIT(8)
+#define CCS_PLL_FLAG_OP_SYS_DDR         BIT(9)
+#define CCS_PLL_FLAG_OP_PIX_DDR         BIT(10)
 
 /**
  * struct ccs_pll_branch_fr - CCS PLL configuration (front)
@@ -44,10 +44,10 @@
  * @pll_op_clk_freq_hz: PLL output clock frequency
  */
 struct ccs_pll_branch_fr {
-	u16 pre_pll_clk_div;
-	u16 pll_multiplier;
-	u32 pll_ip_clk_freq_hz;
-	u32 pll_op_clk_freq_hz;
+  u16 pre_pll_clk_div;
+  u16 pll_multiplier;
+  u32 pll_ip_clk_freq_hz;
+  u32 pll_op_clk_freq_hz;
 };
 
 /**
@@ -61,10 +61,10 @@ struct ccs_pll_branch_fr {
  * @pix_clk_freq_hz: Pixel clock frequency
  */
 struct ccs_pll_branch_bk {
-	u16 sys_clk_div;
-	u16 pix_clk_div;
-	u32 sys_clk_freq_hz;
-	u32 pix_clk_freq_hz;
+  u16 sys_clk_div;
+  u16 pix_clk_div;
+  u32 sys_clk_freq_hz;
+  u32 pix_clk_freq_hz;
 };
 
 /**
@@ -86,41 +86,41 @@ struct ccs_pll_branch_bk {
  * @flags: CCS_PLL_FLAG_* (input)
  * @link_freq: Chosen link frequency (input)
  * @ext_clk_freq_hz: External clock frequency, i.e. the sensor's input clock
- *		     (input)
+ *         (input)
  * @vt_fr: Video timing front-end configuration (output)
  * @vt_bk: Video timing back-end configuration (output)
  * @op_fr: Operational timing front-end configuration (output)
  * @op_bk: Operational timing back-end configuration (output)
  * @pixel_rate_csi: Pixel rate on the output data bus (output)
  * @pixel_rate_pixel_array: Nominal pixel rate in the sensor's pixel array
- *			    (output)
+ *          (output)
  */
 struct ccs_pll {
-	/* input values */
-	u8 bus_type;
-	u8 op_lanes;
-	u8 vt_lanes;
-	struct {
-		u8 lanes;
-	} csi2;
-	u8 binning_horizontal;
-	u8 binning_vertical;
-	u8 scale_m;
-	u8 scale_n;
-	u8 bits_per_pixel;
-	u8 op_bits_per_lane;
-	u16 flags;
-	u32 link_freq;
-	u32 ext_clk_freq_hz;
+  /* input values */
+  u8 bus_type;
+  u8 op_lanes;
+  u8 vt_lanes;
+  struct {
+    u8 lanes;
+  } csi2;
+  u8 binning_horizontal;
+  u8 binning_vertical;
+  u8 scale_m;
+  u8 scale_n;
+  u8 bits_per_pixel;
+  u8 op_bits_per_lane;
+  u16 flags;
+  u32 link_freq;
+  u32 ext_clk_freq_hz;
 
-	/* output values */
-	struct ccs_pll_branch_fr vt_fr;
-	struct ccs_pll_branch_bk vt_bk;
-	struct ccs_pll_branch_fr op_fr;
-	struct ccs_pll_branch_bk op_bk;
+  /* output values */
+  struct ccs_pll_branch_fr vt_fr;
+  struct ccs_pll_branch_bk vt_bk;
+  struct ccs_pll_branch_fr op_fr;
+  struct ccs_pll_branch_bk op_bk;
 
-	u32 pixel_rate_csi;
-	u32 pixel_rate_pixel_array;
+  u32 pixel_rate_csi;
+  u32 pixel_rate_pixel_array;
 };
 
 /**
@@ -136,14 +136,14 @@ struct ccs_pll {
  * @max_pll_op_clk_freq_hz: Maximum PLL output clock frequency
  */
 struct ccs_pll_branch_limits_fr {
-	u16 min_pre_pll_clk_div;
-	u16 max_pre_pll_clk_div;
-	u32 min_pll_ip_clk_freq_hz;
-	u32 max_pll_ip_clk_freq_hz;
-	u16 min_pll_multiplier;
-	u16 max_pll_multiplier;
-	u32 min_pll_op_clk_freq_hz;
-	u32 max_pll_op_clk_freq_hz;
+  u16 min_pre_pll_clk_div;
+  u16 max_pre_pll_clk_div;
+  u32 min_pll_ip_clk_freq_hz;
+  u32 max_pll_ip_clk_freq_hz;
+  u16 min_pll_multiplier;
+  u16 max_pll_multiplier;
+  u32 min_pll_op_clk_freq_hz;
+  u32 max_pll_op_clk_freq_hz;
 };
 
 /**
@@ -159,14 +159,14 @@ struct ccs_pll_branch_limits_fr {
  * @max_pix_clk_freq_hz: Maximum pixel clock frequency
  */
 struct ccs_pll_branch_limits_bk {
-	u16 min_sys_clk_div;
-	u16 max_sys_clk_div;
-	u32 min_sys_clk_freq_hz;
-	u32 max_sys_clk_freq_hz;
-	u16 min_pix_clk_div;
-	u16 max_pix_clk_div;
-	u32 min_pix_clk_freq_hz;
-	u32 max_pix_clk_freq_hz;
+  u16 min_sys_clk_div;
+  u16 max_sys_clk_div;
+  u32 min_sys_clk_freq_hz;
+  u32 max_sys_clk_freq_hz;
+  u16 min_pix_clk_div;
+  u16 max_pix_clk_div;
+  u32 min_pix_clk_freq_hz;
+  u32 max_pix_clk_freq_hz;
 };
 
 /**
@@ -182,18 +182,18 @@ struct ccs_pll_branch_limits_bk {
  * @min_line_length_pck: Minimum line length in pixels without binning
  */
 struct ccs_pll_limits {
-	/* Strict PLL limits */
-	u32 min_ext_clk_freq_hz;
-	u32 max_ext_clk_freq_hz;
+  /* Strict PLL limits */
+  u32 min_ext_clk_freq_hz;
+  u32 max_ext_clk_freq_hz;
 
-	struct ccs_pll_branch_limits_fr vt_fr;
-	struct ccs_pll_branch_limits_bk vt_bk;
-	struct ccs_pll_branch_limits_fr op_fr;
-	struct ccs_pll_branch_limits_bk op_bk;
+  struct ccs_pll_branch_limits_fr vt_fr;
+  struct ccs_pll_branch_limits_bk vt_bk;
+  struct ccs_pll_branch_limits_fr op_fr;
+  struct ccs_pll_branch_limits_bk op_bk;
 
-	/* Other relevant limits */
-	u32 min_line_length_pck_bin;
-	u32 min_line_length_pck;
+  /* Other relevant limits */
+  u32 min_line_length_pck_bin;
+  u32 min_line_length_pck;
 };
 
 struct device;
@@ -209,6 +209,6 @@ struct device;
  * device specific, system specific or user configured input data.
  */
 int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *limits,
-		      struct ccs_pll *pll);
+    struct ccs_pll *pll);
 
 #endif /* CCS_PLL_H */

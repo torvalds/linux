@@ -33,11 +33,11 @@
  *
  */
 
-#define PAGE_OFFSET	_AC(0x0, UL)
-#define PHYS_OFFSET	_AC(0x80000000, UL)
-#define HIGHMEM_START	_AC(0xffff0000, UL)
+#define PAGE_OFFSET _AC(0x0, UL)
+#define PHYS_OFFSET _AC(0x80000000, UL)
+#define HIGHMEM_START _AC(0xffff0000, UL)
 
-#define __pa_symbol(x)	(RELOC_HIDE((unsigned long)(x), 0))
+#define __pa_symbol(x)  (RELOC_HIDE((unsigned long) (x), 0))
 
 #endif /* CONFIG_EVA */
 

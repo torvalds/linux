@@ -17,10 +17,10 @@
 
 /* PM context element */
 struct sof_ipc_pm_ctx_elem {
-	struct sof_ipc_hdr hdr;
-	uint32_t type;
-	uint32_t size;
-	uint64_t addr;
+  struct sof_ipc_hdr hdr;
+  uint32_t type;
+  uint32_t size;
+  uint64_t addr;
 }  __packed;
 
 /*
@@ -28,29 +28,29 @@ struct sof_ipc_pm_ctx_elem {
  * SOF_IPC_PM_CTX_SIZE
  */
 struct sof_ipc_pm_ctx {
-	struct sof_ipc_cmd_hdr hdr;
-	struct sof_ipc_host_buffer buffer;
-	uint32_t num_elems;
-	uint32_t size;
+  struct sof_ipc_cmd_hdr hdr;
+  struct sof_ipc_host_buffer buffer;
+  uint32_t num_elems;
+  uint32_t size;
 
-	/* reserved for future use */
-	uint32_t reserved[8];
+  /* reserved for future use */
+  uint32_t reserved[8];
 
-	struct sof_ipc_pm_ctx_elem elems[];
+  struct sof_ipc_pm_ctx_elem elems[];
 } __packed;
 
 /* enable or disable cores - SOF_IPC_PM_CORE_ENABLE */
 struct sof_ipc_pm_core_config {
-	struct sof_ipc_cmd_hdr hdr;
-	uint32_t enable_mask;
+  struct sof_ipc_cmd_hdr hdr;
+  uint32_t enable_mask;
 } __packed;
 
 struct sof_ipc_pm_gate {
-	struct sof_ipc_cmd_hdr hdr;
-	uint32_t flags;	/* platform specific */
+  struct sof_ipc_cmd_hdr hdr;
+  uint32_t flags; /* platform specific */
 
-	/* reserved for future use */
-	uint32_t reserved[5];
+  /* reserved for future use */
+  uint32_t reserved[5];
 } __packed;
 
 #endif

@@ -13,14 +13,14 @@
  * entity, per-device
  */
 struct rdma_restrack_root {
-	/**
-	 * @xa: Array of XArray structure to hold restrack entries.
-	 */
-	struct xarray xa;
-	/**
-	 * @next_id: Next ID to support cyclic allocation
-	 */
-	u32 next_id;
+  /**
+   * @xa: Array of XArray structure to hold restrack entries.
+   */
+  struct xarray xa;
+  /**
+   * @next_id: Next ID to support cyclic allocation
+   */
+  u32 next_id;
 };
 
 int rdma_restrack_init(struct ib_device *dev);
@@ -28,9 +28,9 @@ void rdma_restrack_clean(struct ib_device *dev);
 void rdma_restrack_add(struct rdma_restrack_entry *res);
 void rdma_restrack_del(struct rdma_restrack_entry *res);
 void rdma_restrack_new(struct rdma_restrack_entry *res,
-		       enum rdma_restrack_type type);
+    enum rdma_restrack_type type);
 void rdma_restrack_set_name(struct rdma_restrack_entry *res,
-			    const char *caller);
+    const char *caller);
 void rdma_restrack_parent_name(struct rdma_restrack_entry *dst,
-			       const struct rdma_restrack_entry *parent);
+    const struct rdma_restrack_entry *parent);
 #endif /* _RDMA_CORE_RESTRACK_H_ */

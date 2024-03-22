@@ -20,9 +20,12 @@
 #define WM8903_MICDET_THR_MASK                  0x0030  /* MICDET_THR - [5:4] */
 #define WM8903_MICDET_THR_SHIFT                      4  /* MICDET_THR - [5:4] */
 #define WM8903_MICDET_THR_WIDTH                      2  /* MICDET_THR - [5:4] */
-#define WM8903_MICSHORT_THR_MASK                0x000C  /* MICSHORT_THR - [3:2] */
-#define WM8903_MICSHORT_THR_SHIFT                    2  /* MICSHORT_THR - [3:2] */
-#define WM8903_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [3:2] */
+#define WM8903_MICSHORT_THR_MASK                0x000C  /* MICSHORT_THR - [3:2]
+                                                         * */
+#define WM8903_MICSHORT_THR_SHIFT                    2  /* MICSHORT_THR - [3:2]
+                                                         * */
+#define WM8903_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [3:2]
+                                                         * */
 #define WM8903_MICDET_ENA                       0x0002  /* MICDET_ENA */
 #define WM8903_MICDET_ENA_MASK                  0x0002  /* MICDET_ENA */
 #define WM8903_MICDET_ENA_SHIFT                      1  /* MICDET_ENA */
@@ -245,19 +248,19 @@
 #define WM8903_NUM_GPIO 5
 
 struct wm8903_platform_data {
-	bool irq_active_low;   /* Set if IRQ active low, default high */
+  bool irq_active_low;   /* Set if IRQ active low, default high */
 
-        /* Default register value for R6 (Mic bias), used to configure
-	 * microphone detection.  In conjunction with gpio_cfg this
-	 * can be used to route the microphone status signals out onto
-	 * the GPIOs for use with snd_soc_jack_add_gpios().
-	 */
-	u16 micdet_cfg;
+  /* Default register value for R6 (Mic bias), used to configure
+   * microphone detection.  In conjunction with gpio_cfg this
+   * can be used to route the microphone status signals out onto
+   * the GPIOs for use with snd_soc_jack_add_gpios().
+   */
+  u16 micdet_cfg;
 
-	int micdet_delay;      /* Delay after microphone detection (ms) */
+  int micdet_delay;      /* Delay after microphone detection (ms) */
 
-	int gpio_base;
-	u32 gpio_cfg[WM8903_NUM_GPIO]; /* Default register values for GPIO pin mux */
+  int gpio_base;
+  u32 gpio_cfg[WM8903_NUM_GPIO]; /* Default register values for GPIO pin mux */
 };
 
 #endif

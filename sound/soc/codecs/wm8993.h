@@ -32,7 +32,7 @@
 #define WM8993_GPIO_CTRL_1                      0x12
 #define WM8993_GPIO1                            0x13
 #define WM8993_IRQ_DEBOUNCE                     0x14
-#define WM8993_INPUTS_CLAMP_REG			0x15
+#define WM8993_INPUTS_CLAMP_REG     0x15
 #define WM8993_GPIOCTRL_2                       0x16
 #define WM8993_GPIO_POL                         0x17
 #define WM8993_LEFT_LINE_INPUT_1_2_VOLUME       0x18
@@ -334,9 +334,12 @@
 #define WM8993_AIFDAC_TDM_CHAN_MASK             0x1000  /* AIFDAC_TDM_CHAN */
 #define WM8993_AIFDAC_TDM_CHAN_SHIFT                12  /* AIFDAC_TDM_CHAN */
 #define WM8993_AIFDAC_TDM_CHAN_WIDTH                 1  /* AIFDAC_TDM_CHAN */
-#define WM8993_DAC_BOOST_MASK                   0x0C00  /* DAC_BOOST - [11:10] */
-#define WM8993_DAC_BOOST_SHIFT                      10  /* DAC_BOOST - [11:10] */
-#define WM8993_DAC_BOOST_WIDTH                       2  /* DAC_BOOST - [11:10] */
+#define WM8993_DAC_BOOST_MASK                   0x0C00  /* DAC_BOOST - [11:10]
+                                                         * */
+#define WM8993_DAC_BOOST_SHIFT                      10  /* DAC_BOOST - [11:10]
+                                                         * */
+#define WM8993_DAC_BOOST_WIDTH                       2  /* DAC_BOOST - [11:10]
+                                                         * */
 #define WM8993_DAC_COMP                         0x0010  /* DAC_COMP */
 #define WM8993_DAC_COMP_MASK                    0x0010  /* DAC_COMP */
 #define WM8993_DAC_COMP_SHIFT                        4  /* DAC_COMP */
@@ -424,9 +427,12 @@
 #define WM8993_LRCLK_DIR_MASK                   0x0800  /* LRCLK_DIR */
 #define WM8993_LRCLK_DIR_SHIFT                      11  /* LRCLK_DIR */
 #define WM8993_LRCLK_DIR_WIDTH                       1  /* LRCLK_DIR */
-#define WM8993_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0] */
-#define WM8993_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0] */
-#define WM8993_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0] */
+#define WM8993_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM8993_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM8993_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0]
+                                                         * */
 
 /*
  * R10 (0x0A) - DAC CTRL
@@ -492,18 +498,30 @@
 /*
  * R13 (0x0D) - Digital Side Tone
  */
-#define WM8993_ADCL_DAC_SVOL_MASK               0x1E00  /* ADCL_DAC_SVOL - [12:9] */
-#define WM8993_ADCL_DAC_SVOL_SHIFT                   9  /* ADCL_DAC_SVOL - [12:9] */
-#define WM8993_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [12:9] */
-#define WM8993_ADCR_DAC_SVOL_MASK               0x01E0  /* ADCR_DAC_SVOL - [8:5] */
-#define WM8993_ADCR_DAC_SVOL_SHIFT                   5  /* ADCR_DAC_SVOL - [8:5] */
-#define WM8993_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [8:5] */
-#define WM8993_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2] */
-#define WM8993_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8993_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8993_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0] */
-#define WM8993_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0] */
-#define WM8993_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0] */
+#define WM8993_ADCL_DAC_SVOL_MASK               0x1E00  /* ADCL_DAC_SVOL -
+                                                         * [12:9] */
+#define WM8993_ADCL_DAC_SVOL_SHIFT                   9  /* ADCL_DAC_SVOL -
+                                                         * [12:9] */
+#define WM8993_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL -
+                                                         * [12:9] */
+#define WM8993_ADCR_DAC_SVOL_MASK               0x01E0  /* ADCR_DAC_SVOL - [8:5]
+                                                         * */
+#define WM8993_ADCR_DAC_SVOL_SHIFT                   5  /* ADCR_DAC_SVOL - [8:5]
+                                                         * */
+#define WM8993_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [8:5]
+                                                         * */
+#define WM8993_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8993_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8993_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8993_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8993_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8993_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0]
+                                                         * */
 
 /*
  * R14 (0x0E) - ADC CTRL
@@ -516,9 +534,12 @@
 #define WM8993_ADC_HPF_MASK                     0x0100  /* ADC_HPF */
 #define WM8993_ADC_HPF_SHIFT                         8  /* ADC_HPF */
 #define WM8993_ADC_HPF_WIDTH                         1  /* ADC_HPF */
-#define WM8993_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5] */
-#define WM8993_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5] */
-#define WM8993_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5] */
+#define WM8993_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8993_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8993_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5]
+                                                         * */
 #define WM8993_ADCL_DATINV                      0x0002  /* ADCL_DATINV */
 #define WM8993_ADCL_DATINV_MASK                 0x0002  /* ADCL_DATINV */
 #define WM8993_ADCL_DATINV_SHIFT                     1  /* ADCL_DATINV */
@@ -856,9 +877,12 @@
 #define WM8993_HPOUT1L_MUTE_N_MASK              0x0040  /* HPOUT1L_MUTE_N */
 #define WM8993_HPOUT1L_MUTE_N_SHIFT                  6  /* HPOUT1L_MUTE_N */
 #define WM8993_HPOUT1L_MUTE_N_WIDTH                  1  /* HPOUT1L_MUTE_N */
-#define WM8993_HPOUT1L_VOL_MASK                 0x003F  /* HPOUT1L_VOL - [5:0] */
-#define WM8993_HPOUT1L_VOL_SHIFT                     0  /* HPOUT1L_VOL - [5:0] */
-#define WM8993_HPOUT1L_VOL_WIDTH                     6  /* HPOUT1L_VOL - [5:0] */
+#define WM8993_HPOUT1L_VOL_MASK                 0x003F  /* HPOUT1L_VOL - [5:0]
+                                                         * */
+#define WM8993_HPOUT1L_VOL_SHIFT                     0  /* HPOUT1L_VOL - [5:0]
+                                                         * */
+#define WM8993_HPOUT1L_VOL_WIDTH                     6  /* HPOUT1L_VOL - [5:0]
+                                                         * */
 
 /*
  * R29 (0x1D) - Right Output Volume
@@ -875,9 +899,12 @@
 #define WM8993_HPOUT1R_MUTE_N_MASK              0x0040  /* HPOUT1R_MUTE_N */
 #define WM8993_HPOUT1R_MUTE_N_SHIFT                  6  /* HPOUT1R_MUTE_N */
 #define WM8993_HPOUT1R_MUTE_N_WIDTH                  1  /* HPOUT1R_MUTE_N */
-#define WM8993_HPOUT1R_VOL_MASK                 0x003F  /* HPOUT1R_VOL - [5:0] */
-#define WM8993_HPOUT1R_VOL_SHIFT                     0  /* HPOUT1R_VOL - [5:0] */
-#define WM8993_HPOUT1R_VOL_WIDTH                     6  /* HPOUT1R_VOL - [5:0] */
+#define WM8993_HPOUT1R_VOL_MASK                 0x003F  /* HPOUT1R_VOL - [5:0]
+                                                         * */
+#define WM8993_HPOUT1R_VOL_SHIFT                     0  /* HPOUT1R_VOL - [5:0]
+                                                         * */
+#define WM8993_HPOUT1R_VOL_WIDTH                     6  /* HPOUT1R_VOL - [5:0]
+                                                         * */
 
 /*
  * R30 (0x1E) - Line Outputs Volume
@@ -934,9 +961,12 @@
 #define WM8993_MIXOUTL_MUTE_N_MASK              0x0040  /* MIXOUTL_MUTE_N */
 #define WM8993_MIXOUTL_MUTE_N_SHIFT                  6  /* MIXOUTL_MUTE_N */
 #define WM8993_MIXOUTL_MUTE_N_WIDTH                  1  /* MIXOUTL_MUTE_N */
-#define WM8993_MIXOUTL_VOL_MASK                 0x003F  /* MIXOUTL_VOL - [5:0] */
-#define WM8993_MIXOUTL_VOL_SHIFT                     0  /* MIXOUTL_VOL - [5:0] */
-#define WM8993_MIXOUTL_VOL_WIDTH                     6  /* MIXOUTL_VOL - [5:0] */
+#define WM8993_MIXOUTL_VOL_MASK                 0x003F  /* MIXOUTL_VOL - [5:0]
+                                                         * */
+#define WM8993_MIXOUTL_VOL_SHIFT                     0  /* MIXOUTL_VOL - [5:0]
+                                                         * */
+#define WM8993_MIXOUTL_VOL_WIDTH                     6  /* MIXOUTL_VOL - [5:0]
+                                                         * */
 
 /*
  * R33 (0x21) - Right OPGA Volume
@@ -953,9 +983,12 @@
 #define WM8993_MIXOUTR_MUTE_N_MASK              0x0040  /* MIXOUTR_MUTE_N */
 #define WM8993_MIXOUTR_MUTE_N_SHIFT                  6  /* MIXOUTR_MUTE_N */
 #define WM8993_MIXOUTR_MUTE_N_WIDTH                  1  /* MIXOUTR_MUTE_N */
-#define WM8993_MIXOUTR_VOL_MASK                 0x003F  /* MIXOUTR_VOL - [5:0] */
-#define WM8993_MIXOUTR_VOL_SHIFT                     0  /* MIXOUTR_VOL - [5:0] */
-#define WM8993_MIXOUTR_VOL_WIDTH                     6  /* MIXOUTR_VOL - [5:0] */
+#define WM8993_MIXOUTR_VOL_MASK                 0x003F  /* MIXOUTR_VOL - [5:0]
+                                                         * */
+#define WM8993_MIXOUTR_VOL_SHIFT                     0  /* MIXOUTR_VOL - [5:0]
+                                                         * */
+#define WM8993_MIXOUTR_VOL_WIDTH                     6  /* MIXOUTR_VOL - [5:0]
+                                                         * */
 
 /*
  * R34 (0x22) - SPKMIXL Attenuation
@@ -968,25 +1001,36 @@
 #define WM8993_IN1LP_SPKMIXL_VOL_MASK           0x0010  /* IN1LP_SPKMIXL_VOL */
 #define WM8993_IN1LP_SPKMIXL_VOL_SHIFT               4  /* IN1LP_SPKMIXL_VOL */
 #define WM8993_IN1LP_SPKMIXL_VOL_WIDTH               1  /* IN1LP_SPKMIXL_VOL */
-#define WM8993_MIXOUTL_SPKMIXL_VOL              0x0008  /* MIXOUTL_SPKMIXL_VOL */
-#define WM8993_MIXOUTL_SPKMIXL_VOL_MASK         0x0008  /* MIXOUTL_SPKMIXL_VOL */
-#define WM8993_MIXOUTL_SPKMIXL_VOL_SHIFT             3  /* MIXOUTL_SPKMIXL_VOL */
-#define WM8993_MIXOUTL_SPKMIXL_VOL_WIDTH             1  /* MIXOUTL_SPKMIXL_VOL */
+#define WM8993_MIXOUTL_SPKMIXL_VOL              0x0008  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
+#define WM8993_MIXOUTL_SPKMIXL_VOL_MASK         0x0008  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
+#define WM8993_MIXOUTL_SPKMIXL_VOL_SHIFT             3  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
+#define WM8993_MIXOUTL_SPKMIXL_VOL_WIDTH             1  /* MIXOUTL_SPKMIXL_VOL
+                                                         * */
 #define WM8993_DACL_SPKMIXL_VOL                 0x0004  /* DACL_SPKMIXL_VOL */
 #define WM8993_DACL_SPKMIXL_VOL_MASK            0x0004  /* DACL_SPKMIXL_VOL */
 #define WM8993_DACL_SPKMIXL_VOL_SHIFT                2  /* DACL_SPKMIXL_VOL */
 #define WM8993_DACL_SPKMIXL_VOL_WIDTH                1  /* DACL_SPKMIXL_VOL */
-#define WM8993_SPKMIXL_VOL_MASK                 0x0003  /* SPKMIXL_VOL - [1:0] */
-#define WM8993_SPKMIXL_VOL_SHIFT                     0  /* SPKMIXL_VOL - [1:0] */
-#define WM8993_SPKMIXL_VOL_WIDTH                     2  /* SPKMIXL_VOL - [1:0] */
+#define WM8993_SPKMIXL_VOL_MASK                 0x0003  /* SPKMIXL_VOL - [1:0]
+                                                         * */
+#define WM8993_SPKMIXL_VOL_SHIFT                     0  /* SPKMIXL_VOL - [1:0]
+                                                         * */
+#define WM8993_SPKMIXL_VOL_WIDTH                     2  /* SPKMIXL_VOL - [1:0]
+                                                         * */
 
 /*
  * R35 (0x23) - SPKMIXR Attenuation
  */
-#define WM8993_SPKOUT_CLASSAB_MODE              0x0100  /* SPKOUT_CLASSAB_MODE */
-#define WM8993_SPKOUT_CLASSAB_MODE_MASK         0x0100  /* SPKOUT_CLASSAB_MODE */
-#define WM8993_SPKOUT_CLASSAB_MODE_SHIFT             8  /* SPKOUT_CLASSAB_MODE */
-#define WM8993_SPKOUT_CLASSAB_MODE_WIDTH             1  /* SPKOUT_CLASSAB_MODE */
+#define WM8993_SPKOUT_CLASSAB_MODE              0x0100  /* SPKOUT_CLASSAB_MODE
+                                                         * */
+#define WM8993_SPKOUT_CLASSAB_MODE_MASK         0x0100  /* SPKOUT_CLASSAB_MODE
+                                                         * */
+#define WM8993_SPKOUT_CLASSAB_MODE_SHIFT             8  /* SPKOUT_CLASSAB_MODE
+                                                         * */
+#define WM8993_SPKOUT_CLASSAB_MODE_WIDTH             1  /* SPKOUT_CLASSAB_MODE
+                                                         * */
 #define WM8993_MIXINR_SPKMIXR_VOL               0x0020  /* MIXINR_SPKMIXR_VOL */
 #define WM8993_MIXINR_SPKMIXR_VOL_MASK          0x0020  /* MIXINR_SPKMIXR_VOL */
 #define WM8993_MIXINR_SPKMIXR_VOL_SHIFT              5  /* MIXINR_SPKMIXR_VOL */
@@ -995,17 +1039,24 @@
 #define WM8993_IN1RP_SPKMIXR_VOL_MASK           0x0010  /* IN1RP_SPKMIXR_VOL */
 #define WM8993_IN1RP_SPKMIXR_VOL_SHIFT               4  /* IN1RP_SPKMIXR_VOL */
 #define WM8993_IN1RP_SPKMIXR_VOL_WIDTH               1  /* IN1RP_SPKMIXR_VOL */
-#define WM8993_MIXOUTR_SPKMIXR_VOL              0x0008  /* MIXOUTR_SPKMIXR_VOL */
-#define WM8993_MIXOUTR_SPKMIXR_VOL_MASK         0x0008  /* MIXOUTR_SPKMIXR_VOL */
-#define WM8993_MIXOUTR_SPKMIXR_VOL_SHIFT             3  /* MIXOUTR_SPKMIXR_VOL */
-#define WM8993_MIXOUTR_SPKMIXR_VOL_WIDTH             1  /* MIXOUTR_SPKMIXR_VOL */
+#define WM8993_MIXOUTR_SPKMIXR_VOL              0x0008  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
+#define WM8993_MIXOUTR_SPKMIXR_VOL_MASK         0x0008  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
+#define WM8993_MIXOUTR_SPKMIXR_VOL_SHIFT             3  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
+#define WM8993_MIXOUTR_SPKMIXR_VOL_WIDTH             1  /* MIXOUTR_SPKMIXR_VOL
+                                                         * */
 #define WM8993_DACR_SPKMIXR_VOL                 0x0004  /* DACR_SPKMIXR_VOL */
 #define WM8993_DACR_SPKMIXR_VOL_MASK            0x0004  /* DACR_SPKMIXR_VOL */
 #define WM8993_DACR_SPKMIXR_VOL_SHIFT                2  /* DACR_SPKMIXR_VOL */
 #define WM8993_DACR_SPKMIXR_VOL_WIDTH                1  /* DACR_SPKMIXR_VOL */
-#define WM8993_SPKMIXR_VOL_MASK                 0x0003  /* SPKMIXR_VOL - [1:0] */
-#define WM8993_SPKMIXR_VOL_SHIFT                     0  /* SPKMIXR_VOL - [1:0] */
-#define WM8993_SPKMIXR_VOL_WIDTH                     2  /* SPKMIXR_VOL - [1:0] */
+#define WM8993_SPKMIXR_VOL_MASK                 0x0003  /* SPKMIXR_VOL - [1:0]
+                                                         * */
+#define WM8993_SPKMIXR_VOL_SHIFT                     0  /* SPKMIXR_VOL - [1:0]
+                                                         * */
+#define WM8993_SPKMIXR_VOL_WIDTH                     2  /* SPKMIXR_VOL - [1:0]
+                                                         * */
 
 /*
  * R36 (0x24) - SPKOUT Mixers
@@ -1038,12 +1089,18 @@
 /*
  * R37 (0x25) - SPKOUT Boost
  */
-#define WM8993_SPKOUTL_BOOST_MASK               0x0038  /* SPKOUTL_BOOST - [5:3] */
-#define WM8993_SPKOUTL_BOOST_SHIFT                   3  /* SPKOUTL_BOOST - [5:3] */
-#define WM8993_SPKOUTL_BOOST_WIDTH                   3  /* SPKOUTL_BOOST - [5:3] */
-#define WM8993_SPKOUTR_BOOST_MASK               0x0007  /* SPKOUTR_BOOST - [2:0] */
-#define WM8993_SPKOUTR_BOOST_SHIFT                   0  /* SPKOUTR_BOOST - [2:0] */
-#define WM8993_SPKOUTR_BOOST_WIDTH                   3  /* SPKOUTR_BOOST - [2:0] */
+#define WM8993_SPKOUTL_BOOST_MASK               0x0038  /* SPKOUTL_BOOST - [5:3]
+                                                         * */
+#define WM8993_SPKOUTL_BOOST_SHIFT                   3  /* SPKOUTL_BOOST - [5:3]
+                                                         * */
+#define WM8993_SPKOUTL_BOOST_WIDTH                   3  /* SPKOUTL_BOOST - [5:3]
+                                                         * */
+#define WM8993_SPKOUTR_BOOST_MASK               0x0007  /* SPKOUTR_BOOST - [2:0]
+                                                         * */
+#define WM8993_SPKOUTR_BOOST_SHIFT                   0  /* SPKOUTR_BOOST - [2:0]
+                                                         * */
+#define WM8993_SPKOUTR_BOOST_WIDTH                   3  /* SPKOUTR_BOOST - [2:0]
+                                                         * */
 
 /*
  * R38 (0x26) - Speaker Volume Left
@@ -1060,9 +1117,12 @@
 #define WM8993_SPKOUTL_MUTE_N_MASK              0x0040  /* SPKOUTL_MUTE_N */
 #define WM8993_SPKOUTL_MUTE_N_SHIFT                  6  /* SPKOUTL_MUTE_N */
 #define WM8993_SPKOUTL_MUTE_N_WIDTH                  1  /* SPKOUTL_MUTE_N */
-#define WM8993_SPKOUTL_VOL_MASK                 0x003F  /* SPKOUTL_VOL - [5:0] */
-#define WM8993_SPKOUTL_VOL_SHIFT                     0  /* SPKOUTL_VOL - [5:0] */
-#define WM8993_SPKOUTL_VOL_WIDTH                     6  /* SPKOUTL_VOL - [5:0] */
+#define WM8993_SPKOUTL_VOL_MASK                 0x003F  /* SPKOUTL_VOL - [5:0]
+                                                         * */
+#define WM8993_SPKOUTL_VOL_SHIFT                     0  /* SPKOUTL_VOL - [5:0]
+                                                         * */
+#define WM8993_SPKOUTL_VOL_WIDTH                     6  /* SPKOUTL_VOL - [5:0]
+                                                         * */
 
 /*
  * R39 (0x27) - Speaker Volume Right
@@ -1079,9 +1139,12 @@
 #define WM8993_SPKOUTR_MUTE_N_MASK              0x0040  /* SPKOUTR_MUTE_N */
 #define WM8993_SPKOUTR_MUTE_N_SHIFT                  6  /* SPKOUTR_MUTE_N */
 #define WM8993_SPKOUTR_MUTE_N_WIDTH                  1  /* SPKOUTR_MUTE_N */
-#define WM8993_SPKOUTR_VOL_MASK                 0x003F  /* SPKOUTR_VOL - [5:0] */
-#define WM8993_SPKOUTR_VOL_SHIFT                     0  /* SPKOUTR_VOL - [5:0] */
-#define WM8993_SPKOUTR_VOL_WIDTH                     6  /* SPKOUTR_VOL - [5:0] */
+#define WM8993_SPKOUTR_VOL_MASK                 0x003F  /* SPKOUTR_VOL - [5:0]
+                                                         * */
+#define WM8993_SPKOUTR_VOL_SHIFT                     0  /* SPKOUTR_VOL - [5:0]
+                                                         * */
+#define WM8993_SPKOUTR_VOL_WIDTH                     6  /* SPKOUTR_VOL - [5:0]
+                                                         * */
 
 /*
  * R40 (0x28) - Input Mixer2
@@ -1138,9 +1201,12 @@
 #define WM8993_IN1L_MIXINL_VOL_MASK             0x0010  /* IN1L_MIXINL_VOL */
 #define WM8993_IN1L_MIXINL_VOL_SHIFT                 4  /* IN1L_MIXINL_VOL */
 #define WM8993_IN1L_MIXINL_VOL_WIDTH                 1  /* IN1L_MIXINL_VOL */
-#define WM8993_MIXOUTL_MIXINL_VOL_MASK          0x0007  /* MIXOUTL_MIXINL_VOL - [2:0] */
-#define WM8993_MIXOUTL_MIXINL_VOL_SHIFT              0  /* MIXOUTL_MIXINL_VOL - [2:0] */
-#define WM8993_MIXOUTL_MIXINL_VOL_WIDTH              3  /* MIXOUTL_MIXINL_VOL - [2:0] */
+#define WM8993_MIXOUTL_MIXINL_VOL_MASK          0x0007  /* MIXOUTL_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXOUTL_MIXINL_VOL_SHIFT              0  /* MIXOUTL_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXOUTL_MIXINL_VOL_WIDTH              3  /* MIXOUTL_MIXINL_VOL -
+                                                         * [2:0] */
 
 /*
  * R42 (0x2A) - Input Mixer4
@@ -1161,29 +1227,44 @@
 #define WM8993_IN1R_MIXINR_VOL_MASK             0x0010  /* IN1R_MIXINR_VOL */
 #define WM8993_IN1R_MIXINR_VOL_SHIFT                 4  /* IN1R_MIXINR_VOL */
 #define WM8993_IN1R_MIXINR_VOL_WIDTH                 1  /* IN1R_MIXINR_VOL */
-#define WM8993_MIXOUTR_MIXINR_VOL_MASK          0x0007  /* MIXOUTR_MIXINR_VOL - [2:0] */
-#define WM8993_MIXOUTR_MIXINR_VOL_SHIFT              0  /* MIXOUTR_MIXINR_VOL - [2:0] */
-#define WM8993_MIXOUTR_MIXINR_VOL_WIDTH              3  /* MIXOUTR_MIXINR_VOL - [2:0] */
+#define WM8993_MIXOUTR_MIXINR_VOL_MASK          0x0007  /* MIXOUTR_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXOUTR_MIXINR_VOL_SHIFT              0  /* MIXOUTR_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXOUTR_MIXINR_VOL_WIDTH              3  /* MIXOUTR_MIXINR_VOL -
+                                                         * [2:0] */
 
 /*
  * R43 (0x2B) - Input Mixer5
  */
-#define WM8993_IN1LP_MIXINL_VOL_MASK            0x01C0  /* IN1LP_MIXINL_VOL - [8:6] */
-#define WM8993_IN1LP_MIXINL_VOL_SHIFT                6  /* IN1LP_MIXINL_VOL - [8:6] */
-#define WM8993_IN1LP_MIXINL_VOL_WIDTH                3  /* IN1LP_MIXINL_VOL - [8:6] */
-#define WM8993_VRX_MIXINL_VOL_MASK              0x0007  /* VRX_MIXINL_VOL - [2:0] */
-#define WM8993_VRX_MIXINL_VOL_SHIFT                  0  /* VRX_MIXINL_VOL - [2:0] */
-#define WM8993_VRX_MIXINL_VOL_WIDTH                  3  /* VRX_MIXINL_VOL - [2:0] */
+#define WM8993_IN1LP_MIXINL_VOL_MASK            0x01C0  /* IN1LP_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN1LP_MIXINL_VOL_SHIFT                6  /* IN1LP_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN1LP_MIXINL_VOL_WIDTH                3  /* IN1LP_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8993_VRX_MIXINL_VOL_MASK              0x0007  /* VRX_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8993_VRX_MIXINL_VOL_SHIFT                  0  /* VRX_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8993_VRX_MIXINL_VOL_WIDTH                  3  /* VRX_MIXINL_VOL -
+                                                         * [2:0] */
 
 /*
  * R44 (0x2C) - Input Mixer6
  */
-#define WM8993_IN1RP_MIXINR_VOL_MASK            0x01C0  /* IN1RP_MIXINR_VOL - [8:6] */
-#define WM8993_IN1RP_MIXINR_VOL_SHIFT                6  /* IN1RP_MIXINR_VOL - [8:6] */
-#define WM8993_IN1RP_MIXINR_VOL_WIDTH                3  /* IN1RP_MIXINR_VOL - [8:6] */
-#define WM8993_VRX_MIXINR_VOL_MASK              0x0007  /* VRX_MIXINR_VOL - [2:0] */
-#define WM8993_VRX_MIXINR_VOL_SHIFT                  0  /* VRX_MIXINR_VOL - [2:0] */
-#define WM8993_VRX_MIXINR_VOL_WIDTH                  3  /* VRX_MIXINR_VOL - [2:0] */
+#define WM8993_IN1RP_MIXINR_VOL_MASK            0x01C0  /* IN1RP_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN1RP_MIXINR_VOL_SHIFT                6  /* IN1RP_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN1RP_MIXINR_VOL_WIDTH                3  /* IN1RP_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8993_VRX_MIXINR_VOL_MASK              0x0007  /* VRX_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8993_VRX_MIXINR_VOL_SHIFT                  0  /* VRX_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8993_VRX_MIXINR_VOL_WIDTH                  3  /* VRX_MIXINR_VOL -
+                                                         * [2:0] */
 
 /*
  * R45 (0x2D) - Output Mixer1
@@ -1268,66 +1349,114 @@
 /*
  * R47 (0x2F) - Output Mixer3
  */
-#define WM8993_IN2LP_MIXOUTL_VOL_MASK           0x0E00  /* IN2LP_MIXOUTL_VOL - [11:9] */
-#define WM8993_IN2LP_MIXOUTL_VOL_SHIFT               9  /* IN2LP_MIXOUTL_VOL - [11:9] */
-#define WM8993_IN2LP_MIXOUTL_VOL_WIDTH               3  /* IN2LP_MIXOUTL_VOL - [11:9] */
-#define WM8993_IN2LN_MIXOUTL_VOL_MASK           0x01C0  /* IN2LN_MIXOUTL_VOL - [8:6] */
-#define WM8993_IN2LN_MIXOUTL_VOL_SHIFT               6  /* IN2LN_MIXOUTL_VOL - [8:6] */
-#define WM8993_IN2LN_MIXOUTL_VOL_WIDTH               3  /* IN2LN_MIXOUTL_VOL - [8:6] */
-#define WM8993_IN1R_MIXOUTL_VOL_MASK            0x0038  /* IN1R_MIXOUTL_VOL - [5:3] */
-#define WM8993_IN1R_MIXOUTL_VOL_SHIFT                3  /* IN1R_MIXOUTL_VOL - [5:3] */
-#define WM8993_IN1R_MIXOUTL_VOL_WIDTH                3  /* IN1R_MIXOUTL_VOL - [5:3] */
-#define WM8993_IN1L_MIXOUTL_VOL_MASK            0x0007  /* IN1L_MIXOUTL_VOL - [2:0] */
-#define WM8993_IN1L_MIXOUTL_VOL_SHIFT                0  /* IN1L_MIXOUTL_VOL - [2:0] */
-#define WM8993_IN1L_MIXOUTL_VOL_WIDTH                3  /* IN1L_MIXOUTL_VOL - [2:0] */
+#define WM8993_IN2LP_MIXOUTL_VOL_MASK           0x0E00  /* IN2LP_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2LP_MIXOUTL_VOL_SHIFT               9  /* IN2LP_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2LP_MIXOUTL_VOL_WIDTH               3  /* IN2LP_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2LN_MIXOUTL_VOL_MASK           0x01C0  /* IN2LN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2LN_MIXOUTL_VOL_SHIFT               6  /* IN2LN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2LN_MIXOUTL_VOL_WIDTH               3  /* IN2LN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN1R_MIXOUTL_VOL_MASK            0x0038  /* IN1R_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8993_IN1R_MIXOUTL_VOL_SHIFT                3  /* IN1R_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8993_IN1R_MIXOUTL_VOL_WIDTH                3  /* IN1R_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8993_IN1L_MIXOUTL_VOL_MASK            0x0007  /* IN1L_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8993_IN1L_MIXOUTL_VOL_SHIFT                0  /* IN1L_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8993_IN1L_MIXOUTL_VOL_WIDTH                3  /* IN1L_MIXOUTL_VOL -
+                                                         * [2:0] */
 
 /*
  * R48 (0x30) - Output Mixer4
  */
-#define WM8993_IN2RP_MIXOUTR_VOL_MASK           0x0E00  /* IN2RP_MIXOUTR_VOL - [11:9] */
-#define WM8993_IN2RP_MIXOUTR_VOL_SHIFT               9  /* IN2RP_MIXOUTR_VOL - [11:9] */
-#define WM8993_IN2RP_MIXOUTR_VOL_WIDTH               3  /* IN2RP_MIXOUTR_VOL - [11:9] */
-#define WM8993_IN2RN_MIXOUTR_VOL_MASK           0x01C0  /* IN2RN_MIXOUTR_VOL - [8:6] */
-#define WM8993_IN2RN_MIXOUTR_VOL_SHIFT               6  /* IN2RN_MIXOUTR_VOL - [8:6] */
-#define WM8993_IN2RN_MIXOUTR_VOL_WIDTH               3  /* IN2RN_MIXOUTR_VOL - [8:6] */
-#define WM8993_IN1L_MIXOUTR_VOL_MASK            0x0038  /* IN1L_MIXOUTR_VOL - [5:3] */
-#define WM8993_IN1L_MIXOUTR_VOL_SHIFT                3  /* IN1L_MIXOUTR_VOL - [5:3] */
-#define WM8993_IN1L_MIXOUTR_VOL_WIDTH                3  /* IN1L_MIXOUTR_VOL - [5:3] */
-#define WM8993_IN1R_MIXOUTR_VOL_MASK            0x0007  /* IN1R_MIXOUTR_VOL - [2:0] */
-#define WM8993_IN1R_MIXOUTR_VOL_SHIFT                0  /* IN1R_MIXOUTR_VOL - [2:0] */
-#define WM8993_IN1R_MIXOUTR_VOL_WIDTH                3  /* IN1R_MIXOUTR_VOL - [2:0] */
+#define WM8993_IN2RP_MIXOUTR_VOL_MASK           0x0E00  /* IN2RP_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2RP_MIXOUTR_VOL_SHIFT               9  /* IN2RP_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2RP_MIXOUTR_VOL_WIDTH               3  /* IN2RP_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2RN_MIXOUTR_VOL_MASK           0x01C0  /* IN2RN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2RN_MIXOUTR_VOL_SHIFT               6  /* IN2RN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2RN_MIXOUTR_VOL_WIDTH               3  /* IN2RN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN1L_MIXOUTR_VOL_MASK            0x0038  /* IN1L_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8993_IN1L_MIXOUTR_VOL_SHIFT                3  /* IN1L_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8993_IN1L_MIXOUTR_VOL_WIDTH                3  /* IN1L_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8993_IN1R_MIXOUTR_VOL_MASK            0x0007  /* IN1R_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8993_IN1R_MIXOUTR_VOL_SHIFT                0  /* IN1R_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8993_IN1R_MIXOUTR_VOL_WIDTH                3  /* IN1R_MIXOUTR_VOL -
+                                                         * [2:0] */
 
 /*
  * R49 (0x31) - Output Mixer5
  */
-#define WM8993_DACL_MIXOUTL_VOL_MASK            0x0E00  /* DACL_MIXOUTL_VOL - [11:9] */
-#define WM8993_DACL_MIXOUTL_VOL_SHIFT                9  /* DACL_MIXOUTL_VOL - [11:9] */
-#define WM8993_DACL_MIXOUTL_VOL_WIDTH                3  /* DACL_MIXOUTL_VOL - [11:9] */
-#define WM8993_IN2RN_MIXOUTL_VOL_MASK           0x01C0  /* IN2RN_MIXOUTL_VOL - [8:6] */
-#define WM8993_IN2RN_MIXOUTL_VOL_SHIFT               6  /* IN2RN_MIXOUTL_VOL - [8:6] */
-#define WM8993_IN2RN_MIXOUTL_VOL_WIDTH               3  /* IN2RN_MIXOUTL_VOL - [8:6] */
-#define WM8993_MIXINR_MIXOUTL_VOL_MASK          0x0038  /* MIXINR_MIXOUTL_VOL - [5:3] */
-#define WM8993_MIXINR_MIXOUTL_VOL_SHIFT              3  /* MIXINR_MIXOUTL_VOL - [5:3] */
-#define WM8993_MIXINR_MIXOUTL_VOL_WIDTH              3  /* MIXINR_MIXOUTL_VOL - [5:3] */
-#define WM8993_MIXINL_MIXOUTL_VOL_MASK          0x0007  /* MIXINL_MIXOUTL_VOL - [2:0] */
-#define WM8993_MIXINL_MIXOUTL_VOL_SHIFT              0  /* MIXINL_MIXOUTL_VOL - [2:0] */
-#define WM8993_MIXINL_MIXOUTL_VOL_WIDTH              3  /* MIXINL_MIXOUTL_VOL - [2:0] */
+#define WM8993_DACL_MIXOUTL_VOL_MASK            0x0E00  /* DACL_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8993_DACL_MIXOUTL_VOL_SHIFT                9  /* DACL_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8993_DACL_MIXOUTL_VOL_WIDTH                3  /* DACL_MIXOUTL_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2RN_MIXOUTL_VOL_MASK           0x01C0  /* IN2RN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2RN_MIXOUTL_VOL_SHIFT               6  /* IN2RN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2RN_MIXOUTL_VOL_WIDTH               3  /* IN2RN_MIXOUTL_VOL -
+                                                         * [8:6] */
+#define WM8993_MIXINR_MIXOUTL_VOL_MASK          0x0038  /* MIXINR_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8993_MIXINR_MIXOUTL_VOL_SHIFT              3  /* MIXINR_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8993_MIXINR_MIXOUTL_VOL_WIDTH              3  /* MIXINR_MIXOUTL_VOL -
+                                                         * [5:3] */
+#define WM8993_MIXINL_MIXOUTL_VOL_MASK          0x0007  /* MIXINL_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXINL_MIXOUTL_VOL_SHIFT              0  /* MIXINL_MIXOUTL_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXINL_MIXOUTL_VOL_WIDTH              3  /* MIXINL_MIXOUTL_VOL -
+                                                         * [2:0] */
 
 /*
  * R50 (0x32) - Output Mixer6
  */
-#define WM8993_DACR_MIXOUTR_VOL_MASK            0x0E00  /* DACR_MIXOUTR_VOL - [11:9] */
-#define WM8993_DACR_MIXOUTR_VOL_SHIFT                9  /* DACR_MIXOUTR_VOL - [11:9] */
-#define WM8993_DACR_MIXOUTR_VOL_WIDTH                3  /* DACR_MIXOUTR_VOL - [11:9] */
-#define WM8993_IN2LN_MIXOUTR_VOL_MASK           0x01C0  /* IN2LN_MIXOUTR_VOL - [8:6] */
-#define WM8993_IN2LN_MIXOUTR_VOL_SHIFT               6  /* IN2LN_MIXOUTR_VOL - [8:6] */
-#define WM8993_IN2LN_MIXOUTR_VOL_WIDTH               3  /* IN2LN_MIXOUTR_VOL - [8:6] */
-#define WM8993_MIXINL_MIXOUTR_VOL_MASK          0x0038  /* MIXINL_MIXOUTR_VOL - [5:3] */
-#define WM8993_MIXINL_MIXOUTR_VOL_SHIFT              3  /* MIXINL_MIXOUTR_VOL - [5:3] */
-#define WM8993_MIXINL_MIXOUTR_VOL_WIDTH              3  /* MIXINL_MIXOUTR_VOL - [5:3] */
-#define WM8993_MIXINR_MIXOUTR_VOL_MASK          0x0007  /* MIXINR_MIXOUTR_VOL - [2:0] */
-#define WM8993_MIXINR_MIXOUTR_VOL_SHIFT              0  /* MIXINR_MIXOUTR_VOL - [2:0] */
-#define WM8993_MIXINR_MIXOUTR_VOL_WIDTH              3  /* MIXINR_MIXOUTR_VOL - [2:0] */
+#define WM8993_DACR_MIXOUTR_VOL_MASK            0x0E00  /* DACR_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8993_DACR_MIXOUTR_VOL_SHIFT                9  /* DACR_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8993_DACR_MIXOUTR_VOL_WIDTH                3  /* DACR_MIXOUTR_VOL -
+                                                         * [11:9] */
+#define WM8993_IN2LN_MIXOUTR_VOL_MASK           0x01C0  /* IN2LN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2LN_MIXOUTR_VOL_SHIFT               6  /* IN2LN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8993_IN2LN_MIXOUTR_VOL_WIDTH               3  /* IN2LN_MIXOUTR_VOL -
+                                                         * [8:6] */
+#define WM8993_MIXINL_MIXOUTR_VOL_MASK          0x0038  /* MIXINL_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8993_MIXINL_MIXOUTR_VOL_SHIFT              3  /* MIXINL_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8993_MIXINL_MIXOUTR_VOL_WIDTH              3  /* MIXINL_MIXOUTR_VOL -
+                                                         * [5:3] */
+#define WM8993_MIXINR_MIXOUTR_VOL_MASK          0x0007  /* MIXINR_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXINR_MIXOUTR_VOL_SHIFT              0  /* MIXINR_MIXOUTR_VOL -
+                                                         * [2:0] */
+#define WM8993_MIXINR_MIXOUTR_VOL_WIDTH              3  /* MIXINR_MIXOUTR_VOL -
+                                                         * [2:0] */
 
 /*
  * R51 (0x33) - HPOUT2 Mixer
@@ -1336,26 +1465,42 @@
 #define WM8993_VRX_TO_HPOUT2_MASK               0x0020  /* VRX_TO_HPOUT2 */
 #define WM8993_VRX_TO_HPOUT2_SHIFT                   5  /* VRX_TO_HPOUT2 */
 #define WM8993_VRX_TO_HPOUT2_WIDTH                   1  /* VRX_TO_HPOUT2 */
-#define WM8993_MIXOUTLVOL_TO_HPOUT2             0x0010  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTLVOL_TO_HPOUT2_MASK        0x0010  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTLVOL_TO_HPOUT2_SHIFT            4  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTLVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTLVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTRVOL_TO_HPOUT2             0x0008  /* MIXOUTRVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTRVOL_TO_HPOUT2_MASK        0x0008  /* MIXOUTRVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTRVOL_TO_HPOUT2_SHIFT            3  /* MIXOUTRVOL_TO_HPOUT2 */
-#define WM8993_MIXOUTRVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTRVOL_TO_HPOUT2 */
+#define WM8993_MIXOUTLVOL_TO_HPOUT2             0x0010  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTLVOL_TO_HPOUT2_MASK        0x0010  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTLVOL_TO_HPOUT2_SHIFT            4  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTLVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTLVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTRVOL_TO_HPOUT2             0x0008  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTRVOL_TO_HPOUT2_MASK        0x0008  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTRVOL_TO_HPOUT2_SHIFT            3  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
+#define WM8993_MIXOUTRVOL_TO_HPOUT2_WIDTH            1  /* MIXOUTRVOL_TO_HPOUT2
+                                                         * */
 
 /*
  * R52 (0x34) - Line Mixer1
  */
-#define WM8993_MIXOUTL_TO_LINEOUT1N             0x0040  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8993_MIXOUTL_TO_LINEOUT1N_MASK        0x0040  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8993_MIXOUTL_TO_LINEOUT1N_SHIFT            6  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8993_MIXOUTL_TO_LINEOUT1N_WIDTH            1  /* MIXOUTL_TO_LINEOUT1N */
-#define WM8993_MIXOUTR_TO_LINEOUT1N             0x0020  /* MIXOUTR_TO_LINEOUT1N */
-#define WM8993_MIXOUTR_TO_LINEOUT1N_MASK        0x0020  /* MIXOUTR_TO_LINEOUT1N */
-#define WM8993_MIXOUTR_TO_LINEOUT1N_SHIFT            5  /* MIXOUTR_TO_LINEOUT1N */
-#define WM8993_MIXOUTR_TO_LINEOUT1N_WIDTH            1  /* MIXOUTR_TO_LINEOUT1N */
+#define WM8993_MIXOUTL_TO_LINEOUT1N             0x0040  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT1N_MASK        0x0040  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT1N_SHIFT            6  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT1N_WIDTH            1  /* MIXOUTL_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT1N             0x0020  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT1N_MASK        0x0020  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT1N_SHIFT            5  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT1N_WIDTH            1  /* MIXOUTR_TO_LINEOUT1N
+                                                         * */
 #define WM8993_LINEOUT1_MODE                    0x0010  /* LINEOUT1_MODE */
 #define WM8993_LINEOUT1_MODE_MASK               0x0010  /* LINEOUT1_MODE */
 #define WM8993_LINEOUT1_MODE_SHIFT                   4  /* LINEOUT1_MODE */
@@ -1368,22 +1513,34 @@
 #define WM8993_IN1L_TO_LINEOUT1P_MASK           0x0002  /* IN1L_TO_LINEOUT1P */
 #define WM8993_IN1L_TO_LINEOUT1P_SHIFT               1  /* IN1L_TO_LINEOUT1P */
 #define WM8993_IN1L_TO_LINEOUT1P_WIDTH               1  /* IN1L_TO_LINEOUT1P */
-#define WM8993_MIXOUTL_TO_LINEOUT1P             0x0001  /* MIXOUTL_TO_LINEOUT1P */
-#define WM8993_MIXOUTL_TO_LINEOUT1P_MASK        0x0001  /* MIXOUTL_TO_LINEOUT1P */
-#define WM8993_MIXOUTL_TO_LINEOUT1P_SHIFT            0  /* MIXOUTL_TO_LINEOUT1P */
-#define WM8993_MIXOUTL_TO_LINEOUT1P_WIDTH            1  /* MIXOUTL_TO_LINEOUT1P */
+#define WM8993_MIXOUTL_TO_LINEOUT1P             0x0001  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT1P_MASK        0x0001  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT1P_SHIFT            0  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT1P_WIDTH            1  /* MIXOUTL_TO_LINEOUT1P
+                                                         * */
 
 /*
  * R53 (0x35) - Line Mixer2
  */
-#define WM8993_MIXOUTR_TO_LINEOUT2N             0x0040  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8993_MIXOUTR_TO_LINEOUT2N_MASK        0x0040  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8993_MIXOUTR_TO_LINEOUT2N_SHIFT            6  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8993_MIXOUTR_TO_LINEOUT2N_WIDTH            1  /* MIXOUTR_TO_LINEOUT2N */
-#define WM8993_MIXOUTL_TO_LINEOUT2N             0x0020  /* MIXOUTL_TO_LINEOUT2N */
-#define WM8993_MIXOUTL_TO_LINEOUT2N_MASK        0x0020  /* MIXOUTL_TO_LINEOUT2N */
-#define WM8993_MIXOUTL_TO_LINEOUT2N_SHIFT            5  /* MIXOUTL_TO_LINEOUT2N */
-#define WM8993_MIXOUTL_TO_LINEOUT2N_WIDTH            1  /* MIXOUTL_TO_LINEOUT2N */
+#define WM8993_MIXOUTR_TO_LINEOUT2N             0x0040  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT2N_MASK        0x0040  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT2N_SHIFT            6  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT2N_WIDTH            1  /* MIXOUTR_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT2N             0x0020  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT2N_MASK        0x0020  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT2N_SHIFT            5  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
+#define WM8993_MIXOUTL_TO_LINEOUT2N_WIDTH            1  /* MIXOUTL_TO_LINEOUT2N
+                                                         * */
 #define WM8993_LINEOUT2_MODE                    0x0010  /* LINEOUT2_MODE */
 #define WM8993_LINEOUT2_MODE_MASK               0x0010  /* LINEOUT2_MODE */
 #define WM8993_LINEOUT2_MODE_SHIFT                   4  /* LINEOUT2_MODE */
@@ -1396,10 +1553,14 @@
 #define WM8993_IN1R_TO_LINEOUT2P_MASK           0x0002  /* IN1R_TO_LINEOUT2P */
 #define WM8993_IN1R_TO_LINEOUT2P_SHIFT               1  /* IN1R_TO_LINEOUT2P */
 #define WM8993_IN1R_TO_LINEOUT2P_WIDTH               1  /* IN1R_TO_LINEOUT2P */
-#define WM8993_MIXOUTR_TO_LINEOUT2P             0x0001  /* MIXOUTR_TO_LINEOUT2P */
-#define WM8993_MIXOUTR_TO_LINEOUT2P_MASK        0x0001  /* MIXOUTR_TO_LINEOUT2P */
-#define WM8993_MIXOUTR_TO_LINEOUT2P_SHIFT            0  /* MIXOUTR_TO_LINEOUT2P */
-#define WM8993_MIXOUTR_TO_LINEOUT2P_WIDTH            1  /* MIXOUTR_TO_LINEOUT2P */
+#define WM8993_MIXOUTR_TO_LINEOUT2P             0x0001  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT2P_MASK        0x0001  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT2P_SHIFT            0  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
+#define WM8993_MIXOUTR_TO_LINEOUT2P_WIDTH            1  /* MIXOUTR_TO_LINEOUT2P
+                                                         * */
 
 /*
  * R54 (0x36) - Speaker Mixer
@@ -1460,10 +1621,14 @@
 /*
  * R56 (0x38) - AntiPOP1
  */
-#define WM8993_LINEOUT_VMID_BUF_ENA             0x0080  /* LINEOUT_VMID_BUF_ENA */
-#define WM8993_LINEOUT_VMID_BUF_ENA_MASK        0x0080  /* LINEOUT_VMID_BUF_ENA */
-#define WM8993_LINEOUT_VMID_BUF_ENA_SHIFT            7  /* LINEOUT_VMID_BUF_ENA */
-#define WM8993_LINEOUT_VMID_BUF_ENA_WIDTH            1  /* LINEOUT_VMID_BUF_ENA */
+#define WM8993_LINEOUT_VMID_BUF_ENA             0x0080  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
+#define WM8993_LINEOUT_VMID_BUF_ENA_MASK        0x0080  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
+#define WM8993_LINEOUT_VMID_BUF_ENA_SHIFT            7  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
+#define WM8993_LINEOUT_VMID_BUF_ENA_WIDTH            1  /* LINEOUT_VMID_BUF_ENA
+                                                         * */
 #define WM8993_HPOUT2_IN_ENA                    0x0040  /* HPOUT2_IN_ENA */
 #define WM8993_HPOUT2_IN_ENA_MASK               0x0040  /* HPOUT2_IN_ENA */
 #define WM8993_HPOUT2_IN_ENA_SHIFT                   6  /* HPOUT2_IN_ENA */
@@ -1541,12 +1706,18 @@
 /*
  * R61 (0x3D) - FLL Control 2
  */
-#define WM8993_FLL_OUTDIV_MASK                  0x0700  /* FLL_OUTDIV - [10:8] */
-#define WM8993_FLL_OUTDIV_SHIFT                      8  /* FLL_OUTDIV - [10:8] */
-#define WM8993_FLL_OUTDIV_WIDTH                      3  /* FLL_OUTDIV - [10:8] */
-#define WM8993_FLL_CTRL_RATE_MASK               0x0070  /* FLL_CTRL_RATE - [6:4] */
-#define WM8993_FLL_CTRL_RATE_SHIFT                   4  /* FLL_CTRL_RATE - [6:4] */
-#define WM8993_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [6:4] */
+#define WM8993_FLL_OUTDIV_MASK                  0x0700  /* FLL_OUTDIV - [10:8]
+                                                         * */
+#define WM8993_FLL_OUTDIV_SHIFT                      8  /* FLL_OUTDIV - [10:8]
+                                                         * */
+#define WM8993_FLL_OUTDIV_WIDTH                      3  /* FLL_OUTDIV - [10:8]
+                                                         * */
+#define WM8993_FLL_CTRL_RATE_MASK               0x0070  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
+#define WM8993_FLL_CTRL_RATE_SHIFT                   4  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
+#define WM8993_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
 #define WM8993_FLL_FRATIO_MASK                  0x0007  /* FLL_FRATIO - [2:0] */
 #define WM8993_FLL_FRATIO_SHIFT                      0  /* FLL_FRATIO - [2:0] */
 #define WM8993_FLL_FRATIO_WIDTH                      3  /* FLL_FRATIO - [2:0] */
@@ -1571,32 +1742,50 @@
 /*
  * R64 (0x40) - FLL Control 5
  */
-#define WM8993_FLL_FRC_NCO_VAL_MASK             0x1F80  /* FLL_FRC_NCO_VAL - [12:7] */
-#define WM8993_FLL_FRC_NCO_VAL_SHIFT                 7  /* FLL_FRC_NCO_VAL - [12:7] */
-#define WM8993_FLL_FRC_NCO_VAL_WIDTH                 6  /* FLL_FRC_NCO_VAL - [12:7] */
+#define WM8993_FLL_FRC_NCO_VAL_MASK             0x1F80  /* FLL_FRC_NCO_VAL -
+                                                         * [12:7] */
+#define WM8993_FLL_FRC_NCO_VAL_SHIFT                 7  /* FLL_FRC_NCO_VAL -
+                                                         * [12:7] */
+#define WM8993_FLL_FRC_NCO_VAL_WIDTH                 6  /* FLL_FRC_NCO_VAL -
+                                                         * [12:7] */
 #define WM8993_FLL_FRC_NCO                      0x0040  /* FLL_FRC_NCO */
 #define WM8993_FLL_FRC_NCO_MASK                 0x0040  /* FLL_FRC_NCO */
 #define WM8993_FLL_FRC_NCO_SHIFT                     6  /* FLL_FRC_NCO */
 #define WM8993_FLL_FRC_NCO_WIDTH                     1  /* FLL_FRC_NCO */
-#define WM8993_FLL_CLK_REF_DIV_MASK             0x0018  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM8993_FLL_CLK_REF_DIV_SHIFT                 3  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM8993_FLL_CLK_REF_DIV_WIDTH                 2  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM8993_FLL_CLK_SRC_MASK                 0x0003  /* FLL_CLK_SRC - [1:0] */
-#define WM8993_FLL_CLK_SRC_SHIFT                     0  /* FLL_CLK_SRC - [1:0] */
-#define WM8993_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [1:0] */
+#define WM8993_FLL_CLK_REF_DIV_MASK             0x0018  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM8993_FLL_CLK_REF_DIV_SHIFT                 3  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM8993_FLL_CLK_REF_DIV_WIDTH                 2  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM8993_FLL_CLK_SRC_MASK                 0x0003  /* FLL_CLK_SRC - [1:0]
+                                                         * */
+#define WM8993_FLL_CLK_SRC_SHIFT                     0  /* FLL_CLK_SRC - [1:0]
+                                                         * */
+#define WM8993_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [1:0]
+                                                         * */
 
 /*
  * R65 (0x41) - Clocking 3
  */
-#define WM8993_CLK_DCS_DIV_MASK                 0x3C00  /* CLK_DCS_DIV - [13:10] */
-#define WM8993_CLK_DCS_DIV_SHIFT                    10  /* CLK_DCS_DIV - [13:10] */
-#define WM8993_CLK_DCS_DIV_WIDTH                     4  /* CLK_DCS_DIV - [13:10] */
-#define WM8993_SAMPLE_RATE_MASK                 0x0380  /* SAMPLE_RATE - [9:7] */
-#define WM8993_SAMPLE_RATE_SHIFT                     7  /* SAMPLE_RATE - [9:7] */
-#define WM8993_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [9:7] */
-#define WM8993_CLK_SYS_RATE_MASK                0x001E  /* CLK_SYS_RATE - [4:1] */
-#define WM8993_CLK_SYS_RATE_SHIFT                    1  /* CLK_SYS_RATE - [4:1] */
-#define WM8993_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [4:1] */
+#define WM8993_CLK_DCS_DIV_MASK                 0x3C00  /* CLK_DCS_DIV - [13:10]
+                                                         * */
+#define WM8993_CLK_DCS_DIV_SHIFT                    10  /* CLK_DCS_DIV - [13:10]
+                                                         * */
+#define WM8993_CLK_DCS_DIV_WIDTH                     4  /* CLK_DCS_DIV - [13:10]
+                                                         * */
+#define WM8993_SAMPLE_RATE_MASK                 0x0380  /* SAMPLE_RATE - [9:7]
+                                                         * */
+#define WM8993_SAMPLE_RATE_SHIFT                     7  /* SAMPLE_RATE - [9:7]
+                                                         * */
+#define WM8993_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [9:7]
+                                                         * */
+#define WM8993_CLK_SYS_RATE_MASK                0x001E  /* CLK_SYS_RATE - [4:1]
+                                                         * */
+#define WM8993_CLK_SYS_RATE_SHIFT                    1  /* CLK_SYS_RATE - [4:1]
+                                                         * */
+#define WM8993_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [4:1]
+                                                         * */
 #define WM8993_CLK_DSP_ENA                      0x0001  /* CLK_DSP_ENA */
 #define WM8993_CLK_DSP_ENA_MASK                 0x0001  /* CLK_DSP_ENA */
 #define WM8993_CLK_DSP_ENA_SHIFT                     0  /* CLK_DSP_ENA */
@@ -1609,9 +1798,12 @@
 #define WM8993_DAC_DIV4_MASK                    0x0200  /* DAC_DIV4 */
 #define WM8993_DAC_DIV4_SHIFT                        9  /* DAC_DIV4 */
 #define WM8993_DAC_DIV4_WIDTH                        1  /* DAC_DIV4 */
-#define WM8993_CLK_256K_DIV_MASK                0x007E  /* CLK_256K_DIV - [6:1] */
-#define WM8993_CLK_256K_DIV_SHIFT                    1  /* CLK_256K_DIV - [6:1] */
-#define WM8993_CLK_256K_DIV_WIDTH                    6  /* CLK_256K_DIV - [6:1] */
+#define WM8993_CLK_256K_DIV_MASK                0x007E  /* CLK_256K_DIV - [6:1]
+                                                         * */
+#define WM8993_CLK_256K_DIV_SHIFT                    1  /* CLK_256K_DIV - [6:1]
+                                                         * */
+#define WM8993_CLK_256K_DIV_WIDTH                    6  /* CLK_256K_DIV - [6:1]
+                                                         * */
 #define WM8993_SR_MODE                          0x0001  /* SR_MODE */
 #define WM8993_SR_MODE_MASK                     0x0001  /* SR_MODE */
 #define WM8993_SR_MODE_SHIFT                         0  /* SR_MODE */
@@ -1640,19 +1832,28 @@
 #define WM8993_WSEQ_ENA_MASK                    0x0100  /* WSEQ_ENA */
 #define WM8993_WSEQ_ENA_SHIFT                        8  /* WSEQ_ENA */
 #define WM8993_WSEQ_ENA_WIDTH                        1  /* WSEQ_ENA */
-#define WM8993_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8993_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8993_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX - [4:0] */
+#define WM8993_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8993_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8993_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
 
 /*
  * R71 (0x47) - Write Sequencer 1
  */
-#define WM8993_WSEQ_DATA_WIDTH_MASK             0x7000  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8993_WSEQ_DATA_WIDTH_SHIFT                12  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8993_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8993_WSEQ_DATA_START_MASK             0x0F00  /* WSEQ_DATA_START - [11:8] */
-#define WM8993_WSEQ_DATA_START_SHIFT                 8  /* WSEQ_DATA_START - [11:8] */
-#define WM8993_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START - [11:8] */
+#define WM8993_WSEQ_DATA_WIDTH_MASK             0x7000  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8993_WSEQ_DATA_WIDTH_SHIFT                12  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8993_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8993_WSEQ_DATA_START_MASK             0x0F00  /* WSEQ_DATA_START -
+                                                         * [11:8] */
+#define WM8993_WSEQ_DATA_START_SHIFT                 8  /* WSEQ_DATA_START -
+                                                         * [11:8] */
+#define WM8993_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START -
+                                                         * [11:8] */
 #define WM8993_WSEQ_ADDR_MASK                   0x00FF  /* WSEQ_ADDR - [7:0] */
 #define WM8993_WSEQ_ADDR_SHIFT                       0  /* WSEQ_ADDR - [7:0] */
 #define WM8993_WSEQ_ADDR_WIDTH                       8  /* WSEQ_ADDR - [7:0] */
@@ -1664,9 +1865,12 @@
 #define WM8993_WSEQ_EOS_MASK                    0x4000  /* WSEQ_EOS */
 #define WM8993_WSEQ_EOS_SHIFT                       14  /* WSEQ_EOS */
 #define WM8993_WSEQ_EOS_WIDTH                        1  /* WSEQ_EOS */
-#define WM8993_WSEQ_DELAY_MASK                  0x0F00  /* WSEQ_DELAY - [11:8] */
-#define WM8993_WSEQ_DELAY_SHIFT                      8  /* WSEQ_DELAY - [11:8] */
-#define WM8993_WSEQ_DELAY_WIDTH                      4  /* WSEQ_DELAY - [11:8] */
+#define WM8993_WSEQ_DELAY_MASK                  0x0F00  /* WSEQ_DELAY - [11:8]
+                                                         * */
+#define WM8993_WSEQ_DELAY_SHIFT                      8  /* WSEQ_DELAY - [11:8]
+                                                         * */
+#define WM8993_WSEQ_DELAY_WIDTH                      4  /* WSEQ_DELAY - [11:8]
+                                                         * */
 #define WM8993_WSEQ_DATA_MASK                   0x00FF  /* WSEQ_DATA - [7:0] */
 #define WM8993_WSEQ_DATA_SHIFT                       0  /* WSEQ_DATA - [7:0] */
 #define WM8993_WSEQ_DATA_WIDTH                       8  /* WSEQ_DATA - [7:0] */
@@ -1682,9 +1886,12 @@
 #define WM8993_WSEQ_START_MASK                  0x0100  /* WSEQ_START */
 #define WM8993_WSEQ_START_SHIFT                      8  /* WSEQ_START */
 #define WM8993_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM8993_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX - [5:0] */
-#define WM8993_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [5:0] */
-#define WM8993_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX - [5:0] */
+#define WM8993_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8993_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8993_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
 
 /*
  * R74 (0x4A) - Write Sequencer 4
@@ -1697,9 +1904,12 @@
 /*
  * R75 (0x4B) - Write Sequencer 5
  */
-#define WM8993_WSEQ_CURRENT_INDEX_MASK          0x003F  /* WSEQ_CURRENT_INDEX - [5:0] */
-#define WM8993_WSEQ_CURRENT_INDEX_SHIFT              0  /* WSEQ_CURRENT_INDEX - [5:0] */
-#define WM8993_WSEQ_CURRENT_INDEX_WIDTH              6  /* WSEQ_CURRENT_INDEX - [5:0] */
+#define WM8993_WSEQ_CURRENT_INDEX_MASK          0x003F  /* WSEQ_CURRENT_INDEX -
+                                                         * [5:0] */
+#define WM8993_WSEQ_CURRENT_INDEX_SHIFT              0  /* WSEQ_CURRENT_INDEX -
+                                                         * [5:0] */
+#define WM8993_WSEQ_CURRENT_INDEX_WIDTH              6  /* WSEQ_CURRENT_INDEX -
+                                                         * [5:0] */
 
 /*
  * R76 (0x4C) - Charge Pump 1
@@ -1768,22 +1978,34 @@
 /*
  * R85 (0x55) - DC Servo 1
  */
-#define WM8993_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8993_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8993_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [11:5] */
-#define WM8993_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 - [3:0] */
-#define WM8993_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 - [3:0] */
-#define WM8993_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 - [3:0] */
+#define WM8993_DCS_SERIES_NO_01_MASK            0x0FE0  /* DCS_SERIES_NO_01 -
+                                                         * [11:5] */
+#define WM8993_DCS_SERIES_NO_01_SHIFT                5  /* DCS_SERIES_NO_01 -
+                                                         * [11:5] */
+#define WM8993_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 -
+                                                         * [11:5] */
+#define WM8993_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
+#define WM8993_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
+#define WM8993_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
 
 /*
  * R87 (0x57) - DC Servo 3
  */
-#define WM8993_DCS_DAC_WR_VAL_1_MASK            0xFF00  /* DCS_DAC_WR_VAL_1 - [15:8] */
-#define WM8993_DCS_DAC_WR_VAL_1_SHIFT                8  /* DCS_DAC_WR_VAL_1 - [15:8] */
-#define WM8993_DCS_DAC_WR_VAL_1_WIDTH                8  /* DCS_DAC_WR_VAL_1 - [15:8] */
-#define WM8993_DCS_DAC_WR_VAL_0_MASK            0x00FF  /* DCS_DAC_WR_VAL_0 - [7:0] */
-#define WM8993_DCS_DAC_WR_VAL_0_SHIFT                0  /* DCS_DAC_WR_VAL_0 - [7:0] */
-#define WM8993_DCS_DAC_WR_VAL_0_WIDTH                8  /* DCS_DAC_WR_VAL_0 - [7:0] */
+#define WM8993_DCS_DAC_WR_VAL_1_MASK            0xFF00  /* DCS_DAC_WR_VAL_1 -
+                                                         * [15:8] */
+#define WM8993_DCS_DAC_WR_VAL_1_SHIFT                8  /* DCS_DAC_WR_VAL_1 -
+                                                         * [15:8] */
+#define WM8993_DCS_DAC_WR_VAL_1_WIDTH                8  /* DCS_DAC_WR_VAL_1 -
+                                                         * [15:8] */
+#define WM8993_DCS_DAC_WR_VAL_0_MASK            0x00FF  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
+#define WM8993_DCS_DAC_WR_VAL_0_SHIFT                0  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
+#define WM8993_DCS_DAC_WR_VAL_0_WIDTH                8  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
 
 /*
  * R88 (0x58) - DC Servo Readback 0
@@ -1792,32 +2014,50 @@
 #define WM8993_DCS_DATAPATH_BUSY_MASK           0x4000  /* DCS_DATAPATH_BUSY */
 #define WM8993_DCS_DATAPATH_BUSY_SHIFT              14  /* DCS_DATAPATH_BUSY */
 #define WM8993_DCS_DATAPATH_BUSY_WIDTH               1  /* DCS_DATAPATH_BUSY */
-#define WM8993_DCS_CHANNEL_MASK                 0x3000  /* DCS_CHANNEL - [13:12] */
-#define WM8993_DCS_CHANNEL_SHIFT                    12  /* DCS_CHANNEL - [13:12] */
-#define WM8993_DCS_CHANNEL_WIDTH                     2  /* DCS_CHANNEL - [13:12] */
-#define WM8993_DCS_CAL_COMPLETE_MASK            0x0300  /* DCS_CAL_COMPLETE - [9:8] */
-#define WM8993_DCS_CAL_COMPLETE_SHIFT                8  /* DCS_CAL_COMPLETE - [9:8] */
-#define WM8993_DCS_CAL_COMPLETE_WIDTH                2  /* DCS_CAL_COMPLETE - [9:8] */
-#define WM8993_DCS_DAC_WR_COMPLETE_MASK         0x0030  /* DCS_DAC_WR_COMPLETE - [5:4] */
-#define WM8993_DCS_DAC_WR_COMPLETE_SHIFT             4  /* DCS_DAC_WR_COMPLETE - [5:4] */
-#define WM8993_DCS_DAC_WR_COMPLETE_WIDTH             2  /* DCS_DAC_WR_COMPLETE - [5:4] */
-#define WM8993_DCS_STARTUP_COMPLETE_MASK        0x0003  /* DCS_STARTUP_COMPLETE - [1:0] */
-#define WM8993_DCS_STARTUP_COMPLETE_SHIFT            0  /* DCS_STARTUP_COMPLETE - [1:0] */
-#define WM8993_DCS_STARTUP_COMPLETE_WIDTH            2  /* DCS_STARTUP_COMPLETE - [1:0] */
+#define WM8993_DCS_CHANNEL_MASK                 0x3000  /* DCS_CHANNEL - [13:12]
+                                                         * */
+#define WM8993_DCS_CHANNEL_SHIFT                    12  /* DCS_CHANNEL - [13:12]
+                                                         * */
+#define WM8993_DCS_CHANNEL_WIDTH                     2  /* DCS_CHANNEL - [13:12]
+                                                         * */
+#define WM8993_DCS_CAL_COMPLETE_MASK            0x0300  /* DCS_CAL_COMPLETE -
+                                                         * [9:8] */
+#define WM8993_DCS_CAL_COMPLETE_SHIFT                8  /* DCS_CAL_COMPLETE -
+                                                         * [9:8] */
+#define WM8993_DCS_CAL_COMPLETE_WIDTH                2  /* DCS_CAL_COMPLETE -
+                                                         * [9:8] */
+#define WM8993_DCS_DAC_WR_COMPLETE_MASK         0x0030  /* DCS_DAC_WR_COMPLETE -
+                                                         * [5:4] */
+#define WM8993_DCS_DAC_WR_COMPLETE_SHIFT             4  /* DCS_DAC_WR_COMPLETE -
+                                                         * [5:4] */
+#define WM8993_DCS_DAC_WR_COMPLETE_WIDTH             2  /* DCS_DAC_WR_COMPLETE -
+                                                         * [5:4] */
+#define WM8993_DCS_STARTUP_COMPLETE_MASK        0x0003  /* DCS_STARTUP_COMPLETE
+                                                         * - [1:0] */
+#define WM8993_DCS_STARTUP_COMPLETE_SHIFT            0  /* DCS_STARTUP_COMPLETE
+                                                         * - [1:0] */
+#define WM8993_DCS_STARTUP_COMPLETE_WIDTH            2  /* DCS_STARTUP_COMPLETE
+                                                         * - [1:0] */
 
 /*
  * R89 (0x59) - DC Servo Readback 1
  */
-#define WM8993_DCS_INTEG_CHAN_1_MASK            0x00FF  /* DCS_INTEG_CHAN_1 - [7:0] */
-#define WM8993_DCS_INTEG_CHAN_1_SHIFT                0  /* DCS_INTEG_CHAN_1 - [7:0] */
-#define WM8993_DCS_INTEG_CHAN_1_WIDTH                8  /* DCS_INTEG_CHAN_1 - [7:0] */
+#define WM8993_DCS_INTEG_CHAN_1_MASK            0x00FF  /* DCS_INTEG_CHAN_1 -
+                                                         * [7:0] */
+#define WM8993_DCS_INTEG_CHAN_1_SHIFT                0  /* DCS_INTEG_CHAN_1 -
+                                                         * [7:0] */
+#define WM8993_DCS_INTEG_CHAN_1_WIDTH                8  /* DCS_INTEG_CHAN_1 -
+                                                         * [7:0] */
 
 /*
  * R90 (0x5A) - DC Servo Readback 2
  */
-#define WM8993_DCS_INTEG_CHAN_0_MASK            0x00FF  /* DCS_INTEG_CHAN_0 - [7:0] */
-#define WM8993_DCS_INTEG_CHAN_0_SHIFT                0  /* DCS_INTEG_CHAN_0 - [7:0] */
-#define WM8993_DCS_INTEG_CHAN_0_WIDTH                8  /* DCS_INTEG_CHAN_0 - [7:0] */
+#define WM8993_DCS_INTEG_CHAN_0_MASK            0x00FF  /* DCS_INTEG_CHAN_0 -
+                                                         * [7:0] */
+#define WM8993_DCS_INTEG_CHAN_0_SHIFT                0  /* DCS_INTEG_CHAN_0 -
+                                                         * [7:0] */
+#define WM8993_DCS_INTEG_CHAN_0_WIDTH                8  /* DCS_INTEG_CHAN_0 -
+                                                         * [7:0] */
 
 /*
  * R96 (0x60) - Analogue HP 0
@@ -2083,57 +2323,93 @@
 #define WM8993_DRC_HYST_ENA_MASK                0x0100  /* DRC_HYST_ENA */
 #define WM8993_DRC_HYST_ENA_SHIFT                    8  /* DRC_HYST_ENA */
 #define WM8993_DRC_HYST_ENA_WIDTH                    1  /* DRC_HYST_ENA */
-#define WM8993_DRC_THRESH_HYST_MASK             0x0030  /* DRC_THRESH_HYST - [5:4] */
-#define WM8993_DRC_THRESH_HYST_SHIFT                 4  /* DRC_THRESH_HYST - [5:4] */
-#define WM8993_DRC_THRESH_HYST_WIDTH                 2  /* DRC_THRESH_HYST - [5:4] */
-#define WM8993_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2] */
-#define WM8993_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2] */
-#define WM8993_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2] */
-#define WM8993_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0] */
-#define WM8993_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0] */
-#define WM8993_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0] */
+#define WM8993_DRC_THRESH_HYST_MASK             0x0030  /* DRC_THRESH_HYST -
+                                                         * [5:4] */
+#define WM8993_DRC_THRESH_HYST_SHIFT                 4  /* DRC_THRESH_HYST -
+                                                         * [5:4] */
+#define WM8993_DRC_THRESH_HYST_WIDTH                 2  /* DRC_THRESH_HYST -
+                                                         * [5:4] */
+#define WM8993_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8993_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8993_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8993_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8993_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8993_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0]
+                                                         * */
 
 /*
  * R124 (0x7C) - DRC Control 2
  */
-#define WM8993_DRC_ATTACK_RATE_MASK             0xF000  /* DRC_ATTACK_RATE - [15:12] */
-#define WM8993_DRC_ATTACK_RATE_SHIFT                12  /* DRC_ATTACK_RATE - [15:12] */
-#define WM8993_DRC_ATTACK_RATE_WIDTH                 4  /* DRC_ATTACK_RATE - [15:12] */
-#define WM8993_DRC_DECAY_RATE_MASK              0x0F00  /* DRC_DECAY_RATE - [11:8] */
-#define WM8993_DRC_DECAY_RATE_SHIFT                  8  /* DRC_DECAY_RATE - [11:8] */
-#define WM8993_DRC_DECAY_RATE_WIDTH                  4  /* DRC_DECAY_RATE - [11:8] */
-#define WM8993_DRC_THRESH_COMP_MASK             0x00FC  /* DRC_THRESH_COMP - [7:2] */
-#define WM8993_DRC_THRESH_COMP_SHIFT                 2  /* DRC_THRESH_COMP - [7:2] */
-#define WM8993_DRC_THRESH_COMP_WIDTH                 6  /* DRC_THRESH_COMP - [7:2] */
+#define WM8993_DRC_ATTACK_RATE_MASK             0xF000  /* DRC_ATTACK_RATE -
+                                                         * [15:12] */
+#define WM8993_DRC_ATTACK_RATE_SHIFT                12  /* DRC_ATTACK_RATE -
+                                                         * [15:12] */
+#define WM8993_DRC_ATTACK_RATE_WIDTH                 4  /* DRC_ATTACK_RATE -
+                                                         * [15:12] */
+#define WM8993_DRC_DECAY_RATE_MASK              0x0F00  /* DRC_DECAY_RATE -
+                                                         * [11:8] */
+#define WM8993_DRC_DECAY_RATE_SHIFT                  8  /* DRC_DECAY_RATE -
+                                                         * [11:8] */
+#define WM8993_DRC_DECAY_RATE_WIDTH                  4  /* DRC_DECAY_RATE -
+                                                         * [11:8] */
+#define WM8993_DRC_THRESH_COMP_MASK             0x00FC  /* DRC_THRESH_COMP -
+                                                         * [7:2] */
+#define WM8993_DRC_THRESH_COMP_SHIFT                 2  /* DRC_THRESH_COMP -
+                                                         * [7:2] */
+#define WM8993_DRC_THRESH_COMP_WIDTH                 6  /* DRC_THRESH_COMP -
+                                                         * [7:2] */
 
 /*
  * R125 (0x7D) - DRC Control 3
  */
-#define WM8993_DRC_AMP_COMP_MASK                0xF800  /* DRC_AMP_COMP - [15:11] */
-#define WM8993_DRC_AMP_COMP_SHIFT                   11  /* DRC_AMP_COMP - [15:11] */
-#define WM8993_DRC_AMP_COMP_WIDTH                    5  /* DRC_AMP_COMP - [15:11] */
-#define WM8993_DRC_R0_SLOPE_COMP_MASK           0x0700  /* DRC_R0_SLOPE_COMP - [10:8] */
-#define WM8993_DRC_R0_SLOPE_COMP_SHIFT               8  /* DRC_R0_SLOPE_COMP - [10:8] */
-#define WM8993_DRC_R0_SLOPE_COMP_WIDTH               3  /* DRC_R0_SLOPE_COMP - [10:8] */
+#define WM8993_DRC_AMP_COMP_MASK                0xF800  /* DRC_AMP_COMP -
+                                                         * [15:11] */
+#define WM8993_DRC_AMP_COMP_SHIFT                   11  /* DRC_AMP_COMP -
+                                                         * [15:11] */
+#define WM8993_DRC_AMP_COMP_WIDTH                    5  /* DRC_AMP_COMP -
+                                                         * [15:11] */
+#define WM8993_DRC_R0_SLOPE_COMP_MASK           0x0700  /* DRC_R0_SLOPE_COMP -
+                                                         * [10:8] */
+#define WM8993_DRC_R0_SLOPE_COMP_SHIFT               8  /* DRC_R0_SLOPE_COMP -
+                                                         * [10:8] */
+#define WM8993_DRC_R0_SLOPE_COMP_WIDTH               3  /* DRC_R0_SLOPE_COMP -
+                                                         * [10:8] */
 #define WM8993_DRC_FF_DELAY                     0x0080  /* DRC_FF_DELAY */
 #define WM8993_DRC_FF_DELAY_MASK                0x0080  /* DRC_FF_DELAY */
 #define WM8993_DRC_FF_DELAY_SHIFT                    7  /* DRC_FF_DELAY */
 #define WM8993_DRC_FF_DELAY_WIDTH                    1  /* DRC_FF_DELAY */
-#define WM8993_DRC_THRESH_QR_MASK               0x000C  /* DRC_THRESH_QR - [3:2] */
-#define WM8993_DRC_THRESH_QR_SHIFT                   2  /* DRC_THRESH_QR - [3:2] */
-#define WM8993_DRC_THRESH_QR_WIDTH                   2  /* DRC_THRESH_QR - [3:2] */
-#define WM8993_DRC_RATE_QR_MASK                 0x0003  /* DRC_RATE_QR - [1:0] */
-#define WM8993_DRC_RATE_QR_SHIFT                     0  /* DRC_RATE_QR - [1:0] */
-#define WM8993_DRC_RATE_QR_WIDTH                     2  /* DRC_RATE_QR - [1:0] */
+#define WM8993_DRC_THRESH_QR_MASK               0x000C  /* DRC_THRESH_QR - [3:2]
+                                                         * */
+#define WM8993_DRC_THRESH_QR_SHIFT                   2  /* DRC_THRESH_QR - [3:2]
+                                                         * */
+#define WM8993_DRC_THRESH_QR_WIDTH                   2  /* DRC_THRESH_QR - [3:2]
+                                                         * */
+#define WM8993_DRC_RATE_QR_MASK                 0x0003  /* DRC_RATE_QR - [1:0]
+                                                         * */
+#define WM8993_DRC_RATE_QR_SHIFT                     0  /* DRC_RATE_QR - [1:0]
+                                                         * */
+#define WM8993_DRC_RATE_QR_WIDTH                     2  /* DRC_RATE_QR - [1:0]
+                                                         * */
 
 /*
  * R126 (0x7E) - DRC Control 4
  */
-#define WM8993_DRC_R1_SLOPE_COMP_MASK           0xE000  /* DRC_R1_SLOPE_COMP - [15:13] */
-#define WM8993_DRC_R1_SLOPE_COMP_SHIFT              13  /* DRC_R1_SLOPE_COMP - [15:13] */
-#define WM8993_DRC_R1_SLOPE_COMP_WIDTH               3  /* DRC_R1_SLOPE_COMP - [15:13] */
-#define WM8993_DRC_STARTUP_GAIN_MASK            0x1F00  /* DRC_STARTUP_GAIN - [12:8] */
-#define WM8993_DRC_STARTUP_GAIN_SHIFT                8  /* DRC_STARTUP_GAIN - [12:8] */
-#define WM8993_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN - [12:8] */
+#define WM8993_DRC_R1_SLOPE_COMP_MASK           0xE000  /* DRC_R1_SLOPE_COMP -
+                                                         * [15:13] */
+#define WM8993_DRC_R1_SLOPE_COMP_SHIFT              13  /* DRC_R1_SLOPE_COMP -
+                                                         * [15:13] */
+#define WM8993_DRC_R1_SLOPE_COMP_WIDTH               3  /* DRC_R1_SLOPE_COMP -
+                                                         * [15:13] */
+#define WM8993_DRC_STARTUP_GAIN_MASK            0x1F00  /* DRC_STARTUP_GAIN -
+                                                         * [12:8] */
+#define WM8993_DRC_STARTUP_GAIN_SHIFT                8  /* DRC_STARTUP_GAIN -
+                                                         * [12:8] */
+#define WM8993_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN -
+                                                         * [12:8] */
 
 #endif

@@ -25,78 +25,66 @@ extern void * const compat_sys_call_table[];
  * sign-extend the low 32 bits.
  */
 static inline int syscall_get_nr(struct task_struct *task,
-				 struct pt_regs *regs)
-{
-	return regs->a7;
+    struct pt_regs *regs) {
+  return regs->a7;
 }
 
 static inline void syscall_rollback(struct task_struct *task,
-				    struct pt_regs *regs)
-{
-        regs->a0 = regs->orig_a0;
+    struct pt_regs *regs) {
+  regs->a0 = regs->orig_a0;
 }
 
 static inline long syscall_get_error(struct task_struct *task,
-				     struct pt_regs *regs)
-{
-	unsigned long error = regs->a0;
-
-	return IS_ERR_VALUE(error) ? error : 0;
+    struct pt_regs *regs) {
+  unsigned long error = regs->a0;
+  return IS_ERR_VALUE(error) ? error : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
-					    struct pt_regs *regs)
-{
-	return regs->a0;
+    struct pt_regs *regs) {
+  return regs->a0;
 }
 
 static inline void syscall_set_return_value(struct task_struct *task,
-					    struct pt_regs *regs,
-					    int error, long val)
-{
-	regs->a0 = (long) error ?: val;
+    struct pt_regs *regs,
+    int error, long val) {
+  regs->a0 = (long) error ? : val;
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned long *args)
-{
-	args[0] = regs->orig_a0;
-	args++;
-	memcpy(args, &regs->a1, 5 * sizeof(args[0]));
+    struct pt_regs *regs,
+    unsigned long *args) {
+  args[0] = regs->orig_a0;
+  args++;
+  memcpy(args, &regs->a1, 5 * sizeof(args[0]));
 }
 
-static inline int syscall_get_arch(struct task_struct *task)
-{
+static inline int syscall_get_arch(struct task_struct *task) {
 #ifdef CONFIG_64BIT
-	return AUDIT_ARCH_RISCV64;
+  return AUDIT_ARCH_RISCV64;
 #else
-	return AUDIT_ARCH_RISCV32;
+  return AUDIT_ARCH_RISCV32;
 #endif
 }
 
 typedef long (*syscall_t)(const struct pt_regs *);
-static inline void syscall_handler(struct pt_regs *regs, ulong syscall)
-{
-	syscall_t fn;
-
+static inline void syscall_handler(struct pt_regs *regs, ulong syscall) {
+  syscall_t fn;
 #ifdef CONFIG_COMPAT
-	if ((regs->status & SR_UXL) == SR_UXL_32)
-		fn = compat_sys_call_table[syscall];
-	else
+  if ((regs->status & SR_UXL) == SR_UXL_32) {
+    fn = compat_sys_call_table[syscall];
+  } else
 #endif
-		fn = sys_call_table[syscall];
-
-	regs->a0 = fn(regs);
+  fn = sys_call_table[syscall];
+  regs->a0 = fn(regs);
 }
 
-static inline bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs)
-{
-	return false;
+static inline bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs) {
+  return false;
 }
 
 asmlinkage long sys_riscv_flush_icache(uintptr_t, uintptr_t, uintptr_t);
 
 asmlinkage long sys_riscv_hwprobe(struct riscv_hwprobe *, size_t, size_t,
-				  unsigned long *, unsigned int);
-#endif	/* _ASM_RISCV_SYSCALL_H */
+    unsigned long *, unsigned int);
+#endif  /* _ASM_RISCV_SYSCALL_H */

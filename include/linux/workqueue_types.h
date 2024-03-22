@@ -14,11 +14,11 @@ typedef void (*work_func_t)(struct work_struct *work);
 void delayed_work_timer_fn(struct timer_list *t);
 
 struct work_struct {
-	atomic_long_t data;
-	struct list_head entry;
-	work_func_t func;
+  atomic_long_t data;
+  struct list_head entry;
+  work_func_t func;
 #ifdef CONFIG_LOCKDEP
-	struct lockdep_map lockdep_map;
+  struct lockdep_map lockdep_map;
 #endif
 };
 

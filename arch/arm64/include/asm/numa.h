@@ -5,4 +5,4 @@
 #include <asm/topology.h>
 #include <asm-generic/numa.h>
 
-#endif	/* __ASM_NUMA_H */
+#endif  /* __ASM_NUMA_H */

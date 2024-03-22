@@ -49,12 +49,12 @@
 #define LLCC_ISLAND2     47
 #define LLCC_ISLAND3     48
 #define LLCC_ISLAND4     49
-#define LLCC_CAMEXP2	 50
-#define LLCC_CAMEXP3	 51
-#define LLCC_CAMEXP4	 52
-#define LLCC_DISP_WB	 53
-#define LLCC_DISP_1	 54
-#define LLCC_VIDVSP	 64
+#define LLCC_CAMEXP2   50
+#define LLCC_CAMEXP3   51
+#define LLCC_CAMEXP4   52
+#define LLCC_DISP_WB   53
+#define LLCC_DISP_1  54
+#define LLCC_VIDVSP  64
 
 /**
  * struct llcc_slice_desc - Cache slice descriptor
@@ -62,8 +62,8 @@
  * @slice_size: Size allocated for the llcc slice
  */
 struct llcc_slice_desc {
-	u32 slice_id;
-	size_t slice_size;
+  u32 slice_id;
+  size_t slice_size;
 };
 
 /**
@@ -76,40 +76,40 @@ struct llcc_slice_desc {
  * @ways_shift: Shift value to get the error ways
  */
 struct llcc_edac_reg_data {
-	char *name;
-	u32 reg_cnt;
-	u32 count_mask;
-	u32 ways_mask;
-	u8  count_shift;
-	u8  ways_shift;
+  char *name;
+  u32 reg_cnt;
+  u32 count_mask;
+  u32 ways_mask;
+  u8 count_shift;
+  u8 ways_shift;
 };
 
 struct llcc_edac_reg_offset {
-	/* LLCC TRP registers */
-	u32 trp_ecc_error_status0;
-	u32 trp_ecc_error_status1;
-	u32 trp_ecc_sb_err_syn0;
-	u32 trp_ecc_db_err_syn0;
-	u32 trp_ecc_error_cntr_clear;
-	u32 trp_interrupt_0_status;
-	u32 trp_interrupt_0_clear;
-	u32 trp_interrupt_0_enable;
+  /* LLCC TRP registers */
+  u32 trp_ecc_error_status0;
+  u32 trp_ecc_error_status1;
+  u32 trp_ecc_sb_err_syn0;
+  u32 trp_ecc_db_err_syn0;
+  u32 trp_ecc_error_cntr_clear;
+  u32 trp_interrupt_0_status;
+  u32 trp_interrupt_0_clear;
+  u32 trp_interrupt_0_enable;
 
-	/* LLCC Common registers */
-	u32 cmn_status0;
-	u32 cmn_interrupt_0_enable;
-	u32 cmn_interrupt_2_enable;
+  /* LLCC Common registers */
+  u32 cmn_status0;
+  u32 cmn_interrupt_0_enable;
+  u32 cmn_interrupt_2_enable;
 
-	/* LLCC DRP registers */
-	u32 drp_ecc_error_cfg;
-	u32 drp_ecc_error_cntr_clear;
-	u32 drp_interrupt_status;
-	u32 drp_interrupt_clear;
-	u32 drp_interrupt_enable;
-	u32 drp_ecc_error_status0;
-	u32 drp_ecc_error_status1;
-	u32 drp_ecc_sb_err_syn0;
-	u32 drp_ecc_db_err_syn0;
+  /* LLCC DRP registers */
+  u32 drp_ecc_error_cfg;
+  u32 drp_ecc_error_cntr_clear;
+  u32 drp_interrupt_status;
+  u32 drp_interrupt_clear;
+  u32 drp_interrupt_enable;
+  u32 drp_ecc_error_status0;
+  u32 drp_ecc_error_status1;
+  u32 drp_ecc_sb_err_syn0;
+  u32 drp_ecc_db_err_syn0;
 };
 
 /**
@@ -127,17 +127,17 @@ struct llcc_edac_reg_offset {
  * @version: Indicates the LLCC version
  */
 struct llcc_drv_data {
-	struct regmap **regmaps;
-	struct regmap *bcast_regmap;
-	const struct llcc_slice_config *cfg;
-	const struct llcc_edac_reg_offset *edac_reg_offset;
-	struct mutex lock;
-	u32 cfg_size;
-	u32 max_slices;
-	u32 num_banks;
-	unsigned long *bitmap;
-	int ecc_irq;
-	u32 version;
+  struct regmap **regmaps;
+  struct regmap *bcast_regmap;
+  const struct llcc_slice_config *cfg;
+  const struct llcc_edac_reg_offset *edac_reg_offset;
+  struct mutex lock;
+  u32 cfg_size;
+  u32 max_slices;
+  u32 num_banks;
+  unsigned long *bitmap;
+  int ecc_irq;
+  u32 version;
 };
 
 #if IS_ENABLED(CONFIG_QCOM_LLCC)
@@ -178,34 +178,29 @@ int llcc_slice_activate(struct llcc_slice_desc *desc);
 int llcc_slice_deactivate(struct llcc_slice_desc *desc);
 
 #else
-static inline struct llcc_slice_desc *llcc_slice_getd(u32 uid)
-{
-	return NULL;
+static inline struct llcc_slice_desc *llcc_slice_getd(u32 uid) {
+  return NULL;
 }
 
-static inline void llcc_slice_putd(struct llcc_slice_desc *desc)
-{
-
-};
-
-static inline int llcc_get_slice_id(struct llcc_slice_desc *desc)
-{
-	return -EINVAL;
+static inline void llcc_slice_putd(struct llcc_slice_desc *desc) {
 }
 
-static inline size_t llcc_get_slice_size(struct llcc_slice_desc *desc)
-{
-	return 0;
-}
-static inline int llcc_slice_activate(struct llcc_slice_desc *desc)
-{
-	return -EINVAL;
+static inline int llcc_get_slice_id(struct llcc_slice_desc *desc) {
+  return -EINVAL;
 }
 
-static inline int llcc_slice_deactivate(struct llcc_slice_desc *desc)
-{
-	return -EINVAL;
+static inline size_t llcc_get_slice_size(struct llcc_slice_desc *desc) {
+  return 0;
 }
+
+static inline int llcc_slice_activate(struct llcc_slice_desc *desc) {
+  return -EINVAL;
+}
+
+static inline int llcc_slice_deactivate(struct llcc_slice_desc *desc) {
+  return -EINVAL;
+}
+
 #endif
 
 #endif

@@ -18,7 +18,6 @@
 #define XFS_WARN 1
 #endif
 
-
 #include "xfs_linux.h"
 
-#endif	/* __XFS_H__ */
+#endif  /* __XFS_H__ */

@@ -10,16 +10,16 @@
 #include <net/lwtunnel.h>
 
 struct mpls_iptunnel_encap {
-	u8	labels;
-	u8	ttl_propagate;
-	u8	default_ttl;
-	u8	reserved1;
-	u32	label[];
+  u8 labels;
+  u8 ttl_propagate;
+  u8 default_ttl;
+  u8 reserved1;
+  u32 label[];
 };
 
-static inline struct mpls_iptunnel_encap *mpls_lwtunnel_encap(struct lwtunnel_state *lwtstate)
-{
-	return (struct mpls_iptunnel_encap *)lwtstate->data;
+static inline struct mpls_iptunnel_encap *mpls_lwtunnel_encap(
+    struct lwtunnel_state *lwtstate) {
+  return (struct mpls_iptunnel_encap *) lwtstate->data;
 }
 
 #endif

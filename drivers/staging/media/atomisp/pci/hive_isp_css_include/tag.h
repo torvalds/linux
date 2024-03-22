@@ -23,10 +23,10 @@
  * conditionally through Makefile path settings.
  *
  *  - .        system and cell agnostic interfaces, constants and identifiers
- *	- public:  cell specific interfaces
- *	- private: cell specific inline implementations
- *	- global:  inter cell constants and identifiers
- *	- local:   cell specific constants and identifiers
+ *  - public:  cell specific interfaces
+ *  - private: cell specific inline implementations
+ *  - global:  inter cell constants and identifiers
+ *  - local:   cell specific constants and identifiers
  *
  */
 

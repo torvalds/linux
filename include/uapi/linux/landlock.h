@@ -18,25 +18,25 @@
  * future versions.
  */
 struct landlock_ruleset_attr {
-	/**
-	 * @handled_access_fs: Bitmask of actions (cf. `Filesystem flags`_)
-	 * that is handled by this ruleset and should then be forbidden if no
-	 * rule explicitly allow them: it is a deny-by-default list that should
-	 * contain as much Landlock access rights as possible. Indeed, all
-	 * Landlock filesystem access rights that are not part of
-	 * handled_access_fs are allowed.  This is needed for backward
-	 * compatibility reasons.  One exception is the
-	 * %LANDLOCK_ACCESS_FS_REFER access right, which is always implicitly
-	 * handled, but must still be explicitly handled to add new rules with
-	 * this access right.
-	 */
-	__u64 handled_access_fs;
-	/**
-	 * @handled_access_net: Bitmask of actions (cf. `Network flags`_)
-	 * that is handled by this ruleset and should then be forbidden if no
-	 * rule explicitly allow them.
-	 */
-	__u64 handled_access_net;
+  /**
+   * @handled_access_fs: Bitmask of actions (cf. `Filesystem flags`_)
+   * that is handled by this ruleset and should then be forbidden if no
+   * rule explicitly allow them: it is a deny-by-default list that should
+   * contain as much Landlock access rights as possible. Indeed, all
+   * Landlock filesystem access rights that are not part of
+   * handled_access_fs are allowed.  This is needed for backward
+   * compatibility reasons.  One exception is the
+   * %LANDLOCK_ACCESS_FS_REFER access right, which is always implicitly
+   * handled, but must still be explicitly handled to add new rules with
+   * this access right.
+   */
+  __u64 handled_access_fs;
+  /**
+   * @handled_access_net: Bitmask of actions (cf. `Network flags`_)
+   * that is handled by this ruleset and should then be forbidden if no
+   * rule explicitly allow them.
+   */
+  __u64 handled_access_net;
 };
 
 /*
@@ -46,7 +46,7 @@ struct landlock_ruleset_attr {
  *   version.
  */
 /* clang-format off */
-#define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)
+#define LANDLOCK_CREATE_RULESET_VERSION     (1U << 0)
 /* clang-format on */
 
 /**
@@ -55,16 +55,16 @@ struct landlock_ruleset_attr {
  * Argument of sys_landlock_add_rule().
  */
 enum landlock_rule_type {
-	/**
-	 * @LANDLOCK_RULE_PATH_BENEATH: Type of a &struct
-	 * landlock_path_beneath_attr .
-	 */
-	LANDLOCK_RULE_PATH_BENEATH = 1,
-	/**
-	 * @LANDLOCK_RULE_NET_PORT: Type of a &struct
-	 * landlock_net_port_attr .
-	 */
-	LANDLOCK_RULE_NET_PORT,
+  /**
+   * @LANDLOCK_RULE_PATH_BENEATH: Type of a &struct
+   * landlock_path_beneath_attr .
+   */
+  LANDLOCK_RULE_PATH_BENEATH = 1,
+  /**
+   * @LANDLOCK_RULE_NET_PORT: Type of a &struct
+   * landlock_net_port_attr .
+   */
+  LANDLOCK_RULE_NET_PORT,
 };
 
 /**
@@ -73,21 +73,21 @@ enum landlock_rule_type {
  * Argument of sys_landlock_add_rule().
  */
 struct landlock_path_beneath_attr {
-	/**
-	 * @allowed_access: Bitmask of allowed actions for this file hierarchy
-	 * (cf. `Filesystem flags`_).
-	 */
-	__u64 allowed_access;
-	/**
-	 * @parent_fd: File descriptor, preferably opened with ``O_PATH``,
-	 * which identifies the parent directory of a file hierarchy, or just a
-	 * file.
-	 */
-	__s32 parent_fd;
-	/*
-	 * This struct is packed to avoid trailing reserved members.
-	 * Cf. security/landlock/syscalls.c:build_check_abi()
-	 */
+  /**
+   * @allowed_access: Bitmask of allowed actions for this file hierarchy
+   * (cf. `Filesystem flags`_).
+   */
+  __u64 allowed_access;
+  /**
+   * @parent_fd: File descriptor, preferably opened with ``O_PATH``,
+   * which identifies the parent directory of a file hierarchy, or just a
+   * file.
+   */
+  __s32 parent_fd;
+  /*
+   * This struct is packed to avoid trailing reserved members.
+   * Cf. security/landlock/syscalls.c:build_check_abi()
+   */
 } __attribute__((packed));
 
 /**
@@ -96,23 +96,23 @@ struct landlock_path_beneath_attr {
  * Argument of sys_landlock_add_rule().
  */
 struct landlock_net_port_attr {
-	/**
-	 * @allowed_access: Bitmask of allowed access network for a port
-	 * (cf. `Network flags`_).
-	 */
-	__u64 allowed_access;
-	/**
-	 * @port: Network port in host endianness.
-	 *
-	 * It should be noted that port 0 passed to :manpage:`bind(2)` will
-	 * bind to an available port from a specific port range. This can be
-	 * configured thanks to the ``/proc/sys/net/ipv4/ip_local_port_range``
-	 * sysctl (also used for IPv6). A Landlock rule with port 0 and the
-	 * ``LANDLOCK_ACCESS_NET_BIND_TCP`` right means that requesting to bind
-	 * on port 0 is allowed and it will automatically translate to binding
-	 * on the related port range.
-	 */
-	__u64 port;
+  /**
+   * @allowed_access: Bitmask of allowed access network for a port
+   * (cf. `Network flags`_).
+   */
+  __u64 allowed_access;
+  /**
+   * @port: Network port in host endianness.
+   *
+   * It should be noted that port 0 passed to :manpage:`bind(2)` will
+   * bind to an available port from a specific port range. This can be
+   * configured thanks to the ``/proc/sys/net/ipv4/ip_local_port_range``
+   * sysctl (also used for IPv6). A Landlock rule with port 0 and the
+   * ``LANDLOCK_ACCESS_NET_BIND_TCP`` right means that requesting to bind
+   * on port 0 is allowed and it will automatically translate to binding
+   * on the related port range.
+   */
+  __u64 port;
 };
 
 /**
@@ -192,7 +192,8 @@ struct landlock_net_port_attr {
  *     Otherwise, the operation results in an ``EACCES`` error.
  *
  *   * When renaming, the ``LANDLOCK_ACCESS_FS_REMOVE_*`` right for the
- *     respective file type must be granted for the source directory.  Otherwise,
+ *     respective file type must be granted for the source directory.
+ * Otherwise,
  *     the operation results in an ``EACCES`` error.
  *
  *   If multiple requirements are not met, the ``EACCES`` error code takes
@@ -208,21 +209,21 @@ struct landlock_net_port_attr {
  *   Future Landlock evolutions will enable to restrict them.
  */
 /* clang-format off */
-#define LANDLOCK_ACCESS_FS_EXECUTE			(1ULL << 0)
-#define LANDLOCK_ACCESS_FS_WRITE_FILE			(1ULL << 1)
-#define LANDLOCK_ACCESS_FS_READ_FILE			(1ULL << 2)
-#define LANDLOCK_ACCESS_FS_READ_DIR			(1ULL << 3)
-#define LANDLOCK_ACCESS_FS_REMOVE_DIR			(1ULL << 4)
-#define LANDLOCK_ACCESS_FS_REMOVE_FILE			(1ULL << 5)
-#define LANDLOCK_ACCESS_FS_MAKE_CHAR			(1ULL << 6)
-#define LANDLOCK_ACCESS_FS_MAKE_DIR			(1ULL << 7)
-#define LANDLOCK_ACCESS_FS_MAKE_REG			(1ULL << 8)
-#define LANDLOCK_ACCESS_FS_MAKE_SOCK			(1ULL << 9)
-#define LANDLOCK_ACCESS_FS_MAKE_FIFO			(1ULL << 10)
-#define LANDLOCK_ACCESS_FS_MAKE_BLOCK			(1ULL << 11)
-#define LANDLOCK_ACCESS_FS_MAKE_SYM			(1ULL << 12)
-#define LANDLOCK_ACCESS_FS_REFER			(1ULL << 13)
-#define LANDLOCK_ACCESS_FS_TRUNCATE			(1ULL << 14)
+#define LANDLOCK_ACCESS_FS_EXECUTE      (1ULL << 0)
+#define LANDLOCK_ACCESS_FS_WRITE_FILE     (1ULL << 1)
+#define LANDLOCK_ACCESS_FS_READ_FILE      (1ULL << 2)
+#define LANDLOCK_ACCESS_FS_READ_DIR     (1ULL << 3)
+#define LANDLOCK_ACCESS_FS_REMOVE_DIR     (1ULL << 4)
+#define LANDLOCK_ACCESS_FS_REMOVE_FILE      (1ULL << 5)
+#define LANDLOCK_ACCESS_FS_MAKE_CHAR      (1ULL << 6)
+#define LANDLOCK_ACCESS_FS_MAKE_DIR     (1ULL << 7)
+#define LANDLOCK_ACCESS_FS_MAKE_REG     (1ULL << 8)
+#define LANDLOCK_ACCESS_FS_MAKE_SOCK      (1ULL << 9)
+#define LANDLOCK_ACCESS_FS_MAKE_FIFO      (1ULL << 10)
+#define LANDLOCK_ACCESS_FS_MAKE_BLOCK     (1ULL << 11)
+#define LANDLOCK_ACCESS_FS_MAKE_SYM     (1ULL << 12)
+#define LANDLOCK_ACCESS_FS_REFER      (1ULL << 13)
+#define LANDLOCK_ACCESS_FS_TRUNCATE     (1ULL << 14)
 /* clang-format on */
 
 /**
@@ -241,7 +242,7 @@ struct landlock_net_port_attr {
  *   a remote port.
  */
 /* clang-format off */
-#define LANDLOCK_ACCESS_NET_BIND_TCP			(1ULL << 0)
-#define LANDLOCK_ACCESS_NET_CONNECT_TCP			(1ULL << 1)
+#define LANDLOCK_ACCESS_NET_BIND_TCP      (1ULL << 0)
+#define LANDLOCK_ACCESS_NET_CONNECT_TCP     (1ULL << 1)
 /* clang-format on */
 #endif /* _UAPI_LINUX_LANDLOCK_H */

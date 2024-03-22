@@ -23,8 +23,8 @@
 /* state variables to bind kernel consumer */
 static DEFINE_SPINLOCK(pps_kc_hardpps_lock);
 /* PPS API (RFC 2783): current source and mode for kernel consumer */
-static struct pps_device *pps_kc_hardpps_dev;	/* unique pointer to device */
-static int pps_kc_hardpps_mode;		/* mode bits for kernel consumer */
+static struct pps_device *pps_kc_hardpps_dev; /* unique pointer to device */
+static int pps_kc_hardpps_mode;   /* mode bits for kernel consumer */
 
 /* pps_kc_bind - control PPS kernel consumer binding
  * @pps: the PPS source
@@ -33,40 +33,36 @@ static int pps_kc_hardpps_mode;		/* mode bits for kernel consumer */
  * This function is used to bind or unbind PPS kernel consumer according to
  * supplied parameters. Should not be called in interrupt context.
  */
-int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
-{
-	/* Check if another consumer is already bound */
-	spin_lock_irq(&pps_kc_hardpps_lock);
-
-	if (bind_args->edge == 0)
-		if (pps_kc_hardpps_dev == pps) {
-			pps_kc_hardpps_mode = 0;
-			pps_kc_hardpps_dev = NULL;
-			spin_unlock_irq(&pps_kc_hardpps_lock);
-			dev_info(pps->dev, "unbound kernel"
-					" consumer\n");
-		} else {
-			spin_unlock_irq(&pps_kc_hardpps_lock);
-			dev_err(pps->dev, "selected kernel consumer"
-					" is not bound\n");
-			return -EINVAL;
-		}
-	else
-		if (pps_kc_hardpps_dev == NULL ||
-				pps_kc_hardpps_dev == pps) {
-			pps_kc_hardpps_mode = bind_args->edge;
-			pps_kc_hardpps_dev = pps;
-			spin_unlock_irq(&pps_kc_hardpps_lock);
-			dev_info(pps->dev, "bound kernel consumer: "
-				"edge=0x%x\n", bind_args->edge);
-		} else {
-			spin_unlock_irq(&pps_kc_hardpps_lock);
-			dev_err(pps->dev, "another kernel consumer"
-					" is already bound\n");
-			return -EINVAL;
-		}
-
-	return 0;
+int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args) {
+  /* Check if another consumer is already bound */
+  spin_lock_irq(&pps_kc_hardpps_lock);
+  if (bind_args->edge == 0) {
+    if (pps_kc_hardpps_dev == pps) {
+      pps_kc_hardpps_mode = 0;
+      pps_kc_hardpps_dev = NULL;
+      spin_unlock_irq(&pps_kc_hardpps_lock);
+      dev_info(pps->dev, "unbound kernel"
+          " consumer\n");
+    } else {
+      spin_unlock_irq(&pps_kc_hardpps_lock);
+      dev_err(pps->dev, "selected kernel consumer"
+          " is not bound\n");
+      return -EINVAL;
+    }
+  } else if (pps_kc_hardpps_dev == NULL
+      || pps_kc_hardpps_dev == pps) {
+    pps_kc_hardpps_mode = bind_args->edge;
+    pps_kc_hardpps_dev = pps;
+    spin_unlock_irq(&pps_kc_hardpps_lock);
+    dev_info(pps->dev, "bound kernel consumer: "
+        "edge=0x%x\n", bind_args->edge);
+  } else {
+    spin_unlock_irq(&pps_kc_hardpps_lock);
+    dev_err(pps->dev, "another kernel consumer"
+        " is already bound\n");
+    return -EINVAL;
+  }
+  return 0;
 }
 
 /* pps_kc_remove - unbind kernel consumer on PPS source removal
@@ -76,17 +72,17 @@ int pps_kc_bind(struct pps_device *pps, struct pps_bind_args *bind_args)
  * if this source was bound to PPS kernel consumer. Can be called on any
  * source safely. Should not be called in interrupt context.
  */
-void pps_kc_remove(struct pps_device *pps)
-{
-	spin_lock_irq(&pps_kc_hardpps_lock);
-	if (pps == pps_kc_hardpps_dev) {
-		pps_kc_hardpps_mode = 0;
-		pps_kc_hardpps_dev = NULL;
-		spin_unlock_irq(&pps_kc_hardpps_lock);
-		dev_info(pps->dev, "unbound kernel consumer"
-				" on device removal\n");
-	} else
-		spin_unlock_irq(&pps_kc_hardpps_lock);
+void pps_kc_remove(struct pps_device *pps) {
+  spin_lock_irq(&pps_kc_hardpps_lock);
+  if (pps == pps_kc_hardpps_dev) {
+    pps_kc_hardpps_mode = 0;
+    pps_kc_hardpps_dev = NULL;
+    spin_unlock_irq(&pps_kc_hardpps_lock);
+    dev_info(pps->dev, "unbound kernel consumer"
+        " on device removal\n");
+  } else {
+    spin_unlock_irq(&pps_kc_hardpps_lock);
+  }
 }
 
 /* pps_kc_event - call hardpps() on PPS event
@@ -97,13 +93,12 @@ void pps_kc_remove(struct pps_device *pps)
  * This function calls hardpps() when an event from bound PPS source occurs.
  */
 void pps_kc_event(struct pps_device *pps, struct pps_event_time *ts,
-		int event)
-{
-	unsigned long flags;
-
-	/* Pass some events to kernel consumer if activated */
-	spin_lock_irqsave(&pps_kc_hardpps_lock, flags);
-	if (pps == pps_kc_hardpps_dev && event & pps_kc_hardpps_mode)
-		hardpps(&ts->ts_real, &ts->ts_raw);
-	spin_unlock_irqrestore(&pps_kc_hardpps_lock, flags);
+    int event) {
+  unsigned long flags;
+  /* Pass some events to kernel consumer if activated */
+  spin_lock_irqsave(&pps_kc_hardpps_lock, flags);
+  if (pps == pps_kc_hardpps_dev && event & pps_kc_hardpps_mode) {
+    hardpps(&ts->ts_real, &ts->ts_raw);
+  }
+  spin_unlock_irqrestore(&pps_kc_hardpps_lock, flags);
 }

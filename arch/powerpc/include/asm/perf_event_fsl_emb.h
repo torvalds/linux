@@ -20,27 +20,27 @@
 #define FSL_EMB_EVENT_THRESH     0x0000003f00000000ULL
 
 struct fsl_emb_pmu {
-	const char	*name;
-	int		n_counter; /* total number of counters */
+  const char *name;
+  int n_counter; /* total number of counters */
 
-	/*
-	 * The number of contiguous counters starting at zero that
-	 * can hold restricted events, or zero if there are no
-	 * restricted events.
-	 *
-	 * This isn't a very flexible method of expressing constraints,
-	 * but it's very simple and is adequate for existing chips.
-	 */
-	int		n_restricted;
+  /*
+   * The number of contiguous counters starting at zero that
+   * can hold restricted events, or zero if there are no
+   * restricted events.
+   *
+   * This isn't a very flexible method of expressing constraints,
+   * but it's very simple and is adequate for existing chips.
+   */
+  int n_restricted;
 
-	/* Returns event flags and PMLCb (FSL_EMB_EVENT_*) */
-	u64		(*xlate_event)(u64 event_id);
+  /* Returns event flags and PMLCb (FSL_EMB_EVENT_*) */
+  u64 (*xlate_event)(u64 event_id);
 
-	int		n_generic;
-	int		*generic_events;
-	int		(*cache_events)[PERF_COUNT_HW_CACHE_MAX]
-			       [PERF_COUNT_HW_CACHE_OP_MAX]
-			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
+  int n_generic;
+  int *generic_events;
+  int   (*cache_events)[PERF_COUNT_HW_CACHE_MAX]
+  [PERF_COUNT_HW_CACHE_OP_MAX]
+  [PERF_COUNT_HW_CACHE_RESULT_MAX];
 };
 
 int register_fsl_emb_pmu(struct fsl_emb_pmu *);

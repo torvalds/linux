@@ -34,7 +34,7 @@
  */
 #define   MAX_OCTEON_NICIF             128
 #define   MAX_OCTEON_DEVICES           MAX_OCTEON_NICIF
-#define   MAX_OCTEON_LINKS	       MAX_OCTEON_NICIF
+#define   MAX_OCTEON_LINKS         MAX_OCTEON_NICIF
 #define   MAX_OCTEON_MULTICAST_ADDR    32
 
 #define   MAX_OCTEON_FILL_COUNT        8
@@ -50,10 +50,10 @@
 #define   CN6XXX_MAX_OUTPUT_QUEUES     32
 #define   CN6XXX_MAX_OQ_DESCRIPTORS    2048
 #define   CN6XXX_OQ_BUF_SIZE           1664
-#define   CN6XXX_OQ_PKTSPER_INTR       ((CN6XXX_MAX_OQ_DESCRIPTORS < 512) ? \
-					(CN6XXX_MAX_OQ_DESCRIPTORS / 4) : 128)
-#define   CN6XXX_OQ_REFIL_THRESHOLD    ((CN6XXX_MAX_OQ_DESCRIPTORS < 512) ? \
-					(CN6XXX_MAX_OQ_DESCRIPTORS / 4) : 128)
+#define   CN6XXX_OQ_PKTSPER_INTR       ((CN6XXX_MAX_OQ_DESCRIPTORS < 512)   \
+  ? (CN6XXX_MAX_OQ_DESCRIPTORS / 4) : 128)
+#define   CN6XXX_OQ_REFIL_THRESHOLD    ((CN6XXX_MAX_OQ_DESCRIPTORS < 512)   \
+  ? (CN6XXX_MAX_OQ_DESCRIPTORS / 4) : 128)
 
 #define   CN6XXX_OQ_INTR_PKT           64
 #define   CN6XXX_OQ_INTR_TIME          100
@@ -72,32 +72,32 @@
 #define   CN23XX_MAX_RINGS_PER_PF          64
 #define   CN23XX_MAX_RINGS_PER_VF          8
 
-#define   CN23XX_MAX_INPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
-#define   CN23XX_MAX_IQ_DESCRIPTORS	2048
-#define   CN23XX_DEFAULT_IQ_DESCRIPTORS	512
-#define   CN23XX_MIN_IQ_DESCRIPTORS	128
+#define   CN23XX_MAX_INPUT_QUEUES CN23XX_MAX_RINGS_PER_PF
+#define   CN23XX_MAX_IQ_DESCRIPTORS 2048
+#define   CN23XX_DEFAULT_IQ_DESCRIPTORS 512
+#define   CN23XX_MIN_IQ_DESCRIPTORS 128
 #define   CN23XX_DB_MIN                 1
 #define   CN23XX_DB_MAX                 8
 #define   CN23XX_DB_TIMEOUT             1
 
-#define   CN23XX_MAX_OUTPUT_QUEUES	CN23XX_MAX_RINGS_PER_PF
-#define   CN23XX_MAX_OQ_DESCRIPTORS	2048
-#define   CN23XX_DEFAULT_OQ_DESCRIPTORS	512
-#define   CN23XX_MIN_OQ_DESCRIPTORS	128
-#define   CN23XX_OQ_BUF_SIZE		1664
-#define   CN23XX_OQ_PKTSPER_INTR	128
+#define   CN23XX_MAX_OUTPUT_QUEUES  CN23XX_MAX_RINGS_PER_PF
+#define   CN23XX_MAX_OQ_DESCRIPTORS 2048
+#define   CN23XX_DEFAULT_OQ_DESCRIPTORS 512
+#define   CN23XX_MIN_OQ_DESCRIPTORS 128
+#define   CN23XX_OQ_BUF_SIZE    1664
+#define   CN23XX_OQ_PKTSPER_INTR  128
 /*#define CAVIUM_ONLY_CN23XX_RX_PERF*/
-#define   CN23XX_OQ_REFIL_THRESHOLD	16
+#define   CN23XX_OQ_REFIL_THRESHOLD 16
 
-#define   CN23XX_OQ_INTR_PKT		64
-#define   CN23XX_OQ_INTR_TIME		100
-#define   DEFAULT_NUM_NIC_PORTS_23XX	1
+#define   CN23XX_OQ_INTR_PKT    64
+#define   CN23XX_OQ_INTR_TIME   100
+#define   DEFAULT_NUM_NIC_PORTS_23XX  1
 
-#define   CN23XX_CFG_IO_QUEUES		CN23XX_MAX_RINGS_PER_PF
+#define   CN23XX_CFG_IO_QUEUES    CN23XX_MAX_RINGS_PER_PF
 /* PEMs count */
-#define   CN23XX_MAX_MACS		4
+#define   CN23XX_MAX_MACS   4
 
-#define   CN23XX_DEF_IQ_INTR_THRESHOLD	32
+#define   CN23XX_DEF_IQ_INTR_THRESHOLD  32
 #define   CN23XX_DEF_IQ_INTR_BYTE_THRESHOLD   (64 * 1024)
 /* common OCTEON configuration macros */
 #define   CN6XXX_CFG_IO_QUEUES         32
@@ -144,44 +144,44 @@
 #define CFG_GET_DEF_RX_BUF_SIZE(cfg)             ((cfg)->def_rx_buf_size)
 
 #define CFG_GET_MAX_TXQS_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].max_txqs)
+  ((cfg)->nic_if_cfg[idx].max_txqs)
 #define CFG_GET_NUM_TXQS_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].num_txqs)
+  ((cfg)->nic_if_cfg[idx].num_txqs)
 #define CFG_GET_MAX_RXQS_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].max_rxqs)
+  ((cfg)->nic_if_cfg[idx].max_rxqs)
 #define CFG_GET_NUM_RXQS_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].num_rxqs)
+  ((cfg)->nic_if_cfg[idx].num_rxqs)
 #define CFG_GET_NUM_RX_DESCS_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].num_rx_descs)
+  ((cfg)->nic_if_cfg[idx].num_rx_descs)
 #define CFG_GET_NUM_TX_DESCS_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].num_tx_descs)
+  ((cfg)->nic_if_cfg[idx].num_tx_descs)
 #define CFG_GET_NUM_RX_BUF_SIZE_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].rx_buf_size)
+  ((cfg)->nic_if_cfg[idx].rx_buf_size)
 #define CFG_GET_BASE_QUE_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].base_queue)
+  ((cfg)->nic_if_cfg[idx].base_queue)
 #define CFG_GET_GMXID_NIC_IF(cfg, idx) \
-				((cfg)->nic_if_cfg[idx].gmx_port_id)
+  ((cfg)->nic_if_cfg[idx].gmx_port_id)
 
 #define CFG_GET_CTRL_Q_GRP(cfg)                  ((cfg)->misc.ctrlq_grp)
 #define CFG_GET_HOST_LINK_QUERY_INTERVAL(cfg) \
-				((cfg)->misc.host_link_query_interval)
+  ((cfg)->misc.host_link_query_interval)
 #define CFG_GET_OCT_LINK_QUERY_INTERVAL(cfg) \
-				((cfg)->misc.oct_link_query_interval)
+  ((cfg)->misc.oct_link_query_interval)
 #define CFG_GET_IS_SLI_BP_ON(cfg)                ((cfg)->misc.enable_sli_oq_bp)
 
 #define CFG_SET_NUM_RX_DESCS_NIC_IF(cfg, idx, value) \
-				((cfg)->nic_if_cfg[idx].num_rx_descs = value)
+  ((cfg)->nic_if_cfg[idx].num_rx_descs = value)
 #define CFG_SET_NUM_TX_DESCS_NIC_IF(cfg, idx, value) \
-				((cfg)->nic_if_cfg[idx].num_tx_descs = value)
+  ((cfg)->nic_if_cfg[idx].num_tx_descs = value)
 
 /* Max IOQs per OCTEON Link */
 #define MAX_IOQS_PER_NICIF              64
 
 enum lio_card_type {
-	LIO_210SV = 0, /* Two port, 66xx */
-	LIO_210NV,     /* Two port, 68xx */
-	LIO_410NV,     /* Four port, 68xx */
-	LIO_23XX       /* 23xx */
+  LIO_210SV = 0, /* Two port, 66xx */
+  LIO_210NV,     /* Two port, 68xx */
+  LIO_410NV,     /* Four port, 68xx */
+  LIO_23XX       /* 23xx */
 };
 
 #define LIO_210SV_NAME "210sv"
@@ -194,53 +194,53 @@ enum lio_card_type {
  **/
 struct octeon_iq_config {
 #ifdef __BIG_ENDIAN_BITFIELD
-	u64 reserved:16;
+  u64 reserved : 16;
 
-	/** Tx interrupt packets. Applicable to 23xx only */
-	u64 iq_intr_pkt:16;
+  /** Tx interrupt packets. Applicable to 23xx only */
+  u64 iq_intr_pkt : 16;
 
-	/** Minimum ticks to wait before checking for pending instructions. */
-	u64 db_timeout:16;
+  /** Minimum ticks to wait before checking for pending instructions. */
+  u64 db_timeout : 16;
 
-	/** Minimum number of commands pending to be posted to Octeon
-	 *  before driver hits the Input queue doorbell.
-	 */
-	u64 db_min:8;
+  /** Minimum number of commands pending to be posted to Octeon
+   *  before driver hits the Input queue doorbell.
+   */
+  u64 db_min : 8;
 
-	/** Command size - 32 or 64 bytes */
-	u64 instr_type:32;
+  /** Command size - 32 or 64 bytes */
+  u64 instr_type : 32;
 
-	/** Pending list size (usually set to the sum of the size of all Input
-	 *  queues)
-	 */
-	u64 pending_list_size:32;
+  /** Pending list size (usually set to the sum of the size of all Input
+   *  queues)
+   */
+  u64 pending_list_size : 32;
 
-	/* Max number of IQs available */
-	u64 max_iqs:8;
+  /* Max number of IQs available */
+  u64 max_iqs : 8;
 #else
-	/* Max number of IQs available */
-	u64 max_iqs:8;
+  /* Max number of IQs available */
+  u64 max_iqs : 8;
 
-	/** Pending list size (usually set to the sum of the size of all Input
-	 *  queues)
-	 */
-	u64 pending_list_size:32;
+  /** Pending list size (usually set to the sum of the size of all Input
+   *  queues)
+   */
+  u64 pending_list_size : 32;
 
-	/** Command size - 32 or 64 bytes */
-	u64 instr_type:32;
+  /** Command size - 32 or 64 bytes */
+  u64 instr_type : 32;
 
-	/** Minimum number of commands pending to be posted to Octeon
-	 *  before driver hits the Input queue doorbell.
-	 */
-	u64 db_min:8;
+  /** Minimum number of commands pending to be posted to Octeon
+   *  before driver hits the Input queue doorbell.
+   */
+  u64 db_min : 8;
 
-	/** Minimum ticks to wait before checking for pending instructions. */
-	u64 db_timeout:16;
+  /** Minimum ticks to wait before checking for pending instructions. */
+  u64 db_timeout : 16;
 
-	/** Tx interrupt packets. Applicable to 23xx only */
-	u64 iq_intr_pkt:16;
+  /** Tx interrupt packets. Applicable to 23xx only */
+  u64 iq_intr_pkt : 16;
 
-	u64 reserved:16;
+  u64 reserved : 16;
 #endif
 };
 
@@ -249,64 +249,63 @@ struct octeon_iq_config {
  **/
 struct octeon_oq_config {
 #ifdef __BIG_ENDIAN_BITFIELD
-	u64 reserved:16;
+  u64 reserved : 16;
 
-	u64 pkts_per_intr:16;
+  u64 pkts_per_intr : 16;
 
-	/** Interrupt Coalescing (Time Interval). Octeon will interrupt the
-	 *  host if atleast one packet was sent in the time interval specified
-	 *  by this field. The driver uses time interval interrupt coalescing
-	 *  by default. The time is specified in microseconds.
-	 */
-	u64 oq_intr_time:16;
+  /** Interrupt Coalescing (Time Interval). Octeon will interrupt the
+   *  host if atleast one packet was sent in the time interval specified
+   *  by this field. The driver uses time interval interrupt coalescing
+   *  by default. The time is specified in microseconds.
+   */
+  u64 oq_intr_time : 16;
 
-	/** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
-	 *  only if it sent as many packets as specified by this field.
-	 *  The driver
-	 *  usually does not use packet count interrupt coalescing.
-	 */
-	u64 oq_intr_pkt:16;
+  /** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
+   *  only if it sent as many packets as specified by this field.
+   *  The driver
+   *  usually does not use packet count interrupt coalescing.
+   */
+  u64 oq_intr_pkt : 16;
 
-	/** The number of buffers that were consumed during packet processing by
-	 *   the driver on this Output queue before the driver attempts to
-	 *   replenish
-	 *   the descriptor ring with new buffers.
-	 */
-	u64 refill_threshold:16;
+  /** The number of buffers that were consumed during packet processing by
+   *   the driver on this Output queue before the driver attempts to
+   *   replenish
+   *   the descriptor ring with new buffers.
+   */
+  u64 refill_threshold : 16;
 
-	/* Max number of OQs available */
-	u64 max_oqs:8;
+  /* Max number of OQs available */
+  u64 max_oqs : 8;
 
 #else
-	/* Max number of OQs available */
-	u64 max_oqs:8;
+  /* Max number of OQs available */
+  u64 max_oqs : 8;
 
-	/** The number of buffers that were consumed during packet processing by
-	 *   the driver on this Output queue before the driver attempts to
-	 *   replenish
-	 *   the descriptor ring with new buffers.
-	 */
-	u64 refill_threshold:16;
+  /** The number of buffers that were consumed during packet processing by
+   *   the driver on this Output queue before the driver attempts to
+   *   replenish
+   *   the descriptor ring with new buffers.
+   */
+  u64 refill_threshold : 16;
 
-	/** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
-	 *  only if it sent as many packets as specified by this field.
-	 *  The driver
-	 *  usually does not use packet count interrupt coalescing.
-	 */
-	u64 oq_intr_pkt:16;
+  /** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
+   *  only if it sent as many packets as specified by this field.
+   *  The driver
+   *  usually does not use packet count interrupt coalescing.
+   */
+  u64 oq_intr_pkt : 16;
 
-	/** Interrupt Coalescing (Time Interval). Octeon will interrupt the
-	 *  host if atleast one packet was sent in the time interval specified
-	 *  by this field. The driver uses time interval interrupt coalescing
-	 *  by default.  The time is specified in microseconds.
-	 */
-	u64 oq_intr_time:16;
+  /** Interrupt Coalescing (Time Interval). Octeon will interrupt the
+   *  host if atleast one packet was sent in the time interval specified
+   *  by this field. The driver uses time interval interrupt coalescing
+   *  by default.  The time is specified in microseconds.
+   */
+  u64 oq_intr_time : 16;
 
-	u64 pkts_per_intr:16;
+  u64 pkts_per_intr : 16;
 
-	u64 reserved:16;
+  u64 reserved : 16;
 #endif
-
 };
 
 /** This structure conatins the NIC link configuration attributes,
@@ -314,65 +313,64 @@ struct octeon_oq_config {
  */
 struct octeon_nic_if_config {
 #ifdef __BIG_ENDIAN_BITFIELD
-	u64 reserved:56;
+  u64 reserved : 56;
 
-	u64 base_queue:16;
+  u64 base_queue : 16;
 
-	u64 gmx_port_id:8;
+  u64 gmx_port_id : 8;
 
-	/* SKB size, We need not change buf size even for Jumbo frames.
-	 * Octeon can send jumbo frames in 4 consecutive descriptors,
-	 */
-	u64 rx_buf_size:16;
+  /* SKB size, We need not change buf size even for Jumbo frames.
+   * Octeon can send jumbo frames in 4 consecutive descriptors,
+   */
+  u64 rx_buf_size : 16;
 
-	/* Num of desc for tx rings */
-	u64 num_tx_descs:16;
+  /* Num of desc for tx rings */
+  u64 num_tx_descs : 16;
 
-	/* Num of desc for rx rings */
-	u64 num_rx_descs:16;
+  /* Num of desc for rx rings */
+  u64 num_rx_descs : 16;
 
-	/* Actual configured value. Range could be: 1...max_rxqs */
-	u64 num_rxqs:16;
+  /* Actual configured value. Range could be: 1...max_rxqs */
+  u64 num_rxqs : 16;
 
-	/* Max Rxqs: Half for each of the two ports :max_oq/2  */
-	u64 max_rxqs:16;
+  /* Max Rxqs: Half for each of the two ports :max_oq/2  */
+  u64 max_rxqs : 16;
 
-	/* Actual configured value. Range could be: 1...max_txqs */
-	u64 num_txqs:16;
+  /* Actual configured value. Range could be: 1...max_txqs */
+  u64 num_txqs : 16;
 
-	/* Max Txqs: Half for each of the two ports :max_iq/2 */
-	u64 max_txqs:16;
+  /* Max Txqs: Half for each of the two ports :max_iq/2 */
+  u64 max_txqs : 16;
 #else
-	/* Max Txqs: Half for each of the two ports :max_iq/2 */
-	u64 max_txqs:16;
+  /* Max Txqs: Half for each of the two ports :max_iq/2 */
+  u64 max_txqs : 16;
 
-	/* Actual configured value. Range could be: 1...max_txqs */
-	u64 num_txqs:16;
+  /* Actual configured value. Range could be: 1...max_txqs */
+  u64 num_txqs : 16;
 
-	/* Max Rxqs: Half for each of the two ports :max_oq/2  */
-	u64 max_rxqs:16;
+  /* Max Rxqs: Half for each of the two ports :max_oq/2  */
+  u64 max_rxqs : 16;
 
-	/* Actual configured value. Range could be: 1...max_rxqs */
-	u64 num_rxqs:16;
+  /* Actual configured value. Range could be: 1...max_rxqs */
+  u64 num_rxqs : 16;
 
-	/* Num of desc for rx rings */
-	u64 num_rx_descs:16;
+  /* Num of desc for rx rings */
+  u64 num_rx_descs : 16;
 
-	/* Num of desc for tx rings */
-	u64 num_tx_descs:16;
+  /* Num of desc for tx rings */
+  u64 num_tx_descs : 16;
 
-	/* SKB size, We need not change buf size even for Jumbo frames.
-	 * Octeon can send jumbo frames in 4 consecutive descriptors,
-	 */
-	u64 rx_buf_size:16;
+  /* SKB size, We need not change buf size even for Jumbo frames.
+   * Octeon can send jumbo frames in 4 consecutive descriptors,
+   */
+  u64 rx_buf_size : 16;
 
-	u64 gmx_port_id:8;
+  u64 gmx_port_id : 8;
 
-	u64 base_queue:16;
+  u64 base_queue : 16;
 
-	u64 reserved:56;
+  u64 reserved : 56;
 #endif
-
 };
 
 /** Structure to define the configuration attributes for meta data.
@@ -381,52 +379,51 @@ struct octeon_nic_if_config {
 
 struct octeon_misc_config {
 #ifdef __BIG_ENDIAN_BITFIELD
-	/** Host link status polling period */
-	u64 host_link_query_interval:32;
-	/** Oct link status polling period */
-	u64 oct_link_query_interval:32;
+  /** Host link status polling period */
+  u64 host_link_query_interval : 32;
+  /** Oct link status polling period */
+  u64 oct_link_query_interval : 32;
 
-	u64 enable_sli_oq_bp:1;
-	/** Control IQ Group */
-	u64 ctrlq_grp:4;
+  u64 enable_sli_oq_bp : 1;
+  /** Control IQ Group */
+  u64 ctrlq_grp : 4;
 #else
-	/** Control IQ Group */
-	u64 ctrlq_grp:4;
-	/** BP for SLI OQ */
-	u64 enable_sli_oq_bp:1;
-	/** Host link status polling period */
-	u64 oct_link_query_interval:32;
-	/** Oct link status polling period */
-	u64 host_link_query_interval:32;
+  /** Control IQ Group */
+  u64 ctrlq_grp : 4;
+  /** BP for SLI OQ */
+  u64 enable_sli_oq_bp : 1;
+  /** Host link status polling period */
+  u64 oct_link_query_interval : 32;
+  /** Oct link status polling period */
+  u64 host_link_query_interval : 32;
 #endif
 };
 
 /** Structure to define the configuration for all OCTEON processors. */
 struct octeon_config {
-	u16 card_type;
-	char *card_name;
+  u16 card_type;
+  char *card_name;
 
-	/** Input Queue attributes. */
-	struct octeon_iq_config iq;
+  /** Input Queue attributes. */
+  struct octeon_iq_config iq;
 
-	/** Output Queue attributes. */
-	struct octeon_oq_config oq;
+  /** Output Queue attributes. */
+  struct octeon_oq_config oq;
 
-	/** NIC Port Configuration */
-	struct octeon_nic_if_config nic_if_cfg[MAX_OCTEON_NICIF];
+  /** NIC Port Configuration */
+  struct octeon_nic_if_config nic_if_cfg[MAX_OCTEON_NICIF];
 
-	/** Miscellaneous attributes */
-	struct octeon_misc_config misc;
+  /** Miscellaneous attributes */
+  struct octeon_misc_config misc;
 
-	int num_nic_ports;
+  int num_nic_ports;
 
-	int num_def_tx_descs;
+  int num_def_tx_descs;
 
-	/* Num of desc for rx rings */
-	int num_def_rx_descs;
+  /* Num of desc for rx rings */
+  int num_def_rx_descs;
 
-	int def_rx_buf_size;
-
+  int def_rx_buf_size;
 };
 
 /* The following config values are fixed and should not be modified. */
@@ -455,18 +452,18 @@ struct octeon_config {
 #define DISPATCH_LIST_SIZE                      BIT(OPCODE_MASK_BITS)
 
 /* Maximum number of Octeon Instruction (command) queues */
-#define MAX_OCTEON_INSTR_QUEUES(oct)		\
-		(OCTEON_CN23XX_PF(oct) ? CN23XX_MAX_INPUT_QUEUES : \
-					CN6XXX_MAX_INPUT_QUEUES)
+#define MAX_OCTEON_INSTR_QUEUES(oct)    \
+  (OCTEON_CN23XX_PF(oct) ? CN23XX_MAX_INPUT_QUEUES   \
+  : CN6XXX_MAX_INPUT_QUEUES)
 
 /* Maximum number of Octeon Instruction (command) queues */
-#define MAX_OCTEON_OUTPUT_QUEUES(oct)		\
-		(OCTEON_CN23XX_PF(oct) ? CN23XX_MAX_OUTPUT_QUEUES : \
-					CN6XXX_MAX_OUTPUT_QUEUES)
+#define MAX_OCTEON_OUTPUT_QUEUES(oct)   \
+  (OCTEON_CN23XX_PF(oct) ? CN23XX_MAX_OUTPUT_QUEUES   \
+  : CN6XXX_MAX_OUTPUT_QUEUES)
 
-#define MAX_POSSIBLE_OCTEON_INSTR_QUEUES	CN23XX_MAX_INPUT_QUEUES
-#define MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES	CN23XX_MAX_OUTPUT_QUEUES
+#define MAX_POSSIBLE_OCTEON_INSTR_QUEUES  CN23XX_MAX_INPUT_QUEUES
+#define MAX_POSSIBLE_OCTEON_OUTPUT_QUEUES CN23XX_MAX_OUTPUT_QUEUES
 
-#define MAX_POSSIBLE_VFS			64
+#define MAX_POSSIBLE_VFS      64
 
 #endif /* __OCTEON_CONFIG_H__  */

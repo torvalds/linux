@@ -84,16 +84,16 @@
 #define OP_DATA_MIDDLE_BTN 0x04
 #define OP_DATA_RIGHT_BTN  0x02
 #define OP_DATA_LEFT_BTN   0x01
-#define OP_DATA_BTN_MASK (OP_DATA_MIDDLE_BTN | OP_DATA_RIGHT_BTN | \
-			  OP_DATA_LEFT_BTN)
+#define OP_DATA_BTN_MASK (OP_DATA_MIDDLE_BTN | OP_DATA_RIGHT_BTN   \
+  | OP_DATA_LEFT_BTN)
 
 /*
  * Write-only command file register used to issue commands and
  * parameters to the bootloader.
  * The default value read from it is always 0x00.
  */
-#define REG_BL_FILE	0x00
-#define BL_FILE		0x00
+#define REG_BL_FILE 0x00
+#define BL_FILE   0x00
 
 /*
  * Bootloader Status Register
@@ -112,8 +112,8 @@
 #define BL_STATUS_REV_3_2    0x0c
 #define BL_STATUS_WATCHDOG   0x02
 #define BL_STATUS_CSUM_VALID 0x01
-#define BL_STATUS_REV_MASK (BL_STATUS_WATCHDOG | BL_STATUS_REV_3_2 | \
-			    BL_STATUS_REV_6_5)
+#define BL_STATUS_REV_MASK (BL_STATUS_WATCHDOG | BL_STATUS_REV_3_2   \
+  | BL_STATUS_REV_6_5)
 
 /*
  * Bootloader Error Register
@@ -138,12 +138,12 @@
 #define BL_ERROR_NO_ERR_ACTIVE  (BL_ERROR_BOOTLOADING)
 
 #define CAPABILITY_BTN_SHIFT            3
-#define CAPABILITY_LEFT_BTN_MASK	(0x01 << 3)
-#define CAPABILITY_RIGHT_BTN_MASK	(0x01 << 4)
-#define CAPABILITY_MIDDLE_BTN_MASK	(0x01 << 5)
-#define CAPABILITY_BTN_MASK  (CAPABILITY_LEFT_BTN_MASK | \
-			      CAPABILITY_RIGHT_BTN_MASK | \
-			      CAPABILITY_MIDDLE_BTN_MASK)
+#define CAPABILITY_LEFT_BTN_MASK  (0x01 << 3)
+#define CAPABILITY_RIGHT_BTN_MASK (0x01 << 4)
+#define CAPABILITY_MIDDLE_BTN_MASK  (0x01 << 5)
+#define CAPABILITY_BTN_MASK  (CAPABILITY_LEFT_BTN_MASK   \
+  | CAPABILITY_RIGHT_BTN_MASK   \
+  | CAPABILITY_MIDDLE_BTN_MASK)
 
 #define PWR_MODE_MASK   0xfc
 #define PWR_MODE_FULL_ACTIVE (0x3f << 2)
@@ -164,84 +164,84 @@
 #define OFF_MODE_NAME        "off"
 
 /* Common macros for PIP interface. */
-#define PIP_HID_DESCRIPTOR_ADDR		0x0001
-#define PIP_REPORT_DESCRIPTOR_ADDR	0x0002
-#define PIP_INPUT_REPORT_ADDR		0x0003
-#define PIP_OUTPUT_REPORT_ADDR		0x0004
-#define PIP_CMD_DATA_ADDR		0x0006
+#define PIP_HID_DESCRIPTOR_ADDR   0x0001
+#define PIP_REPORT_DESCRIPTOR_ADDR  0x0002
+#define PIP_INPUT_REPORT_ADDR   0x0003
+#define PIP_OUTPUT_REPORT_ADDR    0x0004
+#define PIP_CMD_DATA_ADDR   0x0006
 
-#define PIP_RETRIEVE_DATA_STRUCTURE	0x24
-#define PIP_CMD_CALIBRATE		0x28
-#define PIP_BL_CMD_VERIFY_APP_INTEGRITY	0x31
-#define PIP_BL_CMD_GET_BL_INFO		0x38
-#define PIP_BL_CMD_PROGRAM_VERIFY_ROW	0x39
-#define PIP_BL_CMD_LAUNCH_APP		0x3b
-#define PIP_BL_CMD_INITIATE_BL		0x48
-#define PIP_INVALID_CMD			0xff
+#define PIP_RETRIEVE_DATA_STRUCTURE 0x24
+#define PIP_CMD_CALIBRATE   0x28
+#define PIP_BL_CMD_VERIFY_APP_INTEGRITY 0x31
+#define PIP_BL_CMD_GET_BL_INFO    0x38
+#define PIP_BL_CMD_PROGRAM_VERIFY_ROW 0x39
+#define PIP_BL_CMD_LAUNCH_APP   0x3b
+#define PIP_BL_CMD_INITIATE_BL    0x48
+#define PIP_INVALID_CMD     0xff
 
-#define PIP_HID_DESCRIPTOR_SIZE		32
-#define PIP_HID_APP_REPORT_ID		0xf7
-#define PIP_HID_BL_REPORT_ID		0xff
+#define PIP_HID_DESCRIPTOR_SIZE   32
+#define PIP_HID_APP_REPORT_ID   0xf7
+#define PIP_HID_BL_REPORT_ID    0xff
 
-#define PIP_BL_CMD_REPORT_ID		0x40
-#define PIP_BL_RESP_REPORT_ID		0x30
-#define PIP_APP_CMD_REPORT_ID		0x2f
-#define PIP_APP_RESP_REPORT_ID		0x1f
+#define PIP_BL_CMD_REPORT_ID    0x40
+#define PIP_BL_RESP_REPORT_ID   0x30
+#define PIP_APP_CMD_REPORT_ID   0x2f
+#define PIP_APP_RESP_REPORT_ID    0x1f
 
-#define PIP_READ_SYS_INFO_CMD_LENGTH	7
-#define PIP_BL_READ_APP_INFO_CMD_LENGTH	13
-#define PIP_MIN_BL_CMD_LENGTH		13
-#define PIP_MIN_BL_RESP_LENGTH		11
-#define PIP_MIN_APP_CMD_LENGTH		7
-#define PIP_MIN_APP_RESP_LENGTH		5
-#define PIP_UNSUPPORTED_CMD_RESP_LENGTH	6
-#define PIP_READ_SYS_INFO_RESP_LENGTH	71
-#define PIP_BL_APP_INFO_RESP_LENGTH	30
-#define PIP_BL_GET_INFO_RESP_LENGTH	19
+#define PIP_READ_SYS_INFO_CMD_LENGTH  7
+#define PIP_BL_READ_APP_INFO_CMD_LENGTH 13
+#define PIP_MIN_BL_CMD_LENGTH   13
+#define PIP_MIN_BL_RESP_LENGTH    11
+#define PIP_MIN_APP_CMD_LENGTH    7
+#define PIP_MIN_APP_RESP_LENGTH   5
+#define PIP_UNSUPPORTED_CMD_RESP_LENGTH 6
+#define PIP_READ_SYS_INFO_RESP_LENGTH 71
+#define PIP_BL_APP_INFO_RESP_LENGTH 30
+#define PIP_BL_GET_INFO_RESP_LENGTH 19
 
-#define PIP_BL_PLATFORM_VER_SHIFT	4
-#define PIP_BL_PLATFORM_VER_MASK	0x0f
+#define PIP_BL_PLATFORM_VER_SHIFT 4
+#define PIP_BL_PLATFORM_VER_MASK  0x0f
 
-#define PIP_PRODUCT_FAMILY_MASK		0xf000
-#define PIP_PRODUCT_FAMILY_TRACKPAD	0x1000
+#define PIP_PRODUCT_FAMILY_MASK   0xf000
+#define PIP_PRODUCT_FAMILY_TRACKPAD 0x1000
 
-#define PIP_DEEP_SLEEP_STATE_ON		0x00
-#define PIP_DEEP_SLEEP_STATE_OFF	0x01
-#define PIP_DEEP_SLEEP_STATE_MASK	0x03
-#define PIP_APP_DEEP_SLEEP_REPORT_ID	0xf0
-#define PIP_DEEP_SLEEP_RESP_LENGTH	5
-#define PIP_DEEP_SLEEP_OPCODE		0x08
-#define PIP_DEEP_SLEEP_OPCODE_MASK	0x0f
+#define PIP_DEEP_SLEEP_STATE_ON   0x00
+#define PIP_DEEP_SLEEP_STATE_OFF  0x01
+#define PIP_DEEP_SLEEP_STATE_MASK 0x03
+#define PIP_APP_DEEP_SLEEP_REPORT_ID  0xf0
+#define PIP_DEEP_SLEEP_RESP_LENGTH  5
+#define PIP_DEEP_SLEEP_OPCODE   0x08
+#define PIP_DEEP_SLEEP_OPCODE_MASK  0x0f
 
-#define PIP_RESP_LENGTH_OFFSET		0
-#define	    PIP_RESP_LENGTH_SIZE	2
-#define PIP_RESP_REPORT_ID_OFFSET	2
-#define PIP_RESP_RSVD_OFFSET		3
-#define     PIP_RESP_RSVD_KEY		0x00
-#define PIP_RESP_BL_SOP_OFFSET		4
-#define     PIP_SOP_KEY			0x01  /* Start of Packet */
-#define     PIP_EOP_KEY			0x17  /* End of Packet */
-#define PIP_RESP_APP_CMD_OFFSET		4
-#define     GET_PIP_CMD_CODE(reg)	((reg) & 0x7f)
-#define PIP_RESP_STATUS_OFFSET		5
+#define PIP_RESP_LENGTH_OFFSET    0
+#define     PIP_RESP_LENGTH_SIZE  2
+#define PIP_RESP_REPORT_ID_OFFSET 2
+#define PIP_RESP_RSVD_OFFSET    3
+#define     PIP_RESP_RSVD_KEY   0x00
+#define PIP_RESP_BL_SOP_OFFSET    4
+#define     PIP_SOP_KEY     0x01  /* Start of Packet */
+#define     PIP_EOP_KEY     0x17  /* End of Packet */
+#define PIP_RESP_APP_CMD_OFFSET   4
+#define     GET_PIP_CMD_CODE(reg) ((reg) & 0x7f)
+#define PIP_RESP_STATUS_OFFSET    5
 
-#define VALID_CMD_RESP_HEADER(resp, cmd)				  \
-	(((resp)[PIP_RESP_REPORT_ID_OFFSET] == PIP_APP_RESP_REPORT_ID) && \
-	((resp)[PIP_RESP_RSVD_OFFSET] == PIP_RESP_RSVD_KEY) &&		  \
-	(GET_PIP_CMD_CODE((resp)[PIP_RESP_APP_CMD_OFFSET]) == (cmd)))
+#define VALID_CMD_RESP_HEADER(resp, cmd)          \
+  (((resp)[PIP_RESP_REPORT_ID_OFFSET] == PIP_APP_RESP_REPORT_ID)    \
+  && ((resp)[PIP_RESP_RSVD_OFFSET] == PIP_RESP_RSVD_KEY)         \
+  && (GET_PIP_CMD_CODE((resp)[PIP_RESP_APP_CMD_OFFSET]) == (cmd)))
 
 #define PIP_CMD_COMPLETE_SUCCESS(resp_data) \
-	((resp_data)[PIP_RESP_STATUS_OFFSET] == 0x00)
+  ((resp_data)[PIP_RESP_STATUS_OFFSET] == 0x00)
 
 /* Variables to record latest gen5 trackpad power states. */
-#define UNINIT_SLEEP_TIME	0xffff
-#define UNINIT_PWR_MODE		0xff
-#define PIP_DEV_SET_PWR_STATE(cyapa, s)		((cyapa)->dev_pwr_mode = (s))
-#define PIP_DEV_GET_PWR_STATE(cyapa)		((cyapa)->dev_pwr_mode)
-#define PIP_DEV_SET_SLEEP_TIME(cyapa, t)	((cyapa)->dev_sleep_time = (t))
-#define PIP_DEV_GET_SLEEP_TIME(cyapa)		((cyapa)->dev_sleep_time)
-#define PIP_DEV_UNINIT_SLEEP_TIME(cyapa)	\
-		(((cyapa)->dev_sleep_time) == UNINIT_SLEEP_TIME)
+#define UNINIT_SLEEP_TIME 0xffff
+#define UNINIT_PWR_MODE   0xff
+#define PIP_DEV_SET_PWR_STATE(cyapa, s)   ((cyapa)->dev_pwr_mode = (s))
+#define PIP_DEV_GET_PWR_STATE(cyapa)    ((cyapa)->dev_pwr_mode)
+#define PIP_DEV_SET_SLEEP_TIME(cyapa, t)  ((cyapa)->dev_sleep_time = (t))
+#define PIP_DEV_GET_SLEEP_TIME(cyapa)   ((cyapa)->dev_sleep_time)
+#define PIP_DEV_UNINIT_SLEEP_TIME(cyapa)  \
+  (((cyapa)->dev_sleep_time) == UNINIT_SLEEP_TIME)
 
 /* The touch.id is used as the MT slot id, thus max MT slot is 15 */
 #define CYAPA_MAX_MT_SLOTS  15
@@ -251,143 +251,142 @@ struct cyapa;
 typedef bool (*cb_sort)(struct cyapa *, u8 *, int);
 
 enum cyapa_pm_stage {
-	CYAPA_PM_DEACTIVE,
-	CYAPA_PM_ACTIVE,
-	CYAPA_PM_SUSPEND,
-	CYAPA_PM_RESUME,
-	CYAPA_PM_RUNTIME_SUSPEND,
-	CYAPA_PM_RUNTIME_RESUME,
+  CYAPA_PM_DEACTIVE,
+  CYAPA_PM_ACTIVE,
+  CYAPA_PM_SUSPEND,
+  CYAPA_PM_RESUME,
+  CYAPA_PM_RUNTIME_SUSPEND,
+  CYAPA_PM_RUNTIME_RESUME,
 };
 
 struct cyapa_dev_ops {
-	int (*check_fw)(struct cyapa *, const struct firmware *);
-	int (*bl_enter)(struct cyapa *);
-	int (*bl_activate)(struct cyapa *);
-	int (*bl_initiate)(struct cyapa *, const struct firmware *);
-	int (*update_fw)(struct cyapa *, const struct firmware *);
-	int (*bl_deactivate)(struct cyapa *);
+  int (*check_fw)(struct cyapa *, const struct firmware *);
+  int (*bl_enter)(struct cyapa *);
+  int (*bl_activate)(struct cyapa *);
+  int (*bl_initiate)(struct cyapa *, const struct firmware *);
+  int (*update_fw)(struct cyapa *, const struct firmware *);
+  int (*bl_deactivate)(struct cyapa *);
 
-	ssize_t (*show_baseline)(struct device *,
-			struct device_attribute *, char *);
-	ssize_t (*calibrate_store)(struct device *,
-			struct device_attribute *, const char *, size_t);
+  ssize_t (*show_baseline)(struct device *,
+      struct device_attribute *, char *);
+  ssize_t (*calibrate_store)(struct device *,
+      struct device_attribute *, const char *, size_t);
 
-	int (*initialize)(struct cyapa *cyapa);
+  int (*initialize)(struct cyapa *cyapa);
 
-	int (*state_parse)(struct cyapa *cyapa, u8 *reg_status, int len);
-	int (*operational_check)(struct cyapa *cyapa);
+  int (*state_parse)(struct cyapa *cyapa, u8 *reg_status, int len);
+  int (*operational_check)(struct cyapa *cyapa);
 
-	int (*irq_handler)(struct cyapa *);
-	bool (*irq_cmd_handler)(struct cyapa *);
-	int (*sort_empty_output_data)(struct cyapa *,
-			u8 *, int *, cb_sort);
+  int (*irq_handler)(struct cyapa *);
+  bool (*irq_cmd_handler)(struct cyapa *);
+  int (*sort_empty_output_data)(struct cyapa *,
+      u8 *, int *, cb_sort);
 
-	int (*set_power_mode)(struct cyapa *, u8, u16, enum cyapa_pm_stage);
+  int (*set_power_mode)(struct cyapa *, u8, u16, enum cyapa_pm_stage);
 
-	int (*set_proximity)(struct cyapa *, bool);
+  int (*set_proximity)(struct cyapa *, bool);
 };
 
 struct cyapa_pip_cmd_states {
-	struct mutex cmd_lock;
-	struct completion cmd_ready;
-	atomic_t cmd_issued;
-	u8 in_progress_cmd;
-	bool is_irq_mode;
+  struct mutex cmd_lock;
+  struct completion cmd_ready;
+  atomic_t cmd_issued;
+  u8 in_progress_cmd;
+  bool is_irq_mode;
 
-	cb_sort resp_sort_func;
-	u8 *resp_data;
-	int *resp_len;
+  cb_sort resp_sort_func;
+  u8 *resp_data;
+  int *resp_len;
 
-	enum cyapa_pm_stage pm_stage;
-	struct mutex pm_stage_lock;
+  enum cyapa_pm_stage pm_stage;
+  struct mutex pm_stage_lock;
 
-	u8 irq_cmd_buf[CYAPA_REG_MAP_SIZE];
-	u8 empty_buf[CYAPA_REG_MAP_SIZE];
+  u8 irq_cmd_buf[CYAPA_REG_MAP_SIZE];
+  u8 empty_buf[CYAPA_REG_MAP_SIZE];
 };
 
 union cyapa_cmd_states {
-	struct cyapa_pip_cmd_states pip;
+  struct cyapa_pip_cmd_states pip;
 };
 
 enum cyapa_state {
-	CYAPA_STATE_NO_DEVICE,
-	CYAPA_STATE_BL_BUSY,
-	CYAPA_STATE_BL_IDLE,
-	CYAPA_STATE_BL_ACTIVE,
-	CYAPA_STATE_OP,
-	CYAPA_STATE_GEN5_BL,
-	CYAPA_STATE_GEN5_APP,
-	CYAPA_STATE_GEN6_BL,
-	CYAPA_STATE_GEN6_APP,
+  CYAPA_STATE_NO_DEVICE,
+  CYAPA_STATE_BL_BUSY,
+  CYAPA_STATE_BL_IDLE,
+  CYAPA_STATE_BL_ACTIVE,
+  CYAPA_STATE_OP,
+  CYAPA_STATE_GEN5_BL,
+  CYAPA_STATE_GEN5_APP,
+  CYAPA_STATE_GEN6_BL,
+  CYAPA_STATE_GEN6_APP,
 };
 
 struct gen6_interval_setting {
-	u16 active_interval;
-	u16 lp1_interval;
-	u16 lp2_interval;
+  u16 active_interval;
+  u16 lp1_interval;
+  u16 lp2_interval;
 };
 
 /* The main device structure */
 struct cyapa {
-	enum cyapa_state state;
-	u8 status[BL_STATUS_SIZE];
-	bool operational; /* true: ready for data reporting; false: not. */
+  enum cyapa_state state;
+  u8 status[BL_STATUS_SIZE];
+  bool operational; /* true: ready for data reporting; false: not. */
 
-	struct regulator *vcc;
-	struct i2c_client *client;
-	struct input_dev *input;
-	char phys[32];	/* Device physical location */
-	bool irq_wake;  /* Irq wake is enabled */
-	bool smbus;
+  struct regulator *vcc;
+  struct i2c_client *client;
+  struct input_dev *input;
+  char phys[32];  /* Device physical location */
+  bool irq_wake;  /* Irq wake is enabled */
+  bool smbus;
 
-	/* power mode settings */
-	u8 suspend_power_mode;
-	u16 suspend_sleep_time;
-	u8 runtime_suspend_power_mode;
-	u16 runtime_suspend_sleep_time;
-	u8 dev_pwr_mode;
-	u16 dev_sleep_time;
-	struct gen6_interval_setting gen6_interval_setting;
+  /* power mode settings */
+  u8 suspend_power_mode;
+  u16 suspend_sleep_time;
+  u8 runtime_suspend_power_mode;
+  u16 runtime_suspend_sleep_time;
+  u8 dev_pwr_mode;
+  u16 dev_sleep_time;
+  struct gen6_interval_setting gen6_interval_setting;
 
-	/* Read from query data region. */
-	char product_id[16];
-	u8 platform_ver;  /* Platform version. */
-	u8 fw_maj_ver;  /* Firmware major version. */
-	u8 fw_min_ver;  /* Firmware minor version. */
-	u8 btn_capability;
-	u8 gen;
-	int max_abs_x;
-	int max_abs_y;
-	int physical_size_x;
-	int physical_size_y;
+  /* Read from query data region. */
+  char product_id[16];
+  u8 platform_ver;  /* Platform version. */
+  u8 fw_maj_ver;  /* Firmware major version. */
+  u8 fw_min_ver;  /* Firmware minor version. */
+  u8 btn_capability;
+  u8 gen;
+  int max_abs_x;
+  int max_abs_y;
+  int physical_size_x;
+  int physical_size_y;
 
-	/* Used in ttsp and truetouch based trackpad devices. */
-	u8 x_origin;  /* X Axis Origin: 0 = left side; 1 = right side. */
-	u8 y_origin;  /* Y Axis Origin: 0 = top; 1 = bottom. */
-	int electrodes_x;  /* Number of electrodes on the X Axis*/
-	int electrodes_y;  /* Number of electrodes on the Y Axis*/
-	int electrodes_rx;  /* Number of Rx electrodes */
-	int aligned_electrodes_rx;  /* 4 aligned */
-	int max_z;
+  /* Used in ttsp and truetouch based trackpad devices. */
+  u8 x_origin;  /* X Axis Origin: 0 = left side; 1 = right side. */
+  u8 y_origin;  /* Y Axis Origin: 0 = top; 1 = bottom. */
+  int electrodes_x;  /* Number of electrodes on the X Axis*/
+  int electrodes_y;  /* Number of electrodes on the Y Axis*/
+  int electrodes_rx;  /* Number of Rx electrodes */
+  int aligned_electrodes_rx;  /* 4 aligned */
+  int max_z;
 
-	/*
-	 * Used to synchronize the access or update the device state.
-	 * And since update firmware and read firmware image process will take
-	 * quite long time, maybe more than 10 seconds, so use mutex_lock
-	 * to sync and wait other interface and detecting are done or ready.
-	 */
-	struct mutex state_sync_lock;
+  /*
+   * Used to synchronize the access or update the device state.
+   * And since update firmware and read firmware image process will take
+   * quite long time, maybe more than 10 seconds, so use mutex_lock
+   * to sync and wait other interface and detecting are done or ready.
+   */
+  struct mutex state_sync_lock;
 
-	const struct cyapa_dev_ops *ops;
+  const struct cyapa_dev_ops *ops;
 
-	union cyapa_cmd_states cmd_states;
+  union cyapa_cmd_states cmd_states;
 };
 
-
 ssize_t cyapa_i2c_reg_read_block(struct cyapa *cyapa, u8 reg, size_t len,
-				 u8 *values);
+    u8 *values);
 ssize_t cyapa_smbus_read_block(struct cyapa *cyapa, u8 cmd, size_t len,
-			       u8 *values);
+    u8 *values);
 
 ssize_t cyapa_read_block(struct cyapa *cyapa, u8 cmd_idx, u8 *values);
 
@@ -399,13 +398,13 @@ u16 cyapa_pwr_cmd_to_sleep_time(u8 pwr_mode);
 ssize_t cyapa_i2c_pip_read(struct cyapa *cyapa, u8 *buf, size_t size);
 ssize_t cyapa_i2c_pip_write(struct cyapa *cyapa, u8 *buf, size_t size);
 int cyapa_empty_pip_output_data(struct cyapa *cyapa,
-				u8 *buf, int *len, cb_sort func);
+    u8 *buf, int *len, cb_sort func);
 int cyapa_i2c_pip_cmd_irq_sync(struct cyapa *cyapa,
-			       u8 *cmd, int cmd_len,
-			       u8 *resp_data, int *resp_len,
-			       unsigned long timeout,
-			       cb_sort func,
-			       bool irq_mode);
+    u8 *cmd, int cmd_len,
+    u8 *resp_data, int *resp_len,
+    unsigned long timeout,
+    cb_sort func,
+    bool irq_mode);
 int cyapa_pip_state_parse(struct cyapa *cyapa, u8 *reg_data, int len);
 bool cyapa_pip_sort_system_info_data(struct cyapa *cyapa, u8 *buf, int len);
 bool cyapa_sort_tsg_pip_bl_resp_data(struct cyapa *cyapa, u8 *data, int len);
@@ -413,7 +412,6 @@ int cyapa_pip_deep_sleep(struct cyapa *cyapa, u8 state);
 bool cyapa_sort_tsg_pip_app_resp_data(struct cyapa *cyapa, u8 *data, int len);
 int cyapa_pip_bl_exit(struct cyapa *cyapa);
 int cyapa_pip_bl_enter(struct cyapa *cyapa);
-
 
 bool cyapa_is_pip_bl_mode(struct cyapa *cyapa);
 bool cyapa_is_pip_app_mode(struct cyapa *cyapa);
@@ -428,13 +426,12 @@ int cyapa_pip_do_fw_update(struct cyapa *cyapa, const struct firmware *fw);
 int cyapa_pip_bl_activate(struct cyapa *cyapa);
 int cyapa_pip_bl_deactivate(struct cyapa *cyapa);
 ssize_t cyapa_pip_do_calibrate(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count);
+    struct device_attribute *attr,
+    const char *buf, size_t count);
 int cyapa_pip_set_proximity(struct cyapa *cyapa, bool enable);
 
 bool cyapa_pip_irq_cmd_handler(struct cyapa *cyapa);
 int cyapa_pip_irq_handler(struct cyapa *cyapa);
-
 
 extern u8 pip_read_sys_info[];
 extern u8 pip_bl_read_app_info[];

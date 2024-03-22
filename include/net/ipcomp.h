@@ -11,8 +11,8 @@ struct crypto_comp;
 struct ip_comp_hdr;
 
 struct ipcomp_data {
-	u16 threshold;
-	struct crypto_comp * __percpu *tfms;
+  u16 threshold;
+  struct crypto_comp *__percpu *tfms;
 };
 
 struct ip_comp_hdr;
@@ -24,9 +24,8 @@ int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb);
 void ipcomp_destroy(struct xfrm_state *x);
 int ipcomp_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack);
 
-static inline struct ip_comp_hdr *ip_comp_hdr(const struct sk_buff *skb)
-{
-	return (struct ip_comp_hdr *)skb_transport_header(skb);
+static inline struct ip_comp_hdr *ip_comp_hdr(const struct sk_buff *skb) {
+  return (struct ip_comp_hdr *) skb_transport_header(skb);
 }
 
 #endif

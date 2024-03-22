@@ -5,6 +5,6 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 
-#define cpu_dcache_is_aliasing()	(DCACHE_WAY_SIZE > PAGE_SIZE)
+#define cpu_dcache_is_aliasing()  (DCACHE_WAY_SIZE > PAGE_SIZE)
 
 #endif

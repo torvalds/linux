@@ -3,7 +3,7 @@
  * VFIO ZPCI devices support
  *
  * Copyright (C) IBM Corp. 2022.  All rights reserved.
- *	Author(s): Pierre Morel <pmorel@linux.ibm.com>
+ *  Author(s): Pierre Morel <pmorel@linux.ibm.com>
  */
 #include <linux/kvm_host.h>
 

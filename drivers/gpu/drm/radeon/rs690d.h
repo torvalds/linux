@@ -239,7 +239,6 @@
 #define   G_006D58_LB_D2_MAX_REQ_OUTSTANDING(x)        (((x) >> 16) & 0xF)
 #define   C_006D58_LB_D2_MAX_REQ_OUTSTANDING           0xFFF0FFFF
 
-
 #define R_000090_MC_SYSTEM_STATUS                    0x000090
 #define   S_000090_MC_SYSTEM_IDLE(x)                   (((x) & 0x1) << 0)
 #define   G_000090_MC_SYSTEM_IDLE(x)                   (((x) >> 0) & 0x1)

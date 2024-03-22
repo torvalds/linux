@@ -24,14 +24,14 @@
  */
 #define _PAGE_PFN_MASK  GENMASK(31, 10)
 
-#define _PAGE_NOCACHE		0
-#define _PAGE_IO		0
-#define _PAGE_MTMASK		0
+#define _PAGE_NOCACHE   0
+#define _PAGE_IO    0
+#define _PAGE_MTMASK    0
 
 /* Set of bits to preserve across pte_modify() */
-#define _PAGE_CHG_MASK  (~(unsigned long)(_PAGE_PRESENT | _PAGE_READ |	\
-					  _PAGE_WRITE | _PAGE_EXEC |	\
-					  _PAGE_USER | _PAGE_GLOBAL))
+#define _PAGE_CHG_MASK  (~(unsigned long) (_PAGE_PRESENT | _PAGE_READ    \
+  | _PAGE_WRITE | _PAGE_EXEC    \
+  | _PAGE_USER | _PAGE_GLOBAL))
 
 static const __maybe_unused int pgtable_l4_enabled;
 static const __maybe_unused int pgtable_l5_enabled;

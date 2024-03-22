@@ -21,13 +21,13 @@ struct rcar_du_device;
 struct sg_table;
 
 struct rcar_du_format_info {
-	u32 fourcc;
-	u32 v4l2;
-	unsigned int bpp;
-	unsigned int planes;
-	unsigned int hsub;
-	unsigned int pnmr;
-	unsigned int edf;
+  u32 fourcc;
+  u32 v4l2;
+  unsigned int bpp;
+  unsigned int planes;
+  unsigned int hsub;
+  unsigned int pnmr;
+  unsigned int edf;
 };
 
 const struct rcar_du_format_info *rcar_du_format_info(u32 fourcc);
@@ -35,10 +35,10 @@ const struct rcar_du_format_info *rcar_du_format_info(u32 fourcc);
 int rcar_du_modeset_init(struct rcar_du_device *rcdu);
 
 int rcar_du_dumb_create(struct drm_file *file, struct drm_device *dev,
-			struct drm_mode_create_dumb *args);
+    struct drm_mode_create_dumb *args);
 
 struct drm_gem_object *rcar_du_gem_prime_import_sg_table(struct drm_device *dev,
-				struct dma_buf_attachment *attach,
-				struct sg_table *sgt);
+    struct dma_buf_attachment *attach,
+    struct sg_table *sgt);
 
 #endif /* __RCAR_DU_KMS_H__ */

@@ -30,7 +30,8 @@
 
 #define HIVE_IFMT_GP_REGS_CH_ID_FMT_TYPE_IDX               11
 
-#define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_BASE         HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_0
+#define HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_BASE         \
+  HIVE_IFMT_GP_REGS_INPUT_SWITCH_LUT_REG_0
 
 /* order of the input bits for the ifmt irq controller */
 #define HIVE_IFMT_IRQ_IFT_PRIM_BIT_ID                       0

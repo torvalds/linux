@@ -11,12 +11,12 @@
  * (e.g. SYSCISR, Interrupt Status Register)
  */
 
-#define R8A7743_PD_CA15_CPU0		 0
-#define R8A7743_PD_CA15_CPU1		 1
-#define R8A7743_PD_CA15_SCU		12
-#define R8A7743_PD_SGX			20
+#define R8A7743_PD_CA15_CPU0     0
+#define R8A7743_PD_CA15_CPU1     1
+#define R8A7743_PD_CA15_SCU   12
+#define R8A7743_PD_SGX      20
 
 /* Always-on power area */
-#define R8A7743_PD_ALWAYS_ON		32
+#define R8A7743_PD_ALWAYS_ON    32
 
 #endif /* __DT_BINDINGS_POWER_R8A7743_SYSC_H__ */

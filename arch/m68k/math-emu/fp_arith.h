@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-
-   fp_arith.h: floating-point math routines for the Linux-m68k
-   floating point emulator.
-
-   Copyright (c) 1998 David Huggins-Daines.
-
-   Somewhat based on the AlphaLinux floating point emulator, by David
-   Mosberger-Tang.
-
-
+ *
+ * fp_arith.h: floating-point math routines for the Linux-m68k
+ * floating point emulator.
+ *
+ * Copyright (c) 1998 David Huggins-Daines.
+ *
+ * Somewhat based on the AlphaLinux floating point emulator, by David
+ * Mosberger-Tang.
+ *
+ *
  */
 
 #ifndef _FP_ARITH_H
@@ -36,4 +36,4 @@ struct fp_ext *fp_fint(struct fp_ext *dest, struct fp_ext *src);
 struct fp_ext *fp_fintrz(struct fp_ext *dest, struct fp_ext *src);
 struct fp_ext *fp_fscale(struct fp_ext *dest, struct fp_ext *src);
 
-#endif	/* _FP_ARITH_H */
+#endif  /* _FP_ARITH_H */

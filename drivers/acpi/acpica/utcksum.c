@@ -32,41 +32,34 @@ ACPI_MODULE_NAME("utcksum")
  *              via ACPICA.
  *
  ******************************************************************************/
-acpi_status acpi_ut_verify_checksum(struct acpi_table_header *table, u32 length)
-{
-	u8 checksum;
-
-	/*
-	 * FACS/S3PT:
-	 * They are the odd tables, have no standard ACPI header and no checksum
-	 */
-	if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_S3PT) ||
-	    ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_FACS)) {
-		return (AE_OK);
-	}
-
-	/* Compute the checksum on the table */
-
-	length = table->length;
-	checksum =
-	    acpi_ut_generate_checksum(ACPI_CAST_PTR(u8, table), length,
-				      table->checksum);
-
-	/* Computed checksum matches table? */
-
-	if (checksum != table->checksum) {
-		ACPI_BIOS_WARNING((AE_INFO,
-				   "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
-				   "should be 0x%2.2X",
-				   table->signature, table->checksum,
-				   table->checksum - checksum));
-
+acpi_status acpi_ut_verify_checksum(struct acpi_table_header *table,
+    u32 length) {
+  u8 checksum;
+  /*
+   * FACS/S3PT:
+   * They are the odd tables, have no standard ACPI header and no checksum
+   */
+  if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_S3PT)
+      || ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_FACS)) {
+    return AE_OK;
+  }
+  /* Compute the checksum on the table */
+  length = table->length;
+  checksum
+    = acpi_ut_generate_checksum(ACPI_CAST_PTR(u8, table), length,
+      table->checksum);
+  /* Computed checksum matches table? */
+  if (checksum != table->checksum) {
+    ACPI_BIOS_WARNING((AE_INFO,
+        "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+        "should be 0x%2.2X",
+        table->signature, table->checksum,
+        table->checksum - checksum));
 #if (ACPI_CHECKSUM_ABORT)
-		return (AE_BAD_CHECKSUM);
+    return AE_BAD_CHECKSUM;
 #endif
-	}
-
-	return (AE_OK);
+  }
+  return AE_OK;
 }
 
 /*******************************************************************************
@@ -83,33 +76,26 @@ acpi_status acpi_ut_verify_checksum(struct acpi_table_header *table, u32 length)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ut_verify_cdat_checksum(struct acpi_table_cdat *cdat_table, u32 length)
-{
-	u8 checksum;
-
-	/* Compute the checksum on the table */
-
-	checksum = acpi_ut_generate_checksum(ACPI_CAST_PTR(u8, cdat_table),
-					     cdat_table->length,
-					     cdat_table->checksum);
-
-	/* Computed checksum matches table? */
-
-	if (checksum != cdat_table->checksum) {
-		ACPI_BIOS_WARNING((AE_INFO,
-				   "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
-				   "should be 0x%2.2X",
-				   acpi_gbl_CDAT, cdat_table->checksum,
-				   checksum));
-
+acpi_status acpi_ut_verify_cdat_checksum(struct acpi_table_cdat *cdat_table,
+    u32 length) {
+  u8 checksum;
+  /* Compute the checksum on the table */
+  checksum = acpi_ut_generate_checksum(ACPI_CAST_PTR(u8, cdat_table),
+      cdat_table->length,
+      cdat_table->checksum);
+  /* Computed checksum matches table? */
+  if (checksum != cdat_table->checksum) {
+    ACPI_BIOS_WARNING((AE_INFO,
+        "Incorrect checksum in table [%4.4s] - 0x%2.2X, "
+        "should be 0x%2.2X",
+        acpi_gbl_CDAT, cdat_table->checksum,
+        checksum));
 #if (ACPI_CHECKSUM_ABORT)
-		return (AE_BAD_CHECKSUM);
+    return AE_BAD_CHECKSUM;
 #endif
-	}
-
-	cdat_table->checksum = checksum;
-	return (AE_OK);
+  }
+  cdat_table->checksum = checksum;
+  return AE_OK;
 }
 
 /*******************************************************************************
@@ -126,22 +112,15 @@ acpi_ut_verify_cdat_checksum(struct acpi_table_cdat *cdat_table, u32 length)
  *
  ******************************************************************************/
 
-u8 acpi_ut_generate_checksum(void *table, u32 length, u8 original_checksum)
-{
-	u8 checksum;
-
-	/* Sum the entire table as-is */
-
-	checksum = acpi_ut_checksum((u8 *)table, length);
-
-	/* Subtract off the existing checksum value in the table */
-
-	checksum = (u8)(checksum - original_checksum);
-
-	/* Compute and return the final checksum */
-
-	checksum = (u8)(0 - checksum);
-	return (checksum);
+u8 acpi_ut_generate_checksum(void *table, u32 length, u8 original_checksum) {
+  u8 checksum;
+  /* Sum the entire table as-is */
+  checksum = acpi_ut_checksum((u8 *) table, length);
+  /* Subtract off the existing checksum value in the table */
+  checksum = (u8) (checksum - original_checksum);
+  /* Compute and return the final checksum */
+  checksum = (u8) (0 - checksum);
+  return checksum;
 }
 
 /*******************************************************************************
@@ -157,14 +136,11 @@ u8 acpi_ut_generate_checksum(void *table, u32 length, u8 original_checksum)
  *
  ******************************************************************************/
 
-u8 acpi_ut_checksum(u8 *buffer, u32 length)
-{
-	u8 sum = 0;
-	u8 *end = buffer + length;
-
-	while (buffer < end) {
-		sum = (u8)(sum + *(buffer++));
-	}
-
-	return (sum);
+u8 acpi_ut_checksum(u8 *buffer, u32 length) {
+  u8 sum = 0;
+  u8 *end = buffer + length;
+  while (buffer < end) {
+    sum = (u8) (sum + *(buffer++));
+  }
+  return sum;
 }

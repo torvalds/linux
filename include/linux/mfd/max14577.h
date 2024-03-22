@@ -23,53 +23,53 @@
 
 /* MAX14577 regulator IDs */
 enum max14577_regulators {
-	MAX14577_SAFEOUT = 0,
-	MAX14577_CHARGER,
+  MAX14577_SAFEOUT = 0,
+  MAX14577_CHARGER,
 
-	MAX14577_REGULATOR_NUM,
+  MAX14577_REGULATOR_NUM,
 };
 
 /* MAX77836 regulator IDs */
 enum max77836_regulators {
-	MAX77836_SAFEOUT = 0,
-	MAX77836_CHARGER,
-	MAX77836_LDO1,
-	MAX77836_LDO2,
+  MAX77836_SAFEOUT = 0,
+  MAX77836_CHARGER,
+  MAX77836_LDO1,
+  MAX77836_LDO2,
 
-	MAX77836_REGULATOR_NUM,
+  MAX77836_REGULATOR_NUM,
 };
 
 struct max14577_regulator_platform_data {
-	int id;
-	struct regulator_init_data *initdata;
-	struct device_node *of_node;
+  int id;
+  struct regulator_init_data *initdata;
+  struct device_node *of_node;
 };
 
 struct max14577_charger_platform_data {
-	u32 constant_uvolt;
-	u32 fast_charge_uamp;
-	u32 eoc_uamp;
-	u32 ovp_uvolt;
+  u32 constant_uvolt;
+  u32 fast_charge_uamp;
+  u32 eoc_uamp;
+  u32 ovp_uvolt;
 };
 
 /*
  * MAX14577 MFD platform data
  */
 struct max14577_platform_data {
-	/* IRQ */
-	int irq_base;
+  /* IRQ */
+  int irq_base;
 
-	/* current control GPIOs */
-	int gpio_pogo_vbatt_en;
-	int gpio_pogo_vbus_en;
+  /* current control GPIOs */
+  int gpio_pogo_vbatt_en;
+  int gpio_pogo_vbus_en;
 
-	/* current control GPIO control function */
-	int (*set_gpio_pogo_vbatt_en) (int gpio_val);
-	int (*set_gpio_pogo_vbus_en) (int gpio_val);
+  /* current control GPIO control function */
+  int (*set_gpio_pogo_vbatt_en)(int gpio_val);
+  int (*set_gpio_pogo_vbus_en)(int gpio_val);
 
-	int (*set_gpio_pogo_cb) (int new_dev);
+  int (*set_gpio_pogo_cb)(int new_dev);
 
-	struct max14577_regulator_platform_data *regulators;
+  struct max14577_regulator_platform_data *regulators;
 };
 
 /*
@@ -78,21 +78,22 @@ struct max14577_platform_data {
  * register for given chipset.
  */
 struct maxim_charger_current {
-	/* Minimal current, set in CHGCTRL4/MBCICHWRCL, uA */
-	unsigned int min;
-	/*
-	 * Minimal current when high setting is active,
-	 * set in CHGCTRL4/MBCICHWRCH, uA
-	 */
-	unsigned int high_start;
-	/* Value of one step in high setting, uA */
-	unsigned int high_step;
-	/* Maximum current of high setting, uA */
-	unsigned int max;
+  /* Minimal current, set in CHGCTRL4/MBCICHWRCL, uA */
+  unsigned int min;
+  /*
+   * Minimal current when high setting is active,
+   * set in CHGCTRL4/MBCICHWRCH, uA
+   */
+  unsigned int high_start;
+  /* Value of one step in high setting, uA */
+  unsigned int high_step;
+  /* Maximum current of high setting, uA */
+  unsigned int max;
 };
 
 extern const struct maxim_charger_current maxim_charger_currents[];
-extern int maxim_charger_calc_reg_current(const struct maxim_charger_current *limits,
-		unsigned int min_ua, unsigned int max_ua, u8 *dst);
+extern int maxim_charger_calc_reg_current(
+  const struct maxim_charger_current *limits,
+  unsigned int min_ua, unsigned int max_ua, u8 *dst);
 
 #endif /* __MAX14577_H__ */

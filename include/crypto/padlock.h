@@ -10,9 +10,9 @@
 
 #define PADLOCK_ALIGNMENT 16
 
-#define PFX	KBUILD_MODNAME ": "
+#define PFX KBUILD_MODNAME ": "
 
-#define PADLOCK_CRA_PRIORITY	300
+#define PADLOCK_CRA_PRIORITY  300
 #define PADLOCK_COMPOSITE_PRIORITY 400
 
 #ifdef CONFIG_64BIT
@@ -21,4 +21,4 @@
 #define STACK_ALIGN 4
 #endif
 
-#endif	/* _CRYPTO_PADLOCK_H */
+#endif  /* _CRYPTO_PADLOCK_H */

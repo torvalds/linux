@@ -17,7 +17,7 @@
  * This is a subset of the ones listed in arch/arm/mach-omap2/prm.h
  * and are the only ones needed in the watchdog driver.
  */
-#define OMAP_MPU_WD_RST_SRC_ID_SHIFT				3
+#define OMAP_MPU_WD_RST_SRC_ID_SHIFT        3
 
 /**
  * struct omap_wd_timer_platform_data - WDTIMER integration to the host SoC
@@ -28,7 +28,7 @@
  * arch/arm/mach-omap2
  */
 struct omap_wd_timer_platform_data {
-	u32 (*read_reset_sources)(void);
+  u32 (*read_reset_sources)(void);
 };
 
 #endif

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: MIT */
-/* Copyright (C) 2006-2016 Oracle Corporation */
+/* SPDX-License-Identifier: MIT
+ * Copyright (C) 2006-2016 Oracle Corporation*/
 
 #ifndef __VBOXVIDEO_VBE_H__
 #define __VBOXVIDEO_VBE_H__

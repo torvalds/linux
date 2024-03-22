@@ -24,61 +24,61 @@ struct mipi_dsi_device;
 struct platform_device;
 
 struct dw_mipi_dsi_dphy_timing {
-	u16 data_hs2lp;
-	u16 data_lp2hs;
-	u16 clk_hs2lp;
-	u16 clk_lp2hs;
+  u16 data_hs2lp;
+  u16 data_lp2hs;
+  u16 clk_hs2lp;
+  u16 clk_lp2hs;
 };
 
 struct dw_mipi_dsi_phy_ops {
-	int (*init)(void *priv_data);
-	void (*power_on)(void *priv_data);
-	void (*power_off)(void *priv_data);
-	int (*get_lane_mbps)(void *priv_data,
-			     const struct drm_display_mode *mode,
-			     unsigned long mode_flags, u32 lanes, u32 format,
-			     unsigned int *lane_mbps);
-	int (*get_timing)(void *priv_data, unsigned int lane_mbps,
-			  struct dw_mipi_dsi_dphy_timing *timing);
-	int (*get_esc_clk_rate)(void *priv_data, unsigned int *esc_clk_rate);
+  int (*init)(void *priv_data);
+  void (*power_on)(void *priv_data);
+  void (*power_off)(void *priv_data);
+  int (*get_lane_mbps)(void *priv_data,
+      const struct drm_display_mode *mode,
+      unsigned long mode_flags, u32 lanes, u32 format,
+      unsigned int *lane_mbps);
+  int (*get_timing)(void *priv_data, unsigned int lane_mbps,
+      struct dw_mipi_dsi_dphy_timing *timing);
+  int (*get_esc_clk_rate)(void *priv_data, unsigned int *esc_clk_rate);
 };
 
 struct dw_mipi_dsi_host_ops {
-	int (*attach)(void *priv_data,
-		      struct mipi_dsi_device *dsi);
-	int (*detach)(void *priv_data,
-		      struct mipi_dsi_device *dsi);
+  int (*attach)(void *priv_data,
+      struct mipi_dsi_device *dsi);
+  int (*detach)(void *priv_data,
+      struct mipi_dsi_device *dsi);
 };
 
 struct dw_mipi_dsi_plat_data {
-	void __iomem *base;
-	unsigned int max_data_lanes;
+  void __iomem *base;
+  unsigned int max_data_lanes;
 
-	enum drm_mode_status (*mode_valid)(void *priv_data,
-					   const struct drm_display_mode *mode,
-					   unsigned long mode_flags,
-					   u32 lanes, u32 format);
+  enum drm_mode_status (*mode_valid)(void *priv_data,
+      const struct drm_display_mode *mode,
+      unsigned long mode_flags,
+      u32 lanes, u32 format);
 
-	bool (*mode_fixup)(void *priv_data, const struct drm_display_mode *mode,
-			   struct drm_display_mode *adjusted_mode);
+  bool (*mode_fixup)(void *priv_data, const struct drm_display_mode *mode,
+      struct drm_display_mode *adjusted_mode);
 
-	u32 *(*get_input_bus_fmts)(void *priv_data,
-				   struct drm_bridge *bridge,
-				   struct drm_bridge_state *bridge_state,
-				   struct drm_crtc_state *crtc_state,
-				   struct drm_connector_state *conn_state,
-				   u32 output_fmt,
-				   unsigned int *num_input_fmts);
+  u32 *(*get_input_bus_fmts)(void *priv_data,
+      struct drm_bridge *bridge,
+      struct drm_bridge_state *bridge_state,
+      struct drm_crtc_state *crtc_state,
+      struct drm_connector_state *conn_state,
+      u32 output_fmt,
+      unsigned int *num_input_fmts);
 
-	const struct dw_mipi_dsi_phy_ops *phy_ops;
-	const struct dw_mipi_dsi_host_ops *host_ops;
+  const struct dw_mipi_dsi_phy_ops *phy_ops;
+  const struct dw_mipi_dsi_host_ops *host_ops;
 
-	void *priv_data;
+  void *priv_data;
 };
 
 struct dw_mipi_dsi *dw_mipi_dsi_probe(struct platform_device *pdev,
-				      const struct dw_mipi_dsi_plat_data
-				      *plat_data);
+    const struct dw_mipi_dsi_plat_data
+    *plat_data);
 void dw_mipi_dsi_remove(struct dw_mipi_dsi *dsi);
 int dw_mipi_dsi_bind(struct dw_mipi_dsi *dsi, struct drm_encoder *encoder);
 void dw_mipi_dsi_unbind(struct dw_mipi_dsi *dsi);

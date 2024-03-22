@@ -2,9 +2,9 @@
 #ifndef _UAPI_FALLOC_H_
 #define _UAPI_FALLOC_H_
 
-#define FALLOC_FL_KEEP_SIZE	0x01 /* default is extend size */
-#define FALLOC_FL_PUNCH_HOLE	0x02 /* de-allocates range */
-#define FALLOC_FL_NO_HIDE_STALE	0x04 /* reserved codepoint */
+#define FALLOC_FL_KEEP_SIZE 0x01 /* default is extend size */
+#define FALLOC_FL_PUNCH_HOLE  0x02 /* de-allocates range */
+#define FALLOC_FL_NO_HIDE_STALE 0x04 /* reserved codepoint */
 
 /*
  * FALLOC_FL_COLLAPSE_RANGE is used to remove a range of a file
@@ -26,7 +26,7 @@
  * considered an illegal operation - just use ftruncate(2) if you need
  * to collapse a range that crosses EOF.
  */
-#define FALLOC_FL_COLLAPSE_RANGE	0x08
+#define FALLOC_FL_COLLAPSE_RANGE  0x08
 
 /*
  * FALLOC_FL_ZERO_RANGE is used to convert a range of file to zeros preferably
@@ -40,7 +40,7 @@
  * with fallocate. Flag FALLOC_FL_KEEP_SIZE should cause the inode
  * size to remain the same.
  */
-#define FALLOC_FL_ZERO_RANGE		0x10
+#define FALLOC_FL_ZERO_RANGE    0x10
 
 /*
  * FALLOC_FL_INSERT_RANGE is use to insert space within the file size without
@@ -57,7 +57,7 @@
  * the file is considered an illegal operation - just use ftruncate(2) or
  * fallocate(2) with mode 0 for such type of operations.
  */
-#define FALLOC_FL_INSERT_RANGE		0x20
+#define FALLOC_FL_INSERT_RANGE    0x20
 
 /*
  * FALLOC_FL_UNSHARE_RANGE is used to unshare shared blocks within the
@@ -75,6 +75,6 @@
  * to say that it cannot be used with the punch, zero, collapse, or
  * insert range modes.
  */
-#define FALLOC_FL_UNSHARE_RANGE		0x40
+#define FALLOC_FL_UNSHARE_RANGE   0x40
 
 #endif /* _UAPI_FALLOC_H_ */

@@ -27,28 +27,28 @@
 #define VSOCK_PROTO_PKT_ON_NOTIFY (1 << 0)
 #define VSOCK_PROTO_ALL_SUPPORTED (VSOCK_PROTO_PKT_ON_NOTIFY)
 
-#define vmci_trans(_vsk) ((struct vmci_transport *)((_vsk)->trans))
+#define vmci_trans(_vsk) ((struct vmci_transport *) ((_vsk)->trans))
 
 enum vmci_transport_packet_type {
-	VMCI_TRANSPORT_PACKET_TYPE_INVALID = 0,
-	VMCI_TRANSPORT_PACKET_TYPE_REQUEST,
-	VMCI_TRANSPORT_PACKET_TYPE_NEGOTIATE,
-	VMCI_TRANSPORT_PACKET_TYPE_OFFER,
-	VMCI_TRANSPORT_PACKET_TYPE_ATTACH,
-	VMCI_TRANSPORT_PACKET_TYPE_WROTE,
-	VMCI_TRANSPORT_PACKET_TYPE_READ,
-	VMCI_TRANSPORT_PACKET_TYPE_RST,
-	VMCI_TRANSPORT_PACKET_TYPE_SHUTDOWN,
-	VMCI_TRANSPORT_PACKET_TYPE_WAITING_WRITE,
-	VMCI_TRANSPORT_PACKET_TYPE_WAITING_READ,
-	VMCI_TRANSPORT_PACKET_TYPE_REQUEST2,
-	VMCI_TRANSPORT_PACKET_TYPE_NEGOTIATE2,
-	VMCI_TRANSPORT_PACKET_TYPE_MAX
+  VMCI_TRANSPORT_PACKET_TYPE_INVALID = 0,
+  VMCI_TRANSPORT_PACKET_TYPE_REQUEST,
+  VMCI_TRANSPORT_PACKET_TYPE_NEGOTIATE,
+  VMCI_TRANSPORT_PACKET_TYPE_OFFER,
+  VMCI_TRANSPORT_PACKET_TYPE_ATTACH,
+  VMCI_TRANSPORT_PACKET_TYPE_WROTE,
+  VMCI_TRANSPORT_PACKET_TYPE_READ,
+  VMCI_TRANSPORT_PACKET_TYPE_RST,
+  VMCI_TRANSPORT_PACKET_TYPE_SHUTDOWN,
+  VMCI_TRANSPORT_PACKET_TYPE_WAITING_WRITE,
+  VMCI_TRANSPORT_PACKET_TYPE_WAITING_READ,
+  VMCI_TRANSPORT_PACKET_TYPE_REQUEST2,
+  VMCI_TRANSPORT_PACKET_TYPE_NEGOTIATE2,
+  VMCI_TRANSPORT_PACKET_TYPE_MAX
 };
 
 struct vmci_transport_waiting_info {
-	u64 generation;
-	u64 offset;
+  u64 generation;
+  u64 offset;
 };
 
 /* Control packet type for STREAM sockets.  DGRAMs have no control packets nor
@@ -58,73 +58,73 @@ struct vmci_transport_waiting_info {
  * format.
  */
 struct vmci_transport_packet {
-	struct vmci_datagram dg;
-	u8 version;
-	u8 type;
-	u16 proto;
-	u32 src_port;
-	u32 dst_port;
-	u32 _reserved2;
-	union {
-		u64 size;
-		u64 mode;
-		struct vmci_handle handle;
-		struct vmci_transport_waiting_info wait;
-	} u;
+  struct vmci_datagram dg;
+  u8 version;
+  u8 type;
+  u16 proto;
+  u32 src_port;
+  u32 dst_port;
+  u32 _reserved2;
+  union {
+    u64 size;
+    u64 mode;
+    struct vmci_handle handle;
+    struct vmci_transport_waiting_info wait;
+  } u;
 };
 
 struct vmci_transport_notify_pkt {
-	u64 write_notify_window;
-	u64 write_notify_min_window;
-	bool peer_waiting_read;
-	bool peer_waiting_write;
-	bool peer_waiting_write_detected;
-	bool sent_waiting_read;
-	bool sent_waiting_write;
-	struct vmci_transport_waiting_info peer_waiting_read_info;
-	struct vmci_transport_waiting_info peer_waiting_write_info;
-	u64 produce_q_generation;
-	u64 consume_q_generation;
+  u64 write_notify_window;
+  u64 write_notify_min_window;
+  bool peer_waiting_read;
+  bool peer_waiting_write;
+  bool peer_waiting_write_detected;
+  bool sent_waiting_read;
+  bool sent_waiting_write;
+  struct vmci_transport_waiting_info peer_waiting_read_info;
+  struct vmci_transport_waiting_info peer_waiting_write_info;
+  u64 produce_q_generation;
+  u64 consume_q_generation;
 };
 
 struct vmci_transport_notify_pkt_q_state {
-	u64 write_notify_window;
-	u64 write_notify_min_window;
-	bool peer_waiting_write;
-	bool peer_waiting_write_detected;
+  u64 write_notify_window;
+  u64 write_notify_min_window;
+  bool peer_waiting_write;
+  bool peer_waiting_write_detected;
 };
 
 union vmci_transport_notify {
-	struct vmci_transport_notify_pkt pkt;
-	struct vmci_transport_notify_pkt_q_state pkt_q_state;
+  struct vmci_transport_notify_pkt pkt;
+  struct vmci_transport_notify_pkt_q_state pkt_q_state;
 };
 
 /* Our transport-specific data. */
 struct vmci_transport {
-	/* For DGRAMs. */
-	struct vmci_handle dg_handle;
-	/* For STREAMs. */
-	struct vmci_handle qp_handle;
-	struct vmci_qp *qpair;
-	u64 produce_size;
-	u64 consume_size;
-	u32 detach_sub_id;
-	union vmci_transport_notify notify;
-	const struct vmci_transport_notify_ops *notify_ops;
-	struct list_head elem;
-	struct sock *sk;
-	spinlock_t lock; /* protects sk. */
+  /* For DGRAMs. */
+  struct vmci_handle dg_handle;
+  /* For STREAMs. */
+  struct vmci_handle qp_handle;
+  struct vmci_qp *qpair;
+  u64 produce_size;
+  u64 consume_size;
+  u32 detach_sub_id;
+  union vmci_transport_notify notify;
+  const struct vmci_transport_notify_ops *notify_ops;
+  struct list_head elem;
+  struct sock *sk;
+  spinlock_t lock; /* protects sk. */
 };
 
 int vmci_transport_send_wrote_bh(struct sockaddr_vm *dst,
-				 struct sockaddr_vm *src);
+    struct sockaddr_vm *src);
 int vmci_transport_send_read_bh(struct sockaddr_vm *dst,
-				struct sockaddr_vm *src);
+    struct sockaddr_vm *src);
 int vmci_transport_send_wrote(struct sock *sk);
 int vmci_transport_send_read(struct sock *sk);
 int vmci_transport_send_waiting_write(struct sock *sk,
-				      struct vmci_transport_waiting_info *wait);
+    struct vmci_transport_waiting_info *wait);
 int vmci_transport_send_waiting_read(struct sock *sk,
-				     struct vmci_transport_waiting_info *wait);
+    struct vmci_transport_waiting_info *wait);
 
 #endif

@@ -9,7 +9,6 @@
 
 #include <asm/ptrace.h>
 
-
 /*
  * A syscall entry in the ftrace syscalls array.
  *
@@ -23,29 +22,30 @@
  * @exit_event: associated syscall_exit trace event
  */
 struct syscall_metadata {
-	const char	*name;
-	int		syscall_nr;
-	int		nb_args;
-	const char	**types;
-	const char	**args;
-	struct list_head enter_fields;
+  const char *name;
+  int syscall_nr;
+  int nb_args;
+  const char **types;
+  const char **args;
+  struct list_head enter_fields;
 
-	struct trace_event_call *enter_event;
-	struct trace_event_call *exit_event;
+  struct trace_event_call *enter_event;
+  struct trace_event_call *exit_event;
 };
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_HAVE_SYSCALL_TRACEPOINTS)
-static inline void syscall_tracepoint_update(struct task_struct *p)
-{
-	if (test_syscall_work(SYSCALL_TRACEPOINT))
-		set_task_syscall_work(p, SYSCALL_TRACEPOINT);
-	else
-		clear_task_syscall_work(p, SYSCALL_TRACEPOINT);
+static inline void syscall_tracepoint_update(struct task_struct *p) {
+  if (test_syscall_work(SYSCALL_TRACEPOINT)) {
+    set_task_syscall_work(p, SYSCALL_TRACEPOINT);
+  } else {
+    clear_task_syscall_work(p, SYSCALL_TRACEPOINT);
+  }
 }
+
 #else
-static inline void syscall_tracepoint_update(struct task_struct *p)
-{
+static inline void syscall_tracepoint_update(struct task_struct *p) {
 }
+
 #endif
 
 #endif /* _TRACE_SYSCALL_H */

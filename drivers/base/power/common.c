@@ -22,33 +22,28 @@
  * its reference counter.  Return 0 if new object has been created or refcount
  * increased, otherwise negative error code.
  */
-int dev_pm_get_subsys_data(struct device *dev)
-{
-	struct pm_subsys_data *psd;
-
-	psd = kzalloc(sizeof(*psd), GFP_KERNEL);
-	if (!psd)
-		return -ENOMEM;
-
-	spin_lock_irq(&dev->power.lock);
-
-	if (dev->power.subsys_data) {
-		dev->power.subsys_data->refcount++;
-	} else {
-		spin_lock_init(&psd->lock);
-		psd->refcount = 1;
-		dev->power.subsys_data = psd;
-		pm_clk_init(dev);
-		psd = NULL;
-	}
-
-	spin_unlock_irq(&dev->power.lock);
-
-	/* kfree() verifies that its argument is nonzero. */
-	kfree(psd);
-
-	return 0;
+int dev_pm_get_subsys_data(struct device *dev) {
+  struct pm_subsys_data *psd;
+  psd = kzalloc(sizeof(*psd), GFP_KERNEL);
+  if (!psd) {
+    return -ENOMEM;
+  }
+  spin_lock_irq(&dev->power.lock);
+  if (dev->power.subsys_data) {
+    dev->power.subsys_data->refcount++;
+  } else {
+    spin_lock_init(&psd->lock);
+    psd->refcount = 1;
+    dev->power.subsys_data = psd;
+    pm_clk_init(dev);
+    psd = NULL;
+  }
+  spin_unlock_irq(&dev->power.lock);
+  /* kfree() verifies that its argument is nonzero. */
+  kfree(psd);
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_get_subsys_data);
 
 /**
@@ -58,25 +53,23 @@ EXPORT_SYMBOL_GPL(dev_pm_get_subsys_data);
  * If the reference counter of power.subsys_data is zero after dropping the
  * reference, power.subsys_data is removed.
  */
-void dev_pm_put_subsys_data(struct device *dev)
-{
-	struct pm_subsys_data *psd;
-
-	spin_lock_irq(&dev->power.lock);
-
-	psd = dev_to_psd(dev);
-	if (!psd)
-		goto out;
-
-	if (--psd->refcount == 0)
-		dev->power.subsys_data = NULL;
-	else
-		psd = NULL;
-
- out:
-	spin_unlock_irq(&dev->power.lock);
-	kfree(psd);
+void dev_pm_put_subsys_data(struct device *dev) {
+  struct pm_subsys_data *psd;
+  spin_lock_irq(&dev->power.lock);
+  psd = dev_to_psd(dev);
+  if (!psd) {
+    goto out;
+  }
+  if (--psd->refcount == 0) {
+    dev->power.subsys_data = NULL;
+  } else {
+    psd = NULL;
+  }
+out:
+  spin_unlock_irq(&dev->power.lock);
+  kfree(psd);
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_put_subsys_data);
 
 /**
@@ -99,19 +92,18 @@ EXPORT_SYMBOL_GPL(dev_pm_put_subsys_data);
  * Returns 0 on successfully attached PM domain, or when it is found that the
  * device doesn't need a PM domain, else a negative error code.
  */
-int dev_pm_domain_attach(struct device *dev, bool power_on)
-{
-	int ret;
-
-	if (dev->pm_domain)
-		return 0;
-
-	ret = acpi_dev_pm_attach(dev, power_on);
-	if (!ret)
-		ret = genpd_dev_pm_attach(dev);
-
-	return ret < 0 ? ret : 0;
+int dev_pm_domain_attach(struct device *dev, bool power_on) {
+  int ret;
+  if (dev->pm_domain) {
+    return 0;
+  }
+  ret = acpi_dev_pm_attach(dev, power_on);
+  if (!ret) {
+    ret = genpd_dev_pm_attach(dev);
+  }
+  return ret < 0 ? ret : 0;
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
 
 /**
@@ -141,13 +133,13 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach);
  * dev_pm_domain_detach() on it, typically during the remove phase.
  */
 struct device *dev_pm_domain_attach_by_id(struct device *dev,
-					  unsigned int index)
-{
-	if (dev->pm_domain)
-		return ERR_PTR(-EEXIST);
-
-	return genpd_dev_pm_attach_by_id(dev, index);
+    unsigned int index) {
+  if (dev->pm_domain) {
+    return ERR_PTR(-EEXIST);
+  }
+  return genpd_dev_pm_attach_by_id(dev, index);
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
 
 /**
@@ -158,13 +150,13 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_id);
  * For a detailed function description, see dev_pm_domain_attach_by_id().
  */
 struct device *dev_pm_domain_attach_by_name(struct device *dev,
-					    const char *name)
-{
-	if (dev->pm_domain)
-		return ERR_PTR(-EEXIST);
-
-	return genpd_dev_pm_attach_by_name(dev, name);
+    const char *name) {
+  if (dev->pm_domain) {
+    return ERR_PTR(-EEXIST);
+  }
+  return genpd_dev_pm_attach_by_name(dev, name);
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_name);
 
 /**
@@ -187,93 +179,87 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_name);
  * dev_pm_domain_detach_list(), typically during the remove phase.
  */
 int dev_pm_domain_attach_list(struct device *dev,
-			      const struct dev_pm_domain_attach_data *data,
-			      struct dev_pm_domain_list **list)
-{
-	struct device_node *np = dev->of_node;
-	struct dev_pm_domain_list *pds;
-	struct device *pd_dev = NULL;
-	int ret, i, num_pds = 0;
-	bool by_id = true;
-	u32 pd_flags = data ? data->pd_flags : 0;
-	u32 link_flags = pd_flags & PD_FLAG_NO_DEV_LINK ? 0 :
-			DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME;
-
-	if (dev->pm_domain)
-		return -EEXIST;
-
-	/* For now this is limited to OF based platforms. */
-	if (!np)
-		return 0;
-
-	if (data && data->pd_names) {
-		num_pds = data->num_pd_names;
-		by_id = false;
-	} else {
-		num_pds = of_count_phandle_with_args(np, "power-domains",
-						     "#power-domain-cells");
-	}
-
-	if (num_pds <= 0)
-		return 0;
-
-	pds = devm_kzalloc(dev, sizeof(*pds), GFP_KERNEL);
-	if (!pds)
-		return -ENOMEM;
-
-	pds->pd_devs = devm_kcalloc(dev, num_pds, sizeof(*pds->pd_devs),
-				    GFP_KERNEL);
-	if (!pds->pd_devs)
-		return -ENOMEM;
-
-	pds->pd_links = devm_kcalloc(dev, num_pds, sizeof(*pds->pd_links),
-				     GFP_KERNEL);
-	if (!pds->pd_links)
-		return -ENOMEM;
-
-	if (link_flags && pd_flags & PD_FLAG_DEV_LINK_ON)
-		link_flags |= DL_FLAG_RPM_ACTIVE;
-
-	for (i = 0; i < num_pds; i++) {
-		if (by_id)
-			pd_dev = dev_pm_domain_attach_by_id(dev, i);
-		else
-			pd_dev = dev_pm_domain_attach_by_name(dev,
-							data->pd_names[i]);
-		if (IS_ERR_OR_NULL(pd_dev)) {
-			ret = pd_dev ? PTR_ERR(pd_dev) : -ENODEV;
-			goto err_attach;
-		}
-
-		if (link_flags) {
-			struct device_link *link;
-
-			link = device_link_add(dev, pd_dev, link_flags);
-			if (!link) {
-				ret = -ENODEV;
-				goto err_link;
-			}
-
-			pds->pd_links[i] = link;
-		}
-
-		pds->pd_devs[i] = pd_dev;
-	}
-
-	pds->num_pds = num_pds;
-	*list = pds;
-	return num_pds;
-
+    const struct dev_pm_domain_attach_data *data,
+    struct dev_pm_domain_list **list) {
+  struct device_node *np = dev->of_node;
+  struct dev_pm_domain_list *pds;
+  struct device *pd_dev = NULL;
+  int ret, i, num_pds = 0;
+  bool by_id = true;
+  u32 pd_flags = data ? data->pd_flags : 0;
+  u32 link_flags = pd_flags & PD_FLAG_NO_DEV_LINK ? 0
+      : DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME;
+  if (dev->pm_domain) {
+    return -EEXIST;
+  }
+  /* For now this is limited to OF based platforms. */
+  if (!np) {
+    return 0;
+  }
+  if (data && data->pd_names) {
+    num_pds = data->num_pd_names;
+    by_id = false;
+  } else {
+    num_pds = of_count_phandle_with_args(np, "power-domains",
+        "#power-domain-cells");
+  }
+  if (num_pds <= 0) {
+    return 0;
+  }
+  pds = devm_kzalloc(dev, sizeof(*pds), GFP_KERNEL);
+  if (!pds) {
+    return -ENOMEM;
+  }
+  pds->pd_devs = devm_kcalloc(dev, num_pds, sizeof(*pds->pd_devs),
+      GFP_KERNEL);
+  if (!pds->pd_devs) {
+    return -ENOMEM;
+  }
+  pds->pd_links = devm_kcalloc(dev, num_pds, sizeof(*pds->pd_links),
+      GFP_KERNEL);
+  if (!pds->pd_links) {
+    return -ENOMEM;
+  }
+  if (link_flags && pd_flags & PD_FLAG_DEV_LINK_ON) {
+    link_flags |= DL_FLAG_RPM_ACTIVE;
+  }
+  for (i = 0; i < num_pds; i++) {
+    if (by_id) {
+      pd_dev = dev_pm_domain_attach_by_id(dev, i);
+    } else {
+      pd_dev = dev_pm_domain_attach_by_name(dev,
+          data->pd_names[i]);
+    }
+    if (IS_ERR_OR_NULL(pd_dev)) {
+      ret = pd_dev ? PTR_ERR(pd_dev) : -ENODEV;
+      goto err_attach;
+    }
+    if (link_flags) {
+      struct device_link *link;
+      link = device_link_add(dev, pd_dev, link_flags);
+      if (!link) {
+        ret = -ENODEV;
+        goto err_link;
+      }
+      pds->pd_links[i] = link;
+    }
+    pds->pd_devs[i] = pd_dev;
+  }
+  pds->num_pds = num_pds;
+  *list = pds;
+  return num_pds;
 err_link:
-	dev_pm_domain_detach(pd_dev, true);
+  dev_pm_domain_detach(pd_dev, true);
 err_attach:
-	while (--i >= 0) {
-		if (pds->pd_links[i])
-			device_link_del(pds->pd_links[i]);
-		dev_pm_domain_detach(pds->pd_devs[i], true);
-	}
-	return ret;
+  while (--i >= 0) {
+    if (pds->pd_links[i]) {
+      device_link_del(pds->pd_links[i]);
+    }
+    dev_pm_domain_detach(pds->pd_devs[i], true);
+  }
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach_list);
 
 /**
@@ -289,11 +275,12 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach_list);
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.
  */
-void dev_pm_domain_detach(struct device *dev, bool power_off)
-{
-	if (dev->pm_domain && dev->pm_domain->detach)
-		dev->pm_domain->detach(dev, power_off);
+void dev_pm_domain_detach(struct device *dev, bool power_off) {
+  if (dev->pm_domain && dev->pm_domain->detach) {
+    dev->pm_domain->detach(dev, power_off);
+  }
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
 
 /**
@@ -306,19 +293,19 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.
  */
-void dev_pm_domain_detach_list(struct dev_pm_domain_list *list)
-{
-	int i;
-
-	if (!list)
-		return;
-
-	for (i = 0; i < list->num_pds; i++) {
-		if (list->pd_links[i])
-			device_link_del(list->pd_links[i]);
-		dev_pm_domain_detach(list->pd_devs[i], true);
-	}
+void dev_pm_domain_detach_list(struct dev_pm_domain_list *list) {
+  int i;
+  if (!list) {
+    return;
+  }
+  for (i = 0; i < list->num_pds; i++) {
+    if (list->pd_links[i]) {
+      device_link_del(list->pd_links[i]);
+    }
+    dev_pm_domain_detach(list->pd_devs[i], true);
+  }
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach_list);
 
 /**
@@ -332,13 +319,13 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_detach_list);
  *
  * Returns 0 on success and negative error values on failures.
  */
-int dev_pm_domain_start(struct device *dev)
-{
-	if (dev->pm_domain && dev->pm_domain->start)
-		return dev->pm_domain->start(dev);
-
-	return 0;
+int dev_pm_domain_start(struct device *dev) {
+  if (dev->pm_domain && dev->pm_domain->start) {
+    return dev->pm_domain->start(dev);
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_start);
 
 /**
@@ -351,16 +338,16 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_start);
  *
  * This function must be called with the device lock held.
  */
-void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd)
-{
-	if (dev->pm_domain == pd)
-		return;
-
-	WARN(pd && device_is_bound(dev),
-	     "PM domains can only be changed for unbound devices\n");
-	dev->pm_domain = pd;
-	device_pm_check_callbacks(dev);
+void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd) {
+  if (dev->pm_domain == pd) {
+    return;
+  }
+  WARN(pd && device_is_bound(dev),
+      "PM domains can only be changed for unbound devices\n");
+  dev->pm_domain = pd;
+  device_pm_check_callbacks(dev);
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_set);
 
 /**
@@ -375,11 +362,12 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_set);
  * Returns 0 on success and when performance scaling isn't supported, negative
  * error code on failure.
  */
-int dev_pm_domain_set_performance_state(struct device *dev, unsigned int state)
-{
-	if (dev->pm_domain && dev->pm_domain->set_performance_state)
-		return dev->pm_domain->set_performance_state(dev, state);
-
-	return 0;
+int dev_pm_domain_set_performance_state(struct device *dev,
+    unsigned int state) {
+  if (dev->pm_domain && dev->pm_domain->set_performance_state) {
+    return dev->pm_domain->set_performance_state(dev, state);
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(dev_pm_domain_set_performance_state);

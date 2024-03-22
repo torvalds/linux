@@ -2,7 +2,8 @@
 /*
  * uda1342.h - definition for uda1342 inputs
  *
- * Copyright 2013 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2013 Cisco Systems, Inc. and/or its affiliates. All rights
+ * reserved.
  */
 
 #ifndef _UDA1342_H_

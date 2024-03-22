@@ -19,14 +19,16 @@ void of_clk_init(const struct of_device_id *matches);
 
 static inline unsigned int of_clk_get_parent_count(const struct device_node *np)
 {
-	return 0;
+  return 0;
 }
+
 static inline const char *of_clk_get_parent_name(const struct device_node *np,
-						 int index)
-{
-	return NULL;
+    int index) {
+  return NULL;
 }
-static inline void of_clk_init(const struct of_device_id *matches) {}
+
+static inline void of_clk_init(const struct of_device_id *matches) {
+}
 
 #endif /* !CONFIG_COMMON_CLK || !CONFIG_OF */
 

@@ -10,11 +10,11 @@ SEC("freplace/btf_unreliable_kprobe")
  * program has `stuct whatever *ctx` argument, so freplace operation will be
  * rejected with the following message:
  *
- * arg0 replace_btf_unreliable_kprobe(struct pt_regs *) doesn't match btf_unreliable_kprobe(struct whatever *)
+ * arg0 replace_btf_unreliable_kprobe(struct pt_regs *) doesn't match
+ * btf_unreliable_kprobe(struct whatever *)
  */
-int replace_btf_unreliable_kprobe(bpf_user_pt_regs_t *ctx)
-{
-	return 0;
+int replace_btf_unreliable_kprobe(bpf_user_pt_regs_t *ctx) {
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

@@ -12,4 +12,4 @@
 int hmcdrv_dev_init(void);
 void hmcdrv_dev_exit(void);
 
-#endif	 /* __HMCDRV_DEV_H__ */
+#endif   /* __HMCDRV_DEV_H__ */

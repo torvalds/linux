@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland
+ * Author:  Sjur Brendeland
  */
 
 #ifndef CFPKT_H_
@@ -32,31 +32,22 @@ void cfpkt_destroy(struct cfpkt *pkt);
  */
 int cfpkt_extr_head(struct cfpkt *pkt, void *data, u16 len);
 
-static inline u8 cfpkt_extr_head_u8(struct cfpkt *pkt)
-{
-	u8 tmp;
-
-	cfpkt_extr_head(pkt, &tmp, 1);
-
-	return tmp;
+static inline u8 cfpkt_extr_head_u8(struct cfpkt *pkt) {
+  u8 tmp;
+  cfpkt_extr_head(pkt, &tmp, 1);
+  return tmp;
 }
 
-static inline u16 cfpkt_extr_head_u16(struct cfpkt *pkt)
-{
-	__le16 tmp;
-
-	cfpkt_extr_head(pkt, &tmp, 2);
-
-	return le16_to_cpu(tmp);
+static inline u16 cfpkt_extr_head_u16(struct cfpkt *pkt) {
+  __le16 tmp;
+  cfpkt_extr_head(pkt, &tmp, 2);
+  return le16_to_cpu(tmp);
 }
 
-static inline u32 cfpkt_extr_head_u32(struct cfpkt *pkt)
-{
-	__le32 tmp;
-
-	cfpkt_extr_head(pkt, &tmp, 4);
-
-	return le32_to_cpu(tmp);
+static inline u32 cfpkt_extr_head_u32(struct cfpkt *pkt) {
+  __le32 tmp;
+  cfpkt_extr_head(pkt, &tmp, 4);
+  return le32_to_cpu(tmp);
 }
 
 /*
@@ -174,7 +165,7 @@ int cfpkt_setlen(struct cfpkt *pkt, u16 len);
  * @return    The new appended packet.
  */
 struct cfpkt *cfpkt_append(struct cfpkt *dstpkt, struct cfpkt *addpkt,
-		      u16 expectlen);
+    u16 expectlen);
 
 /*
  * cfpkt_split - Split a packet into two packets at the specified split point.
@@ -199,8 +190,8 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos);
  */
 
 int cfpkt_iterate(struct cfpkt *pkt,
-		u16 (*iter_func)(u16 chks, void *buf, u16 len),
-		u16 data);
+    u16 (*iter_func)(u16 chks, void *buf, u16 len),
+    u16 data);
 
 /* Map from a "native" packet (e.g. Linux Socket Buffer) to a CAIF packet.
  *  dir - Direction indicating whether this packet is to be sent or received.
@@ -229,4 +220,4 @@ struct caif_payload_info *cfpkt_info(struct cfpkt *pkt);
  */
 void cfpkt_set_prio(struct cfpkt *pkt, int prio);
 
-#endif				/* CFPKT_H_ */
+#endif        /* CFPKT_H_ */

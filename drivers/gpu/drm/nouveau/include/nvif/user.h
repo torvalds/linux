@@ -4,13 +4,13 @@
 struct nvif_device;
 
 struct nvif_user {
-	const struct nvif_user_func *func;
-	struct nvif_object object;
+  const struct nvif_user_func *func;
+  struct nvif_object object;
 };
 
 struct nvif_user_func {
-	void (*doorbell)(struct nvif_user *, u32 token);
-	u64 (*time)(struct nvif_user *);
+  void (*doorbell)(struct nvif_user *, u32 token);
+  u64 (*time)(struct nvif_user *);
 };
 
 int nvif_user_ctor(struct nvif_device *, const char *name);

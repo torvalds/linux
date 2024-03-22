@@ -21,17 +21,17 @@ struct xe_gt;
  * interrupt. On each trigger, search list of pending fences and signal.
  */
 struct xe_hw_fence_irq {
-	/** @lock: protects all xe_hw_fences + pending list */
-	spinlock_t lock;
-	/** @work: IRQ worker run to signal the fences */
-	struct irq_work work;
-	/** @pending: list of pending xe_hw_fences */
-	struct list_head pending;
-	/** @enabled: fence signaling enabled */
-	bool enabled;
+  /** @lock: protects all xe_hw_fences + pending list */
+  spinlock_t lock;
+  /** @work: IRQ worker run to signal the fences */
+  struct irq_work work;
+  /** @pending: list of pending xe_hw_fences */
+  struct list_head pending;
+  /** @enabled: fence signaling enabled */
+  bool enabled;
 };
 
-#define MAX_FENCE_NAME_LEN	16
+#define MAX_FENCE_NAME_LEN  16
 
 /**
  * struct xe_hw_fence_ctx - hardware fence context
@@ -40,16 +40,16 @@ struct xe_hw_fence_irq {
  * to a xe_hw_fence_irq, maintains serial seqno.
  */
 struct xe_hw_fence_ctx {
-	/** @gt: graphics tile of hardware fence context */
-	struct xe_gt *gt;
-	/** @irq: fence irq handler */
-	struct xe_hw_fence_irq *irq;
-	/** @dma_fence_ctx: dma fence context for hardware fence */
-	u64 dma_fence_ctx;
-	/** @next_seqno: next seqno for hardware fence */
-	u32 next_seqno;
-	/** @name: name of hardware fence context */
-	char name[MAX_FENCE_NAME_LEN];
+  /** @gt: graphics tile of hardware fence context */
+  struct xe_gt *gt;
+  /** @irq: fence irq handler */
+  struct xe_hw_fence_irq *irq;
+  /** @dma_fence_ctx: dma fence context for hardware fence */
+  u64 dma_fence_ctx;
+  /** @next_seqno: next seqno for hardware fence */
+  u32 next_seqno;
+  /** @name: name of hardware fence context */
+  char name[MAX_FENCE_NAME_LEN];
 };
 
 /**
@@ -59,14 +59,14 @@ struct xe_hw_fence_ctx {
  * Signals on error or seqno past.
  */
 struct xe_hw_fence {
-	/** @dma: base dma fence for hardware fence context */
-	struct dma_fence dma;
-	/** @ctx: hardware fence context */
-	struct xe_hw_fence_ctx *ctx;
-	/** @seqno_map: I/O map for seqno */
-	struct iosys_map seqno_map;
-	/** @irq_link: Link in struct xe_hw_fence_irq.pending */
-	struct list_head irq_link;
+  /** @dma: base dma fence for hardware fence context */
+  struct dma_fence dma;
+  /** @ctx: hardware fence context */
+  struct xe_hw_fence_ctx *ctx;
+  /** @seqno_map: I/O map for seqno */
+  struct iosys_map seqno_map;
+  /** @irq_link: Link in struct xe_hw_fence_irq.pending */
+  struct list_head irq_link;
 };
 
 #endif

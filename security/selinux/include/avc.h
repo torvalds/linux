@@ -35,24 +35,24 @@ struct sk_buff;
  * AVC statistics
  */
 struct avc_cache_stats {
-	unsigned int lookups;
-	unsigned int misses;
-	unsigned int allocations;
-	unsigned int reclaims;
-	unsigned int frees;
+  unsigned int lookups;
+  unsigned int misses;
+  unsigned int allocations;
+  unsigned int reclaims;
+  unsigned int frees;
 };
 
 /*
  * We only need this data after we have decided to send an audit message.
  */
 struct selinux_audit_data {
-	u32 ssid;
-	u32 tsid;
-	u16 tclass;
-	u32 requested;
-	u32 audited;
-	u32 denied;
-	int result;
+  u32 ssid;
+  u32 tsid;
+  u16 tclass;
+  u32 requested;
+  u32 audited;
+  u32 denied;
+  int result;
 } __randomize_layout;
 
 /*
@@ -62,40 +62,41 @@ struct selinux_audit_data {
 void __init avc_init(void);
 
 static inline u32 avc_audit_required(u32 requested, struct av_decision *avd,
-				     int result, u32 auditdeny, u32 *deniedp)
-{
-	u32 denied, audited;
-	denied = requested & ~avd->allowed;
-	if (unlikely(denied)) {
-		audited = denied & avd->auditdeny;
-		/*
-		 * auditdeny is TRICKY!  Setting a bit in
-		 * this field means that ANY denials should NOT be audited if
-		 * the policy contains an explicit dontaudit rule for that
-		 * permission.  Take notice that this is unrelated to the
-		 * actual permissions that were denied.  As an example lets
-		 * assume:
-		 *
-		 * denied == READ
-		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
-		 * auditdeny & ACCESS == 1
-		 *
-		 * We will NOT audit the denial even though the denied
-		 * permission was READ and the auditdeny checks were for
-		 * ACCESS
-		 */
-		if (auditdeny && !(auditdeny & avd->auditdeny))
-			audited = 0;
-	} else if (result)
-		audited = denied = requested;
-	else
-		audited = requested & avd->auditallow;
-	*deniedp = denied;
-	return audited;
+    int result, u32 auditdeny, u32 *deniedp) {
+  u32 denied, audited;
+  denied = requested & ~avd->allowed;
+  if (unlikely(denied)) {
+    audited = denied & avd->auditdeny;
+    /*
+     * auditdeny is TRICKY!  Setting a bit in
+     * this field means that ANY denials should NOT be audited if
+     * the policy contains an explicit dontaudit rule for that
+     * permission.  Take notice that this is unrelated to the
+     * actual permissions that were denied.  As an example lets
+     * assume:
+     *
+     * denied == READ
+     * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
+     * auditdeny & ACCESS == 1
+     *
+     * We will NOT audit the denial even though the denied
+     * permission was READ and the auditdeny checks were for
+     * ACCESS
+     */
+    if (auditdeny && !(auditdeny & avd->auditdeny)) {
+      audited = 0;
+    }
+  } else if (result) {
+    audited = denied = requested;
+  } else {
+    audited = requested & avd->auditallow;
+  }
+  *deniedp = denied;
+  return audited;
 }
 
 int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass, u32 requested, u32 audited,
-		   u32 denied, int result, struct common_audit_data *a);
+    u32 denied, int result, struct common_audit_data *a);
 
 /**
  * avc_audit - Audit the granting or denial of permissions.
@@ -117,39 +118,39 @@ int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass, u32 requested, u32 audited,
  * before calling the auditing code.
  */
 static inline int avc_audit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
-			    struct av_decision *avd, int result,
-			    struct common_audit_data *a)
-{
-	u32 audited, denied;
-	audited = avc_audit_required(requested, avd, result, 0, &denied);
-	if (likely(!audited))
-		return 0;
-	return slow_avc_audit(ssid, tsid, tclass, requested, audited, denied,
-			      result, a);
+    struct av_decision *avd, int result,
+    struct common_audit_data *a) {
+  u32 audited, denied;
+  audited = avc_audit_required(requested, avd, result, 0, &denied);
+  if (likely(!audited)) {
+    return 0;
+  }
+  return slow_avc_audit(ssid, tsid, tclass, requested, audited, denied,
+      result, a);
 }
 
-#define AVC_STRICT	   1 /* Ignore permissive mode. */
+#define AVC_STRICT     1 /* Ignore permissive mode. */
 #define AVC_EXTENDED_PERMS 2 /* update extended permissions */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
-			 unsigned int flags, struct av_decision *avd);
+    unsigned int flags, struct av_decision *avd);
 
 int avc_has_perm(u32 ssid, u32 tsid, u16 tclass, u32 requested,
-		 struct common_audit_data *auditdata);
+    struct common_audit_data *auditdata);
 
 int avc_has_extended_perms(u32 ssid, u32 tsid, u16 tclass, u32 requested,
-			   u8 driver, u8 perm, struct common_audit_data *ad);
+    u8 driver, u8 perm, struct common_audit_data *ad);
 
 u32 avc_policy_seqno(void);
 
-#define AVC_CALLBACK_GRANT		1
-#define AVC_CALLBACK_TRY_REVOKE		2
-#define AVC_CALLBACK_REVOKE		4
-#define AVC_CALLBACK_RESET		8
-#define AVC_CALLBACK_AUDITALLOW_ENABLE	16
+#define AVC_CALLBACK_GRANT    1
+#define AVC_CALLBACK_TRY_REVOKE   2
+#define AVC_CALLBACK_REVOKE   4
+#define AVC_CALLBACK_RESET    8
+#define AVC_CALLBACK_AUDITALLOW_ENABLE  16
 #define AVC_CALLBACK_AUDITALLOW_DISABLE 32
-#define AVC_CALLBACK_AUDITDENY_ENABLE	64
-#define AVC_CALLBACK_AUDITDENY_DISABLE	128
-#define AVC_CALLBACK_ADD_XPERMS		256
+#define AVC_CALLBACK_AUDITDENY_ENABLE 64
+#define AVC_CALLBACK_AUDITDENY_DISABLE  128
+#define AVC_CALLBACK_ADD_XPERMS   256
 
 int avc_add_callback(int (*callback)(u32 event), u32 events);
 

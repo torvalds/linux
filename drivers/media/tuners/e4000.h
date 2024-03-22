@@ -15,15 +15,15 @@
  * 0x64, 0x65, 0x66, 0x67
  */
 struct e4000_config {
-	/*
-	 * frontend
-	 */
-	struct dvb_frontend *fe;
+  /*
+   * frontend
+   */
+  struct dvb_frontend *fe;
 
-	/*
-	 * clock
-	 */
-	u32 clock;
+  /*
+   * clock
+   */
+  u32 clock;
 };
 
 #endif

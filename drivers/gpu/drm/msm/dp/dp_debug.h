@@ -18,11 +18,11 @@
  * @tpg_state: specifies whether tpg feature is enabled
  */
 struct dp_debug {
-	bool debug_en;
-	int aspect_ratio;
-	int vdisplay;
-	int hdisplay;
-	int vrefresh;
+  bool debug_en;
+  int aspect_ratio;
+  int vdisplay;
+  int hdisplay;
+  int vrefresh;
 };
 
 #if defined(CONFIG_DEBUG_FS)
@@ -42,21 +42,20 @@ struct dp_debug {
  * for debugfs input to be communicated with existing modules
  */
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
-		struct dp_link *link,
-		struct drm_connector *connector,
-		struct dentry *root,
-		bool is_edp);
+    struct dp_link *link,
+    struct drm_connector *connector,
+    struct dentry *root,
+    bool is_edp);
 
 #else
 
 static inline
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
-		struct dp_link *link,
-		struct drm_connector *connector,
-		struct dentry *root,
-		bool is_edp)
-{
-	return ERR_PTR(-EINVAL);
+    struct dp_link *link,
+    struct drm_connector *connector,
+    struct dentry *root,
+    bool is_edp) {
+  return ERR_PTR(-EINVAL);
 }
 
 #endif /* defined(CONFIG_DEBUG_FS) */

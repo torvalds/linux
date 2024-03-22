@@ -34,7 +34,8 @@ struct strlist;
 int mkdir_p(char *path, mode_t mode);
 int rm_rf(const char *path);
 int rm_rf_perf_data(const char *path);
-struct strlist *lsdir(const char *name, bool (*filter)(const char *, struct dirent *));
+struct strlist *lsdir(const char *name, bool (*filter)(const char *,
+    struct dirent *));
 bool lsdir_no_dot_filter(const char *name, struct dirent *d);
 
 size_t hex_width(u64 v);
@@ -44,12 +45,12 @@ int sysctl__max_stack(void);
 bool sysctl__nmi_watchdog_enabled(void);
 
 int fetch_kernel_version(unsigned int *puint,
-			 char *str, size_t str_sz);
-#define KVER_VERSION(x)		(((x) >> 16) & 0xff)
-#define KVER_PATCHLEVEL(x)	(((x) >> 8) & 0xff)
-#define KVER_SUBLEVEL(x)	((x) & 0xff)
-#define KVER_FMT	"%d.%d.%d"
-#define KVER_PARAM(x)	KVER_VERSION(x), KVER_PATCHLEVEL(x), KVER_SUBLEVEL(x)
+    char *str, size_t str_sz);
+#define KVER_VERSION(x)   (((x) >> 16) & 0xff)
+#define KVER_PATCHLEVEL(x)  (((x) >> 8) & 0xff)
+#define KVER_SUBLEVEL(x)  ((x) & 0xff)
+#define KVER_FMT  "%d.%d.%d"
+#define KVER_PARAM(x) KVER_VERSION(x), KVER_PATCHLEVEL(x), KVER_SUBLEVEL(x)
 
 int perf_tip(char **strp, const char *dirpath);
 
@@ -59,9 +60,9 @@ int sched_getcpu(void);
 
 #ifndef HAVE_SCANDIRAT_SUPPORT
 int scandirat(int dirfd, const char *dirp,
-	      struct dirent ***namelist,
-	      int (*filter)(const struct dirent *),
-	      int (*compar)(const struct dirent **, const struct dirent **));
+    struct dirent ***namelist,
+    int (*filter)(const struct dirent *),
+    int (*compar)(const struct dirent **, const struct dirent **));
 #endif
 
 extern bool perf_singlethreaded;
@@ -85,47 +86,48 @@ extern bool test_attr__enabled;
 void test_attr__ready(void);
 void test_attr__init(void);
 struct perf_event_attr;
-void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
-		     int fd, int group_fd, unsigned long flags);
+void test_attr__open(struct perf_event_attr *attr, pid_t pid,
+    struct perf_cpu cpu,
+    int fd, int group_fd, unsigned long flags);
 
 struct perf_debuginfod {
-	const char	*urls;
-	bool		 set;
+  const char *urls;
+  bool set;
 };
 void perf_debuginfod_setup(struct perf_debuginfod *di);
 
 char *filename_with_chroot(int pid, const char *filename);
 
 int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x,
-			       size_t msz, const void *init_val);
+    size_t msz, const void *init_val);
 
-#define realloc_array_as_needed(a, n, x, v) ({			\
-	typeof(x) __x = (x);					\
-	__x >= (n) ?						\
-		do_realloc_array_as_needed((void **)&(a),	\
-					   &(n),		\
-					   __x,			\
-					   sizeof(*(a)),	\
-					   (const void *)(v)) :	\
-		0;						\
-	})
+#define realloc_array_as_needed(a, n, x, v) ({      \
+    typeof(x) __x = (x);          \
+    __x >= (n)              \
+    ? do_realloc_array_as_needed((void **) &(a), \
+    &(n),    \
+    __x,     \
+    sizeof(*(a)),  \
+    (const void *) (v))   \
+    : 0;            \
+  })
 
-static inline bool host_is_bigendian(void)
-{
+static inline bool host_is_bigendian(void) {
 #ifdef __BYTE_ORDER__
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	return false;
+  return false;
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	return true;
+  return true;
 #else
 #error "Unrecognized __BYTE_ORDER__"
 #endif
 #else /* !__BYTE_ORDER__ */
-	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0};
-	unsigned int *ptr;
-
-	ptr = (unsigned int *)(void *)str;
-	return *ptr == 0x01020304;
+  unsigned char str[] = {
+    0x1, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0
+  };
+  unsigned int *ptr;
+  ptr = (unsigned int *) (void *) str;
+  return *ptr == 0x01020304;
 #endif
 }
 

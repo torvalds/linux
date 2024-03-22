@@ -3,34 +3,34 @@
 #define _BCACHE_REQUEST_H_
 
 struct data_insert_op {
-	struct closure		cl;
-	struct cache_set	*c;
-	struct bio		*bio;
-	struct workqueue_struct *wq;
+  struct closure cl;
+  struct cache_set *c;
+  struct bio *bio;
+  struct workqueue_struct *wq;
 
-	unsigned int		inode;
-	uint16_t		write_point;
-	uint16_t		write_prio;
-	blk_status_t		status;
+  unsigned int inode;
+  uint16_t write_point;
+  uint16_t write_prio;
+  blk_status_t status;
 
-	union {
-		uint16_t	flags;
+  union {
+    uint16_t flags;
 
-	struct {
-		unsigned int	bypass:1;
-		unsigned int	writeback:1;
-		unsigned int	flush_journal:1;
-		unsigned int	csum:1;
+    struct {
+      unsigned int bypass : 1;
+      unsigned int writeback : 1;
+      unsigned int flush_journal : 1;
+      unsigned int csum : 1;
 
-		unsigned int	replace:1;
-		unsigned int	replace_collision:1;
+      unsigned int replace : 1;
+      unsigned int replace_collision : 1;
 
-		unsigned int	insert_data_done:1;
-	};
-	};
+      unsigned int insert_data_done : 1;
+    };
+  };
 
-	struct keylist		insert_keys;
-	BKEY_PADDED(replace_key);
+  struct keylist insert_keys;
+  BKEY_PADDED(replace_key);
 };
 
 unsigned int bch_get_congested(const struct cache_set *c);

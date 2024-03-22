@@ -15,11 +15,12 @@
  * @vref_buffered: Controls buffering of the external reference voltage.
  *
  * Vref related settings are available only on MCP4756. See
- * Documentation/devicetree/bindings/iio/dac/microchip,mcp4725.yaml for more information.
+ * Documentation/devicetree/bindings/iio/dac/microchip,mcp4725.yaml for more
+ * information.
  */
 struct mcp4725_platform_data {
-	bool use_vref;
-	bool vref_buffered;
+  bool use_vref;
+  bool vref_buffered;
 };
 
 #endif /* IIO_DAC_MCP4725_H_ */

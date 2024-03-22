@@ -4,7 +4,7 @@
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author:
- *	Colin Cross <ccross@android.com>
+ *  Colin Cross <ccross@android.com>
  */
 
 #ifndef __DRIVERS_MISC_TEGRA_FUSE_H
@@ -18,53 +18,53 @@ struct nvmem_device;
 struct tegra_fuse;
 
 struct tegra_fuse_info {
-	u32 (*read)(struct tegra_fuse *fuse, unsigned int offset);
-	unsigned int size;
-	unsigned int spare;
+  u32 (*read)(struct tegra_fuse *fuse, unsigned int offset);
+  unsigned int size;
+  unsigned int spare;
 };
 
 struct tegra_fuse_soc {
-	void (*init)(struct tegra_fuse *fuse);
-	void (*speedo_init)(struct tegra_sku_info *info);
-	int (*probe)(struct tegra_fuse *fuse);
+  void (*init)(struct tegra_fuse *fuse);
+  void (*speedo_init)(struct tegra_sku_info *info);
+  int (*probe)(struct tegra_fuse *fuse);
 
-	const struct tegra_fuse_info *info;
+  const struct tegra_fuse_info *info;
 
-	const struct nvmem_cell_lookup *lookups;
-	unsigned int num_lookups;
-	const struct nvmem_cell_info *cells;
-	unsigned int num_cells;
-	const struct nvmem_keepout *keepouts;
-	unsigned int num_keepouts;
+  const struct nvmem_cell_lookup *lookups;
+  unsigned int num_lookups;
+  const struct nvmem_cell_info *cells;
+  unsigned int num_cells;
+  const struct nvmem_keepout *keepouts;
+  unsigned int num_keepouts;
 
-	const struct attribute_group *soc_attr_group;
+  const struct attribute_group *soc_attr_group;
 
-	bool clk_suspend_on;
+  bool clk_suspend_on;
 };
 
 struct tegra_fuse {
-	struct device *dev;
-	void __iomem *base;
-	phys_addr_t phys;
-	struct clk *clk;
-	struct reset_control *rst;
+  struct device *dev;
+  void __iomem *base;
+  phys_addr_t phys;
+  struct clk *clk;
+  struct reset_control *rst;
 
-	u32 (*read_early)(struct tegra_fuse *fuse, unsigned int offset);
-	u32 (*read)(struct tegra_fuse *fuse, unsigned int offset);
-	const struct tegra_fuse_soc *soc;
+  u32 (*read_early)(struct tegra_fuse *fuse, unsigned int offset);
+  u32 (*read)(struct tegra_fuse *fuse, unsigned int offset);
+  const struct tegra_fuse_soc *soc;
 
-	/* APBDMA on Tegra20 */
-	struct {
-		struct mutex lock;
-		struct completion wait;
-		struct dma_chan *chan;
-		struct dma_slave_config config;
-		dma_addr_t phys;
-		u32 *virt;
-	} apbdma;
+  /* APBDMA on Tegra20 */
+  struct {
+    struct mutex lock;
+    struct completion wait;
+    struct dma_chan *chan;
+    struct dma_slave_config config;
+    dma_addr_t phys;
+    u32 *virt;
+  } apbdma;
 
-	struct nvmem_device *nvmem;
-	struct nvmem_cell_lookup *lookups;
+  struct nvmem_device *nvmem;
+  struct nvmem_cell_lookup *lookups;
 };
 
 void tegra_init_revision(void);
@@ -123,9 +123,9 @@ extern const struct tegra_fuse_soc tegra210_fuse_soc;
 extern const struct tegra_fuse_soc tegra186_fuse_soc;
 #endif
 
-#if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC) || \
-    IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC) || \
-    IS_ENABLED(CONFIG_ARCH_TEGRA_241_SOC)
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC)    \
+  || IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC)    \
+  || IS_ENABLED(CONFIG_ARCH_TEGRA_241_SOC)
 extern const struct attribute_group tegra194_soc_attr_group;
 #endif
 

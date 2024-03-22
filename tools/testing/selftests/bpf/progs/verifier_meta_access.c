@@ -8,9 +8,9 @@
 SEC("xdp")
 __description("meta access, test1")
 __success __retval(0)
-__naked void meta_access_test1(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test1(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r0 = r2;					\
@@ -19,18 +19,18 @@ __naked void meta_access_test1(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test2")
 __failure __msg("invalid access to packet, off=-8")
-__naked void meta_access_test2(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test2(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r0 = r2;					\
@@ -41,18 +41,18 @@ __naked void meta_access_test2(void)
 	r0 = *(u8*)(r0 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test3")
 __failure __msg("invalid access to packet")
-__naked void meta_access_test3(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test3(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r0 = r2;					\
@@ -61,18 +61,18 @@ __naked void meta_access_test3(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test4")
 __failure __msg("invalid access to packet")
-__naked void meta_access_test4(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test4(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r4 = *(u32*)(r1 + %[xdp_md_data]);		\
@@ -82,19 +82,19 @@ __naked void meta_access_test4(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test5")
 __failure __msg("R3 !read_ok")
-__naked void meta_access_test5(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test5(void) {
+  asm volatile (
+    "					\
 	r3 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r4 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r0 = r3;					\
@@ -105,19 +105,19 @@ __naked void meta_access_test5(void)
 	r0 = *(u8*)(r3 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_xdp_adjust_meta),
-	  __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm(bpf_xdp_adjust_meta),
+    __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test6")
 __failure __msg("invalid access to packet")
-__naked void meta_access_test6(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test6(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r0 = r3;					\
@@ -128,18 +128,18 @@ __naked void meta_access_test6(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test7")
 __success __retval(0)
-__naked void meta_access_test7(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test7(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r0 = r3;					\
@@ -150,18 +150,18 @@ __naked void meta_access_test7(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test8")
 __success __retval(0)
-__naked void meta_access_test8(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test8(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r4 = r2;					\
@@ -170,18 +170,18 @@ __naked void meta_access_test8(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test9")
 __failure __msg("invalid access to packet")
-__naked void meta_access_test9(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test9(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r4 = r2;					\
@@ -191,18 +191,18 @@ __naked void meta_access_test9(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test10")
 __failure __msg("invalid access to packet")
-__naked void meta_access_test10(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test10(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r4 = *(u32*)(r1 + %[xdp_md_data_end]);		\
@@ -220,19 +220,19 @@ __naked void meta_access_test10(void)
 	r2 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test11")
 __success __retval(0)
-__naked void meta_access_test11(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test11(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r5 = 42;					\
@@ -249,18 +249,18 @@ __naked void meta_access_test11(void)
 	r5 = *(u8*)(r5 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("meta access, test12")
 __success __retval(0)
-__naked void meta_access_test12(void)
-{
-	asm volatile ("					\
+__naked void meta_access_test12(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data_meta]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r4 = *(u32*)(r1 + %[xdp_md_data_end]);		\
@@ -274,11 +274,11 @@ __naked void meta_access_test12(void)
 	r0 = *(u8*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
-	  __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
+    __imm_const(xdp_md_data_meta, offsetof(struct xdp_md, data_meta))
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

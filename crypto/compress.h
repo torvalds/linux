@@ -23,4 +23,4 @@ int crypto_acomp_report_stat(struct sk_buff *skb, struct crypto_alg *alg);
 
 void comp_prepare_alg(struct comp_alg_common *alg);
 
-#endif	/* _LOCAL_CRYPTO_COMPRESS_H */
+#endif  /* _LOCAL_CRYPTO_COMPRESS_H */

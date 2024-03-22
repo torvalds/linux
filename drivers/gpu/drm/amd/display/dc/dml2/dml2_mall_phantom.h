@@ -31,22 +31,30 @@
 #include "display_mode_core_structs.h"
 
 struct dml2_svp_helper_select_best_svp_candidate_params {
-	const struct dml_display_cfg_st *dml_config;
-	const struct dml_mode_support_info_st *mode_support_info;
-	const unsigned int blacklist;
-	unsigned int *candidate_index;
+  const struct dml_display_cfg_st *dml_config;
+  const struct dml_mode_support_info_st *mode_support_info;
+  const unsigned int blacklist;
+  unsigned int *candidate_index;
 };
 
 struct dml2_context;
 
-unsigned int dml2_helper_calculate_num_ways_for_subvp(struct dml2_context *ctx, struct dc_state *context);
+unsigned int dml2_helper_calculate_num_ways_for_subvp(struct dml2_context *ctx,
+    struct dc_state *context);
 
-bool dml2_svp_add_phantom_pipe_to_dc_state(struct dml2_context *ctx, struct dc_state *state, struct dml_mode_support_info_st *mode_support_info);
+bool dml2_svp_add_phantom_pipe_to_dc_state(struct dml2_context *ctx,
+    struct dc_state *state,
+    struct dml_mode_support_info_st *mode_support_info);
 
-bool dml2_svp_remove_all_phantom_pipes(struct dml2_context *ctx, struct dc_state *state);
+bool dml2_svp_remove_all_phantom_pipes(struct dml2_context *ctx,
+    struct dc_state *state);
 
-bool dml2_svp_validate_static_schedulability(struct dml2_context *ctx, struct dc_state *context, enum dml_dram_clock_change_support pstate_change_type);
+bool dml2_svp_validate_static_schedulability(struct dml2_context *ctx,
+    struct dc_state *context,
+    enum dml_dram_clock_change_support pstate_change_type);
 
-bool dml2_svp_drr_schedulable(struct dml2_context *ctx, struct dc_state *context, struct dc_crtc_timing *drr_timing);
+bool dml2_svp_drr_schedulable(struct dml2_context *ctx,
+    struct dc_state *context,
+    struct dc_crtc_timing *drr_timing);
 
 #endif

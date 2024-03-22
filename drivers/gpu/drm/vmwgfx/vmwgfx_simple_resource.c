@@ -1,29 +1,29 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
- *
- * Copyright 2016 VMware, Inc., Palo Alto, CA., USA
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- **************************************************************************/
+*
+* Copyright 2016 VMware, Inc., Palo Alto, CA., USA
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sub license, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice (including the
+* next paragraph) shall be included in all copies or substantial portions
+* of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+* THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+**************************************************************************/
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
@@ -35,14 +35,13 @@
  * @simple: The embedded struct vmw_simple_resource.
  */
 struct vmw_user_simple_resource {
-	struct ttm_base_object base;
-	struct vmw_simple_resource simple;
-/*
- * Nothing to be placed after @simple, since size of @simple is
- * unknown.
- */
+  struct ttm_base_object base;
+  struct vmw_simple_resource simple;
+  /*
+   * Nothing to be placed after @simple, since size of @simple is
+   * unknown.
+   */
 };
-
 
 /**
  * vmw_simple_resource_init - Initialize a simple resource object.
@@ -58,30 +57,24 @@ struct vmw_user_simple_resource {
  * freed.
  */
 static int vmw_simple_resource_init(struct vmw_private *dev_priv,
-				    struct vmw_simple_resource *simple,
-				    void *data,
-				    void (*res_free)(struct vmw_resource *res))
-{
-	struct vmw_resource *res = &simple->res;
-	int ret;
-
-	ret = vmw_resource_init(dev_priv, res, false, res_free,
-				&simple->func->res_func);
-
-	if (ret) {
-		res_free(res);
-		return ret;
-	}
-
-	ret = simple->func->init(res, data);
-	if (ret) {
-		vmw_resource_unreference(&res);
-		return ret;
-	}
-
-	simple->res.hw_destroy = simple->func->hw_destroy;
-
-	return 0;
+    struct vmw_simple_resource *simple,
+    void *data,
+    void (*res_free)(struct vmw_resource *res)) {
+  struct vmw_resource *res = &simple->res;
+  int ret;
+  ret = vmw_resource_init(dev_priv, res, false, res_free,
+      &simple->func->res_func);
+  if (ret) {
+    res_free(res);
+    return ret;
+  }
+  ret = simple->func->init(res, data);
+  if (ret) {
+    vmw_resource_unreference(&res);
+    return ret;
+  }
+  simple->res.hw_destroy = simple->func->hw_destroy;
+  return 0;
 }
 
 /**
@@ -91,13 +84,11 @@ static int vmw_simple_resource_init(struct vmw_private *dev_priv,
  *
  * Frees memory for the object.
  */
-static void vmw_simple_resource_free(struct vmw_resource *res)
-{
-	struct vmw_user_simple_resource *usimple =
-		container_of(res, struct vmw_user_simple_resource,
-			     simple.res);
-
-	ttm_base_object_kfree(usimple, base);
+static void vmw_simple_resource_free(struct vmw_resource *res) {
+  struct vmw_user_simple_resource *usimple
+    = container_of(res, struct vmw_user_simple_resource,
+      simple.res);
+  ttm_base_object_kfree(usimple, base);
 }
 
 /**
@@ -109,15 +100,13 @@ static void vmw_simple_resource_free(struct vmw_resource *res)
  * gone. Typically results in an object free, unless there are other
  * references to the embedded struct vmw_resource.
  */
-static void vmw_simple_resource_base_release(struct ttm_base_object **p_base)
-{
-	struct ttm_base_object *base = *p_base;
-	struct vmw_user_simple_resource *usimple =
-		container_of(base, struct vmw_user_simple_resource, base);
-	struct vmw_resource *res = &usimple->simple.res;
-
-	*p_base = NULL;
-	vmw_resource_unreference(&res);
+static void vmw_simple_resource_base_release(struct ttm_base_object **p_base) {
+  struct ttm_base_object *base = *p_base;
+  struct vmw_user_simple_resource *usimple
+    = container_of(base, struct vmw_user_simple_resource, base);
+  struct vmw_resource *res = &usimple->simple.res;
+  *p_base = NULL;
+  vmw_resource_unreference(&res);
 }
 
 /**
@@ -134,56 +123,48 @@ static void vmw_simple_resource_base_release(struct ttm_base_object **p_base)
  *   0 if success,
  *   Negative error value on error.
  */
-int
-vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv,
-				 const struct vmw_simple_resource_func *func)
-{
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_user_simple_resource *usimple;
-	struct vmw_resource *res;
-	struct vmw_resource *tmp;
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	size_t alloc_size;
-	int ret;
-
-	alloc_size = offsetof(struct vmw_user_simple_resource, simple) +
-	  func->size;
-
-	usimple = kzalloc(alloc_size, GFP_KERNEL);
-	if (!usimple) {
-		ret = -ENOMEM;
-		goto out_ret;
-	}
-
-	usimple->simple.func = func;
-	res = &usimple->simple.res;
-	usimple->base.shareable = false;
-	usimple->base.tfile = NULL;
-
-	/*
-	 * From here on, the destructor takes over resource freeing.
-	 */
-	ret = vmw_simple_resource_init(dev_priv, &usimple->simple,
-				       data, vmw_simple_resource_free);
-	if (ret)
-		goto out_ret;
-
-	tmp = vmw_resource_reference(res);
-	ret = ttm_base_object_init(tfile, &usimple->base, false,
-				   func->ttm_res_type,
-				   &vmw_simple_resource_base_release);
-
-	if (ret) {
-		vmw_resource_unreference(&tmp);
-		goto out_err;
-	}
-
-	func->set_arg_handle(data, usimple->base.handle);
+int vmw_simple_resource_create_ioctl(struct drm_device *dev, void *data,
+    struct drm_file *file_priv,
+    const struct vmw_simple_resource_func *func) {
+  struct vmw_private *dev_priv = vmw_priv(dev);
+  struct vmw_user_simple_resource *usimple;
+  struct vmw_resource *res;
+  struct vmw_resource *tmp;
+  struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+  size_t alloc_size;
+  int ret;
+  alloc_size = offsetof(struct vmw_user_simple_resource, simple)
+      + func->size;
+  usimple = kzalloc(alloc_size, GFP_KERNEL);
+  if (!usimple) {
+    ret = -ENOMEM;
+    goto out_ret;
+  }
+  usimple->simple.func = func;
+  res = &usimple->simple.res;
+  usimple->base.shareable = false;
+  usimple->base.tfile = NULL;
+  /*
+   * From here on, the destructor takes over resource freeing.
+   */
+  ret = vmw_simple_resource_init(dev_priv, &usimple->simple,
+      data, vmw_simple_resource_free);
+  if (ret) {
+    goto out_ret;
+  }
+  tmp = vmw_resource_reference(res);
+  ret = ttm_base_object_init(tfile, &usimple->base, false,
+      func->ttm_res_type,
+      &vmw_simple_resource_base_release);
+  if (ret) {
+    vmw_resource_unreference(&tmp);
+    goto out_err;
+  }
+  func->set_arg_handle(data, usimple->base.handle);
 out_err:
-	vmw_resource_unreference(&res);
+  vmw_resource_unreference(&res);
 out_ret:
-	return ret;
+  return ret;
 }
 
 /**
@@ -198,34 +179,28 @@ out_ret:
  * Returns: Refcounted pointer to the embedded struct vmw_resource if
  * successful. Error pointer otherwise.
  */
-struct vmw_resource *
-vmw_simple_resource_lookup(struct ttm_object_file *tfile,
-			   uint32_t handle,
-			   const struct vmw_simple_resource_func *func)
-{
-	struct vmw_user_simple_resource *usimple;
-	struct ttm_base_object *base;
-	struct vmw_resource *res;
-
-	base = ttm_base_object_lookup(tfile, handle);
-	if (!base) {
-		VMW_DEBUG_USER("Invalid %s handle 0x%08lx.\n",
-			       func->res_func.type_name,
-			       (unsigned long) handle);
-		return ERR_PTR(-ESRCH);
-	}
-
-	if (ttm_base_object_type(base) != func->ttm_res_type) {
-		ttm_base_object_unref(&base);
-		VMW_DEBUG_USER("Invalid type of %s handle 0x%08lx.\n",
-			       func->res_func.type_name,
-			       (unsigned long) handle);
-		return ERR_PTR(-EINVAL);
-	}
-
-	usimple = container_of(base, typeof(*usimple), base);
-	res = vmw_resource_reference(&usimple->simple.res);
-	ttm_base_object_unref(&base);
-
-	return res;
+struct vmw_resource *vmw_simple_resource_lookup(struct ttm_object_file *tfile,
+    uint32_t handle,
+    const struct vmw_simple_resource_func *func) {
+  struct vmw_user_simple_resource *usimple;
+  struct ttm_base_object *base;
+  struct vmw_resource *res;
+  base = ttm_base_object_lookup(tfile, handle);
+  if (!base) {
+    VMW_DEBUG_USER("Invalid %s handle 0x%08lx.\n",
+        func->res_func.type_name,
+        (unsigned long) handle);
+    return ERR_PTR(-ESRCH);
+  }
+  if (ttm_base_object_type(base) != func->ttm_res_type) {
+    ttm_base_object_unref(&base);
+    VMW_DEBUG_USER("Invalid type of %s handle 0x%08lx.\n",
+        func->res_func.type_name,
+        (unsigned long) handle);
+    return ERR_PTR(-EINVAL);
+  }
+  usimple = container_of(base, typeof(*usimple), base);
+  res = vmw_resource_reference(&usimple->simple.res);
+  ttm_base_object_unref(&base);
+  return res;
 }

@@ -26,13 +26,13 @@
 #include <linux/devcoredump.h>
 #include "msm_kms.h"
 
-#define MSM_DISP_SNAPSHOT_MAX_BLKS		10
+#define MSM_DISP_SNAPSHOT_MAX_BLKS    10
 
 /* debug option to print the registers in logs */
 #define MSM_DISP_SNAPSHOT_DUMP_IN_CONSOLE 0
 
 /* print debug ranges in groups of 4 u32s */
-#define REG_DUMP_ALIGN		16
+#define REG_DUMP_ALIGN    16
 
 /**
  * struct msm_disp_state - structure to store current dpu state
@@ -42,14 +42,14 @@
  * @time: timestamp at which the coredump was captured
  */
 struct msm_disp_state {
-	struct device *dev;
-	struct drm_device *drm_dev;
+  struct device *dev;
+  struct drm_device *drm_dev;
 
-	struct list_head blocks;
+  struct list_head blocks;
 
-	struct drm_atomic_state *atomic_state;
+  struct drm_atomic_state *atomic_state;
 
-	struct timespec64 time;
+  struct timespec64 time;
 };
 
 /**
@@ -61,18 +61,18 @@ struct msm_disp_state {
  * @base_addr: starting address of this hardware block's register space
  */
 struct msm_disp_state_block {
-	char name[SZ_128];
-	struct list_head node;
-	unsigned int size;
-	u32 *state;
-	void __iomem *base_addr;
+  char name[SZ_128];
+  struct list_head node;
+  unsigned int size;
+  u32 *state;
+  void __iomem *base_addr;
 };
 
 /**
  * msm_disp_snapshot_init - initialize display snapshot
- * @drm_dev:	drm device handle
+ * @drm_dev:  drm device handle
  *
- * Returns:		0 or -ERROR
+ * Returns:   0 or -ERROR
  */
 int msm_disp_snapshot_init(struct drm_device *drm_dev);
 
@@ -80,7 +80,7 @@ int msm_disp_snapshot_init(struct drm_device *drm_dev);
  * msm_disp_snapshot_destroy - destroy the display snapshot
  * @drm_dev:    drm device handle
  *
- * Returns:	none
+ * Returns: none
  */
 void msm_disp_snapshot_destroy(struct drm_device *drm_dev);
 
@@ -96,40 +96,42 @@ struct msm_disp_state *msm_disp_snapshot_state_sync(struct msm_kms *kms);
 
 /**
  * msm_disp_snapshot_state - trigger to dump the display snapshot
- * @drm_dev:	handle to drm device
-
- * Returns:	none
+ * @drm_dev:  handle to drm device
+ *
+ * Returns: none
  */
 void msm_disp_snapshot_state(struct drm_device *drm_dev);
 
 /**
  * msm_disp_state_print - print out the current dpu state
- * @disp_state:	    handle to drm device
- * @p:	    handle to drm printer
+ * @disp_state:     handle to drm device
+ * @p:      handle to drm printer
  *
- * Returns:	none
+ * Returns: none
  */
-void msm_disp_state_print(struct msm_disp_state *disp_state, struct drm_printer *p);
+void msm_disp_state_print(struct msm_disp_state *disp_state,
+    struct drm_printer *p);
 
 /**
- * msm_disp_snapshot_capture_state - utility to capture atomic state and hw registers
- * @disp_state:	    handle to msm_disp_state struct
-
- * Returns:	none
+ * msm_disp_snapshot_capture_state - utility to capture atomic state and hw
+ *registers
+ * @disp_state:     handle to msm_disp_state struct
+ *
+ * Returns: none
  */
 void msm_disp_snapshot_capture_state(struct msm_disp_state *disp_state);
 
 /**
  * msm_disp_state_free - free the memory after the coredump has been read
- * @data:	    handle to struct msm_disp_state
-
+ * @data:     handle to struct msm_disp_state
+ *
  * Returns: none
  */
 void msm_disp_state_free(void *data);
 
 /**
  * msm_disp_snapshot_add_block - add a hardware block with its register dump
- * @disp_state:	    handle to struct msm_disp_state
+ * @disp_state:     handle to struct msm_disp_state
  * @name:           name of the hardware block
  * @len:            size of the register space of the hardware block
  * @base_addr:      starting address of the register space of the hardware block
@@ -139,6 +141,6 @@ void msm_disp_state_free(void *data);
  */
 __printf(4, 5)
 void msm_disp_snapshot_add_block(struct msm_disp_state *disp_state, u32 len,
-		void __iomem *base_addr, const char *fmt, ...);
+    void __iomem *base_addr, const char *fmt, ...);
 
 #endif /* MSM_DISP_SNAPSHOT_H_ */

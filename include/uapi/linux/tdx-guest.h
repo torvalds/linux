@@ -26,8 +26,8 @@
  * @tdreport: User buffer to store TDREPORT output from TDCALL[TDG.MR.REPORT].
  */
 struct tdx_report_req {
-	__u8 reportdata[TDX_REPORTDATA_LEN];
-	__u8 tdreport[TDX_REPORT_LEN];
+  __u8 reportdata[TDX_REPORTDATA_LEN];
+  __u8 tdreport[TDX_REPORT_LEN];
 };
 
 /*

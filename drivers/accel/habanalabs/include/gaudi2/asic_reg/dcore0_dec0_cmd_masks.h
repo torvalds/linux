@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_DCORE0_DEC0_CMD_MASKS_H_
 #define ASIC_REG_DCORE0_DEC0_CMD_MASKS_H_

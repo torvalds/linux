@@ -119,32 +119,32 @@
 #define FEATURE_SOC_DPM_MASK          (1 << FEATURE_SOC_DPM_BIT)
 
 typedef struct {
-	// MP1_EXT_SCRATCH0
-	uint32_t SPARE1            : 4;
-	uint32_t SPARE2            : 4;
-	uint32_t SPARE3            : 4;
-	uint32_t CurrLevel_LCLK    : 4;
-	uint32_t CurrLevel_MP0CLK  : 4;
-	uint32_t CurrLevel_FCLK    : 4;
-	uint32_t CurrLevel_SOCCLK  : 4;
-	uint32_t CurrLevel_DCEFCLK : 4;
-	// MP1_EXT_SCRATCH1
-	uint32_t SPARE4            : 4;
-	uint32_t SPARE5            : 4;
-	uint32_t SPARE6            : 4;
-	uint32_t TargLevel_LCLK    : 4;
-	uint32_t TargLevel_MP0CLK  : 4;
-	uint32_t TargLevel_FCLK    : 4;
-	uint32_t TargLevel_SOCCLK  : 4;
-	uint32_t TargLevel_DCEFCLK : 4;
-	// MP1_EXT_SCRATCH2
-	uint32_t CurrLevel_SHUBCLK  : 4;
-	uint32_t TargLevel_SHUBCLK  : 4;
-	uint32_t Reserved          : 24;
-	// MP1_EXT_SCRATCH3-4
-	uint32_t Reserved2[2];
-	// MP1_EXT_SCRATCH5
-	uint32_t FeatureStatus[NUM_FEATURES / 32];
+  // MP1_EXT_SCRATCH0
+  uint32_t SPARE1            : 4;
+  uint32_t SPARE2            : 4;
+  uint32_t SPARE3            : 4;
+  uint32_t CurrLevel_LCLK    : 4;
+  uint32_t CurrLevel_MP0CLK  : 4;
+  uint32_t CurrLevel_FCLK    : 4;
+  uint32_t CurrLevel_SOCCLK  : 4;
+  uint32_t CurrLevel_DCEFCLK : 4;
+  // MP1_EXT_SCRATCH1
+  uint32_t SPARE4            : 4;
+  uint32_t SPARE5            : 4;
+  uint32_t SPARE6            : 4;
+  uint32_t TargLevel_LCLK    : 4;
+  uint32_t TargLevel_MP0CLK  : 4;
+  uint32_t TargLevel_FCLK    : 4;
+  uint32_t TargLevel_SOCCLK  : 4;
+  uint32_t TargLevel_DCEFCLK : 4;
+  // MP1_EXT_SCRATCH2
+  uint32_t CurrLevel_SHUBCLK  : 4;
+  uint32_t TargLevel_SHUBCLK  : 4;
+  uint32_t Reserved          : 24;
+  // MP1_EXT_SCRATCH3-4
+  uint32_t Reserved2[2];
+  // MP1_EXT_SCRATCH5
+  uint32_t FeatureStatus[NUM_FEATURES / 32];
 } FwStatus_t;
 
 #pragma pack(pop)

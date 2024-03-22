@@ -8,27 +8,27 @@
 #define _SGISEEQ_H
 
 struct sgiseeq_wregs {
-	volatile unsigned int multicase_high[2];
-	volatile unsigned int frame_gap;
-	volatile unsigned int control;
+  volatile unsigned int multicase_high[2];
+  volatile unsigned int frame_gap;
+  volatile unsigned int control;
 };
 
 struct sgiseeq_rregs {
-	volatile unsigned int collision_tx[2];
-	volatile unsigned int collision_all[2];
-	volatile unsigned int _unused0;
-	volatile unsigned int rflags;
+  volatile unsigned int collision_tx[2];
+  volatile unsigned int collision_all[2];
+  volatile unsigned int _unused0;
+  volatile unsigned int rflags;
 };
 
 struct sgiseeq_regs {
-	union {
-		volatile unsigned int eth_addr[6];
-		volatile unsigned int multicast_low[6];
-		struct sgiseeq_wregs wregs;
-		struct sgiseeq_rregs rregs;
-	} rw;
-	volatile unsigned int rstat;
-	volatile unsigned int tstat;
+  union {
+    volatile unsigned int eth_addr[6];
+    volatile unsigned int multicast_low[6];
+    struct sgiseeq_wregs wregs;
+    struct sgiseeq_rregs rregs;
+  } rw;
+  volatile unsigned int rstat;
+  volatile unsigned int tstat;
 };
 
 /* Seeq8003 receive status register */

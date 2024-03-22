@@ -6,10 +6,10 @@
  * are not addressable by direct kernel virtual addresses.
  *
  * Copyright (C) 1999 Gerhard Wichert, Siemens AG
- *		      Gerhard.Wichert@pdb.siemens.de
+ *          Gerhard.Wichert@pdb.siemens.de
  *
  *
- * Redesigned the x86 32-bit VM architecture to deal with 
+ * Redesigned the x86 32-bit VM architecture to deal with
  * up to 16 Terrabyte physical memory. With current x86 CPUs
  * we now support up to 64 Gigabytes physical RAM.
  *
@@ -40,7 +40,8 @@ extern pte_t *pkmap_page_table;
  */
 #define LAST_PKMAP 1024
 #define PKMAP_SIZE (LAST_PKMAP << PAGE_SHIFT)
-#define PKMAP_BASE PMD_ALIGN(SRMMU_NOCACHE_VADDR + (SRMMU_MAX_NOCACHE_PAGES << PAGE_SHIFT))
+#define PKMAP_BASE PMD_ALIGN(SRMMU_NOCACHE_VADDR \
+    + (SRMMU_MAX_NOCACHE_PAGES << PAGE_SHIFT))
 
 #define LAST_PKMAP_MASK (LAST_PKMAP - 1)
 #define PKMAP_NR(virt)  ((virt - PKMAP_BASE) >> PAGE_SHIFT)
@@ -48,13 +49,13 @@ extern pte_t *pkmap_page_table;
 
 #define PKMAP_END (PKMAP_ADDR(LAST_PKMAP))
 
-#define flush_cache_kmaps()	flush_cache_all()
+#define flush_cache_kmaps() flush_cache_all()
 
 /* FIXME: Use __flush_*_one(vaddr) instead of flush_*_all() -- Anton */
-#define arch_kmap_local_pre_map(vaddr, pteval)	flush_cache_all()
-#define arch_kmap_local_pre_unmap(vaddr)	flush_cache_all()
-#define arch_kmap_local_post_map(vaddr, pteval)	flush_tlb_all()
-#define arch_kmap_local_post_unmap(vaddr)	flush_tlb_all()
+#define arch_kmap_local_pre_map(vaddr, pteval)  flush_cache_all()
+#define arch_kmap_local_pre_unmap(vaddr)  flush_cache_all()
+#define arch_kmap_local_post_map(vaddr, pteval) flush_tlb_all()
+#define arch_kmap_local_post_unmap(vaddr) flush_tlb_all()
 
 #endif /* __KERNEL__ */
 

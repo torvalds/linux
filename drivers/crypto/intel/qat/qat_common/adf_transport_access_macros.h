@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
-/* Copyright(c) 2014 - 2020 Intel Corporation */
+/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+ * Copyright(c) 2014 - 2020 Intel Corporation*/
 #ifndef ADF_TRANSPORT_ACCESS_MACROS_H
 #define ADF_TRANSPORT_ACCESS_MACROS_H
 
@@ -39,20 +39,20 @@
 
 /* Minimum ring buffer size for memory allocation */
 #define ADF_RING_SIZE_BYTES_MIN(SIZE) \
-	((SIZE < ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K)) ? \
-		ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K) : SIZE)
+  ((SIZE < ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K))   \
+  ? ADF_SIZE_TO_RING_SIZE_IN_BYTES(ADF_RING_SIZE_4K) : SIZE)
 #define ADF_RING_SIZE_MODULO(SIZE) (SIZE + 0x6)
-#define ADF_SIZE_TO_POW(SIZE) ((((SIZE & 0x4) >> 1) | ((SIZE & 0x4) >> 2) | \
-				SIZE) & ~0x4)
+#define ADF_SIZE_TO_POW(SIZE) ((((SIZE & 0x4) >> 1) | ((SIZE & 0x4) >> 2)   \
+  | SIZE) & ~0x4)
 /* Max outstanding requests */
 #define ADF_MAX_INFLIGHTS(RING_SIZE, MSG_SIZE) \
-	((((1 << (RING_SIZE - 1)) << 3) >> ADF_SIZE_TO_POW(MSG_SIZE)) - 1)
-#define BUILD_RING_CONFIG(size)	\
-	((ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_FULL_WM) \
-	| (ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_EMPTY_WM) \
-	| size)
+  ((((1 << (RING_SIZE - 1)) << 3) >> ADF_SIZE_TO_POW(MSG_SIZE)) - 1)
+#define BUILD_RING_CONFIG(size) \
+  ((ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_FULL_WM) \
+  | (ADF_RING_NEAR_WATERMARK_0 << ADF_RING_CONFIG_NEAR_EMPTY_WM) \
+  | size)
 #define BUILD_RESP_RING_CONFIG(size, watermark_nf, watermark_ne) \
-	((watermark_nf << ADF_RING_CONFIG_NEAR_FULL_WM)	\
-	| (watermark_ne << ADF_RING_CONFIG_NEAR_EMPTY_WM) \
-	| size)
+  ((watermark_nf << ADF_RING_CONFIG_NEAR_FULL_WM) \
+  | (watermark_ne << ADF_RING_CONFIG_NEAR_EMPTY_WM) \
+  | size)
 #endif

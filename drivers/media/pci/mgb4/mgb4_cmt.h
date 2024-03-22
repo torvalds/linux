@@ -12,6 +12,6 @@
 
 u32 mgb4_cmt_set_vout_freq(struct mgb4_vout_dev *voutdev, unsigned int freq);
 void mgb4_cmt_set_vin_freq_range(struct mgb4_vin_dev *vindev,
-				 unsigned int freq_range);
+    unsigned int freq_range);
 
 #endif

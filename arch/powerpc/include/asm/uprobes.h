@@ -14,22 +14,22 @@
 
 typedef u32 uprobe_opcode_t;
 
-#define MAX_UINSN_BYTES		8
-#define UPROBE_XOL_SLOT_BYTES	(MAX_UINSN_BYTES)
+#define MAX_UINSN_BYTES   8
+#define UPROBE_XOL_SLOT_BYTES (MAX_UINSN_BYTES)
 
 /* The following alias is needed for reference from arch-agnostic code */
-#define UPROBE_SWBP_INSN	BREAKPOINT_INSTRUCTION
-#define UPROBE_SWBP_INSN_SIZE	4 /* swbp insn size in bytes */
+#define UPROBE_SWBP_INSN  BREAKPOINT_INSTRUCTION
+#define UPROBE_SWBP_INSN_SIZE 4 /* swbp insn size in bytes */
 
 struct arch_uprobe {
-	union {
-		u32 insn[2];
-		u32 ixol[2];
-	};
+  union {
+    u32 insn[2];
+    u32 ixol[2];
+  };
 };
 
 struct arch_uprobe_task {
-	unsigned long	saved_trap_nr;
+  unsigned long saved_trap_nr;
 };
 
-#endif	/* _ASM_UPROBES_H */
+#endif  /* _ASM_UPROBES_H */

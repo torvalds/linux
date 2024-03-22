@@ -3,7 +3,7 @@
  * linux/drivers/media/platform/samsung/s5p-mfc/s5p_mfc_ctrl.h
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
+ *    http://www.samsung.com/
  */
 
 #ifndef S5P_MFC_CTRL_H

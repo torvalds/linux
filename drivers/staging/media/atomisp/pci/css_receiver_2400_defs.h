@@ -43,13 +43,21 @@
 
 #define CSI_CONFIG_WIDTH                       4
 
-/* division of gen_short data, ch_id and fmt_type over streaming data interface */
+/* division of gen_short data, ch_id and fmt_type over streaming data interface
+ * */
 #define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_DATA_BIT_LSB     0
-#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_LSB (_HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_DATA_BIT_LSB     + _HRT_CSS_RECEIVER_2400_GEN_SHORT_DATA_WIDTH)
-#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_CH_ID_BIT_LSB    (_HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_LSB + _HRT_CSS_RECEIVER_2400_GEN_SHORT_FMT_TYPE_WIDTH)
-#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_DATA_BIT_MSB     (_HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_LSB - 1)
-#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_MSB (_HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_CH_ID_BIT_LSB    - 1)
-#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_CH_ID_BIT_MSB    (_HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_REAL_WIDTH       - 1)
+#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_LSB ( \
+    _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_DATA_BIT_LSB     \
+    + _HRT_CSS_RECEIVER_2400_GEN_SHORT_DATA_WIDTH)
+#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_CH_ID_BIT_LSB    ( \
+    _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_LSB \
+    + _HRT_CSS_RECEIVER_2400_GEN_SHORT_FMT_TYPE_WIDTH)
+#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_DATA_BIT_MSB     ( \
+    _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_LSB - 1)
+#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_FMT_TYPE_BIT_MSB ( \
+    _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_CH_ID_BIT_LSB - 1)
+#define _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_CH_ID_BIT_MSB    ( \
+    _HRT_CSS_RECEIVER_2400_GEN_SHORT_STR_REAL_WIDTH - 1)
 
 #define _HRT_CSS_RECEIVER_2400_REG_ALIGN 4
 #define _HRT_CSS_RECEIVER_2400_BYTES_PER_PKT             4
@@ -106,23 +114,37 @@
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ESCAPE_BIT            15
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_LINE_SYNC_BIT         16
 
-#define _HRT_CSS_RECEIVER_2400_IRQ_OVERRUN_CAUSE_                  "Fifo Overrun"
+#define _HRT_CSS_RECEIVER_2400_IRQ_OVERRUN_CAUSE_                  \
+  "Fifo Overrun"
 #define _HRT_CSS_RECEIVER_2400_IRQ_RESERVED_CAUSE_                 "Reserved"
-#define _HRT_CSS_RECEIVER_2400_IRQ_SLEEP_MODE_ENTRY_CAUSE_         "Sleep mode entry"
-#define _HRT_CSS_RECEIVER_2400_IRQ_SLEEP_MODE_EXIT_CAUSE_          "Sleep mode exit"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_SOT_HS_CAUSE_               "Error high speed SOT"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_SOT_SYNC_HS_CAUSE_          "Error high speed sync SOT"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CONTROL_CAUSE_              "Error control"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_DOUBLE_CAUSE_           "Error correction double bit"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_CORRECTED_CAUSE_        "Error correction single bit"
+#define _HRT_CSS_RECEIVER_2400_IRQ_SLEEP_MODE_ENTRY_CAUSE_         \
+  "Sleep mode entry"
+#define _HRT_CSS_RECEIVER_2400_IRQ_SLEEP_MODE_EXIT_CAUSE_          \
+  "Sleep mode exit"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_SOT_HS_CAUSE_               \
+  "Error high speed SOT"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_SOT_SYNC_HS_CAUSE_          \
+  "Error high speed sync SOT"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CONTROL_CAUSE_              \
+  "Error control"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_DOUBLE_CAUSE_           \
+  "Error correction double bit"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_CORRECTED_CAUSE_        \
+  "Error correction single bit"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ECC_NO_CORRECTION_CAUSE_    "No error"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CRC_CAUSE_                  "Error cyclic redundancy check"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_CRC_CAUSE_                  \
+  "Error cyclic redundancy check"
 #define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ID_CAUSE_                   "Error id"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_FRAME_SYNC_CAUSE_           "Error frame sync"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_FRAME_DATA_CAUSE_           "Error frame data"
-#define _HRT_CSS_RECEIVER_2400_IRQ_DATA_TIMEOUT_CAUSE_             "Data time-out"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ESCAPE_CAUSE_               "Error escape"
-#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_LINE_SYNC_CAUSE_            "Error line sync"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_FRAME_SYNC_CAUSE_           \
+  "Error frame sync"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_FRAME_DATA_CAUSE_           \
+  "Error frame data"
+#define _HRT_CSS_RECEIVER_2400_IRQ_DATA_TIMEOUT_CAUSE_             \
+  "Data time-out"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_ESCAPE_CAUSE_               \
+  "Error escape"
+#define _HRT_CSS_RECEIVER_2400_IRQ_ERR_LINE_SYNC_CAUSE_            \
+  "Error line sync"
 
 /* Bits for CSI2_DEVICE_READY register */
 #define _HRT_CSS_RECEIVER_2400_CSI2_DEVICE_READY_IDX                          0
@@ -156,7 +178,9 @@
 /* Bits for COMP_FORMAT register, this selects the compression data format */
 #define _HRT_CSS_RECEIVER_2400_COMP_RAW_BITS_IDX  0
 #define _HRT_CSS_RECEIVER_2400_COMP_RAW_BITS_BITS 8
-#define _HRT_CSS_RECEIVER_2400_COMP_NUM_BITS_IDX  (_HRT_CSS_RECEIVER_2400_COMP_RAW_BITS_IDX + _HRT_CSS_RECEIVER_2400_COMP_RAW_BITS_BITS)
+#define _HRT_CSS_RECEIVER_2400_COMP_NUM_BITS_IDX  ( \
+    _HRT_CSS_RECEIVER_2400_COMP_RAW_BITS_IDX \
+    + _HRT_CSS_RECEIVER_2400_COMP_RAW_BITS_BITS)
 #define _HRT_CSS_RECEIVER_2400_COMP_NUM_BITS_BITS 8
 
 /* Bits for COMP_PREDICT register, this selects the predictor algorithm */
@@ -167,7 +191,8 @@
 /* Number of bits used for the delay registers */
 #define _HRT_CSS_RECEIVER_2400_DELAY_BITS 8
 
-/* Bits for COMP_SCHEME register, this  selects the compression scheme for a VC */
+/* Bits for COMP_SCHEME register, this  selects the compression scheme for a VC
+ * */
 #define _HRT_CSS_RECEIVER_2400_COMP_SCHEME_USD1_BITS_IDX  0
 #define _HRT_CSS_RECEIVER_2400_COMP_SCHEME_USD2_BITS_IDX  5
 #define _HRT_CSS_RECEIVER_2400_COMP_SCHEME_USD3_BITS_IDX  10
@@ -204,13 +229,20 @@
 
 #define _HRT_CSS_RECEIVER_2400_BE_STREAMING_WIDTH                 28
 #define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_LSB              0
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_MSB             (_HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_LSB + CSS_RECEIVER_DATA_OUT - 1)
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_VAL_BIT         (_HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_MSB + 1)
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_LSB             (_HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_VAL_BIT + 1)
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_MSB             (_HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_LSB + CSS_RECEIVER_DATA_OUT - 1)
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_VAL_BIT         (_HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_MSB + 1)
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_SOP_BIT               (_HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_VAL_BIT + 1)
-#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_EOP_BIT               (_HRT_CSS_RECEIVER_2400_BE_STREAMING_SOP_BIT + 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_MSB             ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_LSB + CSS_RECEIVER_DATA_OUT - 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_VAL_BIT         ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_MSB + 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_LSB             ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_A_VAL_BIT + 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_MSB             ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_LSB + CSS_RECEIVER_DATA_OUT - 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_VAL_BIT         ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_MSB + 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_SOP_BIT               ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_PIX_B_VAL_BIT + 1)
+#define _HRT_CSS_RECEIVER_2400_BE_STREAMING_EOP_BIT               ( \
+    _HRT_CSS_RECEIVER_2400_BE_STREAMING_SOP_BIT + 1)
 
 // SH Backend Register IDs
 #define _HRT_CSS_RECEIVER_2400_BE_GSP_ACC_OVL_REG_IDX              0
@@ -227,20 +259,127 @@
 #define _HRT_CSS_RECEIVER_2400_BE_IRQ_STATUS_REG_IDX              11
 #define _HRT_CSS_RECEIVER_2400_BE_IRQ_CLEAR_REG_IDX               12
 #define _HRT_CSS_RECEIVER_2400_BE_CUST_EN_REG_IDX                 13
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_DATA_STATE_REG_IDX         14    /* Data State 0,1,2 config */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P0_REG_IDX       15    /* Pixel Extractor config for Data State 0 & Pix 0 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P1_REG_IDX       16    /* Pixel Extractor config for Data State 0 & Pix 1 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P2_REG_IDX       17    /* Pixel Extractor config for Data State 0 & Pix 2 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P3_REG_IDX       18    /* Pixel Extractor config for Data State 0 & Pix 3 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P0_REG_IDX       19    /* Pixel Extractor config for Data State 1 & Pix 0 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P1_REG_IDX       20    /* Pixel Extractor config for Data State 1 & Pix 1 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P2_REG_IDX       21    /* Pixel Extractor config for Data State 1 & Pix 2 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P3_REG_IDX       22    /* Pixel Extractor config for Data State 1 & Pix 3 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P0_REG_IDX       23    /* Pixel Extractor config for Data State 2 & Pix 0 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P1_REG_IDX       24    /* Pixel Extractor config for Data State 2 & Pix 1 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P2_REG_IDX       25    /* Pixel Extractor config for Data State 2 & Pix 2 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P3_REG_IDX       26    /* Pixel Extractor config for Data State 2 & Pix 3 */
-#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_VALID_EOP_REG_IDX      27    /* Pixel Valid & EoP config for Pix 0,1,2,3 */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_DATA_STATE_REG_IDX         14    /* Data
+                                                                         * State
+                                                                         * 0,1,2
+                                                                         * config
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P0_REG_IDX       15    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 0 &
+                                                                         * Pix 0
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P1_REG_IDX       16    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 0 &
+                                                                         * Pix 1
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P2_REG_IDX       17    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 0 &
+                                                                         * Pix 2
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S0P3_REG_IDX       18    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 0 &
+                                                                         * Pix 3
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P0_REG_IDX       19    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 1 &
+                                                                         * Pix 0
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P1_REG_IDX       20    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 1 &
+                                                                         * Pix 1
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P2_REG_IDX       21    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 1 &
+                                                                         * Pix 2
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S1P3_REG_IDX       22    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 1 &
+                                                                         * Pix 3
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P0_REG_IDX       23    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 2 &
+                                                                         * Pix 0
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P1_REG_IDX       24    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 2 &
+                                                                         * Pix 1
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P2_REG_IDX       25    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 2 &
+                                                                         * Pix 2
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_EXT_S2P3_REG_IDX       26    /* Pixel
+                                                                         * Extractor
+                                                                         * config
+                                                                         * for
+                                                                         * Data
+                                                                         * State
+                                                                         * 2 &
+                                                                         * Pix 3
+                                                                         * */
+#define _HRT_CSS_RECEIVER_2400_BE_CUST_PIX_VALID_EOP_REG_IDX      27    /* Pixel
+                                                                         * Valid
+                                                                         * & EoP
+                                                                         * config
+                                                                         * for
+                                                                         * Pix
+                                                                         * 0,1,2,3
+                                                                         * */
 
 #define _HRT_CSS_RECEIVER_2400_BE_NOF_REGISTERS                   28
 

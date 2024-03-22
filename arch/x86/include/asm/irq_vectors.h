@@ -27,21 +27,21 @@
  */
 
 /* This is used as an interrupt vector when programming the APIC. */
-#define NMI_VECTOR			0x02
+#define NMI_VECTOR      0x02
 
 /*
  * IDT vectors usable for external interrupt sources start at 0x20.
  * (0x80 is the syscall vector, 0x30-0x3f are for ISA)
  */
-#define FIRST_EXTERNAL_VECTOR		0x20
+#define FIRST_EXTERNAL_VECTOR   0x20
 
-#define IA32_SYSCALL_VECTOR		0x80
+#define IA32_SYSCALL_VECTOR   0x80
 
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
  *   round up to the next 16-vector boundary
  */
-#define ISA_IRQ_VECTOR(irq)		(((FIRST_EXTERNAL_VECTOR + 16) & ~15) + irq)
+#define ISA_IRQ_VECTOR(irq)   (((FIRST_EXTERNAL_VECTOR + 16) & ~15) + irq)
 
 /*
  * Special IRQ vectors used by the SMP architecture, 0xf0-0xff
@@ -51,62 +51,62 @@
  *  TLB, reschedule and local APIC vectors are performance-critical.
  */
 
-#define SPURIOUS_APIC_VECTOR		0xff
+#define SPURIOUS_APIC_VECTOR    0xff
 /*
  * Sanity check
  */
 #if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
-# error SPURIOUS_APIC_VECTOR definition error
+#error SPURIOUS_APIC_VECTOR definition error
 #endif
 
-#define ERROR_APIC_VECTOR		0xfe
-#define RESCHEDULE_VECTOR		0xfd
-#define CALL_FUNCTION_VECTOR		0xfc
-#define CALL_FUNCTION_SINGLE_VECTOR	0xfb
-#define THERMAL_APIC_VECTOR		0xfa
-#define THRESHOLD_APIC_VECTOR		0xf9
-#define REBOOT_VECTOR			0xf8
+#define ERROR_APIC_VECTOR   0xfe
+#define RESCHEDULE_VECTOR   0xfd
+#define CALL_FUNCTION_VECTOR    0xfc
+#define CALL_FUNCTION_SINGLE_VECTOR 0xfb
+#define THERMAL_APIC_VECTOR   0xfa
+#define THRESHOLD_APIC_VECTOR   0xf9
+#define REBOOT_VECTOR     0xf8
 
 /*
  * Generic system vector for platform specific use
  */
-#define X86_PLATFORM_IPI_VECTOR		0xf7
+#define X86_PLATFORM_IPI_VECTOR   0xf7
 
 /*
  * IRQ work vector:
  */
-#define IRQ_WORK_VECTOR			0xf6
+#define IRQ_WORK_VECTOR     0xf6
 
 /* 0xf5 - unused, was UV_BAU_MESSAGE */
-#define DEFERRED_ERROR_VECTOR		0xf4
+#define DEFERRED_ERROR_VECTOR   0xf4
 
 /* Vector on which hypervisor callbacks will be delivered */
-#define HYPERVISOR_CALLBACK_VECTOR	0xf3
+#define HYPERVISOR_CALLBACK_VECTOR  0xf3
 
 /* Vector for KVM to deliver posted interrupt IPI */
-#define POSTED_INTR_VECTOR		0xf2
-#define POSTED_INTR_WAKEUP_VECTOR	0xf1
-#define POSTED_INTR_NESTED_VECTOR	0xf0
+#define POSTED_INTR_VECTOR    0xf2
+#define POSTED_INTR_WAKEUP_VECTOR 0xf1
+#define POSTED_INTR_NESTED_VECTOR 0xf0
 
-#define MANAGED_IRQ_SHUTDOWN_VECTOR	0xef
+#define MANAGED_IRQ_SHUTDOWN_VECTOR 0xef
 
 #if IS_ENABLED(CONFIG_HYPERV)
-#define HYPERV_REENLIGHTENMENT_VECTOR	0xee
-#define HYPERV_STIMER0_VECTOR		0xed
+#define HYPERV_REENLIGHTENMENT_VECTOR 0xee
+#define HYPERV_STIMER0_VECTOR   0xed
 #endif
 
-#define LOCAL_TIMER_VECTOR		0xec
+#define LOCAL_TIMER_VECTOR    0xec
 
-#define NR_VECTORS			 256
+#define NR_VECTORS       256
 
 #ifdef CONFIG_X86_LOCAL_APIC
-#define FIRST_SYSTEM_VECTOR		LOCAL_TIMER_VECTOR
+#define FIRST_SYSTEM_VECTOR   LOCAL_TIMER_VECTOR
 #else
-#define FIRST_SYSTEM_VECTOR		NR_VECTORS
+#define FIRST_SYSTEM_VECTOR   NR_VECTORS
 #endif
 
-#define NR_EXTERNAL_VECTORS		(FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
-#define NR_SYSTEM_VECTORS		(NR_VECTORS - FIRST_SYSTEM_VECTOR)
+#define NR_EXTERNAL_VECTORS   (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
+#define NR_SYSTEM_VECTORS   (NR_VECTORS - FIRST_SYSTEM_VECTOR)
 
 /*
  * Size the maximum number of interrupts.
@@ -119,22 +119,22 @@
  * static arrays.
  */
 
-#define NR_IRQS_LEGACY			16
+#define NR_IRQS_LEGACY      16
 
-#define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
-#define IO_APIC_VECTOR_LIMIT		(32 * MAX_IO_APICS)
+#define CPU_VECTOR_LIMIT    (64 * NR_CPUS)
+#define IO_APIC_VECTOR_LIMIT    (32 * MAX_IO_APICS)
 
 #if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_PCI_MSI)
-#define NR_IRQS						\
-	(CPU_VECTOR_LIMIT > IO_APIC_VECTOR_LIMIT ?	\
-		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
-		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
+#define NR_IRQS           \
+  (CPU_VECTOR_LIMIT > IO_APIC_VECTOR_LIMIT    \
+  ? (NR_VECTORS + CPU_VECTOR_LIMIT)     \
+  : (NR_VECTORS + IO_APIC_VECTOR_LIMIT))
 #elif defined(CONFIG_X86_IO_APIC)
-#define	NR_IRQS				(NR_VECTORS + IO_APIC_VECTOR_LIMIT)
+#define NR_IRQS       (NR_VECTORS + IO_APIC_VECTOR_LIMIT)
 #elif defined(CONFIG_PCI_MSI)
-#define NR_IRQS				(NR_VECTORS + CPU_VECTOR_LIMIT)
+#define NR_IRQS       (NR_VECTORS + CPU_VECTOR_LIMIT)
 #else
-#define NR_IRQS				NR_IRQS_LEGACY
+#define NR_IRQS       NR_IRQS_LEGACY
 #endif
 
 #endif /* _ASM_X86_IRQ_VECTORS_H */

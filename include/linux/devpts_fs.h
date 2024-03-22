@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- linux-c -*- --------------------------------------------------------- *
- *
- * linux/include/linux/devpts_fs.h
- *
- *  Copyright 1998-2004 H. Peter Anvin -- All Rights Reserved
- *
- * ------------------------------------------------------------------------- */
+*
+* linux/include/linux/devpts_fs.h
+*
+*  Copyright 1998-2004 H. Peter Anvin -- All Rights Reserved
+*
+* ------------------------------------------------------------------------- */
 
 #ifndef _LINUX_DEVPTS_FS_H
 #define _LINUX_DEVPTS_FS_H
@@ -34,12 +34,11 @@ void devpts_pty_kill(struct dentry *);
 int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags);
 
 #else
-static inline int
-ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
-{
-	return -EIO;
+static inline int ptm_open_peer(struct file *master, struct tty_struct *tty,
+    int flags) {
+  return -EIO;
 }
-#endif
 
+#endif
 
 #endif /* _LINUX_DEVPTS_FS_H */

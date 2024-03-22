@@ -29,49 +29,51 @@
  * size and sets up values needed by the MMU code below.
  */
 #if (PVR_DEVICE_PAGE_SIZE == SZ_4K)
-# define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_4KB
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_4KB_RANGE_SHIFT
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_4KB_RANGE_CLRMSK
+#define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_4KB
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_4KB_RANGE_SHIFT
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_4KB_RANGE_CLRMSK
 #elif (PVR_DEVICE_PAGE_SIZE == SZ_16K)
-# define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_16KB
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_16KB_RANGE_SHIFT
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_16KB_RANGE_CLRMSK
+#define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_16KB
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_16KB_RANGE_SHIFT
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_16KB_RANGE_CLRMSK
 #elif (PVR_DEVICE_PAGE_SIZE == SZ_64K)
-# define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_64KB
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_64KB_RANGE_SHIFT
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_64KB_RANGE_CLRMSK
+#define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_64KB
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_64KB_RANGE_SHIFT
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_64KB_RANGE_CLRMSK
 #elif (PVR_DEVICE_PAGE_SIZE == SZ_256K)
-# define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_256KB
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_256KB_RANGE_SHIFT
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_256KB_RANGE_CLRMSK
+#define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_256KB
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_256KB_RANGE_SHIFT
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_256KB_RANGE_CLRMSK
 #elif (PVR_DEVICE_PAGE_SIZE == SZ_1M)
-# define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_1MB
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_1MB_RANGE_SHIFT
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_1MB_RANGE_CLRMSK
+#define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_1MB
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_1MB_RANGE_SHIFT
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_1MB_RANGE_CLRMSK
 #elif (PVR_DEVICE_PAGE_SIZE == SZ_2M)
-# define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_2MB
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_2MB_RANGE_SHIFT
-# define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_2MB_RANGE_CLRMSK
+#define ROGUE_MMUCTRL_PAGE_SIZE_X ROGUE_MMUCTRL_PAGE_SIZE_2MB
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT ROGUE_MMUCTRL_PAGE_2MB_RANGE_SHIFT
+#define ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK ROGUE_MMUCTRL_PAGE_2MB_RANGE_CLRMSK
 #else
-# error Unsupported device page size PVR_DEVICE_PAGE_SIZE
+#error Unsupported device page size PVR_DEVICE_PAGE_SIZE
 #endif
 
 #define ROGUE_MMUCTRL_ENTRIES_PT_VALUE_X   \
-	(ROGUE_MMUCTRL_ENTRIES_PT_VALUE >> \
-	 (PVR_DEVICE_PAGE_SHIFT - PVR_SHIFT_FROM_SIZE(SZ_4K)))
+  (ROGUE_MMUCTRL_ENTRIES_PT_VALUE >> \
+  (PVR_DEVICE_PAGE_SHIFT - PVR_SHIFT_FROM_SIZE(SZ_4K)))
 
 enum pvr_mmu_sync_level {
-	PVR_MMU_SYNC_LEVEL_NONE = -1,
-	PVR_MMU_SYNC_LEVEL_0 = 0,
-	PVR_MMU_SYNC_LEVEL_1 = 1,
-	PVR_MMU_SYNC_LEVEL_2 = 2,
+  PVR_MMU_SYNC_LEVEL_NONE = -1,
+  PVR_MMU_SYNC_LEVEL_0 = 0,
+  PVR_MMU_SYNC_LEVEL_1 = 1,
+  PVR_MMU_SYNC_LEVEL_2 = 2,
 };
 
-#define PVR_MMU_SYNC_LEVEL_0_FLAGS (ROGUE_FWIF_MMUCACHEDATA_FLAGS_PT | \
-				    ROGUE_FWIF_MMUCACHEDATA_FLAGS_INTERRUPT | \
-				    ROGUE_FWIF_MMUCACHEDATA_FLAGS_TLB)
-#define PVR_MMU_SYNC_LEVEL_1_FLAGS (PVR_MMU_SYNC_LEVEL_0_FLAGS | ROGUE_FWIF_MMUCACHEDATA_FLAGS_PD)
-#define PVR_MMU_SYNC_LEVEL_2_FLAGS (PVR_MMU_SYNC_LEVEL_1_FLAGS | ROGUE_FWIF_MMUCACHEDATA_FLAGS_PC)
+#define PVR_MMU_SYNC_LEVEL_0_FLAGS (ROGUE_FWIF_MMUCACHEDATA_FLAGS_PT   \
+  | ROGUE_FWIF_MMUCACHEDATA_FLAGS_INTERRUPT   \
+  | ROGUE_FWIF_MMUCACHEDATA_FLAGS_TLB)
+#define PVR_MMU_SYNC_LEVEL_1_FLAGS (PVR_MMU_SYNC_LEVEL_0_FLAGS \
+  | ROGUE_FWIF_MMUCACHEDATA_FLAGS_PD)
+#define PVR_MMU_SYNC_LEVEL_2_FLAGS (PVR_MMU_SYNC_LEVEL_1_FLAGS \
+  | ROGUE_FWIF_MMUCACHEDATA_FLAGS_PC)
 
 /**
  * pvr_mmu_set_flush_flags() - Set MMU cache flush flags for next call to
@@ -82,9 +84,8 @@ enum pvr_mmu_sync_level {
  * This function must be called following any possible change to the MMU page
  * tables.
  */
-static void pvr_mmu_set_flush_flags(struct pvr_device *pvr_dev, u32 flags)
-{
-	atomic_fetch_or(flags, &pvr_dev->mmu_flush_cache_flags);
+static void pvr_mmu_set_flush_flags(struct pvr_device *pvr_dev, u32 flags) {
+  atomic_fetch_or(flags, &pvr_dev->mmu_flush_cache_flags);
 }
 
 /**
@@ -95,9 +96,8 @@ static void pvr_mmu_set_flush_flags(struct pvr_device *pvr_dev, u32 flags)
  * This function must be called following any possible change to the MMU page
  * tables.
  */
-void pvr_mmu_flush_request_all(struct pvr_device *pvr_dev)
-{
-	pvr_mmu_set_flush_flags(pvr_dev, PVR_MMU_SYNC_LEVEL_2_FLAGS);
+void pvr_mmu_flush_request_all(struct pvr_device *pvr_dev) {
+  pvr_mmu_set_flush_flags(pvr_dev, PVR_MMU_SYNC_LEVEL_2_FLAGS);
 }
 
 /**
@@ -120,72 +120,63 @@ void pvr_mmu_flush_request_all(struct pvr_device *pvr_dev)
  *  * -%EIO if the device is unavailable, or
  *  * Any error encountered while submitting the flush command via the KCCB.
  */
-int pvr_mmu_flush_exec(struct pvr_device *pvr_dev, bool wait)
-{
-	struct rogue_fwif_kccb_cmd cmd_mmu_cache = {};
-	struct rogue_fwif_mmucachedata *cmd_mmu_cache_data =
-		&cmd_mmu_cache.cmd_data.mmu_cache_data;
-	int err = 0;
-	u32 slot;
-	int idx;
-
-	if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx))
-		return -EIO;
-
-	/* Can't flush MMU if the firmware hasn't booted yet. */
-	if (!pvr_dev->fw_dev.booted)
-		goto err_drm_dev_exit;
-
-	cmd_mmu_cache_data->cache_flags =
-		atomic_xchg(&pvr_dev->mmu_flush_cache_flags, 0);
-
-	if (!cmd_mmu_cache_data->cache_flags)
-		goto err_drm_dev_exit;
-
-	cmd_mmu_cache.cmd_type = ROGUE_FWIF_KCCB_CMD_MMUCACHE;
-
-	pvr_fw_object_get_fw_addr(pvr_dev->fw_dev.mem.mmucache_sync_obj,
-				  &cmd_mmu_cache_data->mmu_cache_sync_fw_addr);
-	cmd_mmu_cache_data->mmu_cache_sync_update_value = 0;
-
-	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
-	if (err)
-		goto err_reset_and_retry;
-
-	err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
-	if (err)
-		goto err_reset_and_retry;
-
-	drm_dev_exit(idx);
-
-	return 0;
-
+int pvr_mmu_flush_exec(struct pvr_device *pvr_dev, bool wait) {
+  struct rogue_fwif_kccb_cmd cmd_mmu_cache = {};
+  struct rogue_fwif_mmucachedata *cmd_mmu_cache_data
+    = &cmd_mmu_cache.cmd_data.mmu_cache_data;
+  int err = 0;
+  u32 slot;
+  int idx;
+  if (!drm_dev_enter(from_pvr_device(pvr_dev), &idx)) {
+    return -EIO;
+  }
+  /* Can't flush MMU if the firmware hasn't booted yet. */
+  if (!pvr_dev->fw_dev.booted) {
+    goto err_drm_dev_exit;
+  }
+  cmd_mmu_cache_data->cache_flags
+    = atomic_xchg(&pvr_dev->mmu_flush_cache_flags, 0);
+  if (!cmd_mmu_cache_data->cache_flags) {
+    goto err_drm_dev_exit;
+  }
+  cmd_mmu_cache.cmd_type = ROGUE_FWIF_KCCB_CMD_MMUCACHE;
+  pvr_fw_object_get_fw_addr(pvr_dev->fw_dev.mem.mmucache_sync_obj,
+      &cmd_mmu_cache_data->mmu_cache_sync_fw_addr);
+  cmd_mmu_cache_data->mmu_cache_sync_update_value = 0;
+  err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
+  if (err) {
+    goto err_reset_and_retry;
+  }
+  err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+  if (err) {
+    goto err_reset_and_retry;
+  }
+  drm_dev_exit(idx);
+  return 0;
 err_reset_and_retry:
-	/*
-	 * Flush command failure is most likely the result of a firmware lockup. Hard
-	 * reset the GPU and retry.
-	 */
-	err = pvr_power_reset(pvr_dev, true);
-	if (err)
-		goto err_drm_dev_exit; /* Device is lost. */
-
-	/* Retry sending flush request. */
-	err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
-	if (err) {
-		pvr_device_lost(pvr_dev);
-		goto err_drm_dev_exit;
-	}
-
-	if (wait) {
-		err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
-		if (err)
-			pvr_device_lost(pvr_dev);
-	}
-
+  /*
+   * Flush command failure is most likely the result of a firmware lockup. Hard
+   * reset the GPU and retry.
+   */
+  err = pvr_power_reset(pvr_dev, true);
+  if (err) {
+    goto err_drm_dev_exit; /* Device is lost. */
+  }
+  /* Retry sending flush request. */
+  err = pvr_kccb_send_cmd(pvr_dev, &cmd_mmu_cache, &slot);
+  if (err) {
+    pvr_device_lost(pvr_dev);
+    goto err_drm_dev_exit;
+  }
+  if (wait) {
+    err = pvr_kccb_wait_for_completion(pvr_dev, slot, HZ, NULL);
+    if (err) {
+      pvr_device_lost(pvr_dev);
+    }
+  }
 err_drm_dev_exit:
-	drm_dev_exit(idx);
-
-	return err;
+  drm_dev_exit(idx);
+  return err;
 }
 
 /**
@@ -200,7 +191,7 @@ err_drm_dev_exit:
  *
  *    This value cannot be zero, since zero is a valid index value.
  */
-#define PVR_IDX_INVALID ((u16)(-1))
+#define PVR_IDX_INVALID ((u16) (-1))
 
 /**
  * DOC: MMU backing pages
@@ -226,11 +217,11 @@ static_assert(PAGE_SIZE >= PVR_MMU_BACKING_PAGE_SIZE);
  *           internal use only.**
  */
 struct pvr_mmu_backing_page {
-	dma_addr_t dma_addr;
-	void *host_ptr;
-/* private: internal use only */
-	struct page *raw_page;
-	struct pvr_device *pvr_dev;
+  dma_addr_t dma_addr;
+  void *host_ptr;
+  /* private: internal use only */
+  struct page *raw_page;
+  struct pvr_device *pvr_dev;
 };
 
 /**
@@ -252,50 +243,39 @@ struct pvr_mmu_backing_page {
  *  * -%ENOMEM if allocation of the backing page or mapping of the backing
  *    page to DMA fails.
  */
-static int
-pvr_mmu_backing_page_init(struct pvr_mmu_backing_page *page,
-			  struct pvr_device *pvr_dev)
-{
-	struct device *dev = from_pvr_device(pvr_dev)->dev;
-
-	struct page *raw_page;
-	int err;
-
-	dma_addr_t dma_addr;
-	void *host_ptr;
-
-	raw_page = alloc_page(__GFP_ZERO | GFP_KERNEL);
-	if (!raw_page)
-		return -ENOMEM;
-
-	host_ptr = vmap(&raw_page, 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
-	if (!host_ptr) {
-		err = -ENOMEM;
-		goto err_free_page;
-	}
-
-	dma_addr = dma_map_page(dev, raw_page, 0, PVR_MMU_BACKING_PAGE_SIZE,
-				DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, dma_addr)) {
-		err = -ENOMEM;
-		goto err_unmap_page;
-	}
-
-	page->dma_addr = dma_addr;
-	page->host_ptr = host_ptr;
-	page->pvr_dev = pvr_dev;
-	page->raw_page = raw_page;
-	kmemleak_alloc(page->host_ptr, PAGE_SIZE, 1, GFP_KERNEL);
-
-	return 0;
-
+static int pvr_mmu_backing_page_init(struct pvr_mmu_backing_page *page,
+    struct pvr_device *pvr_dev) {
+  struct device *dev = from_pvr_device(pvr_dev)->dev;
+  struct page *raw_page;
+  int err;
+  dma_addr_t dma_addr;
+  void *host_ptr;
+  raw_page = alloc_page(__GFP_ZERO | GFP_KERNEL);
+  if (!raw_page) {
+    return -ENOMEM;
+  }
+  host_ptr = vmap(&raw_page, 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+  if (!host_ptr) {
+    err = -ENOMEM;
+    goto err_free_page;
+  }
+  dma_addr = dma_map_page(dev, raw_page, 0, PVR_MMU_BACKING_PAGE_SIZE,
+      DMA_TO_DEVICE);
+  if (dma_mapping_error(dev, dma_addr)) {
+    err = -ENOMEM;
+    goto err_unmap_page;
+  }
+  page->dma_addr = dma_addr;
+  page->host_ptr = host_ptr;
+  page->pvr_dev = pvr_dev;
+  page->raw_page = raw_page;
+  kmemleak_alloc(page->host_ptr, PAGE_SIZE, 1, GFP_KERNEL);
+  return 0;
 err_unmap_page:
-	vunmap(host_ptr);
-
+  vunmap(host_ptr);
 err_free_page:
-	__free_page(raw_page);
-
-	return err;
+  __free_page(raw_page);
+  return err;
 }
 
 /**
@@ -313,26 +293,19 @@ err_free_page:
  *
  * It is a no-op to call this function a second (or further) time on any @page.
  */
-static void
-pvr_mmu_backing_page_fini(struct pvr_mmu_backing_page *page)
-{
-	struct device *dev;
-
-	/* Do nothing if no allocation is present. */
-	if (!page->pvr_dev)
-		return;
-
-	dev = from_pvr_device(page->pvr_dev)->dev;
-
-	dma_unmap_page(dev, page->dma_addr, PVR_MMU_BACKING_PAGE_SIZE,
-		       DMA_TO_DEVICE);
-
-	kmemleak_free(page->host_ptr);
-	vunmap(page->host_ptr);
-
-	__free_page(page->raw_page);
-
-	memset(page, 0, sizeof(*page));
+static void pvr_mmu_backing_page_fini(struct pvr_mmu_backing_page *page) {
+  struct device *dev;
+  /* Do nothing if no allocation is present. */
+  if (!page->pvr_dev) {
+    return;
+  }
+  dev = from_pvr_device(page->pvr_dev)->dev;
+  dma_unmap_page(dev, page->dma_addr, PVR_MMU_BACKING_PAGE_SIZE,
+      DMA_TO_DEVICE);
+  kmemleak_free(page->host_ptr);
+  vunmap(page->host_ptr);
+  __free_page(page->raw_page);
+  memset(page, 0, sizeof(*page));
 }
 
 /**
@@ -347,25 +320,21 @@ pvr_mmu_backing_page_fini(struct pvr_mmu_backing_page *page)
  *    pvr_mmu_backing_page_sync() once you're sure you have no more changes to
  *    make to the backing page in the immediate future.
  */
-static void
-pvr_mmu_backing_page_sync(struct pvr_mmu_backing_page *page, u32 flags)
-{
-	struct pvr_device *pvr_dev = page->pvr_dev;
-	struct device *dev;
-
-	/*
-	 * Do nothing if no allocation is present. This may be the case if
-	 * we are unmapping pages.
-	 */
-	if (!pvr_dev)
-		return;
-
-	dev = from_pvr_device(pvr_dev)->dev;
-
-	dma_sync_single_for_device(dev, page->dma_addr,
-				   PVR_MMU_BACKING_PAGE_SIZE, DMA_TO_DEVICE);
-
-	pvr_mmu_set_flush_flags(pvr_dev, flags);
+static void pvr_mmu_backing_page_sync(struct pvr_mmu_backing_page *page,
+    u32 flags) {
+  struct pvr_device *pvr_dev = page->pvr_dev;
+  struct device *dev;
+  /*
+   * Do nothing if no allocation is present. This may be the case if
+   * we are unmapping pages.
+   */
+  if (!pvr_dev) {
+    return;
+  }
+  dev = from_pvr_device(pvr_dev)->dev;
+  dma_sync_single_for_device(dev, page->dma_addr,
+      PVR_MMU_BACKING_PAGE_SIZE, DMA_TO_DEVICE);
+  pvr_mmu_set_flush_flags(pvr_dev, flags);
 }
 
 /**
@@ -373,17 +342,17 @@ pvr_mmu_backing_page_sync(struct pvr_mmu_backing_page *page, u32 flags)
  */
 
 #define PVR_PAGE_TABLE_TYPEOF_ENTRY(level_) \
-	typeof_member(struct pvr_page_table_l##level_##_entry_raw, val)
+  typeof_member(struct pvr_page_table_l ## level_ ## _entry_raw, val)
 
 #define PVR_PAGE_TABLE_FIELD_GET(level_, name_, field_, entry_)           \
-	(((entry_).val &                                           \
-	  ~ROGUE_MMUCTRL_##name_##_DATA_##field_##_CLRMSK) >> \
-	 ROGUE_MMUCTRL_##name_##_DATA_##field_##_SHIFT)
+  (((entry_).val                                             \
+  & ~ROGUE_MMUCTRL_ ## name_ ## _DATA_ ## field_ ## _CLRMSK) >> \
+  ROGUE_MMUCTRL_ ## name_ ## _DATA_ ## field_ ## _SHIFT)
 
 #define PVR_PAGE_TABLE_FIELD_PREP(level_, name_, field_, val_)            \
-	((((PVR_PAGE_TABLE_TYPEOF_ENTRY(level_))(val_))            \
-	  << ROGUE_MMUCTRL_##name_##_DATA_##field_##_SHIFT) & \
-	 ~ROGUE_MMUCTRL_##name_##_DATA_##field_##_CLRMSK)
+  ((((PVR_PAGE_TABLE_TYPEOF_ENTRY(level_))(val_))            \
+    << ROGUE_MMUCTRL_ ## name_ ## _DATA_ ## field_ ## _SHIFT)   \
+  & ~ROGUE_MMUCTRL_ ## name_ ## _DATA_ ## field_ ## _CLRMSK)
 
 /**
  * struct pvr_page_table_l2_entry_raw - A single entry in a level 2 page table.
@@ -417,15 +386,14 @@ pvr_mmu_backing_page_sync(struct pvr_mmu_backing_page *page, u32 flags)
  *        the page would result in a page fault.
  */
 struct pvr_page_table_l2_entry_raw {
-	u32 val;
+  u32 val;
 } __packed;
-static_assert(sizeof(struct pvr_page_table_l2_entry_raw) * 8 ==
-	      ROGUE_MMUCTRL_ENTRY_SIZE_PC_VALUE);
+static_assert(sizeof(struct pvr_page_table_l2_entry_raw) * 8
+    == ROGUE_MMUCTRL_ENTRY_SIZE_PC_VALUE);
 
-static bool
-pvr_page_table_l2_entry_raw_is_valid(struct pvr_page_table_l2_entry_raw entry)
-{
-	return PVR_PAGE_TABLE_FIELD_GET(2, PC, VALID, entry);
+static bool pvr_page_table_l2_entry_raw_is_valid(
+    struct pvr_page_table_l2_entry_raw entry) {
+  return PVR_PAGE_TABLE_FIELD_GET(2, PC, VALID, entry);
 }
 
 /**
@@ -438,22 +406,19 @@ pvr_page_table_l2_entry_raw_is_valid(struct pvr_page_table_l2_entry_raw entry)
  * When calling this function, @child_table_dma_addr must be a valid DMA
  * address and a multiple of %ROGUE_MMUCTRL_PC_DATA_PD_BASE_ALIGNSIZE.
  */
-static void
-pvr_page_table_l2_entry_raw_set(struct pvr_page_table_l2_entry_raw *entry,
-				dma_addr_t child_table_dma_addr)
-{
-	child_table_dma_addr >>= ROGUE_MMUCTRL_PC_DATA_PD_BASE_ALIGNSHIFT;
-
-	WRITE_ONCE(entry->val,
-		   PVR_PAGE_TABLE_FIELD_PREP(2, PC, VALID, true) |
-		   PVR_PAGE_TABLE_FIELD_PREP(2, PC, ENTRY_PENDING, false) |
-		   PVR_PAGE_TABLE_FIELD_PREP(2, PC, PD_BASE, child_table_dma_addr));
+static void pvr_page_table_l2_entry_raw_set(
+    struct pvr_page_table_l2_entry_raw *entry,
+    dma_addr_t child_table_dma_addr) {
+  child_table_dma_addr >>= ROGUE_MMUCTRL_PC_DATA_PD_BASE_ALIGNSHIFT;
+  WRITE_ONCE(entry->val,
+      PVR_PAGE_TABLE_FIELD_PREP(2, PC, VALID, true)
+      | PVR_PAGE_TABLE_FIELD_PREP(2, PC, ENTRY_PENDING, false)
+      | PVR_PAGE_TABLE_FIELD_PREP(2, PC, PD_BASE, child_table_dma_addr));
 }
 
-static void
-pvr_page_table_l2_entry_raw_clear(struct pvr_page_table_l2_entry_raw *entry)
-{
-	WRITE_ONCE(entry->val, 0);
+static void pvr_page_table_l2_entry_raw_clear(
+    struct pvr_page_table_l2_entry_raw *entry) {
+  WRITE_ONCE(entry->val, 0);
 }
 
 /**
@@ -540,15 +505,14 @@ pvr_page_table_l2_entry_raw_clear(struct pvr_page_table_l2_entry_raw *entry)
  *        result in a page fault.
  */
 struct pvr_page_table_l1_entry_raw {
-	u64 val;
+  u64 val;
 } __packed;
-static_assert(sizeof(struct pvr_page_table_l1_entry_raw) * 8 ==
-	      ROGUE_MMUCTRL_ENTRY_SIZE_PD_VALUE);
+static_assert(sizeof(struct pvr_page_table_l1_entry_raw) * 8
+    == ROGUE_MMUCTRL_ENTRY_SIZE_PD_VALUE);
 
-static bool
-pvr_page_table_l1_entry_raw_is_valid(struct pvr_page_table_l1_entry_raw entry)
-{
-	return PVR_PAGE_TABLE_FIELD_GET(1, PD, VALID, entry);
+static bool pvr_page_table_l1_entry_raw_is_valid(
+    struct pvr_page_table_l1_entry_raw entry) {
+  return PVR_PAGE_TABLE_FIELD_GET(1, PD, VALID, entry);
 }
 
 /**
@@ -561,28 +525,26 @@ pvr_page_table_l1_entry_raw_is_valid(struct pvr_page_table_l1_entry_raw entry)
  * When calling this function, @child_table_dma_addr must be a valid DMA
  * address and a multiple of 4 KiB.
  */
-static void
-pvr_page_table_l1_entry_raw_set(struct pvr_page_table_l1_entry_raw *entry,
-				dma_addr_t child_table_dma_addr)
-{
-	WRITE_ONCE(entry->val,
-		   PVR_PAGE_TABLE_FIELD_PREP(1, PD, VALID, true) |
-		   PVR_PAGE_TABLE_FIELD_PREP(1, PD, ENTRY_PENDING, false) |
-		   PVR_PAGE_TABLE_FIELD_PREP(1, PD, PAGE_SIZE, ROGUE_MMUCTRL_PAGE_SIZE_X) |
-		   /*
-		    * The use of a 4K-specific macro here is correct. It is
-		    * a future optimization to allocate sub-host-page-sized
-		    * blocks for individual tables, so the condition that any
-		    * page table address is aligned to the size of the
-		    * largest (a 4KB) table currently holds.
-		    */
-		   (child_table_dma_addr & ~ROGUE_MMUCTRL_PT_BASE_4KB_RANGE_CLRMSK));
+static void pvr_page_table_l1_entry_raw_set(
+    struct pvr_page_table_l1_entry_raw *entry,
+    dma_addr_t child_table_dma_addr) {
+  WRITE_ONCE(entry->val,
+      PVR_PAGE_TABLE_FIELD_PREP(1, PD, VALID, true)
+      | PVR_PAGE_TABLE_FIELD_PREP(1, PD, ENTRY_PENDING, false)
+      | PVR_PAGE_TABLE_FIELD_PREP(1, PD, PAGE_SIZE, ROGUE_MMUCTRL_PAGE_SIZE_X)
+      | /*
+         * The use of a 4K-specific macro here is correct. It is
+         * a future optimization to allocate sub-host-page-sized
+         * blocks for individual tables, so the condition that any
+         * page table address is aligned to the size of the
+         * largest (a 4KB) table currently holds.
+         */
+      (child_table_dma_addr & ~ROGUE_MMUCTRL_PT_BASE_4KB_RANGE_CLRMSK));
 }
 
-static void
-pvr_page_table_l1_entry_raw_clear(struct pvr_page_table_l1_entry_raw *entry)
-{
-	WRITE_ONCE(entry->val, 0);
+static void pvr_page_table_l1_entry_raw_clear(
+    struct pvr_page_table_l1_entry_raw *entry) {
+  WRITE_ONCE(entry->val, 0);
 }
 
 /**
@@ -682,10 +644,10 @@ pvr_page_table_l1_entry_raw_clear(struct pvr_page_table_l1_entry_raw *entry)
  *        in a page fault.
  */
 struct pvr_page_table_l0_entry_raw {
-	u64 val;
+  u64 val;
 } __packed;
-static_assert(sizeof(struct pvr_page_table_l0_entry_raw) * 8 ==
-	      ROGUE_MMUCTRL_ENTRY_SIZE_PT_VALUE);
+static_assert(sizeof(struct pvr_page_table_l0_entry_raw) * 8
+    == ROGUE_MMUCTRL_ENTRY_SIZE_PT_VALUE);
 
 /**
  * struct pvr_page_flags_raw - The configurable flags from a single entry in a
@@ -700,15 +662,14 @@ static_assert(sizeof(struct pvr_page_table_l0_entry_raw) * 8 ==
  * pvr_page_flags_raw_create() to ensure only valid bits of @val are set.
  */
 struct pvr_page_flags_raw {
-	struct pvr_page_table_l0_entry_raw val;
+  struct pvr_page_table_l0_entry_raw val;
 } __packed;
-static_assert(sizeof(struct pvr_page_flags_raw) ==
-	      sizeof(struct pvr_page_table_l0_entry_raw));
+static_assert(sizeof(struct pvr_page_flags_raw)
+    == sizeof(struct pvr_page_table_l0_entry_raw));
 
-static bool
-pvr_page_table_l0_entry_raw_is_valid(struct pvr_page_table_l0_entry_raw entry)
-{
-	return PVR_PAGE_TABLE_FIELD_GET(0, PT, VALID, entry);
+static bool pvr_page_table_l0_entry_raw_is_valid(
+    struct pvr_page_table_l0_entry_raw entry) {
+  return PVR_PAGE_TABLE_FIELD_GET(0, PT, VALID, entry);
 }
 
 /**
@@ -725,21 +686,19 @@ pvr_page_table_l0_entry_raw_is_valid(struct pvr_page_table_l0_entry_raw entry)
  * responsibility to ensure that only bits specified in
  * &struct pvr_page_flags_raw are set in @flags.
  */
-static void
-pvr_page_table_l0_entry_raw_set(struct pvr_page_table_l0_entry_raw *entry,
-				dma_addr_t dma_addr,
-				struct pvr_page_flags_raw flags)
-{
-	WRITE_ONCE(entry->val, PVR_PAGE_TABLE_FIELD_PREP(0, PT, VALID, true) |
-			       PVR_PAGE_TABLE_FIELD_PREP(0, PT, ENTRY_PENDING, false) |
-			       (dma_addr & ~ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK) |
-			       flags.val.val);
+static void pvr_page_table_l0_entry_raw_set(
+    struct pvr_page_table_l0_entry_raw *entry,
+    dma_addr_t dma_addr,
+    struct pvr_page_flags_raw flags) {
+  WRITE_ONCE(entry->val, PVR_PAGE_TABLE_FIELD_PREP(0, PT, VALID, true)
+      | PVR_PAGE_TABLE_FIELD_PREP(0, PT, ENTRY_PENDING, false)
+      | (dma_addr & ~ROGUE_MMUCTRL_PAGE_X_RANGE_CLRMSK)
+      | flags.val.val);
 }
 
-static void
-pvr_page_table_l0_entry_raw_clear(struct pvr_page_table_l0_entry_raw *entry)
-{
-	WRITE_ONCE(entry->val, 0);
+static void pvr_page_table_l0_entry_raw_clear(
+    struct pvr_page_table_l0_entry_raw *entry) {
+  WRITE_ONCE(entry->val, 0);
 }
 
 /**
@@ -759,19 +718,17 @@ pvr_page_table_l0_entry_raw_clear(struct pvr_page_table_l0_entry_raw *entry)
  * A new &struct pvr_page_flags_raw instance which can be passed directly to
  * pvr_page_table_l0_entry_raw_set() or pvr_page_table_l0_insert().
  */
-static struct pvr_page_flags_raw
-pvr_page_flags_raw_create(bool read_only, bool cache_coherent, bool slc_bypass,
-			  bool pm_fw_protect)
-{
-	struct pvr_page_flags_raw flags;
-
-	flags.val.val =
-		PVR_PAGE_TABLE_FIELD_PREP(0, PT, READ_ONLY, read_only) |
-		PVR_PAGE_TABLE_FIELD_PREP(0, PT, CC, cache_coherent) |
-		PVR_PAGE_TABLE_FIELD_PREP(0, PT, SLC_BYPASS_CTRL, slc_bypass) |
-		PVR_PAGE_TABLE_FIELD_PREP(0, PT, PM_META_PROTECT, pm_fw_protect);
-
-	return flags;
+static struct pvr_page_flags_raw pvr_page_flags_raw_create(bool read_only,
+    bool cache_coherent,
+    bool slc_bypass,
+    bool pm_fw_protect) {
+  struct pvr_page_flags_raw flags;
+  flags.val.val
+    = PVR_PAGE_TABLE_FIELD_PREP(0, PT, READ_ONLY, read_only)
+      | PVR_PAGE_TABLE_FIELD_PREP(0, PT, CC, cache_coherent)
+      | PVR_PAGE_TABLE_FIELD_PREP(0, PT, SLC_BYPASS_CTRL, slc_bypass)
+      | PVR_PAGE_TABLE_FIELD_PREP(0, PT, PM_META_PROTECT, pm_fw_protect);
+  return flags;
 }
 
 /**
@@ -781,11 +738,12 @@ pvr_page_flags_raw_create(bool read_only, bool cache_coherent, bool slc_bypass,
  * size is checked against %PVR_MMU_BACKING_PAGE_SIZE.
  */
 struct pvr_page_table_l2_raw {
-	/** @entries: The raw values of this table. */
-	struct pvr_page_table_l2_entry_raw
-		entries[ROGUE_MMUCTRL_ENTRIES_PC_VALUE];
+  /** @entries: The raw values of this table. */
+  struct pvr_page_table_l2_entry_raw
+      entries[ROGUE_MMUCTRL_ENTRIES_PC_VALUE];
 } __packed;
-static_assert(sizeof(struct pvr_page_table_l2_raw) == PVR_MMU_BACKING_PAGE_SIZE);
+static_assert(sizeof(struct pvr_page_table_l2_raw)
+    == PVR_MMU_BACKING_PAGE_SIZE);
 
 /**
  * struct pvr_page_table_l1_raw - The raw data of a level 1 page table.
@@ -794,11 +752,12 @@ static_assert(sizeof(struct pvr_page_table_l2_raw) == PVR_MMU_BACKING_PAGE_SIZE)
  * size is checked against %PVR_MMU_BACKING_PAGE_SIZE.
  */
 struct pvr_page_table_l1_raw {
-	/** @entries: The raw values of this table. */
-	struct pvr_page_table_l1_entry_raw
-		entries[ROGUE_MMUCTRL_ENTRIES_PD_VALUE];
+  /** @entries: The raw values of this table. */
+  struct pvr_page_table_l1_entry_raw
+      entries[ROGUE_MMUCTRL_ENTRIES_PD_VALUE];
 } __packed;
-static_assert(sizeof(struct pvr_page_table_l1_raw) == PVR_MMU_BACKING_PAGE_SIZE);
+static_assert(sizeof(struct pvr_page_table_l1_raw)
+    == PVR_MMU_BACKING_PAGE_SIZE);
 
 /**
  * struct pvr_page_table_l0_raw - The raw data of a level 0 page table.
@@ -816,11 +775,12 @@ static_assert(sizeof(struct pvr_page_table_l1_raw) == PVR_MMU_BACKING_PAGE_SIZE)
  *    read or write beyond the last supported entry.**
  */
 struct pvr_page_table_l0_raw {
-	/** @entries: The raw values of this table. */
-	struct pvr_page_table_l0_entry_raw
-		entries[ROGUE_MMUCTRL_ENTRIES_PT_VALUE_X];
+  /** @entries: The raw values of this table. */
+  struct pvr_page_table_l0_entry_raw
+      entries[ROGUE_MMUCTRL_ENTRIES_PT_VALUE_X];
 } __packed;
-static_assert(sizeof(struct pvr_page_table_l0_raw) <= PVR_MMU_BACKING_PAGE_SIZE);
+static_assert(sizeof(struct pvr_page_table_l0_raw)
+    <= PVR_MMU_BACKING_PAGE_SIZE);
 
 /**
  * DOC: Mirror page tables
@@ -844,27 +804,27 @@ struct pvr_page_table_l0;
  * this type has no &parent or &parent_idx members.
  */
 struct pvr_page_table_l2 {
-	/**
-	 * @entries: The children of this node in the page table tree
-	 * structure. These are also mirror tables. The indexing of this array
-	 * is identical to that of the raw equivalent
-	 * (&pvr_page_table_l1_raw.entries).
-	 */
-	struct pvr_page_table_l1 *entries[ROGUE_MMUCTRL_ENTRIES_PC_VALUE];
+  /**
+   * @entries: The children of this node in the page table tree
+   * structure. These are also mirror tables. The indexing of this array
+   * is identical to that of the raw equivalent
+   * (&pvr_page_table_l1_raw.entries).
+   */
+  struct pvr_page_table_l1 *entries[ROGUE_MMUCTRL_ENTRIES_PC_VALUE];
 
-	/**
-	 * @backing_page: A handle to the memory which holds the raw
-	 * equivalent of this table. **For internal use only.**
-	 */
-	struct pvr_mmu_backing_page backing_page;
+  /**
+   * @backing_page: A handle to the memory which holds the raw
+   * equivalent of this table. **For internal use only.**
+   */
+  struct pvr_mmu_backing_page backing_page;
 
-	/**
-	 * @entry_count: The current number of valid entries (that we know of)
-	 * in this table. This value is essentially a refcount - the table is
-	 * destroyed when this value is decremented to zero by
-	 * pvr_page_table_l2_remove().
-	 */
-	u16 entry_count;
+  /**
+   * @entry_count: The current number of valid entries (that we know of)
+   * in this table. This value is essentially a refcount - the table is
+   * destroyed when this value is decremented to zero by
+   * pvr_page_table_l2_remove().
+   */
+  u16 entry_count;
 };
 
 /**
@@ -880,11 +840,9 @@ struct pvr_page_table_l2 {
  *  * Any error encountered while intializing &table->backing_page using
  *    pvr_mmu_backing_page_init().
  */
-static int
-pvr_page_table_l2_init(struct pvr_page_table_l2 *table,
-		       struct pvr_device *pvr_dev)
-{
-	return pvr_mmu_backing_page_init(&table->backing_page, pvr_dev);
+static int pvr_page_table_l2_init(struct pvr_page_table_l2 *table,
+    struct pvr_device *pvr_dev) {
+  return pvr_mmu_backing_page_init(&table->backing_page, pvr_dev);
 }
 
 /**
@@ -893,10 +851,8 @@ pvr_page_table_l2_init(struct pvr_page_table_l2 *table,
  *
  * It is an error to attempt to use @table after calling this function.
  */
-static void
-pvr_page_table_l2_fini(struct pvr_page_table_l2 *table)
-{
-	pvr_mmu_backing_page_fini(&table->backing_page);
+static void pvr_page_table_l2_fini(struct pvr_page_table_l2 *table) {
+  pvr_mmu_backing_page_fini(&table->backing_page);
 }
 
 /**
@@ -912,10 +868,8 @@ pvr_page_table_l2_fini(struct pvr_page_table_l2 *table)
  * If child level 1 page tables of @table also need to be flushed, this should
  * be done first using pvr_page_table_l1_sync() *before* calling this function.
  */
-static void
-pvr_page_table_l2_sync(struct pvr_page_table_l2 *table)
-{
-	pvr_mmu_backing_page_sync(&table->backing_page, PVR_MMU_SYNC_LEVEL_2_FLAGS);
+static void pvr_page_table_l2_sync(struct pvr_page_table_l2 *table) {
+  pvr_mmu_backing_page_sync(&table->backing_page, PVR_MMU_SYNC_LEVEL_2_FLAGS);
 }
 
 /**
@@ -931,10 +885,9 @@ pvr_page_table_l2_sync(struct pvr_page_table_l2 *table)
  * Return:
  * The raw equivalent of @table.
  */
-static struct pvr_page_table_l2_raw *
-pvr_page_table_l2_get_raw(struct pvr_page_table_l2 *table)
-{
-	return table->backing_page.host_ptr;
+static struct pvr_page_table_l2_raw *pvr_page_table_l2_get_raw(
+    struct pvr_page_table_l2 *table) {
+  return table->backing_page.host_ptr;
 }
 
 /**
@@ -955,10 +908,9 @@ pvr_page_table_l2_get_raw(struct pvr_page_table_l2 *table)
  * Return:
  * A pointer to the requested raw level 2 page table entry.
  */
-static struct pvr_page_table_l2_entry_raw *
-pvr_page_table_l2_get_entry_raw(struct pvr_page_table_l2 *table, u16 idx)
-{
-	return &pvr_page_table_l2_get_raw(table)->entries[idx];
+static struct pvr_page_table_l2_entry_raw *pvr_page_table_l2_get_entry_raw(
+    struct pvr_page_table_l2 *table, u16 idx) {
+  return &pvr_page_table_l2_get_raw(table)->entries[idx];
 }
 
 /**
@@ -971,13 +923,11 @@ pvr_page_table_l2_get_entry_raw(struct pvr_page_table_l2 *table, u16 idx)
  * ensure @idx refers to a valid index within @table before calling this
  * function.
  */
-static bool
-pvr_page_table_l2_entry_is_valid(struct pvr_page_table_l2 *table, u16 idx)
-{
-	struct pvr_page_table_l2_entry_raw entry_raw =
-		*pvr_page_table_l2_get_entry_raw(table, idx);
-
-	return pvr_page_table_l2_entry_raw_is_valid(entry_raw);
+static bool pvr_page_table_l2_entry_is_valid(struct pvr_page_table_l2 *table,
+    u16 idx) {
+  struct pvr_page_table_l2_entry_raw entry_raw
+    = *pvr_page_table_l2_get_entry_raw(table, idx);
+  return pvr_page_table_l2_entry_raw_is_valid(entry_raw);
 }
 
 /**
@@ -988,55 +938,55 @@ pvr_page_table_l2_entry_is_valid(struct pvr_page_table_l2 *table, u16 idx)
  * pvr_page_table_l1_get_entry_raw().
  */
 struct pvr_page_table_l1 {
-	/**
-	 * @entries: The children of this node in the page table tree
-	 * structure. These are also mirror tables. The indexing of this array
-	 * is identical to that of the raw equivalent
-	 * (&pvr_page_table_l0_raw.entries).
-	 */
-	struct pvr_page_table_l0 *entries[ROGUE_MMUCTRL_ENTRIES_PD_VALUE];
+  /**
+   * @entries: The children of this node in the page table tree
+   * structure. These are also mirror tables. The indexing of this array
+   * is identical to that of the raw equivalent
+   * (&pvr_page_table_l0_raw.entries).
+   */
+  struct pvr_page_table_l0 *entries[ROGUE_MMUCTRL_ENTRIES_PD_VALUE];
 
-	/**
-	 * @backing_page: A handle to the memory which holds the raw
-	 * equivalent of this table. **For internal use only.**
-	 */
-	struct pvr_mmu_backing_page backing_page;
+  /**
+   * @backing_page: A handle to the memory which holds the raw
+   * equivalent of this table. **For internal use only.**
+   */
+  struct pvr_mmu_backing_page backing_page;
 
-	union {
-		/**
-		 * @parent: The parent of this node in the page table tree structure.
-		 *
-		 * This is also a mirror table.
-		 *
-		 * Only valid when the L1 page table is active. When the L1 page table
-		 * has been removed and queued for destruction, the next_free field
-		 * should be used instead.
-		 */
-		struct pvr_page_table_l2 *parent;
+  union {
+    /**
+     * @parent: The parent of this node in the page table tree structure.
+     *
+     * This is also a mirror table.
+     *
+     * Only valid when the L1 page table is active. When the L1 page table
+     * has been removed and queued for destruction, the next_free field
+     * should be used instead.
+     */
+    struct pvr_page_table_l2 *parent;
 
-		/**
-		 * @next_free: Pointer to the next L1 page table to take/free.
-		 *
-		 * Used to form a linked list of L1 page tables. This is used
-		 * when preallocating tables and when the page table has been
-		 * removed and queued for destruction.
-		 */
-		struct pvr_page_table_l1 *next_free;
-	};
+    /**
+     * @next_free: Pointer to the next L1 page table to take/free.
+     *
+     * Used to form a linked list of L1 page tables. This is used
+     * when preallocating tables and when the page table has been
+     * removed and queued for destruction.
+     */
+    struct pvr_page_table_l1 *next_free;
+  };
 
-	/**
-	 * @parent_idx: The index of the entry in the parent table (see
-	 * @parent) which corresponds to this table.
-	 */
-	u16 parent_idx;
+  /**
+   * @parent_idx: The index of the entry in the parent table (see
+   * @parent) which corresponds to this table.
+   */
+  u16 parent_idx;
 
-	/**
-	 * @entry_count: The current number of valid entries (that we know of)
-	 * in this table. This value is essentially a refcount - the table is
-	 * destroyed when this value is decremented to zero by
-	 * pvr_page_table_l1_remove().
-	 */
-	u16 entry_count;
+  /**
+   * @entry_count: The current number of valid entries (that we know of)
+   * in this table. This value is essentially a refcount - the table is
+   * destroyed when this value is decremented to zero by
+   * pvr_page_table_l1_remove().
+   */
+  u16 entry_count;
 };
 
 /**
@@ -1056,13 +1006,10 @@ struct pvr_page_table_l1 {
  *  * Any error encountered while intializing &table->backing_page using
  *    pvr_mmu_backing_page_init().
  */
-static int
-pvr_page_table_l1_init(struct pvr_page_table_l1 *table,
-		       struct pvr_device *pvr_dev)
-{
-	table->parent_idx = PVR_IDX_INVALID;
-
-	return pvr_mmu_backing_page_init(&table->backing_page, pvr_dev);
+static int pvr_page_table_l1_init(struct pvr_page_table_l1 *table,
+    struct pvr_device *pvr_dev) {
+  table->parent_idx = PVR_IDX_INVALID;
+  return pvr_mmu_backing_page_init(&table->backing_page, pvr_dev);
 }
 
 /**
@@ -1073,11 +1020,9 @@ pvr_page_table_l1_init(struct pvr_page_table_l1 *table,
  * indirectly. This includes calling pvr_page_table_l2_remove(), which must
  * be called *before* pvr_page_table_l1_free().
  */
-static void
-pvr_page_table_l1_free(struct pvr_page_table_l1 *table)
-{
-	pvr_mmu_backing_page_fini(&table->backing_page);
-	kfree(table);
+static void pvr_page_table_l1_free(struct pvr_page_table_l1 *table) {
+  pvr_mmu_backing_page_fini(&table->backing_page);
+  kfree(table);
 }
 
 /**
@@ -1093,10 +1038,8 @@ pvr_page_table_l1_free(struct pvr_page_table_l1 *table)
  * If child level 0 page tables of @table also need to be flushed, this should
  * be done first using pvr_page_table_l0_sync() *before* calling this function.
  */
-static void
-pvr_page_table_l1_sync(struct pvr_page_table_l1 *table)
-{
-	pvr_mmu_backing_page_sync(&table->backing_page, PVR_MMU_SYNC_LEVEL_1_FLAGS);
+static void pvr_page_table_l1_sync(struct pvr_page_table_l1 *table) {
+  pvr_mmu_backing_page_sync(&table->backing_page, PVR_MMU_SYNC_LEVEL_1_FLAGS);
 }
 
 /**
@@ -1112,10 +1055,9 @@ pvr_page_table_l1_sync(struct pvr_page_table_l1 *table)
  * Return:
  * The raw equivalent of @table.
  */
-static struct pvr_page_table_l1_raw *
-pvr_page_table_l1_get_raw(struct pvr_page_table_l1 *table)
-{
-	return table->backing_page.host_ptr;
+static struct pvr_page_table_l1_raw *pvr_page_table_l1_get_raw(
+    struct pvr_page_table_l1 *table) {
+  return table->backing_page.host_ptr;
 }
 
 /**
@@ -1136,10 +1078,9 @@ pvr_page_table_l1_get_raw(struct pvr_page_table_l1 *table)
  * Return:
  * A pointer to the requested raw level 1 page table entry.
  */
-static struct pvr_page_table_l1_entry_raw *
-pvr_page_table_l1_get_entry_raw(struct pvr_page_table_l1 *table, u16 idx)
-{
-	return &pvr_page_table_l1_get_raw(table)->entries[idx];
+static struct pvr_page_table_l1_entry_raw *pvr_page_table_l1_get_entry_raw(
+    struct pvr_page_table_l1 *table, u16 idx) {
+  return &pvr_page_table_l1_get_raw(table)->entries[idx];
 }
 
 /**
@@ -1152,13 +1093,11 @@ pvr_page_table_l1_get_entry_raw(struct pvr_page_table_l1 *table, u16 idx)
  * ensure @idx refers to a valid index within @table before calling this
  * function.
  */
-static bool
-pvr_page_table_l1_entry_is_valid(struct pvr_page_table_l1 *table, u16 idx)
-{
-	struct pvr_page_table_l1_entry_raw entry_raw =
-		*pvr_page_table_l1_get_entry_raw(table, idx);
-
-	return pvr_page_table_l1_entry_raw_is_valid(entry_raw);
+static bool pvr_page_table_l1_entry_is_valid(struct pvr_page_table_l1 *table,
+    u16 idx) {
+  struct pvr_page_table_l1_entry_raw entry_raw
+    = *pvr_page_table_l1_get_entry_raw(table, idx);
+  return pvr_page_table_l1_entry_raw_is_valid(entry_raw);
 }
 
 /**
@@ -1172,47 +1111,47 @@ pvr_page_table_l1_entry_is_valid(struct pvr_page_table_l1 *table, u16 idx)
  * &entries member.
  */
 struct pvr_page_table_l0 {
-	/**
-	 * @backing_page: A handle to the memory which holds the raw
-	 * equivalent of this table. **For internal use only.**
-	 */
-	struct pvr_mmu_backing_page backing_page;
+  /**
+   * @backing_page: A handle to the memory which holds the raw
+   * equivalent of this table. **For internal use only.**
+   */
+  struct pvr_mmu_backing_page backing_page;
 
-	union {
-		/**
-		 * @parent: The parent of this node in the page table tree structure.
-		 *
-		 * This is also a mirror table.
-		 *
-		 * Only valid when the L0 page table is active. When the L0 page table
-		 * has been removed and queued for destruction, the next_free field
-		 * should be used instead.
-		 */
-		struct pvr_page_table_l1 *parent;
+  union {
+    /**
+     * @parent: The parent of this node in the page table tree structure.
+     *
+     * This is also a mirror table.
+     *
+     * Only valid when the L0 page table is active. When the L0 page table
+     * has been removed and queued for destruction, the next_free field
+     * should be used instead.
+     */
+    struct pvr_page_table_l1 *parent;
 
-		/**
-		 * @next_free: Pointer to the next L0 page table to take/free.
-		 *
-		 * Used to form a linked list of L0 page tables. This is used
-		 * when preallocating tables and when the page table has been
-		 * removed and queued for destruction.
-		 */
-		struct pvr_page_table_l0 *next_free;
-	};
+    /**
+     * @next_free: Pointer to the next L0 page table to take/free.
+     *
+     * Used to form a linked list of L0 page tables. This is used
+     * when preallocating tables and when the page table has been
+     * removed and queued for destruction.
+     */
+    struct pvr_page_table_l0 *next_free;
+  };
 
-	/**
-	 * @parent_idx: The index of the entry in the parent table (see
-	 * @parent) which corresponds to this table.
-	 */
-	u16 parent_idx;
+  /**
+   * @parent_idx: The index of the entry in the parent table (see
+   * @parent) which corresponds to this table.
+   */
+  u16 parent_idx;
 
-	/**
-	 * @entry_count: The current number of valid entries (that we know of)
-	 * in this table. This value is essentially a refcount - the table is
-	 * destroyed when this value is decremented to zero by
-	 * pvr_page_table_l0_remove().
-	 */
-	u16 entry_count;
+  /**
+   * @entry_count: The current number of valid entries (that we know of)
+   * in this table. This value is essentially a refcount - the table is
+   * destroyed when this value is decremented to zero by
+   * pvr_page_table_l0_remove().
+   */
+  u16 entry_count;
 };
 
 /**
@@ -1232,13 +1171,10 @@ struct pvr_page_table_l0 {
  *  * Any error encountered while intializing &table->backing_page using
  *    pvr_mmu_backing_page_init().
  */
-static int
-pvr_page_table_l0_init(struct pvr_page_table_l0 *table,
-		       struct pvr_device *pvr_dev)
-{
-	table->parent_idx = PVR_IDX_INVALID;
-
-	return pvr_mmu_backing_page_init(&table->backing_page, pvr_dev);
+static int pvr_page_table_l0_init(struct pvr_page_table_l0 *table,
+    struct pvr_device *pvr_dev) {
+  table->parent_idx = PVR_IDX_INVALID;
+  return pvr_mmu_backing_page_init(&table->backing_page, pvr_dev);
 }
 
 /**
@@ -1249,11 +1185,9 @@ pvr_page_table_l0_init(struct pvr_page_table_l0 *table,
  * indirectly. This includes calling pvr_page_table_l1_remove(), which must
  * be called *before* pvr_page_table_l0_free().
  */
-static void
-pvr_page_table_l0_free(struct pvr_page_table_l0 *table)
-{
-	pvr_mmu_backing_page_fini(&table->backing_page);
-	kfree(table);
+static void pvr_page_table_l0_free(struct pvr_page_table_l0 *table) {
+  pvr_mmu_backing_page_fini(&table->backing_page);
+  kfree(table);
 }
 
 /**
@@ -1270,10 +1204,8 @@ pvr_page_table_l0_free(struct pvr_page_table_l0 *table)
  * using a DMA sync function (e.g. dma_sync_sg_for_device()) *before* calling
  * this function.
  */
-static void
-pvr_page_table_l0_sync(struct pvr_page_table_l0 *table)
-{
-	pvr_mmu_backing_page_sync(&table->backing_page, PVR_MMU_SYNC_LEVEL_0_FLAGS);
+static void pvr_page_table_l0_sync(struct pvr_page_table_l0 *table) {
+  pvr_mmu_backing_page_sync(&table->backing_page, PVR_MMU_SYNC_LEVEL_0_FLAGS);
 }
 
 /**
@@ -1289,10 +1221,9 @@ pvr_page_table_l0_sync(struct pvr_page_table_l0 *table)
  * Return:
  * The raw equivalent of @table.
  */
-static struct pvr_page_table_l0_raw *
-pvr_page_table_l0_get_raw(struct pvr_page_table_l0 *table)
-{
-	return table->backing_page.host_ptr;
+static struct pvr_page_table_l0_raw *pvr_page_table_l0_get_raw(
+    struct pvr_page_table_l0 *table) {
+  return table->backing_page.host_ptr;
 }
 
 /**
@@ -1314,10 +1245,9 @@ pvr_page_table_l0_get_raw(struct pvr_page_table_l0 *table)
  * Return:
  * A pointer to the requested raw level 0 page table entry.
  */
-static struct pvr_page_table_l0_entry_raw *
-pvr_page_table_l0_get_entry_raw(struct pvr_page_table_l0 *table, u16 idx)
-{
-	return &pvr_page_table_l0_get_raw(table)->entries[idx];
+static struct pvr_page_table_l0_entry_raw *pvr_page_table_l0_get_entry_raw(
+    struct pvr_page_table_l0 *table, u16 idx) {
+  return &pvr_page_table_l0_get_raw(table)->entries[idx];
 }
 
 /**
@@ -1330,13 +1260,11 @@ pvr_page_table_l0_get_entry_raw(struct pvr_page_table_l0 *table, u16 idx)
  * ensure @idx refers to a valid index within @table before calling this
  * function.
  */
-static bool
-pvr_page_table_l0_entry_is_valid(struct pvr_page_table_l0 *table, u16 idx)
-{
-	struct pvr_page_table_l0_entry_raw entry_raw =
-		*pvr_page_table_l0_get_entry_raw(table, idx);
-
-	return pvr_page_table_l0_entry_raw_is_valid(entry_raw);
+static bool pvr_page_table_l0_entry_is_valid(struct pvr_page_table_l0 *table,
+    u16 idx) {
+  struct pvr_page_table_l0_entry_raw entry_raw
+    = *pvr_page_table_l0_get_entry_raw(table, idx);
+  return pvr_page_table_l0_entry_raw_is_valid(entry_raw);
 }
 
 /**
@@ -1344,11 +1272,11 @@ pvr_page_table_l0_entry_is_valid(struct pvr_page_table_l0 *table, u16 idx)
  * catalogue level, intended for use with a VM context.
  */
 struct pvr_mmu_context {
-	/** @pvr_dev: The PVR device associated with the owning VM context. */
-	struct pvr_device *pvr_dev;
+  /** @pvr_dev: The PVR device associated with the owning VM context. */
+  struct pvr_device *pvr_dev;
 
-	/** @page_table_l2: The MMU table root. */
-	struct pvr_page_table_l2 page_table_l2;
+  /** @page_table_l2: The MMU table root. */
+  struct pvr_page_table_l2 page_table_l2;
 };
 
 /**
@@ -1358,35 +1286,35 @@ struct pvr_mmu_context {
  * Intended for embedding in a &struct pvr_mmu_op_context.
  */
 struct pvr_page_table_ptr {
-	/**
-	 * @l1_table: A cached handle to the level 1 page table the
-	 * context is currently traversing.
-	 */
-	struct pvr_page_table_l1 *l1_table;
+  /**
+   * @l1_table: A cached handle to the level 1 page table the
+   * context is currently traversing.
+   */
+  struct pvr_page_table_l1 *l1_table;
 
-	/**
-	 * @l0_table: A cached handle to the level 0 page table the
-	 * context is currently traversing.
-	 */
-	struct pvr_page_table_l0 *l0_table;
+  /**
+   * @l0_table: A cached handle to the level 0 page table the
+   * context is currently traversing.
+   */
+  struct pvr_page_table_l0 *l0_table;
 
-	/**
-	 * @l2_idx: Index into the level 2 page table the context is
-	 * currently referencing.
-	 */
-	u16 l2_idx;
+  /**
+   * @l2_idx: Index into the level 2 page table the context is
+   * currently referencing.
+   */
+  u16 l2_idx;
 
-	/**
-	 * @l1_idx: Index into the level 1 page table the context is
-	 * currently referencing.
-	 */
-	u16 l1_idx;
+  /**
+   * @l1_idx: Index into the level 1 page table the context is
+   * currently referencing.
+   */
+  u16 l1_idx;
 
-	/**
-	 * @l0_idx: Index into the level 0 page table the context is
-	 * currently referencing.
-	 */
-	u16 l0_idx;
+  /**
+   * @l0_idx: Index into the level 0 page table the context is
+   * currently referencing.
+   */
+  u16 l0_idx;
 };
 
 /**
@@ -1394,66 +1322,66 @@ struct pvr_page_table_ptr {
  * device-virtual mapping operations. Intended for use with a VM bind operation.
  */
 struct pvr_mmu_op_context {
-	/** @mmu_ctx: The MMU context associated with the owning VM context. */
-	struct pvr_mmu_context *mmu_ctx;
+  /** @mmu_ctx: The MMU context associated with the owning VM context. */
+  struct pvr_mmu_context *mmu_ctx;
 
-	/** @map: Data specifically for map operations. */
-	struct {
-		/**
-		 * @sgt: Scatter gather table containing pages pinned for use by
-		 * this context - these are currently pinned when initialising
-		 * the VM bind operation.
-		 */
-		struct sg_table *sgt;
+  /** @map: Data specifically for map operations. */
+  struct {
+    /**
+     * @sgt: Scatter gather table containing pages pinned for use by
+     * this context - these are currently pinned when initialising
+     * the VM bind operation.
+     */
+    struct sg_table *sgt;
 
-		/** @sgt_offset: Start address of the device-virtual mapping. */
-		u64 sgt_offset;
+    /** @sgt_offset: Start address of the device-virtual mapping. */
+    u64 sgt_offset;
 
-		/**
-		 * @l1_prealloc_tables: Preallocated l1 page table objects
-		 * use by this context when creating a page mapping. Linked list
-		 * fully created during initialisation.
-		 */
-		struct pvr_page_table_l1 *l1_prealloc_tables;
+    /**
+     * @l1_prealloc_tables: Preallocated l1 page table objects
+     * use by this context when creating a page mapping. Linked list
+     * fully created during initialisation.
+     */
+    struct pvr_page_table_l1 *l1_prealloc_tables;
 
-		/**
-		 * @l0_prealloc_tables: Preallocated l0 page table objects
-		 * use by this context when creating a page mapping. Linked list
-		 * fully created during initialisation.
-		 */
-		struct pvr_page_table_l0 *l0_prealloc_tables;
-	} map;
+    /**
+     * @l0_prealloc_tables: Preallocated l0 page table objects
+     * use by this context when creating a page mapping. Linked list
+     * fully created during initialisation.
+     */
+    struct pvr_page_table_l0 *l0_prealloc_tables;
+  } map;
 
-	/** @unmap: Data specifically for unmap operations. */
-	struct {
-		/**
-		 * @l1_free_tables: Collects page table objects freed by unmap
-		 * ops. Linked list empty at creation.
-		 */
-		struct pvr_page_table_l1 *l1_free_tables;
+  /** @unmap: Data specifically for unmap operations. */
+  struct {
+    /**
+     * @l1_free_tables: Collects page table objects freed by unmap
+     * ops. Linked list empty at creation.
+     */
+    struct pvr_page_table_l1 *l1_free_tables;
 
-		/**
-		 * @l0_free_tables: Collects page table objects freed by unmap
-		 * ops. Linked list empty at creation.
-		 */
-		struct pvr_page_table_l0 *l0_free_tables;
-	} unmap;
+    /**
+     * @l0_free_tables: Collects page table objects freed by unmap
+     * ops. Linked list empty at creation.
+     */
+    struct pvr_page_table_l0 *l0_free_tables;
+  } unmap;
 
-	/**
-	 * @curr_page: A reference to a single physical page as indexed by the
-	 * page table structure.
-	 */
-	struct pvr_page_table_ptr curr_page;
+  /**
+   * @curr_page: A reference to a single physical page as indexed by the
+   * page table structure.
+   */
+  struct pvr_page_table_ptr curr_page;
 
-	/**
-	 * @sync_level_required: The maximum level of the page table tree
-	 * structure which has (possibly) been modified since it was last
-	 * flushed to the device.
-	 *
-	 * This field should only be set with pvr_mmu_op_context_require_sync()
-	 * or indirectly by pvr_mmu_op_context_sync_partial().
-	 */
-	enum pvr_mmu_sync_level sync_level_required;
+  /**
+   * @sync_level_required: The maximum level of the page table tree
+   * structure which has (possibly) been modified since it was last
+   * flushed to the device.
+   *
+   * This field should only be set with pvr_mmu_op_context_require_sync()
+   * or indirectly by pvr_mmu_op_context_sync_partial().
+   */
+  enum pvr_mmu_sync_level sync_level_required;
 };
 
 /**
@@ -1469,24 +1397,20 @@ struct pvr_mmu_op_context {
  * It is the caller's responsibility to execute any memory barries to ensure
  * that the creation of @child_table is ordered before the L2 entry is inserted.
  */
-static void
-pvr_page_table_l2_insert(struct pvr_mmu_op_context *op_ctx,
-			 struct pvr_page_table_l1 *child_table)
-{
-	struct pvr_page_table_l2 *l2_table =
-		&op_ctx->mmu_ctx->page_table_l2;
-	struct pvr_page_table_l2_entry_raw *entry_raw =
-		pvr_page_table_l2_get_entry_raw(l2_table,
-						op_ctx->curr_page.l2_idx);
-
-	pvr_page_table_l2_entry_raw_set(entry_raw,
-					child_table->backing_page.dma_addr);
-
-	child_table->parent = l2_table;
-	child_table->parent_idx = op_ctx->curr_page.l2_idx;
-	l2_table->entries[op_ctx->curr_page.l2_idx] = child_table;
-	++l2_table->entry_count;
-	op_ctx->curr_page.l1_table = child_table;
+static void pvr_page_table_l2_insert(struct pvr_mmu_op_context *op_ctx,
+    struct pvr_page_table_l1 *child_table) {
+  struct pvr_page_table_l2 *l2_table
+    = &op_ctx->mmu_ctx->page_table_l2;
+  struct pvr_page_table_l2_entry_raw *entry_raw
+    = pvr_page_table_l2_get_entry_raw(l2_table,
+      op_ctx->curr_page.l2_idx);
+  pvr_page_table_l2_entry_raw_set(entry_raw,
+      child_table->backing_page.dma_addr);
+  child_table->parent = l2_table;
+  child_table->parent_idx = op_ctx->curr_page.l2_idx;
+  l2_table->entries[op_ctx->curr_page.l2_idx] = child_table;
+  ++l2_table->entry_count;
+  op_ctx->curr_page.l1_table = child_table;
 }
 
 /**
@@ -1497,26 +1421,20 @@ pvr_page_table_l2_insert(struct pvr_mmu_op_context *op_ctx,
  * It is the caller's responsibility to ensure @op_ctx.curr_page points to a
  * valid L2 entry.
  */
-static void
-pvr_page_table_l2_remove(struct pvr_mmu_op_context *op_ctx)
-{
-	struct pvr_page_table_l2 *l2_table =
-		&op_ctx->mmu_ctx->page_table_l2;
-	struct pvr_page_table_l2_entry_raw *entry_raw =
-		pvr_page_table_l2_get_entry_raw(l2_table,
-						op_ctx->curr_page.l1_table->parent_idx);
-
-	WARN_ON(op_ctx->curr_page.l1_table->parent != l2_table);
-
-	pvr_page_table_l2_entry_raw_clear(entry_raw);
-
-	l2_table->entries[op_ctx->curr_page.l1_table->parent_idx] = NULL;
-	op_ctx->curr_page.l1_table->parent_idx = PVR_IDX_INVALID;
-	op_ctx->curr_page.l1_table->next_free = op_ctx->unmap.l1_free_tables;
-	op_ctx->unmap.l1_free_tables = op_ctx->curr_page.l1_table;
-	op_ctx->curr_page.l1_table = NULL;
-
-	--l2_table->entry_count;
+static void pvr_page_table_l2_remove(struct pvr_mmu_op_context *op_ctx) {
+  struct pvr_page_table_l2 *l2_table
+    = &op_ctx->mmu_ctx->page_table_l2;
+  struct pvr_page_table_l2_entry_raw *entry_raw
+    = pvr_page_table_l2_get_entry_raw(l2_table,
+      op_ctx->curr_page.l1_table->parent_idx);
+  WARN_ON(op_ctx->curr_page.l1_table->parent != l2_table);
+  pvr_page_table_l2_entry_raw_clear(entry_raw);
+  l2_table->entries[op_ctx->curr_page.l1_table->parent_idx] = NULL;
+  op_ctx->curr_page.l1_table->parent_idx = PVR_IDX_INVALID;
+  op_ctx->curr_page.l1_table->next_free = op_ctx->unmap.l1_free_tables;
+  op_ctx->unmap.l1_free_tables = op_ctx->curr_page.l1_table;
+  op_ctx->curr_page.l1_table = NULL;
+  --l2_table->entry_count;
 }
 
 /**
@@ -1532,22 +1450,18 @@ pvr_page_table_l2_remove(struct pvr_mmu_op_context *op_ctx)
  * It is the caller's responsibility to execute any memory barries to ensure
  * that the creation of @child_table is ordered before the L1 entry is inserted.
  */
-static void
-pvr_page_table_l1_insert(struct pvr_mmu_op_context *op_ctx,
-			 struct pvr_page_table_l0 *child_table)
-{
-	struct pvr_page_table_l1_entry_raw *entry_raw =
-		pvr_page_table_l1_get_entry_raw(op_ctx->curr_page.l1_table,
-						op_ctx->curr_page.l1_idx);
-
-	pvr_page_table_l1_entry_raw_set(entry_raw,
-					child_table->backing_page.dma_addr);
-
-	child_table->parent = op_ctx->curr_page.l1_table;
-	child_table->parent_idx = op_ctx->curr_page.l1_idx;
-	op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l1_idx] = child_table;
-	++op_ctx->curr_page.l1_table->entry_count;
-	op_ctx->curr_page.l0_table = child_table;
+static void pvr_page_table_l1_insert(struct pvr_mmu_op_context *op_ctx,
+    struct pvr_page_table_l0 *child_table) {
+  struct pvr_page_table_l1_entry_raw *entry_raw
+    = pvr_page_table_l1_get_entry_raw(op_ctx->curr_page.l1_table,
+      op_ctx->curr_page.l1_idx);
+  pvr_page_table_l1_entry_raw_set(entry_raw,
+      child_table->backing_page.dma_addr);
+  child_table->parent = op_ctx->curr_page.l1_table;
+  child_table->parent_idx = op_ctx->curr_page.l1_idx;
+  op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l1_idx] = child_table;
+  ++op_ctx->curr_page.l1_table->entry_count;
+  op_ctx->curr_page.l0_table = child_table;
 }
 
 /**
@@ -1561,29 +1475,25 @@ pvr_page_table_l1_insert(struct pvr_mmu_op_context *op_ctx,
  * It is the caller's responsibility to ensure @op_ctx.curr_page points to a
  * valid L1 entry.
  */
-static void
-pvr_page_table_l1_remove(struct pvr_mmu_op_context *op_ctx)
-{
-	struct pvr_page_table_l1_entry_raw *entry_raw =
-		pvr_page_table_l1_get_entry_raw(op_ctx->curr_page.l0_table->parent,
-						op_ctx->curr_page.l0_table->parent_idx);
-
-	WARN_ON(op_ctx->curr_page.l0_table->parent !=
-		op_ctx->curr_page.l1_table);
-
-	pvr_page_table_l1_entry_raw_clear(entry_raw);
-
-	op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l0_table->parent_idx] = NULL;
-	op_ctx->curr_page.l0_table->parent_idx = PVR_IDX_INVALID;
-	op_ctx->curr_page.l0_table->next_free = op_ctx->unmap.l0_free_tables;
-	op_ctx->unmap.l0_free_tables = op_ctx->curr_page.l0_table;
-	op_ctx->curr_page.l0_table = NULL;
-
-	if (--op_ctx->curr_page.l1_table->entry_count == 0) {
-		/* Clear the parent L2 page table entry. */
-		if (op_ctx->curr_page.l1_table->parent_idx != PVR_IDX_INVALID)
-			pvr_page_table_l2_remove(op_ctx);
-	}
+static void pvr_page_table_l1_remove(struct pvr_mmu_op_context *op_ctx) {
+  struct pvr_page_table_l1_entry_raw *entry_raw
+    = pvr_page_table_l1_get_entry_raw(op_ctx->curr_page.l0_table->parent,
+      op_ctx->curr_page.l0_table->parent_idx);
+  WARN_ON(op_ctx->curr_page.l0_table->parent
+      != op_ctx->curr_page.l1_table);
+  pvr_page_table_l1_entry_raw_clear(entry_raw);
+  op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l0_table->parent_idx]
+    = NULL;
+  op_ctx->curr_page.l0_table->parent_idx = PVR_IDX_INVALID;
+  op_ctx->curr_page.l0_table->next_free = op_ctx->unmap.l0_free_tables;
+  op_ctx->unmap.l0_free_tables = op_ctx->curr_page.l0_table;
+  op_ctx->curr_page.l0_table = NULL;
+  if (--op_ctx->curr_page.l1_table->entry_count == 0) {
+    /* Clear the parent L2 page table entry. */
+    if (op_ctx->curr_page.l1_table->parent_idx != PVR_IDX_INVALID) {
+      pvr_page_table_l2_remove(op_ctx);
+    }
+  }
 }
 
 /**
@@ -1596,22 +1506,17 @@ pvr_page_table_l1_remove(struct pvr_mmu_op_context *op_ctx)
  * It is the caller's responsibility to ensure @op_ctx.curr_page points to a
  * valid L0 entry.
  */
-static void
-pvr_page_table_l0_insert(struct pvr_mmu_op_context *op_ctx,
-			 dma_addr_t dma_addr, struct pvr_page_flags_raw flags)
-{
-	struct pvr_page_table_l0_entry_raw *entry_raw =
-		pvr_page_table_l0_get_entry_raw(op_ctx->curr_page.l0_table,
-						op_ctx->curr_page.l0_idx);
-
-	pvr_page_table_l0_entry_raw_set(entry_raw, dma_addr, flags);
-
-	/*
-	 * There is no entry to set here - we don't keep a mirror of
-	 * individual pages.
-	 */
-
-	++op_ctx->curr_page.l0_table->entry_count;
+static void pvr_page_table_l0_insert(struct pvr_mmu_op_context *op_ctx,
+    dma_addr_t dma_addr, struct pvr_page_flags_raw flags) {
+  struct pvr_page_table_l0_entry_raw *entry_raw
+    = pvr_page_table_l0_get_entry_raw(op_ctx->curr_page.l0_table,
+      op_ctx->curr_page.l0_idx);
+  pvr_page_table_l0_entry_raw_set(entry_raw, dma_addr, flags);
+  /*
+   * There is no entry to set here - we don't keep a mirror of
+   * individual pages.
+   */
+  ++op_ctx->curr_page.l0_table->entry_count;
 }
 
 /**
@@ -1625,25 +1530,21 @@ pvr_page_table_l0_insert(struct pvr_mmu_op_context *op_ctx,
  * It is the caller's responsibility to ensure @op_ctx.curr_page points to a
  * valid L0 entry.
  */
-static void
-pvr_page_table_l0_remove(struct pvr_mmu_op_context *op_ctx)
-{
-	struct pvr_page_table_l0_entry_raw *entry_raw =
-		pvr_page_table_l0_get_entry_raw(op_ctx->curr_page.l0_table,
-						op_ctx->curr_page.l0_idx);
-
-	pvr_page_table_l0_entry_raw_clear(entry_raw);
-
-	/*
-	 * There is no entry to clear here - we don't keep a mirror of
-	 * individual pages.
-	 */
-
-	if (--op_ctx->curr_page.l0_table->entry_count == 0) {
-		/* Clear the parent L1 page table entry. */
-		if (op_ctx->curr_page.l0_table->parent_idx != PVR_IDX_INVALID)
-			pvr_page_table_l1_remove(op_ctx);
-	}
+static void pvr_page_table_l0_remove(struct pvr_mmu_op_context *op_ctx) {
+  struct pvr_page_table_l0_entry_raw *entry_raw
+    = pvr_page_table_l0_get_entry_raw(op_ctx->curr_page.l0_table,
+      op_ctx->curr_page.l0_idx);
+  pvr_page_table_l0_entry_raw_clear(entry_raw);
+  /*
+   * There is no entry to clear here - we don't keep a mirror of
+   * individual pages.
+   */
+  if (--op_ctx->curr_page.l0_table->entry_count == 0) {
+    /* Clear the parent L1 page table entry. */
+    if (op_ctx->curr_page.l0_table->parent_idx != PVR_IDX_INVALID) {
+      pvr_page_table_l1_remove(op_ctx);
+    }
+  }
 }
 
 /**
@@ -1662,11 +1563,9 @@ pvr_page_table_l0_remove(struct pvr_mmu_op_context *op_ctx)
  * Return:
  * The index into a level 2 page table corresponding to @device_addr.
  */
-static u16
-pvr_page_table_l2_idx(u64 device_addr)
-{
-	return (device_addr & ~ROGUE_MMUCTRL_VADDR_PC_INDEX_CLRMSK) >>
-	       ROGUE_MMUCTRL_VADDR_PC_INDEX_SHIFT;
+static u16 pvr_page_table_l2_idx(u64 device_addr) {
+  return (device_addr & ~ROGUE_MMUCTRL_VADDR_PC_INDEX_CLRMSK) >>
+    ROGUE_MMUCTRL_VADDR_PC_INDEX_SHIFT;
 }
 
 /**
@@ -1681,11 +1580,9 @@ pvr_page_table_l2_idx(u64 device_addr)
  * Return:
  * The index into a level 1 page table corresponding to @device_addr.
  */
-static u16
-pvr_page_table_l1_idx(u64 device_addr)
-{
-	return (device_addr & ~ROGUE_MMUCTRL_VADDR_PD_INDEX_CLRMSK) >>
-	       ROGUE_MMUCTRL_VADDR_PD_INDEX_SHIFT;
+static u16 pvr_page_table_l1_idx(u64 device_addr) {
+  return (device_addr & ~ROGUE_MMUCTRL_VADDR_PD_INDEX_CLRMSK) >>
+    ROGUE_MMUCTRL_VADDR_PD_INDEX_SHIFT;
 }
 
 /**
@@ -1700,11 +1597,9 @@ pvr_page_table_l1_idx(u64 device_addr)
  * Return:
  * The index into a level 0 page table corresponding to @device_addr.
  */
-static u16
-pvr_page_table_l0_idx(u64 device_addr)
-{
-	return (device_addr & ~ROGUE_MMUCTRL_VADDR_PT_INDEX_CLRMSK) >>
-	       ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT;
+static u16 pvr_page_table_l0_idx(u64 device_addr) {
+  return (device_addr & ~ROGUE_MMUCTRL_VADDR_PT_INDEX_CLRMSK) >>
+    ROGUE_MMUCTRL_PAGE_X_RANGE_SHIFT;
 }
 
 /**
@@ -1727,39 +1622,32 @@ pvr_page_table_l0_idx(u64 device_addr)
  *    If @should_insert is %true:
  *     * Any error encountered while inserting the level 1 page table.
  */
-static int
-pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
-				bool should_insert)
-{
-	struct pvr_page_table_l2 *l2_table =
-		&op_ctx->mmu_ctx->page_table_l2;
-	struct pvr_page_table_l1 *table;
-
-	if (pvr_page_table_l2_entry_is_valid(l2_table,
-					     op_ctx->curr_page.l2_idx)) {
-		op_ctx->curr_page.l1_table =
-			l2_table->entries[op_ctx->curr_page.l2_idx];
-		return 0;
-	}
-
-	if (!should_insert)
-		return -ENXIO;
-
-	/* Take a prealloced table. */
-	table = op_ctx->map.l1_prealloc_tables;
-	if (!table)
-		return -ENOMEM;
-
-	/* Pop */
-	op_ctx->map.l1_prealloc_tables = table->next_free;
-	table->next_free = NULL;
-
-	/* Ensure new table is fully written out before adding to L2 page table. */
-	wmb();
-
-	pvr_page_table_l2_insert(op_ctx, table);
-
-	return 0;
+static int pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
+    bool should_insert) {
+  struct pvr_page_table_l2 *l2_table
+    = &op_ctx->mmu_ctx->page_table_l2;
+  struct pvr_page_table_l1 *table;
+  if (pvr_page_table_l2_entry_is_valid(l2_table,
+      op_ctx->curr_page.l2_idx)) {
+    op_ctx->curr_page.l1_table
+      = l2_table->entries[op_ctx->curr_page.l2_idx];
+    return 0;
+  }
+  if (!should_insert) {
+    return -ENXIO;
+  }
+  /* Take a prealloced table. */
+  table = op_ctx->map.l1_prealloc_tables;
+  if (!table) {
+    return -ENOMEM;
+  }
+  /* Pop */
+  op_ctx->map.l1_prealloc_tables = table->next_free;
+  table->next_free = NULL;
+  /* Ensure new table is fully written out before adding to L2 page table. */
+  wmb();
+  pvr_page_table_l2_insert(op_ctx, table);
+  return 0;
 }
 
 /**
@@ -1778,37 +1666,30 @@ pvr_page_table_l1_get_or_insert(struct pvr_mmu_op_context *op_ctx,
  *    If @should_insert is %true:
  *     * Any error encountered while inserting the level 0 page table.
  */
-static int
-pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
-				bool should_insert)
-{
-	struct pvr_page_table_l0 *table;
-
-	if (pvr_page_table_l1_entry_is_valid(op_ctx->curr_page.l1_table,
-					     op_ctx->curr_page.l1_idx)) {
-		op_ctx->curr_page.l0_table =
-			op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l1_idx];
-		return 0;
-	}
-
-	if (!should_insert)
-		return -ENXIO;
-
-	/* Take a prealloced table. */
-	table = op_ctx->map.l0_prealloc_tables;
-	if (!table)
-		return -ENOMEM;
-
-	/* Pop */
-	op_ctx->map.l0_prealloc_tables = table->next_free;
-	table->next_free = NULL;
-
-	/* Ensure new table is fully written out before adding to L1 page table. */
-	wmb();
-
-	pvr_page_table_l1_insert(op_ctx, table);
-
-	return 0;
+static int pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
+    bool should_insert) {
+  struct pvr_page_table_l0 *table;
+  if (pvr_page_table_l1_entry_is_valid(op_ctx->curr_page.l1_table,
+      op_ctx->curr_page.l1_idx)) {
+    op_ctx->curr_page.l0_table
+      = op_ctx->curr_page.l1_table->entries[op_ctx->curr_page.l1_idx];
+    return 0;
+  }
+  if (!should_insert) {
+    return -ENXIO;
+  }
+  /* Take a prealloced table. */
+  table = op_ctx->map.l0_prealloc_tables;
+  if (!table) {
+    return -ENOMEM;
+  }
+  /* Pop */
+  op_ctx->map.l0_prealloc_tables = table->next_free;
+  table->next_free = NULL;
+  /* Ensure new table is fully written out before adding to L1 page table. */
+  wmb();
+  pvr_page_table_l1_insert(op_ctx, table);
+  return 0;
 }
 
 /**
@@ -1820,31 +1701,27 @@ pvr_page_table_l0_get_or_insert(struct pvr_mmu_op_context *op_ctx,
  *  * -%ENOMEM if no memory is available,
  *  * Any error code returned by pvr_page_table_l2_init().
  */
-struct pvr_mmu_context *pvr_mmu_context_create(struct pvr_device *pvr_dev)
-{
-	struct pvr_mmu_context *ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	int err;
-
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
-
-	err = pvr_page_table_l2_init(&ctx->page_table_l2, pvr_dev);
-	if (err)
-		return ERR_PTR(err);
-
-	ctx->pvr_dev = pvr_dev;
-
-	return ctx;
+struct pvr_mmu_context *pvr_mmu_context_create(struct pvr_device *pvr_dev) {
+  struct pvr_mmu_context *ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+  int err;
+  if (!ctx) {
+    return ERR_PTR(-ENOMEM);
+  }
+  err = pvr_page_table_l2_init(&ctx->page_table_l2, pvr_dev);
+  if (err) {
+    return ERR_PTR(err);
+  }
+  ctx->pvr_dev = pvr_dev;
+  return ctx;
 }
 
 /**
  * pvr_mmu_context_destroy() - Destroy an MMU context.
  * @ctx: Target MMU context.
  */
-void pvr_mmu_context_destroy(struct pvr_mmu_context *ctx)
-{
-	pvr_page_table_l2_fini(&ctx->page_table_l2);
-	kfree(ctx);
+void pvr_mmu_context_destroy(struct pvr_mmu_context *ctx) {
+  pvr_page_table_l2_fini(&ctx->page_table_l2);
+  kfree(ctx);
 }
 
 /**
@@ -1852,9 +1729,8 @@ void pvr_mmu_context_destroy(struct pvr_mmu_context *ctx)
  * page table structure behind a VM context.
  * @ctx: Target MMU context.
  */
-dma_addr_t pvr_mmu_get_root_table_dma_addr(struct pvr_mmu_context *ctx)
-{
-	return ctx->page_table_l2.backing_page.dma_addr;
+dma_addr_t pvr_mmu_get_root_table_dma_addr(struct pvr_mmu_context *ctx) {
+  return ctx->page_table_l2.backing_page.dma_addr;
 }
 
 /**
@@ -1866,24 +1742,20 @@ dma_addr_t pvr_mmu_get_root_table_dma_addr(struct pvr_mmu_context *ctx)
  *  * -%ENOMEM if no memory is available,
  *  * Any error code returned by pvr_page_table_l1_init().
  */
-static struct pvr_page_table_l1 *
-pvr_page_table_l1_alloc(struct pvr_mmu_context *ctx)
-{
-	int err;
-
-	struct pvr_page_table_l1 *table =
-		kzalloc(sizeof(*table), GFP_KERNEL);
-
-	if (!table)
-		return ERR_PTR(-ENOMEM);
-
-	err = pvr_page_table_l1_init(table, ctx->pvr_dev);
-	if (err) {
-		kfree(table);
-		return ERR_PTR(err);
-	}
-
-	return table;
+static struct pvr_page_table_l1 *pvr_page_table_l1_alloc(
+    struct pvr_mmu_context *ctx) {
+  int err;
+  struct pvr_page_table_l1 *table
+    = kzalloc(sizeof(*table), GFP_KERNEL);
+  if (!table) {
+    return ERR_PTR(-ENOMEM);
+  }
+  err = pvr_page_table_l1_init(table, ctx->pvr_dev);
+  if (err) {
+    kfree(table);
+    return ERR_PTR(err);
+  }
+  return table;
 }
 
 /**
@@ -1895,24 +1767,20 @@ pvr_page_table_l1_alloc(struct pvr_mmu_context *ctx)
  *  * -%ENOMEM if no memory is available,
  *  * Any error code returned by pvr_page_table_l0_init().
  */
-static struct pvr_page_table_l0 *
-pvr_page_table_l0_alloc(struct pvr_mmu_context *ctx)
-{
-	int err;
-
-	struct pvr_page_table_l0 *table =
-		kzalloc(sizeof(*table), GFP_KERNEL);
-
-	if (!table)
-		return ERR_PTR(-ENOMEM);
-
-	err = pvr_page_table_l0_init(table, ctx->pvr_dev);
-	if (err) {
-		kfree(table);
-		return ERR_PTR(err);
-	}
-
-	return table;
+static struct pvr_page_table_l0 *pvr_page_table_l0_alloc(
+    struct pvr_mmu_context *ctx) {
+  int err;
+  struct pvr_page_table_l0 *table
+    = kzalloc(sizeof(*table), GFP_KERNEL);
+  if (!table) {
+    return ERR_PTR(-ENOMEM);
+  }
+  err = pvr_page_table_l0_init(table, ctx->pvr_dev);
+  if (err) {
+    kfree(table);
+    return ERR_PTR(err);
+  }
+  return table;
 }
 
 /**
@@ -1921,12 +1789,11 @@ pvr_page_table_l0_alloc(struct pvr_mmu_context *ctx)
  * @op_ctx: Target MMU op context.
  * @level: Maximum page table level for which a sync is required.
  */
-static void
-pvr_mmu_op_context_require_sync(struct pvr_mmu_op_context *op_ctx,
-				enum pvr_mmu_sync_level level)
-{
-	if (op_ctx->sync_level_required < level)
-		op_ctx->sync_level_required = level;
+static void pvr_mmu_op_context_require_sync(struct pvr_mmu_op_context *op_ctx,
+    enum pvr_mmu_sync_level level) {
+  if (op_ctx->sync_level_required < level) {
+    op_ctx->sync_level_required = level;
+  }
 }
 
 /**
@@ -1940,33 +1807,29 @@ pvr_mmu_op_context_require_sync(struct pvr_mmu_op_context *op_ctx,
  * value of &op_ctx->sync_level_required as set by
  * pvr_mmu_op_context_require_sync().
  */
-static void
-pvr_mmu_op_context_sync_manual(struct pvr_mmu_op_context *op_ctx,
-			       enum pvr_mmu_sync_level level)
-{
-	/*
-	 * We sync the page table levels in ascending order (starting from the
-	 * leaf node) to ensure consistency.
-	 */
-
-	WARN_ON(level < PVR_MMU_SYNC_LEVEL_NONE);
-
-	if (level <= PVR_MMU_SYNC_LEVEL_NONE)
-		return;
-
-	if (op_ctx->curr_page.l0_table)
-		pvr_page_table_l0_sync(op_ctx->curr_page.l0_table);
-
-	if (level < PVR_MMU_SYNC_LEVEL_1)
-		return;
-
-	if (op_ctx->curr_page.l1_table)
-		pvr_page_table_l1_sync(op_ctx->curr_page.l1_table);
-
-	if (level < PVR_MMU_SYNC_LEVEL_2)
-		return;
-
-	pvr_page_table_l2_sync(&op_ctx->mmu_ctx->page_table_l2);
+static void pvr_mmu_op_context_sync_manual(struct pvr_mmu_op_context *op_ctx,
+    enum pvr_mmu_sync_level level) {
+  /*
+   * We sync the page table levels in ascending order (starting from the
+   * leaf node) to ensure consistency.
+   */
+  WARN_ON(level < PVR_MMU_SYNC_LEVEL_NONE);
+  if (level <= PVR_MMU_SYNC_LEVEL_NONE) {
+    return;
+  }
+  if (op_ctx->curr_page.l0_table) {
+    pvr_page_table_l0_sync(op_ctx->curr_page.l0_table);
+  }
+  if (level < PVR_MMU_SYNC_LEVEL_1) {
+    return;
+  }
+  if (op_ctx->curr_page.l1_table) {
+    pvr_page_table_l1_sync(op_ctx->curr_page.l1_table);
+  }
+  if (level < PVR_MMU_SYNC_LEVEL_2) {
+    return;
+  }
+  pvr_page_table_l2_sync(&op_ctx->mmu_ctx->page_table_l2);
 }
 
 /**
@@ -1983,24 +1846,21 @@ pvr_mmu_op_context_sync_manual(struct pvr_mmu_op_context *op_ctx,
  * reset as a full sync will be performed. This is equivalent to calling
  * pvr_mmu_op_context_sync().
  */
-static void
-pvr_mmu_op_context_sync_partial(struct pvr_mmu_op_context *op_ctx,
-				enum pvr_mmu_sync_level level)
-{
-	/*
-	 * If the requested sync level is greater than or equal to the
-	 * currently required sync level, we do two things:
-	 *  * Don't waste time syncing levels we haven't previously marked as
-	 *    requiring a sync, and
-	 *  * Reset the required sync level since we are about to sync
-	 *    everything that was previously marked as requiring a sync.
-	 */
-	if (level >= op_ctx->sync_level_required) {
-		level = op_ctx->sync_level_required;
-		op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
-	}
-
-	pvr_mmu_op_context_sync_manual(op_ctx, level);
+static void pvr_mmu_op_context_sync_partial(struct pvr_mmu_op_context *op_ctx,
+    enum pvr_mmu_sync_level level) {
+  /*
+   * If the requested sync level is greater than or equal to the
+   * currently required sync level, we do two things:
+   *  * Don't waste time syncing levels we haven't previously marked as
+   *    requiring a sync, and
+   *  * Reset the required sync level since we are about to sync
+   *    everything that was previously marked as requiring a sync.
+   */
+  if (level >= op_ctx->sync_level_required) {
+    level = op_ctx->sync_level_required;
+    op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
+  }
+  pvr_mmu_op_context_sync_manual(op_ctx, level);
 }
 
 /**
@@ -2012,12 +1872,9 @@ pvr_mmu_op_context_sync_partial(struct pvr_mmu_op_context *op_ctx,
  * that subsequent calls to this function will be no-ops unless @op_ctx is
  * otherwise updated.
  */
-static void
-pvr_mmu_op_context_sync(struct pvr_mmu_op_context *op_ctx)
-{
-	pvr_mmu_op_context_sync_manual(op_ctx, op_ctx->sync_level_required);
-
-	op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
+static void pvr_mmu_op_context_sync(struct pvr_mmu_op_context *op_ctx) {
+  pvr_mmu_op_context_sync_manual(op_ctx, op_ctx->sync_level_required);
+  op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
 }
 
 /**
@@ -2044,85 +1901,79 @@ pvr_mmu_op_context_sync(struct pvr_mmu_op_context *op_ctx)
  *  * Any error returned by pvr_page_table_l0_get_or_create() if
  *    @load_level_required >= 0 except -%ENXIO.
  */
-static int
-pvr_mmu_op_context_load_tables(struct pvr_mmu_op_context *op_ctx,
-			       bool should_create,
-			       enum pvr_mmu_sync_level load_level_required)
-{
-	const struct pvr_page_table_l1 *l1_head_before =
-		op_ctx->map.l1_prealloc_tables;
-	const struct pvr_page_table_l0 *l0_head_before =
-		op_ctx->map.l0_prealloc_tables;
-	int err;
-
-	/* Clear tables we're about to fetch in case of error states. */
-	if (load_level_required >= PVR_MMU_SYNC_LEVEL_1)
-		op_ctx->curr_page.l1_table = NULL;
-
-	if (load_level_required >= PVR_MMU_SYNC_LEVEL_0)
-		op_ctx->curr_page.l0_table = NULL;
-
-	/* Get or create L1 page table. */
-	if (load_level_required >= PVR_MMU_SYNC_LEVEL_1) {
-		err = pvr_page_table_l1_get_or_insert(op_ctx, should_create);
-		if (err) {
-			/*
-			 * If @should_create is %false and no L1 page table was
-			 * found, return early but without an error. Since
-			 * pvr_page_table_l1_get_or_create() can only return
-			 * -%ENXIO if @should_create is %false, there is no
-			 * need to check it here.
-			 */
-			if (err == -ENXIO)
-				err = 0;
-
-			return err;
-		}
-	}
-
-	/* Get or create L0 page table. */
-	if (load_level_required >= PVR_MMU_SYNC_LEVEL_0) {
-		err = pvr_page_table_l0_get_or_insert(op_ctx, should_create);
-		if (err) {
-			/*
-			 * If @should_create is %false and no L0 page table was
-			 * found, return early but without an error. Since
-			 * pvr_page_table_l0_get_or_insert() can only return
-			 * -%ENXIO if @should_create is %false, there is no
-			 * need to check it here.
-			 */
-			if (err == -ENXIO)
-				err = 0;
-
-			/*
-			 * At this point, an L1 page table could have been
-			 * inserted but is now empty due to the failed attempt
-			 * at inserting an L0 page table. In this instance, we
-			 * must remove the empty L1 page table ourselves as
-			 * pvr_page_table_l1_remove() is never called as part
-			 * of the error path in
-			 * pvr_page_table_l0_get_or_insert().
-			 */
-			if (l1_head_before != op_ctx->map.l1_prealloc_tables) {
-				pvr_page_table_l2_remove(op_ctx);
-				pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_2);
-			}
-
-			return err;
-		}
-	}
-
-	/*
-	 * A sync is only needed if table objects were inserted. This can be
-	 * inferred by checking if the pointer at the head of the linked list
-	 * has changed.
-	 */
-	if (l1_head_before != op_ctx->map.l1_prealloc_tables)
-		pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_2);
-	else if (l0_head_before != op_ctx->map.l0_prealloc_tables)
-		pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_1);
-
-	return 0;
+static int pvr_mmu_op_context_load_tables(struct pvr_mmu_op_context *op_ctx,
+    bool should_create,
+    enum pvr_mmu_sync_level load_level_required) {
+  const struct pvr_page_table_l1 *l1_head_before
+    = op_ctx->map.l1_prealloc_tables;
+  const struct pvr_page_table_l0 *l0_head_before
+    = op_ctx->map.l0_prealloc_tables;
+  int err;
+  /* Clear tables we're about to fetch in case of error states. */
+  if (load_level_required >= PVR_MMU_SYNC_LEVEL_1) {
+    op_ctx->curr_page.l1_table = NULL;
+  }
+  if (load_level_required >= PVR_MMU_SYNC_LEVEL_0) {
+    op_ctx->curr_page.l0_table = NULL;
+  }
+  /* Get or create L1 page table. */
+  if (load_level_required >= PVR_MMU_SYNC_LEVEL_1) {
+    err = pvr_page_table_l1_get_or_insert(op_ctx, should_create);
+    if (err) {
+      /*
+       * If @should_create is %false and no L1 page table was
+       * found, return early but without an error. Since
+       * pvr_page_table_l1_get_or_create() can only return
+       * -%ENXIO if @should_create is %false, there is no
+       * need to check it here.
+       */
+      if (err == -ENXIO) {
+        err = 0;
+      }
+      return err;
+    }
+  }
+  /* Get or create L0 page table. */
+  if (load_level_required >= PVR_MMU_SYNC_LEVEL_0) {
+    err = pvr_page_table_l0_get_or_insert(op_ctx, should_create);
+    if (err) {
+      /*
+       * If @should_create is %false and no L0 page table was
+       * found, return early but without an error. Since
+       * pvr_page_table_l0_get_or_insert() can only return
+       * -%ENXIO if @should_create is %false, there is no
+       * need to check it here.
+       */
+      if (err == -ENXIO) {
+        err = 0;
+      }
+      /*
+       * At this point, an L1 page table could have been
+       * inserted but is now empty due to the failed attempt
+       * at inserting an L0 page table. In this instance, we
+       * must remove the empty L1 page table ourselves as
+       * pvr_page_table_l1_remove() is never called as part
+       * of the error path in
+       * pvr_page_table_l0_get_or_insert().
+       */
+      if (l1_head_before != op_ctx->map.l1_prealloc_tables) {
+        pvr_page_table_l2_remove(op_ctx);
+        pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_2);
+      }
+      return err;
+    }
+  }
+  /*
+   * A sync is only needed if table objects were inserted. This can be
+   * inferred by checking if the pointer at the head of the linked list
+   * has changed.
+   */
+  if (l1_head_before != op_ctx->map.l1_prealloc_tables) {
+    pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_2);
+  } else if (l0_head_before != op_ctx->map.l0_prealloc_tables) {
+    pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_1);
+  }
+  return 0;
 }
 
 /**
@@ -2141,20 +1992,16 @@ pvr_mmu_op_context_load_tables(struct pvr_mmu_op_context *op_ctx,
  *  * 0 on success, or
  *  * Any error returned by pvr_mmu_op_context_load_tables().
  */
-static int
-pvr_mmu_op_context_set_curr_page(struct pvr_mmu_op_context *op_ctx,
-				 u64 device_addr, bool should_create)
-{
-	pvr_mmu_op_context_sync(op_ctx);
-
-	op_ctx->curr_page.l2_idx = pvr_page_table_l2_idx(device_addr);
-	op_ctx->curr_page.l1_idx = pvr_page_table_l1_idx(device_addr);
-	op_ctx->curr_page.l0_idx = pvr_page_table_l0_idx(device_addr);
-	op_ctx->curr_page.l1_table = NULL;
-	op_ctx->curr_page.l0_table = NULL;
-
-	return pvr_mmu_op_context_load_tables(op_ctx, should_create,
-					      PVR_MMU_SYNC_LEVEL_1);
+static int pvr_mmu_op_context_set_curr_page(struct pvr_mmu_op_context *op_ctx,
+    u64 device_addr, bool should_create) {
+  pvr_mmu_op_context_sync(op_ctx);
+  op_ctx->curr_page.l2_idx = pvr_page_table_l2_idx(device_addr);
+  op_ctx->curr_page.l1_idx = pvr_page_table_l1_idx(device_addr);
+  op_ctx->curr_page.l0_idx = pvr_page_table_l0_idx(device_addr);
+  op_ctx->curr_page.l1_table = NULL;
+  op_ctx->curr_page.l0_table = NULL;
+  return pvr_mmu_op_context_load_tables(op_ctx, should_create,
+      PVR_MMU_SYNC_LEVEL_1);
 }
 
 /**
@@ -2181,46 +2028,39 @@ pvr_mmu_op_context_set_curr_page(struct pvr_mmu_op_context *op_ctx,
  *  * Any error returned while attempting to create missing page tables if
  *    @should_create is %true.
  */
-static int
-pvr_mmu_op_context_next_page(struct pvr_mmu_op_context *op_ctx,
-			     bool should_create)
-{
-	s8 load_level_required = PVR_MMU_SYNC_LEVEL_NONE;
-
-	if (++op_ctx->curr_page.l0_idx != ROGUE_MMUCTRL_ENTRIES_PT_VALUE_X)
-		goto load_tables;
-
-	op_ctx->curr_page.l0_idx = 0;
-	load_level_required = PVR_MMU_SYNC_LEVEL_0;
-
-	if (++op_ctx->curr_page.l1_idx != ROGUE_MMUCTRL_ENTRIES_PD_VALUE)
-		goto load_tables;
-
-	op_ctx->curr_page.l1_idx = 0;
-	load_level_required = PVR_MMU_SYNC_LEVEL_1;
-
-	if (++op_ctx->curr_page.l2_idx != ROGUE_MMUCTRL_ENTRIES_PC_VALUE)
-		goto load_tables;
-
-	/*
-	 * If the pattern continued, we would set &op_ctx->curr_page.l2_idx to
-	 * zero here. However, that would wrap the top layer of the page table
-	 * hierarchy which is not a valid operation. Instead, we warn and return
-	 * an error.
-	 */
-	WARN(true,
-	     "%s(%p) attempted to loop the top of the page table hierarchy",
-	     __func__, op_ctx);
-	return -EPERM;
-
-	/* If indices have wrapped, we need to load new tables. */
+static int pvr_mmu_op_context_next_page(struct pvr_mmu_op_context *op_ctx,
+    bool should_create) {
+  s8 load_level_required = PVR_MMU_SYNC_LEVEL_NONE;
+  if (++op_ctx->curr_page.l0_idx != ROGUE_MMUCTRL_ENTRIES_PT_VALUE_X) {
+    goto load_tables;
+  }
+  op_ctx->curr_page.l0_idx = 0;
+  load_level_required = PVR_MMU_SYNC_LEVEL_0;
+  if (++op_ctx->curr_page.l1_idx != ROGUE_MMUCTRL_ENTRIES_PD_VALUE) {
+    goto load_tables;
+  }
+  op_ctx->curr_page.l1_idx = 0;
+  load_level_required = PVR_MMU_SYNC_LEVEL_1;
+  if (++op_ctx->curr_page.l2_idx != ROGUE_MMUCTRL_ENTRIES_PC_VALUE) {
+    goto load_tables;
+  }
+  /*
+   * If the pattern continued, we would set &op_ctx->curr_page.l2_idx to
+   * zero here. However, that would wrap the top layer of the page table
+   * hierarchy which is not a valid operation. Instead, we warn and return
+   * an error.
+   */
+  WARN(true,
+      "%s(%p) attempted to loop the top of the page table hierarchy",
+      __func__, op_ctx);
+  return -EPERM;
+  /* If indices have wrapped, we need to load new tables. */
 load_tables:
-	/* First, flush tables which will be unloaded. */
-	pvr_mmu_op_context_sync_partial(op_ctx, load_level_required);
-
-	/* Then load tables from the required level down. */
-	return pvr_mmu_op_context_load_tables(op_ctx, should_create,
-					      load_level_required);
+  /* First, flush tables which will be unloaded. */
+  pvr_mmu_op_context_sync_partial(op_ctx, load_level_required);
+  /* Then load tables from the required level down. */
+  return pvr_mmu_op_context_load_tables(op_ctx, should_create,
+      load_level_required);
 }
 
 /**
@@ -2240,21 +2080,17 @@ load_tables:
  *  * 0 on success, or
  *  * -%EEXIST if the requested page already exists.
  */
-static int
-pvr_page_create(struct pvr_mmu_op_context *op_ctx, dma_addr_t dma_addr,
-		struct pvr_page_flags_raw flags)
-{
-	/* Do not create a new page if one already exists. */
-	if (pvr_page_table_l0_entry_is_valid(op_ctx->curr_page.l0_table,
-					     op_ctx->curr_page.l0_idx)) {
-		return -EEXIST;
-	}
-
-	pvr_page_table_l0_insert(op_ctx, dma_addr, flags);
-
-	pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_0);
-
-	return 0;
+static int pvr_page_create(struct pvr_mmu_op_context *op_ctx,
+    dma_addr_t dma_addr,
+    struct pvr_page_flags_raw flags) {
+  /* Do not create a new page if one already exists. */
+  if (pvr_page_table_l0_entry_is_valid(op_ctx->curr_page.l0_table,
+      op_ctx->curr_page.l0_idx)) {
+    return -EEXIST;
+  }
+  pvr_page_table_l0_insert(op_ctx, dma_addr, flags);
+  pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_0);
+  return 0;
 }
 
 /**
@@ -2262,69 +2098,54 @@ pvr_page_create(struct pvr_mmu_op_context *op_ctx, dma_addr_t dma_addr,
  * parent level 0 page table.
  * @op_ctx: Target MMU op context.
  */
-static void
-pvr_page_destroy(struct pvr_mmu_op_context *op_ctx)
-{
-	/* Do nothing if the page does not exist. */
-	if (!pvr_page_table_l0_entry_is_valid(op_ctx->curr_page.l0_table,
-					      op_ctx->curr_page.l0_idx)) {
-		return;
-	}
-
-	/* Clear the parent L0 page table entry. */
-	pvr_page_table_l0_remove(op_ctx);
-
-	pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_0);
+static void pvr_page_destroy(struct pvr_mmu_op_context *op_ctx) {
+  /* Do nothing if the page does not exist. */
+  if (!pvr_page_table_l0_entry_is_valid(op_ctx->curr_page.l0_table,
+      op_ctx->curr_page.l0_idx)) {
+    return;
+  }
+  /* Clear the parent L0 page table entry. */
+  pvr_page_table_l0_remove(op_ctx);
+  pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_0);
 }
 
 /**
  * pvr_mmu_op_context_destroy() - Destroy an MMU op context.
  * @op_ctx: Target MMU op context.
  */
-void pvr_mmu_op_context_destroy(struct pvr_mmu_op_context *op_ctx)
-{
-	const bool flush_caches =
-		op_ctx->sync_level_required != PVR_MMU_SYNC_LEVEL_NONE;
-
-	pvr_mmu_op_context_sync(op_ctx);
-
-	/* Unmaps should be flushed immediately. Map flushes can be deferred. */
-	if (flush_caches && !op_ctx->map.sgt)
-		pvr_mmu_flush_exec(op_ctx->mmu_ctx->pvr_dev, true);
-
-	while (op_ctx->map.l0_prealloc_tables) {
-		struct pvr_page_table_l0 *tmp = op_ctx->map.l0_prealloc_tables;
-
-		op_ctx->map.l0_prealloc_tables =
-			op_ctx->map.l0_prealloc_tables->next_free;
-		pvr_page_table_l0_free(tmp);
-	}
-
-	while (op_ctx->map.l1_prealloc_tables) {
-		struct pvr_page_table_l1 *tmp = op_ctx->map.l1_prealloc_tables;
-
-		op_ctx->map.l1_prealloc_tables =
-			op_ctx->map.l1_prealloc_tables->next_free;
-		pvr_page_table_l1_free(tmp);
-	}
-
-	while (op_ctx->unmap.l0_free_tables) {
-		struct pvr_page_table_l0 *tmp = op_ctx->unmap.l0_free_tables;
-
-		op_ctx->unmap.l0_free_tables =
-			op_ctx->unmap.l0_free_tables->next_free;
-		pvr_page_table_l0_free(tmp);
-	}
-
-	while (op_ctx->unmap.l1_free_tables) {
-		struct pvr_page_table_l1 *tmp = op_ctx->unmap.l1_free_tables;
-
-		op_ctx->unmap.l1_free_tables =
-			op_ctx->unmap.l1_free_tables->next_free;
-		pvr_page_table_l1_free(tmp);
-	}
-
-	kfree(op_ctx);
+void pvr_mmu_op_context_destroy(struct pvr_mmu_op_context *op_ctx) {
+  const bool flush_caches
+    = op_ctx->sync_level_required != PVR_MMU_SYNC_LEVEL_NONE;
+  pvr_mmu_op_context_sync(op_ctx);
+  /* Unmaps should be flushed immediately. Map flushes can be deferred. */
+  if (flush_caches && !op_ctx->map.sgt) {
+    pvr_mmu_flush_exec(op_ctx->mmu_ctx->pvr_dev, true);
+  }
+  while (op_ctx->map.l0_prealloc_tables) {
+    struct pvr_page_table_l0 *tmp = op_ctx->map.l0_prealloc_tables;
+    op_ctx->map.l0_prealloc_tables
+      = op_ctx->map.l0_prealloc_tables->next_free;
+    pvr_page_table_l0_free(tmp);
+  }
+  while (op_ctx->map.l1_prealloc_tables) {
+    struct pvr_page_table_l1 *tmp = op_ctx->map.l1_prealloc_tables;
+    op_ctx->map.l1_prealloc_tables
+      = op_ctx->map.l1_prealloc_tables->next_free;
+    pvr_page_table_l1_free(tmp);
+  }
+  while (op_ctx->unmap.l0_free_tables) {
+    struct pvr_page_table_l0 *tmp = op_ctx->unmap.l0_free_tables;
+    op_ctx->unmap.l0_free_tables
+      = op_ctx->unmap.l0_free_tables->next_free;
+    pvr_page_table_l0_free(tmp);
+  }
+  while (op_ctx->unmap.l1_free_tables) {
+    struct pvr_page_table_l1 *tmp = op_ctx->unmap.l1_free_tables;
+    op_ctx->unmap.l1_free_tables
+      = op_ctx->unmap.l1_free_tables->next_free;
+    pvr_page_table_l1_free(tmp);
+  }
+  kfree(op_ctx);
 }
 
 /**
@@ -2340,74 +2161,63 @@ void pvr_mmu_op_context_destroy(struct pvr_mmu_op_context *op_ctx)
  *  * -%ENOMEM if no memory is available,
  *  * Any error code returned by pvr_page_table_l2_init().
  */
-struct pvr_mmu_op_context *
-pvr_mmu_op_context_create(struct pvr_mmu_context *ctx, struct sg_table *sgt,
-			  u64 sgt_offset, u64 size)
-{
-	int err;
-
-	struct pvr_mmu_op_context *op_ctx =
-		kzalloc(sizeof(*op_ctx), GFP_KERNEL);
-
-	if (!op_ctx)
-		return ERR_PTR(-ENOMEM);
-
-	op_ctx->mmu_ctx = ctx;
-	op_ctx->map.sgt = sgt;
-	op_ctx->map.sgt_offset = sgt_offset;
-	op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
-
-	if (size) {
-		/*
-		 * The number of page table objects we need to prealloc is
-		 * indicated by the mapping size, start offset and the sizes
-		 * of the areas mapped per PT or PD. The range calculation is
-		 * identical to that for the index into a table for a device
-		 * address, so we reuse those functions here.
-		 */
-		const u32 l1_start_idx = pvr_page_table_l2_idx(sgt_offset);
-		const u32 l1_end_idx = pvr_page_table_l2_idx(sgt_offset + size);
-		const u32 l1_count = l1_end_idx - l1_start_idx + 1;
-		const u32 l0_start_idx = pvr_page_table_l1_idx(sgt_offset);
-		const u32 l0_end_idx = pvr_page_table_l1_idx(sgt_offset + size);
-		const u32 l0_count = l0_end_idx - l0_start_idx + 1;
-
-		/*
-		 * Alloc and push page table entries until we have enough of
-		 * each type, ending with linked lists of l0 and l1 entries in
-		 * reverse order.
-		 */
-		for (int i = 0; i < l1_count; i++) {
-			struct pvr_page_table_l1 *l1_tmp =
-				pvr_page_table_l1_alloc(ctx);
-
-			err = PTR_ERR_OR_ZERO(l1_tmp);
-			if (err)
-				goto err_cleanup;
-
-			l1_tmp->next_free = op_ctx->map.l1_prealloc_tables;
-			op_ctx->map.l1_prealloc_tables = l1_tmp;
-		}
-
-		for (int i = 0; i < l0_count; i++) {
-			struct pvr_page_table_l0 *l0_tmp =
-				pvr_page_table_l0_alloc(ctx);
-
-			err = PTR_ERR_OR_ZERO(l0_tmp);
-			if (err)
-				goto err_cleanup;
-
-			l0_tmp->next_free = op_ctx->map.l0_prealloc_tables;
-			op_ctx->map.l0_prealloc_tables = l0_tmp;
-		}
-	}
-
-	return op_ctx;
-
+struct pvr_mmu_op_context *pvr_mmu_op_context_create(
+    struct pvr_mmu_context *ctx, struct sg_table *sgt,
+    u64 sgt_offset, u64 size) {
+  int err;
+  struct pvr_mmu_op_context *op_ctx
+    = kzalloc(sizeof(*op_ctx), GFP_KERNEL);
+  if (!op_ctx) {
+    return ERR_PTR(-ENOMEM);
+  }
+  op_ctx->mmu_ctx = ctx;
+  op_ctx->map.sgt = sgt;
+  op_ctx->map.sgt_offset = sgt_offset;
+  op_ctx->sync_level_required = PVR_MMU_SYNC_LEVEL_NONE;
+  if (size) {
+    /*
+     * The number of page table objects we need to prealloc is
+     * indicated by the mapping size, start offset and the sizes
+     * of the areas mapped per PT or PD. The range calculation is
+     * identical to that for the index into a table for a device
+     * address, so we reuse those functions here.
+     */
+    const u32 l1_start_idx = pvr_page_table_l2_idx(sgt_offset);
+    const u32 l1_end_idx = pvr_page_table_l2_idx(sgt_offset + size);
+    const u32 l1_count = l1_end_idx - l1_start_idx + 1;
+    const u32 l0_start_idx = pvr_page_table_l1_idx(sgt_offset);
+    const u32 l0_end_idx = pvr_page_table_l1_idx(sgt_offset + size);
+    const u32 l0_count = l0_end_idx - l0_start_idx + 1;
+    /*
+     * Alloc and push page table entries until we have enough of
+     * each type, ending with linked lists of l0 and l1 entries in
+     * reverse order.
+     */
+    for (int i = 0; i < l1_count; i++) {
+      struct pvr_page_table_l1 *l1_tmp
+        = pvr_page_table_l1_alloc(ctx);
+      err = PTR_ERR_OR_ZERO(l1_tmp);
+      if (err) {
+        goto err_cleanup;
+      }
+      l1_tmp->next_free = op_ctx->map.l1_prealloc_tables;
+      op_ctx->map.l1_prealloc_tables = l1_tmp;
+    }
+    for (int i = 0; i < l0_count; i++) {
+      struct pvr_page_table_l0 *l0_tmp
+        = pvr_page_table_l0_alloc(ctx);
+      err = PTR_ERR_OR_ZERO(l0_tmp);
+      if (err) {
+        goto err_cleanup;
+      }
+      l0_tmp->next_free = op_ctx->map.l0_prealloc_tables;
+      op_ctx->map.l0_prealloc_tables = l0_tmp;
+    }
+  }
+  return op_ctx;
 err_cleanup:
-	pvr_mmu_op_context_destroy(op_ctx);
-
-	return ERR_PTR(err);
+  pvr_mmu_op_context_destroy(op_ctx);
+  return ERR_PTR(err);
 }
 
 /**
@@ -2421,43 +2231,39 @@ err_cleanup:
  *  * Any error encountered while advancing @op_ctx.curr_page with
  *    pvr_mmu_op_context_next_page() (except -%ENXIO).
  */
-static int
-pvr_mmu_op_context_unmap_curr_page(struct pvr_mmu_op_context *op_ctx,
-				   u64 nr_pages)
-{
-	int err;
-
-	if (nr_pages == 0)
-		return 0;
-
-	/*
-	 * Destroy first page outside loop, as it doesn't require a page
-	 * advance beforehand. If the L0 page table reference in
-	 * @op_ctx.curr_page is %NULL, there cannot be a mapped page at
-	 * @op_ctx.curr_page (so skip ahead).
-	 */
-	if (op_ctx->curr_page.l0_table)
-		pvr_page_destroy(op_ctx);
-
-	for (u64 page = 1; page < nr_pages; ++page) {
-		err = pvr_mmu_op_context_next_page(op_ctx, false);
-		/*
-		 * If the page table tree structure at @op_ctx.curr_page is
-		 * incomplete, skip ahead. We don't care about unmapping pages
-		 * that cannot exist.
-		 *
-		 * FIXME: This could be made more efficient by jumping ahead
-		 * using pvr_mmu_op_context_set_curr_page().
-		 */
-		if (err == -ENXIO)
-			continue;
-		else if (err)
-			return err;
-
-		pvr_page_destroy(op_ctx);
-	}
-
-	return 0;
+static int pvr_mmu_op_context_unmap_curr_page(struct pvr_mmu_op_context *op_ctx,
+    u64 nr_pages) {
+  int err;
+  if (nr_pages == 0) {
+    return 0;
+  }
+  /*
+   * Destroy first page outside loop, as it doesn't require a page
+   * advance beforehand. If the L0 page table reference in
+   * @op_ctx.curr_page is %NULL, there cannot be a mapped page at
+   * @op_ctx.curr_page (so skip ahead).
+   */
+  if (op_ctx->curr_page.l0_table) {
+    pvr_page_destroy(op_ctx);
+  }
+  for (u64 page = 1; page < nr_pages; ++page) {
+    err = pvr_mmu_op_context_next_page(op_ctx, false);
+    /*
+     * If the page table tree structure at @op_ctx.curr_page is
+     * incomplete, skip ahead. We don't care about unmapping pages
+     * that cannot exist.
+     *
+     * FIXME: This could be made more efficient by jumping ahead
+     * using pvr_mmu_op_context_set_curr_page().
+     */
+    if (err == -ENXIO) {
+      continue;
+    } else if (err) {
+      return err;
+    }
+    pvr_page_destroy(op_ctx);
+  }
+  return 0;
 }
 
 /**
@@ -2474,15 +2280,14 @@ pvr_mmu_op_context_unmap_curr_page(struct pvr_mmu_op_context *op_ctx,
  *  * Any error code returned by pvr_page_table_ptr_init(), or
  *  * Any error code returned by pvr_page_table_ptr_unmap().
  */
-int pvr_mmu_unmap(struct pvr_mmu_op_context *op_ctx, u64 device_addr, u64 size)
-{
-	int err = pvr_mmu_op_context_set_curr_page(op_ctx, device_addr, false);
-
-	if (err)
-		return err;
-
-	return pvr_mmu_op_context_unmap_curr_page(op_ctx,
-						  size >> PVR_DEVICE_PAGE_SHIFT);
+int pvr_mmu_unmap(struct pvr_mmu_op_context *op_ctx, u64 device_addr,
+    u64 size) {
+  int err = pvr_mmu_op_context_set_curr_page(op_ctx, device_addr, false);
+  if (err) {
+    return err;
+  }
+  return pvr_mmu_op_context_unmap_curr_page(op_ctx,
+      size >> PVR_DEVICE_PAGE_SHIFT);
 }
 
 /**
@@ -2506,53 +2311,47 @@ int pvr_mmu_unmap(struct pvr_mmu_op_context *op_ctx, u64 device_addr, u64 size)
  *  * Any error encountered while advancing @op_ctx.curr_page with
  *    pvr_mmu_op_context_next_page().
  */
-static int
-pvr_mmu_map_sgl(struct pvr_mmu_op_context *op_ctx, struct scatterlist *sgl,
-		u64 offset, u64 size, struct pvr_page_flags_raw page_flags)
-{
-	const unsigned int pages = size >> PVR_DEVICE_PAGE_SHIFT;
-	dma_addr_t dma_addr = sg_dma_address(sgl) + offset;
-	const unsigned int dma_len = sg_dma_len(sgl);
-	struct pvr_page_table_ptr ptr_copy;
-	unsigned int page;
-	int err;
-
-	if (size > dma_len || offset > dma_len - size)
-		return -EINVAL;
-
-	/*
-	 * Before progressing, save a copy of the start pointer so we can use
-	 * it again if we enter an error state and have to destroy pages.
-	 */
-	memcpy(&ptr_copy, &op_ctx->curr_page, sizeof(ptr_copy));
-
-	/*
-	 * Create first page outside loop, as it doesn't require a page advance
-	 * beforehand.
-	 */
-	err = pvr_page_create(op_ctx, dma_addr, page_flags);
-	if (err)
-		return err;
-
-	for (page = 1; page < pages; ++page) {
-		err = pvr_mmu_op_context_next_page(op_ctx, true);
-		if (err)
-			goto err_destroy_pages;
-
-		dma_addr += PVR_DEVICE_PAGE_SIZE;
-
-		err = pvr_page_create(op_ctx, dma_addr, page_flags);
-		if (err)
-			goto err_destroy_pages;
-	}
-
-	return 0;
-
+static int pvr_mmu_map_sgl(struct pvr_mmu_op_context *op_ctx,
+    struct scatterlist *sgl,
+    u64 offset, u64 size, struct pvr_page_flags_raw page_flags) {
+  const unsigned int pages = size >> PVR_DEVICE_PAGE_SHIFT;
+  dma_addr_t dma_addr = sg_dma_address(sgl) + offset;
+  const unsigned int dma_len = sg_dma_len(sgl);
+  struct pvr_page_table_ptr ptr_copy;
+  unsigned int page;
+  int err;
+  if (size > dma_len || offset > dma_len - size) {
+    return -EINVAL;
+  }
+  /*
+   * Before progressing, save a copy of the start pointer so we can use
+   * it again if we enter an error state and have to destroy pages.
+   */
+  memcpy(&ptr_copy, &op_ctx->curr_page, sizeof(ptr_copy));
+  /*
+   * Create first page outside loop, as it doesn't require a page advance
+   * beforehand.
+   */
+  err = pvr_page_create(op_ctx, dma_addr, page_flags);
+  if (err) {
+    return err;
+  }
+  for (page = 1; page < pages; ++page) {
+    err = pvr_mmu_op_context_next_page(op_ctx, true);
+    if (err) {
+      goto err_destroy_pages;
+    }
+    dma_addr += PVR_DEVICE_PAGE_SIZE;
+    err = pvr_page_create(op_ctx, dma_addr, page_flags);
+    if (err) {
+      goto err_destroy_pages;
+    }
+  }
+  return 0;
 err_destroy_pages:
-	memcpy(&op_ctx->curr_page, &ptr_copy, sizeof(op_ctx->curr_page));
-	err = pvr_mmu_op_context_unmap_curr_page(op_ctx, page);
-
-	return err;
+  memcpy(&op_ctx->curr_page, &ptr_copy, sizeof(op_ctx->curr_page));
+  err = pvr_mmu_op_context_unmap_curr_page(op_ctx, page);
+  return err;
 }
 
 /**
@@ -2570,71 +2369,61 @@ err_destroy_pages:
  *  * Any error code returned by pvr_page_table_ptr_next_page().
  */
 int pvr_mmu_map(struct pvr_mmu_op_context *op_ctx, u64 size, u64 flags,
-		u64 device_addr)
-{
-	struct pvr_page_table_ptr ptr_copy;
-	struct pvr_page_flags_raw flags_raw;
-	struct scatterlist *sgl;
-	u64 mapped_size = 0;
-	unsigned int count;
-	int err;
-
-	if (!size)
-		return 0;
-
-	if ((op_ctx->map.sgt_offset | size) & ~PVR_DEVICE_PAGE_MASK)
-		return -EINVAL;
-
-	err = pvr_mmu_op_context_set_curr_page(op_ctx, device_addr, true);
-	if (err)
-		return -EINVAL;
-
-	memcpy(&ptr_copy, &op_ctx->curr_page, sizeof(ptr_copy));
-
-	flags_raw = pvr_page_flags_raw_create(false, false,
-					      flags & DRM_PVR_BO_BYPASS_DEVICE_CACHE,
-					      flags & DRM_PVR_BO_PM_FW_PROTECT);
-
-	/* Map scatter gather table */
-	for_each_sgtable_dma_sg(op_ctx->map.sgt, sgl, count) {
-		const size_t sgl_len = sg_dma_len(sgl);
-		u64 sgl_offset, map_sgl_len;
-
-		if (sgl_len <= op_ctx->map.sgt_offset) {
-			op_ctx->map.sgt_offset -= sgl_len;
-			continue;
-		}
-
-		sgl_offset = op_ctx->map.sgt_offset;
-		map_sgl_len = min_t(u64, sgl_len - sgl_offset, size - mapped_size);
-
-		err = pvr_mmu_map_sgl(op_ctx, sgl, sgl_offset, map_sgl_len,
-				      flags_raw);
-		if (err)
-			break;
-
-		/*
-		 * Flag the L0 page table as requiring a flush when the MMU op
-		 * context is destroyed.
-		 */
-		pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_0);
-
-		op_ctx->map.sgt_offset = 0;
-		mapped_size += map_sgl_len;
-
-		if (mapped_size >= size)
-			break;
-
-		err = pvr_mmu_op_context_next_page(op_ctx, true);
-		if (err)
-			break;
-	}
-
-	if (err && mapped_size) {
-		memcpy(&op_ctx->curr_page, &ptr_copy, sizeof(op_ctx->curr_page));
-		pvr_mmu_op_context_unmap_curr_page(op_ctx,
-						   mapped_size >> PVR_DEVICE_PAGE_SHIFT);
-	}
-
-	return err;
+    u64 device_addr) {
+  struct pvr_page_table_ptr ptr_copy;
+  struct pvr_page_flags_raw flags_raw;
+  struct scatterlist *sgl;
+  u64 mapped_size = 0;
+  unsigned int count;
+  int err;
+  if (!size) {
+    return 0;
+  }
+  if ((op_ctx->map.sgt_offset | size) & ~PVR_DEVICE_PAGE_MASK) {
+    return -EINVAL;
+  }
+  err = pvr_mmu_op_context_set_curr_page(op_ctx, device_addr, true);
+  if (err) {
+    return -EINVAL;
+  }
+  memcpy(&ptr_copy, &op_ctx->curr_page, sizeof(ptr_copy));
+  flags_raw = pvr_page_flags_raw_create(false, false,
+      flags & DRM_PVR_BO_BYPASS_DEVICE_CACHE,
+      flags & DRM_PVR_BO_PM_FW_PROTECT);
+  /* Map scatter gather table */
+  for_each_sgtable_dma_sg(op_ctx->map.sgt, sgl, count) {
+    const size_t sgl_len = sg_dma_len(sgl);
+    u64 sgl_offset, map_sgl_len;
+    if (sgl_len <= op_ctx->map.sgt_offset) {
+      op_ctx->map.sgt_offset -= sgl_len;
+      continue;
+    }
+    sgl_offset = op_ctx->map.sgt_offset;
+    map_sgl_len = min_t(u64, sgl_len - sgl_offset, size - mapped_size);
+    err = pvr_mmu_map_sgl(op_ctx, sgl, sgl_offset, map_sgl_len,
+        flags_raw);
+    if (err) {
+      break;
+    }
+    /*
+     * Flag the L0 page table as requiring a flush when the MMU op
+     * context is destroyed.
+     */
+    pvr_mmu_op_context_require_sync(op_ctx, PVR_MMU_SYNC_LEVEL_0);
+    op_ctx->map.sgt_offset = 0;
+    mapped_size += map_sgl_len;
+    if (mapped_size >= size) {
+      break;
+    }
+    err = pvr_mmu_op_context_next_page(op_ctx, true);
+    if (err) {
+      break;
+    }
+  }
+  if (err && mapped_size) {
+    memcpy(&op_ctx->curr_page, &ptr_copy, sizeof(op_ctx->curr_page));
+    pvr_mmu_op_context_unmap_curr_page(op_ctx,
+        mapped_size >> PVR_DEVICE_PAGE_SHIFT);
+  }
+  return err;
 }

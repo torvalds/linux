@@ -32,9 +32,9 @@ struct drm_connector;
 struct i2c_adapter;
 
 ssize_t drm_scdc_read(struct i2c_adapter *adapter, u8 offset, void *buffer,
-		      size_t size);
+    size_t size);
 ssize_t drm_scdc_write(struct i2c_adapter *adapter, u8 offset,
-		       const void *buffer, size_t size);
+    const void *buffer, size_t size);
 
 /**
  * drm_scdc_readb - read a single byte from SCDC
@@ -49,9 +49,8 @@ ssize_t drm_scdc_write(struct i2c_adapter *adapter, u8 offset,
  * 0 on success or a negative error code on failure.
  */
 static inline int drm_scdc_readb(struct i2c_adapter *adapter, u8 offset,
-				 u8 *value)
-{
-	return drm_scdc_read(adapter, offset, value, sizeof(*value));
+    u8 *value) {
+  return drm_scdc_read(adapter, offset, value, sizeof(*value));
 }
 
 /**
@@ -67,14 +66,14 @@ static inline int drm_scdc_readb(struct i2c_adapter *adapter, u8 offset,
  * 0 on success or a negative error code on failure.
  */
 static inline int drm_scdc_writeb(struct i2c_adapter *adapter, u8 offset,
-				  u8 value)
-{
-	return drm_scdc_write(adapter, offset, &value, sizeof(value));
+    u8 value) {
+  return drm_scdc_write(adapter, offset, &value, sizeof(value));
 }
 
 bool drm_scdc_get_scrambling_status(struct drm_connector *connector);
 
 bool drm_scdc_set_scrambling(struct drm_connector *connector, bool enable);
-bool drm_scdc_set_high_tmds_clock_ratio(struct drm_connector *connector, bool set);
+bool drm_scdc_set_high_tmds_clock_ratio(struct drm_connector *connector,
+    bool set);
 
 #endif

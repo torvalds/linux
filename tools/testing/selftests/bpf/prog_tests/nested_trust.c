@@ -5,8 +5,7 @@
 #include "nested_trust_failure.skel.h"
 #include "nested_trust_success.skel.h"
 
-void test_nested_trust(void)
-{
-	RUN_TESTS(nested_trust_success);
-	RUN_TESTS(nested_trust_failure);
+void test_nested_trust(void) {
+  RUN_TESTS(nested_trust_success);
+  RUN_TESTS(nested_trust_failure);
 }

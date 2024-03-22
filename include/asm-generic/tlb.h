@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* include/asm-generic/tlb.h
  *
- *	Generic TLB shootdown code
+ *  Generic TLB shootdown code
  *
  * Copyright 2001 Red Hat, Inc.
  * Based on code from mm/memory.c Copyright Linus Torvalds and others.
@@ -23,7 +23,7 @@
  * the loaded mm.
  */
 #ifndef nmi_uaccess_okay
-# define nmi_uaccess_okay() true
+#define nmi_uaccess_okay() true
 #endif
 
 #ifdef CONFIG_MMU
@@ -95,7 +95,7 @@
  *                              related state, like the range)
  *
  *    tlb_flush_mmu() - in addition to the above TLB invalidate, also frees
- *			whatever pages are still batched.
+ *      whatever pages are still batched.
  *
  *  - mmu_gather::fullmm
  *
@@ -166,12 +166,13 @@
  *
  *  MMU_GATHER_NO_FLUSH_CACHE
  *
- *  Indicates the architecture has flush_cache_range() but it needs *NOT* be called
+ *  Indicates the architecture has flush_cache_range() but it needs *NOT* be
+ * called
  *  before unmapping a VMA.
  *
  *  NOTE: strictly speaking we shouldn't have this knob and instead rely on
- *	  flush_cache_range() being a NOP, except Sparc64 seems to be
- *	  different here.
+ *    flush_cache_range() being a NOP, except Sparc64 seems to be
+ *    different here.
  *
  *  MMU_GATHER_MERGE_VMAS
  *
@@ -198,14 +199,14 @@
 
 struct mmu_table_batch {
 #ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE
-	struct rcu_head		rcu;
+  struct rcu_head rcu;
 #endif
-	unsigned int		nr;
-	void			*tables[];
+  unsigned int nr;
+  void *tables[];
 };
 
-#define MAX_TABLE_BATCH		\
-	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
+#define MAX_TABLE_BATCH   \
+  ((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
 
 extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 
@@ -236,27 +237,27 @@ void tlb_remove_table_sync_one(void);
 #error tlb_needs_table_invalidate() requires MMU_GATHER_RCU_TABLE_FREE
 #endif
 
-static inline void tlb_remove_table_sync_one(void) { }
+static inline void tlb_remove_table_sync_one(void) {
+}
 
 #endif /* CONFIG_MMU_GATHER_RCU_TABLE_FREE */
-
 
 #ifndef CONFIG_MMU_GATHER_NO_GATHER
 /*
  * If we can't allocate a page to make a big batch of page pointers
  * to work on, then just handle a few from the on-stack structure.
  */
-#define MMU_GATHER_BUNDLE	8
+#define MMU_GATHER_BUNDLE 8
 
 struct mmu_gather_batch {
-	struct mmu_gather_batch	*next;
-	unsigned int		nr;
-	unsigned int		max;
-	struct encoded_page	*encoded_pages[];
+  struct mmu_gather_batch *next;
+  unsigned int nr;
+  unsigned int max;
+  struct encoded_page *encoded_pages[];
 };
 
-#define MAX_GATHER_BATCH	\
-	((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
+#define MAX_GATHER_BATCH  \
+  ((PAGE_SIZE - sizeof(struct mmu_gather_batch)) / sizeof(void *))
 
 /*
  * Limit the maximum number of mmu_gather batches to reduce a risk of soft
@@ -264,12 +265,12 @@ struct mmu_gather_batch {
  * is zapped during unmapping.
  * 10K pages freed at once should be safe even without a preemption point.
  */
-#define MAX_GATHER_BATCH_COUNT	(10000UL/MAX_GATHER_BATCH)
+#define MAX_GATHER_BATCH_COUNT  (10000UL / MAX_GATHER_BATCH)
 
 extern bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page,
-		bool delay_rmap, int page_size);
+    bool delay_rmap, int page_size);
 bool __tlb_remove_folio_pages(struct mmu_gather *tlb, struct page *page,
-		unsigned int nr_pages, bool delay_rmap);
+    unsigned int nr_pages, bool delay_rmap);
 
 #ifdef CONFIG_SMP
 /*
@@ -291,7 +292,10 @@ extern void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma);
  */
 #ifndef tlb_delay_rmap
 #define tlb_delay_rmap(tlb) (false)
-static inline void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct *vma) { }
+static inline void tlb_flush_rmaps(struct mmu_gather *tlb,
+    struct vm_area_struct *vma) {
+}
+
 #endif
 
 /*
@@ -299,60 +303,60 @@ static inline void tlb_flush_rmaps(struct mmu_gather *tlb, struct vm_area_struct
  * any data needed by arch specific code for tlb_remove_page.
  */
 struct mmu_gather {
-	struct mm_struct	*mm;
+  struct mm_struct *mm;
 
 #ifdef CONFIG_MMU_GATHER_TABLE_FREE
-	struct mmu_table_batch	*batch;
+  struct mmu_table_batch *batch;
 #endif
 
-	unsigned long		start;
-	unsigned long		end;
-	/*
-	 * we are in the middle of an operation to clear
-	 * a full mm and can make some optimizations
-	 */
-	unsigned int		fullmm : 1;
+  unsigned long start;
+  unsigned long end;
+  /*
+   * we are in the middle of an operation to clear
+   * a full mm and can make some optimizations
+   */
+  unsigned int fullmm : 1;
 
-	/*
-	 * we have performed an operation which
-	 * requires a complete flush of the tlb
-	 */
-	unsigned int		need_flush_all : 1;
+  /*
+   * we have performed an operation which
+   * requires a complete flush of the tlb
+   */
+  unsigned int need_flush_all : 1;
 
-	/*
-	 * we have removed page directories
-	 */
-	unsigned int		freed_tables : 1;
+  /*
+   * we have removed page directories
+   */
+  unsigned int freed_tables : 1;
 
-	/*
-	 * Do we have pending delayed rmap removals?
-	 */
-	unsigned int		delayed_rmap : 1;
+  /*
+   * Do we have pending delayed rmap removals?
+   */
+  unsigned int delayed_rmap : 1;
 
-	/*
-	 * at which levels have we cleared entries?
-	 */
-	unsigned int		cleared_ptes : 1;
-	unsigned int		cleared_pmds : 1;
-	unsigned int		cleared_puds : 1;
-	unsigned int		cleared_p4ds : 1;
+  /*
+   * at which levels have we cleared entries?
+   */
+  unsigned int cleared_ptes : 1;
+  unsigned int cleared_pmds : 1;
+  unsigned int cleared_puds : 1;
+  unsigned int cleared_p4ds : 1;
 
-	/*
-	 * tracks VM_EXEC | VM_HUGETLB in tlb_start_vma
-	 */
-	unsigned int		vma_exec : 1;
-	unsigned int		vma_huge : 1;
-	unsigned int		vma_pfn  : 1;
+  /*
+   * tracks VM_EXEC | VM_HUGETLB in tlb_start_vma
+   */
+  unsigned int vma_exec : 1;
+  unsigned int vma_huge : 1;
+  unsigned int vma_pfn  : 1;
 
-	unsigned int		batch_count;
+  unsigned int batch_count;
 
 #ifndef CONFIG_MMU_GATHER_NO_GATHER
-	struct mmu_gather_batch *active;
-	struct mmu_gather_batch	local;
-	struct page		*__pages[MMU_GATHER_BUNDLE];
+  struct mmu_gather_batch *active;
+  struct mmu_gather_batch local;
+  struct page *__pages[MMU_GATHER_BUNDLE];
 
 #ifdef CONFIG_MMU_GATHER_PAGE_SIZE
-	unsigned int page_size;
+  unsigned int page_size;
 #endif
 #endif
 };
@@ -360,31 +364,29 @@ struct mmu_gather {
 void tlb_flush_mmu(struct mmu_gather *tlb);
 
 static inline void __tlb_adjust_range(struct mmu_gather *tlb,
-				      unsigned long address,
-				      unsigned int range_size)
-{
-	tlb->start = min(tlb->start, address);
-	tlb->end = max(tlb->end, address + range_size);
+    unsigned long address,
+    unsigned int range_size) {
+  tlb->start = min(tlb->start, address);
+  tlb->end = max(tlb->end, address + range_size);
 }
 
-static inline void __tlb_reset_range(struct mmu_gather *tlb)
-{
-	if (tlb->fullmm) {
-		tlb->start = tlb->end = ~0;
-	} else {
-		tlb->start = TASK_SIZE;
-		tlb->end = 0;
-	}
-	tlb->freed_tables = 0;
-	tlb->cleared_ptes = 0;
-	tlb->cleared_pmds = 0;
-	tlb->cleared_puds = 0;
-	tlb->cleared_p4ds = 0;
-	/*
-	 * Do not reset mmu_gather::vma_* fields here, we do not
-	 * call into tlb_start_vma() again to set them if there is an
-	 * intermediate flush.
-	 */
+static inline void __tlb_reset_range(struct mmu_gather *tlb) {
+  if (tlb->fullmm) {
+    tlb->start = tlb->end = ~0;
+  } else {
+    tlb->start = TASK_SIZE;
+    tlb->end = 0;
+  }
+  tlb->freed_tables = 0;
+  tlb->cleared_ptes = 0;
+  tlb->cleared_pmds = 0;
+  tlb->cleared_puds = 0;
+  tlb->cleared_p4ds = 0;
+  /*
+   * Do not reset mmu_gather::vma_* fields here, we do not
+   * call into tlb_start_vma() again to set them if there is an
+   * intermediate flush.
+   */
 }
 
 #ifdef CONFIG_MMU_GATHER_NO_RANGE
@@ -401,10 +403,10 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
  *
  * All we need to do is issue a full flush for any !0 range.
  */
-static inline void tlb_flush(struct mmu_gather *tlb)
-{
-	if (tlb->end)
-		flush_tlb_mm(tlb->mm);
+static inline void tlb_flush(struct mmu_gather *tlb) {
+  if (tlb->end) {
+    flush_tlb_mm(tlb->mm);
+  }
 }
 
 #else /* CONFIG_MMU_GATHER_NO_RANGE */
@@ -415,120 +417,114 @@ static inline void tlb_flush(struct mmu_gather *tlb)
  * but does have a reasonably efficient flush_vma_range() implementation
  * use that.
  */
-static inline void tlb_flush(struct mmu_gather *tlb)
-{
-	if (tlb->fullmm || tlb->need_flush_all) {
-		flush_tlb_mm(tlb->mm);
-	} else if (tlb->end) {
-		struct vm_area_struct vma = {
-			.vm_mm = tlb->mm,
-			.vm_flags = (tlb->vma_exec ? VM_EXEC    : 0) |
-				    (tlb->vma_huge ? VM_HUGETLB : 0),
-		};
-
-		flush_tlb_range(&vma, tlb->start, tlb->end);
-	}
+static inline void tlb_flush(struct mmu_gather *tlb) {
+  if (tlb->fullmm || tlb->need_flush_all) {
+    flush_tlb_mm(tlb->mm);
+  } else if (tlb->end) {
+    struct vm_area_struct vma = {
+      .vm_mm = tlb->mm,
+      .vm_flags = (tlb->vma_exec ? VM_EXEC : 0)
+          | (tlb->vma_huge ? VM_HUGETLB : 0),
+    };
+    flush_tlb_range(&vma, tlb->start, tlb->end);
+  }
 }
+
 #endif
 
 #endif /* CONFIG_MMU_GATHER_NO_RANGE */
 
-static inline void
-tlb_update_vma_flags(struct mmu_gather *tlb, struct vm_area_struct *vma)
-{
-	/*
-	 * flush_tlb_range() implementations that look at VM_HUGETLB (tile,
-	 * mips-4k) flush only large pages.
-	 *
-	 * flush_tlb_range() implementations that flush I-TLB also flush D-TLB
-	 * (tile, xtensa, arm), so it's ok to just add VM_EXEC to an existing
-	 * range.
-	 *
-	 * We rely on tlb_end_vma() to issue a flush, such that when we reset
-	 * these values the batch is empty.
-	 */
-	tlb->vma_huge = is_vm_hugetlb_page(vma);
-	tlb->vma_exec = !!(vma->vm_flags & VM_EXEC);
-	tlb->vma_pfn  = !!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP));
+static inline void tlb_update_vma_flags(struct mmu_gather *tlb,
+    struct vm_area_struct *vma) {
+  /*
+   * flush_tlb_range() implementations that look at VM_HUGETLB (tile,
+   * mips-4k) flush only large pages.
+   *
+   * flush_tlb_range() implementations that flush I-TLB also flush D-TLB
+   * (tile, xtensa, arm), so it's ok to just add VM_EXEC to an existing
+   * range.
+   *
+   * We rely on tlb_end_vma() to issue a flush, such that when we reset
+   * these values the batch is empty.
+   */
+  tlb->vma_huge = is_vm_hugetlb_page(vma);
+  tlb->vma_exec = !!(vma->vm_flags & VM_EXEC);
+  tlb->vma_pfn = !!(vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP));
 }
 
-static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
-{
-	/*
-	 * Anything calling __tlb_adjust_range() also sets at least one of
-	 * these bits.
-	 */
-	if (!(tlb->freed_tables || tlb->cleared_ptes || tlb->cleared_pmds ||
-	      tlb->cleared_puds || tlb->cleared_p4ds))
-		return;
-
-	tlb_flush(tlb);
-	__tlb_reset_range(tlb);
+static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb) {
+  /*
+   * Anything calling __tlb_adjust_range() also sets at least one of
+   * these bits.
+   */
+  if (!(tlb->freed_tables || tlb->cleared_ptes || tlb->cleared_pmds
+      || tlb->cleared_puds || tlb->cleared_p4ds)) {
+    return;
+  }
+  tlb_flush(tlb);
+  __tlb_reset_range(tlb);
 }
 
 static inline void tlb_remove_page_size(struct mmu_gather *tlb,
-					struct page *page, int page_size)
-{
-	if (__tlb_remove_page_size(tlb, page, false, page_size))
-		tlb_flush_mmu(tlb);
+    struct page *page, int page_size) {
+  if (__tlb_remove_page_size(tlb, page, false, page_size)) {
+    tlb_flush_mmu(tlb);
+  }
 }
 
 static __always_inline bool __tlb_remove_page(struct mmu_gather *tlb,
-		struct page *page, bool delay_rmap)
-{
-	return __tlb_remove_page_size(tlb, page, delay_rmap, PAGE_SIZE);
+    struct page *page, bool delay_rmap) {
+  return __tlb_remove_page_size(tlb, page, delay_rmap, PAGE_SIZE);
 }
 
 /* tlb_remove_page
- *	Similar to __tlb_remove_page but will call tlb_flush_mmu() itself when
- *	required.
+ *  Similar to __tlb_remove_page but will call tlb_flush_mmu() itself when
+ *  required.
  */
-static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
-{
-	return tlb_remove_page_size(tlb, page, PAGE_SIZE);
+static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page) {
+  return tlb_remove_page_size(tlb, page, PAGE_SIZE);
 }
 
-static inline void tlb_remove_ptdesc(struct mmu_gather *tlb, void *pt)
-{
-	tlb_remove_table(tlb, pt);
+static inline void tlb_remove_ptdesc(struct mmu_gather *tlb, void *pt) {
+  tlb_remove_table(tlb, pt);
 }
 
 /* Like tlb_remove_ptdesc, but for page-like page directories. */
-static inline void tlb_remove_page_ptdesc(struct mmu_gather *tlb, struct ptdesc *pt)
-{
-	tlb_remove_page(tlb, ptdesc_page(pt));
+static inline void tlb_remove_page_ptdesc(struct mmu_gather *tlb,
+    struct ptdesc *pt) {
+  tlb_remove_page(tlb, ptdesc_page(pt));
 }
 
 static inline void tlb_change_page_size(struct mmu_gather *tlb,
-						     unsigned int page_size)
-{
+    unsigned int page_size) {
 #ifdef CONFIG_MMU_GATHER_PAGE_SIZE
-	if (tlb->page_size && tlb->page_size != page_size) {
-		if (!tlb->fullmm && !tlb->need_flush_all)
-			tlb_flush_mmu(tlb);
-	}
-
-	tlb->page_size = page_size;
+  if (tlb->page_size && tlb->page_size != page_size) {
+    if (!tlb->fullmm && !tlb->need_flush_all) {
+      tlb_flush_mmu(tlb);
+    }
+  }
+  tlb->page_size = page_size;
 #endif
 }
 
-static inline unsigned long tlb_get_unmap_shift(struct mmu_gather *tlb)
-{
-	if (tlb->cleared_ptes)
-		return PAGE_SHIFT;
-	if (tlb->cleared_pmds)
-		return PMD_SHIFT;
-	if (tlb->cleared_puds)
-		return PUD_SHIFT;
-	if (tlb->cleared_p4ds)
-		return P4D_SHIFT;
-
-	return PAGE_SHIFT;
+static inline unsigned long tlb_get_unmap_shift(struct mmu_gather *tlb) {
+  if (tlb->cleared_ptes) {
+    return PAGE_SHIFT;
+  }
+  if (tlb->cleared_pmds) {
+    return PMD_SHIFT;
+  }
+  if (tlb->cleared_puds) {
+    return PUD_SHIFT;
+  }
+  if (tlb->cleared_p4ds) {
+    return P4D_SHIFT;
+  }
+  return PAGE_SHIFT;
 }
 
-static inline unsigned long tlb_get_unmap_size(struct mmu_gather *tlb)
-{
-	return 1UL << tlb_get_unmap_shift(tlb);
+static inline unsigned long tlb_get_unmap_size(struct mmu_gather *tlb) {
+  return 1UL << tlb_get_unmap_shift(tlb);
 }
 
 /*
@@ -536,35 +532,35 @@ static inline unsigned long tlb_get_unmap_size(struct mmu_gather *tlb)
  * case where we're doing a full MM flush.  When we're doing a munmap,
  * the vmas are adjusted to only cover the region to be torn down.
  */
-static inline void tlb_start_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
-{
-	if (tlb->fullmm)
-		return;
-
-	tlb_update_vma_flags(tlb, vma);
+static inline void tlb_start_vma(struct mmu_gather *tlb,
+    struct vm_area_struct *vma) {
+  if (tlb->fullmm) {
+    return;
+  }
+  tlb_update_vma_flags(tlb, vma);
 #ifndef CONFIG_MMU_GATHER_NO_FLUSH_CACHE
-	flush_cache_range(vma, vma->vm_start, vma->vm_end);
+  flush_cache_range(vma, vma->vm_start, vma->vm_end);
 #endif
 }
 
-static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
-{
-	if (tlb->fullmm)
-		return;
-
-	/*
-	 * VM_PFNMAP is more fragile because the core mm will not track the
-	 * page mapcount -- there might not be page-frames for these PFNs after
-	 * all. Force flush TLBs for such ranges to avoid munmap() vs
-	 * unmap_mapping_range() races.
-	 */
-	if (tlb->vma_pfn || !IS_ENABLED(CONFIG_MMU_GATHER_MERGE_VMAS)) {
-		/*
-		 * Do a TLB flush and reset the range at VMA boundaries; this avoids
-		 * the ranges growing with the unused space between consecutive VMAs.
-		 */
-		tlb_flush_mmu_tlbonly(tlb);
-	}
+static inline void tlb_end_vma(struct mmu_gather *tlb,
+    struct vm_area_struct *vma) {
+  if (tlb->fullmm) {
+    return;
+  }
+  /*
+   * VM_PFNMAP is more fragile because the core mm will not track the
+   * page mapcount -- there might not be page-frames for these PFNs after
+   * all. Force flush TLBs for such ranges to avoid munmap() vs
+   * unmap_mapping_range() races.
+   */
+  if (tlb->vma_pfn || !IS_ENABLED(CONFIG_MMU_GATHER_MERGE_VMAS)) {
+    /*
+     * Do a TLB flush and reset the range at VMA boundaries; this avoids
+     * the ranges growing with the unused space between consecutive VMAs.
+     */
+    tlb_flush_mmu_tlbonly(tlb);
+  }
 }
 
 /*
@@ -572,37 +568,34 @@ static inline void tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vm
  * and set corresponding cleared_*.
  */
 static inline void tlb_flush_pte_range(struct mmu_gather *tlb,
-				     unsigned long address, unsigned long size)
-{
-	__tlb_adjust_range(tlb, address, size);
-	tlb->cleared_ptes = 1;
+    unsigned long address, unsigned long size) {
+  __tlb_adjust_range(tlb, address, size);
+  tlb->cleared_ptes = 1;
 }
 
 static inline void tlb_flush_pmd_range(struct mmu_gather *tlb,
-				     unsigned long address, unsigned long size)
-{
-	__tlb_adjust_range(tlb, address, size);
-	tlb->cleared_pmds = 1;
+    unsigned long address, unsigned long size) {
+  __tlb_adjust_range(tlb, address, size);
+  tlb->cleared_pmds = 1;
 }
 
 static inline void tlb_flush_pud_range(struct mmu_gather *tlb,
-				     unsigned long address, unsigned long size)
-{
-	__tlb_adjust_range(tlb, address, size);
-	tlb->cleared_puds = 1;
+    unsigned long address, unsigned long size) {
+  __tlb_adjust_range(tlb, address, size);
+  tlb->cleared_puds = 1;
 }
 
 static inline void tlb_flush_p4d_range(struct mmu_gather *tlb,
-				     unsigned long address, unsigned long size)
-{
-	__tlb_adjust_range(tlb, address, size);
-	tlb->cleared_p4ds = 1;
+    unsigned long address, unsigned long size) {
+  __tlb_adjust_range(tlb, address, size);
+  tlb->cleared_p4ds = 1;
 }
 
 #ifndef __tlb_remove_tlb_entry
-static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long address)
-{
+static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep,
+    unsigned long address) {
 }
+
 #endif
 
 /**
@@ -612,45 +605,45 @@ static inline void __tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, u
  * so we can later optimise away the tlb invalidate.   This helps when
  * userspace is unmapping already-unmapped pages, which happens quite a lot.
  */
-#define tlb_remove_tlb_entry(tlb, ptep, address)		\
-	do {							\
-		tlb_flush_pte_range(tlb, address, PAGE_SIZE);	\
-		__tlb_remove_tlb_entry(tlb, ptep, address);	\
-	} while (0)
+#define tlb_remove_tlb_entry(tlb, ptep, address)    \
+  do {              \
+    tlb_flush_pte_range(tlb, address, PAGE_SIZE); \
+    __tlb_remove_tlb_entry(tlb, ptep, address); \
+  } while (0)
 
 /**
  * tlb_remove_tlb_entries - remember unmapping of multiple consecutive ptes for
- *			    later tlb invalidation.
+ *          later tlb invalidation.
  *
  * Similar to tlb_remove_tlb_entry(), but remember unmapping of multiple
  * consecutive ptes instead of only a single one.
  */
 static inline void tlb_remove_tlb_entries(struct mmu_gather *tlb,
-		pte_t *ptep, unsigned int nr, unsigned long address)
-{
-	tlb_flush_pte_range(tlb, address, PAGE_SIZE * nr);
-	for (;;) {
-		__tlb_remove_tlb_entry(tlb, ptep, address);
-		if (--nr == 0)
-			break;
-		ptep++;
-		address += PAGE_SIZE;
-	}
+    pte_t *ptep, unsigned int nr, unsigned long address) {
+  tlb_flush_pte_range(tlb, address, PAGE_SIZE * nr);
+  for (;;) {
+    __tlb_remove_tlb_entry(tlb, ptep, address);
+    if (--nr == 0) {
+      break;
+    }
+    ptep++;
+    address += PAGE_SIZE;
+  }
 }
 
-#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-	do {							\
-		unsigned long _sz = huge_page_size(h);		\
-		if (_sz >= P4D_SIZE)				\
-			tlb_flush_p4d_range(tlb, address, _sz);	\
-		else if (_sz >= PUD_SIZE)			\
-			tlb_flush_pud_range(tlb, address, _sz);	\
-		else if (_sz >= PMD_SIZE)			\
-			tlb_flush_pmd_range(tlb, address, _sz);	\
-		else						\
-			tlb_flush_pte_range(tlb, address, _sz);	\
-		__tlb_remove_tlb_entry(tlb, ptep, address);	\
-	} while (0)
+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)  \
+  do {              \
+    unsigned long _sz = huge_page_size(h);    \
+    if (_sz >= P4D_SIZE)        \
+    tlb_flush_p4d_range(tlb, address, _sz); \
+    else if (_sz >= PUD_SIZE)     \
+    tlb_flush_pud_range(tlb, address, _sz); \
+    else if (_sz >= PMD_SIZE)     \
+    tlb_flush_pmd_range(tlb, address, _sz); \
+    else            \
+    tlb_flush_pte_range(tlb, address, _sz); \
+    __tlb_remove_tlb_entry(tlb, ptep, address); \
+  } while (0)
 
 /**
  * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
@@ -660,11 +653,11 @@ static inline void tlb_remove_tlb_entries(struct mmu_gather *tlb,
 #define __tlb_remove_pmd_tlb_entry(tlb, pmdp, address) do {} while (0)
 #endif
 
-#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)			\
-	do {								\
-		tlb_flush_pmd_range(tlb, address, HPAGE_PMD_SIZE);	\
-		__tlb_remove_pmd_tlb_entry(tlb, pmdp, address);		\
-	} while (0)
+#define tlb_remove_pmd_tlb_entry(tlb, pmdp, address)      \
+  do {                \
+    tlb_flush_pmd_range(tlb, address, HPAGE_PMD_SIZE);  \
+    __tlb_remove_pmd_tlb_entry(tlb, pmdp, address);   \
+  } while (0)
 
 /**
  * tlb_remove_pud_tlb_entry - remember a pud mapping for later tlb
@@ -674,11 +667,11 @@ static inline void tlb_remove_tlb_entries(struct mmu_gather *tlb,
 #define __tlb_remove_pud_tlb_entry(tlb, pudp, address) do {} while (0)
 #endif
 
-#define tlb_remove_pud_tlb_entry(tlb, pudp, address)			\
-	do {								\
-		tlb_flush_pud_range(tlb, address, HPAGE_PUD_SIZE);	\
-		__tlb_remove_pud_tlb_entry(tlb, pudp, address);		\
-	} while (0)
+#define tlb_remove_pud_tlb_entry(tlb, pudp, address)      \
+  do {                \
+    tlb_flush_pud_range(tlb, address, HPAGE_PUD_SIZE);  \
+    __tlb_remove_pud_tlb_entry(tlb, pudp, address);   \
+  } while (0)
 
 /*
  * For things like page tables caches (ie caching addresses "inside" the
@@ -699,53 +692,53 @@ static inline void tlb_remove_tlb_entries(struct mmu_gather *tlb,
  */
 
 #ifndef pte_free_tlb
-#define pte_free_tlb(tlb, ptep, address)			\
-	do {							\
-		tlb_flush_pmd_range(tlb, address, PAGE_SIZE);	\
-		tlb->freed_tables = 1;				\
-		__pte_free_tlb(tlb, ptep, address);		\
-	} while (0)
+#define pte_free_tlb(tlb, ptep, address)      \
+  do {              \
+    tlb_flush_pmd_range(tlb, address, PAGE_SIZE); \
+    tlb->freed_tables = 1;        \
+    __pte_free_tlb(tlb, ptep, address);   \
+  } while (0)
 #endif
 
 #ifndef pmd_free_tlb
-#define pmd_free_tlb(tlb, pmdp, address)			\
-	do {							\
-		tlb_flush_pud_range(tlb, address, PAGE_SIZE);	\
-		tlb->freed_tables = 1;				\
-		__pmd_free_tlb(tlb, pmdp, address);		\
-	} while (0)
+#define pmd_free_tlb(tlb, pmdp, address)      \
+  do {              \
+    tlb_flush_pud_range(tlb, address, PAGE_SIZE); \
+    tlb->freed_tables = 1;        \
+    __pmd_free_tlb(tlb, pmdp, address);   \
+  } while (0)
 #endif
 
 #ifndef pud_free_tlb
-#define pud_free_tlb(tlb, pudp, address)			\
-	do {							\
-		tlb_flush_p4d_range(tlb, address, PAGE_SIZE);	\
-		tlb->freed_tables = 1;				\
-		__pud_free_tlb(tlb, pudp, address);		\
-	} while (0)
+#define pud_free_tlb(tlb, pudp, address)      \
+  do {              \
+    tlb_flush_p4d_range(tlb, address, PAGE_SIZE); \
+    tlb->freed_tables = 1;        \
+    __pud_free_tlb(tlb, pudp, address);   \
+  } while (0)
 #endif
 
 #ifndef p4d_free_tlb
-#define p4d_free_tlb(tlb, pudp, address)			\
-	do {							\
-		__tlb_adjust_range(tlb, address, PAGE_SIZE);	\
-		tlb->freed_tables = 1;				\
-		__p4d_free_tlb(tlb, pudp, address);		\
-	} while (0)
+#define p4d_free_tlb(tlb, pudp, address)      \
+  do {              \
+    __tlb_adjust_range(tlb, address, PAGE_SIZE);  \
+    tlb->freed_tables = 1;        \
+    __p4d_free_tlb(tlb, pudp, address);   \
+  } while (0)
 #endif
 
 #ifndef pte_needs_flush
-static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
-{
-	return true;
+static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte) {
+  return true;
 }
+
 #endif
 
 #ifndef huge_pmd_needs_flush
-static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
-{
-	return true;
+static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd) {
+  return true;
 }
+
 #endif
 
 #endif /* CONFIG_MMU */

@@ -92,69 +92,81 @@
  * ===========================
  *
  * The backend driver uses a single_host:many_devices notation to manage domU
- * devices. Everything is stored in /local/domain/<backend_domid>/backend/vscsi/.
- * The xenstore layout looks like this (dom0 is assumed to be the backend_domid):
- *
- *     <domid>/<vhost>/feature-host = "0"
- *     <domid>/<vhost>/frontend = "/local/domain/<domid>/device/vscsi/0"
- *     <domid>/<vhost>/frontend-id = "<domid>"
- *     <domid>/<vhost>/online = "1"
- *     <domid>/<vhost>/state = "4"
- *     <domid>/<vhost>/vscsi-devs/dev-0/p-dev = "8:0:2:1" or "naa.wwn:lun"
- *     <domid>/<vhost>/vscsi-devs/dev-0/state = "4"
- *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
- *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
- *     <domid>/<vhost>/vscsi-devs/dev-1/state = "4"
- *     <domid>/<vhost>/vscsi-devs/dev-1/v-dev = "0:0:1:0"
- *
- * The frontend driver maintains its state in
- * /local/domain/<domid>/device/vscsi/.
- *
- *     <vhost>/backend = "/local/domain/0/backend/vscsi/<domid>/<vhost>"
- *     <vhost>/backend-id = "0"
- *     <vhost>/event-channel = "20"
- *     <vhost>/ring-ref = "43"
- *     <vhost>/state = "4"
- *     <vhost>/vscsi-devs/dev-0/state = "4"
- *     <vhost>/vscsi-devs/dev-1/state = "4"
- *
- * In addition to the entries for backend and frontend these flags are stored
- * for the toolstack:
- *
- *     <domid>/<vhost>/vscsi-devs/dev-1/p-devname = "/dev/$device"
- *     <domid>/<vhost>/libxl_ctrl_index = "0"
- *
- *
- * Backend/frontend protocol
- * =========================
- *
- * To create a vhost along with a device:
- *     <domid>/<vhost>/feature-host = "0"
- *     <domid>/<vhost>/frontend = "/local/domain/<domid>/device/vscsi/0"
- *     <domid>/<vhost>/frontend-id = "<domid>"
- *     <domid>/<vhost>/online = "1"
- *     <domid>/<vhost>/state = "1"
- *     <domid>/<vhost>/vscsi-devs/dev-0/p-dev = "8:0:2:1"
- *     <domid>/<vhost>/vscsi-devs/dev-0/state = "1"
- *     <domid>/<vhost>/vscsi-devs/dev-0/v-dev = "0:0:0:0"
- * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-0/state become 4
- *
- * To add another device to a vhost:
- *     <domid>/<vhost>/state = "7"
- *     <domid>/<vhost>/vscsi-devs/dev-1/p-dev = "8:0:2:2"
- *     <domid>/<vhost>/vscsi-devs/dev-1/state = "1"
- *     <domid>/<vhost>/vscsi-devs/dev-1/v-dev = "0:0:1:0"
- * Wait for <domid>/<vhost>/state + <domid>/<vhost>/vscsi-devs/dev-1/state become 4
- *
- * To remove a device from a vhost:
- *     <domid>/<vhost>/state = "7"
- *     <domid>/<vhost>/vscsi-devs/dev-1/state = "5"
- * Wait for <domid>/<vhost>/state to become 4
- * Wait for <domid>/<vhost>/vscsi-devs/dev-1/state become 6
- * Remove <domid>/<vhost>/vscsi-devs/dev-1/{state,p-dev,v-dev,p-devname}
- * Remove <domid>/<vhost>/vscsi-devs/dev-1/
- *
+ * devices. Everything is stored in
  */
+local / domain / < backend_domid > / backend / vscsi /.
+*The xenstore layout looks like this(dom0 is assumed to be the
+    *backend_domid) :
+  *
+  * < domid > / < vhost > / feature - host = "0"
+  * < domid > / < vhost > / frontend = "/local/domain/<domid>/device/vscsi/0"
+  * < domid > / < vhost > / frontend - id = "<domid>"
+  * < domid > / < vhost > / online = "1"
+  * < domid > / < vhost > / state = "4"
+  * < domid > / < vhost
+  > / vscsi - devs / dev - 0 / p - dev = "8:0:2:1" or "naa.wwn:lun"
+  * < domid > / < vhost > / vscsi - devs / dev - 0 / state = "4"
+  * < domid > / < vhost > / vscsi - devs / dev - 0 / v - dev = "0:0:0:0"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / p - dev = "8:0:2:2"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / state = "4"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / v - dev = "0:0:1:0"
+  *
+  *The frontend driver maintains its state in
+  * / local / domain / < domid > / device / vscsi /.
+  *
+  * < vhost > / backend = "/local/domain/0/backend/vscsi/<domid>/<vhost>"
+  * < vhost > / backend - id = "0"
+  * < vhost > / event - channel = "20"
+  * < vhost > / ring - ref = "43"
+  * < vhost > / state = "4"
+  * < vhost > / vscsi - devs / dev - 0 / state = "4"
+  * < vhost > / vscsi - devs / dev - 1 / state = "4"
+  *
+  *In addition to the entries for backend and frontend these flags are stored
+  * for the toolstack:
+  *
+  * < domid > / < vhost
+  > / vscsi - devs / dev - 1 / p - devname = "/dev/$device"
+  * < domid > / < vhost > / libxl_ctrl_index = "0"
+  *
+  *
+  *Backend / frontend protocol
+  * == == == == == == == == ==
+  == == == = *
+  *To create a vhost along with a device:
+  * < domid > / < vhost > / feature - host = "0"
+  * < domid > / < vhost > / frontend = "/local/domain/<domid>/device/vscsi/0"
+  * < domid > / < vhost > / frontend - id = "<domid>"
+  * < domid > / < vhost > / online = "1"
+  * < domid > / < vhost > / state = "1"
+  * < domid > / < vhost > / vscsi - devs / dev - 0 / p - dev = "8:0:2:1"
+  * < domid > / < vhost > / vscsi - devs / dev - 0 / state = "1"
+  * < domid > / < vhost > / vscsi - devs / dev - 0 / v - dev = "0:0:0:0"
+  * Wait for < domid > / < vhost > / state + < domid > / < vhost
+  > / vscsi - devs / dev - 0 / state
+  * become 4
+  *
+  *To add another device to a vhost:
+  * < domid > / < vhost > / state = "7"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / p - dev = "8:0:2:2"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / state = "1"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / v - dev = "0:0:1:0"
+  * Wait for < domid > / < vhost > / state + < domid > / < vhost
+  > / vscsi - devs / dev - 1 / state
+  * become 4
+  *
+  *To remove a device from a vhost:
+  * < domid > / < vhost > / state = "7"
+  * < domid > / < vhost > / vscsi - devs / dev - 1 / state = "5"
+  * Wait for < domid > / < vhost > / state to become 4
+  * Wait for < domid > / < vhost > / vscsi - devs / dev - 1 / state become 6
+  * Remove < domid > / < vhost > / vscsi - devs / dev - 1 / {
+  state, p - dev, v - dev, p - devname
+}
+
+*Remove < domid > / < vhost > / vscsi - devs / dev - 1
+/ *
+* /
 
 /* Requests from the frontend to the backend */
 
@@ -189,24 +201,24 @@
  * size of one scsiif_request_segment structure). The frontend may use a mix of
  * direct and indirect requests.
  */
-#define VSCSIIF_ACT_SCSI_CDB		1
+#define VSCSIIF_ACT_SCSI_CDB    1
 
 /*
  * Request abort of a running operation for the specified target given by
  * channel, id, lun and the operation's rqid in ref_rqid.
  */
-#define VSCSIIF_ACT_SCSI_ABORT		2
+#define VSCSIIF_ACT_SCSI_ABORT    2
 
 /*
  * Request a device reset of the specified target (channel and id).
  */
-#define VSCSIIF_ACT_SCSI_RESET		3
+#define VSCSIIF_ACT_SCSI_RESET    3
 
 /*
  * Preset scatter/gather elements for a following request. Deprecated.
  * Keeping the define only to avoid usage of the value "4" for other actions.
  */
-#define VSCSIIF_ACT_SCSI_SG_PRESET	4
+#define VSCSIIF_ACT_SCSI_SG_PRESET  4
 
 /*
  * Maximum scatter/gather segments per request.
@@ -220,7 +232,7 @@
  * In this case the vscsiif_request seg elements don't contain references to
  * the user data, but to the SG elements referencing the user data.
  */
-#define VSCSIIF_SG_TABLESIZE		26
+#define VSCSIIF_SG_TABLESIZE    26
 
 /*
  * based on Linux kernel 2.6.18, still valid
@@ -229,55 +241,56 @@
  * as "old clients" will blindly use these values and the resulting structure
  * sizes.
  */
-#define VSCSIIF_MAX_COMMAND_SIZE	16
-#define VSCSIIF_SENSE_BUFFERSIZE	96
-#define VSCSIIF_PAGE_SIZE		4096
+#define VSCSIIF_MAX_COMMAND_SIZE  16
+#define VSCSIIF_SENSE_BUFFERSIZE  96
+#define VSCSIIF_PAGE_SIZE   4096
 
 struct scsiif_request_segment {
-	grant_ref_t gref;
-	uint16_t offset;
-	uint16_t length;
+  grant_ref_t gref;
+  uint16_t offset;
+  uint16_t length;
 };
 
-#define VSCSIIF_SG_PER_PAGE	(VSCSIIF_PAGE_SIZE / \
-				 sizeof(struct scsiif_request_segment))
+#define VSCSIIF_SG_PER_PAGE (VSCSIIF_PAGE_SIZE   \
+  / sizeof(struct scsiif_request_segment))
 
 /* Size of one request is 252 bytes */
 struct vscsiif_request {
-	uint16_t rqid;		/* private guest value, echoed in resp  */
-	uint8_t act;		/* command between backend and frontend */
-	uint8_t cmd_len;	/* valid CDB bytes */
+  uint16_t rqid;    /* private guest value, echoed in resp  */
+  uint8_t act;    /* command between backend and frontend */
+  uint8_t cmd_len;  /* valid CDB bytes */
 
-	uint8_t cmnd[VSCSIIF_MAX_COMMAND_SIZE];	/* the CDB */
-	uint16_t timeout_per_command;	/* deprecated */
-	uint16_t channel, id, lun;	/* (virtual) device specification */
-	uint16_t ref_rqid;		/* command abort reference */
-	uint8_t sc_data_direction;	/* for DMA_TO_DEVICE(1)
-					   DMA_FROM_DEVICE(2)
-					   DMA_NONE(3) requests */
-	uint8_t nr_segments;		/* Number of pieces of scatter-gather */
-/*
- * flag in nr_segments: SG elements via grant page
- *
- * If VSCSIIF_SG_GRANT is set, the low 7 bits of nr_segments specify the number
- * of grant pages containing SG elements. Usable if "feature-sg-grant" set.
- */
-#define VSCSIIF_SG_GRANT	0x80
+  uint8_t cmnd[VSCSIIF_MAX_COMMAND_SIZE]; /* the CDB */
+  uint16_t timeout_per_command; /* deprecated */
+  uint16_t channel, id, lun;  /* (virtual) device specification */
+  uint16_t ref_rqid;    /* command abort reference */
+  uint8_t sc_data_direction;  /* for DMA_TO_DEVICE(1)
+                               *  DMA_FROM_DEVICE(2)
+                               *  DMA_NONE(3) requests */
+  uint8_t nr_segments;    /* Number of pieces of scatter-gather */
+  /*
+   * flag in nr_segments: SG elements via grant page
+   *
+   * If VSCSIIF_SG_GRANT is set, the low 7 bits of nr_segments specify the
+   * number
+   * of grant pages containing SG elements. Usable if "feature-sg-grant" set.
+   */
+#define VSCSIIF_SG_GRANT  0x80
 
-	struct scsiif_request_segment seg[VSCSIIF_SG_TABLESIZE];
-	uint32_t reserved[3];
+  struct scsiif_request_segment seg[VSCSIIF_SG_TABLESIZE];
+  uint32_t reserved[3];
 };
 
 /* Size of one response is 252 bytes */
 struct vscsiif_response {
-	uint16_t rqid;		/* identifies request */
-	uint8_t padding;
-	uint8_t sense_len;
-	uint8_t sense_buffer[VSCSIIF_SENSE_BUFFERSIZE];
-	int32_t rslt;
-	uint32_t residual_len;	/* request bufflen -
-				   return the value from physical device */
-	uint32_t reserved[36];
+  uint16_t rqid;    /* identifies request */
+  uint8_t padding;
+  uint8_t sense_len;
+  uint8_t sense_buffer[VSCSIIF_SENSE_BUFFERSIZE];
+  int32_t rslt;
+  uint32_t residual_len;  /* request bufflen -
+                           * return the value from physical device */
+  uint32_t reserved[36];
 };
 
 /* SCSI I/O status from vscsiif_response->rslt */
@@ -332,6 +345,5 @@ struct vscsiif_response {
 #define XEN_VSCSIIF_RSLT_RESET_FAILED   0x2003
 
 DEFINE_RING_TYPES(vscsiif, struct vscsiif_request, struct vscsiif_response);
-
 
 #endif  /*__XEN__PUBLIC_IO_SCSI_H__*/

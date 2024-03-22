@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2015 - 2022 Beijing WangXun Technology Co., Ltd.*/
 
 #ifndef _TXGBE_TYPE_H_
 #define _TXGBE_TYPE_H_
@@ -11,8 +11,8 @@
 #define TXGBE_DEV_ID_SP1000                     0x1001
 #define TXGBE_DEV_ID_WX1820                     0x2001
 
-/* Subsystem IDs */
-/* SFP */
+/* Subsystem IDs
+ * SFP*/
 #define TXGBE_ID_SP1000_SFP                     0x0000
 #define TXGBE_ID_WX1820_SFP                     0x2000
 #define TXGBE_ID_SFP                            0x00
@@ -37,20 +37,22 @@
 #define TXGBE_ID_MAC_SGMII                      0x60
 
 /* Combined interface*/
-#define TXGBE_ID_SFI_XAUI			0x50
+#define TXGBE_ID_SFI_XAUI     0x50
 
 /* Revision ID */
 #define TXGBE_SP_MPW  1
 
-/**************** SP Registers ****************************/
-/* chip control Registers */
+/* *************** SP Registers ***************************
+ * chip control Registers*/
 #define TXGBE_MIS_PRB_CTL                       0x10010
 #define TXGBE_MIS_PRB_CTL_LAN_UP(_i)            BIT(1 - (_i))
 /* FMGR Registers */
 #define TXGBE_SPI_ILDR_STATUS                   0x10120
 #define TXGBE_SPI_ILDR_STATUS_PERST             BIT(0) /* PCIE_PERST is done */
-#define TXGBE_SPI_ILDR_STATUS_PWRRST            BIT(1) /* Power on reset is done */
-#define TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(_i)    BIT((_i) + 9) /* lan soft reset done */
+#define TXGBE_SPI_ILDR_STATUS_PWRRST            BIT(1) /* Power on reset is done
+                                                        * */
+#define TXGBE_SPI_ILDR_STATUS_LAN_SW_RST(_i)    BIT((_i) + 9) /* lan soft reset
+                                                               * done */
 
 /* Sensors for PVT(Process Voltage Temperature) */
 #define TXGBE_TS_CTL                            0x10300
@@ -61,8 +63,10 @@
 #define TXGBE_GPIOBIT_1                         BIT(1) /* O:tx disabled */
 #define TXGBE_GPIOBIT_2                         BIT(2) /* I:sfp module absent */
 #define TXGBE_GPIOBIT_3                         BIT(3) /* I:rx signal lost */
-#define TXGBE_GPIOBIT_4                         BIT(4) /* O:rate select, 1G(0) 10G(1) */
-#define TXGBE_GPIOBIT_5                         BIT(5) /* O:rate select, 1G(0) 10G(1) */
+#define TXGBE_GPIOBIT_4                         BIT(4) /* O:rate select, 1G(0)
+                                                        * 10G(1) */
+#define TXGBE_GPIOBIT_5                         BIT(5) /* O:rate select, 1G(0)
+                                                        * 10G(1) */
 
 /* Extended Interrupt Enable Set */
 #define TXGBE_PX_MISC_ETH_LKDN                  BIT(8)
@@ -73,10 +77,10 @@
 #define TXGBE_PX_MISC_INT_ERR                   BIT(20)
 #define TXGBE_PX_MISC_GPIO                      BIT(26)
 #define TXGBE_PX_MISC_IEN_MASK                            \
-	(TXGBE_PX_MISC_ETH_LKDN | TXGBE_PX_MISC_DEV_RST | \
-	 TXGBE_PX_MISC_ETH_EVENT | TXGBE_PX_MISC_ETH_LK | \
-	 TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR |   \
-	 TXGBE_PX_MISC_GPIO)
+  (TXGBE_PX_MISC_ETH_LKDN | TXGBE_PX_MISC_DEV_RST   \
+  | TXGBE_PX_MISC_ETH_EVENT | TXGBE_PX_MISC_ETH_LK   \
+  | TXGBE_PX_MISC_ETH_AN | TXGBE_PX_MISC_INT_ERR     \
+  | TXGBE_PX_MISC_GPIO)
 
 /* Port cfg registers */
 #define TXGBE_CFG_PORT_ST                       0x14404
@@ -135,66 +139,66 @@ void txgbe_down(struct wx *wx);
 void txgbe_up(struct wx *wx);
 int txgbe_setup_tc(struct net_device *dev, u8 tc);
 
-#define NODE_PROP(_NAME, _PROP)			\
-	(const struct software_node) {		\
-		.name = _NAME,			\
-		.properties = _PROP,		\
-	}
+#define NODE_PROP(_NAME, _PROP)     \
+  (const struct software_node) {    \
+    .name = _NAME,      \
+    .properties = _PROP,    \
+  }
 
 enum txgbe_swnodes {
-	SWNODE_GPIO = 0,
-	SWNODE_I2C,
-	SWNODE_SFP,
-	SWNODE_PHYLINK,
-	SWNODE_MAX
+  SWNODE_GPIO = 0,
+  SWNODE_I2C,
+  SWNODE_SFP,
+  SWNODE_PHYLINK,
+  SWNODE_MAX
 };
 
 struct txgbe_nodes {
-	char gpio_name[32];
-	char i2c_name[32];
-	char sfp_name[32];
-	char phylink_name[32];
-	struct property_entry gpio_props[1];
-	struct property_entry i2c_props[3];
-	struct property_entry sfp_props[8];
-	struct property_entry phylink_props[2];
-	struct software_node_ref_args i2c_ref[1];
-	struct software_node_ref_args gpio0_ref[1];
-	struct software_node_ref_args gpio1_ref[1];
-	struct software_node_ref_args gpio2_ref[1];
-	struct software_node_ref_args gpio3_ref[1];
-	struct software_node_ref_args gpio4_ref[1];
-	struct software_node_ref_args gpio5_ref[1];
-	struct software_node_ref_args sfp_ref[1];
-	struct software_node swnodes[SWNODE_MAX];
-	const struct software_node *group[SWNODE_MAX + 1];
+  char gpio_name[32];
+  char i2c_name[32];
+  char sfp_name[32];
+  char phylink_name[32];
+  struct property_entry gpio_props[1];
+  struct property_entry i2c_props[3];
+  struct property_entry sfp_props[8];
+  struct property_entry phylink_props[2];
+  struct software_node_ref_args i2c_ref[1];
+  struct software_node_ref_args gpio0_ref[1];
+  struct software_node_ref_args gpio1_ref[1];
+  struct software_node_ref_args gpio2_ref[1];
+  struct software_node_ref_args gpio3_ref[1];
+  struct software_node_ref_args gpio4_ref[1];
+  struct software_node_ref_args gpio5_ref[1];
+  struct software_node_ref_args sfp_ref[1];
+  struct software_node swnodes[SWNODE_MAX];
+  const struct software_node *group[SWNODE_MAX + 1];
 };
 
 enum txgbe_misc_irqs {
-	TXGBE_IRQ_GPIO = 0,
-	TXGBE_IRQ_LINK,
-	TXGBE_IRQ_MAX
+  TXGBE_IRQ_GPIO = 0,
+  TXGBE_IRQ_LINK,
+  TXGBE_IRQ_MAX
 };
 
 struct txgbe_irq {
-	struct irq_chip chip;
-	struct irq_domain *domain;
-	int nirqs;
-	int irq;
+  struct irq_chip chip;
+  struct irq_domain *domain;
+  int nirqs;
+  int irq;
 };
 
 struct txgbe {
-	struct wx *wx;
-	struct txgbe_nodes nodes;
-	struct txgbe_irq misc;
-	struct dw_xpcs *xpcs;
-	struct platform_device *sfp_dev;
-	struct platform_device *i2c_dev;
-	struct clk_lookup *clock;
-	struct clk *clk;
-	struct gpio_chip *gpio;
-	unsigned int gpio_irq;
-	unsigned int link_irq;
+  struct wx *wx;
+  struct txgbe_nodes nodes;
+  struct txgbe_irq misc;
+  struct dw_xpcs *xpcs;
+  struct platform_device *sfp_dev;
+  struct platform_device *i2c_dev;
+  struct clk_lookup *clock;
+  struct clk *clk;
+  struct gpio_chip *gpio;
+  unsigned int gpio_irq;
+  unsigned int link_irq;
 };
 
 #endif /* _TXGBE_TYPE_H_ */

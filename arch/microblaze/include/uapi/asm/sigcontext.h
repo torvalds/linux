@@ -14,8 +14,8 @@
 #include <asm/ptrace.h>
 
 struct sigcontext {
-	struct pt_regs regs;
-	unsigned long oldmask;
+  struct pt_regs regs;
+  unsigned long oldmask;
 };
 
 #endif /* _ASM_MICROBLAZE_SIGCONTEXT_H */

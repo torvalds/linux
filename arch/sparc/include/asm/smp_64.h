@@ -24,7 +24,7 @@
 #ifndef __ASSEMBLY__
 
 /*
- *	Private routines/data
+ *  Private routines/data
  */
 
 #include <linux/bitops.h>
@@ -41,7 +41,7 @@ void arch_send_call_function_single_ipi(int cpu);
 void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 /*
- *	General functions that each host system must provide.
+ *  General functions that each host system must provide.
  */
 
 int hard_smp_processor_id(void);
@@ -73,13 +73,13 @@ void __cpu_die(unsigned int cpu);
 
 #else
 
-#define hard_smp_processor_id()		0
-#define smp_fill_in_sib_core_maps() do { } while (0)
-#define smp_fetch_global_regs() do { } while (0)
-#define smp_fetch_global_pmu() do { } while (0)
-#define smp_fill_in_cpu_possible_map() do { } while (0)
-#define smp_init_cpu_poke() do { } while (0)
-#define scheduler_poke() do { } while (0)
+#define hard_smp_processor_id()   0
+#define smp_fill_in_sib_core_maps() do {} while (0)
+#define smp_fetch_global_regs() do {} while (0)
+#define smp_fetch_global_pmu() do {} while (0)
+#define smp_fill_in_cpu_possible_map() do {} while (0)
+#define smp_init_cpu_poke() do {} while (0)
+#define scheduler_poke() do {} while (0)
 
 #endif /* !(CONFIG_SMP) */
 

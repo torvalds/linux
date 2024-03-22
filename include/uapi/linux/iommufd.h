@@ -35,21 +35,21 @@
  * As well as additional errnos, within specific ioctls.
  */
 enum {
-	IOMMUFD_CMD_BASE = 0x80,
-	IOMMUFD_CMD_DESTROY = IOMMUFD_CMD_BASE,
-	IOMMUFD_CMD_IOAS_ALLOC,
-	IOMMUFD_CMD_IOAS_ALLOW_IOVAS,
-	IOMMUFD_CMD_IOAS_COPY,
-	IOMMUFD_CMD_IOAS_IOVA_RANGES,
-	IOMMUFD_CMD_IOAS_MAP,
-	IOMMUFD_CMD_IOAS_UNMAP,
-	IOMMUFD_CMD_OPTION,
-	IOMMUFD_CMD_VFIO_IOAS,
-	IOMMUFD_CMD_HWPT_ALLOC,
-	IOMMUFD_CMD_GET_HW_INFO,
-	IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING,
-	IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP,
-	IOMMUFD_CMD_HWPT_INVALIDATE,
+  IOMMUFD_CMD_BASE = 0x80,
+  IOMMUFD_CMD_DESTROY = IOMMUFD_CMD_BASE,
+  IOMMUFD_CMD_IOAS_ALLOC,
+  IOMMUFD_CMD_IOAS_ALLOW_IOVAS,
+  IOMMUFD_CMD_IOAS_COPY,
+  IOMMUFD_CMD_IOAS_IOVA_RANGES,
+  IOMMUFD_CMD_IOAS_MAP,
+  IOMMUFD_CMD_IOAS_UNMAP,
+  IOMMUFD_CMD_OPTION,
+  IOMMUFD_CMD_VFIO_IOAS,
+  IOMMUFD_CMD_HWPT_ALLOC,
+  IOMMUFD_CMD_GET_HW_INFO,
+  IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING,
+  IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP,
+  IOMMUFD_CMD_HWPT_INVALIDATE,
 };
 
 /**
@@ -60,8 +60,8 @@ enum {
  * Destroy any object held within iommufd.
  */
 struct iommu_destroy {
-	__u32 size;
-	__u32 id;
+  __u32 size;
+  __u32 id;
 };
 #define IOMMU_DESTROY _IO(IOMMUFD_TYPE, IOMMUFD_CMD_DESTROY)
 
@@ -75,9 +75,9 @@ struct iommu_destroy {
  * to memory mapping.
  */
 struct iommu_ioas_alloc {
-	__u32 size;
-	__u32 flags;
-	__u32 out_ioas_id;
+  __u32 size;
+  __u32 flags;
+  __u32 out_ioas_id;
 };
 #define IOMMU_IOAS_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_IOAS_ALLOC)
 
@@ -89,8 +89,8 @@ struct iommu_ioas_alloc {
  * An interval in IOVA space.
  */
 struct iommu_iova_range {
-	__aligned_u64 start;
-	__aligned_u64 last;
+  __aligned_u64 start;
+  __aligned_u64 last;
 };
 
 /**
@@ -128,12 +128,12 @@ struct iommu_iova_range {
  * be higher than the system PAGE_SIZE.
  */
 struct iommu_ioas_iova_ranges {
-	__u32 size;
-	__u32 ioas_id;
-	__u32 num_iovas;
-	__u32 __reserved;
-	__aligned_u64 allowed_iovas;
-	__aligned_u64 out_iova_alignment;
+  __u32 size;
+  __u32 ioas_id;
+  __u32 num_iovas;
+  __u32 __reserved;
+  __aligned_u64 allowed_iovas;
+  __aligned_u64 out_iova_alignment;
 };
 #define IOMMU_IOAS_IOVA_RANGES _IO(IOMMUFD_TYPE, IOMMUFD_CMD_IOAS_IOVA_RANGES)
 
@@ -161,11 +161,11 @@ struct iommu_ioas_iova_ranges {
  * This call replaces the entire allowed list with the given list.
  */
 struct iommu_ioas_allow_iovas {
-	__u32 size;
-	__u32 ioas_id;
-	__u32 num_iovas;
-	__u32 __reserved;
-	__aligned_u64 allowed_iovas;
+  __u32 size;
+  __u32 ioas_id;
+  __u32 num_iovas;
+  __u32 __reserved;
+  __aligned_u64 allowed_iovas;
 };
 #define IOMMU_IOAS_ALLOW_IOVAS _IO(IOMMUFD_TYPE, IOMMUFD_CMD_IOAS_ALLOW_IOVAS)
 
@@ -177,9 +177,9 @@ struct iommu_ioas_allow_iovas {
  * @IOMMU_IOAS_MAP_READABLE: DMA is allowed to read from this mapping
  */
 enum iommufd_ioas_map_flags {
-	IOMMU_IOAS_MAP_FIXED_IOVA = 1 << 0,
-	IOMMU_IOAS_MAP_WRITEABLE = 1 << 1,
-	IOMMU_IOAS_MAP_READABLE = 1 << 2,
+  IOMMU_IOAS_MAP_FIXED_IOVA = 1 << 0,
+  IOMMU_IOAS_MAP_WRITEABLE = 1 << 1,
+  IOMMU_IOAS_MAP_READABLE = 1 << 2,
 };
 
 /**
@@ -202,13 +202,13 @@ enum iommufd_ioas_map_flags {
  * be unused, existing IOVA cannot be replaced.
  */
 struct iommu_ioas_map {
-	__u32 size;
-	__u32 flags;
-	__u32 ioas_id;
-	__u32 __reserved;
-	__aligned_u64 user_va;
-	__aligned_u64 length;
-	__aligned_u64 iova;
+  __u32 size;
+  __u32 flags;
+  __u32 ioas_id;
+  __u32 __reserved;
+  __aligned_u64 user_va;
+  __aligned_u64 length;
+  __aligned_u64 iova;
 };
 #define IOMMU_IOAS_MAP _IO(IOMMUFD_TYPE, IOMMUFD_CMD_IOAS_MAP)
 
@@ -233,13 +233,13 @@ struct iommu_ioas_map {
  * the kernel will pin the user memory only once.
  */
 struct iommu_ioas_copy {
-	__u32 size;
-	__u32 flags;
-	__u32 dst_ioas_id;
-	__u32 src_ioas_id;
-	__aligned_u64 length;
-	__aligned_u64 dst_iova;
-	__aligned_u64 src_iova;
+  __u32 size;
+  __u32 flags;
+  __u32 dst_ioas_id;
+  __u32 src_ioas_id;
+  __aligned_u64 length;
+  __aligned_u64 dst_iova;
+  __aligned_u64 src_iova;
 };
 #define IOMMU_IOAS_COPY _IO(IOMMUFD_TYPE, IOMMUFD_CMD_IOAS_COPY)
 
@@ -256,10 +256,10 @@ struct iommu_ioas_copy {
  * everything.
  */
 struct iommu_ioas_unmap {
-	__u32 size;
-	__u32 ioas_id;
-	__aligned_u64 iova;
-	__aligned_u64 length;
+  __u32 size;
+  __u32 ioas_id;
+  __aligned_u64 iova;
+  __aligned_u64 length;
 };
 #define IOMMU_IOAS_UNMAP _IO(IOMMUFD_TYPE, IOMMUFD_CMD_IOAS_UNMAP)
 
@@ -277,8 +277,8 @@ struct iommu_ioas_unmap {
  *    option, the object_id must be the IOAS ID.
  */
 enum iommufd_option {
-	IOMMU_OPTION_RLIMIT_MODE = 0,
-	IOMMU_OPTION_HUGE_PAGES = 1,
+  IOMMU_OPTION_RLIMIT_MODE = 0,
+  IOMMU_OPTION_HUGE_PAGES = 1,
 };
 
 /**
@@ -288,8 +288,8 @@ enum iommufd_option {
  * @IOMMU_OPTION_OP_GET: Get the option's value
  */
 enum iommufd_option_ops {
-	IOMMU_OPTION_OP_SET = 0,
-	IOMMU_OPTION_OP_GET = 1,
+  IOMMU_OPTION_OP_SET = 0,
+  IOMMU_OPTION_OP_GET = 1,
 };
 
 /**
@@ -306,12 +306,12 @@ enum iommufd_option_ops {
  * will return the current value.
  */
 struct iommu_option {
-	__u32 size;
-	__u32 option_id;
-	__u16 op;
-	__u16 __reserved;
-	__u32 object_id;
-	__aligned_u64 val64;
+  __u32 size;
+  __u32 option_id;
+  __u16 op;
+  __u16 __reserved;
+  __u32 object_id;
+  __aligned_u64 val64;
 };
 #define IOMMU_OPTION _IO(IOMMUFD_TYPE, IOMMUFD_CMD_OPTION)
 
@@ -322,9 +322,9 @@ struct iommu_option {
  * @IOMMU_VFIO_IOAS_CLEAR: Disable VFIO compatibility
  */
 enum iommufd_vfio_ioas_op {
-	IOMMU_VFIO_IOAS_GET = 0,
-	IOMMU_VFIO_IOAS_SET = 1,
-	IOMMU_VFIO_IOAS_CLEAR = 2,
+  IOMMU_VFIO_IOAS_GET = 0,
+  IOMMU_VFIO_IOAS_SET = 1,
+  IOMMU_VFIO_IOAS_CLEAR = 2,
 };
 
 /**
@@ -343,10 +343,10 @@ enum iommufd_vfio_ioas_op {
  * this ioctl. SET or CLEAR does not destroy any auto-created IOAS.
  */
 struct iommu_vfio_ioas {
-	__u32 size;
-	__u32 ioas_id;
-	__u16 op;
-	__u16 __reserved;
+  __u32 size;
+  __u32 ioas_id;
+  __u16 op;
+  __u16 __reserved;
 };
 #define IOMMU_VFIO_IOAS _IO(IOMMUFD_TYPE, IOMMUFD_CMD_VFIO_IOAS)
 
@@ -358,8 +358,8 @@ struct iommu_vfio_ioas {
  *                                   enforced on device attachment
  */
 enum iommufd_hwpt_alloc_flags {
-	IOMMU_HWPT_ALLOC_NEST_PARENT = 1 << 0,
-	IOMMU_HWPT_ALLOC_DIRTY_TRACKING = 1 << 1,
+  IOMMU_HWPT_ALLOC_NEST_PARENT = 1 << 0,
+  IOMMU_HWPT_ALLOC_DIRTY_TRACKING = 1 << 1,
 };
 
 /**
@@ -370,9 +370,9 @@ enum iommufd_hwpt_alloc_flags {
  * @IOMMU_VTD_S1_WPE: Write protect enable
  */
 enum iommu_hwpt_vtd_s1_flags {
-	IOMMU_VTD_S1_SRE = 1 << 0,
-	IOMMU_VTD_S1_EAFE = 1 << 1,
-	IOMMU_VTD_S1_WPE = 1 << 2,
+  IOMMU_VTD_S1_SRE = 1 << 0,
+  IOMMU_VTD_S1_EAFE = 1 << 1,
+  IOMMU_VTD_S1_WPE = 1 << 2,
 };
 
 /**
@@ -384,10 +384,10 @@ enum iommu_hwpt_vtd_s1_flags {
  * @__reserved: Must be 0
  */
 struct iommu_hwpt_vtd_s1 {
-	__aligned_u64 flags;
-	__aligned_u64 pgtbl_addr;
-	__u32 addr_width;
-	__u32 __reserved;
+  __aligned_u64 flags;
+  __aligned_u64 pgtbl_addr;
+  __u32 addr_width;
+  __u32 __reserved;
 };
 
 /**
@@ -396,8 +396,8 @@ struct iommu_hwpt_vtd_s1 {
  * @IOMMU_HWPT_DATA_VTD_S1: Intel VT-d stage-1 page table
  */
 enum iommu_hwpt_data_type {
-	IOMMU_HWPT_DATA_NONE,
-	IOMMU_HWPT_DATA_VTD_S1,
+  IOMMU_HWPT_DATA_NONE,
+  IOMMU_HWPT_DATA_VTD_S1,
 };
 
 /**
@@ -432,15 +432,15 @@ enum iommu_hwpt_data_type {
  * must be given.
  */
 struct iommu_hwpt_alloc {
-	__u32 size;
-	__u32 flags;
-	__u32 dev_id;
-	__u32 pt_id;
-	__u32 out_hwpt_id;
-	__u32 __reserved;
-	__u32 data_type;
-	__u32 data_len;
-	__aligned_u64 data_uptr;
+  __u32 size;
+  __u32 flags;
+  __u32 dev_id;
+  __u32 pt_id;
+  __u32 out_hwpt_id;
+  __u32 __reserved;
+  __u32 data_type;
+  __u32 data_len;
+  __aligned_u64 data_uptr;
 };
 #define IOMMU_HWPT_ALLOC _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_ALLOC)
 
@@ -448,10 +448,24 @@ struct iommu_hwpt_alloc {
  * enum iommu_hw_info_vtd_flags - Flags for VT-d hw_info
  * @IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17: If set, disallow read-only mappings
  *                                         on a nested_parent domain.
- *                                         https://www.intel.com/content/www/us/en/content-details/772415/content-details.html
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ *
+ * https://www.intel.com/content/www/us/en/content-details/772415/content-details.html
  */
 enum iommu_hw_info_vtd_flags {
-	IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17 = 1 << 0,
+  IOMMU_HW_INFO_VTD_ERRATA_772415_SPR17 = 1 << 0,
 };
 
 /**
@@ -469,10 +483,10 @@ enum iommu_hw_info_vtd_flags {
  * register value.
  */
 struct iommu_hw_info_vtd {
-	__u32 flags;
-	__u32 __reserved;
-	__aligned_u64 cap_reg;
-	__aligned_u64 ecap_reg;
+  __u32 flags;
+  __u32 __reserved;
+  __aligned_u64 cap_reg;
+  __aligned_u64 ecap_reg;
 };
 
 /**
@@ -482,8 +496,8 @@ struct iommu_hw_info_vtd {
  * @IOMMU_HW_INFO_TYPE_INTEL_VTD: Intel VT-d iommu info type
  */
 enum iommu_hw_info_type {
-	IOMMU_HW_INFO_TYPE_NONE,
-	IOMMU_HW_INFO_TYPE_INTEL_VTD,
+  IOMMU_HW_INFO_TYPE_NONE,
+  IOMMU_HW_INFO_TYPE_INTEL_VTD,
 };
 
 /**
@@ -497,7 +511,7 @@ enum iommu_hw_info_type {
  *
  */
 enum iommufd_hw_capabilities {
-	IOMMU_HW_CAP_DIRTY_TRACKING = 1 << 0,
+  IOMMU_HW_CAP_DIRTY_TRACKING = 1 << 0,
 };
 
 /**
@@ -530,14 +544,14 @@ enum iommufd_hw_capabilities {
  * pointed by @data_uptr. Input @data_len == zero is allowed.
  */
 struct iommu_hw_info {
-	__u32 size;
-	__u32 flags;
-	__u32 dev_id;
-	__u32 data_len;
-	__aligned_u64 data_uptr;
-	__u32 out_data_type;
-	__u32 __reserved;
-	__aligned_u64 out_capabilities;
+  __u32 size;
+  __u32 flags;
+  __u32 dev_id;
+  __u32 data_len;
+  __aligned_u64 data_uptr;
+  __u32 out_data_type;
+  __u32 __reserved;
+  __aligned_u64 out_capabilities;
 };
 #define IOMMU_GET_HW_INFO _IO(IOMMUFD_TYPE, IOMMUFD_CMD_GET_HW_INFO)
 
@@ -547,7 +561,7 @@ struct iommu_hw_info {
  * @IOMMU_HWPT_DIRTY_TRACKING_ENABLE: Enable dirty tracking
  */
 enum iommufd_hwpt_set_dirty_tracking_flags {
-	IOMMU_HWPT_DIRTY_TRACKING_ENABLE = 1,
+  IOMMU_HWPT_DIRTY_TRACKING_ENABLE = 1,
 };
 
 /**
@@ -560,13 +574,13 @@ enum iommufd_hwpt_set_dirty_tracking_flags {
  * Toggle dirty tracking on an HW pagetable.
  */
 struct iommu_hwpt_set_dirty_tracking {
-	__u32 size;
-	__u32 flags;
-	__u32 hwpt_id;
-	__u32 __reserved;
+  __u32 size;
+  __u32 flags;
+  __u32 hwpt_id;
+  __u32 __reserved;
 };
 #define IOMMU_HWPT_SET_DIRTY_TRACKING _IO(IOMMUFD_TYPE, \
-					  IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING)
+    IOMMUFD_CMD_HWPT_SET_DIRTY_TRACKING)
 
 /**
  * enum iommufd_hwpt_get_dirty_bitmap_flags - Flags for getting dirty bits
@@ -578,7 +592,7 @@ struct iommu_hwpt_set_dirty_tracking {
  *
  */
 enum iommufd_hwpt_get_dirty_bitmap_flags {
-	IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR = 1,
+  IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR = 1,
 };
 
 /**
@@ -602,17 +616,17 @@ enum iommufd_hwpt_get_dirty_bitmap_flags {
  * dirty bit metadata set in the IOPTE.
  */
 struct iommu_hwpt_get_dirty_bitmap {
-	__u32 size;
-	__u32 hwpt_id;
-	__u32 flags;
-	__u32 __reserved;
-	__aligned_u64 iova;
-	__aligned_u64 length;
-	__aligned_u64 page_size;
-	__aligned_u64 data;
+  __u32 size;
+  __u32 hwpt_id;
+  __u32 flags;
+  __u32 __reserved;
+  __aligned_u64 iova;
+  __aligned_u64 length;
+  __aligned_u64 page_size;
+  __aligned_u64 data;
 };
 #define IOMMU_HWPT_GET_DIRTY_BITMAP _IO(IOMMUFD_TYPE, \
-					IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP)
+    IOMMUFD_CMD_HWPT_GET_DIRTY_BITMAP)
 
 /**
  * enum iommu_hwpt_invalidate_data_type - IOMMU HWPT Cache Invalidation
@@ -620,7 +634,7 @@ struct iommu_hwpt_get_dirty_bitmap {
  * @IOMMU_HWPT_INVALIDATE_DATA_VTD_S1: Invalidation data for VTD_S1
  */
 enum iommu_hwpt_invalidate_data_type {
-	IOMMU_HWPT_INVALIDATE_DATA_VTD_S1,
+  IOMMU_HWPT_INVALIDATE_DATA_VTD_S1,
 };
 
 /**
@@ -631,7 +645,7 @@ enum iommu_hwpt_invalidate_data_type {
  *                            the leaf PTE cache.
  */
 enum iommu_hwpt_vtd_s1_invalidate_flags {
-	IOMMU_VTD_INV_FLAGS_LEAF = 1 << 0,
+  IOMMU_VTD_INV_FLAGS_LEAF = 1 << 0,
 };
 
 /**
@@ -653,10 +667,10 @@ enum iommu_hwpt_vtd_s1_invalidate_flags {
  * The device TLB will be invalidated automatically if ATS is enabled.
  */
 struct iommu_hwpt_vtd_s1_invalidate {
-	__aligned_u64 addr;
-	__aligned_u64 npages;
-	__u32 flags;
-	__u32 __reserved;
+  __aligned_u64 addr;
+  __aligned_u64 npages;
+  __u32 flags;
+  __u32 __reserved;
 };
 
 /**
@@ -683,13 +697,13 @@ struct iommu_hwpt_vtd_s1_invalidate {
  * check if the given @data_type is supported or not by kernel.
  */
 struct iommu_hwpt_invalidate {
-	__u32 size;
-	__u32 hwpt_id;
-	__aligned_u64 data_uptr;
-	__u32 data_type;
-	__u32 entry_len;
-	__u32 entry_num;
-	__u32 __reserved;
+  __u32 size;
+  __u32 hwpt_id;
+  __aligned_u64 data_uptr;
+  __u32 data_type;
+  __u32 entry_len;
+  __u32 entry_num;
+  __u32 __reserved;
 };
 #define IOMMU_HWPT_INVALIDATE _IO(IOMMUFD_TYPE, IOMMUFD_CMD_HWPT_INVALIDATE)
 #endif

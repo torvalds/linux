@@ -5,25 +5,26 @@
 #include <subdev/ltc.h>
 #include <core/enum.h>
 
-int nvkm_ltc_new_(const struct nvkm_ltc_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_ltc **);
+int nvkm_ltc_new_(const struct nvkm_ltc_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_ltc **);
 
 struct nvkm_ltc_func {
-	int  (*oneinit)(struct nvkm_ltc *);
-	void (*init)(struct nvkm_ltc *);
-	void (*intr)(struct nvkm_ltc *);
+  int (*oneinit)(struct nvkm_ltc *);
+  void (*init)(struct nvkm_ltc *);
+  void (*intr)(struct nvkm_ltc *);
 
-	void (*cbc_clear)(struct nvkm_ltc *, u32 start, u32 limit);
-	void (*cbc_wait)(struct nvkm_ltc *);
+  void (*cbc_clear)(struct nvkm_ltc *, u32 start, u32 limit);
+  void (*cbc_wait)(struct nvkm_ltc *);
 
-	int zbc_color;
-	int zbc_depth;
-	void (*zbc_clear_color)(struct nvkm_ltc *, int, const u32[4]);
-	void (*zbc_clear_depth)(struct nvkm_ltc *, int, const u32);
-	void (*zbc_clear_stencil)(struct nvkm_ltc *, int, const u32);
+  int zbc_color;
+  int zbc_depth;
+  void (*zbc_clear_color)(struct nvkm_ltc *, int, const u32[4]);
+  void (*zbc_clear_depth)(struct nvkm_ltc *, int, const u32);
+  void (*zbc_clear_stencil)(struct nvkm_ltc *, int, const u32);
 
-	void (*invalidate)(struct nvkm_ltc *);
-	void (*flush)(struct nvkm_ltc *);
+  void (*invalidate)(struct nvkm_ltc *);
+  void (*flush)(struct nvkm_ltc *);
 };
 
 int gf100_ltc_oneinit(struct nvkm_ltc *);

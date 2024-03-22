@@ -28,9 +28,10 @@
  * the key and elements in the array are of the same type, you can use
  * the same comparison function for both sort() and bsearch().
  */
-void *bsearch(const void *key, const void *base, size_t num, size_t size, cmp_func_t cmp)
-{
-	return __inline_bsearch(key, base, num, size, cmp);
+void *bsearch(const void *key, const void *base, size_t num, size_t size,
+    cmp_func_t cmp) {
+  return __inline_bsearch(key, base, num, size, cmp);
 }
+
 EXPORT_SYMBOL(bsearch);
 NOKPROBE_SYMBOL(bsearch);

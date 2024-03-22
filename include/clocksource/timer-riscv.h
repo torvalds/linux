@@ -3,7 +3,7 @@
  * Copyright (C) 2019 Western Digital Corporation or its affiliates.
  *
  * Authors:
- *	Atish Patra <atish.patra@wdc.com>
+ *  Atish Patra <atish.patra@wdc.com>
  */
 
 #ifndef __TIMER_RISCV_H

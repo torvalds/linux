@@ -10,19 +10,18 @@
 
 #include "tag.h"
 
-#define NONE_NAME	"none"
+#define NONE_NAME "none"
 
 static struct sk_buff *dsa_user_notag_xmit(struct sk_buff *skb,
-					   struct net_device *dev)
-{
-	/* Just return the original SKB */
-	return skb;
+    struct net_device *dev) {
+  /* Just return the original SKB */
+  return skb;
 }
 
 static const struct dsa_device_ops none_ops = {
-	.name	= NONE_NAME,
-	.proto	= DSA_TAG_PROTO_NONE,
-	.xmit	= dsa_user_notag_xmit,
+  .name = NONE_NAME,
+  .proto = DSA_TAG_PROTO_NONE,
+  .xmit = dsa_user_notag_xmit,
 };
 
 module_dsa_tag_driver(none_ops);

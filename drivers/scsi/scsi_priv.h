@@ -22,26 +22,25 @@ struct scsi_nl_hdr;
  * Error codes used by scsi-ml internally. These must not be used by drivers.
  */
 enum scsi_ml_status {
-	SCSIML_STAT_OK			= 0x00,
-	SCSIML_STAT_RESV_CONFLICT	= 0x01,	/* Reservation conflict */
-	SCSIML_STAT_NOSPC		= 0x02,	/* Space allocation on the dev failed */
-	SCSIML_STAT_MED_ERROR		= 0x03,	/* Medium error */
-	SCSIML_STAT_TGT_FAILURE		= 0x04,	/* Permanent target failure */
-	SCSIML_STAT_DL_TIMEOUT		= 0x05, /* Command Duration Limit timeout */
+  SCSIML_STAT_OK = 0x00,
+  SCSIML_STAT_RESV_CONFLICT = 0x01, /* Reservation conflict */
+  SCSIML_STAT_NOSPC = 0x02, /* Space allocation on the dev failed */
+  SCSIML_STAT_MED_ERROR = 0x03, /* Medium error */
+  SCSIML_STAT_TGT_FAILURE = 0x04, /* Permanent target failure */
+  SCSIML_STAT_DL_TIMEOUT = 0x05, /* Command Duration Limit timeout */
 };
 
-static inline u8 scsi_ml_byte(int result)
-{
-	return (result >> 8) & 0xff;
+static inline u8 scsi_ml_byte(int result) {
+  return (result >> 8) & 0xff;
 }
 
 /*
  * Scsi Error Handler Flags
  */
-#define SCSI_EH_ABORT_SCHEDULED	0x0002	/* Abort has been scheduled */
+#define SCSI_EH_ABORT_SCHEDULED 0x0002  /* Abort has been scheduled */
 
 #define SCSI_SENSE_VALID(scmd) \
-	(((scmd)->sense_buffer[0] & 0x70) == 0x70)
+  (((scmd)->sense_buffer[0] & 0x70) == 0x70)
 
 /* hosts.c */
 extern int scsi_init_hosts(void);
@@ -54,33 +53,35 @@ void scsi_init_command(struct scsi_device *dev, struct scsi_cmnd *cmd);
 void scsi_log_send(struct scsi_cmnd *cmd);
 void scsi_log_completion(struct scsi_cmnd *cmd, int disposition);
 #else
-static inline void scsi_log_send(struct scsi_cmnd *cmd) 
-	{ };
-static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
-	{ };
+static inline void scsi_log_send(struct scsi_cmnd *cmd) {
+}
+
+static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition) {
+}
+
 #endif
 
 /* scsi_devinfo.c */
 
 /* list of keys for the lists */
 enum scsi_devinfo_key {
-	SCSI_DEVINFO_GLOBAL = 0,
-	SCSI_DEVINFO_SPI,
+  SCSI_DEVINFO_GLOBAL = 0,
+  SCSI_DEVINFO_SPI,
 };
 
 extern blist_flags_t scsi_get_device_flags(struct scsi_device *sdev,
-					   const unsigned char *vendor,
-					   const unsigned char *model);
+    const unsigned char *vendor,
+    const unsigned char *model);
 extern blist_flags_t scsi_get_device_flags_keyed(struct scsi_device *sdev,
-						 const unsigned char *vendor,
-						 const unsigned char *model,
-						 enum scsi_devinfo_key key);
+    const unsigned char *vendor,
+    const unsigned char *model,
+    enum scsi_devinfo_key key);
 extern int scsi_dev_info_list_add_keyed(int compatible, char *vendor,
-					char *model, char *strflags,
-					blist_flags_t flags,
-					enum scsi_devinfo_key key);
+    char *model, char *strflags,
+    blist_flags_t flags,
+    enum scsi_devinfo_key key);
 extern int scsi_dev_info_list_del_keyed(char *vendor, char *model,
-					enum scsi_devinfo_key key);
+    enum scsi_devinfo_key key);
 extern int scsi_dev_info_add_list(enum scsi_devinfo_key key, const char *name);
 extern int scsi_dev_info_remove_list(enum scsi_devinfo_key key);
 
@@ -95,10 +96,10 @@ extern enum scsi_disposition scsi_decide_disposition(struct scsi_cmnd *cmd);
 extern void scsi_eh_wakeup(struct Scsi_Host *shost, unsigned int busy);
 extern void scsi_eh_scmd_add(struct scsi_cmnd *);
 void scsi_eh_ready_devs(struct Scsi_Host *shost,
-			struct list_head *work_q,
-			struct list_head *done_q);
+    struct list_head *work_q,
+    struct list_head *done_q);
 int scsi_eh_get_sense(struct list_head *work_q,
-		      struct list_head *done_q);
+    struct list_head *done_q);
 bool scsi_noretry_cmd(struct scsi_cmnd *scmd);
 void scsi_eh_done(struct scsi_cmnd *scmd);
 
@@ -123,19 +124,19 @@ extern void scsi_proc_host_rm(struct Scsi_Host *);
 extern int scsi_init_procfs(void);
 extern void scsi_exit_procfs(void);
 #else
-# define scsi_proc_hostdir_add(sht)	0
-# define scsi_proc_hostdir_rm(sht)	do { } while (0)
-# define scsi_proc_host_add(shost)	do { } while (0)
-# define scsi_proc_host_rm(shost)	do { } while (0)
-# define scsi_init_procfs()		(0)
-# define scsi_exit_procfs()		do { } while (0)
+#define scsi_proc_hostdir_add(sht) 0
+#define scsi_proc_hostdir_rm(sht)  do {} while (0)
+#define scsi_proc_host_add(shost)  do {} while (0)
+#define scsi_proc_host_rm(shost) do {} while (0)
+#define scsi_init_procfs()   (0)
+#define scsi_exit_procfs()   do {} while (0)
 #endif /* CONFIG_PROC_FS */
 
 /* scsi_scan.c */
 void scsi_enable_async_suspend(struct device *dev);
 extern int scsi_complete_async_scans(void);
 extern int scsi_scan_host_selected(struct Scsi_Host *, unsigned int,
-				   unsigned int, u64, enum scsi_scan_mode);
+    unsigned int, u64, enum scsi_scan_mode);
 extern void scsi_forget_host(struct Scsi_Host *);
 
 /* scsi_sysctl.c */
@@ -143,8 +144,8 @@ extern void scsi_forget_host(struct Scsi_Host *);
 extern int scsi_init_sysctl(void);
 extern void scsi_exit_sysctl(void);
 #else
-# define scsi_init_sysctl()		(0)
-# define scsi_exit_sysctl()		do { } while (0)
+#define scsi_init_sysctl()   (0)
+#define scsi_exit_sysctl()   do {} while (0)
 #endif /* CONFIG_SYSCTL */
 
 /* scsi_sysfs.c */
@@ -165,8 +166,12 @@ extern void scsi_netlink_init(void);
 extern void scsi_netlink_exit(void);
 extern struct sock *scsi_nl_sock;
 #else
-static inline void scsi_netlink_init(void) {}
-static inline void scsi_netlink_exit(void) {}
+static inline void scsi_netlink_init(void) {
+}
+
+static inline void scsi_netlink_exit(void) {
+}
+
 #endif
 
 /* scsi_pm.c */
@@ -178,10 +183,19 @@ extern void scsi_autopm_put_target(struct scsi_target *);
 extern int scsi_autopm_get_host(struct Scsi_Host *);
 extern void scsi_autopm_put_host(struct Scsi_Host *);
 #else
-static inline void scsi_autopm_get_target(struct scsi_target *t) {}
-static inline void scsi_autopm_put_target(struct scsi_target *t) {}
-static inline int scsi_autopm_get_host(struct Scsi_Host *h) { return 0; }
-static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
+static inline void scsi_autopm_get_target(struct scsi_target *t) {
+}
+
+static inline void scsi_autopm_put_target(struct scsi_target *t) {
+}
+
+static inline int scsi_autopm_get_host(struct Scsi_Host *h) {
+  return 0;
+}
+
+static inline void scsi_autopm_put_host(struct Scsi_Host *h) {
+}
+
 #endif /* CONFIG_PM */
 
 /* scsi_dh.c */
@@ -189,19 +203,23 @@ static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
 void scsi_dh_add_device(struct scsi_device *sdev);
 void scsi_dh_release_device(struct scsi_device *sdev);
 #else
-static inline void scsi_dh_add_device(struct scsi_device *sdev) { }
-static inline void scsi_dh_release_device(struct scsi_device *sdev) { }
+static inline void scsi_dh_add_device(struct scsi_device *sdev) {
+}
+
+static inline void scsi_dh_release_device(struct scsi_device *sdev) {
+}
+
 #endif
 
 struct bsg_device *scsi_bsg_register_queue(struct scsi_device *sdev);
 
 extern int scsi_device_max_queue_depth(struct scsi_device *sdev);
 
-/* 
+/*
  * internal scsi timeout functions: for use by mid-layer and transport
  * classes.
  */
 
-#define SCSI_DEVICE_BLOCK_MAX_TIMEOUT	600	/* units in seconds */
+#define SCSI_DEVICE_BLOCK_MAX_TIMEOUT 600 /* units in seconds */
 
 #endif /* _SCSI_PRIV_H */

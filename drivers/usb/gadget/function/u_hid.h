@@ -5,7 +5,7 @@
  * Utility definitions for the hid function
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *    http://www.samsung.com
  *
  * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
@@ -16,22 +16,22 @@
 #include <linux/usb/composite.h>
 
 struct f_hid_opts {
-	struct usb_function_instance	func_inst;
-	int				minor;
-	unsigned char			subclass;
-	unsigned char			protocol;
-	unsigned char			no_out_endpoint;
-	unsigned short			report_length;
-	unsigned short			report_desc_length;
-	unsigned char			*report_desc;
-	bool				report_desc_alloc;
+  struct usb_function_instance func_inst;
+  int minor;
+  unsigned char subclass;
+  unsigned char protocol;
+  unsigned char no_out_endpoint;
+  unsigned short report_length;
+  unsigned short report_desc_length;
+  unsigned char *report_desc;
+  bool report_desc_alloc;
 
-	/*
-	 * Protect the data form concurrent access by read/write
-	 * and create symlink/remove symlink.
-	 */
-	struct mutex			lock;
-	int				refcnt;
+  /*
+   * Protect the data form concurrent access by read/write
+   * and create symlink/remove symlink.
+   */
+  struct mutex lock;
+  int refcnt;
 };
 
 int ghid_setup(struct usb_gadget *g, int count);

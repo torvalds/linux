@@ -53,9 +53,9 @@ typedef struct {
   uint16_t MaxClock; // This is either DCFCLK or SOCCLK (in MHz)
   uint16_t MinMclk;
   uint16_t MaxMclk;
-  uint8_t  WmSetting;
-  uint8_t  WmType;  // Used for normal pstate change or memory retraining
-  uint8_t  Padding[2];
+  uint8_t WmSetting;
+  uint8_t WmType;  // Used for normal pstate change or memory retraining
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -116,12 +116,12 @@ typedef struct {
   uint32_t DClocks[NUM_VCN_DPM_LEVELS];
   uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
   DfPstateTable_t DfPstateTable[NUM_DF_PSTATE_LEVELS];
-  uint8_t  NumDcfClkLevelsEnabled;
-  uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
-  uint8_t  NumSocClkLevelsEnabled;
-  uint8_t  VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
-  uint8_t  NumDfPstatesEnabled;
-  uint8_t  spare[3];
+  uint8_t NumDcfClkLevelsEnabled;
+  uint8_t NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
+  uint8_t NumSocClkLevelsEnabled;
+  uint8_t VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
+  uint8_t NumDfPstatesEnabled;
+  uint8_t spare[3];
   uint32_t MinGfxClk;
   uint32_t MaxGfxClk;
 } DpmClocks_t;

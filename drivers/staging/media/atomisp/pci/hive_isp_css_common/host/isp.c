@@ -25,46 +25,40 @@
 #include "assert_support.h"
 
 void cnd_isp_irq_enable(
-    const isp_ID_t		ID,
-    const bool		cnd)
-{
-	if (cnd) {
-		isp_ctrl_setbit(ID, ISP_IRQ_READY_REG, ISP_IRQ_READY_BIT);
-		/* Enabling the IRQ immediately triggers an interrupt, clear it */
-		isp_ctrl_setbit(ID, ISP_IRQ_CLEAR_REG, ISP_IRQ_CLEAR_BIT);
-	} else {
-		isp_ctrl_clearbit(ID, ISP_IRQ_READY_REG,
-				  ISP_IRQ_READY_BIT);
-	}
-	return;
+    const isp_ID_t ID,
+    const bool cnd) {
+  if (cnd) {
+    isp_ctrl_setbit(ID, ISP_IRQ_READY_REG, ISP_IRQ_READY_BIT);
+    /* Enabling the IRQ immediately triggers an interrupt, clear it */
+    isp_ctrl_setbit(ID, ISP_IRQ_CLEAR_REG, ISP_IRQ_CLEAR_BIT);
+  } else {
+    isp_ctrl_clearbit(ID, ISP_IRQ_READY_REG,
+        ISP_IRQ_READY_BIT);
+  }
 }
 
 /* ISP functions to control the ISP state from the host, even in crun. */
 
 /* Inspect readiness of an ISP indexed by ID */
-unsigned int isp_is_ready(isp_ID_t ID)
-{
-	assert(ID < N_ISP_ID);
-	return isp_ctrl_getbit(ID, ISP_SC_REG, ISP_IDLE_BIT);
+unsigned int isp_is_ready(isp_ID_t ID) {
+  assert(ID < N_ISP_ID);
+  return isp_ctrl_getbit(ID, ISP_SC_REG, ISP_IDLE_BIT);
 }
 
 /* Inspect sleeping of an ISP indexed by ID */
-unsigned int isp_is_sleeping(isp_ID_t ID)
-{
-	assert(ID < N_ISP_ID);
-	return isp_ctrl_getbit(ID, ISP_SC_REG, ISP_SLEEPING_BIT);
+unsigned int isp_is_sleeping(isp_ID_t ID) {
+  assert(ID < N_ISP_ID);
+  return isp_ctrl_getbit(ID, ISP_SC_REG, ISP_SLEEPING_BIT);
 }
 
 /* To be called by the host immediately before starting ISP ID. */
-void isp_start(isp_ID_t ID)
-{
-	assert(ID < N_ISP_ID);
+void isp_start(isp_ID_t ID) {
+  assert(ID < N_ISP_ID);
 }
 
 /* Wake up ISP ID. */
-void isp_wake(isp_ID_t ID)
-{
-	assert(ID < N_ISP_ID);
-	isp_ctrl_setbit(ID, ISP_SC_REG, ISP_START_BIT);
-	udelay(1);
+void isp_wake(isp_ID_t ID) {
+  assert(ID < N_ISP_ID);
+  isp_ctrl_setbit(ID, ISP_SC_REG, ISP_START_BIT);
+  udelay(1);
 }

@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
-	<http://rt2x00.serialmonkey.com>
-
+ * Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+ * <http://rt2x00.serialmonkey.com>
+ *
  */
 
 /*
-	Module: rt2x00pci
-	Abstract: Data structures for the rt2x00pci module.
+ * Module: rt2x00pci
+ * Abstract: Data structures for the rt2x00pci module.
  */
 
 #ifndef RT2X00PCI_H

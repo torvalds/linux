@@ -1,19 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2016 - 2021 Intel Corporation */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+ * Copyright (c) 2016 - 2021 Intel Corporation*/
 #ifndef IRDMA_UDA_D_H
 #define IRDMA_UDA_D_H
 
 /* L4 packet type */
-#define IRDMA_E_UDA_SQ_L4T_UNKNOWN	0
-#define IRDMA_E_UDA_SQ_L4T_TCP		1
-#define IRDMA_E_UDA_SQ_L4T_SCTP		2
-#define IRDMA_E_UDA_SQ_L4T_UDP		3
+#define IRDMA_E_UDA_SQ_L4T_UNKNOWN  0
+#define IRDMA_E_UDA_SQ_L4T_TCP    1
+#define IRDMA_E_UDA_SQ_L4T_SCTP   2
+#define IRDMA_E_UDA_SQ_L4T_UDP    3
 
 /* Inner IP header type */
-#define IRDMA_E_UDA_SQ_IIPT_UNKNOWN		0
-#define IRDMA_E_UDA_SQ_IIPT_IPV6		1
-#define IRDMA_E_UDA_SQ_IIPT_IPV4_NO_CSUM	2
-#define IRDMA_E_UDA_SQ_IIPT_IPV4_CSUM		3
+#define IRDMA_E_UDA_SQ_IIPT_UNKNOWN   0
+#define IRDMA_E_UDA_SQ_IIPT_IPV6    1
+#define IRDMA_E_UDA_SQ_IIPT_IPV4_NO_CSUM  2
+#define IRDMA_E_UDA_SQ_IIPT_IPV4_CSUM   3
 #define IRDMA_UDA_QPSQ_PUSHWQE BIT_ULL(56)
 #define IRDMA_UDA_QPSQ_INLINEDATAFLAG BIT_ULL(57)
 #define IRDMA_UDA_QPSQ_INLINEDATALEN GENMASK_ULL(55, 48)

@@ -8,24 +8,24 @@
 #define MAX_ENTRIES 11
 
 struct test_val {
-	unsigned int index;
-	int foo[MAX_ENTRIES];
+  unsigned int index;
+  int foo[MAX_ENTRIES];
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, struct test_val);
 } map_hash_48b SEC(".maps");
 
 SEC("socket")
 __description("map element value is preserved across register spilling")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0)
-__naked void is_preserved_across_register_spilling(void)
-{
-	asm volatile ("					\
+__naked void is_preserved_across_register_spilling(void) {
+  asm volatile (
+    "					\
 	r2 = r10;					\
 	r2 += -8;					\
 	r1 = 0;						\
@@ -42,19 +42,19 @@ __naked void is_preserved_across_register_spilling(void)
 	r1 = 42;					\
 	*(u64*)(r3 + 0) = r1;				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map element value or null is marked on register spilling")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0)
-__naked void is_marked_on_register_spilling(void)
-{
-	asm volatile ("					\
+__naked void is_marked_on_register_spilling(void) {
+  asm volatile (
+    "					\
 	r2 = r10;					\
 	r2 += -8;					\
 	r1 = 0;						\
@@ -69,10 +69,10 @@ __naked void is_marked_on_register_spilling(void)
 	r1 = 42;					\
 	*(u64*)(r3 + 0) = r1;				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

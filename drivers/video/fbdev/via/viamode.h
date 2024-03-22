@@ -2,7 +2,7 @@
 /*
  * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
-
+ *
  */
 
 #ifndef __VIAMODE_H__
@@ -11,15 +11,15 @@
 #include "global.h"
 
 struct VPITTable {
-	unsigned char Misc;
-	unsigned char SR[StdSR];
-	unsigned char GR[StdGR];
-	unsigned char AR[StdAR];
+  unsigned char Misc;
+  unsigned char SR[StdSR];
+  unsigned char GR[StdGR];
+  unsigned char AR[StdAR];
 };
 
 struct patch_table {
-	int table_length;
-	struct io_reg *io_reg_table;
+  int table_length;
+  struct io_reg *io_reg_table;
 };
 
 extern int NUM_TOTAL_CN400_ModeXregs;
@@ -42,8 +42,8 @@ extern struct patch_table res_patch_table[];
 extern struct VPITTable VPIT;
 
 const struct fb_videomode *viafb_get_best_mode(int hres, int vres,
-	int refresh);
+    int refresh);
 const struct fb_videomode *viafb_get_best_rb_mode(int hres, int vres,
-	int refresh);
+    int refresh);
 
 #endif /* __VIAMODE_H__ */

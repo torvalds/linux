@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080event_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080event_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2006-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2006-2021 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,14 +28,19 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION (0x20800301) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_EVENT_INTERFACE_ID << 8) | NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS_MESSAGE_ID" */
+#define NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION (0x20800301) /* finn: Evaluated
+                                                             * from
+                                                             * "(FINN_NV20_SUBDEVICE_0_EVENT_INTERFACE_ID
+                                                             * << 8) |
+                                                             * NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS_MESSAGE_ID"
+                                                             * */
 
 typedef struct NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS {
-    NvU32  event;
-    NvU32  action;
-    NvBool bNotifyState;
-    NvU32  info32;
-    NvU16  info16;
+  NvU32 event;
+  NvU32 action;
+  NvBool bNotifyState;
+  NvU32 info32;
+  NvU16 info16;
 } NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS;
 
 #define NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_REPEAT  (0x00000002)

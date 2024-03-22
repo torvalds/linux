@@ -27,7 +27,7 @@
  * exercise of rights under this Agreement, including but not limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
-
+ *
  * DISCLAIMER OF LIABILITY
  * NEITHER RECIPIENT NOR ANY CONTRIBUTORS SHALL HAVE ANY LIABILITY FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
@@ -36,7 +36,7 @@
  * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
  * USE OR DISTRIBUTION OF THE PROGRAM OR THE EXERCISE OF ANY RIGHTS GRANTED
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
-
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
@@ -53,53 +53,53 @@
 #include "mpt3sas_base.h"
 
 #ifndef MPT2SAS_MINOR
-#define MPT2SAS_MINOR		(MPT_MINOR + 1)
+#define MPT2SAS_MINOR   (MPT_MINOR + 1)
 #endif
 #ifndef MPT3SAS_MINOR
-#define MPT3SAS_MINOR		(MPT_MINOR + 2)
+#define MPT3SAS_MINOR   (MPT_MINOR + 2)
 #endif
-#define MPT2SAS_DEV_NAME	"mpt2ctl"
-#define MPT3SAS_DEV_NAME	"mpt3ctl"
-#define MPT3_MAGIC_NUMBER	'L'
+#define MPT2SAS_DEV_NAME  "mpt2ctl"
+#define MPT3SAS_DEV_NAME  "mpt3ctl"
+#define MPT3_MAGIC_NUMBER 'L'
 #define MPT3_IOCTL_DEFAULT_TIMEOUT (10) /* in seconds */
 
 /**
  * IOCTL opcodes
  */
-#define MPT3IOCINFO	_IOWR(MPT3_MAGIC_NUMBER, 17, \
-	struct mpt3_ioctl_iocinfo)
-#define MPT3COMMAND	_IOWR(MPT3_MAGIC_NUMBER, 20, \
-	struct mpt3_ioctl_command)
+#define MPT3IOCINFO _IOWR(MPT3_MAGIC_NUMBER, 17, \
+    struct mpt3_ioctl_iocinfo)
+#define MPT3COMMAND _IOWR(MPT3_MAGIC_NUMBER, 20, \
+    struct mpt3_ioctl_command)
 #ifdef CONFIG_COMPAT
-#define MPT3COMMAND32	_IOWR(MPT3_MAGIC_NUMBER, 20, \
-	struct mpt3_ioctl_command32)
+#define MPT3COMMAND32 _IOWR(MPT3_MAGIC_NUMBER, 20, \
+    struct mpt3_ioctl_command32)
 #endif
-#define MPT3EVENTQUERY	_IOWR(MPT3_MAGIC_NUMBER, 21, \
-	struct mpt3_ioctl_eventquery)
-#define MPT3EVENTENABLE	_IOWR(MPT3_MAGIC_NUMBER, 22, \
-	struct mpt3_ioctl_eventenable)
-#define MPT3EVENTREPORT	_IOWR(MPT3_MAGIC_NUMBER, 23, \
-	struct mpt3_ioctl_eventreport)
-#define MPT3HARDRESET	_IOWR(MPT3_MAGIC_NUMBER, 24, \
-	struct mpt3_ioctl_diag_reset)
-#define MPT3BTDHMAPPING	_IOWR(MPT3_MAGIC_NUMBER, 31, \
-	struct mpt3_ioctl_btdh_mapping)
+#define MPT3EVENTQUERY  _IOWR(MPT3_MAGIC_NUMBER, 21, \
+    struct mpt3_ioctl_eventquery)
+#define MPT3EVENTENABLE _IOWR(MPT3_MAGIC_NUMBER, 22, \
+    struct mpt3_ioctl_eventenable)
+#define MPT3EVENTREPORT _IOWR(MPT3_MAGIC_NUMBER, 23, \
+    struct mpt3_ioctl_eventreport)
+#define MPT3HARDRESET _IOWR(MPT3_MAGIC_NUMBER, 24, \
+    struct mpt3_ioctl_diag_reset)
+#define MPT3BTDHMAPPING _IOWR(MPT3_MAGIC_NUMBER, 31, \
+    struct mpt3_ioctl_btdh_mapping)
 
 /* diag buffer support */
 #define MPT3DIAGREGISTER _IOWR(MPT3_MAGIC_NUMBER, 26, \
-	struct mpt3_diag_register)
-#define MPT3DIAGRELEASE	_IOWR(MPT3_MAGIC_NUMBER, 27, \
-	struct mpt3_diag_release)
+    struct mpt3_diag_register)
+#define MPT3DIAGRELEASE _IOWR(MPT3_MAGIC_NUMBER, 27, \
+    struct mpt3_diag_release)
 #define MPT3DIAGUNREGISTER _IOWR(MPT3_MAGIC_NUMBER, 28, \
-	struct mpt3_diag_unregister)
-#define MPT3DIAGQUERY	_IOWR(MPT3_MAGIC_NUMBER, 29, \
-	struct mpt3_diag_query)
+    struct mpt3_diag_unregister)
+#define MPT3DIAGQUERY _IOWR(MPT3_MAGIC_NUMBER, 29, \
+    struct mpt3_diag_query)
 #define MPT3DIAGREADBUFFER _IOWR(MPT3_MAGIC_NUMBER, 30, \
-	struct mpt3_diag_read_buffer)
+    struct mpt3_diag_read_buffer)
 #define MPT3ADDNLDIAGQUERY _IOWR(MPT3_MAGIC_NUMBER, 32, \
-	struct mpt3_addnl_diag_query)
+    struct mpt3_addnl_diag_query)
 #define MPT3ENABLEDIAGSBRRELOAD _IOWR(MPT3_MAGIC_NUMBER, 33, \
-	struct mpt3_enable_diag_sbr_reload)
+    struct mpt3_enable_diag_sbr_reload)
 
 /* Trace Buffer default UniqueId */
 #define MPT2DIAGBUFFUNIQUEID (0x07075900)
@@ -108,7 +108,6 @@
 /* UID not found */
 #define MPT3_DIAG_UID_NOT_FOUND (0xFF)
 
-
 /**
  * struct mpt3_ioctl_header - main header structure
  * @ioc_number -  IOC unit number
@@ -116,9 +115,9 @@
  * @max_data_size - maximum number bytes to transfer on read
  */
 struct mpt3_ioctl_header {
-	uint32_t ioc_number;
-	uint32_t port_number;
-	uint32_t max_data_size;
+  uint32_t ioc_number;
+  uint32_t port_number;
+  uint32_t max_data_size;
 };
 
 /**
@@ -126,9 +125,8 @@ struct mpt3_ioctl_header {
  * @hdr - generic header
  */
 struct mpt3_ioctl_diag_reset {
-	struct mpt3_ioctl_header hdr;
+  struct mpt3_ioctl_header hdr;
 };
-
 
 /**
  * struct mpt3_ioctl_pci_info - pci device info
@@ -138,27 +136,26 @@ struct mpt3_ioctl_diag_reset {
  * @segment_id - pci segment id
  */
 struct mpt3_ioctl_pci_info {
-	union {
-		struct {
-			uint32_t device:5;
-			uint32_t function:3;
-			uint32_t bus:24;
-		} bits;
-		uint32_t  word;
-	} u;
-	uint32_t segment_id;
+  union {
+    struct {
+      uint32_t device : 5;
+      uint32_t function : 3;
+      uint32_t bus : 24;
+    } bits;
+    uint32_t word;
+  } u;
+  uint32_t segment_id;
 };
 
-
-#define MPT2_IOCTL_INTERFACE_SCSI	(0x00)
-#define MPT2_IOCTL_INTERFACE_FC		(0x01)
-#define MPT2_IOCTL_INTERFACE_FC_IP	(0x02)
-#define MPT2_IOCTL_INTERFACE_SAS	(0x03)
-#define MPT2_IOCTL_INTERFACE_SAS2	(0x04)
-#define MPT2_IOCTL_INTERFACE_SAS2_SSS6200	(0x05)
-#define MPT3_IOCTL_INTERFACE_SAS3	(0x06)
-#define MPT3_IOCTL_INTERFACE_SAS35	(0x07)
-#define MPT2_IOCTL_VERSION_LENGTH	(32)
+#define MPT2_IOCTL_INTERFACE_SCSI (0x00)
+#define MPT2_IOCTL_INTERFACE_FC   (0x01)
+#define MPT2_IOCTL_INTERFACE_FC_IP  (0x02)
+#define MPT2_IOCTL_INTERFACE_SAS  (0x03)
+#define MPT2_IOCTL_INTERFACE_SAS2 (0x04)
+#define MPT2_IOCTL_INTERFACE_SAS2_SSS6200 (0x05)
+#define MPT3_IOCTL_INTERFACE_SAS3 (0x06)
+#define MPT3_IOCTL_INTERFACE_SAS35  (0x07)
+#define MPT2_IOCTL_VERSION_LENGTH (32)
 
 /**
  * struct mpt3_ioctl_iocinfo - generic controller info
@@ -179,23 +176,22 @@ struct mpt3_ioctl_pci_info {
  * @pci_information - pci info (2nd revision)
  */
 struct mpt3_ioctl_iocinfo {
-	struct mpt3_ioctl_header hdr;
-	uint32_t adapter_type;
-	uint32_t port_number;
-	uint32_t pci_id;
-	uint32_t hw_rev;
-	uint32_t subsystem_device;
-	uint32_t subsystem_vendor;
-	uint32_t rsvd0;
-	uint32_t firmware_version;
-	uint32_t bios_version;
-	uint8_t driver_version[MPT2_IOCTL_VERSION_LENGTH];
-	uint8_t rsvd1;
-	uint8_t scsi_id;
-	uint16_t rsvd2;
-	struct mpt3_ioctl_pci_info pci_information;
+  struct mpt3_ioctl_header hdr;
+  uint32_t adapter_type;
+  uint32_t port_number;
+  uint32_t pci_id;
+  uint32_t hw_rev;
+  uint32_t subsystem_device;
+  uint32_t subsystem_vendor;
+  uint32_t rsvd0;
+  uint32_t firmware_version;
+  uint32_t bios_version;
+  uint8_t driver_version[MPT2_IOCTL_VERSION_LENGTH];
+  uint8_t rsvd1;
+  uint8_t scsi_id;
+  uint16_t rsvd2;
+  struct mpt3_ioctl_pci_info pci_information;
 };
-
 
 /* number of event log entries */
 #define MPT3SAS_CTL_EVENT_LOG_SIZE (200)
@@ -208,10 +204,10 @@ struct mpt3_ioctl_iocinfo {
  * @event_types - type of events currently being captured
  */
 struct mpt3_ioctl_eventquery {
-	struct mpt3_ioctl_header hdr;
-	uint16_t event_entries;
-	uint16_t rsvd;
-	uint32_t event_types[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
+  struct mpt3_ioctl_header hdr;
+  uint16_t event_entries;
+  uint16_t rsvd;
+  uint32_t event_types[MPI2_EVENT_NOTIFY_EVENTMASK_WORDS];
 };
 
 /**
@@ -220,8 +216,8 @@ struct mpt3_ioctl_eventquery {
  * @event_types - toggle off/on type of events to be captured
  */
 struct mpt3_ioctl_eventenable {
-	struct mpt3_ioctl_header hdr;
-	uint32_t event_types[4];
+  struct mpt3_ioctl_header hdr;
+  uint32_t event_types[4];
 };
 
 #define MPT3_EVENT_DATA_SIZE (192)
@@ -232,9 +228,9 @@ struct mpt3_ioctl_eventenable {
  * @data - event data returned in fw reply message
  */
 struct MPT3_IOCTL_EVENTS {
-	uint32_t event;
-	uint32_t context;
-	uint8_t data[MPT3_EVENT_DATA_SIZE];
+  uint32_t event;
+  uint32_t context;
+  uint8_t data[MPT3_EVENT_DATA_SIZE];
 };
 
 /**
@@ -243,8 +239,8 @@ struct MPT3_IOCTL_EVENTS {
  * @event_data - (see struct MPT3_IOCTL_EVENTS)
  */
 struct mpt3_ioctl_eventreport {
-	struct mpt3_ioctl_header hdr;
-	struct MPT3_IOCTL_EVENTS event_data[1];
+  struct mpt3_ioctl_header hdr;
+  struct MPT3_IOCTL_EVENTS event_data[1];
 };
 
 /**
@@ -265,34 +261,34 @@ struct mpt3_ioctl_eventreport {
  * @mf[1];
  */
 struct mpt3_ioctl_command {
-	struct mpt3_ioctl_header hdr;
-	uint32_t timeout;
-	void __user *reply_frame_buf_ptr;
-	void __user *data_in_buf_ptr;
-	void __user *data_out_buf_ptr;
-	void __user *sense_data_ptr;
-	uint32_t max_reply_bytes;
-	uint32_t data_in_size;
-	uint32_t data_out_size;
-	uint32_t max_sense_bytes;
-	uint32_t data_sge_offset;
-	uint8_t mf[1];
+  struct mpt3_ioctl_header hdr;
+  uint32_t timeout;
+  void __user *reply_frame_buf_ptr;
+  void __user *data_in_buf_ptr;
+  void __user *data_out_buf_ptr;
+  void __user *sense_data_ptr;
+  uint32_t max_reply_bytes;
+  uint32_t data_in_size;
+  uint32_t data_out_size;
+  uint32_t max_sense_bytes;
+  uint32_t data_sge_offset;
+  uint8_t mf[1];
 };
 
 #ifdef CONFIG_COMPAT
 struct mpt3_ioctl_command32 {
-	struct mpt3_ioctl_header hdr;
-	uint32_t timeout;
-	uint32_t reply_frame_buf_ptr;
-	uint32_t data_in_buf_ptr;
-	uint32_t data_out_buf_ptr;
-	uint32_t sense_data_ptr;
-	uint32_t max_reply_bytes;
-	uint32_t data_in_size;
-	uint32_t data_out_size;
-	uint32_t max_sense_bytes;
-	uint32_t data_sge_offset;
-	uint8_t mf[1];
+  struct mpt3_ioctl_header hdr;
+  uint32_t timeout;
+  uint32_t reply_frame_buf_ptr;
+  uint32_t data_in_buf_ptr;
+  uint32_t data_out_buf_ptr;
+  uint32_t sense_data_ptr;
+  uint32_t max_reply_bytes;
+  uint32_t data_in_size;
+  uint32_t data_out_size;
+  uint32_t max_sense_bytes;
+  uint32_t data_sge_offset;
+  uint8_t mf[1];
 };
 #endif
 
@@ -311,25 +307,23 @@ struct mpt3_ioctl_command32 {
  * bus/id valid value, and the handle to 0xFFFF.
  */
 struct mpt3_ioctl_btdh_mapping {
-	struct mpt3_ioctl_header hdr;
-	uint32_t id;
-	uint32_t bus;
-	uint16_t handle;
-	uint16_t rsvd;
+  struct mpt3_ioctl_header hdr;
+  uint32_t id;
+  uint32_t bus;
+  uint16_t handle;
+  uint16_t rsvd;
 };
 
-
-
 /* application flags for mpt3_diag_register, mpt3_diag_query */
-#define MPT3_APP_FLAGS_APP_OWNED	(0x0001)
-#define MPT3_APP_FLAGS_BUFFER_VALID	(0x0002)
-#define MPT3_APP_FLAGS_FW_BUFFER_ACCESS	(0x0004)
+#define MPT3_APP_FLAGS_APP_OWNED  (0x0001)
+#define MPT3_APP_FLAGS_BUFFER_VALID (0x0002)
+#define MPT3_APP_FLAGS_FW_BUFFER_ACCESS (0x0004)
 #define MPT3_APP_FLAGS_DYNAMIC_BUFFER_ALLOC (0x0008)
 
 /* flags for mpt3_diag_read_buffer */
-#define MPT3_FLAGS_REREGISTER		(0x0001)
+#define MPT3_FLAGS_REREGISTER   (0x0001)
 
-#define MPT3_PRODUCT_SPECIFIC_DWORDS		23
+#define MPT3_PRODUCT_SPECIFIC_DWORDS    23
 
 /**
  * struct mpt3_diag_register - application register with driver
@@ -347,14 +341,14 @@ struct mpt3_ioctl_btdh_mapping {
  * needed by firmware to communicate with the driver.
  */
 struct mpt3_diag_register {
-	struct mpt3_ioctl_header hdr;
-	uint8_t reserved;
-	uint8_t buffer_type;
-	uint16_t application_flags;
-	uint32_t diagnostic_flags;
-	uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
-	uint32_t requested_buffer_size;
-	uint32_t unique_id;
+  struct mpt3_ioctl_header hdr;
+  uint8_t reserved;
+  uint8_t buffer_type;
+  uint16_t application_flags;
+  uint32_t diagnostic_flags;
+  uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
+  uint32_t requested_buffer_size;
+  uint32_t unique_id;
 };
 
 /**
@@ -366,8 +360,8 @@ struct mpt3_diag_register {
  * messages and to free up any resources.
  */
 struct mpt3_diag_unregister {
-	struct mpt3_ioctl_header hdr;
-	uint32_t unique_id;
+  struct mpt3_ioctl_header hdr;
+  uint32_t unique_id;
 };
 
 /**
@@ -387,15 +381,15 @@ struct mpt3_diag_unregister {
  * 0x00, the driver will return info specified by Buffer Type.
  */
 struct mpt3_diag_query {
-	struct mpt3_ioctl_header hdr;
-	uint8_t reserved;
-	uint8_t buffer_type;
-	uint16_t application_flags;
-	uint32_t diagnostic_flags;
-	uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
-	uint32_t total_buffer_size;
-	uint32_t driver_added_buffer_size;
-	uint32_t unique_id;
+  struct mpt3_ioctl_header hdr;
+  uint8_t reserved;
+  uint8_t buffer_type;
+  uint16_t application_flags;
+  uint32_t diagnostic_flags;
+  uint32_t product_specific[MPT3_PRODUCT_SPECIFIC_DWORDS];
+  uint32_t total_buffer_size;
+  uint32_t driver_added_buffer_size;
+  uint32_t unique_id;
 };
 
 /**
@@ -408,8 +402,8 @@ struct mpt3_diag_query {
  * overwriting information in the buffer.
  */
 struct mpt3_diag_release {
-	struct mpt3_ioctl_header hdr;
-	uint32_t unique_id;
+  struct mpt3_ioctl_header hdr;
+  uint32_t unique_id;
 };
 
 /**
@@ -426,14 +420,14 @@ struct mpt3_diag_release {
  * @diagnostic_data - data payload
  */
 struct mpt3_diag_read_buffer {
-	struct mpt3_ioctl_header hdr;
-	uint8_t status;
-	uint8_t reserved;
-	uint16_t flags;
-	uint32_t starting_offset;
-	uint32_t bytes_to_read;
-	uint32_t unique_id;
-	uint32_t diagnostic_data[1];
+  struct mpt3_ioctl_header hdr;
+  uint8_t status;
+  uint8_t reserved;
+  uint16_t flags;
+  uint32_t starting_offset;
+  uint32_t bytes_to_read;
+  uint32_t unique_id;
+  uint32_t diagnostic_data[1];
 };
 
 /**
@@ -444,10 +438,10 @@ struct mpt3_diag_read_buffer {
  * @reserved2
  */
 struct mpt3_addnl_diag_query {
-	struct mpt3_ioctl_header hdr;
-	uint32_t unique_id;
-	struct htb_rel_query rel_query;
-	uint32_t reserved2[2];
+  struct mpt3_ioctl_header hdr;
+  uint32_t unique_id;
+  struct htb_rel_query rel_query;
+  uint32_t reserved2[2];
 };
 
 /**
@@ -455,7 +449,7 @@ struct mpt3_addnl_diag_query {
  * @hdr - generic header
  */
 struct mpt3_enable_diag_sbr_reload {
-	struct mpt3_ioctl_header hdr;
+  struct mpt3_ioctl_header hdr;
 };
 
 #endif /* MPT3SAS_CTL_H_INCLUDED */

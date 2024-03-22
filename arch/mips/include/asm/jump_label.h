@@ -27,41 +27,39 @@ extern void jump_label_apply_nops(struct module *mod);
 #endif
 
 #ifdef CONFIG_CPU_MICROMIPS
-# define B_INSN "b32"
-# define J_INSN "j32"
+#define B_INSN "b32"
+#define J_INSN "j32"
 #elif MIPS_ISA_REV >= 6
-# define B_INSN "bc"
-# define J_INSN "bc"
+#define B_INSN "bc"
+#define J_INSN "bc"
 #else
-# define B_INSN "b"
-# define J_INSN "j"
+#define B_INSN "b"
+#define J_INSN "j"
 #endif
 
-static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
-{
-	asm goto("1:\t" B_INSN " 2f\n\t"
-		"2:\t.insn\n\t"
-		".pushsection __jump_table,  \"aw\"\n\t"
-		WORD_INSN " 1b, %l[l_yes], %0\n\t"
-		".popsection\n\t"
-		: :  "i" (&((char *)key)[branch]) : : l_yes);
-
-	return false;
+static __always_inline bool arch_static_branch(struct static_key *key,
+    bool branch) {
+  asm goto ("1:\t" B_INSN " 2f\n\t"
+  "2:\t.insn\n\t"
+  ".pushsection __jump_table,  \"aw\"\n\t"
+  WORD_INSN " 1b, %l[l_yes], %0\n\t"
+  ".popsection\n\t"
+  : :  "i" (&((char *) key)[branch]) : : l_yes);
+  return false;
 l_yes:
-	return true;
+  return true;
 }
 
-static __always_inline bool arch_static_branch_jump(struct static_key *key, bool branch)
-{
-	asm goto("1:\t" J_INSN " %l[l_yes]\n\t"
-		".pushsection __jump_table,  \"aw\"\n\t"
-		WORD_INSN " 1b, %l[l_yes], %0\n\t"
-		".popsection\n\t"
-		: :  "i" (&((char *)key)[branch]) : : l_yes);
-
-	return false;
+static __always_inline bool arch_static_branch_jump(struct static_key *key,
+    bool branch) {
+  asm goto ("1:\t" J_INSN " %l[l_yes]\n\t"
+  ".pushsection __jump_table,  \"aw\"\n\t"
+  WORD_INSN " 1b, %l[l_yes], %0\n\t"
+  ".popsection\n\t"
+  : :  "i" (&((char *) key)[branch]) : : l_yes);
+  return false;
 l_yes:
-	return true;
+  return true;
 }
 
 #ifdef CONFIG_64BIT
@@ -71,9 +69,9 @@ typedef u32 jump_label_t;
 #endif
 
 struct jump_entry {
-	jump_label_t code;
-	jump_label_t target;
-	jump_label_t key;
+  jump_label_t code;
+  jump_label_t target;
+  jump_label_t key;
 };
 
 #endif  /* __ASSEMBLY__ */

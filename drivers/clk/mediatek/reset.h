@@ -25,26 +25,27 @@
  * @MTK_RST_MAX: Total quantity of version for MediaTek clock reset controller.
  */
 enum mtk_reset_version {
-	MTK_RST_SIMPLE = 0,
-	MTK_RST_SET_CLR,
-	MTK_RST_MAX,
+  MTK_RST_SIMPLE = 0,
+  MTK_RST_SET_CLR,
+  MTK_RST_MAX,
 };
 
 /**
  * struct mtk_clk_rst_desc - Description of MediaTek clock reset.
  * @version: Reset version which is defined in enum mtk_reset_version.
- * @rst_bank_ofs: Pointer to an array containing base offsets of the reset register.
+ * @rst_bank_ofs: Pointer to an array containing base offsets of the reset
+ * register.
  * @rst_bank_nr: Quantity of reset bank.
  * @rst_idx_map:Pointer to an array containing ids if input argument is index.
- *		This array is not necessary if our input argument does not mean index.
+ *    This array is not necessary if our input argument does not mean index.
  * @rst_idx_map_nr: Quantity of reset index map.
  */
 struct mtk_clk_rst_desc {
-	enum mtk_reset_version version;
-	u16 *rst_bank_ofs;
-	u32 rst_bank_nr;
-	u16 *rst_idx_map;
-	u32 rst_idx_map_nr;
+  enum mtk_reset_version version;
+  u16 *rst_bank_ofs;
+  u32 rst_bank_nr;
+  u16 *rst_idx_map;
+  u32 rst_idx_map_nr;
 };
 
 /**
@@ -54,9 +55,9 @@ struct mtk_clk_rst_desc {
  * @desc: Pointer to description of the reset controller.
  */
 struct mtk_clk_rst_data {
-	struct regmap *regmap;
-	struct reset_controller_dev rcdev;
-	const struct mtk_clk_rst_desc *desc;
+  struct regmap *regmap;
+  struct reset_controller_dev rcdev;
+  const struct mtk_clk_rst_desc *desc;
 };
 
 /**
@@ -67,16 +68,17 @@ struct mtk_clk_rst_data {
  * Return: 0 on success and errorno otherwise.
  */
 int mtk_register_reset_controller(struct device_node *np,
-				  const struct mtk_clk_rst_desc *desc);
+    const struct mtk_clk_rst_desc *desc);
 
 /**
- * mtk_register_reset_controller - Register mediatek clock reset controller with device
+ * mtk_register_reset_controller - Register mediatek clock reset controller with
+ * device
  * @np: Pointer to device.
  * @desc: Constant pointer to description of clock reset.
  *
  * Return: 0 on success and errorno otherwise.
  */
 int mtk_register_reset_controller_with_dev(struct device *dev,
-					   const struct mtk_clk_rst_desc *desc);
+    const struct mtk_clk_rst_desc *desc);
 
 #endif /* __DRV_CLK_MTK_RESET_H */

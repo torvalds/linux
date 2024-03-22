@@ -30,37 +30,37 @@
 #include "dcn20/dcn20_opp.h"
 
 #define OPP_REG_VARIABLE_LIST_DCN3_5  \
-	OPP_REG_VARIABLE_LIST_DCN2_0; \
-	uint32_t OPP_TOP_CLK_CONTROL
+  OPP_REG_VARIABLE_LIST_DCN2_0; \
+  uint32_t OPP_TOP_CLK_CONTROL
 
 #define OPP_MASK_SH_LIST_DCN35(mask_sh)  \
-	OPP_MASK_SH_LIST_DCN20(mask_sh), \
-		OPP_SF(OPP_TOP_CLK_CONTROL, OPP_FGCG_REP_DIS, mask_sh)
+  OPP_MASK_SH_LIST_DCN20(mask_sh), \
+  OPP_SF(OPP_TOP_CLK_CONTROL, OPP_FGCG_REP_DIS, mask_sh)
 
 #define OPP_DCN35_REG_FIELD_LIST(type)          \
-	struct {                                \
-		OPP_DCN20_REG_FIELD_LIST(type); \
-		type OPP_FGCG_REP_DIS;          \
-	}
+  struct {                                \
+    OPP_DCN20_REG_FIELD_LIST(type); \
+    type OPP_FGCG_REP_DIS;          \
+  }
 
 struct dcn35_opp_registers {
-	OPP_REG_VARIABLE_LIST_DCN3_5;
+  OPP_REG_VARIABLE_LIST_DCN3_5;
 };
 
 struct dcn35_opp_shift {
-	OPP_DCN35_REG_FIELD_LIST(uint8_t);
+  OPP_DCN35_REG_FIELD_LIST(uint8_t);
 };
 
 struct dcn35_opp_mask {
-	OPP_DCN35_REG_FIELD_LIST(uint32_t);
+  OPP_DCN35_REG_FIELD_LIST(uint32_t);
 };
 
 void dcn35_opp_construct(struct dcn20_opp *oppn20,
-	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dcn35_opp_registers *regs,
-	const struct dcn35_opp_shift *opp_shift,
-	const struct dcn35_opp_mask *opp_mask);
+    struct dc_context *ctx,
+    uint32_t inst,
+    const struct dcn35_opp_registers *regs,
+    const struct dcn35_opp_shift *opp_shift,
+    const struct dcn35_opp_mask *opp_mask);
 
 void dcn35_opp_set_fgcg(struct dcn20_opp *oppn20, bool enable);
 

@@ -18,39 +18,34 @@
  * queue and asynchronously sending message via
  * ice_sq_send_cmd() function
  */
-int
-ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
-		      u8 *msg, u16 msglen, struct ice_sq_cd *cd)
-{
-	struct ice_aqc_pf_vf_msg *cmd;
-	struct ice_aq_desc desc;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_mbx_opc_send_msg_to_vf);
-
-	cmd = &desc.params.virt;
-	cmd->id = cpu_to_le32(vfid);
-
-	desc.cookie_high = cpu_to_le32(v_opcode);
-	desc.cookie_low = cpu_to_le32(v_retval);
-
-	if (msglen)
-		desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
-
-	return ice_sq_send_cmd(hw, &hw->mailboxq, &desc, msg, msglen, cd);
+int ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode,
+    u32 v_retval,
+    u8 *msg, u16 msglen, struct ice_sq_cd *cd) {
+  struct ice_aqc_pf_vf_msg *cmd;
+  struct ice_aq_desc desc;
+  ice_fill_dflt_direct_cmd_desc(&desc, ice_mbx_opc_send_msg_to_vf);
+  cmd = &desc.params.virt;
+  cmd->id = cpu_to_le32(vfid);
+  desc.cookie_high = cpu_to_le32(v_opcode);
+  desc.cookie_low = cpu_to_le32(v_retval);
+  if (msglen) {
+    desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+  }
+  return ice_sq_send_cmd(hw, &hw->mailboxq, &desc, msg, msglen, cd);
 }
 
 static const u32 ice_legacy_aq_to_vc_speed[] = {
-	VIRTCHNL_LINK_SPEED_100MB,	/* BIT(0) */
-	VIRTCHNL_LINK_SPEED_100MB,
-	VIRTCHNL_LINK_SPEED_1GB,
-	VIRTCHNL_LINK_SPEED_1GB,
-	VIRTCHNL_LINK_SPEED_1GB,
-	VIRTCHNL_LINK_SPEED_10GB,
-	VIRTCHNL_LINK_SPEED_20GB,
-	VIRTCHNL_LINK_SPEED_25GB,
-	VIRTCHNL_LINK_SPEED_40GB,
-	VIRTCHNL_LINK_SPEED_40GB,
-	VIRTCHNL_LINK_SPEED_40GB,
+  VIRTCHNL_LINK_SPEED_100MB,  /* BIT(0) */
+  VIRTCHNL_LINK_SPEED_100MB,
+  VIRTCHNL_LINK_SPEED_1GB,
+  VIRTCHNL_LINK_SPEED_1GB,
+  VIRTCHNL_LINK_SPEED_1GB,
+  VIRTCHNL_LINK_SPEED_10GB,
+  VIRTCHNL_LINK_SPEED_20GB,
+  VIRTCHNL_LINK_SPEED_25GB,
+  VIRTCHNL_LINK_SPEED_40GB,
+  VIRTCHNL_LINK_SPEED_40GB,
+  VIRTCHNL_LINK_SPEED_40GB,
 };
 
 /**
@@ -65,22 +60,20 @@ static const u32 ice_legacy_aq_to_vc_speed[] = {
  * adv_link_support is false, but when adv_link_support is true the caller can
  * expect the speed in Mbps.
  */
-u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
-{
-	/* convert a BIT() value into an array index */
-	u32 index = fls(link_speed) - 1;
-
-	if (adv_link_support)
-		return ice_get_link_speed(index);
-	else if (index < ARRAY_SIZE(ice_legacy_aq_to_vc_speed))
-		/* Virtchnl speeds are not defined for every speed supported in
-		 * the hardware. To maintain compatibility with older AVF
-		 * drivers, while reporting the speed the new speed values are
-		 * resolved to the closest known virtchnl speeds
-		 */
-		return ice_legacy_aq_to_vc_speed[index];
-
-	return VIRTCHNL_LINK_SPEED_UNKNOWN;
+u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed) {
+  /* convert a BIT() value into an array index */
+  u32 index = fls(link_speed) - 1;
+  if (adv_link_support) {
+    return ice_get_link_speed(index);
+  } else if (index < ARRAY_SIZE(ice_legacy_aq_to_vc_speed)) {
+    /* Virtchnl speeds are not defined for every speed supported in
+     * the hardware. To maintain compatibility with older AVF
+     * drivers, while reporting the speed the new speed values are
+     * resolved to the closest known virtchnl speeds
+     */
+    return ice_legacy_aq_to_vc_speed[index];
+  }
+  return VIRTCHNL_LINK_SPEED_UNKNOWN;
 }
 
 /* The mailbox overflow detection algorithm helps to check if there
@@ -123,25 +116,22 @@ u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed)
 /* Using the highest value for an unsigned 16-bit value 0xFFFF to indicate that
  * the max messages check must be ignored in the algorithm
  */
-#define ICE_IGNORE_MAX_MSG_CNT	0xFFFF
+#define ICE_IGNORE_MAX_MSG_CNT  0xFFFF
 
 /**
  * ice_mbx_reset_snapshot - Reset mailbox snapshot structure
  * @snap: pointer to the mailbox snapshot
  */
-static void ice_mbx_reset_snapshot(struct ice_mbx_snapshot *snap)
-{
-	struct ice_mbx_vf_info *vf_info;
-
-	/* Clear mbx_buf in the mailbox snaphot structure and setting the
-	 * mailbox snapshot state to a new capture.
-	 */
-	memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
-	snap->mbx_buf.state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
-
-	/* Reset message counts for all VFs to zero */
-	list_for_each_entry(vf_info, &snap->mbx_vf, list_entry)
-		vf_info->msg_count = 0;
+static void ice_mbx_reset_snapshot(struct ice_mbx_snapshot *snap) {
+  struct ice_mbx_vf_info *vf_info;
+  /* Clear mbx_buf in the mailbox snaphot structure and setting the
+   * mailbox snapshot state to a new capture.
+   */
+  memset(&snap->mbx_buf, 0, sizeof(snap->mbx_buf));
+  snap->mbx_buf.state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+  /* Reset message counts for all VFs to zero */
+  list_for_each_entry(vf_info, &snap->mbx_vf, list_entry)
+  vf_info->msg_count = 0;
 }
 
 /**
@@ -152,34 +142,30 @@ static void ice_mbx_reset_snapshot(struct ice_mbx_snapshot *snap)
  * Traversing the mailbox static snapshot without checking
  * for malicious VFs.
  */
-static void
-ice_mbx_traverse(struct ice_hw *hw,
-		 enum ice_mbx_snapshot_state *new_state)
-{
-	struct ice_mbx_snap_buffer_data *snap_buf;
-	u32 num_iterations;
-
-	snap_buf = &hw->mbx_snapshot.mbx_buf;
-
-	/* As mailbox buffer is circular, applying a mask
-	 * on the incremented iteration count.
-	 */
-	num_iterations = ICE_RQ_DATA_MASK(++snap_buf->num_iterations);
-
-	/* Checking either of the below conditions to exit snapshot traversal:
-	 * Condition-1: If the number of iterations in the mailbox is equal to
-	 * the mailbox head which would indicate that we have reached the end
-	 * of the static snapshot.
-	 * Condition-2: If the maximum messages serviced in the mailbox for a
-	 * given interrupt is the highest possible value then there is no need
-	 * to check if the number of messages processed is equal to it. If not
-	 * check if the number of messages processed is greater than or equal
-	 * to the maximum number of mailbox entries serviced in current work item.
-	 */
-	if (num_iterations == snap_buf->head ||
-	    (snap_buf->max_num_msgs_mbx < ICE_IGNORE_MAX_MSG_CNT &&
-	     ++snap_buf->num_msg_proc >= snap_buf->max_num_msgs_mbx))
-		*new_state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+static void ice_mbx_traverse(struct ice_hw *hw,
+    enum ice_mbx_snapshot_state *new_state) {
+  struct ice_mbx_snap_buffer_data *snap_buf;
+  u32 num_iterations;
+  snap_buf = &hw->mbx_snapshot.mbx_buf;
+  /* As mailbox buffer is circular, applying a mask
+   * on the incremented iteration count.
+   */
+  num_iterations = ICE_RQ_DATA_MASK(++snap_buf->num_iterations);
+  /* Checking either of the below conditions to exit snapshot traversal:
+   * Condition-1: If the number of iterations in the mailbox is equal to
+   * the mailbox head which would indicate that we have reached the end
+   * of the static snapshot.
+   * Condition-2: If the maximum messages serviced in the mailbox for a
+   * given interrupt is the highest possible value then there is no need
+   * to check if the number of messages processed is equal to it. If not
+   * check if the number of messages processed is greater than or equal
+   * to the maximum number of mailbox entries serviced in current work item.
+   */
+  if (num_iterations == snap_buf->head
+      || (snap_buf->max_num_msgs_mbx < ICE_IGNORE_MAX_MSG_CNT
+      && ++snap_buf->num_msg_proc >= snap_buf->max_num_msgs_mbx)) {
+    *new_state = ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+  }
 }
 
 /**
@@ -193,21 +179,18 @@ ice_mbx_traverse(struct ice_hw *hw,
  * sent per VF and marks the VF as malicious if it exceeds
  * the permissible number of messages to send.
  */
-static int
-ice_mbx_detect_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
-		     enum ice_mbx_snapshot_state *new_state,
-		     bool *is_malvf)
-{
-	/* increment the message count for this VF */
-	vf_info->msg_count++;
-
-	if (vf_info->msg_count >= ICE_ASYNC_VF_MSG_THRESHOLD)
-		*is_malvf = true;
-
-	/* continue to iterate through the mailbox snapshot */
-	ice_mbx_traverse(hw, new_state);
-
-	return 0;
+static int ice_mbx_detect_malvf(struct ice_hw *hw,
+    struct ice_mbx_vf_info *vf_info,
+    enum ice_mbx_snapshot_state *new_state,
+    bool *is_malvf) {
+  /* increment the message count for this VF */
+  vf_info->msg_count++;
+  if (vf_info->msg_count >= ICE_ASYNC_VF_MSG_THRESHOLD) {
+    *is_malvf = true;
+  }
+  /* continue to iterate through the mailbox snapshot */
+  ice_mbx_traverse(hw, new_state);
+  return 0;
 }
 
 /**
@@ -233,104 +216,90 @@ ice_mbx_detect_malvf(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info,
  * Detect: If pending message count exceeds watermark traverse
  * the static snapshot and look for a malicious VF.
  */
-int
-ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
-			 struct ice_mbx_vf_info *vf_info, bool *report_malvf)
-{
-	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
-	struct ice_mbx_snap_buffer_data *snap_buf;
-	struct ice_ctl_q_info *cq = &hw->mailboxq;
-	enum ice_mbx_snapshot_state new_state;
-	bool is_malvf = false;
-	int status = 0;
-
-	if (!report_malvf || !mbx_data || !vf_info)
-		return -EINVAL;
-
-	*report_malvf = false;
-
-	/* When entering the mailbox state machine assume that the VF
-	 * is not malicious until detected.
-	 */
-	 /* Checking if max messages allowed to be processed while servicing current
-	  * interrupt is not less than the defined AVF message threshold.
-	  */
-	if (mbx_data->max_num_msgs_mbx <= ICE_ASYNC_VF_MSG_THRESHOLD)
-		return -EINVAL;
-
-	/* The watermark value should not be lesser than the threshold limit
-	 * set for the number of asynchronous messages a VF can send to mailbox
-	 * nor should it be greater than the maximum number of messages in the
-	 * mailbox serviced in current interrupt.
-	 */
-	if (mbx_data->async_watermark_val < ICE_ASYNC_VF_MSG_THRESHOLD ||
-	    mbx_data->async_watermark_val > mbx_data->max_num_msgs_mbx)
-		return -EINVAL;
-
-	new_state = ICE_MAL_VF_DETECT_STATE_INVALID;
-	snap_buf = &snap->mbx_buf;
-
-	switch (snap_buf->state) {
-	case ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT:
-		/* Clear any previously held data in mailbox snapshot structure. */
-		ice_mbx_reset_snapshot(snap);
-
-		/* Collect the pending ARQ count, number of messages processed and
-		 * the maximum number of messages allowed to be processed from the
-		 * Mailbox for current interrupt.
-		 */
-		snap_buf->num_pending_arq = mbx_data->num_pending_arq;
-		snap_buf->num_msg_proc = mbx_data->num_msg_proc;
-		snap_buf->max_num_msgs_mbx = mbx_data->max_num_msgs_mbx;
-
-		/* Capture a new static snapshot of the mailbox by logging the
-		 * head and tail of snapshot and set num_iterations to the tail
-		 * value to mark the start of the iteration through the snapshot.
-		 */
-		snap_buf->head = ICE_RQ_DATA_MASK(cq->rq.next_to_clean +
-						  mbx_data->num_pending_arq);
-		snap_buf->tail = ICE_RQ_DATA_MASK(cq->rq.next_to_clean - 1);
-		snap_buf->num_iterations = snap_buf->tail;
-
-		/* Pending ARQ messages returned by ice_clean_rq_elem
-		 * is the difference between the head and tail of the
-		 * mailbox queue. Comparing this value against the watermark
-		 * helps to check if we potentially have malicious VFs.
-		 */
-		if (snap_buf->num_pending_arq >=
-		    mbx_data->async_watermark_val) {
-			new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
-			status = ice_mbx_detect_malvf(hw, vf_info, &new_state, &is_malvf);
-		} else {
-			new_state = ICE_MAL_VF_DETECT_STATE_TRAVERSE;
-			ice_mbx_traverse(hw, &new_state);
-		}
-		break;
-
-	case ICE_MAL_VF_DETECT_STATE_TRAVERSE:
-		new_state = ICE_MAL_VF_DETECT_STATE_TRAVERSE;
-		ice_mbx_traverse(hw, &new_state);
-		break;
-
-	case ICE_MAL_VF_DETECT_STATE_DETECT:
-		new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
-		status = ice_mbx_detect_malvf(hw, vf_info, &new_state, &is_malvf);
-		break;
-
-	default:
-		new_state = ICE_MAL_VF_DETECT_STATE_INVALID;
-		status = -EIO;
-	}
-
-	snap_buf->state = new_state;
-
-	/* Only report VFs as malicious the first time we detect it */
-	if (is_malvf && !vf_info->malicious) {
-		vf_info->malicious = 1;
-		*report_malvf = true;
-	}
-
-	return status;
+int ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
+    struct ice_mbx_vf_info *vf_info, bool *report_malvf) {
+  struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
+  struct ice_mbx_snap_buffer_data *snap_buf;
+  struct ice_ctl_q_info *cq = &hw->mailboxq;
+  enum ice_mbx_snapshot_state new_state;
+  bool is_malvf = false;
+  int status = 0;
+  if (!report_malvf || !mbx_data || !vf_info) {
+    return -EINVAL;
+  }
+  *report_malvf = false;
+  /* When entering the mailbox state machine assume that the VF
+   * is not malicious until detected.
+   */
+  /* Checking if max messages allowed to be processed while servicing current
+   * interrupt is not less than the defined AVF message threshold.
+   */
+  if (mbx_data->max_num_msgs_mbx <= ICE_ASYNC_VF_MSG_THRESHOLD) {
+    return -EINVAL;
+  }
+  /* The watermark value should not be lesser than the threshold limit
+   * set for the number of asynchronous messages a VF can send to mailbox
+   * nor should it be greater than the maximum number of messages in the
+   * mailbox serviced in current interrupt.
+   */
+  if (mbx_data->async_watermark_val < ICE_ASYNC_VF_MSG_THRESHOLD
+      || mbx_data->async_watermark_val > mbx_data->max_num_msgs_mbx) {
+    return -EINVAL;
+  }
+  new_state = ICE_MAL_VF_DETECT_STATE_INVALID;
+  snap_buf = &snap->mbx_buf;
+  switch (snap_buf->state) {
+    case ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT:
+      /* Clear any previously held data in mailbox snapshot structure. */
+      ice_mbx_reset_snapshot(snap);
+      /* Collect the pending ARQ count, number of messages processed and
+       * the maximum number of messages allowed to be processed from the
+       * Mailbox for current interrupt.
+       */
+      snap_buf->num_pending_arq = mbx_data->num_pending_arq;
+      snap_buf->num_msg_proc = mbx_data->num_msg_proc;
+      snap_buf->max_num_msgs_mbx = mbx_data->max_num_msgs_mbx;
+      /* Capture a new static snapshot of the mailbox by logging the
+       * head and tail of snapshot and set num_iterations to the tail
+       * value to mark the start of the iteration through the snapshot.
+       */
+      snap_buf->head = ICE_RQ_DATA_MASK(cq->rq.next_to_clean
+          + mbx_data->num_pending_arq);
+      snap_buf->tail = ICE_RQ_DATA_MASK(cq->rq.next_to_clean - 1);
+      snap_buf->num_iterations = snap_buf->tail;
+      /* Pending ARQ messages returned by ice_clean_rq_elem
+       * is the difference between the head and tail of the
+       * mailbox queue. Comparing this value against the watermark
+       * helps to check if we potentially have malicious VFs.
+       */
+      if (snap_buf->num_pending_arq
+          >= mbx_data->async_watermark_val) {
+        new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
+        status = ice_mbx_detect_malvf(hw, vf_info, &new_state, &is_malvf);
+      } else {
+        new_state = ICE_MAL_VF_DETECT_STATE_TRAVERSE;
+        ice_mbx_traverse(hw, &new_state);
+      }
+      break;
+    case ICE_MAL_VF_DETECT_STATE_TRAVERSE:
+      new_state = ICE_MAL_VF_DETECT_STATE_TRAVERSE;
+      ice_mbx_traverse(hw, &new_state);
+      break;
+    case ICE_MAL_VF_DETECT_STATE_DETECT:
+      new_state = ICE_MAL_VF_DETECT_STATE_DETECT;
+      status = ice_mbx_detect_malvf(hw, vf_info, &new_state, &is_malvf);
+      break;
+    default:
+      new_state = ICE_MAL_VF_DETECT_STATE_INVALID;
+      status = -EIO;
+  }
+  snap_buf->state = new_state;
+  /* Only report VFs as malicious the first time we detect it */
+  if (is_malvf && !vf_info->malicious) {
+    vf_info->malicious = 1;
+    *report_malvf = true;
+  }
+  return status;
 }
 
 /**
@@ -340,10 +309,9 @@ ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
  * In case of a VF reset, this function shall be called to clear the VF's
  * current mailbox tracking state.
  */
-void ice_mbx_clear_malvf(struct ice_mbx_vf_info *vf_info)
-{
-	vf_info->malicious = 0;
-	vf_info->msg_count = 0;
+void ice_mbx_clear_malvf(struct ice_mbx_vf_info *vf_info) {
+  vf_info->malicious = 0;
+  vf_info->msg_count = 0;
 }
 
 /**
@@ -357,12 +325,10 @@ void ice_mbx_clear_malvf(struct ice_mbx_vf_info *vf_info)
  * If you remove the VF, you must also delete the associated VF info structure
  * from the linked list.
  */
-void ice_mbx_init_vf_info(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info)
-{
-	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
-
-	ice_mbx_clear_malvf(vf_info);
-	list_add(&vf_info->list_entry, &snap->mbx_vf);
+void ice_mbx_init_vf_info(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info) {
+  struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
+  ice_mbx_clear_malvf(vf_info);
+  list_add(&vf_info->list_entry, &snap->mbx_vf);
 }
 
 /**
@@ -371,10 +337,8 @@ void ice_mbx_init_vf_info(struct ice_hw *hw, struct ice_mbx_vf_info *vf_info)
  *
  * Clear the mailbox snapshot structure and initialize the VF mailbox list.
  */
-void ice_mbx_init_snapshot(struct ice_hw *hw)
-{
-	struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
-
-	INIT_LIST_HEAD(&snap->mbx_vf);
-	ice_mbx_reset_snapshot(snap);
+void ice_mbx_init_snapshot(struct ice_hw *hw) {
+  struct ice_mbx_snapshot *snap = &hw->mbx_snapshot;
+  INIT_LIST_HEAD(&snap->mbx_vf);
+  ice_mbx_reset_snapshot(snap);
 }

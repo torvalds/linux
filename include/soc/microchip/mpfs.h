@@ -18,27 +18,29 @@
 struct mpfs_sys_controller;
 
 struct mpfs_mss_msg {
-	u8 cmd_opcode;
-	u16 cmd_data_size;
-	struct mpfs_mss_response *response;
-	u8 *cmd_data;
-	u16 mbox_offset;
-	u16 resp_offset;
+  u8 cmd_opcode;
+  u16 cmd_data_size;
+  struct mpfs_mss_response *response;
+  u8 *cmd_data;
+  u16 mbox_offset;
+  u16 resp_offset;
 };
 
 struct mpfs_mss_response {
-	u32 resp_status;
-	u32 *resp_msg;
-	u16 resp_size;
+  u32 resp_status;
+  u32 *resp_msg;
+  u16 resp_size;
 };
 
 #if IS_ENABLED(CONFIG_POLARFIRE_SOC_SYS_CTRL)
 
-int mpfs_blocking_transaction(struct mpfs_sys_controller *mpfs_client, struct mpfs_mss_msg *msg);
+int mpfs_blocking_transaction(struct mpfs_sys_controller *mpfs_client,
+    struct mpfs_mss_msg *msg);
 
 struct mpfs_sys_controller *mpfs_sys_controller_get(struct device *dev);
 
-struct mtd_info *mpfs_sys_controller_get_flash(struct mpfs_sys_controller *mpfs_client);
+struct mtd_info *mpfs_sys_controller_get_flash(
+  struct mpfs_sys_controller *mpfs_client);
 
 #endif /* if IS_ENABLED(CONFIG_POLARFIRE_SOC_SYS_CTRL) */
 

@@ -8,15 +8,13 @@ int e(void);
 int f(void);
 int inc(void);
 
-int main(void)
-{
-	a();
-	b();
-	c();
-	d();
-	e();
-	f();
-	inc();
-
-	return 0;
+int main(void) {
+  a();
+  b();
+  c();
+  d();
+  e();
+  f();
+  inc();
+  return 0;
 }

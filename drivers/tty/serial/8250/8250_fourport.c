@@ -10,31 +10,30 @@
 #include "8250.h"
 
 #define SERIAL8250_FOURPORT(_base, _irq) \
-	SERIAL8250_PORT_FLAGS(_base, _irq, UPF_FOURPORT)
+  SERIAL8250_PORT_FLAGS(_base, _irq, UPF_FOURPORT)
 
 static struct plat_serial8250_port fourport_data[] = {
-	SERIAL8250_FOURPORT(0x1a0, 9),
-	SERIAL8250_FOURPORT(0x1a8, 9),
-	SERIAL8250_FOURPORT(0x1b0, 9),
-	SERIAL8250_FOURPORT(0x1b8, 9),
-	SERIAL8250_FOURPORT(0x2a0, 5),
-	SERIAL8250_FOURPORT(0x2a8, 5),
-	SERIAL8250_FOURPORT(0x2b0, 5),
-	SERIAL8250_FOURPORT(0x2b8, 5),
-	{ },
+  SERIAL8250_FOURPORT(0x1a0, 9),
+  SERIAL8250_FOURPORT(0x1a8, 9),
+  SERIAL8250_FOURPORT(0x1b0, 9),
+  SERIAL8250_FOURPORT(0x1b8, 9),
+  SERIAL8250_FOURPORT(0x2a0, 5),
+  SERIAL8250_FOURPORT(0x2a8, 5),
+  SERIAL8250_FOURPORT(0x2b0, 5),
+  SERIAL8250_FOURPORT(0x2b8, 5),
+  {},
 };
 
 static struct platform_device fourport_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_FOURPORT,
-	.dev			= {
-		.platform_data	= fourport_data,
-	},
+  .name = "serial8250",
+  .id = PLAT8250_DEV_FOURPORT,
+  .dev = {
+    .platform_data = fourport_data,
+  },
 };
 
-static int __init fourport_init(void)
-{
-	return platform_device_register(&fourport_device);
+static int __init fourport_init(void) {
+  return platform_device_register(&fourport_device);
 }
 
 module_init(fourport_init);

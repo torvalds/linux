@@ -23,23 +23,19 @@
 #include <asm/sections.h>
 #include "reboot.h"
 
-int pfn_is_nosave(unsigned long pfn)
-{
-	unsigned long nosave_begin_pfn = virt_to_pfn(&__nosave_begin);
-	unsigned long nosave_end_pfn = virt_to_pfn(&__nosave_end - 1);
-
-	return (pfn >= nosave_begin_pfn) && (pfn <= nosave_end_pfn);
+int pfn_is_nosave(unsigned long pfn) {
+  unsigned long nosave_begin_pfn = virt_to_pfn(&__nosave_begin);
+  unsigned long nosave_end_pfn = virt_to_pfn(&__nosave_end - 1);
+  return (pfn >= nosave_begin_pfn) && (pfn <= nosave_end_pfn);
 }
 
-void notrace save_processor_state(void)
-{
-	WARN_ON(num_online_cpus() != 1);
-	local_fiq_disable();
+void notrace save_processor_state(void) {
+  WARN_ON(num_online_cpus() != 1);
+  local_fiq_disable();
 }
 
-void notrace restore_processor_state(void)
-{
-	local_fiq_enable();
+void notrace restore_processor_state(void) {
+  local_fiq_enable();
 }
 
 /*
@@ -55,22 +51,20 @@ void notrace restore_processor_state(void)
  *
  * When soft reboot completes, the hibernation snapshot is written out.
  */
-static int notrace arch_save_image(unsigned long unused)
-{
-	int ret;
-
-	ret = swsusp_save();
-	if (ret == 0)
-		_soft_restart(virt_to_idmap(cpu_resume), false);
-	return ret;
+static int notrace arch_save_image(unsigned long unused) {
+  int ret;
+  ret = swsusp_save();
+  if (ret == 0) {
+    _soft_restart(virt_to_idmap(cpu_resume), false);
+  }
+  return ret;
 }
 
 /*
  * Save the current CPU state before suspend / poweroff.
  */
-int notrace swsusp_arch_suspend(void)
-{
-	return cpu_suspend(0, arch_save_image);
+int notrace swsusp_arch_suspend(void) {
+  return cpu_suspend(0, arch_save_image);
 }
 
 /*
@@ -78,18 +72,16 @@ int notrace swsusp_arch_suspend(void)
  * hibernation image.  Switch to idmap_pgd so the physical page tables
  * are overwritten with the same contents.
  */
-static void notrace arch_restore_image(void *unused)
-{
-	struct pbe *pbe;
-
-	cpu_switch_mm(idmap_pgd, &init_mm);
-	for (pbe = restore_pblist; pbe; pbe = pbe->next)
-		copy_page(pbe->orig_address, pbe->address);
-
-	_soft_restart(virt_to_idmap(cpu_resume), false);
+static void notrace arch_restore_image(void *unused) {
+  struct pbe *pbe;
+  cpu_switch_mm(idmap_pgd, &init_mm);
+  for (pbe = restore_pblist; pbe; pbe = pbe->next) {
+    copy_page(pbe->orig_address, pbe->address);
+  }
+  _soft_restart(virt_to_idmap(cpu_resume), false);
 }
 
-static u64 resume_stack[PAGE_SIZE/2/sizeof(u64)] __nosavedata;
+static u64 resume_stack[PAGE_SIZE / 2 / sizeof(u64)] __nosavedata;
 
 /*
  * Resume from the hibernation image.
@@ -97,9 +89,8 @@ static u64 resume_stack[PAGE_SIZE/2/sizeof(u64)] __nosavedata;
  * and that would make function calls impossible; switch to a temporary
  * stack within the nosave region to avoid that problem.
  */
-int swsusp_arch_resume(void)
-{
-	call_with_stack(arch_restore_image, 0,
-		resume_stack + ARRAY_SIZE(resume_stack));
-	return 0;
+int swsusp_arch_resume(void) {
+  call_with_stack(arch_restore_image, 0,
+      resume_stack + ARRAY_SIZE(resume_stack));
+  return 0;
 }

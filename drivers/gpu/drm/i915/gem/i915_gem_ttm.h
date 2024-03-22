@@ -16,10 +16,9 @@
  *
  * Return: Pointer to the embedded struct ttm_buffer_object.
  */
-static inline struct ttm_buffer_object *
-i915_gem_to_ttm(struct drm_i915_gem_object *obj)
-{
-	return &obj->__do_not_access;
+static inline struct ttm_buffer_object *i915_gem_to_ttm(
+    struct drm_i915_gem_object *obj) {
+  return &obj->__do_not_access;
 }
 
 /*
@@ -34,9 +33,8 @@ void i915_ttm_bo_destroy(struct ttm_buffer_object *bo);
  * Return: True if the ttm bo is not a i915 object but a ghost ttm object,
  * False otherwise.
  */
-static inline bool i915_ttm_is_ghost_object(struct ttm_buffer_object *bo)
-{
-	return bo->destroy != i915_ttm_bo_destroy;
+static inline bool i915_ttm_is_ghost_object(struct ttm_buffer_object *bo) {
+  return bo->destroy != i915_ttm_bo_destroy;
 }
 
 /**
@@ -46,18 +44,17 @@ static inline bool i915_ttm_is_ghost_object(struct ttm_buffer_object *bo)
  *
  * Return: Pointer to the embedding struct drm_i915_gem_object.
  */
-static inline struct drm_i915_gem_object *
-i915_ttm_to_gem(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct drm_i915_gem_object, __do_not_access);
+static inline struct drm_i915_gem_object *i915_ttm_to_gem(
+    struct ttm_buffer_object *bo) {
+  return container_of(bo, struct drm_i915_gem_object, __do_not_access);
 }
 
 int __i915_gem_ttm_object_init(struct intel_memory_region *mem,
-			       struct drm_i915_gem_object *obj,
-			       resource_size_t offset,
-			       resource_size_t size,
-			       resource_size_t page_size,
-			       unsigned int flags);
+    struct drm_i915_gem_object *obj,
+    resource_size_t offset,
+    resource_size_t size,
+    resource_size_t page_size,
+    unsigned int flags);
 
 /* Internal I915 TTM declarations and definitions below. */
 
@@ -70,9 +67,8 @@ struct ttm_placement *i915_ttm_sys_placement(void);
 
 void i915_ttm_free_cached_io_rsgt(struct drm_i915_gem_object *obj);
 
-struct i915_refct_sgt *
-i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
-			 struct ttm_resource *res);
+struct i915_refct_sgt *i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
+    struct ttm_resource *res);
 
 void i915_ttm_adjust_lru(struct drm_i915_gem_object *obj);
 
@@ -85,9 +81,8 @@ int i915_ttm_purge(struct drm_i915_gem_object *obj);
  * Return: true if memory should be viewed as LMEM for GTT binding purposes,
  * false otherwise.
  */
-static inline bool i915_ttm_gtt_binds_lmem(struct ttm_resource *mem)
-{
-	return mem->mem_type != I915_PL_SYSTEM;
+static inline bool i915_ttm_gtt_binds_lmem(struct ttm_resource *mem) {
+  return mem->mem_type != I915_PL_SYSTEM;
 }
 
 /**
@@ -96,10 +91,9 @@ static inline bool i915_ttm_gtt_binds_lmem(struct ttm_resource *mem)
  *
  * Return: true if memory should be viewed as IOMEM for CPU mapping purposes.
  */
-static inline bool i915_ttm_cpu_maps_iomem(struct ttm_resource *mem)
-{
-	/* Once / if we support GGTT, this is also false for cached ttm_tts */
-	return mem && mem->mem_type != I915_PL_SYSTEM;
+static inline bool i915_ttm_cpu_maps_iomem(struct ttm_resource *mem) {
+  /* Once / if we support GGTT, this is also false for cached ttm_tts */
+  return mem && mem->mem_type != I915_PL_SYSTEM;
 }
 
 bool i915_ttm_resource_mappable(struct ttm_resource *res);

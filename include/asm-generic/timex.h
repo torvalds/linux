@@ -7,10 +7,10 @@
  */
 typedef unsigned long cycles_t;
 #ifndef get_cycles
-static inline cycles_t get_cycles(void)
-{
-	return 0;
+static inline cycles_t get_cycles(void) {
+  return 0;
 }
+
 #endif
 
 /*

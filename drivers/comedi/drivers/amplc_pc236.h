@@ -17,17 +17,17 @@
 struct comedi_device;
 
 struct pc236_board {
-	const char *name;
-	void (*intr_update_cb)(struct comedi_device *dev, bool enable);
-	bool (*intr_chk_clr_cb)(struct comedi_device *dev);
+  const char *name;
+  void (*intr_update_cb)(struct comedi_device *dev, bool enable);
+  bool (*intr_chk_clr_cb)(struct comedi_device *dev);
 };
 
 struct pc236_private {
-	unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
-	bool enable_irq;
+  unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
+  bool enable_irq;
 };
 
 int amplc_pc236_common_attach(struct comedi_device *dev, unsigned long iobase,
-			      unsigned int irq, unsigned long req_irq_flags);
+    unsigned int irq, unsigned long req_irq_flags);
 
 #endif

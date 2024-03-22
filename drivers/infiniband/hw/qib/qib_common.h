@@ -91,16 +91,16 @@
  * The list of usermode accessible registers.  Also see Reg_* later in file.
  */
 enum qib_ureg {
-	/* (RO)  DMA RcvHdr to be used next. */
-	ur_rcvhdrtail = 0,
-	/* (RW)  RcvHdr entry to be processed next by host. */
-	ur_rcvhdrhead = 1,
-	/* (RO)  Index of next Eager index to use. */
-	ur_rcvegrindextail = 2,
-	/* (RW)  Eager TID to be processed next */
-	ur_rcvegrindexhead = 3,
-	/* For internal use only; max register number. */
-	_QIB_UregMax
+  /* (RO)  DMA RcvHdr to be used next. */
+  ur_rcvhdrtail = 0,
+  /* (RW)  RcvHdr entry to be processed next by host. */
+  ur_rcvhdrhead = 1,
+  /* (RO)  Index of next Eager index to use. */
+  ur_rcvegrindextail = 2,
+  /* (RW)  Eager TID to be processed next */
+  ur_rcvegrindexhead = 3,
+  /* For internal use only; max register number. */
+  _QIB_UregMax
 };
 
 /* bit values for spi_runtime_flags */
@@ -129,134 +129,134 @@ enum qib_ureg {
  * to have matching offsets
  */
 struct qib_base_info {
-	/* version of hardware, for feature checking. */
-	__u32 spi_hw_version;
-	/* version of software, for feature checking. */
-	__u32 spi_sw_version;
-	/* QLogic_IB context assigned, goes into sent packets */
-	__u16 spi_ctxt;
-	__u16 spi_subctxt;
-	/*
-	 * IB MTU, packets IB data must be less than this.
-	 * The MTU is in bytes, and will be a multiple of 4 bytes.
-	 */
-	__u32 spi_mtu;
-	/*
-	 * Size of a PIO buffer.  Any given packet's total size must be less
-	 * than this (in words).  Included is the starting control word, so
-	 * if 513 is returned, then total pkt size is 512 words or less.
-	 */
-	__u32 spi_piosize;
-	/* size of the TID cache in qlogic_ib, in entries */
-	__u32 spi_tidcnt;
-	/* size of the TID Eager list in qlogic_ib, in entries */
-	__u32 spi_tidegrcnt;
-	/* size of a single receive header queue entry in words. */
-	__u32 spi_rcvhdrent_size;
-	/*
-	 * Count of receive header queue entries allocated.
-	 * This may be less than the spu_rcvhdrcnt passed in!.
-	 */
-	__u32 spi_rcvhdr_cnt;
+  /* version of hardware, for feature checking. */
+  __u32 spi_hw_version;
+  /* version of software, for feature checking. */
+  __u32 spi_sw_version;
+  /* QLogic_IB context assigned, goes into sent packets */
+  __u16 spi_ctxt;
+  __u16 spi_subctxt;
+  /*
+   * IB MTU, packets IB data must be less than this.
+   * The MTU is in bytes, and will be a multiple of 4 bytes.
+   */
+  __u32 spi_mtu;
+  /*
+   * Size of a PIO buffer.  Any given packet's total size must be less
+   * than this (in words).  Included is the starting control word, so
+   * if 513 is returned, then total pkt size is 512 words or less.
+   */
+  __u32 spi_piosize;
+  /* size of the TID cache in qlogic_ib, in entries */
+  __u32 spi_tidcnt;
+  /* size of the TID Eager list in qlogic_ib, in entries */
+  __u32 spi_tidegrcnt;
+  /* size of a single receive header queue entry in words. */
+  __u32 spi_rcvhdrent_size;
+  /*
+   * Count of receive header queue entries allocated.
+   * This may be less than the spu_rcvhdrcnt passed in!.
+   */
+  __u32 spi_rcvhdr_cnt;
 
-	/* per-chip and other runtime features bitmap (QIB_RUNTIME_*) */
-	__u32 spi_runtime_flags;
+  /* per-chip and other runtime features bitmap (QIB_RUNTIME_*) */
+  __u32 spi_runtime_flags;
 
-	/* address where hardware receive header queue is mapped */
-	__u64 spi_rcvhdr_base;
+  /* address where hardware receive header queue is mapped */
+  __u64 spi_rcvhdr_base;
 
-	/* user program. */
+  /* user program. */
 
-	/* base address of eager TID receive buffers used by hardware. */
-	__u64 spi_rcv_egrbufs;
+  /* base address of eager TID receive buffers used by hardware. */
+  __u64 spi_rcv_egrbufs;
 
-	/* Allocated by initialization code, not by protocol. */
+  /* Allocated by initialization code, not by protocol. */
 
-	/*
-	 * Size of each TID buffer in host memory, starting at
-	 * spi_rcv_egrbufs.  The buffers are virtually contiguous.
-	 */
-	__u32 spi_rcv_egrbufsize;
-	/*
-	 * The special QP (queue pair) value that identifies an qlogic_ib
-	 * protocol packet from standard IB packets.  More, probably much
-	 * more, to be added.
-	 */
-	__u32 spi_qpair;
+  /*
+   * Size of each TID buffer in host memory, starting at
+   * spi_rcv_egrbufs.  The buffers are virtually contiguous.
+   */
+  __u32 spi_rcv_egrbufsize;
+  /*
+   * The special QP (queue pair) value that identifies an qlogic_ib
+   * protocol packet from standard IB packets.  More, probably much
+   * more, to be added.
+   */
+  __u32 spi_qpair;
 
-	/*
-	 * User register base for init code, not to be used directly by
-	 * protocol or applications.  Always points to chip registers,
-	 * for normal or shared context.
-	 */
-	__u64 spi_uregbase;
-	/*
-	 * Maximum buffer size in bytes that can be used in a single TID
-	 * entry (assuming the buffer is aligned to this boundary).  This is
-	 * the minimum of what the hardware and software support Guaranteed
-	 * to be a power of 2.
-	 */
-	__u32 spi_tid_maxsize;
-	/*
-	 * alignment of each pio send buffer (byte count
-	 * to add to spi_piobufbase to get to second buffer)
-	 */
-	__u32 spi_pioalign;
-	/*
-	 * The index of the first pio buffer available to this process;
-	 * needed to do lookup in spi_pioavailaddr; not added to
-	 * spi_piobufbase.
-	 */
-	__u32 spi_pioindex;
-	 /* number of buffers mapped for this process */
-	__u32 spi_piocnt;
+  /*
+   * User register base for init code, not to be used directly by
+   * protocol or applications.  Always points to chip registers,
+   * for normal or shared context.
+   */
+  __u64 spi_uregbase;
+  /*
+   * Maximum buffer size in bytes that can be used in a single TID
+   * entry (assuming the buffer is aligned to this boundary).  This is
+   * the minimum of what the hardware and software support Guaranteed
+   * to be a power of 2.
+   */
+  __u32 spi_tid_maxsize;
+  /*
+   * alignment of each pio send buffer (byte count
+   * to add to spi_piobufbase to get to second buffer)
+   */
+  __u32 spi_pioalign;
+  /*
+   * The index of the first pio buffer available to this process;
+   * needed to do lookup in spi_pioavailaddr; not added to
+   * spi_piobufbase.
+   */
+  __u32 spi_pioindex;
+  /* number of buffers mapped for this process */
+  __u32 spi_piocnt;
 
-	/*
-	 * Base address of writeonly pio buffers for this process.
-	 * Each buffer has spi_piosize words, and is aligned on spi_pioalign
-	 * boundaries.  spi_piocnt buffers are mapped from this address
-	 */
-	__u64 spi_piobufbase;
+  /*
+   * Base address of writeonly pio buffers for this process.
+   * Each buffer has spi_piosize words, and is aligned on spi_pioalign
+   * boundaries.  spi_piocnt buffers are mapped from this address
+   */
+  __u64 spi_piobufbase;
 
-	/*
-	 * Base address of readonly memory copy of the pioavail registers.
-	 * There are 2 bits for each buffer.
-	 */
-	__u64 spi_pioavailaddr;
+  /*
+   * Base address of readonly memory copy of the pioavail registers.
+   * There are 2 bits for each buffer.
+   */
+  __u64 spi_pioavailaddr;
 
-	/*
-	 * Address where driver updates a copy of the interface and driver
-	 * status (QIB_STATUS_*) as a 64 bit value.  It's followed by a
-	 * link status qword (formerly combined with driver status), then a
-	 * string indicating hardware error, if there was one.
-	 */
-	__u64 spi_status;
+  /*
+   * Address where driver updates a copy of the interface and driver
+   * status (QIB_STATUS_*) as a 64 bit value.  It's followed by a
+   * link status qword (formerly combined with driver status), then a
+   * string indicating hardware error, if there was one.
+   */
+  __u64 spi_status;
 
-	/* number of chip ctxts available to user processes */
-	__u32 spi_nctxts;
-	__u16 spi_unit; /* unit number of chip we are using */
-	__u16 spi_port; /* IB port number we are using */
-	/* num bufs in each contiguous set */
-	__u32 spi_rcv_egrperchunk;
-	/* size in bytes of each contiguous set */
-	__u32 spi_rcv_egrchunksize;
-	/* total size of mmap to cover full rcvegrbuffers */
-	__u32 spi_rcv_egrbuftotlen;
-	__u32 spi_rhf_offset; /* dword offset in hdrqent for rcvhdr flags */
-	/* address of readonly memory copy of the rcvhdrq tail register. */
-	__u64 spi_rcvhdr_tailaddr;
+  /* number of chip ctxts available to user processes */
+  __u32 spi_nctxts;
+  __u16 spi_unit; /* unit number of chip we are using */
+  __u16 spi_port; /* IB port number we are using */
+  /* num bufs in each contiguous set */
+  __u32 spi_rcv_egrperchunk;
+  /* size in bytes of each contiguous set */
+  __u32 spi_rcv_egrchunksize;
+  /* total size of mmap to cover full rcvegrbuffers */
+  __u32 spi_rcv_egrbuftotlen;
+  __u32 spi_rhf_offset; /* dword offset in hdrqent for rcvhdr flags */
+  /* address of readonly memory copy of the rcvhdrq tail register. */
+  __u64 spi_rcvhdr_tailaddr;
 
-	/*
-	 * shared memory pages for subctxts if ctxt is shared; these cover
-	 * all the processes in the group sharing a single context.
-	 * all have enough space for the num_subcontexts value on this job.
-	 */
-	__u64 spi_subctxt_uregbase;
-	__u64 spi_subctxt_rcvegrbuf;
-	__u64 spi_subctxt_rcvhdr_base;
+  /*
+   * shared memory pages for subctxts if ctxt is shared; these cover
+   * all the processes in the group sharing a single context.
+   * all have enough space for the num_subcontexts value on this job.
+   */
+  __u64 spi_subctxt_uregbase;
+  __u64 spi_subctxt_rcvegrbuf;
+  __u64 spi_subctxt_rcvhdr_base;
 
-	/* shared memory page for send buffer disarm status */
-	__u64 spi_sendbuf_status;
+  /* shared memory page for send buffer disarm status */
+  __u64 spi_sendbuf_status;
 } __aligned(8);
 
 /*
@@ -297,7 +297,7 @@ struct qib_base_info {
  * It's returned by the driver to the user code during initialization in the
  * spi_sw_version field of qib_base_info, so the user code can in turn
  * check for compatibility with the kernel.
-*/
+ */
 #define QIB_KERN_SWVERSION ((QIB_KERN_TYPE << 31) | QIB_USER_SWVERSION)
 
 /*
@@ -320,9 +320,9 @@ struct qib_base_info {
  * the old default, prior to this mechanism.
  */
 #define QIB_PORT_ALG_ACROSS 0 /* round robin contexts across HCAs, then
-			       * ports; this is the default */
+                               * ports; this is the default */
 #define QIB_PORT_ALG_WITHIN 1 /* use all contexts on an HCA (round robin
-			       * active ports within), then next HCA */
+                               * active ports within), then next HCA */
 #define QIB_PORT_ALG_COUNT 2 /* number of algorithm choices */
 
 /*
@@ -332,35 +332,34 @@ struct qib_base_info {
  * be extended, if userversion is changed so user code can tell, if needed
  */
 struct qib_user_info {
-	/*
-	 * version of user software, to detect compatibility issues.
-	 * Should be set to QIB_USER_SWVERSION.
-	 */
-	__u32 spu_userversion;
+  /*
+   * version of user software, to detect compatibility issues.
+   * Should be set to QIB_USER_SWVERSION.
+   */
+  __u32 spu_userversion;
 
-	__u32 _spu_unused2;
+  __u32 _spu_unused2;
 
-	/* size of struct base_info to write to */
-	__u32 spu_base_info_size;
+  /* size of struct base_info to write to */
+  __u32 spu_base_info_size;
 
-	__u32 spu_port_alg; /* which QIB_PORT_ALG_*; unused user minor < 11 */
+  __u32 spu_port_alg; /* which QIB_PORT_ALG_*; unused user minor < 11 */
 
-	/*
-	 * If two or more processes wish to share a context, each process
-	 * must set the spu_subctxt_cnt and spu_subctxt_id to the same
-	 * values.  The only restriction on the spu_subctxt_id is that
-	 * it be unique for a given node.
-	 */
-	__u16 spu_subctxt_cnt;
-	__u16 spu_subctxt_id;
+  /*
+   * If two or more processes wish to share a context, each process
+   * must set the spu_subctxt_cnt and spu_subctxt_id to the same
+   * values.  The only restriction on the spu_subctxt_id is that
+   * it be unique for a given node.
+   */
+  __u16 spu_subctxt_cnt;
+  __u16 spu_subctxt_id;
 
-	__u32 spu_port; /* IB port requested by user if > 0 */
+  __u32 spu_port; /* IB port requested by user if > 0 */
 
-	/*
-	 * address of struct base_info to write to
-	 */
-	__u64 spu_base_info;
-
+  /*
+   * address of struct base_info to write to
+   */
+  __u64 spu_base_info;
 } __aligned(8);
 
 /* User commands. */
@@ -386,7 +385,7 @@ struct qib_user_info {
 #define QIB_CMD_DISARM_BUFS     34      /* disarm send buffers w/ errors */
 #define QIB_CMD_ACK_EVENT       35      /* ack & clear bits */
 #define QIB_CMD_CPUS_LIST       36      /* list of cpus allocated, for pinned
-					 * processes: qib_cpus_list */
+                                         * processes: qib_cpus_list */
 
 /*
  * QIB_CMD_ACK_EVENT obsoletes QIB_CMD_DISARM_BUFS, but we keep it for
@@ -396,19 +395,18 @@ struct qib_user_info {
  * in the first 64bit word at spi_sendbuf_status, and are passed to
  * the driver in the event_mask union as well.
  */
-#define _QIB_EVENT_DISARM_BUFS_BIT	0
-#define _QIB_EVENT_LINKDOWN_BIT		1
-#define _QIB_EVENT_LID_CHANGE_BIT	2
-#define _QIB_EVENT_LMC_CHANGE_BIT	3
-#define _QIB_EVENT_SL2VL_CHANGE_BIT	4
+#define _QIB_EVENT_DISARM_BUFS_BIT  0
+#define _QIB_EVENT_LINKDOWN_BIT   1
+#define _QIB_EVENT_LID_CHANGE_BIT 2
+#define _QIB_EVENT_LMC_CHANGE_BIT 3
+#define _QIB_EVENT_SL2VL_CHANGE_BIT 4
 #define _QIB_MAX_EVENT_BIT _QIB_EVENT_SL2VL_CHANGE_BIT
 
-#define QIB_EVENT_DISARM_BUFS_BIT	(1UL << _QIB_EVENT_DISARM_BUFS_BIT)
-#define QIB_EVENT_LINKDOWN_BIT		(1UL << _QIB_EVENT_LINKDOWN_BIT)
-#define QIB_EVENT_LID_CHANGE_BIT	(1UL << _QIB_EVENT_LID_CHANGE_BIT)
-#define QIB_EVENT_LMC_CHANGE_BIT	(1UL << _QIB_EVENT_LMC_CHANGE_BIT)
-#define QIB_EVENT_SL2VL_CHANGE_BIT	(1UL << _QIB_EVENT_SL2VL_CHANGE_BIT)
-
+#define QIB_EVENT_DISARM_BUFS_BIT (1UL << _QIB_EVENT_DISARM_BUFS_BIT)
+#define QIB_EVENT_LINKDOWN_BIT    (1UL << _QIB_EVENT_LINKDOWN_BIT)
+#define QIB_EVENT_LID_CHANGE_BIT  (1UL << _QIB_EVENT_LID_CHANGE_BIT)
+#define QIB_EVENT_LMC_CHANGE_BIT  (1UL << _QIB_EVENT_LMC_CHANGE_BIT)
+#define QIB_EVENT_SL2VL_CHANGE_BIT  (1UL << _QIB_EVENT_SL2VL_CHANGE_BIT)
 
 /*
  * Poll types
@@ -417,77 +415,77 @@ struct qib_user_info {
 #define QIB_POLL_TYPE_URGENT     0x1
 
 struct qib_ctxt_info {
-	__u16 num_active;       /* number of active units */
-	__u16 unit;             /* unit (chip) assigned to caller */
-	__u16 port;             /* IB port assigned to caller (1-based) */
-	__u16 ctxt;             /* ctxt on unit assigned to caller */
-	__u16 subctxt;          /* subctxt on unit assigned to caller */
-	__u16 num_ctxts;        /* number of ctxts available on unit */
-	__u16 num_subctxts;     /* number of subctxts opened on ctxt */
-	__u16 rec_cpu;          /* cpu # for affinity (ffff if none) */
+  __u16 num_active;       /* number of active units */
+  __u16 unit;             /* unit (chip) assigned to caller */
+  __u16 port;             /* IB port assigned to caller (1-based) */
+  __u16 ctxt;             /* ctxt on unit assigned to caller */
+  __u16 subctxt;          /* subctxt on unit assigned to caller */
+  __u16 num_ctxts;        /* number of ctxts available on unit */
+  __u16 num_subctxts;     /* number of subctxts opened on ctxt */
+  __u16 rec_cpu;          /* cpu # for affinity (ffff if none) */
 };
 
 struct qib_tid_info {
-	__u32 tidcnt;
-	/* make structure same size in 32 and 64 bit */
-	__u32 tid__unused;
-	/* virtual address of first page in transfer */
-	__u64 tidvaddr;
-	/* pointer (same size 32/64 bit) to __u16 tid array */
-	__u64 tidlist;
+  __u32 tidcnt;
+  /* make structure same size in 32 and 64 bit */
+  __u32 tid__unused;
+  /* virtual address of first page in transfer */
+  __u64 tidvaddr;
+  /* pointer (same size 32/64 bit) to __u16 tid array */
+  __u64 tidlist;
 
-	/*
-	 * pointer (same size 32/64 bit) to bitmap of TIDs used
-	 * for this call; checked for being large enough at open
-	 */
-	__u64 tidmap;
+  /*
+   * pointer (same size 32/64 bit) to bitmap of TIDs used
+   * for this call; checked for being large enough at open
+   */
+  __u64 tidmap;
 };
 
 struct qib_cmd {
-	__u32 type;                     /* command type */
-	union {
-		struct qib_tid_info tid_info;
-		struct qib_user_info user_info;
+  __u32 type;                     /* command type */
+  union {
+    struct qib_tid_info tid_info;
+    struct qib_user_info user_info;
 
-		/*
-		 * address in userspace where we should put the sdma
-		 * inflight counter
-		 */
-		__u64 sdma_inflight;
-		/*
-		 * address in userspace where we should put the sdma
-		 * completion counter
-		 */
-		__u64 sdma_complete;
-		/* address in userspace of struct qib_ctxt_info to
-		   write result to */
-		__u64 ctxt_info;
-		/* enable/disable receipt of packets */
-		__u32 recv_ctrl;
-		/* enable/disable armlaunch errors (non-zero to enable) */
-		__u32 armlaunch_ctrl;
-		/* partition key to set */
-		__u16 part_key;
-		/* user address of __u32 bitmask of active slaves */
-		__u64 slave_mask_addr;
-		/* type of polling we want */
-		__u16 poll_type;
-		/* back pressure enable bit for one particular context */
-		__u8 ctxt_bp;
-		/* qib_user_event_ack(), IPATH_EVENT_* bits */
-		__u64 event_mask;
-	} cmd;
+    /*
+     * address in userspace where we should put the sdma
+     * inflight counter
+     */
+    __u64 sdma_inflight;
+    /*
+     * address in userspace where we should put the sdma
+     * completion counter
+     */
+    __u64 sdma_complete;
+    /* address in userspace of struct qib_ctxt_info to
+     * write result to */
+    __u64 ctxt_info;
+    /* enable/disable receipt of packets */
+    __u32 recv_ctrl;
+    /* enable/disable armlaunch errors (non-zero to enable) */
+    __u32 armlaunch_ctrl;
+    /* partition key to set */
+    __u16 part_key;
+    /* user address of __u32 bitmask of active slaves */
+    __u64 slave_mask_addr;
+    /* type of polling we want */
+    __u16 poll_type;
+    /* back pressure enable bit for one particular context */
+    __u8 ctxt_bp;
+    /* qib_user_event_ack(), IPATH_EVENT_* bits */
+    __u64 event_mask;
+  } cmd;
 };
 
 struct qib_iovec {
-	/* Pointer to data, but same size 32 and 64 bit */
-	__u64 iov_base;
+  /* Pointer to data, but same size 32 and 64 bit */
+  __u64 iov_base;
 
-	/*
-	 * Length of data; don't need 64 bits, but want
-	 * qib_sendpkt to remain same size as before 32 bit changes, so...
-	 */
-	__u64 iov_len;
+  /*
+   * Length of data; don't need 64 bits, but want
+   * qib_sendpkt to remain same size as before 32 bit changes, so...
+   */
+  __u64 iov_len;
 };
 
 /*
@@ -498,10 +496,10 @@ struct qib_iovec {
  * Use of this necessitates including sys/uio.h
  */
 struct __qib_sendpkt {
-	__u32 sps_flags;        /* flags for packet (TBD) */
-	__u32 sps_cnt;          /* number of entries to use in sps_iov */
-	/* array of iov's describing packet. TEMPORARY */
-	struct qib_iovec sps_iov[4];
+  __u32 sps_flags;        /* flags for packet (TBD) */
+  __u32 sps_cnt;          /* number of entries to use in sps_iov */
+  /* array of iov's describing packet. TEMPORARY */
+  struct qib_iovec sps_iov[4];
 };
 
 /*
@@ -514,12 +512,12 @@ struct __qib_sendpkt {
  */
 #define _DIAG_XPKT_VERS 3
 struct qib_diag_xpkt {
-	__u16 version;
-	__u16 unit;
-	__u16 port;
-	__u16 len;
-	__u64 data;
-	__u64 pbc_wd;
+  __u16 version;
+  __u16 unit;
+  __u16 port;
+  __u16 len;
+  __u64 data;
+  __u64 pbc_wd;
 };
 
 /*
@@ -528,35 +526,35 @@ struct qib_diag_xpkt {
  */
 #define QIB_FLASH_VERSION 2
 struct qib_flash {
-	/* flash layout version (QIB_FLASH_VERSION) */
-	__u8 if_fversion;
-	/* checksum protecting if_length bytes */
-	__u8 if_csum;
-	/*
-	 * valid length (in use, protected by if_csum), including
-	 * if_fversion and if_csum themselves)
-	 */
-	__u8 if_length;
-	/* the GUID, in network order */
-	__u8 if_guid[8];
-	/* number of GUIDs to use, starting from if_guid */
-	__u8 if_numguid;
-	/* the (last 10 characters of) board serial number, in ASCII */
-	char if_serial[12];
-	/* board mfg date (YYYYMMDD ASCII) */
-	char if_mfgdate[8];
-	/* last board rework/test date (YYYYMMDD ASCII) */
-	char if_testdate[8];
-	/* logging of error counts, TBD */
-	__u8 if_errcntp[4];
-	/* powered on hours, updated at driver unload */
-	__u8 if_powerhour[2];
-	/* ASCII free-form comment field */
-	char if_comment[32];
-	/* Backwards compatible prefix for longer QLogic Serial Numbers */
-	char if_sprefix[4];
-	/* 82 bytes used, min flash size is 128 bytes */
-	__u8 if_future[46];
+  /* flash layout version (QIB_FLASH_VERSION) */
+  __u8 if_fversion;
+  /* checksum protecting if_length bytes */
+  __u8 if_csum;
+  /*
+   * valid length (in use, protected by if_csum), including
+   * if_fversion and if_csum themselves)
+   */
+  __u8 if_length;
+  /* the GUID, in network order */
+  __u8 if_guid[8];
+  /* number of GUIDs to use, starting from if_guid */
+  __u8 if_numguid;
+  /* the (last 10 characters of) board serial number, in ASCII */
+  char if_serial[12];
+  /* board mfg date (YYYYMMDD ASCII) */
+  char if_mfgdate[8];
+  /* last board rework/test date (YYYYMMDD ASCII) */
+  char if_testdate[8];
+  /* logging of error counts, TBD */
+  __u8 if_errcntp[4];
+  /* powered on hours, updated at driver unload */
+  __u8 if_powerhour[2];
+  /* ASCII free-form comment field */
+  char if_comment[32];
+  /* Backwards compatible prefix for longer QLogic Serial Numbers */
+  char if_sprefix[4];
+  /* 82 bytes used, min flash size is 128 bytes */
+  __u8 if_future[46];
 };
 
 /*
@@ -564,63 +562,63 @@ struct qib_flash {
  * The InterCaps naming is taken straight from the chip spec.
  */
 struct qlogic_ib_counters {
-	__u64 LBIntCnt;
-	__u64 LBFlowStallCnt;
-	__u64 TxSDmaDescCnt;    /* was Reserved1 */
-	__u64 TxUnsupVLErrCnt;
-	__u64 TxDataPktCnt;
-	__u64 TxFlowPktCnt;
-	__u64 TxDwordCnt;
-	__u64 TxLenErrCnt;
-	__u64 TxMaxMinLenErrCnt;
-	__u64 TxUnderrunCnt;
-	__u64 TxFlowStallCnt;
-	__u64 TxDroppedPktCnt;
-	__u64 RxDroppedPktCnt;
-	__u64 RxDataPktCnt;
-	__u64 RxFlowPktCnt;
-	__u64 RxDwordCnt;
-	__u64 RxLenErrCnt;
-	__u64 RxMaxMinLenErrCnt;
-	__u64 RxICRCErrCnt;
-	__u64 RxVCRCErrCnt;
-	__u64 RxFlowCtrlErrCnt;
-	__u64 RxBadFormatCnt;
-	__u64 RxLinkProblemCnt;
-	__u64 RxEBPCnt;
-	__u64 RxLPCRCErrCnt;
-	__u64 RxBufOvflCnt;
-	__u64 RxTIDFullErrCnt;
-	__u64 RxTIDValidErrCnt;
-	__u64 RxPKeyMismatchCnt;
-	__u64 RxP0HdrEgrOvflCnt;
-	__u64 RxP1HdrEgrOvflCnt;
-	__u64 RxP2HdrEgrOvflCnt;
-	__u64 RxP3HdrEgrOvflCnt;
-	__u64 RxP4HdrEgrOvflCnt;
-	__u64 RxP5HdrEgrOvflCnt;
-	__u64 RxP6HdrEgrOvflCnt;
-	__u64 RxP7HdrEgrOvflCnt;
-	__u64 RxP8HdrEgrOvflCnt;
-	__u64 RxP9HdrEgrOvflCnt;
-	__u64 RxP10HdrEgrOvflCnt;
-	__u64 RxP11HdrEgrOvflCnt;
-	__u64 RxP12HdrEgrOvflCnt;
-	__u64 RxP13HdrEgrOvflCnt;
-	__u64 RxP14HdrEgrOvflCnt;
-	__u64 RxP15HdrEgrOvflCnt;
-	__u64 RxP16HdrEgrOvflCnt;
-	__u64 IBStatusChangeCnt;
-	__u64 IBLinkErrRecoveryCnt;
-	__u64 IBLinkDownedCnt;
-	__u64 IBSymbolErrCnt;
-	__u64 RxVL15DroppedPktCnt;
-	__u64 RxOtherLocalPhyErrCnt;
-	__u64 PcieRetryBufDiagQwordCnt;
-	__u64 ExcessBufferOvflCnt;
-	__u64 LocalLinkIntegrityErrCnt;
-	__u64 RxVlErrCnt;
-	__u64 RxDlidFltrCnt;
+  __u64 LBIntCnt;
+  __u64 LBFlowStallCnt;
+  __u64 TxSDmaDescCnt;    /* was Reserved1 */
+  __u64 TxUnsupVLErrCnt;
+  __u64 TxDataPktCnt;
+  __u64 TxFlowPktCnt;
+  __u64 TxDwordCnt;
+  __u64 TxLenErrCnt;
+  __u64 TxMaxMinLenErrCnt;
+  __u64 TxUnderrunCnt;
+  __u64 TxFlowStallCnt;
+  __u64 TxDroppedPktCnt;
+  __u64 RxDroppedPktCnt;
+  __u64 RxDataPktCnt;
+  __u64 RxFlowPktCnt;
+  __u64 RxDwordCnt;
+  __u64 RxLenErrCnt;
+  __u64 RxMaxMinLenErrCnt;
+  __u64 RxICRCErrCnt;
+  __u64 RxVCRCErrCnt;
+  __u64 RxFlowCtrlErrCnt;
+  __u64 RxBadFormatCnt;
+  __u64 RxLinkProblemCnt;
+  __u64 RxEBPCnt;
+  __u64 RxLPCRCErrCnt;
+  __u64 RxBufOvflCnt;
+  __u64 RxTIDFullErrCnt;
+  __u64 RxTIDValidErrCnt;
+  __u64 RxPKeyMismatchCnt;
+  __u64 RxP0HdrEgrOvflCnt;
+  __u64 RxP1HdrEgrOvflCnt;
+  __u64 RxP2HdrEgrOvflCnt;
+  __u64 RxP3HdrEgrOvflCnt;
+  __u64 RxP4HdrEgrOvflCnt;
+  __u64 RxP5HdrEgrOvflCnt;
+  __u64 RxP6HdrEgrOvflCnt;
+  __u64 RxP7HdrEgrOvflCnt;
+  __u64 RxP8HdrEgrOvflCnt;
+  __u64 RxP9HdrEgrOvflCnt;
+  __u64 RxP10HdrEgrOvflCnt;
+  __u64 RxP11HdrEgrOvflCnt;
+  __u64 RxP12HdrEgrOvflCnt;
+  __u64 RxP13HdrEgrOvflCnt;
+  __u64 RxP14HdrEgrOvflCnt;
+  __u64 RxP15HdrEgrOvflCnt;
+  __u64 RxP16HdrEgrOvflCnt;
+  __u64 IBStatusChangeCnt;
+  __u64 IBLinkErrRecoveryCnt;
+  __u64 IBLinkDownedCnt;
+  __u64 IBSymbolErrCnt;
+  __u64 RxVL15DroppedPktCnt;
+  __u64 RxOtherLocalPhyErrCnt;
+  __u64 PcieRetryBufDiagQwordCnt;
+  __u64 ExcessBufferOvflCnt;
+  __u64 LocalLinkIntegrityErrCnt;
+  __u64 RxVlErrCnt;
+  __u64 RxDlidFltrCnt;
 };
 
 /*
@@ -681,14 +679,14 @@ struct qlogic_ib_counters {
 
 /* qlogic_ib header format */
 struct qib_header {
-	/*
-	 * Version - 4 bits, Context - 4 bits, TID - 10 bits and Offset -
-	 * 14 bits before ECO change ~28 Dec 03.  After that, Vers 4,
-	 * Context 4, TID 11, offset 13.
-	 */
-	__le32 ver_ctxt_tid_offset;
-	__le16 chksum;
-	__le16 pkt_flags;
+  /*
+   * Version - 4 bits, Context - 4 bits, TID - 10 bits and Offset -
+   * 14 bits before ECO change ~28 Dec 03.  After that, Vers 4,
+   * Context 4, TID 11, offset 13.
+   */
+  __le32 ver_ctxt_tid_offset;
+  __le16 chksum;
+  __le16 pkt_flags;
 };
 
 /*
@@ -697,41 +695,41 @@ struct qib_header {
  * that employ qlogic_ib.
  */
 struct qib_message_header {
-	__be16 lrh[4];
-	__be32 bth[3];
-	/* fields below this point are in host byte order */
-	struct qib_header iph;
-	/* fields below are simplified, but should match PSM */
-	/* some are accessed by driver when packet spliting is needed */
-	__u8 sub_opcode;
-	__u8 flags;
-	__u16 commidx;
-	__u32 ack_seq_num;
-	__u8 flowid;
-	__u8 hdr_dlen;
-	__u16 mqhdr;
-	__u32 uwords[4];
+  __be16 lrh[4];
+  __be32 bth[3];
+  /* fields below this point are in host byte order */
+  struct qib_header iph;
+  /* fields below are simplified, but should match PSM
+   * some are accessed by driver when packet spliting is needed*/
+  __u8 sub_opcode;
+  __u8 flags;
+  __u16 commidx;
+  __u32 ack_seq_num;
+  __u8 flowid;
+  __u8 hdr_dlen;
+  __u16 mqhdr;
+  __u32 uwords[4];
 };
 
 /* sequence number bits for message */
 union qib_seqnum {
-	struct {
-		__u32 seq:11;
-		__u32 gen:8;
-		__u32 flow:5;
-	};
-	struct {
-		__u32 pkt:16;
-		__u32 msg:8;
-	};
-	__u32 val;
+  struct {
+    __u32 seq : 11;
+    __u32 gen : 8;
+    __u32 flow : 5;
+  };
+  struct {
+    __u32 pkt : 16;
+    __u32 msg : 8;
+  };
+  __u32 val;
 };
 
 /* qib receiving-dma tid-session-member */
 struct qib_tid_session_member {
-	__u16 tid;
-	__u16 offset;
-	__u16 length;
+  __u16 tid;
+  __u16 offset;
+  __u16 length;
 };
 
 /* IB - LRH header consts */
@@ -756,43 +754,37 @@ struct qib_tid_session_member {
 
 /* functions for extracting fields from rcvhdrq entries for the driver.
  */
-static inline __u32 qib_hdrget_err_flags(const __le32 *rbuf)
-{
-	return __le32_to_cpu(rbuf[1]) & QLOGIC_IB_RHF_H_ERR_MASK;
+static inline __u32 qib_hdrget_err_flags(const __le32 *rbuf) {
+  return __le32_to_cpu(rbuf[1]) & QLOGIC_IB_RHF_H_ERR_MASK;
 }
 
-static inline __u32 qib_hdrget_rcv_type(const __le32 *rbuf)
-{
-	return (__le32_to_cpu(rbuf[0]) >> QLOGIC_IB_RHF_RCVTYPE_SHIFT) &
-		QLOGIC_IB_RHF_RCVTYPE_MASK;
+static inline __u32 qib_hdrget_rcv_type(const __le32 *rbuf) {
+  return (__le32_to_cpu(rbuf[0]) >> QLOGIC_IB_RHF_RCVTYPE_SHIFT)
+    & QLOGIC_IB_RHF_RCVTYPE_MASK;
 }
 
-static inline __u32 qib_hdrget_length_in_bytes(const __le32 *rbuf)
-{
-	return ((__le32_to_cpu(rbuf[0]) >> QLOGIC_IB_RHF_LENGTH_SHIFT) &
-		QLOGIC_IB_RHF_LENGTH_MASK) << 2;
+static inline __u32 qib_hdrget_length_in_bytes(const __le32 *rbuf) {
+  return ((__le32_to_cpu(rbuf[0]) >> QLOGIC_IB_RHF_LENGTH_SHIFT)
+    & QLOGIC_IB_RHF_LENGTH_MASK) << 2;
 }
 
-static inline __u32 qib_hdrget_index(const __le32 *rbuf)
-{
-	return (__le32_to_cpu(rbuf[0]) >> QLOGIC_IB_RHF_EGRINDEX_SHIFT) &
-		QLOGIC_IB_RHF_EGRINDEX_MASK;
+static inline __u32 qib_hdrget_index(const __le32 *rbuf) {
+  return (__le32_to_cpu(rbuf[0]) >> QLOGIC_IB_RHF_EGRINDEX_SHIFT)
+    & QLOGIC_IB_RHF_EGRINDEX_MASK;
 }
 
-static inline __u32 qib_hdrget_seq(const __le32 *rbuf)
-{
-	return (__le32_to_cpu(rbuf[1]) >> QLOGIC_IB_RHF_SEQ_SHIFT) &
-		QLOGIC_IB_RHF_SEQ_MASK;
+static inline __u32 qib_hdrget_seq(const __le32 *rbuf) {
+  return (__le32_to_cpu(rbuf[1]) >> QLOGIC_IB_RHF_SEQ_SHIFT)
+    & QLOGIC_IB_RHF_SEQ_MASK;
 }
 
-static inline __u32 qib_hdrget_offset(const __le32 *rbuf)
-{
-	return (__le32_to_cpu(rbuf[1]) >> QLOGIC_IB_RHF_HDRQ_OFFSET_SHIFT) &
-		QLOGIC_IB_RHF_HDRQ_OFFSET_MASK;
+static inline __u32 qib_hdrget_offset(const __le32 *rbuf) {
+  return (__le32_to_cpu(rbuf[1]) >> QLOGIC_IB_RHF_HDRQ_OFFSET_SHIFT)
+    & QLOGIC_IB_RHF_HDRQ_OFFSET_MASK;
 }
 
-static inline __u32 qib_hdrget_use_egr_buf(const __le32 *rbuf)
-{
-	return __le32_to_cpu(rbuf[0]) & QLOGIC_IB_RHF_L_USE_EGR;
+static inline __u32 qib_hdrget_use_egr_buf(const __le32 *rbuf) {
+  return __le32_to_cpu(rbuf[0]) & QLOGIC_IB_RHF_L_USE_EGR;
 }
+
 #endif                          /* _QIB_COMMON_H */

@@ -11,16 +11,16 @@
 
 #define RT1305_DEVICE_ID_NUM 0x6251
 
-#define RT1305_RESET				0x00
-#define RT1305_CLK_1				0x04
-#define RT1305_CLK_2				0x05
-#define RT1305_CLK_3				0x06
-#define RT1305_DFLL_REG				0x07
-#define RT1305_CAL_EFUSE_CLOCK	0x08
-#define RT1305_PLL0_1				0x0a
-#define RT1305_PLL0_2				0x0b
-#define RT1305_PLL1_1				0x0c
-#define RT1305_PLL1_2				0x0d
+#define RT1305_RESET        0x00
+#define RT1305_CLK_1        0x04
+#define RT1305_CLK_2        0x05
+#define RT1305_CLK_3        0x06
+#define RT1305_DFLL_REG       0x07
+#define RT1305_CAL_EFUSE_CLOCK  0x08
+#define RT1305_PLL0_1       0x0a
+#define RT1305_PLL0_2       0x0b
+#define RT1305_PLL1_1       0x0c
+#define RT1305_PLL1_2       0x0d
 #define RT1305_MIXER_CTRL_1 0x10
 #define RT1305_MIXER_CTRL_2 0x11
 #define RT1305_DAC_SET_1             0x12
@@ -66,12 +66,12 @@
 #define RT1305_ALC_DRC_2                  0x63
 #define RT1305_ALC_DRC_3                  0x64
 #define RT1305_ALC_DRC_4                  0x65
-#define RT1305_PRIV_INDEX			0x6a
-#define RT1305_PRIV_DATA			0x6c
+#define RT1305_PRIV_INDEX     0x6a
+#define RT1305_PRIV_DATA      0x6c
 #define RT1305_SPK_EXCURSION_LIMITER_7 0x76
-#define RT1305_VERSION_ID			0x7a
-#define RT1305_VENDOR_ID			0x7c
-#define RT1305_DEVICE_ID			0x7e
+#define RT1305_VERSION_ID     0x7a
+#define RT1305_VENDOR_ID      0x7c
+#define RT1305_DEVICE_ID      0x7e
 #define RT1305_EFUSE_1                  0x80
 #define RT1305_EFUSE_2                  0x81
 #define RT1305_EFUSE_3                  0x82
@@ -97,89 +97,89 @@
 #define RT1305_TUNE_INTERNAL_OSC             0xb2
 #define RT1305_BIQUAD1_H0_L_28_16 0xc0
 #define RT1305_BIQUAD3_A2_R_15_0 0xfb
-#define RT1305_MAX_REG	                 0xff
+#define RT1305_MAX_REG                   0xff
 
 /* CLOCK-1 (0x04) */
-#define RT1305_SEL_PLL_SRC_2_MASK			(0x1 << 15)
-#define RT1305_SEL_PLL_SRC_2_SFT			15
-#define RT1305_SEL_PLL_SRC_2_MCLK			(0x0 << 15)
-#define RT1305_SEL_PLL_SRC_2_RCCLK			(0x1 << 15)
-#define RT1305_DIV_PLL_SRC_2_MASK			(0x3 << 13)
-#define RT1305_DIV_PLL_SRC_2_SFT			13
-#define RT1305_SEL_PLL_SRC_1_MASK			(0x3 << 10)
-#define RT1305_SEL_PLL_SRC_1_SFT			10
-#define RT1305_SEL_PLL_SRC_1_PLL2			(0x0 << 10)
-#define RT1305_SEL_PLL_SRC_1_BCLK			(0x1 << 10)
-#define RT1305_SEL_PLL_SRC_1_DFLL			(0x2 << 10)
-#define RT1305_SEL_FS_SYS_PRE_MASK			(0x3 << 8)
-#define RT1305_SEL_FS_SYS_PRE_SFT			8
-#define RT1305_SEL_FS_SYS_PRE_MCLK			(0x0 << 8)
-#define RT1305_SEL_FS_SYS_PRE_PLL			(0x1 << 8)
-#define RT1305_SEL_FS_SYS_PRE_RCCLK			(0x2 << 8)
-#define RT1305_DIV_FS_SYS_MASK				(0x7 << 4)
-#define RT1305_DIV_FS_SYS_SFT				4
+#define RT1305_SEL_PLL_SRC_2_MASK     (0x1 << 15)
+#define RT1305_SEL_PLL_SRC_2_SFT      15
+#define RT1305_SEL_PLL_SRC_2_MCLK     (0x0 << 15)
+#define RT1305_SEL_PLL_SRC_2_RCCLK      (0x1 << 15)
+#define RT1305_DIV_PLL_SRC_2_MASK     (0x3 << 13)
+#define RT1305_DIV_PLL_SRC_2_SFT      13
+#define RT1305_SEL_PLL_SRC_1_MASK     (0x3 << 10)
+#define RT1305_SEL_PLL_SRC_1_SFT      10
+#define RT1305_SEL_PLL_SRC_1_PLL2     (0x0 << 10)
+#define RT1305_SEL_PLL_SRC_1_BCLK     (0x1 << 10)
+#define RT1305_SEL_PLL_SRC_1_DFLL     (0x2 << 10)
+#define RT1305_SEL_FS_SYS_PRE_MASK      (0x3 << 8)
+#define RT1305_SEL_FS_SYS_PRE_SFT     8
+#define RT1305_SEL_FS_SYS_PRE_MCLK      (0x0 << 8)
+#define RT1305_SEL_FS_SYS_PRE_PLL     (0x1 << 8)
+#define RT1305_SEL_FS_SYS_PRE_RCCLK     (0x2 << 8)
+#define RT1305_DIV_FS_SYS_MASK        (0x7 << 4)
+#define RT1305_DIV_FS_SYS_SFT       4
 
 /* PLL1M/N/K Code-1 (0x0c) */
-#define RT1305_PLL_1_M_SFT		12
-#define RT1305_PLL_1_M_BYPASS_MASK			(0x1 << 11)
-#define RT1305_PLL_1_M_BYPASS_SFT		11
-#define RT1305_PLL_1_M_BYPASS			(0x1 << 11)
-#define RT1305_PLL_1_N_MASK			(0x1ff << 0)
+#define RT1305_PLL_1_M_SFT    12
+#define RT1305_PLL_1_M_BYPASS_MASK      (0x1 << 11)
+#define RT1305_PLL_1_M_BYPASS_SFT   11
+#define RT1305_PLL_1_M_BYPASS     (0x1 << 11)
+#define RT1305_PLL_1_N_MASK     (0x1ff << 0)
 
 /* DAC Setting (0x14) */
-#define RT1305_DVOL_MUTE_L_EN_SFT		15
-#define RT1305_DVOL_MUTE_R_EN_SFT		14
+#define RT1305_DVOL_MUTE_L_EN_SFT   15
+#define RT1305_DVOL_MUTE_R_EN_SFT   14
 
 /* I2S Setting-1 (0x2d) */
-#define RT1305_SEL_I2S_OUT_MODE_MASK		(0x1 << 15)
-#define RT1305_SEL_I2S_OUT_MODE_SFT			15
-#define RT1305_SEL_I2S_OUT_MODE_S			(0x0 << 15)
-#define RT1305_SEL_I2S_OUT_MODE_M			(0x1 << 15)
+#define RT1305_SEL_I2S_OUT_MODE_MASK    (0x1 << 15)
+#define RT1305_SEL_I2S_OUT_MODE_SFT     15
+#define RT1305_SEL_I2S_OUT_MODE_S     (0x0 << 15)
+#define RT1305_SEL_I2S_OUT_MODE_M     (0x1 << 15)
 
 /* I2S Setting-2 (0x2e) */
-#define RT1305_I2S_DF_SEL_MASK			(0x3 << 12)
-#define RT1305_I2S_DF_SEL_SFT			12
-#define RT1305_I2S_DF_SEL_I2S			(0x0 << 12)
-#define RT1305_I2S_DF_SEL_LEFT			(0x1 << 12)
-#define RT1305_I2S_DF_SEL_PCM_A			(0x2 << 12)
-#define RT1305_I2S_DF_SEL_PCM_B			(0x3 << 12)
-#define RT1305_I2S_DL_SEL_MASK			(0x3 << 10)
-#define RT1305_I2S_DL_SEL_SFT			10
-#define RT1305_I2S_DL_SEL_16B			(0x0 << 10)
-#define RT1305_I2S_DL_SEL_20B			(0x1 << 10)
-#define RT1305_I2S_DL_SEL_24B			(0x2 << 10)
-#define RT1305_I2S_DL_SEL_8B			(0x3 << 10)
-#define RT1305_I2S_BCLK_MASK		(0x1 << 9)
-#define RT1305_I2S_BCLK_SFT			9
-#define RT1305_I2S_BCLK_NORMAL		(0x0 << 9)
-#define RT1305_I2S_BCLK_INV			(0x1 << 9)
+#define RT1305_I2S_DF_SEL_MASK      (0x3 << 12)
+#define RT1305_I2S_DF_SEL_SFT     12
+#define RT1305_I2S_DF_SEL_I2S     (0x0 << 12)
+#define RT1305_I2S_DF_SEL_LEFT      (0x1 << 12)
+#define RT1305_I2S_DF_SEL_PCM_A     (0x2 << 12)
+#define RT1305_I2S_DF_SEL_PCM_B     (0x3 << 12)
+#define RT1305_I2S_DL_SEL_MASK      (0x3 << 10)
+#define RT1305_I2S_DL_SEL_SFT     10
+#define RT1305_I2S_DL_SEL_16B     (0x0 << 10)
+#define RT1305_I2S_DL_SEL_20B     (0x1 << 10)
+#define RT1305_I2S_DL_SEL_24B     (0x2 << 10)
+#define RT1305_I2S_DL_SEL_8B      (0x3 << 10)
+#define RT1305_I2S_BCLK_MASK    (0x1 << 9)
+#define RT1305_I2S_BCLK_SFT     9
+#define RT1305_I2S_BCLK_NORMAL    (0x0 << 9)
+#define RT1305_I2S_BCLK_INV     (0x1 << 9)
 
 /* Power Control-1 (0x3a) */
-#define RT1305_POW_PDB_JD_MASK				(0x1 << 12)
-#define RT1305_POW_PDB_JD				(0x1 << 12)
-#define RT1305_POW_PDB_JD_BIT			12
-#define RT1305_POW_PLL0_EN				(0x1 << 11)
-#define RT1305_POW_PLL0_EN_BIT			11
-#define RT1305_POW_PLL1_EN				(0x1 << 10)
-#define RT1305_POW_PLL1_EN_BIT			10
-#define RT1305_POW_PDB_JD_POLARITY				(0x1 << 9)
-#define RT1305_POW_PDB_JD_POLARITY_BIT			9
-#define RT1305_POW_MBIAS_LV				(0x1 << 8)
-#define RT1305_POW_MBIAS_LV_BIT			8
-#define RT1305_POW_BG_MBIAS_LV				(0x1 << 7)
-#define RT1305_POW_BG_MBIAS_LV_BIT			7
-#define RT1305_POW_LDO2				(0x1 << 6)
-#define RT1305_POW_LDO2_BIT			6
-#define RT1305_POW_BG2				(0x1 << 5)
-#define RT1305_POW_BG2_BIT			5
-#define RT1305_POW_LDO2_IB2				(0x1 << 4)
-#define RT1305_POW_LDO2_IB2_BIT			4
-#define RT1305_POW_VREF				(0x1 << 3)
-#define RT1305_POW_VREF_BIT			3
-#define RT1305_POW_VREF1				(0x1 << 2)
-#define RT1305_POW_VREF1_BIT			2
-#define RT1305_POW_VREF2				(0x1 << 1)
-#define RT1305_POW_VREF2_BIT			1
+#define RT1305_POW_PDB_JD_MASK        (0x1 << 12)
+#define RT1305_POW_PDB_JD       (0x1 << 12)
+#define RT1305_POW_PDB_JD_BIT     12
+#define RT1305_POW_PLL0_EN        (0x1 << 11)
+#define RT1305_POW_PLL0_EN_BIT      11
+#define RT1305_POW_PLL1_EN        (0x1 << 10)
+#define RT1305_POW_PLL1_EN_BIT      10
+#define RT1305_POW_PDB_JD_POLARITY        (0x1 << 9)
+#define RT1305_POW_PDB_JD_POLARITY_BIT      9
+#define RT1305_POW_MBIAS_LV       (0x1 << 8)
+#define RT1305_POW_MBIAS_LV_BIT     8
+#define RT1305_POW_BG_MBIAS_LV        (0x1 << 7)
+#define RT1305_POW_BG_MBIAS_LV_BIT      7
+#define RT1305_POW_LDO2       (0x1 << 6)
+#define RT1305_POW_LDO2_BIT     6
+#define RT1305_POW_BG2        (0x1 << 5)
+#define RT1305_POW_BG2_BIT      5
+#define RT1305_POW_LDO2_IB2       (0x1 << 4)
+#define RT1305_POW_LDO2_IB2_BIT     4
+#define RT1305_POW_VREF       (0x1 << 3)
+#define RT1305_POW_VREF_BIT     3
+#define RT1305_POW_VREF1        (0x1 << 2)
+#define RT1305_POW_VREF1_BIT      2
+#define RT1305_POW_VREF2        (0x1 << 1)
+#define RT1305_POW_VREF2_BIT      1
 
 /* Power Control-2 (0x3b) */
 #define RT1305_POW_DISC_VREF           (1 << 15)
@@ -242,32 +242,31 @@
 #define RT1305_POR_EFUSE_BIT             4
 
 /* Clock Detect (0x3f) */
-#define RT1305_SEL_CLK_DET_SRC_MASK			(0x1 << 12)
-#define RT1305_SEL_CLK_DET_SRC_SFT			12
-#define RT1305_SEL_CLK_DET_SRC_MCLK			(0x0 << 12)
-#define RT1305_SEL_CLK_DET_SRC_BCLK			(0x1 << 12)
-
+#define RT1305_SEL_CLK_DET_SRC_MASK     (0x1 << 12)
+#define RT1305_SEL_CLK_DET_SRC_SFT      12
+#define RT1305_SEL_CLK_DET_SRC_MCLK     (0x0 << 12)
+#define RT1305_SEL_CLK_DET_SRC_BCLK     (0x1 << 12)
 
 /* System Clock Source */
 enum {
-	RT1305_FS_SYS_PRE_S_MCLK,
-	RT1305_FS_SYS_PRE_S_PLL1,
-	RT1305_FS_SYS_PRE_S_RCCLK,	/* 98.304M Hz */
+  RT1305_FS_SYS_PRE_S_MCLK,
+  RT1305_FS_SYS_PRE_S_PLL1,
+  RT1305_FS_SYS_PRE_S_RCCLK,  /* 98.304M Hz */
 };
 
 /* PLL Source 1/2 */
 enum {
-	RT1305_PLL1_S_BCLK,
-	RT1305_PLL2_S_MCLK,
-	RT1305_PLL2_S_RCCLK,	/* 98.304M Hz */
+  RT1305_PLL1_S_BCLK,
+  RT1305_PLL2_S_MCLK,
+  RT1305_PLL2_S_RCCLK,  /* 98.304M Hz */
 };
 
 enum {
-	RT1305_AIF1,
-	RT1305_AIFS
+  RT1305_AIF1,
+  RT1305_AIFS
 };
 
 #define R0_UPPER 0x2E8BA2 //5.5 ohm
 #define R0_LOWER 0x666666 //2.5 ohm
 
-#endif		/* end of _RT1305_H_ */
+#endif    /* end of _RT1305_H_ */

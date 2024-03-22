@@ -17,18 +17,18 @@ struct i915_request;
 struct intel_engine_cs;
 
 struct i915_sched_attr {
-	/**
-	 * @priority: execution and service priority
-	 *
-	 * All clients are equal, but some are more equal than others!
-	 *
-	 * Requests from a context with a greater (more positive) value of
-	 * @priority will be executed before those with a lower @priority
-	 * value, forming a simple QoS.
-	 *
-	 * The &drm_i915_private.kernel_context is assigned the lowest priority.
-	 */
-	int priority;
+  /**
+   * @priority: execution and service priority
+   *
+   * All clients are equal, but some are more equal than others!
+   *
+   * Requests from a context with a greater (more positive) value of
+   * @priority will be executed before those with a lower @priority
+   * value, forming a simple QoS.
+   *
+   * The &drm_i915_private.kernel_context is assigned the lowest priority.
+   */
+  int priority;
 };
 
 /*
@@ -60,36 +60,36 @@ struct i915_sched_attr {
  * others.
  */
 struct i915_sched_node {
-	struct list_head signalers_list; /* those before us, we depend upon */
-	struct list_head waiters_list; /* those after us, they depend upon us */
-	struct list_head link;
-	struct i915_sched_attr attr;
-	unsigned int flags;
-#define I915_SCHED_HAS_EXTERNAL_CHAIN	BIT(0)
-	intel_engine_mask_t semaphores;
+  struct list_head signalers_list; /* those before us, we depend upon */
+  struct list_head waiters_list; /* those after us, they depend upon us */
+  struct list_head link;
+  struct i915_sched_attr attr;
+  unsigned int flags;
+#define I915_SCHED_HAS_EXTERNAL_CHAIN BIT(0)
+  intel_engine_mask_t semaphores;
 };
 
 struct i915_dependency {
-	struct i915_sched_node *signaler;
-	struct i915_sched_node *waiter;
-	struct list_head signal_link;
-	struct list_head wait_link;
-	struct list_head dfs_link;
-	unsigned long flags;
-#define I915_DEPENDENCY_ALLOC		BIT(0)
-#define I915_DEPENDENCY_EXTERNAL	BIT(1)
-#define I915_DEPENDENCY_WEAK		BIT(2)
+  struct i915_sched_node *signaler;
+  struct i915_sched_node *waiter;
+  struct list_head signal_link;
+  struct list_head wait_link;
+  struct list_head dfs_link;
+  unsigned long flags;
+#define I915_DEPENDENCY_ALLOC   BIT(0)
+#define I915_DEPENDENCY_EXTERNAL  BIT(1)
+#define I915_DEPENDENCY_WEAK    BIT(2)
 };
 
 #define for_each_waiter(p__, rq__) \
-	list_for_each_entry_lockless(p__, \
-				     &(rq__)->sched.waiters_list, \
-				     wait_link)
+  list_for_each_entry_lockless(p__, \
+    &(rq__)->sched.waiters_list, \
+    wait_link)
 
 #define for_each_signaler(p__, rq__) \
-	list_for_each_entry_rcu(p__, \
-				&(rq__)->sched.signalers_list, \
-				signal_link)
+  list_for_each_entry_rcu(p__, \
+    &(rq__)->sched.signalers_list, \
+    signal_link)
 
 /**
  * struct i915_sched_engine - scheduler engine
@@ -103,103 +103,103 @@ struct i915_dependency {
  * is integrated with the DRM scheduler.
  */
 struct i915_sched_engine {
-	/**
-	 * @ref: reference count of schedule engine object
-	 */
-	struct kref ref;
+  /**
+   * @ref: reference count of schedule engine object
+   */
+  struct kref ref;
 
-	/**
-	 * @lock: protects requests in priority lists, requests, hold and
-	 * tasklet while running
-	 */
-	spinlock_t lock;
+  /**
+   * @lock: protects requests in priority lists, requests, hold and
+   * tasklet while running
+   */
+  spinlock_t lock;
 
-	/**
-	 * @requests: list of requests inflight on this schedule engine
-	 */
-	struct list_head requests;
+  /**
+   * @requests: list of requests inflight on this schedule engine
+   */
+  struct list_head requests;
 
-	/**
-	 * @hold: list of ready requests, but on hold
-	 */
-	struct list_head hold;
+  /**
+   * @hold: list of ready requests, but on hold
+   */
+  struct list_head hold;
 
-	/**
-	 * @tasklet: softirq tasklet for submission
-	 */
-	struct tasklet_struct tasklet;
+  /**
+   * @tasklet: softirq tasklet for submission
+   */
+  struct tasklet_struct tasklet;
 
-	/**
-	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
-	 */
-	struct i915_priolist default_priolist;
+  /**
+   * @default_priolist: priority list for I915_PRIORITY_NORMAL
+   */
+  struct i915_priolist default_priolist;
 
-	/**
-	 * @queue_priority_hint: Highest pending priority.
-	 *
-	 * When we add requests into the queue, or adjust the priority of
-	 * executing requests, we compute the maximum priority of those
-	 * pending requests. We can then use this value to determine if
-	 * we need to preempt the executing requests to service the queue.
-	 * However, since the we may have recorded the priority of an inflight
-	 * request we wanted to preempt but since completed, at the time of
-	 * dequeuing the priority hint may no longer may match the highest
-	 * available request priority.
-	 */
-	int queue_priority_hint;
+  /**
+   * @queue_priority_hint: Highest pending priority.
+   *
+   * When we add requests into the queue, or adjust the priority of
+   * executing requests, we compute the maximum priority of those
+   * pending requests. We can then use this value to determine if
+   * we need to preempt the executing requests to service the queue.
+   * However, since the we may have recorded the priority of an inflight
+   * request we wanted to preempt but since completed, at the time of
+   * dequeuing the priority hint may no longer may match the highest
+   * available request priority.
+   */
+  int queue_priority_hint;
 
-	/**
-	 * @queue: queue of requests, in priority lists
-	 */
-	struct rb_root_cached queue;
+  /**
+   * @queue: queue of requests, in priority lists
+   */
+  struct rb_root_cached queue;
 
-	/**
-	 * @no_priolist: priority lists disabled
-	 */
-	bool no_priolist;
+  /**
+   * @no_priolist: priority lists disabled
+   */
+  bool no_priolist;
 
-	/**
-	 * @private_data: private data of the submission backend
-	 */
-	void *private_data;
+  /**
+   * @private_data: private data of the submission backend
+   */
+  void *private_data;
 
-	/**
-	 * @destroy: destroy schedule engine / cleanup in backend
-	 */
-	void	(*destroy)(struct kref *kref);
+  /**
+   * @destroy: destroy schedule engine / cleanup in backend
+   */
+  void (*destroy)(struct kref *kref);
 
-	/**
-	 * @disabled: check if backend has disabled submission
-	 */
-	bool	(*disabled)(struct i915_sched_engine *sched_engine);
+  /**
+   * @disabled: check if backend has disabled submission
+   */
+  bool (*disabled)(struct i915_sched_engine *sched_engine);
 
-	/**
-	 * @kick_backend: kick backend after a request's priority has changed
-	 */
-	void	(*kick_backend)(const struct i915_request *rq,
-				int prio);
+  /**
+   * @kick_backend: kick backend after a request's priority has changed
+   */
+  void (*kick_backend)(const struct i915_request *rq,
+      int prio);
 
-	/**
-	 * @bump_inflight_request_prio: update priority of an inflight request
-	 */
-	void	(*bump_inflight_request_prio)(struct i915_request *rq,
-					      int prio);
+  /**
+   * @bump_inflight_request_prio: update priority of an inflight request
+   */
+  void (*bump_inflight_request_prio)(struct i915_request *rq,
+      int prio);
 
-	/**
-	 * @retire_inflight_request_prio: indicate request is retired to
-	 * priority tracking
-	 */
-	void	(*retire_inflight_request_prio)(struct i915_request *rq);
+  /**
+   * @retire_inflight_request_prio: indicate request is retired to
+   * priority tracking
+   */
+  void (*retire_inflight_request_prio)(struct i915_request *rq);
 
-	/**
-	 * @schedule: adjust priority of request
-	 *
-	 * Call when the priority on a request has changed and it and its
-	 * dependencies may need rescheduling. Note the request itself may
-	 * not be ready to run!
-	 */
-	void	(*schedule)(struct i915_request *request,
-			    const struct i915_sched_attr *attr);
+  /**
+   * @schedule: adjust priority of request
+   *
+   * Call when the priority on a request has changed and it and its
+   * dependencies may need rescheduling. Note the request itself may
+   * not be ready to run!
+   */
+  void (*schedule)(struct i915_request *request,
+      const struct i915_sched_attr *attr);
 };
 
 #endif /* _I915_SCHEDULER_TYPES_H_ */

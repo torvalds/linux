@@ -12,18 +12,18 @@
 #include <asm/viking.h>  /* Ugh, bug city... */
 
 enum mbus_module {
-	HyperSparc        = 0,
-	Swift_ok          = 4,
-	Swift_bad_c       = 5,
-	Swift_lots_o_bugs = 6,
-	Tsunami           = 7,
-	Viking_12         = 8,
-	Viking_2x         = 9,
-	Viking_30         = 10,
-	Viking_35         = 11,
-	Viking_new        = 12,
-	TurboSparc	  = 13,
-	SRMMU_INVAL_MOD   = 14,
+  HyperSparc = 0,
+  Swift_ok = 4,
+  Swift_bad_c = 5,
+  Swift_lots_o_bugs = 6,
+  Tsunami = 7,
+  Viking_12 = 8,
+  Viking_2x = 9,
+  Viking_30 = 10,
+  Viking_35 = 11,
+  Viking_new = 12,
+  TurboSparc = 13,
+  SRMMU_INVAL_MOD = 14,
 };
 
 extern enum mbus_module srmmu_modtype;
@@ -63,11 +63,11 @@ extern unsigned int viking_rev, swift_rev, cypress_rev;
 #define VIKING_REV_35           0x4   /* Version 3.5 */
 
 /* LSI Logics. */
-#define LSI_L64815		0x0
+#define LSI_L64815    0x0
 
 /* Fujitsu */
-#define FMI_AURORA		0x4   /* MB8690x, a Swift module... */
-#define FMI_TURBO		0x5   /* MB86907, a TurboSparc module... */
+#define FMI_AURORA    0x4   /* MB8690x, a Swift module... */
+#define FMI_TURBO   0x5   /* MB86907, a TurboSparc module... */
 
 /* For multiprocessor support we need to be able to obtain the CPU id and
  * the MBUS Module id.
@@ -78,20 +78,17 @@ extern unsigned int viking_rev, swift_rev, cypress_rev;
  */
 #define TBR_ID_SHIFT            20
 
-static inline int get_cpuid(void)
-{
-	register int retval;
-	__asm__ __volatile__("rd %%tbr, %0\n\t"
-			     "srl %0, %1, %0\n\t" :
-			     "=r" (retval) :
-			     "i" (TBR_ID_SHIFT));
-	return (retval & 3);
+static inline int get_cpuid(void) {
+  register int retval;
+  __asm__ __volatile__ ("rd %%tbr, %0\n\t"
+  "srl %0, %1, %0\n\t" :
+  "=r" (retval) :
+  "i" (TBR_ID_SHIFT));
+  return retval & 3;
 }
 
-static inline int get_modid(void)
-{
-	return (get_cpuid() | 0x8);
+static inline int get_modid(void) {
+  return get_cpuid() | 0x8;
 }
 
-	
 #endif /* !(_SPARC_MBUS_H) */

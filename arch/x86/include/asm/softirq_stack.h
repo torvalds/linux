@@ -3,9 +3,9 @@
 #define _ASM_X86_SOFTIRQ_STACK_H
 
 #ifdef CONFIG_X86_64
-# include <asm/irq_stack.h>
+#include <asm/irq_stack.h>
 #else
-# include <asm-generic/softirq_stack.h>
+#include <asm-generic/softirq_stack.h>
 #endif
 
 #endif

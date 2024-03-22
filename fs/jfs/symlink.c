@@ -9,14 +9,13 @@
 #include "jfs_xattr.h"
 
 const struct inode_operations jfs_fast_symlink_inode_operations = {
-	.get_link	= simple_get_link,
-	.setattr	= jfs_setattr,
-	.listxattr	= jfs_listxattr,
+  .get_link = simple_get_link,
+  .setattr = jfs_setattr,
+  .listxattr = jfs_listxattr,
 };
 
 const struct inode_operations jfs_symlink_inode_operations = {
-	.get_link	= page_get_link,
-	.setattr	= jfs_setattr,
-	.listxattr	= jfs_listxattr,
+  .get_link = page_get_link,
+  .setattr = jfs_setattr,
+  .listxattr = jfs_listxattr,
 };
-

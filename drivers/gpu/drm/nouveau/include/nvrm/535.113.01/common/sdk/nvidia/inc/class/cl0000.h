@@ -2,10 +2,12 @@
 #define __src_common_sdk_nvidia_inc_class_cl0000_h__
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/nvlimits.h>
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2001-2022 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,12 +29,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define NV01_ROOT        (0x0U) /* finn: Evaluated from "NV0000_ALLOC_PARAMETERS_MESSAGE_ID" */
+#define NV01_ROOT        (0x0U) /* finn: Evaluated from
+                                 * "NV0000_ALLOC_PARAMETERS_MESSAGE_ID" */
 
 typedef struct NV0000_ALLOC_PARAMETERS {
-    NvHandle hClient; /* CORERM-2934: hClient must remain the first member until all allocations use these params */
-    NvU32    processID;
-    char     processName[NV_PROC_NAME_MAX_LENGTH];
+  NvHandle hClient; /* CORERM-2934: hClient must remain the first member until
+                     * all allocations use these params */
+  NvU32 processID;
+  char processName[NV_PROC_NAME_MAX_LENGTH];
 } NV0000_ALLOC_PARAMETERS;
 
 #endif

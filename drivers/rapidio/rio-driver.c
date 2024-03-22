@@ -15,7 +15,8 @@
 #include "rio.h"
 
 /**
- *  rio_match_device - Tell if a RIO device has a matching RIO device id structure
+ *  rio_match_device - Tell if a RIO device has a matching RIO device id
+ * structure
  *  @id: the RIO device id structure to match against
  *  @rdev: the RIO device structure to match against
  *
@@ -24,20 +25,20 @@
  *  matching &struct rio_device_id or %NULL if there is no match.
  */
 static const struct rio_device_id *rio_match_device(const struct rio_device_id
-						    *id,
-						    const struct rio_dev *rdev)
-{
-	while (id->vid || id->asm_vid) {
-		if (((id->vid == RIO_ANY_ID) || (id->vid == rdev->vid)) &&
-		    ((id->did == RIO_ANY_ID) || (id->did == rdev->did)) &&
-		    ((id->asm_vid == RIO_ANY_ID)
-		     || (id->asm_vid == rdev->asm_vid))
-		    && ((id->asm_did == RIO_ANY_ID)
-			|| (id->asm_did == rdev->asm_did)))
-			return id;
-		id++;
-	}
-	return NULL;
+    *id,
+    const struct rio_dev *rdev) {
+  while (id->vid || id->asm_vid) {
+    if (((id->vid == RIO_ANY_ID) || (id->vid == rdev->vid))
+        && ((id->did == RIO_ANY_ID) || (id->did == rdev->did))
+        && ((id->asm_vid == RIO_ANY_ID)
+        || (id->asm_vid == rdev->asm_vid))
+        && ((id->asm_did == RIO_ANY_ID)
+        || (id->asm_did == rdev->asm_did))) {
+      return id;
+    }
+    id++;
+  }
+  return NULL;
 }
 
 /**
@@ -51,12 +52,11 @@ static const struct rio_device_id *rio_match_device(const struct rio_device_id
  * their probe() methods, when they bind to a device, and release
  * them by calling rio_dev_put(), in their disconnect() methods.
  */
-struct rio_dev *rio_dev_get(struct rio_dev *rdev)
-{
-	if (rdev)
-		get_device(&rdev->dev);
-
-	return rdev;
+struct rio_dev *rio_dev_get(struct rio_dev *rdev) {
+  if (rdev) {
+    get_device(&rdev->dev);
+  }
+  return rdev;
 }
 
 /**
@@ -68,39 +68,41 @@ struct rio_dev *rio_dev_get(struct rio_dev *rdev)
  * When the last user of the device calls this function, the
  * memory of the device is freed.
  */
-void rio_dev_put(struct rio_dev *rdev)
-{
-	if (rdev)
-		put_device(&rdev->dev);
+void rio_dev_put(struct rio_dev *rdev) {
+  if (rdev) {
+    put_device(&rdev->dev);
+  }
 }
 
 /**
- *  rio_device_probe - Tell if a RIO device structure has a matching RIO device id structure
+ *  rio_device_probe - Tell if a RIO device structure has a matching RIO device
+ * id structure
  *  @dev: the RIO device structure to match against
  *
  * return 0 and set rio_dev->driver when drv claims rio_dev, else error
  */
-static int rio_device_probe(struct device *dev)
-{
-	struct rio_driver *rdrv = to_rio_driver(dev->driver);
-	struct rio_dev *rdev = to_rio_dev(dev);
-	int error = -ENODEV;
-	const struct rio_device_id *id;
-
-	if (!rdev->driver && rdrv->probe) {
-		if (!rdrv->id_table)
-			return error;
-		id = rio_match_device(rdrv->id_table, rdev);
-		rio_dev_get(rdev);
-		if (id)
-			error = rdrv->probe(rdev, id);
-		if (error >= 0) {
-			rdev->driver = rdrv;
-			error = 0;
-		} else
-			rio_dev_put(rdev);
-	}
-	return error;
+static int rio_device_probe(struct device *dev) {
+  struct rio_driver *rdrv = to_rio_driver(dev->driver);
+  struct rio_dev *rdev = to_rio_dev(dev);
+  int error = -ENODEV;
+  const struct rio_device_id *id;
+  if (!rdev->driver && rdrv->probe) {
+    if (!rdrv->id_table) {
+      return error;
+    }
+    id = rio_match_device(rdrv->id_table, rdev);
+    rio_dev_get(rdev);
+    if (id) {
+      error = rdrv->probe(rdev, id);
+    }
+    if (error >= 0) {
+      rdev->driver = rdrv;
+      error = 0;
+    } else {
+      rio_dev_put(rdev);
+    }
+  }
+  return error;
 }
 
 /**
@@ -112,29 +114,25 @@ static int rio_device_probe(struct device *dev)
  * driver, then run the driver remove() method.  Then update
  * the reference count.
  */
-static void rio_device_remove(struct device *dev)
-{
-	struct rio_dev *rdev = to_rio_dev(dev);
-	struct rio_driver *rdrv = rdev->driver;
-
-	if (rdrv) {
-		if (rdrv->remove)
-			rdrv->remove(rdev);
-		rdev->driver = NULL;
-	}
-
-	rio_dev_put(rdev);
+static void rio_device_remove(struct device *dev) {
+  struct rio_dev *rdev = to_rio_dev(dev);
+  struct rio_driver *rdrv = rdev->driver;
+  if (rdrv) {
+    if (rdrv->remove) {
+      rdrv->remove(rdev);
+    }
+    rdev->driver = NULL;
+  }
+  rio_dev_put(rdev);
 }
 
-static void rio_device_shutdown(struct device *dev)
-{
-	struct rio_dev *rdev = to_rio_dev(dev);
-	struct rio_driver *rdrv = rdev->driver;
-
-	dev_dbg(dev, "RIO: %s\n", __func__);
-
-	if (rdrv && rdrv->shutdown)
-		rdrv->shutdown(rdev);
+static void rio_device_shutdown(struct device *dev) {
+  struct rio_dev *rdev = to_rio_dev(dev);
+  struct rio_driver *rdrv = rdev->driver;
+  dev_dbg(dev, "RIO: %s\n", __func__);
+  if (rdrv && rdrv->shutdown) {
+    rdrv->shutdown(rdev);
+  }
 }
 
 /**
@@ -146,14 +144,12 @@ static void rio_device_shutdown(struct device *dev)
  *  occurred, the driver remains registered even if no device
  *  was claimed during registration.
  */
-int rio_register_driver(struct rio_driver *rdrv)
-{
-	/* initialize common driver fields */
-	rdrv->driver.name = rdrv->name;
-	rdrv->driver.bus = &rio_bus_type;
-
-	/* register with core */
-	return driver_register(&rdrv->driver);
+int rio_register_driver(struct rio_driver *rdrv) {
+  /* initialize common driver fields */
+  rdrv->driver.name = rdrv->name;
+  rdrv->driver.bus = &rio_bus_type;
+  /* register with core */
+  return driver_register(&rdrv->driver);
 }
 
 /**
@@ -165,19 +161,19 @@ int rio_register_driver(struct rio_driver *rdrv)
  *  function for each device it was responsible for, and marks those
  *  devices as driverless.
  */
-void rio_unregister_driver(struct rio_driver *rdrv)
-{
-	driver_unregister(&rdrv->driver);
+void rio_unregister_driver(struct rio_driver *rdrv) {
+  driver_unregister(&rdrv->driver);
 }
 
-void rio_attach_device(struct rio_dev *rdev)
-{
-	rdev->dev.bus = &rio_bus_type;
+void rio_attach_device(struct rio_dev *rdev) {
+  rdev->dev.bus = &rio_bus_type;
 }
+
 EXPORT_SYMBOL_GPL(rio_attach_device);
 
 /**
- *  rio_match_bus - Tell if a RIO device structure has a matching RIO driver device id structure
+ *  rio_match_bus - Tell if a RIO device structure has a matching RIO driver
+ * device id structure
  *  @dev: the standard device structure to match against
  *  @drv: the standard driver structure containing the ids to match against
  *
@@ -186,56 +182,53 @@ EXPORT_SYMBOL_GPL(rio_attach_device);
  *  there is a matching &struct rio_device_id or 0 if there is
  *  no match.
  */
-static int rio_match_bus(struct device *dev, struct device_driver *drv)
-{
-	struct rio_dev *rdev = to_rio_dev(dev);
-	struct rio_driver *rdrv = to_rio_driver(drv);
-	const struct rio_device_id *id = rdrv->id_table;
-	const struct rio_device_id *found_id;
-
-	if (!id)
-		goto out;
-
-	found_id = rio_match_device(id, rdev);
-
-	if (found_id)
-		return 1;
-
-      out:return 0;
+static int rio_match_bus(struct device *dev, struct device_driver *drv) {
+  struct rio_dev *rdev = to_rio_dev(dev);
+  struct rio_driver *rdrv = to_rio_driver(drv);
+  const struct rio_device_id *id = rdrv->id_table;
+  const struct rio_device_id *found_id;
+  if (!id) {
+    goto out;
+  }
+  found_id = rio_match_device(id, rdev);
+  if (found_id) {
+    return 1;
+  }
+out:
+  return 0;
 }
 
-static int rio_uevent(const struct device *dev, struct kobj_uevent_env *env)
-{
-	const struct rio_dev *rdev;
-
-	if (!dev)
-		return -ENODEV;
-
-	rdev = to_rio_dev(dev);
-	if (!rdev)
-		return -ENODEV;
-
-	if (add_uevent_var(env, "MODALIAS=rapidio:v%04Xd%04Xav%04Xad%04X",
-			   rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did))
-		return -ENOMEM;
-	return 0;
+static int rio_uevent(const struct device *dev, struct kobj_uevent_env *env) {
+  const struct rio_dev *rdev;
+  if (!dev) {
+    return -ENODEV;
+  }
+  rdev = to_rio_dev(dev);
+  if (!rdev) {
+    return -ENODEV;
+  }
+  if (add_uevent_var(env, "MODALIAS=rapidio:v%04Xd%04Xav%04Xad%04X",
+      rdev->vid, rdev->did, rdev->asm_vid, rdev->asm_did)) {
+    return -ENOMEM;
+  }
+  return 0;
 }
 
 struct class rio_mport_class = {
-	.name		= "rapidio_port",
-	.dev_groups	= rio_mport_groups,
+  .name = "rapidio_port",
+  .dev_groups = rio_mport_groups,
 };
 EXPORT_SYMBOL_GPL(rio_mport_class);
 
 struct bus_type rio_bus_type = {
-	.name = "rapidio",
-	.match = rio_match_bus,
-	.dev_groups = rio_dev_groups,
-	.bus_groups = rio_bus_groups,
-	.probe = rio_device_probe,
-	.remove = rio_device_remove,
-	.shutdown = rio_device_shutdown,
-	.uevent	= rio_uevent,
+  .name = "rapidio",
+  .match = rio_match_bus,
+  .dev_groups = rio_dev_groups,
+  .bus_groups = rio_bus_groups,
+  .probe = rio_device_probe,
+  .remove = rio_device_remove,
+  .shutdown = rio_device_shutdown,
+  .uevent = rio_uevent,
 };
 
 /**
@@ -244,17 +237,16 @@ struct bus_type rio_bus_type = {
  *  Registers the RIO mport device class and RIO bus type with the Linux
  *  device model.
  */
-static int __init rio_bus_init(void)
-{
-	int ret;
-
-	ret = class_register(&rio_mport_class);
-	if (!ret) {
-		ret = bus_register(&rio_bus_type);
-		if (ret)
-			class_unregister(&rio_mport_class);
-	}
-	return ret;
+static int __init rio_bus_init(void) {
+  int ret;
+  ret = class_register(&rio_mport_class);
+  if (!ret) {
+    ret = bus_register(&rio_bus_type);
+    if (ret) {
+      class_unregister(&rio_mport_class);
+    }
+  }
+  return ret;
 }
 
 postcore_initcall(rio_bus_init);

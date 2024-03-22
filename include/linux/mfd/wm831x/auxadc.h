@@ -15,9 +15,12 @@ struct wm831x;
 /*
  * R16429 (0x402D) - AuxADC Data
  */
-#define WM831X_AUX_DATA_SRC_MASK                0xF000  /* AUX_DATA_SRC - [15:12] */
-#define WM831X_AUX_DATA_SRC_SHIFT                   12  /* AUX_DATA_SRC - [15:12] */
-#define WM831X_AUX_DATA_SRC_WIDTH                    4  /* AUX_DATA_SRC - [15:12] */
+#define WM831X_AUX_DATA_SRC_MASK                0xF000  /* AUX_DATA_SRC -
+                                                         * [15:12] */
+#define WM831X_AUX_DATA_SRC_SHIFT                   12  /* AUX_DATA_SRC -
+                                                         * [15:12] */
+#define WM831X_AUX_DATA_SRC_WIDTH                    4  /* AUX_DATA_SRC -
+                                                         * [15:12] */
 #define WM831X_AUX_DATA_MASK                    0x0FFF  /* AUX_DATA - [11:0] */
 #define WM831X_AUX_DATA_SHIFT                        0  /* AUX_DATA - [11:0] */
 #define WM831X_AUX_DATA_WIDTH                       12  /* AUX_DATA - [11:0] */
@@ -136,9 +139,12 @@ struct wm831x;
 /*
  * R16433 (0x4031) - Comparator 1
  */
-#define WM831X_DCMP1_SRC_MASK                   0xE000  /* DCMP1_SRC - [15:13] */
-#define WM831X_DCMP1_SRC_SHIFT                      13  /* DCMP1_SRC - [15:13] */
-#define WM831X_DCMP1_SRC_WIDTH                       3  /* DCMP1_SRC - [15:13] */
+#define WM831X_DCMP1_SRC_MASK                   0xE000  /* DCMP1_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP1_SRC_SHIFT                      13  /* DCMP1_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP1_SRC_WIDTH                       3  /* DCMP1_SRC - [15:13]
+                                                         * */
 #define WM831X_DCMP1_GT                         0x1000  /* DCMP1_GT */
 #define WM831X_DCMP1_GT_MASK                    0x1000  /* DCMP1_GT */
 #define WM831X_DCMP1_GT_SHIFT                       12  /* DCMP1_GT */
@@ -150,9 +156,12 @@ struct wm831x;
 /*
  * R16434 (0x4032) - Comparator 2
  */
-#define WM831X_DCMP2_SRC_MASK                   0xE000  /* DCMP2_SRC - [15:13] */
-#define WM831X_DCMP2_SRC_SHIFT                      13  /* DCMP2_SRC - [15:13] */
-#define WM831X_DCMP2_SRC_WIDTH                       3  /* DCMP2_SRC - [15:13] */
+#define WM831X_DCMP2_SRC_MASK                   0xE000  /* DCMP2_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP2_SRC_SHIFT                      13  /* DCMP2_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP2_SRC_WIDTH                       3  /* DCMP2_SRC - [15:13]
+                                                         * */
 #define WM831X_DCMP2_GT                         0x1000  /* DCMP2_GT */
 #define WM831X_DCMP2_GT_MASK                    0x1000  /* DCMP2_GT */
 #define WM831X_DCMP2_GT_SHIFT                       12  /* DCMP2_GT */
@@ -164,9 +173,12 @@ struct wm831x;
 /*
  * R16435 (0x4033) - Comparator 3
  */
-#define WM831X_DCMP3_SRC_MASK                   0xE000  /* DCMP3_SRC - [15:13] */
-#define WM831X_DCMP3_SRC_SHIFT                      13  /* DCMP3_SRC - [15:13] */
-#define WM831X_DCMP3_SRC_WIDTH                       3  /* DCMP3_SRC - [15:13] */
+#define WM831X_DCMP3_SRC_MASK                   0xE000  /* DCMP3_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP3_SRC_SHIFT                      13  /* DCMP3_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP3_SRC_WIDTH                       3  /* DCMP3_SRC - [15:13]
+                                                         * */
 #define WM831X_DCMP3_GT                         0x1000  /* DCMP3_GT */
 #define WM831X_DCMP3_GT_MASK                    0x1000  /* DCMP3_GT */
 #define WM831X_DCMP3_GT_SHIFT                       12  /* DCMP3_GT */
@@ -178,9 +190,12 @@ struct wm831x;
 /*
  * R16436 (0x4034) - Comparator 4
  */
-#define WM831X_DCMP4_SRC_MASK                   0xE000  /* DCMP4_SRC - [15:13] */
-#define WM831X_DCMP4_SRC_SHIFT                      13  /* DCMP4_SRC - [15:13] */
-#define WM831X_DCMP4_SRC_WIDTH                       3  /* DCMP4_SRC - [15:13] */
+#define WM831X_DCMP4_SRC_MASK                   0xE000  /* DCMP4_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP4_SRC_SHIFT                      13  /* DCMP4_SRC - [15:13]
+                                                         * */
+#define WM831X_DCMP4_SRC_WIDTH                       3  /* DCMP4_SRC - [15:13]
+                                                         * */
 #define WM831X_DCMP4_GT                         0x1000  /* DCMP4_GT */
 #define WM831X_DCMP4_GT_MASK                    0x1000  /* DCMP4_GT */
 #define WM831X_DCMP4_GT_SHIFT                       12  /* DCMP4_GT */
@@ -193,18 +208,18 @@ struct wm831x;
 #define WM831X_AUX_CAL_NOMINAL 0x222
 
 enum wm831x_auxadc {
-	WM831X_AUX_CAL = 15,
-	WM831X_AUX_BKUP_BATT = 10,
-	WM831X_AUX_WALL = 9,
-	WM831X_AUX_BATT = 8,
-	WM831X_AUX_USB = 7,
-	WM831X_AUX_SYSVDD = 6,
-	WM831X_AUX_BATT_TEMP = 5,
-	WM831X_AUX_CHIP_TEMP = 4,
-	WM831X_AUX_AUX4 = 3,
-	WM831X_AUX_AUX3 = 2,
-	WM831X_AUX_AUX2 = 1,
-	WM831X_AUX_AUX1 = 0,
+  WM831X_AUX_CAL = 15,
+  WM831X_AUX_BKUP_BATT = 10,
+  WM831X_AUX_WALL = 9,
+  WM831X_AUX_BATT = 8,
+  WM831X_AUX_USB = 7,
+  WM831X_AUX_SYSVDD = 6,
+  WM831X_AUX_BATT_TEMP = 5,
+  WM831X_AUX_CHIP_TEMP = 4,
+  WM831X_AUX_AUX4 = 3,
+  WM831X_AUX_AUX3 = 2,
+  WM831X_AUX_AUX2 = 1,
+  WM831X_AUX_AUX1 = 0,
 };
 
 int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input);

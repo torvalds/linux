@@ -7,14 +7,14 @@
 #define __MSM_MDSS_H__
 
 struct msm_mdss_data {
-	u32 ubwc_enc_version;
-	/* can be read from register 0x58 */
-	u32 ubwc_dec_version;
-	u32 ubwc_swizzle;
-	u32 ubwc_static;
-	u32 highest_bank_bit;
-	u32 macrotile_mode;
-	u32 reg_bus_bw;
+  u32 ubwc_enc_version;
+  /* can be read from register 0x58 */
+  u32 ubwc_dec_version;
+  u32 ubwc_swizzle;
+  u32 ubwc_static;
+  u32 highest_bank_bit;
+  u32 macrotile_mode;
+  u32 reg_bus_bw;
 };
 
 #define UBWC_1_0 0x10000000

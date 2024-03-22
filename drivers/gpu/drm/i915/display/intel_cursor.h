@@ -10,8 +10,7 @@ enum pipe;
 struct drm_i915_private;
 struct intel_plane;
 
-struct intel_plane *
-intel_cursor_plane_create(struct drm_i915_private *dev_priv,
-			  enum pipe pipe);
+struct intel_plane *intel_cursor_plane_create(struct drm_i915_private *dev_priv,
+    enum pipe pipe);
 
 #endif

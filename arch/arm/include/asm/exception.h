@@ -10,6 +10,6 @@
 
 #include <linux/interrupt.h>
 
-#define __exception_irq_entry	__irq_entry
+#define __exception_irq_entry __irq_entry
 
 #endif /* __ASM_ARM_EXCEPTION_H */

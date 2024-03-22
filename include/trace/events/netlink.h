@@ -8,20 +8,20 @@
 
 TRACE_EVENT(netlink_extack,
 
-	TP_PROTO(const char *msg),
+    TP_PROTO(const char *msg),
 
-	TP_ARGS(msg),
+    TP_ARGS(msg),
 
-	TP_STRUCT__entry(
-		__string(	msg,	msg	)
-	),
+    TP_STRUCT__entry(
+    __string(msg, msg)
+    ),
 
-	TP_fast_assign(
-		__assign_str(msg, msg);
-	),
+    TP_fast_assign(
+    __assign_str(msg, msg);
+    ),
 
-	TP_printk("msg=%s", __get_str(msg))
-);
+    TP_printk("msg=%s", __get_str(msg))
+    );
 
 #endif /* _TRACE_NETLINK_H */
 

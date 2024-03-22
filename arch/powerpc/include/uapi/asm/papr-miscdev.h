@@ -3,7 +3,7 @@
 #define _UAPI_PAPR_MISCDEV_H_
 
 enum {
-	PAPR_MISCDEV_IOC_ID = 0xb2,
+  PAPR_MISCDEV_IOC_ID = 0xb2,
 };
 
 #endif /* _UAPI_PAPR_MISCDEV_H_ */

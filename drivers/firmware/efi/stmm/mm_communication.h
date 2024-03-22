@@ -23,16 +23,16 @@
  * OP-TEE is using big endian GUIDs while UEFI uses little endian ones
  */
 #define PTA_STMM_UUID \
-	UUID_INIT(0xed32d533, 0x99e6, 0x4209, \
-		  0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7)
+  UUID_INIT(0xed32d533, 0x99e6, 0x4209, \
+    0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7)
 
 #define EFI_MM_VARIABLE_GUID \
-	EFI_GUID(0xed32d533, 0x99e6, 0x4209, \
-		 0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7)
+  EFI_GUID(0xed32d533, 0x99e6, 0x4209, \
+    0x9c, 0xc0, 0x2d, 0x72, 0xcd, 0xd9, 0x98, 0xa7)
 
 /**
  * struct efi_mm_communicate_header - Header used for SMM variable communication
-
+ *
  * @header_guid:  header use for disambiguation of content
  * @message_len:  length of the message. Does not include the size of the
  *                header
@@ -43,13 +43,13 @@
  * always begin with efi_mm_communicate_header.
  */
 struct efi_mm_communicate_header {
-	efi_guid_t header_guid;
-	size_t     message_len;
-	u8         data[];
+  efi_guid_t header_guid;
+  size_t message_len;
+  u8 data[];
 } __packed;
 
 #define MM_COMMUNICATE_HEADER_SIZE \
-	(sizeof(struct efi_mm_communicate_header))
+  (sizeof(struct efi_mm_communicate_header))
 
 /* SPM return error codes */
 #define ARM_SVC_SPM_RET_SUCCESS               0
@@ -111,24 +111,24 @@ struct efi_mm_communicate_header {
 
 /**
  * struct smm_variable_communicate_header - Used for SMM variable communication
-
+ *
  * @function:     function to call in Smm.
  * @ret_status:   return status
  * @data:         payload
  */
 struct smm_variable_communicate_header {
-	size_t  function;
-	efi_status_t ret_status;
-	u8 data[];
+  size_t function;
+  efi_status_t ret_status;
+  u8 data[];
 };
 
 #define MM_VARIABLE_COMMUNICATE_SIZE \
-	(sizeof(struct smm_variable_communicate_header))
+  (sizeof(struct smm_variable_communicate_header))
 
 /**
  * struct smm_variable_access - Used to communicate with StMM by
  *                              SetVariable and GetVariable.
-
+ *
  * @guid:         vendor GUID
  * @data_size:    size of EFI variable data
  * @name_size:    size of EFI name
@@ -137,15 +137,15 @@ struct smm_variable_communicate_header {
  *
  */
 struct smm_variable_access {
-	efi_guid_t  guid;
-	size_t data_size;
-	size_t name_size;
-	u32 attr;
-	u16 name[];
+  efi_guid_t guid;
+  size_t data_size;
+  size_t name_size;
+  u32 attr;
+  u16 name[];
 };
 
 #define MM_VARIABLE_ACCESS_HEADER_SIZE \
-	(sizeof(struct smm_variable_access))
+  (sizeof(struct smm_variable_access))
 /**
  * struct smm_variable_payload_size - Used to get the max allowed
  *                                    payload used in StMM.
@@ -154,7 +154,7 @@ struct smm_variable_access {
  *
  */
 struct smm_variable_payload_size {
-	size_t size;
+  size_t size;
 };
 
 /**
@@ -167,13 +167,13 @@ struct smm_variable_payload_size {
  *
  */
 struct smm_variable_getnext {
-	efi_guid_t  guid;
-	size_t name_size;
-	u16         name[];
+  efi_guid_t guid;
+  size_t name_size;
+  u16 name[];
 };
 
 #define MM_VARIABLE_GET_NEXT_HEADER_SIZE \
-	(sizeof(struct smm_variable_getnext))
+  (sizeof(struct smm_variable_getnext))
 
 /**
  * struct smm_variable_query_info - Used to communicate with StMM for
@@ -186,10 +186,10 @@ struct smm_variable_getnext {
  *
  */
 struct smm_variable_query_info {
-	u64 max_variable_storage;
-	u64 remaining_variable_storage;
-	u64 max_variable_size;
-	u32 attr;
+  u64 max_variable_storage;
+  u64 remaining_variable_storage;
+  u64 max_variable_size;
+  u32 attr;
 };
 
 #define VAR_CHECK_VARIABLE_PROPERTY_REVISION 0x0001
@@ -209,11 +209,11 @@ struct smm_variable_query_info {
  *
  */
 struct var_check_property {
-	u16 revision;
-	u16 property;
-	u32 attributes;
-	size_t minsize;
-	size_t maxsize;
+  u16 revision;
+  u16 property;
+  u32 attributes;
+  size_t minsize;
+  size_t maxsize;
 };
 
 /**
@@ -227,10 +227,10 @@ struct var_check_property {
  *
  */
 struct smm_variable_var_check_property {
-	efi_guid_t guid;
-	size_t name_size;
-	struct var_check_property property;
-	u16 name[];
+  efi_guid_t guid;
+  size_t name_size;
+  struct var_check_property property;
+  u16 name[];
 };
 
 #endif /* _MM_COMMUNICATION_H_ */

@@ -17,40 +17,41 @@
 #include <linux/rbtree.h>
 
 enum o2nm_fence_method {
-	O2NM_FENCE_RESET	= 0,
-	O2NM_FENCE_PANIC,
-	O2NM_FENCE_METHODS,	/* Number of fence methods */
+  O2NM_FENCE_RESET = 0,
+  O2NM_FENCE_PANIC,
+  O2NM_FENCE_METHODS, /* Number of fence methods */
 };
 
 struct o2nm_node {
-	spinlock_t		nd_lock;
-	struct config_item	nd_item;
-	char			nd_name[O2NM_MAX_NAME_LEN+1]; /* replace? */
-	__u8			nd_num;
-	/* only one address per node, as attributes, for now. */
-	__be32			nd_ipv4_address;
-	__be16			nd_ipv4_port;
-	struct rb_node		nd_ip_node;
-	/* there can be only one local node for now */
-	int			nd_local;
+  spinlock_t nd_lock;
+  struct config_item nd_item;
+  char nd_name[O2NM_MAX_NAME_LEN + 1]; /* replace? */
+  __u8 nd_num;
+  /* only one address per node, as attributes, for now. */
+  __be32 nd_ipv4_address;
+  __be16 nd_ipv4_port;
+  struct rb_node nd_ip_node;
+  /* there can be only one local node for now */
+  int nd_local;
 
-	unsigned long		nd_set_attributes;
+  unsigned long nd_set_attributes;
 };
 
 struct o2nm_cluster {
-	struct config_group	cl_group;
-	unsigned		cl_has_local:1;
-	u8			cl_local_node;
-	rwlock_t		cl_nodes_lock;
-	struct o2nm_node  	*cl_nodes[O2NM_MAX_NODES];
-	struct rb_root		cl_node_ip_tree;
-	unsigned int		cl_idle_timeout_ms;
-	unsigned int		cl_keepalive_delay_ms;
-	unsigned int		cl_reconnect_delay_ms;
-	enum o2nm_fence_method	cl_fence_method;
+  struct config_group cl_group;
+  unsigned cl_has_local : 1;
+  u8 cl_local_node;
+  rwlock_t cl_nodes_lock;
+  struct o2nm_node *cl_nodes[O2NM_MAX_NODES];
+  struct rb_root cl_node_ip_tree;
+  unsigned int cl_idle_timeout_ms;
+  unsigned int cl_keepalive_delay_ms;
+  unsigned int cl_reconnect_delay_ms;
+  enum o2nm_fence_method cl_fence_method;
 
-	/* this bitmap is part of a hack for disk bitmap.. will go eventually. - zab */
-	unsigned long	cl_nodes_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
+  /* this bitmap is part of a hack for disk bitmap.. will go eventually. - zab
+   * */
+  unsigned long cl_nodes_bitmap[BITS_TO_LONGS(O2NM_MAX_NODES)];
 };
 
 extern struct o2nm_cluster *o2nm_single_cluster;

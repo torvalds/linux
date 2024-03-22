@@ -299,7 +299,7 @@
 #define ACP_HS_RX_FIFOADDR                            0x124209C
 #define ACP_HS_RX_FIFOSIZE                            0x12420A0
 #define ACP_HS_RX_DMA_SIZE                            0x12420A4
-#define ACP_HS_RX_LINEARPOSCNTR_HIGH	              0x12420A8
+#define ACP_HS_RX_LINEARPOSCNTR_HIGH                0x12420A8
 #define ACP_HS_RX_LINEARPOSCNTR_LOW                   0x12420AC
 #define ACP_HS_RX_INTR_WATERMARK_SIZE                 0x12420B0
 #define ACP_HS_TX_RINGBUFADDR                         0x12420B4

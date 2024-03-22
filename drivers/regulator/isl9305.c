@@ -58,148 +58,143 @@
 #define ISL9305_DCD1SR_MASK 0x07
 
 static const struct regulator_ops isl9305_ops = {
-	.enable = regulator_enable_regmap,
-	.disable = regulator_disable_regmap,
-	.is_enabled = regulator_is_enabled_regmap,
-	.list_voltage = regulator_list_voltage_linear,
-	.get_voltage_sel = regulator_get_voltage_sel_regmap,
-	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+  .enable = regulator_enable_regmap,
+  .disable = regulator_disable_regmap,
+  .is_enabled = regulator_is_enabled_regmap,
+  .list_voltage = regulator_list_voltage_linear,
+  .get_voltage_sel = regulator_get_voltage_sel_regmap,
+  .set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
 static const struct regulator_desc isl9305_regulators[] = {
-	[ISL9305_DCD1] = {
-		.name =		"DCD1",
-		.of_match =	of_match_ptr("dcd1"),
-		.regulators_node = of_match_ptr("regulators"),
-		.n_voltages =	0x70,
-		.min_uV =	825000,
-		.uV_step =	25000,
-		.vsel_reg =	ISL9305_DCD1OUT,
-		.vsel_mask =	0x7f,
-		.enable_reg =	ISL9305_SYSTEM_PARAMETER,
-		.enable_mask =	ISL9305_DCD1_EN,
-		.supply_name =	"VINDCD1",
-		.ops =		&isl9305_ops,
-		.owner =	THIS_MODULE,
-	},
-	[ISL9305_DCD2] = {
-		.name =		"DCD2",
-		.of_match =	of_match_ptr("dcd2"),
-		.regulators_node = of_match_ptr("regulators"),
-		.n_voltages =	0x70,
-		.min_uV =	825000,
-		.uV_step =	25000,
-		.vsel_reg =	ISL9305_DCD2OUT,
-		.vsel_mask =	0x7f,
-		.enable_reg =	ISL9305_SYSTEM_PARAMETER,
-		.enable_mask =	ISL9305_DCD2_EN,
-		.supply_name =	"VINDCD2",
-		.ops =		&isl9305_ops,
-		.owner =	THIS_MODULE,
-	},
-	[ISL9305_LDO1] = {
-		.name =		"LDO1",
-		.of_match =	of_match_ptr("ldo1"),
-		.regulators_node = of_match_ptr("regulators"),
-		.n_voltages =	0x37,
-		.min_uV =	900000,
-		.uV_step =	50000,
-		.vsel_reg =	ISL9305_LDO1OUT,
-		.vsel_mask =	0x3f,
-		.enable_reg =	ISL9305_SYSTEM_PARAMETER,
-		.enable_mask =	ISL9305_LDO1_EN,
-		.supply_name =	"VINLDO1",
-		.ops =		&isl9305_ops,
-		.owner =	THIS_MODULE,
-	},
-	[ISL9305_LDO2] = {
-		.name =		"LDO2",
-		.of_match =	of_match_ptr("ldo2"),
-		.regulators_node = of_match_ptr("regulators"),
-		.n_voltages =	0x37,
-		.min_uV =	900000,
-		.uV_step =	50000,
-		.vsel_reg =	ISL9305_LDO2OUT,
-		.vsel_mask =	0x3f,
-		.enable_reg =	ISL9305_SYSTEM_PARAMETER,
-		.enable_mask =	ISL9305_LDO2_EN,
-		.supply_name =	"VINLDO2",
-		.ops =		&isl9305_ops,
-		.owner =	THIS_MODULE,
-	},
+  [ISL9305_DCD1] = {
+    .name = "DCD1",
+    .of_match = of_match_ptr("dcd1"),
+    .regulators_node = of_match_ptr("regulators"),
+    .n_voltages = 0x70,
+    .min_uV = 825000,
+    .uV_step = 25000,
+    .vsel_reg = ISL9305_DCD1OUT,
+    .vsel_mask = 0x7f,
+    .enable_reg = ISL9305_SYSTEM_PARAMETER,
+    .enable_mask = ISL9305_DCD1_EN,
+    .supply_name = "VINDCD1",
+    .ops = &isl9305_ops,
+    .owner = THIS_MODULE,
+  },
+  [ISL9305_DCD2] = {
+    .name = "DCD2",
+    .of_match = of_match_ptr("dcd2"),
+    .regulators_node = of_match_ptr("regulators"),
+    .n_voltages = 0x70,
+    .min_uV = 825000,
+    .uV_step = 25000,
+    .vsel_reg = ISL9305_DCD2OUT,
+    .vsel_mask = 0x7f,
+    .enable_reg = ISL9305_SYSTEM_PARAMETER,
+    .enable_mask = ISL9305_DCD2_EN,
+    .supply_name = "VINDCD2",
+    .ops = &isl9305_ops,
+    .owner = THIS_MODULE,
+  },
+  [ISL9305_LDO1] = {
+    .name = "LDO1",
+    .of_match = of_match_ptr("ldo1"),
+    .regulators_node = of_match_ptr("regulators"),
+    .n_voltages = 0x37,
+    .min_uV = 900000,
+    .uV_step = 50000,
+    .vsel_reg = ISL9305_LDO1OUT,
+    .vsel_mask = 0x3f,
+    .enable_reg = ISL9305_SYSTEM_PARAMETER,
+    .enable_mask = ISL9305_LDO1_EN,
+    .supply_name = "VINLDO1",
+    .ops = &isl9305_ops,
+    .owner = THIS_MODULE,
+  },
+  [ISL9305_LDO2] = {
+    .name = "LDO2",
+    .of_match = of_match_ptr("ldo2"),
+    .regulators_node = of_match_ptr("regulators"),
+    .n_voltages = 0x37,
+    .min_uV = 900000,
+    .uV_step = 50000,
+    .vsel_reg = ISL9305_LDO2OUT,
+    .vsel_mask = 0x3f,
+    .enable_reg = ISL9305_SYSTEM_PARAMETER,
+    .enable_mask = ISL9305_LDO2_EN,
+    .supply_name = "VINLDO2",
+    .ops = &isl9305_ops,
+    .owner = THIS_MODULE,
+  },
 };
 
 static const struct regmap_config isl9305_regmap = {
-	.reg_bits = 8,
-	.val_bits = 8,
+  .reg_bits = 8,
+  .val_bits = 8,
 
-	.max_register = ISL9305_MAX_REG,
-	.cache_type = REGCACHE_RBTREE,
+  .max_register = ISL9305_MAX_REG,
+  .cache_type = REGCACHE_RBTREE,
 };
 
-static int isl9305_i2c_probe(struct i2c_client *i2c)
-{
-	struct regulator_config config = { };
-	struct isl9305_pdata *pdata = i2c->dev.platform_data;
-	struct regulator_dev *rdev;
-	struct regmap *regmap;
-	int i, ret;
-
-	regmap = devm_regmap_init_i2c(i2c, &isl9305_regmap);
-	if (IS_ERR(regmap)) {
-		ret = PTR_ERR(regmap);
-		dev_err(&i2c->dev, "Failed to create regmap: %d\n", ret);
-		return ret;
-	}
-
-	config.dev = &i2c->dev;
-
-	for (i = 0; i < ARRAY_SIZE(isl9305_regulators); i++) {
-		if (pdata)
-			config.init_data = pdata->init_data[i];
-		else
-			config.init_data = NULL;
-
-		rdev = devm_regulator_register(&i2c->dev,
-					       &isl9305_regulators[i],
-					       &config);
-		if (IS_ERR(rdev)) {
-			ret = PTR_ERR(rdev);
-			dev_err(&i2c->dev, "Failed to register %s: %d\n",
-				isl9305_regulators[i].name, ret);
-			return ret;
-		}
-	}
-
-	return 0;
+static int isl9305_i2c_probe(struct i2c_client *i2c) {
+  struct regulator_config config = {};
+  struct isl9305_pdata *pdata = i2c->dev.platform_data;
+  struct regulator_dev *rdev;
+  struct regmap *regmap;
+  int i, ret;
+  regmap = devm_regmap_init_i2c(i2c, &isl9305_regmap);
+  if (IS_ERR(regmap)) {
+    ret = PTR_ERR(regmap);
+    dev_err(&i2c->dev, "Failed to create regmap: %d\n", ret);
+    return ret;
+  }
+  config.dev = &i2c->dev;
+  for (i = 0; i < ARRAY_SIZE(isl9305_regulators); i++) {
+    if (pdata) {
+      config.init_data = pdata->init_data[i];
+    } else {
+      config.init_data = NULL;
+    }
+    rdev = devm_regulator_register(&i2c->dev,
+        &isl9305_regulators[i],
+        &config);
+    if (IS_ERR(rdev)) {
+      ret = PTR_ERR(rdev);
+      dev_err(&i2c->dev, "Failed to register %s: %d\n",
+          isl9305_regulators[i].name, ret);
+      return ret;
+    }
+  }
+  return 0;
 }
 
 #ifdef CONFIG_OF
 static const struct of_device_id isl9305_dt_ids[] = {
-	{ .compatible = "isl,isl9305" }, /* for backward compat., don't use */
-	{ .compatible = "isil,isl9305" },
-	{ .compatible = "isl,isl9305h" }, /* for backward compat., don't use */
-	{ .compatible = "isil,isl9305h" },
-	{},
+  { .compatible = "isl,isl9305" }, /* for backward compat., don't use */
+  { .compatible = "isil,isl9305" },
+  { .compatible = "isl,isl9305h" }, /* for backward compat., don't use */
+  { .compatible = "isil,isl9305h" },
+  {},
 };
 MODULE_DEVICE_TABLE(of, isl9305_dt_ids);
 #endif
 
 static const struct i2c_device_id isl9305_i2c_id[] = {
-	{ "isl9305", },
-	{ "isl9305h", },
-	{ }
+  { "isl9305", },
+  { "isl9305h", },
+  {}
 };
 MODULE_DEVICE_TABLE(i2c, isl9305_i2c_id);
 
 static struct i2c_driver isl9305_regulator_driver = {
-	.driver = {
-		.name = "isl9305",
-		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table	= of_match_ptr(isl9305_dt_ids),
-	},
-	.probe = isl9305_i2c_probe,
-	.id_table = isl9305_i2c_id,
+  .driver = {
+    .name = "isl9305",
+    .probe_type = PROBE_PREFER_ASYNCHRONOUS,
+    .of_match_table = of_match_ptr(isl9305_dt_ids),
+  },
+  .probe = isl9305_i2c_probe,
+  .id_table = isl9305_i2c_id,
 };
 
 module_i2c_driver(isl9305_regulator_driver);

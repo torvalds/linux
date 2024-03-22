@@ -4,8 +4,8 @@
 
 #include <linux/types.h>
 
-#define SCHED_ATTR_SIZE_VER0	48	/* sizeof first published struct */
-#define SCHED_ATTR_SIZE_VER1	56	/* add: util_{min,max} */
+#define SCHED_ATTR_SIZE_VER0  48  /* sizeof first published struct */
+#define SCHED_ATTR_SIZE_VER1  56  /* add: util_{min,max} */
 
 /*
  * Extended scheduling parameters data structure.
@@ -27,16 +27,16 @@
  * A subset of sched_attr attributes specifies the
  * scheduling policy and relative POSIX attributes:
  *
- *  @size		size of the structure, for fwd/bwd compat.
+ *  @size   size of the structure, for fwd/bwd compat.
  *
- *  @sched_policy	task's scheduling policy
- *  @sched_nice		task's nice value      (SCHED_NORMAL/BATCH)
- *  @sched_priority	task's static priority (SCHED_FIFO/RR)
+ *  @sched_policy task's scheduling policy
+ *  @sched_nice   task's nice value      (SCHED_NORMAL/BATCH)
+ *  @sched_priority task's static priority (SCHED_FIFO/RR)
  *
  * Certain more advanced scheduling features can be controlled by a
  * predefined set of flags via the attribute:
  *
- *  @sched_flags	for customizing the scheduler behaviour
+ *  @sched_flags  for customizing the scheduler behaviour
  *
  * Sporadic Time-Constrained Task Attributes
  * =========================================
@@ -58,9 +58,9 @@
  *
  * This is reflected by the following fields of the sched_attr structure:
  *
- *  @sched_deadline	representative of the task's deadline
- *  @sched_runtime	representative of the task's runtime
- *  @sched_period	representative of the task's period
+ *  @sched_deadline representative of the task's deadline
+ *  @sched_runtime  representative of the task's runtime
+ *  @sched_period representative of the task's period
  *
  * Given this task model, there are a multiplicity of scheduling algorithms
  * and policies, that can be used to ensure all the tasks will make their
@@ -79,8 +79,8 @@
  * boundaries are valuable hints to support scheduler decisions on both task
  * placement and frequency selection.
  *
- *  @sched_util_min	represents the minimum utilization
- *  @sched_util_max	represents the maximum utilization
+ *  @sched_util_min represents the minimum utilization
+ *  @sched_util_max represents the maximum utilization
  *
  * Utilization is a value in the range [0..SCHED_CAPACITY_SCALE]. It
  * represents the percentage of CPU time used by a task when running at the
@@ -96,26 +96,25 @@
  * A task utilization boundary can be reset by setting the attribute to -1.
  */
 struct sched_attr {
-	__u32 size;
+  __u32 size;
 
-	__u32 sched_policy;
-	__u64 sched_flags;
+  __u32 sched_policy;
+  __u64 sched_flags;
 
-	/* SCHED_NORMAL, SCHED_BATCH */
-	__s32 sched_nice;
+  /* SCHED_NORMAL, SCHED_BATCH */
+  __s32 sched_nice;
 
-	/* SCHED_FIFO, SCHED_RR */
-	__u32 sched_priority;
+  /* SCHED_FIFO, SCHED_RR */
+  __u32 sched_priority;
 
-	/* SCHED_DEADLINE */
-	__u64 sched_runtime;
-	__u64 sched_deadline;
-	__u64 sched_period;
+  /* SCHED_DEADLINE */
+  __u64 sched_runtime;
+  __u64 sched_deadline;
+  __u64 sched_period;
 
-	/* Utilization hints */
-	__u32 sched_util_min;
-	__u32 sched_util_max;
-
+  /* Utilization hints */
+  __u32 sched_util_min;
+  __u32 sched_util_max;
 };
 
 #endif /* _UAPI_LINUX_SCHED_TYPES_H */

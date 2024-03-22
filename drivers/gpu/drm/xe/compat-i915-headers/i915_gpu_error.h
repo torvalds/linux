@@ -9,9 +9,8 @@
 struct drm_i915_error_state_buf;
 
 __printf(2, 3)
-static inline void
-i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...)
-{
+static inline void i915_error_printf(struct drm_i915_error_state_buf *e,
+    const char *f, ...) {
 }
 
 #endif

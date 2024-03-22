@@ -22,64 +22,64 @@ typedef void (sdio_irq_handler_t)(struct sdio_func *);
  * SDIO function CIS tuple (unknown to the core)
  */
 struct sdio_func_tuple {
-	struct sdio_func_tuple *next;
-	unsigned char code;
-	unsigned char size;
-	unsigned char data[];
+  struct sdio_func_tuple *next;
+  unsigned char code;
+  unsigned char size;
+  unsigned char data[];
 };
 
 /*
  * SDIO function devices
  */
 struct sdio_func {
-	struct mmc_card		*card;		/* the card this device belongs to */
-	struct device		dev;		/* the device */
-	sdio_irq_handler_t	*irq_handler;	/* IRQ callback */
-	unsigned int		num;		/* function number */
+  struct mmc_card *card;    /* the card this device belongs to */
+  struct device dev;    /* the device */
+  sdio_irq_handler_t *irq_handler; /* IRQ callback */
+  unsigned int num;    /* function number */
 
-	unsigned char		class;		/* standard interface class */
-	unsigned short		vendor;		/* vendor id */
-	unsigned short		device;		/* device id */
+  unsigned char class;    /* standard interface class */
+  unsigned short vendor;   /* vendor id */
+  unsigned short device;   /* device id */
 
-	unsigned		max_blksize;	/* maximum block size */
-	unsigned		cur_blksize;	/* current block size */
+  unsigned max_blksize;  /* maximum block size */
+  unsigned cur_blksize;  /* current block size */
 
-	unsigned		enable_timeout;	/* max enable timeout in msec */
+  unsigned enable_timeout; /* max enable timeout in msec */
 
-	unsigned int		state;		/* function state */
-#define SDIO_STATE_PRESENT	(1<<0)		/* present in sysfs */
+  unsigned int state;    /* function state */
+#define SDIO_STATE_PRESENT  (1 << 0)    /* present in sysfs */
 
-	u8			*tmpbuf;	/* DMA:able scratch buffer */
+  u8 *tmpbuf;  /* DMA:able scratch buffer */
 
-	u8			major_rev;	/* major revision number */
-	u8			minor_rev;	/* minor revision number */
-	unsigned		num_info;	/* number of info strings */
-	const char		**info;		/* info strings */
+  u8 major_rev;  /* major revision number */
+  u8 minor_rev;  /* minor revision number */
+  unsigned num_info; /* number of info strings */
+  const char **info;   /* info strings */
 
-	struct sdio_func_tuple *tuples;
+  struct sdio_func_tuple *tuples;
 };
 
-#define sdio_func_present(f)	((f)->state & SDIO_STATE_PRESENT)
+#define sdio_func_present(f)  ((f)->state & SDIO_STATE_PRESENT)
 
 #define sdio_func_set_present(f) ((f)->state |= SDIO_STATE_PRESENT)
 
-#define sdio_func_id(f)		(dev_name(&(f)->dev))
+#define sdio_func_id(f)   (dev_name(&(f)->dev))
 
-#define sdio_get_drvdata(f)	dev_get_drvdata(&(f)->dev)
-#define sdio_set_drvdata(f,d)	dev_set_drvdata(&(f)->dev, d)
-#define dev_to_sdio_func(d)	container_of(d, struct sdio_func, dev)
+#define sdio_get_drvdata(f) dev_get_drvdata(&(f)->dev)
+#define sdio_set_drvdata(f, d) dev_set_drvdata(&(f)->dev, d)
+#define dev_to_sdio_func(d) container_of(d, struct sdio_func, dev)
 
 /*
  * SDIO function device driver
  */
 struct sdio_driver {
-	char *name;
-	const struct sdio_device_id *id_table;
+  char *name;
+  const struct sdio_device_id *id_table;
 
-	int (*probe)(struct sdio_func *, const struct sdio_device_id *);
-	void (*remove)(struct sdio_func *);
+  int (*probe)(struct sdio_func *, const struct sdio_device_id *);
+  void (*remove)(struct sdio_func *);
 
-	struct device_driver drv;
+  struct device_driver drv;
 };
 
 /**
@@ -90,9 +90,9 @@ struct sdio_driver {
  * This macro is used to create a struct sdio_device_id that matches a
  * specific device. The class field will be set to SDIO_ANY_ID.
  */
-#define SDIO_DEVICE(vend,dev) \
-	.class = SDIO_ANY_ID, \
-	.vendor = (vend), .device = (dev)
+#define SDIO_DEVICE(vend, dev) \
+  .class = SDIO_ANY_ID, \
+  .vendor = (vend), .device = (dev)
 
 /**
  * SDIO_DEVICE_CLASS - macro used to describe a specific SDIO device class
@@ -103,8 +103,8 @@ struct sdio_driver {
  * be set to SDIO_ANY_ID.
  */
 #define SDIO_DEVICE_CLASS(dev_class) \
-	.class = (dev_class), \
-	.vendor = SDIO_ANY_ID, .device = SDIO_ANY_ID
+  .class = (dev_class), \
+  .vendor = SDIO_ANY_ID, .device = SDIO_ANY_ID
 
 extern int sdio_register_driver(struct sdio_driver *);
 extern void sdio_unregister_driver(struct sdio_driver *);
@@ -118,8 +118,8 @@ extern void sdio_unregister_driver(struct sdio_driver *);
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
 #define module_sdio_driver(__sdio_driver) \
-	module_driver(__sdio_driver, sdio_register_driver, \
-		      sdio_unregister_driver)
+  module_driver(__sdio_driver, sdio_register_driver, \
+    sdio_unregister_driver)
 
 /*
  * SDIO I/O operations
@@ -142,29 +142,29 @@ extern u16 sdio_readw(struct sdio_func *func, unsigned int addr, int *err_ret);
 extern u32 sdio_readl(struct sdio_func *func, unsigned int addr, int *err_ret);
 
 extern int sdio_memcpy_fromio(struct sdio_func *func, void *dst,
-	unsigned int addr, int count);
+    unsigned int addr, int count);
 extern int sdio_readsb(struct sdio_func *func, void *dst,
-	unsigned int addr, int count);
+    unsigned int addr, int count);
 
 extern void sdio_writeb(struct sdio_func *func, u8 b,
-	unsigned int addr, int *err_ret);
+    unsigned int addr, int *err_ret);
 extern void sdio_writew(struct sdio_func *func, u16 b,
-	unsigned int addr, int *err_ret);
+    unsigned int addr, int *err_ret);
 extern void sdio_writel(struct sdio_func *func, u32 b,
-	unsigned int addr, int *err_ret);
+    unsigned int addr, int *err_ret);
 
 extern u8 sdio_writeb_readb(struct sdio_func *func, u8 write_byte,
-	unsigned int addr, int *err_ret);
+    unsigned int addr, int *err_ret);
 
 extern int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
-	void *src, int count);
+    void *src, int count);
 extern int sdio_writesb(struct sdio_func *func, unsigned int addr,
-	void *src, int count);
+    void *src, int count);
 
 extern unsigned char sdio_f0_readb(struct sdio_func *func,
-	unsigned int addr, int *err_ret);
+    unsigned int addr, int *err_ret);
 extern void sdio_f0_writeb(struct sdio_func *func, unsigned char b,
-	unsigned int addr, int *err_ret);
+    unsigned int addr, int *err_ret);
 
 extern mmc_pm_flag_t sdio_get_host_pm_caps(struct sdio_func *func);
 extern int sdio_set_host_pm_flags(struct sdio_func *func, mmc_pm_flag_t flags);

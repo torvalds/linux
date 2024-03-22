@@ -19,9 +19,8 @@
 /*
  * Compatibility macros for IMC devices
  */
-#define IMC_DTB_COMPAT			"ibm,opal-in-memory-counters"
-#define IMC_DTB_UNIT_COMPAT		"ibm,imc-counters"
-
+#define IMC_DTB_COMPAT      "ibm,opal-in-memory-counters"
+#define IMC_DTB_UNIT_COMPAT   "ibm,imc-counters"
 
 /*
  * LDBAR: Counter address and Enable/Disable macro.
@@ -29,31 +28,31 @@
  */
 #define THREAD_IMC_LDBAR_MASK           0x0003ffffffffe000ULL
 #define THREAD_IMC_ENABLE               0x8000000000000000ULL
-#define TRACE_IMC_ENABLE		0x4000000000000000ULL
+#define TRACE_IMC_ENABLE    0x4000000000000000ULL
 
 /*
  * For debugfs interface for imc-mode and imc-command
  */
-#define IMC_CNTL_BLK_OFFSET		0x3FC00
-#define IMC_CNTL_BLK_CMD_OFFSET		8
-#define IMC_CNTL_BLK_MODE_OFFSET	32
+#define IMC_CNTL_BLK_OFFSET   0x3FC00
+#define IMC_CNTL_BLK_CMD_OFFSET   8
+#define IMC_CNTL_BLK_MODE_OFFSET  32
 
 /*
  * Structure to hold memory address information for imc units.
  */
 struct imc_mem_info {
-	u64 *vbase;
-	u32 id;
+  u64 *vbase;
+  u32 id;
 };
 
 /*
  * Place holder for nest pmu events and values.
  */
 struct imc_events {
-	u32 value;
-	char *name;
-	char *unit;
-	char *scale;
+  u32 value;
+  char *name;
+  char *unit;
+  char *scale;
 };
 
 /*
@@ -74,24 +73,24 @@ struct imc_events {
  * The following is the data structure to hold trace imc data.
  */
 struct trace_imc_data {
-	__be64 tb1;
-	__be64 ip;
-	__be64 val;
-	__be64 cpmc1;
-	__be64 cpmc2;
-	__be64 cpmc3;
-	__be64 cpmc4;
-	__be64 tb2;
+  __be64 tb1;
+  __be64 ip;
+  __be64 val;
+  __be64 cpmc1;
+  __be64 cpmc2;
+  __be64 cpmc3;
+  __be64 cpmc4;
+  __be64 tb2;
 };
 
 /* Event attribute array index */
-#define IMC_FORMAT_ATTR		0
-#define IMC_EVENT_ATTR		1
-#define IMC_CPUMASK_ATTR	2
-#define IMC_NULL_ATTR		3
+#define IMC_FORMAT_ATTR   0
+#define IMC_EVENT_ATTR    1
+#define IMC_CPUMASK_ATTR  2
+#define IMC_NULL_ATTR   3
 
 /* PMU Format attribute macros */
-#define IMC_EVENT_OFFSET_MASK	0xffffffffULL
+#define IMC_EVENT_OFFSET_MASK 0xffffffffULL
 
 /*
  * Macro to mask bits 0:21 of first double word(which is the timebase) to
@@ -103,7 +102,7 @@ struct trace_imc_data {
  * Bit 0:1 in third DW of IMC trace record
  * specifies the MSR[HV PR] values.
  */
-#define IMC_TRACE_RECORD_VAL_HVPR(x)	((x) >> 62)
+#define IMC_TRACE_RECORD_VAL_HVPR(x)  ((x) >> 62)
 
 /*
  * Device tree parser code detects IMC pmu support and
@@ -113,23 +112,23 @@ struct trace_imc_data {
  * the time of pmu registration.
  */
 struct imc_pmu {
-	struct pmu pmu;
-	struct imc_mem_info *mem_info;
-	struct imc_events *events;
-	/*
-	 * Attribute groups for the PMU. Slot 0 used for
-	 * format attribute, slot 1 used for cpusmask attribute,
-	 * slot 2 used for event attribute. Slot 3 keep as
-	 * NULL.
-	 */
-	const struct attribute_group *attr_groups[4];
-	u32 counter_mem_size;
-	int domain;
-	/*
-	 * flag to notify whether the memory is mmaped
-	 * or allocated by kernel.
-	 */
-	bool imc_counter_mmaped;
+  struct pmu pmu;
+  struct imc_mem_info *mem_info;
+  struct imc_events *events;
+  /*
+   * Attribute groups for the PMU. Slot 0 used for
+   * format attribute, slot 1 used for cpusmask attribute,
+   * slot 2 used for event attribute. Slot 3 keep as
+   * NULL.
+   */
+  const struct attribute_group *attr_groups[4];
+  u32 counter_mem_size;
+  int domain;
+  /*
+   * flag to notify whether the memory is mmaped
+   * or allocated by kernel.
+   */
+  bool imc_counter_mmaped;
 };
 
 /*
@@ -137,9 +136,9 @@ struct imc_pmu {
  * are inited.
  */
 struct imc_pmu_ref {
-	spinlock_t lock;
-	unsigned int id;
-	int refc;
+  spinlock_t lock;
+  unsigned int id;
+  int refc;
 };
 
 /*
@@ -149,23 +148,23 @@ struct imc_pmu_ref {
  */
 
 enum {
-	IMC_TYPE_THREAD		= 0x1,
-	IMC_TYPE_TRACE		= 0x2,
-	IMC_TYPE_CORE		= 0x4,
-	IMC_TYPE_CHIP           = 0x10,
+  IMC_TYPE_THREAD = 0x1,
+  IMC_TYPE_TRACE = 0x2,
+  IMC_TYPE_CORE = 0x4,
+  IMC_TYPE_CHIP = 0x10,
 };
 
 /*
  * Domains for IMC PMUs
  */
-#define IMC_DOMAIN_NEST		1
-#define IMC_DOMAIN_CORE		2
-#define IMC_DOMAIN_THREAD	3
+#define IMC_DOMAIN_NEST   1
+#define IMC_DOMAIN_CORE   2
+#define IMC_DOMAIN_THREAD 3
 /* For trace-imc the domain is still thread but it operates in trace-mode */
-#define IMC_DOMAIN_TRACE	4
+#define IMC_DOMAIN_TRACE  4
 
 extern int init_imc_pmu(struct device_node *parent,
-				struct imc_pmu *pmu_ptr, int pmu_id);
+    struct imc_pmu *pmu_ptr, int pmu_id);
 extern void thread_imc_disable(void);
 extern int get_max_nest_dev(void);
 extern void unregister_thread_imc(void);

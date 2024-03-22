@@ -3,7 +3,7 @@
  * Copyright © 2006-2007 Intel Corporation
  *
  * Authors:
- *	Eric Anholt <eric@anholt.net>
+ *  Eric Anholt <eric@anholt.net>
  */
 
 #include <linux/delay.h>
@@ -20,66 +20,57 @@
 
 #define I2C_RISEFALL_TIME 20
 
-static int get_clock(void *data)
-{
-	struct gma_i2c_chan *chan = data;
-	struct drm_device *dev = chan->drm_dev;
-	u32 val;
-
-	val = REG_READ(chan->reg);
-	return (val & GPIO_CLOCK_VAL_IN) != 0;
+static int get_clock(void *data) {
+  struct gma_i2c_chan *chan = data;
+  struct drm_device *dev = chan->drm_dev;
+  u32 val;
+  val = REG_READ(chan->reg);
+  return (val & GPIO_CLOCK_VAL_IN) != 0;
 }
 
-static int get_data(void *data)
-{
-	struct gma_i2c_chan *chan = data;
-	struct drm_device *dev = chan->drm_dev;
-	u32 val;
-
-	val = REG_READ(chan->reg);
-	return (val & GPIO_DATA_VAL_IN) != 0;
+static int get_data(void *data) {
+  struct gma_i2c_chan *chan = data;
+  struct drm_device *dev = chan->drm_dev;
+  u32 val;
+  val = REG_READ(chan->reg);
+  return (val & GPIO_DATA_VAL_IN) != 0;
 }
 
-static void set_clock(void *data, int state_high)
-{
-	struct gma_i2c_chan *chan = data;
-	struct drm_device *dev = chan->drm_dev;
-	u32 reserved = 0, clock_bits;
-
-	/* On most chips, these bits must be preserved in software. */
-	reserved =
-		    REG_READ(chan->reg) & (GPIO_DATA_PULLUP_DISABLE |
-					   GPIO_CLOCK_PULLUP_DISABLE);
-
-	if (state_high)
-		clock_bits = GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK;
-	else
-		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
-		    GPIO_CLOCK_VAL_MASK;
-	REG_WRITE(chan->reg, reserved | clock_bits);
-	udelay(I2C_RISEFALL_TIME);	/* wait for the line to change state */
+static void set_clock(void *data, int state_high) {
+  struct gma_i2c_chan *chan = data;
+  struct drm_device *dev = chan->drm_dev;
+  u32 reserved = 0, clock_bits;
+  /* On most chips, these bits must be preserved in software. */
+  reserved
+    = REG_READ(chan->reg) & (GPIO_DATA_PULLUP_DISABLE
+      | GPIO_CLOCK_PULLUP_DISABLE);
+  if (state_high) {
+    clock_bits = GPIO_CLOCK_DIR_IN | GPIO_CLOCK_DIR_MASK;
+  } else {
+    clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK
+        | GPIO_CLOCK_VAL_MASK;
+  }
+  REG_WRITE(chan->reg, reserved | clock_bits);
+  udelay(I2C_RISEFALL_TIME);  /* wait for the line to change state */
 }
 
-static void set_data(void *data, int state_high)
-{
-	struct gma_i2c_chan *chan = data;
-	struct drm_device *dev = chan->drm_dev;
-	u32 reserved = 0, data_bits;
-
-	/* On most chips, these bits must be preserved in software. */
-	reserved =
-		    REG_READ(chan->reg) & (GPIO_DATA_PULLUP_DISABLE |
-					   GPIO_CLOCK_PULLUP_DISABLE);
-
-	if (state_high)
-		data_bits = GPIO_DATA_DIR_IN | GPIO_DATA_DIR_MASK;
-	else
-		data_bits =
-		    GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
-		    GPIO_DATA_VAL_MASK;
-
-	REG_WRITE(chan->reg, reserved | data_bits);
-	udelay(I2C_RISEFALL_TIME);	/* wait for the line to change state */
+static void set_data(void *data, int state_high) {
+  struct gma_i2c_chan *chan = data;
+  struct drm_device *dev = chan->drm_dev;
+  u32 reserved = 0, data_bits;
+  /* On most chips, these bits must be preserved in software. */
+  reserved
+    = REG_READ(chan->reg) & (GPIO_DATA_PULLUP_DISABLE
+      | GPIO_CLOCK_PULLUP_DISABLE);
+  if (state_high) {
+    data_bits = GPIO_DATA_DIR_IN | GPIO_DATA_DIR_MASK;
+  } else {
+    data_bits
+      = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK
+        | GPIO_DATA_VAL_MASK;
+  }
+  REG_WRITE(chan->reg, reserved | data_bits);
+  udelay(I2C_RISEFALL_TIME);  /* wait for the line to change state */
 }
 
 /**
@@ -103,43 +94,37 @@ static void set_data(void *data, int state_high)
  * see PRM for details on how these different busses are used.
  */
 struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
-				    const char *name)
-{
-	struct gma_i2c_chan *chan;
-
-	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
-	if (!chan)
-		goto out_free;
-
-	chan->drm_dev = dev;
-	chan->reg = reg;
-	snprintf(chan->base.name, I2C_NAME_SIZE, "intel drm %s", name);
-	chan->base.owner = THIS_MODULE;
-	chan->base.algo_data = &chan->algo;
-	chan->base.dev.parent = dev->dev;
-	chan->algo.setsda = set_data;
-	chan->algo.setscl = set_clock;
-	chan->algo.getsda = get_data;
-	chan->algo.getscl = get_clock;
-	chan->algo.udelay = 20;
-	chan->algo.timeout = usecs_to_jiffies(2200);
-	chan->algo.data = chan;
-
-	i2c_set_adapdata(&chan->base, chan);
-
-	if (i2c_bit_add_bus(&chan->base))
-		goto out_free;
-
-	/* JJJ:  raise SCL and SDA? */
-	set_data(chan, 1);
-	set_clock(chan, 1);
-	udelay(20);
-
-	return chan;
-
+    const char *name) {
+  struct gma_i2c_chan *chan;
+  chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
+  if (!chan) {
+    goto out_free;
+  }
+  chan->drm_dev = dev;
+  chan->reg = reg;
+  snprintf(chan->base.name, I2C_NAME_SIZE, "intel drm %s", name);
+  chan->base.owner = THIS_MODULE;
+  chan->base.algo_data = &chan->algo;
+  chan->base.dev.parent = dev->dev;
+  chan->algo.setsda = set_data;
+  chan->algo.setscl = set_clock;
+  chan->algo.getsda = get_data;
+  chan->algo.getscl = get_clock;
+  chan->algo.udelay = 20;
+  chan->algo.timeout = usecs_to_jiffies(2200);
+  chan->algo.data = chan;
+  i2c_set_adapdata(&chan->base, chan);
+  if (i2c_bit_add_bus(&chan->base)) {
+    goto out_free;
+  }
+  /* JJJ:  raise SCL and SDA? */
+  set_data(chan, 1);
+  set_clock(chan, 1);
+  udelay(20);
+  return chan;
 out_free:
-	kfree(chan);
-	return NULL;
+  kfree(chan);
+  return NULL;
 }
 
 /**
@@ -148,11 +133,10 @@ out_free:
  *
  * Unregister the adapter from the i2c layer, then free the structure.
  */
-void gma_i2c_destroy(struct gma_i2c_chan *chan)
-{
-	if (!chan)
-		return;
-
-	i2c_del_adapter(&chan->base);
-	kfree(chan);
+void gma_i2c_destroy(struct gma_i2c_chan *chan) {
+  if (!chan) {
+    return;
+  }
+  i2c_del_adapter(&chan->base);
+  kfree(chan);
 }

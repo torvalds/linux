@@ -179,7 +179,7 @@
 #define WM8962_EQ39                             0x175
 #define WM8962_EQ40                             0x176
 #define WM8962_EQ41                             0x177
-#define WM8962_GPIO_BASE			0x200
+#define WM8962_GPIO_BASE      0x200
 #define WM8962_GPIO_2                           0x201
 #define WM8962_GPIO_3                           0x202
 #define WM8962_GPIO_5                           0x204
@@ -1251,15 +1251,24 @@
 /*
  * R4 (0x04) - Clocking1
  */
-#define WM8962_DSPCLK_DIV_MASK                  0x0600  /* DSPCLK_DIV - [10:9] */
-#define WM8962_DSPCLK_DIV_SHIFT                      9  /* DSPCLK_DIV - [10:9] */
-#define WM8962_DSPCLK_DIV_WIDTH                      2  /* DSPCLK_DIV - [10:9] */
-#define WM8962_ADCSYS_CLK_DIV_MASK              0x01C0  /* ADCSYS_CLK_DIV - [8:6] */
-#define WM8962_ADCSYS_CLK_DIV_SHIFT                  6  /* ADCSYS_CLK_DIV - [8:6] */
-#define WM8962_ADCSYS_CLK_DIV_WIDTH                  3  /* ADCSYS_CLK_DIV - [8:6] */
-#define WM8962_DACSYS_CLK_DIV_MASK              0x0038  /* DACSYS_CLK_DIV - [5:3] */
-#define WM8962_DACSYS_CLK_DIV_SHIFT                  3  /* DACSYS_CLK_DIV - [5:3] */
-#define WM8962_DACSYS_CLK_DIV_WIDTH                  3  /* DACSYS_CLK_DIV - [5:3] */
+#define WM8962_DSPCLK_DIV_MASK                  0x0600  /* DSPCLK_DIV - [10:9]
+                                                         * */
+#define WM8962_DSPCLK_DIV_SHIFT                      9  /* DSPCLK_DIV - [10:9]
+                                                         * */
+#define WM8962_DSPCLK_DIV_WIDTH                      2  /* DSPCLK_DIV - [10:9]
+                                                         * */
+#define WM8962_ADCSYS_CLK_DIV_MASK              0x01C0  /* ADCSYS_CLK_DIV -
+                                                         * [8:6] */
+#define WM8962_ADCSYS_CLK_DIV_SHIFT                  6  /* ADCSYS_CLK_DIV -
+                                                         * [8:6] */
+#define WM8962_ADCSYS_CLK_DIV_WIDTH                  3  /* ADCSYS_CLK_DIV -
+                                                         * [8:6] */
+#define WM8962_DACSYS_CLK_DIV_MASK              0x0038  /* DACSYS_CLK_DIV -
+                                                         * [5:3] */
+#define WM8962_DACSYS_CLK_DIV_SHIFT                  3  /* DACSYS_CLK_DIV -
+                                                         * [5:3] */
+#define WM8962_DACSYS_CLK_DIV_WIDTH                  3  /* DACSYS_CLK_DIV -
+                                                         * [5:3] */
 #define WM8962_MCLKDIV_MASK                     0x0006  /* MCLKDIV - [2:1] */
 #define WM8962_MCLKDIV_SHIFT                         1  /* MCLKDIV - [2:1] */
 #define WM8962_MCLKDIV_WIDTH                         2  /* MCLKDIV - [2:1] */
@@ -1294,16 +1303,22 @@
 /*
  * R6 (0x06) - ADC & DAC Control 2
  */
-#define WM8962_ADC_HPF_SR_MASK                  0x3000  /* ADC_HPF_SR - [13:12] */
-#define WM8962_ADC_HPF_SR_SHIFT                     12  /* ADC_HPF_SR - [13:12] */
-#define WM8962_ADC_HPF_SR_WIDTH                      2  /* ADC_HPF_SR - [13:12] */
+#define WM8962_ADC_HPF_SR_MASK                  0x3000  /* ADC_HPF_SR - [13:12]
+                                                         * */
+#define WM8962_ADC_HPF_SR_SHIFT                     12  /* ADC_HPF_SR - [13:12]
+                                                         * */
+#define WM8962_ADC_HPF_SR_WIDTH                      2  /* ADC_HPF_SR - [13:12]
+                                                         * */
 #define WM8962_ADC_HPF_MODE                     0x0400  /* ADC_HPF_MODE */
 #define WM8962_ADC_HPF_MODE_MASK                0x0400  /* ADC_HPF_MODE */
 #define WM8962_ADC_HPF_MODE_SHIFT                   10  /* ADC_HPF_MODE */
 #define WM8962_ADC_HPF_MODE_WIDTH                    1  /* ADC_HPF_MODE */
-#define WM8962_ADC_HPF_CUT_MASK                 0x0380  /* ADC_HPF_CUT - [9:7] */
-#define WM8962_ADC_HPF_CUT_SHIFT                     7  /* ADC_HPF_CUT - [9:7] */
-#define WM8962_ADC_HPF_CUT_WIDTH                     3  /* ADC_HPF_CUT - [9:7] */
+#define WM8962_ADC_HPF_CUT_MASK                 0x0380  /* ADC_HPF_CUT - [9:7]
+                                                         * */
+#define WM8962_ADC_HPF_CUT_SHIFT                     7  /* ADC_HPF_CUT - [9:7]
+                                                         * */
+#define WM8962_ADC_HPF_CUT_WIDTH                     3  /* ADC_HPF_CUT - [9:7]
+                                                         * */
 #define WM8962_DACR_DAT_INV                     0x0040  /* DACR_DAT_INV */
 #define WM8962_DACR_DAT_INV_MASK                0x0040  /* DACR_DAT_INV */
 #define WM8962_DACR_DAT_INV_SHIFT                    6  /* DACR_DAT_INV */
@@ -1378,12 +1393,18 @@
 #define WM8962_CLKREG_OVD_MASK                  0x0800  /* CLKREG_OVD */
 #define WM8962_CLKREG_OVD_SHIFT                     11  /* CLKREG_OVD */
 #define WM8962_CLKREG_OVD_WIDTH                      1  /* CLKREG_OVD */
-#define WM8962_SYSCLK_SRC_MASK                  0x0600  /* SYSCLK_SRC - [10:9] */
-#define WM8962_SYSCLK_SRC_SHIFT                      9  /* SYSCLK_SRC - [10:9] */
-#define WM8962_SYSCLK_SRC_WIDTH                      2  /* SYSCLK_SRC - [10:9] */
-#define WM8962_CLASSD_CLK_DIV_MASK              0x01C0  /* CLASSD_CLK_DIV - [8:6] */
-#define WM8962_CLASSD_CLK_DIV_SHIFT                  6  /* CLASSD_CLK_DIV - [8:6] */
-#define WM8962_CLASSD_CLK_DIV_WIDTH                  3  /* CLASSD_CLK_DIV - [8:6] */
+#define WM8962_SYSCLK_SRC_MASK                  0x0600  /* SYSCLK_SRC - [10:9]
+                                                         * */
+#define WM8962_SYSCLK_SRC_SHIFT                      9  /* SYSCLK_SRC - [10:9]
+                                                         * */
+#define WM8962_SYSCLK_SRC_WIDTH                      2  /* SYSCLK_SRC - [10:9]
+                                                         * */
+#define WM8962_CLASSD_CLK_DIV_MASK              0x01C0  /* CLASSD_CLK_DIV -
+                                                         * [8:6] */
+#define WM8962_CLASSD_CLK_DIV_SHIFT                  6  /* CLASSD_CLK_DIV -
+                                                         * [8:6] */
+#define WM8962_CLASSD_CLK_DIV_WIDTH                  3  /* CLASSD_CLK_DIV -
+                                                         * [8:6] */
 #define WM8962_SYSCLK_ENA                       0x0020  /* SYSCLK_ENA */
 #define WM8962_SYSCLK_ENA_MASK                  0x0020  /* SYSCLK_ENA */
 #define WM8962_SYSCLK_ENA_SHIFT                      5  /* SYSCLK_ENA */
@@ -1399,9 +1420,12 @@
 #define WM8962_AUTOMUTE_STS_MASK                0x0800  /* AUTOMUTE_STS */
 #define WM8962_AUTOMUTE_STS_SHIFT                   11  /* AUTOMUTE_STS */
 #define WM8962_AUTOMUTE_STS_WIDTH                    1  /* AUTOMUTE_STS */
-#define WM8962_DAC_AUTOMUTE_SAMPLES_MASK        0x0300  /* DAC_AUTOMUTE_SAMPLES - [9:8] */
-#define WM8962_DAC_AUTOMUTE_SAMPLES_SHIFT            8  /* DAC_AUTOMUTE_SAMPLES - [9:8] */
-#define WM8962_DAC_AUTOMUTE_SAMPLES_WIDTH            2  /* DAC_AUTOMUTE_SAMPLES - [9:8] */
+#define WM8962_DAC_AUTOMUTE_SAMPLES_MASK        0x0300  /* DAC_AUTOMUTE_SAMPLES
+                                                         * - [9:8] */
+#define WM8962_DAC_AUTOMUTE_SAMPLES_SHIFT            8  /* DAC_AUTOMUTE_SAMPLES
+                                                         * - [9:8] */
+#define WM8962_DAC_AUTOMUTE_SAMPLES_WIDTH            2  /* DAC_AUTOMUTE_SAMPLES
+                                                         * - [9:8] */
 #define WM8962_DAC_AUTOMUTE                     0x0080  /* DAC_AUTOMUTE */
 #define WM8962_DAC_AUTOMUTE_MASK                0x0080  /* DAC_AUTOMUTE */
 #define WM8962_DAC_AUTOMUTE_SHIFT                    7  /* DAC_AUTOMUTE */
@@ -1482,9 +1506,12 @@
 #define WM8962_ALCR_ENA_MASK                    0x0080  /* ALCR_ENA */
 #define WM8962_ALCR_ENA_SHIFT                        7  /* ALCR_ENA */
 #define WM8962_ALCR_ENA_WIDTH                        1  /* ALCR_ENA */
-#define WM8962_ALC_MAXGAIN_MASK                 0x0070  /* ALC_MAXGAIN - [6:4] */
-#define WM8962_ALC_MAXGAIN_SHIFT                     4  /* ALC_MAXGAIN - [6:4] */
-#define WM8962_ALC_MAXGAIN_WIDTH                     3  /* ALC_MAXGAIN - [6:4] */
+#define WM8962_ALC_MAXGAIN_MASK                 0x0070  /* ALC_MAXGAIN - [6:4]
+                                                         * */
+#define WM8962_ALC_MAXGAIN_SHIFT                     4  /* ALC_MAXGAIN - [6:4]
+                                                         * */
+#define WM8962_ALC_MAXGAIN_WIDTH                     3  /* ALC_MAXGAIN - [6:4]
+                                                         * */
 #define WM8962_ALC_LVL_MASK                     0x000F  /* ALC_LVL - [3:0] */
 #define WM8962_ALC_LVL_SHIFT                         0  /* ALC_LVL - [3:0] */
 #define WM8962_ALC_LVL_WIDTH                         4  /* ALC_LVL - [3:0] */
@@ -1516,9 +1543,12 @@
 #define WM8962_ALC_ZC_MASK                      0x0080  /* ALC_ZC */
 #define WM8962_ALC_ZC_SHIFT                          7  /* ALC_ZC */
 #define WM8962_ALC_ZC_WIDTH                          1  /* ALC_ZC */
-#define WM8962_ALC_MINGAIN_MASK                 0x0070  /* ALC_MINGAIN - [6:4] */
-#define WM8962_ALC_MINGAIN_SHIFT                     4  /* ALC_MINGAIN - [6:4] */
-#define WM8962_ALC_MINGAIN_WIDTH                     3  /* ALC_MINGAIN - [6:4] */
+#define WM8962_ALC_MINGAIN_MASK                 0x0070  /* ALC_MINGAIN - [6:4]
+                                                         * */
+#define WM8962_ALC_MINGAIN_SHIFT                     4  /* ALC_MINGAIN - [6:4]
+                                                         * */
+#define WM8962_ALC_MINGAIN_WIDTH                     3  /* ALC_MINGAIN - [6:4]
+                                                         * */
 #define WM8962_ALC_HLD_MASK                     0x000F  /* ALC_HLD - [3:0] */
 #define WM8962_ALC_HLD_SHIFT                         0  /* ALC_HLD - [3:0] */
 #define WM8962_ALC_HLD_WIDTH                         4  /* ALC_HLD - [3:0] */
@@ -1526,9 +1556,12 @@
 /*
  * R19 (0x13) - ALC3
  */
-#define WM8962_ALC_NGATE_GAIN_MASK              0x1C00  /* ALC_NGATE_GAIN - [12:10] */
-#define WM8962_ALC_NGATE_GAIN_SHIFT                 10  /* ALC_NGATE_GAIN - [12:10] */
-#define WM8962_ALC_NGATE_GAIN_WIDTH                  3  /* ALC_NGATE_GAIN - [12:10] */
+#define WM8962_ALC_NGATE_GAIN_MASK              0x1C00  /* ALC_NGATE_GAIN -
+                                                         * [12:10] */
+#define WM8962_ALC_NGATE_GAIN_SHIFT                 10  /* ALC_NGATE_GAIN -
+                                                         * [12:10] */
+#define WM8962_ALC_NGATE_GAIN_WIDTH                  3  /* ALC_NGATE_GAIN -
+                                                         * [12:10] */
 #define WM8962_ALC_MODE                         0x0100  /* ALC_MODE */
 #define WM8962_ALC_MODE_MASK                    0x0100  /* ALC_MODE */
 #define WM8962_ALC_MODE_SHIFT                        8  /* ALC_MODE */
@@ -1543,18 +1576,30 @@
 /*
  * R20 (0x14) - Noise Gate
  */
-#define WM8962_ALC_NGATE_DCY_MASK               0xF000  /* ALC_NGATE_DCY - [15:12] */
-#define WM8962_ALC_NGATE_DCY_SHIFT                  12  /* ALC_NGATE_DCY - [15:12] */
-#define WM8962_ALC_NGATE_DCY_WIDTH                   4  /* ALC_NGATE_DCY - [15:12] */
-#define WM8962_ALC_NGATE_ATK_MASK               0x0F00  /* ALC_NGATE_ATK - [11:8] */
-#define WM8962_ALC_NGATE_ATK_SHIFT                   8  /* ALC_NGATE_ATK - [11:8] */
-#define WM8962_ALC_NGATE_ATK_WIDTH                   4  /* ALC_NGATE_ATK - [11:8] */
-#define WM8962_ALC_NGATE_THR_MASK               0x00F8  /* ALC_NGATE_THR - [7:3] */
-#define WM8962_ALC_NGATE_THR_SHIFT                   3  /* ALC_NGATE_THR - [7:3] */
-#define WM8962_ALC_NGATE_THR_WIDTH                   5  /* ALC_NGATE_THR - [7:3] */
-#define WM8962_ALC_NGATE_MODE_MASK              0x0006  /* ALC_NGATE_MODE - [2:1] */
-#define WM8962_ALC_NGATE_MODE_SHIFT                  1  /* ALC_NGATE_MODE - [2:1] */
-#define WM8962_ALC_NGATE_MODE_WIDTH                  2  /* ALC_NGATE_MODE - [2:1] */
+#define WM8962_ALC_NGATE_DCY_MASK               0xF000  /* ALC_NGATE_DCY -
+                                                         * [15:12] */
+#define WM8962_ALC_NGATE_DCY_SHIFT                  12  /* ALC_NGATE_DCY -
+                                                         * [15:12] */
+#define WM8962_ALC_NGATE_DCY_WIDTH                   4  /* ALC_NGATE_DCY -
+                                                         * [15:12] */
+#define WM8962_ALC_NGATE_ATK_MASK               0x0F00  /* ALC_NGATE_ATK -
+                                                         * [11:8] */
+#define WM8962_ALC_NGATE_ATK_SHIFT                   8  /* ALC_NGATE_ATK -
+                                                         * [11:8] */
+#define WM8962_ALC_NGATE_ATK_WIDTH                   4  /* ALC_NGATE_ATK -
+                                                         * [11:8] */
+#define WM8962_ALC_NGATE_THR_MASK               0x00F8  /* ALC_NGATE_THR - [7:3]
+                                                         * */
+#define WM8962_ALC_NGATE_THR_SHIFT                   3  /* ALC_NGATE_THR - [7:3]
+                                                         * */
+#define WM8962_ALC_NGATE_THR_WIDTH                   5  /* ALC_NGATE_THR - [7:3]
+                                                         * */
+#define WM8962_ALC_NGATE_MODE_MASK              0x0006  /* ALC_NGATE_MODE -
+                                                         * [2:1] */
+#define WM8962_ALC_NGATE_MODE_SHIFT                  1  /* ALC_NGATE_MODE -
+                                                         * [2:1] */
+#define WM8962_ALC_NGATE_MODE_WIDTH                  2  /* ALC_NGATE_MODE -
+                                                         * [2:1] */
 #define WM8962_ALC_NGATE_ENA                    0x0001  /* ALC_NGATE_ENA */
 #define WM8962_ALC_NGATE_ENA_MASK               0x0001  /* ALC_NGATE_ENA */
 #define WM8962_ALC_NGATE_ENA_SHIFT                   0  /* ALC_NGATE_ENA */
@@ -1688,13 +1733,20 @@
 /*
  * R27 (0x1B) - Additional Control (3)
  */
-#define WM8962_SAMPLE_RATE_INT_MODE             0x0010  /* SAMPLE_RATE_INT_MODE */
-#define WM8962_SAMPLE_RATE_INT_MODE_MASK        0x0010  /* SAMPLE_RATE_INT_MODE */
-#define WM8962_SAMPLE_RATE_INT_MODE_SHIFT            4  /* SAMPLE_RATE_INT_MODE */
-#define WM8962_SAMPLE_RATE_INT_MODE_WIDTH            1  /* SAMPLE_RATE_INT_MODE */
-#define WM8962_SAMPLE_RATE_MASK                 0x0007  /* SAMPLE_RATE - [2:0] */
-#define WM8962_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [2:0] */
-#define WM8962_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [2:0] */
+#define WM8962_SAMPLE_RATE_INT_MODE             0x0010  /* SAMPLE_RATE_INT_MODE
+                                                         * */
+#define WM8962_SAMPLE_RATE_INT_MODE_MASK        0x0010  /* SAMPLE_RATE_INT_MODE
+                                                         * */
+#define WM8962_SAMPLE_RATE_INT_MODE_SHIFT            4  /* SAMPLE_RATE_INT_MODE
+                                                         * */
+#define WM8962_SAMPLE_RATE_INT_MODE_WIDTH            1  /* SAMPLE_RATE_INT_MODE
+                                                         * */
+#define WM8962_SAMPLE_RATE_MASK                 0x0007  /* SAMPLE_RATE - [2:0]
+                                                         * */
+#define WM8962_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [2:0]
+                                                         * */
+#define WM8962_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [2:0]
+                                                         * */
 
 /*
  * R28 (0x1C) - Anti-pop
@@ -1715,18 +1767,27 @@
 /*
  * R30 (0x1E) - Clocking 3
  */
-#define WM8962_DBCLK_DIV_MASK                   0xE000  /* DBCLK_DIV - [15:13] */
-#define WM8962_DBCLK_DIV_SHIFT                      13  /* DBCLK_DIV - [15:13] */
-#define WM8962_DBCLK_DIV_WIDTH                       3  /* DBCLK_DIV - [15:13] */
-#define WM8962_OPCLK_DIV_MASK                   0x1C00  /* OPCLK_DIV - [12:10] */
-#define WM8962_OPCLK_DIV_SHIFT                      10  /* OPCLK_DIV - [12:10] */
-#define WM8962_OPCLK_DIV_WIDTH                       3  /* OPCLK_DIV - [12:10] */
+#define WM8962_DBCLK_DIV_MASK                   0xE000  /* DBCLK_DIV - [15:13]
+                                                         * */
+#define WM8962_DBCLK_DIV_SHIFT                      13  /* DBCLK_DIV - [15:13]
+                                                         * */
+#define WM8962_DBCLK_DIV_WIDTH                       3  /* DBCLK_DIV - [15:13]
+                                                         * */
+#define WM8962_OPCLK_DIV_MASK                   0x1C00  /* OPCLK_DIV - [12:10]
+                                                         * */
+#define WM8962_OPCLK_DIV_SHIFT                      10  /* OPCLK_DIV - [12:10]
+                                                         * */
+#define WM8962_OPCLK_DIV_WIDTH                       3  /* OPCLK_DIV - [12:10]
+                                                         * */
 #define WM8962_TOCLK_DIV_MASK                   0x0380  /* TOCLK_DIV - [9:7] */
 #define WM8962_TOCLK_DIV_SHIFT                       7  /* TOCLK_DIV - [9:7] */
 #define WM8962_TOCLK_DIV_WIDTH                       3  /* TOCLK_DIV - [9:7] */
-#define WM8962_F256KCLK_DIV_MASK                0x007E  /* F256KCLK_DIV - [6:1] */
-#define WM8962_F256KCLK_DIV_SHIFT                    1  /* F256KCLK_DIV - [6:1] */
-#define WM8962_F256KCLK_DIV_WIDTH                    6  /* F256KCLK_DIV - [6:1] */
+#define WM8962_F256KCLK_DIV_MASK                0x007E  /* F256KCLK_DIV - [6:1]
+                                                         * */
+#define WM8962_F256KCLK_DIV_SHIFT                    1  /* F256KCLK_DIV - [6:1]
+                                                         * */
+#define WM8962_F256KCLK_DIV_WIDTH                    6  /* F256KCLK_DIV - [6:1]
+                                                         * */
 
 /*
  * R31 (0x1F) - Input mixer control (1)
@@ -1751,28 +1812,46 @@
 /*
  * R32 (0x20) - Left input mixer volume
  */
-#define WM8962_IN2L_MIXINL_VOL_MASK             0x01C0  /* IN2L_MIXINL_VOL - [8:6] */
-#define WM8962_IN2L_MIXINL_VOL_SHIFT                 6  /* IN2L_MIXINL_VOL - [8:6] */
-#define WM8962_IN2L_MIXINL_VOL_WIDTH                 3  /* IN2L_MIXINL_VOL - [8:6] */
-#define WM8962_INPGAL_MIXINL_VOL_MASK           0x0038  /* INPGAL_MIXINL_VOL - [5:3] */
-#define WM8962_INPGAL_MIXINL_VOL_SHIFT               3  /* INPGAL_MIXINL_VOL - [5:3] */
-#define WM8962_INPGAL_MIXINL_VOL_WIDTH               3  /* INPGAL_MIXINL_VOL - [5:3] */
-#define WM8962_IN3L_MIXINL_VOL_MASK             0x0007  /* IN3L_MIXINL_VOL - [2:0] */
-#define WM8962_IN3L_MIXINL_VOL_SHIFT                 0  /* IN3L_MIXINL_VOL - [2:0] */
-#define WM8962_IN3L_MIXINL_VOL_WIDTH                 3  /* IN3L_MIXINL_VOL - [2:0] */
+#define WM8962_IN2L_MIXINL_VOL_MASK             0x01C0  /* IN2L_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8962_IN2L_MIXINL_VOL_SHIFT                 6  /* IN2L_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8962_IN2L_MIXINL_VOL_WIDTH                 3  /* IN2L_MIXINL_VOL -
+                                                         * [8:6] */
+#define WM8962_INPGAL_MIXINL_VOL_MASK           0x0038  /* INPGAL_MIXINL_VOL -
+                                                         * [5:3] */
+#define WM8962_INPGAL_MIXINL_VOL_SHIFT               3  /* INPGAL_MIXINL_VOL -
+                                                         * [5:3] */
+#define WM8962_INPGAL_MIXINL_VOL_WIDTH               3  /* INPGAL_MIXINL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN3L_MIXINL_VOL_MASK             0x0007  /* IN3L_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8962_IN3L_MIXINL_VOL_SHIFT                 0  /* IN3L_MIXINL_VOL -
+                                                         * [2:0] */
+#define WM8962_IN3L_MIXINL_VOL_WIDTH                 3  /* IN3L_MIXINL_VOL -
+                                                         * [2:0] */
 
 /*
  * R33 (0x21) - Right input mixer volume
  */
-#define WM8962_IN2R_MIXINR_VOL_MASK             0x01C0  /* IN2R_MIXINR_VOL - [8:6] */
-#define WM8962_IN2R_MIXINR_VOL_SHIFT                 6  /* IN2R_MIXINR_VOL - [8:6] */
-#define WM8962_IN2R_MIXINR_VOL_WIDTH                 3  /* IN2R_MIXINR_VOL - [8:6] */
-#define WM8962_INPGAR_MIXINR_VOL_MASK           0x0038  /* INPGAR_MIXINR_VOL - [5:3] */
-#define WM8962_INPGAR_MIXINR_VOL_SHIFT               3  /* INPGAR_MIXINR_VOL - [5:3] */
-#define WM8962_INPGAR_MIXINR_VOL_WIDTH               3  /* INPGAR_MIXINR_VOL - [5:3] */
-#define WM8962_IN3R_MIXINR_VOL_MASK             0x0007  /* IN3R_MIXINR_VOL - [2:0] */
-#define WM8962_IN3R_MIXINR_VOL_SHIFT                 0  /* IN3R_MIXINR_VOL - [2:0] */
-#define WM8962_IN3R_MIXINR_VOL_WIDTH                 3  /* IN3R_MIXINR_VOL - [2:0] */
+#define WM8962_IN2R_MIXINR_VOL_MASK             0x01C0  /* IN2R_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8962_IN2R_MIXINR_VOL_SHIFT                 6  /* IN2R_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8962_IN2R_MIXINR_VOL_WIDTH                 3  /* IN2R_MIXINR_VOL -
+                                                         * [8:6] */
+#define WM8962_INPGAR_MIXINR_VOL_MASK           0x0038  /* INPGAR_MIXINR_VOL -
+                                                         * [5:3] */
+#define WM8962_INPGAR_MIXINR_VOL_SHIFT               3  /* INPGAR_MIXINR_VOL -
+                                                         * [5:3] */
+#define WM8962_INPGAR_MIXINR_VOL_WIDTH               3  /* INPGAR_MIXINR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN3R_MIXINR_VOL_MASK             0x0007  /* IN3R_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8962_IN3R_MIXINR_VOL_SHIFT                 0  /* IN3R_MIXINR_VOL -
+                                                         * [2:0] */
+#define WM8962_IN3R_MIXINR_VOL_WIDTH                 3  /* IN3R_MIXINR_VOL -
+                                                         * [2:0] */
 
 /*
  * R34 (0x22) - Input mixer control (2)
@@ -1871,9 +1950,12 @@
 #define WM8962_SPKOUTL_ZC_MASK                  0x0080  /* SPKOUTL_ZC */
 #define WM8962_SPKOUTL_ZC_SHIFT                      7  /* SPKOUTL_ZC */
 #define WM8962_SPKOUTL_ZC_WIDTH                      1  /* SPKOUTL_ZC */
-#define WM8962_SPKOUTL_VOL_MASK                 0x007F  /* SPKOUTL_VOL - [6:0] */
-#define WM8962_SPKOUTL_VOL_SHIFT                     0  /* SPKOUTL_VOL - [6:0] */
-#define WM8962_SPKOUTL_VOL_WIDTH                     7  /* SPKOUTL_VOL - [6:0] */
+#define WM8962_SPKOUTL_VOL_MASK                 0x007F  /* SPKOUTL_VOL - [6:0]
+                                                         * */
+#define WM8962_SPKOUTL_VOL_SHIFT                     0  /* SPKOUTL_VOL - [6:0]
+                                                         * */
+#define WM8962_SPKOUTL_VOL_WIDTH                     7  /* SPKOUTL_VOL - [6:0]
+                                                         * */
 
 /*
  * R41 (0x29) - SPKOUTR volume
@@ -1882,9 +1964,12 @@
 #define WM8962_SPKOUTR_ZC_MASK                  0x0080  /* SPKOUTR_ZC */
 #define WM8962_SPKOUTR_ZC_SHIFT                      7  /* SPKOUTR_ZC */
 #define WM8962_SPKOUTR_ZC_WIDTH                      1  /* SPKOUTR_ZC */
-#define WM8962_SPKOUTR_VOL_MASK                 0x007F  /* SPKOUTR_VOL - [6:0] */
-#define WM8962_SPKOUTR_VOL_SHIFT                     0  /* SPKOUTR_VOL - [6:0] */
-#define WM8962_SPKOUTR_VOL_WIDTH                     7  /* SPKOUTR_VOL - [6:0] */
+#define WM8962_SPKOUTR_VOL_MASK                 0x007F  /* SPKOUTR_VOL - [6:0]
+                                                         * */
+#define WM8962_SPKOUTR_VOL_SHIFT                     0  /* SPKOUTR_VOL - [6:0]
+                                                         * */
+#define WM8962_SPKOUTR_VOL_WIDTH                     7  /* SPKOUTR_VOL - [6:0]
+                                                         * */
 
 /*
  * R47 (0x2F) - Thermal Shutdown Status
@@ -1909,12 +1994,18 @@
 /*
  * R48 (0x30) - Additional Control (4)
  */
-#define WM8962_MICDET_THR_MASK                  0x7000  /* MICDET_THR - [14:12] */
-#define WM8962_MICDET_THR_SHIFT                     12  /* MICDET_THR - [14:12] */
-#define WM8962_MICDET_THR_WIDTH                      3  /* MICDET_THR - [14:12] */
-#define WM8962_MICSHORT_THR_MASK                0x0C00  /* MICSHORT_THR - [11:10] */
-#define WM8962_MICSHORT_THR_SHIFT                   10  /* MICSHORT_THR - [11:10] */
-#define WM8962_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [11:10] */
+#define WM8962_MICDET_THR_MASK                  0x7000  /* MICDET_THR - [14:12]
+                                                         * */
+#define WM8962_MICDET_THR_SHIFT                     12  /* MICDET_THR - [14:12]
+                                                         * */
+#define WM8962_MICDET_THR_WIDTH                      3  /* MICDET_THR - [14:12]
+                                                         * */
+#define WM8962_MICSHORT_THR_MASK                0x0C00  /* MICSHORT_THR -
+                                                         * [11:10] */
+#define WM8962_MICSHORT_THR_SHIFT                   10  /* MICSHORT_THR -
+                                                         * [11:10] */
+#define WM8962_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR -
+                                                         * [11:10] */
 #define WM8962_MICDET_ENA                       0x0200  /* MICDET_ENA */
 #define WM8962_MICDET_ENA_MASK                  0x0200  /* MICDET_ENA */
 #define WM8962_MICDET_ENA_SHIFT                      9  /* MICDET_ENA */
@@ -1978,9 +2069,12 @@
 /*
  * R56 (0x38) - Clocking 4
  */
-#define WM8962_SYSCLK_RATE_MASK                 0x001E  /* SYSCLK_RATE - [4:1] */
-#define WM8962_SYSCLK_RATE_SHIFT                     1  /* SYSCLK_RATE - [4:1] */
-#define WM8962_SYSCLK_RATE_WIDTH                     4  /* SYSCLK_RATE - [4:1] */
+#define WM8962_SYSCLK_RATE_MASK                 0x001E  /* SYSCLK_RATE - [4:1]
+                                                         * */
+#define WM8962_SYSCLK_RATE_SHIFT                     1  /* SYSCLK_RATE - [4:1]
+                                                         * */
+#define WM8962_SYSCLK_RATE_WIDTH                     4  /* SYSCLK_RATE - [4:1]
+                                                         * */
 
 /*
  * R57 (0x39) - DAC DSP Mixing (1)
@@ -1989,22 +2083,34 @@
 #define WM8962_DAC_MONOMIX_MASK                 0x0200  /* DAC_MONOMIX */
 #define WM8962_DAC_MONOMIX_SHIFT                     9  /* DAC_MONOMIX */
 #define WM8962_DAC_MONOMIX_WIDTH                     1  /* DAC_MONOMIX */
-#define WM8962_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8962_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8962_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8962_ADC_TO_DACR_MASK                 0x000C  /* ADC_TO_DACR - [3:2] */
-#define WM8962_ADC_TO_DACR_SHIFT                     2  /* ADC_TO_DACR - [3:2] */
-#define WM8962_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [3:2] */
+#define WM8962_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8962_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8962_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8962_ADC_TO_DACR_MASK                 0x000C  /* ADC_TO_DACR - [3:2]
+                                                         * */
+#define WM8962_ADC_TO_DACR_SHIFT                     2  /* ADC_TO_DACR - [3:2]
+                                                         * */
+#define WM8962_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [3:2]
+                                                         * */
 
 /*
  * R58 (0x3A) - DAC DSP Mixing (2)
  */
-#define WM8962_ADCL_DAC_SVOL_MASK               0x00F0  /* ADCL_DAC_SVOL - [7:4] */
-#define WM8962_ADCL_DAC_SVOL_SHIFT                   4  /* ADCL_DAC_SVOL - [7:4] */
-#define WM8962_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [7:4] */
-#define WM8962_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2] */
-#define WM8962_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8962_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2] */
+#define WM8962_ADCL_DAC_SVOL_MASK               0x00F0  /* ADCL_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8962_ADCL_DAC_SVOL_SHIFT                   4  /* ADCL_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8962_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8962_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8962_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8962_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
 
 /*
  * R60 (0x3C) - DC Servo 0
@@ -2057,36 +2163,58 @@
 /*
  * R64 (0x40) - DC Servo 4
  */
-#define WM8962_HP1_DCS_SYNC_STEPS_MASK          0x3F80  /* HP1_DCS_SYNC_STEPS - [13:7] */
-#define WM8962_HP1_DCS_SYNC_STEPS_SHIFT              7  /* HP1_DCS_SYNC_STEPS - [13:7] */
-#define WM8962_HP1_DCS_SYNC_STEPS_WIDTH              7  /* HP1_DCS_SYNC_STEPS - [13:7] */
+#define WM8962_HP1_DCS_SYNC_STEPS_MASK          0x3F80  /* HP1_DCS_SYNC_STEPS -
+                                                         * [13:7] */
+#define WM8962_HP1_DCS_SYNC_STEPS_SHIFT              7  /* HP1_DCS_SYNC_STEPS -
+                                                         * [13:7] */
+#define WM8962_HP1_DCS_SYNC_STEPS_WIDTH              7  /* HP1_DCS_SYNC_STEPS -
+                                                         * [13:7] */
 
 /*
  * R66 (0x42) - DC Servo 6
  */
-#define WM8962_DCS_STARTUP_DONE_INL             0x0400  /* DCS_STARTUP_DONE_INL */
-#define WM8962_DCS_STARTUP_DONE_INL_MASK        0x0400  /* DCS_STARTUP_DONE_INL */
-#define WM8962_DCS_STARTUP_DONE_INL_SHIFT           10  /* DCS_STARTUP_DONE_INL */
-#define WM8962_DCS_STARTUP_DONE_INL_WIDTH            1  /* DCS_STARTUP_DONE_INL */
-#define WM8962_DCS_STARTUP_DONE_INR             0x0200  /* DCS_STARTUP_DONE_INR */
-#define WM8962_DCS_STARTUP_DONE_INR_MASK        0x0200  /* DCS_STARTUP_DONE_INR */
-#define WM8962_DCS_STARTUP_DONE_INR_SHIFT            9  /* DCS_STARTUP_DONE_INR */
-#define WM8962_DCS_STARTUP_DONE_INR_WIDTH            1  /* DCS_STARTUP_DONE_INR */
-#define WM8962_DCS_STARTUP_DONE_HP1L            0x0100  /* DCS_STARTUP_DONE_HP1L */
-#define WM8962_DCS_STARTUP_DONE_HP1L_MASK       0x0100  /* DCS_STARTUP_DONE_HP1L */
-#define WM8962_DCS_STARTUP_DONE_HP1L_SHIFT           8  /* DCS_STARTUP_DONE_HP1L */
-#define WM8962_DCS_STARTUP_DONE_HP1L_WIDTH           1  /* DCS_STARTUP_DONE_HP1L */
-#define WM8962_DCS_STARTUP_DONE_HP1R            0x0080  /* DCS_STARTUP_DONE_HP1R */
-#define WM8962_DCS_STARTUP_DONE_HP1R_MASK       0x0080  /* DCS_STARTUP_DONE_HP1R */
-#define WM8962_DCS_STARTUP_DONE_HP1R_SHIFT           7  /* DCS_STARTUP_DONE_HP1R */
-#define WM8962_DCS_STARTUP_DONE_HP1R_WIDTH           1  /* DCS_STARTUP_DONE_HP1R */
+#define WM8962_DCS_STARTUP_DONE_INL             0x0400  /* DCS_STARTUP_DONE_INL
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INL_MASK        0x0400  /* DCS_STARTUP_DONE_INL
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INL_SHIFT           10  /* DCS_STARTUP_DONE_INL
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INL_WIDTH            1  /* DCS_STARTUP_DONE_INL
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INR             0x0200  /* DCS_STARTUP_DONE_INR
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INR_MASK        0x0200  /* DCS_STARTUP_DONE_INR
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INR_SHIFT            9  /* DCS_STARTUP_DONE_INR
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_INR_WIDTH            1  /* DCS_STARTUP_DONE_INR
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1L            0x0100  /* DCS_STARTUP_DONE_HP1L
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1L_MASK       0x0100  /* DCS_STARTUP_DONE_HP1L
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1L_SHIFT           8  /* DCS_STARTUP_DONE_HP1L
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1L_WIDTH           1  /* DCS_STARTUP_DONE_HP1L
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1R            0x0080  /* DCS_STARTUP_DONE_HP1R
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1R_MASK       0x0080  /* DCS_STARTUP_DONE_HP1R
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1R_SHIFT           7  /* DCS_STARTUP_DONE_HP1R
+                                                         * */
+#define WM8962_DCS_STARTUP_DONE_HP1R_WIDTH           1  /* DCS_STARTUP_DONE_HP1R
+                                                         * */
 
 /*
  * R68 (0x44) - Analogue PGA Bias
  */
-#define WM8962_HP_PGAS_BIAS_MASK                0x0007  /* HP_PGAS_BIAS - [2:0] */
-#define WM8962_HP_PGAS_BIAS_SHIFT                    0  /* HP_PGAS_BIAS - [2:0] */
-#define WM8962_HP_PGAS_BIAS_WIDTH                    3  /* HP_PGAS_BIAS - [2:0] */
+#define WM8962_HP_PGAS_BIAS_MASK                0x0007  /* HP_PGAS_BIAS - [2:0]
+                                                         * */
+#define WM8962_HP_PGAS_BIAS_SHIFT                    0  /* HP_PGAS_BIAS - [2:0]
+                                                         * */
+#define WM8962_HP_PGAS_BIAS_WIDTH                    3  /* HP_PGAS_BIAS - [2:0]
+                                                         * */
 
 /*
  * R69 (0x45) - Analogue HP 0
@@ -2133,9 +2261,12 @@
 #define WM8962_HP1R_VOL_MASK                    0x0038  /* HP1R_VOL - [5:3] */
 #define WM8962_HP1R_VOL_SHIFT                        3  /* HP1R_VOL - [5:3] */
 #define WM8962_HP1R_VOL_WIDTH                        3  /* HP1R_VOL - [5:3] */
-#define WM8962_HP_BIAS_BOOST_MASK               0x0007  /* HP_BIAS_BOOST - [2:0] */
-#define WM8962_HP_BIAS_BOOST_SHIFT                   0  /* HP_BIAS_BOOST - [2:0] */
-#define WM8962_HP_BIAS_BOOST_WIDTH                   3  /* HP_BIAS_BOOST - [2:0] */
+#define WM8962_HP_BIAS_BOOST_MASK               0x0007  /* HP_BIAS_BOOST - [2:0]
+                                                         * */
+#define WM8962_HP_BIAS_BOOST_SHIFT                   0  /* HP_BIAS_BOOST - [2:0]
+                                                         * */
+#define WM8962_HP_BIAS_BOOST_WIDTH                   3  /* HP_BIAS_BOOST - [2:0]
+                                                         * */
 
 /*
  * R72 (0x48) - Charge Pump 1
@@ -2176,16 +2307,22 @@
 #define WM8962_WSEQ_START_MASK                  0x0080  /* WSEQ_START */
 #define WM8962_WSEQ_START_SHIFT                      7  /* WSEQ_START */
 #define WM8962_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM8962_WSEQ_START_INDEX_MASK            0x007F  /* WSEQ_START_INDEX - [6:0] */
-#define WM8962_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [6:0] */
-#define WM8962_WSEQ_START_INDEX_WIDTH                7  /* WSEQ_START_INDEX - [6:0] */
+#define WM8962_WSEQ_START_INDEX_MASK            0x007F  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
+#define WM8962_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
+#define WM8962_WSEQ_START_INDEX_WIDTH                7  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
 
 /*
  * R93 (0x5D) - Write Sequencer Control 3
  */
-#define WM8962_WSEQ_CURRENT_INDEX_MASK          0x03F8  /* WSEQ_CURRENT_INDEX - [9:3] */
-#define WM8962_WSEQ_CURRENT_INDEX_SHIFT              3  /* WSEQ_CURRENT_INDEX - [9:3] */
-#define WM8962_WSEQ_CURRENT_INDEX_WIDTH              7  /* WSEQ_CURRENT_INDEX - [9:3] */
+#define WM8962_WSEQ_CURRENT_INDEX_MASK          0x03F8  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:3] */
+#define WM8962_WSEQ_CURRENT_INDEX_SHIFT              3  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:3] */
+#define WM8962_WSEQ_CURRENT_INDEX_WIDTH              7  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:3] */
 #define WM8962_WSEQ_BUSY                        0x0001  /* WSEQ_BUSY */
 #define WM8962_WSEQ_BUSY_MASK                   0x0001  /* WSEQ_BUSY */
 #define WM8962_WSEQ_BUSY_SHIFT                       0  /* WSEQ_BUSY */
@@ -2230,10 +2367,14 @@
 /*
  * R100 (0x64) - Headphone Mixer (1)
  */
-#define WM8962_HPMIXL_TO_HPOUTL_PGA             0x0080  /* HPMIXL_TO_HPOUTL_PGA */
-#define WM8962_HPMIXL_TO_HPOUTL_PGA_MASK        0x0080  /* HPMIXL_TO_HPOUTL_PGA */
-#define WM8962_HPMIXL_TO_HPOUTL_PGA_SHIFT            7  /* HPMIXL_TO_HPOUTL_PGA */
-#define WM8962_HPMIXL_TO_HPOUTL_PGA_WIDTH            1  /* HPMIXL_TO_HPOUTL_PGA */
+#define WM8962_HPMIXL_TO_HPOUTL_PGA             0x0080  /* HPMIXL_TO_HPOUTL_PGA
+                                                         * */
+#define WM8962_HPMIXL_TO_HPOUTL_PGA_MASK        0x0080  /* HPMIXL_TO_HPOUTL_PGA
+                                                         * */
+#define WM8962_HPMIXL_TO_HPOUTL_PGA_SHIFT            7  /* HPMIXL_TO_HPOUTL_PGA
+                                                         * */
+#define WM8962_HPMIXL_TO_HPOUTL_PGA_WIDTH            1  /* HPMIXL_TO_HPOUTL_PGA
+                                                         * */
 #define WM8962_DACL_TO_HPMIXL                   0x0020  /* DACL_TO_HPMIXL */
 #define WM8962_DACL_TO_HPMIXL_MASK              0x0020  /* DACL_TO_HPMIXL */
 #define WM8962_DACL_TO_HPMIXL_SHIFT                  5  /* DACL_TO_HPMIXL */
@@ -2262,10 +2403,14 @@
 /*
  * R101 (0x65) - Headphone Mixer (2)
  */
-#define WM8962_HPMIXR_TO_HPOUTR_PGA             0x0080  /* HPMIXR_TO_HPOUTR_PGA */
-#define WM8962_HPMIXR_TO_HPOUTR_PGA_MASK        0x0080  /* HPMIXR_TO_HPOUTR_PGA */
-#define WM8962_HPMIXR_TO_HPOUTR_PGA_SHIFT            7  /* HPMIXR_TO_HPOUTR_PGA */
-#define WM8962_HPMIXR_TO_HPOUTR_PGA_WIDTH            1  /* HPMIXR_TO_HPOUTR_PGA */
+#define WM8962_HPMIXR_TO_HPOUTR_PGA             0x0080  /* HPMIXR_TO_HPOUTR_PGA
+                                                         * */
+#define WM8962_HPMIXR_TO_HPOUTR_PGA_MASK        0x0080  /* HPMIXR_TO_HPOUTR_PGA
+                                                         * */
+#define WM8962_HPMIXR_TO_HPOUTR_PGA_SHIFT            7  /* HPMIXR_TO_HPOUTR_PGA
+                                                         * */
+#define WM8962_HPMIXR_TO_HPOUTR_PGA_WIDTH            1  /* HPMIXR_TO_HPOUTR_PGA
+                                                         * */
 #define WM8962_DACL_TO_HPMIXR                   0x0020  /* DACL_TO_HPMIXR */
 #define WM8962_DACL_TO_HPMIXR_MASK              0x0020  /* DACL_TO_HPMIXR */
 #define WM8962_DACL_TO_HPMIXR_SHIFT                  5  /* DACL_TO_HPMIXR */
@@ -2306,12 +2451,18 @@
 #define WM8962_MIXINR_HPMIXL_VOL_MASK           0x0040  /* MIXINR_HPMIXL_VOL */
 #define WM8962_MIXINR_HPMIXL_VOL_SHIFT               6  /* MIXINR_HPMIXL_VOL */
 #define WM8962_MIXINR_HPMIXL_VOL_WIDTH               1  /* MIXINR_HPMIXL_VOL */
-#define WM8962_IN4L_HPMIXL_VOL_MASK             0x0038  /* IN4L_HPMIXL_VOL - [5:3] */
-#define WM8962_IN4L_HPMIXL_VOL_SHIFT                 3  /* IN4L_HPMIXL_VOL - [5:3] */
-#define WM8962_IN4L_HPMIXL_VOL_WIDTH                 3  /* IN4L_HPMIXL_VOL - [5:3] */
-#define WM8962_IN4R_HPMIXL_VOL_MASK             0x0007  /* IN4R_HPMIXL_VOL - [2:0] */
-#define WM8962_IN4R_HPMIXL_VOL_SHIFT                 0  /* IN4R_HPMIXL_VOL - [2:0] */
-#define WM8962_IN4R_HPMIXL_VOL_WIDTH                 3  /* IN4R_HPMIXL_VOL - [2:0] */
+#define WM8962_IN4L_HPMIXL_VOL_MASK             0x0038  /* IN4L_HPMIXL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_HPMIXL_VOL_SHIFT                 3  /* IN4L_HPMIXL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_HPMIXL_VOL_WIDTH                 3  /* IN4L_HPMIXL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4R_HPMIXL_VOL_MASK             0x0007  /* IN4R_HPMIXL_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_HPMIXL_VOL_SHIFT                 0  /* IN4R_HPMIXL_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_HPMIXL_VOL_WIDTH                 3  /* IN4R_HPMIXL_VOL -
+                                                         * [2:0] */
 
 /*
  * R103 (0x67) - Headphone Mixer (4)
@@ -2328,20 +2479,34 @@
 #define WM8962_MIXINR_HPMIXR_VOL_MASK           0x0040  /* MIXINR_HPMIXR_VOL */
 #define WM8962_MIXINR_HPMIXR_VOL_SHIFT               6  /* MIXINR_HPMIXR_VOL */
 #define WM8962_MIXINR_HPMIXR_VOL_WIDTH               1  /* MIXINR_HPMIXR_VOL */
-#define WM8962_IN4L_HPMIXR_VOL_MASK             0x0038  /* IN4L_HPMIXR_VOL - [5:3] */
-#define WM8962_IN4L_HPMIXR_VOL_SHIFT                 3  /* IN4L_HPMIXR_VOL - [5:3] */
-#define WM8962_IN4L_HPMIXR_VOL_WIDTH                 3  /* IN4L_HPMIXR_VOL - [5:3] */
-#define WM8962_IN4R_HPMIXR_VOL_MASK             0x0007  /* IN4R_HPMIXR_VOL - [2:0] */
-#define WM8962_IN4R_HPMIXR_VOL_SHIFT                 0  /* IN4R_HPMIXR_VOL - [2:0] */
-#define WM8962_IN4R_HPMIXR_VOL_WIDTH                 3  /* IN4R_HPMIXR_VOL - [2:0] */
+#define WM8962_IN4L_HPMIXR_VOL_MASK             0x0038  /* IN4L_HPMIXR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_HPMIXR_VOL_SHIFT                 3  /* IN4L_HPMIXR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_HPMIXR_VOL_WIDTH                 3  /* IN4L_HPMIXR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4R_HPMIXR_VOL_MASK             0x0007  /* IN4R_HPMIXR_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_HPMIXR_VOL_SHIFT                 0  /* IN4R_HPMIXR_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_HPMIXR_VOL_WIDTH                 3  /* IN4R_HPMIXR_VOL -
+                                                         * [2:0] */
 
 /*
  * R105 (0x69) - Speaker Mixer (1)
  */
-#define WM8962_SPKMIXL_TO_SPKOUTL_PGA           0x0080  /* SPKMIXL_TO_SPKOUTL_PGA */
-#define WM8962_SPKMIXL_TO_SPKOUTL_PGA_MASK      0x0080  /* SPKMIXL_TO_SPKOUTL_PGA */
-#define WM8962_SPKMIXL_TO_SPKOUTL_PGA_SHIFT          7  /* SPKMIXL_TO_SPKOUTL_PGA */
-#define WM8962_SPKMIXL_TO_SPKOUTL_PGA_WIDTH          1  /* SPKMIXL_TO_SPKOUTL_PGA */
+#define WM8962_SPKMIXL_TO_SPKOUTL_PGA           0x0080  /*
+                                                         * SPKMIXL_TO_SPKOUTL_PGA
+                                                         * */
+#define WM8962_SPKMIXL_TO_SPKOUTL_PGA_MASK      0x0080  /*
+                                                         * SPKMIXL_TO_SPKOUTL_PGA
+                                                         * */
+#define WM8962_SPKMIXL_TO_SPKOUTL_PGA_SHIFT          7  /*
+                                                         * SPKMIXL_TO_SPKOUTL_PGA
+                                                         * */
+#define WM8962_SPKMIXL_TO_SPKOUTL_PGA_WIDTH          1  /*
+                                                         * SPKMIXL_TO_SPKOUTL_PGA
+                                                         * */
 #define WM8962_DACL_TO_SPKMIXL                  0x0020  /* DACL_TO_SPKMIXL */
 #define WM8962_DACL_TO_SPKMIXL_MASK             0x0020  /* DACL_TO_SPKMIXL */
 #define WM8962_DACL_TO_SPKMIXL_SHIFT                 5  /* DACL_TO_SPKMIXL */
@@ -2370,10 +2535,18 @@
 /*
  * R106 (0x6A) - Speaker Mixer (2)
  */
-#define WM8962_SPKMIXR_TO_SPKOUTR_PGA           0x0080  /* SPKMIXR_TO_SPKOUTR_PGA */
-#define WM8962_SPKMIXR_TO_SPKOUTR_PGA_MASK      0x0080  /* SPKMIXR_TO_SPKOUTR_PGA */
-#define WM8962_SPKMIXR_TO_SPKOUTR_PGA_SHIFT          7  /* SPKMIXR_TO_SPKOUTR_PGA */
-#define WM8962_SPKMIXR_TO_SPKOUTR_PGA_WIDTH          1  /* SPKMIXR_TO_SPKOUTR_PGA */
+#define WM8962_SPKMIXR_TO_SPKOUTR_PGA           0x0080  /*
+                                                         * SPKMIXR_TO_SPKOUTR_PGA
+                                                         * */
+#define WM8962_SPKMIXR_TO_SPKOUTR_PGA_MASK      0x0080  /*
+                                                         * SPKMIXR_TO_SPKOUTR_PGA
+                                                         * */
+#define WM8962_SPKMIXR_TO_SPKOUTR_PGA_SHIFT          7  /*
+                                                         * SPKMIXR_TO_SPKOUTR_PGA
+                                                         * */
+#define WM8962_SPKMIXR_TO_SPKOUTR_PGA_WIDTH          1  /*
+                                                         * SPKMIXR_TO_SPKOUTR_PGA
+                                                         * */
 #define WM8962_DACL_TO_SPKMIXR                  0x0020  /* DACL_TO_SPKMIXR */
 #define WM8962_DACL_TO_SPKMIXR_MASK             0x0020  /* DACL_TO_SPKMIXR */
 #define WM8962_DACL_TO_SPKMIXR_SHIFT                 5  /* DACL_TO_SPKMIXR */
@@ -2414,12 +2587,18 @@
 #define WM8962_MIXINR_SPKMIXL_VOL_MASK          0x0040  /* MIXINR_SPKMIXL_VOL */
 #define WM8962_MIXINR_SPKMIXL_VOL_SHIFT              6  /* MIXINR_SPKMIXL_VOL */
 #define WM8962_MIXINR_SPKMIXL_VOL_WIDTH              1  /* MIXINR_SPKMIXL_VOL */
-#define WM8962_IN4L_SPKMIXL_VOL_MASK            0x0038  /* IN4L_SPKMIXL_VOL - [5:3] */
-#define WM8962_IN4L_SPKMIXL_VOL_SHIFT                3  /* IN4L_SPKMIXL_VOL - [5:3] */
-#define WM8962_IN4L_SPKMIXL_VOL_WIDTH                3  /* IN4L_SPKMIXL_VOL - [5:3] */
-#define WM8962_IN4R_SPKMIXL_VOL_MASK            0x0007  /* IN4R_SPKMIXL_VOL - [2:0] */
-#define WM8962_IN4R_SPKMIXL_VOL_SHIFT                0  /* IN4R_SPKMIXL_VOL - [2:0] */
-#define WM8962_IN4R_SPKMIXL_VOL_WIDTH                3  /* IN4R_SPKMIXL_VOL - [2:0] */
+#define WM8962_IN4L_SPKMIXL_VOL_MASK            0x0038  /* IN4L_SPKMIXL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_SPKMIXL_VOL_SHIFT                3  /* IN4L_SPKMIXL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_SPKMIXL_VOL_WIDTH                3  /* IN4L_SPKMIXL_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4R_SPKMIXL_VOL_MASK            0x0007  /* IN4R_SPKMIXL_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_SPKMIXL_VOL_SHIFT                0  /* IN4R_SPKMIXL_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_SPKMIXL_VOL_WIDTH                3  /* IN4R_SPKMIXL_VOL -
+                                                         * [2:0] */
 
 /*
  * R108 (0x6C) - Speaker Mixer (4)
@@ -2436,12 +2615,18 @@
 #define WM8962_MIXINR_SPKMIXR_VOL_MASK          0x0040  /* MIXINR_SPKMIXR_VOL */
 #define WM8962_MIXINR_SPKMIXR_VOL_SHIFT              6  /* MIXINR_SPKMIXR_VOL */
 #define WM8962_MIXINR_SPKMIXR_VOL_WIDTH              1  /* MIXINR_SPKMIXR_VOL */
-#define WM8962_IN4L_SPKMIXR_VOL_MASK            0x0038  /* IN4L_SPKMIXR_VOL - [5:3] */
-#define WM8962_IN4L_SPKMIXR_VOL_SHIFT                3  /* IN4L_SPKMIXR_VOL - [5:3] */
-#define WM8962_IN4L_SPKMIXR_VOL_WIDTH                3  /* IN4L_SPKMIXR_VOL - [5:3] */
-#define WM8962_IN4R_SPKMIXR_VOL_MASK            0x0007  /* IN4R_SPKMIXR_VOL - [2:0] */
-#define WM8962_IN4R_SPKMIXR_VOL_SHIFT                0  /* IN4R_SPKMIXR_VOL - [2:0] */
-#define WM8962_IN4R_SPKMIXR_VOL_WIDTH                3  /* IN4R_SPKMIXR_VOL - [2:0] */
+#define WM8962_IN4L_SPKMIXR_VOL_MASK            0x0038  /* IN4L_SPKMIXR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_SPKMIXR_VOL_SHIFT                3  /* IN4L_SPKMIXR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4L_SPKMIXR_VOL_WIDTH                3  /* IN4L_SPKMIXR_VOL -
+                                                         * [5:3] */
+#define WM8962_IN4R_SPKMIXR_VOL_MASK            0x0007  /* IN4R_SPKMIXR_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_SPKMIXR_VOL_SHIFT                0  /* IN4R_SPKMIXR_VOL -
+                                                         * [2:0] */
+#define WM8962_IN4R_SPKMIXR_VOL_WIDTH                3  /* IN4R_SPKMIXR_VOL -
+                                                         * [2:0] */
 
 /*
  * R109 (0x6D) - Speaker Mixer (5)
@@ -2480,36 +2665,54 @@
 /*
  * R115 (0x73) - Oscillator Trim (3)
  */
-#define WM8962_OSC_TRIM_XTI_MASK                0x001F  /* OSC_TRIM_XTI - [4:0] */
-#define WM8962_OSC_TRIM_XTI_SHIFT                    0  /* OSC_TRIM_XTI - [4:0] */
-#define WM8962_OSC_TRIM_XTI_WIDTH                    5  /* OSC_TRIM_XTI - [4:0] */
+#define WM8962_OSC_TRIM_XTI_MASK                0x001F  /* OSC_TRIM_XTI - [4:0]
+                                                         * */
+#define WM8962_OSC_TRIM_XTI_SHIFT                    0  /* OSC_TRIM_XTI - [4:0]
+                                                         * */
+#define WM8962_OSC_TRIM_XTI_WIDTH                    5  /* OSC_TRIM_XTI - [4:0]
+                                                         * */
 
 /*
  * R116 (0x74) - Oscillator Trim (4)
  */
-#define WM8962_OSC_TRIM_XTO_MASK                0x001F  /* OSC_TRIM_XTO - [4:0] */
-#define WM8962_OSC_TRIM_XTO_SHIFT                    0  /* OSC_TRIM_XTO - [4:0] */
-#define WM8962_OSC_TRIM_XTO_WIDTH                    5  /* OSC_TRIM_XTO - [4:0] */
+#define WM8962_OSC_TRIM_XTO_MASK                0x001F  /* OSC_TRIM_XTO - [4:0]
+                                                         * */
+#define WM8962_OSC_TRIM_XTO_SHIFT                    0  /* OSC_TRIM_XTO - [4:0]
+                                                         * */
+#define WM8962_OSC_TRIM_XTO_WIDTH                    5  /* OSC_TRIM_XTO - [4:0]
+                                                         * */
 
 /*
  * R119 (0x77) - Oscillator Trim (7)
  */
-#define WM8962_XTO_CAP_SEL_MASK                 0x00F0  /* XTO_CAP_SEL - [7:4] */
-#define WM8962_XTO_CAP_SEL_SHIFT                     4  /* XTO_CAP_SEL - [7:4] */
-#define WM8962_XTO_CAP_SEL_WIDTH                     4  /* XTO_CAP_SEL - [7:4] */
-#define WM8962_XTI_CAP_SEL_MASK                 0x000F  /* XTI_CAP_SEL - [3:0] */
-#define WM8962_XTI_CAP_SEL_SHIFT                     0  /* XTI_CAP_SEL - [3:0] */
-#define WM8962_XTI_CAP_SEL_WIDTH                     4  /* XTI_CAP_SEL - [3:0] */
+#define WM8962_XTO_CAP_SEL_MASK                 0x00F0  /* XTO_CAP_SEL - [7:4]
+                                                         * */
+#define WM8962_XTO_CAP_SEL_SHIFT                     4  /* XTO_CAP_SEL - [7:4]
+                                                         * */
+#define WM8962_XTO_CAP_SEL_WIDTH                     4  /* XTO_CAP_SEL - [7:4]
+                                                         * */
+#define WM8962_XTI_CAP_SEL_MASK                 0x000F  /* XTI_CAP_SEL - [3:0]
+                                                         * */
+#define WM8962_XTI_CAP_SEL_SHIFT                     0  /* XTI_CAP_SEL - [3:0]
+                                                         * */
+#define WM8962_XTI_CAP_SEL_WIDTH                     4  /* XTI_CAP_SEL - [3:0]
+                                                         * */
 
 /*
  * R124 (0x7C) - Analogue Clocking1
  */
-#define WM8962_CLKOUT2_SEL_MASK                 0x0060  /* CLKOUT2_SEL - [6:5] */
-#define WM8962_CLKOUT2_SEL_SHIFT                     5  /* CLKOUT2_SEL - [6:5] */
-#define WM8962_CLKOUT2_SEL_WIDTH                     2  /* CLKOUT2_SEL - [6:5] */
-#define WM8962_CLKOUT3_SEL_MASK                 0x0018  /* CLKOUT3_SEL - [4:3] */
-#define WM8962_CLKOUT3_SEL_SHIFT                     3  /* CLKOUT3_SEL - [4:3] */
-#define WM8962_CLKOUT3_SEL_WIDTH                     2  /* CLKOUT3_SEL - [4:3] */
+#define WM8962_CLKOUT2_SEL_MASK                 0x0060  /* CLKOUT2_SEL - [6:5]
+                                                         * */
+#define WM8962_CLKOUT2_SEL_SHIFT                     5  /* CLKOUT2_SEL - [6:5]
+                                                         * */
+#define WM8962_CLKOUT2_SEL_WIDTH                     2  /* CLKOUT2_SEL - [6:5]
+                                                         * */
+#define WM8962_CLKOUT3_SEL_MASK                 0x0018  /* CLKOUT3_SEL - [4:3]
+                                                         * */
+#define WM8962_CLKOUT3_SEL_SHIFT                     3  /* CLKOUT3_SEL - [4:3]
+                                                         * */
+#define WM8962_CLKOUT3_SEL_WIDTH                     2  /* CLKOUT3_SEL - [4:3]
+                                                         * */
 #define WM8962_CLKOUT5_SEL                      0x0001  /* CLKOUT5_SEL */
 #define WM8962_CLKOUT5_SEL_MASK                 0x0001  /* CLKOUT5_SEL */
 #define WM8962_CLKOUT5_SEL_SHIFT                     0  /* CLKOUT5_SEL */
@@ -2526,9 +2729,12 @@
 #define WM8962_PLL3_OUTDIV_MASK                 0x0040  /* PLL3_OUTDIV */
 #define WM8962_PLL3_OUTDIV_SHIFT                     6  /* PLL3_OUTDIV */
 #define WM8962_PLL3_OUTDIV_WIDTH                     1  /* PLL3_OUTDIV */
-#define WM8962_PLL_SYSCLK_DIV_MASK              0x0018  /* PLL_SYSCLK_DIV - [4:3] */
-#define WM8962_PLL_SYSCLK_DIV_SHIFT                  3  /* PLL_SYSCLK_DIV - [4:3] */
-#define WM8962_PLL_SYSCLK_DIV_WIDTH                  2  /* PLL_SYSCLK_DIV - [4:3] */
+#define WM8962_PLL_SYSCLK_DIV_MASK              0x0018  /* PLL_SYSCLK_DIV -
+                                                         * [4:3] */
+#define WM8962_PLL_SYSCLK_DIV_SHIFT                  3  /* PLL_SYSCLK_DIV -
+                                                         * [4:3] */
+#define WM8962_PLL_SYSCLK_DIV_WIDTH                  2  /* PLL_SYSCLK_DIV -
+                                                         * [4:3] */
 #define WM8962_CLKOUT3_DIV                      0x0004  /* CLKOUT3_DIV */
 #define WM8962_CLKOUT3_DIV_MASK                 0x0004  /* CLKOUT3_DIV */
 #define WM8962_CLKOUT3_DIV_SHIFT                     2  /* CLKOUT3_DIV */
@@ -2561,9 +2767,12 @@
 /*
  * R127 (0x7F) - PLL Software Reset
  */
-#define WM8962_SW_RESET_PLL_MASK                0xFFFF  /* SW_RESET_PLL - [15:0] */
-#define WM8962_SW_RESET_PLL_SHIFT                    0  /* SW_RESET_PLL - [15:0] */
-#define WM8962_SW_RESET_PLL_WIDTH                   16  /* SW_RESET_PLL - [15:0] */
+#define WM8962_SW_RESET_PLL_MASK                0xFFFF  /* SW_RESET_PLL - [15:0]
+                                                         * */
+#define WM8962_SW_RESET_PLL_SHIFT                    0  /* SW_RESET_PLL - [15:0]
+                                                         * */
+#define WM8962_SW_RESET_PLL_WIDTH                   16  /* SW_RESET_PLL - [15:0]
+                                                         * */
 
 /*
  * R129 (0x81) - PLL2
@@ -2660,9 +2869,12 @@
 /*
  * R155 (0x9B) - FLL Control (1)
  */
-#define WM8962_FLL_REFCLK_SRC_MASK              0x0060  /* FLL_REFCLK_SRC - [6:5] */
-#define WM8962_FLL_REFCLK_SRC_SHIFT                  5  /* FLL_REFCLK_SRC - [6:5] */
-#define WM8962_FLL_REFCLK_SRC_WIDTH                  2  /* FLL_REFCLK_SRC - [6:5] */
+#define WM8962_FLL_REFCLK_SRC_MASK              0x0060  /* FLL_REFCLK_SRC -
+                                                         * [6:5] */
+#define WM8962_FLL_REFCLK_SRC_SHIFT                  5  /* FLL_REFCLK_SRC -
+                                                         * [6:5] */
+#define WM8962_FLL_REFCLK_SRC_WIDTH                  2  /* FLL_REFCLK_SRC -
+                                                         * [6:5] */
 #define WM8962_FLL_FRAC                         0x0004  /* FLL_FRAC */
 #define WM8962_FLL_FRAC_MASK                    0x0004  /* FLL_FRAC */
 #define WM8962_FLL_FRAC_SHIFT                        2  /* FLL_FRAC */
@@ -2682,9 +2894,12 @@
 #define WM8962_FLL_OUTDIV_MASK                  0x01F8  /* FLL_OUTDIV - [8:3] */
 #define WM8962_FLL_OUTDIV_SHIFT                      3  /* FLL_OUTDIV - [8:3] */
 #define WM8962_FLL_OUTDIV_WIDTH                      6  /* FLL_OUTDIV - [8:3] */
-#define WM8962_FLL_REFCLK_DIV_MASK              0x0003  /* FLL_REFCLK_DIV - [1:0] */
-#define WM8962_FLL_REFCLK_DIV_SHIFT                  0  /* FLL_REFCLK_DIV - [1:0] */
-#define WM8962_FLL_REFCLK_DIV_WIDTH                  2  /* FLL_REFCLK_DIV - [1:0] */
+#define WM8962_FLL_REFCLK_DIV_MASK              0x0003  /* FLL_REFCLK_DIV -
+                                                         * [1:0] */
+#define WM8962_FLL_REFCLK_DIV_SHIFT                  0  /* FLL_REFCLK_DIV -
+                                                         * [1:0] */
+#define WM8962_FLL_REFCLK_DIV_WIDTH                  2  /* FLL_REFCLK_DIV -
+                                                         * [1:0] */
 
 /*
  * R157 (0x9D) - FLL Control (3)
@@ -2696,9 +2911,12 @@
 /*
  * R159 (0x9F) - FLL Control (5)
  */
-#define WM8962_FLL_FRC_NCO_VAL_MASK             0x007E  /* FLL_FRC_NCO_VAL - [6:1] */
-#define WM8962_FLL_FRC_NCO_VAL_SHIFT                 1  /* FLL_FRC_NCO_VAL - [6:1] */
-#define WM8962_FLL_FRC_NCO_VAL_WIDTH                 6  /* FLL_FRC_NCO_VAL - [6:1] */
+#define WM8962_FLL_FRC_NCO_VAL_MASK             0x007E  /* FLL_FRC_NCO_VAL -
+                                                         * [6:1] */
+#define WM8962_FLL_FRC_NCO_VAL_SHIFT                 1  /* FLL_FRC_NCO_VAL -
+                                                         * [6:1] */
+#define WM8962_FLL_FRC_NCO_VAL_WIDTH                 6  /* FLL_FRC_NCO_VAL -
+                                                         * [6:1] */
 #define WM8962_FLL_FRC_NCO                      0x0001  /* FLL_FRC_NCO */
 #define WM8962_FLL_FRC_NCO_MASK                 0x0001  /* FLL_FRC_NCO */
 #define WM8962_FLL_FRC_NCO_SHIFT                     0  /* FLL_FRC_NCO */
@@ -2714,9 +2932,12 @@
 /*
  * R161 (0xA1) - FLL Control (7)
  */
-#define WM8962_FLL_LAMBDA_MASK                  0xFFFF  /* FLL_LAMBDA - [15:0] */
-#define WM8962_FLL_LAMBDA_SHIFT                      0  /* FLL_LAMBDA - [15:0] */
-#define WM8962_FLL_LAMBDA_WIDTH                     16  /* FLL_LAMBDA - [15:0] */
+#define WM8962_FLL_LAMBDA_MASK                  0xFFFF  /* FLL_LAMBDA - [15:0]
+                                                         * */
+#define WM8962_FLL_LAMBDA_SHIFT                      0  /* FLL_LAMBDA - [15:0]
+                                                         * */
+#define WM8962_FLL_LAMBDA_WIDTH                     16  /* FLL_LAMBDA - [15:0]
+                                                         * */
 
 /*
  * R162 (0xA2) - FLL Control (8)
@@ -2748,10 +2969,14 @@
 #define WM8962_DF1_SHARED_COEFF_MASK            0x0004  /* DF1_SHARED_COEFF */
 #define WM8962_DF1_SHARED_COEFF_SHIFT                2  /* DF1_SHARED_COEFF */
 #define WM8962_DF1_SHARED_COEFF_WIDTH                1  /* DF1_SHARED_COEFF */
-#define WM8962_DF1_SHARED_COEFF_SEL             0x0002  /* DF1_SHARED_COEFF_SEL */
-#define WM8962_DF1_SHARED_COEFF_SEL_MASK        0x0002  /* DF1_SHARED_COEFF_SEL */
-#define WM8962_DF1_SHARED_COEFF_SEL_SHIFT            1  /* DF1_SHARED_COEFF_SEL */
-#define WM8962_DF1_SHARED_COEFF_SEL_WIDTH            1  /* DF1_SHARED_COEFF_SEL */
+#define WM8962_DF1_SHARED_COEFF_SEL             0x0002  /* DF1_SHARED_COEFF_SEL
+                                                         * */
+#define WM8962_DF1_SHARED_COEFF_SEL_MASK        0x0002  /* DF1_SHARED_COEFF_SEL
+                                                         * */
+#define WM8962_DF1_SHARED_COEFF_SEL_SHIFT            1  /* DF1_SHARED_COEFF_SEL
+                                                         * */
+#define WM8962_DF1_SHARED_COEFF_SEL_WIDTH            1  /* DF1_SHARED_COEFF_SEL
+                                                         * */
 #define WM8962_DF1_ENA                          0x0001  /* DF1_ENA */
 #define WM8962_DF1_ENA_MASK                     0x0001  /* DF1_ENA */
 #define WM8962_DF1_ENA_SHIFT                         0  /* DF1_ENA */
@@ -2760,44 +2985,62 @@
 /*
  * R257 (0x101) - DF2
  */
-#define WM8962_DF1_COEFF_L0_MASK                0xFFFF  /* DF1_COEFF_L0 - [15:0] */
-#define WM8962_DF1_COEFF_L0_SHIFT                    0  /* DF1_COEFF_L0 - [15:0] */
-#define WM8962_DF1_COEFF_L0_WIDTH                   16  /* DF1_COEFF_L0 - [15:0] */
+#define WM8962_DF1_COEFF_L0_MASK                0xFFFF  /* DF1_COEFF_L0 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_L0_SHIFT                    0  /* DF1_COEFF_L0 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_L0_WIDTH                   16  /* DF1_COEFF_L0 - [15:0]
+                                                         * */
 
 /*
  * R258 (0x102) - DF3
  */
-#define WM8962_DF1_COEFF_L1_MASK                0xFFFF  /* DF1_COEFF_L1 - [15:0] */
-#define WM8962_DF1_COEFF_L1_SHIFT                    0  /* DF1_COEFF_L1 - [15:0] */
-#define WM8962_DF1_COEFF_L1_WIDTH                   16  /* DF1_COEFF_L1 - [15:0] */
+#define WM8962_DF1_COEFF_L1_MASK                0xFFFF  /* DF1_COEFF_L1 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_L1_SHIFT                    0  /* DF1_COEFF_L1 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_L1_WIDTH                   16  /* DF1_COEFF_L1 - [15:0]
+                                                         * */
 
 /*
  * R259 (0x103) - DF4
  */
-#define WM8962_DF1_COEFF_L2_MASK                0xFFFF  /* DF1_COEFF_L2 - [15:0] */
-#define WM8962_DF1_COEFF_L2_SHIFT                    0  /* DF1_COEFF_L2 - [15:0] */
-#define WM8962_DF1_COEFF_L2_WIDTH                   16  /* DF1_COEFF_L2 - [15:0] */
+#define WM8962_DF1_COEFF_L2_MASK                0xFFFF  /* DF1_COEFF_L2 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_L2_SHIFT                    0  /* DF1_COEFF_L2 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_L2_WIDTH                   16  /* DF1_COEFF_L2 - [15:0]
+                                                         * */
 
 /*
  * R260 (0x104) - DF5
  */
-#define WM8962_DF1_COEFF_R0_MASK                0xFFFF  /* DF1_COEFF_R0 - [15:0] */
-#define WM8962_DF1_COEFF_R0_SHIFT                    0  /* DF1_COEFF_R0 - [15:0] */
-#define WM8962_DF1_COEFF_R0_WIDTH                   16  /* DF1_COEFF_R0 - [15:0] */
+#define WM8962_DF1_COEFF_R0_MASK                0xFFFF  /* DF1_COEFF_R0 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_R0_SHIFT                    0  /* DF1_COEFF_R0 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_R0_WIDTH                   16  /* DF1_COEFF_R0 - [15:0]
+                                                         * */
 
 /*
  * R261 (0x105) - DF6
  */
-#define WM8962_DF1_COEFF_R1_MASK                0xFFFF  /* DF1_COEFF_R1 - [15:0] */
-#define WM8962_DF1_COEFF_R1_SHIFT                    0  /* DF1_COEFF_R1 - [15:0] */
-#define WM8962_DF1_COEFF_R1_WIDTH                   16  /* DF1_COEFF_R1 - [15:0] */
+#define WM8962_DF1_COEFF_R1_MASK                0xFFFF  /* DF1_COEFF_R1 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_R1_SHIFT                    0  /* DF1_COEFF_R1 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_R1_WIDTH                   16  /* DF1_COEFF_R1 - [15:0]
+                                                         * */
 
 /*
  * R262 (0x106) - DF7
  */
-#define WM8962_DF1_COEFF_R2_MASK                0xFFFF  /* DF1_COEFF_R2 - [15:0] */
-#define WM8962_DF1_COEFF_R2_SHIFT                    0  /* DF1_COEFF_R2 - [15:0] */
-#define WM8962_DF1_COEFF_R2_WIDTH                   16  /* DF1_COEFF_R2 - [15:0] */
+#define WM8962_DF1_COEFF_R2_MASK                0xFFFF  /* DF1_COEFF_R2 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_R2_SHIFT                    0  /* DF1_COEFF_R2 - [15:0]
+                                                         * */
+#define WM8962_DF1_COEFF_R2_WIDTH                   16  /* DF1_COEFF_R2 - [15:0]
+                                                         * */
 
 /*
  * R264 (0x108) - LHPF1
@@ -2814,9 +3057,12 @@
 /*
  * R265 (0x109) - LHPF2
  */
-#define WM8962_LHPF_COEFF_MASK                  0xFFFF  /* LHPF_COEFF - [15:0] */
-#define WM8962_LHPF_COEFF_SHIFT                      0  /* LHPF_COEFF - [15:0] */
-#define WM8962_LHPF_COEFF_WIDTH                     16  /* LHPF_COEFF - [15:0] */
+#define WM8962_LHPF_COEFF_MASK                  0xFFFF  /* LHPF_COEFF - [15:0]
+                                                         * */
+#define WM8962_LHPF_COEFF_SHIFT                      0  /* LHPF_COEFF - [15:0]
+                                                         * */
+#define WM8962_LHPF_COEFF_WIDTH                     16  /* LHPF_COEFF - [15:0]
+                                                         * */
 
 /*
  * R268 (0x10C) - THREED1
@@ -2849,45 +3095,72 @@
 /*
  * R269 (0x10D) - THREED2
  */
-#define WM8962_THREED_FGAINL_MASK               0xF800  /* THREED_FGAINL - [15:11] */
-#define WM8962_THREED_FGAINL_SHIFT                  11  /* THREED_FGAINL - [15:11] */
-#define WM8962_THREED_FGAINL_WIDTH                   5  /* THREED_FGAINL - [15:11] */
-#define WM8962_THREED_CGAINL_MASK               0x07C0  /* THREED_CGAINL - [10:6] */
-#define WM8962_THREED_CGAINL_SHIFT                   6  /* THREED_CGAINL - [10:6] */
-#define WM8962_THREED_CGAINL_WIDTH                   5  /* THREED_CGAINL - [10:6] */
-#define WM8962_THREED_DELAYL_MASK               0x003C  /* THREED_DELAYL - [5:2] */
-#define WM8962_THREED_DELAYL_SHIFT                   2  /* THREED_DELAYL - [5:2] */
-#define WM8962_THREED_DELAYL_WIDTH                   4  /* THREED_DELAYL - [5:2] */
+#define WM8962_THREED_FGAINL_MASK               0xF800  /* THREED_FGAINL -
+                                                         * [15:11] */
+#define WM8962_THREED_FGAINL_SHIFT                  11  /* THREED_FGAINL -
+                                                         * [15:11] */
+#define WM8962_THREED_FGAINL_WIDTH                   5  /* THREED_FGAINL -
+                                                         * [15:11] */
+#define WM8962_THREED_CGAINL_MASK               0x07C0  /* THREED_CGAINL -
+                                                         * [10:6] */
+#define WM8962_THREED_CGAINL_SHIFT                   6  /* THREED_CGAINL -
+                                                         * [10:6] */
+#define WM8962_THREED_CGAINL_WIDTH                   5  /* THREED_CGAINL -
+                                                         * [10:6] */
+#define WM8962_THREED_DELAYL_MASK               0x003C  /* THREED_DELAYL - [5:2]
+                                                         * */
+#define WM8962_THREED_DELAYL_SHIFT                   2  /* THREED_DELAYL - [5:2]
+                                                         * */
+#define WM8962_THREED_DELAYL_WIDTH                   4  /* THREED_DELAYL - [5:2]
+                                                         * */
 
 /*
  * R270 (0x10E) - THREED3
  */
-#define WM8962_THREED_LHPF_COEFF_MASK           0xFFFF  /* THREED_LHPF_COEFF - [15:0] */
-#define WM8962_THREED_LHPF_COEFF_SHIFT               0  /* THREED_LHPF_COEFF - [15:0] */
-#define WM8962_THREED_LHPF_COEFF_WIDTH              16  /* THREED_LHPF_COEFF - [15:0] */
+#define WM8962_THREED_LHPF_COEFF_MASK           0xFFFF  /* THREED_LHPF_COEFF -
+                                                         * [15:0] */
+#define WM8962_THREED_LHPF_COEFF_SHIFT               0  /* THREED_LHPF_COEFF -
+                                                         * [15:0] */
+#define WM8962_THREED_LHPF_COEFF_WIDTH              16  /* THREED_LHPF_COEFF -
+                                                         * [15:0] */
 
 /*
  * R271 (0x10F) - THREED4
  */
-#define WM8962_THREED_FGAINR_MASK               0xF800  /* THREED_FGAINR - [15:11] */
-#define WM8962_THREED_FGAINR_SHIFT                  11  /* THREED_FGAINR - [15:11] */
-#define WM8962_THREED_FGAINR_WIDTH                   5  /* THREED_FGAINR - [15:11] */
-#define WM8962_THREED_CGAINR_MASK               0x07C0  /* THREED_CGAINR - [10:6] */
-#define WM8962_THREED_CGAINR_SHIFT                   6  /* THREED_CGAINR - [10:6] */
-#define WM8962_THREED_CGAINR_WIDTH                   5  /* THREED_CGAINR - [10:6] */
-#define WM8962_THREED_DELAYR_MASK               0x003C  /* THREED_DELAYR - [5:2] */
-#define WM8962_THREED_DELAYR_SHIFT                   2  /* THREED_DELAYR - [5:2] */
-#define WM8962_THREED_DELAYR_WIDTH                   4  /* THREED_DELAYR - [5:2] */
+#define WM8962_THREED_FGAINR_MASK               0xF800  /* THREED_FGAINR -
+                                                         * [15:11] */
+#define WM8962_THREED_FGAINR_SHIFT                  11  /* THREED_FGAINR -
+                                                         * [15:11] */
+#define WM8962_THREED_FGAINR_WIDTH                   5  /* THREED_FGAINR -
+                                                         * [15:11] */
+#define WM8962_THREED_CGAINR_MASK               0x07C0  /* THREED_CGAINR -
+                                                         * [10:6] */
+#define WM8962_THREED_CGAINR_SHIFT                   6  /* THREED_CGAINR -
+                                                         * [10:6] */
+#define WM8962_THREED_CGAINR_WIDTH                   5  /* THREED_CGAINR -
+                                                         * [10:6] */
+#define WM8962_THREED_DELAYR_MASK               0x003C  /* THREED_DELAYR - [5:2]
+                                                         * */
+#define WM8962_THREED_DELAYR_SHIFT                   2  /* THREED_DELAYR - [5:2]
+                                                         * */
+#define WM8962_THREED_DELAYR_WIDTH                   4  /* THREED_DELAYR - [5:2]
+                                                         * */
 
 /*
  * R276 (0x114) - DRC 1
  */
-#define WM8962_DRC_SIG_DET_RMS_MASK             0x7C00  /* DRC_SIG_DET_RMS - [14:10] */
-#define WM8962_DRC_SIG_DET_RMS_SHIFT                10  /* DRC_SIG_DET_RMS - [14:10] */
-#define WM8962_DRC_SIG_DET_RMS_WIDTH                 5  /* DRC_SIG_DET_RMS - [14:10] */
-#define WM8962_DRC_SIG_DET_PK_MASK              0x0300  /* DRC_SIG_DET_PK - [9:8] */
-#define WM8962_DRC_SIG_DET_PK_SHIFT                  8  /* DRC_SIG_DET_PK - [9:8] */
-#define WM8962_DRC_SIG_DET_PK_WIDTH                  2  /* DRC_SIG_DET_PK - [9:8] */
+#define WM8962_DRC_SIG_DET_RMS_MASK             0x7C00  /* DRC_SIG_DET_RMS -
+                                                         * [14:10] */
+#define WM8962_DRC_SIG_DET_RMS_SHIFT                10  /* DRC_SIG_DET_RMS -
+                                                         * [14:10] */
+#define WM8962_DRC_SIG_DET_RMS_WIDTH                 5  /* DRC_SIG_DET_RMS -
+                                                         * [14:10] */
+#define WM8962_DRC_SIG_DET_PK_MASK              0x0300  /* DRC_SIG_DET_PK -
+                                                         * [9:8] */
+#define WM8962_DRC_SIG_DET_PK_SHIFT                  8  /* DRC_SIG_DET_PK -
+                                                         * [9:8] */
+#define WM8962_DRC_SIG_DET_PK_WIDTH                  2  /* DRC_SIG_DET_PK -
+                                                         * [9:8] */
 #define WM8962_DRC_NG_ENA                       0x0080  /* DRC_NG_ENA */
 #define WM8962_DRC_NG_ENA_MASK                  0x0080  /* DRC_NG_ENA */
 #define WM8962_DRC_NG_ENA_SHIFT                      7  /* DRC_NG_ENA */
@@ -2930,54 +3203,84 @@
 #define WM8962_DRC_DCY_MASK                     0x01E0  /* DRC_DCY - [8:5] */
 #define WM8962_DRC_DCY_SHIFT                         5  /* DRC_DCY - [8:5] */
 #define WM8962_DRC_DCY_WIDTH                         4  /* DRC_DCY - [8:5] */
-#define WM8962_DRC_MINGAIN_MASK                 0x001C  /* DRC_MINGAIN - [4:2] */
-#define WM8962_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [4:2] */
-#define WM8962_DRC_MINGAIN_WIDTH                     3  /* DRC_MINGAIN - [4:2] */
-#define WM8962_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0] */
-#define WM8962_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0] */
-#define WM8962_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0] */
+#define WM8962_DRC_MINGAIN_MASK                 0x001C  /* DRC_MINGAIN - [4:2]
+                                                         * */
+#define WM8962_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [4:2]
+                                                         * */
+#define WM8962_DRC_MINGAIN_WIDTH                     3  /* DRC_MINGAIN - [4:2]
+                                                         * */
+#define WM8962_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8962_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8962_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0]
+                                                         * */
 
 /*
  * R278 (0x116) - DRC 3
  */
-#define WM8962_DRC_NG_MINGAIN_MASK              0xF000  /* DRC_NG_MINGAIN - [15:12] */
-#define WM8962_DRC_NG_MINGAIN_SHIFT                 12  /* DRC_NG_MINGAIN - [15:12] */
-#define WM8962_DRC_NG_MINGAIN_WIDTH                  4  /* DRC_NG_MINGAIN - [15:12] */
-#define WM8962_DRC_QR_THR_MASK                  0x0C00  /* DRC_QR_THR - [11:10] */
-#define WM8962_DRC_QR_THR_SHIFT                     10  /* DRC_QR_THR - [11:10] */
-#define WM8962_DRC_QR_THR_WIDTH                      2  /* DRC_QR_THR - [11:10] */
+#define WM8962_DRC_NG_MINGAIN_MASK              0xF000  /* DRC_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8962_DRC_NG_MINGAIN_SHIFT                 12  /* DRC_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8962_DRC_NG_MINGAIN_WIDTH                  4  /* DRC_NG_MINGAIN -
+                                                         * [15:12] */
+#define WM8962_DRC_QR_THR_MASK                  0x0C00  /* DRC_QR_THR - [11:10]
+                                                         * */
+#define WM8962_DRC_QR_THR_SHIFT                     10  /* DRC_QR_THR - [11:10]
+                                                         * */
+#define WM8962_DRC_QR_THR_WIDTH                      2  /* DRC_QR_THR - [11:10]
+                                                         * */
 #define WM8962_DRC_QR_DCY_MASK                  0x0300  /* DRC_QR_DCY - [9:8] */
 #define WM8962_DRC_QR_DCY_SHIFT                      8  /* DRC_QR_DCY - [9:8] */
 #define WM8962_DRC_QR_DCY_WIDTH                      2  /* DRC_QR_DCY - [9:8] */
 #define WM8962_DRC_NG_EXP_MASK                  0x00C0  /* DRC_NG_EXP - [7:6] */
 #define WM8962_DRC_NG_EXP_SHIFT                      6  /* DRC_NG_EXP - [7:6] */
 #define WM8962_DRC_NG_EXP_WIDTH                      2  /* DRC_NG_EXP - [7:6] */
-#define WM8962_DRC_HI_COMP_MASK                 0x0038  /* DRC_HI_COMP - [5:3] */
-#define WM8962_DRC_HI_COMP_SHIFT                     3  /* DRC_HI_COMP - [5:3] */
-#define WM8962_DRC_HI_COMP_WIDTH                     3  /* DRC_HI_COMP - [5:3] */
-#define WM8962_DRC_LO_COMP_MASK                 0x0007  /* DRC_LO_COMP - [2:0] */
-#define WM8962_DRC_LO_COMP_SHIFT                     0  /* DRC_LO_COMP - [2:0] */
-#define WM8962_DRC_LO_COMP_WIDTH                     3  /* DRC_LO_COMP - [2:0] */
+#define WM8962_DRC_HI_COMP_MASK                 0x0038  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM8962_DRC_HI_COMP_SHIFT                     3  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM8962_DRC_HI_COMP_WIDTH                     3  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM8962_DRC_LO_COMP_MASK                 0x0007  /* DRC_LO_COMP - [2:0]
+                                                         * */
+#define WM8962_DRC_LO_COMP_SHIFT                     0  /* DRC_LO_COMP - [2:0]
+                                                         * */
+#define WM8962_DRC_LO_COMP_WIDTH                     3  /* DRC_LO_COMP - [2:0]
+                                                         * */
 
 /*
  * R279 (0x117) - DRC 4
  */
-#define WM8962_DRC_KNEE_IP_MASK                 0x07E0  /* DRC_KNEE_IP - [10:5] */
-#define WM8962_DRC_KNEE_IP_SHIFT                     5  /* DRC_KNEE_IP - [10:5] */
-#define WM8962_DRC_KNEE_IP_WIDTH                     6  /* DRC_KNEE_IP - [10:5] */
-#define WM8962_DRC_KNEE_OP_MASK                 0x001F  /* DRC_KNEE_OP - [4:0] */
-#define WM8962_DRC_KNEE_OP_SHIFT                     0  /* DRC_KNEE_OP - [4:0] */
-#define WM8962_DRC_KNEE_OP_WIDTH                     5  /* DRC_KNEE_OP - [4:0] */
+#define WM8962_DRC_KNEE_IP_MASK                 0x07E0  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM8962_DRC_KNEE_IP_SHIFT                     5  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM8962_DRC_KNEE_IP_WIDTH                     6  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM8962_DRC_KNEE_OP_MASK                 0x001F  /* DRC_KNEE_OP - [4:0]
+                                                         * */
+#define WM8962_DRC_KNEE_OP_SHIFT                     0  /* DRC_KNEE_OP - [4:0]
+                                                         * */
+#define WM8962_DRC_KNEE_OP_WIDTH                     5  /* DRC_KNEE_OP - [4:0]
+                                                         * */
 
 /*
  * R280 (0x118) - DRC 5
  */
-#define WM8962_DRC_KNEE2_IP_MASK                0x03E0  /* DRC_KNEE2_IP - [9:5] */
-#define WM8962_DRC_KNEE2_IP_SHIFT                    5  /* DRC_KNEE2_IP - [9:5] */
-#define WM8962_DRC_KNEE2_IP_WIDTH                    5  /* DRC_KNEE2_IP - [9:5] */
-#define WM8962_DRC_KNEE2_OP_MASK                0x001F  /* DRC_KNEE2_OP - [4:0] */
-#define WM8962_DRC_KNEE2_OP_SHIFT                    0  /* DRC_KNEE2_OP - [4:0] */
-#define WM8962_DRC_KNEE2_OP_WIDTH                    5  /* DRC_KNEE2_OP - [4:0] */
+#define WM8962_DRC_KNEE2_IP_MASK                0x03E0  /* DRC_KNEE2_IP - [9:5]
+                                                         * */
+#define WM8962_DRC_KNEE2_IP_SHIFT                    5  /* DRC_KNEE2_IP - [9:5]
+                                                         * */
+#define WM8962_DRC_KNEE2_IP_WIDTH                    5  /* DRC_KNEE2_IP - [9:5]
+                                                         * */
+#define WM8962_DRC_KNEE2_OP_MASK                0x001F  /* DRC_KNEE2_OP - [4:0]
+                                                         * */
+#define WM8962_DRC_KNEE2_OP_SHIFT                    0  /* DRC_KNEE2_OP - [4:0]
+                                                         * */
+#define WM8962_DRC_KNEE2_OP_WIDTH                    5  /* DRC_KNEE2_OP - [4:0]
+                                                         * */
 
 /*
  * R285 (0x11D) - Tloopback
@@ -2998,10 +3301,14 @@
 #define WM8962_EQ_SHARED_COEFF_MASK             0x0004  /* EQ_SHARED_COEFF */
 #define WM8962_EQ_SHARED_COEFF_SHIFT                 2  /* EQ_SHARED_COEFF */
 #define WM8962_EQ_SHARED_COEFF_WIDTH                 1  /* EQ_SHARED_COEFF */
-#define WM8962_EQ_SHARED_COEFF_SEL              0x0002  /* EQ_SHARED_COEFF_SEL */
-#define WM8962_EQ_SHARED_COEFF_SEL_MASK         0x0002  /* EQ_SHARED_COEFF_SEL */
-#define WM8962_EQ_SHARED_COEFF_SEL_SHIFT             1  /* EQ_SHARED_COEFF_SEL */
-#define WM8962_EQ_SHARED_COEFF_SEL_WIDTH             1  /* EQ_SHARED_COEFF_SEL */
+#define WM8962_EQ_SHARED_COEFF_SEL              0x0002  /* EQ_SHARED_COEFF_SEL
+                                                         * */
+#define WM8962_EQ_SHARED_COEFF_SEL_MASK         0x0002  /* EQ_SHARED_COEFF_SEL
+                                                         * */
+#define WM8962_EQ_SHARED_COEFF_SEL_SHIFT             1  /* EQ_SHARED_COEFF_SEL
+                                                         * */
+#define WM8962_EQ_SHARED_COEFF_SEL_WIDTH             1  /* EQ_SHARED_COEFF_SEL
+                                                         * */
 #define WM8962_EQ_ENA                           0x0001  /* EQ_ENA */
 #define WM8962_EQ_ENA_MASK                      0x0001  /* EQ_ENA */
 #define WM8962_EQ_ENA_SHIFT                          0  /* EQ_ENA */
@@ -3010,25 +3317,40 @@
 /*
  * R336 (0x150) - EQ2
  */
-#define WM8962_EQL_B1_GAIN_MASK                 0xF800  /* EQL_B1_GAIN - [15:11] */
-#define WM8962_EQL_B1_GAIN_SHIFT                    11  /* EQL_B1_GAIN - [15:11] */
-#define WM8962_EQL_B1_GAIN_WIDTH                     5  /* EQL_B1_GAIN - [15:11] */
-#define WM8962_EQL_B2_GAIN_MASK                 0x07C0  /* EQL_B2_GAIN - [10:6] */
-#define WM8962_EQL_B2_GAIN_SHIFT                     6  /* EQL_B2_GAIN - [10:6] */
-#define WM8962_EQL_B2_GAIN_WIDTH                     5  /* EQL_B2_GAIN - [10:6] */
-#define WM8962_EQL_B3_GAIN_MASK                 0x003E  /* EQL_B3_GAIN - [5:1] */
-#define WM8962_EQL_B3_GAIN_SHIFT                     1  /* EQL_B3_GAIN - [5:1] */
-#define WM8962_EQL_B3_GAIN_WIDTH                     5  /* EQL_B3_GAIN - [5:1] */
+#define WM8962_EQL_B1_GAIN_MASK                 0xF800  /* EQL_B1_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQL_B1_GAIN_SHIFT                    11  /* EQL_B1_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQL_B1_GAIN_WIDTH                     5  /* EQL_B1_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQL_B2_GAIN_MASK                 0x07C0  /* EQL_B2_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQL_B2_GAIN_SHIFT                     6  /* EQL_B2_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQL_B2_GAIN_WIDTH                     5  /* EQL_B2_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQL_B3_GAIN_MASK                 0x003E  /* EQL_B3_GAIN - [5:1]
+                                                         * */
+#define WM8962_EQL_B3_GAIN_SHIFT                     1  /* EQL_B3_GAIN - [5:1]
+                                                         * */
+#define WM8962_EQL_B3_GAIN_WIDTH                     5  /* EQL_B3_GAIN - [5:1]
+                                                         * */
 
 /*
  * R337 (0x151) - EQ3
  */
-#define WM8962_EQL_B4_GAIN_MASK                 0xF800  /* EQL_B4_GAIN - [15:11] */
-#define WM8962_EQL_B4_GAIN_SHIFT                    11  /* EQL_B4_GAIN - [15:11] */
-#define WM8962_EQL_B4_GAIN_WIDTH                     5  /* EQL_B4_GAIN - [15:11] */
-#define WM8962_EQL_B5_GAIN_MASK                 0x07C0  /* EQL_B5_GAIN - [10:6] */
-#define WM8962_EQL_B5_GAIN_SHIFT                     6  /* EQL_B5_GAIN - [10:6] */
-#define WM8962_EQL_B5_GAIN_WIDTH                     5  /* EQL_B5_GAIN - [10:6] */
+#define WM8962_EQL_B4_GAIN_MASK                 0xF800  /* EQL_B4_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQL_B4_GAIN_SHIFT                    11  /* EQL_B4_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQL_B4_GAIN_WIDTH                     5  /* EQL_B4_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQL_B5_GAIN_MASK                 0x07C0  /* EQL_B5_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQL_B5_GAIN_SHIFT                     6  /* EQL_B5_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQL_B5_GAIN_WIDTH                     5  /* EQL_B5_GAIN - [10:6]
+                                                         * */
 
 /*
  * R338 (0x152) - EQ4
@@ -3159,25 +3481,40 @@
 /*
  * R356 (0x164) - EQ22
  */
-#define WM8962_EQR_B1_GAIN_MASK                 0xF800  /* EQR_B1_GAIN - [15:11] */
-#define WM8962_EQR_B1_GAIN_SHIFT                    11  /* EQR_B1_GAIN - [15:11] */
-#define WM8962_EQR_B1_GAIN_WIDTH                     5  /* EQR_B1_GAIN - [15:11] */
-#define WM8962_EQR_B2_GAIN_MASK                 0x07C0  /* EQR_B2_GAIN - [10:6] */
-#define WM8962_EQR_B2_GAIN_SHIFT                     6  /* EQR_B2_GAIN - [10:6] */
-#define WM8962_EQR_B2_GAIN_WIDTH                     5  /* EQR_B2_GAIN - [10:6] */
-#define WM8962_EQR_B3_GAIN_MASK                 0x003E  /* EQR_B3_GAIN - [5:1] */
-#define WM8962_EQR_B3_GAIN_SHIFT                     1  /* EQR_B3_GAIN - [5:1] */
-#define WM8962_EQR_B3_GAIN_WIDTH                     5  /* EQR_B3_GAIN - [5:1] */
+#define WM8962_EQR_B1_GAIN_MASK                 0xF800  /* EQR_B1_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQR_B1_GAIN_SHIFT                    11  /* EQR_B1_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQR_B1_GAIN_WIDTH                     5  /* EQR_B1_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQR_B2_GAIN_MASK                 0x07C0  /* EQR_B2_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQR_B2_GAIN_SHIFT                     6  /* EQR_B2_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQR_B2_GAIN_WIDTH                     5  /* EQR_B2_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQR_B3_GAIN_MASK                 0x003E  /* EQR_B3_GAIN - [5:1]
+                                                         * */
+#define WM8962_EQR_B3_GAIN_SHIFT                     1  /* EQR_B3_GAIN - [5:1]
+                                                         * */
+#define WM8962_EQR_B3_GAIN_WIDTH                     5  /* EQR_B3_GAIN - [5:1]
+                                                         * */
 
 /*
  * R357 (0x165) - EQ23
  */
-#define WM8962_EQR_B4_GAIN_MASK                 0xF800  /* EQR_B4_GAIN - [15:11] */
-#define WM8962_EQR_B4_GAIN_SHIFT                    11  /* EQR_B4_GAIN - [15:11] */
-#define WM8962_EQR_B4_GAIN_WIDTH                     5  /* EQR_B4_GAIN - [15:11] */
-#define WM8962_EQR_B5_GAIN_MASK                 0x07C0  /* EQR_B5_GAIN - [10:6] */
-#define WM8962_EQR_B5_GAIN_SHIFT                     6  /* EQR_B5_GAIN - [10:6] */
-#define WM8962_EQR_B5_GAIN_WIDTH                     5  /* EQR_B5_GAIN - [10:6] */
+#define WM8962_EQR_B4_GAIN_MASK                 0xF800  /* EQR_B4_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQR_B4_GAIN_SHIFT                    11  /* EQR_B4_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQR_B4_GAIN_WIDTH                     5  /* EQR_B4_GAIN - [15:11]
+                                                         * */
+#define WM8962_EQR_B5_GAIN_MASK                 0x07C0  /* EQR_B5_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQR_B5_GAIN_SHIFT                     6  /* EQR_B5_GAIN - [10:6]
+                                                         * */
+#define WM8962_EQR_B5_GAIN_WIDTH                     5  /* EQR_B5_GAIN - [10:6]
+                                                         * */
 
 /*
  * R358 (0x166) - EQ24
@@ -3628,79 +3965,145 @@
 /*
  * R8192 (0x2000) - DSP2 Instruction RAM 0
  */
-#define WM8962_DSP2_INSTR_RAM_1024_10_9_0_MASK  0x03FF  /* DSP2_INSTR_RAM_1024_10_9_0 - [9:0] */
-#define WM8962_DSP2_INSTR_RAM_1024_10_9_0_SHIFT      0  /* DSP2_INSTR_RAM_1024_10_9_0 - [9:0] */
-#define WM8962_DSP2_INSTR_RAM_1024_10_9_0_WIDTH     10  /* DSP2_INSTR_RAM_1024_10_9_0 - [9:0] */
+#define WM8962_DSP2_INSTR_RAM_1024_10_9_0_MASK  0x03FF  /*
+                                                         * DSP2_INSTR_RAM_1024_10_9_0
+                                                         * - [9:0] */
+#define WM8962_DSP2_INSTR_RAM_1024_10_9_0_SHIFT      0  /*
+                                                         * DSP2_INSTR_RAM_1024_10_9_0
+                                                         * - [9:0] */
+#define WM8962_DSP2_INSTR_RAM_1024_10_9_0_WIDTH     10  /*
+                                                         * DSP2_INSTR_RAM_1024_10_9_0
+                                                         * - [9:0] */
 
 /*
  * R9216 (0x2400) - DSP2 Address RAM 2
  */
-#define WM8962_DSP2_ADDR_RAM_1024_38_37_32_MASK 0x003F  /* DSP2_ADDR_RAM_1024_38_37_32 - [5:0] */
-#define WM8962_DSP2_ADDR_RAM_1024_38_37_32_SHIFT      0  /* DSP2_ADDR_RAM_1024_38_37_32 - [5:0] */
-#define WM8962_DSP2_ADDR_RAM_1024_38_37_32_WIDTH      6  /* DSP2_ADDR_RAM_1024_38_37_32 - [5:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_37_32_MASK 0x003F  /*
+                                                         * DSP2_ADDR_RAM_1024_38_37_32
+                                                         * - [5:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_37_32_SHIFT      0  /*
+                                                          * DSP2_ADDR_RAM_1024_38_37_32
+                                                          * - [5:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_37_32_WIDTH      6  /*
+                                                          * DSP2_ADDR_RAM_1024_38_37_32
+                                                          * - [5:0] */
 
 /*
  * R9217 (0x2401) - DSP2 Address RAM 1
  */
-#define WM8962_DSP2_ADDR_RAM_1024_38_31_16_MASK 0xFFFF  /* DSP2_ADDR_RAM_1024_38_31_16 - [15:0] */
-#define WM8962_DSP2_ADDR_RAM_1024_38_31_16_SHIFT      0  /* DSP2_ADDR_RAM_1024_38_31_16 - [15:0] */
-#define WM8962_DSP2_ADDR_RAM_1024_38_31_16_WIDTH     16  /* DSP2_ADDR_RAM_1024_38_31_16 - [15:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_31_16_MASK 0xFFFF  /*
+                                                         * DSP2_ADDR_RAM_1024_38_31_16
+                                                         * - [15:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_31_16_SHIFT      0  /*
+                                                          * DSP2_ADDR_RAM_1024_38_31_16
+                                                          * - [15:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_31_16_WIDTH     16  /*
+                                                          * DSP2_ADDR_RAM_1024_38_31_16
+                                                          * - [15:0] */
 
 /*
  * R9218 (0x2402) - DSP2 Address RAM 0
  */
-#define WM8962_DSP2_ADDR_RAM_1024_38_15_0_MASK  0xFFFF  /* DSP2_ADDR_RAM_1024_38_15_0 - [15:0] */
-#define WM8962_DSP2_ADDR_RAM_1024_38_15_0_SHIFT      0  /* DSP2_ADDR_RAM_1024_38_15_0 - [15:0] */
-#define WM8962_DSP2_ADDR_RAM_1024_38_15_0_WIDTH     16  /* DSP2_ADDR_RAM_1024_38_15_0 - [15:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_15_0_MASK  0xFFFF  /*
+                                                         * DSP2_ADDR_RAM_1024_38_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_15_0_SHIFT      0  /*
+                                                         * DSP2_ADDR_RAM_1024_38_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_ADDR_RAM_1024_38_15_0_WIDTH     16  /*
+                                                         * DSP2_ADDR_RAM_1024_38_15_0
+                                                         * - [15:0] */
 
 /*
  * R12288 (0x3000) - DSP2 Data1 RAM 1
  */
-#define WM8962_DSP2_DATA1_RAM_384_24_23_16_MASK 0x00FF  /* DSP2_DATA1_RAM_384_24_23_16 - [7:0] */
-#define WM8962_DSP2_DATA1_RAM_384_24_23_16_SHIFT      0  /* DSP2_DATA1_RAM_384_24_23_16 - [7:0] */
-#define WM8962_DSP2_DATA1_RAM_384_24_23_16_WIDTH      8  /* DSP2_DATA1_RAM_384_24_23_16 - [7:0] */
+#define WM8962_DSP2_DATA1_RAM_384_24_23_16_MASK 0x00FF  /*
+                                                         * DSP2_DATA1_RAM_384_24_23_16
+                                                         * - [7:0] */
+#define WM8962_DSP2_DATA1_RAM_384_24_23_16_SHIFT      0  /*
+                                                          * DSP2_DATA1_RAM_384_24_23_16
+                                                          * - [7:0] */
+#define WM8962_DSP2_DATA1_RAM_384_24_23_16_WIDTH      8  /*
+                                                          * DSP2_DATA1_RAM_384_24_23_16
+                                                          * - [7:0] */
 
 /*
  * R12289 (0x3001) - DSP2 Data1 RAM 0
  */
-#define WM8962_DSP2_DATA1_RAM_384_24_15_0_MASK  0xFFFF  /* DSP2_DATA1_RAM_384_24_15_0 - [15:0] */
-#define WM8962_DSP2_DATA1_RAM_384_24_15_0_SHIFT      0  /* DSP2_DATA1_RAM_384_24_15_0 - [15:0] */
-#define WM8962_DSP2_DATA1_RAM_384_24_15_0_WIDTH     16  /* DSP2_DATA1_RAM_384_24_15_0 - [15:0] */
+#define WM8962_DSP2_DATA1_RAM_384_24_15_0_MASK  0xFFFF  /*
+                                                         * DSP2_DATA1_RAM_384_24_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_DATA1_RAM_384_24_15_0_SHIFT      0  /*
+                                                         * DSP2_DATA1_RAM_384_24_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_DATA1_RAM_384_24_15_0_WIDTH     16  /*
+                                                         * DSP2_DATA1_RAM_384_24_15_0
+                                                         * - [15:0] */
 
 /*
  * R13312 (0x3400) - DSP2 Data2 RAM 1
  */
-#define WM8962_DSP2_DATA2_RAM_384_24_23_16_MASK 0x00FF  /* DSP2_DATA2_RAM_384_24_23_16 - [7:0] */
-#define WM8962_DSP2_DATA2_RAM_384_24_23_16_SHIFT      0  /* DSP2_DATA2_RAM_384_24_23_16 - [7:0] */
-#define WM8962_DSP2_DATA2_RAM_384_24_23_16_WIDTH      8  /* DSP2_DATA2_RAM_384_24_23_16 - [7:0] */
+#define WM8962_DSP2_DATA2_RAM_384_24_23_16_MASK 0x00FF  /*
+                                                         * DSP2_DATA2_RAM_384_24_23_16
+                                                         * - [7:0] */
+#define WM8962_DSP2_DATA2_RAM_384_24_23_16_SHIFT      0  /*
+                                                          * DSP2_DATA2_RAM_384_24_23_16
+                                                          * - [7:0] */
+#define WM8962_DSP2_DATA2_RAM_384_24_23_16_WIDTH      8  /*
+                                                          * DSP2_DATA2_RAM_384_24_23_16
+                                                          * - [7:0] */
 
 /*
  * R13313 (0x3401) - DSP2 Data2 RAM 0
  */
-#define WM8962_DSP2_DATA2_RAM_384_24_15_0_MASK  0xFFFF  /* DSP2_DATA2_RAM_384_24_15_0 - [15:0] */
-#define WM8962_DSP2_DATA2_RAM_384_24_15_0_SHIFT      0  /* DSP2_DATA2_RAM_384_24_15_0 - [15:0] */
-#define WM8962_DSP2_DATA2_RAM_384_24_15_0_WIDTH     16  /* DSP2_DATA2_RAM_384_24_15_0 - [15:0] */
+#define WM8962_DSP2_DATA2_RAM_384_24_15_0_MASK  0xFFFF  /*
+                                                         * DSP2_DATA2_RAM_384_24_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_DATA2_RAM_384_24_15_0_SHIFT      0  /*
+                                                         * DSP2_DATA2_RAM_384_24_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_DATA2_RAM_384_24_15_0_WIDTH     16  /*
+                                                         * DSP2_DATA2_RAM_384_24_15_0
+                                                         * - [15:0] */
 
 /*
  * R14336 (0x3800) - DSP2 Data3 RAM 1
  */
-#define WM8962_DSP2_DATA3_RAM_384_24_23_16_MASK 0x00FF  /* DSP2_DATA3_RAM_384_24_23_16 - [7:0] */
-#define WM8962_DSP2_DATA3_RAM_384_24_23_16_SHIFT      0  /* DSP2_DATA3_RAM_384_24_23_16 - [7:0] */
-#define WM8962_DSP2_DATA3_RAM_384_24_23_16_WIDTH      8  /* DSP2_DATA3_RAM_384_24_23_16 - [7:0] */
+#define WM8962_DSP2_DATA3_RAM_384_24_23_16_MASK 0x00FF  /*
+                                                         * DSP2_DATA3_RAM_384_24_23_16
+                                                         * - [7:0] */
+#define WM8962_DSP2_DATA3_RAM_384_24_23_16_SHIFT      0  /*
+                                                          * DSP2_DATA3_RAM_384_24_23_16
+                                                          * - [7:0] */
+#define WM8962_DSP2_DATA3_RAM_384_24_23_16_WIDTH      8  /*
+                                                          * DSP2_DATA3_RAM_384_24_23_16
+                                                          * - [7:0] */
 
 /*
  * R14337 (0x3801) - DSP2 Data3 RAM 0
  */
-#define WM8962_DSP2_DATA3_RAM_384_24_15_0_MASK  0xFFFF  /* DSP2_DATA3_RAM_384_24_15_0 - [15:0] */
-#define WM8962_DSP2_DATA3_RAM_384_24_15_0_SHIFT      0  /* DSP2_DATA3_RAM_384_24_15_0 - [15:0] */
-#define WM8962_DSP2_DATA3_RAM_384_24_15_0_WIDTH     16  /* DSP2_DATA3_RAM_384_24_15_0 - [15:0] */
+#define WM8962_DSP2_DATA3_RAM_384_24_15_0_MASK  0xFFFF  /*
+                                                         * DSP2_DATA3_RAM_384_24_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_DATA3_RAM_384_24_15_0_SHIFT      0  /*
+                                                         * DSP2_DATA3_RAM_384_24_15_0
+                                                         * - [15:0] */
+#define WM8962_DSP2_DATA3_RAM_384_24_15_0_WIDTH     16  /*
+                                                         * DSP2_DATA3_RAM_384_24_15_0
+                                                         * - [15:0] */
 
 /*
  * R15360 (0x3C00) - DSP2 Coeff RAM 0
  */
-#define WM8962_DSP2_CMAP_RAM_384_11_10_0_MASK   0x07FF  /* DSP2_CMAP_RAM_384_11_10_0 - [10:0] */
-#define WM8962_DSP2_CMAP_RAM_384_11_10_0_SHIFT       0  /* DSP2_CMAP_RAM_384_11_10_0 - [10:0] */
-#define WM8962_DSP2_CMAP_RAM_384_11_10_0_WIDTH      11  /* DSP2_CMAP_RAM_384_11_10_0 - [10:0] */
+#define WM8962_DSP2_CMAP_RAM_384_11_10_0_MASK   0x07FF  /*
+                                                         * DSP2_CMAP_RAM_384_11_10_0
+                                                         * - [10:0] */
+#define WM8962_DSP2_CMAP_RAM_384_11_10_0_SHIFT       0  /*
+                                                         * DSP2_CMAP_RAM_384_11_10_0
+                                                         * - [10:0] */
+#define WM8962_DSP2_CMAP_RAM_384_11_10_0_WIDTH      11  /*
+                                                         * DSP2_CMAP_RAM_384_11_10_0
+                                                         * - [10:0] */
 
 /*
  * R16384 (0x4000) - RETUNEADC_SHARED_COEFF_1
@@ -3709,16 +4112,28 @@
 #define WM8962_ADC_RETUNE_SCV_MASK              0x0080  /* ADC_RETUNE_SCV */
 #define WM8962_ADC_RETUNE_SCV_SHIFT                  7  /* ADC_RETUNE_SCV */
 #define WM8962_ADC_RETUNE_SCV_WIDTH                  1  /* ADC_RETUNE_SCV */
-#define WM8962_RETUNEADC_SHARED_COEFF_22_16_MASK 0x007F  /* RETUNEADC_SHARED_COEFF_22_16 - [6:0] */
-#define WM8962_RETUNEADC_SHARED_COEFF_22_16_SHIFT      0  /* RETUNEADC_SHARED_COEFF_22_16 - [6:0] */
-#define WM8962_RETUNEADC_SHARED_COEFF_22_16_WIDTH      7  /* RETUNEADC_SHARED_COEFF_22_16 - [6:0] */
+#define WM8962_RETUNEADC_SHARED_COEFF_22_16_MASK 0x007F  /*
+                                                          * RETUNEADC_SHARED_COEFF_22_16
+                                                          * - [6:0] */
+#define WM8962_RETUNEADC_SHARED_COEFF_22_16_SHIFT      0  /*
+                                                           * RETUNEADC_SHARED_COEFF_22_16
+                                                           * - [6:0] */
+#define WM8962_RETUNEADC_SHARED_COEFF_22_16_WIDTH      7  /*
+                                                           * RETUNEADC_SHARED_COEFF_22_16
+                                                           * - [6:0] */
 
 /*
  * R16385 (0x4001) - RETUNEADC_SHARED_COEFF_0
  */
-#define WM8962_RETUNEADC_SHARED_COEFF_15_00_MASK 0xFFFF  /* RETUNEADC_SHARED_COEFF_15_00 - [15:0] */
-#define WM8962_RETUNEADC_SHARED_COEFF_15_00_SHIFT      0  /* RETUNEADC_SHARED_COEFF_15_00 - [15:0] */
-#define WM8962_RETUNEADC_SHARED_COEFF_15_00_WIDTH     16  /* RETUNEADC_SHARED_COEFF_15_00 - [15:0] */
+#define WM8962_RETUNEADC_SHARED_COEFF_15_00_MASK 0xFFFF  /*
+                                                          * RETUNEADC_SHARED_COEFF_15_00
+                                                          * - [15:0] */
+#define WM8962_RETUNEADC_SHARED_COEFF_15_00_SHIFT      0  /*
+                                                           * RETUNEADC_SHARED_COEFF_15_00
+                                                           * - [15:0] */
+#define WM8962_RETUNEADC_SHARED_COEFF_15_00_WIDTH     16  /*
+                                                           * RETUNEADC_SHARED_COEFF_15_00
+                                                           * - [15:0] */
 
 /*
  * R16386 (0x4002) - RETUNEDAC_SHARED_COEFF_1
@@ -3727,30 +4142,54 @@
 #define WM8962_DAC_RETUNE_SCV_MASK              0x0080  /* DAC_RETUNE_SCV */
 #define WM8962_DAC_RETUNE_SCV_SHIFT                  7  /* DAC_RETUNE_SCV */
 #define WM8962_DAC_RETUNE_SCV_WIDTH                  1  /* DAC_RETUNE_SCV */
-#define WM8962_RETUNEDAC_SHARED_COEFF_23_16_MASK 0x007F  /* RETUNEDAC_SHARED_COEFF_23_16 - [6:0] */
-#define WM8962_RETUNEDAC_SHARED_COEFF_23_16_SHIFT      0  /* RETUNEDAC_SHARED_COEFF_23_16 - [6:0] */
-#define WM8962_RETUNEDAC_SHARED_COEFF_23_16_WIDTH      7  /* RETUNEDAC_SHARED_COEFF_23_16 - [6:0] */
+#define WM8962_RETUNEDAC_SHARED_COEFF_23_16_MASK 0x007F  /*
+                                                          * RETUNEDAC_SHARED_COEFF_23_16
+                                                          * - [6:0] */
+#define WM8962_RETUNEDAC_SHARED_COEFF_23_16_SHIFT      0  /*
+                                                           * RETUNEDAC_SHARED_COEFF_23_16
+                                                           * - [6:0] */
+#define WM8962_RETUNEDAC_SHARED_COEFF_23_16_WIDTH      7  /*
+                                                           * RETUNEDAC_SHARED_COEFF_23_16
+                                                           * - [6:0] */
 
 /*
  * R16387 (0x4003) - RETUNEDAC_SHARED_COEFF_0
  */
-#define WM8962_RETUNEDAC_SHARED_COEFF_15_00_MASK 0xFFFF  /* RETUNEDAC_SHARED_COEFF_15_00 - [15:0] */
-#define WM8962_RETUNEDAC_SHARED_COEFF_15_00_SHIFT      0  /* RETUNEDAC_SHARED_COEFF_15_00 - [15:0] */
-#define WM8962_RETUNEDAC_SHARED_COEFF_15_00_WIDTH     16  /* RETUNEDAC_SHARED_COEFF_15_00 - [15:0] */
+#define WM8962_RETUNEDAC_SHARED_COEFF_15_00_MASK 0xFFFF  /*
+                                                          * RETUNEDAC_SHARED_COEFF_15_00
+                                                          * - [15:0] */
+#define WM8962_RETUNEDAC_SHARED_COEFF_15_00_SHIFT      0  /*
+                                                           * RETUNEDAC_SHARED_COEFF_15_00
+                                                           * - [15:0] */
+#define WM8962_RETUNEDAC_SHARED_COEFF_15_00_WIDTH     16  /*
+                                                           * RETUNEDAC_SHARED_COEFF_15_00
+                                                           * - [15:0] */
 
 /*
  * R16388 (0x4004) - SOUNDSTAGE_ENABLES_1
  */
-#define WM8962_SOUNDSTAGE_ENABLES_23_16_MASK    0x00FF  /* SOUNDSTAGE_ENABLES_23_16 - [7:0] */
-#define WM8962_SOUNDSTAGE_ENABLES_23_16_SHIFT        0  /* SOUNDSTAGE_ENABLES_23_16 - [7:0] */
-#define WM8962_SOUNDSTAGE_ENABLES_23_16_WIDTH        8  /* SOUNDSTAGE_ENABLES_23_16 - [7:0] */
+#define WM8962_SOUNDSTAGE_ENABLES_23_16_MASK    0x00FF  /*
+                                                         * SOUNDSTAGE_ENABLES_23_16
+                                                         * - [7:0] */
+#define WM8962_SOUNDSTAGE_ENABLES_23_16_SHIFT        0  /*
+                                                         * SOUNDSTAGE_ENABLES_23_16
+                                                         * - [7:0] */
+#define WM8962_SOUNDSTAGE_ENABLES_23_16_WIDTH        8  /*
+                                                         * SOUNDSTAGE_ENABLES_23_16
+                                                         * - [7:0] */
 
 /*
  * R16389 (0x4005) - SOUNDSTAGE_ENABLES_0
  */
-#define WM8962_SOUNDSTAGE_ENABLES_15_06_MASK    0xFFC0  /* SOUNDSTAGE_ENABLES_15_06 - [15:6] */
-#define WM8962_SOUNDSTAGE_ENABLES_15_06_SHIFT        6  /* SOUNDSTAGE_ENABLES_15_06 - [15:6] */
-#define WM8962_SOUNDSTAGE_ENABLES_15_06_WIDTH       10  /* SOUNDSTAGE_ENABLES_15_06 - [15:6] */
+#define WM8962_SOUNDSTAGE_ENABLES_15_06_MASK    0xFFC0  /*
+                                                         * SOUNDSTAGE_ENABLES_15_06
+                                                         * - [15:6] */
+#define WM8962_SOUNDSTAGE_ENABLES_15_06_SHIFT        6  /*
+                                                         * SOUNDSTAGE_ENABLES_15_06
+                                                         * - [15:6] */
+#define WM8962_SOUNDSTAGE_ENABLES_15_06_WIDTH       10  /*
+                                                         * SOUNDSTAGE_ENABLES_15_06
+                                                         * - [15:6] */
 #define WM8962_RTN_ADC_ENA                      0x0020  /* RTN_ADC_ENA */
 #define WM8962_RTN_ADC_ENA_MASK                 0x0020  /* RTN_ADC_ENA */
 #define WM8962_RTN_ADC_ENA_SHIFT                     5  /* RTN_ADC_ENA */
@@ -3776,6 +4215,7 @@
 #define WM8962_VSS_ENA_SHIFT                         0  /* VSS_ENA */
 #define WM8962_VSS_ENA_WIDTH                         1  /* VSS_ENA */
 
-int wm8962_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack);
+int wm8962_mic_detect(struct snd_soc_component *component,
+    struct snd_soc_jack *jack);
 
 #endif

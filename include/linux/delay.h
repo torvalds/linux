@@ -32,25 +32,25 @@ extern unsigned long loops_per_jiffy;
  * mdelay() provides a wrapper to prevent this.  For delays greater
  * than MAX_UDELAY_MS milliseconds, the wrapper is used.  Architecture
  * specific values can be defined in asm-???/delay.h as an override.
- * The 2nd mdelay() definition ensures GCC will optimize away the 
+ * The 2nd mdelay() definition ensures GCC will optimize away the
  * while loop for the common cases where n <= MAX_UDELAY_MS  --  Paul G.
  */
 
 #ifndef MAX_UDELAY_MS
-#define MAX_UDELAY_MS	5
+#define MAX_UDELAY_MS 5
 #endif
 
 #ifndef mdelay
-#define mdelay(n) (\
-	(__builtin_constant_p(n) && (n)<=MAX_UDELAY_MS) ? udelay((n)*1000) : \
-	({unsigned long __ms=(n); while (__ms--) udelay(1000);}))
+#define mdelay(n) ( \
+    (__builtin_constant_p(n) && (n) <= MAX_UDELAY_MS) ? udelay((n) * 1000)   \
+    : ({unsigned long __ms = (n); while (__ms--) udelay(1000);}))
 #endif
 
 #ifndef ndelay
-static inline void ndelay(unsigned long x)
-{
-	udelay(DIV_ROUND_UP(x, 1000));
+static inline void ndelay(unsigned long x) {
+  udelay(DIV_ROUND_UP(x, 1000));
 }
+
 #define ndelay(x) ndelay(x)
 #endif
 
@@ -61,32 +61,29 @@ void __attribute__((weak)) calibration_delay_done(void);
 void msleep(unsigned int msecs);
 unsigned long msleep_interruptible(unsigned int msecs);
 void usleep_range_state(unsigned long min, unsigned long max,
-			unsigned int state);
+    unsigned int state);
 
-static inline void usleep_range(unsigned long min, unsigned long max)
-{
-	usleep_range_state(min, max, TASK_UNINTERRUPTIBLE);
+static inline void usleep_range(unsigned long min, unsigned long max) {
+  usleep_range_state(min, max, TASK_UNINTERRUPTIBLE);
 }
 
-static inline void usleep_idle_range(unsigned long min, unsigned long max)
-{
-	usleep_range_state(min, max, TASK_IDLE);
+static inline void usleep_idle_range(unsigned long min, unsigned long max) {
+  usleep_range_state(min, max, TASK_IDLE);
 }
 
-static inline void ssleep(unsigned int seconds)
-{
-	msleep(seconds * 1000);
+static inline void ssleep(unsigned int seconds) {
+  msleep(seconds * 1000);
 }
 
 /* see Documentation/timers/timers-howto.rst for the thresholds */
-static inline void fsleep(unsigned long usecs)
-{
-	if (usecs <= 10)
-		udelay(usecs);
-	else if (usecs <= 20000)
-		usleep_range(usecs, 2 * usecs);
-	else
-		msleep(DIV_ROUND_UP(usecs, 1000));
+static inline void fsleep(unsigned long usecs) {
+  if (usecs <= 10) {
+    udelay(usecs);
+  } else if (usecs <= 20000) {
+    usleep_range(usecs, 2 * usecs);
+  } else {
+    msleep(DIV_ROUND_UP(usecs, 1000));
+  }
 }
 
 #endif /* defined(_LINUX_DELAY_H) */

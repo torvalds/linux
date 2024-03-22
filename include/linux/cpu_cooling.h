@@ -2,7 +2,7 @@
 /*
  *  linux/include/linux/cpu_cooling.h
  *
- *  Copyright (C) 2012	Samsung Electronics Co., Ltd(http://www.samsung.com)
+ *  Copyright (C) 2012  Samsung Electronics Co., Ltd(http://www.samsung.com)
  *  Copyright (C) 2012  Amit Daniel <amit.kachhap@linaro.org>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -24,8 +24,8 @@ struct cpufreq_policy;
  * cpufreq_cooling_register - function to create cpufreq cooling device.
  * @policy: cpufreq policy.
  */
-struct thermal_cooling_device *
-cpufreq_cooling_register(struct cpufreq_policy *policy);
+struct thermal_cooling_device *cpufreq_cooling_register(
+  struct cpufreq_policy *policy);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
@@ -37,27 +37,24 @@ void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
  * of_cpufreq_cooling_register - create cpufreq cooling device based on DT.
  * @policy: cpufreq policy.
  */
-struct thermal_cooling_device *
-of_cpufreq_cooling_register(struct cpufreq_policy *policy);
+struct thermal_cooling_device *of_cpufreq_cooling_register(
+  struct cpufreq_policy *policy);
 
 #else /* !CONFIG_CPU_FREQ_THERMAL */
-static inline struct thermal_cooling_device *
-cpufreq_cooling_register(struct cpufreq_policy *policy)
-{
-	return ERR_PTR(-ENOSYS);
+static inline struct thermal_cooling_device *cpufreq_cooling_register(
+    struct cpufreq_policy *policy) {
+  return ERR_PTR(-ENOSYS);
 }
 
 static inline
-void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev)
-{
-	return;
+void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev) {
 }
 
-static inline struct thermal_cooling_device *
-of_cpufreq_cooling_register(struct cpufreq_policy *policy)
-{
-	return NULL;
+static inline struct thermal_cooling_device *of_cpufreq_cooling_register(
+    struct cpufreq_policy *policy) {
+  return NULL;
 }
+
 #endif /* CONFIG_CPU_FREQ_THERMAL */
 
 struct cpuidle_driver;
@@ -65,9 +62,9 @@ struct cpuidle_driver;
 #ifdef CONFIG_CPU_IDLE_THERMAL
 void cpuidle_cooling_register(struct cpuidle_driver *drv);
 #else /* CONFIG_CPU_IDLE_THERMAL */
-static inline void cpuidle_cooling_register(struct cpuidle_driver *drv)
-{
+static inline void cpuidle_cooling_register(struct cpuidle_driver *drv) {
 }
+
 #endif /* CONFIG_CPU_IDLE_THERMAL */
 
 #endif /* __CPU_COOLING_H__ */

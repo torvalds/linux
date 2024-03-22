@@ -20,7 +20,7 @@
  * @dvb_frontend: DVB frontend.
  */
 struct tua9001_platform_data {
-	struct dvb_frontend *dvb_frontend;
+  struct dvb_frontend *dvb_frontend;
 };
 
 /*

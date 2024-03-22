@@ -3,7 +3,7 @@
  * Texas Instrument's System Control Interface (TI-SCI) reset driver
  *
  * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com/
- *	Andrew F. Davis <afd@ti.com>
+ *  Andrew F. Davis <afd@ti.com>
  */
 
 #include <linux/idr.h>
@@ -21,9 +21,9 @@
  * @lock: synchronize reset_mask read-modify-writes
  */
 struct ti_sci_reset_control {
-	u32 dev_id;
-	u32 reset_mask;
-	struct mutex lock;
+  u32 dev_id;
+  u32 reset_mask;
+  struct mutex lock;
 };
 
 /**
@@ -34,14 +34,14 @@ struct ti_sci_reset_control {
  * @idr: idr structure for mapping ids to reset control structures
  */
 struct ti_sci_reset_data {
-	struct reset_controller_dev rcdev;
-	struct device *dev;
-	const struct ti_sci_handle *sci;
-	struct idr idr;
+  struct reset_controller_dev rcdev;
+  struct device *dev;
+  const struct ti_sci_handle *sci;
+  struct idr idr;
 };
 
-#define to_ti_sci_reset_data(p)	\
-	container_of((p), struct ti_sci_reset_data, rcdev)
+#define to_ti_sci_reset_data(p) \
+  container_of((p), struct ti_sci_reset_data, rcdev)
 
 /**
  * ti_sci_reset_set() - program a device's reset
@@ -60,35 +60,31 @@ struct ti_sci_reset_data {
  * Return: 0 for successful request, else a corresponding error value
  */
 static int ti_sci_reset_set(struct reset_controller_dev *rcdev,
-			    unsigned long id, bool assert)
-{
-	struct ti_sci_reset_data *data = to_ti_sci_reset_data(rcdev);
-	const struct ti_sci_handle *sci = data->sci;
-	const struct ti_sci_dev_ops *dev_ops = &sci->ops.dev_ops;
-	struct ti_sci_reset_control *control;
-	u32 reset_state;
-	int ret;
-
-	control = idr_find(&data->idr, id);
-	if (!control)
-		return -EINVAL;
-
-	mutex_lock(&control->lock);
-
-	ret = dev_ops->get_device_resets(sci, control->dev_id, &reset_state);
-	if (ret)
-		goto out;
-
-	if (assert)
-		reset_state |= control->reset_mask;
-	else
-		reset_state &= ~control->reset_mask;
-
-	ret = dev_ops->set_device_resets(sci, control->dev_id, reset_state);
+    unsigned long id, bool assert) {
+  struct ti_sci_reset_data *data = to_ti_sci_reset_data(rcdev);
+  const struct ti_sci_handle *sci = data->sci;
+  const struct ti_sci_dev_ops *dev_ops = &sci->ops.dev_ops;
+  struct ti_sci_reset_control *control;
+  u32 reset_state;
+  int ret;
+  control = idr_find(&data->idr, id);
+  if (!control) {
+    return -EINVAL;
+  }
+  mutex_lock(&control->lock);
+  ret = dev_ops->get_device_resets(sci, control->dev_id, &reset_state);
+  if (ret) {
+    goto out;
+  }
+  if (assert) {
+    reset_state |= control->reset_mask;
+  } else {
+    reset_state &= ~control->reset_mask;
+  }
+  ret = dev_ops->set_device_resets(sci, control->dev_id, reset_state);
 out:
-	mutex_unlock(&control->lock);
-
-	return ret;
+  mutex_unlock(&control->lock);
+  return ret;
 }
 
 /**
@@ -104,9 +100,8 @@ out:
  * Return: 0 for successful request, else a corresponding error value
  */
 static int ti_sci_reset_assert(struct reset_controller_dev *rcdev,
-			       unsigned long id)
-{
-	return ti_sci_reset_set(rcdev, id, true);
+    unsigned long id) {
+  return ti_sci_reset_set(rcdev, id, true);
 }
 
 /**
@@ -122,9 +117,8 @@ static int ti_sci_reset_assert(struct reset_controller_dev *rcdev,
  * Return: 0 for successful request, else a corresponding error value
  */
 static int ti_sci_reset_deassert(struct reset_controller_dev *rcdev,
-				 unsigned long id)
-{
-	return ti_sci_reset_set(rcdev, id, false);
+    unsigned long id) {
+  return ti_sci_reset_set(rcdev, id, false);
 }
 
 /**
@@ -141,30 +135,28 @@ static int ti_sci_reset_deassert(struct reset_controller_dev *rcdev,
  * Return: 0 if reset is deasserted, or a non-zero value if reset is asserted
  */
 static int ti_sci_reset_status(struct reset_controller_dev *rcdev,
-			       unsigned long id)
-{
-	struct ti_sci_reset_data *data = to_ti_sci_reset_data(rcdev);
-	const struct ti_sci_handle *sci = data->sci;
-	const struct ti_sci_dev_ops *dev_ops = &sci->ops.dev_ops;
-	struct ti_sci_reset_control *control;
-	u32 reset_state;
-	int ret;
-
-	control = idr_find(&data->idr, id);
-	if (!control)
-		return -EINVAL;
-
-	ret = dev_ops->get_device_resets(sci, control->dev_id, &reset_state);
-	if (ret)
-		return ret;
-
-	return reset_state & control->reset_mask;
+    unsigned long id) {
+  struct ti_sci_reset_data *data = to_ti_sci_reset_data(rcdev);
+  const struct ti_sci_handle *sci = data->sci;
+  const struct ti_sci_dev_ops *dev_ops = &sci->ops.dev_ops;
+  struct ti_sci_reset_control *control;
+  u32 reset_state;
+  int ret;
+  control = idr_find(&data->idr, id);
+  if (!control) {
+    return -EINVAL;
+  }
+  ret = dev_ops->get_device_resets(sci, control->dev_id, &reset_state);
+  if (ret) {
+    return ret;
+  }
+  return reset_state & control->reset_mask;
 }
 
 static const struct reset_control_ops ti_sci_reset_ops = {
-	.assert		= ti_sci_reset_assert,
-	.deassert	= ti_sci_reset_deassert,
-	.status		= ti_sci_reset_status,
+  .assert = ti_sci_reset_assert,
+  .deassert = ti_sci_reset_deassert,
+  .status = ti_sci_reset_status,
 };
 
 /**
@@ -182,77 +174,66 @@ static const struct reset_control_ops ti_sci_reset_ops = {
  * Return: 0 for successful request, else a corresponding error value
  */
 static int ti_sci_reset_of_xlate(struct reset_controller_dev *rcdev,
-				 const struct of_phandle_args *reset_spec)
-{
-	struct ti_sci_reset_data *data = to_ti_sci_reset_data(rcdev);
-	struct ti_sci_reset_control *control;
-
-	if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells))
-		return -EINVAL;
-
-	control = devm_kzalloc(data->dev, sizeof(*control), GFP_KERNEL);
-	if (!control)
-		return -ENOMEM;
-
-	control->dev_id = reset_spec->args[0];
-	control->reset_mask = reset_spec->args[1];
-	mutex_init(&control->lock);
-
-	return idr_alloc(&data->idr, control, 0, 0, GFP_KERNEL);
+    const struct of_phandle_args *reset_spec) {
+  struct ti_sci_reset_data *data = to_ti_sci_reset_data(rcdev);
+  struct ti_sci_reset_control *control;
+  if (WARN_ON(reset_spec->args_count != rcdev->of_reset_n_cells)) {
+    return -EINVAL;
+  }
+  control = devm_kzalloc(data->dev, sizeof(*control), GFP_KERNEL);
+  if (!control) {
+    return -ENOMEM;
+  }
+  control->dev_id = reset_spec->args[0];
+  control->reset_mask = reset_spec->args[1];
+  mutex_init(&control->lock);
+  return idr_alloc(&data->idr, control, 0, 0, GFP_KERNEL);
 }
 
 static const struct of_device_id ti_sci_reset_of_match[] = {
-	{ .compatible = "ti,sci-reset", },
-	{ /* sentinel */ },
+  { .compatible = "ti,sci-reset", },
+  { /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, ti_sci_reset_of_match);
 
-static int ti_sci_reset_probe(struct platform_device *pdev)
-{
-	struct ti_sci_reset_data *data;
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
-
-	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->sci = devm_ti_sci_get_handle(&pdev->dev);
-	if (IS_ERR(data->sci))
-		return PTR_ERR(data->sci);
-
-	data->rcdev.ops = &ti_sci_reset_ops;
-	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.of_node = pdev->dev.of_node;
-	data->rcdev.of_reset_n_cells = 2;
-	data->rcdev.of_xlate = ti_sci_reset_of_xlate;
-	data->dev = &pdev->dev;
-	idr_init(&data->idr);
-
-	platform_set_drvdata(pdev, data);
-
-	return reset_controller_register(&data->rcdev);
+static int ti_sci_reset_probe(struct platform_device *pdev) {
+  struct ti_sci_reset_data *data;
+  if (!pdev->dev.of_node) {
+    return -ENODEV;
+  }
+  data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
+  if (!data) {
+    return -ENOMEM;
+  }
+  data->sci = devm_ti_sci_get_handle(&pdev->dev);
+  if (IS_ERR(data->sci)) {
+    return PTR_ERR(data->sci);
+  }
+  data->rcdev.ops = &ti_sci_reset_ops;
+  data->rcdev.owner = THIS_MODULE;
+  data->rcdev.of_node = pdev->dev.of_node;
+  data->rcdev.of_reset_n_cells = 2;
+  data->rcdev.of_xlate = ti_sci_reset_of_xlate;
+  data->dev = &pdev->dev;
+  idr_init(&data->idr);
+  platform_set_drvdata(pdev, data);
+  return reset_controller_register(&data->rcdev);
 }
 
-static int ti_sci_reset_remove(struct platform_device *pdev)
-{
-	struct ti_sci_reset_data *data = platform_get_drvdata(pdev);
-
-	reset_controller_unregister(&data->rcdev);
-
-	idr_destroy(&data->idr);
-
-	return 0;
+static int ti_sci_reset_remove(struct platform_device *pdev) {
+  struct ti_sci_reset_data *data = platform_get_drvdata(pdev);
+  reset_controller_unregister(&data->rcdev);
+  idr_destroy(&data->idr);
+  return 0;
 }
 
 static struct platform_driver ti_sci_reset_driver = {
-	.probe = ti_sci_reset_probe,
-	.remove = ti_sci_reset_remove,
-	.driver = {
-		.name = "ti-sci-reset",
-		.of_match_table = ti_sci_reset_of_match,
-	},
+  .probe = ti_sci_reset_probe,
+  .remove = ti_sci_reset_remove,
+  .driver = {
+    .name = "ti-sci-reset",
+    .of_match_table = ti_sci_reset_of_match,
+  },
 };
 module_platform_driver(ti_sci_reset_driver);
 

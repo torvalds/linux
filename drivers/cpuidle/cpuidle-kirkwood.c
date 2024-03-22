@@ -20,57 +20,53 @@
 #include <linux/export.h>
 #include <asm/cpuidle.h>
 
-#define KIRKWOOD_MAX_STATES	2
+#define KIRKWOOD_MAX_STATES 2
 
 static void __iomem *ddr_operation_base;
 
 /* Actual code that puts the SoC in different idle states */
 static int kirkwood_enter_idle(struct cpuidle_device *dev,
-			       struct cpuidle_driver *drv,
-			       int index)
-{
-	writel(0x7, ddr_operation_base);
-	cpu_do_idle();
-
-	return index;
+    struct cpuidle_driver *drv,
+    int index) {
+  writel(0x7, ddr_operation_base);
+  cpu_do_idle();
+  return index;
 }
 
 static struct cpuidle_driver kirkwood_idle_driver = {
-	.name			= "kirkwood_idle",
-	.owner			= THIS_MODULE,
-	.states[0]		= ARM_CPUIDLE_WFI_STATE,
-	.states[1]		= {
-		.enter			= kirkwood_enter_idle,
-		.exit_latency		= 10,
-		.target_residency	= 100000,
-		.name			= "DDR SR",
-		.desc			= "WFI and DDR Self Refresh",
-	},
-	.state_count = KIRKWOOD_MAX_STATES,
+  .name = "kirkwood_idle",
+  .owner = THIS_MODULE,
+  .states[0] = ARM_CPUIDLE_WFI_STATE,
+  .states[1] = {
+    .enter = kirkwood_enter_idle,
+    .exit_latency = 10,
+    .target_residency = 100000,
+    .name = "DDR SR",
+    .desc = "WFI and DDR Self Refresh",
+  },
+  .state_count = KIRKWOOD_MAX_STATES,
 };
 
 /* Initialize CPU idle by registering the idle states */
-static int kirkwood_cpuidle_probe(struct platform_device *pdev)
-{
-	ddr_operation_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ddr_operation_base))
-		return PTR_ERR(ddr_operation_base);
-
-	return cpuidle_register(&kirkwood_idle_driver, NULL);
+static int kirkwood_cpuidle_probe(struct platform_device *pdev) {
+  ddr_operation_base = devm_platform_ioremap_resource(pdev, 0);
+  if (IS_ERR(ddr_operation_base)) {
+    return PTR_ERR(ddr_operation_base);
+  }
+  return cpuidle_register(&kirkwood_idle_driver, NULL);
 }
 
-static int kirkwood_cpuidle_remove(struct platform_device *pdev)
-{
-	cpuidle_unregister(&kirkwood_idle_driver);
-	return 0;
+static int kirkwood_cpuidle_remove(struct platform_device *pdev) {
+  cpuidle_unregister(&kirkwood_idle_driver);
+  return 0;
 }
 
 static struct platform_driver kirkwood_cpuidle_driver = {
-	.probe = kirkwood_cpuidle_probe,
-	.remove = kirkwood_cpuidle_remove,
-	.driver = {
-		   .name = "kirkwood_cpuidle",
-		   },
+  .probe = kirkwood_cpuidle_probe,
+  .remove = kirkwood_cpuidle_remove,
+  .driver = {
+    .name = "kirkwood_cpuidle",
+  },
 };
 
 module_platform_driver(kirkwood_cpuidle_driver);

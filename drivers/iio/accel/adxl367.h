@@ -13,11 +13,11 @@ struct device;
 struct regmap;
 
 struct adxl367_ops {
-	int (*read_fifo)(void *context, __be16 *fifo_buf,
-			 unsigned int fifo_entries);
+  int (*read_fifo)(void *context, __be16 *fifo_buf,
+      unsigned int fifo_entries);
 };
 
 int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
-		  void *context, struct regmap *regmap, int irq);
+    void *context, struct regmap *regmap, int irq);
 
 #endif /* _ADXL367_H_ */

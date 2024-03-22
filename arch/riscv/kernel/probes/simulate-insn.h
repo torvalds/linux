@@ -5,20 +5,20 @@
 
 #include <asm/insn.h>
 
-#define RISCV_INSN_REJECTED(name, code)					\
-	do {								\
-		if (riscv_insn_is_##name(code)) {			\
-			return INSN_REJECTED;				\
-		}							\
-	} while (0)
+#define RISCV_INSN_REJECTED(name, code)         \
+  do {                \
+    if (riscv_insn_is_ ## name(code)) {     \
+      return INSN_REJECTED;       \
+    }             \
+  } while (0)
 
-#define RISCV_INSN_SET_SIMULATE(name, code)				\
-	do {								\
-		if (riscv_insn_is_##name(code)) {			\
-			api->handler = simulate_##name;			\
-			return INSN_GOOD_NO_SLOT;			\
-		}							\
-	} while (0)
+#define RISCV_INSN_SET_SIMULATE(name, code)       \
+  do {                \
+    if (riscv_insn_is_ ## name(code)) {     \
+      api->handler = simulate_ ## name;     \
+      return INSN_GOOD_NO_SLOT;     \
+    }             \
+  } while (0)
 
 bool simulate_auipc(u32 opcode, unsigned long addr, struct pt_regs *regs);
 bool simulate_branch(u32 opcode, unsigned long addr, struct pt_regs *regs);

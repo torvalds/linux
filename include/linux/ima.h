@@ -20,14 +20,16 @@ extern int ima_file_hash(struct file *file, char *buf, size_t buf_size);
 extern int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size);
 extern void ima_kexec_cmdline(int kernel_fd, const void *buf, int size);
 extern int ima_measure_critical_data(const char *event_label,
-				     const char *event_name,
-				     const void *buf, size_t buf_len,
-				     bool hash, u8 *digest, size_t digest_len);
+    const char *event_name,
+    const void *buf, size_t buf_len,
+    bool hash, u8 *digest, size_t digest_len);
 
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
 extern void ima_appraise_parse_cmdline(void);
 #else
-static inline void ima_appraise_parse_cmdline(void) {}
+static inline void ima_appraise_parse_cmdline(void) {
+}
+
 #endif
 
 #ifdef CONFIG_IMA_KEXEC
@@ -35,30 +37,28 @@ extern void ima_add_kexec_buffer(struct kimage *image);
 #endif
 
 #else
-static inline enum hash_algo ima_get_current_hash_algo(void)
-{
-	return HASH_ALGO__LAST;
+static inline enum hash_algo ima_get_current_hash_algo(void) {
+  return HASH_ALGO__LAST;
 }
 
-static inline int ima_file_hash(struct file *file, char *buf, size_t buf_size)
-{
-	return -EOPNOTSUPP;
+static inline int ima_file_hash(struct file *file, char *buf, size_t buf_size) {
+  return -EOPNOTSUPP;
 }
 
-static inline int ima_inode_hash(struct inode *inode, char *buf, size_t buf_size)
-{
-	return -EOPNOTSUPP;
+static inline int ima_inode_hash(struct inode *inode, char *buf,
+    size_t buf_size) {
+  return -EOPNOTSUPP;
 }
 
-static inline void ima_kexec_cmdline(int kernel_fd, const void *buf, int size) {}
+static inline void ima_kexec_cmdline(int kernel_fd, const void *buf, int size) {
+}
 
 static inline int ima_measure_critical_data(const char *event_label,
-					     const char *event_name,
-					     const void *buf, size_t buf_len,
-					     bool hash, u8 *digest,
-					     size_t digest_len)
-{
-	return -ENOENT;
+    const char *event_name,
+    const void *buf, size_t buf_len,
+    bool hash, u8 *digest,
+    size_t digest_len) {
+  return -ENOENT;
 }
 
 #endif /* CONFIG_IMA */
@@ -70,41 +70,41 @@ int __init ima_get_kexec_buffer(void **addr, size_t *size);
 
 #ifdef CONFIG_IMA_SECURE_AND_OR_TRUSTED_BOOT
 extern bool arch_ima_get_secureboot(void);
-extern const char * const *arch_get_ima_policy(void);
+extern const char *const *arch_get_ima_policy(void);
 #else
-static inline bool arch_ima_get_secureboot(void)
-{
-	return false;
+static inline bool arch_ima_get_secureboot(void) {
+  return false;
 }
 
-static inline const char * const *arch_get_ima_policy(void)
-{
-	return NULL;
+static inline const char *const *arch_get_ima_policy(void) {
+  return NULL;
 }
+
 #endif
 
 #ifndef CONFIG_IMA_KEXEC
 struct kimage;
 
-static inline void ima_add_kexec_buffer(struct kimage *image)
-{}
+static inline void ima_add_kexec_buffer(struct kimage *image) {
+}
+
 #endif
 
 #ifdef CONFIG_IMA_APPRAISE
 extern bool is_ima_appraise_enabled(void);
 #else
-static inline bool is_ima_appraise_enabled(void)
-{
-	return 0;
+static inline bool is_ima_appraise_enabled(void) {
+  return 0;
 }
+
 #endif /* CONFIG_IMA_APPRAISE */
 
 #if defined(CONFIG_IMA_APPRAISE) && defined(CONFIG_INTEGRITY_TRUSTED_KEYRING)
 extern bool ima_appraise_signature(enum kernel_read_file_id func);
 #else
-static inline bool ima_appraise_signature(enum kernel_read_file_id func)
-{
-	return false;
+static inline bool ima_appraise_signature(enum kernel_read_file_id func) {
+  return false;
 }
+
 #endif /* CONFIG_IMA_APPRAISE && CONFIG_INTEGRITY_TRUSTED_KEYRING */
 #endif /* _LINUX_IMA_H */

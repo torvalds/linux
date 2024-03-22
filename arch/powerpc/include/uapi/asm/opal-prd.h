@@ -34,24 +34,24 @@
  * version is encountered, functionality provided in earlier versions
  * will work.
  */
-#define OPAL_PRD_KERNEL_VERSION		1
+#define OPAL_PRD_KERNEL_VERSION   1
 
-#define OPAL_PRD_GET_INFO		_IOR('o', 0x01, struct opal_prd_info)
-#define OPAL_PRD_SCOM_READ		_IOR('o', 0x02, struct opal_prd_scom)
-#define OPAL_PRD_SCOM_WRITE		_IOW('o', 0x03, struct opal_prd_scom)
+#define OPAL_PRD_GET_INFO   _IOR('o', 0x01, struct opal_prd_info)
+#define OPAL_PRD_SCOM_READ    _IOR('o', 0x02, struct opal_prd_scom)
+#define OPAL_PRD_SCOM_WRITE   _IOW('o', 0x03, struct opal_prd_scom)
 
 #ifndef __ASSEMBLY__
 
 struct opal_prd_info {
-	__u64	version;
-	__u64	reserved[3];
+  __u64 version;
+  __u64 reserved[3];
 };
 
 struct opal_prd_scom {
-	__u64	chip;
-	__u64	addr;
-	__u64	data;
-	__s64	rc;
+  __u64 chip;
+  __u64 addr;
+  __u64 data;
+  __s64 rc;
 };
 
 #endif /* __ASSEMBLY__ */

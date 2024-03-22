@@ -7,7 +7,7 @@
 #elif defined(__XTENSA_EB__)
 #include <linux/byteorder/big_endian.h>
 #else
-# error processor byte order undefined!
+#error processor byte order undefined!
 #endif
 
 #endif /* _XTENSA_BYTEORDER_H */

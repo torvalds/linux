@@ -14,36 +14,36 @@ extern int init_per_cpu(int cpuid);
 
 #ifndef ASSEMBLY
 #include <linux/bitops.h>
-#include <linux/threads.h>	/* for NR_CPUS */
+#include <linux/threads.h>  /* for NR_CPUS */
 #include <linux/cpumask.h>
 typedef unsigned long address_t;
 
-
 /*
- *	Private routines/data
+ *  Private routines/data
  *
- *	physical and logical are equivalent until we support CPU hotplug.
+ *  physical and logical are equivalent until we support CPU hotplug.
  */
-#define cpu_number_map(cpu)	(cpu)
-#define cpu_logical_map(cpu)	(cpu)
+#define cpu_number_map(cpu) (cpu)
+#define cpu_logical_map(cpu)  (cpu)
 
 extern void smp_send_all_nop(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
-#define raw_smp_processor_id()		(current_thread_info()->cpu)
+#define raw_smp_processor_id()    (current_thread_info()->cpu)
 
 #endif /* !ASSEMBLY */
 
 #else /* CONFIG_SMP */
 
-static inline void smp_send_all_nop(void) { return; }
+static inline void smp_send_all_nop(void) {
+}
 
 #endif
 
-#define NO_PROC_ID		0xFF		/* No processor magic marker */
-#define ANY_PROC_ID		0xFF		/* Any processor magic marker */
+#define NO_PROC_ID    0xFF    /* No processor magic marker */
+#define ANY_PROC_ID   0xFF    /* Any processor magic marker */
 int __cpu_disable(void);
 void __cpu_die(unsigned int cpu);
 

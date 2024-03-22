@@ -15,9 +15,9 @@ struct maps;
 #define KMAP_NAME_LEN 256
 
 struct kmap {
-	struct ref_reloc_sym *ref_reloc_sym;
-	struct maps	     *kmaps;
-	char		     name[KMAP_NAME_LEN];
+  struct ref_reloc_sym *ref_reloc_sym;
+  struct maps *kmaps;
+  char name[KMAP_NAME_LEN];
 };
 
 struct maps *maps__new(struct machine *machine);
@@ -27,10 +27,9 @@ int maps__copy_from(struct maps *maps, struct maps *parent);
 struct maps *maps__get(struct maps *maps);
 void maps__put(struct maps *maps);
 
-static inline void __maps__zput(struct maps **map)
-{
-	maps__put(*map);
-	*map = NULL;
+static inline void __maps__zput(struct maps **map) {
+  maps__put(*map);
+  *map = NULL;
 }
 
 #define maps__zput(map) __maps__zput(&map)
@@ -38,9 +37,11 @@ static inline void __maps__zput(struct maps **map)
 bool maps__equal(struct maps *a, struct maps *b);
 
 /* Iterate over map calling cb for each entry. */
-int maps__for_each_map(struct maps *maps, int (*cb)(struct map *map, void *data), void *data);
+int maps__for_each_map(struct maps *maps, int (*cb)(struct map *map,
+    void *data), void *data);
 /* Iterate over map removing an entry if cb returns true. */
-void maps__remove_maps(struct maps *maps, bool (*cb)(struct map *map, void *data), void *data);
+void maps__remove_maps(struct maps *maps, bool (*cb)(struct map *map,
+    void *data), void *data);
 
 struct machine *maps__machine(const struct maps *maps);
 unsigned int maps__nr_maps(const struct maps *maps); /* Test only. */
@@ -49,8 +50,10 @@ refcount_t *maps__refcnt(struct maps *maps); /* Test only. */
 #ifdef HAVE_LIBUNWIND_SUPPORT
 void *maps__addr_space(const struct maps *maps);
 void maps__set_addr_space(struct maps *maps, void *addr_space);
-const struct unwind_libunwind_ops *maps__unwind_libunwind_ops(const struct maps *maps);
-void maps__set_unwind_libunwind_ops(struct maps *maps, const struct unwind_libunwind_ops *ops);
+const struct unwind_libunwind_ops *maps__unwind_libunwind_ops(
+  const struct maps *maps);
+void maps__set_unwind_libunwind_ops(struct maps *maps,
+    const struct unwind_libunwind_ops *ops);
 #endif
 
 size_t maps__fprintf(struct maps *maps, FILE *fp);
@@ -59,8 +62,10 @@ int maps__insert(struct maps *maps, struct map *map);
 void maps__remove(struct maps *maps, struct map *map);
 
 struct map *maps__find(struct maps *maps, u64 addr);
-struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp);
-struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp);
+struct symbol *maps__find_symbol(struct maps *maps, u64 addr,
+    struct map **mapp);
+struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
+    struct map **mapp);
 
 struct addr_map_symbol;
 

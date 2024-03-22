@@ -7,7 +7,7 @@
 #define __ARC_ASM_SHMPARAM_H
 
 /* Handle upto 2 cache bins */
-#define	SHMLBA	(2 * PAGE_SIZE)
+#define SHMLBA  (2 * PAGE_SIZE)
 
 /* Enforce SHMLBA in shmat */
 #define __ARCH_FORCE_SHMLBA

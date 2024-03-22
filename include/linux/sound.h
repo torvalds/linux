@@ -5,12 +5,13 @@
 #include <uapi/linux/sound.h>
 
 /*
- *	Sound core interface functions
+ *  Sound core interface functions
  */
- 
+
 struct device;
 extern int register_sound_special(const struct file_operations *fops, int unit);
-extern int register_sound_special_device(const struct file_operations *fops, int unit, struct device *dev);
+extern int register_sound_special_device(const struct file_operations *fops,
+    int unit, struct device *dev);
 extern int register_sound_mixer(const struct file_operations *fops, int dev);
 extern int register_sound_dsp(const struct file_operations *fops, int dev);
 

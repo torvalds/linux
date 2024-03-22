@@ -33,9 +33,9 @@ struct dm_bio_prison_v2;
  * device.
  */
 struct dm_cell_key_v2 {
-	int virtual;
-	dm_thin_id dev;
-	dm_block_t block_begin, block_end;
+  int virtual;
+  dm_thin_id dev;
+  dm_block_t block_begin, block_end;
 };
 
 /*
@@ -43,15 +43,15 @@ struct dm_cell_key_v2 {
  * themselves.
  */
 struct dm_bio_prison_cell_v2 {
-	// FIXME: pack these
-	bool exclusive_lock;
-	unsigned int exclusive_level;
-	unsigned int shared_count;
-	struct work_struct *quiesce_continuation;
+  // FIXME: pack these
+  bool exclusive_lock;
+  unsigned int exclusive_level;
+  unsigned int shared_count;
+  struct work_struct *quiesce_continuation;
 
-	struct rb_node node;
-	struct dm_cell_key_v2 key;
-	struct bio_list bios;
+  struct rb_node node;
+  struct dm_cell_key_v2 key;
+  struct bio_list bios;
 };
 
 struct dm_bio_prison_v2 *dm_bio_prison_create_v2(struct workqueue_struct *wq);
@@ -64,10 +64,11 @@ void dm_bio_prison_destroy_v2(struct dm_bio_prison_v2 *prison);
  * Like mempool_alloc(), dm_bio_prison_alloc_cell_v2() can only fail if called
  * in interrupt context or passed GFP_NOWAIT.
  */
-struct dm_bio_prison_cell_v2 *dm_bio_prison_alloc_cell_v2(struct dm_bio_prison_v2 *prison,
-						    gfp_t gfp);
+struct dm_bio_prison_cell_v2 *dm_bio_prison_alloc_cell_v2(
+  struct dm_bio_prison_v2 *prison,
+  gfp_t gfp);
 void dm_bio_prison_free_cell_v2(struct dm_bio_prison_v2 *prison,
-				struct dm_bio_prison_cell_v2 *cell);
+    struct dm_bio_prison_cell_v2 *cell);
 
 /*
  * Shared locks have a bio associated with them.
@@ -86,18 +87,18 @@ void dm_bio_prison_free_cell_v2(struct dm_bio_prison_v2 *prison,
  * Returns true if the lock is granted.
  */
 bool dm_cell_get_v2(struct dm_bio_prison_v2 *prison,
-		    struct dm_cell_key_v2 *key,
-		    unsigned int lock_level,
-		    struct bio *inmate,
-		    struct dm_bio_prison_cell_v2 *cell_prealloc,
-		    struct dm_bio_prison_cell_v2 **cell_result);
+    struct dm_cell_key_v2 *key,
+    unsigned int lock_level,
+    struct bio *inmate,
+    struct dm_bio_prison_cell_v2 *cell_prealloc,
+    struct dm_bio_prison_cell_v2 **cell_result);
 
 /*
  * Decrement the shared reference count for the lock.  Returns true if
  * returning ownership of the cell (ie. you should free it).
  */
 bool dm_cell_put_v2(struct dm_bio_prison_v2 *prison,
-		    struct dm_bio_prison_cell_v2 *cell);
+    struct dm_bio_prison_cell_v2 *cell);
 
 /*
  * Locks a cell.  No associated bio.  Exclusive locks get priority.  These
@@ -114,14 +115,14 @@ bool dm_cell_put_v2(struct dm_bio_prison_v2 *prison,
  *  1   - locked; quiescing needed
  */
 int dm_cell_lock_v2(struct dm_bio_prison_v2 *prison,
-		    struct dm_cell_key_v2 *key,
-		    unsigned int lock_level,
-		    struct dm_bio_prison_cell_v2 *cell_prealloc,
-		    struct dm_bio_prison_cell_v2 **cell_result);
+    struct dm_cell_key_v2 *key,
+    unsigned int lock_level,
+    struct dm_bio_prison_cell_v2 *cell_prealloc,
+    struct dm_bio_prison_cell_v2 **cell_result);
 
 void dm_cell_quiesce_v2(struct dm_bio_prison_v2 *prison,
-			struct dm_bio_prison_cell_v2 *cell,
-			struct work_struct *continuation);
+    struct dm_bio_prison_cell_v2 *cell,
+    struct work_struct *continuation);
 
 /*
  * Promotes an _exclusive_ lock to a higher lock level.
@@ -132,8 +133,8 @@ void dm_cell_quiesce_v2(struct dm_bio_prison_v2 *prison,
  *  1   - promoted; quiescing needed
  */
 int dm_cell_lock_promote_v2(struct dm_bio_prison_v2 *prison,
-			    struct dm_bio_prison_cell_v2 *cell,
-			    unsigned int new_lock_level);
+    struct dm_bio_prison_cell_v2 *cell,
+    unsigned int new_lock_level);
 
 /*
  * Adds any held bios to the bio list.
@@ -145,8 +146,8 @@ int dm_cell_lock_promote_v2(struct dm_bio_prison_v2 *prison,
  * it).
  */
 bool dm_cell_unlock_v2(struct dm_bio_prison_v2 *prison,
-		       struct dm_bio_prison_cell_v2 *cell,
-		       struct bio_list *bios);
+    struct dm_bio_prison_cell_v2 *cell,
+    struct bio_list *bios);
 
 /*----------------------------------------------------------------*/
 

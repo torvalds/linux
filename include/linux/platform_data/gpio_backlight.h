@@ -8,7 +8,7 @@
 struct device;
 
 struct gpio_backlight_platform_data {
-	struct device *dev;
+  struct device *dev;
 };
 
 #endif

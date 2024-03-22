@@ -11,17 +11,17 @@
 #define MAX_DMA_ADDRESS  (~0UL)
 
 /* Useful constants */
-#define SIZE_16MB      (16*1024*1024)
-#define SIZE_64K       (64*1024)
+#define SIZE_16MB      (16 * 1024 * 1024)
+#define SIZE_64K       (64 * 1024)
 
 /* SBUS DMA controller reg offsets */
-#define DMA_CSR		0x00UL		/* rw  DMA control/status register    0x00   */
-#define DMA_ADDR	0x04UL		/* rw  DMA transfer address register  0x04   */
-#define DMA_COUNT	0x08UL		/* rw  DMA transfer count register    0x08   */
-#define DMA_TEST	0x0cUL		/* rw  DMA test/debug register        0x0c   */
+#define DMA_CSR   0x00UL    /* rw  DMA control/status register    0x00   */
+#define DMA_ADDR  0x04UL    /* rw  DMA transfer address register  0x04   */
+#define DMA_COUNT 0x08UL    /* rw  DMA transfer count register    0x08   */
+#define DMA_TEST  0x0cUL    /* rw  DMA test/debug register        0x0c   */
 
-/* Fields in the cond_reg register */
-/* First, the version identification bits */
+/* Fields in the cond_reg register
+ * First, the version identification bits*/
 #define DMA_DEVICE_ID    0xf0000000        /* Device identification bits */
 #define DMA_VERS0        0x00000000        /* Sunray DMA version */
 #define DMA_ESCV1        0x40000000        /* DMA ESC Version 1 */
@@ -52,14 +52,16 @@
 #define DMA_SCSI_DISAB   0x00020000        /* No FIFO drains during reg */
 #define DMA_DSBL_WR_INV  0x00020000        /* No EC inval. on slave writes */
 #define DMA_ADD_ENABLE   0x00040000        /* Special ESC DVMA optimization */
-#define DMA_E_BURSTS	 0x000c0000	   /* ENET: SBUS r/w burst mask */
-#define DMA_E_BURST32	 0x00040000	   /* ENET: SBUS 32 byte r/w burst */
-#define DMA_E_BURST16	 0x00000000	   /* ENET: SBUS 16 byte r/w burst */
+#define DMA_E_BURSTS   0x000c0000    /* ENET: SBUS r/w burst mask */
+#define DMA_E_BURST32  0x00040000    /* ENET: SBUS 32 byte r/w burst */
+#define DMA_E_BURST16  0x00000000    /* ENET: SBUS 16 byte r/w burst */
 #define DMA_BRST_SZ      0x000c0000        /* SCSI: SBUS r/w burst size */
-#define DMA_BRST64       0x000c0000        /* SCSI: 64byte bursts (HME on UltraSparc only) */
+#define DMA_BRST64       0x000c0000        /* SCSI: 64byte bursts (HME on
+                                            * UltraSparc only) */
 #define DMA_BRST32       0x00040000        /* SCSI: 32byte bursts */
 #define DMA_BRST16       0x00000000        /* SCSI: 16byte bursts */
-#define DMA_BRST0        0x00080000        /* SCSI: no bursts (non-HME gate arrays) */
+#define DMA_BRST0        0x00080000        /* SCSI: no bursts (non-HME gate
+                                            * arrays) */
 #define DMA_ADDR_DISAB   0x00100000        /* No FIFO drains during addr */
 #define DMA_2CLKS        0x00200000        /* Each transfer = 2 clock ticks */
 #define DMA_3CLKS        0x00400000        /* Each transfer = 3 clock ticks */

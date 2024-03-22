@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
+ * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights
+ * reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,7 +37,7 @@
 
 struct sock;
 
-#define TLS_TOE_DEVICE_NAME_MAX		32
+#define TLS_TOE_DEVICE_NAME_MAX   32
 
 /*
  * This structure defines the routines for Inline TLS driver.
@@ -60,13 +61,13 @@ struct sock;
  * @kref: Number of reference to tls_toe_device
  */
 struct tls_toe_device {
-	char name[TLS_TOE_DEVICE_NAME_MAX];
-	struct list_head dev_list;
-	int  (*feature)(struct tls_toe_device *device);
-	int  (*hash)(struct tls_toe_device *device, struct sock *sk);
-	void (*unhash)(struct tls_toe_device *device, struct sock *sk);
-	void (*release)(struct kref *kref);
-	struct kref kref;
+  char name[TLS_TOE_DEVICE_NAME_MAX];
+  struct list_head dev_list;
+  int (*feature)(struct tls_toe_device *device);
+  int (*hash)(struct tls_toe_device *device, struct sock *sk);
+  void (*unhash)(struct tls_toe_device *device, struct sock *sk);
+  void (*release)(struct kref *kref);
+  struct kref kref;
 };
 
 int tls_toe_bypass(struct sock *sk);

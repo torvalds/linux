@@ -11,24 +11,23 @@
 #include "brcmnand.h"
 
 static const struct of_device_id brcmstb_nand_of_match[] = {
-	{ .compatible = "brcm,brcmnand" },
-	{},
+  { .compatible = "brcm,brcmnand" },
+  {},
 };
 MODULE_DEVICE_TABLE(of, brcmstb_nand_of_match);
 
-static int brcmstb_nand_probe(struct platform_device *pdev)
-{
-	return brcmnand_probe(pdev, NULL);
+static int brcmstb_nand_probe(struct platform_device *pdev) {
+  return brcmnand_probe(pdev, NULL);
 }
 
 static struct platform_driver brcmstb_nand_driver = {
-	.probe			= brcmstb_nand_probe,
-	.remove_new		= brcmnand_remove,
-	.driver = {
-		.name		= "brcmstb_nand",
-		.pm		= &brcmnand_pm_ops,
-		.of_match_table = brcmstb_nand_of_match,
-	}
+  .probe = brcmstb_nand_probe,
+  .remove_new = brcmnand_remove,
+  .driver = {
+    .name = "brcmstb_nand",
+    .pm = &brcmnand_pm_ops,
+    .of_match_table = brcmstb_nand_of_match,
+  }
 };
 module_platform_driver(brcmstb_nand_driver);
 

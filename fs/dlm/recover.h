@@ -12,7 +12,7 @@
 #ifndef __RECOVER_DOT_H__
 #define __RECOVER_DOT_H__
 
-int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls));
+int dlm_wait_function(struct dlm_ls *ls, int (*testfn)(struct dlm_ls *ls));
 uint32_t dlm_recover_status(struct dlm_ls *ls);
 void dlm_set_recover_status(struct dlm_ls *ls, uint32_t status);
 int dlm_recover_members_wait(struct dlm_ls *ls, uint64_t seq);
@@ -28,5 +28,4 @@ void dlm_release_root_list(struct dlm_ls *ls);
 void dlm_clear_toss(struct dlm_ls *ls);
 void dlm_recover_rsbs(struct dlm_ls *ls);
 
-#endif				/* __RECOVER_DOT_H__ */
-
+#endif        /* __RECOVER_DOT_H__ */

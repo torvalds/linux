@@ -7,8 +7,8 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("lsm_cgroup/inet_csk_clone")
-int BPF_PROG(nonvoid_socket_clone, struct sock *newsk, const struct request_sock *req)
-{
-	/* Can not return any errors from void LSM hooks. */
-	return 0;
+int BPF_PROG(nonvoid_socket_clone, struct sock *newsk,
+    const struct request_sock *req) {
+  /* Can not return any errors from void LSM hooks. */
+  return 0;
 }

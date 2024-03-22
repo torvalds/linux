@@ -11,7 +11,7 @@
 
 void __delay(unsigned long loops);
 void udelay(unsigned long usecs);
-#define mdelay(n)	udelay((n) * 1000)
+#define mdelay(n) udelay((n) * 1000)
 
 #endif /* !__ASSEMBLY__ */
 

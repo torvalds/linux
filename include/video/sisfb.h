@@ -7,13 +7,12 @@
 #ifndef _LINUX_SISFB_H_
 #define _LINUX_SISFB_H_
 
-
 #include <linux/pci.h>
 #include <uapi/video/sisfb.h>
 
-#define	UNKNOWN_VGA  0
-#define	SIS_300_VGA  1
-#define	SIS_315_VGA  2
+#define UNKNOWN_VGA  0
+#define SIS_300_VGA  1
+#define SIS_315_VGA  2
 
 #define SISFB_HAVE_MALLOC_NEW
 extern void sis_malloc(struct sis_memreq *req);

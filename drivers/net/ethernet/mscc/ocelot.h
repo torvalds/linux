@@ -31,24 +31,24 @@
 
 #define OCELOT_STATS_CHECK_DELAY (2 * HZ)
 
-#define OCELOT_PTP_QUEUE_SZ	128
+#define OCELOT_PTP_QUEUE_SZ 128
 
-#define OCELOT_JUMBO_MTU	9000
+#define OCELOT_JUMBO_MTU  9000
 
 struct ocelot_port_tc {
-	bool block_shared;
-	unsigned long offload_cnt;
-	unsigned long ingress_mirred_id;
-	unsigned long egress_mirred_id;
-	unsigned long police_id;
+  bool block_shared;
+  unsigned long offload_cnt;
+  unsigned long ingress_mirred_id;
+  unsigned long egress_mirred_id;
+  unsigned long police_id;
 };
 
 struct ocelot_port_private {
-	struct ocelot_port port;
-	struct net_device *dev;
-	struct phylink *phylink;
-	struct phylink_config phylink_config;
-	struct ocelot_port_tc tc;
+  struct ocelot_port port;
+  struct net_device *dev;
+  struct phylink *phylink;
+  struct phylink_config phylink_config;
+  struct ocelot_port_tc tc;
 };
 
 /* A (PGID) port mask structure, encoding the 2^ocelot->num_phys_ports
@@ -59,55 +59,54 @@ struct ocelot_port_private {
  * destinations requested by the user for L2 multicast.
  */
 struct ocelot_pgid {
-	unsigned long ports;
-	int index;
-	refcount_t refcount;
-	struct list_head list;
+  unsigned long ports;
+  int index;
+  refcount_t refcount;
+  struct list_head list;
 };
 
 struct ocelot_multicast {
-	struct list_head list;
-	enum macaccess_entry_type entry_type;
-	unsigned char addr[ETH_ALEN];
-	u16 vid;
-	u16 ports;
-	struct ocelot_pgid *pgid;
+  struct list_head list;
+  enum macaccess_entry_type entry_type;
+  unsigned char addr[ETH_ALEN];
+  u16 vid;
+  u16 ports;
+  struct ocelot_pgid *pgid;
 };
 
 static inline void ocelot_reg_to_target_addr(struct ocelot *ocelot,
-					     enum ocelot_reg reg,
-					     enum ocelot_target *target,
-					     u32 *addr)
-{
-	*target = reg >> TARGET_OFFSET;
-	*addr = ocelot->map[*target][reg & REG_MASK];
+    enum ocelot_reg reg,
+    enum ocelot_target *target,
+    u32 *addr) {
+  *target = reg >> TARGET_OFFSET;
+  *addr = ocelot->map[*target][reg & REG_MASK];
 }
 
 int ocelot_bridge_num_find(struct ocelot *ocelot,
-			   const struct net_device *bridge);
+    const struct net_device *bridge);
 
 int ocelot_mact_learn(struct ocelot *ocelot, int port,
-		      const unsigned char mac[ETH_ALEN],
-		      unsigned int vid, enum macaccess_entry_type type);
+    const unsigned char mac[ETH_ALEN],
+    unsigned int vid, enum macaccess_entry_type type);
 int ocelot_mact_forget(struct ocelot *ocelot,
-		       const unsigned char mac[ETH_ALEN], unsigned int vid);
+    const unsigned char mac[ETH_ALEN], unsigned int vid);
 struct net_device *ocelot_port_to_netdev(struct ocelot *ocelot, int port);
 int ocelot_netdev_to_port(struct net_device *dev);
 
 int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
-		      struct device_node *portnp);
+    struct device_node *portnp);
 void ocelot_release_port(struct ocelot_port *ocelot_port);
 int ocelot_port_devlink_init(struct ocelot *ocelot, int port,
-			     enum devlink_port_flavour flavour);
+    enum devlink_port_flavour flavour);
 void ocelot_port_devlink_teardown(struct ocelot *ocelot, int port);
 
 int ocelot_trap_add(struct ocelot *ocelot, int port,
-		    unsigned long cookie, bool take_ts,
-		    void (*populate)(struct ocelot_vcap_filter *f));
+    unsigned long cookie, bool take_ts,
+    void (*populate)(struct ocelot_vcap_filter *f));
 int ocelot_trap_del(struct ocelot *ocelot, int port, unsigned long cookie);
 
 struct ocelot_mirror *ocelot_mirror_get(struct ocelot *ocelot, int to,
-					struct netlink_ext_ack *extack);
+    struct netlink_ext_ack *extack);
 void ocelot_mirror_put(struct ocelot *ocelot);
 
 int ocelot_stats_init(struct ocelot *ocelot);
@@ -115,7 +114,7 @@ void ocelot_stats_deinit(struct ocelot *ocelot);
 
 int ocelot_mm_init(struct ocelot *ocelot);
 void ocelot_port_change_fp(struct ocelot *ocelot, int port,
-			   unsigned long preemptible_tcs);
+    unsigned long preemptible_tcs);
 void ocelot_port_update_active_preemptible_tcs(struct ocelot *ocelot, int port);
 
 extern struct notifier_block ocelot_netdevice_nb;

@@ -29,41 +29,41 @@
 
 struct regmap;
 
-#define to_iss_device(ptr_module)				\
-	container_of(ptr_module, struct iss_device, ptr_module)
-#define to_device(ptr_module)						\
-	(to_iss_device(ptr_module)->dev)
+#define to_iss_device(ptr_module)       \
+  container_of(ptr_module, struct iss_device, ptr_module)
+#define to_device(ptr_module)           \
+  (to_iss_device(ptr_module)->dev)
 
 enum iss_mem_resources {
-	OMAP4_ISS_MEM_TOP,
-	OMAP4_ISS_MEM_CSI2_A_REGS1,
-	OMAP4_ISS_MEM_CAMERARX_CORE1,
-	OMAP4_ISS_MEM_CSI2_B_REGS1,
-	OMAP4_ISS_MEM_CAMERARX_CORE2,
-	OMAP4_ISS_MEM_BTE,
-	OMAP4_ISS_MEM_ISP_SYS1,
-	OMAP4_ISS_MEM_ISP_RESIZER,
-	OMAP4_ISS_MEM_ISP_IPIPE,
-	OMAP4_ISS_MEM_ISP_ISIF,
-	OMAP4_ISS_MEM_ISP_IPIPEIF,
-	OMAP4_ISS_MEM_LAST,
+  OMAP4_ISS_MEM_TOP,
+  OMAP4_ISS_MEM_CSI2_A_REGS1,
+  OMAP4_ISS_MEM_CAMERARX_CORE1,
+  OMAP4_ISS_MEM_CSI2_B_REGS1,
+  OMAP4_ISS_MEM_CAMERARX_CORE2,
+  OMAP4_ISS_MEM_BTE,
+  OMAP4_ISS_MEM_ISP_SYS1,
+  OMAP4_ISS_MEM_ISP_RESIZER,
+  OMAP4_ISS_MEM_ISP_IPIPE,
+  OMAP4_ISS_MEM_ISP_ISIF,
+  OMAP4_ISS_MEM_ISP_IPIPEIF,
+  OMAP4_ISS_MEM_LAST,
 };
 
 enum iss_subclk_resource {
-	OMAP4_ISS_SUBCLK_SIMCOP		= (1 << 0),
-	OMAP4_ISS_SUBCLK_ISP		= (1 << 1),
-	OMAP4_ISS_SUBCLK_CSI2_A		= (1 << 2),
-	OMAP4_ISS_SUBCLK_CSI2_B		= (1 << 3),
-	OMAP4_ISS_SUBCLK_CCP2		= (1 << 4),
+  OMAP4_ISS_SUBCLK_SIMCOP = (1 << 0),
+  OMAP4_ISS_SUBCLK_ISP = (1 << 1),
+  OMAP4_ISS_SUBCLK_CSI2_A = (1 << 2),
+  OMAP4_ISS_SUBCLK_CSI2_B = (1 << 3),
+  OMAP4_ISS_SUBCLK_CCP2 = (1 << 4),
 };
 
 enum iss_isp_subclk_resource {
-	OMAP4_ISS_ISP_SUBCLK_BL		= (1 << 0),
-	OMAP4_ISS_ISP_SUBCLK_ISIF	= (1 << 1),
-	OMAP4_ISS_ISP_SUBCLK_H3A	= (1 << 2),
-	OMAP4_ISS_ISP_SUBCLK_RSZ	= (1 << 3),
-	OMAP4_ISS_ISP_SUBCLK_IPIPE	= (1 << 4),
-	OMAP4_ISS_ISP_SUBCLK_IPIPEIF	= (1 << 5),
+  OMAP4_ISS_ISP_SUBCLK_BL = (1 << 0),
+  OMAP4_ISS_ISP_SUBCLK_ISIF = (1 << 1),
+  OMAP4_ISS_ISP_SUBCLK_H3A = (1 << 2),
+  OMAP4_ISS_ISP_SUBCLK_RSZ = (1 << 3),
+  OMAP4_ISS_ISP_SUBCLK_IPIPE = (1 << 4),
+  OMAP4_ISS_ISP_SUBCLK_IPIPEIF = (1 << 5),
 };
 
 /*
@@ -72,9 +72,9 @@ enum iss_isp_subclk_resource {
  * @val: 32-bit Register value.
  */
 struct iss_reg {
-	enum iss_mem_resources mmio_range;
-	u32 reg;
-	u32 val;
+  enum iss_mem_resources mmio_range;
+  u32 reg;
+  u32 val;
 };
 
 /*
@@ -83,71 +83,71 @@ struct iss_reg {
  * @crashed: Crashed entities
  */
 struct iss_device {
-	struct v4l2_device v4l2_dev;
-	struct media_device media_dev;
-	struct device *dev;
-	u32 revision;
+  struct v4l2_device v4l2_dev;
+  struct media_device media_dev;
+  struct device *dev;
+  u32 revision;
 
-	/* platform HW resources */
-	struct iss_platform_data *pdata;
-	unsigned int irq_num;
+  /* platform HW resources */
+  struct iss_platform_data *pdata;
+  unsigned int irq_num;
 
-	struct resource *res[OMAP4_ISS_MEM_LAST];
-	void __iomem *regs[OMAP4_ISS_MEM_LAST];
-	struct regmap *syscon;
+  struct resource *res[OMAP4_ISS_MEM_LAST];
+  void __iomem *regs[OMAP4_ISS_MEM_LAST];
+  struct regmap *syscon;
 
-	u64 raw_dmamask;
+  u64 raw_dmamask;
 
-	struct mutex iss_mutex;	/* For handling ref_count field */
-	struct media_entity_enum crashed;
-	int has_context;
-	int ref_count;
+  struct mutex iss_mutex; /* For handling ref_count field */
+  struct media_entity_enum crashed;
+  int has_context;
+  int ref_count;
 
-	struct clk *iss_fck;
-	struct clk *iss_ctrlclk;
+  struct clk *iss_fck;
+  struct clk *iss_ctrlclk;
 
-	/* ISS modules */
-	struct iss_csi2_device csi2a;
-	struct iss_csi2_device csi2b;
-	struct iss_csiphy csiphy1;
-	struct iss_csiphy csiphy2;
-	struct iss_ipipeif_device ipipeif;
-	struct iss_ipipe_device ipipe;
-	struct iss_resizer_device resizer;
+  /* ISS modules */
+  struct iss_csi2_device csi2a;
+  struct iss_csi2_device csi2b;
+  struct iss_csiphy csiphy1;
+  struct iss_csiphy csiphy2;
+  struct iss_ipipeif_device ipipeif;
+  struct iss_ipipe_device ipipe;
+  struct iss_resizer_device resizer;
 
-	unsigned int subclk_resources;
-	unsigned int isp_subclk_resources;
+  unsigned int subclk_resources;
+  unsigned int isp_subclk_resources;
 };
 
 int omap4iss_get_external_info(struct iss_pipeline *pipe,
-			       struct media_link *link);
+    struct media_link *link);
 
 int omap4iss_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
-			      atomic_t *stopping);
+    atomic_t *stopping);
 
 int omap4iss_module_sync_is_stopping(wait_queue_head_t *wait,
-				     atomic_t *stopping);
+    atomic_t *stopping);
 
 int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
-				 enum iss_pipeline_stream_state state);
+    enum iss_pipeline_stream_state state);
 void omap4iss_pipeline_cancel_stream(struct iss_pipeline *pipe);
 
 void omap4iss_configure_bridge(struct iss_device *iss,
-			       enum ipipeif_input_entity input);
+    enum ipipeif_input_entity input);
 
 struct iss_device *omap4iss_get(struct iss_device *iss);
 void omap4iss_put(struct iss_device *iss);
 int omap4iss_subclk_enable(struct iss_device *iss,
-			   enum iss_subclk_resource res);
+    enum iss_subclk_resource res);
 int omap4iss_subclk_disable(struct iss_device *iss,
-			    enum iss_subclk_resource res);
+    enum iss_subclk_resource res);
 void omap4iss_isp_subclk_enable(struct iss_device *iss,
-				enum iss_isp_subclk_resource res);
+    enum iss_isp_subclk_resource res);
 void omap4iss_isp_subclk_disable(struct iss_device *iss,
-				 enum iss_isp_subclk_resource res);
+    enum iss_isp_subclk_resource res);
 
 int omap4iss_register_entities(struct platform_device *pdev,
-			       struct v4l2_device *v4l2_dev);
+    struct v4l2_device *v4l2_dev);
 void omap4iss_unregister_entities(struct platform_device *pdev);
 
 /*
@@ -160,9 +160,8 @@ void omap4iss_unregister_entities(struct platform_device *pdev);
  */
 static inline
 u32 iss_reg_read(struct iss_device *iss, enum iss_mem_resources res,
-		 u32 offset)
-{
-	return readl(iss->regs[res] + offset);
+    u32 offset) {
+  return readl(iss->regs[res] + offset);
 }
 
 /*
@@ -174,9 +173,8 @@ u32 iss_reg_read(struct iss_device *iss, enum iss_mem_resources res,
  */
 static inline
 void iss_reg_write(struct iss_device *iss, enum iss_mem_resources res,
-		   u32 offset, u32 value)
-{
-	writel(value, iss->regs[res] + offset);
+    u32 offset, u32 value) {
+  writel(value, iss->regs[res] + offset);
 }
 
 /*
@@ -188,11 +186,9 @@ void iss_reg_write(struct iss_device *iss, enum iss_mem_resources res,
  */
 static inline
 void iss_reg_clr(struct iss_device *iss, enum iss_mem_resources res,
-		 u32 offset, u32 clr)
-{
-	u32 v = iss_reg_read(iss, res, offset);
-
-	iss_reg_write(iss, res, offset, v & ~clr);
+    u32 offset, u32 clr) {
+  u32 v = iss_reg_read(iss, res, offset);
+  iss_reg_write(iss, res, offset, v & ~clr);
 }
 
 /*
@@ -204,11 +200,9 @@ void iss_reg_clr(struct iss_device *iss, enum iss_mem_resources res,
  */
 static inline
 void iss_reg_set(struct iss_device *iss, enum iss_mem_resources res,
-		 u32 offset, u32 set)
-{
-	u32 v = iss_reg_read(iss, res, offset);
-
-	iss_reg_write(iss, res, offset, v | set);
+    u32 offset, u32 set) {
+  u32 v = iss_reg_read(iss, res, offset);
+  iss_reg_write(iss, res, offset, v | set);
 }
 
 /*
@@ -223,25 +217,23 @@ void iss_reg_set(struct iss_device *iss, enum iss_mem_resources res,
  */
 static inline
 void iss_reg_update(struct iss_device *iss, enum iss_mem_resources res,
-		    u32 offset, u32 clr, u32 set)
-{
-	u32 v = iss_reg_read(iss, res, offset);
-
-	iss_reg_write(iss, res, offset, (v & ~clr) | set);
+    u32 offset, u32 clr, u32 set) {
+  u32 v = iss_reg_read(iss, res, offset);
+  iss_reg_write(iss, res, offset, (v & ~clr) | set);
 }
 
-#define iss_poll_condition_timeout(cond, timeout, min_ival, max_ival)	\
-({									\
-	unsigned long __timeout = jiffies + usecs_to_jiffies(timeout);	\
-	unsigned int __min_ival = (min_ival);				\
-	unsigned int __max_ival = (max_ival);				\
-	bool __cond;							\
-	while (!(__cond = (cond))) {					\
-		if (time_after(jiffies, __timeout))			\
-			break;						\
-		usleep_range(__min_ival, __max_ival);			\
-	}								\
-	!__cond;							\
-})
+#define iss_poll_condition_timeout(cond, timeout, min_ival, max_ival) \
+  ({                  \
+    unsigned long __timeout = jiffies + usecs_to_jiffies(timeout);  \
+    unsigned int __min_ival = (min_ival);       \
+    unsigned int __max_ival = (max_ival);       \
+    bool __cond;              \
+    while (!(__cond = (cond))) {          \
+      if (time_after(jiffies, __timeout))     \
+      break;            \
+      usleep_range(__min_ival, __max_ival);     \
+    }               \
+    !__cond;              \
+  })
 
 #endif /* _OMAP4_ISS_H_ */

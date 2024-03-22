@@ -17,19 +17,18 @@
 
 struct vsp1_device;
 
-#define HGT_NUM_HUE_AREAS			6
+#define HGT_NUM_HUE_AREAS     6
 
 struct vsp1_hgt {
-	struct vsp1_histogram histo;
+  struct vsp1_histogram histo;
 
-	struct v4l2_ctrl_handler ctrls;
+  struct v4l2_ctrl_handler ctrls;
 
-	u8 hue_areas[HGT_NUM_HUE_AREAS * 2];
+  u8 hue_areas[HGT_NUM_HUE_AREAS * 2];
 };
 
-static inline struct vsp1_hgt *to_hgt(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_hgt, histo.entity.subdev);
+static inline struct vsp1_hgt *to_hgt(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_hgt, histo.entity.subdev);
 }
 
 struct vsp1_hgt *vsp1_hgt_create(struct vsp1_device *vsp1);

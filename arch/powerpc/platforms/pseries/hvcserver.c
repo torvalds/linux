@@ -28,78 +28,73 @@ MODULE_VERSION(HVCS_ARCH_VERSION);
  * functions aren't performance sensitive, so this conversion isn't an
  * issue.
  */
-static int hvcs_convert(long to_convert)
-{
-	switch (to_convert) {
-		case H_SUCCESS:
-			return 0;
-		case H_PARAMETER:
-			return -EINVAL;
-		case H_HARDWARE:
-			return -EIO;
-		case H_BUSY:
-		case H_LONG_BUSY_ORDER_1_MSEC:
-		case H_LONG_BUSY_ORDER_10_MSEC:
-		case H_LONG_BUSY_ORDER_100_MSEC:
-		case H_LONG_BUSY_ORDER_1_SEC:
-		case H_LONG_BUSY_ORDER_10_SEC:
-		case H_LONG_BUSY_ORDER_100_SEC:
-			return -EBUSY;
-		case H_FUNCTION:
-		default:
-			return -EPERM;
-	}
+static int hvcs_convert(long to_convert) {
+  switch (to_convert) {
+    case H_SUCCESS:
+      return 0;
+    case H_PARAMETER:
+      return -EINVAL;
+    case H_HARDWARE:
+      return -EIO;
+    case H_BUSY:
+    case H_LONG_BUSY_ORDER_1_MSEC:
+    case H_LONG_BUSY_ORDER_10_MSEC:
+    case H_LONG_BUSY_ORDER_100_MSEC:
+    case H_LONG_BUSY_ORDER_1_SEC:
+    case H_LONG_BUSY_ORDER_10_SEC:
+    case H_LONG_BUSY_ORDER_100_SEC:
+      return -EBUSY;
+    case H_FUNCTION:
+    default:
+      return -EPERM;
+  }
 }
 
 /**
  * hvcs_free_partner_info - free pi allocated by hvcs_get_partner_info
  * @head: list_head pointer for an allocated list of partner info structs to
- *	free.
+ *  free.
  *
  * This function is used to free the partner info list that was returned by
  * calling hvcs_get_partner_info().
  */
-int hvcs_free_partner_info(struct list_head *head)
-{
-	struct hvcs_partner_info *pi;
-	struct list_head *element;
-
-	if (!head)
-		return -EINVAL;
-
-	while (!list_empty(head)) {
-		element = head->next;
-		pi = list_entry(element, struct hvcs_partner_info, node);
-		list_del(element);
-		kfree(pi);
-	}
-
-	return 0;
+int hvcs_free_partner_info(struct list_head *head) {
+  struct hvcs_partner_info *pi;
+  struct list_head *element;
+  if (!head) {
+    return -EINVAL;
+  }
+  while (!list_empty(head)) {
+    element = head->next;
+    pi = list_entry(element, struct hvcs_partner_info, node);
+    list_del(element);
+    kfree(pi);
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL(hvcs_free_partner_info);
 
 /* Helper function for hvcs_get_partner_info */
 static int hvcs_next_partner(uint32_t unit_address,
-		unsigned long last_p_partition_ID,
-		unsigned long last_p_unit_address, unsigned long *pi_buff)
-
-{
-	long retval;
-	retval = plpar_hcall_norets(H_VTERM_PARTNER_INFO, unit_address,
-			last_p_partition_ID,
-				last_p_unit_address, virt_to_phys(pi_buff));
-	return hvcs_convert(retval);
+    unsigned long last_p_partition_ID,
+    unsigned long last_p_unit_address, unsigned long *pi_buff) {
+  long retval;
+  retval = plpar_hcall_norets(H_VTERM_PARTNER_INFO, unit_address,
+      last_p_partition_ID,
+      last_p_unit_address, virt_to_phys(pi_buff));
+  return hvcs_convert(retval);
 }
 
 /**
  * hvcs_get_partner_info - Get all of the partner info for a vty-server adapter
  * @unit_address: The unit_address of the vty-server adapter for which this
- *	function is fetching partner info.
+ *  function is fetching partner info.
  * @head: An initialized list_head pointer to an empty list to use to return the
- *	list of partner info fetched from the hypervisor to the caller.
+ *  list of partner info fetched from the hypervisor to the caller.
  * @pi_buff: A page sized buffer pre-allocated prior to calling this function
- *	that is to be used to be used by firmware as an iterator to keep track
- *	of the partner info retrieval.
+ *  that is to be used to be used by firmware as an iterator to keep track
+ *  of the partner info retrieval.
  *
  * This function returns non-zero on success, or if there is no partner info.
  *
@@ -117,86 +112,77 @@ static int hvcs_next_partner(uint32_t unit_address,
  * that was passed as a parameter to this function.
  */
 int hvcs_get_partner_info(uint32_t unit_address, struct list_head *head,
-		unsigned long *pi_buff)
-{
-	/*
-	 * Dealt with as longs because of the hcall interface even though the
-	 * values are uint32_t.
-	 */
-	unsigned long	last_p_partition_ID;
-	unsigned long	last_p_unit_address;
-	struct hvcs_partner_info *next_partner_info = NULL;
-	int more = 1;
-	int retval;
-
-	/* invalid parameters */
-	if (!head || !pi_buff)
-		return -EINVAL;
-
-	memset(pi_buff, 0x00, PAGE_SIZE);
-	last_p_partition_ID = last_p_unit_address = ~0UL;
-	INIT_LIST_HEAD(head);
-
-	do {
-		retval = hvcs_next_partner(unit_address, last_p_partition_ID,
-				last_p_unit_address, pi_buff);
-		if (retval) {
-			/*
-			 * Don't indicate that we've failed if we have
-			 * any list elements.
-			 */
-			if (!list_empty(head))
-				return 0;
-			return retval;
-		}
-
-		last_p_partition_ID = be64_to_cpu(pi_buff[0]);
-		last_p_unit_address = be64_to_cpu(pi_buff[1]);
-
-		/* This indicates that there are no further partners */
-		if (last_p_partition_ID == ~0UL
-				&& last_p_unit_address == ~0UL)
-			break;
-
-		/* This is a very small struct and will be freed soon in
-		 * hvcs_free_partner_info(). */
-		next_partner_info = kmalloc(sizeof(struct hvcs_partner_info),
-				GFP_ATOMIC);
-
-		if (!next_partner_info) {
-			printk(KERN_WARNING "HVCONSOLE: kmalloc() failed to"
-				" allocate partner info struct.\n");
-			hvcs_free_partner_info(head);
-			return -ENOMEM;
-		}
-
-		next_partner_info->unit_address
-			= (unsigned int)last_p_unit_address;
-		next_partner_info->partition_ID
-			= (unsigned int)last_p_partition_ID;
-
-		/* copy the Null-term char too */
-		strscpy(&next_partner_info->location_code[0],
-			(char *)&pi_buff[2],
-			sizeof(next_partner_info->location_code));
-
-		list_add_tail(&(next_partner_info->node), head);
-		next_partner_info = NULL;
-
-	} while (more);
-
-	return 0;
+    unsigned long *pi_buff) {
+  /*
+   * Dealt with as longs because of the hcall interface even though the
+   * values are uint32_t.
+   */
+  unsigned long last_p_partition_ID;
+  unsigned long last_p_unit_address;
+  struct hvcs_partner_info *next_partner_info = NULL;
+  int more = 1;
+  int retval;
+  /* invalid parameters */
+  if (!head || !pi_buff) {
+    return -EINVAL;
+  }
+  memset(pi_buff, 0x00, PAGE_SIZE);
+  last_p_partition_ID = last_p_unit_address = ~0UL;
+  INIT_LIST_HEAD(head);
+  do {
+    retval = hvcs_next_partner(unit_address, last_p_partition_ID,
+        last_p_unit_address, pi_buff);
+    if (retval) {
+      /*
+       * Don't indicate that we've failed if we have
+       * any list elements.
+       */
+      if (!list_empty(head)) {
+        return 0;
+      }
+      return retval;
+    }
+    last_p_partition_ID = be64_to_cpu(pi_buff[0]);
+    last_p_unit_address = be64_to_cpu(pi_buff[1]);
+    /* This indicates that there are no further partners */
+    if (last_p_partition_ID == ~0UL
+        && last_p_unit_address == ~0UL) {
+      break;
+    }
+    /* This is a very small struct and will be freed soon in
+     * hvcs_free_partner_info(). */
+    next_partner_info = kmalloc(sizeof(struct hvcs_partner_info),
+        GFP_ATOMIC);
+    if (!next_partner_info) {
+      printk(KERN_WARNING "HVCONSOLE: kmalloc() failed to"
+          " allocate partner info struct.\n");
+      hvcs_free_partner_info(head);
+      return -ENOMEM;
+    }
+    next_partner_info->unit_address
+      = (unsigned int) last_p_unit_address;
+    next_partner_info->partition_ID
+      = (unsigned int) last_p_partition_ID;
+    /* copy the Null-term char too */
+    strscpy(&next_partner_info->location_code[0],
+        (char *) &pi_buff[2],
+        sizeof(next_partner_info->location_code));
+    list_add_tail(&(next_partner_info->node), head);
+    next_partner_info = NULL;
+  } while (more);
+  return 0;
 }
+
 EXPORT_SYMBOL(hvcs_get_partner_info);
 
 /**
  * hvcs_register_connection - establish a connection between this vty-server and
- *	a vty.
+ *  a vty.
  * @unit_address: The unit address of the vty-server adapter that is to be
- *	establish a connection.
+ *  establish a connection.
  * @p_partition_ID: The partition ID of the vty adapter that is to be connected.
  * @p_unit_address: The unit address of the vty adapter to which the vty-server
- *	is to be connected.
+ *  is to be connected.
  *
  * If this function is called once and -EINVAL is returned it may
  * indicate that the partner info needs to be refreshed for the
@@ -210,30 +196,30 @@ EXPORT_SYMBOL(hvcs_get_partner_info);
  * and the vty adapter that you are trying to open.  Don't shoot the
  * messenger.  Firmware implemented it this way.
  */
-int hvcs_register_connection( uint32_t unit_address,
-		uint32_t p_partition_ID, uint32_t p_unit_address)
-{
-	long retval;
-	retval = plpar_hcall_norets(H_REGISTER_VTERM, unit_address,
-				p_partition_ID, p_unit_address);
-	return hvcs_convert(retval);
+int hvcs_register_connection(uint32_t unit_address,
+    uint32_t p_partition_ID, uint32_t p_unit_address) {
+  long retval;
+  retval = plpar_hcall_norets(H_REGISTER_VTERM, unit_address,
+      p_partition_ID, p_unit_address);
+  return hvcs_convert(retval);
 }
+
 EXPORT_SYMBOL(hvcs_register_connection);
 
 /**
  * hvcs_free_connection - free the connection between a vty-server and vty
  * @unit_address: The unit address of the vty-server that is to have its
- *	connection severed.
+ *  connection severed.
  *
  * This function is used to free the partner connection between a vty-server
  * adapter and a vty adapter.
  *
  * If -EBUSY is returned continue to call this function until 0 is returned.
  */
-int hvcs_free_connection(uint32_t unit_address)
-{
-	long retval;
-	retval = plpar_hcall_norets(H_FREE_VTERM, unit_address);
-	return hvcs_convert(retval);
+int hvcs_free_connection(uint32_t unit_address) {
+  long retval;
+  retval = plpar_hcall_norets(H_FREE_VTERM, unit_address);
+  return hvcs_convert(retval);
 }
+
 EXPORT_SYMBOL(hvcs_free_connection);

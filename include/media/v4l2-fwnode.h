@@ -27,28 +27,28 @@
  * @bus_type: bus type
  * @bus: bus configuration data structure
  * @bus.parallel: embedded &struct v4l2_mbus_config_parallel.
- *		  Used if the bus is parallel.
+ *      Used if the bus is parallel.
  * @bus.mipi_csi1: embedded &struct v4l2_mbus_config_mipi_csi1.
- *		   Used if the bus is MIPI Alliance's Camera Serial
- *		   Interface version 1 (MIPI CSI1) or Standard
- *		   Mobile Imaging Architecture's Compact Camera Port 2
- *		   (SMIA CCP2).
+ *       Used if the bus is MIPI Alliance's Camera Serial
+ *       Interface version 1 (MIPI CSI1) or Standard
+ *       Mobile Imaging Architecture's Compact Camera Port 2
+ *       (SMIA CCP2).
  * @bus.mipi_csi2: embedded &struct v4l2_mbus_config_mipi_csi2.
- *		   Used if the bus is MIPI Alliance's Camera Serial
- *		   Interface version 2 (MIPI CSI2).
+ *       Used if the bus is MIPI Alliance's Camera Serial
+ *       Interface version 2 (MIPI CSI2).
  * @link_frequencies: array of supported link frequencies
  * @nr_of_link_frequencies: number of elements in link_frequenccies array
  */
 struct v4l2_fwnode_endpoint {
-	struct fwnode_endpoint base;
-	enum v4l2_mbus_type bus_type;
-	struct {
-		struct v4l2_mbus_config_parallel parallel;
-		struct v4l2_mbus_config_mipi_csi1 mipi_csi1;
-		struct v4l2_mbus_config_mipi_csi2 mipi_csi2;
-	} bus;
-	u64 *link_frequencies;
-	unsigned int nr_of_link_frequencies;
+  struct fwnode_endpoint base;
+  enum v4l2_mbus_type bus_type;
+  struct {
+    struct v4l2_mbus_config_parallel parallel;
+    struct v4l2_mbus_config_mipi_csi1 mipi_csi1;
+    struct v4l2_mbus_config_mipi_csi2 mipi_csi2;
+  } bus;
+  u64 *link_frequencies;
+  unsigned int nr_of_link_frequencies;
 };
 
 /**
@@ -66,9 +66,9 @@ struct v4l2_fwnode_endpoint {
  * @V4L2_FWNODE_ORIENTATION_EXTERNAL: device externally located
  */
 enum v4l2_fwnode_orientation {
-	V4L2_FWNODE_ORIENTATION_FRONT,
-	V4L2_FWNODE_ORIENTATION_BACK,
-	V4L2_FWNODE_ORIENTATION_EXTERNAL
+  V4L2_FWNODE_ORIENTATION_FRONT,
+  V4L2_FWNODE_ORIENTATION_BACK,
+  V4L2_FWNODE_ORIENTATION_EXTERNAL
 };
 
 /**
@@ -77,8 +77,8 @@ enum v4l2_fwnode_orientation {
  * @rotation: device rotation
  */
 struct v4l2_fwnode_device_properties {
-	enum v4l2_fwnode_orientation orientation;
-	unsigned int rotation;
+  enum v4l2_fwnode_orientation orientation;
+  unsigned int rotation;
 };
 
 /**
@@ -91,12 +91,12 @@ struct v4l2_fwnode_device_properties {
  * @remote_id: identifier of the id the remote endpoint belongs to
  */
 struct v4l2_fwnode_link {
-	struct fwnode_handle *local_node;
-	unsigned int local_port;
-	unsigned int local_id;
-	struct fwnode_handle *remote_node;
-	unsigned int remote_port;
-	unsigned int remote_id;
+  struct fwnode_handle *local_node;
+  unsigned int local_port;
+  unsigned int local_id;
+  struct fwnode_handle *remote_node;
+  unsigned int remote_port;
+  unsigned int remote_id;
 };
 
 /**
@@ -106,9 +106,9 @@ struct v4l2_fwnode_link {
  * @V4L2_CONN_SVIDEO:    analog svideo connector
  */
 enum v4l2_connector_type {
-	V4L2_CONN_UNKNOWN,
-	V4L2_CONN_COMPOSITE,
-	V4L2_CONN_SVIDEO,
+  V4L2_CONN_UNKNOWN,
+  V4L2_CONN_COMPOSITE,
+  V4L2_CONN_SVIDEO,
 };
 
 /**
@@ -119,8 +119,8 @@ enum v4l2_connector_type {
  *               device the connector belongs to.
  */
 struct v4l2_connector_link {
-	struct list_head head;
-	struct v4l2_fwnode_link fwnode_link;
+  struct list_head head;
+  struct v4l2_fwnode_link fwnode_link;
 };
 
 /**
@@ -129,7 +129,7 @@ struct v4l2_connector_link {
  *             if no restrictions are specified.
  */
 struct v4l2_fwnode_connector_analog {
-	v4l2_std_id sdtv_stds;
+  v4l2_std_id sdtv_stds;
 };
 
 /**
@@ -144,16 +144,16 @@ struct v4l2_fwnode_connector_analog {
  *                    &struct v4l2_fwnode_connector_analog
  */
 struct v4l2_fwnode_connector {
-	const char *name;
-	const char *label;
-	enum v4l2_connector_type type;
-	struct list_head links;
-	unsigned int nr_of_links;
+  const char *name;
+  const char *label;
+  enum v4l2_connector_type type;
+  struct list_head links;
+  unsigned int nr_of_links;
 
-	union {
-		struct v4l2_fwnode_connector_analog analog;
-		/* future connectors */
-	} connector;
+  union {
+    struct v4l2_fwnode_connector_analog analog;
+    /* future connectors */
+  } connector;
 };
 
 /**
@@ -169,15 +169,15 @@ struct v4l2_fwnode_connector {
  * @NR_OF_V4L2_FWNODE_BUS_TYPE: Number of bus-types
  */
 enum v4l2_fwnode_bus_type {
-	V4L2_FWNODE_BUS_TYPE_GUESS = 0,
-	V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
-	V4L2_FWNODE_BUS_TYPE_CSI1,
-	V4L2_FWNODE_BUS_TYPE_CCP2,
-	V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
-	V4L2_FWNODE_BUS_TYPE_PARALLEL,
-	V4L2_FWNODE_BUS_TYPE_BT656,
-	V4L2_FWNODE_BUS_TYPE_DPI,
-	NR_OF_V4L2_FWNODE_BUS_TYPE
+  V4L2_FWNODE_BUS_TYPE_GUESS = 0,
+  V4L2_FWNODE_BUS_TYPE_CSI2_CPHY,
+  V4L2_FWNODE_BUS_TYPE_CSI1,
+  V4L2_FWNODE_BUS_TYPE_CCP2,
+  V4L2_FWNODE_BUS_TYPE_CSI2_DPHY,
+  V4L2_FWNODE_BUS_TYPE_PARALLEL,
+  V4L2_FWNODE_BUS_TYPE_BT656,
+  V4L2_FWNODE_BUS_TYPE_DPI,
+  NR_OF_V4L2_FWNODE_BUS_TYPE
 };
 
 /**
@@ -217,12 +217,12 @@ enum v4l2_fwnode_bus_type {
  * need properties of variable size.
  *
  * Return: %0 on success or a negative error code on failure:
- *	   %-ENOMEM on memory allocation failure
- *	   %-EINVAL on parsing failure
- *	   %-ENXIO on mismatching bus types
+ *     %-ENOMEM on memory allocation failure
+ *     %-EINVAL on parsing failure
+ *     %-ENXIO on mismatching bus types
  */
 int v4l2_fwnode_endpoint_parse(struct fwnode_handle *fwnode,
-			       struct v4l2_fwnode_endpoint *vep);
+    struct v4l2_fwnode_endpoint *vep);
 
 /**
  * v4l2_fwnode_endpoint_free() - free the V4L2 fwnode acquired by
@@ -275,12 +275,12 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  *    using v4l2_fwnode_endpoint_free() when no longer needed.
  *
  * Return: %0 on success or a negative error code on failure:
- *	   %-ENOMEM on memory allocation failure
- *	   %-EINVAL on parsing failure
- *	   %-ENXIO on mismatching bus types
+ *     %-ENOMEM on memory allocation failure
+ *     %-EINVAL on parsing failure
+ *     %-ENXIO on mismatching bus types
  */
 int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
-				     struct v4l2_fwnode_endpoint *vep);
+    struct v4l2_fwnode_endpoint *vep);
 
 /**
  * v4l2_fwnode_parse_link() - parse a link between two endpoints
@@ -301,7 +301,7 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
  * found.
  */
 int v4l2_fwnode_parse_link(struct fwnode_handle *fwnode,
-			   struct v4l2_fwnode_link *link);
+    struct v4l2_fwnode_link *link);
 
 /**
  * v4l2_fwnode_put_link() - drop references to nodes in a link
@@ -327,7 +327,7 @@ void v4l2_fwnode_connector_free(struct v4l2_fwnode_connector *connector);
 /**
  * v4l2_fwnode_connector_parse() - initialize the 'struct v4l2_fwnode_connector'
  * @fwnode: pointer to the subdev endpoint's fwnode handle where the connector
- *	    is connected to or to the connector endpoint fwnode handle.
+ *      is connected to or to the connector endpoint fwnode handle.
  * @connector: pointer to the V4L2 fwnode connector data structure
  *
  * Fill the &struct v4l2_fwnode_connector with the connector type, label and
@@ -345,11 +345,11 @@ void v4l2_fwnode_connector_free(struct v4l2_fwnode_connector *connector);
  * * %-ENOTCONN if connector type is unknown or connector device can't be found
  */
 int v4l2_fwnode_connector_parse(struct fwnode_handle *fwnode,
-				struct v4l2_fwnode_connector *connector);
+    struct v4l2_fwnode_connector *connector);
 
 /**
  * v4l2_fwnode_connector_add_link - add a link between a connector node and
- *				    a v4l2-subdev node.
+ *            a v4l2-subdev node.
  * @fwnode: pointer to the subdev endpoint's fwnode handle where the connector
  *          is connected to
  * @connector: pointer to the V4L2 fwnode connector data structure
@@ -370,24 +370,24 @@ int v4l2_fwnode_connector_parse(struct fwnode_handle *fwnode,
  * * %-ENOLINK if link parsing between v4l2 (sub)dev and connector fails
  */
 int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
-				   struct v4l2_fwnode_connector *connector);
+    struct v4l2_fwnode_connector *connector);
 
 /**
  * v4l2_fwnode_device_parse() - parse fwnode device properties
  * @dev: pointer to &struct device
  * @props: pointer to &struct v4l2_fwnode_device_properties where to store the
- *	   parsed properties values
+ *     parsed properties values
  *
  * This function parses and validates the V4L2 fwnode device properties from the
  * firmware interface, and fills the @struct v4l2_fwnode_device_properties
  * provided by the caller.
  *
  * Return:
- *	% 0 on success
- *	%-EINVAL if a parsed property value is not valid
+ *  % 0 on success
+ *  %-EINVAL if a parsed property value is not valid
  */
 int v4l2_fwnode_device_parse(struct device *dev,
-			     struct v4l2_fwnode_device_properties *props);
+    struct v4l2_fwnode_device_properties *props);
 
 /* Helper macros to access the connector links. */
 
@@ -398,9 +398,9 @@ int v4l2_fwnode_device_parse(struct device *dev,
  * This marco returns the first added &struct v4l2_connector_link connector
  * link or @NULL if the connector has no links.
  */
-#define v4l2_connector_first_link(v4l2c)				       \
-	list_first_entry_or_null(&(v4l2c)->links,			       \
-				 struct v4l2_connector_link, head)
+#define v4l2_connector_first_link(v4l2c)               \
+  list_first_entry_or_null(&(v4l2c)->links,            \
+    struct v4l2_connector_link, head)
 
 /** v4l2_connector_last_link - Helper macro to get the last
  *                             &struct v4l2_fwnode_connector link
@@ -408,7 +408,7 @@ int v4l2_fwnode_device_parse(struct device *dev,
  *
  * This marco returns the last &struct v4l2_connector_link added connector link.
  */
-#define v4l2_connector_last_link(v4l2c)					       \
-	list_last_entry(&(v4l2c)->links, struct v4l2_connector_link, head)
+#define v4l2_connector_last_link(v4l2c)                \
+  list_last_entry(&(v4l2c)->links, struct v4l2_connector_link, head)
 
 #endif /* _V4L2_FWNODE_H */

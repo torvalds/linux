@@ -16,8 +16,7 @@ extern void __init ug_udbg_init(void);
 
 #else
 
-static inline void __init ug_udbg_init(void)
-{
+static inline void __init ug_udbg_init(void) {
 }
 
 #endif /* CONFIG_USBGECKO_UDBG */

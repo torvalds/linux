@@ -4,8 +4,8 @@
  * Copyright (C) 2007 John Williams <john.williams@petalogix.com>
  *
  * Copyright (C) 2006 Atmark Techno, Inc.
- *	Yasushi SHOJI <yashi@atmark-techno.com>
- *	Tetsuya OHKAWA <tetsuya@atmark-techno.com>
+ *  Yasushi SHOJI <yashi@atmark-techno.com>
+ *  Tetsuya OHKAWA <tetsuya@atmark-techno.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -34,22 +34,24 @@
 #include <asm/syscalls.h>
 
 SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags, unsigned long, fd,
-		off_t, pgoff)
+    unsigned long, prot, unsigned long, flags, unsigned long, fd,
+    off_t, pgoff)
 {
-	if (pgoff & ~PAGE_MASK)
-		return -EINVAL;
+  if (pgoff & ~PAGE_MASK) {
+    return -EINVAL;
+  }
 
-	return ksys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
+  return ksys_mmap_pgoff(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
 }
 
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
-		unsigned long, prot, unsigned long, flags, unsigned long, fd,
-		unsigned long, pgoff)
+    unsigned long, prot, unsigned long, flags, unsigned long, fd,
+    unsigned long, pgoff)
 {
-	if (pgoff & (~PAGE_MASK >> 12))
-		return -EINVAL;
+  if (pgoff & (~PAGE_MASK >> 12)) {
+    return -EINVAL;
+  }
 
-	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
-			       pgoff >> (PAGE_SHIFT - 12));
+  return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+      pgoff >> (PAGE_SHIFT - 12));
 }

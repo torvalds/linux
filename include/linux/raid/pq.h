@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- linux-c -*- ------------------------------------------------------- *
- *
- *   Copyright 2003 H. Peter Anvin - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
+*
+*   Copyright 2003 H. Peter Anvin - All Rights Reserved
+*
+* ----------------------------------------------------------------------- */
 
 #ifndef LINUX_RAID_RAID6_H
 #define LINUX_RAID_RAID6_H
@@ -28,23 +28,23 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 /* Not standard, but glibc defines it */
 #define BITS_PER_LONG __WORDSIZE
 
-typedef uint8_t  u8;
+typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
 #ifndef PAGE_SIZE
-# define PAGE_SIZE 4096
+#define PAGE_SIZE 4096
 #endif
 #ifndef PAGE_SHIFT
-# define PAGE_SHIFT 12
+#define PAGE_SHIFT 12
 #endif
 extern const char raid6_empty_zero_page[PAGE_SIZE];
 
 #define __init
 #define __exit
 #ifndef __attribute_const__
-# define __attribute_const__ __attribute__((const))
+#define __attribute_const__ __attribute__((const))
 #endif
 #define noinline __attribute__((noinline))
 
@@ -54,9 +54,9 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define enable_kernel_altivec()
 #define disable_kernel_altivec()
 
-#undef	EXPORT_SYMBOL
+#undef  EXPORT_SYMBOL
 #define EXPORT_SYMBOL(sym)
-#undef	EXPORT_SYMBOL_GPL
+#undef  EXPORT_SYMBOL_GPL
 #define EXPORT_SYMBOL_GPL(sym)
 #define MODULE_LICENSE(licence)
 #define MODULE_DESCRIPTION(desc)
@@ -69,11 +69,11 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 
 /* Routine choices */
 struct raid6_calls {
-	void (*gen_syndrome)(int, size_t, void **);
-	void (*xor_syndrome)(int, int, int, size_t, void **);
-	int  (*valid)(void);	/* Returns 1 if this routine set is usable */
-	const char *name;	/* Name of this routine set */
-	int priority;		/* Relative priority ranking if non-zero */
+  void (*gen_syndrome)(int, size_t, void **);
+  void (*xor_syndrome)(int, int, int, size_t, void **);
+  int (*valid)(void);  /* Returns 1 if this routine set is usable */
+  const char *name; /* Name of this routine set */
+  int priority;   /* Relative priority ranking if non-zero */
 };
 
 /* Selected algorithm */
@@ -110,11 +110,11 @@ extern const struct raid6_calls raid6_lsx;
 extern const struct raid6_calls raid6_lasx;
 
 struct raid6_recov_calls {
-	void (*data2)(int, size_t, int, int, void **);
-	void (*datap)(int, size_t, int, void **);
-	int  (*valid)(void);
-	const char *name;
-	int priority;
+  void (*data2)(int, size_t, int, int, void **);
+  void (*datap)(int, size_t, int, void **);
+  int (*valid)(void);
+  const char *name;
+  int priority;
 };
 
 extern const struct raid6_recov_calls raid6_recov_intx1;
@@ -133,14 +133,14 @@ extern const struct raid6_calls raid6_neonx8;
 
 /* Algorithm list */
 extern const struct raid6_calls * const raid6_algos[];
-extern const struct raid6_recov_calls *const raid6_recov_algos[];
+extern const struct raid6_recov_calls * const raid6_recov_algos[];
 int raid6_select_algo(void);
 
 /* Return values from chk_syndrome */
-#define RAID6_OK	0
-#define RAID6_P_BAD	1
-#define RAID6_Q_BAD	2
-#define RAID6_PQ_BAD	3
+#define RAID6_OK  0
+#define RAID6_P_BAD 1
+#define RAID6_Q_BAD 2
+#define RAID6_PQ_BAD  3
 
 /* Galois field tables */
 extern const u8 raid6_gfmul[256][256] __attribute__((aligned(256)));
@@ -152,38 +152,36 @@ extern const u8 raid6_gfexi[256]      __attribute__((aligned(256)));
 
 /* Recovery routines */
 extern void (*raid6_2data_recov)(int disks, size_t bytes, int faila, int failb,
-		       void **ptrs);
+    void **ptrs);
 extern void (*raid6_datap_recov)(int disks, size_t bytes, int faila,
-			void **ptrs);
+    void **ptrs);
 void raid6_dual_recov(int disks, size_t bytes, int faila, int failb,
-		      void **ptrs);
+    void **ptrs);
 
 /* Some definitions to allow code to be compiled for testing in userspace */
 #ifndef __KERNEL__
 
-# define jiffies	raid6_jiffies()
-# define printk 	printf
-# define pr_err(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
-# define pr_info(format, ...) fprintf(stdout, format, ## __VA_ARGS__)
-# define GFP_KERNEL	0
-# define __get_free_pages(x, y)	((unsigned long)mmap(NULL, PAGE_SIZE << (y), \
-						     PROT_READ|PROT_WRITE,   \
-						     MAP_PRIVATE|MAP_ANONYMOUS,\
-						     0, 0))
-# define free_pages(x, y)	munmap((void *)(x), PAGE_SIZE << (y))
+#define jiffies  raid6_jiffies()
+#define printk   printf
+#define pr_err(format, ...) fprintf(stderr, format, ## __VA_ARGS__)
+#define pr_info(format, ...) fprintf(stdout, format, ## __VA_ARGS__)
+#define GFP_KERNEL 0
+#define __get_free_pages(x, y) ((unsigned long) mmap(NULL, PAGE_SIZE << (y), \
+      PROT_READ | PROT_WRITE,   \
+      MAP_PRIVATE | MAP_ANONYMOUS, \
+      0, 0))
+#define free_pages(x, y) munmap((void *) (x), PAGE_SIZE << (y))
 
-static inline void cpu_relax(void)
-{
-	/* Nothing */
+static inline void cpu_relax(void) {
+  /* Nothing */
 }
 
 #undef  HZ
 #define HZ 1000
-static inline uint32_t raid6_jiffies(void)
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return tv.tv_sec*1000 + tv.tv_usec/1000;
+static inline uint32_t raid6_jiffies(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 #endif /* ! __KERNEL__ */

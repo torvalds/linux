@@ -13,20 +13,20 @@
 
 #define PAGE_SHIFT   CONFIG_PAGE_SHIFT
 #define PAGE_SIZE    (_AC(1, UL) << PAGE_SHIFT)
-#define PAGE_MASK    (~(PAGE_SIZE-1))
+#define PAGE_MASK    (~(PAGE_SIZE - 1))
 
 #ifndef __ASSEMBLY__
 
-#define clear_page(page)	 memset((void *)(page), 0, PAGE_SIZE)
-#define copy_page(to,from) 	memcpy((void *)(to), (void *)(from), PAGE_SIZE)
-#define clear_user_page(addr, vaddr, page)	\
-	do { 	clear_page(addr);		\
-		sparc_flush_page_to_ram(page);	\
-	} while (0)
-#define copy_user_page(to, from, vaddr, page)	\
-	do {	copy_page(to, from);		\
-		sparc_flush_page_to_ram(page);	\
-	} while (0)
+#define clear_page(page)   memset((void *) (page), 0, PAGE_SIZE)
+#define copy_page(to, from)  memcpy((void *) (to), (void *) (from), PAGE_SIZE)
+#define clear_user_page(addr, vaddr, page)  \
+  do {  clear_page(addr);   \
+        sparc_flush_page_to_ram(page);  \
+  } while (0)
+#define copy_user_page(to, from, vaddr, page) \
+  do {  copy_page(to, from);    \
+        sparc_flush_page_to_ram(page);  \
+  } while (0)
 
 /* The following structure is used to hold the physical
  * memory configuration of the machine.  This is filled in
@@ -42,7 +42,7 @@ struct sparc_phys_banks {
 
 #define SPARC_PHYS_BANKS 32
 
-extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
+extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS + 1];
 
 /* passing structs on the Sparc slow us down tremendously... */
 
@@ -52,29 +52,43 @@ extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 /*
  * These are used to make use of C type-checking..
  */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long iopte; } iopte_t;
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long ctxd; } ctxd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
-typedef struct { unsigned long iopgprot; } iopgprot_t;
+typedef struct {
+  unsigned long pte;
+} pte_t;
+typedef struct {
+  unsigned long iopte;
+} iopte_t;
+typedef struct {
+  unsigned long pmd;
+} pmd_t;
+typedef struct {
+  unsigned long pgd;
+} pgd_t;
+typedef struct {
+  unsigned long ctxd;
+} ctxd_t;
+typedef struct {
+  unsigned long pgprot;
+} pgprot_t;
+typedef struct {
+  unsigned long iopgprot;
+} iopgprot_t;
 
-#define pte_val(x)	((x).pte)
-#define iopte_val(x)	((x).iopte)
+#define pte_val(x)  ((x).pte)
+#define iopte_val(x)  ((x).iopte)
 #define pmd_val(x)      ((x).pmd)
-#define pgd_val(x)	((x).pgd)
-#define ctxd_val(x)	((x).ctxd)
-#define pgprot_val(x)	((x).pgprot)
-#define iopgprot_val(x)	((x).iopgprot)
+#define pgd_val(x)  ((x).pgd)
+#define ctxd_val(x) ((x).ctxd)
+#define pgprot_val(x) ((x).pgprot)
+#define iopgprot_val(x) ((x).iopgprot)
 
-#define __pte(x)	((pte_t) { (x) } )
-#define __pmd(x)	((pmd_t) { { (x) }, })
-#define __iopte(x)	((iopte_t) { (x) } )
-#define __pgd(x)	((pgd_t) { (x) } )
-#define __ctxd(x)	((ctxd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
-#define __iopgprot(x)	((iopgprot_t) { (x) } )
+#define __pte(x)  ((pte_t) { (x) })
+#define __pmd(x)  ((pmd_t) { { (x) }, })
+#define __iopte(x)  ((iopte_t) { (x) })
+#define __pgd(x)  ((pgd_t) { (x) })
+#define __ctxd(x) ((ctxd_t) { (x) })
+#define __pgprot(x) ((pgprot_t) { (x) })
+#define __iopgprot(x) ((iopgprot_t) { (x) })
 
 #else
 /*
@@ -88,49 +102,50 @@ typedef unsigned long ctxd_t;
 typedef unsigned long pgprot_t;
 typedef unsigned long iopgprot_t;
 
-#define pte_val(x)	(x)
-#define iopte_val(x)	(x)
+#define pte_val(x)  (x)
+#define iopte_val(x)  (x)
 #define pmd_val(x)      (x)
-#define pgd_val(x)	(x)
-#define ctxd_val(x)	(x)
-#define pgprot_val(x)	(x)
-#define iopgprot_val(x)	(x)
+#define pgd_val(x)  (x)
+#define ctxd_val(x) (x)
+#define pgprot_val(x) (x)
+#define iopgprot_val(x) (x)
 
-#define __pte(x)	(x)
-#define __pmd(x)	(x)
-#define __iopte(x)	(x)
-#define __pgd(x)	(x)
-#define __ctxd(x)	(x)
-#define __pgprot(x)	(x)
-#define __iopgprot(x)	(x)
+#define __pte(x)  (x)
+#define __pmd(x)  (x)
+#define __iopte(x)  (x)
+#define __pgd(x)  (x)
+#define __ctxd(x) (x)
+#define __pgprot(x) (x)
+#define __iopgprot(x) (x)
 
 #endif
 
 typedef pte_t *pgtable_t;
 
-#define TASK_UNMAPPED_BASE	0x50000000
+#define TASK_UNMAPPED_BASE  0x50000000
 
 #else /* !(__ASSEMBLY__) */
 
-#define __pgprot(x)	(x)
+#define __pgprot(x) (x)
 
 #endif /* !(__ASSEMBLY__) */
 
-#define PAGE_OFFSET	0xf0000000
+#define PAGE_OFFSET 0xf0000000
 #ifndef __ASSEMBLY__
 extern unsigned long phys_base;
 extern unsigned long pfn_base;
 #endif
-#define __pa(x)			((unsigned long)(x) - PAGE_OFFSET + phys_base)
-#define __va(x)			((void *)((unsigned long) (x) - phys_base + PAGE_OFFSET))
+#define __pa(x)     ((unsigned long) (x) - PAGE_OFFSET + phys_base)
+#define __va(x)     ((void *) ((unsigned long) (x) - phys_base + PAGE_OFFSET))
 
-#define virt_to_phys		__pa
-#define phys_to_virt		__va
+#define virt_to_phys    __pa
+#define phys_to_virt    __va
 
-#define ARCH_PFN_OFFSET		(pfn_base)
-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+#define ARCH_PFN_OFFSET   (pfn_base)
+#define virt_to_page(kaddr) pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 
-#define virt_addr_valid(kaddr)	((((unsigned long)(kaddr)-PAGE_OFFSET)>>PAGE_SHIFT) < max_mapnr)
+#define virt_addr_valid(kaddr)  ((((unsigned long) (kaddr) - PAGE_OFFSET) >> \
+  PAGE_SHIFT) < max_mapnr)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

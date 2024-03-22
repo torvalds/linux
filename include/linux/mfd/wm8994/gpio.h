@@ -31,8 +31,8 @@
 #define WM8994_GP_FN_WSEQ_STATUS    16
 #define WM8994_GP_FN_FIFO_ERROR     17
 #define WM8994_GP_FN_OPCLK          18
-#define WM8994_GP_FN_THW	    19
-#define WM8994_GP_FN_DCS_DONE	    20
+#define WM8994_GP_FN_THW      19
+#define WM8994_GP_FN_DCS_DONE     20
 #define WM8994_GP_FN_FLL1_OUT       21
 #define WM8994_GP_FN_FLL2_OUT       22
 

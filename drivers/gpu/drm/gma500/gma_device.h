@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
- * Copyright (c) 2011, Intel Corporation.
- * All Rights Reserved.
- *
- **************************************************************************/
+* Copyright (c) 2011, Intel Corporation.
+* All Rights Reserved.
+*
+**************************************************************************/
 
 #ifndef _GMA_DEVICE_H
 #define _GMA_DEVICE_H

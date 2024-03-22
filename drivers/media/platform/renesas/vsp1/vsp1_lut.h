@@ -19,22 +19,21 @@
 
 struct vsp1_device;
 
-#define LUT_PAD_SINK				0
-#define LUT_PAD_SOURCE				1
+#define LUT_PAD_SINK        0
+#define LUT_PAD_SOURCE        1
 
 struct vsp1_lut {
-	struct vsp1_entity entity;
+  struct vsp1_entity entity;
 
-	struct v4l2_ctrl_handler ctrls;
+  struct v4l2_ctrl_handler ctrls;
 
-	spinlock_t lock;
-	struct vsp1_dl_body *lut;
-	struct vsp1_dl_body_pool *pool;
+  spinlock_t lock;
+  struct vsp1_dl_body *lut;
+  struct vsp1_dl_body_pool *pool;
 };
 
-static inline struct vsp1_lut *to_lut(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_lut, entity.subdev);
+static inline struct vsp1_lut *to_lut(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_lut, entity.subdev);
 }
 
 struct vsp1_lut *vsp1_lut_create(struct vsp1_device *vsp1);

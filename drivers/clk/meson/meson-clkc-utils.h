@@ -10,10 +10,11 @@
 #include <linux/clk-provider.h>
 
 struct meson_clk_hw_data {
-	struct clk_hw	**hws;
-	unsigned int	num;
+  struct clk_hw **hws;
+  unsigned int num;
 };
 
-struct clk_hw *meson_clk_hw_get(struct of_phandle_args *clkspec, void *clk_hw_data);
+struct clk_hw *meson_clk_hw_get(struct of_phandle_args *clkspec,
+    void *clk_hw_data);
 
 #endif

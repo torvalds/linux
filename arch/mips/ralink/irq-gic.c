@@ -11,13 +11,12 @@
 #include <linux/irqchip.h>
 #include <asm/mips-cps.h>
 
-int get_c0_perfcount_int(void)
-{
-	return gic_get_c0_perfcount_int();
+int get_c0_perfcount_int(void) {
+  return gic_get_c0_perfcount_int();
 }
+
 EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
-void __init arch_init_irq(void)
-{
-	irqchip_init();
+void __init arch_init_irq(void) {
+  irqchip_init();
 }

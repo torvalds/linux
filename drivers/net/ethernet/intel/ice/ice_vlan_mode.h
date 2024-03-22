@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2019-2021, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2019-2021, Intel Corporation.*/
 
 #ifndef _ICE_VLAN_MODE_H_
 #define _ICE_VLAN_MODE_H_

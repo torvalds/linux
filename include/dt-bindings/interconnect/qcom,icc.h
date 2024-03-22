@@ -11,16 +11,16 @@
  * icc_set_bw() completes, whereas the WAKE and SLEEP constraints are applied
  * when the execution environment transitions between active and low power mode.
  */
-#define QCOM_ICC_BUCKET_AMC		0
-#define QCOM_ICC_BUCKET_WAKE		1
-#define QCOM_ICC_BUCKET_SLEEP		2
-#define QCOM_ICC_NUM_BUCKETS		3
+#define QCOM_ICC_BUCKET_AMC   0
+#define QCOM_ICC_BUCKET_WAKE    1
+#define QCOM_ICC_BUCKET_SLEEP   2
+#define QCOM_ICC_NUM_BUCKETS    3
 
-#define QCOM_ICC_TAG_AMC		(1 << QCOM_ICC_BUCKET_AMC)
-#define QCOM_ICC_TAG_WAKE		(1 << QCOM_ICC_BUCKET_WAKE)
-#define QCOM_ICC_TAG_SLEEP		(1 << QCOM_ICC_BUCKET_SLEEP)
-#define QCOM_ICC_TAG_ACTIVE_ONLY	(QCOM_ICC_TAG_AMC | QCOM_ICC_TAG_WAKE)
-#define QCOM_ICC_TAG_ALWAYS		(QCOM_ICC_TAG_AMC | QCOM_ICC_TAG_WAKE |\
-					 QCOM_ICC_TAG_SLEEP)
+#define QCOM_ICC_TAG_AMC    (1 << QCOM_ICC_BUCKET_AMC)
+#define QCOM_ICC_TAG_WAKE   (1 << QCOM_ICC_BUCKET_WAKE)
+#define QCOM_ICC_TAG_SLEEP    (1 << QCOM_ICC_BUCKET_SLEEP)
+#define QCOM_ICC_TAG_ACTIVE_ONLY  (QCOM_ICC_TAG_AMC | QCOM_ICC_TAG_WAKE)
+#define QCOM_ICC_TAG_ALWAYS   (QCOM_ICC_TAG_AMC | QCOM_ICC_TAG_WAKE  \
+  | QCOM_ICC_TAG_SLEEP)
 
 #endif

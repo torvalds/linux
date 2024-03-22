@@ -20,12 +20,12 @@
  */
 
 struct rblist {
-	struct rb_root_cached entries;
-	unsigned int   nr_entries;
+  struct rb_root_cached entries;
+  unsigned int nr_entries;
 
-	int (*node_cmp)(struct rb_node *rbn, const void *entry);
-	struct rb_node *(*node_new)(struct rblist *rlist, const void *new_entry);
-	void (*node_delete)(struct rblist *rblist, struct rb_node *rb_node);
+  int (*node_cmp)(struct rb_node *rbn, const void *entry);
+  struct rb_node *(*node_new)(struct rblist *rlist, const void *new_entry);
+  void (*node_delete)(struct rblist *rblist, struct rb_node *rb_node);
 };
 
 void rblist__init(struct rblist *rblist);
@@ -37,14 +37,12 @@ struct rb_node *rblist__find(struct rblist *rblist, const void *entry);
 struct rb_node *rblist__findnew(struct rblist *rblist, const void *entry);
 struct rb_node *rblist__entry(const struct rblist *rblist, unsigned int idx);
 
-static inline bool rblist__empty(const struct rblist *rblist)
-{
-	return rblist->nr_entries == 0;
+static inline bool rblist__empty(const struct rblist *rblist) {
+  return rblist->nr_entries == 0;
 }
 
-static inline unsigned int rblist__nr_entries(const struct rblist *rblist)
-{
-	return rblist->nr_entries;
+static inline unsigned int rblist__nr_entries(const struct rblist *rblist) {
+  return rblist->nr_entries;
 }
 
 #endif /* __PERF_RBLIST_H */

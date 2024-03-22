@@ -21,13 +21,13 @@
  * linked to a CKSEG0 address. Since this is only used on UP platforms
  * there is no spinlock needed
  */
-#define O32_STATIC	static
+#define O32_STATIC  static
 #else
 #define O32_STATIC
 #endif
 
 /*
- * IP22 boardcache is not compatible with board caches.	 Thus we disable it
+ * IP22 boardcache is not compatible with board caches.  Thus we disable it
  * during romvec action.  Since r4xx0.c is always compiled and linked with your
  * kernel, this shouldn't cause any harm regardless what MIPS processor you
  * have.
@@ -36,26 +36,20 @@
  * in some way. You should be careful with them.
  */
 
-void prom_putchar(char c)
-{
-	O32_STATIC ULONG cnt;
-	O32_STATIC CHAR it;
-
-	it = c;
-
-	bc_disable();
-	ArcWrite(1, &it, 1, &cnt);
-	bc_enable();
+void prom_putchar(char c) {
+  O32_STATIC ULONG cnt;
+  O32_STATIC CHAR it;
+  it = c;
+  bc_disable();
+  ArcWrite(1, &it, 1, &cnt);
+  bc_enable();
 }
 
-char prom_getchar(void)
-{
-	O32_STATIC ULONG cnt;
-	O32_STATIC CHAR c;
-
-	bc_disable();
-	ArcRead(0, &c, 1, &cnt);
-	bc_enable();
-
-	return c;
+char prom_getchar(void) {
+  O32_STATIC ULONG cnt;
+  O32_STATIC CHAR c;
+  bc_disable();
+  ArcRead(0, &c, 1, &cnt);
+  bc_enable();
+  return c;
 }

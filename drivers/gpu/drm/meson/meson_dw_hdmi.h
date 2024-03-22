@@ -39,7 +39,8 @@
  * Bit 7 RW hdcp22_skpclk_en: starting from G12A, 1=enable; 0=disable
  * Bit 6 RW hdcp22_esmclk_en: starting from G12A, 1=enable; 0=disable
  * Bit 5 RW hdcp22_tmdsclk_en: starting from G12A, 1=enable; 0=disable
- * Bit 4 RW cec_clk_en: 1=enable cec_clk; 0=disable. Default 0. Reserved for G12A
+ * Bit 4 RW cec_clk_en: 1=enable cec_clk; 0=disable. Default 0. Reserved for
+ *G12A
  * Bit 3 RW i2s_clk_en: 1=enable i2s_clk; 0=disable. Default 0.
  * Bit 2 RW spdif_clk_en: 1=enable spdif_clk; 0=disable. Default 0.
  * Bit 1 RW tmds_clk_en: 1=enable tmds_clk;  0=disable. Default 0.
@@ -86,19 +87,19 @@
  * [7]    rxsense_fall starting from G12A
  * [6]    rxsense_rise starting from G12A
  * [5]    err_i2c_timeout starting from G12A
- * [4]	  hdcp22_rndnum_err
- * [3]	  nonce_rfrsh_rise
- * [2]	  hpd_fall
- * [1]	  hpd_rise
- * [0]	  core_intr_rise
+ * [4]    hdcp22_rndnum_err
+ * [3]    nonce_rfrsh_rise
+ * [2]    hpd_fall
+ * [1]    hpd_rise
+ * [0]    core_intr_rise
  */
 #define HDMITX_TOP_INTR_STAT_CLR                (0x005)
 
-#define HDMITX_TOP_INTR_CORE		BIT(0)
-#define HDMITX_TOP_INTR_HPD_RISE	BIT(1)
-#define HDMITX_TOP_INTR_HPD_FALL	BIT(2)
-#define HDMITX_TOP_INTR_RXSENSE_RISE	BIT(6)
-#define HDMITX_TOP_INTR_RXSENSE_FALL	BIT(7)
+#define HDMITX_TOP_INTR_CORE    BIT(0)
+#define HDMITX_TOP_INTR_HPD_RISE  BIT(1)
+#define HDMITX_TOP_INTR_HPD_FALL  BIT(2)
+#define HDMITX_TOP_INTR_RXSENSE_RISE  BIT(6)
+#define HDMITX_TOP_INTR_RXSENSE_FALL  BIT(7)
 
 /*
  * Bit 14:12 RW tmds_sel: 3'b000=Output zero; 3'b001=Output normal TMDS data;
@@ -114,34 +115,34 @@
  */
 #define HDMITX_TOP_BIST_CNTL                    (0x006)
 
-/* Bit 29:20 RW shift_pttn_data[59:50]. Default 0. */
-/* Bit 19:10 RW shift_pttn_data[69:60]. Default 0. */
-/* Bit  9: 0 RW shift_pttn_data[79:70]. Default 0. */
+/* Bit 29:20 RW shift_pttn_data[59:50]. Default 0.
+ * Bit 19:10 RW shift_pttn_data[69:60]. Default 0.
+ * Bit  9: 0 RW shift_pttn_data[79:70]. Default 0.*/
 #define HDMITX_TOP_SHIFT_PTTN_012               (0x007)
 
-/* Bit 29:20 RW shift_pttn_data[29:20]. Default 0. */
-/* Bit 19:10 RW shift_pttn_data[39:30]. Default 0. */
-/* Bit  9: 0 RW shift_pttn_data[49:40]. Default 0. */
+/* Bit 29:20 RW shift_pttn_data[29:20]. Default 0.
+ * Bit 19:10 RW shift_pttn_data[39:30]. Default 0.
+ * Bit  9: 0 RW shift_pttn_data[49:40]. Default 0.*/
 #define HDMITX_TOP_SHIFT_PTTN_345               (0x008)
 
-/* Bit 19:10 RW shift_pttn_data[ 9: 0]. Default 0. */
-/* Bit  9: 0 RW shift_pttn_data[19:10]. Default 0. */
+/* Bit 19:10 RW shift_pttn_data[ 9: 0]. Default 0.
+ * Bit  9: 0 RW shift_pttn_data[19:10]. Default 0.*/
 #define HDMITX_TOP_SHIFT_PTTN_67                (0x009)
 
-/* Bit 25:16 RW tmds_clk_pttn[19:10]. Default 0. */
-/* Bit  9: 0 RW tmds_clk_pttn[ 9: 0]. Default 0. */
+/* Bit 25:16 RW tmds_clk_pttn[19:10]. Default 0.
+ * Bit  9: 0 RW tmds_clk_pttn[ 9: 0]. Default 0.*/
 #define HDMITX_TOP_TMDS_CLK_PTTN_01             (0x00A)
 
-/* Bit 25:16 RW tmds_clk_pttn[39:30]. Default 0. */
-/* Bit  9: 0 RW tmds_clk_pttn[29:20]. Default 0. */
+/* Bit 25:16 RW tmds_clk_pttn[39:30]. Default 0.
+ * Bit  9: 0 RW tmds_clk_pttn[29:20]. Default 0.*/
 #define HDMITX_TOP_TMDS_CLK_PTTN_23             (0x00B)
 
 /*
  * Bit 1 RW shift_tmds_clk_pttn:1=Enable shifting clk pattern,
  * used when TMDS CLK rate = TMDS character rate /4. Default 0.
  * Bit 0 R  Reserved. Default 0.
- * [	1] shift_tmds_clk_pttn
- * [	0] load_tmds_clk_pttn
+ * [  1] shift_tmds_clk_pttn
+ * [  0] load_tmds_clk_pttn
  */
 #define HDMITX_TOP_TMDS_CLK_PTTN_CNTL           (0x00C)
 
@@ -152,7 +153,7 @@
 #define HDMITX_TOP_REVOCMEM_STAT                (0x00D)
 
 /*
- * Bit	   1 R	filtered RxSense status
+ * Bit     1 R  filtered RxSense status
  * Bit     0 R  filtered HPD status.
  */
 #define HDMITX_TOP_STAT0                        (0x00E)

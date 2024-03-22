@@ -26,19 +26,18 @@
 #include <nvif/class.h>
 
 static const struct nvkm_engine_func
-ga100_ofa = {
-	.sclass = {
-		{ -1, -1, NVC6FA_VIDEO_OFA },
-		{}
-	}
+    ga100_ofa = {
+  .sclass = {
+    { -1, -1, NVC6FA_VIDEO_OFA },
+    {}
+  }
 };
 
-int
-ga100_ofa_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	      struct nvkm_engine **pengine)
-{
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_ofa_new(&ga100_ofa, device, type, inst, pengine);
-
-	return -ENODEV;
+int ga100_ofa_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_engine **pengine) {
+  if (nvkm_gsp_rm(device->gsp)) {
+    return r535_ofa_new(&ga100_ofa, device, type, inst, pengine);
+  }
+  return -ENODEV;
 }

@@ -12,9 +12,8 @@ void nospec_init_branches(void);
 void nospec_auto_detect(void);
 void nospec_revert(s32 *start, s32 *end);
 
-static inline bool nospec_uses_trampoline(void)
-{
-	return __is_defined(CC_USING_EXPOLINE) && !nospec_disable;
+static inline bool nospec_uses_trampoline(void) {
+  return __is_defined(CC_USING_EXPOLINE) && !nospec_disable;
 }
 
 #endif /* __ASSEMBLY__ */

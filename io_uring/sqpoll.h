@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 
 struct io_sq_data {
-	refcount_t		refs;
-	atomic_t		park_pending;
-	struct mutex		lock;
+  refcount_t refs;
+  atomic_t park_pending;
+  struct mutex lock;
 
-	/* ctx's that are using this sqd */
-	struct list_head	ctx_list;
+  /* ctx's that are using this sqd */
+  struct list_head ctx_list;
 
-	struct task_struct	*thread;
-	struct wait_queue_head	wait;
+  struct task_struct *thread;
+  struct wait_queue_head wait;
 
-	unsigned		sq_thread_idle;
-	int			sq_cpu;
-	pid_t			task_pid;
-	pid_t			task_tgid;
+  unsigned sq_thread_idle;
+  int sq_cpu;
+  pid_t task_pid;
+  pid_t task_tgid;
 
-	u64			work_time;
-	unsigned long		state;
-	struct completion	exited;
+  u64 work_time;
+  unsigned long state;
+  struct completion exited;
 };
 
 int io_sq_offload_create(struct io_ring_ctx *ctx, struct io_uring_params *p);

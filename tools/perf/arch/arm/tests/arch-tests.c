@@ -5,8 +5,8 @@
 
 struct test_suite *arch_tests[] = {
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
-	&suite__dwarf_unwind,
+  &suite__dwarf_unwind,
 #endif
-	&suite__vectors_page,
-	NULL,
+  &suite__vectors_page,
+  NULL,
 };

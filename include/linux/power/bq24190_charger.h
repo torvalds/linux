@@ -9,7 +9,7 @@
 #include <linux/regulator/machine.h>
 
 struct bq24190_platform_data {
-	const struct regulator_init_data *regulator_init_data;
+  const struct regulator_init_data *regulator_init_data;
 };
 
 #endif

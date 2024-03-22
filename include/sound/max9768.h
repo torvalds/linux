@@ -13,8 +13,8 @@
  *         regarding "filterless modulation" which is default).
  */
 struct max9768_pdata {
-	unsigned flags;
-#define MAX9768_FLAG_CLASSIC_PWM	(1 << 0)
+  unsigned flags;
+#define MAX9768_FLAG_CLASSIC_PWM  (1 << 0)
 };
 
 #endif /* __SOUND_MAX9768_PDATA_H__*/

@@ -2,7 +2,7 @@
 /* drivers/media/platform/s5p-cec/exynos_hdmi_cec.h
  *
  * Copyright (c) 2010, 2014 Samsung Electronics
- *		http://www.samsung.com/
+ *    http://www.samsung.com/
  *
  * Header file for interface of Samsung Exynos hdmi cec hardware
  */
@@ -24,7 +24,7 @@ void s5p_cec_tx_reset(struct s5p_cec_dev *cec);
 void s5p_cec_rx_reset(struct s5p_cec_dev *cec);
 void s5p_cec_threshold(struct s5p_cec_dev *cec);
 void s5p_cec_copy_packet(struct s5p_cec_dev *cec, char *data,
-			 size_t count, u8 retries);
+    size_t count, u8 retries);
 void s5p_cec_set_addr(struct s5p_cec_dev *cec, u32 addr);
 u32 s5p_cec_get_status(struct s5p_cec_dev *cec);
 void s5p_clr_pending_tx(struct s5p_cec_dev *cec);

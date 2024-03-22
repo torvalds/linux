@@ -52,7 +52,7 @@ struct file;
  * settings in the ioctl command code.
  */
 typedef int drm_ioctl_t(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
+    struct drm_file *file_priv);
 
 /**
  * drm_ioctl_compat_t - compatibility DRM ioctl function type.
@@ -65,7 +65,7 @@ typedef int drm_ioctl_t(struct drm_device *dev, void *data,
  * structures and hence never need this.
  */
 typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
-			       unsigned long arg);
+    unsigned long arg);
 
 #define DRM_IOCTL_NR(n)                _IOC_NR(n)
 #define DRM_IOCTL_TYPE(n)              _IOC_TYPE(n)
@@ -78,47 +78,47 @@ typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
  * userspace can use a given ioctl.
  */
 enum drm_ioctl_flags {
-	/**
-	 * @DRM_AUTH:
-	 *
-	 * This is for ioctl which are used for rendering, and require that the
-	 * file descriptor is either for a render node, or if it's a
-	 * legacy/primary node, then it must be authenticated.
-	 */
-	DRM_AUTH		= BIT(0),
-	/**
-	 * @DRM_MASTER:
-	 *
-	 * This must be set for any ioctl which can change the modeset or
-	 * display state. Userspace must call the ioctl through a primary node,
-	 * while it is the active master.
-	 *
-	 * Note that read-only modeset ioctl can also be called by
-	 * unauthenticated clients, or when a master is not the currently active
-	 * one.
-	 */
-	DRM_MASTER		= BIT(1),
-	/**
-	 * @DRM_ROOT_ONLY:
-	 *
-	 * Anything that could potentially wreak a master file descriptor needs
-	 * to have this flag set. Current that's only for the SETMASTER and
-	 * DROPMASTER ioctl, which e.g. logind can call to force a non-behaving
-	 * master (display compositor) into compliance.
-	 *
-	 * This is equivalent to callers with the SYSADMIN capability.
-	 */
-	DRM_ROOT_ONLY		= BIT(2),
-	/**
-	 * @DRM_RENDER_ALLOW:
-	 *
-	 * This is used for all ioctl needed for rendering only, for drivers
-	 * which support render nodes. This should be all new render drivers,
-	 * and hence it should be always set for any ioctl with DRM_AUTH set.
-	 * Note though that read-only query ioctl might have this set, but have
-	 * not set DRM_AUTH because they do not require authentication.
-	 */
-	DRM_RENDER_ALLOW	= BIT(5),
+  /**
+   * @DRM_AUTH:
+   *
+   * This is for ioctl which are used for rendering, and require that the
+   * file descriptor is either for a render node, or if it's a
+   * legacy/primary node, then it must be authenticated.
+   */
+  DRM_AUTH = BIT(0),
+  /**
+   * @DRM_MASTER:
+   *
+   * This must be set for any ioctl which can change the modeset or
+   * display state. Userspace must call the ioctl through a primary node,
+   * while it is the active master.
+   *
+   * Note that read-only modeset ioctl can also be called by
+   * unauthenticated clients, or when a master is not the currently active
+   * one.
+   */
+  DRM_MASTER = BIT(1),
+  /**
+   * @DRM_ROOT_ONLY:
+   *
+   * Anything that could potentially wreak a master file descriptor needs
+   * to have this flag set. Current that's only for the SETMASTER and
+   * DROPMASTER ioctl, which e.g. logind can call to force a non-behaving
+   * master (display compositor) into compliance.
+   *
+   * This is equivalent to callers with the SYSADMIN capability.
+   */
+  DRM_ROOT_ONLY = BIT(2),
+  /**
+   * @DRM_RENDER_ALLOW:
+   *
+   * This is used for all ioctl needed for rendering only, for drivers
+   * which support render nodes. This should be all new render drivers,
+   * and hence it should be always set for any ioctl with DRM_AUTH set.
+   * Note though that read-only query ioctl might have this set, but have
+   * not set DRM_AUTH because they do not require authentication.
+   */
+  DRM_RENDER_ALLOW = BIT(5),
 };
 
 /**
@@ -132,10 +132,10 @@ enum drm_ioctl_flags {
  * macro.
  */
 struct drm_ioctl_desc {
-	unsigned int cmd;
-	enum drm_ioctl_flags flags;
-	drm_ioctl_t *func;
-	const char *name;
+  unsigned int cmd;
+  enum drm_ioctl_flags flags;
+  drm_ioctl_t *func;
+  const char *name;
 };
 
 /**
@@ -148,13 +148,13 @@ struct drm_ioctl_desc {
  * command number is constructed by prepending ``DRM_IOCTL\_`` and passing that
  * to DRM_IOCTL_NR().
  */
-#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)				\
-	[DRM_IOCTL_NR(DRM_IOCTL_##ioctl) - DRM_COMMAND_BASE] = {	\
-		.cmd = DRM_IOCTL_##ioctl,				\
-		.func = _func,						\
-		.flags = _flags,					\
-		.name = #ioctl						\
-	}
+#define DRM_IOCTL_DEF_DRV(ioctl, _func, _flags)       \
+  [DRM_IOCTL_NR(DRM_IOCTL_ ## ioctl) - DRM_COMMAND_BASE] = {  \
+    .cmd = DRM_IOCTL_ ## ioctl,       \
+    .func = _func,            \
+    .flags = _flags,          \
+    .name = #ioctl            \
+  }
 
 long drm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long drm_ioctl_kernel(struct file *, drm_ioctl_t, void *, u32);
@@ -167,8 +167,8 @@ long drm_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 bool drm_ioctl_flags(unsigned int nr, unsigned int *flags);
 
 int drm_noop(struct drm_device *dev, void *data,
-	     struct drm_file *file_priv);
+    struct drm_file *file_priv);
 int drm_invalid_op(struct drm_device *dev, void *data,
-		   struct drm_file *file_priv);
+    struct drm_file *file_priv);
 
 #endif /* _DRM_IOCTL_H_ */

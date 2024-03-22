@@ -12,10 +12,13 @@
 #ifdef CONFIG_SMP
 extern void pnv_smp_init(void);
 #else
-static inline void pnv_smp_init(void) { }
+static inline void pnv_smp_init(void) {
+}
+
 #endif
 
-extern void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg) __noreturn;
+extern void pnv_platform_error_reboot(struct pt_regs *regs,
+    const char *msg) __noreturn;
 
 struct pci_dev;
 
@@ -23,8 +26,12 @@ struct pci_dev;
 extern void pnv_pci_init(void);
 extern void pnv_pci_shutdown(void);
 #else
-static inline void pnv_pci_init(void) { }
-static inline void pnv_pci_shutdown(void) { }
+static inline void pnv_pci_init(void) {
+}
+
+static inline void pnv_pci_shutdown(void) {
+}
+
 #endif
 
 extern u32 pnv_get_supported_cpuidle_states(void);
@@ -40,7 +47,8 @@ bool cpu_core_split_required(void);
 struct memcons;
 ssize_t memcons_copy(struct memcons *mc, char *to, loff_t pos, size_t count);
 u32 __init memcons_get_size(struct memcons *mc);
-struct memcons *__init memcons_init(struct device_node *node, const char *mc_prop_name);
+struct memcons *__init memcons_init(struct device_node *node,
+    const char *mc_prop_name);
 
 void pnv_rng_init(void);
 

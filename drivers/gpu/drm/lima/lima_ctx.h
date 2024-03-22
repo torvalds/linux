@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2018-2019 Qiang Yu <yuq825@gmail.com> */
+/* SPDX-License-Identifier: GPL-2.0 OR MIT
+ * Copyright 2018-2019 Qiang Yu <yuq825@gmail.com>*/
 
 #ifndef __LIMA_CTX_H__
 #define __LIMA_CTX_H__
@@ -10,18 +10,18 @@
 #include "lima_device.h"
 
 struct lima_ctx {
-	struct kref refcnt;
-	struct lima_device *dev;
-	struct lima_sched_context context[lima_pipe_num];
+  struct kref refcnt;
+  struct lima_device *dev;
+  struct lima_sched_context context[lima_pipe_num];
 
-	/* debug info */
-	char pname[TASK_COMM_LEN];
-	pid_t pid;
+  /* debug info */
+  char pname[TASK_COMM_LEN];
+  pid_t pid;
 };
 
 struct lima_ctx_mgr {
-	struct mutex lock;
-	struct xarray handles;
+  struct mutex lock;
+  struct xarray handles;
 };
 
 int lima_ctx_create(struct lima_device *dev, struct lima_ctx_mgr *mgr, u32 *id);

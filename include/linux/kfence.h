@@ -48,14 +48,15 @@ extern atomic_t kfence_allocation_gate;
  * introducing another load and therefore need to keep KFENCE_POOL_SIZE a
  * constant (until immediate patching support is added to the kernel).
  */
-static __always_inline bool is_kfence_address(const void *addr)
-{
-	/*
-	 * The __kfence_pool != NULL check is required to deal with the case
-	 * where __kfence_pool == NULL && addr < KFENCE_POOL_SIZE. Keep it in
-	 * the slow-path after the range-check!
-	 */
-	return unlikely((unsigned long)((char *)addr - __kfence_pool) < KFENCE_POOL_SIZE && __kfence_pool);
+static __always_inline bool is_kfence_address(const void *addr) {
+  /*
+   * The __kfence_pool != NULL check is required to deal with the case
+   * where __kfence_pool == NULL && addr < KFENCE_POOL_SIZE. Keep it in
+   * the slow-path after the range-check!
+   */
+  return unlikely(
+      (unsigned long) ((char *) addr - __kfence_pool) < KFENCE_POOL_SIZE
+      && __kfence_pool);
 }
 
 /**
@@ -115,18 +116,21 @@ void *__kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags);
  * probability using a static branch (the probability is controlled by the
  * kfence.sample_interval boot parameter).
  */
-static __always_inline void *kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags)
-{
+static __always_inline void *kfence_alloc(struct kmem_cache *s, size_t size,
+    gfp_t flags) {
 #if defined(CONFIG_KFENCE_STATIC_KEYS) || CONFIG_KFENCE_SAMPLE_INTERVAL == 0
-	if (!static_branch_unlikely(&kfence_allocation_key))
-		return NULL;
+  if (!static_branch_unlikely(&kfence_allocation_key)) {
+    return NULL;
+  }
 #else
-	if (!static_branch_likely(&kfence_allocation_key))
-		return NULL;
+  if (!static_branch_likely(&kfence_allocation_key)) {
+    return NULL;
+  }
 #endif
-	if (likely(atomic_read(&kfence_allocation_gate)))
-		return NULL;
-	return __kfence_alloc(s, size, flags);
+  if (likely(atomic_read(&kfence_allocation_gate))) {
+    return NULL;
+  }
+  return __kfence_alloc(s, size, flags);
 }
 
 /**
@@ -180,12 +184,12 @@ void __kfence_free(void *addr);
  * allocator's free codepath. The allocator must check the return value to
  * determine if it was a KFENCE object or not.
  */
-static __always_inline __must_check bool kfence_free(void *addr)
-{
-	if (!is_kfence_address(addr))
-		return false;
-	__kfence_free(addr);
-	return true;
+static __always_inline __must_check bool kfence_free(void *addr) {
+  if (!is_kfence_address(addr)) {
+    return false;
+  }
+  __kfence_free(addr);
+  return true;
 }
 
 /**
@@ -203,7 +207,8 @@ static __always_inline __must_check bool kfence_free(void *addr)
  * cases KFENCE prints an error message and marks the offending page as
  * present, so that the kernel can proceed.
  */
-bool __must_check kfence_handle_page_fault(unsigned long addr, bool is_write, struct pt_regs *regs);
+bool __must_check kfence_handle_page_fault(unsigned long addr, bool is_write,
+    struct pt_regs *regs);
 
 #ifdef CONFIG_PRINTK
 struct kmem_obj_info;
@@ -218,34 +223,60 @@ struct kmem_obj_info;
  *
  * Copies information to @kpp for KFENCE objects.
  */
-bool __kfence_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
+bool __kfence_obj_info(struct kmem_obj_info *kpp, void *object,
+    struct slab *slab);
 #endif
 
 #else /* CONFIG_KFENCE */
 
-#define kfence_sample_interval	(0)
+#define kfence_sample_interval  (0)
 
-static inline bool is_kfence_address(const void *addr) { return false; }
-static inline void kfence_alloc_pool_and_metadata(void) { }
-static inline void kfence_init(void) { }
-static inline void kfence_shutdown_cache(struct kmem_cache *s) { }
-static inline void *kfence_alloc(struct kmem_cache *s, size_t size, gfp_t flags) { return NULL; }
-static inline size_t kfence_ksize(const void *addr) { return 0; }
-static inline void *kfence_object_start(const void *addr) { return NULL; }
-static inline void __kfence_free(void *addr) { }
-static inline bool __must_check kfence_free(void *addr) { return false; }
-static inline bool __must_check kfence_handle_page_fault(unsigned long addr, bool is_write,
-							 struct pt_regs *regs)
-{
-	return false;
+static inline bool is_kfence_address(const void *addr) {
+  return false;
+}
+
+static inline void kfence_alloc_pool_and_metadata(void) {
+}
+
+static inline void kfence_init(void) {
+}
+
+static inline void kfence_shutdown_cache(struct kmem_cache *s) {
+}
+
+static inline void *kfence_alloc(struct kmem_cache *s, size_t size,
+    gfp_t flags) {
+  return NULL;
+}
+
+static inline size_t kfence_ksize(const void *addr) {
+  return 0;
+}
+
+static inline void *kfence_object_start(const void *addr) {
+  return NULL;
+}
+
+static inline void __kfence_free(void *addr) {
+}
+
+static inline bool __must_check kfence_free(void *addr) {
+  return false;
+}
+
+static inline bool __must_check kfence_handle_page_fault(unsigned long addr,
+    bool is_write,
+    struct pt_regs *regs) {
+  return false;
 }
 
 #ifdef CONFIG_PRINTK
 struct kmem_obj_info;
-static inline bool __kfence_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
-{
-	return false;
+static inline bool __kfence_obj_info(struct kmem_obj_info *kpp, void *object,
+    struct slab *slab) {
+  return false;
 }
+
 #endif
 
 #endif

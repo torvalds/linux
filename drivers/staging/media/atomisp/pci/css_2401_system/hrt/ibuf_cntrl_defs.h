@@ -20,7 +20,8 @@
 #include <dma_v2_defs.h>
 
 #define _IBUF_CNTRL_REG_ALIGN 4
-/* alignment of register banks, first bank are shared configuration and status registers: */
+/* alignment of register banks, first bank are shared configuration and status
+ * registers: */
 #define _IBUF_CNTRL_PROC_REG_ALIGN        32
 
 /* the actual amount of configuration registers per proc: */
@@ -41,27 +42,36 @@
 #define _IBUF_CNTRL_CMD_TOKEN_MSB          1
 
 /* Str2MMIO defines */
-#define _IBUF_CNTRL_STREAM2MMIO_CMD_TOKEN_MSB        _STREAM2MMIO_CMD_TOKEN_CMD_MSB
-#define _IBUF_CNTRL_STREAM2MMIO_CMD_TOKEN_LSB        _STREAM2MMIO_CMD_TOKEN_CMD_LSB
-#define _IBUF_CNTRL_STREAM2MMIO_NUM_ITEMS_BITS       _STREAM2MMIO_PACK_NUM_ITEMS_BITS
-#define _IBUF_CNTRL_STREAM2MMIO_ACK_EOF_BIT          _STREAM2MMIO_PACK_ACK_EOF_BIT
-#define _IBUF_CNTRL_STREAM2MMIO_ACK_TOKEN_VALID_BIT  _STREAM2MMIO_ACK_TOKEN_VALID_BIT
+#define _IBUF_CNTRL_STREAM2MMIO_CMD_TOKEN_MSB        \
+  _STREAM2MMIO_CMD_TOKEN_CMD_MSB
+#define _IBUF_CNTRL_STREAM2MMIO_CMD_TOKEN_LSB        \
+  _STREAM2MMIO_CMD_TOKEN_CMD_LSB
+#define _IBUF_CNTRL_STREAM2MMIO_NUM_ITEMS_BITS       \
+  _STREAM2MMIO_PACK_NUM_ITEMS_BITS
+#define _IBUF_CNTRL_STREAM2MMIO_ACK_EOF_BIT          \
+  _STREAM2MMIO_PACK_ACK_EOF_BIT
+#define _IBUF_CNTRL_STREAM2MMIO_ACK_TOKEN_VALID_BIT  \
+  _STREAM2MMIO_ACK_TOKEN_VALID_BIT
 
 /* acknowledge token definition */
 #define _IBUF_CNTRL_ACK_TOKEN_STORES_IDX    0
 #define _IBUF_CNTRL_ACK_TOKEN_STORES_BITS   15
-#define _IBUF_CNTRL_ACK_TOKEN_ITEMS_IDX     (_IBUF_CNTRL_ACK_TOKEN_STORES_BITS + _IBUF_CNTRL_ACK_TOKEN_STORES_IDX)
+#define _IBUF_CNTRL_ACK_TOKEN_ITEMS_IDX     (_IBUF_CNTRL_ACK_TOKEN_STORES_BITS \
+  + _IBUF_CNTRL_ACK_TOKEN_STORES_IDX)
 #define _IBUF_CNTRL_ACK_TOKEN_ITEMS_BITS    _STREAM2MMIO_PACK_NUM_ITEMS_BITS
 #define _IBUF_CNTRL_ACK_TOKEN_LSB          _IBUF_CNTRL_ACK_TOKEN_STORES_IDX
-#define _IBUF_CNTRL_ACK_TOKEN_MSB          (_IBUF_CNTRL_ACK_TOKEN_ITEMS_BITS + _IBUF_CNTRL_ACK_TOKEN_ITEMS_IDX - 1)
+#define _IBUF_CNTRL_ACK_TOKEN_MSB          (_IBUF_CNTRL_ACK_TOKEN_ITEMS_BITS \
+  + _IBUF_CNTRL_ACK_TOKEN_ITEMS_IDX - 1)
 /* bit 31 indicates a valid ack: */
-#define _IBUF_CNTRL_ACK_TOKEN_VALID_BIT    (_IBUF_CNTRL_ACK_TOKEN_ITEMS_BITS + _IBUF_CNTRL_ACK_TOKEN_ITEMS_IDX)
+#define _IBUF_CNTRL_ACK_TOKEN_VALID_BIT    (_IBUF_CNTRL_ACK_TOKEN_ITEMS_BITS \
+  + _IBUF_CNTRL_ACK_TOKEN_ITEMS_IDX)
 
 /*shared registers:*/
 #define _IBUF_CNTRL_RECALC_WORDS_STATUS     0
 #define _IBUF_CNTRL_ARBITERS_STATUS         1
 
-#define _IBUF_CNTRL_SET_CRUN                2 /* NO PHYSICAL REGISTER!! Only used in HSS model */
+#define _IBUF_CNTRL_SET_CRUN                2 /* NO PHYSICAL REGISTER!! Only
+                                               * used in HSS model */
 
 /*register addresses for each proc: */
 #define _IBUF_CNTRL_CMD                   0
@@ -82,7 +92,8 @@
 #define _IBUF_CNTRL_BUFFER_STRIDE         7
 #define _IBUF_CNTRL_BUFFER_END_ADDRESS    8
 
-/* destination start address, stride and end address; should be the same as in the DMA */
+/* destination start address, stride and end address; should be the same as in
+ * the DMA */
 #define _IBUF_CNTRL_DEST_START_ADDRESS    9
 #define _IBUF_CNTRL_DEST_STRIDE           10
 #define _IBUF_CNTRL_DEST_END_ADDRESS      11
@@ -99,8 +110,8 @@
 #define _IBUF_CNTRL_ELEMS_P_WORD_IBUF     16
 #define _IBUF_CNTRL_ELEMS_P_WORD_DEST     17
 
-/* STATUS */
-/* current frame and stores in buffer */
+/* STATUS
+ * current frame and stores in buffer*/
 #define _IBUF_CNTRL_CUR_STORES            18
 #define _IBUF_CNTRL_CUR_ACKS              19
 
@@ -123,13 +134,17 @@
 /* initialize, copy st_addr to cur_addr etc */
 #define _IBUF_CNTRL_CMD_INITIALIZE          0
 
-/* store an online frame (sync with ISP, use end cfg start, stride and end address: */
-#define _IBUF_CNTRL_CMD_STORE_ONLINE_FRAME  ((1 << _IBUF_CNTRL_CMD_STORE_FRAME_IDX) | (1 << _IBUF_CNTRL_CMD_ONLINE_IDX))
+/* store an online frame (sync with ISP, use end cfg start, stride and end
+ * address: */
+#define _IBUF_CNTRL_CMD_STORE_ONLINE_FRAME  ((1 << \
+      _IBUF_CNTRL_CMD_STORE_FRAME_IDX) | (1 << _IBUF_CNTRL_CMD_ONLINE_IDX))
 
-/* store an offline frame (don't sync with ISP, requires start address as 2nd token, no end address: */
+/* store an offline frame (don't sync with ISP, requires start address as 2nd
+ * token, no end address: */
 #define _IBUF_CNTRL_CMD_STORE_OFFLINE_FRAME  BIT(_IBUF_CNTRL_CMD_STORE_FRAME_IDX)
 
-/* false command token, should be different then commands. Use online bit, not store frame: */
+/* false command token, should be different then commands. Use online bit, not
+ * store frame: */
 #define _IBUF_CNTRL_FALSE_ACK               2
 
 #endif

@@ -160,7 +160,6 @@
 #define   G_000E40_GUI_ACTIVE(x)                       (((x) >> 31) & 0x1)
 #define   C_000E40_GUI_ACTIVE                          0x7FFFFFFF
 
-
 #define R_000004_MC_FB_LOCATION                      0x000004
 #define   S_000004_MC_FB_START(x)                      (((x) & 0xFFFF) << 0)
 #define   G_000004_MC_FB_START(x)                      (((x) >> 0) & 0xFFFF)

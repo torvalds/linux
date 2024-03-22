@@ -12,13 +12,13 @@
 #define PASEMI_HW_REV_PCI -1
 
 struct pasemi_smbus {
-	struct device		*dev;
-	struct i2c_adapter	 adapter;
-	void __iomem		*ioaddr;
-	unsigned int		 clk_div;
-	int			 hw_rev;
-	int			 use_irq;
-	struct completion	 irq_completion;
+  struct device *dev;
+  struct i2c_adapter adapter;
+  void __iomem *ioaddr;
+  unsigned int clk_div;
+  int hw_rev;
+  int use_irq;
+  struct completion irq_completion;
 };
 
 int pasemi_i2c_common_probe(struct pasemi_smbus *smbus);

@@ -6,7 +6,7 @@
 #define __ALIGN_STR ".align 0"
 
 #define ENDPROC(name) \
-  .type name, %function; \
+  .type name, % function; \
   END(name)
 
 #endif

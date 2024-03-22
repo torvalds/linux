@@ -8,7 +8,7 @@
 #define QSFP_PWR_LAG_MSEC 2000
 #define QSFP_MODPRS_LAG_MSEC 20
 /* 128 byte pages, per SFF 8636 rev 2.4 */
-#define QSFP_MAX_NUM_PAGES	5
+#define QSFP_MAX_NUM_PAGES  5
 
 /*
  * Below are masks for QSFP pins.  Pins are the same for HFI0 and HFI1.
@@ -17,7 +17,7 @@
 #define QSFP_HFI0_I2CCLK    BIT(0)
 #define QSFP_HFI0_I2CDAT    BIT(1)
 #define QSFP_HFI0_RESET_N   BIT(2)
-#define QSFP_HFI0_INT_N	    BIT(3)
+#define QSFP_HFI0_INT_N     BIT(3)
 #define QSFP_HFI0_MODPRST_N BIT(4)
 
 /* QSFP is paged at 256 bytes */
@@ -29,9 +29,9 @@
 #define __QSFP_OFFSET_SIZE 1                           /* num address bytes */
 #define QSFP_OFFSET_SIZE (__QSFP_OFFSET_SIZE << 8)     /* shifted value */
 
-/* Defined fields that Intel requires of qualified cables */
-/* Byte 0 is Identifier, not checked */
-/* Byte 1 is reserved "status MSB" */
+/* Defined fields that Intel requires of qualified cables
+ * Byte 0 is Identifier, not checked
+ * Byte 1 is reserved "status MSB"*/
 #define QSFP_MONITOR_VAL_START 22
 #define QSFP_MONITOR_VAL_END 81
 #define QSFP_MONITOR_RANGE (QSFP_MONITOR_VAL_END - QSFP_MONITOR_VAL_START + 1)
@@ -48,21 +48,21 @@
  * For bits [1:0]: 0:Unused, 1:4W, 2:4.5W, 3:5W
  */
 #define QSFP_MOD_PWR_OFFS 129
-/* Byte 130 is Connector type. Not Intel req'd */
-/* Bytes 131..138 are Transceiver types, bit maps for various tech, none IB */
-/* Byte 139 is encoding. code 0x01 is 8b10b. Not Intel req'd */
-/* byte 140 is nominal bit-rate, in units of 100Mbits/sec */
+/* Byte 130 is Connector type. Not Intel req'd
+ * Bytes 131..138 are Transceiver types, bit maps for various tech, none IB
+ * Byte 139 is encoding. code 0x01 is 8b10b. Not Intel req'd
+ * byte 140 is nominal bit-rate, in units of 100Mbits/sec*/
 #define QSFP_NOM_BIT_RATE_100_OFFS 140
-/* Byte 141 is Extended Rate Select. Not Intel req'd */
-/* Bytes 142..145 are lengths for various fiber types. Not Intel req'd */
-/* Byte 146 is length for Copper. Units of 1 meter */
+/* Byte 141 is Extended Rate Select. Not Intel req'd
+ * Bytes 142..145 are lengths for various fiber types. Not Intel req'd
+ * Byte 146 is length for Copper. Units of 1 meter*/
 #define QSFP_MOD_LEN_OFFS 146
 /*
  * Byte 147 is Device technology. D0..3 not Intel req'd
  * D4..7 select from 15 choices, translated by table:
  */
 #define QSFP_MOD_TECH_OFFS 147
-extern const char *const hfi1_qsfp_devtech[16];
+extern const char * const hfi1_qsfp_devtech[16];
 /* Active Equalization includes fiber, copper full EQ, and copper near Eq */
 #define QSFP_IS_ACTIVE(tech) ((0xA2FF >> ((tech) >> 4)) & 1)
 /* Active Equalization includes fiber, copper full EQ, and copper far Eq */
@@ -73,8 +73,8 @@ extern const char *const hfi1_qsfp_devtech[16];
 #define QSFP_IS_CU(tech) ((0xED00 >> ((tech) >> 4)) & 1)
 #define QSFP_TECH_1490 9
 
-#define QSFP_OUI(oui) (((unsigned)oui[0] << 16) | ((unsigned)oui[1] << 8) | \
-			oui[2])
+#define QSFP_OUI(oui) (((unsigned) oui[0] << 16) | ((unsigned) oui[1] << 8)   \
+  | oui[2])
 #define QSFP_OUI_AMPHENOL 0x415048
 #define QSFP_OUI_FINISAR  0x009065
 #define QSFP_OUI_GORE     0x002177
@@ -107,8 +107,8 @@ extern const char *const hfi1_qsfp_devtech[16];
  */
 #define QSFP_CU_ATTEN_7G_OFFS 188
 #define QSFP_CU_ATTEN_12G_OFFS 189
-/* Byte 190 is Max Case Temp. Not Intel req'd */
-/* Byte 191 is LSB of sum of bytes 128..190. Not Intel req'd */
+/* Byte 190 is Max Case Temp. Not Intel req'd
+ * Byte 191 is LSB of sum of bytes 128..190. Not Intel req'd*/
 #define QSFP_CC_OFFS 191
 #define QSFP_EQ_INFO_OFFS 193
 #define QSFP_CDR_INFO_OFFS 194
@@ -121,8 +121,8 @@ extern const char *const hfi1_qsfp_devtech[16];
 /* Bytes 218,219 are optional lot-code, string */
 #define QSFP_LOT_OFFS 218
 #define QSFP_LOT_LEN 2
-/* Bytes 220, 221 indicate monitoring options, Not Intel req'd */
-/* Byte 222 indicates nominal bitrate in units of 250Mbits/sec */
+/* Bytes 220, 221 indicate monitoring options, Not Intel req'd
+ * Byte 222 indicates nominal bitrate in units of 250Mbits/sec*/
 #define QSFP_NOM_BIT_RATE_250_OFFS 222
 /* Byte 223 is LSB of sum of bytes 192..222 */
 #define QSFP_CC_EXT_OFFS 223
@@ -130,27 +130,27 @@ extern const char *const hfi1_qsfp_devtech[16];
 /*
  * Interrupt flag masks
  */
-#define QSFP_DATA_NOT_READY		0x01
+#define QSFP_DATA_NOT_READY   0x01
 
-#define QSFP_HIGH_TEMP_ALARM		0x80
-#define QSFP_LOW_TEMP_ALARM		0x40
-#define QSFP_HIGH_TEMP_WARNING		0x20
-#define QSFP_LOW_TEMP_WARNING		0x10
+#define QSFP_HIGH_TEMP_ALARM    0x80
+#define QSFP_LOW_TEMP_ALARM   0x40
+#define QSFP_HIGH_TEMP_WARNING    0x20
+#define QSFP_LOW_TEMP_WARNING   0x10
 
-#define QSFP_HIGH_VCC_ALARM		0x80
-#define QSFP_LOW_VCC_ALARM		0x40
-#define QSFP_HIGH_VCC_WARNING		0x20
-#define QSFP_LOW_VCC_WARNING		0x10
+#define QSFP_HIGH_VCC_ALARM   0x80
+#define QSFP_LOW_VCC_ALARM    0x40
+#define QSFP_HIGH_VCC_WARNING   0x20
+#define QSFP_LOW_VCC_WARNING    0x10
 
-#define QSFP_HIGH_POWER_ALARM		0x88
-#define QSFP_LOW_POWER_ALARM		0x44
-#define QSFP_HIGH_POWER_WARNING		0x22
-#define QSFP_LOW_POWER_WARNING		0x11
+#define QSFP_HIGH_POWER_ALARM   0x88
+#define QSFP_LOW_POWER_ALARM    0x44
+#define QSFP_HIGH_POWER_WARNING   0x22
+#define QSFP_LOW_POWER_WARNING    0x11
 
-#define QSFP_HIGH_BIAS_ALARM		0x88
-#define QSFP_LOW_BIAS_ALARM		0x44
-#define QSFP_HIGH_BIAS_WARNING		0x22
-#define QSFP_LOW_BIAS_WARNING		0x11
+#define QSFP_HIGH_BIAS_ALARM    0x88
+#define QSFP_LOW_BIAS_ALARM   0x44
+#define QSFP_HIGH_BIAS_WARNING    0x22
+#define QSFP_LOW_BIAS_WARNING   0x11
 
 #define QSFP_ATTEN_SDR(attenarray) (attenarray[0])
 #define QSFP_ATTEN_DDR(attenarray) (attenarray[1])
@@ -167,38 +167,38 @@ extern const char *const hfi1_qsfp_devtech[16];
  *
  */
 struct qsfp_data {
-	/* Helps to find our way */
-	struct hfi1_pportdata *ppd;
-	struct work_struct qsfp_work;
-	u8 cache[QSFP_MAX_NUM_PAGES * 128];
-	/* protect qsfp data */
-	spinlock_t qsfp_lock;
-	u8 check_interrupt_flags;
-	u8 reset_needed;
-	u8 limiting_active;
-	u8 cache_valid;
-	u8 cache_refresh_required;
+  /* Helps to find our way */
+  struct hfi1_pportdata *ppd;
+  struct work_struct qsfp_work;
+  u8 cache[QSFP_MAX_NUM_PAGES * 128];
+  /* protect qsfp data */
+  spinlock_t qsfp_lock;
+  u8 check_interrupt_flags;
+  u8 reset_needed;
+  u8 limiting_active;
+  u8 cache_valid;
+  u8 cache_refresh_required;
 };
 
 int refresh_qsfp_cache(struct hfi1_pportdata *ppd,
-		       struct qsfp_data *cp);
+    struct qsfp_data *cp);
 int get_qsfp_power_class(u8 power_byte);
 int qsfp_mod_present(struct hfi1_pportdata *ppd);
 int get_cable_info(struct hfi1_devdata *dd, u32 port_num, u32 addr,
-		   u32 len, u8 *data);
+    u32 len, u8 *data);
 
 int i2c_write(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
-	      int offset, void *bp, int len);
+    int offset, void *bp, int len);
 int i2c_read(struct hfi1_pportdata *ppd, u32 target, int i2c_addr,
-	     int offset, void *bp, int len);
+    int offset, void *bp, int len);
 int qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
-	       int len);
+    int len);
 int qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
-	      int len);
+    int len);
 int one_qsfp_write(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
-		   int len);
+    int len);
 int one_qsfp_read(struct hfi1_pportdata *ppd, u32 target, int addr, void *bp,
-		  int len);
+    int len);
 struct hfi1_asic_data;
 int set_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad);
 void clean_up_i2c(struct hfi1_devdata *dd, struct hfi1_asic_data *ad);

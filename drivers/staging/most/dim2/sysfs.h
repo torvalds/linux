@@ -8,12 +8,12 @@
 /* Author: Andrey Shvetsov <andrey.shvetsov@k2l.de> */
 
 #ifndef DIM2_SYSFS_H
-#define	DIM2_SYSFS_H
+#define DIM2_SYSFS_H
 
 #include <linux/kobject.h>
 
 struct medialb_bus {
-	struct kobject kobj_group;
+  struct kobject kobj_group;
 };
 
-#endif	/* DIM2_SYSFS_H */
+#endif  /* DIM2_SYSFS_H */

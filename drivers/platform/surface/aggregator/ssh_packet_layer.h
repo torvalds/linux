@@ -25,11 +25,11 @@
  * enum ssh_ptl_state_flags - State-flags for &struct ssh_ptl.
  *
  * @SSH_PTL_SF_SHUTDOWN_BIT:
- *	Indicates that the packet transport layer has been shut down or is
- *	being shut down and should not accept any new packets/data.
+ *  Indicates that the packet transport layer has been shut down or is
+ *  being shut down and should not accept any new packets/data.
  */
 enum ssh_ptl_state_flags {
-	SSH_PTL_SF_SHUTDOWN_BIT,
+  SSH_PTL_SF_SHUTDOWN_BIT,
 };
 
 /**
@@ -39,7 +39,7 @@ enum ssh_ptl_state_flags {
  *                 the packet's payload data are provided to this function.
  */
 struct ssh_ptl_ops {
-	void (*data_received)(struct ssh_ptl *p, const struct ssam_span *data);
+  void (*data_received)(struct ssh_ptl *p, const struct ssam_span *data);
 };
 
 /**
@@ -75,69 +75,69 @@ struct ssh_ptl_ops {
  * @ops:           Packet layer operations.
  */
 struct ssh_ptl {
-	struct serdev_device *serdev;
-	unsigned long state;
+  struct serdev_device *serdev;
+  unsigned long state;
 
-	struct {
-		spinlock_t lock;
-		struct list_head head;
-	} queue;
+  struct {
+    spinlock_t lock;
+    struct list_head head;
+  } queue;
 
-	struct {
-		spinlock_t lock;
-		struct list_head head;
-		atomic_t count;
-	} pending;
+  struct {
+    spinlock_t lock;
+    struct list_head head;
+    atomic_t count;
+  } pending;
 
-	struct {
-		atomic_t running;
-		struct task_struct *thread;
-		struct completion thread_cplt_tx;
-		struct completion thread_cplt_pkt;
-		struct wait_queue_head packet_wq;
-	} tx;
+  struct {
+    atomic_t running;
+    struct task_struct *thread;
+    struct completion thread_cplt_tx;
+    struct completion thread_cplt_pkt;
+    struct wait_queue_head packet_wq;
+  } tx;
 
-	struct {
-		struct task_struct *thread;
-		struct wait_queue_head wq;
-		struct kfifo fifo;
-		struct sshp_buf buf;
+  struct {
+    struct task_struct *thread;
+    struct wait_queue_head wq;
+    struct kfifo fifo;
+    struct sshp_buf buf;
 
-		struct {
-			u16 seqs[8];
-			u16 offset;
-		} blocked;
-	} rx;
+    struct {
+      u16 seqs[8];
+      u16 offset;
+    } blocked;
+  } rx;
 
-	struct {
-		spinlock_t lock;
-		ktime_t timeout;
-		ktime_t expires;
-		struct delayed_work reaper;
-	} rtx_timeout;
+  struct {
+    spinlock_t lock;
+    ktime_t timeout;
+    ktime_t expires;
+    struct delayed_work reaper;
+  } rtx_timeout;
 
-	struct ssh_ptl_ops ops;
+  struct ssh_ptl_ops ops;
 };
 
-#define __ssam_prcond(func, p, fmt, ...)		\
-	do {						\
-		typeof(p) __p = (p);			\
-							\
-		if (__p)				\
-			func(__p, fmt, ##__VA_ARGS__);	\
-	} while (0)
+#define __ssam_prcond(func, p, fmt, ...)    \
+  do {            \
+    typeof(p) __p = (p);      \
+              \
+    if (__p)        \
+    func(__p, fmt, ## __VA_ARGS__);  \
+  } while (0)
 
-#define ptl_dbg(p, fmt, ...)  dev_dbg(&(p)->serdev->dev, fmt, ##__VA_ARGS__)
-#define ptl_info(p, fmt, ...) dev_info(&(p)->serdev->dev, fmt, ##__VA_ARGS__)
-#define ptl_warn(p, fmt, ...) dev_warn(&(p)->serdev->dev, fmt, ##__VA_ARGS__)
-#define ptl_err(p, fmt, ...)  dev_err(&(p)->serdev->dev, fmt, ##__VA_ARGS__)
-#define ptl_dbg_cond(p, fmt, ...) __ssam_prcond(ptl_dbg, p, fmt, ##__VA_ARGS__)
+#define ptl_dbg(p, fmt, ...)  dev_dbg(&(p)->serdev->dev, fmt, ## __VA_ARGS__)
+#define ptl_info(p, fmt, ...) dev_info(&(p)->serdev->dev, fmt, ## __VA_ARGS__)
+#define ptl_warn(p, fmt, ...) dev_warn(&(p)->serdev->dev, fmt, ## __VA_ARGS__)
+#define ptl_err(p, fmt, ...)  dev_err(&(p)->serdev->dev, fmt, ## __VA_ARGS__)
+#define ptl_dbg_cond(p, fmt, ...) __ssam_prcond(ptl_dbg, p, fmt, ## __VA_ARGS__)
 
 #define to_ssh_ptl(ptr, member) \
-	container_of(ptr, struct ssh_ptl, member)
+  container_of(ptr, struct ssh_ptl, member)
 
 int ssh_ptl_init(struct ssh_ptl *ptl, struct serdev_device *serdev,
-		 struct ssh_ptl_ops *ops);
+    struct ssh_ptl_ops *ops);
 
 void ssh_ptl_destroy(struct ssh_ptl *ptl);
 
@@ -148,9 +148,8 @@ void ssh_ptl_destroy(struct ssh_ptl *ptl);
  * Return: Returns the device on which the given packet transport layer builds
  * upon.
  */
-static inline struct device *ssh_ptl_get_device(struct ssh_ptl *ptl)
-{
-	return ptl->serdev ? &ptl->serdev->dev : NULL;
+static inline struct device *ssh_ptl_get_device(struct ssh_ptl *ptl) {
+  return ptl->serdev ? &ptl->serdev->dev : NULL;
 }
 
 int ssh_ptl_tx_start(struct ssh_ptl *ptl);
@@ -173,16 +172,15 @@ ssize_t ssh_ptl_rx_rcvbuf(struct ssh_ptl *ptl, const u8 *buf, size_t n);
  * transport has more space for data to be transmitted. If the packet
  * transport layer has been shut down, calls to this function will be ignored.
  */
-static inline void ssh_ptl_tx_wakeup_transfer(struct ssh_ptl *ptl)
-{
-	if (test_bit(SSH_PTL_SF_SHUTDOWN_BIT, &ptl->state))
-		return;
-
-	complete(&ptl->tx.thread_cplt_tx);
+static inline void ssh_ptl_tx_wakeup_transfer(struct ssh_ptl *ptl) {
+  if (test_bit(SSH_PTL_SF_SHUTDOWN_BIT, &ptl->state)) {
+    return;
+  }
+  complete(&ptl->tx.thread_cplt_tx);
 }
 
 void ssh_packet_init(struct ssh_packet *packet, unsigned long type,
-		     u8 priority, const struct ssh_packet_ops *ops);
+    u8 priority, const struct ssh_packet_ops *ops);
 
 int ssh_ctrl_packet_cache_init(void);
 void ssh_ctrl_packet_cache_destroy(void);

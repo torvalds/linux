@@ -5,22 +5,19 @@
 #include "bpf_misc.h"
 
 struct S {
-	int x;
+  int x;
 };
 
-__noinline int foo(const struct S *s)
-{
-	if (s)
-		return bpf_get_prandom_u32() < s->x;
-
-	return 0;
+__noinline int foo(const struct S *s) {
+  if (s) {
+    return bpf_get_prandom_u32() < s->x;
+  }
+  return 0;
 }
 
 SEC("cgroup_skb/ingress")
 __failure __msg("Caller passes invalid args into func#1")
-int global_func13(struct __sk_buff *skb)
-{
-	const struct S *s = (const struct S *)(0xbedabeda);
-
-	return foo(s);
+int global_func13(struct __sk_buff *skb) {
+  const struct S *s = (const struct S *) (0xbedabeda);
+  return foo(s);
 }

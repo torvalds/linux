@@ -31,88 +31,88 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
  *
  * Example assembly (slightly re-ordered for better readability):
  *
- * <__x64_sys_recv>:		<-- syscall with 4 parameters
- *	callq	<__fentry__>
+ * <__x64_sys_recv>:    <-- syscall with 4 parameters
+ *  callq <__fentry__>
  *
- *	mov	0x70(%rdi),%rdi	<-- decode regs->di
- *	mov	0x68(%rdi),%rsi	<-- decode regs->si
- *	mov	0x60(%rdi),%rdx	<-- decode regs->dx
- *	mov	0x38(%rdi),%rcx	<-- decode regs->r10
+ *  mov 0x70(%rdi),%rdi <-- decode regs->di
+ *  mov 0x68(%rdi),%rsi <-- decode regs->si
+ *  mov 0x60(%rdi),%rdx <-- decode regs->dx
+ *  mov 0x38(%rdi),%rcx <-- decode regs->r10
  *
- *	xor	%r9d,%r9d	<-- clear %r9
- *	xor	%r8d,%r8d	<-- clear %r8
+ *  xor %r9d,%r9d <-- clear %r9
+ *  xor %r8d,%r8d <-- clear %r8
  *
- *	callq	__sys_recvfrom	<-- do the actual work in __sys_recvfrom()
- *				    which takes 6 arguments
+ *  callq __sys_recvfrom  <-- do the actual work in __sys_recvfrom()
+ *            which takes 6 arguments
  *
- *	cltq			<-- extend return value to 64-bit
- *	retq			<-- return
+ *  cltq      <-- extend return value to 64-bit
+ *  retq      <-- return
  *
  * This approach avoids leaking random user-provided register content down
  * the call chain.
  */
 
 /* Mapping of registers to parameters for syscalls on x86-64 and x32 */
-#define SC_X86_64_REGS_TO_ARGS(x, ...)					\
-	__MAP(x,__SC_ARGS						\
-		,,regs->di,,regs->si,,regs->dx				\
-		,,regs->r10,,regs->r8,,regs->r9)			\
+#define SC_X86_64_REGS_TO_ARGS(x, ...)          \
+  __MAP(x, __SC_ARGS           \
+    , , regs->di, , regs->si, , regs->dx        \
+    , , regs->r10, , regs->r8, , regs->r9)      \
 
 
 /* SYSCALL_PT_ARGS is Adapted from s390x */
-#define SYSCALL_PT_ARG6(m, t1, t2, t3, t4, t5, t6)			\
-	SYSCALL_PT_ARG5(m, t1, t2, t3, t4, t5), m(t6, (regs->bp))
-#define SYSCALL_PT_ARG5(m, t1, t2, t3, t4, t5)				\
-	SYSCALL_PT_ARG4(m, t1, t2, t3, t4),  m(t5, (regs->di))
-#define SYSCALL_PT_ARG4(m, t1, t2, t3, t4)				\
-	SYSCALL_PT_ARG3(m, t1, t2, t3),  m(t4, (regs->si))
-#define SYSCALL_PT_ARG3(m, t1, t2, t3)					\
-	SYSCALL_PT_ARG2(m, t1, t2), m(t3, (regs->dx))
-#define SYSCALL_PT_ARG2(m, t1, t2)					\
-	SYSCALL_PT_ARG1(m, t1), m(t2, (regs->cx))
+#define SYSCALL_PT_ARG6(m, t1, t2, t3, t4, t5, t6)      \
+  SYSCALL_PT_ARG5(m, t1, t2, t3, t4, t5), m(t6, (regs->bp))
+#define SYSCALL_PT_ARG5(m, t1, t2, t3, t4, t5)        \
+  SYSCALL_PT_ARG4(m, t1, t2, t3, t4), m(t5, (regs->di))
+#define SYSCALL_PT_ARG4(m, t1, t2, t3, t4)        \
+  SYSCALL_PT_ARG3(m, t1, t2, t3), m(t4, (regs->si))
+#define SYSCALL_PT_ARG3(m, t1, t2, t3)          \
+  SYSCALL_PT_ARG2(m, t1, t2), m(t3, (regs->dx))
+#define SYSCALL_PT_ARG2(m, t1, t2)          \
+  SYSCALL_PT_ARG1(m, t1), m(t2, (regs->cx))
 #define SYSCALL_PT_ARG1(m, t1) m(t1, (regs->bx))
-#define SYSCALL_PT_ARGS(x, ...) SYSCALL_PT_ARG##x(__VA_ARGS__)
+#define SYSCALL_PT_ARGS(x, ...) SYSCALL_PT_ARG ## x(__VA_ARGS__)
 
-#define __SC_COMPAT_CAST(t, a)						\
-	(__typeof(__builtin_choose_expr(__TYPE_IS_L(t), 0, 0U)))	\
-	(unsigned int)a
+#define __SC_COMPAT_CAST(t, a)            \
+  (__typeof(__builtin_choose_expr(__TYPE_IS_L(t), 0, 0U)))  \
+  (unsigned int) a
 
 /* Mapping of registers to parameters for syscalls on i386 */
-#define SC_IA32_REGS_TO_ARGS(x, ...)					\
-	SYSCALL_PT_ARGS(x, __SC_COMPAT_CAST,				\
-			__MAP(x, __SC_TYPE, __VA_ARGS__))		\
+#define SC_IA32_REGS_TO_ARGS(x, ...)          \
+  SYSCALL_PT_ARGS(x, __SC_COMPAT_CAST,        \
+    __MAP(x, __SC_TYPE, __VA_ARGS__))   \
 
-#define __SYS_STUB0(abi, name)						\
-	long __##abi##_##name(const struct pt_regs *regs);		\
-	ALLOW_ERROR_INJECTION(__##abi##_##name, ERRNO);			\
-	long __##abi##_##name(const struct pt_regs *regs)		\
-		__alias(__do_##name);
+#define __SYS_STUB0(abi, name)            \
+  long __ ## abi ## _ ## name(const struct pt_regs *regs);    \
+  ALLOW_ERROR_INJECTION(__ ## abi ## _ ## name, ERRNO);     \
+  long __ ## abi ## _ ## name(const struct pt_regs *regs)   \
+  __alias(__do_ ## name);
 
-#define __SYS_STUBx(abi, name, ...)					\
-	long __##abi##_##name(const struct pt_regs *regs);		\
-	ALLOW_ERROR_INJECTION(__##abi##_##name, ERRNO);			\
-	long __##abi##_##name(const struct pt_regs *regs)		\
-	{								\
-		return __se_##name(__VA_ARGS__);			\
-	}
+#define __SYS_STUBx(abi, name, ...)         \
+  long __ ## abi ## _ ## name(const struct pt_regs *regs);    \
+  ALLOW_ERROR_INJECTION(__ ## abi ## _ ## name, ERRNO);     \
+  long __ ## abi ## _ ## name(const struct pt_regs *regs)   \
+  {               \
+    return __se_ ## name(__VA_ARGS__);      \
+  }
 
-#define __COND_SYSCALL(abi, name)					\
-	__weak long __##abi##_##name(const struct pt_regs *__unused);	\
-	__weak long __##abi##_##name(const struct pt_regs *__unused)	\
-	{								\
-		return sys_ni_syscall();				\
-	}
+#define __COND_SYSCALL(abi, name)         \
+  __weak long __ ## abi ## _ ## name(const struct pt_regs *__unused); \
+  __weak long __ ## abi ## _ ## name(const struct pt_regs *__unused)  \
+  {               \
+    return sys_ni_syscall();        \
+  }
 
 #ifdef CONFIG_X86_64
-#define __X64_SYS_STUB0(name)						\
-	__SYS_STUB0(x64, sys_##name)
+#define __X64_SYS_STUB0(name)           \
+  __SYS_STUB0(x64, sys_ ## name)
 
-#define __X64_SYS_STUBx(x, name, ...)					\
-	__SYS_STUBx(x64, sys##name,					\
-		    SC_X86_64_REGS_TO_ARGS(x, __VA_ARGS__))
+#define __X64_SYS_STUBx(x, name, ...)         \
+  __SYS_STUBx(x64, sys ## name,         \
+    SC_X86_64_REGS_TO_ARGS(x, __VA_ARGS__))
 
-#define __X64_COND_SYSCALL(name)					\
-	__COND_SYSCALL(x64, sys_##name)
+#define __X64_COND_SYSCALL(name)          \
+  __COND_SYSCALL(x64, sys_ ## name)
 
 #else /* CONFIG_X86_64 */
 #define __X64_SYS_STUB0(name)
@@ -121,15 +121,15 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 #endif /* CONFIG_X86_64 */
 
 #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
-#define __IA32_SYS_STUB0(name)						\
-	__SYS_STUB0(ia32, sys_##name)
+#define __IA32_SYS_STUB0(name)            \
+  __SYS_STUB0(ia32, sys_ ## name)
 
-#define __IA32_SYS_STUBx(x, name, ...)					\
-	__SYS_STUBx(ia32, sys##name,					\
-		    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
+#define __IA32_SYS_STUBx(x, name, ...)          \
+  __SYS_STUBx(ia32, sys ## name,          \
+    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
 
-#define __IA32_COND_SYSCALL(name)					\
-	__COND_SYSCALL(ia32, sys_##name)
+#define __IA32_COND_SYSCALL(name)         \
+  __COND_SYSCALL(ia32, sys_ ## name)
 
 #else /* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
 #define __IA32_SYS_STUB0(name)
@@ -145,15 +145,15 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
  * syscalls may not be implemented, we need to expand COND_SYSCALL in
  * kernel/sys_ni.c to cover this case as well.
  */
-#define __IA32_COMPAT_SYS_STUB0(name)					\
-	__SYS_STUB0(ia32, compat_sys_##name)
+#define __IA32_COMPAT_SYS_STUB0(name)         \
+  __SYS_STUB0(ia32, compat_sys_ ## name)
 
-#define __IA32_COMPAT_SYS_STUBx(x, name, ...)				\
-	__SYS_STUBx(ia32, compat_sys##name,				\
-		    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
+#define __IA32_COMPAT_SYS_STUBx(x, name, ...)       \
+  __SYS_STUBx(ia32, compat_sys ## name,       \
+    SC_IA32_REGS_TO_ARGS(x, __VA_ARGS__))
 
-#define __IA32_COMPAT_COND_SYSCALL(name)				\
-	__COND_SYSCALL(ia32, compat_sys_##name)
+#define __IA32_COMPAT_COND_SYSCALL(name)        \
+  __COND_SYSCALL(ia32, compat_sys_ ## name)
 
 #else /* CONFIG_IA32_EMULATION */
 #define __IA32_COMPAT_SYS_STUB0(name)
@@ -161,22 +161,21 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 #define __IA32_COMPAT_COND_SYSCALL(name)
 #endif /* CONFIG_IA32_EMULATION */
 
-
 #ifdef CONFIG_X86_X32_ABI
 /*
  * For the x32 ABI, we need to create a stub for compat_sys_*() which is aware
  * of the x86-64-style parameter ordering of x32 syscalls. The syscalls common
  * with x86_64 obviously do not need such care.
  */
-#define __X32_COMPAT_SYS_STUB0(name)					\
-	__SYS_STUB0(x64, compat_sys_##name)
+#define __X32_COMPAT_SYS_STUB0(name)          \
+  __SYS_STUB0(x64, compat_sys_ ## name)
 
-#define __X32_COMPAT_SYS_STUBx(x, name, ...)				\
-	__SYS_STUBx(x64, compat_sys##name,				\
-		    SC_X86_64_REGS_TO_ARGS(x, __VA_ARGS__))
+#define __X32_COMPAT_SYS_STUBx(x, name, ...)        \
+  __SYS_STUBx(x64, compat_sys ## name,        \
+    SC_X86_64_REGS_TO_ARGS(x, __VA_ARGS__))
 
-#define __X32_COMPAT_COND_SYSCALL(name)					\
-	__COND_SYSCALL(x64, compat_sys_##name)
+#define __X32_COMPAT_COND_SYSCALL(name)         \
+  __COND_SYSCALL(x64, compat_sys_ ## name)
 
 #else /* CONFIG_X86_X32_ABI */
 #define __X32_COMPAT_SYS_STUB0(name)
@@ -184,55 +183,54 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
 #define __X32_COMPAT_COND_SYSCALL(name)
 #endif /* CONFIG_X86_X32_ABI */
 
-
 #ifdef CONFIG_COMPAT
 /*
  * Compat means IA32_EMULATION and/or X86_X32. As they use a different
  * mapping of registers to parameters, we need to generate stubs for each
  * of them.
  */
-#define COMPAT_SYSCALL_DEFINE0(name)					\
-	static long							\
-	__do_compat_sys_##name(const struct pt_regs *__unused);		\
-	__IA32_COMPAT_SYS_STUB0(name)					\
-	__X32_COMPAT_SYS_STUB0(name)					\
-	static long							\
-	__do_compat_sys_##name(const struct pt_regs *__unused)
+#define COMPAT_SYSCALL_DEFINE0(name)          \
+  static long             \
+  __do_compat_sys_ ## name(const struct pt_regs *__unused);   \
+  __IA32_COMPAT_SYS_STUB0(name)         \
+  __X32_COMPAT_SYS_STUB0(name)          \
+  static long             \
+  __do_compat_sys_ ## name(const struct pt_regs *__unused)
 
-#define COMPAT_SYSCALL_DEFINEx(x, name, ...)					\
-	static long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
-	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
-	__IA32_COMPAT_SYS_STUBx(x, name, __VA_ARGS__)				\
-	__X32_COMPAT_SYS_STUBx(x, name, __VA_ARGS__)				\
-	static long __se_compat_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
-	{									\
-		return __do_compat_sys##name(__MAP(x,__SC_DELOUSE,__VA_ARGS__));\
-	}									\
-	static inline long __do_compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+#define COMPAT_SYSCALL_DEFINEx(x, name, ...)          \
+  static long __se_compat_sys ## name(__MAP(x, __SC_LONG, __VA_ARGS__));  \
+  static inline long __do_compat_sys ## name(__MAP(x, __SC_DECL, __VA_ARGS__)); \
+  __IA32_COMPAT_SYS_STUBx(x, name, __VA_ARGS__)       \
+  __X32_COMPAT_SYS_STUBx(x, name, __VA_ARGS__)        \
+  static long __se_compat_sys ## name(__MAP(x, __SC_LONG, __VA_ARGS__)) \
+  {                 \
+    return __do_compat_sys ## name(__MAP(x, __SC_DELOUSE, __VA_ARGS__)); \
+  }                 \
+  static inline long __do_compat_sys ## name(__MAP(x, __SC_DECL, __VA_ARGS__))
 
 /*
  * As some compat syscalls may not be implemented, we need to expand
  * COND_SYSCALL_COMPAT in kernel/sys_ni.c to cover this case as well.
  */
-#define COND_SYSCALL_COMPAT(name) 					\
-	__IA32_COMPAT_COND_SYSCALL(name)				\
-	__X32_COMPAT_COND_SYSCALL(name)
+#define COND_SYSCALL_COMPAT(name)           \
+  __IA32_COMPAT_COND_SYSCALL(name)        \
+  __X32_COMPAT_COND_SYSCALL(name)
 
 #endif /* CONFIG_COMPAT */
 
-#define __SYSCALL_DEFINEx(x, name, ...)					\
-	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
-	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
-	__X64_SYS_STUBx(x, name, __VA_ARGS__)				\
-	__IA32_SYS_STUBx(x, name, __VA_ARGS__)				\
-	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
-	{								\
-		long ret = __do_sys##name(__MAP(x,__SC_CAST,__VA_ARGS__));\
-		__MAP(x,__SC_TEST,__VA_ARGS__);				\
-		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
-		return ret;						\
-	}								\
-	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))
+#define __SYSCALL_DEFINEx(x, name, ...)         \
+  static long __se_sys ## name(__MAP(x, __SC_LONG, __VA_ARGS__)); \
+  static inline long __do_sys ## name(__MAP(x, __SC_DECL, __VA_ARGS__)); \
+  __X64_SYS_STUBx(x, name, __VA_ARGS__)       \
+  __IA32_SYS_STUBx(x, name, __VA_ARGS__)        \
+  static long __se_sys ## name(__MAP(x, __SC_LONG, __VA_ARGS__))  \
+  {               \
+    long ret = __do_sys ## name(__MAP(x, __SC_CAST, __VA_ARGS__)); \
+    __MAP(x, __SC_TEST, __VA_ARGS__);       \
+    __PROTECT(x, ret, __MAP(x, __SC_ARGS, __VA_ARGS__)); \
+    return ret;           \
+  }               \
+  static inline long __do_sys ## name(__MAP(x, __SC_DECL, __VA_ARGS__))
 
 /*
  * As the generic SYSCALL_DEFINE0() macro does not decode any parameters for
@@ -241,17 +239,16 @@ extern long __ia32_sys_ni_syscall(const struct pt_regs *regs);
  * SYSCALL_DEFINEx() -- which is essential for the COND_SYSCALL() macro
  * to work correctly.
  */
-#define SYSCALL_DEFINE0(sname)						\
-	SYSCALL_METADATA(_##sname, 0);					\
-	static long __do_sys_##sname(const struct pt_regs *__unused);	\
-	__X64_SYS_STUB0(sname)						\
-	__IA32_SYS_STUB0(sname)						\
-	static long __do_sys_##sname(const struct pt_regs *__unused)
+#define SYSCALL_DEFINE0(sname)            \
+  SYSCALL_METADATA(_ ## sname, 0);          \
+  static long __do_sys_ ## sname(const struct pt_regs *__unused); \
+  __X64_SYS_STUB0(sname)            \
+  __IA32_SYS_STUB0(sname)           \
+  static long __do_sys_ ## sname(const struct pt_regs *__unused)
 
-#define COND_SYSCALL(name)						\
-	__X64_COND_SYSCALL(name)					\
-	__IA32_COND_SYSCALL(name)
-
+#define COND_SYSCALL(name)            \
+  __X64_COND_SYSCALL(name)          \
+  __IA32_COND_SYSCALL(name)
 
 /*
  * For VSYSCALLS, we need to declare these three syscalls with the new

@@ -15,93 +15,93 @@
 #define NFS4_CALLBACK_BUFSIZE (1024 + NFS4_CALLBACK_XDRSIZE)
 
 enum nfs4_callback_procnum {
-	CB_NULL = 0,
-	CB_COMPOUND = 1,
+  CB_NULL = 0,
+  CB_COMPOUND = 1,
 };
 
 struct nfs4_slot;
 struct cb_process_state {
-	struct nfs_client	*clp;
-	struct nfs4_slot	*slot;
-	struct net		*net;
-	u32			minorversion;
-	__be32			drc_status;
-	unsigned int		referring_calls;
+  struct nfs_client *clp;
+  struct nfs4_slot *slot;
+  struct net *net;
+  u32 minorversion;
+  __be32 drc_status;
+  unsigned int referring_calls;
 };
 
 struct cb_compound_hdr_arg {
-	unsigned int taglen;
-	const char *tag;
-	unsigned int minorversion;
-	unsigned int cb_ident; /* v4.0 callback identifier */
-	unsigned nops;
+  unsigned int taglen;
+  const char *tag;
+  unsigned int minorversion;
+  unsigned int cb_ident; /* v4.0 callback identifier */
+  unsigned nops;
 };
 
 struct cb_compound_hdr_res {
-	__be32 *status;
-	unsigned int taglen;
-	const char *tag;
-	__be32 *nops;
+  __be32 *status;
+  unsigned int taglen;
+  const char *tag;
+  __be32 *nops;
 };
 
 struct cb_getattrargs {
-	struct nfs_fh fh;
-	uint32_t bitmap[2];
+  struct nfs_fh fh;
+  uint32_t bitmap[2];
 };
 
 struct cb_getattrres {
-	__be32 status;
-	uint32_t bitmap[2];
-	uint64_t size;
-	uint64_t change_attr;
-	struct timespec64 ctime;
-	struct timespec64 mtime;
+  __be32 status;
+  uint32_t bitmap[2];
+  uint64_t size;
+  uint64_t change_attr;
+  struct timespec64 ctime;
+  struct timespec64 mtime;
 };
 
 struct cb_recallargs {
-	struct nfs_fh fh;
-	nfs4_stateid stateid;
-	uint32_t truncate;
+  struct nfs_fh fh;
+  nfs4_stateid stateid;
+  uint32_t truncate;
 };
 
 #if defined(CONFIG_NFS_V4_1)
 
 struct referring_call {
-	uint32_t			rc_sequenceid;
-	uint32_t			rc_slotid;
+  uint32_t rc_sequenceid;
+  uint32_t rc_slotid;
 };
 
 struct referring_call_list {
-	struct nfs4_sessionid		rcl_sessionid;
-	uint32_t			rcl_nrefcalls;
-	struct referring_call 		*rcl_refcalls;
+  struct nfs4_sessionid rcl_sessionid;
+  uint32_t rcl_nrefcalls;
+  struct referring_call *rcl_refcalls;
 };
 
 struct cb_sequenceargs {
-	struct sockaddr			*csa_addr;
-	struct nfs4_sessionid		csa_sessionid;
-	uint32_t			csa_sequenceid;
-	uint32_t			csa_slotid;
-	uint32_t			csa_highestslotid;
-	uint32_t			csa_cachethis;
-	uint32_t			csa_nrclists;
-	struct referring_call_list	*csa_rclists;
+  struct sockaddr *csa_addr;
+  struct nfs4_sessionid csa_sessionid;
+  uint32_t csa_sequenceid;
+  uint32_t csa_slotid;
+  uint32_t csa_highestslotid;
+  uint32_t csa_cachethis;
+  uint32_t csa_nrclists;
+  struct referring_call_list *csa_rclists;
 };
 
 struct cb_sequenceres {
-	__be32				csr_status;
-	struct nfs4_sessionid		csr_sessionid;
-	uint32_t			csr_sequenceid;
-	uint32_t			csr_slotid;
-	uint32_t			csr_highestslotid;
-	uint32_t			csr_target_highestslotid;
+  __be32 csr_status;
+  struct nfs4_sessionid csr_sessionid;
+  uint32_t csr_sequenceid;
+  uint32_t csr_slotid;
+  uint32_t csr_highestslotid;
+  uint32_t csr_target_highestslotid;
 };
 
 extern __be32 nfs4_callback_sequence(void *argp, void *resp,
-				       struct cb_process_state *cps);
+    struct cb_process_state *cps);
 
-#define RCA4_TYPE_MASK_RDATA_DLG	0
-#define RCA4_TYPE_MASK_WDATA_DLG	1
+#define RCA4_TYPE_MASK_RDATA_DLG  0
+#define RCA4_TYPE_MASK_WDATA_DLG  1
 #define RCA4_TYPE_MASK_DIR_DLG         2
 #define RCA4_TYPE_MASK_FILE_LAYOUT     3
 #define RCA4_TYPE_MASK_BLK_LAYOUT      4
@@ -114,77 +114,77 @@ extern __be32 nfs4_callback_sequence(void *argp, void *resp,
 #define RCA4_TYPE_MASK_ALL 0x3f31f
 
 struct cb_recallanyargs {
-	uint32_t	craa_objs_to_keep;
-	uint32_t	craa_type_mask;
+  uint32_t craa_objs_to_keep;
+  uint32_t craa_type_mask;
 };
 
 extern __be32 nfs4_callback_recallany(void *argp, void *resp,
-					struct cb_process_state *cps);
+    struct cb_process_state *cps);
 
 struct cb_recallslotargs {
-	uint32_t	crsa_target_highest_slotid;
+  uint32_t crsa_target_highest_slotid;
 };
 extern __be32 nfs4_callback_recallslot(void *argp, void *resp,
-					 struct cb_process_state *cps);
+    struct cb_process_state *cps);
 
 struct cb_layoutrecallargs {
-	uint32_t		cbl_recall_type;
-	uint32_t		cbl_layout_type;
-	uint32_t		cbl_layoutchanged;
-	union {
-		struct {
-			struct nfs_fh		cbl_fh;
-			struct pnfs_layout_range cbl_range;
-			nfs4_stateid		cbl_stateid;
-		};
-		struct nfs_fsid		cbl_fsid;
-	};
+  uint32_t cbl_recall_type;
+  uint32_t cbl_layout_type;
+  uint32_t cbl_layoutchanged;
+  union {
+    struct {
+      struct nfs_fh cbl_fh;
+      struct pnfs_layout_range cbl_range;
+      nfs4_stateid cbl_stateid;
+    };
+    struct nfs_fsid cbl_fsid;
+  };
 };
 
 extern __be32 nfs4_callback_layoutrecall(void *argp, void *resp,
-		struct cb_process_state *cps);
+    struct cb_process_state *cps);
 
 struct cb_devicenotifyitem {
-	uint32_t		cbd_notify_type;
-	uint32_t		cbd_layout_type;
-	struct nfs4_deviceid	cbd_dev_id;
-	uint32_t		cbd_immediate;
+  uint32_t cbd_notify_type;
+  uint32_t cbd_layout_type;
+  struct nfs4_deviceid cbd_dev_id;
+  uint32_t cbd_immediate;
 };
 
 struct cb_devicenotifyargs {
-	uint32_t			 ndevs;
-	struct cb_devicenotifyitem	 *devs;
+  uint32_t ndevs;
+  struct cb_devicenotifyitem *devs;
 };
 
 extern __be32 nfs4_callback_devicenotify(void *argp, void *resp,
-		struct cb_process_state *cps);
+    struct cb_process_state *cps);
 
 struct cb_notify_lock_args {
-	struct nfs_fh			cbnl_fh;
-	struct nfs_lowner		cbnl_owner;
-	bool				cbnl_valid;
+  struct nfs_fh cbnl_fh;
+  struct nfs_lowner cbnl_owner;
+  bool cbnl_valid;
 };
 
 extern __be32 nfs4_callback_notify_lock(void *argp, void *resp,
-					 struct cb_process_state *cps);
+    struct cb_process_state *cps);
 #endif /* CONFIG_NFS_V4_1 */
 #ifdef CONFIG_NFS_V4_2
 struct cb_offloadargs {
-	struct nfs_fh		coa_fh;
-	nfs4_stateid		coa_stateid;
-	uint32_t		error;
-	uint64_t		wr_count;
-	struct nfs_writeverf	wr_writeverf;
+  struct nfs_fh coa_fh;
+  nfs4_stateid coa_stateid;
+  uint32_t error;
+  uint64_t wr_count;
+  struct nfs_writeverf wr_writeverf;
 };
 
 extern __be32 nfs4_callback_offload(void *args, void *dummy,
-				    struct cb_process_state *cps);
+    struct cb_process_state *cps);
 #endif /* CONFIG_NFS_V4_2 */
 extern int check_gss_callback_principal(struct nfs_client *, struct svc_rqst *);
 extern __be32 nfs4_callback_getattr(void *argp, void *resp,
-				    struct cb_process_state *cps);
+    struct cb_process_state *cps);
 extern __be32 nfs4_callback_recall(void *argp, void *resp,
-				   struct cb_process_state *cps);
+    struct cb_process_state *cps);
 #if IS_ENABLED(CONFIG_NFS_V4)
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
 extern void nfs_callback_down(int minorversion, struct net *net);

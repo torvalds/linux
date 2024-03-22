@@ -6,38 +6,33 @@
 
 /* Kernel callchain */
 struct stackframe {
-	unsigned long fp;
-	unsigned long lr;
+  unsigned long fp;
+  unsigned long lr;
 };
 
-static int unwind_frame_kernel(struct stackframe *frame)
-{
-	unsigned long low = (unsigned long)task_stack_page(current);
-	unsigned long high = low + THREAD_SIZE;
-
-	if (unlikely(frame->fp < low || frame->fp > high))
-		return -EPERM;
-
-	if (kstack_end((void *)frame->fp) || frame->fp & 0x3)
-		return -EPERM;
-
-	*frame = *(struct stackframe *)frame->fp;
-
-	if (__kernel_text_address(frame->lr)) {
-		int graph = 0;
-
-		frame->lr = ftrace_graph_ret_addr(NULL, &graph, frame->lr,
-				NULL);
-	}
-	return 0;
+static int unwind_frame_kernel(struct stackframe *frame) {
+  unsigned long low = (unsigned long) task_stack_page(current);
+  unsigned long high = low + THREAD_SIZE;
+  if (unlikely(frame->fp < low || frame->fp > high)) {
+    return -EPERM;
+  }
+  if (kstack_end((void *) frame->fp) || frame->fp & 0x3) {
+    return -EPERM;
+  }
+  *frame = *(struct stackframe *) frame->fp;
+  if (__kernel_text_address(frame->lr)) {
+    int graph = 0;
+    frame->lr = ftrace_graph_ret_addr(NULL, &graph, frame->lr,
+        NULL);
+  }
+  return 0;
 }
 
 static void notrace walk_stackframe(struct stackframe *fr,
-			struct perf_callchain_entry_ctx *entry)
-{
-	do {
-		perf_callchain_store(entry, fr->lr);
-	} while (unwind_frame_kernel(fr) >= 0);
+    struct perf_callchain_entry_ctx *entry) {
+  do {
+    perf_callchain_store(entry, fr->lr);
+  } while (unwind_frame_kernel(fr) >= 0);
 }
 
 /*
@@ -45,28 +40,26 @@ static void notrace walk_stackframe(struct stackframe *fr,
  * next frame tail.
  */
 static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
-			unsigned long fp, unsigned long reg_lr)
-{
-	struct stackframe buftail;
-	unsigned long lr = 0;
-	unsigned long __user *user_frame_tail = (unsigned long __user *)fp;
-
-	/* Check accessibility of one struct frame_tail beyond */
-	if (!access_ok(user_frame_tail, sizeof(buftail)))
-		return 0;
-	if (__copy_from_user_inatomic(&buftail, user_frame_tail,
-				      sizeof(buftail)))
-		return 0;
-
-	if (reg_lr != 0)
-		lr = reg_lr;
-	else
-		lr = buftail.lr;
-
-	fp = buftail.fp;
-	perf_callchain_store(entry, lr);
-
-	return fp;
+    unsigned long fp, unsigned long reg_lr) {
+  struct stackframe buftail;
+  unsigned long lr = 0;
+  unsigned long __user *user_frame_tail = (unsigned long __user *) fp;
+  /* Check accessibility of one struct frame_tail beyond */
+  if (!access_ok(user_frame_tail, sizeof(buftail))) {
+    return 0;
+  }
+  if (__copy_from_user_inatomic(&buftail, user_frame_tail,
+      sizeof(buftail))) {
+    return 0;
+  }
+  if (reg_lr != 0) {
+    lr = reg_lr;
+  } else {
+    lr = buftail.lr;
+  }
+  fp = buftail.fp;
+  perf_callchain_store(entry, lr);
+  return fp;
 }
 
 /*
@@ -84,31 +77,26 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
  * stack will not contain function frame.
  */
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
-			 struct pt_regs *regs)
-{
-	unsigned long fp = 0;
-
-	fp = regs->regs[4];
-	perf_callchain_store(entry, regs->pc);
-
-	/*
-	 * While backtrace from leaf function, lr is normally
-	 * not saved inside frame on C-SKY, so get lr from pt_regs
-	 * at the sample point. However, lr value can be incorrect if
-	 * lr is used as temp register
-	 */
-	fp = user_backtrace(entry, fp, regs->lr);
-
-	while (fp && !(fp & 0x3) && entry->nr < entry->max_stack)
-		fp = user_backtrace(entry, fp, 0);
+    struct pt_regs *regs) {
+  unsigned long fp = 0;
+  fp = regs->regs[4];
+  perf_callchain_store(entry, regs->pc);
+  /*
+   * While backtrace from leaf function, lr is normally
+   * not saved inside frame on C-SKY, so get lr from pt_regs
+   * at the sample point. However, lr value can be incorrect if
+   * lr is used as temp register
+   */
+  fp = user_backtrace(entry, fp, regs->lr);
+  while (fp && !(fp & 0x3) && entry->nr < entry->max_stack) {
+    fp = user_backtrace(entry, fp, 0);
+  }
 }
 
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
-			   struct pt_regs *regs)
-{
-	struct stackframe fr;
-
-	fr.fp = regs->regs[4];
-	fr.lr = regs->lr;
-	walk_stackframe(&fr, entry);
+    struct pt_regs *regs) {
+  struct stackframe fr;
+  fr.fp = regs->regs[4];
+  fr.lr = regs->lr;
+  walk_stackframe(&fr, entry);
 }

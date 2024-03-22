@@ -4,9 +4,9 @@
 
 /* For debug this provides guard pages between the maps */
 #ifdef CONFIG_DEBUG_KMAP_LOCAL
-# define KM_MAX_IDX	33
+#define KM_MAX_IDX 33
 #else
-# define KM_MAX_IDX	16
+#define KM_MAX_IDX 16
 #endif
 
 #endif

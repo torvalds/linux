@@ -29,63 +29,63 @@
 
 /* Represents a single SCLK step. */
 struct rv6xx_sclk_stepping {
-    u32 vco_frequency;
-    u32 post_divider;
+  u32 vco_frequency;
+  u32 post_divider;
 };
 
 struct rv6xx_pm_hw_state {
-	u32 sclks[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
-	u32 mclks[R600_PM_NUMBER_OF_MCLKS];
-	u16 vddc[R600_PM_NUMBER_OF_VOLTAGE_LEVELS];
-	bool backbias[R600_PM_NUMBER_OF_VOLTAGE_LEVELS];
-	bool pcie_gen2[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
-	u8 high_sclk_index;
-	u8 medium_sclk_index;
-	u8 low_sclk_index;
-	u8 high_mclk_index;
-	u8 medium_mclk_index;
-	u8 low_mclk_index;
-	u8 high_vddc_index;
-	u8 medium_vddc_index;
-	u8 low_vddc_index;
-	u8 rp[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
-	u8 lp[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
+  u32 sclks[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
+  u32 mclks[R600_PM_NUMBER_OF_MCLKS];
+  u16 vddc[R600_PM_NUMBER_OF_VOLTAGE_LEVELS];
+  bool backbias[R600_PM_NUMBER_OF_VOLTAGE_LEVELS];
+  bool pcie_gen2[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
+  u8 high_sclk_index;
+  u8 medium_sclk_index;
+  u8 low_sclk_index;
+  u8 high_mclk_index;
+  u8 medium_mclk_index;
+  u8 low_mclk_index;
+  u8 high_vddc_index;
+  u8 medium_vddc_index;
+  u8 low_vddc_index;
+  u8 rp[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
+  u8 lp[R600_PM_NUMBER_OF_ACTIVITY_LEVELS];
 };
 
 struct rv6xx_power_info {
-	/* flags */
-	bool voltage_control;
-	bool sclk_ss;
-	bool mclk_ss;
-	bool dynamic_ss;
-	bool dynamic_pcie_gen2;
-	bool thermal_protection;
-	bool display_gap;
-	bool gfx_clock_gating;
-	/* clk values */
-	u32 fb_div_scale;
-	u32 spll_ref_div;
-	u32 mpll_ref_div;
-	u32 bsu;
-	u32 bsp;
-	/* */
-	u32 active_auto_throttle_sources;
-	/* current power state */
-	u32 restricted_levels;
-	struct rv6xx_pm_hw_state hw;
+  /* flags */
+  bool voltage_control;
+  bool sclk_ss;
+  bool mclk_ss;
+  bool dynamic_ss;
+  bool dynamic_pcie_gen2;
+  bool thermal_protection;
+  bool display_gap;
+  bool gfx_clock_gating;
+  /* clk values */
+  u32 fb_div_scale;
+  u32 spll_ref_div;
+  u32 mpll_ref_div;
+  u32 bsu;
+  u32 bsp;
+  /* */
+  u32 active_auto_throttle_sources;
+  /* current power state */
+  u32 restricted_levels;
+  struct rv6xx_pm_hw_state hw;
 };
 
 struct rv6xx_pl {
-	u32 sclk;
-	u32 mclk;
-	u16 vddc;
-	u32 flags;
+  u32 sclk;
+  u32 mclk;
+  u16 vddc;
+  u32 flags;
 };
 
 struct rv6xx_ps {
-	struct rv6xx_pl high;
-	struct rv6xx_pl medium;
-	struct rv6xx_pl low;
+  struct rv6xx_pl high;
+  struct rv6xx_pl medium;
+  struct rv6xx_pl low;
 };
 
 #define RV6XX_DEFAULT_VCLK_FREQ  40000 /* 10 khz */

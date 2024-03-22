@@ -11,24 +11,19 @@
 struct module;
 
 static inline const char *kallsyms_lookup(unsigned long addr,
-					  unsigned long *symbolsize,
-					  unsigned long *offset,
-					  char **modname, char *namebuf)
-{
-	return NULL;
+    unsigned long *symbolsize,
+    unsigned long *offset,
+    char **modname, char *namebuf) {
+  return NULL;
 }
 
 #include <execinfo.h>
 #include <stdlib.h>
-static inline void print_ip_sym(const char *loglvl, unsigned long ip)
-{
-	char **name;
-
-	name = backtrace_symbols((void **)&ip, 1);
-
-	dprintf(STDOUT_FILENO, "%s\n", *name);
-
-	free(name);
+static inline void print_ip_sym(const char *loglvl, unsigned long ip) {
+  char **name;
+  name = backtrace_symbols((void **) &ip, 1);
+  dprintf(STDOUT_FILENO, "%s\n", *name);
+  free(name);
 }
 
 #endif

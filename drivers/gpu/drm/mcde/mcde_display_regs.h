@@ -255,12 +255,14 @@
 #define MCDE_TVTIM1A 0x0000084C
 #define MCDE_TVTIM1B 0x00000A4C
 
-/* Pixel processing TV LBALW */
-/* 0 = 1 clock cycle, 255 = 256 clock cycles */
+/* Pixel processing TV LBALW
+ * 0 = 1 clock cycle, 255 = 256 clock cycles*/
 #define MCDE_TVLBALWA 0x00000850
 #define MCDE_TVLBALWB 0x00000A50
-#define MCDE_TVLBALW_LBW_SHIFT 0 /* HSW horizonal sync width, line blanking width 11 bits */
-#define MCDE_TVLBALW_ALW_SHIFT 16 /* HFP horizontal front porch, active line width 11 bits */
+#define MCDE_TVLBALW_LBW_SHIFT 0 /* HSW horizonal sync width, line blanking
+                                  * width 11 bits */
+#define MCDE_TVLBALW_ALW_SHIFT 16 /* HFP horizontal front porch, active line
+                                   * width 11 bits */
 
 /* TV blanking control register 1, channel A and B */
 #define MCDE_TVBL2A 0x00000854

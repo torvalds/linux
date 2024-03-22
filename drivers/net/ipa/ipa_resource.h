@@ -11,12 +11,12 @@ struct ipa_resource_data;
 
 /**
  * ipa_resource_config() - Configure resources
- * @ipa:	IPA pointer
- * @data:	IPA resource configuration data
+ * @ipa:  IPA pointer
+ * @data: IPA resource configuration data
  *
  * There is no need for a matching ipa_resource_deconfig() function.
  *
- * Return:	true if all regions are valid, false otherwise
+ * Return:  true if all regions are valid, false otherwise
  */
 int ipa_resource_config(struct ipa *ipa, const struct ipa_resource_data *data);
 

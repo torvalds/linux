@@ -4,23 +4,23 @@
 
 #include <asm/byteorder.h>
 
-typedef int word_type __attribute__ ((mode (__word__)));
+typedef int word_type __attribute__ ((mode(__word__)));
 
 #ifdef __BIG_ENDIAN
 struct DWstruct {
-	int high, low;
+  int high, low;
 };
 #elif defined(__LITTLE_ENDIAN)
 struct DWstruct {
-	int low, high;
+  int low, high;
 };
 #else
 #error I feel sick.
 #endif
 
 typedef union {
-	struct DWstruct s;
-	long long ll;
+  struct DWstruct s;
+  long long ll;
 } DWunion;
 
 extern long long __ashldi3(long long u, word_type b);

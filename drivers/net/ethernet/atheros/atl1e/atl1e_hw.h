@@ -99,7 +99,6 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     SPI_FLASH_CONFIG_VPD_ADDR_SHIFT 24
 #define     SPI_FLASH_CONFIG_LD_EXIST       0x4000000
 
-
 #define REG_SPI_FLASH_OP_PROGRAM    0x210
 #define REG_SPI_FLASH_OP_SC_ERASE   0x211
 #define REG_SPI_FLASH_OP_CHIP_ERASE 0x212
@@ -129,7 +128,6 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     TWSI_CTRL_WRITE_FREQ_SEL_MASK   0x3
 #define     TWSI_CTRL_WRITE_FREQ_SEL_SHIFT  24
 
-
 #define REG_PCIE_DEV_MISC_CTRL      0x21C
 #define     PCIE_DEV_MISC_CTRL_EXT_PIPE     0x2
 #define     PCIE_DEV_MISC_CTRL_RETRY_BUFDIS 0x1
@@ -137,8 +135,8 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     PCIE_DEV_MISC_CTRL_SERDES_ENDIAN    0x8
 #define     PCIE_DEV_MISC_CTRL_SERDES_SEL_DIN   0x10
 
-#define REG_PCIE_PHYMISC	    0x1000
-#define PCIE_PHYMISC_FORCE_RCV_DET	0x4
+#define REG_PCIE_PHYMISC      0x1000
+#define PCIE_PHYMISC_FORCE_RCV_DET  0x4
 
 #define REG_LTSSM_TEST_MODE         0x12FC
 #define         LTSSM_TEST_MODE_DEF     0xE000
@@ -151,7 +149,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     MASTER_CTRL_MANUAL_INT          0x8
 #define     MASTER_CTRL_ITIMER2_EN          0x20
 #define     MASTER_CTRL_INT_RDCLR           0x40
-#define     MASTER_CTRL_LED_MODE	    0x200
+#define     MASTER_CTRL_LED_MODE      0x200
 #define     MASTER_CTRL_REV_NUM_SHIFT       16
 #define     MASTER_CTRL_REV_NUM_MASK        0xff
 #define     MASTER_CTRL_DEV_ID_SHIFT        24
@@ -160,11 +158,9 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 /* Timer Initial Value Register */
 #define REG_MANUAL_TIMER_INIT       0x1404
 
-
 /* IRQ ModeratorTimer Initial Value Register */
 #define REG_IRQ_MODU_TIMER_INIT     0x1408   /* w */
 #define REG_IRQ_MODU_TIMER2_INIT    0x140A   /* w */
-
 
 #define REG_GPHY_CTRL               0x140C
 #define     GPHY_CTRL_EXT_RESET         1
@@ -181,46 +177,62 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     GPHY_CTRL_HIB_PULSE         0x800
 #define     GPHY_CTRL_SEL_ANA_RST       0x1000
 #define     GPHY_CTRL_PHY_PLL_ON        0x2000
-#define     GPHY_CTRL_PWDOWN_HW		0x4000
-#define     GPHY_CTRL_DEFAULT (\
-		GPHY_CTRL_PHY_PLL_ON	|\
-		GPHY_CTRL_SEL_ANA_RST	|\
-		GPHY_CTRL_HIB_PULSE	|\
-		GPHY_CTRL_HIB_EN)
+#define     GPHY_CTRL_PWDOWN_HW   0x4000
+#define     GPHY_CTRL_DEFAULT ( \
+    GPHY_CTRL_PHY_PLL_ON   \
+    | GPHY_CTRL_SEL_ANA_RST  \
+    | GPHY_CTRL_HIB_PULSE  \
+    | GPHY_CTRL_HIB_EN)
 
-#define     GPHY_CTRL_PW_WOL_DIS (\
-		GPHY_CTRL_PHY_PLL_ON	|\
-		GPHY_CTRL_SEL_ANA_RST	|\
-		GPHY_CTRL_HIB_PULSE	|\
-		GPHY_CTRL_HIB_EN	|\
-		GPHY_CTRL_PWDOWN_HW	|\
-		GPHY_CTRL_PCLK_SEL_DIS	|\
-		GPHY_CTRL_PHY_IDDQ)
+#define     GPHY_CTRL_PW_WOL_DIS ( \
+    GPHY_CTRL_PHY_PLL_ON   \
+    | GPHY_CTRL_SEL_ANA_RST  \
+    | GPHY_CTRL_HIB_PULSE  \
+    | GPHY_CTRL_HIB_EN   \
+    | GPHY_CTRL_PWDOWN_HW  \
+    | GPHY_CTRL_PCLK_SEL_DIS   \
+    | GPHY_CTRL_PHY_IDDQ)
 
 /* IRQ Anti-Lost Timer Initial Value Register */
 #define REG_CMBDISDMA_TIMER         0x140E
 
-
 /* Block IDLE Status Register */
-#define REG_IDLE_STATUS  	0x1410
-#define     IDLE_STATUS_RXMAC       1    /* 1: RXMAC state machine is in non-IDLE state. 0: RXMAC is idling */
-#define     IDLE_STATUS_TXMAC       2    /* 1: TXMAC state machine is in non-IDLE state. 0: TXMAC is idling */
-#define     IDLE_STATUS_RXQ         4    /* 1: RXQ state machine is in non-IDLE state.   0: RXQ is idling   */
-#define     IDLE_STATUS_TXQ         8    /* 1: TXQ state machine is in non-IDLE state.   0: TXQ is idling   */
-#define     IDLE_STATUS_DMAR        0x10 /* 1: DMAR state machine is in non-IDLE state.  0: DMAR is idling  */
-#define     IDLE_STATUS_DMAW        0x20 /* 1: DMAW state machine is in non-IDLE state.  0: DMAW is idling  */
-#define     IDLE_STATUS_SMB         0x40 /* 1: SMB state machine is in non-IDLE state.   0: SMB is idling   */
-#define     IDLE_STATUS_CMB         0x80 /* 1: CMB state machine is in non-IDLE state.   0: CMB is idling   */
+#define REG_IDLE_STATUS   0x1410
+#define     IDLE_STATUS_RXMAC       1    /* 1: RXMAC state machine is in
+                                          * non-IDLE state. 0: RXMAC is idling
+                                          * */
+#define     IDLE_STATUS_TXMAC       2    /* 1: TXMAC state machine is in
+                                          * non-IDLE state. 0: TXMAC is idling
+                                          * */
+#define     IDLE_STATUS_RXQ         4    /* 1: RXQ state machine is in non-IDLE
+                                          * state.   0: RXQ is idling   */
+#define     IDLE_STATUS_TXQ         8    /* 1: TXQ state machine is in non-IDLE
+                                          * state.   0: TXQ is idling   */
+#define     IDLE_STATUS_DMAR        0x10 /* 1: DMAR state machine is in non-IDLE
+                                          * state.  0: DMAR is idling  */
+#define     IDLE_STATUS_DMAW        0x20 /* 1: DMAW state machine is in non-IDLE
+                                          * state.  0: DMAW is idling  */
+#define     IDLE_STATUS_SMB         0x40 /* 1: SMB state machine is in non-IDLE
+                                          * state.   0: SMB is idling   */
+#define     IDLE_STATUS_CMB         0x80 /* 1: CMB state machine is in non-IDLE
+                                          * state.   0: CMB is idling   */
 
 /* MDIO Control Register */
 #define REG_MDIO_CTRL           0x1414
-#define     MDIO_DATA_MASK          0xffff  /* On MDIO write, the 16-bit control data to write to PHY MII management register */
-#define     MDIO_DATA_SHIFT         0       /* On MDIO read, the 16-bit status data that was read from the PHY MII management register*/
+#define     MDIO_DATA_MASK          0xffff  /* On MDIO write, the 16-bit control
+                                             * data to write to PHY MII
+                                             * management register */
+#define     MDIO_DATA_SHIFT         0       /* On MDIO read, the 16-bit status
+                                             * data that was read from the PHY
+                                             * MII management register*/
 #define     MDIO_REG_ADDR_MASK      0x1f    /* MDIO register address */
 #define     MDIO_REG_ADDR_SHIFT     16
 #define     MDIO_RW                 0x200000      /* 1: read, 0: write */
 #define     MDIO_SUP_PREAMBLE       0x400000      /* Suppress preamble */
-#define     MDIO_START              0x800000      /* Write 1 to initiate the MDIO master. And this bit is self cleared after one cycle*/
+#define     MDIO_START              0x800000      /* Write 1 to initiate the
+                                                   * MDIO master. And this bit
+                                                   * is self cleared after one
+                                                   * cycle*/
 #define     MDIO_CLK_SEL_SHIFT      24
 #define     MDIO_CLK_25_4           0
 #define     MDIO_CLK_25_6           2
@@ -235,29 +247,38 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* MII PHY Status Register */
 #define REG_PHY_STATUS           0x1418
-#define     PHY_STATUS_100M	      0x20000
-#define     PHY_STATUS_EMI_CA	      0x40000
+#define     PHY_STATUS_100M       0x20000
+#define     PHY_STATUS_EMI_CA       0x40000
 
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL              0x141c
-#define     BIST0_NOW                   0x1 /* 1: To trigger BIST0 logic. This bit stays high during the */
+#define     BIST0_NOW                   0x1 /* 1: To trigger BIST0 logic. This
+                                             * bit stays high during the */
 /* BIST process and reset to zero when BIST is done */
-#define     BIST0_SRAM_FAIL             0x2 /* 1: The SRAM failure is un-repairable because it has address */
+#define     BIST0_SRAM_FAIL             0x2 /* 1: The SRAM failure is
+                                             * un-repairable because it has
+                                             * address */
 /* decoder failure or more than 1 cell stuck-to-x failure */
-#define     BIST0_FUSE_FLAG             0x4 /* 1: Indicating one cell has been fixed */
+#define     BIST0_FUSE_FLAG             0x4 /* 1: Indicating one cell has been
+                                             * fixed */
 
 /* BIST Control and Status Register1(for the retry buffer of PCI Express) */
 #define REG_BIST1_CTRL              0x1420
-#define     BIST1_NOW                   0x1 /* 1: To trigger BIST0 logic. This bit stays high during the */
+#define     BIST1_NOW                   0x1 /* 1: To trigger BIST0 logic. This
+                                             * bit stays high during the */
 /* BIST process and reset to zero when BIST is done */
-#define     BIST1_SRAM_FAIL             0x2 /* 1: The SRAM failure is un-repairable because it has address */
+#define     BIST1_SRAM_FAIL             0x2 /* 1: The SRAM failure is
+                                             * un-repairable because it has
+                                             * address */
 /* decoder failure or more than 1 cell stuck-to-x failure.*/
 #define     BIST1_FUSE_FLAG             0x4
 
 /* SerDes Lock Detect Control and Status Register */
 #define REG_SERDES_LOCK             0x1424
-#define     SERDES_LOCK_DETECT          1  /* 1: SerDes lock detected . This signal comes from Analog SerDes */
-#define     SERDES_LOCK_DETECT_EN       2  /* 1: Enable SerDes Lock detect function */
+#define     SERDES_LOCK_DETECT          1  /* 1: SerDes lock detected . This
+                                            * signal comes from Analog SerDes */
+#define     SERDES_LOCK_DETECT_EN       2  /* 1: Enable SerDes Lock detect
+                                            * function */
 
 /* MAC Control Register  */
 #define REG_MAC_CTRL                0x1480
@@ -265,37 +286,65 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     MAC_CTRL_RX_EN              2  /* 1: Receive Enable */
 #define     MAC_CTRL_TX_FLOW            4  /* 1: Transmit Flow Control Enable */
 #define     MAC_CTRL_RX_FLOW            8  /* 1: Receive Flow Control Enable */
-#define     MAC_CTRL_LOOPBACK           0x10      /* 1: Loop back at G/MII Interface */
-#define     MAC_CTRL_DUPLX              0x20      /* 1: Full-duplex mode  0: Half-duplex mode */
-#define     MAC_CTRL_ADD_CRC            0x40      /* 1: Instruct MAC to attach CRC on all egress Ethernet frames */
-#define     MAC_CTRL_PAD                0x80      /* 1: Instruct MAC to pad short frames to 60-bytes, and then attach CRC. This bit has higher priority over CRC_EN */
-#define     MAC_CTRL_LENCHK             0x100     /* 1: Instruct MAC to check if length field matches the real packet length */
-#define     MAC_CTRL_HUGE_EN            0x200     /* 1: receive Jumbo frame enable */
+#define     MAC_CTRL_LOOPBACK           0x10      /* 1: Loop back at G/MII
+                                                   * Interface */
+#define     MAC_CTRL_DUPLX              0x20      /* 1: Full-duplex mode  0:
+                                                   * Half-duplex mode */
+#define     MAC_CTRL_ADD_CRC            0x40      /* 1: Instruct MAC to attach
+                                                   * CRC on all egress Ethernet
+                                                   * frames */
+#define     MAC_CTRL_PAD                0x80      /* 1: Instruct MAC to pad
+                                                   * short frames to 60-bytes,
+                                                   * and then attach CRC. This
+                                                   * bit has higher priority
+                                                   * over CRC_EN */
+#define     MAC_CTRL_LENCHK             0x100     /* 1: Instruct MAC to check if
+                                                   * length field matches the
+                                                   * real packet length */
+#define     MAC_CTRL_HUGE_EN            0x200     /* 1: receive Jumbo frame
+                                                   * enable */
 #define     MAC_CTRL_PRMLEN_SHIFT       10        /* Preamble length */
 #define     MAC_CTRL_PRMLEN_MASK        0xf
-#define     MAC_CTRL_RMV_VLAN           0x4000    /* 1: to remove VLAN Tag automatically from all receive packets */
-#define     MAC_CTRL_PROMIS_EN          0x8000    /* 1: Promiscuous Mode Enable */
+#define     MAC_CTRL_RMV_VLAN           0x4000    /* 1: to remove VLAN Tag
+                                                   * automatically from all
+                                                   * receive packets */
+#define     MAC_CTRL_PROMIS_EN          0x8000    /* 1: Promiscuous Mode Enable
+                                                   * */
 #define     MAC_CTRL_TX_PAUSE           0x10000   /* 1: transmit test pause */
-#define     MAC_CTRL_SCNT               0x20000   /* 1: shortcut slot time counter */
-#define     MAC_CTRL_SRST_TX            0x40000   /* 1: synchronized reset Transmit MAC module */
-#define     MAC_CTRL_TX_SIMURST         0x80000   /* 1: transmit simulation reset */
+#define     MAC_CTRL_SCNT               0x20000   /* 1: shortcut slot time
+                                                   * counter */
+#define     MAC_CTRL_SRST_TX            0x40000   /* 1: synchronized reset
+                                                  * Transmit MAC module */
+#define     MAC_CTRL_TX_SIMURST         0x80000   /* 1: transmit simulation
+                                                   * reset */
 #define     MAC_CTRL_SPEED_SHIFT        20        /* 10: gigabit 01:10M/100M */
 #define     MAC_CTRL_SPEED_MASK         0x300000
 #define     MAC_CTRL_SPEED_1000         2
 #define     MAC_CTRL_SPEED_10_100       1
-#define     MAC_CTRL_DBG_TX_BKPRESURE   0x400000  /* 1: transmit maximum backoff (half-duplex test bit) */
+#define     MAC_CTRL_DBG_TX_BKPRESURE   0x400000  /* 1: transmit maximum backoff
+                                                   * (half-duplex test bit) */
 #define     MAC_CTRL_TX_HUGE            0x800000  /* 1: transmit huge enable */
 #define     MAC_CTRL_RX_CHKSUM_EN       0x1000000 /* 1: RX checksum enable */
-#define     MAC_CTRL_MC_ALL_EN          0x2000000 /* 1: upload all multicast frame without error to system */
-#define     MAC_CTRL_BC_EN              0x4000000 /* 1: upload all broadcast frame without error to system */
-#define     MAC_CTRL_DBG                0x8000000 /* 1: upload all received frame to system (Debug Mode) */
+#define     MAC_CTRL_MC_ALL_EN          0x2000000 /* 1: upload all multicast
+                                                   * frame without error to
+                                                   * system */
+#define     MAC_CTRL_BC_EN              0x4000000 /* 1: upload all broadcast
+                                                   * frame without error to
+                                                   * system */
+#define     MAC_CTRL_DBG                0x8000000 /* 1: upload all received
+                                                   * frame to system (Debug
+                                                   * Mode) */
 
 /* MAC IPG/IFG Control Register  */
 #define REG_MAC_IPG_IFG             0x1484
-#define     MAC_IPG_IFG_IPGT_SHIFT      0     /* Desired back to back inter-packet gap. The default is 96-bit time */
+#define     MAC_IPG_IFG_IPGT_SHIFT      0     /* Desired back to back
+                                               * inter-packet gap. The default
+                                               * is 96-bit time */
 #define     MAC_IPG_IFG_IPGT_MASK       0x7f
-#define     MAC_IPG_IFG_MIFG_SHIFT      8     /* Minimum number of IFG to enforce in between RX frames */
-#define     MAC_IPG_IFG_MIFG_MASK       0xff  /* Frame gap below such IFP is dropped */
+#define     MAC_IPG_IFG_MIFG_SHIFT      8     /* Minimum number of IFG to
+                                               * enforce in between RX frames */
+#define     MAC_IPG_IFG_MIFG_MASK       0xff  /* Frame gap below such IFP is
+                                               * dropped */
 #define     MAC_IPG_IFG_IPGR1_SHIFT     16    /* 64bit Carrier-Sense window */
 #define     MAC_IPG_IFG_IPGR1_MASK      0x7f
 #define     MAC_IPG_IFG_IPGR2_SHIFT     24    /* 96-bit IPG window */
@@ -307,21 +356,39 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 /* Hash table for multicast address */
 #define REG_RX_HASH_TABLE           0x1490
 
-
 /* MAC Half-Duplex Control Register */
 #define REG_MAC_HALF_DUPLX_CTRL     0x1498
 #define     MAC_HALF_DUPLX_CTRL_LCOL_SHIFT   0      /* Collision Window */
 #define     MAC_HALF_DUPLX_CTRL_LCOL_MASK    0x3ff
-#define     MAC_HALF_DUPLX_CTRL_RETRY_SHIFT  12     /* Retransmission maximum, afterwards the packet will be discarded */
+#define     MAC_HALF_DUPLX_CTRL_RETRY_SHIFT  12     /* Retransmission maximum,
+                                                     * afterwards the packet
+                                                     * will be discarded */
 #define     MAC_HALF_DUPLX_CTRL_RETRY_MASK   0xf
-#define     MAC_HALF_DUPLX_CTRL_EXC_DEF_EN   0x10000 /* 1: Allow the transmission of a packet which has been excessively deferred */
-#define     MAC_HALF_DUPLX_CTRL_NO_BACK_C    0x20000 /* 1: No back-off on collision, immediately start the retransmission */
-#define     MAC_HALF_DUPLX_CTRL_NO_BACK_P    0x40000 /* 1: No back-off on backpressure, immediately start the transmission after back pressure */
-#define     MAC_HALF_DUPLX_CTRL_ABEBE        0x80000 /* 1: Alternative Binary Exponential Back-off Enabled */
-#define     MAC_HALF_DUPLX_CTRL_ABEBT_SHIFT  20      /* Maximum binary exponential number */
+#define     MAC_HALF_DUPLX_CTRL_EXC_DEF_EN   0x10000 /* 1: Allow the
+                                                      * transmission of a packet
+                                                      * which has been
+                                                      * excessively deferred */
+#define     MAC_HALF_DUPLX_CTRL_NO_BACK_C    0x20000 /* 1: No back-off on
+                                                      * collision, immediately
+                                                      * start the retransmission
+                                                      * */
+#define     MAC_HALF_DUPLX_CTRL_NO_BACK_P    0x40000 /* 1: No back-off on
+                                                      * backpressure,
+                                                      * immediately start the
+                                                      * transmission after back
+                                                      * pressure */
+#define     MAC_HALF_DUPLX_CTRL_ABEBE        0x80000 /* 1: Alternative Binary
+                                                      * Exponential Back-off
+                                                      * Enabled */
+#define     MAC_HALF_DUPLX_CTRL_ABEBT_SHIFT  20      /* Maximum binary
+                                                      * exponential number */
 #define     MAC_HALF_DUPLX_CTRL_ABEBT_MASK   0xf
-#define     MAC_HALF_DUPLX_CTRL_JAMIPG_SHIFT 24      /* IPG to start JAM for collision based flow control in half-duplex */
-#define     MAC_HALF_DUPLX_CTRL_JAMIPG_MASK  0xf     /* mode. In unit of 8-bit time */
+#define     MAC_HALF_DUPLX_CTRL_JAMIPG_SHIFT 24      /* IPG to start JAM for
+                                                      * collision based flow
+                                                      * control in half-duplex
+                                                      * */
+#define     MAC_HALF_DUPLX_CTRL_JAMIPG_MASK  0xf     /* mode. In unit of 8-bit
+                                                      * time */
 
 /* Maximum Frame Length Control Register   */
 #define REG_MTU                     0x149c
@@ -367,7 +434,9 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_SRAM_PKTH_ADDR          0x1532
 
 /* Load Ptr Register */
-#define REG_LOAD_PTR                0x1534  /* Software sets this bit after the initialization of the head and tail */
+#define REG_LOAD_PTR                0x1534  /* Software sets this bit after the
+                                             * initialization of the head and
+                                             * tail */
 
 /*
  * addresses of all descriptors, as well as the following descriptor
@@ -379,7 +448,8 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 /* Descriptor Control register  */
 #define REG_RXF3_BASE_ADDR_HI           0x153C
 #define REG_DESC_BASE_ADDR_HI           0x1540
-#define REG_RXF0_BASE_ADDR_HI           0x1540 /* share with DESC BASE ADDR HI */
+#define REG_RXF0_BASE_ADDR_HI           0x1540 /* share with DESC BASE ADDR HI
+                                                * */
 #define REG_HOST_RXF0_PAGE0_LO          0x1544
 #define REG_HOST_RXF0_PAGE1_LO          0x1548
 #define REG_TPD_BASE_ADDR_LO            0x154C
@@ -411,33 +481,41 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_RSS_HASH_FLAG               0x1574
 #define REG_BASE_CPU_NUMBER             0x157C
 
-
 /* TXQ Control Register */
 #define REG_TXQ_CTRL                0x1580
 #define     TXQ_CTRL_NUM_TPD_BURST_MASK     0xF
 #define     TXQ_CTRL_NUM_TPD_BURST_SHIFT    0
 #define     TXQ_CTRL_EN                     0x20  /* 1: Enable TXQ */
-#define     TXQ_CTRL_ENH_MODE               0x40  /* Performance enhancement mode, in which up to two back-to-back DMA read commands might be dispatched. */
-#define     TXQ_CTRL_TXF_BURST_NUM_SHIFT    16    /* Number of data byte to read in a cache-aligned burst. Each SRAM entry is 8-byte in length. */
+#define     TXQ_CTRL_ENH_MODE               0x40  /* Performance enhancement
+                                                   * mode, in which up to two
+                                                   * back-to-back DMA read
+                                                   * commands might be
+                                                   * dispatched. */
+#define     TXQ_CTRL_TXF_BURST_NUM_SHIFT    16    /* Number of data byte to read
+                                                   * in a cache-aligned burst.
+                                                   * Each SRAM entry is 8-byte
+                                                   * in length. */
 #define     TXQ_CTRL_TXF_BURST_NUM_MASK     0xffff
 
 /* Jumbo packet Threshold for task offload */
-#define REG_TX_EARLY_TH                     0x1584 /* Jumbo frame threshold in QWORD unit. Packet greater than */
+#define REG_TX_EARLY_TH                     0x1584 /* Jumbo frame threshold in
+                                                    * QWORD unit. Packet greater
+                                                    * than */
 /* JUMBO_TASK_OFFLOAD_THRESHOLD will not be task offloaded. */
 #define     TX_TX_EARLY_TH_MASK             0x7ff
 #define     TX_TX_EARLY_TH_SHIFT            0
 
-
 /* RXQ Control Register */
 #define REG_RXQ_CTRL                0x15A0
-#define         RXQ_CTRL_PBA_ALIGN_32                   0   /* rx-packet alignment */
+#define         RXQ_CTRL_PBA_ALIGN_32                   0   /* rx-packet
+                                                             * alignment */
 #define         RXQ_CTRL_PBA_ALIGN_64                   1
 #define         RXQ_CTRL_PBA_ALIGN_128                  2
 #define         RXQ_CTRL_PBA_ALIGN_256                  3
-#define         RXQ_CTRL_Q1_EN				0x10
-#define         RXQ_CTRL_Q2_EN				0x20
-#define         RXQ_CTRL_Q3_EN				0x40
-#define         RXQ_CTRL_IPV6_XSUM_VERIFY_EN		0x80
+#define         RXQ_CTRL_Q1_EN        0x10
+#define         RXQ_CTRL_Q2_EN        0x20
+#define         RXQ_CTRL_Q3_EN        0x40
+#define         RXQ_CTRL_IPV6_XSUM_VERIFY_EN    0x80
 #define         RXQ_CTRL_HASH_TLEN_SHIFT                8
 #define         RXQ_CTRL_HASH_TLEN_MASK                 0xFF
 #define         RXQ_CTRL_HASH_TYPE_IPV4                 0x10000
@@ -461,7 +539,9 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
  * shall start cut-through forwarding of the received packet.
  */
 #define         RXQ_JMBOSZ_TH_MASK      0x7ff
-#define         RXQ_JMBOSZ_TH_SHIFT         0  /* RRD retirement timer. Decrement by 1 after every 512ns passes*/
+#define         RXQ_JMBOSZ_TH_SHIFT         0  /* RRD retirement timer.
+                                                * Decrement by 1 after every
+                                                * 512ns passes*/
 #define         RXQ_JMBO_LKAH_MASK          0xf
 #define         RXQ_JMBO_LKAH_SHIFT         11
 
@@ -471,7 +551,6 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     RXQ_RXF_PAUSE_TH_HI_MASK        0xfff
 #define     RXQ_RXF_PAUSE_TH_LO_SHIFT       16
 #define     RXQ_RXF_PAUSE_TH_LO_MASK        0xfff
-
 
 /* DMA Engine Control Register */
 #define REG_DMA_CTRL                0x15C0
@@ -489,8 +568,7 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define     DMA_CTRL_DMAW_DLY_CNT_MASK      0xF
 #define     DMA_CTRL_DMAW_DLY_CNT_SHIFT     16
 #define     DMA_CTRL_TXCMB_EN               0x100000
-#define     DMA_CTRL_RXCMB_EN				0x200000
-
+#define     DMA_CTRL_RXCMB_EN       0x200000
 
 /* CMB/SMB Control Register */
 #define REG_SMB_STAT_TIMER                      0x15C4
@@ -528,13 +606,13 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 
 /* Interrupt Status Register */
 #define REG_ISR    0x1600
-#define  ISR_SMB   		1
-#define  ISR_TIMER		2       /* Interrupt when Timer is counted down to zero */
+#define  ISR_SMB      1
+#define  ISR_TIMER    2       /* Interrupt when Timer is counted down to zero */
 /*
  * Software manual interrupt, for debug. Set when SW_MAN_INT_EN is set
  * in Table 51 Selene Master Control Register (Offset 0x1400).
  */
-#define  ISR_MANUAL         	4
+#define  ISR_MANUAL           4
 #define  ISR_HW_RXF_OV          8        /* RXF overflow interrupt */
 #define  ISR_HOST_RXF0_OV       0x10
 #define  ISR_HOST_RXF1_OV       0x20
@@ -547,8 +625,10 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define  ISR_GPHY               0x1000
 #define  ISR_TX_CREDIT          0x2000
 #define  ISR_GPHY_LPW           0x4000    /* GPHY low power state interrupt */
-#define  ISR_RX_PKT             0x10000   /* One packet received, triggered by RFD */
-#define  ISR_TX_PKT             0x20000   /* One packet transmitted, triggered by TPD */
+#define  ISR_RX_PKT             0x10000   /* One packet received, triggered by
+                                           * RFD */
+#define  ISR_TX_PKT             0x20000   /* One packet transmitted, triggered
+                                           * by TPD */
 #define  ISR_TX_DMA             0x40000
 #define  ISR_RX_PKT_1           0x80000
 #define  ISR_RX_PKT_2           0x100000
@@ -562,24 +642,22 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define  ISR_PHY_LINKDOWN       0x10000000
 #define  ISR_DIS_INT            0x80000000
 
-
 /* Interrupt Mask Register */
 #define REG_IMR 0x1604
 
-
-#define IMR_NORMAL_MASK (\
-		ISR_SMB	        |\
-		ISR_TXF_UN      |\
-		ISR_HW_RXF_OV   |\
-		ISR_HOST_RXF0_OV|\
-		ISR_MANUAL      |\
-		ISR_GPHY        |\
-		ISR_GPHY_LPW    |\
-		ISR_DMAR_TO_RST |\
-		ISR_DMAW_TO_RST |\
-		ISR_PHY_LINKDOWN|\
-		ISR_RX_PKT      |\
-		ISR_TX_PKT)
+#define IMR_NORMAL_MASK ( \
+    ISR_SMB          \
+    | ISR_TXF_UN       \
+    | ISR_HW_RXF_OV    \
+    | ISR_HOST_RXF0_OV \
+    | ISR_MANUAL       \
+    | ISR_GPHY         \
+    | ISR_GPHY_LPW     \
+    | ISR_DMAR_TO_RST  \
+    | ISR_DMAW_TO_RST  \
+    | ISR_PHY_LINKDOWN \
+    | ISR_RX_PKT       \
+    | ISR_TX_PKT)
 
 #define ISR_TX_EVENT (ISR_TXF_UN | ISR_TX_PKT)
 #define ISR_RX_EVENT (ISR_HOST_RXF0_OV | ISR_HW_RXF_OV | ISR_RX_PKT)
@@ -614,8 +692,9 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define REG_DEBUG_DATA0 0x1900
 #define REG_DEBUG_DATA1 0x1904
 
-/***************************** MII definition ***************************************/
-/* PHY Common Register */
+/* **************************** MII definition
+ ***************************************
+ * PHY Common Register*/
 #define MII_AT001_PSCR                  0x10
 #define MII_AT001_PSSR                  0x11
 #define MII_INT_CTRL                    0x12
@@ -624,51 +703,61 @@ s32 atl1e_restart_autoneg(struct atl1e_hw *hw);
 #define MII_LBRERROR                    0x18
 #define MII_RESV2                       0x1a
 
-#define MII_DBG_ADDR			0x1D
-#define MII_DBG_DATA			0x1E
+#define MII_DBG_ADDR      0x1D
+#define MII_DBG_DATA      0x1E
 
 /* Autoneg Advertisement Register */
 #define MII_AR_DEFAULT_CAP_MASK                 0
 
 /* 1000BASE-T Control Register */
 #define MII_AT001_CR_1000T_SPEED_MASK \
-	(ADVERTISE_1000FULL | ADVERTISE_1000HALF)
-#define MII_AT001_CR_1000T_DEFAULT_CAP_MASK	MII_AT001_CR_1000T_SPEED_MASK
+  (ADVERTISE_1000FULL | ADVERTISE_1000HALF)
+#define MII_AT001_CR_1000T_DEFAULT_CAP_MASK MII_AT001_CR_1000T_SPEED_MASK
 
 /* AT001 PHY Specific Control Register */
-#define MII_AT001_PSCR_JABBER_DISABLE           0x0001  /* 1=Jabber Function disabled */
-#define MII_AT001_PSCR_POLARITY_REVERSAL        0x0002  /* 1=Polarity Reversal enabled */
+#define MII_AT001_PSCR_JABBER_DISABLE           0x0001  /* 1=Jabber Function
+                                                         * disabled */
+#define MII_AT001_PSCR_POLARITY_REVERSAL        0x0002  /* 1=Polarity Reversal
+                                                         * enabled */
 #define MII_AT001_PSCR_SQE_TEST                 0x0004  /* 1=SQE Test enabled */
 #define MII_AT001_PSCR_MAC_POWERDOWN            0x0008
 #define MII_AT001_PSCR_CLK125_DISABLE           0x0010  /* 1=CLK125 low,
-							 * 0=CLK125 toggling
-							 */
-#define MII_AT001_PSCR_MDI_MANUAL_MODE          0x0000  /* MDI Crossover Mode bits 6:5 */
+                                                         * 0=CLK125 toggling
+                                                         */
+#define MII_AT001_PSCR_MDI_MANUAL_MODE          0x0000  /* MDI Crossover Mode
+                                                         * bits 6:5 */
 /* Manual MDI configuration */
-#define MII_AT001_PSCR_MDIX_MANUAL_MODE         0x0020  /* Manual MDIX configuration */
-#define MII_AT001_PSCR_AUTO_X_1000T             0x0040  /* 1000BASE-T: Auto crossover,
-							 *  100BASE-TX/10BASE-T:
-							 *  MDI Mode
-							 */
-#define MII_AT001_PSCR_AUTO_X_MODE              0x0060  /* Auto crossover enabled
-							 * all speeds.
-							 */
+#define MII_AT001_PSCR_MDIX_MANUAL_MODE         0x0020  /* Manual MDIX
+                                                         * configuration */
+#define MII_AT001_PSCR_AUTO_X_1000T             0x0040  /* 1000BASE-T: Auto
+                                                         * crossover,
+                                                         *  100BASE-TX/10BASE-T:
+                                                         *  MDI Mode
+                                                         */
+#define MII_AT001_PSCR_AUTO_X_MODE              0x0060  /* Auto crossover
+                                                         * enabled
+                                                         * all speeds.
+                                                         */
 #define MII_AT001_PSCR_10BT_EXT_DIST_ENABLE     0x0080
 /* 1=Enable Extended 10BASE-T distance
  * (Lower 10BASE-T RX Threshold)
  * 0=Normal 10BASE-T RX Threshold */
 #define MII_AT001_PSCR_MII_5BIT_ENABLE          0x0100
 /* 1=5-Bit interface in 100BASE-TX
- * 0=MII interface in 100BASE-TX */
-#define MII_AT001_PSCR_SCRAMBLER_DISABLE        0x0200  /* 1=Scrambler disable */
+* 0=MII interface in 100BASE-TX */
+#define MII_AT001_PSCR_SCRAMBLER_DISABLE        0x0200  /* 1=Scrambler disable
+                                                         * */
 #define MII_AT001_PSCR_FORCE_LINK_GOOD          0x0400  /* 1=Force link good */
-#define MII_AT001_PSCR_ASSERT_CRS_ON_TX         0x0800  /* 1=Assert CRS on Transmit */
+#define MII_AT001_PSCR_ASSERT_CRS_ON_TX         0x0800  /* 1=Assert CRS on
+                                                         * Transmit */
 #define MII_AT001_PSCR_POLARITY_REVERSAL_SHIFT    1
 #define MII_AT001_PSCR_AUTO_X_MODE_SHIFT          5
 #define MII_AT001_PSCR_10BT_EXT_DIST_ENABLE_SHIFT 7
 /* AT001 PHY Specific Status Register */
-#define MII_AT001_PSSR_SPD_DPLX_RESOLVED        0x0800  /* 1=Speed & Duplex resolved */
-#define MII_AT001_PSSR_DPLX                     0x2000  /* 1=Duplex 0=Half Duplex */
+#define MII_AT001_PSSR_SPD_DPLX_RESOLVED        0x0800  /* 1=Speed & Duplex
+                                                         * resolved */
+#define MII_AT001_PSSR_DPLX                     0x2000  /* 1=Duplex 0=Half
+                                                         * Duplex */
 #define MII_AT001_PSSR_SPEED                    0xC000  /* Speed, bits 14:15 */
 #define MII_AT001_PSSR_10MBS                    0x0000  /* 00=10Mbs */
 #define MII_AT001_PSSR_100MBS                   0x4000  /* 01=100Mbs */

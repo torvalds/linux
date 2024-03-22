@@ -7,6 +7,6 @@
 #ifndef OCFS2_MOVE_EXTENTS_H
 #define OCFS2_MOVE_EXTENTS_H
 
-int ocfs2_ioctl_move_extents(struct file *filp,  void __user *argp);
+int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp);
 
 #endif /* OCFS2_MOVE_EXTENTS_H */

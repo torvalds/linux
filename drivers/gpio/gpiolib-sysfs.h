@@ -12,13 +12,11 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev);
 
 #else
 
-static inline int gpiochip_sysfs_register(struct gpio_device *gdev)
-{
-	return 0;
+static inline int gpiochip_sysfs_register(struct gpio_device *gdev) {
+  return 0;
 }
 
-static inline void gpiochip_sysfs_unregister(struct gpio_device *gdev)
-{
+static inline void gpiochip_sysfs_unregister(struct gpio_device *gdev) {
 }
 
 #endif /* CONFIG_GPIO_SYSFS */

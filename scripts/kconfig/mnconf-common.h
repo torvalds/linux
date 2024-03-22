@@ -5,8 +5,8 @@
 #include <stddef.h>
 
 struct search_data {
-	struct list_head *head;
-	struct menu *target;
+  struct list_head *head;
+  struct menu *target;
 };
 
 extern int jump_key_char;

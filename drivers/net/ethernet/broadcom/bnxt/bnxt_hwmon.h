@@ -15,16 +15,14 @@ void bnxt_hwmon_notify_event(struct bnxt *bp);
 void bnxt_hwmon_uninit(struct bnxt *bp);
 void bnxt_hwmon_init(struct bnxt *bp);
 #else
-static inline void bnxt_hwmon_notify_event(struct bnxt *bp)
-{
+static inline void bnxt_hwmon_notify_event(struct bnxt *bp) {
 }
 
-static inline void bnxt_hwmon_uninit(struct bnxt *bp)
-{
+static inline void bnxt_hwmon_uninit(struct bnxt *bp) {
 }
 
-static inline void bnxt_hwmon_init(struct bnxt *bp)
-{
+static inline void bnxt_hwmon_init(struct bnxt *bp) {
 }
+
 #endif
 #endif

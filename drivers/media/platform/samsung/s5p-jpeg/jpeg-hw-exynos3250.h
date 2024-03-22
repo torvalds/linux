@@ -2,7 +2,7 @@
 /* linux/drivers/media/platform/samsung/s5p-jpeg/jpeg-hw-exynos3250.h
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *    http://www.samsung.com
  *
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
  */
@@ -36,15 +36,15 @@ void exynos3250_jpeg_outform_raw(void __iomem *regs, unsigned long format);
 void exynos3250_jpeg_jpgadr(void __iomem *regs, unsigned int addr);
 void exynos3250_jpeg_imgadr(void __iomem *regs, struct s5p_jpeg_addr *img_addr);
 void exynos3250_jpeg_stride(void __iomem *regs, unsigned int img_fmt,
-			    unsigned int width);
+    unsigned int width);
 void exynos3250_jpeg_offset(void __iomem *regs, unsigned int x_offset,
-				unsigned int y_offset);
+    unsigned int y_offset);
 void exynos3250_jpeg_coef(void __iomem *base, unsigned int mode);
 void exynos3250_jpeg_start(void __iomem *regs);
 void exynos3250_jpeg_rstart(void __iomem *regs);
 unsigned int exynos3250_jpeg_get_int_status(void __iomem *regs);
 void exynos3250_jpeg_clear_int_status(void __iomem *regs,
-						unsigned int value);
+    unsigned int value);
 unsigned int exynos3250_jpeg_operating(void __iomem *regs);
 unsigned int exynos3250_jpeg_compressed_size(void __iomem *regs);
 void exynos3250_jpeg_dec_stream_size(void __iomem *regs, unsigned int size);

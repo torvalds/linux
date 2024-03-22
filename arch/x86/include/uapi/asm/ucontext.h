@@ -7,7 +7,7 @@
  * layout pointed by the fpstate pointer in the ucontext's sigcontext
  * struct (uc_mcontext).
  */
-#define UC_FP_XSTATE	0x1
+#define UC_FP_XSTATE  0x1
 
 #ifdef __x86_64__
 /*
@@ -47,8 +47,8 @@
  *   the signal was raised..  Old kernels would lose track of the
  *   previous SS value.
  */
-#define UC_SIGCONTEXT_SS	0x2
-#define UC_STRICT_RESTORE_SS	0x4
+#define UC_SIGCONTEXT_SS  0x2
+#define UC_STRICT_RESTORE_SS  0x4
 #endif
 
 #include <asm-generic/ucontext.h>

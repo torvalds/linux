@@ -26,7 +26,7 @@ EXPORT_SYMBOL(__phys_offset);
 EXPORT_SYMBOL(_dflt_cache_att);
 
 #define DECLARE_EXPORT(name)     \
-	extern void name(void); EXPORT_SYMBOL(name)
+  extern void name(void); EXPORT_SYMBOL(name)
 
 /* Symbols found in libgcc that assorted kernel modules need */
 DECLARE_EXPORT(__hexagon_memcpy_likely_aligned_min32bytes_mult8bytes);

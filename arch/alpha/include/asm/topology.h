@@ -7,6 +7,6 @@
 #include <linux/numa.h>
 #include <asm/machvec.h>
 
-# include <asm-generic/topology.h>
+#include <asm-generic/topology.h>
 
 #endif /* _ASM_ALPHA_TOPOLOGY_H */

@@ -134,7 +134,7 @@ typedef ZSTD_parameters zstd_parameters;
  * Return:              The selected zstd_parameters.
  */
 zstd_parameters zstd_get_params(int level,
-	unsigned long long estimated_src_size);
+    unsigned long long estimated_src_size);
 
 /* ======   Single-pass Compression   ====== */
 
@@ -178,7 +178,7 @@ zstd_cctx *zstd_init_cctx(void *workspace, size_t workspace_size);
  *                zstd_is_error().
  */
 size_t zstd_compress_cctx(zstd_cctx *cctx, void *dst, size_t dst_capacity,
-	const void *src, size_t src_size, const zstd_parameters *parameters);
+    const void *src, size_t src_size, const zstd_parameters *parameters);
 
 /* ======   Single-pass Decompression   ====== */
 
@@ -218,7 +218,7 @@ zstd_dctx *zstd_init_dctx(void *workspace, size_t workspace_size);
  *                zstd_is_error().
  */
 size_t zstd_decompress_dctx(zstd_dctx *dctx, void *dst, size_t dst_capacity,
-	const void *src, size_t src_size);
+    const void *src, size_t src_size);
 
 /* ======   Streaming Buffers   ====== */
 
@@ -273,7 +273,8 @@ size_t zstd_cstream_workspace_bound(const zstd_compression_parameters *cparams);
  * Return:            The zstd streaming compression context or NULL on error.
  */
 zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
-	unsigned long long pledged_src_size, void *workspace, size_t workspace_size);
+    unsigned long long pledged_src_size, void *workspace,
+    size_t workspace_size);
 
 /**
  * zstd_reset_cstream() - reset the context using parameters from creation
@@ -288,7 +289,7 @@ zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
  *                    zstd_is_error().
  */
 size_t zstd_reset_cstream(zstd_cstream *cstream,
-	unsigned long long pledged_src_size);
+    unsigned long long pledged_src_size);
 
 /**
  * zstd_compress_stream() - streaming compress some of input into output
@@ -308,7 +309,7 @@ size_t zstd_reset_cstream(zstd_cstream *cstream,
  *           zstd_is_error().
  */
 size_t zstd_compress_stream(zstd_cstream *cstream, zstd_out_buffer *output,
-	zstd_in_buffer *input);
+    zstd_in_buffer *input);
 
 /**
  * zstd_flush_stream() - flush internal buffers into output
@@ -364,7 +365,7 @@ size_t zstd_dstream_workspace_bound(size_t max_window_size);
  * Return:           The zstd streaming decompression context.
  */
 zstd_dstream *zstd_init_dstream(size_t max_window_size, void *workspace,
-	size_t workspace_size);
+    size_t workspace_size);
 
 /**
  * zstd_reset_dstream() - reset the context using parameters from creation
@@ -399,7 +400,7 @@ size_t zstd_reset_dstream(zstd_dstream *dstream);
  *           frame.
  */
 size_t zstd_decompress_stream(zstd_dstream *dstream, zstd_out_buffer *output,
-	zstd_in_buffer *input);
+    zstd_in_buffer *input);
 
 /* ======   Frame Inspection Functions ====== */
 
@@ -442,6 +443,6 @@ typedef ZSTD_frameHeader zstd_frame_header;
  *            an error, which can be checked using zstd_is_error().
  */
 size_t zstd_get_frame_header(zstd_frame_header *params, const void *src,
-	size_t src_size);
+    size_t src_size);
 
 #endif  /* LINUX_ZSTD_H */

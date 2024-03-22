@@ -11,10 +11,10 @@
 #include <asm/inst.h>
 
 /* Break instruction with special math emu break code set */
-#define BREAK_MATH(micromips)	(((micromips) ? 0x7 : 0xd) | (BRK_MEMU << 16))
+#define BREAK_MATH(micromips) (((micromips) ? 0x7 : 0xd) | (BRK_MEMU << 16))
 
 /* When used as a frame index, indicates the lack of a frame */
-#define BD_EMUFRAME_NONE	((int)BIT(31))
+#define BD_EMUFRAME_NONE  ((int) BIT(31))
 
 struct mm_struct;
 struct pt_regs;
@@ -22,10 +22,10 @@ struct task_struct;
 
 /**
  * mips_dsemul() - 'Emulate' an instruction from a branch delay slot
- * @regs:	User thread register context.
- * @ir:		The instruction to be 'emulated'.
- * @branch_pc:	The PC of the branch instruction.
- * @cont_pc:	The PC to continue at following 'emulation'.
+ * @regs: User thread register context.
+ * @ir:   The instruction to be 'emulated'.
+ * @branch_pc:  The PC of the branch instruction.
+ * @cont_pc:  The PC to continue at following 'emulation'.
  *
  * Emulate or execute an arbitrary MIPS instruction within the context of
  * the current user thread. This is used primarily to handle instructions
@@ -35,11 +35,11 @@ struct task_struct;
  * Return: Zero on success, negative if ir is a NOP, signal number on failure.
  */
 extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
-		       unsigned long branch_pc, unsigned long cont_pc);
+    unsigned long branch_pc, unsigned long cont_pc);
 
 /**
  * do_dsemulret() - Return from a delay slot 'emulation' frame
- * @xcp:	User thread register context.
+ * @xcp:  User thread register context.
  *
  * Call in response to the BRK_MEMU break instruction used to return to
  * the kernel from branch delay slot 'emulation' frames following a call
@@ -51,10 +51,10 @@ extern int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 #ifdef CONFIG_MIPS_FP_SUPPORT
 extern bool do_dsemulret(struct pt_regs *xcp);
 #else
-static inline bool do_dsemulret(struct pt_regs *xcp)
-{
-	return false;
+static inline bool do_dsemulret(struct pt_regs *xcp) {
+  return false;
 }
+
 #endif
 
 /**
@@ -69,14 +69,14 @@ static inline bool do_dsemulret(struct pt_regs *xcp)
 #ifdef CONFIG_MIPS_FP_SUPPORT
 extern bool dsemul_thread_cleanup(struct task_struct *tsk);
 #else
-static inline bool dsemul_thread_cleanup(struct task_struct *tsk)
-{
-	return false;
+static inline bool dsemul_thread_cleanup(struct task_struct *tsk) {
+  return false;
 }
+
 #endif
 /**
  * dsemul_thread_rollback() - Rollback from an 'emulation' frame
- * @regs:	User thread register context.
+ * @regs: User thread register context.
  *
  * If the current thread, whose register context is represented by @regs,
  * is executing within a delay slot 'emulation' frame then exit that
@@ -89,15 +89,15 @@ static inline bool dsemul_thread_cleanup(struct task_struct *tsk)
 #ifdef CONFIG_MIPS_FP_SUPPORT
 extern bool dsemul_thread_rollback(struct pt_regs *regs);
 #else
-static inline bool dsemul_thread_rollback(struct pt_regs *regs)
-{
-	return false;
+static inline bool dsemul_thread_rollback(struct pt_regs *regs) {
+  return false;
 }
+
 #endif
 
 /**
  * dsemul_mm_cleanup() - Cleanup per-mm delay slot 'emulation' state
- * @mm:		The struct mm_struct to cleanup state for.
+ * @mm:   The struct mm_struct to cleanup state for.
  *
  * Cleanup state for the given @mm, ensuring that any memory allocated
  * for delay slot 'emulation' book-keeping is freed. This is to be called
@@ -106,10 +106,10 @@ static inline bool dsemul_thread_rollback(struct pt_regs *regs)
 #ifdef CONFIG_MIPS_FP_SUPPORT
 extern void dsemul_mm_cleanup(struct mm_struct *mm);
 #else
-static inline void dsemul_mm_cleanup(struct mm_struct *mm)
-{
-	/* no-op */
+static inline void dsemul_mm_cleanup(struct mm_struct *mm) {
+  /* no-op */
 }
+
 #endif
 
 #endif /* __MIPS_ASM_DSEMUL_H__ */

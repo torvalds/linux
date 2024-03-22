@@ -19,23 +19,23 @@
  * platform a early hook-up. bp_tag_t is a list of configuration tags
  * passed from the boot-loader.
  */
-extern void platform_init(bp_tag_t*);
+extern void platform_init(bp_tag_t *);
 
 /*
  * platform_setup is called from setup_arch with a pointer to the command-line
  * string.
  */
-extern void platform_setup (char **);
+extern void platform_setup(char **);
 
 /*
  * platform_idle is called from the idle function.
  */
-extern void platform_idle (void);
+extern void platform_idle(void);
 
 /*
  * platform_calibrate_ccount calibrates cpu clock freq (CONFIG_XTENSA_CALIBRATE)
  */
-extern void platform_calibrate_ccount (void);
+extern void platform_calibrate_ccount(void);
 
 /*
  * Flush and reset the mmu, simulate a processor reset, and
@@ -43,4 +43,4 @@ extern void platform_calibrate_ccount (void);
  */
 void cpu_reset(void) __attribute__((noreturn));
 
-#endif	/* _XTENSA_PLATFORM_H */
+#endif  /* _XTENSA_PLATFORM_H */

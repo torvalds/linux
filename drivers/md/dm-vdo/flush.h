@@ -11,16 +11,17 @@
 #include "vio.h"
 #include "wait-queue.h"
 
-/* A marker for tracking which journal entries are affected by a flush request. */
+/* A marker for tracking which journal entries are affected by a flush request.
+ * */
 struct vdo_flush {
-	/* The completion for enqueueing this flush request. */
-	struct vdo_completion completion;
-	/* The flush bios covered by this request */
-	struct bio_list bios;
-	/* The wait queue entry for this flush */
-	struct vdo_waiter waiter;
-	/* Which flush this struct represents */
-	sequence_number_t flush_generation;
+  /* The completion for enqueueing this flush request. */
+  struct vdo_completion completion;
+  /* The flush bios covered by this request */
+  struct bio_list bios;
+  /* The wait queue entry for this flush */
+  struct vdo_waiter waiter;
+  /* Which flush this struct represents */
+  sequence_number_t flush_generation;
 };
 
 struct flusher;
@@ -37,7 +38,8 @@ void vdo_dump_flusher(const struct flusher *flusher);
 
 void vdo_launch_flush(struct vdo *vdo, struct bio *bio);
 
-void vdo_drain_flusher(struct flusher *flusher, struct vdo_completion *completion);
+void vdo_drain_flusher(struct flusher *flusher,
+    struct vdo_completion *completion);
 
 void vdo_resume_flusher(struct flusher *flusher, struct vdo_completion *parent);
 

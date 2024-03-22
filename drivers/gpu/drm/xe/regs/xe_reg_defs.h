@@ -16,33 +16,33 @@
  * APIs for accesses.
  */
 struct xe_reg {
-	union {
-		struct {
-			/** @addr: address */
-			u32 addr:28;
-			/**
-			 * @masked: register is "masked", with upper 16bits used
-			 * to identify the bits that are updated on the lower
-			 * bits
-			 */
-			u32 masked:1;
-			/**
-			 * @mcr: register is multicast/replicated in the
-			 * hardware and needs special handling. Any register
-			 * with this set should also use a type of xe_reg_mcr_t.
-			 * It's only here so the few places that deal with MCR
-			 * registers specially (xe_sr.c) and tests using the raw
-			 * value can inspect it.
-			 */
-			u32 mcr:1;
-			/**
-			 * @ext: access MMIO extension space for current register.
-			 */
-			u32 ext:1;
-		};
-		/** @raw: Raw value with both address and options */
-		u32 raw;
-	};
+  union {
+    struct {
+      /** @addr: address */
+      u32 addr : 28;
+      /**
+       * @masked: register is "masked", with upper 16bits used
+       * to identify the bits that are updated on the lower
+       * bits
+       */
+      u32 masked : 1;
+      /**
+       * @mcr: register is multicast/replicated in the
+       * hardware and needs special handling. Any register
+       * with this set should also use a type of xe_reg_mcr_t.
+       * It's only here so the few places that deal with MCR
+       * registers specially (xe_sr.c) and tests using the raw
+       * value can inspect it.
+       */
+      u32 mcr : 1;
+      /**
+       * @ext: access MMIO extension space for current register.
+       */
+      u32 ext : 1;
+    };
+    /** @raw: Raw value with both address and options */
+    u32 raw;
+  };
 };
 
 /**
@@ -53,10 +53,9 @@ struct xe_reg {
  * use regular MMIO access.
  */
 struct xe_reg_mcr {
-	/** @__reg: The register */
-	struct xe_reg __reg;
+  /** @__reg: The register */
+  struct xe_reg __reg;
 };
-
 
 /**
  * XE_REG_OPTION_MASKED - Register is "masked", with upper 16 bits marking the
@@ -73,7 +72,7 @@ struct xe_reg_mcr {
  *
  * To be used with XE_REG(). XE_REG_MCR() and XE_REG_INITIALIZER()
  */
-#define XE_REG_OPTION_MASKED		.masked = 1
+#define XE_REG_OPTION_MASKED    .masked = 1
 
 /**
  * XE_REG_INITIALIZER - Initializer for xe_reg_t.
@@ -88,14 +87,14 @@ struct xe_reg_mcr {
  */
 #define XE_REG_INITIALIZER(r_, ...)    { .addr = r_, __VA_ARGS__ }
 
-
 /**
  * XE_REG - Create a struct xe_reg from offset and additional flags
  * @r_: Register offset
  * @...: Additional options like access mode. See struct xe_reg for available
  *       options.
  */
-#define XE_REG(r_, ...)		((const struct xe_reg)XE_REG_INITIALIZER(r_, ##__VA_ARGS__))
+#define XE_REG(r_, \
+      ...)   ((const struct xe_reg) XE_REG_INITIALIZER(r_, ## __VA_ARGS__))
 
 /**
  * XE_REG_EXT - Create a struct xe_reg from extension offset and additional
@@ -104,8 +103,8 @@ struct xe_reg_mcr {
  * @...: Additional options like access mode. See struct xe_reg for available
  *       options.
  */
-#define XE_REG_EXT(r_, ...)	\
-	((const struct xe_reg)XE_REG_INITIALIZER(r_, ##__VA_ARGS__, .ext = 1))
+#define XE_REG_EXT(r_, ...) \
+  ((const struct xe_reg) XE_REG_INITIALIZER(r_, ## __VA_ARGS__, .ext = 1))
 
 /**
  * XE_REG_MCR - Create a struct xe_reg_mcr from offset and additional flags
@@ -113,8 +112,8 @@ struct xe_reg_mcr {
  * @...: Additional options like access mode. See struct xe_reg for available
  *       options.
  */
-#define XE_REG_MCR(r_, ...)	((const struct xe_reg_mcr){					\
-				 .__reg = XE_REG_INITIALIZER(r_,  ##__VA_ARGS__, .mcr = 1)	\
-				 })
+#define XE_REG_MCR(r_, ...) ((const struct xe_reg_mcr){         \
+    .__reg = XE_REG_INITIALIZER(r_, ## __VA_ARGS__, .mcr = 1)  \
+  })
 
 #endif

@@ -22,17 +22,16 @@
  * The number of entries per group is defined by the number of bits
  * that a bitmap block can maintain.
  */
-static inline unsigned long
-nilfs_palloc_entries_per_group(const struct inode *inode)
-{
-	return 1UL << (inode->i_blkbits + 3 /* log2(8 = CHAR_BITS) */);
+static inline unsigned long nilfs_palloc_entries_per_group(
+    const struct inode *inode) {
+  return 1UL << (inode->i_blkbits + 3 /* log2(8 = CHAR_BITS) */);
 }
 
 int nilfs_palloc_init_blockgroup(struct inode *, unsigned int);
 int nilfs_palloc_get_entry_block(struct inode *, __u64, int,
-				 struct buffer_head **);
+    struct buffer_head **);
 void *nilfs_palloc_block_get_entry(const struct inode *, __u64,
-				   const struct buffer_head *, void *);
+    const struct buffer_head *, void *);
 
 int nilfs_palloc_count_max_entries(struct inode *, u64, u64 *);
 
@@ -44,26 +43,26 @@ int nilfs_palloc_count_max_entries(struct inode *, u64, u64 *);
  * @pr_entry_bh: buffer head of the buffer containing translation entries
  */
 struct nilfs_palloc_req {
-	__u64 pr_entry_nr;
-	struct buffer_head *pr_desc_bh;
-	struct buffer_head *pr_bitmap_bh;
-	struct buffer_head *pr_entry_bh;
+  __u64 pr_entry_nr;
+  struct buffer_head *pr_desc_bh;
+  struct buffer_head *pr_bitmap_bh;
+  struct buffer_head *pr_entry_bh;
 };
 
 int nilfs_palloc_prepare_alloc_entry(struct inode *,
-				     struct nilfs_palloc_req *);
+    struct nilfs_palloc_req *);
 void nilfs_palloc_commit_alloc_entry(struct inode *,
-				     struct nilfs_palloc_req *);
+    struct nilfs_palloc_req *);
 void nilfs_palloc_abort_alloc_entry(struct inode *, struct nilfs_palloc_req *);
 void nilfs_palloc_commit_free_entry(struct inode *, struct nilfs_palloc_req *);
 int nilfs_palloc_prepare_free_entry(struct inode *, struct nilfs_palloc_req *);
 void nilfs_palloc_abort_free_entry(struct inode *, struct nilfs_palloc_req *);
 int nilfs_palloc_freev(struct inode *, __u64 *, size_t);
 
-#define nilfs_set_bit_atomic		ext2_set_bit_atomic
-#define nilfs_clear_bit_atomic		ext2_clear_bit_atomic
-#define nilfs_find_next_zero_bit	find_next_zero_bit_le
-#define nilfs_find_next_bit		find_next_bit_le
+#define nilfs_set_bit_atomic    ext2_set_bit_atomic
+#define nilfs_clear_bit_atomic    ext2_clear_bit_atomic
+#define nilfs_find_next_zero_bit  find_next_zero_bit_le
+#define nilfs_find_next_bit   find_next_bit_le
 
 /**
  * struct nilfs_bh_assoc - block offset and buffer head association
@@ -71,8 +70,8 @@ int nilfs_palloc_freev(struct inode *, __u64 *, size_t);
  * @bh: buffer head
  */
 struct nilfs_bh_assoc {
-	unsigned long blkoff;
-	struct buffer_head *bh;
+  unsigned long blkoff;
+  struct buffer_head *bh;
 };
 
 /**
@@ -83,15 +82,15 @@ struct nilfs_bh_assoc {
  * @prev_entry: translation entries cache
  */
 struct nilfs_palloc_cache {
-	spinlock_t lock;
-	struct nilfs_bh_assoc prev_desc;
-	struct nilfs_bh_assoc prev_bitmap;
-	struct nilfs_bh_assoc prev_entry;
+  spinlock_t lock;
+  struct nilfs_bh_assoc prev_desc;
+  struct nilfs_bh_assoc prev_bitmap;
+  struct nilfs_bh_assoc prev_entry;
 };
 
 void nilfs_palloc_setup_cache(struct inode *inode,
-			      struct nilfs_palloc_cache *cache);
+    struct nilfs_palloc_cache *cache);
 void nilfs_palloc_clear_cache(struct inode *inode);
 void nilfs_palloc_destroy_cache(struct inode *inode);
 
-#endif	/* _NILFS_ALLOC_H */
+#endif  /* _NILFS_ALLOC_H */

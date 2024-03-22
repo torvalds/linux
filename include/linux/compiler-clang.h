@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPILER_TYPES_H
-#error "Please don't include <linux/compiler-clang.h> directly, include <linux/compiler.h> instead."
+#error \
+  "Please don't include <linux/compiler-clang.h> directly, include <linux/compiler.h> instead."
 #endif
 
 /* Compiler specific definitions for Clang compiler */
@@ -27,7 +28,7 @@
 /* Emulate GCC's __SANITIZE_ADDRESS__ flag */
 #define __SANITIZE_ADDRESS__
 #define __no_sanitize_address \
-		__attribute__((no_sanitize("address", "hwaddress")))
+  __attribute__((no_sanitize("address", "hwaddress")))
 #else
 #define __no_sanitize_address
 #endif
@@ -36,7 +37,7 @@
 /* emulate gcc's __SANITIZE_THREAD__ flag */
 #define __SANITIZE_THREAD__
 #define __no_sanitize_thread \
-		__attribute__((no_sanitize("thread")))
+  __attribute__((no_sanitize("thread")))
 #else
 #define __no_sanitize_thread
 #endif
@@ -50,7 +51,7 @@
 #if __has_feature(undefined_behavior_sanitizer)
 /* GCC does not have __SANITIZE_UNDEFINED__ */
 #define __no_sanitize_undefined \
-		__attribute__((no_sanitize("undefined")))
+  __attribute__((no_sanitize("undefined")))
 #else
 #define __no_sanitize_undefined
 #endif
@@ -90,12 +91,12 @@
 #endif
 
 #if __has_feature(shadow_call_stack)
-# define __noscs	__attribute__((__no_sanitize__("shadow-call-stack")))
+#define __noscs  __attribute__((__no_sanitize__("shadow-call-stack")))
 #endif
 
 #if __has_feature(kcfi)
 /* Disable CFI checking inside a function. */
-#define __nocfi		__attribute__((__no_sanitize__("kcfi")))
+#define __nocfi   __attribute__((__no_sanitize__("kcfi")))
 #endif
 
 /*
@@ -103,18 +104,18 @@
  * on version.
  */
 #define __diag_clang(version, severity, s) \
-	__diag_clang_ ## version(__diag_clang_ ## severity s)
+  __diag_clang_ ## version(__diag_clang_ ## severity s)
 
 /* Severity used in pragma directives */
-#define __diag_clang_ignore	ignored
-#define __diag_clang_warn	warning
-#define __diag_clang_error	error
+#define __diag_clang_ignore ignored
+#define __diag_clang_warn warning
+#define __diag_clang_error  error
 
-#define __diag_str1(s)		#s
-#define __diag_str(s)		__diag_str1(s)
-#define __diag(s)		_Pragma(__diag_str(clang diagnostic s))
+#define __diag_str1(s)    #s
+#define __diag_str(s)   __diag_str1(s)
+#define __diag(s)   _Pragma(__diag_str(clang diagnostic s))
 
-#define __diag_clang_13(s)	__diag(s)
+#define __diag_clang_13(s)  __diag(s)
 
 #define __diag_ignore_all(option, comment) \
-	__diag_clang(13, ignore, option)
+  __diag_clang(13, ignore, option)

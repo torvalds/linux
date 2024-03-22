@@ -21,45 +21,45 @@
 #include <linux/clk/ti.h>
 
 /* struct clksel_rate.flags possibilities */
-#define RATE_IN_242X		(1 << 0)
-#define RATE_IN_243X		(1 << 1)
-#define RATE_IN_3430ES1		(1 << 2)	/* 3430ES1 rates only */
-#define RATE_IN_3430ES2PLUS	(1 << 3)	/* 3430 ES >= 2 rates only */
-#define RATE_IN_36XX		(1 << 4)
-#define RATE_IN_4430		(1 << 5)
-#define RATE_IN_TI816X		(1 << 6)
-#define RATE_IN_4460		(1 << 7)
-#define RATE_IN_AM33XX		(1 << 8)
-#define RATE_IN_TI814X		(1 << 9)
+#define RATE_IN_242X    (1 << 0)
+#define RATE_IN_243X    (1 << 1)
+#define RATE_IN_3430ES1   (1 << 2)  /* 3430ES1 rates only */
+#define RATE_IN_3430ES2PLUS (1 << 3)  /* 3430 ES >= 2 rates only */
+#define RATE_IN_36XX    (1 << 4)
+#define RATE_IN_4430    (1 << 5)
+#define RATE_IN_TI816X    (1 << 6)
+#define RATE_IN_4460    (1 << 7)
+#define RATE_IN_AM33XX    (1 << 8)
+#define RATE_IN_TI814X    (1 << 9)
 
-#define RATE_IN_24XX		(RATE_IN_242X | RATE_IN_243X)
-#define RATE_IN_34XX		(RATE_IN_3430ES1 | RATE_IN_3430ES2PLUS)
-#define RATE_IN_3XXX		(RATE_IN_34XX | RATE_IN_36XX)
-#define RATE_IN_44XX		(RATE_IN_4430 | RATE_IN_4460)
+#define RATE_IN_24XX    (RATE_IN_242X | RATE_IN_243X)
+#define RATE_IN_34XX    (RATE_IN_3430ES1 | RATE_IN_3430ES2PLUS)
+#define RATE_IN_3XXX    (RATE_IN_34XX | RATE_IN_36XX)
+#define RATE_IN_44XX    (RATE_IN_4430 | RATE_IN_4460)
 
 /* RATE_IN_3430ES2PLUS_36XX includes 34xx/35xx with ES >=2, and all 36xx/37xx */
-#define RATE_IN_3430ES2PLUS_36XX	(RATE_IN_3430ES2PLUS | RATE_IN_36XX)
+#define RATE_IN_3430ES2PLUS_36XX  (RATE_IN_3430ES2PLUS | RATE_IN_36XX)
 
 /* CM_CLKSEL2_PLL.CORE_CLK_SRC bits (2XXX) */
-#define CORE_CLK_SRC_32K		0x0
-#define CORE_CLK_SRC_DPLL		0x1
-#define CORE_CLK_SRC_DPLL_X2		0x2
+#define CORE_CLK_SRC_32K    0x0
+#define CORE_CLK_SRC_DPLL   0x1
+#define CORE_CLK_SRC_DPLL_X2    0x2
 
 /* OMAP2xxx CM_CLKEN_PLL.EN_DPLL bits - for omap2_get_dpll_rate() */
-#define OMAP2XXX_EN_DPLL_LPBYPASS		0x1
-#define OMAP2XXX_EN_DPLL_FRBYPASS		0x2
-#define OMAP2XXX_EN_DPLL_LOCKED			0x3
+#define OMAP2XXX_EN_DPLL_LPBYPASS   0x1
+#define OMAP2XXX_EN_DPLL_FRBYPASS   0x2
+#define OMAP2XXX_EN_DPLL_LOCKED     0x3
 
 /* OMAP3xxx CM_CLKEN_PLL*.EN_*_DPLL bits - for omap2_get_dpll_rate() */
-#define OMAP3XXX_EN_DPLL_LPBYPASS		0x5
-#define OMAP3XXX_EN_DPLL_FRBYPASS		0x6
-#define OMAP3XXX_EN_DPLL_LOCKED			0x7
+#define OMAP3XXX_EN_DPLL_LPBYPASS   0x5
+#define OMAP3XXX_EN_DPLL_FRBYPASS   0x6
+#define OMAP3XXX_EN_DPLL_LOCKED     0x7
 
 /* OMAP4xxx CM_CLKMODE_DPLL*.EN_*_DPLL bits - for omap2_get_dpll_rate() */
-#define OMAP4XXX_EN_DPLL_MNBYPASS		0x4
-#define OMAP4XXX_EN_DPLL_LPBYPASS		0x5
-#define OMAP4XXX_EN_DPLL_FRBYPASS		0x6
-#define OMAP4XXX_EN_DPLL_LOCKED			0x7
+#define OMAP4XXX_EN_DPLL_MNBYPASS   0x4
+#define OMAP4XXX_EN_DPLL_LPBYPASS   0x5
+#define OMAP4XXX_EN_DPLL_FRBYPASS   0x6
+#define OMAP4XXX_EN_DPLL_LOCKED     0x7
 
 extern struct ti_clk_ll_ops omap_clk_ll_ops;
 

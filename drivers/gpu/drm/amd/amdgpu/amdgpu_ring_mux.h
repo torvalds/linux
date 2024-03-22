@@ -31,7 +31,8 @@
 struct amdgpu_ring;
 
 /**
- * struct amdgpu_mux_entry - the entry recording software rings copying information.
+ * struct amdgpu_mux_entry - the entry recording software rings copying
+ *information.
  * @ring: the pointer to the software ring.
  * @start_ptr_in_hw_ring: last start location copied to in the hardware ring.
  * @end_ptr_in_hw_ring: last end location copied to in the hardware ring.
@@ -41,48 +42,49 @@ struct amdgpu_ring;
  * @list: list head for amdgpu_mux_chunk
  */
 struct amdgpu_mux_entry {
-	struct amdgpu_ring      *ring;
-	u64                     start_ptr_in_hw_ring;
-	u64                     end_ptr_in_hw_ring;
-	u64                     sw_cptr;
-	u64                     sw_rptr;
-	u64                     sw_wptr;
-	struct list_head        list;
+  struct amdgpu_ring *ring;
+  u64 start_ptr_in_hw_ring;
+  u64 end_ptr_in_hw_ring;
+  u64 sw_cptr;
+  u64 sw_rptr;
+  u64 sw_wptr;
+  struct list_head list;
 };
 
 enum amdgpu_ring_mux_offset_type {
-	AMDGPU_MUX_OFFSET_TYPE_CONTROL,
-	AMDGPU_MUX_OFFSET_TYPE_DE,
-	AMDGPU_MUX_OFFSET_TYPE_CE,
+  AMDGPU_MUX_OFFSET_TYPE_CONTROL,
+  AMDGPU_MUX_OFFSET_TYPE_DE,
+  AMDGPU_MUX_OFFSET_TYPE_CE,
 };
 
 enum ib_complete_status {
-	/* IB not started/reset value, default value. */
-	IB_COMPLETION_STATUS_DEFAULT = 0,
-	/* IB preempted, started but not completed. */
-	IB_COMPLETION_STATUS_PREEMPTED = 1,
-	/* IB completed. */
-	IB_COMPLETION_STATUS_COMPLETED = 2,
+  /* IB not started/reset value, default value. */
+  IB_COMPLETION_STATUS_DEFAULT = 0,
+  /* IB preempted, started but not completed. */
+  IB_COMPLETION_STATUS_PREEMPTED = 1,
+  /* IB completed. */
+  IB_COMPLETION_STATUS_COMPLETED = 2,
 };
 
 struct amdgpu_ring_mux {
-	struct amdgpu_ring      *real_ring;
+  struct amdgpu_ring *real_ring;
 
-	struct amdgpu_mux_entry *ring_entry;
-	unsigned int            num_ring_entries;
-	unsigned int            ring_entry_size;
-	/*the lock for copy data from different software rings*/
-	spinlock_t              lock;
-	bool                    s_resubmit;
-	uint32_t                seqno_to_resubmit;
-	u64                     wptr_resubmit;
-	struct timer_list       resubmit_timer;
+  struct amdgpu_mux_entry *ring_entry;
+  unsigned int num_ring_entries;
+  unsigned int ring_entry_size;
+  /*the lock for copy data from different software rings*/
+  spinlock_t lock;
+  bool s_resubmit;
+  uint32_t seqno_to_resubmit;
+  u64 wptr_resubmit;
+  struct timer_list resubmit_timer;
 
-	bool                    pending_trailing_fence_signaled;
+  bool pending_trailing_fence_signaled;
 };
 
 /**
- * struct amdgpu_mux_chunk - save the location of indirect buffer's package on softare rings.
+ * struct amdgpu_mux_chunk - save the location of indirect buffer's package on
+ *softare rings.
  * @entry: the list entry.
  * @sync_seq: the fence seqno related with the saved IB.
  * @start:- start location on the software ring.
@@ -92,26 +94,33 @@ struct amdgpu_ring_mux {
  * @ce_offset:- the anchor in write_data for ce meta of resubmission.
  */
 struct amdgpu_mux_chunk {
-	struct list_head        entry;
-	uint32_t                sync_seq;
-	u64                     start;
-	u64                     end;
-	u64                     cntl_offset;
-	u64                     de_offset;
-	u64                     ce_offset;
+  struct list_head entry;
+  uint32_t sync_seq;
+  u64 start;
+  u64 end;
+  u64 cntl_offset;
+  u64 de_offset;
+  u64 ce_offset;
 };
 
 int amdgpu_ring_mux_init(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
-			 unsigned int entry_size);
+    unsigned int entry_size);
 void amdgpu_ring_mux_fini(struct amdgpu_ring_mux *mux);
-int amdgpu_ring_mux_add_sw_ring(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
-void amdgpu_ring_mux_set_wptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring, u64 wptr);
-u64 amdgpu_ring_mux_get_wptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
-u64 amdgpu_ring_mux_get_rptr(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
-void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
-void amdgpu_ring_mux_end_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring);
-void amdgpu_ring_mux_ib_mark_offset(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring,
-				    u64 offset, enum amdgpu_ring_mux_offset_type type);
+int amdgpu_ring_mux_add_sw_ring(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring);
+void amdgpu_ring_mux_set_wptr(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring, u64 wptr);
+u64 amdgpu_ring_mux_get_wptr(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring);
+u64 amdgpu_ring_mux_get_rptr(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring);
+void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring);
+void amdgpu_ring_mux_end_ib(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring);
+void amdgpu_ring_mux_ib_mark_offset(struct amdgpu_ring_mux *mux,
+    struct amdgpu_ring *ring,
+    u64 offset, enum amdgpu_ring_mux_offset_type type);
 bool amdgpu_mcbp_handle_trailing_fence_irq(struct amdgpu_ring_mux *mux);
 
 u64 amdgpu_sw_ring_get_rptr_gfx(struct amdgpu_ring *ring);
@@ -120,7 +129,8 @@ void amdgpu_sw_ring_set_wptr_gfx(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count);
 void amdgpu_sw_ring_ib_begin(struct amdgpu_ring *ring);
 void amdgpu_sw_ring_ib_end(struct amdgpu_ring *ring);
-void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring, enum amdgpu_ring_mux_offset_type type);
+void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring,
+    enum amdgpu_ring_mux_offset_type type);
 const char *amdgpu_sw_ring_name(int idx);
 unsigned int amdgpu_sw_ring_priority(int idx);
 

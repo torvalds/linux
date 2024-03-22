@@ -15,22 +15,20 @@ char ctx_regs[PT_REGS_SIZE] = {};
 int uprobe_res = 0;
 
 SEC("uprobe")
-int handle_uprobe(struct pt_regs *ctx)
-{
-	struct task_struct *current;
-	struct pt_regs *regs;
-
-	current = bpf_get_current_task_btf();
-	regs = (struct pt_regs *) bpf_task_pt_regs(current);
-	if (bpf_probe_read_kernel(current_regs, PT_REGS_SIZE, regs))
-		return 0;
-	if (bpf_probe_read_kernel(ctx_regs, PT_REGS_SIZE, ctx))
-		return 0;
-
-	/* Prove that uprobe was run */
-	uprobe_res = 1;
-
-	return 0;
+int handle_uprobe(struct pt_regs *ctx) {
+  struct task_struct *current;
+  struct pt_regs *regs;
+  current = bpf_get_current_task_btf();
+  regs = (struct pt_regs *) bpf_task_pt_regs(current);
+  if (bpf_probe_read_kernel(current_regs, PT_REGS_SIZE, regs)) {
+    return 0;
+  }
+  if (bpf_probe_read_kernel(ctx_regs, PT_REGS_SIZE, ctx)) {
+    return 0;
+  }
+  /* Prove that uprobe was run */
+  uprobe_res = 1;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

@@ -18,19 +18,19 @@
 /* UART */
 
 static struct omap_hwmod_class_sysconfig omap2_uart_sysc = {
-	.rev_offs	= 0x50,
-	.sysc_offs	= 0x54,
-	.syss_offs	= 0x58,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
+  .rev_offs = 0x50,
+  .sysc_offs = 0x54,
+  .syss_offs = 0x58,
+  .sysc_flags = (SYSC_HAS_SIDLEMODE
+      | SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET
+      | SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
+  .idlemodes = (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+  .sysc_fields = &omap_hwmod_sysc_type1,
 };
 
 struct omap_hwmod_class omap2_uart_class = {
-	.name	= "uart",
-	.sysc	= &omap2_uart_sysc,
+  .name = "uart",
+  .sysc = &omap2_uart_sysc,
 };
 
 /*
@@ -39,7 +39,7 @@ struct omap_hwmod_class omap2_uart_class = {
  */
 
 struct omap_hwmod_class omap2_venc_hwmod_class = {
-	.name = "venc",
+  .name = "venc",
 };
 
 /*
@@ -47,32 +47,32 @@ struct omap_hwmod_class omap2_venc_hwmod_class = {
  */
 
 struct omap_hwmod_class l3_hwmod_class = {
-	.name = "l3",
+  .name = "l3",
 };
 
 struct omap_hwmod_class l4_hwmod_class = {
-	.name = "l4",
+  .name = "l4",
 };
 
 struct omap_hwmod_class mpu_hwmod_class = {
-	.name = "mpu",
+  .name = "mpu",
 };
 
 struct omap_hwmod_class iva_hwmod_class = {
-	.name = "iva",
+  .name = "iva",
 };
 
 static struct omap_hwmod_class_sysconfig omap2_hdq1w_sysc = {
-	.rev_offs	= 0x0,
-	.sysc_offs	= 0x14,
-	.syss_offs	= 0x18,
-	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
-			   SYSS_HAS_RESET_STATUS),
-	.sysc_fields    = &omap_hwmod_sysc_type1,
+  .rev_offs = 0x0,
+  .sysc_offs = 0x14,
+  .syss_offs = 0x18,
+  .sysc_flags = (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE
+      | SYSS_HAS_RESET_STATUS),
+  .sysc_fields = &omap_hwmod_sysc_type1,
 };
 
 struct omap_hwmod_class omap2_hdq1w_class = {
-	.name	= "hdq1w",
-	.sysc	= &omap2_hdq1w_sysc,
-	.reset	= &omap_hdq1w_reset,
+  .name = "hdq1w",
+  .sysc = &omap2_hdq1w_sysc,
+  .reset = &omap_hdq1w_reset,
 };

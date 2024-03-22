@@ -7,11 +7,11 @@
 #include <linux/const.h>
 #include <linux/types.h>
 
-#define BUG()				\
-do {					\
-	asm volatile ("bkpt\n");	\
-	unreachable();			\
-} while (0)
+#define BUG()       \
+  do {          \
+    asm volatile ("bkpt\n");  \
+    unreachable();      \
+  } while (0)
 
 #define HAVE_ARCH_BUG
 

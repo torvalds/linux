@@ -12,21 +12,23 @@ bool reject_capable;
 bool reject_cmd;
 
 SEC("lsm/bpf_token_capable")
-int BPF_PROG(token_capable, struct bpf_token *token, int cap)
-{
-	if (my_pid == 0 || my_pid != (bpf_get_current_pid_tgid() >> 32))
-		return 0;
-	if (reject_capable)
-		return -1;
-	return 0;
+int BPF_PROG(token_capable, struct bpf_token *token, int cap) {
+  if (my_pid == 0 || my_pid != (bpf_get_current_pid_tgid() >> 32)) {
+    return 0;
+  }
+  if (reject_capable) {
+    return -1;
+  }
+  return 0;
 }
 
 SEC("lsm/bpf_token_cmd")
-int BPF_PROG(token_cmd, struct bpf_token *token, enum bpf_cmd cmd)
-{
-	if (my_pid == 0 || my_pid != (bpf_get_current_pid_tgid() >> 32))
-		return 0;
-	if (reject_cmd)
-		return -1;
-	return 0;
+int BPF_PROG(token_cmd, struct bpf_token *token, enum bpf_cmd cmd) {
+  if (my_pid == 0 || my_pid != (bpf_get_current_pid_tgid() >> 32)) {
+    return 0;
+  }
+  if (reject_cmd) {
+    return -1;
+  }
+  return 0;
 }

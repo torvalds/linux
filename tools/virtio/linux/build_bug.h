@@ -4,4 +4,4 @@
 
 #define BUILD_BUG_ON(x)
 
-#endif	/* _LINUX_BUILD_BUG_H */
+#endif  /* _LINUX_BUILD_BUG_H */

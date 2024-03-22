@@ -55,10 +55,9 @@ typedef enum {
 } UCLK_DIV_e;
 
 typedef struct {
-  uint8_t  WmSetting;
-  uint8_t  Flags;
-  uint8_t  Padding[2];
-
+  uint8_t WmSetting;
+  uint8_t Flags;
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -77,9 +76,9 @@ typedef struct {
 
 typedef struct {
   Watermarks_t Watermarks;
-  uint32_t  Spare[16];
+  uint32_t Spare[16];
 
-  uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } WatermarksExternal_t;
 
 // These defines are used with the following messages:

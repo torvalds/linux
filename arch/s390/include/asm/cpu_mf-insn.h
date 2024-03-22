@@ -13,8 +13,8 @@
 /* Macro to generate the STCCTM instruction with a customized
  * M3 field designating the counter set.
  */
-.macro	STCCTM	r1 m3 db2
-	.insn	rsy,0xeb0000000017,\r1,\m3 & 0xf,\db2
+.macro STCCTM r1 m3 db2
+.insn rsy, 0xeb0000000017, \ r1, \ m3 & 0xf, \ db2
 .endm
 
 #endif /* __ASSEMBLY__ */

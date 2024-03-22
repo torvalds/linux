@@ -35,21 +35,20 @@
  * @intr_cause:          translated interrupt cause
  */
 struct mei_txe_hw {
-	void __iomem * const *mem_addr;
-	u32 aliveness;
-	u32 readiness;
-	u32 slots;
+  void __iomem * const *mem_addr;
+  u32 aliveness;
+  u32 readiness;
+  u32 slots;
 
-	wait_queue_head_t wait_aliveness_resp;
+  wait_queue_head_t wait_aliveness_resp;
 
-	unsigned long intr_cause;
+  unsigned long intr_cause;
 };
 
-#define to_txe_hw(dev) (struct mei_txe_hw *)((dev)->hw)
+#define to_txe_hw(dev) (struct mei_txe_hw *) ((dev)->hw)
 
-static inline struct mei_device *hw_txe_to_mei(struct mei_txe_hw *hw)
-{
-	return container_of((void *)hw, struct mei_device, hw);
+static inline struct mei_device *hw_txe_to_mei(struct mei_txe_hw *hw) {
+  return container_of((void *) hw, struct mei_device, hw);
 }
 
 struct mei_device *mei_txe_dev_init(struct pci_dev *pdev);
@@ -60,6 +59,5 @@ irqreturn_t mei_txe_irq_thread_handler(int irq, void *dev_id);
 int mei_txe_aliveness_set_sync(struct mei_device *dev, u32 req);
 
 int mei_txe_setup_satt2(struct mei_device *dev, phys_addr_t addr, u32 range);
-
 
 #endif /* _MEI_HW_TXE_H_ */

@@ -9,29 +9,28 @@
 
 #include <asm/break.h>
 
-static inline void __noreturn BUG(void)
-{
-	__asm__ __volatile__("break %0" : : "i" (BRK_BUG));
-	unreachable();
+static inline void __noreturn BUG(void) {
+  __asm__ __volatile__ ("break %0" : : "i" (BRK_BUG));
+  unreachable();
 }
 
 #define HAVE_ARCH_BUG
 
 #if (_MIPS_ISA > _MIPS_ISA_MIPS1)
 
-static inline void  __BUG_ON(unsigned long condition)
-{
-	if (__builtin_constant_p(condition)) {
-		if (condition)
-			BUG();
-		else
-			return;
-	}
-	__asm__ __volatile__("tne $0, %0, %1"
-			     : : "r" (condition), "i" (BRK_BUG));
+static inline void __BUG_ON(unsigned long condition) {
+  if (__builtin_constant_p(condition)) {
+    if (condition) {
+      BUG();
+    } else {
+      return;
+    }
+  }
+  __asm__ __volatile__ ("tne $0, %0, %1"
+  : : "r" (condition), "i" (BRK_BUG));
 }
 
-#define BUG_ON(C) __BUG_ON((unsigned long)(C))
+#define BUG_ON(C) __BUG_ON((unsigned long) (C))
 
 #define HAVE_ARCH_BUG_ON
 

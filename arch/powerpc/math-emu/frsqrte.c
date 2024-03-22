@@ -3,11 +3,9 @@
 #include <linux/errno.h>
 #include <linux/uaccess.h>
 
-int
-frsqrte(void *frD, void *frB)
-{
+int frsqrte(void *frD, void *frB) {
 #ifdef DEBUG
-	printk("%s: %p %p\n", __func__, frD, frB);
+  printk("%s: %p %p\n", __func__, frD, frB);
 #endif
-	return 0;
+  return 0;
 }

@@ -31,13 +31,13 @@
  * @TEE_CMD_ID_UNMAP_SHARED_MEM: Unmap shared memory
  */
 enum tee_cmd_id {
-	TEE_CMD_ID_LOAD_TA = 1,
-	TEE_CMD_ID_UNLOAD_TA,
-	TEE_CMD_ID_OPEN_SESSION,
-	TEE_CMD_ID_CLOSE_SESSION,
-	TEE_CMD_ID_INVOKE_CMD,
-	TEE_CMD_ID_MAP_SHARED_MEM,
-	TEE_CMD_ID_UNMAP_SHARED_MEM,
+  TEE_CMD_ID_LOAD_TA = 1,
+  TEE_CMD_ID_UNLOAD_TA,
+  TEE_CMD_ID_OPEN_SESSION,
+  TEE_CMD_ID_CLOSE_SESSION,
+  TEE_CMD_ID_INVOKE_CMD,
+  TEE_CMD_ID_MAP_SHARED_MEM,
+  TEE_CMD_ID_UNMAP_SHARED_MEM,
 };
 
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
@@ -60,7 +60,7 @@ enum tee_cmd_id {
  * -%EBUSY     if PSP device is not responsive
  */
 int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf, size_t len,
-			u32 *status);
+    u32 *status);
 
 /**
  * psp_check_tee_status() - Checks whether there is a TEE which a driver can
@@ -78,14 +78,13 @@ int psp_check_tee_status(void);
 #else /* !CONFIG_CRYPTO_DEV_SP_PSP */
 
 static inline int psp_tee_process_cmd(enum tee_cmd_id cmd_id, void *buf,
-				      size_t len, u32 *status)
-{
-	return -ENODEV;
+    size_t len, u32 *status) {
+  return -ENODEV;
 }
 
-static inline int psp_check_tee_status(void)
-{
-	return -ENODEV;
+static inline int psp_check_tee_status(void) {
+  return -ENODEV;
 }
+
 #endif /* CONFIG_CRYPTO_DEV_SP_PSP */
 #endif /* __PSP_TEE_H_ */

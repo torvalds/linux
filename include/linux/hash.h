@@ -1,7 +1,7 @@
 #ifndef _LINUX_HASH_H
 #define _LINUX_HASH_H
 /* Fast hashing routine for ints,  longs and pointers.
-   (C) 2002 Nadia Yvette Chambers, IBM */
+ * (C) 2002 Nadia Yvette Chambers, IBM */
 
 #include <asm/types.h>
 #include <linux/compiler.h>
@@ -57,45 +57,39 @@
 #ifndef HAVE_ARCH__HASH_32
 #define __hash_32 __hash_32_generic
 #endif
-static inline u32 __hash_32_generic(u32 val)
-{
-	return val * GOLDEN_RATIO_32;
+static inline u32 __hash_32_generic(u32 val) {
+  return val * GOLDEN_RATIO_32;
 }
 
-static inline u32 hash_32(u32 val, unsigned int bits)
-{
-	/* High bits are more random, so use them. */
-	return __hash_32(val) >> (32 - bits);
+static inline u32 hash_32(u32 val, unsigned int bits) {
+  /* High bits are more random, so use them. */
+  return __hash_32(val) >> (32 - bits);
 }
 
 #ifndef HAVE_ARCH_HASH_64
 #define hash_64 hash_64_generic
 #endif
-static __always_inline u32 hash_64_generic(u64 val, unsigned int bits)
-{
+static __always_inline u32 hash_64_generic(u64 val, unsigned int bits) {
 #if BITS_PER_LONG == 64
-	/* 64x64-bit multiply is efficient on all 64-bit processors */
-	return val * GOLDEN_RATIO_64 >> (64 - bits);
+  /* 64x64-bit multiply is efficient on all 64-bit processors */
+  return val * GOLDEN_RATIO_64 >> (64 - bits);
 #else
-	/* Hash 64 bits using only 32x32-bit multiply. */
-	return hash_32((u32)val ^ __hash_32(val >> 32), bits);
+  /* Hash 64 bits using only 32x32-bit multiply. */
+  return hash_32((u32) val ^ __hash_32(val >> 32), bits);
 #endif
 }
 
-static inline u32 hash_ptr(const void *ptr, unsigned int bits)
-{
-	return hash_long((unsigned long)ptr, bits);
+static inline u32 hash_ptr(const void *ptr, unsigned int bits) {
+  return hash_long((unsigned long) ptr, bits);
 }
 
 /* This really should be called fold32_ptr; it does no hashing to speak of. */
-static inline u32 hash32_ptr(const void *ptr)
-{
-	unsigned long val = (unsigned long)ptr;
-
+static inline u32 hash32_ptr(const void *ptr) {
+  unsigned long val = (unsigned long) ptr;
 #if BITS_PER_LONG == 64
-	val ^= (val >> 32);
+  val ^= (val >> 32);
 #endif
-	return (u32)val;
+  return (u32) val;
 }
 
 #endif /* _LINUX_HASH_H */

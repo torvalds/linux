@@ -12,7 +12,7 @@ asmlinkage void twofish_dec_blk(const void *ctx, u8 *dst, const u8 *src);
 
 /* 3-way parallel cipher functions */
 asmlinkage void __twofish_enc_blk_3way(const void *ctx, u8 *dst, const u8 *src,
-				       bool xor);
+    bool xor);
 asmlinkage void twofish_dec_blk_3way(const void *ctx, u8 *dst, const u8 *src);
 
 /* helpers from twofish_x86_64-3way module */

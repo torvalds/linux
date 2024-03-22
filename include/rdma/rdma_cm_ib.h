@@ -19,7 +19,7 @@
  * connection and replaces the call to rdma_resolve_route.
  */
 int rdma_set_ib_path(struct rdma_cm_id *id,
-		     struct sa_path_rec *path_rec);
+    struct sa_path_rec *path_rec);
 
 /* Global qkey for UDP QPs and multicast groups. */
 #define RDMA_UDP_QKEY 0x01234567

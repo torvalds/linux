@@ -18,14 +18,14 @@
  * dev-connector pairs to a privacy-screen provider.
  */
 struct drm_privacy_screen_lookup {
-	/** @list: Lookup list list-entry. */
-	struct list_head list;
-	/** @dev_id: Consumer device name or NULL to match all devices. */
-	const char *dev_id;
-	/** @con_id: Consumer connector name or NULL to match all connectors. */
-	const char *con_id;
-	/** @provider: dev_name() of the privacy_screen provider. */
-	const char *provider;
+  /** @list: Lookup list list-entry. */
+  struct list_head list;
+  /** @dev_id: Consumer device name or NULL to match all devices. */
+  const char *dev_id;
+  /** @con_id: Consumer connector name or NULL to match all connectors. */
+  const char *con_id;
+  /** @provider: dev_name() of the privacy_screen provider. */
+  const char *provider;
 };
 
 void drm_privacy_screen_lookup_add(struct drm_privacy_screen_lookup *lookup);
@@ -35,12 +35,12 @@ void drm_privacy_screen_lookup_remove(struct drm_privacy_screen_lookup *lookup);
 void drm_privacy_screen_lookup_init(void);
 void drm_privacy_screen_lookup_exit(void);
 #else
-static inline void drm_privacy_screen_lookup_init(void)
-{
+static inline void drm_privacy_screen_lookup_init(void) {
 }
-static inline void drm_privacy_screen_lookup_exit(void)
-{
+
+static inline void drm_privacy_screen_lookup_exit(void) {
 }
+
 #endif
 
 #endif

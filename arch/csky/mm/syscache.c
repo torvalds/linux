@@ -7,26 +7,27 @@
 #include <asm/cachectl.h>
 
 SYSCALL_DEFINE3(cacheflush,
-		void __user *, addr,
-		unsigned long, bytes,
-		int, cache)
+    void __user *, addr,
+    unsigned long, bytes,
+    int, cache)
 {
-	switch (cache) {
-	case BCACHE:
-	case DCACHE:
-		dcache_wb_range((unsigned long)addr,
-				(unsigned long)addr + bytes);
-		if (cache != BCACHE)
-			break;
-		fallthrough;
-	case ICACHE:
-		flush_icache_mm_range(current->mm,
-				(unsigned long)addr,
-				(unsigned long)addr + bytes);
-		break;
-	default:
-		return -EINVAL;
-	}
+  switch (cache) {
+    case BCACHE:
+    case DCACHE:
+      dcache_wb_range((unsigned long) addr,
+          (unsigned long) addr + bytes);
+      if (cache != BCACHE) {
+        break;
+      }
+      fallthrough;
+    case ICACHE:
+      flush_icache_mm_range(current->mm,
+          (unsigned long) addr,
+          (unsigned long) addr + bytes);
+      break;
+    default:
+      return -EINVAL;
+  }
 
-	return 0;
+  return 0;
 }

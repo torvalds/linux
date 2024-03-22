@@ -22,10 +22,10 @@
  * shortlived ala "temporary mappings" which historically were implemented as
  * fixmaps (compile time addr etc). Their book-keeping is done per cpu.
  *
- *	Both these facts combined (preemption disabled and per-cpu allocation)
- *	means the total number of concurrent fixmaps will be limited to max
- *	such allocations in a single control path. Thus KM_TYPE_NR (another
- *	historic relic) is a small'ish number which caps max percpu fixmaps
+ *  Both these facts combined (preemption disabled and per-cpu allocation)
+ *  means the total number of concurrent fixmaps will be limited to max
+ *  such allocations in a single control path. Thus KM_TYPE_NR (another
+ *  historic relic) is a small'ish number which caps max percpu fixmaps
  *
  * ARC HIGHMEM Details
  *
@@ -45,29 +45,25 @@
  *   sets the limit
  */
 
-extern pte_t * pkmap_page_table;
+extern pte_t *pkmap_page_table;
 
-static noinline pte_t * __init alloc_kmap_pgtable(unsigned long kvaddr)
-{
-	pmd_t *pmd_k = pmd_off_k(kvaddr);
-	pte_t *pte_k;
-
-	pte_k = (pte_t *)memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-	if (!pte_k)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, PAGE_SIZE, PAGE_SIZE);
-
-	pmd_populate_kernel(&init_mm, pmd_k, pte_k);
-	return pte_k;
+static noinline pte_t *__init alloc_kmap_pgtable(unsigned long kvaddr) {
+  pmd_t *pmd_k = pmd_off_k(kvaddr);
+  pte_t *pte_k;
+  pte_k = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
+  if (!pte_k) {
+    panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+        __func__, PAGE_SIZE, PAGE_SIZE);
+  }
+  pmd_populate_kernel(&init_mm, pmd_k, pte_k);
+  return pte_k;
 }
 
-void __init kmap_init(void)
-{
-	/* Due to recursive include hell, we can't do this in processor.h */
-	BUILD_BUG_ON(PAGE_OFFSET < (VMALLOC_END + FIXMAP_SIZE + PKMAP_SIZE));
-	BUILD_BUG_ON(LAST_PKMAP > PTRS_PER_PTE);
-	BUILD_BUG_ON(FIX_KMAP_SLOTS > PTRS_PER_PTE);
-
-	pkmap_page_table = alloc_kmap_pgtable(PKMAP_BASE);
-	alloc_kmap_pgtable(FIXMAP_BASE);
+void __init kmap_init(void) {
+  /* Due to recursive include hell, we can't do this in processor.h */
+  BUILD_BUG_ON(PAGE_OFFSET < (VMALLOC_END + FIXMAP_SIZE + PKMAP_SIZE));
+  BUILD_BUG_ON(LAST_PKMAP > PTRS_PER_PTE);
+  BUILD_BUG_ON(FIX_KMAP_SLOTS > PTRS_PER_PTE);
+  pkmap_page_table = alloc_kmap_pgtable(PKMAP_BASE);
+  alloc_kmap_pgtable(FIXMAP_BASE);
 }

@@ -17,26 +17,26 @@
 /* PCI is not supported in nios2, set this to 0. */
 #define IO_SPACE_LIMIT 0
 
-#define readb_relaxed(addr)	readb(addr)
-#define readw_relaxed(addr)	readw(addr)
-#define readl_relaxed(addr)	readl(addr)
+#define readb_relaxed(addr) readb(addr)
+#define readw_relaxed(addr) readw(addr)
+#define readl_relaxed(addr) readl(addr)
 
-#define writeb_relaxed(x, addr)	writeb(x, addr)
-#define writew_relaxed(x, addr)	writew(x, addr)
-#define writel_relaxed(x, addr)	writel(x, addr)
+#define writeb_relaxed(x, addr) writeb(x, addr)
+#define writew_relaxed(x, addr) writew(x, addr)
+#define writel_relaxed(x, addr) writel(x, addr)
 
 void __iomem *ioremap(unsigned long physaddr, unsigned long size);
 void iounmap(void __iomem *addr);
 
 /* Pages to physical address... */
-#define page_to_phys(page)	virt_to_phys(page_to_virt(page))
+#define page_to_phys(page)  virt_to_phys(page_to_virt(page))
 
 /* Macros used for converting between virtual and physical mappings. */
-#define phys_to_virt(vaddr)	\
-	((void *)((unsigned long)(vaddr) | CONFIG_NIOS2_KERNEL_REGION_BASE))
+#define phys_to_virt(vaddr) \
+  ((void *) ((unsigned long) (vaddr) | CONFIG_NIOS2_KERNEL_REGION_BASE))
 /* Clear top 3 bits */
-#define virt_to_phys(vaddr)	\
-	((unsigned long)((unsigned long)(vaddr) & ~0xE0000000))
+#define virt_to_phys(vaddr) \
+  ((unsigned long) ((unsigned long) (vaddr) & ~0xE0000000))
 
 #include <asm-generic/io.h>
 

@@ -15,29 +15,26 @@
 #include <asm/cacheflush.h>
 
 static void __dma_sync(phys_addr_t paddr, size_t size,
-		enum dma_data_direction direction)
-{
-	switch (direction) {
-	case DMA_TO_DEVICE:
-	case DMA_BIDIRECTIONAL:
-		flush_dcache_range(paddr, paddr + size);
-		break;
-	case DMA_FROM_DEVICE:
-		invalidate_dcache_range(paddr, paddr + size);
-		break;
-	default:
-		BUG();
-	}
+    enum dma_data_direction direction) {
+  switch (direction) {
+    case DMA_TO_DEVICE:
+    case DMA_BIDIRECTIONAL:
+      flush_dcache_range(paddr, paddr + size);
+      break;
+    case DMA_FROM_DEVICE:
+      invalidate_dcache_range(paddr, paddr + size);
+      break;
+    default:
+      BUG();
+  }
 }
 
 void arch_sync_dma_for_device(phys_addr_t paddr, size_t size,
-		enum dma_data_direction dir)
-{
-	__dma_sync(paddr, size, dir);
+    enum dma_data_direction dir) {
+  __dma_sync(paddr, size, dir);
 }
 
 void arch_sync_dma_for_cpu(phys_addr_t paddr, size_t size,
-		enum dma_data_direction dir)
-{
-	__dma_sync(paddr, size, dir);
+    enum dma_data_direction dir) {
+  __dma_sync(paddr, size, dir);
 }

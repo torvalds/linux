@@ -3,21 +3,21 @@
 #define _LINUX_DMA_MAPPING_H
 
 #ifdef CONFIG_HAS_DMA
-# error Virtio userspace code does not support CONFIG_HAS_DMA
+#error Virtio userspace code does not support CONFIG_HAS_DMA
 #endif
 
 enum dma_data_direction {
-	DMA_BIDIRECTIONAL = 0,
-	DMA_TO_DEVICE = 1,
-	DMA_FROM_DEVICE = 2,
-	DMA_NONE = 3,
+  DMA_BIDIRECTIONAL = 0,
+  DMA_TO_DEVICE = 1,
+  DMA_FROM_DEVICE = 2,
+  DMA_NONE = 3,
 };
 
 #define dma_alloc_coherent(d, s, hp, f) ({ \
-	void *__dma_alloc_coherent_p = kmalloc((s), (f)); \
-	*(hp) = (unsigned long)__dma_alloc_coherent_p; \
-	__dma_alloc_coherent_p; \
-})
+    void *__dma_alloc_coherent_p = kmalloc((s), (f)); \
+    *(hp) = (unsigned long) __dma_alloc_coherent_p; \
+    __dma_alloc_coherent_p; \
+  })
 
 #define dma_free_coherent(d, s, p, h) kfree(p)
 
@@ -27,19 +27,21 @@ enum dma_data_direction {
 #define dma_map_single_attrs(d, p, s, dir, a) (virt_to_phys(p))
 #define dma_mapping_error(...) (0)
 
-#define dma_unmap_single(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
-#define dma_unmap_page(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
+#define dma_unmap_single(d, a, s, r) do { (void) (d); (void) (a); (void) (s); \
+                                          (void) (r); } while (0)
+#define dma_unmap_page(d, a, s, r) do { (void) (d); (void) (a); (void) (s); \
+                                        (void) (r); } while (0)
 
 #define sg_dma_address(sg) (0)
 #define dma_need_sync(v, a) (0)
 #define dma_unmap_single_attrs(d, a, s, r, t) do { \
-	(void)(d); (void)(a); (void)(s); (void)(r); (void)(t); \
+    (void) (d); (void) (a); (void) (s); (void) (r); (void) (t); \
 } while (0)
 #define dma_sync_single_range_for_cpu(d, a, o, s, r) do { \
-	(void)(d); (void)(a); (void)(o); (void)(s); (void)(r); \
+    (void) (d); (void) (a); (void) (o); (void) (s); (void) (r); \
 } while (0)
 #define dma_sync_single_range_for_device(d, a, o, s, r) do { \
-	(void)(d); (void)(a); (void)(o); (void)(s); (void)(r); \
+    (void) (d); (void) (a); (void) (o); (void) (s); (void) (r); \
 } while (0)
 #define dma_max_mapping_size(...) SIZE_MAX
 

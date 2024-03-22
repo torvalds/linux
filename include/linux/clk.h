@@ -36,9 +36,9 @@ struct of_phandle_args;
  *     completed.  Callbacks must always return NOTIFY_DONE or NOTIFY_OK.
  *
  */
-#define PRE_RATE_CHANGE			BIT(0)
-#define POST_RATE_CHANGE		BIT(1)
-#define ABORT_RATE_CHANGE		BIT(2)
+#define PRE_RATE_CHANGE     BIT(0)
+#define POST_RATE_CHANGE    BIT(1)
+#define ABORT_RATE_CHANGE   BIT(2)
 
 /**
  * struct clk_notifier - associate a clk with a notifier
@@ -52,9 +52,9 @@ struct of_phandle_args;
  * @notifier_head.
  */
 struct clk_notifier {
-	struct clk			*clk;
-	struct srcu_notifier_head	notifier_head;
-	struct list_head		node;
+  struct clk *clk;
+  struct srcu_notifier_head notifier_head;
+  struct list_head node;
 };
 
 /**
@@ -69,9 +69,9 @@ struct clk_notifier {
  * current rate (this was done to optimize the implementation).
  */
 struct clk_notifier_data {
-	struct clk		*clk;
-	unsigned long		old_rate;
-	unsigned long		new_rate;
+  struct clk *clk;
+  unsigned long old_rate;
+  unsigned long new_rate;
 };
 
 /**
@@ -85,8 +85,8 @@ struct clk_notifier_data {
  * structure is used to manage data for these calls.
  */
 struct clk_bulk_data {
-	const char		*id;
-	struct clk		*clk;
+  const char *id;
+  struct clk *clk;
 };
 
 #ifdef CONFIG_COMMON_CLK
@@ -118,11 +118,11 @@ int clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
  * Returns 0 on success, -EERROR otherwise
  */
 int devm_clk_notifier_register(struct device *dev, struct clk *clk,
-			       struct notifier_block *nb);
+    struct notifier_block *nb);
 
 /**
  * clk_get_accuracy - obtain the clock accuracy in ppb (parts per billion)
- *		      for a clock source.
+ *          for a clock source.
  * @clk: clock source
  *
  * This gets the clock source accuracy expressed in ppb.
@@ -231,62 +231,53 @@ void clk_rate_exclusive_put(struct clk *clk);
 #else
 
 static inline int clk_notifier_register(struct clk *clk,
-					struct notifier_block *nb)
-{
-	return -ENOTSUPP;
+    struct notifier_block *nb) {
+  return -ENOTSUPP;
 }
 
 static inline int clk_notifier_unregister(struct clk *clk,
-					  struct notifier_block *nb)
-{
-	return -ENOTSUPP;
+    struct notifier_block *nb) {
+  return -ENOTSUPP;
 }
 
 static inline int devm_clk_notifier_register(struct device *dev,
-					     struct clk *clk,
-					     struct notifier_block *nb)
-{
-	return -ENOTSUPP;
+    struct clk *clk,
+    struct notifier_block *nb) {
+  return -ENOTSUPP;
 }
 
-static inline long clk_get_accuracy(struct clk *clk)
-{
-	return -ENOTSUPP;
+static inline long clk_get_accuracy(struct clk *clk) {
+  return -ENOTSUPP;
 }
 
-static inline long clk_set_phase(struct clk *clk, int phase)
-{
-	return -ENOTSUPP;
+static inline long clk_set_phase(struct clk *clk, int phase) {
+  return -ENOTSUPP;
 }
 
-static inline long clk_get_phase(struct clk *clk)
-{
-	return -ENOTSUPP;
+static inline long clk_get_phase(struct clk *clk) {
+  return -ENOTSUPP;
 }
 
 static inline int clk_set_duty_cycle(struct clk *clk, unsigned int num,
-				     unsigned int den)
-{
-	return -ENOTSUPP;
+    unsigned int den) {
+  return -ENOTSUPP;
 }
 
 static inline unsigned int clk_get_scaled_duty_cycle(struct clk *clk,
-						     unsigned int scale)
-{
-	return 0;
+    unsigned int scale) {
+  return 0;
 }
 
-static inline bool clk_is_match(const struct clk *p, const struct clk *q)
-{
-	return p == q;
+static inline bool clk_is_match(const struct clk *p, const struct clk *q) {
+  return p == q;
 }
 
-static inline int clk_rate_exclusive_get(struct clk *clk)
-{
-	return 0;
+static inline int clk_rate_exclusive_get(struct clk *clk) {
+  return 0;
 }
 
-static inline void clk_rate_exclusive_put(struct clk *clk) {}
+static inline void clk_rate_exclusive_put(struct clk *clk) {
+}
 
 #endif
 
@@ -301,7 +292,7 @@ static inline void clk_rate_exclusive_put(struct clk *clk) {}
  */
 int clk_prepare(struct clk *clk);
 int __must_check clk_bulk_prepare(int num_clks,
-				  const struct clk_bulk_data *clks);
+    const struct clk_bulk_data *clks);
 
 /**
  * clk_is_enabled_when_prepared - indicate if preparing a clock also enables it.
@@ -320,23 +311,21 @@ int __must_check clk_bulk_prepare(int num_clks,
  */
 bool clk_is_enabled_when_prepared(struct clk *clk);
 #else
-static inline int clk_prepare(struct clk *clk)
-{
-	might_sleep();
-	return 0;
+static inline int clk_prepare(struct clk *clk) {
+  might_sleep();
+  return 0;
 }
 
-static inline int __must_check
-clk_bulk_prepare(int num_clks, const struct clk_bulk_data *clks)
-{
-	might_sleep();
-	return 0;
+static inline int __must_check clk_bulk_prepare(int num_clks,
+    const struct clk_bulk_data *clks) {
+  might_sleep();
+  return 0;
 }
 
-static inline bool clk_is_enabled_when_prepared(struct clk *clk)
-{
-	return false;
+static inline bool clk_is_enabled_when_prepared(struct clk *clk) {
+  return false;
 }
+
 #endif
 
 /**
@@ -352,15 +341,15 @@ static inline bool clk_is_enabled_when_prepared(struct clk *clk)
 void clk_unprepare(struct clk *clk);
 void clk_bulk_unprepare(int num_clks, const struct clk_bulk_data *clks);
 #else
-static inline void clk_unprepare(struct clk *clk)
-{
-	might_sleep();
+static inline void clk_unprepare(struct clk *clk) {
+  might_sleep();
 }
+
 static inline void clk_bulk_unprepare(int num_clks,
-				      const struct clk_bulk_data *clks)
-{
-	might_sleep();
+    const struct clk_bulk_data *clks) {
+  might_sleep();
 }
+
 #endif
 
 #ifdef CONFIG_HAVE_CLK
@@ -402,10 +391,10 @@ struct clk *clk_get(struct device *dev, const char *id);
  * clk_bulk_get should not be called from within interrupt context.
  */
 int __must_check clk_bulk_get(struct device *dev, int num_clks,
-			      struct clk_bulk_data *clks);
+    struct clk_bulk_data *clks);
 /**
  * clk_bulk_get_all - lookup and obtain all available references to clock
- *		      producer.
+ *          producer.
  * @dev: device for clock "consumer"
  * @clks: pointer to the clk_bulk_data table of consumer
  *
@@ -422,10 +411,11 @@ int __must_check clk_bulk_get(struct device *dev, int num_clks,
  * clk_bulk_get should not be called from within interrupt context.
  */
 int __must_check clk_bulk_get_all(struct device *dev,
-				  struct clk_bulk_data **clks);
+    struct clk_bulk_data **clks);
 
 /**
- * clk_bulk_get_optional - lookup and obtain a number of references to clock producer
+ * clk_bulk_get_optional - lookup and obtain a number of references to clock
+ * producer
  * @dev: device for clock "consumer"
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table of consumer
@@ -435,7 +425,7 @@ int __must_check clk_bulk_get_all(struct device *dev,
  * NULL for a clk for which a clock producer could not be determined.
  */
 int __must_check clk_bulk_get_optional(struct device *dev, int num_clks,
-				       struct clk_bulk_data *clks);
+    struct clk_bulk_data *clks);
 /**
  * devm_clk_bulk_get - managed get multiple clk consumers
  * @dev: device for clock "consumer"
@@ -449,7 +439,7 @@ int __must_check clk_bulk_get_optional(struct device *dev, int num_clks,
  * automatically be freed when the device is unbound.
  */
 int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
-				   struct clk_bulk_data *clks);
+    struct clk_bulk_data *clks);
 /**
  * devm_clk_bulk_get_optional - managed get multiple optional consumer clocks
  * @dev: device for clock "consumer"
@@ -472,7 +462,7 @@ int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
  * clk_bulk_get should not be called from within interrupt context.
  */
 int __must_check devm_clk_bulk_get_optional(struct device *dev, int num_clks,
-					    struct clk_bulk_data *clks);
+    struct clk_bulk_data *clks);
 /**
  * devm_clk_bulk_get_all - managed get multiple clk consumers
  * @dev: device for clock "consumer"
@@ -488,10 +478,11 @@ int __must_check devm_clk_bulk_get_optional(struct device *dev, int num_clks,
  */
 
 int __must_check devm_clk_bulk_get_all(struct device *dev,
-				       struct clk_bulk_data **clks);
+    struct clk_bulk_data **clks);
 
 /**
- * devm_clk_bulk_get_all_enable - Get and enable all clocks of the consumer (managed)
+ * devm_clk_bulk_get_all_enable - Get and enable all clocks of the consumer
+ *(managed)
  * @dev: device for clock "consumer"
  * @clks: pointer to the clk_bulk_data table of consumer
  *
@@ -504,7 +495,7 @@ int __must_check devm_clk_bulk_get_all(struct device *dev,
  */
 
 int __must_check devm_clk_bulk_get_all_enable(struct device *dev,
-					      struct clk_bulk_data **clks);
+    struct clk_bulk_data **clks);
 
 /**
  * devm_clk_get - lookup and obtain a managed reference to a clock producer.
@@ -570,7 +561,7 @@ struct clk *devm_clk_get_enabled(struct device *dev, const char *id);
 
 /**
  * devm_clk_get_optional - lookup and obtain a managed reference to an optional
- *			   clock producer.
+ *         clock producer.
  * @dev: device for clock "consumer"
  * @id: clock consumer ID
  *
@@ -637,7 +628,7 @@ struct clk *devm_clk_get_optional_enabled(struct device *dev, const char *id);
 
 /**
  * devm_get_clk_from_child - lookup and obtain a managed reference to a
- *			     clock producer from child node.
+ *           clock producer from child node.
  * @dev: device for clock "consumer"
  * @np: pointer to clock consumer node
  * @con_id: clock consumer ID
@@ -650,7 +641,7 @@ struct clk *devm_clk_get_optional_enabled(struct device *dev, const char *id);
  * from the bus.
  */
 struct clk *devm_get_clk_from_child(struct device *dev,
-				    struct device_node *np, const char *con_id);
+    struct device_node *np, const char *con_id);
 
 /**
  * clk_enable - inform the system when the clock source should be running.
@@ -674,7 +665,7 @@ int clk_enable(struct clk *clk);
  * Returns success (0) or negative errno.
  */
 int __must_check clk_bulk_enable(int num_clks,
-				 const struct clk_bulk_data *clks);
+    const struct clk_bulk_data *clks);
 
 /**
  * clk_disable - inform the system when the clock source is no longer required.
@@ -694,7 +685,7 @@ void clk_disable(struct clk *clk);
 
 /**
  * clk_bulk_disable - inform the system when the set of clks is no
- *		      longer required.
+ *          longer required.
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table of consumer
  *
@@ -712,13 +703,13 @@ void clk_bulk_disable(int num_clks, const struct clk_bulk_data *clks);
 
 /**
  * clk_get_rate - obtain the current clock rate (in Hz) for a clock source.
- *		  This is only valid once the clock source has been enabled.
+ *      This is only valid once the clock source has been enabled.
  * @clk: clock source
  */
 unsigned long clk_get_rate(struct clk *clk);
 
 /**
- * clk_put	- "free" the clock source
+ * clk_put  - "free" the clock source
  * @clk: clock source
  *
  * Note: drivers must ensure that all clk_enable calls made on this
@@ -730,7 +721,7 @@ unsigned long clk_get_rate(struct clk *clk);
 void clk_put(struct clk *clk);
 
 /**
- * clk_bulk_put	- "free" the clock source
+ * clk_bulk_put - "free" the clock source
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table of consumer
  *
@@ -756,7 +747,7 @@ void clk_bulk_put(int num_clks, struct clk_bulk_data *clks);
 void clk_bulk_put_all(int num_clks, struct clk_bulk_data *clks);
 
 /**
- * devm_clk_put	- "free" a managed clock source
+ * devm_clk_put - "free" a managed clock source
  * @dev: device used to acquire the clock
  * @clk: clock source acquired with devm_clk_get()
  *
@@ -771,7 +762,6 @@ void devm_clk_put(struct device *dev, struct clk *clk);
 /*
  * The remaining APIs are optional for machine class support.
  */
-
 
 /**
  * clk_round_rate - adjust a rate to the exact rate a clock can provide
@@ -919,227 +909,200 @@ void clk_restore_context(void);
 
 #else /* !CONFIG_HAVE_CLK */
 
-static inline struct clk *clk_get(struct device *dev, const char *id)
-{
-	return NULL;
+static inline struct clk *clk_get(struct device *dev, const char *id) {
+  return NULL;
 }
 
 static inline int __must_check clk_bulk_get(struct device *dev, int num_clks,
-					    struct clk_bulk_data *clks)
-{
-	return 0;
+    struct clk_bulk_data *clks) {
+  return 0;
 }
 
 static inline int __must_check clk_bulk_get_optional(struct device *dev,
-				int num_clks, struct clk_bulk_data *clks)
-{
-	return 0;
+    int num_clks, struct clk_bulk_data *clks) {
+  return 0;
 }
 
 static inline int __must_check clk_bulk_get_all(struct device *dev,
-					 struct clk_bulk_data **clks)
-{
-	return 0;
+    struct clk_bulk_data **clks) {
+  return 0;
 }
 
-static inline struct clk *devm_clk_get(struct device *dev, const char *id)
-{
-	return NULL;
+static inline struct clk *devm_clk_get(struct device *dev, const char *id) {
+  return NULL;
 }
 
 static inline struct clk *devm_clk_get_prepared(struct device *dev,
-						const char *id)
-{
-	return NULL;
+    const char *id) {
+  return NULL;
 }
 
 static inline struct clk *devm_clk_get_enabled(struct device *dev,
-					       const char *id)
-{
-	return NULL;
+    const char *id) {
+  return NULL;
 }
 
 static inline struct clk *devm_clk_get_optional(struct device *dev,
-						const char *id)
-{
-	return NULL;
+    const char *id) {
+  return NULL;
 }
 
 static inline struct clk *devm_clk_get_optional_prepared(struct device *dev,
-							 const char *id)
-{
-	return NULL;
+    const char *id) {
+  return NULL;
 }
 
 static inline struct clk *devm_clk_get_optional_enabled(struct device *dev,
-							const char *id)
-{
-	return NULL;
+    const char *id) {
+  return NULL;
 }
 
-static inline int __must_check devm_clk_bulk_get(struct device *dev, int num_clks,
-						 struct clk_bulk_data *clks)
-{
-	return 0;
+static inline int __must_check devm_clk_bulk_get(struct device *dev,
+    int num_clks,
+    struct clk_bulk_data *clks) {
+  return 0;
 }
 
 static inline int __must_check devm_clk_bulk_get_optional(struct device *dev,
-				int num_clks, struct clk_bulk_data *clks)
-{
-	return 0;
+    int num_clks, struct clk_bulk_data *clks) {
+  return 0;
 }
 
 static inline int __must_check devm_clk_bulk_get_all(struct device *dev,
-						     struct clk_bulk_data **clks)
-{
-
-	return 0;
+    struct clk_bulk_data **clks) {
+  return 0;
 }
 
 static inline int __must_check devm_clk_bulk_get_all_enable(struct device *dev,
-						struct clk_bulk_data **clks)
-{
-	return 0;
+    struct clk_bulk_data **clks) {
+  return 0;
 }
 
 static inline struct clk *devm_get_clk_from_child(struct device *dev,
-				struct device_node *np, const char *con_id)
-{
-	return NULL;
+    struct device_node *np, const char *con_id) {
+  return NULL;
 }
 
-static inline void clk_put(struct clk *clk) {}
+static inline void clk_put(struct clk *clk) {
+}
 
-static inline void clk_bulk_put(int num_clks, struct clk_bulk_data *clks) {}
+static inline void clk_bulk_put(int num_clks, struct clk_bulk_data *clks) {
+}
 
-static inline void clk_bulk_put_all(int num_clks, struct clk_bulk_data *clks) {}
+static inline void clk_bulk_put_all(int num_clks, struct clk_bulk_data *clks) {
+}
 
-static inline void devm_clk_put(struct device *dev, struct clk *clk) {}
+static inline void devm_clk_put(struct device *dev, struct clk *clk) {
+}
 
-static inline int clk_enable(struct clk *clk)
-{
-	return 0;
+static inline int clk_enable(struct clk *clk) {
+  return 0;
 }
 
 static inline int __must_check clk_bulk_enable(int num_clks,
-					       const struct clk_bulk_data *clks)
-{
-	return 0;
+    const struct clk_bulk_data *clks) {
+  return 0;
 }
 
-static inline void clk_disable(struct clk *clk) {}
-
+static inline void clk_disable(struct clk *clk) {
+}
 
 static inline void clk_bulk_disable(int num_clks,
-				    const struct clk_bulk_data *clks) {}
-
-static inline unsigned long clk_get_rate(struct clk *clk)
-{
-	return 0;
+    const struct clk_bulk_data *clks) {
 }
 
-static inline int clk_set_rate(struct clk *clk, unsigned long rate)
-{
-	return 0;
+static inline unsigned long clk_get_rate(struct clk *clk) {
+  return 0;
 }
 
-static inline int clk_set_rate_exclusive(struct clk *clk, unsigned long rate)
-{
-	return 0;
+static inline int clk_set_rate(struct clk *clk, unsigned long rate) {
+  return 0;
 }
 
-static inline long clk_round_rate(struct clk *clk, unsigned long rate)
-{
-	return 0;
+static inline int clk_set_rate_exclusive(struct clk *clk, unsigned long rate) {
+  return 0;
 }
 
-static inline bool clk_has_parent(struct clk *clk, struct clk *parent)
-{
-	return true;
+static inline long clk_round_rate(struct clk *clk, unsigned long rate) {
+  return 0;
+}
+
+static inline bool clk_has_parent(struct clk *clk, struct clk *parent) {
+  return true;
 }
 
 static inline int clk_set_rate_range(struct clk *clk, unsigned long min,
-				     unsigned long max)
-{
-	return 0;
+    unsigned long max) {
+  return 0;
 }
 
-static inline int clk_set_min_rate(struct clk *clk, unsigned long rate)
-{
-	return 0;
+static inline int clk_set_min_rate(struct clk *clk, unsigned long rate) {
+  return 0;
 }
 
-static inline int clk_set_max_rate(struct clk *clk, unsigned long rate)
-{
-	return 0;
+static inline int clk_set_max_rate(struct clk *clk, unsigned long rate) {
+  return 0;
 }
 
-static inline int clk_set_parent(struct clk *clk, struct clk *parent)
-{
-	return 0;
+static inline int clk_set_parent(struct clk *clk, struct clk *parent) {
+  return 0;
 }
 
-static inline struct clk *clk_get_parent(struct clk *clk)
-{
-	return NULL;
+static inline struct clk *clk_get_parent(struct clk *clk) {
+  return NULL;
 }
 
-static inline struct clk *clk_get_sys(const char *dev_id, const char *con_id)
-{
-	return NULL;
+static inline struct clk *clk_get_sys(const char *dev_id, const char *con_id) {
+  return NULL;
 }
 
-static inline int clk_save_context(void)
-{
-	return 0;
+static inline int clk_save_context(void) {
+  return 0;
 }
 
-static inline void clk_restore_context(void) {}
+static inline void clk_restore_context(void) {
+}
 
 #endif
 
 /* clk_prepare_enable helps cases using clk_enable in non-atomic context. */
-static inline int clk_prepare_enable(struct clk *clk)
-{
-	int ret;
-
-	ret = clk_prepare(clk);
-	if (ret)
-		return ret;
-	ret = clk_enable(clk);
-	if (ret)
-		clk_unprepare(clk);
-
-	return ret;
+static inline int clk_prepare_enable(struct clk *clk) {
+  int ret;
+  ret = clk_prepare(clk);
+  if (ret) {
+    return ret;
+  }
+  ret = clk_enable(clk);
+  if (ret) {
+    clk_unprepare(clk);
+  }
+  return ret;
 }
 
 /* clk_disable_unprepare helps cases using clk_disable in non-atomic context. */
-static inline void clk_disable_unprepare(struct clk *clk)
-{
-	clk_disable(clk);
-	clk_unprepare(clk);
+static inline void clk_disable_unprepare(struct clk *clk) {
+  clk_disable(clk);
+  clk_unprepare(clk);
 }
 
-static inline int __must_check
-clk_bulk_prepare_enable(int num_clks, const struct clk_bulk_data *clks)
-{
-	int ret;
-
-	ret = clk_bulk_prepare(num_clks, clks);
-	if (ret)
-		return ret;
-	ret = clk_bulk_enable(num_clks, clks);
-	if (ret)
-		clk_bulk_unprepare(num_clks, clks);
-
-	return ret;
+static inline int __must_check clk_bulk_prepare_enable(int num_clks,
+    const struct clk_bulk_data *clks) {
+  int ret;
+  ret = clk_bulk_prepare(num_clks, clks);
+  if (ret) {
+    return ret;
+  }
+  ret = clk_bulk_enable(num_clks, clks);
+  if (ret) {
+    clk_bulk_unprepare(num_clks, clks);
+  }
+  return ret;
 }
 
 static inline void clk_bulk_disable_unprepare(int num_clks,
-					      const struct clk_bulk_data *clks)
-{
-	clk_bulk_disable(num_clks, clks);
-	clk_bulk_unprepare(num_clks, clks);
+    const struct clk_bulk_data *clks) {
+  clk_bulk_disable(num_clks, clks);
+  clk_bulk_unprepare(num_clks, clks);
 }
 
 /**
@@ -1148,28 +1111,25 @@ static inline void clk_bulk_disable_unprepare(int num_clks,
  *
  * Returns success (0) or negative errno.
  */
-static inline int clk_drop_range(struct clk *clk)
-{
-	return clk_set_rate_range(clk, 0, ULONG_MAX);
+static inline int clk_drop_range(struct clk *clk) {
+  return clk_set_rate_range(clk, 0, ULONG_MAX);
 }
 
 /**
  * clk_get_optional - lookup and obtain a reference to an optional clock
- *		      producer.
+ *          producer.
  * @dev: device for clock "consumer"
  * @id: clock consumer ID
  *
  * Behaves the same as clk_get() except where there is no clock producer. In
  * this case, instead of returning -ENOENT, the function returns NULL.
  */
-static inline struct clk *clk_get_optional(struct device *dev, const char *id)
-{
-	struct clk *clk = clk_get(dev, id);
-
-	if (clk == ERR_PTR(-ENOENT))
-		return NULL;
-
-	return clk;
+static inline struct clk *clk_get_optional(struct device *dev, const char *id) {
+  struct clk *clk = clk_get(dev, id);
+  if (clk == ERR_PTR(-ENOENT)) {
+    return NULL;
+  }
+  return clk;
 }
 
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
@@ -1177,19 +1137,20 @@ struct clk *of_clk_get(struct device_node *np, int index);
 struct clk *of_clk_get_by_name(struct device_node *np, const char *name);
 struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec);
 #else
-static inline struct clk *of_clk_get(struct device_node *np, int index)
-{
-	return ERR_PTR(-ENOENT);
+static inline struct clk *of_clk_get(struct device_node *np, int index) {
+  return ERR_PTR(-ENOENT);
 }
+
 static inline struct clk *of_clk_get_by_name(struct device_node *np,
-					     const char *name)
-{
-	return ERR_PTR(-ENOENT);
+    const char *name) {
+  return ERR_PTR(-ENOENT);
 }
-static inline struct clk *of_clk_get_from_provider(struct of_phandle_args *clkspec)
-{
-	return ERR_PTR(-ENOENT);
+
+static inline struct clk *of_clk_get_from_provider(
+    struct of_phandle_args *clkspec) {
+  return ERR_PTR(-ENOENT);
 }
+
 #endif
 
 #endif

@@ -58,30 +58,30 @@
 #define DP_DUAL_MODE_I2C_SPEED_CTRL 0x22
 
 /* LSPCON specific registers, defined by MCA */
-#define DP_DUAL_MODE_LSPCON_MODE_CHANGE		0x40
-#define DP_DUAL_MODE_LSPCON_CURRENT_MODE		0x41
-#define  DP_DUAL_MODE_LSPCON_MODE_PCON			0x1
+#define DP_DUAL_MODE_LSPCON_MODE_CHANGE   0x40
+#define DP_DUAL_MODE_LSPCON_CURRENT_MODE    0x41
+#define  DP_DUAL_MODE_LSPCON_MODE_PCON      0x1
 
 struct drm_device;
 struct i2c_adapter;
 
 ssize_t drm_dp_dual_mode_read(struct i2c_adapter *adapter,
-			      u8 offset, void *buffer, size_t size);
+    u8 offset, void *buffer, size_t size);
 ssize_t drm_dp_dual_mode_write(struct i2c_adapter *adapter,
-			       u8 offset, const void *buffer, size_t size);
+    u8 offset, const void *buffer, size_t size);
 
 /**
  * enum drm_lspcon_mode
  * @DRM_LSPCON_MODE_INVALID: No LSPCON.
  * @DRM_LSPCON_MODE_LS: Level shifter mode of LSPCON
- *	which drives DP++ to HDMI 1.4 conversion.
+ *  which drives DP++ to HDMI 1.4 conversion.
  * @DRM_LSPCON_MODE_PCON: Protocol converter mode of LSPCON
- *	which drives DP++ to HDMI 2.0 active conversion.
+ *  which drives DP++ to HDMI 2.0 active conversion.
  */
 enum drm_lspcon_mode {
-	DRM_LSPCON_MODE_INVALID,
-	DRM_LSPCON_MODE_LS,
-	DRM_LSPCON_MODE_PCON,
+  DRM_LSPCON_MODE_INVALID,
+  DRM_LSPCON_MODE_LS,
+  DRM_LSPCON_MODE_PCON,
 };
 
 /**
@@ -95,27 +95,32 @@ enum drm_lspcon_mode {
  * @DRM_DP_DUAL_MODE_LSPCON: Level shifter / protocol converter
  */
 enum drm_dp_dual_mode_type {
-	DRM_DP_DUAL_MODE_NONE,
-	DRM_DP_DUAL_MODE_UNKNOWN,
-	DRM_DP_DUAL_MODE_TYPE1_DVI,
-	DRM_DP_DUAL_MODE_TYPE1_HDMI,
-	DRM_DP_DUAL_MODE_TYPE2_DVI,
-	DRM_DP_DUAL_MODE_TYPE2_HDMI,
-	DRM_DP_DUAL_MODE_LSPCON,
+  DRM_DP_DUAL_MODE_NONE,
+  DRM_DP_DUAL_MODE_UNKNOWN,
+  DRM_DP_DUAL_MODE_TYPE1_DVI,
+  DRM_DP_DUAL_MODE_TYPE1_HDMI,
+  DRM_DP_DUAL_MODE_TYPE2_DVI,
+  DRM_DP_DUAL_MODE_TYPE2_HDMI,
+  DRM_DP_DUAL_MODE_LSPCON,
 };
 
-enum drm_dp_dual_mode_type
-drm_dp_dual_mode_detect(const struct drm_device *dev, struct i2c_adapter *adapter);
-int drm_dp_dual_mode_max_tmds_clock(const struct drm_device *dev, enum drm_dp_dual_mode_type type,
-				    struct i2c_adapter *adapter);
-int drm_dp_dual_mode_get_tmds_output(const struct drm_device *dev, enum drm_dp_dual_mode_type type,
-				     struct i2c_adapter *adapter, bool *enabled);
-int drm_dp_dual_mode_set_tmds_output(const struct drm_device *dev, enum drm_dp_dual_mode_type type,
-				     struct i2c_adapter *adapter, bool enable);
+enum drm_dp_dual_mode_type drm_dp_dual_mode_detect(const struct drm_device *dev,
+    struct i2c_adapter *adapter);
+int drm_dp_dual_mode_max_tmds_clock(const struct drm_device *dev,
+    enum drm_dp_dual_mode_type type,
+    struct i2c_adapter *adapter);
+int drm_dp_dual_mode_get_tmds_output(const struct drm_device *dev,
+    enum drm_dp_dual_mode_type type,
+    struct i2c_adapter *adapter, bool *enabled);
+int drm_dp_dual_mode_set_tmds_output(const struct drm_device *dev,
+    enum drm_dp_dual_mode_type type,
+    struct i2c_adapter *adapter, bool enable);
 const char *drm_dp_get_dual_mode_type_name(enum drm_dp_dual_mode_type type);
 
-int drm_lspcon_get_mode(const struct drm_device *dev, struct i2c_adapter *adapter,
-			enum drm_lspcon_mode *current_mode);
-int drm_lspcon_set_mode(const struct drm_device *dev, struct i2c_adapter *adapter,
-			enum drm_lspcon_mode reqd_mode);
+int drm_lspcon_get_mode(const struct drm_device *dev,
+    struct i2c_adapter *adapter,
+    enum drm_lspcon_mode *current_mode);
+int drm_lspcon_set_mode(const struct drm_device *dev,
+    struct i2c_adapter *adapter,
+    enum drm_lspcon_mode reqd_mode);
 #endif

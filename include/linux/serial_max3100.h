@@ -4,10 +4,8 @@
  *  Copyright (C) 2007 Christian Pellegrin
  */
 
-
 #ifndef _LINUX_SERIAL_MAX3100_H
 #define _LINUX_SERIAL_MAX3100_H 1
-
 
 /**
  * struct plat_max3100 - MAX3100 SPI UART platform data
@@ -29,20 +27,20 @@
  *
  * static struct spi_board_info spi_board_info[] = {
  * {
- *  .modalias	= "max3100",
- *  .platform_data	= &max3100_plat_data,
- *  .irq		= IRQ_EINT12,
- *  .max_speed_hz	= 5*1000*1000,
- *  .chip_select	= 0,
+ *  .modalias = "max3100",
+ *  .platform_data  = &max3100_plat_data,
+ *  .irq    = IRQ_EINT12,
+ *  .max_speed_hz = 5*1000*1000,
+ *  .chip_select  = 0,
  * },
  * };
  *
  **/
 struct plat_max3100 {
-	int loopback;
-	int crystal;
-	void (*max3100_hw_suspend) (int suspend);
-	int poll_time;
+  int loopback;
+  int crystal;
+  void (*max3100_hw_suspend)(int suspend);
+  int poll_time;
 };
 
 #endif

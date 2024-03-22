@@ -60,30 +60,30 @@
 /*
  * Charger Interrupts
  */
-#define WM8350_IRQ_CHG_BAT_HOT			0
-#define WM8350_IRQ_CHG_BAT_COLD			1
-#define WM8350_IRQ_CHG_BAT_FAIL			2
-#define WM8350_IRQ_CHG_TO			3
-#define WM8350_IRQ_CHG_END			4
-#define WM8350_IRQ_CHG_START			5
-#define WM8350_IRQ_CHG_FAST_RDY			6
-#define WM8350_IRQ_CHG_VBATT_LT_3P9		10
-#define WM8350_IRQ_CHG_VBATT_LT_3P1		11
-#define WM8350_IRQ_CHG_VBATT_LT_2P85		12
+#define WM8350_IRQ_CHG_BAT_HOT      0
+#define WM8350_IRQ_CHG_BAT_COLD     1
+#define WM8350_IRQ_CHG_BAT_FAIL     2
+#define WM8350_IRQ_CHG_TO     3
+#define WM8350_IRQ_CHG_END      4
+#define WM8350_IRQ_CHG_START      5
+#define WM8350_IRQ_CHG_FAST_RDY     6
+#define WM8350_IRQ_CHG_VBATT_LT_3P9   10
+#define WM8350_IRQ_CHG_VBATT_LT_3P1   11
+#define WM8350_IRQ_CHG_VBATT_LT_2P85    12
 
 /*
  * Charger Policy
  */
-#define WM8350_CHG_TRICKLE_50mA			(0 << 6)
-#define WM8350_CHG_TRICKLE_100mA		(1 << 6)
-#define WM8350_CHG_4_05V			(0 << 4)
-#define WM8350_CHG_4_10V			(1 << 4)
-#define WM8350_CHG_4_15V			(2 << 4)
-#define WM8350_CHG_4_20V			(3 << 4)
-#define WM8350_CHG_FAST_LIMIT_mA(x)		((x / 50) & 0xf)
-#define WM8350_CHG_EOC_mA(x)			(((x - 10) & 0x7) << 10)
-#define WM8350_CHG_TRICKLE_3_1V			(0 << 13)
-#define WM8350_CHG_TRICKLE_3_9V			(1 << 13)
+#define WM8350_CHG_TRICKLE_50mA     (0 << 6)
+#define WM8350_CHG_TRICKLE_100mA    (1 << 6)
+#define WM8350_CHG_4_05V      (0 << 4)
+#define WM8350_CHG_4_10V      (1 << 4)
+#define WM8350_CHG_4_15V      (2 << 4)
+#define WM8350_CHG_4_20V      (3 << 4)
+#define WM8350_CHG_FAST_LIMIT_mA(x)   ((x / 50) & 0xf)
+#define WM8350_CHG_EOC_mA(x)      (((x - 10) & 0x7) << 10)
+#define WM8350_CHG_TRICKLE_3_1V     (0 << 13)
+#define WM8350_CHG_TRICKLE_3_9V     (1 << 13)
 
 /*
  * Supply Registers.
@@ -95,35 +95,34 @@
 /*
  * Supply Interrupts.
  */
-#define WM8350_IRQ_USB_LIMIT			15
-#define WM8350_IRQ_EXT_USB_FB			36
-#define WM8350_IRQ_EXT_WALL_FB			37
-#define WM8350_IRQ_EXT_BAT_FB			38
+#define WM8350_IRQ_USB_LIMIT      15
+#define WM8350_IRQ_EXT_USB_FB     36
+#define WM8350_IRQ_EXT_WALL_FB      37
+#define WM8350_IRQ_EXT_BAT_FB     38
 
 /*
  * Policy to control charger state machine.
  */
 struct wm8350_charger_policy {
-
-	/* charger state machine policy  - set in machine driver */
-	int eoc_mA;		/* end of charge current (mA)  */
-	int charge_mV;		/* charge voltage */
-	int fast_limit_mA;	/* fast charge current limit */
-	int fast_limit_USB_mA;	/* USB fast charge current limit */
-	int charge_timeout;	/* charge timeout (mins) */
-	int trickle_start_mV;	/* trickle charge starts at mV */
-	int trickle_charge_mA;	/* trickle charge current */
-	int trickle_charge_USB_mA;	/* USB trickle charge current */
+  /* charger state machine policy  - set in machine driver */
+  int eoc_mA;   /* end of charge current (mA)  */
+  int charge_mV;    /* charge voltage */
+  int fast_limit_mA;  /* fast charge current limit */
+  int fast_limit_USB_mA;  /* USB fast charge current limit */
+  int charge_timeout; /* charge timeout (mins) */
+  int trickle_start_mV; /* trickle charge starts at mV */
+  int trickle_charge_mA;  /* trickle charge current */
+  int trickle_charge_USB_mA;  /* USB trickle charge current */
 };
 
 struct wm8350_power {
-	struct platform_device *pdev;
-	struct power_supply *battery;
-	struct power_supply *usb;
-	struct power_supply *ac;
-	struct wm8350_charger_policy *policy;
+  struct platform_device *pdev;
+  struct power_supply *battery;
+  struct power_supply *usb;
+  struct power_supply *ac;
+  struct wm8350_charger_policy *policy;
 
-	int rev_g_coeff;
+  int rev_g_coeff;
 };
 
 #endif

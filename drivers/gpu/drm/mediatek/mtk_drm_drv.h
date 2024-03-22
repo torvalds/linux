@@ -9,15 +9,15 @@
 #include <linux/io.h>
 #include "mtk_drm_ddp_comp.h"
 
-#define MAX_CONNECTOR	2
+#define MAX_CONNECTOR 2
 #define DDP_COMPONENT_DRM_OVL_ADAPTOR (DDP_COMPONENT_ID_MAX + 1)
 #define DDP_COMPONENT_DRM_ID_MAX (DDP_COMPONENT_DRM_OVL_ADAPTOR + 1)
 
 enum mtk_drm_crtc_path {
-	CRTC_MAIN,
-	CRTC_EXT,
-	CRTC_THIRD,
-	MAX_CRTC,
+  CRTC_MAIN,
+  CRTC_EXT,
+  CRTC_THIRD,
+  MAX_CRTC,
 };
 
 struct device;
@@ -29,40 +29,40 @@ struct drm_property;
 struct regmap;
 
 struct mtk_drm_route {
-	const unsigned int crtc_id;
-	const unsigned int route_ddp;
+  const unsigned int crtc_id;
+  const unsigned int route_ddp;
 };
 
 struct mtk_mmsys_driver_data {
-	const unsigned int *main_path;
-	unsigned int main_len;
-	const unsigned int *ext_path;
-	unsigned int ext_len;
-	const unsigned int *third_path;
-	unsigned int third_len;
-	const struct mtk_drm_route *conn_routes;
-	unsigned int num_conn_routes;
+  const unsigned int *main_path;
+  unsigned int main_len;
+  const unsigned int *ext_path;
+  unsigned int ext_len;
+  const unsigned int *third_path;
+  unsigned int third_len;
+  const struct mtk_drm_route *conn_routes;
+  unsigned int num_conn_routes;
 
-	bool shadow_register;
-	unsigned int mmsys_id;
-	unsigned int mmsys_dev_num;
+  bool shadow_register;
+  unsigned int mmsys_id;
+  unsigned int mmsys_dev_num;
 };
 
 struct mtk_drm_private {
-	struct drm_device *drm;
-	struct device *dma_dev;
-	bool mtk_drm_bound;
-	bool drm_master;
-	struct device *dev;
-	struct device_node *mutex_node;
-	struct device *mutex_dev;
-	struct device *mmsys_dev;
-	struct device_node *comp_node[DDP_COMPONENT_DRM_ID_MAX];
-	struct mtk_ddp_comp ddp_comp[DDP_COMPONENT_DRM_ID_MAX];
-	const struct mtk_mmsys_driver_data *data;
-	struct drm_atomic_state *suspend_state;
-	unsigned int mbox_index;
-	struct mtk_drm_private **all_drm_private;
+  struct drm_device *drm;
+  struct device *dma_dev;
+  bool mtk_drm_bound;
+  bool drm_master;
+  struct device *dev;
+  struct device_node *mutex_node;
+  struct device *mutex_dev;
+  struct device *mmsys_dev;
+  struct device_node *comp_node[DDP_COMPONENT_DRM_ID_MAX];
+  struct mtk_ddp_comp ddp_comp[DDP_COMPONENT_DRM_ID_MAX];
+  const struct mtk_mmsys_driver_data *data;
+  struct drm_atomic_state *suspend_state;
+  unsigned int mbox_index;
+  struct mtk_drm_private **all_drm_private;
 };
 
 extern struct platform_driver mtk_disp_aal_driver;

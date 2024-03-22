@@ -2,8 +2,8 @@
 #include "au8810.h"
 #include "au88x0.h"
 static const struct pci_device_id snd_vortex_ids[] = {
-	{PCI_VDEVICE(AUREAL, PCI_DEVICE_ID_AUREAL_ADVANTAGE), 1,},
-	{0,}
+  {PCI_VDEVICE(AUREAL, PCI_DEVICE_ID_AUREAL_ADVANTAGE), 1, },
+  {0, }
 };
 
 #include "au88x0_core.c"

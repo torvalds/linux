@@ -4,5 +4,5 @@
 
 SYSCALL_DEFINE2(arch_prctl, int, option, unsigned long, arg2)
 {
-	return -EINVAL;
+  return -EINVAL;
 }

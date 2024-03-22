@@ -8,7 +8,6 @@ char _license[] SEC("license") = "GPL";
 
 /* Dummy fentry bpf prog for testing fentry attachment chains */
 SEC("fentry/XXX")
-int BPF_PROG(recursive_attach, int a)
-{
-	return 0;
+int BPF_PROG(recursive_attach, int a) {
+  return 0;
 }

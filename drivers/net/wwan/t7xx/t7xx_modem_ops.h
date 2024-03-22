@@ -25,57 +25,58 @@
 #include "t7xx_hif_cldma.h"
 #include "t7xx_pci.h"
 
-#define FEATURE_COUNT		64
+#define FEATURE_COUNT   64
 
 /**
- * enum hif_ex_stage -	HIF exception handshake stages with the HW.
+ * enum hif_ex_stage -  HIF exception handshake stages with the HW.
  * @HIF_EX_INIT:        Disable and clear TXQ.
  * @HIF_EX_INIT_DONE:   Polling for initialization to be done.
  * @HIF_EX_CLEARQ_DONE: Disable RX, flush TX/RX workqueues and clear RX.
- * @HIF_EX_ALLQ_RESET:  HW is back in safe mode for re-initialization and restart.
+ * @HIF_EX_ALLQ_RESET:  HW is back in safe mode for re-initialization and
+ * restart.
  */
 enum hif_ex_stage {
-	HIF_EX_INIT,
-	HIF_EX_INIT_DONE,
-	HIF_EX_CLEARQ_DONE,
-	HIF_EX_ALLQ_RESET,
+  HIF_EX_INIT,
+  HIF_EX_INIT_DONE,
+  HIF_EX_CLEARQ_DONE,
+  HIF_EX_ALLQ_RESET,
 };
 
 struct mtk_runtime_feature {
-	u8				feature_id;
-	u8				support_info;
-	u8				reserved[2];
-	__le32				data_len;
-	__le32				data[];
+  u8 feature_id;
+  u8 support_info;
+  u8 reserved[2];
+  __le32 data_len;
+  __le32 data[];
 };
 
 enum md_event_id {
-	FSM_PRE_START,
-	FSM_START,
-	FSM_READY,
+  FSM_PRE_START,
+  FSM_START,
+  FSM_READY,
 };
 
 struct t7xx_sys_info {
-	bool				ready;
-	bool				handshake_ongoing;
-	u8				feature_set[FEATURE_COUNT];
-	struct t7xx_port		*ctl_port;
+  bool ready;
+  bool handshake_ongoing;
+  u8 feature_set[FEATURE_COUNT];
+  struct t7xx_port *ctl_port;
 };
 
 struct t7xx_modem {
-	struct cldma_ctrl		*md_ctrl[CLDMA_NUM];
-	struct t7xx_pci_dev		*t7xx_dev;
-	struct t7xx_sys_info		core_md;
-	struct t7xx_sys_info		core_ap;
-	bool				md_init_finish;
-	bool				rgu_irq_asserted;
-	struct workqueue_struct		*handshake_wq;
-	struct work_struct		handshake_work;
-	struct work_struct		ap_handshake_work;
-	struct t7xx_fsm_ctl		*fsm_ctl;
-	struct port_proxy		*port_prox;
-	unsigned int			exp_id;
-	spinlock_t			exp_lock; /* Protects exception events */
+  struct cldma_ctrl *md_ctrl[CLDMA_NUM];
+  struct t7xx_pci_dev *t7xx_dev;
+  struct t7xx_sys_info core_md;
+  struct t7xx_sys_info core_ap;
+  bool md_init_finish;
+  bool rgu_irq_asserted;
+  struct workqueue_struct *handshake_wq;
+  struct work_struct handshake_work;
+  struct work_struct ap_handshake_work;
+  struct t7xx_fsm_ctl *fsm_ctl;
+  struct port_proxy *port_prox;
+  unsigned int exp_id;
+  spinlock_t exp_lock; /* Protects exception events */
 };
 
 void t7xx_md_exception_handshake(struct t7xx_modem *md);
@@ -88,4 +89,4 @@ int t7xx_acpi_fldr_func(struct t7xx_pci_dev *t7xx_dev);
 int t7xx_acpi_pldr_func(struct t7xx_pci_dev *t7xx_dev);
 int t7xx_pci_mhccif_isr(struct t7xx_pci_dev *t7xx_dev);
 
-#endif	/* __T7XX_MODEM_OPS_H__ */
+#endif  /* __T7XX_MODEM_OPS_H__ */

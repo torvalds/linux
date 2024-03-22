@@ -51,13 +51,13 @@
  */
 
 struct ip6t_srh {
-	__u8                    next_hdr;
-	__u8                    hdr_len;
-	__u8                    segs_left;
-	__u8                    last_entry;
-	__u16                   tag;
-	__u16                   mt_flags;
-	__u16                   mt_invflags;
+  __u8 next_hdr;
+  __u8 hdr_len;
+  __u8 segs_left;
+  __u8 last_entry;
+  __u16 tag;
+  __u16 mt_flags;
+  __u16 mt_invflags;
 };
 
 /**
@@ -78,19 +78,19 @@ struct ip6t_srh {
  */
 
 struct ip6t_srh1 {
-	__u8                    next_hdr;
-	__u8                    hdr_len;
-	__u8                    segs_left;
-	__u8                    last_entry;
-	__u16                   tag;
-	struct in6_addr         psid_addr;
-	struct in6_addr         nsid_addr;
-	struct in6_addr         lsid_addr;
-	struct in6_addr         psid_msk;
-	struct in6_addr         nsid_msk;
-	struct in6_addr         lsid_msk;
-	__u16                   mt_flags;
-	__u16                   mt_invflags;
+  __u8 next_hdr;
+  __u8 hdr_len;
+  __u8 segs_left;
+  __u8 last_entry;
+  __u16 tag;
+  struct in6_addr psid_addr;
+  struct in6_addr nsid_addr;
+  struct in6_addr lsid_addr;
+  struct in6_addr psid_msk;
+  struct in6_addr nsid_msk;
+  struct in6_addr lsid_msk;
+  __u16 mt_flags;
+  __u16 mt_invflags;
 };
 
 #endif /*_IP6T_SRH_H*/

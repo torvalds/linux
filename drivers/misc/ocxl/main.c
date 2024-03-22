@@ -5,29 +5,26 @@
 #include <asm/mmu.h>
 #include "ocxl_internal.h"
 
-static int __init init_ocxl(void)
-{
-	int rc;
-
-	if (!tlbie_capable)
-		return -EINVAL;
-
-	rc = ocxl_file_init();
-	if (rc)
-		return rc;
-
-	rc = pci_register_driver(&ocxl_pci_driver);
-	if (rc) {
-		ocxl_file_exit();
-		return rc;
-	}
-	return 0;
+static int __init init_ocxl(void) {
+  int rc;
+  if (!tlbie_capable) {
+    return -EINVAL;
+  }
+  rc = ocxl_file_init();
+  if (rc) {
+    return rc;
+  }
+  rc = pci_register_driver(&ocxl_pci_driver);
+  if (rc) {
+    ocxl_file_exit();
+    return rc;
+  }
+  return 0;
 }
 
-static void exit_ocxl(void)
-{
-	pci_unregister_driver(&ocxl_pci_driver);
-	ocxl_file_exit();
+static void exit_ocxl(void) {
+  pci_unregister_driver(&ocxl_pci_driver);
+  ocxl_file_exit();
 }
 
 module_init(init_ocxl);

@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2002, Linus Torvalds
  *
- * 10Sep2002	Andrew Morton
- *		Initial version.
+ * 10Sep2002  Andrew Morton
+ *    Initial version.
  */
 
 #include <linux/kernel.h>
@@ -29,26 +29,25 @@
  * lock.
  */
 static inline void __clear_shadow_entry(struct address_space *mapping,
-				pgoff_t index, void *entry)
-{
-	XA_STATE(xas, &mapping->i_pages, index);
-
-	xas_set_update(&xas, workingset_update_node);
-	if (xas_load(&xas) != entry)
-		return;
-	xas_store(&xas, NULL);
+    pgoff_t index, void *entry) {
+  XA_STATE(xas, &mapping->i_pages, index);
+  xas_set_update(&xas, workingset_update_node);
+  if (xas_load(&xas) != entry) {
+    return;
+  }
+  xas_store(&xas, NULL);
 }
 
 static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
-			       void *entry)
-{
-	spin_lock(&mapping->host->i_lock);
-	xa_lock_irq(&mapping->i_pages);
-	__clear_shadow_entry(mapping, index, entry);
-	xa_unlock_irq(&mapping->i_pages);
-	if (mapping_shrinkable(mapping))
-		inode_add_lru(mapping->host);
-	spin_unlock(&mapping->host->i_lock);
+    void *entry) {
+  spin_lock(&mapping->host->i_lock);
+  xa_lock_irq(&mapping->i_pages);
+  __clear_shadow_entry(mapping, index, entry);
+  xa_unlock_irq(&mapping->i_pages);
+  if (mapping_shrinkable(mapping)) {
+    inode_add_lru(mapping->host);
+  }
+  spin_unlock(&mapping->host->i_lock);
 }
 
 /*
@@ -57,52 +56,47 @@ static void clear_shadow_entry(struct address_space *mapping, pgoff_t index,
  * exceptional entries similar to what folio_batch_remove_exceptionals() does.
  */
 static void truncate_folio_batch_exceptionals(struct address_space *mapping,
-				struct folio_batch *fbatch, pgoff_t *indices)
-{
-	int i, j;
-	bool dax;
-
-	/* Handled by shmem itself */
-	if (shmem_mapping(mapping))
-		return;
-
-	for (j = 0; j < folio_batch_count(fbatch); j++)
-		if (xa_is_value(fbatch->folios[j]))
-			break;
-
-	if (j == folio_batch_count(fbatch))
-		return;
-
-	dax = dax_mapping(mapping);
-	if (!dax) {
-		spin_lock(&mapping->host->i_lock);
-		xa_lock_irq(&mapping->i_pages);
-	}
-
-	for (i = j; i < folio_batch_count(fbatch); i++) {
-		struct folio *folio = fbatch->folios[i];
-		pgoff_t index = indices[i];
-
-		if (!xa_is_value(folio)) {
-			fbatch->folios[j++] = folio;
-			continue;
-		}
-
-		if (unlikely(dax)) {
-			dax_delete_mapping_entry(mapping, index);
-			continue;
-		}
-
-		__clear_shadow_entry(mapping, index, folio);
-	}
-
-	if (!dax) {
-		xa_unlock_irq(&mapping->i_pages);
-		if (mapping_shrinkable(mapping))
-			inode_add_lru(mapping->host);
-		spin_unlock(&mapping->host->i_lock);
-	}
-	fbatch->nr = j;
+    struct folio_batch *fbatch, pgoff_t *indices) {
+  int i, j;
+  bool dax;
+  /* Handled by shmem itself */
+  if (shmem_mapping(mapping)) {
+    return;
+  }
+  for (j = 0; j < folio_batch_count(fbatch); j++) {
+    if (xa_is_value(fbatch->folios[j])) {
+      break;
+    }
+  }
+  if (j == folio_batch_count(fbatch)) {
+    return;
+  }
+  dax = dax_mapping(mapping);
+  if (!dax) {
+    spin_lock(&mapping->host->i_lock);
+    xa_lock_irq(&mapping->i_pages);
+  }
+  for (i = j; i < folio_batch_count(fbatch); i++) {
+    struct folio *folio = fbatch->folios[i];
+    pgoff_t index = indices[i];
+    if (!xa_is_value(folio)) {
+      fbatch->folios[j++] = folio;
+      continue;
+    }
+    if (unlikely(dax)) {
+      dax_delete_mapping_entry(mapping, index);
+      continue;
+    }
+    __clear_shadow_entry(mapping, index, folio);
+  }
+  if (!dax) {
+    xa_unlock_irq(&mapping->i_pages);
+    if (mapping_shrinkable(mapping)) {
+      inode_add_lru(mapping->host);
+    }
+    spin_unlock(&mapping->host->i_lock);
+  }
+  fbatch->nr = j;
 }
 
 /*
@@ -110,13 +104,13 @@ static void truncate_folio_batch_exceptionals(struct address_space *mapping,
  * entries for invalidate_inode_pages().
  */
 static int invalidate_exceptional_entry(struct address_space *mapping,
-					pgoff_t index, void *entry)
-{
-	/* Handled by shmem itself, or for DAX we do nothing. */
-	if (shmem_mapping(mapping) || dax_mapping(mapping))
-		return 1;
-	clear_shadow_entry(mapping, index, entry);
-	return 1;
+    pgoff_t index, void *entry) {
+  /* Handled by shmem itself, or for DAX we do nothing. */
+  if (shmem_mapping(mapping) || dax_mapping(mapping)) {
+    return 1;
+  }
+  clear_shadow_entry(mapping, index, entry);
+  return 1;
 }
 
 /*
@@ -124,15 +118,16 @@ static int invalidate_exceptional_entry(struct address_space *mapping,
  * invalidate_inode_pages2() so for DAX it evicts only clean entries.
  */
 static int invalidate_exceptional_entry2(struct address_space *mapping,
-					 pgoff_t index, void *entry)
-{
-	/* Handled by shmem itself */
-	if (shmem_mapping(mapping))
-		return 1;
-	if (dax_mapping(mapping))
-		return dax_invalidate_mapping_entry_sync(mapping, index);
-	clear_shadow_entry(mapping, index, entry);
-	return 1;
+    pgoff_t index, void *entry) {
+  /* Handled by shmem itself */
+  if (shmem_mapping(mapping)) {
+    return 1;
+  }
+  if (dax_mapping(mapping)) {
+    return dax_invalidate_mapping_entry_sync(mapping, index);
+  }
+  clear_shadow_entry(mapping, index, entry);
+  return 1;
 }
 
 /**
@@ -150,13 +145,13 @@ static int invalidate_exceptional_entry2(struct address_space *mapping,
  * point.  Because the caller is about to free (and possibly reuse) those
  * blocks on-disk.
  */
-void folio_invalidate(struct folio *folio, size_t offset, size_t length)
-{
-	const struct address_space_operations *aops = folio->mapping->a_ops;
-
-	if (aops->invalidate_folio)
-		aops->invalidate_folio(folio, offset, length);
+void folio_invalidate(struct folio *folio, size_t offset, size_t length) {
+  const struct address_space_operations *aops = folio->mapping->a_ops;
+  if (aops->invalidate_folio) {
+    aops->invalidate_folio(folio, offset, length);
+  }
 }
+
 EXPORT_SYMBOL_GPL(folio_invalidate);
 
 /*
@@ -169,31 +164,29 @@ EXPORT_SYMBOL_GPL(folio_invalidate);
  * its lock, b) when a concurrent invalidate_mapping_pages got there first and
  * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
  */
-static void truncate_cleanup_folio(struct folio *folio)
-{
-	if (folio_mapped(folio))
-		unmap_mapping_folio(folio);
-
-	if (folio_has_private(folio))
-		folio_invalidate(folio, 0, folio_size(folio));
-
-	/*
-	 * Some filesystems seem to re-dirty the page even after
-	 * the VM has canceled the dirty bit (eg ext3 journaling).
-	 * Hence dirty accounting check is placed after invalidation.
-	 */
-	folio_cancel_dirty(folio);
-	folio_clear_mappedtodisk(folio);
+static void truncate_cleanup_folio(struct folio *folio) {
+  if (folio_mapped(folio)) {
+    unmap_mapping_folio(folio);
+  }
+  if (folio_has_private(folio)) {
+    folio_invalidate(folio, 0, folio_size(folio));
+  }
+  /*
+   * Some filesystems seem to re-dirty the page even after
+   * the VM has canceled the dirty bit (eg ext3 journaling).
+   * Hence dirty accounting check is placed after invalidation.
+   */
+  folio_cancel_dirty(folio);
+  folio_clear_mappedtodisk(folio);
 }
 
-int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
-{
-	if (folio->mapping != mapping)
-		return -EIO;
-
-	truncate_cleanup_folio(folio);
-	filemap_remove_folio(folio);
-	return 0;
+int truncate_inode_folio(struct address_space *mapping, struct folio *folio) {
+  if (folio->mapping != mapping) {
+    return -EIO;
+  }
+  truncate_cleanup_folio(folio);
+  filemap_remove_folio(folio);
+  return 0;
 }
 
 /*
@@ -207,62 +200,66 @@ int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
  * Returns false if splitting failed so the caller can avoid
  * discarding the entire folio which is stubbornly unsplit.
  */
-bool truncate_inode_partial_folio(struct folio *folio, loff_t start, loff_t end)
-{
-	loff_t pos = folio_pos(folio);
-	unsigned int offset, length;
-
-	if (pos < start)
-		offset = start - pos;
-	else
-		offset = 0;
-	length = folio_size(folio);
-	if (pos + length <= (u64)end)
-		length = length - offset;
-	else
-		length = end + 1 - pos - offset;
-
-	folio_wait_writeback(folio);
-	if (length == folio_size(folio)) {
-		truncate_inode_folio(folio->mapping, folio);
-		return true;
-	}
-
-	/*
-	 * We may be zeroing pages we're about to discard, but it avoids
-	 * doing a complex calculation here, and then doing the zeroing
-	 * anyway if the page split fails.
-	 */
-	folio_zero_range(folio, offset, length);
-
-	if (folio_has_private(folio))
-		folio_invalidate(folio, offset, length);
-	if (!folio_test_large(folio))
-		return true;
-	if (split_folio(folio) == 0)
-		return true;
-	if (folio_test_dirty(folio))
-		return false;
-	truncate_inode_folio(folio->mapping, folio);
-	return true;
+bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
+    loff_t end) {
+  loff_t pos = folio_pos(folio);
+  unsigned int offset, length;
+  if (pos < start) {
+    offset = start - pos;
+  } else {
+    offset = 0;
+  }
+  length = folio_size(folio);
+  if (pos + length <= (u64) end) {
+    length = length - offset;
+  } else {
+    length = end + 1 - pos - offset;
+  }
+  folio_wait_writeback(folio);
+  if (length == folio_size(folio)) {
+    truncate_inode_folio(folio->mapping, folio);
+    return true;
+  }
+  /*
+   * We may be zeroing pages we're about to discard, but it avoids
+   * doing a complex calculation here, and then doing the zeroing
+   * anyway if the page split fails.
+   */
+  folio_zero_range(folio, offset, length);
+  if (folio_has_private(folio)) {
+    folio_invalidate(folio, offset, length);
+  }
+  if (!folio_test_large(folio)) {
+    return true;
+  }
+  if (split_folio(folio) == 0) {
+    return true;
+  }
+  if (folio_test_dirty(folio)) {
+    return false;
+  }
+  truncate_inode_folio(folio->mapping, folio);
+  return true;
 }
 
 /*
  * Used to get rid of pages on hardware memory corruption.
  */
 int generic_error_remove_folio(struct address_space *mapping,
-		struct folio *folio)
-{
-	if (!mapping)
-		return -EINVAL;
-	/*
-	 * Only punch for normal data pages for now.
-	 * Handling other types like directories would need more auditing.
-	 */
-	if (!S_ISREG(mapping->host->i_mode))
-		return -EIO;
-	return truncate_inode_folio(mapping, folio);
+    struct folio *folio) {
+  if (!mapping) {
+    return -EINVAL;
+  }
+  /*
+   * Only punch for normal data pages for now.
+   * Handling other types like directories would need more auditing.
+   */
+  if (!S_ISREG(mapping->host->i_mode)) {
+    return -EIO;
+  }
+  return truncate_inode_folio(mapping, folio);
 }
+
 EXPORT_SYMBOL(generic_error_remove_folio);
 
 /**
@@ -276,25 +273,28 @@ EXPORT_SYMBOL(generic_error_remove_folio);
  * Context: Folio must be locked.
  * Return: The number of pages successfully removed.
  */
-long mapping_evict_folio(struct address_space *mapping, struct folio *folio)
-{
-	/* The page may have been truncated before it was locked */
-	if (!mapping)
-		return 0;
-	if (folio_test_dirty(folio) || folio_test_writeback(folio))
-		return 0;
-	/* The refcount will be elevated if any page in the folio is mapped */
-	if (folio_ref_count(folio) >
-			folio_nr_pages(folio) + folio_has_private(folio) + 1)
-		return 0;
-	if (!filemap_release_folio(folio, 0))
-		return 0;
-
-	return remove_mapping(mapping, folio);
+long mapping_evict_folio(struct address_space *mapping, struct folio *folio) {
+  /* The page may have been truncated before it was locked */
+  if (!mapping) {
+    return 0;
+  }
+  if (folio_test_dirty(folio) || folio_test_writeback(folio)) {
+    return 0;
+  }
+  /* The refcount will be elevated if any page in the folio is mapped */
+  if (folio_ref_count(folio)
+      > folio_nr_pages(folio) + folio_has_private(folio) + 1) {
+    return 0;
+  }
+  if (!filemap_release_folio(folio, 0)) {
+    return 0;
+  }
+  return remove_mapping(mapping, folio);
 }
 
 /**
- * truncate_inode_pages_range - truncate range of pages specified by start & end byte offsets
+ * truncate_inode_pages_range - truncate range of pages specified by start & end
+ * byte offsets
  * @mapping: mapping to truncate
  * @lstart: offset from which to truncate
  * @lend: offset to which to truncate (inclusive)
@@ -318,107 +318,105 @@ long mapping_evict_folio(struct address_space *mapping, struct folio *folio)
  * page aligned properly.
  */
 void truncate_inode_pages_range(struct address_space *mapping,
-				loff_t lstart, loff_t lend)
-{
-	pgoff_t		start;		/* inclusive */
-	pgoff_t		end;		/* exclusive */
-	struct folio_batch fbatch;
-	pgoff_t		indices[PAGEVEC_SIZE];
-	pgoff_t		index;
-	int		i;
-	struct folio	*folio;
-	bool		same_folio;
-
-	if (mapping_empty(mapping))
-		return;
-
-	/*
-	 * 'start' and 'end' always covers the range of pages to be fully
-	 * truncated. Partial pages are covered with 'partial_start' at the
-	 * start of the range and 'partial_end' at the end of the range.
-	 * Note that 'end' is exclusive while 'lend' is inclusive.
-	 */
-	start = (lstart + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (lend == -1)
-		/*
-		 * lend == -1 indicates end-of-file so we have to set 'end'
-		 * to the highest possible pgoff_t and since the type is
-		 * unsigned we're using -1.
-		 */
-		end = -1;
-	else
-		end = (lend + 1) >> PAGE_SHIFT;
-
-	folio_batch_init(&fbatch);
-	index = start;
-	while (index < end && find_lock_entries(mapping, &index, end - 1,
-			&fbatch, indices)) {
-		truncate_folio_batch_exceptionals(mapping, &fbatch, indices);
-		for (i = 0; i < folio_batch_count(&fbatch); i++)
-			truncate_cleanup_folio(fbatch.folios[i]);
-		delete_from_page_cache_batch(mapping, &fbatch);
-		for (i = 0; i < folio_batch_count(&fbatch); i++)
-			folio_unlock(fbatch.folios[i]);
-		folio_batch_release(&fbatch);
-		cond_resched();
-	}
-
-	same_folio = (lstart >> PAGE_SHIFT) == (lend >> PAGE_SHIFT);
-	folio = __filemap_get_folio(mapping, lstart >> PAGE_SHIFT, FGP_LOCK, 0);
-	if (!IS_ERR(folio)) {
-		same_folio = lend < folio_pos(folio) + folio_size(folio);
-		if (!truncate_inode_partial_folio(folio, lstart, lend)) {
-			start = folio_next_index(folio);
-			if (same_folio)
-				end = folio->index;
-		}
-		folio_unlock(folio);
-		folio_put(folio);
-		folio = NULL;
-	}
-
-	if (!same_folio) {
-		folio = __filemap_get_folio(mapping, lend >> PAGE_SHIFT,
-						FGP_LOCK, 0);
-		if (!IS_ERR(folio)) {
-			if (!truncate_inode_partial_folio(folio, lstart, lend))
-				end = folio->index;
-			folio_unlock(folio);
-			folio_put(folio);
-		}
-	}
-
-	index = start;
-	while (index < end) {
-		cond_resched();
-		if (!find_get_entries(mapping, &index, end - 1, &fbatch,
-				indices)) {
-			/* If all gone from start onwards, we're done */
-			if (index == start)
-				break;
-			/* Otherwise restart to make sure all gone */
-			index = start;
-			continue;
-		}
-
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
-			struct folio *folio = fbatch.folios[i];
-
-			/* We rely upon deletion not changing page->index */
-
-			if (xa_is_value(folio))
-				continue;
-
-			folio_lock(folio);
-			VM_BUG_ON_FOLIO(!folio_contains(folio, indices[i]), folio);
-			folio_wait_writeback(folio);
-			truncate_inode_folio(mapping, folio);
-			folio_unlock(folio);
-		}
-		truncate_folio_batch_exceptionals(mapping, &fbatch, indices);
-		folio_batch_release(&fbatch);
-	}
+    loff_t lstart, loff_t lend) {
+  pgoff_t start;    /* inclusive */
+  pgoff_t end;    /* exclusive */
+  struct folio_batch fbatch;
+  pgoff_t indices[PAGEVEC_SIZE];
+  pgoff_t index;
+  int i;
+  struct folio *folio;
+  bool same_folio;
+  if (mapping_empty(mapping)) {
+    return;
+  }
+  /*
+   * 'start' and 'end' always covers the range of pages to be fully
+   * truncated. Partial pages are covered with 'partial_start' at the
+   * start of the range and 'partial_end' at the end of the range.
+   * Note that 'end' is exclusive while 'lend' is inclusive.
+   */
+  start = (lstart + PAGE_SIZE - 1) >> PAGE_SHIFT;
+  if (lend == -1) {
+    /*
+     * lend == -1 indicates end-of-file so we have to set 'end'
+     * to the highest possible pgoff_t and since the type is
+     * unsigned we're using -1.
+     */
+    end = -1;
+  } else {
+    end = (lend + 1) >> PAGE_SHIFT;
+  }
+  folio_batch_init(&fbatch);
+  index = start;
+  while (index < end && find_lock_entries(mapping, &index, end - 1,
+      &fbatch, indices)) {
+    truncate_folio_batch_exceptionals(mapping, &fbatch, indices);
+    for (i = 0; i < folio_batch_count(&fbatch); i++) {
+      truncate_cleanup_folio(fbatch.folios[i]);
+    }
+    delete_from_page_cache_batch(mapping, &fbatch);
+    for (i = 0; i < folio_batch_count(&fbatch); i++) {
+      folio_unlock(fbatch.folios[i]);
+    }
+    folio_batch_release(&fbatch);
+    cond_resched();
+  }
+  same_folio = (lstart >> PAGE_SHIFT) == (lend >> PAGE_SHIFT);
+  folio = __filemap_get_folio(mapping, lstart >> PAGE_SHIFT, FGP_LOCK, 0);
+  if (!IS_ERR(folio)) {
+    same_folio = lend < folio_pos(folio) + folio_size(folio);
+    if (!truncate_inode_partial_folio(folio, lstart, lend)) {
+      start = folio_next_index(folio);
+      if (same_folio) {
+        end = folio->index;
+      }
+    }
+    folio_unlock(folio);
+    folio_put(folio);
+    folio = NULL;
+  }
+  if (!same_folio) {
+    folio = __filemap_get_folio(mapping, lend >> PAGE_SHIFT,
+        FGP_LOCK, 0);
+    if (!IS_ERR(folio)) {
+      if (!truncate_inode_partial_folio(folio, lstart, lend)) {
+        end = folio->index;
+      }
+      folio_unlock(folio);
+      folio_put(folio);
+    }
+  }
+  index = start;
+  while (index < end) {
+    cond_resched();
+    if (!find_get_entries(mapping, &index, end - 1, &fbatch,
+        indices)) {
+      /* If all gone from start onwards, we're done */
+      if (index == start) {
+        break;
+      }
+      /* Otherwise restart to make sure all gone */
+      index = start;
+      continue;
+    }
+    for (i = 0; i < folio_batch_count(&fbatch); i++) {
+      struct folio *folio = fbatch.folios[i];
+      /* We rely upon deletion not changing page->index */
+      if (xa_is_value(folio)) {
+        continue;
+      }
+      folio_lock(folio);
+      VM_BUG_ON_FOLIO(!folio_contains(folio, indices[i]), folio);
+      folio_wait_writeback(folio);
+      truncate_inode_folio(mapping, folio);
+      folio_unlock(folio);
+    }
+    truncate_folio_batch_exceptionals(mapping, &fbatch, indices);
+    folio_batch_release(&fbatch);
+  }
 }
+
 EXPORT_SYMBOL(truncate_inode_pages_range);
 
 /**
@@ -434,10 +432,10 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
  * mapping->nrpages can be non-zero when this function returns even after
  * truncation of the whole mapping.
  */
-void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
-{
-	truncate_inode_pages_range(mapping, lstart, (loff_t)-1);
+void truncate_inode_pages(struct address_space *mapping, loff_t lstart) {
+  truncate_inode_pages_range(mapping, lstart, (loff_t) -1);
 }
+
 EXPORT_SYMBOL(truncate_inode_pages);
 
 /**
@@ -449,30 +447,28 @@ EXPORT_SYMBOL(truncate_inode_pages);
  * Filesystems have to use this in the .evict_inode path to inform the
  * VM that this is the final truncate and the inode is going away.
  */
-void truncate_inode_pages_final(struct address_space *mapping)
-{
-	/*
-	 * Page reclaim can not participate in regular inode lifetime
-	 * management (can't call iput()) and thus can race with the
-	 * inode teardown.  Tell it when the address space is exiting,
-	 * so that it does not install eviction information after the
-	 * final truncate has begun.
-	 */
-	mapping_set_exiting(mapping);
-
-	if (!mapping_empty(mapping)) {
-		/*
-		 * As truncation uses a lockless tree lookup, cycle
-		 * the tree lock to make sure any ongoing tree
-		 * modification that does not see AS_EXITING is
-		 * completed before starting the final truncate.
-		 */
-		xa_lock_irq(&mapping->i_pages);
-		xa_unlock_irq(&mapping->i_pages);
-	}
-
-	truncate_inode_pages(mapping, 0);
+void truncate_inode_pages_final(struct address_space *mapping) {
+  /*
+   * Page reclaim can not participate in regular inode lifetime
+   * management (can't call iput()) and thus can race with the
+   * inode teardown.  Tell it when the address space is exiting,
+   * so that it does not install eviction information after the
+   * final truncate has begun.
+   */
+  mapping_set_exiting(mapping);
+  if (!mapping_empty(mapping)) {
+    /*
+     * As truncation uses a lockless tree lookup, cycle
+     * the tree lock to make sure any ongoing tree
+     * modification that does not see AS_EXITING is
+     * completed before starting the final truncate.
+     */
+    xa_lock_irq(&mapping->i_pages);
+    xa_unlock_irq(&mapping->i_pages);
+  }
+  truncate_inode_pages(mapping, 0);
 }
+
 EXPORT_SYMBOL(truncate_inode_pages_final);
 
 /**
@@ -486,47 +482,43 @@ EXPORT_SYMBOL(truncate_inode_pages_final);
  * returns the number of folios which could not be evicted in @nr_failed.
  */
 unsigned long mapping_try_invalidate(struct address_space *mapping,
-		pgoff_t start, pgoff_t end, unsigned long *nr_failed)
-{
-	pgoff_t indices[PAGEVEC_SIZE];
-	struct folio_batch fbatch;
-	pgoff_t index = start;
-	unsigned long ret;
-	unsigned long count = 0;
-	int i;
-
-	folio_batch_init(&fbatch);
-	while (find_lock_entries(mapping, &index, end, &fbatch, indices)) {
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
-			struct folio *folio = fbatch.folios[i];
-
-			/* We rely upon deletion not changing folio->index */
-
-			if (xa_is_value(folio)) {
-				count += invalidate_exceptional_entry(mapping,
-							     indices[i], folio);
-				continue;
-			}
-
-			ret = mapping_evict_folio(mapping, folio);
-			folio_unlock(folio);
-			/*
-			 * Invalidation is a hint that the folio is no longer
-			 * of interest and try to speed up its reclaim.
-			 */
-			if (!ret) {
-				deactivate_file_folio(folio);
-				/* Likely in the lru cache of a remote CPU */
-				if (nr_failed)
-					(*nr_failed)++;
-			}
-			count += ret;
-		}
-		folio_batch_remove_exceptionals(&fbatch);
-		folio_batch_release(&fbatch);
-		cond_resched();
-	}
-	return count;
+    pgoff_t start, pgoff_t end, unsigned long *nr_failed) {
+  pgoff_t indices[PAGEVEC_SIZE];
+  struct folio_batch fbatch;
+  pgoff_t index = start;
+  unsigned long ret;
+  unsigned long count = 0;
+  int i;
+  folio_batch_init(&fbatch);
+  while (find_lock_entries(mapping, &index, end, &fbatch, indices)) {
+    for (i = 0; i < folio_batch_count(&fbatch); i++) {
+      struct folio *folio = fbatch.folios[i];
+      /* We rely upon deletion not changing folio->index */
+      if (xa_is_value(folio)) {
+        count += invalidate_exceptional_entry(mapping,
+            indices[i], folio);
+        continue;
+      }
+      ret = mapping_evict_folio(mapping, folio);
+      folio_unlock(folio);
+      /*
+       * Invalidation is a hint that the folio is no longer
+       * of interest and try to speed up its reclaim.
+       */
+      if (!ret) {
+        deactivate_file_folio(folio);
+        /* Likely in the lru cache of a remote CPU */
+        if (nr_failed) {
+          (*nr_failed)++;
+        }
+      }
+      count += ret;
+    }
+    folio_batch_remove_exceptionals(&fbatch);
+    folio_batch_release(&fbatch);
+    cond_resched();
+  }
+  return count;
 }
 
 /**
@@ -544,10 +536,10 @@ unsigned long mapping_try_invalidate(struct address_space *mapping,
  * Return: The number of indices that had their contents invalidated
  */
 unsigned long invalidate_mapping_pages(struct address_space *mapping,
-		pgoff_t start, pgoff_t end)
-{
-	return mapping_try_invalidate(mapping, start, end, NULL);
+    pgoff_t start, pgoff_t end) {
+  return mapping_try_invalidate(mapping, start, end, NULL);
 }
+
 EXPORT_SYMBOL(invalidate_mapping_pages);
 
 /*
@@ -558,41 +550,41 @@ EXPORT_SYMBOL(invalidate_mapping_pages);
  * sitting in the folio_add_lru() caches.
  */
 static int invalidate_complete_folio2(struct address_space *mapping,
-					struct folio *folio)
-{
-	if (folio->mapping != mapping)
-		return 0;
-
-	if (!filemap_release_folio(folio, GFP_KERNEL))
-		return 0;
-
-	spin_lock(&mapping->host->i_lock);
-	xa_lock_irq(&mapping->i_pages);
-	if (folio_test_dirty(folio))
-		goto failed;
-
-	BUG_ON(folio_has_private(folio));
-	__filemap_remove_folio(folio, NULL);
-	xa_unlock_irq(&mapping->i_pages);
-	if (mapping_shrinkable(mapping))
-		inode_add_lru(mapping->host);
-	spin_unlock(&mapping->host->i_lock);
-
-	filemap_free_folio(mapping, folio);
-	return 1;
+    struct folio *folio) {
+  if (folio->mapping != mapping) {
+    return 0;
+  }
+  if (!filemap_release_folio(folio, GFP_KERNEL)) {
+    return 0;
+  }
+  spin_lock(&mapping->host->i_lock);
+  xa_lock_irq(&mapping->i_pages);
+  if (folio_test_dirty(folio)) {
+    goto failed;
+  }
+  BUG_ON(folio_has_private(folio));
+  __filemap_remove_folio(folio, NULL);
+  xa_unlock_irq(&mapping->i_pages);
+  if (mapping_shrinkable(mapping)) {
+    inode_add_lru(mapping->host);
+  }
+  spin_unlock(&mapping->host->i_lock);
+  filemap_free_folio(mapping, folio);
+  return 1;
 failed:
-	xa_unlock_irq(&mapping->i_pages);
-	spin_unlock(&mapping->host->i_lock);
-	return 0;
+  xa_unlock_irq(&mapping->i_pages);
+  spin_unlock(&mapping->host->i_lock);
+  return 0;
 }
 
-static int folio_launder(struct address_space *mapping, struct folio *folio)
-{
-	if (!folio_test_dirty(folio))
-		return 0;
-	if (folio->mapping != mapping || mapping->a_ops->launder_folio == NULL)
-		return 0;
-	return mapping->a_ops->launder_folio(folio);
+static int folio_launder(struct address_space *mapping, struct folio *folio) {
+  if (!folio_test_dirty(folio)) {
+    return 0;
+  }
+  if (folio->mapping != mapping || mapping->a_ops->launder_folio == NULL) {
+    return 0;
+  }
+  return mapping->a_ops->launder_folio(folio);
 }
 
 /**
@@ -607,81 +599,78 @@ static int folio_launder(struct address_space *mapping, struct folio *folio)
  * Return: -EBUSY if any pages could not be invalidated.
  */
 int invalidate_inode_pages2_range(struct address_space *mapping,
-				  pgoff_t start, pgoff_t end)
-{
-	pgoff_t indices[PAGEVEC_SIZE];
-	struct folio_batch fbatch;
-	pgoff_t index;
-	int i;
-	int ret = 0;
-	int ret2 = 0;
-	int did_range_unmap = 0;
-
-	if (mapping_empty(mapping))
-		return 0;
-
-	folio_batch_init(&fbatch);
-	index = start;
-	while (find_get_entries(mapping, &index, end, &fbatch, indices)) {
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
-			struct folio *folio = fbatch.folios[i];
-
-			/* We rely upon deletion not changing folio->index */
-
-			if (xa_is_value(folio)) {
-				if (!invalidate_exceptional_entry2(mapping,
-						indices[i], folio))
-					ret = -EBUSY;
-				continue;
-			}
-
-			if (!did_range_unmap && folio_mapped(folio)) {
-				/*
-				 * If folio is mapped, before taking its lock,
-				 * zap the rest of the file in one hit.
-				 */
-				unmap_mapping_pages(mapping, indices[i],
-						(1 + end - indices[i]), false);
-				did_range_unmap = 1;
-			}
-
-			folio_lock(folio);
-			if (unlikely(folio->mapping != mapping)) {
-				folio_unlock(folio);
-				continue;
-			}
-			VM_BUG_ON_FOLIO(!folio_contains(folio, indices[i]), folio);
-			folio_wait_writeback(folio);
-
-			if (folio_mapped(folio))
-				unmap_mapping_folio(folio);
-			BUG_ON(folio_mapped(folio));
-
-			ret2 = folio_launder(mapping, folio);
-			if (ret2 == 0) {
-				if (!invalidate_complete_folio2(mapping, folio))
-					ret2 = -EBUSY;
-			}
-			if (ret2 < 0)
-				ret = ret2;
-			folio_unlock(folio);
-		}
-		folio_batch_remove_exceptionals(&fbatch);
-		folio_batch_release(&fbatch);
-		cond_resched();
-	}
-	/*
-	 * For DAX we invalidate page tables after invalidating page cache.  We
-	 * could invalidate page tables while invalidating each entry however
-	 * that would be expensive. And doing range unmapping before doesn't
-	 * work as we have no cheap way to find whether page cache entry didn't
-	 * get remapped later.
-	 */
-	if (dax_mapping(mapping)) {
-		unmap_mapping_pages(mapping, start, end - start + 1, false);
-	}
-	return ret;
+    pgoff_t start, pgoff_t end) {
+  pgoff_t indices[PAGEVEC_SIZE];
+  struct folio_batch fbatch;
+  pgoff_t index;
+  int i;
+  int ret = 0;
+  int ret2 = 0;
+  int did_range_unmap = 0;
+  if (mapping_empty(mapping)) {
+    return 0;
+  }
+  folio_batch_init(&fbatch);
+  index = start;
+  while (find_get_entries(mapping, &index, end, &fbatch, indices)) {
+    for (i = 0; i < folio_batch_count(&fbatch); i++) {
+      struct folio *folio = fbatch.folios[i];
+      /* We rely upon deletion not changing folio->index */
+      if (xa_is_value(folio)) {
+        if (!invalidate_exceptional_entry2(mapping,
+            indices[i], folio)) {
+          ret = -EBUSY;
+        }
+        continue;
+      }
+      if (!did_range_unmap && folio_mapped(folio)) {
+        /*
+         * If folio is mapped, before taking its lock,
+         * zap the rest of the file in one hit.
+         */
+        unmap_mapping_pages(mapping, indices[i],
+            (1 + end - indices[i]), false);
+        did_range_unmap = 1;
+      }
+      folio_lock(folio);
+      if (unlikely(folio->mapping != mapping)) {
+        folio_unlock(folio);
+        continue;
+      }
+      VM_BUG_ON_FOLIO(!folio_contains(folio, indices[i]), folio);
+      folio_wait_writeback(folio);
+      if (folio_mapped(folio)) {
+        unmap_mapping_folio(folio);
+      }
+      BUG_ON(folio_mapped(folio));
+      ret2 = folio_launder(mapping, folio);
+      if (ret2 == 0) {
+        if (!invalidate_complete_folio2(mapping, folio)) {
+          ret2 = -EBUSY;
+        }
+      }
+      if (ret2 < 0) {
+        ret = ret2;
+      }
+      folio_unlock(folio);
+    }
+    folio_batch_remove_exceptionals(&fbatch);
+    folio_batch_release(&fbatch);
+    cond_resched();
+  }
+  /*
+   * For DAX we invalidate page tables after invalidating page cache.  We
+   * could invalidate page tables while invalidating each entry however
+   * that would be expensive. And doing range unmapping before doesn't
+   * work as we have no cheap way to find whether page cache entry didn't
+   * get remapped later.
+   */
+  if (dax_mapping(mapping)) {
+    unmap_mapping_pages(mapping, start, end - start + 1, false);
+  }
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
 
 /**
@@ -693,10 +682,10 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
  *
  * Return: -EBUSY if any pages could not be invalidated.
  */
-int invalidate_inode_pages2(struct address_space *mapping)
-{
-	return invalidate_inode_pages2_range(mapping, 0, -1);
+int invalidate_inode_pages2(struct address_space *mapping) {
+  return invalidate_inode_pages2_range(mapping, 0, -1);
 }
+
 EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
 
 /**
@@ -714,24 +703,23 @@ EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
  * situations such as writepage being called for a page that has already
  * had its underlying blocks deallocated.
  */
-void truncate_pagecache(struct inode *inode, loff_t newsize)
-{
-	struct address_space *mapping = inode->i_mapping;
-	loff_t holebegin = round_up(newsize, PAGE_SIZE);
-
-	/*
-	 * unmap_mapping_range is called twice, first simply for
-	 * efficiency so that truncate_inode_pages does fewer
-	 * single-page unmaps.  However after this first call, and
-	 * before truncate_inode_pages finishes, it is possible for
-	 * private pages to be COWed, which remain after
-	 * truncate_inode_pages finishes, hence the second
-	 * unmap_mapping_range call must be made for correctness.
-	 */
-	unmap_mapping_range(mapping, holebegin, 0, 1);
-	truncate_inode_pages(mapping, newsize);
-	unmap_mapping_range(mapping, holebegin, 0, 1);
+void truncate_pagecache(struct inode *inode, loff_t newsize) {
+  struct address_space *mapping = inode->i_mapping;
+  loff_t holebegin = round_up(newsize, PAGE_SIZE);
+  /*
+   * unmap_mapping_range is called twice, first simply for
+   * efficiency so that truncate_inode_pages does fewer
+   * single-page unmaps.  However after this first call, and
+   * before truncate_inode_pages finishes, it is possible for
+   * private pages to be COWed, which remain after
+   * truncate_inode_pages finishes, hence the second
+   * unmap_mapping_range call must be made for correctness.
+   */
+  unmap_mapping_range(mapping, holebegin, 0, 1);
+  truncate_inode_pages(mapping, newsize);
+  unmap_mapping_range(mapping, holebegin, 0, 1);
 }
+
 EXPORT_SYMBOL(truncate_pagecache);
 
 /**
@@ -747,22 +735,22 @@ EXPORT_SYMBOL(truncate_pagecache);
  * i_rwsem but e.g. xfs uses a different lock) and before all filesystem
  * specific block truncation has been performed.
  */
-void truncate_setsize(struct inode *inode, loff_t newsize)
-{
-	loff_t oldsize = inode->i_size;
-
-	i_size_write(inode, newsize);
-	if (newsize > oldsize)
-		pagecache_isize_extended(inode, oldsize, newsize);
-	truncate_pagecache(inode, newsize);
+void truncate_setsize(struct inode *inode, loff_t newsize) {
+  loff_t oldsize = inode->i_size;
+  i_size_write(inode, newsize);
+  if (newsize > oldsize) {
+    pagecache_isize_extended(inode, oldsize, newsize);
+  }
+  truncate_pagecache(inode, newsize);
 }
+
 EXPORT_SYMBOL(truncate_setsize);
 
 /**
  * pagecache_isize_extended - update pagecache after extension of i_size
- * @inode:	inode for which i_size was extended
- * @from:	original inode size
- * @to:		new inode size
+ * @inode:  inode for which i_size was extended
+ * @from: original inode size
+ * @to:   new inode size
  *
  * Handle extension of inode size either caused by extending truncate or by
  * write starting after current i_size. We mark the page straddling current
@@ -777,36 +765,37 @@ EXPORT_SYMBOL(truncate_setsize);
  * makes sure i_size is stable but also that userspace cannot observe new
  * i_size value before we are prepared to store mmap writes at new inode size.
  */
-void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
-{
-	int bsize = i_blocksize(inode);
-	loff_t rounded_from;
-	struct page *page;
-	pgoff_t index;
-
-	WARN_ON(to > inode->i_size);
-
-	if (from >= to || bsize == PAGE_SIZE)
-		return;
-	/* Page straddling @from will not have any hole block created? */
-	rounded_from = round_up(from, bsize);
-	if (to <= rounded_from || !(rounded_from & (PAGE_SIZE - 1)))
-		return;
-
-	index = from >> PAGE_SHIFT;
-	page = find_lock_page(inode->i_mapping, index);
-	/* Page not cached? Nothing to do */
-	if (!page)
-		return;
-	/*
-	 * See clear_page_dirty_for_io() for details why set_page_dirty()
-	 * is needed.
-	 */
-	if (page_mkclean(page))
-		set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to) {
+  int bsize = i_blocksize(inode);
+  loff_t rounded_from;
+  struct page *page;
+  pgoff_t index;
+  WARN_ON(to > inode->i_size);
+  if (from >= to || bsize == PAGE_SIZE) {
+    return;
+  }
+  /* Page straddling @from will not have any hole block created? */
+  rounded_from = round_up(from, bsize);
+  if (to <= rounded_from || !(rounded_from & (PAGE_SIZE - 1))) {
+    return;
+  }
+  index = from >> PAGE_SHIFT;
+  page = find_lock_page(inode->i_mapping, index);
+  /* Page not cached? Nothing to do */
+  if (!page) {
+    return;
+  }
+  /*
+   * See clear_page_dirty_for_io() for details why set_page_dirty()
+   * is needed.
+   */
+  if (page_mkclean(page)) {
+    set_page_dirty(page);
+  }
+  unlock_page(page);
+  put_page(page);
 }
+
 EXPORT_SYMBOL(pagecache_isize_extended);
 
 /**
@@ -822,27 +811,27 @@ EXPORT_SYMBOL(pagecache_isize_extended);
  * situations such as writepage being called for a page that has already
  * had its underlying blocks deallocated.
  */
-void truncate_pagecache_range(struct inode *inode, loff_t lstart, loff_t lend)
-{
-	struct address_space *mapping = inode->i_mapping;
-	loff_t unmap_start = round_up(lstart, PAGE_SIZE);
-	loff_t unmap_end = round_down(1 + lend, PAGE_SIZE) - 1;
-	/*
-	 * This rounding is currently just for example: unmap_mapping_range
-	 * expands its hole outwards, whereas we want it to contract the hole
-	 * inwards.  However, existing callers of truncate_pagecache_range are
-	 * doing their own page rounding first.  Note that unmap_mapping_range
-	 * allows holelen 0 for all, and we allow lend -1 for end of file.
-	 */
-
-	/*
-	 * Unlike in truncate_pagecache, unmap_mapping_range is called only
-	 * once (before truncating pagecache), and without "even_cows" flag:
-	 * hole-punching should not remove private COWed pages from the hole.
-	 */
-	if ((u64)unmap_end > (u64)unmap_start)
-		unmap_mapping_range(mapping, unmap_start,
-				    1 + unmap_end - unmap_start, 0);
-	truncate_inode_pages_range(mapping, lstart, lend);
+void truncate_pagecache_range(struct inode *inode, loff_t lstart, loff_t lend) {
+  struct address_space *mapping = inode->i_mapping;
+  loff_t unmap_start = round_up(lstart, PAGE_SIZE);
+  loff_t unmap_end = round_down(1 + lend, PAGE_SIZE) - 1;
+  /*
+   * This rounding is currently just for example: unmap_mapping_range
+   * expands its hole outwards, whereas we want it to contract the hole
+   * inwards.  However, existing callers of truncate_pagecache_range are
+   * doing their own page rounding first.  Note that unmap_mapping_range
+   * allows holelen 0 for all, and we allow lend -1 for end of file.
+   */
+  /*
+   * Unlike in truncate_pagecache, unmap_mapping_range is called only
+   * once (before truncating pagecache), and without "even_cows" flag:
+   * hole-punching should not remove private COWed pages from the hole.
+   */
+  if ((u64) unmap_end > (u64) unmap_start) {
+    unmap_mapping_range(mapping, unmap_start,
+        1 + unmap_end - unmap_start, 0);
+  }
+  truncate_inode_pages_range(mapping, lstart, lend);
 }
+
 EXPORT_SYMBOL(truncate_pagecache_range);

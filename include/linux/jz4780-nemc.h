@@ -17,7 +17,7 @@ struct device;
  * Number of NEMC banks. Note that there are actually 6, but they are numbered
  * from 1.
  */
-#define JZ4780_NEMC_NUM_BANKS	7
+#define JZ4780_NEMC_NUM_BANKS 7
 
 /**
  * enum jz4780_nemc_bank_type - device types which can be connected to a bank
@@ -25,15 +25,15 @@ struct device;
  * @JZ4780_NEMC_BANK_NAND: NAND
  */
 enum jz4780_nemc_bank_type {
-	JZ4780_NEMC_BANK_SRAM,
-	JZ4780_NEMC_BANK_NAND,
+  JZ4780_NEMC_BANK_SRAM,
+  JZ4780_NEMC_BANK_NAND,
 };
 
 extern unsigned int jz4780_nemc_num_banks(struct device *dev);
 
 extern void jz4780_nemc_set_type(struct device *dev, unsigned int bank,
-				 enum jz4780_nemc_bank_type type);
+    enum jz4780_nemc_bank_type type);
 extern void jz4780_nemc_assert(struct device *dev, unsigned int bank,
-			       bool assert);
+    bool assert);
 
 #endif /* __LINUX_JZ4780_NEMC_H__ */

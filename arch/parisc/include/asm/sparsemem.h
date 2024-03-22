@@ -8,7 +8,7 @@
  * Stretch (N-class): 0-2, 4-32, 34-xxx
  */
 
-#define MAX_PHYSMEM_BITS	39	/* 512 GB */
-#define SECTION_SIZE_BITS	27	/* 128 MB */
+#define MAX_PHYSMEM_BITS  39  /* 512 GB */
+#define SECTION_SIZE_BITS 27  /* 128 MB */
 
 #endif

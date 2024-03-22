@@ -3,7 +3,7 @@
 #include "if000a.h"
 
 struct nv04_mem_vn {
-	/* nvkm_mem_vX ... */
+  /* nvkm_mem_vX ... */
 };
 
 struct nv04_mem_map_vn {

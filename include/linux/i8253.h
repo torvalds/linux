@@ -14,11 +14,11 @@
 #include <linux/timex.h>
 
 /* i8253A PIT registers */
-#define PIT_MODE	0x43
-#define PIT_CH0		0x40
-#define PIT_CH2		0x42
+#define PIT_MODE  0x43
+#define PIT_CH0   0x40
+#define PIT_CH2   0x42
 
-#define PIT_LATCH	((PIT_TICK_RATE + HZ/2) / HZ)
+#define PIT_LATCH ((PIT_TICK_RATE + HZ / 2) / HZ)
 
 extern raw_spinlock_t i8253_lock;
 extern bool i8253_clear_counter_on_shutdown;

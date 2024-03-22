@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_PCIE_VDEC0_BRDG_CTRL_MASKS_H_
 #define ASIC_REG_PCIE_VDEC0_BRDG_CTRL_MASKS_H_
@@ -116,7 +116,8 @@
 #define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARBURST_VIOL_SHIFT 7
 #define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARBURST_VIOL_MASK 0x80
 #define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARADDR_SIZE_ALIGN_VIOL_SHIFT 8
-#define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARADDR_SIZE_ALIGN_VIOL_MASK 0x100
+#define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARADDR_SIZE_ALIGN_VIOL_MASK \
+  0x100
 #define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARSIZE_VIOL_SHIFT 9
 #define PCIE_VDEC0_BRDG_CTRL_HBW_AXI_VIOL_CAUSE_ARSIZE_VIOL_MASK 0x200
 

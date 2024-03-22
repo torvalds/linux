@@ -23,37 +23,37 @@ struct regmap;
  * Register/value pairs for sequences of writes.
  */
 struct cci_reg_sequence {
-	u32 reg;
-	u64 val;
+  u32 reg;
+  u64 val;
 };
 
 /*
  * Macros to define register address with the register width encoded
  * into the higher bits.
  */
-#define CCI_REG_ADDR_MASK		GENMASK(15, 0)
-#define CCI_REG_WIDTH_SHIFT		16
-#define CCI_REG_WIDTH_MASK		GENMASK(19, 16)
+#define CCI_REG_ADDR_MASK   GENMASK(15, 0)
+#define CCI_REG_WIDTH_SHIFT   16
+#define CCI_REG_WIDTH_MASK    GENMASK(19, 16)
 /*
  * Private CCI register flags, for the use of drivers.
  */
-#define CCI_REG_PRIVATE_SHIFT		28U
-#define CCI_REG_PRIVATE_MASK		GENMASK(31U, CCI_REG_PRIVATE_SHIFT)
+#define CCI_REG_PRIVATE_SHIFT   28U
+#define CCI_REG_PRIVATE_MASK    GENMASK(31U, CCI_REG_PRIVATE_SHIFT)
 
-#define CCI_REG_WIDTH_BYTES(x)		FIELD_GET(CCI_REG_WIDTH_MASK, x)
-#define CCI_REG_WIDTH(x)		(CCI_REG_WIDTH_BYTES(x) << 3)
-#define CCI_REG_ADDR(x)			FIELD_GET(CCI_REG_ADDR_MASK, x)
-#define CCI_REG_LE			BIT(20)
+#define CCI_REG_WIDTH_BYTES(x)    FIELD_GET(CCI_REG_WIDTH_MASK, x)
+#define CCI_REG_WIDTH(x)    (CCI_REG_WIDTH_BYTES(x) << 3)
+#define CCI_REG_ADDR(x)     FIELD_GET(CCI_REG_ADDR_MASK, x)
+#define CCI_REG_LE      BIT(20)
 
-#define CCI_REG8(x)			((1 << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG16(x)			((2 << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG24(x)			((3 << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG32(x)			((4 << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG64(x)			((8 << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG16_LE(x)			(CCI_REG_LE | (2U << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG24_LE(x)			(CCI_REG_LE | (3U << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG32_LE(x)			(CCI_REG_LE | (4U << CCI_REG_WIDTH_SHIFT) | (x))
-#define CCI_REG64_LE(x)			(CCI_REG_LE | (8U << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG8(x)     ((1 << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG16(x)      ((2 << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG24(x)      ((3 << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG32(x)      ((4 << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG64(x)      ((8 << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG16_LE(x)     (CCI_REG_LE | (2U << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG24_LE(x)     (CCI_REG_LE | (3U << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG32_LE(x)     (CCI_REG_LE | (4U << CCI_REG_WIDTH_SHIFT) | (x))
+#define CCI_REG64_LE(x)     (CCI_REG_LE | (8U << CCI_REG_WIDTH_SHIFT) | (x))
 
 /**
  * cci_read() - Read a value from a single CCI register
@@ -120,7 +120,7 @@ int cci_update_bits(struct regmap *map, u32 reg, u64 mask, u64 val, int *err);
  * Return: %0 on success or a negative error code on failure.
  */
 int cci_multi_reg_write(struct regmap *map, const struct cci_reg_sequence *regs,
-			unsigned int num_regs, int *err);
+    unsigned int num_regs, int *err);
 
 #if IS_ENABLED(CONFIG_V4L2_CCI_I2C)
 /**
@@ -135,7 +135,7 @@ int cci_multi_reg_write(struct regmap *map, const struct cci_reg_sequence *regs,
  * Return: %0 on success or a negative error code on failure.
  */
 struct regmap *devm_cci_regmap_init_i2c(struct i2c_client *client,
-					int reg_addr_bits);
+    int reg_addr_bits);
 #endif
 
 #endif

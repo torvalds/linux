@@ -12,8 +12,8 @@
  *
  * For implementation details: arch/powerpc/purgatory/trampoline_64.S
  */
-#define BACKUP_SRC_START	0
-#define BACKUP_SRC_END		0xffff
-#define BACKUP_SRC_SIZE		(BACKUP_SRC_END - BACKUP_SRC_START + 1)
+#define BACKUP_SRC_START  0
+#define BACKUP_SRC_END    0xffff
+#define BACKUP_SRC_SIZE   (BACKUP_SRC_END - BACKUP_SRC_START + 1)
 
 #endif /* __ASM_POWERPC_CRASHDUMP_PPC64_H */

@@ -14,23 +14,23 @@
  * struct xe_guc_relay - Data used by the VF-PF Relay Communication over GuC.
  */
 struct xe_guc_relay {
-	/**@lock: protects all internal data. */
-	spinlock_t lock;
+  /**@lock: protects all internal data. */
+  spinlock_t lock;
 
-	/** @worker: dispatches incoming action messages. */
-	struct work_struct worker;
+  /** @worker: dispatches incoming action messages. */
+  struct work_struct worker;
 
-	/** @pending_relays: list of sent requests that await a response. */
-	struct list_head pending_relays;
+  /** @pending_relays: list of sent requests that await a response. */
+  struct list_head pending_relays;
 
-	/** @incoming_actions: list of incoming relay action messages to process. */
-	struct list_head incoming_actions;
+  /** @incoming_actions: list of incoming relay action messages to process. */
+  struct list_head incoming_actions;
 
-	/** @pool: pool of the relay message buffers. */
-	mempool_t pool;
+  /** @pool: pool of the relay message buffers. */
+  mempool_t pool;
 
-	/** @last_rid: last Relay-ID used while sending a message. */
-	u32 last_rid;
+  /** @last_rid: last Relay-ID used while sending a message. */
+  u32 last_rid;
 };
 
 #endif

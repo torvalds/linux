@@ -29,6 +29,6 @@
 
 const struct link_hwss *get_dpia_link_hwss(void);
 bool can_use_dpia_link_hwss(const struct dc_link *link,
-		const struct link_resource *link_res);
+    const struct link_resource *link_res);
 
 #endif /* __LINK_HWSS_DPIA_H__ */

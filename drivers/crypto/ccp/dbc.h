@@ -19,26 +19,26 @@
 #include "psp-dev.h"
 
 struct psp_dbc_device {
-	struct device *dev;
-	struct psp_device *psp;
+  struct device *dev;
+  struct psp_device *psp;
 
-	union dbc_buffer *mbox;
+  union dbc_buffer *mbox;
 
-	struct mutex ioctl_mutex;
+  struct mutex ioctl_mutex;
 
-	struct miscdevice char_dev;
+  struct miscdevice char_dev;
 
-	/* used to abstract communication path */
-	bool	use_ext;
-	u32	header_size;
-	u32	*payload_size;
-	u32	*result;
-	void	*payload;
+  /* used to abstract communication path */
+  bool use_ext;
+  u32 header_size;
+  u32 *payload_size;
+  u32 *result;
+  void *payload;
 };
 
 union dbc_buffer {
-	struct psp_request		pa_req;
-	struct psp_ext_request		ext_req;
+  struct psp_request pa_req;
+  struct psp_ext_request ext_req;
 };
 
 void dbc_dev_destroy(struct psp_device *psp);

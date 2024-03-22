@@ -32,6 +32,6 @@
 #define TFD_CLOEXEC O_CLOEXEC
 #define TFD_NONBLOCK O_NONBLOCK
 
-#define TFD_IOC_SET_TICKS	_IOW('T', 0, __u64)
+#define TFD_IOC_SET_TICKS _IOW('T', 0, __u64)
 
 #endif /* _UAPI_LINUX_TIMERFD_H */

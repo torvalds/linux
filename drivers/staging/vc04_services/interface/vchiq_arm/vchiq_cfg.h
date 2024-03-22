@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
-/* Copyright (c) 2010-2014 Broadcom. All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+ * Copyright (c) 2010-2014 Broadcom. All rights reserved.*/
 
 #ifndef VCHIQ_CFG_H
 #define VCHIQ_CFG_H

@@ -23,6 +23,8 @@
 /* Keep this the last entry. */
 #define R_MICROBLAZE_NUM 11
 
-typedef struct { volatile int counter; } module_t;
+typedef struct {
+  volatile int counter;
+} module_t;
 
 #endif /* _ASM_MICROBLAZE_MODULE_H */

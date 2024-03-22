@@ -10,10 +10,9 @@
 #include <bpf/bpf_endian.h>
 
 SEC("freplace/connect_v4_prog")
-int new_connect_v4_prog(struct bpf_sock_addr *ctx)
-{
-	// return value thats in invalid range
-	return 255;
+int new_connect_v4_prog(struct bpf_sock_addr *ctx) {
+  // return value thats in invalid range
+  return 255;
 }
 
 char _license[] SEC("license") = "GPL";

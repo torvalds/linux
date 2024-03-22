@@ -22,15 +22,15 @@
 #define WM8711_IFACE    0x07
 #define WM8711_SRATE    0x08
 #define WM8711_ACTIVE   0x09
-#define WM8711_RESET	0x0f
+#define WM8711_RESET  0x0f
 
-#define WM8711_CACHEREGNUM 	8
+#define WM8711_CACHEREGNUM  8
 
-#define WM8711_SYSCLK	0
-#define WM8711_DAI		0
+#define WM8711_SYSCLK 0
+#define WM8711_DAI    0
 
 struct wm8711_setup_data {
-	unsigned short i2c_address;
+  unsigned short i2c_address;
 };
 
 #endif

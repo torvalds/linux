@@ -49,58 +49,57 @@
 #define MCDE_SISERR 0x00000140
 
 enum mcde_flow_mode {
-	/* One-shot mode: flow stops after one frame */
-	MCDE_COMMAND_ONESHOT_FLOW,
-	/* Command mode with tearing effect (TE) IRQ sync */
-	MCDE_COMMAND_TE_FLOW,
-	/*
-	 * Command mode with bus turn-around (BTA) and tearing effect
-	 * (TE) IRQ sync.
-	 */
-	MCDE_COMMAND_BTA_TE_FLOW,
-	/* Video mode with tearing effect (TE) sync IRQ */
-	MCDE_VIDEO_TE_FLOW,
-	/* Video mode with the formatter itself as sync source */
-	MCDE_VIDEO_FORMATTER_FLOW,
-	/* DPI video with the formatter itsels as sync source */
-	MCDE_DPI_FORMATTER_FLOW,
+  /* One-shot mode: flow stops after one frame */
+  MCDE_COMMAND_ONESHOT_FLOW,
+  /* Command mode with tearing effect (TE) IRQ sync */
+  MCDE_COMMAND_TE_FLOW,
+  /*
+   * Command mode with bus turn-around (BTA) and tearing effect
+   * (TE) IRQ sync.
+   */
+  MCDE_COMMAND_BTA_TE_FLOW,
+  /* Video mode with tearing effect (TE) sync IRQ */
+  MCDE_VIDEO_TE_FLOW,
+  /* Video mode with the formatter itself as sync source */
+  MCDE_VIDEO_FORMATTER_FLOW,
+  /* DPI video with the formatter itsels as sync source */
+  MCDE_DPI_FORMATTER_FLOW,
 };
 
 struct mcde {
-	struct drm_device drm;
-	struct device *dev;
-	struct drm_panel *panel;
-	struct drm_bridge *bridge;
-	struct drm_connector *connector;
-	struct drm_simple_display_pipe pipe;
-	struct mipi_dsi_device *mdsi;
-	bool dpi_output;
-	s16 stride;
-	enum mcde_flow_mode flow_mode;
-	unsigned int flow_active;
-	spinlock_t flow_lock; /* Locks the channel flow control */
+  struct drm_device drm;
+  struct device *dev;
+  struct drm_panel *panel;
+  struct drm_bridge *bridge;
+  struct drm_connector *connector;
+  struct drm_simple_display_pipe pipe;
+  struct mipi_dsi_device *mdsi;
+  bool dpi_output;
+  s16 stride;
+  enum mcde_flow_mode flow_mode;
+  unsigned int flow_active;
+  spinlock_t flow_lock; /* Locks the channel flow control */
 
-	void __iomem *regs;
+  void __iomem *regs;
 
-	struct clk *mcde_clk;
-	struct clk *lcd_clk;
-	struct clk *hdmi_clk;
-	/* Handles to the clock dividers for FIFO A and B */
-	struct clk *fifoa_clk;
-	struct clk *fifob_clk;
-	/* Locks the MCDE FIFO control register A and B */
-	spinlock_t fifo_crx1_lock;
+  struct clk *mcde_clk;
+  struct clk *lcd_clk;
+  struct clk *hdmi_clk;
+  /* Handles to the clock dividers for FIFO A and B */
+  struct clk *fifoa_clk;
+  struct clk *fifob_clk;
+  /* Locks the MCDE FIFO control register A and B */
+  spinlock_t fifo_crx1_lock;
 
-	struct regulator *epod;
-	struct regulator *vana;
+  struct regulator *epod;
+  struct regulator *vana;
 };
 
 #define to_mcde(dev) container_of(dev, struct mcde, drm)
 
-static inline bool mcde_flow_is_video(struct mcde *mcde)
-{
-	return (mcde->flow_mode == MCDE_VIDEO_TE_FLOW ||
-		mcde->flow_mode == MCDE_VIDEO_FORMATTER_FLOW);
+static inline bool mcde_flow_is_video(struct mcde *mcde) {
+  return mcde->flow_mode == MCDE_VIDEO_TE_FLOW
+    || mcde->flow_mode == MCDE_VIDEO_FORMATTER_FLOW;
 }
 
 bool mcde_dsi_irq(struct mipi_dsi_device *mdsi);

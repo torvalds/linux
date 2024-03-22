@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2015 - 2023 Beijing WangXun Technology Co., Ltd. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2015 - 2023 Beijing WangXun Technology Co., Ltd.*/
 
 #ifndef _NGBE_ETHTOOL_H_
 #define _NGBE_ETHTOOL_H_

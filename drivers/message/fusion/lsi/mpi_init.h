@@ -63,37 +63,34 @@
 #ifndef MPI_INIT_H
 #define MPI_INIT_H
 
-
 /*****************************************************************************
 *
 *               S C S I    I n i t i a t o r    M e s s a g e s
 *
 *****************************************************************************/
 
-/****************************************************************************/
-/*  SCSI IO messages and associated structures                              */
-/****************************************************************************/
+/* **************************************************************************
+ *  SCSI IO messages and associated structures
+ ****************************************************************************/
 
-typedef struct _MSG_SCSI_IO_REQUEST
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      ChainOffset;        /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      CDBLength;          /* 04h */
-    U8                      SenseBufferLength;  /* 05h */
-    U8                      Reserved;           /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      LUN[8];             /* 0Ch */
-    U32                     Control;            /* 14h */
-    U8                      CDB[16];            /* 18h */
-    U32                     DataLength;         /* 28h */
-    U32                     SenseBufferLowAddr; /* 2Ch */
-    SGE_IO_UNION            SGL;                /* 30h */
+typedef struct _MSG_SCSI_IO_REQUEST {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U8 ChainOffset;        /* 02h */
+  U8 Function;           /* 03h */
+  U8 CDBLength;          /* 04h */
+  U8 SenseBufferLength;  /* 05h */
+  U8 Reserved;           /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U8 LUN[8];             /* 0Ch */
+  U32 Control;            /* 14h */
+  U8 CDB[16];            /* 18h */
+  U32 DataLength;         /* 28h */
+  U32 SenseBufferLowAddr; /* 2Ch */
+  SGE_IO_UNION SGL;                /* 30h */
 } MSG_SCSI_IO_REQUEST, MPI_POINTER PTR_MSG_SCSI_IO_REQUEST,
-  SCSIIORequest_t, MPI_POINTER pSCSIIORequest_t;
-
+SCSIIORequest_t, MPI_POINTER pSCSIIORequest_t;
 
 /* SCSI IO MsgFlags bits */
 
@@ -144,31 +141,28 @@ typedef struct _MSG_SCSI_IO_REQUEST
 #define MPI_SCSIIO_CONTROL_ABORT_TASK_SET       (0x00020000)
 #define MPI_SCSIIO_CONTROL_RESERVED2            (0x00010000)
 
-
 /* SCSI IO reply structure */
-typedef struct _MSG_SCSI_IO_REPLY
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      MsgLength;          /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      CDBLength;          /* 04h */
-    U8                      SenseBufferLength;  /* 05h */
-    U8                      Reserved;           /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      SCSIStatus;         /* 0Ch */
-    U8                      SCSIState;          /* 0Dh */
-    U16                     IOCStatus;          /* 0Eh */
-    U32                     IOCLogInfo;         /* 10h */
-    U32                     TransferCount;      /* 14h */
-    U32                     SenseCount;         /* 18h */
-    U32                     ResponseInfo;       /* 1Ch */
-    U16                     TaskTag;            /* 20h */
-    U16                     Reserved1;          /* 22h */
+typedef struct _MSG_SCSI_IO_REPLY {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U8 MsgLength;          /* 02h */
+  U8 Function;           /* 03h */
+  U8 CDBLength;          /* 04h */
+  U8 SenseBufferLength;  /* 05h */
+  U8 Reserved;           /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U8 SCSIStatus;         /* 0Ch */
+  U8 SCSIState;          /* 0Dh */
+  U16 IOCStatus;          /* 0Eh */
+  U32 IOCLogInfo;         /* 10h */
+  U32 TransferCount;      /* 14h */
+  U32 SenseCount;         /* 18h */
+  U32 ResponseInfo;       /* 1Ch */
+  U16 TaskTag;            /* 20h */
+  U16 Reserved1;          /* 22h */
 } MSG_SCSI_IO_REPLY, MPI_POINTER PTR_MSG_SCSI_IO_REPLY,
-  SCSIIOReply_t, MPI_POINTER pSCSIIOReply_t;
-
+SCSIIOReply_t, MPI_POINTER pSCSIIOReply_t;
 
 /* SCSI IO Reply SCSIStatus values (SAM-2 status codes) */
 
@@ -187,7 +181,6 @@ typedef struct _MSG_SCSI_IO_REPLY
 #define MPI_SCSI_STATUS_FCPEXT_NO_LINK              (0x81)
 #define MPI_SCSI_STATUS_FCPEXT_UNASSIGNED           (0x82)
 
-
 /* SCSI IO Reply SCSIState values */
 
 #define MPI_SCSI_STATE_AUTOSENSE_VALID          (0x01)
@@ -197,8 +190,8 @@ typedef struct _MSG_SCSI_IO_REPLY
 #define MPI_SCSI_STATE_RESPONSE_INFO_VALID      (0x10)
 #define MPI_SCSI_STATE_QUEUE_TAG_REJECTED       (0x20)
 
-/* SCSI IO Reply ResponseInfo values */
-/* (FCP-1 RSP_CODE values and SPI-3 Packetized Failure codes) */
+/* SCSI IO Reply ResponseInfo values
+ * (FCP-1 RSP_CODE values and SPI-3 Packetized Failure codes)*/
 
 #define MPI_SCSI_RSP_INFO_FUNCTION_COMPLETE     (0x00000000)
 #define MPI_SCSI_RSP_INFO_FCP_BURST_LEN_ERROR   (0x01000000)
@@ -210,90 +203,84 @@ typedef struct _MSG_SCSI_IO_REPLY
 
 #define MPI_SCSI_TASKTAG_UNKNOWN                (0xFFFF)
 
+/* **************************************************************************
+ *  SCSI IO 32 messages and associated structures
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  SCSI IO 32 messages and associated structures                           */
-/****************************************************************************/
-
-typedef struct
-{
-    U8                      CDB[20];                    /* 00h */
-    U32                     PrimaryReferenceTag;        /* 14h */
-    U16                     PrimaryApplicationTag;      /* 18h */
-    U16                     PrimaryApplicationTagMask;  /* 1Ah */
-    U32                     TransferLength;             /* 1Ch */
+typedef struct {
+  U8 CDB[20];                    /* 00h */
+  U32 PrimaryReferenceTag;        /* 14h */
+  U16 PrimaryApplicationTag;      /* 18h */
+  U16 PrimaryApplicationTagMask;  /* 1Ah */
+  U32 TransferLength;             /* 1Ch */
 } MPI_SCSI_IO32_CDB_EEDP32, MPI_POINTER PTR_MPI_SCSI_IO32_CDB_EEDP32,
-  MpiScsiIo32CdbEedp32_t, MPI_POINTER pMpiScsiIo32CdbEedp32_t;
+MpiScsiIo32CdbEedp32_t, MPI_POINTER pMpiScsiIo32CdbEedp32_t;
 
-typedef struct
-{
-    U8                      CDB[16];                    /* 00h */
-    U32                     DataLength;                 /* 10h */
-    U32                     PrimaryReferenceTag;        /* 14h */
-    U16                     PrimaryApplicationTag;      /* 18h */
-    U16                     PrimaryApplicationTagMask;  /* 1Ah */
-    U32                     TransferLength;             /* 1Ch */
+typedef struct {
+  U8 CDB[16];                    /* 00h */
+  U32 DataLength;                 /* 10h */
+  U32 PrimaryReferenceTag;        /* 14h */
+  U16 PrimaryApplicationTag;      /* 18h */
+  U16 PrimaryApplicationTagMask;  /* 1Ah */
+  U32 TransferLength;             /* 1Ch */
 } MPI_SCSI_IO32_CDB_EEDP16, MPI_POINTER PTR_MPI_SCSI_IO32_CDB_EEDP16,
-  MpiScsiIo32CdbEedp16_t, MPI_POINTER pMpiScsiIo32CdbEedp16_t;
+MpiScsiIo32CdbEedp16_t, MPI_POINTER pMpiScsiIo32CdbEedp16_t;
 
-typedef union
-{
-    U8                       CDB32[32];
-    MPI_SCSI_IO32_CDB_EEDP32 EEDP32;
-    MPI_SCSI_IO32_CDB_EEDP16 EEDP16;
-    SGE_SIMPLE_UNION         SGE;
+typedef union {
+  U8 CDB32[32];
+  MPI_SCSI_IO32_CDB_EEDP32 EEDP32;
+  MPI_SCSI_IO32_CDB_EEDP16 EEDP16;
+  SGE_SIMPLE_UNION SGE;
 } MPI_SCSI_IO32_CDB_UNION, MPI_POINTER PTR_MPI_SCSI_IO32_CDB_UNION,
-  MpiScsiIo32Cdb_t, MPI_POINTER pMpiScsiIo32Cdb_t;
+MpiScsiIo32Cdb_t, MPI_POINTER pMpiScsiIo32Cdb_t;
 
-typedef struct
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U16                     Reserved1;          /* 02h */
-    U32                     Reserved2;          /* 04h */
-} MPI_SCSI_IO32_BUS_TARGET_ID_FORM, MPI_POINTER PTR_MPI_SCSI_IO32_BUS_TARGET_ID_FORM,
-  MpiScsiIo32BusTargetIdForm_t, MPI_POINTER pMpiScsiIo32BusTargetIdForm_t;
+typedef struct {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U16 Reserved1;          /* 02h */
+  U32 Reserved2;          /* 04h */
+} MPI_SCSI_IO32_BUS_TARGET_ID_FORM,
+MPI_POINTER PTR_MPI_SCSI_IO32_BUS_TARGET_ID_FORM,
+MpiScsiIo32BusTargetIdForm_t, MPI_POINTER pMpiScsiIo32BusTargetIdForm_t;
 
-typedef union
-{
-    MPI_SCSI_IO32_BUS_TARGET_ID_FORM    SCSIID;
-    U64                                 WWID;
+typedef union {
+  MPI_SCSI_IO32_BUS_TARGET_ID_FORM SCSIID;
+  U64 WWID;
 } MPI_SCSI_IO32_ADDRESS, MPI_POINTER PTR_MPI_SCSI_IO32_ADDRESS,
-  MpiScsiIo32Address_t, MPI_POINTER pMpiScsiIo32Address_t;
+MpiScsiIo32Address_t, MPI_POINTER pMpiScsiIo32Address_t;
 
-typedef struct _MSG_SCSI_IO32_REQUEST
-{
-    U8                          Port;                           /* 00h */
-    U8                          Reserved1;                      /* 01h */
-    U8                          ChainOffset;                    /* 02h */
-    U8                          Function;                       /* 03h */
-    U8                          CDBLength;                      /* 04h */
-    U8                          SenseBufferLength;              /* 05h */
-    U8                          Flags;                          /* 06h */
-    U8                          MsgFlags;                       /* 07h */
-    U32                         MsgContext;                     /* 08h */
-    U8                          LUN[8];                         /* 0Ch */
-    U32                         Control;                        /* 14h */
-    MPI_SCSI_IO32_CDB_UNION     CDB;                            /* 18h */
-    U32                         DataLength;                     /* 38h */
-    U32                         BidirectionalDataLength;        /* 3Ch */
-    U32                         SecondaryReferenceTag;          /* 40h */
-    U16                         SecondaryApplicationTag;        /* 44h */
-    U16                         Reserved2;                      /* 46h */
-    U16                         EEDPFlags;                      /* 48h */
-    U16                         ApplicationTagTranslationMask;  /* 4Ah */
-    U32                         EEDPBlockSize;                  /* 4Ch */
-    MPI_SCSI_IO32_ADDRESS       DeviceAddress;                  /* 50h */
-    U8                          SGLOffset0;                     /* 58h */
-    U8                          SGLOffset1;                     /* 59h */
-    U8                          SGLOffset2;                     /* 5Ah */
-    U8                          SGLOffset3;                     /* 5Bh */
-    U32                         Reserved3;                      /* 5Ch */
-    U32                         Reserved4;                      /* 60h */
-    U32                         SenseBufferLowAddr;             /* 64h */
-    SGE_IO_UNION                SGL;                            /* 68h */
+typedef struct _MSG_SCSI_IO32_REQUEST {
+  U8 Port;                           /* 00h */
+  U8 Reserved1;                      /* 01h */
+  U8 ChainOffset;                    /* 02h */
+  U8 Function;                       /* 03h */
+  U8 CDBLength;                      /* 04h */
+  U8 SenseBufferLength;              /* 05h */
+  U8 Flags;                          /* 06h */
+  U8 MsgFlags;                       /* 07h */
+  U32 MsgContext;                     /* 08h */
+  U8 LUN[8];                         /* 0Ch */
+  U32 Control;                        /* 14h */
+  MPI_SCSI_IO32_CDB_UNION CDB;                            /* 18h */
+  U32 DataLength;                     /* 38h */
+  U32 BidirectionalDataLength;        /* 3Ch */
+  U32 SecondaryReferenceTag;          /* 40h */
+  U16 SecondaryApplicationTag;        /* 44h */
+  U16 Reserved2;                      /* 46h */
+  U16 EEDPFlags;                      /* 48h */
+  U16 ApplicationTagTranslationMask;  /* 4Ah */
+  U32 EEDPBlockSize;                  /* 4Ch */
+  MPI_SCSI_IO32_ADDRESS DeviceAddress;                  /* 50h */
+  U8 SGLOffset0;                     /* 58h */
+  U8 SGLOffset1;                     /* 59h */
+  U8 SGLOffset2;                     /* 5Ah */
+  U8 SGLOffset3;                     /* 5Bh */
+  U32 Reserved3;                      /* 5Ch */
+  U32 Reserved4;                      /* 60h */
+  U32 SenseBufferLowAddr;             /* 64h */
+  SGE_IO_UNION SGL;                            /* 68h */
 } MSG_SCSI_IO32_REQUEST, MPI_POINTER PTR_MSG_SCSI_IO32_REQUEST,
-  SCSIIO32Request_t, MPI_POINTER pSCSIIO32Request_t;
+SCSIIO32Request_t, MPI_POINTER pSCSIIO32Request_t;
 
 /* SCSI IO 32 MsgFlags bits */
 #define MPI_SCSIIO32_MSGFLGS_SENSE_WIDTH                (0x01)
@@ -375,53 +362,49 @@ typedef struct _MSG_SCSI_IO32_REQUEST
 #define MPI_SCSIIO32_EEDPFLAGS_INC_SEC_REFTAG       (0x4000)
 #define MPI_SCSIIO32_EEDPFLAGS_INC_PRI_REFTAG       (0x8000)
 
-
 /* SCSIIO32 IO reply structure */
-typedef struct _MSG_SCSIIO32_IO_REPLY
-{
-    U8                      Port;                       /* 00h */
-    U8                      Reserved1;                  /* 01h */
-    U8                      MsgLength;                  /* 02h */
-    U8                      Function;                   /* 03h */
-    U8                      CDBLength;                  /* 04h */
-    U8                      SenseBufferLength;          /* 05h */
-    U8                      Flags;                      /* 06h */
-    U8                      MsgFlags;                   /* 07h */
-    U32                     MsgContext;                 /* 08h */
-    U8                      SCSIStatus;                 /* 0Ch */
-    U8                      SCSIState;                  /* 0Dh */
-    U16                     IOCStatus;                  /* 0Eh */
-    U32                     IOCLogInfo;                 /* 10h */
-    U32                     TransferCount;              /* 14h */
-    U32                     SenseCount;                 /* 18h */
-    U32                     ResponseInfo;               /* 1Ch */
-    U16                     TaskTag;                    /* 20h */
-    U16                     Reserved2;                  /* 22h */
-    U32                     BidirectionalTransferCount; /* 24h */
+typedef struct _MSG_SCSIIO32_IO_REPLY {
+  U8 Port;                       /* 00h */
+  U8 Reserved1;                  /* 01h */
+  U8 MsgLength;                  /* 02h */
+  U8 Function;                   /* 03h */
+  U8 CDBLength;                  /* 04h */
+  U8 SenseBufferLength;          /* 05h */
+  U8 Flags;                      /* 06h */
+  U8 MsgFlags;                   /* 07h */
+  U32 MsgContext;                 /* 08h */
+  U8 SCSIStatus;                 /* 0Ch */
+  U8 SCSIState;                  /* 0Dh */
+  U16 IOCStatus;                  /* 0Eh */
+  U32 IOCLogInfo;                 /* 10h */
+  U32 TransferCount;              /* 14h */
+  U32 SenseCount;                 /* 18h */
+  U32 ResponseInfo;               /* 1Ch */
+  U16 TaskTag;                    /* 20h */
+  U16 Reserved2;                  /* 22h */
+  U32 BidirectionalTransferCount; /* 24h */
 } MSG_SCSIIO32_IO_REPLY, MPI_POINTER PTR_MSG_SCSIIO32_IO_REPLY,
-  SCSIIO32Reply_t, MPI_POINTER pSCSIIO32Reply_t;
+SCSIIO32Reply_t, MPI_POINTER pSCSIIO32Reply_t;
 
+/* **************************************************************************
+ *  SCSI Task Management messages
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  SCSI Task Management messages                                           */
-/****************************************************************************/
-
-typedef struct _MSG_SCSI_TASK_MGMT
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      ChainOffset;        /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      Reserved;           /* 04h */
-    U8                      TaskType;           /* 05h */
-    U8                      Reserved1;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      LUN[8];             /* 0Ch */
-    U32                     Reserved2[7];       /* 14h */
-    U32                     TaskMsgContext;     /* 30h */
+typedef struct _MSG_SCSI_TASK_MGMT {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U8 ChainOffset;        /* 02h */
+  U8 Function;           /* 03h */
+  U8 Reserved;           /* 04h */
+  U8 TaskType;           /* 05h */
+  U8 Reserved1;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U8 LUN[8];             /* 0Ch */
+  U32 Reserved2[7];       /* 14h */
+  U32 TaskMsgContext;     /* 30h */
 } MSG_SCSI_TASK_MGMT, MPI_POINTER PTR_SCSI_TASK_MGMT,
-  SCSITaskMgmt_t, MPI_POINTER pSCSITaskMgmt_t;
+SCSITaskMgmt_t, MPI_POINTER pSCSITaskMgmt_t;
 
 /* TaskType values */
 
@@ -444,23 +427,22 @@ typedef struct _MSG_SCSI_TASK_MGMT
 #define MPI_SCSITASKMGMT_MSGFLAGS_SOFT_RESET_OPTION     (0x08)
 
 /* SCSI Task Management Reply */
-typedef struct _MSG_SCSI_TASK_MGMT_REPLY
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      MsgLength;          /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      ResponseCode;       /* 04h */
-    U8                      TaskType;           /* 05h */
-    U8                      Reserved1;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      Reserved2[2];       /* 0Ch */
-    U16                     IOCStatus;          /* 0Eh */
-    U32                     IOCLogInfo;         /* 10h */
-    U32                     TerminationCount;   /* 14h */
+typedef struct _MSG_SCSI_TASK_MGMT_REPLY {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U8 MsgLength;          /* 02h */
+  U8 Function;           /* 03h */
+  U8 ResponseCode;       /* 04h */
+  U8 TaskType;           /* 05h */
+  U8 Reserved1;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U8 Reserved2[2];       /* 0Ch */
+  U16 IOCStatus;          /* 0Eh */
+  U32 IOCLogInfo;         /* 10h */
+  U32 TerminationCount;   /* 14h */
 } MSG_SCSI_TASK_MGMT_REPLY, MPI_POINTER PTR_MSG_SCSI_TASK_MGMT_REPLY,
-  SCSITaskMgmtReply_t, MPI_POINTER pSCSITaskMgmtReply_t;
+SCSITaskMgmtReply_t, MPI_POINTER pSCSITaskMgmtReply_t;
 
 /* ResponseCode values */
 #define MPI_SCSITASKMGMT_RSP_TM_COMPLETE                (0x00)
@@ -471,30 +453,28 @@ typedef struct _MSG_SCSI_TASK_MGMT_REPLY
 #define MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN             (0x09)
 #define MPI_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC           (0x80)
 
+/* **************************************************************************
+ *  SCSI Enclosure Processor messages
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  SCSI Enclosure Processor messages                                       */
-/****************************************************************************/
-
-typedef struct _MSG_SEP_REQUEST
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      ChainOffset;        /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      Action;             /* 04h */
-    U8                      Flags;              /* 05h */
-    U8                      Reserved1;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U32                     SlotStatus;         /* 0Ch */
-    U32                     Reserved2;          /* 10h */
-    U32                     Reserved3;          /* 14h */
-    U32                     Reserved4;          /* 18h */
-    U16                     Slot;               /* 1Ch */
-    U16                     EnclosureHandle;    /* 1Eh */
+typedef struct _MSG_SEP_REQUEST {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U8 ChainOffset;        /* 02h */
+  U8 Function;           /* 03h */
+  U8 Action;             /* 04h */
+  U8 Flags;              /* 05h */
+  U8 Reserved1;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U32 SlotStatus;         /* 0Ch */
+  U32 Reserved2;          /* 10h */
+  U32 Reserved3;          /* 14h */
+  U32 Reserved4;          /* 18h */
+  U16 Slot;               /* 1Ch */
+  U16 EnclosureHandle;    /* 1Eh */
 } MSG_SEP_REQUEST, MPI_POINTER PTR_MSG_SEP_REQUEST,
-  SEPRequest_t, MPI_POINTER pSEPRequest_t;
+SEPRequest_t, MPI_POINTER pSEPRequest_t;
 
 /* Action defines */
 #define MPI_SEP_REQ_ACTION_WRITE_STATUS                 (0x00)
@@ -528,27 +508,25 @@ typedef struct _MSG_SEP_REQUEST
 #define MPI_SEP_REQ_SLOTSTATUS_DEV_OFF                  (0x10000000)
 #define MPI_SEP_REQ_SLOTSTATUS_SWAP_RESET               (0x80000000)
 
-
-typedef struct _MSG_SEP_REPLY
-{
-    U8                      TargetID;           /* 00h */
-    U8                      Bus;                /* 01h */
-    U8                      MsgLength;          /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      Action;             /* 04h */
-    U8                      Reserved1;          /* 05h */
-    U8                      Reserved2;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U16                     Reserved3;          /* 0Ch */
-    U16                     IOCStatus;          /* 0Eh */
-    U32                     IOCLogInfo;         /* 10h */
-    U32                     SlotStatus;         /* 14h */
-    U32                     Reserved4;          /* 18h */
-    U16                     Slot;               /* 1Ch */
-    U16                     EnclosureHandle;    /* 1Eh */
+typedef struct _MSG_SEP_REPLY {
+  U8 TargetID;           /* 00h */
+  U8 Bus;                /* 01h */
+  U8 MsgLength;          /* 02h */
+  U8 Function;           /* 03h */
+  U8 Action;             /* 04h */
+  U8 Reserved1;          /* 05h */
+  U8 Reserved2;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U16 Reserved3;          /* 0Ch */
+  U16 IOCStatus;          /* 0Eh */
+  U32 IOCLogInfo;         /* 10h */
+  U32 SlotStatus;         /* 14h */
+  U32 Reserved4;          /* 18h */
+  U16 Slot;               /* 1Ch */
+  U16 EnclosureHandle;    /* 1Eh */
 } MSG_SEP_REPLY, MPI_POINTER PTR_MSG_SEP_REPLY,
-  SEPReply_t, MPI_POINTER pSEPReply_t;
+SEPReply_t, MPI_POINTER pSEPReply_t;
 
 /* SlotStatus bits for MSG_SEP_REPLY */
 #define MPI_SEP_REPLY_SLOTSTATUS_NO_ERROR               (0x00000001)

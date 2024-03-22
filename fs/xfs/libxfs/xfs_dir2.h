@@ -21,19 +21,19 @@ struct xfs_dir2_data_unused;
 struct xfs_dir3_icfree_hdr;
 struct xfs_dir3_icleaf_hdr;
 
-extern const struct xfs_name	xfs_name_dotdot;
-extern const struct xfs_name	xfs_name_dot;
+extern const struct xfs_name xfs_name_dotdot;
+extern const struct xfs_name xfs_name_dot;
 
-static inline bool
-xfs_dir2_samename(
-	const struct xfs_name	*n1,
-	const struct xfs_name	*n2)
-{
-	if (n1 == n2)
-		return true;
-	if (n1->len != n2->len)
-		return false;
-	return !memcmp(n1->name, n2->name, n1->len);
+static inline bool xfs_dir2_samename(
+    const struct xfs_name *n1,
+    const struct xfs_name *n2) {
+  if (n1 == n2) {
+    return true;
+  }
+  if (n1->len != n2->len) {
+    return false;
+  }
+  return !memcmp(n1->name, n2->name, n1->len);
 }
 
 /*
@@ -50,21 +50,21 @@ extern void xfs_da_unmount(struct xfs_mount *mp);
 
 extern int xfs_dir_isempty(struct xfs_inode *dp);
 extern int xfs_dir_init(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_inode *pdp);
+    struct xfs_inode *pdp);
 extern int xfs_dir_createname(struct xfs_trans *tp, struct xfs_inode *dp,
-				const struct xfs_name *name, xfs_ino_t inum,
-				xfs_extlen_t tot);
+    const struct xfs_name *name, xfs_ino_t inum,
+    xfs_extlen_t tot);
 extern int xfs_dir_lookup(struct xfs_trans *tp, struct xfs_inode *dp,
-				const struct xfs_name *name, xfs_ino_t *inum,
-				struct xfs_name *ci_name);
+    const struct xfs_name *name, xfs_ino_t *inum,
+    struct xfs_name *ci_name);
 extern int xfs_dir_removename(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name, xfs_ino_t ino,
-				xfs_extlen_t tot);
+    struct xfs_name *name, xfs_ino_t ino,
+    xfs_extlen_t tot);
 extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
-				const struct xfs_name *name, xfs_ino_t inum,
-				xfs_extlen_t tot);
+    const struct xfs_name *name, xfs_ino_t inum,
+    xfs_extlen_t tot);
 extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
-				struct xfs_name *name);
+    struct xfs_name *name);
 
 /*
  * Direct call from the bmap code, bypassing the generic directory layer.
@@ -77,27 +77,27 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 extern int xfs_dir2_isblock(struct xfs_da_args *args, bool *isblock);
 extern int xfs_dir2_isleaf(struct xfs_da_args *args, bool *isleaf);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
-				struct xfs_buf *bp);
+    struct xfs_buf *bp);
 
 extern void xfs_dir2_data_freescan(struct xfs_mount *mp,
-		struct xfs_dir2_data_hdr *hdr, int *loghead);
+    struct xfs_dir2_data_hdr *hdr, int *loghead);
 extern void xfs_dir2_data_log_entry(struct xfs_da_args *args,
-		struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
+    struct xfs_buf *bp, struct xfs_dir2_data_entry *dep);
 extern void xfs_dir2_data_log_header(struct xfs_da_args *args,
-		struct xfs_buf *bp);
+    struct xfs_buf *bp);
 extern void xfs_dir2_data_log_unused(struct xfs_da_args *args,
-		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup);
+    struct xfs_buf *bp, struct xfs_dir2_data_unused *dup);
 extern void xfs_dir2_data_make_free(struct xfs_da_args *args,
-		struct xfs_buf *bp, xfs_dir2_data_aoff_t offset,
-		xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
+    struct xfs_buf *bp, xfs_dir2_data_aoff_t offset,
+    xfs_dir2_data_aoff_t len, int *needlogp, int *needscanp);
 extern int xfs_dir2_data_use_free(struct xfs_da_args *args,
-		struct xfs_buf *bp, struct xfs_dir2_data_unused *dup,
-		xfs_dir2_data_aoff_t offset, xfs_dir2_data_aoff_t len,
-		int *needlogp, int *needscanp);
+    struct xfs_buf *bp, struct xfs_dir2_data_unused *dup,
+    xfs_dir2_data_aoff_t offset, xfs_dir2_data_aoff_t len,
+    int *needlogp, int *needscanp);
 
 extern struct xfs_dir2_data_free *xfs_dir2_data_freefind(
-		struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
-		struct xfs_dir2_data_unused *dup);
+  struct xfs_dir2_data_hdr *hdr, struct xfs_dir2_data_free *bf,
+  struct xfs_dir2_data_unused *dup);
 
 extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
 
@@ -116,129 +116,113 @@ extern const struct xfs_buf_ops xfs_dir3_data_buf_ops;
 /*
  * Convert dataptr to byte in file space
  */
-static inline xfs_dir2_off_t
-xfs_dir2_dataptr_to_byte(xfs_dir2_dataptr_t dp)
-{
-	return (xfs_dir2_off_t)dp << XFS_DIR2_DATA_ALIGN_LOG;
+static inline xfs_dir2_off_t xfs_dir2_dataptr_to_byte(xfs_dir2_dataptr_t dp) {
+  return (xfs_dir2_off_t) dp << XFS_DIR2_DATA_ALIGN_LOG;
 }
 
 /*
  * Convert byte in file space to dataptr.  It had better be aligned.
  */
-static inline xfs_dir2_dataptr_t
-xfs_dir2_byte_to_dataptr(xfs_dir2_off_t by)
-{
-	return (xfs_dir2_dataptr_t)(by >> XFS_DIR2_DATA_ALIGN_LOG);
+static inline xfs_dir2_dataptr_t xfs_dir2_byte_to_dataptr(xfs_dir2_off_t by) {
+  return (xfs_dir2_dataptr_t) (by >> XFS_DIR2_DATA_ALIGN_LOG);
 }
 
 /*
  * Convert byte in space to (DB) block
  */
-static inline xfs_dir2_db_t
-xfs_dir2_byte_to_db(struct xfs_da_geometry *geo, xfs_dir2_off_t by)
-{
-	return (xfs_dir2_db_t)(by >> geo->blklog);
+static inline xfs_dir2_db_t xfs_dir2_byte_to_db(struct xfs_da_geometry *geo,
+    xfs_dir2_off_t by) {
+  return (xfs_dir2_db_t) (by >> geo->blklog);
 }
 
 /*
  * Convert dataptr to a block number
  */
-static inline xfs_dir2_db_t
-xfs_dir2_dataptr_to_db(struct xfs_da_geometry *geo, xfs_dir2_dataptr_t dp)
-{
-	return xfs_dir2_byte_to_db(geo, xfs_dir2_dataptr_to_byte(dp));
+static inline xfs_dir2_db_t xfs_dir2_dataptr_to_db(struct xfs_da_geometry *geo,
+    xfs_dir2_dataptr_t dp) {
+  return xfs_dir2_byte_to_db(geo, xfs_dir2_dataptr_to_byte(dp));
 }
 
 /*
  * Convert byte in space to offset in a block
  */
-static inline xfs_dir2_data_aoff_t
-xfs_dir2_byte_to_off(struct xfs_da_geometry *geo, xfs_dir2_off_t by)
-{
-	return (xfs_dir2_data_aoff_t)(by & (geo->blksize - 1));
+static inline xfs_dir2_data_aoff_t xfs_dir2_byte_to_off(
+    struct xfs_da_geometry *geo, xfs_dir2_off_t by) {
+  return (xfs_dir2_data_aoff_t) (by & (geo->blksize - 1));
 }
 
 /*
  * Convert dataptr to a byte offset in a block
  */
-static inline xfs_dir2_data_aoff_t
-xfs_dir2_dataptr_to_off(struct xfs_da_geometry *geo, xfs_dir2_dataptr_t dp)
-{
-	return xfs_dir2_byte_to_off(geo, xfs_dir2_dataptr_to_byte(dp));
+static inline xfs_dir2_data_aoff_t xfs_dir2_dataptr_to_off(
+    struct xfs_da_geometry *geo, xfs_dir2_dataptr_t dp) {
+  return xfs_dir2_byte_to_off(geo, xfs_dir2_dataptr_to_byte(dp));
 }
 
 /*
  * Convert block and offset to byte in space
  */
-static inline xfs_dir2_off_t
-xfs_dir2_db_off_to_byte(struct xfs_da_geometry *geo, xfs_dir2_db_t db,
-			xfs_dir2_data_aoff_t o)
-{
-	return ((xfs_dir2_off_t)db << geo->blklog) + o;
+static inline xfs_dir2_off_t xfs_dir2_db_off_to_byte(
+    struct xfs_da_geometry *geo, xfs_dir2_db_t db,
+    xfs_dir2_data_aoff_t o) {
+  return ((xfs_dir2_off_t) db << geo->blklog) + o;
 }
 
 /*
  * Convert block (DB) to block (dablk)
  */
-static inline xfs_dablk_t
-xfs_dir2_db_to_da(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
-{
-	return (xfs_dablk_t)(db << (geo->blklog - geo->fsblog));
+static inline xfs_dablk_t xfs_dir2_db_to_da(struct xfs_da_geometry *geo,
+    xfs_dir2_db_t db) {
+  return (xfs_dablk_t) (db << (geo->blklog - geo->fsblog));
 }
 
 /*
  * Convert byte in space to (DA) block
  */
-static inline xfs_dablk_t
-xfs_dir2_byte_to_da(struct xfs_da_geometry *geo, xfs_dir2_off_t by)
-{
-	return xfs_dir2_db_to_da(geo, xfs_dir2_byte_to_db(geo, by));
+static inline xfs_dablk_t xfs_dir2_byte_to_da(struct xfs_da_geometry *geo,
+    xfs_dir2_off_t by) {
+  return xfs_dir2_db_to_da(geo, xfs_dir2_byte_to_db(geo, by));
 }
 
 /*
  * Convert block and offset to dataptr
  */
-static inline xfs_dir2_dataptr_t
-xfs_dir2_db_off_to_dataptr(struct xfs_da_geometry *geo, xfs_dir2_db_t db,
-			   xfs_dir2_data_aoff_t o)
-{
-	return xfs_dir2_byte_to_dataptr(xfs_dir2_db_off_to_byte(geo, db, o));
+static inline xfs_dir2_dataptr_t xfs_dir2_db_off_to_dataptr(
+    struct xfs_da_geometry *geo, xfs_dir2_db_t db,
+    xfs_dir2_data_aoff_t o) {
+  return xfs_dir2_byte_to_dataptr(xfs_dir2_db_off_to_byte(geo, db, o));
 }
 
 /*
  * Convert block (dablk) to block (DB)
  */
-static inline xfs_dir2_db_t
-xfs_dir2_da_to_db(struct xfs_da_geometry *geo, xfs_dablk_t da)
-{
-	return (xfs_dir2_db_t)(da >> (geo->blklog - geo->fsblog));
+static inline xfs_dir2_db_t xfs_dir2_da_to_db(struct xfs_da_geometry *geo,
+    xfs_dablk_t da) {
+  return (xfs_dir2_db_t) (da >> (geo->blklog - geo->fsblog));
 }
 
 /*
  * Convert block (dablk) to byte offset in space
  */
-static inline xfs_dir2_off_t
-xfs_dir2_da_to_byte(struct xfs_da_geometry *geo, xfs_dablk_t da)
-{
-	return xfs_dir2_db_off_to_byte(geo, xfs_dir2_da_to_db(geo, da), 0);
+static inline xfs_dir2_off_t xfs_dir2_da_to_byte(struct xfs_da_geometry *geo,
+    xfs_dablk_t da) {
+  return xfs_dir2_db_off_to_byte(geo, xfs_dir2_da_to_db(geo, da), 0);
 }
 
 /*
  * Directory tail pointer accessor functions. Based on block geometry.
  */
-static inline struct xfs_dir2_block_tail *
-xfs_dir2_block_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_data_hdr *hdr)
-{
-	return ((struct xfs_dir2_block_tail *)
-		((char *)hdr + geo->blksize)) - 1;
+static inline struct xfs_dir2_block_tail *xfs_dir2_block_tail_p(
+    struct xfs_da_geometry *geo, struct xfs_dir2_data_hdr *hdr) {
+  return ((struct xfs_dir2_block_tail *)
+    ((char *) hdr + geo->blksize)) - 1;
 }
 
-static inline struct xfs_dir2_leaf_tail *
-xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
-{
-	return (struct xfs_dir2_leaf_tail *)
-		((char *)lp + geo->blksize -
-		  sizeof(struct xfs_dir2_leaf_tail));
+static inline struct xfs_dir2_leaf_tail *xfs_dir2_leaf_tail_p(
+    struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp) {
+  return (struct xfs_dir2_leaf_tail *)
+    ((char *) lp + geo->blksize
+    - sizeof(struct xfs_dir2_leaf_tail));
 }
 
 /*
@@ -254,11 +238,11 @@ xfs_dir2_leaf_tail_p(struct xfs_da_geometry *geo, struct xfs_dir2_leaf *lp)
  * buffer size.  For now we use the current glibc buffer size.
  * musl libc hardcodes 2k and dietlibc uses PAGE_SIZE.
  */
-#define XFS_READDIR_BUFSIZE	(32768)
+#define XFS_READDIR_BUFSIZE (32768)
 
 unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp, uint8_t filetype);
 unsigned int xfs_dir3_data_end_offset(struct xfs_da_geometry *geo,
-		struct xfs_dir2_data_hdr *hdr);
+    struct xfs_dir2_data_hdr *hdr);
 bool xfs_dir2_namecheck(const void *name, size_t length);
 
 /*
@@ -274,22 +258,24 @@ bool xfs_dir2_namecheck(const void *name, size_t length);
  * these functions prepare names for hashing by transforming specific bytes
  * to other bytes.  Robustness with other encodings is not guaranteed.
  */
-static inline bool xfs_ascii_ci_need_xfrm(unsigned char c)
-{
-	if (c >= 0x41 && c <= 0x5a)	/* A-Z */
-		return true;
-	if (c >= 0xc0 && c <= 0xd6)	/* latin A-O with accents */
-		return true;
-	if (c >= 0xd8 && c <= 0xde)	/* latin O-Y with accents */
-		return true;
-	return false;
+static inline bool xfs_ascii_ci_need_xfrm(unsigned char c) {
+  if (c >= 0x41 && c <= 0x5a) { /* A-Z */
+    return true;
+  }
+  if (c >= 0xc0 && c <= 0xd6) { /* latin A-O with accents */
+    return true;
+  }
+  if (c >= 0xd8 && c <= 0xde) { /* latin O-Y with accents */
+    return true;
+  }
+  return false;
 }
 
-static inline unsigned char xfs_ascii_ci_xfrm(unsigned char c)
-{
-	if (xfs_ascii_ci_need_xfrm(c))
-		c -= 'A' - 'a';
-	return c;
+static inline unsigned char xfs_ascii_ci_xfrm(unsigned char c) {
+  if (xfs_ascii_ci_need_xfrm(c)) {
+    c -= 'A' - 'a';
+  }
+  return c;
 }
 
-#endif	/* __XFS_DIR2_H__ */
+#endif  /* __XFS_DIR2_H__ */

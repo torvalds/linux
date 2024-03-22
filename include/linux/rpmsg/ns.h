@@ -21,9 +21,9 @@
  * (if/as-soon-as one is registered).
  */
 struct rpmsg_ns_msg {
-	char name[RPMSG_NAME_SIZE];
-	__rpmsg32 addr;
-	__rpmsg32 flags;
+  char name[RPMSG_NAME_SIZE];
+  __rpmsg32 addr;
+  __rpmsg32 flags;
 } __packed;
 
 /**
@@ -33,12 +33,12 @@ struct rpmsg_ns_msg {
  * @RPMSG_NS_DESTROY: a known remote service was just destroyed
  */
 enum rpmsg_ns_flags {
-	RPMSG_NS_CREATE		= 0,
-	RPMSG_NS_DESTROY	= 1,
+  RPMSG_NS_CREATE = 0,
+  RPMSG_NS_DESTROY = 1,
 };
 
 /* Address 53 is reserved for advertising remote services */
-#define RPMSG_NS_ADDR			(53)
+#define RPMSG_NS_ADDR     (53)
 
 int rpmsg_ns_register_device(struct rpmsg_device *rpdev);
 

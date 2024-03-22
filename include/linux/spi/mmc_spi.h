@@ -16,23 +16,23 @@ struct mmc_host;
  * switch the "struct device *" parameters over to "struct spi_device *".
  */
 struct mmc_spi_platform_data {
-	/* driver activation and (optional) card detect irq hookup */
-	int (*init)(struct device *,
-		irqreturn_t (*)(int, void *),
-		void *);
-	void (*exit)(struct device *, void *);
+  /* driver activation and (optional) card detect irq hookup */
+  int (*init)(struct device *,
+      irqreturn_t (*)(int, void *),
+      void *);
+  void (*exit)(struct device *, void *);
 
-	/* Capabilities to pass into mmc core (e.g. MMC_CAP_NEEDS_POLL). */
-	unsigned long caps;
-	unsigned long caps2;
+  /* Capabilities to pass into mmc core (e.g. MMC_CAP_NEEDS_POLL). */
+  unsigned long caps;
+  unsigned long caps2;
 
-	/* how long to debounce card detect, in msecs */
-	u16 detect_delay;
+  /* how long to debounce card detect, in msecs */
+  u16 detect_delay;
 
-	/* power management */
-	u16 powerup_msecs;		/* delay of up to 250 msec */
-	u32 ocr_mask;			/* available voltages */
-	void (*setpower)(struct device *, unsigned int maskval);
+  /* power management */
+  u16 powerup_msecs;    /* delay of up to 250 msec */
+  u32 ocr_mask;     /* available voltages */
+  void (*setpower)(struct device *, unsigned int maskval);
 };
 
 extern struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi);

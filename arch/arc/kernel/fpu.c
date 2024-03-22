@@ -29,54 +29,44 @@
  * done before context switch
  */
 
-void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
-{
-	unsigned int *saveto = &prev->thread.fpu.aux_dpfp[0].l;
-	unsigned int *readfrom = &next->thread.fpu.aux_dpfp[0].l;
-
-	const unsigned int zero = 0;
-
-	__asm__ __volatile__(
-		"daddh11  %0, %2, %2\n"
-		"dexcl1   %1, %3, %4\n"
-		: "=&r" (*(saveto + 1)), /* early clobber must here */
-		  "=&r" (*(saveto))
-		: "r" (zero), "r" (*(readfrom + 1)), "r" (*(readfrom))
-	);
-
-	__asm__ __volatile__(
-		"daddh22  %0, %2, %2\n"
-		"dexcl2   %1, %3, %4\n"
-		: "=&r"(*(saveto + 3)),	/* early clobber must here */
-		  "=&r"(*(saveto + 2))
-		: "r" (zero), "r" (*(readfrom + 3)), "r" (*(readfrom + 2))
-	);
+void fpu_save_restore(struct task_struct *prev, struct task_struct *next) {
+  unsigned int *saveto = &prev->thread.fpu.aux_dpfp[0].l;
+  unsigned int *readfrom = &next->thread.fpu.aux_dpfp[0].l;
+  const unsigned int zero = 0;
+  __asm__ __volatile__ (
+    "daddh11  %0, %2, %2\n"
+    "dexcl1   %1, %3, %4\n"
+    : "=&r" (*(saveto + 1)), /* early clobber must here */
+    "=&r" (*(saveto))
+    : "r" (zero), "r" (*(readfrom + 1)), "r" (*(readfrom))
+    );
+  __asm__ __volatile__ (
+    "daddh22  %0, %2, %2\n"
+    "dexcl2   %1, %3, %4\n"
+    : "=&r" (*(saveto + 3)), /* early clobber must here */
+    "=&r" (*(saveto + 2))
+    : "r" (zero), "r" (*(readfrom + 3)), "r" (*(readfrom + 2))
+    );
 }
 
 #else
 
-void fpu_init_task(struct pt_regs *regs)
-{
-	const unsigned int fwe = 0x80000000;
-
-	/* default rounding mode */
-	write_aux_reg(ARC_REG_FPU_CTRL, 0x100);
-
-	/* Initialize to zero: setting requires FWE be set */
-	write_aux_reg(ARC_REG_FPU_STATUS, fwe);
+void fpu_init_task(struct pt_regs *regs) {
+  const unsigned int fwe = 0x80000000;
+  /* default rounding mode */
+  write_aux_reg(ARC_REG_FPU_CTRL, 0x100);
+  /* Initialize to zero: setting requires FWE be set */
+  write_aux_reg(ARC_REG_FPU_STATUS, fwe);
 }
 
-void fpu_save_restore(struct task_struct *prev, struct task_struct *next)
-{
-	struct arc_fpu *save = &prev->thread.fpu;
-	struct arc_fpu *restore = &next->thread.fpu;
-	const unsigned int fwe = 0x80000000;
-
-	save->ctrl = read_aux_reg(ARC_REG_FPU_CTRL);
-	save->status = read_aux_reg(ARC_REG_FPU_STATUS);
-
-	write_aux_reg(ARC_REG_FPU_CTRL, restore->ctrl);
-	write_aux_reg(ARC_REG_FPU_STATUS, (fwe | restore->status));
+void fpu_save_restore(struct task_struct *prev, struct task_struct *next) {
+  struct arc_fpu *save = &prev->thread.fpu;
+  struct arc_fpu *restore = &next->thread.fpu;
+  const unsigned int fwe = 0x80000000;
+  save->ctrl = read_aux_reg(ARC_REG_FPU_CTRL);
+  save->status = read_aux_reg(ARC_REG_FPU_STATUS);
+  write_aux_reg(ARC_REG_FPU_CTRL, restore->ctrl);
+  write_aux_reg(ARC_REG_FPU_STATUS, (fwe | restore->status));
 }
 
 #endif

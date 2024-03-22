@@ -8,6 +8,6 @@
 #define CIRRUS_SCODEC_H
 
 int cirrus_scodec_get_speaker_id(struct device *dev, int amp_index,
-				 int num_amps, int fixed_gpio_id);
+    int num_amps, int fixed_gpio_id);
 
 #endif /* CIRRUS_SCODEC_H */

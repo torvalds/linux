@@ -13,6 +13,6 @@
 struct resource;
 
 int sh_pfc_register(const char *name,
-		    struct resource *resource, u32 num_resources);
+    struct resource *resource, u32 num_resources);
 
 #endif /* __ARCH_SH_CPU_PFC_H__ */

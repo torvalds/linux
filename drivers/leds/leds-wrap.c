@@ -17,108 +17,101 @@
 #include <linux/module.h>
 
 #define DRVNAME "wrap-led"
-#define WRAP_POWER_LED_GPIO	2
-#define WRAP_ERROR_LED_GPIO	3
-#define WRAP_EXTRA_LED_GPIO	18
+#define WRAP_POWER_LED_GPIO 2
+#define WRAP_ERROR_LED_GPIO 3
+#define WRAP_EXTRA_LED_GPIO 18
 
 static struct platform_device *pdev;
 
 static void wrap_power_led_set(struct led_classdev *led_cdev,
-		enum led_brightness value)
-{
-	if (value)
-		scx200_gpio_set_low(WRAP_POWER_LED_GPIO);
-	else
-		scx200_gpio_set_high(WRAP_POWER_LED_GPIO);
+    enum led_brightness value) {
+  if (value) {
+    scx200_gpio_set_low(WRAP_POWER_LED_GPIO);
+  } else {
+    scx200_gpio_set_high(WRAP_POWER_LED_GPIO);
+  }
 }
 
 static void wrap_error_led_set(struct led_classdev *led_cdev,
-		enum led_brightness value)
-{
-	if (value)
-		scx200_gpio_set_low(WRAP_ERROR_LED_GPIO);
-	else
-		scx200_gpio_set_high(WRAP_ERROR_LED_GPIO);
+    enum led_brightness value) {
+  if (value) {
+    scx200_gpio_set_low(WRAP_ERROR_LED_GPIO);
+  } else {
+    scx200_gpio_set_high(WRAP_ERROR_LED_GPIO);
+  }
 }
 
 static void wrap_extra_led_set(struct led_classdev *led_cdev,
-		enum led_brightness value)
-{
-	if (value)
-		scx200_gpio_set_low(WRAP_EXTRA_LED_GPIO);
-	else
-		scx200_gpio_set_high(WRAP_EXTRA_LED_GPIO);
+    enum led_brightness value) {
+  if (value) {
+    scx200_gpio_set_low(WRAP_EXTRA_LED_GPIO);
+  } else {
+    scx200_gpio_set_high(WRAP_EXTRA_LED_GPIO);
+  }
 }
 
 static struct led_classdev wrap_power_led = {
-	.name			= "wrap::power",
-	.brightness_set		= wrap_power_led_set,
-	.default_trigger	= "default-on",
-	.flags			= LED_CORE_SUSPENDRESUME,
+  .name = "wrap::power",
+  .brightness_set = wrap_power_led_set,
+  .default_trigger = "default-on",
+  .flags = LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev wrap_error_led = {
-	.name		= "wrap::error",
-	.brightness_set	= wrap_error_led_set,
-	.flags			= LED_CORE_SUSPENDRESUME,
+  .name = "wrap::error",
+  .brightness_set = wrap_error_led_set,
+  .flags = LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev wrap_extra_led = {
-	.name           = "wrap::extra",
-	.brightness_set = wrap_extra_led_set,
-	.flags			= LED_CORE_SUSPENDRESUME,
+  .name = "wrap::extra",
+  .brightness_set = wrap_extra_led_set,
+  .flags = LED_CORE_SUSPENDRESUME,
 };
 
-static int wrap_led_probe(struct platform_device *pdev)
-{
-	int ret;
-
-	ret = devm_led_classdev_register(&pdev->dev, &wrap_power_led);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_led_classdev_register(&pdev->dev, &wrap_error_led);
-	if (ret < 0)
-		return ret;
-
-	return  devm_led_classdev_register(&pdev->dev, &wrap_extra_led);
+static int wrap_led_probe(struct platform_device *pdev) {
+  int ret;
+  ret = devm_led_classdev_register(&pdev->dev, &wrap_power_led);
+  if (ret < 0) {
+    return ret;
+  }
+  ret = devm_led_classdev_register(&pdev->dev, &wrap_error_led);
+  if (ret < 0) {
+    return ret;
+  }
+  return devm_led_classdev_register(&pdev->dev, &wrap_extra_led);
 }
 
 static struct platform_driver wrap_led_driver = {
-	.probe		= wrap_led_probe,
-	.driver		= {
-		.name		= DRVNAME,
-	},
+  .probe = wrap_led_probe,
+  .driver = {
+    .name = DRVNAME,
+  },
 };
 
-static int __init wrap_led_init(void)
-{
-	int ret;
-
-	if (!scx200_gpio_present()) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	ret = platform_driver_register(&wrap_led_driver);
-	if (ret < 0)
-		goto out;
-
-	pdev = platform_device_register_simple(DRVNAME, -1, NULL, 0);
-	if (IS_ERR(pdev)) {
-		ret = PTR_ERR(pdev);
-		platform_driver_unregister(&wrap_led_driver);
-		goto out;
-	}
-
+static int __init wrap_led_init(void) {
+  int ret;
+  if (!scx200_gpio_present()) {
+    ret = -ENODEV;
+    goto out;
+  }
+  ret = platform_driver_register(&wrap_led_driver);
+  if (ret < 0) {
+    goto out;
+  }
+  pdev = platform_device_register_simple(DRVNAME, -1, NULL, 0);
+  if (IS_ERR(pdev)) {
+    ret = PTR_ERR(pdev);
+    platform_driver_unregister(&wrap_led_driver);
+    goto out;
+  }
 out:
-	return ret;
+  return ret;
 }
 
-static void __exit wrap_led_exit(void)
-{
-	platform_device_unregister(pdev);
-	platform_driver_unregister(&wrap_led_driver);
+static void __exit wrap_led_exit(void) {
+  platform_device_unregister(pdev);
+  platform_driver_unregister(&wrap_led_driver);
 }
 
 module_init(wrap_led_init);
@@ -127,4 +120,3 @@ module_exit(wrap_led_exit);
 MODULE_AUTHOR("Kristian Kielhofner <kris@krisk.org>");
 MODULE_DESCRIPTION("PCEngines WRAP LED driver");
 MODULE_LICENSE("GPL");
-

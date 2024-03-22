@@ -22,23 +22,23 @@ int intel_region_ttm_init(struct intel_memory_region *mem);
 
 int intel_region_ttm_fini(struct intel_memory_region *mem);
 
-struct i915_refct_sgt *
-intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
-				  struct ttm_resource *res,
-				  u32 page_alignment);
+struct i915_refct_sgt *intel_region_ttm_resource_to_rsgt(
+  struct intel_memory_region *mem,
+  struct ttm_resource *res,
+  u32 page_alignment);
 
 void intel_region_ttm_resource_free(struct intel_memory_region *mem,
-				    struct ttm_resource *res);
+    struct ttm_resource *res);
 
 int intel_region_to_ttm_type(const struct intel_memory_region *mem);
 
 struct ttm_device_funcs *i915_ttm_driver(void);
 
 #ifdef CONFIG_DRM_I915_SELFTEST
-struct ttm_resource *
-intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
-				resource_size_t offset,
-				resource_size_t size,
-				unsigned int flags);
+struct ttm_resource *intel_region_ttm_resource_alloc(
+  struct intel_memory_region *mem,
+  resource_size_t offset,
+  resource_size_t size,
+  unsigned int flags);
 #endif
 #endif /* _INTEL_REGION_TTM_H_ */

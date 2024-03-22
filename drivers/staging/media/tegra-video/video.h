@@ -14,10 +14,10 @@
 #include "vi.h"
 
 struct tegra_video_device {
-	struct v4l2_device v4l2_dev;
-	struct media_device media_dev;
-	struct tegra_vi *vi;
-	struct tegra_csi *csi;
+  struct v4l2_device v4l2_dev;
+  struct media_device media_dev;
+  struct tegra_vi *vi;
+  struct tegra_csi *csi;
 };
 
 int tegra_v4l2_nodes_setup_tpg(struct tegra_video_device *vid);

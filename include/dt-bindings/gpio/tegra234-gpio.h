@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.*/
 
 /*
  * This header provides constants for binding nvidia,tegra234-gpio*.
@@ -43,7 +43,7 @@
 #define TEGRA234_MAIN_GPIO_PORT_AG 24
 
 #define TEGRA234_MAIN_GPIO(port, offset) \
-	((TEGRA234_MAIN_GPIO_PORT_##port * 8) + offset)
+  ((TEGRA234_MAIN_GPIO_PORT_ ## port * 8) + offset)
 
 /* GPIOs implemented by AON GPIO controller */
 #define TEGRA234_AON_GPIO_PORT_AA 0
@@ -54,6 +54,6 @@
 #define TEGRA234_AON_GPIO_PORT_GG 5
 
 #define TEGRA234_AON_GPIO(port, offset) \
-	((TEGRA234_AON_GPIO_PORT_##port * 8) + offset)
+  ((TEGRA234_AON_GPIO_PORT_ ## port * 8) + offset)
 
 #endif

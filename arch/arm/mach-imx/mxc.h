@@ -14,64 +14,56 @@
 #error "Do not include directly."
 #endif
 
-#define IMX_DDR_TYPE_LPDDR2		1
+#define IMX_DDR_TYPE_LPDDR2   1
 
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_SOC_IMX6SL
-static inline bool cpu_is_imx6sl(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6SL;
+static inline bool cpu_is_imx6sl(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6SL;
 }
+
 #else
-static inline bool cpu_is_imx6sl(void)
-{
-	return false;
+static inline bool cpu_is_imx6sl(void) {
+  return false;
 }
+
 #endif
 
-static inline bool cpu_is_imx6dl(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6DL;
+static inline bool cpu_is_imx6dl(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6DL;
 }
 
-static inline bool cpu_is_imx6sx(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6SX;
+static inline bool cpu_is_imx6sx(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6SX;
 }
 
-static inline bool cpu_is_imx6ul(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6UL;
+static inline bool cpu_is_imx6ul(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6UL;
 }
 
-static inline bool cpu_is_imx6ull(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6ULL;
+static inline bool cpu_is_imx6ull(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6ULL;
 }
 
-static inline bool cpu_is_imx6ulz(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6ULZ;
+static inline bool cpu_is_imx6ulz(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6ULZ;
 }
 
-static inline bool cpu_is_imx6sll(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6SLL;
+static inline bool cpu_is_imx6sll(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6SLL;
 }
 
-static inline bool cpu_is_imx6q(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX6Q;
+static inline bool cpu_is_imx6q(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX6Q;
 }
 
-static inline bool cpu_is_imx7d(void)
-{
-	return __mxc_cpu_type == MXC_CPU_IMX7D;
+static inline bool cpu_is_imx7d(void) {
+  return __mxc_cpu_type == MXC_CPU_IMX7D;
 }
 
 struct cpu_op {
-	u32 cpu_rate;
+  u32 cpu_rate;
 };
 
 int tzic_enable_wake(void);
@@ -79,9 +71,9 @@ int tzic_enable_wake(void);
 extern struct cpu_op *(*get_cpu_op)(int *op);
 #endif
 
-#define imx_readl	readl_relaxed
-#define imx_readw	readw_relaxed
-#define imx_writel	writel_relaxed
-#define imx_writew	writew_relaxed
+#define imx_readl readl_relaxed
+#define imx_readw readw_relaxed
+#define imx_writel  writel_relaxed
+#define imx_writew  writew_relaxed
 
 #endif /*  __ASM_ARCH_MXC_H__ */

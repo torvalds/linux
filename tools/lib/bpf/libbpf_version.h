@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
-/* Copyright (C) 2021 Facebook */
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
+ * Copyright (C) 2021 Facebook*/
 #ifndef __LIBBPF_VERSION_H
 #define __LIBBPF_VERSION_H
 

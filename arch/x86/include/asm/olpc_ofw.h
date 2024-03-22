@@ -5,7 +5,7 @@
 /* index into the page table containing the entry OFW occupies */
 #define OLPC_OFW_PDE_NR 1022
 
-#define OLPC_OFW_SIG 0x2057464F	/* aka "OFW " */
+#define OLPC_OFW_SIG 0x2057464F /* aka "OFW " */
 
 #ifdef CONFIG_OLPC
 
@@ -13,10 +13,11 @@ extern bool olpc_ofw_is_installed(void);
 
 /* run an OFW command by calling into the firmware */
 #define olpc_ofw(name, args, res) \
-	__olpc_ofw((name), ARRAY_SIZE(args), args, ARRAY_SIZE(res), res)
+  __olpc_ofw((name), ARRAY_SIZE(args), args, ARRAY_SIZE(res), res)
 
-extern int __olpc_ofw(const char *name, int nr_args, const void **args, int nr_res,
-		void **res);
+extern int __olpc_ofw(const char *name, int nr_args, const void **args,
+    int nr_res,
+    void **res);
 
 /* determine whether OFW is available and lives in the proper memory */
 extern void olpc_ofw_detect(void);
@@ -30,9 +31,15 @@ extern bool olpc_ofw_present(void);
 extern void olpc_dt_build_devicetree(void);
 
 #else /* !CONFIG_OLPC */
-static inline void olpc_ofw_detect(void) { }
-static inline void setup_olpc_ofw_pgd(void) { }
-static inline void olpc_dt_build_devicetree(void) { }
+static inline void olpc_ofw_detect(void) {
+}
+
+static inline void setup_olpc_ofw_pgd(void) {
+}
+
+static inline void olpc_dt_build_devicetree(void) {
+}
+
 #endif /* !CONFIG_OLPC */
 
 #endif /* _ASM_X86_OLPC_OFW_H */

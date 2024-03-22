@@ -7,5 +7,5 @@ struct device;
 struct device_node;
 
 char *ap_cp_unique_name(struct device *dev, struct device_node *np,
-			const char *name);
+    const char *name);
 #endif

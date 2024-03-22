@@ -21,15 +21,13 @@
 #include "ia_css_err.h"
 #include "ia_css_iterator_param.h"
 
-void
-ia_css_iterator_config(
-    struct sh_css_isp_iterator_isp_config *to,
-    const struct ia_css_iterator_configuration *from,
-    unsigned int size);
+void ia_css_iterator_config(
+  struct sh_css_isp_iterator_isp_config *to,
+  const struct ia_css_iterator_configuration *from,
+  unsigned int size);
 
-int
-ia_css_iterator_configure(
-    const struct ia_css_binary *binary,
-    const struct ia_css_frame_info *in_info);
+int ia_css_iterator_configure(
+  const struct ia_css_binary *binary,
+  const struct ia_css_frame_info *in_info);
 
 #endif /* __IA_CSS_ITERATOR_HOST_H */

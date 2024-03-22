@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
@@ -16,26 +16,24 @@
 extern void force_flush_all(void);
 
 #define activate_mm activate_mm
-static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
-{
-	/*
-	 * This is called by fs/exec.c and sys_unshare()
-	 * when the new ->mm is used for the first time.
-	 */
-	__switch_mm(&new->context.id);
+static inline void activate_mm(struct mm_struct *old, struct mm_struct *new) {
+  /*
+   * This is called by fs/exec.c and sys_unshare()
+   * when the new ->mm is used for the first time.
+   */
+  __switch_mm(&new->context.id);
 }
 
-static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
-			     struct task_struct *tsk)
-{
-	unsigned cpu = smp_processor_id();
-
-	if(prev != next){
-		cpumask_clear_cpu(cpu, mm_cpumask(prev));
-		cpumask_set_cpu(cpu, mm_cpumask(next));
-		if(next != &init_mm)
-			__switch_mm(&next->context.id);
-	}
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+    struct task_struct *tsk) {
+  unsigned cpu = smp_processor_id();
+  if (prev != next) {
+    cpumask_clear_cpu(cpu, mm_cpumask(prev));
+    cpumask_set_cpu(cpu, mm_cpumask(next));
+    if (next != &init_mm) {
+      __switch_mm(&next->context.id);
+    }
+  }
 }
 
 #define init_new_context init_new_context

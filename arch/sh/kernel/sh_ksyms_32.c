@@ -27,8 +27,8 @@ EXPORT_SYMBOL(min_low_pfn);
 EXPORT_SYMBOL(max_low_pfn);
 #endif
 
-#define DECLARE_EXPORT(name)		\
-	extern void name(void);EXPORT_SYMBOL(name)
+#define DECLARE_EXPORT(name)    \
+  extern void name(void); EXPORT_SYMBOL(name)
 
 DECLARE_EXPORT(__udivsi3);
 DECLARE_EXPORT(__sdivsi3);

@@ -23,7 +23,7 @@
 #define KS_INPUT_SVIDEO_2       9
 #define KS_INPUT_SVIDEO_3       10
 
-#define KS_INPUT_YUV656		15
+#define KS_INPUT_YUV656   15
 #define KS_INPUT_COUNT          10
 
 /* output channels */
@@ -35,4 +35,3 @@
 #define KS_STD_PAL_M            113       /* 60 Hz PAL  */
 
 #endif /* KS0127_H */
-

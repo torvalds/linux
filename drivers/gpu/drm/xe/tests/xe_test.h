@@ -17,8 +17,8 @@
  * here and point the kunit->priv to an embedded struct xe_test_priv.
  */
 enum xe_test_priv_id {
-	XE_TEST_LIVE_DMA_BUF,
-	XE_TEST_LIVE_MIGRATE,
+  XE_TEST_LIVE_DMA_BUF,
+  XE_TEST_LIVE_MIGRATE,
 };
 
 /**
@@ -26,7 +26,7 @@ enum xe_test_priv_id {
  * @id: enum xe_test_priv_id to identify the subclass.
  */
 struct xe_test_priv {
-	enum xe_test_priv_id id;
+  enum xe_test_priv_id id;
 };
 
 #define XE_TEST_DECLARE(x) x
@@ -43,16 +43,13 @@ struct xe_test_priv {
  * current kunit->priv pointer is not pointing to an object of the expected
  * subclass. A pointer to the embedded struct xe_test_priv otherwise.
  */
-static inline struct xe_test_priv *
-xe_cur_kunit_priv(enum xe_test_priv_id id)
-{
-	struct xe_test_priv *priv;
-
-	if (!xe_cur_kunit())
-		return NULL;
-
-	priv = xe_cur_kunit()->priv;
-	return priv->id == id ? priv : NULL;
+static inline struct xe_test_priv *xe_cur_kunit_priv(enum xe_test_priv_id id) {
+  struct xe_test_priv *priv;
+  if (!xe_cur_kunit()) {
+    return NULL;
+  }
+  priv = xe_cur_kunit()->priv;
+  return priv->id == id ? priv : NULL;
 }
 
 #else /* if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST) */

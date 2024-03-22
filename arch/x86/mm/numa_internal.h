@@ -6,14 +6,14 @@
 #include <asm/numa.h>
 
 struct numa_memblk {
-	u64			start;
-	u64			end;
-	int			nid;
+  u64 start;
+  u64 end;
+  int nid;
 };
 
 struct numa_meminfo {
-	int			nr_blks;
-	struct numa_memblk	blk[NR_NODE_MEMBLKS];
+  int nr_blks;
+  struct numa_memblk blk[NR_NODE_MEMBLKS];
 };
 
 void __init numa_remove_memblk_from(int idx, struct numa_meminfo *mi);
@@ -24,11 +24,12 @@ void __init x86_numa_init(void);
 
 #ifdef CONFIG_NUMA_EMU
 void __init numa_emulation(struct numa_meminfo *numa_meminfo,
-			   int numa_dist_cnt);
+    int numa_dist_cnt);
 #else
 static inline void numa_emulation(struct numa_meminfo *numa_meminfo,
-				  int numa_dist_cnt)
-{ }
+    int numa_dist_cnt) {
+}
+
 #endif
 
-#endif	/* __X86_MM_NUMA_INTERNAL_H */
+#endif  /* __X86_MM_NUMA_INTERNAL_H */

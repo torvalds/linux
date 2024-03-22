@@ -9,21 +9,20 @@
 #define __CS42L52_H
 
 struct cs42l52_platform_data {
+  /* MICBIAS Level. Check datasheet Pg48 */
+  unsigned int micbias_lvl;
 
-	/* MICBIAS Level. Check datasheet Pg48 */
-	unsigned int micbias_lvl;
+  /* MICA mode selection Differential or Single-ended */
+  bool mica_diff_cfg;
 
-	/* MICA mode selection Differential or Single-ended */
-	bool mica_diff_cfg;
+  /* MICB mode selection Differential or Single-ended */
+  bool micb_diff_cfg;
 
-	/* MICB mode selection Differential or Single-ended */
-	bool micb_diff_cfg;
+  /* Charge Pump Freq. Check datasheet Pg73 */
+  unsigned int chgfreq;
 
-	/* Charge Pump Freq. Check datasheet Pg73 */
-	unsigned int chgfreq;
-
-	/* Reset GPIO */
-	unsigned int reset_gpio;
+  /* Reset GPIO */
+  unsigned int reset_gpio;
 };
 
 #endif /* __CS42L52_H */

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2019 ARM Limited */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2019 ARM Limited*/
 
 #ifndef __TEST_SIGNALS_UTILS_H__
 #define __TEST_SIGNALS_UTILS_H__
@@ -18,11 +18,11 @@ void test_cleanup(struct tdescr *td);
 int test_run(struct tdescr *td);
 void test_result(struct tdescr *td);
 
-static inline bool feats_ok(struct tdescr *td)
-{
-	if (td->feats_incompatible & td->feats_supported)
-		return false;
-	return (td->feats_required & td->feats_supported) == td->feats_required;
+static inline bool feats_ok(struct tdescr *td) {
+  if (td->feats_incompatible & td->feats_supported) {
+    return false;
+  }
+  return (td->feats_required & td->feats_supported) == td->feats_required;
 }
 
 /*
@@ -58,90 +58,84 @@ static inline bool feats_ok(struct tdescr *td)
  * at sizeof(ucontext_t).
  */
 static __always_inline bool get_current_context(struct tdescr *td,
-						ucontext_t *dest_uc,
-						size_t dest_sz)
-{
-	static volatile bool seen_already;
-	int i;
-	char *uc = (char *)dest_uc;
-
-	assert(td && dest_uc);
-	/* it's a genuine invocation..reinit */
-	seen_already = 0;
-	td->live_uc_valid = 0;
-	td->live_sz = dest_sz;
-
-	/*
-	 * This is a memset() but we don't want the compiler to
-	 * optimise it into either instructions or a library call
-	 * which might be incompatible with streaming mode.
-	 */
-	for (i = 0; i < td->live_sz; i++) {
-		uc[i] = 0;
-		OPTIMIZER_HIDE_VAR(uc[0]);
-	}
-
-	td->live_uc = dest_uc;
-	/*
-	 * Grab ucontext_t triggering a SIGTRAP.
-	 *
-	 * Note that:
-	 * - live_uc_valid is declared volatile sig_atomic_t in
-	 *   struct tdescr since it will be changed inside the
-	 *   sig_copyctx handler
-	 * - the additional 'memory' clobber is there to avoid possible
-	 *   compiler's assumption on live_uc_valid and the content
-	 *   pointed by dest_uc, which are all changed inside the signal
-	 *   handler
-	 * - BRK causes a debug exception which is handled by the Kernel
-	 *   and finally causes the SIGTRAP signal to be delivered to this
-	 *   test thread. Since such delivery happens on the ret_to_user()
-	 *   /do_notify_resume() debug exception return-path, we are sure
-	 *   that the registered SIGTRAP handler has been run to completion
-	 *   before the execution path is restored here: as a consequence
-	 *   we can be sure that the volatile sig_atomic_t live_uc_valid
-	 *   carries a meaningful result. Being in a single thread context
-	 *   we'll also be sure that any access to memory modified by the
-	 *   handler (namely ucontext_t) will be visible once returned.
-	 * - note that since we are using a breakpoint instruction here
-	 *   to cause a SIGTRAP, the ucontext_t grabbed from the signal
-	 *   handler would naturally contain a PC pointing exactly to this
-	 *   BRK line, which means that, on return from the signal handler,
-	 *   or if we place the ucontext_t on the stack to fake a sigreturn,
-	 *   we'll end up in an infinite loop of BRK-SIGTRAP-handler.
-	 *   For this reason we take care to artificially move forward the
-	 *   PC to the next instruction while inside the signal handler.
-	 */
-	asm volatile ("brk #666"
-		      : "+m" (*dest_uc)
-		      :
-		      : "memory");
-
-	/*
-	 * If we were grabbing a streaming mode context then we may
-	 * have entered streaming mode behind the system's back and
-	 * libc or compiler generated code might decide to do
-	 * something invalid in streaming mode, or potentially even
-	 * the state of ZA.  Issue a SMSTOP to exit both now we have
-	 * grabbed the state.
-	 */
-	if (td->feats_supported & FEAT_SME)
-		asm volatile("msr S0_3_C4_C6_3, xzr");
-
-	/*
-	 * If we get here with seen_already==1 it implies the td->live_uc
-	 * context has been used to get back here....this probably means
-	 * a test has failed to cause a SEGV...anyway live_uc does not
-	 * point to a just acquired copy of ucontext_t...so return 0
-	 */
-	if (seen_already) {
-		fprintf(stdout,
-			"Unexpected successful sigreturn detected: live_uc is stale !\n");
-		return 0;
-	}
-	seen_already = 1;
-
-	return td->live_uc_valid;
+    ucontext_t *dest_uc,
+    size_t dest_sz) {
+  static volatile bool seen_already;
+  int i;
+  char *uc = (char *) dest_uc;
+  assert(td && dest_uc);
+  /* it's a genuine invocation..reinit */
+  seen_already = 0;
+  td->live_uc_valid = 0;
+  td->live_sz = dest_sz;
+  /*
+   * This is a memset() but we don't want the compiler to
+   * optimise it into either instructions or a library call
+   * which might be incompatible with streaming mode.
+   */
+  for (i = 0; i < td->live_sz; i++) {
+    uc[i] = 0;
+    OPTIMIZER_HIDE_VAR(uc[0]);
+  }
+  td->live_uc = dest_uc;
+  /*
+   * Grab ucontext_t triggering a SIGTRAP.
+   *
+   * Note that:
+   * - live_uc_valid is declared volatile sig_atomic_t in
+   *   struct tdescr since it will be changed inside the
+   *   sig_copyctx handler
+   * - the additional 'memory' clobber is there to avoid possible
+   *   compiler's assumption on live_uc_valid and the content
+   *   pointed by dest_uc, which are all changed inside the signal
+   *   handler
+   * - BRK causes a debug exception which is handled by the Kernel
+   *   and finally causes the SIGTRAP signal to be delivered to this
+   *   test thread. Since such delivery happens on the ret_to_user()
+   *   /do_notify_resume() debug exception return-path, we are sure
+   *   that the registered SIGTRAP handler has been run to completion
+   *   before the execution path is restored here: as a consequence
+   *   we can be sure that the volatile sig_atomic_t live_uc_valid
+   *   carries a meaningful result. Being in a single thread context
+   *   we'll also be sure that any access to memory modified by the
+   *   handler (namely ucontext_t) will be visible once returned.
+   * - note that since we are using a breakpoint instruction here
+   *   to cause a SIGTRAP, the ucontext_t grabbed from the signal
+   *   handler would naturally contain a PC pointing exactly to this
+   *   BRK line, which means that, on return from the signal handler,
+   *   or if we place the ucontext_t on the stack to fake a sigreturn,
+   *   we'll end up in an infinite loop of BRK-SIGTRAP-handler.
+   *   For this reason we take care to artificially move forward the
+   *   PC to the next instruction while inside the signal handler.
+   */
+  asm volatile ("brk #666"
+  : "+m" (*dest_uc)
+  :
+  : "memory");
+  /*
+   * If we were grabbing a streaming mode context then we may
+   * have entered streaming mode behind the system's back and
+   * libc or compiler generated code might decide to do
+   * something invalid in streaming mode, or potentially even
+   * the state of ZA.  Issue a SMSTOP to exit both now we have
+   * grabbed the state.
+   */
+  if (td->feats_supported & FEAT_SME) {
+    asm volatile ("msr S0_3_C4_C6_3, xzr");
+  }
+  /*
+   * If we get here with seen_already==1 it implies the td->live_uc
+   * context has been used to get back here....this probably means
+   * a test has failed to cause a SEGV...anyway live_uc does not
+   * point to a just acquired copy of ucontext_t...so return 0
+   */
+  if (seen_already) {
+    fprintf(stdout,
+        "Unexpected successful sigreturn detected: live_uc is stale !\n");
+    return 0;
+  }
+  seen_already = 1;
+  return td->live_uc_valid;
 }
 
 int fake_sigreturn(void *sigframe, size_t sz, int misalign_bytes);

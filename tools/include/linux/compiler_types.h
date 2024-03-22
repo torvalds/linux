@@ -15,20 +15,20 @@
 
 #ifdef __CHECKER__
 /* context/locking */
-# define __must_hold(x)	__attribute__((context(x,1,1)))
-# define __acquires(x)	__attribute__((context(x,0,1)))
-# define __releases(x)	__attribute__((context(x,1,0)))
-# define __acquire(x)	__context__(x,1)
-# define __release(x)	__context__(x,-1)
-# define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
+#define __must_hold(x) __attribute__((context(x, 1, 1)))
+#define __acquires(x)  __attribute__((context(x, 0, 1)))
+#define __releases(x)  __attribute__((context(x, 1, 0)))
+#define __acquire(x) __context__(x, 1)
+#define __release(x) __context__(x, -1)
+#define __cond_lock(x, c) ((c) ? ({ __acquire(x); 1; }) : 0)
 #else /* __CHECKER__ */
 /* context/locking */
-# define __must_hold(x)
-# define __acquires(x)
-# define __releases(x)
-# define __acquire(x)	(void)0
-# define __release(x)	(void)0
-# define __cond_lock(x,c) (c)
+#define __must_hold(x)
+#define __acquires(x)
+#define __releases(x)
+#define __acquire(x) (void) 0
+#define __release(x) (void) 0
+#define __cond_lock(x, c) (c)
 #endif /* __CHECKER__ */
 
 /* Compiler specific macros. */
@@ -37,7 +37,7 @@
 #endif
 
 #ifndef asm_goto_output
-#define asm_goto_output(x...) asm goto(x)
+#define asm_goto_output(x ...) asm goto (x)
 #endif
 
 #endif /* __LINUX_COMPILER_TYPES_H */

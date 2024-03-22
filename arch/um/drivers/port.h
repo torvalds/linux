@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Copyright (C) 2001 Jeff Dike (jdike@karaya.com)
  */
 
@@ -17,4 +17,3 @@ extern int port_rcv_fd(int fd);
 extern void port_remove_dev(void *d);
 
 #endif
-

@@ -17,8 +17,8 @@ struct device;
 
 int vsp1_du_init(struct device *dev);
 
-#define VSP1_DU_STATUS_COMPLETE		BIT(0)
-#define VSP1_DU_STATUS_WRITEBACK	BIT(1)
+#define VSP1_DU_STATUS_COMPLETE   BIT(0)
+#define VSP1_DU_STATUS_WRITEBACK  BIT(1)
 
 /**
  * struct vsp1_du_lif_config - VSP LIF configuration
@@ -26,21 +26,21 @@ int vsp1_du_init(struct device *dev);
  * @height: output frame height
  * @interlaced: true for interlaced pipelines
  * @callback: frame completion callback function (optional). When a callback
- *	      is provided, the VSP driver guarantees that it will be called once
- *	      and only once for each vsp1_du_atomic_flush() call.
+ *        is provided, the VSP driver guarantees that it will be called once
+ *        and only once for each vsp1_du_atomic_flush() call.
  * @callback_data: data to be passed to the frame completion callback
  */
 struct vsp1_du_lif_config {
-	unsigned int width;
-	unsigned int height;
-	bool interlaced;
+  unsigned int width;
+  unsigned int height;
+  bool interlaced;
 
-	void (*callback)(void *data, unsigned int status, u32 crc);
-	void *callback_data;
+  void (*callback)(void *data, unsigned int status, u32 crc);
+  void *callback_data;
 };
 
 int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
-		      const struct vsp1_du_lif_config *cfg);
+    const struct vsp1_du_lif_config *cfg);
 
 /**
  * struct vsp1_du_atomic_config - VSP atomic configuration parameters
@@ -54,14 +54,14 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
  * @premult: true for premultiplied alpha
  */
 struct vsp1_du_atomic_config {
-	u32 pixelformat;
-	unsigned int pitch;
-	dma_addr_t mem[3];
-	struct v4l2_rect src;
-	struct v4l2_rect dst;
-	unsigned int alpha;
-	unsigned int zpos;
-	bool premult;
+  u32 pixelformat;
+  unsigned int pitch;
+  dma_addr_t mem[3];
+  struct v4l2_rect src;
+  struct v4l2_rect dst;
+  unsigned int alpha;
+  unsigned int zpos;
+  bool premult;
 };
 
 /**
@@ -71,9 +71,9 @@ struct vsp1_du_atomic_config {
  * @VSP1_DU_CRC_OUTPUT: Perform CRC calculation on the composed output
  */
 enum vsp1_du_crc_source {
-	VSP1_DU_CRC_NONE,
-	VSP1_DU_CRC_PLANE,
-	VSP1_DU_CRC_OUTPUT,
+  VSP1_DU_CRC_NONE,
+  VSP1_DU_CRC_PLANE,
+  VSP1_DU_CRC_OUTPUT,
 };
 
 /**
@@ -82,8 +82,8 @@ enum vsp1_du_crc_source {
  * @index: index of the CRC source plane (when source is set to plane)
  */
 struct vsp1_du_crc_config {
-	enum vsp1_du_crc_source source;
-	unsigned int index;
+  enum vsp1_du_crc_source source;
+  unsigned int index;
 };
 
 /**
@@ -93,9 +93,9 @@ struct vsp1_du_crc_config {
  * @mem: DMA memory address for each plane of the frame buffer
  */
 struct vsp1_du_writeback_config {
-	u32 pixelformat;
-	unsigned int pitch;
-	dma_addr_t mem[3];
+  u32 pixelformat;
+  unsigned int pitch;
+  dma_addr_t mem[3];
 };
 
 /**
@@ -104,16 +104,16 @@ struct vsp1_du_writeback_config {
  * @writeback: writeback configuration
  */
 struct vsp1_du_atomic_pipe_config {
-	struct vsp1_du_crc_config crc;
-	struct vsp1_du_writeback_config writeback;
+  struct vsp1_du_crc_config crc;
+  struct vsp1_du_writeback_config writeback;
 };
 
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index);
 int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
-			  unsigned int rpf,
-			  const struct vsp1_du_atomic_config *cfg);
+    unsigned int rpf,
+    const struct vsp1_du_atomic_config *cfg);
 void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index,
-			  const struct vsp1_du_atomic_pipe_config *cfg);
+    const struct vsp1_du_atomic_pipe_config *cfg);
 int vsp1_du_map_sg(struct device *dev, struct sg_table *sgt);
 void vsp1_du_unmap_sg(struct device *dev, struct sg_table *sgt);
 

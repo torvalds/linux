@@ -17,8 +17,8 @@
 #define __IA_CSS_XNR_TYPES_H
 
 /* @file
-* CSS-API header file for Extra Noise Reduction (XNR) parameters.
-*/
+ * CSS-API header file for Extra Noise Reduction (XNR) parameters.
+ */
 
 /* XNR table.
  *
@@ -27,7 +27,7 @@
  *
  *  This table contains coefficients used for division in XNR.
  *
- *	u0.12, [0,4095],
+ *  u0.12, [0,4095],
  *      {4095, 2048, 1365, .........., 65, 64}
  *      ({1/1, 1/2, 1/3, ............., 1/63, 1/64})
  *
@@ -40,32 +40,33 @@
 /* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2      6
 /* Number of elements in the xnr table. */
-#define IA_CSS_VAMEM_1_XNR_TABLE_SIZE           BIT(IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_1_XNR_TABLE_SIZE           BIT( \
+    IA_CSS_VAMEM_1_XNR_TABLE_SIZE_LOG2)
 
 /* Number of elements in the xnr table. */
 #define IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2      6
 /* Number of elements in the xnr table. */
-#define IA_CSS_VAMEM_2_XNR_TABLE_SIZE		BIT(IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
+#define IA_CSS_VAMEM_2_XNR_TABLE_SIZE   BIT(IA_CSS_VAMEM_2_XNR_TABLE_SIZE_LOG2)
 
 /** IA_CSS_VAMEM_TYPE_1(ISP2300) or
-     IA_CSS_VAMEM_TYPE_2(ISP2400) */
+ *   IA_CSS_VAMEM_TYPE_2(ISP2400) */
 union ia_css_xnr_data {
-	u16 vamem_1[IA_CSS_VAMEM_1_XNR_TABLE_SIZE];
-	/** Coefficients table on vamem type1. u0.12, [0,4095] */
-	u16 vamem_2[IA_CSS_VAMEM_2_XNR_TABLE_SIZE];
-	/** Coefficients table on vamem type2. u0.12, [0,4095] */
+  u16 vamem_1[IA_CSS_VAMEM_1_XNR_TABLE_SIZE];
+  /** Coefficients table on vamem type1. u0.12, [0,4095] */
+  u16 vamem_2[IA_CSS_VAMEM_2_XNR_TABLE_SIZE];
+  /** Coefficients table on vamem type2. u0.12, [0,4095] */
 };
 
 struct ia_css_xnr_table {
-	enum ia_css_vamem_type vamem_type;
-	union ia_css_xnr_data data;
+  enum ia_css_vamem_type vamem_type;
+  union ia_css_xnr_data data;
 };
 
 struct ia_css_xnr_config {
-	/* XNR threshold.
-	 * type:u0.16 valid range:[0,65535]
-	 * default: 6400 */
-	u16 threshold;
+  /* XNR threshold.
+   * type:u0.16 valid range:[0,65535]
+   * default: 6400 */
+  u16 threshold;
 };
 
 #endif /* __IA_CSS_XNR_TYPES_H */

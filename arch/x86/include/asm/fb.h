@@ -7,8 +7,8 @@
 struct fb_info;
 
 pgprot_t pgprot_framebuffer(pgprot_t prot,
-			    unsigned long vm_start, unsigned long vm_end,
-			    unsigned long offset);
+    unsigned long vm_start, unsigned long vm_end,
+    unsigned long offset);
 #define pgprot_framebuffer pgprot_framebuffer
 
 int fb_is_primary_device(struct fb_info *info);

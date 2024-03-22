@@ -5,8 +5,8 @@
 #include "../../../util/pmu.h"
 #include "mem-events.h"
 
-void perf_pmu__arch_init(struct perf_pmu *pmu)
-{
-	if (pmu->is_core)
-		pmu->mem_events = perf_mem_events_power;
+void perf_pmu__arch_init(struct perf_pmu *pmu) {
+  if (pmu->is_core) {
+    pmu->mem_events = perf_mem_events_power;
+  }
 }

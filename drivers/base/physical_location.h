@@ -11,6 +11,9 @@
 bool dev_add_physical_location(struct device *dev);
 extern const struct attribute_group dev_attr_physical_location_group;
 #else
-static inline bool dev_add_physical_location(struct device *dev) { return false; };
+static inline bool dev_add_physical_location(struct device *dev) {
+  return false;
+}
+
 static const struct attribute_group dev_attr_physical_location_group = {};
 #endif

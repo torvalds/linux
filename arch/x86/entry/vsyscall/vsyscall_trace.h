@@ -9,22 +9,22 @@
 
 TRACE_EVENT(emulate_vsyscall,
 
-	    TP_PROTO(int nr),
+    TP_PROTO(int nr),
 
-	    TP_ARGS(nr),
+    TP_ARGS(nr),
 
-	    TP_STRUCT__entry(__field(int, nr)),
+    TP_STRUCT__entry(__field(int, nr)),
 
-	    TP_fast_assign(
-			   __entry->nr = nr;
-			   ),
+    TP_fast_assign(
+    __entry->nr = nr;
+    ),
 
-	    TP_printk("nr = %d", __entry->nr)
-);
+    TP_printk("nr = %d", __entry->nr)
+    );
 
 #endif
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../arch/x86/entry/vsyscall/
+#define TRACE_INCLUDE_PATH ../../ arch / x86 / entry / vsyscall /
 #define TRACE_INCLUDE_FILE vsyscall_trace
 #include <trace/define_trace.h>

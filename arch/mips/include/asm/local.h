@@ -9,100 +9,87 @@
 #include <asm/cmpxchg.h>
 #include <asm/compiler.h>
 
-typedef struct
-{
-	atomic_long_t a;
+typedef struct {
+  atomic_long_t a;
 } local_t;
 
-#define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
+#define LOCAL_INIT(i) { ATOMIC_LONG_INIT(i) }
 
-#define local_read(l)	atomic_long_read(&(l)->a)
+#define local_read(l) atomic_long_read(&(l)->a)
 #define local_set(l, i) atomic_long_set(&(l)->a, (i))
 
 #define local_add(i, l) atomic_long_add((i), (&(l)->a))
 #define local_sub(i, l) atomic_long_sub((i), (&(l)->a))
-#define local_inc(l)	atomic_long_inc(&(l)->a)
-#define local_dec(l)	atomic_long_dec(&(l)->a)
+#define local_inc(l)  atomic_long_inc(&(l)->a)
+#define local_dec(l)  atomic_long_dec(&(l)->a)
 
 /*
  * Same as above, but return the result value
  */
-static __inline__ long local_add_return(long i, local_t * l)
-{
-	unsigned long result;
-
-	if (kernel_uses_llsc) {
-		unsigned long temp;
-
-		__asm__ __volatile__(
-		"	.set	push					\n"
-		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
-			__SYNC(full, loongson3_war) "                   \n"
-		"1:"	__stringify(LONG_LL)	"	%1, %2		\n"
-			__stringify(LONG_ADDU)	"	%0, %1, %3	\n"
-			__stringify(LONG_SC)	"	%0, %2		\n"
-			__stringify(SC_BEQZ)	"	%0, 1b		\n"
-			__stringify(LONG_ADDU)	"	%0, %1, %3	\n"
-		"	.set	pop					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
-		: "Ir" (i), "m" (l->a.counter)
-		: "memory");
-	} else {
-		unsigned long flags;
-
-		local_irq_save(flags);
-		result = l->a.counter;
-		result += i;
-		l->a.counter = result;
-		local_irq_restore(flags);
-	}
-
-	return result;
+static __inline__ long local_add_return(long i, local_t *l) {
+  unsigned long result;
+  if (kernel_uses_llsc) {
+    unsigned long temp;
+    __asm__ __volatile__ (
+      "	.set	push					\n"
+      "	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
+      __SYNC(full, loongson3_war) "                   \n"
+      "1:"  __stringify(LONG_LL)  "	%1, %2		\n"
+      __stringify(LONG_ADDU)  "	%0, %1, %3	\n"
+      __stringify(LONG_SC)  "	%0, %2		\n"
+      __stringify(SC_BEQZ)  "	%0, 1b		\n"
+      __stringify(LONG_ADDU)  "	%0, %1, %3	\n"
+      "	.set	pop					\n"
+      : "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
+      : "Ir" (i), "m" (l->a.counter)
+      : "memory");
+  } else {
+    unsigned long flags;
+    local_irq_save(flags);
+    result = l->a.counter;
+    result += i;
+    l->a.counter = result;
+    local_irq_restore(flags);
+  }
+  return result;
 }
 
-static __inline__ long local_sub_return(long i, local_t * l)
-{
-	unsigned long result;
-
-	if (kernel_uses_llsc) {
-		unsigned long temp;
-
-		__asm__ __volatile__(
-		"	.set	push					\n"
-		"	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
-			__SYNC(full, loongson3_war) "                   \n"
-		"1:"	__stringify(LONG_LL)	"	%1, %2		\n"
-			__stringify(LONG_SUBU)	"	%0, %1, %3	\n"
-			__stringify(LONG_SUBU)	"	%0, %1, %3	\n"
-			__stringify(LONG_SC)	"	%0, %2		\n"
-			__stringify(SC_BEQZ)	"	%0, 1b		\n"
-			__stringify(LONG_SUBU)	"	%0, %1, %3	\n"
-		"	.set	pop					\n"
-		: "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
-		: "Ir" (i), "m" (l->a.counter)
-		: "memory");
-	} else {
-		unsigned long flags;
-
-		local_irq_save(flags);
-		result = l->a.counter;
-		result -= i;
-		l->a.counter = result;
-		local_irq_restore(flags);
-	}
-
-	return result;
+static __inline__ long local_sub_return(long i, local_t *l) {
+  unsigned long result;
+  if (kernel_uses_llsc) {
+    unsigned long temp;
+    __asm__ __volatile__ (
+      "	.set	push					\n"
+      "	.set	"MIPS_ISA_ARCH_LEVEL"			\n"
+      __SYNC(full, loongson3_war) "                   \n"
+      "1:"  __stringify(LONG_LL)  "	%1, %2		\n"
+      __stringify(LONG_SUBU)  "	%0, %1, %3	\n"
+      __stringify(LONG_SUBU)  "	%0, %1, %3	\n"
+      __stringify(LONG_SC)  "	%0, %2		\n"
+      __stringify(SC_BEQZ)  "	%0, 1b		\n"
+      __stringify(LONG_SUBU)  "	%0, %1, %3	\n"
+      "	.set	pop					\n"
+      : "=&r" (result), "=&r" (temp), "=m" (l->a.counter)
+      : "Ir" (i), "m" (l->a.counter)
+      : "memory");
+  } else {
+    unsigned long flags;
+    local_irq_save(flags);
+    result = l->a.counter;
+    result -= i;
+    l->a.counter = result;
+    local_irq_restore(flags);
+  }
+  return result;
 }
 
-static __inline__ long local_cmpxchg(local_t *l, long old, long new)
-{
-	return cmpxchg_local(&l->a.counter, old, new);
+static __inline__ long local_cmpxchg(local_t *l, long old, long new) {
+  return cmpxchg_local(&l->a.counter, old, new);
 }
 
-static __inline__ bool local_try_cmpxchg(local_t *l, long *old, long new)
-{
-	return try_cmpxchg_local(&l->a.counter,
-				 (typeof(l->a.counter) *) old, new);
+static __inline__ bool local_try_cmpxchg(local_t *l, long *old, long new) {
+  return try_cmpxchg_local(&l->a.counter,
+      (typeof(l->a.counter) *)old, new);
 }
 
 #define local_xchg(l, n) (atomic_long_xchg((&(l)->a), (n)))
@@ -116,17 +103,14 @@ static __inline__ bool local_try_cmpxchg(local_t *l, long *old, long new)
  * Atomically adds @a to @l, if @v was not already @u.
  * Returns true if the addition was done.
  */
-static __inline__ bool
-local_add_unless(local_t *l, long a, long u)
-{
-	long c = local_read(l);
-
-	do {
-		if (unlikely(c == u))
-			return false;
-	} while (!local_try_cmpxchg(l, &c, c + a));
-
-	return true;
+static __inline__ bool local_add_unless(local_t *l, long a, long u) {
+  long c = local_read(l);
+  do {
+    if (unlikely(c == u)) {
+      return false;
+    }
+  } while (!local_try_cmpxchg(l, &c, c + a));
+  return true;
 }
 
 #define local_inc_not_zero(l) local_add_unless((l), 1, 0)
@@ -181,9 +165,9 @@ local_add_unless(local_t *l, long a, long u)
  * a variable, not an address.
  */
 
-#define __local_inc(l)		((l)->a.counter++)
-#define __local_dec(l)		((l)->a.counter++)
-#define __local_add(i, l)	((l)->a.counter+=(i))
-#define __local_sub(i, l)	((l)->a.counter-=(i))
+#define __local_inc(l)    ((l)->a.counter++)
+#define __local_dec(l)    ((l)->a.counter++)
+#define __local_add(i, l) ((l)->a.counter += (i))
+#define __local_sub(i, l) ((l)->a.counter -= (i))
 
 #endif /* _ARCH_MIPS_LOCAL_H */

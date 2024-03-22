@@ -27,30 +27,35 @@
 
 #define _HIVE_INPUT_SWITCH_GET_FSYNC_REG_LSB(ch_id)        ((ch_id) * 3)
 
-#define HIVE_SWITCH_N_CHANNELS				4
-#define HIVE_SWITCH_N_FORMATTYPES			32
-#define HIVE_SWITCH_N_SWITCH_CODE			4
-#define HIVE_SWITCH_M_CHANNELS				0x00000003
-#define HIVE_SWITCH_M_FORMATTYPES			0x0000001f
-#define HIVE_SWITCH_M_SWITCH_CODE			0x00000003
-#define HIVE_SWITCH_M_FSYNC					0x00000007
+#define HIVE_SWITCH_N_CHANNELS        4
+#define HIVE_SWITCH_N_FORMATTYPES     32
+#define HIVE_SWITCH_N_SWITCH_CODE     4
+#define HIVE_SWITCH_M_CHANNELS        0x00000003
+#define HIVE_SWITCH_M_FORMATTYPES     0x0000001f
+#define HIVE_SWITCH_M_SWITCH_CODE     0x00000003
+#define HIVE_SWITCH_M_FSYNC         0x00000007
 
 #define HIVE_SWITCH_ENCODE_FSYNC(x) \
-	(1U << (((x) - 1) & HIVE_SWITCH_M_CHANNELS))
+  (1U << (((x) - 1) & HIVE_SWITCH_M_CHANNELS))
 
 #define _HIVE_INPUT_SWITCH_GET_LUT_FIELD(reg, bit_index) \
-	(((reg) >> (bit_index)) & HIVE_SWITCH_M_SWITCH_CODE)
+  (((reg) >> (bit_index)) & HIVE_SWITCH_M_SWITCH_CODE)
 #define _HIVE_INPUT_SWITCH_SET_LUT_FIELD(reg, bit_index, val) \
-	(((reg) & ~(HIVE_SWITCH_M_SWITCH_CODE << (bit_index))) | (((hrt_data)(val) & HIVE_SWITCH_M_SWITCH_CODE) << (bit_index)))
+  (((reg) \
+  & ~(HIVE_SWITCH_M_SWITCH_CODE << \
+      (bit_index))) \
+  | (((hrt_data) (val) & HIVE_SWITCH_M_SWITCH_CODE) << (bit_index)))
 #define _HIVE_INPUT_SWITCH_GET_FSYNC_FIELD(reg, bit_index) \
-	(((reg) >> (bit_index)) & HIVE_SWITCH_M_FSYNC)
+  (((reg) >> (bit_index)) & HIVE_SWITCH_M_FSYNC)
 #define _HIVE_INPUT_SWITCH_SET_FSYNC_FIELD(reg, bit_index, val) \
-	(((reg) & ~(HIVE_SWITCH_M_FSYNC << (bit_index))) | (((hrt_data)(val) & HIVE_SWITCH_M_FSYNC) << (bit_index)))
+  (((reg) \
+  & ~(HIVE_SWITCH_M_FSYNC << \
+      (bit_index))) | (((hrt_data) (val) & HIVE_SWITCH_M_FSYNC) << (bit_index)))
 
-typedef struct input_formatter_cfg_s	input_formatter_cfg_t;
+typedef struct input_formatter_cfg_s input_formatter_cfg_t;
 
-/* Hardware registers */
-/*#define HIVE_IF_RESET_ADDRESS                   0x000*/ /* deprecated */
+/* Hardware registers
+ *#define HIVE_IF_RESET_ADDRESS                   0x000*/ /* deprecated*/
 #define HIVE_IF_START_LINE_ADDRESS              0x004
 #define HIVE_IF_START_COLUMN_ADDRESS            0x008
 #define HIVE_IF_CROPPED_HEIGHT_ADDRESS          0x00C
@@ -80,32 +85,41 @@ typedef struct input_formatter_cfg_s	input_formatter_cfg_t;
 /* Follow the DMA syntax, "cmd" last */
 #define IF_PACK(val, cmd)             ((val & 0x0fff) | (cmd /*& 0xf000*/))
 
-#define HIVE_STR2MEM_SOFT_RESET_REG_ADDRESS                   (_STR2MEM_SOFT_RESET_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_INPUT_ENDIANNESS_REG_ADDRESS             (_STR2MEM_INPUT_ENDIANNESS_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_OUTPUT_ENDIANNESS_REG_ADDRESS            (_STR2MEM_OUTPUT_ENDIANNESS_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_BIT_SWAPPING_REG_ADDRESS                 (_STR2MEM_BIT_SWAPPING_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_BLOCK_SYNC_LEVEL_REG_ADDRESS             (_STR2MEM_BLOCK_SYNC_LEVEL_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_PACKET_SYNC_LEVEL_REG_ADDRESS            (_STR2MEM_PACKET_SYNC_LEVEL_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_READ_POST_WRITE_SYNC_ENABLE_REG_ADDRESS  (_STR2MEM_READ_POST_WRITE_SYNC_ENABLE_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_DUAL_BYTE_INPUTS_ENABLED_REG_ADDRESS     (_STR2MEM_DUAL_BYTE_INPUTS_ENABLED_REG_ID * _STR2MEM_REG_ALIGN)
-#define HIVE_STR2MEM_EN_STAT_UPDATE_ADDRESS                   (_STR2MEM_EN_STAT_UPDATE_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_SOFT_RESET_REG_ADDRESS                   ( \
+    _STR2MEM_SOFT_RESET_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_INPUT_ENDIANNESS_REG_ADDRESS             ( \
+    _STR2MEM_INPUT_ENDIANNESS_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_OUTPUT_ENDIANNESS_REG_ADDRESS            ( \
+    _STR2MEM_OUTPUT_ENDIANNESS_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_BIT_SWAPPING_REG_ADDRESS                 ( \
+    _STR2MEM_BIT_SWAPPING_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_BLOCK_SYNC_LEVEL_REG_ADDRESS             ( \
+    _STR2MEM_BLOCK_SYNC_LEVEL_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_PACKET_SYNC_LEVEL_REG_ADDRESS            ( \
+    _STR2MEM_PACKET_SYNC_LEVEL_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_READ_POST_WRITE_SYNC_ENABLE_REG_ADDRESS  ( \
+    _STR2MEM_READ_POST_WRITE_SYNC_ENABLE_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_DUAL_BYTE_INPUTS_ENABLED_REG_ADDRESS     ( \
+    _STR2MEM_DUAL_BYTE_INPUTS_ENABLED_REG_ID * _STR2MEM_REG_ALIGN)
+#define HIVE_STR2MEM_EN_STAT_UPDATE_ADDRESS                   ( \
+    _STR2MEM_EN_STAT_UPDATE_ID * _STR2MEM_REG_ALIGN)
 
 /*
  * This data structure is shared between host and SP
  */
 struct input_formatter_cfg_s {
-	u32	start_line;
-	u32	start_column;
-	u32	left_padding;
-	u32	cropped_height;
-	u32	cropped_width;
-	u32	deinterleaving;
-	u32	buf_vecs;
-	u32	buf_start_index;
-	u32	buf_increment;
-	u32	buf_eol_offset;
-	u32	is_yuv420_format;
-	u32	block_no_reqs;
+  u32 start_line;
+  u32 start_column;
+  u32 left_padding;
+  u32 cropped_height;
+  u32 cropped_width;
+  u32 deinterleaving;
+  u32 buf_vecs;
+  u32 buf_start_index;
+  u32 buf_increment;
+  u32 buf_eol_offset;
+  u32 is_yuv420_format;
+  u32 block_no_reqs;
 };
 
 extern const hrt_address HIVE_IF_SRST_ADDRESS[N_INPUT_FORMATTER_ID];

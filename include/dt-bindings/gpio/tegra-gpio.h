@@ -47,6 +47,6 @@
 #define TEGRA_GPIO_PORT_FF 31
 
 #define TEGRA_GPIO(port, offset) \
-	((TEGRA_GPIO_PORT_##port * 8) + offset)
+  ((TEGRA_GPIO_PORT_ ## port * 8) + offset)
 
 #endif

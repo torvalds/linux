@@ -18,22 +18,50 @@
 
 #define HRT_GDC_IS_V2
 
-#define HRT_GDC_N                     1024 /* Top-level design constant, equal to the number of entries in the LUT      */
-#define HRT_GDC_FRAC_BITS               10 /* Number of fractional bits in the GDC block, driven by the size of the LUT */
+#define HRT_GDC_N                     1024 /* Top-level design constant, equal
+                                            * to the number of entries in the
+                                            * LUT      */
+#define HRT_GDC_FRAC_BITS               10 /* Number of fractional bits in the
+                                            * GDC block, driven by the size of
+                                            * the LUT */
 
-#define HRT_GDC_BLI_FRAC_BITS            4 /* Number of fractional bits for the bi-linear interpolation type            */
+#define HRT_GDC_BLI_FRAC_BITS            4 /* Number of fractional bits for the
+                                            * bi-linear interpolation type
+                                            *            */
 #define HRT_GDC_BLI_COEF_ONE             BIT(HRT_GDC_BLI_FRAC_BITS)
 
-#define HRT_GDC_BCI_COEF_BITS           14 /* 14 bits per coefficient                                                   */
-#define HRT_GDC_BCI_COEF_ONE             (1 << (HRT_GDC_BCI_COEF_BITS - 2))  /* We represent signed 10 bit coefficients.  */
-/* The supported range is [-256, .., +256]      */
-/* in 14-bit signed notation,                   */
-/* We need all ten bits (MSB must be zero).     */
-/* -s is inserted to solve this issue, and      */
-/* therefore "1" is equal to +256.              */
+#define HRT_GDC_BCI_COEF_BITS           14 /* 14 bits per coefficient
+                                            *   
+                                            *   
+                                            *   
+                                            *   
+                                            *   
+                                            *   
+                                            *                                 */
+#define HRT_GDC_BCI_COEF_ONE             (1 << (HRT_GDC_BCI_COEF_BITS - 2))  /*
+                                                                              * We
+                                                                              * represent
+                                                                              * signed
+                                                                              * 10
+                                                                              * bit
+                                                                              * coefficients.
+                                                                              * 
+                                                                              * */
+/* The supported range is [-256, .., +256]
+ * in 14-bit signed notation,
+ * We need all ten bits (MSB must be zero).
+ * -s is inserted to solve this issue, and
+ * therefore "1" is equal to +256.*/
 #define HRT_GDC_BCI_COEF_MASK            ((1 << HRT_GDC_BCI_COEF_BITS) - 1)
 
-#define HRT_GDC_LUT_BYTES                (HRT_GDC_N * 4 * 2)                /* 1024 addresses, 4 coefficients per address,  */
+#define HRT_GDC_LUT_BYTES                (HRT_GDC_N * 4 * 2)                /*
+                                                                             * 1024
+                                                                             * addresses,
+                                                                             * 4
+                                                                             * coefficients
+                                                                             * per
+                                                                             * address,
+                                                                             *  */
 /* 2 bytes per coefficient                      */
 
 #define _HRT_GDC_REG_ALIGN               4
@@ -47,20 +75,25 @@
 // 0 - Data token
 
 // C      - Reserved bit
-//          Used in protocol to indicate whether it is C-run or other type of runs
-//          In case of C-run, this bit has a value of 1, for all the other runs, it is 0.
+//          Used in protocol to indicate whether it is C-run or other type of
+// runs
+//          In case of C-run, this bit has a value of 1, for all the other runs,
+// it is 0.
 
 // Reg_ID - Address of the register to be configured
 
 // Value  - Value to store to the addressed register, maximum of 24 bits
 
 // Configure reg command is not followed by any other token.
-// The address of the register and the data to be filled in is contained in the same token
+// The address of the register and the data to be filled in is contained in the
+// same token
 
 // When the first data token is received, it must be:
-//   1. FRX and FRY (device configured in one of the  scaling modes) ***DEFAULT MODE***, or,
+//   1. FRX and FRY (device configured in one of the  scaling modes) ***DEFAULT
+// MODE***, or,
 //   2. P0'X        (device configured in one of the tetragon modes)
-// After the first data token is received, pre-defined number of tokens with the following meaning follow:
+// After the first data token is received, pre-defined number of tokens with the
+// following meaning follow:
 //   1. two  tokens: SRC address ; DST address
 //   2. nine tokens: P0'Y, .., P3'Y ; SRC address ; DST address
 
@@ -87,8 +120,8 @@
 #define HRT_GDC_MAX_DY                 HRT_GDC_MAX_DX
 
 /* GDC lookup tables entries are 10 bits values, but they're
-   stored 2 by 2 as 32 bit values, yielding 16 bits per entry.
-   A GDC lookup table contains 64 * 4 elements */
+ * stored 2 by 2 as 32 bit values, yielding 16 bits per entry.
+ * A GDC lookup table contains 64 * 4 elements */
 
 #define HRT_GDC_PERF_1_1_pix          0
 #define HRT_GDC_PERF_2_1_pix          1
@@ -156,7 +189,8 @@
 #define HRT_GDC_P3Y_IDX              22
 #define HRT_GDC_PERF_POINT_IDX       23  // 1x1 ; 1x2 ; 2x1 ; 2x2 pixels per cc
 #define HRT_GDC_INTERP_TYPE_IDX      24  // NND ; BLI ; BCI ; LUT
-#define HRT_GDC_SCAN_IDX             25  // 0 = STB (Slide To Bottom) ; 1 = STR (Slide To Right)
+#define HRT_GDC_SCAN_IDX             25  // 0 = STB (Slide To Bottom) ; 1 = STR
+                                         // (Slide To Right)
 #define HRT_GDC_PROC_MODE_IDX        26  // 0 = Scaling ; 1 = Tetragon
 
 #define HRT_GDC_LUT_IDX              32

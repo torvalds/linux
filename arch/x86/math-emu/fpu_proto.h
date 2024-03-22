@@ -8,7 +8,7 @@ extern void FPU_printall(void);
 asmlinkage void FPU_exception(int n);
 extern int real_1op_NaN(FPU_REG *a);
 extern int real_2op_NaN(FPU_REG const *b, u_char tagb, int deststnr,
-			FPU_REG const *defaultNaN);
+    FPU_REG const *defaultNaN);
 asmlinkage int arith_invalid(int deststnr);
 asmlinkage int FPU_divide_by_zero(int deststnr, u_char sign);
 extern int set_precision_flag(int flags);
@@ -75,7 +75,7 @@ extern int FPU_Special(FPU_REG const *ptr);
 extern int isNaN(FPU_REG const *ptr);
 extern void FPU_pop(void);
 extern int FPU_empty_i(int stnr);
-extern int FPU_stackoverflow(FPU_REG ** st_new_ptr);
+extern int FPU_stackoverflow(FPU_REG **st_new_ptr);
 extern void FPU_copy_to_regi(FPU_REG const *r, u_char tag, int stnr);
 extern void FPU_copy_to_reg1(FPU_REG const *r, u_char tag);
 extern void FPU_copy_to_reg0(FPU_REG const *r, u_char tag);
@@ -84,23 +84,23 @@ extern void FPU_triga(void);
 extern void FPU_trigb(void);
 /* get_address.c */
 extern void __user *FPU_get_address(u_char FPU_modrm, unsigned long *fpu_eip,
-				    struct address *addr,
-				    fpu_addr_modes addr_modes);
+    struct address *addr,
+    fpu_addr_modes addr_modes);
 extern void __user *FPU_get_address_16(u_char FPU_modrm, unsigned long *fpu_eip,
-				       struct address *addr,
-				       fpu_addr_modes addr_modes);
+    struct address *addr,
+    fpu_addr_modes addr_modes);
 /* load_store.c */
 extern int FPU_load_store(u_char type, fpu_addr_modes addr_modes,
-			  void __user * data_address);
+    void __user *data_address);
 /* poly_2xm1.c */
-extern int poly_2xm1(u_char sign, FPU_REG * arg, FPU_REG *result);
+extern int poly_2xm1(u_char sign, FPU_REG *arg, FPU_REG *result);
 /* poly_atan.c */
-extern void poly_atan(FPU_REG * st0_ptr, u_char st0_tag, FPU_REG *st1_ptr,
-		      u_char st1_tag);
+extern void poly_atan(FPU_REG *st0_ptr, u_char st0_tag, FPU_REG *st1_ptr,
+    u_char st1_tag);
 /* poly_l2.c */
 extern void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign);
 extern int poly_l2p1(u_char s0, u_char s1, FPU_REG *r0, FPU_REG *r1,
-		     FPU_REG * d);
+    FPU_REG *d);
 /* poly_sin.c */
 extern void poly_sine(FPU_REG *st0_ptr);
 extern void poly_cos(FPU_REG *st0_ptr);
@@ -132,13 +132,13 @@ extern int FPU_load_int32(long __user *_s, FPU_REG *loaded_data);
 extern int FPU_load_int16(short __user *_s, FPU_REG *loaded_data);
 extern int FPU_load_bcd(u_char __user *s);
 extern int FPU_store_extended(FPU_REG *st0_ptr, u_char st0_tag,
-			      long double __user * d);
+    long double __user *d);
 extern int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag,
-			    double __user * dfloat);
+    double __user *dfloat);
 extern int FPU_store_single(FPU_REG *st0_ptr, u_char st0_tag,
-			    float __user * single);
+    float __user *single);
 extern int FPU_store_int64(FPU_REG *st0_ptr, u_char st0_tag,
-			   long long __user * d);
+    long long __user *d);
 extern int FPU_store_int32(FPU_REG *st0_ptr, u_char st0_tag, long __user *d);
 extern int FPU_store_int16(FPU_REG *st0_ptr, u_char st0_tag, short __user *d);
 extern int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d);

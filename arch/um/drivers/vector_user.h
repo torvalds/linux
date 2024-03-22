@@ -6,7 +6,7 @@
 #ifndef __UM_VECTOR_USER_H
 #define __UM_VECTOR_USER_H
 
-#define MAXVARGS	20
+#define MAXVARGS  20
 
 #define TOKEN_IFNAME "ifname"
 
@@ -34,10 +34,10 @@
 #define IPPROTO_GRE 0x2F
 #endif
 
-#define GRE_MODE_CHECKSUM	cpu_to_be16(8 << 12)	/* checksum */
-#define GRE_MODE_RESERVED	cpu_to_be16(4 << 12)	/* unused */
-#define GRE_MODE_KEY		cpu_to_be16(2 << 12)	/* KEY present */
-#define GRE_MODE_SEQUENCE	cpu_to_be16(1 << 12)	/* sequence */
+#define GRE_MODE_CHECKSUM cpu_to_be16(8 << 12)  /* checksum */
+#define GRE_MODE_RESERVED cpu_to_be16(4 << 12)  /* unused */
+#define GRE_MODE_KEY    cpu_to_be16(2 << 12)  /* KEY present */
+#define GRE_MODE_SEQUENCE cpu_to_be16(1 << 12)  /* sequence */
 
 #define GRE_IRB cpu_to_be16(0x6558)
 
@@ -50,9 +50,9 @@
 #endif
 
 struct arglist {
-	int	numargs;
-	char	*tokens[MAXVARGS];
-	char	*values[MAXVARGS];
+  int numargs;
+  char *tokens[MAXVARGS];
+  char *values[MAXVARGS];
 };
 
 /* Separating read and write FDs allows us to have different
@@ -61,40 +61,36 @@ struct arglist {
  */
 
 struct vector_fds {
-	int rx_fd;
-	int tx_fd;
-	void *remote_addr;
-	int remote_addr_size;
+  int rx_fd;
+  int tx_fd;
+  void *remote_addr;
+  int remote_addr_size;
 };
 
-#define VECTOR_READ	1
+#define VECTOR_READ 1
 
 extern struct arglist *uml_parse_vector_ifspec(char *arg);
 
 extern struct vector_fds *uml_vector_user_open(
-	int unit,
-	struct arglist *parsed
-);
+  int unit,
+  struct arglist *parsed);
 
 extern char *uml_vector_fetch_arg(
-	struct arglist *ifspec,
-	char *token
-);
+  struct arglist *ifspec,
+  char *token);
 
 extern int uml_vector_recvmsg(int fd, void *hdr, int flags);
 extern int uml_vector_sendmsg(int fd, void *hdr, int flags);
 extern int uml_vector_writev(int fd, void *hdr, int iovcount);
 extern int uml_vector_sendmmsg(
-	int fd, void *msgvec,
-	unsigned int vlen,
-	unsigned int flags
-);
+  int fd, void *msgvec,
+  unsigned int vlen,
+  unsigned int flags);
 extern int uml_vector_recvmmsg(
-	int fd,
-	void *msgvec,
-	unsigned int vlen,
-	unsigned int flags
-);
+  int fd,
+  void *msgvec,
+  unsigned int vlen,
+  unsigned int flags);
 extern void *uml_vector_default_bpf(const void *mac);
 extern void *uml_vector_user_bpf(char *filename);
 extern int uml_vector_attach_bpf(int fd, void *bpf);
@@ -102,6 +98,5 @@ extern int uml_vector_detach_bpf(int fd, void *bpf);
 extern bool uml_raw_enable_qdisc_bypass(int fd);
 extern bool uml_raw_enable_vnet_headers(int fd);
 extern bool uml_tap_enable_vnet_headers(int fd);
-
 
 #endif

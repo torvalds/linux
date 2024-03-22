@@ -25,76 +25,77 @@
  * to protect its members.
  */
 struct xe_guc_db_mgr {
-	/** @count: number of doorbells to manage */
-	unsigned int count;
-	/** @bitmap: bitmap to track allocated doorbells */
-	unsigned long *bitmap;
+  /** @count: number of doorbells to manage */
+  unsigned int count;
+  /** @bitmap: bitmap to track allocated doorbells */
+  unsigned long *bitmap;
 };
 
 /**
  * struct xe_guc - Graphic micro controller
  */
 struct xe_guc {
-	/** @fw: Generic uC firmware management */
-	struct xe_uc_fw fw;
-	/** @log: GuC log */
-	struct xe_guc_log log;
-	/** @ads: GuC ads */
-	struct xe_guc_ads ads;
-	/** @ct: GuC ct */
-	struct xe_guc_ct ct;
-	/** @pc: GuC Power Conservation */
-	struct xe_guc_pc pc;
-	/** @dbm: GuC Doorbell Manager */
-	struct xe_guc_db_mgr dbm;
-	/** @submission_state: GuC submission state */
-	struct {
-		/** @submission_state.exec_queue_lookup: Lookup an xe_engine from guc_id */
-		struct xarray exec_queue_lookup;
-		/** @submission_state.guc_ids: used to allocate new guc_ids, single-lrc */
-		struct ida guc_ids;
-		/** @submission_state.guc_ids_bitmap: used to allocate new guc_ids, multi-lrc */
-		unsigned long *guc_ids_bitmap;
-		/** @submission_state.stopped: submissions are stopped */
-		atomic_t stopped;
-		/** @submission_state.lock: protects submission state */
-		struct mutex lock;
-		/** @submission_state.suspend: suspend fence state */
-		struct {
-			/** @submission_state.suspend.lock: suspend fences lock */
-			spinlock_t lock;
-			/** @submission_state.suspend.context: suspend fences context */
-			u64 context;
-			/** @submission_state.suspend.seqno: suspend fences seqno */
-			u32 seqno;
-		} suspend;
+  /** @fw: Generic uC firmware management */
+  struct xe_uc_fw fw;
+  /** @log: GuC log */
+  struct xe_guc_log log;
+  /** @ads: GuC ads */
+  struct xe_guc_ads ads;
+  /** @ct: GuC ct */
+  struct xe_guc_ct ct;
+  /** @pc: GuC Power Conservation */
+  struct xe_guc_pc pc;
+  /** @dbm: GuC Doorbell Manager */
+  struct xe_guc_db_mgr dbm;
+  /** @submission_state: GuC submission state */
+  struct {
+    /** @submission_state.exec_queue_lookup: Lookup an xe_engine from guc_id */
+    struct xarray exec_queue_lookup;
+    /** @submission_state.guc_ids: used to allocate new guc_ids, single-lrc */
+    struct ida guc_ids;
+    /** @submission_state.guc_ids_bitmap: used to allocate new guc_ids,
+     * multi-lrc */
+    unsigned long *guc_ids_bitmap;
+    /** @submission_state.stopped: submissions are stopped */
+    atomic_t stopped;
+    /** @submission_state.lock: protects submission state */
+    struct mutex lock;
+    /** @submission_state.suspend: suspend fence state */
+    struct {
+      /** @submission_state.suspend.lock: suspend fences lock */
+      spinlock_t lock;
+      /** @submission_state.suspend.context: suspend fences context */
+      u64 context;
+      /** @submission_state.suspend.seqno: suspend fences seqno */
+      u32 seqno;
+    } suspend;
 #ifdef CONFIG_PROVE_LOCKING
-#define NUM_SUBMIT_WQ	256
-		/** @submission_state.submit_wq_pool: submission ordered workqueues pool */
-		struct workqueue_struct *submit_wq_pool[NUM_SUBMIT_WQ];
-		/** @submission_state.submit_wq_idx: submission ordered workqueue index */
-		int submit_wq_idx;
+#define NUM_SUBMIT_WQ 256
+    /** @submission_state.submit_wq_pool: submission ordered workqueues pool */
+    struct workqueue_struct *submit_wq_pool[NUM_SUBMIT_WQ];
+    /** @submission_state.submit_wq_idx: submission ordered workqueue index */
+    int submit_wq_idx;
 #endif
-		/** @submission_state.enabled: submission is enabled */
-		bool enabled;
-	} submission_state;
-	/** @hwconfig: Hardware config state */
-	struct {
-		/** @hwconfig.bo: buffer object of the hardware config */
-		struct xe_bo *bo;
-		/** @hwconfig.size: size of the hardware config */
-		u32 size;
-	} hwconfig;
+    /** @submission_state.enabled: submission is enabled */
+    bool enabled;
+  } submission_state;
+  /** @hwconfig: Hardware config state */
+  struct {
+    /** @hwconfig.bo: buffer object of the hardware config */
+    struct xe_bo *bo;
+    /** @hwconfig.size: size of the hardware config */
+    u32 size;
+  } hwconfig;
 
-	/** @relay: GuC Relay Communication used in SR-IOV */
-	struct xe_guc_relay relay;
+  /** @relay: GuC Relay Communication used in SR-IOV */
+  struct xe_guc_relay relay;
 
-	/**
-	 * @notify_reg: Register which is written to notify GuC of H2G messages
-	 */
-	struct xe_reg notify_reg;
-	/** @params: Control params for fw initialization */
-	u32 params[GUC_CTL_MAX_DWORDS];
+  /**
+   * @notify_reg: Register which is written to notify GuC of H2G messages
+   */
+  struct xe_reg notify_reg;
+  /** @params: Control params for fw initialization */
+  u32 params[GUC_CTL_MAX_DWORDS];
 };
 
 #endif

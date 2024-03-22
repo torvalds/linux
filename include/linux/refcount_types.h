@@ -13,7 +13,7 @@
  * use-after-free bugs.
  */
 typedef struct refcount_struct {
-	atomic_t refs;
+  atomic_t refs;
 } refcount_t;
 
 #endif /* _LINUX_REFCOUNT_TYPES_H */

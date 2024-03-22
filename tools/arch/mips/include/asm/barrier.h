@@ -8,14 +8,14 @@
  * Probably when we continue work on tools/ Kconfig support to have all the
  * CONFIG_ needed for properly doing that.
  */
-#define mb()		asm volatile(					\
-				".set	mips2\n\t"			\
-				"sync\n\t"				\
-				".set	mips0"				\
-				: /* no output */			\
-				: /* no input */			\
-				: "memory")
-#define wmb()	mb()
-#define rmb()	mb()
+#define mb()    asm volatile (         \
+    ".set	mips2\n\t"      \
+    "sync\n\t"        \
+    ".set	mips0"        \
+    : /* no output */     \
+    : /* no input */      \
+    : "memory")
+#define wmb() mb()
+#define rmb() mb()
 
 #endif /* _TOOLS_LINUX_ASM_MIPS_BARRIER_H */

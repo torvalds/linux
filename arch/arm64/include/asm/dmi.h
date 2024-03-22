@@ -22,10 +22,10 @@
  * request a virtual mapping for configuration tables such as SMBIOS.
  * This means we have to map them before use.
  */
-#define dmi_early_remap(x, l)		ioremap_cache(x, l)
-#define dmi_early_unmap(x, l)		iounmap(x)
-#define dmi_remap(x, l)			ioremap_cache(x, l)
-#define dmi_unmap(x)			iounmap(x)
-#define dmi_alloc(l)			kzalloc(l, GFP_KERNEL)
+#define dmi_early_remap(x, l)   ioremap_cache(x, l)
+#define dmi_early_unmap(x, l)   iounmap(x)
+#define dmi_remap(x, l)     ioremap_cache(x, l)
+#define dmi_unmap(x)      iounmap(x)
+#define dmi_alloc(l)      kzalloc(l, GFP_KERNEL)
 
 #endif

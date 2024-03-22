@@ -7,7 +7,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define cpu_relax()	barrier()
+#define cpu_relax() barrier()
 
 #endif /* __ASSEMBLY__ */
 

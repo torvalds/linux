@@ -34,55 +34,45 @@
 /*
  * Hardware cache level : PERF_COUNT_HW_CACHE_L1D
  * Hardware cache event operation type : PERF_COUNT_HW_CACHE_OP_READ
- * Hardware cache event result type : Invalid ( > PERF_COUNT_HW_CACHE_RESULT_MAX)
+ * Hardware cache event result type : Invalid ( >
+ * PERF_COUNT_HW_CACHE_RESULT_MAX)
  */
 #define EventCode_4 0x030000
 
 /*
  * A perf test to check valid hardware cache events.
  */
-static int hw_cache_event_type_test(void)
-{
-	struct event event;
-
-	/* Check for platform support for the test */
-	SKIP_IF(platform_check_for_tests());
-
-	/* Skip for Generic compat PMU */
-	SKIP_IF(check_for_generic_compat_pmu());
-
-	/* Init the event to test hardware cache event */
-	event_init_opts(&event, EventCode_1, PERF_TYPE_HW_CACHE, "event");
-
-	/* Expected to success as its pointing to L1 load miss */
-	FAIL_IF(event_open(&event));
-	event_close(&event);
-
-	/* Init the event to test hardware cache event */
-	event_init_opts(&event, EventCode_2, PERF_TYPE_HW_CACHE, "event");
-
-	/* Expected to fail as the corresponding cache event entry have 0 in that index */
-	FAIL_IF(!event_open(&event));
-	event_close(&event);
-
-	/* Init the event to test hardware cache event */
-	event_init_opts(&event, EventCode_3, PERF_TYPE_HW_CACHE, "event");
-
-	/* Expected to fail as the corresponding cache event entry have -1 in that index */
-	FAIL_IF(!event_open(&event));
-	event_close(&event);
-
-	/* Init the event to test hardware cache event */
-	event_init_opts(&event, EventCode_4, PERF_TYPE_HW_CACHE, "event");
-
-	/* Expected to fail as hardware cache event result type is Invalid */
-	FAIL_IF(!event_open(&event));
-	event_close(&event);
-
-	return 0;
+static int hw_cache_event_type_test(void) {
+  struct event event;
+  /* Check for platform support for the test */
+  SKIP_IF(platform_check_for_tests());
+  /* Skip for Generic compat PMU */
+  SKIP_IF(check_for_generic_compat_pmu());
+  /* Init the event to test hardware cache event */
+  event_init_opts(&event, EventCode_1, PERF_TYPE_HW_CACHE, "event");
+  /* Expected to success as its pointing to L1 load miss */
+  FAIL_IF(event_open(&event));
+  event_close(&event);
+  /* Init the event to test hardware cache event */
+  event_init_opts(&event, EventCode_2, PERF_TYPE_HW_CACHE, "event");
+  /* Expected to fail as the corresponding cache event entry have 0 in that
+   * index */
+  FAIL_IF(!event_open(&event));
+  event_close(&event);
+  /* Init the event to test hardware cache event */
+  event_init_opts(&event, EventCode_3, PERF_TYPE_HW_CACHE, "event");
+  /* Expected to fail as the corresponding cache event entry have -1 in that
+   * index */
+  FAIL_IF(!event_open(&event));
+  event_close(&event);
+  /* Init the event to test hardware cache event */
+  event_init_opts(&event, EventCode_4, PERF_TYPE_HW_CACHE, "event");
+  /* Expected to fail as hardware cache event result type is Invalid */
+  FAIL_IF(!event_open(&event));
+  event_close(&event);
+  return 0;
 }
 
-int main(void)
-{
-	return test_harness(hw_cache_event_type_test, "hw_cache_event_type_test");
+int main(void) {
+  return test_harness(hw_cache_event_type_test, "hw_cache_event_type_test");
 }

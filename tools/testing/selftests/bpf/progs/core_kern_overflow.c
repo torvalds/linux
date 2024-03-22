@@ -12,11 +12,9 @@ typedef int (*func_proto_typedef_nested2)(func_proto_typedef_nested1);
 int proto_out;
 
 SEC("raw_tracepoint/sys_enter")
-int core_relo_proto(void *ctx)
-{
-	proto_out = bpf_core_type_exists(func_proto_typedef_nested2);
-
-	return 0;
+int core_relo_proto(void *ctx) {
+  proto_out = bpf_core_type_exists(func_proto_typedef_nested2);
+  return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

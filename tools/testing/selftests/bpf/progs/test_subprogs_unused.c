@@ -4,18 +4,15 @@
 
 const char LICENSE[] SEC("license") = "GPL";
 
-__attribute__((unused)) __noinline int unused1(int x)
-{
-	return x + 1;
+__attribute__((unused)) __noinline int unused1(int x) {
+  return x + 1;
 }
 
-static __attribute__((unused)) __noinline int unused2(int x)
-{
-	return x + 2;
+static __attribute__((unused)) __noinline int unused2(int x) {
+  return x + 2;
 }
 
 SEC("raw_tp/sys_enter")
-int main_prog(void *ctx)
-{
-	return 0;
+int main_prog(void *ctx) {
+  return 0;
 }

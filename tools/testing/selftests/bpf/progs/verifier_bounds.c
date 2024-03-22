@@ -6,19 +6,19 @@
 #include "bpf_misc.h"
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, long long);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, long long);
 } map_hash_8b SEC(".maps");
 
 SEC("socket")
 __description("subtraction bounds (map value) variant 1")
 __failure __msg("R0 max value is outside of the allowed memory range")
 __failure_unpriv
-__naked void bounds_map_value_variant_1(void)
-{
-	asm volatile ("					\
+__naked void bounds_map_value_variant_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -37,20 +37,20 @@ __naked void bounds_map_value_variant_1(void)
 	exit;						\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("subtraction bounds (map value) variant 2")
-__failure
-__msg("R0 min value is negative, either use unsigned index or do a if (index >=0) check.")
+__failure __msg(
+    "R0 min value is negative, either use unsigned index or do a if (index >=0) check.")
 __msg_unpriv("R1 has unknown scalar with mixed signed bounds")
-__naked void bounds_map_value_variant_2(void)
-{
-	asm volatile ("					\
+__naked void bounds_map_value_variant_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -68,19 +68,19 @@ __naked void bounds_map_value_variant_2(void)
 	exit;						\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("check subtraction on pointers for unpriv")
 __success __failure_unpriv __msg_unpriv("R9 pointer -= pointer prohibited")
 __retval(0)
-__naked void subtraction_on_pointers_for_unpriv(void)
-{
-	asm volatile ("					\
+__naked void subtraction_on_pointers_for_unpriv(void) {
+  asm volatile (
+    "					\
 	r0 = 0;						\
 	r1 = %[map_hash_8b] ll;				\
 	r2 = r10;					\
@@ -101,18 +101,18 @@ __naked void subtraction_on_pointers_for_unpriv(void)
 l0_%=:	*(u64*)(r0 + 0) = r9;				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check based on zero-extended MOV")
 __success __success_unpriv __retval(0)
-__naked void based_on_zero_extended_mov(void)
-{
-	asm volatile ("					\
+__naked void based_on_zero_extended_mov(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -131,19 +131,19 @@ __naked void based_on_zero_extended_mov(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check based on sign-extended MOV. test1")
 __failure __msg("map_value pointer and 4294967295")
 __failure_unpriv
-__naked void on_sign_extended_mov_test1(void)
-{
-	asm volatile ("					\
+__naked void on_sign_extended_mov_test1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -162,19 +162,19 @@ __naked void on_sign_extended_mov_test1(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check based on sign-extended MOV. test2")
 __failure __msg("R0 min value is outside of the allowed memory range")
 __failure_unpriv
-__naked void on_sign_extended_mov_test2(void)
-{
-	asm volatile ("					\
+__naked void on_sign_extended_mov_test2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -193,18 +193,18 @@ __naked void on_sign_extended_mov_test2(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("tc")
 __description("bounds check based on reg_off + var_off + insn_off. test1")
 __failure __msg("value_size=8 off=1073741825")
-__naked void var_off_insn_off_test1(void)
-{
-	asm volatile ("					\
+__naked void var_off_insn_off_test1(void) {
+  asm volatile (
+    "					\
 	r6 = *(u32*)(r1 + %[__sk_buff_mark]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -220,20 +220,20 @@ __naked void var_off_insn_off_test1(void)
 l0_%=:	r0 = *(u8*)(r0 + 3);				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b),
-	  __imm_const(__imm_0, (1 << 29) - 1),
-	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b),
+    __imm_const(__imm_0, (1 << 29) - 1),
+    __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+    : __clobber_all);
 }
 
 SEC("tc")
 __description("bounds check based on reg_off + var_off + insn_off. test2")
 __failure __msg("value 1073741823")
-__naked void var_off_insn_off_test2(void)
-{
-	asm volatile ("					\
+__naked void var_off_insn_off_test2(void) {
+  asm volatile (
+    "					\
 	r6 = *(u32*)(r1 + %[__sk_buff_mark]);		\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -249,21 +249,21 @@ __naked void var_off_insn_off_test2(void)
 l0_%=:	r0 = *(u8*)(r0 + 3);				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b),
-	  __imm_const(__imm_0, (1 << 30) - 1),
-	  __imm_const(__imm_1, (1 << 29) - 1),
-	  __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b),
+    __imm_const(__imm_0, (1 << 30) - 1),
+    __imm_const(__imm_1, (1 << 29) - 1),
+    __imm_const(__sk_buff_mark, offsetof(struct __sk_buff, mark))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check after truncation of non-boundary-crossing range")
 __success __success_unpriv __retval(0)
-__naked void of_non_boundary_crossing_range(void)
-{
-	asm volatile ("					\
+__naked void of_non_boundary_crossing_range(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -291,10 +291,10 @@ __naked void of_non_boundary_crossing_range(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
@@ -303,9 +303,9 @@ __failure
 /* not actually fully unbounded, but the bound is very high */
 __msg("value -4294967168 makes map_value pointer be out of bounds")
 __failure_unpriv
-__naked void of_boundary_crossing_range_1(void)
-{
-	asm volatile ("					\
+__naked void of_boundary_crossing_range_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -332,20 +332,20 @@ __naked void of_boundary_crossing_range_1(void)
 	/* exit */					\
 	r0 = 0;						\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b),
-	  __imm_const(__imm_0, 0xffffff80 >> 1)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b),
+    __imm_const(__imm_0, 0xffffff80 >> 1)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check after truncation of boundary-crossing range (2)")
 __failure __msg("value -4294967168 makes map_value pointer be out of bounds")
 __failure_unpriv
-__naked void of_boundary_crossing_range_2(void)
-{
-	asm volatile ("					\
+__naked void of_boundary_crossing_range_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -374,19 +374,19 @@ __naked void of_boundary_crossing_range_2(void)
 	/* exit */					\
 	r0 = 0;						\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b),
-	  __imm_const(__imm_0, 0xffffff80 >> 1)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b),
+    __imm_const(__imm_0, 0xffffff80 >> 1)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check after wrapping 32-bit addition")
 __success __success_unpriv __retval(0)
-__naked void after_wrapping_32_bit_addition(void)
-{
-	asm volatile ("					\
+__naked void after_wrapping_32_bit_addition(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -407,19 +407,19 @@ __naked void after_wrapping_32_bit_addition(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check after shift with oversized count operand")
 __failure __msg("R0 max value is outside of the allowed memory range")
 __failure_unpriv
-__naked void shift_with_oversized_count_operand(void)
-{
-	asm volatile ("					\
+__naked void shift_with_oversized_count_operand(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -440,19 +440,19 @@ __naked void shift_with_oversized_count_operand(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check after right shift of maybe-negative number")
 __failure __msg("R0 unbounded memory access")
 __failure_unpriv
-__naked void shift_of_maybe_negative_number(void)
-{
-	asm volatile ("					\
+__naked void shift_of_maybe_negative_number(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -475,19 +475,19 @@ __naked void shift_of_maybe_negative_number(void)
 l0_%=:	/* exit */					\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check after 32-bit right shift with 64-bit input")
 __failure __msg("math between map_value pointer and 4294967294 is not allowed")
 __failure_unpriv
-__naked void shift_with_64_bit_input(void)
-{
-	asm volatile ("					\
+__naked void shift_with_64_bit_input(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -507,19 +507,20 @@ __naked void shift_with_64_bit_input(void)
 	/* exit */					\
 	r0 = 0;						\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
-__description("bounds check map access with off+size signed 32bit overflow. test1")
+__description(
+    "bounds check map access with off+size signed 32bit overflow. test1")
 __failure __msg("map_value pointer and 2147483646")
 __failure_unpriv
-__naked void size_signed_32bit_overflow_test1(void)
-{
-	asm volatile ("					\
+__naked void size_signed_32bit_overflow_test1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -532,19 +533,20 @@ l0_%=:	r0 += 0x7ffffffe;				\
 	r0 = *(u64*)(r0 + 0);				\
 	goto l1_%=;					\
 l1_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
-__description("bounds check map access with off+size signed 32bit overflow. test2")
+__description(
+    "bounds check map access with off+size signed 32bit overflow. test2")
 __failure __msg("pointer offset 1073741822")
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
-__naked void size_signed_32bit_overflow_test2(void)
-{
-	asm volatile ("					\
+__naked void size_signed_32bit_overflow_test2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -559,19 +561,20 @@ l0_%=:	r0 += 0x1fffffff;				\
 	r0 = *(u64*)(r0 + 0);				\
 	goto l1_%=;					\
 l1_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
-__description("bounds check map access with off+size signed 32bit overflow. test3")
+__description(
+    "bounds check map access with off+size signed 32bit overflow. test3")
 __failure __msg("pointer offset -1073741822")
 __msg_unpriv("R0 pointer arithmetic of map value goes out of range")
-__naked void size_signed_32bit_overflow_test3(void)
-{
-	asm volatile ("					\
+__naked void size_signed_32bit_overflow_test3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -585,19 +588,20 @@ l0_%=:	r0 -= 0x1fffffff;				\
 	r0 = *(u64*)(r0 + 2);				\
 	goto l1_%=;					\
 l1_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
-__description("bounds check map access with off+size signed 32bit overflow. test4")
+__description(
+    "bounds check map access with off+size signed 32bit overflow. test4")
 __failure __msg("map_value pointer and 1000000000000")
 __failure_unpriv
-__naked void size_signed_32bit_overflow_test4(void)
-{
-	asm volatile ("					\
+__naked void size_signed_32bit_overflow_test4(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -612,19 +616,19 @@ l0_%=:	r1 = 1000000;					\
 	r0 = *(u64*)(r0 + 2);				\
 	goto l1_%=;					\
 l1_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check mixed 32bit and 64bit arithmetic. test1")
 __success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
 __retval(0)
-__naked void _32bit_and_64bit_arithmetic_test1(void)
-{
-	asm volatile ("					\
+__naked void _32bit_and_64bit_arithmetic_test1(void) {
+  asm volatile (
+    "					\
 	r0 = 0;						\
 	r1 = -1;					\
 	r1 <<= 32;					\
@@ -638,16 +642,16 @@ __naked void _32bit_and_64bit_arithmetic_test1(void)
 l0_%=:	/* invalid ldx if bounds are lost above */	\
 	r0 = *(u64*)(r0 - 1);				\
 l1_%=:	exit;						\
-"	::: __clobber_all);
+" ::: __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check mixed 32bit and 64bit arithmetic. test2")
 __success __failure_unpriv __msg_unpriv("R0 invalid mem access 'scalar'")
 __retval(0)
-__naked void _32bit_and_64bit_arithmetic_test2(void)
-{
-	asm volatile ("					\
+__naked void _32bit_and_64bit_arithmetic_test2(void) {
+  asm volatile (
+    "					\
 	r0 = 0;						\
 	r1 = -1;					\
 	r1 <<= 32;					\
@@ -662,15 +666,15 @@ __naked void _32bit_and_64bit_arithmetic_test2(void)
 l0_%=:	/* invalid ldx if bounds are lost above */	\
 	r0 = *(u64*)(r0 - 1);				\
 l1_%=:	exit;						\
-"	::: __clobber_all);
+" ::: __clobber_all);
 }
 
 SEC("tc")
 __description("assigning 32bit bounds to 64bit for wA = 0, wB = wA")
 __success __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void for_wa_0_wb_wa(void)
-{
-	asm volatile ("					\
+__naked void for_wa_0_wb_wa(void) {
+  asm volatile (
+    "					\
 	r8 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	r7 = *(u32*)(r1 + %[__sk_buff_data]);		\
 	w9 = 0;						\
@@ -683,20 +687,20 @@ __naked void for_wa_0_wb_wa(void)
 	r5 = *(u32*)(r6 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
-	  __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(__sk_buff_data, offsetof(struct __sk_buff, data)),
+    __imm_const(__sk_buff_data_end, offsetof(struct __sk_buff, data_end))
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg = 0, reg xor 1")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 min value is outside of the allowed memory range")
 __retval(0)
-__naked void reg_0_reg_xor_1(void)
-{
-	asm volatile ("					\
+__naked void reg_0_reg_xor_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -711,20 +715,20 @@ l0_%=:	r1 = 0;						\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg32 = 0, reg32 xor 1")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 min value is outside of the allowed memory range")
 __retval(0)
-__naked void reg32_0_reg32_xor_1(void)
-{
-	asm volatile ("					\
+__naked void reg32_0_reg32_xor_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -739,20 +743,20 @@ l0_%=:	w1 = 0;						\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg = 2, reg xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 min value is outside of the allowed memory range")
 __retval(0)
-__naked void reg_2_reg_xor_3(void)
-{
-	asm volatile ("					\
+__naked void reg_2_reg_xor_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -767,19 +771,19 @@ l0_%=:	r1 = 2;						\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg = any, reg xor 3")
 __failure __msg("invalid access to map value")
 __msg_unpriv("invalid access to map value")
-__naked void reg_any_reg_xor_3(void)
-{
-	asm volatile ("					\
+__naked void reg_any_reg_xor_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -794,19 +798,19 @@ l0_%=:	r1 = *(u64*)(r0 + 0);				\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg32 = any, reg32 xor 3")
 __failure __msg("invalid access to map value")
 __msg_unpriv("invalid access to map value")
-__naked void reg32_any_reg32_xor_3(void)
-{
-	asm volatile ("					\
+__naked void reg32_any_reg32_xor_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -821,20 +825,20 @@ l0_%=:	r1 = *(u64*)(r0 + 0);				\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg > 0, reg xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 min value is outside of the allowed memory range")
 __retval(0)
-__naked void reg_0_reg_xor_3(void)
-{
-	asm volatile ("					\
+__naked void reg_0_reg_xor_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -850,20 +854,20 @@ l0_%=:	r1 = *(u64*)(r0 + 0);				\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds check for reg32 > 0, reg32 xor 3")
-__success __failure_unpriv
-__msg_unpriv("R0 min value is outside of the allowed memory range")
+__success __failure_unpriv __msg_unpriv(
+    "R0 min value is outside of the allowed memory range")
 __retval(0)
-__naked void reg32_0_reg32_xor_3(void)
-{
-	asm volatile ("					\
+__naked void reg32_0_reg32_xor_3(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -879,19 +883,19 @@ l0_%=:	r1 = *(u64*)(r0 + 0);				\
 	r0 = *(u64*)(r0 + 8);				\
 l1_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds checks after 32-bit truncation. test 1")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0)
-__naked void _32_bit_truncation_test_1(void)
-{
-	asm volatile ("					\
+__naked void _32_bit_truncation_test_1(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -905,19 +909,19 @@ __naked void _32_bit_truncation_test_1(void)
 	if r1 > 0x7fffffff goto l0_%=;			\
 l1_%=:	r0 = 0;						\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("bounds checks after 32-bit truncation. test 2")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0)
-__naked void _32_bit_truncation_test_2(void)
-{
-	asm volatile ("					\
+__naked void _32_bit_truncation_test_2(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
 	r2 = r10;					\
@@ -930,18 +934,18 @@ __naked void _32_bit_truncation_test_2(void)
 	if w1 s< 0 goto l0_%=;				\
 l1_%=:	r0 = 0;						\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("bound check with JMP_JLT for crossing 64-bit signed boundary")
 __success __retval(0)
-__naked void crossing_64_bit_signed_boundary_1(void)
-{
-	asm volatile ("					\
+__naked void crossing_64_bit_signed_boundary_1(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r1 = r2;					\
@@ -956,19 +960,19 @@ l1_%=:	r0 += 1;					\
 	if r0 < r1 goto l1_%=;				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("bound check with JMP_JSLT for crossing 64-bit signed boundary")
 __success __retval(0)
 __flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
-__naked void crossing_64_bit_signed_boundary_2(void)
-{
-	asm volatile ("					\
+__naked void crossing_64_bit_signed_boundary_2(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r1 = r2;					\
@@ -987,18 +991,18 @@ l1_%=:	r0 += 1;					\
 	exit;						\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("bound check for loop upper bound greater than U32_MAX")
 __success __retval(0)
-__naked void bound_greater_than_u32_max(void)
-{
-	asm volatile ("					\
+__naked void bound_greater_than_u32_max(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r1 = r2;					\
@@ -1012,18 +1016,18 @@ l1_%=:	r0 += 1;					\
 	if r0 < r1 goto l1_%=;				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("bound check with JMP32_JLT for crossing 32-bit signed boundary")
 __success __retval(0)
-__naked void crossing_32_bit_signed_boundary_1(void)
-{
-	asm volatile ("					\
+__naked void crossing_32_bit_signed_boundary_1(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r1 = r2;					\
@@ -1038,19 +1042,19 @@ l1_%=:	w0 += 1;					\
 	if w0 < w1 goto l1_%=;				\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("bound check with JMP32_JSLT for crossing 32-bit signed boundary")
 __success __retval(0)
 __flag(!BPF_F_TEST_REG_INVARIANTS) /* known invariants violation */
-__naked void crossing_32_bit_signed_boundary_2(void)
-{
-	asm volatile ("					\
+__naked void crossing_32_bit_signed_boundary_2(void) {
+  asm volatile (
+    "					\
 	r2 = *(u32*)(r1 + %[xdp_md_data]);		\
 	r3 = *(u32*)(r1 + %[xdp_md_data_end]);		\
 	r1 = r2;					\
@@ -1069,18 +1073,18 @@ l1_%=:	w0 += 1;					\
 	exit;						\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
-	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
-	: __clobber_all);
+" :
+    : __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+    __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end))
+    : __clobber_all);
 }
 
 SEC("tc")
 __description("bounds check with JMP_NE for reg edge")
 __success __retval(0)
-__naked void reg_not_equal_const(void)
-{
-	asm volatile ("					\
+__naked void reg_not_equal_const(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -1103,18 +1107,18 @@ l0_%=:	r1 = r6;					\
 	call %[bpf_skb_store_bytes];			\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_skb_store_bytes)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_skb_store_bytes)
+    : __clobber_all);
 }
 
 SEC("tc")
 __description("bounds check with JMP_EQ for reg edge")
 __success __retval(0)
-__naked void reg_equal_const(void)
-{
-	asm volatile ("					\
+__naked void reg_equal_const(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -1131,10 +1135,10 @@ __naked void reg_equal_const(void)
 	call %[bpf_skb_store_bytes];			\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_get_prandom_u32),
-	  __imm(bpf_skb_store_bytes)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_prandom_u32),
+    __imm(bpf_skb_store_bytes)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

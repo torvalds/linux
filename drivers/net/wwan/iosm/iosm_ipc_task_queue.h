@@ -25,15 +25,15 @@
  *              for async. calls that needs to be freed once the tasklet returns
  */
 struct ipc_task_queue_args {
-	struct iosm_imem *ipc_imem;
-	void *msg;
-	struct completion *completion;
-	int (*func)(struct iosm_imem *ipc_imem, int arg, void *msg,
-		    size_t size);
-	int arg;
-	size_t size;
-	int response;
-	u8 is_copy:1;
+  struct iosm_imem *ipc_imem;
+  void *msg;
+  struct completion *completion;
+  int (*func)(struct iosm_imem *ipc_imem, int arg, void *msg,
+      size_t size);
+  int arg;
+  size_t size;
+  int response;
+  u8 is_copy : 1;
 };
 
 /**
@@ -44,54 +44,54 @@ struct ipc_task_queue_args {
  * @q_wpos:     First free element of the input queue.
  */
 struct ipc_task_queue {
-	spinlock_t q_lock; /* for atomic operation on queue */
-	struct ipc_task_queue_args args[IPC_THREAD_QUEUE_SIZE];
-	unsigned int q_rpos;
-	unsigned int q_wpos;
+  spinlock_t q_lock; /* for atomic operation on queue */
+  struct ipc_task_queue_args args[IPC_THREAD_QUEUE_SIZE];
+  unsigned int q_rpos;
+  unsigned int q_wpos;
 };
 
 /**
  * struct ipc_task - Struct for Task
- * @dev:	 Pointer to device structure
+ * @dev:   Pointer to device structure
  * @ipc_tasklet: Tasklet for serialized work offload
- *		 from interrupts and OS callbacks
- * @ipc_queue:	 Task for entry into ipc task queue
+ *     from interrupts and OS callbacks
+ * @ipc_queue:   Task for entry into ipc task queue
  */
 struct ipc_task {
-	struct device *dev;
-	struct tasklet_struct *ipc_tasklet;
-	struct ipc_task_queue ipc_queue;
+  struct device *dev;
+  struct tasklet_struct *ipc_tasklet;
+  struct ipc_task_queue ipc_queue;
 };
 
 /**
  * ipc_task_init - Allocate a tasklet
- * @ipc_task:	Pointer to ipc_task structure
+ * @ipc_task: Pointer to ipc_task structure
  * Returns: 0 on success and failure value on error.
  */
 int ipc_task_init(struct ipc_task *ipc_task);
 
 /**
  * ipc_task_deinit - Free a tasklet, invalidating its pointer.
- * @ipc_task:	Pointer to ipc_task structure
+ * @ipc_task: Pointer to ipc_task structure
  */
 void ipc_task_deinit(struct ipc_task *ipc_task);
 
 /**
  * ipc_task_queue_send_task - Synchronously/Asynchronously call a function in
- *			      tasklet context.
- * @imem:		Pointer to iosm_imem struct
- * @func:		Function to be called in tasklet context
- * @arg:		Integer argument for func
- * @msg:		Message pointer argument for func
- * @size:		Size argument for func
- * @wait:		if true wait for result
+ *            tasklet context.
+ * @imem:   Pointer to iosm_imem struct
+ * @func:   Function to be called in tasklet context
+ * @arg:    Integer argument for func
+ * @msg:    Message pointer argument for func
+ * @size:   Size argument for func
+ * @wait:   if true wait for result
  *
  * Returns: Result value returned by func or failure value if func could not
- *	    be called.
+ *      be called.
  */
 int ipc_task_queue_send_task(struct iosm_imem *imem,
-			     int (*func)(struct iosm_imem *ipc_imem, int arg,
-					 void *msg, size_t size),
-			     int arg, void *msg, size_t size, bool wait);
+    int (*func)(struct iosm_imem *ipc_imem, int arg,
+    void *msg, size_t size),
+    int arg, void *msg, size_t size, bool wait);
 
 #endif

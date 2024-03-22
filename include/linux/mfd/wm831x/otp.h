@@ -72,9 +72,12 @@ void wm831x_otp_exit(struct wm831x *wm831x);
 /*
  * R30728 (0x7808) - Factory OTP ID
  */
-#define WM831X_OTP_FACT_ID_MASK                 0xFFFE  /* OTP_FACT_ID - [15:1] */
-#define WM831X_OTP_FACT_ID_SHIFT                     1  /* OTP_FACT_ID - [15:1] */
-#define WM831X_OTP_FACT_ID_WIDTH                    15  /* OTP_FACT_ID - [15:1] */
+#define WM831X_OTP_FACT_ID_MASK                 0xFFFE  /* OTP_FACT_ID - [15:1]
+                                                         * */
+#define WM831X_OTP_FACT_ID_SHIFT                     1  /* OTP_FACT_ID - [15:1]
+                                                         * */
+#define WM831X_OTP_FACT_ID_WIDTH                    15  /* OTP_FACT_ID - [15:1]
+                                                         * */
 #define WM831X_OTP_FACT_FINAL                   0x0001  /* OTP_FACT_FINAL */
 #define WM831X_OTP_FACT_FINAL_MASK              0x0001  /* OTP_FACT_FINAL */
 #define WM831X_OTP_FACT_FINAL_SHIFT                  0  /* OTP_FACT_FINAL */
@@ -116,9 +119,12 @@ void wm831x_otp_exit(struct wm831x *wm831x);
 /*
  * R30732 (0x780C) - Factory OTP 4
  */
-#define WM831X_CHILD_I2C_ADDR_MASK              0x00FE  /* CHILD_I2C_ADDR - [7:1] */
-#define WM831X_CHILD_I2C_ADDR_SHIFT                  1  /* CHILD_I2C_ADDR - [7:1] */
-#define WM831X_CHILD_I2C_ADDR_WIDTH                  7  /* CHILD_I2C_ADDR - [7:1] */
+#define WM831X_CHILD_I2C_ADDR_MASK              0x00FE  /* CHILD_I2C_ADDR -
+                                                         * [7:1] */
+#define WM831X_CHILD_I2C_ADDR_SHIFT                  1  /* CHILD_I2C_ADDR -
+                                                         * [7:1] */
+#define WM831X_CHILD_I2C_ADDR_WIDTH                  7  /* CHILD_I2C_ADDR -
+                                                         * [7:1] */
 #define WM831X_CH_AW                            0x0001  /* CH_AW */
 #define WM831X_CH_AW_MASK                       0x0001  /* CH_AW */
 #define WM831X_CH_AW_SHIFT                           0  /* CH_AW */
@@ -127,9 +133,12 @@ void wm831x_otp_exit(struct wm831x *wm831x);
 /*
  * R30733 (0x780D) - Factory OTP 5
  */
-#define WM831X_CHARGE_TRIM_MASK                 0x003F  /* CHARGE_TRIM - [5:0] */
-#define WM831X_CHARGE_TRIM_SHIFT                     0  /* CHARGE_TRIM - [5:0] */
-#define WM831X_CHARGE_TRIM_WIDTH                     6  /* CHARGE_TRIM - [5:0] */
+#define WM831X_CHARGE_TRIM_MASK                 0x003F  /* CHARGE_TRIM - [5:0]
+                                                         * */
+#define WM831X_CHARGE_TRIM_SHIFT                     0  /* CHARGE_TRIM - [5:0]
+                                                         * */
+#define WM831X_CHARGE_TRIM_WIDTH                     6  /* CHARGE_TRIM - [5:0]
+                                                         * */
 
 /*
  * R30736 (0x7810) - Customer OTP ID
@@ -138,9 +147,12 @@ void wm831x_otp_exit(struct wm831x *wm831x);
 #define WM831X_OTP_AUTO_PROG_MASK               0x8000  /* OTP_AUTO_PROG */
 #define WM831X_OTP_AUTO_PROG_SHIFT                  15  /* OTP_AUTO_PROG */
 #define WM831X_OTP_AUTO_PROG_WIDTH                   1  /* OTP_AUTO_PROG */
-#define WM831X_OTP_CUST_ID_MASK                 0x7FFE  /* OTP_CUST_ID - [14:1] */
-#define WM831X_OTP_CUST_ID_SHIFT                     1  /* OTP_CUST_ID - [14:1] */
-#define WM831X_OTP_CUST_ID_WIDTH                    14  /* OTP_CUST_ID - [14:1] */
+#define WM831X_OTP_CUST_ID_MASK                 0x7FFE  /* OTP_CUST_ID - [14:1]
+                                                         * */
+#define WM831X_OTP_CUST_ID_SHIFT                     1  /* OTP_CUST_ID - [14:1]
+                                                         * */
+#define WM831X_OTP_CUST_ID_WIDTH                    14  /* OTP_CUST_ID - [14:1]
+                                                         * */
 #define WM831X_OTP_CUST_FINAL                   0x0001  /* OTP_CUST_FINAL */
 #define WM831X_OTP_CUST_FINAL_MASK              0x0001  /* OTP_CUST_FINAL */
 #define WM831X_OTP_CUST_FINAL_SHIFT                  0  /* OTP_CUST_FINAL */
@@ -149,9 +161,11 @@ void wm831x_otp_exit(struct wm831x *wm831x);
 /*
  * R30759 (0x7827) - DBE CHECK DATA
  */
-#define WM831X_DBE_VALID_DATA_MASK              0xFFFF  /* DBE_VALID_DATA - [15:0] */
-#define WM831X_DBE_VALID_DATA_SHIFT                  0  /* DBE_VALID_DATA - [15:0] */
-#define WM831X_DBE_VALID_DATA_WIDTH                 16  /* DBE_VALID_DATA - [15:0] */
-
+#define WM831X_DBE_VALID_DATA_MASK              0xFFFF  /* DBE_VALID_DATA -
+                                                         * [15:0] */
+#define WM831X_DBE_VALID_DATA_SHIFT                  0  /* DBE_VALID_DATA -
+                                                         * [15:0] */
+#define WM831X_DBE_VALID_DATA_WIDTH                 16  /* DBE_VALID_DATA -
+                                                         * [15:0] */
 
 #endif

@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2020 Facebook */
-/* "undefine" structs in vmlinux.h, because we "override" them below */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2020 Facebook
+ * "undefine" structs in vmlinux.h, because we "override" them below*/
 #define bpf_iter_meta bpf_iter_meta___not_used
 #define bpf_iter__bpf_map bpf_iter__bpf_map___not_used
 #define bpf_iter__ipv6_route bpf_iter__ipv6_route___not_used
@@ -50,118 +50,118 @@
 #undef bpf_iter__ksym
 
 struct bpf_iter_meta {
-	struct seq_file *seq;
-	__u64 session_id;
-	__u64 seq_num;
+  struct seq_file *seq;
+  __u64 session_id;
+  __u64 seq_num;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__ipv6_route {
-	struct bpf_iter_meta *meta;
-	struct fib6_info *rt;
+  struct bpf_iter_meta *meta;
+  struct fib6_info *rt;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__netlink {
-	struct bpf_iter_meta *meta;
-	struct netlink_sock *sk;
+  struct bpf_iter_meta *meta;
+  struct netlink_sock *sk;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__task {
-	struct bpf_iter_meta *meta;
-	struct task_struct *task;
+  struct bpf_iter_meta *meta;
+  struct task_struct *task;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__task_file {
-	struct bpf_iter_meta *meta;
-	struct task_struct *task;
-	__u32 fd;
-	struct file *file;
+  struct bpf_iter_meta *meta;
+  struct task_struct *task;
+  __u32 fd;
+  struct file *file;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__task_vma {
-	struct bpf_iter_meta *meta;
-	struct task_struct *task;
-	struct vm_area_struct *vma;
+  struct bpf_iter_meta *meta;
+  struct task_struct *task;
+  struct vm_area_struct *vma;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__bpf_map {
-	struct bpf_iter_meta *meta;
-	struct bpf_map *map;
+  struct bpf_iter_meta *meta;
+  struct bpf_map *map;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__tcp {
-	struct bpf_iter_meta *meta;
-	struct sock_common *sk_common;
-	uid_t uid;
+  struct bpf_iter_meta *meta;
+  struct sock_common *sk_common;
+  uid_t uid;
 } __attribute__((preserve_access_index));
 
 struct tcp6_sock {
-	struct tcp_sock	tcp;
-	struct ipv6_pinfo inet6;
+  struct tcp_sock tcp;
+  struct ipv6_pinfo inet6;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__udp {
-	struct bpf_iter_meta *meta;
-	struct udp_sock *udp_sk;
-	uid_t uid __attribute__((aligned(8)));
-	int bucket __attribute__((aligned(8)));
+  struct bpf_iter_meta *meta;
+  struct udp_sock *udp_sk;
+  uid_t uid __attribute__((aligned(8)));
+  int bucket __attribute__((aligned(8)));
 } __attribute__((preserve_access_index));
 
 struct udp6_sock {
-	struct udp_sock	udp;
-	struct ipv6_pinfo inet6;
+  struct udp_sock udp;
+  struct ipv6_pinfo inet6;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__unix {
-	struct bpf_iter_meta *meta;
-	struct unix_sock *unix_sk;
-	uid_t uid;
+  struct bpf_iter_meta *meta;
+  struct unix_sock *unix_sk;
+  uid_t uid;
 } __attribute__((preserve_access_index));
 
 struct bpf_iter__bpf_map_elem {
-	struct bpf_iter_meta *meta;
-	struct bpf_map *map;
-	void *key;
-	void *value;
+  struct bpf_iter_meta *meta;
+  struct bpf_map *map;
+  void *key;
+  void *value;
 };
 
 struct bpf_iter__bpf_sk_storage_map {
-	struct bpf_iter_meta *meta;
-	struct bpf_map *map;
-	struct sock *sk;
-	void *value;
+  struct bpf_iter_meta *meta;
+  struct bpf_map *map;
+  struct sock *sk;
+  void *value;
 };
 
 struct bpf_iter__sockmap {
-	struct bpf_iter_meta *meta;
-	struct bpf_map *map;
-	void *key;
-	struct sock *sk;
+  struct bpf_iter_meta *meta;
+  struct bpf_map *map;
+  void *key;
+  struct sock *sk;
 };
 
 struct bpf_iter__bpf_link {
-	struct bpf_iter_meta *meta;
-	struct bpf_link *link;
+  struct bpf_iter_meta *meta;
+  struct bpf_link *link;
 };
 
 struct bpf_iter__cgroup {
-	struct bpf_iter_meta *meta;
-	struct cgroup *cgroup;
+  struct bpf_iter_meta *meta;
+  struct cgroup *cgroup;
 } __attribute__((preserve_access_index));
 
 struct btf_ptr {
-	void *ptr;
-	__u32 type_id;
-	__u32 flags;
+  void *ptr;
+  __u32 type_id;
+  __u32 flags;
 };
 
 enum {
-	BTF_F_COMPACT	=	(1ULL << 0),
-	BTF_F_NONAME	=	(1ULL << 1),
-	BTF_F_PTR_RAW	=	(1ULL << 2),
-	BTF_F_ZERO	=	(1ULL << 3),
+  BTF_F_COMPACT = (1ULL << 0),
+  BTF_F_NONAME = (1ULL << 1),
+  BTF_F_PTR_RAW = (1ULL << 2),
+  BTF_F_ZERO = (1ULL << 3),
 };
 
 struct bpf_iter__ksym {
-	struct bpf_iter_meta *meta;
-	struct kallsym_iter *ksym;
+  struct bpf_iter_meta *meta;
+  struct kallsym_iter *ksym;
 };

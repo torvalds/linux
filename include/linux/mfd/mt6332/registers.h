@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+ * Copyright (c) 2022 AngeloGioacchino Del Regno
+ *<angelogioacchino.delregno@collabora.com>
  */
 
 #ifndef __MFD_MT6332_REGISTERS_H__

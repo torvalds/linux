@@ -7,15 +7,15 @@
  *  modification, are permitted provided that the following conditions
  *  are met:
  *
- *	* Redistributions of source code must retain the above copyright
- *	  notice, this list of conditions and the following disclaimer.
- *	* Redistributions in binary form must reproduce the above copyright
- *	  notice, this list of conditions and the following disclaimer in
- *	  the documentation and/or other materials provided with the
- *	  distribution.
- *	* Neither the name of Broadcom Corporation nor the names of its
- *	  contributors may be used to endorse or promote products derived
- *	  from this software without specific prior written permission.
+ *  * Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *  * Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *  * Neither the name of Broadcom Corporation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -34,18 +34,18 @@
 #define _CLOCK_BCM_NSP_H
 
 /* GENPLL clock channel ID */
-#define BCM_NSP_GENPLL			0
-#define BCM_NSP_GENPLL_PHY_CLK		1
-#define BCM_NSP_GENPLL_ENET_SW_CLK	2
-#define BCM_NSP_GENPLL_USB_PHY_REF_CLK	3
-#define BCM_NSP_GENPLL_IPROCFAST_CLK	4
-#define BCM_NSP_GENPLL_SATA1_CLK	5
-#define BCM_NSP_GENPLL_SATA2_CLK	6
+#define BCM_NSP_GENPLL      0
+#define BCM_NSP_GENPLL_PHY_CLK    1
+#define BCM_NSP_GENPLL_ENET_SW_CLK  2
+#define BCM_NSP_GENPLL_USB_PHY_REF_CLK  3
+#define BCM_NSP_GENPLL_IPROCFAST_CLK  4
+#define BCM_NSP_GENPLL_SATA1_CLK  5
+#define BCM_NSP_GENPLL_SATA2_CLK  6
 
 /* LCPLL0 clock channel ID */
-#define BCM_NSP_LCPLL0			0
-#define BCM_NSP_LCPLL0_PCIE_PHY_REF_CLK	1
-#define BCM_NSP_LCPLL0_SDIO_CLK		2
-#define BCM_NSP_LCPLL0_DDR_PHY_CLK	3
+#define BCM_NSP_LCPLL0      0
+#define BCM_NSP_LCPLL0_PCIE_PHY_REF_CLK 1
+#define BCM_NSP_LCPLL0_SDIO_CLK   2
+#define BCM_NSP_LCPLL0_DDR_PHY_CLK  3
 
 #endif /* _CLOCK_BCM_NSP_H */

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+ * Copyright (c) 2019 Mellanox Technologies.*/
 
 #ifndef __LIB_HV_H__
 #define __LIB_HV_H__
@@ -10,12 +10,12 @@
 #include <linux/mlx5/driver.h>
 
 int mlx5_hv_read_config(struct mlx5_core_dev *dev, void *buf, int len,
-			int offset);
+    int offset);
 int mlx5_hv_write_config(struct mlx5_core_dev *dev, void *buf, int len,
-			 int offset);
+    int offset);
 int mlx5_hv_register_invalidate(struct mlx5_core_dev *dev, void *context,
-				void (*block_invalidate)(void *context,
-							 u64 block_mask));
+    void (*block_invalidate)(void *context,
+    u64 block_mask));
 void mlx5_hv_unregister_invalidate(struct mlx5_core_dev *dev);
 #endif
 

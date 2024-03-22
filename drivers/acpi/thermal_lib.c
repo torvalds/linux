@@ -18,72 +18,68 @@
  * firmware. Any values out of these boundaries may be considered
  * bogus and we can assume the firmware has no data to provide.
  */
-#define TEMP_MIN_DECIK	2180ULL
-#define TEMP_MAX_DECIK	4480ULL
+#define TEMP_MIN_DECIK  2180ULL
+#define TEMP_MAX_DECIK  4480ULL
 
 static int acpi_trip_temp(struct acpi_device *adev, char *obj_name,
-			  int *ret_temp)
-{
-	unsigned long long temp;
-	acpi_status status;
-
-	status = acpi_evaluate_integer(adev->handle, obj_name, NULL, &temp);
-	if (ACPI_FAILURE(status)) {
-		acpi_handle_debug(adev->handle, "%s evaluation failed\n", obj_name);
-		return -ENODATA;
-	}
-
-	if (temp >= TEMP_MIN_DECIK && temp <= TEMP_MAX_DECIK) {
-		*ret_temp = temp;
-	} else {
-		acpi_handle_debug(adev->handle, "%s result %llu out of range\n",
-				  obj_name, temp);
-		*ret_temp = THERMAL_TEMP_INVALID;
-	}
-
-	return 0;
+    int *ret_temp) {
+  unsigned long long temp;
+  acpi_status status;
+  status = acpi_evaluate_integer(adev->handle, obj_name, NULL, &temp);
+  if (ACPI_FAILURE(status)) {
+    acpi_handle_debug(adev->handle, "%s evaluation failed\n", obj_name);
+    return -ENODATA;
+  }
+  if (temp >= TEMP_MIN_DECIK && temp <= TEMP_MAX_DECIK) {
+    *ret_temp = temp;
+  } else {
+    acpi_handle_debug(adev->handle, "%s result %llu out of range\n",
+        obj_name, temp);
+    *ret_temp = THERMAL_TEMP_INVALID;
+  }
+  return 0;
 }
 
-int acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp)
-{
-	char obj_name[] = {'_', 'A', 'C', '0' + id, '\0'};
-
-	if (id < 0 || id > 9)
-		return -EINVAL;
-
-	return acpi_trip_temp(adev, obj_name, ret_temp);
+int acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp) {
+  char obj_name[] = {
+    '_', 'A', 'C', '0' + id, '\0'
+  };
+  if (id < 0 || id > 9) {
+    return -EINVAL;
+  }
+  return acpi_trip_temp(adev, obj_name, ret_temp);
 }
+
 EXPORT_SYMBOL_NS_GPL(acpi_active_trip_temp, ACPI_THERMAL);
 
-int acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp)
-{
-	return acpi_trip_temp(adev, "_PSV", ret_temp);
+int acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp) {
+  return acpi_trip_temp(adev, "_PSV", ret_temp);
 }
+
 EXPORT_SYMBOL_NS_GPL(acpi_passive_trip_temp, ACPI_THERMAL);
 
-int acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp)
-{
-	return acpi_trip_temp(adev, "_HOT", ret_temp);
+int acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp) {
+  return acpi_trip_temp(adev, "_HOT", ret_temp);
 }
+
 EXPORT_SYMBOL_NS_GPL(acpi_hot_trip_temp, ACPI_THERMAL);
 
-int acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp)
-{
-	return acpi_trip_temp(adev, "_CRT", ret_temp);
+int acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp) {
+  return acpi_trip_temp(adev, "_CRT", ret_temp);
 }
+
 EXPORT_SYMBOL_NS_GPL(acpi_critical_trip_temp, ACPI_THERMAL);
 
-static int thermal_temp(int error, int temp_decik, int *ret_temp)
-{
-	if (error)
-		return error;
-
-	if (temp_decik == THERMAL_TEMP_INVALID)
-		*ret_temp = THERMAL_TEMP_INVALID;
-	else
-		*ret_temp = deci_kelvin_to_millicelsius(temp_decik);
-
-	return 0;
+static int thermal_temp(int error, int temp_decik, int *ret_temp) {
+  if (error) {
+    return error;
+  }
+  if (temp_decik == THERMAL_TEMP_INVALID) {
+    *ret_temp = THERMAL_TEMP_INVALID;
+  } else {
+    *ret_temp = deci_kelvin_to_millicelsius(temp_decik);
+  }
+  return 0;
 }
 
 /**
@@ -98,13 +94,13 @@ static int thermal_temp(int error, int temp_decik, int *ret_temp)
  *
  * Return 0 on success or a negative error value on failure.
  */
-int thermal_acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp)
-{
-	int temp_decik = 0;
-	int ret = acpi_active_trip_temp(adev, id, &temp_decik);
-
-	return thermal_temp(ret, temp_decik, ret_temp);
+int thermal_acpi_active_trip_temp(struct acpi_device *adev, int id,
+    int *ret_temp) {
+  int temp_decik = 0;
+  int ret = acpi_active_trip_temp(adev, id, &temp_decik);
+  return thermal_temp(ret, temp_decik, ret_temp);
 }
+
 EXPORT_SYMBOL_GPL(thermal_acpi_active_trip_temp);
 
 /**
@@ -117,13 +113,12 @@ EXPORT_SYMBOL_GPL(thermal_acpi_active_trip_temp);
  *
  * Return 0 on success or -ENODATA on failure.
  */
-int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp)
-{
-	int temp_decik = 0;
-	int ret = acpi_passive_trip_temp(adev, &temp_decik);
-
-	return thermal_temp(ret, temp_decik, ret_temp);
+int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp) {
+  int temp_decik = 0;
+  int ret = acpi_passive_trip_temp(adev, &temp_decik);
+  return thermal_temp(ret, temp_decik, ret_temp);
 }
+
 EXPORT_SYMBOL_GPL(thermal_acpi_passive_trip_temp);
 
 /**
@@ -137,13 +132,12 @@ EXPORT_SYMBOL_GPL(thermal_acpi_passive_trip_temp);
  *
  * Return 0 on success or -ENODATA on failure.
  */
-int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp)
-{
-	int temp_decik = 0;
-	int ret = acpi_hot_trip_temp(adev, &temp_decik);
-
-	return thermal_temp(ret, temp_decik, ret_temp);
+int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp) {
+  int temp_decik = 0;
+  int ret = acpi_hot_trip_temp(adev, &temp_decik);
+  return thermal_temp(ret, temp_decik, ret_temp);
 }
+
 EXPORT_SYMBOL_GPL(thermal_acpi_hot_trip_temp);
 
 /**
@@ -156,11 +150,10 @@ EXPORT_SYMBOL_GPL(thermal_acpi_hot_trip_temp);
  *
  * Return 0 on success or -ENODATA on failure.
  */
-int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp)
-{
-	int temp_decik = 0;
-	int ret = acpi_critical_trip_temp(adev, &temp_decik);
-
-	return thermal_temp(ret, temp_decik, ret_temp);
+int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp) {
+  int temp_decik = 0;
+  int ret = acpi_critical_trip_temp(adev, &temp_decik);
+  return thermal_temp(ret, temp_decik, ret_temp);
 }
+
 EXPORT_SYMBOL_GPL(thermal_acpi_critical_trip_temp);

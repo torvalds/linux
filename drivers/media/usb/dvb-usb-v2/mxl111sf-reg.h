@@ -33,7 +33,6 @@
 #define V6_CODE_RATE_TPS_REG       0x29
 #define V6_CODE_RATE_TPS_MASK      0x07
 
-
 #define V6_CP_LOCK_DET_REG        0x28
 #define V6_CP_LOCK_DET_MASK       0x04
 
@@ -45,7 +44,6 @@
 
 #define V6_MODE_TPS_REG            0x2A
 #define V6_PARAM_FFT_MODE_MASK        0x0C
-
 
 #define V6_CP_TPS_REG             0x29
 #define V6_PARAM_GI_MASK              0x30

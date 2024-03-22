@@ -16,16 +16,16 @@
  * the last four bytes as an inum.
  */
 struct orangefs_khandle {
-	unsigned char u[16];
+  unsigned char u[16];
 }  __aligned(8);
 
 /*
  * kernel version of an object ref.
  */
 struct orangefs_object_kref {
-	struct orangefs_khandle khandle;
-	__s32 fs_id;
-	__s32 __pad1;
+  struct orangefs_khandle khandle;
+  __s32 fs_id;
+  __s32 __pad1;
 };
 
 /*
@@ -33,35 +33,29 @@ struct orangefs_object_kref {
  * small address
  */
 static inline int ORANGEFS_khandle_cmp(const struct orangefs_khandle *kh1,
-				   const struct orangefs_khandle *kh2)
-{
-	int i;
-
-	for (i = 15; i >= 0; i--) {
-		if (kh1->u[i] > kh2->u[i])
-			return 1;
-		if (kh1->u[i] < kh2->u[i])
-			return -1;
-	}
-
-	return 0;
+    const struct orangefs_khandle *kh2) {
+  int i;
+  for (i = 15; i >= 0; i--) {
+    if (kh1->u[i] > kh2->u[i]) {
+      return 1;
+    }
+    if (kh1->u[i] < kh2->u[i]) {
+      return -1;
+    }
+  }
+  return 0;
 }
 
 static inline void ORANGEFS_khandle_to(const struct orangefs_khandle *kh,
-				   void *p, int size)
-{
-
-	memcpy(p, kh->u, 16);
-	memset(p + 16, 0, size - 16);
-
+    void *p, int size) {
+  memcpy(p, kh->u, 16);
+  memset(p + 16, 0, size - 16);
 }
 
 static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
-				     void *p, int size)
-{
-	memset(kh, 0, 16);
-	memcpy(kh->u, p, 16);
-
+    void *p, int size) {
+  memset(kh, 0, 16);
+  memcpy(kh->u, p, 16);
 }
 
 /* pvfs2-types.h ************************************************************/
@@ -69,7 +63,8 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_SUPER_MAGIC 0x20030528
 
 /*
- * ORANGEFS error codes are a signed 32-bit integer. Error codes are negative, but
+ * ORANGEFS error codes are a signed 32-bit integer. Error codes are negative,
+ *but
  * the sign is stripped before decoding.
  */
 
@@ -100,15 +95,24 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 /* Encoded errno values decoded by PINT_errno_mapping in orangefs-utils.c. */
 
 /* Our own ORANGEFS protocol error codes. */
-#define ORANGEFS_ECANCEL    (1|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EDEVINIT   (2|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EDETAIL    (3|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EHOSTNTFD  (4|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_EADDRNTFD  (5|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ENORECVR   (6|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ETRYAGAIN  (7|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ENOTPVFS   (8|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
-#define ORANGEFS_ESECURITY  (9|ORANGEFS_NON_ERRNO_ERROR_BIT|ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ECANCEL    (1 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EDEVINIT   (2 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EDETAIL    (3 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EHOSTNTFD  (4 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_EADDRNTFD  (5 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ENORECVR   (6 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ETRYAGAIN  (7 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ENOTPVFS   (8 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
+#define ORANGEFS_ESECURITY  (9 | ORANGEFS_NON_ERRNO_ERROR_BIT \
+  | ORANGEFS_ERROR_BIT)
 
 /* permission bits */
 #define ORANGEFS_O_EXECUTE (1 << 0)
@@ -130,7 +134,7 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_APPEND_FL    FS_APPEND_FL
 #define ORANGEFS_NOATIME_FL   FS_NOATIME_FL
 #define ORANGEFS_MIRROR_FL    0x01000000ULL
-#define ORANGEFS_FS_ID_NULL       ((__s32)0)
+#define ORANGEFS_FS_ID_NULL       ((__s32) 0)
 #define ORANGEFS_ATTR_SYS_UID                   (1 << 0)
 #define ORANGEFS_ATTR_SYS_GID                   (1 << 1)
 #define ORANGEFS_ATTR_SYS_PERM                  (1 << 2)
@@ -146,26 +150,26 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
 #define ORANGEFS_ATTR_SYS_DIRENT_COUNT          (1 << 26)
 #define ORANGEFS_ATTR_SYS_BLKSIZE               (1 << 28)
 #define ORANGEFS_ATTR_SYS_MIRROR_COPIES_COUNT   (1 << 29)
-#define ORANGEFS_ATTR_SYS_COMMON_ALL	\
-	(ORANGEFS_ATTR_SYS_UID	|	\
-	 ORANGEFS_ATTR_SYS_GID	|	\
-	 ORANGEFS_ATTR_SYS_PERM	|	\
-	 ORANGEFS_ATTR_SYS_ATIME	|	\
-	 ORANGEFS_ATTR_SYS_CTIME	|	\
-	 ORANGEFS_ATTR_SYS_MTIME	|	\
-	 ORANGEFS_ATTR_SYS_TYPE)
+#define ORANGEFS_ATTR_SYS_COMMON_ALL  \
+  (ORANGEFS_ATTR_SYS_UID    \
+  | ORANGEFS_ATTR_SYS_GID    \
+  | ORANGEFS_ATTR_SYS_PERM   \
+  | ORANGEFS_ATTR_SYS_ATIME    \
+  | ORANGEFS_ATTR_SYS_CTIME    \
+  | ORANGEFS_ATTR_SYS_MTIME    \
+  | ORANGEFS_ATTR_SYS_TYPE)
 
-#define ORANGEFS_ATTR_SYS_ALL_SETABLE		\
-(ORANGEFS_ATTR_SYS_COMMON_ALL-ORANGEFS_ATTR_SYS_TYPE)
+#define ORANGEFS_ATTR_SYS_ALL_SETABLE   \
+  (ORANGEFS_ATTR_SYS_COMMON_ALL - ORANGEFS_ATTR_SYS_TYPE)
 
-#define ORANGEFS_ATTR_SYS_ALL_NOHINT			\
-	(ORANGEFS_ATTR_SYS_COMMON_ALL		|	\
-	 ORANGEFS_ATTR_SYS_SIZE			|	\
-	 ORANGEFS_ATTR_SYS_LNK_TARGET		|	\
-	 ORANGEFS_ATTR_SYS_DFILE_COUNT		|	\
-	 ORANGEFS_ATTR_SYS_MIRROR_COPIES_COUNT	|	\
-	 ORANGEFS_ATTR_SYS_DIRENT_COUNT		|	\
-	 ORANGEFS_ATTR_SYS_BLKSIZE)
+#define ORANGEFS_ATTR_SYS_ALL_NOHINT      \
+  (ORANGEFS_ATTR_SYS_COMMON_ALL     \
+  | ORANGEFS_ATTR_SYS_SIZE       \
+  | ORANGEFS_ATTR_SYS_LNK_TARGET     \
+  | ORANGEFS_ATTR_SYS_DFILE_COUNT      \
+  | ORANGEFS_ATTR_SYS_MIRROR_COPIES_COUNT    \
+  | ORANGEFS_ATTR_SYS_DIRENT_COUNT     \
+  | ORANGEFS_ATTR_SYS_BLKSIZE)
 
 #define ORANGEFS_XATTR_REPLACE 0x2
 #define ORANGEFS_XATTR_CREATE  0x1
@@ -180,22 +184,23 @@ static inline void ORANGEFS_khandle_from(struct orangefs_khandle *kh,
  * ORANGEFS_NAME_MAX, which it was the same value as, but no reason to let it
  * break if that changes in the future.
  */
-#define ORANGEFS_MAX_XATTR_NAMELEN   ORANGEFS_NAME_MAX	/* Not the same as
-						 * XATTR_NAME_MAX defined
-						 * by <linux/xattr.h>
-						 */
-#define ORANGEFS_MAX_XATTR_VALUELEN  8192	/* Not the same as XATTR_SIZE_MAX
-					 * defined by <linux/xattr.h>
-					 */
-#define ORANGEFS_MAX_XATTR_LISTLEN   16	/* Not the same as XATTR_LIST_MAX
-					 * defined by <linux/xattr.h>
-					 */
+#define ORANGEFS_MAX_XATTR_NAMELEN   ORANGEFS_NAME_MAX  /* Not the same as
+                                                         * XATTR_NAME_MAX
+                                                         *defined
+                                                         * by <linux/xattr.h>
+                                                         */
+#define ORANGEFS_MAX_XATTR_VALUELEN  8192 /* Not the same as XATTR_SIZE_MAX
+                                           * defined by <linux/xattr.h>
+                                           */
+#define ORANGEFS_MAX_XATTR_LISTLEN   16 /* Not the same as XATTR_LIST_MAX
+                                         * defined by <linux/xattr.h>
+                                         */
 /*
  * ORANGEFS I/O operation types, used in both system and server interfaces.
  */
 enum ORANGEFS_io_type {
-	ORANGEFS_IO_READ = 1,
-	ORANGEFS_IO_WRITE = 2
+  ORANGEFS_IO_READ = 1,
+  ORANGEFS_IO_WRITE = 2
 };
 
 /*
@@ -204,62 +209,62 @@ enum ORANGEFS_io_type {
  * change.
  */
 enum orangefs_ds_type {
-	ORANGEFS_TYPE_NONE = 0,
-	ORANGEFS_TYPE_METAFILE = (1 << 0),
-	ORANGEFS_TYPE_DATAFILE = (1 << 1),
-	ORANGEFS_TYPE_DIRECTORY = (1 << 2),
-	ORANGEFS_TYPE_SYMLINK = (1 << 3),
-	ORANGEFS_TYPE_DIRDATA = (1 << 4),
-	ORANGEFS_TYPE_INTERNAL = (1 << 5)	/* for the server's private use */
+  ORANGEFS_TYPE_NONE = 0,
+  ORANGEFS_TYPE_METAFILE = (1 << 0),
+  ORANGEFS_TYPE_DATAFILE = (1 << 1),
+  ORANGEFS_TYPE_DIRECTORY = (1 << 2),
+  ORANGEFS_TYPE_SYMLINK = (1 << 3),
+  ORANGEFS_TYPE_DIRDATA = (1 << 4),
+  ORANGEFS_TYPE_INTERNAL = (1 << 5) /* for the server's private use */
 };
 
 /* This structure is used by the VFS-client interaction alone */
 struct ORANGEFS_keyval_pair {
-	char key[ORANGEFS_MAX_XATTR_NAMELEN];
-	__s32 key_sz;	/* __s32 for portable, fixed-size structures */
-	__s32 val_sz;
-	char val[ORANGEFS_MAX_XATTR_VALUELEN];
+  char key[ORANGEFS_MAX_XATTR_NAMELEN];
+  __s32 key_sz; /* __s32 for portable, fixed-size structures */
+  __s32 val_sz;
+  char val[ORANGEFS_MAX_XATTR_VALUELEN];
 };
 
-/* pvfs2-sysint.h ***********************************************************/
-/* Describes attributes for a file, directory, or symlink. */
+/* pvfs2-sysint.h **********************************************************
+ * Describes attributes for a file, directory, or symlink.*/
 struct ORANGEFS_sys_attr_s {
-	__u32 owner;
-	__u32 group;
-	__u32 perms;
-	__u64 atime;
-	__u64 mtime;
-	__u64 ctime;
-	__s64 size;
+  __u32 owner;
+  __u32 group;
+  __u32 perms;
+  __u64 atime;
+  __u64 mtime;
+  __u64 ctime;
+  __s64 size;
 
-	/* NOTE: caller must free if valid */
-	char *link_target;
+  /* NOTE: caller must free if valid */
+  char *link_target;
 
-	/* Changed to __s32 so that size of structure does not change */
-	__s32 dfile_count;
+  /* Changed to __s32 so that size of structure does not change */
+  __s32 dfile_count;
 
-	/* Changed to __s32 so that size of structure does not change */
-	__s32 distr_dir_servers_initial;
+  /* Changed to __s32 so that size of structure does not change */
+  __s32 distr_dir_servers_initial;
 
-	/* Changed to __s32 so that size of structure does not change */
-	__s32 distr_dir_servers_max;
+  /* Changed to __s32 so that size of structure does not change */
+  __s32 distr_dir_servers_max;
 
-	/* Changed to __s32 so that size of structure does not change */
-	__s32 distr_dir_split_size;
+  /* Changed to __s32 so that size of structure does not change */
+  __s32 distr_dir_split_size;
 
-	__u32 mirror_copies_count;
+  __u32 mirror_copies_count;
 
-	/* NOTE: caller must free if valid */
-	char *dist_name;
+  /* NOTE: caller must free if valid */
+  char *dist_name;
 
-	/* NOTE: caller must free if valid */
-	char *dist_params;
+  /* NOTE: caller must free if valid */
+  char *dist_params;
 
-	__s64 dirent_count;
-	enum orangefs_ds_type objtype;
-	__u64 flags;
-	__u32 mask;
-	__s64 blksize;
+  __s64 dirent_count;
+  enum orangefs_ds_type objtype;
+  __u64 flags;
+  __u32 mask;
+  __s64 blksize;
 };
 
 #define ORANGEFS_LOOKUP_LINK_NO_FOLLOW 0
@@ -268,16 +273,16 @@ struct ORANGEFS_sys_attr_s {
 
 /* parameter structure used in ORANGEFS_DEV_DEBUG ioctl command */
 struct dev_mask_info_s {
-	enum {
-		KERNEL_MASK,
-		CLIENT_MASK,
-	} mask_type;
-	__u64 mask_value;
+  enum {
+    KERNEL_MASK,
+    CLIENT_MASK,
+  } mask_type;
+  __u64 mask_value;
 };
 
 struct dev_mask2_info_s {
-	__u64 mask1_value;
-	__u64 mask2_value;
+  __u64 mask1_value;
+  __u64 mask2_value;
 };
 
 /* pvfs2-util.h *************************************************************/
@@ -287,8 +292,8 @@ __s32 ORANGEFS_util_translate_mode(int mode);
 #include "orangefs-debug.h"
 
 /* pvfs2-internal.h *********************************************************/
-#define llu(x) (unsigned long long)(x)
-#define lld(x) (long long)(x)
+#define llu(x) (unsigned long long) (x)
+#define lld(x) (long long) (x)
 
 /* pint-dev-shared.h ********************************************************/
 #define ORANGEFS_DEV_MAGIC 'k'
@@ -308,22 +313,22 @@ __s32 ORANGEFS_util_translate_mode(int mode);
 
 /* supported ioctls, codes are with respect to user-space */
 enum {
-	ORANGEFS_DEV_GET_MAGIC = _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAGIC, __s32),
-	ORANGEFS_DEV_GET_MAX_UPSIZE =
-	    _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAX_UPSIZE, __s32),
-	ORANGEFS_DEV_GET_MAX_DOWNSIZE =
-	    _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAX_DOWNSIZE, __s32),
-	ORANGEFS_DEV_MAP = _IO(ORANGEFS_DEV_MAGIC, DEV_MAP),
-	ORANGEFS_DEV_REMOUNT_ALL = _IO(ORANGEFS_DEV_MAGIC, DEV_REMOUNT_ALL),
-	ORANGEFS_DEV_DEBUG = _IOR(ORANGEFS_DEV_MAGIC, DEV_DEBUG, __s32),
-	ORANGEFS_DEV_UPSTREAM = _IOW(ORANGEFS_DEV_MAGIC, DEV_UPSTREAM, int),
-	ORANGEFS_DEV_CLIENT_MASK = _IOW(ORANGEFS_DEV_MAGIC,
-				    DEV_CLIENT_MASK,
-				    struct dev_mask2_info_s),
-	ORANGEFS_DEV_CLIENT_STRING = _IOW(ORANGEFS_DEV_MAGIC,
-				      DEV_CLIENT_STRING,
-				      char *),
-	ORANGEFS_DEV_MAXNR = DEV_MAX_NR,
+  ORANGEFS_DEV_GET_MAGIC = _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAGIC, __s32),
+  ORANGEFS_DEV_GET_MAX_UPSIZE
+    = _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAX_UPSIZE, __s32),
+  ORANGEFS_DEV_GET_MAX_DOWNSIZE
+    = _IOW(ORANGEFS_DEV_MAGIC, DEV_GET_MAX_DOWNSIZE, __s32),
+  ORANGEFS_DEV_MAP = _IO(ORANGEFS_DEV_MAGIC, DEV_MAP),
+  ORANGEFS_DEV_REMOUNT_ALL = _IO(ORANGEFS_DEV_MAGIC, DEV_REMOUNT_ALL),
+  ORANGEFS_DEV_DEBUG = _IOR(ORANGEFS_DEV_MAGIC, DEV_DEBUG, __s32),
+  ORANGEFS_DEV_UPSTREAM = _IOW(ORANGEFS_DEV_MAGIC, DEV_UPSTREAM, int),
+  ORANGEFS_DEV_CLIENT_MASK = _IOW(ORANGEFS_DEV_MAGIC,
+      DEV_CLIENT_MASK,
+      struct dev_mask2_info_s),
+  ORANGEFS_DEV_CLIENT_STRING = _IOW(ORANGEFS_DEV_MAGIC,
+      DEV_CLIENT_STRING,
+      char *),
+  ORANGEFS_DEV_MAXNR = DEV_MAX_NR,
 };
 
 /*
@@ -342,10 +347,10 @@ enum {
  * that may be 32 bit!
  */
 struct ORANGEFS_dev_map_desc {
-	void __user *ptr;
-	__s32 total_size;
-	__s32 size;
-	__s32 count;
+  void __user *ptr;
+  __s32 total_size;
+  __s32 size;
+  __s32 count;
 };
 
 /* gossip.h *****************************************************************/
@@ -353,10 +358,10 @@ struct ORANGEFS_dev_map_desc {
 extern __u64 orangefs_gossip_debug_mask;
 
 /* try to avoid function call overhead by checking masks in macro */
-#define gossip_debug(mask, fmt, ...)					\
-do {									\
-	if (orangefs_gossip_debug_mask & (mask))			\
-		printk(KERN_DEBUG fmt, ##__VA_ARGS__);			\
-} while (0)
+#define gossip_debug(mask, fmt, ...)          \
+  do {                  \
+    if (orangefs_gossip_debug_mask & (mask))      \
+    printk(KERN_DEBUG fmt, ## __VA_ARGS__);      \
+  } while (0)
 
 #define gossip_err pr_err

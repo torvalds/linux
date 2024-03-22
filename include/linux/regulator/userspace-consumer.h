@@ -15,13 +15,13 @@ struct regulator_consumer_supply;
  *           enabled during initialisation
  */
 struct regulator_userspace_consumer_data {
-	const char *name;
+  const char *name;
 
-	int num_supplies;
-	struct regulator_bulk_data *supplies;
+  int num_supplies;
+  struct regulator_bulk_data *supplies;
 
-	bool init_on;
-	bool no_autoswitch;
+  bool init_on;
+  bool no_autoswitch;
 };
 
 #endif /* __REGULATOR_PLATFORM_CONSUMER_H_ */

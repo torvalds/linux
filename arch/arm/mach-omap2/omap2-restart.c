@@ -28,16 +28,12 @@ static struct clk *reset_virt_prcm_set_ck, *reset_sys_ck;
  * Set the DPLL to bypass so that reboot completes successfully.  No
  * return value.
  */
-void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
-{
-	u32 rate;
-
-	rate = clk_get_rate(reset_sys_ck);
-	clk_set_rate(reset_virt_prcm_set_ck, rate);
-
-	/* XXX Should save the cmd argument for use after the reboot */
-
-	omap_prm_reset_system();
+void omap2xxx_restart(enum reboot_mode mode, const char *cmd) {
+  u32 rate;
+  rate = clk_get_rate(reset_sys_ck);
+  clk_set_rate(reset_virt_prcm_set_ck, rate);
+  /* XXX Should save the cmd argument for use after the reboot */
+  omap_prm_reset_system();
 }
 
 /**
@@ -47,16 +43,16 @@ void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
  * operation to work - see omap2xxx_restart().  Returns -EINVAL upon
  * error or 0 upon success.
  */
-static int __init omap2xxx_common_look_up_clks_for_reset(void)
-{
-	reset_virt_prcm_set_ck = clk_get(NULL, "virt_prcm_set");
-	if (IS_ERR(reset_virt_prcm_set_ck))
-		return -EINVAL;
-
-	reset_sys_ck = clk_get(NULL, "sys_ck");
-	if (IS_ERR(reset_sys_ck))
-		return -EINVAL;
-
-	return 0;
+static int __init omap2xxx_common_look_up_clks_for_reset(void) {
+  reset_virt_prcm_set_ck = clk_get(NULL, "virt_prcm_set");
+  if (IS_ERR(reset_virt_prcm_set_ck)) {
+    return -EINVAL;
+  }
+  reset_sys_ck = clk_get(NULL, "sys_ck");
+  if (IS_ERR(reset_sys_ck)) {
+    return -EINVAL;
+  }
+  return 0;
 }
+
 omap_postcore_initcall(omap2xxx_common_look_up_clks_for_reset);

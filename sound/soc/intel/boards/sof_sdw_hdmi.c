@@ -15,25 +15,20 @@
 #include "sof_sdw_common.h"
 #include "hda_dsp_common.h"
 
-int sof_sdw_hdmi_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
-	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
-
-	ctx->hdmi.hdmi_comp = dai->component;
-
-	return 0;
+int sof_sdw_hdmi_init(struct snd_soc_pcm_runtime *rtd) {
+  struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
+  struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
+  ctx->hdmi.hdmi_comp = dai->component;
+  return 0;
 }
 
-int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
-{
-	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
-
-	if (!ctx->hdmi.idisp_codec)
-		return 0;
-
-	if (!ctx->hdmi.hdmi_comp)
-		return -EINVAL;
-
-	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
+int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card) {
+  struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+  if (!ctx->hdmi.idisp_codec) {
+    return 0;
+  }
+  if (!ctx->hdmi.hdmi_comp) {
+    return -EINVAL;
+  }
+  return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }

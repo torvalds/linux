@@ -22,61 +22,54 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/dlm.h>
 
-static int __init init_dlm(void)
-{
-	int error;
-
-	error = dlm_memory_init();
-	if (error)
-		goto out;
-
-	dlm_midcomms_init();
-
-	error = dlm_lockspace_init();
-	if (error)
-		goto out_mem;
-
-	error = dlm_config_init();
-	if (error)
-		goto out_lockspace;
-
-	dlm_register_debugfs();
-
-	error = dlm_user_init();
-	if (error)
-		goto out_debug;
-
-	error = dlm_plock_init();
-	if (error)
-		goto out_user;
-
-	printk("DLM installed\n");
-
-	return 0;
-
- out_user:
-	dlm_user_exit();
- out_debug:
-	dlm_unregister_debugfs();
-	dlm_config_exit();
- out_lockspace:
-	dlm_lockspace_exit();
- out_mem:
-	dlm_midcomms_exit();
-	dlm_memory_exit();
- out:
-	return error;
+static int __init init_dlm(void) {
+  int error;
+  error = dlm_memory_init();
+  if (error) {
+    goto out;
+  }
+  dlm_midcomms_init();
+  error = dlm_lockspace_init();
+  if (error) {
+    goto out_mem;
+  }
+  error = dlm_config_init();
+  if (error) {
+    goto out_lockspace;
+  }
+  dlm_register_debugfs();
+  error = dlm_user_init();
+  if (error) {
+    goto out_debug;
+  }
+  error = dlm_plock_init();
+  if (error) {
+    goto out_user;
+  }
+  printk("DLM installed\n");
+  return 0;
+out_user:
+  dlm_user_exit();
+out_debug:
+  dlm_unregister_debugfs();
+  dlm_config_exit();
+out_lockspace:
+  dlm_lockspace_exit();
+out_mem:
+  dlm_midcomms_exit();
+  dlm_memory_exit();
+out:
+  return error;
 }
 
-static void __exit exit_dlm(void)
-{
-	dlm_plock_exit();
-	dlm_user_exit();
-	dlm_config_exit();
-	dlm_lockspace_exit();
-	dlm_midcomms_exit();
-	dlm_unregister_debugfs();
-	dlm_memory_exit();
+static void __exit exit_dlm(void) {
+  dlm_plock_exit();
+  dlm_user_exit();
+  dlm_config_exit();
+  dlm_lockspace_exit();
+  dlm_midcomms_exit();
+  dlm_unregister_debugfs();
+  dlm_memory_exit();
 }
 
 module_init(init_dlm);
@@ -90,4 +83,3 @@ EXPORT_SYMBOL_GPL(dlm_new_lockspace);
 EXPORT_SYMBOL_GPL(dlm_release_lockspace);
 EXPORT_SYMBOL_GPL(dlm_lock);
 EXPORT_SYMBOL_GPL(dlm_unlock);
-

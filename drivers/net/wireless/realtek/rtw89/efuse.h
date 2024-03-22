@@ -12,8 +12,8 @@
 #define RTW89_EFUSE_MAX_BLOCK_SIZE 0x10000
 
 struct rtw89_efuse_block_cfg {
-	u32 offset;
-	u32 size;
+  u32 offset;
+  u32 size;
 };
 
 int rtw89_parse_efuse_map_ax(struct rtw89_dev *rtwdev);

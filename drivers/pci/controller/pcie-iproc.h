@@ -9,10 +9,10 @@
 /**
  * enum iproc_pcie_type - iProc PCIe interface type
  * @IPROC_PCIE_PAXB_BCMA: BCMA-based host controllers
- * @IPROC_PCIE_PAXB:	  PAXB-based host controllers for
- *			  NS, NSP, Cygnus, NS2, and Pegasus SOCs
+ * @IPROC_PCIE_PAXB:    PAXB-based host controllers for
+ *        NS, NSP, Cygnus, NS2, and Pegasus SOCs
  * @IPROC_PCIE_PAXB_V2:   PAXB-based host controllers for Stingray SoCs
- * @IPROC_PCIE_PAXC:	  PAXC-based host controllers
+ * @IPROC_PCIE_PAXC:    PAXC-based host controllers
  * @IPROC_PCIE_PAXC_V2:   PAXC-based host controllers (second generation)
  *
  * PAXB is the wrapper used in root complex that can be connected to an
@@ -22,11 +22,11 @@
  * endpoint devices.
  */
 enum iproc_pcie_type {
-	IPROC_PCIE_PAXB_BCMA = 0,
-	IPROC_PCIE_PAXB,
-	IPROC_PCIE_PAXB_V2,
-	IPROC_PCIE_PAXC,
-	IPROC_PCIE_PAXC_V2,
+  IPROC_PCIE_PAXB_BCMA = 0,
+  IPROC_PCIE_PAXB,
+  IPROC_PCIE_PAXB_V2,
+  IPROC_PCIE_PAXC,
+  IPROC_PCIE_PAXC_V2,
 };
 
 /**
@@ -36,8 +36,8 @@ enum iproc_pcie_type {
  * @nr_windows: total number of supported outbound mapping windows
  */
 struct iproc_pcie_ob {
-	resource_size_t axi_offset;
-	unsigned int nr_windows;
+  resource_size_t axi_offset;
+  unsigned int nr_windows;
 };
 
 /**
@@ -45,7 +45,7 @@ struct iproc_pcie_ob {
  * @nr_regions: total number of supported inbound mapping regions
  */
 struct iproc_pcie_ib {
-	unsigned int nr_regions;
+  unsigned int nr_regions;
 };
 
 struct iproc_pcie_ob_map;
@@ -84,30 +84,30 @@ struct iproc_msi;
  * @msi: MSI data
  */
 struct iproc_pcie {
-	struct device *dev;
-	enum iproc_pcie_type type;
-	u16 *reg_offsets;
-	void __iomem *base;
-	phys_addr_t base_addr;
-	struct resource mem;
-	struct phy *phy;
-	int (*map_irq)(const struct pci_dev *, u8, u8);
-	bool ep_is_internal;
-	bool iproc_cfg_read;
-	bool rej_unconfig_pf;
-	bool has_apb_err_disable;
-	bool fix_paxc_cap;
+  struct device *dev;
+  enum iproc_pcie_type type;
+  u16 *reg_offsets;
+  void __iomem *base;
+  phys_addr_t base_addr;
+  struct resource mem;
+  struct phy *phy;
+  int (*map_irq)(const struct pci_dev *, u8, u8);
+  bool ep_is_internal;
+  bool iproc_cfg_read;
+  bool rej_unconfig_pf;
+  bool has_apb_err_disable;
+  bool fix_paxc_cap;
 
-	bool need_ob_cfg;
-	struct iproc_pcie_ob ob;
-	const struct iproc_pcie_ob_map *ob_map;
+  bool need_ob_cfg;
+  struct iproc_pcie_ob ob;
+  const struct iproc_pcie_ob_map *ob_map;
 
-	bool need_ib_cfg;
-	struct iproc_pcie_ib ib;
-	const struct iproc_pcie_ib_map *ib_map;
+  bool need_ib_cfg;
+  struct iproc_pcie_ib ib;
+  const struct iproc_pcie_ib_map *ib_map;
 
-	bool need_msi_steer;
-	struct iproc_msi *msi;
+  bool need_msi_steer;
+  struct iproc_msi *msi;
 };
 
 int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res);
@@ -119,13 +119,13 @@ int iproc_msi_init(struct iproc_pcie *pcie, struct device_node *node);
 void iproc_msi_exit(struct iproc_pcie *pcie);
 #else
 static inline int iproc_msi_init(struct iproc_pcie *pcie,
-				 struct device_node *node)
-{
-	return -ENODEV;
+    struct device_node *node) {
+  return -ENODEV;
 }
-static inline void iproc_msi_exit(struct iproc_pcie *pcie)
-{
+
+static inline void iproc_msi_exit(struct iproc_pcie *pcie) {
 }
+
 #endif
 
 #endif /* _PCIE_IPROC_H */

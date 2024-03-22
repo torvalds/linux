@@ -24,8 +24,8 @@
  * too.
  */
 struct clk_regmap_phy_mux {
-	u32			reg;
-	struct clk_regmap	clkr;
+  u32 reg;
+  struct clk_regmap clkr;
 };
 
 extern const struct clk_ops clk_regmap_phy_mux_ops;

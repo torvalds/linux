@@ -22,21 +22,25 @@ extern void iscsit_del_tiqn(struct iscsi_tiqn *);
 extern int iscsit_access_np(struct iscsi_np *, struct iscsi_portal_group *);
 extern void iscsit_login_kref_put(struct kref *);
 extern int iscsit_deaccess_np(struct iscsi_np *, struct iscsi_portal_group *,
-				struct iscsi_tpg_np *);
+    struct iscsi_tpg_np *);
 extern bool iscsit_check_np_match(struct sockaddr_storage *,
-				struct iscsi_np *, int);
+    struct iscsi_np *, int);
 extern struct iscsi_np *iscsit_add_np(struct sockaddr_storage *,
-				int);
+    int);
 extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
-				struct iscsi_portal_group *, bool);
+    struct iscsi_portal_group *, bool);
 extern int iscsit_del_np(struct iscsi_np *);
 extern int iscsit_reject_cmd(struct iscsit_cmd *cmd, u8, unsigned char *);
 extern void iscsit_set_unsolicited_dataout(struct iscsit_cmd *);
-extern int iscsit_logout_closesession(struct iscsit_cmd *, struct iscsit_conn *);
-extern int iscsit_logout_closeconnection(struct iscsit_cmd *, struct iscsit_conn *);
-extern int iscsit_logout_removeconnforrecovery(struct iscsit_cmd *, struct iscsit_conn *);
+extern int iscsit_logout_closesession(struct iscsit_cmd *,
+    struct iscsit_conn *);
+extern int iscsit_logout_closeconnection(struct iscsit_cmd *,
+    struct iscsit_conn *);
+extern int iscsit_logout_removeconnforrecovery(struct iscsit_cmd *,
+    struct iscsit_conn *);
 extern int iscsit_send_async_msg(struct iscsit_conn *, u16, u8, u8);
-extern int iscsit_build_r2ts_for_cmd(struct iscsit_conn *, struct iscsit_cmd *, bool recovery);
+extern int iscsit_build_r2ts_for_cmd(struct iscsit_conn *, struct iscsit_cmd *,
+    bool recovery);
 extern void iscsit_thread_get_cpumask(struct iscsit_conn *);
 extern int iscsi_target_tx_thread(void *);
 extern int iscsi_target_rx_thread(void *);

@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *	uvc_video.h  --  USB Video Class Gadget driver
+ *  uvc_video.h  --  USB Video Class Gadget driver
  *
  * Copyright (C) 2009-2010
- *		Laurent Pinchart (laurent.pinchart@ideasonboard.com)
+ *    Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *		Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
+ *    http://www.samsung.com
+ *    Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 #ifndef __UVC_VIDEO_H__
 #define __UVC_VIDEO_H__

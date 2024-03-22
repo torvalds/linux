@@ -10,9 +10,9 @@
 
 /* Fixed rate clocks. */
 
-#define MAX77620_CLK_32K_OUT0		0
+#define MAX77620_CLK_32K_OUT0   0
 
 /* Total number of clocks. */
-#define MAX77620_CLKS_NUM		(MAX77620_CLK_32K_OUT0 + 1)
+#define MAX77620_CLKS_NUM   (MAX77620_CLK_32K_OUT0 + 1)
 
 #endif /* _DT_BINDINGS_CLOCK_MAXIM_MAX77620_CLOCK_H */

@@ -20,10 +20,10 @@ extern struct key_type key_type_asymmetric;
  * follows:
  */
 enum asymmetric_payload_bits {
-	asym_crypto,		/* The data representing the key */
-	asym_subtype,		/* Pointer to an asymmetric_key_subtype struct */
-	asym_key_ids,		/* Pointer to an asymmetric_key_ids struct */
-	asym_auth		/* The key's authorisation (signature, parent key ID) */
+  asym_crypto,    /* The data representing the key */
+  asym_subtype,   /* Pointer to an asymmetric_key_subtype struct */
+  asym_key_ids,   /* Pointer to an asymmetric_key_ids struct */
+  asym_auth   /* The key's authorisation (signature, parent key ID) */
 };
 
 /*
@@ -48,44 +48,43 @@ enum asymmetric_payload_bits {
  * stashed and then compare against them when checking for an id match.
  */
 struct asymmetric_key_id {
-	unsigned short	len;
-	unsigned char	data[];
+  unsigned short len;
+  unsigned char data[];
 };
 
 struct asymmetric_key_ids {
-	void		*id[3];
+  void *id[3];
 };
 
 extern bool asymmetric_key_id_same(const struct asymmetric_key_id *kid1,
-				   const struct asymmetric_key_id *kid2);
+    const struct asymmetric_key_id *kid2);
 
 extern bool asymmetric_key_id_partial(const struct asymmetric_key_id *kid1,
-				      const struct asymmetric_key_id *kid2);
+    const struct asymmetric_key_id *kid2);
 
 extern struct asymmetric_key_id *asymmetric_key_generate_id(const void *val_1,
-							    size_t len_1,
-							    const void *val_2,
-							    size_t len_2);
+    size_t len_1,
+    const void *val_2,
+    size_t len_2);
 static inline
-const struct asymmetric_key_ids *asymmetric_key_ids(const struct key *key)
-{
-	return key->payload.data[asym_key_ids];
+const struct asymmetric_key_ids *asymmetric_key_ids(const struct key *key) {
+  return key->payload.data[asym_key_ids];
 }
 
 static inline
-const struct public_key *asymmetric_key_public_key(const struct key *key)
-{
-	return key->payload.data[asym_crypto];
+const struct public_key *asymmetric_key_public_key(const struct key *key) {
+  return key->payload.data[asym_crypto];
 }
 
 extern struct key *find_asymmetric_key(struct key *keyring,
-				       const struct asymmetric_key_id *id_0,
-				       const struct asymmetric_key_id *id_1,
-				       const struct asymmetric_key_id *id_2,
-				       bool partial);
+    const struct asymmetric_key_id *id_0,
+    const struct asymmetric_key_id *id_1,
+    const struct asymmetric_key_id *id_2,
+    bool partial);
 
-int x509_load_certificate_list(const u8 cert_list[], const unsigned long list_size,
-			       const struct key *keyring);
+int x509_load_certificate_list(const u8 cert_list[],
+    const unsigned long list_size,
+    const struct key *keyring);
 
 /*
  * The payload is at the discretion of the subtype.

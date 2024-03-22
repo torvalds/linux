@@ -25,7 +25,7 @@
 #include <linux/atomic.h>
 
 /*
- *	Private routines/data
+ *  Private routines/data
  */
 
 extern unsigned char boot_cpu_id;
@@ -36,7 +36,7 @@ extern struct linux_prom_registers smp_penguin_ctable;
 void cpu_panic(void);
 
 /*
- *	General functions that each host system must provide.
+ *  General functions that each host system must provide.
  */
 
 void sun4m_init_smp(void);
@@ -54,54 +54,49 @@ void smp_bogo(struct seq_file *);
 void smp_info(struct seq_file *);
 
 struct sparc32_ipi_ops {
-	void (*cross_call)(void *func, cpumask_t mask, unsigned long arg1,
-			   unsigned long arg2, unsigned long arg3,
-			   unsigned long arg4);
-	void (*resched)(int cpu);
-	void (*single)(int cpu);
-	void (*mask_one)(int cpu);
+  void (*cross_call)(void *func, cpumask_t mask, unsigned long arg1,
+      unsigned long arg2, unsigned long arg3,
+      unsigned long arg4);
+  void (*resched)(int cpu);
+  void (*single)(int cpu);
+  void (*mask_one)(int cpu);
 };
 extern const struct sparc32_ipi_ops *sparc32_ipi_ops;
 
-static inline void xc0(void *func)
-{
-	sparc32_ipi_ops->cross_call(func, *cpu_online_mask, 0, 0, 0, 0);
+static inline void xc0(void *func) {
+  sparc32_ipi_ops->cross_call(func, *cpu_online_mask, 0, 0, 0, 0);
 }
 
-static inline void xc1(void *func, unsigned long arg1)
-{
-	sparc32_ipi_ops->cross_call(func, *cpu_online_mask, arg1, 0, 0, 0);
+static inline void xc1(void *func, unsigned long arg1) {
+  sparc32_ipi_ops->cross_call(func, *cpu_online_mask, arg1, 0, 0, 0);
 }
-static inline void xc2(void *func, unsigned long arg1, unsigned long arg2)
-{
-	sparc32_ipi_ops->cross_call(func, *cpu_online_mask, arg1, arg2, 0, 0);
+
+static inline void xc2(void *func, unsigned long arg1, unsigned long arg2) {
+  sparc32_ipi_ops->cross_call(func, *cpu_online_mask, arg1, arg2, 0, 0);
 }
 
 static inline void xc3(void *func, unsigned long arg1, unsigned long arg2,
-		       unsigned long arg3)
-{
-	sparc32_ipi_ops->cross_call(func, *cpu_online_mask,
-				    arg1, arg2, arg3, 0);
+    unsigned long arg3) {
+  sparc32_ipi_ops->cross_call(func, *cpu_online_mask,
+      arg1, arg2, arg3, 0);
 }
 
 static inline void xc4(void *func, unsigned long arg1, unsigned long arg2,
-		       unsigned long arg3, unsigned long arg4)
-{
-	sparc32_ipi_ops->cross_call(func, *cpu_online_mask,
-				    arg1, arg2, arg3, arg4);
+    unsigned long arg3, unsigned long arg4) {
+  sparc32_ipi_ops->cross_call(func, *cpu_online_mask,
+      arg1, arg2, arg3, arg4);
 }
 
 void arch_send_call_function_single_ipi(int cpu);
 void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
-static inline int cpu_logical_map(int cpu)
-{
-	return cpu;
+static inline int cpu_logical_map(int cpu) {
+  return cpu;
 }
 
 int hard_smp_processor_id(void);
 
-#define raw_smp_processor_id()		(current_thread_info()->cpu)
+#define raw_smp_processor_id()    (current_thread_info()->cpu)
 
 void smp_setup_cpu_possible_map(void);
 
@@ -123,8 +118,8 @@ void smp_setup_cpu_possible_map(void);
 
 #else /* SMP */
 
-#define hard_smp_processor_id()		0
-#define smp_setup_cpu_possible_map() do { } while (0)
+#define hard_smp_processor_id()   0
+#define smp_setup_cpu_possible_map() do {} while (0)
 
 #endif /* !(SMP) */
 #endif /* !(_SPARC_SMP_H) */

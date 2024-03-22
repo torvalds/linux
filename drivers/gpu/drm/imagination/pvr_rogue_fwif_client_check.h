@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT
+ * Copyright (c) 2023 Imagination Technologies Ltd.*/
 
 #ifndef PVR_ROGUE_FWIF_CLIENT_CHECK_H
 #define PVR_ROGUE_FWIF_CLIENT_CHECK_H
@@ -7,11 +7,11 @@
 #include <linux/build_bug.h>
 
 #define OFFSET_CHECK(type, member, offset) \
-	static_assert(offsetof(type, member) == (offset), \
-		      "offsetof(" #type ", " #member ") incorrect")
+  static_assert(offsetof(type, member) == (offset), \
+    "offsetof(" #type ", " #member ") incorrect")
 
 #define SIZE_CHECK(type, size) \
-	static_assert(sizeof(type) == (size), #type " is incorrect size")
+  static_assert(sizeof(type) == (size), #type " is incorrect size")
 
 OFFSET_CHECK(struct rogue_fwif_geom_regs, vdm_ctrl_stream_base, 0);
 OFFSET_CHECK(struct rogue_fwif_geom_regs, tpu_border_colour_table, 8);
@@ -27,7 +27,8 @@ OFFSET_CHECK(struct rogue_fwif_geom_regs, view_idx, 52);
 OFFSET_CHECK(struct rogue_fwif_geom_regs, pds_coeff_free_prog, 56);
 SIZE_CHECK(struct rogue_fwif_geom_regs, 64);
 
-OFFSET_CHECK(struct rogue_fwif_dummy_rgnhdr_init_geom_regs, te_psgregion_addr, 0);
+OFFSET_CHECK(struct rogue_fwif_dummy_rgnhdr_init_geom_regs, te_psgregion_addr,
+    0);
 SIZE_CHECK(struct rogue_fwif_dummy_rgnhdr_init_geom_regs, 8);
 
 OFFSET_CHECK(struct rogue_fwif_cmd_geom, cmd_shared, 0);

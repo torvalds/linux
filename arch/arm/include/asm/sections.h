@@ -11,16 +11,14 @@ extern char __idmap_text_end[];
 extern char __entry_text_start[];
 extern char __entry_text_end[];
 
-static inline bool in_entry_text(unsigned long addr)
-{
-	return memory_contains(__entry_text_start, __entry_text_end,
-			       (void *)addr, 1);
+static inline bool in_entry_text(unsigned long addr) {
+  return memory_contains(__entry_text_start, __entry_text_end,
+      (void *) addr, 1);
 }
 
-static inline bool in_idmap_text(unsigned long addr)
-{
-	void *a = (void *)addr;
-	return memory_contains(__idmap_text_start, __idmap_text_end, a, 1);
+static inline bool in_idmap_text(unsigned long addr) {
+  void *a = (void *) addr;
+  return memory_contains(__idmap_text_start, __idmap_text_end, a, 1);
 }
 
-#endif	/* _ASM_ARM_SECTIONS_H */
+#endif  /* _ASM_ARM_SECTIONS_H */

@@ -11,8 +11,8 @@
 #include <acpi/processor.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
-bool arch_cpu_is_hotpluggable(int cpu)
-{
-	return !io_master(cpu);
+bool arch_cpu_is_hotpluggable(int cpu) {
+  return !io_master(cpu);
 }
+
 #endif

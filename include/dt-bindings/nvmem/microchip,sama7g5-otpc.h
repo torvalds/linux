@@ -7,6 +7,6 @@
  * Need to have it as a multiple of 4 as NVMEM memory is registered with
  * stride = 4.
  */
-#define OTP_PKT(id)			((id) * 4)
+#define OTP_PKT(id)     ((id) * 4)
 
 #endif

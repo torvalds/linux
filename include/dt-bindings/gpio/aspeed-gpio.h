@@ -44,6 +44,6 @@
 #define ASPEED_GPIO_PORT_AC 28
 
 #define ASPEED_GPIO(port, offset) \
-	((ASPEED_GPIO_PORT_##port * 8) + offset)
+  ((ASPEED_GPIO_PORT_ ## port * 8) + offset)
 
 #endif

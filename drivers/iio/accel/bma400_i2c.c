@@ -13,39 +13,36 @@
 
 #include "bma400.h"
 
-static int bma400_i2c_probe(struct i2c_client *client)
-{
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	struct regmap *regmap;
-
-	regmap = devm_regmap_init_i2c(client, &bma400_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "failed to create regmap\n");
-		return PTR_ERR(regmap);
-	}
-
-	return bma400_probe(&client->dev, regmap, client->irq, id->name);
+static int bma400_i2c_probe(struct i2c_client *client) {
+  const struct i2c_device_id *id = i2c_client_get_device_id(client);
+  struct regmap *regmap;
+  regmap = devm_regmap_init_i2c(client, &bma400_regmap_config);
+  if (IS_ERR(regmap)) {
+    dev_err(&client->dev, "failed to create regmap\n");
+    return PTR_ERR(regmap);
+  }
+  return bma400_probe(&client->dev, regmap, client->irq, id->name);
 }
 
 static const struct i2c_device_id bma400_i2c_ids[] = {
-	{ "bma400", 0 },
-	{ }
+  { "bma400", 0 },
+  {}
 };
 MODULE_DEVICE_TABLE(i2c, bma400_i2c_ids);
 
 static const struct of_device_id bma400_of_i2c_match[] = {
-	{ .compatible = "bosch,bma400" },
-	{ }
+  { .compatible = "bosch,bma400" },
+  {}
 };
 MODULE_DEVICE_TABLE(of, bma400_of_i2c_match);
 
 static struct i2c_driver bma400_i2c_driver = {
-	.driver = {
-		.name = "bma400",
-		.of_match_table = bma400_of_i2c_match,
-	},
-	.probe = bma400_i2c_probe,
-	.id_table = bma400_i2c_ids,
+  .driver = {
+    .name = "bma400",
+    .of_match_table = bma400_of_i2c_match,
+  },
+  .probe = bma400_i2c_probe,
+  .id_table = bma400_i2c_ids,
 };
 
 module_i2c_driver(bma400_i2c_driver);

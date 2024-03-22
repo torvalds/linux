@@ -7,19 +7,19 @@
 #ifndef __MIPS_ASM_SMP_CPS_H__
 #define __MIPS_ASM_SMP_CPS_H__
 
-#define CPS_ENTRY_PATCH_INSNS	6
+#define CPS_ENTRY_PATCH_INSNS 6
 
 #ifndef __ASSEMBLY__
 
 struct vpe_boot_config {
-	unsigned long pc;
-	unsigned long sp;
-	unsigned long gp;
+  unsigned long pc;
+  unsigned long sp;
+  unsigned long gp;
 };
 
 struct core_boot_config {
-	atomic_t vpe_mask;
-	struct vpe_boot_config *vpe_config;
+  atomic_t vpe_mask;
+  struct vpe_boot_config *vpe_config;
 };
 
 extern struct core_boot_config *mips_cps_core_bootcfg;
@@ -45,7 +45,9 @@ extern bool mips_cps_smp_in_use(void);
 
 #else /* !CONFIG_MIPS_CPS */
 
-static inline bool mips_cps_smp_in_use(void) { return false; }
+static inline bool mips_cps_smp_in_use(void) {
+  return false;
+}
 
 #endif /* !CONFIG_MIPS_CPS */
 

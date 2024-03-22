@@ -7,30 +7,30 @@
 #define _NPS_ENET_H
 
 /* default values */
-#define NPS_ENET_NAPI_POLL_WEIGHT		0x2
-#define NPS_ENET_MAX_FRAME_LENGTH		0x3FFF
-#define NPS_ENET_GE_MAC_CFG_0_TX_FC_RETR	0x7
-#define NPS_ENET_GE_MAC_CFG_0_RX_IFG		0x5
-#define NPS_ENET_GE_MAC_CFG_0_TX_IFG		0xC
-#define NPS_ENET_GE_MAC_CFG_0_TX_PR_LEN		0x7
-#define NPS_ENET_GE_MAC_CFG_2_STAT_EN		0x3
-#define NPS_ENET_GE_MAC_CFG_3_RX_IFG_TH		0x14
-#define NPS_ENET_GE_MAC_CFG_3_MAX_LEN		0x3FFC
-#define NPS_ENET_ENABLE				1
-#define NPS_ENET_DISABLE			0
+#define NPS_ENET_NAPI_POLL_WEIGHT   0x2
+#define NPS_ENET_MAX_FRAME_LENGTH   0x3FFF
+#define NPS_ENET_GE_MAC_CFG_0_TX_FC_RETR  0x7
+#define NPS_ENET_GE_MAC_CFG_0_RX_IFG    0x5
+#define NPS_ENET_GE_MAC_CFG_0_TX_IFG    0xC
+#define NPS_ENET_GE_MAC_CFG_0_TX_PR_LEN   0x7
+#define NPS_ENET_GE_MAC_CFG_2_STAT_EN   0x3
+#define NPS_ENET_GE_MAC_CFG_3_RX_IFG_TH   0x14
+#define NPS_ENET_GE_MAC_CFG_3_MAX_LEN   0x3FFC
+#define NPS_ENET_ENABLE       1
+#define NPS_ENET_DISABLE      0
 
 /* register definitions  */
-#define NPS_ENET_REG_TX_CTL		0x800
-#define NPS_ENET_REG_TX_BUF		0x808
-#define NPS_ENET_REG_RX_CTL		0x810
-#define NPS_ENET_REG_RX_BUF		0x818
-#define NPS_ENET_REG_BUF_INT_ENABLE	0x8C0
-#define NPS_ENET_REG_GE_MAC_CFG_0	0x1000
-#define NPS_ENET_REG_GE_MAC_CFG_1	0x1004
-#define NPS_ENET_REG_GE_MAC_CFG_2	0x1008
-#define NPS_ENET_REG_GE_MAC_CFG_3	0x100C
-#define NPS_ENET_REG_GE_RST		0x1400
-#define NPS_ENET_REG_PHASE_FIFO_CTL	0x1404
+#define NPS_ENET_REG_TX_CTL   0x800
+#define NPS_ENET_REG_TX_BUF   0x808
+#define NPS_ENET_REG_RX_CTL   0x810
+#define NPS_ENET_REG_RX_BUF   0x818
+#define NPS_ENET_REG_BUF_INT_ENABLE 0x8C0
+#define NPS_ENET_REG_GE_MAC_CFG_0 0x1000
+#define NPS_ENET_REG_GE_MAC_CFG_1 0x1004
+#define NPS_ENET_REG_GE_MAC_CFG_2 0x1008
+#define NPS_ENET_REG_GE_MAC_CFG_3 0x100C
+#define NPS_ENET_REG_GE_RST   0x1400
+#define NPS_ENET_REG_PHASE_FIFO_CTL 0x1404
 
 /* Tx control register masks and shifts */
 #define TX_CTL_NT_MASK 0x7FF
@@ -158,12 +158,12 @@
  * @napi:           Structure for NAPI.
  */
 struct nps_enet_priv {
-	void __iomem *regs_base;
-	s32 irq;
-	struct sk_buff *tx_skb;
-	struct napi_struct napi;
-	u32 ge_mac_cfg_2_value;
-	u32 ge_mac_cfg_3_value;
+  void __iomem *regs_base;
+  s32 irq;
+  struct sk_buff *tx_skb;
+  struct napi_struct napi;
+  u32 ge_mac_cfg_2_value;
+  u32 ge_mac_cfg_3_value;
 };
 
 /**
@@ -173,9 +173,8 @@ struct nps_enet_priv {
  * @value:      Value to set in register.
  */
 static inline void nps_enet_reg_set(struct nps_enet_priv *priv,
-				    s32 reg, s32 value)
-{
-	iowrite32be(value, priv->regs_base + reg);
+    s32 reg, s32 value) {
+  iowrite32be(value, priv->regs_base + reg);
 }
 
 /**
@@ -185,9 +184,8 @@ static inline void nps_enet_reg_set(struct nps_enet_priv *priv,
  *
  * returns:     Value of requested register.
  */
-static inline u32 nps_enet_reg_get(struct nps_enet_priv *priv, s32 reg)
-{
-	return ioread32be(priv->regs_base + reg);
+static inline u32 nps_enet_reg_get(struct nps_enet_priv *priv, s32 reg) {
+  return ioread32be(priv->regs_base + reg);
 }
 
 #endif /* _NPS_ENET_H */

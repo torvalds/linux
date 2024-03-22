@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB)
+ * */
 /*
  * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
  *
@@ -37,42 +38,42 @@
 #include <linux/types.h>
 
 /* TLS socket options */
-#define TLS_TX			1	/* Set transmit parameters */
-#define TLS_RX			2	/* Set receive parameters */
+#define TLS_TX      1 /* Set transmit parameters */
+#define TLS_RX      2 /* Set receive parameters */
 
 /* Supported versions */
-#define TLS_VERSION_MINOR(ver)	((ver) & 0xFF)
-#define TLS_VERSION_MAJOR(ver)	(((ver) >> 8) & 0xFF)
+#define TLS_VERSION_MINOR(ver)  ((ver) & 0xFF)
+#define TLS_VERSION_MAJOR(ver)  (((ver) >> 8) & 0xFF)
 
-#define TLS_VERSION_NUMBER(id)	((((id##_VERSION_MAJOR) & 0xFF) << 8) |	\
-				 ((id##_VERSION_MINOR) & 0xFF))
+#define TLS_VERSION_NUMBER(id)  ((((id ## _VERSION_MAJOR) &0xFF) << 8)   \
+  | ((id ## _VERSION_MINOR) &0xFF))
 
-#define TLS_1_2_VERSION_MAJOR	0x3
-#define TLS_1_2_VERSION_MINOR	0x3
-#define TLS_1_2_VERSION		TLS_VERSION_NUMBER(TLS_1_2)
+#define TLS_1_2_VERSION_MAJOR 0x3
+#define TLS_1_2_VERSION_MINOR 0x3
+#define TLS_1_2_VERSION   TLS_VERSION_NUMBER(TLS_1_2)
 
 /* Supported ciphers */
-#define TLS_CIPHER_AES_GCM_128				51
-#define TLS_CIPHER_AES_GCM_128_IV_SIZE			8
-#define TLS_CIPHER_AES_GCM_128_KEY_SIZE		16
-#define TLS_CIPHER_AES_GCM_128_SALT_SIZE		4
-#define TLS_CIPHER_AES_GCM_128_TAG_SIZE		16
-#define TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE		8
+#define TLS_CIPHER_AES_GCM_128        51
+#define TLS_CIPHER_AES_GCM_128_IV_SIZE      8
+#define TLS_CIPHER_AES_GCM_128_KEY_SIZE   16
+#define TLS_CIPHER_AES_GCM_128_SALT_SIZE    4
+#define TLS_CIPHER_AES_GCM_128_TAG_SIZE   16
+#define TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE   8
 
-#define TLS_SET_RECORD_TYPE	1
-#define TLS_GET_RECORD_TYPE	2
+#define TLS_SET_RECORD_TYPE 1
+#define TLS_GET_RECORD_TYPE 2
 
 struct tls_crypto_info {
-	__u16 version;
-	__u16 cipher_type;
+  __u16 version;
+  __u16 cipher_type;
 };
 
 struct tls12_crypto_info_aes_gcm_128 {
-	struct tls_crypto_info info;
-	unsigned char iv[TLS_CIPHER_AES_GCM_128_IV_SIZE];
-	unsigned char key[TLS_CIPHER_AES_GCM_128_KEY_SIZE];
-	unsigned char salt[TLS_CIPHER_AES_GCM_128_SALT_SIZE];
-	unsigned char rec_seq[TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE];
+  struct tls_crypto_info info;
+  unsigned char iv[TLS_CIPHER_AES_GCM_128_IV_SIZE];
+  unsigned char key[TLS_CIPHER_AES_GCM_128_KEY_SIZE];
+  unsigned char salt[TLS_CIPHER_AES_GCM_128_SALT_SIZE];
+  unsigned char rec_seq[TLS_CIPHER_AES_GCM_128_REC_SEQ_SIZE];
 };
 
 #endif /* _UAPI_LINUX_TLS_H */

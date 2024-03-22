@@ -12,28 +12,29 @@
  * enum iwl_prot_offload_subcmd_ids - protocol offload commands
  */
 enum iwl_prot_offload_subcmd_ids {
-	/**
-	 * @WOWLAN_WAKE_PKT_NOTIFICATION: Notification in &struct iwl_wowlan_wake_pkt_notif
-	 */
-	WOWLAN_WAKE_PKT_NOTIFICATION = 0xFC,
+  /**
+   * @WOWLAN_WAKE_PKT_NOTIFICATION: Notification in &struct
+   * iwl_wowlan_wake_pkt_notif
+   */
+  WOWLAN_WAKE_PKT_NOTIFICATION = 0xFC,
 
-	/**
-	 * @WOWLAN_INFO_NOTIFICATION: Notification in
-	 * &struct iwl_wowlan_info_notif_v1, &struct iwl_wowlan_info_notif_v2,
-	 * or iwl_wowlan_info_notif
-	 */
-	WOWLAN_INFO_NOTIFICATION = 0xFD,
+  /**
+   * @WOWLAN_INFO_NOTIFICATION: Notification in
+   * &struct iwl_wowlan_info_notif_v1, &struct iwl_wowlan_info_notif_v2,
+   * or iwl_wowlan_info_notif
+   */
+  WOWLAN_INFO_NOTIFICATION = 0xFD,
 
-	/**
-	 * @D3_END_NOTIFICATION: End D3 state notification
-	 */
-	D3_END_NOTIFICATION = 0xFE,
+  /**
+   * @D3_END_NOTIFICATION: End D3 state notification
+   */
+  D3_END_NOTIFICATION = 0xFE,
 
-	/**
-	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif_v2 or
-	 *	&struct iwl_stored_beacon_notif_v3
-	 */
-	STORED_BEACON_NTF = 0xFF,
+  /**
+   * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif_v2 or
+   *  &struct iwl_stored_beacon_notif_v3
+   */
+  STORED_BEACON_NTF = 0xFF,
 };
 
 #define MAX_STORED_BEACON_SIZE 600
@@ -50,13 +51,13 @@ enum iwl_prot_offload_subcmd_ids {
  * @byte_count: frame's byte count
  */
 struct iwl_stored_beacon_notif_common {
-	__le32 system_time;
-	__le64 tsf;
-	__le32 beacon_timestamp;
-	__le16 band;
-	__le16 channel;
-	__le32 rates;
-	__le32 byte_count;
+  __le32 system_time;
+  __le64 tsf;
+  __le32 beacon_timestamp;
+  __le16 band;
+  __le16 channel;
+  __le32 rates;
+  __le32 byte_count;
 } __packed;
 
 /**
@@ -66,8 +67,8 @@ struct iwl_stored_beacon_notif_common {
  * @data: beacon data, length in @byte_count
  */
 struct iwl_stored_beacon_notif_v2 {
-	struct iwl_stored_beacon_notif_common common;
-	u8 data[MAX_STORED_BEACON_SIZE];
+  struct iwl_stored_beacon_notif_common common;
+  u8 data[MAX_STORED_BEACON_SIZE];
 } __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_2 */
 
 /**
@@ -79,10 +80,10 @@ struct iwl_stored_beacon_notif_v2 {
  * @data: beacon data, length in @byte_count
  */
 struct iwl_stored_beacon_notif_v3 {
-	struct iwl_stored_beacon_notif_common common;
-	u8 sta_id;
-	u8 reserved[3];
-	u8 data[MAX_STORED_BEACON_SIZE];
+  struct iwl_stored_beacon_notif_common common;
+  u8 sta_id;
+  u8 reserved[3];
+  u8 data[MAX_STORED_BEACON_SIZE];
 } __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_3 */
 
 #endif /* __iwl_fw_api_offload_h__ */

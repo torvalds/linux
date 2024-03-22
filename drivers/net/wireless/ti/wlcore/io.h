@@ -13,7 +13,7 @@
 
 #include <linux/irqreturn.h>
 
-#define HW_ACCESS_MEMORY_MAX_RANGE	0x1FFC0
+#define HW_ACCESS_MEMORY_MAX_RANGE  0x1FFC0
 
 #define HW_PARTITION_REGISTERS_ADDR     0x1FFC0
 #define HW_PART0_SIZE_ADDR              (HW_PARTITION_REGISTERS_ADDR)
@@ -27,7 +27,7 @@
 
 #define HW_ACCESS_REGISTER_SIZE         4
 
-#define HW_ACCESS_PRAM_MAX_RANGE	0x3c000
+#define HW_ACCESS_PRAM_MAX_RANGE  0x3c000
 
 struct wl1271;
 
@@ -42,183 +42,157 @@ int wlcore_translate_addr(struct wl1271 *wl, int addr);
 
 /* Raw target IO, address is not translated */
 static inline int __must_check wlcore_raw_write(struct wl1271 *wl, int addr,
-						void *buf, size_t len,
-						bool fixed)
-{
-	int ret;
-
-	if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags) ||
-	    WARN_ON((test_bit(WL1271_FLAG_IN_ELP, &wl->flags) &&
-		     addr != HW_ACCESS_ELP_CTRL_REG)))
-		return -EIO;
-
-	ret = wl->if_ops->write(wl->dev, addr, buf, len, fixed);
-	if (ret && wl->state != WLCORE_STATE_OFF)
-		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
-
-	return ret;
+    void *buf, size_t len,
+    bool fixed) {
+  int ret;
+  if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags)
+      || WARN_ON((test_bit(WL1271_FLAG_IN_ELP, &wl->flags)
+      && addr != HW_ACCESS_ELP_CTRL_REG))) {
+    return -EIO;
+  }
+  ret = wl->if_ops->write(wl->dev, addr, buf, len, fixed);
+  if (ret && wl->state != WLCORE_STATE_OFF) {
+    set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
+  }
+  return ret;
 }
 
 static inline int __must_check wlcore_raw_read(struct wl1271 *wl, int addr,
-					       void *buf, size_t len,
-					       bool fixed)
-{
-	int ret;
-
-	if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags) ||
-	    WARN_ON((test_bit(WL1271_FLAG_IN_ELP, &wl->flags) &&
-		     addr != HW_ACCESS_ELP_CTRL_REG)))
-		return -EIO;
-
-	ret = wl->if_ops->read(wl->dev, addr, buf, len, fixed);
-	if (ret && wl->state != WLCORE_STATE_OFF)
-		set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
-
-	return ret;
+    void *buf, size_t len,
+    bool fixed) {
+  int ret;
+  if (test_bit(WL1271_FLAG_IO_FAILED, &wl->flags)
+      || WARN_ON((test_bit(WL1271_FLAG_IN_ELP, &wl->flags)
+      && addr != HW_ACCESS_ELP_CTRL_REG))) {
+    return -EIO;
+  }
+  ret = wl->if_ops->read(wl->dev, addr, buf, len, fixed);
+  if (ret && wl->state != WLCORE_STATE_OFF) {
+    set_bit(WL1271_FLAG_IO_FAILED, &wl->flags);
+  }
+  return ret;
 }
 
 static inline int __must_check wlcore_raw_read_data(struct wl1271 *wl, int reg,
-						    void *buf, size_t len,
-						    bool fixed)
-{
-	return wlcore_raw_read(wl, wl->rtable[reg], buf, len, fixed);
+    void *buf, size_t len,
+    bool fixed) {
+  return wlcore_raw_read(wl, wl->rtable[reg], buf, len, fixed);
 }
 
 static inline int __must_check wlcore_raw_write_data(struct wl1271 *wl, int reg,
-						     void *buf, size_t len,
-						     bool fixed)
-{
-	return wlcore_raw_write(wl, wl->rtable[reg], buf, len, fixed);
+    void *buf, size_t len,
+    bool fixed) {
+  return wlcore_raw_write(wl, wl->rtable[reg], buf, len, fixed);
 }
 
 static inline int __must_check wlcore_raw_read32(struct wl1271 *wl, int addr,
-						 u32 *val)
-{
-	int ret;
-
-	ret = wlcore_raw_read(wl, addr, wl->buffer_32,
-			      sizeof(*wl->buffer_32), false);
-	if (ret < 0)
-		return ret;
-
-	if (val)
-		*val = le32_to_cpu(*wl->buffer_32);
-
-	return 0;
+    u32 *val) {
+  int ret;
+  ret = wlcore_raw_read(wl, addr, wl->buffer_32,
+      sizeof(*wl->buffer_32), false);
+  if (ret < 0) {
+    return ret;
+  }
+  if (val) {
+    *val = le32_to_cpu(*wl->buffer_32);
+  }
+  return 0;
 }
 
 static inline int __must_check wlcore_raw_write32(struct wl1271 *wl, int addr,
-						  u32 val)
-{
-	*wl->buffer_32 = cpu_to_le32(val);
-	return wlcore_raw_write(wl, addr, wl->buffer_32,
-				sizeof(*wl->buffer_32), false);
+    u32 val) {
+  *wl->buffer_32 = cpu_to_le32(val);
+  return wlcore_raw_write(wl, addr, wl->buffer_32,
+      sizeof(*wl->buffer_32), false);
 }
 
 static inline int __must_check wlcore_read(struct wl1271 *wl, int addr,
-					   void *buf, size_t len, bool fixed)
-{
-	int physical;
-
-	physical = wlcore_translate_addr(wl, addr);
-
-	return wlcore_raw_read(wl, physical, buf, len, fixed);
+    void *buf, size_t len, bool fixed) {
+  int physical;
+  physical = wlcore_translate_addr(wl, addr);
+  return wlcore_raw_read(wl, physical, buf, len, fixed);
 }
 
 static inline int __must_check wlcore_write(struct wl1271 *wl, int addr,
-					    void *buf, size_t len, bool fixed)
-{
-	int physical;
-
-	physical = wlcore_translate_addr(wl, addr);
-
-	return wlcore_raw_write(wl, physical, buf, len, fixed);
+    void *buf, size_t len, bool fixed) {
+  int physical;
+  physical = wlcore_translate_addr(wl, addr);
+  return wlcore_raw_write(wl, physical, buf, len, fixed);
 }
 
 static inline int __must_check wlcore_write_data(struct wl1271 *wl, int reg,
-						 void *buf, size_t len,
-						 bool fixed)
-{
-	return wlcore_write(wl, wl->rtable[reg], buf, len, fixed);
+    void *buf, size_t len,
+    bool fixed) {
+  return wlcore_write(wl, wl->rtable[reg], buf, len, fixed);
 }
 
 static inline int __must_check wlcore_read_data(struct wl1271 *wl, int reg,
-						void *buf, size_t len,
-						bool fixed)
-{
-	return wlcore_read(wl, wl->rtable[reg], buf, len, fixed);
+    void *buf, size_t len,
+    bool fixed) {
+  return wlcore_read(wl, wl->rtable[reg], buf, len, fixed);
 }
 
 static inline int __must_check wlcore_read_hwaddr(struct wl1271 *wl, int hwaddr,
-						  void *buf, size_t len,
-						  bool fixed)
-{
-	int physical;
-	int addr;
-
-	/* Convert from FW internal address which is chip arch dependent */
-	addr = wl->ops->convert_hwaddr(wl, hwaddr);
-
-	physical = wlcore_translate_addr(wl, addr);
-
-	return wlcore_raw_read(wl, physical, buf, len, fixed);
+    void *buf, size_t len,
+    bool fixed) {
+  int physical;
+  int addr;
+  /* Convert from FW internal address which is chip arch dependent */
+  addr = wl->ops->convert_hwaddr(wl, hwaddr);
+  physical = wlcore_translate_addr(wl, addr);
+  return wlcore_raw_read(wl, physical, buf, len, fixed);
 }
 
 static inline int __must_check wlcore_read32(struct wl1271 *wl, int addr,
-					     u32 *val)
-{
-	return wlcore_raw_read32(wl, wlcore_translate_addr(wl, addr), val);
+    u32 *val) {
+  return wlcore_raw_read32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
 static inline int __must_check wlcore_write32(struct wl1271 *wl, int addr,
-					      u32 val)
-{
-	return wlcore_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
+    u32 val) {
+  return wlcore_raw_write32(wl, wlcore_translate_addr(wl, addr), val);
 }
 
 static inline int __must_check wlcore_read_reg(struct wl1271 *wl, int reg,
-					       u32 *val)
-{
-	return wlcore_raw_read32(wl,
-				 wlcore_translate_addr(wl, wl->rtable[reg]),
-				 val);
+    u32 *val) {
+  return wlcore_raw_read32(wl,
+      wlcore_translate_addr(wl, wl->rtable[reg]),
+      val);
 }
 
 static inline int __must_check wlcore_write_reg(struct wl1271 *wl, int reg,
-						u32 val)
-{
-	return wlcore_raw_write32(wl,
-				  wlcore_translate_addr(wl, wl->rtable[reg]),
-				  val);
+    u32 val) {
+  return wlcore_raw_write32(wl,
+      wlcore_translate_addr(wl, wl->rtable[reg]),
+      val);
 }
 
-static inline void wl1271_power_off(struct wl1271 *wl)
-{
-	int ret = 0;
-
-	if (!test_bit(WL1271_FLAG_GPIO_POWER, &wl->flags))
-		return;
-
-	if (wl->if_ops->power)
-		ret = wl->if_ops->power(wl->dev, false);
-	if (!ret)
-		clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+static inline void wl1271_power_off(struct wl1271 *wl) {
+  int ret = 0;
+  if (!test_bit(WL1271_FLAG_GPIO_POWER, &wl->flags)) {
+    return;
+  }
+  if (wl->if_ops->power) {
+    ret = wl->if_ops->power(wl->dev, false);
+  }
+  if (!ret) {
+    clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+  }
 }
 
-static inline int wl1271_power_on(struct wl1271 *wl)
-{
-	int ret = 0;
-
-	if (wl->if_ops->power)
-		ret = wl->if_ops->power(wl->dev, true);
-	if (ret == 0)
-		set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
-
-	return ret;
+static inline int wl1271_power_on(struct wl1271 *wl) {
+  int ret = 0;
+  if (wl->if_ops->power) {
+    ret = wl->if_ops->power(wl->dev, true);
+  }
+  if (ret == 0) {
+    set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+  }
+  return ret;
 }
 
 int wlcore_set_partition(struct wl1271 *wl,
-			 const struct wlcore_partition_set *p);
+    const struct wlcore_partition_set *p);
 
 bool wl1271_set_block_size(struct wl1271 *wl);
 

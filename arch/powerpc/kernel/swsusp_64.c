@@ -13,9 +13,8 @@
 
 void do_after_copyback(void);
 
-void do_after_copyback(void)
-{
-	iommu_restore();
-	touch_softlockup_watchdog();
-	mb();
+void do_after_copyback(void) {
+  iommu_restore();
+  touch_softlockup_watchdog();
+  mb();
 }

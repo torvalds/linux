@@ -32,82 +32,82 @@
 #define RV770_SMC_PERFORMANCE_LEVELS_PER_SWSTATE    3
 
 struct RV770_SMC_SCLK_VALUE {
-    uint32_t        vCG_SPLL_FUNC_CNTL;
-    uint32_t        vCG_SPLL_FUNC_CNTL_2;
-    uint32_t        vCG_SPLL_FUNC_CNTL_3;
-    uint32_t        vCG_SPLL_SPREAD_SPECTRUM;
-    uint32_t        vCG_SPLL_SPREAD_SPECTRUM_2;
-    uint32_t        sclk_value;
+  uint32_t vCG_SPLL_FUNC_CNTL;
+  uint32_t vCG_SPLL_FUNC_CNTL_2;
+  uint32_t vCG_SPLL_FUNC_CNTL_3;
+  uint32_t vCG_SPLL_SPREAD_SPECTRUM;
+  uint32_t vCG_SPLL_SPREAD_SPECTRUM_2;
+  uint32_t sclk_value;
 };
 
 typedef struct RV770_SMC_SCLK_VALUE RV770_SMC_SCLK_VALUE;
 
 struct RV770_SMC_MCLK_VALUE {
-    uint32_t        vMPLL_AD_FUNC_CNTL;
-    uint32_t        vMPLL_AD_FUNC_CNTL_2;
-    uint32_t        vMPLL_DQ_FUNC_CNTL;
-    uint32_t        vMPLL_DQ_FUNC_CNTL_2;
-    uint32_t        vMCLK_PWRMGT_CNTL;
-    uint32_t        vDLL_CNTL;
-    uint32_t        vMPLL_SS;
-    uint32_t        vMPLL_SS2;
-    uint32_t        mclk_value;
+  uint32_t vMPLL_AD_FUNC_CNTL;
+  uint32_t vMPLL_AD_FUNC_CNTL_2;
+  uint32_t vMPLL_DQ_FUNC_CNTL;
+  uint32_t vMPLL_DQ_FUNC_CNTL_2;
+  uint32_t vMCLK_PWRMGT_CNTL;
+  uint32_t vDLL_CNTL;
+  uint32_t vMPLL_SS;
+  uint32_t vMPLL_SS2;
+  uint32_t mclk_value;
 };
 
 typedef struct RV770_SMC_MCLK_VALUE RV770_SMC_MCLK_VALUE;
 
-
 struct RV730_SMC_MCLK_VALUE {
-    uint32_t        vMCLK_PWRMGT_CNTL;
-    uint32_t        vDLL_CNTL;
-    uint32_t        vMPLL_FUNC_CNTL;
-    uint32_t        vMPLL_FUNC_CNTL2;
-    uint32_t        vMPLL_FUNC_CNTL3;
-    uint32_t        vMPLL_SS;
-    uint32_t        vMPLL_SS2;
-    uint32_t        mclk_value;
+  uint32_t vMCLK_PWRMGT_CNTL;
+  uint32_t vDLL_CNTL;
+  uint32_t vMPLL_FUNC_CNTL;
+  uint32_t vMPLL_FUNC_CNTL2;
+  uint32_t vMPLL_FUNC_CNTL3;
+  uint32_t vMPLL_SS;
+  uint32_t vMPLL_SS2;
+  uint32_t mclk_value;
 };
 
 typedef struct RV730_SMC_MCLK_VALUE RV730_SMC_MCLK_VALUE;
 
 struct RV770_SMC_VOLTAGE_VALUE {
-    uint16_t             value;
-    uint8_t              index;
-    uint8_t              padding;
+  uint16_t value;
+  uint8_t index;
+  uint8_t padding;
 };
 
 typedef struct RV770_SMC_VOLTAGE_VALUE RV770_SMC_VOLTAGE_VALUE;
 
 union RV7XX_SMC_MCLK_VALUE {
-    RV770_SMC_MCLK_VALUE    mclk770;
-    RV730_SMC_MCLK_VALUE    mclk730;
+  RV770_SMC_MCLK_VALUE mclk770;
+  RV730_SMC_MCLK_VALUE mclk730;
 };
 
-typedef union RV7XX_SMC_MCLK_VALUE RV7XX_SMC_MCLK_VALUE, *LPRV7XX_SMC_MCLK_VALUE;
+typedef union RV7XX_SMC_MCLK_VALUE RV7XX_SMC_MCLK_VALUE,
+    *LPRV7XX_SMC_MCLK_VALUE;
 
 struct RV770_SMC_HW_PERFORMANCE_LEVEL {
-    uint8_t                 arbValue;
-    union{
-        uint8_t             seqValue;
-        uint8_t             ACIndex;
-    };
-    uint8_t                 displayWatermark;
-    uint8_t                 gen2PCIE;
-    uint8_t                 gen2XSP;
-    uint8_t                 backbias;
-    uint8_t                 strobeMode;
-    uint8_t                 mcFlags;
-    uint32_t                aT;
-    uint32_t                bSP;
-    RV770_SMC_SCLK_VALUE    sclk;
-    RV7XX_SMC_MCLK_VALUE    mclk;
-    RV770_SMC_VOLTAGE_VALUE vddc;
-    RV770_SMC_VOLTAGE_VALUE mvdd;
-    RV770_SMC_VOLTAGE_VALUE vddci;
-    uint8_t                 reserved1;
-    uint8_t                 reserved2;
-    uint8_t                 stateFlags;
-    uint8_t                 padding;
+  uint8_t arbValue;
+  union {
+    uint8_t seqValue;
+    uint8_t ACIndex;
+  };
+  uint8_t displayWatermark;
+  uint8_t gen2PCIE;
+  uint8_t gen2XSP;
+  uint8_t backbias;
+  uint8_t strobeMode;
+  uint8_t mcFlags;
+  uint32_t aT;
+  uint32_t bSP;
+  RV770_SMC_SCLK_VALUE sclk;
+  RV7XX_SMC_MCLK_VALUE mclk;
+  RV770_SMC_VOLTAGE_VALUE vddc;
+  RV770_SMC_VOLTAGE_VALUE mvdd;
+  RV770_SMC_VOLTAGE_VALUE vddci;
+  uint8_t reserved1;
+  uint8_t reserved2;
+  uint8_t stateFlags;
+  uint8_t padding;
 };
 
 #define SMC_STROBE_RATIO    0x0F
@@ -121,11 +121,12 @@ struct RV770_SMC_HW_PERFORMANCE_LEVEL {
 typedef struct RV770_SMC_HW_PERFORMANCE_LEVEL RV770_SMC_HW_PERFORMANCE_LEVEL;
 
 struct RV770_SMC_SWSTATE {
-    uint8_t           flags;
-    uint8_t           padding1;
-    uint8_t           padding2;
-    uint8_t           padding3;
-    RV770_SMC_HW_PERFORMANCE_LEVEL levels[RV770_SMC_PERFORMANCE_LEVELS_PER_SWSTATE];
+  uint8_t flags;
+  uint8_t padding1;
+  uint8_t padding2;
+  uint8_t padding3;
+  RV770_SMC_HW_PERFORMANCE_LEVEL levels[RV770_SMC_PERFORMANCE_LEVELS_PER_SWSTATE
+  ];
 };
 
 typedef struct RV770_SMC_SWSTATE RV770_SMC_SWSTATE;
@@ -136,8 +137,8 @@ typedef struct RV770_SMC_SWSTATE RV770_SMC_SWSTATE;
 #define RV770_SMC_VOLTAGEMASK_MAX  4
 
 struct RV770_SMC_VOLTAGEMASKTABLE {
-    uint8_t  highMask[RV770_SMC_VOLTAGEMASK_MAX];
-    uint32_t lowMask[RV770_SMC_VOLTAGEMASK_MAX];
+  uint8_t highMask[RV770_SMC_VOLTAGEMASK_MAX];
+  uint32_t lowMask[RV770_SMC_VOLTAGEMASK_MAX];
 };
 
 typedef struct RV770_SMC_VOLTAGEMASKTABLE RV770_SMC_VOLTAGEMASKTABLE;
@@ -145,17 +146,17 @@ typedef struct RV770_SMC_VOLTAGEMASKTABLE RV770_SMC_VOLTAGEMASKTABLE;
 #define MAX_NO_VREG_STEPS 32
 
 struct RV770_SMC_STATETABLE {
-    uint8_t             thermalProtectType;
-    uint8_t             systemFlags;
-    uint8_t             maxVDDCIndexInPPTable;
-    uint8_t             extraFlags;
-    uint8_t             highSMIO[MAX_NO_VREG_STEPS];
-    uint32_t            lowSMIO[MAX_NO_VREG_STEPS];
-    RV770_SMC_VOLTAGEMASKTABLE voltageMaskTable;
-    RV770_SMC_SWSTATE   initialState;
-    RV770_SMC_SWSTATE   ACPIState;
-    RV770_SMC_SWSTATE   driverState;
-    RV770_SMC_SWSTATE   ULVState;
+  uint8_t thermalProtectType;
+  uint8_t systemFlags;
+  uint8_t maxVDDCIndexInPPTable;
+  uint8_t extraFlags;
+  uint8_t highSMIO[MAX_NO_VREG_STEPS];
+  uint32_t lowSMIO[MAX_NO_VREG_STEPS];
+  RV770_SMC_VOLTAGEMASKTABLE voltageMaskTable;
+  RV770_SMC_SWSTATE initialState;
+  RV770_SMC_SWSTATE ACPIState;
+  RV770_SMC_SWSTATE driverState;
+  RV770_SMC_SWSTATE ULVState;
 };
 
 typedef struct RV770_SMC_STATETABLE RV770_SMC_STATETABLE;
@@ -179,8 +180,8 @@ typedef struct RV770_SMC_STATETABLE RV770_SMC_STATETABLE;
 #define RV770_SMC_SOFT_REGISTER_is_asic_lombok          0xA0
 
 int rv770_copy_bytes_to_smc(struct radeon_device *rdev,
-			    u16 smc_start_address, const u8 *src,
-			    u16 byte_count, u16 limit);
+    u16 smc_start_address, const u8 *src,
+    u16 byte_count, u16 limit);
 void rv770_start_smc(struct radeon_device *rdev);
 void rv770_reset_smc(struct radeon_device *rdev);
 void rv770_stop_smc_clock(struct radeon_device *rdev);
@@ -189,10 +190,10 @@ bool rv770_is_smc_running(struct radeon_device *rdev);
 PPSMC_Result rv770_send_msg_to_smc(struct radeon_device *rdev, PPSMC_Msg msg);
 PPSMC_Result rv770_wait_for_smc_inactive(struct radeon_device *rdev);
 int rv770_read_smc_sram_dword(struct radeon_device *rdev,
-			      u16 smc_address, u32 *value, u16 limit);
+    u16 smc_address, u32 *value, u16 limit);
 int rv770_write_smc_sram_dword(struct radeon_device *rdev,
-			       u16 smc_address, u32 value, u16 limit);
+    u16 smc_address, u32 value, u16 limit);
 int rv770_load_smc_ucode(struct radeon_device *rdev,
-			 u16 limit);
+    u16 limit);
 
 #endif

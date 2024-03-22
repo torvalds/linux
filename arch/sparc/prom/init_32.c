@@ -32,45 +32,38 @@ struct linux_nodeops *prom_nodeops;
  * It gets passed the pointer to the PROM vector.
  */
 
-void __init prom_init(struct linux_romvec *rp)
-{
-	romvec = rp;
-
-	switch(romvec->pv_romvers) {
-	case 0:
-		prom_vers = PROM_V0;
-		break;
-	case 2:
-		prom_vers = PROM_V2;
-		break;
-	case 3:
-		prom_vers = PROM_V3;
-		break;
-	default:
-		prom_printf("PROMLIB: Bad PROM version %d\n",
-			    romvec->pv_romvers);
-		prom_halt();
-		break;
-	}
-
-	prom_rev = romvec->pv_plugin_revision;
-	prom_prev = romvec->pv_printrev;
-	prom_nodeops = romvec->pv_nodeops;
-
-	prom_root_node = prom_getsibling(0);
-	if ((prom_root_node == 0) || ((s32)prom_root_node == -1))
-		prom_halt();
-
-	if((((unsigned long) prom_nodeops) == 0) || 
-	   (((unsigned long) prom_nodeops) == -1))
-		prom_halt();
-
-	prom_meminit();
-
-	prom_ranges_init();
-
-	printk("PROMLIB: Sun Boot Prom Version %d Revision %d\n",
-	       romvec->pv_romvers, prom_rev);
-
-	/* Initialization successful. */
+void __init prom_init(struct linux_romvec *rp) {
+  romvec = rp;
+  switch (romvec->pv_romvers) {
+    case 0:
+      prom_vers = PROM_V0;
+      break;
+    case 2:
+      prom_vers = PROM_V2;
+      break;
+    case 3:
+      prom_vers = PROM_V3;
+      break;
+    default:
+      prom_printf("PROMLIB: Bad PROM version %d\n",
+          romvec->pv_romvers);
+      prom_halt();
+      break;
+  }
+  prom_rev = romvec->pv_plugin_revision;
+  prom_prev = romvec->pv_printrev;
+  prom_nodeops = romvec->pv_nodeops;
+  prom_root_node = prom_getsibling(0);
+  if ((prom_root_node == 0) || ((s32) prom_root_node == -1)) {
+    prom_halt();
+  }
+  if ((((unsigned long) prom_nodeops) == 0)
+      || (((unsigned long) prom_nodeops) == -1)) {
+    prom_halt();
+  }
+  prom_meminit();
+  prom_ranges_init();
+  printk("PROMLIB: Sun Boot Prom Version %d Revision %d\n",
+      romvec->pv_romvers, prom_rev);
+  /* Initialization successful. */
 }

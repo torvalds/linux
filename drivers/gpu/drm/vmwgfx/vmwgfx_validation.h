@@ -1,30 +1,30 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
- *
- * Copyright © 2018 - 2022 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- **************************************************************************/
+*
+* Copyright © 2018 - 2022 VMware, Inc., Palo Alto, CA., USA
+* All Rights Reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sub license, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice (including the
+* next paragraph) shall be included in all copies or substantial portions
+* of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+* THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+**************************************************************************/
 #ifndef _VMWGFX_VALIDATION_H_
 #define _VMWGFX_VALIDATION_H_
 
@@ -58,19 +58,19 @@
  * @total_mem: Amount of reserved memory.
  */
 struct vmw_validation_context {
-	struct vmw_sw_context *sw_context;
-	struct list_head resource_list;
-	struct list_head resource_ctx_list;
-	struct list_head bo_list;
-	struct list_head page_list;
-	struct ww_acquire_ctx ticket;
-	struct mutex *res_mutex;
-	unsigned int merge_dups;
-	unsigned int mem_size_left;
-	u8 *page_address;
-	struct vmw_validation_mem *vm;
-	size_t vm_size_left;
-	size_t total_mem;
+  struct vmw_sw_context *sw_context;
+  struct list_head resource_list;
+  struct list_head resource_ctx_list;
+  struct list_head bo_list;
+  struct list_head page_list;
+  struct ww_acquire_ctx ticket;
+  struct mutex *res_mutex;
+  unsigned int merge_dups;
+  unsigned int mem_size_left;
+  u8 *page_address;
+  struct vmw_validation_mem *vm;
+  size_t vm_size_left;
+  size_t total_mem;
 };
 
 struct vmw_bo;
@@ -88,17 +88,17 @@ struct vmw_fence_obj;
  * is known to be very small
  */
 #endif
-#define DECLARE_VAL_CONTEXT(_name, _sw_context, _merge_dups)		\
-	struct vmw_validation_context _name =				\
-	{ .sw_context = _sw_context,					\
-	  .resource_list = LIST_HEAD_INIT((_name).resource_list),	\
-	  .resource_ctx_list = LIST_HEAD_INIT((_name).resource_ctx_list), \
-	  .bo_list = LIST_HEAD_INIT((_name).bo_list),			\
-	  .page_list = LIST_HEAD_INIT((_name).page_list),		\
-	  .res_mutex = NULL,						\
-	  .merge_dups = _merge_dups,					\
-	  .mem_size_left = 0,						\
-	}
+#define DECLARE_VAL_CONTEXT(_name, _sw_context, _merge_dups)    \
+  struct vmw_validation_context _name =       \
+  { .sw_context = _sw_context,          \
+    .resource_list = LIST_HEAD_INIT((_name).resource_list), \
+    .resource_ctx_list = LIST_HEAD_INIT((_name).resource_ctx_list), \
+    .bo_list = LIST_HEAD_INIT((_name).bo_list),     \
+    .page_list = LIST_HEAD_INIT((_name).page_list),   \
+    .res_mutex = NULL,            \
+    .merge_dups = _merge_dups,          \
+    .mem_size_left = 0,           \
+  }
 
 /**
  * vmw_validation_has_bos - return whether the validation context has
@@ -107,10 +107,8 @@ struct vmw_fence_obj;
  * @ctx: The validation context
  * Returns: Whether any buffer objects are registered
  */
-static inline bool
-vmw_validation_has_bos(struct vmw_validation_context *ctx)
-{
-	return !list_empty(&ctx->bo_list);
+static inline bool vmw_validation_has_bos(struct vmw_validation_context *ctx) {
+  return !list_empty(&ctx->bo_list);
 }
 
 /**
@@ -122,12 +120,10 @@ vmw_validation_has_bos(struct vmw_validation_context *ctx)
  * Return: Zero on success, -ERESTARTSYS when interrupted, negative error
  * code on failure
  */
-static inline int
-vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
-			  bool intr)
-{
-	return ttm_eu_reserve_buffers(&ctx->ticket, &ctx->bo_list, intr,
-				      NULL);
+static inline int vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
+    bool intr) {
+  return ttm_eu_reserve_buffers(&ctx->ticket, &ctx->bo_list, intr,
+      NULL);
 }
 
 /**
@@ -138,12 +134,10 @@ vmw_validation_bo_reserve(struct vmw_validation_context *ctx,
  * This function unreserves the buffer objects previously reserved using
  * vmw_validation_bo_reserve, and fences them with a fence object.
  */
-static inline void
-vmw_validation_bo_fence(struct vmw_validation_context *ctx,
-			struct vmw_fence_obj *fence)
-{
-	ttm_eu_fence_buffer_objects(&ctx->ticket, &ctx->bo_list,
-				    (void *) fence);
+static inline void vmw_validation_bo_fence(struct vmw_validation_context *ctx,
+    struct vmw_fence_obj *fence) {
+  ttm_eu_fence_buffer_objects(&ctx->ticket, &ctx->bo_list,
+      (void *) fence);
 }
 
 /**
@@ -153,45 +147,44 @@ vmw_validation_bo_fence(struct vmw_validation_context *ctx,
  * Returns: @val aligned to the granularity used by the validation memory
  * allocator.
  */
-static inline unsigned int vmw_validation_align(unsigned int val)
-{
-	return ALIGN(val, sizeof(long));
+static inline unsigned int vmw_validation_align(unsigned int val) {
+  return ALIGN(val, sizeof(long));
 }
 
 int vmw_validation_add_bo(struct vmw_validation_context *ctx,
-			  struct vmw_bo *vbo);
+    struct vmw_bo *vbo);
 int vmw_validation_bo_validate(struct vmw_validation_context *ctx, bool intr);
 void vmw_validation_unref_lists(struct vmw_validation_context *ctx);
 int vmw_validation_add_resource(struct vmw_validation_context *ctx,
-				struct vmw_resource *res,
-				size_t priv_size,
-				u32 dirty,
-				void **p_node,
-				bool *first_usage);
+    struct vmw_resource *res,
+    size_t priv_size,
+    u32 dirty,
+    void **p_node,
+    bool *first_usage);
 void vmw_validation_drop_ht(struct vmw_validation_context *ctx);
 int vmw_validation_res_reserve(struct vmw_validation_context *ctx,
-			       bool intr);
+    bool intr);
 void vmw_validation_res_unreserve(struct vmw_validation_context *ctx,
-				  bool backoff);
+    bool backoff);
 void vmw_validation_res_switch_backup(struct vmw_validation_context *ctx,
-				      void *val_private,
-				      struct vmw_bo *vbo,
-				      unsigned long backup_offset);
+    void *val_private,
+    struct vmw_bo *vbo,
+    unsigned long backup_offset);
 int vmw_validation_res_validate(struct vmw_validation_context *ctx, bool intr);
 
 int vmw_validation_prepare(struct vmw_validation_context *ctx,
-			   struct mutex *mutex, bool intr);
+    struct mutex *mutex, bool intr);
 void vmw_validation_revert(struct vmw_validation_context *ctx);
 void vmw_validation_done(struct vmw_validation_context *ctx,
-			 struct vmw_fence_obj *fence);
+    struct vmw_fence_obj *fence);
 
 void *vmw_validation_mem_alloc(struct vmw_validation_context *ctx,
-			       unsigned int size);
+    unsigned int size);
 int vmw_validation_preload_bo(struct vmw_validation_context *ctx);
 int vmw_validation_preload_res(struct vmw_validation_context *ctx,
-			       unsigned int size);
+    unsigned int size);
 void vmw_validation_res_set_dirty(struct vmw_validation_context *ctx,
-				  void *val_private, u32 dirty);
+    void *val_private, u32 dirty);
 void vmw_validation_bo_backoff(struct vmw_validation_context *ctx);
 
 #endif

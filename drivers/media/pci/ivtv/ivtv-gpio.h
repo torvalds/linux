@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    gpio functions.
-    Copyright (C) 2004  Chris Kennedy <c@groovy.org>
-    Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
-
+ *  gpio functions.
+ *  Copyright (C) 2004  Chris Kennedy <c@groovy.org>
+ *  Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *
  */
 
 #ifndef IVTV_GPIO_H

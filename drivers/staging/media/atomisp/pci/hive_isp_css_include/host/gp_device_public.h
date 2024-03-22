@@ -18,42 +18,42 @@
 
 #include "system_local.h"
 
-typedef struct gp_device_state_s		gp_device_state_t;
+typedef struct gp_device_state_s gp_device_state_t;
 
 /*! Read the state of GP_DEVICE[ID]
-
- \param	ID[in]				GP_DEVICE identifier
- \param	state[out]			gp device state structure
-
- \return none, state = GP_DEVICE[ID].state
+ *
+ * \param ID[in]        GP_DEVICE identifier
+ * \param state[out]      gp device state structure
+ *
+ * \return none, state = GP_DEVICE[ID].state
  */
 void gp_device_get_state(
-    const gp_device_ID_t		ID,
-    gp_device_state_t			*state);
+  const gp_device_ID_t ID,
+  gp_device_state_t *state);
 
 /*! Write to a control register of GP_DEVICE[ID]
-
- \param	ID[in]				GP_DEVICE identifier
- \param	reg_addr[in]		register byte address
- \param value[in]			The data to be written
-
- \return none, GP_DEVICE[ID].ctrl[reg] = value
+ *
+ * \param ID[in]        GP_DEVICE identifier
+ * \param reg_addr[in]    register byte address
+ * \param value[in]     The data to be written
+ *
+ * \return none, GP_DEVICE[ID].ctrl[reg] = value
  */
 STORAGE_CLASS_GP_DEVICE_H void gp_device_reg_store(
-    const gp_device_ID_t	ID,
-    const unsigned int		reg_addr,
-    const hrt_data			value);
+  const gp_device_ID_t ID,
+  const unsigned int reg_addr,
+  const hrt_data value);
 
 /*! Read from a control register of GP_DEVICE[ID]
-
- \param	ID[in]				GP_DEVICE identifier
- \param	reg_addr[in]		register byte address
- \param value[in]			The data to be written
-
- \return GP_DEVICE[ID].ctrl[reg]
+ *
+ * \param ID[in]        GP_DEVICE identifier
+ * \param reg_addr[in]    register byte address
+ * \param value[in]     The data to be written
+ *
+ * \return GP_DEVICE[ID].ctrl[reg]
  */
 STORAGE_CLASS_GP_DEVICE_H hrt_data gp_device_reg_load(
-    const gp_device_ID_t	ID,
-    const hrt_address	reg_addr);
+  const gp_device_ID_t ID,
+  const hrt_address reg_addr);
 
 #endif /* __GP_DEVICE_PUBLIC_H_INCLUDED__ */

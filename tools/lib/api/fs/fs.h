@@ -13,10 +13,10 @@
 #define PATH_MAX 4096
 #endif
 
-#define FS(name)				\
-	const char *name##__mountpoint(void);	\
-	const char *name##__mount(void);	\
-	bool name##__configured(void);		\
+#define FS(name)        \
+  const char *name ## __mountpoint(void); \
+  const char *name ## __mount(void);  \
+  bool name ## __configured(void);    \
 
 /*
  * The xxxx__mountpoint() entry points find the first match mount point for each
@@ -38,7 +38,6 @@ FS(hugetlbfs)
 FS(bpf_fs)
 
 #undef FS
-
 
 int cgroupfs_find_mountpoint(char *buf, size_t maxlen, const char *subsys);
 

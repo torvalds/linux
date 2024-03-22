@@ -20,20 +20,17 @@
 #include <linux/irqchip.h>
 #include <linux/of_irq.h>
 
-void __irq_entry do_IRQ(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-	trace_hardirqs_off();
-
-	irq_enter();
-	handle_arch_irq(regs);
-	irq_exit();
-	set_irq_regs(old_regs);
-	trace_hardirqs_on();
+void __irq_entry do_IRQ(struct pt_regs *regs) {
+  struct pt_regs *old_regs = set_irq_regs(regs);
+  trace_hardirqs_off();
+  irq_enter();
+  handle_arch_irq(regs);
+  irq_exit();
+  set_irq_regs(old_regs);
+  trace_hardirqs_on();
 }
 
-void __init init_IRQ(void)
-{
-	/* process the entire interrupt tree in one go */
-	irqchip_init();
+void __init init_IRQ(void) {
+  /* process the entire interrupt tree in one go */
+  irqchip_init();
 }

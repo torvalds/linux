@@ -10,8 +10,8 @@
 
 #include "clk-iproc.h"
 
-static void __init hr2_armpll_init(struct device_node *node)
-{
-	iproc_armpll_setup(node);
+static void __init hr2_armpll_init(struct device_node *node) {
+  iproc_armpll_setup(node);
 }
+
 CLK_OF_DECLARE(hr2_armpll, "brcm,hr2-armpll", hr2_armpll_init);

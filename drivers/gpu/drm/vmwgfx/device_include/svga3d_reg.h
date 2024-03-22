@@ -30,8 +30,6 @@
  *    SVGA 3d hardware definitions
  */
 
-
-
 #ifndef _SVGA3D_REG_H_
 #define _SVGA3D_REG_H_
 

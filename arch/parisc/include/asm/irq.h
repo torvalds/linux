@@ -11,25 +11,24 @@
 #include <linux/cpumask.h>
 #include <asm/types.h>
 
-#define NO_IRQ		(-1)
+#define NO_IRQ    (-1)
 
 #ifdef CONFIG_GSC
-#define GSC_IRQ_BASE	16
-#define GSC_IRQ_MAX	63
-#define CPU_IRQ_BASE	64
+#define GSC_IRQ_BASE  16
+#define GSC_IRQ_MAX 63
+#define CPU_IRQ_BASE  64
 #else
-#define CPU_IRQ_BASE	16
+#define CPU_IRQ_BASE  16
 #endif
 
-#define TIMER_IRQ	(CPU_IRQ_BASE + 0)
-#define	IPI_IRQ		(CPU_IRQ_BASE + 1)
-#define CPU_IRQ_MAX	(CPU_IRQ_BASE + (BITS_PER_LONG - 1))
+#define TIMER_IRQ (CPU_IRQ_BASE + 0)
+#define IPI_IRQ   (CPU_IRQ_BASE + 1)
+#define CPU_IRQ_MAX (CPU_IRQ_BASE + (BITS_PER_LONG - 1))
 
-#define NR_IRQS		(CPU_IRQ_MAX + 1)
+#define NR_IRQS   (CPU_IRQ_MAX + 1)
 
-static __inline__ int irq_canonicalize(int irq)
-{
-	return (irq == 2) ? 9 : irq;
+static __inline__ int irq_canonicalize(int irq) {
+  return (irq == 2) ? 9 : irq;
 }
 
 struct irq_chip;
@@ -47,4 +46,4 @@ extern unsigned long txn_affinity_addr(unsigned int irq, int cpu);
 extern int cpu_claim_irq(unsigned int irq, struct irq_chip *, void *);
 extern int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest);
 
-#endif	/* _ASM_PARISC_IRQ_H */
+#endif  /* _ASM_PARISC_IRQ_H */

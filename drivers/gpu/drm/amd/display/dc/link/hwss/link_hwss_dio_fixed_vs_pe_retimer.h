@@ -27,7 +27,8 @@
 
 #include "link.h"
 
-uint32_t dp_dio_fixed_vs_pe_retimer_get_lttpr_write_address(struct dc_link *link);
+uint32_t dp_dio_fixed_vs_pe_retimer_get_lttpr_write_address(
+  struct dc_link *link);
 uint8_t dp_dio_fixed_vs_pe_retimer_lane_cfg_to_hw_cfg(struct dc_link *link);
 void dp_dio_fixed_vs_pe_retimer_exit_manual_automation(struct dc_link *link);
 void enable_dio_fixed_vs_pe_retimer_program_4lane_output(struct dc_link *link);

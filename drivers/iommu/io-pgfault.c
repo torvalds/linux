@@ -18,123 +18,107 @@
  * On a successful return, the caller takes a reference of this parameter and
  * should put it after use by calling iopf_put_dev_fault_param().
  */
-static struct iommu_fault_param *iopf_get_dev_fault_param(struct device *dev)
-{
-	struct dev_iommu *param = dev->iommu;
-	struct iommu_fault_param *fault_param;
-
-	rcu_read_lock();
-	fault_param = rcu_dereference(param->fault_param);
-	if (fault_param && !refcount_inc_not_zero(&fault_param->users))
-		fault_param = NULL;
-	rcu_read_unlock();
-
-	return fault_param;
+static struct iommu_fault_param *iopf_get_dev_fault_param(struct device *dev) {
+  struct dev_iommu *param = dev->iommu;
+  struct iommu_fault_param *fault_param;
+  rcu_read_lock();
+  fault_param = rcu_dereference(param->fault_param);
+  if (fault_param && !refcount_inc_not_zero(&fault_param->users)) {
+    fault_param = NULL;
+  }
+  rcu_read_unlock();
+  return fault_param;
 }
 
 /* Caller must hold a reference of the fault parameter. */
-static void iopf_put_dev_fault_param(struct iommu_fault_param *fault_param)
-{
-	if (refcount_dec_and_test(&fault_param->users))
-		kfree_rcu(fault_param, rcu);
+static void iopf_put_dev_fault_param(struct iommu_fault_param *fault_param) {
+  if (refcount_dec_and_test(&fault_param->users)) {
+    kfree_rcu(fault_param, rcu);
+  }
 }
 
-static void __iopf_free_group(struct iopf_group *group)
-{
-	struct iopf_fault *iopf, *next;
-
-	list_for_each_entry_safe(iopf, next, &group->faults, list) {
-		if (!(iopf->fault.prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE))
-			kfree(iopf);
-	}
-
-	/* Pair with iommu_report_device_fault(). */
-	iopf_put_dev_fault_param(group->fault_param);
+static void __iopf_free_group(struct iopf_group *group) {
+  struct iopf_fault *iopf, *next;
+  list_for_each_entry_safe(iopf, next, &group->faults, list) {
+    if (!(iopf->fault.prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
+      kfree(iopf);
+    }
+  }
+  /* Pair with iommu_report_device_fault(). */
+  iopf_put_dev_fault_param(group->fault_param);
 }
 
-void iopf_free_group(struct iopf_group *group)
-{
-	__iopf_free_group(group);
-	kfree(group);
+void iopf_free_group(struct iopf_group *group) {
+  __iopf_free_group(group);
+  kfree(group);
 }
+
 EXPORT_SYMBOL_GPL(iopf_free_group);
 
 static struct iommu_domain *get_domain_for_iopf(struct device *dev,
-						struct iommu_fault *fault)
-{
-	struct iommu_domain *domain;
-
-	if (fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) {
-		domain = iommu_get_domain_for_dev_pasid(dev, fault->prm.pasid, 0);
-		if (IS_ERR(domain))
-			domain = NULL;
-	} else {
-		domain = iommu_get_domain_for_dev(dev);
-	}
-
-	if (!domain || !domain->iopf_handler) {
-		dev_warn_ratelimited(dev,
-			"iopf (pasid %d) without domain attached or handler installed\n",
-			 fault->prm.pasid);
-
-		return NULL;
-	}
-
-	return domain;
+    struct iommu_fault *fault) {
+  struct iommu_domain *domain;
+  if (fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) {
+    domain = iommu_get_domain_for_dev_pasid(dev, fault->prm.pasid, 0);
+    if (IS_ERR(domain)) {
+      domain = NULL;
+    }
+  } else {
+    domain = iommu_get_domain_for_dev(dev);
+  }
+  if (!domain || !domain->iopf_handler) {
+    dev_warn_ratelimited(dev,
+        "iopf (pasid %d) without domain attached or handler installed\n",
+        fault->prm.pasid);
+    return NULL;
+  }
+  return domain;
 }
 
 /* Non-last request of a group. Postpone until the last one. */
 static int report_partial_fault(struct iommu_fault_param *fault_param,
-				struct iommu_fault *fault)
-{
-	struct iopf_fault *iopf;
-
-	iopf = kzalloc(sizeof(*iopf), GFP_KERNEL);
-	if (!iopf)
-		return -ENOMEM;
-
-	iopf->fault = *fault;
-
-	mutex_lock(&fault_param->lock);
-	list_add(&iopf->list, &fault_param->partial);
-	mutex_unlock(&fault_param->lock);
-
-	return 0;
+    struct iommu_fault *fault) {
+  struct iopf_fault *iopf;
+  iopf = kzalloc(sizeof(*iopf), GFP_KERNEL);
+  if (!iopf) {
+    return -ENOMEM;
+  }
+  iopf->fault = *fault;
+  mutex_lock(&fault_param->lock);
+  list_add(&iopf->list, &fault_param->partial);
+  mutex_unlock(&fault_param->lock);
+  return 0;
 }
 
 static struct iopf_group *iopf_group_alloc(struct iommu_fault_param *iopf_param,
-					   struct iopf_fault *evt,
-					   struct iopf_group *abort_group)
-{
-	struct iopf_fault *iopf, *next;
-	struct iopf_group *group;
-
-	group = kzalloc(sizeof(*group), GFP_KERNEL);
-	if (!group) {
-		/*
-		 * We always need to construct the group as we need it to abort
-		 * the request at the driver if it can't be handled.
-		 */
-		group = abort_group;
-	}
-
-	group->fault_param = iopf_param;
-	group->last_fault.fault = evt->fault;
-	INIT_LIST_HEAD(&group->faults);
-	INIT_LIST_HEAD(&group->pending_node);
-	list_add(&group->last_fault.list, &group->faults);
-
-	/* See if we have partial faults for this group */
-	mutex_lock(&iopf_param->lock);
-	list_for_each_entry_safe(iopf, next, &iopf_param->partial, list) {
-		if (iopf->fault.prm.grpid == evt->fault.prm.grpid)
-			/* Insert *before* the last fault */
-			list_move(&iopf->list, &group->faults);
-	}
-	list_add(&group->pending_node, &iopf_param->faults);
-	mutex_unlock(&iopf_param->lock);
-
-	return group;
+    struct iopf_fault *evt,
+    struct iopf_group *abort_group) {
+  struct iopf_fault *iopf, *next;
+  struct iopf_group *group;
+  group = kzalloc(sizeof(*group), GFP_KERNEL);
+  if (!group) {
+    /*
+     * We always need to construct the group as we need it to abort
+     * the request at the driver if it can't be handled.
+     */
+    group = abort_group;
+  }
+  group->fault_param = iopf_param;
+  group->last_fault.fault = evt->fault;
+  INIT_LIST_HEAD(&group->faults);
+  INIT_LIST_HEAD(&group->pending_node);
+  list_add(&group->last_fault.list, &group->faults);
+  /* See if we have partial faults for this group */
+  mutex_lock(&iopf_param->lock);
+  list_for_each_entry_safe(iopf, next, &iopf_param->partial, list) {
+    if (iopf->fault.prm.grpid == evt->fault.prm.grpid) {
+      /* Insert *before* the last fault */
+      list_move(&iopf->list, &group->faults);
+    }
+  }
+  list_add(&group->pending_node, &iopf_param->faults);
+  mutex_unlock(&iopf_param->lock);
+  return group;
 }
 
 /**
@@ -177,55 +161,53 @@ static struct iopf_group *iopf_group_alloc(struct iommu_fault_param *iopf_param,
  * hardware has been set to block the page faults) and the pending page faults
  * have been flushed.
  */
-void iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
-{
-	struct iommu_fault *fault = &evt->fault;
-	struct iommu_fault_param *iopf_param;
-	struct iopf_group abort_group = {};
-	struct iopf_group *group;
-
-	iopf_param = iopf_get_dev_fault_param(dev);
-	if (WARN_ON(!iopf_param))
-		return;
-
-	if (!(fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
-		report_partial_fault(iopf_param, fault);
-		iopf_put_dev_fault_param(iopf_param);
-		/* A request that is not the last does not need to be ack'd */
-	}
-
-	/*
-	 * This is the last page fault of a group. Allocate an iopf group and
-	 * pass it to domain's page fault handler. The group holds a reference
-	 * count of the fault parameter. It will be released after response or
-	 * error path of this function. If an error is returned, the caller
-	 * will send a response to the hardware. We need to clean up before
-	 * leaving, otherwise partial faults will be stuck.
-	 */
-	group = iopf_group_alloc(iopf_param, evt, &abort_group);
-	if (group == &abort_group)
-		goto err_abort;
-
-	group->domain = get_domain_for_iopf(dev, fault);
-	if (!group->domain)
-		goto err_abort;
-
-	/*
-	 * On success iopf_handler must call iopf_group_response() and
-	 * iopf_free_group()
-	 */
-	if (group->domain->iopf_handler(group))
-		goto err_abort;
-
-	return;
-
+void iommu_report_device_fault(struct device *dev, struct iopf_fault *evt) {
+  struct iommu_fault *fault = &evt->fault;
+  struct iommu_fault_param *iopf_param;
+  struct iopf_group abort_group = {};
+  struct iopf_group *group;
+  iopf_param = iopf_get_dev_fault_param(dev);
+  if (WARN_ON(!iopf_param)) {
+    return;
+  }
+  if (!(fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
+    report_partial_fault(iopf_param, fault);
+    iopf_put_dev_fault_param(iopf_param);
+    /* A request that is not the last does not need to be ack'd */
+  }
+  /*
+   * This is the last page fault of a group. Allocate an iopf group and
+   * pass it to domain's page fault handler. The group holds a reference
+   * count of the fault parameter. It will be released after response or
+   * error path of this function. If an error is returned, the caller
+   * will send a response to the hardware. We need to clean up before
+   * leaving, otherwise partial faults will be stuck.
+   */
+  group = iopf_group_alloc(iopf_param, evt, &abort_group);
+  if (group == &abort_group) {
+    goto err_abort;
+  }
+  group->domain = get_domain_for_iopf(dev, fault);
+  if (!group->domain) {
+    goto err_abort;
+  }
+  /*
+   * On success iopf_handler must call iopf_group_response() and
+   * iopf_free_group()
+   */
+  if (group->domain->iopf_handler(group)) {
+    goto err_abort;
+  }
+  return;
 err_abort:
-	iopf_group_response(group, IOMMU_PAGE_RESP_FAILURE);
-	if (group == &abort_group)
-		__iopf_free_group(group);
-	else
-		iopf_free_group(group);
+  iopf_group_response(group, IOMMU_PAGE_RESP_FAILURE);
+  if (group == &abort_group) {
+    __iopf_free_group(group);
+  } else {
+    iopf_free_group(group);
+  }
 }
+
 EXPORT_SYMBOL_GPL(iommu_report_device_fault);
 
 /**
@@ -240,23 +222,21 @@ EXPORT_SYMBOL_GPL(iommu_report_device_fault);
  *
  * Return: 0 on success and <0 on error.
  */
-int iopf_queue_flush_dev(struct device *dev)
-{
-	struct iommu_fault_param *iopf_param;
-
-	/*
-	 * It's a driver bug to be here after iopf_queue_remove_device().
-	 * Therefore, it's safe to dereference the fault parameter without
-	 * holding the lock.
-	 */
-	iopf_param = rcu_dereference_check(dev->iommu->fault_param, true);
-	if (WARN_ON(!iopf_param))
-		return -ENODEV;
-
-	flush_workqueue(iopf_param->queue->wq);
-
-	return 0;
+int iopf_queue_flush_dev(struct device *dev) {
+  struct iommu_fault_param *iopf_param;
+  /*
+   * It's a driver bug to be here after iopf_queue_remove_device().
+   * Therefore, it's safe to dereference the fault parameter without
+   * holding the lock.
+   */
+  iopf_param = rcu_dereference_check(dev->iommu->fault_param, true);
+  if (WARN_ON(!iopf_param)) {
+    return -ENODEV;
+  }
+  flush_workqueue(iopf_param->queue->wq);
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(iopf_queue_flush_dev);
 
 /**
@@ -265,26 +245,25 @@ EXPORT_SYMBOL_GPL(iopf_queue_flush_dev);
  * @status: the response code
  */
 void iopf_group_response(struct iopf_group *group,
-			 enum iommu_page_response_code status)
-{
-	struct iommu_fault_param *fault_param = group->fault_param;
-	struct iopf_fault *iopf = &group->last_fault;
-	struct device *dev = group->fault_param->dev;
-	const struct iommu_ops *ops = dev_iommu_ops(dev);
-	struct iommu_page_response resp = {
-		.pasid = iopf->fault.prm.pasid,
-		.grpid = iopf->fault.prm.grpid,
-		.code = status,
-	};
-
-	/* Only send response if there is a fault report pending */
-	mutex_lock(&fault_param->lock);
-	if (!list_empty(&group->pending_node)) {
-		ops->page_response(dev, &group->last_fault, &resp);
-		list_del_init(&group->pending_node);
-	}
-	mutex_unlock(&fault_param->lock);
+    enum iommu_page_response_code status) {
+  struct iommu_fault_param *fault_param = group->fault_param;
+  struct iopf_fault *iopf = &group->last_fault;
+  struct device *dev = group->fault_param->dev;
+  const struct iommu_ops *ops = dev_iommu_ops(dev);
+  struct iommu_page_response resp = {
+    .pasid = iopf->fault.prm.pasid,
+    .grpid = iopf->fault.prm.grpid,
+    .code = status,
+  };
+  /* Only send response if there is a fault report pending */
+  mutex_lock(&fault_param->lock);
+  if (!list_empty(&group->pending_node)) {
+    ops->page_response(dev, &group->last_fault, &resp);
+    list_del_init(&group->pending_node);
+  }
+  mutex_unlock(&fault_param->lock);
 }
+
 EXPORT_SYMBOL_GPL(iopf_group_response);
 
 /**
@@ -297,27 +276,26 @@ EXPORT_SYMBOL_GPL(iopf_group_response);
  *
  * Return: 0 on success and <0 on error.
  */
-int iopf_queue_discard_partial(struct iopf_queue *queue)
-{
-	struct iopf_fault *iopf, *next;
-	struct iommu_fault_param *iopf_param;
-
-	if (!queue)
-		return -EINVAL;
-
-	mutex_lock(&queue->lock);
-	list_for_each_entry(iopf_param, &queue->devices, queue_list) {
-		mutex_lock(&iopf_param->lock);
-		list_for_each_entry_safe(iopf, next, &iopf_param->partial,
-					 list) {
-			list_del(&iopf->list);
-			kfree(iopf);
-		}
-		mutex_unlock(&iopf_param->lock);
-	}
-	mutex_unlock(&queue->lock);
-	return 0;
+int iopf_queue_discard_partial(struct iopf_queue *queue) {
+  struct iopf_fault *iopf, *next;
+  struct iommu_fault_param *iopf_param;
+  if (!queue) {
+    return -EINVAL;
+  }
+  mutex_lock(&queue->lock);
+  list_for_each_entry(iopf_param, &queue->devices, queue_list) {
+    mutex_lock(&iopf_param->lock);
+    list_for_each_entry_safe(iopf, next, &iopf_param->partial,
+        list) {
+      list_del(&iopf->list);
+      kfree(iopf);
+    }
+    mutex_unlock(&iopf_param->lock);
+  }
+  mutex_unlock(&queue->lock);
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(iopf_queue_discard_partial);
 
 /**
@@ -327,46 +305,40 @@ EXPORT_SYMBOL_GPL(iopf_queue_discard_partial);
  *
  * Return: 0 on success and <0 on error.
  */
-int iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
-{
-	int ret = 0;
-	struct dev_iommu *param = dev->iommu;
-	struct iommu_fault_param *fault_param;
-	const struct iommu_ops *ops = dev_iommu_ops(dev);
-
-	if (!ops->page_response)
-		return -ENODEV;
-
-	mutex_lock(&queue->lock);
-	mutex_lock(&param->lock);
-	if (rcu_dereference_check(param->fault_param,
-				  lockdep_is_held(&param->lock))) {
-		ret = -EBUSY;
-		goto done_unlock;
-	}
-
-	fault_param = kzalloc(sizeof(*fault_param), GFP_KERNEL);
-	if (!fault_param) {
-		ret = -ENOMEM;
-		goto done_unlock;
-	}
-
-	mutex_init(&fault_param->lock);
-	INIT_LIST_HEAD(&fault_param->faults);
-	INIT_LIST_HEAD(&fault_param->partial);
-	fault_param->dev = dev;
-	refcount_set(&fault_param->users, 1);
-	list_add(&fault_param->queue_list, &queue->devices);
-	fault_param->queue = queue;
-
-	rcu_assign_pointer(param->fault_param, fault_param);
-
+int iopf_queue_add_device(struct iopf_queue *queue, struct device *dev) {
+  int ret = 0;
+  struct dev_iommu *param = dev->iommu;
+  struct iommu_fault_param *fault_param;
+  const struct iommu_ops *ops = dev_iommu_ops(dev);
+  if (!ops->page_response) {
+    return -ENODEV;
+  }
+  mutex_lock(&queue->lock);
+  mutex_lock(&param->lock);
+  if (rcu_dereference_check(param->fault_param,
+      lockdep_is_held(&param->lock))) {
+    ret = -EBUSY;
+    goto done_unlock;
+  }
+  fault_param = kzalloc(sizeof(*fault_param), GFP_KERNEL);
+  if (!fault_param) {
+    ret = -ENOMEM;
+    goto done_unlock;
+  }
+  mutex_init(&fault_param->lock);
+  INIT_LIST_HEAD(&fault_param->faults);
+  INIT_LIST_HEAD(&fault_param->partial);
+  fault_param->dev = dev;
+  refcount_set(&fault_param->users, 1);
+  list_add(&fault_param->queue_list, &queue->devices);
+  fault_param->queue = queue;
+  rcu_assign_pointer(param->fault_param, fault_param);
 done_unlock:
-	mutex_unlock(&param->lock);
-	mutex_unlock(&queue->lock);
-
-	return ret;
+  mutex_unlock(&param->lock);
+  mutex_unlock(&queue->lock);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(iopf_queue_add_device);
 
 /**
@@ -392,49 +364,43 @@ EXPORT_SYMBOL_GPL(iopf_queue_add_device);
  * passed from iommu_report_device_fault() to the fault handling work, and
  * will eventually be released after iommu_page_response().
  */
-void iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
-{
-	struct iopf_fault *partial_iopf;
-	struct iopf_fault *next;
-	struct iopf_group *group, *temp;
-	struct dev_iommu *param = dev->iommu;
-	struct iommu_fault_param *fault_param;
-	const struct iommu_ops *ops = dev_iommu_ops(dev);
-
-	mutex_lock(&queue->lock);
-	mutex_lock(&param->lock);
-	fault_param = rcu_dereference_check(param->fault_param,
-					    lockdep_is_held(&param->lock));
-
-	if (WARN_ON(!fault_param || fault_param->queue != queue))
-		goto unlock;
-
-	mutex_lock(&fault_param->lock);
-	list_for_each_entry_safe(partial_iopf, next, &fault_param->partial, list)
-		kfree(partial_iopf);
-
-	list_for_each_entry_safe(group, temp, &fault_param->faults, pending_node) {
-		struct iopf_fault *iopf = &group->last_fault;
-		struct iommu_page_response resp = {
-			.pasid = iopf->fault.prm.pasid,
-			.grpid = iopf->fault.prm.grpid,
-			.code = IOMMU_PAGE_RESP_INVALID
-		};
-
-		ops->page_response(dev, iopf, &resp);
-		list_del_init(&group->pending_node);
-	}
-	mutex_unlock(&fault_param->lock);
-
-	list_del(&fault_param->queue_list);
-
-	/* dec the ref owned by iopf_queue_add_device() */
-	rcu_assign_pointer(param->fault_param, NULL);
-	iopf_put_dev_fault_param(fault_param);
+void iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev) {
+  struct iopf_fault *partial_iopf;
+  struct iopf_fault *next;
+  struct iopf_group *group, *temp;
+  struct dev_iommu *param = dev->iommu;
+  struct iommu_fault_param *fault_param;
+  const struct iommu_ops *ops = dev_iommu_ops(dev);
+  mutex_lock(&queue->lock);
+  mutex_lock(&param->lock);
+  fault_param = rcu_dereference_check(param->fault_param,
+      lockdep_is_held(&param->lock));
+  if (WARN_ON(!fault_param || fault_param->queue != queue)) {
+    goto unlock;
+  }
+  mutex_lock(&fault_param->lock);
+  list_for_each_entry_safe(partial_iopf, next, &fault_param->partial, list)
+  kfree(partial_iopf);
+  list_for_each_entry_safe(group, temp, &fault_param->faults, pending_node) {
+    struct iopf_fault *iopf = &group->last_fault;
+    struct iommu_page_response resp = {
+      .pasid = iopf->fault.prm.pasid,
+      .grpid = iopf->fault.prm.grpid,
+      .code = IOMMU_PAGE_RESP_INVALID
+    };
+    ops->page_response(dev, iopf, &resp);
+    list_del_init(&group->pending_node);
+  }
+  mutex_unlock(&fault_param->lock);
+  list_del(&fault_param->queue_list);
+  /* dec the ref owned by iopf_queue_add_device() */
+  rcu_assign_pointer(param->fault_param, NULL);
+  iopf_put_dev_fault_param(fault_param);
 unlock:
-	mutex_unlock(&param->lock);
-	mutex_unlock(&queue->lock);
+  mutex_unlock(&param->lock);
+  mutex_unlock(&queue->lock);
 }
+
 EXPORT_SYMBOL_GPL(iopf_queue_remove_device);
 
 /**
@@ -443,31 +409,28 @@ EXPORT_SYMBOL_GPL(iopf_queue_remove_device);
  *
  * Return: the queue on success and NULL on error.
  */
-struct iopf_queue *iopf_queue_alloc(const char *name)
-{
-	struct iopf_queue *queue;
-
-	queue = kzalloc(sizeof(*queue), GFP_KERNEL);
-	if (!queue)
-		return NULL;
-
-	/*
-	 * The WQ is unordered because the low-level handler enqueues faults by
-	 * group. PRI requests within a group have to be ordered, but once
-	 * that's dealt with, the high-level function can handle groups out of
-	 * order.
-	 */
-	queue->wq = alloc_workqueue("iopf_queue/%s", WQ_UNBOUND, 0, name);
-	if (!queue->wq) {
-		kfree(queue);
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&queue->devices);
-	mutex_init(&queue->lock);
-
-	return queue;
+struct iopf_queue *iopf_queue_alloc(const char *name) {
+  struct iopf_queue *queue;
+  queue = kzalloc(sizeof(*queue), GFP_KERNEL);
+  if (!queue) {
+    return NULL;
+  }
+  /*
+   * The WQ is unordered because the low-level handler enqueues faults by
+   * group. PRI requests within a group have to be ordered, but once
+   * that's dealt with, the high-level function can handle groups out of
+   * order.
+   */
+  queue->wq = alloc_workqueue("iopf_queue/%s", WQ_UNBOUND, 0, name);
+  if (!queue->wq) {
+    kfree(queue);
+    return NULL;
+  }
+  INIT_LIST_HEAD(&queue->devices);
+  mutex_init(&queue->lock);
+  return queue;
 }
+
 EXPORT_SYMBOL_GPL(iopf_queue_alloc);
 
 /**
@@ -477,17 +440,15 @@ EXPORT_SYMBOL_GPL(iopf_queue_alloc);
  * Counterpart to iopf_queue_alloc(). The driver must not be queuing faults or
  * adding/removing devices on this queue anymore.
  */
-void iopf_queue_free(struct iopf_queue *queue)
-{
-	struct iommu_fault_param *iopf_param, *next;
-
-	if (!queue)
-		return;
-
-	list_for_each_entry_safe(iopf_param, next, &queue->devices, queue_list)
-		iopf_queue_remove_device(queue, iopf_param->dev);
-
-	destroy_workqueue(queue->wq);
-	kfree(queue);
+void iopf_queue_free(struct iopf_queue *queue) {
+  struct iommu_fault_param *iopf_param, *next;
+  if (!queue) {
+    return;
+  }
+  list_for_each_entry_safe(iopf_param, next, &queue->devices, queue_list)
+  iopf_queue_remove_device(queue, iopf_param->dev);
+  destroy_workqueue(queue->wq);
+  kfree(queue);
 }
+
 EXPORT_SYMBOL_GPL(iopf_queue_free);

@@ -24,7 +24,10 @@
 
 //define number of IRQ (see below for definition of each IRQ bits)
 #define CSI_RX_NOF_IRQS_BYTE_DOMAIN                11
-#define CSI_RX_NOF_IRQS_ISP_DOMAIN                 15 // CSI_RX_NOF_IRQS_BYTE_DOMAIN + remaining from Dphy_rx already on ISP clock domain
+#define CSI_RX_NOF_IRQS_ISP_DOMAIN                 15 // CSI_RX_NOF_IRQS_BYTE_DOMAIN
+                                                      // + remaining from
+                                                      // Dphy_rx already on ISP
+                                                      // clock domain
 
 // REGISTER DESCRIPTION
 //#define _HRT_CSI_RX_SOFTRESET_REG_IDX                0
@@ -37,8 +40,10 @@
 //#define _HRT_CSI_RX_IRQ_CONFIG_REG_IDX               6
 #define _HRT_CSI_RX_DLY_CNT_TERMEN_CLANE_REG_IDX     6
 #define _HRT_CSI_RX_DLY_CNT_SETTLE_CLANE_REG_IDX     7
-#define _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane_idx)    (8 + (2 * lane_idx))
-#define _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane_idx)    (8 + (2 * lane_idx) + 1)
+#define _HRT_CSI_RX_DLY_CNT_TERMEN_DLANE_REG_IDX(lane_idx)    (8 \
+  + (2 * lane_idx))
+#define _HRT_CSI_RX_DLY_CNT_SETTLE_DLANE_REG_IDX(lane_idx)    (8 \
+  + (2 * lane_idx) + 1)
 
 #define _HRT_CSI_RX_NOF_REGISTERS(nof_dlanes)      (8 + 2 * (nof_dlanes))
 
@@ -63,7 +68,7 @@
 #define ERR_DECISION_BIT      0
 #define DISC_RESERVED_SP_BIT  1
 #define DISC_RESERVED_LP_BIT  2
-#define DIS_INCOMP_PKT_CHK_BIT	3
+#define DIS_INCOMP_PKT_CHK_BIT  3
 
 #define _HRT_CSI_RX_IRQ_CONFIG_REG_VAL_POSEDGE      0
 #define _HRT_CSI_RX_IRQ_CONFIG_REG_VAL_ORIGINAL     1
@@ -88,24 +93,24 @@
 #define _HRT_RX_CSI_IRQ_CLANE_ULPSCLKNOT           14
 
 /* OLD ARASAN FRONTEND IRQs
-#define _HRT_RX_CSI_IRQ_OVERRUN_BIT                0
-#define _HRT_RX_CSI_IRQ_RESERVED_BIT               1
-#define _HRT_RX_CSI_IRQ_SLEEP_MODE_ENTRY_BIT       2
-#define _HRT_RX_CSI_IRQ_SLEEP_MODE_EXIT_BIT        3
-#define _HRT_RX_CSI_IRQ_ERR_SOT_HS_BIT             4
-#define _HRT_RX_CSI_IRQ_ERR_SOT_SYNC_HS_BIT        5
-#define _HRT_RX_CSI_IRQ_ERR_CONTROL_BIT            6
-#define _HRT_RX_CSI_IRQ_ERR_ECC_DOUBLE_BIT         7
-#define _HRT_RX_CSI_IRQ_ERR_ECC_CORRECTED_BIT      8
-#define _HRT_RX_CSI_IRQ_ERR_ECC_NO_CORRECTION_BIT  9
-#define _HRT_RX_CSI_IRQ_ERR_CRC_BIT               10
-#define _HRT_RX_CSI_IRQ_ERR_ID_BIT                11
-#define _HRT_RX_CSI_IRQ_ERR_FRAME_SYNC_BIT        12
-#define _HRT_RX_CSI_IRQ_ERR_FRAME_DATA_BIT        13
-#define _HRT_RX_CSI_IRQ_DATA_TIMEOUT_BIT          14
-#define _HRT_RX_CSI_IRQ_ERR_ESCAPE_BIT            15
-#define _HRT_RX_CSI_IRQ_ERR_LINE_SYNC_BIT         16
-*/
+ #define _HRT_RX_CSI_IRQ_OVERRUN_BIT                0
+ #define _HRT_RX_CSI_IRQ_RESERVED_BIT               1
+ #define _HRT_RX_CSI_IRQ_SLEEP_MODE_ENTRY_BIT       2
+ #define _HRT_RX_CSI_IRQ_SLEEP_MODE_EXIT_BIT        3
+ #define _HRT_RX_CSI_IRQ_ERR_SOT_HS_BIT             4
+ #define _HRT_RX_CSI_IRQ_ERR_SOT_SYNC_HS_BIT        5
+ #define _HRT_RX_CSI_IRQ_ERR_CONTROL_BIT            6
+ #define _HRT_RX_CSI_IRQ_ERR_ECC_DOUBLE_BIT         7
+ #define _HRT_RX_CSI_IRQ_ERR_ECC_CORRECTED_BIT      8
+ #define _HRT_RX_CSI_IRQ_ERR_ECC_NO_CORRECTION_BIT  9
+ #define _HRT_RX_CSI_IRQ_ERR_CRC_BIT               10
+ #define _HRT_RX_CSI_IRQ_ERR_ID_BIT                11
+ #define _HRT_RX_CSI_IRQ_ERR_FRAME_SYNC_BIT        12
+ #define _HRT_RX_CSI_IRQ_ERR_FRAME_DATA_BIT        13
+ #define _HRT_RX_CSI_IRQ_DATA_TIMEOUT_BIT          14
+ #define _HRT_RX_CSI_IRQ_ERR_ESCAPE_BIT            15
+ #define _HRT_RX_CSI_IRQ_ERR_LINE_SYNC_BIT         16
+ */
 
 ////Bit Description for reg _HRT_CSI_RX_STATUS_DLANE_HS_REG_IDX
 #define _HRT_CSI_RX_STATUS_DLANE_HS_SOT_ERR_LANE0        0
@@ -143,10 +148,10 @@
 #define _HRT_CSI_RX_STATUS_DLANE_LP_ULPSESC_LANE2        22
 #define _HRT_CSI_RX_STATUS_DLANE_LP_ULPSESC_LANE3        23
 
-/*********************************************************/
-/*** Relevant declarations from rx_csi_common_defs.h *****/
-/*********************************************************/
-/* packet bit definition */
+/* *******************************************************
+ * ** Relevant declarations from rx_csi_common_defs.h ****
+ * *******************************************************
+ * packet bit definition*/
 #define _HRT_RX_CSI_PKT_SOP_BITPOS                       32
 #define _HRT_RX_CSI_PKT_EOP_BITPOS                       33
 #define _HRT_RX_CSI_PKT_PAYLOAD_BITPOS                    0
@@ -162,9 +167,46 @@
 #define _HRT_RX_CSI_PH_DATA_FIELD_BITS                   16
 
 /* Definition of data format ID at the interface CSS_receiver units */
-#define _HRT_RX_CSI_DATA_FORMAT_ID_SOF                0   /* 00 0000    frame start                                      */
-#define _HRT_RX_CSI_DATA_FORMAT_ID_EOF                1   /* 00 0001    frame end                                        */
-#define _HRT_RX_CSI_DATA_FORMAT_ID_SOL                2   /* 00 0010    line start                                       */
-#define _HRT_RX_CSI_DATA_FORMAT_ID_EOL                3   /* 00 0011    line end                                         */
+#define _HRT_RX_CSI_DATA_FORMAT_ID_SOF                0   /* 00 0000    frame
+                                                           * start
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *                 */
+#define _HRT_RX_CSI_DATA_FORMAT_ID_EOF                1   /* 00 0001    frame
+                                                           * end
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *                */
+#define _HRT_RX_CSI_DATA_FORMAT_ID_SOL                2   /* 00 0010    line
+                                                           * start
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *                  */
+#define _HRT_RX_CSI_DATA_FORMAT_ID_EOL                3   /* 00 0011    line end
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *   
+                                                           *                 */
 
 #endif /* _csi_rx_defs_h */

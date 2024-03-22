@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    tvp5150.h - definition for tvp5150 inputs
-
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
-
-*/
+ *  tvp5150.h - definition for tvp5150 inputs
+ *
+ *  Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+ *
+ */
 
 #ifndef _DT_BINDINGS_MEDIA_TVP5150_H
 #define _DT_BINDINGS_MEDIA_TVP5150_H

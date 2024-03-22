@@ -12,15 +12,15 @@
 
 #include "hns_dsaf_mac.h"
 
-#define CPLD_ADDR_PORT_OFFSET	0x4
+#define CPLD_ADDR_PORT_OFFSET 0x4
 
-#define HS_LED_ON		0xE
-#define HS_LED_OFF		0xF
+#define HS_LED_ON   0xE
+#define HS_LED_OFF    0xF
 
-#define CPLD_LED_ON_VALUE	1
-#define CPLD_LED_DEFAULT_VALUE	0
+#define CPLD_LED_ON_VALUE 1
+#define CPLD_LED_DEFAULT_VALUE  0
 
-#define MAC_SFP_PORT_OFFSET	0x2
+#define MAC_SFP_PORT_OFFSET 0x2
 
 #define DSAF_LED_SPEED_S 0
 #define DSAF_LED_SPEED_M (0x3 << DSAF_LED_SPEED_S)

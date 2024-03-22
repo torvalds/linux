@@ -12,26 +12,24 @@
 
 #include <asm/io.h>
 
-static inline void fd_cacheflush(char * addr, long size)
-{
-	dma_cache_wback_inv((unsigned long)addr, size);
+static inline void fd_cacheflush(char *addr, long size) {
+  dma_cache_wback_inv((unsigned long) addr, size);
 }
 
 #define MAX_BUFFER_SECTORS 24
-
 
 /*
  * And on Mips's the CMOS info fails also ...
  *
  * FIXME: This information should come from the ARC configuration tree
- *	  or wherever a particular machine has stored this ...
+ *    or wherever a particular machine has stored this ...
  */
-#define FLOPPY0_TYPE		fd_drive_type(0)
-#define FLOPPY1_TYPE		fd_drive_type(1)
+#define FLOPPY0_TYPE    fd_drive_type(0)
+#define FLOPPY1_TYPE    fd_drive_type(1)
 
-#define FDC1			fd_getfdaddr1()
+#define FDC1      fd_getfdaddr1()
 
-#define N_FDC 1			/* do you *really* want a second controller? */
+#define N_FDC 1     /* do you *really* want a second controller? */
 #define N_DRIVE 8
 
 /*
@@ -47,7 +45,8 @@ static inline void fd_cacheflush(char * addr, long size)
  * Actually this needs to be a bit more complicated since the so much different
  * hardware available with MIPS CPUs ...
  */
-#define CROSS_64KB(a, s) ((unsigned long)(a)/K_64 != ((unsigned long)(a) + (s) - 1) / K_64)
+#define CROSS_64KB(a, \
+      s) ((unsigned long) (a) / K_64 != ((unsigned long) (a) + (s) - 1) / K_64)
 
 #define EXTRA_FLOPPY_PARAMS
 

@@ -22,30 +22,30 @@
 struct i915_vma;
 
 struct intel_ring {
-	struct kref ref;
-	struct i915_vma *vma;
-	void *vaddr;
+  struct kref ref;
+  struct i915_vma *vma;
+  void *vaddr;
 
-	/*
-	 * As we have two types of rings, one global to the engine used
-	 * by ringbuffer submission and those that are exclusive to a
-	 * context used by execlists, we have to play safe and allow
-	 * atomic updates to the pin_count. However, the actual pinning
-	 * of the context is either done during initialisation for
-	 * ringbuffer submission or serialised as part of the context
-	 * pinning for execlists, and so we do not need a mutex ourselves
-	 * to serialise intel_ring_pin/intel_ring_unpin.
-	 */
-	atomic_t pin_count;
+  /*
+   * As we have two types of rings, one global to the engine used
+   * by ringbuffer submission and those that are exclusive to a
+   * context used by execlists, we have to play safe and allow
+   * atomic updates to the pin_count. However, the actual pinning
+   * of the context is either done during initialisation for
+   * ringbuffer submission or serialised as part of the context
+   * pinning for execlists, and so we do not need a mutex ourselves
+   * to serialise intel_ring_pin/intel_ring_unpin.
+   */
+  atomic_t pin_count;
 
-	u32 head; /* updated during retire, loosely tracks RING_HEAD */
-	u32 tail; /* updated on submission, used for RING_TAIL */
-	u32 emit; /* updated during request construction */
+  u32 head; /* updated during retire, loosely tracks RING_HEAD */
+  u32 tail; /* updated on submission, used for RING_TAIL */
+  u32 emit; /* updated during request construction */
 
-	u32 space;
-	u32 size;
-	u32 wrap;
-	u32 effective_size;
+  u32 space;
+  u32 size;
+  u32 wrap;
+  u32 effective_size;
 };
 
 #endif /* INTEL_RING_TYPES_H */

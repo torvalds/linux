@@ -11,14 +11,14 @@
 #include <media/dvb_ca_en50221.h>
 
 struct cxd2099_cfg {
-	u32 bitrate;
-	u8  polarity;
-	u8  clock_mode;
+  u32 bitrate;
+  u8 polarity;
+  u8 clock_mode;
 
-	u32 max_i2c;
+  u32 max_i2c;
 
-	/* ptr to DVB CA struct */
-	struct dvb_ca_en50221 **en;
+  /* ptr to DVB CA struct */
+  struct dvb_ca_en50221 **en;
 };
 
 #endif

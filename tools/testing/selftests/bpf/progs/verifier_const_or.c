@@ -8,9 +8,9 @@
 SEC("tracepoint")
 __description("constant register |= constant should keep constant type")
 __success
-__naked void constant_should_keep_constant_type(void)
-{
-	asm volatile ("					\
+__naked void constant_should_keep_constant_type(void) {
+  asm volatile (
+    "					\
 	r1 = r10;					\
 	r1 += -48;					\
 	r2 = 34;					\
@@ -18,17 +18,18 @@ __naked void constant_should_keep_constant_type(void)
 	r3 = 0;						\
 	call %[bpf_probe_read_kernel];			\
 	exit;						\
-"	:
-	: __imm(bpf_probe_read_kernel)
-	: __clobber_all);
+" :
+    : __imm(bpf_probe_read_kernel)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
-__description("constant register |= constant should not bypass stack boundary checks")
+__description(
+    "constant register |= constant should not bypass stack boundary checks")
 __failure __msg("invalid indirect access to stack R1 off=-48 size=58")
-__naked void not_bypass_stack_boundary_checks_1(void)
-{
-	asm volatile ("					\
+__naked void not_bypass_stack_boundary_checks_1(void) {
+  asm volatile (
+    "					\
 	r1 = r10;					\
 	r1 += -48;					\
 	r2 = 34;					\
@@ -36,17 +37,17 @@ __naked void not_bypass_stack_boundary_checks_1(void)
 	r3 = 0;						\
 	call %[bpf_probe_read_kernel];			\
 	exit;						\
-"	:
-	: __imm(bpf_probe_read_kernel)
-	: __clobber_all);
+" :
+    : __imm(bpf_probe_read_kernel)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
 __description("constant register |= constant register should keep constant type")
 __success
-__naked void register_should_keep_constant_type(void)
-{
-	asm volatile ("					\
+__naked void register_should_keep_constant_type(void) {
+  asm volatile (
+    "					\
 	r1 = r10;					\
 	r1 += -48;					\
 	r2 = 34;					\
@@ -55,17 +56,18 @@ __naked void register_should_keep_constant_type(void)
 	r3 = 0;						\
 	call %[bpf_probe_read_kernel];			\
 	exit;						\
-"	:
-	: __imm(bpf_probe_read_kernel)
-	: __clobber_all);
+" :
+    : __imm(bpf_probe_read_kernel)
+    : __clobber_all);
 }
 
 SEC("tracepoint")
-__description("constant register |= constant register should not bypass stack boundary checks")
+__description(
+    "constant register |= constant register should not bypass stack boundary checks")
 __failure __msg("invalid indirect access to stack R1 off=-48 size=58")
-__naked void not_bypass_stack_boundary_checks_2(void)
-{
-	asm volatile ("					\
+__naked void not_bypass_stack_boundary_checks_2(void) {
+  asm volatile (
+    "					\
 	r1 = r10;					\
 	r1 += -48;					\
 	r2 = 34;					\
@@ -74,9 +76,9 @@ __naked void not_bypass_stack_boundary_checks_2(void)
 	r3 = 0;						\
 	call %[bpf_probe_read_kernel];			\
 	exit;						\
-"	:
-	: __imm(bpf_probe_read_kernel)
-	: __clobber_all);
+" :
+    : __imm(bpf_probe_read_kernel)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

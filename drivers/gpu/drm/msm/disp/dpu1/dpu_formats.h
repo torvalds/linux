@@ -15,31 +15,29 @@
  * @modifiers:       format modifier array from client, one per plane
  */
 const struct dpu_format *dpu_get_dpu_format_ext(
-		const uint32_t format,
-		const uint64_t modifier);
+  const uint32_t format,
+  const uint64_t modifier);
 
 #define dpu_get_dpu_format(f) dpu_get_dpu_format_ext(f, 0)
 
 /**
  * dpu_find_format - validate if the pixel format is supported
- * @format:		dpu format
- * @supported_formats:	supported formats by dpu HW
- * @num_formatss:	total number of formats
+ * @format:   dpu format
+ * @supported_formats:  supported formats by dpu HW
+ * @num_formatss: total number of formats
  *
  * Return: false if not valid format, true on success
  */
 static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
-					size_t num_formats)
-{
-	int i;
-
-	for (i = 0; i < num_formats; i++) {
-		/* check for valid formats supported */
-		if (format == supported_formats[i])
-			return true;
-	}
-
-	return false;
+    size_t num_formats) {
+  int i;
+  for (i = 0; i < num_formats; i++) {
+    /* check for valid formats supported */
+    if (format == supported_formats[i]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -50,9 +48,9 @@ static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
  * @modifiers:       data layout modifier
  */
 const struct msm_format *dpu_get_msm_format(
-		struct msm_kms *kms,
-		const uint32_t format,
-		const uint64_t modifiers);
+  struct msm_kms *kms,
+  const uint32_t format,
+  const uint64_t modifiers);
 
 /**
  * dpu_format_check_modified_format - validate format and buffers for
@@ -65,10 +63,10 @@ const struct msm_format *dpu_get_msm_format(
  * Return: error code on failure, 0 on success
  */
 int dpu_format_check_modified_format(
-		const struct msm_kms *kms,
-		const struct msm_format *msm_fmt,
-		const struct drm_mode_fb_cmd2 *cmd,
-		struct drm_gem_object **bos);
+  const struct msm_kms *kms,
+  const struct msm_format *msm_fmt,
+  const struct drm_mode_fb_cmd2 *cmd,
+  struct drm_gem_object **bos);
 
 /**
  * dpu_format_populate_layout - populate the given format layout based on
@@ -81,8 +79,8 @@ int dpu_format_check_modified_format(
  *         are the same as before or 0 if new addresses were populated
  */
 int dpu_format_populate_layout(
-		struct msm_gem_address_space *aspace,
-		struct drm_framebuffer *fb,
-		struct dpu_hw_fmt_layout *fmtl);
+  struct msm_gem_address_space *aspace,
+  struct drm_framebuffer *fb,
+  struct dpu_hw_fmt_layout *fmtl);
 
 #endif /*_DPU_FORMATS_H */

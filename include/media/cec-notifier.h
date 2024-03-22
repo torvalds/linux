@@ -3,7 +3,8 @@
  * cec-notifier.h - notify CEC drivers of physical address changes
  *
  * Copyright 2016 Russell King.
- * Copyright 2016-2017 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2016-2017 Cisco Systems, Inc. and/or its affiliates. All rights
+ * reserved.
  */
 
 #ifndef LINUX_CEC_NOTIFIER_H
@@ -35,9 +36,9 @@ struct cec_notifier;
  *
  * Return NULL if the memory could not be allocated.
  */
-struct cec_notifier *
-cec_notifier_conn_register(struct device *hdmi_dev, const char *port_name,
-			   const struct cec_connector_info *conn_info);
+struct cec_notifier *cec_notifier_conn_register(struct device *hdmi_dev,
+    const char *port_name,
+    const struct cec_connector_info *conn_info);
 
 /**
  * cec_notifier_conn_unregister - decrease refcount and delete when the
@@ -62,9 +63,9 @@ void cec_notifier_conn_unregister(struct cec_notifier *n);
  *
  * Return NULL if the memory could not be allocated.
  */
-struct cec_notifier *
-cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *port_name,
-			       struct cec_adapter *adap);
+struct cec_notifier *cec_notifier_cec_adap_register(struct device *hdmi_dev,
+    const char *port_name,
+    struct cec_adapter *adap);
 
 /**
  * cec_notifier_cec_adap_unregister - decrease refcount and delete when the
@@ -73,7 +74,7 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *port_name,
  * @adap: the cec adapter that registered this notifier.
  */
 void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
-				      struct cec_adapter *adap);
+    struct cec_adapter *adap);
 
 /**
  * cec_notifier_set_phys_addr - set a new physical address.
@@ -94,7 +95,7 @@ void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa);
  * Does nothing if @n == NULL.
  */
 void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
-					  const struct edid *edid);
+    const struct edid *edid);
 
 /**
  * cec_notifier_parse_hdmi_phandle - find the hdmi device from "hdmi-phandle"
@@ -109,43 +110,37 @@ struct device *cec_notifier_parse_hdmi_phandle(struct device *dev);
 
 #else
 
-static inline struct cec_notifier *
-cec_notifier_conn_register(struct device *hdmi_dev, const char *port_name,
-			   const struct cec_connector_info *conn_info)
-{
-	/* A non-NULL pointer is expected on success */
-	return (struct cec_notifier *)0xdeadfeed;
+static inline struct cec_notifier *cec_notifier_conn_register(
+    struct device *hdmi_dev, const char *port_name,
+    const struct cec_connector_info *conn_info) {
+  /* A non-NULL pointer is expected on success */
+  return (struct cec_notifier *) 0xdeadfeed;
 }
 
-static inline void cec_notifier_conn_unregister(struct cec_notifier *n)
-{
+static inline void cec_notifier_conn_unregister(struct cec_notifier *n) {
 }
 
-static inline struct cec_notifier *
-cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *port_name,
-			       struct cec_adapter *adap)
-{
-	/* A non-NULL pointer is expected on success */
-	return (struct cec_notifier *)0xdeadfeed;
+static inline struct cec_notifier *cec_notifier_cec_adap_register(
+    struct device *hdmi_dev, const char *port_name,
+    struct cec_adapter *adap) {
+  /* A non-NULL pointer is expected on success */
+  return (struct cec_notifier *) 0xdeadfeed;
 }
 
 static inline void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
-						    struct cec_adapter *adap)
-{
+    struct cec_adapter *adap) {
 }
 
-static inline void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
-{
+static inline void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa) {
 }
 
 static inline void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
-							const struct edid *edid)
-{
+    const struct edid *edid) {
 }
 
 static inline struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
 {
-	return ERR_PTR(-ENODEV);
+  return ERR_PTR(-ENODEV);
 }
 
 #endif
@@ -158,9 +153,8 @@ static inline struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
  * This is a simple helper function to invalidate the physical
  * address. Does nothing if @n == NULL.
  */
-static inline void cec_notifier_phys_addr_invalidate(struct cec_notifier *n)
-{
-	cec_notifier_set_phys_addr(n, CEC_PHYS_ADDR_INVALID);
+static inline void cec_notifier_phys_addr_invalidate(struct cec_notifier *n) {
+  cec_notifier_set_phys_addr(n, CEC_PHYS_ADDR_INVALID);
 }
 
 #endif

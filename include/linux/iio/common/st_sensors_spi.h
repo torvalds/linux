@@ -14,6 +14,6 @@
 #include <linux/iio/common/st_sensors.h>
 
 int st_sensors_spi_configure(struct iio_dev *indio_dev,
-			     struct spi_device *spi);
+    struct spi_device *spi);
 
 #endif /* ST_SENSORS_SPI_H */

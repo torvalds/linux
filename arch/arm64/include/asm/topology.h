@@ -8,9 +8,9 @@
 
 struct pci_bus;
 int pcibus_to_node(struct pci_bus *bus);
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
-				 cpu_all_mask :				\
-				 cpumask_of_node(pcibus_to_node(bus)))
+#define cpumask_of_pcibus(bus)  (pcibus_to_node(bus) == -1      \
+  ? cpu_all_mask         \
+  : cpumask_of_node(pcibus_to_node(bus)))
 
 #endif /* CONFIG_NUMA */
 
@@ -37,7 +37,7 @@ void update_freq_counters_refs(void);
 
 /* Replace task scheduler's default thermal pressure API */
 #define arch_scale_thermal_pressure topology_get_thermal_pressure
-#define arch_update_thermal_pressure	topology_update_thermal_pressure
+#define arch_update_thermal_pressure  topology_update_thermal_pressure
 
 #include <asm-generic/topology.h>
 

@@ -8,9 +8,9 @@
 struct nf_hook_ops;
 
 struct nf_ct_bridge_info {
-	struct nf_hook_ops	*ops;
-	unsigned int		ops_size;
-	struct module		*me;
+  struct nf_hook_ops *ops;
+  unsigned int ops_size;
+  struct module *me;
 };
 
 void nf_ct_bridge_register(struct nf_ct_bridge_info *info);

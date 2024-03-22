@@ -16,22 +16,21 @@
 unsigned int aa_hash_size(void);
 char *aa_calc_hash(void *data, size_t len);
 int aa_calc_profile_hash(struct aa_profile *profile, u32 version, void *start,
-			 size_t len);
+    size_t len);
 #else
-static inline char *aa_calc_hash(void *data, size_t len)
-{
-	return NULL;
-}
-static inline int aa_calc_profile_hash(struct aa_profile *profile, u32 version,
-				       void *start, size_t len)
-{
-	return 0;
+static inline char *aa_calc_hash(void *data, size_t len) {
+  return NULL;
 }
 
-static inline unsigned int aa_hash_size(void)
-{
-	return 0;
+static inline int aa_calc_profile_hash(struct aa_profile *profile, u32 version,
+    void *start, size_t len) {
+  return 0;
 }
+
+static inline unsigned int aa_hash_size(void) {
+  return 0;
+}
+
 #endif
 
 #endif /* __APPARMOR_CRYPTO_H */

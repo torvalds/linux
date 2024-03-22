@@ -14,8 +14,8 @@
 /* We want to set fans spinning on systems where there is no
  * BIOS to do that for us */
 struct f75375s_platform_data {
-	u8 pwm[2];
-	u8 pwm_enable[2];
+  u8 pwm[2];
+  u8 pwm_enable[2];
 };
 
 #endif /* __LINUX_F75375S_H */

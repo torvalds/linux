@@ -16,25 +16,21 @@
 #endif
 
 static inline void gf_write_ptr(const void *ptr, void __iomem *portl,
-				void __iomem *porth)
-{
-	const unsigned long addr = (unsigned long)ptr;
-
-	gf_iowrite32(lower_32_bits(addr), portl);
+    void __iomem *porth) {
+  const unsigned long addr = (unsigned long) ptr;
+  gf_iowrite32(lower_32_bits(addr), portl);
 #ifdef CONFIG_64BIT
-	gf_iowrite32(upper_32_bits(addr), porth);
+  gf_iowrite32(upper_32_bits(addr), porth);
 #endif
 }
 
 static inline void gf_write_dma_addr(const dma_addr_t addr,
-				     void __iomem *portl,
-				     void __iomem *porth)
-{
-	gf_iowrite32(lower_32_bits(addr), portl);
+    void __iomem *portl,
+    void __iomem *porth) {
+  gf_iowrite32(lower_32_bits(addr), portl);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
-	gf_iowrite32(upper_32_bits(addr), porth);
+  gf_iowrite32(upper_32_bits(addr), porth);
 #endif
 }
-
 
 #endif /* __LINUX_GOLDFISH_H */

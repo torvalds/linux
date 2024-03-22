@@ -19,22 +19,22 @@ struct device_node;
  *
  * @K3_RINGACC_RING_MODE_RING: Exposed Ring mode for SW direct access
  * @K3_RINGACC_RING_MODE_MESSAGE: Messaging mode. Messaging mode requires
- *	that all accesses to the queue must go through this IP so that all
- *	accesses to the memory are controlled and ordered. This IP then
- *	controls the entire state of the queue, and SW has no directly control,
- *	such as through doorbells and cannot access the storage memory directly.
- *	This is particularly useful when more than one SW or HW entity can be
- *	the producer and/or consumer at the same time
+ *  that all accesses to the queue must go through this IP so that all
+ *  accesses to the memory are controlled and ordered. This IP then
+ *  controls the entire state of the queue, and SW has no directly control,
+ *  such as through doorbells and cannot access the storage memory directly.
+ *  This is particularly useful when more than one SW or HW entity can be
+ *  the producer and/or consumer at the same time
  * @K3_RINGACC_RING_MODE_CREDENTIALS: Credentials mode is message mode plus
- *	stores credentials with each message, requiring the element size to be
- *	doubled to fit the credentials. Any exposed memory should be protected
- *	by a firewall from unwanted access
+ *  stores credentials with each message, requiring the element size to be
+ *  doubled to fit the credentials. Any exposed memory should be protected
+ *  by a firewall from unwanted access
  */
 enum k3_ring_mode {
-	K3_RINGACC_RING_MODE_RING = 0,
-	K3_RINGACC_RING_MODE_MESSAGE,
-	K3_RINGACC_RING_MODE_CREDENTIALS,
-	K3_RINGACC_RING_MODE_INVALID
+  K3_RINGACC_RING_MODE_RING = 0,
+  K3_RINGACC_RING_MODE_MESSAGE,
+  K3_RINGACC_RING_MODE_CREDENTIALS,
+  K3_RINGACC_RING_MODE_INVALID
 };
 
 /**
@@ -43,14 +43,14 @@ enum k3_ring_mode {
  * RA ring element's sizes in bytes.
  */
 enum k3_ring_size {
-	K3_RINGACC_RING_ELSIZE_4 = 0,
-	K3_RINGACC_RING_ELSIZE_8,
-	K3_RINGACC_RING_ELSIZE_16,
-	K3_RINGACC_RING_ELSIZE_32,
-	K3_RINGACC_RING_ELSIZE_64,
-	K3_RINGACC_RING_ELSIZE_128,
-	K3_RINGACC_RING_ELSIZE_256,
-	K3_RINGACC_RING_ELSIZE_INVALID
+  K3_RINGACC_RING_ELSIZE_4 = 0,
+  K3_RINGACC_RING_ELSIZE_8,
+  K3_RINGACC_RING_ELSIZE_16,
+  K3_RINGACC_RING_ELSIZE_32,
+  K3_RINGACC_RING_ELSIZE_64,
+  K3_RINGACC_RING_ELSIZE_128,
+  K3_RINGACC_RING_ELSIZE_256,
+  K3_RINGACC_RING_ELSIZE_INVALID
 };
 
 struct k3_ringacc;
@@ -63,24 +63,24 @@ struct k3_ring;
  * @elm_size: Ring element size
  * @mode: Ring operational mode
  * @flags: Ring configuration flags. Possible values:
- *	 @K3_RINGACC_RING_SHARED: when set allows to request the same ring
- *	 few times. It's usable when the same ring is used as Free Host PD ring
- *	 for different flows, for example.
- *	 Note: Locking should be done by consumer if required
+ *   @K3_RINGACC_RING_SHARED: when set allows to request the same ring
+ *   few times. It's usable when the same ring is used as Free Host PD ring
+ *   for different flows, for example.
+ *   Note: Locking should be done by consumer if required
  * @dma_dev: Master device which is using and accessing to the ring
- *	memory when the mode is K3_RINGACC_RING_MODE_RING. Memory allocations
- *	should be done using this device.
+ *  memory when the mode is K3_RINGACC_RING_MODE_RING. Memory allocations
+ *  should be done using this device.
  * @asel: Address Space Select value for physical addresses
  */
 struct k3_ring_cfg {
-	u32 size;
-	enum k3_ring_size elm_size;
-	enum k3_ring_mode mode;
+  u32 size;
+  enum k3_ring_size elm_size;
+  enum k3_ring_mode mode;
 #define K3_RINGACC_RING_SHARED BIT(1)
-	u32 flags;
+  u32 flags;
 
-	struct device *dma_dev;
-	u32 asel;
+  struct device *dma_dev;
+  u32 asel;
 };
 
 #define K3_RINGACC_RING_ID_ANY (-1)
@@ -95,7 +95,7 @@ struct k3_ring_cfg {
  * or -EPROBE_DEFER if not yet registered
  */
 struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_node *np,
-						const char *property);
+    const char *property);
 
 #define K3_RINGACC_RING_USE_PROXY BIT(1)
 
@@ -104,20 +104,20 @@ struct k3_ringacc *of_k3_ringacc_get_by_phandle(struct device_node *np,
  * @ringacc: pointer on ringacc
  * @id: ring id or K3_RINGACC_RING_ID_ANY for any general purpose ring
  * @flags:
- *	@K3_RINGACC_RING_USE_PROXY: if set - proxy will be allocated and
- *		used to access ring memory. Sopported only for rings in
- *		Message/Credentials/Queue mode.
+ *  @K3_RINGACC_RING_USE_PROXY: if set - proxy will be allocated and
+ *    used to access ring memory. Sopported only for rings in
+ *    Message/Credentials/Queue mode.
  *
  * Returns pointer on the Ring - struct k3_ring
  * or NULL in case of failure.
  */
 struct k3_ring *k3_ringacc_request_ring(struct k3_ringacc *ringacc,
-					int id, u32 flags);
+    int id, u32 flags);
 
 int k3_ringacc_request_rings_pair(struct k3_ringacc *ringacc,
-				  int fwd_id, int compl_id,
-				  struct k3_ring **fwd_ring,
-				  struct k3_ring **compl_ring);
+    int fwd_id, int compl_id,
+    struct k3_ring **fwd_ring,
+    struct k3_ring **compl_ring);
 /**
  * k3_ringacc_ring_reset - ring reset
  * @ring: pointer on Ring
@@ -259,12 +259,12 @@ struct ti_sci_handle;
  * struct struct k3_ringacc_init_data - Initialization data for DMA rings
  */
 struct k3_ringacc_init_data {
-	const struct ti_sci_handle *tisci;
-	u32 tisci_dev_id;
-	u32 num_rings;
+  const struct ti_sci_handle *tisci;
+  u32 tisci_dev_id;
+  u32 num_rings;
 };
 
 struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
-					    struct k3_ringacc_init_data *data);
+    struct k3_ringacc_init_data *data);
 
 #endif /* __SOC_TI_K3_RINGACC_API_H_ */

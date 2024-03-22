@@ -16,14 +16,14 @@ struct device_node;
 
 #ifdef CONFIG_MFD_ALTERA_SYSMGR
 struct regmap *altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
-						    const char *property);
+    const char *property);
 #else
-static inline struct regmap *
-altr_sysmgr_regmap_lookup_by_phandle(struct device_node *np,
-				     const char *property)
-{
-	return ERR_PTR(-ENOTSUPP);
+static inline struct regmap *altr_sysmgr_regmap_lookup_by_phandle(
+    struct device_node *np,
+    const char *property) {
+  return ERR_PTR(-ENOTSUPP);
 }
+
 #endif
 
 #endif /* __LINUX_MFD_ALTERA_SYSMGR_H__ */

@@ -18,11 +18,10 @@ struct snd_soc_component;
 struct snd_soc_pcm_runtime;
 
 snd_pcm_uframes_t mtk_afe_pcm_pointer(struct snd_soc_component *component,
-				      struct snd_pcm_substream *substream);
+    struct snd_pcm_substream *substream);
 int mtk_afe_pcm_new(struct snd_soc_component *component,
-		    struct snd_soc_pcm_runtime *rtd);
+    struct snd_soc_pcm_runtime *rtd);
 
 int mtk_afe_combine_sub_dai(struct mtk_base_afe *afe);
 int mtk_afe_add_sub_dai_control(struct snd_soc_component *component);
 #endif
-

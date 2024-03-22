@@ -7,7 +7,7 @@
 char _license[] SEC("license") = "GPL";
 
 struct {
-	__uint(type, BPF_MAP_TYPE_QUEUE);
-	__uint(max_entries, 1);
-	__type(value, __u32);
+  __uint(type, BPF_MAP_TYPE_QUEUE);
+  __uint(max_entries, 1);
+  __type(value, __u32);
 } priv_map SEC(".maps");

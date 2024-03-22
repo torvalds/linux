@@ -183,17 +183,17 @@
 #define WM8400_AIF_WL_MASK                      0x0060  /* AIF_WL - [6:5] */
 #define WM8400_AIF_WL_SHIFT                          5  /* AIF_WL - [6:5] */
 #define WM8400_AIF_WL_WIDTH                          2  /* AIF_WL - [6:5] */
-#define WM8400_AIF_WL_16BITS			(0 << 5)
-#define WM8400_AIF_WL_20BITS			(1 << 5)
-#define WM8400_AIF_WL_24BITS			(2 << 5)
-#define WM8400_AIF_WL_32BITS			(3 << 5)
+#define WM8400_AIF_WL_16BITS      (0 << 5)
+#define WM8400_AIF_WL_20BITS      (1 << 5)
+#define WM8400_AIF_WL_24BITS      (2 << 5)
+#define WM8400_AIF_WL_32BITS      (3 << 5)
 #define WM8400_AIF_FMT_MASK                     0x0018  /* AIF_FMT - [4:3] */
 #define WM8400_AIF_FMT_SHIFT                         3  /* AIF_FMT - [4:3] */
 #define WM8400_AIF_FMT_WIDTH                         2  /* AIF_FMT - [4:3] */
-#define WM8400_AIF_FMT_RIGHTJ			(0 << 3)
-#define WM8400_AIF_FMT_LEFTJ			(1 << 3)
-#define WM8400_AIF_FMT_I2S			(2 << 3)
-#define WM8400_AIF_FMT_DSP			(3 << 3)
+#define WM8400_AIF_FMT_RIGHTJ     (0 << 3)
+#define WM8400_AIF_FMT_LEFTJ      (1 << 3)
+#define WM8400_AIF_FMT_I2S      (2 << 3)
+#define WM8400_AIF_FMT_DSP      (3 << 3)
 
 /*
  * R6 (0x06) - Audio Interface (2)
@@ -214,9 +214,12 @@
 #define WM8400_AIFDAC_TDM_CHAN_MASK             0x1000  /* AIFDAC_TDM_CHAN */
 #define WM8400_AIFDAC_TDM_CHAN_SHIFT                12  /* AIFDAC_TDM_CHAN */
 #define WM8400_AIFDAC_TDM_CHAN_WIDTH                 1  /* AIFDAC_TDM_CHAN */
-#define WM8400_DAC_BOOST_MASK                   0x0C00  /* DAC_BOOST - [11:10] */
-#define WM8400_DAC_BOOST_SHIFT                      10  /* DAC_BOOST - [11:10] */
-#define WM8400_DAC_BOOST_WIDTH                       2  /* DAC_BOOST - [11:10] */
+#define WM8400_DAC_BOOST_MASK                   0x0C00  /* DAC_BOOST - [11:10]
+                                                         * */
+#define WM8400_DAC_BOOST_SHIFT                      10  /* DAC_BOOST - [11:10]
+                                                         * */
+#define WM8400_DAC_BOOST_WIDTH                       2  /* DAC_BOOST - [11:10]
+                                                         * */
 #define WM8400_DAC_COMP                         0x0010  /* DAC_COMP */
 #define WM8400_DAC_COMP_MASK                    0x0010  /* DAC_COMP */
 #define WM8400_DAC_COMP_SHIFT                        4  /* DAC_COMP */
@@ -307,9 +310,12 @@
 #define WM8400_ADCLRC_DIR_MASK                  0x0800  /* ADCLRC_DIR */
 #define WM8400_ADCLRC_DIR_SHIFT                     11  /* ADCLRC_DIR */
 #define WM8400_ADCLRC_DIR_WIDTH                      1  /* ADCLRC_DIR */
-#define WM8400_ADCLRC_RATE_MASK                 0x07FF  /* ADCLRC_RATE - [10:0] */
-#define WM8400_ADCLRC_RATE_SHIFT                     0  /* ADCLRC_RATE - [10:0] */
-#define WM8400_ADCLRC_RATE_WIDTH                    11  /* ADCLRC_RATE - [10:0] */
+#define WM8400_ADCLRC_RATE_MASK                 0x07FF  /* ADCLRC_RATE - [10:0]
+                                                         * */
+#define WM8400_ADCLRC_RATE_SHIFT                     0  /* ADCLRC_RATE - [10:0]
+                                                         * */
+#define WM8400_ADCLRC_RATE_WIDTH                    11  /* ADCLRC_RATE - [10:0]
+                                                         * */
 
 /*
  * R10 (0x0A) - Audio Interface (4)
@@ -330,9 +336,12 @@
 #define WM8400_DACLRC_DIR_MASK                  0x0800  /* DACLRC_DIR */
 #define WM8400_DACLRC_DIR_SHIFT                     11  /* DACLRC_DIR */
 #define WM8400_DACLRC_DIR_WIDTH                      1  /* DACLRC_DIR */
-#define WM8400_DACLRC_RATE_MASK                 0x07FF  /* DACLRC_RATE - [10:0] */
-#define WM8400_DACLRC_RATE_SHIFT                     0  /* DACLRC_RATE - [10:0] */
-#define WM8400_DACLRC_RATE_WIDTH                    11  /* DACLRC_RATE - [10:0] */
+#define WM8400_DACLRC_RATE_MASK                 0x07FF  /* DACLRC_RATE - [10:0]
+                                                         * */
+#define WM8400_DACLRC_RATE_SHIFT                     0  /* DACLRC_RATE - [10:0]
+                                                         * */
+#define WM8400_DACLRC_RATE_WIDTH                    11  /* DACLRC_RATE - [10:0]
+                                                         * */
 
 /*
  * R11 (0x0B) - DAC CTRL
@@ -402,18 +411,30 @@
 /*
  * R14 (0x0E) - Digital Side Tone
  */
-#define WM8400_ADCL_DAC_SVOL_MASK               0x1E00  /*   ADCL_DAC_SVOL - [12:9] */
-#define WM8400_ADCL_DAC_SVOL_SHIFT                   9  /*   ADCL_DAC_SVOL - [12:9] */
-#define WM8400_ADCL_DAC_SVOL_WIDTH                   4  /*   ADCL_DAC_SVOL - [12:9] */
-#define WM8400_ADCR_DAC_SVOL_MASK               0x01E0  /* ADCR_DAC_SVOL - [8:5] */
-#define WM8400_ADCR_DAC_SVOL_SHIFT                   5  /* ADCR_DAC_SVOL - [8:5] */
-#define WM8400_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [8:5] */
-#define WM8400_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2] */
-#define WM8400_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8400_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8400_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0] */
-#define WM8400_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0] */
-#define WM8400_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0] */
+#define WM8400_ADCL_DAC_SVOL_MASK               0x1E00  /*   ADCL_DAC_SVOL -
+                                                         * [12:9] */
+#define WM8400_ADCL_DAC_SVOL_SHIFT                   9  /*   ADCL_DAC_SVOL -
+                                                         * [12:9] */
+#define WM8400_ADCL_DAC_SVOL_WIDTH                   4  /*   ADCL_DAC_SVOL -
+                                                         * [12:9] */
+#define WM8400_ADCR_DAC_SVOL_MASK               0x01E0  /* ADCR_DAC_SVOL - [8:5]
+                                                         * */
+#define WM8400_ADCR_DAC_SVOL_SHIFT                   5  /* ADCR_DAC_SVOL - [8:5]
+                                                         * */
+#define WM8400_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [8:5]
+                                                         * */
+#define WM8400_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8400_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8400_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8400_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8400_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8400_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0]
+                                                         * */
 
 /*
  * R15 (0x0F) - ADC CTRL
@@ -422,9 +443,12 @@
 #define WM8400_ADC_HPF_ENA_MASK                 0x0100  /* ADC_HPF_ENA */
 #define WM8400_ADC_HPF_ENA_SHIFT                     8  /* ADC_HPF_ENA */
 #define WM8400_ADC_HPF_ENA_WIDTH                     1  /* ADC_HPF_ENA */
-#define WM8400_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5] */
-#define WM8400_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5] */
-#define WM8400_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5] */
+#define WM8400_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8400_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8400_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5]
+                                                         * */
 #define WM8400_ADCL_DATINV                      0x0002  /* ADCL_DATINV */
 #define WM8400_ADCL_DATINV_MASK                 0x0002  /* ADCL_DATINV */
 #define WM8400_ADCL_DATINV_SHIFT                     1  /* ADCL_DATINV */
@@ -1126,9 +1150,12 @@
 #define WM8400_FLL_REF_FREQ_MASK                0x1000  /* FLL_REF_FREQ */
 #define WM8400_FLL_REF_FREQ_SHIFT                   12  /* FLL_REF_FREQ */
 #define WM8400_FLL_REF_FREQ_WIDTH                    1  /* FLL_REF_FREQ */
-#define WM8400_FLL_CLK_SRC_MASK                 0x0C00  /* FLL_CLK_SRC - [11:10] */
-#define WM8400_FLL_CLK_SRC_SHIFT                    10  /* FLL_CLK_SRC - [11:10] */
-#define WM8400_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [11:10] */
+#define WM8400_FLL_CLK_SRC_MASK                 0x0C00  /* FLL_CLK_SRC - [11:10]
+                                                         * */
+#define WM8400_FLL_CLK_SRC_SHIFT                    10  /* FLL_CLK_SRC - [11:10]
+                                                         * */
+#define WM8400_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [11:10]
+                                                         * */
 #define WM8400_FLL_FRAC                         0x0200  /* FLL_FRAC */
 #define WM8400_FLL_FRAC_MASK                    0x0200  /* FLL_FRAC */
 #define WM8400_FLL_FRAC_SHIFT                        9  /* FLL_FRAC */
@@ -1137,9 +1164,12 @@
 #define WM8400_FLL_OSC_ENA_MASK                 0x0100  /* FLL_OSC_ENA */
 #define WM8400_FLL_OSC_ENA_SHIFT                     8  /* FLL_OSC_ENA */
 #define WM8400_FLL_OSC_ENA_WIDTH                     1  /* FLL_OSC_ENA */
-#define WM8400_FLL_CTRL_RATE_MASK               0x00E0  /* FLL_CTRL_RATE - [7:5] */
-#define WM8400_FLL_CTRL_RATE_SHIFT                   5  /* FLL_CTRL_RATE - [7:5] */
-#define WM8400_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [7:5] */
+#define WM8400_FLL_CTRL_RATE_MASK               0x00E0  /* FLL_CTRL_RATE - [7:5]
+                                                         * */
+#define WM8400_FLL_CTRL_RATE_SHIFT                   5  /* FLL_CTRL_RATE - [7:5]
+                                                         * */
+#define WM8400_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [7:5]
+                                                         * */
 #define WM8400_FLL_FRATIO_MASK                  0x001F  /* FLL_FRATIO - [4:0] */
 #define WM8400_FLL_FRATIO_SHIFT                      0  /* FLL_FRATIO - [4:0] */
 #define WM8400_FLL_FRATIO_WIDTH                      5  /* FLL_FRATIO - [4:0] */
@@ -1161,9 +1191,12 @@
 /*
  * R63 (0x3F) - FLL Control 4
  */
-#define WM8400_FLL_TRK_GAIN_MASK                0x0078  /* FLL_TRK_GAIN - [6:3] */
-#define WM8400_FLL_TRK_GAIN_SHIFT                    3  /* FLL_TRK_GAIN - [6:3] */
-#define WM8400_FLL_TRK_GAIN_WIDTH                    4  /* FLL_TRK_GAIN - [6:3] */
+#define WM8400_FLL_TRK_GAIN_MASK                0x0078  /* FLL_TRK_GAIN - [6:3]
+                                                         * */
+#define WM8400_FLL_TRK_GAIN_SHIFT                    3  /* FLL_TRK_GAIN - [6:3]
+                                                         * */
+#define WM8400_FLL_TRK_GAIN_WIDTH                    4  /* FLL_TRK_GAIN - [6:3]
+                                                         * */
 #define WM8400_FLL_OUTDIV_MASK                  0x0007  /* FLL_OUTDIV - [2:0] */
 #define WM8400_FLL_OUTDIV_SHIFT                      0  /* FLL_OUTDIV - [2:0] */
 #define WM8400_FLL_OUTDIV_WIDTH                      3  /* FLL_OUTDIV - [2:0] */

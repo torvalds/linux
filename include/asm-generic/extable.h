@@ -15,11 +15,9 @@
  * on our cache or tlb entries.
  */
 
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
+struct exception_table_entry {
+  unsigned long insn, fixup;
 };
-
 
 struct pt_regs;
 extern int fixup_exception(struct pt_regs *regs);

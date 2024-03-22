@@ -37,13 +37,18 @@
 #define PPSMC_MSG_GetDriverIfVersion                   0x3
 #define PPSMC_MSG_EnableGfxOff                         0x4
 #define PPSMC_MSG_DisableGfxOff                        0x5
-#define PPSMC_MSG_PowerDownIspByTile                   0x6 // ISP is power gated by default
+#define PPSMC_MSG_PowerDownIspByTile                   0x6 // ISP is power gated
+                                                           // by default
 #define PPSMC_MSG_PowerUpIspByTile                     0x7
-#define PPSMC_MSG_PowerDownVcn                         0x8 // VCN is power gated by default
+#define PPSMC_MSG_PowerDownVcn                         0x8 // VCN is power gated
+                                                           // by default
 #define PPSMC_MSG_PowerUpVcn                           0x9
 #define PPSMC_MSG_RlcPowerNotify                       0xA
-#define PPSMC_MSG_SetHardMinVcn                        0xB // For wireless display
-#define PPSMC_MSG_SetSoftMinGfxclk                     0xC //Sets SoftMin for GFXCLK. Arg is in MHz
+#define PPSMC_MSG_SetHardMinVcn                        0xB // For wireless
+                                                           // display
+#define PPSMC_MSG_SetSoftMinGfxclk                     0xC //Sets SoftMin for
+                                                           // GFXCLK. Arg is in
+                                                           // MHz
 #define PPSMC_MSG_ActiveProcessNotify                  0xD
 #define PPSMC_MSG_SetHardMinIspiclkByFreq              0xE
 #define PPSMC_MSG_SetHardMinIspxclkByFreq              0xF
@@ -51,11 +56,13 @@
 #define PPSMC_MSG_SetDriverDramAddrLow                 0x11
 #define PPSMC_MSG_TransferTableSmu2Dram                0x12
 #define PPSMC_MSG_TransferTableDram2Smu                0x13
-#define PPSMC_MSG_GfxDeviceDriverReset                 0x14 //mode 2 reset during TDR
+#define PPSMC_MSG_GfxDeviceDriverReset                 0x14 //mode 2 reset
+                                                            // during TDR
 #define PPSMC_MSG_GetEnabledSmuFeatures                0x15
 #define PPSMC_MSG_spare1                               0x16
 #define PPSMC_MSG_SetHardMinSocclkByFreq               0x17
-#define PPSMC_MSG_SetSoftMinFclk                       0x18 //Used to be PPSMC_MSG_SetMinVideoFclkFreq
+#define PPSMC_MSG_SetSoftMinFclk                       0x18 //Used to be
+                                                            // PPSMC_MSG_SetMinVideoFclkFreq
 #define PPSMC_MSG_SetSoftMinVcn                        0x19
 #define PPSMC_MSG_EnablePostCode                       0x1A
 #define PPSMC_MSG_GetGfxclkFrequency                   0x1B
@@ -108,9 +115,9 @@
 #define PPSMC_MSG_SetSlowPPTLimit                      0x4A
 #define PPSMC_MSG_GetFastPPTLimit                      0x4B
 #define PPSMC_MSG_GetSlowPPTLimit                      0x4C
-#define PPSMC_MSG_GetGfxOffStatus		       0x50
-#define PPSMC_MSG_GetGfxOffEntryCount		       0x51
-#define PPSMC_MSG_LogGfxOffResidency		       0x52
+#define PPSMC_MSG_GetGfxOffStatus          0x50
+#define PPSMC_MSG_GetGfxOffEntryCount          0x51
+#define PPSMC_MSG_LogGfxOffResidency           0x52
 #define PPSMC_Message_Count                            0x53
 
 //Argument for PPSMC_MSG_GfxDeviceDriverReset

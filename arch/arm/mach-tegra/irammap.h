@@ -9,13 +9,13 @@
 #include <linux/sizes.h>
 
 /* The first 1K of IRAM is permanently reserved for the CPU reset handler */
-#define TEGRA_IRAM_RESET_HANDLER_OFFSET	0
-#define TEGRA_IRAM_RESET_HANDLER_SIZE	SZ_1K
+#define TEGRA_IRAM_RESET_HANDLER_OFFSET 0
+#define TEGRA_IRAM_RESET_HANDLER_SIZE SZ_1K
 
 /*
  * This area is used for LPx resume vector, only while LPx power state is
  * active. At other times, the AVP may use this area for arbitrary purposes
  */
-#define TEGRA_IRAM_LPx_RESUME_AREA	(TEGRA_IRAM_BASE + SZ_4K)
+#define TEGRA_IRAM_LPx_RESUME_AREA  (TEGRA_IRAM_BASE + SZ_4K)
 
 #endif

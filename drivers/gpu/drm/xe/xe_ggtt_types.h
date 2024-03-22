@@ -14,26 +14,26 @@ struct xe_bo;
 struct xe_gt;
 
 struct xe_ggtt_pt_ops {
-	u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset, u16 pat_index);
+  u64 (*pte_encode_bo)(struct xe_bo *bo, u64 bo_offset, u16 pat_index);
 };
 
 struct xe_ggtt {
-	struct xe_tile *tile;
+  struct xe_tile *tile;
 
-	u64 size;
+  u64 size;
 
 #define XE_GGTT_FLAGS_64K BIT(0)
-	unsigned int flags;
+  unsigned int flags;
 
-	struct xe_bo *scratch;
+  struct xe_bo *scratch;
 
-	struct mutex lock;
+  struct mutex lock;
 
-	u64 __iomem *gsm;
+  u64 __iomem *gsm;
 
-	const struct xe_ggtt_pt_ops *pt_ops;
+  const struct xe_ggtt_pt_ops *pt_ops;
 
-	struct drm_mm mm;
+  struct drm_mm mm;
 };
 
 #endif

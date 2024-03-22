@@ -35,7 +35,7 @@ struct apple_sart *devm_apple_sart_get(struct device *dev);
  * @size: Size of the region to be used for DMA.
  */
 int apple_sart_add_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
-				  size_t size);
+    size_t size);
 
 /*
  * Removes the region [paddr, paddr+size] from the DMA allow list.
@@ -48,6 +48,6 @@ int apple_sart_add_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
  * @size: Size of the region no longer used for DMA.
  */
 int apple_sart_remove_allowed_region(struct apple_sart *sart, phys_addr_t paddr,
-				     size_t size);
+    size_t size);
 
 #endif /* _LINUX_SOC_APPLE_SART_H_ */

@@ -31,16 +31,16 @@
 #include "gf100.h"
 
 struct gk104_clkgate_engine_info {
-	enum nvkm_subdev_type type;
-	int inst;
-	u8 offset;
+  enum nvkm_subdev_type type;
+  int inst;
+  u8 offset;
 };
 
 struct gk104_therm {
-	struct nvkm_therm base;
+  struct nvkm_therm base;
 
-	const struct gk104_clkgate_engine_info *clkgate_order;
-	const struct gf100_idle_filter *idle_filter;
+  const struct gk104_clkgate_engine_info *clkgate_order;
+  const struct gf100_idle_filter *idle_filter;
 };
 
 extern const struct gk104_clkgate_engine_info gk104_clkgate_engine_info[];

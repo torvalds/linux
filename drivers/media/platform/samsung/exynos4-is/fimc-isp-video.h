@@ -13,29 +13,27 @@
 
 #ifdef CONFIG_VIDEO_EXYNOS4_ISP_DMA_CAPTURE
 int fimc_isp_video_device_register(struct fimc_isp *isp,
-				struct v4l2_device *v4l2_dev,
-				enum v4l2_buf_type type);
+    struct v4l2_device *v4l2_dev,
+    enum v4l2_buf_type type);
 
 void fimc_isp_video_device_unregister(struct fimc_isp *isp,
-				enum v4l2_buf_type type);
+    enum v4l2_buf_type type);
 
 void fimc_isp_video_irq_handler(struct fimc_is *is);
 #else
-static inline void fimc_isp_video_irq_handler(struct fimc_is *is)
-{
+static inline void fimc_isp_video_irq_handler(struct fimc_is *is) {
 }
 
 static inline int fimc_isp_video_device_register(struct fimc_isp *isp,
-						struct v4l2_device *v4l2_dev,
-						enum v4l2_buf_type type)
-{
-	return 0;
+    struct v4l2_device *v4l2_dev,
+    enum v4l2_buf_type type) {
+  return 0;
 }
 
 static inline void fimc_isp_video_device_unregister(struct fimc_isp *isp,
-				enum v4l2_buf_type type)
-{
+    enum v4l2_buf_type type) {
 }
+
 #endif /* !CONFIG_VIDEO_EXYNOS4_ISP_DMA_CAPTURE */
 
 #endif /* FIMC_ISP_VIDEO__ */

@@ -11,17 +11,16 @@
 void snd_hdac_i915_set_bclk(struct hdac_bus *bus);
 int snd_hdac_i915_init(struct hdac_bus *bus);
 #else
-static inline void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
-{
+static inline void snd_hdac_i915_set_bclk(struct hdac_bus *bus) {
 }
-static inline int snd_hdac_i915_init(struct hdac_bus *bus)
-{
-	return -ENODEV;
+
+static inline int snd_hdac_i915_init(struct hdac_bus *bus) {
+  return -ENODEV;
 }
+
 #endif
-static inline int snd_hdac_i915_exit(struct hdac_bus *bus)
-{
-	return snd_hdac_acomp_exit(bus);
+static inline int snd_hdac_i915_exit(struct hdac_bus *bus) {
+  return snd_hdac_acomp_exit(bus);
 }
 
 #endif /* __SOUND_HDA_I915_H */

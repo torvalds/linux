@@ -24,58 +24,51 @@
 #define QUEUE_NOT_FULL                  1
 #define QUEUE_FULL                      0
 
-static inline int rsi_init_event(struct rsi_event *pevent)
-{
-	atomic_set(&pevent->event_condition, 1);
-	init_waitqueue_head(&pevent->event_queue);
-	return 0;
+static inline int rsi_init_event(struct rsi_event *pevent) {
+  atomic_set(&pevent->event_condition, 1);
+  init_waitqueue_head(&pevent->event_queue);
+  return 0;
 }
 
-static inline int rsi_wait_event(struct rsi_event *event, u32 timeout)
-{
-	int status = 0;
-
-	if (!timeout)
-		status = wait_event_interruptible(event->event_queue,
-				(atomic_read(&event->event_condition) == 0));
-	else
-		status = wait_event_interruptible_timeout(event->event_queue,
-				(atomic_read(&event->event_condition) == 0),
-				timeout);
-	return status;
+static inline int rsi_wait_event(struct rsi_event *event, u32 timeout) {
+  int status = 0;
+  if (!timeout) {
+    status = wait_event_interruptible(event->event_queue,
+        (atomic_read(&event->event_condition) == 0));
+  } else {
+    status = wait_event_interruptible_timeout(event->event_queue,
+        (atomic_read(&event->event_condition) == 0),
+        timeout);
+  }
+  return status;
 }
 
-static inline void rsi_set_event(struct rsi_event *event)
-{
-	atomic_set(&event->event_condition, 0);
-	wake_up_interruptible(&event->event_queue);
+static inline void rsi_set_event(struct rsi_event *event) {
+  atomic_set(&event->event_condition, 0);
+  wake_up_interruptible(&event->event_queue);
 }
 
-static inline void rsi_reset_event(struct rsi_event *event)
-{
-	atomic_set(&event->event_condition, 1);
+static inline void rsi_reset_event(struct rsi_event *event) {
+  atomic_set(&event->event_condition, 1);
 }
 
 static inline int rsi_create_kthread(struct rsi_common *common,
-				     struct rsi_thread *thread,
-				     void *func_ptr,
-				     u8 *name)
-{
-	init_completion(&thread->completion);
-	atomic_set(&thread->thread_done, 0);
-	thread->task = kthread_run(func_ptr, common, "%s", name);
-	if (IS_ERR(thread->task))
-		return (int)PTR_ERR(thread->task);
-
-	return 0;
+    struct rsi_thread *thread,
+    void *func_ptr,
+    u8 *name) {
+  init_completion(&thread->completion);
+  atomic_set(&thread->thread_done, 0);
+  thread->task = kthread_run(func_ptr, common, "%s", name);
+  if (IS_ERR(thread->task)) {
+    return (int) PTR_ERR(thread->task);
+  }
+  return 0;
 }
 
-static inline int rsi_kill_thread(struct rsi_thread *handle)
-{
-	atomic_inc(&handle->thread_done);
-	rsi_set_event(&handle->event);
-
-	return kthread_stop(handle->task);
+static inline int rsi_kill_thread(struct rsi_thread *handle) {
+  atomic_inc(&handle->thread_done);
+  rsi_set_event(&handle->event);
+  return kthread_stop(handle->task);
 }
 
 void rsi_mac80211_detach(struct rsi_hw *hw);

@@ -33,7 +33,6 @@
 #define WM8400_ADC_CLKDIV_5_5  0xa0
 #define WM8400_ADC_CLKDIV_6    0xc0
 
-
 #define WM8400_BCLK_DIV_1                       (0x0 << 1)
 #define WM8400_BCLK_DIV_1_5                     (0x1 << 1)
 #define WM8400_BCLK_DIV_2                       (0x2 << 1)

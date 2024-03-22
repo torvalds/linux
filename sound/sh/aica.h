@@ -26,9 +26,9 @@
 #define AICA_CMD_VOL 3
 
 /* Sound modes */
-#define SM_8BIT		1
-#define SM_16BIT	0
-#define SM_ADPCM	2
+#define SM_8BIT   1
+#define SM_16BIT  0
+#define SM_ADPCM  2
 
 /* Buffer and period size */
 #define AICA_BUFFER_SIZE 0x8000
@@ -45,24 +45,24 @@
 #define SND_AICA_DRIVER "AICA"
 
 struct aica_channel {
-	uint32_t cmd;		/* Command ID           */
-	uint32_t pos;		/* Sample position      */
-	uint32_t length;	/* Sample length        */
-	uint32_t freq;		/* Frequency            */
-	uint32_t vol;		/* Volume 0-255         */
-	uint32_t pan;		/* Pan 0-255            */
-	uint32_t sfmt;		/* Sound format         */
-	uint32_t flags;		/* Bit flags            */
+  uint32_t cmd;   /* Command ID           */
+  uint32_t pos;   /* Sample position      */
+  uint32_t length;  /* Sample length        */
+  uint32_t freq;    /* Frequency            */
+  uint32_t vol;   /* Volume 0-255         */
+  uint32_t pan;   /* Pan 0-255            */
+  uint32_t sfmt;    /* Sound format         */
+  uint32_t flags;   /* Bit flags            */
 };
 
 struct snd_card_aica {
-	struct work_struct spu_dma_work;
-	struct snd_card *card;
-	struct aica_channel *channel;
-	struct snd_pcm_substream *substream;
-	int clicks;
-	int current_period;
-	struct timer_list timer;
-	int master_volume;
-	int dma_check;
+  struct work_struct spu_dma_work;
+  struct snd_card *card;
+  struct aica_channel *channel;
+  struct snd_pcm_substream *substream;
+  int clicks;
+  int current_period;
+  struct timer_list timer;
+  int master_volume;
+  int dma_check;
 };

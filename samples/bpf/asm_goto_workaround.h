@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2019 Facebook */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2019 Facebook*/
 #ifndef __ASM_GOTO_WORKAROUND_H
 #define __ASM_GOTO_WORKAROUND_H
 
@@ -11,7 +11,7 @@
 
 #ifdef asm_goto_output
 #undef asm_goto_output
-#define asm_goto_output(x...) asm volatile("invalid use of asm_goto_output")
+#define asm_goto_output(x ...) asm volatile ("invalid use of asm_goto_output")
 #endif
 
 /*
@@ -24,5 +24,5 @@
 #define asm_inline asm
 #endif
 
-#define volatile(x...) volatile("")
+#define volatile(x ...) volatile ("")
 #endif

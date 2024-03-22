@@ -16,17 +16,17 @@
 struct net;
 
 struct phonet_device_list {
-	struct list_head list;
-	struct mutex lock;
+  struct list_head list;
+  struct mutex lock;
 };
 
 struct phonet_device_list *phonet_device_list(struct net *net);
 
 struct phonet_device {
-	struct list_head list;
-	struct net_device *netdev;
-	DECLARE_BITMAP(addrs, 64);
-	struct rcu_head	rcu;
+  struct list_head list;
+  struct net_device *netdev;
+  DECLARE_BITMAP(addrs, 64);
+  struct rcu_head rcu;
 };
 
 int phonet_device_init(void);
@@ -46,7 +46,7 @@ void rtm_phonet_notify(int event, struct net_device *dev, u8 dst);
 struct net_device *phonet_route_get_rcu(struct net *net, u8 daddr);
 struct net_device *phonet_route_output(struct net *net, u8 daddr);
 
-#define PN_NO_ADDR	0xff
+#define PN_NO_ADDR  0xff
 
 extern const struct seq_operations pn_sock_seq_ops;
 extern const struct seq_operations pn_res_seq_ops;

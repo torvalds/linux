@@ -33,8 +33,8 @@ void *dm_block_data(struct dm_block *b);
  */
 struct dm_block_manager;
 struct dm_block_manager *dm_block_manager_create(
-	struct block_device *bdev, unsigned int block_size,
-	unsigned int max_held_per_thread);
+  struct block_device *bdev, unsigned int block_size,
+  unsigned int max_held_per_thread);
 void dm_block_manager_destroy(struct dm_block_manager *bm);
 void dm_block_manager_reset(struct dm_block_manager *bm);
 
@@ -50,13 +50,15 @@ dm_block_t dm_bm_nr_blocks(struct dm_block_manager *bm);
  * you can change validators is if you call dm_bm_write_lock_zero.
  */
 struct dm_block_validator {
-	const char *name;
-	void (*prepare_for_write)(struct dm_block_validator *v, struct dm_block *b, size_t block_size);
+  const char *name;
+  void (*prepare_for_write)(struct dm_block_validator *v, struct dm_block *b,
+      size_t block_size);
 
-	/*
-	 * Return 0 if the checksum is valid or < 0 on error.
-	 */
-	int (*check)(struct dm_block_validator *v, struct dm_block *b, size_t block_size);
+  /*
+   * Return 0 if the checksum is valid or < 0 on error.
+   */
+  int (*check)(struct dm_block_validator *v, struct dm_block *b,
+      size_t block_size);
 };
 
 /*----------------------------------------------------------------*/
@@ -73,28 +75,28 @@ struct dm_block_validator {
  * written back to the disk sometime after dm_bm_unlock is called.
  */
 int dm_bm_read_lock(struct dm_block_manager *bm, dm_block_t b,
-		    struct dm_block_validator *v,
-		    struct dm_block **result);
+    struct dm_block_validator *v,
+    struct dm_block **result);
 
 int dm_bm_write_lock(struct dm_block_manager *bm, dm_block_t b,
-		     struct dm_block_validator *v,
-		     struct dm_block **result);
+    struct dm_block_validator *v,
+    struct dm_block **result);
 
 /*
  * The *_try_lock variants return -EWOULDBLOCK if the block isn't
  * available immediately.
  */
 int dm_bm_read_try_lock(struct dm_block_manager *bm, dm_block_t b,
-			struct dm_block_validator *v,
-			struct dm_block **result);
+    struct dm_block_validator *v,
+    struct dm_block **result);
 
 /*
  * Use dm_bm_write_lock_zero() when you know you're going to
  * overwrite the block completely.  It saves a disk read.
  */
 int dm_bm_write_lock_zero(struct dm_block_manager *bm, dm_block_t b,
-			  struct dm_block_validator *v,
-			  struct dm_block **result);
+    struct dm_block_validator *v,
+    struct dm_block **result);
 
 void dm_bm_unlock(struct dm_block *b);
 
@@ -133,4 +135,4 @@ u32 dm_bm_checksum(const void *data, size_t len, u32 init_xor);
 
 /*----------------------------------------------------------------*/
 
-#endif	/* _LINUX_DM_BLOCK_MANAGER_H */
+#endif  /* _LINUX_DM_BLOCK_MANAGER_H */

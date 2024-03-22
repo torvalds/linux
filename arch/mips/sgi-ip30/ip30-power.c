@@ -20,22 +20,19 @@
 #include <asm/reboot.h>
 #include <asm/sgi/heart.h>
 
-static void __noreturn ip30_machine_restart(char *cmd)
-{
-	/*
-	 * Execute HEART cold reset
-	 *   Yes, it's cold-HEARTed!
-	 */
-	heart_write((heart_read(&heart_regs->mode) | HM_COLD_RST),
-		    &heart_regs->mode);
-	unreachable();
+static void __noreturn ip30_machine_restart(char *cmd) {
+  /*
+   * Execute HEART cold reset
+   *   Yes, it's cold-HEARTed!
+   */
+  heart_write((heart_read(&heart_regs->mode) | HM_COLD_RST),
+      &heart_regs->mode);
+  unreachable();
 }
 
-static int __init ip30_reboot_setup(void)
-{
-	_machine_restart = ip30_machine_restart;
-
-	return 0;
+static int __init ip30_reboot_setup(void) {
+  _machine_restart = ip30_machine_restart;
+  return 0;
 }
 
 subsys_initcall(ip30_reboot_setup);

@@ -5,11 +5,11 @@
 
 /* Prototypes of functions used across modules here in this directory.  */
 
-#define vucp	volatile unsigned char  *
-#define vusp	volatile unsigned short *
-#define vip	volatile int *
-#define vuip	volatile unsigned int   *
-#define vulp	volatile unsigned long  *
+#define vucp  volatile unsigned char *
+#define vusp  volatile unsigned short *
+#define vip volatile int *
+#define vuip  volatile unsigned int *
+#define vulp  volatile unsigned long *
 
 struct pt_regs;
 struct task_struct;
@@ -36,7 +36,7 @@ extern void cia_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern struct pci_ops irongate_pci_ops;
 extern int irongate_pci_clr_err(void);
 extern void irongate_init_arch(void);
-#define irongate_pci_tbi ((void *)0)
+#define irongate_pci_tbi ((void *) 0)
 
 /* core_lca.c */
 extern struct pci_ops lca_pci_ops;
@@ -68,7 +68,7 @@ extern int polaris_read_config_dword(struct pci_dev *, int, u32 *);
 extern int polaris_write_config_dword(struct pci_dev *, int, u32);
 extern void polaris_init_arch(void);
 extern void polaris_machine_check(unsigned long vector, unsigned long la_ptr);
-#define polaris_pci_tbi ((void *)0)
+#define polaris_pci_tbi ((void *) 0)
 
 /* core_t2.c */
 extern struct pci_ops t2_pci_ops;
@@ -104,8 +104,12 @@ extern void wildfire_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern void find_console_vga_hose(void);
 extern void locate_and_init_vga(void *(*)(void *, void *));
 #else
-static inline void find_console_vga_hose(void) { }
-static inline void locate_and_init_vga(void *(*sel_func)(void *, void *)) { }
+static inline void find_console_vga_hose(void) {
+}
+
+static inline void locate_and_init_vga(void *(*sel_func)(void *, void *)) {
+}
+
 #endif
 
 /* setup.c */
@@ -129,8 +133,8 @@ extern void unregister_srm_console(void);
 extern void setup_smp(void);
 extern void handle_ipi(struct pt_regs *);
 
-/* bios32.c */
-/* extern void reset_for_srm(void); */
+/* bios32.c
+ * extern void reset_for_srm(void);*/
 
 /* time.c */
 extern irqreturn_t rtc_timer_interrupt(int irq, void *dev);
@@ -148,8 +152,8 @@ extern void SMC669_Init(int);
 extern void es1888_init(void);
 
 /* ../lib/fpreg.c */
-extern void alpha_write_fp_reg (unsigned long reg, unsigned long val);
-extern unsigned long alpha_read_fp_reg (unsigned long reg);
+extern void alpha_write_fp_reg(unsigned long reg, unsigned long val);
+extern unsigned long alpha_read_fp_reg(unsigned long reg);
 
 /* head.S */
 extern void wrmces(unsigned long mces);
@@ -167,8 +171,8 @@ extern void entUna(void);
 extern void entDbg(void);
 
 /* ptrace.c */
-extern int ptrace_set_bpt (struct task_struct *child);
-extern int ptrace_cancel_bpt (struct task_struct *child);
+extern int ptrace_set_bpt(struct task_struct *child);
+extern int ptrace_cancel_bpt(struct task_struct *child);
 
 /* traps.c */
 extern void dik_show_regs(struct pt_regs *regs, unsigned long *r9_15);
@@ -181,35 +185,32 @@ extern void titan_dispatch_irqs(u64);
 extern void switch_to_system_map(void);
 extern void srm_paging_stop(void);
 
-static inline int
-__alpha_remap_area_pages(unsigned long address, unsigned long phys_addr,
-			 unsigned long size, unsigned long flags)
-{
-	pgprot_t prot;
-
-	prot = __pgprot(_PAGE_VALID | _PAGE_ASM | _PAGE_KRE
-			| _PAGE_KWE | flags);
-	return ioremap_page_range(address, address + size, phys_addr, prot);
+static inline int __alpha_remap_area_pages(unsigned long address,
+    unsigned long phys_addr,
+    unsigned long size, unsigned long flags) {
+  pgprot_t prot;
+  prot = __pgprot(_PAGE_VALID | _PAGE_ASM | _PAGE_KRE
+      | _PAGE_KWE | flags);
+  return ioremap_page_range(address, address + size, phys_addr, prot);
 }
 
 /* irq.c */
 
 #ifdef CONFIG_SMP
-#define mcheck_expected(cpu)	(cpu_data[cpu].mcheck_expected)
-#define mcheck_taken(cpu)	(cpu_data[cpu].mcheck_taken)
-#define mcheck_extra(cpu)	(cpu_data[cpu].mcheck_extra)
+#define mcheck_expected(cpu)  (cpu_data[cpu].mcheck_expected)
+#define mcheck_taken(cpu) (cpu_data[cpu].mcheck_taken)
+#define mcheck_extra(cpu) (cpu_data[cpu].mcheck_extra)
 #else
-extern struct mcheck_info
-{
-	unsigned char expected __attribute__((aligned(8)));
-	unsigned char taken;
-	unsigned char extra;
+extern struct mcheck_info {
+  unsigned char expected __attribute__((aligned(8)));
+  unsigned char taken;
+  unsigned char extra;
 } __mcheck_info;
 
-#define mcheck_expected(cpu)	(*((void)(cpu), &__mcheck_info.expected))
-#define mcheck_taken(cpu)	(*((void)(cpu), &__mcheck_info.taken))
-#define mcheck_extra(cpu)	(*((void)(cpu), &__mcheck_info.extra))
+#define mcheck_expected(cpu)  (*((void) (cpu), &__mcheck_info.expected))
+#define mcheck_taken(cpu) (*((void) (cpu), &__mcheck_info.taken))
+#define mcheck_extra(cpu) (*((void) (cpu), &__mcheck_info.extra))
 #endif
 
 extern void process_mcheck_info(unsigned long vector, unsigned long la_ptr,
-				const char *machine, int expected);
+    const char *machine, int expected);

@@ -48,124 +48,124 @@
 
 #include "../../net/ethernet/broadcom/bnx2x/bnx2x_mfw_req.h"
 
-#define BNX2_ISCSI_DRIVER_NAME		"bnx2i"
+#define BNX2_ISCSI_DRIVER_NAME    "bnx2i"
 
-#define BNX2I_MAX_ADAPTERS		8
+#define BNX2I_MAX_ADAPTERS    8
 
-#define ISCSI_MAX_CONNS_PER_HBA		128
-#define ISCSI_MAX_SESS_PER_HBA		ISCSI_MAX_CONNS_PER_HBA
-#define ISCSI_MAX_CMDS_PER_SESS		128
+#define ISCSI_MAX_CONNS_PER_HBA   128
+#define ISCSI_MAX_SESS_PER_HBA    ISCSI_MAX_CONNS_PER_HBA
+#define ISCSI_MAX_CMDS_PER_SESS   128
 
 /* Total active commands across all connections supported by devices */
-#define ISCSI_MAX_CMDS_PER_HBA_5708	(28 * (ISCSI_MAX_CMDS_PER_SESS - 1))
-#define ISCSI_MAX_CMDS_PER_HBA_5709	(128 * (ISCSI_MAX_CMDS_PER_SESS - 1))
-#define ISCSI_MAX_CMDS_PER_HBA_57710	(256 * (ISCSI_MAX_CMDS_PER_SESS - 1))
+#define ISCSI_MAX_CMDS_PER_HBA_5708 (28 * (ISCSI_MAX_CMDS_PER_SESS - 1))
+#define ISCSI_MAX_CMDS_PER_HBA_5709 (128 * (ISCSI_MAX_CMDS_PER_SESS - 1))
+#define ISCSI_MAX_CMDS_PER_HBA_57710  (256 * (ISCSI_MAX_CMDS_PER_SESS - 1))
 
-#define ISCSI_MAX_BDS_PER_CMD		32
+#define ISCSI_MAX_BDS_PER_CMD   32
 
-#define MAX_PAGES_PER_CTRL_STRUCT_POOL	8
-#define BNX2I_RESERVED_SLOW_PATH_CMD_SLOTS	4
+#define MAX_PAGES_PER_CTRL_STRUCT_POOL  8
+#define BNX2I_RESERVED_SLOW_PATH_CMD_SLOTS  4
 
-#define BNX2X_DB_SHIFT			3
+#define BNX2X_DB_SHIFT      3
 
 /* 5706/08 hardware has limit on maximum buffer size per BD it can handle */
-#define MAX_BD_LENGTH			65535
-#define BD_SPLIT_SIZE			32768
+#define MAX_BD_LENGTH     65535
+#define BD_SPLIT_SIZE     32768
 
 /* min, max & default values for SQ/RQ/CQ size, configurable via' modparam */
-#define BNX2I_SQ_WQES_MIN		16
-#define BNX2I_570X_SQ_WQES_MAX		128
-#define BNX2I_5770X_SQ_WQES_MAX		512
-#define BNX2I_570X_SQ_WQES_DEFAULT	128
-#define BNX2I_5770X_SQ_WQES_DEFAULT	128
+#define BNX2I_SQ_WQES_MIN   16
+#define BNX2I_570X_SQ_WQES_MAX    128
+#define BNX2I_5770X_SQ_WQES_MAX   512
+#define BNX2I_570X_SQ_WQES_DEFAULT  128
+#define BNX2I_5770X_SQ_WQES_DEFAULT 128
 
-#define BNX2I_570X_CQ_WQES_MAX 		128
-#define BNX2I_5770X_CQ_WQES_MAX 	512
+#define BNX2I_570X_CQ_WQES_MAX    128
+#define BNX2I_5770X_CQ_WQES_MAX   512
 
-#define BNX2I_RQ_WQES_MIN 		16
-#define BNX2I_RQ_WQES_MAX 		32
-#define BNX2I_RQ_WQES_DEFAULT 		16
+#define BNX2I_RQ_WQES_MIN     16
+#define BNX2I_RQ_WQES_MAX     32
+#define BNX2I_RQ_WQES_DEFAULT     16
 
 /* CCELLs per conn */
-#define BNX2I_CCELLS_MIN		16
-#define BNX2I_CCELLS_MAX		96
-#define BNX2I_CCELLS_DEFAULT		64
+#define BNX2I_CCELLS_MIN    16
+#define BNX2I_CCELLS_MAX    96
+#define BNX2I_CCELLS_DEFAULT    64
 
-#define ITT_INVALID_SIGNATURE		0xFFFF
+#define ITT_INVALID_SIGNATURE   0xFFFF
 
-#define ISCSI_CMD_CLEANUP_TIMEOUT	100
+#define ISCSI_CMD_CLEANUP_TIMEOUT 100
 
-#define BNX2I_CONN_CTX_BUF_SIZE		16384
+#define BNX2I_CONN_CTX_BUF_SIZE   16384
 
-#define BNX2I_SQ_WQE_SIZE		64
-#define BNX2I_RQ_WQE_SIZE		256
-#define BNX2I_CQE_SIZE			64
+#define BNX2I_SQ_WQE_SIZE   64
+#define BNX2I_RQ_WQE_SIZE   256
+#define BNX2I_CQE_SIZE      64
 
-#define MB_KERNEL_CTX_SHIFT		8
-#define MB_KERNEL_CTX_SIZE		(1 << MB_KERNEL_CTX_SHIFT)
+#define MB_KERNEL_CTX_SHIFT   8
+#define MB_KERNEL_CTX_SIZE    (1 << MB_KERNEL_CTX_SHIFT)
 
-#define CTX_SHIFT			7
-#define GET_CID_NUM(cid_addr)		((cid_addr) >> CTX_SHIFT)
+#define CTX_SHIFT     7
+#define GET_CID_NUM(cid_addr)   ((cid_addr) >> CTX_SHIFT)
 
-#define CTX_OFFSET 			0x10000
-#define MAX_CID_CNT			0x4000
+#define CTX_OFFSET      0x10000
+#define MAX_CID_CNT     0x4000
 
-#define BNX2I_570X_PAGE_SIZE_DEFAULT	4096
+#define BNX2I_570X_PAGE_SIZE_DEFAULT  4096
 
 /* 5709 context registers */
-#define BNX2_MQ_CONFIG2			0x00003d00
-#define BNX2_MQ_CONFIG2_CONT_SZ		(0x7L<<4)
-#define BNX2_MQ_CONFIG2_FIRST_L4L5	(0x1fL<<8)
+#define BNX2_MQ_CONFIG2     0x00003d00
+#define BNX2_MQ_CONFIG2_CONT_SZ   (0x7L << 4)
+#define BNX2_MQ_CONFIG2_FIRST_L4L5  (0x1fL << 8)
 
 /* 57710's BAR2 is mapped to doorbell registers */
-#define BNX2X_DOORBELL_PCI_BAR		2
-#define BNX2X_MAX_CQS			8
+#define BNX2X_DOORBELL_PCI_BAR    2
+#define BNX2X_MAX_CQS     8
 
-#define CNIC_ARM_CQE			1
-#define CNIC_ARM_CQE_FP			2
-#define CNIC_DISARM_CQE			0
+#define CNIC_ARM_CQE      1
+#define CNIC_ARM_CQE_FP     2
+#define CNIC_DISARM_CQE     0
 
-#define REG_RD(__hba, offset)				\
-		readl(__hba->regview + offset)
-#define REG_WR(__hba, offset, val)			\
-		writel(val, __hba->regview + offset)
+#define REG_RD(__hba, offset)       \
+  readl(__hba->regview + offset)
+#define REG_WR(__hba, offset, val)      \
+  writel(val, __hba->regview + offset)
 
 #ifdef CONFIG_32BIT
-#define GET_STATS_64(__hba, dst, field)				\
-	do {							\
-		spin_lock_bh(&__hba->stat_lock);		\
-		dst->field##_lo = __hba->stats.field##_lo;	\
-		dst->field##_hi = __hba->stats.field##_hi;	\
-		spin_unlock_bh(&__hba->stat_lock);		\
-	} while (0)
+#define GET_STATS_64(__hba, dst, field)       \
+  do {              \
+    spin_lock_bh(&__hba->stat_lock);    \
+    dst->field ## _lo = __hba->stats.field ## _lo;  \
+    dst->field ## _hi = __hba->stats.field ## _hi;  \
+    spin_unlock_bh(&__hba->stat_lock);    \
+  } while (0)
 
-#define ADD_STATS_64(__hba, field, len)				\
-	do {							\
-		if (spin_trylock(&__hba->stat_lock)) {		\
-			if (__hba->stats.field##_lo + len <	\
-			    __hba->stats.field##_lo)		\
-				__hba->stats.field##_hi++;	\
-			__hba->stats.field##_lo += len;		\
-			spin_unlock(&__hba->stat_lock);		\
-		}						\
-	} while (0)
+#define ADD_STATS_64(__hba, field, len)       \
+  do {              \
+    if (spin_trylock(&__hba->stat_lock)) {    \
+      if (__hba->stats.field ## _lo + len   \
+          < __hba->stats.field ## _lo)    \
+      __hba->stats.field ## _hi++;  \
+      __hba->stats.field ## _lo += len;   \
+      spin_unlock(&__hba->stat_lock);   \
+    }           \
+  } while (0)
 
 #else
-#define GET_STATS_64(__hba, dst, field)				\
-	do {							\
-		u64 val, *out;					\
-								\
-		val = __hba->bnx2i_stats.field;			\
-		out = (u64 *)&__hba->stats.field##_lo;		\
-		*out = cpu_to_le64(val);			\
-		out = (u64 *)&dst->field##_lo;			\
-		*out = cpu_to_le64(val);			\
-	} while (0)
+#define GET_STATS_64(__hba, dst, field)       \
+  do {              \
+    u64 val, *out;          \
+                \
+    val = __hba->bnx2i_stats.field;     \
+    out = (u64 *) &__hba->stats.field ## _lo;    \
+    *out = cpu_to_le64(val);      \
+    out = (u64 *) &dst->field ## _lo;      \
+    *out = cpu_to_le64(val);      \
+  } while (0)
 
-#define ADD_STATS_64(__hba, field, len)				\
-	do {							\
-		__hba->bnx2i_stats.field += len;		\
-	} while (0)
+#define ADD_STATS_64(__hba, field, len)       \
+  do {              \
+    __hba->bnx2i_stats.field += len;    \
+  } while (0)
 #endif
 
 /**
@@ -190,24 +190,23 @@
  * @resp_bd_dma:        login request BD table dma address
  *
  * following structure defines buffer info for generic pdus such as iSCSI Login,
- *	Logout and NOP
+ *  Logout and NOP
  */
 struct generic_pdu_resc {
-	char *req_buf;
-	dma_addr_t req_dma_addr;
-	u32 req_buf_size;
-	char *req_wr_ptr;
-	struct iscsi_hdr resp_hdr;
-	char *resp_buf;
-	dma_addr_t resp_dma_addr;
-	u32 resp_buf_size;
-	char *resp_wr_ptr;
-	char *req_bd_tbl;
-	dma_addr_t req_bd_dma;
-	char *resp_bd_tbl;
-	dma_addr_t resp_bd_dma;
+  char *req_buf;
+  dma_addr_t req_dma_addr;
+  u32 req_buf_size;
+  char *req_wr_ptr;
+  struct iscsi_hdr resp_hdr;
+  char *resp_buf;
+  dma_addr_t resp_dma_addr;
+  u32 resp_buf_size;
+  char *resp_wr_ptr;
+  char *req_bd_tbl;
+  dma_addr_t req_bd_dma;
+  char *resp_bd_tbl;
+  dma_addr_t resp_bd_dma;
 };
-
 
 /**
  * struct bd_resc_page - tracks DMA'able memory allocated for BD tables
@@ -220,12 +219,11 @@ struct generic_pdu_resc {
  * structure to track DMA'able memory allocated for command BD tables
  */
 struct bd_resc_page {
-	struct list_head link;
-	u32 max_ptrs;
-	u32 num_valid;
-	void *page[1];
+  struct list_head link;
+  u32 max_ptrs;
+  u32 num_valid;
+  void *page[1];
 };
-
 
 /**
  * struct io_bdt - I/O buffer destricptor table
@@ -237,11 +235,10 @@ struct bd_resc_page {
  * IO BD table
  */
 struct io_bdt {
-	struct iscsi_bd *bd_tbl;
-	dma_addr_t bd_tbl_dma;
-	u16 bd_valid;
+  struct iscsi_bd *bd_tbl;
+  dma_addr_t bd_tbl_dma;
+  u16 bd_valid;
 };
-
 
 /**
  * bnx2i_cmd - iscsi command structure
@@ -255,15 +252,14 @@ struct io_bdt {
  * @req:                bnx2i specific command request struct
  */
 struct bnx2i_cmd {
-	struct iscsi_hdr hdr;
-	struct bnx2i_conn *conn;
-	struct scsi_cmnd *scsi_cmd;
-	struct scatterlist *sg;
-	struct io_bdt io_tbl;
-	dma_addr_t bd_tbl_dma;
-	struct bnx2i_cmd_request req;
+  struct iscsi_hdr hdr;
+  struct bnx2i_conn *conn;
+  struct scsi_cmnd *scsi_cmd;
+  struct scatterlist *sg;
+  struct io_bdt io_tbl;
+  dma_addr_t bd_tbl_dma;
+  struct bnx2i_cmd_request req;
 };
-
 
 /**
  * struct bnx2i_conn - iscsi connection structure
@@ -281,30 +277,28 @@ struct bnx2i_cmd {
  * iSCSI connection structure
  */
 struct bnx2i_conn {
-	struct iscsi_cls_conn *cls_conn;
-	struct bnx2i_hba *hba;
-	struct completion cmd_cleanup_cmpl;
+  struct iscsi_cls_conn *cls_conn;
+  struct bnx2i_hba *hba;
+  struct completion cmd_cleanup_cmpl;
 
-	u32 iscsi_conn_cid;
-#define BNX2I_CID_RESERVED	0x5AFF
-	u32 fw_cid;
+  u32 iscsi_conn_cid;
+#define BNX2I_CID_RESERVED  0x5AFF
+  u32 fw_cid;
 
-	struct timer_list poll_timer;
-	/*
-	 * Queue Pair (QP) related structure elements.
-	 */
-	struct bnx2i_endpoint *ep;
+  struct timer_list poll_timer;
+  /*
+   * Queue Pair (QP) related structure elements.
+   */
+  struct bnx2i_endpoint *ep;
 
-	/*
-	 * Buffer for login negotiation process
-	 */
-	struct generic_pdu_resc gen_pdu;
-	u64 violation_notified;
+  /*
+   * Buffer for login negotiation process
+   */
+  struct generic_pdu_resc gen_pdu;
+  u64 violation_notified;
 
-	atomic_t work_cnt;
+  atomic_t work_cnt;
 };
-
-
 
 /**
  * struct iscsi_cid_queue - Per adapter iscsi cid queue
@@ -320,23 +314,21 @@ struct bnx2i_conn {
  * Per adapter iSCSI CID Queue
  */
 struct iscsi_cid_queue {
-	void *cid_que_base;
-	u32 *cid_que;
-	u32 cid_q_prod_idx;
-	u32 cid_q_cons_idx;
-	u32 cid_q_max_idx;
-	u32 cid_free_cnt;
-	struct bnx2i_conn **conn_cid_tbl;
+  void *cid_que_base;
+  u32 *cid_que;
+  u32 cid_q_prod_idx;
+  u32 cid_q_cons_idx;
+  u32 cid_q_max_idx;
+  u32 cid_free_cnt;
+  struct bnx2i_conn **conn_cid_tbl;
 };
-
 
 struct bnx2i_stats_info {
-	u64 rx_pdus;
-	u64 rx_bytes;
-	u64 tx_pdus;
-	u64 tx_bytes;
+  u64 rx_pdus;
+  u64 rx_bytes;
+  u64 tx_pdus;
+  u64 tx_bytes;
 };
-
 
 /**
  * struct bnx2i_hba - bnx2i adapter structure
@@ -369,7 +361,7 @@ struct bnx2i_stats_info {
  * @mp_bd_dma:             DMA address of 'mp_bd_tbl' memory buffer
  * @dummy_buffer:          Dummy buffer to be used with zero length scsicmd reqs
  * @dummy_buf_dma:         DMA address of 'dummy_buffer' memory buffer
- * @lock:              	   lock to synchonize access to hba structure
+ * @lock:                  lock to synchonize access to hba structure
  * @hba_shutdown_tmo:      Timeout value to shutdown each connection
  * @conn_teardown_tmo:     Timeout value to tear down each connection
  * @conn_ctx_destroy_tmo:  Timeout value to destroy context of each connection
@@ -391,185 +383,178 @@ struct bnx2i_stats_info {
  * @ctx_ccell_tasks:       captures number of ccells and tasks supported by
  *                         currently offloaded connection, used to decode
  *                         context memory
- * @stat_lock:		   spin lock used by the statistic collector (32 bit)
- * @stats:		   local iSCSI statistic collection place holder
+ * @stat_lock:       spin lock used by the statistic collector (32 bit)
+ * @stats:       local iSCSI statistic collection place holder
  *
  * Adapter Data Structure
  */
 struct bnx2i_hba {
-	struct list_head link;
-	struct cnic_dev *cnic;
-	struct pci_dev *pcidev;
-	struct net_device *netdev;
-	void __iomem *regview;
-	resource_size_t reg_base;
+  struct list_head link;
+  struct cnic_dev *cnic;
+  struct pci_dev *pcidev;
+  struct net_device *netdev;
+  void __iomem *regview;
+  resource_size_t reg_base;
 
-	u32 age;
-	unsigned long cnic_dev_type;
-		#define BNX2I_NX2_DEV_5706		0x0
-		#define BNX2I_NX2_DEV_5708		0x1
-		#define BNX2I_NX2_DEV_5709		0x2
-		#define BNX2I_NX2_DEV_57710		0x3
-	u32 mail_queue_access;
-		#define BNX2I_MQ_KERNEL_MODE		0x0
-		#define BNX2I_MQ_KERNEL_BYPASS_MODE	0x1
-		#define BNX2I_MQ_BIN_MODE		0x2
-	unsigned long  reg_with_cnic;
-		#define BNX2I_CNIC_REGISTERED		1
+  u32 age;
+  unsigned long cnic_dev_type;
+#define BNX2I_NX2_DEV_5706    0x0
+#define BNX2I_NX2_DEV_5708    0x1
+#define BNX2I_NX2_DEV_5709    0x2
+#define BNX2I_NX2_DEV_57710   0x3
+  u32 mail_queue_access;
+#define BNX2I_MQ_KERNEL_MODE    0x0
+#define BNX2I_MQ_KERNEL_BYPASS_MODE 0x1
+#define BNX2I_MQ_BIN_MODE   0x2
+  unsigned long reg_with_cnic;
+#define BNX2I_CNIC_REGISTERED   1
 
-	unsigned long  adapter_state;
-		#define ADAPTER_STATE_UP		0
-		#define ADAPTER_STATE_GOING_DOWN	1
-		#define ADAPTER_STATE_LINK_DOWN		2
-		#define ADAPTER_STATE_INIT_FAILED	31
-	unsigned int mtu_supported;
-		#define BNX2I_MAX_MTU_SUPPORTED		9000
+  unsigned long adapter_state;
+#define ADAPTER_STATE_UP    0
+#define ADAPTER_STATE_GOING_DOWN  1
+#define ADAPTER_STATE_LINK_DOWN   2
+#define ADAPTER_STATE_INIT_FAILED 31
+  unsigned int mtu_supported;
+#define BNX2I_MAX_MTU_SUPPORTED   9000
 
-	struct Scsi_Host *shost;
+  struct Scsi_Host *shost;
 
-	u32 max_sqes;
-	u32 max_rqes;
-	u32 max_cqes;
-	u32 num_ccell;
+  u32 max_sqes;
+  u32 max_rqes;
+  u32 max_cqes;
+  u32 num_ccell;
 
-	int ofld_conns_active;
-	wait_queue_head_t eh_wait;
+  int ofld_conns_active;
+  wait_queue_head_t eh_wait;
 
-	int max_active_conns;
-	struct iscsi_cid_queue cid_que;
+  int max_active_conns;
+  struct iscsi_cid_queue cid_que;
 
-	rwlock_t ep_rdwr_lock;
-	struct list_head ep_ofld_list;
-	struct list_head ep_active_list;
-	struct list_head ep_destroy_list;
+  rwlock_t ep_rdwr_lock;
+  struct list_head ep_ofld_list;
+  struct list_head ep_active_list;
+  struct list_head ep_destroy_list;
 
-	/*
-	 * BD table to be used with MP (Middle Path requests.
-	 */
-	char *mp_bd_tbl;
-	dma_addr_t mp_bd_dma;
-	char *dummy_buffer;
-	dma_addr_t dummy_buf_dma;
+  /*
+   * BD table to be used with MP (Middle Path requests.
+   */
+  char *mp_bd_tbl;
+  dma_addr_t mp_bd_dma;
+  char *dummy_buffer;
+  dma_addr_t dummy_buf_dma;
 
-	spinlock_t lock;	/* protects hba structure access */
-	struct mutex net_dev_lock;/* sync net device access */
+  spinlock_t lock;  /* protects hba structure access */
+  struct mutex net_dev_lock; /* sync net device access */
 
-	int hba_shutdown_tmo;
-	int conn_teardown_tmo;
-	int conn_ctx_destroy_tmo;
-	/*
-	 * PCI related info.
-	 */
-	u16 pci_did;
-	u16 pci_vid;
-	u16 pci_sdid;
-	u16 pci_svid;
-	u16 pci_func;
-	u16 pci_devno;
+  int hba_shutdown_tmo;
+  int conn_teardown_tmo;
+  int conn_ctx_destroy_tmo;
+  /*
+   * PCI related info.
+   */
+  u16 pci_did;
+  u16 pci_vid;
+  u16 pci_sdid;
+  u16 pci_svid;
+  u16 pci_func;
+  u16 pci_devno;
 
-	/*
-	 * Following are a bunch of statistics useful during development
-	 * and later stage for score boarding.
-	 */
-	u32 num_wqe_sent;
-	u32 num_cqe_rcvd;
-	u32 num_intr_claimed;
-	u32 link_changed_count;
-	u32 ipaddr_changed_count;
-	u32 num_sess_opened;
-	u32 num_conn_opened;
-	unsigned int ctx_ccell_tasks;
+  /*
+   * Following are a bunch of statistics useful during development
+   * and later stage for score boarding.
+   */
+  u32 num_wqe_sent;
+  u32 num_cqe_rcvd;
+  u32 num_intr_claimed;
+  u32 link_changed_count;
+  u32 ipaddr_changed_count;
+  u32 num_sess_opened;
+  u32 num_conn_opened;
+  unsigned int ctx_ccell_tasks;
 
 #ifdef CONFIG_32BIT
-	spinlock_t stat_lock;
+  spinlock_t stat_lock;
 #endif
-	struct bnx2i_stats_info bnx2i_stats;
-	struct iscsi_stats_info stats;
+  struct bnx2i_stats_info bnx2i_stats;
+  struct iscsi_stats_info stats;
 };
 
-
 /*******************************************************************************
- * 	QP [ SQ / RQ / CQ ] info.
+ *  QP [ SQ / RQ / CQ ] info.
  ******************************************************************************/
 
 /*
  * SQ/RQ/CQ generic structure definition
  */
-struct 	sqe {
-	u8 sqe_byte[BNX2I_SQ_WQE_SIZE];
+struct  sqe {
+  u8 sqe_byte[BNX2I_SQ_WQE_SIZE];
 };
 
-struct 	rqe {
-	u8 rqe_byte[BNX2I_RQ_WQE_SIZE];
+struct  rqe {
+  u8 rqe_byte[BNX2I_RQ_WQE_SIZE];
 };
 
-struct 	cqe {
-	u8 cqe_byte[BNX2I_CQE_SIZE];
+struct  cqe {
+  u8 cqe_byte[BNX2I_CQE_SIZE];
 };
-
 
 enum {
 #if defined(__LITTLE_ENDIAN)
-	CNIC_EVENT_COAL_INDEX	= 0x0,
-	CNIC_SEND_DOORBELL	= 0x4,
-	CNIC_EVENT_CQ_ARM	= 0x7,
-	CNIC_RECV_DOORBELL	= 0x8
+  CNIC_EVENT_COAL_INDEX = 0x0,
+  CNIC_SEND_DOORBELL = 0x4,
+  CNIC_EVENT_CQ_ARM = 0x7,
+  CNIC_RECV_DOORBELL = 0x8
 #elif defined(__BIG_ENDIAN)
-	CNIC_EVENT_COAL_INDEX	= 0x2,
-	CNIC_SEND_DOORBELL	= 0x6,
-	CNIC_EVENT_CQ_ARM	= 0x4,
-	CNIC_RECV_DOORBELL	= 0xa
+  CNIC_EVENT_COAL_INDEX = 0x2,
+  CNIC_SEND_DOORBELL = 0x6,
+  CNIC_EVENT_CQ_ARM = 0x4,
+  CNIC_RECV_DOORBELL = 0xa
 #endif
 };
-
 
 /*
  * CQ DB
  */
 struct bnx2x_iscsi_cq_pend_cmpl {
-	/* CQ producer, updated by Ustorm */
-	u16 ustrom_prod;
-	/* CQ pending completion counter */
-	u16 pend_cntr;
+  /* CQ producer, updated by Ustorm */
+  u16 ustrom_prod;
+  /* CQ pending completion counter */
+  u16 pend_cntr;
 };
-
 
 struct bnx2i_5771x_cq_db {
-	struct bnx2x_iscsi_cq_pend_cmpl qp_pend_cmpl[BNX2X_MAX_CQS];
-	/* CQ pending completion ITT array */
-	u16 itt[BNX2X_MAX_CQS];
-	/* Cstorm CQ sequence to notify array, updated by driver */;
-	u16 sqn[BNX2X_MAX_CQS];
-	u32 reserved[4] /* 16 byte allignment */;
+  struct bnx2x_iscsi_cq_pend_cmpl qp_pend_cmpl[BNX2X_MAX_CQS];
+  /* CQ pending completion ITT array */
+  u16 itt[BNX2X_MAX_CQS];
+  /* Cstorm CQ sequence to notify array, updated by driver */
+  u16 sqn[BNX2X_MAX_CQS];
+  u32 reserved[4] /* 16 byte allignment */;
 };
-
 
 struct bnx2i_5771x_sq_rq_db {
-	u16 prod_idx;
-	u8 reserved0[62]; /* Pad structure size to 64 bytes */
+  u16 prod_idx;
+  u8 reserved0[62]; /* Pad structure size to 64 bytes */
 };
 
-
 struct bnx2i_5771x_dbell_hdr {
-	u8 header;
-	/* 1 for rx doorbell, 0 for tx doorbell */
-#define B577XX_DOORBELL_HDR_RX				(0x1<<0)
-#define B577XX_DOORBELL_HDR_RX_SHIFT			0
-	/* 0 for normal doorbell, 1 for advertise wnd doorbell */
-#define B577XX_DOORBELL_HDR_DB_TYPE			(0x1<<1)
-#define B577XX_DOORBELL_HDR_DB_TYPE_SHIFT		1
-	/* rdma tx only: DPM transaction size specifier (64/128/256/512B) */
-#define B577XX_DOORBELL_HDR_DPM_SIZE			(0x3<<2)
-#define B577XX_DOORBELL_HDR_DPM_SIZE_SHIFT		2
-	/* connection type */
-#define B577XX_DOORBELL_HDR_CONN_TYPE			(0xF<<4)
-#define B577XX_DOORBELL_HDR_CONN_TYPE_SHIFT		4
+  u8 header;
+  /* 1 for rx doorbell, 0 for tx doorbell */
+#define B577XX_DOORBELL_HDR_RX        (0x1 << 0)
+#define B577XX_DOORBELL_HDR_RX_SHIFT      0
+  /* 0 for normal doorbell, 1 for advertise wnd doorbell */
+#define B577XX_DOORBELL_HDR_DB_TYPE     (0x1 << 1)
+#define B577XX_DOORBELL_HDR_DB_TYPE_SHIFT   1
+  /* rdma tx only: DPM transaction size specifier (64/128/256/512B) */
+#define B577XX_DOORBELL_HDR_DPM_SIZE      (0x3 << 2)
+#define B577XX_DOORBELL_HDR_DPM_SIZE_SHIFT    2
+  /* connection type */
+#define B577XX_DOORBELL_HDR_CONN_TYPE     (0xF << 4)
+#define B577XX_DOORBELL_HDR_CONN_TYPE_SHIFT   4
 };
 
 struct bnx2i_5771x_dbell {
-	struct bnx2i_5771x_dbell_hdr dbell;
-	u8 pad[3];
-
+  struct bnx2i_5771x_dbell_hdr dbell;
+  u8 pad[3];
 };
 
 /**
@@ -604,7 +589,7 @@ struct bnx2i_5771x_dbell {
  * @cqe_exp_seq_sn:     next expected CQE sequence number
  * @cq_pgtbl_virt:      page table describing buffer consituting CQ region
  * @cq_pgtbl_phys:      dma address of 'cq_pgtbl_virt'
- * @cq_pgtbl_size:    	CQ page table size
+ * @cq_pgtbl_size:      CQ page table size
  * @rq_virt:            virtual address of receive queue (RQ) region
  * @rq_phys:            DMA address of RQ memory region
  * @rq_mem_size:        RQ size
@@ -620,106 +605,103 @@ struct bnx2i_5771x_dbell {
  * @rq_pgtbl_size:      RQ page table size
  *
  * queue pair (QP) is a per connection shared data structure which is used
- *	to send work requests (SQ), receive completion notifications (CQ)
- *	and receive asynchoronous / scsi sense info (RQ). 'qp_info' structure
- *	below holds queue memory, consumer/producer indexes and page table
- *	information
+ *  to send work requests (SQ), receive completion notifications (CQ)
+ *  and receive asynchoronous / scsi sense info (RQ). 'qp_info' structure
+ *  below holds queue memory, consumer/producer indexes and page table
+ *  information
  */
 struct qp_info {
-	void __iomem *ctx_base;
-#define DPM_TRIGER_TYPE			0x40
+  void __iomem *ctx_base;
+#define DPM_TRIGER_TYPE     0x40
 
-#define BNX2I_570x_QUE_DB_SIZE		0
-#define BNX2I_5771x_QUE_DB_SIZE		16
-	struct sqe *sq_virt;
-	dma_addr_t sq_phys;
-	u32 sq_mem_size;
+#define BNX2I_570x_QUE_DB_SIZE    0
+#define BNX2I_5771x_QUE_DB_SIZE   16
+  struct sqe *sq_virt;
+  dma_addr_t sq_phys;
+  u32 sq_mem_size;
 
-	struct sqe *sq_prod_qe;
-	struct sqe *sq_cons_qe;
-	struct sqe *sq_first_qe;
-	struct sqe *sq_last_qe;
-	u16 sq_prod_idx;
-	u16 sq_cons_idx;
-	u32 sqe_left;
+  struct sqe *sq_prod_qe;
+  struct sqe *sq_cons_qe;
+  struct sqe *sq_first_qe;
+  struct sqe *sq_last_qe;
+  u16 sq_prod_idx;
+  u16 sq_cons_idx;
+  u32 sqe_left;
 
-	void *sq_pgtbl_virt;
-	dma_addr_t sq_pgtbl_phys;
-	u32 sq_pgtbl_size;	/* set to PAGE_SIZE for 5708 & 5709 */
+  void *sq_pgtbl_virt;
+  dma_addr_t sq_pgtbl_phys;
+  u32 sq_pgtbl_size;  /* set to PAGE_SIZE for 5708 & 5709 */
 
-	struct cqe *cq_virt;
-	dma_addr_t cq_phys;
-	u32 cq_mem_size;
+  struct cqe *cq_virt;
+  dma_addr_t cq_phys;
+  u32 cq_mem_size;
 
-	struct cqe *cq_prod_qe;
-	struct cqe *cq_cons_qe;
-	struct cqe *cq_first_qe;
-	struct cqe *cq_last_qe;
-	u16 cq_prod_idx;
-	u16 cq_cons_idx;
-	u32 cqe_left;
-	u32 cqe_size;
-	u32 cqe_exp_seq_sn;
+  struct cqe *cq_prod_qe;
+  struct cqe *cq_cons_qe;
+  struct cqe *cq_first_qe;
+  struct cqe *cq_last_qe;
+  u16 cq_prod_idx;
+  u16 cq_cons_idx;
+  u32 cqe_left;
+  u32 cqe_size;
+  u32 cqe_exp_seq_sn;
 
-	void *cq_pgtbl_virt;
-	dma_addr_t cq_pgtbl_phys;
-	u32 cq_pgtbl_size;	/* set to PAGE_SIZE for 5708 & 5709 */
+  void *cq_pgtbl_virt;
+  dma_addr_t cq_pgtbl_phys;
+  u32 cq_pgtbl_size;  /* set to PAGE_SIZE for 5708 & 5709 */
 
-	struct rqe *rq_virt;
-	dma_addr_t rq_phys;
-	u32 rq_mem_size;
+  struct rqe *rq_virt;
+  dma_addr_t rq_phys;
+  u32 rq_mem_size;
 
-	struct rqe *rq_prod_qe;
-	struct rqe *rq_cons_qe;
-	struct rqe *rq_first_qe;
-	struct rqe *rq_last_qe;
-	u16 rq_prod_idx;
-	u16 rq_cons_idx;
-	u32 rqe_left;
+  struct rqe *rq_prod_qe;
+  struct rqe *rq_cons_qe;
+  struct rqe *rq_first_qe;
+  struct rqe *rq_last_qe;
+  u16 rq_prod_idx;
+  u16 rq_cons_idx;
+  u32 rqe_left;
 
-	void *rq_pgtbl_virt;
-	dma_addr_t rq_pgtbl_phys;
-	u32 rq_pgtbl_size;	/* set to PAGE_SIZE for 5708 & 5709 */
+  void *rq_pgtbl_virt;
+  dma_addr_t rq_pgtbl_phys;
+  u32 rq_pgtbl_size;  /* set to PAGE_SIZE for 5708 & 5709 */
 };
-
-
 
 /*
  * CID handles
  */
 struct ep_handles {
-	u32 fw_cid;
-	u32 drv_iscsi_cid;
-	u16 pg_cid;
-	u16 rsvd;
+  u32 fw_cid;
+  u32 drv_iscsi_cid;
+  u16 pg_cid;
+  u16 rsvd;
 };
 
-
 enum {
-	EP_STATE_IDLE                   = 0x0,
-	EP_STATE_PG_OFLD_START          = 0x1,
-	EP_STATE_PG_OFLD_COMPL          = 0x2,
-	EP_STATE_OFLD_START             = 0x4,
-	EP_STATE_OFLD_COMPL             = 0x8,
-	EP_STATE_CONNECT_START          = 0x10,
-	EP_STATE_CONNECT_COMPL          = 0x20,
-	EP_STATE_ULP_UPDATE_START       = 0x40,
-	EP_STATE_ULP_UPDATE_COMPL       = 0x80,
-	EP_STATE_DISCONN_START          = 0x100,
-	EP_STATE_DISCONN_COMPL          = 0x200,
-	EP_STATE_CLEANUP_START          = 0x400,
-	EP_STATE_CLEANUP_CMPL           = 0x800,
-	EP_STATE_TCP_FIN_RCVD           = 0x1000,
-	EP_STATE_TCP_RST_RCVD           = 0x2000,
-	EP_STATE_LOGOUT_SENT            = 0x4000,
-	EP_STATE_LOGOUT_RESP_RCVD       = 0x8000,
-	EP_STATE_PG_OFLD_FAILED         = 0x1000000,
-	EP_STATE_ULP_UPDATE_FAILED      = 0x2000000,
-	EP_STATE_CLEANUP_FAILED         = 0x4000000,
-	EP_STATE_OFLD_FAILED            = 0x8000000,
-	EP_STATE_CONNECT_FAILED         = 0x10000000,
-	EP_STATE_DISCONN_TIMEDOUT       = 0x20000000,
-	EP_STATE_OFLD_FAILED_CID_BUSY   = 0x80000000,
+  EP_STATE_IDLE = 0x0,
+  EP_STATE_PG_OFLD_START = 0x1,
+  EP_STATE_PG_OFLD_COMPL = 0x2,
+  EP_STATE_OFLD_START = 0x4,
+  EP_STATE_OFLD_COMPL = 0x8,
+  EP_STATE_CONNECT_START = 0x10,
+  EP_STATE_CONNECT_COMPL = 0x20,
+  EP_STATE_ULP_UPDATE_START = 0x40,
+  EP_STATE_ULP_UPDATE_COMPL = 0x80,
+  EP_STATE_DISCONN_START = 0x100,
+  EP_STATE_DISCONN_COMPL = 0x200,
+  EP_STATE_CLEANUP_START = 0x400,
+  EP_STATE_CLEANUP_CMPL = 0x800,
+  EP_STATE_TCP_FIN_RCVD = 0x1000,
+  EP_STATE_TCP_RST_RCVD = 0x2000,
+  EP_STATE_LOGOUT_SENT = 0x4000,
+  EP_STATE_LOGOUT_RESP_RCVD = 0x8000,
+  EP_STATE_PG_OFLD_FAILED = 0x1000000,
+  EP_STATE_ULP_UPDATE_FAILED = 0x2000000,
+  EP_STATE_CLEANUP_FAILED = 0x4000000,
+  EP_STATE_OFLD_FAILED = 0x8000000,
+  EP_STATE_CONNECT_FAILED = 0x10000000,
+  EP_STATE_DISCONN_TIMEDOUT = 0x20000000,
+  EP_STATE_OFLD_FAILED_CID_BUSY = 0x80000000,
 };
 
 /**
@@ -746,40 +728,38 @@ enum {
  * Endpoint Structure - equivalent of tcp socket structure
  */
 struct bnx2i_endpoint {
-	struct list_head link;
-	struct bnx2i_hba *hba;
-	struct bnx2i_conn *conn;
-	struct iscsi_endpoint *cls_ep;
-	struct cnic_sock *cm_sk;
-	u32 hba_age;
-	u32 state;
-	unsigned long timestamp;
-	atomic_t num_active_cmds;
-	u32 ec_shift;
+  struct list_head link;
+  struct bnx2i_hba *hba;
+  struct bnx2i_conn *conn;
+  struct iscsi_endpoint *cls_ep;
+  struct cnic_sock *cm_sk;
+  u32 hba_age;
+  u32 state;
+  unsigned long timestamp;
+  atomic_t num_active_cmds;
+  u32 ec_shift;
 
-	struct qp_info qp;
-	struct ep_handles ids;
-		#define ep_iscsi_cid	ids.drv_iscsi_cid
-		#define ep_cid		ids.fw_cid
-		#define ep_pg_cid	ids.pg_cid
-	struct timer_list ofld_timer;
-	wait_queue_head_t ofld_wait;
+  struct qp_info qp;
+  struct ep_handles ids;
+#define ep_iscsi_cid  ids.drv_iscsi_cid
+#define ep_cid    ids.fw_cid
+#define ep_pg_cid ids.pg_cid
+  struct timer_list ofld_timer;
+  wait_queue_head_t ofld_wait;
 };
 
-
 struct bnx2i_work {
-	struct list_head list;
-	struct iscsi_session *session;
-	struct bnx2i_conn *bnx2i_conn;
-	struct cqe cqe;
+  struct list_head list;
+  struct iscsi_session *session;
+  struct bnx2i_conn *bnx2i_conn;
+  struct cqe cqe;
 };
 
 struct bnx2i_percpu_s {
-	struct task_struct *iothread;
-	struct list_head work_list;
-	spinlock_t p_work_lock;
+  struct task_struct *iothread;
+  struct list_head work_list;
+  spinlock_t p_work_lock;
 };
-
 
 /* Global variables */
 extern unsigned int error_mask1, error_mask2;
@@ -797,8 +777,6 @@ extern unsigned int rq_size;
 
 extern const struct attribute_group *bnx2i_dev_groups[];
 
-
-
 /*
  * Function Prototypes
  */
@@ -813,7 +791,7 @@ extern int bnx2i_get_stats(void *handle);
 extern struct bnx2i_hba *get_adapter_list_head(void);
 
 struct bnx2i_conn *bnx2i_get_conn_from_id(struct bnx2i_hba *hba,
-					  u16 iscsi_cid);
+    u16 iscsi_cid);
 
 int bnx2i_alloc_ep_pool(void);
 void bnx2i_release_ep_pool(void);
@@ -834,35 +812,35 @@ void bnx2i_drop_session(struct iscsi_cls_session *session);
 
 extern int bnx2i_send_fw_iscsi_init_msg(struct bnx2i_hba *hba);
 extern int bnx2i_send_iscsi_login(struct bnx2i_conn *conn,
-				  struct iscsi_task *mtask);
+    struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_tmf(struct bnx2i_conn *conn,
-				  struct iscsi_task *mtask);
+    struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_text(struct bnx2i_conn *conn,
-				 struct iscsi_task *mtask);
+    struct iscsi_task *mtask);
 extern int bnx2i_send_iscsi_scsicmd(struct bnx2i_conn *conn,
-				    struct bnx2i_cmd *cmnd);
+    struct bnx2i_cmd *cmnd);
 extern int bnx2i_send_iscsi_nopout(struct bnx2i_conn *conn,
-				   struct iscsi_task *mtask,
-				   char *datap, int data_len, int unsol);
+    struct iscsi_task *mtask,
+    char *datap, int data_len, int unsol);
 extern int bnx2i_send_iscsi_logout(struct bnx2i_conn *conn,
-				   struct iscsi_task *mtask);
+    struct iscsi_task *mtask);
 extern void bnx2i_send_cmd_cleanup_req(struct bnx2i_hba *hba,
-				       struct bnx2i_cmd *cmd);
+    struct bnx2i_cmd *cmd);
 extern int bnx2i_send_conn_ofld_req(struct bnx2i_hba *hba,
-				    struct bnx2i_endpoint *ep);
+    struct bnx2i_endpoint *ep);
 extern void bnx2i_update_iscsi_conn(struct iscsi_conn *conn);
 extern int bnx2i_send_conn_destroy(struct bnx2i_hba *hba,
-				   struct bnx2i_endpoint *ep);
+    struct bnx2i_endpoint *ep);
 
 extern int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba,
-			       struct bnx2i_endpoint *ep);
+    struct bnx2i_endpoint *ep);
 extern void bnx2i_free_qp_resc(struct bnx2i_hba *hba,
-			       struct bnx2i_endpoint *ep);
+    struct bnx2i_endpoint *ep);
 extern void bnx2i_ep_ofld_timer(struct timer_list *t);
 extern struct bnx2i_endpoint *bnx2i_find_ep_in_ofld_list(
-		struct bnx2i_hba *hba, u32 iscsi_cid);
+  struct bnx2i_hba *hba, u32 iscsi_cid);
 extern struct bnx2i_endpoint *bnx2i_find_ep_in_destroy_list(
-		struct bnx2i_hba *hba, u32 iscsi_cid);
+  struct bnx2i_hba *hba, u32 iscsi_cid);
 
 extern int bnx2i_map_ep_dbell_regs(struct bnx2i_endpoint *ep);
 extern int bnx2i_arm_cq_event_coalescing(struct bnx2i_endpoint *ep, u8 action);
@@ -877,6 +855,6 @@ extern void bnx2i_print_recv_state(struct bnx2i_conn *conn);
 
 extern int bnx2i_percpu_io_thread(void *arg);
 extern int bnx2i_process_scsi_cmd_resp(struct iscsi_session *session,
-				       struct bnx2i_conn *bnx2i_conn,
-				       struct cqe *cqe);
+    struct bnx2i_conn *bnx2i_conn,
+    struct cqe *cqe);
 #endif

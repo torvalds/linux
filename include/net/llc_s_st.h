@@ -2,7 +2,7 @@
 #define LLC_S_ST_H
 /*
  * Copyright (c) 1997 by Procom Technology,Inc.
- * 		 2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
+ *     2001 by Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  *
  * This program can be redistributed or modified under the terms of the
  * GNU General Public License as published by the Free Software Foundation.
@@ -18,19 +18,19 @@
 
 struct llc_sap_state_trans;
 
-#define LLC_NR_SAP_STATES	2       /* size of state table */
+#define LLC_NR_SAP_STATES 2       /* size of state table */
 
-/* structures and types */
-/* SAP state table structure */
+/* structures and types
+ * SAP state table structure*/
 struct llc_sap_state_trans {
-	llc_sap_ev_t	  ev;
-	u8		  next_state;
-	const llc_sap_action_t *ev_actions;
+  llc_sap_ev_t ev;
+  u8 next_state;
+  const llc_sap_action_t *ev_actions;
 };
 
 struct llc_sap_state {
-	u8			   curr_state;
-	struct llc_sap_state_trans **transitions;
+  u8 curr_state;
+  struct llc_sap_state_trans **transitions;
 };
 
 /* only access to SAP state table */

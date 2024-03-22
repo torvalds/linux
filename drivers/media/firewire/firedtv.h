@@ -28,41 +28,41 @@
 #include <media/dvbdev.h>
 
 struct firedtv_tuner_status {
-	unsigned active_system:8;
-	unsigned searching:1;
-	unsigned moving:1;
-	unsigned no_rf:1;
-	unsigned input:1;
-	unsigned selected_antenna:7;
-	unsigned ber:32;
-	unsigned signal_strength:8;
-	unsigned raster_frequency:2;
-	unsigned rf_frequency:22;
-	unsigned man_dep_info_length:8;
-	unsigned front_end_error:1;
-	unsigned antenna_error:1;
-	unsigned front_end_power_status:1;
-	unsigned power_supply:1;
-	unsigned carrier_noise_ratio:16;
-	unsigned power_supply_voltage:8;
-	unsigned antenna_voltage:8;
-	unsigned firewire_bus_voltage:8;
-	unsigned ca_mmi:1;
-	unsigned ca_pmt_reply:1;
-	unsigned ca_date_time_request:1;
-	unsigned ca_application_info:1;
-	unsigned ca_module_present_status:1;
-	unsigned ca_dvb_flag:1;
-	unsigned ca_error_flag:1;
-	unsigned ca_initialization_status:1;
+  unsigned active_system : 8;
+  unsigned searching : 1;
+  unsigned moving : 1;
+  unsigned no_rf : 1;
+  unsigned input : 1;
+  unsigned selected_antenna : 7;
+  unsigned ber : 32;
+  unsigned signal_strength : 8;
+  unsigned raster_frequency : 2;
+  unsigned rf_frequency : 22;
+  unsigned man_dep_info_length : 8;
+  unsigned front_end_error : 1;
+  unsigned antenna_error : 1;
+  unsigned front_end_power_status : 1;
+  unsigned power_supply : 1;
+  unsigned carrier_noise_ratio : 16;
+  unsigned power_supply_voltage : 8;
+  unsigned antenna_voltage : 8;
+  unsigned firewire_bus_voltage : 8;
+  unsigned ca_mmi : 1;
+  unsigned ca_pmt_reply : 1;
+  unsigned ca_date_time_request : 1;
+  unsigned ca_application_info : 1;
+  unsigned ca_module_present_status : 1;
+  unsigned ca_dvb_flag : 1;
+  unsigned ca_error_flag : 1;
+  unsigned ca_initialization_status : 1;
 };
 
 enum model_type {
-	FIREDTV_UNKNOWN = 0,
-	FIREDTV_DVB_S   = 1,
-	FIREDTV_DVB_C   = 2,
-	FIREDTV_DVB_T   = 3,
-	FIREDTV_DVB_S2  = 4,
+  FIREDTV_UNKNOWN = 0,
+  FIREDTV_DVB_S = 1,
+  FIREDTV_DVB_C = 2,
+  FIREDTV_DVB_T = 3,
+  FIREDTV_DVB_S2 = 4,
 };
 
 struct device;
@@ -70,40 +70,40 @@ struct input_dev;
 struct fdtv_ir_context;
 
 struct firedtv {
-	struct device *device;
-	struct list_head list;
+  struct device *device;
+  struct list_head list;
 
-	struct dvb_adapter	adapter;
-	struct dmxdev		dmxdev;
-	struct dvb_demux	demux;
-	struct dmx_frontend	frontend;
-	struct dvb_net		dvbnet;
-	struct dvb_frontend	fe;
+  struct dvb_adapter adapter;
+  struct dmxdev dmxdev;
+  struct dvb_demux demux;
+  struct dmx_frontend frontend;
+  struct dvb_net dvbnet;
+  struct dvb_frontend fe;
 
-	struct dvb_device	*cadev;
-	int			ca_last_command;
-	int			ca_time_interval;
+  struct dvb_device *cadev;
+  int ca_last_command;
+  int ca_time_interval;
 
-	struct mutex		avc_mutex;
-	wait_queue_head_t	avc_wait;
-	bool			avc_reply_received;
-	struct work_struct	remote_ctrl_work;
-	struct input_dev	*remote_ctrl_dev;
+  struct mutex avc_mutex;
+  wait_queue_head_t avc_wait;
+  bool avc_reply_received;
+  struct work_struct remote_ctrl_work;
+  struct input_dev *remote_ctrl_dev;
 
-	enum model_type		type;
-	char			subunit;
-	s8			isochannel;
-	struct fdtv_ir_context	*ir_context;
+  enum model_type type;
+  char subunit;
+  s8 isochannel;
+  struct fdtv_ir_context *ir_context;
 
-	enum fe_sec_voltage	voltage;
-	enum fe_sec_tone_mode	tone;
+  enum fe_sec_voltage voltage;
+  enum fe_sec_tone_mode tone;
 
-	struct mutex		demux_mutex;
-	unsigned long		channel_active;
-	u16			channel_pid[16];
+  struct mutex demux_mutex;
+  unsigned long channel_active;
+  u16 channel_pid[16];
 
-	int			avc_data_length;
-	u8			avc_data[512];
+  int avc_data_length;
+  u8 avc_data[512];
 };
 
 /* firedtv-avc.c */
@@ -116,14 +116,14 @@ int avc_tuner_get_ts(struct firedtv *fdtv);
 int avc_identify_subunit(struct firedtv *fdtv);
 struct dvb_diseqc_master_cmd;
 int avc_lnb_control(struct firedtv *fdtv, char voltage, char burst,
-		    char conttone, char nrdiseq,
-		    struct dvb_diseqc_master_cmd *diseqcmd);
+    char conttone, char nrdiseq,
+    struct dvb_diseqc_master_cmd *diseqcmd);
 void avc_remote_ctrl_work(struct work_struct *work);
 int avc_register_remote_control(struct firedtv *fdtv);
 int avc_ca_app_info(struct firedtv *fdtv, unsigned char *app_info,
-		    unsigned int *len);
+    unsigned int *len);
 int avc_ca_info(struct firedtv *fdtv, unsigned char *app_info,
-		unsigned int *len);
+    unsigned int *len);
 int avc_ca_reset(struct firedtv *fdtv);
 int avc_ca_pmt(struct firedtv *fdtv, char *app_info, int length);
 int avc_ca_get_time_date(struct firedtv *fdtv, int *interval);
@@ -159,9 +159,16 @@ void fdtv_unregister_rc(struct firedtv *fdtv);
 void fdtv_handle_rc(struct firedtv *fdtv, unsigned int code);
 #else
 static inline int fdtv_register_rc(struct firedtv *fdtv,
-				   struct device *dev) { return 0; }
-static inline void fdtv_unregister_rc(struct firedtv *fdtv) {}
-static inline void fdtv_handle_rc(struct firedtv *fdtv, unsigned int code) {}
+    struct device *dev) {
+  return 0;
+}
+
+static inline void fdtv_unregister_rc(struct firedtv *fdtv) {
+}
+
+static inline void fdtv_handle_rc(struct firedtv *fdtv, unsigned int code) {
+}
+
 #endif
 
 #endif /* _FIREDTV_H */

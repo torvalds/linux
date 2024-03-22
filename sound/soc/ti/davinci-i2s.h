@@ -11,7 +11,7 @@
 
 /* McBSP dividers */
 enum davinci_mcbsp_div {
-	DAVINCI_MCBSP_CLKGDV,              /* Sample rate generator divider */
+  DAVINCI_MCBSP_CLKGDV,              /* Sample rate generator divider */
 };
 
 #endif

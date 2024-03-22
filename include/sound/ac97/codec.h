@@ -9,11 +9,11 @@
 #include <linux/device.h>
 
 #define AC97_ID(vendor_id1, vendor_id2) \
-	((((vendor_id1) & 0xffff) << 16) | ((vendor_id2) & 0xffff))
+  ((((vendor_id1) & 0xffff) << 16) | ((vendor_id2) & 0xffff))
 #define AC97_DRIVER_ID(vendor_id1, vendor_id2, mask_id1, mask_id2, _data) \
-	{ .id = (((vendor_id1) & 0xffff) << 16) | ((vendor_id2) & 0xffff), \
-	  .mask = (((mask_id1) & 0xffff) << 16) | ((mask_id2) & 0xffff), \
-	  .data = (_data) }
+  { .id = (((vendor_id1) & 0xffff) << 16) | ((vendor_id2) & 0xffff), \
+    .mask = (((mask_id1) & 0xffff) << 16) | ((mask_id2) & 0xffff), \
+    .data = (_data) }
 
 struct ac97_controller;
 struct clk;
@@ -22,14 +22,14 @@ struct clk;
  * struct ac97_id - matches a codec device and driver on an ac97 bus
  * @id: The significant bits if the codec vendor ID1 and ID2
  * @mask: Bitmask specifying which bits of the id field are significant when
- *	  matching. A driver binds to a device when :
+ *    matching. A driver binds to a device when :
  *        ((vendorID1 << 8 | vendorID2) & (mask_id1 << 8 | mask_id2)) == id.
  * @data: Private data used by the driver.
  */
 struct ac97_id {
-	unsigned int		id;
-	unsigned int		mask;
-	void			*data;
+  unsigned int id;
+  unsigned int mask;
+  void *data;
 };
 
 /**
@@ -45,11 +45,11 @@ struct ac97_id {
  * an AC97 digital controller.
  */
 struct ac97_codec_device {
-	struct device		dev;
-	unsigned int		vendor_id;
-	unsigned int		num;
-	struct clk		*clk;
-	struct ac97_controller	*ac97_ctrl;
+  struct device dev;
+  unsigned int vendor_id;
+  unsigned int num;
+  struct clk *clk;
+  struct ac97_controller *ac97_ctrl;
 };
 
 /**
@@ -61,54 +61,49 @@ struct ac97_codec_device {
  * @id_table: ac97 vendor_id match table, { } member terminated
  */
 struct ac97_codec_driver {
-	struct device_driver	driver;
-	int			(*probe)(struct ac97_codec_device *);
-	void			(*remove)(struct ac97_codec_device *dev);
-	void			(*shutdown)(struct ac97_codec_device *);
-	const struct ac97_id	*id_table;
+  struct device_driver driver;
+  int (*probe)(struct ac97_codec_device *);
+  void (*remove)(struct ac97_codec_device *dev);
+  void (*shutdown)(struct ac97_codec_device *);
+  const struct ac97_id *id_table;
 };
 
-static inline struct ac97_codec_device *to_ac97_device(struct device *d)
-{
-	return container_of(d, struct ac97_codec_device, dev);
+static inline struct ac97_codec_device *to_ac97_device(struct device *d) {
+  return container_of(d, struct ac97_codec_device, dev);
 }
 
 static inline struct ac97_codec_driver *to_ac97_driver(struct device_driver *d)
 {
-	return container_of(d, struct ac97_codec_driver, driver);
+  return container_of(d, struct ac97_codec_driver, driver);
 }
 
 #if IS_ENABLED(CONFIG_AC97_BUS_NEW)
 int snd_ac97_codec_driver_register(struct ac97_codec_driver *drv);
 void snd_ac97_codec_driver_unregister(struct ac97_codec_driver *drv);
 #else
-static inline int
-snd_ac97_codec_driver_register(struct ac97_codec_driver *drv)
+static inline int snd_ac97_codec_driver_register(struct ac97_codec_driver *drv)
 {
-	return 0;
+  return 0;
 }
-static inline void
-snd_ac97_codec_driver_unregister(struct ac97_codec_driver *drv)
-{
+
+static inline void snd_ac97_codec_driver_unregister(
+    struct ac97_codec_driver *drv) {
 }
+
 #endif
 
-
-static inline struct device *
-ac97_codec_dev2dev(struct ac97_codec_device *adev)
+static inline struct device *ac97_codec_dev2dev(struct ac97_codec_device *adev)
 {
-	return &adev->dev;
+  return &adev->dev;
 }
 
-static inline void *ac97_get_drvdata(struct ac97_codec_device *adev)
-{
-	return dev_get_drvdata(ac97_codec_dev2dev(adev));
+static inline void *ac97_get_drvdata(struct ac97_codec_device *adev) {
+  return dev_get_drvdata(ac97_codec_dev2dev(adev));
 }
 
 static inline void ac97_set_drvdata(struct ac97_codec_device *adev,
-				    void *data)
-{
-	dev_set_drvdata(ac97_codec_dev2dev(adev), data);
+    void *data) {
+  dev_set_drvdata(ac97_codec_dev2dev(adev), data);
 }
 
 void *snd_ac97_codec_get_platdata(const struct ac97_codec_device *adev);

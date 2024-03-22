@@ -13,6 +13,6 @@
 
 #include <platform/hardware.h>
 
-#define BASE_BAUD (*(long *)XTFPGA_CLKFRQ_VADDR / 16)
+#define BASE_BAUD (*(long *) XTFPGA_CLKFRQ_VADDR / 16)
 
 #endif /* __ASM_XTENSA_XTAVNET_SERIAL_H */

@@ -17,24 +17,24 @@
 /* imp-defined registers */
 #define RT1318_SAPU_SM 0x3203
 
-#define R1318_TCON	0xc203
-#define R1318_TCON_RELATED_1	0xc206
+#define R1318_TCON  0xc203
+#define R1318_TCON_RELATED_1  0xc206
 
-#define R1318_SPK_TEMPERATRUE_PROTECTION_0	0xdb00
-#define R1318_SPK_TEMPERATRUE_PROTECTION_L_4	0xdb08
-#define R1318_SPK_TEMPERATRUE_PROTECTION_R_4	0xdd08
+#define R1318_SPK_TEMPERATRUE_PROTECTION_0  0xdb00
+#define R1318_SPK_TEMPERATRUE_PROTECTION_L_4  0xdb08
+#define R1318_SPK_TEMPERATRUE_PROTECTION_R_4  0xdd08
 
-#define R1318_SPK_TEMPERATRUE_PROTECTION_L_6	0xdb12
-#define R1318_SPK_TEMPERATRUE_PROTECTION_R_6	0xdd12
+#define R1318_SPK_TEMPERATRUE_PROTECTION_L_6  0xdb12
+#define R1318_SPK_TEMPERATRUE_PROTECTION_R_6  0xdd12
 
-#define RT1318_INIT_RECIPROCAL_REG_L_24		0xdbb5
-#define RT1318_INIT_RECIPROCAL_REG_L_23_16	0xdbb6
-#define RT1318_INIT_RECIPROCAL_REG_L_15_8	0xdbb7
-#define RT1318_INIT_RECIPROCAL_REG_L_7_0	0xdbb8
-#define RT1318_INIT_RECIPROCAL_REG_R_24		0xddb5
-#define RT1318_INIT_RECIPROCAL_REG_R_23_16	0xddb6
-#define RT1318_INIT_RECIPROCAL_REG_R_15_8	0xddb7
-#define RT1318_INIT_RECIPROCAL_REG_R_7_0	0xddb8
+#define RT1318_INIT_RECIPROCAL_REG_L_24   0xdbb5
+#define RT1318_INIT_RECIPROCAL_REG_L_23_16  0xdbb6
+#define RT1318_INIT_RECIPROCAL_REG_L_15_8 0xdbb7
+#define RT1318_INIT_RECIPROCAL_REG_L_7_0  0xdbb8
+#define RT1318_INIT_RECIPROCAL_REG_R_24   0xddb5
+#define RT1318_INIT_RECIPROCAL_REG_R_23_16  0xddb6
+#define RT1318_INIT_RECIPROCAL_REG_R_15_8 0xddb7
+#define RT1318_INIT_RECIPROCAL_REG_R_7_0  0xddb8
 
 #define RT1318_INIT_R0_RECIPROCAL_SYN_L_24 0xdbc5
 #define RT1318_INIT_R0_RECIPROCAL_SYN_L_23_16 0xdbc6
@@ -45,8 +45,8 @@
 #define RT1318_INIT_R0_RECIPROCAL_SYN_R_15_8 0xddc7
 #define RT1318_INIT_R0_RECIPROCAL_SYN_R_7_0 0xddc8
 
-#define RT1318_R0_COMPARE_FLAG_L	0xdb35
-#define RT1318_R0_COMPARE_FLAG_R	0xdd35
+#define RT1318_R0_COMPARE_FLAG_L  0xdb35
+#define RT1318_R0_COMPARE_FLAG_R  0xdd35
 
 #define RT1318_STP_INITIAL_RS_TEMP_H 0xdd93
 #define RT1318_STP_INITIAL_RS_TEMP_L 0xdd94
@@ -76,21 +76,20 @@
 #define CH_R 0x02
 
 /* sample frequency index */
-#define RT1318_SDCA_RATE_16000HZ		0x04
-#define RT1318_SDCA_RATE_32000HZ		0x07
-#define RT1318_SDCA_RATE_44100HZ		0x08
-#define RT1318_SDCA_RATE_48000HZ		0x09
-#define RT1318_SDCA_RATE_96000HZ		0x0b
-#define RT1318_SDCA_RATE_192000HZ		0x0d
-
+#define RT1318_SDCA_RATE_16000HZ    0x04
+#define RT1318_SDCA_RATE_32000HZ    0x07
+#define RT1318_SDCA_RATE_44100HZ    0x08
+#define RT1318_SDCA_RATE_48000HZ    0x09
+#define RT1318_SDCA_RATE_96000HZ    0x0b
+#define RT1318_SDCA_RATE_192000HZ   0x0d
 
 struct rt1318_sdw_priv {
-	struct snd_soc_component *component;
-	struct regmap *regmap;
-	struct sdw_slave *sdw_slave;
-	struct sdw_bus_params params;
-	bool hw_init;
-	bool first_hw_init;
+  struct snd_soc_component *component;
+  struct regmap *regmap;
+  struct sdw_slave *sdw_slave;
+  struct sdw_bus_params params;
+  bool hw_init;
+  bool first_hw_init;
 };
 
 #endif /* __RT1318_SDW_H__ */

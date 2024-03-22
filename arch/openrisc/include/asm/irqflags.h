@@ -18,7 +18,7 @@
 #include <asm/spr_defs.h>
 
 #define ARCH_IRQ_DISABLED        0x00
-#define ARCH_IRQ_ENABLED         (SPR_SR_IEE|SPR_SR_TEE)
+#define ARCH_IRQ_ENABLED         (SPR_SR_IEE | SPR_SR_TEE)
 
 #include <asm-generic/irqflags.h>
 

@@ -36,7 +36,8 @@
  * possible overlapped or adjacent already set bad block ranges. Then the hard
  * complicated problem can be much simpler to handle in proper way.
  *
- * When setting a range of bad blocks to the bad table, the simplified situations
+ * When setting a range of bad blocks to the bad table, the simplified
+ *situations
  * to be considered are, (The already set bad blocks ranges are naming with
  *  prefix E, and the setting bad blocks range is naming with prefix S)
  *
@@ -68,7 +69,8 @@
  *        +-------------+
  *        |      S      |
  *        +-------------+
- * 2.1.2) If S is unacked setting and E is acked, the setting will be denied, and
+ * 2.1.2) If S is unacked setting and E is acked, the setting will be denied,
+ *and
  *    the result is,
  *        +-------------+
  *        |      E      |
@@ -85,13 +87,14 @@
  *        +-------------+
  *        |      S      |
  *        +-------------+
- * 2.2.2) If S is unacked setting and E is acked, the setting will be denied, and
+ * 2.2.2) If S is unacked setting and E is acked, the setting will be denied,
+ *and
  *    the result is,
  *        +-------------+
  *        |      E      |
  *        +-------------+
  * 2.2.3) If S is acked setting and E is unacked, range S can overwrite all of
-      bad blocks range E. The result is,
+ *    bad blocks range E. The result is,
  *        +-------------+
  *        |      S      |
  *        +-------------+
@@ -281,13 +284,15 @@
  *     The above result is correct but not perfect. Range E1 and S in the bad
  *     blocks table are all acked, merging them into a larger one range may
  *     occupy less bad blocks table space and make badblocks_check() faster.
- *     Therefore in such situation, after overwriting range S, the previous range
+ *     Therefore in such situation, after overwriting range S, the previous
+ *range
  *     E1 should be checked for possible front combination. Then the ideal
  *     result can be,
  *              +----------------+----+                        acknowledged
  *              |       E1       | E3 |                   E1:       1
  *              +----------------+----+                   E3:       0
- * 6.3) Behind merge: If the already set bad blocks range E is behind the setting
+ * 6.3) Behind merge: If the already set bad blocks range E is behind the
+ *setting
  *    range S and they are adjacent. Normally we don't need to care about this
  *    because front merge handles this while going though range S from head to
  *    tail, except for the tail part of range S. When the setting range S are
@@ -363,7 +368,8 @@
  *     +------+   +------+
  *     |  E1  |   |  E2  |
  *     +------+   +------+
- * 3) The clearing range starts exactly at same LBA as an already set bad block range
+ * 3) The clearing range starts exactly at same LBA as an already set bad block
+ *range
  *    from the bad block table.
  * 3.1) Partially covered at head part
  *         +------------+
@@ -420,7 +426,8 @@
  *              +------------+                 +------------+
  *              |      E     |                 |      E     |
  *              +------------+                 +------------+
- *   Now the first part C1 can be handled as condition 1), and the second part C2 can be
+ *   Now the first part C1 can be handled as condition 1), and the second part
+ *C2 can be
  *   handled as condition 3.1) in next loop.
  * 5.2) The already set bad block range is behind overlaopped with the clearing
  *   range.
@@ -454,22 +461,19 @@
  * starts from index 'hint' and stops at index 'hint_end' from the bad
  * table.
  */
-static int prev_by_hint(struct badblocks *bb, sector_t s, int hint)
-{
-	int hint_end = hint + 2;
-	u64 *p = bb->page;
-	int ret = -1;
-
-	while ((hint < hint_end) && ((hint + 1) <= bb->count) &&
-	       (BB_OFFSET(p[hint]) <= s)) {
-		if ((hint + 1) == bb->count || BB_OFFSET(p[hint + 1]) > s) {
-			ret = hint;
-			break;
-		}
-		hint++;
-	}
-
-	return ret;
+static int prev_by_hint(struct badblocks *bb, sector_t s, int hint) {
+  int hint_end = hint + 2;
+  u64 *p = bb->page;
+  int ret = -1;
+  while ((hint < hint_end) && ((hint + 1) <= bb->count)
+      && (BB_OFFSET(p[hint]) <= s)) {
+    if ((hint + 1) == bb->count || BB_OFFSET(p[hint + 1]) > s) {
+      ret = hint;
+      break;
+    }
+    hint++;
+  }
+  return ret;
 }
 
 /*
@@ -479,52 +483,49 @@ static int prev_by_hint(struct badblocks *bb, sector_t s, int hint)
  * then the unnecessary while-loop iteration can be avoided.
  */
 static int prev_badblocks(struct badblocks *bb, struct badblocks_context *bad,
-			  int hint)
-{
-	sector_t s = bad->start;
-	int ret = -1;
-	int lo, hi;
-	u64 *p;
-
-	if (!bb->count)
-		goto out;
-
-	if (hint >= 0) {
-		ret = prev_by_hint(bb, s, hint);
-		if (ret >= 0)
-			goto out;
-	}
-
-	lo = 0;
-	hi = bb->count;
-	p = bb->page;
-
-	/* The following bisect search might be unnecessary */
-	if (BB_OFFSET(p[lo]) > s)
-		return -1;
-	if (BB_OFFSET(p[hi - 1]) <= s)
-		return hi - 1;
-
-	/* Do bisect search in bad table */
-	while (hi - lo > 1) {
-		int mid = (lo + hi)/2;
-		sector_t a = BB_OFFSET(p[mid]);
-
-		if (a == s) {
-			ret = mid;
-			goto out;
-		}
-
-		if (a < s)
-			lo = mid;
-		else
-			hi = mid;
-	}
-
-	if (BB_OFFSET(p[lo]) <= s)
-		ret = lo;
+    int hint) {
+  sector_t s = bad->start;
+  int ret = -1;
+  int lo, hi;
+  u64 *p;
+  if (!bb->count) {
+    goto out;
+  }
+  if (hint >= 0) {
+    ret = prev_by_hint(bb, s, hint);
+    if (ret >= 0) {
+      goto out;
+    }
+  }
+  lo = 0;
+  hi = bb->count;
+  p = bb->page;
+  /* The following bisect search might be unnecessary */
+  if (BB_OFFSET(p[lo]) > s) {
+    return -1;
+  }
+  if (BB_OFFSET(p[hi - 1]) <= s) {
+    return hi - 1;
+  }
+  /* Do bisect search in bad table */
+  while (hi - lo > 1) {
+    int mid = (lo + hi) / 2;
+    sector_t a = BB_OFFSET(p[mid]);
+    if (a == s) {
+      ret = mid;
+      goto out;
+    }
+    if (a < s) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  if (BB_OFFSET(p[lo]) <= s) {
+    ret = lo;
+  }
 out:
-	return ret;
+  return ret;
 }
 
 /*
@@ -532,18 +533,17 @@ out:
  * with the bad range (from the bad table) index by 'behind'.
  */
 static bool can_merge_behind(struct badblocks *bb,
-			     struct badblocks_context *bad, int behind)
-{
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-
-	if ((s < BB_OFFSET(p[behind])) &&
-	    ((s + sectors) >= BB_OFFSET(p[behind])) &&
-	    ((BB_END(p[behind]) - s) <= BB_MAX_LEN) &&
-	    BB_ACK(p[behind]) == bad->ack)
-		return true;
-	return false;
+    struct badblocks_context *bad, int behind) {
+  sector_t sectors = bad->len;
+  sector_t s = bad->start;
+  u64 *p = bb->page;
+  if ((s < BB_OFFSET(p[behind]))
+      && ((s + sectors) >= BB_OFFSET(p[behind]))
+      && ((BB_END(p[behind]) - s) <= BB_MAX_LEN)
+      && BB_ACK(p[behind]) == bad->ack) {
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -552,24 +552,19 @@ static bool can_merge_behind(struct badblocks *bb,
  * sectors from bad->len.
  */
 static int behind_merge(struct badblocks *bb, struct badblocks_context *bad,
-			int behind)
-{
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-	int merged = 0;
-
-	WARN_ON(s >= BB_OFFSET(p[behind]));
-	WARN_ON((s + sectors) < BB_OFFSET(p[behind]));
-
-	if (s < BB_OFFSET(p[behind])) {
-		merged = BB_OFFSET(p[behind]) - s;
-		p[behind] =  BB_MAKE(s, BB_LEN(p[behind]) + merged, bad->ack);
-
-		WARN_ON((BB_LEN(p[behind]) + merged) >= BB_MAX_LEN);
-	}
-
-	return merged;
+    int behind) {
+  sector_t sectors = bad->len;
+  sector_t s = bad->start;
+  u64 *p = bb->page;
+  int merged = 0;
+  WARN_ON(s >= BB_OFFSET(p[behind]));
+  WARN_ON((s + sectors) < BB_OFFSET(p[behind]));
+  if (s < BB_OFFSET(p[behind])) {
+    merged = BB_OFFSET(p[behind]) - s;
+    p[behind] = BB_MAKE(s, BB_LEN(p[behind]) + merged, bad->ack);
+    WARN_ON((BB_LEN(p[behind]) + merged) >= BB_MAX_LEN);
+  }
+  return merged;
 }
 
 /*
@@ -577,16 +572,15 @@ static int behind_merge(struct badblocks *bb, struct badblocks_context *bad,
  * merged with the bad range (from the bad table) indexed by 'prev'.
  */
 static bool can_merge_front(struct badblocks *bb, int prev,
-			    struct badblocks_context *bad)
-{
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-
-	if (BB_ACK(p[prev]) == bad->ack &&
-	    (s < BB_END(p[prev]) ||
-	     (s == BB_END(p[prev]) && (BB_LEN(p[prev]) < BB_MAX_LEN))))
-		return true;
-	return false;
+    struct badblocks_context *bad) {
+  sector_t s = bad->start;
+  u64 *p = bb->page;
+  if (BB_ACK(p[prev]) == bad->ack
+      && (s < BB_END(p[prev])
+      || (s == BB_END(p[prev]) && (BB_LEN(p[prev]) < BB_MAX_LEN)))) {
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -594,29 +588,25 @@ static bool can_merge_front(struct badblocks *bb, int prev,
  * (from bad table) indexed by 'prev'. The return value is sectors
  * merged from bad->len.
  */
-static int front_merge(struct badblocks *bb, int prev, struct badblocks_context *bad)
-{
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-	int merged = 0;
-
-	WARN_ON(s > BB_END(p[prev]));
-
-	if (s < BB_END(p[prev])) {
-		merged = min_t(sector_t, sectors, BB_END(p[prev]) - s);
-	} else {
-		merged = min_t(sector_t, sectors, BB_MAX_LEN - BB_LEN(p[prev]));
-		if ((prev + 1) < bb->count &&
-		    merged > (BB_OFFSET(p[prev + 1]) - BB_END(p[prev]))) {
-			merged = BB_OFFSET(p[prev + 1]) - BB_END(p[prev]);
-		}
-
-		p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-				  BB_LEN(p[prev]) + merged, bad->ack);
-	}
-
-	return merged;
+static int front_merge(struct badblocks *bb, int prev,
+    struct badblocks_context *bad) {
+  sector_t sectors = bad->len;
+  sector_t s = bad->start;
+  u64 *p = bb->page;
+  int merged = 0;
+  WARN_ON(s > BB_END(p[prev]));
+  if (s < BB_END(p[prev])) {
+    merged = min_t(sector_t, sectors, BB_END(p[prev]) - s);
+  } else {
+    merged = min_t(sector_t, sectors, BB_MAX_LEN - BB_LEN(p[prev]));
+    if ((prev + 1) < bb->count
+        && merged > (BB_OFFSET(p[prev + 1]) - BB_END(p[prev]))) {
+      merged = BB_OFFSET(p[prev + 1]) - BB_END(p[prev]);
+    }
+    p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+        BB_LEN(p[prev]) + merged, bad->ack);
+  }
+  return merged;
 }
 
 /*
@@ -631,17 +621,16 @@ static int front_merge(struct badblocks *bb, int prev, struct badblocks_context 
  * table can be combined.
  */
 static bool can_combine_front(struct badblocks *bb, int prev,
-			      struct badblocks_context *bad)
-{
-	u64 *p = bb->page;
-
-	if ((prev > 0) &&
-	    (BB_OFFSET(p[prev]) == bad->start) &&
-	    (BB_END(p[prev - 1]) == BB_OFFSET(p[prev])) &&
-	    (BB_LEN(p[prev - 1]) + BB_LEN(p[prev]) <= BB_MAX_LEN) &&
-	    (BB_ACK(p[prev - 1]) == BB_ACK(p[prev])))
-		return true;
-	return false;
+    struct badblocks_context *bad) {
+  u64 *p = bb->page;
+  if ((prev > 0)
+      && (BB_OFFSET(p[prev]) == bad->start)
+      && (BB_END(p[prev - 1]) == BB_OFFSET(p[prev]))
+      && (BB_LEN(p[prev - 1]) + BB_LEN(p[prev]) <= BB_MAX_LEN)
+      && (BB_ACK(p[prev - 1]) == BB_ACK(p[prev]))) {
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -651,15 +640,14 @@ static bool can_combine_front(struct badblocks *bb, int prev,
  * The caller of front_combine() will decrease bb->count, therefore
  * it is unnecessary to clear p[perv] after front merge.
  */
-static void front_combine(struct badblocks *bb, int prev)
-{
-	u64 *p = bb->page;
-
-	p[prev - 1] = BB_MAKE(BB_OFFSET(p[prev - 1]),
-			      BB_LEN(p[prev - 1]) + BB_LEN(p[prev]),
-			      BB_ACK(p[prev]));
-	if ((prev + 1) < bb->count)
-		memmove(p + prev, p + prev + 1, (bb->count - prev - 1) * 8);
+static void front_combine(struct badblocks *bb, int prev) {
+  u64 *p = bb->page;
+  p[prev - 1] = BB_MAKE(BB_OFFSET(p[prev - 1]),
+      BB_LEN(p[prev - 1]) + BB_LEN(p[prev]),
+      BB_ACK(p[prev]));
+  if ((prev + 1) < bb->count) {
+    memmove(p + prev, p + prev + 1, (bb->count - prev - 1) * 8);
+  }
 }
 
 /*
@@ -669,14 +657,13 @@ static void front_combine(struct badblocks *bb, int prev)
  * by 'prev' does not cover the whole range indicated by 'bad'.
  */
 static bool overlap_front(struct badblocks *bb, int front,
-			  struct badblocks_context *bad)
-{
-	u64 *p = bb->page;
-
-	if (bad->start >= BB_OFFSET(p[front]) &&
-	    bad->start < BB_END(p[front]))
-		return true;
-	return false;
+    struct badblocks_context *bad) {
+  u64 *p = bb->page;
+  if (bad->start >= BB_OFFSET(p[front])
+      && bad->start < BB_END(p[front])) {
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -684,14 +671,13 @@ static bool overlap_front(struct badblocks *bb, int front,
  * overlapped with the bad range (from bad table) indexed by 'behind'.
  */
 static bool overlap_behind(struct badblocks *bb, struct badblocks_context *bad,
-			   int behind)
-{
-	u64 *p = bb->page;
-
-	if (bad->start < BB_OFFSET(p[behind]) &&
-	    (bad->start + bad->len) > BB_OFFSET(p[behind]))
-		return true;
-	return false;
+    int behind) {
+  u64 *p = bb->page;
+  if (bad->start < BB_OFFSET(p[behind])
+      && (bad->start + bad->len) > BB_OFFSET(p[behind])) {
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -716,39 +702,36 @@ static bool overlap_behind(struct badblocks *bb, struct badblocks_context *bad,
  * 'extra' and returned for the caller.
  */
 static bool can_front_overwrite(struct badblocks *bb, int prev,
-				struct badblocks_context *bad, int *extra)
-{
-	u64 *p = bb->page;
-	int len;
-
-	WARN_ON(!overlap_front(bb, prev, bad));
-
-	if (BB_ACK(p[prev]) >= bad->ack)
-		return false;
-
-	if (BB_END(p[prev]) <= (bad->start + bad->len)) {
-		len = BB_END(p[prev]) - bad->start;
-		if (BB_OFFSET(p[prev]) == bad->start)
-			*extra = 0;
-		else
-			*extra = 1;
-
-		bad->len = len;
-	} else {
-		if (BB_OFFSET(p[prev]) == bad->start)
-			*extra = 1;
-		else
-		/*
-		 * prev range will be split into two, beside the overwritten
-		 * one, an extra slot needed from bad table.
-		 */
-			*extra = 2;
-	}
-
-	if ((bb->count + (*extra)) >= MAX_BADBLOCKS)
-		return false;
-
-	return true;
+    struct badblocks_context *bad, int *extra) {
+  u64 *p = bb->page;
+  int len;
+  WARN_ON(!overlap_front(bb, prev, bad));
+  if (BB_ACK(p[prev]) >= bad->ack) {
+    return false;
+  }
+  if (BB_END(p[prev]) <= (bad->start + bad->len)) {
+    len = BB_END(p[prev]) - bad->start;
+    if (BB_OFFSET(p[prev]) == bad->start) {
+      *extra = 0;
+    } else {
+      *extra = 1;
+    }
+    bad->len = len;
+  } else {
+    if (BB_OFFSET(p[prev]) == bad->start) {
+      *extra = 1;
+    } else {
+      /*
+       * prev range will be split into two, beside the overwritten
+       * one, an extra slot needed from bad table.
+       */
+      *extra = 2;
+    }
+  }
+  if ((bb->count + (*extra)) >= MAX_BADBLOCKS) {
+    return false;
+  }
+  return true;
 }
 
 /*
@@ -759,308 +742,276 @@ static bool can_front_overwrite(struct badblocks *bb, int prev,
  * the splitting cases in the bad table will be handled here.
  */
 static int front_overwrite(struct badblocks *bb, int prev,
-			   struct badblocks_context *bad, int extra)
-{
-	u64 *p = bb->page;
-	sector_t orig_end = BB_END(p[prev]);
-	int orig_ack = BB_ACK(p[prev]);
-
-	switch (extra) {
-	case 0:
-		p[prev] = BB_MAKE(BB_OFFSET(p[prev]), BB_LEN(p[prev]),
-				  bad->ack);
-		break;
-	case 1:
-		if (BB_OFFSET(p[prev]) == bad->start) {
-			p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-					  bad->len, bad->ack);
-			memmove(p + prev + 2, p + prev + 1,
-				(bb->count - prev - 1) * 8);
-			p[prev + 1] = BB_MAKE(bad->start + bad->len,
-					      orig_end - BB_END(p[prev]),
-					      orig_ack);
-		} else {
-			p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-					  bad->start - BB_OFFSET(p[prev]),
-					  orig_ack);
-			/*
-			 * prev +2 -> prev + 1 + 1, which is for,
-			 * 1) prev + 1: the slot index of the previous one
-			 * 2) + 1: one more slot for extra being 1.
-			 */
-			memmove(p + prev + 2, p + prev + 1,
-				(bb->count - prev - 1) * 8);
-			p[prev + 1] = BB_MAKE(bad->start, bad->len, bad->ack);
-		}
-		break;
-	case 2:
-		p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-				  bad->start - BB_OFFSET(p[prev]),
-				  orig_ack);
-		/*
-		 * prev + 3 -> prev + 1 + 2, which is for,
-		 * 1) prev + 1: the slot index of the previous one
-		 * 2) + 2: two more slots for extra being 2.
-		 */
-		memmove(p + prev + 3, p + prev + 1,
-			(bb->count - prev - 1) * 8);
-		p[prev + 1] = BB_MAKE(bad->start, bad->len, bad->ack);
-		p[prev + 2] = BB_MAKE(BB_END(p[prev + 1]),
-				      orig_end - BB_END(p[prev + 1]),
-				      orig_ack);
-		break;
-	default:
-		break;
-	}
-
-	return bad->len;
+    struct badblocks_context *bad, int extra) {
+  u64 *p = bb->page;
+  sector_t orig_end = BB_END(p[prev]);
+  int orig_ack = BB_ACK(p[prev]);
+  switch (extra) {
+    case 0:
+      p[prev] = BB_MAKE(BB_OFFSET(p[prev]), BB_LEN(p[prev]),
+          bad->ack);
+      break;
+    case 1:
+      if (BB_OFFSET(p[prev]) == bad->start) {
+        p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+            bad->len, bad->ack);
+        memmove(p + prev + 2, p + prev + 1,
+            (bb->count - prev - 1) * 8);
+        p[prev + 1] = BB_MAKE(bad->start + bad->len,
+            orig_end - BB_END(p[prev]),
+            orig_ack);
+      } else {
+        p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+            bad->start - BB_OFFSET(p[prev]),
+            orig_ack);
+        /*
+         * prev +2 -> prev + 1 + 1, which is for,
+         * 1) prev + 1: the slot index of the previous one
+         * 2) + 1: one more slot for extra being 1.
+         */
+        memmove(p + prev + 2, p + prev + 1,
+            (bb->count - prev - 1) * 8);
+        p[prev + 1] = BB_MAKE(bad->start, bad->len, bad->ack);
+      }
+      break;
+    case 2:
+      p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+          bad->start - BB_OFFSET(p[prev]),
+          orig_ack);
+      /*
+       * prev + 3 -> prev + 1 + 2, which is for,
+       * 1) prev + 1: the slot index of the previous one
+       * 2) + 2: two more slots for extra being 2.
+       */
+      memmove(p + prev + 3, p + prev + 1,
+          (bb->count - prev - 1) * 8);
+      p[prev + 1] = BB_MAKE(bad->start, bad->len, bad->ack);
+      p[prev + 2] = BB_MAKE(BB_END(p[prev + 1]),
+          orig_end - BB_END(p[prev + 1]),
+          orig_ack);
+      break;
+    default:
+      break;
+  }
+  return bad->len;
 }
 
 /*
  * Explicitly insert a range indicated by 'bad' to the bad table, where
  * the location is indexed by 'at'.
  */
-static int insert_at(struct badblocks *bb, int at, struct badblocks_context *bad)
-{
-	u64 *p = bb->page;
-	int len;
-
-	WARN_ON(badblocks_full(bb));
-
-	len = min_t(sector_t, bad->len, BB_MAX_LEN);
-	if (at < bb->count)
-		memmove(p + at + 1, p + at, (bb->count - at) * 8);
-	p[at] = BB_MAKE(bad->start, len, bad->ack);
-
-	return len;
+static int insert_at(struct badblocks *bb, int at,
+    struct badblocks_context *bad) {
+  u64 *p = bb->page;
+  int len;
+  WARN_ON(badblocks_full(bb));
+  len = min_t(sector_t, bad->len, BB_MAX_LEN);
+  if (at < bb->count) {
+    memmove(p + at + 1, p + at, (bb->count - at) * 8);
+  }
+  p[at] = BB_MAKE(bad->start, len, bad->ack);
+  return len;
 }
 
-static void badblocks_update_acked(struct badblocks *bb)
-{
-	bool unacked = false;
-	u64 *p = bb->page;
-	int i;
-
-	if (!bb->unacked_exist)
-		return;
-
-	for (i = 0; i < bb->count ; i++) {
-		if (!BB_ACK(p[i])) {
-			unacked = true;
-			break;
-		}
-	}
-
-	if (!unacked)
-		bb->unacked_exist = 0;
+static void badblocks_update_acked(struct badblocks *bb) {
+  bool unacked = false;
+  u64 *p = bb->page;
+  int i;
+  if (!bb->unacked_exist) {
+    return;
+  }
+  for (i = 0; i < bb->count; i++) {
+    if (!BB_ACK(p[i])) {
+      unacked = true;
+      break;
+    }
+  }
+  if (!unacked) {
+    bb->unacked_exist = 0;
+  }
 }
 
 /* Do exact work to set bad block range into the bad block table */
 static int _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			  int acknowledged)
-{
-	int retried = 0, space_desired = 0;
-	int orig_len, len = 0, added = 0;
-	struct badblocks_context bad;
-	int prev = -1, hint = -1;
-	sector_t orig_start;
-	unsigned long flags;
-	int rv = 0;
-	u64 *p;
-
-	if (bb->shift < 0)
-		/* badblocks are disabled */
-		return 1;
-
-	if (sectors == 0)
-		/* Invalid sectors number */
-		return 1;
-
-	if (bb->shift) {
-		/* round the start down, and the end up */
-		sector_t next = s + sectors;
-
-		rounddown(s, bb->shift);
-		roundup(next, bb->shift);
-		sectors = next - s;
-	}
-
-	write_seqlock_irqsave(&bb->lock, flags);
-
-	orig_start = s;
-	orig_len = sectors;
-	bad.ack = acknowledged;
-	p = bb->page;
-
+    int acknowledged) {
+  int retried = 0, space_desired = 0;
+  int orig_len, len = 0, added = 0;
+  struct badblocks_context bad;
+  int prev = -1, hint = -1;
+  sector_t orig_start;
+  unsigned long flags;
+  int rv = 0;
+  u64 *p;
+  if (bb->shift < 0) {
+    /* badblocks are disabled */
+    return 1;
+  }
+  if (sectors == 0) {
+    /* Invalid sectors number */
+    return 1;
+  }
+  if (bb->shift) {
+    /* round the start down, and the end up */
+    sector_t next = s + sectors;
+    rounddown(s, bb->shift);
+    roundup(next, bb->shift);
+    sectors = next - s;
+  }
+  write_seqlock_irqsave(&bb->lock, flags);
+  orig_start = s;
+  orig_len = sectors;
+  bad.ack = acknowledged;
+  p = bb->page;
 re_insert:
-	bad.start = s;
-	bad.len = sectors;
-	len = 0;
-
-	if (badblocks_empty(bb)) {
-		len = insert_at(bb, 0, &bad);
-		bb->count++;
-		added++;
-		goto update_sectors;
-	}
-
-	prev = prev_badblocks(bb, &bad, hint);
-
-	/* start before all badblocks */
-	if (prev < 0) {
-		if (!badblocks_full(bb)) {
-			/* insert on the first */
-			if (bad.len > (BB_OFFSET(p[0]) - bad.start))
-				bad.len = BB_OFFSET(p[0]) - bad.start;
-			len = insert_at(bb, 0, &bad);
-			bb->count++;
-			added++;
-			hint = 0;
-			goto update_sectors;
-		}
-
-		/* No sapce, try to merge */
-		if (overlap_behind(bb, &bad, 0)) {
-			if (can_merge_behind(bb, &bad, 0)) {
-				len = behind_merge(bb, &bad, 0);
-				added++;
-			} else {
-				len = BB_OFFSET(p[0]) - s;
-				space_desired = 1;
-			}
-			hint = 0;
-			goto update_sectors;
-		}
-
-		/* no table space and give up */
-		goto out;
-	}
-
-	/* in case p[prev-1] can be merged with p[prev] */
-	if (can_combine_front(bb, prev, &bad)) {
-		front_combine(bb, prev);
-		bb->count--;
-		added++;
-		hint = prev;
-		goto update_sectors;
-	}
-
-	if (overlap_front(bb, prev, &bad)) {
-		if (can_merge_front(bb, prev, &bad)) {
-			len = front_merge(bb, prev, &bad);
-			added++;
-		} else {
-			int extra = 0;
-
-			if (!can_front_overwrite(bb, prev, &bad, &extra)) {
-				len = min_t(sector_t,
-					    BB_END(p[prev]) - s, sectors);
-				hint = prev;
-				goto update_sectors;
-			}
-
-			len = front_overwrite(bb, prev, &bad, extra);
-			added++;
-			bb->count += extra;
-
-			if (can_combine_front(bb, prev, &bad)) {
-				front_combine(bb, prev);
-				bb->count--;
-			}
-		}
-		hint = prev;
-		goto update_sectors;
-	}
-
-	if (can_merge_front(bb, prev, &bad)) {
-		len = front_merge(bb, prev, &bad);
-		added++;
-		hint = prev;
-		goto update_sectors;
-	}
-
-	/* if no space in table, still try to merge in the covered range */
-	if (badblocks_full(bb)) {
-		/* skip the cannot-merge range */
-		if (((prev + 1) < bb->count) &&
-		    overlap_behind(bb, &bad, prev + 1) &&
-		    ((s + sectors) >= BB_END(p[prev + 1]))) {
-			len = BB_END(p[prev + 1]) - s;
-			hint = prev + 1;
-			goto update_sectors;
-		}
-
-		/* no retry any more */
-		len = sectors;
-		space_desired = 1;
-		hint = -1;
-		goto update_sectors;
-	}
-
-	/* cannot merge and there is space in bad table */
-	if ((prev + 1) < bb->count &&
-	    overlap_behind(bb, &bad, prev + 1))
-		bad.len = min_t(sector_t,
-				bad.len, BB_OFFSET(p[prev + 1]) - bad.start);
-
-	len = insert_at(bb, prev + 1, &bad);
-	bb->count++;
-	added++;
-	hint = prev + 1;
-
+  bad.start = s;
+  bad.len = sectors;
+  len = 0;
+  if (badblocks_empty(bb)) {
+    len = insert_at(bb, 0, &bad);
+    bb->count++;
+    added++;
+    goto update_sectors;
+  }
+  prev = prev_badblocks(bb, &bad, hint);
+  /* start before all badblocks */
+  if (prev < 0) {
+    if (!badblocks_full(bb)) {
+      /* insert on the first */
+      if (bad.len > (BB_OFFSET(p[0]) - bad.start)) {
+        bad.len = BB_OFFSET(p[0]) - bad.start;
+      }
+      len = insert_at(bb, 0, &bad);
+      bb->count++;
+      added++;
+      hint = 0;
+      goto update_sectors;
+    }
+    /* No sapce, try to merge */
+    if (overlap_behind(bb, &bad, 0)) {
+      if (can_merge_behind(bb, &bad, 0)) {
+        len = behind_merge(bb, &bad, 0);
+        added++;
+      } else {
+        len = BB_OFFSET(p[0]) - s;
+        space_desired = 1;
+      }
+      hint = 0;
+      goto update_sectors;
+    }
+    /* no table space and give up */
+    goto out;
+  }
+  /* in case p[prev-1] can be merged with p[prev] */
+  if (can_combine_front(bb, prev, &bad)) {
+    front_combine(bb, prev);
+    bb->count--;
+    added++;
+    hint = prev;
+    goto update_sectors;
+  }
+  if (overlap_front(bb, prev, &bad)) {
+    if (can_merge_front(bb, prev, &bad)) {
+      len = front_merge(bb, prev, &bad);
+      added++;
+    } else {
+      int extra = 0;
+      if (!can_front_overwrite(bb, prev, &bad, &extra)) {
+        len = min_t(sector_t,
+            BB_END(p[prev]) - s, sectors);
+        hint = prev;
+        goto update_sectors;
+      }
+      len = front_overwrite(bb, prev, &bad, extra);
+      added++;
+      bb->count += extra;
+      if (can_combine_front(bb, prev, &bad)) {
+        front_combine(bb, prev);
+        bb->count--;
+      }
+    }
+    hint = prev;
+    goto update_sectors;
+  }
+  if (can_merge_front(bb, prev, &bad)) {
+    len = front_merge(bb, prev, &bad);
+    added++;
+    hint = prev;
+    goto update_sectors;
+  }
+  /* if no space in table, still try to merge in the covered range */
+  if (badblocks_full(bb)) {
+    /* skip the cannot-merge range */
+    if (((prev + 1) < bb->count)
+        && overlap_behind(bb, &bad, prev + 1)
+        && ((s + sectors) >= BB_END(p[prev + 1]))) {
+      len = BB_END(p[prev + 1]) - s;
+      hint = prev + 1;
+      goto update_sectors;
+    }
+    /* no retry any more */
+    len = sectors;
+    space_desired = 1;
+    hint = -1;
+    goto update_sectors;
+  }
+  /* cannot merge and there is space in bad table */
+  if ((prev + 1) < bb->count
+      && overlap_behind(bb, &bad, prev + 1)) {
+    bad.len = min_t(sector_t,
+        bad.len, BB_OFFSET(p[prev + 1]) - bad.start);
+  }
+  len = insert_at(bb, prev + 1, &bad);
+  bb->count++;
+  added++;
+  hint = prev + 1;
 update_sectors:
-	s += len;
-	sectors -= len;
-
-	if (sectors > 0)
-		goto re_insert;
-
-	WARN_ON(sectors < 0);
-
-	/*
-	 * Check whether the following already set range can be
-	 * merged. (prev < 0) condition is not handled here,
-	 * because it's already complicated enough.
-	 */
-	if (prev >= 0 &&
-	    (prev + 1) < bb->count &&
-	    BB_END(p[prev]) == BB_OFFSET(p[prev + 1]) &&
-	    (BB_LEN(p[prev]) + BB_LEN(p[prev + 1])) <= BB_MAX_LEN &&
-	    BB_ACK(p[prev]) == BB_ACK(p[prev + 1])) {
-		p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-				  BB_LEN(p[prev]) + BB_LEN(p[prev + 1]),
-				  BB_ACK(p[prev]));
-
-		if ((prev + 2) < bb->count)
-			memmove(p + prev + 1, p + prev + 2,
-				(bb->count -  (prev + 2)) * 8);
-		bb->count--;
-	}
-
-	if (space_desired && !badblocks_full(bb)) {
-		s = orig_start;
-		sectors = orig_len;
-		space_desired = 0;
-		if (retried++ < 3)
-			goto re_insert;
-	}
-
+  s += len;
+  sectors -= len;
+  if (sectors > 0) {
+    goto re_insert;
+  }
+  WARN_ON(sectors < 0);
+  /*
+   * Check whether the following already set range can be
+   * merged. (prev < 0) condition is not handled here,
+   * because it's already complicated enough.
+   */
+  if (prev >= 0
+      && (prev + 1) < bb->count
+      && BB_END(p[prev]) == BB_OFFSET(p[prev + 1])
+      && (BB_LEN(p[prev]) + BB_LEN(p[prev + 1])) <= BB_MAX_LEN
+      && BB_ACK(p[prev]) == BB_ACK(p[prev + 1])) {
+    p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+        BB_LEN(p[prev]) + BB_LEN(p[prev + 1]),
+        BB_ACK(p[prev]));
+    if ((prev + 2) < bb->count) {
+      memmove(p + prev + 1, p + prev + 2,
+          (bb->count - (prev + 2)) * 8);
+    }
+    bb->count--;
+  }
+  if (space_desired && !badblocks_full(bb)) {
+    s = orig_start;
+    sectors = orig_len;
+    space_desired = 0;
+    if (retried++ < 3) {
+      goto re_insert;
+    }
+  }
 out:
-	if (added) {
-		set_changed(bb);
-
-		if (!acknowledged)
-			bb->unacked_exist = 1;
-		else
-			badblocks_update_acked(bb);
-	}
-
-	write_sequnlock_irqrestore(&bb->lock, flags);
-
-	if (!added)
-		rv = 1;
-
-	return rv;
+  if (added) {
+    set_changed(bb);
+    if (!acknowledged) {
+      bb->unacked_exist = 1;
+    } else {
+      badblocks_update_acked(bb);
+    }
+  }
+  write_sequnlock_irqrestore(&bb->lock, flags);
+  if (!added) {
+    rv = 1;
+  }
+  return rv;
 }
 
 /*
@@ -1071,41 +1022,39 @@ out:
  * the caller to reduce bb->count.
  */
 static int front_clear(struct badblocks *bb, int prev,
-		       struct badblocks_context *bad, int *deleted)
-{
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-	int cleared = 0;
-
-	*deleted = 0;
-	if (s == BB_OFFSET(p[prev])) {
-		if (BB_LEN(p[prev]) > sectors) {
-			p[prev] = BB_MAKE(BB_OFFSET(p[prev]) + sectors,
-					  BB_LEN(p[prev]) - sectors,
-					  BB_ACK(p[prev]));
-			cleared = sectors;
-		} else {
-			/* BB_LEN(p[prev]) <= sectors */
-			cleared = BB_LEN(p[prev]);
-			if ((prev + 1) < bb->count)
-				memmove(p + prev, p + prev + 1,
-				       (bb->count - prev - 1) * 8);
-			*deleted = 1;
-		}
-	} else if (s > BB_OFFSET(p[prev])) {
-		if (BB_END(p[prev]) <= (s + sectors)) {
-			cleared = BB_END(p[prev]) - s;
-			p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-					  s - BB_OFFSET(p[prev]),
-					  BB_ACK(p[prev]));
-		} else {
-			/* Splitting is handled in front_splitting_clear() */
-			BUG();
-		}
-	}
-
-	return cleared;
+    struct badblocks_context *bad, int *deleted) {
+  sector_t sectors = bad->len;
+  sector_t s = bad->start;
+  u64 *p = bb->page;
+  int cleared = 0;
+  *deleted = 0;
+  if (s == BB_OFFSET(p[prev])) {
+    if (BB_LEN(p[prev]) > sectors) {
+      p[prev] = BB_MAKE(BB_OFFSET(p[prev]) + sectors,
+          BB_LEN(p[prev]) - sectors,
+          BB_ACK(p[prev]));
+      cleared = sectors;
+    } else {
+      /* BB_LEN(p[prev]) <= sectors */
+      cleared = BB_LEN(p[prev]);
+      if ((prev + 1) < bb->count) {
+        memmove(p + prev, p + prev + 1,
+            (bb->count - prev - 1) * 8);
+      }
+      *deleted = 1;
+    }
+  } else if (s > BB_OFFSET(p[prev])) {
+    if (BB_END(p[prev]) <= (s + sectors)) {
+      cleared = BB_END(p[prev]) - s;
+      p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+          s - BB_OFFSET(p[prev]),
+          BB_ACK(p[prev]));
+    } else {
+      /* Splitting is handled in front_splitting_clear() */
+      BUG();
+    }
+  }
+  return cleared;
 }
 
 /*
@@ -1114,268 +1063,228 @@ static int front_clear(struct badblocks *bb, int prev,
  * block range is split into two after the middle part is cleared.
  */
 static int front_splitting_clear(struct badblocks *bb, int prev,
-				  struct badblocks_context *bad)
-{
-	u64 *p = bb->page;
-	u64 end = BB_END(p[prev]);
-	int ack = BB_ACK(p[prev]);
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-
-	p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-			  s - BB_OFFSET(p[prev]),
-			  ack);
-	memmove(p + prev + 2, p + prev + 1, (bb->count - prev - 1) * 8);
-	p[prev + 1] = BB_MAKE(s + sectors, end - s - sectors, ack);
-	return sectors;
+    struct badblocks_context *bad) {
+  u64 *p = bb->page;
+  u64 end = BB_END(p[prev]);
+  int ack = BB_ACK(p[prev]);
+  sector_t sectors = bad->len;
+  sector_t s = bad->start;
+  p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+      s - BB_OFFSET(p[prev]),
+      ack);
+  memmove(p + prev + 2, p + prev + 1, (bb->count - prev - 1) * 8);
+  p[prev + 1] = BB_MAKE(s + sectors, end - s - sectors, ack);
+  return sectors;
 }
 
 /* Do the exact work to clear bad block range from the bad block table */
-static int _badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
-{
-	struct badblocks_context bad;
-	int prev = -1, hint = -1;
-	int len = 0, cleared = 0;
-	int rv = 0;
-	u64 *p;
-
-	if (bb->shift < 0)
-		/* badblocks are disabled */
-		return 1;
-
-	if (sectors == 0)
-		/* Invalid sectors number */
-		return 1;
-
-	if (bb->shift) {
-		sector_t target;
-
-		/* When clearing we round the start up and the end down.
-		 * This should not matter as the shift should align with
-		 * the block size and no rounding should ever be needed.
-		 * However it is better the think a block is bad when it
-		 * isn't than to think a block is not bad when it is.
-		 */
-		target = s + sectors;
-		roundup(s, bb->shift);
-		rounddown(target, bb->shift);
-		sectors = target - s;
-	}
-
-	write_seqlock_irq(&bb->lock);
-
-	bad.ack = true;
-	p = bb->page;
-
+static int _badblocks_clear(struct badblocks *bb, sector_t s, int sectors) {
+  struct badblocks_context bad;
+  int prev = -1, hint = -1;
+  int len = 0, cleared = 0;
+  int rv = 0;
+  u64 *p;
+  if (bb->shift < 0) {
+    /* badblocks are disabled */
+    return 1;
+  }
+  if (sectors == 0) {
+    /* Invalid sectors number */
+    return 1;
+  }
+  if (bb->shift) {
+    sector_t target;
+    /* When clearing we round the start up and the end down.
+     * This should not matter as the shift should align with
+     * the block size and no rounding should ever be needed.
+     * However it is better the think a block is bad when it
+     * isn't than to think a block is not bad when it is.
+     */
+    target = s + sectors;
+    roundup(s, bb->shift);
+    rounddown(target, bb->shift);
+    sectors = target - s;
+  }
+  write_seqlock_irq(&bb->lock);
+  bad.ack = true;
+  p = bb->page;
 re_clear:
-	bad.start = s;
-	bad.len = sectors;
-
-	if (badblocks_empty(bb)) {
-		len = sectors;
-		cleared++;
-		goto update_sectors;
-	}
-
-
-	prev = prev_badblocks(bb, &bad, hint);
-
-	/* Start before all badblocks */
-	if (prev < 0) {
-		if (overlap_behind(bb, &bad, 0)) {
-			len = BB_OFFSET(p[0]) - s;
-			hint = 0;
-		} else {
-			len = sectors;
-		}
-		/*
-		 * Both situations are to clear non-bad range,
-		 * should be treated as successful
-		 */
-		cleared++;
-		goto update_sectors;
-	}
-
-	/* Start after all badblocks */
-	if ((prev + 1) >= bb->count && !overlap_front(bb, prev, &bad)) {
-		len = sectors;
-		cleared++;
-		goto update_sectors;
-	}
-
-	/* Clear will split a bad record but the table is full */
-	if (badblocks_full(bb) && (BB_OFFSET(p[prev]) < bad.start) &&
-	    (BB_END(p[prev]) > (bad.start + sectors))) {
-		len = sectors;
-		goto update_sectors;
-	}
-
-	if (overlap_front(bb, prev, &bad)) {
-		if ((BB_OFFSET(p[prev]) < bad.start) &&
-		    (BB_END(p[prev]) > (bad.start + bad.len))) {
-			/* Splitting */
-			if ((bb->count + 1) < MAX_BADBLOCKS) {
-				len = front_splitting_clear(bb, prev, &bad);
-				bb->count += 1;
-				cleared++;
-			} else {
-				/* No space to split, give up */
-				len = sectors;
-			}
-		} else {
-			int deleted = 0;
-
-			len = front_clear(bb, prev, &bad, &deleted);
-			bb->count -= deleted;
-			cleared++;
-			hint = prev;
-		}
-
-		goto update_sectors;
-	}
-
-	/* Not front overlap, but behind overlap */
-	if ((prev + 1) < bb->count && overlap_behind(bb, &bad, prev + 1)) {
-		len = BB_OFFSET(p[prev + 1]) - bad.start;
-		hint = prev + 1;
-		/* Clear non-bad range should be treated as successful */
-		cleared++;
-		goto update_sectors;
-	}
-
-	/* Not cover any badblocks range in the table */
-	len = sectors;
-	/* Clear non-bad range should be treated as successful */
-	cleared++;
-
+  bad.start = s;
+  bad.len = sectors;
+  if (badblocks_empty(bb)) {
+    len = sectors;
+    cleared++;
+    goto update_sectors;
+  }
+  prev = prev_badblocks(bb, &bad, hint);
+  /* Start before all badblocks */
+  if (prev < 0) {
+    if (overlap_behind(bb, &bad, 0)) {
+      len = BB_OFFSET(p[0]) - s;
+      hint = 0;
+    } else {
+      len = sectors;
+    }
+    /*
+     * Both situations are to clear non-bad range,
+     * should be treated as successful
+     */
+    cleared++;
+    goto update_sectors;
+  }
+  /* Start after all badblocks */
+  if ((prev + 1) >= bb->count && !overlap_front(bb, prev, &bad)) {
+    len = sectors;
+    cleared++;
+    goto update_sectors;
+  }
+  /* Clear will split a bad record but the table is full */
+  if (badblocks_full(bb) && (BB_OFFSET(p[prev]) < bad.start)
+      && (BB_END(p[prev]) > (bad.start + sectors))) {
+    len = sectors;
+    goto update_sectors;
+  }
+  if (overlap_front(bb, prev, &bad)) {
+    if ((BB_OFFSET(p[prev]) < bad.start)
+        && (BB_END(p[prev]) > (bad.start + bad.len))) {
+      /* Splitting */
+      if ((bb->count + 1) < MAX_BADBLOCKS) {
+        len = front_splitting_clear(bb, prev, &bad);
+        bb->count += 1;
+        cleared++;
+      } else {
+        /* No space to split, give up */
+        len = sectors;
+      }
+    } else {
+      int deleted = 0;
+      len = front_clear(bb, prev, &bad, &deleted);
+      bb->count -= deleted;
+      cleared++;
+      hint = prev;
+    }
+    goto update_sectors;
+  }
+  /* Not front overlap, but behind overlap */
+  if ((prev + 1) < bb->count && overlap_behind(bb, &bad, prev + 1)) {
+    len = BB_OFFSET(p[prev + 1]) - bad.start;
+    hint = prev + 1;
+    /* Clear non-bad range should be treated as successful */
+    cleared++;
+    goto update_sectors;
+  }
+  /* Not cover any badblocks range in the table */
+  len = sectors;
+  /* Clear non-bad range should be treated as successful */
+  cleared++;
 update_sectors:
-	s += len;
-	sectors -= len;
-
-	if (sectors > 0)
-		goto re_clear;
-
-	WARN_ON(sectors < 0);
-
-	if (cleared) {
-		badblocks_update_acked(bb);
-		set_changed(bb);
-	}
-
-	write_sequnlock_irq(&bb->lock);
-
-	if (!cleared)
-		rv = 1;
-
-	return rv;
+  s += len;
+  sectors -= len;
+  if (sectors > 0) {
+    goto re_clear;
+  }
+  WARN_ON(sectors < 0);
+  if (cleared) {
+    badblocks_update_acked(bb);
+    set_changed(bb);
+  }
+  write_sequnlock_irq(&bb->lock);
+  if (!cleared) {
+    rv = 1;
+  }
+  return rv;
 }
 
 /* Do the exact work to check bad blocks range from the bad block table */
 static int _badblocks_check(struct badblocks *bb, sector_t s, int sectors,
-			    sector_t *first_bad, int *bad_sectors)
-{
-	int unacked_badblocks, acked_badblocks;
-	int prev = -1, hint = -1, set = 0;
-	struct badblocks_context bad;
-	unsigned int seq;
-	int len, rv;
-	u64 *p;
-
-	WARN_ON(bb->shift < 0 || sectors == 0);
-
-	if (bb->shift > 0) {
-		sector_t target;
-
-		/* round the start down, and the end up */
-		target = s + sectors;
-		rounddown(s, bb->shift);
-		roundup(target, bb->shift);
-		sectors = target - s;
-	}
-
+    sector_t *first_bad, int *bad_sectors) {
+  int unacked_badblocks, acked_badblocks;
+  int prev = -1, hint = -1, set = 0;
+  struct badblocks_context bad;
+  unsigned int seq;
+  int len, rv;
+  u64 *p;
+  WARN_ON(bb->shift < 0 || sectors == 0);
+  if (bb->shift > 0) {
+    sector_t target;
+    /* round the start down, and the end up */
+    target = s + sectors;
+    rounddown(s, bb->shift);
+    roundup(target, bb->shift);
+    sectors = target - s;
+  }
 retry:
-	seq = read_seqbegin(&bb->lock);
-
-	p = bb->page;
-	unacked_badblocks = 0;
-	acked_badblocks = 0;
-
+  seq = read_seqbegin(&bb->lock);
+  p = bb->page;
+  unacked_badblocks = 0;
+  acked_badblocks = 0;
 re_check:
-	bad.start = s;
-	bad.len = sectors;
-
-	if (badblocks_empty(bb)) {
-		len = sectors;
-		goto update_sectors;
-	}
-
-	prev = prev_badblocks(bb, &bad, hint);
-
-	/* start after all badblocks */
-	if ((prev >= 0) &&
-	    ((prev + 1) >= bb->count) && !overlap_front(bb, prev, &bad)) {
-		len = sectors;
-		goto update_sectors;
-	}
-
-	/* Overlapped with front badblocks record */
-	if ((prev >= 0) && overlap_front(bb, prev, &bad)) {
-		if (BB_ACK(p[prev]))
-			acked_badblocks++;
-		else
-			unacked_badblocks++;
-
-		if (BB_END(p[prev]) >= (s + sectors))
-			len = sectors;
-		else
-			len = BB_END(p[prev]) - s;
-
-		if (set == 0) {
-			*first_bad = BB_OFFSET(p[prev]);
-			*bad_sectors = BB_LEN(p[prev]);
-			set = 1;
-		}
-		goto update_sectors;
-	}
-
-	/* Not front overlap, but behind overlap */
-	if ((prev + 1) < bb->count && overlap_behind(bb, &bad, prev + 1)) {
-		len = BB_OFFSET(p[prev + 1]) - bad.start;
-		hint = prev + 1;
-		goto update_sectors;
-	}
-
-	/* not cover any badblocks range in the table */
-	len = sectors;
-
+  bad.start = s;
+  bad.len = sectors;
+  if (badblocks_empty(bb)) {
+    len = sectors;
+    goto update_sectors;
+  }
+  prev = prev_badblocks(bb, &bad, hint);
+  /* start after all badblocks */
+  if ((prev >= 0)
+      && ((prev + 1) >= bb->count) && !overlap_front(bb, prev, &bad)) {
+    len = sectors;
+    goto update_sectors;
+  }
+  /* Overlapped with front badblocks record */
+  if ((prev >= 0) && overlap_front(bb, prev, &bad)) {
+    if (BB_ACK(p[prev])) {
+      acked_badblocks++;
+    } else {
+      unacked_badblocks++;
+    }
+    if (BB_END(p[prev]) >= (s + sectors)) {
+      len = sectors;
+    } else {
+      len = BB_END(p[prev]) - s;
+    }
+    if (set == 0) {
+      *first_bad = BB_OFFSET(p[prev]);
+      *bad_sectors = BB_LEN(p[prev]);
+      set = 1;
+    }
+    goto update_sectors;
+  }
+  /* Not front overlap, but behind overlap */
+  if ((prev + 1) < bb->count && overlap_behind(bb, &bad, prev + 1)) {
+    len = BB_OFFSET(p[prev + 1]) - bad.start;
+    hint = prev + 1;
+    goto update_sectors;
+  }
+  /* not cover any badblocks range in the table */
+  len = sectors;
 update_sectors:
-	s += len;
-	sectors -= len;
-
-	if (sectors > 0)
-		goto re_check;
-
-	WARN_ON(sectors < 0);
-
-	if (unacked_badblocks > 0)
-		rv = -1;
-	else if (acked_badblocks > 0)
-		rv = 1;
-	else
-		rv = 0;
-
-	if (read_seqretry(&bb->lock, seq))
-		goto retry;
-
-	return rv;
+  s += len;
+  sectors -= len;
+  if (sectors > 0) {
+    goto re_check;
+  }
+  WARN_ON(sectors < 0);
+  if (unacked_badblocks > 0) {
+    rv = -1;
+  } else if (acked_badblocks > 0) {
+    rv = 1;
+  } else {
+    rv = 0;
+  }
+  if (read_seqretry(&bb->lock, seq)) {
+    goto retry;
+  }
+  return rv;
 }
 
 /**
  * badblocks_check() - check a given range for bad sectors
- * @bb:		the badblocks structure that holds all badblock information
- * @s:		sector (start) at which to check for badblocks
- * @sectors:	number of sectors to check for badblocks
- * @first_bad:	pointer to store location of the first badblock
+ * @bb:   the badblocks structure that holds all badblock information
+ * @s:    sector (start) at which to check for badblocks
+ * @sectors:  number of sectors to check for badblocks
+ * @first_bad:  pointer to store location of the first badblock
  * @bad_sectors: pointer to store number of badblocks after @first_bad
  *
  * We can record which blocks on each device are 'bad' and so just
@@ -1405,17 +1314,17 @@ update_sectors:
  * plus the start/length of the first bad section we overlap.
  */
 int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
-			sector_t *first_bad, int *bad_sectors)
-{
-	return _badblocks_check(bb, s, sectors, first_bad, bad_sectors);
+    sector_t *first_bad, int *bad_sectors) {
+  return _badblocks_check(bb, s, sectors, first_bad, bad_sectors);
 }
+
 EXPORT_SYMBOL_GPL(badblocks_check);
 
 /**
  * badblocks_set() - Add a range of bad blocks to the table.
- * @bb:		the badblocks structure that holds all badblock information
- * @s:		first sector to mark as bad
- * @sectors:	number of sectors to mark as bad
+ * @bb:   the badblocks structure that holds all badblock information
+ * @s:    first sector to mark as bad
+ * @sectors:  number of sectors to mark as bad
  * @acknowledged: weather to mark the bad sectors as acknowledged
  *
  * This might extend the table, or might contract it if two adjacent ranges
@@ -1427,17 +1336,17 @@ EXPORT_SYMBOL_GPL(badblocks_check);
  *  1: failed to set badblocks (out of space)
  */
 int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			int acknowledged)
-{
-	return _badblocks_set(bb, s, sectors, acknowledged);
+    int acknowledged) {
+  return _badblocks_set(bb, s, sectors, acknowledged);
 }
+
 EXPORT_SYMBOL_GPL(badblocks_set);
 
 /**
  * badblocks_clear() - Remove a range of bad blocks to the table.
- * @bb:		the badblocks structure that holds all badblock information
- * @s:		first sector to mark as bad
- * @sectors:	number of sectors to mark as bad
+ * @bb:   the badblocks structure that holds all badblock information
+ * @s:    first sector to mark as bad
+ * @sectors:  number of sectors to mark as bad
  *
  * This may involve extending the table if we spilt a region,
  * but it must not fail.  So if the table becomes full, we just
@@ -1447,187 +1356,184 @@ EXPORT_SYMBOL_GPL(badblocks_set);
  *  0: success
  *  1: failed to clear badblocks
  */
-int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
-{
-	return _badblocks_clear(bb, s, sectors);
+int badblocks_clear(struct badblocks *bb, sector_t s, int sectors) {
+  return _badblocks_clear(bb, s, sectors);
 }
+
 EXPORT_SYMBOL_GPL(badblocks_clear);
 
 /**
  * ack_all_badblocks() - Acknowledge all bad blocks in a list.
- * @bb:		the badblocks structure that holds all badblock information
+ * @bb:   the badblocks structure that holds all badblock information
  *
  * This only succeeds if ->changed is clear.  It is used by
  * in-kernel metadata updates
  */
-void ack_all_badblocks(struct badblocks *bb)
-{
-	if (bb->page == NULL || bb->changed)
-		/* no point even trying */
-		return;
-	write_seqlock_irq(&bb->lock);
-
-	if (bb->changed == 0 && bb->unacked_exist) {
-		u64 *p = bb->page;
-		int i;
-
-		for (i = 0; i < bb->count ; i++) {
-			if (!BB_ACK(p[i])) {
-				sector_t start = BB_OFFSET(p[i]);
-				int len = BB_LEN(p[i]);
-
-				p[i] = BB_MAKE(start, len, 1);
-			}
-		}
-		bb->unacked_exist = 0;
-	}
-	write_sequnlock_irq(&bb->lock);
+void ack_all_badblocks(struct badblocks *bb) {
+  if (bb->page == NULL || bb->changed) {
+    /* no point even trying */
+    return;
+  }
+  write_seqlock_irq(&bb->lock);
+  if (bb->changed == 0 && bb->unacked_exist) {
+    u64 *p = bb->page;
+    int i;
+    for (i = 0; i < bb->count; i++) {
+      if (!BB_ACK(p[i])) {
+        sector_t start = BB_OFFSET(p[i]);
+        int len = BB_LEN(p[i]);
+        p[i] = BB_MAKE(start, len, 1);
+      }
+    }
+    bb->unacked_exist = 0;
+  }
+  write_sequnlock_irq(&bb->lock);
 }
+
 EXPORT_SYMBOL_GPL(ack_all_badblocks);
 
 /**
  * badblocks_show() - sysfs access to bad-blocks list
- * @bb:		the badblocks structure that holds all badblock information
- * @page:	buffer received from sysfs
- * @unack:	weather to show unacknowledged badblocks
+ * @bb:   the badblocks structure that holds all badblock information
+ * @page: buffer received from sysfs
+ * @unack:  weather to show unacknowledged badblocks
  *
  * Return:
  *  Length of returned data
  */
-ssize_t badblocks_show(struct badblocks *bb, char *page, int unack)
-{
-	size_t len;
-	int i;
-	u64 *p = bb->page;
-	unsigned seq;
-
-	if (bb->shift < 0)
-		return 0;
-
+ssize_t badblocks_show(struct badblocks *bb, char *page, int unack) {
+  size_t len;
+  int i;
+  u64 *p = bb->page;
+  unsigned seq;
+  if (bb->shift < 0) {
+    return 0;
+  }
 retry:
-	seq = read_seqbegin(&bb->lock);
-
-	len = 0;
-	i = 0;
-
-	while (len < PAGE_SIZE && i < bb->count) {
-		sector_t s = BB_OFFSET(p[i]);
-		unsigned int length = BB_LEN(p[i]);
-		int ack = BB_ACK(p[i]);
-
-		i++;
-
-		if (unack && ack)
-			continue;
-
-		len += snprintf(page+len, PAGE_SIZE-len, "%llu %u\n",
-				(unsigned long long)s << bb->shift,
-				length << bb->shift);
-	}
-	if (unack && len == 0)
-		bb->unacked_exist = 0;
-
-	if (read_seqretry(&bb->lock, seq))
-		goto retry;
-
-	return len;
+  seq = read_seqbegin(&bb->lock);
+  len = 0;
+  i = 0;
+  while (len < PAGE_SIZE && i < bb->count) {
+    sector_t s = BB_OFFSET(p[i]);
+    unsigned int length = BB_LEN(p[i]);
+    int ack = BB_ACK(p[i]);
+    i++;
+    if (unack && ack) {
+      continue;
+    }
+    len += snprintf(page + len, PAGE_SIZE - len, "%llu %u\n",
+        (unsigned long long) s << bb->shift,
+          length << bb->shift);
+  }
+  if (unack && len == 0) {
+    bb->unacked_exist = 0;
+  }
+  if (read_seqretry(&bb->lock, seq)) {
+    goto retry;
+  }
+  return len;
 }
+
 EXPORT_SYMBOL_GPL(badblocks_show);
 
 /**
  * badblocks_store() - sysfs access to bad-blocks list
- * @bb:		the badblocks structure that holds all badblock information
- * @page:	buffer received from sysfs
- * @len:	length of data received from sysfs
- * @unack:	weather to show unacknowledged badblocks
+ * @bb:   the badblocks structure that holds all badblock information
+ * @page: buffer received from sysfs
+ * @len:  length of data received from sysfs
+ * @unack:  weather to show unacknowledged badblocks
  *
  * Return:
  *  Length of the buffer processed or -ve error.
  */
 ssize_t badblocks_store(struct badblocks *bb, const char *page, size_t len,
-			int unack)
-{
-	unsigned long long sector;
-	int length;
-	char newline;
-
-	switch (sscanf(page, "%llu %d%c", &sector, &length, &newline)) {
-	case 3:
-		if (newline != '\n')
-			return -EINVAL;
-		fallthrough;
-	case 2:
-		if (length <= 0)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (badblocks_set(bb, sector, length, !unack))
-		return -ENOSPC;
-	else
-		return len;
+    int unack) {
+  unsigned long long sector;
+  int length;
+  char newline;
+  switch (sscanf(page, "%llu %d%c", &sector, &length, &newline)) {
+    case 3:
+      if (newline != '\n') {
+        return -EINVAL;
+      }
+      fallthrough;
+    case 2:
+      if (length <= 0) {
+        return -EINVAL;
+      }
+      break;
+    default:
+      return -EINVAL;
+  }
+  if (badblocks_set(bb, sector, length, !unack)) {
+    return -ENOSPC;
+  } else {
+    return len;
+  }
 }
+
 EXPORT_SYMBOL_GPL(badblocks_store);
 
 static int __badblocks_init(struct device *dev, struct badblocks *bb,
-		int enable)
-{
-	bb->dev = dev;
-	bb->count = 0;
-	if (enable)
-		bb->shift = 0;
-	else
-		bb->shift = -1;
-	if (dev)
-		bb->page = devm_kzalloc(dev, PAGE_SIZE, GFP_KERNEL);
-	else
-		bb->page = kzalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!bb->page) {
-		bb->shift = -1;
-		return -ENOMEM;
-	}
-	seqlock_init(&bb->lock);
-
-	return 0;
+    int enable) {
+  bb->dev = dev;
+  bb->count = 0;
+  if (enable) {
+    bb->shift = 0;
+  } else {
+    bb->shift = -1;
+  }
+  if (dev) {
+    bb->page = devm_kzalloc(dev, PAGE_SIZE, GFP_KERNEL);
+  } else {
+    bb->page = kzalloc(PAGE_SIZE, GFP_KERNEL);
+  }
+  if (!bb->page) {
+    bb->shift = -1;
+    return -ENOMEM;
+  }
+  seqlock_init(&bb->lock);
+  return 0;
 }
 
 /**
  * badblocks_init() - initialize the badblocks structure
- * @bb:		the badblocks structure that holds all badblock information
- * @enable:	weather to enable badblocks accounting
+ * @bb:   the badblocks structure that holds all badblock information
+ * @enable: weather to enable badblocks accounting
  *
  * Return:
  *  0: success
  *  -ve errno: on error
  */
-int badblocks_init(struct badblocks *bb, int enable)
-{
-	return __badblocks_init(NULL, bb, enable);
+int badblocks_init(struct badblocks *bb, int enable) {
+  return __badblocks_init(NULL, bb, enable);
 }
+
 EXPORT_SYMBOL_GPL(badblocks_init);
 
-int devm_init_badblocks(struct device *dev, struct badblocks *bb)
-{
-	if (!bb)
-		return -EINVAL;
-	return __badblocks_init(dev, bb, 1);
+int devm_init_badblocks(struct device *dev, struct badblocks *bb) {
+  if (!bb) {
+    return -EINVAL;
+  }
+  return __badblocks_init(dev, bb, 1);
 }
+
 EXPORT_SYMBOL_GPL(devm_init_badblocks);
 
 /**
  * badblocks_exit() - free the badblocks structure
- * @bb:		the badblocks structure that holds all badblock information
+ * @bb:   the badblocks structure that holds all badblock information
  */
-void badblocks_exit(struct badblocks *bb)
-{
-	if (!bb)
-		return;
-	if (bb->dev)
-		devm_kfree(bb->dev, bb->page);
-	else
-		kfree(bb->page);
-	bb->page = NULL;
+void badblocks_exit(struct badblocks *bb) {
+  if (!bb) {
+    return;
+  }
+  if (bb->dev) {
+    devm_kfree(bb->dev, bb->page);
+  } else {
+    kfree(bb->page);
+  }
+  bb->page = NULL;
 }
+
 EXPORT_SYMBOL_GPL(badblocks_exit);

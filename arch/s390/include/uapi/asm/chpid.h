@@ -13,11 +13,10 @@
 #define __MAX_CHPID 255
 
 struct chp_id {
-	__u8 reserved1;
-	__u8 cssid;
-	__u8 reserved2;
-	__u8 id;
+  __u8 reserved1;
+  __u8 cssid;
+  __u8 reserved2;
+  __u8 id;
 } __attribute__((packed));
-
 
 #endif /* _UAPI_ASM_S390_CHPID_H */

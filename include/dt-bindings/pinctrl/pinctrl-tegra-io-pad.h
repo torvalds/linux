@@ -12,7 +12,7 @@
 #define _DT_BINDINGS_PINCTRL_TEGRA_IO_PAD_H
 
 /* Voltage levels of the I/O pad's source rail */
-#define TEGRA_IO_PAD_VOLTAGE_1V8	0
-#define TEGRA_IO_PAD_VOLTAGE_3V3	1
+#define TEGRA_IO_PAD_VOLTAGE_1V8  0
+#define TEGRA_IO_PAD_VOLTAGE_3V3  1
 
 #endif

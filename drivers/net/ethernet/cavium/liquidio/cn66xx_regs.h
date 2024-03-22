@@ -141,22 +141,22 @@
 
 /*------- Request Queue Macros ---------*/
 #define    CN6XXX_SLI_IQ_BASE_ADDR64(iq)          \
-	(CN6XXX_SLI_IQ_BASE_ADDR_START64 + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN6XXX_SLI_IQ_BASE_ADDR_START64 + ((iq) * CN6XXX_IQ_OFFSET))
 
 #define    CN6XXX_SLI_IQ_SIZE(iq)                 \
-	(CN6XXX_SLI_IQ_SIZE_START + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN6XXX_SLI_IQ_SIZE_START + ((iq) * CN6XXX_IQ_OFFSET))
 
 #define    CN6XXX_SLI_IQ_PKT_INSTR_HDR64(iq)      \
-	(CN6XXX_SLI_IQ_PKT_INSTR_HDR_START64 + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN6XXX_SLI_IQ_PKT_INSTR_HDR_START64 + ((iq) * CN6XXX_IQ_OFFSET))
 
 #define    CN6XXX_SLI_IQ_DOORBELL(iq)             \
-	(CN6XXX_SLI_IQ_DOORBELL_START + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN6XXX_SLI_IQ_DOORBELL_START + ((iq) * CN6XXX_IQ_OFFSET))
 
 #define    CN6XXX_SLI_IQ_INSTR_COUNT(iq)          \
-	(CN6XXX_SLI_IQ_INSTR_COUNT_START + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN6XXX_SLI_IQ_INSTR_COUNT_START + ((iq) * CN6XXX_IQ_OFFSET))
 
 #define    CN66XX_SLI_IQ_BP64(iq)                 \
-	(CN66XX_SLI_INPUT_BP_START64 + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN66XX_SLI_INPUT_BP_START64 + ((iq) * CN6XXX_IQ_OFFSET))
 
 /*------------------ Masks ----------------*/
 #define    CN6XXX_INPUT_CTL_ROUND_ROBIN_ARB         BIT(22)
@@ -170,13 +170,13 @@
 
 #ifdef __BIG_ENDIAN_BITFIELD
 #define    CN6XXX_INPUT_CTL_MASK                    \
-	(CN6XXX_INPUT_CTL_DATA_ES_64B_SWAP      \
-	  | CN6XXX_INPUT_CTL_USE_CSR              \
-	  | CN6XXX_INPUT_CTL_GATHER_ES_64B_SWAP)
+  (CN6XXX_INPUT_CTL_DATA_ES_64B_SWAP      \
+  | CN6XXX_INPUT_CTL_USE_CSR              \
+  | CN6XXX_INPUT_CTL_GATHER_ES_64B_SWAP)
 #else
 #define    CN6XXX_INPUT_CTL_MASK                    \
-	(CN6XXX_INPUT_CTL_DATA_ES_64B_SWAP     \
-	  | CN6XXX_INPUT_CTL_USE_CSR)
+  (CN6XXX_INPUT_CTL_DATA_ES_64B_SWAP     \
+  | CN6XXX_INPUT_CTL_USE_CSR)
 #endif
 
 /*############################ OUTPUT QUEUE #########################*/
@@ -275,19 +275,19 @@
 
 /*------- Output Queue Macros ---------*/
 #define    CN6XXX_SLI_OQ_BASE_ADDR64(oq)          \
-	(CN6XXX_SLI_OQ_BASE_ADDR_START64 + ((oq) * CN6XXX_OQ_OFFSET))
+  (CN6XXX_SLI_OQ_BASE_ADDR_START64 + ((oq) * CN6XXX_OQ_OFFSET))
 
 #define    CN6XXX_SLI_OQ_SIZE(oq)                 \
-	(CN6XXX_SLI_OQ_SIZE_START + ((oq) * CN6XXX_OQ_OFFSET))
+  (CN6XXX_SLI_OQ_SIZE_START + ((oq) * CN6XXX_OQ_OFFSET))
 
 #define    CN6XXX_SLI_OQ_BUFF_INFO_SIZE(oq)                 \
-	(CN6XXX_SLI_OQ0_BUFF_INFO_SIZE + ((oq) * CN6XXX_OQ_OFFSET))
+  (CN6XXX_SLI_OQ0_BUFF_INFO_SIZE + ((oq) * CN6XXX_OQ_OFFSET))
 
 #define    CN6XXX_SLI_OQ_PKTS_SENT(oq)            \
-	(CN6XXX_SLI_OQ_PKT_SENT_START + ((oq) * CN6XXX_OQ_OFFSET))
+  (CN6XXX_SLI_OQ_PKT_SENT_START + ((oq) * CN6XXX_OQ_OFFSET))
 
 #define    CN6XXX_SLI_OQ_PKTS_CREDIT(oq)          \
-	(CN6XXX_SLI_OQ_PKT_CREDITS_START + ((oq) * CN6XXX_OQ_OFFSET))
+  (CN6XXX_SLI_OQ_PKT_CREDITS_START + ((oq) * CN6XXX_OQ_OFFSET))
 
 /*######################### DMA Counters #########################*/
 
@@ -309,19 +309,19 @@
 
 /*---------- DMA Counter Macros ---------*/
 #define    CN6XXX_DMA_CNT(dq)                      \
-	(CN6XXX_DMA_CNT_START + ((dq) * CN6XXX_DMA_OFFSET))
+  (CN6XXX_DMA_CNT_START + ((dq) * CN6XXX_DMA_OFFSET))
 
 #define    CN6XXX_DMA_INT_LEVEL(dq)                \
-	(CN6XXX_DMA_INT_LEVEL_START + ((dq) * CN6XXX_DMA_OFFSET))
+  (CN6XXX_DMA_INT_LEVEL_START + ((dq) * CN6XXX_DMA_OFFSET))
 
 #define    CN6XXX_DMA_PKT_INT_LEVEL(dq)            \
-	(CN6XXX_DMA_INT_LEVEL_START + ((dq) * CN6XXX_DMA_OFFSET))
+  (CN6XXX_DMA_INT_LEVEL_START + ((dq) * CN6XXX_DMA_OFFSET))
 
 #define    CN6XXX_DMA_TIME_INT_LEVEL(dq)           \
-	(CN6XXX_DMA_INT_LEVEL_START + 4 + ((dq) * CN6XXX_DMA_OFFSET))
+  (CN6XXX_DMA_INT_LEVEL_START + 4 + ((dq) * CN6XXX_DMA_OFFSET))
 
 #define    CN6XXX_DMA_TIM(dq)                      \
-	(CN6XXX_DMA_TIM_START + ((dq) * CN6XXX_DMA_OFFSET))
+  (CN6XXX_DMA_TIM_START + ((dq) * CN6XXX_DMA_OFFSET))
 
 /*######################## INTERRUPTS #########################*/
 
@@ -387,61 +387,61 @@
 #define    CN6XXX_INTR_DMA1_DATA                 (CN6XXX_INTR_DMA1_TIME)
 
 #define    CN6XXX_INTR_DMA_DATA                  \
-	(CN6XXX_INTR_DMA0_DATA | CN6XXX_INTR_DMA1_DATA)
+  (CN6XXX_INTR_DMA0_DATA | CN6XXX_INTR_DMA1_DATA)
 
-#define    CN6XXX_INTR_PKT_DATA                  (CN6XXX_INTR_PKT_TIME | \
-						  CN6XXX_INTR_PKT_COUNT)
+#define    CN6XXX_INTR_PKT_DATA                  (CN6XXX_INTR_PKT_TIME   \
+  | CN6XXX_INTR_PKT_COUNT)
 
 /* Sum of interrupts for all PCI-Express Data Interrupts */
 #define    CN6XXX_INTR_PCIE_DATA                 \
-	(CN6XXX_INTR_DMA_DATA | CN6XXX_INTR_PKT_DATA)
+  (CN6XXX_INTR_DMA_DATA | CN6XXX_INTR_PKT_DATA)
 
 #define    CN6XXX_INTR_MIO                       \
-	(CN6XXX_INTR_MIO_INT0 | CN6XXX_INTR_MIO_INT1)
+  (CN6XXX_INTR_MIO_INT0 | CN6XXX_INTR_MIO_INT1)
 
 #define    CN6XXX_INTR_MAC                       \
-	(CN6XXX_INTR_MAC_INT0 | CN6XXX_INTR_MAC_INT1)
+  (CN6XXX_INTR_MAC_INT0 | CN6XXX_INTR_MAC_INT1)
 
 /* Sum of interrupts for error events */
 #define    CN6XXX_INTR_ERR                       \
-	(CN6XXX_INTR_BAR0_RW_TIMEOUT_ERR    \
-	   | CN6XXX_INTR_IO2BIG_ERR             \
-	   | CN6XXX_INTR_M0UPB0_ERR             \
-	   | CN6XXX_INTR_M0UPWI_ERR             \
-	   | CN6XXX_INTR_M0UNB0_ERR             \
-	   | CN6XXX_INTR_M0UNWI_ERR             \
-	   | CN6XXX_INTR_M1UPB0_ERR             \
-	   | CN6XXX_INTR_M1UPWI_ERR             \
-	   | CN6XXX_INTR_M1UNB0_ERR             \
-	   | CN6XXX_INTR_M1UNWI_ERR             \
-	   | CN6XXX_INTR_INSTR_DB_OF_ERR        \
-	   | CN6XXX_INTR_SLIST_DB_OF_ERR        \
-	   | CN6XXX_INTR_POUT_ERR               \
-	   | CN6XXX_INTR_PIN_BP_ERR             \
-	   | CN6XXX_INTR_PGL_ERR                \
-	   | CN6XXX_INTR_PDI_ERR                \
-	   | CN6XXX_INTR_POP_ERR                \
-	   | CN6XXX_INTR_PINS_ERR               \
-	   | CN6XXX_INTR_SPRT0_ERR              \
-	   | CN6XXX_INTR_SPRT1_ERR              \
-	   | CN6XXX_INTR_ILL_PAD_ERR)
+  (CN6XXX_INTR_BAR0_RW_TIMEOUT_ERR    \
+  | CN6XXX_INTR_IO2BIG_ERR             \
+  | CN6XXX_INTR_M0UPB0_ERR             \
+  | CN6XXX_INTR_M0UPWI_ERR             \
+  | CN6XXX_INTR_M0UNB0_ERR             \
+  | CN6XXX_INTR_M0UNWI_ERR             \
+  | CN6XXX_INTR_M1UPB0_ERR             \
+  | CN6XXX_INTR_M1UPWI_ERR             \
+  | CN6XXX_INTR_M1UNB0_ERR             \
+  | CN6XXX_INTR_M1UNWI_ERR             \
+  | CN6XXX_INTR_INSTR_DB_OF_ERR        \
+  | CN6XXX_INTR_SLIST_DB_OF_ERR        \
+  | CN6XXX_INTR_POUT_ERR               \
+  | CN6XXX_INTR_PIN_BP_ERR             \
+  | CN6XXX_INTR_PGL_ERR                \
+  | CN6XXX_INTR_PDI_ERR                \
+  | CN6XXX_INTR_POP_ERR                \
+  | CN6XXX_INTR_PINS_ERR               \
+  | CN6XXX_INTR_SPRT0_ERR              \
+  | CN6XXX_INTR_SPRT1_ERR              \
+  | CN6XXX_INTR_ILL_PAD_ERR)
 
 /* Programmed Mask for Interrupt Sum */
 #define    CN6XXX_INTR_MASK                      \
-	(CN6XXX_INTR_PCIE_DATA              \
-	   | CN6XXX_INTR_DMA0_FORCE             \
-	   | CN6XXX_INTR_DMA1_FORCE             \
-	   | CN6XXX_INTR_MIO                    \
-	   | CN6XXX_INTR_MAC                    \
-	   | CN6XXX_INTR_ERR)
+  (CN6XXX_INTR_PCIE_DATA              \
+  | CN6XXX_INTR_DMA0_FORCE             \
+  | CN6XXX_INTR_DMA1_FORCE             \
+  | CN6XXX_INTR_MIO                    \
+  | CN6XXX_INTR_MAC                    \
+  | CN6XXX_INTR_ERR)
 
 #define    CN6XXX_SLI_S2M_PORT0_CTL              0x3D80
 #define    CN6XXX_SLI_S2M_PORT1_CTL              0x3D90
 #define    CN6XXX_SLI_S2M_PORTX_CTL(port)        \
-	(CN6XXX_SLI_S2M_PORT0_CTL + ((port) * 0x10))
+  (CN6XXX_SLI_S2M_PORT0_CTL + ((port) * 0x10))
 
 #define    CN6XXX_SLI_INT_ENB64(port)            \
-	(CN6XXX_SLI_INT_ENB64_PORT0 + ((port) * 0x10))
+  (CN6XXX_SLI_INT_ENB64_PORT0 + ((port) * 0x10))
 
 #define    CN6XXX_SLI_MAC_NUMBER                 0x3E00
 
@@ -453,8 +453,8 @@
 #define    CN6XXX_PCI_BAR1_OFFSET                  0x8
 
 #define    CN6XXX_BAR1_REG(idx, port) \
-		(CN6XXX_BAR1_INDEX_START + ((port) * CN6XXX_PEM_OFFSET) + \
-		(CN6XXX_PCI_BAR1_OFFSET * (idx)))
+  (CN6XXX_BAR1_INDEX_START + ((port) * CN6XXX_PEM_OFFSET)   \
+  + (CN6XXX_PCI_BAR1_OFFSET * (idx)))
 
 /*############################ DPI #########################*/
 
@@ -471,17 +471,17 @@
 #define    CN6XXX_DPI_DMA_ENG0_ENB        0x0001df0000000080ULL
 
 #define    CN6XXX_DPI_DMA_ENG_ENB(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_ENB + ((q_no) * 8))
+  (CN6XXX_DPI_DMA_ENG0_ENB + ((q_no) * 8))
 
 #define    CN6XXX_DPI_DMA_ENG0_BUF        0x0001df0000000880ULL
 
 #define    CN6XXX_DPI_DMA_ENG_BUF(q_no)   \
-	(CN6XXX_DPI_DMA_ENG0_BUF + ((q_no) * 8))
+  (CN6XXX_DPI_DMA_ENG0_BUF + ((q_no) * 8))
 
 #define    CN6XXX_DPI_SLI_PRT0_CFG        0x0001df0000000900ULL
 #define    CN6XXX_DPI_SLI_PRT1_CFG        0x0001df0000000908ULL
 #define    CN6XXX_DPI_SLI_PRTX_CFG(port)        \
-	(CN6XXX_DPI_SLI_PRT0_CFG + ((port) * 0x10))
+  (CN6XXX_DPI_SLI_PRT0_CFG + ((port) * 0x10))
 
 #define    CN6XXX_DPI_DMA_COMMIT_MODE     BIT_ULL(58)
 #define    CN6XXX_DPI_DMA_PKT_HP          BIT_ULL(57)
@@ -490,11 +490,11 @@
 #define    CN6XXX_DPI_DMA_O_MODE          BIT_ULL(14)
 
 #define    CN6XXX_DPI_DMA_CTL_MASK             \
-	(CN6XXX_DPI_DMA_COMMIT_MODE    |    \
-	 CN6XXX_DPI_DMA_PKT_HP         |    \
-	 CN6XXX_DPI_DMA_PKT_EN         |    \
-	 CN6XXX_DPI_DMA_O_ES           |    \
-	 CN6XXX_DPI_DMA_O_MODE)
+  (CN6XXX_DPI_DMA_COMMIT_MODE         \
+  | CN6XXX_DPI_DMA_PKT_HP              \
+  | CN6XXX_DPI_DMA_PKT_EN              \
+  | CN6XXX_DPI_DMA_O_ES                \
+  | CN6XXX_DPI_DMA_O_MODE)
 
 /*############################ CIU #########################*/
 

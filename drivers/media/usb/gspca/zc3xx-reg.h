@@ -5,7 +5,7 @@
  * Copyright (c) 2008 Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * The register aliases used here came from this driver:
- *	http://zc0302.sourceforge.net/zc0302.php
+ *  http://zc0302.sourceforge.net/zc0302.php
  */
 
 /* Define the register map */
@@ -162,9 +162,9 @@
 /* Matrixes */
 
 /* Color matrix is like :
-   R' = R * RGB00 + G * RGB01 + B * RGB02 + RGB03
-   G' = R * RGB10 + G * RGB11 + B * RGB22 + RGB13
-   B' = R * RGB20 + G * RGB21 + B * RGB12 + RGB23
+ * R' = R * RGB00 + G * RGB01 + B * RGB02 + RGB03
+ * G' = R * RGB10 + G * RGB11 + B * RGB22 + RGB13
+ * B' = R * RGB20 + G * RGB21 + B * RGB12 + RGB23
  */
 #define ZC3XX_R10A_RGB00               0x010a
 #define ZC3XX_R10B_RGB01               0x010b

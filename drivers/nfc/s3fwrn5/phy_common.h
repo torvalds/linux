@@ -19,14 +19,14 @@
 #define S3FWRN5_EN_WAIT_TIME 20
 
 struct phy_common {
-	struct nci_dev *ndev;
+  struct nci_dev *ndev;
 
-	int gpio_en;
-	int gpio_fw_wake;
+  int gpio_en;
+  int gpio_fw_wake;
 
-	struct mutex mutex;
+  struct mutex mutex;
 
-	enum s3fwrn5_mode mode;
+  enum s3fwrn5_mode mode;
 };
 
 void s3fwrn5_phy_set_wake(void *phy_id, bool wake);

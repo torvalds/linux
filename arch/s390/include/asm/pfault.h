@@ -10,17 +10,17 @@
 int __pfault_init(void);
 void __pfault_fini(void);
 
-static inline int pfault_init(void)
-{
-	if (IS_ENABLED(CONFIG_PFAULT))
-		return __pfault_init();
-	return -EOPNOTSUPP;
+static inline int pfault_init(void) {
+  if (IS_ENABLED(CONFIG_PFAULT)) {
+    return __pfault_init();
+  }
+  return -EOPNOTSUPP;
 }
 
-static inline void pfault_fini(void)
-{
-	if (IS_ENABLED(CONFIG_PFAULT))
-		__pfault_fini();
+static inline void pfault_fini(void) {
+  if (IS_ENABLED(CONFIG_PFAULT)) {
+    __pfault_fini();
+  }
 }
 
 #endif /* _ASM_S390_PFAULT_H */

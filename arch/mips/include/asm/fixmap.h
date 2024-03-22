@@ -47,14 +47,14 @@
  */
 enum fixed_addresses {
 #define FIX_N_COLOURS 8
-	FIX_CMAP_BEGIN,
-	FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * 2),
+  FIX_CMAP_BEGIN,
+  FIX_CMAP_END = FIX_CMAP_BEGIN + (FIX_N_COLOURS * 2),
 #ifdef CONFIG_HIGHMEM
-	/* reserved pte's for temporary kernel mappings */
-	FIX_KMAP_BEGIN = FIX_CMAP_END + 1,
-	FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_MAX_IDX * NR_CPUS) - 1,
+  /* reserved pte's for temporary kernel mappings */
+  FIX_KMAP_BEGIN = FIX_CMAP_END + 1,
+  FIX_KMAP_END = FIX_KMAP_BEGIN + (KM_MAX_IDX * NR_CPUS) - 1,
 #endif
-	__end_of_fixed_addresses
+  __end_of_fixed_addresses
 };
 
 /*
@@ -64,8 +64,8 @@ enum fixed_addresses {
  * the start of the fixmap, and leave one page empty
  * at the top of mem..
  */
-#define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_SIZE  (__end_of_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_START (FIXADDR_TOP - FIXADDR_SIZE)
 
 #include <asm-generic/fixmap.h>
 
@@ -73,7 +73,6 @@ enum fixed_addresses {
  * Called from pagetable_init()
  */
 extern void fixrange_init(unsigned long start, unsigned long end,
-	pgd_t *pgd_base);
-
+    pgd_t *pgd_base);
 
 #endif

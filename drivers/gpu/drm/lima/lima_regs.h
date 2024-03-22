@@ -107,56 +107,56 @@
 #define LIMA_GP_PLBCL_START_ADDR_READ          0x84
 #define LIMA_GP_CONTR_AXI_BUS_ERROR_STAT       0x94
 
-#define LIMA_GP_IRQ_MASK_ALL		   \
-	(				   \
-	 LIMA_GP_IRQ_VS_END_CMD_LST      | \
-	 LIMA_GP_IRQ_PLBU_END_CMD_LST    | \
-	 LIMA_GP_IRQ_PLBU_OUT_OF_MEM     | \
-	 LIMA_GP_IRQ_VS_SEM_IRQ          | \
-	 LIMA_GP_IRQ_PLBU_SEM_IRQ        | \
-	 LIMA_GP_IRQ_HANG                | \
-	 LIMA_GP_IRQ_FORCE_HANG          | \
-	 LIMA_GP_IRQ_PERF_CNT_0_LIMIT    | \
-	 LIMA_GP_IRQ_PERF_CNT_1_LIMIT    | \
-	 LIMA_GP_IRQ_WRITE_BOUND_ERR     | \
-	 LIMA_GP_IRQ_SYNC_ERROR          | \
-	 LIMA_GP_IRQ_AXI_BUS_ERROR       | \
-	 LIMA_GP_IRQ_AXI_BUS_STOPPED     | \
-	 LIMA_GP_IRQ_VS_INVALID_CMD      | \
-	 LIMA_GP_IRQ_PLB_INVALID_CMD     | \
-	 LIMA_GP_IRQ_RESET_COMPLETED     | \
-	 LIMA_GP_IRQ_SEMAPHORE_UNDERFLOW | \
-	 LIMA_GP_IRQ_SEMAPHORE_OVERFLOW  | \
-	 LIMA_GP_IRQ_PTR_ARRAY_OUT_OF_BOUNDS)
+#define LIMA_GP_IRQ_MASK_ALL       \
+  (          \
+    LIMA_GP_IRQ_VS_END_CMD_LST        \
+    | LIMA_GP_IRQ_PLBU_END_CMD_LST      \
+    | LIMA_GP_IRQ_PLBU_OUT_OF_MEM       \
+    | LIMA_GP_IRQ_VS_SEM_IRQ            \
+    | LIMA_GP_IRQ_PLBU_SEM_IRQ          \
+    | LIMA_GP_IRQ_HANG                  \
+    | LIMA_GP_IRQ_FORCE_HANG            \
+    | LIMA_GP_IRQ_PERF_CNT_0_LIMIT      \
+    | LIMA_GP_IRQ_PERF_CNT_1_LIMIT      \
+    | LIMA_GP_IRQ_WRITE_BOUND_ERR       \
+    | LIMA_GP_IRQ_SYNC_ERROR            \
+    | LIMA_GP_IRQ_AXI_BUS_ERROR         \
+    | LIMA_GP_IRQ_AXI_BUS_STOPPED       \
+    | LIMA_GP_IRQ_VS_INVALID_CMD        \
+    | LIMA_GP_IRQ_PLB_INVALID_CMD       \
+    | LIMA_GP_IRQ_RESET_COMPLETED       \
+    | LIMA_GP_IRQ_SEMAPHORE_UNDERFLOW   \
+    | LIMA_GP_IRQ_SEMAPHORE_OVERFLOW    \
+    | LIMA_GP_IRQ_PTR_ARRAY_OUT_OF_BOUNDS)
 
 #define LIMA_GP_IRQ_MASK_ERROR             \
-	(                                  \
-	 LIMA_GP_IRQ_PLBU_OUT_OF_MEM     | \
-	 LIMA_GP_IRQ_FORCE_HANG          | \
-	 LIMA_GP_IRQ_WRITE_BOUND_ERR     | \
-	 LIMA_GP_IRQ_SYNC_ERROR          | \
-	 LIMA_GP_IRQ_AXI_BUS_ERROR       | \
-	 LIMA_GP_IRQ_VS_INVALID_CMD      | \
-	 LIMA_GP_IRQ_PLB_INVALID_CMD     | \
-	 LIMA_GP_IRQ_SEMAPHORE_UNDERFLOW | \
-	 LIMA_GP_IRQ_SEMAPHORE_OVERFLOW  | \
-	 LIMA_GP_IRQ_PTR_ARRAY_OUT_OF_BOUNDS)
+  (                                  \
+    LIMA_GP_IRQ_PLBU_OUT_OF_MEM       \
+    | LIMA_GP_IRQ_FORCE_HANG            \
+    | LIMA_GP_IRQ_WRITE_BOUND_ERR       \
+    | LIMA_GP_IRQ_SYNC_ERROR            \
+    | LIMA_GP_IRQ_AXI_BUS_ERROR         \
+    | LIMA_GP_IRQ_VS_INVALID_CMD        \
+    | LIMA_GP_IRQ_PLB_INVALID_CMD       \
+    | LIMA_GP_IRQ_SEMAPHORE_UNDERFLOW   \
+    | LIMA_GP_IRQ_SEMAPHORE_OVERFLOW    \
+    | LIMA_GP_IRQ_PTR_ARRAY_OUT_OF_BOUNDS)
 
-#define LIMA_GP_IRQ_MASK_USED		   \
-	(				   \
-	 LIMA_GP_IRQ_VS_END_CMD_LST      | \
-	 LIMA_GP_IRQ_PLBU_END_CMD_LST    | \
-	 LIMA_GP_IRQ_MASK_ERROR)
+#define LIMA_GP_IRQ_MASK_USED      \
+  (          \
+    LIMA_GP_IRQ_VS_END_CMD_LST        \
+    | LIMA_GP_IRQ_PLBU_END_CMD_LST      \
+    | LIMA_GP_IRQ_MASK_ERROR)
 
 /* PP regs */
 #define LIMA_PP_FRAME                        0x0000
-#define LIMA_PP_RSW			     0x0004
-#define LIMA_PP_STACK			     0x0030
-#define LIMA_PP_STACK_SIZE		     0x0034
-#define LIMA_PP_ORIGIN_OFFSET_X	             0x0040
+#define LIMA_PP_RSW          0x0004
+#define LIMA_PP_STACK          0x0030
+#define LIMA_PP_STACK_SIZE         0x0034
+#define LIMA_PP_ORIGIN_OFFSET_X              0x0040
 #define LIMA_PP_WB(i)                        (0x0100 * (i + 1))
 #define   LIMA_PP_WB_SOURCE_SELECT           0x0000
-#define	  LIMA_PP_WB_SOURCE_ADDR             0x0004
+#define   LIMA_PP_WB_SOURCE_ADDR             0x0004
 
 #define LIMA_PP_VERSION                      0x1000
 #define LIMA_PP_CURRENT_REND_LIST_ADDR       0x1004
@@ -200,34 +200,34 @@
 #define LIMA_PP_PERFMON_BASE                 0x10b4
 
 #define LIMA_PP_IRQ_MASK_ALL                 \
-	(                                    \
-	 LIMA_PP_IRQ_END_OF_FRAME          | \
-	 LIMA_PP_IRQ_END_OF_TILE           | \
-	 LIMA_PP_IRQ_HANG                  | \
-	 LIMA_PP_IRQ_FORCE_HANG            | \
-	 LIMA_PP_IRQ_BUS_ERROR             | \
-	 LIMA_PP_IRQ_BUS_STOP              | \
-	 LIMA_PP_IRQ_CNT_0_LIMIT           | \
-	 LIMA_PP_IRQ_CNT_1_LIMIT           | \
-	 LIMA_PP_IRQ_WRITE_BOUNDARY_ERROR  | \
-	 LIMA_PP_IRQ_INVALID_PLIST_COMMAND | \
-	 LIMA_PP_IRQ_CALL_STACK_UNDERFLOW  | \
-	 LIMA_PP_IRQ_CALL_STACK_OVERFLOW   | \
-	 LIMA_PP_IRQ_RESET_COMPLETED)
+  (                                    \
+    LIMA_PP_IRQ_END_OF_FRAME            \
+    | LIMA_PP_IRQ_END_OF_TILE             \
+    | LIMA_PP_IRQ_HANG                    \
+    | LIMA_PP_IRQ_FORCE_HANG              \
+    | LIMA_PP_IRQ_BUS_ERROR               \
+    | LIMA_PP_IRQ_BUS_STOP                \
+    | LIMA_PP_IRQ_CNT_0_LIMIT             \
+    | LIMA_PP_IRQ_CNT_1_LIMIT             \
+    | LIMA_PP_IRQ_WRITE_BOUNDARY_ERROR    \
+    | LIMA_PP_IRQ_INVALID_PLIST_COMMAND   \
+    | LIMA_PP_IRQ_CALL_STACK_UNDERFLOW    \
+    | LIMA_PP_IRQ_CALL_STACK_OVERFLOW     \
+    | LIMA_PP_IRQ_RESET_COMPLETED)
 
 #define LIMA_PP_IRQ_MASK_ERROR               \
-	(                                    \
-	 LIMA_PP_IRQ_FORCE_HANG            | \
-	 LIMA_PP_IRQ_BUS_ERROR             | \
-	 LIMA_PP_IRQ_WRITE_BOUNDARY_ERROR  | \
-	 LIMA_PP_IRQ_INVALID_PLIST_COMMAND | \
-	 LIMA_PP_IRQ_CALL_STACK_UNDERFLOW  | \
-	 LIMA_PP_IRQ_CALL_STACK_OVERFLOW)
+  (                                    \
+    LIMA_PP_IRQ_FORCE_HANG              \
+    | LIMA_PP_IRQ_BUS_ERROR               \
+    | LIMA_PP_IRQ_WRITE_BOUNDARY_ERROR    \
+    | LIMA_PP_IRQ_INVALID_PLIST_COMMAND   \
+    | LIMA_PP_IRQ_CALL_STACK_UNDERFLOW    \
+    | LIMA_PP_IRQ_CALL_STACK_OVERFLOW)
 
 #define LIMA_PP_IRQ_MASK_USED                \
-	(                                    \
-	 LIMA_PP_IRQ_END_OF_FRAME          | \
-	 LIMA_PP_IRQ_MASK_ERROR)
+  (                                    \
+    LIMA_PP_IRQ_END_OF_FRAME            \
+    | LIMA_PP_IRQ_MASK_ERROR)
 
 /* MMU regs */
 #define LIMA_MMU_DTE_ADDR                     0x0000
@@ -268,29 +268,29 @@
 #define LIMA_VM_FLAG_READ_ALLOCATE    BIT(8)
 #define LIMA_VM_FLAG_MASK             0x1FF
 
-#define LIMA_VM_FLAGS_CACHE (			 \
-		LIMA_VM_FLAG_PRESENT |		 \
-		LIMA_VM_FLAG_READ_PERMISSION |	 \
-		LIMA_VM_FLAG_WRITE_PERMISSION |	 \
-		LIMA_VM_FLAG_OVERRIDE_CACHE |	 \
-		LIMA_VM_FLAG_WRITE_CACHEABLE |	 \
-		LIMA_VM_FLAG_WRITE_BUFFERABLE |	 \
-		LIMA_VM_FLAG_READ_CACHEABLE |	 \
-		LIMA_VM_FLAG_READ_ALLOCATE)
+#define LIMA_VM_FLAGS_CACHE (      \
+    LIMA_VM_FLAG_PRESENT       \
+    | LIMA_VM_FLAG_READ_PERMISSION     \
+    | LIMA_VM_FLAG_WRITE_PERMISSION    \
+    | LIMA_VM_FLAG_OVERRIDE_CACHE    \
+    | LIMA_VM_FLAG_WRITE_CACHEABLE     \
+    | LIMA_VM_FLAG_WRITE_BUFFERABLE    \
+    | LIMA_VM_FLAG_READ_CACHEABLE    \
+    | LIMA_VM_FLAG_READ_ALLOCATE)
 
-#define LIMA_VM_FLAGS_UNCACHE (			\
-		LIMA_VM_FLAG_PRESENT |		\
-		LIMA_VM_FLAG_READ_PERMISSION |	\
-		LIMA_VM_FLAG_WRITE_PERMISSION)
+#define LIMA_VM_FLAGS_UNCACHE (     \
+    LIMA_VM_FLAG_PRESENT      \
+    | LIMA_VM_FLAG_READ_PERMISSION    \
+    | LIMA_VM_FLAG_WRITE_PERMISSION)
 
 /* DLBU regs */
 #define LIMA_DLBU_MASTER_TLLIST_PHYS_ADDR  0x0000
-#define	LIMA_DLBU_MASTER_TLLIST_VADDR      0x0004
-#define	LIMA_DLBU_TLLIST_VBASEADDR         0x0008
-#define	LIMA_DLBU_FB_DIM                   0x000C
-#define	LIMA_DLBU_TLLIST_CONF              0x0010
-#define	LIMA_DLBU_START_TILE_POS           0x0014
-#define	LIMA_DLBU_PP_ENABLE_MASK           0x0018
+#define LIMA_DLBU_MASTER_TLLIST_VADDR      0x0004
+#define LIMA_DLBU_TLLIST_VBASEADDR         0x0008
+#define LIMA_DLBU_FB_DIM                   0x000C
+#define LIMA_DLBU_TLLIST_CONF              0x0010
+#define LIMA_DLBU_START_TILE_POS           0x0014
+#define LIMA_DLBU_PP_ENABLE_MASK           0x0018
 
 /* BCAST regs */
 #define LIMA_BCAST_BROADCAST_MASK    0x0

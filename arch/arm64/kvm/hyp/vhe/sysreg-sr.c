@@ -25,30 +25,30 @@
  * classes are handled as part of kvm_arch_vcpu_load and kvm_arch_vcpu_put.
  */
 
-void sysreg_save_host_state_vhe(struct kvm_cpu_context *ctxt)
-{
-	__sysreg_save_common_state(ctxt);
+void sysreg_save_host_state_vhe(struct kvm_cpu_context *ctxt) {
+  __sysreg_save_common_state(ctxt);
 }
+
 NOKPROBE_SYMBOL(sysreg_save_host_state_vhe);
 
-void sysreg_save_guest_state_vhe(struct kvm_cpu_context *ctxt)
-{
-	__sysreg_save_common_state(ctxt);
-	__sysreg_save_el2_return_state(ctxt);
+void sysreg_save_guest_state_vhe(struct kvm_cpu_context *ctxt) {
+  __sysreg_save_common_state(ctxt);
+  __sysreg_save_el2_return_state(ctxt);
 }
+
 NOKPROBE_SYMBOL(sysreg_save_guest_state_vhe);
 
-void sysreg_restore_host_state_vhe(struct kvm_cpu_context *ctxt)
-{
-	__sysreg_restore_common_state(ctxt);
+void sysreg_restore_host_state_vhe(struct kvm_cpu_context *ctxt) {
+  __sysreg_restore_common_state(ctxt);
 }
+
 NOKPROBE_SYMBOL(sysreg_restore_host_state_vhe);
 
-void sysreg_restore_guest_state_vhe(struct kvm_cpu_context *ctxt)
-{
-	__sysreg_restore_common_state(ctxt);
-	__sysreg_restore_el2_return_state(ctxt);
+void sysreg_restore_guest_state_vhe(struct kvm_cpu_context *ctxt) {
+  __sysreg_restore_common_state(ctxt);
+  __sysreg_restore_el2_return_state(ctxt);
 }
+
 NOKPROBE_SYMBOL(sysreg_restore_guest_state_vhe);
 
 /**
@@ -62,36 +62,32 @@ NOKPROBE_SYMBOL(sysreg_restore_guest_state_vhe);
  * and loading system register state early avoids having to load them on
  * every entry to the VM.
  */
-void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpu_context *guest_ctxt = &vcpu->arch.ctxt;
-	struct kvm_cpu_context *host_ctxt;
-
-	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
-	__sysreg_save_user_state(host_ctxt);
-
-	/*
-	 * When running a normal EL1 guest, we only load a new vcpu
-	 * after a context switch, which imvolves a DSB, so all
-	 * speculative EL1&0 walks will have already completed.
-	 * If running NV, the vcpu may transition between vEL1 and
-	 * vEL2 without a context switch, so make sure we complete
-	 * those walks before loading a new context.
-	 */
-	if (vcpu_has_nv(vcpu))
-		dsb(nsh);
-
-	/*
-	 * Load guest EL1 and user state
-	 *
-	 * We must restore the 32-bit state before the sysregs, thanks
-	 * to erratum #852523 (Cortex-A57) or #853709 (Cortex-A72).
-	 */
-	__sysreg32_restore_state(vcpu);
-	__sysreg_restore_user_state(guest_ctxt);
-	__sysreg_restore_el1_state(guest_ctxt);
-
-	vcpu_set_flag(vcpu, SYSREGS_ON_CPU);
+void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu) {
+  struct kvm_cpu_context *guest_ctxt = &vcpu->arch.ctxt;
+  struct kvm_cpu_context *host_ctxt;
+  host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
+  __sysreg_save_user_state(host_ctxt);
+  /*
+   * When running a normal EL1 guest, we only load a new vcpu
+   * after a context switch, which imvolves a DSB, so all
+   * speculative EL1&0 walks will have already completed.
+   * If running NV, the vcpu may transition between vEL1 and
+   * vEL2 without a context switch, so make sure we complete
+   * those walks before loading a new context.
+   */
+  if (vcpu_has_nv(vcpu)) {
+    dsb(nsh);
+  }
+  /*
+   * Load guest EL1 and user state
+   *
+   * We must restore the 32-bit state before the sysregs, thanks
+   * to erratum #852523 (Cortex-A57) or #853709 (Cortex-A72).
+   */
+  __sysreg32_restore_state(vcpu);
+  __sysreg_restore_user_state(guest_ctxt);
+  __sysreg_restore_el1_state(guest_ctxt);
+  vcpu_set_flag(vcpu, SYSREGS_ON_CPU);
 }
 
 /**
@@ -105,19 +101,14 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
  * and deferring saving system register state until we're no longer running the
  * VCPU avoids having to save them on every exit from the VM.
  */
-void __vcpu_put_switch_sysregs(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpu_context *guest_ctxt = &vcpu->arch.ctxt;
-	struct kvm_cpu_context *host_ctxt;
-
-	host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
-
-	__sysreg_save_el1_state(guest_ctxt);
-	__sysreg_save_user_state(guest_ctxt);
-	__sysreg32_save_state(vcpu);
-
-	/* Restore host user state */
-	__sysreg_restore_user_state(host_ctxt);
-
-	vcpu_clear_flag(vcpu, SYSREGS_ON_CPU);
+void __vcpu_put_switch_sysregs(struct kvm_vcpu *vcpu) {
+  struct kvm_cpu_context *guest_ctxt = &vcpu->arch.ctxt;
+  struct kvm_cpu_context *host_ctxt;
+  host_ctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
+  __sysreg_save_el1_state(guest_ctxt);
+  __sysreg_save_user_state(guest_ctxt);
+  __sysreg32_save_state(vcpu);
+  /* Restore host user state */
+  __sysreg_restore_user_state(host_ctxt);
+  vcpu_clear_flag(vcpu, SYSREGS_ON_CPU);
 }

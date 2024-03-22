@@ -16,34 +16,31 @@
 
 static const struct i2c_device_id adau1977_i2c_ids[];
 
-static int adau1977_i2c_probe(struct i2c_client *client)
-{
-	struct regmap_config config;
-	const struct i2c_device_id *id = i2c_match_id(adau1977_i2c_ids, client);
-
-	config = adau1977_regmap_config;
-	config.val_bits = 8;
-	config.reg_bits = 8;
-
-	return adau1977_probe(&client->dev,
-		devm_regmap_init_i2c(client, &config),
-		id->driver_data, NULL);
+static int adau1977_i2c_probe(struct i2c_client *client) {
+  struct regmap_config config;
+  const struct i2c_device_id *id = i2c_match_id(adau1977_i2c_ids, client);
+  config = adau1977_regmap_config;
+  config.val_bits = 8;
+  config.reg_bits = 8;
+  return adau1977_probe(&client->dev,
+      devm_regmap_init_i2c(client, &config),
+      id->driver_data, NULL);
 }
 
 static const struct i2c_device_id adau1977_i2c_ids[] = {
-	{ "adau1977", ADAU1977 },
-	{ "adau1978", ADAU1978 },
-	{ "adau1979", ADAU1978 },
-	{ }
+  { "adau1977", ADAU1977 },
+  { "adau1978", ADAU1978 },
+  { "adau1979", ADAU1978 },
+  {}
 };
 MODULE_DEVICE_TABLE(i2c, adau1977_i2c_ids);
 
 static struct i2c_driver adau1977_i2c_driver = {
-	.driver = {
-		.name = "adau1977",
-	},
-	.probe = adau1977_i2c_probe,
-	.id_table = adau1977_i2c_ids,
+  .driver = {
+    .name = "adau1977",
+  },
+  .probe = adau1977_i2c_probe,
+  .id_table = adau1977_i2c_ids,
 };
 module_i2c_driver(adau1977_i2c_driver);
 

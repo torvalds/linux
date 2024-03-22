@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright 2018 Marty E. Plummer <hanetzer@startmail.com> */
-/* Copyright 2019 Collabora ltd. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright 2018 Marty E. Plummer <hanetzer@startmail.com>
+ * Copyright 2019 Collabora ltd.*/
 
 #ifndef __PANFROST_GPU_H__
 #define __PANFROST_GPU_H__

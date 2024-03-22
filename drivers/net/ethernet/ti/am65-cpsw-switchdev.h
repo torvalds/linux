@@ -8,25 +8,25 @@
 #include <linux/skbuff.h>
 
 #if IS_ENABLED(CONFIG_TI_K3_AM65_CPSW_SWITCHDEV)
-static inline void am65_cpsw_nuss_set_offload_fwd_mark(struct sk_buff *skb, bool val)
-{
-	skb->offload_fwd_mark = val;
+static inline void am65_cpsw_nuss_set_offload_fwd_mark(struct sk_buff *skb,
+    bool val) {
+  skb->offload_fwd_mark = val;
 }
 
 int am65_cpsw_switchdev_register_notifiers(struct am65_cpsw_common *cpsw);
 void am65_cpsw_switchdev_unregister_notifiers(struct am65_cpsw_common *cpsw);
 #else
-static inline int am65_cpsw_switchdev_register_notifiers(struct am65_cpsw_common *cpsw)
-{
-	return -EOPNOTSUPP;
+static inline int am65_cpsw_switchdev_register_notifiers(
+    struct am65_cpsw_common *cpsw) {
+  return -EOPNOTSUPP;
 }
 
-static inline void am65_cpsw_switchdev_unregister_notifiers(struct am65_cpsw_common *cpsw)
-{
+static inline void am65_cpsw_switchdev_unregister_notifiers(
+    struct am65_cpsw_common *cpsw) {
 }
 
-static inline void am65_cpsw_nuss_set_offload_fwd_mark(struct sk_buff *skb, bool val)
-{
+static inline void am65_cpsw_nuss_set_offload_fwd_mark(struct sk_buff *skb,
+    bool val) {
 }
 
 #endif

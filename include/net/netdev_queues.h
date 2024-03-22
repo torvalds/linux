@@ -6,21 +6,21 @@
 
 /* See the netdev.yaml spec for definition of each statistic */
 struct netdev_queue_stats_rx {
-	u64 bytes;
-	u64 packets;
-	u64 alloc_fail;
+  u64 bytes;
+  u64 packets;
+  u64 alloc_fail;
 };
 
 struct netdev_queue_stats_tx {
-	u64 bytes;
-	u64 packets;
+  u64 bytes;
+  u64 packets;
 };
 
 /**
  * struct netdev_stat_ops - netdev ops for fine grained stats
- * @get_queue_stats_rx:	get stats for a given Rx queue
- * @get_queue_stats_tx:	get stats for a given Tx queue
- * @get_base_stats:	get base stats (not belonging to any live instance)
+ * @get_queue_stats_rx: get stats for a given Rx queue
+ * @get_queue_stats_tx: get stats for a given Tx queue
+ * @get_base_stats: get base stats (not belonging to any live instance)
  *
  * Query stats for a given object. The values of the statistics are undefined
  * on entry (specifically they are *not* zero-initialized). Drivers should
@@ -51,13 +51,13 @@ struct netdev_queue_stats_tx {
  * per-queue statistics is currently to detect traffic imbalance.
  */
 struct netdev_stat_ops {
-	void (*get_queue_stats_rx)(struct net_device *dev, int idx,
-				   struct netdev_queue_stats_rx *stats);
-	void (*get_queue_stats_tx)(struct net_device *dev, int idx,
-				   struct netdev_queue_stats_tx *stats);
-	void (*get_base_stats)(struct net_device *dev,
-			       struct netdev_queue_stats_rx *rx,
-			       struct netdev_queue_stats_tx *tx);
+  void (*get_queue_stats_rx)(struct net_device *dev, int idx,
+      struct netdev_queue_stats_rx *stats);
+  void (*get_queue_stats_tx)(struct net_device *dev, int idx,
+      struct netdev_queue_stats_tx *stats);
+  void (*get_base_stats)(struct net_device *dev,
+      struct netdev_queue_stats_rx *rx,
+      struct netdev_queue_stats_tx *tx);
 };
 
 /**
@@ -87,36 +87,36 @@ struct netdev_stat_ops {
  * be updated before invoking the macros.
  */
 
-#define netif_txq_try_stop(txq, get_desc, start_thrs)			\
-	({								\
-		int _res;						\
-									\
-		netif_tx_stop_queue(txq);				\
-		/* Producer index and stop bit must be visible		\
-		 * to consumer before we recheck.			\
-		 * Pairs with a barrier in __netif_txq_completed_wake(). \
-		 */							\
-		smp_mb__after_atomic();					\
-									\
-		/* We need to check again in a case another		\
-		 * CPU has just made room available.			\
-		 */							\
-		_res = 0;						\
-		if (unlikely(get_desc >= start_thrs)) {			\
-			netif_tx_start_queue(txq);			\
-			_res = -1;					\
-		}							\
-		_res;							\
-	})								\
+#define netif_txq_try_stop(txq, get_desc, start_thrs)     \
+  ({                \
+    int _res;           \
+                  \
+    netif_tx_stop_queue(txq);       \
+    /* Producer index and stop bit must be visible \
+     * to consumer before we recheck. \
+     * Pairs with a barrier in __netif_txq_completed_wake(). \
+     */             \
+    smp_mb__after_atomic();         \
+                  \
+    /* We need to check again in a case another \
+     * CPU has just made room available. \
+     */             \
+    _res = 0;           \
+    if (unlikely(get_desc >= start_thrs)) {     \
+      netif_tx_start_queue(txq);      \
+      _res = -1;          \
+    }             \
+    _res;             \
+  })                \
 
 /**
  * netif_txq_maybe_stop() - locklessly stop a Tx queue, if needed
- * @txq:	struct netdev_queue to stop/start
- * @get_desc:	get current number of free descriptors (see requirements below!)
- * @stop_thrs:	minimal number of available descriptors for queue to be left
- *		enabled
- * @start_thrs:	minimal number of descriptors to re-enable the queue, can be
- *		equal to @stop_thrs or higher to avoid frequent waking
+ * @txq:  struct netdev_queue to stop/start
+ * @get_desc: get current number of free descriptors (see requirements below!)
+ * @stop_thrs:  minimal number of available descriptors for queue to be left
+ *    enabled
+ * @start_thrs: minimal number of descriptors to re-enable the queue, can be
+ *    equal to @stop_thrs or higher to avoid frequent waking
  *
  * All arguments may be evaluated multiple times, beware of side effects.
  * @get_desc must be a formula or a function call, it must always
@@ -124,42 +124,41 @@ struct netdev_stat_ops {
  * Expected to be used from ndo_start_xmit, see the comment on top of the file.
  *
  * Returns:
- *	 0 if the queue was stopped
- *	 1 if the queue was left enabled
- *	-1 if the queue was re-enabled (raced with waking)
+ *   0 if the queue was stopped
+ *   1 if the queue was left enabled
+ *  -1 if the queue was re-enabled (raced with waking)
  */
-#define netif_txq_maybe_stop(txq, get_desc, stop_thrs, start_thrs)	\
-	({								\
-		int _res;						\
-									\
-		_res = 1;						\
-		if (unlikely(get_desc < stop_thrs))			\
-			_res = netif_txq_try_stop(txq, get_desc, start_thrs); \
-		_res;							\
-	})								\
+#define netif_txq_maybe_stop(txq, get_desc, stop_thrs, start_thrs)  \
+  ({                \
+    int _res;           \
+                  \
+    _res = 1;           \
+    if (unlikely(get_desc < stop_thrs))     \
+    _res = netif_txq_try_stop(txq, get_desc, start_thrs); \
+    _res;             \
+  })                \
 
 /* Variant of netdev_tx_completed_queue() which guarantees smp_mb() if
  * @bytes != 0, regardless of kernel config.
  */
-static inline void
-netdev_txq_completed_mb(struct netdev_queue *dev_queue,
-			unsigned int pkts, unsigned int bytes)
-{
-	if (IS_ENABLED(CONFIG_BQL))
-		netdev_tx_completed_queue(dev_queue, pkts, bytes);
-	else if (bytes)
-		smp_mb();
+static inline void netdev_txq_completed_mb(struct netdev_queue *dev_queue,
+    unsigned int pkts, unsigned int bytes) {
+  if (IS_ENABLED(CONFIG_BQL)) {
+    netdev_tx_completed_queue(dev_queue, pkts, bytes);
+  } else if (bytes) {
+    smp_mb();
+  }
 }
 
 /**
  * __netif_txq_completed_wake() - locklessly wake a Tx queue, if needed
- * @txq:	struct netdev_queue to stop/start
- * @pkts:	number of packets completed
- * @bytes:	number of bytes completed
- * @get_desc:	get current number of free descriptors (see requirements below!)
- * @start_thrs:	minimal number of descriptors to re-enable the queue
- * @down_cond:	down condition, predicate indicating that the queue should
- *		not be woken up even if descriptors are available
+ * @txq:  struct netdev_queue to stop/start
+ * @pkts: number of packets completed
+ * @bytes:  number of bytes completed
+ * @get_desc: get current number of free descriptors (see requirements below!)
+ * @start_thrs: minimal number of descriptors to re-enable the queue
+ * @down_cond:  down condition, predicate indicating that the queue should
+ *    not be woken up even if descriptors are available
  *
  * All arguments may be evaluated multiple times.
  * @get_desc must be a formula or a function call, it must always
@@ -167,63 +166,63 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
  * Reports completed pkts/bytes to BQL.
  *
  * Returns:
- *	 0 if the queue was woken up
- *	 1 if the queue was already enabled (or disabled but @down_cond is true)
- *	-1 if the queue was left unchanged (@start_thrs not reached)
+ *   0 if the queue was woken up
+ *   1 if the queue was already enabled (or disabled but @down_cond is true)
+ *  -1 if the queue was left unchanged (@start_thrs not reached)
  */
-#define __netif_txq_completed_wake(txq, pkts, bytes,			\
-				   get_desc, start_thrs, down_cond)	\
-	({								\
-		int _res;						\
-									\
-		/* Report to BQL and piggy back on its barrier.		\
-		 * Barrier makes sure that anybody stopping the queue	\
-		 * after this point sees the new consumer index.	\
-		 * Pairs with barrier in netif_txq_try_stop().		\
-		 */							\
-		netdev_txq_completed_mb(txq, pkts, bytes);		\
-									\
-		_res = -1;						\
-		if (pkts && likely(get_desc >= start_thrs)) {		\
-			_res = 1;					\
-			if (unlikely(netif_tx_queue_stopped(txq)) &&	\
-			    !(down_cond)) {				\
-				netif_tx_wake_queue(txq);		\
-				_res = 0;				\
-			}						\
-		}							\
-		_res;							\
-	})
+#define __netif_txq_completed_wake(txq, pkts, bytes,      \
+      get_desc, start_thrs, down_cond) \
+  ({                \
+    int _res;           \
+                  \
+    /* Report to BQL and piggy back on its barrier. \
+     * Barrier makes sure that anybody stopping the queue \
+     * after this point sees the new consumer index. \
+     * Pairs with barrier in netif_txq_try_stop(). \
+     */             \
+    netdev_txq_completed_mb(txq, pkts, bytes);    \
+                  \
+    _res = -1;            \
+    if (pkts && likely(get_desc >= start_thrs)) {   \
+      _res = 1;         \
+      if (unlikely(netif_tx_queue_stopped(txq))     \
+      && !(down_cond)) {       \
+        netif_tx_wake_queue(txq);   \
+        _res = 0;       \
+      }           \
+    }             \
+    _res;             \
+  })
 
 #define netif_txq_completed_wake(txq, pkts, bytes, get_desc, start_thrs) \
-	__netif_txq_completed_wake(txq, pkts, bytes, get_desc, start_thrs, false)
+  __netif_txq_completed_wake(txq, pkts, bytes, get_desc, start_thrs, false)
 
 /* subqueue variants follow */
 
-#define netif_subqueue_try_stop(dev, idx, get_desc, start_thrs)		\
-	({								\
-		struct netdev_queue *txq;				\
-									\
-		txq = netdev_get_tx_queue(dev, idx);			\
-		netif_txq_try_stop(txq, get_desc, start_thrs);		\
-	})
+#define netif_subqueue_try_stop(dev, idx, get_desc, start_thrs)   \
+  ({                \
+    struct netdev_queue *txq;       \
+                  \
+    txq = netdev_get_tx_queue(dev, idx);      \
+    netif_txq_try_stop(txq, get_desc, start_thrs);    \
+  })
 
 #define netif_subqueue_maybe_stop(dev, idx, get_desc, stop_thrs, start_thrs) \
-	({								\
-		struct netdev_queue *txq;				\
-									\
-		txq = netdev_get_tx_queue(dev, idx);			\
-		netif_txq_maybe_stop(txq, get_desc, stop_thrs, start_thrs); \
-	})
+  ({                \
+    struct netdev_queue *txq;       \
+                  \
+    txq = netdev_get_tx_queue(dev, idx);      \
+    netif_txq_maybe_stop(txq, get_desc, stop_thrs, start_thrs); \
+  })
 
-#define netif_subqueue_completed_wake(dev, idx, pkts, bytes,		\
-				      get_desc, start_thrs)		\
-	({								\
-		struct netdev_queue *txq;				\
-									\
-		txq = netdev_get_tx_queue(dev, idx);			\
-		netif_txq_completed_wake(txq, pkts, bytes,		\
-					 get_desc, start_thrs);		\
-	})
+#define netif_subqueue_completed_wake(dev, idx, pkts, bytes,    \
+      get_desc, start_thrs)   \
+  ({                \
+    struct netdev_queue *txq;       \
+                  \
+    txq = netdev_get_tx_queue(dev, idx);      \
+    netif_txq_completed_wake(txq, pkts, bytes,    \
+    get_desc, start_thrs);   \
+  })
 
 #endif

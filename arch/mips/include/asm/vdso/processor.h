@@ -17,9 +17,9 @@
  * flush from cpu_relax() such that any pending writes will become visible as
  * expected.
  */
-#define cpu_relax()	smp_mb()
+#define cpu_relax() smp_mb()
 #else
-#define cpu_relax()	barrier()
+#define cpu_relax() barrier()
 #endif
 
 #endif /* __ASSEMBLY__ */

@@ -13,9 +13,9 @@
  * @base: the remapped PRCC bases
  */
 struct u8500_prcc_reset {
-	struct reset_controller_dev rcdev;
-	u32 phy_base[CLKRST_MAX];
-	void __iomem *base[CLKRST_MAX];
+  struct reset_controller_dev rcdev;
+  u32 phy_base[CLKRST_MAX];
+  void __iomem *base[CLKRST_MAX];
 };
 
 void u8500_prcc_reset_init(struct device_node *np, struct u8500_prcc_reset *ur);

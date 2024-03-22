@@ -10,39 +10,39 @@
 
 #define FT_VERSION "0.4"
 
-#define FT_NAMELEN 32		/* length of ASCII WWPNs including pad */
-#define FT_TPG_NAMELEN 32	/* max length of TPG name */
-#define FT_LUN_NAMELEN 32	/* max length of LUN name */
-#define TCM_FC_DEFAULT_TAGS 512	/* tags used for per-session preallocation */
+#define FT_NAMELEN 32   /* length of ASCII WWPNs including pad */
+#define FT_TPG_NAMELEN 32 /* max length of TPG name */
+#define FT_LUN_NAMELEN 32 /* max length of LUN name */
+#define TCM_FC_DEFAULT_TAGS 512 /* tags used for per-session preallocation */
 
 struct ft_transport_id {
-	__u8	format;
-	__u8	__resvd1[7];
-	__u8	wwpn[8];
-	__u8	__resvd2[8];
+  __u8 format;
+  __u8 __resvd1[7];
+  __u8 wwpn[8];
+  __u8 __resvd2[8];
 } __attribute__((__packed__));
 
 /*
  * Session (remote port).
  */
 struct ft_sess {
-	u32 port_id;			/* for hash lookup use only */
-	u32 params;
-	u16 max_frame;			/* maximum frame size */
-	u64 port_name;			/* port name for transport ID */
-	struct ft_tport *tport;
-	struct se_session *se_sess;
-	struct hlist_node hash;		/* linkage in ft_sess_hash table */
-	struct rcu_head rcu;
-	struct kref kref;		/* ref for hash and outstanding I/Os */
+  u32 port_id;      /* for hash lookup use only */
+  u32 params;
+  u16 max_frame;      /* maximum frame size */
+  u64 port_name;      /* port name for transport ID */
+  struct ft_tport *tport;
+  struct se_session *se_sess;
+  struct hlist_node hash;   /* linkage in ft_sess_hash table */
+  struct rcu_head rcu;
+  struct kref kref;   /* ref for hash and outstanding I/Os */
 };
 
 /*
  * Hash table of sessions per local port.
  * Hash lookup by remote port FC_ID.
  */
-#define	FT_SESS_HASH_BITS	6
-#define	FT_SESS_HASH_SIZE	(1 << FT_SESS_HASH_BITS)
+#define FT_SESS_HASH_BITS 6
+#define FT_SESS_HASH_SIZE (1 << FT_SESS_HASH_BITS)
 
 /*
  * Per local port data.
@@ -52,70 +52,70 @@ struct ft_sess {
  * the first PRLI provider callback is received.
  */
 struct ft_tport {
-	struct fc_lport *lport;
-	struct ft_tpg *tpg;		/* NULL if TPG deleted before tport */
-	u32	sess_count;		/* number of sessions in hash */
-	struct rcu_head rcu;
-	struct hlist_head hash[FT_SESS_HASH_SIZE];	/* list of sessions */
+  struct fc_lport *lport;
+  struct ft_tpg *tpg;   /* NULL if TPG deleted before tport */
+  u32 sess_count;   /* number of sessions in hash */
+  struct rcu_head rcu;
+  struct hlist_head hash[FT_SESS_HASH_SIZE];  /* list of sessions */
 };
 
 /*
  * Node ID and authentication.
  */
 struct ft_node_auth {
-	u64	port_name;
-	u64	node_name;
+  u64 port_name;
+  u64 node_name;
 };
 
 /*
  * Node ACL for FC remote port session.
  */
 struct ft_node_acl {
-	struct se_node_acl se_node_acl;
-	struct ft_node_auth node_auth;
+  struct se_node_acl se_node_acl;
+  struct ft_node_auth node_auth;
 };
 
 struct ft_lun {
-	u32 index;
-	char name[FT_LUN_NAMELEN];
+  u32 index;
+  char name[FT_LUN_NAMELEN];
 };
 
 /*
  * Target portal group (local port).
  */
 struct ft_tpg {
-	u32 index;
-	struct ft_lport_wwn *lport_wwn;
-	struct ft_tport *tport;		/* active tport or NULL */
-	struct list_head lun_list;	/* head of LUNs */
-	struct se_portal_group se_tpg;
-	struct workqueue_struct *workqueue;
+  u32 index;
+  struct ft_lport_wwn *lport_wwn;
+  struct ft_tport *tport;   /* active tport or NULL */
+  struct list_head lun_list;  /* head of LUNs */
+  struct se_portal_group se_tpg;
+  struct workqueue_struct *workqueue;
 };
 
 struct ft_lport_wwn {
-	u64 wwpn;
-	char name[FT_NAMELEN];
-	struct list_head ft_wwn_node;
-	struct ft_tpg *tpg;
-	struct se_wwn se_wwn;
+  u64 wwpn;
+  char name[FT_NAMELEN];
+  struct list_head ft_wwn_node;
+  struct ft_tpg *tpg;
+  struct se_wwn se_wwn;
 };
 
 /*
  * Commands
  */
 struct ft_cmd {
-	struct ft_sess *sess;		/* session held for cmd */
-	struct fc_seq *seq;		/* sequence in exchange mgr */
-	struct se_cmd se_cmd;		/* Local TCM I/O descriptor */
-	struct fc_frame *req_frame;
-	u32 write_data_len;		/* data received on writes */
-	struct work_struct work;
-	/* Local sense buffer */
-	unsigned char ft_sense_buffer[TRANSPORT_SENSE_BUFFER];
-	u32 was_ddp_setup:1;		/* Set only if ddp is setup */
-	u32 aborted:1;			/* Set if aborted by reset or timeout */
-	struct scatterlist *sg;		/* Set only if DDP is setup */
-	u32 sg_cnt;			/* No. of item in scatterlist */
+  struct ft_sess *sess;   /* session held for cmd */
+  struct fc_seq *seq;   /* sequence in exchange mgr */
+  struct se_cmd se_cmd;   /* Local TCM I/O descriptor */
+  struct fc_frame *req_frame;
+  u32 write_data_len;   /* data received on writes */
+  struct work_struct work;
+  /* Local sense buffer */
+  unsigned char ft_sense_buffer[TRANSPORT_SENSE_BUFFER];
+  u32 was_ddp_setup : 1;    /* Set only if ddp is setup */
+  u32 aborted : 1;      /* Set if aborted by reset or timeout */
+  struct scatterlist *sg;   /* Set only if DDP is setup */
+  u32 sg_cnt;     /* No. of item in scatterlist */
 };
 
 extern struct mutex ft_lport_lock;

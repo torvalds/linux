@@ -9,13 +9,13 @@
 #include <linux/crypto.h>
 
 struct swsusp_info {
-	struct new_utsname	uts;
-	u32			version_code;
-	unsigned long		num_physpages;
-	int			cpus;
-	unsigned long		image_pages;
-	unsigned long		pages;
-	unsigned long		size;
+  struct new_utsname uts;
+  u32 version_code;
+  unsigned long num_physpages;
+  int cpus;
+  unsigned long image_pages;
+  unsigned long pages;
+  unsigned long size;
 } __aligned(PAGE_SIZE);
 
 #ifdef CONFIG_HIBERNATION
@@ -25,31 +25,30 @@ extern void __init hibernate_image_size_init(void);
 
 #ifdef CONFIG_ARCH_HIBERNATION_HEADER
 /* Maximum size of architecture specific data in a hibernation header */
-#define MAX_ARCH_HEADER_SIZE	(sizeof(struct new_utsname) + 4)
+#define MAX_ARCH_HEADER_SIZE  (sizeof(struct new_utsname) + 4)
 
-static inline int init_header_complete(struct swsusp_info *info)
-{
-	return arch_hibernation_header_save(info, MAX_ARCH_HEADER_SIZE);
+static inline int init_header_complete(struct swsusp_info *info) {
+  return arch_hibernation_header_save(info, MAX_ARCH_HEADER_SIZE);
 }
 
-static inline const char *check_image_kernel(struct swsusp_info *info)
-{
-	return arch_hibernation_header_restore(info) ?
-			"architecture specific data" : NULL;
+static inline const char *check_image_kernel(struct swsusp_info *info) {
+  return arch_hibernation_header_restore(info)
+    ? "architecture specific data" : NULL;
 }
+
 #endif /* CONFIG_ARCH_HIBERNATION_HEADER */
 
 /*
  * Keep some memory free so that I/O operations can succeed without paging
  * [Might this be more than 4 MB?]
  */
-#define PAGES_FOR_IO	((4096 * 1024) >> PAGE_SHIFT)
+#define PAGES_FOR_IO  ((4096 * 1024) >> PAGE_SHIFT)
 
 /*
  * Keep 1 MB of memory free so that device drivers can allocate some pages in
  * their .suspend() routines without breaking the suspend to disk.
  */
-#define SPARE_PAGES	((1024 * 1024) >> PAGE_SHIFT)
+#define SPARE_PAGES ((1024 * 1024) >> PAGE_SHIFT)
 
 asmlinkage int swsusp_save(void);
 
@@ -68,33 +67,39 @@ extern int hibernation_platform_enter(void);
 /* kernel/power/snapshot.c */
 extern void enable_restore_image_protection(void);
 #else
-static inline void enable_restore_image_protection(void) {}
+static inline void enable_restore_image_protection(void) {
+}
+
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 
 #else /* !CONFIG_HIBERNATION */
 
-static inline void hibernate_reserved_size_init(void) {}
-static inline void hibernate_image_size_init(void) {}
+static inline void hibernate_reserved_size_init(void) {
+}
+
+static inline void hibernate_image_size_init(void) {
+}
+
 #endif /* !CONFIG_HIBERNATION */
 
 #define power_attr(_name) \
-static struct kobj_attribute _name##_attr = {	\
-	.attr	= {				\
-		.name = __stringify(_name),	\
-		.mode = 0644,			\
-	},					\
-	.show	= _name##_show,			\
-	.store	= _name##_store,		\
-}
+  static struct kobj_attribute _name ## _attr = { \
+    .attr = {       \
+      .name = __stringify(_name), \
+      .mode = 0644,     \
+    },          \
+    .show = _name ## _show,     \
+    .store = _name ## _store,    \
+  }
 
 #define power_attr_ro(_name) \
-static struct kobj_attribute _name##_attr = {	\
-	.attr	= {				\
-		.name = __stringify(_name),	\
-		.mode = S_IRUGO,		\
-	},					\
-	.show	= _name##_show,			\
-}
+  static struct kobj_attribute _name ## _attr = { \
+    .attr = {       \
+      .name = __stringify(_name), \
+      .mode = S_IRUGO,    \
+    },          \
+    .show = _name ## _show,     \
+  }
 
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;
@@ -111,43 +116,43 @@ extern int hibernate_preallocate_memory(void);
 extern void clear_or_poison_free_pages(void);
 
 /**
- *	Auxiliary structure used for reading the snapshot image data and
- *	metadata from and writing them to the list of page backup entries
- *	(PBEs) which is the main data structure of swsusp.
+ *  Auxiliary structure used for reading the snapshot image data and
+ *  metadata from and writing them to the list of page backup entries
+ *  (PBEs) which is the main data structure of swsusp.
  *
- *	Using struct snapshot_handle we can transfer the image, including its
- *	metadata, as a continuous sequence of bytes with the help of
- *	snapshot_read_next() and snapshot_write_next().
+ *  Using struct snapshot_handle we can transfer the image, including its
+ *  metadata, as a continuous sequence of bytes with the help of
+ *  snapshot_read_next() and snapshot_write_next().
  *
- *	The code that writes the image to a storage or transfers it to
- *	the user land is required to use snapshot_read_next() for this
- *	purpose and it should not make any assumptions regarding the internal
- *	structure of the image.  Similarly, the code that reads the image from
- *	a storage or transfers it from the user land is required to use
- *	snapshot_write_next().
+ *  The code that writes the image to a storage or transfers it to
+ *  the user land is required to use snapshot_read_next() for this
+ *  purpose and it should not make any assumptions regarding the internal
+ *  structure of the image.  Similarly, the code that reads the image from
+ *  a storage or transfers it from the user land is required to use
+ *  snapshot_write_next().
  *
- *	This may allow us to change the internal structure of the image
- *	in the future with considerably less effort.
+ *  This may allow us to change the internal structure of the image
+ *  in the future with considerably less effort.
  */
 
 struct snapshot_handle {
-	unsigned int	cur;	/* number of the block of PAGE_SIZE bytes the
-				 * next operation will refer to (ie. current)
-				 */
-	void		*buffer;	/* address of the block to read from
-					 * or write to
-					 */
-	int		sync_read;	/* Set to one to notify the caller of
-					 * snapshot_write_next() that it may
-					 * need to call wait_on_bio_chain()
-					 */
+  unsigned int cur;  /* number of the block of PAGE_SIZE bytes the
+                      * next operation will refer to (ie. current)
+                      */
+  void *buffer;  /* address of the block to read from
+                  * or write to
+                  */
+  int sync_read;  /* Set to one to notify the caller of
+                   * snapshot_write_next() that it may
+                   * need to call wait_on_bio_chain()
+                   */
 };
 
 /* This macro returns the address from/to which the caller of
  * snapshot_read_next()/snapshot_write_next() is allowed to
  * read/write data after the function returns
  */
-#define data_of(handle)	((handle).buffer)
+#define data_of(handle) ((handle).buffer)
 
 extern unsigned int snapshot_additional_pages(struct zone *zone);
 extern unsigned long snapshot_get_image_size(void);
@@ -167,11 +172,11 @@ extern int swsusp_swap_in_use(void);
  * Flags that can be passed from the hibernatig hernel to the "boot" kernel in
  * the image header.
  */
-#define SF_COMPRESSION_ALG_LZO	0 /* dummy, details given  below */
-#define SF_PLATFORM_MODE	1
-#define SF_NOCOMPRESS_MODE	2
-#define SF_CRC32_MODE	        4
-#define SF_HW_SIG		8
+#define SF_COMPRESSION_ALG_LZO  0 /* dummy, details given  below */
+#define SF_PLATFORM_MODE  1
+#define SF_NOCOMPRESS_MODE  2
+#define SF_CRC32_MODE         4
+#define SF_HW_SIG   8
 
 /*
  * Bit to indicate the compression algorithm to be used(for LZ4). The same
@@ -184,7 +189,7 @@ extern int swsusp_swap_in_use(void);
  * SF_CRC32_MODE, SF_COMPRESSION_ALG_LZO(dummy) -> Compression, LZO
  * SF_CRC32_MODE, SF_COMPRESSION_ALG_LZ4 -> Compression, LZ4
  */
-#define SF_COMPRESSION_ALG_LZ4	16
+#define SF_COMPRESSION_ALG_LZ4  16
 
 /* kernel/power/hibernate.c */
 int swsusp_check(bool exclusive);
@@ -195,7 +200,10 @@ void swsusp_close(void);
 #ifdef CONFIG_SUSPEND
 extern int swsusp_unmark(void);
 #else
-static inline int swsusp_unmark(void) { return 0; }
+static inline int swsusp_unmark(void) {
+  return 0;
+}
+
 #endif
 
 struct __kernel_old_timeval;
@@ -210,12 +218,12 @@ extern const char *mem_sleep_states[];
 
 extern int suspend_devices_and_enter(suspend_state_t state);
 #else /* !CONFIG_SUSPEND */
-#define mem_sleep_current	PM_SUSPEND_ON
+#define mem_sleep_current PM_SUSPEND_ON
 
-static inline int suspend_devices_and_enter(suspend_state_t state)
-{
-	return -ENOSYS;
+static inline int suspend_devices_and_enter(suspend_state_t state) {
+  return -ENOSYS;
 }
+
 #endif /* !CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM_TEST_SUSPEND
@@ -223,89 +231,101 @@ static inline int suspend_devices_and_enter(suspend_state_t state)
 extern void suspend_test_start(void);
 extern void suspend_test_finish(const char *label);
 #else /* !CONFIG_PM_TEST_SUSPEND */
-static inline void suspend_test_start(void) {}
-static inline void suspend_test_finish(const char *label) {}
+static inline void suspend_test_start(void) {
+}
+
+static inline void suspend_test_finish(const char *label) {
+}
+
 #endif /* !CONFIG_PM_TEST_SUSPEND */
 
 #ifdef CONFIG_PM_SLEEP
 /* kernel/power/main.c */
-extern int pm_notifier_call_chain_robust(unsigned long val_up, unsigned long val_down);
+extern int pm_notifier_call_chain_robust(unsigned long val_up,
+    unsigned long val_down);
 extern int pm_notifier_call_chain(unsigned long val);
 void pm_restrict_gfp_mask(void);
 void pm_restore_gfp_mask(void);
 #else
-static inline void pm_restrict_gfp_mask(void) {}
-static inline void pm_restore_gfp_mask(void) {}
+static inline void pm_restrict_gfp_mask(void) {
+}
+
+static inline void pm_restore_gfp_mask(void) {
+}
+
 #endif
 
 #ifdef CONFIG_HIGHMEM
 int restore_highmem(void);
 #else
-static inline unsigned int count_highmem_pages(void) { return 0; }
-static inline int restore_highmem(void) { return 0; }
+static inline unsigned int count_highmem_pages(void) {
+  return 0;
+}
+
+static inline int restore_highmem(void) {
+  return 0;
+}
+
 #endif
 
 /*
  * Suspend test levels
  */
 enum {
-	/* keep first */
-	TEST_NONE,
-	TEST_CORE,
-	TEST_CPUS,
-	TEST_PLATFORM,
-	TEST_DEVICES,
-	TEST_FREEZER,
-	/* keep last */
-	__TEST_AFTER_LAST
+  /* keep first */
+  TEST_NONE,
+  TEST_CORE,
+  TEST_CPUS,
+  TEST_PLATFORM,
+  TEST_DEVICES,
+  TEST_FREEZER,
+  /* keep last */
+  __TEST_AFTER_LAST
 };
 
-#define TEST_FIRST	TEST_NONE
-#define TEST_MAX	(__TEST_AFTER_LAST - 1)
+#define TEST_FIRST  TEST_NONE
+#define TEST_MAX  (__TEST_AFTER_LAST - 1)
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
 extern int pm_test_level;
 #else
-#define pm_test_level	(TEST_NONE)
+#define pm_test_level (TEST_NONE)
 #endif
 
 #ifdef CONFIG_SUSPEND_FREEZER
-static inline int suspend_freeze_processes(void)
-{
-	int error;
-
-	error = freeze_processes();
-	/*
-	 * freeze_processes() automatically thaws every task if freezing
-	 * fails. So we need not do anything extra upon error.
-	 */
-	if (error)
-		return error;
-
-	error = freeze_kernel_threads();
-	/*
-	 * freeze_kernel_threads() thaws only kernel threads upon freezing
-	 * failure. So we have to thaw the userspace tasks ourselves.
-	 */
-	if (error)
-		thaw_processes();
-
-	return error;
+static inline int suspend_freeze_processes(void) {
+  int error;
+  error = freeze_processes();
+  /*
+   * freeze_processes() automatically thaws every task if freezing
+   * fails. So we need not do anything extra upon error.
+   */
+  if (error) {
+    return error;
+  }
+  error = freeze_kernel_threads();
+  /*
+   * freeze_kernel_threads() thaws only kernel threads upon freezing
+   * failure. So we have to thaw the userspace tasks ourselves.
+   */
+  if (error) {
+    thaw_processes();
+  }
+  return error;
 }
 
-static inline void suspend_thaw_processes(void)
-{
-	thaw_processes();
+static inline void suspend_thaw_processes(void) {
+  thaw_processes();
 }
+
 #else
-static inline int suspend_freeze_processes(void)
-{
-	return 0;
+static inline int suspend_freeze_processes(void) {
+  return 0;
 }
 
-static inline void suspend_thaw_processes(void)
-{
+static inline void suspend_thaw_processes(void) {
 }
+
 #endif
 
 #ifdef CONFIG_PM_AUTOSLEEP
@@ -319,10 +339,20 @@ extern int pm_autosleep_set_state(suspend_state_t state);
 
 #else /* !CONFIG_PM_AUTOSLEEP */
 
-static inline int pm_autosleep_init(void) { return 0; }
-static inline int pm_autosleep_lock(void) { return 0; }
-static inline void pm_autosleep_unlock(void) {}
-static inline suspend_state_t pm_autosleep_state(void) { return PM_SUSPEND_ON; }
+static inline int pm_autosleep_init(void) {
+  return 0;
+}
+
+static inline int pm_autosleep_lock(void) {
+  return 0;
+}
+
+static inline void pm_autosleep_unlock(void) {
+}
+
+static inline suspend_state_t pm_autosleep_state(void) {
+  return PM_SUSPEND_ON;
+}
 
 #endif /* !CONFIG_PM_AUTOSLEEP */
 
@@ -335,16 +365,14 @@ extern int pm_wake_unlock(const char *buf);
 
 #endif /* !CONFIG_PM_WAKELOCKS */
 
-static inline int pm_sleep_disable_secondary_cpus(void)
-{
-	cpuidle_pause();
-	return suspend_disable_secondary_cpus();
+static inline int pm_sleep_disable_secondary_cpus(void) {
+  cpuidle_pause();
+  return suspend_disable_secondary_cpus();
 }
 
-static inline void pm_sleep_enable_secondary_cpus(void)
-{
-	suspend_enable_secondary_cpus();
-	cpuidle_resume();
+static inline void pm_sleep_enable_secondary_cpus(void) {
+  suspend_enable_secondary_cpus();
+  cpuidle_resume();
 }
 
 void dpm_save_errno(int err);

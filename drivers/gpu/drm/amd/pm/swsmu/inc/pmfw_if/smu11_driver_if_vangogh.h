@@ -52,9 +52,9 @@ typedef struct {
   uint16_t MinMclk;
   uint16_t MaxMclk;
 
-  uint8_t  WmSetting;
-  uint8_t  WmType;  // Used for normal pstate change or memory retraining
-  uint8_t  Padding[2];
+  uint8_t WmSetting;
+  uint8_t WmType;  // Used for normal pstate change or memory retraining
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -71,7 +71,7 @@ typedef struct {
   // Watermarks
   WatermarkRowGeneric_t WatermarkRow[WM_COUNT][NUM_WM_RANGES];
 
-  uint32_t     MmHubPadding[7]; // SMU internal use
+  uint32_t MmHubPadding[7]; // SMU internal use
 } Watermarks_t;
 
 typedef enum {
@@ -85,15 +85,15 @@ typedef enum {
 } CUSTOM_DPM_SETTING_e;
 
 typedef struct {
-  uint8_t             ActiveHystLimit;
-  uint8_t             IdleHystLimit;
-  uint8_t             FPS;
-  uint8_t             MinActiveFreqType;
-  FloatInIntFormat_t  MinActiveFreq;
-  FloatInIntFormat_t  PD_Data_limit;
-  FloatInIntFormat_t  PD_Data_time_constant;
-  FloatInIntFormat_t  PD_Data_error_coeff;
-  FloatInIntFormat_t  PD_Data_error_rate_coeff;
+  uint8_t ActiveHystLimit;
+  uint8_t IdleHystLimit;
+  uint8_t FPS;
+  uint8_t MinActiveFreqType;
+  FloatInIntFormat_t MinActiveFreq;
+  FloatInIntFormat_t PD_Data_limit;
+  FloatInIntFormat_t PD_Data_time_constant;
+  FloatInIntFormat_t PD_Data_error_coeff;
+  FloatInIntFormat_t PD_Data_error_rate_coeff;
 } DpmActivityMonitorCoeffExt_t;
 
 typedef struct {
@@ -149,7 +149,6 @@ typedef struct {
   uint8_t VcnClkLevelsEnabled;  //applies to both vclk/dclk
   uint8_t spare[2];
 } DpmClocks_t;
-
 
 // Throttler Status Bitmask
 #define THROTTLER_STATUS_BIT_SPL 0
@@ -231,7 +230,6 @@ typedef struct {
   uint32_t SampleStopTime;
 } SmuMetrics_t;
 
-
 // Workload bits
 #define WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT 0
 #define WORKLOAD_PPLIB_VIDEO_BIT 2
@@ -263,11 +261,11 @@ typedef enum {
 } TILE_NUM_e;
 
 // Tile Selection (Based on arguments)
-#define TILE_SEL_ISPX       (1<<(TILE_ISPX))
-#define TILE_SEL_ISPM       (1<<(TILE_ISPM))
-#define TILE_SEL_ISPC       (1<<(TILE_ISPC))
-#define TILE_SEL_ISPPRE     (1<<(TILE_ISPPRE))
-#define TILE_SEL_ISPPOST    (1<<(TILE_ISPPOST))
+#define TILE_SEL_ISPX       (1 << (TILE_ISPX))
+#define TILE_SEL_ISPM       (1 << (TILE_ISPM))
+#define TILE_SEL_ISPC       (1 << (TILE_ISPC))
+#define TILE_SEL_ISPPRE     (1 << (TILE_ISPPRE))
+#define TILE_SEL_ISPPOST    (1 << (TILE_ISPPOST))
 
 // Mask for ISP tiles in PGFSM PWR Status Registers
 //Bit[1:0] maps to ISPX, (ISPX)
@@ -275,10 +273,10 @@ typedef enum {
 //Bit[5:4] maps to ISPCORE, (ISPCORE)
 //Bit[7:6] maps to ISPPRE, (ISPPRE)
 //Bit[9:8] maps to POST, (ISPPOST
-#define TILE_ISPX_MASK      ((1<<0) | (1<<1))
-#define TILE_ISPM_MASK      ((1<<2) | (1<<3))
-#define TILE_ISPC_MASK      ((1<<4) | (1<<5))
-#define TILE_ISPPRE_MASK    ((1<<6) | (1<<7))
-#define TILE_ISPPOST_MASK   ((1<<8) | (1<<9))
+#define TILE_ISPX_MASK      ((1 << 0) | (1 << 1))
+#define TILE_ISPM_MASK      ((1 << 2) | (1 << 3))
+#define TILE_ISPC_MASK      ((1 << 4) | (1 << 5))
+#define TILE_ISPPRE_MASK    ((1 << 6) | (1 << 7))
+#define TILE_ISPPOST_MASK   ((1 << 8) | (1 << 9))
 
 #endif

@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_DCORE0_MME_CTRL_LO_ARCH_AGU_COUT0_MASTER_REGS_H_
 #define ASIC_REG_DCORE0_MME_CTRL_LO_ARCH_AGU_COUT0_MASTER_REGS_H_

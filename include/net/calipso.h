@@ -40,12 +40,12 @@
 
 /* DOI definition struct */
 struct calipso_doi {
-	u32 doi;
-	u32 type;
+  u32 doi;
+  u32 type;
 
-	refcount_t refcount;
-	struct list_head list;
-	struct rcu_head rcu;
+  refcount_t refcount;
+  struct list_head list;
+  struct rcu_head rcu;
 };
 
 /*
@@ -59,19 +59,18 @@ int __init calipso_init(void);
 void calipso_exit(void);
 bool calipso_validate(const struct sk_buff *skb, const unsigned char *option);
 #else
-static inline int __init calipso_init(void)
-{
-	return 0;
+static inline int __init calipso_init(void) {
+  return 0;
 }
 
-static inline void calipso_exit(void)
-{
+static inline void calipso_exit(void) {
 }
+
 static inline bool calipso_validate(const struct sk_buff *skb,
-				    const unsigned char *option)
-{
-	return true;
+    const unsigned char *option) {
+  return true;
 }
+
 #endif /* CONFIG_NETLABEL */
 
 #endif /* _CALIPSO_H */

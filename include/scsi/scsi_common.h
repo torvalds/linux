@@ -11,38 +11,32 @@
 #include <scsi/scsi_proto.h>
 
 enum scsi_pr_type {
-	SCSI_PR_WRITE_EXCLUSIVE			= 0x01,
-	SCSI_PR_EXCLUSIVE_ACCESS		= 0x03,
-	SCSI_PR_WRITE_EXCLUSIVE_REG_ONLY	= 0x05,
-	SCSI_PR_EXCLUSIVE_ACCESS_REG_ONLY	= 0x06,
-	SCSI_PR_WRITE_EXCLUSIVE_ALL_REGS	= 0x07,
-	SCSI_PR_EXCLUSIVE_ACCESS_ALL_REGS	= 0x08,
+  SCSI_PR_WRITE_EXCLUSIVE = 0x01,
+  SCSI_PR_EXCLUSIVE_ACCESS = 0x03,
+  SCSI_PR_WRITE_EXCLUSIVE_REG_ONLY = 0x05,
+  SCSI_PR_EXCLUSIVE_ACCESS_REG_ONLY = 0x06,
+  SCSI_PR_WRITE_EXCLUSIVE_ALL_REGS = 0x07,
+  SCSI_PR_EXCLUSIVE_ACCESS_ALL_REGS = 0x08,
 };
 
 enum scsi_pr_type block_pr_type_to_scsi(enum pr_type type);
 enum pr_type scsi_pr_type_to_block(enum scsi_pr_type type);
 
-static inline unsigned
-scsi_varlen_cdb_length(const void *hdr)
-{
-	return ((struct scsi_varlen_cdb_hdr *)hdr)->additional_cdb_length + 8;
+static inline unsigned scsi_varlen_cdb_length(const void *hdr) {
+  return ((struct scsi_varlen_cdb_hdr *) hdr)->additional_cdb_length + 8;
 }
 
 extern const unsigned char scsi_command_size_tbl[8];
 #define COMMAND_SIZE(opcode) scsi_command_size_tbl[((opcode) >> 5) & 7]
 
-static inline unsigned
-scsi_command_size(const unsigned char *cmnd)
-{
-	return (cmnd[0] == VARIABLE_LENGTH_CMD) ?
-		scsi_varlen_cdb_length(cmnd) : COMMAND_SIZE(cmnd[0]);
+static inline unsigned scsi_command_size(const unsigned char *cmnd) {
+  return (cmnd[0] == VARIABLE_LENGTH_CMD)
+    ? scsi_varlen_cdb_length(cmnd) : COMMAND_SIZE(cmnd[0]);
 }
 
-static inline unsigned char
-scsi_command_control(const unsigned char *cmnd)
-{
-	return (cmnd[0] == VARIABLE_LENGTH_CMD) ?
-		cmnd[1] : cmnd[COMMAND_SIZE(cmnd[0]) - 1];
+static inline unsigned char scsi_command_control(const unsigned char *cmnd) {
+  return (cmnd[0] == VARIABLE_LENGTH_CMD)
+    ? cmnd[1] : cmnd[COMMAND_SIZE(cmnd[0]) - 1];
 }
 
 /* Returns a human-readable name for the device */
@@ -60,32 +54,31 @@ extern u64 scsilun_to_int(struct scsi_lun *);
  * The original sense buffer should be kept around for those cases
  * in which more information is required (e.g. the LBA of a MEDIUM ERROR).
  */
-struct scsi_sense_hdr {		/* See SPC-3 section 4.5 */
-	u8 response_code;	/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
-	u8 sense_key;
-	u8 asc;
-	u8 ascq;
-	u8 byte4;
-	u8 byte5;
-	u8 byte6;
-	u8 additional_length;	/* always 0 for fixed sense format */
+struct scsi_sense_hdr {   /* See SPC-3 section 4.5 */
+  u8 response_code; /* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
+  u8 sense_key;
+  u8 asc;
+  u8 ascq;
+  u8 byte4;
+  u8 byte5;
+  u8 byte6;
+  u8 additional_length; /* always 0 for fixed sense format */
 };
 
-static inline bool scsi_sense_valid(const struct scsi_sense_hdr *sshdr)
-{
-	if (!sshdr)
-		return false;
-
-	return (sshdr->response_code & 0x70) == 0x70;
+static inline bool scsi_sense_valid(const struct scsi_sense_hdr *sshdr) {
+  if (!sshdr) {
+    return false;
+  }
+  return (sshdr->response_code & 0x70) == 0x70;
 }
 
 extern bool scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
-				 struct scsi_sense_hdr *sshdr);
+    struct scsi_sense_hdr *sshdr);
 
 extern void scsi_build_sense_buffer(int desc, u8 *buf, u8 key, u8 asc, u8 ascq);
 int scsi_set_sense_information(u8 *buf, int buf_len, u64 info);
 int scsi_set_sense_field_pointer(u8 *buf, int buf_len, u16 fp, u8 bp, bool cd);
-extern const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
-				       int desc_type);
+extern const u8 *scsi_sense_desc_find(const u8 *sense_buffer, int sb_len,
+    int desc_type);
 
 #endif /* _SCSI_COMMON_H_ */

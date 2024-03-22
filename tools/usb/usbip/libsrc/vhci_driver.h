@@ -15,50 +15,47 @@
 #define USBIP_VHCI_DEVICE_NAME "vhci_hcd.0"
 
 enum hub_speed {
-	HUB_SPEED_HIGH = 0,
-	HUB_SPEED_SUPER,
+  HUB_SPEED_HIGH = 0,
+  HUB_SPEED_SUPER,
 };
 
 struct usbip_imported_device {
-	enum hub_speed hub;
-	uint8_t port;
-	uint32_t status;
+  enum hub_speed hub;
+  uint8_t port;
+  uint32_t status;
 
-	uint32_t devid;
+  uint32_t devid;
 
-	uint8_t busnum;
-	uint8_t devnum;
+  uint8_t busnum;
+  uint8_t devnum;
 
-	/* usbip_class_device list */
-	struct usbip_usb_device udev;
+  /* usbip_class_device list */
+  struct usbip_usb_device udev;
 };
 
 struct usbip_vhci_driver {
+  /* /sys/devices/platform/vhci_hcd */
+  struct udev_device *hc_device;
 
-	/* /sys/devices/platform/vhci_hcd */
-	struct udev_device *hc_device;
-
-	int ncontrollers;
-	int nports;
-	struct usbip_imported_device idev[];
+  int ncontrollers;
+  int nports;
+  struct usbip_imported_device idev[];
 };
-
 
 extern struct usbip_vhci_driver *vhci_driver;
 
 int usbip_vhci_driver_open(void);
 void usbip_vhci_driver_close(void);
 
-int  usbip_vhci_refresh_device_list(void);
-
+int usbip_vhci_refresh_device_list(void);
 
 int usbip_vhci_get_free_port(uint32_t speed);
 int usbip_vhci_attach_device2(uint8_t port, int sockfd, uint32_t devid,
-		uint32_t speed);
+    uint32_t speed);
 
 /* will be removed */
 int usbip_vhci_attach_device(uint8_t port, int sockfd, uint8_t busnum,
-		uint8_t devnum, uint32_t speed);
+    uint8_t devnum, uint32_t speed);
 
 int usbip_vhci_detach_device(uint8_t port);
 

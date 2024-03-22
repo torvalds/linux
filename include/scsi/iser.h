@@ -11,14 +11,14 @@
  *     without modification, are permitted provided that the following
  *     conditions are met:
  *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
+ *  - Redistributions of source code must retain the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer.
  *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
+ *  - Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials
+ *    provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -32,18 +32,18 @@
 #ifndef ISCSI_ISER_H
 #define ISCSI_ISER_H
 
-#define ISER_ZBVA_NOT_SUP		0x80
-#define ISER_SEND_W_INV_NOT_SUP		0x40
-#define ISERT_ZBVA_NOT_USED		0x80
-#define ISERT_SEND_W_INV_NOT_USED	0x40
+#define ISER_ZBVA_NOT_SUP   0x80
+#define ISER_SEND_W_INV_NOT_SUP   0x40
+#define ISERT_ZBVA_NOT_USED   0x80
+#define ISERT_SEND_W_INV_NOT_USED 0x40
 
-#define ISCSI_CTRL	0x10
-#define ISER_HELLO	0x20
-#define ISER_HELLORPLY	0x30
+#define ISCSI_CTRL  0x10
+#define ISER_HELLO  0x20
+#define ISER_HELLORPLY  0x30
 
-#define ISER_VER	0x10
-#define ISER_WSV	0x08
-#define ISER_RSV	0x04
+#define ISER_VER  0x10
+#define ISER_WSV  0x08
+#define ISER_RSV  0x04
 
 /**
  * struct iser_cm_hdr - iSER CM header (from iSER Annex A12)
@@ -52,8 +52,8 @@
  * @rsvd:         reserved
  */
 struct iser_cm_hdr {
-	u8      flags;
-	u8      rsvd[3];
+  u8 flags;
+  u8 rsvd[3];
 } __packed;
 
 /**
@@ -67,12 +67,12 @@ struct iser_cm_hdr {
  * @read_va:      read virtual address
  */
 struct iser_ctrl {
-	u8      flags;
-	u8      rsvd[3];
-	__be32  write_stag;
-	__be64  write_va;
-	__be32  read_stag;
-	__be64  read_va;
+  u8 flags;
+  u8 rsvd[3];
+  __be32 write_stag;
+  __be64 write_va;
+  __be32 read_stag;
+  __be64 read_va;
 } __packed;
 
 #endif /* ISCSI_ISER_H */

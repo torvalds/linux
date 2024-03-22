@@ -12,7 +12,6 @@
 #include <linux/sh_intc.h>
 #include "pci-sh4.h"
 
-int pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
-{
-	return evt2irq(0xa20) + slot;
+int pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin) {
+  return evt2irq(0xa20) + slot;
 }

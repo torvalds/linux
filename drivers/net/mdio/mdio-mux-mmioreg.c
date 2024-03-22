@@ -16,10 +16,10 @@
 #include <linux/platform_device.h>
 
 struct mdio_mux_mmioreg_state {
-	void *mux_handle;
-	phys_addr_t phys;
-	unsigned int iosize;
-	unsigned int mask;
+  void *mux_handle;
+  phys_addr_t phys;
+  unsigned int iosize;
+  unsigned int mask;
 };
 
 /*
@@ -40,157 +40,139 @@ struct mdio_mux_mmioreg_state {
  * correct bus.
  */
 static int mdio_mux_mmioreg_switch_fn(int current_child, int desired_child,
-				      void *data)
-{
-	struct mdio_mux_mmioreg_state *s = data;
-
-	if (current_child ^ desired_child) {
-		void __iomem *p = ioremap(s->phys, s->iosize);
-		if (!p)
-			return -ENOMEM;
-
-		switch (s->iosize) {
-		case sizeof(uint8_t): {
-			uint8_t x, y;
-
-			x = ioread8(p);
-			y = (x & ~s->mask) | desired_child;
-			if (x != y) {
-				iowrite8((x & ~s->mask) | desired_child, p);
-				pr_debug("%s: %02x -> %02x\n", __func__, x, y);
-			}
-
-			break;
-		}
-		case sizeof(uint16_t): {
-			uint16_t x, y;
-
-			x = ioread16(p);
-			y = (x & ~s->mask) | desired_child;
-			if (x != y) {
-				iowrite16((x & ~s->mask) | desired_child, p);
-				pr_debug("%s: %04x -> %04x\n", __func__, x, y);
-			}
-
-			break;
-		}
-		case sizeof(uint32_t): {
-			uint32_t x, y;
-
-			x = ioread32(p);
-			y = (x & ~s->mask) | desired_child;
-			if (x != y) {
-				iowrite32((x & ~s->mask) | desired_child, p);
-				pr_debug("%s: %08x -> %08x\n", __func__, x, y);
-			}
-
-			break;
-		}
-		}
-
-		iounmap(p);
-	}
-
-	return 0;
+    void *data) {
+  struct mdio_mux_mmioreg_state *s = data;
+  if (current_child ^ desired_child) {
+    void __iomem *p = ioremap(s->phys, s->iosize);
+    if (!p) {
+      return -ENOMEM;
+    }
+    switch (s->iosize) {
+      case sizeof(uint8_t):
+        {
+          uint8_t x, y;
+          x = ioread8(p);
+          y = (x & ~s->mask) | desired_child;
+          if (x != y) {
+            iowrite8((x & ~s->mask) | desired_child, p);
+            pr_debug("%s: %02x -> %02x\n", __func__, x, y);
+          }
+          break;
+        }
+      case sizeof(uint16_t):
+        {
+          uint16_t x, y;
+          x = ioread16(p);
+          y = (x & ~s->mask) | desired_child;
+          if (x != y) {
+            iowrite16((x & ~s->mask) | desired_child, p);
+            pr_debug("%s: %04x -> %04x\n", __func__, x, y);
+          }
+          break;
+        }
+      case sizeof(uint32_t):
+        {
+          uint32_t x, y;
+          x = ioread32(p);
+          y = (x & ~s->mask) | desired_child;
+          if (x != y) {
+            iowrite32((x & ~s->mask) | desired_child, p);
+            pr_debug("%s: %08x -> %08x\n", __func__, x, y);
+          }
+          break;
+        }
+    }
+    iounmap(p);
+  }
+  return 0;
 }
 
-static int mdio_mux_mmioreg_probe(struct platform_device *pdev)
-{
-	struct device_node *np2, *np = pdev->dev.of_node;
-	struct mdio_mux_mmioreg_state *s;
-	struct resource res;
-	const __be32 *iprop;
-	int len, ret;
-
-	dev_dbg(&pdev->dev, "probing node %pOF\n", np);
-
-	s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
-
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret) {
-		dev_err(&pdev->dev, "could not obtain memory map for node %pOF\n",
-			np);
-		return ret;
-	}
-	s->phys = res.start;
-
-	s->iosize = resource_size(&res);
-	if (s->iosize != sizeof(uint8_t) &&
-	    s->iosize != sizeof(uint16_t) &&
-	    s->iosize != sizeof(uint32_t)) {
-		dev_err(&pdev->dev, "only 8/16/32-bit registers are supported\n");
-		return -EINVAL;
-	}
-
-	iprop = of_get_property(np, "mux-mask", &len);
-	if (!iprop || len != sizeof(uint32_t)) {
-		dev_err(&pdev->dev, "missing or invalid mux-mask property\n");
-		return -ENODEV;
-	}
-	if (be32_to_cpup(iprop) >= BIT(s->iosize * 8)) {
-		dev_err(&pdev->dev, "only 8/16/32-bit registers are supported\n");
-		return -EINVAL;
-	}
-	s->mask = be32_to_cpup(iprop);
-
-	/*
-	 * Verify that the 'reg' property of each child MDIO bus does not
-	 * set any bits outside of the 'mask'.
-	 */
-	for_each_available_child_of_node(np, np2) {
-		u64 reg;
-
-		if (of_property_read_reg(np2, 0, &reg, NULL)) {
-			dev_err(&pdev->dev, "mdio-mux child node %pOF is "
-				"missing a 'reg' property\n", np2);
-			of_node_put(np2);
-			return -ENODEV;
-		}
-		if ((u32)reg & ~s->mask) {
-			dev_err(&pdev->dev, "mdio-mux child node %pOF has "
-				"a 'reg' value with unmasked bits\n",
-				np2);
-			of_node_put(np2);
-			return -ENODEV;
-		}
-	}
-
-	ret = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
-			    mdio_mux_mmioreg_switch_fn,
-			    &s->mux_handle, s, NULL);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to register mdio-mux bus %pOF\n", np);
-
-	pdev->dev.platform_data = s;
-
-	return 0;
+static int mdio_mux_mmioreg_probe(struct platform_device *pdev) {
+  struct device_node *np2, *np = pdev->dev.of_node;
+  struct mdio_mux_mmioreg_state *s;
+  struct resource res;
+  const __be32 *iprop;
+  int len, ret;
+  dev_dbg(&pdev->dev, "probing node %pOF\n", np);
+  s = devm_kzalloc(&pdev->dev, sizeof(*s), GFP_KERNEL);
+  if (!s) {
+    return -ENOMEM;
+  }
+  ret = of_address_to_resource(np, 0, &res);
+  if (ret) {
+    dev_err(&pdev->dev, "could not obtain memory map for node %pOF\n",
+        np);
+    return ret;
+  }
+  s->phys = res.start;
+  s->iosize = resource_size(&res);
+  if (s->iosize != sizeof(uint8_t)
+      && s->iosize != sizeof(uint16_t)
+      && s->iosize != sizeof(uint32_t)) {
+    dev_err(&pdev->dev, "only 8/16/32-bit registers are supported\n");
+    return -EINVAL;
+  }
+  iprop = of_get_property(np, "mux-mask", &len);
+  if (!iprop || len != sizeof(uint32_t)) {
+    dev_err(&pdev->dev, "missing or invalid mux-mask property\n");
+    return -ENODEV;
+  }
+  if (be32_to_cpup(iprop) >= BIT(s->iosize * 8)) {
+    dev_err(&pdev->dev, "only 8/16/32-bit registers are supported\n");
+    return -EINVAL;
+  }
+  s->mask = be32_to_cpup(iprop);
+  /*
+   * Verify that the 'reg' property of each child MDIO bus does not
+   * set any bits outside of the 'mask'.
+   */
+  for_each_available_child_of_node(np, np2) {
+    u64 reg;
+    if (of_property_read_reg(np2, 0, &reg, NULL)) {
+      dev_err(&pdev->dev, "mdio-mux child node %pOF is "
+          "missing a 'reg' property\n", np2);
+      of_node_put(np2);
+      return -ENODEV;
+    }
+    if ((u32) reg & ~s->mask) {
+      dev_err(&pdev->dev, "mdio-mux child node %pOF has "
+          "a 'reg' value with unmasked bits\n",
+          np2);
+      of_node_put(np2);
+      return -ENODEV;
+    }
+  }
+  ret = mdio_mux_init(&pdev->dev, pdev->dev.of_node,
+      mdio_mux_mmioreg_switch_fn,
+      &s->mux_handle, s, NULL);
+  if (ret) {
+    return dev_err_probe(&pdev->dev, ret,
+        "failed to register mdio-mux bus %pOF\n", np);
+  }
+  pdev->dev.platform_data = s;
+  return 0;
 }
 
-static void mdio_mux_mmioreg_remove(struct platform_device *pdev)
-{
-	struct mdio_mux_mmioreg_state *s = dev_get_platdata(&pdev->dev);
-
-	mdio_mux_uninit(s->mux_handle);
+static void mdio_mux_mmioreg_remove(struct platform_device *pdev) {
+  struct mdio_mux_mmioreg_state *s = dev_get_platdata(&pdev->dev);
+  mdio_mux_uninit(s->mux_handle);
 }
 
 static const struct of_device_id mdio_mux_mmioreg_match[] = {
-	{
-		.compatible = "mdio-mux-mmioreg",
-	},
-	{},
+  {
+    .compatible = "mdio-mux-mmioreg",
+  },
+  {},
 };
 MODULE_DEVICE_TABLE(of, mdio_mux_mmioreg_match);
 
 static struct platform_driver mdio_mux_mmioreg_driver = {
-	.driver = {
-		.name		= "mdio-mux-mmioreg",
-		.of_match_table = mdio_mux_mmioreg_match,
-	},
-	.probe		= mdio_mux_mmioreg_probe,
-	.remove_new	= mdio_mux_mmioreg_remove,
+  .driver = {
+    .name = "mdio-mux-mmioreg",
+    .of_match_table = mdio_mux_mmioreg_match,
+  },
+  .probe = mdio_mux_mmioreg_probe,
+  .remove_new = mdio_mux_mmioreg_remove,
 };
 
 module_platform_driver(mdio_mux_mmioreg_driver);

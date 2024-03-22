@@ -8,7 +8,7 @@
 #ifndef __ASM_ALPHA_PROCESSOR_H
 #define __ASM_ALPHA_PROCESSOR_H
 
-#include <linux/personality.h>	/* for ADDR_LIMIT_32BIT */
+#include <linux/personality.h>  /* for ADDR_LIMIT_32BIT */
 
 /*
  * We have a 42-bit user address space: 4TB user VM...
@@ -18,7 +18,7 @@
 #define STACK_TOP \
   (current->personality & ADDR_LIMIT_32BIT ? 0x80000000 : 0x00120000000UL)
 
-#define STACK_TOP_MAX	0x00120000000UL
+#define STACK_TOP_MAX 0x00120000000UL
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
@@ -27,8 +27,8 @@
   ((current->personality & ADDR_LIMIT_32BIT) ? 0x40000000 : TASK_SIZE / 2)
 
 /* This is dead.  Everything has been moved to thread_info.  */
-struct thread_struct { };
-#define INIT_THREAD  { }
+struct thread_struct {};
+#define INIT_THREAD  {}
 
 /* Do necessary setup to start up a newly executed thread.  */
 struct pt_regs;
@@ -43,19 +43,17 @@ unsigned long __get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk) \
   ((tsk) == current ? rdusp() : task_thread_info(tsk)->pcb.usp)
 
-#define cpu_relax()	barrier()
+#define cpu_relax() barrier()
 
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW
 
-extern inline void prefetch(const void *ptr)  
-{ 
-	__builtin_prefetch(ptr, 0, 3);
+extern inline void prefetch(const void *ptr) {
+  __builtin_prefetch(ptr, 0, 3);
 }
 
-extern inline void prefetchw(const void *ptr)  
-{
-	__builtin_prefetch(ptr, 1, 3);
+extern inline void prefetchw(const void *ptr) {
+  __builtin_prefetch(ptr, 1, 3);
 }
 
 #endif /* __ASM_ALPHA_PROCESSOR_H */

@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-	Mantis PCI bridge driver
-
-	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
-
-*/
+ * Mantis PCI bridge driver
+ *
+ * Copyright (C) Manu Abraham (abraham.manu@gmail.com)
+ *
+ */
 
 #ifndef __MANTIS_INPUT_H
 #define __MANTIS_INPUT_H

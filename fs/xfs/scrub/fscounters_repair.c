@@ -43,30 +43,24 @@
  * Reset the superblock counters.  Caller is responsible for freezing the
  * filesystem during the calculation and reset phases.
  */
-int
-xrep_fscounters(
-	struct xfs_scrub	*sc)
-{
-	struct xfs_mount	*mp = sc->mp;
-	struct xchk_fscounters	*fsc = sc->buf;
-
-	/*
-	 * Reinitialize the in-core counters from what we computed.  We froze
-	 * the filesystem, so there shouldn't be anyone else trying to modify
-	 * these counters.
-	 */
-	if (!fsc->frozen) {
-		ASSERT(fsc->frozen);
-		return -EFSCORRUPTED;
-	}
-
-	trace_xrep_reset_counters(mp, fsc);
-
-	percpu_counter_set(&mp->m_icount, fsc->icount);
-	percpu_counter_set(&mp->m_ifree, fsc->ifree);
-	percpu_counter_set(&mp->m_fdblocks, fsc->fdblocks);
-	percpu_counter_set(&mp->m_frextents, fsc->frextents);
-	mp->m_sb.sb_frextents = fsc->frextents;
-
-	return 0;
+int xrep_fscounters(
+    struct xfs_scrub *sc) {
+  struct xfs_mount *mp = sc->mp;
+  struct xchk_fscounters *fsc = sc->buf;
+  /*
+   * Reinitialize the in-core counters from what we computed.  We froze
+   * the filesystem, so there shouldn't be anyone else trying to modify
+   * these counters.
+   */
+  if (!fsc->frozen) {
+    ASSERT(fsc->frozen);
+    return -EFSCORRUPTED;
+  }
+  trace_xrep_reset_counters(mp, fsc);
+  percpu_counter_set(&mp->m_icount, fsc->icount);
+  percpu_counter_set(&mp->m_ifree, fsc->ifree);
+  percpu_counter_set(&mp->m_fdblocks, fsc->fdblocks);
+  percpu_counter_set(&mp->m_frextents, fsc->frextents);
+  mp->m_sb.sb_frextents = fsc->frextents;
+  return 0;
 }

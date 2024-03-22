@@ -50,12 +50,50 @@
 // To enable a lot of debug msg
 #define __DML_VBA_DEBUG__
 #define __DML_VBA_ENABLE_INLINE_CHECK_                  0
-#define __DML_VBA_MIN_VSTARTUP__                        9       //<brief At which vstartup the DML start to try if the mode can be supported
-#define __DML_ARB_TO_RET_DELAY__                        7 + 95  //<brief Delay in DCFCLK from ARB to DET (1st num is ARB to SDPIF, 2nd number is SDPIF to DET)
-#define __DML_MIN_DCFCLK_FACTOR__                       1.15    //<brief fudge factor for min dcfclk calclation
-#define __DML_MAX_VRATIO_PRE__                          4.0     //<brief Prefetch schedule max vratio
-#define __DML_MAX_VRATIO_PRE_OTO__                      4.0     //<brief Prefetch schedule max vratio for one to one scheduling calculation for prefetch
-#define __DML_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__     6.0     //<brief Prefetch schedule max vratio when enhance prefetch schedule acceleration is enabled and vstartup is earliest possible already
+#define __DML_VBA_MIN_VSTARTUP__                        9       //<brief At
+                                                                // which
+                                                                // vstartup the
+                                                                // DML start to
+                                                                // try if the
+                                                                // mode can be
+                                                                // supported
+#define __DML_ARB_TO_RET_DELAY__                        7 + 95  //<brief Delay
+                                                                // in DCFCLK
+                                                                // from ARB to
+                                                                // DET (1st num
+                                                                // is ARB to
+                                                                // SDPIF, 2nd
+                                                                // number is
+                                                                // SDPIF to DET)
+#define __DML_MIN_DCFCLK_FACTOR__                       1.15    //<brief fudge
+                                                                // factor for
+                                                                // min dcfclk
+                                                                // calclation
+#define __DML_MAX_VRATIO_PRE__                          4.0     //<brief
+                                                                // Prefetch
+                                                                // schedule max
+                                                                // vratio
+#define __DML_MAX_VRATIO_PRE_OTO__                      4.0     //<brief
+                                                                // Prefetch
+                                                                // schedule max
+                                                                // vratio for
+                                                                // one to one
+                                                                // scheduling
+                                                                // calculation
+                                                                // for prefetch
+#define __DML_MAX_VRATIO_PRE_ENHANCE_PREFETCH_ACC__     6.0     //<brief
+                                                                // Prefetch
+                                                                // schedule max
+                                                                // vratio when
+                                                                // enhance
+                                                                // prefetch
+                                                                // schedule
+                                                                // acceleration
+                                                                // is enabled
+                                                                // and vstartup
+                                                                // is earliest
+                                                                // possible
+                                                                // already
 #define __DML_NUM_PLANES__                              DCN_DML__NUM_PLANE
 #define __DML_NUM_CURSORS__                             DCN_DML__NUM_CURSOR
 #define __DML_DPP_INVALID__                             0
@@ -66,12 +104,15 @@
 // Compilation define
 #define __DML_DLL_EXPORT__
 
-typedef          int   dml_int_t;   // int is 32-bit in C/C++, but Integer datatype is 16-bit in VBA. this should map to Long in VBA
-typedef unsigned int   dml_uint_t;
-typedef double         dml_float_t;
+typedef          int dml_int_t;   // int is 32-bit in C/C++, but Integer
+                                  // datatype is 16-bit in VBA. this should map
+                                  // to Long in VBA
+typedef unsigned int dml_uint_t;
+typedef double dml_float_t;
 
-// Note: bool is 8-bit in C/C++, but Boolean is 16-bit in VBA, use "short" in C/C++ DLL so the struct work when vba uses DLL
+// Note: bool is 8-bit in C/C++, but Boolean is 16-bit in VBA, use "short" in
+// C/C++ DLL so the struct work when vba uses DLL
 // Or the VBA side don't use Boolean, just use "Byte", then C side can use bool
-typedef bool          dml_bool_t;
+typedef bool dml_bool_t;
 
 #endif

@@ -7,7 +7,6 @@
 #include <asm-generic/pci_iomap.h>
 
 void __iomem *__pci_ioport_map(struct pci_dev *dev, unsigned long port,
-			       unsigned int nr)
-{
-	return NULL;
+    unsigned int nr) {
+  return NULL;
 }

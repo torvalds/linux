@@ -17,7 +17,7 @@
 #define CURRENT_SHIFT KERNEL_STACK_SHIFT
 
 #ifndef __ASSEMBLY__
-# include <asm/processor.h>
+#include <asm/processor.h>
 #endif
 
 /*
@@ -33,45 +33,45 @@
 #if XTENSA_HAVE_COPROCESSORS
 
 typedef struct xtregs_coprocessor {
-	xtregs_cp0_t cp0;
-	xtregs_cp1_t cp1;
-	xtregs_cp2_t cp2;
-	xtregs_cp3_t cp3;
-	xtregs_cp4_t cp4;
-	xtregs_cp5_t cp5;
-	xtregs_cp6_t cp6;
-	xtregs_cp7_t cp7;
+  xtregs_cp0_t cp0;
+  xtregs_cp1_t cp1;
+  xtregs_cp2_t cp2;
+  xtregs_cp3_t cp3;
+  xtregs_cp4_t cp4;
+  xtregs_cp5_t cp5;
+  xtregs_cp6_t cp6;
+  xtregs_cp7_t cp7;
 } xtregs_coprocessor_t;
 
 #endif
 
 struct thread_info {
-	struct task_struct	*task;		/* main task structure */
-	unsigned long		flags;		/* low level flags */
-	unsigned long		status;		/* thread-synchronous flags */
-	__u32			cpu;		/* current CPU */
-	__s32			preempt_count;	/* 0 => preemptable,< 0 => BUG*/
+  struct task_struct *task;    /* main task structure */
+  unsigned long flags;    /* low level flags */
+  unsigned long status;   /* thread-synchronous flags */
+  __u32 cpu;    /* current CPU */
+  __s32 preempt_count;  /* 0 => preemptable,< 0 => BUG*/
 
 #if XCHAL_HAVE_EXCLUSIVE
-	/* result of the most recent exclusive store */
-	unsigned long		atomctl8;
+  /* result of the most recent exclusive store */
+  unsigned long atomctl8;
 #endif
 #ifdef CONFIG_USER_ABI_CALL0_PROBE
-	/* Address where PS.WOE was enabled by the ABI probing code */
-	unsigned long		ps_woe_fix_addr;
+  /* Address where PS.WOE was enabled by the ABI probing code */
+  unsigned long ps_woe_fix_addr;
 #endif
 
-	/*
-	 * If i-th bit is set then coprocessor state is loaded into the
-	 * coprocessor i on CPU cp_owner_cpu.
-	 */
-	unsigned long		cpenable;
-	u32			cp_owner_cpu;
-	/* Allocate storage for extra user states and coprocessor states. */
+  /*
+   * If i-th bit is set then coprocessor state is loaded into the
+   * coprocessor i on CPU cp_owner_cpu.
+   */
+  unsigned long cpenable;
+  u32 cp_owner_cpu;
+  /* Allocate storage for extra user states and coprocessor states. */
 #if XTENSA_HAVE_COPROCESSORS
-	xtregs_coprocessor_t	xtregs_cp;
+  xtregs_coprocessor_t xtregs_cp;
 #endif
-	xtregs_user_t		xtregs_user;
+  xtregs_user_t xtregs_user;
 };
 
 #endif
@@ -82,64 +82,63 @@ struct thread_info {
 
 #ifndef __ASSEMBLY__
 
-#define INIT_THREAD_INFO(tsk)			\
-{						\
-	.task		= &tsk,			\
-	.flags		= 0,			\
-	.cpu		= 0,			\
-	.preempt_count	= INIT_PREEMPT_COUNT,	\
-}
+#define INIT_THREAD_INFO(tsk)     \
+  {           \
+    .task = &tsk,     \
+    .flags = 0,      \
+    .cpu = 0,      \
+    .preempt_count = INIT_PREEMPT_COUNT, \
+  }
 
 /* how to get the thread information struct from C */
-static inline struct thread_info *current_thread_info(void)
-{
-	struct thread_info *ti;
-	 __asm__("extui %0, a1, 0, "__stringify(CURRENT_SHIFT)"\n\t"
-	         "xor %0, a1, %0" : "=&r" (ti) : );
-	return ti;
+static inline struct thread_info *current_thread_info(void) {
+  struct thread_info *ti;
+  __asm__ ("extui %0, a1, 0, "__stringify (CURRENT_SHIFT) "\n\t"
+  "xor %0, a1, %0" : "=&r" (ti) :);
+  return ti;
 }
 
 #else /* !__ASSEMBLY__ */
 
 /* how to get the thread information struct from ASM */
-#define GET_THREAD_INFO(reg,sp) \
-	extui reg, sp, 0, CURRENT_SHIFT; \
-	xor   reg, sp, reg
+#define GET_THREAD_INFO(reg, sp) \
+  extui reg, sp, 0, CURRENT_SHIFT; \
+  xor reg, sp, reg
 #endif
-
 
 /*
  * thread information flags
- * - these are process state flags that various assembly files may need to access
+ * - these are process state flags that various assembly files may need to
+ * access
  */
-#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_SIGPENDING		1	/* signal pending */
-#define TIF_NEED_RESCHED	2	/* rescheduling necessary */
-#define TIF_SINGLESTEP		3	/* restore singlestep on return to user mode */
-#define TIF_SYSCALL_TRACEPOINT	4	/* syscall tracepoint instrumentation */
-#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
-#define TIF_RESTORE_SIGMASK	6	/* restore signal mask in do_signal() */
-#define TIF_NOTIFY_RESUME	7	/* callback before returning to user */
-#define TIF_DB_DISABLED		8	/* debug trap disabled for syscall */
-#define TIF_SYSCALL_AUDIT	9	/* syscall auditing active */
-#define TIF_SECCOMP		10	/* secure computing */
-#define TIF_MEMDIE		11	/* is terminating due to OOM killer */
+#define TIF_SYSCALL_TRACE 0 /* syscall trace active */
+#define TIF_SIGPENDING    1 /* signal pending */
+#define TIF_NEED_RESCHED  2 /* rescheduling necessary */
+#define TIF_SINGLESTEP    3 /* restore singlestep on return to user mode */
+#define TIF_SYSCALL_TRACEPOINT  4 /* syscall tracepoint instrumentation */
+#define TIF_NOTIFY_SIGNAL 5 /* signal notifications exist */
+#define TIF_RESTORE_SIGMASK 6 /* restore signal mask in do_signal() */
+#define TIF_NOTIFY_RESUME 7 /* callback before returning to user */
+#define TIF_DB_DISABLED   8 /* debug trap disabled for syscall */
+#define TIF_SYSCALL_AUDIT 9 /* syscall auditing active */
+#define TIF_SECCOMP   10  /* secure computing */
+#define TIF_MEMDIE    11  /* is terminating due to OOM killer */
 
-#define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
-#define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
-#define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
-#define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
-#define _TIF_SECCOMP		(1<<TIF_SECCOMP)
+#define _TIF_SYSCALL_TRACE  (1 << TIF_SYSCALL_TRACE)
+#define _TIF_SIGPENDING   (1 << TIF_SIGPENDING)
+#define _TIF_NEED_RESCHED (1 << TIF_NEED_RESCHED)
+#define _TIF_SINGLESTEP   (1 << TIF_SINGLESTEP)
+#define _TIF_SYSCALL_TRACEPOINT (1 << TIF_SYSCALL_TRACEPOINT)
+#define _TIF_NOTIFY_SIGNAL  (1 << TIF_NOTIFY_SIGNAL)
+#define _TIF_NOTIFY_RESUME  (1 << TIF_NOTIFY_RESUME)
+#define _TIF_SYSCALL_AUDIT  (1 << TIF_SYSCALL_AUDIT)
+#define _TIF_SECCOMP    (1 << TIF_SECCOMP)
 
-#define _TIF_WORK_MASK		(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | \
-				 _TIF_SYSCALL_TRACEPOINT | \
-				 _TIF_SYSCALL_AUDIT | _TIF_SECCOMP)
+#define _TIF_WORK_MASK    (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP   \
+  | _TIF_SYSCALL_TRACEPOINT   \
+  | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP)
 
 #define THREAD_SIZE KERNEL_STACK_SIZE
 #define THREAD_SIZE_ORDER (KERNEL_STACK_SHIFT - PAGE_SHIFT)
 
-#endif	/* _XTENSA_THREAD_INFO */
+#endif  /* _XTENSA_THREAD_INFO */

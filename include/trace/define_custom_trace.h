@@ -10,9 +10,11 @@
  *     This macro may be defined to tell define_trace.h what file to include.
  *     Note, leave off the ".h".
  *
- * TRACE_INCLUDE_PATH if the path is something other than core kernel include/trace
+ * TRACE_INCLUDE_PATH if the path is something other than core kernel
+ * include/trace
  *     then this macro can define the path to use. Note, the path is relative to
- *     define_trace.h, not the file including it. Full path names for out of tree
+ *     define_trace.h, not the file including it. Full path names for out of
+ * tree
  *     modules must be used.
  */
 
@@ -33,18 +35,18 @@
 #undef __TRACE_INCLUDE
 
 #ifndef TRACE_INCLUDE_FILE
-# define TRACE_INCLUDE_FILE TRACE_SYSTEM
-# define UNDEF_TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE TRACE_SYSTEM
+#define UNDEF_TRACE_INCLUDE_FILE
 #endif
 
 #ifndef TRACE_INCLUDE_PATH
-# define __TRACE_INCLUDE(system) <trace/events/system.h>
-# define UNDEF_TRACE_INCLUDE_PATH
+#define __TRACE_INCLUDE(system) < trace / events / system.h >
+#define UNDEF_TRACE_INCLUDE_PATH
 #else
-# define __TRACE_INCLUDE(system) __stringify(TRACE_INCLUDE_PATH/system.h)
+#define __TRACE_INCLUDE(system) __stringify(TRACE_INCLUDE_PATH / system.h)
 #endif
 
-# define TRACE_INCLUDE(system) __TRACE_INCLUDE(system)
+#define TRACE_INCLUDE(system) __TRACE_INCLUDE(system)
 
 /* Let the trace headers be reread */
 #define TRACE_CUSTOM_MULTI_READ
@@ -62,13 +64,13 @@
 
 /* Only undef what we defined in this file */
 #ifdef UNDEF_TRACE_INCLUDE_FILE
-# undef TRACE_INCLUDE_FILE
-# undef UNDEF_TRACE_INCLUDE_FILE
+#undef TRACE_INCLUDE_FILE
+#undef UNDEF_TRACE_INCLUDE_FILE
 #endif
 
 #ifdef UNDEF_TRACE_INCLUDE_PATH
-# undef TRACE_INCLUDE_PATH
-# undef UNDEF_TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_PATH
+#undef UNDEF_TRACE_INCLUDE_PATH
 #endif
 
 /* We may be processing more files */

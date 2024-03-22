@@ -5,17 +5,17 @@
 #include <linux/types.h>
 #include <linux/pgtable.h>
 
-#define virt_to_phys(a) ((unsigned long)__pa(a))
+#define virt_to_phys(a) ((unsigned long) __pa(a))
 #define phys_to_virt(a) __va(a)
 
 static inline unsigned long isa_bus_to_virt(unsigned long addr) {
-	BUG();
-	return 0;
+  BUG();
+  return 0;
 }
 
 static inline unsigned long isa_virt_to_bus(void *addr) {
-	BUG();
-	return 0;
+  BUG();
+  return 0;
 }
 
 /*
@@ -27,98 +27,83 @@ static inline unsigned long isa_virt_to_bus(void *addr) {
  *   eg dev->hpa or 0xfee00000.
  */
 
-static inline unsigned char gsc_readb(unsigned long addr)
-{
-	long flags;
-	unsigned char ret;
-
-	__asm__ __volatile__(
-	"	rsm	%3,%0\n"
-	"	ldbx	0(%2),%1\n"
-	"	mtsm	%0\n"
-	: "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D) );
-
-	return ret;
+static inline unsigned char gsc_readb(unsigned long addr) {
+  long flags;
+  unsigned char ret;
+  __asm__ __volatile__ (
+    "	rsm	%3,%0\n"
+    "	ldbx	0(%2),%1\n"
+    "	mtsm	%0\n"
+    : "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D));
+  return ret;
 }
 
-static inline unsigned short gsc_readw(unsigned long addr)
-{
-	long flags;
-	unsigned short ret;
-
-	__asm__ __volatile__(
-	"	rsm	%3,%0\n"
-	"	ldhx	0(%2),%1\n"
-	"	mtsm	%0\n"
-	: "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D) );
-
-	return ret;
+static inline unsigned short gsc_readw(unsigned long addr) {
+  long flags;
+  unsigned short ret;
+  __asm__ __volatile__ (
+    "	rsm	%3,%0\n"
+    "	ldhx	0(%2),%1\n"
+    "	mtsm	%0\n"
+    : "=&r" (flags), "=r" (ret) : "r" (addr), "i" (PSW_SM_D));
+  return ret;
 }
 
-static inline unsigned int gsc_readl(unsigned long addr)
-{
-	u32 ret;
-
-	__asm__ __volatile__(
-	"	ldwax	0(%1),%0\n"
-	: "=r" (ret) : "r" (addr) );
-
-	return ret;
+static inline unsigned int gsc_readl(unsigned long addr) {
+  u32 ret;
+  __asm__ __volatile__ (
+    "	ldwax	0(%1),%0\n"
+    : "=r" (ret) : "r" (addr));
+  return ret;
 }
 
-static inline unsigned long long gsc_readq(unsigned long addr)
-{
-	unsigned long long ret;
-
+static inline unsigned long long gsc_readq(unsigned long addr) {
+  unsigned long long ret;
 #ifdef CONFIG_64BIT
-	__asm__ __volatile__(
-	"	ldda	0(%1),%0\n"
-	:  "=r" (ret) : "r" (addr) );
+  __asm__ __volatile__ (
+    "	ldda	0(%1),%0\n"
+    :  "=r" (ret) : "r" (addr));
 #else
-	/* two reads may have side effects.. */
-	ret = ((u64) gsc_readl(addr)) << 32;
-	ret |= gsc_readl(addr+4);
+  /* two reads may have side effects.. */
+  ret = ((u64) gsc_readl(addr)) << 32;
+  ret |= gsc_readl(addr + 4);
 #endif
-	return ret;
+  return ret;
 }
 
-static inline void gsc_writeb(unsigned char val, unsigned long addr)
-{
-	long flags;
-	__asm__ __volatile__(
-	"	rsm	%3,%0\n"
-	"	stbs	%1,0(%2)\n"
-	"	mtsm	%0\n"
-	: "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D) );
+static inline void gsc_writeb(unsigned char val, unsigned long addr) {
+  long flags;
+  __asm__ __volatile__ (
+    "	rsm	%3,%0\n"
+    "	stbs	%1,0(%2)\n"
+    "	mtsm	%0\n"
+    : "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D));
 }
 
-static inline void gsc_writew(unsigned short val, unsigned long addr)
-{
-	long flags;
-	__asm__ __volatile__(
-	"	rsm	%3,%0\n"
-	"	sths	%1,0(%2)\n"
-	"	mtsm	%0\n"
-	: "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D) );
+static inline void gsc_writew(unsigned short val, unsigned long addr) {
+  long flags;
+  __asm__ __volatile__ (
+    "	rsm	%3,%0\n"
+    "	sths	%1,0(%2)\n"
+    "	mtsm	%0\n"
+    : "=&r" (flags) :  "r" (val), "r" (addr), "i" (PSW_SM_D));
 }
 
-static inline void gsc_writel(unsigned int val, unsigned long addr)
-{
-	__asm__ __volatile__(
-	"	stwas	%0,0(%1)\n"
-	: :  "r" (val), "r" (addr) );
+static inline void gsc_writel(unsigned int val, unsigned long addr) {
+  __asm__ __volatile__ (
+    "	stwas	%0,0(%1)\n"
+    : :  "r" (val), "r" (addr));
 }
 
-static inline void gsc_writeq(unsigned long long val, unsigned long addr)
-{
+static inline void gsc_writeq(unsigned long long val, unsigned long addr) {
 #ifdef CONFIG_64BIT
-	__asm__ __volatile__(
-	"	stda	%0,0(%1)\n"
-	: :  "r" (val), "r" (addr) );
+  __asm__ __volatile__ (
+    "	stda	%0,0(%1)\n"
+    : :  "r" (val), "r" (addr));
 #else
-	/* two writes may have side effects.. */
-	gsc_writel(val >> 32, addr);
-	gsc_writel(val, addr+4);
+  /* two writes may have side effects.. */
+  gsc_writel(val >> 32, addr);
+  gsc_writel(val, addr + 4);
 #endif
 }
 
@@ -127,13 +112,13 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
  */
 #define ioremap_prot ioremap_prot
 
-#define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | \
-		       _PAGE_ACCESSED | _PAGE_NO_CACHE)
+#define _PAGE_IOREMAP (_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY   \
+  | _PAGE_ACCESSED | _PAGE_NO_CACHE)
 
 #define ioremap_wc(addr, size)  \
-	ioremap_prot((addr), (size), _PAGE_IOREMAP)
+  ioremap_prot((addr), (size), _PAGE_IOREMAP)
 
-#define pci_iounmap			pci_iounmap
+#define pci_iounmap     pci_iounmap
 
 void memset_io(volatile void __iomem *addr, unsigned char val, int count);
 void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
@@ -179,40 +164,38 @@ extern void outl(unsigned int b, int addr);
 #define outw eisa_out16
 #define outl eisa_out32
 #else
-static inline char inb(unsigned long addr)
-{
-	BUG();
-	return -1;
+static inline char inb(unsigned long addr) {
+  BUG();
+  return -1;
 }
 
-static inline short inw(unsigned long addr)
-{
-	BUG();
-	return -1;
+static inline short inw(unsigned long addr) {
+  BUG();
+  return -1;
 }
 
-static inline int inl(unsigned long addr)
-{
-	BUG();
-	return -1;
+static inline int inl(unsigned long addr) {
+  BUG();
+  return -1;
 }
+
 #define inb inb
 #define inw inw
 #define inl inl
-#define outb(x, y)	({(void)(x); (void)(y); BUG(); 0;})
-#define outw(x, y)	({(void)(x); (void)(y); BUG(); 0;})
-#define outl(x, y)	({(void)(x); (void)(y); BUG(); 0;})
+#define outb(x, y)  ({(void) (x); (void) (y); BUG(); 0;})
+#define outw(x, y)  ({(void) (x); (void) (y); BUG(); 0;})
+#define outl(x, y)  ({(void) (x); (void) (y); BUG(); 0;})
 #endif
 
 /*
  * String versions of in/out ops:
  */
-extern void insb (unsigned long port, void *dst, unsigned long count);
-extern void insw (unsigned long port, void *dst, unsigned long count);
-extern void insl (unsigned long port, void *dst, unsigned long count);
-extern void outsb (unsigned long port, const void *src, unsigned long count);
-extern void outsw (unsigned long port, const void *src, unsigned long count);
-extern void outsl (unsigned long port, const void *src, unsigned long count);
+extern void insb(unsigned long port, void *dst, unsigned long count);
+extern void insw(unsigned long port, void *dst, unsigned long count);
+extern void insl(unsigned long port, void *dst, unsigned long count);
+extern void outsb(unsigned long port, const void *src, unsigned long count);
+extern void outsw(unsigned long port, const void *src, unsigned long count);
+extern void outsl(unsigned long port, const void *src, unsigned long count);
 #define insb insb
 #define insw insw
 #define insl insl
@@ -228,7 +211,7 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
  * mode (essentially just sign extending.  This macro takes in a 32
  * bit I/O address (still with the leading f) and outputs the correct
  * value for either 32 or 64 bit mode */
-#define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
+#define F_EXTEND(x) ((unsigned long) ((x) | (0xffffffff00000000ULL)))
 
 #ifdef CONFIG_64BIT
 #define ioread64 ioread64

@@ -9,27 +9,27 @@
 #include "internal.h"
 
 struct z_erofs_decompress_req {
-	struct super_block *sb;
-	struct page **in, **out;
-	unsigned short pageofs_in, pageofs_out;
-	unsigned int inputsize, outputsize;
+  struct super_block *sb;
+  struct page **in, **out;
+  unsigned short pageofs_in, pageofs_out;
+  unsigned int inputsize, outputsize;
 
-	unsigned int alg;       /* the algorithm for decompression */
-	bool inplace_io, partial_decoding, fillgaps;
-	gfp_t gfp;      /* allocation flags for extra temporary buffers */
+  unsigned int alg;       /* the algorithm for decompression */
+  bool inplace_io, partial_decoding, fillgaps;
+  gfp_t gfp;      /* allocation flags for extra temporary buffers */
 };
 
 struct z_erofs_decompressor {
-	int (*config)(struct super_block *sb, struct erofs_super_block *dsb,
-		      void *data, int size);
-	int (*decompress)(struct z_erofs_decompress_req *rq,
-			  struct page **pagepool);
-	char *name;
+  int (*config)(struct super_block *sb, struct erofs_super_block *dsb,
+      void *data, int size);
+  int (*decompress)(struct z_erofs_decompress_req *rq,
+      struct page **pagepool);
+  char *name;
 };
 
 /* some special page->private (unsigned long, see below) */
-#define Z_EROFS_SHORTLIVED_PAGE		(-1UL << 2)
-#define Z_EROFS_PREALLOCATED_PAGE	(-2UL << 2)
+#define Z_EROFS_SHORTLIVED_PAGE   (-1UL << 2)
+#define Z_EROFS_PREALLOCATED_PAGE (-2UL << 2)
 
 /*
  * For all pages in a pcluster, page->private should be one of
@@ -56,42 +56,40 @@ struct z_erofs_decompressor {
  * page->private (no need to set PagePrivate since these are non-LRU /
  * non-movable pages and bypass reclaim / migration code).
  */
-static inline bool z_erofs_is_shortlived_page(struct page *page)
-{
-	if (page->private != Z_EROFS_SHORTLIVED_PAGE)
-		return false;
-
-	DBG_BUGON(page->mapping);
-	return true;
+static inline bool z_erofs_is_shortlived_page(struct page *page) {
+  if (page->private != Z_EROFS_SHORTLIVED_PAGE) {
+    return false;
+  }
+  DBG_BUGON(page->mapping);
+  return true;
 }
 
 static inline bool z_erofs_put_shortlivedpage(struct page **pagepool,
-					      struct page *page)
-{
-	if (!z_erofs_is_shortlived_page(page))
-		return false;
-
-	/* short-lived pages should not be used by others at the same time */
-	if (page_ref_count(page) > 1) {
-		put_page(page);
-	} else {
-		/* follow the pcluster rule above. */
-		erofs_pagepool_add(pagepool, page);
-	}
-	return true;
+    struct page *page) {
+  if (!z_erofs_is_shortlived_page(page)) {
+    return false;
+  }
+  /* short-lived pages should not be used by others at the same time */
+  if (page_ref_count(page) > 1) {
+    put_page(page);
+  } else {
+    /* follow the pcluster rule above. */
+    erofs_pagepool_add(pagepool, page);
+  }
+  return true;
 }
 
 int z_erofs_fixup_insize(struct z_erofs_decompress_req *rq, const char *padbuf,
-			 unsigned int padbufsize);
+    unsigned int padbufsize);
 extern const struct z_erofs_decompressor erofs_decompressors[];
 
 /* prototypes for specific algorithms */
 int z_erofs_load_lzma_config(struct super_block *sb,
-			struct erofs_super_block *dsb, void *data, int size);
+    struct erofs_super_block *dsb, void *data, int size);
 int z_erofs_load_deflate_config(struct super_block *sb,
-			struct erofs_super_block *dsb, void *data, int size);
+    struct erofs_super_block *dsb, void *data, int size);
 int z_erofs_lzma_decompress(struct z_erofs_decompress_req *rq,
-			    struct page **pagepool);
+    struct page **pagepool);
 int z_erofs_deflate_decompress(struct z_erofs_decompress_req *rq,
-			       struct page **pagepool);
+    struct page **pagepool);
 #endif

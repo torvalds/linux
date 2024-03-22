@@ -28,14 +28,13 @@
 unsigned long free_mem_ptr;
 unsigned long free_mem_end_ptr;
 
-void error(char *x)
-{
-	puts("\n\n");
-	puts(x);
-	puts("\n\n -- System halted");
-
-	while (1)
-		;	/* Halt */
+void error(char *x) {
+  puts("\n\n");
+  puts(x);
+  puts("\n\n -- System halted");
+  while (1) {
+    /* Halt */
+  }
 }
 
 /* activate the code for pre-boot environment */
@@ -71,59 +70,45 @@ void error(char *x)
 
 const unsigned long __stack_chk_guard = 0x000a0dff;
 
-void __stack_chk_fail(void)
-{
-	error("stack-protector: Kernel stack is corrupted\n");
+void __stack_chk_fail(void) {
+  error("stack-protector: Kernel stack is corrupted\n");
 }
 
-void decompress_kernel(unsigned long boot_heap_start)
-{
-	unsigned long zimage_start, zimage_size;
-
-	zimage_start = (unsigned long)(__image_begin);
-	zimage_size = (unsigned long)(__image_end) -
-	    (unsigned long)(__image_begin);
-
-	puts("zimage at:     ");
-	puthex(zimage_start);
-	puts(" ");
-	puthex(zimage_size + zimage_start);
-	puts("\n");
-
-	/* This area are prepared for mallocing when decompressing */
-	free_mem_ptr = boot_heap_start;
-	free_mem_end_ptr = boot_heap_start + BOOT_HEAP_SIZE;
-
-	/* Display standard Linux/MIPS boot prompt */
-	puts("Uncompressing Linux at load address ");
-	puthex(VMLINUX_LOAD_ADDRESS_ULL);
-	puts("\n");
-
-	/* Decompress the kernel with according algorithm */
-	__decompress((char *)zimage_start, zimage_size, 0, 0,
-		   (void *)VMLINUX_LOAD_ADDRESS_ULL, 0, 0, error);
-
-	if (IS_ENABLED(CONFIG_MIPS_RAW_APPENDED_DTB) &&
-	    fdt_magic((void *)&__appended_dtb) == FDT_MAGIC) {
-		unsigned int image_size, dtb_size;
-
-		dtb_size = fdt_totalsize((void *)&__appended_dtb);
-
-		/* last four bytes is always image size in little endian */
-		image_size = get_unaligned_le32((void *)__image_end - 4);
-
-		/* The device tree's address must be properly aligned  */
-		image_size = ALIGN(image_size, STRUCT_ALIGNMENT);
-
-		puts("Copy device tree to address  ");
-		puthex(VMLINUX_LOAD_ADDRESS_ULL + image_size);
-		puts("\n");
-
-		/* copy dtb to where the booted kernel will expect it */
-		memcpy((void *)VMLINUX_LOAD_ADDRESS_ULL + image_size,
-		       __appended_dtb, dtb_size);
-	}
-
-	/* FIXME: should we flush cache here? */
-	puts("Now, booting the kernel...\n");
+void decompress_kernel(unsigned long boot_heap_start) {
+  unsigned long zimage_start, zimage_size;
+  zimage_start = (unsigned long) (__image_begin);
+  zimage_size = (unsigned long) (__image_end)
+      - (unsigned long) (__image_begin);
+  puts("zimage at:     ");
+  puthex(zimage_start);
+  puts(" ");
+  puthex(zimage_size + zimage_start);
+  puts("\n");
+  /* This area are prepared for mallocing when decompressing */
+  free_mem_ptr = boot_heap_start;
+  free_mem_end_ptr = boot_heap_start + BOOT_HEAP_SIZE;
+  /* Display standard Linux/MIPS boot prompt */
+  puts("Uncompressing Linux at load address ");
+  puthex(VMLINUX_LOAD_ADDRESS_ULL);
+  puts("\n");
+  /* Decompress the kernel with according algorithm */
+  __decompress((char *) zimage_start, zimage_size, 0, 0,
+      (void *) VMLINUX_LOAD_ADDRESS_ULL, 0, 0, error);
+  if (IS_ENABLED(CONFIG_MIPS_RAW_APPENDED_DTB)
+      && fdt_magic((void *) &__appended_dtb) == FDT_MAGIC) {
+    unsigned int image_size, dtb_size;
+    dtb_size = fdt_totalsize((void *) &__appended_dtb);
+    /* last four bytes is always image size in little endian */
+    image_size = get_unaligned_le32((void *) __image_end - 4);
+    /* The device tree's address must be properly aligned  */
+    image_size = ALIGN(image_size, STRUCT_ALIGNMENT);
+    puts("Copy device tree to address  ");
+    puthex(VMLINUX_LOAD_ADDRESS_ULL + image_size);
+    puts("\n");
+    /* copy dtb to where the booted kernel will expect it */
+    memcpy((void *) VMLINUX_LOAD_ADDRESS_ULL + image_size,
+        __appended_dtb, dtb_size);
+  }
+  /* FIXME: should we flush cache here? */
+  puts("Now, booting the kernel...\n");
 }

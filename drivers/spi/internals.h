@@ -21,23 +21,22 @@ void spi_flush_queue(struct spi_controller *ctrl);
 
 #ifdef CONFIG_HAS_DMA
 int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
-		struct sg_table *sgt, void *buf, size_t len,
-		enum dma_data_direction dir);
+    struct sg_table *sgt, void *buf, size_t len,
+    enum dma_data_direction dir);
 void spi_unmap_buf(struct spi_controller *ctlr, struct device *dev,
-		   struct sg_table *sgt, enum dma_data_direction dir);
+    struct sg_table *sgt, enum dma_data_direction dir);
 #else /* !CONFIG_HAS_DMA */
 static inline int spi_map_buf(struct spi_controller *ctlr, struct device *dev,
-			      struct sg_table *sgt, void *buf, size_t len,
-			      enum dma_data_direction dir)
-{
-	return -EINVAL;
+    struct sg_table *sgt, void *buf, size_t len,
+    enum dma_data_direction dir) {
+  return -EINVAL;
 }
 
 static inline void spi_unmap_buf(struct spi_controller *ctlr,
-				 struct device *dev, struct sg_table *sgt,
-				 enum dma_data_direction dir)
-{
+    struct device *dev, struct sg_table *sgt,
+    enum dma_data_direction dir) {
 }
+
 #endif /* CONFIG_HAS_DMA */
 
 #endif /* __LINUX_SPI_INTERNALS_H */

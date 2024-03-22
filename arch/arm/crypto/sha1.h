@@ -6,9 +6,9 @@
 #include <crypto/sha1.h>
 
 extern int sha1_update_arm(struct shash_desc *desc, const u8 *data,
-			   unsigned int len);
+    unsigned int len);
 
 extern int sha1_finup_arm(struct shash_desc *desc, const u8 *data,
-			   unsigned int len, u8 *out);
+    unsigned int len, u8 *out);
 
 #endif

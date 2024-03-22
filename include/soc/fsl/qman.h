@@ -3,13 +3,13 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *   notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
- *	 documentation and/or other materials provided with the distribution.
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
  *     * Neither the name of Freescale Semiconductor nor the
- *	 names of its contributors may be used to endorse or promote products
- *	 derived from this software without specific prior written permission.
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -44,89 +44,85 @@ extern u16 qm_channel_pool1;
 extern u16 qm_channel_caam;
 
 /* Portal processing (interrupt) sources */
-#define QM_PIRQ_CSCI	0x00100000	/* Congestion State Change */
-#define QM_PIRQ_EQCI	0x00080000	/* Enqueue Command Committed */
-#define QM_PIRQ_EQRI	0x00040000	/* EQCR Ring (below threshold) */
-#define QM_PIRQ_DQRI	0x00020000	/* DQRR Ring (non-empty) */
-#define QM_PIRQ_MRI	0x00010000	/* MR Ring (non-empty) */
+#define QM_PIRQ_CSCI  0x00100000  /* Congestion State Change */
+#define QM_PIRQ_EQCI  0x00080000  /* Enqueue Command Committed */
+#define QM_PIRQ_EQRI  0x00040000  /* EQCR Ring (below threshold) */
+#define QM_PIRQ_DQRI  0x00020000  /* DQRR Ring (non-empty) */
+#define QM_PIRQ_MRI 0x00010000  /* MR Ring (non-empty) */
 /*
  * This mask contains all the interrupt sources that need handling except DQRI,
  * ie. that if present should trigger slow-path processing.
  */
-#define QM_PIRQ_SLOW	(QM_PIRQ_CSCI | QM_PIRQ_EQCI | QM_PIRQ_EQRI | \
-			 QM_PIRQ_MRI)
+#define QM_PIRQ_SLOW  (QM_PIRQ_CSCI | QM_PIRQ_EQCI | QM_PIRQ_EQRI   \
+  | QM_PIRQ_MRI)
 
 /* For qman_static_dequeue_*** APIs */
-#define QM_SDQCR_CHANNELS_POOL_MASK	0x00007fff
+#define QM_SDQCR_CHANNELS_POOL_MASK 0x00007fff
 /* for n in [1,15] */
-#define QM_SDQCR_CHANNELS_POOL(n)	(0x00008000 >> (n))
+#define QM_SDQCR_CHANNELS_POOL(n) (0x00008000 >> (n))
 /* for conversion from n of qm_channel */
-static inline u32 QM_SDQCR_CHANNELS_POOL_CONV(u16 channel)
-{
-	return QM_SDQCR_CHANNELS_POOL(channel + 1 - qm_channel_pool1);
+static inline u32 QM_SDQCR_CHANNELS_POOL_CONV(u16 channel) {
+  return QM_SDQCR_CHANNELS_POOL(channel + 1 - qm_channel_pool1);
 }
 
 /* --- QMan data structures (and associated constants) --- */
 
 /* "Frame Descriptor (FD)" */
 struct qm_fd {
-	union {
-		struct {
-			u8 cfg8b_w1;
-			u8 bpid;	/* Buffer Pool ID */
-			u8 cfg8b_w3;
-			u8 addr_hi;	/* high 8-bits of 40-bit address */
-			__be32 addr_lo;	/* low 32-bits of 40-bit address */
-		} __packed;
-		__be64 data;
-	};
-	__be32 cfg;	/* format, offset, length / congestion */
-	union {
-		__be32 cmd;
-		__be32 status;
-	};
+  union {
+    struct {
+      u8 cfg8b_w1;
+      u8 bpid;  /* Buffer Pool ID */
+      u8 cfg8b_w3;
+      u8 addr_hi; /* high 8-bits of 40-bit address */
+      __be32 addr_lo; /* low 32-bits of 40-bit address */
+    } __packed;
+    __be64 data;
+  };
+  __be32 cfg; /* format, offset, length / congestion */
+  union {
+    __be32 cmd;
+    __be32 status;
+  };
 } __aligned(8);
 
-#define QM_FD_FORMAT_SG		BIT(31)
-#define QM_FD_FORMAT_LONG	BIT(30)
-#define QM_FD_FORMAT_COMPOUND	BIT(29)
-#define QM_FD_FORMAT_MASK	GENMASK(31, 29)
-#define QM_FD_OFF_SHIFT		20
-#define QM_FD_OFF_MASK		GENMASK(28, 20)
-#define QM_FD_LEN_MASK		GENMASK(19, 0)
-#define QM_FD_LEN_BIG_MASK	GENMASK(28, 0)
+#define QM_FD_FORMAT_SG   BIT(31)
+#define QM_FD_FORMAT_LONG BIT(30)
+#define QM_FD_FORMAT_COMPOUND BIT(29)
+#define QM_FD_FORMAT_MASK GENMASK(31, 29)
+#define QM_FD_OFF_SHIFT   20
+#define QM_FD_OFF_MASK    GENMASK(28, 20)
+#define QM_FD_LEN_MASK    GENMASK(19, 0)
+#define QM_FD_LEN_BIG_MASK  GENMASK(28, 0)
 
 enum qm_fd_format {
-	/*
-	 * 'contig' implies a contiguous buffer, whereas 'sg' implies a
-	 * scatter-gather table. 'big' implies a 29-bit length with no offset
-	 * field, otherwise length is 20-bit and offset is 9-bit. 'compound'
-	 * implies a s/g-like table, where each entry itself represents a frame
-	 * (contiguous or scatter-gather) and the 29-bit "length" is
-	 * interpreted purely for congestion calculations, ie. a "congestion
-	 * weight".
-	 */
-	qm_fd_contig = 0,
-	qm_fd_contig_big = QM_FD_FORMAT_LONG,
-	qm_fd_sg = QM_FD_FORMAT_SG,
-	qm_fd_sg_big = QM_FD_FORMAT_SG | QM_FD_FORMAT_LONG,
-	qm_fd_compound = QM_FD_FORMAT_COMPOUND
+  /*
+   * 'contig' implies a contiguous buffer, whereas 'sg' implies a
+   * scatter-gather table. 'big' implies a 29-bit length with no offset
+   * field, otherwise length is 20-bit and offset is 9-bit. 'compound'
+   * implies a s/g-like table, where each entry itself represents a frame
+   * (contiguous or scatter-gather) and the 29-bit "length" is
+   * interpreted purely for congestion calculations, ie. a "congestion
+   * weight".
+   */
+  qm_fd_contig = 0,
+  qm_fd_contig_big = QM_FD_FORMAT_LONG,
+  qm_fd_sg = QM_FD_FORMAT_SG,
+  qm_fd_sg_big = QM_FD_FORMAT_SG | QM_FD_FORMAT_LONG,
+  qm_fd_compound = QM_FD_FORMAT_COMPOUND
 };
 
-static inline dma_addr_t qm_fd_addr(const struct qm_fd *fd)
-{
-	return be64_to_cpu(fd->data) & 0xffffffffffLLU;
+static inline dma_addr_t qm_fd_addr(const struct qm_fd *fd) {
+  return be64_to_cpu(fd->data) & 0xffffffffffLLU;
 }
 
-static inline u64 qm_fd_addr_get64(const struct qm_fd *fd)
-{
-	return be64_to_cpu(fd->data) & 0xffffffffffLLU;
+static inline u64 qm_fd_addr_get64(const struct qm_fd *fd) {
+  return be64_to_cpu(fd->data) & 0xffffffffffLLU;
 }
 
-static inline void qm_fd_addr_set64(struct qm_fd *fd, u64 addr)
-{
-	fd->addr_hi = upper_32_bits(addr);
-	fd->addr_lo = cpu_to_be32(lower_32_bits(addr));
+static inline void qm_fd_addr_set64(struct qm_fd *fd, u64 addr) {
+  fd->addr_hi = upper_32_bits(addr);
+  fd->addr_lo = cpu_to_be32(lower_32_bits(addr));
 }
 
 /*
@@ -136,192 +132,177 @@ static inline void qm_fd_addr_set64(struct qm_fd *fd, u64 addr)
  * If 'format' is _contig_big or _sg_big, 29b length.
  * If 'format' is _compound, 29b "congestion weight".
  */
-static inline enum qm_fd_format qm_fd_get_format(const struct qm_fd *fd)
-{
-	return be32_to_cpu(fd->cfg) & QM_FD_FORMAT_MASK;
+static inline enum qm_fd_format qm_fd_get_format(const struct qm_fd *fd) {
+  return be32_to_cpu(fd->cfg) & QM_FD_FORMAT_MASK;
 }
 
-static inline int qm_fd_get_offset(const struct qm_fd *fd)
-{
-	return (be32_to_cpu(fd->cfg) & QM_FD_OFF_MASK) >> QM_FD_OFF_SHIFT;
+static inline int qm_fd_get_offset(const struct qm_fd *fd) {
+  return (be32_to_cpu(fd->cfg) & QM_FD_OFF_MASK) >> QM_FD_OFF_SHIFT;
 }
 
-static inline int qm_fd_get_length(const struct qm_fd *fd)
-{
-	return be32_to_cpu(fd->cfg) & QM_FD_LEN_MASK;
+static inline int qm_fd_get_length(const struct qm_fd *fd) {
+  return be32_to_cpu(fd->cfg) & QM_FD_LEN_MASK;
 }
 
-static inline int qm_fd_get_len_big(const struct qm_fd *fd)
-{
-	return be32_to_cpu(fd->cfg) & QM_FD_LEN_BIG_MASK;
+static inline int qm_fd_get_len_big(const struct qm_fd *fd) {
+  return be32_to_cpu(fd->cfg) & QM_FD_LEN_BIG_MASK;
 }
 
 static inline void qm_fd_set_param(struct qm_fd *fd, enum qm_fd_format fmt,
-				   int off, int len)
-{
-	fd->cfg = cpu_to_be32(fmt | (len & QM_FD_LEN_BIG_MASK) |
-			      ((off << QM_FD_OFF_SHIFT) & QM_FD_OFF_MASK));
+    int off, int len) {
+  fd->cfg = cpu_to_be32(fmt | (len & QM_FD_LEN_BIG_MASK)
+      | ((off << QM_FD_OFF_SHIFT) & QM_FD_OFF_MASK));
 }
 
 #define qm_fd_set_contig(fd, off, len) \
-	qm_fd_set_param(fd, qm_fd_contig, off, len)
+  qm_fd_set_param(fd, qm_fd_contig, off, len)
 #define qm_fd_set_sg(fd, off, len) qm_fd_set_param(fd, qm_fd_sg, off, len)
 #define qm_fd_set_contig_big(fd, len) \
-	qm_fd_set_param(fd, qm_fd_contig_big, 0, len)
+  qm_fd_set_param(fd, qm_fd_contig_big, 0, len)
 #define qm_fd_set_sg_big(fd, len) qm_fd_set_param(fd, qm_fd_sg_big, 0, len)
 #define qm_fd_set_compound(fd, len) qm_fd_set_param(fd, qm_fd_compound, 0, len)
 
-static inline void qm_fd_clear_fd(struct qm_fd *fd)
-{
-	fd->data = 0;
-	fd->cfg = 0;
-	fd->cmd = 0;
+static inline void qm_fd_clear_fd(struct qm_fd *fd) {
+  fd->data = 0;
+  fd->cfg = 0;
+  fd->cmd = 0;
 }
 
 /* Scatter/Gather table entry */
 struct qm_sg_entry {
-	union {
-		struct {
-			u8 __reserved1[3];
-			u8 addr_hi;	/* high 8-bits of 40-bit address */
-			__be32 addr_lo;	/* low 32-bits of 40-bit address */
-		};
-		__be64 data;
-	};
-	__be32 cfg;	/* E bit, F bit, length */
-	u8 __reserved2;
-	u8 bpid;
-	__be16 offset; /* 13-bit, _res[13-15]*/
+  union {
+    struct {
+      u8 __reserved1[3];
+      u8 addr_hi; /* high 8-bits of 40-bit address */
+      __be32 addr_lo; /* low 32-bits of 40-bit address */
+    };
+    __be64 data;
+  };
+  __be32 cfg; /* E bit, F bit, length */
+  u8 __reserved2;
+  u8 bpid;
+  __be16 offset; /* 13-bit, _res[13-15]*/
 } __packed;
 
-#define QM_SG_LEN_MASK	GENMASK(29, 0)
-#define QM_SG_OFF_MASK	GENMASK(12, 0)
-#define QM_SG_FIN	BIT(30)
-#define QM_SG_EXT	BIT(31)
+#define QM_SG_LEN_MASK  GENMASK(29, 0)
+#define QM_SG_OFF_MASK  GENMASK(12, 0)
+#define QM_SG_FIN BIT(30)
+#define QM_SG_EXT BIT(31)
 
-static inline dma_addr_t qm_sg_addr(const struct qm_sg_entry *sg)
-{
-	return be64_to_cpu(sg->data) & 0xffffffffffLLU;
+static inline dma_addr_t qm_sg_addr(const struct qm_sg_entry *sg) {
+  return be64_to_cpu(sg->data) & 0xffffffffffLLU;
 }
 
-static inline u64 qm_sg_entry_get64(const struct qm_sg_entry *sg)
-{
-	return be64_to_cpu(sg->data) & 0xffffffffffLLU;
+static inline u64 qm_sg_entry_get64(const struct qm_sg_entry *sg) {
+  return be64_to_cpu(sg->data) & 0xffffffffffLLU;
 }
 
-static inline void qm_sg_entry_set64(struct qm_sg_entry *sg, u64 addr)
-{
-	sg->addr_hi = upper_32_bits(addr);
-	sg->addr_lo = cpu_to_be32(lower_32_bits(addr));
+static inline void qm_sg_entry_set64(struct qm_sg_entry *sg, u64 addr) {
+  sg->addr_hi = upper_32_bits(addr);
+  sg->addr_lo = cpu_to_be32(lower_32_bits(addr));
 }
 
-static inline bool qm_sg_entry_is_final(const struct qm_sg_entry *sg)
-{
-	return be32_to_cpu(sg->cfg) & QM_SG_FIN;
+static inline bool qm_sg_entry_is_final(const struct qm_sg_entry *sg) {
+  return be32_to_cpu(sg->cfg) & QM_SG_FIN;
 }
 
-static inline bool qm_sg_entry_is_ext(const struct qm_sg_entry *sg)
-{
-	return be32_to_cpu(sg->cfg) & QM_SG_EXT;
+static inline bool qm_sg_entry_is_ext(const struct qm_sg_entry *sg) {
+  return be32_to_cpu(sg->cfg) & QM_SG_EXT;
 }
 
-static inline int qm_sg_entry_get_len(const struct qm_sg_entry *sg)
-{
-	return be32_to_cpu(sg->cfg) & QM_SG_LEN_MASK;
+static inline int qm_sg_entry_get_len(const struct qm_sg_entry *sg) {
+  return be32_to_cpu(sg->cfg) & QM_SG_LEN_MASK;
 }
 
-static inline void qm_sg_entry_set_len(struct qm_sg_entry *sg, int len)
-{
-	sg->cfg = cpu_to_be32(len & QM_SG_LEN_MASK);
+static inline void qm_sg_entry_set_len(struct qm_sg_entry *sg, int len) {
+  sg->cfg = cpu_to_be32(len & QM_SG_LEN_MASK);
 }
 
-static inline void qm_sg_entry_set_f(struct qm_sg_entry *sg, int len)
-{
-	sg->cfg = cpu_to_be32(QM_SG_FIN | (len & QM_SG_LEN_MASK));
+static inline void qm_sg_entry_set_f(struct qm_sg_entry *sg, int len) {
+  sg->cfg = cpu_to_be32(QM_SG_FIN | (len & QM_SG_LEN_MASK));
 }
 
-static inline int qm_sg_entry_get_off(const struct qm_sg_entry *sg)
-{
-	return be32_to_cpu(sg->offset) & QM_SG_OFF_MASK;
+static inline int qm_sg_entry_get_off(const struct qm_sg_entry *sg) {
+  return be32_to_cpu(sg->offset) & QM_SG_OFF_MASK;
 }
 
 /* "Frame Dequeue Response" */
 struct qm_dqrr_entry {
-	u8 verb;
-	u8 stat;
-	__be16 seqnum;	/* 15-bit */
-	u8 tok;
-	u8 __reserved2[3];
-	__be32 fqid;	/* 24-bit */
-	__be32 context_b;
-	struct qm_fd fd;
-	u8 __reserved4[32];
+  u8 verb;
+  u8 stat;
+  __be16 seqnum;  /* 15-bit */
+  u8 tok;
+  u8 __reserved2[3];
+  __be32 fqid;  /* 24-bit */
+  __be32 context_b;
+  struct qm_fd fd;
+  u8 __reserved4[32];
 } __packed __aligned(64);
-#define QM_DQRR_VERB_VBIT		0x80
-#define QM_DQRR_VERB_MASK		0x7f	/* where the verb contains; */
-#define QM_DQRR_VERB_FRAME_DEQUEUE	0x60	/* "this format" */
-#define QM_DQRR_STAT_FQ_EMPTY		0x80	/* FQ empty */
-#define QM_DQRR_STAT_FQ_HELDACTIVE	0x40	/* FQ held active */
-#define QM_DQRR_STAT_FQ_FORCEELIGIBLE	0x20	/* FQ was force-eligible'd */
-#define QM_DQRR_STAT_FD_VALID		0x10	/* has a non-NULL FD */
-#define QM_DQRR_STAT_UNSCHEDULED	0x02	/* Unscheduled dequeue */
-#define QM_DQRR_STAT_DQCR_EXPIRED	0x01	/* VDQCR or PDQCR expired*/
+#define QM_DQRR_VERB_VBIT   0x80
+#define QM_DQRR_VERB_MASK   0x7f  /* where the verb contains; */
+#define QM_DQRR_VERB_FRAME_DEQUEUE  0x60  /* "this format" */
+#define QM_DQRR_STAT_FQ_EMPTY   0x80  /* FQ empty */
+#define QM_DQRR_STAT_FQ_HELDACTIVE  0x40  /* FQ held active */
+#define QM_DQRR_STAT_FQ_FORCEELIGIBLE 0x20  /* FQ was force-eligible'd */
+#define QM_DQRR_STAT_FD_VALID   0x10  /* has a non-NULL FD */
+#define QM_DQRR_STAT_UNSCHEDULED  0x02  /* Unscheduled dequeue */
+#define QM_DQRR_STAT_DQCR_EXPIRED 0x01  /* VDQCR or PDQCR expired*/
 
 /* 'fqid' is a 24-bit field in every h/w descriptor */
-#define QM_FQID_MASK	GENMASK(23, 0)
+#define QM_FQID_MASK  GENMASK(23, 0)
 #define qm_fqid_set(p, v) ((p)->fqid = cpu_to_be32((v) & QM_FQID_MASK))
 #define qm_fqid_get(p)    (be32_to_cpu((p)->fqid) & QM_FQID_MASK)
 
-/* "ERN Message Response" */
-/* "FQ State Change Notification" */
+/* "ERN Message Response"
+ * "FQ State Change Notification"*/
 union qm_mr_entry {
-	struct {
-		u8 verb;
-		u8 __reserved[63];
-	};
-	struct {
-		u8 verb;
-		u8 dca;
-		__be16 seqnum;
-		u8 rc;		/* Rej Code: 8-bit */
-		u8 __reserved[3];
-		__be32 fqid;	/* 24-bit */
-		__be32 tag;
-		struct qm_fd fd;
-		u8 __reserved1[32];
-	} __packed __aligned(64) ern;
-	struct {
-		u8 verb;
-		u8 fqs;		/* Frame Queue Status */
-		u8 __reserved1[6];
-		__be32 fqid;	/* 24-bit */
-		__be32 context_b;
-		u8 __reserved2[48];
-	} __packed fq;		/* FQRN/FQRNI/FQRL/FQPN */
+  struct {
+    u8 verb;
+    u8 __reserved[63];
+  };
+  struct {
+    u8 verb;
+    u8 dca;
+    __be16 seqnum;
+    u8 rc;    /* Rej Code: 8-bit */
+    u8 __reserved[3];
+    __be32 fqid;  /* 24-bit */
+    __be32 tag;
+    struct qm_fd fd;
+    u8 __reserved1[32];
+  } __packed __aligned(64) ern;
+  struct {
+    u8 verb;
+    u8 fqs;   /* Frame Queue Status */
+    u8 __reserved1[6];
+    __be32 fqid;  /* 24-bit */
+    __be32 context_b;
+    u8 __reserved2[48];
+  } __packed fq;    /* FQRN/FQRNI/FQRL/FQPN */
 };
-#define QM_MR_VERB_VBIT			0x80
+#define QM_MR_VERB_VBIT     0x80
 /*
  * ERNs originating from direct-connect portals ("dcern") use 0x20 as a verb
  * which would be invalid as a s/w enqueue verb. A s/w ERN can be distinguished
  * from the other MR types by noting if the 0x20 bit is unset.
  */
-#define QM_MR_VERB_TYPE_MASK		0x27
-#define QM_MR_VERB_DC_ERN		0x20
-#define QM_MR_VERB_FQRN			0x21
-#define QM_MR_VERB_FQRNI		0x22
-#define QM_MR_VERB_FQRL			0x23
-#define QM_MR_VERB_FQPN			0x24
-#define QM_MR_RC_MASK			0xf0	/* contains one of; */
-#define QM_MR_RC_CGR_TAILDROP		0x00
-#define QM_MR_RC_WRED			0x10
-#define QM_MR_RC_ERROR			0x20
-#define QM_MR_RC_ORPWINDOW_EARLY	0x30
-#define QM_MR_RC_ORPWINDOW_LATE		0x40
-#define QM_MR_RC_FQ_TAILDROP		0x50
-#define QM_MR_RC_ORPWINDOW_RETIRED	0x60
-#define QM_MR_RC_ORP_ZERO		0x70
-#define QM_MR_FQS_ORLPRESENT		0x02	/* ORL fragments to come */
-#define QM_MR_FQS_NOTEMPTY		0x01	/* FQ has enqueued frames */
+#define QM_MR_VERB_TYPE_MASK    0x27
+#define QM_MR_VERB_DC_ERN   0x20
+#define QM_MR_VERB_FQRN     0x21
+#define QM_MR_VERB_FQRNI    0x22
+#define QM_MR_VERB_FQRL     0x23
+#define QM_MR_VERB_FQPN     0x24
+#define QM_MR_RC_MASK     0xf0  /* contains one of; */
+#define QM_MR_RC_CGR_TAILDROP   0x00
+#define QM_MR_RC_WRED     0x10
+#define QM_MR_RC_ERROR      0x20
+#define QM_MR_RC_ORPWINDOW_EARLY  0x30
+#define QM_MR_RC_ORPWINDOW_LATE   0x40
+#define QM_MR_RC_FQ_TAILDROP    0x50
+#define QM_MR_RC_ORPWINDOW_RETIRED  0x60
+#define QM_MR_RC_ORP_ZERO   0x70
+#define QM_MR_FQS_ORLPRESENT    0x02  /* ORL fragments to come */
+#define QM_MR_FQS_NOTEMPTY    0x01  /* FQ has enqueued frames */
 
 /*
  * An identical structure of FQD fields is present in the "Init FQ" command and
@@ -331,194 +312,179 @@ union qm_mr_entry {
  * representation.
  */
 struct qm_fqd_stashing {
-	/* See QM_STASHING_EXCL_<...> */
-	u8 exclusive;
-	/* Numbers of cachelines */
-	u8 cl; /* _res[6-7], as[4-5], ds[2-3], cs[0-1] */
+  /* See QM_STASHING_EXCL_<...> */
+  u8 exclusive;
+  /* Numbers of cachelines */
+  u8 cl; /* _res[6-7], as[4-5], ds[2-3], cs[0-1] */
 };
 
 struct qm_fqd_oac {
-	/* "Overhead Accounting Control", see QM_OAC_<...> */
-	u8 oac; /* oac[6-7], _res[0-5] */
-	/* Two's-complement value (-128 to +127) */
-	s8 oal; /* "Overhead Accounting Length" */
+  /* "Overhead Accounting Control", see QM_OAC_<...> */
+  u8 oac; /* oac[6-7], _res[0-5] */
+  /* Two's-complement value (-128 to +127) */
+  s8 oal; /* "Overhead Accounting Length" */
 };
 
 struct qm_fqd {
-	/* _res[6-7], orprws[3-5], oa[2], olws[0-1] */
-	u8 orpc;
-	u8 cgid;
-	__be16 fq_ctrl;	/* See QM_FQCTRL_<...> */
-	__be16 dest_wq;	/* channel[3-15], wq[0-2] */
-	__be16 ics_cred; /* 15-bit */
-	/*
-	 * For "Initialize Frame Queue" commands, the write-enable mask
-	 * determines whether 'td' or 'oac_init' is observed. For query
-	 * commands, this field is always 'td', and 'oac_query' (below) reflects
-	 * the Overhead ACcounting values.
-	 */
-	union {
-		__be16 td; /* "Taildrop": _res[13-15], mant[5-12], exp[0-4] */
-		struct qm_fqd_oac oac_init;
-	};
-	__be32 context_b;
-	union {
-		/* Treat it as 64-bit opaque */
-		__be64 opaque;
-		struct {
-			__be32 hi;
-			__be32 lo;
-		};
-		/* Treat it as s/w portal stashing config */
-		/* see "FQD Context_A field used for [...]" */
-		struct {
-			struct qm_fqd_stashing stashing;
-			/*
-			 * 48-bit address of FQ context to
-			 * stash, must be cacheline-aligned
-			 */
-			__be16 context_hi;
-			__be32 context_lo;
-		} __packed;
-	} context_a;
-	struct qm_fqd_oac oac_query;
+  /* _res[6-7], orprws[3-5], oa[2], olws[0-1] */
+  u8 orpc;
+  u8 cgid;
+  __be16 fq_ctrl; /* See QM_FQCTRL_<...> */
+  __be16 dest_wq; /* channel[3-15], wq[0-2] */
+  __be16 ics_cred; /* 15-bit */
+  /*
+   * For "Initialize Frame Queue" commands, the write-enable mask
+   * determines whether 'td' or 'oac_init' is observed. For query
+   * commands, this field is always 'td', and 'oac_query' (below) reflects
+   * the Overhead ACcounting values.
+   */
+  union {
+    __be16 td; /* "Taildrop": _res[13-15], mant[5-12], exp[0-4] */
+    struct qm_fqd_oac oac_init;
+  };
+  __be32 context_b;
+  union {
+    /* Treat it as 64-bit opaque */
+    __be64 opaque;
+    struct {
+      __be32 hi;
+      __be32 lo;
+    };
+    /* Treat it as s/w portal stashing config
+     * see "FQD Context_A field used for [...]"*/
+    struct {
+      struct qm_fqd_stashing stashing;
+      /*
+       * 48-bit address of FQ context to
+       * stash, must be cacheline-aligned
+       */
+      __be16 context_hi;
+      __be32 context_lo;
+    } __packed;
+  } context_a;
+  struct qm_fqd_oac oac_query;
 } __packed;
 
-#define QM_FQD_CHAN_OFF		3
-#define QM_FQD_WQ_MASK		GENMASK(2, 0)
-#define QM_FQD_TD_EXP_MASK	GENMASK(4, 0)
-#define QM_FQD_TD_MANT_OFF	5
-#define QM_FQD_TD_MANT_MASK	GENMASK(12, 5)
-#define QM_FQD_TD_MAX		0xe0000000
-#define QM_FQD_TD_MANT_MAX	0xff
-#define QM_FQD_OAC_OFF		6
-#define QM_FQD_AS_OFF		4
-#define QM_FQD_DS_OFF		2
-#define QM_FQD_XS_MASK		0x3
+#define QM_FQD_CHAN_OFF   3
+#define QM_FQD_WQ_MASK    GENMASK(2, 0)
+#define QM_FQD_TD_EXP_MASK  GENMASK(4, 0)
+#define QM_FQD_TD_MANT_OFF  5
+#define QM_FQD_TD_MANT_MASK GENMASK(12, 5)
+#define QM_FQD_TD_MAX   0xe0000000
+#define QM_FQD_TD_MANT_MAX  0xff
+#define QM_FQD_OAC_OFF    6
+#define QM_FQD_AS_OFF   4
+#define QM_FQD_DS_OFF   2
+#define QM_FQD_XS_MASK    0x3
 
 /* 64-bit converters for context_hi/lo */
-static inline u64 qm_fqd_stashing_get64(const struct qm_fqd *fqd)
-{
-	return be64_to_cpu(fqd->context_a.opaque) & 0xffffffffffffULL;
+static inline u64 qm_fqd_stashing_get64(const struct qm_fqd *fqd) {
+  return be64_to_cpu(fqd->context_a.opaque) & 0xffffffffffffULL;
 }
 
-static inline dma_addr_t qm_fqd_stashing_addr(const struct qm_fqd *fqd)
-{
-	return be64_to_cpu(fqd->context_a.opaque) & 0xffffffffffffULL;
+static inline dma_addr_t qm_fqd_stashing_addr(const struct qm_fqd *fqd) {
+  return be64_to_cpu(fqd->context_a.opaque) & 0xffffffffffffULL;
 }
 
-static inline u64 qm_fqd_context_a_get64(const struct qm_fqd *fqd)
-{
-	return qm_fqd_stashing_get64(fqd);
+static inline u64 qm_fqd_context_a_get64(const struct qm_fqd *fqd) {
+  return qm_fqd_stashing_get64(fqd);
 }
 
-static inline void qm_fqd_stashing_set64(struct qm_fqd *fqd, u64 addr)
-{
-	fqd->context_a.context_hi = cpu_to_be16(upper_32_bits(addr));
-	fqd->context_a.context_lo = cpu_to_be32(lower_32_bits(addr));
+static inline void qm_fqd_stashing_set64(struct qm_fqd *fqd, u64 addr) {
+  fqd->context_a.context_hi = cpu_to_be16(upper_32_bits(addr));
+  fqd->context_a.context_lo = cpu_to_be32(lower_32_bits(addr));
 }
 
-static inline void qm_fqd_context_a_set64(struct qm_fqd *fqd, u64 addr)
-{
-	fqd->context_a.hi = cpu_to_be32(upper_32_bits(addr));
-	fqd->context_a.lo = cpu_to_be32(lower_32_bits(addr));
+static inline void qm_fqd_context_a_set64(struct qm_fqd *fqd, u64 addr) {
+  fqd->context_a.hi = cpu_to_be32(upper_32_bits(addr));
+  fqd->context_a.lo = cpu_to_be32(lower_32_bits(addr));
 }
 
 /* convert a threshold value into mant+exp representation */
 static inline int qm_fqd_set_taildrop(struct qm_fqd *fqd, u32 val,
-				      int roundup)
-{
-	u32 e = 0;
-	int td, oddbit = 0;
-
-	if (val > QM_FQD_TD_MAX)
-		return -ERANGE;
-
-	while (val > QM_FQD_TD_MANT_MAX) {
-		oddbit = val & 1;
-		val >>= 1;
-		e++;
-		if (roundup && oddbit)
-			val++;
-	}
-
-	td = (val << QM_FQD_TD_MANT_OFF) & QM_FQD_TD_MANT_MASK;
-	td |= (e & QM_FQD_TD_EXP_MASK);
-	fqd->td = cpu_to_be16(td);
-	return 0;
+    int roundup) {
+  u32 e = 0;
+  int td, oddbit = 0;
+  if (val > QM_FQD_TD_MAX) {
+    return -ERANGE;
+  }
+  while (val > QM_FQD_TD_MANT_MAX) {
+    oddbit = val & 1;
+    val >>= 1;
+    e++;
+    if (roundup && oddbit) {
+      val++;
+    }
+  }
+  td = (val << QM_FQD_TD_MANT_OFF) & QM_FQD_TD_MANT_MASK;
+  td |= (e & QM_FQD_TD_EXP_MASK);
+  fqd->td = cpu_to_be16(td);
+  return 0;
 }
+
 /* and the other direction */
-static inline int qm_fqd_get_taildrop(const struct qm_fqd *fqd)
-{
-	int td = be16_to_cpu(fqd->td);
-
-	return ((td & QM_FQD_TD_MANT_MASK) >> QM_FQD_TD_MANT_OFF)
-		<< (td & QM_FQD_TD_EXP_MASK);
+static inline int qm_fqd_get_taildrop(const struct qm_fqd *fqd) {
+  int td = be16_to_cpu(fqd->td);
+  return ((td & QM_FQD_TD_MANT_MASK) >> QM_FQD_TD_MANT_OFF)
+    << (td & QM_FQD_TD_EXP_MASK);
 }
 
-static inline void qm_fqd_set_stashing(struct qm_fqd *fqd, u8 as, u8 ds, u8 cs)
-{
-	struct qm_fqd_stashing *st = &fqd->context_a.stashing;
-
-	st->cl = ((as & QM_FQD_XS_MASK) << QM_FQD_AS_OFF) |
-		 ((ds & QM_FQD_XS_MASK) << QM_FQD_DS_OFF) |
-		 (cs & QM_FQD_XS_MASK);
+static inline void qm_fqd_set_stashing(struct qm_fqd *fqd, u8 as, u8 ds,
+    u8 cs) {
+  struct qm_fqd_stashing *st = &fqd->context_a.stashing;
+  st->cl = ((as & QM_FQD_XS_MASK) << QM_FQD_AS_OFF)
+      | ((ds & QM_FQD_XS_MASK) << QM_FQD_DS_OFF)
+      | (cs & QM_FQD_XS_MASK);
 }
 
-static inline u8 qm_fqd_get_stashing(const struct qm_fqd *fqd)
-{
-	return fqd->context_a.stashing.cl;
+static inline u8 qm_fqd_get_stashing(const struct qm_fqd *fqd) {
+  return fqd->context_a.stashing.cl;
 }
 
-static inline void qm_fqd_set_oac(struct qm_fqd *fqd, u8 val)
-{
-	fqd->oac_init.oac = val << QM_FQD_OAC_OFF;
+static inline void qm_fqd_set_oac(struct qm_fqd *fqd, u8 val) {
+  fqd->oac_init.oac = val << QM_FQD_OAC_OFF;
 }
 
-static inline void qm_fqd_set_oal(struct qm_fqd *fqd, s8 val)
-{
-	fqd->oac_init.oal = val;
+static inline void qm_fqd_set_oal(struct qm_fqd *fqd, s8 val) {
+  fqd->oac_init.oal = val;
 }
 
-static inline void qm_fqd_set_destwq(struct qm_fqd *fqd, int ch, int wq)
-{
-	fqd->dest_wq = cpu_to_be16((ch << QM_FQD_CHAN_OFF) |
-				   (wq & QM_FQD_WQ_MASK));
+static inline void qm_fqd_set_destwq(struct qm_fqd *fqd, int ch, int wq) {
+  fqd->dest_wq = cpu_to_be16((ch << QM_FQD_CHAN_OFF)
+      | (wq & QM_FQD_WQ_MASK));
 }
 
-static inline int qm_fqd_get_chan(const struct qm_fqd *fqd)
-{
-	return be16_to_cpu(fqd->dest_wq) >> QM_FQD_CHAN_OFF;
+static inline int qm_fqd_get_chan(const struct qm_fqd *fqd) {
+  return be16_to_cpu(fqd->dest_wq) >> QM_FQD_CHAN_OFF;
 }
 
-static inline int qm_fqd_get_wq(const struct qm_fqd *fqd)
-{
-	return be16_to_cpu(fqd->dest_wq) & QM_FQD_WQ_MASK;
+static inline int qm_fqd_get_wq(const struct qm_fqd *fqd) {
+  return be16_to_cpu(fqd->dest_wq) & QM_FQD_WQ_MASK;
 }
 
-/* See "Frame Queue Descriptor (FQD)" */
-/* Frame Queue Descriptor (FQD) field 'fq_ctrl' uses these constants */
-#define QM_FQCTRL_MASK		0x07ff	/* 'fq_ctrl' flags; */
-#define QM_FQCTRL_CGE		0x0400	/* Congestion Group Enable */
-#define QM_FQCTRL_TDE		0x0200	/* Tail-Drop Enable */
-#define QM_FQCTRL_CTXASTASHING	0x0080	/* Context-A stashing */
-#define QM_FQCTRL_CPCSTASH	0x0040	/* CPC Stash Enable */
-#define QM_FQCTRL_FORCESFDR	0x0008	/* High-priority SFDRs */
-#define QM_FQCTRL_AVOIDBLOCK	0x0004	/* Don't block active */
-#define QM_FQCTRL_HOLDACTIVE	0x0002	/* Hold active in portal */
-#define QM_FQCTRL_PREFERINCACHE	0x0001	/* Aggressively cache FQD */
-#define QM_FQCTRL_LOCKINCACHE	QM_FQCTRL_PREFERINCACHE /* older naming */
+/* See "Frame Queue Descriptor (FQD)"
+ * Frame Queue Descriptor (FQD) field 'fq_ctrl' uses these constants*/
+#define QM_FQCTRL_MASK    0x07ff  /* 'fq_ctrl' flags; */
+#define QM_FQCTRL_CGE   0x0400  /* Congestion Group Enable */
+#define QM_FQCTRL_TDE   0x0200  /* Tail-Drop Enable */
+#define QM_FQCTRL_CTXASTASHING  0x0080  /* Context-A stashing */
+#define QM_FQCTRL_CPCSTASH  0x0040  /* CPC Stash Enable */
+#define QM_FQCTRL_FORCESFDR 0x0008  /* High-priority SFDRs */
+#define QM_FQCTRL_AVOIDBLOCK  0x0004  /* Don't block active */
+#define QM_FQCTRL_HOLDACTIVE  0x0002  /* Hold active in portal */
+#define QM_FQCTRL_PREFERINCACHE 0x0001  /* Aggressively cache FQD */
+#define QM_FQCTRL_LOCKINCACHE QM_FQCTRL_PREFERINCACHE /* older naming */
 
-/* See "FQD Context_A field used for [...] */
-/* Frame Queue Descriptor (FQD) field 'CONTEXT_A' uses these constants */
-#define QM_STASHING_EXCL_ANNOTATION	0x04
-#define QM_STASHING_EXCL_DATA		0x02
-#define QM_STASHING_EXCL_CTX		0x01
+/* See "FQD Context_A field used for [...]
+ * Frame Queue Descriptor (FQD) field 'CONTEXT_A' uses these constants*/
+#define QM_STASHING_EXCL_ANNOTATION 0x04
+#define QM_STASHING_EXCL_DATA   0x02
+#define QM_STASHING_EXCL_CTX    0x01
 
-/* See "Intra Class Scheduling" */
-/* FQD field 'OAC' (Overhead ACcounting) uses these constants */
-#define QM_OAC_ICS		0x2 /* Accounting for Intra-Class Scheduling */
-#define QM_OAC_CG		0x1 /* Accounting for Congestion Groups */
+/* See "Intra Class Scheduling"
+ * FQD field 'OAC' (Overhead ACcounting) uses these constants*/
+#define QM_OAC_ICS    0x2 /* Accounting for Intra-Class Scheduling */
+#define QM_OAC_CG   0x1 /* Accounting for Congestion Groups */
 
 /*
  * This struct represents the 32-bit "WR_PARM_[GYR]" parameters in CGR fields
@@ -529,8 +495,8 @@ static inline int qm_fqd_get_wq(const struct qm_fqd *fqd)
  *    MaxP = 4 * (Pn + 1)
  */
 struct qm_cgr_wr_parm {
-	/* MA[24-31], Mn[19-23], SA[12-18], Sn[6-11], Pn[0-5] */
-	__be32 word;
+  /* MA[24-31], Mn[19-23], SA[12-18], Sn[6-11], Pn[0-5] */
+  __be32 word;
 };
 /*
  * This struct represents the 13-bit "CS_THRES" CGR field. In the corresponding
@@ -540,8 +506,8 @@ struct qm_cgr_wr_parm {
  *   CS threshold = TA * (2 ^ Tn)
  */
 struct qm_cgr_cs_thres {
-	/* _res[13-15], TA[5-12], Tn[0-4] */
-	__be16 word;
+  /* _res[13-15], TA[5-12], Tn[0-4] */
+  __be16 word;
 };
 /*
  * This identical structure of CGR fields is present in the "Init/Modify CGR"
@@ -549,105 +515,102 @@ struct qm_cgr_cs_thres {
  * struct.
  */
 struct __qm_mc_cgr {
-	struct qm_cgr_wr_parm wr_parm_g;
-	struct qm_cgr_wr_parm wr_parm_y;
-	struct qm_cgr_wr_parm wr_parm_r;
-	u8 wr_en_g;	/* boolean, use QM_CGR_EN */
-	u8 wr_en_y;	/* boolean, use QM_CGR_EN */
-	u8 wr_en_r;	/* boolean, use QM_CGR_EN */
-	u8 cscn_en;	/* boolean, use QM_CGR_EN */
-	union {
-		struct {
-			__be16 cscn_targ_upd_ctrl; /* use QM_CGR_TARG_UDP_* */
-			__be16 cscn_targ_dcp_low;
-		};
-		__be32 cscn_targ;	/* use QM_CGR_TARG_* */
-	};
-	u8 cstd_en;	/* boolean, use QM_CGR_EN */
-	u8 cs;		/* boolean, only used in query response */
-	struct qm_cgr_cs_thres cs_thres; /* use qm_cgr_cs_thres_set64() */
-	u8 mode;	/* QMAN_CGR_MODE_FRAME not supported in rev1.0 */
+  struct qm_cgr_wr_parm wr_parm_g;
+  struct qm_cgr_wr_parm wr_parm_y;
+  struct qm_cgr_wr_parm wr_parm_r;
+  u8 wr_en_g; /* boolean, use QM_CGR_EN */
+  u8 wr_en_y; /* boolean, use QM_CGR_EN */
+  u8 wr_en_r; /* boolean, use QM_CGR_EN */
+  u8 cscn_en; /* boolean, use QM_CGR_EN */
+  union {
+    struct {
+      __be16 cscn_targ_upd_ctrl; /* use QM_CGR_TARG_UDP_* */
+      __be16 cscn_targ_dcp_low;
+    };
+    __be32 cscn_targ; /* use QM_CGR_TARG_* */
+  };
+  u8 cstd_en; /* boolean, use QM_CGR_EN */
+  u8 cs;    /* boolean, only used in query response */
+  struct qm_cgr_cs_thres cs_thres; /* use qm_cgr_cs_thres_set64() */
+  u8 mode;  /* QMAN_CGR_MODE_FRAME not supported in rev1.0 */
 } __packed;
-#define QM_CGR_EN		0x01 /* For wr_en_*, cscn_en, cstd_en */
-#define QM_CGR_TARG_UDP_CTRL_WRITE_BIT	0x8000 /* value written to portal bit*/
-#define QM_CGR_TARG_UDP_CTRL_DCP	0x4000 /* 0: SWP, 1: DCP */
-#define QM_CGR_TARG_PORTAL(n)	(0x80000000 >> (n)) /* s/w portal, 0-9 */
-#define QM_CGR_TARG_FMAN0	0x00200000 /* direct-connect portal: fman0 */
-#define QM_CGR_TARG_FMAN1	0x00100000 /*			   : fman1 */
+#define QM_CGR_EN   0x01 /* For wr_en_*, cscn_en, cstd_en */
+#define QM_CGR_TARG_UDP_CTRL_WRITE_BIT  0x8000 /* value written to portal bit*/
+#define QM_CGR_TARG_UDP_CTRL_DCP  0x4000 /* 0: SWP, 1: DCP */
+#define QM_CGR_TARG_PORTAL(n) (0x80000000 >> (n)) /* s/w portal, 0-9 */
+#define QM_CGR_TARG_FMAN0 0x00200000 /* direct-connect portal: fman0 */
+#define QM_CGR_TARG_FMAN1 0x00100000 /*        : fman1 */
 /* Convert CGR thresholds to/from "cs_thres" format */
-static inline u64 qm_cgr_cs_thres_get64(const struct qm_cgr_cs_thres *th)
-{
-	int thres = be16_to_cpu(th->word);
-
-	return ((thres >> 5) & 0xff) << (thres & 0x1f);
+static inline u64 qm_cgr_cs_thres_get64(const struct qm_cgr_cs_thres *th) {
+  int thres = be16_to_cpu(th->word);
+  return ((thres >> 5) & 0xff) << (thres & 0x1f);
 }
 
 static inline int qm_cgr_cs_thres_set64(struct qm_cgr_cs_thres *th, u64 val,
-					int roundup)
-{
-	u32 e = 0;
-	int oddbit = 0;
-
-	while (val > 0xff) {
-		oddbit = val & 1;
-		val >>= 1;
-		e++;
-		if (roundup && oddbit)
-			val++;
-	}
-	th->word = cpu_to_be16(((val & 0xff) << 5) | (e & 0x1f));
-	return 0;
+    int roundup) {
+  u32 e = 0;
+  int oddbit = 0;
+  while (val > 0xff) {
+    oddbit = val & 1;
+    val >>= 1;
+    e++;
+    if (roundup && oddbit) {
+      val++;
+    }
+  }
+  th->word = cpu_to_be16(((val & 0xff) << 5) | (e & 0x1f));
+  return 0;
 }
 
 /* "Initialize FQ" */
 struct qm_mcc_initfq {
-	u8 __reserved1[2];
-	__be16 we_mask;	/* Write Enable Mask */
-	__be32 fqid;	/* 24-bit */
-	__be16 count;	/* Initialises 'count+1' FQDs */
-	struct qm_fqd fqd; /* the FQD fields go here */
-	u8 __reserved2[30];
+  u8 __reserved1[2];
+  __be16 we_mask; /* Write Enable Mask */
+  __be32 fqid;  /* 24-bit */
+  __be16 count; /* Initialises 'count+1' FQDs */
+  struct qm_fqd fqd; /* the FQD fields go here */
+  u8 __reserved2[30];
 } __packed;
 /* "Initialize/Modify CGR" */
 struct qm_mcc_initcgr {
-	u8 __reserve1[2];
-	__be16 we_mask;	/* Write Enable Mask */
-	struct __qm_mc_cgr cgr;	/* CGR fields */
-	u8 __reserved2[2];
-	u8 cgid;
-	u8 __reserved3[32];
+  u8 __reserve1[2];
+  __be16 we_mask; /* Write Enable Mask */
+  struct __qm_mc_cgr cgr; /* CGR fields */
+  u8 __reserved2[2];
+  u8 cgid;
+  u8 __reserved3[32];
 } __packed;
 
 /* INITFQ-specific flags */
-#define QM_INITFQ_WE_MASK		0x01ff	/* 'Write Enable' flags; */
-#define QM_INITFQ_WE_OAC		0x0100
-#define QM_INITFQ_WE_ORPC		0x0080
-#define QM_INITFQ_WE_CGID		0x0040
-#define QM_INITFQ_WE_FQCTRL		0x0020
-#define QM_INITFQ_WE_DESTWQ		0x0010
-#define QM_INITFQ_WE_ICSCRED		0x0008
-#define QM_INITFQ_WE_TDTHRESH		0x0004
-#define QM_INITFQ_WE_CONTEXTB		0x0002
-#define QM_INITFQ_WE_CONTEXTA		0x0001
+#define QM_INITFQ_WE_MASK   0x01ff  /* 'Write Enable' flags; */
+#define QM_INITFQ_WE_OAC    0x0100
+#define QM_INITFQ_WE_ORPC   0x0080
+#define QM_INITFQ_WE_CGID   0x0040
+#define QM_INITFQ_WE_FQCTRL   0x0020
+#define QM_INITFQ_WE_DESTWQ   0x0010
+#define QM_INITFQ_WE_ICSCRED    0x0008
+#define QM_INITFQ_WE_TDTHRESH   0x0004
+#define QM_INITFQ_WE_CONTEXTB   0x0002
+#define QM_INITFQ_WE_CONTEXTA   0x0001
 /* INITCGR/MODIFYCGR-specific flags */
-#define QM_CGR_WE_MASK			0x07ff	/* 'Write Enable Mask'; */
-#define QM_CGR_WE_WR_PARM_G		0x0400
-#define QM_CGR_WE_WR_PARM_Y		0x0200
-#define QM_CGR_WE_WR_PARM_R		0x0100
-#define QM_CGR_WE_WR_EN_G		0x0080
-#define QM_CGR_WE_WR_EN_Y		0x0040
-#define QM_CGR_WE_WR_EN_R		0x0020
-#define QM_CGR_WE_CSCN_EN		0x0010
-#define QM_CGR_WE_CSCN_TARG		0x0008
-#define QM_CGR_WE_CSTD_EN		0x0004
-#define QM_CGR_WE_CS_THRES		0x0002
-#define QM_CGR_WE_MODE			0x0001
+#define QM_CGR_WE_MASK      0x07ff  /* 'Write Enable Mask'; */
+#define QM_CGR_WE_WR_PARM_G   0x0400
+#define QM_CGR_WE_WR_PARM_Y   0x0200
+#define QM_CGR_WE_WR_PARM_R   0x0100
+#define QM_CGR_WE_WR_EN_G   0x0080
+#define QM_CGR_WE_WR_EN_Y   0x0040
+#define QM_CGR_WE_WR_EN_R   0x0020
+#define QM_CGR_WE_CSCN_EN   0x0010
+#define QM_CGR_WE_CSCN_TARG   0x0008
+#define QM_CGR_WE_CSTD_EN   0x0004
+#define QM_CGR_WE_CS_THRES    0x0002
+#define QM_CGR_WE_MODE      0x0001
 
-#define QMAN_CGR_FLAG_USE_INIT	     0x00000001
+#define QMAN_CGR_FLAG_USE_INIT       0x00000001
 #define QMAN_CGR_MODE_FRAME          0x00000001
 
-	/* Portal and Frame Queues */
-/* Represents a managed portal */
+/* Portal and Frame Queues
+ * Represents a managed portal*/
 struct qman_portal;
 
 /*
@@ -670,34 +633,34 @@ struct qman_cgr;
  * NULL), the return value *MUST* be qman_cb_dqrr_consume.
  */
 enum qman_cb_dqrr_result {
-	/* DQRR entry can be consumed */
-	qman_cb_dqrr_consume,
-	/* Like _consume, but requests parking - FQ must be held-active */
-	qman_cb_dqrr_park,
-	/* Does not consume, for DCA mode only. */
-	qman_cb_dqrr_defer,
-	/*
-	 * Stop processing without consuming this ring entry. Exits the current
-	 * qman_p_poll_dqrr() or interrupt-handling, as appropriate. If within
-	 * an interrupt handler, the callback would typically call
-	 * qman_irqsource_remove(QM_PIRQ_DQRI) before returning this value,
-	 * otherwise the interrupt will reassert immediately.
-	 */
-	qman_cb_dqrr_stop,
-	/* Like qman_cb_dqrr_stop, but consumes the current entry. */
-	qman_cb_dqrr_consume_stop
+  /* DQRR entry can be consumed */
+  qman_cb_dqrr_consume,
+  /* Like _consume, but requests parking - FQ must be held-active */
+  qman_cb_dqrr_park,
+  /* Does not consume, for DCA mode only. */
+  qman_cb_dqrr_defer,
+  /*
+   * Stop processing without consuming this ring entry. Exits the current
+   * qman_p_poll_dqrr() or interrupt-handling, as appropriate. If within
+   * an interrupt handler, the callback would typically call
+   * qman_irqsource_remove(QM_PIRQ_DQRI) before returning this value,
+   * otherwise the interrupt will reassert immediately.
+   */
+  qman_cb_dqrr_stop,
+  /* Like qman_cb_dqrr_stop, but consumes the current entry. */
+  qman_cb_dqrr_consume_stop
 };
 typedef enum qman_cb_dqrr_result (*qman_cb_dqrr)(struct qman_portal *qm,
-					struct qman_fq *fq,
-					const struct qm_dqrr_entry *dqrr,
-					bool sched_napi);
+    struct qman_fq *fq,
+    const struct qm_dqrr_entry *dqrr,
+    bool sched_napi);
 
 /*
  * This callback type is used when handling ERNs, FQRNs and FQRLs via MR. They
  * are always consumed after the callback returns.
  */
 typedef void (*qman_cb_mr)(struct qman_portal *qm, struct qman_fq *fq,
-			   const union qm_mr_entry *msg);
+    const union qm_mr_entry *msg);
 
 /*
  * s/w-visible states. Ie. tentatively scheduled + truly scheduled + active +
@@ -712,18 +675,18 @@ typedef void (*qman_cb_mr)(struct qman_portal *qm, struct qman_fq *fq,
  * "parked".
  */
 enum qman_fq_state {
-	qman_fq_state_oos,
-	qman_fq_state_parked,
-	qman_fq_state_sched,
-	qman_fq_state_retired
+  qman_fq_state_oos,
+  qman_fq_state_parked,
+  qman_fq_state_sched,
+  qman_fq_state_retired
 };
 
-#define QMAN_FQ_STATE_CHANGING	     0x80000000 /* 'state' is changing */
-#define QMAN_FQ_STATE_NE	     0x40000000 /* retired FQ isn't empty */
-#define QMAN_FQ_STATE_ORL	     0x20000000 /* retired FQ has ORL */
-#define QMAN_FQ_STATE_BLOCKOOS	     0xe0000000 /* if any are set, no OOS */
-#define QMAN_FQ_STATE_CGR_EN	     0x10000000 /* CGR enabled */
-#define QMAN_FQ_STATE_VDQCR	     0x08000000 /* being volatile dequeued */
+#define QMAN_FQ_STATE_CHANGING       0x80000000 /* 'state' is changing */
+#define QMAN_FQ_STATE_NE       0x40000000 /* retired FQ isn't empty */
+#define QMAN_FQ_STATE_ORL      0x20000000 /* retired FQ has ORL */
+#define QMAN_FQ_STATE_BLOCKOOS       0xe0000000 /* if any are set, no OOS */
+#define QMAN_FQ_STATE_CGR_EN       0x10000000 /* CGR enabled */
+#define QMAN_FQ_STATE_VDQCR      0x08000000 /* being volatile dequeued */
 
 /*
  * Frame queue objects (struct qman_fq) are stored within memory passed to
@@ -736,9 +699,9 @@ enum qman_fq_state {
  *
  *     // myfq is allocated and driver_fq callbacks filled in;
  *     struct my_fq {
- *	   struct qman_fq base;
- *	   int an_extra_field;
- *	   [ ... add other fields to be associated with each FQ ...]
+ *     struct qman_fq base;
+ *     int an_extra_field;
+ *     [ ... add other fields to be associated with each FQ ...]
  *     } *myfq = some_my_fq_allocator();
  *     struct qman_fq *fq = qman_create_fq(fqid, flags, &myfq->base);
  *
@@ -753,23 +716,23 @@ enum qman_fq_state {
  */
 
 struct qman_fq_cb {
-	qman_cb_dqrr dqrr;	/* for dequeued frames */
-	qman_cb_mr ern;		/* for s/w ERNs */
-	qman_cb_mr fqs;		/* frame-queue state changes*/
+  qman_cb_dqrr dqrr;  /* for dequeued frames */
+  qman_cb_mr ern;   /* for s/w ERNs */
+  qman_cb_mr fqs;   /* frame-queue state changes*/
 };
 
 struct qman_fq {
-	/* Caller of qman_create_fq() provides these demux callbacks */
-	struct qman_fq_cb cb;
-	/*
-	 * These are internal to the driver, don't touch. In particular, they
-	 * may change, be removed, or extended (so you shouldn't rely on
-	 * sizeof(qman_fq) being a constant).
-	 */
-	u32 fqid, idx;
-	unsigned long flags;
-	enum qman_fq_state state;
-	int cgr_groupid;
+  /* Caller of qman_create_fq() provides these demux callbacks */
+  struct qman_fq_cb cb;
+  /*
+   * These are internal to the driver, don't touch. In particular, they
+   * may change, be removed, or extended (so you shouldn't rely on
+   * sizeof(qman_fq) being a constant).
+   */
+  u32 fqid, idx;
+  unsigned long flags;
+  enum qman_fq_state state;
+  int cgr_groupid;
 };
 
 /*
@@ -777,106 +740,106 @@ struct qman_fq {
  * 'congested' is non-zero on congestion-entry, and zero on congestion-exit.
  */
 typedef void (*qman_cb_cgr)(struct qman_portal *qm,
-			    struct qman_cgr *cgr, int congested);
+    struct qman_cgr *cgr, int congested);
 
 struct qman_cgr {
-	/* Set these prior to qman_create_cgr() */
-	u32 cgrid; /* 0..255, but u32 to allow specials like -1, 256, etc.*/
-	qman_cb_cgr cb;
-	/* These are private to the driver */
-	u16 chan; /* portal channel this object is created on */
-	struct list_head node;
+  /* Set these prior to qman_create_cgr() */
+  u32 cgrid; /* 0..255, but u32 to allow specials like -1, 256, etc.*/
+  qman_cb_cgr cb;
+  /* These are private to the driver */
+  u16 chan; /* portal channel this object is created on */
+  struct list_head node;
 };
 
 /* Flags to qman_create_fq() */
-#define QMAN_FQ_FLAG_NO_ENQUEUE	     0x00000001 /* can't enqueue */
-#define QMAN_FQ_FLAG_NO_MODIFY	     0x00000002 /* can only enqueue */
+#define QMAN_FQ_FLAG_NO_ENQUEUE      0x00000001 /* can't enqueue */
+#define QMAN_FQ_FLAG_NO_MODIFY       0x00000002 /* can only enqueue */
 #define QMAN_FQ_FLAG_TO_DCPORTAL     0x00000004 /* consumed by CAAM/PME/Fman */
 #define QMAN_FQ_FLAG_DYNAMIC_FQID    0x00000020 /* (de)allocate fqid */
 
 /* Flags to qman_init_fq() */
-#define QMAN_INITFQ_FLAG_SCHED	     0x00000001 /* schedule rather than park */
-#define QMAN_INITFQ_FLAG_LOCAL	     0x00000004 /* set dest portal */
+#define QMAN_INITFQ_FLAG_SCHED       0x00000001 /* schedule rather than park */
+#define QMAN_INITFQ_FLAG_LOCAL       0x00000004 /* set dest portal */
 
 /*
  * For qman_volatile_dequeue(); Choose one PRECEDENCE. EXACT is optional. Use
  * NUMFRAMES(n) (6-bit) or NUMFRAMES_TILLEMPTY to fill in the frame-count. Use
  * FQID(n) to fill in the frame queue ID.
  */
-#define QM_VDQCR_PRECEDENCE_VDQCR	0x0
-#define QM_VDQCR_PRECEDENCE_SDQCR	0x80000000
-#define QM_VDQCR_EXACT			0x40000000
-#define QM_VDQCR_NUMFRAMES_MASK		0x3f000000
-#define QM_VDQCR_NUMFRAMES_SET(n)	(((n) & 0x3f) << 24)
-#define QM_VDQCR_NUMFRAMES_GET(n)	(((n) >> 24) & 0x3f)
-#define QM_VDQCR_NUMFRAMES_TILLEMPTY	QM_VDQCR_NUMFRAMES_SET(0)
+#define QM_VDQCR_PRECEDENCE_VDQCR 0x0
+#define QM_VDQCR_PRECEDENCE_SDQCR 0x80000000
+#define QM_VDQCR_EXACT      0x40000000
+#define QM_VDQCR_NUMFRAMES_MASK   0x3f000000
+#define QM_VDQCR_NUMFRAMES_SET(n) (((n) & 0x3f) << 24)
+#define QM_VDQCR_NUMFRAMES_GET(n) (((n) >> 24) & 0x3f)
+#define QM_VDQCR_NUMFRAMES_TILLEMPTY  QM_VDQCR_NUMFRAMES_SET(0)
 
-#define QMAN_VOLATILE_FLAG_WAIT	     0x00000001 /* wait if VDQCR is in use */
+#define QMAN_VOLATILE_FLAG_WAIT      0x00000001 /* wait if VDQCR is in use */
 #define QMAN_VOLATILE_FLAG_WAIT_INT  0x00000002 /* if wait, interruptible? */
 #define QMAN_VOLATILE_FLAG_FINISH    0x00000004 /* wait till VDQCR completes */
 
 /* "Query FQ Non-Programmable Fields" */
 struct qm_mcr_queryfq_np {
-	u8 verb;
-	u8 result;
-	u8 __reserved1;
-	u8 state;		/* QM_MCR_NP_STATE_*** */
-	u32 fqd_link;		/* 24-bit, _res2[24-31] */
-	u16 odp_seq;		/* 14-bit, _res3[14-15] */
-	u16 orp_nesn;		/* 14-bit, _res4[14-15] */
-	u16 orp_ea_hseq;	/* 15-bit, _res5[15] */
-	u16 orp_ea_tseq;	/* 15-bit, _res6[15] */
-	u32 orp_ea_hptr;	/* 24-bit, _res7[24-31] */
-	u32 orp_ea_tptr;	/* 24-bit, _res8[24-31] */
-	u32 pfdr_hptr;		/* 24-bit, _res9[24-31] */
-	u32 pfdr_tptr;		/* 24-bit, _res10[24-31] */
-	u8 __reserved2[5];
-	u8 is;			/* 1-bit, _res12[1-7] */
-	u16 ics_surp;
-	u32 byte_cnt;
-	u32 frm_cnt;		/* 24-bit, _res13[24-31] */
-	u32 __reserved3;
-	u16 ra1_sfdr;		/* QM_MCR_NP_RA1_*** */
-	u16 ra2_sfdr;		/* QM_MCR_NP_RA2_*** */
-	u16 __reserved4;
-	u16 od1_sfdr;		/* QM_MCR_NP_OD1_*** */
-	u16 od2_sfdr;		/* QM_MCR_NP_OD2_*** */
-	u16 od3_sfdr;		/* QM_MCR_NP_OD3_*** */
+  u8 verb;
+  u8 result;
+  u8 __reserved1;
+  u8 state;   /* QM_MCR_NP_STATE_*** */
+  u32 fqd_link;   /* 24-bit, _res2[24-31] */
+  u16 odp_seq;    /* 14-bit, _res3[14-15] */
+  u16 orp_nesn;   /* 14-bit, _res4[14-15] */
+  u16 orp_ea_hseq;  /* 15-bit, _res5[15] */
+  u16 orp_ea_tseq;  /* 15-bit, _res6[15] */
+  u32 orp_ea_hptr;  /* 24-bit, _res7[24-31] */
+  u32 orp_ea_tptr;  /* 24-bit, _res8[24-31] */
+  u32 pfdr_hptr;    /* 24-bit, _res9[24-31] */
+  u32 pfdr_tptr;    /* 24-bit, _res10[24-31] */
+  u8 __reserved2[5];
+  u8 is;      /* 1-bit, _res12[1-7] */
+  u16 ics_surp;
+  u32 byte_cnt;
+  u32 frm_cnt;    /* 24-bit, _res13[24-31] */
+  u32 __reserved3;
+  u16 ra1_sfdr;   /* QM_MCR_NP_RA1_*** */
+  u16 ra2_sfdr;   /* QM_MCR_NP_RA2_*** */
+  u16 __reserved4;
+  u16 od1_sfdr;   /* QM_MCR_NP_OD1_*** */
+  u16 od2_sfdr;   /* QM_MCR_NP_OD2_*** */
+  u16 od3_sfdr;   /* QM_MCR_NP_OD3_*** */
 } __packed;
 
-#define QM_MCR_NP_STATE_FE		0x10
-#define QM_MCR_NP_STATE_R		0x08
-#define QM_MCR_NP_STATE_MASK		0x07	/* Reads FQD::STATE; */
-#define QM_MCR_NP_STATE_OOS		0x00
-#define QM_MCR_NP_STATE_RETIRED		0x01
-#define QM_MCR_NP_STATE_TEN_SCHED	0x02
-#define QM_MCR_NP_STATE_TRU_SCHED	0x03
-#define QM_MCR_NP_STATE_PARKED		0x04
-#define QM_MCR_NP_STATE_ACTIVE		0x05
-#define QM_MCR_NP_PTR_MASK		0x07ff	/* for RA[12] & OD[123] */
-#define QM_MCR_NP_RA1_NRA(v)		(((v) >> 14) & 0x3)	/* FQD::NRA */
-#define QM_MCR_NP_RA2_IT(v)		(((v) >> 14) & 0x1)	/* FQD::IT */
-#define QM_MCR_NP_OD1_NOD(v)		(((v) >> 14) & 0x3)	/* FQD::NOD */
-#define QM_MCR_NP_OD3_NPC(v)		(((v) >> 14) & 0x3)	/* FQD::NPC */
+#define QM_MCR_NP_STATE_FE    0x10
+#define QM_MCR_NP_STATE_R   0x08
+#define QM_MCR_NP_STATE_MASK    0x07  /* Reads FQD::STATE; */
+#define QM_MCR_NP_STATE_OOS   0x00
+#define QM_MCR_NP_STATE_RETIRED   0x01
+#define QM_MCR_NP_STATE_TEN_SCHED 0x02
+#define QM_MCR_NP_STATE_TRU_SCHED 0x03
+#define QM_MCR_NP_STATE_PARKED    0x04
+#define QM_MCR_NP_STATE_ACTIVE    0x05
+#define QM_MCR_NP_PTR_MASK    0x07ff  /* for RA[12] & OD[123] */
+#define QM_MCR_NP_RA1_NRA(v)    (((v) >> 14) & 0x3) /* FQD::NRA */
+#define QM_MCR_NP_RA2_IT(v)   (((v) >> 14) & 0x1) /* FQD::IT */
+#define QM_MCR_NP_OD1_NOD(v)    (((v) >> 14) & 0x3) /* FQD::NOD */
+#define QM_MCR_NP_OD3_NPC(v)    (((v) >> 14) & 0x3) /* FQD::NPC */
 
 enum qm_mcr_queryfq_np_masks {
-	qm_mcr_fqd_link_mask = BIT(24) - 1,
-	qm_mcr_odp_seq_mask = BIT(14) - 1,
-	qm_mcr_orp_nesn_mask = BIT(14) - 1,
-	qm_mcr_orp_ea_hseq_mask = BIT(15) - 1,
-	qm_mcr_orp_ea_tseq_mask = BIT(15) - 1,
-	qm_mcr_orp_ea_hptr_mask = BIT(24) - 1,
-	qm_mcr_orp_ea_tptr_mask = BIT(24) - 1,
-	qm_mcr_pfdr_hptr_mask = BIT(24) - 1,
-	qm_mcr_pfdr_tptr_mask = BIT(24) - 1,
-	qm_mcr_is_mask = BIT(1) - 1,
-	qm_mcr_frm_cnt_mask = BIT(24) - 1,
+  qm_mcr_fqd_link_mask = BIT(24) - 1,
+  qm_mcr_odp_seq_mask = BIT(14) - 1,
+  qm_mcr_orp_nesn_mask = BIT(14) - 1,
+  qm_mcr_orp_ea_hseq_mask = BIT(15) - 1,
+  qm_mcr_orp_ea_tseq_mask = BIT(15) - 1,
+  qm_mcr_orp_ea_hptr_mask = BIT(24) - 1,
+  qm_mcr_orp_ea_tptr_mask = BIT(24) - 1,
+  qm_mcr_pfdr_hptr_mask = BIT(24) - 1,
+  qm_mcr_pfdr_tptr_mask = BIT(24) - 1,
+  qm_mcr_is_mask = BIT(1) - 1,
+  qm_mcr_frm_cnt_mask = BIT(24) - 1,
 };
 
 #define qm_mcr_np_get(np, field) \
-	((np)->field & (qm_mcr_##field##_mask))
+  ((np)->field & (qm_mcr_ ## field ## _mask))
 
-	/* Portal Management */
+/* Portal Management */
 /**
  * qman_p_irqsource_add - add processing sources to be interrupt-driven
  * @bits: bitmask of QM_PIRQ_**I processing sources
@@ -945,7 +908,7 @@ int qman_p_poll_dqrr(struct qman_portal *p, unsigned int limit);
  */
 void qman_p_static_dequeue_add(struct qman_portal *p, u32 pools);
 
-	/* FQ management */
+/* FQ management */
 /**
  * qman_create_fq - Allocates a FQ
  * @fqid: the index of the FQD to encapsulate, must be "Out of Service"
@@ -1115,7 +1078,7 @@ int qman_release_fqid(u32 fqid);
  */
 int qman_query_fq_np(struct qman_fq *fq, struct qm_mcr_queryfq_np *np);
 
-	/* Pool-channel management */
+/* Pool-channel management */
 /**
  * qman_alloc_pool_range - Allocate a contiguous range of pool-channel IDs
  * @result: is set by the API to the base pool-channel ID of the allocated range
@@ -1136,7 +1099,7 @@ int qman_alloc_pool_range(u32 *result, u32 count);
  */
 int qman_release_pool(u32 id);
 
-	/* CGR management */
+/* CGR management */
 /**
  * qman_create_cgr - Register a congestion group object
  * @cgr: the 'cgr' object, with fields filled in
@@ -1151,7 +1114,7 @@ int qman_release_pool(u32 id);
  * (which only modifies the specified parameters).
  */
 int qman_create_cgr(struct qman_cgr *cgr, u32 flags,
-		    struct qm_mcc_initcgr *opts);
+    struct qm_mcc_initcgr *opts);
 
 /**
  * qman_delete_cgr - Deregisters a congestion group object
@@ -1256,4 +1219,4 @@ void qman_portal_get_iperiod(struct qman_portal *portal, u32 *iperiod);
  */
 int qman_portal_set_iperiod(struct qman_portal *portal, u32 iperiod);
 
-#endif	/* __FSL_QMAN_H */
+#endif  /* __FSL_QMAN_H */

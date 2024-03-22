@@ -17,49 +17,46 @@
 #include "masklog.h"
 #include "sys.h"
 
-
 static ssize_t version_show(struct kobject *kobj, struct kobj_attribute *attr,
-			    char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%u\n", O2NM_API_VERSION);
+    char *buf) {
+  return snprintf(buf, PAGE_SIZE, "%u\n", O2NM_API_VERSION);
 }
-static struct kobj_attribute attr_version =
-	__ATTR(interface_revision, S_IRUGO, version_show, NULL);
+
+static struct kobj_attribute attr_version
+  = __ATTR(interface_revision, S_IRUGO, version_show, NULL);
 
 static struct attribute *o2cb_attrs[] = {
-	&attr_version.attr,
-	NULL,
+  &attr_version.attr,
+  NULL,
 };
 
 static struct attribute_group o2cb_attr_group = {
-	.attrs = o2cb_attrs,
+  .attrs = o2cb_attrs,
 };
 
 static struct kset *o2cb_kset;
 
-void o2cb_sys_shutdown(void)
-{
-	mlog_sys_shutdown();
-	kset_unregister(o2cb_kset);
+void o2cb_sys_shutdown(void) {
+  mlog_sys_shutdown();
+  kset_unregister(o2cb_kset);
 }
 
-int o2cb_sys_init(void)
-{
-	int ret;
-
-	o2cb_kset = kset_create_and_add("o2cb", NULL, fs_kobj);
-	if (!o2cb_kset)
-		return -ENOMEM;
-
-	ret = sysfs_create_group(&o2cb_kset->kobj, &o2cb_attr_group);
-	if (ret)
-		goto error;
-
-	ret = mlog_sys_init(o2cb_kset);
-	if (ret)
-		goto error;
-	return 0;
+int o2cb_sys_init(void) {
+  int ret;
+  o2cb_kset = kset_create_and_add("o2cb", NULL, fs_kobj);
+  if (!o2cb_kset) {
+    return -ENOMEM;
+  }
+  ret = sysfs_create_group(&o2cb_kset->kobj, &o2cb_attr_group);
+  if (ret) {
+    goto error;
+  }
+  ret = mlog_sys_init(o2cb_kset);
+  if (ret) {
+    goto error;
+  }
+  return 0;
 error:
-	kset_unregister(o2cb_kset);
-	return ret;
+  kset_unregister(o2cb_kset);
+  return ret;
 }

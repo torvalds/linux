@@ -11,7 +11,7 @@
 #ifndef __ASSEMBLY__
 
 extern void tm_reclaim(struct thread_struct *thread,
-		       uint8_t cause);
+    uint8_t cause);
 extern void tm_reclaim_current(uint8_t cause);
 extern void tm_recheckpoint(struct thread_struct *thread);
 extern void tm_save_sprs(struct thread_struct *thread);

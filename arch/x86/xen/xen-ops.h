@@ -49,7 +49,7 @@ unsigned long __ref xen_chk_extra_mem(unsigned long pfn);
 void __init xen_inv_extra_mem(void);
 void __init xen_remap_memory(void);
 phys_addr_t __init xen_find_free_area(phys_addr_t size);
-char * __init xen_memory_setup(void);
+char *__init xen_memory_setup(void);
 void __init xen_arch_setup(void);
 void xen_banner(void);
 void xen_enable_sysenter(void);
@@ -84,8 +84,12 @@ void __init xen_hvm_smp_init(void);
 
 extern cpumask_var_t xen_cpu_initialized_map;
 #else
-static inline void xen_smp_init(void) {}
-static inline void xen_hvm_smp_init(void) {}
+static inline void xen_smp_init(void) {
+}
+
+static inline void xen_hvm_smp_init(void) {
+}
+
 #endif
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
@@ -93,27 +97,27 @@ void __init xen_init_spinlocks(void);
 void xen_init_lock_cpu(int cpu);
 void xen_uninit_lock_cpu(int cpu);
 #else
-static inline void xen_init_spinlocks(void)
-{
+static inline void xen_init_spinlocks(void) {
 }
-static inline void xen_init_lock_cpu(int cpu)
-{
+
+static inline void xen_init_lock_cpu(int cpu) {
 }
-static inline void xen_uninit_lock_cpu(int cpu)
-{
+
+static inline void xen_uninit_lock_cpu(int cpu) {
 }
+
 #endif
 
 struct dom0_vga_console_info;
 
 #ifdef CONFIG_XEN_DOM0
 void __init xen_init_vga(const struct dom0_vga_console_info *, size_t size,
-			 struct screen_info *);
+    struct screen_info *);
 #else
 static inline void __init xen_init_vga(const struct dom0_vga_console_info *info,
-				       size_t size, struct screen_info *si)
-{
+    size_t size, struct screen_info *si) {
 }
+
 #endif
 
 void xen_add_preferred_consoles(void);
@@ -123,9 +127,9 @@ void __init xen_init_apic(void);
 #ifdef CONFIG_XEN_EFI
 extern void xen_efi_init(struct boot_params *boot_params);
 #else
-static inline void __init xen_efi_init(struct boot_params *boot_params)
-{
+static inline void __init xen_efi_init(struct boot_params *boot_params) {
 }
+
 #endif
 
 __visible void xen_irq_enable_direct(void);
@@ -141,7 +145,7 @@ __visible void xen_iret(void);
 extern int xen_panic_handler_init(void);
 
 int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
-		    int (*cpu_dead_cb)(unsigned int));
+    int (*cpu_dead_cb)(unsigned int));
 
 void xen_pin_vcpu(int cpu);
 
@@ -153,14 +157,20 @@ void xen_pv_pre_suspend(void);
 void xen_pv_post_suspend(int suspend_cancelled);
 void xen_start_kernel(struct start_info *si);
 #else
-static inline void xen_pv_pre_suspend(void) {}
-static inline void xen_pv_post_suspend(int suspend_cancelled) {}
+static inline void xen_pv_pre_suspend(void) {
+}
+
+static inline void xen_pv_post_suspend(int suspend_cancelled) {
+}
+
 #endif
 
 #ifdef CONFIG_XEN_PVHVM
 void xen_hvm_post_suspend(int suspend_cancelled);
 #else
-static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
+static inline void xen_hvm_post_suspend(int suspend_cancelled) {
+}
+
 #endif
 
 /*
@@ -173,7 +183,7 @@ static inline void xen_hvm_post_suspend(int suspend_cancelled) {}
  * 10x seems like a reasonable balance between scaling flexibility and
  * leaving a practically usable system.
  */
-#define EXTRA_MEM_RATIO		(10)
+#define EXTRA_MEM_RATIO   (10)
 
 void xen_add_extra_mem(unsigned long start_pfn, unsigned long n_pfns);
 

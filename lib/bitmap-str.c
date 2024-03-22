@@ -13,7 +13,8 @@
 #include "kstrtox.h"
 
 /**
- * bitmap_parse_user - convert an ASCII hex string in a user buffer into a bitmap
+ * bitmap_parse_user - convert an ASCII hex string in a user buffer into a
+ * bitmap
  *
  * @ubuf: pointer to user buffer containing string.
  * @ulen: buffer size in bytes.  If string is smaller than this
@@ -22,21 +23,19 @@
  * @nmaskbits: size of bitmap, in bits.
  */
 int bitmap_parse_user(const char __user *ubuf,
-			unsigned int ulen, unsigned long *maskp,
-			int nmaskbits)
-{
-	char *buf;
-	int ret;
-
-	buf = memdup_user_nul(ubuf, ulen);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
-
-	ret = bitmap_parse(buf, UINT_MAX, maskp, nmaskbits);
-
-	kfree(buf);
-	return ret;
+    unsigned int ulen, unsigned long *maskp,
+    int nmaskbits) {
+  char *buf;
+  int ret;
+  buf = memdup_user_nul(ubuf, ulen);
+  if (IS_ERR(buf)) {
+    return PTR_ERR(buf);
+  }
+  ret = bitmap_parse(buf, UINT_MAX, maskp, nmaskbits);
+  kfree(buf);
+  return ret;
 }
+
 EXPORT_SYMBOL(bitmap_parse_user);
 
 /**
@@ -56,13 +55,12 @@ EXPORT_SYMBOL(bitmap_parse_user);
  * actually printed to @buf, excluding terminating '\0'.
  */
 int bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
-			    int nmaskbits)
-{
-	ptrdiff_t len = PAGE_SIZE - offset_in_page(buf);
-
-	return list ? scnprintf(buf, len, "%*pbl\n", nmaskbits, maskp) :
-		      scnprintf(buf, len, "%*pb\n", nmaskbits, maskp);
+    int nmaskbits) {
+  ptrdiff_t len = PAGE_SIZE - offset_in_page(buf);
+  return list ? scnprintf(buf, len, "%*pbl\n", nmaskbits, maskp)
+    : scnprintf(buf, len, "%*pb\n", nmaskbits, maskp);
 }
+
 EXPORT_SYMBOL(bitmap_print_to_pagebuf);
 
 /**
@@ -77,24 +75,22 @@ EXPORT_SYMBOL(bitmap_print_to_pagebuf);
  * @count: the maximum number of bytes to print
  */
 static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
-		int nmaskbits, loff_t off, size_t count)
-{
-	const char *fmt = list ? "%*pbl\n" : "%*pb\n";
-	ssize_t size;
-	void *data;
-
-	data = kasprintf(GFP_KERNEL, fmt, nmaskbits, maskp);
-	if (!data)
-		return -ENOMEM;
-
-	size = memory_read_from_buffer(buf, count, &off, data, strlen(data) + 1);
-	kfree(data);
-
-	return size;
+    int nmaskbits, loff_t off, size_t count) {
+  const char *fmt = list ? "%*pbl\n" : "%*pb\n";
+  ssize_t size;
+  void *data;
+  data = kasprintf(GFP_KERNEL, fmt, nmaskbits, maskp);
+  if (!data) {
+    return -ENOMEM;
+  }
+  size = memory_read_from_buffer(buf, count, &off, data, strlen(data) + 1);
+  kfree(data);
+  return size;
 }
 
 /**
- * bitmap_print_bitmask_to_buf  - convert bitmap to hex bitmask format ASCII string
+ * bitmap_print_bitmask_to_buf  - convert bitmap to hex bitmask format ASCII
+ * string
  * @buf: buffer into which string is placed
  * @maskp: pointer to bitmap to convert
  * @nmaskbits: size of bitmap, in bits
@@ -108,10 +104,10 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * normal attribute typically has show entry as below::
  *
  *   static ssize_t example_attribute_show(struct device *dev,
- *		struct device_attribute *attr, char *buf)
+ *    struct device_attribute *attr, char *buf)
  *   {
- *	...
- *	return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
+ *  ...
+ *  return bitmap_print_to_pagebuf(true, buf, &mask, nr_trig_max);
  *   }
  *
  * show entry of attribute has no offset and count parameters and this
@@ -120,7 +116,7 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  * normal attribute with buf parameter and without offset, count::
  *
  *   bitmap_print_to_pagebuf(bool list, char *buf, const unsigned long *maskp,
- *			   int nmaskbits)
+ *         int nmaskbits)
  *   {
  *   }
  *
@@ -132,10 +128,10 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  *
  *   static ssize_t
  *   example_bin_attribute_show(struct file *filp, struct kobject *kobj,
- *		struct bin_attribute *attr, char *buf,
- *		loff_t offset, size_t count)
+ *    struct bin_attribute *attr, char *buf,
+ *    loff_t offset, size_t count)
  *   {
- *	...
+ *  ...
  *   }
  *
  * With the new offset and count parameters, this makes sysfs ABI be able
@@ -158,7 +154,8 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  *
  * WARNING!
  *
- * This function is not a replacement for sprintf() or bitmap_print_to_pagebuf().
+ * This function is not a replacement for sprintf() or
+ * bitmap_print_to_pagebuf().
  * It is intended to workaround sysfs limitations discussed above and should be
  * used carefully in general case for the following reasons:
  *
@@ -172,20 +169,22 @@ static int bitmap_print_to_buf(bool list, char *buf, const unsigned long *maskp,
  *  - If printing the whole bitmap as list by parts, user must ensure the order
  *    of calls of the function such that the offset is incremented linearly.
  *  - If printing the whole bitmap as list by parts, user must keep bitmap
- *    unchanged between the very first and very last call. Otherwise concatenated
+ *    unchanged between the very first and very last call. Otherwise
+ * concatenated
  *    result may be incorrect, and format may be broken.
  *
  * Returns the number of characters actually printed to @buf
  */
 int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp,
-				int nmaskbits, loff_t off, size_t count)
-{
-	return bitmap_print_to_buf(false, buf, maskp, nmaskbits, off, count);
+    int nmaskbits, loff_t off, size_t count) {
+  return bitmap_print_to_buf(false, buf, maskp, nmaskbits, off, count);
 }
+
 EXPORT_SYMBOL(bitmap_print_bitmask_to_buf);
 
 /**
- * bitmap_print_list_to_buf  - convert bitmap to decimal list format ASCII string
+ * bitmap_print_list_to_buf  - convert bitmap to decimal list format ASCII
+ * string
  * @buf: buffer into which string is placed
  * @maskp: pointer to bitmap to convert
  * @nmaskbits: size of bitmap, in bits
@@ -196,151 +195,137 @@ EXPORT_SYMBOL(bitmap_print_bitmask_to_buf);
  * the print format.
  */
 int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp,
-			     int nmaskbits, loff_t off, size_t count)
-{
-	return bitmap_print_to_buf(true, buf, maskp, nmaskbits, off, count);
+    int nmaskbits, loff_t off, size_t count) {
+  return bitmap_print_to_buf(true, buf, maskp, nmaskbits, off, count);
 }
+
 EXPORT_SYMBOL(bitmap_print_list_to_buf);
 
 /*
  * Region 9-38:4/10 describes the following bitmap structure:
- * 0	   9  12    18			38	     N
+ * 0     9  12    18      38       N
  * .........****......****......****..................
- *	    ^  ^     ^			 ^	     ^
- *      start  off   group_len	       end	 nbits
+ *      ^  ^     ^       ^       ^
+ *      start  off   group_len         end   nbits
  */
 struct region {
-	unsigned int start;
-	unsigned int off;
-	unsigned int group_len;
-	unsigned int end;
-	unsigned int nbits;
+  unsigned int start;
+  unsigned int off;
+  unsigned int group_len;
+  unsigned int end;
+  unsigned int nbits;
 };
 
-static void bitmap_set_region(const struct region *r, unsigned long *bitmap)
-{
-	unsigned int start;
-
-	for (start = r->start; start <= r->end; start += r->group_len)
-		bitmap_set(bitmap, start, min(r->end - start + 1, r->off));
+static void bitmap_set_region(const struct region *r, unsigned long *bitmap) {
+  unsigned int start;
+  for (start = r->start; start <= r->end; start += r->group_len) {
+    bitmap_set(bitmap, start, min(r->end - start + 1, r->off));
+  }
 }
 
-static int bitmap_check_region(const struct region *r)
-{
-	if (r->start > r->end || r->group_len == 0 || r->off > r->group_len)
-		return -EINVAL;
-
-	if (r->end >= r->nbits)
-		return -ERANGE;
-
-	return 0;
+static int bitmap_check_region(const struct region *r) {
+  if (r->start > r->end || r->group_len == 0 || r->off > r->group_len) {
+    return -EINVAL;
+  }
+  if (r->end >= r->nbits) {
+    return -ERANGE;
+  }
+  return 0;
 }
 
 static const char *bitmap_getnum(const char *str, unsigned int *num,
-				 unsigned int lastbit)
-{
-	unsigned long long n;
-	unsigned int len;
-
-	if (str[0] == 'N') {
-		*num = lastbit;
-		return str + 1;
-	}
-
-	len = _parse_integer(str, 10, &n);
-	if (!len)
-		return ERR_PTR(-EINVAL);
-	if (len & KSTRTOX_OVERFLOW || n != (unsigned int)n)
-		return ERR_PTR(-EOVERFLOW);
-
-	*num = n;
-	return str + len;
+    unsigned int lastbit) {
+  unsigned long long n;
+  unsigned int len;
+  if (str[0] == 'N') {
+    *num = lastbit;
+    return str + 1;
+  }
+  len = _parse_integer(str, 10, &n);
+  if (!len) {
+    return ERR_PTR(-EINVAL);
+  }
+  if (len & KSTRTOX_OVERFLOW || n != (unsigned int) n) {
+    return ERR_PTR(-EOVERFLOW);
+  }
+  *num = n;
+  return str + len;
 }
 
-static inline bool end_of_str(char c)
-{
-	return c == '\0' || c == '\n';
+static inline bool end_of_str(char c) {
+  return c == '\0' || c == '\n';
 }
 
-static inline bool __end_of_region(char c)
-{
-	return isspace(c) || c == ',';
+static inline bool __end_of_region(char c) {
+  return isspace(c) || c == ',';
 }
 
-static inline bool end_of_region(char c)
-{
-	return __end_of_region(c) || end_of_str(c);
+static inline bool end_of_region(char c) {
+  return __end_of_region(c) || end_of_str(c);
 }
 
 /*
  * The format allows commas and whitespaces at the beginning
  * of the region.
  */
-static const char *bitmap_find_region(const char *str)
-{
-	while (__end_of_region(*str))
-		str++;
-
-	return end_of_str(*str) ? NULL : str;
+static const char *bitmap_find_region(const char *str) {
+  while (__end_of_region(*str)) {
+    str++;
+  }
+  return end_of_str(*str) ? NULL : str;
 }
 
-static const char *bitmap_find_region_reverse(const char *start, const char *end)
-{
-	while (start <= end && __end_of_region(*end))
-		end--;
-
-	return end;
+static const char *bitmap_find_region_reverse(const char *start,
+    const char *end) {
+  while (start <= end && __end_of_region(*end)) {
+    end--;
+  }
+  return end;
 }
 
-static const char *bitmap_parse_region(const char *str, struct region *r)
-{
-	unsigned int lastbit = r->nbits - 1;
-
-	if (!strncasecmp(str, "all", 3)) {
-		r->start = 0;
-		r->end = lastbit;
-		str += 3;
-
-		goto check_pattern;
-	}
-
-	str = bitmap_getnum(str, &r->start, lastbit);
-	if (IS_ERR(str))
-		return str;
-
-	if (end_of_region(*str))
-		goto no_end;
-
-	if (*str != '-')
-		return ERR_PTR(-EINVAL);
-
-	str = bitmap_getnum(str + 1, &r->end, lastbit);
-	if (IS_ERR(str))
-		return str;
-
+static const char *bitmap_parse_region(const char *str, struct region *r) {
+  unsigned int lastbit = r->nbits - 1;
+  if (!strncasecmp(str, "all", 3)) {
+    r->start = 0;
+    r->end = lastbit;
+    str += 3;
+    goto check_pattern;
+  }
+  str = bitmap_getnum(str, &r->start, lastbit);
+  if (IS_ERR(str)) {
+    return str;
+  }
+  if (end_of_region(*str)) {
+    goto no_end;
+  }
+  if (*str != '-') {
+    return ERR_PTR(-EINVAL);
+  }
+  str = bitmap_getnum(str + 1, &r->end, lastbit);
+  if (IS_ERR(str)) {
+    return str;
+  }
 check_pattern:
-	if (end_of_region(*str))
-		goto no_pattern;
-
-	if (*str != ':')
-		return ERR_PTR(-EINVAL);
-
-	str = bitmap_getnum(str + 1, &r->off, lastbit);
-	if (IS_ERR(str))
-		return str;
-
-	if (*str != '/')
-		return ERR_PTR(-EINVAL);
-
-	return bitmap_getnum(str + 1, &r->group_len, lastbit);
-
+  if (end_of_region(*str)) {
+    goto no_pattern;
+  }
+  if (*str != ':') {
+    return ERR_PTR(-EINVAL);
+  }
+  str = bitmap_getnum(str + 1, &r->off, lastbit);
+  if (IS_ERR(str)) {
+    return str;
+  }
+  if (*str != '/') {
+    return ERR_PTR(-EINVAL);
+  }
+  return bitmap_getnum(str + 1, &r->group_len, lastbit);
 no_end:
-	r->end = r->start;
+  r->end = r->start;
 no_pattern:
-	r->off = r->end + 1;
-	r->group_len = r->end + 1;
-
-	return end_of_str(*str) ? NULL : str;
+  r->off = r->end + 1;
+  r->group_len = r->end + 1;
+  return end_of_str(*str) ? NULL : str;
 }
 
 /**
@@ -371,34 +356,30 @@ no_pattern:
  *   - ``-ERANGE``: bit number specified too large for mask
  *   - ``-EOVERFLOW``: integer overflow in the input parameters
  */
-int bitmap_parselist(const char *buf, unsigned long *maskp, int nmaskbits)
-{
-	struct region r;
-	long ret;
-
-	r.nbits = nmaskbits;
-	bitmap_zero(maskp, r.nbits);
-
-	while (buf) {
-		buf = bitmap_find_region(buf);
-		if (buf == NULL)
-			return 0;
-
-		buf = bitmap_parse_region(buf, &r);
-		if (IS_ERR(buf))
-			return PTR_ERR(buf);
-
-		ret = bitmap_check_region(&r);
-		if (ret)
-			return ret;
-
-		bitmap_set_region(&r, maskp);
-	}
-
-	return 0;
+int bitmap_parselist(const char *buf, unsigned long *maskp, int nmaskbits) {
+  struct region r;
+  long ret;
+  r.nbits = nmaskbits;
+  bitmap_zero(maskp, r.nbits);
+  while (buf) {
+    buf = bitmap_find_region(buf);
+    if (buf == NULL) {
+      return 0;
+    }
+    buf = bitmap_parse_region(buf, &r);
+    if (IS_ERR(buf)) {
+      return PTR_ERR(buf);
+    }
+    ret = bitmap_check_region(&r);
+    if (ret) {
+      return ret;
+    }
+    bitmap_set_region(&r, maskp);
+  }
+  return 0;
 }
-EXPORT_SYMBOL(bitmap_parselist);
 
+EXPORT_SYMBOL(bitmap_parselist);
 
 /**
  * bitmap_parselist_user() - convert user buffer's list format ASCII
@@ -413,45 +394,41 @@ EXPORT_SYMBOL(bitmap_parselist);
  * Wrapper for bitmap_parselist(), providing it with user buffer.
  */
 int bitmap_parselist_user(const char __user *ubuf,
-			unsigned int ulen, unsigned long *maskp,
-			int nmaskbits)
-{
-	char *buf;
-	int ret;
-
-	buf = memdup_user_nul(ubuf, ulen);
-	if (IS_ERR(buf))
-		return PTR_ERR(buf);
-
-	ret = bitmap_parselist(buf, maskp, nmaskbits);
-
-	kfree(buf);
-	return ret;
+    unsigned int ulen, unsigned long *maskp,
+    int nmaskbits) {
+  char *buf;
+  int ret;
+  buf = memdup_user_nul(ubuf, ulen);
+  if (IS_ERR(buf)) {
+    return PTR_ERR(buf);
+  }
+  ret = bitmap_parselist(buf, maskp, nmaskbits);
+  kfree(buf);
+  return ret;
 }
+
 EXPORT_SYMBOL(bitmap_parselist_user);
 
 static const char *bitmap_get_x32_reverse(const char *start,
-					const char *end, u32 *num)
-{
-	u32 ret = 0;
-	int c, i;
-
-	for (i = 0; i < 32; i += 4) {
-		c = hex_to_bin(*end--);
-		if (c < 0)
-			return ERR_PTR(-EINVAL);
-
-		ret |= c << i;
-
-		if (start > end || __end_of_region(*end))
-			goto out;
-	}
-
-	if (hex_to_bin(*end--) >= 0)
-		return ERR_PTR(-EOVERFLOW);
+    const char *end, u32 *num) {
+  u32 ret = 0;
+  int c, i;
+  for (i = 0; i < 32; i += 4) {
+    c = hex_to_bin(*end--);
+    if (c < 0) {
+      return ERR_PTR(-EINVAL);
+    }
+    ret |= c << i;
+    if (start > end || __end_of_region(*end)) {
+      goto out;
+    }
+  }
+  if (hex_to_bin(*end--) >= 0) {
+    return ERR_PTR(-EOVERFLOW);
+  }
 out:
-	*num = ret;
-	return end;
+  *num = ret;
+  return end;
 }
 
 /**
@@ -471,40 +448,38 @@ out:
  * Leading, embedded and trailing whitespace accepted.
  */
 int bitmap_parse(const char *start, unsigned int buflen,
-		unsigned long *maskp, int nmaskbits)
-{
-	const char *end = strnchrnul(start, buflen, '\n') - 1;
-	int chunks = BITS_TO_U32(nmaskbits);
-	u32 *bitmap = (u32 *)maskp;
-	int unset_bit;
-	int chunk;
-
-	for (chunk = 0; ; chunk++) {
-		end = bitmap_find_region_reverse(start, end);
-		if (start > end)
-			break;
-
-		if (!chunks--)
-			return -EOVERFLOW;
-
+    unsigned long *maskp, int nmaskbits) {
+  const char *end = strnchrnul(start, buflen, '\n') - 1;
+  int chunks = BITS_TO_U32(nmaskbits);
+  u32 *bitmap = (u32 *) maskp;
+  int unset_bit;
+  int chunk;
+  for (chunk = 0; ; chunk++) {
+    end = bitmap_find_region_reverse(start, end);
+    if (start > end) {
+      break;
+    }
+    if (!chunks--) {
+      return -EOVERFLOW;
+    }
 #if defined(CONFIG_64BIT) && defined(__BIG_ENDIAN)
-		end = bitmap_get_x32_reverse(start, end, &bitmap[chunk ^ 1]);
+    end = bitmap_get_x32_reverse(start, end, &bitmap[chunk ^ 1]);
 #else
-		end = bitmap_get_x32_reverse(start, end, &bitmap[chunk]);
+    end = bitmap_get_x32_reverse(start, end, &bitmap[chunk]);
 #endif
-		if (IS_ERR(end))
-			return PTR_ERR(end);
-	}
-
-	unset_bit = (BITS_TO_U32(nmaskbits) - chunks) * 32;
-	if (unset_bit < nmaskbits) {
-		bitmap_clear(maskp, unset_bit, nmaskbits - unset_bit);
-		return 0;
-	}
-
-	if (find_next_bit(maskp, unset_bit, nmaskbits) != unset_bit)
-		return -EOVERFLOW;
-
-	return 0;
+    if (IS_ERR(end)) {
+      return PTR_ERR(end);
+    }
+  }
+  unset_bit = (BITS_TO_U32(nmaskbits) - chunks) * 32;
+  if (unset_bit < nmaskbits) {
+    bitmap_clear(maskp, unset_bit, nmaskbits - unset_bit);
+    return 0;
+  }
+  if (find_next_bit(maskp, unset_bit, nmaskbits) != unset_bit) {
+    return -EOVERFLOW;
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL(bitmap_parse);

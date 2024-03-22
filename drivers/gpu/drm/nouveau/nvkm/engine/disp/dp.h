@@ -4,7 +4,7 @@
 #include "outp.h"
 
 int nvkm_dp_new(struct nvkm_disp *, int index, struct dcb_output *,
-		struct nvkm_outp **);
+    struct nvkm_outp **);
 void nvkm_dp_disable(struct nvkm_outp *, struct nvkm_ior *);
 void nvkm_dp_enable(struct nvkm_outp *, bool auxpwr);
 
@@ -31,7 +31,7 @@ void nvkm_dp_enable(struct nvkm_outp *, bool auxpwr);
 #define DPCD_LC02                                                       0x00102
 #define DPCD_LC02_TRAINING_PATTERN_SET                                     0x0f
 #define DPCD_LC02_SCRAMBLING_DISABLE                                       0x20
-#define DPCD_LC03(l)                                            ((l) +  0x00103)
+#define DPCD_LC03(l)                                            ((l) + 0x00103)
 #define DPCD_LC03_MAX_PRE_EMPHASIS_REACHED                                 0x20
 #define DPCD_LC03_PRE_EMPHASIS_SET                                         0x18
 #define DPCD_LC03_MAX_SWING_REACHED                                        0x04

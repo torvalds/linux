@@ -22,17 +22,17 @@
 #include <linux/filter.h>
 
 /* Read queue size */
-#define TUN_READQ_SIZE	500
+#define TUN_READQ_SIZE  500
 /* TUN device type flags: deprecated. Use IFF_TUN/IFF_TAP instead. */
-#define TUN_TUN_DEV 	IFF_TUN
-#define TUN_TAP_DEV	IFF_TAP
+#define TUN_TUN_DEV   IFF_TUN
+#define TUN_TAP_DEV IFF_TAP
 #define TUN_TYPE_MASK   0x000f
 
 /* Ioctl defines */
-#define TUNSETNOCSUM  _IOW('T', 200, int) 
-#define TUNSETDEBUG   _IOW('T', 201, int) 
-#define TUNSETIFF     _IOW('T', 202, int) 
-#define TUNSETPERSIST _IOW('T', 203, int) 
+#define TUNSETNOCSUM  _IOW('T', 200, int)
+#define TUNSETDEBUG   _IOW('T', 201, int)
+#define TUNSETIFF     _IOW('T', 202, int)
+#define TUNSETPERSIST _IOW('T', 203, int)
 #define TUNSETOWNER   _IOW('T', 204, int)
 #define TUNSETLINK    _IOW('T', 205, int)
 #define TUNSETGROUP   _IOW('T', 206, int)
@@ -47,7 +47,7 @@
 #define TUNGETVNETHDRSZ _IOR('T', 215, int)
 #define TUNSETVNETHDRSZ _IOW('T', 216, int)
 #define TUNSETQUEUE  _IOW('T', 217, int)
-#define TUNSETIFINDEX	_IOW('T', 218, unsigned int)
+#define TUNSETIFINDEX _IOW('T', 218, unsigned int)
 #define TUNGETFILTER _IOR('T', 219, struct sock_fprog)
 #define TUNSETVNETLE _IOW('T', 220, int)
 #define TUNGETVNETLE _IOR('T', 221, int)
@@ -63,37 +63,37 @@
 #define TUNGETDEVNETNS _IO('T', 227)
 
 /* TUNSETIFF ifr flags */
-#define IFF_TUN		0x0001
-#define IFF_TAP		0x0002
-#define IFF_NAPI	0x0010
-#define IFF_NAPI_FRAGS	0x0020
-#define IFF_NO_PI	0x1000
+#define IFF_TUN   0x0001
+#define IFF_TAP   0x0002
+#define IFF_NAPI  0x0010
+#define IFF_NAPI_FRAGS  0x0020
+#define IFF_NO_PI 0x1000
 /* This flag has no real effect */
-#define IFF_ONE_QUEUE	0x2000
-#define IFF_VNET_HDR	0x4000
-#define IFF_TUN_EXCL	0x8000
+#define IFF_ONE_QUEUE 0x2000
+#define IFF_VNET_HDR  0x4000
+#define IFF_TUN_EXCL  0x8000
 #define IFF_MULTI_QUEUE 0x0100
 #define IFF_ATTACH_QUEUE 0x0200
 #define IFF_DETACH_QUEUE 0x0400
 /* read-only flag */
-#define IFF_PERSIST	0x0800
-#define IFF_NOFILTER	0x1000
+#define IFF_PERSIST 0x0800
+#define IFF_NOFILTER  0x1000
 
 /* Socket options */
 #define TUN_TX_TIMESTAMP 1
 
 /* Features for GSO (TUNSETOFFLOAD). */
-#define TUN_F_CSUM	0x01	/* You can hand me unchecksummed packets. */
-#define TUN_F_TSO4	0x02	/* I can handle TSO for IPv4 packets */
-#define TUN_F_TSO6	0x04	/* I can handle TSO for IPv6 packets */
-#define TUN_F_TSO_ECN	0x08	/* I can handle TSO with ECN bits. */
-#define TUN_F_UFO	0x10	/* I can handle UFO packets */
+#define TUN_F_CSUM  0x01  /* You can hand me unchecksummed packets. */
+#define TUN_F_TSO4  0x02  /* I can handle TSO for IPv4 packets */
+#define TUN_F_TSO6  0x04  /* I can handle TSO for IPv6 packets */
+#define TUN_F_TSO_ECN 0x08  /* I can handle TSO with ECN bits. */
+#define TUN_F_UFO 0x10  /* I can handle UFO packets */
 
 /* Protocol info prepended to the packets (when IFF_NO_PI is not set) */
-#define TUN_PKT_STRIP	0x0001
+#define TUN_PKT_STRIP 0x0001
 struct tun_pi {
-	__u16  flags;
-	__be16 proto;
+  __u16 flags;
+  __be16 proto;
 };
 
 /*
@@ -106,9 +106,9 @@ struct tun_pi {
  */
 #define TUN_FLT_ALLMULTI 0x0001 /* Accept all multicast packets */
 struct tun_filter {
-	__u16  flags; /* TUN_FLT_ flags see above */
-	__u16  count; /* Number of addresses */
-	__u8   addr[][ETH_ALEN];
+  __u16 flags; /* TUN_FLT_ flags see above */
+  __u16 count; /* Number of addresses */
+  __u8 addr[][ETH_ALEN];
 };
 
 #endif /* _UAPI__IF_TUN_H */

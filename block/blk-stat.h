@@ -17,49 +17,49 @@
  * timer fires, @cpu_stat is flushed to @stat and @timer_fn is invoked.
  */
 struct blk_stat_callback {
-	/*
-	 * @list: RCU list of callbacks for a &struct request_queue.
-	 */
-	struct list_head list;
+  /*
+   * @list: RCU list of callbacks for a &struct request_queue.
+   */
+  struct list_head list;
 
-	/**
-	 * @timer: Timer for the next callback invocation.
-	 */
-	struct timer_list timer;
+  /**
+   * @timer: Timer for the next callback invocation.
+   */
+  struct timer_list timer;
 
-	/**
-	 * @cpu_stat: Per-cpu statistics buckets.
-	 */
-	struct blk_rq_stat __percpu *cpu_stat;
+  /**
+   * @cpu_stat: Per-cpu statistics buckets.
+   */
+  struct blk_rq_stat __percpu *cpu_stat;
 
-	/**
-	 * @bucket_fn: Given a request, returns which statistics bucket it
-	 * should be accounted under. Return -1 for no bucket for this
-	 * request.
-	 */
-	int (*bucket_fn)(const struct request *);
+  /**
+   * @bucket_fn: Given a request, returns which statistics bucket it
+   * should be accounted under. Return -1 for no bucket for this
+   * request.
+   */
+  int (*bucket_fn)(const struct request *);
 
-	/**
-	 * @buckets: Number of statistics buckets.
-	 */
-	unsigned int buckets;
+  /**
+   * @buckets: Number of statistics buckets.
+   */
+  unsigned int buckets;
 
-	/**
-	 * @stat: Array of statistics buckets.
-	 */
-	struct blk_rq_stat *stat;
+  /**
+   * @stat: Array of statistics buckets.
+   */
+  struct blk_rq_stat *stat;
 
-	/**
-	 * @fn: Callback function.
-	 */
-	void (*timer_fn)(struct blk_stat_callback *);
+  /**
+   * @fn: Callback function.
+   */
+  void (*timer_fn)(struct blk_stat_callback *);
 
-	/**
-	 * @data: Private pointer for the user.
-	 */
-	void *data;
+  /**
+   * @data: Private pointer for the user.
+   */
+  void *data;
 
-	struct rcu_head rcu;
+  struct rcu_head rcu;
 };
 
 struct blk_queue_stats *blk_alloc_queue_stats(void);
@@ -83,10 +83,10 @@ void blk_stat_disable_accounting(struct request_queue *q);
  *
  * Return: &struct blk_stat_callback on success or NULL on ENOMEM.
  */
-struct blk_stat_callback *
-blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
-			int (*bucket_fn)(const struct request *),
-			unsigned int buckets, void *data);
+struct blk_stat_callback *blk_stat_alloc_callback(void (*timer_fn)(
+    struct blk_stat_callback *),
+    int (*bucket_fn)(const struct request *),
+    unsigned int buckets, void *data);
 
 /**
  * blk_stat_add_callback() - Add a block statistics callback to be run on a
@@ -98,7 +98,7 @@ blk_stat_alloc_callback(void (*timer_fn)(struct blk_stat_callback *),
  * &struct request_queue.
  */
 void blk_stat_add_callback(struct request_queue *q,
-			   struct blk_stat_callback *cb);
+    struct blk_stat_callback *cb);
 
 /**
  * blk_stat_remove_callback() - Remove a block statistics callback from a
@@ -110,7 +110,7 @@ void blk_stat_add_callback(struct request_queue *q,
  * called again unless readded.
  */
 void blk_stat_remove_callback(struct request_queue *q,
-			      struct blk_stat_callback *cb);
+    struct blk_stat_callback *cb);
 
 /**
  * blk_stat_free_callback() - Free a block statistics callback.
@@ -128,9 +128,8 @@ void blk_stat_free_callback(struct blk_stat_callback *cb);
  * gathering statistics.
  * @cb: The callback.
  */
-static inline bool blk_stat_is_active(struct blk_stat_callback *cb)
-{
-	return timer_pending(&cb->timer);
+static inline bool blk_stat_is_active(struct blk_stat_callback *cb) {
+  return timer_pending(&cb->timer);
 }
 
 /**
@@ -142,14 +141,12 @@ static inline bool blk_stat_is_active(struct blk_stat_callback *cb)
  * The timer callback will be called when the window expires.
  */
 static inline void blk_stat_activate_nsecs(struct blk_stat_callback *cb,
-					   u64 nsecs)
-{
-	mod_timer(&cb->timer, jiffies + nsecs_to_jiffies(nsecs));
+    u64 nsecs) {
+  mod_timer(&cb->timer, jiffies + nsecs_to_jiffies(nsecs));
 }
 
-static inline void blk_stat_deactivate(struct blk_stat_callback *cb)
-{
-	del_timer_sync(&cb->timer);
+static inline void blk_stat_deactivate(struct blk_stat_callback *cb) {
+  del_timer_sync(&cb->timer);
 }
 
 /**
@@ -161,9 +158,8 @@ static inline void blk_stat_deactivate(struct blk_stat_callback *cb)
  * The timer callback will be called when the window expires.
  */
 static inline void blk_stat_activate_msecs(struct blk_stat_callback *cb,
-					   unsigned int msecs)
-{
-	mod_timer(&cb->timer, jiffies + msecs_to_jiffies(msecs));
+    unsigned int msecs) {
+  mod_timer(&cb->timer, jiffies + msecs_to_jiffies(msecs));
 }
 
 void blk_rq_stat_add(struct blk_rq_stat *, u64);

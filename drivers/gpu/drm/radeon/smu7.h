@@ -29,7 +29,6 @@
 #define SMU7_CONTEXT_ID_SMC        1
 #define SMU7_CONTEXT_ID_VBIOS      2
 
-
 #define SMU7_CONTEXT_ID_SMC        1
 #define SMU7_CONTEXT_ID_VBIOS      2
 
@@ -38,10 +37,14 @@
 #define SMU7_MAX_LEVELS_MVDD            4
 #define SMU7_MAX_LEVELS_VDDNB           8
 
-#define SMU7_MAX_LEVELS_GRAPHICS        SMU__NUM_SCLK_DPM_STATE   // SCLK + SQ DPM + ULV
-#define SMU7_MAX_LEVELS_MEMORY          SMU__NUM_MCLK_DPM_LEVELS   // MCLK Levels DPM
+#define SMU7_MAX_LEVELS_GRAPHICS        SMU__NUM_SCLK_DPM_STATE   // SCLK + SQ
+                                                                  // DPM + ULV
+#define SMU7_MAX_LEVELS_MEMORY          SMU__NUM_MCLK_DPM_LEVELS   // MCLK
+                                                                   // Levels DPM
 #define SMU7_MAX_LEVELS_GIO             SMU__NUM_LCLK_DPM_LEVELS  // LCLK Levels
-#define SMU7_MAX_LEVELS_LINK            SMU__NUM_PCIE_DPM_LEVELS  // PCIe speed and number of lanes.
+#define SMU7_MAX_LEVELS_LINK            SMU__NUM_PCIE_DPM_LEVELS  // PCIe speed
+                                                                  // and number
+                                                                  // of lanes.
 #define SMU7_MAX_LEVELS_UVD             8   // VCLK/DCLK levels for UVD.
 #define SMU7_MAX_LEVELS_VCE             8   // ECLK levels for VCE.
 #define SMU7_MAX_LEVELS_ACP             8   // ACLK levels for ACP.
@@ -61,37 +64,36 @@
 #define GPIO_CLAMP_MODE_DC         4
 
 #define SCRATCH_B_TARG_PCIE_INDEX_SHIFT 0
-#define SCRATCH_B_TARG_PCIE_INDEX_MASK  (0x7<<SCRATCH_B_TARG_PCIE_INDEX_SHIFT)
+#define SCRATCH_B_TARG_PCIE_INDEX_MASK  (0x7 << SCRATCH_B_TARG_PCIE_INDEX_SHIFT)
 #define SCRATCH_B_CURR_PCIE_INDEX_SHIFT 3
-#define SCRATCH_B_CURR_PCIE_INDEX_MASK  (0x7<<SCRATCH_B_CURR_PCIE_INDEX_SHIFT)
+#define SCRATCH_B_CURR_PCIE_INDEX_MASK  (0x7 << SCRATCH_B_CURR_PCIE_INDEX_SHIFT)
 #define SCRATCH_B_TARG_UVD_INDEX_SHIFT  6
-#define SCRATCH_B_TARG_UVD_INDEX_MASK   (0x7<<SCRATCH_B_TARG_UVD_INDEX_SHIFT)
+#define SCRATCH_B_TARG_UVD_INDEX_MASK   (0x7 << SCRATCH_B_TARG_UVD_INDEX_SHIFT)
 #define SCRATCH_B_CURR_UVD_INDEX_SHIFT  9
-#define SCRATCH_B_CURR_UVD_INDEX_MASK   (0x7<<SCRATCH_B_CURR_UVD_INDEX_SHIFT)
+#define SCRATCH_B_CURR_UVD_INDEX_MASK   (0x7 << SCRATCH_B_CURR_UVD_INDEX_SHIFT)
 #define SCRATCH_B_TARG_VCE_INDEX_SHIFT  12
-#define SCRATCH_B_TARG_VCE_INDEX_MASK   (0x7<<SCRATCH_B_TARG_VCE_INDEX_SHIFT)
+#define SCRATCH_B_TARG_VCE_INDEX_MASK   (0x7 << SCRATCH_B_TARG_VCE_INDEX_SHIFT)
 #define SCRATCH_B_CURR_VCE_INDEX_SHIFT  15
-#define SCRATCH_B_CURR_VCE_INDEX_MASK   (0x7<<SCRATCH_B_CURR_VCE_INDEX_SHIFT)
+#define SCRATCH_B_CURR_VCE_INDEX_MASK   (0x7 << SCRATCH_B_CURR_VCE_INDEX_SHIFT)
 #define SCRATCH_B_TARG_ACP_INDEX_SHIFT  18
-#define SCRATCH_B_TARG_ACP_INDEX_MASK   (0x7<<SCRATCH_B_TARG_ACP_INDEX_SHIFT)
+#define SCRATCH_B_TARG_ACP_INDEX_MASK   (0x7 << SCRATCH_B_TARG_ACP_INDEX_SHIFT)
 #define SCRATCH_B_CURR_ACP_INDEX_SHIFT  21
-#define SCRATCH_B_CURR_ACP_INDEX_MASK   (0x7<<SCRATCH_B_CURR_ACP_INDEX_SHIFT)
+#define SCRATCH_B_CURR_ACP_INDEX_MASK   (0x7 << SCRATCH_B_CURR_ACP_INDEX_SHIFT)
 #define SCRATCH_B_TARG_SAMU_INDEX_SHIFT 24
-#define SCRATCH_B_TARG_SAMU_INDEX_MASK  (0x7<<SCRATCH_B_TARG_SAMU_INDEX_SHIFT)
+#define SCRATCH_B_TARG_SAMU_INDEX_MASK  (0x7 << SCRATCH_B_TARG_SAMU_INDEX_SHIFT)
 #define SCRATCH_B_CURR_SAMU_INDEX_SHIFT 27
-#define SCRATCH_B_CURR_SAMU_INDEX_MASK  (0x7<<SCRATCH_B_CURR_SAMU_INDEX_SHIFT)
-
+#define SCRATCH_B_CURR_SAMU_INDEX_MASK  (0x7 << SCRATCH_B_CURR_SAMU_INDEX_SHIFT)
 
 struct SMU7_PIDController {
-    uint32_t Ki;
-    int32_t LFWindupUL;
-    int32_t LFWindupLL;
-    uint32_t StatePrecision;
-    uint32_t LfPrecision;
-    uint32_t LfOffset;
-    uint32_t MaxState;
-    uint32_t MaxLfFraction;
-    uint32_t StateShift;
+  uint32_t Ki;
+  int32_t LFWindupUL;
+  int32_t LFWindupLL;
+  uint32_t StatePrecision;
+  uint32_t LfPrecision;
+  uint32_t LfOffset;
+  uint32_t MaxState;
+  uint32_t MaxLfFraction;
+  uint32_t StateShift;
 };
 
 typedef struct SMU7_PIDController SMU7_PIDController;
@@ -117,29 +119,29 @@ typedef struct SMU7_PIDController SMU7_PIDController;
 #define SMU7_VCE_SCLK_HANDSHAKE_DISABLE                  0x00020000
 
 struct SMU7_Firmware_Header {
-    uint32_t Digest[5];
-    uint32_t Version;
-    uint32_t HeaderSize;
-    uint32_t Flags;
-    uint32_t EntryPoint;
-    uint32_t CodeSize;
-    uint32_t ImageSize;
+  uint32_t Digest[5];
+  uint32_t Version;
+  uint32_t HeaderSize;
+  uint32_t Flags;
+  uint32_t EntryPoint;
+  uint32_t CodeSize;
+  uint32_t ImageSize;
 
-    uint32_t Rtos;
-    uint32_t SoftRegisters;
-    uint32_t DpmTable;
-    uint32_t FanTable;
-    uint32_t CacConfigTable;
-    uint32_t CacStatusTable;
+  uint32_t Rtos;
+  uint32_t SoftRegisters;
+  uint32_t DpmTable;
+  uint32_t FanTable;
+  uint32_t CacConfigTable;
+  uint32_t CacStatusTable;
 
-    uint32_t mcRegisterTable;
+  uint32_t mcRegisterTable;
 
-    uint32_t mcArbDramTimingTable;
+  uint32_t mcArbDramTimingTable;
 
-    uint32_t PmFuseTable;
-    uint32_t Globals;
-    uint32_t Reserved[42];
-    uint32_t Signature;
+  uint32_t PmFuseTable;
+  uint32_t Globals;
+  uint32_t Reserved[42];
+  uint32_t Signature;
 };
 
 typedef struct SMU7_Firmware_Header SMU7_Firmware_Header;
@@ -147,22 +149,21 @@ typedef struct SMU7_Firmware_Header SMU7_Firmware_Header;
 #define SMU7_FIRMWARE_HEADER_LOCATION 0x20000
 
 enum  DisplayConfig {
-    PowerDown = 1,
-    DP54x4,
-    DP54x2,
-    DP54x1,
-    DP27x4,
-    DP27x2,
-    DP27x1,
-    HDMI297,
-    HDMI162,
-    LVDS,
-    DP324x4,
-    DP324x2,
-    DP324x1
+  PowerDown = 1,
+  DP54x4,
+  DP54x2,
+  DP54x1,
+  DP27x4,
+  DP27x2,
+  DP27x1,
+  HDMI297,
+  HDMI162,
+  LVDS,
+  DP324x4,
+  DP324x2,
+  DP324x1
 };
 
 #pragma pack(pop)
 
 #endif
-

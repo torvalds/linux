@@ -4,5 +4,5 @@
 #include <engine/nvjpg.h>
 
 int r535_nvjpg_new(const struct nvkm_engine_func *, struct nvkm_device *,
-		   enum nvkm_subdev_type, int, struct nvkm_engine **);
+    enum nvkm_subdev_type, int, struct nvkm_engine **);
 #endif

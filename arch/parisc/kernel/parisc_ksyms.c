@@ -99,7 +99,7 @@ EXPORT_SYMBOL(__lshrdi3);
 EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__ucmpdi2);
 
-asmlinkage void * __canonicalize_funcptr_for_compare(void *);
+asmlinkage void *__canonicalize_funcptr_for_compare(void *);
 EXPORT_SYMBOL(__canonicalize_funcptr_for_compare);
 
 #ifdef CONFIG_64BIT

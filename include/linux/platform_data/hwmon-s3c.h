@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2005 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
+ *  Ben Dooks <ben@simtec.co.uk>
+ *  http://armlinux.simtec.co.uk/
  *
  * S3C - HWMon interface for ADC
-*/
+ */
 
 #ifndef __HWMON_S3C_H__
 #define __HWMON_S3C_H__
@@ -20,9 +20,9 @@
  * hwmon expects (mV) by result = (value_read * @mult) / @div.
  */
 struct s3c_hwmon_chcfg {
-	const char	*name;
-	unsigned int	mult;
-	unsigned int	div;
+  const char *name;
+  unsigned int mult;
+  unsigned int div;
 };
 
 /**
@@ -30,7 +30,7 @@ struct s3c_hwmon_chcfg {
  * @in: One configuration for each possible channel used.
  */
 struct s3c_hwmon_pdata {
-	struct s3c_hwmon_chcfg	*in[8];
+  struct s3c_hwmon_chcfg *in[8];
 };
 
 /**

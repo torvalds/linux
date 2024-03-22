@@ -69,7 +69,7 @@
 #define AFE_MAX_REGISTER AFE_VUL0_CON0
 #define AFE_IRQ_STATUS_BITS             0x7
 #define AFE_IRQ_CNT_SHIFT               0
-#define AFE_IRQ_CNT_MASK	        0xffffff
+#define AFE_IRQ_CNT_MASK          0xffffff
 
 /* AUDIO_TOP_CON2 */
 #define CLK_OUT5_PDN                    BIT(14)

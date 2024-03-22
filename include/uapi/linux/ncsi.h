@@ -15,36 +15,36 @@
  *
  * @NCSI_CMD_UNSPEC: unspecified command to catch errors
  * @NCSI_CMD_PKG_INFO: list package and channel attributes. Requires
- *	NCSI_ATTR_IFINDEX. If NCSI_ATTR_PACKAGE_ID is specified returns the
- *	specific package and its channels - otherwise a dump request returns
- *	all packages and their associated channels.
+ *  NCSI_ATTR_IFINDEX. If NCSI_ATTR_PACKAGE_ID is specified returns the
+ *  specific package and its channels - otherwise a dump request returns
+ *  all packages and their associated channels.
  * @NCSI_CMD_SET_INTERFACE: set preferred package and channel combination.
- *	Requires NCSI_ATTR_IFINDEX and the preferred NCSI_ATTR_PACKAGE_ID and
- *	optionally the preferred NCSI_ATTR_CHANNEL_ID.
+ *  Requires NCSI_ATTR_IFINDEX and the preferred NCSI_ATTR_PACKAGE_ID and
+ *  optionally the preferred NCSI_ATTR_CHANNEL_ID.
  * @NCSI_CMD_CLEAR_INTERFACE: clear any preferred package/channel combination.
- *	Requires NCSI_ATTR_IFINDEX.
+ *  Requires NCSI_ATTR_IFINDEX.
  * @NCSI_CMD_SEND_CMD: send NC-SI command to network card.
- *	Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID
- *	and NCSI_ATTR_CHANNEL_ID.
+ *  Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID
+ *  and NCSI_ATTR_CHANNEL_ID.
  * @NCSI_CMD_SET_PACKAGE_MASK: set a whitelist of allowed packages.
- *	Requires NCSI_ATTR_IFINDEX and NCSI_ATTR_PACKAGE_MASK.
+ *  Requires NCSI_ATTR_IFINDEX and NCSI_ATTR_PACKAGE_MASK.
  * @NCSI_CMD_SET_CHANNEL_MASK: set a whitelist of allowed channels.
- *	Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID, and
- *	NCSI_ATTR_CHANNEL_MASK. If NCSI_ATTR_CHANNEL_ID is present it sets
- *	the primary channel.
+ *  Requires NCSI_ATTR_IFINDEX, NCSI_ATTR_PACKAGE_ID, and
+ *  NCSI_ATTR_CHANNEL_MASK. If NCSI_ATTR_CHANNEL_ID is present it sets
+ *  the primary channel.
  * @NCSI_CMD_MAX: highest command number
  */
 enum ncsi_nl_commands {
-	NCSI_CMD_UNSPEC,
-	NCSI_CMD_PKG_INFO,
-	NCSI_CMD_SET_INTERFACE,
-	NCSI_CMD_CLEAR_INTERFACE,
-	NCSI_CMD_SEND_CMD,
-	NCSI_CMD_SET_PACKAGE_MASK,
-	NCSI_CMD_SET_CHANNEL_MASK,
+  NCSI_CMD_UNSPEC,
+  NCSI_CMD_PKG_INFO,
+  NCSI_CMD_SET_INTERFACE,
+  NCSI_CMD_CLEAR_INTERFACE,
+  NCSI_CMD_SEND_CMD,
+  NCSI_CMD_SET_PACKAGE_MASK,
+  NCSI_CMD_SET_CHANNEL_MASK,
 
-	__NCSI_CMD_AFTER_LAST,
-	NCSI_CMD_MAX = __NCSI_CMD_AFTER_LAST - 1
+  __NCSI_CMD_AFTER_LAST,
+  NCSI_CMD_MAX = __NCSI_CMD_AFTER_LAST - 1
 };
 
 /**
@@ -57,24 +57,24 @@ enum ncsi_nl_commands {
  * @NCSI_ATTR_CHANNEL_ID: channel ID
  * @NCSI_ATTR_DATA: command payload
  * @NCSI_ATTR_MULTI_FLAG: flag to signal that multi-mode should be enabled with
- *	NCSI_CMD_SET_PACKAGE_MASK or NCSI_CMD_SET_CHANNEL_MASK.
+ *  NCSI_CMD_SET_PACKAGE_MASK or NCSI_CMD_SET_CHANNEL_MASK.
  * @NCSI_ATTR_PACKAGE_MASK: 32-bit mask of allowed packages.
  * @NCSI_ATTR_CHANNEL_MASK: 32-bit mask of allowed channels.
  * @NCSI_ATTR_MAX: highest attribute number
  */
 enum ncsi_nl_attrs {
-	NCSI_ATTR_UNSPEC,
-	NCSI_ATTR_IFINDEX,
-	NCSI_ATTR_PACKAGE_LIST,
-	NCSI_ATTR_PACKAGE_ID,
-	NCSI_ATTR_CHANNEL_ID,
-	NCSI_ATTR_DATA,
-	NCSI_ATTR_MULTI_FLAG,
-	NCSI_ATTR_PACKAGE_MASK,
-	NCSI_ATTR_CHANNEL_MASK,
+  NCSI_ATTR_UNSPEC,
+  NCSI_ATTR_IFINDEX,
+  NCSI_ATTR_PACKAGE_LIST,
+  NCSI_ATTR_PACKAGE_ID,
+  NCSI_ATTR_CHANNEL_ID,
+  NCSI_ATTR_DATA,
+  NCSI_ATTR_MULTI_FLAG,
+  NCSI_ATTR_PACKAGE_MASK,
+  NCSI_ATTR_CHANNEL_MASK,
 
-	__NCSI_ATTR_AFTER_LAST,
-	NCSI_ATTR_MAX = __NCSI_ATTR_AFTER_LAST - 1
+  __NCSI_ATTR_AFTER_LAST,
+  NCSI_ATTR_MAX = __NCSI_ATTR_AFTER_LAST - 1
 };
 
 /**
@@ -88,14 +88,14 @@ enum ncsi_nl_attrs {
  * @NCSI_PKG_ATTR_MAX: highest attribute number
  */
 enum ncsi_nl_pkg_attrs {
-	NCSI_PKG_ATTR_UNSPEC,
-	NCSI_PKG_ATTR,
-	NCSI_PKG_ATTR_ID,
-	NCSI_PKG_ATTR_FORCED,
-	NCSI_PKG_ATTR_CHANNEL_LIST,
+  NCSI_PKG_ATTR_UNSPEC,
+  NCSI_PKG_ATTR,
+  NCSI_PKG_ATTR_ID,
+  NCSI_PKG_ATTR_FORCED,
+  NCSI_PKG_ATTR_CHANNEL_LIST,
 
-	__NCSI_PKG_ATTR_AFTER_LAST,
-	NCSI_PKG_ATTR_MAX = __NCSI_PKG_ATTR_AFTER_LAST - 1
+  __NCSI_PKG_ATTR_AFTER_LAST,
+  NCSI_PKG_ATTR_MAX = __NCSI_PKG_ATTR_AFTER_LAST - 1
 };
 
 /**
@@ -109,28 +109,28 @@ enum ncsi_nl_pkg_attrs {
  * @NCSI_CHANNEL_ATTR_VERSION_STR: channel version string
  * @NCSI_CHANNEL_ATTR_LINK_STATE: channel link state flags
  * @NCSI_CHANNEL_ATTR_ACTIVE: channels with this flag are in
- *	NCSI_CHANNEL_ACTIVE state
+ *  NCSI_CHANNEL_ACTIVE state
  * @NCSI_CHANNEL_ATTR_FORCED: flag signifying a channel has been set as
- *	preferred
+ *  preferred
  * @NCSI_CHANNEL_ATTR_VLAN_LIST: nested array of NCSI_CHANNEL_ATTR_VLAN_IDs
  * @NCSI_CHANNEL_ATTR_VLAN_ID: VLAN ID being filtered on this channel
  * @NCSI_CHANNEL_ATTR_MAX: highest attribute number
  */
 enum ncsi_nl_channel_attrs {
-	NCSI_CHANNEL_ATTR_UNSPEC,
-	NCSI_CHANNEL_ATTR,
-	NCSI_CHANNEL_ATTR_ID,
-	NCSI_CHANNEL_ATTR_VERSION_MAJOR,
-	NCSI_CHANNEL_ATTR_VERSION_MINOR,
-	NCSI_CHANNEL_ATTR_VERSION_STR,
-	NCSI_CHANNEL_ATTR_LINK_STATE,
-	NCSI_CHANNEL_ATTR_ACTIVE,
-	NCSI_CHANNEL_ATTR_FORCED,
-	NCSI_CHANNEL_ATTR_VLAN_LIST,
-	NCSI_CHANNEL_ATTR_VLAN_ID,
+  NCSI_CHANNEL_ATTR_UNSPEC,
+  NCSI_CHANNEL_ATTR,
+  NCSI_CHANNEL_ATTR_ID,
+  NCSI_CHANNEL_ATTR_VERSION_MAJOR,
+  NCSI_CHANNEL_ATTR_VERSION_MINOR,
+  NCSI_CHANNEL_ATTR_VERSION_STR,
+  NCSI_CHANNEL_ATTR_LINK_STATE,
+  NCSI_CHANNEL_ATTR_ACTIVE,
+  NCSI_CHANNEL_ATTR_FORCED,
+  NCSI_CHANNEL_ATTR_VLAN_LIST,
+  NCSI_CHANNEL_ATTR_VLAN_ID,
 
-	__NCSI_CHANNEL_ATTR_AFTER_LAST,
-	NCSI_CHANNEL_ATTR_MAX = __NCSI_CHANNEL_ATTR_AFTER_LAST - 1
+  __NCSI_CHANNEL_ATTR_AFTER_LAST,
+  NCSI_CHANNEL_ATTR_MAX = __NCSI_CHANNEL_ATTR_AFTER_LAST - 1
 };
 
 #endif /* __UAPI_NCSI_NETLINK_H__ */

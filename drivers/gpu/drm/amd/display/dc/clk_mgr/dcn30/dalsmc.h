@@ -36,8 +36,6 @@
 #define DALSMC_Result_CmdRejectedPrereq    0xFD
 #define DALSMC_Result_CmdRejectedBusy      0xFC
 
-
-
 // Message Definitions:
 #define DALSMC_MSG_TestMessage                    0x1
 #define DALSMC_MSG_GetSmuVersion                  0x2

@@ -2,7 +2,8 @@
 /*
  * vivid-kthread-out.h - video/vbi output thread support functions.
  *
- * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights
+ *reserved.
  */
 
 #ifndef _VIVID_KTHREAD_OUT_H_

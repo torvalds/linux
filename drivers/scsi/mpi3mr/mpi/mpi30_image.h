@@ -5,47 +5,47 @@
 #ifndef MPI30_IMAGE_H
 #define MPI30_IMAGE_H     1
 struct mpi3_comp_image_version {
-	__le16     build_num;
-	__le16     customer_id;
-	u8         phase_minor;
-	u8         phase_major;
-	u8         gen_minor;
-	u8         gen_major;
+  __le16 build_num;
+  __le16 customer_id;
+  u8 phase_minor;
+  u8 phase_major;
+  u8 gen_minor;
+  u8 gen_major;
 };
 
 struct mpi3_hash_exclusion_format {
-	__le32                     offset;
-	__le32                     size;
+  __le32 offset;
+  __le32 size;
 };
 
 #define MPI3_IMAGE_HASH_EXCUSION_NUM                           (4)
 struct mpi3_component_image_header {
-	__le32                            signature0;
-	__le32                            load_address;
-	__le32                            data_size;
-	__le32                            start_offset;
-	__le32                            signature1;
-	__le32                            flash_offset;
-	__le32                            image_size;
-	__le32                            version_string_offset;
-	__le32                            build_date_string_offset;
-	__le32                            build_time_string_offset;
-	__le32                            environment_variable_offset;
-	__le32                            application_specific;
-	__le32                            signature2;
-	__le32                            header_size;
-	__le32                            crc;
-	__le32                            flags;
-	__le32                            secondary_flash_offset;
-	__le32                            etp_offset;
-	__le32                            etp_size;
-	union mpi3_version_union             rmc_interface_version;
-	union mpi3_version_union             etp_interface_version;
-	struct mpi3_comp_image_version        component_image_version;
-	struct mpi3_hash_exclusion_format     hash_exclusion[MPI3_IMAGE_HASH_EXCUSION_NUM];
-	__le32                            next_image_header_offset;
-	union mpi3_version_union             security_version;
-	__le32                            reserved84[31];
+  __le32 signature0;
+  __le32 load_address;
+  __le32 data_size;
+  __le32 start_offset;
+  __le32 signature1;
+  __le32 flash_offset;
+  __le32 image_size;
+  __le32 version_string_offset;
+  __le32 build_date_string_offset;
+  __le32 build_time_string_offset;
+  __le32 environment_variable_offset;
+  __le32 application_specific;
+  __le32 signature2;
+  __le32 header_size;
+  __le32 crc;
+  __le32 flags;
+  __le32 secondary_flash_offset;
+  __le32 etp_offset;
+  __le32 etp_size;
+  union mpi3_version_union rmc_interface_version;
+  union mpi3_version_union etp_interface_version;
+  struct mpi3_comp_image_version component_image_version;
+  struct mpi3_hash_exclusion_format hash_exclusion[MPI3_IMAGE_HASH_EXCUSION_NUM];
+  __le32 next_image_header_offset;
+  union mpi3_version_union security_version;
+  __le32 reserved84[31];
 };
 
 #define MPI3_IMAGE_HEADER_SIGNATURE0_MPI3                     (0xeb00003e)
@@ -102,37 +102,38 @@ struct mpi3_component_image_header {
 #define MPI3_CI_MANIFEST_MPI_MAX                               (1)
 #endif
 struct mpi3_ci_manifest_mpi_comp_image_ref {
-	__le32                                signature1;
-	__le32                                reserved04[3];
-	struct mpi3_comp_image_version            component_image_version;
-	__le32                                component_image_version_string_offset;
-	__le32                                crc;
+  __le32 signature1;
+  __le32 reserved04[3];
+  struct mpi3_comp_image_version component_image_version;
+  __le32 component_image_version_string_offset;
+  __le32 crc;
 };
 
 struct mpi3_ci_manifest_mpi {
-	u8                                       manifest_type;
-	u8                                       reserved01[3];
-	__le32                                   reserved04[3];
-	u8                                       num_image_references;
-	u8                                       release_level;
-	__le16                                   reserved12;
-	__le16                                   reserved14;
-	__le16                                   flags;
-	__le32                                   reserved18[2];
-	__le16                                   vendor_id;
-	__le16                                   device_id;
-	__le16                                   subsystem_vendor_id;
-	__le16                                   subsystem_id;
-	__le32                                   reserved28[2];
-	union mpi3_version_union                    package_security_version;
-	__le32                                   reserved34;
-	struct mpi3_comp_image_version               package_version;
-	__le32                                   package_version_string_offset;
-	__le32                                   package_build_date_string_offset;
-	__le32                                   package_build_time_string_offset;
-	__le32                                   reserved4c;
-	__le32                                   diag_authorization_identifier[16];
-	struct mpi3_ci_manifest_mpi_comp_image_ref   component_image_ref[MPI3_CI_MANIFEST_MPI_MAX];
+  u8 manifest_type;
+  u8 reserved01[3];
+  __le32 reserved04[3];
+  u8 num_image_references;
+  u8 release_level;
+  __le16 reserved12;
+  __le16 reserved14;
+  __le16 flags;
+  __le32 reserved18[2];
+  __le16 vendor_id;
+  __le16 device_id;
+  __le16 subsystem_vendor_id;
+  __le16 subsystem_id;
+  __le32 reserved28[2];
+  union mpi3_version_union package_security_version;
+  __le32 reserved34;
+  struct mpi3_comp_image_version package_version;
+  __le32 package_version_string_offset;
+  __le32 package_build_date_string_offset;
+  __le32 package_build_time_string_offset;
+  __le32 reserved4c;
+  __le32 diag_authorization_identifier[16];
+  struct mpi3_ci_manifest_mpi_comp_image_ref component_image_ref[
+    MPI3_CI_MANIFEST_MPI_MAX];
 };
 
 #define MPI3_CI_MANIFEST_MPI_RELEASE_LEVEL_DEV                        (0x00)
@@ -148,19 +149,19 @@ struct mpi3_ci_manifest_mpi {
 #define MPI3_CI_MANIFEST_MPI_PKG_BUILD_DATE_STR_OFF_UNSPECIFIED    (0x00000000)
 #define MPI3_CI_MANIFEST_MPI_PKG_BUILD_TIME_STR_OFF_UNSPECIFIED    (0x00000000)
 union mpi3_ci_manifest {
-	struct mpi3_ci_manifest_mpi               mpi;
-	__le32                                dword[1];
+  struct mpi3_ci_manifest_mpi mpi;
+  __le32 dword[1];
 };
 
 #define MPI3_CI_MANIFEST_TYPE_MPI                                  (0x00)
 struct mpi3_extended_image_header {
-	u8                                image_type;
-	u8                                reserved01[3];
-	__le32                            checksum;
-	__le32                            image_size;
-	__le32                            next_image_header_offset;
-	__le32                            reserved10[4];
-	__le32                            identify_string[8];
+  u8 image_type;
+  u8 reserved01[3];
+  __le32 checksum;
+  __le32 image_size;
+  __le32 next_image_header_offset;
+  __le32 reserved10[4];
+  __le32 identify_string[8];
 };
 
 #define MPI3_EXT_IMAGE_IMAGETYPE_OFFSET         (0x00)
@@ -176,38 +177,38 @@ struct mpi3_extended_image_header {
 #define MPI3_EXT_IMAGE_TYPE_MIN_PRODUCT_SPECIFIC    (0x80)
 #define MPI3_EXT_IMAGE_TYPE_MAX_PRODUCT_SPECIFIC    (0xff)
 struct mpi3_supported_device {
-	__le16                     device_id;
-	__le16                     vendor_id;
-	__le16                     device_id_mask;
-	__le16                     reserved06;
-	u8                         low_pci_rev;
-	u8                         high_pci_rev;
-	__le16                     reserved0a;
-	__le32                     reserved0c;
+  __le16 device_id;
+  __le16 vendor_id;
+  __le16 device_id_mask;
+  __le16 reserved06;
+  u8 low_pci_rev;
+  u8 high_pci_rev;
+  __le16 reserved0a;
+  __le32 reserved0c;
 };
 
 #ifndef MPI3_SUPPORTED_DEVICE_MAX
 #define MPI3_SUPPORTED_DEVICE_MAX                      (1)
 #endif
 struct mpi3_supported_devices_data {
-	u8                         image_version;
-	u8                         reserved01;
-	u8                         num_devices;
-	u8                         reserved03;
-	__le32                     reserved04;
-	struct mpi3_supported_device   supported_device[MPI3_SUPPORTED_DEVICE_MAX];
+  u8 image_version;
+  u8 reserved01;
+  u8 num_devices;
+  u8 reserved03;
+  __le32 reserved04;
+  struct mpi3_supported_device supported_device[MPI3_SUPPORTED_DEVICE_MAX];
 };
 
 #ifndef MPI3_ENCRYPTED_HASH_MAX
 #define MPI3_ENCRYPTED_HASH_MAX                      (1)
 #endif
 struct mpi3_encrypted_hash_entry {
-	u8                         hash_image_type;
-	u8                         hash_algorithm;
-	u8                         encryption_algorithm;
-	u8                         reserved03;
-	__le32                     reserved04;
-	__le32                     encrypted_hash[MPI3_ENCRYPTED_HASH_MAX];
+  u8 hash_image_type;
+  u8 hash_algorithm;
+  u8 encryption_algorithm;
+  u8 reserved03;
+  __le32 reserved04;
+  __le32 encrypted_hash[MPI3_ENCRYPTED_HASH_MAX];
 };
 
 #define MPI3_HASH_IMAGE_TYPE_KEY_WITH_SIGNATURE      (0x03)
@@ -232,37 +233,38 @@ struct mpi3_encrypted_hash_entry {
 #define MPI3_PUBLIC_KEY_MAX                          (1)
 #endif
 struct mpi3_encrypted_key_with_hash_entry {
-	u8                         hash_image_type;
-	u8                         hash_algorithm;
-	u8                         encryption_algorithm;
-	u8                         reserved03;
-	__le32                     reserved04;
-	__le32                     public_key[MPI3_PUBLIC_KEY_MAX];
+  u8 hash_image_type;
+  u8 hash_algorithm;
+  u8 encryption_algorithm;
+  u8 reserved03;
+  __le32 reserved04;
+  __le32 public_key[MPI3_PUBLIC_KEY_MAX];
 };
 
 #ifndef MPI3_ENCRYPTED_HASH_ENTRY_MAX
 #define MPI3_ENCRYPTED_HASH_ENTRY_MAX               (1)
 #endif
 struct mpi3_encrypted_hash_data {
-	u8                                  image_version;
-	u8                                  num_hash;
-	__le16                              reserved02;
-	__le32                              reserved04;
-	struct mpi3_encrypted_hash_entry        encrypted_hash_entry[MPI3_ENCRYPTED_HASH_ENTRY_MAX];
+  u8 image_version;
+  u8 num_hash;
+  __le16 reserved02;
+  __le32 reserved04;
+  struct mpi3_encrypted_hash_entry encrypted_hash_entry[
+    MPI3_ENCRYPTED_HASH_ENTRY_MAX];
 };
 
 #ifndef MPI3_AUX_PROC_DATA_MAX
 #define MPI3_AUX_PROC_DATA_MAX               (1)
 #endif
 struct mpi3_aux_processor_data {
-	u8                         boot_method;
-	u8                         num_load_addr;
-	u8                         reserved02;
-	u8                         type;
-	__le32                     version;
-	__le32                     load_address[8];
-	__le32                     reserved28[22];
-	__le32                     aux_processor_data[MPI3_AUX_PROC_DATA_MAX];
+  u8 boot_method;
+  u8 num_load_addr;
+  u8 reserved02;
+  u8 type;
+  __le32 version;
+  __le32 load_address[8];
+  __le32 reserved28[22];
+  __le32 aux_processor_data[MPI3_AUX_PROC_DATA_MAX];
 };
 
 #define MPI3_AUX_PROC_DATA_OFFSET                                     (0x80)

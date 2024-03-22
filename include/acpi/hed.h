@@ -3,7 +3,7 @@
  * hed.h - ACPI Hardware Error Device
  *
  * Copyright (C) 2009, Intel Corp.
- *	Author: Huang Ying <ying.huang@intel.com>
+ *  Author: Huang Ying <ying.huang@intel.com>
  */
 
 #ifndef ACPI_HED_H

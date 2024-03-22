@@ -43,9 +43,8 @@
  * Returns:
  * va base address on success
  */
-static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev)
-{
-	return AMDGPU_VA_RESERVED_SEQ64_START(adev);
+static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev) {
+  return AMDGPU_VA_RESERVED_SEQ64_START(adev);
 }
 
 /**
@@ -61,52 +60,49 @@ static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev)
  * 0 on success or a negative error code on failure
  */
 int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		     struct amdgpu_bo_va **bo_va)
-{
-	struct amdgpu_bo *bo;
-	struct drm_exec exec;
-	u64 seq64_addr;
-	int r;
-
-	bo = adev->seq64.sbo;
-	if (!bo)
-		return -EINVAL;
-
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
-	drm_exec_until_all_locked(&exec) {
-		r = amdgpu_vm_lock_pd(vm, &exec, 0);
-		if (likely(!r))
-			r = drm_exec_lock_obj(&exec, &bo->tbo.base);
-		drm_exec_retry_on_contention(&exec);
-		if (unlikely(r))
-			goto error;
-	}
-
-	*bo_va = amdgpu_vm_bo_add(adev, vm, bo);
-	if (!*bo_va) {
-		r = -ENOMEM;
-		goto error;
-	}
-
-	seq64_addr = amdgpu_seq64_get_va_base(adev);
-	r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE,
-			     AMDGPU_PTE_READABLE);
-	if (r) {
-		DRM_ERROR("failed to do bo_map on userq sem, err=%d\n", r);
-		amdgpu_vm_bo_del(adev, *bo_va);
-		goto error;
-	}
-
-	r = amdgpu_vm_bo_update(adev, *bo_va, false);
-	if (r) {
-		DRM_ERROR("failed to do vm_bo_update on userq sem\n");
-		amdgpu_vm_bo_del(adev, *bo_va);
-		goto error;
-	}
-
+    struct amdgpu_bo_va **bo_va) {
+  struct amdgpu_bo *bo;
+  struct drm_exec exec;
+  u64 seq64_addr;
+  int r;
+  bo = adev->seq64.sbo;
+  if (!bo) {
+    return -EINVAL;
+  }
+  drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
+  drm_exec_until_all_locked(&exec) {
+    r = amdgpu_vm_lock_pd(vm, &exec, 0);
+    if (likely(!r)) {
+      r = drm_exec_lock_obj(&exec, &bo->tbo.base);
+    }
+    drm_exec_retry_on_contention(&exec);
+    if (unlikely(r)) {
+      goto error;
+    }
+  }
+  *bo_va = amdgpu_vm_bo_add(adev, vm, bo);
+  if (!*bo_va) {
+    r = -ENOMEM;
+    goto error;
+  }
+  seq64_addr = amdgpu_seq64_get_va_base(adev);
+  r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0,
+      AMDGPU_VA_RESERVED_SEQ64_SIZE,
+      AMDGPU_PTE_READABLE);
+  if (r) {
+    DRM_ERROR("failed to do bo_map on userq sem, err=%d\n", r);
+    amdgpu_vm_bo_del(adev, *bo_va);
+    goto error;
+  }
+  r = amdgpu_vm_bo_update(adev, *bo_va, false);
+  if (r) {
+    DRM_ERROR("failed to do vm_bo_update on userq sem\n");
+    amdgpu_vm_bo_del(adev, *bo_va);
+    goto error;
+  }
 error:
-	drm_exec_fini(&exec);
-	return r;
+  drm_exec_fini(&exec);
+  return r;
 }
 
 /**
@@ -117,38 +113,35 @@ error:
  *
  * Unmap the seq64 memory from the given VM.
  */
-void amdgpu_seq64_unmap(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv)
-{
-	struct amdgpu_vm *vm;
-	struct amdgpu_bo *bo;
-	struct drm_exec exec;
-	int r;
-
-	if (!fpriv->seq64_va)
-		return;
-
-	bo = adev->seq64.sbo;
-	if (!bo)
-		return;
-
-	vm = &fpriv->vm;
-
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
-	drm_exec_until_all_locked(&exec) {
-		r = amdgpu_vm_lock_pd(vm, &exec, 0);
-		if (likely(!r))
-			r = drm_exec_lock_obj(&exec, &bo->tbo.base);
-		drm_exec_retry_on_contention(&exec);
-		if (unlikely(r))
-			goto error;
-	}
-
-	amdgpu_vm_bo_del(adev, fpriv->seq64_va);
-
-	fpriv->seq64_va = NULL;
-
+void amdgpu_seq64_unmap(struct amdgpu_device *adev,
+    struct amdgpu_fpriv *fpriv) {
+  struct amdgpu_vm *vm;
+  struct amdgpu_bo *bo;
+  struct drm_exec exec;
+  int r;
+  if (!fpriv->seq64_va) {
+    return;
+  }
+  bo = adev->seq64.sbo;
+  if (!bo) {
+    return;
+  }
+  vm = &fpriv->vm;
+  drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
+  drm_exec_until_all_locked(&exec) {
+    r = amdgpu_vm_lock_pd(vm, &exec, 0);
+    if (likely(!r)) {
+      r = drm_exec_lock_obj(&exec, &bo->tbo.base);
+    }
+    drm_exec_retry_on_contention(&exec);
+    if (unlikely(r)) {
+      goto error;
+    }
+  }
+  amdgpu_vm_bo_del(adev, fpriv->seq64_va);
+  fpriv->seq64_va = NULL;
 error:
-	drm_exec_fini(&exec);
+  drm_exec_fini(&exec);
 }
 
 /**
@@ -163,19 +156,16 @@ error:
  * Returns:
  * 0 on success or a negative error code on failure
  */
-int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 **cpu_addr)
-{
-	unsigned long bit_pos;
-
-	bit_pos = find_first_zero_bit(adev->seq64.used, adev->seq64.num_sem);
-	if (bit_pos >= adev->seq64.num_sem)
-		return -ENOSPC;
-
-	__set_bit(bit_pos, adev->seq64.used);
-	*va = bit_pos * sizeof(u64) + amdgpu_seq64_get_va_base(adev);
-	*cpu_addr = bit_pos + adev->seq64.cpu_base_addr;
-
-	return 0;
+int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 **cpu_addr) {
+  unsigned long bit_pos;
+  bit_pos = find_first_zero_bit(adev->seq64.used, adev->seq64.num_sem);
+  if (bit_pos >= adev->seq64.num_sem) {
+    return -ENOSPC;
+  }
+  __set_bit(bit_pos, adev->seq64.used);
+  *va = bit_pos * sizeof(u64) + amdgpu_seq64_get_va_base(adev);
+  *cpu_addr = bit_pos + adev->seq64.cpu_base_addr;
+  return 0;
 }
 
 /**
@@ -186,13 +176,12 @@ int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 **cpu_addr)
  *
  * Free the given 64 bit memory from seq64 pool.
  */
-void amdgpu_seq64_free(struct amdgpu_device *adev, u64 va)
-{
-	unsigned long bit_pos;
-
-	bit_pos = (va - amdgpu_seq64_get_va_base(adev)) / sizeof(u64);
-	if (bit_pos < adev->seq64.num_sem)
-		__clear_bit(bit_pos, adev->seq64.used);
+void amdgpu_seq64_free(struct amdgpu_device *adev, u64 va) {
+  unsigned long bit_pos;
+  bit_pos = (va - amdgpu_seq64_get_va_base(adev)) / sizeof(u64);
+  if (bit_pos < adev->seq64.num_sem) {
+    __clear_bit(bit_pos, adev->seq64.used);
+  }
 }
 
 /**
@@ -203,11 +192,10 @@ void amdgpu_seq64_free(struct amdgpu_device *adev, u64 va)
  * Free the memory space allocated for seq64.
  *
  */
-void amdgpu_seq64_fini(struct amdgpu_device *adev)
-{
-	amdgpu_bo_free_kernel(&adev->seq64.sbo,
-			      NULL,
-			      (void **)&adev->seq64.cpu_base_addr);
+void amdgpu_seq64_fini(struct amdgpu_device *adev) {
+  amdgpu_bo_free_kernel(&adev->seq64.sbo,
+      NULL,
+      (void **) &adev->seq64.cpu_base_addr);
 }
 
 /**
@@ -220,30 +208,25 @@ void amdgpu_seq64_fini(struct amdgpu_device *adev)
  * Returns:
  * 0 on success or a negative error code on failure
  */
-int amdgpu_seq64_init(struct amdgpu_device *adev)
-{
-	int r;
-
-	if (adev->seq64.sbo)
-		return 0;
-
-	/*
-	 * AMDGPU_MAX_SEQ64_SLOTS * sizeof(u64) * 8 = AMDGPU_MAX_SEQ64_SLOTS
-	 * 64bit slots
-	 */
-	r = amdgpu_bo_create_kernel(adev, AMDGPU_VA_RESERVED_SEQ64_SIZE,
-				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
-				    &adev->seq64.sbo, NULL,
-				    (void **)&adev->seq64.cpu_base_addr);
-	if (r) {
-		dev_warn(adev->dev, "(%d) create seq64 failed\n", r);
-		return r;
-	}
-
-	memset(adev->seq64.cpu_base_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE);
-
-	adev->seq64.num_sem = AMDGPU_MAX_SEQ64_SLOTS;
-	memset(&adev->seq64.used, 0, sizeof(adev->seq64.used));
-
-	return 0;
+int amdgpu_seq64_init(struct amdgpu_device *adev) {
+  int r;
+  if (adev->seq64.sbo) {
+    return 0;
+  }
+  /*
+   * AMDGPU_MAX_SEQ64_SLOTS * sizeof(u64) * 8 = AMDGPU_MAX_SEQ64_SLOTS
+   * 64bit slots
+   */
+  r = amdgpu_bo_create_kernel(adev, AMDGPU_VA_RESERVED_SEQ64_SIZE,
+      PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
+      &adev->seq64.sbo, NULL,
+      (void **) &adev->seq64.cpu_base_addr);
+  if (r) {
+    dev_warn(adev->dev, "(%d) create seq64 failed\n", r);
+    return r;
+  }
+  memset(adev->seq64.cpu_base_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE);
+  adev->seq64.num_sem = AMDGPU_MAX_SEQ64_SLOTS;
+  memset(&adev->seq64.used, 0, sizeof(adev->seq64.used));
+  return 0;
 }

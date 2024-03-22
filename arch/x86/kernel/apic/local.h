@@ -27,19 +27,17 @@ extern u32 x2apic_max_apicid;
 DECLARE_STATIC_KEY_FALSE(apic_use_ipi_shorthand);
 
 static inline unsigned int __prepare_ICR(unsigned int shortcut, int vector,
-					 unsigned int dest)
-{
-	unsigned int icr = shortcut | dest;
-
-	switch (vector) {
-	default:
-		icr |= APIC_DM_FIXED | vector;
-		break;
-	case NMI_VECTOR:
-		icr |= APIC_DM_NMI;
-		break;
-	}
-	return icr;
+    unsigned int dest) {
+  unsigned int icr = shortcut | dest;
+  switch (vector) {
+    default:
+      icr |= APIC_DM_FIXED | vector;
+      break;
+    case NMI_VECTOR:
+      icr |= APIC_DM_NMI;
+      break;
+  }
+  return icr;
 }
 
 void default_init_apic_ldr(void);
@@ -51,31 +49,45 @@ u32 apic_mem_wait_icr_idle_timeout(void);
  * This is used to send an IPI with no shorthand notation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
-void __default_send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest);
+void __default_send_IPI_dest_field(unsigned int mask, int vector,
+    unsigned int dest);
 
 void default_send_IPI_single(int cpu, int vector);
 void default_send_IPI_single_phys(int cpu, int vector);
-void default_send_IPI_mask_sequence_phys(const struct cpumask *mask, int vector);
-void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask, int vector);
+void default_send_IPI_mask_sequence_phys(const struct cpumask *mask,
+    int vector);
+void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask,
+    int vector);
 void default_send_IPI_allbutself(int vector);
 void default_send_IPI_all(int vector);
 void default_send_IPI_self(int vector);
 
 #ifdef CONFIG_X86_32
-void default_send_IPI_mask_sequence_logical(const struct cpumask *mask, int vector);
-void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask, int vector);
+void default_send_IPI_mask_sequence_logical(const struct cpumask *mask,
+    int vector);
+void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask,
+    int vector);
 void default_send_IPI_mask_logical(const struct cpumask *mask, int vector);
 void x86_32_probe_bigsmp_early(void);
 void x86_32_install_bigsmp(void);
 #else
-static inline void x86_32_probe_bigsmp_early(void) { }
-static inline void x86_32_install_bigsmp(void) { }
+static inline void x86_32_probe_bigsmp_early(void) {
+}
+
+static inline void x86_32_install_bigsmp(void) {
+}
+
 #endif
 
 #ifdef CONFIG_X86_BIGSMP
 bool apic_bigsmp_possible(bool cmdline_selected);
 void apic_bigsmp_force(void);
 #else
-static inline bool apic_bigsmp_possible(bool cmdline_selected) { return false; };
-static inline void apic_bigsmp_force(void) { }
+static inline bool apic_bigsmp_possible(bool cmdline_selected) {
+  return false;
+}
+
+static inline void apic_bigsmp_force(void) {
+}
+
 #endif

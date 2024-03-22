@@ -13,7 +13,7 @@
  * the virt-pci (if anything). Which is true, but still.
  */
 void *pci_root_bus_fwnode(struct pci_bus *bus);
-#define pci_root_bus_fwnode	pci_root_bus_fwnode
+#define pci_root_bus_fwnode pci_root_bus_fwnode
 #endif
 
 #endif  /* __ASM_UM_PCI_H */

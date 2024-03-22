@@ -10,27 +10,27 @@
 
 TRACE_EVENT(nmi_handler,
 
-	TP_PROTO(void *handler, s64 delta_ns, int handled),
+    TP_PROTO(void *handler, s64 delta_ns, int handled),
 
-	TP_ARGS(handler, delta_ns, handled),
+    TP_ARGS(handler, delta_ns, handled),
 
-	TP_STRUCT__entry(
-		__field(	void *,		handler	)
-		__field(	s64,		delta_ns)
-		__field(	int,		handled	)
-	),
+    TP_STRUCT__entry(
+    __field(void *, handler)
+    __field(s64, delta_ns)
+    __field(int, handled)
+    ),
 
-	TP_fast_assign(
-		__entry->handler = handler;
-		__entry->delta_ns = delta_ns;
-		__entry->handled = handled;
-	),
+    TP_fast_assign(
+    __entry->handler = handler;
+    __entry->delta_ns = delta_ns;
+    __entry->handled = handled;
+    ),
 
-	TP_printk("%ps() delta_ns: %lld handled: %d",
-		__entry->handler,
-		__entry->delta_ns,
-		__entry->handled)
-);
+    TP_printk("%ps() delta_ns: %lld handled: %d",
+    __entry->handler,
+    __entry->delta_ns,
+    __entry->handled)
+    );
 
 #endif /* _TRACE_NMI_H */
 

@@ -19,66 +19,66 @@
 struct xen_front_pgdir_shbuf_ops;
 
 struct xen_front_pgdir_shbuf {
-	/*
-	 * Number of references granted for the backend use:
-	 *
-	 *  - for frontend allocated/imported buffers this holds the number
-	 *    of grant references for the page directory and the pages
-	 *    of the buffer
-	 *
-	 *  - for the buffer provided by the backend this only holds the number
-	 *    of grant references for the page directory itself as grant
-	 *    references for the buffer will be provided by the backend.
-	 */
-	int num_grefs;
-	grant_ref_t *grefs;
-	/* Page directory backing storage. */
-	u8 *directory;
+  /*
+   * Number of references granted for the backend use:
+   *
+   *  - for frontend allocated/imported buffers this holds the number
+   *    of grant references for the page directory and the pages
+   *    of the buffer
+   *
+   *  - for the buffer provided by the backend this only holds the number
+   *    of grant references for the page directory itself as grant
+   *    references for the buffer will be provided by the backend.
+   */
+  int num_grefs;
+  grant_ref_t *grefs;
+  /* Page directory backing storage. */
+  u8 *directory;
 
-	/*
-	 * Number of pages for the shared buffer itself (excluding the page
-	 * directory).
-	 */
-	int num_pages;
-	/*
-	 * Backing storage of the shared buffer: these are the pages being
-	 * shared.
-	 */
-	struct page **pages;
+  /*
+   * Number of pages for the shared buffer itself (excluding the page
+   * directory).
+   */
+  int num_pages;
+  /*
+   * Backing storage of the shared buffer: these are the pages being
+   * shared.
+   */
+  struct page **pages;
 
-	struct xenbus_device *xb_dev;
+  struct xenbus_device *xb_dev;
 
-	/* These are the ops used internally depending on be_alloc mode. */
-	const struct xen_front_pgdir_shbuf_ops *ops;
+  /* These are the ops used internally depending on be_alloc mode. */
+  const struct xen_front_pgdir_shbuf_ops *ops;
 
-	/* Xen map handles for the buffer allocated by the backend. */
-	grant_handle_t *backend_map_handles;
+  /* Xen map handles for the buffer allocated by the backend. */
+  grant_handle_t *backend_map_handles;
 };
 
 struct xen_front_pgdir_shbuf_cfg {
-	struct xenbus_device *xb_dev;
+  struct xenbus_device *xb_dev;
 
-	/* Number of pages of the buffer backing storage. */
-	int num_pages;
-	/* Pages of the buffer to be shared. */
-	struct page **pages;
+  /* Number of pages of the buffer backing storage. */
+  int num_pages;
+  /* Pages of the buffer to be shared. */
+  struct page **pages;
 
-	/*
-	 * This is allocated outside because there are use-cases when
-	 * the buffer structure is allocated as a part of a bigger one.
-	 */
-	struct xen_front_pgdir_shbuf *pgdir;
-	/*
-	 * Mode of grant reference sharing: if set then backend will share
-	 * grant references to the buffer with the frontend.
-	 */
-	int be_alloc;
+  /*
+   * This is allocated outside because there are use-cases when
+   * the buffer structure is allocated as a part of a bigger one.
+   */
+  struct xen_front_pgdir_shbuf *pgdir;
+  /*
+   * Mode of grant reference sharing: if set then backend will share
+   * grant references to the buffer with the frontend.
+   */
+  int be_alloc;
 };
 
 int xen_front_pgdir_shbuf_alloc(struct xen_front_pgdir_shbuf_cfg *cfg);
 
-grant_ref_t
-xen_front_pgdir_shbuf_get_dir_start(struct xen_front_pgdir_shbuf *buf);
+grant_ref_t xen_front_pgdir_shbuf_get_dir_start(
+  struct xen_front_pgdir_shbuf *buf);
 
 int xen_front_pgdir_shbuf_map(struct xen_front_pgdir_shbuf *buf);
 

@@ -25,8 +25,8 @@
 #include <type_support.h>
 
 struct ia_css_vf_configuration {
-	u32 vf_downscale_bits; /** Log VF downscale value */
-	const struct ia_css_frame_info *info;
+  u32 vf_downscale_bits; /** Log VF downscale value */
+  const struct ia_css_frame_info *info;
 };
 
 #endif /* __IA_CSS_VF_TYPES_H */

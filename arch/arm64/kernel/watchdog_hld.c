@@ -12,25 +12,22 @@
  * detection timeout on parts which are running slower (eg. 1GHz on
  * Developerbox) and doesn't possess a cpufreq driver.
  */
-#define SAFE_MAX_CPU_FREQ	5000000000UL // 5 GHz
-u64 hw_nmi_get_sample_period(int watchdog_thresh)
-{
-	unsigned int cpu = smp_processor_id();
-	unsigned long max_cpu_freq;
-
-	max_cpu_freq = cpufreq_get_hw_max_freq(cpu) * 1000UL;
-	if (!max_cpu_freq)
-		max_cpu_freq = SAFE_MAX_CPU_FREQ;
-
-	return (u64)max_cpu_freq * watchdog_thresh;
+#define SAFE_MAX_CPU_FREQ 5000000000UL // 5 GHz
+u64 hw_nmi_get_sample_period(int watchdog_thresh) {
+  unsigned int cpu = smp_processor_id();
+  unsigned long max_cpu_freq;
+  max_cpu_freq = cpufreq_get_hw_max_freq(cpu) * 1000UL;
+  if (!max_cpu_freq) {
+    max_cpu_freq = SAFE_MAX_CPU_FREQ;
+  }
+  return (u64) max_cpu_freq * watchdog_thresh;
 }
 
-bool __init arch_perf_nmi_is_available(void)
-{
-	/*
-	 * hardlockup_detector_perf_init() will success even if Pseudo-NMI turns off,
-	 * however, the pmu interrupts will act like a normal interrupt instead of
-	 * NMI and the hardlockup detector would be broken.
-	 */
-	return arm_pmu_irq_is_nmi();
+bool __init arch_perf_nmi_is_available(void) {
+  /*
+   * hardlockup_detector_perf_init() will success even if Pseudo-NMI turns off,
+   * however, the pmu interrupts will act like a normal interrupt instead of
+   * NMI and the hardlockup detector would be broken.
+   */
+  return arm_pmu_irq_is_nmi();
 }

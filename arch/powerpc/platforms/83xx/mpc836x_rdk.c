@@ -23,19 +23,18 @@
 
 machine_device_initcall(mpc836x_rdk, mpc83xx_declare_of_platform_devices);
 
-static void __init mpc836x_rdk_setup_arch(void)
-{
-	mpc83xx_setup_arch();
+static void __init mpc836x_rdk_setup_arch(void) {
+  mpc83xx_setup_arch();
 }
 
 define_machine(mpc836x_rdk) {
-	.name		= "MPC836x RDK",
-	.compatible	= "fsl,mpc8360rdk",
-	.setup_arch	= mpc836x_rdk_setup_arch,
-	.discover_phbs  = mpc83xx_setup_pci,
-	.init_IRQ	= mpc83xx_ipic_init_IRQ,
-	.get_irq	= ipic_get_irq,
-	.restart	= mpc83xx_restart,
-	.time_init	= mpc83xx_time_init,
-	.progress	= udbg_progress,
+  .name = "MPC836x RDK",
+  .compatible = "fsl,mpc8360rdk",
+  .setup_arch = mpc836x_rdk_setup_arch,
+  .discover_phbs = mpc83xx_setup_pci,
+  .init_IRQ = mpc83xx_ipic_init_IRQ,
+  .get_irq = ipic_get_irq,
+  .restart = mpc83xx_restart,
+  .time_init = mpc83xx_time_init,
+  .progress = udbg_progress,
 };

@@ -17,7 +17,7 @@ extern char fast_handler_end[];
 
 extern void pagetable_init(void);
 
-#endif/* __KERNEL__ */
+#endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_NIOS2_SETUP_H */

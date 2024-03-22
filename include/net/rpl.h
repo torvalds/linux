@@ -15,20 +15,21 @@
 extern int rpl_init(void);
 extern void rpl_exit(void);
 #else
-static inline int rpl_init(void)
-{
-	return 0;
+static inline int rpl_init(void) {
+  return 0;
 }
 
-static inline void rpl_exit(void) {}
+static inline void rpl_exit(void) {
+}
+
 #endif
 
 void ipv6_rpl_srh_decompress(struct ipv6_rpl_sr_hdr *outhdr,
-			     const struct ipv6_rpl_sr_hdr *inhdr,
-			     const struct in6_addr *daddr, unsigned char n);
+    const struct ipv6_rpl_sr_hdr *inhdr,
+    const struct in6_addr *daddr, unsigned char n);
 
 void ipv6_rpl_srh_compress(struct ipv6_rpl_sr_hdr *outhdr,
-			   const struct ipv6_rpl_sr_hdr *inhdr,
-			   const struct in6_addr *daddr, unsigned char n);
+    const struct ipv6_rpl_sr_hdr *inhdr,
+    const struct in6_addr *daddr, unsigned char n);
 
 #endif /* _NET_RPL_H */

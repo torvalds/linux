@@ -20,62 +20,62 @@
 #include "ia_css_pipe_public.h"
 #include "ia_css_pipeline_common.h"
 
-#define IA_CSS_PIPELINE_NUM_MAX		(20)
+#define IA_CSS_PIPELINE_NUM_MAX   (20)
 
 /* Pipeline stage to be executed on SP/ISP */
 struct ia_css_pipeline_stage {
-	unsigned int stage_num;
-	struct ia_css_binary *binary;	/* built-in binary */
-	struct ia_css_binary_info *binary_info;
-	const struct ia_css_fw_info *firmware;	/* acceleration binary */
-	/* SP function for SP stage */
-	enum ia_css_pipeline_stage_sp_func sp_func;
-	unsigned int max_input_width;	/* For SP raw copy */
-	struct sh_css_binary_args args;
-	int mode;
-	bool out_frame_allocated[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
-	bool vf_frame_allocated;
-	struct ia_css_pipeline_stage *next;
-	bool enable_zoom;
+  unsigned int stage_num;
+  struct ia_css_binary *binary; /* built-in binary */
+  struct ia_css_binary_info *binary_info;
+  const struct ia_css_fw_info *firmware;  /* acceleration binary */
+  /* SP function for SP stage */
+  enum ia_css_pipeline_stage_sp_func sp_func;
+  unsigned int max_input_width; /* For SP raw copy */
+  struct sh_css_binary_args args;
+  int mode;
+  bool out_frame_allocated[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
+  bool vf_frame_allocated;
+  struct ia_css_pipeline_stage *next;
+  bool enable_zoom;
 };
 
 /* Pipeline of n stages to be executed on SP/ISP per stage */
 struct ia_css_pipeline {
-	enum ia_css_pipe_id pipe_id;
-	u8 pipe_num;
-	bool stop_requested;
-	struct ia_css_pipeline_stage *stages;
-	struct ia_css_pipeline_stage *current_stage;
-	unsigned int num_stages;
-	struct ia_css_frame in_frame;
-	struct ia_css_frame out_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
-	struct ia_css_frame vf_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
-	unsigned int dvs_frame_delay;
-	unsigned int inout_port_config;
-	int num_execs;
-	bool acquire_isp_each_stage;
+  enum ia_css_pipe_id pipe_id;
+  u8 pipe_num;
+  bool stop_requested;
+  struct ia_css_pipeline_stage *stages;
+  struct ia_css_pipeline_stage *current_stage;
+  unsigned int num_stages;
+  struct ia_css_frame in_frame;
+  struct ia_css_frame out_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
+  struct ia_css_frame vf_frame[IA_CSS_PIPE_MAX_OUTPUT_STAGE];
+  unsigned int dvs_frame_delay;
+  unsigned int inout_port_config;
+  int num_execs;
+  bool acquire_isp_each_stage;
 };
 
 #define DEFAULT_PIPELINE { \
-	.pipe_id		= IA_CSS_PIPE_ID_PREVIEW, \
-	.in_frame		= DEFAULT_FRAME, \
-	.out_frame		= {DEFAULT_FRAME}, \
-	.vf_frame		= {DEFAULT_FRAME}, \
-	.dvs_frame_delay	= IA_CSS_FRAME_DELAY_1, \
-	.num_execs		= -1, \
-	.acquire_isp_each_stage	= true, \
+    .pipe_id = IA_CSS_PIPE_ID_PREVIEW, \
+    .in_frame = DEFAULT_FRAME, \
+    .out_frame = {DEFAULT_FRAME}, \
+    .vf_frame = {DEFAULT_FRAME}, \
+    .dvs_frame_delay = IA_CSS_FRAME_DELAY_1, \
+    .num_execs = -1, \
+    .acquire_isp_each_stage = true, \
 }
 
 /* Stage descriptor used to create a new stage in the pipeline */
 struct ia_css_pipeline_stage_desc {
-	struct ia_css_binary *binary;
-	const struct ia_css_fw_info *firmware;
-	enum ia_css_pipeline_stage_sp_func sp_func;
-	unsigned int max_input_width;
-	unsigned int mode;
-	struct ia_css_frame *in_frame;
-	struct ia_css_frame *out_frame[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
-	struct ia_css_frame *vf_frame;
+  struct ia_css_binary *binary;
+  const struct ia_css_fw_info *firmware;
+  enum ia_css_pipeline_stage_sp_func sp_func;
+  unsigned int max_input_width;
+  unsigned int mode;
+  struct ia_css_frame *in_frame;
+  struct ia_css_frame *out_frame[IA_CSS_BINARY_MAX_OUTPUT_PORTS];
+  struct ia_css_frame *vf_frame;
 };
 
 /* @brief initialize the pipeline module
@@ -99,10 +99,10 @@ void ia_css_pipeline_init(void);
  * externally and needs sane defaults
  */
 int ia_css_pipeline_create(
-    struct ia_css_pipeline *pipeline,
-    enum ia_css_pipe_id pipe_id,
-    unsigned int pipe_num,
-    unsigned int dvs_frame_delay);
+  struct ia_css_pipeline *pipeline,
+  enum ia_css_pipe_id pipe_id,
+  unsigned int pipe_num,
+  unsigned int dvs_frame_delay);
 
 /* @brief destroy a pipeline
  *
@@ -120,7 +120,7 @@ void ia_css_pipeline_destroy(struct ia_css_pipeline *pipeline);
  *
  */
 void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
-			   struct ia_css_pipeline *pipeline);
+    struct ia_css_pipeline *pipeline);
 
 /* @brief Request to stop a pipeline
  *
@@ -156,11 +156,11 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline);
  * Add a new stage to a non-NULL pipeline.
  * The stage consists of an ISP binary or firmware and input and output
  * arguments.
-*/
+ */
 int ia_css_pipeline_create_and_add_stage(
-    struct ia_css_pipeline *pipeline,
-    struct ia_css_pipeline_stage_desc *stage_desc,
-    struct ia_css_pipeline_stage **stage);
+  struct ia_css_pipeline *pipeline,
+  struct ia_css_pipeline_stage_desc *stage_desc,
+  struct ia_css_pipeline_stage **stage);
 
 /* @brief Finalize the stages in a pipeline
  *
@@ -168,9 +168,9 @@ int ia_css_pipeline_create_and_add_stage(
  * @return                     None
  *
  * This API is expected to be called after adding all stages
-*/
+ */
 void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
-				     bool continuous);
+    bool continuous);
 
 /* @brief gets a stage from the pipeline
  *
@@ -179,8 +179,8 @@ void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
  *
  */
 int ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
-	int mode,
-	struct ia_css_pipeline_stage **stage);
+    int mode,
+    struct ia_css_pipeline_stage **stage);
 
 /* @brief Gets a pipeline stage corresponding Firmware handle from the pipeline
  *
@@ -192,9 +192,9 @@ int ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
  *
  */
 int ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
-	*pipeline,
-	u32 fw_handle,
-	struct ia_css_pipeline_stage **stage);
+    *pipeline,
+    u32 fw_handle,
+    struct ia_css_pipeline_stage **stage);
 
 /* @brief Gets the Firmware handle corresponding the stage num from the pipeline
  *
@@ -206,9 +206,9 @@ int ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
  *
  */
 int ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
-	*pipeline,
-	u32 stage_num,
-	uint32_t *fw_handle);
+    *pipeline,
+    u32 stage_num,
+    uint32_t *fw_handle);
 
 /* @brief gets the output stage from the pipeline
  *
@@ -217,9 +217,9 @@ int ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
  *
  */
 int ia_css_pipeline_get_output_stage(
-    struct ia_css_pipeline *pipeline,
-    int mode,
-    struct ia_css_pipeline_stage **stage);
+  struct ia_css_pipeline *pipeline,
+  int mode,
+  struct ia_css_pipeline_stage **stage);
 
 /* @brief Checks whether the pipeline uses params
  *
@@ -232,12 +232,12 @@ bool ia_css_pipeline_uses_params(struct ia_css_pipeline *pipeline);
 /**
  * @brief get the SP thread ID.
  *
- * @param[in]	key	The query key, typical use is pipe_num.
- * @param[out]	val	The query value.
+ * @param[in] key The query key, typical use is pipe_num.
+ * @param[out]  val The query value.
  *
  * @return
- *	true, if the query succeeds;
- *	false, if the query fails.
+ *  true, if the query succeeds;
+ *  false, if the query fails.
  */
 bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val);
 
@@ -246,15 +246,15 @@ bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val);
  *
  * @param[in] None
  * @return
- *	Pointer to pipe_io_status
+ *  Pointer to pipe_io_status
  */
 struct sh_css_sp_pipeline_io_status *ia_css_pipeline_get_pipe_io_status(void);
 
 /**
  * @brief Map an SP thread to this pipeline
  *
- * @param[in]	pipe_num
- * @param[in]	map true for mapping and false for unmapping sp threads.
+ * @param[in] pipe_num
+ * @param[in] map true for mapping and false for unmapping sp threads.
  *
  */
 void ia_css_pipeline_map(unsigned int pipe_num, bool map);
@@ -262,18 +262,18 @@ void ia_css_pipeline_map(unsigned int pipe_num, bool map);
 /**
  * @brief Checks whether the pipeline is mapped to SP threads
  *
- * @param[in]	Query key, typical use is pipe_num
+ * @param[in] Query key, typical use is pipe_num
  *
  * return
- *	true, pipeline is mapped to SP threads
- *	false, pipeline is not mapped to SP threads
+ *  true, pipeline is mapped to SP threads
+ *  false, pipeline is not mapped to SP threads
  */
 bool ia_css_pipeline_is_mapped(unsigned int key);
 
 /**
  * @brief Print pipeline thread mapping
  *
- * @param[in]	none
+ * @param[in] none
  *
  * return none
  */

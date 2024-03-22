@@ -30,12 +30,12 @@
 #define SUMO_PM_NUMBER_OF_TC 15
 
 struct sumo_pl {
-	u32 sclk;
-	u32 vddc_index;
-	u32 ds_divider_index;
-	u32 ss_divider_index;
-	u32 allow_gnb_slow;
-	u32 sclk_dpm_tdp_limit;
+  u32 sclk;
+  u32 vddc_index;
+  u32 ds_divider_index;
+  u32 ss_divider_index;
+  u32 allow_gnb_slow;
+  u32 sclk_dpm_tdp_limit;
 };
 
 /* used for the flags field */
@@ -43,96 +43,96 @@ struct sumo_pl {
 #define SUMO_POWERSTATE_FLAGS_BOOST_STATE       (1 << 1)
 
 struct sumo_ps {
-	struct sumo_pl levels[SUMO_MAX_HARDWARE_POWERLEVELS];
-	u32 num_levels;
-	/* flags */
-	u32 flags;
+  struct sumo_pl levels[SUMO_MAX_HARDWARE_POWERLEVELS];
+  u32 num_levels;
+  /* flags */
+  u32 flags;
 };
 
 #define NUMBER_OF_M3ARB_PARAM_SETS 10
 #define SUMO_MAX_NUMBER_VOLTAGES    4
 
 struct sumo_disp_clock_voltage_mapping_table {
-	u32 num_max_voltage_levels;
-	u32 display_clock_frequency[SUMO_MAX_NUMBER_VOLTAGES];
+  u32 num_max_voltage_levels;
+  u32 display_clock_frequency[SUMO_MAX_NUMBER_VOLTAGES];
 };
 
 struct sumo_vid_mapping_entry {
-	u16 vid_2bit;
-	u16 vid_7bit;
+  u16 vid_2bit;
+  u16 vid_7bit;
 };
 
 struct sumo_vid_mapping_table {
-	u32 num_entries;
-	struct sumo_vid_mapping_entry entries[SUMO_MAX_NUMBER_VOLTAGES];
+  u32 num_entries;
+  struct sumo_vid_mapping_entry entries[SUMO_MAX_NUMBER_VOLTAGES];
 };
 
 struct sumo_sclk_voltage_mapping_entry {
-	u32 sclk_frequency;
-	u16 vid_2bit;
-	u16 rsv;
+  u32 sclk_frequency;
+  u16 vid_2bit;
+  u16 rsv;
 };
 
 struct sumo_sclk_voltage_mapping_table {
-	u32 num_max_dpm_entries;
-	struct sumo_sclk_voltage_mapping_entry entries[SUMO_MAX_HARDWARE_POWERLEVELS];
+  u32 num_max_dpm_entries;
+  struct sumo_sclk_voltage_mapping_entry entries[SUMO_MAX_HARDWARE_POWERLEVELS];
 };
 
 struct sumo_sys_info {
-	u32 bootup_sclk;
-	u32 min_sclk;
-	u32 bootup_uma_clk;
-	u16 bootup_nb_voltage_index;
-	u8 htc_tmp_lmt;
-	u8 htc_hyst_lmt;
-	struct sumo_sclk_voltage_mapping_table sclk_voltage_mapping_table;
-	struct sumo_disp_clock_voltage_mapping_table disp_clk_voltage_mapping_table;
-	struct sumo_vid_mapping_table vid_mapping_table;
-	u32 csr_m3_arb_cntl_default[NUMBER_OF_M3ARB_PARAM_SETS];
-	u32 csr_m3_arb_cntl_uvd[NUMBER_OF_M3ARB_PARAM_SETS];
-	u32 csr_m3_arb_cntl_fs3d[NUMBER_OF_M3ARB_PARAM_SETS];
-	u32 sclk_dpm_boost_margin;
-	u32 sclk_dpm_throttle_margin;
-	u32 sclk_dpm_tdp_limit_pg;
-	u32 gnb_tdp_limit;
-	u32 sclk_dpm_tdp_limit_boost;
-	u32 boost_sclk;
-	u32 boost_vid_2bit;
-	bool enable_boost;
+  u32 bootup_sclk;
+  u32 min_sclk;
+  u32 bootup_uma_clk;
+  u16 bootup_nb_voltage_index;
+  u8 htc_tmp_lmt;
+  u8 htc_hyst_lmt;
+  struct sumo_sclk_voltage_mapping_table sclk_voltage_mapping_table;
+  struct sumo_disp_clock_voltage_mapping_table disp_clk_voltage_mapping_table;
+  struct sumo_vid_mapping_table vid_mapping_table;
+  u32 csr_m3_arb_cntl_default[NUMBER_OF_M3ARB_PARAM_SETS];
+  u32 csr_m3_arb_cntl_uvd[NUMBER_OF_M3ARB_PARAM_SETS];
+  u32 csr_m3_arb_cntl_fs3d[NUMBER_OF_M3ARB_PARAM_SETS];
+  u32 sclk_dpm_boost_margin;
+  u32 sclk_dpm_throttle_margin;
+  u32 sclk_dpm_tdp_limit_pg;
+  u32 gnb_tdp_limit;
+  u32 sclk_dpm_tdp_limit_boost;
+  u32 boost_sclk;
+  u32 boost_vid_2bit;
+  bool enable_boost;
 };
 
 struct sumo_power_info {
-	u32 asi;
-	u32 pasi;
-	u32 bsp;
-	u32 bsu;
-	u32 pbsp;
-	u32 pbsu;
-	u32 dsp;
-	u32 psp;
-	u32 thermal_auto_throttling;
-	u32 uvd_m3_arbiter;
-	u32 fw_version;
-	struct sumo_sys_info sys_info;
-	struct sumo_pl acpi_pl;
-	struct sumo_pl boot_pl;
-	struct sumo_pl boost_pl;
-	bool disable_gfx_power_gating_in_uvd;
-	bool driver_nbps_policy_disable;
-	bool enable_alt_vddnb;
-	bool enable_dynamic_m3_arbiter;
-	bool enable_gfx_clock_gating;
-	bool enable_gfx_power_gating;
-	bool enable_mg_clock_gating;
-	bool enable_sclk_ds;
-	bool enable_auto_thermal_throttling;
-	bool enable_dynamic_patch_ps;
-	bool enable_dpm;
-	bool enable_boost;
-	struct radeon_ps current_rps;
-	struct sumo_ps current_ps;
-	struct radeon_ps requested_rps;
-	struct sumo_ps requested_ps;
+  u32 asi;
+  u32 pasi;
+  u32 bsp;
+  u32 bsu;
+  u32 pbsp;
+  u32 pbsu;
+  u32 dsp;
+  u32 psp;
+  u32 thermal_auto_throttling;
+  u32 uvd_m3_arbiter;
+  u32 fw_version;
+  struct sumo_sys_info sys_info;
+  struct sumo_pl acpi_pl;
+  struct sumo_pl boot_pl;
+  struct sumo_pl boost_pl;
+  bool disable_gfx_power_gating_in_uvd;
+  bool driver_nbps_policy_disable;
+  bool enable_alt_vddnb;
+  bool enable_dynamic_m3_arbiter;
+  bool enable_gfx_clock_gating;
+  bool enable_gfx_power_gating;
+  bool enable_mg_clock_gating;
+  bool enable_sclk_ds;
+  bool enable_auto_thermal_throttling;
+  bool enable_dynamic_patch_ps;
+  bool enable_dpm;
+  bool enable_boost;
+  struct radeon_ps current_rps;
+  struct sumo_ps current_ps;
+  struct radeon_ps requested_rps;
+  struct sumo_ps requested_ps;
 };
 
 #define SUMO_UTC_DFLT_00                     0x48
@@ -195,18 +195,18 @@ void sumo_clear_vc(struct radeon_device *rdev);
 void sumo_program_sstp(struct radeon_device *rdev);
 void sumo_take_smu_control(struct radeon_device *rdev, bool enable);
 void sumo_construct_sclk_voltage_mapping_table(struct radeon_device *rdev,
-					       struct sumo_sclk_voltage_mapping_table *sclk_voltage_mapping_table,
-					       ATOM_AVAILABLE_SCLK_LIST *table);
+    struct sumo_sclk_voltage_mapping_table *sclk_voltage_mapping_table,
+    ATOM_AVAILABLE_SCLK_LIST *table);
 void sumo_construct_vid_mapping_table(struct radeon_device *rdev,
-				      struct sumo_vid_mapping_table *vid_mapping_table,
-				      ATOM_AVAILABLE_SCLK_LIST *table);
+    struct sumo_vid_mapping_table *vid_mapping_table,
+    ATOM_AVAILABLE_SCLK_LIST *table);
 u32 sumo_convert_vid2_to_vid7(struct radeon_device *rdev,
-			      struct sumo_vid_mapping_table *vid_mapping_table,
-			      u32 vid_2bit);
+    struct sumo_vid_mapping_table *vid_mapping_table,
+    u32 vid_2bit);
 u32 sumo_get_sleep_divider_from_id(u32 id);
 u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
-					 u32 sclk,
-					 u32 min_sclk_in_sr);
+    u32 sclk,
+    u32 min_sclk_in_sr);
 struct sumo_power_info *sumo_get_pi(struct radeon_device *rdev);
 
 /* sumo_smc.c */
@@ -214,7 +214,7 @@ void sumo_initialize_m3_arb(struct radeon_device *rdev);
 void sumo_smu_pg_init(struct radeon_device *rdev);
 void sumo_set_tdp_limit(struct radeon_device *rdev, u32 index, u32 tdp_limit);
 void sumo_smu_notify_alt_vddnb_change(struct radeon_device *rdev,
-				      bool powersaving, bool force_nbps1);
+    bool powersaving, bool force_nbps1);
 void sumo_boost_state_enable(struct radeon_device *rdev, bool enable);
 void sumo_enable_boost_timer(struct radeon_device *rdev);
 u32 sumo_get_running_fw_version(struct radeon_device *rdev);

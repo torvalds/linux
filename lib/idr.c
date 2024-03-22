@@ -31,29 +31,27 @@
  * @nextid is unchanged.
  */
 int idr_alloc_u32(struct idr *idr, void *ptr, u32 *nextid,
-			unsigned long max, gfp_t gfp)
-{
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	unsigned int base = idr->idr_base;
-	unsigned int id = *nextid;
-
-	if (WARN_ON_ONCE(!(idr->idr_rt.xa_flags & ROOT_IS_IDR)))
-		idr->idr_rt.xa_flags |= IDR_RT_MARKER;
-
-	id = (id < base) ? 0 : id - base;
-	radix_tree_iter_init(&iter, id);
-	slot = idr_get_free(&idr->idr_rt, &iter, gfp, max - base);
-	if (IS_ERR(slot))
-		return PTR_ERR(slot);
-
-	*nextid = iter.index + base;
-	/* there is a memory barrier inside radix_tree_iter_replace() */
-	radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
-	radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
-
-	return 0;
+    unsigned long max, gfp_t gfp) {
+  struct radix_tree_iter iter;
+  void __rcu **slot;
+  unsigned int base = idr->idr_base;
+  unsigned int id = *nextid;
+  if (WARN_ON_ONCE(!(idr->idr_rt.xa_flags & ROOT_IS_IDR))) {
+    idr->idr_rt.xa_flags |= IDR_RT_MARKER;
+  }
+  id = (id < base) ? 0 : id - base;
+  radix_tree_iter_init(&iter, id);
+  slot = idr_get_free(&idr->idr_rt, &iter, gfp, max - base);
+  if (IS_ERR(slot)) {
+    return PTR_ERR(slot);
+  }
+  *nextid = iter.index + base;
+  /* there is a memory barrier inside radix_tree_iter_replace() */
+  radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
+  radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(idr_alloc_u32);
 
 /**
@@ -76,20 +74,19 @@ EXPORT_SYMBOL_GPL(idr_alloc_u32);
  * Return: The newly allocated ID, -ENOMEM if memory allocation failed,
  * or -ENOSPC if no free IDs could be found.
  */
-int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
-{
-	u32 id = start;
-	int ret;
-
-	if (WARN_ON_ONCE(start < 0))
-		return -EINVAL;
-
-	ret = idr_alloc_u32(idr, ptr, &id, end > 0 ? end - 1 : INT_MAX, gfp);
-	if (ret)
-		return ret;
-
-	return id;
+int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp) {
+  u32 id = start;
+  int ret;
+  if (WARN_ON_ONCE(start < 0)) {
+    return -EINVAL;
+  }
+  ret = idr_alloc_u32(idr, ptr, &id, end > 0 ? end - 1 : INT_MAX, gfp);
+  if (ret) {
+    return ret;
+  }
+  return id;
 }
+
 EXPORT_SYMBOL_GPL(idr_alloc);
 
 /**
@@ -114,25 +111,25 @@ EXPORT_SYMBOL_GPL(idr_alloc);
  * Return: The newly allocated ID, -ENOMEM if memory allocation failed,
  * or -ENOSPC if no free IDs could be found.
  */
-int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
-{
-	u32 id = idr->idr_next;
-	int err, max = end > 0 ? end - 1 : INT_MAX;
-
-	if ((int)id < start)
-		id = start;
-
-	err = idr_alloc_u32(idr, ptr, &id, max, gfp);
-	if ((err == -ENOSPC) && (id > start)) {
-		id = start;
-		err = idr_alloc_u32(idr, ptr, &id, max, gfp);
-	}
-	if (err)
-		return err;
-
-	idr->idr_next = id + 1;
-	return id;
+int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end,
+    gfp_t gfp) {
+  u32 id = idr->idr_next;
+  int err, max = end > 0 ? end - 1 : INT_MAX;
+  if ((int) id < start) {
+    id = start;
+  }
+  err = idr_alloc_u32(idr, ptr, &id, max, gfp);
+  if ((err == -ENOSPC) && (id > start)) {
+    id = start;
+    err = idr_alloc_u32(idr, ptr, &id, max, gfp);
+  }
+  if (err) {
+    return err;
+  }
+  idr->idr_next = id + 1;
+  return id;
 }
+
 EXPORT_SYMBOL(idr_alloc_cyclic);
 
 /**
@@ -149,10 +146,10 @@ EXPORT_SYMBOL(idr_alloc_cyclic);
  *
  * Return: The pointer formerly associated with this ID.
  */
-void *idr_remove(struct idr *idr, unsigned long id)
-{
-	return radix_tree_delete_item(&idr->idr_rt, id - idr->idr_base, NULL);
+void *idr_remove(struct idr *idr, unsigned long id) {
+  return radix_tree_delete_item(&idr->idr_rt, id - idr->idr_base, NULL);
 }
+
 EXPORT_SYMBOL_GPL(idr_remove);
 
 /**
@@ -169,10 +166,10 @@ EXPORT_SYMBOL_GPL(idr_remove);
  *
  * Return: The pointer associated with this ID.
  */
-void *idr_find(const struct idr *idr, unsigned long id)
-{
-	return radix_tree_lookup(&idr->idr_rt, id - idr->idr_base);
+void *idr_find(const struct idr *idr, unsigned long id) {
+  return radix_tree_lookup(&idr->idr_rt, id - idr->idr_base);
 }
+
 EXPORT_SYMBOL_GPL(idr_find);
 
 /**
@@ -193,25 +190,24 @@ EXPORT_SYMBOL_GPL(idr_find);
  * will not cause other entries to be skipped, nor spurious ones to be seen.
  */
 int idr_for_each(const struct idr *idr,
-		int (*fn)(int id, void *p, void *data), void *data)
-{
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	int base = idr->idr_base;
-
-	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
-		int ret;
-		unsigned long id = iter.index + base;
-
-		if (WARN_ON_ONCE(id > INT_MAX))
-			break;
-		ret = fn(id, rcu_dereference_raw(*slot), data);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+    int (*fn)(int id, void *p, void *data), void *data) {
+  struct radix_tree_iter iter;
+  void __rcu **slot;
+  int base = idr->idr_base;
+  radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
+    int ret;
+    unsigned long id = iter.index + base;
+    if (WARN_ON_ONCE(id > INT_MAX)) {
+      break;
+    }
+    ret = fn(id, rcu_dereference_raw(*slot), data);
+    if (ret) {
+      return ret;
+    }
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL(idr_for_each);
 
 /**
@@ -224,31 +220,33 @@ EXPORT_SYMBOL(idr_for_each);
  * to the ID of the found value.  To use in a loop, the value pointed to by
  * nextid must be incremented by the user.
  */
-void *idr_get_next_ul(struct idr *idr, unsigned long *nextid)
-{
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	void *entry = NULL;
-	unsigned long base = idr->idr_base;
-	unsigned long id = *nextid;
-
-	id = (id < base) ? 0 : id - base;
-	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, id) {
-		entry = rcu_dereference_raw(*slot);
-		if (!entry)
-			continue;
-		if (!xa_is_internal(entry))
-			break;
-		if (slot != &idr->idr_rt.xa_head && !xa_is_retry(entry))
-			break;
-		slot = radix_tree_iter_retry(&iter);
-	}
-	if (!slot)
-		return NULL;
-
-	*nextid = iter.index + base;
-	return entry;
+void *idr_get_next_ul(struct idr *idr, unsigned long *nextid) {
+  struct radix_tree_iter iter;
+  void __rcu **slot;
+  void *entry = NULL;
+  unsigned long base = idr->idr_base;
+  unsigned long id = *nextid;
+  id = (id < base) ? 0 : id - base;
+  radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, id) {
+    entry = rcu_dereference_raw(*slot);
+    if (!entry) {
+      continue;
+    }
+    if (!xa_is_internal(entry)) {
+      break;
+    }
+    if (slot != &idr->idr_rt.xa_head && !xa_is_retry(entry)) {
+      break;
+    }
+    slot = radix_tree_iter_retry(&iter);
+  }
+  if (!slot) {
+    return NULL;
+  }
+  *nextid = iter.index + base;
+  return entry;
 }
+
 EXPORT_SYMBOL(idr_get_next_ul);
 
 /**
@@ -261,16 +259,16 @@ EXPORT_SYMBOL(idr_get_next_ul);
  * to the ID of the found value.  To use in a loop, the value pointed to by
  * nextid must be incremented by the user.
  */
-void *idr_get_next(struct idr *idr, int *nextid)
-{
-	unsigned long id = *nextid;
-	void *entry = idr_get_next_ul(idr, &id);
-
-	if (WARN_ON_ONCE(id > INT_MAX))
-		return NULL;
-	*nextid = id;
-	return entry;
+void *idr_get_next(struct idr *idr, int *nextid) {
+  unsigned long id = *nextid;
+  void *entry = idr_get_next_ul(idr, &id);
+  if (WARN_ON_ONCE(id > INT_MAX)) {
+    return NULL;
+  }
+  *nextid = id;
+  return entry;
 }
+
 EXPORT_SYMBOL(idr_get_next);
 
 /**
@@ -287,22 +285,19 @@ EXPORT_SYMBOL(idr_get_next);
  * Returns: the old value on success.  %-ENOENT indicates that @id was not
  * found.  %-EINVAL indicates that @ptr was not valid.
  */
-void *idr_replace(struct idr *idr, void *ptr, unsigned long id)
-{
-	struct radix_tree_node *node;
-	void __rcu **slot = NULL;
-	void *entry;
-
-	id -= idr->idr_base;
-
-	entry = __radix_tree_lookup(&idr->idr_rt, id, &node, &slot);
-	if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE))
-		return ERR_PTR(-ENOENT);
-
-	__radix_tree_replace(&idr->idr_rt, node, slot, ptr);
-
-	return entry;
+void *idr_replace(struct idr *idr, void *ptr, unsigned long id) {
+  struct radix_tree_node *node;
+  void __rcu **slot = NULL;
+  void *entry;
+  id -= idr->idr_base;
+  entry = __radix_tree_lookup(&idr->idr_rt, id, &node, &slot);
+  if (!slot || radix_tree_tag_get(&idr->idr_rt, id, IDR_FREE)) {
+    return ERR_PTR(-ENOENT);
+  }
+  __radix_tree_replace(&idr->idr_rt, node, slot, ptr);
+  return entry;
 }
+
 EXPORT_SYMBOL(idr_replace);
 
 /**
@@ -378,102 +373,110 @@ EXPORT_SYMBOL(idr_replace);
  * or %-ENOSPC if there are no free IDs.
  */
 int ida_alloc_range(struct ida *ida, unsigned int min, unsigned int max,
-			gfp_t gfp)
-{
-	XA_STATE(xas, &ida->xa, min / IDA_BITMAP_BITS);
-	unsigned bit = min % IDA_BITMAP_BITS;
-	unsigned long flags;
-	struct ida_bitmap *bitmap, *alloc = NULL;
-
-	if ((int)min < 0)
-		return -ENOSPC;
-
-	if ((int)max < 0)
-		max = INT_MAX;
-
+    gfp_t gfp) {
+  XA_STATE(xas, &ida->xa, min / IDA_BITMAP_BITS);
+  unsigned bit = min % IDA_BITMAP_BITS;
+  unsigned long flags;
+  struct ida_bitmap *bitmap, *alloc = NULL;
+  if ((int) min < 0) {
+    return -ENOSPC;
+  }
+  if ((int) max < 0) {
+    max = INT_MAX;
+  }
 retry:
-	xas_lock_irqsave(&xas, flags);
+  xas_lock_irqsave(&xas, flags);
 next:
-	bitmap = xas_find_marked(&xas, max / IDA_BITMAP_BITS, XA_FREE_MARK);
-	if (xas.xa_index > min / IDA_BITMAP_BITS)
-		bit = 0;
-	if (xas.xa_index * IDA_BITMAP_BITS + bit > max)
-		goto nospc;
-
-	if (xa_is_value(bitmap)) {
-		unsigned long tmp = xa_to_value(bitmap);
-
-		if (bit < BITS_PER_XA_VALUE) {
-			bit = find_next_zero_bit(&tmp, BITS_PER_XA_VALUE, bit);
-			if (xas.xa_index * IDA_BITMAP_BITS + bit > max)
-				goto nospc;
-			if (bit < BITS_PER_XA_VALUE) {
-				tmp |= 1UL << bit;
-				xas_store(&xas, xa_mk_value(tmp));
-				goto out;
-			}
-		}
-		bitmap = alloc;
-		if (!bitmap)
-			bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
-		if (!bitmap)
-			goto alloc;
-		bitmap->bitmap[0] = tmp;
-		xas_store(&xas, bitmap);
-		if (xas_error(&xas)) {
-			bitmap->bitmap[0] = 0;
-			goto out;
-		}
-	}
-
-	if (bitmap) {
-		bit = find_next_zero_bit(bitmap->bitmap, IDA_BITMAP_BITS, bit);
-		if (xas.xa_index * IDA_BITMAP_BITS + bit > max)
-			goto nospc;
-		if (bit == IDA_BITMAP_BITS)
-			goto next;
-
-		__set_bit(bit, bitmap->bitmap);
-		if (bitmap_full(bitmap->bitmap, IDA_BITMAP_BITS))
-			xas_clear_mark(&xas, XA_FREE_MARK);
-	} else {
-		if (bit < BITS_PER_XA_VALUE) {
-			bitmap = xa_mk_value(1UL << bit);
-		} else {
-			bitmap = alloc;
-			if (!bitmap)
-				bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
-			if (!bitmap)
-				goto alloc;
-			__set_bit(bit, bitmap->bitmap);
-		}
-		xas_store(&xas, bitmap);
-	}
+  bitmap = xas_find_marked(&xas, max / IDA_BITMAP_BITS, XA_FREE_MARK);
+  if (xas.xa_index > min / IDA_BITMAP_BITS) {
+    bit = 0;
+  }
+  if (xas.xa_index * IDA_BITMAP_BITS + bit > max) {
+    goto nospc;
+  }
+  if (xa_is_value(bitmap)) {
+    unsigned long tmp = xa_to_value(bitmap);
+    if (bit < BITS_PER_XA_VALUE) {
+      bit = find_next_zero_bit(&tmp, BITS_PER_XA_VALUE, bit);
+      if (xas.xa_index * IDA_BITMAP_BITS + bit > max) {
+        goto nospc;
+      }
+      if (bit < BITS_PER_XA_VALUE) {
+        tmp |= 1UL << bit;
+        xas_store(&xas, xa_mk_value(tmp));
+        goto out;
+      }
+    }
+    bitmap = alloc;
+    if (!bitmap) {
+      bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
+    }
+    if (!bitmap) {
+      goto alloc;
+    }
+    bitmap->bitmap[0] = tmp;
+    xas_store(&xas, bitmap);
+    if (xas_error(&xas)) {
+      bitmap->bitmap[0] = 0;
+      goto out;
+    }
+  }
+  if (bitmap) {
+    bit = find_next_zero_bit(bitmap->bitmap, IDA_BITMAP_BITS, bit);
+    if (xas.xa_index * IDA_BITMAP_BITS + bit > max) {
+      goto nospc;
+    }
+    if (bit == IDA_BITMAP_BITS) {
+      goto next;
+    }
+    __set_bit(bit, bitmap->bitmap);
+    if (bitmap_full(bitmap->bitmap, IDA_BITMAP_BITS)) {
+      xas_clear_mark(&xas, XA_FREE_MARK);
+    }
+  } else {
+    if (bit < BITS_PER_XA_VALUE) {
+      bitmap = xa_mk_value(1UL << bit);
+    } else {
+      bitmap = alloc;
+      if (!bitmap) {
+        bitmap = kzalloc(sizeof(*bitmap), GFP_NOWAIT);
+      }
+      if (!bitmap) {
+        goto alloc;
+      }
+      __set_bit(bit, bitmap->bitmap);
+    }
+    xas_store(&xas, bitmap);
+  }
 out:
-	xas_unlock_irqrestore(&xas, flags);
-	if (xas_nomem(&xas, gfp)) {
-		xas.xa_index = min / IDA_BITMAP_BITS;
-		bit = min % IDA_BITMAP_BITS;
-		goto retry;
-	}
-	if (bitmap != alloc)
-		kfree(alloc);
-	if (xas_error(&xas))
-		return xas_error(&xas);
-	return xas.xa_index * IDA_BITMAP_BITS + bit;
+  xas_unlock_irqrestore(&xas, flags);
+  if (xas_nomem(&xas, gfp)) {
+    xas.xa_index = min / IDA_BITMAP_BITS;
+    bit = min % IDA_BITMAP_BITS;
+    goto retry;
+  }
+  if (bitmap != alloc) {
+    kfree(alloc);
+  }
+  if (xas_error(&xas)) {
+    return xas_error(&xas);
+  }
+  return xas.xa_index * IDA_BITMAP_BITS + bit;
 alloc:
-	xas_unlock_irqrestore(&xas, flags);
-	alloc = kzalloc(sizeof(*bitmap), gfp);
-	if (!alloc)
-		return -ENOMEM;
-	xas_set(&xas, min / IDA_BITMAP_BITS);
-	bit = min % IDA_BITMAP_BITS;
-	goto retry;
+  xas_unlock_irqrestore(&xas, flags);
+  alloc = kzalloc(sizeof(*bitmap), gfp);
+  if (!alloc) {
+    return -ENOMEM;
+  }
+  xas_set(&xas, min / IDA_BITMAP_BITS);
+  bit = min % IDA_BITMAP_BITS;
+  goto retry;
 nospc:
-	xas_unlock_irqrestore(&xas, flags);
-	kfree(alloc);
-	return -ENOSPC;
+  xas_unlock_irqrestore(&xas, flags);
+  kfree(alloc);
+  return -ENOSPC;
 }
+
 EXPORT_SYMBOL(ida_alloc_range);
 
 /**
@@ -484,46 +487,48 @@ EXPORT_SYMBOL(ida_alloc_range);
  * Context: Any context. It is safe to call this function without
  * locking in your code.
  */
-void ida_free(struct ida *ida, unsigned int id)
-{
-	XA_STATE(xas, &ida->xa, id / IDA_BITMAP_BITS);
-	unsigned bit = id % IDA_BITMAP_BITS;
-	struct ida_bitmap *bitmap;
-	unsigned long flags;
-
-	if ((int)id < 0)
-		return;
-
-	xas_lock_irqsave(&xas, flags);
-	bitmap = xas_load(&xas);
-
-	if (xa_is_value(bitmap)) {
-		unsigned long v = xa_to_value(bitmap);
-		if (bit >= BITS_PER_XA_VALUE)
-			goto err;
-		if (!(v & (1UL << bit)))
-			goto err;
-		v &= ~(1UL << bit);
-		if (!v)
-			goto delete;
-		xas_store(&xas, xa_mk_value(v));
-	} else {
-		if (!bitmap || !test_bit(bit, bitmap->bitmap))
-			goto err;
-		__clear_bit(bit, bitmap->bitmap);
-		xas_set_mark(&xas, XA_FREE_MARK);
-		if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
-			kfree(bitmap);
+void ida_free(struct ida *ida, unsigned int id) {
+  XA_STATE(xas, &ida->xa, id / IDA_BITMAP_BITS);
+  unsigned bit = id % IDA_BITMAP_BITS;
+  struct ida_bitmap *bitmap;
+  unsigned long flags;
+  if ((int) id < 0) {
+    return;
+  }
+  xas_lock_irqsave(&xas, flags);
+  bitmap = xas_load(&xas);
+  if (xa_is_value(bitmap)) {
+    unsigned long v = xa_to_value(bitmap);
+    if (bit >= BITS_PER_XA_VALUE) {
+      goto err;
+    }
+    if (!(v & (1UL << bit))) {
+      goto err;
+    }
+    v &= ~(1UL << bit);
+    if (!v) {
+      goto delete;
+    }
+    xas_store(&xas, xa_mk_value(v));
+  } else {
+    if (!bitmap || !test_bit(bit, bitmap->bitmap)) {
+      goto err;
+    }
+    __clear_bit(bit, bitmap->bitmap);
+    xas_set_mark(&xas, XA_FREE_MARK);
+    if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
+      kfree(bitmap);
 delete:
-			xas_store(&xas, NULL);
-		}
-	}
-	xas_unlock_irqrestore(&xas, flags);
-	return;
- err:
-	xas_unlock_irqrestore(&xas, flags);
-	WARN(1, "ida_free called for id=%d which is not allocated.\n", id);
+      xas_store(&xas, NULL);
+    }
+  }
+  xas_unlock_irqrestore(&xas, flags);
+  return;
+err:
+  xas_unlock_irqrestore(&xas, flags);
+  WARN(1, "ida_free called for id=%d which is not allocated.\n", id);
 }
+
 EXPORT_SYMBOL(ida_free);
 
 /**
@@ -538,62 +543,60 @@ EXPORT_SYMBOL(ida_free);
  * Context: Any context. It is safe to call this function without
  * locking in your code.
  */
-void ida_destroy(struct ida *ida)
-{
-	XA_STATE(xas, &ida->xa, 0);
-	struct ida_bitmap *bitmap;
-	unsigned long flags;
-
-	xas_lock_irqsave(&xas, flags);
-	xas_for_each(&xas, bitmap, ULONG_MAX) {
-		if (!xa_is_value(bitmap))
-			kfree(bitmap);
-		xas_store(&xas, NULL);
-	}
-	xas_unlock_irqrestore(&xas, flags);
+void ida_destroy(struct ida *ida) {
+  XA_STATE(xas, &ida->xa, 0);
+  struct ida_bitmap *bitmap;
+  unsigned long flags;
+  xas_lock_irqsave(&xas, flags);
+  xas_for_each(&xas, bitmap, ULONG_MAX) {
+    if (!xa_is_value(bitmap)) {
+      kfree(bitmap);
+    }
+    xas_store(&xas, NULL);
+  }
+  xas_unlock_irqrestore(&xas, flags);
 }
+
 EXPORT_SYMBOL(ida_destroy);
 
 #ifndef __KERNEL__
 extern void xa_dump_index(unsigned long index, unsigned int shift);
-#define IDA_CHUNK_SHIFT		ilog2(IDA_BITMAP_BITS)
+#define IDA_CHUNK_SHIFT   ilog2(IDA_BITMAP_BITS)
 
-static void ida_dump_entry(void *entry, unsigned long index)
-{
-	unsigned long i;
-
-	if (!entry)
-		return;
-
-	if (xa_is_node(entry)) {
-		struct xa_node *node = xa_to_node(entry);
-		unsigned int shift = node->shift + IDA_CHUNK_SHIFT +
-			XA_CHUNK_SHIFT;
-
-		xa_dump_index(index * IDA_BITMAP_BITS, shift);
-		xa_dump_node(node);
-		for (i = 0; i < XA_CHUNK_SIZE; i++)
-			ida_dump_entry(node->slots[i],
-					index | (i << node->shift));
-	} else if (xa_is_value(entry)) {
-		xa_dump_index(index * IDA_BITMAP_BITS, ilog2(BITS_PER_LONG));
-		pr_cont("value: data %lx [%px]\n", xa_to_value(entry), entry);
-	} else {
-		struct ida_bitmap *bitmap = entry;
-
-		xa_dump_index(index * IDA_BITMAP_BITS, IDA_CHUNK_SHIFT);
-		pr_cont("bitmap: %p data", bitmap);
-		for (i = 0; i < IDA_BITMAP_LONGS; i++)
-			pr_cont(" %lx", bitmap->bitmap[i]);
-		pr_cont("\n");
-	}
+static void ida_dump_entry(void *entry, unsigned long index) {
+  unsigned long i;
+  if (!entry) {
+    return;
+  }
+  if (xa_is_node(entry)) {
+    struct xa_node *node = xa_to_node(entry);
+    unsigned int shift = node->shift + IDA_CHUNK_SHIFT
+        + XA_CHUNK_SHIFT;
+    xa_dump_index(index * IDA_BITMAP_BITS, shift);
+    xa_dump_node(node);
+    for (i = 0; i < XA_CHUNK_SIZE; i++) {
+      ida_dump_entry(node->slots[i],
+          index | (i << node->shift));
+    }
+  } else if (xa_is_value(entry)) {
+    xa_dump_index(index * IDA_BITMAP_BITS, ilog2(BITS_PER_LONG));
+    pr_cont("value: data %lx [%px]\n", xa_to_value(entry), entry);
+  } else {
+    struct ida_bitmap *bitmap = entry;
+    xa_dump_index(index * IDA_BITMAP_BITS, IDA_CHUNK_SHIFT);
+    pr_cont("bitmap: %p data", bitmap);
+    for (i = 0; i < IDA_BITMAP_LONGS; i++) {
+      pr_cont(" %lx", bitmap->bitmap[i]);
+    }
+    pr_cont("\n");
+  }
 }
 
-static void ida_dump(struct ida *ida)
-{
-	struct xarray *xa = &ida->xa;
-	pr_debug("ida: %p node %p free %d\n", ida, xa->xa_head,
-				xa->xa_flags >> ROOT_TAG_SHIFT);
-	ida_dump_entry(xa->xa_head, 0);
+static void ida_dump(struct ida *ida) {
+  struct xarray *xa = &ida->xa;
+  pr_debug("ida: %p node %p free %d\n", ida, xa->xa_head,
+      xa->xa_flags >> ROOT_TAG_SHIFT);
+  ida_dump_entry(xa->xa_head, 0);
 }
+
 #endif

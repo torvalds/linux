@@ -31,7 +31,7 @@ struct v4l2_ctrl_handler;
  *
  * @wait: event' s wait queue
  * @subscribe_lock: serialise changes to the subscribed list; guarantee that
- *		    the add and del event callbacks are orderly called
+ *        the add and del event callbacks are orderly called
  * @subscribed: list of subscribed events
  * @available: list of events waiting to be dequeued
  * @navailable: number of available events at @available list
@@ -40,20 +40,20 @@ struct v4l2_ctrl_handler;
  * @m2m_ctx: pointer to &struct v4l2_m2m_ctx
  */
 struct v4l2_fh {
-	struct list_head	list;
-	struct video_device	*vdev;
-	struct v4l2_ctrl_handler *ctrl_handler;
-	enum v4l2_priority	prio;
+  struct list_head list;
+  struct video_device *vdev;
+  struct v4l2_ctrl_handler *ctrl_handler;
+  enum v4l2_priority prio;
 
-	/* Events */
-	wait_queue_head_t	wait;
-	struct mutex		subscribe_lock;
-	struct list_head	subscribed;
-	struct list_head	available;
-	unsigned int		navailable;
-	u32			sequence;
+  /* Events */
+  wait_queue_head_t wait;
+  struct mutex subscribe_lock;
+  struct list_head subscribed;
+  struct list_head available;
+  unsigned int navailable;
+  u32 sequence;
 
-	struct v4l2_m2m_ctx	*m2m_ctx;
+  struct v4l2_m2m_ctx *m2m_ctx;
 };
 
 /**
@@ -81,7 +81,7 @@ void v4l2_fh_add(struct v4l2_fh *fh);
 
 /**
  * v4l2_fh_open - Ancillary routine that can be used as the open\(\) op
- *	of v4l2_file_operations.
+ *  of v4l2_file_operations.
  *
  * @filp: pointer to struct file
  *
@@ -120,7 +120,7 @@ void v4l2_fh_exit(struct v4l2_fh *fh);
 
 /**
  * v4l2_fh_release - Ancillary routine that can be used as the release\(\) op
- *	of v4l2_file_operations.
+ *  of v4l2_file_operations.
  *
  * @filp: pointer to struct file
  *
@@ -134,7 +134,7 @@ int v4l2_fh_release(struct file *filp);
 
 /**
  * v4l2_fh_is_singular - Returns 1 if this filehandle is the only filehandle
- *	 opened for the associated video_device.
+ *   opened for the associated video_device.
  *
  * @fh: pointer to &struct v4l2_fh
  *
@@ -144,7 +144,7 @@ int v4l2_fh_is_singular(struct v4l2_fh *fh);
 
 /**
  * v4l2_fh_is_singular_file - Returns 1 if this filehandle is the only
- *	filehandle opened for the associated video_device.
+ *  filehandle opened for the associated video_device.
  *
  * @filp: pointer to struct file
  *
@@ -153,9 +153,8 @@ int v4l2_fh_is_singular(struct v4l2_fh *fh);
  *
  * If filp->private_data is %NULL, then it will return 0.
  */
-static inline int v4l2_fh_is_singular_file(struct file *filp)
-{
-	return v4l2_fh_is_singular(filp->private_data);
+static inline int v4l2_fh_is_singular_file(struct file *filp) {
+  return v4l2_fh_is_singular(filp->private_data);
 }
 
 #endif /* V4L2_EVENT_H */

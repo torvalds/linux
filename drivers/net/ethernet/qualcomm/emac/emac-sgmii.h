@@ -15,11 +15,11 @@ struct platform_device;
  * @link_change called when the link state changes
  */
 struct sgmii_ops {
-	int (*init)(struct emac_adapter *adpt);
-	int (*open)(struct emac_adapter *adpt);
-	void (*close)(struct emac_adapter *adpt);
-	int (*link_change)(struct emac_adapter *adpt, bool link_state);
-	void (*reset)(struct emac_adapter *adpt);
+  int (*init)(struct emac_adapter *adpt);
+  int (*open)(struct emac_adapter *adpt);
+  void (*close)(struct emac_adapter *adpt);
+  int (*link_change)(struct emac_adapter *adpt, bool link_state);
+  void (*reset)(struct emac_adapter *adpt);
 };
 
 /** emac_sgmii - internal emac phy
@@ -30,11 +30,11 @@ struct sgmii_ops {
  * @sgmii_ops sgmii ops
  */
 struct emac_sgmii {
-	void __iomem		*base;
-	void __iomem		*digital;
-	unsigned int		irq;
-	atomic_t		decode_error_count;
-	struct	sgmii_ops	*sgmii_ops;
+  void __iomem *base;
+  void __iomem *digital;
+  unsigned int irq;
+  atomic_t decode_error_count;
+  struct  sgmii_ops *sgmii_ops;
 };
 
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt);

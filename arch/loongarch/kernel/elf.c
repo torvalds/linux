@@ -13,13 +13,11 @@
 #include <asm/cpu-info.h>
 
 int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
-		     bool is_interp, struct arch_elf_state *state)
-{
-	return 0;
+    bool is_interp, struct arch_elf_state *state) {
+  return 0;
 }
 
 int arch_check_elf(void *_ehdr, bool has_interpreter, void *_interp_ehdr,
-		   struct arch_elf_state *state)
-{
-	return 0;
+    struct arch_elf_state *state) {
+  return 0;
 }

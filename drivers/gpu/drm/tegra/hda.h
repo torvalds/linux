@@ -9,10 +9,10 @@
 #include <linux/types.h>
 
 struct tegra_hda_format {
-	unsigned int sample_rate;
-	unsigned int channels;
-	unsigned int bits;
-	bool pcm;
+  unsigned int sample_rate;
+  unsigned int channels;
+  unsigned int bits;
+  bool pcm;
 };
 
 void tegra_hda_parse_format(unsigned int format, struct tegra_hda_format *fmt);

@@ -13,8 +13,10 @@
 #define HYDRA_INTR_STATUS_REG               0x80030008
 #define HYDRA_INTR_MASK_REG                 0x8003000C
 
-#define HYDRA_CRYSTAL_SETTING               0x3FFFC5F0 /* 0 - 24 MHz & 1 - 27 MHz */
-#define HYDRA_CRYSTAL_CAP                   0x3FFFEDA4 /* 0 - 24 MHz & 1 - 27 MHz */
+#define HYDRA_CRYSTAL_SETTING               0x3FFFC5F0 /* 0 - 24 MHz & 1 - 27
+                                                        * MHz */
+#define HYDRA_CRYSTAL_CAP                   0x3FFFEDA4 /* 0 - 24 MHz & 1 - 27
+                                                        * MHz */
 
 #define HYDRA_CPU_RESET_REG                 0x8003003C
 #define HYDRA_CPU_RESET_DATA                0x00000400
@@ -57,8 +59,8 @@
 /* SOC operating temperature in C */
 #define HYDRA_TEMPARATURE                   0x3FFFEDB4
 
-/* Demod & Tuner status registers */
-/* Demod 0 status base address */
+/* Demod & Tuner status registers
+ * Demod 0 status base address*/
 #define HYDRA_DEMOD_0_BASE_ADDR             0x3FFFC64C
 
 /* Tuner 0 status base address */
@@ -103,8 +105,20 @@
 #define HYDRA_DMD_DVBS_BER_WINDOW_ADDR_OFFSET             0x3FFFC6A8
 
 /* Debug-purpose DVB-S DMD 0 */
-#define HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET     0x3FFFC6C8  /* corrected RS Errors: 1st iteration */
-#define HYDRA_DMD_DVBS_1ST_UNCORR_RS_ERRORS_ADDR_OFFSET   0x3FFFC6CC  /* uncorrected RS Errors: 1st iteration */
+#define HYDRA_DMD_DVBS_1ST_CORR_RS_ERRORS_ADDR_OFFSET     0x3FFFC6C8  /*
+                                                                       * corrected
+                                                                       * RS
+                                                                       * Errors:
+                                                                       * 1st
+                                                                       * iteration
+                                                                       * */
+#define HYDRA_DMD_DVBS_1ST_UNCORR_RS_ERRORS_ADDR_OFFSET   0x3FFFC6CC  /*
+                                                                       * uncorrected
+                                                                       * RS
+                                                                       * Errors:
+                                                                       * 1st
+                                                                       * iteration
+                                                                       * */
 #define HYDRA_DMD_DVBS_BER_COUNT_1ST_ADDR_OFFSET          0x3FFFC6D0
 #define HYDRA_DMD_DVBS_BER_WINDOW_1ST_ADDR_OFFSET         0x3FFFC6D4
 
@@ -115,9 +129,26 @@
 #define HYDRA_DMD_STATUS_CENTER_FREQ_IN_KHZ_ADDR          0x3FFFC704
 #define HYDRA_DMD_STATUS_INPUT_POWER_ADDR                 0x3FFFC708
 
-/* DVB-S new scaled_BER_count for a new BER API, see HYDRA-1343 "DVB-S post viterbi information" */
-#define DMD0_STATUS_DVBS_1ST_SCALED_BER_COUNT_ADDR        0x3FFFC710 /* DMD 0: 1st iteration BER count scaled by HYDRA_BER_COUNT_SCALING_FACTOR */
-#define DMD0_STATUS_DVBS_SCALED_BER_COUNT_ADDR            0x3FFFC714 /* DMD 0: 2nd iteration BER count scaled by HYDRA_BER_COUNT_SCALING_FACTOR */
+/* DVB-S new scaled_BER_count for a new BER API, see HYDRA-1343 "DVB-S post
+ * viterbi information" */
+#define DMD0_STATUS_DVBS_1ST_SCALED_BER_COUNT_ADDR        0x3FFFC710 /* DMD 0:
+                                                                      * 1st
+                                                                      * iteration
+                                                                      * BER
+                                                                      * count
+                                                                      * scaled
+                                                                      * by
+                                                                      * HYDRA_BER_COUNT_SCALING_FACTOR
+                                                                      * */
+#define DMD0_STATUS_DVBS_SCALED_BER_COUNT_ADDR            0x3FFFC714 /* DMD 0:
+                                                                      * 2nd
+                                                                      * iteration
+                                                                      * BER
+                                                                      * count
+                                                                      * scaled
+                                                                      * by
+                                                                      * HYDRA_BER_COUNT_SCALING_FACTOR
+                                                                      * */
 
 #define DMD0_SPECTRUM_MIN_GAIN_STATUS                     0x3FFFC73C
 #define DMD0_SPECTRUM_MIN_GAIN_WB_SAGC_VALUE              0x3FFFC740
@@ -133,8 +164,12 @@
 #define HYDRA_TUNER_SPECTRUM_ADDRESS_OFFSET               0x3FFFCE5C
 #define HYDRA_TUNER_ENABLE_COMPLETE                       0x3FFFEB78
 
-#define HYDRA_DEMOD_STATUS_LOCK(devId, demodId)   write_register(devId, (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET(demodId)), MXL_YES)
-#define HYDRA_DEMOD_STATUS_UNLOCK(devId, demodId) write_register(devId, (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET(demodId)), MXL_NO)
+#define HYDRA_DEMOD_STATUS_LOCK(devId, demodId)   write_register(devId, \
+    (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET( \
+    demodId)), MXL_YES)
+#define HYDRA_DEMOD_STATUS_UNLOCK(devId, demodId) write_register(devId, \
+    (HYDRA_DMD_STATUS_LOCK_ADDR_OFFSET + HYDRA_DMD_STATUS_OFFSET( \
+    demodId)), MXL_NO)
 
 #define HYDRA_VERSION                                     0x3FFFEDB8
 #define HYDRA_DEMOD0_VERSION                              0x3FFFEDBC
@@ -196,7 +231,6 @@
 /***************************************************************************/
 
 #define PAD_MUX_GPIO_00_SYNC_BASEADDR                          0x90000188
-
 
 #define PAD_MUX_UART_RX_C_PINMUX_BASEADDR 0x9000001C
 
@@ -318,7 +352,11 @@
 #define   XPT_DMD0_BASEADDR                                      0x9070024C
 
 /* V2 AGC Gain Freeze & step */
-#define   DBG_ENABLE_DISABLE_AGC                                 (0x3FFFCF60) /* 1: DISABLE, 0:ENABLE */
+#define   DBG_ENABLE_DISABLE_AGC                                 (0x3FFFCF60) /*
+                                                                               * 1:
+                                                                               * DISABLE,
+                                                                               * 0:ENABLE
+                                                                               * */
 #define   WB_DFE0_DFE_FB_RF1_BASEADDR                            0x903004A4
 
 #define   WB_DFE1_DFE_FB_RF1_BASEADDR                            0x904004A4

@@ -20,7 +20,7 @@ int udbg_write(const char *s, int n);
 
 void register_early_udbg_console(void);
 void udbg_printf(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
+__attribute__ ((format(printf, 1, 2)));
 void udbg_progress(char *s, unsigned short hex);
 
 void __init udbg_uart_init_mmio(void __iomem *addr, unsigned int stride);

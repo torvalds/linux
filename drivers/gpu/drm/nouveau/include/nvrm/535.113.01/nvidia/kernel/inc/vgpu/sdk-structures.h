@@ -1,10 +1,12 @@
 #ifndef __src_nvidia_kernel_inc_vgpu_sdk_structures_h__
 #define __src_nvidia_kernel_inc_vgpu_sdk_structures_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2022 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,15 +28,14 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-struct pte_desc
-{
-    NvU32 idr:2;
-    NvU32 reserved1:14;
-    NvU32 length:16;
-    union {
-        NvU64 pte; // PTE when IDR==0; PDE when IDR > 0
-        NvU64 pde; // PTE when IDR==0; PDE when IDR > 0
-    } pte_pde[]  NV_ALIGN_BYTES(8); // PTE when IDR==0; PDE when IDR > 0
+struct pte_desc {
+  NvU32 idr : 2;
+  NvU32 reserved1 : 14;
+  NvU32 length : 16;
+  union {
+    NvU64 pte; // PTE when IDR==0; PDE when IDR > 0
+    NvU64 pde; // PTE when IDR==0; PDE when IDR > 0
+  } pte_pde[] NV_ALIGN_BYTES(8); // PTE when IDR==0; PDE when IDR > 0
 };
 
 #endif

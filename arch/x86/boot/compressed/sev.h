@@ -15,8 +15,12 @@ void snp_accept_memory(phys_addr_t start, phys_addr_t end);
 
 #else
 
-static inline bool sev_snp_enabled(void) { return false; }
-static inline void snp_accept_memory(phys_addr_t start, phys_addr_t end) { }
+static inline bool sev_snp_enabled(void) {
+  return false;
+}
+
+static inline void snp_accept_memory(phys_addr_t start, phys_addr_t end) {
+}
 
 #endif
 

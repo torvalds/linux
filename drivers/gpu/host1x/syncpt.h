@@ -20,34 +20,34 @@
 struct host1x;
 
 /* Reserved for replacing an expired wait with a NOP */
-#define HOST1X_SYNCPT_RESERVED			0
+#define HOST1X_SYNCPT_RESERVED      0
 
 struct host1x_syncpt_base {
-	unsigned int id;
-	bool requested;
+  unsigned int id;
+  bool requested;
 };
 
 struct host1x_syncpt {
-	struct kref ref;
+  struct kref ref;
 
-	unsigned int id;
-	atomic_t min_val;
-	atomic_t max_val;
-	u32 base_val;
-	const char *name;
-	bool client_managed;
-	struct host1x *host;
-	struct host1x_syncpt_base *base;
+  unsigned int id;
+  atomic_t min_val;
+  atomic_t max_val;
+  u32 base_val;
+  const char *name;
+  bool client_managed;
+  struct host1x *host;
+  struct host1x_syncpt_base *base;
 
-	/* interrupt data */
-	struct host1x_fence_list fences;
+  /* interrupt data */
+  struct host1x_fence_list fences;
 
-	/*
-	 * If a submission incrementing this syncpoint fails, lock it so that
-	 * further submission cannot be made until application has handled the
-	 * failure.
-	 */
-	bool locked;
+  /*
+   * If a submission incrementing this syncpoint fails, lock it so that
+   * further submission cannot be made until application has handled the
+   * failure.
+   */
+  bool locked;
 };
 
 /* Initialize sync point array  */
@@ -71,32 +71,30 @@ unsigned int host1x_syncpt_nb_mlocks(struct host1x *host);
  *
  * Client managed sync point are not tracked.
  * */
-static inline bool host1x_syncpt_check_max(struct host1x_syncpt *sp, u32 real)
-{
-	u32 max;
-	if (sp->client_managed)
-		return true;
-	max = host1x_syncpt_read_max(sp);
-	return (s32)(max - real) >= 0;
+static inline bool host1x_syncpt_check_max(struct host1x_syncpt *sp, u32 real) {
+  u32 max;
+  if (sp->client_managed) {
+    return true;
+  }
+  max = host1x_syncpt_read_max(sp);
+  return (s32) (max - real) >= 0;
 }
 
 /* Return true if sync point is client managed. */
-static inline bool host1x_syncpt_client_managed(struct host1x_syncpt *sp)
-{
-	return sp->client_managed;
+static inline bool host1x_syncpt_client_managed(struct host1x_syncpt *sp) {
+  return sp->client_managed;
 }
 
 /*
  * Returns true if syncpoint min == max, which means that there are no
  * outstanding operations.
  */
-static inline bool host1x_syncpt_idle(struct host1x_syncpt *sp)
-{
-	int min, max;
-	smp_rmb();
-	min = atomic_read(&sp->min_val);
-	max = atomic_read(&sp->max_val);
-	return (min == max);
+static inline bool host1x_syncpt_idle(struct host1x_syncpt *sp) {
+  int min, max;
+  smp_rmb();
+  min = atomic_read(&sp->min_val);
+  max = atomic_read(&sp->max_val);
+  return min == max;
 }
 
 /* Load current value from hardware to the shadow register. */
@@ -118,14 +116,12 @@ u32 host1x_syncpt_load_wait_base(struct host1x_syncpt *sp);
 u32 host1x_syncpt_incr_max(struct host1x_syncpt *sp, u32 incrs);
 
 /* Check if sync point id is valid. */
-static inline int host1x_syncpt_is_valid(struct host1x_syncpt *sp)
-{
-	return sp->id < host1x_syncpt_nb_pts(sp->host);
+static inline int host1x_syncpt_is_valid(struct host1x_syncpt *sp) {
+  return sp->id < host1x_syncpt_nb_pts(sp->host);
 }
 
-static inline void host1x_syncpt_set_locked(struct host1x_syncpt *sp)
-{
-	sp->locked = true;
+static inline void host1x_syncpt_set_locked(struct host1x_syncpt *sp) {
+  sp->locked = true;
 }
 
 #endif

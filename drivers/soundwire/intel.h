@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
-/* Copyright(c) 2015-17 Intel Corporation. */
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+ * Copyright(c) 2015-17 Intel Corporation.*/
 
 #ifndef __SDW_INTEL_LOCAL_H
 #define __SDW_INTEL_LOCAL_H
@@ -28,186 +28,189 @@ struct hdac_bus;
  * @hbus: hdac_bus pointer, needed for power management
  */
 struct sdw_intel_link_res {
-	const struct sdw_intel_hw_ops *hw_ops;
+  const struct sdw_intel_hw_ops *hw_ops;
 
-	void __iomem *mmio_base; /* not strictly needed, useful for debug */
-	void __iomem *registers;
-	u32 ip_offset;
-	void __iomem *shim;
-	void __iomem *shim_vs;
-	void __iomem *alh;
-	int irq;
-	const struct sdw_intel_ops *ops;
-	struct device *dev;
-	struct mutex *shim_lock; /* protect shared registers */
-	u32 *shim_mask;
-	u32 clock_stop_quirks;
-	u32 link_mask;
-	struct sdw_cdns *cdns;
-	struct list_head list;
-	struct hdac_bus *hbus;
+  void __iomem *mmio_base; /* not strictly needed, useful for debug */
+  void __iomem *registers;
+  u32 ip_offset;
+  void __iomem *shim;
+  void __iomem *shim_vs;
+  void __iomem *alh;
+  int irq;
+  const struct sdw_intel_ops *ops;
+  struct device *dev;
+  struct mutex *shim_lock; /* protect shared registers */
+  u32 *shim_mask;
+  u32 clock_stop_quirks;
+  u32 link_mask;
+  struct sdw_cdns *cdns;
+  struct list_head list;
+  struct hdac_bus *hbus;
 };
 
 struct sdw_intel {
-	struct sdw_cdns cdns;
-	int instance;
-	struct sdw_intel_link_res *link_res;
-	bool startup_done;
+  struct sdw_cdns cdns;
+  int instance;
+  struct sdw_intel_link_res *link_res;
+  bool startup_done;
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
+  struct dentry *debugfs;
 #endif
 };
 
 enum intel_pdi_type {
-	INTEL_PDI_IN = 0,
-	INTEL_PDI_OUT = 1,
-	INTEL_PDI_BD = 2,
+  INTEL_PDI_IN = 0,
+  INTEL_PDI_OUT = 1,
+  INTEL_PDI_BD = 2,
 };
 
 /*
  * Read, write helpers for HW registers
  */
-static inline int intel_readl(void __iomem *base, int offset)
-{
-	return readl(base + offset);
+static inline int intel_readl(void __iomem *base, int offset) {
+  return readl(base + offset);
 }
 
-static inline void intel_writel(void __iomem *base, int offset, int value)
-{
-	writel(value, base + offset);
+static inline void intel_writel(void __iomem *base, int offset, int value) {
+  writel(value, base + offset);
 }
 
-static inline u16 intel_readw(void __iomem *base, int offset)
-{
-	return readw(base + offset);
+static inline u16 intel_readw(void __iomem *base, int offset) {
+  return readw(base + offset);
 }
 
-static inline void intel_writew(void __iomem *base, int offset, u16 value)
-{
-	writew(value, base + offset);
+static inline void intel_writew(void __iomem *base, int offset, u16 value) {
+  writew(value, base + offset);
 }
 
 #define cdns_to_intel(_cdns) container_of(_cdns, struct sdw_intel, cdns)
 
-#define INTEL_MASTER_RESET_ITERATIONS	10
+#define INTEL_MASTER_RESET_ITERATIONS 10
 
-#define SDW_INTEL_CHECK_OPS(sdw, cb)	((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops && \
-					 (sdw)->link_res->hw_ops->cb)
-#define SDW_INTEL_OPS(sdw, cb)		((sdw)->link_res->hw_ops->cb)
+#define SDW_INTEL_CHECK_OPS(sdw, \
+      cb)  ((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops    \
+  && (sdw)->link_res->hw_ops->cb)
+#define SDW_INTEL_OPS(sdw, cb)    ((sdw)->link_res->hw_ops->cb)
 
 #ifdef CONFIG_DEBUG_FS
 void intel_ace2x_debugfs_init(struct sdw_intel *sdw);
 void intel_ace2x_debugfs_exit(struct sdw_intel *sdw);
 #else
-static inline void intel_ace2x_debugfs_init(struct sdw_intel *sdw) {}
-static inline void intel_ace2x_debugfs_exit(struct sdw_intel *sdw) {}
+static inline void intel_ace2x_debugfs_init(struct sdw_intel *sdw) {
+}
+
+static inline void intel_ace2x_debugfs_exit(struct sdw_intel *sdw) {
+}
+
 #endif
 
-static inline void sdw_intel_debugfs_init(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_init))
-		SDW_INTEL_OPS(sdw, debugfs_init)(sdw);
+static inline void sdw_intel_debugfs_init(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, debugfs_init)) {
+    SDW_INTEL_OPS(sdw, debugfs_init) (sdw);
+  }
 }
 
-static inline void sdw_intel_debugfs_exit(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, debugfs_exit))
-		SDW_INTEL_OPS(sdw, debugfs_exit)(sdw);
+static inline void sdw_intel_debugfs_exit(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, debugfs_exit)) {
+    SDW_INTEL_OPS(sdw, debugfs_exit) (sdw);
+  }
 }
 
-static inline int sdw_intel_register_dai(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, register_dai))
-		return SDW_INTEL_OPS(sdw, register_dai)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_register_dai(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, register_dai)) {
+    return SDW_INTEL_OPS(sdw, register_dai) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline void sdw_intel_check_clock_stop(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, check_clock_stop))
-		SDW_INTEL_OPS(sdw, check_clock_stop)(sdw);
+static inline void sdw_intel_check_clock_stop(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, check_clock_stop)) {
+    SDW_INTEL_OPS(sdw, check_clock_stop) (sdw);
+  }
 }
 
-static inline int sdw_intel_start_bus(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, start_bus))
-		return SDW_INTEL_OPS(sdw, start_bus)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_start_bus(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, start_bus)) {
+    return SDW_INTEL_OPS(sdw, start_bus) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_start_bus_after_reset(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_reset))
-		return SDW_INTEL_OPS(sdw, start_bus_after_reset)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_start_bus_after_reset(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_reset)) {
+    return SDW_INTEL_OPS(sdw, start_bus_after_reset) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_start_bus_after_clock_stop(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_clock_stop))
-		return SDW_INTEL_OPS(sdw, start_bus_after_clock_stop)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_start_bus_after_clock_stop(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, start_bus_after_clock_stop)) {
+    return SDW_INTEL_OPS(sdw, start_bus_after_clock_stop) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, stop_bus))
-		return SDW_INTEL_OPS(sdw, stop_bus)(sdw, clock_stop);
-	return -ENOTSUPP;
+static inline int sdw_intel_stop_bus(struct sdw_intel *sdw, bool clock_stop) {
+  if (SDW_INTEL_CHECK_OPS(sdw, stop_bus)) {
+    return SDW_INTEL_OPS(sdw, stop_bus) (sdw, clock_stop);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_link_power_up(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, link_power_up))
-		return SDW_INTEL_OPS(sdw, link_power_up)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_link_power_up(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, link_power_up)) {
+    return SDW_INTEL_OPS(sdw, link_power_up) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_link_power_down(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, link_power_down))
-		return SDW_INTEL_OPS(sdw, link_power_down)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_link_power_down(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, link_power_down)) {
+    return SDW_INTEL_OPS(sdw, link_power_down) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_shim_check_wake(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, shim_check_wake))
-		return SDW_INTEL_OPS(sdw, shim_check_wake)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_shim_check_wake(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, shim_check_wake)) {
+    return SDW_INTEL_OPS(sdw, shim_check_wake) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline void sdw_intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, shim_wake))
-		SDW_INTEL_OPS(sdw, shim_wake)(sdw, wake_enable);
+static inline void sdw_intel_shim_wake(struct sdw_intel *sdw,
+    bool wake_enable) {
+  if (SDW_INTEL_CHECK_OPS(sdw, shim_wake)) {
+    SDW_INTEL_OPS(sdw, shim_wake) (sdw, wake_enable);
+  }
 }
 
-static inline void sdw_intel_sync_arm(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, sync_arm))
-		SDW_INTEL_OPS(sdw, sync_arm)(sdw);
+static inline void sdw_intel_sync_arm(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, sync_arm)) {
+    SDW_INTEL_OPS(sdw, sync_arm) (sdw);
+  }
 }
 
-static inline int sdw_intel_sync_go_unlocked(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, sync_go_unlocked))
-		return SDW_INTEL_OPS(sdw, sync_go_unlocked)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_sync_go_unlocked(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, sync_go_unlocked)) {
+    return SDW_INTEL_OPS(sdw, sync_go_unlocked) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
-static inline int sdw_intel_sync_go(struct sdw_intel *sdw)
-{
-	if (SDW_INTEL_CHECK_OPS(sdw, sync_go))
-		return SDW_INTEL_OPS(sdw, sync_go)(sdw);
-	return -ENOTSUPP;
+static inline int sdw_intel_sync_go(struct sdw_intel *sdw) {
+  if (SDW_INTEL_CHECK_OPS(sdw, sync_go)) {
+    return SDW_INTEL_OPS(sdw, sync_go) (sdw);
+  }
+  return -ENOTSUPP;
 }
 
 static inline bool sdw_intel_sync_check_cmdsync_unlocked(struct sdw_intel *sdw)
 {
-	if (SDW_INTEL_CHECK_OPS(sdw, sync_check_cmdsync_unlocked))
-		return SDW_INTEL_OPS(sdw, sync_check_cmdsync_unlocked)(sdw);
-	return false;
+  if (SDW_INTEL_CHECK_OPS(sdw, sync_check_cmdsync_unlocked)) {
+    return SDW_INTEL_OPS(sdw, sync_check_cmdsync_unlocked) (sdw);
+  }
+  return false;
 }
 
 /* common bus management */

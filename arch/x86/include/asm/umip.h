@@ -7,6 +7,9 @@
 #ifdef CONFIG_X86_UMIP
 bool fixup_umip_exception(struct pt_regs *regs);
 #else
-static inline bool fixup_umip_exception(struct pt_regs *regs) { return false; }
+static inline bool fixup_umip_exception(struct pt_regs *regs) {
+  return false;
+}
+
 #endif  /* CONFIG_X86_UMIP */
 #endif  /* _ASM_X86_UMIP_H */

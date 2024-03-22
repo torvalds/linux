@@ -10,10 +10,8 @@
 
 void xe_tile_sysfs_init(struct xe_tile *tile);
 
-static inline struct xe_tile *
-kobj_to_tile(struct kobject *kobj)
-{
-	return container_of(kobj, struct kobj_tile, base)->tile;
+static inline struct xe_tile *kobj_to_tile(struct kobject *kobj) {
+  return container_of(kobj, struct kobj_tile, base)->tile;
 }
 
 #endif /* _XE_TILE_SYSFS_H_ */

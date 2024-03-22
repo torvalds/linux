@@ -29,47 +29,46 @@
 
 #include "dcn31/dcn31_hubp.h"
 #include "dcn32/dcn32_hubp.h"
-#define HUBP_MASK_SH_LIST_DCN35(mask_sh)\
-	HUBP_MASK_SH_LIST_DCN32(mask_sh),\
-	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_FGCG_REP_DIS, mask_sh)
+#define HUBP_MASK_SH_LIST_DCN35(mask_sh) \
+  HUBP_MASK_SH_LIST_DCN32(mask_sh), \
+  HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_FGCG_REP_DIS, mask_sh)
 
 #define DCN35_HUBP_REG_FIELD_VARIABLE_LIST(type)          \
-	struct {                                          \
-		DCN32_HUBP_REG_FIELD_VARIABLE_LIST(type); \
-		type HUBP_FGCG_REP_DIS;                   \
-	}
+  struct {                                          \
+    DCN32_HUBP_REG_FIELD_VARIABLE_LIST(type); \
+    type HUBP_FGCG_REP_DIS;                   \
+  }
 
 struct dcn35_hubp2_shift {
-	DCN35_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
+  DCN35_HUBP_REG_FIELD_VARIABLE_LIST(uint8_t);
 };
 
 struct dcn35_hubp2_mask {
-	DCN35_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
+  DCN35_HUBP_REG_FIELD_VARIABLE_LIST(uint32_t);
 };
 
-
 bool hubp35_construct(
-	struct dcn20_hubp *hubp2,
-	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dcn_hubp2_registers *hubp_regs,
-	const struct dcn35_hubp2_shift *hubp_shift,
-	const struct dcn35_hubp2_mask *hubp_mask);
+  struct dcn20_hubp *hubp2,
+  struct dc_context *ctx,
+  uint32_t inst,
+  const struct dcn_hubp2_registers *hubp_regs,
+  const struct dcn35_hubp2_shift *hubp_shift,
+  const struct dcn35_hubp2_mask *hubp_mask);
 
 void hubp35_set_fgcg(struct hubp *hubp, bool enable);
 
 void hubp35_program_pixel_format(
-	struct hubp *hubp,
-	enum surface_pixel_format format);
+  struct hubp *hubp,
+  enum surface_pixel_format format);
 
 void hubp35_program_surface_config(
-	struct hubp *hubp,
-	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
-	struct plane_size *plane_size,
-	enum dc_rotation_angle rotation,
-	struct dc_plane_dcc_param *dcc,
-	bool horizontal_mirror,
-	unsigned int compat_level);
+  struct hubp *hubp,
+  enum surface_pixel_format format,
+  union dc_tiling_info *tiling_info,
+  struct plane_size *plane_size,
+  enum dc_rotation_angle rotation,
+  struct dc_plane_dcc_param *dcc,
+  bool horizontal_mirror,
+  unsigned int compat_level);
 
 #endif /* __DC_HUBP_DCN35_H__ */

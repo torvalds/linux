@@ -43,17 +43,17 @@
 #ifndef _DT_BINDINGS_CLOCK_SUN9I_A80_USB_H_
 #define _DT_BINDINGS_CLOCK_SUN9I_A80_USB_H_
 
-#define CLK_BUS_HCI0	0
-#define CLK_USB_OHCI0	1
-#define CLK_BUS_HCI1	2
-#define CLK_BUS_HCI2	3
-#define CLK_USB_OHCI2	4
+#define CLK_BUS_HCI0  0
+#define CLK_USB_OHCI0 1
+#define CLK_BUS_HCI1  2
+#define CLK_BUS_HCI2  3
+#define CLK_USB_OHCI2 4
 
-#define CLK_USB0_PHY	5
-#define CLK_USB1_HSIC	6
-#define CLK_USB1_PHY	7
-#define CLK_USB2_HSIC	8
-#define CLK_USB2_PHY	9
-#define CLK_USB_HSIC	10
+#define CLK_USB0_PHY  5
+#define CLK_USB1_HSIC 6
+#define CLK_USB1_PHY  7
+#define CLK_USB2_HSIC 8
+#define CLK_USB2_PHY  9
+#define CLK_USB_HSIC  10
 
 #endif /* _DT_BINDINGS_CLOCK_SUN9I_A80_USB_H_ */

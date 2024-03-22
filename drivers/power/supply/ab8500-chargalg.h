@@ -21,27 +21,27 @@
 struct ux500_charger;
 
 struct ux500_charger_ops {
-	int (*enable) (struct ux500_charger *, int, int, int);
-	int (*check_enable) (struct ux500_charger *, int, int);
-	int (*kick_wd) (struct ux500_charger *);
-	int (*update_curr) (struct ux500_charger *, int);
+  int (*enable)(struct ux500_charger *, int, int, int);
+  int (*check_enable)(struct ux500_charger *, int, int);
+  int (*kick_wd)(struct ux500_charger *);
+  int (*update_curr)(struct ux500_charger *, int);
 };
 
 /**
  * struct ux500_charger - power supply ux500 charger sub class
- * @psy			power supply base class
- * @ops			ux500 charger operations
- * @max_out_volt_uv	maximum output charger voltage in uV
- * @max_out_curr_ua	maximum output charger current in uA
- * @enabled		indicates if this charger is used or not
+ * @psy     power supply base class
+ * @ops     ux500 charger operations
+ * @max_out_volt_uv maximum output charger voltage in uV
+ * @max_out_curr_ua maximum output charger current in uA
+ * @enabled   indicates if this charger is used or not
  */
 struct ux500_charger {
-	struct power_supply *psy;
-	struct ux500_charger_ops ops;
-	int max_out_volt_uv;
-	int max_out_curr_ua;
-	int wdt_refresh;
-	bool enabled;
+  struct power_supply *psy;
+  struct ux500_charger_ops ops;
+  int max_out_volt_uv;
+  int max_out_curr_ua;
+  int wdt_refresh;
+  bool enabled;
 };
 
 #endif /* _AB8500_CHARGALG_H_ */

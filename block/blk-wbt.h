@@ -16,11 +16,10 @@ u64 wbt_default_latency_nsec(struct request_queue *);
 
 #else
 
-static inline void wbt_disable_default(struct gendisk *disk)
-{
+static inline void wbt_disable_default(struct gendisk *disk) {
 }
-static inline void wbt_enable_default(struct gendisk *disk)
-{
+
+static inline void wbt_enable_default(struct gendisk *disk) {
 }
 
 #endif /* CONFIG_BLK_WBT */

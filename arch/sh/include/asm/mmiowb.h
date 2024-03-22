@@ -5,8 +5,8 @@
 #include <asm/barrier.h>
 
 /* synco on SH-4A, otherwise a nop */
-#define mmiowb()			wmb()
+#define mmiowb()      wmb()
 
 #include <asm-generic/mmiowb.h>
 
-#endif	/* __ASM_SH_MMIOWB_H */
+#endif  /* __ASM_SH_MMIOWB_H */

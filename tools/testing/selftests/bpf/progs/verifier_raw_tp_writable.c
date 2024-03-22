@@ -6,20 +6,20 @@
 #include "bpf_misc.h"
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, long long);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, long long);
 } map_hash_8b SEC(".maps");
 
 SEC("raw_tracepoint.w")
 __description("raw_tracepoint_writable: reject variable offset")
-__failure
-__msg("R6 invalid variable buffer offset: off=0, var_off=(0x0; 0xffffffff)")
+__failure __msg(
+    "R6 invalid variable buffer offset: off=0, var_off=(0x0; 0xffffffff)")
 __flag(BPF_F_ANY_ALIGNMENT)
-__naked void tracepoint_writable_reject_variable_offset(void)
-{
-	asm volatile ("					\
+__naked void tracepoint_writable_reject_variable_offset(void) {
+  asm volatile (
+    "					\
 	/* r6 is our tp buffer */			\
 	r6 = *(u64*)(r1 + 0);				\
 	r1 = %[map_hash_8b] ll;				\
@@ -41,10 +41,10 @@ l0_%=:	/* shift the buffer pointer to a variable location */\
 	*(u64*)(r6 + 0) = r7;				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_8b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_8b)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

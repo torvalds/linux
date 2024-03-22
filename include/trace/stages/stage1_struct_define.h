@@ -3,22 +3,22 @@
 /* Stage 1 definitions for creating trace events */
 
 #undef __field
-#define __field(type, item)		type	item;
+#define __field(type, item)   type item;
 
 #undef __field_ext
-#define __field_ext(type, item, filter_type)	type	item;
+#define __field_ext(type, item, filter_type)  type item;
 
 #undef __field_struct
-#define __field_struct(type, item)	type	item;
+#define __field_struct(type, item)  type item;
 
 #undef __field_struct_ext
-#define __field_struct_ext(type, item, filter_type)	type	item;
+#define __field_struct_ext(type, item, filter_type) type item;
 
 #undef __array
-#define __array(type, item, len)	type	item[len];
+#define __array(type, item, len)  type item[len];
 
 #undef __dynamic_array
-#define __dynamic_array(type, item, len) u32 __data_loc_##item;
+#define __dynamic_array(type, item, len) u32 __data_loc_ ## item;
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
@@ -39,7 +39,7 @@
 #define __sockaddr(field, len) __dynamic_array(u8, field, len)
 
 #undef __rel_dynamic_array
-#define __rel_dynamic_array(type, item, len) u32 __rel_loc_##item;
+#define __rel_dynamic_array(type, item, len) u32 __rel_loc_ ## item;
 
 #undef __rel_string
 #define __rel_string(item, src) __rel_dynamic_array(char, item, -1)
@@ -57,4 +57,4 @@
 #define __rel_sockaddr(field, len) __rel_dynamic_array(u8, field, len)
 
 #undef TP_STRUCT__entry
-#define TP_STRUCT__entry(args...) args
+#define TP_STRUCT__entry(args ...) args

@@ -8,24 +8,23 @@
 #include <asm/sysreg.h>
 
 #ifdef CONFIG_SHADOW_CALL_STACK
-	scs_sp	.req	x18
+scs_sp.req x18
 
-	.macro scs_load_current
-	get_current_task scs_sp
-	ldr	scs_sp, [scs_sp, #TSK_TI_SCS_SP]
-	.endm
+.macro scs_load_current
+get_current_task scs_sp
+ldr scs_sp, [scs_sp, #TSK_TI_SCS_SP]
+.endm
 
-	.macro scs_save tsk
-	str	scs_sp, [\tsk, #TSK_TI_SCS_SP]
-	.endm
+.macro scs_save tsk
+str scs_sp, [\ tsk, #TSK_TI_SCS_SP]
+.endm
 #else
-	.macro scs_load_current
-	.endm
+.macro scs_load_current
+.endm
 
-	.macro scs_save tsk
-	.endm
+.macro scs_save tsk
+.endm
 #endif /* CONFIG_SHADOW_CALL_STACK */
-
 
 #else
 
@@ -33,17 +32,18 @@
 #include <asm/cpufeature.h>
 
 #ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
-static inline void dynamic_scs_init(void)
-{
-	extern bool __pi_dynamic_scs_is_enabled;
-
-	if (__pi_dynamic_scs_is_enabled) {
-		pr_info("Enabling dynamic shadow call stack\n");
-		static_branch_enable(&dynamic_scs_enabled);
-	}
+static inline void dynamic_scs_init(void) {
+  extern bool __pi_dynamic_scs_is_enabled;
+  if (__pi_dynamic_scs_is_enabled) {
+    pr_info("Enabling dynamic shadow call stack\n");
+    static_branch_enable(&dynamic_scs_enabled);
+  }
 }
+
 #else
-static inline void dynamic_scs_init(void) {}
+static inline void dynamic_scs_init(void) {
+}
+
 #endif
 
 int __pi_scs_patch(const u8 eh_frame[], int size);

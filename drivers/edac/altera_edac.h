@@ -78,8 +78,8 @@
 #define A10_ECCCTRL1_ECC_EN        0x001
 #define A10_ECCCTRL1_CNT_RST       0x010
 #define A10_ECCCTRL1_AWB_CNT_RST   0x100
-#define A10_ECC_CNT_RESET_MASK     (A10_ECCCTRL1_CNT_RST | \
-				    A10_ECCCTRL1_AWB_CNT_RST)
+#define A10_ECC_CNT_RESET_MASK     (A10_ECCCTRL1_CNT_RST   \
+  | A10_ECCCTRL1_AWB_CNT_RST)
 
 /* SDRAM Controller Address Width Register */
 #define CV_DRAMADDRW               0xFFC2502C
@@ -122,8 +122,8 @@
 /* SDRAM Controller DRAM IRQ Register Bit Masks */
 #define A10_ERRINTEN_SERRINTEN     0x01
 #define A10_ERRINTEN_DERRINTEN     0x02
-#define A10_ECC_IRQ_EN_MASK        (A10_ERRINTEN_SERRINTEN | \
-				    A10_ERRINTEN_DERRINTEN)
+#define A10_ECC_IRQ_EN_MASK        (A10_ERRINTEN_SERRINTEN   \
+  | A10_ERRINTEN_DERRINTEN)
 
 /* SDRAM Interrupt Mode Register */
 #define A10_INTMODE_OFST           0x1C
@@ -157,45 +157,45 @@
 #define A10_DDR0_IRQ_MASK          BIT(17)
 
 struct altr_sdram_prv_data {
-	int ecc_ctrl_offset;
-	int ecc_ctl_en_mask;
-	int ecc_cecnt_offset;
-	int ecc_uecnt_offset;
-	int ecc_stat_offset;
-	int ecc_stat_ce_mask;
-	int ecc_stat_ue_mask;
-	int ecc_saddr_offset;
-	int ecc_daddr_offset;
-	int ecc_irq_en_offset;
-	int ecc_irq_en_mask;
-	int ecc_irq_clr_offset;
-	int ecc_irq_clr_mask;
-	int ecc_cnt_rst_offset;
-	int ecc_cnt_rst_mask;
-	struct edac_dev_sysfs_attribute *eccmgr_sysfs_attr;
-	int ecc_enable_mask;
-	int ce_set_mask;
-	int ue_set_mask;
-	int ce_ue_trgr_offset;
+  int ecc_ctrl_offset;
+  int ecc_ctl_en_mask;
+  int ecc_cecnt_offset;
+  int ecc_uecnt_offset;
+  int ecc_stat_offset;
+  int ecc_stat_ce_mask;
+  int ecc_stat_ue_mask;
+  int ecc_saddr_offset;
+  int ecc_daddr_offset;
+  int ecc_irq_en_offset;
+  int ecc_irq_en_mask;
+  int ecc_irq_clr_offset;
+  int ecc_irq_clr_mask;
+  int ecc_cnt_rst_offset;
+  int ecc_cnt_rst_mask;
+  struct edac_dev_sysfs_attribute *eccmgr_sysfs_attr;
+  int ecc_enable_mask;
+  int ce_set_mask;
+  int ue_set_mask;
+  int ce_ue_trgr_offset;
 };
 
 /* Altera SDRAM Memory Controller data */
 struct altr_sdram_mc_data {
-	struct regmap *mc_vbase;
-	int sb_irq;
-	int db_irq;
-	const struct altr_sdram_prv_data *data;
+  struct regmap *mc_vbase;
+  int sb_irq;
+  int db_irq;
+  const struct altr_sdram_prv_data *data;
 };
 
-/************************** EDAC Device Defines **************************/
-/***** General Device Trigger Defines *****/
+/* ************************* EDAC Device Defines *************************
+ ***** General Device Trigger Defines *****/
 #define ALTR_UE_TRIGGER_CHAR            'U'   /* Trigger for UE */
 #define ALTR_TRIGGER_READ_WRD_CNT       32    /* Line size x 4 */
 #define ALTR_TRIG_OCRAM_BYTE_SIZE       128   /* Line size x 4 */
 #define ALTR_TRIG_L2C_BYTE_SIZE         4096  /* Full Page */
 
-/******* Cyclone5 and Arria5 Defines *******/
-/* OCRAM ECC Management Group Defines */
+/* ****** Cyclone5 and Arria5 Defines ******
+ * OCRAM ECC Management Group Defines*/
 #define ALTR_MAN_GRP_OCRAM_ECC_OFFSET   0x04
 #define ALTR_OCR_ECC_REG_OFFSET         0x00
 #define ALTR_OCR_ECC_EN                 BIT(0)
@@ -232,12 +232,12 @@ struct altr_sdram_mc_data {
 #define ALTR_A10_ECC_INTSTAT_OFST       0x20
 #define ALTR_A10_ECC_SERRPENA           BIT(0)
 #define ALTR_A10_ECC_DERRPENA           BIT(8)
-#define ALTR_A10_ECC_ERRPENA_MASK       (ALTR_A10_ECC_SERRPENA | \
-					 ALTR_A10_ECC_DERRPENA)
+#define ALTR_A10_ECC_ERRPENA_MASK       (ALTR_A10_ECC_SERRPENA   \
+  | ALTR_A10_ECC_DERRPENA)
 #define ALTR_A10_ECC_SERRPENB           BIT(16)
 #define ALTR_A10_ECC_DERRPENB           BIT(24)
-#define ALTR_A10_ECC_ERRPENB_MASK       (ALTR_A10_ECC_SERRPENB | \
-					 ALTR_A10_ECC_DERRPENB)
+#define ALTR_A10_ECC_ERRPENB_MASK       (ALTR_A10_ECC_SERRPENB   \
+  | ALTR_A10_ECC_DERRPENB)
 
 #define ALTR_A10_ECC_INTTEST_OFST       0x24
 #define ALTR_A10_ECC_TSERRA             BIT(0)
@@ -303,8 +303,8 @@ struct altr_sdram_mc_data {
 #define ALTR_S10_ECC_INTSTAT_OFST         0x20
 #define ALTR_S10_ECC_SERRPENA             BIT(0)
 #define ALTR_S10_ECC_DERRPENA             BIT(8)
-#define ALTR_S10_ECC_ERRPENA_MASK         (ALTR_S10_ECC_SERRPENA | \
-					   ALTR_S10_ECC_DERRPENA)
+#define ALTR_S10_ECC_ERRPENA_MASK         (ALTR_S10_ECC_SERRPENA   \
+  | ALTR_S10_ECC_DERRPENA)
 
 #define ALTR_S10_ECC_INTTEST_OFST         0x24
 #define ALTR_S10_ECC_TSERRA               BIT(0)
@@ -353,46 +353,46 @@ struct altr_sdram_mc_data {
 struct altr_edac_device_dev;
 
 struct edac_device_prv_data {
-	int (*setup)(struct altr_edac_device_dev *device);
-	int ce_clear_mask;
-	int ue_clear_mask;
-	int irq_status_mask;
-	void * (*alloc_mem)(size_t size, void **other);
-	void (*free_mem)(void *p, size_t size, void *other);
-	int ecc_enable_mask;
-	int ecc_en_ofst;
-	int ce_set_mask;
-	int ue_set_mask;
-	int set_err_ofst;
-	irqreturn_t (*ecc_irq_handler)(int irq, void *dev_id);
-	int trig_alloc_sz;
-	const struct file_operations *inject_fops;
-	bool panic;
+  int (*setup)(struct altr_edac_device_dev *device);
+  int ce_clear_mask;
+  int ue_clear_mask;
+  int irq_status_mask;
+  void *(*alloc_mem)(size_t size, void **other);
+  void (*free_mem)(void *p, size_t size, void *other);
+  int ecc_enable_mask;
+  int ecc_en_ofst;
+  int ce_set_mask;
+  int ue_set_mask;
+  int set_err_ofst;
+  irqreturn_t (*ecc_irq_handler)(int irq, void *dev_id);
+  int trig_alloc_sz;
+  const struct file_operations *inject_fops;
+  bool panic;
 };
 
 struct altr_edac_device_dev {
-	struct list_head next;
-	void __iomem *base;
-	int sb_irq;
-	int db_irq;
-	const struct edac_device_prv_data *data;
-	struct dentry *debugfs_dir;
-	char *edac_dev_name;
-	struct altr_arria10_edac *edac;
-	struct edac_device_ctl_info *edac_dev;
-	struct device ddev;
-	int edac_idx;
+  struct list_head next;
+  void __iomem *base;
+  int sb_irq;
+  int db_irq;
+  const struct edac_device_prv_data *data;
+  struct dentry *debugfs_dir;
+  char *edac_dev_name;
+  struct altr_arria10_edac *edac;
+  struct edac_device_ctl_info *edac_dev;
+  struct device ddev;
+  int edac_idx;
 };
 
 struct altr_arria10_edac {
-	struct device		*dev;
-	struct regmap		*ecc_mgr_map;
-	int sb_irq;
-	int db_irq;
-	struct irq_domain	*domain;
-	struct irq_chip		irq_chip;
-	struct list_head	a10_ecc_devices;
-	struct notifier_block	panic_notifier;
+  struct device *dev;
+  struct regmap *ecc_mgr_map;
+  int sb_irq;
+  int db_irq;
+  struct irq_domain *domain;
+  struct irq_chip irq_chip;
+  struct list_head a10_ecc_devices;
+  struct notifier_block panic_notifier;
 };
 
-#endif	/* #ifndef _ALTERA_EDAC_H */
+#endif  /* #ifndef _ALTERA_EDAC_H */

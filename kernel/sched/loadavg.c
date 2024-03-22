@@ -20,7 +20,7 @@
  *
  *   nr_active = 0;
  *   for_each_possible_cpu(cpu)
- *	nr_active += cpu_of(cpu)->nr_running + cpu_of(cpu)->nr_uninterruptible;
+ *  nr_active += cpu_of(cpu)->nr_running + cpu_of(cpu)->nr_uninterruptible;
  *
  *   avenrun[n] = avenrun[0] * exp_n + nr_active * (1 - exp_n)
  *
@@ -62,32 +62,27 @@ EXPORT_SYMBOL(avenrun); /* should be removed */
 
 /**
  * get_avenrun - get the load average array
- * @loads:	pointer to dest load array
- * @offset:	offset to add
- * @shift:	shift count to shift the result left
+ * @loads:  pointer to dest load array
+ * @offset: offset to add
+ * @shift:  shift count to shift the result left
  *
  * These values are estimates at best, so no need for locking.
  */
-void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
-{
-	loads[0] = (avenrun[0] + offset) << shift;
-	loads[1] = (avenrun[1] + offset) << shift;
-	loads[2] = (avenrun[2] + offset) << shift;
+void get_avenrun(unsigned long *loads, unsigned long offset, int shift) {
+  loads[0] = (avenrun[0] + offset) << shift;
+  loads[1] = (avenrun[1] + offset) << shift;
+  loads[2] = (avenrun[2] + offset) << shift;
 }
 
-long calc_load_fold_active(struct rq *this_rq, long adjust)
-{
-	long nr_active, delta = 0;
-
-	nr_active = this_rq->nr_running - adjust;
-	nr_active += (int)this_rq->nr_uninterruptible;
-
-	if (nr_active != this_rq->calc_load_active) {
-		delta = nr_active - this_rq->calc_load_active;
-		this_rq->calc_load_active = nr_active;
-	}
-
-	return delta;
+long calc_load_fold_active(struct rq *this_rq, long adjust) {
+  long nr_active, delta = 0;
+  nr_active = this_rq->nr_running - adjust;
+  nr_active += (int) this_rq->nr_uninterruptible;
+  if (nr_active != this_rq->calc_load_active) {
+    delta = nr_active - this_rq->calc_load_active;
+    this_rq->calc_load_active = nr_active;
+  }
+  return delta;
 }
 
 /**
@@ -105,28 +100,26 @@ long calc_load_fold_active(struct rq *this_rq, long adjust)
  * of course trivially computable in O(log_2 n), the length of our binary
  * vector.
  */
-static unsigned long
-fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
-{
-	unsigned long result = 1UL << frac_bits;
-
-	if (n) {
-		for (;;) {
-			if (n & 1) {
-				result *= x;
-				result += 1UL << (frac_bits - 1);
-				result >>= frac_bits;
-			}
-			n >>= 1;
-			if (!n)
-				break;
-			x *= x;
-			x += 1UL << (frac_bits - 1);
-			x >>= frac_bits;
-		}
-	}
-
-	return result;
+static unsigned long fixed_power_int(unsigned long x, unsigned int frac_bits,
+    unsigned int n) {
+  unsigned long result = 1UL << frac_bits;
+  if (n) {
+    for (;;) {
+      if (n & 1) {
+        result *= x;
+        result += 1UL << (frac_bits - 1);
+        result >>= frac_bits;
+      }
+      n >>= 1;
+      if (!n) {
+        break;
+      }
+      x *= x;
+      x += 1UL << (frac_bits - 1);
+      x >>= frac_bits;
+    }
+  }
+  return result;
 }
 
 /*
@@ -152,11 +145,9 @@ fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
  *     S_n := \Sum x^i = -------------
  *             i=0          1 - x
  */
-unsigned long
-calc_load_n(unsigned long load, unsigned long exp,
-	    unsigned long active, unsigned int n)
-{
-	return calc_load(load, fixed_power_int(exp, FSHIFT, n), active);
+unsigned long calc_load_n(unsigned long load, unsigned long exp,
+    unsigned long active, unsigned int n) {
+  return calc_load(load, fixed_power_int(exp, FSHIFT, n), active);
 }
 
 #ifdef CONFIG_NO_HZ_COMMON
@@ -205,90 +196,78 @@ calc_load_n(unsigned long load, unsigned long exp,
 static atomic_long_t calc_load_nohz[2];
 static int calc_load_idx;
 
-static inline int calc_load_write_idx(void)
-{
-	int idx = calc_load_idx;
-
-	/*
-	 * See calc_global_nohz(), if we observe the new index, we also
-	 * need to observe the new update time.
-	 */
-	smp_rmb();
-
-	/*
-	 * If the folding window started, make sure we start writing in the
-	 * next NO_HZ-delta.
-	 */
-	if (!time_before(jiffies, READ_ONCE(calc_load_update)))
-		idx++;
-
-	return idx & 1;
+static inline int calc_load_write_idx(void) {
+  int idx = calc_load_idx;
+  /*
+   * See calc_global_nohz(), if we observe the new index, we also
+   * need to observe the new update time.
+   */
+  smp_rmb();
+  /*
+   * If the folding window started, make sure we start writing in the
+   * next NO_HZ-delta.
+   */
+  if (!time_before(jiffies, READ_ONCE(calc_load_update))) {
+    idx++;
+  }
+  return idx & 1;
 }
 
-static inline int calc_load_read_idx(void)
-{
-	return calc_load_idx & 1;
+static inline int calc_load_read_idx(void) {
+  return calc_load_idx & 1;
 }
 
-static void calc_load_nohz_fold(struct rq *rq)
-{
-	long delta;
-
-	delta = calc_load_fold_active(rq, 0);
-	if (delta) {
-		int idx = calc_load_write_idx();
-
-		atomic_long_add(delta, &calc_load_nohz[idx]);
-	}
+static void calc_load_nohz_fold(struct rq *rq) {
+  long delta;
+  delta = calc_load_fold_active(rq, 0);
+  if (delta) {
+    int idx = calc_load_write_idx();
+    atomic_long_add(delta, &calc_load_nohz[idx]);
+  }
 }
 
-void calc_load_nohz_start(void)
-{
-	/*
-	 * We're going into NO_HZ mode, if there's any pending delta, fold it
-	 * into the pending NO_HZ delta.
-	 */
-	calc_load_nohz_fold(this_rq());
+void calc_load_nohz_start(void) {
+  /*
+   * We're going into NO_HZ mode, if there's any pending delta, fold it
+   * into the pending NO_HZ delta.
+   */
+  calc_load_nohz_fold(this_rq());
 }
 
 /*
  * Keep track of the load for NOHZ_FULL, must be called between
  * calc_load_nohz_{start,stop}().
  */
-void calc_load_nohz_remote(struct rq *rq)
-{
-	calc_load_nohz_fold(rq);
+void calc_load_nohz_remote(struct rq *rq) {
+  calc_load_nohz_fold(rq);
 }
 
-void calc_load_nohz_stop(void)
-{
-	struct rq *this_rq = this_rq();
-
-	/*
-	 * If we're still before the pending sample window, we're done.
-	 */
-	this_rq->calc_load_update = READ_ONCE(calc_load_update);
-	if (time_before(jiffies, this_rq->calc_load_update))
-		return;
-
-	/*
-	 * We woke inside or after the sample window, this means we're already
-	 * accounted through the nohz accounting, so skip the entire deal and
-	 * sync up for the next window.
-	 */
-	if (time_before(jiffies, this_rq->calc_load_update + 10))
-		this_rq->calc_load_update += LOAD_FREQ;
+void calc_load_nohz_stop(void) {
+  struct rq *this_rq = this_rq();
+  /*
+   * If we're still before the pending sample window, we're done.
+   */
+  this_rq->calc_load_update = READ_ONCE(calc_load_update);
+  if (time_before(jiffies, this_rq->calc_load_update)) {
+    return;
+  }
+  /*
+   * We woke inside or after the sample window, this means we're already
+   * accounted through the nohz accounting, so skip the entire deal and
+   * sync up for the next window.
+   */
+  if (time_before(jiffies, this_rq->calc_load_update + 10)) {
+    this_rq->calc_load_update += LOAD_FREQ;
+  }
 }
 
-static long calc_load_nohz_read(void)
-{
-	int idx = calc_load_read_idx();
-	long delta = 0;
-
-	if (atomic_long_read(&calc_load_nohz[idx]))
-		delta = atomic_long_xchg(&calc_load_nohz[idx], 0);
-
-	return delta;
+static long calc_load_nohz_read(void) {
+  int idx = calc_load_read_idx();
+  long delta = 0;
+  if (atomic_long_read(&calc_load_nohz[idx])) {
+    delta = atomic_long_xchg(&calc_load_nohz[idx], 0);
+  }
+  return delta;
 }
 
 /*
@@ -300,43 +279,42 @@ static long calc_load_nohz_read(void)
  * Once we've updated the global active value, we need to apply the exponential
  * weights adjusted to the number of cycles missed.
  */
-static void calc_global_nohz(void)
-{
-	unsigned long sample_window;
-	long delta, active, n;
-
-	sample_window = READ_ONCE(calc_load_update);
-	if (!time_before(jiffies, sample_window + 10)) {
-		/*
-		 * Catch-up, fold however many we are behind still
-		 */
-		delta = jiffies - sample_window - 10;
-		n = 1 + (delta / LOAD_FREQ);
-
-		active = atomic_long_read(&calc_load_tasks);
-		active = active > 0 ? active * FIXED_1 : 0;
-
-		avenrun[0] = calc_load_n(avenrun[0], EXP_1, active, n);
-		avenrun[1] = calc_load_n(avenrun[1], EXP_5, active, n);
-		avenrun[2] = calc_load_n(avenrun[2], EXP_15, active, n);
-
-		WRITE_ONCE(calc_load_update, sample_window + n * LOAD_FREQ);
-	}
-
-	/*
-	 * Flip the NO_HZ index...
-	 *
-	 * Make sure we first write the new time then flip the index, so that
-	 * calc_load_write_idx() will see the new time when it reads the new
-	 * index, this avoids a double flip messing things up.
-	 */
-	smp_wmb();
-	calc_load_idx++;
+static void calc_global_nohz(void) {
+  unsigned long sample_window;
+  long delta, active, n;
+  sample_window = READ_ONCE(calc_load_update);
+  if (!time_before(jiffies, sample_window + 10)) {
+    /*
+     * Catch-up, fold however many we are behind still
+     */
+    delta = jiffies - sample_window - 10;
+    n = 1 + (delta / LOAD_FREQ);
+    active = atomic_long_read(&calc_load_tasks);
+    active = active > 0 ? active * FIXED_1 : 0;
+    avenrun[0] = calc_load_n(avenrun[0], EXP_1, active, n);
+    avenrun[1] = calc_load_n(avenrun[1], EXP_5, active, n);
+    avenrun[2] = calc_load_n(avenrun[2], EXP_15, active, n);
+    WRITE_ONCE(calc_load_update, sample_window + n * LOAD_FREQ);
+  }
+  /*
+   * Flip the NO_HZ index...
+   *
+   * Make sure we first write the new time then flip the index, so that
+   * calc_load_write_idx() will see the new time when it reads the new
+   * index, this avoids a double flip messing things up.
+   */
+  smp_wmb();
+  calc_load_idx++;
 }
+
 #else /* !CONFIG_NO_HZ_COMMON */
 
-static inline long calc_load_nohz_read(void) { return 0; }
-static inline void calc_global_nohz(void) { }
+static inline long calc_load_nohz_read(void) {
+  return 0;
+}
+
+static inline void calc_global_nohz(void) {
+}
 
 #endif /* CONFIG_NO_HZ_COMMON */
 
@@ -346,52 +324,45 @@ static inline void calc_global_nohz(void) { }
  *
  * Called from the global timer code.
  */
-void calc_global_load(void)
-{
-	unsigned long sample_window;
-	long active, delta;
-
-	sample_window = READ_ONCE(calc_load_update);
-	if (time_before(jiffies, sample_window + 10))
-		return;
-
-	/*
-	 * Fold the 'old' NO_HZ-delta to include all NO_HZ CPUs.
-	 */
-	delta = calc_load_nohz_read();
-	if (delta)
-		atomic_long_add(delta, &calc_load_tasks);
-
-	active = atomic_long_read(&calc_load_tasks);
-	active = active > 0 ? active * FIXED_1 : 0;
-
-	avenrun[0] = calc_load(avenrun[0], EXP_1, active);
-	avenrun[1] = calc_load(avenrun[1], EXP_5, active);
-	avenrun[2] = calc_load(avenrun[2], EXP_15, active);
-
-	WRITE_ONCE(calc_load_update, sample_window + LOAD_FREQ);
-
-	/*
-	 * In case we went to NO_HZ for multiple LOAD_FREQ intervals
-	 * catch up in bulk.
-	 */
-	calc_global_nohz();
+void calc_global_load(void) {
+  unsigned long sample_window;
+  long active, delta;
+  sample_window = READ_ONCE(calc_load_update);
+  if (time_before(jiffies, sample_window + 10)) {
+    return;
+  }
+  /*
+   * Fold the 'old' NO_HZ-delta to include all NO_HZ CPUs.
+   */
+  delta = calc_load_nohz_read();
+  if (delta) {
+    atomic_long_add(delta, &calc_load_tasks);
+  }
+  active = atomic_long_read(&calc_load_tasks);
+  active = active > 0 ? active * FIXED_1 : 0;
+  avenrun[0] = calc_load(avenrun[0], EXP_1, active);
+  avenrun[1] = calc_load(avenrun[1], EXP_5, active);
+  avenrun[2] = calc_load(avenrun[2], EXP_15, active);
+  WRITE_ONCE(calc_load_update, sample_window + LOAD_FREQ);
+  /*
+   * In case we went to NO_HZ for multiple LOAD_FREQ intervals
+   * catch up in bulk.
+   */
+  calc_global_nohz();
 }
 
 /*
  * Called from scheduler_tick() to periodically update this CPU's
  * active count.
  */
-void calc_global_load_tick(struct rq *this_rq)
-{
-	long delta;
-
-	if (time_before(jiffies, this_rq->calc_load_update))
-		return;
-
-	delta  = calc_load_fold_active(this_rq, 0);
-	if (delta)
-		atomic_long_add(delta, &calc_load_tasks);
-
-	this_rq->calc_load_update += LOAD_FREQ;
+void calc_global_load_tick(struct rq *this_rq) {
+  long delta;
+  if (time_before(jiffies, this_rq->calc_load_update)) {
+    return;
+  }
+  delta = calc_load_fold_active(this_rq, 0);
+  if (delta) {
+    atomic_long_add(delta, &calc_load_tasks);
+  }
+  this_rq->calc_load_update += LOAD_FREQ;
 }

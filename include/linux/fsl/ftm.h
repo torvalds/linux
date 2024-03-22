@@ -27,62 +27,62 @@
 #define FTM_SWOCTRL  0x94 /* FTM Software Output Control */
 #define FTM_PWMLOAD  0x98 /* FTM PWM Load */
 
-#define FTM_SC_CLK_MASK_SHIFT	3
-#define FTM_SC_CLK_MASK		(3 << FTM_SC_CLK_MASK_SHIFT)
-#define FTM_SC_TOF		0x80
-#define FTM_SC_TOIE		0x40
-#define FTM_SC_CPWMS		0x20
-#define FTM_SC_CLKS		0x18
-#define FTM_SC_PS_1		0x0
-#define FTM_SC_PS_2		0x1
-#define FTM_SC_PS_4		0x2
-#define FTM_SC_PS_8		0x3
-#define FTM_SC_PS_16		0x4
-#define FTM_SC_PS_32		0x5
-#define FTM_SC_PS_64		0x6
-#define FTM_SC_PS_128		0x7
-#define FTM_SC_PS_MASK		0x7
+#define FTM_SC_CLK_MASK_SHIFT 3
+#define FTM_SC_CLK_MASK   (3 << FTM_SC_CLK_MASK_SHIFT)
+#define FTM_SC_TOF    0x80
+#define FTM_SC_TOIE   0x40
+#define FTM_SC_CPWMS    0x20
+#define FTM_SC_CLKS   0x18
+#define FTM_SC_PS_1   0x0
+#define FTM_SC_PS_2   0x1
+#define FTM_SC_PS_4   0x2
+#define FTM_SC_PS_8   0x3
+#define FTM_SC_PS_16    0x4
+#define FTM_SC_PS_32    0x5
+#define FTM_SC_PS_64    0x6
+#define FTM_SC_PS_128   0x7
+#define FTM_SC_PS_MASK    0x7
 
-#define FTM_MODE_FAULTIE	0x80
-#define FTM_MODE_FAULTM		0x60
-#define FTM_MODE_CAPTEST	0x10
-#define FTM_MODE_PWMSYNC	0x8
-#define FTM_MODE_WPDIS		0x4
-#define FTM_MODE_INIT		0x2
-#define FTM_MODE_FTMEN		0x1
+#define FTM_MODE_FAULTIE  0x80
+#define FTM_MODE_FAULTM   0x60
+#define FTM_MODE_CAPTEST  0x10
+#define FTM_MODE_PWMSYNC  0x8
+#define FTM_MODE_WPDIS    0x4
+#define FTM_MODE_INIT   0x2
+#define FTM_MODE_FTMEN    0x1
 
 /* NXP Errata: The PHAFLTREN and PHBFLTREN bits are tide to zero internally
  * and these bits cannot be set. Flextimer cannot use Filter in
  * Quadrature Decoder Mode.
  * https://community.nxp.com/thread/467648#comment-1010319
  */
-#define FTM_QDCTRL_PHAFLTREN	0x80
-#define FTM_QDCTRL_PHBFLTREN	0x40
-#define FTM_QDCTRL_PHAPOL	0x20
-#define FTM_QDCTRL_PHBPOL	0x10
-#define FTM_QDCTRL_QUADMODE	0x8
-#define FTM_QDCTRL_QUADDIR	0x4
-#define FTM_QDCTRL_TOFDIR	0x2
-#define FTM_QDCTRL_QUADEN	0x1
+#define FTM_QDCTRL_PHAFLTREN  0x80
+#define FTM_QDCTRL_PHBFLTREN  0x40
+#define FTM_QDCTRL_PHAPOL 0x20
+#define FTM_QDCTRL_PHBPOL 0x10
+#define FTM_QDCTRL_QUADMODE 0x8
+#define FTM_QDCTRL_QUADDIR  0x4
+#define FTM_QDCTRL_TOFDIR 0x2
+#define FTM_QDCTRL_QUADEN 0x1
 
-#define FTM_FMS_FAULTF		0x80
-#define FTM_FMS_WPEN		0x40
-#define FTM_FMS_FAULTIN		0x10
-#define FTM_FMS_FAULTF3		0x8
-#define FTM_FMS_FAULTF2		0x4
-#define FTM_FMS_FAULTF1		0x2
-#define FTM_FMS_FAULTF0		0x1
+#define FTM_FMS_FAULTF    0x80
+#define FTM_FMS_WPEN    0x40
+#define FTM_FMS_FAULTIN   0x10
+#define FTM_FMS_FAULTF3   0x8
+#define FTM_FMS_FAULTF2   0x4
+#define FTM_FMS_FAULTF1   0x2
+#define FTM_FMS_FAULTF0   0x1
 
-#define FTM_CSC_BASE		0xC
-#define FTM_CSC_MSB		0x20
-#define FTM_CSC_MSA		0x10
-#define FTM_CSC_ELSB		0x8
-#define FTM_CSC_ELSA		0x4
-#define FTM_CSC(_channel)	(FTM_CSC_BASE + ((_channel) * 8))
+#define FTM_CSC_BASE    0xC
+#define FTM_CSC_MSB   0x20
+#define FTM_CSC_MSA   0x10
+#define FTM_CSC_ELSB    0x8
+#define FTM_CSC_ELSA    0x4
+#define FTM_CSC(_channel) (FTM_CSC_BASE + ((_channel) * 8))
 
-#define FTM_CV_BASE		0x10
-#define FTM_CV(_channel)	(FTM_CV_BASE + ((_channel) * 8))
+#define FTM_CV_BASE   0x10
+#define FTM_CV(_channel)  (FTM_CV_BASE + ((_channel) * 8))
 
-#define FTM_PS_MAX		7
+#define FTM_PS_MAX    7
 
 #endif

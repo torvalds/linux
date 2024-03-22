@@ -25,10 +25,10 @@
  * @sartable_index: Index of SAR
  */
 struct wwan_device_mode_info {
-	int device_mode;
-	int bandtable_index;
-	int antennatable_index;
-	int sartable_index;
+  int device_mode;
+  int bandtable_index;
+  int antennatable_index;
+  int sartable_index;
 };
 
 /**
@@ -40,9 +40,9 @@ struct wwan_device_mode_info {
  * @device_mode_info: pointer to structure wwan_device_mode_info
  */
 struct wwan_device_mode_configuration {
-	int version;
-	int total_dev_mode;
-	struct wwan_device_mode_info *device_mode_info;
+  int version;
+  int total_dev_mode;
+  struct wwan_device_mode_info *device_mode_info;
 };
 
 /**
@@ -55,9 +55,9 @@ struct wwan_device_mode_configuration {
  * @num_supported_modes: Total supported modes based on reg_mode
  */
 struct wwan_supported_info {
-	int reg_mode_needed;
-	int bios_table_revision;
-	int num_supported_modes;
+  int reg_mode_needed;
+  int bios_table_revision;
+  int num_supported_modes;
 };
 
 /**
@@ -75,12 +75,12 @@ struct wwan_supported_info {
  * @config_data: wwan_device_mode_configuration array struct
  */
 struct wwan_sar_context {
-	guid_t guid;
-	acpi_handle handle;
-	int reg_value;
-	struct platform_device *sar_device;
-	struct wwan_supported_info supported_data;
-	struct wwan_device_mode_info sar_data;
-	struct wwan_device_mode_configuration config_data[MAX_REGULATORY];
+  guid_t guid;
+  acpi_handle handle;
+  int reg_value;
+  struct platform_device *sar_device;
+  struct wwan_supported_info supported_data;
+  struct wwan_device_mode_info sar_data;
+  struct wwan_device_mode_configuration config_data[MAX_REGULATORY];
 };
 #endif /* INTEL_SAR_H */

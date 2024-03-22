@@ -47,31 +47,31 @@
  * driver state stored in netdev_priv(dev).
  */
 struct octeon_ethernet {
-	/* PKO hardware output port */
-	int port;
-	/* PKO hardware queue for the port */
-	int queue;
-	/* Hardware fetch and add to count outstanding tx buffers */
-	int fau;
-	/* My netdev. */
-	struct net_device *netdev;
-	/*
-	 * Type of port. This is one of the enums in
-	 * cvmx_helper_interface_mode_t
-	 */
-	int imode;
-	/* PHY mode */
-	phy_interface_t phy_mode;
-	/* List of outstanding tx buffers per queue */
-	struct sk_buff_head tx_free_list[16];
-	unsigned int last_speed;
-	unsigned int last_link;
-	/* Last negotiated link state */
-	u64 link_info;
-	/* Called periodically to check link status */
-	void (*poll)(struct net_device *dev);
-	struct delayed_work	port_periodic_work;
-	struct device_node	*of_node;
+  /* PKO hardware output port */
+  int port;
+  /* PKO hardware queue for the port */
+  int queue;
+  /* Hardware fetch and add to count outstanding tx buffers */
+  int fau;
+  /* My netdev. */
+  struct net_device *netdev;
+  /*
+   * Type of port. This is one of the enums in
+   * cvmx_helper_interface_mode_t
+   */
+  int imode;
+  /* PHY mode */
+  phy_interface_t phy_mode;
+  /* List of outstanding tx buffers per queue */
+  struct sk_buff_head tx_free_list[16];
+  unsigned int last_speed;
+  unsigned int last_link;
+  /* Last negotiated link state */
+  u64 link_info;
+  /* Called periodically to check link status */
+  void (*poll)(struct net_device *dev);
+  struct delayed_work port_periodic_work;
+  struct device_node *of_node;
 };
 
 int cvm_oct_free_work(void *work_queue_entry);
@@ -89,9 +89,9 @@ void cvm_oct_common_uninit(struct net_device *dev);
 void cvm_oct_adjust_link(struct net_device *dev);
 int cvm_oct_common_stop(struct net_device *dev);
 int cvm_oct_common_open(struct net_device *dev,
-			void (*link_poll)(struct net_device *));
+    void (*link_poll)(struct net_device *));
 void cvm_oct_note_carrier(struct octeon_ethernet *priv,
-			  union cvmx_helper_link_info li);
+    union cvmx_helper_link_info li);
 void cvm_oct_link_poll(struct net_device *dev);
 
 extern int always_use_pow;

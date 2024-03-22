@@ -33,11 +33,11 @@
  * stored left shifted by 16, and scaled back in the sysfs show() function.
  */
 
-static const unsigned int DAY_RESCALE		= 288;
-static const unsigned int HOUR_RESCALE		= 12;
-static const unsigned int FIVE_MINUTE_RESCALE	= 1;
-static const unsigned int accounting_delay	= (HZ * 300) / 22;
-static const unsigned int accounting_weight	= 32;
+static const unsigned int DAY_RESCALE = 288;
+static const unsigned int HOUR_RESCALE = 12;
+static const unsigned int FIVE_MINUTE_RESCALE = 1;
+static const unsigned int accounting_delay = (HZ * 300) / 22;
+static const unsigned int accounting_weight = 32;
 
 /* sysfs reading/writing */
 
@@ -51,184 +51,167 @@ read_attribute(bypassed);
 
 SHOW(bch_stats)
 {
-	struct cache_stats *s =
-		container_of(kobj, struct cache_stats, kobj);
-#define var(stat)		(s->stat >> 16)
-	var_print(cache_hits);
-	var_print(cache_misses);
-	var_print(cache_bypass_hits);
-	var_print(cache_bypass_misses);
+  struct cache_stats *s
+    = container_of(kobj, struct cache_stats, kobj);
+#define var(stat)   (s->stat >> 16)
+  var_print(cache_hits);
+  var_print(cache_misses);
+  var_print(cache_bypass_hits);
+  var_print(cache_bypass_misses);
 
-	sysfs_print(cache_hit_ratio,
-		    DIV_SAFE(var(cache_hits) * 100,
-			     var(cache_hits) + var(cache_misses)));
+  sysfs_print(cache_hit_ratio,
+      DIV_SAFE(var(cache_hits) * 100,
+      var(cache_hits) + var(cache_misses)));
 
-	var_print(cache_miss_collisions);
-	sysfs_hprint(bypassed,	var(sectors_bypassed) << 9);
+  var_print(cache_miss_collisions);
+  sysfs_hprint(bypassed, var(sectors_bypassed) << 9);
 #undef var
-	return 0;
+  return 0;
 }
 
 STORE(bch_stats)
 {
-	return size;
+  return size;
 }
 
-static void bch_stats_release(struct kobject *k)
-{
+static void bch_stats_release(struct kobject *k) {
 }
 
 static struct attribute *bch_stats_attrs[] = {
-	&sysfs_cache_hits,
-	&sysfs_cache_misses,
-	&sysfs_cache_bypass_hits,
-	&sysfs_cache_bypass_misses,
-	&sysfs_cache_hit_ratio,
-	&sysfs_cache_miss_collisions,
-	&sysfs_bypassed,
-	NULL
+  &sysfs_cache_hits,
+  &sysfs_cache_misses,
+  &sysfs_cache_bypass_hits,
+  &sysfs_cache_bypass_misses,
+  &sysfs_cache_hit_ratio,
+  &sysfs_cache_miss_collisions,
+  &sysfs_bypassed,
+  NULL
 };
 ATTRIBUTE_GROUPS(bch_stats);
 static KTYPE(bch_stats);
 
 int bch_cache_accounting_add_kobjs(struct cache_accounting *acc,
-				   struct kobject *parent)
-{
-	int ret = kobject_add(&acc->total.kobj, parent,
-			      "stats_total");
-	ret = ret ?: kobject_add(&acc->five_minute.kobj, parent,
-				 "stats_five_minute");
-	ret = ret ?: kobject_add(&acc->hour.kobj, parent,
-				 "stats_hour");
-	ret = ret ?: kobject_add(&acc->day.kobj, parent,
-				 "stats_day");
-	return ret;
+    struct kobject *parent) {
+  int ret = kobject_add(&acc->total.kobj, parent,
+      "stats_total");
+  ret = ret ? : kobject_add(&acc->five_minute.kobj, parent,
+      "stats_five_minute");
+  ret = ret ? : kobject_add(&acc->hour.kobj, parent,
+      "stats_hour");
+  ret = ret ? : kobject_add(&acc->day.kobj, parent,
+      "stats_day");
+  return ret;
 }
 
-void bch_cache_accounting_clear(struct cache_accounting *acc)
-{
-	acc->total.cache_hits = 0;
-	acc->total.cache_misses = 0;
-	acc->total.cache_bypass_hits = 0;
-	acc->total.cache_bypass_misses = 0;
-	acc->total.cache_miss_collisions = 0;
-	acc->total.sectors_bypassed = 0;
+void bch_cache_accounting_clear(struct cache_accounting *acc) {
+  acc->total.cache_hits = 0;
+  acc->total.cache_misses = 0;
+  acc->total.cache_bypass_hits = 0;
+  acc->total.cache_bypass_misses = 0;
+  acc->total.cache_miss_collisions = 0;
+  acc->total.sectors_bypassed = 0;
 }
 
-void bch_cache_accounting_destroy(struct cache_accounting *acc)
-{
-	kobject_put(&acc->total.kobj);
-	kobject_put(&acc->five_minute.kobj);
-	kobject_put(&acc->hour.kobj);
-	kobject_put(&acc->day.kobj);
-
-	atomic_set(&acc->closing, 1);
-	if (del_timer_sync(&acc->timer))
-		closure_return(&acc->cl);
+void bch_cache_accounting_destroy(struct cache_accounting *acc) {
+  kobject_put(&acc->total.kobj);
+  kobject_put(&acc->five_minute.kobj);
+  kobject_put(&acc->hour.kobj);
+  kobject_put(&acc->day.kobj);
+  atomic_set(&acc->closing, 1);
+  if (del_timer_sync(&acc->timer)) {
+    closure_return(&acc->cl);
+  }
 }
 
 /* EWMA scaling */
 
-static void scale_stat(unsigned long *stat)
-{
-	*stat =  ewma_add(*stat, 0, accounting_weight, 0);
+static void scale_stat(unsigned long *stat) {
+  *stat = ewma_add(*stat, 0, accounting_weight, 0);
 }
 
-static void scale_stats(struct cache_stats *stats, unsigned long rescale_at)
-{
-	if (++stats->rescale == rescale_at) {
-		stats->rescale = 0;
-		scale_stat(&stats->cache_hits);
-		scale_stat(&stats->cache_misses);
-		scale_stat(&stats->cache_bypass_hits);
-		scale_stat(&stats->cache_bypass_misses);
-		scale_stat(&stats->cache_miss_collisions);
-		scale_stat(&stats->sectors_bypassed);
-	}
+static void scale_stats(struct cache_stats *stats, unsigned long rescale_at) {
+  if (++stats->rescale == rescale_at) {
+    stats->rescale = 0;
+    scale_stat(&stats->cache_hits);
+    scale_stat(&stats->cache_misses);
+    scale_stat(&stats->cache_bypass_hits);
+    scale_stat(&stats->cache_bypass_misses);
+    scale_stat(&stats->cache_miss_collisions);
+    scale_stat(&stats->sectors_bypassed);
+  }
 }
 
-static void scale_accounting(struct timer_list *t)
-{
-	struct cache_accounting *acc = from_timer(acc, t, timer);
-
-#define move_stat(name) do {						\
-	unsigned int t = atomic_xchg(&acc->collector.name, 0);		\
-	t <<= 16;							\
-	acc->five_minute.name += t;					\
-	acc->hour.name += t;						\
-	acc->day.name += t;						\
-	acc->total.name += t;						\
+static void scale_accounting(struct timer_list *t) {
+  struct cache_accounting *acc = from_timer(acc, t, timer);
+#define move_stat(name) do {            \
+    unsigned int t = atomic_xchg(&acc->collector.name, 0);    \
+    t <<= 16;             \
+    acc->five_minute.name += t;         \
+    acc->hour.name += t;            \
+    acc->day.name += t;           \
+    acc->total.name += t;           \
 } while (0)
-
-	move_stat(cache_hits);
-	move_stat(cache_misses);
-	move_stat(cache_bypass_hits);
-	move_stat(cache_bypass_misses);
-	move_stat(cache_miss_collisions);
-	move_stat(sectors_bypassed);
-
-	scale_stats(&acc->total, 0);
-	scale_stats(&acc->day, DAY_RESCALE);
-	scale_stats(&acc->hour, HOUR_RESCALE);
-	scale_stats(&acc->five_minute, FIVE_MINUTE_RESCALE);
-
-	acc->timer.expires += accounting_delay;
-
-	if (!atomic_read(&acc->closing))
-		add_timer(&acc->timer);
-	else
-		closure_return(&acc->cl);
+  move_stat(cache_hits);
+  move_stat(cache_misses);
+  move_stat(cache_bypass_hits);
+  move_stat(cache_bypass_misses);
+  move_stat(cache_miss_collisions);
+  move_stat(sectors_bypassed);
+  scale_stats(&acc->total, 0);
+  scale_stats(&acc->day, DAY_RESCALE);
+  scale_stats(&acc->hour, HOUR_RESCALE);
+  scale_stats(&acc->five_minute, FIVE_MINUTE_RESCALE);
+  acc->timer.expires += accounting_delay;
+  if (!atomic_read(&acc->closing)) {
+    add_timer(&acc->timer);
+  } else {
+    closure_return(&acc->cl);
+  }
 }
 
 static void mark_cache_stats(struct cache_stat_collector *stats,
-			     bool hit, bool bypass)
-{
-	if (!bypass)
-		if (hit)
-			atomic_inc(&stats->cache_hits);
-		else
-			atomic_inc(&stats->cache_misses);
-	else
-		if (hit)
-			atomic_inc(&stats->cache_bypass_hits);
-		else
-			atomic_inc(&stats->cache_bypass_misses);
+    bool hit, bool bypass) {
+  if (!bypass) {
+    if (hit) {
+      atomic_inc(&stats->cache_hits);
+    } else {
+      atomic_inc(&stats->cache_misses);
+    }
+  } else if (hit) {
+    atomic_inc(&stats->cache_bypass_hits);
+  } else {
+    atomic_inc(&stats->cache_bypass_misses);
+  }
 }
 
 void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
-			       bool hit, bool bypass)
-{
-	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-
-	mark_cache_stats(&dc->accounting.collector, hit, bypass);
-	mark_cache_stats(&c->accounting.collector, hit, bypass);
+    bool hit, bool bypass) {
+  struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+  mark_cache_stats(&dc->accounting.collector, hit, bypass);
+  mark_cache_stats(&c->accounting.collector, hit, bypass);
 }
 
-void bch_mark_cache_miss_collision(struct cache_set *c, struct bcache_device *d)
-{
-	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
-
-	atomic_inc(&dc->accounting.collector.cache_miss_collisions);
-	atomic_inc(&c->accounting.collector.cache_miss_collisions);
+void bch_mark_cache_miss_collision(struct cache_set *c,
+    struct bcache_device *d) {
+  struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+  atomic_inc(&dc->accounting.collector.cache_miss_collisions);
+  atomic_inc(&c->accounting.collector.cache_miss_collisions);
 }
 
 void bch_mark_sectors_bypassed(struct cache_set *c, struct cached_dev *dc,
-			       int sectors)
-{
-	atomic_add(sectors, &dc->accounting.collector.sectors_bypassed);
-	atomic_add(sectors, &c->accounting.collector.sectors_bypassed);
+    int sectors) {
+  atomic_add(sectors, &dc->accounting.collector.sectors_bypassed);
+  atomic_add(sectors, &c->accounting.collector.sectors_bypassed);
 }
 
 void bch_cache_accounting_init(struct cache_accounting *acc,
-			       struct closure *parent)
-{
-	kobject_init(&acc->total.kobj,		&bch_stats_ktype);
-	kobject_init(&acc->five_minute.kobj,	&bch_stats_ktype);
-	kobject_init(&acc->hour.kobj,		&bch_stats_ktype);
-	kobject_init(&acc->day.kobj,		&bch_stats_ktype);
-
-	closure_init(&acc->cl, parent);
-	timer_setup(&acc->timer, scale_accounting, 0);
-	acc->timer.expires	= jiffies + accounting_delay;
-	add_timer(&acc->timer);
+    struct closure *parent) {
+  kobject_init(&acc->total.kobj, &bch_stats_ktype);
+  kobject_init(&acc->five_minute.kobj, &bch_stats_ktype);
+  kobject_init(&acc->hour.kobj, &bch_stats_ktype);
+  kobject_init(&acc->day.kobj, &bch_stats_ktype);
+  closure_init(&acc->cl, parent);
+  timer_setup(&acc->timer, scale_accounting, 0);
+  acc->timer.expires = jiffies + accounting_delay;
+  add_timer(&acc->timer);
 }

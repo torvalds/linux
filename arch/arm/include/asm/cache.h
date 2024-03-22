@@ -5,8 +5,8 @@
 #ifndef __ASMARM_CACHE_H
 #define __ASMARM_CACHE_H
 
-#define L1_CACHE_SHIFT		CONFIG_ARM_L1_CACHE_SHIFT
-#define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
+#define L1_CACHE_SHIFT    CONFIG_ARM_L1_CACHE_SHIFT
+#define L1_CACHE_BYTES    (1 << L1_CACHE_SHIFT)
 
 /*
  * Memory returned by kmalloc() may be used for DMA, so we must make
@@ -15,7 +15,7 @@
  * cache before the transfer is done, causing old data to be seen by
  * the CPU.
  */
-#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+#define ARCH_DMA_MINALIGN L1_CACHE_BYTES
 
 /*
  * With EABI on ARMv5 and above we must have 64-bit aligned slab pointers.

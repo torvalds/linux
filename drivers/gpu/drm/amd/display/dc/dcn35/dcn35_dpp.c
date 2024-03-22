@@ -34,20 +34,18 @@
 
 #undef FN
 #define FN(reg_name, field_name)                                       \
-	((const struct dcn35_dpp_shift *)(dpp->tf_shift))->field_name, \
-	((const struct dcn35_dpp_mask *)(dpp->tf_mask))->field_name
+  ((const struct dcn35_dpp_shift *) (dpp->tf_shift))->field_name, \
+  ((const struct dcn35_dpp_mask *) (dpp->tf_mask))->field_name
 
 bool dpp35_construct(struct dcn3_dpp *dpp, struct dc_context *ctx,
-		     uint32_t inst, const struct dcn3_dpp_registers *tf_regs,
-		     const struct dcn35_dpp_shift *tf_shift,
-		     const struct dcn35_dpp_mask *tf_mask)
-{
-	return dpp32_construct(dpp, ctx, inst, tf_regs,
-			      (const struct dcn3_dpp_shift *)(tf_shift),
-			      (const struct dcn3_dpp_mask *)(tf_mask));
+    uint32_t inst, const struct dcn3_dpp_registers *tf_regs,
+    const struct dcn35_dpp_shift *tf_shift,
+    const struct dcn35_dpp_mask *tf_mask) {
+  return dpp32_construct(dpp, ctx, inst, tf_regs,
+      (const struct dcn3_dpp_shift *) (tf_shift),
+      (const struct dcn3_dpp_mask *) (tf_mask));
 }
 
-void dpp35_set_fgcg(struct dcn3_dpp *dpp, bool enable)
-{
-	REG_UPDATE(DPP_CONTROL, DPP_FGCG_REP_DIS, !enable);
+void dpp35_set_fgcg(struct dcn3_dpp *dpp, bool enable) {
+  REG_UPDATE(DPP_CONTROL, DPP_FGCG_REP_DIS, !enable);
 }

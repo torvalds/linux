@@ -19,8 +19,8 @@
 #include <asm/cmpxchg.h>
 #include <asm/barrier.h>
 
-#define arch_atomic_read(v)		READ_ONCE((v)->counter)
-#define arch_atomic_set(v,i)		WRITE_ONCE((v)->counter, (i))
+#define arch_atomic_read(v)   READ_ONCE((v)->counter)
+#define arch_atomic_set(v, i)    WRITE_ONCE((v)->counter, (i))
 
 #if defined(CONFIG_GUSA_RB)
 #include <asm/atomic-grb.h>

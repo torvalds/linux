@@ -15,26 +15,26 @@
 struct platform_device *mdp_get_plat_device(struct platform_device *pdev);
 
 struct mdp_cmdq_param {
-	struct img_config *config;
-	struct img_ipi_frameparam *param;
-	const struct v4l2_rect *composes[IMG_MAX_HW_OUTPUTS];
+  struct img_config *config;
+  struct img_ipi_frameparam *param;
+  const struct v4l2_rect *composes[IMG_MAX_HW_OUTPUTS];
 
-	void (*cmdq_cb)(struct cmdq_cb_data data);
-	void *cb_data;
-	void *mdp_ctx;
+  void (*cmdq_cb)(struct cmdq_cb_data data);
+  void *cb_data;
+  void *mdp_ctx;
 };
 
 struct mdp_cmdq_cmd {
-	struct work_struct auto_release_work;
-	struct cmdq_pkt pkt;
-	s32 *event;
-	struct mdp_dev *mdp;
-	struct cmdq_cb_data *data;
-	void (*user_cmdq_cb)(struct cmdq_cb_data data);
-	void *user_cb_data;
-	struct mdp_comp *comps;
-	void *mdp_ctx;
-	u8 num_comps;
+  struct work_struct auto_release_work;
+  struct cmdq_pkt pkt;
+  s32 *event;
+  struct mdp_dev *mdp;
+  struct cmdq_cb_data *data;
+  void (*user_cmdq_cb)(struct cmdq_cb_data data);
+  void *user_cb_data;
+  struct mdp_comp *comps;
+  void *mdp_ctx;
+  u8 num_comps;
 };
 
 struct mdp_dev;

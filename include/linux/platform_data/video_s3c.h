@@ -7,7 +7,7 @@
  * can use. Since the platform data uses this for an array size, having it
  * set to the maximum of any version of the hardware can do is safe.
  */
-#define S3C_FB_MAX_WIN	(5)
+#define S3C_FB_MAX_WIN  (5)
 
 /**
  * struct s3c_fb_pd_win - per window setup data
@@ -17,19 +17,19 @@
  * @virtual_y: The virtual Y size.
  */
 struct s3c_fb_pd_win {
-	unsigned short		default_bpp;
-	unsigned short		max_bpp;
-	unsigned short		xres;
-	unsigned short		yres;
-	unsigned short		virtual_x;
-	unsigned short		virtual_y;
+  unsigned short default_bpp;
+  unsigned short max_bpp;
+  unsigned short xres;
+  unsigned short yres;
+  unsigned short virtual_x;
+  unsigned short virtual_y;
 };
 
 /**
  * struct s3c_fb_platdata -  S3C driver platform specific information
  * @setup_gpio: Setup the external GPIO pins to the right state to transfer
- *		the data from the display system to the connected display
- *		device.
+ *    the data from the display system to the connected display
+ *    device.
  * @vidcon0: The base vidcon0 values to control the panel data format.
  * @vidcon1: The base vidcon1 values to control the panel data output.
  * @vtiming: Video timing when connected to a RGB type panel.
@@ -43,13 +43,13 @@ struct s3c_fb_pd_win {
  *
  */
 struct s3c_fb_platdata {
-	void	(*setup_gpio)(void);
+  void (*setup_gpio)(void);
 
-	struct s3c_fb_pd_win	*win[S3C_FB_MAX_WIN];
-	struct fb_videomode     *vtiming;
+  struct s3c_fb_pd_win *win[S3C_FB_MAX_WIN];
+  struct fb_videomode *vtiming;
 
-	u32			 vidcon0;
-	u32			 vidcon1;
+  u32 vidcon0;
+  u32 vidcon1;
 };
 
 #endif

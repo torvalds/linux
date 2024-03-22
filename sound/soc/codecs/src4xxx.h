@@ -37,8 +37,8 @@
 #define SRC4XXX_PORTA_CTL_04 0x04
 #define SRC4XXX_MCLK_DIV_MASK 0x3
 
-#define SRC4XXX_BUS_FMT(id) (SRC4XXX_PORTA_CTL_03+2*id)
-#define SRC4XXX_BUS_CLK(id) (SRC4XXX_PORTA_CTL_04+2*id)
+#define SRC4XXX_BUS_FMT(id) (SRC4XXX_PORTA_CTL_03 + 2 * id)
+#define SRC4XXX_BUS_CLK(id) (SRC4XXX_PORTA_CTL_04 + 2 * id)
 
 #define SRC4XXX_PORTB_CTL_05 0x05
 #define SRC4XXX_PORTB_CTL_06 0x06
@@ -58,10 +58,10 @@
 #define SRC4XXX_RXCLK_MCLK 0x8
 #define SRC4XXX_RCV_CTL_0E 0x0E
 #define SRC4XXX_REC_MCLK_EN 0x1
-#define SRC4XXX_PLL2_DIV_0 (0x0<<1)
-#define SRC4XXX_PLL2_DIV_2 (0x1<<1)
-#define SRC4XXX_PLL2_DIV_4 (0x2<<1)
-#define SRC4XXX_PLL2_DIV_8 (0x3<<1)
+#define SRC4XXX_PLL2_DIV_0 (0x0 << 1)
+#define SRC4XXX_PLL2_DIV_2 (0x1 << 1)
+#define SRC4XXX_PLL2_DIV_4 (0x2 << 1)
+#define SRC4XXX_PLL2_DIV_8 (0x3 << 1)
 #define SRC4XXX_PLL2_LOL 0x8
 #define SRC4XXX_RCV_PLL_0F 0x0F
 #define SRC4XXX_RCV_PLL_10 0x10
@@ -107,7 +107,7 @@
 #define SRC4XXX_IO_RATIO_33 0x33
 
 int src4xxx_probe(struct device *dev, struct regmap *regmap,
-		void (*switch_mode)(struct device *dev));
+    void (*switch_mode)(struct device *dev));
 extern const struct regmap_config src4xxx_regmap_config;
 
 #endif /* __SRC4XXX_H__ */

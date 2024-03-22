@@ -185,87 +185,88 @@ typedef uint64_t blkif_sector_t;
 #define BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST 8
 
 struct blkif_request_segment {
-		grant_ref_t gref;        /* reference to I/O buffer frame        */
-		/* @first_sect: first sector in frame to transfer (inclusive).   */
-		/* @last_sect: last sector in frame to transfer (inclusive).     */
-		uint8_t     first_sect, last_sect;
+  grant_ref_t gref;        /* reference to I/O buffer frame        */
+  /* @first_sect: first sector in frame to transfer (inclusive).
+   * @last_sect: last sector in frame to transfer (inclusive).*/
+  uint8_t first_sect, last_sect;
 };
 
 struct blkif_request_rw {
-	uint8_t        nr_segments;  /* number of segments                   */
-	blkif_vdev_t   handle;       /* only for read/write requests         */
+  uint8_t nr_segments;  /* number of segments                   */
+  blkif_vdev_t handle;       /* only for read/write requests         */
 #ifndef CONFIG_X86_32
-	uint32_t       _pad1;	     /* offsetof(blkif_request,u.rw.id) == 8 */
+  uint32_t _pad1;      /* offsetof(blkif_request,u.rw.id) == 8 */
 #endif
-	uint64_t       id;           /* private guest value, echoed in resp  */
-	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
-	struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+  uint64_t id;           /* private guest value, echoed in resp  */
+  blkif_sector_t sector_number; /* start sector idx on disk (r/w only)  */
+  struct blkif_request_segment seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 } __attribute__((__packed__));
 
 struct blkif_request_discard {
-	uint8_t        flag;         /* BLKIF_DISCARD_SECURE or zero.        */
-#define BLKIF_DISCARD_SECURE (1<<0)  /* ignored if discard-secure=0          */
-	blkif_vdev_t   _pad1;        /* only for read/write requests         */
+  uint8_t flag;         /* BLKIF_DISCARD_SECURE or zero.        */
+#define BLKIF_DISCARD_SECURE (1 << 0)  /* ignored if discard-secure=0
+                                        *          */
+  blkif_vdev_t _pad1;        /* only for read/write requests         */
 #ifndef CONFIG_X86_32
-	uint32_t       _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
+  uint32_t _pad2;        /* offsetof(blkif_req..,u.discard.id)==8*/
 #endif
-	uint64_t       id;           /* private guest value, echoed in resp  */
-	blkif_sector_t sector_number;
-	uint64_t       nr_sectors;
-	uint8_t        _pad3;
+  uint64_t id;           /* private guest value, echoed in resp  */
+  blkif_sector_t sector_number;
+  uint64_t nr_sectors;
+  uint8_t _pad3;
 } __attribute__((__packed__));
 
 struct blkif_request_other {
-	uint8_t      _pad1;
-	blkif_vdev_t _pad2;        /* only for read/write requests         */
+  uint8_t _pad1;
+  blkif_vdev_t _pad2;        /* only for read/write requests         */
 #ifndef CONFIG_X86_32
-	uint32_t     _pad3;        /* offsetof(blkif_req..,u.other.id)==8*/
+  uint32_t _pad3;        /* offsetof(blkif_req..,u.other.id)==8*/
 #endif
-	uint64_t     id;           /* private guest value, echoed in resp  */
+  uint64_t id;           /* private guest value, echoed in resp  */
 } __attribute__((__packed__));
 
 struct blkif_request_indirect {
-	uint8_t        indirect_op;
-	uint16_t       nr_segments;
+  uint8_t indirect_op;
+  uint16_t nr_segments;
 #ifndef CONFIG_X86_32
-	uint32_t       _pad1;        /* offsetof(blkif_...,u.indirect.id) == 8 */
+  uint32_t _pad1;        /* offsetof(blkif_...,u.indirect.id) == 8 */
 #endif
-	uint64_t       id;
-	blkif_sector_t sector_number;
-	blkif_vdev_t   handle;
-	uint16_t       _pad2;
-	grant_ref_t    indirect_grefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
+  uint64_t id;
+  blkif_sector_t sector_number;
+  blkif_vdev_t handle;
+  uint16_t _pad2;
+  grant_ref_t indirect_grefs[BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST];
 #ifndef CONFIG_X86_32
-	uint32_t      _pad3;         /* make it 64 byte aligned */
+  uint32_t _pad3;         /* make it 64 byte aligned */
 #else
-	uint64_t      _pad3;         /* make it 64 byte aligned */
+  uint64_t _pad3;         /* make it 64 byte aligned */
 #endif
 } __attribute__((__packed__));
 
 struct blkif_request {
-	uint8_t        operation;    /* BLKIF_OP_???                         */
-	union {
-		struct blkif_request_rw rw;
-		struct blkif_request_discard discard;
-		struct blkif_request_other other;
-		struct blkif_request_indirect indirect;
-	} u;
+  uint8_t operation;    /* BLKIF_OP_???                         */
+  union {
+    struct blkif_request_rw rw;
+    struct blkif_request_discard discard;
+    struct blkif_request_other other;
+    struct blkif_request_indirect indirect;
+  } u;
 } __attribute__((__packed__));
 
 struct blkif_response {
-	uint64_t        id;              /* copied from request */
-	uint8_t         operation;       /* copied from request */
-	int16_t         status;          /* BLKIF_RSP_???       */
+  uint64_t id;              /* copied from request */
+  uint8_t operation;       /* copied from request */
+  int16_t status;          /* BLKIF_RSP_???       */
 };
 
 /*
  * STATUS RETURN CODES.
  */
- /* Operation not supported (only happens on barrier writes). */
+/* Operation not supported (only happens on barrier writes). */
 #define BLKIF_RSP_EOPNOTSUPP  -2
- /* Operation failed for some unspecified reason (-EIO). */
+/* Operation failed for some unspecified reason (-EIO). */
 #define BLKIF_RSP_ERROR       -1
- /* Operation completed successfully. */
+/* Operation completed successfully. */
 #define BLKIF_RSP_OKAY         0
 
 /*
@@ -280,23 +281,23 @@ DEFINE_RING_TYPES(blkif, struct blkif_request, struct blkif_response);
 
 /* Xen-defined major numbers for virtual disks, they look strangely
  * familiar */
-#define XEN_IDE0_MAJOR	3
-#define XEN_IDE1_MAJOR	22
-#define XEN_SCSI_DISK0_MAJOR	8
-#define XEN_SCSI_DISK1_MAJOR	65
-#define XEN_SCSI_DISK2_MAJOR	66
-#define XEN_SCSI_DISK3_MAJOR	67
-#define XEN_SCSI_DISK4_MAJOR	68
-#define XEN_SCSI_DISK5_MAJOR	69
-#define XEN_SCSI_DISK6_MAJOR	70
-#define XEN_SCSI_DISK7_MAJOR	71
-#define XEN_SCSI_DISK8_MAJOR	128
-#define XEN_SCSI_DISK9_MAJOR	129
-#define XEN_SCSI_DISK10_MAJOR	130
-#define XEN_SCSI_DISK11_MAJOR	131
-#define XEN_SCSI_DISK12_MAJOR	132
-#define XEN_SCSI_DISK13_MAJOR	133
-#define XEN_SCSI_DISK14_MAJOR	134
-#define XEN_SCSI_DISK15_MAJOR	135
+#define XEN_IDE0_MAJOR  3
+#define XEN_IDE1_MAJOR  22
+#define XEN_SCSI_DISK0_MAJOR  8
+#define XEN_SCSI_DISK1_MAJOR  65
+#define XEN_SCSI_DISK2_MAJOR  66
+#define XEN_SCSI_DISK3_MAJOR  67
+#define XEN_SCSI_DISK4_MAJOR  68
+#define XEN_SCSI_DISK5_MAJOR  69
+#define XEN_SCSI_DISK6_MAJOR  70
+#define XEN_SCSI_DISK7_MAJOR  71
+#define XEN_SCSI_DISK8_MAJOR  128
+#define XEN_SCSI_DISK9_MAJOR  129
+#define XEN_SCSI_DISK10_MAJOR 130
+#define XEN_SCSI_DISK11_MAJOR 131
+#define XEN_SCSI_DISK12_MAJOR 132
+#define XEN_SCSI_DISK13_MAJOR 133
+#define XEN_SCSI_DISK14_MAJOR 134
+#define XEN_SCSI_DISK15_MAJOR 135
 
 #endif /* __XEN_PUBLIC_IO_BLKIF_H__ */

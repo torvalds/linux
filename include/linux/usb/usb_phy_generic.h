@@ -9,14 +9,13 @@
 extern struct platform_device *usb_phy_generic_register(void);
 extern void usb_phy_generic_unregister(struct platform_device *);
 #else
-static inline struct platform_device *usb_phy_generic_register(void)
-{
-	return NULL;
+static inline struct platform_device *usb_phy_generic_register(void) {
+  return NULL;
 }
 
-static inline void usb_phy_generic_unregister(struct platform_device *pdev)
-{
+static inline void usb_phy_generic_unregister(struct platform_device *pdev) {
 }
+
 #endif
 
 #endif /* __LINUX_USB_NOP_XCEIV_H */

@@ -18,15 +18,15 @@
 
 static const char *simulation_compat[] __initconst = {
 #ifdef CONFIG_ISA_ARCOMPACT
-	"snps,nsim",
-	"snps,nsimosci",
+  "snps,nsim",
+  "snps,nsimosci",
 #else
-	"snps,nsimosci_hs",
-	"snps,zebu_hs",
+  "snps,nsimosci_hs",
+  "snps,zebu_hs",
 #endif
-	NULL,
+  NULL,
 };
 
 MACHINE_START(SIMULATION, "simulation")
-	.dt_compat	= simulation_compat,
+.dt_compat = simulation_compat,
 MACHINE_END

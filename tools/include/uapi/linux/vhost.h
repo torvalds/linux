@@ -23,8 +23,8 @@
 
 /* Features bitmask for forward compatibility.  Transport bits are used for
  * vhost specific features. */
-#define VHOST_GET_FEATURES	_IOR(VHOST_VIRTIO, 0x00, __u64)
-#define VHOST_SET_FEATURES	_IOW(VHOST_VIRTIO, 0x00, __u64)
+#define VHOST_GET_FEATURES  _IOR(VHOST_VIRTIO, 0x00, __u64)
+#define VHOST_SET_FEATURES  _IOW(VHOST_VIRTIO, 0x00, __u64)
 
 /* Set current process as the (exclusive) owner of this file descriptor.  This
  * must be called before any other vhost command.  Further calls to
@@ -35,7 +35,7 @@
 #define VHOST_RESET_OWNER _IO(VHOST_VIRTIO, 0x02)
 
 /* Set up/modify memory layout */
-#define VHOST_SET_MEM_TABLE	_IOW(VHOST_VIRTIO, 0x03, struct vhost_memory)
+#define VHOST_SET_MEM_TABLE _IOW(VHOST_VIRTIO, 0x03, struct vhost_memory)
 
 /* Write logging setup. */
 /* Memory writes can optionally be logged by setting bit at an offset
@@ -87,8 +87,10 @@
  */
 #define VHOST_VRING_LITTLE_ENDIAN 0
 #define VHOST_VRING_BIG_ENDIAN 1
-#define VHOST_SET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x13, struct vhost_vring_state)
-#define VHOST_GET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x14, struct vhost_vring_state)
+#define VHOST_SET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x13, \
+    struct vhost_vring_state)
+#define VHOST_GET_VRING_ENDIAN _IOW(VHOST_VIRTIO, 0x14, \
+    struct vhost_vring_state)
 /* Attach a vhost_worker created with VHOST_NEW_WORKER to one of the device's
  * virtqueues.
  *
@@ -96,11 +98,11 @@
  * is no longer attached to any virtqueues, it can be freed with
  * VHOST_FREE_WORKER.
  */
-#define VHOST_ATTACH_VRING_WORKER _IOW(VHOST_VIRTIO, 0x15,		\
-				       struct vhost_vring_worker)
+#define VHOST_ATTACH_VRING_WORKER _IOW(VHOST_VIRTIO, 0x15,    \
+    struct vhost_vring_worker)
 /* Return the vring worker's ID */
-#define VHOST_GET_VRING_WORKER _IOWR(VHOST_VIRTIO, 0x16,		\
-				     struct vhost_vring_worker)
+#define VHOST_GET_VRING_WORKER _IOWR(VHOST_VIRTIO, 0x16,    \
+    struct vhost_vring_worker)
 
 /* The following ioctls use eventfd file descriptors to signal and poll
  * for events. */
@@ -112,11 +114,11 @@
 /* Set eventfd to signal an error */
 #define VHOST_SET_VRING_ERR _IOW(VHOST_VIRTIO, 0x22, struct vhost_vring_file)
 /* Set busy loop timeout (in us) */
-#define VHOST_SET_VRING_BUSYLOOP_TIMEOUT _IOW(VHOST_VIRTIO, 0x23,	\
-					 struct vhost_vring_state)
+#define VHOST_SET_VRING_BUSYLOOP_TIMEOUT _IOW(VHOST_VIRTIO, 0x23, \
+    struct vhost_vring_state)
 /* Get busy loop timeout (in us) */
-#define VHOST_GET_VRING_BUSYLOOP_TIMEOUT _IOW(VHOST_VIRTIO, 0x24,	\
-					 struct vhost_vring_state)
+#define VHOST_GET_VRING_BUSYLOOP_TIMEOUT _IOW(VHOST_VIRTIO, 0x24, \
+    struct vhost_vring_state)
 
 /* Set or get vhost backend capability */
 
@@ -133,8 +135,10 @@
 
 /* VHOST_SCSI specific defines */
 
-#define VHOST_SCSI_SET_ENDPOINT _IOW(VHOST_VIRTIO, 0x40, struct vhost_scsi_target)
-#define VHOST_SCSI_CLEAR_ENDPOINT _IOW(VHOST_VIRTIO, 0x41, struct vhost_scsi_target)
+#define VHOST_SCSI_SET_ENDPOINT _IOW(VHOST_VIRTIO, 0x40, \
+    struct vhost_scsi_target)
+#define VHOST_SCSI_CLEAR_ENDPOINT _IOW(VHOST_VIRTIO, 0x41, \
+    struct vhost_scsi_target)
 /* Changing this breaks userspace. */
 #define VHOST_SCSI_GET_ABI_VERSION _IOW(VHOST_VIRTIO, 0x42, int)
 /* Set and get the events missed flag */
@@ -143,64 +147,64 @@
 
 /* VHOST_VSOCK specific defines */
 
-#define VHOST_VSOCK_SET_GUEST_CID	_IOW(VHOST_VIRTIO, 0x60, __u64)
-#define VHOST_VSOCK_SET_RUNNING		_IOW(VHOST_VIRTIO, 0x61, int)
+#define VHOST_VSOCK_SET_GUEST_CID _IOW(VHOST_VIRTIO, 0x60, __u64)
+#define VHOST_VSOCK_SET_RUNNING   _IOW(VHOST_VIRTIO, 0x61, int)
 
 /* VHOST_VDPA specific defines */
 
 /* Get the device id. The device ids follow the same definition of
  * the device id defined in virtio-spec.
  */
-#define VHOST_VDPA_GET_DEVICE_ID	_IOR(VHOST_VIRTIO, 0x70, __u32)
+#define VHOST_VDPA_GET_DEVICE_ID  _IOR(VHOST_VIRTIO, 0x70, __u32)
 /* Get and set the status. The status bits follow the same definition
  * of the device status defined in virtio-spec.
  */
-#define VHOST_VDPA_GET_STATUS		_IOR(VHOST_VIRTIO, 0x71, __u8)
-#define VHOST_VDPA_SET_STATUS		_IOW(VHOST_VIRTIO, 0x72, __u8)
+#define VHOST_VDPA_GET_STATUS   _IOR(VHOST_VIRTIO, 0x71, __u8)
+#define VHOST_VDPA_SET_STATUS   _IOW(VHOST_VIRTIO, 0x72, __u8)
 /* Get and set the device config. The device config follows the same
  * definition of the device config defined in virtio-spec.
  */
-#define VHOST_VDPA_GET_CONFIG		_IOR(VHOST_VIRTIO, 0x73, \
-					     struct vhost_vdpa_config)
-#define VHOST_VDPA_SET_CONFIG		_IOW(VHOST_VIRTIO, 0x74, \
-					     struct vhost_vdpa_config)
+#define VHOST_VDPA_GET_CONFIG   _IOR(VHOST_VIRTIO, 0x73, \
+    struct vhost_vdpa_config)
+#define VHOST_VDPA_SET_CONFIG   _IOW(VHOST_VIRTIO, 0x74, \
+    struct vhost_vdpa_config)
 /* Enable/disable the ring. */
-#define VHOST_VDPA_SET_VRING_ENABLE	_IOW(VHOST_VIRTIO, 0x75, \
-					     struct vhost_vring_state)
+#define VHOST_VDPA_SET_VRING_ENABLE _IOW(VHOST_VIRTIO, 0x75, \
+    struct vhost_vring_state)
 /* Get the max ring size. */
-#define VHOST_VDPA_GET_VRING_NUM	_IOR(VHOST_VIRTIO, 0x76, __u16)
+#define VHOST_VDPA_GET_VRING_NUM  _IOR(VHOST_VIRTIO, 0x76, __u16)
 
 /* Set event fd for config interrupt*/
-#define VHOST_VDPA_SET_CONFIG_CALL	_IOW(VHOST_VIRTIO, 0x77, int)
+#define VHOST_VDPA_SET_CONFIG_CALL  _IOW(VHOST_VIRTIO, 0x77, int)
 
 /* Get the valid iova range */
-#define VHOST_VDPA_GET_IOVA_RANGE	_IOR(VHOST_VIRTIO, 0x78, \
-					     struct vhost_vdpa_iova_range)
+#define VHOST_VDPA_GET_IOVA_RANGE _IOR(VHOST_VIRTIO, 0x78, \
+    struct vhost_vdpa_iova_range)
 /* Get the config size */
-#define VHOST_VDPA_GET_CONFIG_SIZE	_IOR(VHOST_VIRTIO, 0x79, __u32)
+#define VHOST_VDPA_GET_CONFIG_SIZE  _IOR(VHOST_VIRTIO, 0x79, __u32)
 
 /* Get the count of all virtqueues */
-#define VHOST_VDPA_GET_VQS_COUNT	_IOR(VHOST_VIRTIO, 0x80, __u32)
+#define VHOST_VDPA_GET_VQS_COUNT  _IOR(VHOST_VIRTIO, 0x80, __u32)
 
 /* Get the number of virtqueue groups. */
-#define VHOST_VDPA_GET_GROUP_NUM	_IOR(VHOST_VIRTIO, 0x81, __u32)
+#define VHOST_VDPA_GET_GROUP_NUM  _IOR(VHOST_VIRTIO, 0x81, __u32)
 
 /* Get the number of address spaces. */
-#define VHOST_VDPA_GET_AS_NUM		_IOR(VHOST_VIRTIO, 0x7A, unsigned int)
+#define VHOST_VDPA_GET_AS_NUM   _IOR(VHOST_VIRTIO, 0x7A, unsigned int)
 
 /* Get the group for a virtqueue: read index, write group in num,
  * The virtqueue index is stored in the index field of
  * vhost_vring_state. The group for this specific virtqueue is
  * returned via num field of vhost_vring_state.
  */
-#define VHOST_VDPA_GET_VRING_GROUP	_IOWR(VHOST_VIRTIO, 0x7B,	\
-					      struct vhost_vring_state)
+#define VHOST_VDPA_GET_VRING_GROUP  _IOWR(VHOST_VIRTIO, 0x7B, \
+    struct vhost_vring_state)
 /* Set the ASID for a virtqueue group. The group index is stored in
  * the index field of vhost_vring_state, the ASID associated with this
  * group is stored at num field of vhost_vring_state.
  */
-#define VHOST_VDPA_SET_GROUP_ASID	_IOW(VHOST_VIRTIO, 0x7C, \
-					     struct vhost_vring_state)
+#define VHOST_VDPA_SET_GROUP_ASID _IOW(VHOST_VIRTIO, 0x7C, \
+    struct vhost_vring_state)
 
 /* Suspend a device so it does not process virtqueue requests anymore
  *
@@ -209,7 +213,7 @@
  * required for restoring in the future. The device must not change its
  * configuration after that point.
  */
-#define VHOST_VDPA_SUSPEND		_IO(VHOST_VIRTIO, 0x7D)
+#define VHOST_VDPA_SUSPEND    _IO(VHOST_VIRTIO, 0x7D)
 
 /* Resume a device so it can resume processing virtqueue requests
  *
@@ -217,7 +221,7 @@
  * necessary states and it is fully operational to continue processing the
  * virtqueue descriptors.
  */
-#define VHOST_VDPA_RESUME		_IO(VHOST_VIRTIO, 0x7E)
+#define VHOST_VDPA_RESUME   _IO(VHOST_VIRTIO, 0x7E)
 
 /* Get the group for the descriptor table including driver & device areas
  * of a virtqueue: read index, write group in num.
@@ -225,6 +229,6 @@
  * The group ID of the descriptor table for this specific virtqueue
  * is returned via num field of vhost_vring_state.
  */
-#define VHOST_VDPA_GET_VRING_DESC_GROUP	_IOWR(VHOST_VIRTIO, 0x7F,	\
-					      struct vhost_vring_state)
+#define VHOST_VDPA_GET_VRING_DESC_GROUP _IOWR(VHOST_VIRTIO, 0x7F, \
+    struct vhost_vring_state)
 #endif

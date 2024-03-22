@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2012-2019 ARM Limited (or its affiliates).*/
 
 /* \file cc_pm.h
  */
@@ -20,12 +20,12 @@ void cc_pm_put_suspend(struct device *dev);
 
 #else
 
-static inline int cc_pm_get(struct device *dev)
-{
-	return 0;
+static inline int cc_pm_get(struct device *dev) {
+  return 0;
 }
 
-static inline void cc_pm_put_suspend(struct device *dev) {}
+static inline void cc_pm_put_suspend(struct device *dev) {
+}
 
 #endif
 

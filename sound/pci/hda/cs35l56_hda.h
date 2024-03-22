@@ -19,24 +19,24 @@
 struct dentry;
 
 struct cs35l56_hda {
-	struct cs35l56_base base;
-	struct hda_codec *codec;
+  struct cs35l56_base base;
+  struct hda_codec *codec;
 
-	int index;
-	const char *system_name;
-	const char *amp_name;
+  int index;
+  const char *system_name;
+  const char *amp_name;
 
-	struct cs_dsp cs_dsp;
-	bool playing;
-	bool suspended;
-	u8 asp_tx_mask;
+  struct cs_dsp cs_dsp;
+  bool playing;
+  bool suspended;
+  u8 asp_tx_mask;
 
-	struct snd_kcontrol *posture_ctl;
-	struct snd_kcontrol *volume_ctl;
-	struct snd_kcontrol *mixer_ctl[4];
+  struct snd_kcontrol *posture_ctl;
+  struct snd_kcontrol *volume_ctl;
+  struct snd_kcontrol *mixer_ctl[4];
 
 #if IS_ENABLED(CONFIG_SND_DEBUG)
-	struct dentry *debugfs_root;
+  struct dentry *debugfs_root;
 #endif
 };
 

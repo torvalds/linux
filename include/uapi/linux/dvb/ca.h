@@ -13,58 +13,57 @@
 /**
  * struct ca_slot_info - CA slot interface types and info.
  *
- * @num:	slot number.
- * @type:	slot type.
- * @flags:	flags applicable to the slot.
+ * @num:  slot number.
+ * @type: slot type.
+ * @flags:  flags applicable to the slot.
  *
  * This struct stores the CA slot information.
  *
  * @type can be:
  *
- *	- %CA_CI - CI high level interface;
- *	- %CA_CI_LINK - CI link layer level interface;
- *	- %CA_CI_PHYS - CI physical layer level interface;
- *	- %CA_DESCR - built-in descrambler;
- *	- %CA_SC -simple smart card interface.
+ *  - %CA_CI - CI high level interface;
+ *  - %CA_CI_LINK - CI link layer level interface;
+ *  - %CA_CI_PHYS - CI physical layer level interface;
+ *  - %CA_DESCR - built-in descrambler;
+ *  - %CA_SC -simple smart card interface.
  *
  * @flags can be:
  *
- *	- %CA_CI_MODULE_PRESENT - module (or card) inserted;
- *	- %CA_CI_MODULE_READY - module is ready for usage.
+ *  - %CA_CI_MODULE_PRESENT - module (or card) inserted;
+ *  - %CA_CI_MODULE_READY - module is ready for usage.
  */
 
 struct ca_slot_info {
-	int num;
-	int type;
+  int num;
+  int type;
 #define CA_CI            1
 #define CA_CI_LINK       2
 #define CA_CI_PHYS       4
 #define CA_DESCR         8
 #define CA_SC          128
 
-	unsigned int flags;
+  unsigned int flags;
 #define CA_CI_MODULE_PRESENT 1
 #define CA_CI_MODULE_READY   2
 };
 
-
 /**
  * struct ca_descr_info - descrambler types and info.
  *
- * @num:	number of available descramblers (keys).
- * @type:	type of supported scrambling system.
+ * @num:  number of available descramblers (keys).
+ * @type: type of supported scrambling system.
  *
  * Identifies the number of descramblers and their type.
  *
  * @type can be:
  *
- *	- %CA_ECD - European Common Descrambler (ECD) hardware;
- *	- %CA_NDS - Videoguard (NDS) hardware;
- *	- %CA_DSS - Distributed Sample Scrambling (DSS) hardware.
+ *  - %CA_ECD - European Common Descrambler (ECD) hardware;
+ *  - %CA_NDS - Videoguard (NDS) hardware;
+ *  - %CA_DSS - Distributed Sample Scrambling (DSS) hardware.
  */
 struct ca_descr_info {
-	unsigned int num;
-	unsigned int type;
+  unsigned int num;
+  unsigned int type;
 #define CA_ECD           1
 #define CA_NDS           2
 #define CA_DSS           4
@@ -73,35 +72,35 @@ struct ca_descr_info {
 /**
  * struct ca_caps - CA slot interface capabilities.
  *
- * @slot_num:	total number of CA card and module slots.
- * @slot_type:	bitmap with all supported types as defined at
- *		&struct ca_slot_info (e. g. %CA_CI, %CA_CI_LINK, etc).
- * @descr_num:	total number of descrambler slots (keys)
- * @descr_type:	bitmap with all supported types as defined at
- *		&struct ca_descr_info (e. g. %CA_ECD, %CA_NDS, etc).
+ * @slot_num: total number of CA card and module slots.
+ * @slot_type:  bitmap with all supported types as defined at
+ *    &struct ca_slot_info (e. g. %CA_CI, %CA_CI_LINK, etc).
+ * @descr_num:  total number of descrambler slots (keys)
+ * @descr_type: bitmap with all supported types as defined at
+ *    &struct ca_descr_info (e. g. %CA_ECD, %CA_NDS, etc).
  */
 struct ca_caps {
-	unsigned int slot_num;
-	unsigned int slot_type;
-	unsigned int descr_num;
-	unsigned int descr_type;
+  unsigned int slot_num;
+  unsigned int slot_type;
+  unsigned int descr_num;
+  unsigned int descr_type;
 };
 
 /**
  * struct ca_msg - a message to/from a CI-CAM
  *
- * @index:	unused
- * @type:	unused
- * @length:	length of the message
- * @msg:	message
+ * @index:  unused
+ * @type: unused
+ * @length: length of the message
+ * @msg:  message
  *
  * This struct carries a message to be send/received from a CI CA module.
  */
 struct ca_msg {
-	unsigned int index;
-	unsigned int type;
-	unsigned int length;
-	unsigned char msg[256];
+  unsigned int index;
+  unsigned int type;
+  unsigned int length;
+  unsigned char msg[256];
 };
 
 /**
@@ -112,9 +111,9 @@ struct ca_msg {
  * @cw: CA Descrambler control words
  */
 struct ca_descr {
-	unsigned int index;
-	unsigned int parity;
-	unsigned char cw[8];
+  unsigned int index;
+  unsigned int parity;
+  unsigned char cw[8];
 };
 
 #define CA_RESET          _IO('o', 128)
@@ -129,12 +128,11 @@ struct ca_descr {
 
 /* This is needed for legacy userspace support */
 typedef struct ca_slot_info ca_slot_info_t;
-typedef struct ca_descr_info  ca_descr_info_t;
-typedef struct ca_caps  ca_caps_t;
+typedef struct ca_descr_info ca_descr_info_t;
+typedef struct ca_caps ca_caps_t;
 typedef struct ca_msg ca_msg_t;
 typedef struct ca_descr ca_descr_t;
 
 #endif
-
 
 #endif

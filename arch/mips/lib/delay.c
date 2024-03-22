@@ -25,44 +25,42 @@
 
 #ifndef CONFIG_HAVE_PLAT_DELAY
 
-void __delay(unsigned long loops)
-{
-	__asm__ __volatile__ (
-	"	.set	noreorder				\n"
-	"	.align	3					\n"
-	"1:	bnez	%0, 1b					\n"
-	"	 " __stringify(LONG_SUBU) "	%0, %1		\n"
-	"	.set	reorder					\n"
-	: "=r" (loops)
-	: GCC_DADDI_IMM_ASM() (1), "0" (loops));
+void __delay(unsigned long loops) {
+  __asm__ __volatile__ (
+    "	.set	noreorder				\n"
+    "	.align	3					\n"
+    "1:	bnez	%0, 1b					\n"
+    "	 " __stringify(LONG_SUBU) "	%0, %1		\n"
+    "	.set	reorder					\n"
+    : "=r" (loops)
+    : GCC_DADDI_IMM_ASM() (1), "0" (loops));
 }
+
 EXPORT_SYMBOL(__delay);
 
 /*
  * Division by multiplication: you don't have to worry about
  * loss of precision.
  *
- * Use only for very small delays ( < 1 msec).	Should probably use a
+ * Use only for very small delays ( < 1 msec).  Should probably use a
  * lookup table, really, as the multiplications take much too long with
  * short delays.  This is a "reasonable" implementation, though (and the
  * first constant multiplications gets optimized away if the delay is
  * a constant)
  */
 
-void __udelay(unsigned long us)
-{
-	unsigned int lpj = raw_current_cpu_data.udelay_val;
-
-	__delay((us * 0x000010c7ull * HZ * lpj) >> 32);
+void __udelay(unsigned long us) {
+  unsigned int lpj = raw_current_cpu_data.udelay_val;
+  __delay((us * 0x000010c7ull * HZ * lpj) >> 32);
 }
+
 EXPORT_SYMBOL(__udelay);
 
-void __ndelay(unsigned long ns)
-{
-	unsigned int lpj = raw_current_cpu_data.udelay_val;
-
-	__delay((ns * 0x00000005ull * HZ * lpj) >> 32);
+void __ndelay(unsigned long ns) {
+  unsigned int lpj = raw_current_cpu_data.udelay_val;
+  __delay((ns * 0x00000005ull * HZ * lpj) >> 32);
 }
+
 EXPORT_SYMBOL(__ndelay);
 
 #endif

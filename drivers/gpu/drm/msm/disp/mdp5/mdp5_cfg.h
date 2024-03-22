@@ -16,110 +16,111 @@
  */
 extern const struct mdp5_cfg_hw *mdp5_cfg;
 
-#define MAX_CTL			8
-#define MAX_BASES		8
-#define MAX_SMP_BLOCKS		44
-#define MAX_CLIENTS		32
+#define MAX_CTL     8
+#define MAX_BASES   8
+#define MAX_SMP_BLOCKS    44
+#define MAX_CLIENTS   32
 
 typedef DECLARE_BITMAP(mdp5_smp_state_t, MAX_SMP_BLOCKS);
 
 #define MDP5_SUB_BLOCK_DEFINITION \
-	unsigned int count; \
-	uint32_t base[MAX_BASES]
+  unsigned int count; \
+  uint32_t base[MAX_BASES]
 
 struct mdp5_sub_block {
-	MDP5_SUB_BLOCK_DEFINITION;
+  MDP5_SUB_BLOCK_DEFINITION;
 };
 
 struct mdp5_lm_instance {
-	int id;
-	int pp;
-	int dspp;
-	uint32_t caps;
+  int id;
+  int pp;
+  int dspp;
+  uint32_t caps;
 };
 
 struct mdp5_lm_block {
-	MDP5_SUB_BLOCK_DEFINITION;
-	struct mdp5_lm_instance instances[MAX_BASES];
-	uint32_t nb_stages;		/* number of stages per blender */
-	uint32_t max_width;		/* Maximum output resolution */
-	uint32_t max_height;
+  MDP5_SUB_BLOCK_DEFINITION;
+  struct mdp5_lm_instance instances[MAX_BASES];
+  uint32_t nb_stages;   /* number of stages per blender */
+  uint32_t max_width;   /* Maximum output resolution */
+  uint32_t max_height;
 };
 
 struct mdp5_pipe_block {
-	MDP5_SUB_BLOCK_DEFINITION;
-	uint32_t caps;			/* pipe capabilities */
+  MDP5_SUB_BLOCK_DEFINITION;
+  uint32_t caps;      /* pipe capabilities */
 };
 
 struct mdp5_ctl_block {
-	MDP5_SUB_BLOCK_DEFINITION;
-	uint32_t flush_hw_mask;		/* FLUSH register's hardware mask */
+  MDP5_SUB_BLOCK_DEFINITION;
+  uint32_t flush_hw_mask;   /* FLUSH register's hardware mask */
 };
 
 struct mdp5_smp_block {
-	int mmb_count;			/* number of SMP MMBs */
-	int mmb_size;			/* MMB: size in bytes */
-	uint32_t clients[MAX_CLIENTS];	/* SMP port allocation /pipe */
-	mdp5_smp_state_t reserved_state;/* SMP MMBs statically allocated */
-	uint8_t reserved[MAX_CLIENTS];	/* # of MMBs allocated per client */
+  int mmb_count;      /* number of SMP MMBs */
+  int mmb_size;     /* MMB: size in bytes */
+  uint32_t clients[MAX_CLIENTS];  /* SMP port allocation /pipe */
+  mdp5_smp_state_t reserved_state; /* SMP MMBs statically allocated */
+  uint8_t reserved[MAX_CLIENTS];  /* # of MMBs allocated per client */
 };
 
 struct mdp5_mdp_block {
-	MDP5_SUB_BLOCK_DEFINITION;
-	uint32_t caps;			/* MDP capabilities: MDP_CAP_xxx bits */
+  MDP5_SUB_BLOCK_DEFINITION;
+  uint32_t caps;      /* MDP capabilities: MDP_CAP_xxx bits */
 };
 
-#define MDP5_INTF_NUM_MAX	5
+#define MDP5_INTF_NUM_MAX 5
 
 struct mdp5_intf_block {
-	uint32_t base[MAX_BASES];
-	u32 connect[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
+  uint32_t base[MAX_BASES];
+  u32 connect[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
 };
 
 struct mdp5_perf_block {
-	u32 ab_inefficiency;
-	u32 ib_inefficiency;
-	u32 clk_inefficiency;
+  u32 ab_inefficiency;
+  u32 ib_inefficiency;
+  u32 clk_inefficiency;
 };
 
 struct mdp5_cfg_hw {
-	char  *name;
+  char *name;
 
-	struct mdp5_mdp_block mdp;
-	struct mdp5_smp_block smp;
-	struct mdp5_ctl_block ctl;
-	struct mdp5_pipe_block pipe_vig;
-	struct mdp5_pipe_block pipe_rgb;
-	struct mdp5_pipe_block pipe_dma;
-	struct mdp5_pipe_block pipe_cursor;
-	struct mdp5_lm_block  lm;
-	struct mdp5_sub_block dspp;
-	struct mdp5_sub_block ad;
-	struct mdp5_sub_block pp;
-	struct mdp5_sub_block dsc;
-	struct mdp5_sub_block cdm;
-	struct mdp5_intf_block intf;
-	struct mdp5_perf_block perf;
+  struct mdp5_mdp_block mdp;
+  struct mdp5_smp_block smp;
+  struct mdp5_ctl_block ctl;
+  struct mdp5_pipe_block pipe_vig;
+  struct mdp5_pipe_block pipe_rgb;
+  struct mdp5_pipe_block pipe_dma;
+  struct mdp5_pipe_block pipe_cursor;
+  struct mdp5_lm_block lm;
+  struct mdp5_sub_block dspp;
+  struct mdp5_sub_block ad;
+  struct mdp5_sub_block pp;
+  struct mdp5_sub_block dsc;
+  struct mdp5_sub_block cdm;
+  struct mdp5_intf_block intf;
+  struct mdp5_perf_block perf;
 
-	uint32_t max_clk;
+  uint32_t max_clk;
 };
 
 struct mdp5_cfg {
-	const struct mdp5_cfg_hw *hw;
+  const struct mdp5_cfg_hw *hw;
 };
 
 struct mdp5_kms;
 struct mdp5_cfg_handler;
 
-const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(struct mdp5_cfg_handler *cfg_hnd);
+const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(
+  struct mdp5_cfg_handler *cfg_hnd);
 struct mdp5_cfg *mdp5_cfg_get_config(struct mdp5_cfg_handler *cfg_hnd);
 int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_hnd);
 
-#define mdp5_cfg_intf_is_virtual(intf_type) ({	\
-	typeof(intf_type) __val = (intf_type);	\
-	(__val) >= INTF_VIRTUAL ? true : false; })
+#define mdp5_cfg_intf_is_virtual(intf_type) ({  \
+    typeof(intf_type) __val = (intf_type);  \
+    (__val) >= INTF_VIRTUAL ? true : false; })
 
 struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
-		uint32_t major, uint32_t minor);
+    uint32_t major, uint32_t minor);
 
 #endif /* __MDP5_CFG_H__ */

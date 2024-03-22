@@ -5,7 +5,7 @@
  * Interface for regulator driver for TI TPS62360 Processor core supply
  *
  * Copyright (C) 2012 NVIDIA Corporation
-
+ *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
  */
 
@@ -23,11 +23,11 @@
  * @vsel1_def_state: Default state of vsel1. 1 if it is high else 0.
  */
 struct tps62360_regulator_platform_data {
-	struct regulator_init_data *reg_init_data;
-	bool en_discharge;
-	bool en_internal_pulldn;
-	int vsel0_def_state;
-	int vsel1_def_state;
+  struct regulator_init_data *reg_init_data;
+  bool en_discharge;
+  bool en_internal_pulldn;
+  int vsel0_def_state;
+  int vsel1_def_state;
 };
 
 #endif /* __LINUX_REGULATOR_TPS62360_H */

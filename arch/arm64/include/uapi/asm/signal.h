@@ -18,7 +18,7 @@
 #define __ASM_SIGNAL_H
 
 /* Required for AArch32 compatibility. */
-#define SA_RESTORER	0x04000000
+#define SA_RESTORER 0x04000000
 
 #define MINSIGSTKSZ 5120
 #define SIGSTKSZ    16384

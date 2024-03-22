@@ -11,15 +11,15 @@
 #ifndef __MACH_MX27_H__
 #define __MACH_MX27_H__
 
-#define MX27_AIPI_BASE_ADDR		0x10000000
-#define MX27_AIPI_SIZE			SZ_1M
+#define MX27_AIPI_BASE_ADDR   0x10000000
+#define MX27_AIPI_SIZE      SZ_1M
 
-#define MX27_SAHB1_BASE_ADDR		0x80000000
-#define MX27_SAHB1_SIZE			SZ_1M
+#define MX27_SAHB1_BASE_ADDR    0x80000000
+#define MX27_SAHB1_SIZE     SZ_1M
 
-#define MX27_X_MEMC_BASE_ADDR		0xd8000000
-#define MX27_X_MEMC_SIZE		SZ_1M
+#define MX27_X_MEMC_BASE_ADDR   0xd8000000
+#define MX27_X_MEMC_SIZE    SZ_1M
 
-#define MX27_IO_P2V(x)			IMX_IO_P2V(x)
+#define MX27_IO_P2V(x)      IMX_IO_P2V(x)
 
 #endif /* ifndef __MACH_MX27_H__ */

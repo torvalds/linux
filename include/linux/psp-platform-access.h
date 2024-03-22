@@ -6,22 +6,22 @@
 #include <linux/psp.h>
 
 enum psp_platform_access_msg {
-	PSP_CMD_NONE = 0x0,
-	PSP_I2C_REQ_BUS_CMD = 0x64,
-	PSP_DYNAMIC_BOOST_GET_NONCE,
-	PSP_DYNAMIC_BOOST_SET_UID,
-	PSP_DYNAMIC_BOOST_GET_PARAMETER,
-	PSP_DYNAMIC_BOOST_SET_PARAMETER,
+  PSP_CMD_NONE = 0x0,
+  PSP_I2C_REQ_BUS_CMD = 0x64,
+  PSP_DYNAMIC_BOOST_GET_NONCE,
+  PSP_DYNAMIC_BOOST_SET_UID,
+  PSP_DYNAMIC_BOOST_GET_PARAMETER,
+  PSP_DYNAMIC_BOOST_SET_PARAMETER,
 };
 
 struct psp_req_buffer_hdr {
-	u32 payload_size;
-	u32 status;
+  u32 payload_size;
+  u32 status;
 } __packed;
 
 struct psp_request {
-	struct psp_req_buffer_hdr header;
-	void *buf;
+  struct psp_req_buffer_hdr header;
+  void *buf;
 } __packed;
 
 /**
@@ -37,7 +37,8 @@ struct psp_request {
  *  -%ETIMEDOUT: request timed out
  *  -%EIO:       unknown error (see kernel log)
  */
-int psp_send_platform_access_msg(enum psp_platform_access_msg, struct psp_request *req);
+int psp_send_platform_access_msg(enum psp_platform_access_msg,
+    struct psp_request *req);
 
 /**
  * psp_ring_platform_doorbell() - Ring platform doorbell
@@ -55,7 +56,8 @@ int psp_send_platform_access_msg(enum psp_platform_access_msg, struct psp_reques
 int psp_ring_platform_doorbell(int msg, u32 *result);
 
 /**
- * psp_check_platform_access_status() - Checks whether platform features is ready
+ * psp_check_platform_access_status() - Checks whether platform features is
+ * ready
  *
  * This function is intended to be used by drivers outside of ccp to determine
  * if platform features has initialized.

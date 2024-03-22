@@ -10,12 +10,12 @@
 
 /* ENA operates with 48-bit memory addresses. ena_mem_addr_t */
 struct ena_common_mem_addr {
-	u32 mem_addr_low;
+  u32 mem_addr_low;
 
-	u16 mem_addr_high;
+  u16 mem_addr_high;
 
-	/* MBZ */
-	u16 reserved16;
+  /* MBZ */
+  u16 reserved16;
 };
 
 #endif /* _ENA_COMMON_H_ */

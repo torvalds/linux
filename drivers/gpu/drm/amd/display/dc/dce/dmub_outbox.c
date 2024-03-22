@@ -31,22 +31,19 @@
  *  Function: dmub_enable_outbox_notification
  *
  *  @brief
- *		Sends inbox cmd to dmub for enabling outbox notifications to x86.
+ *    Sends inbox cmd to dmub for enabling outbox notifications to x86.
  *
  *  @param
- *		[in] dmub_srv: dmub_srv structure
+ *    [in] dmub_srv: dmub_srv structure
  */
-void dmub_enable_outbox_notification(struct dc_dmub_srv *dmub_srv)
-{
-	union dmub_rb_cmd cmd;
-
-	memset(&cmd, 0x0, sizeof(cmd));
-	cmd.outbox1_enable.header.type = DMUB_CMD__OUTBOX1_ENABLE;
-	cmd.outbox1_enable.header.sub_type = 0;
-	cmd.outbox1_enable.header.payload_bytes =
-		sizeof(cmd.outbox1_enable) -
-		sizeof(cmd.outbox1_enable.header);
-	cmd.outbox1_enable.enable = true;
-
-	dc_wake_and_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+void dmub_enable_outbox_notification(struct dc_dmub_srv *dmub_srv) {
+  union dmub_rb_cmd cmd;
+  memset(&cmd, 0x0, sizeof(cmd));
+  cmd.outbox1_enable.header.type = DMUB_CMD__OUTBOX1_ENABLE;
+  cmd.outbox1_enable.header.sub_type = 0;
+  cmd.outbox1_enable.header.payload_bytes
+    = sizeof(cmd.outbox1_enable)
+      - sizeof(cmd.outbox1_enable.header);
+  cmd.outbox1_enable.enable = true;
+  dc_wake_and_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }

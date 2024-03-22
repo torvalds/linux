@@ -18,56 +18,57 @@
 #define PG_dcache_clean PG_arch_1
 
 /*
- *	MM Cache Management
- *	===================
+ *  MM Cache Management
+ *  ===================
  *
- *	The arch/arm64/mm/cache.S implements these methods.
+ *  The arch/arm64/mm/cache.S implements these methods.
  *
- *	Start addresses are inclusive and end addresses are exclusive; start
- *	addresses should be rounded down, end addresses up.
+ *  Start addresses are inclusive and end addresses are exclusive; start
+ *  addresses should be rounded down, end addresses up.
  *
- *	See Documentation/core-api/cachetlb.rst for more information. Please note that
- *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
- *	VIPT I-cache.
+ *  See Documentation/core-api/cachetlb.rst for more information. Please note
+ * that
+ *  the implementation assumes non-aliasing VIPT D-cache and (aliasing)
+ *  VIPT I-cache.
  *
- *	All functions below apply to the interval [start, end)
- *		- start  - virtual start address (inclusive)
- *		- end    - virtual end address (exclusive)
+ *  All functions below apply to the interval [start, end)
+ *    - start  - virtual start address (inclusive)
+ *    - end    - virtual end address (exclusive)
  *
- *	caches_clean_inval_pou(start, end)
+ *  caches_clean_inval_pou(start, end)
  *
- *		Ensure coherency between the I-cache and the D-cache region to
- *		the Point of Unification.
+ *    Ensure coherency between the I-cache and the D-cache region to
+ *    the Point of Unification.
  *
- *	caches_clean_inval_user_pou(start, end)
+ *  caches_clean_inval_user_pou(start, end)
  *
- *		Ensure coherency between the I-cache and the D-cache region to
- *		the Point of Unification.
- *		Use only if the region might access user memory.
+ *    Ensure coherency between the I-cache and the D-cache region to
+ *    the Point of Unification.
+ *    Use only if the region might access user memory.
  *
- *	icache_inval_pou(start, end)
+ *  icache_inval_pou(start, end)
  *
- *		Invalidate I-cache region to the Point of Unification.
+ *    Invalidate I-cache region to the Point of Unification.
  *
- *	dcache_clean_inval_poc(start, end)
+ *  dcache_clean_inval_poc(start, end)
  *
- *		Clean and invalidate D-cache region to the Point of Coherency.
+ *    Clean and invalidate D-cache region to the Point of Coherency.
  *
- *	dcache_inval_poc(start, end)
+ *  dcache_inval_poc(start, end)
  *
- *		Invalidate D-cache region to the Point of Coherency.
+ *    Invalidate D-cache region to the Point of Coherency.
  *
- *	dcache_clean_poc(start, end)
+ *  dcache_clean_poc(start, end)
  *
- *		Clean D-cache region to the Point of Coherency.
+ *    Clean D-cache region to the Point of Coherency.
  *
- *	dcache_clean_pop(start, end)
+ *  dcache_clean_pop(start, end)
  *
- *		Clean D-cache region to the Point of Persistence.
+ *    Clean D-cache region to the Point of Persistence.
  *
- *	dcache_clean_pou(start, end)
+ *  dcache_clean_pou(start, end)
  *
- *		Clean D-cache region to the Point of Unification.
+ *    Clean D-cache region to the Point of Unification.
  */
 extern void caches_clean_inval_pou(unsigned long start, unsigned long end);
 extern void icache_inval_pou(unsigned long start, unsigned long end);
@@ -79,29 +80,27 @@ extern void dcache_clean_pou(unsigned long start, unsigned long end);
 extern long caches_clean_inval_user_pou(unsigned long start, unsigned long end);
 extern void sync_icache_aliases(unsigned long start, unsigned long end);
 
-static inline void flush_icache_range(unsigned long start, unsigned long end)
-{
-	caches_clean_inval_pou(start, end);
-
-	/*
-	 * IPI all online CPUs so that they undergo a context synchronization
-	 * event and are forced to refetch the new instructions.
-	 */
-
-	/*
-	 * KGDB performs cache maintenance with interrupts disabled, so we
-	 * will deadlock trying to IPI the secondary CPUs. In theory, we can
-	 * set CACHE_FLUSH_IS_SAFE to 0 to avoid this known issue, but that
-	 * just means that KGDB will elide the maintenance altogether! As it
-	 * turns out, KGDB uses IPIs to round-up the secondary CPUs during
-	 * the patching operation, so we don't need extra IPIs here anyway.
-	 * In which case, add a KGDB-specific bodge and return early.
-	 */
-	if (in_dbg_master())
-		return;
-
-	kick_all_cpus_sync();
+static inline void flush_icache_range(unsigned long start, unsigned long end) {
+  caches_clean_inval_pou(start, end);
+  /*
+   * IPI all online CPUs so that they undergo a context synchronization
+   * event and are forced to refetch the new instructions.
+   */
+  /*
+   * KGDB performs cache maintenance with interrupts disabled, so we
+   * will deadlock trying to IPI the secondary CPUs. In theory, we can
+   * set CACHE_FLUSH_IS_SAFE to 0 to avoid this known issue, but that
+   * just means that KGDB will elide the maintenance altogether! As it
+   * turns out, KGDB uses IPIs to round-up the secondary CPUs during
+   * the patching operation, so we don't need extra IPIs here anyway.
+   * In which case, add a KGDB-specific bodge and return early.
+   */
+  if (in_dbg_master()) {
+    return;
+  }
+  kick_all_cpus_sync();
 }
+
 #define flush_icache_range flush_icache_range
 
 /*
@@ -110,7 +109,7 @@ static inline void flush_icache_range(unsigned long start, unsigned long end)
  * space" model to handle this.
  */
 extern void copy_to_user_page(struct vm_area_struct *, struct page *,
-	unsigned long, void *, const void *, unsigned long);
+    unsigned long, void *, const void *, unsigned long);
 #define copy_to_user_page copy_to_user_page
 
 /*
@@ -130,13 +129,12 @@ extern void flush_dcache_page(struct page *);
 void flush_dcache_folio(struct folio *);
 #define flush_dcache_folio flush_dcache_folio
 
-static __always_inline void icache_inval_all_pou(void)
-{
-	if (alternative_has_cap_unlikely(ARM64_HAS_CACHE_DIC))
-		return;
-
-	asm("ic	ialluis");
-	dsb(ish);
+static __always_inline void icache_inval_all_pou(void) {
+  if (alternative_has_cap_unlikely(ARM64_HAS_CACHE_DIC)) {
+    return;
+  }
+  asm ("ic	ialluis");
+  dsb(ish);
 }
 
 #include <asm-generic/cacheflush.h>

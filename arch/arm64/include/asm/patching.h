@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef	__ASM_PATCHING_H
-#define	__ASM_PATCHING_H
+#ifndef __ASM_PATCHING_H
+#define __ASM_PATCHING_H
 
 #include <linux/types.h>
 
@@ -14,4 +14,4 @@ void *aarch64_insn_copy(void *dst, void *src, size_t len);
 int aarch64_insn_patch_text_nosync(void *addr, u32 insn);
 int aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt);
 
-#endif	/* __ASM_PATCHING_H */
+#endif  /* __ASM_PATCHING_H */

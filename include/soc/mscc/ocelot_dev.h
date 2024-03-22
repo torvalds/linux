@@ -24,20 +24,28 @@
 #define DEV_PORT_MISC_HDX_FAST_DIS                        BIT(0)
 
 #define DEV_EEE_CFG_EEE_ENA                               BIT(22)
-#define DEV_EEE_CFG_EEE_TIMER_AGE(x)                      (((x) << 15) & GENMASK(21, 15))
+#define DEV_EEE_CFG_EEE_TIMER_AGE(x)                      (((x) << \
+    15) & GENMASK(21, 15))
 #define DEV_EEE_CFG_EEE_TIMER_AGE_M                       GENMASK(21, 15)
-#define DEV_EEE_CFG_EEE_TIMER_AGE_X(x)                    (((x) & GENMASK(21, 15)) >> 15)
-#define DEV_EEE_CFG_EEE_TIMER_WAKEUP(x)                   (((x) << 8) & GENMASK(14, 8))
+#define DEV_EEE_CFG_EEE_TIMER_AGE_X(x)                    (((x) \
+  & GENMASK(21, 15)) >> 15)
+#define DEV_EEE_CFG_EEE_TIMER_WAKEUP(x)                   (((x) << \
+    8) & GENMASK(14, 8))
 #define DEV_EEE_CFG_EEE_TIMER_WAKEUP_M                    GENMASK(14, 8)
-#define DEV_EEE_CFG_EEE_TIMER_WAKEUP_X(x)                 (((x) & GENMASK(14, 8)) >> 8)
-#define DEV_EEE_CFG_EEE_TIMER_HOLDOFF(x)                  (((x) << 1) & GENMASK(7, 1))
+#define DEV_EEE_CFG_EEE_TIMER_WAKEUP_X(x)                 (((x) \
+  & GENMASK(14, 8)) >> 8)
+#define DEV_EEE_CFG_EEE_TIMER_HOLDOFF(x)                  (((x) << \
+    1) & GENMASK(7, 1))
 #define DEV_EEE_CFG_EEE_TIMER_HOLDOFF_M                   GENMASK(7, 1)
-#define DEV_EEE_CFG_EEE_TIMER_HOLDOFF_X(x)                (((x) & GENMASK(7, 1)) >> 1)
+#define DEV_EEE_CFG_EEE_TIMER_HOLDOFF_X(x)                (((x) \
+  & GENMASK(7, 1)) >> 1)
 #define DEV_EEE_CFG_PORT_LPI                              BIT(0)
 
-#define DEV_PTP_PREDICT_CFG_PTP_PHY_PREDICT_CFG(x)        (((x) << 4) & GENMASK(11, 4))
+#define DEV_PTP_PREDICT_CFG_PTP_PHY_PREDICT_CFG(x)        (((x) << \
+    4) & GENMASK(11, 4))
 #define DEV_PTP_PREDICT_CFG_PTP_PHY_PREDICT_CFG_M         GENMASK(11, 4)
-#define DEV_PTP_PREDICT_CFG_PTP_PHY_PREDICT_CFG_X(x)      (((x) & GENMASK(11, 4)) >> 4)
+#define DEV_PTP_PREDICT_CFG_PTP_PHY_PREDICT_CFG_X(x)      (((x) \
+  & GENMASK(11, 4)) >> 4)
 #define DEV_PTP_PREDICT_CFG_PTP_PHASE_PREDICT_CFG(x)      ((x) & GENMASK(3, 0))
 #define DEV_PTP_PREDICT_CFG_PTP_PHASE_PREDICT_CFG_M       GENMASK(3, 0)
 
@@ -48,9 +56,11 @@
 #define DEV_MAC_MODE_CFG_GIGA_MODE_ENA                    BIT(4)
 #define DEV_MAC_MODE_CFG_FDX_ENA                          BIT(0)
 
-#define DEV_MAC_TAGS_CFG_TAG_ID(x)                        (((x) << 16) & GENMASK(31, 16))
+#define DEV_MAC_TAGS_CFG_TAG_ID(x)                        (((x) << \
+    16) & GENMASK(31, 16))
 #define DEV_MAC_TAGS_CFG_TAG_ID_M                         GENMASK(31, 16)
-#define DEV_MAC_TAGS_CFG_TAG_ID_X(x)                      (((x) & GENMASK(31, 16)) >> 16)
+#define DEV_MAC_TAGS_CFG_TAG_ID_X(x)                      (((x) \
+  & GENMASK(31, 16)) >> 16)
 #define DEV_MAC_TAGS_CFG_VLAN_LEN_AWR_ENA                 BIT(2)
 #define DEV_MAC_TAGS_CFG_VLAN_DBL_AWR_ENA                 BIT(1)
 #define DEV_MAC_TAGS_CFG_VLAN_AWR_ENA                     BIT(0)
@@ -59,21 +69,27 @@
 
 #define DEV_MAC_IFG_CFG_RESTORE_OLD_IPG_CHECK             BIT(17)
 #define DEV_MAC_IFG_CFG_REDUCED_TX_IFG                    BIT(16)
-#define DEV_MAC_IFG_CFG_TX_IFG(x)                         (((x) << 8) & GENMASK(12, 8))
+#define DEV_MAC_IFG_CFG_TX_IFG(x)                         (((x) << \
+    8) & GENMASK(12, 8))
 #define DEV_MAC_IFG_CFG_TX_IFG_M                          GENMASK(12, 8)
-#define DEV_MAC_IFG_CFG_TX_IFG_X(x)                       (((x) & GENMASK(12, 8)) >> 8)
-#define DEV_MAC_IFG_CFG_RX_IFG2(x)                        (((x) << 4) & GENMASK(7, 4))
+#define DEV_MAC_IFG_CFG_TX_IFG_X(x)                       (((x) \
+  & GENMASK(12, 8)) >> 8)
+#define DEV_MAC_IFG_CFG_RX_IFG2(x)                        (((x) << \
+    4) & GENMASK(7, 4))
 #define DEV_MAC_IFG_CFG_RX_IFG2_M                         GENMASK(7, 4)
-#define DEV_MAC_IFG_CFG_RX_IFG2_X(x)                      (((x) & GENMASK(7, 4)) >> 4)
+#define DEV_MAC_IFG_CFG_RX_IFG2_X(x)                      (((x) \
+  & GENMASK(7, 4)) >> 4)
 #define DEV_MAC_IFG_CFG_RX_IFG1(x)                        ((x) & GENMASK(3, 0))
 #define DEV_MAC_IFG_CFG_RX_IFG1_M                         GENMASK(3, 0)
 
 #define DEV_MAC_HDX_CFG_BYPASS_COL_SYNC                   BIT(26)
 #define DEV_MAC_HDX_CFG_OB_ENA                            BIT(25)
 #define DEV_MAC_HDX_CFG_WEXC_DIS                          BIT(24)
-#define DEV_MAC_HDX_CFG_SEED(x)                           (((x) << 16) & GENMASK(23, 16))
+#define DEV_MAC_HDX_CFG_SEED(x)                           (((x) << \
+    16) & GENMASK(23, 16))
 #define DEV_MAC_HDX_CFG_SEED_M                            GENMASK(23, 16)
-#define DEV_MAC_HDX_CFG_SEED_X(x)                         (((x) & GENMASK(23, 16)) >> 16)
+#define DEV_MAC_HDX_CFG_SEED_X(x)                         (((x) \
+  & GENMASK(23, 16)) >> 16)
 #define DEV_MAC_HDX_CFG_SEED_LOAD                         BIT(12)
 #define DEV_MAC_HDX_CFG_RETRY_AFTER_EXC_COL_ENA           BIT(8)
 #define DEV_MAC_HDX_CFG_LATE_COL_POS(x)                   ((x) & GENMASK(6, 0))
@@ -98,18 +114,24 @@
 #define DEV_MM_CONFIG_ENABLE_CONFIG_KEEP_S_AFTER_D        BIT(8)
 
 #define DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_DIS         BIT(0)
-#define DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_TIME(x)     (((x) << 4) & GENMASK(11, 4))
+#define DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_TIME(x)     (((x) << \
+    4) & GENMASK(11, 4))
 #define DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_TIME_M      GENMASK(11, 4)
-#define DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_TIME_X(x)   (((x) & GENMASK(11, 4)) >> 4)
-#define DEV_MM_CONFIG_VERIF_CONFIG_VERIF_TIMER_UNITS(x)   (((x) << 12) & GENMASK(13, 12))
+#define DEV_MM_CONFIG_VERIF_CONFIG_PRM_VERIFY_TIME_X(x)   (((x) \
+  & GENMASK(11, 4)) >> 4)
+#define DEV_MM_CONFIG_VERIF_CONFIG_VERIF_TIMER_UNITS(x)   (((x) << \
+    12) & GENMASK(13, 12))
 #define DEV_MM_CONFIG_VERIF_CONFIG_VERIF_TIMER_UNITS_M    GENMASK(13, 12)
-#define DEV_MM_CONFIG_VERIF_CONFIG_VERIF_TIMER_UNITS_X(x) (((x) & GENMASK(13, 12)) >> 12)
+#define DEV_MM_CONFIG_VERIF_CONFIG_VERIF_TIMER_UNITS_X(x) (((x) \
+  & GENMASK(13, 12)) >> 12)
 
 #define DEV_MM_STAT_MM_STATUS_PRMPT_ACTIVE_STATUS         BIT(0)
 #define DEV_MM_STAT_MM_STATUS_PRMPT_ACTIVE_STICKY         BIT(4)
-#define DEV_MM_STAT_MM_STATUS_PRMPT_VERIFY_STATE(x)       (((x) << 8) & GENMASK(10, 8))
+#define DEV_MM_STAT_MM_STATUS_PRMPT_VERIFY_STATE(x)       (((x) << \
+    8) & GENMASK(10, 8))
 #define DEV_MM_STAT_MM_STATUS_PRMPT_VERIFY_STATE_M        GENMASK(10, 8)
-#define DEV_MM_STAT_MM_STATUS_PRMPT_VERIFY_STATE_X(x)     (((x) & GENMASK(10, 8)) >> 8)
+#define DEV_MM_STAT_MM_STATUS_PRMPT_VERIFY_STATE_X(x)     (((x) \
+  & GENMASK(10, 8)) >> 8)
 #define DEV_MM_STAT_MM_STATUS_UNEXP_RX_PFRM_STICKY        BIT(12)
 #define DEV_MM_STAT_MM_STATUS_UNEXP_TX_PFRM_STICKY        BIT(16)
 #define DEV_MM_STAT_MM_STATUS_MM_RX_FRAME_STATUS          BIT(20)
@@ -127,16 +149,20 @@
 #define PCS1G_SD_CFG_SD_POL                               BIT(4)
 #define PCS1G_SD_CFG_SD_ENA                               BIT(0)
 
-#define PCS1G_ANEG_CFG_ADV_ABILITY(x)                     (((x) << 16) & GENMASK(31, 16))
+#define PCS1G_ANEG_CFG_ADV_ABILITY(x)                     (((x) << \
+    16) & GENMASK(31, 16))
 #define PCS1G_ANEG_CFG_ADV_ABILITY_M                      GENMASK(31, 16)
-#define PCS1G_ANEG_CFG_ADV_ABILITY_X(x)                   (((x) & GENMASK(31, 16)) >> 16)
+#define PCS1G_ANEG_CFG_ADV_ABILITY_X(x)                   (((x) \
+  & GENMASK(31, 16)) >> 16)
 #define PCS1G_ANEG_CFG_SW_RESOLVE_ENA                     BIT(8)
 #define PCS1G_ANEG_CFG_ANEG_RESTART_ONE_SHOT              BIT(1)
 #define PCS1G_ANEG_CFG_ANEG_ENA                           BIT(0)
 
-#define PCS1G_ANEG_NP_CFG_NP_TX(x)                        (((x) << 16) & GENMASK(31, 16))
+#define PCS1G_ANEG_NP_CFG_NP_TX(x)                        (((x) << \
+    16) & GENMASK(31, 16))
 #define PCS1G_ANEG_NP_CFG_NP_TX_M                         GENMASK(31, 16)
-#define PCS1G_ANEG_NP_CFG_NP_TX_X(x)                      (((x) & GENMASK(31, 16)) >> 16)
+#define PCS1G_ANEG_NP_CFG_NP_TX_X(x)                      (((x) \
+  & GENMASK(31, 16)) >> 16)
 #define PCS1G_ANEG_NP_CFG_NP_LOADED_ONE_SHOT              BIT(0)
 
 #define PCS1G_LB_CFG_RA_ENA                               BIT(4)
@@ -147,16 +173,20 @@
 
 #define PCS1G_CDET_CFG_CDET_ENA                           BIT(0)
 
-#define PCS1G_ANEG_STATUS_LP_ADV_ABILITY(x)               (((x) << 16) & GENMASK(31, 16))
+#define PCS1G_ANEG_STATUS_LP_ADV_ABILITY(x)               (((x) << \
+    16) & GENMASK(31, 16))
 #define PCS1G_ANEG_STATUS_LP_ADV_ABILITY_M                GENMASK(31, 16)
-#define PCS1G_ANEG_STATUS_LP_ADV_ABILITY_X(x)             (((x) & GENMASK(31, 16)) >> 16)
+#define PCS1G_ANEG_STATUS_LP_ADV_ABILITY_X(x)             (((x) \
+  & GENMASK(31, 16)) >> 16)
 #define PCS1G_ANEG_STATUS_PR                              BIT(4)
 #define PCS1G_ANEG_STATUS_PAGE_RX_STICKY                  BIT(3)
 #define PCS1G_ANEG_STATUS_ANEG_COMPLETE                   BIT(0)
 
-#define PCS1G_LINK_STATUS_DELAY_VAR(x)                    (((x) << 12) & GENMASK(15, 12))
+#define PCS1G_LINK_STATUS_DELAY_VAR(x)                    (((x) << \
+    12) & GENMASK(15, 12))
 #define PCS1G_LINK_STATUS_DELAY_VAR_M                     GENMASK(15, 12)
-#define PCS1G_LINK_STATUS_DELAY_VAR_X(x)                  (((x) & GENMASK(15, 12)) >> 12)
+#define PCS1G_LINK_STATUS_DELAY_VAR_X(x)                  (((x) \
+  & GENMASK(15, 12)) >> 12)
 #define PCS1G_LINK_STATUS_SIGNAL_DETECT                   BIT(8)
 #define PCS1G_LINK_STATUS_LINK_STATUS                     BIT(4)
 #define PCS1G_LINK_STATUS_SYNC_STATUS                     BIT(0)
@@ -167,9 +197,11 @@
 #define PCS1G_LPI_CFG_QSGMII_MS_SEL                       BIT(20)
 #define PCS1G_LPI_CFG_RX_LPI_OUT_DIS                      BIT(17)
 #define PCS1G_LPI_CFG_LPI_TESTMODE                        BIT(16)
-#define PCS1G_LPI_CFG_LPI_RX_WTIM(x)                      (((x) << 4) & GENMASK(5, 4))
+#define PCS1G_LPI_CFG_LPI_RX_WTIM(x)                      (((x) << \
+    4) & GENMASK(5, 4))
 #define PCS1G_LPI_CFG_LPI_RX_WTIM_M                       GENMASK(5, 4)
-#define PCS1G_LPI_CFG_LPI_RX_WTIM_X(x)                    (((x) & GENMASK(5, 4)) >> 4)
+#define PCS1G_LPI_CFG_LPI_RX_WTIM_X(x)                    (((x) \
+  & GENMASK(5, 4)) >> 4)
 #define PCS1G_LPI_CFG_TX_ASSERT_LPIDLE                    BIT(0)
 
 #define PCS1G_LPI_STATUS_RX_LPI_FAIL                      BIT(16)
@@ -180,9 +212,11 @@
 #define PCS1G_LPI_STATUS_TX_QUIET                         BIT(1)
 #define PCS1G_LPI_STATUS_TX_LPI_MODE                      BIT(0)
 
-#define PCS1G_TSTPAT_STATUS_JTP_ERR_CNT(x)                (((x) << 8) & GENMASK(15, 8))
+#define PCS1G_TSTPAT_STATUS_JTP_ERR_CNT(x)                (((x) << \
+    8) & GENMASK(15, 8))
 #define PCS1G_TSTPAT_STATUS_JTP_ERR_CNT_M                 GENMASK(15, 8)
-#define PCS1G_TSTPAT_STATUS_JTP_ERR_CNT_X(x)              (((x) & GENMASK(15, 8)) >> 8)
+#define PCS1G_TSTPAT_STATUS_JTP_ERR_CNT_X(x)              (((x) \
+  & GENMASK(15, 8)) >> 8)
 #define PCS1G_TSTPAT_STATUS_JTP_ERR                       BIT(4)
 #define PCS1G_TSTPAT_STATUS_JTP_LOCK                      BIT(0)
 
@@ -191,24 +225,32 @@
 #define DEV_PCS_FX100_CFG_SD_ENA                          BIT(24)
 #define DEV_PCS_FX100_CFG_LOOPBACK_ENA                    BIT(20)
 #define DEV_PCS_FX100_CFG_SWAP_MII_ENA                    BIT(16)
-#define DEV_PCS_FX100_CFG_RXBITSEL(x)                     (((x) << 12) & GENMASK(15, 12))
+#define DEV_PCS_FX100_CFG_RXBITSEL(x)                     (((x) << \
+    12) & GENMASK(15, 12))
 #define DEV_PCS_FX100_CFG_RXBITSEL_M                      GENMASK(15, 12)
-#define DEV_PCS_FX100_CFG_RXBITSEL_X(x)                   (((x) & GENMASK(15, 12)) >> 12)
-#define DEV_PCS_FX100_CFG_SIGDET_CFG(x)                   (((x) << 9) & GENMASK(10, 9))
+#define DEV_PCS_FX100_CFG_RXBITSEL_X(x)                   (((x) \
+  & GENMASK(15, 12)) >> 12)
+#define DEV_PCS_FX100_CFG_SIGDET_CFG(x)                   (((x) << \
+    9) & GENMASK(10, 9))
 #define DEV_PCS_FX100_CFG_SIGDET_CFG_M                    GENMASK(10, 9)
-#define DEV_PCS_FX100_CFG_SIGDET_CFG_X(x)                 (((x) & GENMASK(10, 9)) >> 9)
+#define DEV_PCS_FX100_CFG_SIGDET_CFG_X(x)                 (((x) \
+  & GENMASK(10, 9)) >> 9)
 #define DEV_PCS_FX100_CFG_LINKHYST_TM_ENA                 BIT(8)
-#define DEV_PCS_FX100_CFG_LINKHYSTTIMER(x)                (((x) << 4) & GENMASK(7, 4))
+#define DEV_PCS_FX100_CFG_LINKHYSTTIMER(x)                (((x) << \
+    4) & GENMASK(7, 4))
 #define DEV_PCS_FX100_CFG_LINKHYSTTIMER_M                 GENMASK(7, 4)
-#define DEV_PCS_FX100_CFG_LINKHYSTTIMER_X(x)              (((x) & GENMASK(7, 4)) >> 4)
+#define DEV_PCS_FX100_CFG_LINKHYSTTIMER_X(x)              (((x) \
+  & GENMASK(7, 4)) >> 4)
 #define DEV_PCS_FX100_CFG_UNIDIR_MODE_ENA                 BIT(3)
 #define DEV_PCS_FX100_CFG_FEFCHK_ENA                      BIT(2)
 #define DEV_PCS_FX100_CFG_FEFGEN_ENA                      BIT(1)
 #define DEV_PCS_FX100_CFG_PCS_ENA                         BIT(0)
 
-#define DEV_PCS_FX100_STATUS_EDGE_POS_PTP(x)              (((x) << 8) & GENMASK(11, 8))
+#define DEV_PCS_FX100_STATUS_EDGE_POS_PTP(x)              (((x) << \
+    8) & GENMASK(11, 8))
 #define DEV_PCS_FX100_STATUS_EDGE_POS_PTP_M               GENMASK(11, 8)
-#define DEV_PCS_FX100_STATUS_EDGE_POS_PTP_X(x)            (((x) & GENMASK(11, 8)) >> 8)
+#define DEV_PCS_FX100_STATUS_EDGE_POS_PTP_X(x)            (((x) \
+  & GENMASK(11, 8)) >> 8)
 #define DEV_PCS_FX100_STATUS_PCS_ERROR_STICKY             BIT(7)
 #define DEV_PCS_FX100_STATUS_FEF_FOUND_STICKY             BIT(6)
 #define DEV_PCS_FX100_STATUS_SSD_ERROR_STICKY             BIT(5)

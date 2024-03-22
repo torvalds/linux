@@ -7,11 +7,9 @@
 #include <bpf/bpf_endian.h>
 
 SEC("freplace/do_bind")
-int new_do_bind(struct bpf_sock_addr *ctx)
-{
+int new_do_bind(struct bpf_sock_addr *ctx) {
   struct sockaddr_in sa = {};
-
-  bpf_bind(ctx, (struct sockaddr *)&sa, sizeof(sa));
+  bpf_bind(ctx, (struct sockaddr *) &sa, sizeof(sa));
   return 0;
 }
 

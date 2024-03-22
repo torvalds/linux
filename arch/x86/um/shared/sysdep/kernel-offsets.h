@@ -6,7 +6,6 @@
 #include <linux/kbuild.h>
 #include <asm/mman.h>
 
-void foo(void)
-{
+void foo(void) {
 #include <common-offsets.h>
 }

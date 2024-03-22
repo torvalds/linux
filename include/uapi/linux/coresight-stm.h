@@ -18,8 +18,8 @@
  * state of the STM.
  */
 enum {
-	STM_OPTION_GUARANTEED = 0,
-	STM_OPTION_INVARIANT,
+  STM_OPTION_GUARANTEED = 0,
+  STM_OPTION_INVARIANT,
 };
 
 #endif

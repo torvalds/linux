@@ -17,16 +17,16 @@
  * performed afterwards.
  */
 void __attribute__((weak)) __iowrite32_copy(void __iomem *to,
-					    const void *from,
-					    size_t count)
-{
-	u32 __iomem *dst = to;
-	const u32 *src = from;
-	const u32 *end = src + count;
-
-	while (src < end)
-		__raw_writel(*src++, dst++);
+    const void *from,
+    size_t count) {
+  u32 __iomem *dst = to;
+  const u32 *src = from;
+  const u32 *end = src + count;
+  while (src < end) {
+    __raw_writel(*src++, dst++);
+  }
 }
+
 EXPORT_SYMBOL_GPL(__iowrite32_copy);
 
 /**
@@ -39,15 +39,15 @@ EXPORT_SYMBOL_GPL(__iowrite32_copy);
  * time.  Order of access is not guaranteed, nor is a memory barrier
  * performed afterwards.
  */
-void __ioread32_copy(void *to, const void __iomem *from, size_t count)
-{
-	u32 *dst = to;
-	const u32 __iomem *src = from;
-	const u32 __iomem *end = src + count;
-
-	while (src < end)
-		*dst++ = __raw_readl(src++);
+void __ioread32_copy(void *to, const void __iomem *from, size_t count) {
+  u32 *dst = to;
+  const u32 __iomem *src = from;
+  const u32 __iomem *end = src + count;
+  while (src < end) {
+    *dst++ = __raw_readl(src++);
+  }
 }
+
 EXPORT_SYMBOL_GPL(__ioread32_copy);
 
 /**
@@ -61,18 +61,17 @@ EXPORT_SYMBOL_GPL(__ioread32_copy);
  * performed afterwards.
  */
 void __attribute__((weak)) __iowrite64_copy(void __iomem *to,
-					    const void *from,
-					    size_t count)
-{
+    const void *from,
+    size_t count) {
 #ifdef CONFIG_64BIT
-	u64 __iomem *dst = to;
-	const u64 *src = from;
-	const u64 *end = src + count;
-
-	while (src < end)
-		__raw_writeq(*src++, dst++);
+  u64 __iomem *dst = to;
+  const u64 *src = from;
+  const u64 *end = src + count;
+  while (src < end) {
+    __raw_writeq(*src++, dst++);
+  }
 #else
-	__iowrite32_copy(to, from, count * 2);
+  __iowrite32_copy(to, from, count * 2);
 #endif
 }
 

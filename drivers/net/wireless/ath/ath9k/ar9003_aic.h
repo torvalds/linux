@@ -32,24 +32,24 @@
 #define ATH_AIC_BT_AIC_ENABLE           0x02
 
 enum aic_cal_state {
-	AIC_CAL_STATE_IDLE = 0,
-	AIC_CAL_STATE_STARTED,
-	AIC_CAL_STATE_DONE,
-	AIC_CAL_STATE_ERROR
+  AIC_CAL_STATE_IDLE = 0,
+  AIC_CAL_STATE_STARTED,
+  AIC_CAL_STATE_DONE,
+  AIC_CAL_STATE_ERROR
 };
 
 struct ath_aic_sram_info {
-	bool valid:1;
-	bool vga_quad_sign:1;
-	bool vga_dir_sign:1;
-	u8 rot_quad_att_db;
-	u8 rot_dir_att_db;
-	u8 com_att_6db;
+  bool valid : 1;
+  bool vga_quad_sign : 1;
+  bool vga_dir_sign : 1;
+  u8 rot_quad_att_db;
+  u8 rot_dir_att_db;
+  u8 com_att_6db;
 };
 
 struct ath_aic_out_info {
-	int16_t dir_path_gain_lin;
-	int16_t quad_path_gain_lin;
+  int16_t dir_path_gain_lin;
+  int16_t quad_path_gain_lin;
 };
 
 u8 ar9003_aic_calibration(struct ath_hw *ah);

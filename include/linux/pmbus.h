@@ -25,14 +25,14 @@
  * communication errors for no explicable reason. For such chips, checking
  * the status register must be disabled.
  */
-#define PMBUS_SKIP_STATUS_CHECK	BIT(0)
+#define PMBUS_SKIP_STATUS_CHECK BIT(0)
 
 /*
  * PMBUS_WRITE_PROTECTED
  * Set if the chip is write protected and write protection is not determined
  * by the standard WRITE_PROTECT command.
  */
-#define PMBUS_WRITE_PROTECTED	BIT(1)
+#define PMBUS_WRITE_PROTECTED BIT(1)
 
 /*
  * PMBUS_NO_CAPABILITY
@@ -41,7 +41,7 @@
  * register. For such chips, this flag should be set so that the PMBus core
  * driver doesn't use CAPABILITY to determine it's behavior.
  */
-#define PMBUS_NO_CAPABILITY			BIT(2)
+#define PMBUS_NO_CAPABILITY     BIT(2)
 
 /*
  * PMBUS_READ_STATUS_AFTER_FAILED_CHECK
@@ -54,7 +54,7 @@
  * register check. This read may fail, but it will put the chip in a
  * known state.
  */
-#define PMBUS_READ_STATUS_AFTER_FAILED_CHECK	BIT(3)
+#define PMBUS_READ_STATUS_AFTER_FAILED_CHECK  BIT(3)
 
 /*
  * PMBUS_NO_WRITE_PROTECT
@@ -63,7 +63,7 @@
  * register. For such chips, this flag should be set so that the PMBus core
  * driver doesn't use the WRITE_PROTECT command to determine its behavior.
  */
-#define PMBUS_NO_WRITE_PROTECT			BIT(4)
+#define PMBUS_NO_WRITE_PROTECT      BIT(4)
 
 /*
  * PMBUS_USE_COEFFICIENTS_CMD
@@ -71,14 +71,14 @@
  * When this flag is set the PMBus core driver will use the COEFFICIENTS
  * register to initialize the coefficients for the direct mode format.
  */
-#define PMBUS_USE_COEFFICIENTS_CMD		BIT(5)
+#define PMBUS_USE_COEFFICIENTS_CMD    BIT(5)
 
 struct pmbus_platform_data {
-	u32 flags;		/* Device specific flags */
+  u32 flags;    /* Device specific flags */
 
-	/* regulator support */
-	int num_regulators;
-	struct regulator_init_data *reg_init_data;
+  /* regulator support */
+  int num_regulators;
+  struct regulator_init_data *reg_init_data;
 };
 
 #endif /* _PMBUS_H_ */

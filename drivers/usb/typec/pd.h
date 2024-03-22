@@ -7,19 +7,21 @@
 #include <linux/usb/typec.h>
 
 struct usb_power_delivery {
-	struct device dev;
-	int id;
-	u16 revision;
-	u16 version;
+  struct device dev;
+  int id;
+  u16 revision;
+  u16 version;
 };
 
 struct usb_power_delivery_capabilities {
-	struct device dev;
-	struct usb_power_delivery *pd;
-	enum typec_role role;
+  struct device dev;
+  struct usb_power_delivery *pd;
+  enum typec_role role;
 };
 
-#define to_usb_power_delivery_capabilities(o) container_of(o, struct usb_power_delivery_capabilities, dev)
+#define to_usb_power_delivery_capabilities(o) container_of(o, \
+    struct usb_power_delivery_capabilities, \
+    dev)
 #define to_usb_power_delivery(o) container_of(o, struct usb_power_delivery, dev)
 
 struct usb_power_delivery *usb_power_delivery_find(const char *name);

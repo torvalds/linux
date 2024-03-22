@@ -9,7 +9,6 @@
 #include <linux/scatterlist.h>
 #include <linux/blk-mq.h>
 
-
 /*
  * **********************  FC-NVME LS API ********************
  *
@@ -51,20 +50,18 @@
  *            negative errno on failure (example: -ENXIO).
  */
 struct nvmefc_ls_req {
-	void			*rqstaddr;
-	dma_addr_t		rqstdma;
-	u32			rqstlen;
-	void			*rspaddr;
-	dma_addr_t		rspdma;
-	u32			rsplen;
-	u32			timeout;
+  void *rqstaddr;
+  dma_addr_t rqstdma;
+  u32 rqstlen;
+  void *rspaddr;
+  dma_addr_t rspdma;
+  u32 rsplen;
+  u32 timeout;
 
-	void			*private;
+  void * private;
 
-	void (*done)(struct nvmefc_ls_req *req, int status);
-
-} __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
-
+  void (*done)(struct nvmefc_ls_req *req, int status);
+} __aligned(sizeof(u64)); /* alignment for other things alloc'd with */
 
 /**
  * struct nvmefc_ls_rsp - Structure passed from the transport to the LLDD
@@ -118,15 +115,13 @@ struct nvmefc_ls_req {
  *            not to access this pointer.
  */
 struct nvmefc_ls_rsp {
-	void		*rspbuf;
-	dma_addr_t	rspdma;
-	u16		rsplen;
+  void *rspbuf;
+  dma_addr_t rspdma;
+  u16 rsplen;
 
-	void (*done)(struct nvmefc_ls_rsp *rsp);
-	void		*nvme_fc_private;	/* LLDD is not to access !! */
+  void (*done)(struct nvmefc_ls_rsp *rsp);
+  void *nvme_fc_private; /* LLDD is not to access !! */
 };
-
-
 
 /*
  * **********************  LLDD FC-NVME Host API ********************
@@ -135,7 +130,6 @@ struct nvmefc_ls_rsp {
  *
  * ******************************************************************
  */
-
 
 /**
  * struct nvme_fc_port_info - port-specific ids and FC connection-specific
@@ -154,19 +148,18 @@ struct nvmefc_ls_rsp {
  *                be set to 0.
  */
 struct nvme_fc_port_info {
-	u64			node_name;
-	u64			port_name;
-	u32			port_role;
-	u32			port_id;
-	u32			dev_loss_tmo;
+  u64 node_name;
+  u64 port_name;
+  u32 port_role;
+  u32 port_id;
+  u32 dev_loss_tmo;
 };
 
 enum nvmefc_fcp_datadir {
-	NVMEFC_FCP_NODATA,	/* payload_length and sg_cnt will be zero */
-	NVMEFC_FCP_WRITE,
-	NVMEFC_FCP_READ,
+  NVMEFC_FCP_NODATA,  /* payload_length and sg_cnt will be zero */
+  NVMEFC_FCP_WRITE,
+  NVMEFC_FCP_READ,
 };
-
 
 /**
  * struct nvmefc_fcp_req - Request structure passed from NVME-FC transport
@@ -206,48 +199,46 @@ enum nvmefc_fcp_datadir {
  *             status of the FCP operation at the NVME-FC level.
  */
 struct nvmefc_fcp_req {
-	void			*cmdaddr;
-	void			*rspaddr;
-	dma_addr_t		cmddma;
-	dma_addr_t		rspdma;
-	u16			cmdlen;
-	u16			rsplen;
+  void *cmdaddr;
+  void *rspaddr;
+  dma_addr_t cmddma;
+  dma_addr_t rspdma;
+  u16 cmdlen;
+  u16 rsplen;
 
-	u32			payload_length;
-	struct sg_table		sg_table;
-	struct scatterlist	*first_sgl;
-	int			sg_cnt;
-	enum nvmefc_fcp_datadir	io_dir;
+  u32 payload_length;
+  struct sg_table sg_table;
+  struct scatterlist *first_sgl;
+  int sg_cnt;
+  enum nvmefc_fcp_datadir io_dir;
 
-	void (*done)(struct nvmefc_fcp_req *req);
+  void (*done)(struct nvmefc_fcp_req *req);
 
-	void			*private;
+  void * private;
 
-	__le16			sqid;
+  __le16 sqid;
 
-	u16			rcv_rsplen;
-	u32			transferred_length;
-	u32			status;
-} __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
-
+  u16 rcv_rsplen;
+  u32 transferred_length;
+  u32 status;
+} __aligned(sizeof(u64)); /* alignment for other things alloc'd with */
 
 /*
  * Direct copy of fc_port_state enum. For later merging
  */
 enum nvme_fc_obj_state {
-	FC_OBJSTATE_UNKNOWN,
-	FC_OBJSTATE_NOTPRESENT,
-	FC_OBJSTATE_ONLINE,
-	FC_OBJSTATE_OFFLINE,		/* User has taken Port Offline */
-	FC_OBJSTATE_BLOCKED,
-	FC_OBJSTATE_BYPASSED,
-	FC_OBJSTATE_DIAGNOSTICS,
-	FC_OBJSTATE_LINKDOWN,
-	FC_OBJSTATE_ERROR,
-	FC_OBJSTATE_LOOPBACK,
-	FC_OBJSTATE_DELETED,
+  FC_OBJSTATE_UNKNOWN,
+  FC_OBJSTATE_NOTPRESENT,
+  FC_OBJSTATE_ONLINE,
+  FC_OBJSTATE_OFFLINE,    /* User has taken Port Offline */
+  FC_OBJSTATE_BLOCKED,
+  FC_OBJSTATE_BYPASSED,
+  FC_OBJSTATE_DIAGNOSTICS,
+  FC_OBJSTATE_LINKDOWN,
+  FC_OBJSTATE_ERROR,
+  FC_OBJSTATE_LOOPBACK,
+  FC_OBJSTATE_DELETED,
 };
-
 
 /**
  * struct nvme_fc_local_port - structure used between NVME-FC transport and
@@ -278,19 +269,18 @@ enum nvme_fc_obj_state {
  * @port_state:   Operational state of the port.
  */
 struct nvme_fc_local_port {
-	/* static/read-only fields */
-	u32 port_num;
-	u32 port_role;
-	u64 node_name;
-	u64 port_name;
+  /* static/read-only fields */
+  u32 port_num;
+  u32 port_role;
+  u64 node_name;
+  u64 port_name;
 
-	void *private;
+  void * private;
 
-	/* dynamic fields */
-	u32 port_id;
-	enum nvme_fc_obj_state port_state;
-} __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
-
+  /* dynamic fields */
+  u32 port_id;
+  enum nvme_fc_obj_state port_state;
+} __aligned(sizeof(u64)); /* alignment for other things alloc'd with */
 
 /**
  * struct nvme_fc_remote_port - structure used between NVME-FC transport and
@@ -321,20 +311,19 @@ struct nvme_fc_local_port {
  *                ONLINE or UNKNOWN.
  */
 struct nvme_fc_remote_port {
-	/* static fields */
-	u32 port_num;
-	u32 port_role;
-	u64 node_name;
-	u64 port_name;
-	struct nvme_fc_local_port *localport;
-	void *private;
-	u32 dev_loss_tmo;
+  /* static fields */
+  u32 port_num;
+  u32 port_role;
+  u64 node_name;
+  u64 port_name;
+  struct nvme_fc_local_port *localport;
+  void * private;
+  u32 dev_loss_tmo;
 
-	/* dynamic fields */
-	u32 port_id;
-	enum nvme_fc_obj_state port_state;
-} __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
-
+  /* dynamic fields */
+  u32 port_id;
+  enum nvme_fc_obj_state port_state;
+} __aligned(sizeof(u64)); /* alignment for other things alloc'd with */
 
 /**
  * struct nvme_fc_port_template - structure containing static entrypoints and
@@ -473,68 +462,67 @@ struct nvme_fc_remote_port {
  *       Value is Mandatory. Allowed to be zero.
  */
 struct nvme_fc_port_template {
-	/* initiator-based functions */
-	void	(*localport_delete)(struct nvme_fc_local_port *);
-	void	(*remoteport_delete)(struct nvme_fc_remote_port *);
-	int	(*create_queue)(struct nvme_fc_local_port *,
-				unsigned int qidx, u16 qsize,
-				void **handle);
-	void	(*delete_queue)(struct nvme_fc_local_port *,
-				unsigned int qidx, void *handle);
-	int	(*ls_req)(struct nvme_fc_local_port *,
-				struct nvme_fc_remote_port *,
-				struct nvmefc_ls_req *);
-	int	(*fcp_io)(struct nvme_fc_local_port *,
-				struct nvme_fc_remote_port *,
-				void *hw_queue_handle,
-				struct nvmefc_fcp_req *);
-	void	(*ls_abort)(struct nvme_fc_local_port *,
-				struct nvme_fc_remote_port *,
-				struct nvmefc_ls_req *);
-	void	(*fcp_abort)(struct nvme_fc_local_port *,
-				struct nvme_fc_remote_port *,
-				void *hw_queue_handle,
-				struct nvmefc_fcp_req *);
-	int	(*xmt_ls_rsp)(struct nvme_fc_local_port *localport,
-				struct nvme_fc_remote_port *rport,
-				struct nvmefc_ls_rsp *ls_rsp);
-	void	(*map_queues)(struct nvme_fc_local_port *localport,
-			      struct blk_mq_queue_map *map);
+  /* initiator-based functions */
+  void (*localport_delete)(struct nvme_fc_local_port *);
+  void (*remoteport_delete)(struct nvme_fc_remote_port *);
+  int (*create_queue)(struct nvme_fc_local_port *,
+      unsigned int qidx, u16 qsize,
+      void **handle);
+  void (*delete_queue)(struct nvme_fc_local_port *,
+      unsigned int qidx, void *handle);
+  int (*ls_req)(struct nvme_fc_local_port *,
+      struct nvme_fc_remote_port *,
+      struct nvmefc_ls_req *);
+  int (*fcp_io)(struct nvme_fc_local_port *,
+      struct nvme_fc_remote_port *,
+      void *hw_queue_handle,
+      struct nvmefc_fcp_req *);
+  void (*ls_abort)(struct nvme_fc_local_port *,
+      struct nvme_fc_remote_port *,
+      struct nvmefc_ls_req *);
+  void (*fcp_abort)(struct nvme_fc_local_port *,
+      struct nvme_fc_remote_port *,
+      void *hw_queue_handle,
+      struct nvmefc_fcp_req *);
+  int (*xmt_ls_rsp)(struct nvme_fc_local_port *localport,
+      struct nvme_fc_remote_port *rport,
+      struct nvmefc_ls_rsp *ls_rsp);
+  void (*map_queues)(struct nvme_fc_local_port *localport,
+      struct blk_mq_queue_map *map);
 
-	u32	max_hw_queues;
-	u16	max_sgl_segments;
-	u16	max_dif_sgl_segments;
-	u64	dma_boundary;
+  u32 max_hw_queues;
+  u16 max_sgl_segments;
+  u16 max_dif_sgl_segments;
+  u64 dma_boundary;
 
-	/* sizes of additional private data for data structures */
-	u32	local_priv_sz;
-	u32	remote_priv_sz;
-	u32	lsrqst_priv_sz;
-	u32	fcprqst_priv_sz;
+  /* sizes of additional private data for data structures */
+  u32 local_priv_sz;
+  u32 remote_priv_sz;
+  u32 lsrqst_priv_sz;
+  u32 fcprqst_priv_sz;
 };
-
 
 /*
  * Initiator/Host functions
  */
 
 int nvme_fc_register_localport(struct nvme_fc_port_info *pinfo,
-			struct nvme_fc_port_template *template,
-			struct device *dev,
-			struct nvme_fc_local_port **lport_p);
+    struct nvme_fc_port_template *template,
+    struct device *dev,
+    struct nvme_fc_local_port **lport_p);
 
 int nvme_fc_unregister_localport(struct nvme_fc_local_port *localport);
 
 int nvme_fc_register_remoteport(struct nvme_fc_local_port *localport,
-			struct nvme_fc_port_info *pinfo,
-			struct nvme_fc_remote_port **rport_p);
+    struct nvme_fc_port_info *pinfo,
+    struct nvme_fc_remote_port **rport_p);
 
 int nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *remoteport);
 
 void nvme_fc_rescan_remoteport(struct nvme_fc_remote_port *remoteport);
 
 int nvme_fc_set_remoteport_devloss(struct nvme_fc_remote_port *remoteport,
-			u32 dev_loss_tmo);
+    u32 dev_loss_tmo);
 
 /*
  * Routine called to pass a NVME-FC LS request, received by the lldd,
@@ -560,9 +548,8 @@ int nvme_fc_set_remoteport_devloss(struct nvme_fc_remote_port *remoteport,
  * to allow the lsrsp structure to be released.
  */
 int nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *remoteport,
-			struct nvmefc_ls_rsp *lsrsp,
-			void *lsreqbuf, u32 lsreqbuf_len);
-
+    struct nvmefc_ls_rsp *lsrsp,
+    void *lsreqbuf, u32 lsreqbuf_len);
 
 /*
  * Routine called to get the appid field associated with request by the lldd
@@ -596,20 +583,19 @@ char *nvme_fc_io_getuuid(struct nvmefc_fcp_req *req);
  *                be set to 0.
  */
 struct nvmet_fc_port_info {
-	u64			node_name;
-	u64			port_name;
-	u32			port_id;
+  u64 node_name;
+  u64 port_name;
+  u32 port_id;
 };
-
 
 /* Operations that NVME-FC layer may request the LLDD to perform for FCP */
 enum {
-	NVMET_FCOP_READDATA	= 1,	/* xmt data to initiator */
-	NVMET_FCOP_WRITEDATA	= 2,	/* xmt data from initiator */
-	NVMET_FCOP_READDATA_RSP	= 3,	/* xmt data to initiator and send
-					 * rsp as well
-					 */
-	NVMET_FCOP_RSP		= 4,	/* send rsp frame */
+  NVMET_FCOP_READDATA = 1,  /* xmt data to initiator */
+  NVMET_FCOP_WRITEDATA = 2,  /* xmt data from initiator */
+  NVMET_FCOP_READDATA_RSP = 3,  /* xmt data to initiator and send
+                                 * rsp as well
+                                 */
+  NVMET_FCOP_RSP = 4,  /* send rsp frame */
 };
 
 /**
@@ -690,37 +676,35 @@ enum {
  *            must be a NVME_SC_FC_xxxx value.
  */
 struct nvmefc_tgt_fcp_req {
-	u8			op;
-	u16			hwqid;
-	u32			offset;
-	u32			timeout;
-	u32			transfer_length;
-	struct fc_ba_rjt	ba_rjt;
-	struct scatterlist	*sg;
-	int			sg_cnt;
-	void			*rspaddr;
-	dma_addr_t		rspdma;
-	u16			rsplen;
+  u8 op;
+  u16 hwqid;
+  u32 offset;
+  u32 timeout;
+  u32 transfer_length;
+  struct fc_ba_rjt ba_rjt;
+  struct scatterlist *sg;
+  int sg_cnt;
+  void *rspaddr;
+  dma_addr_t rspdma;
+  u16 rsplen;
 
-	void (*done)(struct nvmefc_tgt_fcp_req *);
+  void (*done)(struct nvmefc_tgt_fcp_req *);
 
-	void *nvmet_fc_private;		/* LLDD is not to access !! */
+  void *nvmet_fc_private;   /* LLDD is not to access !! */
 
-	u32			transferred_length;
-	int			fcp_error;
+  u32 transferred_length;
+  int fcp_error;
 };
-
 
 /* Target Features (Bit fields) LLDD supports */
 enum {
-	NVMET_FCTGTFEAT_READDATA_RSP = (1 << 0),
-		/* Bit 0: supports the NVMET_FCPOP_READDATA_RSP op, which
-		 * sends (the last) Read Data sequence followed by the RSP
-		 * sequence in one LLDD operation. Errors during Data
-		 * sequence transmit must not allow RSP sequence to be sent.
-		 */
+  NVMET_FCTGTFEAT_READDATA_RSP = (1 << 0),
+  /* Bit 0: supports the NVMET_FCPOP_READDATA_RSP op, which
+   * sends (the last) Read Data sequence followed by the RSP
+   * sequence in one LLDD operation. Errors during Data
+   * sequence transmit must not allow RSP sequence to be sent.
+   */
 };
-
 
 /**
  * struct nvmet_fc_target_port - structure used between NVME-FC transport and
@@ -747,18 +731,17 @@ enum {
  * @port_state:   Operational state of the port.
  */
 struct nvmet_fc_target_port {
-	/* static/read-only fields */
-	u32 port_num;
-	u64 node_name;
-	u64 port_name;
+  /* static/read-only fields */
+  u32 port_num;
+  u64 node_name;
+  u64 port_name;
 
-	void *private;
+  void * private;
 
-	/* dynamic fields */
-	u32 port_id;
-	enum nvme_fc_obj_state port_state;
-} __aligned(sizeof(u64));	/* alignment for other things alloc'd with */
-
+  /* dynamic fields */
+  u32 port_id;
+  enum nvme_fc_obj_state port_state;
+} __aligned(sizeof(u64)); /* alignment for other things alloc'd with */
 
 /**
  * struct nvmet_fc_target_template - structure containing static entrypoints
@@ -792,7 +775,7 @@ struct nvmet_fc_target_port {
  *       Entrypoint is Mandatory.
  *
  * @map_queues: This functions lets the driver expose the queue mapping
- *	 to the block layer.
+ *   to the block layer.
  *       Entrypoint is Optional.
  *
  * @fcp_op:  Called to perform a data transfer or transmit a response.
@@ -958,41 +941,40 @@ struct nvmet_fc_target_port {
  *
  */
 struct nvmet_fc_target_template {
-	void (*targetport_delete)(struct nvmet_fc_target_port *tgtport);
-	int (*xmt_ls_rsp)(struct nvmet_fc_target_port *tgtport,
-				struct nvmefc_ls_rsp *ls_rsp);
-	int (*fcp_op)(struct nvmet_fc_target_port *tgtport,
-				struct nvmefc_tgt_fcp_req *fcpreq);
-	void (*fcp_abort)(struct nvmet_fc_target_port *tgtport,
-				struct nvmefc_tgt_fcp_req *fcpreq);
-	void (*fcp_req_release)(struct nvmet_fc_target_port *tgtport,
-				struct nvmefc_tgt_fcp_req *fcpreq);
-	void (*defer_rcv)(struct nvmet_fc_target_port *tgtport,
-				struct nvmefc_tgt_fcp_req *fcpreq);
-	void (*discovery_event)(struct nvmet_fc_target_port *tgtport);
-	int  (*ls_req)(struct nvmet_fc_target_port *targetport,
-				void *hosthandle, struct nvmefc_ls_req *lsreq);
-	void (*ls_abort)(struct nvmet_fc_target_port *targetport,
-				void *hosthandle, struct nvmefc_ls_req *lsreq);
-	void (*host_release)(void *hosthandle);
+  void (*targetport_delete)(struct nvmet_fc_target_port *tgtport);
+  int (*xmt_ls_rsp)(struct nvmet_fc_target_port *tgtport,
+      struct nvmefc_ls_rsp *ls_rsp);
+  int (*fcp_op)(struct nvmet_fc_target_port *tgtport,
+      struct nvmefc_tgt_fcp_req *fcpreq);
+  void (*fcp_abort)(struct nvmet_fc_target_port *tgtport,
+      struct nvmefc_tgt_fcp_req *fcpreq);
+  void (*fcp_req_release)(struct nvmet_fc_target_port *tgtport,
+      struct nvmefc_tgt_fcp_req *fcpreq);
+  void (*defer_rcv)(struct nvmet_fc_target_port *tgtport,
+      struct nvmefc_tgt_fcp_req *fcpreq);
+  void (*discovery_event)(struct nvmet_fc_target_port *tgtport);
+  int (*ls_req)(struct nvmet_fc_target_port *targetport,
+      void *hosthandle, struct nvmefc_ls_req *lsreq);
+  void (*ls_abort)(struct nvmet_fc_target_port *targetport,
+      void *hosthandle, struct nvmefc_ls_req *lsreq);
+  void (*host_release)(void *hosthandle);
 
-	u32	max_hw_queues;
-	u16	max_sgl_segments;
-	u16	max_dif_sgl_segments;
-	u64	dma_boundary;
+  u32 max_hw_queues;
+  u16 max_sgl_segments;
+  u16 max_dif_sgl_segments;
+  u64 dma_boundary;
 
-	u32	target_features;
+  u32 target_features;
 
-	/* sizes of additional private data for data structures */
-	u32	target_priv_sz;
-	u32	lsrqst_priv_sz;
+  /* sizes of additional private data for data structures */
+  u32 target_priv_sz;
+  u32 lsrqst_priv_sz;
 };
 
-
 int nvmet_fc_register_targetport(struct nvmet_fc_port_info *portinfo,
-			struct nvmet_fc_target_template *template,
-			struct device *dev,
-			struct nvmet_fc_target_port **tgtport_p);
+    struct nvmet_fc_target_template *template,
+    struct device *dev,
+    struct nvmet_fc_target_port **tgtport_p);
 
 int nvmet_fc_unregister_targetport(struct nvmet_fc_target_port *tgtport);
 
@@ -1020,9 +1002,9 @@ int nvmet_fc_unregister_targetport(struct nvmet_fc_target_port *tgtport);
  * to allow the lsrsp structure to be released.
  */
 int nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *tgtport,
-			void *hosthandle,
-			struct nvmefc_ls_rsp *rsp,
-			void *lsreqbuf, u32 lsreqbuf_len);
+    void *hosthandle,
+    struct nvmefc_ls_rsp *rsp,
+    void *lsreqbuf, u32 lsreqbuf_len);
 
 /*
  * Routine called by the LLDD whenever it has a logout or loss of
@@ -1045,22 +1027,22 @@ int nvmet_fc_rcv_ls_req(struct nvmet_fc_target_port *tgtport,
  * longer reference hosthandle.
  */
 void nvmet_fc_invalidate_host(struct nvmet_fc_target_port *tgtport,
-			void *hosthandle);
+    void *hosthandle);
 
 /*
  * If nvmet_fc_rcv_fcp_req returns non-zero, the transport has not accepted
  * the FCP cmd. The lldd should ABTS-LS the cmd.
  */
 int nvmet_fc_rcv_fcp_req(struct nvmet_fc_target_port *tgtport,
-			struct nvmefc_tgt_fcp_req *fcpreq,
-			void *cmdiubuf, u32 cmdiubuf_len);
+    struct nvmefc_tgt_fcp_req *fcpreq,
+    void *cmdiubuf, u32 cmdiubuf_len);
 
 void nvmet_fc_rcv_fcp_abort(struct nvmet_fc_target_port *tgtport,
-			struct nvmefc_tgt_fcp_req *fcpreq);
+    struct nvmefc_tgt_fcp_req *fcpreq);
 /*
  * add a define, visible to the compiler, that indicates support
  * for feature. Allows for conditional compilation in LLDDs.
  */
-#define NVME_FC_FEAT_UUID	0x0001
+#define NVME_FC_FEAT_UUID 0x0001
 
 #endif /* _NVME_FC_DRIVER_H */

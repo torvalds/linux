@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: MIT */
-/* Copyright 2024 Advanced Micro Devices, Inc. */
+/* SPDX-License-Identifier: MIT
+ * Copyright 2024 Advanced Micro Devices, Inc.*/
 
 #ifndef _DMUB_DCN351_H_
 #define _DMUB_DCN351_H_

@@ -29,12 +29,12 @@
  * device specific fields as shown in the commented section
  */
 struct octeon_cn23xx_vf {
-	struct octeon_config *conf;
+  struct octeon_config *conf;
 };
 
-#define BUSY_READING_REG_VF_LOOP_COUNT		10000
+#define BUSY_READING_REG_VF_LOOP_COUNT    10000
 
-#define CN23XX_MAILBOX_MSGPARAM_SIZE		6
+#define CN23XX_MAILBOX_MSGPARAM_SIZE    6
 
 void cn23xx_vf_ask_pf_to_do_flr(struct octeon_device *oct);
 

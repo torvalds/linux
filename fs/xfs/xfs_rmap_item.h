@@ -3,8 +3,8 @@
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
-#ifndef	__XFS_RMAP_ITEM_H__
-#define	__XFS_RMAP_ITEM_H__
+#ifndef __XFS_RMAP_ITEM_H__
+#define __XFS_RMAP_ITEM_H__
 
 /*
  * There are (currently) three pairs of rmap btree redo item types: map, unmap,
@@ -33,7 +33,7 @@ struct kmem_cache;
 /*
  * Max number of extents in fast allocation path.
  */
-#define	XFS_RUI_MAX_FAST_EXTENTS	16
+#define XFS_RUI_MAX_FAST_EXTENTS  16
 
 /*
  * This is the "rmap update intent" log item.  It is used to log the fact that
@@ -44,18 +44,16 @@ struct kmem_cache;
  * comments about that structure (in xfs_extfree_item.h) for more details.
  */
 struct xfs_rui_log_item {
-	struct xfs_log_item		rui_item;
-	atomic_t			rui_refcount;
-	atomic_t			rui_next_extent;
-	struct xfs_rui_log_format	rui_format;
+  struct xfs_log_item rui_item;
+  atomic_t rui_refcount;
+  atomic_t rui_next_extent;
+  struct xfs_rui_log_format rui_format;
 };
 
-static inline size_t
-xfs_rui_log_item_sizeof(
-	unsigned int		nr)
-{
-	return offsetof(struct xfs_rui_log_item, rui_format) +
-			xfs_rui_log_format_sizeof(nr);
+static inline size_t xfs_rui_log_item_sizeof(
+    unsigned int nr) {
+  return offsetof(struct xfs_rui_log_item, rui_format)
+    + xfs_rui_log_format_sizeof(nr);
 }
 
 /*
@@ -63,12 +61,12 @@ xfs_rui_log_item_sizeof(
  * some rmapbt updates mentioned in an earlier rui item have been performed.
  */
 struct xfs_rud_log_item {
-	struct xfs_log_item		rud_item;
-	struct xfs_rui_log_item		*rud_ruip;
-	struct xfs_rud_log_format	rud_format;
+  struct xfs_log_item rud_item;
+  struct xfs_rui_log_item *rud_ruip;
+  struct xfs_rud_log_format rud_format;
 };
 
-extern struct kmem_cache	*xfs_rui_cache;
-extern struct kmem_cache	*xfs_rud_cache;
+extern struct kmem_cache *xfs_rui_cache;
+extern struct kmem_cache *xfs_rud_cache;
 
-#endif	/* __XFS_RMAP_ITEM_H__ */
+#endif  /* __XFS_RMAP_ITEM_H__ */

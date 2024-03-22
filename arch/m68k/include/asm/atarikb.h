@@ -33,11 +33,11 @@ void ikbd_joystick_get_state(void);
 void ikbd_joystick_disable(void);
 
 /* Hook for MIDI serial driver */
-extern void (*atari_MIDI_interrupt_hook) (void);
+extern void (*atari_MIDI_interrupt_hook)(void);
 /* Hook for keyboard inputdev  driver */
-extern void (*atari_input_keyboard_interrupt_hook) (unsigned char, char);
+extern void (*atari_input_keyboard_interrupt_hook)(unsigned char, char);
 /* Hook for mouse inputdev  driver */
-extern void (*atari_input_mouse_interrupt_hook) (char *);
+extern void (*atari_input_mouse_interrupt_hook)(char *);
 
 int atari_keyb_init(void);
 

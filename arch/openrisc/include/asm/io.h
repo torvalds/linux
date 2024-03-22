@@ -21,13 +21,13 @@
 /*
  * PCI: We do not use IO ports in OpenRISC
  */
-#define IO_SPACE_LIMIT		0
+#define IO_SPACE_LIMIT    0
 
 /* OpenRISC has no port IO */
-#define HAVE_ARCH_PIO_SIZE	1
-#define PIO_RESERVED		0X0UL
-#define PIO_OFFSET		0
-#define PIO_MASK		0
+#define HAVE_ARCH_PIO_SIZE  1
+#define PIO_RESERVED    0X0UL
+#define PIO_OFFSET    0
+#define PIO_MASK    0
 
 /*
  * I/O memory mapping functions.

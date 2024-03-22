@@ -14,6 +14,6 @@
 /*
  * We use bit 63 of perf_event_attr.config as a flag to request EBB.
  */
-#define PERF_EVENT_CONFIG_EBB_SHIFT	63
+#define PERF_EVENT_CONFIG_EBB_SHIFT 63
 
 #endif /* _UAPI_ASM_POWERPC_PERF_EVENT_H */

@@ -14,10 +14,10 @@
 #include <linux/regulator/machine.h>
 #include <sound/madera-pdata.h>
 
-#define MADERA_MAX_MICBIAS		4
-#define MADERA_MAX_CHILD_MICBIAS	4
+#define MADERA_MAX_MICBIAS    4
+#define MADERA_MAX_CHILD_MICBIAS  4
 
-#define MADERA_MAX_GPSW			2
+#define MADERA_MAX_GPSW     2
 
 struct gpio_desc;
 struct pinctrl_map;
@@ -25,34 +25,34 @@ struct pinctrl_map;
 /**
  * struct madera_pdata - Configuration data for Madera devices
  *
- * @reset:	    GPIO controlling /RESET (NULL = none)
- * @ldo1:	    Substruct of pdata for the LDO1 regulator
- * @micvdd:	    Substruct of pdata for the MICVDD regulator
- * @irq_flags:	    Mode for primary IRQ (defaults to active low)
- * @gpio_base:	    Base GPIO number
+ * @reset:      GPIO controlling /RESET (NULL = none)
+ * @ldo1:     Substruct of pdata for the LDO1 regulator
+ * @micvdd:     Substruct of pdata for the MICVDD regulator
+ * @irq_flags:      Mode for primary IRQ (defaults to active low)
+ * @gpio_base:      Base GPIO number
  * @gpio_configs:   Array of GPIO configurations (See
- *		    Documentation/driver-api/pin-control.rst)
+ *        Documentation/driver-api/pin-control.rst)
  * @n_gpio_configs: Number of entries in gpio_configs
- * @gpsw:	    General purpose switch mode setting. Depends on the external
- *		    hardware connected to the switch. (See the SW1_MODE field
- *		    in the datasheet for the available values for your codec)
- * @codec:	    Substruct of pdata for the ASoC codec driver
+ * @gpsw:     General purpose switch mode setting. Depends on the external
+ *        hardware connected to the switch. (See the SW1_MODE field
+ *        in the datasheet for the available values for your codec)
+ * @codec:      Substruct of pdata for the ASoC codec driver
  */
 struct madera_pdata {
-	struct gpio_desc *reset;
+  struct gpio_desc *reset;
 
-	struct arizona_ldo1_pdata ldo1;
-	struct arizona_micsupp_pdata micvdd;
+  struct arizona_ldo1_pdata ldo1;
+  struct arizona_micsupp_pdata micvdd;
 
-	unsigned int irq_flags;
-	int gpio_base;
+  unsigned int irq_flags;
+  int gpio_base;
 
-	const struct pinctrl_map *gpio_configs;
-	int n_gpio_configs;
+  const struct pinctrl_map *gpio_configs;
+  int n_gpio_configs;
 
-	u32 gpsw[MADERA_MAX_GPSW];
+  u32 gpsw[MADERA_MAX_GPSW];
 
-	struct madera_codec_pdata codec;
+  struct madera_codec_pdata codec;
 };
 
 #endif

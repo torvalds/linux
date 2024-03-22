@@ -28,7 +28,7 @@
  * This macro is used to tag functions as "printf-like" because
  * some compilers (like GCC) can catch printf format string problems.
  */
-#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__ (__printf__, c, c+1)))
+#define ACPI_PRINTF_LIKE(c) __attribute__ ((__format__(__printf__, c, c + 1)))
 
 /*
  * Some compilers complain about unused variables. Sometimes we don't want to
@@ -67,9 +67,9 @@
  * limitation.
  */
 #define ACPI_FLEX_ARRAY(TYPE, NAME)             \
-        struct {                                \
-                struct { } __Empty_ ## NAME;    \
-                TYPE NAME[];                    \
-        }
+  struct {                                \
+    struct {} __Empty_ ## NAME;    \
+    TYPE NAME[];                    \
+  }
 
-#endif				/* __ACGCC_H__ */
+#endif        /* __ACGCC_H__ */

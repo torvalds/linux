@@ -22,17 +22,17 @@
 #include "ia_css_frame_comm.h" /* ia_css_frame_sp_info */
 #include "ia_css_vf_types.h"
 
-#define VFDEC_BITS_PER_PIXEL	GAMMA_OUTPUT_BITS
+#define VFDEC_BITS_PER_PIXEL  GAMMA_OUTPUT_BITS
 
 /* Viewfinder decimation */
 struct sh_css_isp_vf_isp_config {
-	u32 vf_downscale_bits; /** Log VF downscale value */
-	u32 enable;
-	struct ia_css_frame_sp_info info;
-	struct {
-		u32 width_a_over_b;
-		struct dma_port_config port_b;
-	} dma;
+  u32 vf_downscale_bits; /** Log VF downscale value */
+  u32 enable;
+  struct ia_css_frame_sp_info info;
+  struct {
+    u32 width_a_over_b;
+    struct dma_port_config port_b;
+  } dma;
 };
 
 #endif /* __IA_CSS_VF_PARAM_H */

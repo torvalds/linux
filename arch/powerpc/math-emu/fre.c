@@ -3,10 +3,9 @@
 #include <linux/errno.h>
 #include <linux/uaccess.h>
 
-int fre(void *frD, void *frB)
-{
+int fre(void *frD, void *frB) {
 #ifdef DEBUG
-	printk("%s: %p %p\n", __func__, frD, frB);
+  printk("%s: %p %p\n", __func__, frD, frB);
 #endif
-	return -ENOSYS;
+  return -ENOSYS;
 }

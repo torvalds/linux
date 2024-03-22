@@ -49,7 +49,7 @@
 #define VIDO_STRIDE_V_MASK              0x0000ffff
 #define VIDO_OFST_ADDR_V_MASK           0x0fffffff
 #define VIDO_RSV_1_MASK                 0xffffffff
-#define VIDO_DMA_PREULTRA_MASK		0x00ffffff
+#define VIDO_DMA_PREULTRA_MASK    0x00ffffff
 #define VIDO_IN_SIZE_MASK               0x1fff1fff
 #define VIDO_ROT_EN_MASK                0x00000001
 #define VIDO_FIFO_TEST_MASK             0x00000fff

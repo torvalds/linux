@@ -17,14 +17,14 @@
 #define CPT_PCI_SUBSYS_DEVID_CN10K_B 0xBD00
 
 /* Mailbox interrupts offset */
-#define OTX2_CPT_PF_MBOX_INT	6
+#define OTX2_CPT_PF_MBOX_INT  6
 #define OTX2_CPT_PF_INT_VEC_E_MBOXX(x, a) ((x) + (a))
 
 /* Maximum supported microcode groups */
 #define OTX2_CPT_MAX_ENGINE_GROUPS 8
 
 /* CPT instruction size in bytes */
-#define OTX2_CPT_INST_SIZE	64
+#define OTX2_CPT_INST_SIZE  64
 /*
  * CPT VF MSIX vectors and their offsets
  */
@@ -82,8 +82,8 @@
 #define OTX2_CPT_PF_QX_CTL(b)           (0x8000000 | (b) << 20)
 #define OTX2_CPT_PF_QX_GMCTL(b)         (0x8000020 | (b) << 20)
 #define OTX2_CPT_PF_QX_CTL2(b)          (0x8000100 | (b) << 20)
-#define OTX2_CPT_PF_VFX_MBOXX(b, c)     (0x8001000 | (b) << 20 | \
-					 (c) << 8)
+#define OTX2_CPT_PF_VFX_MBOXX(b, c)     (0x8001000 | (b) << 20   \
+    | (c) << 8)
 
 /* OcteonTX2 CPT LF registers */
 #define OTX2_CPT_LF_CTL                 (0x10)
@@ -108,8 +108,8 @@
 #define OTX2_CPT_RVU_FUNC_BLKADDR_SHIFT 20
 /* LMT LF registers */
 #define OTX2_CPT_LMT_LFBASE             BIT_ULL(OTX2_CPT_RVU_FUNC_BLKADDR_SHIFT)
-#define OTX2_CPT_LMT_LF_LMTLINEX(a)     (OTX2_CPT_LMT_LFBASE | 0x000 | \
-					 (a) << 12)
+#define OTX2_CPT_LMT_LF_LMTLINEX(a)     (OTX2_CPT_LMT_LFBASE | 0x000   \
+  | (a) << 12)
 /* RVU VF registers */
 #define OTX2_RVU_VF_INT                 (0x20)
 #define OTX2_RVU_VF_INT_W1S             (0x28)
@@ -122,14 +122,13 @@
  * Enumerates ucode errors
  */
 enum otx2_cpt_ucode_comp_code_e {
-	OTX2_CPT_UCC_SUCCESS = 0x00,
-	OTX2_CPT_UCC_INVALID_OPCODE = 0x01,
+  OTX2_CPT_UCC_SUCCESS = 0x00,
+  OTX2_CPT_UCC_INVALID_OPCODE = 0x01,
 
-	/* Scatter gather */
-	OTX2_CPT_UCC_SG_WRITE_LENGTH = 0x02,
-	OTX2_CPT_UCC_SG_LIST = 0x03,
-	OTX2_CPT_UCC_SG_NOT_SUPPORTED = 0x04,
-
+  /* Scatter gather */
+  OTX2_CPT_UCC_SG_WRITE_LENGTH = 0x02,
+  OTX2_CPT_UCC_SG_LIST = 0x03,
+  OTX2_CPT_UCC_SG_NOT_SUPPORTED = 0x04,
 };
 
 /*
@@ -139,12 +138,12 @@ enum otx2_cpt_ucode_comp_code_e {
  * Enumerates the values of CPT_RES_S[COMPCODE].
  */
 enum otx2_cpt_comp_e {
-	OTX2_CPT_COMP_E_NOTDONE = 0x00,
-	OTX2_CPT_COMP_E_GOOD = 0x01,
-	OTX2_CPT_COMP_E_FAULT = 0x02,
-	OTX2_CPT_COMP_E_HWERR = 0x04,
-	OTX2_CPT_COMP_E_INSTERR = 0x05,
-	OTX2_CPT_COMP_E_WARN = 0x06
+  OTX2_CPT_COMP_E_NOTDONE = 0x00,
+  OTX2_CPT_COMP_E_GOOD = 0x01,
+  OTX2_CPT_COMP_E_FAULT = 0x02,
+  OTX2_CPT_COMP_E_HWERR = 0x04,
+  OTX2_CPT_COMP_E_INSTERR = 0x05,
+  OTX2_CPT_COMP_E_WARN = 0x06
 };
 
 /*
@@ -154,7 +153,7 @@ enum otx2_cpt_comp_e {
  * Enumerates the MSI-X interrupt vectors.
  */
 enum otx2_cpt_vf_int_vec_e {
-	OTX2_CPT_VF_INT_VEC_E_MBOX = 0x00
+  OTX2_CPT_VF_INT_VEC_E_MBOX = 0x00
 };
 
 /*
@@ -164,8 +163,8 @@ enum otx2_cpt_vf_int_vec_e {
  * Enumerates the MSI-X interrupt vectors.
  */
 enum otx2_cpt_lf_int_vec_e {
-	OTX2_CPT_LF_INT_VEC_E_MISC = 0x00,
-	OTX2_CPT_LF_INT_VEC_E_DONE = 0x01
+  OTX2_CPT_LF_INT_VEC_E_MISC = 0x00,
+  OTX2_CPT_LF_INT_VEC_E_DONE = 0x01
 };
 
 /*
@@ -177,35 +176,35 @@ enum otx2_cpt_lf_int_vec_e {
  * cpt_inst_s_s
  * Word 0
  * doneint:1 Done interrupt.
- *	0 = No interrupts related to this instruction.
- *	1 = When the instruction completes, CPT()_VQ()_DONE[DONE] will be
- *	incremented,and based on the rules described there an interrupt may
- *	occur.
+ *  0 = No interrupts related to this instruction.
+ *  1 = When the instruction completes, CPT()_VQ()_DONE[DONE] will be
+ *  incremented,and based on the rules described there an interrupt may
+ *  occur.
  * Word 1
  * res_addr [127: 64] Result IOVA.
- *	If nonzero, specifies where to write CPT_RES_S.
- *	If zero, no result structure will be written.
- *	Address must be 16-byte aligned.
- *	Bits <63:49> are ignored by hardware; software should use a
- *	sign-extended bit <48> for forward compatibility.
+ *  If nonzero, specifies where to write CPT_RES_S.
+ *  If zero, no result structure will be written.
+ *  Address must be 16-byte aligned.
+ *  Bits <63:49> are ignored by hardware; software should use a
+ *  sign-extended bit <48> for forward compatibility.
  * Word 2
  *  grp:10 [171:162] If [WQ_PTR] is nonzero, the SSO guest-group to use when
- *	CPT submits work SSO.
- *	For the SSO to not discard the add-work request, FPA_PF_MAP() must map
- *	[GRP] and CPT()_PF_Q()_GMCTL[GMID] as valid.
+ *  CPT submits work SSO.
+ *  For the SSO to not discard the add-work request, FPA_PF_MAP() must map
+ *  [GRP] and CPT()_PF_Q()_GMCTL[GMID] as valid.
  *  tt:2 [161:160] If [WQ_PTR] is nonzero, the SSO tag type to use when CPT
- *	submits work to SSO
+ *  submits work to SSO
  *  tag:32 [159:128] If [WQ_PTR] is nonzero, the SSO tag to use when CPT
- *	submits work to SSO.
+ *  submits work to SSO.
  * Word 3
  *  wq_ptr [255:192] If [WQ_PTR] is nonzero, it is a pointer to a
- *	work-queue entry that CPT submits work to SSO after all context,
- *	output data, and result write operations are visible to other
- *	CNXXXX units and the cores. Bits <2:0> must be zero.
- *	Bits <63:49> are ignored by hardware; software should
- *	use a sign-extended bit <48> for forward compatibility.
- *	Internal:
- *	Bits <63:49>, <2:0> are ignored by hardware, treated as always 0x0.
+ *  work-queue entry that CPT submits work to SSO after all context,
+ *  output data, and result write operations are visible to other
+ *  CNXXXX units and the cores. Bits <2:0> must be zero.
+ *  Bits <63:49> are ignored by hardware; software should
+ *  use a sign-extended bit <48> for forward compatibility.
+ *  Internal:
+ *  Bits <63:49>, <2:0> are ignored by hardware, treated as always 0x0.
  * Word 4
  *  ei0; [319:256] Engine instruction word 0. Passed to the AE/SE.
  * Word 5
@@ -217,34 +216,34 @@ enum otx2_cpt_lf_int_vec_e {
  *
  */
 union otx2_cpt_inst_s {
-	u64 u[8];
+  u64 u[8];
 
-	struct {
-		/* Word 0 */
-		u64 nixtxl:3;
-		u64 doneint:1;
-		u64 nixtx_addr:60;
-		/* Word 1 */
-		u64 res_addr;
-		/* Word 2 */
-		u64 tag:32;
-		u64 tt:2;
-		u64 grp:10;
-		u64 reserved_172_175:4;
-		u64 rvu_pf_func:16;
-		/* Word 3 */
-		u64 qord:1;
-		u64 reserved_194_193:2;
-		u64 wq_ptr:61;
-		/* Word 4 */
-		u64 ei0;
-		/* Word 5 */
-		u64 ei1;
-		/* Word 6 */
-		u64 ei2;
-		/* Word 7 */
-		u64 ei3;
-	} s;
+  struct {
+    /* Word 0 */
+    u64 nixtxl : 3;
+    u64 doneint : 1;
+    u64 nixtx_addr : 60;
+    /* Word 1 */
+    u64 res_addr;
+    /* Word 2 */
+    u64 tag : 32;
+    u64 tt : 2;
+    u64 grp : 10;
+    u64 reserved_172_175 : 4;
+    u64 rvu_pf_func : 16;
+    /* Word 3 */
+    u64 qord : 1;
+    u64 reserved_194_193 : 2;
+    u64 wq_ptr : 61;
+    /* Word 4 */
+    u64 ei0;
+    /* Word 5 */
+    u64 ei1;
+    /* Word 6 */
+    u64 ei2;
+    /* Word 7 */
+    u64 ei3;
+  } s;
 };
 
 /*
@@ -260,37 +259,37 @@ union otx2_cpt_inst_s {
  * cpt_res_s_s
  * Word 0
  *  doneint:1 [16:16] Done interrupt. This bit is copied from the
- *	corresponding instruction's CPT_INST_S[DONEINT].
+ *  corresponding instruction's CPT_INST_S[DONEINT].
  *  compcode:8 [7:0] Indicates completion/error status of the CPT coprocessor
- *	for the	associated instruction, as enumerated by CPT_COMP_E.
- *	Core software may write the memory location containing [COMPCODE] to
- *	0x0 before ringing the doorbell, and then poll for completion by
- *	checking for a nonzero value.
- *	Once the core observes a nonzero [COMPCODE] value in this case,the CPT
- *	coprocessor will have also completed L2/DRAM write operations.
+ *  for the associated instruction, as enumerated by CPT_COMP_E.
+ *  Core software may write the memory location containing [COMPCODE] to
+ *  0x0 before ringing the doorbell, and then poll for completion by
+ *  checking for a nonzero value.
+ *  Once the core observes a nonzero [COMPCODE] value in this case,the CPT
+ *  coprocessor will have also completed L2/DRAM write operations.
  * Word 1
  *  reserved
  *
  */
 union otx2_cpt_res_s {
-	u64 u[2];
+  u64 u[2];
 
-	struct cn9k_cpt_res_s {
-		u64 compcode:8;
-		u64 uc_compcode:8;
-		u64 doneint:1;
-		u64 reserved_17_63:47;
-		u64 reserved_64_127;
-	} s;
+  struct cn9k_cpt_res_s {
+    u64 compcode : 8;
+    u64 uc_compcode : 8;
+    u64 doneint : 1;
+    u64 reserved_17_63 : 47;
+    u64 reserved_64_127;
+  } s;
 
-	struct cn10k_cpt_res_s {
-		u64 compcode:7;
-		u64 doneint:1;
-		u64 uc_compcode:8;
-		u64 rlen:16;
-		u64 spi:32;
-		u64 esn;
-	} cn10k;
+  struct cn10k_cpt_res_s {
+    u64 compcode : 7;
+    u64 doneint : 1;
+    u64 uc_compcode : 8;
+    u64 rlen : 16;
+    u64 spi : 32;
+    u64 esn;
+  } cn10k;
 };
 
 /*
@@ -300,13 +299,13 @@ union otx2_cpt_res_s {
  * This register contains implementation-related parameters of CPT.
  */
 union otx2_cptx_af_constants1 {
-	u64 u;
-	struct otx2_cptx_af_constants1_s {
-		u64 se:16;
-		u64 ie:16;
-		u64 ae:16;
-		u64 reserved_48_63:16;
-	} s;
+  u64 u;
+  struct otx2_cptx_af_constants1_s {
+    u64 se : 16;
+    u64 ie : 16;
+    u64 ae : 16;
+    u64 reserved_48_63 : 16;
+  } s;
 };
 
 /*
@@ -316,17 +315,17 @@ union otx2_cptx_af_constants1 {
  *
  */
 union otx2_cptx_lf_misc_int {
-	u64 u;
-	struct otx2_cptx_lf_misc_int_s {
-		u64 reserved_0:1;
-		u64 nqerr:1;
-		u64 irde:1;
-		u64 nwrp:1;
-		u64 reserved_4:1;
-		u64 hwerr:1;
-		u64 fault:1;
-		u64 reserved_7_63:57;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_misc_int_s {
+    u64 reserved_0 : 1;
+    u64 nqerr : 1;
+    u64 irde : 1;
+    u64 nwrp : 1;
+    u64 reserved_4 : 1;
+    u64 hwerr : 1;
+    u64 fault : 1;
+    u64 reserved_7_63 : 57;
+  } s;
 };
 
 /*
@@ -336,17 +335,17 @@ union otx2_cptx_lf_misc_int {
  *
  */
 union otx2_cptx_lf_misc_int_ena_w1s {
-	u64 u;
-	struct otx2_cptx_lf_misc_int_ena_w1s_s {
-		u64 reserved_0:1;
-		u64 nqerr:1;
-		u64 irde:1;
-		u64 nwrp:1;
-		u64 reserved_4:1;
-		u64 hwerr:1;
-		u64 fault:1;
-		u64 reserved_7_63:57;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_misc_int_ena_w1s_s {
+    u64 reserved_0 : 1;
+    u64 nqerr : 1;
+    u64 irde : 1;
+    u64 nwrp : 1;
+    u64 reserved_4 : 1;
+    u64 hwerr : 1;
+    u64 fault : 1;
+    u64 reserved_7_63 : 57;
+  } s;
 };
 
 /*
@@ -358,15 +357,15 @@ union otx2_cptx_lf_misc_int_ena_w1s {
  * software must only write this register with [ENA]=0.
  */
 union otx2_cptx_lf_ctl {
-	u64 u;
-	struct otx2_cptx_lf_ctl_s {
-		u64 ena:1;
-		u64 fc_ena:1;
-		u64 fc_up_crossing:1;
-		u64 reserved_3:1;
-		u64 fc_hyst_bits:4;
-		u64 reserved_8_63:56;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_ctl_s {
+    u64 ena : 1;
+    u64 fc_ena : 1;
+    u64 fc_up_crossing : 1;
+    u64 reserved_3 : 1;
+    u64 fc_hyst_bits : 4;
+    u64 reserved_8_63 : 56;
+  } s;
 };
 
 /*
@@ -375,13 +374,13 @@ union otx2_cptx_lf_ctl {
  * This register specifies the per-queue interrupt coalescing settings.
  */
 union otx2_cptx_lf_done_wait {
-	u64 u;
-	struct otx2_cptx_lf_done_wait_s {
-		u64 num_wait:20;
-		u64 reserved_20_31:12;
-		u64 time_wait:16;
-		u64 reserved_48_63:16;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_done_wait_s {
+    u64 num_wait : 20;
+    u64 reserved_20_31 : 12;
+    u64 time_wait : 16;
+    u64 reserved_48_63 : 16;
+  } s;
 };
 
 /*
@@ -390,11 +389,11 @@ union otx2_cptx_lf_done_wait {
  * This register contain the per-queue instruction done count.
  */
 union otx2_cptx_lf_done {
-	u64 u;
-	struct otx2_cptx_lf_done_s {
-		u64 done:20;
-		u64 reserved_20_63:44;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_done_s {
+    u64 done : 20;
+    u64 reserved_20_63 : 44;
+  } s;
 };
 
 /*
@@ -404,18 +403,18 @@ union otx2_cptx_lf_done {
  *
  */
 union otx2_cptx_lf_inprog {
-	u64 u;
-	struct otx2_cptx_lf_inprog_s {
-		u64 inflight:9;
-		u64 reserved_9_15:7;
-		u64 eena:1;
-		u64 grp_drp:1;
-		u64 reserved_18_30:13;
-		u64 grb_partial:1;
-		u64 grb_cnt:8;
-		u64 gwb_cnt:8;
-		u64 reserved_48_63:16;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_inprog_s {
+    u64 inflight : 9;
+    u64 reserved_9_15 : 7;
+    u64 eena : 1;
+    u64 grp_drp : 1;
+    u64 reserved_18_30 : 13;
+    u64 grb_partial : 1;
+    u64 grb_cnt : 8;
+    u64 gwb_cnt : 8;
+    u64 reserved_48_63 : 16;
+  } s;
 };
 
 /*
@@ -430,13 +429,13 @@ union otx2_cptx_lf_inprog {
  * _ CPT_LF_Q_GRP_PTR[DQ_PTR]=1.
  */
 union otx2_cptx_lf_q_base {
-	u64 u;
-	struct otx2_cptx_lf_q_base_s {
-		u64 fault:1;
-		u64 reserved_1_6:6;
-		u64 addr:46;
-		u64 reserved_53_63:11;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_q_base_s {
+    u64 fault : 1;
+    u64 reserved_1_6 : 6;
+    u64 addr : 46;
+    u64 reserved_53_63 : 11;
+  } s;
 };
 
 /*
@@ -451,11 +450,11 @@ union otx2_cptx_lf_q_base {
  * _ CPT_LF_Q_GRP_PTR[DQ_PTR]=1.
  */
 union otx2_cptx_lf_q_size {
-	u64 u;
-	struct otx2_cptx_lf_q_size_s {
-		u64 size_div40:15;
-		u64 reserved_15_63:49;
-	} s;
+  u64 u;
+  struct otx2_cptx_lf_q_size_s {
+    u64 size_div40 : 15;
+    u64 reserved_15_63 : 49;
+  } s;
 };
 
 /*
@@ -465,19 +464,19 @@ union otx2_cptx_lf_q_size {
  * when the queue is execution-quiescent (see CPT_LF_INPROG[INFLIGHT]).
  */
 union otx2_cptx_af_lf_ctrl {
-	u64 u;
-	struct otx2_cptx_af_lf_ctrl_s {
-		u64 pri:1;
-		u64 reserved_1_8:8;
-		u64 pf_func_inst:1;
-		u64 cont_err:1;
-		u64 reserved_11_15:5;
-		u64 nixtx_en:1;
-		u64 ctx_ilen:3;
-		u64 reserved_17_47:28;
-		u64 grp:8;
-		u64 reserved_56_63:8;
-	} s;
+  u64 u;
+  struct otx2_cptx_af_lf_ctrl_s {
+    u64 pri : 1;
+    u64 reserved_1_8 : 8;
+    u64 pf_func_inst : 1;
+    u64 cont_err : 1;
+    u64 reserved_11_15 : 5;
+    u64 nixtx_en : 1;
+    u64 ctx_ilen : 3;
+    u64 reserved_17_47 : 28;
+    u64 grp : 8;
+    u64 reserved_56_63 : 8;
+  } s;
 };
 
 #endif /* __OTX2_CPT_HW_TYPES_H */

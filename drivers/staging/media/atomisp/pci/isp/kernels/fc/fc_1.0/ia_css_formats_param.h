@@ -20,7 +20,7 @@
 
 /* FORMATS (Format conversion) */
 struct sh_css_isp_formats_params {
-	s32 video_full_range_flag;
+  s32 video_full_range_flag;
 };
 
 #endif /* __IA_CSS_FORMATS_PARAM_H */

@@ -21,8 +21,8 @@
 #include <gpio_block_defs.h>
 
 /* pqiao: following part only defines in hive_isp_css_defs.h in fpga system.
-	port it here
-*/
+ * port it here
+ */
 
 /* GPIO pin defines */
 /*#define HIVE_GPIO_CAMERA_BOARD_RESET_PIN_NR                   0
@@ -41,6 +41,6 @@
 #define HIVE_GPIO_MAX8685A_EN_PIN_NR                          3
 #define HIVE_GPIO_MAX8685A_TRIG_PIN_NR                        4*/
 
-#define HIVE_GPIO_STROBE_TRIGGER_PIN		2
+#define HIVE_GPIO_STROBE_TRIGGER_PIN    2
 
 #endif /* __GPIO_GLOBAL_H_INCLUDED__ */

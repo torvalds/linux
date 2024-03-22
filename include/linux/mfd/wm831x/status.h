@@ -22,8 +22,11 @@
 #define WM831X_LED_DUR_MASK                    0x000C  /* LED_DUR - [3:2] */
 #define WM831X_LED_DUR_SHIFT                        2  /* LED_DUR - [3:2] */
 #define WM831X_LED_DUR_WIDTH                        2  /* LED_DUR - [3:2] */
-#define WM831X_LED_DUTY_CYC_MASK               0x0003  /* LED_DUTY_CYC - [1:0] */
-#define WM831X_LED_DUTY_CYC_SHIFT                   0  /* LED_DUTY_CYC - [1:0] */
-#define WM831X_LED_DUTY_CYC_WIDTH                   2  /* LED_DUTY_CYC - [1:0] */
+#define WM831X_LED_DUTY_CYC_MASK               0x0003  /* LED_DUTY_CYC - [1:0]
+                                                        * */
+#define WM831X_LED_DUTY_CYC_SHIFT                   0  /* LED_DUTY_CYC - [1:0]
+                                                        * */
+#define WM831X_LED_DUTY_CYC_WIDTH                   2  /* LED_DUTY_CYC - [1:0]
+                                                        * */
 
 #endif

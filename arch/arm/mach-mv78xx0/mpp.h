@@ -8,14 +8,14 @@
 #ifndef __MV78X00_MPP_H
 #define __MV78X00_MPP_H
 
-#define MPP(_num, _sel, _in, _out, _78100_A0) (\
-    /* MPP number */        ((_num) & 0xff) | \
-    /* MPP select value */        (((_sel) & 0xf) << 8) | \
-    /* may be input signal */    ((!!(_in)) << 12) | \
-    /* may be output signal */    ((!!(_out)) << 13) | \
-    /* available on A0 */    ((!!(_78100_A0)) << 14))
+#define MPP(_num, _sel, _in, _out, _78100_A0) ( \
+    /* MPP number */ ((_num) & 0xff)   \
+    | /* MPP select value */ (((_sel) & 0xf) << 8)   \
+    | /* may be input signal */ ((!!(_in)) << 12)   \
+    | /* may be output signal */ ((!!(_out)) << 13)   \
+    | /* available on A0 */ ((!!(_78100_A0)) << 14))
 
-                /*   num sel  i  o  78100_A0  */
+/*   num sel  i  o  78100_A0  */
 
 #define MPP_78100_A0_MASK    MPP(0, 0x0, 0, 0, 1)
 
@@ -114,7 +114,6 @@
 #define MPP16_TDM_INTn        MPP(16, 0x6, 0, 0, 1)
 #define MPP16_UNUSED        MPP(16, 0x1, 0, 0, 1)
 
-
 #define MPP17_GPIO        MPP(17, 0x0, 1, 1, 1)
 #define MPP17_SATA0_PRESENTn    MPP(17, 0x3, 0, 0, 1)
 #define MPP17_UA2_RXD        MPP(17, 0x4, 0, 0, 1)
@@ -122,33 +121,25 @@
 #define MPP17_TDM_RSTn        MPP(17, 0x6, 0, 0, 1)
 #define MPP17_UNUSED        MPP(17, 0x1, 0, 0, 1)
 
-
 #define MPP18_GPIO        MPP(18, 0x0, 1, 1, 1)
 #define MPP18_UA0_CTSn        MPP(18, 0x4, 0, 0, 1)
 #define MPP18_BOOT_FLASH_REn    MPP(18, 0x5, 0, 0, 1)
 #define MPP18_UNUSED        MPP(18, 0x1, 0, 0, 1)
-
-
 
 #define MPP19_GPIO        MPP(19, 0x0, 1, 1, 1)
 #define MPP19_UA0_CTSn        MPP(19, 0x4, 0, 0, 1)
 #define MPP19_BOOT_FLASH_WEn    MPP(19, 0x5, 0, 0, 1)
 #define MPP19_UNUSED        MPP(19, 0x1, 0, 0, 1)
 
-
 #define MPP20_GPIO        MPP(20, 0x0, 1, 1, 1)
 #define MPP20_UA1_CTSs        MPP(20, 0x4, 0, 0, 1)
 #define MPP20_TDM_PCLK        MPP(20, 0x6, 0, 0, 0)
 #define MPP20_UNUSED        MPP(20, 0x1, 0, 0, 1)
 
-
-
 #define MPP21_GPIO        MPP(21, 0x0, 1, 1, 1)
 #define MPP21_UA1_CTSs        MPP(21, 0x4, 0, 0, 1)
 #define MPP21_TDM_FSYNC        MPP(21, 0x6, 0, 0, 0)
 #define MPP21_UNUSED        MPP(21, 0x1, 0, 0, 1)
-
-
 
 #define MPP22_GPIO        MPP(22, 0x0, 1, 1, 1)
 #define MPP22_UA3_TDX        MPP(22, 0x4, 0, 0, 1)
@@ -156,38 +147,31 @@
 #define MPP22_TDM_DRX        MPP(22, 0x6, 0, 0, 1)
 #define MPP22_UNUSED        MPP(22, 0x1, 0, 0, 1)
 
-
-
 #define MPP23_GPIO        MPP(23, 0x0, 1, 1, 1)
 #define MPP23_UA3_RDX        MPP(23, 0x4, 0, 0, 1)
 #define MPP23_NAND_FLASH_WEn2    MPP(23, 0x5, 0, 0, 1)
 #define MPP23_TDM_DTX        MPP(23, 0x6, 0, 0, 1)
 #define MPP23_UNUSED        MPP(23, 0x1, 0, 0, 1)
 
-
 #define MPP24_GPIO        MPP(24, 0x0, 1, 1, 1)
 #define MPP24_UA2_TXD        MPP(24, 0x4, 0, 0, 1)
 #define MPP24_TDM_INTn        MPP(24, 0x6, 0, 0, 1)
 #define MPP24_UNUSED        MPP(24, 0x1, 0, 0, 1)
-
 
 #define MPP25_GPIO        MPP(25, 0x0, 1, 1, 1)
 #define MPP25_UA2_RXD        MPP(25, 0x4, 0, 0, 1)
 #define MPP25_TDM_RSTn        MPP(25, 0x6, 0, 0, 1)
 #define MPP25_UNUSED        MPP(25, 0x1, 0, 0, 1)
 
-
 #define MPP26_GPIO        MPP(26, 0x0, 1, 1, 1)
 #define MPP26_UA2_CTSn        MPP(26, 0x4, 0, 0, 1)
 #define MPP26_TDM_PCLK        MPP(26, 0x6, 0, 0, 1)
 #define MPP26_UNUSED        MPP(26, 0x1, 0, 0, 1)
 
-
 #define MPP27_GPIO        MPP(27, 0x0, 1, 1, 1)
 #define MPP27_UA2_RTSn        MPP(27, 0x4, 0, 0, 1)
 #define MPP27_TDM_FSYNC        MPP(27, 0x6, 0, 0, 1)
 #define MPP27_UNUSED        MPP(27, 0x1, 0, 0, 1)
-
 
 #define MPP28_GPIO        MPP(28, 0x0, 1, 1, 1)
 #define MPP28_UA3_TXD        MPP(28, 0x4, 0, 0, 1)
@@ -209,27 +193,21 @@
 #define MPP31_TDM1_SCSn        MPP(31, 0x6, 0, 0, 1)
 #define MPP31_UNUSED        MPP(31, 0x1, 0, 0, 1)
 
-
 #define MPP32_GPIO        MPP(32, 0x1, 1, 1, 1)
 #define MPP32_UA3_TDX        MPP(32, 0x4, 0, 0, 1)
 #define MPP32_SYSRST_OUTn    MPP(32, 0x5, 0, 0, 1)
 #define MPP32_TDM0_RXQ        MPP(32, 0x6, 0, 0, 1)
 #define MPP32_UNUSED        MPP(32, 0x3, 0, 0, 1)
 
-
 #define MPP33_GPIO        MPP(33, 0x1, 1, 1, 1)
 #define MPP33_UA3_RDX        MPP(33, 0x4, 0, 0, 1)
 #define MPP33_TDM0_TXQ        MPP(33, 0x6, 0, 0, 1)
 #define MPP33_UNUSED        MPP(33, 0x3, 0, 0, 1)
 
-
-
 #define MPP34_GPIO        MPP(34, 0x1, 1, 1, 1)
 #define MPP34_UA2_TDX        MPP(34, 0x4, 0, 0, 1)
 #define MPP34_TDM1_RXQ        MPP(34, 0x6, 0, 0, 1)
 #define MPP34_UNUSED        MPP(34, 0x3, 0, 0, 1)
-
-
 
 #define MPP35_GPIO        MPP(35, 0x1, 1, 1, 1)
 #define MPP35_UA2_RDX        MPP(35, 0x4, 0, 0, 1)
@@ -242,16 +220,12 @@
 #define MPP36_TDM0_SCSn        MPP(36, 0x6, 0, 0, 1)
 #define MPP36_UNUSED        MPP(36, 0x3, 0, 0, 1)
 
-
 #define MPP37_GPIO        MPP(37, 0x1, 1, 1, 1)
 #define MPP37_UA0_RTSn        MPP(37, 0x2, 0, 0, 1)
 #define MPP37_UA2_RXD        MPP(37, 0x4, 0, 0, 1)
 #define MPP37_SYSRST_OUTn    MPP(37, 0x5, 0, 0, 1)
 #define MPP37_TDM_SCLK        MPP(37, 0x6, 0, 0, 1)
 #define MPP37_UNUSED        MPP(37, 0x3, 0, 0, 1)
-
-
-
 
 #define MPP38_GPIO        MPP(38, 0x1, 1, 1, 1)
 #define MPP38_UA1_CTSn        MPP(38, 0x2, 0, 0, 1)
@@ -260,9 +234,6 @@
 #define MPP38_TDM_SMOSI        MPP(38, 0x6, 0, 0, 1)
 #define MPP38_UNUSED        MPP(38, 0x3, 0, 0, 1)
 
-
-
-
 #define MPP39_GPIO        MPP(39, 0x1, 1, 1, 1)
 #define MPP39_UA1_RTSn        MPP(39, 0x2, 0, 0, 1)
 #define MPP39_UA3_RXD        MPP(39, 0x4, 0, 0, 1)
@@ -270,65 +241,46 @@
 #define MPP39_TDM_SMISO        MPP(39, 0x6, 0, 0, 1)
 #define MPP39_UNUSED        MPP(39, 0x3, 0, 0, 1)
 
-
-
 #define MPP40_GPIO        MPP(40, 0x1, 1, 1, 1)
 #define MPP40_TDM_INTn        MPP(40, 0x6, 0, 0, 1)
 #define MPP40_UNUSED        MPP(40, 0x0, 0, 0, 1)
-
-
 
 #define MPP41_GPIO        MPP(41, 0x1, 1, 1, 1)
 #define MPP41_TDM_RSTn        MPP(41, 0x6, 0, 0, 1)
 #define MPP41_UNUSED        MPP(41, 0x0, 0, 0, 1)
 
-
-
 #define MPP42_GPIO        MPP(42, 0x1, 1, 1, 1)
 #define MPP42_TDM_PCLK        MPP(42, 0x6, 0, 0, 1)
 #define MPP42_UNUSED        MPP(42, 0x0, 0, 0, 1)
-
-
 
 #define MPP43_GPIO        MPP(43, 0x1, 1, 1, 1)
 #define MPP43_TDM_FSYNC        MPP(43, 0x6, 0, 0, 1)
 #define MPP43_UNUSED        MPP(43, 0x0, 0, 0, 1)
 
-
-
 #define MPP44_GPIO        MPP(44, 0x1, 1, 1, 1)
 #define MPP44_TDM_DRX        MPP(44, 0x6, 0, 0, 1)
 #define MPP44_UNUSED        MPP(44, 0x0, 0, 0, 1)
-
-
 
 #define MPP45_GPIO        MPP(45, 0x1, 1, 1, 1)
 #define MPP45_SATA0_ACTn    MPP(45, 0x3, 0, 0, 1)
 #define MPP45_TDM_DRX        MPP(45, 0x6, 0, 0, 1)
 #define MPP45_UNUSED        MPP(45, 0x0, 0, 0, 1)
 
-
 #define MPP46_GPIO        MPP(46, 0x1, 1, 1, 1)
 #define MPP46_TDM_SCSn        MPP(46, 0x6, 0, 0, 1)
 #define MPP46_UNUSED        MPP(46, 0x0, 0, 0, 1)
 
-
 #define MPP47_GPIO        MPP(47, 0x1, 1, 1, 1)
 #define MPP47_UNUSED        MPP(47, 0x0, 0, 0, 1)
-
-
 
 #define MPP48_GPIO        MPP(48, 0x1, 1, 1, 1)
 #define MPP48_SATA1_ACTn    MPP(48, 0x3, 0, 0, 1)
 #define MPP48_UNUSED        MPP(48, 0x2, 0, 0, 1)
 
-
-
 #define MPP49_GPIO        MPP(49, 0x1, 1, 1, 1)
 #define MPP49_SATA0_ACTn    MPP(49, 0x3, 0, 0, 1)
 #define MPP49_M_BB        MPP(49, 0x4, 0, 0, 1)
 #define MPP49_UNUSED        MPP(49, 0x2, 0, 0, 1)
-
 
 #define MPP_MAX            49
 

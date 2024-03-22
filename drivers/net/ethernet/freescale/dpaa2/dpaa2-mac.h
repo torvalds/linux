@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
-/* Copyright 2019 NXP */
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+ * Copyright 2019 NXP*/
 #ifndef DPAA2_MAC_H
 #define DPAA2_MAC_H
 
@@ -12,31 +12,30 @@
 #include "dpmac-cmd.h"
 
 struct dpaa2_mac {
-	struct fsl_mc_device *mc_dev;
-	struct dpmac_link_state state;
-	struct net_device *net_dev;
-	struct fsl_mc_io *mc_io;
-	struct dpmac_attr attr;
-	u16 ver_major, ver_minor;
-	unsigned long features;
+  struct fsl_mc_device *mc_dev;
+  struct dpmac_link_state state;
+  struct net_device *net_dev;
+  struct fsl_mc_io *mc_io;
+  struct dpmac_attr attr;
+  u16 ver_major, ver_minor;
+  unsigned long features;
 
-	struct phylink_config phylink_config;
-	struct phylink *phylink;
-	phy_interface_t if_mode;
-	enum dpmac_link_type if_link_type;
-	struct phylink_pcs *pcs;
-	struct fwnode_handle *fw_node;
+  struct phylink_config phylink_config;
+  struct phylink *phylink;
+  phy_interface_t if_mode;
+  enum dpmac_link_type if_link_type;
+  struct phylink_pcs *pcs;
+  struct fwnode_handle *fw_node;
 
-	struct phy *serdes_phy;
+  struct phy *serdes_phy;
 };
 
-static inline bool dpaa2_mac_is_type_phy(struct dpaa2_mac *mac)
-{
-	if (!mac)
-		return false;
-
-	return mac->attr.link_type == DPMAC_LINK_TYPE_PHY ||
-	       mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE;
+static inline bool dpaa2_mac_is_type_phy(struct dpaa2_mac *mac) {
+  if (!mac) {
+    return false;
+  }
+  return mac->attr.link_type == DPMAC_LINK_TYPE_PHY
+    || mac->attr.link_type == DPMAC_LINK_TYPE_BACKPLANE;
 }
 
 int dpaa2_mac_open(struct dpaa2_mac *mac);

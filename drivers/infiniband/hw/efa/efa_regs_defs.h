@@ -7,16 +7,16 @@
 #define _EFA_REGS_H_
 
 enum efa_regs_reset_reason_types {
-	EFA_REGS_RESET_NORMAL                       = 0,
-	/* Keep alive timeout */
-	EFA_REGS_RESET_KEEP_ALIVE_TO                = 1,
-	EFA_REGS_RESET_ADMIN_TO                     = 2,
-	EFA_REGS_RESET_INIT_ERR                     = 3,
-	EFA_REGS_RESET_DRIVER_INVALID_STATE         = 4,
-	EFA_REGS_RESET_OS_TRIGGER                   = 5,
-	EFA_REGS_RESET_SHUTDOWN                     = 6,
-	EFA_REGS_RESET_USER_TRIGGER                 = 7,
-	EFA_REGS_RESET_GENERIC                      = 8,
+  EFA_REGS_RESET_NORMAL = 0,
+  /* Keep alive timeout */
+  EFA_REGS_RESET_KEEP_ALIVE_TO = 1,
+  EFA_REGS_RESET_ADMIN_TO = 2,
+  EFA_REGS_RESET_INIT_ERR = 3,
+  EFA_REGS_RESET_DRIVER_INVALID_STATE = 4,
+  EFA_REGS_RESET_OS_TRIGGER = 5,
+  EFA_REGS_RESET_SHUTDOWN = 6,
+  EFA_REGS_RESET_USER_TRIGGER = 7,
+  EFA_REGS_RESET_GENERIC = 8,
 };
 
 /* efa_registers offsets */

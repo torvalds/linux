@@ -19,10 +19,10 @@ struct regmap *pef2256_get_regmap(struct pef2256 *pef2256);
 
 /* PEF2256 hardware versions */
 enum pef2256_version {
-	PEF2256_VERSION_UNKNOWN,
-	PEF2256_VERSION_1_2,
-	PEF2256_VERSION_2_1,
-	PEF2256_VERSION_2_2,
+  PEF2256_VERSION_UNKNOWN,
+  PEF2256_VERSION_1_2,
+  PEF2256_VERSION_2_1,
+  PEF2256_VERSION_2_2,
 };
 
 /* Get the PEF2256 hardware version */

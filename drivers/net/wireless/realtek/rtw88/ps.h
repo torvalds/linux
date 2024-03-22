@@ -5,15 +5,15 @@
 #ifndef __RTW_PS_H_
 #define __RTW_PS_H_
 
-#define RTW_LPS_THRESHOLD	50
+#define RTW_LPS_THRESHOLD 50
 
-#define POWER_MODE_ACK		BIT(6)
-#define POWER_MODE_PG		BIT(4)
-#define POWER_TX_WAKE		BIT(1)
-#define POWER_MODE_LCLK		BIT(0)
+#define POWER_MODE_ACK    BIT(6)
+#define POWER_MODE_PG   BIT(4)
+#define POWER_TX_WAKE   BIT(1)
+#define POWER_MODE_LCLK   BIT(0)
 
-#define LEAVE_LPS_TRY_CNT	5
-#define LEAVE_LPS_TIMEOUT	msecs_to_jiffies(100)
+#define LEAVE_LPS_TRY_CNT 5
+#define LEAVE_LPS_TIMEOUT msecs_to_jiffies(100)
 
 int rtw_enter_ips(struct rtw_dev *rtwdev);
 int rtw_leave_ips(struct rtw_dev *rtwdev);

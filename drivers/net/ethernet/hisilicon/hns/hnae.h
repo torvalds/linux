@@ -42,12 +42,12 @@
 
 #ifndef assert
 #define assert(expr) \
-do { \
-	if (!(expr)) { \
-		pr_err("Assertion failed! %s, %s, %s, line %d\n", \
-			   #expr, __FILE__, __func__, __LINE__); \
-	} \
-} while (0)
+  do { \
+    if (!(expr)) { \
+      pr_err("Assertion failed! %s, %s, %s, line %d\n", \
+    #expr, __FILE__, __func__, __LINE__); \
+    } \
+  } while (0)
 #endif
 
 #else
@@ -85,15 +85,15 @@ do { \
 
 #define RCB_RING_NAME_LEN (IFNAMSIZ + 4)
 
-#define HNAE_LOWEST_LATENCY_COAL_PARAM	30
-#define HNAE_LOW_LATENCY_COAL_PARAM	80
-#define HNAE_BULK_LATENCY_COAL_PARAM	150
+#define HNAE_LOWEST_LATENCY_COAL_PARAM  30
+#define HNAE_LOW_LATENCY_COAL_PARAM 80
+#define HNAE_BULK_LATENCY_COAL_PARAM  150
 
 enum hnae_led_state {
-	HNAE_LED_INACTIVE,
-	HNAE_LED_ACTIVE,
-	HNAE_LED_ON,
-	HNAE_LED_OFF
+  HNAE_LED_INACTIVE,
+  HNAE_LED_ACTIVE,
+  HNAE_LED_ON,
+  HNAE_LED_OFF
 };
 
 #define HNS_RX_FLAG_VLAN_PRESENT 0x1
@@ -151,8 +151,8 @@ enum hnae_led_state {
 
 #define HNSV2_TXD_BUFNUM_S 0
 #define HNSV2_TXD_BUFNUM_M (0x7 << HNSV2_TXD_BUFNUM_S)
-#define HNSV2_TXD_PORTID_S	4
-#define HNSV2_TXD_PORTID_M	(0X7 << HNSV2_TXD_PORTID_S)
+#define HNSV2_TXD_PORTID_S  4
+#define HNSV2_TXD_PORTID_M  (0X7 << HNSV2_TXD_PORTID_S)
 #define HNSV2_TXD_RI_B   1
 #define HNSV2_TXD_L4CS_B   2
 #define HNSV2_TXD_L3CS_B   3
@@ -167,172 +167,167 @@ enum hnae_led_state {
 
 /* hardware spec ring buffer format */
 struct __packed hnae_desc {
-	__le64 addr;
-	union {
-		struct {
-			union {
-				__le16 asid_bufnum_pid;
-				__le16 asid;
-			};
-			__le16 send_size;
-			union {
-				__le32 flag_ipoffset;
-				struct {
-					__u8 bn_pid;
-					__u8 ra_ri_cs_fe_vld;
-					__u8 ip_offset;
-					__u8 tse_vlan_snap_v6_sctp_nth;
-				};
-			};
-			__le16 mss;
-			__u8 l4_len;
-			__u8 reserved1;
-			__le16 paylen;
-			__u8 vmid;
-			__u8 qid;
-			__le32 reserved2[2];
-		} tx;
+  __le64 addr;
+  union {
+    struct {
+      union {
+        __le16 asid_bufnum_pid;
+        __le16 asid;
+      };
+      __le16 send_size;
+      union {
+        __le32 flag_ipoffset;
+        struct {
+          __u8 bn_pid;
+          __u8 ra_ri_cs_fe_vld;
+          __u8 ip_offset;
+          __u8 tse_vlan_snap_v6_sctp_nth;
+        };
+      };
+      __le16 mss;
+      __u8 l4_len;
+      __u8 reserved1;
+      __le16 paylen;
+      __u8 vmid;
+      __u8 qid;
+      __le32 reserved2[2];
+    } tx;
 
-		struct {
-			__le32 ipoff_bnum_pid_flag;
-			__le16 pkt_len;
-			__le16 size;
-			union {
-				__le32 vlan_pri_asid;
-				struct {
-					__le16 asid;
-					__le16 vlan_cfi_pri;
-				};
-			};
-			__le32 rss_hash;
-			__le32 reserved_1[2];
-		} rx;
-	};
+    struct {
+      __le32 ipoff_bnum_pid_flag;
+      __le16 pkt_len;
+      __le16 size;
+      union {
+        __le32 vlan_pri_asid;
+        struct {
+          __le16 asid;
+          __le16 vlan_cfi_pri;
+        };
+      };
+      __le32 rss_hash;
+      __le32 reserved_1[2];
+    } rx;
+  };
 };
 
 struct hnae_desc_cb {
-	dma_addr_t dma; /* dma address of this desc */
-	void *buf;      /* cpu addr for a desc */
+  dma_addr_t dma; /* dma address of this desc */
+  void *buf;      /* cpu addr for a desc */
 
-	/* priv data for the desc, e.g. skb when use with ip stack*/
-	void *priv;
-	u32 page_offset;
-	u32 length;     /* length of the buffer */
+  /* priv data for the desc, e.g. skb when use with ip stack*/
+  void *priv;
+  u32 page_offset;
+  u32 length;     /* length of the buffer */
 
-	u16 reuse_flag;
+  u16 reuse_flag;
 
-       /* desc type, used by the ring user to mark the type of the priv data */
-	u16 type;
+  /* desc type, used by the ring user to mark the type of the priv data */
+  u16 type;
 };
 
 #define setflags(flags, bits) ((flags) |= (bits))
 #define unsetflags(flags, bits) ((flags) &= ~(bits))
 
 /* hnae_ring->flags fields */
-#define RINGF_DIR 0x1	    /* TX or RX ring, set if TX */
+#define RINGF_DIR 0x1     /* TX or RX ring, set if TX */
 #define is_tx_ring(ring) ((ring)->flags & RINGF_DIR)
 #define is_rx_ring(ring) (!is_tx_ring(ring))
-#define ring_to_dma_dir(ring) (is_tx_ring(ring) ? \
-	DMA_TO_DEVICE : DMA_FROM_DEVICE)
+#define ring_to_dma_dir(ring) (is_tx_ring(ring)   \
+  ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
 
 struct ring_stats {
-	u64 io_err_cnt;
-	u64 sw_err_cnt;
-	u64 seg_pkt_cnt;
-	union {
-		struct {
-			u64 tx_pkts;
-			u64 tx_bytes;
-			u64 tx_err_cnt;
-			u64 restart_queue;
-			u64 tx_busy;
-		};
-		struct {
-			u64 rx_pkts;
-			u64 rx_bytes;
-			u64 rx_err_cnt;
-			u64 reuse_pg_cnt;
-			u64 err_pkt_len;
-			u64 non_vld_descs;
-			u64 err_bd_num;
-			u64 l2_err;
-			u64 l3l4_csum_err;
-		};
-	};
+  u64 io_err_cnt;
+  u64 sw_err_cnt;
+  u64 seg_pkt_cnt;
+  union {
+    struct {
+      u64 tx_pkts;
+      u64 tx_bytes;
+      u64 tx_err_cnt;
+      u64 restart_queue;
+      u64 tx_busy;
+    };
+    struct {
+      u64 rx_pkts;
+      u64 rx_bytes;
+      u64 rx_err_cnt;
+      u64 reuse_pg_cnt;
+      u64 err_pkt_len;
+      u64 non_vld_descs;
+      u64 err_bd_num;
+      u64 l2_err;
+      u64 l3l4_csum_err;
+    };
+  };
 };
 
 struct hnae_queue;
 
 struct hnae_ring {
-	u8 __iomem *io_base; /* base io address for the ring */
-	struct hnae_desc *desc; /* dma map address space */
-	struct hnae_desc_cb *desc_cb;
-	struct hnae_queue *q;
-	int irq;
-	char ring_name[RCB_RING_NAME_LEN];
+  u8 __iomem *io_base; /* base io address for the ring */
+  struct hnae_desc *desc; /* dma map address space */
+  struct hnae_desc_cb *desc_cb;
+  struct hnae_queue *q;
+  int irq;
+  char ring_name[RCB_RING_NAME_LEN];
 
-	/* statistic */
-	struct ring_stats stats;
+  /* statistic */
+  struct ring_stats stats;
 
-	dma_addr_t desc_dma_addr;
-	u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
-	u16 desc_num;       /* total number of desc */
-	u16 max_desc_num_per_pkt;
-	u16 max_raw_data_sz_per_desc;
-	u16 max_pkt_size;
-	int next_to_use;    /* idx of next spare desc */
+  dma_addr_t desc_dma_addr;
+  u32 buf_size;       /* size for hnae_desc->addr, preset by AE */
+  u16 desc_num;       /* total number of desc */
+  u16 max_desc_num_per_pkt;
+  u16 max_raw_data_sz_per_desc;
+  u16 max_pkt_size;
+  int next_to_use;    /* idx of next spare desc */
 
-	/* idx of lastest sent desc, the ring is empty when equal to
-	 * next_to_use
-	 */
-	int next_to_clean;
+  /* idx of lastest sent desc, the ring is empty when equal to
+   * next_to_use
+   */
+  int next_to_clean;
 
-	int flags;          /* ring attribute */
-	int irq_init_flag;
+  int flags;          /* ring attribute */
+  int irq_init_flag;
 
-	/* total rx bytes after last rx rate calucated */
-	u64 coal_last_rx_bytes;
-	unsigned long coal_last_jiffies;
-	u32 coal_param;
-	u32 coal_rx_rate;	/* rx rate in MB */
+  /* total rx bytes after last rx rate calucated */
+  u64 coal_last_rx_bytes;
+  unsigned long coal_last_jiffies;
+  u32 coal_param;
+  u32 coal_rx_rate; /* rx rate in MB */
 };
 
 #define ring_ptr_move_fw(ring, p) \
-	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
+  ((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
 #define ring_ptr_move_bw(ring, p) \
-	((ring)->p = ((ring)->p - 1 + (ring)->desc_num) % (ring)->desc_num)
+  ((ring)->p = ((ring)->p - 1 + (ring)->desc_num) % (ring)->desc_num)
 
 enum hns_desc_type {
-	DESC_TYPE_SKB,
-	DESC_TYPE_PAGE,
+  DESC_TYPE_SKB,
+  DESC_TYPE_PAGE,
 };
 
 #define assert_is_ring_idx(ring, idx) \
-	assert((idx) >= 0 && (idx) < (ring)->desc_num)
+  assert((idx) >= 0 && (idx) < (ring)->desc_num)
 
 /* the distance between [begin, end) in a ring buffer
  * note: there is a unuse slot between the begin and the end
  */
-static inline int ring_dist(struct hnae_ring *ring, int begin, int end)
-{
-	assert_is_ring_idx(ring, begin);
-	assert_is_ring_idx(ring, end);
-
-	return (end - begin + ring->desc_num) % ring->desc_num;
+static inline int ring_dist(struct hnae_ring *ring, int begin, int end) {
+  assert_is_ring_idx(ring, begin);
+  assert_is_ring_idx(ring, end);
+  return (end - begin + ring->desc_num) % ring->desc_num;
 }
 
-static inline int ring_space(struct hnae_ring *ring)
-{
-	return ring->desc_num -
-		ring_dist(ring, ring->next_to_clean, ring->next_to_use) - 1;
+static inline int ring_space(struct hnae_ring *ring) {
+  return ring->desc_num
+    - ring_dist(ring, ring->next_to_clean, ring->next_to_use) - 1;
 }
 
-static inline int is_ring_empty(struct hnae_ring *ring)
-{
-	assert_is_ring_idx(ring, ring->next_to_use);
-	assert_is_ring_idx(ring, ring->next_to_clean);
-
-	return ring->next_to_use == ring->next_to_clean;
+static inline int is_ring_empty(struct hnae_ring *ring) {
+  assert_is_ring_idx(ring, ring->next_to_use);
+  assert_is_ring_idx(ring, ring->next_to_clean);
+  return ring->next_to_use == ring->next_to_clean;
 }
 
 #define hnae_buf_size(_ring) ((_ring)->buf_size)
@@ -343,42 +338,42 @@ struct hnae_handle;
 
 /* allocate and dma map space for hnae desc */
 struct hnae_buf_ops {
-	int (*alloc_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
-	void (*free_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
-	int (*map_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
-	void (*unmap_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
+  int (*alloc_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
+  void (*free_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
+  int (*map_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
+  void (*unmap_buffer)(struct hnae_ring *ring, struct hnae_desc_cb *cb);
 };
 
 struct hnae_queue {
-	u8 __iomem *io_base;
-	phys_addr_t phy_base;
-	struct hnae_ae_dev *dev;	/* the device who use this queue */
-	struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;
-	struct hnae_ring tx_ring ____cacheline_internodealigned_in_smp;
-	struct hnae_handle *handle;
+  u8 __iomem *io_base;
+  phys_addr_t phy_base;
+  struct hnae_ae_dev *dev;  /* the device who use this queue */
+  struct hnae_ring rx_ring ____cacheline_internodealigned_in_smp;
+  struct hnae_ring tx_ring ____cacheline_internodealigned_in_smp;
+  struct hnae_handle *handle;
 };
 
 /*hnae loop mode*/
 enum hnae_loop {
-	MAC_INTERNALLOOP_MAC = 0,
-	MAC_INTERNALLOOP_SERDES,
-	MAC_INTERNALLOOP_PHY,
-	MAC_LOOP_PHY_NONE,
-	MAC_LOOP_NONE,
+  MAC_INTERNALLOOP_MAC = 0,
+  MAC_INTERNALLOOP_SERDES,
+  MAC_INTERNALLOOP_PHY,
+  MAC_LOOP_PHY_NONE,
+  MAC_LOOP_NONE,
 };
 
 /*hnae port type*/
 enum hnae_port_type {
-	HNAE_PORT_SERVICE = 0,
-	HNAE_PORT_DEBUG
+  HNAE_PORT_SERVICE = 0,
+  HNAE_PORT_DEBUG
 };
 
 /* mac media type */
 enum hnae_media_type {
-	HNAE_MEDIA_TYPE_UNKNOWN = 0,
-	HNAE_MEDIA_TYPE_FIBER,
-	HNAE_MEDIA_TYPE_COPPER,
-	HNAE_MEDIA_TYPE_BACKPLANE,
+  HNAE_MEDIA_TYPE_UNKNOWN = 0,
+  HNAE_MEDIA_TYPE_FIBER,
+  HNAE_MEDIA_TYPE_COPPER,
+  HNAE_MEDIA_TYPE_BACKPLANE,
 };
 
 /* This struct defines the operation on the handle.
@@ -460,113 +455,113 @@ enum hnae_media_type {
  *   get the len of the regs dump
  */
 struct hnae_ae_ops {
-	struct hnae_handle *(*get_handle)(struct hnae_ae_dev *dev,
-					  u32 port_id);
-	void (*put_handle)(struct hnae_handle *handle);
-	void (*init_queue)(struct hnae_queue *q);
-	void (*fini_queue)(struct hnae_queue *q);
-	int (*start)(struct hnae_handle *handle);
-	void (*stop)(struct hnae_handle *handle);
-	void (*reset)(struct hnae_handle *handle);
-	int (*set_opts)(struct hnae_handle *handle, int type, void *opts);
-	int (*get_opts)(struct hnae_handle *handle, int type, void **opts);
-	int (*get_status)(struct hnae_handle *handle);
-	int (*get_info)(struct hnae_handle *handle,
-			u8 *auto_neg, u16 *speed, u8 *duplex);
-	void (*toggle_ring_irq)(struct hnae_ring *ring, u32 val);
-	void (*adjust_link)(struct hnae_handle *handle, int speed, int duplex);
-	bool (*need_adjust_link)(struct hnae_handle *handle,
-				 int speed, int duplex);
-	int (*set_loopback)(struct hnae_handle *handle,
-			    enum hnae_loop loop_mode, int en);
-	void (*get_ring_bdnum_limit)(struct hnae_queue *queue,
-				     u32 *uplimit);
-	void (*get_pauseparam)(struct hnae_handle *handle,
-			       u32 *auto_neg, u32 *rx_en, u32 *tx_en);
-	int (*set_pauseparam)(struct hnae_handle *handle,
-			      u32 auto_neg, u32 rx_en, u32 tx_en);
-	void (*get_coalesce_usecs)(struct hnae_handle *handle,
-				   u32 *tx_usecs, u32 *rx_usecs);
-	void (*get_max_coalesced_frames)(struct hnae_handle *handle,
-					 u32 *tx_frames, u32 *rx_frames);
-	int (*set_coalesce_usecs)(struct hnae_handle *handle, u32 timeout);
-	int (*set_coalesce_frames)(struct hnae_handle *handle,
-				   u32 tx_frames, u32 rx_frames);
-	void (*get_coalesce_range)(struct hnae_handle *handle,
-				   u32 *tx_frames_low, u32 *rx_frames_low,
-				   u32 *tx_frames_high, u32 *rx_frames_high,
-				   u32 *tx_usecs_low, u32 *rx_usecs_low,
-				   u32 *tx_usecs_high, u32 *rx_usecs_high);
-	void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
-	int (*get_mac_addr)(struct hnae_handle *handle, void **p);
-	int (*set_mac_addr)(struct hnae_handle *handle, const void *p);
-	int (*add_uc_addr)(struct hnae_handle *handle,
-			   const unsigned char *addr);
-	int (*rm_uc_addr)(struct hnae_handle *handle,
-			  const unsigned char *addr);
-	int (*clr_mc_addr)(struct hnae_handle *handle);
-	int (*set_mc_addr)(struct hnae_handle *handle, void *addr);
-	int (*set_mtu)(struct hnae_handle *handle, int new_mtu);
-	void (*set_tso_stats)(struct hnae_handle *handle, int enable);
-	void (*update_stats)(struct hnae_handle *handle,
-			     struct net_device_stats *net_stats);
-	void (*get_stats)(struct hnae_handle *handle, u64 *data);
-	void (*get_strings)(struct hnae_handle *handle,
-			    u32 stringset, u8 *data);
-	int (*get_sset_count)(struct hnae_handle *handle, int stringset);
-	void (*update_led_status)(struct hnae_handle *handle);
-	int (*set_led_id)(struct hnae_handle *handle,
-			  enum hnae_led_state status);
-	void (*get_regs)(struct hnae_handle *handle, void *data);
-	int (*get_regs_len)(struct hnae_handle *handle);
-	u32	(*get_rss_key_size)(struct hnae_handle *handle);
-	u32	(*get_rss_indir_size)(struct hnae_handle *handle);
-	int	(*get_rss)(struct hnae_handle *handle, u32 *indir, u8 *key,
-			   u8 *hfunc);
-	int	(*set_rss)(struct hnae_handle *handle, const u32 *indir,
-			   const u8 *key, const u8 hfunc);
+  struct hnae_handle *(*get_handle)(struct hnae_ae_dev *dev,
+      u32 port_id);
+  void (*put_handle)(struct hnae_handle *handle);
+  void (*init_queue)(struct hnae_queue *q);
+  void (*fini_queue)(struct hnae_queue *q);
+  int (*start)(struct hnae_handle *handle);
+  void (*stop)(struct hnae_handle *handle);
+  void (*reset)(struct hnae_handle *handle);
+  int (*set_opts)(struct hnae_handle *handle, int type, void *opts);
+  int (*get_opts)(struct hnae_handle *handle, int type, void **opts);
+  int (*get_status)(struct hnae_handle *handle);
+  int (*get_info)(struct hnae_handle *handle,
+      u8 *auto_neg, u16 *speed, u8 *duplex);
+  void (*toggle_ring_irq)(struct hnae_ring *ring, u32 val);
+  void (*adjust_link)(struct hnae_handle *handle, int speed, int duplex);
+  bool (*need_adjust_link)(struct hnae_handle *handle,
+      int speed, int duplex);
+  int (*set_loopback)(struct hnae_handle *handle,
+      enum hnae_loop loop_mode, int en);
+  void (*get_ring_bdnum_limit)(struct hnae_queue *queue,
+      u32 *uplimit);
+  void (*get_pauseparam)(struct hnae_handle *handle,
+      u32 *auto_neg, u32 *rx_en, u32 *tx_en);
+  int (*set_pauseparam)(struct hnae_handle *handle,
+      u32 auto_neg, u32 rx_en, u32 tx_en);
+  void (*get_coalesce_usecs)(struct hnae_handle *handle,
+      u32 *tx_usecs, u32 *rx_usecs);
+  void (*get_max_coalesced_frames)(struct hnae_handle *handle,
+      u32 *tx_frames, u32 *rx_frames);
+  int (*set_coalesce_usecs)(struct hnae_handle *handle, u32 timeout);
+  int (*set_coalesce_frames)(struct hnae_handle *handle,
+      u32 tx_frames, u32 rx_frames);
+  void (*get_coalesce_range)(struct hnae_handle *handle,
+      u32 *tx_frames_low, u32 *rx_frames_low,
+      u32 *tx_frames_high, u32 *rx_frames_high,
+      u32 *tx_usecs_low, u32 *rx_usecs_low,
+      u32 *tx_usecs_high, u32 *rx_usecs_high);
+  void (*set_promisc_mode)(struct hnae_handle *handle, u32 en);
+  int (*get_mac_addr)(struct hnae_handle *handle, void **p);
+  int (*set_mac_addr)(struct hnae_handle *handle, const void *p);
+  int (*add_uc_addr)(struct hnae_handle *handle,
+      const unsigned char *addr);
+  int (*rm_uc_addr)(struct hnae_handle *handle,
+      const unsigned char *addr);
+  int (*clr_mc_addr)(struct hnae_handle *handle);
+  int (*set_mc_addr)(struct hnae_handle *handle, void *addr);
+  int (*set_mtu)(struct hnae_handle *handle, int new_mtu);
+  void (*set_tso_stats)(struct hnae_handle *handle, int enable);
+  void (*update_stats)(struct hnae_handle *handle,
+      struct net_device_stats *net_stats);
+  void (*get_stats)(struct hnae_handle *handle, u64 *data);
+  void (*get_strings)(struct hnae_handle *handle,
+      u32 stringset, u8 *data);
+  int (*get_sset_count)(struct hnae_handle *handle, int stringset);
+  void (*update_led_status)(struct hnae_handle *handle);
+  int (*set_led_id)(struct hnae_handle *handle,
+      enum hnae_led_state status);
+  void (*get_regs)(struct hnae_handle *handle, void *data);
+  int (*get_regs_len)(struct hnae_handle *handle);
+  u32 (*get_rss_key_size)(struct hnae_handle *handle);
+  u32 (*get_rss_indir_size)(struct hnae_handle *handle);
+  int (*get_rss)(struct hnae_handle *handle, u32 *indir, u8 *key,
+      u8 *hfunc);
+  int (*set_rss)(struct hnae_handle *handle, const u32 *indir,
+      const u8 *key, const u8 hfunc);
 };
 
 struct hnae_ae_dev {
-	struct device cls_dev; /* the class dev */
-	struct device *dev; /* the presented dev */
-	struct hnae_ae_ops *ops;
-	struct list_head node;
-	struct module *owner; /* the module who provides this dev */
-	int id;
-	char name[AE_NAME_SIZE];
-	struct list_head handle_list;
-	spinlock_t lock; /* lock to protect the handle_list */
+  struct device cls_dev; /* the class dev */
+  struct device *dev; /* the presented dev */
+  struct hnae_ae_ops *ops;
+  struct list_head node;
+  struct module *owner; /* the module who provides this dev */
+  int id;
+  char name[AE_NAME_SIZE];
+  struct list_head handle_list;
+  spinlock_t lock; /* lock to protect the handle_list */
 };
 
 struct hnae_handle {
-	struct device *owner_dev; /* the device which make use of this handle */
-	struct hnae_ae_dev *dev;  /* the device who provides this handle */
-	struct phy_device *phy_dev;
-	phy_interface_t phy_if;
-	u32 if_support;
-	int q_num;
-	int vf_id;
-	unsigned long coal_last_jiffies;
-	u32 coal_param;		/* self adapt coalesce param */
-	/* the ring index of last ring that set coal param */
-	u32 coal_ring_idx;
-	u32 eport_id;
-	u32 dport_id;	/* v2 tx bd should fill the dport_id */
-	bool coal_adapt_en;
-	enum hnae_port_type port_type;
-	enum hnae_media_type media_type;
-	struct list_head node;    /* list to hnae_ae_dev->handle_list */
-	struct hnae_buf_ops *bops; /* operation for the buffer */
-	struct hnae_queue *qs[];  /* flexible array of all queues */
+  struct device *owner_dev; /* the device which make use of this handle */
+  struct hnae_ae_dev *dev;  /* the device who provides this handle */
+  struct phy_device *phy_dev;
+  phy_interface_t phy_if;
+  u32 if_support;
+  int q_num;
+  int vf_id;
+  unsigned long coal_last_jiffies;
+  u32 coal_param;   /* self adapt coalesce param */
+  /* the ring index of last ring that set coal param */
+  u32 coal_ring_idx;
+  u32 eport_id;
+  u32 dport_id; /* v2 tx bd should fill the dport_id */
+  bool coal_adapt_en;
+  enum hnae_port_type port_type;
+  enum hnae_media_type media_type;
+  struct list_head node;    /* list to hnae_ae_dev->handle_list */
+  struct hnae_buf_ops *bops; /* operation for the buffer */
+  struct hnae_queue *qs[];  /* flexible array of all queues */
 };
 
 #define ring_to_dev(ring) ((ring)->q->dev->dev)
 
 struct hnae_handle *hnae_get_handle(struct device *owner_dev,
-				    const struct fwnode_handle	*fwnode,
-				    u32 port_id,
-				    struct hnae_buf_ops *bops);
+    const struct fwnode_handle *fwnode,
+    u32 port_id,
+    struct hnae_buf_ops *bops);
 
 void hnae_put_handle(struct hnae_handle *handle);
 int hnae_ae_register(struct hnae_ae_dev *dev, struct module *owner);
@@ -577,131 +572,115 @@ void hnae_unregister_notifier(struct notifier_block *nb);
 int hnae_reinit_handle(struct hnae_handle *handle);
 
 #define hnae_queue_xmit(q, buf_num) writel_relaxed(buf_num, \
-	(q)->tx_ring.io_base + RCB_REG_TAIL)
+    (q)->tx_ring.io_base + RCB_REG_TAIL)
 
 #ifndef assert
 #define assert(cond)
 #endif
 
 static inline int hnae_reserve_buffer_map(struct hnae_ring *ring,
-					  struct hnae_desc_cb *cb)
-{
-	struct hnae_buf_ops *bops = ring->q->handle->bops;
-	int ret;
-
-	ret = bops->alloc_buffer(ring, cb);
-	if (ret)
-		goto out;
-
-	ret = bops->map_buffer(ring, cb);
-	if (ret)
-		goto out_with_buf;
-
-	return 0;
-
+    struct hnae_desc_cb *cb) {
+  struct hnae_buf_ops *bops = ring->q->handle->bops;
+  int ret;
+  ret = bops->alloc_buffer(ring, cb);
+  if (ret) {
+    goto out;
+  }
+  ret = bops->map_buffer(ring, cb);
+  if (ret) {
+    goto out_with_buf;
+  }
+  return 0;
 out_with_buf:
-	bops->free_buffer(ring, cb);
+  bops->free_buffer(ring, cb);
 out:
-	return ret;
+  return ret;
 }
 
-static inline int hnae_alloc_buffer_attach(struct hnae_ring *ring, int i)
-{
-	int ret = hnae_reserve_buffer_map(ring, &ring->desc_cb[i]);
-
-	if (ret)
-		return ret;
-
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
-
-	return 0;
+static inline int hnae_alloc_buffer_attach(struct hnae_ring *ring, int i) {
+  int ret = hnae_reserve_buffer_map(ring, &ring->desc_cb[i]);
+  if (ret) {
+    return ret;
+  }
+  ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
+  return 0;
 }
 
-static inline void hnae_buffer_detach(struct hnae_ring *ring, int i)
-{
-	ring->q->handle->bops->unmap_buffer(ring, &ring->desc_cb[i]);
-	ring->desc[i].addr = 0;
+static inline void hnae_buffer_detach(struct hnae_ring *ring, int i) {
+  ring->q->handle->bops->unmap_buffer(ring, &ring->desc_cb[i]);
+  ring->desc[i].addr = 0;
 }
 
-static inline void hnae_free_buffer_detach(struct hnae_ring *ring, int i)
-{
-	struct hnae_buf_ops *bops = ring->q->handle->bops;
-	struct hnae_desc_cb *cb = &ring->desc_cb[i];
-
-	if (!ring->desc_cb[i].dma)
-		return;
-
-	hnae_buffer_detach(ring, i);
-	bops->free_buffer(ring, cb);
+static inline void hnae_free_buffer_detach(struct hnae_ring *ring, int i) {
+  struct hnae_buf_ops *bops = ring->q->handle->bops;
+  struct hnae_desc_cb *cb = &ring->desc_cb[i];
+  if (!ring->desc_cb[i].dma) {
+    return;
+  }
+  hnae_buffer_detach(ring, i);
+  bops->free_buffer(ring, cb);
 }
 
 /* detach a in-used buffer and replace with a reserved one  */
 static inline void hnae_replace_buffer(struct hnae_ring *ring, int i,
-				       struct hnae_desc_cb *res_cb)
-{
-	struct hnae_buf_ops *bops = ring->q->handle->bops;
-
-	bops->unmap_buffer(ring, &ring->desc_cb[i]);
-	ring->desc_cb[i] = *res_cb;
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
-	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
+    struct hnae_desc_cb *res_cb) {
+  struct hnae_buf_ops *bops = ring->q->handle->bops;
+  bops->unmap_buffer(ring, &ring->desc_cb[i]);
+  ring->desc_cb[i] = *res_cb;
+  ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma);
+  ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
 
-static inline void hnae_reuse_buffer(struct hnae_ring *ring, int i)
-{
-	ring->desc_cb[i].reuse_flag = 0;
-	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
-		+ ring->desc_cb[i].page_offset);
-	ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
+static inline void hnae_reuse_buffer(struct hnae_ring *ring, int i) {
+  ring->desc_cb[i].reuse_flag = 0;
+  ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma
+      + ring->desc_cb[i].page_offset);
+  ring->desc[i].rx.ipoff_bnum_pid_flag = 0;
 }
 
 /* when reinit buffer size, we should reinit buffer description */
-static inline void hnae_reinit_all_ring_desc(struct hnae_handle *h)
-{
-	int i, j;
-	struct hnae_ring *ring;
-
-	for (i = 0; i < h->q_num; i++) {
-		ring = &h->qs[i]->rx_ring;
-		for (j = 0; j < ring->desc_num; j++)
-			ring->desc[j].addr = cpu_to_le64(ring->desc_cb[j].dma);
-	}
-
-	wmb();	/* commit all data before submit */
+static inline void hnae_reinit_all_ring_desc(struct hnae_handle *h) {
+  int i, j;
+  struct hnae_ring *ring;
+  for (i = 0; i < h->q_num; i++) {
+    ring = &h->qs[i]->rx_ring;
+    for (j = 0; j < ring->desc_num; j++) {
+      ring->desc[j].addr = cpu_to_le64(ring->desc_cb[j].dma);
+    }
+  }
+  wmb();  /* commit all data before submit */
 }
 
 /* when reinit buffer size, we should reinit page offset */
-static inline void hnae_reinit_all_ring_page_off(struct hnae_handle *h)
-{
-	int i, j;
-	struct hnae_ring *ring;
-
-	for (i = 0; i < h->q_num; i++) {
-		ring = &h->qs[i]->rx_ring;
-		for (j = 0; j < ring->desc_num; j++) {
-			ring->desc_cb[j].page_offset = 0;
-			if (ring->desc[j].addr !=
-			    cpu_to_le64(ring->desc_cb[j].dma))
-				ring->desc[j].addr =
-					cpu_to_le64(ring->desc_cb[j].dma);
-		}
-	}
-
-	wmb();	/* commit all data before submit */
+static inline void hnae_reinit_all_ring_page_off(struct hnae_handle *h) {
+  int i, j;
+  struct hnae_ring *ring;
+  for (i = 0; i < h->q_num; i++) {
+    ring = &h->qs[i]->rx_ring;
+    for (j = 0; j < ring->desc_num; j++) {
+      ring->desc_cb[j].page_offset = 0;
+      if (ring->desc[j].addr
+          != cpu_to_le64(ring->desc_cb[j].dma)) {
+        ring->desc[j].addr
+          = cpu_to_le64(ring->desc_cb[j].dma);
+      }
+    }
+  }
+  wmb();  /* commit all data before submit */
 }
 
 #define hnae_set_field(origin, mask, shift, val) \
-	do { \
-		(origin) &= (~(mask)); \
-		(origin) |= ((val) << (shift)) & (mask); \
-	} while (0)
+  do { \
+    (origin) &= (~(mask)); \
+    (origin) |= ((val) << (shift)) & (mask); \
+  } while (0)
 
 #define hnae_set_bit(origin, shift, val) \
-	hnae_set_field((origin), (0x1 << (shift)), (shift), (val))
+  hnae_set_field((origin), (0x1 << (shift)), (shift), (val))
 
 #define hnae_get_field(origin, mask, shift) (((origin) & (mask)) >> (shift))
 
 #define hnae_get_bit(origin, shift) \
-	hnae_get_field((origin), (0x1 << (shift)), (shift))
+  hnae_get_field((origin), (0x1 << (shift)), (shift))
 
 #endif

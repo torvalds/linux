@@ -22,37 +22,34 @@ int intel_guc_preempt_work_create(struct intel_guc *guc);
 void intel_guc_preempt_work_destroy(struct intel_guc *guc);
 int intel_guc_submission_setup(struct intel_engine_cs *engine);
 void intel_guc_submission_print_info(struct intel_guc *guc,
-				     struct drm_printer *p);
+    struct drm_printer *p);
 void intel_guc_submission_print_context_info(struct intel_guc *guc,
-					     struct drm_printer *p);
+    struct drm_printer *p);
 void intel_guc_dump_active_requests(struct intel_engine_cs *engine,
-				    struct i915_request *hung_rq,
-				    struct drm_printer *m);
+    struct i915_request *hung_rq,
+    struct drm_printer *m);
 void intel_guc_busyness_park(struct intel_gt *gt);
 void intel_guc_busyness_unpark(struct intel_gt *gt);
 
 bool intel_guc_virtual_engine_has_heartbeat(const struct intel_engine_cs *ve);
 
 int intel_guc_wait_for_pending_msg(struct intel_guc *guc,
-				   atomic_t *wait_var,
-				   bool interruptible,
-				   long timeout);
+    atomic_t *wait_var,
+    bool interruptible,
+    long timeout);
 
 void intel_guc_submission_flush_work(struct intel_guc *guc);
 
-static inline bool intel_guc_submission_is_supported(struct intel_guc *guc)
-{
-	return guc->submission_supported;
+static inline bool intel_guc_submission_is_supported(struct intel_guc *guc) {
+  return guc->submission_supported;
 }
 
-static inline bool intel_guc_submission_is_wanted(struct intel_guc *guc)
-{
-	return guc->submission_selected;
+static inline bool intel_guc_submission_is_wanted(struct intel_guc *guc) {
+  return guc->submission_selected;
 }
 
-static inline bool intel_guc_submission_is_used(struct intel_guc *guc)
-{
-	return intel_guc_is_used(guc) && intel_guc_submission_is_wanted(guc);
+static inline bool intel_guc_submission_is_used(struct intel_guc *guc) {
+  return intel_guc_is_used(guc) && intel_guc_submission_is_wanted(guc);
 }
 
 #endif

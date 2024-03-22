@@ -7,9 +7,9 @@
 #endif /* CONFIG_64BIT */
 
 /* Skip 128k to trap NULL pointer dereferences */
-#define PCI_IOBASE	_AC(0xc000000000000000 + SZ_128K, UL)
-#define PCI_IOSIZE	SZ_16M
-#define MAP_BASE	(PCI_IOBASE + PCI_IOSIZE)
+#define PCI_IOBASE  _AC(0xc000000000000000 + SZ_128K, UL)
+#define PCI_IOSIZE  SZ_16M
+#define MAP_BASE  (PCI_IOBASE + PCI_IOSIZE)
 
 #define IO_SPACE_LIMIT  (PCI_IOSIZE - 1)
 

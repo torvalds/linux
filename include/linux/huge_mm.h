@@ -9,132 +9,129 @@
 
 vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf);
 int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		  pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
-		  struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma);
+    pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
+    struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma);
 void huge_pmd_set_accessed(struct vm_fault *vmf);
 int copy_huge_pud(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		  pud_t *dst_pud, pud_t *src_pud, unsigned long addr,
-		  struct vm_area_struct *vma);
+    pud_t *dst_pud, pud_t *src_pud, unsigned long addr,
+    struct vm_area_struct *vma);
 
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud);
 #else
-static inline void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud)
-{
+static inline void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud) {
 }
+
 #endif
 
 vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf);
 bool madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-			   pmd_t *pmd, unsigned long addr, unsigned long next);
+    pmd_t *pmd, unsigned long addr, unsigned long next);
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma, pmd_t *pmd,
-		 unsigned long addr);
+    unsigned long addr);
 int zap_huge_pud(struct mmu_gather *tlb, struct vm_area_struct *vma, pud_t *pud,
-		 unsigned long addr);
+    unsigned long addr);
 bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
-		   unsigned long new_addr, pmd_t *old_pmd, pmd_t *new_pmd);
+    unsigned long new_addr, pmd_t *old_pmd, pmd_t *new_pmd);
 int change_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-		    pmd_t *pmd, unsigned long addr, pgprot_t newprot,
-		    unsigned long cp_flags);
+    pmd_t *pmd, unsigned long addr, pgprot_t newprot,
+    unsigned long cp_flags);
 
 vm_fault_t vmf_insert_pfn_pmd(struct vm_fault *vmf, pfn_t pfn, bool write);
 vm_fault_t vmf_insert_pfn_pud(struct vm_fault *vmf, pfn_t pfn, bool write);
 
 enum transparent_hugepage_flag {
-	TRANSPARENT_HUGEPAGE_UNSUPPORTED,
-	TRANSPARENT_HUGEPAGE_FLAG,
-	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
-	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
-	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
+  TRANSPARENT_HUGEPAGE_UNSUPPORTED,
+  TRANSPARENT_HUGEPAGE_FLAG,
+  TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+  TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
+  TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
+  TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_OR_MADV_FLAG,
+  TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
+  TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
+  TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
 };
 
 struct kobject;
 struct kobj_attribute;
 
 ssize_t single_hugepage_flag_store(struct kobject *kobj,
-				   struct kobj_attribute *attr,
-				   const char *buf, size_t count,
-				   enum transparent_hugepage_flag flag);
+    struct kobj_attribute *attr,
+    const char *buf, size_t count,
+    enum transparent_hugepage_flag flag);
 ssize_t single_hugepage_flag_show(struct kobject *kobj,
-				  struct kobj_attribute *attr, char *buf,
-				  enum transparent_hugepage_flag flag);
+    struct kobj_attribute *attr, char *buf,
+    enum transparent_hugepage_flag flag);
 extern struct kobj_attribute shmem_enabled_attr;
 
-#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
-#define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+#define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT - PAGE_SHIFT)
+#define HPAGE_PMD_NR (1 << HPAGE_PMD_ORDER)
 
 /*
  * Mask of all large folio orders supported for anonymous THP; all orders up to
  * and including PMD_ORDER, except order-0 (which is not "huge") and order-1
  * (which is a limitation of the THP implementation).
  */
-#define THP_ORDERS_ALL_ANON	((BIT(PMD_ORDER + 1) - 1) & ~(BIT(0) | BIT(1)))
+#define THP_ORDERS_ALL_ANON ((BIT(PMD_ORDER + 1) - 1) & ~(BIT(0) | BIT(1)))
 
 /*
  * Mask of all large folio orders supported for file THP.
  */
-#define THP_ORDERS_ALL_FILE	(BIT(PMD_ORDER) | BIT(PUD_ORDER))
+#define THP_ORDERS_ALL_FILE (BIT(PMD_ORDER) | BIT(PUD_ORDER))
 
 /*
  * Mask of all large folio orders supported for THP.
  */
-#define THP_ORDERS_ALL		(THP_ORDERS_ALL_ANON | THP_ORDERS_ALL_FILE)
+#define THP_ORDERS_ALL    (THP_ORDERS_ALL_ANON | THP_ORDERS_ALL_FILE)
 
-#define thp_vma_allowable_order(vma, vm_flags, smaps, in_pf, enforce_sysfs, order) \
-	(!!thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf, enforce_sysfs, BIT(order)))
+#define thp_vma_allowable_order(vma, vm_flags, smaps, in_pf, enforce_sysfs, \
+      order) \
+  (!!thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf, enforce_sysfs, \
+    BIT(order)))
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define HPAGE_PMD_SHIFT PMD_SHIFT
-#define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
-#define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
+#define HPAGE_PMD_SIZE  ((1UL) << HPAGE_PMD_SHIFT)
+#define HPAGE_PMD_MASK  (~(HPAGE_PMD_SIZE - 1))
 
 #define HPAGE_PUD_SHIFT PUD_SHIFT
-#define HPAGE_PUD_SIZE	((1UL) << HPAGE_PUD_SHIFT)
-#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+#define HPAGE_PUD_SIZE  ((1UL) << HPAGE_PUD_SHIFT)
+#define HPAGE_PUD_MASK  (~(HPAGE_PUD_SIZE - 1))
 
 extern unsigned long transparent_hugepage_flags;
 extern unsigned long huge_anon_orders_always;
 extern unsigned long huge_anon_orders_madvise;
 extern unsigned long huge_anon_orders_inherit;
 
-static inline bool hugepage_global_enabled(void)
-{
-	return transparent_hugepage_flags &
-			((1<<TRANSPARENT_HUGEPAGE_FLAG) |
-			(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG));
+static inline bool hugepage_global_enabled(void) {
+  return transparent_hugepage_flags
+    & ((1 << TRANSPARENT_HUGEPAGE_FLAG)
+    | (1 << TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG));
 }
 
-static inline bool hugepage_global_always(void)
-{
-	return transparent_hugepage_flags &
-			(1<<TRANSPARENT_HUGEPAGE_FLAG);
+static inline bool hugepage_global_always(void) {
+  return transparent_hugepage_flags
+    & (1 << TRANSPARENT_HUGEPAGE_FLAG);
 }
 
-static inline bool hugepage_flags_enabled(void)
-{
-	/*
-	 * We cover both the anon and the file-backed case here; we must return
-	 * true if globally enabled, even when all anon sizes are set to never.
-	 * So we don't need to look at huge_anon_orders_inherit.
-	 */
-	return hugepage_global_enabled() ||
-	       huge_anon_orders_always ||
-	       huge_anon_orders_madvise;
+static inline bool hugepage_flags_enabled(void) {
+  /*
+   * We cover both the anon and the file-backed case here; we must return
+   * true if globally enabled, even when all anon sizes are set to never.
+   * So we don't need to look at huge_anon_orders_inherit.
+   */
+  return hugepage_global_enabled()
+    || huge_anon_orders_always
+    || huge_anon_orders_madvise;
 }
 
-static inline int highest_order(unsigned long orders)
-{
-	return fls_long(orders) - 1;
+static inline int highest_order(unsigned long orders) {
+  return fls_long(orders) - 1;
 }
 
-static inline int next_order(unsigned long *orders, int prev)
-{
-	*orders &= ~BIT(prev);
-	return highest_order(*orders);
+static inline int next_order(unsigned long *orders, int prev) {
+  *orders &= ~BIT(prev);
+  return highest_order(*orders);
 }
 
 /*
@@ -149,23 +146,21 @@ static inline int next_order(unsigned long *orders, int prev)
  *     area.
  */
 static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
-		unsigned long addr, int order)
-{
-	unsigned long hpage_size = PAGE_SIZE << order;
-	unsigned long haddr;
-
-	/* Don't have to check pgoff for anonymous vma */
-	if (!vma_is_anonymous(vma)) {
-		if (!IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
-				hpage_size >> PAGE_SHIFT))
-			return false;
-	}
-
-	haddr = ALIGN_DOWN(addr, hpage_size);
-
-	if (haddr < vma->vm_start || haddr + hpage_size > vma->vm_end)
-		return false;
-	return true;
+    unsigned long addr, int order) {
+  unsigned long hpage_size = PAGE_SIZE << order;
+  unsigned long haddr;
+  /* Don't have to check pgoff for anonymous vma */
+  if (!vma_is_anonymous(vma)) {
+    if (!IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
+        hpage_size >> PAGE_SHIFT)) {
+      return false;
+    }
+  }
+  haddr = ALIGN_DOWN(addr, hpage_size);
+  if (haddr < vma->vm_start || haddr + hpage_size > vma->vm_end) {
+    return false;
+  }
+  return true;
 }
 
 /*
@@ -174,45 +169,38 @@ static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
  * All orders that pass the checks are returned as a bitfield.
  */
 static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long orders)
-{
-	int order;
-
-	/*
-	 * Iterate over orders, highest to lowest, removing orders that don't
-	 * meet alignment requirements from the set. Exit loop at first order
-	 * that meets requirements, since all lower orders must also meet
-	 * requirements.
-	 */
-
-	order = highest_order(orders);
-
-	while (orders) {
-		if (thp_vma_suitable_order(vma, addr, order))
-			break;
-		order = next_order(&orders, order);
-	}
-
-	return orders;
+    unsigned long addr, unsigned long orders) {
+  int order;
+  /*
+   * Iterate over orders, highest to lowest, removing orders that don't
+   * meet alignment requirements from the set. Exit loop at first order
+   * that meets requirements, since all lower orders must also meet
+   * requirements.
+   */
+  order = highest_order(orders);
+  while (orders) {
+    if (thp_vma_suitable_order(vma, addr, order)) {
+      break;
+    }
+    order = next_order(&orders, order);
+  }
+  return orders;
 }
 
-static inline bool file_thp_enabled(struct vm_area_struct *vma)
-{
-	struct inode *inode;
-
-	if (!vma->vm_file)
-		return false;
-
-	inode = vma->vm_file->f_inode;
-
-	return (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS)) &&
-	       !inode_is_open_for_write(inode) && S_ISREG(inode->i_mode);
+static inline bool file_thp_enabled(struct vm_area_struct *vma) {
+  struct inode *inode;
+  if (!vma->vm_file) {
+    return false;
+  }
+  inode = vma->vm_file->f_inode;
+  return (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS))
+    && !inode_is_open_for_write(inode) && S_ISREG(inode->i_mode);
 }
 
 unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
-					 unsigned long vm_flags, bool smaps,
-					 bool in_pf, bool enforce_sysfs,
-					 unsigned long orders);
+    unsigned long vm_flags, bool smaps,
+    bool in_pf, bool enforce_sysfs,
+    unsigned long orders);
 
 /**
  * thp_vma_allowable_orders - determine hugepage orders that are allowed for vma
@@ -233,138 +221,132 @@ unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
  */
 static inline
 unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
-				       unsigned long vm_flags, bool smaps,
-				       bool in_pf, bool enforce_sysfs,
-				       unsigned long orders)
-{
-	/* Optimization to check if required orders are enabled early. */
-	if (enforce_sysfs && vma_is_anonymous(vma)) {
-		unsigned long mask = READ_ONCE(huge_anon_orders_always);
-
-		if (vm_flags & VM_HUGEPAGE)
-			mask |= READ_ONCE(huge_anon_orders_madvise);
-		if (hugepage_global_always() ||
-		    ((vm_flags & VM_HUGEPAGE) && hugepage_global_enabled()))
-			mask |= READ_ONCE(huge_anon_orders_inherit);
-
-		orders &= mask;
-		if (!orders)
-			return 0;
-	}
-
-	return __thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf,
-					  enforce_sysfs, orders);
+    unsigned long vm_flags, bool smaps,
+    bool in_pf, bool enforce_sysfs,
+    unsigned long orders) {
+  /* Optimization to check if required orders are enabled early. */
+  if (enforce_sysfs && vma_is_anonymous(vma)) {
+    unsigned long mask = READ_ONCE(huge_anon_orders_always);
+    if (vm_flags & VM_HUGEPAGE) {
+      mask |= READ_ONCE(huge_anon_orders_madvise);
+    }
+    if (hugepage_global_always()
+        || ((vm_flags & VM_HUGEPAGE) && hugepage_global_enabled())) {
+      mask |= READ_ONCE(huge_anon_orders_inherit);
+    }
+    orders &= mask;
+    if (!orders) {
+      return 0;
+    }
+  }
+  return __thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf,
+      enforce_sysfs, orders);
 }
 
-#define transparent_hugepage_use_zero_page()				\
-	(transparent_hugepage_flags &					\
-	 (1<<TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
+#define transparent_hugepage_use_zero_page()        \
+  (transparent_hugepage_flags           \
+  & (1 << TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG))
 
 unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags);
+    unsigned long len, unsigned long pgoff, unsigned long flags);
 
 void folio_prep_large_rmappable(struct folio *folio);
 bool can_split_folio(struct folio *folio, int *pextra_pins);
 int split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
-		unsigned int new_order);
-static inline int split_huge_page(struct page *page)
-{
-	return split_huge_page_to_list_to_order(page, NULL, 0);
+    unsigned int new_order);
+static inline int split_huge_page(struct page *page) {
+  return split_huge_page_to_list_to_order(page, NULL, 0);
 }
+
 void deferred_split_folio(struct folio *folio);
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct folio *folio);
+    unsigned long address, bool freeze, struct folio *folio);
 
-#define split_huge_pmd(__vma, __pmd, __address)				\
-	do {								\
-		pmd_t *____pmd = (__pmd);				\
-		if (is_swap_pmd(*____pmd) || pmd_trans_huge(*____pmd)	\
-					|| pmd_devmap(*____pmd))	\
-			__split_huge_pmd(__vma, __pmd, __address,	\
-						false, NULL);		\
-	}  while (0)
-
+#define split_huge_pmd(__vma, __pmd, __address)       \
+  do {                \
+    pmd_t *____pmd = (__pmd);       \
+    if (is_swap_pmd(*____pmd) || pmd_trans_huge(*____pmd) \
+        || pmd_devmap(*____pmd))  \
+    __split_huge_pmd(__vma, __pmd, __address, \
+    false, NULL);   \
+  } while (0)
 
 void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
-		bool freeze, struct folio *folio);
+    bool freeze, struct folio *folio);
 
 void __split_huge_pud(struct vm_area_struct *vma, pud_t *pud,
-		unsigned long address);
+    unsigned long address);
 
-#define split_huge_pud(__vma, __pud, __address)				\
-	do {								\
-		pud_t *____pud = (__pud);				\
-		if (pud_trans_huge(*____pud)				\
-					|| pud_devmap(*____pud))	\
-			__split_huge_pud(__vma, __pud, __address);	\
-	}  while (0)
+#define split_huge_pud(__vma, __pud, __address)       \
+  do {                \
+    pud_t *____pud = (__pud);       \
+    if (pud_trans_huge(*____pud)        \
+        || pud_devmap(*____pud))  \
+    __split_huge_pud(__vma, __pud, __address);  \
+  } while (0)
 
 int hugepage_madvise(struct vm_area_struct *vma, unsigned long *vm_flags,
-		     int advice);
+    int advice);
 int madvise_collapse(struct vm_area_struct *vma,
-		     struct vm_area_struct **prev,
-		     unsigned long start, unsigned long end);
+    struct vm_area_struct **prev,
+    unsigned long start, unsigned long end);
 void vma_adjust_trans_huge(struct vm_area_struct *vma, unsigned long start,
-			   unsigned long end, long adjust_next);
+    unsigned long end, long adjust_next);
 spinlock_t *__pmd_trans_huge_lock(pmd_t *pmd, struct vm_area_struct *vma);
 spinlock_t *__pud_trans_huge_lock(pud_t *pud, struct vm_area_struct *vma);
 
-static inline int is_swap_pmd(pmd_t pmd)
-{
-	return !pmd_none(pmd) && !pmd_present(pmd);
+static inline int is_swap_pmd(pmd_t pmd) {
+  return !pmd_none(pmd) && !pmd_present(pmd);
 }
 
 /* mmap_lock must be held on entry */
 static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
-		struct vm_area_struct *vma)
-{
-	if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd))
-		return __pmd_trans_huge_lock(pmd, vma);
-	else
-		return NULL;
+    struct vm_area_struct *vma) {
+  if (is_swap_pmd(*pmd) || pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
+    return __pmd_trans_huge_lock(pmd, vma);
+  } else {
+    return NULL;
+  }
 }
+
 static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
-		struct vm_area_struct *vma)
-{
-	if (pud_trans_huge(*pud) || pud_devmap(*pud))
-		return __pud_trans_huge_lock(pud, vma);
-	else
-		return NULL;
+    struct vm_area_struct *vma) {
+  if (pud_trans_huge(*pud) || pud_devmap(*pud)) {
+    return __pud_trans_huge_lock(pud, vma);
+  } else {
+    return NULL;
+  }
 }
 
 /**
  * folio_test_pmd_mappable - Can we map this folio with a PMD?
  * @folio: The folio to test
  */
-static inline bool folio_test_pmd_mappable(struct folio *folio)
-{
-	return folio_order(folio) >= HPAGE_PMD_ORDER;
+static inline bool folio_test_pmd_mappable(struct folio *folio) {
+  return folio_order(folio) >= HPAGE_PMD_ORDER;
 }
 
 struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
-		pmd_t *pmd, int flags, struct dev_pagemap **pgmap);
+    pmd_t *pmd, int flags, struct dev_pagemap **pgmap);
 struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
-		pud_t *pud, int flags, struct dev_pagemap **pgmap);
+    pud_t *pud, int flags, struct dev_pagemap **pgmap);
 
 vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf);
 
 extern struct page *huge_zero_page;
 extern unsigned long huge_zero_pfn;
 
-static inline bool is_huge_zero_page(struct page *page)
-{
-	return READ_ONCE(huge_zero_page) == page;
+static inline bool is_huge_zero_page(struct page *page) {
+  return READ_ONCE(huge_zero_page) == page;
 }
 
-static inline bool is_huge_zero_pmd(pmd_t pmd)
-{
-	return pmd_present(pmd) && READ_ONCE(huge_zero_pfn) == pmd_pfn(pmd);
+static inline bool is_huge_zero_pmd(pmd_t pmd) {
+  return pmd_present(pmd) && READ_ONCE(huge_zero_pfn) == pmd_pfn(pmd);
 }
 
-static inline bool is_huge_zero_pud(pud_t pud)
-{
-	return false;
+static inline bool is_huge_zero_pud(pud_t pud) {
+  return false;
 }
 
 struct page *mm_get_huge_zero_page(struct mm_struct *mm);
@@ -372,9 +354,8 @@ void mm_put_huge_zero_page(struct mm_struct *mm);
 
 #define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
 
-static inline bool thp_migration_supported(void)
-{
-	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
+static inline bool thp_migration_supported(void) {
+  return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
 }
 
 #else /* CONFIG_TRANSPARENT_HUGEPAGE */
@@ -386,150 +367,138 @@ static inline bool thp_migration_supported(void)
 #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
 #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
 
-static inline bool folio_test_pmd_mappable(struct folio *folio)
-{
-	return false;
+static inline bool folio_test_pmd_mappable(struct folio *folio) {
+  return false;
 }
 
 static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
-		unsigned long addr, int order)
-{
-	return false;
+    unsigned long addr, int order) {
+  return false;
 }
 
 static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
-		unsigned long addr, unsigned long orders)
-{
-	return 0;
+    unsigned long addr, unsigned long orders) {
+  return 0;
 }
 
 static inline unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
-					unsigned long vm_flags, bool smaps,
-					bool in_pf, bool enforce_sysfs,
-					unsigned long orders)
-{
-	return 0;
+    unsigned long vm_flags, bool smaps,
+    bool in_pf, bool enforce_sysfs,
+    unsigned long orders) {
+  return 0;
 }
 
-static inline void folio_prep_large_rmappable(struct folio *folio) {}
+static inline void folio_prep_large_rmappable(struct folio *folio) {
+}
 
 #define transparent_hugepage_flags 0UL
 
-#define thp_get_unmapped_area	NULL
+#define thp_get_unmapped_area NULL
 
-static inline bool
-can_split_folio(struct folio *folio, int *pextra_pins)
-{
-	return false;
+static inline bool can_split_folio(struct folio *folio, int *pextra_pins) {
+  return false;
 }
-static inline int
-split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
-		unsigned int new_order)
-{
-	return 0;
+
+static inline int split_huge_page_to_list_to_order(struct page *page,
+    struct list_head *list,
+    unsigned int new_order) {
+  return 0;
 }
-static inline int split_huge_page(struct page *page)
-{
-	return 0;
+
+static inline int split_huge_page(struct page *page) {
+  return 0;
 }
-static inline void deferred_split_folio(struct folio *folio) {}
-#define split_huge_pmd(__vma, __pmd, __address)	\
-	do { } while (0)
+
+static inline void deferred_split_folio(struct folio *folio) {
+}
+
+#define split_huge_pmd(__vma, __pmd, __address) \
+  do {} while (0)
 
 static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct folio *folio) {}
-static inline void split_huge_pmd_address(struct vm_area_struct *vma,
-		unsigned long address, bool freeze, struct folio *folio) {}
+    unsigned long address, bool freeze, struct folio *folio) {
+}
 
-#define split_huge_pud(__vma, __pmd, __address)	\
-	do { } while (0)
+static inline void split_huge_pmd_address(struct vm_area_struct *vma,
+    unsigned long address, bool freeze, struct folio *folio) {
+}
+
+#define split_huge_pud(__vma, __pmd, __address) \
+  do {} while (0)
 
 static inline int hugepage_madvise(struct vm_area_struct *vma,
-				   unsigned long *vm_flags, int advice)
-{
-	return -EINVAL;
+    unsigned long *vm_flags, int advice) {
+  return -EINVAL;
 }
 
 static inline int madvise_collapse(struct vm_area_struct *vma,
-				   struct vm_area_struct **prev,
-				   unsigned long start, unsigned long end)
-{
-	return -EINVAL;
+    struct vm_area_struct **prev,
+    unsigned long start, unsigned long end) {
+  return -EINVAL;
 }
 
 static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
-					 unsigned long start,
-					 unsigned long end,
-					 long adjust_next)
-{
+    unsigned long start,
+    unsigned long end,
+    long adjust_next) {
 }
-static inline int is_swap_pmd(pmd_t pmd)
-{
-	return 0;
+
+static inline int is_swap_pmd(pmd_t pmd) {
+  return 0;
 }
+
 static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
-		struct vm_area_struct *vma)
-{
-	return NULL;
+    struct vm_area_struct *vma) {
+  return NULL;
 }
+
 static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
-		struct vm_area_struct *vma)
-{
-	return NULL;
+    struct vm_area_struct *vma) {
+  return NULL;
 }
 
-static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
-{
-	return 0;
+static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf) {
+  return 0;
 }
 
-static inline bool is_huge_zero_page(struct page *page)
-{
-	return false;
+static inline bool is_huge_zero_page(struct page *page) {
+  return false;
 }
 
-static inline bool is_huge_zero_pmd(pmd_t pmd)
-{
-	return false;
+static inline bool is_huge_zero_pmd(pmd_t pmd) {
+  return false;
 }
 
-static inline bool is_huge_zero_pud(pud_t pud)
-{
-	return false;
+static inline bool is_huge_zero_pud(pud_t pud) {
+  return false;
 }
 
-static inline void mm_put_huge_zero_page(struct mm_struct *mm)
-{
-	return;
+static inline void mm_put_huge_zero_page(struct mm_struct *mm) {
 }
 
 static inline struct page *follow_devmap_pmd(struct vm_area_struct *vma,
-	unsigned long addr, pmd_t *pmd, int flags, struct dev_pagemap **pgmap)
-{
-	return NULL;
+    unsigned long addr, pmd_t *pmd, int flags, struct dev_pagemap **pgmap) {
+  return NULL;
 }
 
 static inline struct page *follow_devmap_pud(struct vm_area_struct *vma,
-	unsigned long addr, pud_t *pud, int flags, struct dev_pagemap **pgmap)
-{
-	return NULL;
+    unsigned long addr, pud_t *pud, int flags, struct dev_pagemap **pgmap) {
+  return NULL;
 }
 
-static inline bool thp_migration_supported(void)
-{
-	return false;
+static inline bool thp_migration_supported(void) {
+  return false;
 }
+
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 static inline int split_folio_to_list_to_order(struct folio *folio,
-		struct list_head *list, int new_order)
-{
-	return split_huge_page_to_list_to_order(&folio->page, list, new_order);
+    struct list_head *list, int new_order) {
+  return split_huge_page_to_list_to_order(&folio->page, list, new_order);
 }
 
-static inline int split_folio_to_order(struct folio *folio, int new_order)
-{
-	return split_folio_to_list_to_order(folio, NULL, new_order);
+static inline int split_folio_to_order(struct folio *folio, int new_order) {
+  return split_folio_to_list_to_order(folio, NULL, new_order);
 }
 
 #define split_folio_to_list(f, l) split_folio_to_list_to_order(f, l, 0)
@@ -541,10 +510,10 @@ static inline int split_folio_to_order(struct folio *folio, int new_order)
  * false
  */
 #ifndef arch_thp_swp_supported
-static inline bool arch_thp_swp_supported(void)
-{
-	return true;
+static inline bool arch_thp_swp_supported(void) {
+  return true;
 }
+
 #endif
 
 #endif /* _LINUX_HUGE_MM_H */

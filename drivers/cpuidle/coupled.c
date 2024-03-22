@@ -95,13 +95,13 @@
  * @prevent: flag to prevent coupled idle while a cpu is hotplugging
  */
 struct cpuidle_coupled {
-	cpumask_t coupled_cpus;
-	int requested_state[NR_CPUS];
-	atomic_t ready_waiting_counts;
-	atomic_t abort_barrier;
-	int online_count;
-	int refcnt;
-	int prevent;
+  cpumask_t coupled_cpus;
+  int requested_state[NR_CPUS];
+  atomic_t ready_waiting_counts;
+  atomic_t abort_barrier;
+  int online_count;
+  int refcnt;
+  int prevent;
 };
 
 #define WAITING_BITS 16
@@ -109,7 +109,7 @@ struct cpuidle_coupled {
 #define WAITING_MASK (MAX_WAITING_CPUS - 1)
 #define READY_MASK (~WAITING_MASK)
 
-#define CPUIDLE_COUPLED_NOT_IDLE	(-1)
+#define CPUIDLE_COUPLED_NOT_IDLE  (-1)
 
 static DEFINE_PER_CPU(call_single_data_t, cpuidle_coupled_poke_cb);
 
@@ -146,23 +146,20 @@ static cpumask_t cpuidle_coupled_poked;
  *
  * Provides full smp barrier semantics before and after calling.
  */
-void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
-{
-	int n = dev->coupled->online_count;
-
-	smp_mb__before_atomic();
-	atomic_inc(a);
-
-	while (atomic_read(a) < n)
-		cpu_relax();
-
-	if (atomic_inc_return(a) == n * 2) {
-		atomic_set(a, 0);
-		return;
-	}
-
-	while (atomic_read(a) > n)
-		cpu_relax();
+void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a) {
+  int n = dev->coupled->online_count;
+  smp_mb__before_atomic();
+  atomic_inc(a);
+  while (atomic_read(a) < n) {
+    cpu_relax();
+  }
+  if (atomic_inc_return(a) == n * 2) {
+    atomic_set(a, 0);
+    return;
+  }
+  while (atomic_read(a) > n) {
+    cpu_relax();
+  }
 }
 
 /**
@@ -172,9 +169,8 @@ void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
  *
  * Returns true if the target state is coupled with cpus besides this one
  */
-bool cpuidle_state_is_coupled(struct cpuidle_driver *drv, int state)
-{
-	return drv->states[state].flags & CPUIDLE_FLAG_COUPLED;
+bool cpuidle_state_is_coupled(struct cpuidle_driver *drv, int state) {
+  return drv->states[state].flags & CPUIDLE_FLAG_COUPLED;
 }
 
 /**
@@ -184,28 +180,25 @@ bool cpuidle_state_is_coupled(struct cpuidle_driver *drv, int state)
  * Returns 0 for valid state values, a negative error code otherwise:
  *  * -EINVAL if any coupled state(safe_state_index) is wrongly set.
  */
-int cpuidle_coupled_state_verify(struct cpuidle_driver *drv)
-{
-	int i;
-
-	for (i = drv->state_count - 1; i >= 0; i--) {
-		if (cpuidle_state_is_coupled(drv, i) &&
-		    (drv->safe_state_index == i ||
-		     drv->safe_state_index < 0 ||
-		     drv->safe_state_index >= drv->state_count))
-			return -EINVAL;
-	}
-
-	return 0;
+int cpuidle_coupled_state_verify(struct cpuidle_driver *drv) {
+  int i;
+  for (i = drv->state_count - 1; i >= 0; i--) {
+    if (cpuidle_state_is_coupled(drv, i)
+        && (drv->safe_state_index == i
+        || drv->safe_state_index < 0
+        || drv->safe_state_index >= drv->state_count)) {
+      return -EINVAL;
+    }
+  }
+  return 0;
 }
 
 /**
  * cpuidle_coupled_set_ready - mark a cpu as ready
  * @coupled: the struct coupled that contains the current cpu
  */
-static inline void cpuidle_coupled_set_ready(struct cpuidle_coupled *coupled)
-{
-	atomic_add(MAX_WAITING_CPUS, &coupled->ready_waiting_counts);
+static inline void cpuidle_coupled_set_ready(struct cpuidle_coupled *coupled) {
+  atomic_add(MAX_WAITING_CPUS, &coupled->ready_waiting_counts);
 }
 
 /**
@@ -223,16 +216,13 @@ static inline void cpuidle_coupled_set_ready(struct cpuidle_coupled *coupled)
  * counter was equal to the number of online cpus.
  */
 static
-inline int cpuidle_coupled_set_not_ready(struct cpuidle_coupled *coupled)
-{
-	int all;
-	int ret;
-
-	all = coupled->online_count | (coupled->online_count << WAITING_BITS);
-	ret = atomic_add_unless(&coupled->ready_waiting_counts,
-		-MAX_WAITING_CPUS, all);
-
-	return ret ? 0 : -EINVAL;
+inline int cpuidle_coupled_set_not_ready(struct cpuidle_coupled *coupled) {
+  int all;
+  int ret;
+  all = coupled->online_count | (coupled->online_count << WAITING_BITS);
+  ret = atomic_add_unless(&coupled->ready_waiting_counts,
+      -MAX_WAITING_CPUS, all);
+  return ret ? 0 : -EINVAL;
 }
 
 /**
@@ -243,8 +233,8 @@ inline int cpuidle_coupled_set_not_ready(struct cpuidle_coupled *coupled)
  */
 static inline int cpuidle_coupled_no_cpus_ready(struct cpuidle_coupled *coupled)
 {
-	int r = atomic_read(&coupled->ready_waiting_counts) >> WAITING_BITS;
-	return r == 0;
+  int r = atomic_read(&coupled->ready_waiting_counts) >> WAITING_BITS;
+  return r == 0;
 }
 
 /**
@@ -253,10 +243,9 @@ static inline int cpuidle_coupled_no_cpus_ready(struct cpuidle_coupled *coupled)
  *
  * Returns true if all cpus coupled to this target state are in the ready loop
  */
-static inline bool cpuidle_coupled_cpus_ready(struct cpuidle_coupled *coupled)
-{
-	int r = atomic_read(&coupled->ready_waiting_counts) >> WAITING_BITS;
-	return r == coupled->online_count;
+static inline bool cpuidle_coupled_cpus_ready(struct cpuidle_coupled *coupled) {
+  int r = atomic_read(&coupled->ready_waiting_counts) >> WAITING_BITS;
+  return r == coupled->online_count;
 }
 
 /**
@@ -267,8 +256,8 @@ static inline bool cpuidle_coupled_cpus_ready(struct cpuidle_coupled *coupled)
  */
 static inline bool cpuidle_coupled_cpus_waiting(struct cpuidle_coupled *coupled)
 {
-	int w = atomic_read(&coupled->ready_waiting_counts) & WAITING_MASK;
-	return w == coupled->online_count;
+  int w = atomic_read(&coupled->ready_waiting_counts) & WAITING_MASK;
+  return w == coupled->online_count;
 }
 
 /**
@@ -277,10 +266,10 @@ static inline bool cpuidle_coupled_cpus_waiting(struct cpuidle_coupled *coupled)
  *
  * Returns true if all of the cpus in a coupled set are out of the waiting loop.
  */
-static inline int cpuidle_coupled_no_cpus_waiting(struct cpuidle_coupled *coupled)
-{
-	int w = atomic_read(&coupled->ready_waiting_counts) & WAITING_MASK;
-	return w == 0;
+static inline int cpuidle_coupled_no_cpus_waiting(
+    struct cpuidle_coupled *coupled) {
+  int w = atomic_read(&coupled->ready_waiting_counts) & WAITING_MASK;
+  return w == 0;
 }
 
 /**
@@ -291,30 +280,26 @@ static inline int cpuidle_coupled_no_cpus_waiting(struct cpuidle_coupled *couple
  * Returns the deepest idle state that all coupled cpus can enter
  */
 static inline int cpuidle_coupled_get_state(struct cpuidle_device *dev,
-		struct cpuidle_coupled *coupled)
-{
-	int i;
-	int state = INT_MAX;
-
-	/*
-	 * Read barrier ensures that read of requested_state is ordered after
-	 * reads of ready_count.  Matches the write barriers
-	 * cpuidle_set_state_waiting.
-	 */
-	smp_rmb();
-
-	for_each_cpu(i, &coupled->coupled_cpus)
-		if (cpu_online(i) && coupled->requested_state[i] < state)
-			state = coupled->requested_state[i];
-
-	return state;
+    struct cpuidle_coupled *coupled) {
+  int i;
+  int state = INT_MAX;
+  /*
+   * Read barrier ensures that read of requested_state is ordered after
+   * reads of ready_count.  Matches the write barriers
+   * cpuidle_set_state_waiting.
+   */
+  smp_rmb();
+  for_each_cpu(i, &coupled->coupled_cpus)
+  if (cpu_online(i) && coupled->requested_state[i] < state) {
+    state = coupled->requested_state[i];
+  }
+  return state;
 }
 
-static void cpuidle_coupled_handle_poke(void *info)
-{
-	int cpu = (unsigned long)info;
-	cpumask_set_cpu(cpu, &cpuidle_coupled_poked);
-	cpumask_clear_cpu(cpu, &cpuidle_coupled_poke_pending);
+static void cpuidle_coupled_handle_poke(void *info) {
+  int cpu = (unsigned long) info;
+  cpumask_set_cpu(cpu, &cpuidle_coupled_poked);
+  cpumask_clear_cpu(cpu, &cpuidle_coupled_poke_pending);
 }
 
 /**
@@ -329,12 +314,11 @@ static void cpuidle_coupled_handle_poke(void *info)
  * either has or will soon have a pending IPI that will wake it out of idle,
  * or it is currently processing the IPI and is not in idle.
  */
-static void cpuidle_coupled_poke(int cpu)
-{
-	call_single_data_t *csd = &per_cpu(cpuidle_coupled_poke_cb, cpu);
-
-	if (!cpumask_test_and_set_cpu(cpu, &cpuidle_coupled_poke_pending))
-		smp_call_function_single_async(cpu, csd);
+static void cpuidle_coupled_poke(int cpu) {
+  call_single_data_t *csd = &per_cpu(cpuidle_coupled_poke_cb, cpu);
+  if (!cpumask_test_and_set_cpu(cpu, &cpuidle_coupled_poke_pending)) {
+    smp_call_function_single_async(cpu, csd);
+  }
 }
 
 /**
@@ -345,13 +329,12 @@ static void cpuidle_coupled_poke(int cpu)
  * Calls cpuidle_coupled_poke on all other online cpus.
  */
 static void cpuidle_coupled_poke_others(int this_cpu,
-		struct cpuidle_coupled *coupled)
-{
-	int cpu;
-
-	for_each_cpu(cpu, &coupled->coupled_cpus)
-		if (cpu != this_cpu && cpu_online(cpu))
-			cpuidle_coupled_poke(cpu);
+    struct cpuidle_coupled *coupled) {
+  int cpu;
+  for_each_cpu(cpu, &coupled->coupled_cpus)
+  if (cpu != this_cpu && cpu_online(cpu)) {
+    cpuidle_coupled_poke(cpu);
+  }
 }
 
 /**
@@ -364,15 +347,13 @@ static void cpuidle_coupled_poke_others(int this_cpu,
  * Returns the number of waiting cpus.
  */
 static int cpuidle_coupled_set_waiting(int cpu,
-		struct cpuidle_coupled *coupled, int next_state)
-{
-	coupled->requested_state[cpu] = next_state;
-
-	/*
-	 * The atomic_inc_return provides a write barrier to order the write
-	 * to requested_state with the later write that increments ready_count.
-	 */
-	return atomic_inc_return(&coupled->ready_waiting_counts) & WAITING_MASK;
+    struct cpuidle_coupled *coupled, int next_state) {
+  coupled->requested_state[cpu] = next_state;
+  /*
+   * The atomic_inc_return provides a write barrier to order the write
+   * to requested_state with the later write that increments ready_count.
+   */
+  return atomic_inc_return(&coupled->ready_waiting_counts) & WAITING_MASK;
 }
 
 /**
@@ -383,17 +364,15 @@ static int cpuidle_coupled_set_waiting(int cpu,
  * Removes the requested idle state for the specified cpuidle device.
  */
 static void cpuidle_coupled_set_not_waiting(int cpu,
-		struct cpuidle_coupled *coupled)
-{
-	/*
-	 * Decrementing waiting count can race with incrementing it in
-	 * cpuidle_coupled_set_waiting, but that's OK.  Worst case, some
-	 * cpus will increment ready_count and then spin until they
-	 * notice that this cpu has cleared it's requested_state.
-	 */
-	atomic_dec(&coupled->ready_waiting_counts);
-
-	coupled->requested_state[cpu] = CPUIDLE_COUPLED_NOT_IDLE;
+    struct cpuidle_coupled *coupled) {
+  /*
+   * Decrementing waiting count can race with incrementing it in
+   * cpuidle_coupled_set_waiting, but that's OK.  Worst case, some
+   * cpus will increment ready_count and then spin until they
+   * notice that this cpu has cleared it's requested_state.
+   */
+  atomic_dec(&coupled->ready_waiting_counts);
+  coupled->requested_state[cpu] = CPUIDLE_COUPLED_NOT_IDLE;
 }
 
 /**
@@ -405,10 +384,9 @@ static void cpuidle_coupled_set_not_waiting(int cpu,
  * the waiting count first to prevent another cpu looping back in and seeing
  * this cpu as waiting just before it exits idle.
  */
-static void cpuidle_coupled_set_done(int cpu, struct cpuidle_coupled *coupled)
-{
-	cpuidle_coupled_set_not_waiting(cpu, coupled);
-	atomic_sub(MAX_WAITING_CPUS, &coupled->ready_waiting_counts);
+static void cpuidle_coupled_set_done(int cpu, struct cpuidle_coupled *coupled) {
+  cpuidle_coupled_set_not_waiting(cpu, coupled);
+  atomic_sub(MAX_WAITING_CPUS, &coupled->ready_waiting_counts);
 }
 
 /**
@@ -424,28 +402,24 @@ static void cpuidle_coupled_set_done(int cpu, struct cpuidle_coupled *coupled)
  *
  * Returns 0 if no poke was pending, 1 if a poke was cleared.
  */
-static int cpuidle_coupled_clear_pokes(int cpu)
-{
-	if (!cpumask_test_cpu(cpu, &cpuidle_coupled_poke_pending))
-		return 0;
-
-	local_irq_enable();
-	while (cpumask_test_cpu(cpu, &cpuidle_coupled_poke_pending))
-		cpu_relax();
-	local_irq_disable();
-
-	return 1;
+static int cpuidle_coupled_clear_pokes(int cpu) {
+  if (!cpumask_test_cpu(cpu, &cpuidle_coupled_poke_pending)) {
+    return 0;
+  }
+  local_irq_enable();
+  while (cpumask_test_cpu(cpu, &cpuidle_coupled_poke_pending)) {
+    cpu_relax();
+  }
+  local_irq_disable();
+  return 1;
 }
 
-static bool cpuidle_coupled_any_pokes_pending(struct cpuidle_coupled *coupled)
-{
-	cpumask_t cpus;
-	int ret;
-
-	cpumask_and(&cpus, cpu_online_mask, &coupled->coupled_cpus);
-	ret = cpumask_and(&cpus, &cpuidle_coupled_poke_pending, &cpus);
-
-	return ret;
+static bool cpuidle_coupled_any_pokes_pending(struct cpuidle_coupled *coupled) {
+  cpumask_t cpus;
+  int ret;
+  cpumask_and(&cpus, cpu_online_mask, &coupled->coupled_cpus);
+  ret = cpumask_and(&cpus, &cpuidle_coupled_poke_pending, &cpus);
+  return ret;
 }
 
 /**
@@ -468,167 +442,149 @@ static bool cpuidle_coupled_any_pokes_pending(struct cpuidle_coupled *coupled)
  * interrupts enabled.
  */
 int cpuidle_enter_state_coupled(struct cpuidle_device *dev,
-		struct cpuidle_driver *drv, int next_state)
-{
-	int entered_state = -1;
-	struct cpuidle_coupled *coupled = dev->coupled;
-	int w;
-
-	if (!coupled)
-		return -EINVAL;
-
-	while (coupled->prevent) {
-		cpuidle_coupled_clear_pokes(dev->cpu);
-		if (need_resched()) {
-			local_irq_enable();
-			return entered_state;
-		}
-		entered_state = cpuidle_enter_state(dev, drv,
-			drv->safe_state_index);
-		local_irq_disable();
-	}
-
-	/* Read barrier ensures online_count is read after prevent is cleared */
-	smp_rmb();
-
+    struct cpuidle_driver *drv, int next_state) {
+  int entered_state = -1;
+  struct cpuidle_coupled *coupled = dev->coupled;
+  int w;
+  if (!coupled) {
+    return -EINVAL;
+  }
+  while (coupled->prevent) {
+    cpuidle_coupled_clear_pokes(dev->cpu);
+    if (need_resched()) {
+      local_irq_enable();
+      return entered_state;
+    }
+    entered_state = cpuidle_enter_state(dev, drv,
+        drv->safe_state_index);
+    local_irq_disable();
+  }
+  /* Read barrier ensures online_count is read after prevent is cleared */
+  smp_rmb();
 reset:
-	cpumask_clear_cpu(dev->cpu, &cpuidle_coupled_poked);
-
-	w = cpuidle_coupled_set_waiting(dev->cpu, coupled, next_state);
-	/*
-	 * If this is the last cpu to enter the waiting state, poke
-	 * all the other cpus out of their waiting state so they can
-	 * enter a deeper state.  This can race with one of the cpus
-	 * exiting the waiting state due to an interrupt and
-	 * decrementing waiting_count, see comment below.
-	 */
-	if (w == coupled->online_count) {
-		cpumask_set_cpu(dev->cpu, &cpuidle_coupled_poked);
-		cpuidle_coupled_poke_others(dev->cpu, coupled);
-	}
-
+  cpumask_clear_cpu(dev->cpu, &cpuidle_coupled_poked);
+  w = cpuidle_coupled_set_waiting(dev->cpu, coupled, next_state);
+  /*
+   * If this is the last cpu to enter the waiting state, poke
+   * all the other cpus out of their waiting state so they can
+   * enter a deeper state.  This can race with one of the cpus
+   * exiting the waiting state due to an interrupt and
+   * decrementing waiting_count, see comment below.
+   */
+  if (w == coupled->online_count) {
+    cpumask_set_cpu(dev->cpu, &cpuidle_coupled_poked);
+    cpuidle_coupled_poke_others(dev->cpu, coupled);
+  }
 retry:
-	/*
-	 * Wait for all coupled cpus to be idle, using the deepest state
-	 * allowed for a single cpu.  If this was not the poking cpu, wait
-	 * for at least one poke before leaving to avoid a race where
-	 * two cpus could arrive at the waiting loop at the same time,
-	 * but the first of the two to arrive could skip the loop without
-	 * processing the pokes from the last to arrive.
-	 */
-	while (!cpuidle_coupled_cpus_waiting(coupled) ||
-			!cpumask_test_cpu(dev->cpu, &cpuidle_coupled_poked)) {
-		if (cpuidle_coupled_clear_pokes(dev->cpu))
-			continue;
-
-		if (need_resched()) {
-			cpuidle_coupled_set_not_waiting(dev->cpu, coupled);
-			goto out;
-		}
-
-		if (coupled->prevent) {
-			cpuidle_coupled_set_not_waiting(dev->cpu, coupled);
-			goto out;
-		}
-
-		entered_state = cpuidle_enter_state(dev, drv,
-			drv->safe_state_index);
-		local_irq_disable();
-	}
-
-	cpuidle_coupled_clear_pokes(dev->cpu);
-	if (need_resched()) {
-		cpuidle_coupled_set_not_waiting(dev->cpu, coupled);
-		goto out;
-	}
-
-	/*
-	 * Make sure final poke status for this cpu is visible before setting
-	 * cpu as ready.
-	 */
-	smp_wmb();
-
-	/*
-	 * All coupled cpus are probably idle.  There is a small chance that
-	 * one of the other cpus just became active.  Increment the ready count,
-	 * and spin until all coupled cpus have incremented the counter. Once a
-	 * cpu has incremented the ready counter, it cannot abort idle and must
-	 * spin until either all cpus have incremented the ready counter, or
-	 * another cpu leaves idle and decrements the waiting counter.
-	 */
-
-	cpuidle_coupled_set_ready(coupled);
-	while (!cpuidle_coupled_cpus_ready(coupled)) {
-		/* Check if any other cpus bailed out of idle. */
-		if (!cpuidle_coupled_cpus_waiting(coupled))
-			if (!cpuidle_coupled_set_not_ready(coupled))
-				goto retry;
-
-		cpu_relax();
-	}
-
-	/*
-	 * Make sure read of all cpus ready is done before reading pending pokes
-	 */
-	smp_rmb();
-
-	/*
-	 * There is a small chance that a cpu left and reentered idle after this
-	 * cpu saw that all cpus were waiting.  The cpu that reentered idle will
-	 * have sent this cpu a poke, which will still be pending after the
-	 * ready loop.  The pending interrupt may be lost by the interrupt
-	 * controller when entering the deep idle state.  It's not possible to
-	 * clear a pending interrupt without turning interrupts on and handling
-	 * it, and it's too late to turn on interrupts here, so reset the
-	 * coupled idle state of all cpus and retry.
-	 */
-	if (cpuidle_coupled_any_pokes_pending(coupled)) {
-		cpuidle_coupled_set_done(dev->cpu, coupled);
-		/* Wait for all cpus to see the pending pokes */
-		cpuidle_coupled_parallel_barrier(dev, &coupled->abort_barrier);
-		goto reset;
-	}
-
-	/* all cpus have acked the coupled state */
-	next_state = cpuidle_coupled_get_state(dev, coupled);
-
-	entered_state = cpuidle_enter_state(dev, drv, next_state);
-
-	cpuidle_coupled_set_done(dev->cpu, coupled);
-
+  /*
+   * Wait for all coupled cpus to be idle, using the deepest state
+   * allowed for a single cpu.  If this was not the poking cpu, wait
+   * for at least one poke before leaving to avoid a race where
+   * two cpus could arrive at the waiting loop at the same time,
+   * but the first of the two to arrive could skip the loop without
+   * processing the pokes from the last to arrive.
+   */
+  while (!cpuidle_coupled_cpus_waiting(coupled)
+      || !cpumask_test_cpu(dev->cpu, &cpuidle_coupled_poked)) {
+    if (cpuidle_coupled_clear_pokes(dev->cpu)) {
+      continue;
+    }
+    if (need_resched()) {
+      cpuidle_coupled_set_not_waiting(dev->cpu, coupled);
+      goto out;
+    }
+    if (coupled->prevent) {
+      cpuidle_coupled_set_not_waiting(dev->cpu, coupled);
+      goto out;
+    }
+    entered_state = cpuidle_enter_state(dev, drv,
+        drv->safe_state_index);
+    local_irq_disable();
+  }
+  cpuidle_coupled_clear_pokes(dev->cpu);
+  if (need_resched()) {
+    cpuidle_coupled_set_not_waiting(dev->cpu, coupled);
+    goto out;
+  }
+  /*
+   * Make sure final poke status for this cpu is visible before setting
+   * cpu as ready.
+   */
+  smp_wmb();
+  /*
+   * All coupled cpus are probably idle.  There is a small chance that
+   * one of the other cpus just became active.  Increment the ready count,
+   * and spin until all coupled cpus have incremented the counter. Once a
+   * cpu has incremented the ready counter, it cannot abort idle and must
+   * spin until either all cpus have incremented the ready counter, or
+   * another cpu leaves idle and decrements the waiting counter.
+   */
+  cpuidle_coupled_set_ready(coupled);
+  while (!cpuidle_coupled_cpus_ready(coupled)) {
+    /* Check if any other cpus bailed out of idle. */
+    if (!cpuidle_coupled_cpus_waiting(coupled)) {
+      if (!cpuidle_coupled_set_not_ready(coupled)) {
+        goto retry;
+      }
+    }
+    cpu_relax();
+  }
+  /*
+   * Make sure read of all cpus ready is done before reading pending pokes
+   */
+  smp_rmb();
+  /*
+   * There is a small chance that a cpu left and reentered idle after this
+   * cpu saw that all cpus were waiting.  The cpu that reentered idle will
+   * have sent this cpu a poke, which will still be pending after the
+   * ready loop.  The pending interrupt may be lost by the interrupt
+   * controller when entering the deep idle state.  It's not possible to
+   * clear a pending interrupt without turning interrupts on and handling
+   * it, and it's too late to turn on interrupts here, so reset the
+   * coupled idle state of all cpus and retry.
+   */
+  if (cpuidle_coupled_any_pokes_pending(coupled)) {
+    cpuidle_coupled_set_done(dev->cpu, coupled);
+    /* Wait for all cpus to see the pending pokes */
+    cpuidle_coupled_parallel_barrier(dev, &coupled->abort_barrier);
+    goto reset;
+  }
+  /* all cpus have acked the coupled state */
+  next_state = cpuidle_coupled_get_state(dev, coupled);
+  entered_state = cpuidle_enter_state(dev, drv, next_state);
+  cpuidle_coupled_set_done(dev->cpu, coupled);
 out:
-	/*
-	 * Normal cpuidle states are expected to return with irqs enabled.
-	 * That leads to an inefficiency where a cpu receiving an interrupt
-	 * that brings it out of idle will process that interrupt before
-	 * exiting the idle enter function and decrementing ready_count.  All
-	 * other cpus will need to spin waiting for the cpu that is processing
-	 * the interrupt.  If the driver returns with interrupts disabled,
-	 * all other cpus will loop back into the safe idle state instead of
-	 * spinning, saving power.
-	 *
-	 * Calling local_irq_enable here allows coupled states to return with
-	 * interrupts disabled, but won't cause problems for drivers that
-	 * exit with interrupts enabled.
-	 */
-	local_irq_enable();
-
-	/*
-	 * Wait until all coupled cpus have exited idle.  There is no risk that
-	 * a cpu exits and re-enters the ready state because this cpu has
-	 * already decremented its waiting_count.
-	 */
-	while (!cpuidle_coupled_no_cpus_ready(coupled))
-		cpu_relax();
-
-	return entered_state;
+  /*
+   * Normal cpuidle states are expected to return with irqs enabled.
+   * That leads to an inefficiency where a cpu receiving an interrupt
+   * that brings it out of idle will process that interrupt before
+   * exiting the idle enter function and decrementing ready_count.  All
+   * other cpus will need to spin waiting for the cpu that is processing
+   * the interrupt.  If the driver returns with interrupts disabled,
+   * all other cpus will loop back into the safe idle state instead of
+   * spinning, saving power.
+   *
+   * Calling local_irq_enable here allows coupled states to return with
+   * interrupts disabled, but won't cause problems for drivers that
+   * exit with interrupts enabled.
+   */
+  local_irq_enable();
+  /*
+   * Wait until all coupled cpus have exited idle.  There is no risk that
+   * a cpu exits and re-enters the ready state because this cpu has
+   * already decremented its waiting_count.
+   */
+  while (!cpuidle_coupled_no_cpus_ready(coupled)) {
+    cpu_relax();
+  }
+  return entered_state;
 }
 
 static void cpuidle_coupled_update_online_cpus(struct cpuidle_coupled *coupled)
 {
-	cpumask_t cpus;
-	cpumask_and(&cpus, cpu_online_mask, &coupled->coupled_cpus);
-	coupled->online_count = cpumask_weight(&cpus);
+  cpumask_t cpus;
+  cpumask_and(&cpus, cpu_online_mask, &coupled->coupled_cpus);
+  coupled->online_count = cpumask_weight(&cpus);
 }
 
 /**
@@ -639,44 +595,37 @@ static void cpuidle_coupled_update_online_cpus(struct cpuidle_coupled *coupled)
  * cpuidle_coupled struct for this set of coupled cpus, or creates one if none
  * exists yet.
  */
-int cpuidle_coupled_register_device(struct cpuidle_device *dev)
-{
-	int cpu;
-	struct cpuidle_device *other_dev;
-	call_single_data_t *csd;
-	struct cpuidle_coupled *coupled;
-
-	if (cpumask_empty(&dev->coupled_cpus))
-		return 0;
-
-	for_each_cpu(cpu, &dev->coupled_cpus) {
-		other_dev = per_cpu(cpuidle_devices, cpu);
-		if (other_dev && other_dev->coupled) {
-			coupled = other_dev->coupled;
-			goto have_coupled;
-		}
-	}
-
-	/* No existing coupled info found, create a new one */
-	coupled = kzalloc(sizeof(struct cpuidle_coupled), GFP_KERNEL);
-	if (!coupled)
-		return -ENOMEM;
-
-	coupled->coupled_cpus = dev->coupled_cpus;
-
+int cpuidle_coupled_register_device(struct cpuidle_device *dev) {
+  int cpu;
+  struct cpuidle_device *other_dev;
+  call_single_data_t *csd;
+  struct cpuidle_coupled *coupled;
+  if (cpumask_empty(&dev->coupled_cpus)) {
+    return 0;
+  }
+  for_each_cpu(cpu, &dev->coupled_cpus) {
+    other_dev = per_cpu(cpuidle_devices, cpu);
+    if (other_dev && other_dev->coupled) {
+      coupled = other_dev->coupled;
+      goto have_coupled;
+    }
+  }
+  /* No existing coupled info found, create a new one */
+  coupled = kzalloc(sizeof(struct cpuidle_coupled), GFP_KERNEL);
+  if (!coupled) {
+    return -ENOMEM;
+  }
+  coupled->coupled_cpus = dev->coupled_cpus;
 have_coupled:
-	dev->coupled = coupled;
-	if (WARN_ON(!cpumask_equal(&dev->coupled_cpus, &coupled->coupled_cpus)))
-		coupled->prevent++;
-
-	cpuidle_coupled_update_online_cpus(coupled);
-
-	coupled->refcnt++;
-
-	csd = &per_cpu(cpuidle_coupled_poke_cb, dev->cpu);
-	INIT_CSD(csd, cpuidle_coupled_handle_poke, (void *)(unsigned long)dev->cpu);
-
-	return 0;
+  dev->coupled = coupled;
+  if (WARN_ON(!cpumask_equal(&dev->coupled_cpus, &coupled->coupled_cpus))) {
+    coupled->prevent++;
+  }
+  cpuidle_coupled_update_online_cpus(coupled);
+  coupled->refcnt++;
+  csd = &per_cpu(cpuidle_coupled_poke_cb, dev->cpu);
+  INIT_CSD(csd, cpuidle_coupled_handle_poke, (void *) (unsigned long) dev->cpu);
+  return 0;
 }
 
 /**
@@ -687,16 +636,15 @@ have_coupled:
  * cpu from the coupled idle set, and frees the cpuidle_coupled_info struct if
  * this was the last cpu in the set.
  */
-void cpuidle_coupled_unregister_device(struct cpuidle_device *dev)
-{
-	struct cpuidle_coupled *coupled = dev->coupled;
-
-	if (cpumask_empty(&dev->coupled_cpus))
-		return;
-
-	if (--coupled->refcnt)
-		kfree(coupled);
-	dev->coupled = NULL;
+void cpuidle_coupled_unregister_device(struct cpuidle_device *dev) {
+  struct cpuidle_coupled *coupled = dev->coupled;
+  if (cpumask_empty(&dev->coupled_cpus)) {
+    return;
+  }
+  if (--coupled->refcnt) {
+    kfree(coupled);
+  }
+  dev->coupled = NULL;
 }
 
 /**
@@ -706,16 +654,15 @@ void cpuidle_coupled_unregister_device(struct cpuidle_device *dev)
  * Disables coupled cpuidle on a coupled set of cpus.  Used to ensure that
  * cpu_online_mask doesn't change while cpus are coordinating coupled idle.
  */
-static void cpuidle_coupled_prevent_idle(struct cpuidle_coupled *coupled)
-{
-	int cpu = get_cpu();
-
-	/* Force all cpus out of the waiting loop. */
-	coupled->prevent++;
-	cpuidle_coupled_poke_others(cpu, coupled);
-	put_cpu();
-	while (!cpuidle_coupled_no_cpus_waiting(coupled))
-		cpu_relax();
+static void cpuidle_coupled_prevent_idle(struct cpuidle_coupled *coupled) {
+  int cpu = get_cpu();
+  /* Force all cpus out of the waiting loop. */
+  coupled->prevent++;
+  cpuidle_coupled_poke_others(cpu, coupled);
+  put_cpu();
+  while (!cpuidle_coupled_no_cpus_waiting(coupled)) {
+    cpu_relax();
+  }
 }
 
 /**
@@ -725,67 +672,59 @@ static void cpuidle_coupled_prevent_idle(struct cpuidle_coupled *coupled)
  * Enables coupled cpuidle on a coupled set of cpus.  Used to ensure that
  * cpu_online_mask doesn't change while cpus are coordinating coupled idle.
  */
-static void cpuidle_coupled_allow_idle(struct cpuidle_coupled *coupled)
-{
-	int cpu = get_cpu();
-
-	/*
-	 * Write barrier ensures readers see the new online_count when they
-	 * see prevent == 0.
-	 */
-	smp_wmb();
-	coupled->prevent--;
-	/* Force cpus out of the prevent loop. */
-	cpuidle_coupled_poke_others(cpu, coupled);
-	put_cpu();
+static void cpuidle_coupled_allow_idle(struct cpuidle_coupled *coupled) {
+  int cpu = get_cpu();
+  /*
+   * Write barrier ensures readers see the new online_count when they
+   * see prevent == 0.
+   */
+  smp_wmb();
+  coupled->prevent--;
+  /* Force cpus out of the prevent loop. */
+  cpuidle_coupled_poke_others(cpu, coupled);
+  put_cpu();
 }
 
-static int coupled_cpu_online(unsigned int cpu)
-{
-	struct cpuidle_device *dev;
-
-	mutex_lock(&cpuidle_lock);
-
-	dev = per_cpu(cpuidle_devices, cpu);
-	if (dev && dev->coupled) {
-		cpuidle_coupled_update_online_cpus(dev->coupled);
-		cpuidle_coupled_allow_idle(dev->coupled);
-	}
-
-	mutex_unlock(&cpuidle_lock);
-	return 0;
+static int coupled_cpu_online(unsigned int cpu) {
+  struct cpuidle_device *dev;
+  mutex_lock(&cpuidle_lock);
+  dev = per_cpu(cpuidle_devices, cpu);
+  if (dev && dev->coupled) {
+    cpuidle_coupled_update_online_cpus(dev->coupled);
+    cpuidle_coupled_allow_idle(dev->coupled);
+  }
+  mutex_unlock(&cpuidle_lock);
+  return 0;
 }
 
-static int coupled_cpu_up_prepare(unsigned int cpu)
-{
-	struct cpuidle_device *dev;
-
-	mutex_lock(&cpuidle_lock);
-
-	dev = per_cpu(cpuidle_devices, cpu);
-	if (dev && dev->coupled)
-		cpuidle_coupled_prevent_idle(dev->coupled);
-
-	mutex_unlock(&cpuidle_lock);
-	return 0;
+static int coupled_cpu_up_prepare(unsigned int cpu) {
+  struct cpuidle_device *dev;
+  mutex_lock(&cpuidle_lock);
+  dev = per_cpu(cpuidle_devices, cpu);
+  if (dev && dev->coupled) {
+    cpuidle_coupled_prevent_idle(dev->coupled);
+  }
+  mutex_unlock(&cpuidle_lock);
+  return 0;
 }
 
-static int __init cpuidle_coupled_init(void)
-{
-	int ret;
-
-	ret = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_COUPLED_PREPARE,
-					"cpuidle/coupled:prepare",
-					coupled_cpu_up_prepare,
-					coupled_cpu_online);
-	if (ret)
-		return ret;
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-					"cpuidle/coupled:online",
-					coupled_cpu_online,
-					coupled_cpu_up_prepare);
-	if (ret < 0)
-		cpuhp_remove_state_nocalls(CPUHP_CPUIDLE_COUPLED_PREPARE);
-	return ret;
+static int __init cpuidle_coupled_init(void) {
+  int ret;
+  ret = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_COUPLED_PREPARE,
+      "cpuidle/coupled:prepare",
+      coupled_cpu_up_prepare,
+      coupled_cpu_online);
+  if (ret) {
+    return ret;
+  }
+  ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+      "cpuidle/coupled:online",
+      coupled_cpu_online,
+      coupled_cpu_up_prepare);
+  if (ret < 0) {
+    cpuhp_remove_state_nocalls(CPUHP_CPUIDLE_COUPLED_PREPARE);
+  }
+  return ret;
 }
+
 core_initcall(cpuidle_coupled_init);

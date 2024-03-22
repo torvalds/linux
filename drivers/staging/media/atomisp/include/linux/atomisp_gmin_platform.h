@@ -19,16 +19,15 @@
 #include "atomisp_platform.h"
 
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
-				struct camera_sensor_platform_data *plat_data,
-				enum intel_v4l2_subdev_type type);
+    struct camera_sensor_platform_data *plat_data,
+    enum intel_v4l2_subdev_type type);
 int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd);
 int gmin_get_var_int(struct device *dev, bool is_gmin,
-		     const char *var, int def);
-struct camera_sensor_platform_data *
-gmin_camera_platform_data(
-    struct v4l2_subdev *subdev,
-    enum atomisp_input_format csi_format,
-    enum atomisp_bayer_order csi_bayer);
+    const char *var, int def);
+struct camera_sensor_platform_data *gmin_camera_platform_data(
+  struct v4l2_subdev *subdev,
+  enum atomisp_input_format csi_format,
+  enum atomisp_bayer_order csi_bayer);
 
 int atomisp_gmin_register_vcm_control(struct camera_vcm_control *);
 

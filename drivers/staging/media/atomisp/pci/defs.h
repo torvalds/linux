@@ -17,7 +17,7 @@
 #define _HRT_DEFS_H_
 
 #ifndef HRTCAT
-#define _HRTCAT(m, n)     m##n
+#define _HRTCAT(m, n)     m ## n
 #define HRTCAT(m, n)      _HRTCAT(m, n)
 #endif
 

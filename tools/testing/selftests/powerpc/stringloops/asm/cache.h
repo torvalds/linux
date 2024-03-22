@@ -1,1 +1,1 @@
-#define	IFETCH_ALIGN_BYTES 4
+#define IFETCH_ALIGN_BYTES 4

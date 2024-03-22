@@ -11,7 +11,7 @@
 #include <media/dvb_frontend.h>
 
 struct mxl301rf_config {
-	struct dvb_frontend *fe;
+  struct dvb_frontend *fe;
 };
 
 #endif /* MXL301RF_H */

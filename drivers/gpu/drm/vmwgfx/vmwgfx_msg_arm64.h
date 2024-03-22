@@ -39,91 +39,86 @@
 #define X86_IO_W7_SIZE_SHIFT 0
 #define X86_IO_W7_SIZE_MASK (0x3 << X86_IO_W7_SIZE_SHIFT)
 #define X86_IO_W7_DIR       (1 << 2)
-#define X86_IO_W7_WITH	    (1 << 3)
-#define X86_IO_W7_STR	    (1 << 4)
-#define X86_IO_W7_DF	    (1 << 5)
+#define X86_IO_W7_WITH      (1 << 3)
+#define X86_IO_W7_STR     (1 << 4)
+#define X86_IO_W7_DF      (1 << 5)
 #define X86_IO_W7_IMM_SHIFT  5
 #define X86_IO_W7_IMM_MASK  (0xff << X86_IO_W7_IMM_SHIFT)
 
 static inline void vmw_port(unsigned long cmd, unsigned long in_ebx,
-			    unsigned long in_si, unsigned long in_di,
-			    unsigned long flags, unsigned long magic,
-			    unsigned long *eax, unsigned long *ebx,
-			    unsigned long *ecx, unsigned long *edx,
-			    unsigned long *si, unsigned long *di)
-{
-	register u64 x0 asm("x0") = magic;
-	register u64 x1 asm("x1") = in_ebx;
-	register u64 x2 asm("x2") = cmd;
-	register u64 x3 asm("x3") = flags | VMWARE_HYPERVISOR_PORT;
-	register u64 x4 asm("x4") = in_si;
-	register u64 x5 asm("x5") = in_di;
-
-	register u64 x7 asm("x7") = ((u64)X86_IO_MAGIC << 32) |
-				    X86_IO_W7_WITH |
-				    X86_IO_W7_DIR |
-				    (2 << X86_IO_W7_SIZE_SHIFT);
-
-	asm volatile("mrs xzr, mdccsr_el0 \n\t"
-		     : "+r"(x0), "+r"(x1), "+r"(x2),
-		       "+r"(x3), "+r"(x4), "+r"(x5)
-		     : "r"(x7)
-		     :);
-	*eax = x0;
-	*ebx = x1;
-	*ecx = x2;
-	*edx = x3;
-	*si = x4;
-	*di = x5;
+    unsigned long in_si, unsigned long in_di,
+    unsigned long flags, unsigned long magic,
+    unsigned long *eax, unsigned long *ebx,
+    unsigned long *ecx, unsigned long *edx,
+    unsigned long *si, unsigned long *di) {
+  register u64 x0 asm ("x0") = magic;
+  register u64 x1 asm ("x1") = in_ebx;
+  register u64 x2 asm ("x2") = cmd;
+  register u64 x3 asm ("x3") = flags | VMWARE_HYPERVISOR_PORT;
+  register u64 x4 asm ("x4") = in_si;
+  register u64 x5 asm ("x5") = in_di;
+  register u64 x7 asm ("x7") = ((u64) X86_IO_MAGIC << 32)
+      | X86_IO_W7_WITH
+      | X86_IO_W7_DIR
+      | (2 << X86_IO_W7_SIZE_SHIFT);
+  asm volatile ("mrs xzr, mdccsr_el0 \n\t"
+  : "+r" (x0), "+r" (x1), "+r" (x2),
+  "+r" (x3), "+r" (x4), "+r" (x5)
+  : "r" (x7)
+  :);
+  *eax = x0;
+  *ebx = x1;
+  *ecx = x2;
+  *edx = x3;
+  *si = x4;
+  *di = x5;
 }
 
 static inline void vmw_port_hb(unsigned long cmd, unsigned long in_ecx,
-			       unsigned long in_si, unsigned long in_di,
-			       unsigned long flags, unsigned long magic,
-			       unsigned long bp, u32 w7dir,
-			       unsigned long *eax, unsigned long *ebx,
-			       unsigned long *ecx, unsigned long *edx,
-			       unsigned long *si, unsigned long *di)
-{
-	register u64 x0 asm("x0") = magic;
-	register u64 x1 asm("x1") = cmd;
-	register u64 x2 asm("x2") = in_ecx;
-	register u64 x3 asm("x3") = flags | VMWARE_HYPERVISOR_PORT_HB;
-	register u64 x4 asm("x4") = in_si;
-	register u64 x5 asm("x5") = in_di;
-	register u64 x6 asm("x6") = bp;
-	register u64 x7 asm("x7") = ((u64)X86_IO_MAGIC << 32) |
-				    X86_IO_W7_STR |
-				    X86_IO_W7_WITH |
-				    w7dir;
-
-	asm volatile("mrs xzr, mdccsr_el0 \n\t"
-		     : "+r"(x0), "+r"(x1), "+r"(x2),
-		       "+r"(x3), "+r"(x4), "+r"(x5)
-		     : "r"(x6), "r"(x7)
-		     :);
-	*eax = x0;
-	*ebx = x1;
-	*ecx = x2;
-	*edx = x3;
-	*si  = x4;
-	*di  = x5;
+    unsigned long in_si, unsigned long in_di,
+    unsigned long flags, unsigned long magic,
+    unsigned long bp, u32 w7dir,
+    unsigned long *eax, unsigned long *ebx,
+    unsigned long *ecx, unsigned long *edx,
+    unsigned long *si, unsigned long *di) {
+  register u64 x0 asm ("x0") = magic;
+  register u64 x1 asm ("x1") = cmd;
+  register u64 x2 asm ("x2") = in_ecx;
+  register u64 x3 asm ("x3") = flags | VMWARE_HYPERVISOR_PORT_HB;
+  register u64 x4 asm ("x4") = in_si;
+  register u64 x5 asm ("x5") = in_di;
+  register u64 x6 asm ("x6") = bp;
+  register u64 x7 asm ("x7") = ((u64) X86_IO_MAGIC << 32)
+      | X86_IO_W7_STR
+      | X86_IO_W7_WITH
+      | w7dir;
+  asm volatile ("mrs xzr, mdccsr_el0 \n\t"
+  : "+r" (x0), "+r" (x1), "+r" (x2),
+  "+r" (x3), "+r" (x4), "+r" (x5)
+  : "r" (x6), "r" (x7)
+  :);
+  *eax = x0;
+  *ebx = x1;
+  *ecx = x2;
+  *edx = x3;
+  *si = x4;
+  *di = x5;
 }
 
 #define VMW_PORT(cmd, in_ebx, in_si, in_di, flags, magic, eax, ebx, ecx, edx,  \
-		 si, di)                                                       \
-	vmw_port(cmd, in_ebx, in_si, in_di, flags, magic, &eax, &ebx, &ecx,    \
-		 &edx, &si, &di)
+      si, di)                                                       \
+  vmw_port(cmd, in_ebx, in_si, in_di, flags, magic, &eax, &ebx, &ecx,    \
+    &edx, &si, &di)
 
 #define VMW_PORT_HB_OUT(cmd, in_ecx, in_si, in_di, flags, magic, bp, eax, ebx, \
-		        ecx, edx, si, di)                                      \
-	vmw_port_hb(cmd, in_ecx, in_si, in_di, flags, magic, bp,               \
-                    0, &eax, &ebx, &ecx, &edx, &si, &di)
+      ecx, edx, si, di)                                      \
+  vmw_port_hb(cmd, in_ecx, in_si, in_di, flags, magic, bp,               \
+    0, &eax, &ebx, &ecx, &edx, &si, &di)
 
 #define VMW_PORT_HB_IN(cmd, in_ecx, in_si, in_di, flags, magic, bp, eax, ebx,  \
-		       ecx, edx, si, di)                                       \
-	vmw_port_hb(cmd, in_ecx, in_si, in_di, flags, magic, bp,               \
-		    X86_IO_W7_DIR, &eax, &ebx, &ecx, &edx, &si, &di)
+      ecx, edx, si, di)                                       \
+  vmw_port_hb(cmd, in_ecx, in_si, in_di, flags, magic, bp,               \
+    X86_IO_W7_DIR, &eax, &ebx, &ecx, &edx, &si, &di)
 
 #endif
 

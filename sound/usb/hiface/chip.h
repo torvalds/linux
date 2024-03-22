@@ -19,8 +19,8 @@
 struct pcm_runtime;
 
 struct hiface_chip {
-	struct usb_device *dev;
-	struct snd_card *card;
-	struct pcm_runtime *pcm;
+  struct usb_device *dev;
+  struct snd_card *card;
+  struct pcm_runtime *pcm;
 };
 #endif /* HIFACE_CHIP_H */

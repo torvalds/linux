@@ -13,8 +13,8 @@
 #define APLL1_W_NAME "APLL1"
 #define APLL2_W_NAME "APLL2"
 enum {
-	MT8183_APLL1 = 0,
-	MT8183_APLL2,
+  MT8183_APLL1 = 0,
+  MT8183_APLL2,
 };
 
 struct mtk_base_afe;

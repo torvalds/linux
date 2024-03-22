@@ -17,41 +17,41 @@
 #include <linux/blk_types.h>
 
 struct dm_io_region {
-	struct block_device *bdev;
-	sector_t sector;
-	sector_t count;		/* If this is zero the region is ignored. */
+  struct block_device *bdev;
+  sector_t sector;
+  sector_t count;   /* If this is zero the region is ignored. */
 };
 
 struct page_list {
-	struct page_list *next;
-	struct page *page;
+  struct page_list *next;
+  struct page *page;
 };
 
 typedef void (*io_notify_fn)(unsigned int long error, void *context);
 
 enum dm_io_mem_type {
-	DM_IO_PAGE_LIST,/* Page list */
-	DM_IO_BIO,	/* Bio vector */
-	DM_IO_VMA,	/* Virtual memory area */
-	DM_IO_KMEM,	/* Kernel memory */
+  DM_IO_PAGE_LIST, /* Page list */
+  DM_IO_BIO,  /* Bio vector */
+  DM_IO_VMA,  /* Virtual memory area */
+  DM_IO_KMEM, /* Kernel memory */
 };
 
 struct dm_io_memory {
-	enum dm_io_mem_type type;
+  enum dm_io_mem_type type;
 
-	unsigned int offset;
+  unsigned int offset;
 
-	union {
-		struct page_list *pl;
-		struct bio *bio;
-		void *vma;
-		void *addr;
-	} ptr;
+  union {
+    struct page_list *pl;
+    struct bio *bio;
+    void *vma;
+    void *addr;
+  } ptr;
 };
 
 struct dm_io_notify {
-	io_notify_fn fn;	/* Callback for asynchronous requests */
-	void *context;		/* Passed to callback */
+  io_notify_fn fn;  /* Callback for asynchronous requests */
+  void *context;    /* Passed to callback */
 };
 
 /*
@@ -59,10 +59,10 @@ struct dm_io_notify {
  */
 struct dm_io_client;
 struct dm_io_request {
-	blk_opf_t	    bi_opf;	/* Request type and flags */
-	struct dm_io_memory mem;	/* Memory to use for io */
-	struct dm_io_notify notify;	/* Synchronous if notify.fn is NULL */
-	struct dm_io_client *client;	/* Client memory handler */
+  blk_opf_t bi_opf; /* Request type and flags */
+  struct dm_io_memory mem;  /* Memory to use for io */
+  struct dm_io_notify notify; /* Synchronous if notify.fn is NULL */
+  struct dm_io_client *client;  /* Client memory handler */
 };
 
 /*
@@ -80,8 +80,8 @@ void dm_io_client_destroy(struct dm_io_client *client);
  * error occurred doing io to the corresponding region.
  */
 int dm_io(struct dm_io_request *io_req, unsigned int num_regions,
-	  struct dm_io_region *region, unsigned int long *sync_error_bits,
-	  unsigned short ioprio);
+    struct dm_io_region *region, unsigned int long *sync_error_bits,
+    unsigned short ioprio);
 
-#endif	/* __KERNEL__ */
-#endif	/* _LINUX_DM_IO_H */
+#endif  /* __KERNEL__ */
+#endif  /* _LINUX_DM_IO_H */

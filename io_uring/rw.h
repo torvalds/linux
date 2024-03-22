@@ -3,16 +3,16 @@
 #include <linux/pagemap.h>
 
 struct io_rw_state {
-	struct iov_iter			iter;
-	struct iov_iter_state		iter_state;
-	struct iovec			fast_iov[UIO_FASTIOV];
+  struct iov_iter iter;
+  struct iov_iter_state iter_state;
+  struct iovec fast_iov[UIO_FASTIOV];
 };
 
 struct io_async_rw {
-	struct io_rw_state		s;
-	const struct iovec		*free_iovec;
-	size_t				bytes_done;
-	struct wait_page_queue		wpq;
+  struct io_rw_state s;
+  const struct iovec *free_iovec;
+  size_t bytes_done;
+  struct wait_page_queue wpq;
 };
 
 int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe);

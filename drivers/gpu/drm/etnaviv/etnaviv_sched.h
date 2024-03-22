@@ -11,9 +11,8 @@
 struct etnaviv_gpu;
 
 static inline
-struct etnaviv_gem_submit *to_etnaviv_submit(struct drm_sched_job *sched_job)
-{
-	return container_of(sched_job, struct etnaviv_gem_submit, sched_job);
+struct etnaviv_gem_submit *to_etnaviv_submit(struct drm_sched_job *sched_job) {
+  return container_of(sched_job, struct etnaviv_gem_submit, sched_job);
 }
 
 int etnaviv_sched_init(struct etnaviv_gpu *gpu);

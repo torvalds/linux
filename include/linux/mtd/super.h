@@ -15,10 +15,9 @@
 #include <linux/mount.h>
 
 extern int get_tree_mtd(struct fs_context *fc,
-		     int (*fill_super)(struct super_block *sb,
-				       struct fs_context *fc));
+    int (*fill_super)(struct super_block *sb,
+    struct fs_context *fc));
 extern void kill_mtd_super(struct super_block *sb);
-
 
 #endif /* __KERNEL__ */
 

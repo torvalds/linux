@@ -4,6 +4,6 @@
 
 #include <linux/types.h>
 
-#define cpu_dcache_is_aliasing()	true
+#define cpu_dcache_is_aliasing()  true
 
 #endif

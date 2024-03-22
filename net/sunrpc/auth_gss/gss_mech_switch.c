@@ -23,66 +23,59 @@
 #include <trace/events/rpcgss.h>
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-# define RPCDBG_FACILITY        RPCDBG_AUTH
+#define RPCDBG_FACILITY        RPCDBG_AUTH
 #endif
 
 static LIST_HEAD(registered_mechs);
 static DEFINE_SPINLOCK(registered_mechs_lock);
 
-static void
-gss_mech_free(struct gss_api_mech *gm)
-{
-	struct pf_desc *pf;
-	int i;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		pf = &gm->gm_pfs[i];
-		if (pf->domain)
-			auth_domain_put(pf->domain);
-		kfree(pf->auth_domain_name);
-		pf->auth_domain_name = NULL;
-	}
+static void gss_mech_free(struct gss_api_mech *gm) {
+  struct pf_desc *pf;
+  int i;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    pf = &gm->gm_pfs[i];
+    if (pf->domain) {
+      auth_domain_put(pf->domain);
+    }
+    kfree(pf->auth_domain_name);
+    pf->auth_domain_name = NULL;
+  }
 }
 
-static inline char *
-make_auth_domain_name(char *name)
-{
-	static char	*prefix = "gss/";
-	char		*new;
-
-	new = kmalloc(strlen(name) + strlen(prefix) + 1, GFP_KERNEL);
-	if (new) {
-		strcpy(new, prefix);
-		strcat(new, name);
-	}
-	return new;
+static inline char *make_auth_domain_name(char *name) {
+  static char *prefix = "gss/";
+  char *new;
+  new = kmalloc(strlen(name) + strlen(prefix) + 1, GFP_KERNEL);
+  if (new) {
+    strcpy(new, prefix);
+    strcat(new, name);
+  }
+  return new;
 }
 
-static int
-gss_mech_svc_setup(struct gss_api_mech *gm)
-{
-	struct auth_domain *dom;
-	struct pf_desc *pf;
-	int i, status;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		pf = &gm->gm_pfs[i];
-		pf->auth_domain_name = make_auth_domain_name(pf->name);
-		status = -ENOMEM;
-		if (pf->auth_domain_name == NULL)
-			goto out;
-		dom = svcauth_gss_register_pseudoflavor(
-			pf->pseudoflavor, pf->auth_domain_name);
-		if (IS_ERR(dom)) {
-			status = PTR_ERR(dom);
-			goto out;
-		}
-		pf->domain = dom;
-	}
-	return 0;
+static int gss_mech_svc_setup(struct gss_api_mech *gm) {
+  struct auth_domain *dom;
+  struct pf_desc *pf;
+  int i, status;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    pf = &gm->gm_pfs[i];
+    pf->auth_domain_name = make_auth_domain_name(pf->name);
+    status = -ENOMEM;
+    if (pf->auth_domain_name == NULL) {
+      goto out;
+    }
+    dom = svcauth_gss_register_pseudoflavor(
+        pf->pseudoflavor, pf->auth_domain_name);
+    if (IS_ERR(dom)) {
+      status = PTR_ERR(dom);
+      goto out;
+    }
+    pf->domain = dom;
+  }
+  return 0;
 out:
-	gss_mech_free(gm);
-	return status;
+  gss_mech_free(gm);
+  return status;
 }
 
 /**
@@ -91,19 +84,19 @@ out:
  *
  * Returns zero if successful, or a negative errno.
  */
-int gss_mech_register(struct gss_api_mech *gm)
-{
-	int status;
-
-	status = gss_mech_svc_setup(gm);
-	if (status)
-		return status;
-	spin_lock(&registered_mechs_lock);
-	list_add_rcu(&gm->gm_list, &registered_mechs);
-	spin_unlock(&registered_mechs_lock);
-	dprintk("RPC:       registered gss mechanism %s\n", gm->gm_name);
-	return 0;
+int gss_mech_register(struct gss_api_mech *gm) {
+  int status;
+  status = gss_mech_svc_setup(gm);
+  if (status) {
+    return status;
+  }
+  spin_lock(&registered_mechs_lock);
+  list_add_rcu(&gm->gm_list, &registered_mechs);
+  spin_unlock(&registered_mechs_lock);
+  dprintk("RPC:       registered gss mechanism %s\n", gm->gm_name);
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(gss_mech_register);
 
 /**
@@ -111,118 +104,108 @@ EXPORT_SYMBOL_GPL(gss_mech_register);
  * @gm: GSS mechanism handle
  *
  */
-void gss_mech_unregister(struct gss_api_mech *gm)
-{
-	spin_lock(&registered_mechs_lock);
-	list_del_rcu(&gm->gm_list);
-	spin_unlock(&registered_mechs_lock);
-	dprintk("RPC:       unregistered gss mechanism %s\n", gm->gm_name);
-	gss_mech_free(gm);
+void gss_mech_unregister(struct gss_api_mech *gm) {
+  spin_lock(&registered_mechs_lock);
+  list_del_rcu(&gm->gm_list);
+  spin_unlock(&registered_mechs_lock);
+  dprintk("RPC:       unregistered gss mechanism %s\n", gm->gm_name);
+  gss_mech_free(gm);
 }
+
 EXPORT_SYMBOL_GPL(gss_mech_unregister);
 
-struct gss_api_mech *gss_mech_get(struct gss_api_mech *gm)
-{
-	__module_get(gm->gm_owner);
-	return gm;
+struct gss_api_mech *gss_mech_get(struct gss_api_mech *gm) {
+  __module_get(gm->gm_owner);
+  return gm;
 }
+
 EXPORT_SYMBOL(gss_mech_get);
 
-static struct gss_api_mech *
-_gss_mech_get_by_name(const char *name)
-{
-	struct gss_api_mech	*pos, *gm = NULL;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
-		if (0 == strcmp(name, pos->gm_name)) {
-			if (try_module_get(pos->gm_owner))
-				gm = pos;
-			break;
-		}
-	}
-	rcu_read_unlock();
-	return gm;
-
+static struct gss_api_mech *_gss_mech_get_by_name(const char *name) {
+  struct gss_api_mech *pos, *gm = NULL;
+  rcu_read_lock();
+  list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
+    if (0 == strcmp(name, pos->gm_name)) {
+      if (try_module_get(pos->gm_owner)) {
+        gm = pos;
+      }
+      break;
+    }
+  }
+  rcu_read_unlock();
+  return gm;
 }
 
-struct gss_api_mech * gss_mech_get_by_name(const char *name)
-{
-	struct gss_api_mech *gm = NULL;
-
-	gm = _gss_mech_get_by_name(name);
-	if (!gm) {
-		request_module("rpc-auth-gss-%s", name);
-		gm = _gss_mech_get_by_name(name);
-	}
-	return gm;
+struct gss_api_mech *gss_mech_get_by_name(const char *name) {
+  struct gss_api_mech *gm = NULL;
+  gm = _gss_mech_get_by_name(name);
+  if (!gm) {
+    request_module("rpc-auth-gss-%s", name);
+    gm = _gss_mech_get_by_name(name);
+  }
+  return gm;
 }
 
-struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj)
-{
-	struct gss_api_mech	*pos, *gm = NULL;
-	char buf[32];
-
-	if (sprint_oid(obj->data, obj->len, buf, sizeof(buf)) < 0)
-		return NULL;
-	request_module("rpc-auth-gss-%s", buf);
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
-		if (obj->len == pos->gm_oid.len) {
-			if (0 == memcmp(obj->data, pos->gm_oid.data, obj->len)) {
-				if (try_module_get(pos->gm_owner))
-					gm = pos;
-				break;
-			}
-		}
-	}
-	rcu_read_unlock();
-	if (!gm)
-		trace_rpcgss_oid_to_mech(buf);
-	return gm;
+struct gss_api_mech *gss_mech_get_by_OID(struct rpcsec_gss_oid *obj) {
+  struct gss_api_mech *pos, *gm = NULL;
+  char buf[32];
+  if (sprint_oid(obj->data, obj->len, buf, sizeof(buf)) < 0) {
+    return NULL;
+  }
+  request_module("rpc-auth-gss-%s", buf);
+  rcu_read_lock();
+  list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
+    if (obj->len == pos->gm_oid.len) {
+      if (0 == memcmp(obj->data, pos->gm_oid.data, obj->len)) {
+        if (try_module_get(pos->gm_owner)) {
+          gm = pos;
+        }
+        break;
+      }
+    }
+  }
+  rcu_read_unlock();
+  if (!gm) {
+    trace_rpcgss_oid_to_mech(buf);
+  }
+  return gm;
 }
 
-static inline int
-mech_supports_pseudoflavor(struct gss_api_mech *gm, u32 pseudoflavor)
-{
-	int i;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].pseudoflavor == pseudoflavor)
-			return 1;
-	}
-	return 0;
+static inline int mech_supports_pseudoflavor(struct gss_api_mech *gm,
+    u32 pseudoflavor) {
+  int i;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
-static struct gss_api_mech *_gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
-{
-	struct gss_api_mech *gm = NULL, *pos;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
-		if (!mech_supports_pseudoflavor(pos, pseudoflavor))
-			continue;
-		if (try_module_get(pos->gm_owner))
-			gm = pos;
-		break;
-	}
-	rcu_read_unlock();
-	return gm;
+static struct gss_api_mech *_gss_mech_get_by_pseudoflavor(u32 pseudoflavor) {
+  struct gss_api_mech *gm = NULL, *pos;
+  rcu_read_lock();
+  list_for_each_entry_rcu(pos, &registered_mechs, gm_list) {
+    if (!mech_supports_pseudoflavor(pos, pseudoflavor)) {
+      continue;
+    }
+    if (try_module_get(pos->gm_owner)) {
+      gm = pos;
+    }
+    break;
+  }
+  rcu_read_unlock();
+  return gm;
 }
 
-struct gss_api_mech *
-gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
-{
-	struct gss_api_mech *gm;
-
-	gm = _gss_mech_get_by_pseudoflavor(pseudoflavor);
-
-	if (!gm) {
-		request_module("rpc-auth-gss-%u", pseudoflavor);
-		gm = _gss_mech_get_by_pseudoflavor(pseudoflavor);
-	}
-	return gm;
+struct gss_api_mech *gss_mech_get_by_pseudoflavor(u32 pseudoflavor) {
+  struct gss_api_mech *gm;
+  gm = _gss_mech_get_by_pseudoflavor(pseudoflavor);
+  if (!gm) {
+    request_module("rpc-auth-gss-%u", pseudoflavor);
+    gm = _gss_mech_get_by_pseudoflavor(pseudoflavor);
+  }
+  return gm;
 }
 
 /**
@@ -234,17 +217,15 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
  * Returns a matching security flavor, or RPC_AUTH_MAXFLAVOR if none is found.
  */
 rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
-					 u32 service)
-{
-	int i;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].qop == qop &&
-		    gm->gm_pfs[i].service == service) {
-			return gm->gm_pfs[i].pseudoflavor;
-		}
-	}
-	return RPC_AUTH_MAXFLAVOR;
+    u32 service) {
+  int i;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    if (gm->gm_pfs[i].qop == qop
+        && gm->gm_pfs[i].service == service) {
+      return gm->gm_pfs[i].pseudoflavor;
+    }
+  }
+  return RPC_AUTH_MAXFLAVOR;
 }
 
 /**
@@ -254,19 +235,16 @@ rpc_authflavor_t gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 qop,
  * Returns a matching pseudoflavor, or RPC_AUTH_MAXFLAVOR if the tuple is
  * not supported.
  */
-rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
-{
-	rpc_authflavor_t pseudoflavor;
-	struct gss_api_mech *gm;
-
-	gm = gss_mech_get_by_OID(&info->oid);
-	if (gm == NULL)
-		return RPC_AUTH_MAXFLAVOR;
-
-	pseudoflavor = gss_svc_to_pseudoflavor(gm, info->qop, info->service);
-
-	gss_mech_put(gm);
-	return pseudoflavor;
+rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info) {
+  rpc_authflavor_t pseudoflavor;
+  struct gss_api_mech *gm;
+  gm = gss_mech_get_by_OID(&info->oid);
+  if (gm == NULL) {
+    return RPC_AUTH_MAXFLAVOR;
+  }
+  pseudoflavor = gss_svc_to_pseudoflavor(gm, info->qop, info->service);
+  gss_mech_put(gm);
+  return pseudoflavor;
 }
 
 /**
@@ -278,116 +256,102 @@ rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *info)
  * supported mechanism.  Otherwise a negative errno is returned.
  */
 int gss_mech_flavor2info(rpc_authflavor_t pseudoflavor,
-			 struct rpcsec_gss_info *info)
-{
-	struct gss_api_mech *gm;
-	int i;
-
-	gm = gss_mech_get_by_pseudoflavor(pseudoflavor);
-	if (gm == NULL)
-		return -ENOENT;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
-			memcpy(info->oid.data, gm->gm_oid.data, gm->gm_oid.len);
-			info->oid.len = gm->gm_oid.len;
-			info->qop = gm->gm_pfs[i].qop;
-			info->service = gm->gm_pfs[i].service;
-			gss_mech_put(gm);
-			return 0;
-		}
-	}
-
-	gss_mech_put(gm);
-	return -ENOENT;
+    struct rpcsec_gss_info *info) {
+  struct gss_api_mech *gm;
+  int i;
+  gm = gss_mech_get_by_pseudoflavor(pseudoflavor);
+  if (gm == NULL) {
+    return -ENOENT;
+  }
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
+      memcpy(info->oid.data, gm->gm_oid.data, gm->gm_oid.len);
+      info->oid.len = gm->gm_oid.len;
+      info->qop = gm->gm_pfs[i].qop;
+      info->service = gm->gm_pfs[i].service;
+      gss_mech_put(gm);
+      return 0;
+    }
+  }
+  gss_mech_put(gm);
+  return -ENOENT;
 }
 
-u32
-gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)
-{
-	int i;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].pseudoflavor == pseudoflavor)
-			return gm->gm_pfs[i].service;
-	}
-	return 0;
+u32 gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor) {
+  int i;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
+      return gm->gm_pfs[i].service;
+    }
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL(gss_pseudoflavor_to_service);
 
-bool
-gss_pseudoflavor_to_datatouch(struct gss_api_mech *gm, u32 pseudoflavor)
-{
-	int i;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].pseudoflavor == pseudoflavor)
-			return gm->gm_pfs[i].datatouch;
-	}
-	return false;
+bool gss_pseudoflavor_to_datatouch(struct gss_api_mech *gm, u32 pseudoflavor) {
+  int i;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    if (gm->gm_pfs[i].pseudoflavor == pseudoflavor) {
+      return gm->gm_pfs[i].datatouch;
+    }
+  }
+  return false;
 }
 
-char *
-gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service)
-{
-	int i;
-
-	for (i = 0; i < gm->gm_pf_num; i++) {
-		if (gm->gm_pfs[i].service == service)
-			return gm->gm_pfs[i].auth_domain_name;
-	}
-	return NULL;
+char *gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service) {
+  int i;
+  for (i = 0; i < gm->gm_pf_num; i++) {
+    if (gm->gm_pfs[i].service == service) {
+      return gm->gm_pfs[i].auth_domain_name;
+    }
+  }
+  return NULL;
 }
 
-void
-gss_mech_put(struct gss_api_mech * gm)
-{
-	if (gm)
-		module_put(gm->gm_owner);
+void gss_mech_put(struct gss_api_mech *gm) {
+  if (gm) {
+    module_put(gm->gm_owner);
+  }
 }
+
 EXPORT_SYMBOL(gss_mech_put);
 
 /* The mech could probably be determined from the token instead, but it's just
  * as easy for now to pass it in. */
-int
-gss_import_sec_context(const void *input_token, size_t bufsize,
-		       struct gss_api_mech	*mech,
-		       struct gss_ctx		**ctx_id,
-		       time64_t			*endtime,
-		       gfp_t gfp_mask)
-{
-	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask)))
-		return -ENOMEM;
-	(*ctx_id)->mech_type = gss_mech_get(mech);
-
-	return mech->gm_ops->gss_import_sec_context(input_token, bufsize,
-						*ctx_id, endtime, gfp_mask);
+int gss_import_sec_context(const void *input_token, size_t bufsize,
+    struct gss_api_mech *mech,
+    struct gss_ctx **ctx_id,
+    time64_t *endtime,
+    gfp_t gfp_mask) {
+  if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask))) {
+    return -ENOMEM;
+  }
+  (*ctx_id)->mech_type = gss_mech_get(mech);
+  return mech->gm_ops->gss_import_sec_context(input_token, bufsize,
+      *ctx_id, endtime, gfp_mask);
 }
 
 /* gss_get_mic: compute a mic over message and return mic_token. */
 
-u32
-gss_get_mic(struct gss_ctx	*context_handle,
-	    struct xdr_buf	*message,
-	    struct xdr_netobj	*mic_token)
-{
-	 return context_handle->mech_type->gm_ops
-		->gss_get_mic(context_handle,
-			      message,
-			      mic_token);
+u32 gss_get_mic(struct gss_ctx *context_handle,
+    struct xdr_buf *message,
+    struct xdr_netobj *mic_token) {
+  return context_handle->mech_type->gm_ops
+    ->gss_get_mic(context_handle,
+      message,
+      mic_token);
 }
 
 /* gss_verify_mic: check whether the provided mic_token verifies message. */
 
-u32
-gss_verify_mic(struct gss_ctx		*context_handle,
-	       struct xdr_buf		*message,
-	       struct xdr_netobj	*mic_token)
-{
-	return context_handle->mech_type->gm_ops
-		->gss_verify_mic(context_handle,
-				 message,
-				 mic_token);
+u32 gss_verify_mic(struct gss_ctx *context_handle,
+    struct xdr_buf *message,
+    struct xdr_netobj *mic_token) {
+  return context_handle->mech_type->gm_ops
+    ->gss_verify_mic(context_handle,
+      message,
+      mic_token);
 }
 
 /*
@@ -404,45 +368,39 @@ gss_verify_mic(struct gss_ctx		*context_handle,
  * RPC_MAX_AUTH_SIZE of extra space in either the head or tail
  * when performing the wrap.
  */
-u32
-gss_wrap(struct gss_ctx	*ctx_id,
-	 int		offset,
-	 struct xdr_buf	*buf,
-	 struct page	**inpages)
-{
-	return ctx_id->mech_type->gm_ops
-		->gss_wrap(ctx_id, offset, buf, inpages);
+u32 gss_wrap(struct gss_ctx *ctx_id,
+    int offset,
+    struct xdr_buf *buf,
+    struct page **inpages) {
+  return ctx_id->mech_type->gm_ops
+    ->gss_wrap(ctx_id, offset, buf, inpages);
 }
 
-u32
-gss_unwrap(struct gss_ctx	*ctx_id,
-	   int			offset,
-	   int			len,
-	   struct xdr_buf	*buf)
-{
-	return ctx_id->mech_type->gm_ops
-		->gss_unwrap(ctx_id, offset, len, buf);
+u32 gss_unwrap(struct gss_ctx *ctx_id,
+    int offset,
+    int len,
+    struct xdr_buf *buf) {
+  return ctx_id->mech_type->gm_ops
+    ->gss_unwrap(ctx_id, offset, len, buf);
 }
-
 
 /* gss_delete_sec_context: free all resources associated with context_handle.
  * Note this differs from the RFC 2744-specified prototype in that we don't
  * bother returning an output token, since it would never be used anyway. */
 
-u32
-gss_delete_sec_context(struct gss_ctx	**context_handle)
-{
-	dprintk("RPC:       gss_delete_sec_context deleting %p\n",
-			*context_handle);
-
-	if (!*context_handle)
-		return GSS_S_NO_CONTEXT;
-	if ((*context_handle)->internal_ctx_id)
-		(*context_handle)->mech_type->gm_ops
-			->gss_delete_sec_context((*context_handle)
-							->internal_ctx_id);
-	gss_mech_put((*context_handle)->mech_type);
-	kfree(*context_handle);
-	*context_handle=NULL;
-	return GSS_S_COMPLETE;
+u32 gss_delete_sec_context(struct gss_ctx **context_handle) {
+  dprintk("RPC:       gss_delete_sec_context deleting %p\n",
+      *context_handle);
+  if (!*context_handle) {
+    return GSS_S_NO_CONTEXT;
+  }
+  if ((*context_handle)->internal_ctx_id) {
+    (*context_handle)->mech_type->gm_ops
+    ->gss_delete_sec_context((*context_handle)
+        ->internal_ctx_id);
+  }
+  gss_mech_put((*context_handle)->mech_type);
+  kfree(*context_handle);
+  *context_handle = NULL;
+  return GSS_S_COMPLETE;
 }

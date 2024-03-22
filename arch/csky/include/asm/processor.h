@@ -15,7 +15,7 @@
 #endif
 
 struct cpuinfo_csky {
-	unsigned long asid_cache;
+  unsigned long asid_cache;
 } __aligned(SMP_CACHE_BYTES);
 
 extern struct cpuinfo_csky cpu_data[];
@@ -26,7 +26,7 @@ extern struct cpuinfo_csky cpu_data[];
  * for a 64 bit kernel expandable to 8192EB, of which the current CSKY
  * implementations will "only" be able to use 1TB ...
  */
-#define TASK_SIZE	(PAGE_OFFSET - (PAGE_SIZE * 8))
+#define TASK_SIZE (PAGE_OFFSET - (PAGE_SIZE * 8))
 
 #ifdef __KERNEL__
 #define STACK_TOP       TASK_SIZE
@@ -39,15 +39,15 @@ extern struct cpuinfo_csky cpu_data[];
 #define TASK_UNMAPPED_BASE      (TASK_SIZE / 3)
 
 struct thread_struct {
-	unsigned long  sp;        /* kernel stack pointer */
-	unsigned long  trap_no;   /* saved status register */
+  unsigned long sp;        /* kernel stack pointer */
+  unsigned long trap_no;   /* saved status register */
 
-	/* FPU regs */
-	struct user_fp __aligned(16) user_fp;
+  /* FPU regs */
+  struct user_fp __aligned(16) user_fp;
 };
 
 #define INIT_THREAD  { \
-	.sp = sizeof(init_stack) + (unsigned long) &init_stack, \
+    .sp = sizeof(init_stack) + (unsigned long) &init_stack, \
 }
 
 /*
@@ -56,32 +56,32 @@ struct thread_struct {
  * pass the data segment into user programs if it exists,
  * it can't hurt anything as far as I can tell
  */
-#define start_thread(_regs, _pc, _usp)					\
-do {									\
-	(_regs)->pc = (_pc);						\
-	(_regs)->regs[1] = 0; /* ABIV1 is R7, uClibc_main rtdl arg */	\
-	(_regs)->regs[2] = 0;						\
-	(_regs)->regs[3] = 0; /* ABIV2 is R7, use it? */		\
-	(_regs)->sr &= ~PS_S;						\
-	(_regs)->usp = (_usp);						\
-} while (0)
+#define start_thread(_regs, _pc, _usp)          \
+  do {                  \
+    (_regs)->pc = (_pc);            \
+    (_regs)->regs[1] = 0; /* ABIV1 is R7, uClibc_main rtdl arg */ \
+    (_regs)->regs[2] = 0;           \
+    (_regs)->regs[3] = 0; /* ABIV2 is R7, use it? */    \
+    (_regs)->sr &= ~PS_S;           \
+    (_regs)->usp = (_usp);            \
+  } while (0)
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
 /* Prepare to copy thread state - unlazy all lazy status */
-#define prepare_to_copy(tsk)    do { } while (0)
+#define prepare_to_copy(tsk)    do {} while (0)
 
 unsigned long __get_wchan(struct task_struct *p);
 
-#define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
-#define KSTK_ESP(tsk)		(task_pt_regs(tsk)->usp)
+#define KSTK_EIP(tsk)   (task_pt_regs(tsk)->pc)
+#define KSTK_ESP(tsk)   (task_pt_regs(tsk)->usp)
 
 #define task_pt_regs(p) \
-	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
+  ((struct pt_regs *) (THREAD_SIZE + task_stack_page(p)) - 1)
 
 #define cpu_relax() barrier()
 
-register unsigned long current_stack_pointer __asm__("sp");
+register unsigned long current_stack_pointer __asm__ ("sp");
 
 #endif /* __ASM_CSKY_PROCESSOR_H */

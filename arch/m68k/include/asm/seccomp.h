@@ -4,8 +4,8 @@
 
 #include <asm-generic/seccomp.h>
 
-#define SECCOMP_ARCH_NATIVE		AUDIT_ARCH_M68K
-#define SECCOMP_ARCH_NATIVE_NR		NR_syscalls
-#define SECCOMP_ARCH_NATIVE_NAME	"m68k"
+#define SECCOMP_ARCH_NATIVE   AUDIT_ARCH_M68K
+#define SECCOMP_ARCH_NATIVE_NR    NR_syscalls
+#define SECCOMP_ARCH_NATIVE_NAME  "m68k"
 
 #endif /* _ASM_SECCOMP_H */

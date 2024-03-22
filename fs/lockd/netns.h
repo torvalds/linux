@@ -7,14 +7,14 @@
 #include <net/netns/generic.h>
 
 struct lockd_net {
-	unsigned int nlmsvc_users;
-	unsigned long next_gc;
-	unsigned long nrhosts;
+  unsigned int nlmsvc_users;
+  unsigned long next_gc;
+  unsigned long nrhosts;
 
-	struct delayed_work grace_period_end;
-	struct lock_manager lockd_manager;
+  struct delayed_work grace_period_end;
+  struct lock_manager lockd_manager;
 
-	struct list_head nsm_handles;
+  struct list_head nsm_handles;
 };
 
 extern unsigned int lockd_net_id;

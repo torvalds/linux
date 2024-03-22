@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl0073_ctrl0073system_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl0073_ctrl0073system_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2005-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2021 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,38 +28,57 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define NV0073_CTRL_CMD_SYSTEM_GET_NUM_HEADS (0x730102U) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID << 8) | NV0073_CTRL_SYSTEM_GET_NUM_HEADS_PARAMS_MESSAGE_ID" */
+#define NV0073_CTRL_CMD_SYSTEM_GET_NUM_HEADS (0x730102U) /* finn: Evaluated from
+                                                          * "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID
+                                                          * << 8) |
+                                                          * NV0073_CTRL_SYSTEM_GET_NUM_HEADS_PARAMS_MESSAGE_ID"
+                                                          * */
 
 typedef struct NV0073_CTRL_SYSTEM_GET_NUM_HEADS_PARAMS {
-    NvU32 subDeviceInstance;
-    NvU32 flags;
-    NvU32 numHeads;
+  NvU32 subDeviceInstance;
+  NvU32 flags;
+  NvU32 numHeads;
 } NV0073_CTRL_SYSTEM_GET_NUM_HEADS_PARAMS;
 
-#define NV0073_CTRL_CMD_SYSTEM_GET_SUPPORTED (0x730120U) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID << 8) | NV0073_CTRL_SYSTEM_GET_SUPPORTED_PARAMS_MESSAGE_ID" */
+#define NV0073_CTRL_CMD_SYSTEM_GET_SUPPORTED (0x730120U) /* finn: Evaluated from
+                                                          * "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID
+                                                          * << 8) |
+                                                          * NV0073_CTRL_SYSTEM_GET_SUPPORTED_PARAMS_MESSAGE_ID"
+                                                          * */
 
 typedef struct NV0073_CTRL_SYSTEM_GET_SUPPORTED_PARAMS {
-    NvU32 subDeviceInstance;
-    NvU32 displayMask;
-    NvU32 displayMaskDDC;
+  NvU32 subDeviceInstance;
+  NvU32 displayMask;
+  NvU32 displayMaskDDC;
 } NV0073_CTRL_SYSTEM_GET_SUPPORTED_PARAMS;
 
-#define NV0073_CTRL_CMD_SYSTEM_GET_CONNECT_STATE (0x730122U) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID << 8) | NV0073_CTRL_SYSTEM_GET_CONNECT_STATE_PARAMS_MESSAGE_ID" */
+#define NV0073_CTRL_CMD_SYSTEM_GET_CONNECT_STATE (0x730122U) /* finn: Evaluated
+                                                              * from
+                                                              * "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID
+                                                              * << 8) |
+                                                              * NV0073_CTRL_SYSTEM_GET_CONNECT_STATE_PARAMS_MESSAGE_ID"
+                                                              * */
 
 typedef struct NV0073_CTRL_SYSTEM_GET_CONNECT_STATE_PARAMS {
-    NvU32 subDeviceInstance;
-    NvU32 flags;
-    NvU32 displayMask;
-    NvU32 retryTimeMs;
+  NvU32 subDeviceInstance;
+  NvU32 flags;
+  NvU32 displayMask;
+  NvU32 retryTimeMs;
 } NV0073_CTRL_SYSTEM_GET_CONNECT_STATE_PARAMS;
 
-#define NV0073_CTRL_CMD_SYSTEM_GET_ACTIVE                (0x730126U) /* finn: Evaluated from "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID << 8) | NV0073_CTRL_SYSTEM_GET_ACTIVE_PARAMS_MESSAGE_ID" */
+#define NV0073_CTRL_CMD_SYSTEM_GET_ACTIVE                (0x730126U) /* finn:
+                                                                      * Evaluated
+                                                                      * from
+                                                                      * "(FINN_NV04_DISPLAY_COMMON_SYSTEM_INTERFACE_ID
+                                                                      * << 8) |
+                                                                      * NV0073_CTRL_SYSTEM_GET_ACTIVE_PARAMS_MESSAGE_ID"
+                                                                      * */
 
 typedef struct NV0073_CTRL_SYSTEM_GET_ACTIVE_PARAMS {
-    NvU32 subDeviceInstance;
-    NvU32 head;
-    NvU32 flags;
-    NvU32 displayId;
+  NvU32 subDeviceInstance;
+  NvU32 head;
+  NvU32 flags;
+  NvU32 displayId;
 } NV0073_CTRL_SYSTEM_GET_ACTIVE_PARAMS;
 
 #define NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS             (16U)

@@ -17,30 +17,28 @@
 #include "simatic-ipc-batt.h"
 
 static struct gpiod_lookup_table simatic_ipc_batt_gpio_table_127e = {
-	.table = {
-		GPIO_LOOKUP_IDX("apollolake-pinctrl.0", 55, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("apollolake-pinctrl.0", 61, NULL, 1, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("apollolake-pinctrl.1", 41, NULL, 2, GPIO_ACTIVE_HIGH),
-		{} /* Terminating entry */
-	},
+  .table = {
+    GPIO_LOOKUP_IDX("apollolake-pinctrl.0", 55, NULL, 0, GPIO_ACTIVE_HIGH),
+    GPIO_LOOKUP_IDX("apollolake-pinctrl.0", 61, NULL, 1, GPIO_ACTIVE_HIGH),
+    GPIO_LOOKUP_IDX("apollolake-pinctrl.1", 41, NULL, 2, GPIO_ACTIVE_HIGH),
+    {} /* Terminating entry */
+  },
 };
 
-static void simatic_ipc_batt_apollolake_remove(struct platform_device *pdev)
-{
-	simatic_ipc_batt_remove(pdev, &simatic_ipc_batt_gpio_table_127e);
+static void simatic_ipc_batt_apollolake_remove(struct platform_device *pdev) {
+  simatic_ipc_batt_remove(pdev, &simatic_ipc_batt_gpio_table_127e);
 }
 
-static int simatic_ipc_batt_apollolake_probe(struct platform_device *pdev)
-{
-	return simatic_ipc_batt_probe(pdev, &simatic_ipc_batt_gpio_table_127e);
+static int simatic_ipc_batt_apollolake_probe(struct platform_device *pdev) {
+  return simatic_ipc_batt_probe(pdev, &simatic_ipc_batt_gpio_table_127e);
 }
 
 static struct platform_driver simatic_ipc_batt_driver = {
-	.probe = simatic_ipc_batt_apollolake_probe,
-	.remove_new = simatic_ipc_batt_apollolake_remove,
-	.driver = {
-		.name = KBUILD_MODNAME,
-	},
+  .probe = simatic_ipc_batt_apollolake_probe,
+  .remove_new = simatic_ipc_batt_apollolake_remove,
+  .driver = {
+    .name = KBUILD_MODNAME,
+  },
 };
 
 module_platform_driver(simatic_ipc_batt_driver);

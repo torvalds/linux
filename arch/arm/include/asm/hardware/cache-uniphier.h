@@ -12,10 +12,10 @@
 #ifdef CONFIG_CACHE_UNIPHIER
 int uniphier_cache_init(void);
 #else
-static inline int uniphier_cache_init(void)
-{
-	return -ENODEV;
+static inline int uniphier_cache_init(void) {
+  return -ENODEV;
 }
+
 #endif
 
 #endif /* __CACHE_UNIPHIER_H */

@@ -23,7 +23,7 @@
  * protection, just like TRACE_INCLUDE_FILE.
  */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM sample-trace
+#define TRACE_SYSTEM sample - trace
 
 /*
  * TRACE_SYSTEM is expected to be a C valid variable (alpha-numeric
@@ -94,7 +94,7 @@
  *         __field_struct(struct bar, foo)
  *
  *         __entry->bar.x = y;
-
+ *
  *   __array: There are three fields (type, name, size). The type is the
  *         type of elements in the array, the name is the name of the array.
  *         size is the number of items in the array (not the total size).
@@ -163,7 +163,7 @@
  *         __string().
  *
  *   __string_len: This is a helper to a __dynamic_array, but it understands
- *	   that the array has characters in it, it will allocate 'len' + 1 bytes
+ *     that the array has characters in it, it will allocate 'len' + 1 bytes
  *         in the ring buffer and add a '\0' to the string. This is
  *         useful if the string being saved has no terminating '\0' byte.
  *         It requires that the length of the string is known as it acts
@@ -204,7 +204,8 @@
  *   __cpumask: This is pretty much the same as __bitmask but is specific for
  *         CPU masks. The type displayed to the user via the format files will
  *         be "cpumaks_t" such that user space may deal with them differently
- *         if they choose to do so, and the bits is always set to nr_cpumask_bits.
+ *         if they choose to do so, and the bits is always set to
+ * nr_cpumask_bits.
  *
  *         __cpumask(target_cpu)
  *
@@ -230,12 +231,14 @@
  *            Use __get_dynamic_array_len(foo) to get the length of the array
  *            saved. Note, __get_dynamic_array_len() returns the total allocated
  *            length of the dynamic array; __print_array() expects the second
- *            parameter to be the number of elements. To get that, the array length
+ *            parameter to be the number of elements. To get that, the array
+ * length
  *            needs to be divided by the element size.
  *
  *      For __string(foo, bar) use __get_str(foo)
  *
- *      For __bitmask(target_cpus, nr_cpumask_bits) use __get_bitmask(target_cpus)
+ *      For __bitmask(target_cpus, nr_cpumask_bits) use
+ *__get_bitmask(target_cpus)
  *
  *      For __cpumask(target_cpus) use __get_cpumask(target_cpus)
  *
@@ -252,22 +255,20 @@
  */
 #ifndef __TRACE_EVENT_SAMPLE_HELPER_FUNCTIONS
 #define __TRACE_EVENT_SAMPLE_HELPER_FUNCTIONS
-static inline int __length_of(const int *list)
-{
-	int i;
-
-	if (!list)
-		return 0;
-
-	for (i = 0; list[i]; i++)
-		;
-	return i;
+static inline int __length_of(const int *list) {
+  int i;
+  if (!list) {
+    return 0;
+  }
+  for (i = 0; list[i]; i++) {
+  }
+  return i;
 }
 
 enum {
-	TRACE_SAMPLE_FOO = 2,
-	TRACE_SAMPLE_BAR = 4,
-	TRACE_SAMPLE_ZOO = 8,
+  TRACE_SAMPLE_FOO = 2,
+  TRACE_SAMPLE_BAR = 4,
+  TRACE_SAMPLE_ZOO = 8,
 };
 #endif
 
@@ -289,83 +290,84 @@ TRACE_DEFINE_ENUM(TRACE_SAMPLE_ZOO);
 
 TRACE_EVENT(foo_bar,
 
-	TP_PROTO(const char *foo, int bar, const int *lst,
-		 const char *string, const struct cpumask *mask,
-		 const char *fmt, va_list *va),
+    TP_PROTO(const char *foo, int bar, const int *lst,
+    const char *string, const struct cpumask *mask,
+    const char *fmt, va_list *va),
 
-	TP_ARGS(foo, bar, lst, string, mask, fmt, va),
+    TP_ARGS(foo, bar, lst, string, mask, fmt, va),
 
-	TP_STRUCT__entry(
-		__array(	char,	foo,    10		)
-		__field(	int,	bar			)
-		__dynamic_array(int,	list,   __length_of(lst))
-		__string(	str,	string			)
-		__bitmask(	cpus,	num_possible_cpus()	)
-		__cpumask(	cpum				)
-		__vstring(	vstr,	fmt,	va		)
-		__string_len(	lstr,	foo,	bar / 2 < strlen(foo) ? bar / 2 : strlen(foo) )
-	),
+    TP_STRUCT__entry(
+    __array(char, foo, 10)
+    __field(int, bar)
+    __dynamic_array(int, list, __length_of(lst))
+    __string(str, string)
+    __bitmask(cpus, num_possible_cpus())
+    __cpumask(cpum)
+    __vstring(vstr, fmt, va)
+    __string_len(lstr, foo, bar / 2 < strlen(foo) ? bar / 2 : strlen(foo))
+    ),
 
-	TP_fast_assign(
-		strscpy(__entry->foo, foo, 10);
-		__entry->bar	= bar;
-		memcpy(__get_dynamic_array(list), lst,
-		       __length_of(lst) * sizeof(int));
-		__assign_str(str, string);
-		__assign_str(lstr, foo);
-		__assign_vstr(vstr, fmt, va);
-		__assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
-		__assign_cpumask(cpum, cpumask_bits(mask));
-	),
+    TP_fast_assign(
+    strscpy(__entry->foo, foo, 10);
+    __entry->bar = bar;
+    memcpy(__get_dynamic_array(list), lst,
+    __length_of(lst) * sizeof(int));
+    __assign_str(str, string);
+    __assign_str(lstr, foo);
+    __assign_vstr(vstr, fmt, va);
+    __assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
+    __assign_cpumask(cpum, cpumask_bits(mask));
+    ),
 
-	TP_printk("foo %s %d %s %s %s %s %s (%s) (%s) %s", __entry->foo, __entry->bar,
+    TP_printk("foo %s %d %s %s %s %s %s (%s) (%s) %s", __entry->foo,
+    __entry->bar,
 
-/*
- * Notice here the use of some helper functions. This includes:
- *
- *  __print_symbolic( variable, { value, "string" }, ... ),
- *
- *    The variable is tested against each value of the { } pair. If
- *    the variable matches one of the values, then it will print the
- *    string in that pair. If non are matched, it returns a string
- *    version of the number (if __entry->bar == 7 then "7" is returned).
- */
-		  __print_symbolic(__entry->bar,
-				   { 0, "zero" },
-				   { TRACE_SAMPLE_FOO, "TWO" },
-				   { TRACE_SAMPLE_BAR, "FOUR" },
-				   { TRACE_SAMPLE_ZOO, "EIGHT" },
-				   { 10, "TEN" }
-			  ),
+    /*
+     * Notice here the use of some helper functions. This includes:
+     *
+     *  __print_symbolic( variable, { value, "string" }, ... ),
+     *
+     *    The variable is tested against each value of the { } pair. If
+     *    the variable matches one of the values, then it will print the
+     *    string in that pair. If non are matched, it returns a string
+     *    version of the number (if __entry->bar == 7 then "7" is returned).
+     */
+    __print_symbolic(__entry->bar,
+    { 0, "zero" },
+    { TRACE_SAMPLE_FOO, "TWO" },
+    { TRACE_SAMPLE_BAR, "FOUR" },
+    { TRACE_SAMPLE_ZOO, "EIGHT" },
+    { 10, "TEN" }
+    ),
 
-/*
- *  __print_flags( variable, "delim", { value, "flag" }, ... ),
- *
- *    This is similar to __print_symbolic, except that it tests the bits
- *    of the value. If ((FLAG & variable) == FLAG) then the string is
- *    printed. If more than one flag matches, then each one that does is
- *    also printed with delim in between them.
- *    If not all bits are accounted for, then the not found bits will be
- *    added in hex format: 0x506 will show BIT2|BIT4|0x500
- */
-		  __print_flags(__entry->bar, "|",
-				{ 1, "BIT1" },
-				{ 2, "BIT2" },
-				{ 4, "BIT3" },
-				{ 8, "BIT4" }
-			  ),
-/*
- *  __print_array( array, len, element_size )
- *
- *    This prints out the array that is defined by __array in a nice format.
- */
-		  __print_array(__get_dynamic_array(list),
-				__get_dynamic_array_len(list) / sizeof(int),
-				sizeof(int)),
-		  __get_str(str), __get_str(lstr),
-		  __get_bitmask(cpus), __get_cpumask(cpum),
-		  __get_str(vstr))
-);
+    /*
+     *  __print_flags( variable, "delim", { value, "flag" }, ... ),
+     *
+     *    This is similar to __print_symbolic, except that it tests the bits
+     *    of the value. If ((FLAG & variable) == FLAG) then the string is
+     *    printed. If more than one flag matches, then each one that does is
+     *    also printed with delim in between them.
+     *    If not all bits are accounted for, then the not found bits will be
+     *    added in hex format: 0x506 will show BIT2|BIT4|0x500
+     */
+    __print_flags(__entry->bar, "|",
+    { 1, "BIT1" },
+    { 2, "BIT2" },
+    { 4, "BIT3" },
+    { 8, "BIT4" }
+    ),
+    /*
+     *  __print_array( array, len, element_size )
+     *
+     *    This prints out the array that is defined by __array in a nice format.
+     */
+    __print_array(__get_dynamic_array(list),
+    __get_dynamic_array_len(list) / sizeof(int),
+    sizeof(int)),
+    __get_str(str), __get_str(lstr),
+    __get_bitmask(cpus), __get_cpumask(cpum),
+    __get_str(vstr))
+    );
 
 /*
  * There may be a case where a tracepoint should only be called if
@@ -406,24 +408,24 @@ TRACE_EVENT(foo_bar,
  */
 TRACE_EVENT_CONDITION(foo_bar_with_cond,
 
-	TP_PROTO(const char *foo, int bar),
+    TP_PROTO(const char *foo, int bar),
 
-	TP_ARGS(foo, bar),
+    TP_ARGS(foo, bar),
 
-	TP_CONDITION(!(bar % 10)),
+    TP_CONDITION(!(bar % 10)),
 
-	TP_STRUCT__entry(
-		__string(	foo,    foo		)
-		__field(	int,	bar			)
-	),
+    TP_STRUCT__entry(
+    __string(foo, foo)
+    __field(int, bar)
+    ),
 
-	TP_fast_assign(
-		__assign_str(foo, foo);
-		__entry->bar	= bar;
-	),
+    TP_fast_assign(
+    __assign_str(foo, foo);
+    __entry->bar = bar;
+    ),
 
-	TP_printk("foo %s %d", __get_str(foo), __entry->bar)
-);
+    TP_printk("foo %s %d", __get_str(foo), __entry->bar)
+    );
 
 int foo_bar_reg(void);
 void foo_bar_unreg(void);
@@ -449,24 +451,24 @@ void foo_bar_unreg(void);
  */
 TRACE_EVENT_FN(foo_bar_with_fn,
 
-	TP_PROTO(const char *foo, int bar),
+    TP_PROTO(const char *foo, int bar),
 
-	TP_ARGS(foo, bar),
+    TP_ARGS(foo, bar),
 
-	TP_STRUCT__entry(
-		__string(	foo,    foo		)
-		__field(	int,	bar		)
-	),
+    TP_STRUCT__entry(
+    __string(foo, foo)
+    __field(int, bar)
+    ),
 
-	TP_fast_assign(
-		__assign_str(foo, foo);
-		__entry->bar	= bar;
-	),
+    TP_fast_assign(
+    __assign_str(foo, foo);
+    __entry->bar = bar;
+    ),
 
-	TP_printk("foo %s %d", __get_str(foo), __entry->bar),
+    TP_printk("foo %s %d", __get_str(foo), __entry->bar),
 
-	foo_bar_reg, foo_bar_unreg
-);
+    foo_bar_reg, foo_bar_unreg
+    );
 
 /*
  * Each TRACE_EVENT macro creates several helper functions to produce
@@ -496,41 +498,40 @@ TRACE_EVENT_FN(foo_bar_with_fn,
  */
 DECLARE_EVENT_CLASS(foo_template,
 
-	TP_PROTO(const char *foo, int bar),
+    TP_PROTO(const char *foo, int bar),
 
-	TP_ARGS(foo, bar),
+    TP_ARGS(foo, bar),
 
-	TP_STRUCT__entry(
-		__string(	foo,    foo		)
-		__field(	int,	bar		)
-	),
+    TP_STRUCT__entry(
+    __string(foo, foo)
+    __field(int, bar)
+    ),
 
-	TP_fast_assign(
-		__assign_str(foo, foo);
-		__entry->bar	= bar;
-	),
+    TP_fast_assign(
+    __assign_str(foo, foo);
+    __entry->bar = bar;
+    ),
 
-	TP_printk("foo %s %d", __get_str(foo), __entry->bar)
-);
+    TP_printk("foo %s %d", __get_str(foo), __entry->bar)
+    );
 
 /*
  * Here's a better way for the previous samples (except, the first
  * example had more fields and could not be used here).
  */
 DEFINE_EVENT(foo_template, foo_with_template_simple,
-	TP_PROTO(const char *foo, int bar),
-	TP_ARGS(foo, bar));
+    TP_PROTO(const char *foo, int bar),
+    TP_ARGS(foo, bar));
 
 DEFINE_EVENT_CONDITION(foo_template, foo_with_template_cond,
-	TP_PROTO(const char *foo, int bar),
-	TP_ARGS(foo, bar),
-	TP_CONDITION(!(bar % 8)));
-
+    TP_PROTO(const char *foo, int bar),
+    TP_ARGS(foo, bar),
+    TP_CONDITION(!(bar % 8)));
 
 DEFINE_EVENT_FN(foo_template, foo_with_template_fn,
-	TP_PROTO(const char *foo, int bar),
-	TP_ARGS(foo, bar),
-	foo_bar_reg, foo_bar_unreg);
+    TP_PROTO(const char *foo, int bar),
+    TP_ARGS(foo, bar),
+    foo_bar_reg, foo_bar_unreg);
 
 /*
  * Anytime two events share basically the same values and have
@@ -545,9 +546,9 @@ DEFINE_EVENT_FN(foo_template, foo_with_template_fn,
  */
 
 DEFINE_EVENT_PRINT(foo_template, foo_with_template_print,
-	TP_PROTO(const char *foo, int bar),
-	TP_ARGS(foo, bar),
-	TP_printk("bar %s %d", __get_str(foo), __entry->bar));
+    TP_PROTO(const char *foo, int bar),
+    TP_ARGS(foo, bar),
+    TP_printk("bar %s %d", __get_str(foo), __entry->bar));
 
 /*
  * There are yet another __rel_loc dynamic data attribute. If you
@@ -561,34 +562,34 @@ DEFINE_EVENT_PRINT(foo_template, foo_with_template_print,
 
 TRACE_EVENT(foo_rel_loc,
 
-	TP_PROTO(const char *foo, int bar, unsigned long *mask, const cpumask_t *cpus),
+    TP_PROTO(const char *foo, int bar, unsigned long *mask,
+    const cpumask_t * cpus),
 
-	TP_ARGS(foo, bar, mask, cpus),
+    TP_ARGS(foo, bar, mask, cpus),
 
-	TP_STRUCT__entry(
-		__rel_string(	foo,	foo	)
-		__field(	int,	bar	)
-		__rel_bitmask(	bitmask,
-			BITS_PER_BYTE * sizeof(unsigned long)	)
-		__rel_cpumask(	cpumask )
-	),
+    TP_STRUCT__entry(
+    __rel_string(foo, foo)
+    __field(int, bar)
+    __rel_bitmask(bitmask,
+    BITS_PER_BYTE * sizeof(unsigned long))
+    __rel_cpumask(cpumask)
+    ),
 
-	TP_fast_assign(
-		__assign_rel_str(foo);
-		__entry->bar = bar;
-		__assign_rel_bitmask(bitmask, mask,
-			BITS_PER_BYTE * sizeof(unsigned long));
-		__assign_rel_cpumask(cpumask, cpus);
-	),
+    TP_fast_assign(
+    __assign_rel_str(foo);
+    __entry->bar = bar;
+    __assign_rel_bitmask(bitmask, mask,
+    BITS_PER_BYTE * sizeof(unsigned long));
+    __assign_rel_cpumask(cpumask, cpus);
+    ),
 
-	TP_printk("foo_rel_loc %s, %d, %s, %s", __get_rel_str(foo), __entry->bar,
-		  __get_rel_bitmask(bitmask),
-		  __get_rel_cpumask(cpumask))
-);
+    TP_printk("foo_rel_loc %s, %d, %s, %s", __get_rel_str(foo), __entry->bar,
+    __get_rel_bitmask(bitmask),
+    __get_rel_cpumask(cpumask))
+    );
 #endif
 
 /***** NOTICE! The #if protection ends here. *****/
-
 
 /*
  * There are several ways I could have done this. If I left out the
@@ -626,5 +627,5 @@ TRACE_EVENT(foo_rel_loc,
 /*
  * TRACE_INCLUDE_FILE is not needed if the filename and TRACE_SYSTEM are equal
  */
-#define TRACE_INCLUDE_FILE trace-events-sample
+#define TRACE_INCLUDE_FILE trace - events - sample
 #include <trace/define_trace.h>

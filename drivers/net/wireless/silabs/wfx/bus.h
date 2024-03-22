@@ -21,13 +21,15 @@
 #define WFX_REG_FRAME_OUT     0x7
 
 struct wfx_hwbus_ops {
-	int (*copy_from_io)(void *bus_priv, unsigned int addr, void *dst, size_t count);
-	int (*copy_to_io)(void *bus_priv, unsigned int addr, const void *src, size_t count);
-	int (*irq_subscribe)(void *bus_priv);
-	int (*irq_unsubscribe)(void *bus_priv);
-	void (*lock)(void *bus_priv);
-	void (*unlock)(void *bus_priv);
-	size_t (*align_size)(void *bus_priv, size_t size);
+  int (*copy_from_io)(void *bus_priv, unsigned int addr, void *dst,
+      size_t count);
+  int (*copy_to_io)(void *bus_priv, unsigned int addr, const void *src,
+      size_t count);
+  int (*irq_subscribe)(void *bus_priv);
+  int (*irq_unsubscribe)(void *bus_priv);
+  void (*lock)(void *bus_priv);
+  void (*unlock)(void *bus_priv);
+  size_t (*align_size)(void *bus_priv, size_t size);
 };
 
 extern struct sdio_driver wfx_sdio_driver;

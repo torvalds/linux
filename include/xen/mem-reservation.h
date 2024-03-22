@@ -19,37 +19,37 @@
 
 extern bool xen_scrub_pages;
 
-static inline void xenmem_reservation_scrub_page(struct page *page)
-{
-	if (xen_scrub_pages)
-		clear_highpage(page);
+static inline void xenmem_reservation_scrub_page(struct page *page) {
+  if (xen_scrub_pages) {
+    clear_highpage(page);
+  }
 }
 
 #ifdef CONFIG_XEN_HAVE_PVMMU
 void __xenmem_reservation_va_mapping_update(unsigned long count,
-					    struct page **pages,
-					    xen_pfn_t *frames);
+    struct page **pages,
+    xen_pfn_t *frames);
 
 void __xenmem_reservation_va_mapping_reset(unsigned long count,
-					   struct page **pages);
+    struct page **pages);
 #endif
 
 static inline void xenmem_reservation_va_mapping_update(unsigned long count,
-							struct page **pages,
-							xen_pfn_t *frames)
-{
+    struct page **pages,
+    xen_pfn_t *frames) {
 #ifdef CONFIG_XEN_HAVE_PVMMU
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		__xenmem_reservation_va_mapping_update(count, pages, frames);
+  if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+    __xenmem_reservation_va_mapping_update(count, pages, frames);
+  }
 #endif
 }
 
 static inline void xenmem_reservation_va_mapping_reset(unsigned long count,
-						       struct page **pages)
-{
+    struct page **pages) {
 #ifdef CONFIG_XEN_HAVE_PVMMU
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		__xenmem_reservation_va_mapping_reset(count, pages);
+  if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+    __xenmem_reservation_va_mapping_reset(count, pages);
+  }
 #endif
 }
 

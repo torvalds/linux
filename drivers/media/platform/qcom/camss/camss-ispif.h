@@ -22,57 +22,57 @@
 #define MSM_ISPIF_VFE_NUM 2
 
 enum ispif_intf {
-	PIX0,
-	RDI0,
-	PIX1,
-	RDI1,
-	RDI2
+  PIX0,
+  RDI0,
+  PIX1,
+  RDI1,
+  RDI2
 };
 
 struct ispif_intf_cmd_reg {
-	u32 cmd_0;
-	u32 cmd_1;
+  u32 cmd_0;
+  u32 cmd_1;
 };
 
 struct ispif_line {
-	struct ispif_device *ispif;
-	u8 id;
-	u8 csid_id;
-	u8 vfe_id;
-	enum ispif_intf interface;
-	struct v4l2_subdev subdev;
-	struct media_pad pads[MSM_ISPIF_PADS_NUM];
-	struct v4l2_mbus_framefmt fmt[MSM_ISPIF_PADS_NUM];
-	const u32 *formats;
-	unsigned int nformats;
+  struct ispif_device *ispif;
+  u8 id;
+  u8 csid_id;
+  u8 vfe_id;
+  enum ispif_intf interface;
+  struct v4l2_subdev subdev;
+  struct media_pad pads[MSM_ISPIF_PADS_NUM];
+  struct v4l2_mbus_framefmt fmt[MSM_ISPIF_PADS_NUM];
+  const u32 *formats;
+  unsigned int nformats;
 };
 
 struct ispif_device {
-	void __iomem *base;
-	void __iomem *base_clk_mux;
-	u32 irq;
-	char irq_name[30];
-	struct camss_clock *clock;
-	int nclocks;
-	struct camss_clock  *clock_for_reset;
-	int nclocks_for_reset;
-	struct completion reset_complete[MSM_ISPIF_VFE_NUM];
-	int power_count;
-	struct mutex power_lock;
-	struct ispif_intf_cmd_reg intf_cmd[MSM_ISPIF_VFE_NUM];
-	struct mutex config_lock;
-	unsigned int line_num;
-	struct ispif_line *line;
-	struct camss *camss;
+  void __iomem *base;
+  void __iomem *base_clk_mux;
+  u32 irq;
+  char irq_name[30];
+  struct camss_clock *clock;
+  int nclocks;
+  struct camss_clock *clock_for_reset;
+  int nclocks_for_reset;
+  struct completion reset_complete[MSM_ISPIF_VFE_NUM];
+  int power_count;
+  struct mutex power_lock;
+  struct ispif_intf_cmd_reg intf_cmd[MSM_ISPIF_VFE_NUM];
+  struct mutex config_lock;
+  unsigned int line_num;
+  struct ispif_line *line;
+  struct camss *camss;
 };
 
 struct camss_subdev_resources;
 
 int msm_ispif_subdev_init(struct camss *camss,
-			  const struct camss_subdev_resources *res);
+    const struct camss_subdev_resources *res);
 
 int msm_ispif_register_entities(struct ispif_device *ispif,
-				struct v4l2_device *v4l2_dev);
+    struct v4l2_device *v4l2_dev);
 
 void msm_ispif_unregister_entities(struct ispif_device *ispif);
 

@@ -9,8 +9,8 @@
  */
 
 /* 3=sun3
-   4=sun4 (as in sun4 sysmaint student book)
-   c=sun4c (according to davem) */
+ * 4=sun4 (as in sun4 sysmaint student book)
+ * c=sun4c (according to davem) */
 
 #define AC_IDPROM     0x00000000    /* 34  ID PROM, R/O, byte, 32 bytes      */
 #define AC_PAGEMAP    0x10000000    /* 3   Pagemap R/W, long                 */

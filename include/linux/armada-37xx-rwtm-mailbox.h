@@ -11,13 +11,13 @@
 #include <linux/types.h>
 
 struct armada_37xx_rwtm_tx_msg {
-	u16 command;
-	u32 args[16];
+  u16 command;
+  u32 args[16];
 };
 
 struct armada_37xx_rwtm_rx_msg {
-	u32 retval;
-	u32 status[16];
+  u32 retval;
+  u32 status[16];
 };
 
 #endif /* _LINUX_ARMADA_37XX_RWTM_MAILBOX_H_ */

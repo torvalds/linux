@@ -20,9 +20,9 @@
  *   i. when updating a balloon's page ->mapping element, strictly do it under
  *      the following lock order, independently of the far superior
  *      locking scheme (lru_lock, balloon_lock):
- *	    +-page_lock(page);
- *	      +--spin_lock_irq(&b_dev_info->pages_lock);
- *	            ... page->mapping updates here ...
+ *      +-page_lock(page);
+ *        +--spin_lock_irq(&b_dev_info->pages_lock);
+ *              ... page->mapping updates here ...
  *
  *  ii. isolation or dequeueing procedure must remove the page from balloon
  *      device page list under b_dev_info->pages_lock.
@@ -52,28 +52,27 @@
  * balloon driver as a page book-keeper for its registered balloon devices.
  */
 struct balloon_dev_info {
-	unsigned long isolated_pages;	/* # of isolated pages for migration */
-	spinlock_t pages_lock;		/* Protection to pages list */
-	struct list_head pages;		/* Pages enqueued & handled to Host */
-	int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
-			struct page *page, enum migrate_mode mode);
+  unsigned long isolated_pages; /* # of isolated pages for migration */
+  spinlock_t pages_lock;    /* Protection to pages list */
+  struct list_head pages;   /* Pages enqueued & handled to Host */
+  int (*migratepage)(struct balloon_dev_info *, struct page *newpage,
+      struct page *page, enum migrate_mode mode);
 };
 
 extern struct page *balloon_page_alloc(void);
 extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
-				 struct page *page);
+    struct page *page);
 extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
 extern size_t balloon_page_list_enqueue(struct balloon_dev_info *b_dev_info,
-				      struct list_head *pages);
+    struct list_head *pages);
 extern size_t balloon_page_list_dequeue(struct balloon_dev_info *b_dev_info,
-				     struct list_head *pages, size_t n_req_pages);
+    struct list_head *pages, size_t n_req_pages);
 
-static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
-{
-	balloon->isolated_pages = 0;
-	spin_lock_init(&balloon->pages_lock);
-	INIT_LIST_HEAD(&balloon->pages);
-	balloon->migratepage = NULL;
+static inline void balloon_devinfo_init(struct balloon_dev_info *balloon) {
+  balloon->isolated_pages = 0;
+  spin_lock_init(&balloon->pages_lock);
+  INIT_LIST_HEAD(&balloon->pages);
+  balloon->migratepage = NULL;
 }
 
 #ifdef CONFIG_BALLOON_COMPACTION
@@ -81,7 +80,7 @@ extern const struct movable_operations balloon_mops;
 
 /*
  * balloon_page_insert - insert a page into the balloon's page list and make
- *			 the page->private assignment accordingly.
+ *       the page->private assignment accordingly.
  * @balloon : pointer to balloon device
  * @page    : page to be assigned as a 'balloon page'
  *
@@ -89,67 +88,61 @@ extern const struct movable_operations balloon_mops;
  * pages list is held before inserting a page into the balloon device.
  */
 static inline void balloon_page_insert(struct balloon_dev_info *balloon,
-				       struct page *page)
-{
-	__SetPageOffline(page);
-	__SetPageMovable(page, &balloon_mops);
-	set_page_private(page, (unsigned long)balloon);
-	list_add(&page->lru, &balloon->pages);
+    struct page *page) {
+  __SetPageOffline(page);
+  __SetPageMovable(page, &balloon_mops);
+  set_page_private(page, (unsigned long) balloon);
+  list_add(&page->lru, &balloon->pages);
 }
 
 /*
  * balloon_page_delete - delete a page from balloon's page list and clear
- *			 the page->private assignement accordingly.
+ *       the page->private assignement accordingly.
  * @page    : page to be released from balloon's page list
  *
  * Caller must ensure the page is locked and the spin_lock protecting balloon
  * pages list is held before deleting a page from the balloon device.
  */
-static inline void balloon_page_delete(struct page *page)
-{
-	__ClearPageOffline(page);
-	__ClearPageMovable(page);
-	set_page_private(page, 0);
-	/*
-	 * No touch page.lru field once @page has been isolated
-	 * because VM is using the field.
-	 */
-	if (!PageIsolated(page))
-		list_del(&page->lru);
+static inline void balloon_page_delete(struct page *page) {
+  __ClearPageOffline(page);
+  __ClearPageMovable(page);
+  set_page_private(page, 0);
+  /*
+   * No touch page.lru field once @page has been isolated
+   * because VM is using the field.
+   */
+  if (!PageIsolated(page)) {
+    list_del(&page->lru);
+  }
 }
 
 /*
  * balloon_page_device - get the b_dev_info descriptor for the balloon device
- *			 that enqueues the given page.
+ *       that enqueues the given page.
  */
-static inline struct balloon_dev_info *balloon_page_device(struct page *page)
-{
-	return (struct balloon_dev_info *)page_private(page);
+static inline struct balloon_dev_info *balloon_page_device(struct page *page) {
+  return (struct balloon_dev_info *) page_private(page);
 }
 
-static inline gfp_t balloon_mapping_gfp_mask(void)
-{
-	return GFP_HIGHUSER_MOVABLE;
+static inline gfp_t balloon_mapping_gfp_mask(void) {
+  return GFP_HIGHUSER_MOVABLE;
 }
 
 #else /* !CONFIG_BALLOON_COMPACTION */
 
 static inline void balloon_page_insert(struct balloon_dev_info *balloon,
-				       struct page *page)
-{
-	__SetPageOffline(page);
-	list_add(&page->lru, &balloon->pages);
+    struct page *page) {
+  __SetPageOffline(page);
+  list_add(&page->lru, &balloon->pages);
 }
 
-static inline void balloon_page_delete(struct page *page)
-{
-	__ClearPageOffline(page);
-	list_del(&page->lru);
+static inline void balloon_page_delete(struct page *page) {
+  __ClearPageOffline(page);
+  list_del(&page->lru);
 }
 
-static inline gfp_t balloon_mapping_gfp_mask(void)
-{
-	return GFP_HIGHUSER;
+static inline gfp_t balloon_mapping_gfp_mask(void) {
+  return GFP_HIGHUSER;
 }
 
 #endif /* CONFIG_BALLOON_COMPACTION */
@@ -161,9 +154,9 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
  *
  * Caller must ensure the page is private and protect the list.
  */
-static inline void balloon_page_push(struct list_head *pages, struct page *page)
-{
-	list_add(&page->lru, pages);
+static inline void balloon_page_push(struct list_head *pages,
+    struct page *page) {
+  list_add(&page->lru, pages);
 }
 
 /*
@@ -173,14 +166,13 @@ static inline void balloon_page_push(struct list_head *pages, struct page *page)
  *
  * Caller must ensure the page is private and protect the list.
  */
-static inline struct page *balloon_page_pop(struct list_head *pages)
-{
-	struct page *page = list_first_entry_or_null(pages, struct page, lru);
-
-	if (!page)
-		return NULL;
-
-	list_del(&page->lru);
-	return page;
+static inline struct page *balloon_page_pop(struct list_head *pages) {
+  struct page *page = list_first_entry_or_null(pages, struct page, lru);
+  if (!page) {
+    return NULL;
+  }
+  list_del(&page->lru);
+  return page;
 }
+
 #endif /* _LINUX_BALLOON_COMPACTION_H */

@@ -19,7 +19,7 @@
  *    La Monte H.P. Yarroll <piggy@acm.org>
  *    Narasimha Budihal     <narasimha@refcode.org>
  *    Karl Knutson          <karl@athena.chicago.il.us>
- *    Ardelle Fan	    <ardelle.fan@intel.com>
+ *    Ardelle Fan     <ardelle.fan@intel.com>
  *    Kevin Gao             <kevin.gao@intel.com>
  */
 
@@ -34,23 +34,23 @@
 #include <net/sctp/sm.h>
 
 #define DECLARE_PRIMITIVE(name) \
-/* This is called in the code as sctp_primitive_ ## name.  */ \
-int sctp_primitive_ ## name(struct net *net, struct sctp_association *asoc, \
-			    void *arg) { \
-	int error = 0; \
-	enum sctp_event_type event_type; union sctp_subtype subtype; \
-	enum sctp_state state; \
-	struct sctp_endpoint *ep; \
-	\
-	event_type = SCTP_EVENT_T_PRIMITIVE; \
-	subtype = SCTP_ST_PRIMITIVE(SCTP_PRIMITIVE_ ## name); \
-	state = asoc ? asoc->state : SCTP_STATE_CLOSED; \
-	ep = asoc ? asoc->ep : NULL; \
-	\
-	error = sctp_do_sm(net, event_type, subtype, state, ep, asoc,	\
-			   arg, GFP_KERNEL); \
-	return error; \
-}
+  /* This is called in the code as sctp_primitive_ ## name.  */ \
+  int sctp_primitive_ ## name(struct net *net, struct sctp_association *asoc, \
+    void *arg) { \
+    int error = 0; \
+    enum sctp_event_type event_type; union sctp_subtype subtype; \
+    enum sctp_state state; \
+    struct sctp_endpoint *ep; \
+  \
+    event_type = SCTP_EVENT_T_PRIMITIVE; \
+    subtype = SCTP_ST_PRIMITIVE(SCTP_PRIMITIVE_ ## name); \
+    state = asoc ? asoc->state : SCTP_STATE_CLOSED; \
+    ep = asoc ? asoc->ep : NULL; \
+  \
+    error = sctp_do_sm(net, event_type, subtype, state, ep, asoc, \
+    arg, GFP_KERNEL); \
+    return error; \
+  }
 
 /* 10.1 ULP-to-SCTP
  * B) Associate
@@ -185,15 +185,15 @@ DECLARE_PRIMITIVE(SEND);
 DECLARE_PRIMITIVE(REQUESTHEARTBEAT);
 
 /* ADDIP
-* 3.1.1 Address Configuration Change Chunk (ASCONF)
-*
-* This chunk is used to communicate to the remote endpoint one of the
-* configuration change requests that MUST be acknowledged.  The
-* information carried in the ASCONF Chunk uses the form of a
-* Type-Length-Value (TLV), as described in "3.2.1 Optional/
-* Variable-length Parameter Format" in RFC2960 [5], forall variable
-* parameters.
-*/
+ * 3.1.1 Address Configuration Change Chunk (ASCONF)
+ *
+ * This chunk is used to communicate to the remote endpoint one of the
+ * configuration change requests that MUST be acknowledged.  The
+ * information carried in the ASCONF Chunk uses the form of a
+ * Type-Length-Value (TLV), as described in "3.2.1 Optional/
+ * Variable-length Parameter Format" in RFC2960 [5], forall variable
+ * parameters.
+ */
 
 DECLARE_PRIMITIVE(ASCONF);
 

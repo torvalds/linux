@@ -8,7 +8,7 @@
  * any later version.
  *
  * Author(s):
- *	2011-2013 Arvid Brodin, arvid.brodin@xdin.com
+ *  2011-2013 Arvid Brodin, arvid.brodin@xdin.com
  */
 
 #ifndef __UAPI_HSR_NETLINK_H
@@ -19,32 +19,31 @@
 
 /* attributes for HSR or PRP node */
 enum {
-	HSR_A_UNSPEC,
-	HSR_A_NODE_ADDR,
-	HSR_A_IFINDEX,
-	HSR_A_IF1_AGE,
-	HSR_A_IF2_AGE,
-	HSR_A_NODE_ADDR_B,
-	HSR_A_IF1_SEQ,
-	HSR_A_IF2_SEQ,
-	HSR_A_IF1_IFINDEX,
-	HSR_A_IF2_IFINDEX,
-	HSR_A_ADDR_B_IFINDEX,
-	__HSR_A_MAX,
+  HSR_A_UNSPEC,
+  HSR_A_NODE_ADDR,
+  HSR_A_IFINDEX,
+  HSR_A_IF1_AGE,
+  HSR_A_IF2_AGE,
+  HSR_A_NODE_ADDR_B,
+  HSR_A_IF1_SEQ,
+  HSR_A_IF2_SEQ,
+  HSR_A_IF1_IFINDEX,
+  HSR_A_IF2_IFINDEX,
+  HSR_A_ADDR_B_IFINDEX,
+  __HSR_A_MAX,
 };
 #define HSR_A_MAX (__HSR_A_MAX - 1)
 
-
 /* commands */
 enum {
-	HSR_C_UNSPEC,
-	HSR_C_RING_ERROR,
-	HSR_C_NODE_DOWN,
-	HSR_C_GET_NODE_STATUS,
-	HSR_C_SET_NODE_STATUS,
-	HSR_C_GET_NODE_LIST,
-	HSR_C_SET_NODE_LIST,
-	__HSR_C_MAX,
+  HSR_C_UNSPEC,
+  HSR_C_RING_ERROR,
+  HSR_C_NODE_DOWN,
+  HSR_C_GET_NODE_STATUS,
+  HSR_C_SET_NODE_STATUS,
+  HSR_C_GET_NODE_LIST,
+  HSR_C_SET_NODE_LIST,
+  __HSR_C_MAX,
 };
 #define HSR_C_MAX (__HSR_C_MAX - 1)
 

@@ -30,8 +30,6 @@
  *    SVGA 3d hardware limits
  */
 
-
-
 #ifndef _SVGA3D_LIMITS_H_
 #define _SVGA3D_LIMITS_H_
 
@@ -59,7 +57,7 @@
 
 #define SVGA3D_MAX_SHADER_MEMORY_BYTES (8 * 1024 * 1024)
 #define SVGA3D_MAX_SHADER_MEMORY                                               \
-	(SVGA3D_MAX_SHADER_MEMORY_BYTES / sizeof(uint32))
+  (SVGA3D_MAX_SHADER_MEMORY_BYTES / sizeof(uint32))
 
 #define SVGA3D_MAX_SHADER_THREAD_GROUPS 65535
 

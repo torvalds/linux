@@ -13,41 +13,41 @@
  * is protected by track_srcu.
  */
 struct kvm_page_track_notifier_head {
-	struct srcu_struct track_srcu;
-	struct hlist_head track_notifier_list;
+  struct srcu_struct track_srcu;
+  struct hlist_head track_notifier_list;
 };
 
 struct kvm_page_track_notifier_node {
-	struct hlist_node node;
+  struct hlist_node node;
 
-	/*
-	 * It is called when guest is writing the write-tracked page
-	 * and write emulation is finished at that time.
-	 *
-	 * @gpa: the physical address written by guest.
-	 * @new: the data was written to the address.
-	 * @bytes: the written length.
-	 * @node: this node
-	 */
-	void (*track_write)(gpa_t gpa, const u8 *new, int bytes,
-			    struct kvm_page_track_notifier_node *node);
+  /*
+   * It is called when guest is writing the write-tracked page
+   * and write emulation is finished at that time.
+   *
+   * @gpa: the physical address written by guest.
+   * @new: the data was written to the address.
+   * @bytes: the written length.
+   * @node: this node
+   */
+  void (*track_write)(gpa_t gpa, const u8 *new, int bytes,
+      struct kvm_page_track_notifier_node *node);
 
-	/*
-	 * Invoked when a memory region is removed from the guest.  Or in KVM
-	 * terms, when a memslot is deleted.
-	 *
-	 * @gfn:       base gfn of the region being removed
-	 * @nr_pages:  number of pages in the to-be-removed region
-	 * @node:      this node
-	 */
-	void (*track_remove_region)(gfn_t gfn, unsigned long nr_pages,
-				    struct kvm_page_track_notifier_node *node);
+  /*
+   * Invoked when a memory region is removed from the guest.  Or in KVM
+   * terms, when a memslot is deleted.
+   *
+   * @gfn:       base gfn of the region being removed
+   * @nr_pages:  number of pages in the to-be-removed region
+   * @node:      this node
+   */
+  void (*track_remove_region)(gfn_t gfn, unsigned long nr_pages,
+      struct kvm_page_track_notifier_node *node);
 };
 
 int kvm_page_track_register_notifier(struct kvm *kvm,
-				     struct kvm_page_track_notifier_node *n);
+    struct kvm_page_track_notifier_node *n);
 void kvm_page_track_unregister_notifier(struct kvm *kvm,
-					struct kvm_page_track_notifier_node *n);
+    struct kvm_page_track_notifier_node *n);
 
 int kvm_write_track_add_gfn(struct kvm *kvm, gfn_t gfn);
 int kvm_write_track_remove_gfn(struct kvm *kvm, gfn_t gfn);

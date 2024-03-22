@@ -15,7 +15,7 @@ struct xe_gt;
 
 int xe_execlist_init(struct xe_gt *gt);
 struct xe_execlist_port *xe_execlist_port_create(struct xe_device *xe,
-						 struct xe_hw_engine *hwe);
+    struct xe_hw_engine *hwe);
 void xe_execlist_port_destroy(struct xe_execlist_port *port);
 
 #endif

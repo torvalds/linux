@@ -8,42 +8,39 @@
  * description.
  */
 struct parsed_partitions {
-	struct gendisk *disk;
-	char name[BDEVNAME_SIZE];
-	struct {
-		sector_t from;
-		sector_t size;
-		int flags;
-		bool has_info;
-		struct partition_meta_info info;
-	} *parts;
-	int next;
-	int limit;
-	bool access_beyond_eod;
-	char *pp_buf;
+  struct gendisk *disk;
+  char name[BDEVNAME_SIZE];
+  struct {
+    sector_t from;
+    sector_t size;
+    int flags;
+    bool has_info;
+    struct partition_meta_info info;
+  } *parts;
+  int next;
+  int limit;
+  bool access_beyond_eod;
+  char *pp_buf;
 };
 
 typedef struct {
-	struct folio *v;
+  struct folio *v;
 } Sector;
 
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p);
-static inline void put_dev_sector(Sector p)
-{
-	folio_put(p.v);
+static inline void put_dev_sector(Sector p) {
+  folio_put(p.v);
 }
 
-static inline void
-put_partition(struct parsed_partitions *p, int n, sector_t from, sector_t size)
-{
-	if (n < p->limit) {
-		char tmp[1 + BDEVNAME_SIZE + 10 + 1];
-
-		p->parts[n].from = from;
-		p->parts[n].size = size;
-		snprintf(tmp, sizeof(tmp), " %s%d", p->name, n);
-		strlcat(p->pp_buf, tmp, PAGE_SIZE);
-	}
+static inline void put_partition(struct parsed_partitions *p, int n,
+    sector_t from, sector_t size) {
+  if (n < p->limit) {
+    char tmp[1 + BDEVNAME_SIZE + 10 + 1];
+    p->parts[n].from = from;
+    p->parts[n].size = size;
+    snprintf(tmp, sizeof(tmp), " %s%d", p->name, n);
+    strlcat(p->pp_buf, tmp, PAGE_SIZE);
+  }
 }
 
 /* detection routines go here in alphabetical order: */

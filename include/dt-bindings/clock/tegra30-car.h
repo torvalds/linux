@@ -18,9 +18,9 @@
 #define _DT_BINDINGS_CLOCK_TEGRA30_CAR_H
 
 #define TEGRA30_CLK_CPU 0
-/* 1 */
-/* 2 */
-/* 3 */
+/* 1
+ * 2
+ * 3*/
 #define TEGRA30_CLK_RTC 4
 #define TEGRA30_CLK_TIMER 5
 #define TEGRA30_CLK_UARTA 6
@@ -96,8 +96,8 @@
 /* 74 */
 #define TEGRA30_CLK_AVPUCQ 75
 #define TEGRA30_CLK_LA 76
-/* 77 */
-/* 78 */
+/* 77
+ * 78*/
 #define TEGRA30_CLK_DTV 79
 #define TEGRA30_CLK_NDSPEED 80
 #define TEGRA30_CLK_I2CSLOW 81
@@ -151,36 +151,36 @@
 
 #define TEGRA30_CLK_HDA2HDMI 128
 #define TEGRA30_CLK_SATA_COLD 129
-/* 130 */
-/* 131 */
-/* 132 */
-/* 133 */
-/* 134 */
-/* 135 */
+/* 130
+ * 131
+ * 132
+ * 133
+ * 134
+ * 135*/
 #define TEGRA30_CLK_CEC 136
-/* 137 */
-/* 138 */
-/* 139 */
-/* 140 */
-/* 141 */
-/* 142 */
-/* 143 */
-/* 144 */
-/* 145 */
-/* 146 */
-/* 147 */
-/* 148 */
-/* 149 */
-/* 150 */
-/* 151 */
-/* 152 */
-/* 153 */
-/* 154 */
-/* 155 */
-/* 156 */
-/* 157 */
-/* 158 */
-/* 159 */
+/* 137
+ * 138
+ * 139
+ * 140
+ * 141
+ * 142
+ * 143
+ * 144
+ * 145
+ * 146
+ * 147
+ * 148
+ * 149
+ * 150
+ * 151
+ * 152
+ * 153
+ * 154
+ * 155
+ * 156
+ * 157
+ * 158
+ * 159*/
 
 #define TEGRA30_CLK_UARTB 160
 #define TEGRA30_CLK_VFIR 161
@@ -232,9 +232,9 @@
 #define TEGRA30_CLK_AUDIO3 204
 #define TEGRA30_CLK_AUDIO4 205
 #define TEGRA30_CLK_SPDIF 206
-/* 207 */
-/* 208 */
-/* 209 */
+/* 207
+ * 208
+ * 209*/
 #define TEGRA30_CLK_SCLK 210
 /* 211 */
 #define TEGRA30_CLK_CCLK_G 212
@@ -246,25 +246,25 @@
 #define TEGRA30_CLK_PCLK 218
 /* 219 */
 #define TEGRA30_CLK_OSC 220
-/* 221 */
-/* 222 */
-/* 223 */
+/* 221
+ * 222
+ * 223*/
 
-/* 288 */
-/* 289 */
-/* 290 */
-/* 291 */
-/* 292 */
-/* 293 */
-/* 294 */
-/* 295 */
-/* 296 */
-/* 297 */
-/* 298 */
-/* 299 */
-/* 300 */
-/* 301 */
-/* 302 */
+/* 288
+ * 289
+ * 290
+ * 291
+ * 292
+ * 293
+ * 294
+ * 295
+ * 296
+ * 297
+ * 298
+ * 299
+ * 300
+ * 301
+ * 302*/
 #define TEGRA30_CLK_AUDIO0_MUX 303
 #define TEGRA30_CLK_AUDIO1_MUX 304
 #define TEGRA30_CLK_AUDIO2_MUX 305
@@ -273,4 +273,4 @@
 #define TEGRA30_CLK_SPDIF_MUX 308
 #define TEGRA30_CLK_CLK_MAX 309
 
-#endif	/* _DT_BINDINGS_CLOCK_TEGRA30_CAR_H */
+#endif  /* _DT_BINDINGS_CLOCK_TEGRA30_CAR_H */

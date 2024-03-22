@@ -58,16 +58,16 @@
  */
 
 enum SQ_INTERRUPT_WORD_ENCODING {
-	SQ_INTERRUPT_WORD_ENCODING_AUTO = 0x0,
-	SQ_INTERRUPT_WORD_ENCODING_INST,
-	SQ_INTERRUPT_WORD_ENCODING_ERROR,
+  SQ_INTERRUPT_WORD_ENCODING_AUTO = 0x0,
+  SQ_INTERRUPT_WORD_ENCODING_INST,
+  SQ_INTERRUPT_WORD_ENCODING_ERROR,
 };
 
 enum SQ_INTERRUPT_ERROR_TYPE {
-	SQ_INTERRUPT_ERROR_TYPE_EDC_FUE = 0x0,
-	SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST,
-	SQ_INTERRUPT_ERROR_TYPE_MEMVIOL,
-	SQ_INTERRUPT_ERROR_TYPE_EDC_FED,
+  SQ_INTERRUPT_ERROR_TYPE_EDC_FUE = 0x0,
+  SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST,
+  SQ_INTERRUPT_ERROR_TYPE_MEMVIOL,
+  SQ_INTERRUPT_ERROR_TYPE_EDC_FED,
 };
 
 /* SQ_INTERRUPT_WORD_AUTO_CTXID */
@@ -116,7 +116,7 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 
 /* GFX9 SQ interrupt 24-bit data from context_id<0,1> */
 #define KFD_CONTEXT_ID_GET_SQ_INT_DATA(ctx0, ctx1)                             \
-	((ctx0 & 0xfff) | ((ctx0 >> 16) & 0xf000) | ((ctx1 << 16) & 0xff0000))
+  ((ctx0 & 0xfff) | ((ctx0 >> 16) & 0xf000) | ((ctx1 << 16) & 0xff0000))
 
 #define KFD_SQ_INT_DATA__ERR_TYPE_MASK 0xF00000
 #define KFD_SQ_INT_DATA__ERR_TYPE__SHIFT 20
@@ -126,359 +126,350 @@ enum SQ_INTERRUPT_ERROR_TYPE {
  * notification from the KFD with the following queue id (DOORBELL_ID) and
  * trap code (TRAP_CODE).
  */
-#define KFD_INT_DATA_DEBUG_DOORBELL_MASK	0x0003ff
-#define KFD_INT_DATA_DEBUG_TRAP_CODE_SHIFT	10
-#define KFD_INT_DATA_DEBUG_TRAP_CODE_MASK	0x07fc00
-#define KFD_DEBUG_DOORBELL_ID(sq_int_data)	((sq_int_data) &	\
-				KFD_INT_DATA_DEBUG_DOORBELL_MASK)
-#define KFD_DEBUG_TRAP_CODE(sq_int_data)	(((sq_int_data) &	\
-				KFD_INT_DATA_DEBUG_TRAP_CODE_MASK)	\
-				>> KFD_INT_DATA_DEBUG_TRAP_CODE_SHIFT)
-#define KFD_DEBUG_CP_BAD_OP_ECODE_MASK		0x3fffc00
-#define KFD_DEBUG_CP_BAD_OP_ECODE_SHIFT		10
-#define KFD_DEBUG_CP_BAD_OP_ECODE(ctxid0)	(((ctxid0) &		\
-				KFD_DEBUG_CP_BAD_OP_ECODE_MASK)		\
-				>> KFD_DEBUG_CP_BAD_OP_ECODE_SHIFT)
+#define KFD_INT_DATA_DEBUG_DOORBELL_MASK  0x0003ff
+#define KFD_INT_DATA_DEBUG_TRAP_CODE_SHIFT  10
+#define KFD_INT_DATA_DEBUG_TRAP_CODE_MASK 0x07fc00
+#define KFD_DEBUG_DOORBELL_ID(sq_int_data)  ((sq_int_data)    \
+  & KFD_INT_DATA_DEBUG_DOORBELL_MASK)
+#define KFD_DEBUG_TRAP_CODE(sq_int_data)  (((sq_int_data)   \
+  & KFD_INT_DATA_DEBUG_TRAP_CODE_MASK)  \
+  >> KFD_INT_DATA_DEBUG_TRAP_CODE_SHIFT)
+#define KFD_DEBUG_CP_BAD_OP_ECODE_MASK    0x3fffc00
+#define KFD_DEBUG_CP_BAD_OP_ECODE_SHIFT   10
+#define KFD_DEBUG_CP_BAD_OP_ECODE(ctxid0) (((ctxid0)      \
+  & KFD_DEBUG_CP_BAD_OP_ECODE_MASK)   \
+  >> KFD_DEBUG_CP_BAD_OP_ECODE_SHIFT)
 
 static void event_interrupt_poison_consumption_v9(struct kfd_node *dev,
-				uint16_t pasid, uint16_t client_id)
-{
-	enum amdgpu_ras_block block = 0;
-	int old_poison, ret = -EINVAL;
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
-
-	if (!p)
-		return;
-
-	/* all queues of a process will be unmapped in one time */
-	old_poison = atomic_cmpxchg(&p->poison, 0, 1);
-	kfd_unref_process(p);
-	if (old_poison)
-		return;
-
-	switch (client_id) {
-	case SOC15_IH_CLIENTID_SE0SH:
-	case SOC15_IH_CLIENTID_SE1SH:
-	case SOC15_IH_CLIENTID_SE2SH:
-	case SOC15_IH_CLIENTID_SE3SH:
-	case SOC15_IH_CLIENTID_UTCL2:
-		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
-		block = AMDGPU_RAS_BLOCK__GFX;
-		break;
-	case SOC15_IH_CLIENTID_SDMA0:
-	case SOC15_IH_CLIENTID_SDMA1:
-	case SOC15_IH_CLIENTID_SDMA2:
-	case SOC15_IH_CLIENTID_SDMA3:
-	case SOC15_IH_CLIENTID_SDMA4:
-		block = AMDGPU_RAS_BLOCK__SDMA;
-		break;
-	default:
-		break;
-	}
-
-	kfd_signal_poison_consumed_event(dev, pasid);
-
-	/* resetting queue passes, do page retirement without gpu reset
-	 * resetting queue fails, fallback to gpu reset solution
-	 */
-	if (!ret) {
-		dev_warn(dev->adev->dev,
-			"RAS poison consumption, unmap queue flow succeeded: client id %d\n",
-			client_id);
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, false);
-	} else {
-		dev_warn(dev->adev->dev,
-			"RAS poison consumption, fall back to gpu reset flow: client id %d\n",
-			client_id);
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, true);
-	}
+    uint16_t pasid, uint16_t client_id) {
+  enum amdgpu_ras_block block = 0;
+  int old_poison, ret = -EINVAL;
+  struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+  if (!p) {
+    return;
+  }
+  /* all queues of a process will be unmapped in one time */
+  old_poison = atomic_cmpxchg(&p->poison, 0, 1);
+  kfd_unref_process(p);
+  if (old_poison) {
+    return;
+  }
+  switch (client_id) {
+    case SOC15_IH_CLIENTID_SE0SH:
+    case SOC15_IH_CLIENTID_SE1SH:
+    case SOC15_IH_CLIENTID_SE2SH:
+    case SOC15_IH_CLIENTID_SE3SH:
+    case SOC15_IH_CLIENTID_UTCL2:
+      ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
+      block = AMDGPU_RAS_BLOCK__GFX;
+      break;
+    case SOC15_IH_CLIENTID_SDMA0:
+    case SOC15_IH_CLIENTID_SDMA1:
+    case SOC15_IH_CLIENTID_SDMA2:
+    case SOC15_IH_CLIENTID_SDMA3:
+    case SOC15_IH_CLIENTID_SDMA4:
+      block = AMDGPU_RAS_BLOCK__SDMA;
+      break;
+    default:
+      break;
+  }
+  kfd_signal_poison_consumed_event(dev, pasid);
+  /* resetting queue passes, do page retirement without gpu reset
+   * resetting queue fails, fallback to gpu reset solution
+   */
+  if (!ret) {
+    dev_warn(dev->adev->dev,
+        "RAS poison consumption, unmap queue flow succeeded: client id %d\n",
+        client_id);
+    amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, false);
+  } else {
+    dev_warn(dev->adev->dev,
+        "RAS poison consumption, fall back to gpu reset flow: client id %d\n",
+        client_id);
+    amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, true);
+  }
 }
 
-static bool context_id_expected(struct kfd_dev *dev)
-{
-	switch (KFD_GC_VERSION(dev)) {
-	case IP_VERSION(9, 0, 1):
-		return dev->mec_fw_version >= 0x817a;
-	case IP_VERSION(9, 1, 0):
-	case IP_VERSION(9, 2, 1):
-	case IP_VERSION(9, 2, 2):
-	case IP_VERSION(9, 3, 0):
-	case IP_VERSION(9, 4, 0):
-		return dev->mec_fw_version >= 0x17a;
-	default:
-		/* Other GFXv9 and later GPUs always sent valid context IDs
-		 * on legitimate events
-		 */
-		return KFD_GC_VERSION(dev) >= IP_VERSION(9, 4, 1);
-	}
+static bool context_id_expected(struct kfd_dev *dev) {
+  switch (KFD_GC_VERSION(dev)) {
+    case IP_VERSION(9, 0, 1):
+      return dev->mec_fw_version >= 0x817a;
+    case IP_VERSION(9, 1, 0):
+    case IP_VERSION(9, 2, 1):
+    case IP_VERSION(9, 2, 2):
+    case IP_VERSION(9, 3, 0):
+    case IP_VERSION(9, 4, 0):
+      return dev->mec_fw_version >= 0x17a;
+    default:
+      /* Other GFXv9 and later GPUs always sent valid context IDs
+       * on legitimate events
+       */
+      return KFD_GC_VERSION(dev) >= IP_VERSION(9, 4, 1);
+  }
 }
 
 static bool event_interrupt_isr_v9(struct kfd_node *dev,
-					const uint32_t *ih_ring_entry,
-					uint32_t *patched_ihre,
-					bool *patched_flag)
-{
-	uint16_t source_id, client_id, pasid, vmid;
-	const uint32_t *data = ih_ring_entry;
-
-	source_id = SOC15_SOURCE_ID_FROM_IH_ENTRY(ih_ring_entry);
-	client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
-
-	/* Only handle interrupts from KFD VMIDs */
-	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
-	if (!KFD_IRQ_IS_FENCE(client_id, source_id) &&
-	   (vmid < dev->vm_info.first_vmid_kfd ||
-	    vmid > dev->vm_info.last_vmid_kfd))
-		return false;
-
-	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
-
-	/* Only handle clients we care about */
-	if (client_id != SOC15_IH_CLIENTID_GRBM_CP &&
-	    client_id != SOC15_IH_CLIENTID_SDMA0 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA1 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA2 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA3 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA4 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA5 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA6 &&
-	    client_id != SOC15_IH_CLIENTID_SDMA7 &&
-	    client_id != SOC15_IH_CLIENTID_VMC &&
-	    client_id != SOC15_IH_CLIENTID_VMC1 &&
-	    client_id != SOC15_IH_CLIENTID_UTCL2 &&
-	    client_id != SOC15_IH_CLIENTID_SE0SH &&
-	    client_id != SOC15_IH_CLIENTID_SE1SH &&
-	    client_id != SOC15_IH_CLIENTID_SE2SH &&
-	    client_id != SOC15_IH_CLIENTID_SE3SH &&
-	    !KFD_IRQ_IS_FENCE(client_id, source_id))
-		return false;
-
-	/* This is a known issue for gfx9. Under non HWS, pasid is not set
-	 * in the interrupt payload, so we need to find out the pasid on our
-	 * own.
-	 */
-	if (!pasid && dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) {
-		const uint32_t pasid_mask = 0xffff;
-
-		*patched_flag = true;
-		memcpy(patched_ihre, ih_ring_entry,
-				dev->kfd->device_info.ih_ring_entry_size);
-
-		pasid = dev->dqm->vmid_pasid[vmid];
-
-		/* Patch the pasid field */
-		patched_ihre[3] = cpu_to_le32((le32_to_cpu(patched_ihre[3])
-					& ~pasid_mask) | pasid);
-	}
-
-	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
-		 client_id, source_id, vmid, pasid);
-	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
-		 data[0], data[1], data[2], data[3],
-		 data[4], data[5], data[6], data[7]);
-
-	/* If there is no valid PASID, it's likely a bug */
-	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
-		return false;
-
-	/* Workaround CP firmware sending bogus signals with 0 context_id.
-	 * Those can be safely ignored on hardware and firmware versions that
-	 * include a valid context_id on legitimate signals. This avoids the
-	 * slow path in kfd_signal_event_interrupt that scans all event slots
-	 * for signaled events.
-	 */
-	if (source_id == SOC15_INTSRC_CP_END_OF_PIPE) {
-		uint32_t context_id =
-			SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
-
-		if (context_id == 0 && context_id_expected(dev->kfd))
-			return false;
-	}
-
-	/* Interrupt types we care about: various signals and faults.
-	 * They will be forwarded to a work queue (see below).
-	 */
-	return source_id == SOC15_INTSRC_CP_END_OF_PIPE ||
-		source_id == SOC15_INTSRC_SDMA_TRAP ||
-		source_id == SOC15_INTSRC_SDMA_ECC ||
-		source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG ||
-		source_id == SOC15_INTSRC_CP_BAD_OPCODE ||
-		KFD_IRQ_IS_FENCE(client_id, source_id) ||
-		((client_id == SOC15_IH_CLIENTID_VMC ||
-		client_id == SOC15_IH_CLIENTID_VMC1 ||
-		client_id == SOC15_IH_CLIENTID_UTCL2) &&
-		!amdgpu_no_queue_eviction_on_vm_fault);
+    const uint32_t *ih_ring_entry,
+    uint32_t *patched_ihre,
+    bool *patched_flag) {
+  uint16_t source_id, client_id, pasid, vmid;
+  const uint32_t *data = ih_ring_entry;
+  source_id = SOC15_SOURCE_ID_FROM_IH_ENTRY(ih_ring_entry);
+  client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
+  /* Only handle interrupts from KFD VMIDs */
+  vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
+  if (!KFD_IRQ_IS_FENCE(client_id, source_id)
+      && (vmid < dev->vm_info.first_vmid_kfd
+      || vmid > dev->vm_info.last_vmid_kfd)) {
+    return false;
+  }
+  pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
+  /* Only handle clients we care about */
+  if (client_id != SOC15_IH_CLIENTID_GRBM_CP
+      && client_id != SOC15_IH_CLIENTID_SDMA0
+      && client_id != SOC15_IH_CLIENTID_SDMA1
+      && client_id != SOC15_IH_CLIENTID_SDMA2
+      && client_id != SOC15_IH_CLIENTID_SDMA3
+      && client_id != SOC15_IH_CLIENTID_SDMA4
+      && client_id != SOC15_IH_CLIENTID_SDMA5
+      && client_id != SOC15_IH_CLIENTID_SDMA6
+      && client_id != SOC15_IH_CLIENTID_SDMA7
+      && client_id != SOC15_IH_CLIENTID_VMC
+      && client_id != SOC15_IH_CLIENTID_VMC1
+      && client_id != SOC15_IH_CLIENTID_UTCL2
+      && client_id != SOC15_IH_CLIENTID_SE0SH
+      && client_id != SOC15_IH_CLIENTID_SE1SH
+      && client_id != SOC15_IH_CLIENTID_SE2SH
+      && client_id != SOC15_IH_CLIENTID_SE3SH
+      && !KFD_IRQ_IS_FENCE(client_id, source_id)) {
+    return false;
+  }
+  /* This is a known issue for gfx9. Under non HWS, pasid is not set
+   * in the interrupt payload, so we need to find out the pasid on our
+   * own.
+   */
+  if (!pasid && dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) {
+    const uint32_t pasid_mask = 0xffff;
+    *patched_flag = true;
+    memcpy(patched_ihre, ih_ring_entry,
+        dev->kfd->device_info.ih_ring_entry_size);
+    pasid = dev->dqm->vmid_pasid[vmid];
+    /* Patch the pasid field */
+    patched_ihre[3] = cpu_to_le32((le32_to_cpu(patched_ihre[3])
+        & ~pasid_mask) | pasid);
+  }
+  pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
+      client_id, source_id, vmid, pasid);
+  pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
+      data[0], data[1], data[2], data[3],
+      data[4], data[5], data[6], data[7]);
+  /* If there is no valid PASID, it's likely a bug */
+  if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt")) {
+    return false;
+  }
+  /* Workaround CP firmware sending bogus signals with 0 context_id.
+   * Those can be safely ignored on hardware and firmware versions that
+   * include a valid context_id on legitimate signals. This avoids the
+   * slow path in kfd_signal_event_interrupt that scans all event slots
+   * for signaled events.
+   */
+  if (source_id == SOC15_INTSRC_CP_END_OF_PIPE) {
+    uint32_t context_id
+      = SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
+    if (context_id == 0 && context_id_expected(dev->kfd)) {
+      return false;
+    }
+  }
+  /* Interrupt types we care about: various signals and faults.
+   * They will be forwarded to a work queue (see below).
+   */
+  return source_id == SOC15_INTSRC_CP_END_OF_PIPE
+    || source_id == SOC15_INTSRC_SDMA_TRAP
+    || source_id == SOC15_INTSRC_SDMA_ECC
+    || source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG
+    || source_id == SOC15_INTSRC_CP_BAD_OPCODE
+    || KFD_IRQ_IS_FENCE(client_id, source_id)
+    || ((client_id == SOC15_IH_CLIENTID_VMC
+    || client_id == SOC15_IH_CLIENTID_VMC1
+    || client_id == SOC15_IH_CLIENTID_UTCL2)
+    && !amdgpu_no_queue_eviction_on_vm_fault);
 }
 
 static void event_interrupt_wq_v9(struct kfd_node *dev,
-					const uint32_t *ih_ring_entry)
-{
-	uint16_t source_id, client_id, pasid, vmid;
-	uint32_t context_id0, context_id1;
-	uint32_t sq_intr_err, sq_int_data, encoding;
-
-	source_id = SOC15_SOURCE_ID_FROM_IH_ENTRY(ih_ring_entry);
-	client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
-	pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
-	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
-	context_id0 = SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
-	context_id1 = SOC15_CONTEXT_ID1_FROM_IH_ENTRY(ih_ring_entry);
-
-	if (client_id == SOC15_IH_CLIENTID_GRBM_CP ||
-	    client_id == SOC15_IH_CLIENTID_SE0SH ||
-	    client_id == SOC15_IH_CLIENTID_SE1SH ||
-	    client_id == SOC15_IH_CLIENTID_SE2SH ||
-	    client_id == SOC15_IH_CLIENTID_SE3SH) {
-		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
-			kfd_signal_event_interrupt(pasid, context_id0, 32);
-		else if (source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG) {
-			sq_int_data = KFD_CONTEXT_ID_GET_SQ_INT_DATA(context_id0, context_id1);
-			encoding = REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, ENCODING);
-			switch (encoding) {
-			case SQ_INTERRUPT_WORD_ENCODING_AUTO:
-				pr_debug_ratelimited(
-					"sq_intr: auto, se %d, ttrace %d, wlt %d, ttrac_buf_full %d, reg_tms %d, cmd_tms %d, host_cmd_ovf %d, host_reg_ovf %d, immed_ovf %d, ttrace_utc_err %d\n",
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, SE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, WLT),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE_BUF_FULL),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, REG_TIMESTAMP),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, CMD_TIMESTAMP),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, HOST_CMD_OVERFLOW),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, HOST_REG_OVERFLOW),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, IMMED_OVERFLOW),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE_UTC_ERROR));
-				break;
-			case SQ_INTERRUPT_WORD_ENCODING_INST:
-				pr_debug_ratelimited("sq_intr: inst, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, intr_data 0x%x\n",
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, PRIV),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, WAVE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SIMD_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, CU_ID),
-					sq_int_data);
-				if (context_id0 & SQ_INTERRUPT_WORD_WAVE_CTXID__PRIV_MASK) {
-					if (kfd_set_dbg_ev_from_interrupt(dev, pasid,
-							KFD_DEBUG_DOORBELL_ID(sq_int_data),
-							KFD_DEBUG_TRAP_CODE(sq_int_data),
-							NULL, 0))
-						return;
-				}
-				break;
-			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
-				sq_intr_err = REG_GET_FIELD(sq_int_data, KFD_SQ_INT_DATA, ERR_TYPE);
-				pr_warn_ratelimited("sq_intr: error, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, err_type %d\n",
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, PRIV),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, WAVE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SIMD_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, CU_ID),
-					sq_intr_err);
-				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
-					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					event_interrupt_poison_consumption_v9(dev, pasid, client_id);
-					return;
-				}
-				break;
-			default:
-				break;
-			}
-			kfd_signal_event_interrupt(pasid, sq_int_data, 24);
-		} else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE) {
-			kfd_set_dbg_ev_from_interrupt(dev, pasid,
-				KFD_DEBUG_DOORBELL_ID(context_id0),
-				KFD_EC_MASK(KFD_DEBUG_CP_BAD_OP_ECODE(context_id0)),
-				NULL, 0);
-		}
-	} else if (client_id == SOC15_IH_CLIENTID_SDMA0 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA1 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA2 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA3 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA4 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA5 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA6 ||
-		   client_id == SOC15_IH_CLIENTID_SDMA7) {
-		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
-			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
-		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
-			return;
-		}
-	} else if (client_id == SOC15_IH_CLIENTID_VMC ||
-		   client_id == SOC15_IH_CLIENTID_VMC1 ||
-		   client_id == SOC15_IH_CLIENTID_UTCL2) {
-		struct kfd_vm_fault_info info = {0};
-		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
-		struct kfd_hsa_memory_exception_data exception_data;
-
-		if (client_id == SOC15_IH_CLIENTID_UTCL2 &&
-		    amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
-			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
-			return;
-		}
-
-		info.vmid = vmid;
-		info.mc_id = client_id;
-		info.page_addr = ih_ring_entry[4] |
-			(uint64_t)(ih_ring_entry[5] & 0xf) << 32;
-		info.prot_valid = ring_id & 0x08;
-		info.prot_read  = ring_id & 0x10;
-		info.prot_write = ring_id & 0x20;
-
-		memset(&exception_data, 0, sizeof(exception_data));
-		exception_data.gpu_id = dev->id;
-		exception_data.va = (info.page_addr) << PAGE_SHIFT;
-		exception_data.failure.NotPresent = info.prot_valid ? 1 : 0;
-		exception_data.failure.NoExecute = info.prot_exec ? 1 : 0;
-		exception_data.failure.ReadOnly = info.prot_write ? 1 : 0;
-		exception_data.failure.imprecise = 0;
-
-		kfd_set_dbg_ev_from_interrupt(dev,
-						pasid,
-						-1,
-						KFD_EC_MASK(EC_DEVICE_MEMORY_VIOLATION),
-						&exception_data,
-						sizeof(exception_data));
-		kfd_smi_event_update_vmfault(dev, pasid);
-	} else if (KFD_IRQ_IS_FENCE(client_id, source_id)) {
-		kfd_process_close_interrupt_drain(pasid);
-	}
+    const uint32_t *ih_ring_entry) {
+  uint16_t source_id, client_id, pasid, vmid;
+  uint32_t context_id0, context_id1;
+  uint32_t sq_intr_err, sq_int_data, encoding;
+  source_id = SOC15_SOURCE_ID_FROM_IH_ENTRY(ih_ring_entry);
+  client_id = SOC15_CLIENT_ID_FROM_IH_ENTRY(ih_ring_entry);
+  pasid = SOC15_PASID_FROM_IH_ENTRY(ih_ring_entry);
+  vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
+  context_id0 = SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
+  context_id1 = SOC15_CONTEXT_ID1_FROM_IH_ENTRY(ih_ring_entry);
+  if (client_id == SOC15_IH_CLIENTID_GRBM_CP
+      || client_id == SOC15_IH_CLIENTID_SE0SH
+      || client_id == SOC15_IH_CLIENTID_SE1SH
+      || client_id == SOC15_IH_CLIENTID_SE2SH
+      || client_id == SOC15_IH_CLIENTID_SE3SH) {
+    if (source_id == SOC15_INTSRC_CP_END_OF_PIPE) {
+      kfd_signal_event_interrupt(pasid, context_id0, 32);
+    } else if (source_id == SOC15_INTSRC_SQ_INTERRUPT_MSG) {
+      sq_int_data = KFD_CONTEXT_ID_GET_SQ_INT_DATA(context_id0, context_id1);
+      encoding = REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID,
+          ENCODING);
+      switch (encoding) {
+        case SQ_INTERRUPT_WORD_ENCODING_AUTO:
+          pr_debug_ratelimited(
+              "sq_intr: auto, se %d, ttrace %d, wlt %d, ttrac_buf_full %d, reg_tms %d, cmd_tms %d, host_cmd_ovf %d, host_reg_ovf %d, immed_ovf %d, ttrace_utc_err %d\n",
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, SE_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              THREAD_TRACE),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, WLT),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              THREAD_TRACE_BUF_FULL),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              REG_TIMESTAMP),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              CMD_TIMESTAMP),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              HOST_CMD_OVERFLOW),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              HOST_REG_OVERFLOW),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              IMMED_OVERFLOW),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID,
+              THREAD_TRACE_UTC_ERROR));
+          break;
+        case SQ_INTERRUPT_WORD_ENCODING_INST:
+          pr_debug_ratelimited(
+              "sq_intr: inst, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, intr_data 0x%x\n",
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, PRIV),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, WAVE_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SIMD_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, CU_ID),
+              sq_int_data);
+          if (context_id0 & SQ_INTERRUPT_WORD_WAVE_CTXID__PRIV_MASK) {
+            if (kfd_set_dbg_ev_from_interrupt(dev, pasid,
+                KFD_DEBUG_DOORBELL_ID(sq_int_data),
+                KFD_DEBUG_TRAP_CODE(sq_int_data),
+                NULL, 0)) {
+              return;
+            }
+          }
+          break;
+        case SQ_INTERRUPT_WORD_ENCODING_ERROR:
+          sq_intr_err = REG_GET_FIELD(sq_int_data, KFD_SQ_INT_DATA, ERR_TYPE);
+          pr_warn_ratelimited(
+              "sq_intr: error, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, err_type %d\n",
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, PRIV),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, WAVE_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SIMD_ID),
+              REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, CU_ID),
+              sq_intr_err);
+          if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST
+              && sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
+            event_interrupt_poison_consumption_v9(dev, pasid, client_id);
+            return;
+          }
+          break;
+        default:
+          break;
+      }
+      kfd_signal_event_interrupt(pasid, sq_int_data, 24);
+    } else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE) {
+      kfd_set_dbg_ev_from_interrupt(dev, pasid,
+          KFD_DEBUG_DOORBELL_ID(context_id0),
+          KFD_EC_MASK(KFD_DEBUG_CP_BAD_OP_ECODE(context_id0)),
+          NULL, 0);
+    }
+  } else if (client_id == SOC15_IH_CLIENTID_SDMA0
+      || client_id == SOC15_IH_CLIENTID_SDMA1
+      || client_id == SOC15_IH_CLIENTID_SDMA2
+      || client_id == SOC15_IH_CLIENTID_SDMA3
+      || client_id == SOC15_IH_CLIENTID_SDMA4
+      || client_id == SOC15_IH_CLIENTID_SDMA5
+      || client_id == SOC15_IH_CLIENTID_SDMA6
+      || client_id == SOC15_IH_CLIENTID_SDMA7) {
+    if (source_id == SOC15_INTSRC_SDMA_TRAP) {
+      kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
+    } else if (source_id == SOC15_INTSRC_SDMA_ECC) {
+      event_interrupt_poison_consumption_v9(dev, pasid, client_id);
+      return;
+    }
+  } else if (client_id == SOC15_IH_CLIENTID_VMC
+      || client_id == SOC15_IH_CLIENTID_VMC1
+      || client_id == SOC15_IH_CLIENTID_UTCL2) {
+    struct kfd_vm_fault_info info = {
+      0
+    };
+    uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
+    struct kfd_hsa_memory_exception_data exception_data;
+    if (client_id == SOC15_IH_CLIENTID_UTCL2
+        && amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
+      event_interrupt_poison_consumption_v9(dev, pasid, client_id);
+      return;
+    }
+    info.vmid = vmid;
+    info.mc_id = client_id;
+    info.page_addr = ih_ring_entry[4]
+        | (uint64_t) (ih_ring_entry[5] & 0xf) << 32;
+    info.prot_valid = ring_id & 0x08;
+    info.prot_read = ring_id & 0x10;
+    info.prot_write = ring_id & 0x20;
+    memset(&exception_data, 0, sizeof(exception_data));
+    exception_data.gpu_id = dev->id;
+    exception_data.va = (info.page_addr) << PAGE_SHIFT;
+    exception_data.failure.NotPresent = info.prot_valid ? 1 : 0;
+    exception_data.failure.NoExecute = info.prot_exec ? 1 : 0;
+    exception_data.failure.ReadOnly = info.prot_write ? 1 : 0;
+    exception_data.failure.imprecise = 0;
+    kfd_set_dbg_ev_from_interrupt(dev,
+        pasid,
+        -1,
+        KFD_EC_MASK(EC_DEVICE_MEMORY_VIOLATION),
+        &exception_data,
+        sizeof(exception_data));
+    kfd_smi_event_update_vmfault(dev, pasid);
+  } else if (KFD_IRQ_IS_FENCE(client_id, source_id)) {
+    kfd_process_close_interrupt_drain(pasid);
+  }
 }
 
 static bool event_interrupt_isr_v9_4_3(struct kfd_node *node,
-				const uint32_t *ih_ring_entry,
-				uint32_t *patched_ihre,
-				bool *patched_flag)
-{
-	uint16_t node_id, vmid;
-
-	/*
-	 * For GFX 9.4.3, process the interrupt if:
-	 * - NodeID field in IH entry matches the corresponding bit
-	 *   set in interrupt_bitmap Bits 0-15.
-	 *   OR
-	 * - If partition mode is CPX and interrupt came from
-	 *   Node_id 0,4,8,12, then check if the Bit (16 + client id)
-	 *   is set in interrupt bitmap Bits 16-31.
-	 */
-	node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
-	vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
-	if (kfd_irq_is_from_node(node, node_id, vmid))
-		return event_interrupt_isr_v9(node, ih_ring_entry,
-					patched_ihre, patched_flag);
-	return false;
+    const uint32_t *ih_ring_entry,
+    uint32_t *patched_ihre,
+    bool *patched_flag) {
+  uint16_t node_id, vmid;
+  /*
+   * For GFX 9.4.3, process the interrupt if:
+   * - NodeID field in IH entry matches the corresponding bit
+   *   set in interrupt_bitmap Bits 0-15.
+   *   OR
+   * - If partition mode is CPX and interrupt came from
+   *   Node_id 0,4,8,12, then check if the Bit (16 + client id)
+   *   is set in interrupt bitmap Bits 16-31.
+   */
+  node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
+  vmid = SOC15_VMID_FROM_IH_ENTRY(ih_ring_entry);
+  if (kfd_irq_is_from_node(node, node_id, vmid)) {
+    return event_interrupt_isr_v9(node, ih_ring_entry,
+        patched_ihre, patched_flag);
+  }
+  return false;
 }
 
 const struct kfd_event_interrupt_class event_interrupt_class_v9 = {
-	.interrupt_isr = event_interrupt_isr_v9,
-	.interrupt_wq = event_interrupt_wq_v9,
+  .interrupt_isr = event_interrupt_isr_v9,
+  .interrupt_wq = event_interrupt_wq_v9,
 };
 
 const struct kfd_event_interrupt_class event_interrupt_class_v9_4_3 = {
-	.interrupt_isr = event_interrupt_isr_v9_4_3,
-	.interrupt_wq = event_interrupt_wq_v9,
+  .interrupt_isr = event_interrupt_isr_v9_4_3,
+  .interrupt_wq = event_interrupt_wq_v9,
 };

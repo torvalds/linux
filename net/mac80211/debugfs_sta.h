@@ -14,14 +14,28 @@ void ieee80211_link_sta_debugfs_remove(struct link_sta_info *link_sta);
 void ieee80211_link_sta_debugfs_drv_add(struct link_sta_info *link_sta);
 void ieee80211_link_sta_debugfs_drv_remove(struct link_sta_info *link_sta);
 #else
-static inline void ieee80211_sta_debugfs_add(struct sta_info *sta) {}
-static inline void ieee80211_sta_debugfs_remove(struct sta_info *sta) {}
+static inline void ieee80211_sta_debugfs_add(struct sta_info *sta) {
+}
 
-static inline void ieee80211_link_sta_debugfs_add(struct link_sta_info *link_sta) {}
-static inline void ieee80211_link_sta_debugfs_remove(struct link_sta_info *link_sta) {}
+static inline void ieee80211_sta_debugfs_remove(struct sta_info *sta) {
+}
 
-static inline void ieee80211_link_sta_debugfs_drv_add(struct link_sta_info *link_sta) {}
-static inline void ieee80211_link_sta_debugfs_drv_remove(struct link_sta_info *link_sta) {}
+static inline void ieee80211_link_sta_debugfs_add(
+    struct link_sta_info *link_sta) {
+}
+
+static inline void ieee80211_link_sta_debugfs_remove(
+    struct link_sta_info *link_sta) {
+}
+
+static inline void ieee80211_link_sta_debugfs_drv_add(
+    struct link_sta_info *link_sta) {
+}
+
+static inline void ieee80211_link_sta_debugfs_drv_remove(
+    struct link_sta_info *link_sta) {
+}
+
 #endif
 
 #endif /* __MAC80211_DEBUGFS_STA_H */

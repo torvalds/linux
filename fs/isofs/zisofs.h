@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* ----------------------------------------------------------------------- *
- *   
- *   Copyright 2001 H. Peter Anvin - All Rights Reserved
- *
- * ----------------------------------------------------------------------- */
+*
+*   Copyright 2001 H. Peter Anvin - All Rights Reserved
+*
+* ----------------------------------------------------------------------- */
 
 /*
  * Prototypes for functions exported from the compressed isofs subsystem

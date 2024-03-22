@@ -36,4 +36,3 @@
 #define EVENT_LOG_CUST_MSG(tag, a, ...)
 
 #endif
-

@@ -17,40 +17,35 @@
 #include "setup.h"
 
 struct landlock_cred_security {
-	struct landlock_ruleset *domain;
+  struct landlock_ruleset *domain;
 };
 
-static inline struct landlock_cred_security *
-landlock_cred(const struct cred *cred)
-{
-	return cred->security + landlock_blob_sizes.lbs_cred;
+static inline struct landlock_cred_security *landlock_cred(
+    const struct cred *cred) {
+  return cred->security + landlock_blob_sizes.lbs_cred;
 }
 
-static inline const struct landlock_ruleset *landlock_get_current_domain(void)
-{
-	return landlock_cred(current_cred())->domain;
+static inline const struct landlock_ruleset *landlock_get_current_domain(void) {
+  return landlock_cred(current_cred())->domain;
 }
 
 /*
  * The call needs to come from an RCU read-side critical section.
  */
-static inline const struct landlock_ruleset *
-landlock_get_task_domain(const struct task_struct *const task)
-{
-	return landlock_cred(__task_cred(task))->domain;
+static inline const struct landlock_ruleset *landlock_get_task_domain(
+    const struct task_struct * const task) {
+  return landlock_cred(__task_cred(task))->domain;
 }
 
-static inline bool landlocked(const struct task_struct *const task)
-{
-	bool has_dom;
-
-	if (task == current)
-		return !!landlock_get_current_domain();
-
-	rcu_read_lock();
-	has_dom = !!landlock_get_task_domain(task);
-	rcu_read_unlock();
-	return has_dom;
+static inline bool landlocked(const struct task_struct * const task) {
+  bool has_dom;
+  if (task == current) {
+    return !!landlock_get_current_domain();
+  }
+  rcu_read_lock();
+  has_dom = !!landlock_get_task_domain(task);
+  rcu_read_unlock();
+  return has_dom;
 }
 
 __init void landlock_add_cred_hooks(void);

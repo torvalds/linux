@@ -41,52 +41,52 @@
 #include <asm/octeon/cvmx-address.h>
 #include <asm/octeon/cvmx-fpa-defs.h>
 
-#define CVMX_FPA_NUM_POOLS	8
+#define CVMX_FPA_NUM_POOLS  8
 #define CVMX_FPA_MIN_BLOCK_SIZE 128
-#define CVMX_FPA_ALIGNMENT	128
+#define CVMX_FPA_ALIGNMENT  128
 
 /**
  * Structure describing the data format used for stores to the FPA.
  */
 typedef union {
-	uint64_t u64;
-	struct {
+  uint64_t u64;
+  struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-		/*
-		 * the (64-bit word) location in scratchpad to write
-		 * to (if len != 0)
-		 */
-		uint64_t scraddr:8;
-		/* the number of words in the response (0 => no response) */
-		uint64_t len:8;
-		/* the ID of the device on the non-coherent bus */
-		uint64_t did:8;
-		/*
-		 * the address that will appear in the first tick on
-		 * the NCB bus.
-		 */
-		uint64_t addr:40;
+    /*
+     * the (64-bit word) location in scratchpad to write
+     * to (if len != 0)
+     */
+    uint64_t scraddr : 8;
+    /* the number of words in the response (0 => no response) */
+    uint64_t len : 8;
+    /* the ID of the device on the non-coherent bus */
+    uint64_t did : 8;
+    /*
+     * the address that will appear in the first tick on
+     * the NCB bus.
+     */
+    uint64_t addr : 40;
 #else
-		uint64_t addr:40;
-		uint64_t did:8;
-		uint64_t len:8;
-		uint64_t scraddr:8;
+    uint64_t addr : 40;
+    uint64_t did : 8;
+    uint64_t len : 8;
+    uint64_t scraddr : 8;
 #endif
-	} s;
+  } s;
 } cvmx_fpa_iobdma_data_t;
 
 /**
  * Structure describing the current state of a FPA pool.
  */
 typedef struct {
-	/* Name it was created under */
-	const char *name;
-	/* Size of each block */
-	uint64_t size;
-	/* The base memory address of whole block */
-	void *base;
-	/* The number of elements in the pool at creation */
-	uint64_t starting_element_count;
+  /* Name it was created under */
+  const char *name;
+  /* Size of each block */
+  uint64_t size;
+  /* The base memory address of whole block */
+  void *base;
+  /* The number of elements in the pool at creation */
+  uint64_t starting_element_count;
 } cvmx_fpa_pool_info_t;
 
 /**
@@ -103,9 +103,8 @@ extern cvmx_fpa_pool_info_t cvmx_fpa_pool_info[CVMX_FPA_NUM_POOLS];
  * @pool:   Pool to get the name of
  * Returns The name
  */
-static inline const char *cvmx_fpa_get_name(uint64_t pool)
-{
-	return cvmx_fpa_pool_info[pool].name;
+static inline const char *cvmx_fpa_get_name(uint64_t pool) {
+  return cvmx_fpa_pool_info[pool].name;
 }
 
 /**
@@ -114,9 +113,8 @@ static inline const char *cvmx_fpa_get_name(uint64_t pool)
  * @pool:   Pool to get the base of
  * Returns The base
  */
-static inline void *cvmx_fpa_get_base(uint64_t pool)
-{
-	return cvmx_fpa_pool_info[pool].base;
+static inline void *cvmx_fpa_get_base(uint64_t pool) {
+  return cvmx_fpa_pool_info[pool].base;
 }
 
 /**
@@ -128,52 +126,46 @@ static inline void *cvmx_fpa_get_base(uint64_t pool)
  * @ptr:    Pointer to check
  * Returns Non-zero if pointer is in the pool. Zero if not
  */
-static inline int cvmx_fpa_is_member(uint64_t pool, void *ptr)
-{
-	return ((ptr >= cvmx_fpa_pool_info[pool].base) &&
-		((char *)ptr <
-		 ((char *)(cvmx_fpa_pool_info[pool].base)) +
-		 cvmx_fpa_pool_info[pool].size *
-		 cvmx_fpa_pool_info[pool].starting_element_count));
+static inline int cvmx_fpa_is_member(uint64_t pool, void *ptr) {
+  return (ptr >= cvmx_fpa_pool_info[pool].base)
+    && ((char *) ptr
+    < ((char *) (cvmx_fpa_pool_info[pool].base))
+    + cvmx_fpa_pool_info[pool].size
+    * cvmx_fpa_pool_info[pool].starting_element_count);
 }
 
 /**
  * Enable the FPA for use. Must be performed after any CSR
  * configuration but before any other FPA functions.
  */
-static inline void cvmx_fpa_enable(void)
-{
-	union cvmx_fpa_ctl_status status;
-
-	status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
-	if (status.s.enb) {
-		cvmx_dprintf
-		    ("Warning: Enabling FPA when FPA already enabled.\n");
-	}
-
-	/*
-	 * Do runtime check as we allow pass1 compiled code to run on
-	 * pass2 chips.
-	 */
-	if (cvmx_octeon_is_pass1()) {
-		union cvmx_fpa_fpfx_marks marks;
-		int i;
-		for (i = 1; i < 8; i++) {
-			marks.u64 =
-			    cvmx_read_csr(CVMX_FPA_FPF1_MARKS + (i - 1) * 8ull);
-			marks.s.fpf_wr = 0xe0;
-			cvmx_write_csr(CVMX_FPA_FPF1_MARKS + (i - 1) * 8ull,
-				       marks.u64);
-		}
-
-		/* Enforce a 10 cycle delay between config and enable */
-		__delay(10);
-	}
-
-	/* FIXME: CVMX_FPA_CTL_STATUS read is unmodelled */
-	status.u64 = 0;
-	status.s.enb = 1;
-	cvmx_write_csr(CVMX_FPA_CTL_STATUS, status.u64);
+static inline void cvmx_fpa_enable(void) {
+  union cvmx_fpa_ctl_status status;
+  status.u64 = cvmx_read_csr(CVMX_FPA_CTL_STATUS);
+  if (status.s.enb) {
+    cvmx_dprintf
+      ("Warning: Enabling FPA when FPA already enabled.\n");
+  }
+  /*
+   * Do runtime check as we allow pass1 compiled code to run on
+   * pass2 chips.
+   */
+  if (cvmx_octeon_is_pass1()) {
+    union cvmx_fpa_fpfx_marks marks;
+    int i;
+    for (i = 1; i < 8; i++) {
+      marks.u64
+        = cvmx_read_csr(CVMX_FPA_FPF1_MARKS + (i - 1) * 8ull);
+      marks.s.fpf_wr = 0xe0;
+      cvmx_write_csr(CVMX_FPA_FPF1_MARKS + (i - 1) * 8ull,
+          marks.u64);
+    }
+    /* Enforce a 10 cycle delay between config and enable */
+    __delay(10);
+  }
+  /* FIXME: CVMX_FPA_CTL_STATUS read is unmodelled */
+  status.u64 = 0;
+  status.s.enb = 1;
+  cvmx_write_csr(CVMX_FPA_CTL_STATUS, status.u64);
 }
 
 /**
@@ -182,36 +174,34 @@ static inline void cvmx_fpa_enable(void)
  * @pool:   Pool to get the block from
  * Returns Pointer to the block or NULL on failure
  */
-static inline void *cvmx_fpa_alloc(uint64_t pool)
-{
-	uint64_t address =
-	    cvmx_read_csr(CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool)));
-	if (address)
-		return cvmx_phys_to_ptr(address);
-	else
-		return NULL;
+static inline void *cvmx_fpa_alloc(uint64_t pool) {
+  uint64_t address
+    = cvmx_read_csr(CVMX_ADDR_DID(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool)));
+  if (address) {
+    return cvmx_phys_to_ptr(address);
+  } else {
+    return NULL;
+  }
 }
 
 /**
  * Asynchronously get a new block from the FPA
  *
- * @scr_addr: Local scratch address to put response in.	 This is a byte address,
- *		    but must be 8 byte aligned.
+ * @scr_addr: Local scratch address to put response in.  This is a byte address,
+ *        but must be 8 byte aligned.
  * @pool:      Pool to get the block from
  */
-static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool)
-{
-	cvmx_fpa_iobdma_data_t data;
-
-	/*
-	 * Hardware only uses 64 bit aligned locations, so convert
-	 * from byte address to 64-bit index
-	 */
-	data.s.scraddr = scr_addr >> 3;
-	data.s.len = 1;
-	data.s.did = CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool);
-	data.s.addr = 0;
-	cvmx_send_single(data.u64);
+static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool) {
+  cvmx_fpa_iobdma_data_t data;
+  /*
+   * Hardware only uses 64 bit aligned locations, so convert
+   * from byte address to 64-bit index
+   */
+  data.s.scraddr = scr_addr >> 3;
+  data.s.len = 1;
+  data.s.did = CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool);
+  data.s.addr = 0;
+  cvmx_send_single(data.u64);
 }
 
 /**
@@ -221,19 +211,18 @@ static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool)
  * @ptr:    Block to free
  * @pool:   Pool to put it in
  * @num_cache_lines:
- *		 Cache lines to invalidate
+ *     Cache lines to invalidate
  */
 static inline void cvmx_fpa_free_nosync(void *ptr, uint64_t pool,
-					uint64_t num_cache_lines)
-{
-	cvmx_addr_t newptr;
-	newptr.u64 = cvmx_ptr_to_phys(ptr);
-	newptr.sfilldidspace.didspace =
-	    CVMX_ADDR_DIDSPACE(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool));
-	/* Prevent GCC from reordering around free */
-	barrier();
-	/* value written is number of cache lines not written back */
-	cvmx_write_io(newptr.u64, num_cache_lines);
+    uint64_t num_cache_lines) {
+  cvmx_addr_t newptr;
+  newptr.u64 = cvmx_ptr_to_phys(ptr);
+  newptr.sfilldidspace.didspace
+    = CVMX_ADDR_DIDSPACE(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool));
+  /* Prevent GCC from reordering around free */
+  barrier();
+  /* value written is number of cache lines not written back */
+  cvmx_write_io(newptr.u64, num_cache_lines);
 }
 
 /**
@@ -243,24 +232,23 @@ static inline void cvmx_fpa_free_nosync(void *ptr, uint64_t pool,
  * @ptr:    Block to free
  * @pool:   Pool to put it in
  * @num_cache_lines:
- *		 Cache lines to invalidate
+ *     Cache lines to invalidate
  */
 static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
-				 uint64_t num_cache_lines)
-{
-	cvmx_addr_t newptr;
-	newptr.u64 = cvmx_ptr_to_phys(ptr);
-	newptr.sfilldidspace.didspace =
-	    CVMX_ADDR_DIDSPACE(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool));
-	/*
-	 * Make sure that any previous writes to memory go out before
-	 * we free this buffer.	 This also serves as a barrier to
-	 * prevent GCC from reordering operations to after the
-	 * free.
-	 */
-	CVMX_SYNCWS;
-	/* value written is number of cache lines not written back */
-	cvmx_write_io(newptr.u64, num_cache_lines);
+    uint64_t num_cache_lines) {
+  cvmx_addr_t newptr;
+  newptr.u64 = cvmx_ptr_to_phys(ptr);
+  newptr.sfilldidspace.didspace
+    = CVMX_ADDR_DIDSPACE(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool));
+  /*
+   * Make sure that any previous writes to memory go out before
+   * we free this buffer.  This also serves as a barrier to
+   * prevent GCC from reordering operations to after the
+   * free.
+   */
+  CVMX_SYNCWS;
+  /* value written is number of cache lines not written back */
+  cvmx_write_io(newptr.u64, num_cache_lines);
 }
 
 /**
@@ -271,8 +259,8 @@ static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
  *
  * @pool:   Pool to shutdown
  * Returns Zero on success
- *	   - Positive is count of missing buffers
- *	   - Negative is too many buffers or corrupted pointers
+ *     - Positive is count of missing buffers
+ *     - Negative is too many buffers or corrupted pointers
  */
 extern uint64_t cvmx_fpa_shutdown_pool(uint64_t pool);
 

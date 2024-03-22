@@ -7,12 +7,12 @@
 #include <linux/stringify.h>
 
 /* Begin/end of an instrumentation safe region */
-#define __instrumentation_begin(c) ({					\
-	asm volatile(__stringify(c) ": nop\n\t"				\
-		     ".pushsection .discard.instr_begin\n\t"		\
-		     ".long " __stringify(c) "b - .\n\t"		\
-		     ".popsection\n\t" : : "i" (c));			\
-})
+#define __instrumentation_begin(c) ({         \
+    asm volatile (__stringify(c) ": nop\n\t"       \
+    ".pushsection .discard.instr_begin\n\t"    \
+    ".long " __stringify(c) "b - .\n\t"    \
+    ".popsection\n\t" : : "i" (c));      \
+  })
 #define instrumentation_begin() __instrumentation_begin(__COUNTER__)
 
 /*
@@ -24,15 +24,15 @@
  *
  * noinstr void foo()
  * {
- *	instrumentation_begin();
- *	...
- *	if (cond) {
- *		instrumentation_begin();
- *		...
- *		instrumentation_end();
- *	}
- *	bar();
- *	instrumentation_end();
+ *  instrumentation_begin();
+ *  ...
+ *  if (cond) {
+ *    instrumentation_begin();
+ *    ...
+ *    instrumentation_end();
+ *  }
+ *  bar();
+ *  instrumentation_end();
  * }
  *
  * If instrumentation_end() would be an empty label, like all the other
@@ -46,16 +46,16 @@
  * To avoid this, have _end() be a NOP instruction, this ensures it will be
  * part of the condition block and does not escape.
  */
-#define __instrumentation_end(c) ({					\
-	asm volatile(__stringify(c) ": nop\n\t"				\
-		     ".pushsection .discard.instr_end\n\t"		\
-		     ".long " __stringify(c) "b - .\n\t"		\
-		     ".popsection\n\t" : : "i" (c));			\
-})
+#define __instrumentation_end(c) ({         \
+    asm volatile (__stringify(c) ": nop\n\t"       \
+    ".pushsection .discard.instr_end\n\t"    \
+    ".long " __stringify(c) "b - .\n\t"    \
+    ".popsection\n\t" : : "i" (c));      \
+  })
 #define instrumentation_end() __instrumentation_end(__COUNTER__)
 #else /* !CONFIG_NOINSTR_VALIDATION */
-# define instrumentation_begin()	do { } while(0)
-# define instrumentation_end()		do { } while(0)
+#define instrumentation_begin()  do {} while (0)
+#define instrumentation_end()    do {} while (0)
 #endif /* CONFIG_NOINSTR_VALIDATION */
 
 #endif /* __LINUX_INSTRUMENTATION_H */

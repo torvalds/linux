@@ -26,26 +26,23 @@ MODULE_ALIAS("svcrdma");
 MODULE_ALIAS("xprtrdma");
 MODULE_ALIAS("rpcrdma6");
 
-static void __exit rpc_rdma_cleanup(void)
-{
-	xprt_rdma_cleanup();
-	svc_rdma_cleanup();
+static void __exit rpc_rdma_cleanup(void) {
+  xprt_rdma_cleanup();
+  svc_rdma_cleanup();
 }
 
-static int __init rpc_rdma_init(void)
-{
-	int rc;
-
-	rc = svc_rdma_init();
-	if (rc)
-		goto out;
-
-	rc = xprt_rdma_init();
-	if (rc)
-		svc_rdma_cleanup();
-
+static int __init rpc_rdma_init(void) {
+  int rc;
+  rc = svc_rdma_init();
+  if (rc) {
+    goto out;
+  }
+  rc = xprt_rdma_init();
+  if (rc) {
+    svc_rdma_cleanup();
+  }
 out:
-	return rc;
+  return rc;
 }
 
 module_init(rpc_rdma_init);

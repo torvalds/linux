@@ -15,24 +15,26 @@
 #define SCM_QUEUE_DELAY 5
 
 struct scm_blk_dev {
-	struct request_queue *rq;
-	struct gendisk *gendisk;
-	struct blk_mq_tag_set tag_set;
-	struct scm_device *scmdev;
-	spinlock_t lock;
-	atomic_t queued_reqs;
-	enum {SCM_OPER, SCM_WR_PROHIBIT} state;
-	struct list_head finished_requests;
+  struct request_queue *rq;
+  struct gendisk *gendisk;
+  struct blk_mq_tag_set tag_set;
+  struct scm_device *scmdev;
+  spinlock_t lock;
+  atomic_t queued_reqs;
+  enum {
+    SCM_OPER, SCM_WR_PROHIBIT
+  } state;
+  struct list_head finished_requests;
 };
 
 struct scm_request {
-	struct scm_blk_dev *bdev;
-	struct aidaw *next_aidaw;
-	struct request **request;
-	struct aob *aob;
-	struct list_head list;
-	u8 retries;
-	blk_status_t error;
+  struct scm_blk_dev *bdev;
+  struct aidaw *next_aidaw;
+  struct request **request;
+  struct aob *aob;
+  struct list_head list;
+  u8 retries;
+  blk_status_t error;
 };
 
 #define to_aobrq(rq) container_of((void *) rq, struct aob_rq_header, data)
@@ -49,28 +51,25 @@ void scm_drv_cleanup(void);
 
 extern debug_info_t *scm_debug;
 
-#define SCM_LOG(imp, txt) do {					\
-		debug_text_event(scm_debug, imp, txt);		\
-	} while (0)
+#define SCM_LOG(imp, txt) do {          \
+    debug_text_event(scm_debug, imp, txt);    \
+} while (0)
 
-static inline void SCM_LOG_HEX(int level, void *data, int length)
-{
-	debug_event(scm_debug, level, data, length);
+static inline void SCM_LOG_HEX(int level, void *data, int length) {
+  debug_event(scm_debug, level, data, length);
 }
 
-static inline void SCM_LOG_STATE(int level, struct scm_device *scmdev)
-{
-	struct {
-		u64 address;
-		u8 oper_state;
-		u8 rank;
-	} __packed data = {
-		.address = scmdev->address,
-		.oper_state = scmdev->attrs.oper_state,
-		.rank = scmdev->attrs.rank,
-	};
-
-	SCM_LOG_HEX(level, &data, sizeof(data));
+static inline void SCM_LOG_STATE(int level, struct scm_device *scmdev) {
+  struct {
+    u64 address;
+    u8 oper_state;
+    u8 rank;
+  } __packed data = {
+    .address = scmdev->address,
+    .oper_state = scmdev->attrs.oper_state,
+    .rank = scmdev->attrs.rank,
+  };
+  SCM_LOG_HEX(level, &data, sizeof(data));
 }
 
 #endif /* SCM_BLK_H */

@@ -28,40 +28,38 @@ struct clock_event_device *global_clock_event;
  * requires to know the local APIC timer frequency as it normally is
  * calibrated against the PIT interrupt.
  */
-static bool __init use_pit(void)
-{
-	if (!IS_ENABLED(CONFIG_X86_TSC) || !boot_cpu_has(X86_FEATURE_TSC))
-		return true;
-
-	/* This also returns true when APIC is disabled */
-	return apic_needs_pit();
+static bool __init use_pit(void) {
+  if (!IS_ENABLED(CONFIG_X86_TSC) || !boot_cpu_has(X86_FEATURE_TSC)) {
+    return true;
+  }
+  /* This also returns true when APIC is disabled */
+  return apic_needs_pit();
 }
 
-bool __init pit_timer_init(void)
-{
-	if (!use_pit())
-		return false;
-
-	clockevent_i8253_init(true);
-	global_clock_event = &i8253_clockevent;
-	return true;
+bool __init pit_timer_init(void) {
+  if (!use_pit()) {
+    return false;
+  }
+  clockevent_i8253_init(true);
+  global_clock_event = &i8253_clockevent;
+  return true;
 }
 
 #ifndef CONFIG_X86_64
-static int __init init_pit_clocksource(void)
-{
-	 /*
-	  * Several reasons not to register PIT as a clocksource:
-	  *
-	  * - On SMP PIT does not scale due to i8253_lock
-	  * - when HPET is enabled
-	  * - when local APIC timer is active (PIT is switched off)
-	  */
-	if (num_possible_cpus() > 1 || is_hpet_enabled() ||
-	    !clockevent_state_periodic(&i8253_clockevent))
-		return 0;
-
-	return clocksource_i8253_init();
+static int __init init_pit_clocksource(void) {
+  /*
+   * Several reasons not to register PIT as a clocksource:
+   *
+   * - On SMP PIT does not scale due to i8253_lock
+   * - when HPET is enabled
+   * - when local APIC timer is active (PIT is switched off)
+   */
+  if (num_possible_cpus() > 1 || is_hpet_enabled()
+      || !clockevent_state_periodic(&i8253_clockevent)) {
+    return 0;
+  }
+  return clocksource_i8253_init();
 }
+
 arch_initcall(init_pit_clocksource);
 #endif /* !CONFIG_X86_64 */

@@ -10,7 +10,7 @@
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <vdso/jiffies.h>
-#include <asm/param.h>			/* for HZ */
+#include <asm/param.h>      /* for HZ */
 #include <generated/timeconst.h>
 
 /*
@@ -21,27 +21,27 @@
  * nearest power of two in order to avoid hardware multiply operations.
  */
 #if HZ >= 12 && HZ < 24
-# define SHIFT_HZ	4
+#define SHIFT_HZ 4
 #elif HZ >= 24 && HZ < 48
-# define SHIFT_HZ	5
+#define SHIFT_HZ 5
 #elif HZ >= 48 && HZ < 96
-# define SHIFT_HZ	6
+#define SHIFT_HZ 6
 #elif HZ >= 96 && HZ < 192
-# define SHIFT_HZ	7
+#define SHIFT_HZ 7
 #elif HZ >= 192 && HZ < 384
-# define SHIFT_HZ	8
+#define SHIFT_HZ 8
 #elif HZ >= 384 && HZ < 768
-# define SHIFT_HZ	9
+#define SHIFT_HZ 9
 #elif HZ >= 768 && HZ < 1536
-# define SHIFT_HZ	10
+#define SHIFT_HZ 10
 #elif HZ >= 1536 && HZ < 3072
-# define SHIFT_HZ	11
+#define SHIFT_HZ 11
 #elif HZ >= 3072 && HZ < 6144
-# define SHIFT_HZ	12
+#define SHIFT_HZ 12
 #elif HZ >= 6144 && HZ < 12288
-# define SHIFT_HZ	13
+#define SHIFT_HZ 13
 #else
-# error Invalid value of HZ.
+#error Invalid value of HZ.
 #endif
 
 /* Suppose we want to divide two numbers NOM and DEN: NOM/DEN, then we can
@@ -53,19 +53,19 @@
  *   - (NOM / DEN) fits in (32 - LSH) bits.
  *   - (NOM % DEN) fits in (32 - LSH) bits.
  */
-#define SH_DIV(NOM,DEN,LSH) (   (((NOM) / (DEN)) << (LSH))              \
-                             + ((((NOM) % (DEN)) << (LSH)) + (DEN) / 2) / (DEN))
+#define SH_DIV(NOM, DEN, LSH) ((((NOM) / (DEN)) << (LSH))              \
+  + ((((NOM) % (DEN)) << (LSH)) + (DEN) / 2) / (DEN))
 
 /* LATCH is used in the interval timer and ftape setup. */
-#define LATCH ((CLOCK_TICK_RATE + HZ/2) / HZ)	/* For divider */
+#define LATCH ((CLOCK_TICK_RATE + HZ / 2) / HZ) /* For divider */
 
 extern int register_refined_jiffies(long clock_tick_rate);
 
 /* TICK_USEC is the time between ticks in usec assuming SHIFTED_HZ */
-#define TICK_USEC ((USEC_PER_SEC + HZ/2) / HZ)
+#define TICK_USEC ((USEC_PER_SEC + HZ / 2) / HZ)
 
 /* USER_TICK_USEC is the time between ticks in usec assuming fake USER_HZ */
-#define USER_TICK_USEC ((1000000UL + USER_HZ/2) / USER_HZ)
+#define USER_TICK_USEC ((1000000UL + USER_HZ / 2) / USER_HZ)
 
 #ifndef __jiffy_arch_data
 #define __jiffy_arch_data
@@ -83,7 +83,8 @@ extern int register_refined_jiffies(long clock_tick_rate);
  * See arch/ARCH/kernel/vmlinux.lds.S
  */
 extern u64 __cacheline_aligned_in_smp jiffies_64;
-extern unsigned long volatile __cacheline_aligned_in_smp __jiffy_arch_data jiffies;
+extern unsigned long volatile __cacheline_aligned_in_smp __jiffy_arch_data
+    jiffies;
 
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void);
@@ -96,10 +97,10 @@ u64 get_jiffies_64(void);
  *
  * Return: current 64-bit jiffies value
  */
-static inline u64 get_jiffies_64(void)
-{
-	return (u64)jiffies;
+static inline u64 get_jiffies_64(void) {
+  return (u64) jiffies;
 }
+
 #endif
 
 /**
@@ -124,10 +125,10 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is after time b, otherwise %false.
  */
-#define time_after(a,b)		\
-	(typecheck(unsigned long, a) && \
-	 typecheck(unsigned long, b) && \
-	 ((long)((b) - (a)) < 0))
+#define time_after(a, b)   \
+  (typecheck(unsigned long, a)    \
+  && typecheck(unsigned long, b)    \
+  && ((long) ((b) - (a)) < 0))
 /**
  * time_before - returns true if the time a is before time b.
  * @a: first comparable as unsigned long
@@ -135,7 +136,7 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is before time b, otherwise %false.
  */
-#define time_before(a,b)	time_after(b,a)
+#define time_before(a, b)  time_after(b, a)
 
 /**
  * time_after_eq - returns true if the time a is after or the same as time b.
@@ -144,10 +145,10 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is after or the same as time b, otherwise %false.
  */
-#define time_after_eq(a,b)	\
-	(typecheck(unsigned long, a) && \
-	 typecheck(unsigned long, b) && \
-	 ((long)((a) - (b)) >= 0))
+#define time_after_eq(a, b)  \
+  (typecheck(unsigned long, a)    \
+  && typecheck(unsigned long, b)    \
+  && ((long) ((a) - (b)) >= 0))
 /**
  * time_before_eq - returns true if the time a is before or the same as time b.
  * @a: first comparable as unsigned long
@@ -155,7 +156,7 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is before or the same as time b, otherwise %false.
  */
-#define time_before_eq(a,b)	time_after_eq(b,a)
+#define time_before_eq(a, b) time_after_eq(b, a)
 
 /**
  * time_in_range - Calculate whether a is in the range of [b, c].
@@ -165,9 +166,9 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is in the range [b, c], otherwise %false.
  */
-#define time_in_range(a,b,c) \
-	(time_after_eq(a,b) && \
-	 time_before_eq(a,c))
+#define time_in_range(a, b, c) \
+  (time_after_eq(a, b)    \
+  && time_before_eq(a, c))
 
 /**
  * time_in_range_open - Calculate whether a is in the range of [b, c).
@@ -177,9 +178,9 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is in the range [b, c), otherwise %false.
  */
-#define time_in_range_open(a,b,c) \
-	(time_after_eq(a,b) && \
-	 time_before(a,c))
+#define time_in_range_open(a, b, c) \
+  (time_after_eq(a, b)    \
+  && time_before(a, c))
 
 /* Same as above, but does so with platform independent 64bit types.
  * These must be used when utilizing jiffies_64 (i.e. return value of
@@ -195,10 +196,10 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is after time b, otherwise %false.
  */
-#define time_after64(a,b)	\
-	(typecheck(__u64, a) &&	\
-	 typecheck(__u64, b) && \
-	 ((__s64)((b) - (a)) < 0))
+#define time_after64(a, b) \
+  (typecheck(__u64, a)    \
+  && typecheck(__u64, b)    \
+  && ((__s64) ((b) - (a)) < 0))
 /**
  * time_before64 - returns true if the time a is before time b.
  * @a: first comparable as __u64
@@ -209,7 +210,7 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is before time b, otherwise %false.
  */
-#define time_before64(a,b)	time_after64(b,a)
+#define time_before64(a, b)  time_after64(b, a)
 
 /**
  * time_after_eq64 - returns true if the time a is after or the same as time b.
@@ -221,12 +222,13 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is after or the same as time b, otherwise %false.
  */
-#define time_after_eq64(a,b)	\
-	(typecheck(__u64, a) && \
-	 typecheck(__u64, b) && \
-	 ((__s64)((a) - (b)) >= 0))
+#define time_after_eq64(a, b)  \
+  (typecheck(__u64, a)    \
+  && typecheck(__u64, b)    \
+  && ((__s64) ((a) - (b)) >= 0))
 /**
- * time_before_eq64 - returns true if the time a is before or the same as time b.
+ * time_before_eq64 - returns true if the time a is before or the same as time
+ * b.
  * @a: first comparable as __u64
  * @b: second comparable as __u64
  *
@@ -235,7 +237,7 @@ static inline u64 get_jiffies_64(void)
  *
  * Return: %true is time a is before or the same as time b, otherwise %false.
  */
-#define time_before_eq64(a,b)	time_after_eq64(b,a)
+#define time_before_eq64(a, b) time_after_eq64(b, a)
 
 /**
  * time_in_range64 - Calculate whether a is in the range of [b, c].
@@ -246,8 +248,8 @@ static inline u64 get_jiffies_64(void)
  * Return: %true is time a is in the range [b, c], otherwise %false.
  */
 #define time_in_range64(a, b, c) \
-	(time_after_eq64(a, b) && \
-	 time_before_eq64(a, c))
+  (time_after_eq64(a, b)    \
+  && time_before_eq64(a, c))
 
 /*
  * These eight macros compare jiffies[_64] and 'a' for convenience.
@@ -291,7 +293,8 @@ static inline u64 get_jiffies_64(void)
  */
 #define time_is_before_eq_jiffies(a) time_after_eq(jiffies, a)
 /**
- * time_is_before_eq_jiffies64 - return true if a is before or equal to jiffies_64
+ * time_is_before_eq_jiffies64 - return true if a is before or equal to
+ * jiffies_64
  * @a: time (__u64) to compare to jiffies_64
  *
  * Return: %true is time a is before or the same jiffies_64, otherwise %false.
@@ -317,7 +320,7 @@ static inline u64 get_jiffies_64(void)
  * Have the 32-bit jiffies value wrap 5 minutes after boot
  * so jiffies wrap bugs show up earlier.
  */
-#define INITIAL_JIFFIES ((unsigned long)(unsigned int) (-300*HZ))
+#define INITIAL_JIFFIES ((unsigned long) (unsigned int) (-300 * HZ))
 
 /*
  * Change timeval to jiffies, trying to avoid the
@@ -331,7 +334,7 @@ static inline u64 get_jiffies_64(void)
  * at _least_ "jiffies" - so "jiffies+1" had better still
  * be positive.
  */
-#define MAX_JIFFY_OFFSET ((LONG_MAX >> 1)-1)
+#define MAX_JIFFY_OFFSET ((LONG_MAX >> 1) - 1)
 
 extern unsigned long preset_lpj;
 
@@ -344,7 +347,7 @@ extern unsigned long preset_lpj;
  * NSEC_JIFFIE_SC.  Note that these defines contain nothing but
  * constants and so are computed at compile time.  SHIFT_HZ (computed in
  * timex.h) adjusts the scaling for different HZ values.
-
+ *
  * Scaled math???  What is that?
  *
  * Scaled math is a way to do integer math on values that would,
@@ -354,7 +357,7 @@ extern unsigned long preset_lpj;
  * underflow), do the desired operation and then "scale" the result back
  * by the same amount.  If we do the scaling by shifting we avoid the
  * costly mpy and the dastardly div instructions.
-
+ *
  * Suppose, for example, we want to convert from seconds to jiffies
  * where jiffies is defined in nanoseconds as NSEC_PER_JIFFIE.  The
  * simple math is: jiff = (sec * NSEC_PER_SEC) / NSEC_PER_JIFFIE; We
@@ -385,11 +388,11 @@ extern unsigned long preset_lpj;
  * not to confuse it into thinking it really has a 64-bit operand,
  * which, buy the way, it can do, but it takes more code and at least 2
  * mpys).
-
+ *
  * We also need to be aware that one second in nanoseconds is only a
  * couple of bits away from overflowing a 32-bit word, so we MUST use
  * 64-bits to get the full range time in nanoseconds.
-
+ *
  */
 
 /*
@@ -401,7 +404,7 @@ extern unsigned long preset_lpj;
  * (Gets an extra bit of precision where we can use it.)
  * We know it is set for HZ = 1024 and HZ = 100 not for 1000.
  * Haven't tested others.
-
+ *
  * Limits of cpp (for #if expressions) only long (no long long), but
  * then we only need the most signicant bit.
  */
@@ -412,22 +415,22 @@ extern unsigned long preset_lpj;
 #define SEC_JIFFIE_SC (32 - SHIFT_HZ)
 #endif
 #define NSEC_JIFFIE_SC (SEC_JIFFIE_SC + 29)
-#define SEC_CONVERSION ((unsigned long)((((u64)NSEC_PER_SEC << SEC_JIFFIE_SC) +\
-                                TICK_NSEC -1) / (u64)TICK_NSEC))
+#define SEC_CONVERSION ((unsigned long) ((((u64) NSEC_PER_SEC << SEC_JIFFIE_SC)  \
+  + TICK_NSEC - 1) / (u64) TICK_NSEC))
 
-#define NSEC_CONVERSION ((unsigned long)((((u64)1 << NSEC_JIFFIE_SC) +\
-                                        TICK_NSEC -1) / (u64)TICK_NSEC))
+#define NSEC_CONVERSION ((unsigned long) ((((u64) 1 << NSEC_JIFFIE_SC)  \
+  + TICK_NSEC - 1) / (u64) TICK_NSEC))
 /*
  * The maximum jiffie value is (MAX_INT >> 1).  Here we translate that
  * into seconds.  The 64-bit case will overflow if we are not careful,
  * so use the messy SH_DIV macro to do it.  Still all constants.
  */
 #if BITS_PER_LONG < 64
-# define MAX_SEC_IN_JIFFIES \
-	(long)((u64)((u64)MAX_JIFFY_OFFSET * TICK_NSEC) / NSEC_PER_SEC)
-#else	/* take care of overflow on 64-bit machines */
-# define MAX_SEC_IN_JIFFIES \
-	(SH_DIV((MAX_JIFFY_OFFSET >> SEC_JIFFIE_SC) * TICK_NSEC, NSEC_PER_SEC, 1) - 1)
+#define MAX_SEC_IN_JIFFIES \
+  (long) ((u64) ((u64) MAX_JIFFY_OFFSET * TICK_NSEC) / NSEC_PER_SEC)
+#else /* take care of overflow on 64-bit machines */
+#define MAX_SEC_IN_JIFFIES \
+  (SH_DIV((MAX_JIFFY_OFFSET >> SEC_JIFFIE_SC) * TICK_NSEC, NSEC_PER_SEC, 1) - 1)
 
 #endif
 
@@ -443,9 +446,8 @@ extern unsigned int jiffies_to_usecs(const unsigned long j);
  *
  * Return: nanoseconds value
  */
-static inline u64 jiffies_to_nsecs(const unsigned long j)
-{
-	return (u64)jiffies_to_usecs(j) * NSEC_PER_USEC;
+static inline u64 jiffies_to_nsecs(const unsigned long j) {
+  return (u64) jiffies_to_usecs(j) * NSEC_PER_USEC;
 }
 
 extern u64 jiffies64_to_nsecs(u64 j);
@@ -458,10 +460,10 @@ extern unsigned long __msecs_to_jiffies(const unsigned int m);
  * multiple of HZ, divide with the factor between them, but round
  * upwards:
  */
-static inline unsigned long _msecs_to_jiffies(const unsigned int m)
-{
-	return (m + (MSEC_PER_SEC / HZ) - 1) / (MSEC_PER_SEC / HZ);
+static inline unsigned long _msecs_to_jiffies(const unsigned int m) {
+  return (m + (MSEC_PER_SEC / HZ) - 1) / (MSEC_PER_SEC / HZ);
 }
+
 #elif HZ > MSEC_PER_SEC && !(HZ % MSEC_PER_SEC)
 /*
  * HZ is larger than 1000, and HZ is a nice round multiple of 1000 -
@@ -469,28 +471,29 @@ static inline unsigned long _msecs_to_jiffies(const unsigned int m)
  *
  * But first make sure the multiplication result cannot overflow:
  */
-static inline unsigned long _msecs_to_jiffies(const unsigned int m)
-{
-	if (m > jiffies_to_msecs(MAX_JIFFY_OFFSET))
-		return MAX_JIFFY_OFFSET;
-	return m * (HZ / MSEC_PER_SEC);
+static inline unsigned long _msecs_to_jiffies(const unsigned int m) {
+  if (m > jiffies_to_msecs(MAX_JIFFY_OFFSET)) {
+    return MAX_JIFFY_OFFSET;
+  }
+  return m * (HZ / MSEC_PER_SEC);
 }
+
 #else
 /*
  * Generic case - multiply, round and divide. But first check that if
  * we are doing a net multiplication, that we wouldn't overflow:
  */
-static inline unsigned long _msecs_to_jiffies(const unsigned int m)
-{
-	if (HZ > MSEC_PER_SEC && m > jiffies_to_msecs(MAX_JIFFY_OFFSET))
-		return MAX_JIFFY_OFFSET;
-
-	return (MSEC_TO_HZ_MUL32 * m + MSEC_TO_HZ_ADJ32) >> MSEC_TO_HZ_SHR32;
+static inline unsigned long _msecs_to_jiffies(const unsigned int m) {
+  if (HZ > MSEC_PER_SEC && m > jiffies_to_msecs(MAX_JIFFY_OFFSET)) {
+    return MAX_JIFFY_OFFSET;
+  }
+  return (MSEC_TO_HZ_MUL32 * m + MSEC_TO_HZ_ADJ32) >> MSEC_TO_HZ_SHR32;
 }
+
 #endif
 /**
  * msecs_to_jiffies: - convert milliseconds to jiffies
- * @m:	time in milliseconds
+ * @m:  time in milliseconds
  *
  * conversion is done as follows:
  *
@@ -515,34 +518,34 @@ static inline unsigned long _msecs_to_jiffies(const unsigned int m)
  *
  * Return: jiffies value
  */
-static __always_inline unsigned long msecs_to_jiffies(const unsigned int m)
-{
-	if (__builtin_constant_p(m)) {
-		if ((int)m < 0)
-			return MAX_JIFFY_OFFSET;
-		return _msecs_to_jiffies(m);
-	} else {
-		return __msecs_to_jiffies(m);
-	}
+static __always_inline unsigned long msecs_to_jiffies(const unsigned int m) {
+  if (__builtin_constant_p(m)) {
+    if ((int) m < 0) {
+      return MAX_JIFFY_OFFSET;
+    }
+    return _msecs_to_jiffies(m);
+  } else {
+    return __msecs_to_jiffies(m);
+  }
 }
 
 extern unsigned long __usecs_to_jiffies(const unsigned int u);
 #if !(USEC_PER_SEC % HZ)
-static inline unsigned long _usecs_to_jiffies(const unsigned int u)
-{
-	return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
+static inline unsigned long _usecs_to_jiffies(const unsigned int u) {
+  return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
 }
+
 #else
-static inline unsigned long _usecs_to_jiffies(const unsigned int u)
-{
-	return (USEC_TO_HZ_MUL32 * u + USEC_TO_HZ_ADJ32)
-		>> USEC_TO_HZ_SHR32;
+static inline unsigned long _usecs_to_jiffies(const unsigned int u) {
+  return (USEC_TO_HZ_MUL32 * u + USEC_TO_HZ_ADJ32)
+    >> USEC_TO_HZ_SHR32;
 }
+
 #endif
 
 /**
  * usecs_to_jiffies: - convert microseconds to jiffies
- * @u:	time in microseconds
+ * @u:  time in microseconds
  *
  * conversion is done as follows:
  *
@@ -564,30 +567,28 @@ static inline unsigned long _usecs_to_jiffies(const unsigned int u)
  *
  * Return: jiffies value
  */
-static __always_inline unsigned long usecs_to_jiffies(const unsigned int u)
-{
-	if (__builtin_constant_p(u)) {
-		if (u > jiffies_to_usecs(MAX_JIFFY_OFFSET))
-			return MAX_JIFFY_OFFSET;
-		return _usecs_to_jiffies(u);
-	} else {
-		return __usecs_to_jiffies(u);
-	}
+static __always_inline unsigned long usecs_to_jiffies(const unsigned int u) {
+  if (__builtin_constant_p(u)) {
+    if (u > jiffies_to_usecs(MAX_JIFFY_OFFSET)) {
+      return MAX_JIFFY_OFFSET;
+    }
+    return _usecs_to_jiffies(u);
+  } else {
+    return __usecs_to_jiffies(u);
+  }
 }
 
 extern unsigned long timespec64_to_jiffies(const struct timespec64 *value);
 extern void jiffies_to_timespec64(const unsigned long jiffies,
-				  struct timespec64 *value);
+    struct timespec64 *value);
 extern clock_t jiffies_to_clock_t(unsigned long x);
 
-static inline clock_t jiffies_delta_to_clock_t(long delta)
-{
-	return jiffies_to_clock_t(max(0L, delta));
+static inline clock_t jiffies_delta_to_clock_t(long delta) {
+  return jiffies_to_clock_t(max(0L, delta));
 }
 
-static inline unsigned int jiffies_delta_to_msecs(long delta)
-{
-	return jiffies_to_msecs(max(0L, delta));
+static inline unsigned int jiffies_delta_to_msecs(long delta) {
+  return jiffies_to_msecs(max(0L, delta));
 }
 
 extern unsigned long clock_t_to_jiffies(unsigned long x);
@@ -596,6 +597,6 @@ extern u64 nsec_to_clock_t(u64 x);
 extern u64 nsecs_to_jiffies64(u64 n);
 extern unsigned long nsecs_to_jiffies(u64 n);
 
-#define TIMESTAMP_SIZE	30
+#define TIMESTAMP_SIZE  30
 
 #endif

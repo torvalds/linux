@@ -18,21 +18,20 @@
 struct vsp1_device;
 
 struct vsp1_hgo {
-	struct vsp1_histogram histo;
+  struct vsp1_histogram histo;
 
-	struct {
-		struct v4l2_ctrl_handler handler;
-		struct v4l2_ctrl *max_rgb;
-		struct v4l2_ctrl *num_bins;
-	} ctrls;
+  struct {
+    struct v4l2_ctrl_handler handler;
+    struct v4l2_ctrl *max_rgb;
+    struct v4l2_ctrl *num_bins;
+  } ctrls;
 
-	bool max_rgb;
-	unsigned int num_bins;
+  bool max_rgb;
+  unsigned int num_bins;
 };
 
-static inline struct vsp1_hgo *to_hgo(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_hgo, histo.entity.subdev);
+static inline struct vsp1_hgo *to_hgo(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_hgo, histo.entity.subdev);
 }
 
 struct vsp1_hgo *vsp1_hgo_create(struct vsp1_device *vsp1);

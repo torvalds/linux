@@ -9,7 +9,7 @@
 #define SND_SOC_CODECS_HDA_H
 
 #define hda_codec_is_display(codec) \
-	((((codec)->core.vendor_id >> 16) & 0xFFFF) == 0x8086)
+  ((((codec)->core.vendor_id >> 16) & 0xFFFF) == 0x8086)
 
 extern const struct snd_soc_dai_ops snd_soc_hda_codec_dai_ops;
 

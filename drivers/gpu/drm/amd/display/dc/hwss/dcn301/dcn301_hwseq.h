@@ -1,5 +1,5 @@
 /*
-* Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -27,6 +27,5 @@
 #define __DC_HWSS_DCN301_H__
 
 #include "hw_sequencer_private.h"
-
 
 #endif /* __DC_HWSS_DCN301_H__ */

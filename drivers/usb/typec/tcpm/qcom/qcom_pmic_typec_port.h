@@ -10,16 +10,16 @@
 #include <linux/usb/tcpm.h>
 
 /* Resources */
-#define PMIC_TYPEC_MAX_IRQS				0x08
+#define PMIC_TYPEC_MAX_IRQS       0x08
 
 struct pmic_typec_port_irq_params {
-	int				virq;
-	char				*irq_name;
+  int virq;
+  char *irq_name;
 };
 
 struct pmic_typec_port_resources {
-	unsigned int				nr_irqs;
-	const struct pmic_typec_port_irq_params	irq_params[PMIC_TYPEC_MAX_IRQS];
+  unsigned int nr_irqs;
+  const struct pmic_typec_port_irq_params irq_params[PMIC_TYPEC_MAX_IRQS];
 };
 
 /* API */
@@ -27,9 +27,9 @@ struct pmic_typec_port_resources {
 extern const struct pmic_typec_port_resources pm8150b_port_res;
 
 int qcom_pmic_typec_port_probe(struct platform_device *pdev,
-			       struct pmic_typec *tcpm,
-			       const struct pmic_typec_port_resources *res,
-			       struct regmap *regmap,
-			       u32 base);
+    struct pmic_typec *tcpm,
+    const struct pmic_typec_port_resources *res,
+    struct regmap *regmap,
+    u32 base);
 
 #endif /* __QCOM_PMIC_TYPE_C_PORT_H__ */

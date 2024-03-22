@@ -6,7 +6,7 @@
 #ifndef _ALPHASCALE_ASM9260_ICOLL_H
 #define _ALPHASCALE_ASM9260_ICOLL_H
 
-#define ASM9260_NUM_IRQS		64
+#define ASM9260_NUM_IRQS    64
 /*
  * this device provide 4 offsets for each register:
  * 0x0 - plain read write mode
@@ -15,7 +15,7 @@
  * 0xc - togle mode.
  */
 
-#define ASM9260_HW_ICOLL_VECTOR				0x0000
+#define ASM9260_HW_ICOLL_VECTOR       0x0000
 /*
  * bits 31:2
  * This register presents the vector address for the interrupt currently
@@ -33,18 +33,18 @@
  * nesting is used then the CPU irq must be turned on before writing to this
  * register to avoid a race condition in the CPU interrupt hardware.
  */
-#define ASM9260_HW_ICOLL_LEVELACK			0x0010
-#define ASM9260_BM_LEVELn(nr)				BIT(nr)
+#define ASM9260_HW_ICOLL_LEVELACK     0x0010
+#define ASM9260_BM_LEVELn(nr)       BIT(nr)
 
-#define ASM9260_HW_ICOLL_CTRL				0x0020
+#define ASM9260_HW_ICOLL_CTRL       0x0020
 /*
  * ASM9260_BM_CTRL_SFTRST and ASM9260_BM_CTRL_CLKGATE are not available on
  * asm9260.
  */
-#define ASM9260_BM_CTRL_SFTRST				BIT(31)
-#define ASM9260_BM_CTRL_CLKGATE				BIT(30)
+#define ASM9260_BM_CTRL_SFTRST        BIT(31)
+#define ASM9260_BM_CTRL_CLKGATE       BIT(30)
 /* disable interrupt level nesting */
-#define ASM9260_BM_CTRL_NO_NESTING			BIT(19)
+#define ASM9260_BM_CTRL_NO_NESTING      BIT(19)
 /*
  * Set this bit to one enable the RISC32-style read side effect associated with
  * the vector address register. In this mode, interrupt in-service is signaled
@@ -55,10 +55,10 @@
  * 0 - Must Write to Vector register to go in-service.
  * 1 - Go in-service as a read side effect
  */
-#define ASM9260_BM_CTRL_ARM_RSE_MODE			BIT(18)
-#define ASM9260_BM_CTRL_IRQ_ENABLE			BIT(16)
+#define ASM9260_BM_CTRL_ARM_RSE_MODE      BIT(18)
+#define ASM9260_BM_CTRL_IRQ_ENABLE      BIT(16)
 
-#define ASM9260_HW_ICOLL_STAT_OFFSET			0x0030
+#define ASM9260_HW_ICOLL_STAT_OFFSET      0x0030
 /*
  * bits 5:0
  * Vector number of current interrupt. Multiply by 4 and add to vector base
@@ -70,36 +70,36 @@
  * coming from various parts of the chip. Its purpose is to improve diagnostic
  * observability.
  */
-#define ASM9260_HW_ICOLL_RAW0				0x0040
-#define ASM9260_HW_ICOLL_RAW1				0x0050
+#define ASM9260_HW_ICOLL_RAW0       0x0040
+#define ASM9260_HW_ICOLL_RAW1       0x0050
 
-#define ASM9260_HW_ICOLL_INTERRUPT0			0x0060
-#define ASM9260_HW_ICOLL_INTERRUPTn(n)		(0x0060 + ((n) >> 2) * 0x10)
+#define ASM9260_HW_ICOLL_INTERRUPT0     0x0060
+#define ASM9260_HW_ICOLL_INTERRUPTn(n)    (0x0060 + ((n) >> 2) * 0x10)
 /*
  * WARNING: Modifying the priority of an enabled interrupt may result in
  * undefined behavior.
  */
-#define ASM9260_BM_INT_PRIORITY_MASK			0x3
-#define ASM9260_BM_INT_ENABLE				BIT(2)
-#define ASM9260_BM_INT_SOFTIRQ				BIT(3)
+#define ASM9260_BM_INT_PRIORITY_MASK      0x3
+#define ASM9260_BM_INT_ENABLE       BIT(2)
+#define ASM9260_BM_INT_SOFTIRQ        BIT(3)
 
-#define ASM9260_BM_ICOLL_INTERRUPTn_SHIFT(n)		(((n) & 0x3) << 3)
-#define ASM9260_BM_ICOLL_INTERRUPTn_ENABLE(n)		(1 << (2 + \
-			ASM9260_BM_ICOLL_INTERRUPTn_SHIFT(n)))
+#define ASM9260_BM_ICOLL_INTERRUPTn_SHIFT(n)    (((n) & 0x3) << 3)
+#define ASM9260_BM_ICOLL_INTERRUPTn_ENABLE(n)   (1 << (2   \
+  + ASM9260_BM_ICOLL_INTERRUPTn_SHIFT(n)))
 
-#define ASM9260_HW_ICOLL_VBASE				0x0160
+#define ASM9260_HW_ICOLL_VBASE        0x0160
 /*
  * bits 31:2
  * This bitfield holds the upper 30 bits of the base address of the vector
  * table.
  */
 
-#define ASM9260_HW_ICOLL_CLEAR0				0x01d0
-#define ASM9260_HW_ICOLL_CLEAR1				0x01e0
-#define ASM9260_HW_ICOLL_CLEARn(n)			(((n >> 5) * 0x10) \
-							+ SET_REG)
-#define ASM9260_BM_CLEAR_BIT(n)				BIT(n & 0x1f)
+#define ASM9260_HW_ICOLL_CLEAR0       0x01d0
+#define ASM9260_HW_ICOLL_CLEAR1       0x01e0
+#define ASM9260_HW_ICOLL_CLEARn(n)      (((n >> 5) * 0x10) \
+  + SET_REG)
+#define ASM9260_BM_CLEAR_BIT(n)       BIT(n & 0x1f)
 
 /* Scratchpad */
-#define ASM9260_HW_ICOLL_UNDEF_VECTOR			0x01f0
+#define ASM9260_HW_ICOLL_UNDEF_VECTOR     0x01f0
 #endif

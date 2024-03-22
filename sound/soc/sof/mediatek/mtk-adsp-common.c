@@ -27,27 +27,23 @@
  * @stack_words: Size of the stack dump.
  */
 static void mtk_adsp_get_registers(struct snd_sof_dev *sdev,
-				   struct sof_ipc_dsp_oops_xtensa *xoops,
-				   struct sof_ipc_panic_info *panic_info,
-				   u32 *stack, size_t stack_words)
-{
-	u32 offset = sdev->dsp_oops_offset;
-
-	/* first read registers */
-	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
-
-	/* then get panic info */
-	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
-		dev_err(sdev->dev, "invalid header size 0x%x\n",
-			xoops->arch_hdr.totalsize);
-		return;
-	}
-	offset += xoops->arch_hdr.totalsize;
-	sof_mailbox_read(sdev, offset, panic_info, sizeof(*panic_info));
-
-	/* then get the stack */
-	offset += sizeof(*panic_info);
-	sof_mailbox_read(sdev, offset, stack, stack_words * sizeof(u32));
+    struct sof_ipc_dsp_oops_xtensa *xoops,
+    struct sof_ipc_panic_info *panic_info,
+    u32 *stack, size_t stack_words) {
+  u32 offset = sdev->dsp_oops_offset;
+  /* first read registers */
+  sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
+  /* then get panic info */
+  if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
+    dev_err(sdev->dev, "invalid header size 0x%x\n",
+        xoops->arch_hdr.totalsize);
+    return;
+  }
+  offset += xoops->arch_hdr.totalsize;
+  sof_mailbox_read(sdev, offset, panic_info, sizeof(*panic_info));
+  /* then get the stack */
+  offset += sizeof(*panic_info);
+  sof_mailbox_read(sdev, offset, stack, stack_words * sizeof(u32));
 }
 
 /**
@@ -56,29 +52,26 @@ static void mtk_adsp_get_registers(struct snd_sof_dev *sdev,
  * @sdev: SOF device
  * @flags: parameter not used but required by ops prototype
  */
-void mtk_adsp_dump(struct snd_sof_dev *sdev, u32 flags)
-{
-	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
-	struct sof_ipc_dsp_oops_xtensa xoops;
-	struct sof_ipc_panic_info panic_info = {};
-	u32 stack[MTK_ADSP_STACK_DUMP_SIZE];
-	u32 status;
-
-	/* Get information about the panic status from the debug box area.
-	 * Compute the trace point based on the status.
-	 */
-	sof_mailbox_read(sdev, sdev->debug_box.offset + 0x4, &status, 4);
-
-	/* Get information about the registers, the filename and line
-	 * number and the stack.
-	 */
-	mtk_adsp_get_registers(sdev, &xoops, &panic_info, stack,
-			       MTK_ADSP_STACK_DUMP_SIZE);
-
-	/* Print the information to the console */
-	sof_print_oops_and_stack(sdev, level, status, status, &xoops, &panic_info,
-				 stack, MTK_ADSP_STACK_DUMP_SIZE);
+void mtk_adsp_dump(struct snd_sof_dev *sdev, u32 flags) {
+  char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
+  struct sof_ipc_dsp_oops_xtensa xoops;
+  struct sof_ipc_panic_info panic_info = {};
+  u32 stack[MTK_ADSP_STACK_DUMP_SIZE];
+  u32 status;
+  /* Get information about the panic status from the debug box area.
+   * Compute the trace point based on the status.
+   */
+  sof_mailbox_read(sdev, sdev->debug_box.offset + 0x4, &status, 4);
+  /* Get information about the registers, the filename and line
+   * number and the stack.
+   */
+  mtk_adsp_get_registers(sdev, &xoops, &panic_info, stack,
+      MTK_ADSP_STACK_DUMP_SIZE);
+  /* Print the information to the console */
+  sof_print_oops_and_stack(sdev, level, status, status, &xoops, &panic_info,
+      stack, MTK_ADSP_STACK_DUMP_SIZE);
 }
+
 EXPORT_SYMBOL(mtk_adsp_dump);
 
 MODULE_LICENSE("Dual BSD/GPL");

@@ -17,21 +17,21 @@
 
 #include "m5602_sensor.h"
 
-#define S5K83A_FLIP			0x01
-#define S5K83A_HFLIP_TUNE		0x03
-#define S5K83A_VFLIP_TUNE		0x05
-#define S5K83A_BRIGHTNESS		0x0a
-#define S5K83A_EXPOSURE			0x18
-#define S5K83A_GAIN			0x1b
-#define S5K83A_PAGE_MAP			0xec
+#define S5K83A_FLIP     0x01
+#define S5K83A_HFLIP_TUNE   0x03
+#define S5K83A_VFLIP_TUNE   0x05
+#define S5K83A_BRIGHTNESS   0x0a
+#define S5K83A_EXPOSURE     0x18
+#define S5K83A_GAIN     0x1b
+#define S5K83A_PAGE_MAP     0xec
 
-#define S5K83A_DEFAULT_GAIN		0x71
-#define S5K83A_DEFAULT_BRIGHTNESS	0x7e
-#define S5K83A_DEFAULT_EXPOSURE		0x00
-#define S5K83A_MAXIMUM_EXPOSURE		0x3c
-#define S5K83A_FLIP_MASK		0x10
-#define S5K83A_GPIO_LED_MASK		0x10
-#define S5K83A_GPIO_ROTATION_MASK	0x40
+#define S5K83A_DEFAULT_GAIN   0x71
+#define S5K83A_DEFAULT_BRIGHTNESS 0x7e
+#define S5K83A_DEFAULT_EXPOSURE   0x00
+#define S5K83A_MAXIMUM_EXPOSURE   0x3c
+#define S5K83A_FLIP_MASK    0x10
+#define S5K83A_GPIO_LED_MASK    0x10
+#define S5K83A_GPIO_ROTATION_MASK 0x40
 
 /*****************************************************************************/
 
@@ -47,14 +47,14 @@ int s5k83a_stop(struct sd *sd);
 void s5k83a_disconnect(struct sd *sd);
 
 static const struct m5602_sensor s5k83a = {
-	.name = "S5K83A",
-	.probe = s5k83a_probe,
-	.init = s5k83a_init,
-	.init_controls = s5k83a_init_controls,
-	.start = s5k83a_start,
-	.stop = s5k83a_stop,
-	.disconnect = s5k83a_disconnect,
-	.i2c_slave_id = 0x5a,
-	.i2c_regW = 2,
+  .name = "S5K83A",
+  .probe = s5k83a_probe,
+  .init = s5k83a_init,
+  .init_controls = s5k83a_init_controls,
+  .start = s5k83a_start,
+  .stop = s5k83a_stop,
+  .disconnect = s5k83a_disconnect,
+  .i2c_slave_id = 0x5a,
+  .i2c_regW = 2,
 };
 #endif

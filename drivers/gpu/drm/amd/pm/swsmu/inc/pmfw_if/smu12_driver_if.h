@@ -25,7 +25,7 @@
 #define SMU12_DRIVER_IF_H
 
 // *** IMPORTANT ***
-// SMU TEAM: Always increment the interface version if 
+// SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
 #define SMU12_DRIVER_IF_VERSION 14
 
@@ -53,9 +53,9 @@ typedef struct {
   uint16_t MinMclk;
   uint16_t MaxMclk;
 
-  uint8_t  WmSetting;
-  uint8_t  WmType;  // Used for normal pstate change or memory retraining
-  uint8_t  Padding[2];
+  uint8_t WmSetting;
+  uint8_t WmType;  // Used for normal pstate change or memory retraining
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -72,7 +72,7 @@ typedef struct {
   // Watermarks
   WatermarkRowGeneric_t WatermarkRow[WM_COUNT][NUM_WM_RANGES];
 
-  uint32_t     MmHubPadding[7]; // SMU internal use
+  uint32_t MmHubPadding[7]; // SMU internal use
 } Watermarks_t;
 
 typedef enum {
@@ -86,21 +86,20 @@ typedef enum {
 } CUSTOM_DPM_SETTING_e;
 
 typedef struct {
-  uint8_t             ActiveHystLimit;
-  uint8_t             IdleHystLimit;
-  uint8_t             FPS;
-  uint8_t             MinActiveFreqType;
-  FloatInIntFormat_t  MinActiveFreq;
-  FloatInIntFormat_t  PD_Data_limit;
-  FloatInIntFormat_t  PD_Data_time_constant;
-  FloatInIntFormat_t  PD_Data_error_coeff;
-  FloatInIntFormat_t  PD_Data_error_rate_coeff;
+  uint8_t ActiveHystLimit;
+  uint8_t IdleHystLimit;
+  uint8_t FPS;
+  uint8_t MinActiveFreqType;
+  FloatInIntFormat_t MinActiveFreq;
+  FloatInIntFormat_t PD_Data_limit;
+  FloatInIntFormat_t PD_Data_time_constant;
+  FloatInIntFormat_t PD_Data_error_coeff;
+  FloatInIntFormat_t PD_Data_error_rate_coeff;
 } DpmActivityMonitorCoeffExt_t;
 
 typedef struct {
   DpmActivityMonitorCoeffExt_t DpmActivityMonitorCoeff[CUSTOM_DPM_SETTING_COUNT];
 } CustomDpmSettings_t;
-
 
 #define NUM_DCFCLK_DPM_LEVELS 8
 #define NUM_SOCCLK_DPM_LEVELS 8
@@ -129,7 +128,6 @@ typedef struct {
   uint8_t NumDClkDpmEnabled;
   uint8_t spare[2];
 } DpmClocks_t;
-
 
 typedef enum {
   CLOCK_SMNCLK = 0,
@@ -209,7 +207,6 @@ typedef struct {
   uint16_t reserve[2];
 } SmuMetrics_t;
 
-
 // Workload bits
 #define WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT 0
 #define WORKLOAD_PPLIB_VIDEO_BIT          2
@@ -227,6 +224,5 @@ typedef struct {
 #define TABLE_MODERN_STDBY       6 // Called by Tools for Modern Standby Log
 #define TABLE_SMU_METRICS        7 // Called by Driver
 #define TABLE_COUNT              8
-
 
 #endif

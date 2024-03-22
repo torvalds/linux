@@ -4,8 +4,8 @@
  */
 
 /* WARNING: this file should *not* be used by applications. It is
-   part of the implementation of the compression library and is
-   subject to change. Applications should only use zlib.h.
+ * part of the implementation of the compression library and is
+ * subject to change. Applications should only use zlib.h.
  */
 
 /* @(#) $Id: zutil.h,v 1.1 2000/01/01 03:32:23 davem Exp $ */
@@ -17,11 +17,11 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
-typedef unsigned char  uch;
+typedef unsigned char uch;
 typedef unsigned short ush;
-typedef unsigned long  ulg;
+typedef unsigned long ulg;
 
-        /* common constants */
+/* common constants */
 
 #define STORED_BLOCK 0
 #define STATIC_TREES 1
@@ -34,73 +34,73 @@ typedef unsigned long  ulg;
 
 #define PRESET_DICT 0x20 /* preset dictionary flag in zlib header */
 
-        /* target dependencies */
+/* target dependencies */
 
-        /* Common defaults */
+/* Common defaults */
 
 #ifndef OS_CODE
-#  define OS_CODE  0x03  /* assume Unix */
+#define OS_CODE  0x03  /* assume Unix */
 #endif
 
-         /* functions */
+/* functions */
 
-typedef uLong (*check_func) (uLong check, const Byte *buf,
-				       uInt len);
+typedef uLong (*check_func)(uLong check, const Byte *buf,
+    uInt len);
 
-
-                        /* checksum functions */
+/* checksum functions */
 
 #define BASE 65521L /* largest prime smaller than 65536 */
 #define NMAX 5552
 /* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
 
-#define DO1(buf,i)  {s1 += buf[i]; s2 += s1;}
-#define DO2(buf,i)  DO1(buf,i); DO1(buf,i+1);
-#define DO4(buf,i)  DO2(buf,i); DO2(buf,i+2);
-#define DO8(buf,i)  DO4(buf,i); DO4(buf,i+4);
-#define DO16(buf)   DO8(buf,0); DO8(buf,8);
+#define DO1(buf, i)  {s1 += buf[i]; s2 += s1;}
+#define DO2(buf, i)  DO1(buf, i); DO1(buf, i + 1);
+#define DO4(buf, i)  DO2(buf, i); DO2(buf, i + 2);
+#define DO8(buf, i)  DO4(buf, i); DO4(buf, i + 4);
+#define DO16(buf)   DO8(buf, 0); DO8(buf, 8);
 
 /* ========================================================================= */
 /*
-     Update a running Adler-32 checksum with the bytes buf[0..len-1] and
-   return the updated checksum. If buf is NULL, this function returns
-   the required initial value for the checksum.
-   An Adler-32 checksum is almost as reliable as a CRC32 but can be computed
-   much faster. Usage example:
-
-     uLong adler = zlib_adler32(0L, NULL, 0);
-
-     while (read_buffer(buffer, length) != EOF) {
-       adler = zlib_adler32(adler, buffer, length);
-     }
-     if (adler != original_adler) error();
-*/
+ *   Update a running Adler-32 checksum with the bytes buf[0..len-1] and
+ * return the updated checksum. If buf is NULL, this function returns
+ * the required initial value for the checksum.
+ * An Adler-32 checksum is almost as reliable as a CRC32 but can be computed
+ * much faster. Usage example:
+ *
+ *   uLong adler = zlib_adler32(0L, NULL, 0);
+ *
+ *   while (read_buffer(buffer, length) != EOF) {
+ *     adler = zlib_adler32(adler, buffer, length);
+ *   }
+ *   if (adler != original_adler) error();
+ */
 static inline uLong zlib_adler32(uLong adler,
-				 const Byte *buf,
-				 uInt len)
-{
-    unsigned long s1 = adler & 0xffff;
-    unsigned long s2 = (adler >> 16) & 0xffff;
-    int k;
-
-    if (buf == NULL) return 1L;
-
-    while (len > 0) {
-        k = len < NMAX ? len : NMAX;
-        len -= k;
-        while (k >= 16) {
-            DO16(buf);
-	    buf += 16;
-            k -= 16;
-        }
-        if (k != 0) do {
-            s1 += *buf++;
-	    s2 += s1;
-        } while (--k);
-        s1 %= BASE;
-        s2 %= BASE;
+    const Byte *buf,
+    uInt len) {
+  unsigned long s1 = adler & 0xffff;
+  unsigned long s2 = (adler >> 16) & 0xffff;
+  int k;
+  if (buf == NULL) {
+    return 1L;
+  }
+  while (len > 0) {
+    k = len < NMAX ? len : NMAX;
+    len -= k;
+    while (k >= 16) {
+      DO16(buf);
+      buf += 16;
+      k -= 16;
     }
-    return (s2 << 16) | s1;
+    if (k != 0) {
+      do {
+        s1 += *buf++;
+        s2 += s1;
+      } while (--k);
+    }
+    s1 %= BASE;
+    s2 %= BASE;
+  }
+  return (s2 << 16) | s1;
 }
 
 #endif /* _Z_UTIL_H */

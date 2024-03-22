@@ -17,8 +17,8 @@
 #define __IA_CSS_MACC1_5_TYPES_H
 
 /* @file
-* CSS-API header file for Multi-Axis Color Conversion algorithm parameters.
-*/
+ * CSS-API header file for Multi-Axis Color Conversion algorithm parameters.
+ */
 
 /* Multi-Axis Color Conversion configuration
  *
@@ -54,11 +54,11 @@
  *   OutV = (   0 * InU + 4096 * InV) >> (13 - 1)
  */
 struct ia_css_macc1_5_table {
-	s16 data[IA_CSS_MACC_NUM_COEFS * IA_CSS_MACC_NUM_AXES];
-	/** 16 of 2x2 matix
-	  MACC1_5: s[macc_config.exp].[13-macc_config.exp], [-8192,8191]
-	    default/ineffective: (s1.12)
-		16 of "identity 2x2 matix" {4096,0,0,4096} */
+  s16 data[IA_CSS_MACC_NUM_COEFS * IA_CSS_MACC_NUM_AXES];
+  /** 16 of 2x2 matix
+   * MACC1_5: s[macc_config.exp].[13-macc_config.exp], [-8192,8191]
+   *  default/ineffective: (s1.12)
+   * 16 of "identity 2x2 matix" {4096,0,0,4096} */
 };
 
 /* Multi-Axes Color Correction (MACC) configuration.
@@ -67,8 +67,8 @@ struct ia_css_macc1_5_table {
  *  ISP2: MACC1_5 is used.
  */
 struct ia_css_macc1_5_config {
-	u8 exp;	/** Common exponent of ia_css_macc_table.
-				u8.0, [0,13], default 1, ineffective 1 */
+  u8 exp; /** Common exponent of ia_css_macc_table.
+          *  u8.0, [0,13], default 1, ineffective 1 */
 };
 
 #endif /* __IA_CSS_MACC1_5_TYPES_H */

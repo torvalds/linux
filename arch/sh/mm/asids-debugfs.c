@@ -26,34 +26,29 @@
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 
-static int asids_debugfs_show(struct seq_file *file, void *iter)
-{
-	struct task_struct *p;
-
-	read_lock(&tasklist_lock);
-
-	for_each_process(p) {
-		int pid = p->pid;
-
-		if (unlikely(!pid))
-			continue;
-
-		if (p->mm)
-			seq_printf(file, "%5d : %04lx\n", pid,
-				   cpu_asid(smp_processor_id(), p->mm));
-	}
-
-	read_unlock(&tasklist_lock);
-
-	return 0;
+static int asids_debugfs_show(struct seq_file *file, void *iter) {
+  struct task_struct *p;
+  read_lock(&tasklist_lock);
+  for_each_process(p) {
+    int pid = p->pid;
+    if (unlikely(!pid)) {
+      continue;
+    }
+    if (p->mm) {
+      seq_printf(file, "%5d : %04lx\n", pid,
+          cpu_asid(smp_processor_id(), p->mm));
+    }
+  }
+  read_unlock(&tasklist_lock);
+  return 0;
 }
 
 DEFINE_SHOW_ATTRIBUTE(asids_debugfs);
 
-static int __init asids_debugfs_init(void)
-{
-	debugfs_create_file("asids", S_IRUSR, arch_debugfs_dir, NULL,
-			    &asids_debugfs_fops);
-	return 0;
+static int __init asids_debugfs_init(void) {
+  debugfs_create_file("asids", S_IRUSR, arch_debugfs_dir, NULL,
+      &asids_debugfs_fops);
+  return 0;
 }
+
 device_initcall(asids_debugfs_init);

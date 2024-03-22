@@ -21,13 +21,12 @@ extern struct mutex pmac_backlight_mutex;
 extern int pmac_has_backlight_type(const char *type);
 
 extern void pmac_backlight_key(int direction);
-static inline void pmac_backlight_key_up(void)
-{
-	pmac_backlight_key(0);
+static inline void pmac_backlight_key_up(void) {
+  pmac_backlight_key(0);
 }
-static inline void pmac_backlight_key_down(void)
-{
-	pmac_backlight_key(1);
+
+static inline void pmac_backlight_key_down(void) {
+  pmac_backlight_key(1);
 }
 
 extern void pmac_backlight_set_legacy_brightness_pmu(int brightness);

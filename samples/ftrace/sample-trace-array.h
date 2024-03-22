@@ -24,7 +24,7 @@
  * protection, just like TRACE_INCLUDE_FILE.
  */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM sample-subsystem
+#define TRACE_SYSTEM sample - subsystem
 
 /*
  * TRACE_SYSTEM is expected to be a C valid variable (alpha-numeric
@@ -59,26 +59,26 @@
 #include <linux/tracepoint.h>
 TRACE_EVENT(sample_event,
 
-	TP_PROTO(int count, unsigned long time),
+    TP_PROTO(int count, unsigned long time),
 
-	TP_ARGS(count, time),
+    TP_ARGS(count, time),
 
-	TP_STRUCT__entry(
-		__field(int, count)
-		__field(unsigned long, time)
-	),
+    TP_STRUCT__entry(
+    __field(int, count)
+    __field(unsigned long, time)
+    ),
 
-	TP_fast_assign(
-		__entry->count = count;
-		__entry->time = time;
-	),
+    TP_fast_assign(
+    __entry->count = count;
+    __entry->time = time;
+    ),
 
-	TP_printk("count value=%d at jiffies=%lu", __entry->count,
-		__entry->time)
-	);
+    TP_printk("count value=%d at jiffies=%lu", __entry->count,
+    __entry->time)
+    );
 #endif
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
-#define TRACE_INCLUDE_FILE sample-trace-array
+#define TRACE_INCLUDE_FILE sample - trace - array
 #include <trace/define_trace.h>

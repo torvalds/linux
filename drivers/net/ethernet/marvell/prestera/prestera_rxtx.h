@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2019-2020 Marvell International Ltd. All rights reserved. */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+ * Copyright (c) 2019-2020 Marvell International Ltd. All rights reserved.*/
 
 #ifndef _PRESTERA_RXTX_H_
 #define _PRESTERA_RXTX_H_

@@ -55,7 +55,7 @@ unsigned char sm750_sw_i2c_read_reg(unsigned char addr, unsigned char reg);
  *         -1   - Fail
  */
 long sm750_sw_i2c_write_reg(unsigned char addr,
-			    unsigned char reg,
-			    unsigned char data);
+    unsigned char reg,
+    unsigned char data);
 
 #endif  /* _SWI2C_H_ */

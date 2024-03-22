@@ -21,7 +21,6 @@
  *
  */
 
-
 #ifndef _FIJI_PP_SMC_H_
 #define _FIJI_PP_SMC_H_
 
@@ -82,98 +81,96 @@ enum FAN_CONTROL {
 #define PPSMC_GeminiModeMaster 1  /*Master GPU on a Gemini board*/
 #define PPSMC_GeminiModeSlave  2  /*Slave GPU on a Gemini board*/
 
-
 /* Return codes for driver to SMC communication. */
-#define PPSMC_Result_OK             ((uint16_t)0x01)
-#define PPSMC_Result_NoMore         ((uint16_t)0x02)
+#define PPSMC_Result_OK             ((uint16_t) 0x01)
+#define PPSMC_Result_NoMore         ((uint16_t) 0x02)
 
-#define PPSMC_Result_NotNow         ((uint16_t)0x03)
+#define PPSMC_Result_NotNow         ((uint16_t) 0x03)
 
-#define PPSMC_Result_Failed         ((uint16_t)0xFF)
-#define PPSMC_Result_UnknownCmd     ((uint16_t)0xFE)
-#define PPSMC_Result_UnknownVT      ((uint16_t)0xFD)
+#define PPSMC_Result_Failed         ((uint16_t) 0xFF)
+#define PPSMC_Result_UnknownCmd     ((uint16_t) 0xFE)
+#define PPSMC_Result_UnknownVT      ((uint16_t) 0xFD)
 
-#define PPSMC_isERROR(x) ((uint16_t)0x80 & (x))
+#define PPSMC_isERROR(x) ((uint16_t) 0x80 & (x))
 
+#define PPSMC_MSG_Halt                      ((uint16_t) 0x10)
+#define PPSMC_MSG_Resume                    ((uint16_t) 0x11)
+#define PPSMC_MSG_EnableDPMLevel            ((uint16_t) 0x12)
+#define PPSMC_MSG_ZeroLevelsDisabled        ((uint16_t) 0x13)
+#define PPSMC_MSG_OneLevelsDisabled         ((uint16_t) 0x14)
+#define PPSMC_MSG_TwoLevelsDisabled         ((uint16_t) 0x15)
+#define PPSMC_MSG_EnableThermalInterrupt    ((uint16_t) 0x16)
+#define PPSMC_MSG_RunningOnAC               ((uint16_t) 0x17)
+#define PPSMC_MSG_LevelUp                   ((uint16_t) 0x18)
+#define PPSMC_MSG_LevelDown                 ((uint16_t) 0x19)
+#define PPSMC_MSG_ResetDPMCounters          ((uint16_t) 0x1a)
+#define PPSMC_MSG_SwitchToSwState           ((uint16_t) 0x20)
 
-#define PPSMC_MSG_Halt                      ((uint16_t)0x10)
-#define PPSMC_MSG_Resume                    ((uint16_t)0x11)
-#define PPSMC_MSG_EnableDPMLevel            ((uint16_t)0x12)
-#define PPSMC_MSG_ZeroLevelsDisabled        ((uint16_t)0x13)
-#define PPSMC_MSG_OneLevelsDisabled         ((uint16_t)0x14)
-#define PPSMC_MSG_TwoLevelsDisabled         ((uint16_t)0x15)
-#define PPSMC_MSG_EnableThermalInterrupt    ((uint16_t)0x16)
-#define PPSMC_MSG_RunningOnAC               ((uint16_t)0x17)
-#define PPSMC_MSG_LevelUp                   ((uint16_t)0x18)
-#define PPSMC_MSG_LevelDown                 ((uint16_t)0x19)
-#define PPSMC_MSG_ResetDPMCounters          ((uint16_t)0x1a)
-#define PPSMC_MSG_SwitchToSwState           ((uint16_t)0x20)
+#define PPSMC_MSG_SwitchToSwStateLast       ((uint16_t) 0x3f)
+#define PPSMC_MSG_SwitchToInitialState      ((uint16_t) 0x40)
+#define PPSMC_MSG_NoForcedLevel             ((uint16_t) 0x41)
+#define PPSMC_MSG_ForceHigh                 ((uint16_t) 0x42)
+#define PPSMC_MSG_ForceMediumOrHigh         ((uint16_t) 0x43)
 
-#define PPSMC_MSG_SwitchToSwStateLast       ((uint16_t)0x3f)
-#define PPSMC_MSG_SwitchToInitialState      ((uint16_t)0x40)
-#define PPSMC_MSG_NoForcedLevel             ((uint16_t)0x41)
-#define PPSMC_MSG_ForceHigh                 ((uint16_t)0x42)
-#define PPSMC_MSG_ForceMediumOrHigh         ((uint16_t)0x43)
+#define PPSMC_MSG_SwitchToMinimumPower      ((uint16_t) 0x51)
+#define PPSMC_MSG_ResumeFromMinimumPower    ((uint16_t) 0x52)
+#define PPSMC_MSG_EnableCac                 ((uint16_t) 0x53)
+#define PPSMC_MSG_DisableCac                ((uint16_t) 0x54)
+#define PPSMC_DPMStateHistoryStart          ((uint16_t) 0x55)
+#define PPSMC_DPMStateHistoryStop           ((uint16_t) 0x56)
+#define PPSMC_CACHistoryStart               ((uint16_t) 0x57)
+#define PPSMC_CACHistoryStop                ((uint16_t) 0x58)
+#define PPSMC_TDPClampingActive             ((uint16_t) 0x59)
+#define PPSMC_TDPClampingInactive           ((uint16_t) 0x5A)
+#define PPSMC_StartFanControl               ((uint16_t) 0x5B)
+#define PPSMC_StopFanControl                ((uint16_t) 0x5C)
+#define PPSMC_NoDisplay                     ((uint16_t) 0x5D)
+#define PPSMC_HasDisplay                    ((uint16_t) 0x5E)
+#define PPSMC_MSG_UVDPowerOFF               ((uint16_t) 0x60)
+#define PPSMC_MSG_UVDPowerON                ((uint16_t) 0x61)
+#define PPSMC_MSG_EnableULV                 ((uint16_t) 0x62)
+#define PPSMC_MSG_DisableULV                ((uint16_t) 0x63)
+#define PPSMC_MSG_EnterULV                  ((uint16_t) 0x64)
+#define PPSMC_MSG_ExitULV                   ((uint16_t) 0x65)
+#define PPSMC_PowerShiftActive              ((uint16_t) 0x6A)
+#define PPSMC_PowerShiftInactive            ((uint16_t) 0x6B)
+#define PPSMC_OCPActive                     ((uint16_t) 0x6C)
+#define PPSMC_OCPInactive                   ((uint16_t) 0x6D)
+#define PPSMC_CACLongTermAvgEnable          ((uint16_t) 0x6E)
+#define PPSMC_CACLongTermAvgDisable         ((uint16_t) 0x6F)
+#define PPSMC_MSG_InferredStateSweep_Start  ((uint16_t) 0x70)
+#define PPSMC_MSG_InferredStateSweep_Stop   ((uint16_t) 0x71)
+#define PPSMC_MSG_SwitchToLowestInfState    ((uint16_t) 0x72)
+#define PPSMC_MSG_SwitchToNonInfState       ((uint16_t) 0x73)
+#define PPSMC_MSG_AllStateSweep_Start       ((uint16_t) 0x74)
+#define PPSMC_MSG_AllStateSweep_Stop        ((uint16_t) 0x75)
+#define PPSMC_MSG_SwitchNextLowerInfState   ((uint16_t) 0x76)
+#define PPSMC_MSG_SwitchNextHigherInfState  ((uint16_t) 0x77)
+#define PPSMC_MSG_MclkRetrainingTest        ((uint16_t) 0x78)
+#define PPSMC_MSG_ForceTDPClamping          ((uint16_t) 0x79)
+#define PPSMC_MSG_CollectCAC_PowerCorreln   ((uint16_t) 0x7A)
+#define PPSMC_MSG_CollectCAC_WeightCalib    ((uint16_t) 0x7B)
+#define PPSMC_MSG_CollectCAC_SQonly         ((uint16_t) 0x7C)
+#define PPSMC_MSG_CollectCAC_TemperaturePwr ((uint16_t) 0x7D)
 
-#define PPSMC_MSG_SwitchToMinimumPower      ((uint16_t)0x51)
-#define PPSMC_MSG_ResumeFromMinimumPower    ((uint16_t)0x52)
-#define PPSMC_MSG_EnableCac                 ((uint16_t)0x53)
-#define PPSMC_MSG_DisableCac                ((uint16_t)0x54)
-#define PPSMC_DPMStateHistoryStart          ((uint16_t)0x55)
-#define PPSMC_DPMStateHistoryStop           ((uint16_t)0x56)
-#define PPSMC_CACHistoryStart               ((uint16_t)0x57)
-#define PPSMC_CACHistoryStop                ((uint16_t)0x58)
-#define PPSMC_TDPClampingActive             ((uint16_t)0x59)
-#define PPSMC_TDPClampingInactive           ((uint16_t)0x5A)
-#define PPSMC_StartFanControl               ((uint16_t)0x5B)
-#define PPSMC_StopFanControl                ((uint16_t)0x5C)
-#define PPSMC_NoDisplay                     ((uint16_t)0x5D)
-#define PPSMC_HasDisplay                    ((uint16_t)0x5E)
-#define PPSMC_MSG_UVDPowerOFF               ((uint16_t)0x60)
-#define PPSMC_MSG_UVDPowerON                ((uint16_t)0x61)
-#define PPSMC_MSG_EnableULV                 ((uint16_t)0x62)
-#define PPSMC_MSG_DisableULV                ((uint16_t)0x63)
-#define PPSMC_MSG_EnterULV                  ((uint16_t)0x64)
-#define PPSMC_MSG_ExitULV                   ((uint16_t)0x65)
-#define PPSMC_PowerShiftActive              ((uint16_t)0x6A)
-#define PPSMC_PowerShiftInactive            ((uint16_t)0x6B)
-#define PPSMC_OCPActive                     ((uint16_t)0x6C)
-#define PPSMC_OCPInactive                   ((uint16_t)0x6D)
-#define PPSMC_CACLongTermAvgEnable          ((uint16_t)0x6E)
-#define PPSMC_CACLongTermAvgDisable         ((uint16_t)0x6F)
-#define PPSMC_MSG_InferredStateSweep_Start  ((uint16_t)0x70)
-#define PPSMC_MSG_InferredStateSweep_Stop   ((uint16_t)0x71)
-#define PPSMC_MSG_SwitchToLowestInfState    ((uint16_t)0x72)
-#define PPSMC_MSG_SwitchToNonInfState       ((uint16_t)0x73)
-#define PPSMC_MSG_AllStateSweep_Start       ((uint16_t)0x74)
-#define PPSMC_MSG_AllStateSweep_Stop        ((uint16_t)0x75)
-#define PPSMC_MSG_SwitchNextLowerInfState   ((uint16_t)0x76)
-#define PPSMC_MSG_SwitchNextHigherInfState  ((uint16_t)0x77)
-#define PPSMC_MSG_MclkRetrainingTest        ((uint16_t)0x78)
-#define PPSMC_MSG_ForceTDPClamping          ((uint16_t)0x79)
-#define PPSMC_MSG_CollectCAC_PowerCorreln   ((uint16_t)0x7A)
-#define PPSMC_MSG_CollectCAC_WeightCalib    ((uint16_t)0x7B)
-#define PPSMC_MSG_CollectCAC_SQonly         ((uint16_t)0x7C)
-#define PPSMC_MSG_CollectCAC_TemperaturePwr ((uint16_t)0x7D)
+#define PPSMC_MSG_ExtremitiesTest_Start     ((uint16_t) 0x7E)
+#define PPSMC_MSG_ExtremitiesTest_Stop      ((uint16_t) 0x7F)
+#define PPSMC_FlushDataCache                ((uint16_t) 0x80)
+#define PPSMC_FlushInstrCache               ((uint16_t) 0x81)
 
-#define PPSMC_MSG_ExtremitiesTest_Start     ((uint16_t)0x7E)
-#define PPSMC_MSG_ExtremitiesTest_Stop      ((uint16_t)0x7F)
-#define PPSMC_FlushDataCache                ((uint16_t)0x80)
-#define PPSMC_FlushInstrCache               ((uint16_t)0x81)
+#define PPSMC_MSG_SetEnabledLevels          ((uint16_t) 0x82)
+#define PPSMC_MSG_SetForcedLevels           ((uint16_t) 0x83)
 
-#define PPSMC_MSG_SetEnabledLevels          ((uint16_t)0x82)
-#define PPSMC_MSG_SetForcedLevels           ((uint16_t)0x83)
+#define PPSMC_MSG_ResetToDefaults           ((uint16_t) 0x84)
 
-#define PPSMC_MSG_ResetToDefaults           ((uint16_t)0x84)
+#define PPSMC_MSG_SetForcedLevelsAndJump      ((uint16_t) 0x85)
+#define PPSMC_MSG_SetCACHistoryMode           ((uint16_t) 0x86)
+#define PPSMC_MSG_EnableDTE                   ((uint16_t) 0x87)
+#define PPSMC_MSG_DisableDTE                  ((uint16_t) 0x88)
 
-#define PPSMC_MSG_SetForcedLevelsAndJump      ((uint16_t)0x85)
-#define PPSMC_MSG_SetCACHistoryMode           ((uint16_t)0x86)
-#define PPSMC_MSG_EnableDTE                   ((uint16_t)0x87)
-#define PPSMC_MSG_DisableDTE                  ((uint16_t)0x88)
+#define PPSMC_MSG_SmcSpaceSetAddress          ((uint16_t) 0x89)
 
-#define PPSMC_MSG_SmcSpaceSetAddress          ((uint16_t)0x89)
-
-#define PPSMC_MSG_BREAK                       ((uint16_t)0xF8)
+#define PPSMC_MSG_BREAK                       ((uint16_t) 0xF8)
 
 /* Trinity Specific Messages*/
 #define PPSMC_MSG_Test                        ((uint16_t) 0x100)
@@ -400,7 +397,8 @@ enum FAN_CONTROL {
 /* AVFS Only - Remove Later */
 #define PPSMC_MSG_VftTableIsValid             ((uint16_t) 0x666)
 
-/* If the SMC firmware has an event status soft register this is what the individual bits mean.*/
+/* If the SMC firmware has an event status soft register this is what the
+ * individual bits mean.*/
 #define PPSMC_EVENT_STATUS_THERMAL          0x00000001
 #define PPSMC_EVENT_STATUS_REGULATORHOT     0x00000002
 #define PPSMC_EVENT_STATUS_DC               0x00000004

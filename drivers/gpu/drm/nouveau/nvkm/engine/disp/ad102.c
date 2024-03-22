@@ -27,26 +27,29 @@
 #include <nvif/class.h>
 
 static const struct nvkm_disp_func
-ad102_disp = {
-	.uevent = &gv100_disp_chan_uevent,
-	.ramht_size = 0x2000,
-	.root = {  0, 0,AD102_DISP },
-	.user = {
-		{{-1,-1,GV100_DISP_CAPS                  }, gv100_disp_caps_new },
-		{{ 0, 0,GA102_DISP_CURSOR                }, nvkm_disp_chan_new, &gv100_disp_curs },
-		{{ 0, 0,GA102_DISP_WINDOW_IMM_CHANNEL_DMA}, nvkm_disp_wndw_new, &gv100_disp_wimm },
-		{{ 0, 0,AD102_DISP_CORE_CHANNEL_DMA      }, nvkm_disp_core_new, &gv100_disp_core },
-		{{ 0, 0,GA102_DISP_WINDOW_CHANNEL_DMA    }, nvkm_disp_wndw_new, &gv100_disp_wndw },
-		{}
-	},
+    ad102_disp = {
+  .uevent = &gv100_disp_chan_uevent,
+  .ramht_size = 0x2000,
+  .root = {  0, 0, AD102_DISP },
+  .user = {
+    {{-1, -1, GV100_DISP_CAPS                  }, gv100_disp_caps_new },
+    {{ 0, 0, GA102_DISP_CURSOR                }, nvkm_disp_chan_new,
+     &gv100_disp_curs },
+    {{ 0, 0, GA102_DISP_WINDOW_IMM_CHANNEL_DMA}, nvkm_disp_wndw_new,
+     &gv100_disp_wimm },
+    {{ 0, 0, AD102_DISP_CORE_CHANNEL_DMA      }, nvkm_disp_core_new,
+     &gv100_disp_core },
+    {{ 0, 0, GA102_DISP_WINDOW_CHANNEL_DMA    }, nvkm_disp_wndw_new,
+     &gv100_disp_wndw },
+    {}
+  },
 };
 
-int
-ad102_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	       struct nvkm_disp **pdisp)
-{
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_disp_new(&ad102_disp, device, type, inst, pdisp);
-
-	return -ENODEV;
+int ad102_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_disp **pdisp) {
+  if (nvkm_gsp_rm(device->gsp)) {
+    return r535_disp_new(&ad102_disp, device, type, inst, pdisp);
+  }
+  return -ENODEV;
 }

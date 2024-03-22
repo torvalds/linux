@@ -17,7 +17,7 @@
 /*
  * Change "struct page" to physical address.
  */
-#define page_to_phys(page)	((phys_addr_t)page_to_pfn(page) << PAGE_SHIFT)
+#define page_to_phys(page)  ((phys_addr_t) page_to_pfn(page) << PAGE_SHIFT)
 
 extern void __init __iomem *early_ioremap(u64 phys_addr, unsigned long size);
 extern void __init early_iounmap(void __iomem *addr, unsigned long size);
@@ -28,18 +28,18 @@ extern void __init early_iounmap(void __iomem *addr, unsigned long size);
 #ifdef CONFIG_ARCH_IOREMAP
 
 static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
-					 unsigned long prot_val)
-{
-	if (prot_val & _CACHE_CC)
-		return (void __iomem *)(unsigned long)(CACHE_BASE + offset);
-	else
-		return (void __iomem *)(unsigned long)(UNCACHE_BASE + offset);
+    unsigned long prot_val) {
+  if (prot_val & _CACHE_CC) {
+    return (void __iomem *) (unsigned long) (CACHE_BASE + offset);
+  } else {
+    return (void __iomem *) (unsigned long) (UNCACHE_BASE + offset);
+  }
 }
 
-#define ioremap(offset, size)		\
-	ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL_SUC))
+#define ioremap(offset, size)   \
+  ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL_SUC))
 
-#define iounmap(addr) 			((void)(addr))
+#define iounmap(addr)       ((void) (addr))
 
 #endif
 
@@ -52,12 +52,12 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
  * @offset:    bus address of the memory
  * @size:      size of the resource to map
  */
-#define ioremap_wc(offset, size)	\
-	ioremap_prot((offset), (size),	\
-		pgprot_val(wc_enabled ? PAGE_KERNEL_WUC : PAGE_KERNEL_SUC))
+#define ioremap_wc(offset, size)  \
+  ioremap_prot((offset), (size),  \
+    pgprot_val(wc_enabled ? PAGE_KERNEL_WUC : PAGE_KERNEL_SUC))
 
-#define ioremap_cache(offset, size)	\
-	ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL))
+#define ioremap_cache(offset, size) \
+  ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL))
 
 #define mmiowb() wmb()
 
@@ -65,8 +65,10 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
  * String version of I/O memory access operations.
  */
 extern void __memset_io(volatile void __iomem *dst, int c, size_t count);
-extern void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count);
-extern void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count);
+extern void __memcpy_toio(volatile void __iomem *to, const void *from,
+    size_t count);
+extern void __memcpy_fromio(void *to, const volatile void __iomem *from,
+    size_t count);
 #define memset_io(c, v, l)     __memset_io((c), (v), (l))
 #define memcpy_fromio(a, c, l) __memcpy_fromio((a), (c), (l))
 #define memcpy_toio(c, a, l)   __memcpy_toio((c), (a), (l))

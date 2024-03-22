@@ -11,18 +11,16 @@
  *
  * Return: The hardware ID for the CPU node or ~0ULL if not found.
  */
-u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread)
-{
-	const __be32 *cell;
-	int ac, len;
-
-	ac = of_n_addr_cells(cpun);
-	cell = of_get_property(cpun, "reg", &len);
-	if (!cell || !ac || ((sizeof(*cell) * ac * (thread + 1)) > len))
-		return ~0ULL;
-
-	cell += ac * thread;
-	return of_read_number(cell, ac);
+u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread) {
+  const __be32 *cell;
+  int ac, len;
+  ac = of_n_addr_cells(cpun);
+  cell = of_get_property(cpun, "reg", &len);
+  if (!cell || !ac || ((sizeof(*cell) * ac * (thread + 1)) > len)) {
+    return ~0ULL;
+  }
+  cell += ac * thread;
+  return of_read_number(cell, ac);
 }
 
 /*
@@ -39,9 +37,8 @@ u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread)
  * Returns true if the physical identifier and the logical cpu index
  * correspond to the same core/thread, false otherwise.
  */
-bool __weak arch_match_cpu_phys_id(int cpu, u64 phys_id)
-{
-	return (u32)phys_id == cpu;
+bool __weak arch_match_cpu_phys_id(int cpu, u64 phys_id) {
+  return (u32) phys_id == cpu;
 }
 
 /*
@@ -50,29 +47,30 @@ bool __weak arch_match_cpu_phys_id(int cpu, u64 phys_id)
  * NULL, local thread number within the core is returned in it.
  */
 static bool __of_find_n_match_cpu_property(struct device_node *cpun,
-			const char *prop_name, int cpu, unsigned int *thread)
-{
-	const __be32 *cell;
-	int ac, prop_len, tid;
-	u64 hwid;
-
-	ac = of_n_addr_cells(cpun);
-	cell = of_get_property(cpun, prop_name, &prop_len);
-	if (!cell && !ac && arch_match_cpu_phys_id(cpu, 0))
-		return true;
-	if (!cell || !ac)
-		return false;
-	prop_len /= sizeof(*cell) * ac;
-	for (tid = 0; tid < prop_len; tid++) {
-		hwid = of_read_number(cell, ac);
-		if (arch_match_cpu_phys_id(cpu, hwid)) {
-			if (thread)
-				*thread = tid;
-			return true;
-		}
-		cell += ac;
-	}
-	return false;
+    const char *prop_name, int cpu, unsigned int *thread) {
+  const __be32 *cell;
+  int ac, prop_len, tid;
+  u64 hwid;
+  ac = of_n_addr_cells(cpun);
+  cell = of_get_property(cpun, prop_name, &prop_len);
+  if (!cell && !ac && arch_match_cpu_phys_id(cpu, 0)) {
+    return true;
+  }
+  if (!cell || !ac) {
+    return false;
+  }
+  prop_len /= sizeof(*cell) * ac;
+  for (tid = 0; tid < prop_len; tid++) {
+    hwid = of_read_number(cell, ac);
+    if (arch_match_cpu_phys_id(cpu, hwid)) {
+      if (thread) {
+        *thread = tid;
+      }
+      return true;
+    }
+    cell += ac;
+  }
+  return false;
 }
 
 /*
@@ -82,19 +80,18 @@ static bool __of_find_n_match_cpu_property(struct device_node *cpun,
  * core is returned in it.
  */
 bool __weak arch_find_n_match_cpu_physical_id(struct device_node *cpun,
-					      int cpu, unsigned int *thread)
-{
-	/* Check for non-standard "ibm,ppc-interrupt-server#s" property
-	 * for thread ids on PowerPC. If it doesn't exist fallback to
-	 * standard "reg" property.
-	 */
-	if (IS_ENABLED(CONFIG_PPC) &&
-	    __of_find_n_match_cpu_property(cpun,
-					   "ibm,ppc-interrupt-server#s",
-					   cpu, thread))
-		return true;
-
-	return __of_find_n_match_cpu_property(cpun, "reg", cpu, thread);
+    int cpu, unsigned int *thread) {
+  /* Check for non-standard "ibm,ppc-interrupt-server#s" property
+   * for thread ids on PowerPC. If it doesn't exist fallback to
+   * standard "reg" property.
+   */
+  if (IS_ENABLED(CONFIG_PPC)
+      && __of_find_n_match_cpu_property(cpun,
+      "ibm,ppc-interrupt-server#s",
+      cpu, thread)) {
+    return true;
+  }
+  return __of_find_n_match_cpu_property(cpun, "reg", cpu, thread);
 }
 
 /**
@@ -116,20 +113,21 @@ bool __weak arch_find_n_match_cpu_physical_id(struct device_node *cpun,
  * Return: A node pointer for the logical cpu with refcount incremented, use
  * of_node_put() on it when done. Returns NULL if not found.
  */
-struct device_node *of_get_cpu_node(int cpu, unsigned int *thread)
-{
-	struct device_node *cpun;
-
-	for_each_of_cpu_node(cpun) {
-		if (arch_find_n_match_cpu_physical_id(cpun, cpu, thread))
-			return cpun;
-	}
-	return NULL;
+struct device_node *of_get_cpu_node(int cpu, unsigned int *thread) {
+  struct device_node *cpun;
+  for_each_of_cpu_node(cpun) {
+    if (arch_find_n_match_cpu_physical_id(cpun, cpu, thread)) {
+      return cpun;
+    }
+  }
+  return NULL;
 }
+
 EXPORT_SYMBOL(of_get_cpu_node);
 
 /**
- * of_cpu_device_node_get: Get the CPU device_node for a given logical CPU number
+ * of_cpu_device_node_get: Get the CPU device_node for a given logical CPU
+ *number
  *
  * @cpu: The logical CPU number
  *
@@ -137,14 +135,15 @@ EXPORT_SYMBOL(of_get_cpu_node);
  * incremented of the given logical CPU number or NULL if the CPU device_node
  * is not found.
  */
-struct device_node *of_cpu_device_node_get(int cpu)
-{
-	struct device *cpu_dev;
-	cpu_dev = get_cpu_device(cpu);
-	if (!cpu_dev)
-		return of_get_cpu_node(cpu, NULL);
-	return of_node_get(cpu_dev->of_node);
+struct device_node *of_cpu_device_node_get(int cpu) {
+  struct device *cpu_dev;
+  cpu_dev = get_cpu_device(cpu);
+  if (!cpu_dev) {
+    return of_get_cpu_node(cpu, NULL);
+  }
+  return of_node_get(cpu_dev->of_node);
 }
+
 EXPORT_SYMBOL(of_cpu_device_node_get);
 
 /**
@@ -155,22 +154,21 @@ EXPORT_SYMBOL(of_cpu_device_node_get);
  * Return: The logical CPU number of the given CPU device_node or -ENODEV if the
  * CPU is not found.
  */
-int of_cpu_node_to_id(struct device_node *cpu_node)
-{
-	int cpu;
-	bool found = false;
-	struct device_node *np;
-
-	for_each_possible_cpu(cpu) {
-		np = of_cpu_device_node_get(cpu);
-		found = (cpu_node == np);
-		of_node_put(np);
-		if (found)
-			return cpu;
-	}
-
-	return -ENODEV;
+int of_cpu_node_to_id(struct device_node *cpu_node) {
+  int cpu;
+  bool found = false;
+  struct device_node *np;
+  for_each_possible_cpu(cpu) {
+    np = of_cpu_device_node_get(cpu);
+    found = (cpu_node == np);
+    of_node_put(np);
+    if (found) {
+      return cpu;
+    }
+  }
+  return -ENODEV;
 }
+
 EXPORT_SYMBOL(of_cpu_node_to_id);
 
 /**
@@ -189,22 +187,20 @@ EXPORT_SYMBOL(of_cpu_node_to_id);
  * for it, so call of_node_put() on it when done. Returns NULL if not found.
  */
 struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
-					  int index)
-{
-	struct of_phandle_args args;
-	int err;
-
-	err = of_parse_phandle_with_args(cpu_node, "power-domains",
-					"#power-domain-cells", 0, &args);
-	if (!err) {
-		struct device_node *state_node =
-			of_parse_phandle(args.np, "domain-idle-states", index);
-
-		of_node_put(args.np);
-		if (state_node)
-			return state_node;
-	}
-
-	return of_parse_phandle(cpu_node, "cpu-idle-states", index);
+    int index) {
+  struct of_phandle_args args;
+  int err;
+  err = of_parse_phandle_with_args(cpu_node, "power-domains",
+      "#power-domain-cells", 0, &args);
+  if (!err) {
+    struct device_node *state_node
+      = of_parse_phandle(args.np, "domain-idle-states", index);
+    of_node_put(args.np);
+    if (state_node) {
+      return state_node;
+    }
+  }
+  return of_parse_phandle(cpu_node, "cpu-idle-states", index);
 }
+
 EXPORT_SYMBOL(of_get_cpu_state_node);

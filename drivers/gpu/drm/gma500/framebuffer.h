@@ -14,4 +14,3 @@
 extern int gma_connector_clones(struct drm_device *dev, int type_mask);
 
 #endif
-

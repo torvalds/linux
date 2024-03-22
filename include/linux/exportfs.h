@@ -23,141 +23,141 @@ struct vfsmount;
  * The filesystem must not use the value '0' or '0xff'.
  */
 enum fid_type {
-	/*
-	 * The root, or export point, of the filesystem.
-	 * (Never actually passed down to the filesystem.
-	 */
-	FILEID_ROOT = 0,
+  /*
+   * The root, or export point, of the filesystem.
+   * (Never actually passed down to the filesystem.
+   */
+  FILEID_ROOT = 0,
 
-	/*
-	 * 32bit inode number, 32 bit generation number.
-	 */
-	FILEID_INO32_GEN = 1,
+  /*
+   * 32bit inode number, 32 bit generation number.
+   */
+  FILEID_INO32_GEN = 1,
 
-	/*
-	 * 32bit inode number, 32 bit generation number,
-	 * 32 bit parent directory inode number.
-	 */
-	FILEID_INO32_GEN_PARENT = 2,
+  /*
+   * 32bit inode number, 32 bit generation number,
+   * 32 bit parent directory inode number.
+   */
+  FILEID_INO32_GEN_PARENT = 2,
 
-	/*
-	 * 64 bit object ID, 64 bit root object ID,
-	 * 32 bit generation number.
-	 */
-	FILEID_BTRFS_WITHOUT_PARENT = 0x4d,
+  /*
+   * 64 bit object ID, 64 bit root object ID,
+   * 32 bit generation number.
+   */
+  FILEID_BTRFS_WITHOUT_PARENT = 0x4d,
 
-	/*
-	 * 64 bit object ID, 64 bit root object ID,
-	 * 32 bit generation number,
-	 * 64 bit parent object ID, 32 bit parent generation.
-	 */
-	FILEID_BTRFS_WITH_PARENT = 0x4e,
+  /*
+   * 64 bit object ID, 64 bit root object ID,
+   * 32 bit generation number,
+   * 64 bit parent object ID, 32 bit parent generation.
+   */
+  FILEID_BTRFS_WITH_PARENT = 0x4e,
 
-	/*
-	 * 64 bit object ID, 64 bit root object ID,
-	 * 32 bit generation number,
-	 * 64 bit parent object ID, 32 bit parent generation,
-	 * 64 bit parent root object ID.
-	 */
-	FILEID_BTRFS_WITH_PARENT_ROOT = 0x4f,
+  /*
+   * 64 bit object ID, 64 bit root object ID,
+   * 32 bit generation number,
+   * 64 bit parent object ID, 32 bit parent generation,
+   * 64 bit parent root object ID.
+   */
+  FILEID_BTRFS_WITH_PARENT_ROOT = 0x4f,
 
-	/*
-	 * 32 bit block number, 16 bit partition reference,
-	 * 16 bit unused, 32 bit generation number.
-	 */
-	FILEID_UDF_WITHOUT_PARENT = 0x51,
+  /*
+   * 32 bit block number, 16 bit partition reference,
+   * 16 bit unused, 32 bit generation number.
+   */
+  FILEID_UDF_WITHOUT_PARENT = 0x51,
 
-	/*
-	 * 32 bit block number, 16 bit partition reference,
-	 * 16 bit unused, 32 bit generation number,
-	 * 32 bit parent block number, 32 bit parent generation number
-	 */
-	FILEID_UDF_WITH_PARENT = 0x52,
+  /*
+   * 32 bit block number, 16 bit partition reference,
+   * 16 bit unused, 32 bit generation number,
+   * 32 bit parent block number, 32 bit parent generation number
+   */
+  FILEID_UDF_WITH_PARENT = 0x52,
 
-	/*
-	 * 64 bit checkpoint number, 64 bit inode number,
-	 * 32 bit generation number.
-	 */
-	FILEID_NILFS_WITHOUT_PARENT = 0x61,
+  /*
+   * 64 bit checkpoint number, 64 bit inode number,
+   * 32 bit generation number.
+   */
+  FILEID_NILFS_WITHOUT_PARENT = 0x61,
 
-	/*
-	 * 64 bit checkpoint number, 64 bit inode number,
-	 * 32 bit generation number, 32 bit parent generation.
-	 * 64 bit parent inode number.
-	 */
-	FILEID_NILFS_WITH_PARENT = 0x62,
+  /*
+   * 64 bit checkpoint number, 64 bit inode number,
+   * 32 bit generation number, 32 bit parent generation.
+   * 64 bit parent inode number.
+   */
+  FILEID_NILFS_WITH_PARENT = 0x62,
 
-	/*
-	 * 32 bit generation number, 40 bit i_pos.
-	 */
-	FILEID_FAT_WITHOUT_PARENT = 0x71,
+  /*
+   * 32 bit generation number, 40 bit i_pos.
+   */
+  FILEID_FAT_WITHOUT_PARENT = 0x71,
 
-	/*
-	 * 32 bit generation number, 40 bit i_pos,
-	 * 32 bit parent generation number, 40 bit parent i_pos
-	 */
-	FILEID_FAT_WITH_PARENT = 0x72,
+  /*
+   * 32 bit generation number, 40 bit i_pos,
+   * 32 bit parent generation number, 40 bit parent i_pos
+   */
+  FILEID_FAT_WITH_PARENT = 0x72,
 
-	/*
-	 * 64 bit inode number, 32 bit generation number.
-	 */
-	FILEID_INO64_GEN = 0x81,
+  /*
+   * 64 bit inode number, 32 bit generation number.
+   */
+  FILEID_INO64_GEN = 0x81,
 
-	/*
-	 * 64 bit inode number, 32 bit generation number,
-	 * 64 bit parent inode number, 32 bit parent generation.
-	 */
-	FILEID_INO64_GEN_PARENT = 0x82,
+  /*
+   * 64 bit inode number, 32 bit generation number,
+   * 64 bit parent inode number, 32 bit parent generation.
+   */
+  FILEID_INO64_GEN_PARENT = 0x82,
 
-	/*
-	 * 128 bit child FID (struct lu_fid)
-	 * 128 bit parent FID (struct lu_fid)
-	 */
-	FILEID_LUSTRE = 0x97,
+  /*
+   * 128 bit child FID (struct lu_fid)
+   * 128 bit parent FID (struct lu_fid)
+   */
+  FILEID_LUSTRE = 0x97,
 
-	/*
-	 * 64 bit inode number, 32 bit subvolume, 32 bit generation number:
-	 */
-	FILEID_BCACHEFS_WITHOUT_PARENT = 0xb1,
-	FILEID_BCACHEFS_WITH_PARENT = 0xb2,
+  /*
+   * 64 bit inode number, 32 bit subvolume, 32 bit generation number:
+   */
+  FILEID_BCACHEFS_WITHOUT_PARENT = 0xb1,
+  FILEID_BCACHEFS_WITH_PARENT = 0xb2,
 
-	/*
-	 * 64 bit unique kernfs id
-	 */
-	FILEID_KERNFS = 0xfe,
+  /*
+   * 64 bit unique kernfs id
+   */
+  FILEID_KERNFS = 0xfe,
 
-	/*
-	 * Filesystems must not use 0xff file ID.
-	 */
-	FILEID_INVALID = 0xff,
+  /*
+   * Filesystems must not use 0xff file ID.
+   */
+  FILEID_INVALID = 0xff,
 };
 
 struct fid {
-	union {
-		struct {
-			u32 ino;
-			u32 gen;
-			u32 parent_ino;
-			u32 parent_gen;
-		} i32;
-		struct {
-			u64 ino;
-			u32 gen;
-		} __packed i64;
-		struct {
- 			u32 block;
- 			u16 partref;
- 			u16 parent_partref;
- 			u32 generation;
- 			u32 parent_block;
- 			u32 parent_generation;
- 		} udf;
-		DECLARE_FLEX_ARRAY(__u32, raw);
-	};
+  union {
+    struct {
+      u32 ino;
+      u32 gen;
+      u32 parent_ino;
+      u32 parent_gen;
+    } i32;
+    struct {
+      u64 ino;
+      u32 gen;
+    } __packed i64;
+    struct {
+      u32 block;
+      u16 partref;
+      u16 parent_partref;
+      u32 generation;
+      u32 parent_block;
+      u32 parent_generation;
+    } udf;
+    DECLARE_FLEX_ARRAY(__u32, raw);
+  };
 };
 
-#define EXPORT_FH_CONNECTABLE	0x1 /* Encode file handle with parent */
-#define EXPORT_FH_FID		0x2 /* File handle may be non-decodeable */
+#define EXPORT_FH_CONNECTABLE 0x1 /* Encode file handle with parent */
+#define EXPORT_FH_FID   0x2 /* File handle may be non-decodeable */
 
 /**
  * struct export_operations - for nfsd to communicate with file systems
@@ -189,7 +189,8 @@ struct fid {
  *    to the same file that the file handle fragment refers to.  If it cannot,
  *    it should return a %NULL pointer if the file cannot be found, or an
  *    %ERR_PTR error code of %ENOMEM if a memory allocation failure occurred.
- *    Any other error code is treated like %NULL, and will cause an %ESTALE error
+ *    Any other error code is treated like %NULL, and will cause an %ESTALE
+ * error
  *    for callers of exportfs_decode_fh().
  *    Any suitable dentry can be returned including, if necessary, a new dentry
  *    created with d_alloc_root.  The caller can then find any other extant
@@ -220,107 +221,103 @@ struct fid {
  */
 
 struct export_operations {
-	int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,
-			struct inode *parent);
-	struct dentry * (*fh_to_dentry)(struct super_block *sb, struct fid *fid,
-			int fh_len, int fh_type);
-	struct dentry * (*fh_to_parent)(struct super_block *sb, struct fid *fid,
-			int fh_len, int fh_type);
-	int (*get_name)(struct dentry *parent, char *name,
-			struct dentry *child);
-	struct dentry * (*get_parent)(struct dentry *child);
-	int (*commit_metadata)(struct inode *inode);
+  int (*encode_fh)(struct inode *inode, __u32 *fh, int *max_len,
+      struct inode *parent);
+  struct dentry *(*fh_to_dentry)(struct super_block *sb, struct fid *fid,
+      int fh_len, int fh_type);
+  struct dentry *(*fh_to_parent)(struct super_block *sb, struct fid *fid,
+      int fh_len, int fh_type);
+  int (*get_name)(struct dentry *parent, char *name,
+      struct dentry *child);
+  struct dentry *(*get_parent)(struct dentry *child);
+  int (*commit_metadata)(struct inode *inode);
 
-	int (*get_uuid)(struct super_block *sb, u8 *buf, u32 *len, u64 *offset);
-	int (*map_blocks)(struct inode *inode, loff_t offset,
-			  u64 len, struct iomap *iomap,
-			  bool write, u32 *device_generation);
-	int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
-			     int nr_iomaps, struct iattr *iattr);
-#define	EXPORT_OP_NOWCC			(0x1) /* don't collect v3 wcc data */
-#define	EXPORT_OP_NOSUBTREECHK		(0x2) /* no subtree checking */
-#define	EXPORT_OP_CLOSE_BEFORE_UNLINK	(0x4) /* close files before unlink */
-#define EXPORT_OP_REMOTE_FS		(0x8) /* Filesystem is remote */
-#define EXPORT_OP_NOATOMIC_ATTR		(0x10) /* Filesystem cannot supply
-						  atomic attribute updates
-						*/
-#define EXPORT_OP_FLUSH_ON_CLOSE	(0x20) /* fs flushes file data on close */
-#define EXPORT_OP_ASYNC_LOCK		(0x40) /* fs can do async lock request */
-	unsigned long	flags;
+  int (*get_uuid)(struct super_block *sb, u8 *buf, u32 *len, u64 *offset);
+  int (*map_blocks)(struct inode *inode, loff_t offset,
+      u64 len, struct iomap *iomap,
+      bool write, u32 *device_generation);
+  int (*commit_blocks)(struct inode *inode, struct iomap *iomaps,
+      int nr_iomaps, struct iattr *iattr);
+#define EXPORT_OP_NOWCC     (0x1) /* don't collect v3 wcc data */
+#define EXPORT_OP_NOSUBTREECHK    (0x2) /* no subtree checking */
+#define EXPORT_OP_CLOSE_BEFORE_UNLINK (0x4) /* close files before unlink */
+#define EXPORT_OP_REMOTE_FS   (0x8) /* Filesystem is remote */
+#define EXPORT_OP_NOATOMIC_ATTR   (0x10) /* Filesystem cannot supply
+                                          * atomic attribute updates
+                                          */
+#define EXPORT_OP_FLUSH_ON_CLOSE  (0x20) /* fs flushes file data on close */
+#define EXPORT_OP_ASYNC_LOCK    (0x40) /* fs can do async lock request */
+  unsigned long flags;
 };
 
 /**
  * exportfs_lock_op_is_async() - export op supports async lock operation
- * @export_ops:	the nfs export operations to check
+ * @export_ops: the nfs export operations to check
  *
  * Returns true if the nfs export_operations structure has
  * EXPORT_OP_ASYNC_LOCK in their flags set
  */
-static inline bool
-exportfs_lock_op_is_async(const struct export_operations *export_ops)
-{
-	return export_ops->flags & EXPORT_OP_ASYNC_LOCK;
+static inline bool exportfs_lock_op_is_async(
+    const struct export_operations *export_ops) {
+  return export_ops->flags & EXPORT_OP_ASYNC_LOCK;
 }
 
 extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-				    int *max_len, struct inode *parent,
-				    int flags);
+    int *max_len, struct inode *parent,
+    int flags);
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
-			      int *max_len, int flags);
+    int *max_len, int flags);
 
 static inline bool exportfs_can_encode_fid(const struct export_operations *nop)
 {
-	return !nop || nop->encode_fh;
+  return !nop || nop->encode_fh;
 }
 
-static inline bool exportfs_can_decode_fh(const struct export_operations *nop)
-{
-	return nop && nop->fh_to_dentry;
+static inline bool exportfs_can_decode_fh(const struct export_operations *nop) {
+  return nop && nop->fh_to_dentry;
 }
 
 static inline bool exportfs_can_encode_fh(const struct export_operations *nop,
-					  int fh_flags)
-{
-	/*
-	 * If a non-decodeable file handle was requested, we only need to make
-	 * sure that filesystem did not opt-out of encoding fid.
-	 */
-	if (fh_flags & EXPORT_FH_FID)
-		return exportfs_can_encode_fid(nop);
-
-	/*
-	 * If a decodeable file handle was requested, we need to make sure that
-	 * filesystem can also decode file handles.
-	 */
-	return exportfs_can_decode_fh(nop);
+    int fh_flags) {
+  /*
+   * If a non-decodeable file handle was requested, we only need to make
+   * sure that filesystem did not opt-out of encoding fid.
+   */
+  if (fh_flags & EXPORT_FH_FID) {
+    return exportfs_can_encode_fid(nop);
+  }
+  /*
+   * If a decodeable file handle was requested, we need to make sure that
+   * filesystem can also decode file handles.
+   */
+  return exportfs_can_decode_fh(nop);
 }
 
 static inline int exportfs_encode_fid(struct inode *inode, struct fid *fid,
-				      int *max_len)
-{
-	return exportfs_encode_inode_fh(inode, fid, max_len, NULL,
-					EXPORT_FH_FID);
+    int *max_len) {
+  return exportfs_encode_inode_fh(inode, fid, max_len, NULL,
+      EXPORT_FH_FID);
 }
 
 extern struct dentry *exportfs_decode_fh_raw(struct vfsmount *mnt,
-					     struct fid *fid, int fh_len,
-					     int fileid_type,
-					     int (*acceptable)(void *, struct dentry *),
-					     void *context);
+    struct fid *fid, int fh_len,
+    int fileid_type,
+    int (*acceptable)(void *, struct dentry *),
+    void *context);
 extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
-	int fh_len, int fileid_type, int (*acceptable)(void *, struct dentry *),
-	void *context);
+    int fh_len, int fileid_type, int (*acceptable)(void *, struct dentry *),
+    void *context);
 
 /*
  * Generic helpers for filesystems.
  */
 int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
-			    struct inode *parent);
+    struct inode *parent);
 struct dentry *generic_fh_to_dentry(struct super_block *sb,
-	struct fid *fid, int fh_len, int fh_type,
-	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+    struct fid *fid, int fh_len, int fh_type,
+    struct inode *(*get_inode)(struct super_block *sb, u64 ino, u32 gen));
 struct dentry *generic_fh_to_parent(struct super_block *sb,
-	struct fid *fid, int fh_len, int fh_type,
-	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+    struct fid *fid, int fh_len, int fh_type,
+    struct inode *(*get_inode)(struct super_block *sb, u64 ino, u32 gen));
 
 #endif /* LINUX_EXPORTFS_H */

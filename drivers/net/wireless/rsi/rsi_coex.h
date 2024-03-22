@@ -24,9 +24,9 @@
 #define NUM_COEX_TX_QUEUES              5
 
 struct rsi_coex_ctrl_block {
-	struct rsi_common *priv;
-	struct sk_buff_head coex_tx_qs[NUM_COEX_TX_QUEUES];
-	struct rsi_thread coex_tx_thread;
+  struct rsi_common *priv;
+  struct sk_buff_head coex_tx_qs[NUM_COEX_TX_QUEUES];
+  struct rsi_thread coex_tx_thread;
 };
 
 int rsi_coex_attach(struct rsi_common *common);

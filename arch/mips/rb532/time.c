@@ -27,28 +27,22 @@ extern unsigned int idt_cpu_freq;
  *
  * The RC32434 counts at half the CPU *core* speed.
  */
-static unsigned long __init cal_r4koff(void)
-{
-	mips_hpt_frequency = idt_cpu_freq * IDT_CLOCK_MULT / 2;
-
-	return mips_hpt_frequency / HZ;
+static unsigned long __init cal_r4koff(void) {
+  mips_hpt_frequency = idt_cpu_freq * IDT_CLOCK_MULT / 2;
+  return mips_hpt_frequency / HZ;
 }
 
-void __init plat_time_init(void)
-{
-	unsigned int est_freq;
-	unsigned long flags, r4k_offset;
-
-	local_irq_save(flags);
-
-	printk(KERN_INFO "calculating r4koff... ");
-	r4k_offset = cal_r4koff();
-	printk("%08lx(%d)\n", r4k_offset, (int) r4k_offset);
-
-	est_freq = 2 * r4k_offset * HZ;
-	est_freq += 5000;	/* round */
-	est_freq -= est_freq % 10000;
-	printk(KERN_INFO "CPU frequency %d.%02d MHz\n", est_freq / 1000000,
-	       (est_freq % 1000000) * 100 / 1000000);
-	local_irq_restore(flags);
+void __init plat_time_init(void) {
+  unsigned int est_freq;
+  unsigned long flags, r4k_offset;
+  local_irq_save(flags);
+  printk(KERN_INFO "calculating r4koff... ");
+  r4k_offset = cal_r4koff();
+  printk("%08lx(%d)\n", r4k_offset, (int) r4k_offset);
+  est_freq = 2 * r4k_offset * HZ;
+  est_freq += 5000; /* round */
+  est_freq -= est_freq % 10000;
+  printk(KERN_INFO "CPU frequency %d.%02d MHz\n", est_freq / 1000000,
+      (est_freq % 1000000) * 100 / 1000000);
+  local_irq_restore(flags);
 }

@@ -59,10 +59,10 @@
 #define HX8357B_SETPANELRELATED  0xE9
 
 /* Color definitions */
-#define	HX8357_BLACK   0x0000
-#define	HX8357_BLUE    0x001F
-#define	HX8357_RED     0xF800
-#define	HX8357_GREEN   0x07E0
+#define HX8357_BLACK   0x0000
+#define HX8357_BLUE    0x001F
+#define HX8357_RED     0xF800
+#define HX8357_GREEN   0x07E0
 #define HX8357_CYAN    0x07FF
 #define HX8357_MAGENTA 0xF81F
 #define HX8357_YELLOW  0xFFE0

@@ -11,11 +11,11 @@
 #include "common.h"
 
 struct clk_regmap_mux {
-	u32			reg;
-	u32			shift;
-	u32			width;
-	const struct parent_map	*parent_map;
-	struct clk_regmap	clkr;
+  u32 reg;
+  u32 shift;
+  u32 width;
+  const struct parent_map *parent_map;
+  struct clk_regmap clkr;
 };
 
 extern const struct clk_ops clk_regmap_mux_closest_ops;

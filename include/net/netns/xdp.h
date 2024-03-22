@@ -6,8 +6,8 @@
 #include <linux/types.h>
 
 struct netns_xdp {
-	struct mutex		lock;
-	struct hlist_head	list;
+  struct mutex lock;
+  struct hlist_head list;
 };
 
 #endif /* __NETNS_XDP_H__ */

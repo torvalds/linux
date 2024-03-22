@@ -20,17 +20,13 @@
 #include <asm/sgialib.h>
 #include <asm/bootinfo.h>
 
-VOID __noreturn
-ArcEnterInteractiveMode(VOID)
-{
-	bc_disable();
-	local_irq_disable();
-	ARC_CALL0(imode);
-
-	unreachable();
+VOID __noreturn ArcEnterInteractiveMode(VOID) {
+  bc_disable();
+  local_irq_disable();
+  ARC_CALL0(imode);
+  unreachable();
 }
 
-DISPLAY_STATUS * __init ArcGetDisplayStatus(ULONG FileID)
-{
-	return (DISPLAY_STATUS *) ARC_CALL1(GetDisplayStatus, FileID);
+DISPLAY_STATUS *__init ArcGetDisplayStatus(ULONG FileID) {
+  return (DISPLAY_STATUS *) ARC_CALL1(GetDisplayStatus, FileID);
 }

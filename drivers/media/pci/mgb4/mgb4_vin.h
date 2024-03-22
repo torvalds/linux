@@ -15,51 +15,51 @@
 #include "mgb4_i2c.h"
 
 struct mgb4_vin_regs {
-	u32 address;
-	u32 config;
-	u32 status;
-	u32 resolution;
-	u32 frame_period;
-	u32 sync;
-	u32 pclk;
-	u32 signal;
-	u32 signal2;
-	u32 padding;
+  u32 address;
+  u32 config;
+  u32 status;
+  u32 resolution;
+  u32 frame_period;
+  u32 sync;
+  u32 pclk;
+  u32 signal;
+  u32 signal2;
+  u32 padding;
 };
 
 struct mgb4_vin_config {
-	int id;
-	int dma_channel;
-	int vin_irq;
-	int err_irq;
-	struct mgb4_vin_regs regs;
+  int id;
+  int dma_channel;
+  int vin_irq;
+  int err_irq;
+  struct mgb4_vin_regs regs;
 };
 
 struct mgb4_vin_dev {
-	struct mgb4_dev *mgbdev;
-	struct v4l2_device v4l2dev;
-	struct video_device vdev;
-	struct vb2_queue queue;
-	struct mutex lock; /* vdev lock */
+  struct mgb4_dev *mgbdev;
+  struct v4l2_device v4l2dev;
+  struct video_device vdev;
+  struct vb2_queue queue;
+  struct mutex lock; /* vdev lock */
 
-	spinlock_t qlock; /* video buffer queue lock */
-	struct list_head buf_list;
-	struct work_struct dma_work, err_work;
+  spinlock_t qlock; /* video buffer queue lock */
+  struct list_head buf_list;
+  struct work_struct dma_work, err_work;
 
-	unsigned int sequence;
+  unsigned int sequence;
 
-	struct v4l2_dv_timings timings;
-	u32 freq_range;
-	u32 padding;
+  struct v4l2_dv_timings timings;
+  u32 freq_range;
+  u32 padding;
 
-	struct mgb4_i2c_client deser;
+  struct mgb4_i2c_client deser;
 
-	const struct mgb4_vin_config *config;
+  const struct mgb4_vin_config *config;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
-	struct debugfs_regset32 regset;
-	struct debugfs_reg32 regs[9];
+  struct dentry *debugfs;
+  struct debugfs_regset32 regset;
+  struct debugfs_reg32 regs[9];
 #endif
 };
 

@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_class_cl0005_h__
 #define __src_common_sdk_nvidia_inc_class_cl0005_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2001-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2001-2022 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,12 +29,12 @@
  */
 
 typedef struct NV0005_ALLOC_PARAMETERS {
-    NvHandle hParentClient;
-    NvHandle hSrcResource;
+  NvHandle hParentClient;
+  NvHandle hSrcResource;
 
-    NvV32    hClass;
-    NvV32    notifyIndex;
-    NV_DECLARE_ALIGNED(NvP64 data, 8);
+  NvV32 hClass;
+  NvV32 notifyIndex;
+  NV_DECLARE_ALIGNED(NvP64 data, 8);
 } NV0005_ALLOC_PARAMETERS;
 
 #endif

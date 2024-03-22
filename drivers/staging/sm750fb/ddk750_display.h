@@ -4,19 +4,19 @@
 
 /*
  * panel path select
- *	80000[29:28]
+ *  80000[29:28]
  */
 
 #define PNL_2_OFFSET 0
 #define PNL_2_MASK (3 << PNL_2_OFFSET)
-#define PNL_2_USAGE	(PNL_2_MASK << 16)
-#define PNL_2_PRI	((0 << PNL_2_OFFSET) | PNL_2_USAGE)
-#define PNL_2_SEC	((2 << PNL_2_OFFSET) | PNL_2_USAGE)
+#define PNL_2_USAGE (PNL_2_MASK << 16)
+#define PNL_2_PRI ((0 << PNL_2_OFFSET) | PNL_2_USAGE)
+#define PNL_2_SEC ((2 << PNL_2_OFFSET) | PNL_2_USAGE)
 
 /*
  * primary timing & plane enable bit
- *	1: 80000[8] & 80000[2] on
- *	0: both off
+ *  1: 80000[8] & 80000[2] on
+ *  0: both off
  */
 #define PRI_TP_OFFSET 4
 #define PRI_TP_MASK BIT(PRI_TP_OFFSET)
@@ -26,7 +26,7 @@
 
 /*
  * panel sequency status
- *	80000[27:24]
+ *  80000[27:24]
  */
 #define PNL_SEQ_OFFSET 6
 #define PNL_SEQ_MASK BIT(PNL_SEQ_OFFSET)
@@ -36,7 +36,7 @@
 
 /*
  * dual digital output
- *	80000[19]
+ *  80000[19]
  */
 #define DUAL_TFT_OFFSET 8
 #define DUAL_TFT_MASK BIT(DUAL_TFT_OFFSET)
@@ -46,8 +46,8 @@
 
 /*
  * secondary timing & plane enable bit
- *	1:80200[8] & 80200[2] on
- *	0: both off
+ *  1:80200[8] & 80200[2] on
+ *  0: both off
  */
 #define SEC_TP_OFFSET 5
 #define SEC_TP_MASK BIT(SEC_TP_OFFSET)
@@ -57,7 +57,7 @@
 
 /*
  * crt path select
- *	80200[19:18]
+ *  80200[19:18]
  */
 #define CRT_2_OFFSET 2
 #define CRT_2_MASK (3 << CRT_2_OFFSET)
@@ -67,7 +67,7 @@
 
 /*
  * DAC affect both DVI and DSUB
- *	4[20]
+ *  4[20]
  */
 #define DAC_OFFSET 7
 #define DAC_MASK BIT(DAC_OFFSET)
@@ -77,7 +77,7 @@
 
 /*
  * DPMS only affect D-SUB head
- *	0[31:30]
+ *  0[31:30]
  */
 #define DPMS_OFFSET 9
 #define DPMS_MASK (3 << DPMS_OFFSET)
@@ -90,16 +90,16 @@
  * CRT means crt path DSUB
  */
 enum disp_output {
-	do_LCD1_PRI = PNL_2_PRI | PRI_TP_ON | PNL_SEQ_ON | DAC_ON,
-	do_LCD1_SEC = PNL_2_SEC | SEC_TP_ON | PNL_SEQ_ON | DAC_ON,
-	do_LCD2_PRI = CRT_2_PRI | PRI_TP_ON | DUAL_TFT_ON,
-	do_LCD2_SEC = CRT_2_SEC | SEC_TP_ON | DUAL_TFT_ON,
-	/*
-	 * do_DSUB_PRI = CRT_2_PRI | PRI_TP_ON | DPMS_ON|DAC_ON,
-	 * do_DSUB_SEC = CRT_2_SEC | SEC_TP_ON | DPMS_ON|DAC_ON,
-	 */
-	do_CRT_PRI = CRT_2_PRI | PRI_TP_ON | DPMS_ON | DAC_ON,
-	do_CRT_SEC = CRT_2_SEC | SEC_TP_ON | DPMS_ON | DAC_ON,
+  do_LCD1_PRI = PNL_2_PRI | PRI_TP_ON | PNL_SEQ_ON | DAC_ON,
+  do_LCD1_SEC = PNL_2_SEC | SEC_TP_ON | PNL_SEQ_ON | DAC_ON,
+  do_LCD2_PRI = CRT_2_PRI | PRI_TP_ON | DUAL_TFT_ON,
+  do_LCD2_SEC = CRT_2_SEC | SEC_TP_ON | DUAL_TFT_ON,
+  /*
+   * do_DSUB_PRI = CRT_2_PRI | PRI_TP_ON | DPMS_ON|DAC_ON,
+   * do_DSUB_SEC = CRT_2_SEC | SEC_TP_ON | DPMS_ON|DAC_ON,
+   */
+  do_CRT_PRI = CRT_2_PRI | PRI_TP_ON | DPMS_ON | DAC_ON,
+  do_CRT_SEC = CRT_2_SEC | SEC_TP_ON | DPMS_ON | DAC_ON,
 };
 
 void ddk750_set_logical_disp_out(enum disp_output output);

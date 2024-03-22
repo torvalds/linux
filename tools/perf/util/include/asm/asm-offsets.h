@@ -1,2 +1,2 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* stub */
+/* SPDX-License-Identifier: GPL-2.0
+ * stub*/

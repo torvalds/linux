@@ -1,14 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPILER_TYPES_H
-#error "Please don't include <linux/compiler-gcc.h> directly, include <linux/compiler.h> instead."
+#error \
+  "Please don't include <linux/compiler-gcc.h> directly, include <linux/compiler.h> instead."
 #endif
 
 /*
  * Common definitions for all gcc versions go here.
  */
-#define GCC_VERSION (__GNUC__ * 10000		\
-		     + __GNUC_MINOR__ * 100	\
-		     + __GNUC_PATCHLEVEL__)
+#define GCC_VERSION (__GNUC__ * 10000   \
+  + __GNUC_MINOR__ * 100 \
+  + __GNUC_PATCHLEVEL__)
 
 /*
  * This macro obfuscates arithmetic on a variable address so that gcc
@@ -28,12 +29,12 @@
  * the inline assembly constraint from =g to =r, in this particular
  * case either is valid.
  */
-#define RELOC_HIDE(ptr, off)						\
-({									\
-	unsigned long __ptr;						\
-	__asm__ ("" : "=r"(__ptr) : "0"(ptr));				\
-	(typeof(ptr)) (__ptr + (off));					\
-})
+#define RELOC_HIDE(ptr, off)            \
+  ({                  \
+    unsigned long __ptr;            \
+    __asm__ ("" : "=r" (__ptr) : "0" (ptr));        \
+    (typeof(ptr))(__ptr + (off));          \
+  })
 
 #ifdef CONFIG_MITIGATION_RETPOLINE
 #define __noretpoline __attribute__((__indirect_branch__("keep")))
@@ -50,7 +51,7 @@
  *
  * Adding an empty inline assembly before it works around the problem
  */
-#define barrier_before_unreachable() asm volatile("")
+#define barrier_before_unreachable() asm volatile ("")
 
 /*
  * Mark a position in code as unreachable.  This can be used to
@@ -58,11 +59,11 @@
  * control elsewhere.
  */
 #define unreachable() \
-	do {					\
-		annotate_unreachable();		\
-		barrier_before_unreachable();	\
-		__builtin_unreachable();	\
-	} while (0)
+  do {          \
+    annotate_unreachable();   \
+    barrier_before_unreachable(); \
+    __builtin_unreachable();  \
+  } while (0)
 
 /*
  * GCC 'asm goto' with outputs miscompiles certain code sequences:
@@ -80,8 +81,8 @@
  *    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98619
  */
 #ifdef CONFIG_GCC_ASM_GOTO_OUTPUT_WORKAROUND
-#define asm_goto_output(x...) \
-	do { asm volatile goto(x); asm (""); } while (0)
+#define asm_goto_output(x ...) \
+  do { asm volatile goto (x); asm (""); } while (0)
 #endif
 
 #if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP)
@@ -138,25 +139,25 @@
  * on version.
  */
 #define __diag_GCC(version, severity, s) \
-	__diag_GCC_ ## version(__diag_GCC_ ## severity s)
+  __diag_GCC_ ## version(__diag_GCC_ ## severity s)
 
 /* Severity used in pragma directives */
-#define __diag_GCC_ignore	ignored
-#define __diag_GCC_warn		warning
-#define __diag_GCC_error	error
+#define __diag_GCC_ignore ignored
+#define __diag_GCC_warn   warning
+#define __diag_GCC_error  error
 
-#define __diag_str1(s)		#s
-#define __diag_str(s)		__diag_str1(s)
-#define __diag(s)		_Pragma(__diag_str(GCC diagnostic s))
+#define __diag_str1(s)    #s
+#define __diag_str(s)   __diag_str1(s)
+#define __diag(s)   _Pragma(__diag_str(GCC diagnostic s))
 
 #if GCC_VERSION >= 80000
-#define __diag_GCC_8(s)		__diag(s)
+#define __diag_GCC_8(s)   __diag(s)
 #else
 #define __diag_GCC_8(s)
 #endif
 
 #define __diag_ignore_all(option, comment) \
-	__diag(__diag_GCC_ignore option)
+  __diag(__diag_GCC_ignore option)
 
 /*
  * Prior to 9.1, -Wno-alloc-size-larger-than (and therefore the "alloc_size"

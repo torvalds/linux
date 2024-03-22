@@ -13,25 +13,25 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define FS_VERITY_HASH_ALG_SHA256	1
-#define FS_VERITY_HASH_ALG_SHA512	2
+#define FS_VERITY_HASH_ALG_SHA256 1
+#define FS_VERITY_HASH_ALG_SHA512 2
 
 struct fsverity_enable_arg {
-	__u32 version;
-	__u32 hash_algorithm;
-	__u32 block_size;
-	__u32 salt_size;
-	__u64 salt_ptr;
-	__u32 sig_size;
-	__u32 __reserved1;
-	__u64 sig_ptr;
-	__u64 __reserved2[11];
+  __u32 version;
+  __u32 hash_algorithm;
+  __u32 block_size;
+  __u32 salt_size;
+  __u64 salt_ptr;
+  __u32 sig_size;
+  __u32 __reserved1;
+  __u64 sig_ptr;
+  __u64 __reserved2[11];
 };
 
 struct fsverity_digest {
-	__u16 digest_algorithm;
-	__u16 digest_size; /* input/output */
-	__u8 digest[];
+  __u16 digest_algorithm;
+  __u16 digest_size; /* input/output */
+  __u8 digest[];
 };
 
 /*
@@ -45,21 +45,21 @@ struct fsverity_digest {
  * filesystems reuse this struct as part of their on-disk format.
  */
 struct fsverity_descriptor {
-	__u8 version;		/* must be 1 */
-	__u8 hash_algorithm;	/* Merkle tree hash algorithm */
-	__u8 log_blocksize;	/* log2 of size of data and tree blocks */
-	__u8 salt_size;		/* size of salt in bytes; 0 if none */
+  __u8 version;   /* must be 1 */
+  __u8 hash_algorithm;  /* Merkle tree hash algorithm */
+  __u8 log_blocksize; /* log2 of size of data and tree blocks */
+  __u8 salt_size;   /* size of salt in bytes; 0 if none */
 #ifdef __KERNEL__
-	__le32 sig_size;
+  __le32 sig_size;
 #else
-	__le32 __reserved_0x04;	/* must be 0 */
+  __le32 __reserved_0x04; /* must be 0 */
 #endif
-	__le64 data_size;	/* size of file the Merkle tree is built over */
-	__u8 root_hash[64];	/* Merkle tree root hash */
-	__u8 salt[32];		/* salt prepended to each hashed block */
-	__u8 __reserved[144];	/* must be 0's */
+  __le64 data_size; /* size of file the Merkle tree is built over */
+  __u8 root_hash[64]; /* Merkle tree root hash */
+  __u8 salt[32];    /* salt prepended to each hashed block */
+  __u8 __reserved[144]; /* must be 0's */
 #ifdef __KERNEL__
-	__u8 signature[];
+  __u8 signature[];
 #endif
 };
 
@@ -77,27 +77,27 @@ struct fsverity_descriptor {
  * userspace could instead use a string like "sha256:$digest_as_hex_string".
  */
 struct fsverity_formatted_digest {
-	char magic[8];			/* must be "FSVerity" */
-	__le16 digest_algorithm;
-	__le16 digest_size;
-	__u8 digest[];
+  char magic[8];      /* must be "FSVerity" */
+  __le16 digest_algorithm;
+  __le16 digest_size;
+  __u8 digest[];
 };
 
-#define FS_VERITY_METADATA_TYPE_MERKLE_TREE	1
-#define FS_VERITY_METADATA_TYPE_DESCRIPTOR	2
-#define FS_VERITY_METADATA_TYPE_SIGNATURE	3
+#define FS_VERITY_METADATA_TYPE_MERKLE_TREE 1
+#define FS_VERITY_METADATA_TYPE_DESCRIPTOR  2
+#define FS_VERITY_METADATA_TYPE_SIGNATURE 3
 
 struct fsverity_read_metadata_arg {
-	__u64 metadata_type;
-	__u64 offset;
-	__u64 length;
-	__u64 buf_ptr;
-	__u64 __reserved;
+  __u64 metadata_type;
+  __u64 offset;
+  __u64 length;
+  __u64 buf_ptr;
+  __u64 __reserved;
 };
 
-#define FS_IOC_ENABLE_VERITY	_IOW('f', 133, struct fsverity_enable_arg)
-#define FS_IOC_MEASURE_VERITY	_IOWR('f', 134, struct fsverity_digest)
+#define FS_IOC_ENABLE_VERITY  _IOW('f', 133, struct fsverity_enable_arg)
+#define FS_IOC_MEASURE_VERITY _IOWR('f', 134, struct fsverity_digest)
 #define FS_IOC_READ_VERITY_METADATA \
-	_IOWR('f', 135, struct fsverity_read_metadata_arg)
+  _IOWR('f', 135, struct fsverity_read_metadata_arg)
 
 #endif /* _UAPI_LINUX_FSVERITY_H */

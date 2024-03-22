@@ -25,15 +25,15 @@
  */
 
 #ifndef mb
-#define mb()	barrier()
+#define mb()  barrier()
 #endif
 
 #ifndef rmb
-#define rmb()	mb()
+#define rmb() mb()
 #endif
 
 #ifndef wmb
-#define wmb()	mb()
+#define wmb() mb()
 #endif
 
 #endif /* !__ASSEMBLY__ */

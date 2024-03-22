@@ -33,58 +33,52 @@ unsigned long *sleep_save_stash;
  * with HW breakpoints registers content still in an unknown state.
  */
 static int (*hw_breakpoint_restore)(unsigned int);
-void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int))
-{
-	/* Prevent multiple restore hook initializations */
-	if (WARN_ON(hw_breakpoint_restore))
-		return;
-	hw_breakpoint_restore = hw_bp_restore;
+void __init cpu_suspend_set_dbg_restorer(int (*hw_bp_restore)(unsigned int)) {
+  /* Prevent multiple restore hook initializations */
+  if (WARN_ON(hw_breakpoint_restore)) {
+    return;
+  }
+  hw_breakpoint_restore = hw_bp_restore;
 }
 
-void notrace __cpu_suspend_exit(void)
-{
-	unsigned int cpu = smp_processor_id();
-
-	mte_suspend_exit();
-
-	/*
-	 * We are resuming from reset with the idmap active in TTBR0_EL1.
-	 * We must uninstall the idmap and restore the expected MMU
-	 * state before we can possibly return to userspace.
-	 */
-	cpu_uninstall_idmap();
-
-	/* Restore CnP bit in TTBR1_EL1 */
-	if (system_supports_cnp())
-		cpu_enable_swapper_cnp();
-
-	/*
-	 * PSTATE was not saved over suspend/resume, re-enable any detected
-	 * features that might not have been set correctly.
-	 */
-	if (alternative_has_cap_unlikely(ARM64_HAS_DIT))
-		set_pstate_dit(1);
-	__uaccess_enable_hw_pan();
-
-	/*
-	 * Restore HW breakpoint registers to sane values
-	 * before debug exceptions are possibly reenabled
-	 * by cpu_suspend()s local_daif_restore() call.
-	 */
-	if (hw_breakpoint_restore)
-		hw_breakpoint_restore(cpu);
-
-	/*
-	 * On resume, firmware implementing dynamic mitigation will
-	 * have turned the mitigation on. If the user has forcefully
-	 * disabled it, make sure their wishes are obeyed.
-	 */
-	spectre_v4_enable_mitigation(NULL);
-
-	sme_suspend_exit();
-
-	/* Restore additional feature-specific configuration */
-	ptrauth_suspend_exit();
+void notrace __cpu_suspend_exit(void) {
+  unsigned int cpu = smp_processor_id();
+  mte_suspend_exit();
+  /*
+   * We are resuming from reset with the idmap active in TTBR0_EL1.
+   * We must uninstall the idmap and restore the expected MMU
+   * state before we can possibly return to userspace.
+   */
+  cpu_uninstall_idmap();
+  /* Restore CnP bit in TTBR1_EL1 */
+  if (system_supports_cnp()) {
+    cpu_enable_swapper_cnp();
+  }
+  /*
+   * PSTATE was not saved over suspend/resume, re-enable any detected
+   * features that might not have been set correctly.
+   */
+  if (alternative_has_cap_unlikely(ARM64_HAS_DIT)) {
+    set_pstate_dit(1);
+  }
+  __uaccess_enable_hw_pan();
+  /*
+   * Restore HW breakpoint registers to sane values
+   * before debug exceptions are possibly reenabled
+   * by cpu_suspend()s local_daif_restore() call.
+   */
+  if (hw_breakpoint_restore) {
+    hw_breakpoint_restore(cpu);
+  }
+  /*
+   * On resume, firmware implementing dynamic mitigation will
+   * have turned the mitigation on. If the user has forcefully
+   * disabled it, make sure their wishes are obeyed.
+   */
+  spectre_v4_enable_mitigation(NULL);
+  sme_suspend_exit();
+  /* Restore additional feature-specific configuration */
+  ptrauth_suspend_exit();
 }
 
 /*
@@ -94,94 +88,80 @@ void notrace __cpu_suspend_exit(void)
  * fn: finisher function pointer
  *
  */
-int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
-{
-	int ret = 0;
-	unsigned long flags;
-	struct sleep_stack_data state;
-	struct arm_cpuidle_irq_context context;
-
-	/*
-	 * Some portions of CPU state (e.g. PSTATE.{PAN,DIT}) are initialized
-	 * before alternatives are patched, but are only restored by
-	 * __cpu_suspend_exit() after alternatives are patched. To avoid
-	 * accidentally losing these bits we must not attempt to suspend until
-	 * after alternatives have been patched.
-	 */
-	WARN_ON(!system_capabilities_finalized());
-
-	/* Report any MTE async fault before going to suspend */
-	mte_suspend_enter();
-
-	/*
-	 * From this point debug exceptions are disabled to prevent
-	 * updates to mdscr register (saved and restored along with
-	 * general purpose registers) from kernel debuggers.
-	 *
-	 * Strictly speaking the trace_hardirqs_off() here is superfluous,
-	 * hardirqs should be firmly off by now. This really ought to use
-	 * something like raw_local_daif_save().
-	 */
-	flags = local_daif_save();
-
-	/*
-	 * Function graph tracer state gets inconsistent when the kernel
-	 * calls functions that never return (aka suspend finishers) hence
-	 * disable graph tracing during their execution.
-	 */
-	pause_graph_tracing();
-
-	/*
-	 * Switch to using DAIF.IF instead of PMR in order to reliably
-	 * resume if we're using pseudo-NMIs.
-	 */
-	arm_cpuidle_save_irq_context(&context);
-
-	ct_cpuidle_enter();
-
-	if (__cpu_suspend_enter(&state)) {
-		/* Call the suspend finisher */
-		ret = fn(arg);
-
-		/*
-		 * Never gets here, unless the suspend finisher fails.
-		 * Successful cpu_suspend() should return from cpu_resume(),
-		 * returning through this code path is considered an error
-		 * If the return value is set to 0 force ret = -EOPNOTSUPP
-		 * to make sure a proper error condition is propagated
-		 */
-		if (!ret)
-			ret = -EOPNOTSUPP;
-
-		ct_cpuidle_exit();
-	} else {
-		ct_cpuidle_exit();
-		__cpu_suspend_exit();
-	}
-
-	arm_cpuidle_restore_irq_context(&context);
-
-	unpause_graph_tracing();
-
-	/*
-	 * Restore pstate flags. OS lock and mdscr have been already
-	 * restored, so from this point onwards, debugging is fully
-	 * reenabled if it was enabled when core started shutdown.
-	 */
-	local_daif_restore(flags);
-
-	return ret;
+int cpu_suspend(unsigned long arg, int (*fn)(unsigned long)) {
+  int ret = 0;
+  unsigned long flags;
+  struct sleep_stack_data state;
+  struct arm_cpuidle_irq_context context;
+  /*
+   * Some portions of CPU state (e.g. PSTATE.{PAN,DIT}) are initialized
+   * before alternatives are patched, but are only restored by
+   * __cpu_suspend_exit() after alternatives are patched. To avoid
+   * accidentally losing these bits we must not attempt to suspend until
+   * after alternatives have been patched.
+   */
+  WARN_ON(!system_capabilities_finalized());
+  /* Report any MTE async fault before going to suspend */
+  mte_suspend_enter();
+  /*
+   * From this point debug exceptions are disabled to prevent
+   * updates to mdscr register (saved and restored along with
+   * general purpose registers) from kernel debuggers.
+   *
+   * Strictly speaking the trace_hardirqs_off() here is superfluous,
+   * hardirqs should be firmly off by now. This really ought to use
+   * something like raw_local_daif_save().
+   */
+  flags = local_daif_save();
+  /*
+   * Function graph tracer state gets inconsistent when the kernel
+   * calls functions that never return (aka suspend finishers) hence
+   * disable graph tracing during their execution.
+   */
+  pause_graph_tracing();
+  /*
+   * Switch to using DAIF.IF instead of PMR in order to reliably
+   * resume if we're using pseudo-NMIs.
+   */
+  arm_cpuidle_save_irq_context(&context);
+  ct_cpuidle_enter();
+  if (__cpu_suspend_enter(&state)) {
+    /* Call the suspend finisher */
+    ret = fn(arg);
+    /*
+     * Never gets here, unless the suspend finisher fails.
+     * Successful cpu_suspend() should return from cpu_resume(),
+     * returning through this code path is considered an error
+     * If the return value is set to 0 force ret = -EOPNOTSUPP
+     * to make sure a proper error condition is propagated
+     */
+    if (!ret) {
+      ret = -EOPNOTSUPP;
+    }
+    ct_cpuidle_exit();
+  } else {
+    ct_cpuidle_exit();
+    __cpu_suspend_exit();
+  }
+  arm_cpuidle_restore_irq_context(&context);
+  unpause_graph_tracing();
+  /*
+   * Restore pstate flags. OS lock and mdscr have been already
+   * restored, so from this point onwards, debugging is fully
+   * reenabled if it was enabled when core started shutdown.
+   */
+  local_daif_restore(flags);
+  return ret;
 }
 
-static int __init cpu_suspend_init(void)
-{
-	/* ctx_ptr is an array of physical addresses */
-	sleep_save_stash = kcalloc(mpidr_hash_size(), sizeof(*sleep_save_stash),
-				   GFP_KERNEL);
-
-	if (WARN_ON(!sleep_save_stash))
-		return -ENOMEM;
-
-	return 0;
+static int __init cpu_suspend_init(void) {
+  /* ctx_ptr is an array of physical addresses */
+  sleep_save_stash = kcalloc(mpidr_hash_size(), sizeof(*sleep_save_stash),
+      GFP_KERNEL);
+  if (WARN_ON(!sleep_save_stash)) {
+    return -ENOMEM;
+  }
+  return 0;
 }
+
 early_initcall(cpu_suspend_init);

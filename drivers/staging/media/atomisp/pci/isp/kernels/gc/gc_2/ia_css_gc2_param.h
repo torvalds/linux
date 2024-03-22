@@ -38,7 +38,7 @@
 
 /* This should be vamem_data_t, but that breaks the pipe generator */
 struct sh_css_isp_rgb_gamma_vamem_params {
-	u16 gc[SH_CSS_ISP_RGB_GAMMA_TABLE_SIZE];
+  u16 gc[SH_CSS_ISP_RGB_GAMMA_TABLE_SIZE];
 };
 
 #endif /* __IA_CSS_GC2_PARAM_H */

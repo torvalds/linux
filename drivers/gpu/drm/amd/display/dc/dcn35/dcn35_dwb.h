@@ -32,29 +32,29 @@
 #include "dcn30/dcn30_dwb.h"
 
 #define DWBC_COMMON_MASK_SH_LIST_DCN35(mask_sh) \
-	DWBC_COMMON_MASK_SH_LIST_DCN30(mask_sh), \
-	SF_DWB2(DWB_ENABLE_CLK_CTRL, DWB_TOP, 0, DWB_FGCG_REP_DIS, mask_sh)
+  DWBC_COMMON_MASK_SH_LIST_DCN30(mask_sh), \
+  SF_DWB2(DWB_ENABLE_CLK_CTRL, DWB_TOP, 0, DWB_FGCG_REP_DIS, mask_sh)
 
 #define DWBC_REG_FIELD_LIST_DCN3_5(type)          \
-	struct {                                  \
-		DWBC_REG_FIELD_LIST_DCN3_0(type); \
-		type DWB_FGCG_REP_DIS;            \
-	}
+  struct {                                  \
+    DWBC_REG_FIELD_LIST_DCN3_0(type); \
+    type DWB_FGCG_REP_DIS;            \
+  }
 
 struct dcn35_dwbc_mask {
-	DWBC_REG_FIELD_LIST_DCN3_5(uint32_t);
+  DWBC_REG_FIELD_LIST_DCN3_5(uint32_t);
 };
 
 struct dcn35_dwbc_shift {
-	DWBC_REG_FIELD_LIST_DCN3_5(uint8_t);
+  DWBC_REG_FIELD_LIST_DCN3_5(uint8_t);
 };
 
 void dcn35_dwbc_construct(struct dcn30_dwbc *dwbc30,
-	struct dc_context *ctx,
-	const struct dcn30_dwbc_registers *dwbc_regs,
-	const struct dcn35_dwbc_shift *dwbc_shift,
-	const struct dcn35_dwbc_mask *dwbc_mask,
-	int inst);
+    struct dc_context *ctx,
+    const struct dcn30_dwbc_registers *dwbc_regs,
+    const struct dcn35_dwbc_shift *dwbc_shift,
+    const struct dcn35_dwbc_mask *dwbc_mask,
+    int inst);
 
 void dcn35_dwbc_set_fgcg(struct dcn30_dwbc *dwbc30, bool enable);
 

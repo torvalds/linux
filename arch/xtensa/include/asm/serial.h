@@ -15,4 +15,4 @@
 
 #include <platform/serial.h>
 
-#endif	/* _XTENSA_SERIAL_H */
+#endif  /* _XTENSA_SERIAL_H */

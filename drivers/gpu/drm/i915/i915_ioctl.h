@@ -9,6 +9,7 @@
 struct drm_device;
 struct drm_file;
 
-int i915_reg_read_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+int i915_reg_read_ioctl(struct drm_device *dev, void *data,
+    struct drm_file *file);
 
 #endif /* __I915_IOCTL_H__ */

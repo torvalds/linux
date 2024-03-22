@@ -10,17 +10,16 @@ extern struct net init_net;
 
 struct seq_net_private {
 #ifdef CONFIG_NET_NS
-	struct net	*net;
-	netns_tracker	ns_tracker;
+  struct net *net;
+  netns_tracker ns_tracker;
 #endif
 };
 
-static inline struct net *seq_file_net(struct seq_file *seq)
-{
+static inline struct net *seq_file_net(struct seq_file *seq) {
 #ifdef CONFIG_NET_NS
-	return ((struct seq_net_private *)seq->private)->net;
+  return ((struct seq_net_private *) seq->private)->net;
 #else
-	return &init_net;
+  return &init_net;
 #endif
 }
 
@@ -28,12 +27,11 @@ static inline struct net *seq_file_net(struct seq_file *seq)
  * This one is needed for proc_create_net_single since net is stored directly
  * in private not as a struct i.e. seq_file_net can't be used.
  */
-static inline struct net *seq_file_single_net(struct seq_file *seq)
-{
+static inline struct net *seq_file_single_net(struct seq_file *seq) {
 #ifdef CONFIG_NET_NS
-	return (struct net *)seq->private;
+  return (struct net *) seq->private;
 #else
-	return &init_net;
+  return &init_net;
 #endif
 }
 

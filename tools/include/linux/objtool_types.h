@@ -11,11 +11,11 @@
  * location of registers on the stack.
  */
 struct unwind_hint {
-	u32		ip;
-	s16		sp_offset;
-	u8		sp_reg;
-	u8		type;
-	u8		signal;
+  u32 ip;
+  s16 sp_offset;
+  u8 sp_reg;
+  u8 type;
+  u8 signal;
 };
 
 #endif /* __ASSEMBLY__ */
@@ -44,14 +44,14 @@ struct unwind_hint {
  * UNWIND_HINT_TYPE_{SAVE,RESTORE}: Save the unwind metadata at a certain
  * location so that it can be restored later.
  */
-#define UNWIND_HINT_TYPE_UNDEFINED	0
-#define UNWIND_HINT_TYPE_END_OF_STACK	1
-#define UNWIND_HINT_TYPE_CALL		2
-#define UNWIND_HINT_TYPE_REGS		3
-#define UNWIND_HINT_TYPE_REGS_PARTIAL	4
+#define UNWIND_HINT_TYPE_UNDEFINED  0
+#define UNWIND_HINT_TYPE_END_OF_STACK 1
+#define UNWIND_HINT_TYPE_CALL   2
+#define UNWIND_HINT_TYPE_REGS   3
+#define UNWIND_HINT_TYPE_REGS_PARTIAL 4
 /* The below hint types don't have corresponding ORC types */
-#define UNWIND_HINT_TYPE_FUNC		5
-#define UNWIND_HINT_TYPE_SAVE		6
-#define UNWIND_HINT_TYPE_RESTORE	7
+#define UNWIND_HINT_TYPE_FUNC   5
+#define UNWIND_HINT_TYPE_SAVE   6
+#define UNWIND_HINT_TYPE_RESTORE  7
 
 #endif /* _LINUX_OBJTOOL_TYPES_H */

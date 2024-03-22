@@ -32,13 +32,13 @@
 #define TPCI200_MEM8_SPACE_BAR        5
 
 struct tpci200_regs {
-	__le16	revision;
-	/* writes to control should occur with the mutex held to protect
-	 * read-modify-write operations */
-	__le16  control[4];
-	__le16	reset;
-	__le16	status;
-	u8	reserved[242];
+  __le16 revision;
+  /* writes to control should occur with the mutex held to protect
+   * read-modify-write operations */
+  __le16 control[4];
+  __le16 reset;
+  __le16 status;
+  u8 reserved[242];
 } __packed;
 
 #define TPCI200_IFACE_SIZE            0x100
@@ -98,65 +98,65 @@ struct tpci200_regs {
 #define TPCI200_SLOT_INT_MASK         0x00FF
 
 /* PCI Configuration registers. The PCI bridge is a PLX Technology PCI9030. */
-#define LAS1_DESC		      0x2C
-#define LAS2_DESC		      0x30
+#define LAS1_DESC         0x2C
+#define LAS2_DESC         0x30
 
 /* Bits in the LAS?_DESC registers */
-#define LAS_BIT_BIGENDIAN	      24
+#define LAS_BIT_BIGENDIAN       24
 
 #define VME_IOID_SPACE  "IOID"
 #define VME_MEM_SPACE  "MEM"
 
 /**
  * struct slot_irq - slot IRQ definition.
- * @vector	Vector number
- * @handler	Handler called when IRQ arrives
- * @arg		Handler argument
+ * @vector  Vector number
+ * @handler Handler called when IRQ arrives
+ * @arg   Handler argument
  *
  */
 struct slot_irq {
-	struct ipack_device *holder;
-	int		vector;
-	irqreturn_t	(*handler)(void *);
-	void		*arg;
+  struct ipack_device *holder;
+  int vector;
+  irqreturn_t (*handler)(void *);
+  void *arg;
 };
 
 /**
  * struct tpci200_slot - data specific to the tpci200 slot.
- * @slot_id	Slot identification gived to external interface
- * @irq		Slot IRQ infos
- * @io_phys	IO physical base address register of the slot
- * @id_phys	ID physical base address register of the slot
- * @int_phys	INT physical base address register of the slot
- * @mem_phys	MEM physical base address register of the slot
+ * @slot_id Slot identification gived to external interface
+ * @irq   Slot IRQ infos
+ * @io_phys IO physical base address register of the slot
+ * @id_phys ID physical base address register of the slot
+ * @int_phys  INT physical base address register of the slot
+ * @mem_phys  MEM physical base address register of the slot
  *
  */
 struct tpci200_slot {
-	struct slot_irq	    *irq;
+  struct slot_irq *irq;
 };
 
 /**
  * struct tpci200_infos - informations specific of the TPCI200 tpci200.
- * @pci_dev		PCI device
- * @interface_regs	Pointer to IP interface space (Bar 2)
- * @ioidint_space	Pointer to IP ID, IO and INT space (Bar 3)
- * @mem8_space		Pointer to MEM space (Bar 4)
+ * @pci_dev   PCI device
+ * @interface_regs  Pointer to IP interface space (Bar 2)
+ * @ioidint_space Pointer to IP ID, IO and INT space (Bar 3)
+ * @mem8_space    Pointer to MEM space (Bar 4)
  *
  */
 struct tpci200_infos {
-	struct pci_dev			*pdev;
-	struct pci_device_id		*id_table;
-	struct tpci200_regs __iomem	*interface_regs;
-	void __iomem			*cfg_regs;
-	struct ipack_bus_device		*ipack_bus;
+  struct pci_dev *pdev;
+  struct pci_device_id *id_table;
+  struct tpci200_regs __iomem *interface_regs;
+  void __iomem *cfg_regs;
+  struct ipack_bus_device *ipack_bus;
 };
 struct tpci200_board {
-	unsigned int		number;
-	struct mutex		mutex;
-	spinlock_t		regs_lock;
-	struct tpci200_slot	*slots;
-	struct tpci200_infos	*info;
-	phys_addr_t             mod_mem[IPACK_SPACE_COUNT];
+  unsigned int number;
+  struct mutex mutex;
+  spinlock_t regs_lock;
+  struct tpci200_slot *slots;
+  struct tpci200_infos *info;
+  phys_addr_t mod_mem[IPACK_SPACE_COUNT];
 };
 
 #endif /* _TPCI200_H_ */

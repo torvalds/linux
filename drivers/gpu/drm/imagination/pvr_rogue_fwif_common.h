@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT
+ * Copyright (c) 2023 Imagination Technologies Ltd.*/
 
 #ifndef PVR_ROGUE_FWIF_COMMON_H
 #define PVR_ROGUE_FWIF_COMMON_H
@@ -15,14 +15,14 @@
 
 /* Macro to test structure size alignment. */
 #define PVR_FW_STRUCT_SIZE_ASSERT(_a)                            \
-	static_assert((sizeof(_a) & PVR_FW_ALIGNMENT_LSB) == 0U, \
-		      "Size of " #_a " is not properly aligned")
+  static_assert((sizeof(_a) & PVR_FW_ALIGNMENT_LSB) == 0U, \
+    "Size of " #_a " is not properly aligned")
 
 /* The master definition for data masters known to the firmware. */
 
 #define PVR_FWIF_DM_GP (0)
-/* Either TDM or 2D DM is present. */
-/* When the 'tla' feature is present in the hw (as per @pvr_device_features). */
+/* Either TDM or 2D DM is present.
+ * When the 'tla' feature is present in the hw (as per @pvr_device_features).*/
 #define PVR_FWIF_DM_2D (1)
 /*
  * When the 'fastrender_dm' feature is present in the hw (as per
@@ -40,7 +40,8 @@
 
 #define PVR_FWIF_DM_LAST PVR_FWIF_DM_GEOM4
 
-/* Maximum number of DM in use: GP, 2D/TDM, GEOM, 3D, CDM, RAY, GEOM2, GEOM3, GEOM4 */
+/* Maximum number of DM in use: GP, 2D/TDM, GEOM, 3D, CDM, RAY, GEOM2, GEOM3,
+ * GEOM4 */
 #define PVR_FWIF_DM_MAX (PVR_FWIF_DM_LAST + 1U)
 
 /* GPU Utilisation states */

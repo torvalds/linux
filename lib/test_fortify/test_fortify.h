@@ -6,12 +6,12 @@
 
 void do_fortify_tests(void);
 
-#define __BUF_SMALL	16
-#define __BUF_LARGE	32
+#define __BUF_SMALL 16
+#define __BUF_LARGE 32
 struct fortify_object {
-	int a;
-	char buf[__BUF_SMALL];
-	int c;
+  int a;
+  char buf[__BUF_SMALL];
+  int c;
 };
 
 #define LITERAL_SMALL "AAAAAAAAAAAAAAA"
@@ -24,12 +24,10 @@ char large[__BUF_LARGE];
 struct fortify_object instance;
 size_t size;
 
-void do_fortify_tests(void)
-{
-	/* Normal initializations. */
-	memset(&instance, 0x32, sizeof(instance));
-	memset(small, 0xA5, sizeof(small));
-	memset(large, 0x5A, sizeof(large));
-
-	TEST;
+void do_fortify_tests(void) {
+  /* Normal initializations. */
+  memset(&instance, 0x32, sizeof(instance));
+  memset(small, 0xA5, sizeof(small));
+  memset(large, 0x5A, sizeof(large));
+  TEST;
 }

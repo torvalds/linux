@@ -15,17 +15,14 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
-#define CHKSUM_BLOCK_SIZE	1
-#define CHKSUM_DIGEST_SIZE	4
+#define CHKSUM_BLOCK_SIZE 1
+#define CHKSUM_DIGEST_SIZE  4
 
 /** No default init with ~0 */
-static int crc32_cra_init(struct crypto_tfm *tfm)
-{
-	u32 *key = crypto_tfm_ctx(tfm);
-
-	*key = 0;
-
-	return 0;
+static int crc32_cra_init(struct crypto_tfm *tfm) {
+  u32 *key = crypto_tfm_ctx(tfm);
+  *key = 0;
+  return 0;
 }
 
 /*
@@ -34,92 +31,80 @@ static int crc32_cra_init(struct crypto_tfm *tfm)
  * the seed.
  */
 static int crc32_setkey(struct crypto_shash *hash, const u8 *key,
-			unsigned int keylen)
-{
-	u32 *mctx = crypto_shash_ctx(hash);
-
-	if (keylen != sizeof(u32))
-		return -EINVAL;
-	*mctx = get_unaligned_le32(key);
-	return 0;
+    unsigned int keylen) {
+  u32 *mctx = crypto_shash_ctx(hash);
+  if (keylen != sizeof(u32)) {
+    return -EINVAL;
+  }
+  *mctx = get_unaligned_le32(key);
+  return 0;
 }
 
-static int crc32_init(struct shash_desc *desc)
-{
-	u32 *mctx = crypto_shash_ctx(desc->tfm);
-	u32 *crcp = shash_desc_ctx(desc);
-
-	*crcp = *mctx;
-
-	return 0;
+static int crc32_init(struct shash_desc *desc) {
+  u32 *mctx = crypto_shash_ctx(desc->tfm);
+  u32 *crcp = shash_desc_ctx(desc);
+  *crcp = *mctx;
+  return 0;
 }
 
 static int crc32_update(struct shash_desc *desc, const u8 *data,
-			unsigned int len)
-{
-	u32 *crcp = shash_desc_ctx(desc);
-
-	*crcp = crc32_le(*crcp, data, len);
-	return 0;
+    unsigned int len) {
+  u32 *crcp = shash_desc_ctx(desc);
+  *crcp = crc32_le(*crcp, data, len);
+  return 0;
 }
 
 /* No final XOR 0xFFFFFFFF, like crc32_le */
 static int __crc32_finup(u32 *crcp, const u8 *data, unsigned int len,
-			 u8 *out)
-{
-	put_unaligned_le32(crc32_le(*crcp, data, len), out);
-	return 0;
+    u8 *out) {
+  put_unaligned_le32(crc32_le(*crcp, data, len), out);
+  return 0;
 }
 
 static int crc32_finup(struct shash_desc *desc, const u8 *data,
-		       unsigned int len, u8 *out)
-{
-	return __crc32_finup(shash_desc_ctx(desc), data, len, out);
+    unsigned int len, u8 *out) {
+  return __crc32_finup(shash_desc_ctx(desc), data, len, out);
 }
 
-static int crc32_final(struct shash_desc *desc, u8 *out)
-{
-	u32 *crcp = shash_desc_ctx(desc);
-
-	put_unaligned_le32(*crcp, out);
-	return 0;
+static int crc32_final(struct shash_desc *desc, u8 *out) {
+  u32 *crcp = shash_desc_ctx(desc);
+  put_unaligned_le32(*crcp, out);
+  return 0;
 }
 
 static int crc32_digest(struct shash_desc *desc, const u8 *data,
-			unsigned int len, u8 *out)
-{
-	return __crc32_finup(crypto_shash_ctx(desc->tfm), data, len,
-			     out);
+    unsigned int len, u8 *out) {
+  return __crc32_finup(crypto_shash_ctx(desc->tfm), data, len,
+      out);
 }
+
 static struct shash_alg alg = {
-	.setkey		= crc32_setkey,
-	.init		= crc32_init,
-	.update		= crc32_update,
-	.final		= crc32_final,
-	.finup		= crc32_finup,
-	.digest		= crc32_digest,
-	.descsize	= sizeof(u32),
-	.digestsize	= CHKSUM_DIGEST_SIZE,
-	.base		= {
-		.cra_name		= "crc32",
-		.cra_driver_name	= "crc32-generic",
-		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_OPTIONAL_KEY,
-		.cra_blocksize		= CHKSUM_BLOCK_SIZE,
-		.cra_ctxsize		= sizeof(u32),
-		.cra_module		= THIS_MODULE,
-		.cra_init		= crc32_cra_init,
-	}
+  .setkey = crc32_setkey,
+  .init = crc32_init,
+  .update = crc32_update,
+  .final = crc32_final,
+  .finup = crc32_finup,
+  .digest = crc32_digest,
+  .descsize = sizeof(u32),
+  .digestsize = CHKSUM_DIGEST_SIZE,
+  .base = {
+    .cra_name = "crc32",
+    .cra_driver_name = "crc32-generic",
+    .cra_priority = 100,
+    .cra_flags = CRYPTO_ALG_OPTIONAL_KEY,
+    .cra_blocksize = CHKSUM_BLOCK_SIZE,
+    .cra_ctxsize = sizeof(u32),
+    .cra_module = THIS_MODULE,
+    .cra_init = crc32_cra_init,
+  }
 };
 
-static int __init crc32_mod_init(void)
-{
-	return crypto_register_shash(&alg);
+static int __init crc32_mod_init(void) {
+  return crypto_register_shash(&alg);
 }
 
-static void __exit crc32_mod_fini(void)
-{
-	crypto_unregister_shash(&alg);
+static void __exit crc32_mod_fini(void) {
+  crypto_unregister_shash(&alg);
 }
 
 subsys_initcall(crc32_mod_init);

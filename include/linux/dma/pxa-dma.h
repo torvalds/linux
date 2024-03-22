@@ -3,10 +3,10 @@
 #define _PXA_DMA_H_
 
 enum pxad_chan_prio {
-	PXAD_PRIO_HIGHEST = 0,
-	PXAD_PRIO_NORMAL,
-	PXAD_PRIO_LOW,
-	PXAD_PRIO_LOWEST,
+  PXAD_PRIO_HIGHEST = 0,
+  PXAD_PRIO_NORMAL,
+  PXAD_PRIO_LOW,
+  PXAD_PRIO_LOWEST,
 };
 
 /**
@@ -19,8 +19,8 @@ enum pxad_chan_prio {
  * PXAD_PRIO_LOW, PXAD_PRIO_NORMAL or PXAD_PRIO_HIGHEST.
  */
 struct pxad_param {
-	unsigned int drcmr;
-	enum pxad_chan_prio prio;
+  unsigned int drcmr;
+  enum pxad_chan_prio prio;
 };
 
 #endif /* _PXA_DMA_H_ */

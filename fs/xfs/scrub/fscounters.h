@@ -7,14 +7,14 @@
 #define __XFS_SCRUB_FSCOUNTERS_H__
 
 struct xchk_fscounters {
-	struct xfs_scrub	*sc;
-	uint64_t		icount;
-	uint64_t		ifree;
-	uint64_t		fdblocks;
-	uint64_t		frextents;
-	unsigned long long	icount_min;
-	unsigned long long	icount_max;
-	bool			frozen;
+  struct xfs_scrub *sc;
+  uint64_t icount;
+  uint64_t ifree;
+  uint64_t fdblocks;
+  uint64_t frextents;
+  unsigned long long icount_min;
+  unsigned long long icount_max;
+  bool frozen;
 };
 
 #endif /* __XFS_SCRUB_FSCOUNTERS_H__ */

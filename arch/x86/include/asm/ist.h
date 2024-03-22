@@ -8,7 +8,6 @@
 
 #include <uapi/asm/ist.h>
 
-
 extern struct ist_info ist_info;
 
 #endif /* _ASM_X86_IST_H */

@@ -4,6 +4,6 @@
 
 #include <asm/cpu-features.h>
 
-#define cpu_dcache_is_aliasing()	cpu_has_dc_aliases
+#define cpu_dcache_is_aliasing()  cpu_has_dc_aliases
 
 #endif

@@ -100,21 +100,20 @@
 #define PPSMC_MSG_SetSystemVirtualSTBtoDramAddrHigh 0x40
 #define PPSMC_MSG_SetSystemVirtualSTBtoDramAddrLow  0x41
 
-#define PPSMC_MSG_GfxDriverResetRecovery	0x42
-#define PPSMC_MSG_BoardPowerCalibration 	0x43
+#define PPSMC_MSG_GfxDriverResetRecovery  0x42
+#define PPSMC_MSG_BoardPowerCalibration   0x43
 #define PPSMC_MSG_HeavySBR                      0x45
-#define PPSMC_MSG_SetBadHBMPagesRetiredFlagsPerChannel	0x46
-#define PPSMC_Message_Count			0x47
-
+#define PPSMC_MSG_SetBadHBMPagesRetiredFlagsPerChannel  0x46
+#define PPSMC_Message_Count     0x47
 
 //PPSMC Reset Types
 #define PPSMC_RESET_TYPE_WARM_RESET              0x00
-#define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET     0x01 //driver msg argument should be 1 for mode-1
+#define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET     0x01 //driver msg argument
+                                                      // should be 1 for mode-1
 #define PPSMC_RESET_TYPE_DRIVER_MODE_2_RESET     0x02 //and 2 for mode-2
 #define PPSMC_RESET_TYPE_PCIE_LINK_RESET         0x03
 #define PPSMC_RESET_TYPE_BIF_LINK_RESET          0x04
 #define PPSMC_RESET_TYPE_PF0_FLR_RESET           0x05
-
 
 typedef enum {
   GFXOFF_ERROR_NO_ERROR,

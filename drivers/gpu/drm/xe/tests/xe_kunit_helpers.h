@@ -11,7 +11,7 @@ struct kunit;
 struct xe_device;
 
 struct xe_device *xe_kunit_helper_alloc_xe_device(struct kunit *test,
-						  struct device *dev);
+    struct device *dev);
 int xe_kunit_helper_xe_device_test_init(struct kunit *test);
 
 #endif

@@ -13,60 +13,170 @@
 #ifndef IOPI_IOCLOGINFO_H_INCLUDED
 #define IOPI_IOCLOGINFO_H_INCLUDED
 
-#define SAS_LOGINFO_NEXUS_LOSS		0x31170000
-#define SAS_LOGINFO_MASK		0xFFFF0000
+#define SAS_LOGINFO_NEXUS_LOSS    0x31170000
+#define SAS_LOGINFO_MASK    0xFFFF0000
 
-/****************************************************************************/
-/*  IOC LOGINFO defines, 0x00000000 - 0x0FFFFFFF                            */
-/*  Format:                                                                 */
-/*      Bits 31-28: MPI_IOCLOGINFO_TYPE_SAS (3)                             */
-/*      Bits 27-24: IOC_LOGINFO_ORIGINATOR: 0=IOP, 1=PL, 2=IR               */
-/*      Bits 23-16: LOGINFO_CODE                                            */
-/*      Bits 15-0:  LOGINFO_CODE Specific                                   */
-/****************************************************************************/
+/* **************************************************************************
+ *  IOC LOGINFO defines, 0x00000000 - 0x0FFFFFFF
+ *  Format:
+ *      Bits 31-28: MPI_IOCLOGINFO_TYPE_SAS (3)
+ *      Bits 27-24: IOC_LOGINFO_ORIGINATOR: 0=IOP, 1=PL, 2=IR
+ *      Bits 23-16: LOGINFO_CODE
+ *      Bits 15-0:  LOGINFO_CODE Specific
+ ****************************************************************************/
 
-/****************************************************************************/
-/* IOC_LOGINFO_ORIGINATOR defines                                           */
-/****************************************************************************/
+/* **************************************************************************
+ * IOC_LOGINFO_ORIGINATOR defines
+ ****************************************************************************/
 #define IOC_LOGINFO_ORIGINATOR_IOP                      (0x00000000)
 #define IOC_LOGINFO_ORIGINATOR_PL                       (0x01000000)
 #define IOC_LOGINFO_ORIGINATOR_IR                       (0x02000000)
 
 #define IOC_LOGINFO_ORIGINATOR_MASK                     (0x0F000000)
 
-/****************************************************************************/
-/* LOGINFO_CODE defines                                                     */
-/****************************************************************************/
+/* **************************************************************************
+ * LOGINFO_CODE defines
+ ****************************************************************************/
 #define IOC_LOGINFO_CODE_MASK                           (0x00FF0000)
 #define IOC_LOGINFO_CODE_SHIFT                          (16)
 
-/****************************************************************************/
-/* IOP LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = IOP          */
-/****************************************************************************/
+/* **************************************************************************
+ * IOP LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = IOP
+ ****************************************************************************/
 #define IOP_LOGINFO_CODE_INVALID_SAS_ADDRESS                 (0x00010000)
 #define IOP_LOGINFO_CODE_UNUSED2                             (0x00020000)
 #define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE                 (0x00030000)
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_RT              (0x00030100) /* Route Table Entry not found */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PN              (0x00030200) /* Invalid Page Number */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_FORM            (0x00030300) /* Invalid FORM */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PT              (0x00030400) /* Invalid Page Type */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DNM             (0x00030500) /* Device Not Mapped */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PERSIST         (0x00030600) /* Persistent Page not found */
-#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DEFAULT         (0x00030700) /* Default Page not found */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_RT              (0x00030100) /*
+                                                                           * Route
+                                                                           * Table
+                                                                           * Entry
+                                                                           * not
+                                                                           * found
+                                                                           * */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PN              (0x00030200) /*
+                                                                           * Invalid
+                                                                           * Page
+                                                                           * Number
+                                                                           * */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_FORM            (0x00030300) /*
+                                                                           * Invalid
+                                                                           * FORM
+                                                                           * */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PT              (0x00030400) /*
+                                                                           * Invalid
+                                                                           * Page
+                                                                           * Type
+                                                                           * */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DNM             (0x00030500) /*
+                                                                           * Device
+                                                                           * Not
+                                                                           * Mapped
+                                                                           * */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_PERSIST         (0x00030600) /*
+                                                                           * Persistent
+                                                                           * Page
+                                                                           * not
+                                                                           * found
+                                                                           * */
+#define IOP_LOGINFO_CODE_CONFIG_INVALID_PAGE_DEFAULT         (0x00030700) /*
+                                                                           * Default
+                                                                           * Page
+                                                                           * not
+                                                                           * found
+                                                                           * */
 
-#define IOP_LOGINFO_CODE_FWUPLOAD_NO_FLASH_AVAILABLE         (0x0003E000) /* Tried to upload from flash, but there is none */
-#define IOP_LOGINFO_CODE_FWUPLOAD_UNKNOWN_IMAGE_TYPE         (0x0003E001) /* ImageType field contents were invalid */
-#define IOP_LOGINFO_CODE_FWUPLOAD_WRONG_IMAGE_SIZE           (0x0003E002) /* ImageSize field in TCSGE was bad/offset in MfgPg 4 was wrong */
-#define IOP_LOGINFO_CODE_FWUPLOAD_ENTIRE_FLASH_UPLOAD_FAILED (0x0003E003) /* Error occurred while attempting to upload the entire flash */
-#define IOP_LOGINFO_CODE_FWUPLOAD_REGION_UPLOAD_FAILED       (0x0003E004) /* Error occurred while attempting to upload single flash region */
-#define IOP_LOGINFO_CODE_FWUPLOAD_DMA_FAILURE                (0x0003E005) /* Problem occurred while DMAing FW to host memory */
+#define IOP_LOGINFO_CODE_FWUPLOAD_NO_FLASH_AVAILABLE         (0x0003E000) /*
+                                                                           * Tried
+                                                                           * to
+                                                                           * upload
+                                                                           * from
+                                                                           * flash,
+                                                                           * but
+                                                                           * there
+                                                                           * is
+                                                                           * none
+                                                                           * */
+#define IOP_LOGINFO_CODE_FWUPLOAD_UNKNOWN_IMAGE_TYPE         (0x0003E001) /*
+                                                                           * ImageType
+                                                                           * field
+                                                                           * contents
+                                                                           * were
+                                                                           * invalid
+                                                                           * */
+#define IOP_LOGINFO_CODE_FWUPLOAD_WRONG_IMAGE_SIZE           (0x0003E002) /*
+                                                                           * ImageSize
+                                                                           * field
+                                                                           * in
+                                                                           * TCSGE
+                                                                           * was
+                                                                           * bad/offset
+                                                                           * in
+                                                                           * MfgPg
+                                                                           * 4 was
+                                                                           * wrong
+                                                                           * */
+#define IOP_LOGINFO_CODE_FWUPLOAD_ENTIRE_FLASH_UPLOAD_FAILED (0x0003E003) /*
+                                                                           * Error
+                                                                           * occurred
+                                                                           * while
+                                                                           * attempting
+                                                                           * to
+                                                                           * upload
+                                                                           * the
+                                                                           * entire
+                                                                           * flash
+                                                                           * */
+#define IOP_LOGINFO_CODE_FWUPLOAD_REGION_UPLOAD_FAILED       (0x0003E004) /*
+                                                                           * Error
+                                                                           * occurred
+                                                                           * while
+                                                                           * attempting
+                                                                           * to
+                                                                           * upload
+                                                                           * single
+                                                                           * flash
+                                                                           * region
+                                                                           * */
+#define IOP_LOGINFO_CODE_FWUPLOAD_DMA_FAILURE                (0x0003E005) /*
+                                                                           * Problem
+                                                                           * occurred
+                                                                           * while
+                                                                           * DMAing
+                                                                           * FW
+                                                                           * to
+                                                                           * host
+                                                                           * memory
+                                                                           * */
 
-#define IOP_LOGINFO_CODE_DIAG_MSG_ERROR                      (0x00040000) /* Error handling diag msg - or'd with diag status */
+#define IOP_LOGINFO_CODE_DIAG_MSG_ERROR                      (0x00040000) /*
+                                                                           * Error
+                                                                           * handling
+                                                                           * diag
+                                                                           * msg
+                                                                           * - or'd
+                                                                           * with
+                                                                           * diag
+                                                                           * status
+                                                                           * */
 
 #define IOP_LOGINFO_CODE_TASK_TERMINATED                     (0x00050000)
 
-#define IOP_LOGINFO_CODE_ENCL_MGMT_READ_ACTION_ERR0R         (0x00060001) /* Read Action not supported for SEP msg */
-#define IOP_LOGINFO_CODE_ENCL_MGMT_INVALID_BUS_ID_ERR0R      (0x00060002) /* Invalid Bus/ID in SEP msg */
+#define IOP_LOGINFO_CODE_ENCL_MGMT_READ_ACTION_ERR0R         (0x00060001) /*
+                                                                           * Read
+                                                                           * Action
+                                                                           * not
+                                                                           * supported
+                                                                           * for
+                                                                           * SEP
+                                                                           * msg
+                                                                           * */
+#define IOP_LOGINFO_CODE_ENCL_MGMT_INVALID_BUS_ID_ERR0R      (0x00060002) /*
+                                                                           * Invalid
+                                                                           * Bus/ID
+                                                                           * in
+                                                                           * SEP
+                                                                           * msg
+                                                                           * */
 
 #define IOP_LOGINFO_CODE_TARGET_ASSIST_TERMINATED            (0x00070001)
 #define IOP_LOGINFO_CODE_TARGET_STATUS_SEND_TERMINATED       (0x00070002)
@@ -76,10 +186,13 @@
 
 #define IOP_LOGINFO_CODE_LOG_TIMESTAMP_EVENT                 (0x00080000)
 
-/****************************************************************************/
-/* PL LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = PL            */
-/****************************************************************************/
-#define PL_LOGINFO_CODE_OPEN_FAILURE                         (0x00010000) /* see SUB_CODE_OPEN_FAIL_ below */
+/* **************************************************************************
+ * PL LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = PL
+ ****************************************************************************/
+#define PL_LOGINFO_CODE_OPEN_FAILURE                         (0x00010000) /* see
+                                                                           * SUB_CODE_OPEN_FAIL_
+                                                                           * below
+                                                                           * */
 
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_NO_DEST_TIME_OUT       (0x00000001)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_PATHWAY_BLOCKED        (0x00000002)
@@ -105,10 +218,14 @@
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_STP_RESOURCES_BSY      (0x00000018)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_WRONG_DESTINATION      (0x00000019)
 
-#define PL_LOGINFO_SUB_CODE_OPEN_FAIL_PATH_BLOCKED           (0x0000001B) /* Retry Timeout */
-#define PL_LOGINFO_SUB_CODE_OPEN_FAIL_AWT_MAXED              (0x0000001C) /* Retry Timeout */
-
-
+#define PL_LOGINFO_SUB_CODE_OPEN_FAIL_PATH_BLOCKED           (0x0000001B) /*
+                                                                           * Retry
+                                                                           * Timeout
+                                                                           * */
+#define PL_LOGINFO_SUB_CODE_OPEN_FAIL_AWT_MAXED              (0x0000001C) /*
+                                                                           * Retry
+                                                                           * Timeout
+                                                                           * */
 
 #define PL_LOGINFO_CODE_INVALID_SGL                          (0x00020000)
 #define PL_LOGINFO_CODE_WRONG_REL_OFF_OR_FRAME_LENGTH        (0x00030000)
@@ -124,17 +241,58 @@
 #define PL_LOGINFO_CODE_SATA_LINK_DOWN                       (0x000D0000)
 #define PL_LOGINFO_CODE_DISCOVERY_SATA_INIT_W_IOS            (0x000E0000)
 #define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE                  (0x000F0000)
-#define PL_LOGINFO_CODE_CONFIG_PL_NOT_INITIALIZED            (0x000F0001) /* PL not yet initialized, can't do config page req. */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_PT               (0x000F0100) /* Invalid Page Type */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NUM_PHYS         (0x000F0200) /* Invalid Number of Phys */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NOT_IMP          (0x000F0300) /* Case Not Handled */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NO_DEV           (0x000F0400) /* No Device Found */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_FORM             (0x000F0500) /* Invalid FORM */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_PHY              (0x000F0600) /* Invalid Phy */
-#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NO_OWNER         (0x000F0700) /* No Owner Found */
+#define PL_LOGINFO_CODE_CONFIG_PL_NOT_INITIALIZED            (0x000F0001) /* PL
+                                                                           * not
+                                                                           * yet
+                                                                           * initialized,
+                                                                           * can't
+                                                                           * do
+                                                                           * config
+                                                                           * page
+                                                                           * req.
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_PT               (0x000F0100) /*
+                                                                           * Invalid
+                                                                           * Page
+                                                                           * Type
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NUM_PHYS         (0x000F0200) /*
+                                                                           * Invalid
+                                                                           * Number
+                                                                           * of
+                                                                           * Phys
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NOT_IMP          (0x000F0300) /*
+                                                                           * Case
+                                                                           * Not
+                                                                           * Handled
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NO_DEV           (0x000F0400) /* No
+                                                                           * Device
+                                                                           * Found
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_FORM             (0x000F0500) /*
+                                                                           * Invalid
+                                                                           * FORM
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_PHY              (0x000F0600) /*
+                                                                           * Invalid
+                                                                           * Phy
+                                                                           * */
+#define PL_LOGINFO_CODE_CONFIG_INVALID_PAGE_NO_OWNER         (0x000F0700) /* No
+                                                                           * Owner
+                                                                           * Found
+                                                                           * */
 #define PL_LOGINFO_CODE_DSCVRY_SATA_INIT_TIMEOUT             (0x00100000)
-#define PL_LOGINFO_CODE_RESET                                (0x00110000) /* See Sub-Codes below (PL_LOGINFO_SUB_CODE) */
-#define PL_LOGINFO_CODE_ABORT                                (0x00120000) /* See Sub-Codes below  (PL_LOGINFO_SUB_CODE)*/
+#define PL_LOGINFO_CODE_RESET                                (0x00110000) /* See
+                                                                           * Sub-Codes
+                                                                           * below
+                                                                           * (PL_LOGINFO_SUB_CODE)
+                                                                           * */
+#define PL_LOGINFO_CODE_ABORT                                (0x00120000) /* See
+                                                                           * Sub-Codes
+                                                                           * below
+                                                                           *  (PL_LOGINFO_SUB_CODE)*/
 #define PL_LOGINFO_CODE_IO_NOT_YET_EXECUTED                  (0x00130000)
 #define PL_LOGINFO_CODE_IO_EXECUTED                          (0x00140000)
 #define PL_LOGINFO_CODE_PERS_RESV_OUT_NOT_AFFIL_OWNER        (0x00150000)
@@ -147,26 +305,56 @@
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_RATE_NOT_SUPPORTED  (0x00000103)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_BREAK               (0x00000104)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ZONE_VIOLATION      (0x00000114)
-#define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ABANDON0            (0x00000114) /* Open Reject (Zone Violation) - available on SAS-2 devices */
+#define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ABANDON0            (0x00000114) /*
+                                                                           * Open
+                                                                           * Reject
+                                                                           * (Zone
+                                                                           * Violation)
+                                                                           * - available
+                                                                           * on
+                                                                           * SAS-2
+                                                                           * devices
+                                                                           * */
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ABANDON1            (0x00000115)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ABANDON2            (0x00000116)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ABANDON3            (0x00000117)
-#define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ORR_TIMEOUT         (0x0000011A) /* Open Reject (Retry) Timeout */
+#define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_ORR_TIMEOUT         (0x0000011A) /*
+                                                                           * Open
+                                                                           * Reject
+                                                                           * (Retry)
+                                                                           * Timeout
+                                                                           * */
 #define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_PATH_BLOCKED        (0x0000011B)
-#define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_AWT_MAXED           (0x0000011C) /* Arbitration Wait Timer Maxed */
+#define PL_LOGINFO_SUB_CODE_OPEN_FAILURE_AWT_MAXED           (0x0000011C) /*
+                                                                           * Arbitration
+                                                                           * Wait
+                                                                           * Timer
+                                                                           * Maxed
+                                                                           * */
 
 #define PL_LOGINFO_SUB_CODE_TARGET_BUS_RESET                 (0x00000120)
-#define PL_LOGINFO_SUB_CODE_TRANSPORT_LAYER                  (0x00000130)  /* Leave lower nibble (1-f) reserved. */
-#define PL_LOGINFO_SUB_CODE_PORT_LAYER                       (0x00000140)  /* Leave lower nibble (1-f) reserved. */
-
+#define PL_LOGINFO_SUB_CODE_TRANSPORT_LAYER                  (0x00000130)  /*
+                                                                            * Leave
+                                                                            * lower
+                                                                            * nibble
+                                                                            * (1-f)
+                                                                            * reserved.
+                                                                            * */
+#define PL_LOGINFO_SUB_CODE_PORT_LAYER                       (0x00000140)  /*
+                                                                            * Leave
+                                                                            * lower
+                                                                            * nibble
+                                                                            * (1-f)
+                                                                            * reserved.
+                                                                            * */
 
 #define PL_LOGINFO_SUB_CODE_INVALID_SGL                      (0x00000200)
 #define PL_LOGINFO_SUB_CODE_WRONG_REL_OFF_OR_FRAME_LENGTH    (0x00000300)
 #define PL_LOGINFO_SUB_CODE_FRAME_XFER_ERROR                 (0x00000400)
-/* Bits 0-3 encode Transport Status Register (offset 0x08) */
-/* Bit 0 is Status Bit 0: FrameXferErr */
-/* Bit 1 & 2 are Status Bits 16 and 17: FrameXmitErrStatus */
-/* Bit 3 is Status Bit 18 WriteDataLenghtGTDataLengthErr */
+/* Bits 0-3 encode Transport Status Register (offset 0x08)
+ * Bit 0 is Status Bit 0: FrameXferErr
+ * Bit 1 & 2 are Status Bits 16 and 17: FrameXmitErrStatus
+ * Bit 3 is Status Bit 18 WriteDataLenghtGTDataLengthErr*/
 
 #define PL_LOGINFO_SUB_CODE_TX_FM_CONNECTED_LOW              (0x00000500)
 #define PL_LOGINFO_SUB_CODE_SATA_NON_NCQ_RW_ERR_BIT_SET      (0x00000600)
@@ -187,41 +375,213 @@
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_STUCK_LINK_AIP          (0x00004000)
 #define PL_LOGINFO_SUB_CODE_BREAK_ON_INCOMPLETE_BREAK_RCVD   (0x00005000)
 
-#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_FAILURE          (0x00200000) /* Can't get SMP Frame */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_READ_ERROR             (0x00200010) /* Error occurred on SMP Read */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_WRITE_ERROR            (0x00200020) /* Error occurred on SMP Write */
-#define PL_LOGINFO_CODE_ENCL_MGMT_NOT_SUPPORTED_ON_ENCL      (0x00200040) /* Encl Mgmt services not available for this WWID */
-#define PL_LOGINFO_CODE_ENCL_MGMT_ADDR_MODE_NOT_SUPPORTED    (0x00200050) /* Address Mode not suppored */
-#define PL_LOGINFO_CODE_ENCL_MGMT_BAD_SLOT_NUM               (0x00200060) /* Invalid Slot Number in SEP Msg */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SGPIO_NOT_PRESENT          (0x00200070) /* SGPIO not present/enabled */
-#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_NOT_CONFIGURED        (0x00200080) /* GPIO not configured */
-#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_FRAME_ERROR           (0x00200090) /* GPIO can't allocate a frame */
-#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_CONFIG_PAGE_ERROR     (0x002000A0) /* GPIO failed config page request */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SES_FRAME_ALLOC_ERROR      (0x002000B0) /* Can't get frame for SES command */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SES_IO_ERROR               (0x002000C0) /* I/O execution error */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SES_RETRIES_EXHAUSTED      (0x002000D0) /* SEP I/O retries exhausted */
-#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_ALLOC_ERROR      (0x002000E0) /* Can't get frame for SMP command */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_FAILURE          (0x00200000) /*
+                                                                           * Can't
+                                                                           * get
+                                                                           * SMP
+                                                                           * Frame
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_READ_ERROR             (0x00200010) /*
+                                                                           * Error
+                                                                           * occurred
+                                                                           * on
+                                                                           * SMP
+                                                                           * Read
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_WRITE_ERROR            (0x00200020) /*
+                                                                           * Error
+                                                                           * occurred
+                                                                           * on
+                                                                           * SMP
+                                                                           * Write
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_NOT_SUPPORTED_ON_ENCL      (0x00200040) /*
+                                                                           * Encl
+                                                                           * Mgmt
+                                                                           * services
+                                                                           * not
+                                                                           * available
+                                                                           * for
+                                                                           * this
+                                                                           * WWID
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_ADDR_MODE_NOT_SUPPORTED    (0x00200050) /*
+                                                                           * Address
+                                                                           * Mode
+                                                                           * not
+                                                                           * suppored
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_BAD_SLOT_NUM               (0x00200060) /*
+                                                                           * Invalid
+                                                                           * Slot
+                                                                           * Number
+                                                                           * in
+                                                                           * SEP
+                                                                           * Msg
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SGPIO_NOT_PRESENT          (0x00200070) /*
+                                                                           * SGPIO
+                                                                           * not
+                                                                           * present/enabled
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_NOT_CONFIGURED        (0x00200080) /*
+                                                                           * GPIO
+                                                                           * not
+                                                                           * configured
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_FRAME_ERROR           (0x00200090) /*
+                                                                           * GPIO
+                                                                           * can't
+                                                                           * allocate
+                                                                           * a frame
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_GPIO_CONFIG_PAGE_ERROR     (0x002000A0) /*
+                                                                           * GPIO
+                                                                           * failed
+                                                                           * config
+                                                                           * page
+                                                                           * request
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SES_FRAME_ALLOC_ERROR      (0x002000B0) /*
+                                                                           * Can't
+                                                                           * get
+                                                                           * frame
+                                                                           * for
+                                                                           * SES
+                                                                           * command
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SES_IO_ERROR               (0x002000C0) /* I/O
+                                                                           * execution
+                                                                           * error
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SES_RETRIES_EXHAUSTED      (0x002000D0) /* SEP
+                                                                           * I/O
+                                                                           * retries
+                                                                           * exhausted
+                                                                           * */
+#define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_ALLOC_ERROR      (0x002000E0) /*
+                                                                           * Can't
+                                                                           * get
+                                                                           * frame
+                                                                           * for
+                                                                           * SMP
+                                                                           * command
+                                                                           * */
 
-#define PL_LOGINFO_DA_SEP_NOT_PRESENT                        (0x00200100) /* SEP not present when msg received */
-#define PL_LOGINFO_DA_SEP_SINGLE_THREAD_ERROR                (0x00200101) /* Can only accept 1 msg at a time */
-#define PL_LOGINFO_DA_SEP_ISTWI_INTR_IN_IDLE_STATE           (0x00200102) /* ISTWI interrupt recvd. while IDLE */
-#define PL_LOGINFO_DA_SEP_RECEIVED_NACK_FROM_SLAVE           (0x00200103) /* SEP NACK'd, it is busy */
-#define PL_LOGINFO_DA_SEP_DID_NOT_RECEIVE_ACK                (0x00200104) /* SEP didn't rcv. ACK (Last Rcvd Bit = 1) */
-#define PL_LOGINFO_DA_SEP_BAD_STATUS_HDR_CHKSUM              (0x00200105) /* SEP stopped or sent bad chksum in Hdr */
-#define PL_LOGINFO_DA_SEP_STOP_ON_DATA                       (0x00200106) /* SEP stopped while transferring data */
-#define PL_LOGINFO_DA_SEP_STOP_ON_SENSE_DATA                 (0x00200107) /* SEP stopped while transferring sense data */
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_1          (0x00200108) /* SEP returned unknown scsi status */
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_2          (0x00200109) /* SEP returned unknown scsi status */
-#define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP            (0x0020010A) /* SEP returned bad chksum after STOP */
-#define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP_GETDATA    (0x0020010B) /* SEP returned bad chksum after STOP while gettin data*/
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND                (0x0020010C) /* SEP doesn't support CDB opcode f/w location 1 */
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND_2              (0x0020010D) /* SEP doesn't support CDB opcode f/w location 2 */
-#define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND_3              (0x0020010E) /* SEP doesn't support CDB opcode f/w location 3 */
+#define PL_LOGINFO_DA_SEP_NOT_PRESENT                        (0x00200100) /* SEP
+                                                                           * not
+                                                                           * present
+                                                                           * when
+                                                                           * msg
+                                                                           * received
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_SINGLE_THREAD_ERROR                (0x00200101) /* Can
+                                                                           * only
+                                                                           * accept
+                                                                           * 1 msg
+                                                                           * at
+                                                                           * a time
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_ISTWI_INTR_IN_IDLE_STATE           (0x00200102) /*
+                                                                           * ISTWI
+                                                                           * interrupt
+                                                                           * recvd.
+                                                                           * while
+                                                                           * IDLE
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_RECEIVED_NACK_FROM_SLAVE           (0x00200103) /* SEP
+                                                                           * NACK'd,
+                                                                           * it
+                                                                           * is
+                                                                           * busy
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_DID_NOT_RECEIVE_ACK                (0x00200104) /* SEP
+                                                                           * didn't
+                                                                           * rcv.
+                                                                           * ACK
+                                                                           * (Last
+                                                                           * Rcvd
+                                                                           * Bit
+                                                                           * = 1)
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_BAD_STATUS_HDR_CHKSUM              (0x00200105) /* SEP
+                                                                           * stopped
+                                                                           * or
+                                                                           * sent
+                                                                           * bad
+                                                                           * chksum
+                                                                           * in
+                                                                           * Hdr
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_STOP_ON_DATA                       (0x00200106) /* SEP
+                                                                           * stopped
+                                                                           * while
+                                                                           * transferring
+                                                                           * data
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_STOP_ON_SENSE_DATA                 (0x00200107) /* SEP
+                                                                           * stopped
+                                                                           * while
+                                                                           * transferring
+                                                                           * sense
+                                                                           * data
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_1          (0x00200108) /* SEP
+                                                                           * returned
+                                                                           * unknown
+                                                                           * scsi
+                                                                           * status
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_SCSI_STATUS_2          (0x00200109) /* SEP
+                                                                           * returned
+                                                                           * unknown
+                                                                           * scsi
+                                                                           * status
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP            (0x0020010A) /* SEP
+                                                                           * returned
+                                                                           * bad
+                                                                           * chksum
+                                                                           * after
+                                                                           * STOP
+                                                                           * */
+#define PL_LOGINFO_DA_SEP_CHKSUM_ERROR_AFTER_STOP_GETDATA    (0x0020010B) /* SEP
+                                                                           * returned
+                                                                           * bad
+                                                                           * chksum
+                                                                           * after
+                                                                           * STOP
+                                                                           * while
+                                                                           * gettin
+                                                                           * data*/
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND                (0x0020010C) /* SEP
+                                                                           * doesn't
+                                                                           * support
+                                                                           * CDB
+                                                                           * opcode
+                                                                           * f/w
+                                                                           * location
+                                                                           * 1 */
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND_2              (0x0020010D) /* SEP
+                                                                           * doesn't
+                                                                           * support
+                                                                           * CDB
+                                                                           * opcode
+                                                                           * f/w
+                                                                           * location
+                                                                           * 2 */
+#define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND_3              (0x0020010E) /* SEP
+                                                                           * doesn't
+                                                                           * support
+                                                                           * CDB
+                                                                           * opcode
+                                                                           * f/w
+                                                                           * location
+                                                                           * 3 */
 
-
-/****************************************************************************/
-/* IR LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = IR            */
-/****************************************************************************/
+/* **************************************************************************
+ * IR LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = IR
+ ****************************************************************************/
 #define IR_LOGINFO_RAID_ACTION_ERROR                           (0x00010000)
 #define IR_LOGINFO_CODE_UNUSED2                                (0x00020000)
 
@@ -266,7 +626,6 @@
 /* Creation failed due to error in creating RAID Phys Disk Config Page */
 #define IR_LOGINFO_PHYSDISK_CREATE_CONFIG_PAGE_ERROR           (0x00010024)
 
-
 /* Compatibility Error : IR Disabled */
 #define IR_LOGINFO_COMPAT_ERROR_RAID_DISABLED                  (0x00010030)
 /* Compatibility Error : Inquiry Command failed */
@@ -289,7 +648,8 @@
 #define IR_LOGINFO_COMPAT_ERROR_DISK_TOO_SMALL                 (0x00010039)
 /* Compatibility Error : Phys disk for Create Volume not found */
 #define IR_LOGINFO_COMPAT_ERROR_PHYS_DISK_NOT_FOUND            (0x0001003A)
-/* Compatibility Error : membership count error, too many or too few disks for volume type */
+/* Compatibility Error : membership count error, too many or too few disks for
+ * volume type */
 #define IR_LOGINFO_COMPAT_ERROR_MEMBERSHIP_COUNT               (0x0001003B)
 /* Compatibility Error : Disk stripe sizes must be 64KB */
 #define IR_LOGINFO_COMPAT_ERROR_NON_64K_STRIPE_SIZE            (0x0001003C)
@@ -311,13 +671,17 @@
 /* Device Firmware Update: Unable to allocate memory for page */
 #define IR_LOGINFO_DEV_FW_UPDATE_ERR_ALLOC_CFG_PAGE             (0x00010056)
 
-
-/****************************************************************************/
-/* Defines for convenience                                                  */
-/****************************************************************************/
-#define IOC_LOGINFO_PREFIX_IOP                          ((MPI_IOCLOGINFO_TYPE_SAS << MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_IOP)
-#define IOC_LOGINFO_PREFIX_PL                           ((MPI_IOCLOGINFO_TYPE_SAS << MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_PL)
-#define IOC_LOGINFO_PREFIX_IR                           ((MPI_IOCLOGINFO_TYPE_SAS << MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_IR)
+/* **************************************************************************
+ * Defines for convenience
+ ****************************************************************************/
+#define IOC_LOGINFO_PREFIX_IOP                          (( \
+    MPI_IOCLOGINFO_TYPE_SAS << \
+      MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_IOP)
+#define IOC_LOGINFO_PREFIX_PL                           (( \
+    MPI_IOCLOGINFO_TYPE_SAS << \
+      MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_PL)
+#define IOC_LOGINFO_PREFIX_IR                           (( \
+    MPI_IOCLOGINFO_TYPE_SAS << \
+      MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_IR)
 
 #endif /* end of file */
-

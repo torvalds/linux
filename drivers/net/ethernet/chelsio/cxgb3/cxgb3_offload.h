@@ -67,63 +67,63 @@ void cxgb3_remove_clients(struct t3cdev *tdev);
 void cxgb3_event_notify(struct t3cdev *tdev, u32 event, u32 port);
 
 typedef int (*cxgb3_cpl_handler_func)(struct t3cdev *dev,
-				      struct sk_buff *skb, void *ctx);
+    struct sk_buff *skb, void *ctx);
 
 enum {
-	OFFLOAD_STATUS_UP,
-	OFFLOAD_STATUS_DOWN,
-	OFFLOAD_PORT_DOWN,
-	OFFLOAD_PORT_UP,
-	OFFLOAD_DB_FULL,
-	OFFLOAD_DB_EMPTY,
-	OFFLOAD_DB_DROP
+  OFFLOAD_STATUS_UP,
+  OFFLOAD_STATUS_DOWN,
+  OFFLOAD_PORT_DOWN,
+  OFFLOAD_PORT_UP,
+  OFFLOAD_DB_FULL,
+  OFFLOAD_DB_EMPTY,
+  OFFLOAD_DB_DROP
 };
 
 struct cxgb3_client {
-	char *name;
-	void (*add) (struct t3cdev *);
-	void (*remove) (struct t3cdev *);
-	cxgb3_cpl_handler_func *handlers;
-	int (*redirect)(void *ctx, struct dst_entry *old,
-			struct dst_entry *new, struct l2t_entry *l2t);
-	struct list_head client_list;
-	void (*event_handler)(struct t3cdev *tdev, u32 event, u32 port);
+  char *name;
+  void (*add)(struct t3cdev *);
+  void (*remove)(struct t3cdev *);
+  cxgb3_cpl_handler_func *handlers;
+  int (*redirect)(void *ctx, struct dst_entry *old,
+      struct dst_entry *new, struct l2t_entry *l2t);
+  struct list_head client_list;
+  void (*event_handler)(struct t3cdev *tdev, u32 event, u32 port);
 };
 
 /*
  * TID allocation services.
  */
 int cxgb3_alloc_atid(struct t3cdev *dev, struct cxgb3_client *client,
-		     void *ctx);
+    void *ctx);
 int cxgb3_alloc_stid(struct t3cdev *dev, struct cxgb3_client *client,
-		     void *ctx);
+    void *ctx);
 void *cxgb3_free_atid(struct t3cdev *dev, int atid);
 void cxgb3_free_stid(struct t3cdev *dev, int stid);
 void cxgb3_insert_tid(struct t3cdev *dev, struct cxgb3_client *client,
-		      void *ctx, unsigned int tid);
+    void *ctx, unsigned int tid);
 void cxgb3_queue_tid_release(struct t3cdev *dev, unsigned int tid);
 void cxgb3_remove_tid(struct t3cdev *dev, void *ctx, unsigned int tid);
 
 struct t3c_tid_entry {
-	struct cxgb3_client *client;
-	void *ctx;
+  struct cxgb3_client *client;
+  void *ctx;
 };
 
 /* CPL message priority levels */
 enum {
-	CPL_PRIORITY_DATA = 0,	/* data messages */
-	CPL_PRIORITY_SETUP = 1,	/* connection setup messages */
-	CPL_PRIORITY_TEARDOWN = 0,	/* connection teardown messages */
-	CPL_PRIORITY_LISTEN = 1,	/* listen start/stop messages */
-	CPL_PRIORITY_ACK = 1,	/* RX ACK messages */
-	CPL_PRIORITY_CONTROL = 1	/* offload control messages */
+  CPL_PRIORITY_DATA = 0,  /* data messages */
+  CPL_PRIORITY_SETUP = 1, /* connection setup messages */
+  CPL_PRIORITY_TEARDOWN = 0,  /* connection teardown messages */
+  CPL_PRIORITY_LISTEN = 1,  /* listen start/stop messages */
+  CPL_PRIORITY_ACK = 1, /* RX ACK messages */
+  CPL_PRIORITY_CONTROL = 1  /* offload control messages */
 };
 
 /* Flags for return value of CPL message handlers */
 enum {
-	CPL_RET_BUF_DONE = 1, /* buffer processing done, buffer may be freed */
-	CPL_RET_BAD_MSG = 2,  /* bad CPL message (e.g., unknown opcode) */
-	CPL_RET_UNKNOWN_TID = 4	/* unexpected unknown TID */
+  CPL_RET_BUF_DONE = 1, /* buffer processing done, buffer may be freed */
+  CPL_RET_BAD_MSG = 2,  /* bad CPL message (e.g., unknown opcode) */
+  CPL_RET_UNKNOWN_TID = 4 /* unexpected unknown TID */
 };
 
 typedef int (*cpl_handler_func)(struct t3cdev *dev, struct sk_buff *skb);
@@ -132,21 +132,20 @@ typedef int (*cpl_handler_func)(struct t3cdev *dev, struct sk_buff *skb);
  * Returns a pointer to the first byte of the CPL header in an sk_buff that
  * contains a CPL message.
  */
-static inline void *cplhdr(struct sk_buff *skb)
-{
-	return skb->data;
+static inline void *cplhdr(struct sk_buff *skb) {
+  return skb->data;
 }
 
 void t3_register_cpl_handler(unsigned int opcode, cpl_handler_func h);
 
 union listen_entry {
-	struct t3c_tid_entry t3c_tid;
-	union listen_entry *next;
+  struct t3c_tid_entry t3c_tid;
+  union listen_entry *next;
 };
 
 union active_open_entry {
-	struct t3c_tid_entry t3c_tid;
-	union active_open_entry *next;
+  struct t3c_tid_entry t3c_tid;
+  union active_open_entry *next;
 };
 
 /*
@@ -155,55 +154,55 @@ union active_open_entry {
  * The tables themselves are allocated dynamically.
  */
 struct tid_info {
-	struct t3c_tid_entry *tid_tab;
-	unsigned int ntids;
-	atomic_t tids_in_use;
+  struct t3c_tid_entry *tid_tab;
+  unsigned int ntids;
+  atomic_t tids_in_use;
 
-	union listen_entry *stid_tab;
-	unsigned int nstids;
-	unsigned int stid_base;
+  union listen_entry *stid_tab;
+  unsigned int nstids;
+  unsigned int stid_base;
 
-	union active_open_entry *atid_tab;
-	unsigned int natids;
-	unsigned int atid_base;
+  union active_open_entry *atid_tab;
+  unsigned int natids;
+  unsigned int atid_base;
 
-	/*
-	 * The following members are accessed R/W so we put them in their own
-	 * cache lines.
-	 *
-	 * XXX We could combine the atid fields above with the lock here since
-	 * atids are use once (unlike other tids).  OTOH the above fields are
-	 * usually in cache due to tid_tab.
-	 */
-	spinlock_t atid_lock ____cacheline_aligned_in_smp;
-	union active_open_entry *afree;
-	unsigned int atids_in_use;
+  /*
+   * The following members are accessed R/W so we put them in their own
+   * cache lines.
+   *
+   * XXX We could combine the atid fields above with the lock here since
+   * atids are use once (unlike other tids).  OTOH the above fields are
+   * usually in cache due to tid_tab.
+   */
+  spinlock_t atid_lock ____cacheline_aligned_in_smp;
+  union active_open_entry *afree;
+  unsigned int atids_in_use;
 
-	spinlock_t stid_lock ____cacheline_aligned;
-	union listen_entry *sfree;
-	unsigned int stids_in_use;
+  spinlock_t stid_lock ____cacheline_aligned;
+  union listen_entry *sfree;
+  unsigned int stids_in_use;
 };
 
 struct t3c_data {
-	struct list_head list_node;
-	struct t3cdev *dev;
-	unsigned int tx_max_chunk;	/* max payload for TX_DATA */
-	unsigned int max_wrs;	/* max in-flight WRs per connection */
-	unsigned int nmtus;
-	const unsigned short *mtus;
-	struct tid_info tid_maps;
+  struct list_head list_node;
+  struct t3cdev *dev;
+  unsigned int tx_max_chunk;  /* max payload for TX_DATA */
+  unsigned int max_wrs; /* max in-flight WRs per connection */
+  unsigned int nmtus;
+  const unsigned short *mtus;
+  struct tid_info tid_maps;
 
-	struct t3c_tid_entry *tid_release_list;
-	spinlock_t tid_release_lock;
-	struct work_struct tid_release_task;
+  struct t3c_tid_entry *tid_release_list;
+  spinlock_t tid_release_lock;
+  struct work_struct tid_release_task;
 
-	struct sk_buff *nofail_skb;
-	unsigned int release_list_incomplete;
+  struct sk_buff *nofail_skb;
+  unsigned int release_list_incomplete;
 };
 
 /*
  * t3cdev -> t3c_data accessor
  */
-#define T3C_DATA(dev) (*(struct t3c_data **)&(dev)->l4opt)
+#define T3C_DATA(dev) (*(struct t3c_data **) &(dev)->l4opt)
 
 #endif

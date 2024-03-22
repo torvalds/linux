@@ -8,14 +8,14 @@
 #ifndef __LINUX_MFD_RSMU_H
 #define __LINUX_MFD_RSMU_H
 
-#define RSMU_MAX_WRITE_COUNT	(255)
-#define RSMU_MAX_READ_COUNT	(255)
+#define RSMU_MAX_WRITE_COUNT  (255)
+#define RSMU_MAX_READ_COUNT (255)
 
 /* The supported devices are ClockMatrix, Sabre and SnowLotus */
 enum rsmu_type {
-	RSMU_CM		= 0x34000,
-	RSMU_SABRE	= 0x33810,
-	RSMU_SL		= 0x19850,
+  RSMU_CM = 0x34000,
+  RSMU_SABRE = 0x33810,
+  RSMU_SL = 0x19850,
 };
 
 /**
@@ -30,10 +30,10 @@ enum rsmu_type {
  * @page:   i2c/spi bus driver internal use only.
  */
 struct rsmu_ddata {
-	struct device *dev;
-	struct regmap *regmap;
-	struct mutex lock;
-	enum rsmu_type type;
-	u32 page;
+  struct device *dev;
+  struct regmap *regmap;
+  struct mutex lock;
+  enum rsmu_type type;
+  u32 page;
 };
 #endif /*  __LINUX_MFD_RSMU_H */

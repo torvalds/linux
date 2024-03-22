@@ -19,8 +19,8 @@
  * These can be overridden in your mach/memory.h.
  */
 #if !defined(MAX_PHYSMEM_BITS) || !defined(SECTION_SIZE_BITS)
-#define MAX_PHYSMEM_BITS	36
-#define SECTION_SIZE_BITS	28
+#define MAX_PHYSMEM_BITS  36
+#define SECTION_SIZE_BITS 28
 #endif
 
 #endif

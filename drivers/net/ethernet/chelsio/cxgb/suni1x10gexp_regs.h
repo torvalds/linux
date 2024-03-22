@@ -28,7 +28,8 @@
 */
 #define SUNI1x10GEXP_REG_SIZEOF_MAC_FILTER 0x0003
 
-#define mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId)       ( (filterId) * SUNI1x10GEXP_REG_SIZEOF_MAC_FILTER )
+#define mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId)       ((filterId) \
+  * SUNI1x10GEXP_REG_SIZEOF_MAC_FILTER)
 
 /*
 ** Space allocated for VLAN-Id Filter
@@ -36,23 +37,23 @@
 */
 #define SUNI1x10GEXP_REG_SIZEOF_MAC_VID_FILTER 0x0001
 
-#define mSUNI1x10GEXP_MAC_VID_FILTER_OFFSET(filterId)   ( (filterId) * SUNI1x10GEXP_REG_SIZEOF_MAC_VID_FILTER )
+#define mSUNI1x10GEXP_MAC_VID_FILTER_OFFSET(filterId)   ((filterId) \
+  * SUNI1x10GEXP_REG_SIZEOF_MAC_VID_FILTER)
 
 /*
 ** Space allocated for each MSTAT Counter
 */
 #define SUNI1x10GEXP_REG_SIZEOF_MSTAT_COUNT 0x0004
 
-#define mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId)       ( (countId) * SUNI1x10GEXP_REG_SIZEOF_MSTAT_COUNT )
+#define mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId)       ((countId) \
+  * SUNI1x10GEXP_REG_SIZEOF_MSTAT_COUNT)
 
-
-/******************************************************************************/
-/** S/UNI-1x10GE-XP REGISTER ADDRESS MAP                                     **/
-/******************************************************************************/
-/* Refer to the Register Bit Masks bellow for the naming of each register and */
-/* to the S/UNI-1x10GE-XP Data Sheet for the signification of each bit        */
-/******************************************************************************/
-
+/* ****************************************************************************
+* * S/UNI-1x10GE-XP REGISTER ADDRESS MAP                                     *
+* ****************************************************************************
+* Refer to the Register Bit Masks bellow for the naming of each register and
+* to the S/UNI-1x10GE-XP Data Sheet for the signification of each bit
+******************************************************************************/
 
 #define SUNI1x10GEXP_REG_IDENTIFICATION                                  0x0000
 #define SUNI1x10GEXP_REG_PRODUCT_REVISION                                0x0001
@@ -92,10 +93,14 @@
 #define SUNI1x10GEXP_REG_RXXG_SA_31_16                                   0x2047
 #define SUNI1x10GEXP_REG_RXXG_SA_47_32                                   0x2048
 #define SUNI1x10GEXP_REG_RXXG_RECEIVE_FIFO_THRESHOLD                     0x2049
-#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_LOW(filterId) (0x204A + mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId))
-#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_MID(filterId) (0x204B + mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId))
-#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_HIGH(filterId)(0x204C + mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId))
-#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_VID(filterId)      (0x2062 + mSUNI1x10GEXP_MAC_VID_FILTER_OFFSET(filterId))
+#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_LOW(filterId) (0x204A \
+  + mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId))
+#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_MID(filterId) (0x204B \
+  + mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId))
+#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_HIGH(filterId) (0x204C \
+  + mSUNI1x10GEXP_MAC_FILTER_OFFSET(filterId))
+#define mSUNI1x10GEXP_REG_RXXG_EXACT_MATCH_VID(filterId)      (0x2062 \
+  + mSUNI1x10GEXP_MAC_VID_FILTER_OFFSET(filterId))
 #define SUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_0_LOW                     0x204A
 #define SUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_0_MID                     0x204B
 #define SUNI1x10GEXP_REG_RXXG_EXACT_MATCH_ADDR_0_HIGH                    0x204C
@@ -185,9 +190,12 @@
 #define SUNI1x10GEXP_REG_MSTAT_COUNTER_WRITE_DATA_LOW                    0x210A
 #define SUNI1x10GEXP_REG_MSTAT_COUNTER_WRITE_DATA_MIDDLE                 0x210B
 #define SUNI1x10GEXP_REG_MSTAT_COUNTER_WRITE_DATA_HIGH                   0x210C
-#define mSUNI1x10GEXP_REG_MSTAT_COUNTER_LOW(countId)   (0x2110 + mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId))
-#define mSUNI1x10GEXP_REG_MSTAT_COUNTER_MID(countId)   (0x2111 + mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId))
-#define mSUNI1x10GEXP_REG_MSTAT_COUNTER_HIGH(countId)  (0x2112 + mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId))
+#define mSUNI1x10GEXP_REG_MSTAT_COUNTER_LOW(countId)   (0x2110 \
+  + mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId))
+#define mSUNI1x10GEXP_REG_MSTAT_COUNTER_MID(countId)   (0x2111 \
+  + mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId))
+#define mSUNI1x10GEXP_REG_MSTAT_COUNTER_HIGH(countId)  (0x2112 \
+  + mSUNI1x10GEXP_MSTAT_COUNT_OFFSET(countId))
 #define SUNI1x10GEXP_REG_MSTAT_COUNTER_0_LOW                             0x2110
 #define SUNI1x10GEXP_REG_MSTAT_COUNTER_0_MID                             0x2111
 #define SUNI1x10GEXP_REG_MSTAT_COUNTER_0_HIGH                            0x2112
@@ -475,7 +483,6 @@
 #define SUNI1x10GEXP_REG_TXOAM_STATIC_VALUE_MINI_COUNT_LSB               0x30D2
 #define SUNI1x10GEXP_REG_TXOAM_STATIC_VALUE_MINI_COUNT_MSB               0x30D3
 
-
 #define SUNI1x10GEXP_REG_EFLX_GLOBAL_CONFIG                              0x3200
 #define SUNI1x10GEXP_REG_EFLX_ERCU_GLOBAL_STATUS                         0x3201
 #define SUNI1x10GEXP_REG_EFLX_INDIR_CHANNEL_ADDRESS                      0x3202
@@ -492,17 +499,16 @@
 #define SUNI1x10GEXP_REG_PL4IDU_INTERRUPT_MASK                           0x3282
 #define SUNI1x10GEXP_REG_PL4IDU_INTERRUPT                                0x3283
 
-
 /*----------------------------------------*/
 #define SUNI1x10GEXP_REG_MAX_OFFSET                                      0x3480
 
-/******************************************************************************/
-/*                 -- End register offset definitions --                      */
-/******************************************************************************/
+/* ****************************************************************************
+*                 -- End register offset definitions --
+******************************************************************************/
 
-/******************************************************************************/
-/** SUNI-1x10GE-XP REGISTER BIT MASKS                                        **/
-/******************************************************************************/
+/* ****************************************************************************
+* * SUNI-1x10GE-XP REGISTER BIT MASKS                                        *
+******************************************************************************/
 
 #define SUNI1x10GEXP_BITMSK_BITS_1   0x00001
 #define SUNI1x10GEXP_BITMSK_BITS_2   0x00003
@@ -537,9 +543,7 @@
 #define mSUNI1x10GEXP_CLR_MSBITS_14(v) ((v) & SUNI1x10GEXP_BITMSK_BITS_2)
 #define mSUNI1x10GEXP_CLR_MSBITS_15(v) ((v) & SUNI1x10GEXP_BITMSK_BITS_1)
 
-#define mSUNI1x10GEXP_GET_BIT(val, bitMsk) (((val)&(bitMsk)) ? 1:0)
-
-
+#define mSUNI1x10GEXP_GET_BIT(val, bitMsk) (((val) & (bitMsk)) ? 1 : 0)
 
 /*----------------------------------------------------------------------------
  * Register 0x0001: S/UNI-1x10GE-XP Product Revision
@@ -1239,22 +1243,17 @@
  *----------------------------------------------------------------------------*/
 #define SUNI1x10GEXP_BITMSK_PL4ODP_OUT_DISE     0x0001
 
-
-
 #define SUNI1x10GEXP_BITMSK_PL4ODP_PPE_EOPEOBE  0x0080
 #define SUNI1x10GEXP_BITMSK_PL4ODP_PPE_ERREOPE  0x0040
 #define SUNI1x10GEXP_BITMSK_PL4ODP_PPE_MEOPE    0x0008
 #define SUNI1x10GEXP_BITMSK_PL4ODP_PPE_MSOPE    0x0004
 #define SUNI1x10GEXP_BITMSK_PL4ODP_ES_OVRE      0x0002
 
-
 /*----------------------------------------------------------------------------
  * Register 0x2283: PL4ODP Interrupt
  *    Bit 0 PL4ODP_OUT_DISI
  *----------------------------------------------------------------------------*/
 #define SUNI1x10GEXP_BITMSK_PL4ODP_OUT_DISI     0x0001
-
-
 
 #define SUNI1x10GEXP_BITMSK_PL4ODP_PPE_EOPEOBI  0x0080
 #define SUNI1x10GEXP_BITMSK_PL4ODP_PPE_ERREOPI  0x0040

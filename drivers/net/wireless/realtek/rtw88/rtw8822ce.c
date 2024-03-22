@@ -8,25 +8,25 @@
 #include "rtw8822c.h"
 
 static const struct pci_device_id rtw_8822ce_id_table[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xC822),
-		.driver_data = (kernel_ulong_t)&rtw8822c_hw_spec
-	},
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xC82F),
-		.driver_data = (kernel_ulong_t)&rtw8822c_hw_spec
-	},
-	{}
+  {
+    PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xC822),
+    .driver_data = (kernel_ulong_t) &rtw8822c_hw_spec
+  },
+  {
+    PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0xC82F),
+    .driver_data = (kernel_ulong_t) &rtw8822c_hw_spec
+  },
+  {}
 };
 MODULE_DEVICE_TABLE(pci, rtw_8822ce_id_table);
 
 static struct pci_driver rtw_8822ce_driver = {
-	.name = "rtw_8822ce",
-	.id_table = rtw_8822ce_id_table,
-	.probe = rtw_pci_probe,
-	.remove = rtw_pci_remove,
-	.driver.pm = &rtw_pm_ops,
-	.shutdown = rtw_pci_shutdown,
+  .name = "rtw_8822ce",
+  .id_table = rtw_8822ce_id_table,
+  .probe = rtw_pci_probe,
+  .remove = rtw_pci_remove,
+  .driver.pm = &rtw_pm_ops,
+  .shutdown = rtw_pci_shutdown,
 };
 module_pci_driver(rtw_8822ce_driver);
 

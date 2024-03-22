@@ -19,28 +19,28 @@ struct iosys_map;
  * returns is_iomem == true from ttm_mem_io_reserve.
  */
 struct ttm_kmap_iter_ops {
-	/**
-	 * kmap_local() - Map a PAGE_SIZE part of the resource using
-	 * kmap_local semantics.
-	 * @res_iter: Pointer to the struct ttm_kmap_iter representing
-	 * the resource.
-	 * @dmap: The struct iosys_map holding the virtual address after
-	 * the operation.
-	 * @i: The location within the resource to map. PAGE_SIZE granularity.
-	 */
-	void (*map_local)(struct ttm_kmap_iter *res_iter,
-			  struct iosys_map *dmap, pgoff_t i);
-	/**
-	 * unmap_local() - Unmap a PAGE_SIZE part of the resource previously
-	 * mapped using kmap_local.
-	 * @res_iter: Pointer to the struct ttm_kmap_iter representing
-	 * the resource.
-	 * @dmap: The struct iosys_map holding the virtual address after
-	 * the operation.
-	 */
-	void (*unmap_local)(struct ttm_kmap_iter *res_iter,
-			    struct iosys_map *dmap);
-	bool maps_tt;
+  /**
+   * kmap_local() - Map a PAGE_SIZE part of the resource using
+   * kmap_local semantics.
+   * @res_iter: Pointer to the struct ttm_kmap_iter representing
+   * the resource.
+   * @dmap: The struct iosys_map holding the virtual address after
+   * the operation.
+   * @i: The location within the resource to map. PAGE_SIZE granularity.
+   */
+  void (*map_local)(struct ttm_kmap_iter *res_iter,
+      struct iosys_map *dmap, pgoff_t i);
+  /**
+   * unmap_local() - Unmap a PAGE_SIZE part of the resource previously
+   * mapped using kmap_local.
+   * @res_iter: Pointer to the struct ttm_kmap_iter representing
+   * the resource.
+   * @dmap: The struct iosys_map holding the virtual address after
+   * the operation.
+   */
+  void (*unmap_local)(struct ttm_kmap_iter *res_iter,
+      struct iosys_map *dmap);
+  bool maps_tt;
 };
 
 /**
@@ -55,7 +55,7 @@ struct ttm_kmap_iter_ops {
  * replacing some or parts of the ttm_bo_util. cpu-map functionality.
  */
 struct ttm_kmap_iter {
-	const struct ttm_kmap_iter_ops *ops;
+  const struct ttm_kmap_iter_ops *ops;
 };
 
 #endif /* __TTM_KMAP_ITER_H__ */

@@ -1,29 +1,29 @@
 /**************************************************************************
- *
- * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- **************************************************************************/
+*
+* Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
+* All Rights Reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sub license, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice (including the
+* next paragraph) shall be included in all copies or substantial portions
+* of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+* THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+**************************************************************************/
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
@@ -65,39 +65,39 @@
 #define TTM_PL_FLAG_TEMPORARY   (1 << 2)
 
 /* Placement is never used during eviction */
-#define TTM_PL_FLAG_DESIRED	(1 << 3)
+#define TTM_PL_FLAG_DESIRED (1 << 3)
 
 /* Placement is only used during eviction */
-#define TTM_PL_FLAG_FALLBACK	(1 << 4)
+#define TTM_PL_FLAG_FALLBACK  (1 << 4)
 
 /**
  * struct ttm_place
  *
- * @fpfn:	first valid page frame number to put the object
- * @lpfn:	last valid page frame number to put the object
- * @mem_type:	One of TTM_PL_* where the resource should be allocated from.
- * @flags:	memory domain and caching flags for the object
+ * @fpfn: first valid page frame number to put the object
+ * @lpfn: last valid page frame number to put the object
+ * @mem_type: One of TTM_PL_* where the resource should be allocated from.
+ * @flags:  memory domain and caching flags for the object
  *
  * Structure indicating a possible place to put an object.
  */
 struct ttm_place {
-	unsigned	fpfn;
-	unsigned	lpfn;
-	uint32_t	mem_type;
-	uint32_t	flags;
+  unsigned fpfn;
+  unsigned lpfn;
+  uint32_t mem_type;
+  uint32_t flags;
 };
 
 /**
  * struct ttm_placement
  *
- * @num_placement:	number of preferred placements
- * @placement:		preferred placements
+ * @num_placement:  number of preferred placements
+ * @placement:    preferred placements
  *
  * Structure indicating the placement you request for an object.
  */
 struct ttm_placement {
-	unsigned		num_placement;
-	const struct ttm_place	*placement;
+  unsigned num_placement;
+  const struct ttm_place *placement;
 };
 
 #endif

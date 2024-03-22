@@ -31,7 +31,6 @@
 #define PPSMC_Result_CmdRejectedPrereq     0xFD
 #define PPSMC_Result_CmdRejectedBusy       0xFC
 
-
 // Message Definitions:
 #define PPSMC_MSG_TestMessage                   0x1
 #define PPSMC_MSG_GetSmuVersion                 0x2
@@ -39,11 +38,14 @@
 #define PPSMC_MSG_PowerUpGfx                    0x6
 #define PPSMC_MSG_EnableGfxOff                  0x7
 #define PPSMC_MSG_DisableGfxOff                 0x8
-#define PPSMC_MSG_PowerDownIspByTile            0x9 // ISP is power gated by default
+#define PPSMC_MSG_PowerDownIspByTile            0x9 // ISP is power gated by
+                                                    // default
 #define PPSMC_MSG_PowerUpIspByTile              0xA
-#define PPSMC_MSG_PowerDownVcn                  0xB // VCN is power gated by default
+#define PPSMC_MSG_PowerDownVcn                  0xB // VCN is power gated by
+                                                    // default
 #define PPSMC_MSG_PowerUpVcn                    0xC
-#define PPSMC_MSG_PowerDownSdma                 0xD // SDMA is power gated by default
+#define PPSMC_MSG_PowerDownSdma                 0xD // SDMA is power gated by
+                                                    // default
 #define PPSMC_MSG_PowerUpSdma                   0xE
 #define PPSMC_MSG_SetHardMinIspclkByFreq        0xF
 #define PPSMC_MSG_SetHardMinVcn                 0x10 // For wireless display
@@ -55,7 +57,9 @@
 #define PPSMC_MSG_SetCustomPolicy               0x16
 #define PPSMC_MSG_SetVideoFps                   0x17
 #define PPSMC_MSG_SetDisplayCount               0x18 // Moved to VBIOS
-#define PPSMC_MSG_QueryPowerLimit               0x19 //Driver to look up sustainable clocks for VQ
+#define PPSMC_MSG_QueryPowerLimit               0x19 //Driver to look up
+                                                     // sustainable clocks for
+                                                     // VQ
 #define PPSMC_MSG_SetDriverDramAddrHigh         0x1A
 #define PPSMC_MSG_SetDriverDramAddrLow          0x1B
 #define PPSMC_MSG_TransferTableSmu2Dram         0x1C
@@ -69,7 +73,8 @@
 #define PPSMC_MSG_SetMinDeepSleepDcfclk         0x24 // Moved to VBIOS
 #define PPSMC_MSG_ForcePowerDownGfx             0x25
 #define PPSMC_MSG_SetPhyclkVoltageByFreq        0x26 // Moved to VBIOS
-#define PPSMC_MSG_SetDppclkVoltageByFreq        0x27 // Moved to VBIOS and is SetDppclkFreq
+#define PPSMC_MSG_SetDppclkVoltageByFreq        0x27 // Moved to VBIOS and is
+                                                     // SetDppclkFreq
 #define PPSMC_MSG_SetSoftMinVcn                 0x28
 #define PPSMC_MSG_EnablePostCode                0x29
 #define PPSMC_MSG_GetGfxclkFrequency            0x2A
@@ -95,7 +100,6 @@
 #define PPSMC_MSG_SetSoftMinJpeg                0x3E
 #define PPSMC_MSG_SetHardMinFclkByFreq          0x3F
 #define PPSMC_Message_Count                     0x40
-
 
 //Argument for  PPSMC_MSG_GpuChangeState
 enum {

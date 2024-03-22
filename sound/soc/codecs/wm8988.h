@@ -48,6 +48,6 @@
 #define WM8988_LPPB      0x43
 #define WM8988_NUM_REG   0x44
 
-#define WM8988_SYSCLK	0
+#define WM8988_SYSCLK 0
 
 #endif

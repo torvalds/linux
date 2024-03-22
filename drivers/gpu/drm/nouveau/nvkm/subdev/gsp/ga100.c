@@ -22,53 +22,52 @@
 #include "priv.h"
 
 static const struct nvkm_falcon_func
-ga100_gsp_flcn = {
-	.disable = gm200_flcn_disable,
-	.enable = gm200_flcn_enable,
-	.addr2 = 0x1000,
-	.riscv_irqmask = 0x2b4,
-	.reset_eng = gp102_flcn_reset_eng,
-	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
-	.bind_inst = gm200_flcn_bind_inst,
-	.bind_stat = gm200_flcn_bind_stat,
-	.bind_intr = true,
-	.imem_pio = &gm200_flcn_imem_pio,
-	.dmem_pio = &gm200_flcn_dmem_pio,
-	.riscv_active = tu102_flcn_riscv_active,
-	.intr_retrigger = ga100_flcn_intr_retrigger,
+    ga100_gsp_flcn = {
+  .disable = gm200_flcn_disable,
+  .enable = gm200_flcn_enable,
+  .addr2 = 0x1000,
+  .riscv_irqmask = 0x2b4,
+  .reset_eng = gp102_flcn_reset_eng,
+  .reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
+  .bind_inst = gm200_flcn_bind_inst,
+  .bind_stat = gm200_flcn_bind_stat,
+  .bind_intr = true,
+  .imem_pio = &gm200_flcn_imem_pio,
+  .dmem_pio = &gm200_flcn_dmem_pio,
+  .riscv_active = tu102_flcn_riscv_active,
+  .intr_retrigger = ga100_flcn_intr_retrigger,
 };
 
 static const struct nvkm_gsp_func
-ga100_gsp_r535_113_01 = {
-	.flcn = &ga100_gsp_flcn,
-	.fwsec = &tu102_gsp_fwsec,
+    ga100_gsp_r535_113_01 = {
+  .flcn = &ga100_gsp_flcn,
+  .fwsec = &tu102_gsp_fwsec,
 
-	.sig_section = ".fwsignature_ga100",
+  .sig_section = ".fwsignature_ga100",
 
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
+  .wpr_heap.base_size = 8 << 20,
+    .wpr_heap.min_size = 64 << 20,
 
-	.booter.ctor = tu102_gsp_booter_ctor,
+    .booter.ctor = tu102_gsp_booter_ctor,
 
-	.dtor = r535_gsp_dtor,
-	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
-	.reset = tu102_gsp_reset,
+    .dtor = r535_gsp_dtor,
+    .oneinit = tu102_gsp_oneinit,
+    .init = r535_gsp_init,
+    .fini = r535_gsp_fini,
+    .reset = tu102_gsp_reset,
 
-	.rm = &r535_gsp_rm,
+    .rm = &r535_gsp_rm,
 };
 
 static struct nvkm_gsp_fwif
-ga100_gsps[] = {
-	{  0,  r535_gsp_load, &ga100_gsp_r535_113_01, "535.113.01" },
-	{ -1, gv100_gsp_nofw, &gv100_gsp },
-	{}
+    ga100_gsps[] = {
+  {  0, r535_gsp_load, &ga100_gsp_r535_113_01, "535.113.01" },
+  { -1, gv100_gsp_nofw, &gv100_gsp },
+  {}
 };
 
-int
-ga100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	      struct nvkm_gsp **pgsp)
-{
-	return nvkm_gsp_new_(ga100_gsps, device, type, inst, pgsp);
+int ga100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_gsp **pgsp) {
+  return nvkm_gsp_new_(ga100_gsps, device, type, inst, pgsp);
 }

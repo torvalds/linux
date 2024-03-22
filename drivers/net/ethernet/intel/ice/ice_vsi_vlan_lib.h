@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2019-2021, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2019-2021, Intel Corporation.*/
 
 #ifndef _ICE_VSI_VLAN_LIB_H_
 #define _ICE_VSI_VLAN_LIB_H_
@@ -8,9 +8,9 @@
 #include "ice_vlan.h"
 
 struct ice_vsi_vlan_info {
-	u8 sw_flags2;
-	u8 inner_vlan_flags;
-	u8 outer_vlan_flags;
+  u8 sw_flags2;
+  u8 inner_vlan_flags;
+  u8 outer_vlan_flags;
 };
 
 struct ice_vsi;

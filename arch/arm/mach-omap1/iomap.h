@@ -28,6 +28,6 @@
  * ----------------------------------------------------------------------------
  */
 
-#define OMAP1_IO_PHYS		0xFFFB0000
-#define OMAP1_IO_SIZE		0x40000
-#define OMAP1_IO_VIRT		(OMAP1_IO_PHYS - OMAP1_IO_OFFSET)
+#define OMAP1_IO_PHYS   0xFFFB0000
+#define OMAP1_IO_SIZE   0x40000
+#define OMAP1_IO_VIRT   (OMAP1_IO_PHYS - OMAP1_IO_OFFSET)

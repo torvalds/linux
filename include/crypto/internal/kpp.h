@@ -18,14 +18,14 @@
  * @alg: The &struct kpp_alg implementation provided by the instance.
  */
 struct kpp_instance {
-	void (*free)(struct kpp_instance *inst);
-	union {
-		struct {
-			char head[offsetof(struct kpp_alg, base)];
-			struct crypto_instance base;
-		} s;
-		struct kpp_alg alg;
-	};
+  void (*free)(struct kpp_instance *inst);
+  union {
+    struct {
+      char head[offsetof(struct kpp_alg, base)];
+      struct crypto_instance base;
+    } s;
+    struct kpp_alg alg;
+  };
 };
 
 /**
@@ -39,58 +39,49 @@ struct kpp_instance {
  * crypto_spawn_kpp().
  */
 struct crypto_kpp_spawn {
-	struct crypto_spawn base;
+  struct crypto_spawn base;
 };
 
 /*
  * Transform internal helpers.
  */
-static inline void *kpp_request_ctx(struct kpp_request *req)
-{
-	return req->__ctx;
+static inline void *kpp_request_ctx(struct kpp_request *req) {
+  return req->__ctx;
 }
 
-static inline void *kpp_request_ctx_dma(struct kpp_request *req)
-{
-	unsigned int align = crypto_dma_align();
-
-	if (align <= crypto_tfm_ctx_alignment())
-		align = 1;
-
-	return PTR_ALIGN(kpp_request_ctx(req), align);
+static inline void *kpp_request_ctx_dma(struct kpp_request *req) {
+  unsigned int align = crypto_dma_align();
+  if (align <= crypto_tfm_ctx_alignment()) {
+    align = 1;
+  }
+  return PTR_ALIGN(kpp_request_ctx(req), align);
 }
 
 static inline void kpp_set_reqsize(struct crypto_kpp *kpp,
-				   unsigned int reqsize)
-{
-	kpp->reqsize = reqsize;
+    unsigned int reqsize) {
+  kpp->reqsize = reqsize;
 }
 
 static inline void kpp_set_reqsize_dma(struct crypto_kpp *kpp,
-				       unsigned int reqsize)
-{
-	reqsize += crypto_dma_align() & ~(crypto_tfm_ctx_alignment() - 1);
-	kpp->reqsize = reqsize;
+    unsigned int reqsize) {
+  reqsize += crypto_dma_align() & ~(crypto_tfm_ctx_alignment() - 1);
+  kpp->reqsize = reqsize;
 }
 
-static inline void *kpp_tfm_ctx(struct crypto_kpp *tfm)
-{
-	return crypto_tfm_ctx(&tfm->base);
+static inline void *kpp_tfm_ctx(struct crypto_kpp *tfm) {
+  return crypto_tfm_ctx(&tfm->base);
 }
 
-static inline void *kpp_tfm_ctx_dma(struct crypto_kpp *tfm)
-{
-	return crypto_tfm_ctx_dma(&tfm->base);
+static inline void *kpp_tfm_ctx_dma(struct crypto_kpp *tfm) {
+  return crypto_tfm_ctx_dma(&tfm->base);
 }
 
-static inline void kpp_request_complete(struct kpp_request *req, int err)
-{
-	crypto_request_complete(&req->base, err);
+static inline void kpp_request_complete(struct kpp_request *req, int err) {
+  crypto_request_complete(&req->base, err);
 }
 
-static inline const char *kpp_alg_name(struct crypto_kpp *tfm)
-{
-	return crypto_kpp_tfm(tfm)->__crt_alg->cra_name;
+static inline const char *kpp_alg_name(struct crypto_kpp *tfm) {
+  return crypto_kpp_tfm(tfm)->__crt_alg->cra_name;
 }
 
 /*
@@ -103,9 +94,8 @@ static inline const char *kpp_alg_name(struct crypto_kpp *tfm)
  * Return: A pointer to the &struct crypto_instance embedded in @inst.
  */
 static inline struct crypto_instance *kpp_crypto_instance(
-	struct kpp_instance *inst)
-{
-	return &inst->s.base;
+    struct kpp_instance *inst) {
+  return &inst->s.base;
 }
 
 /**
@@ -114,9 +104,8 @@ static inline struct crypto_instance *kpp_crypto_instance(
  * @inst: Pointer to the &struct crypto_instance to be cast.
  * Return: A pointer to the &struct kpp_instance @inst is embedded in.
  */
-static inline struct kpp_instance *kpp_instance(struct crypto_instance *inst)
-{
-	return container_of(inst, struct kpp_instance, s.base);
+static inline struct kpp_instance *kpp_instance(struct crypto_instance *inst) {
+  return container_of(inst, struct kpp_instance, s.base);
 }
 
 /**
@@ -125,9 +114,8 @@ static inline struct kpp_instance *kpp_instance(struct crypto_instance *inst)
  * @kpp: The KPP transform instantiated from some &struct kpp_instance.
  * Return: The &struct kpp_instance associated with @kpp.
  */
-static inline struct kpp_instance *kpp_alg_instance(struct crypto_kpp *kpp)
-{
-	return kpp_instance(crypto_tfm_alg_instance(&kpp->base));
+static inline struct kpp_instance *kpp_alg_instance(struct crypto_kpp *kpp) {
+  return kpp_instance(crypto_tfm_alg_instance(&kpp->base));
 }
 
 /**
@@ -141,9 +129,8 @@ static inline struct kpp_instance *kpp_alg_instance(struct crypto_kpp *kpp)
  *
  * Return: A pointer to the implementation specific context data.
  */
-static inline void *kpp_instance_ctx(struct kpp_instance *inst)
-{
-	return crypto_instance_ctx(kpp_crypto_instance(inst));
+static inline void *kpp_instance_ctx(struct kpp_instance *inst) {
+  return crypto_instance_ctx(kpp_crypto_instance(inst));
 }
 
 /*
@@ -155,7 +142,7 @@ static inline void *kpp_instance_ctx(struct kpp_instance *inst)
  * Function registers an implementation of a key-agreement protocol primitive
  * algorithm
  *
- * @alg:	algorithm definition
+ * @alg:  algorithm definition
  *
  * Return: zero on success; error code in case of error
  */
@@ -168,7 +155,7 @@ int crypto_register_kpp(struct kpp_alg *alg);
  * Function unregisters an implementation of a key-agreement protocol primitive
  * algorithm
  *
- * @alg:	algorithm definition
+ * @alg:  algorithm definition
  */
 void crypto_unregister_kpp(struct kpp_alg *alg);
 
@@ -179,7 +166,7 @@ void crypto_unregister_kpp(struct kpp_alg *alg);
  * Return: %0 on success, negative error code otherwise.
  */
 int kpp_register_instance(struct crypto_template *tmpl,
-			  struct kpp_instance *inst);
+    struct kpp_instance *inst);
 
 /*
  * KPP spawn related functions.
@@ -194,16 +181,15 @@ int kpp_register_instance(struct crypto_template *tmpl,
  * Return: %0 on success, a negative error code otherwise.
  */
 int crypto_grab_kpp(struct crypto_kpp_spawn *spawn,
-		    struct crypto_instance *inst,
-		    const char *name, u32 type, u32 mask);
+    struct crypto_instance *inst,
+    const char *name, u32 type, u32 mask);
 
 /**
  * crypto_drop_kpp() - Release a spawn previously bound via crypto_grab_kpp().
  * @spawn: The spawn to release.
  */
-static inline void crypto_drop_kpp(struct crypto_kpp_spawn *spawn)
-{
-	crypto_drop_spawn(&spawn->base);
+static inline void crypto_drop_kpp(struct crypto_kpp_spawn *spawn) {
+  crypto_drop_spawn(&spawn->base);
 }
 
 /**
@@ -219,9 +205,8 @@ static inline void crypto_drop_kpp(struct crypto_kpp_spawn *spawn)
  * Return: A pointer to the &struct kpp_alg referenced from the spawn.
  */
 static inline struct kpp_alg *crypto_spawn_kpp_alg(
-	struct crypto_kpp_spawn *spawn)
-{
-	return container_of(spawn->base.alg, struct kpp_alg, base);
+    struct crypto_kpp_spawn *spawn) {
+  return container_of(spawn->base.alg, struct kpp_alg, base);
 }
 
 /**
@@ -237,9 +222,8 @@ static inline struct kpp_alg *crypto_spawn_kpp_alg(
  * or an ``ERR_PTR()`` otherwise.
  */
 static inline struct crypto_kpp *crypto_spawn_kpp(
-	struct crypto_kpp_spawn *spawn)
-{
-	return crypto_spawn_tfm2(&spawn->base);
+    struct crypto_kpp_spawn *spawn) {
+  return crypto_spawn_tfm2(&spawn->base);
 }
 
 #endif

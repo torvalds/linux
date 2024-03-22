@@ -4,7 +4,7 @@
 
 #include <uapi/linux/const.h>
 
-#define UL(x)		(_UL(x))
-#define ULL(x)		(_ULL(x))
+#define UL(x)   (_UL(x))
+#define ULL(x)    (_ULL(x))
 
 #endif /* __VDSO_CONST_H */

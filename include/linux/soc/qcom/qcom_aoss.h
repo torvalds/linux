@@ -19,18 +19,15 @@ void qmp_put(struct qmp *qmp);
 
 #else
 
-static inline int qmp_send(struct qmp *qmp, const char *fmt, ...)
-{
-	return -ENODEV;
+static inline int qmp_send(struct qmp *qmp, const char *fmt, ...) {
+  return -ENODEV;
 }
 
-static inline struct qmp *qmp_get(struct device *dev)
-{
-	return ERR_PTR(-ENODEV);
+static inline struct qmp *qmp_get(struct device *dev) {
+  return ERR_PTR(-ENODEV);
 }
 
-static inline void qmp_put(struct qmp *qmp)
-{
+static inline void qmp_put(struct qmp *qmp) {
 }
 
 #endif

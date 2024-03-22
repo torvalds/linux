@@ -31,44 +31,44 @@
 #include "dcn32/dcn32_mmhubbub.h"
 
 #define MCIF_WB_REG_VARIABLE_LIST_DCN3_5  \
-	MCIF_WB_REG_VARIABLE_LIST_DCN3_0; \
-	uint32_t MMHUBBUB_CLOCK_CNTL
+  MCIF_WB_REG_VARIABLE_LIST_DCN3_0; \
+  uint32_t MMHUBBUB_CLOCK_CNTL
 
 #define MCIF_WB_COMMON_MASK_SH_LIST_DCN3_5(mask_sh)                            \
-	MCIF_WB_COMMON_MASK_SH_LIST_DCN32(mask_sh),                            \
-		SF(MMHUBBUB_CLOCK_CNTL, MMHUBBUB_TEST_CLK_SEL, mask_sh),       \
-		SF(MMHUBBUB_CLOCK_CNTL, DISPCLK_R_MMHUBBUB_GATE_DIS, mask_sh), \
-		SF(MMHUBBUB_CLOCK_CNTL, DISPCLK_G_WBIF0_GATE_DIS, mask_sh),    \
-		SF(MMHUBBUB_CLOCK_CNTL, SOCCLK_G_WBIF0_GATE_DIS, mask_sh),     \
-		SF(MMHUBBUB_CLOCK_CNTL, MMHUBBUB_FGCG_REP_DIS, mask_sh)
+  MCIF_WB_COMMON_MASK_SH_LIST_DCN32(mask_sh),                            \
+  SF(MMHUBBUB_CLOCK_CNTL, MMHUBBUB_TEST_CLK_SEL, mask_sh),       \
+  SF(MMHUBBUB_CLOCK_CNTL, DISPCLK_R_MMHUBBUB_GATE_DIS, mask_sh), \
+  SF(MMHUBBUB_CLOCK_CNTL, DISPCLK_G_WBIF0_GATE_DIS, mask_sh),    \
+  SF(MMHUBBUB_CLOCK_CNTL, SOCCLK_G_WBIF0_GATE_DIS, mask_sh),     \
+  SF(MMHUBBUB_CLOCK_CNTL, MMHUBBUB_FGCG_REP_DIS, mask_sh)
 
 #define MCIF_WB_REG_FIELD_LIST_DCN3_5(type)          \
-	struct {                                     \
-		MCIF_WB_REG_FIELD_LIST_DCN3_0(type); \
-		type MMHUBBUB_TEST_CLK_SEL;          \
-		type DISPCLK_R_MMHUBBUB_GATE_DIS;    \
-		type DISPCLK_G_WBIF0_GATE_DIS;       \
-		type SOCCLK_G_WBIF0_GATE_DIS;        \
-		type MMHUBBUB_FGCG_REP_DIS;          \
-	}
+  struct {                                     \
+    MCIF_WB_REG_FIELD_LIST_DCN3_0(type); \
+    type MMHUBBUB_TEST_CLK_SEL;          \
+    type DISPCLK_R_MMHUBBUB_GATE_DIS;    \
+    type DISPCLK_G_WBIF0_GATE_DIS;       \
+    type SOCCLK_G_WBIF0_GATE_DIS;        \
+    type MMHUBBUB_FGCG_REP_DIS;          \
+  }
 
 struct dcn35_mmhubbub_registers {
-	MCIF_WB_REG_VARIABLE_LIST_DCN3_5;
+  MCIF_WB_REG_VARIABLE_LIST_DCN3_5;
 };
 
 struct dcn35_mmhubbub_mask {
-	MCIF_WB_REG_FIELD_LIST_DCN3_5(uint32_t);
+  MCIF_WB_REG_FIELD_LIST_DCN3_5(uint32_t);
 };
 
 struct dcn35_mmhubbub_shift {
-	MCIF_WB_REG_FIELD_LIST_DCN3_5(uint8_t);
+  MCIF_WB_REG_FIELD_LIST_DCN3_5(uint8_t);
 };
 
 void dcn35_mmhubbub_construct(
-	struct dcn30_mmhubbub *mcif_wb30, struct dc_context *ctx,
-	const struct dcn35_mmhubbub_registers *mcif_wb_regs,
-	const struct dcn35_mmhubbub_shift *mcif_wb_shift,
-	const struct dcn35_mmhubbub_mask *mcif_wb_mask, int inst);
+  struct dcn30_mmhubbub *mcif_wb30, struct dc_context *ctx,
+  const struct dcn35_mmhubbub_registers *mcif_wb_regs,
+  const struct dcn35_mmhubbub_shift *mcif_wb_shift,
+  const struct dcn35_mmhubbub_mask *mcif_wb_mask, int inst);
 
 void dcn35_mmhubbub_set_fgcg(struct dcn30_mmhubbub *mcif_wb30, bool enabled);
 

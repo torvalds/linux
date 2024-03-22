@@ -39,111 +39,106 @@ static void __iomem *ath79_ddr_base;
 static void __iomem *ath79_ddr_wb_flush_base;
 static void __iomem *ath79_ddr_pci_win_base;
 
-void ath79_ddr_ctrl_init(void)
-{
-	ath79_ddr_base = ioremap(AR71XX_DDR_CTRL_BASE,
-					 AR71XX_DDR_CTRL_SIZE);
-	if (soc_is_ar913x() || soc_is_ar724x() || soc_is_ar933x()) {
-		ath79_ddr_wb_flush_base = ath79_ddr_base + 0x7c;
-		ath79_ddr_pci_win_base = 0;
-	} else {
-		ath79_ddr_wb_flush_base = ath79_ddr_base + 0x9c;
-		ath79_ddr_pci_win_base = ath79_ddr_base + 0x7c;
-	}
+void ath79_ddr_ctrl_init(void) {
+  ath79_ddr_base = ioremap(AR71XX_DDR_CTRL_BASE,
+      AR71XX_DDR_CTRL_SIZE);
+  if (soc_is_ar913x() || soc_is_ar724x() || soc_is_ar933x()) {
+    ath79_ddr_wb_flush_base = ath79_ddr_base + 0x7c;
+    ath79_ddr_pci_win_base = 0;
+  } else {
+    ath79_ddr_wb_flush_base = ath79_ddr_base + 0x9c;
+    ath79_ddr_pci_win_base = ath79_ddr_base + 0x7c;
+  }
 }
+
 EXPORT_SYMBOL_GPL(ath79_ddr_ctrl_init);
 
-void ath79_ddr_wb_flush(u32 reg)
-{
-	void __iomem *flush_reg = ath79_ddr_wb_flush_base + (reg * 4);
-
-	/* Flush the DDR write buffer. */
-	__raw_writel(0x1, flush_reg);
-	while (__raw_readl(flush_reg) & 0x1)
-		;
-
-	/* It must be run twice. */
-	__raw_writel(0x1, flush_reg);
-	while (__raw_readl(flush_reg) & 0x1)
-		;
+void ath79_ddr_wb_flush(u32 reg) {
+  void __iomem *flush_reg = ath79_ddr_wb_flush_base + (reg * 4);
+  /* Flush the DDR write buffer. */
+  __raw_writel(0x1, flush_reg);
+  while (__raw_readl(flush_reg) & 0x1) {
+  }
+  /* It must be run twice. */
+  __raw_writel(0x1, flush_reg);
+  while (__raw_readl(flush_reg) & 0x1) {
+  }
 }
+
 EXPORT_SYMBOL_GPL(ath79_ddr_wb_flush);
 
-void ath79_ddr_set_pci_windows(void)
-{
-	BUG_ON(!ath79_ddr_pci_win_base);
-
-	__raw_writel(AR71XX_PCI_WIN0_OFFS, ath79_ddr_pci_win_base + 0x0);
-	__raw_writel(AR71XX_PCI_WIN1_OFFS, ath79_ddr_pci_win_base + 0x4);
-	__raw_writel(AR71XX_PCI_WIN2_OFFS, ath79_ddr_pci_win_base + 0x8);
-	__raw_writel(AR71XX_PCI_WIN3_OFFS, ath79_ddr_pci_win_base + 0xc);
-	__raw_writel(AR71XX_PCI_WIN4_OFFS, ath79_ddr_pci_win_base + 0x10);
-	__raw_writel(AR71XX_PCI_WIN5_OFFS, ath79_ddr_pci_win_base + 0x14);
-	__raw_writel(AR71XX_PCI_WIN6_OFFS, ath79_ddr_pci_win_base + 0x18);
-	__raw_writel(AR71XX_PCI_WIN7_OFFS, ath79_ddr_pci_win_base + 0x1c);
+void ath79_ddr_set_pci_windows(void) {
+  BUG_ON(!ath79_ddr_pci_win_base);
+  __raw_writel(AR71XX_PCI_WIN0_OFFS, ath79_ddr_pci_win_base + 0x0);
+  __raw_writel(AR71XX_PCI_WIN1_OFFS, ath79_ddr_pci_win_base + 0x4);
+  __raw_writel(AR71XX_PCI_WIN2_OFFS, ath79_ddr_pci_win_base + 0x8);
+  __raw_writel(AR71XX_PCI_WIN3_OFFS, ath79_ddr_pci_win_base + 0xc);
+  __raw_writel(AR71XX_PCI_WIN4_OFFS, ath79_ddr_pci_win_base + 0x10);
+  __raw_writel(AR71XX_PCI_WIN5_OFFS, ath79_ddr_pci_win_base + 0x14);
+  __raw_writel(AR71XX_PCI_WIN6_OFFS, ath79_ddr_pci_win_base + 0x18);
+  __raw_writel(AR71XX_PCI_WIN7_OFFS, ath79_ddr_pci_win_base + 0x1c);
 }
+
 EXPORT_SYMBOL_GPL(ath79_ddr_set_pci_windows);
 
-void ath79_device_reset_set(u32 mask)
-{
-	unsigned long flags;
-	u32 reg;
-	u32 t;
-
-	if (soc_is_ar71xx())
-		reg = AR71XX_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar724x())
-		reg = AR724X_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar913x())
-		reg = AR913X_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar933x())
-		reg = AR933X_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar934x())
-		reg = AR934X_RESET_REG_RESET_MODULE;
-	else if (soc_is_qca953x())
-		reg = QCA953X_RESET_REG_RESET_MODULE;
-	else if (soc_is_qca955x())
-		reg = QCA955X_RESET_REG_RESET_MODULE;
-	else if (soc_is_qca956x() || soc_is_tp9343())
-		reg = QCA956X_RESET_REG_RESET_MODULE;
-	else
-		BUG();
-
-	spin_lock_irqsave(&ath79_device_reset_lock, flags);
-	t = ath79_reset_rr(reg);
-	ath79_reset_wr(reg, t | mask);
-	spin_unlock_irqrestore(&ath79_device_reset_lock, flags);
+void ath79_device_reset_set(u32 mask) {
+  unsigned long flags;
+  u32 reg;
+  u32 t;
+  if (soc_is_ar71xx()) {
+    reg = AR71XX_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar724x()) {
+    reg = AR724X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar913x()) {
+    reg = AR913X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar933x()) {
+    reg = AR933X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar934x()) {
+    reg = AR934X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_qca953x()) {
+    reg = QCA953X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_qca955x()) {
+    reg = QCA955X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_qca956x() || soc_is_tp9343()) {
+    reg = QCA956X_RESET_REG_RESET_MODULE;
+  } else {
+    BUG();
+  }
+  spin_lock_irqsave(&ath79_device_reset_lock, flags);
+  t = ath79_reset_rr(reg);
+  ath79_reset_wr(reg, t | mask);
+  spin_unlock_irqrestore(&ath79_device_reset_lock, flags);
 }
+
 EXPORT_SYMBOL_GPL(ath79_device_reset_set);
 
-void ath79_device_reset_clear(u32 mask)
-{
-	unsigned long flags;
-	u32 reg;
-	u32 t;
-
-	if (soc_is_ar71xx())
-		reg = AR71XX_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar724x())
-		reg = AR724X_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar913x())
-		reg = AR913X_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar933x())
-		reg = AR933X_RESET_REG_RESET_MODULE;
-	else if (soc_is_ar934x())
-		reg = AR934X_RESET_REG_RESET_MODULE;
-	else if (soc_is_qca953x())
-		reg = QCA953X_RESET_REG_RESET_MODULE;
-	else if (soc_is_qca955x())
-		reg = QCA955X_RESET_REG_RESET_MODULE;
-	else if (soc_is_qca956x() || soc_is_tp9343())
-		reg = QCA956X_RESET_REG_RESET_MODULE;
-	else
-		BUG();
-
-	spin_lock_irqsave(&ath79_device_reset_lock, flags);
-	t = ath79_reset_rr(reg);
-	ath79_reset_wr(reg, t & ~mask);
-	spin_unlock_irqrestore(&ath79_device_reset_lock, flags);
+void ath79_device_reset_clear(u32 mask) {
+  unsigned long flags;
+  u32 reg;
+  u32 t;
+  if (soc_is_ar71xx()) {
+    reg = AR71XX_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar724x()) {
+    reg = AR724X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar913x()) {
+    reg = AR913X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar933x()) {
+    reg = AR933X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_ar934x()) {
+    reg = AR934X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_qca953x()) {
+    reg = QCA953X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_qca955x()) {
+    reg = QCA955X_RESET_REG_RESET_MODULE;
+  } else if (soc_is_qca956x() || soc_is_tp9343()) {
+    reg = QCA956X_RESET_REG_RESET_MODULE;
+  } else {
+    BUG();
+  }
+  spin_lock_irqsave(&ath79_device_reset_lock, flags);
+  t = ath79_reset_rr(reg);
+  ath79_reset_wr(reg, t & ~mask);
+  spin_unlock_irqrestore(&ath79_device_reset_lock, flags);
 }
+
 EXPORT_SYMBOL_GPL(ath79_device_reset_clear);

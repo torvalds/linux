@@ -16,16 +16,16 @@
 #include <linux/ptrace.h>
 #include <asm/unwind.h>
 
-void save_stack_trace(struct stack_trace *trace)
-{
-	/* Exclude our helper functions from the trace*/
-	trace->skip += 2;
-	microblaze_unwind(NULL, trace, "");
+void save_stack_trace(struct stack_trace *trace) {
+  /* Exclude our helper functions from the trace*/
+  trace->skip += 2;
+  microblaze_unwind(NULL, trace, "");
 }
+
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
-void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
-{
-	microblaze_unwind(tsk, trace, "");
+void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace) {
+  microblaze_unwind(tsk, trace, "");
 }
+
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

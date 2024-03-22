@@ -7,12 +7,12 @@
 #include <asm/kprobes.h>
 
 enum probe_insn {
-	INSN_REJECTED,
-	INSN_GOOD_NO_SLOT,
-	INSN_GOOD,
+  INSN_REJECTED,
+  INSN_GOOD_NO_SLOT,
+  INSN_GOOD,
 };
 
-enum probe_insn __kprobes
-riscv_probe_decode_insn(probe_opcode_t *addr, struct arch_probe_insn *asi);
+enum probe_insn __kprobes riscv_probe_decode_insn(probe_opcode_t *addr,
+    struct arch_probe_insn *asi);
 
 #endif /* _RISCV_KERNEL_KPROBES_DECODE_INSN_H */

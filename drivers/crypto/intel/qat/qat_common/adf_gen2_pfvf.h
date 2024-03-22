@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
-/* Copyright(c) 2021 Intel Corporation */
+/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+ * Copyright(c) 2021 Intel Corporation*/
 #ifndef ADF_GEN2_PFVF_H
 #define ADF_GEN2_PFVF_H
 
@@ -15,15 +15,14 @@
 void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops);
 void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops);
 #else
-static inline void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
-{
-	pfvf_ops->enable_comms = adf_pfvf_comms_disabled;
+static inline void adf_gen2_init_pf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops) {
+  pfvf_ops->enable_comms = adf_pfvf_comms_disabled;
 }
 
-static inline void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops)
-{
-	pfvf_ops->enable_comms = adf_pfvf_comms_disabled;
+static inline void adf_gen2_init_vf_pfvf_ops(struct adf_pfvf_ops *pfvf_ops) {
+  pfvf_ops->enable_comms = adf_pfvf_comms_disabled;
 }
+
 #endif
 
 #endif /* ADF_GEN2_PFVF_H */

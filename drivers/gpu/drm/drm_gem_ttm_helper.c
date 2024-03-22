@@ -23,32 +23,29 @@
  * callback.
  */
 void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
-			    const struct drm_gem_object *gem)
-{
-	static const char * const plname[] = {
-		[ TTM_PL_SYSTEM ] = "system",
-		[ TTM_PL_TT     ] = "tt",
-		[ TTM_PL_VRAM   ] = "vram",
-		[ TTM_PL_PRIV   ] = "priv",
-
-		[ 16 ]            = "cached",
-		[ 17 ]            = "uncached",
-		[ 18 ]            = "wc",
-		[ 19 ]            = "contig",
-
-		[ 21 ]            = "pinned", /* NO_EVICT */
-		[ 22 ]            = "topdown",
-	};
-	const struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
-
-	drm_printf_indent(p, indent, "placement=");
-	drm_print_bits(p, bo->resource->placement, plname, ARRAY_SIZE(plname));
-	drm_printf(p, "\n");
-
-	if (bo->resource->bus.is_iomem)
-		drm_printf_indent(p, indent, "bus.offset=%lx\n",
-				  (unsigned long)bo->resource->bus.offset);
+    const struct drm_gem_object *gem) {
+  static const char * const plname[] = {
+    [TTM_PL_SYSTEM] = "system",
+    [TTM_PL_TT] = "tt",
+    [TTM_PL_VRAM] = "vram",
+    [TTM_PL_PRIV] = "priv",
+    [16] = "cached",
+    [17] = "uncached",
+    [18] = "wc",
+    [19] = "contig",
+    [21] = "pinned", /* NO_EVICT */
+    [22] = "topdown",
+  };
+  const struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+  drm_printf_indent(p, indent, "placement=");
+  drm_print_bits(p, bo->resource->placement, plname, ARRAY_SIZE(plname));
+  drm_printf(p, "\n");
+  if (bo->resource->bus.is_iomem) {
+    drm_printf_indent(p, indent, "bus.offset=%lx\n",
+        (unsigned long) bo->resource->bus.offset);
+  }
 }
+
 EXPORT_SYMBOL(drm_gem_ttm_print_info);
 
 /**
@@ -63,12 +60,11 @@ EXPORT_SYMBOL(drm_gem_ttm_print_info);
  * 0 on success, or a negative errno code otherwise.
  */
 int drm_gem_ttm_vmap(struct drm_gem_object *gem,
-		     struct iosys_map *map)
-{
-	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
-
-	return ttm_bo_vmap(bo, map);
+    struct iosys_map *map) {
+  struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+  return ttm_bo_vmap(bo, map);
 }
+
 EXPORT_SYMBOL(drm_gem_ttm_vmap);
 
 /**
@@ -80,12 +76,11 @@ EXPORT_SYMBOL(drm_gem_ttm_vmap);
  * &drm_gem_object_funcs.vmap callback.
  */
 void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
-			struct iosys_map *map)
-{
-	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
-
-	ttm_bo_vunmap(bo, map);
+    struct iosys_map *map) {
+  struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+  ttm_bo_vunmap(bo, map);
 }
+
 EXPORT_SYMBOL(drm_gem_ttm_vunmap);
 
 /**
@@ -97,31 +92,29 @@ EXPORT_SYMBOL(drm_gem_ttm_vunmap);
  * callback.
  */
 int drm_gem_ttm_mmap(struct drm_gem_object *gem,
-		     struct vm_area_struct *vma)
-{
-	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
-	int ret;
-
-	ret = ttm_bo_mmap_obj(vma, bo);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * ttm has its own object refcounting, so drop gem reference
-	 * to avoid double accounting counting.
-	 */
-	drm_gem_object_put(gem);
-
-	return 0;
+    struct vm_area_struct *vma) {
+  struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+  int ret;
+  ret = ttm_bo_mmap_obj(vma, bo);
+  if (ret < 0) {
+    return ret;
+  }
+  /*
+   * ttm has its own object refcounting, so drop gem reference
+   * to avoid double accounting counting.
+   */
+  drm_gem_object_put(gem);
+  return 0;
 }
+
 EXPORT_SYMBOL(drm_gem_ttm_mmap);
 
 /**
  * drm_gem_ttm_dumb_map_offset() - Implements struct &drm_driver.dumb_map_offset
- * @file:	DRM file pointer.
- * @dev:	DRM device.
- * @handle:	GEM handle
- * @offset:	Returns the mapping's memory offset on success
+ * @file: DRM file pointer.
+ * @dev:  DRM device.
+ * @handle: GEM handle
+ * @offset: Returns the mapping's memory offset on success
  *
  * Provides an implementation of struct &drm_driver.dumb_map_offset for
  * TTM-based GEM drivers. TTM allocates the offset internally and
@@ -133,20 +126,17 @@ EXPORT_SYMBOL(drm_gem_ttm_mmap);
  * 0 on success, or a negative errno code otherwise.
  */
 int drm_gem_ttm_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-				uint32_t handle, uint64_t *offset)
-{
-	struct drm_gem_object *gem;
-
-	gem = drm_gem_object_lookup(file, handle);
-	if (!gem)
-		return -ENOENT;
-
-	*offset = drm_vma_node_offset_addr(&gem->vma_node);
-
-	drm_gem_object_put(gem);
-
-	return 0;
+    uint32_t handle, uint64_t *offset) {
+  struct drm_gem_object *gem;
+  gem = drm_gem_object_lookup(file, handle);
+  if (!gem) {
+    return -ENOENT;
+  }
+  *offset = drm_vma_node_offset_addr(&gem->vma_node);
+  drm_gem_object_put(gem);
+  return 0;
 }
+
 EXPORT_SYMBOL(drm_gem_ttm_dumb_map_offset);
 
 MODULE_DESCRIPTION("DRM gem ttm helpers");

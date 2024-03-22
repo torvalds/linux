@@ -20,22 +20,22 @@
 #define TDA18250_XTAL_FREQ_MAX 5
 
 struct tda18250_config {
-	u16 if_dvbt_6;
-	u16 if_dvbt_7;
-	u16 if_dvbt_8;
-	u16 if_dvbc_6;
-	u16 if_dvbc_8;
-	u16 if_atsc;
-	u8 xtal_freq;
-	bool loopthrough;
+  u16 if_dvbt_6;
+  u16 if_dvbt_7;
+  u16 if_dvbt_8;
+  u16 if_dvbc_6;
+  u16 if_dvbc_8;
+  u16 if_atsc;
+  u8 xtal_freq;
+  bool loopthrough;
 
-	/*
-	 * frontend
-	 */
-	struct dvb_frontend *fe;
+  /*
+   * frontend
+   */
+  struct dvb_frontend *fe;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	struct media_device *mdev;
+  struct media_device *mdev;
 #endif
 };
 

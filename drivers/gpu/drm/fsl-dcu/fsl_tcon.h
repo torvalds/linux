@@ -12,12 +12,12 @@
 
 #include <linux/bitops.h>
 
-#define FSL_TCON_CTRL1			0x0
-#define FSL_TCON_CTRL1_TCON_BYPASS	BIT(29)
+#define FSL_TCON_CTRL1      0x0
+#define FSL_TCON_CTRL1_TCON_BYPASS  BIT(29)
 
 struct fsl_tcon {
-	struct regmap		*regs;
-	struct clk		*ipg_clk;
+  struct regmap *regs;
+  struct clk *ipg_clk;
 };
 
 struct fsl_tcon *fsl_tcon_init(struct device *dev);

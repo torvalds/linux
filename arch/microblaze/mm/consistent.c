@@ -15,9 +15,7 @@
 #include <asm/cpuinfo.h>
 #include <asm/cacheflush.h>
 
-void arch_dma_prep_coherent(struct page *page, size_t size)
-{
-	phys_addr_t paddr = page_to_phys(page);
-
-	flush_dcache_range(paddr, paddr + size);
+void arch_dma_prep_coherent(struct page *page, size_t size) {
+  phys_addr_t paddr = page_to_phys(page);
+  flush_dcache_range(paddr, paddr + size);
 }

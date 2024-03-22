@@ -26,22 +26,22 @@
  * These match bits 12..15 of stat.st_mode
  * (ie "(i_mode >> 12) & 15").
  */
-#define S_DT_SHIFT	12
-#define S_DT(mode)	(((mode) & S_IFMT) >> S_DT_SHIFT)
-#define S_DT_MASK	(S_IFMT >> S_DT_SHIFT)
+#define S_DT_SHIFT  12
+#define S_DT(mode)  (((mode) & S_IFMT) >> S_DT_SHIFT)
+#define S_DT_MASK (S_IFMT >> S_DT_SHIFT)
 
 /* these are defined by POSIX and also present in glibc's dirent.h */
-#define DT_UNKNOWN	0
-#define DT_FIFO		1
-#define DT_CHR		2
-#define DT_DIR		4
-#define DT_BLK		6
-#define DT_REG		8
-#define DT_LNK		10
-#define DT_SOCK		12
-#define DT_WHT		14
+#define DT_UNKNOWN  0
+#define DT_FIFO   1
+#define DT_CHR    2
+#define DT_DIR    4
+#define DT_BLK    6
+#define DT_REG    8
+#define DT_LNK    10
+#define DT_SOCK   12
+#define DT_WHT    14
 
-#define DT_MAX		(S_DT_MASK + 1) /* 16 */
+#define DT_MAX    (S_DT_MASK + 1) /* 16 */
 
 /*
  * fs on-disk file types.
@@ -53,16 +53,16 @@
  * Note that no fs currently stores the whiteout type on-disk,
  * so whiteout dirents are exposed to user as DT_CHR.
  */
-#define FT_UNKNOWN	0
-#define FT_REG_FILE	1
-#define FT_DIR		2
-#define FT_CHRDEV	3
-#define FT_BLKDEV	4
-#define FT_FIFO		5
-#define FT_SOCK		6
-#define FT_SYMLINK	7
+#define FT_UNKNOWN  0
+#define FT_REG_FILE 1
+#define FT_DIR    2
+#define FT_CHRDEV 3
+#define FT_BLKDEV 4
+#define FT_FIFO   5
+#define FT_SOCK   6
+#define FT_SYMLINK  7
 
-#define FT_MAX		8
+#define FT_MAX    8
 
 /*
  * declarations for helper functions, accompanying implementation

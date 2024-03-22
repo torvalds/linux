@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *	Just a place holder.
+ *  Just a place holder.
  */
 #ifndef _SPARC_SETUP_H
 #define _SPARC_SETUP_H
@@ -20,9 +20,8 @@ extern unsigned char boot_cpu_id;
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 extern int serial_console;
-static inline int con_is_present(void)
-{
-	return serial_console ? 0 : 1;
+static inline int con_is_present(void) {
+  return serial_console ? 0 : 1;
 }
 
 /* from irq_32.c */

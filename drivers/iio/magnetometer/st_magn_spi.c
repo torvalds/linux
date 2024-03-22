@@ -25,86 +25,81 @@
  * capability is being used
  */
 static const struct of_device_id st_magn_of_match[] = {
-	{
-		.compatible = "st,lis3mdl-magn",
-		.data = LIS3MDL_MAGN_DEV_NAME,
-	},
-	{
-		.compatible = "st,lsm303agr-magn",
-		.data = LSM303AGR_MAGN_DEV_NAME,
-	},
-	{
-		.compatible = "st,lis2mdl",
-		.data = LIS2MDL_MAGN_DEV_NAME,
-	},
-	{
-		.compatible = "st,lsm9ds1-magn",
-		.data = LSM9DS1_MAGN_DEV_NAME,
-	},
-	{
-		.compatible = "st,iis2mdc",
-		.data = IIS2MDC_MAGN_DEV_NAME,
-	},
-	{
-		.compatible = "st,lsm303c-magn",
-		.data = LSM303C_MAGN_DEV_NAME,
-	},
-	{}
+  {
+    .compatible = "st,lis3mdl-magn",
+    .data = LIS3MDL_MAGN_DEV_NAME,
+  },
+  {
+    .compatible = "st,lsm303agr-magn",
+    .data = LSM303AGR_MAGN_DEV_NAME,
+  },
+  {
+    .compatible = "st,lis2mdl",
+    .data = LIS2MDL_MAGN_DEV_NAME,
+  },
+  {
+    .compatible = "st,lsm9ds1-magn",
+    .data = LSM9DS1_MAGN_DEV_NAME,
+  },
+  {
+    .compatible = "st,iis2mdc",
+    .data = IIS2MDC_MAGN_DEV_NAME,
+  },
+  {
+    .compatible = "st,lsm303c-magn",
+    .data = LSM303C_MAGN_DEV_NAME,
+  },
+  {}
 };
 MODULE_DEVICE_TABLE(of, st_magn_of_match);
 
-static int st_magn_spi_probe(struct spi_device *spi)
-{
-	const struct st_sensor_settings *settings;
-	struct st_sensor_data *mdata;
-	struct iio_dev *indio_dev;
-	int err;
-
-	st_sensors_dev_name_probe(&spi->dev, spi->modalias, sizeof(spi->modalias));
-
-	settings = st_magn_get_settings(spi->modalias);
-	if (!settings) {
-		dev_err(&spi->dev, "device name %s not recognized.\n",
-			spi->modalias);
-		return -ENODEV;
-	}
-
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*mdata));
-	if (!indio_dev)
-		return -ENOMEM;
-
-	mdata = iio_priv(indio_dev);
-	mdata->sensor_settings = (struct st_sensor_settings *)settings;
-
-	err = st_sensors_spi_configure(indio_dev, spi);
-	if (err < 0)
-		return err;
-
-	err = st_sensors_power_enable(indio_dev);
-	if (err)
-		return err;
-
-	return st_magn_common_probe(indio_dev);
+static int st_magn_spi_probe(struct spi_device *spi) {
+  const struct st_sensor_settings *settings;
+  struct st_sensor_data *mdata;
+  struct iio_dev *indio_dev;
+  int err;
+  st_sensors_dev_name_probe(&spi->dev, spi->modalias, sizeof(spi->modalias));
+  settings = st_magn_get_settings(spi->modalias);
+  if (!settings) {
+    dev_err(&spi->dev, "device name %s not recognized.\n",
+        spi->modalias);
+    return -ENODEV;
+  }
+  indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*mdata));
+  if (!indio_dev) {
+    return -ENOMEM;
+  }
+  mdata = iio_priv(indio_dev);
+  mdata->sensor_settings = (struct st_sensor_settings *) settings;
+  err = st_sensors_spi_configure(indio_dev, spi);
+  if (err < 0) {
+    return err;
+  }
+  err = st_sensors_power_enable(indio_dev);
+  if (err) {
+    return err;
+  }
+  return st_magn_common_probe(indio_dev);
 }
 
 static const struct spi_device_id st_magn_id_table[] = {
-	{ LIS3MDL_MAGN_DEV_NAME },
-	{ LSM303AGR_MAGN_DEV_NAME },
-	{ LIS2MDL_MAGN_DEV_NAME },
-	{ LSM9DS1_MAGN_DEV_NAME },
-	{ IIS2MDC_MAGN_DEV_NAME },
-	{ LSM303C_MAGN_DEV_NAME },
-	{},
+  { LIS3MDL_MAGN_DEV_NAME },
+  { LSM303AGR_MAGN_DEV_NAME },
+  { LIS2MDL_MAGN_DEV_NAME },
+  { LSM9DS1_MAGN_DEV_NAME },
+  { IIS2MDC_MAGN_DEV_NAME },
+  { LSM303C_MAGN_DEV_NAME },
+  {},
 };
 MODULE_DEVICE_TABLE(spi, st_magn_id_table);
 
 static struct spi_driver st_magn_driver = {
-	.driver = {
-		.name = "st-magn-spi",
-		.of_match_table = st_magn_of_match,
-	},
-	.probe = st_magn_spi_probe,
-	.id_table = st_magn_id_table,
+  .driver = {
+    .name = "st-magn-spi",
+    .of_match_table = st_magn_of_match,
+  },
+  .probe = st_magn_spi_probe,
+  .id_table = st_magn_id_table,
 };
 module_spi_driver(st_magn_driver);
 

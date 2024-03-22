@@ -78,16 +78,16 @@
  * change to match.
  */
 struct qlogic_ib_stats {
-	__u64 sps_ints; /* number of interrupts handled */
-	__u64 sps_errints; /* number of error interrupts */
-	__u64 sps_txerrs; /* tx-related packet errors */
-	__u64 sps_rcverrs; /* non-crc rcv packet errors */
-	__u64 sps_hwerrs; /* hardware errors reported (parity, etc.) */
-	__u64 sps_nopiobufs; /* no pio bufs avail from kernel */
-	__u64 sps_ctxts; /* number of contexts currently open */
-	__u64 sps_lenerrs; /* number of kernel packets where RHF != LRH len */
-	__u64 sps_buffull;
-	__u64 sps_hdrfull;
+  __u64 sps_ints; /* number of interrupts handled */
+  __u64 sps_errints; /* number of error interrupts */
+  __u64 sps_txerrs; /* tx-related packet errors */
+  __u64 sps_rcverrs; /* non-crc rcv packet errors */
+  __u64 sps_hwerrs; /* hardware errors reported (parity, etc.) */
+  __u64 sps_nopiobufs; /* no pio bufs avail from kernel */
+  __u64 sps_ctxts; /* number of contexts currently open */
+  __u64 sps_lenerrs; /* number of kernel packets where RHF != LRH len */
+  __u64 sps_buffull;
+  __u64 sps_hdrfull;
 };
 
 extern struct qlogic_ib_stats qib_stats;
@@ -111,149 +111,149 @@ struct qib_opcode_stats_perctx;
 #endif
 
 struct qib_ctxtdata {
-	void **rcvegrbuf;
-	dma_addr_t *rcvegrbuf_phys;
-	/* rcvhdrq base, needs mmap before useful */
-	void *rcvhdrq;
-	/* kernel virtual address where hdrqtail is updated */
-	void *rcvhdrtail_kvaddr;
-	/*
-	 * temp buffer for expected send setup, allocated at open, instead
-	 * of each setup call
-	 */
-	void *tid_pg_list;
-	/*
-	 * Shared page for kernel to signal user processes that send buffers
-	 * need disarming.  The process should call QIB_CMD_DISARM_BUFS
-	 * or QIB_CMD_ACK_EVENT with IPATH_EVENT_DISARM_BUFS set.
-	 */
-	unsigned long *user_event_mask;
-	/* when waiting for rcv or pioavail */
-	wait_queue_head_t wait;
-	/*
-	 * rcvegr bufs base, physical, must fit
-	 * in 44 bits so 32 bit programs mmap64 44 bit works)
-	 */
-	dma_addr_t rcvegr_phys;
-	/* mmap of hdrq, must fit in 44 bits */
-	dma_addr_t rcvhdrq_phys;
-	dma_addr_t rcvhdrqtailaddr_phys;
+  void **rcvegrbuf;
+  dma_addr_t *rcvegrbuf_phys;
+  /* rcvhdrq base, needs mmap before useful */
+  void *rcvhdrq;
+  /* kernel virtual address where hdrqtail is updated */
+  void *rcvhdrtail_kvaddr;
+  /*
+   * temp buffer for expected send setup, allocated at open, instead
+   * of each setup call
+   */
+  void *tid_pg_list;
+  /*
+   * Shared page for kernel to signal user processes that send buffers
+   * need disarming.  The process should call QIB_CMD_DISARM_BUFS
+   * or QIB_CMD_ACK_EVENT with IPATH_EVENT_DISARM_BUFS set.
+   */
+  unsigned long *user_event_mask;
+  /* when waiting for rcv or pioavail */
+  wait_queue_head_t wait;
+  /*
+   * rcvegr bufs base, physical, must fit
+   * in 44 bits so 32 bit programs mmap64 44 bit works)
+   */
+  dma_addr_t rcvegr_phys;
+  /* mmap of hdrq, must fit in 44 bits */
+  dma_addr_t rcvhdrq_phys;
+  dma_addr_t rcvhdrqtailaddr_phys;
 
-	/*
-	 * number of opens (including slave sub-contexts) on this instance
-	 * (ignoring forks, dup, etc. for now)
-	 */
-	int cnt;
-	/*
-	 * how much space to leave at start of eager TID entries for
-	 * protocol use, on each TID
-	 */
-	/* instead of calculating it */
-	unsigned ctxt;
-	/* local node of context */
-	int node_id;
-	/* non-zero if ctxt is being shared. */
-	u16 subctxt_cnt;
-	/* non-zero if ctxt is being shared. */
-	u16 subctxt_id;
-	/* number of eager TID entries. */
-	u16 rcvegrcnt;
-	/* index of first eager TID entry. */
-	u16 rcvegr_tid_base;
-	/* number of pio bufs for this ctxt (all procs, if shared) */
-	u32 piocnt;
-	/* first pio buffer for this ctxt */
-	u32 pio_base;
-	/* chip offset of PIO buffers for this ctxt */
-	u32 piobufs;
-	/* how many alloc_pages() chunks in rcvegrbuf_pages */
-	u32 rcvegrbuf_chunks;
-	/* how many egrbufs per chunk */
-	u16 rcvegrbufs_perchunk;
-	/* ilog2 of above */
-	u16 rcvegrbufs_perchunk_shift;
-	/* order for rcvegrbuf_pages */
-	size_t rcvegrbuf_size;
-	/* rcvhdrq size (for freeing) */
-	size_t rcvhdrq_size;
-	/* per-context flags for fileops/intr communication */
-	unsigned long flag;
-	/* next expected TID to check when looking for free */
-	u32 tidcursor;
-	/* WAIT_RCV that timed out, no interrupt */
-	u32 rcvwait_to;
-	/* WAIT_PIO that timed out, no interrupt */
-	u32 piowait_to;
-	/* WAIT_RCV already happened, no wait */
-	u32 rcvnowait;
-	/* WAIT_PIO already happened, no wait */
-	u32 pionowait;
-	/* total number of polled urgent packets */
-	u32 urgent;
-	/* saved total number of polled urgent packets for poll edge trigger */
-	u32 urgent_poll;
-	/* pid of process using this ctxt */
-	pid_t pid;
-	pid_t subpid[QLOGIC_IB_MAX_SUBCTXT];
-	/* same size as task_struct .comm[], command that opened context */
-	char comm[TASK_COMM_LEN];
-	/* pkeys set by this use of this ctxt */
-	u16 pkeys[4];
-	/* so file ops can get at unit */
-	struct qib_devdata *dd;
-	/* so funcs that need physical port can get it easily */
-	struct qib_pportdata *ppd;
-	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
-	void *subctxt_uregbase;
-	/* An array of pages for the eager receive buffers * N */
-	void *subctxt_rcvegrbuf;
-	/* An array of pages for the eager header queue entries * N */
-	void *subctxt_rcvhdr_base;
-	/* The version of the library which opened this ctxt */
-	u32 userversion;
-	/* Bitmask of active slaves */
-	u32 active_slaves;
-	/* Type of packets or conditions we want to poll for */
-	u16 poll_type;
-	/* receive packet sequence counter */
-	u8 seq_cnt;
-	u8 redirect_seq_cnt;
-	/* ctxt rcvhdrq head offset */
-	u32 head;
-	/* QPs waiting for context processing */
-	struct list_head qp_wait_list;
+  /*
+   * number of opens (including slave sub-contexts) on this instance
+   * (ignoring forks, dup, etc. for now)
+   */
+  int cnt;
+  /*
+   * how much space to leave at start of eager TID entries for
+   * protocol use, on each TID
+   */
+  /* instead of calculating it */
+  unsigned ctxt;
+  /* local node of context */
+  int node_id;
+  /* non-zero if ctxt is being shared. */
+  u16 subctxt_cnt;
+  /* non-zero if ctxt is being shared. */
+  u16 subctxt_id;
+  /* number of eager TID entries. */
+  u16 rcvegrcnt;
+  /* index of first eager TID entry. */
+  u16 rcvegr_tid_base;
+  /* number of pio bufs for this ctxt (all procs, if shared) */
+  u32 piocnt;
+  /* first pio buffer for this ctxt */
+  u32 pio_base;
+  /* chip offset of PIO buffers for this ctxt */
+  u32 piobufs;
+  /* how many alloc_pages() chunks in rcvegrbuf_pages */
+  u32 rcvegrbuf_chunks;
+  /* how many egrbufs per chunk */
+  u16 rcvegrbufs_perchunk;
+  /* ilog2 of above */
+  u16 rcvegrbufs_perchunk_shift;
+  /* order for rcvegrbuf_pages */
+  size_t rcvegrbuf_size;
+  /* rcvhdrq size (for freeing) */
+  size_t rcvhdrq_size;
+  /* per-context flags for fileops/intr communication */
+  unsigned long flag;
+  /* next expected TID to check when looking for free */
+  u32 tidcursor;
+  /* WAIT_RCV that timed out, no interrupt */
+  u32 rcvwait_to;
+  /* WAIT_PIO that timed out, no interrupt */
+  u32 piowait_to;
+  /* WAIT_RCV already happened, no wait */
+  u32 rcvnowait;
+  /* WAIT_PIO already happened, no wait */
+  u32 pionowait;
+  /* total number of polled urgent packets */
+  u32 urgent;
+  /* saved total number of polled urgent packets for poll edge trigger */
+  u32 urgent_poll;
+  /* pid of process using this ctxt */
+  pid_t pid;
+  pid_t subpid[QLOGIC_IB_MAX_SUBCTXT];
+  /* same size as task_struct .comm[], command that opened context */
+  char comm[TASK_COMM_LEN];
+  /* pkeys set by this use of this ctxt */
+  u16 pkeys[4];
+  /* so file ops can get at unit */
+  struct qib_devdata *dd;
+  /* so funcs that need physical port can get it easily */
+  struct qib_pportdata *ppd;
+  /* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
+  void *subctxt_uregbase;
+  /* An array of pages for the eager receive buffers * N */
+  void *subctxt_rcvegrbuf;
+  /* An array of pages for the eager header queue entries * N */
+  void *subctxt_rcvhdr_base;
+  /* The version of the library which opened this ctxt */
+  u32 userversion;
+  /* Bitmask of active slaves */
+  u32 active_slaves;
+  /* Type of packets or conditions we want to poll for */
+  u16 poll_type;
+  /* receive packet sequence counter */
+  u8 seq_cnt;
+  u8 redirect_seq_cnt;
+  /* ctxt rcvhdrq head offset */
+  u32 head;
+  /* QPs waiting for context processing */
+  struct list_head qp_wait_list;
 #ifdef CONFIG_DEBUG_FS
-	/* verbs stats per CTX */
-	struct qib_opcode_stats_perctx *opstats;
+  /* verbs stats per CTX */
+  struct qib_opcode_stats_perctx *opstats;
 #endif
 };
 
 struct rvt_sge_state;
 
 struct qib_sdma_txreq {
-	int                 flags;
-	int                 sg_count;
-	dma_addr_t          addr;
-	void              (*callback)(struct qib_sdma_txreq *, int);
-	u16                 start_idx;  /* sdma private */
-	u16                 next_descq_idx;  /* sdma private */
-	struct list_head    list;       /* sdma private */
+  int flags;
+  int sg_count;
+  dma_addr_t addr;
+  void (*callback)(struct qib_sdma_txreq *, int);
+  u16 start_idx;  /* sdma private */
+  u16 next_descq_idx;  /* sdma private */
+  struct list_head list;       /* sdma private */
 };
 
 struct qib_sdma_desc {
-	__le64 qw[2];
+  __le64 qw[2];
 };
 
 struct qib_verbs_txreq {
-	struct qib_sdma_txreq   txreq;
-	struct rvt_qp           *qp;
-	struct rvt_swqe         *wqe;
-	u32                     dwords;
-	u16                     hdr_dwords;
-	u16                     hdr_inx;
-	struct qib_pio_header	*align_buf;
-	struct rvt_mregion	*mr;
-	struct rvt_sge_state    *ss;
+  struct qib_sdma_txreq txreq;
+  struct rvt_qp *qp;
+  struct rvt_swqe *wqe;
+  u32 dwords;
+  u16 hdr_dwords;
+  u16 hdr_inx;
+  struct qib_pio_header *align_buf;
+  struct rvt_mregion *mr;
+  struct rvt_sge_state *ss;
 };
 
 #define QIB_SDMA_TXREQ_F_USELARGEBUF  0x1
@@ -366,7 +366,7 @@ struct qib_verbs_txreq {
  */
 #define QIB_SENDCTRL_DISARM       (0x1000)
 #define QIB_SENDCTRL_DISARM_BUF(bufn) ((bufn) | QIB_SENDCTRL_DISARM)
-	/* available (0x2000) */
+/* available (0x2000) */
 #define QIB_SENDCTRL_AVAIL_DIS    (0x4000)
 #define QIB_SENDCTRL_AVAIL_ENB    (0x8000)
 #define QIB_SENDCTRL_AVAIL_BLIP  (0x10000)
@@ -432,13 +432,13 @@ struct qib_irq_notify;
 #endif
 
 struct qib_msix_entry {
-	void *arg;
+  void *arg;
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	int dca;
-	int rcv;
-	struct qib_irq_notify *notifier;
+  int dca;
+  int rcv;
+  struct qib_irq_notify *notifier;
 #endif
-	cpumask_var_t mask;
+  cpumask_var_t mask;
 };
 
 /* Below is an opaque struct. Each chip (device) can maintain
@@ -450,64 +450,64 @@ struct qib_chip_specific;
 struct qib_chipport_specific;
 
 enum qib_sdma_states {
-	qib_sdma_state_s00_hw_down,
-	qib_sdma_state_s10_hw_start_up_wait,
-	qib_sdma_state_s20_idle,
-	qib_sdma_state_s30_sw_clean_up_wait,
-	qib_sdma_state_s40_hw_clean_up_wait,
-	qib_sdma_state_s50_hw_halt_wait,
-	qib_sdma_state_s99_running,
+  qib_sdma_state_s00_hw_down,
+  qib_sdma_state_s10_hw_start_up_wait,
+  qib_sdma_state_s20_idle,
+  qib_sdma_state_s30_sw_clean_up_wait,
+  qib_sdma_state_s40_hw_clean_up_wait,
+  qib_sdma_state_s50_hw_halt_wait,
+  qib_sdma_state_s99_running,
 };
 
 enum qib_sdma_events {
-	qib_sdma_event_e00_go_hw_down,
-	qib_sdma_event_e10_go_hw_start,
-	qib_sdma_event_e20_hw_started,
-	qib_sdma_event_e30_go_running,
-	qib_sdma_event_e40_sw_cleaned,
-	qib_sdma_event_e50_hw_cleaned,
-	qib_sdma_event_e60_hw_halted,
-	qib_sdma_event_e70_go_idle,
-	qib_sdma_event_e7220_err_halted,
-	qib_sdma_event_e7322_err_halted,
-	qib_sdma_event_e90_timer_tick,
+  qib_sdma_event_e00_go_hw_down,
+  qib_sdma_event_e10_go_hw_start,
+  qib_sdma_event_e20_hw_started,
+  qib_sdma_event_e30_go_running,
+  qib_sdma_event_e40_sw_cleaned,
+  qib_sdma_event_e50_hw_cleaned,
+  qib_sdma_event_e60_hw_halted,
+  qib_sdma_event_e70_go_idle,
+  qib_sdma_event_e7220_err_halted,
+  qib_sdma_event_e7322_err_halted,
+  qib_sdma_event_e90_timer_tick,
 };
 
 struct sdma_set_state_action {
-	unsigned op_enable:1;
-	unsigned op_intenable:1;
-	unsigned op_halt:1;
-	unsigned op_drain:1;
-	unsigned go_s99_running_tofalse:1;
-	unsigned go_s99_running_totrue:1;
+  unsigned op_enable : 1;
+  unsigned op_intenable : 1;
+  unsigned op_halt : 1;
+  unsigned op_drain : 1;
+  unsigned go_s99_running_tofalse : 1;
+  unsigned go_s99_running_totrue : 1;
 };
 
 struct qib_sdma_state {
-	struct kref          kref;
-	struct completion    comp;
-	enum qib_sdma_states current_state;
-	struct sdma_set_state_action *set_state_action;
-	unsigned             current_op;
-	unsigned             go_s99_running;
-	unsigned             first_sendbuf;
-	unsigned             last_sendbuf; /* really last +1 */
-	/* debugging/devel */
-	enum qib_sdma_states previous_state;
-	unsigned             previous_op;
-	enum qib_sdma_events last_event;
+  struct kref kref;
+  struct completion comp;
+  enum qib_sdma_states current_state;
+  struct sdma_set_state_action *set_state_action;
+  unsigned current_op;
+  unsigned go_s99_running;
+  unsigned first_sendbuf;
+  unsigned last_sendbuf; /* really last +1 */
+  /* debugging/devel */
+  enum qib_sdma_states previous_state;
+  unsigned previous_op;
+  enum qib_sdma_events last_event;
 };
 
 struct xmit_wait {
-	struct timer_list timer;
-	u64 counter;
-	u8 flags;
-	struct cache {
-		u64 psxmitdata;
-		u64 psrcvdata;
-		u64 psxmitpkts;
-		u64 psrcvpkts;
-		u64 psxmitwait;
-	} counter_cache;
+  struct timer_list timer;
+  u64 counter;
+  u8 flags;
+  struct cache {
+    u64 psxmitdata;
+    u64 psrcvdata;
+    u64 psxmitpkts;
+    u64 psrcvpkts;
+    u64 psxmitwait;
+  } counter_cache;
 };
 
 /*
@@ -517,162 +517,162 @@ struct xmit_wait {
  * port-numbers are one-based. The first or only port is port1.
  */
 struct qib_pportdata {
-	struct qib_ibport ibport_data;
+  struct qib_ibport ibport_data;
 
-	struct qib_devdata *dd;
-	struct qib_chippport_specific *cpspec; /* chip-specific per-port */
+  struct qib_devdata *dd;
+  struct qib_chippport_specific *cpspec; /* chip-specific per-port */
 
-	/* GUID for this interface, in network order */
-	__be64 guid;
+  /* GUID for this interface, in network order */
+  __be64 guid;
 
-	/* QIB_POLL, etc. link-state specific flags, per port */
-	u32 lflags;
-	/* qib_lflags driver is waiting for */
-	u32 state_wanted;
-	spinlock_t lflags_lock;
+  /* QIB_POLL, etc. link-state specific flags, per port */
+  u32 lflags;
+  /* qib_lflags driver is waiting for */
+  u32 state_wanted;
+  spinlock_t lflags_lock;
 
-	/* ref count for each pkey */
-	atomic_t pkeyrefs[4];
+  /* ref count for each pkey */
+  atomic_t pkeyrefs[4];
 
-	/*
-	 * this address is mapped readonly into user processes so they can
-	 * get status cheaply, whenever they want.  One qword of status per port
-	 */
-	u64 *statusp;
+  /*
+   * this address is mapped readonly into user processes so they can
+   * get status cheaply, whenever they want.  One qword of status per port
+   */
+  u64 *statusp;
 
-	/* SendDMA related entries */
+  /* SendDMA related entries */
 
-	/* read mostly */
-	struct qib_sdma_desc *sdma_descq;
-	struct workqueue_struct *qib_wq;
-	struct qib_sdma_state sdma_state;
-	dma_addr_t       sdma_descq_phys;
-	volatile __le64 *sdma_head_dma; /* DMA'ed by chip */
-	dma_addr_t       sdma_head_phys;
-	u16                   sdma_descq_cnt;
+  /* read mostly */
+  struct qib_sdma_desc *sdma_descq;
+  struct workqueue_struct *qib_wq;
+  struct qib_sdma_state sdma_state;
+  dma_addr_t sdma_descq_phys;
+  volatile __le64 *sdma_head_dma; /* DMA'ed by chip */
+  dma_addr_t sdma_head_phys;
+  u16 sdma_descq_cnt;
 
-	/* read/write using lock */
-	spinlock_t            sdma_lock ____cacheline_aligned_in_smp;
-	struct list_head      sdma_activelist;
-	struct list_head      sdma_userpending;
-	u64                   sdma_descq_added;
-	u64                   sdma_descq_removed;
-	u16                   sdma_descq_tail;
-	u16                   sdma_descq_head;
-	u8                    sdma_generation;
-	u8                    sdma_intrequest;
+  /* read/write using lock */
+  spinlock_t sdma_lock ____cacheline_aligned_in_smp;
+  struct list_head sdma_activelist;
+  struct list_head sdma_userpending;
+  u64 sdma_descq_added;
+  u64 sdma_descq_removed;
+  u16 sdma_descq_tail;
+  u16 sdma_descq_head;
+  u8 sdma_generation;
+  u8 sdma_intrequest;
 
-	struct tasklet_struct sdma_sw_clean_up_task
-		____cacheline_aligned_in_smp;
+  struct tasklet_struct sdma_sw_clean_up_task
+      ____cacheline_aligned_in_smp;
 
-	wait_queue_head_t state_wait; /* for state_wanted */
+  wait_queue_head_t state_wait; /* for state_wanted */
 
-	/* HoL blocking for SMP replies */
-	unsigned          hol_state;
-	struct timer_list hol_timer;
+  /* HoL blocking for SMP replies */
+  unsigned hol_state;
+  struct timer_list hol_timer;
 
-	/*
-	 * Shadow copies of registers; size indicates read access size.
-	 * Most of them are readonly, but some are write-only register,
-	 * where we manipulate the bits in the shadow copy, and then write
-	 * the shadow copy to qlogic_ib.
-	 *
-	 * We deliberately make most of these 32 bits, since they have
-	 * restricted range.  For any that we read, we won't to generate 32
-	 * bit accesses, since Opteron will generate 2 separate 32 bit HT
-	 * transactions for a 64 bit read, and we want to avoid unnecessary
-	 * bus transactions.
-	 */
+  /*
+   * Shadow copies of registers; size indicates read access size.
+   * Most of them are readonly, but some are write-only register,
+   * where we manipulate the bits in the shadow copy, and then write
+   * the shadow copy to qlogic_ib.
+   *
+   * We deliberately make most of these 32 bits, since they have
+   * restricted range.  For any that we read, we won't to generate 32
+   * bit accesses, since Opteron will generate 2 separate 32 bit HT
+   * transactions for a 64 bit read, and we want to avoid unnecessary
+   * bus transactions.
+   */
 
-	/* This is the 64 bit group */
-	/* last ibcstatus.  opaque outside chip-specific code */
-	u64 lastibcstat;
+  /* This is the 64 bit group
+   * last ibcstatus.  opaque outside chip-specific code*/
+  u64 lastibcstat;
 
-	/* these are the "32 bit" regs */
+  /* these are the "32 bit" regs */
 
-	/*
-	 * the following two are 32-bit bitmasks, but {test,clear,set}_bit
-	 * all expect bit fields to be "unsigned long"
-	 */
-	unsigned long p_rcvctrl; /* shadow per-port rcvctrl */
-	unsigned long p_sendctrl; /* shadow per-port sendctrl */
+  /*
+   * the following two are 32-bit bitmasks, but {test,clear,set}_bit
+   * all expect bit fields to be "unsigned long"
+   */
+  unsigned long p_rcvctrl; /* shadow per-port rcvctrl */
+  unsigned long p_sendctrl; /* shadow per-port sendctrl */
 
-	u32 ibmtu; /* The MTU programmed for this unit */
-	/*
-	 * Current max size IB packet (in bytes) including IB headers, that
-	 * we can send. Changes when ibmtu changes.
-	 */
-	u32 ibmaxlen;
-	/*
-	 * ibmaxlen at init time, limited by chip and by receive buffer
-	 * size.  Not changed after init.
-	 */
-	u32 init_ibmaxlen;
-	/* LID programmed for this instance */
-	u16 lid;
-	/* list of pkeys programmed; 0 if not set */
-	u16 pkeys[4];
-	/* LID mask control */
-	u8 lmc;
-	u8 link_width_supported;
-	u16 link_speed_supported;
-	u8 link_width_enabled;
-	u16 link_speed_enabled;
-	u8 link_width_active;
-	u16 link_speed_active;
-	u8 vls_supported;
-	u8 vls_operational;
-	/* Rx Polarity inversion (compensate for ~tx on partner) */
-	u8 rx_pol_inv;
+  u32 ibmtu; /* The MTU programmed for this unit */
+  /*
+   * Current max size IB packet (in bytes) including IB headers, that
+   * we can send. Changes when ibmtu changes.
+   */
+  u32 ibmaxlen;
+  /*
+   * ibmaxlen at init time, limited by chip and by receive buffer
+   * size.  Not changed after init.
+   */
+  u32 init_ibmaxlen;
+  /* LID programmed for this instance */
+  u16 lid;
+  /* list of pkeys programmed; 0 if not set */
+  u16 pkeys[4];
+  /* LID mask control */
+  u8 lmc;
+  u8 link_width_supported;
+  u16 link_speed_supported;
+  u8 link_width_enabled;
+  u16 link_speed_enabled;
+  u8 link_width_active;
+  u16 link_speed_active;
+  u8 vls_supported;
+  u8 vls_operational;
+  /* Rx Polarity inversion (compensate for ~tx on partner) */
+  u8 rx_pol_inv;
 
-	u8 hw_pidx;     /* physical port index */
-	u32 port;        /* IB port number and index into dd->pports - 1 */
+  u8 hw_pidx;     /* physical port index */
+  u32 port;        /* IB port number and index into dd->pports - 1 */
 
-	u8 delay_mult;
+  u8 delay_mult;
 
-	/* used to override LED behavior */
-	u8 led_override;  /* Substituted for normal value, if non-zero */
-	u16 led_override_timeoff; /* delta to next timer event */
-	u8 led_override_vals[2]; /* Alternates per blink-frame */
-	u8 led_override_phase; /* Just counts, LSB picks from vals[] */
-	atomic_t led_override_timer_active;
-	/* Used to flash LEDs in override mode */
-	struct timer_list led_override_timer;
-	struct xmit_wait cong_stats;
-	struct timer_list symerr_clear_timer;
+  /* used to override LED behavior */
+  u8 led_override;  /* Substituted for normal value, if non-zero */
+  u16 led_override_timeoff; /* delta to next timer event */
+  u8 led_override_vals[2]; /* Alternates per blink-frame */
+  u8 led_override_phase; /* Just counts, LSB picks from vals[] */
+  atomic_t led_override_timer_active;
+  /* Used to flash LEDs in override mode */
+  struct timer_list led_override_timer;
+  struct xmit_wait cong_stats;
+  struct timer_list symerr_clear_timer;
 
-	/* Synchronize access between driver writes and sysfs reads */
-	spinlock_t cc_shadow_lock
-		____cacheline_aligned_in_smp;
+  /* Synchronize access between driver writes and sysfs reads */
+  spinlock_t cc_shadow_lock
+      ____cacheline_aligned_in_smp;
 
-	/* Shadow copy of the congestion control table */
-	struct cc_table_shadow *ccti_entries_shadow;
+  /* Shadow copy of the congestion control table */
+  struct cc_table_shadow *ccti_entries_shadow;
 
-	/* Shadow copy of the congestion control entries */
-	struct ib_cc_congestion_setting_attr_shadow *congestion_entries_shadow;
+  /* Shadow copy of the congestion control entries */
+  struct ib_cc_congestion_setting_attr_shadow *congestion_entries_shadow;
 
-	/* List of congestion control table entries */
-	struct ib_cc_table_entry_shadow *ccti_entries;
+  /* List of congestion control table entries */
+  struct ib_cc_table_entry_shadow *ccti_entries;
 
-	/* 16 congestion entries with each entry corresponding to a SL */
-	struct ib_cc_congestion_entry_shadow *congestion_entries;
+  /* 16 congestion entries with each entry corresponding to a SL */
+  struct ib_cc_congestion_entry_shadow *congestion_entries;
 
-	/* Maximum number of congestion control entries that the agent expects
-	 * the manager to send.
-	 */
-	u16 cc_supported_table_entries;
+  /* Maximum number of congestion control entries that the agent expects
+   * the manager to send.
+   */
+  u16 cc_supported_table_entries;
 
-	/* Total number of congestion control table entries */
-	u16 total_cct_entry;
+  /* Total number of congestion control table entries */
+  u16 total_cct_entry;
 
-	/* Bit map identifying service level */
-	u16 cc_sl_control_map;
+  /* Bit map identifying service level */
+  u16 cc_sl_control_map;
 
-	/* maximum congestion control table index */
-	u16 ccti_limit;
+  /* maximum congestion control table index */
+  u16 ccti_limit;
 
-	/* CA's max number of 64 entry units in the congestion control table */
-	u8 cc_max_table_entries;
+  /* CA's max number of 64 entry units in the congestion control table */
+  u8 cc_max_table_entries;
 };
 
 /* Observers. Not to be taken lightly, possibly not to ship. */
@@ -684,18 +684,18 @@ struct qib_pportdata {
  */
 struct diag_observer;
 
-typedef int (*diag_hook) (struct qib_devdata *dd,
-	const struct diag_observer *op,
-	u32 offs, u64 *data, u64 mask, int only_32);
+typedef int (*diag_hook)(struct qib_devdata *dd,
+    const struct diag_observer *op,
+    u32 offs, u64 *data, u64 mask, int only_32);
 
 struct diag_observer {
-	diag_hook hook;
-	u32 bottom;
-	u32 top;
+  diag_hook hook;
+  u32 bottom;
+  u32 top;
 };
 
 extern int qib_register_observer(struct qib_devdata *dd,
-	const struct diag_observer *op);
+    const struct diag_observer *op);
 
 /* Only declared here, not defined. Private to diags */
 struct diag_observer_list_elt;
@@ -706,372 +706,371 @@ struct diag_observer_list_elt;
  * a qib_chipdata struct, whose contents are opaque to this file.
  */
 struct qib_devdata {
-	struct qib_ibdev verbs_dev;     /* must be first */
-	struct list_head list;
-	/* pointers to related structs for this device */
-	/* pci access data structure */
-	struct pci_dev *pcidev;
-	struct cdev *user_cdev;
-	struct cdev *diag_cdev;
-	struct device *user_device;
-	struct device *diag_device;
+  struct qib_ibdev verbs_dev;     /* must be first */
+  struct list_head list;
+  /* pointers to related structs for this device
+   * pci access data structure*/
+  struct pci_dev *pcidev;
+  struct cdev *user_cdev;
+  struct cdev *diag_cdev;
+  struct device *user_device;
+  struct device *diag_device;
 
-	/* mem-mapped pointer to base of chip regs */
-	u64 __iomem *kregbase;
-	/* end of mem-mapped chip space excluding sendbuf and user regs */
-	u64 __iomem *kregend;
-	/* physical address of chip for io_remap, etc. */
-	resource_size_t physaddr;
-	/* qib_cfgctxts pointers */
-	struct qib_ctxtdata **rcd; /* Receive Context Data */
+  /* mem-mapped pointer to base of chip regs */
+  u64 __iomem *kregbase;
+  /* end of mem-mapped chip space excluding sendbuf and user regs */
+  u64 __iomem *kregend;
+  /* physical address of chip for io_remap, etc. */
+  resource_size_t physaddr;
+  /* qib_cfgctxts pointers */
+  struct qib_ctxtdata **rcd; /* Receive Context Data */
 
-	/* qib_pportdata, points to array of (physical) port-specific
-	 * data structs, indexed by pidx (0..n-1)
-	 */
-	struct qib_pportdata *pport;
-	struct qib_chip_specific *cspec; /* chip-specific */
+  /* qib_pportdata, points to array of (physical) port-specific
+   * data structs, indexed by pidx (0..n-1)
+   */
+  struct qib_pportdata *pport;
+  struct qib_chip_specific *cspec; /* chip-specific */
 
-	/* kvirt address of 1st 2k pio buffer */
-	void __iomem *pio2kbase;
-	/* kvirt address of 1st 4k pio buffer */
-	void __iomem *pio4kbase;
-	/* mem-mapped pointer to base of PIO buffers (if using WC PAT) */
-	void __iomem *piobase;
-	/* mem-mapped pointer to base of user chip regs (if using WC PAT) */
-	u64 __iomem *userbase;
-	void __iomem *piovl15base; /* base of VL15 buffers, if not WC */
-	/*
-	 * points to area where PIOavail registers will be DMA'ed.
-	 * Has to be on a page of it's own, because the page will be
-	 * mapped into user program space.  This copy is *ONLY* ever
-	 * written by DMA, not by the driver!  Need a copy per device
-	 * when we get to multiple devices
-	 */
-	volatile __le64 *pioavailregs_dma; /* DMA'ed by chip */
-	/* physical address where updates occur */
-	dma_addr_t pioavailregs_phys;
+  /* kvirt address of 1st 2k pio buffer */
+  void __iomem *pio2kbase;
+  /* kvirt address of 1st 4k pio buffer */
+  void __iomem *pio4kbase;
+  /* mem-mapped pointer to base of PIO buffers (if using WC PAT) */
+  void __iomem *piobase;
+  /* mem-mapped pointer to base of user chip regs (if using WC PAT) */
+  u64 __iomem *userbase;
+  void __iomem *piovl15base; /* base of VL15 buffers, if not WC */
+  /*
+   * points to area where PIOavail registers will be DMA'ed.
+   * Has to be on a page of it's own, because the page will be
+   * mapped into user program space.  This copy is *ONLY* ever
+   * written by DMA, not by the driver!  Need a copy per device
+   * when we get to multiple devices
+   */
+  volatile __le64 *pioavailregs_dma; /* DMA'ed by chip */
+  /* physical address where updates occur */
+  dma_addr_t pioavailregs_phys;
 
-	/* device-specific implementations of functions needed by
-	 * common code. Contrary to previous consensus, we can't
-	 * really just point to a device-specific table, because we
-	 * may need to "bend", e.g. *_f_put_tid
-	 */
-	/* fallback to alternate interrupt type if possible */
-	int (*f_intr_fallback)(struct qib_devdata *);
-	/* hard reset chip */
-	int (*f_reset)(struct qib_devdata *);
-	void (*f_quiet_serdes)(struct qib_pportdata *);
-	int (*f_bringup_serdes)(struct qib_pportdata *);
-	int (*f_early_init)(struct qib_devdata *);
-	void (*f_clear_tids)(struct qib_devdata *, struct qib_ctxtdata *);
-	void (*f_put_tid)(struct qib_devdata *, u64 __iomem*,
-				u32, unsigned long);
-	void (*f_cleanup)(struct qib_devdata *);
-	void (*f_setextled)(struct qib_pportdata *, u32);
-	/* fill out chip-specific fields */
-	int (*f_get_base_info)(struct qib_ctxtdata *, struct qib_base_info *);
-	/* free irq */
-	void (*f_free_irq)(struct qib_devdata *);
-	struct qib_message_header *(*f_get_msgheader)
-					(struct qib_devdata *, __le32 *);
-	void (*f_config_ctxts)(struct qib_devdata *);
-	int (*f_get_ib_cfg)(struct qib_pportdata *, int);
-	int (*f_set_ib_cfg)(struct qib_pportdata *, int, u32);
-	int (*f_set_ib_loopback)(struct qib_pportdata *, const char *);
-	int (*f_get_ib_table)(struct qib_pportdata *, int, void *);
-	int (*f_set_ib_table)(struct qib_pportdata *, int, void *);
-	u32 (*f_iblink_state)(u64);
-	u8 (*f_ibphys_portstate)(u64);
-	void (*f_xgxs_reset)(struct qib_pportdata *);
-	/* per chip actions needed for IB Link up/down changes */
-	int (*f_ib_updown)(struct qib_pportdata *, int, u64);
-	u32 __iomem *(*f_getsendbuf)(struct qib_pportdata *, u64, u32 *);
-	/* Read/modify/write of GPIO pins (potentially chip-specific */
-	int (*f_gpio_mod)(struct qib_devdata *dd, u32 out, u32 dir,
-		u32 mask);
-	/* Enable writes to config EEPROM (if supported) */
-	int (*f_eeprom_wen)(struct qib_devdata *dd, int wen);
-	/*
-	 * modify rcvctrl shadow[s] and write to appropriate chip-regs.
-	 * see above QIB_RCVCTRL_xxx_ENB/DIS for operations.
-	 * (ctxt == -1) means "all contexts", only meaningful for
-	 * clearing. Could remove if chip_spec shutdown properly done.
-	 */
-	void (*f_rcvctrl)(struct qib_pportdata *, unsigned int op,
-		int ctxt);
-	/* Read/modify/write sendctrl appropriately for op and port. */
-	void (*f_sendctrl)(struct qib_pportdata *, u32 op);
-	void (*f_set_intr_state)(struct qib_devdata *, u32);
-	void (*f_set_armlaunch)(struct qib_devdata *, u32);
-	void (*f_wantpiobuf_intr)(struct qib_devdata *, u32);
-	int (*f_late_initreg)(struct qib_devdata *);
-	int (*f_init_sdma_regs)(struct qib_pportdata *);
-	u16 (*f_sdma_gethead)(struct qib_pportdata *);
-	int (*f_sdma_busy)(struct qib_pportdata *);
-	void (*f_sdma_update_tail)(struct qib_pportdata *, u16);
-	void (*f_sdma_set_desc_cnt)(struct qib_pportdata *, unsigned);
-	void (*f_sdma_sendctrl)(struct qib_pportdata *, unsigned);
-	void (*f_sdma_hw_clean_up)(struct qib_pportdata *);
-	void (*f_sdma_hw_start_up)(struct qib_pportdata *);
-	void (*f_sdma_init_early)(struct qib_pportdata *);
-	void (*f_set_cntr_sample)(struct qib_pportdata *, u32, u32);
-	void (*f_update_usrhead)(struct qib_ctxtdata *, u64, u32, u32, u32);
-	u32 (*f_hdrqempty)(struct qib_ctxtdata *);
-	u64 (*f_portcntr)(struct qib_pportdata *, u32);
-	u32 (*f_read_cntrs)(struct qib_devdata *, loff_t, char **,
-		u64 **);
-	u32 (*f_read_portcntrs)(struct qib_devdata *, loff_t, u32,
-		char **, u64 **);
-	u32 (*f_setpbc_control)(struct qib_pportdata *, u32, u8, u8);
-	void (*f_initvl15_bufs)(struct qib_devdata *);
-	void (*f_init_ctxt)(struct qib_ctxtdata *);
-	void (*f_txchk_change)(struct qib_devdata *, u32, u32, u32,
-		struct qib_ctxtdata *);
-	void (*f_writescratch)(struct qib_devdata *, u32);
-	int (*f_tempsense_rd)(struct qib_devdata *, int regnum);
+  /* device-specific implementations of functions needed by
+   * common code. Contrary to previous consensus, we can't
+   * really just point to a device-specific table, because we
+   * may need to "bend", e.g. *_f_put_tid
+   */
+  /* fallback to alternate interrupt type if possible */
+  int (*f_intr_fallback)(struct qib_devdata *);
+  /* hard reset chip */
+  int (*f_reset)(struct qib_devdata *);
+  void (*f_quiet_serdes)(struct qib_pportdata *);
+  int (*f_bringup_serdes)(struct qib_pportdata *);
+  int (*f_early_init)(struct qib_devdata *);
+  void (*f_clear_tids)(struct qib_devdata *, struct qib_ctxtdata *);
+  void (*f_put_tid)(struct qib_devdata *, u64 __iomem *,
+      u32, unsigned long);
+  void (*f_cleanup)(struct qib_devdata *);
+  void (*f_setextled)(struct qib_pportdata *, u32);
+  /* fill out chip-specific fields */
+  int (*f_get_base_info)(struct qib_ctxtdata *, struct qib_base_info *);
+  /* free irq */
+  void (*f_free_irq)(struct qib_devdata *);
+  struct qib_message_header *(*f_get_msgheader)(struct qib_devdata *, __le32 *);
+  void (*f_config_ctxts)(struct qib_devdata *);
+  int (*f_get_ib_cfg)(struct qib_pportdata *, int);
+  int (*f_set_ib_cfg)(struct qib_pportdata *, int, u32);
+  int (*f_set_ib_loopback)(struct qib_pportdata *, const char *);
+  int (*f_get_ib_table)(struct qib_pportdata *, int, void *);
+  int (*f_set_ib_table)(struct qib_pportdata *, int, void *);
+  u32 (*f_iblink_state)(u64);
+  u8 (*f_ibphys_portstate)(u64);
+  void (*f_xgxs_reset)(struct qib_pportdata *);
+  /* per chip actions needed for IB Link up/down changes */
+  int (*f_ib_updown)(struct qib_pportdata *, int, u64);
+  u32 __iomem *(*f_getsendbuf)(struct qib_pportdata *, u64, u32 *);
+  /* Read/modify/write of GPIO pins (potentially chip-specific */
+  int (*f_gpio_mod)(struct qib_devdata *dd, u32 out, u32 dir,
+      u32 mask);
+  /* Enable writes to config EEPROM (if supported) */
+  int (*f_eeprom_wen)(struct qib_devdata *dd, int wen);
+  /*
+   * modify rcvctrl shadow[s] and write to appropriate chip-regs.
+   * see above QIB_RCVCTRL_xxx_ENB/DIS for operations.
+   * (ctxt == -1) means "all contexts", only meaningful for
+   * clearing. Could remove if chip_spec shutdown properly done.
+   */
+  void (*f_rcvctrl)(struct qib_pportdata *, unsigned int op,
+      int ctxt);
+  /* Read/modify/write sendctrl appropriately for op and port. */
+  void (*f_sendctrl)(struct qib_pportdata *, u32 op);
+  void (*f_set_intr_state)(struct qib_devdata *, u32);
+  void (*f_set_armlaunch)(struct qib_devdata *, u32);
+  void (*f_wantpiobuf_intr)(struct qib_devdata *, u32);
+  int (*f_late_initreg)(struct qib_devdata *);
+  int (*f_init_sdma_regs)(struct qib_pportdata *);
+  u16 (*f_sdma_gethead)(struct qib_pportdata *);
+  int (*f_sdma_busy)(struct qib_pportdata *);
+  void (*f_sdma_update_tail)(struct qib_pportdata *, u16);
+  void (*f_sdma_set_desc_cnt)(struct qib_pportdata *, unsigned);
+  void (*f_sdma_sendctrl)(struct qib_pportdata *, unsigned);
+  void (*f_sdma_hw_clean_up)(struct qib_pportdata *);
+  void (*f_sdma_hw_start_up)(struct qib_pportdata *);
+  void (*f_sdma_init_early)(struct qib_pportdata *);
+  void (*f_set_cntr_sample)(struct qib_pportdata *, u32, u32);
+  void (*f_update_usrhead)(struct qib_ctxtdata *, u64, u32, u32, u32);
+  u32 (*f_hdrqempty)(struct qib_ctxtdata *);
+  u64 (*f_portcntr)(struct qib_pportdata *, u32);
+  u32 (*f_read_cntrs)(struct qib_devdata *, loff_t, char **,
+      u64 **);
+  u32 (*f_read_portcntrs)(struct qib_devdata *, loff_t, u32,
+      char **, u64 **);
+  u32 (*f_setpbc_control)(struct qib_pportdata *, u32, u8, u8);
+  void (*f_initvl15_bufs)(struct qib_devdata *);
+  void (*f_init_ctxt)(struct qib_ctxtdata *);
+  void (*f_txchk_change)(struct qib_devdata *, u32, u32, u32,
+      struct qib_ctxtdata *);
+  void (*f_writescratch)(struct qib_devdata *, u32);
+  int (*f_tempsense_rd)(struct qib_devdata *, int regnum);
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	int (*f_notify_dca)(struct qib_devdata *, unsigned long event);
+  int (*f_notify_dca)(struct qib_devdata *, unsigned long event);
 #endif
 
-	char *boardname; /* human readable board info */
+  char *boardname; /* human readable board info */
 
-	/* template for writing TIDs  */
-	u64 tidtemplate;
-	/* value to write to free TIDs */
-	u64 tidinvalid;
+  /* template for writing TIDs  */
+  u64 tidtemplate;
+  /* value to write to free TIDs */
+  u64 tidinvalid;
 
-	/* number of registers used for pioavail */
-	u32 pioavregs;
-	/* device (not port) flags, basically device capabilities */
-	u32 flags;
-	/* last buffer for user use */
-	u32 lastctxt_piobuf;
+  /* number of registers used for pioavail */
+  u32 pioavregs;
+  /* device (not port) flags, basically device capabilities */
+  u32 flags;
+  /* last buffer for user use */
+  u32 lastctxt_piobuf;
 
-	/* reset value */
-	u64 z_int_counter;
-	/* percpu intcounter */
-	u64 __percpu *int_counter;
+  /* reset value */
+  u64 z_int_counter;
+  /* percpu intcounter */
+  u64 __percpu *int_counter;
 
-	/* pio bufs allocated per ctxt */
-	u32 pbufsctxt;
-	/* if remainder on bufs/ctxt, ctxts < extrabuf get 1 extra */
-	u32 ctxts_extrabuf;
-	/*
-	 * number of ctxts configured as max; zero is set to number chip
-	 * supports, less gives more pio bufs/ctxt, etc.
-	 */
-	u32 cfgctxts;
-	/*
-	 * number of ctxts available for PSM open
-	 */
-	u32 freectxts;
+  /* pio bufs allocated per ctxt */
+  u32 pbufsctxt;
+  /* if remainder on bufs/ctxt, ctxts < extrabuf get 1 extra */
+  u32 ctxts_extrabuf;
+  /*
+   * number of ctxts configured as max; zero is set to number chip
+   * supports, less gives more pio bufs/ctxt, etc.
+   */
+  u32 cfgctxts;
+  /*
+   * number of ctxts available for PSM open
+   */
+  u32 freectxts;
 
-	/*
-	 * hint that we should update pioavailshadow before
-	 * looking for a PIO buffer
-	 */
-	u32 upd_pio_shadow;
+  /*
+   * hint that we should update pioavailshadow before
+   * looking for a PIO buffer
+   */
+  u32 upd_pio_shadow;
 
-	/* internal debugging stats */
-	u32 maxpkts_call;
-	u32 avgpkts_call;
-	u64 nopiobufs;
+  /* internal debugging stats */
+  u32 maxpkts_call;
+  u32 avgpkts_call;
+  u64 nopiobufs;
 
-	/* PCI Vendor ID (here for NodeInfo) */
-	u16 vendorid;
-	/* PCI Device ID (here for NodeInfo) */
-	u16 deviceid;
-	/* for write combining settings */
-	int wc_cookie;
-	unsigned long wc_base;
-	unsigned long wc_len;
+  /* PCI Vendor ID (here for NodeInfo) */
+  u16 vendorid;
+  /* PCI Device ID (here for NodeInfo) */
+  u16 deviceid;
+  /* for write combining settings */
+  int wc_cookie;
+  unsigned long wc_base;
+  unsigned long wc_len;
 
-	/* shadow copy of struct page *'s for exp tid pages */
-	struct page **pageshadow;
-	/* shadow copy of dma handles for exp tid pages */
-	dma_addr_t *physshadow;
-	u64 __iomem *egrtidbase;
-	spinlock_t sendctrl_lock; /* protect changes to sendctrl shadow */
-	/* around rcd and (user ctxts) ctxt_cnt use (intr vs free) */
-	spinlock_t uctxt_lock; /* rcd and user context changes */
-	/*
-	 * per unit status, see also portdata statusp
-	 * mapped readonly into user processes so they can get unit and
-	 * IB link status cheaply
-	 */
-	u64 *devstatusp;
-	char *freezemsg; /* freeze msg if hw error put chip in freeze */
-	u32 freezelen; /* max length of freezemsg */
-	/* timer used to prevent stats overflow, error throttling, etc. */
-	struct timer_list stats_timer;
+  /* shadow copy of struct page *'s for exp tid pages */
+  struct page **pageshadow;
+  /* shadow copy of dma handles for exp tid pages */
+  dma_addr_t *physshadow;
+  u64 __iomem *egrtidbase;
+  spinlock_t sendctrl_lock; /* protect changes to sendctrl shadow */
+  /* around rcd and (user ctxts) ctxt_cnt use (intr vs free) */
+  spinlock_t uctxt_lock; /* rcd and user context changes */
+  /*
+   * per unit status, see also portdata statusp
+   * mapped readonly into user processes so they can get unit and
+   * IB link status cheaply
+   */
+  u64 *devstatusp;
+  char *freezemsg; /* freeze msg if hw error put chip in freeze */
+  u32 freezelen; /* max length of freezemsg */
+  /* timer used to prevent stats overflow, error throttling, etc. */
+  struct timer_list stats_timer;
 
-	/* timer to verify interrupts work, and fallback if possible */
-	struct timer_list intrchk_timer;
-	unsigned long ureg_align; /* user register alignment */
+  /* timer to verify interrupts work, and fallback if possible */
+  struct timer_list intrchk_timer;
+  unsigned long ureg_align; /* user register alignment */
 
-	/*
-	 * Protects pioavailshadow, pioavailkernel, pio_need_disarm, and
-	 * pio_writing.
-	 */
-	spinlock_t pioavail_lock;
-	/*
-	 * index of last buffer to optimize search for next
-	 */
-	u32 last_pio;
-	/*
-	 * min kernel pio buffer to optimize search
-	 */
-	u32 min_kernel_pio;
-	/*
-	 * Shadow copies of registers; size indicates read access size.
-	 * Most of them are readonly, but some are write-only register,
-	 * where we manipulate the bits in the shadow copy, and then write
-	 * the shadow copy to qlogic_ib.
-	 *
-	 * We deliberately make most of these 32 bits, since they have
-	 * restricted range.  For any that we read, we won't to generate 32
-	 * bit accesses, since Opteron will generate 2 separate 32 bit HT
-	 * transactions for a 64 bit read, and we want to avoid unnecessary
-	 * bus transactions.
-	 */
+  /*
+   * Protects pioavailshadow, pioavailkernel, pio_need_disarm, and
+   * pio_writing.
+   */
+  spinlock_t pioavail_lock;
+  /*
+   * index of last buffer to optimize search for next
+   */
+  u32 last_pio;
+  /*
+   * min kernel pio buffer to optimize search
+   */
+  u32 min_kernel_pio;
+  /*
+   * Shadow copies of registers; size indicates read access size.
+   * Most of them are readonly, but some are write-only register,
+   * where we manipulate the bits in the shadow copy, and then write
+   * the shadow copy to qlogic_ib.
+   *
+   * We deliberately make most of these 32 bits, since they have
+   * restricted range.  For any that we read, we won't to generate 32
+   * bit accesses, since Opteron will generate 2 separate 32 bit HT
+   * transactions for a 64 bit read, and we want to avoid unnecessary
+   * bus transactions.
+   */
 
-	/* This is the 64 bit group */
+  /* This is the 64 bit group */
 
-	unsigned long pioavailshadow[6];
-	/* bitmap of send buffers available for the kernel to use with PIO. */
-	unsigned long pioavailkernel[6];
-	/* bitmap of send buffers which need to be disarmed. */
-	unsigned long pio_need_disarm[3];
-	/* bitmap of send buffers which are being written to. */
-	unsigned long pio_writing[3];
-	/* kr_revision shadow */
-	u64 revision;
-	/* Base GUID for device (from eeprom, network order) */
-	__be64 base_guid;
+  unsigned long pioavailshadow[6];
+  /* bitmap of send buffers available for the kernel to use with PIO. */
+  unsigned long pioavailkernel[6];
+  /* bitmap of send buffers which need to be disarmed. */
+  unsigned long pio_need_disarm[3];
+  /* bitmap of send buffers which are being written to. */
+  unsigned long pio_writing[3];
+  /* kr_revision shadow */
+  u64 revision;
+  /* Base GUID for device (from eeprom, network order) */
+  __be64 base_guid;
 
-	/*
-	 * kr_sendpiobufbase value (chip offset of pio buffers), and the
-	 * base of the 2KB buffer s(user processes only use 2K)
-	 */
-	u64 piobufbase;
-	u32 pio2k_bufbase;
+  /*
+   * kr_sendpiobufbase value (chip offset of pio buffers), and the
+   * base of the 2KB buffer s(user processes only use 2K)
+   */
+  u64 piobufbase;
+  u32 pio2k_bufbase;
 
-	/* these are the "32 bit" regs */
+  /* these are the "32 bit" regs */
 
-	/* number of GUIDs in the flash for this interface */
-	u32 nguid;
-	/*
-	 * the following two are 32-bit bitmasks, but {test,clear,set}_bit
-	 * all expect bit fields to be "unsigned long"
-	 */
-	unsigned long rcvctrl; /* shadow per device rcvctrl */
-	unsigned long sendctrl; /* shadow per device sendctrl */
+  /* number of GUIDs in the flash for this interface */
+  u32 nguid;
+  /*
+   * the following two are 32-bit bitmasks, but {test,clear,set}_bit
+   * all expect bit fields to be "unsigned long"
+   */
+  unsigned long rcvctrl; /* shadow per device rcvctrl */
+  unsigned long sendctrl; /* shadow per device sendctrl */
 
-	/* value we put in kr_rcvhdrcnt */
-	u32 rcvhdrcnt;
-	/* value we put in kr_rcvhdrsize */
-	u32 rcvhdrsize;
-	/* value we put in kr_rcvhdrentsize */
-	u32 rcvhdrentsize;
-	/* kr_ctxtcnt value */
-	u32 ctxtcnt;
-	/* kr_pagealign value */
-	u32 palign;
-	/* number of "2KB" PIO buffers */
-	u32 piobcnt2k;
-	/* size in bytes of "2KB" PIO buffers */
-	u32 piosize2k;
-	/* max usable size in dwords of a "2KB" PIO buffer before going "4KB" */
-	u32 piosize2kmax_dwords;
-	/* number of "4KB" PIO buffers */
-	u32 piobcnt4k;
-	/* size in bytes of "4KB" PIO buffers */
-	u32 piosize4k;
-	/* kr_rcvegrbase value */
-	u32 rcvegrbase;
-	/* kr_rcvtidbase value */
-	u32 rcvtidbase;
-	/* kr_rcvtidcnt value */
-	u32 rcvtidcnt;
-	/* kr_userregbase */
-	u32 uregbase;
-	/* shadow the control register contents */
-	u32 control;
+  /* value we put in kr_rcvhdrcnt */
+  u32 rcvhdrcnt;
+  /* value we put in kr_rcvhdrsize */
+  u32 rcvhdrsize;
+  /* value we put in kr_rcvhdrentsize */
+  u32 rcvhdrentsize;
+  /* kr_ctxtcnt value */
+  u32 ctxtcnt;
+  /* kr_pagealign value */
+  u32 palign;
+  /* number of "2KB" PIO buffers */
+  u32 piobcnt2k;
+  /* size in bytes of "2KB" PIO buffers */
+  u32 piosize2k;
+  /* max usable size in dwords of a "2KB" PIO buffer before going "4KB" */
+  u32 piosize2kmax_dwords;
+  /* number of "4KB" PIO buffers */
+  u32 piobcnt4k;
+  /* size in bytes of "4KB" PIO buffers */
+  u32 piosize4k;
+  /* kr_rcvegrbase value */
+  u32 rcvegrbase;
+  /* kr_rcvtidbase value */
+  u32 rcvtidbase;
+  /* kr_rcvtidcnt value */
+  u32 rcvtidcnt;
+  /* kr_userregbase */
+  u32 uregbase;
+  /* shadow the control register contents */
+  u32 control;
 
-	/* chip address space used by 4k pio buffers */
-	u32 align4k;
-	/* size of each rcvegrbuffer */
-	u16 rcvegrbufsize;
-	/* log2 of above */
-	u16 rcvegrbufsize_shift;
-	/* localbus width (1, 2,4,8,16,32) from config space  */
-	u32 lbus_width;
-	/* localbus speed in MHz */
-	u32 lbus_speed;
-	int unit; /* unit # of this chip */
+  /* chip address space used by 4k pio buffers */
+  u32 align4k;
+  /* size of each rcvegrbuffer */
+  u16 rcvegrbufsize;
+  /* log2 of above */
+  u16 rcvegrbufsize_shift;
+  /* localbus width (1, 2,4,8,16,32) from config space  */
+  u32 lbus_width;
+  /* localbus speed in MHz */
+  u32 lbus_speed;
+  int unit; /* unit # of this chip */
 
-	/* start of CHIP_SPEC move to chipspec, but need code changes */
-	/* low and high portions of MSI capability/vector */
-	u32 msi_lo;
-	/* saved after PCIe init for restore after reset */
-	u32 msi_hi;
-	/* MSI data (vector) saved for restore */
-	u16 msi_data;
-	/* so we can rewrite it after a chip reset */
-	u32 pcibar0;
-	/* so we can rewrite it after a chip reset */
-	u32 pcibar1;
-	u64 rhdrhead_intr_off;
+  /* start of CHIP_SPEC move to chipspec, but need code changes
+   * low and high portions of MSI capability/vector*/
+  u32 msi_lo;
+  /* saved after PCIe init for restore after reset */
+  u32 msi_hi;
+  /* MSI data (vector) saved for restore */
+  u16 msi_data;
+  /* so we can rewrite it after a chip reset */
+  u32 pcibar0;
+  /* so we can rewrite it after a chip reset */
+  u32 pcibar1;
+  u64 rhdrhead_intr_off;
 
-	/*
-	 * ASCII serial number, from flash, large enough for original
-	 * all digit strings, and longer QLogic serial number format
-	 */
-	u8 serial[16];
-	/* human readable board version */
-	u8 boardversion[96];
-	u8 lbus_info[32]; /* human readable localbus info */
-	/* chip major rev, from qib_revision */
-	u8 majrev;
-	/* chip minor rev, from qib_revision */
-	u8 minrev;
+  /*
+   * ASCII serial number, from flash, large enough for original
+   * all digit strings, and longer QLogic serial number format
+   */
+  u8 serial[16];
+  /* human readable board version */
+  u8 boardversion[96];
+  u8 lbus_info[32]; /* human readable localbus info */
+  /* chip major rev, from qib_revision */
+  u8 majrev;
+  /* chip minor rev, from qib_revision */
+  u8 minrev;
 
-	/* Misc small ints */
-	/* Number of physical ports available */
-	u8 num_pports;
-	/* Lowest context number which can be used by user processes */
-	u8 first_user_ctxt;
-	u8 n_krcv_queues;
-	u8 qpn_mask;
-	u8 skip_kctxt_mask;
+  /* Misc small ints
+   * Number of physical ports available*/
+  u8 num_pports;
+  /* Lowest context number which can be used by user processes */
+  u8 first_user_ctxt;
+  u8 n_krcv_queues;
+  u8 qpn_mask;
+  u8 skip_kctxt_mask;
 
-	u16 rhf_offset; /* offset of RHF within receive header entry */
+  u16 rhf_offset; /* offset of RHF within receive header entry */
 
-	/*
-	 * GPIO pins for twsi-connected devices, and device code for eeprom
-	 */
-	u8 gpio_sda_num;
-	u8 gpio_scl_num;
-	u8 twsi_eeprom_dev;
-	u8 board_atten;
+  /*
+   * GPIO pins for twsi-connected devices, and device code for eeprom
+   */
+  u8 gpio_sda_num;
+  u8 gpio_scl_num;
+  u8 twsi_eeprom_dev;
+  u8 board_atten;
 
-	/* Support (including locks) for EEPROM logging of errors and time */
-	/* control access to actual counters, timer */
-	spinlock_t eep_st_lock;
-	/* control high-level access to EEPROM */
-	struct mutex eep_lock;
-	uint64_t traffic_wds;
-	struct qib_diag_client *diag_client;
-	spinlock_t qib_diag_trans_lock; /* protect diag observer ops */
-	struct diag_observer_list_elt *diag_observer_list;
+  /* Support (including locks) for EEPROM logging of errors and time
+   * control access to actual counters, timer*/
+  spinlock_t eep_st_lock;
+  /* control high-level access to EEPROM */
+  struct mutex eep_lock;
+  uint64_t traffic_wds;
+  struct qib_diag_client *diag_client;
+  spinlock_t qib_diag_trans_lock; /* protect diag observer ops */
+  struct diag_observer_list_elt *diag_observer_list;
 
-	u8 psxmitwait_supported;
-	/* cycle length of PS* counters in HW (in picoseconds) */
-	u16 psxmitwait_check_rate;
-	/* high volume overflow errors defered to tasklet */
-	struct tasklet_struct error_tasklet;
+  u8 psxmitwait_supported;
+  /* cycle length of PS* counters in HW (in picoseconds) */
+  u16 psxmitwait_check_rate;
+  /* high volume overflow errors defered to tasklet */
+  struct tasklet_struct error_tasklet;
 
-	int assigned_node_id; /* NUMA node closest to HCA */
+  int assigned_node_id; /* NUMA node closest to HCA */
 };
 
 /* hol_state values */
@@ -1095,11 +1094,11 @@ struct qib_devdata {
 
 /* Private data for file operations */
 struct qib_filedata {
-	struct qib_ctxtdata *rcd;
-	unsigned subctxt;
-	unsigned tidcursor;
-	struct qib_user_sdma_queue *pq;
-	int rec_cpu_num; /* for cpu affinity; -1 if none */
+  struct qib_ctxtdata *rcd;
+  unsigned subctxt;
+  unsigned tidcursor;
+  struct qib_user_sdma_queue *pq;
+  int rec_cpu_num; /* for cpu affinity; -1 if none */
 };
 
 extern struct xarray qib_dev_table;
@@ -1116,8 +1115,8 @@ int qib_count_units(int *npresentp, int *nupp);
 int qib_count_active_units(void);
 
 int qib_cdev_init(int minor, const char *name,
-		  const struct file_operations *fops,
-		  struct cdev **cdevp, struct device **devp);
+    const struct file_operations *fops,
+    struct cdev **cdevp, struct device **devp);
 void qib_cdev_cleanup(struct cdev **cdevp, struct device **devp);
 int qib_dev_init(void);
 void qib_dev_cleanup(void);
@@ -1168,41 +1167,35 @@ int qib_set_uevent_bits(struct qib_pportdata *, const int);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define ctxt_fp(fp) \
-	(((struct qib_filedata *)(fp)->private_data)->rcd)
+  (((struct qib_filedata *) (fp)->private_data)->rcd)
 #define subctxt_fp(fp) \
-	(((struct qib_filedata *)(fp)->private_data)->subctxt)
+  (((struct qib_filedata *) (fp)->private_data)->subctxt)
 #define tidcursor_fp(fp) \
-	(((struct qib_filedata *)(fp)->private_data)->tidcursor)
+  (((struct qib_filedata *) (fp)->private_data)->tidcursor)
 #define user_sdma_queue_fp(fp) \
-	(((struct qib_filedata *)(fp)->private_data)->pq)
+  (((struct qib_filedata *) (fp)->private_data)->pq)
 
-static inline struct qib_devdata *dd_from_ppd(struct qib_pportdata *ppd)
-{
-	return ppd->dd;
+static inline struct qib_devdata *dd_from_ppd(struct qib_pportdata *ppd) {
+  return ppd->dd;
 }
 
-static inline struct qib_devdata *dd_from_dev(struct qib_ibdev *dev)
-{
-	return container_of(dev, struct qib_devdata, verbs_dev);
+static inline struct qib_devdata *dd_from_dev(struct qib_ibdev *dev) {
+  return container_of(dev, struct qib_devdata, verbs_dev);
 }
 
-static inline struct qib_devdata *dd_from_ibdev(struct ib_device *ibdev)
-{
-	return dd_from_dev(to_idev(ibdev));
+static inline struct qib_devdata *dd_from_ibdev(struct ib_device *ibdev) {
+  return dd_from_dev(to_idev(ibdev));
 }
 
-static inline struct qib_pportdata *ppd_from_ibp(struct qib_ibport *ibp)
-{
-	return container_of(ibp, struct qib_pportdata, ibport_data);
+static inline struct qib_pportdata *ppd_from_ibp(struct qib_ibport *ibp) {
+  return container_of(ibp, struct qib_pportdata, ibport_data);
 }
 
-static inline struct qib_ibport *to_iport(struct ib_device *ibdev, u32 port)
-{
-	struct qib_devdata *dd = dd_from_ibdev(ibdev);
-	u32 pidx = port - 1; /* IB number port from 1, hdw from 0 */
-
-	WARN_ON(pidx >= dd->num_pports);
-	return &dd->pport[pidx].ibport_data;
+static inline struct qib_ibport *to_iport(struct ib_device *ibdev, u32 port) {
+  struct qib_devdata *dd = dd_from_ibdev(ibdev);
+  u32 pidx = port - 1; /* IB number port from 1, hdw from 0 */
+  WARN_ON(pidx >= dd->num_pports);
+  return &dd->pport[pidx].ibport_data;
 }
 
 /*
@@ -1238,31 +1231,30 @@ static inline struct qib_ibport *to_iport(struct ib_device *ibdev, u32 port)
 #define QIBL_IB_AUTONEG_INPROG 0x1000 /* non-IBTA DDR/QDR neg active */
 #define QIBL_IB_AUTONEG_FAILED 0x2000 /* non-IBTA DDR/QDR neg failed */
 #define QIBL_IB_LINK_DISABLED  0x4000 /* Linkdown-disable forced,
-				       * Do not try to bring up */
+                                      * Do not try to bring up */
 #define QIBL_IB_FORCE_NOTIFY   0x8000 /* force notify on next ib change */
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define QIB_PBC_LENGTH_MASK                     ((1 << 11) - 1)
 
-
-/* ctxt_flag bit offsets */
-		/* waiting for a packet to arrive */
+/* ctxt_flag bit offsets
+ * waiting for a packet to arrive*/
 #define QIB_CTXT_WAITING_RCV   2
-		/* master has not finished initializing */
+/* master has not finished initializing */
 #define QIB_CTXT_MASTER_UNINIT 4
-		/* waiting for an urgent packet to arrive */
+/* waiting for an urgent packet to arrive */
 #define QIB_CTXT_WAITING_URG 5
 
 /* free up any allocated data at closes */
 void qib_free_data(struct qib_ctxtdata *dd);
 void qib_chg_pioavailkernel(struct qib_devdata *, unsigned, unsigned,
-			    u32, struct qib_ctxtdata *);
+    u32, struct qib_ctxtdata *);
 struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *,
-					   const struct pci_device_id *);
+    const struct pci_device_id *);
 struct qib_devdata *qib_init_iba7220_funcs(struct pci_dev *,
-					   const struct pci_device_id *);
+    const struct pci_device_id *);
 struct qib_devdata *qib_init_iba6120_funcs(struct pci_dev *,
-					   const struct pci_device_id *);
+    const struct pci_device_id *);
 void qib_free_devdata(struct qib_devdata *);
 struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
@@ -1270,9 +1262,9 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra);
 /* Below qib_twsi_ functions must be called with eep_lock held */
 int qib_twsi_reset(struct qib_devdata *dd);
 int qib_twsi_blk_rd(struct qib_devdata *dd, int dev, int addr, void *buffer,
-		    int len);
+    int len);
 int qib_twsi_blk_wr(struct qib_devdata *dd, int dev, int addr,
-		    const void *buffer, int len);
+    const void *buffer, int len);
 void qib_get_eeprom_info(struct qib_devdata *);
 void qib_dump_lookup_output_queue(struct qib_devdata *);
 void qib_force_pio_avail_update(struct qib_devdata *);
@@ -1293,23 +1285,22 @@ void qib_teardown_sdma(struct qib_pportdata *);
 void __qib_sdma_intr(struct qib_pportdata *);
 void qib_sdma_intr(struct qib_pportdata *);
 void qib_user_sdma_send_desc(struct qib_pportdata *dd,
-			struct list_head *pktlist);
+    struct list_head *pktlist);
 int qib_sdma_verbs_send(struct qib_pportdata *, struct rvt_sge_state *,
-			u32, struct qib_verbs_txreq *);
+    u32, struct qib_verbs_txreq *);
 /* ppd->sdma_lock should be locked before calling this. */
 int qib_sdma_make_progress(struct qib_pportdata *dd);
 
 /* must be called under qib_sdma_lock */
-static inline u16 qib_sdma_descq_freecnt(const struct qib_pportdata *ppd)
-{
-	return ppd->sdma_descq_cnt -
-		(ppd->sdma_descq_added - ppd->sdma_descq_removed) - 1;
+static inline u16 qib_sdma_descq_freecnt(const struct qib_pportdata *ppd) {
+  return ppd->sdma_descq_cnt
+    - (ppd->sdma_descq_added - ppd->sdma_descq_removed) - 1;
 }
 
-static inline int __qib_sdma_running(struct qib_pportdata *ppd)
-{
-	return ppd->sdma_state.current_state == qib_sdma_state_s99_running;
+static inline int __qib_sdma_running(struct qib_pportdata *ppd) {
+  return ppd->sdma_state.current_state == qib_sdma_state_s99_running;
 }
+
 int qib_sdma_running(struct qib_pportdata *);
 void dump_sdma_state(struct qib_pportdata *ppd);
 void __qib_sdma_process_event(struct qib_pportdata *, enum qib_sdma_events);
@@ -1340,19 +1331,17 @@ int qib_eeprom_write(struct qib_devdata *, u8, const void *, int);
 u32 __iomem *qib_getsendbuf_range(struct qib_devdata *, u32 *, u32, u32);
 void qib_sendbuf_done(struct qib_devdata *, unsigned);
 
-static inline void qib_clear_rcvhdrtail(const struct qib_ctxtdata *rcd)
-{
-	*((u64 *) rcd->rcvhdrtail_kvaddr) = 0ULL;
+static inline void qib_clear_rcvhdrtail(const struct qib_ctxtdata *rcd) {
+  *((u64 *) rcd->rcvhdrtail_kvaddr) = 0ULL;
 }
 
-static inline u32 qib_get_rcvhdrtail(const struct qib_ctxtdata *rcd)
-{
-	/*
-	 * volatile because it's a DMA target from the chip, routine is
-	 * inlined, and don't want register caching or reordering.
-	 */
-	return (u32) le64_to_cpu(
-		*((volatile __le64 *)rcd->rcvhdrtail_kvaddr)); /* DMA'ed */
+static inline u32 qib_get_rcvhdrtail(const struct qib_ctxtdata *rcd) {
+  /*
+   * volatile because it's a DMA target from the chip, routine is
+   * inlined, and don't want register caching or reordering.
+   */
+  return (u32) le64_to_cpu(
+      *((volatile __le64 *) rcd->rcvhdrtail_kvaddr)); /* DMA'ed */
 }
 
 /*
@@ -1377,7 +1366,7 @@ int qibfs_remove(struct qib_devdata *);
 
 int qib_pcie_init(struct pci_dev *, const struct pci_device_id *);
 int qib_pcie_ddinit(struct qib_devdata *, struct pci_dev *,
-		    const struct pci_device_id *);
+    const struct pci_device_id *);
 void qib_pcie_ddcleanup(struct qib_devdata *);
 int qib_pcie_params(struct qib_devdata *dd, u32 minw, u32 *nent);
 void qib_free_irq(struct qib_devdata *dd);
@@ -1399,12 +1388,11 @@ struct pci_dev *qib_get_pci_dev(struct rvt_dev_info *rdi);
  * Flush write combining store buffers (if present) and perform a write
  * barrier.
  */
-static inline void qib_flush_wc(void)
-{
+static inline void qib_flush_wc(void) {
 #if defined(CONFIG_X86_64)
-	asm volatile("sfence" : : : "memory");
+  asm volatile ("sfence" : : : "memory");
 #else
-	wmb(); /* no reorder around wc flush */
+  wmb(); /* no reorder around wc flush */
 #endif
 }
 
@@ -1447,39 +1435,39 @@ extern struct mutex qib_mutex;
  * first to avoid possible serial port delays from printk.
  */
 #define qib_early_err(dev, fmt, ...) \
-	dev_err(dev, fmt, ##__VA_ARGS__)
+  dev_err(dev, fmt, ## __VA_ARGS__)
 
 #define qib_dev_err(dd, fmt, ...) \
-	dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
-		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
+  dev_err(&(dd)->pcidev->dev, "%s: " fmt, \
+    rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ## __VA_ARGS__)
 
 #define qib_dev_warn(dd, fmt, ...) \
-	dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
-		 rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ##__VA_ARGS__)
+  dev_warn(&(dd)->pcidev->dev, "%s: " fmt, \
+    rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), ## __VA_ARGS__)
 
 #define qib_dev_porterr(dd, port, fmt, ...) \
-	dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
-		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), (dd)->unit, (port), \
-		##__VA_ARGS__)
+  dev_err(&(dd)->pcidev->dev, "%s: IB%u:%u " fmt, \
+    rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), (dd)->unit, (port), \
+    ## __VA_ARGS__)
 
 #define qib_devinfo(pcidev, fmt, ...) \
-	dev_info(&(pcidev)->dev, fmt, ##__VA_ARGS__)
+  dev_info(&(pcidev)->dev, fmt, ## __VA_ARGS__)
 
 /*
  * this is used for formatting hw error messages...
  */
 struct qib_hwerror_msgs {
-	u64 mask;
-	const char *msg;
-	size_t sz;
+  u64 mask;
+  const char *msg;
+  size_t sz;
 };
 
 #define QLOGIC_IB_HWE_MSG(a, b) { .mask = a, .msg = b }
 
 /* in qib_intr.c... */
 void qib_format_hwerrors(u64 hwerrs,
-			 const struct qib_hwerror_msgs *hwerrmsgs,
-			 size_t nhwerrmsgs, char *msg, size_t lmsg);
+    const struct qib_hwerror_msgs *hwerrmsgs,
+    size_t nhwerrmsgs, char *msg, size_t lmsg);
 
 void qib_stop_send_queue(struct rvt_qp *qp);
 void qib_quiesce_qp(struct rvt_qp *qp);
@@ -1488,6 +1476,6 @@ int qib_mtu_to_path_mtu(u32 mtu);
 u32 qib_mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);
 void qib_notify_error_qp(struct rvt_qp *qp);
 int qib_get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-			   struct ib_qp_attr *attr);
+    struct ib_qp_attr *attr);
 
 #endif                          /* _QIB_KERNEL_H */

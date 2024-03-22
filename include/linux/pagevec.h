@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /* 15 pointers + header align the folio_batch structure to a power of two */
-#define PAGEVEC_SIZE	15
+#define PAGEVEC_SIZE  15
 
 struct folio;
 
@@ -26,10 +26,10 @@ struct folio;
  * by calling folio_batch_remove_exceptionals().
  */
 struct folio_batch {
-	unsigned char nr;
-	unsigned char i;
-	bool percpu_pvec_drained;
-	struct folio *folios[PAGEVEC_SIZE];
+  unsigned char nr;
+  unsigned char i;
+  bool percpu_pvec_drained;
+  struct folio *folios[PAGEVEC_SIZE];
 };
 
 /**
@@ -38,27 +38,23 @@ struct folio_batch {
  *
  * A freshly initialised folio_batch contains zero folios.
  */
-static inline void folio_batch_init(struct folio_batch *fbatch)
-{
-	fbatch->nr = 0;
-	fbatch->i = 0;
-	fbatch->percpu_pvec_drained = false;
+static inline void folio_batch_init(struct folio_batch *fbatch) {
+  fbatch->nr = 0;
+  fbatch->i = 0;
+  fbatch->percpu_pvec_drained = false;
 }
 
-static inline void folio_batch_reinit(struct folio_batch *fbatch)
-{
-	fbatch->nr = 0;
-	fbatch->i = 0;
+static inline void folio_batch_reinit(struct folio_batch *fbatch) {
+  fbatch->nr = 0;
+  fbatch->i = 0;
 }
 
-static inline unsigned int folio_batch_count(struct folio_batch *fbatch)
-{
-	return fbatch->nr;
+static inline unsigned int folio_batch_count(struct folio_batch *fbatch) {
+  return fbatch->nr;
 }
 
-static inline unsigned int folio_batch_space(struct folio_batch *fbatch)
-{
-	return PAGEVEC_SIZE - fbatch->nr;
+static inline unsigned int folio_batch_space(struct folio_batch *fbatch) {
+  return PAGEVEC_SIZE - fbatch->nr;
 }
 
 /**
@@ -72,10 +68,9 @@ static inline unsigned int folio_batch_space(struct folio_batch *fbatch)
  * Return: The number of slots still available.
  */
 static inline unsigned folio_batch_add(struct folio_batch *fbatch,
-		struct folio *folio)
-{
-	fbatch->folios[fbatch->nr++] = folio;
-	return folio_batch_space(fbatch);
+    struct folio *folio) {
+  fbatch->folios[fbatch->nr++] = folio;
+  return folio_batch_space(fbatch);
 }
 
 /**
@@ -86,19 +81,19 @@ static inline unsigned folio_batch_add(struct folio_batch *fbatch,
  *
  * Return: The next folio in the queue, or NULL if the queue is empty.
  */
-static inline struct folio *folio_batch_next(struct folio_batch *fbatch)
-{
-	if (fbatch->i == fbatch->nr)
-		return NULL;
-	return fbatch->folios[fbatch->i++];
+static inline struct folio *folio_batch_next(struct folio_batch *fbatch) {
+  if (fbatch->i == fbatch->nr) {
+    return NULL;
+  }
+  return fbatch->folios[fbatch->i++];
 }
 
 void __folio_batch_release(struct folio_batch *pvec);
 
-static inline void folio_batch_release(struct folio_batch *fbatch)
-{
-	if (folio_batch_count(fbatch))
-		__folio_batch_release(fbatch);
+static inline void folio_batch_release(struct folio_batch *fbatch) {
+  if (folio_batch_count(fbatch)) {
+    __folio_batch_release(fbatch);
+  }
 }
 
 void folio_batch_remove_exceptionals(struct folio_batch *fbatch);

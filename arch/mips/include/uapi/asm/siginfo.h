@@ -10,7 +10,7 @@
 #ifndef _UAPI_ASM_SIGINFO_H
 #define _UAPI_ASM_SIGINFO_H
 
-#define __ARCH_SIGEV_PREAMBLE_SIZE (sizeof(long) + 2*sizeof(int))
+#define __ARCH_SIGEV_PREAMBLE_SIZE (sizeof(long) + 2 * sizeof(int))
 
 #define __ARCH_HAS_SWAPPED_SIGINFO
 
@@ -23,8 +23,8 @@
 #undef SI_ASYNCIO
 #undef SI_TIMER
 #undef SI_MESGQ
-#define SI_ASYNCIO	-2	/* sent by AIO completion */
-#define SI_TIMER	-3	/* sent by timer expiration */
-#define SI_MESGQ	-4	/* sent by real time mesq state change */
+#define SI_ASYNCIO  -2  /* sent by AIO completion */
+#define SI_TIMER  -3  /* sent by timer expiration */
+#define SI_MESGQ  -4  /* sent by real time mesq state change */
 
 #endif /* _UAPI_ASM_SIGINFO_H */

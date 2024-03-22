@@ -33,11 +33,11 @@
  * fix-mapped?
  */
 enum fixed_addresses {
-	__end_of_fixed_addresses
+  __end_of_fixed_addresses
 };
 
-extern void __set_fixmap (enum fixed_addresses idx,
-			  unsigned long phys, pgprot_t flags);
+extern void __set_fixmap(enum fixed_addresses idx,
+    unsigned long phys, pgprot_t flags);
 
 /*
  * used by vmalloc.c.
@@ -47,9 +47,9 @@ extern void __set_fixmap (enum fixed_addresses idx,
  * at the top of mem..
  */
 
-#define FIXADDR_TOP	(TASK_SIZE - 2 * PAGE_SIZE)
-#define FIXADDR_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START	(FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_TOP (TASK_SIZE - 2 * PAGE_SIZE)
+#define FIXADDR_SIZE  (__end_of_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_START (FIXADDR_TOP - FIXADDR_SIZE)
 
 #include <asm-generic/fixmap.h>
 

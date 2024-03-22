@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+ * */
 /*
  * include/uapi/linux/tipc_config.h: Header for TIPC configuration interface
  *
@@ -73,9 +74,11 @@
 #define  TIPC_CMD_GET_MEDIA_NAMES   0x0002    /* tx none, rx media_name(s) */
 #define  TIPC_CMD_GET_BEARER_NAMES  0x0003    /* tx none, rx bearer_name(s) */
 #define  TIPC_CMD_GET_LINKS         0x0004    /* tx net_addr, rx link_info(s) */
-#define  TIPC_CMD_SHOW_NAME_TABLE   0x0005    /* tx name_tbl_query, rx ultra_string */
+#define  TIPC_CMD_SHOW_NAME_TABLE   0x0005    /* tx name_tbl_query, rx
+                                               * ultra_string */
 #define  TIPC_CMD_SHOW_PORTS        0x0006    /* tx none, rx ultra_string */
-#define  TIPC_CMD_SHOW_LINK_STATS   0x000B    /* tx link_name, rx ultra_string */
+#define  TIPC_CMD_SHOW_LINK_STATS   0x000B    /* tx link_name, rx ultra_string
+                                               * */
 #define  TIPC_CMD_SHOW_STATS        0x000F    /* tx unsigned, rx ultra_string */
 
 /*
@@ -133,33 +136,33 @@
  * TLV types defined for TIPC
  */
 
-#define TIPC_TLV_NONE		0	/* no TLV present */
-#define TIPC_TLV_VOID		1	/* empty TLV (0 data bytes)*/
-#define TIPC_TLV_UNSIGNED	2	/* 32-bit integer */
-#define TIPC_TLV_STRING		3	/* char[128] (max) */
-#define TIPC_TLV_LARGE_STRING	4	/* char[2048] (max) */
-#define TIPC_TLV_ULTRA_STRING	5	/* char[32768] (max) */
+#define TIPC_TLV_NONE   0 /* no TLV present */
+#define TIPC_TLV_VOID   1 /* empty TLV (0 data bytes)*/
+#define TIPC_TLV_UNSIGNED 2 /* 32-bit integer */
+#define TIPC_TLV_STRING   3 /* char[128] (max) */
+#define TIPC_TLV_LARGE_STRING 4 /* char[2048] (max) */
+#define TIPC_TLV_ULTRA_STRING 5 /* char[32768] (max) */
 
-#define TIPC_TLV_ERROR_STRING	16	/* char[128] containing "error code" */
-#define TIPC_TLV_NET_ADDR	17	/* 32-bit integer denoting <Z.C.N> */
-#define TIPC_TLV_MEDIA_NAME	18	/* char[TIPC_MAX_MEDIA_NAME] */
-#define TIPC_TLV_BEARER_NAME	19	/* char[TIPC_MAX_BEARER_NAME] */
-#define TIPC_TLV_LINK_NAME	20	/* char[TIPC_MAX_LINK_NAME] */
-#define TIPC_TLV_NODE_INFO	21	/* struct tipc_node_info */
-#define TIPC_TLV_LINK_INFO	22	/* struct tipc_link_info */
-#define TIPC_TLV_BEARER_CONFIG	23	/* struct tipc_bearer_config */
-#define TIPC_TLV_LINK_CONFIG	24	/* struct tipc_link_config */
-#define TIPC_TLV_NAME_TBL_QUERY	25	/* struct tipc_name_table_query */
-#define TIPC_TLV_PORT_REF	26	/* 32-bit port reference */
+#define TIPC_TLV_ERROR_STRING 16  /* char[128] containing "error code" */
+#define TIPC_TLV_NET_ADDR 17  /* 32-bit integer denoting <Z.C.N> */
+#define TIPC_TLV_MEDIA_NAME 18  /* char[TIPC_MAX_MEDIA_NAME] */
+#define TIPC_TLV_BEARER_NAME  19  /* char[TIPC_MAX_BEARER_NAME] */
+#define TIPC_TLV_LINK_NAME  20  /* char[TIPC_MAX_LINK_NAME] */
+#define TIPC_TLV_NODE_INFO  21  /* struct tipc_node_info */
+#define TIPC_TLV_LINK_INFO  22  /* struct tipc_link_info */
+#define TIPC_TLV_BEARER_CONFIG  23  /* struct tipc_bearer_config */
+#define TIPC_TLV_LINK_CONFIG  24  /* struct tipc_link_config */
+#define TIPC_TLV_NAME_TBL_QUERY 25  /* struct tipc_name_table_query */
+#define TIPC_TLV_PORT_REF 26  /* 32-bit port reference */
 
 /*
  * Link priority limits (min, default, max, media default)
  */
 
-#define TIPC_MIN_LINK_PRI	0
-#define TIPC_DEF_LINK_PRI	10
-#define TIPC_MAX_LINK_PRI	31
-#define TIPC_MEDIA_LINK_PRI	(TIPC_MAX_LINK_PRI + 1)
+#define TIPC_MIN_LINK_PRI 0
+#define TIPC_DEF_LINK_PRI 10
+#define TIPC_MAX_LINK_PRI 31
+#define TIPC_MEDIA_LINK_PRI (TIPC_MAX_LINK_PRI + 1)
 
 /*
  * Link tolerance limits (min, default, max), in ms
@@ -188,34 +191,34 @@
 #define TIPC_DEF_LINK_UDP_MTU 14000
 
 struct tipc_node_info {
-	__be32 addr;			/* network address of node */
-	__be32 up;			/* 0=down, 1= up */
+  __be32 addr;      /* network address of node */
+  __be32 up;      /* 0=down, 1= up */
 };
 
 struct tipc_link_info {
-	__be32 dest;			/* network address of peer node */
-	__be32 up;			/* 0=down, 1=up */
-	char str[TIPC_MAX_LINK_NAME];	/* link name */
+  __be32 dest;      /* network address of peer node */
+  __be32 up;      /* 0=down, 1=up */
+  char str[TIPC_MAX_LINK_NAME]; /* link name */
 };
 
 struct tipc_bearer_config {
-	__be32 priority;		/* Range [1,31]. Override per link  */
-	__be32 disc_domain;		/* <Z.C.N> describing desired nodes */
-	char name[TIPC_MAX_BEARER_NAME];
+  __be32 priority;    /* Range [1,31]. Override per link  */
+  __be32 disc_domain;   /* <Z.C.N> describing desired nodes */
+  char name[TIPC_MAX_BEARER_NAME];
 };
 
 struct tipc_link_config {
-	__be32 value;
-	char name[TIPC_MAX_LINK_NAME];
+  __be32 value;
+  char name[TIPC_MAX_LINK_NAME];
 };
 
 #define TIPC_NTQ_ALLTYPES 0x80000000
 
 struct tipc_name_table_query {
-	__be32 depth;	/* 1:type, 2:+name info, 3:+port info, 4+:+debug info */
-	__be32 type;	/* {t,l,u} info ignored if high bit of "depth" is set */
-	__be32 lowbound; /* (i.e. displays all entries of name table) */
-	__be32 upbound;
+  __be32 depth; /* 1:type, 2:+name info, 3:+port info, 4+:+debug info */
+  __be32 type;  /* {t,l,u} info ignored if high bit of "depth" is set */
+  __be32 lowbound; /* (i.e. displays all entries of name table) */
+  __be32 upbound;
 };
 
 /*
@@ -226,10 +229,10 @@ struct tipc_name_table_query {
  */
 
 #define TIPC_CFG_TLV_ERROR      "\x80"  /* request contains incorrect TLV(s) */
-#define TIPC_CFG_NOT_NET_ADMIN  "\x81"	/* must be network administrator */
-#define TIPC_CFG_NOT_ZONE_MSTR	"\x82"	/* must be zone master */
-#define TIPC_CFG_NO_REMOTE	"\x83"	/* remote management not enabled */
-#define TIPC_CFG_NOT_SUPPORTED  "\x84"	/* request is not supported by TIPC */
+#define TIPC_CFG_NOT_NET_ADMIN  "\x81"  /* must be network administrator */
+#define TIPC_CFG_NOT_ZONE_MSTR  "\x82"  /* must be zone master */
+#define TIPC_CFG_NO_REMOTE  "\x83"  /* remote management not enabled */
+#define TIPC_CFG_NOT_SUPPORTED  "\x84"  /* request is not supported by TIPC */
 #define TIPC_CFG_INVALID_VALUE  "\x85"  /* request has invalid argument value */
 
 /*
@@ -242,72 +245,64 @@ struct tipc_name_table_query {
  */
 
 struct tlv_desc {
-	__be16 tlv_len;		/* TLV length (descriptor + value) */
-	__be16 tlv_type;		/* TLV identifier */
+  __be16 tlv_len;   /* TLV length (descriptor + value) */
+  __be16 tlv_type;    /* TLV identifier */
 };
 
 #define TLV_ALIGNTO 4
 
-#define TLV_ALIGN(datalen) (((datalen)+(TLV_ALIGNTO-1)) & ~(TLV_ALIGNTO-1))
+#define TLV_ALIGN(datalen) (((datalen) + (TLV_ALIGNTO - 1)) \
+  & ~(TLV_ALIGNTO - 1))
 #define TLV_LENGTH(datalen) (sizeof(struct tlv_desc) + (datalen))
 #define TLV_SPACE(datalen) (TLV_ALIGN(TLV_LENGTH(datalen)))
-#define TLV_DATA(tlv) ((void *)((char *)(tlv) + TLV_LENGTH(0)))
+#define TLV_DATA(tlv) ((void *) ((char *) (tlv) + TLV_LENGTH(0)))
 
-static inline int TLV_OK(const void *tlv, __u16 space)
-{
-	/*
-	 * Would also like to check that "tlv" is a multiple of 4,
-	 * but don't know how to do this in a portable way.
-	 * - Tried doing (!(tlv & (TLV_ALIGNTO-1))), but GCC compiler
-	 *   won't allow binary "&" with a pointer.
-	 * - Tried casting "tlv" to integer type, but causes warning about size
-	 *   mismatch when pointer is bigger than chosen type (int, long, ...).
-	 */
-
-	return (space >= TLV_SPACE(0)) &&
-		(__be16_to_cpu(((struct tlv_desc *)tlv)->tlv_len) <= space);
+static inline int TLV_OK(const void *tlv, __u16 space) {
+  /*
+   * Would also like to check that "tlv" is a multiple of 4,
+   * but don't know how to do this in a portable way.
+   * - Tried doing (!(tlv & (TLV_ALIGNTO-1))), but GCC compiler
+   *   won't allow binary "&" with a pointer.
+   * - Tried casting "tlv" to integer type, but causes warning about size
+   *   mismatch when pointer is bigger than chosen type (int, long, ...).
+   */
+  return (space >= TLV_SPACE(0))
+    && (__be16_to_cpu(((struct tlv_desc *) tlv)->tlv_len) <= space);
 }
 
-static inline int TLV_CHECK(const void *tlv, __u16 space, __u16 exp_type)
-{
-	return TLV_OK(tlv, space) &&
-		(__be16_to_cpu(((struct tlv_desc *)tlv)->tlv_type) == exp_type);
+static inline int TLV_CHECK(const void *tlv, __u16 space, __u16 exp_type) {
+  return TLV_OK(tlv, space)
+    && (__be16_to_cpu(((struct tlv_desc *) tlv)->tlv_type) == exp_type);
 }
 
-static inline int TLV_GET_LEN(struct tlv_desc *tlv)
-{
-	return __be16_to_cpu(tlv->tlv_len);
+static inline int TLV_GET_LEN(struct tlv_desc *tlv) {
+  return __be16_to_cpu(tlv->tlv_len);
 }
 
-static inline void TLV_SET_LEN(struct tlv_desc *tlv, __u16 len)
-{
-	tlv->tlv_len = __cpu_to_be16(len);
+static inline void TLV_SET_LEN(struct tlv_desc *tlv, __u16 len) {
+  tlv->tlv_len = __cpu_to_be16(len);
 }
 
-static inline int TLV_CHECK_TYPE(struct tlv_desc *tlv,  __u16 type)
-{
-	return (__be16_to_cpu(tlv->tlv_type) == type);
+static inline int TLV_CHECK_TYPE(struct tlv_desc *tlv, __u16 type) {
+  return __be16_to_cpu(tlv->tlv_type) == type;
 }
 
-static inline void TLV_SET_TYPE(struct tlv_desc *tlv, __u16 type)
-{
-	tlv->tlv_type = __cpu_to_be16(type);
+static inline void TLV_SET_TYPE(struct tlv_desc *tlv, __u16 type) {
+  tlv->tlv_type = __cpu_to_be16(type);
 }
 
-static inline int TLV_SET(void *tlv, __u16 type, void *data, __u16 len)
-{
-	struct tlv_desc *tlv_ptr;
-	int tlv_len;
-
-	tlv_len = TLV_LENGTH(len);
-	tlv_ptr = (struct tlv_desc *)tlv;
-	tlv_ptr->tlv_type = __cpu_to_be16(type);
-	tlv_ptr->tlv_len  = __cpu_to_be16(tlv_len);
-	if (len && data) {
-		memcpy(TLV_DATA(tlv_ptr), data, len);
-		memset((char *)TLV_DATA(tlv_ptr) + len, 0, TLV_SPACE(len) - tlv_len);
-	}
-	return TLV_SPACE(len);
+static inline int TLV_SET(void *tlv, __u16 type, void *data, __u16 len) {
+  struct tlv_desc *tlv_ptr;
+  int tlv_len;
+  tlv_len = TLV_LENGTH(len);
+  tlv_ptr = (struct tlv_desc *) tlv;
+  tlv_ptr->tlv_type = __cpu_to_be16(type);
+  tlv_ptr->tlv_len = __cpu_to_be16(tlv_len);
+  if (len && data) {
+    memcpy(TLV_DATA(tlv_ptr), data, len);
+    memset((char *) TLV_DATA(tlv_ptr) + len, 0, TLV_SPACE(len) - tlv_len);
+  }
+  return TLV_SPACE(len);
 }
 
 /*
@@ -316,58 +311,52 @@ static inline int TLV_SET(void *tlv, __u16 type, void *data, __u16 len)
  */
 
 struct tlv_list_desc {
-	struct tlv_desc *tlv_ptr;	/* ptr to current TLV */
-	__u32 tlv_space;		/* # bytes from curr TLV to list end */
+  struct tlv_desc *tlv_ptr; /* ptr to current TLV */
+  __u32 tlv_space;    /* # bytes from curr TLV to list end */
 };
 
 static inline void TLV_LIST_INIT(struct tlv_list_desc *list,
-				 void *data, __u32 space)
-{
-	list->tlv_ptr = (struct tlv_desc *)data;
-	list->tlv_space = space;
+    void *data, __u32 space) {
+  list->tlv_ptr = (struct tlv_desc *) data;
+  list->tlv_space = space;
 }
 
-static inline int TLV_LIST_EMPTY(struct tlv_list_desc *list)
-{
-	return (list->tlv_space == 0);
+static inline int TLV_LIST_EMPTY(struct tlv_list_desc *list) {
+  return list->tlv_space == 0;
 }
 
-static inline int TLV_LIST_CHECK(struct tlv_list_desc *list, __u16 exp_type)
-{
-	return TLV_CHECK(list->tlv_ptr, list->tlv_space, exp_type);
+static inline int TLV_LIST_CHECK(struct tlv_list_desc *list, __u16 exp_type) {
+  return TLV_CHECK(list->tlv_ptr, list->tlv_space, exp_type);
 }
 
-static inline void *TLV_LIST_DATA(struct tlv_list_desc *list)
-{
-	return TLV_DATA(list->tlv_ptr);
+static inline void *TLV_LIST_DATA(struct tlv_list_desc *list) {
+  return TLV_DATA(list->tlv_ptr);
 }
 
-static inline void TLV_LIST_STEP(struct tlv_list_desc *list)
-{
-	__u16 tlv_space = TLV_ALIGN(__be16_to_cpu(list->tlv_ptr->tlv_len));
-
-	list->tlv_ptr = (struct tlv_desc *)((char *)list->tlv_ptr + tlv_space);
-	list->tlv_space -= tlv_space;
+static inline void TLV_LIST_STEP(struct tlv_list_desc *list) {
+  __u16 tlv_space = TLV_ALIGN(__be16_to_cpu(list->tlv_ptr->tlv_len));
+  list->tlv_ptr = (struct tlv_desc *) ((char *) list->tlv_ptr + tlv_space);
+  list->tlv_space -= tlv_space;
 }
 
 /*
  * Configuration messages exchanged via NETLINK_GENERIC use the following
  * family id, name, version and command.
  */
-#define TIPC_GENL_NAME		"TIPC"
-#define TIPC_GENL_VERSION	0x1
-#define TIPC_GENL_CMD		0x1
+#define TIPC_GENL_NAME    "TIPC"
+#define TIPC_GENL_VERSION 0x1
+#define TIPC_GENL_CMD   0x1
 
 /*
  * TIPC specific header used in NETLINK_GENERIC requests.
  */
 struct tipc_genlmsghdr {
-	__u32 dest;		/* Destination address */
-	__u16 cmd;		/* Command */
-	__u16 reserved;		/* Unused */
+  __u32 dest;   /* Destination address */
+  __u16 cmd;    /* Command */
+  __u16 reserved;   /* Unused */
 };
 
-#define TIPC_GENL_HDRLEN	NLMSG_ALIGN(sizeof(struct tipc_genlmsghdr))
+#define TIPC_GENL_HDRLEN  NLMSG_ALIGN(sizeof(struct tipc_genlmsghdr))
 
 /*
  * Configuration messages exchanged via TIPC sockets use the TIPC configuration
@@ -378,36 +367,34 @@ struct tipc_genlmsghdr {
  */
 
 struct tipc_cfg_msg_hdr {
-	__be32 tcm_len;		/* Message length (including header) */
-	__be16 tcm_type;	/* Command type */
-	__be16 tcm_flags;	/* Additional flags */
-	char  tcm_reserved[8];	/* Unused */
+  __be32 tcm_len;   /* Message length (including header) */
+  __be16 tcm_type;  /* Command type */
+  __be16 tcm_flags; /* Additional flags */
+  char tcm_reserved[8];  /* Unused */
 };
 
-#define TCM_F_REQUEST	0x1	/* Flag: Request message */
-#define TCM_F_MORE	0x2	/* Flag: Message to be continued */
+#define TCM_F_REQUEST 0x1 /* Flag: Request message */
+#define TCM_F_MORE  0x2 /* Flag: Message to be continued */
 
-#define TCM_ALIGN(datalen)  (((datalen)+3) & ~3)
+#define TCM_ALIGN(datalen)  (((datalen) + 3) & ~3)
 #define TCM_LENGTH(datalen) (sizeof(struct tipc_cfg_msg_hdr) + datalen)
 #define TCM_SPACE(datalen)  (TCM_ALIGN(TCM_LENGTH(datalen)))
-#define TCM_DATA(tcm_hdr)   ((void *)((char *)(tcm_hdr) + TCM_LENGTH(0)))
+#define TCM_DATA(tcm_hdr)   ((void *) ((char *) (tcm_hdr) + TCM_LENGTH(0)))
 
 static inline int TCM_SET(void *msg, __u16 cmd, __u16 flags,
-			  void *data, __u16 data_len)
-{
-	struct tipc_cfg_msg_hdr *tcm_hdr;
-	int msg_len;
-
-	msg_len = TCM_LENGTH(data_len);
-	tcm_hdr = (struct tipc_cfg_msg_hdr *)msg;
-	tcm_hdr->tcm_len   = __cpu_to_be32(msg_len);
-	tcm_hdr->tcm_type  = __cpu_to_be16(cmd);
-	tcm_hdr->tcm_flags = __cpu_to_be16(flags);
-	if (data_len && data) {
-		memcpy(TCM_DATA(msg), data, data_len);
-		memset((char *)TCM_DATA(msg) + data_len, 0, TCM_SPACE(data_len) - msg_len);
-	}
-	return TCM_SPACE(data_len);
+    void *data, __u16 data_len) {
+  struct tipc_cfg_msg_hdr *tcm_hdr;
+  int msg_len;
+  msg_len = TCM_LENGTH(data_len);
+  tcm_hdr = (struct tipc_cfg_msg_hdr *) msg;
+  tcm_hdr->tcm_len = __cpu_to_be32(msg_len);
+  tcm_hdr->tcm_type = __cpu_to_be16(cmd);
+  tcm_hdr->tcm_flags = __cpu_to_be16(flags);
+  if (data_len && data) {
+    memcpy(TCM_DATA(msg), data, data_len);
+    memset((char *) TCM_DATA(msg) + data_len, 0, TCM_SPACE(data_len) - msg_len);
+  }
+  return TCM_SPACE(data_len);
 }
 
 #endif

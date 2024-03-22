@@ -2,10 +2,12 @@
 #define __src_nvidia_generated_g_sdk_structures_h__
 #include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_headers.h>
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2008-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2008-2022 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,19 +29,17 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-typedef struct NVOS00_PARAMETERS_v03_00
-{
-    NvHandle   hRoot;
-    NvHandle   hObjectParent;
-    NvHandle   hObjectOld;
-    NvV32      status;
+typedef struct NVOS00_PARAMETERS_v03_00 {
+  NvHandle hRoot;
+  NvHandle hObjectParent;
+  NvHandle hObjectOld;
+  NvV32 status;
 } NVOS00_PARAMETERS_v03_00;
 
-typedef struct UpdateBarPde_v15_00
-{
-    NV_RPC_UPDATE_PDE_BAR_TYPE barType;
-    NvU64      entryValue NV_ALIGN_BYTES(8);
-    NvU64      entryLevelShift NV_ALIGN_BYTES(8);
+typedef struct UpdateBarPde_v15_00 {
+  NV_RPC_UPDATE_PDE_BAR_TYPE barType;
+  NvU64 entryValue NV_ALIGN_BYTES(8);
+  NvU64 entryLevelShift NV_ALIGN_BYTES(8);
 } UpdateBarPde_v15_00;
 
 #endif

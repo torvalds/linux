@@ -34,49 +34,43 @@
 /* System independent */
 #include "sh_css_internal.h"
 
-bool sh_css_hrt_system_is_idle(void)
-{
-	bool not_idle = false, idle;
-	fifo_channel_t ch;
-
-	idle = sp_ctrl_getbit(SP0_ID, SP_SC_REG, SP_IDLE_BIT);
-	not_idle |= !idle;
-	if (!idle)
-		IA_CSS_WARNING("SP not idle");
-
-	idle = isp_ctrl_getbit(ISP0_ID, ISP_SC_REG, ISP_IDLE_BIT);
-	not_idle |= !idle;
-	if (!idle)
-		IA_CSS_WARNING("ISP not idle");
-
-	for (ch = 0; ch < N_FIFO_CHANNEL; ch++) {
-		fifo_channel_state_t state;
-
-		fifo_channel_get_state(FIFO_MONITOR0_ID, ch, &state);
-		if (state.fifo_valid) {
-			IA_CSS_WARNING("FIFO channel %d is not empty", ch);
-			not_idle = true;
-		}
-	}
-
-	return !not_idle;
+bool sh_css_hrt_system_is_idle(void) {
+  bool not_idle = false, idle;
+  fifo_channel_t ch;
+  idle = sp_ctrl_getbit(SP0_ID, SP_SC_REG, SP_IDLE_BIT);
+  not_idle |= !idle;
+  if (!idle) {
+    IA_CSS_WARNING("SP not idle");
+  }
+  idle = isp_ctrl_getbit(ISP0_ID, ISP_SC_REG, ISP_IDLE_BIT);
+  not_idle |= !idle;
+  if (!idle) {
+    IA_CSS_WARNING("ISP not idle");
+  }
+  for (ch = 0; ch < N_FIFO_CHANNEL; ch++) {
+    fifo_channel_state_t state;
+    fifo_channel_get_state(FIFO_MONITOR0_ID, ch, &state);
+    if (state.fifo_valid) {
+      IA_CSS_WARNING("FIFO channel %d is not empty", ch);
+      not_idle = true;
+    }
+  }
+  return !not_idle;
 }
 
-int sh_css_hrt_sp_wait(void)
-{
-	irq_sw_channel_id_t	irq_id = IRQ_SW_CHANNEL0_ID;
-	/*
-	 * Wait till SP is idle or till there is a SW2 interrupt
-	 * The SW2 interrupt will be used when frameloop runs on SP
-	 * and signals an event with similar meaning as SP idle
-	 * (e.g. frame_done)
-	 */
-	while (!sp_ctrl_getbit(SP0_ID, SP_SC_REG, SP_IDLE_BIT) &&
-	       ((irq_reg_load(IRQ0_ID,
-			      _HRT_IRQ_CONTROLLER_STATUS_REG_IDX) &
-		 (1U << (irq_id + IRQ_SW_CHANNEL_OFFSET))) == 0)) {
-		udelay(1);
-	}
-
-	return 0;
+int sh_css_hrt_sp_wait(void) {
+  irq_sw_channel_id_t irq_id = IRQ_SW_CHANNEL0_ID;
+  /*
+   * Wait till SP is idle or till there is a SW2 interrupt
+   * The SW2 interrupt will be used when frameloop runs on SP
+   * and signals an event with similar meaning as SP idle
+   * (e.g. frame_done)
+   */
+  while (!sp_ctrl_getbit(SP0_ID, SP_SC_REG, SP_IDLE_BIT)
+      && ((irq_reg_load(IRQ0_ID,
+          _HRT_IRQ_CONTROLLER_STATUS_REG_IDX)
+      & (1U << (irq_id + IRQ_SW_CHANNEL_OFFSET))) == 0)) {
+    udelay(1);
+  }
+  return 0;
 }

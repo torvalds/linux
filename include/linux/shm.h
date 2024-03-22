@@ -11,35 +11,35 @@ struct task_struct;
 
 #ifdef CONFIG_SYSVIPC
 struct sysv_shm {
-	struct list_head shm_clist;
+  struct list_head shm_clist;
 };
 
 long do_shmat(int shmid, char __user *shmaddr, int shmflg, unsigned long *addr,
-	      unsigned long shmlba);
+    unsigned long shmlba);
 bool is_file_shm_hugepages(struct file *file);
 void exit_shm(struct task_struct *task);
 #define shm_init_task(task) INIT_LIST_HEAD(&(task)->sysvshm.shm_clist)
 #else
 struct sysv_shm {
-	/* empty */
+  /* empty */
 };
 
 static inline long do_shmat(int shmid, char __user *shmaddr,
-			    int shmflg, unsigned long *addr,
-			    unsigned long shmlba)
-{
-	return -ENOSYS;
+    int shmflg, unsigned long *addr,
+    unsigned long shmlba) {
+  return -ENOSYS;
 }
-static inline bool is_file_shm_hugepages(struct file *file)
-{
-	return false;
+
+static inline bool is_file_shm_hugepages(struct file *file) {
+  return false;
 }
-static inline void exit_shm(struct task_struct *task)
-{
+
+static inline void exit_shm(struct task_struct *task) {
 }
-static inline void shm_init_task(struct task_struct *task)
-{
+
+static inline void shm_init_task(struct task_struct *task) {
 }
+
 #endif
 
 #endif /* _LINUX_SHM_H_ */

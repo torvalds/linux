@@ -8,4 +8,4 @@
 
 #define COMMAND_LINE_SIZE 4096
 
-#endif		/* SETUP_H_INCLUDED */
+#endif    /* SETUP_H_INCLUDED */

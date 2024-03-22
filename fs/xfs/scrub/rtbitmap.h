@@ -7,16 +7,16 @@
 #define __XFS_SCRUB_RTBITMAP_H__
 
 struct xchk_rtbitmap {
-	uint64_t		rextents;
-	uint64_t		rbmblocks;
-	unsigned int		rextslog;
-	unsigned int		resblks;
+  uint64_t rextents;
+  uint64_t rbmblocks;
+  unsigned int rextslog;
+  unsigned int resblks;
 };
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 int xrep_setup_rtbitmap(struct xfs_scrub *sc, struct xchk_rtbitmap *rtb);
 #else
-# define xrep_setup_rtbitmap(sc, rtb)	(0)
+#define xrep_setup_rtbitmap(sc, rtb) (0)
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 
 #endif /* __XFS_SCRUB_RTBITMAP_H__ */

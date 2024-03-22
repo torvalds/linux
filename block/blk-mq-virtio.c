@@ -10,9 +10,9 @@
 
 /**
  * blk_mq_virtio_map_queues - provide a default queue mapping for virtio device
- * @qmap:	CPU to hardware queue map.
- * @vdev:	virtio device to provide a mapping for.
- * @first_vec:	first interrupt vectors to use for queues (usually 0)
+ * @qmap: CPU to hardware queue map.
+ * @vdev: virtio device to provide a mapping for.
+ * @first_vec:  first interrupt vectors to use for queues (usually 0)
  *
  * This function assumes the virtio device @vdev has at least as many available
  * interrupt vectors as @set has queues.  It will then query the vector
@@ -21,26 +21,22 @@
  * vector.
  */
 void blk_mq_virtio_map_queues(struct blk_mq_queue_map *qmap,
-		struct virtio_device *vdev, int first_vec)
-{
-	const struct cpumask *mask;
-	unsigned int queue, cpu;
-
-	if (!vdev->config->get_vq_affinity)
-		goto fallback;
-
-	for (queue = 0; queue < qmap->nr_queues; queue++) {
-		mask = vdev->config->get_vq_affinity(vdev, first_vec + queue);
-		if (!mask)
-			goto fallback;
-
-		for_each_cpu(cpu, mask)
-			qmap->mq_map[cpu] = qmap->queue_offset + queue;
-	}
-
-	return;
-
+    struct virtio_device *vdev, int first_vec) {
+  const struct cpumask *mask;
+  unsigned int queue, cpu;
+  if (!vdev->config->get_vq_affinity) {
+    goto fallback;
+  }
+  for (queue = 0; queue < qmap->nr_queues; queue++) {
+    mask = vdev->config->get_vq_affinity(vdev, first_vec + queue);
+    if (!mask) {
+      goto fallback;
+    }
+    for_each_cpu(cpu, mask)
+    qmap->mq_map[cpu] = qmap->queue_offset + queue;
+  }
 fallback:
-	blk_mq_map_queues(qmap);
+  blk_mq_map_queues(qmap);
 }
+
 EXPORT_SYMBOL_GPL(blk_mq_virtio_map_queues);

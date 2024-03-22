@@ -7,7 +7,7 @@
 #ifndef __iwl_fw_api_paging_h__
 #define __iwl_fw_api_paging_h__
 
-#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
+#define NUM_OF_FW_PAGING_BLOCKS 33 /* 32 for data and 1 block for CSS */
 
 /**
  * struct iwl_fw_paging_cmd - paging layout
@@ -20,10 +20,10 @@
  * @device_phy_addr: virtual addresses from device side
  */
 struct iwl_fw_paging_cmd {
-	__le32 flags;
-	__le32 block_size;
-	__le32 block_num;
-	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+  __le32 flags;
+  __le32 block_size;
+  __le32 block_num;
+  __le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
 } __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_paging_h__ */

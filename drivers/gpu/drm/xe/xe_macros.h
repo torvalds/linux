@@ -11,8 +11,8 @@
 #define XE_WARN_ON WARN_ON
 
 #define XE_IOCTL_DBG(xe, cond) \
-	((cond) && (drm_dbg(&(xe)->drm, \
-			    "Ioctl argument check failed at %s:%d: %s", \
-			    __FILE__, __LINE__, #cond), 1))
+  ((cond) && (drm_dbg(&(xe)->drm, \
+    "Ioctl argument check failed at %s:%d: %s", \
+    __FILE__, __LINE__, #cond), 1))
 
 #endif

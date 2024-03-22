@@ -10,7 +10,7 @@
 void wx_alloc_rx_buffers(struct wx_ring *rx_ring, u16 cleaned_count);
 u16 wx_desc_unused(struct wx_ring *ring);
 netdev_tx_t wx_xmit_frame(struct sk_buff *skb,
-			  struct net_device *netdev);
+    struct net_device *netdev);
 void wx_napi_enable_all(struct wx *wx);
 void wx_napi_disable_all(struct wx *wx);
 void wx_reset_interrupt_capability(struct wx *wx);
@@ -28,9 +28,9 @@ void wx_clean_all_tx_rings(struct wx *wx);
 void wx_free_resources(struct wx *wx);
 int wx_setup_resources(struct wx *wx);
 void wx_get_stats64(struct net_device *netdev,
-		    struct rtnl_link_stats64 *stats);
+    struct rtnl_link_stats64 *stats);
 int wx_set_features(struct net_device *netdev, netdev_features_t features);
 void wx_set_ring(struct wx *wx, u32 new_tx_count,
-		 u32 new_rx_count, struct wx_ring *temp_ring);
+    u32 new_rx_count, struct wx_ring *temp_ring);
 
 #endif /* _NGBE_LIB_H_ */

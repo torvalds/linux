@@ -21,10 +21,9 @@
 
 extern const struct ia_css_conversion_config default_conversion_config;
 
-void
-ia_css_conversion_encode(
-    struct sh_css_isp_conversion_params *to,
-    const struct ia_css_conversion_config *from,
-    unsigned int size);
+void ia_css_conversion_encode(
+  struct sh_css_isp_conversion_params *to,
+  const struct ia_css_conversion_config *from,
+  unsigned int size);
 
 #endif /* __IA_CSS_CONVERSION_HOST_H */

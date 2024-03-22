@@ -11,19 +11,19 @@
 #include <linux/reset-controller.h>
 
 struct owl_reset_map {
-	u32	reg;
-	u32	bit;
+  u32 reg;
+  u32 bit;
 };
 
 struct owl_reset {
-	struct reset_controller_dev	rcdev;
-	const struct owl_reset_map	*reset_map;
-	struct regmap			*regmap;
+  struct reset_controller_dev rcdev;
+  const struct owl_reset_map *reset_map;
+  struct regmap *regmap;
 };
 
 static inline struct owl_reset *to_owl_reset(struct reset_controller_dev *rcdev)
 {
-	return container_of(rcdev, struct owl_reset, rcdev);
+  return container_of(rcdev, struct owl_reset, rcdev);
 }
 
 extern const struct reset_control_ops owl_reset_ops;

@@ -10,48 +10,48 @@
 #include <asm/user.h>
 
 /* Bit 63 of XCR0 is reserved for future expansion */
-#define XFEATURE_MASK_EXTEND	(~(XFEATURE_MASK_FPSSE | (1ULL << 63)))
+#define XFEATURE_MASK_EXTEND  (~(XFEATURE_MASK_FPSSE | (1ULL << 63)))
 
-#define XSTATE_CPUID		0x0000000d
+#define XSTATE_CPUID    0x0000000d
 
-#define TILE_CPUID		0x0000001d
+#define TILE_CPUID    0x0000001d
 
-#define FXSAVE_SIZE	512
+#define FXSAVE_SIZE 512
 
-#define XSAVE_HDR_SIZE	    64
+#define XSAVE_HDR_SIZE      64
 #define XSAVE_HDR_OFFSET    FXSAVE_SIZE
 
-#define XSAVE_YMM_SIZE	    256
+#define XSAVE_YMM_SIZE      256
 #define XSAVE_YMM_OFFSET    (XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET)
 
 #define XSAVE_ALIGNMENT     64
 
 /* All currently supported user features */
-#define XFEATURE_MASK_USER_SUPPORTED (XFEATURE_MASK_FP | \
-				      XFEATURE_MASK_SSE | \
-				      XFEATURE_MASK_YMM | \
-				      XFEATURE_MASK_OPMASK | \
-				      XFEATURE_MASK_ZMM_Hi256 | \
-				      XFEATURE_MASK_Hi16_ZMM	 | \
-				      XFEATURE_MASK_PKRU | \
-				      XFEATURE_MASK_BNDREGS | \
-				      XFEATURE_MASK_BNDCSR | \
-				      XFEATURE_MASK_XTILE)
+#define XFEATURE_MASK_USER_SUPPORTED (XFEATURE_MASK_FP   \
+  | XFEATURE_MASK_SSE   \
+  | XFEATURE_MASK_YMM   \
+  | XFEATURE_MASK_OPMASK   \
+  | XFEATURE_MASK_ZMM_Hi256   \
+  | XFEATURE_MASK_Hi16_ZMM     \
+  | XFEATURE_MASK_PKRU   \
+  | XFEATURE_MASK_BNDREGS   \
+  | XFEATURE_MASK_BNDCSR   \
+  | XFEATURE_MASK_XTILE)
 
 /*
  * Features which are restored when returning to user space.
  * PKRU is not restored on return to user space because PKRU
  * is switched eagerly in switch_to() and flush_thread()
  */
-#define XFEATURE_MASK_USER_RESTORE	\
-	(XFEATURE_MASK_USER_SUPPORTED & ~XFEATURE_MASK_PKRU)
+#define XFEATURE_MASK_USER_RESTORE  \
+  (XFEATURE_MASK_USER_SUPPORTED & ~XFEATURE_MASK_PKRU)
 
 /* Features which are dynamically enabled for a process on request */
-#define XFEATURE_MASK_USER_DYNAMIC	XFEATURE_MASK_XTILE_DATA
+#define XFEATURE_MASK_USER_DYNAMIC  XFEATURE_MASK_XTILE_DATA
 
 /* All currently supported supervisor features */
-#define XFEATURE_MASK_SUPERVISOR_SUPPORTED (XFEATURE_MASK_PASID | \
-					    XFEATURE_MASK_CET_USER)
+#define XFEATURE_MASK_SUPERVISOR_SUPPORTED (XFEATURE_MASK_PASID   \
+  | XFEATURE_MASK_CET_USER)
 
 /*
  * A supervisor state component may not always contain valuable information,
@@ -78,33 +78,33 @@
  * Unsupported supervisor features. When a supervisor feature in this mask is
  * supported in the future, move it to the supported supervisor feature mask.
  */
-#define XFEATURE_MASK_SUPERVISOR_UNSUPPORTED (XFEATURE_MASK_PT | \
-					      XFEATURE_MASK_CET_KERNEL)
+#define XFEATURE_MASK_SUPERVISOR_UNSUPPORTED (XFEATURE_MASK_PT   \
+  | XFEATURE_MASK_CET_KERNEL)
 
 /* All supervisor states including supported and unsupported states. */
-#define XFEATURE_MASK_SUPERVISOR_ALL (XFEATURE_MASK_SUPERVISOR_SUPPORTED | \
-				      XFEATURE_MASK_INDEPENDENT | \
-				      XFEATURE_MASK_SUPERVISOR_UNSUPPORTED)
+#define XFEATURE_MASK_SUPERVISOR_ALL (XFEATURE_MASK_SUPERVISOR_SUPPORTED   \
+  | XFEATURE_MASK_INDEPENDENT   \
+  | XFEATURE_MASK_SUPERVISOR_UNSUPPORTED)
 
 /*
  * The feature mask required to restore FPU state:
  * - All user states which are not eagerly switched in switch_to()/exec()
  * - The suporvisor states
  */
-#define XFEATURE_MASK_FPSTATE	(XFEATURE_MASK_USER_RESTORE | \
-				 XFEATURE_MASK_SUPERVISOR_SUPPORTED)
+#define XFEATURE_MASK_FPSTATE (XFEATURE_MASK_USER_RESTORE   \
+  | XFEATURE_MASK_SUPERVISOR_SUPPORTED)
 
 /*
  * Features in this mask have space allocated in the signal frame, but may not
  * have that space initialized when the feature is in its init state.
  */
-#define XFEATURE_MASK_SIGFRAME_INITOPT	(XFEATURE_MASK_XTILE | \
-					 XFEATURE_MASK_USER_DYNAMIC)
+#define XFEATURE_MASK_SIGFRAME_INITOPT  (XFEATURE_MASK_XTILE   \
+  | XFEATURE_MASK_USER_DYNAMIC)
 
 extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 
 extern void __init update_regset_xstate_info(unsigned int size,
-					     u64 xstate_mask);
+    u64 xstate_mask);
 
 int xfeature_size(int xfeature_nr);
 
@@ -120,15 +120,15 @@ DECLARE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
 #ifdef CONFIG_X86_64
 DECLARE_STATIC_KEY_FALSE(__fpu_state_size_dynamic);
 
-static __always_inline __pure bool fpu_state_size_dynamic(void)
-{
-	return static_branch_unlikely(&__fpu_state_size_dynamic);
+static __always_inline __pure bool fpu_state_size_dynamic(void) {
+  return static_branch_unlikely(&__fpu_state_size_dynamic);
 }
+
 #else
-static __always_inline __pure bool fpu_state_size_dynamic(void)
-{
-	return false;
+static __always_inline __pure bool fpu_state_size_dynamic(void) {
+  return false;
 }
+
 #endif
 
 #endif

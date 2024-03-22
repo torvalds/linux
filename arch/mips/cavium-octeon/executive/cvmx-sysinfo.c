@@ -37,7 +37,7 @@
 /*
  * This structure defines the private state maintained by sysinfo module.
  */
-static struct cvmx_sysinfo sysinfo;	   /* system information */
+static struct cvmx_sysinfo sysinfo;    /* system information */
 
 /*
  * Returns the application information as obtained
@@ -45,9 +45,8 @@ static struct cvmx_sysinfo sysinfo;	   /* system information */
  * running the same application image, as well as the physical
  * memory regions available to the core.
  */
-struct cvmx_sysinfo *cvmx_sysinfo_get(void)
-{
-	return &sysinfo;
+struct cvmx_sysinfo *cvmx_sysinfo_get(void) {
+  return &sysinfo;
 }
-EXPORT_SYMBOL(cvmx_sysinfo_get);
 
+EXPORT_SYMBOL(cvmx_sysinfo_get);

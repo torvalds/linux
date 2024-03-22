@@ -36,58 +36,58 @@
 #include <linux/uio.h>
 #include <xen/xenbus.h>
 
-#define XEN_BUS_ID_SIZE			20
+#define XEN_BUS_ID_SIZE     20
 
 struct xen_bus_type {
-	char *root;
-	unsigned int levels;
-	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
-	int (*probe)(struct xen_bus_type *bus, const char *type,
-		     const char *dir);
-	bool (*otherend_will_handle)(struct xenbus_watch *watch,
-				     const char *path, const char *token);
-	void (*otherend_changed)(struct xenbus_watch *watch, const char *path,
-				 const char *token);
-	struct bus_type bus;
+  char *root;
+  unsigned int levels;
+  int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
+  int (*probe)(struct xen_bus_type *bus, const char *type,
+      const char *dir);
+  bool (*otherend_will_handle)(struct xenbus_watch *watch,
+      const char *path, const char *token);
+  void (*otherend_changed)(struct xenbus_watch *watch, const char *path,
+      const char *token);
+  struct bus_type bus;
 };
 
 enum xenstore_init {
-	XS_UNKNOWN,
-	XS_PV,
-	XS_HVM,
-	XS_LOCAL,
+  XS_UNKNOWN,
+  XS_PV,
+  XS_HVM,
+  XS_LOCAL,
 };
 
 struct xs_watch_event {
-	struct list_head list;
-	unsigned int len;
-	struct xenbus_watch *handle;
-	const char *path;
-	const char *token;
-	char body[];
+  struct list_head list;
+  unsigned int len;
+  struct xenbus_watch *handle;
+  const char *path;
+  const char *token;
+  char body[];
 };
 
 enum xb_req_state {
-	xb_req_state_queued,
-	xb_req_state_wait_reply,
-	xb_req_state_got_reply,
-	xb_req_state_aborted
+  xb_req_state_queued,
+  xb_req_state_wait_reply,
+  xb_req_state_got_reply,
+  xb_req_state_aborted
 };
 
 struct xb_req_data {
-	struct list_head list;
-	wait_queue_head_t wq;
-	struct xsd_sockmsg msg;
-	uint32_t caller_req_id;
-	enum xsd_sockmsg_type type;
-	char *body;
-	const struct kvec *vec;
-	int num_vecs;
-	int err;
-	enum xb_req_state state;
-	bool user_req;
-	void (*cb)(struct xb_req_data *);
-	void *par;
+  struct list_head list;
+  wait_queue_head_t wq;
+  struct xsd_sockmsg msg;
+  uint32_t caller_req_id;
+  enum xsd_sockmsg_type type;
+  char *body;
+  const struct kvec *vec;
+  int num_vecs;
+  int err;
+  enum xb_req_state state;
+  bool user_req;
+  void (*cb)(struct xb_req_data *);
+  void *par;
 };
 
 extern enum xenstore_init xen_store_domain_type;
@@ -108,12 +108,12 @@ int xenbus_match(struct device *_dev, struct device_driver *_drv);
 int xenbus_dev_probe(struct device *_dev);
 void xenbus_dev_remove(struct device *_dev);
 int xenbus_register_driver_common(struct xenbus_driver *drv,
-				  struct xen_bus_type *bus,
-				  struct module *owner,
-				  const char *mod_name);
+    struct xen_bus_type *bus,
+    struct module *owner,
+    const char *mod_name);
 int xenbus_probe_node(struct xen_bus_type *bus,
-		      const char *type,
-		      const char *nodename);
+    const char *type,
+    const char *nodename);
 int xenbus_probe_devices(struct xen_bus_type *bus);
 
 void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
@@ -123,11 +123,11 @@ int xenbus_dev_resume(struct device *dev);
 int xenbus_dev_cancel(struct device *dev);
 
 void xenbus_otherend_changed(struct xenbus_watch *watch,
-			     const char *path, const char *token,
-			     int ignore_on_shutdown);
+    const char *path, const char *token,
+    int ignore_on_shutdown);
 
 int xenbus_read_otherend_details(struct xenbus_device *xendev,
-				 char *id_node, char *path_node);
+    char *id_node, char *path_node);
 
 void xenbus_ring_ops_init(void);
 

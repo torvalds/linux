@@ -23,9 +23,9 @@
 #define RTLX_BUFFER_SIZE 2048
 #define RTLX_CHANNELS 8
 
-#define RTLX_CHANNEL_STDIO	0
-#define RTLX_CHANNEL_DBG	1
-#define RTLX_CHANNEL_SYSIO	2
+#define RTLX_CHANNEL_STDIO  0
+#define RTLX_CHANNEL_DBG  1
+#define RTLX_CHANNEL_SYSIO  2
 
 void rtlx_starting(int vpe);
 void rtlx_stopping(int vpe);
@@ -47,41 +47,41 @@ extern const struct file_operations rtlx_fops;
 extern void (*aprp_hook)(void);
 
 enum rtlx_state {
-	RTLX_STATE_UNUSED = 0,
-	RTLX_STATE_INITIALISED,
-	RTLX_STATE_REMOTE_READY,
-	RTLX_STATE_OPENED
+  RTLX_STATE_UNUSED = 0,
+  RTLX_STATE_INITIALISED,
+  RTLX_STATE_REMOTE_READY,
+  RTLX_STATE_OPENED
 };
 
 extern struct chan_waitqueues {
-	wait_queue_head_t rt_queue;
-	wait_queue_head_t lx_queue;
-	atomic_t in_open;
-	struct mutex mutex;
+  wait_queue_head_t rt_queue;
+  wait_queue_head_t lx_queue;
+  atomic_t in_open;
+  struct mutex mutex;
 } channel_wqs[RTLX_CHANNELS];
 
 /* each channel supports read and write.
-   linux (vpe0) reads lx_buffer and writes rt_buffer
-   SP (vpe1) reads rt_buffer and writes lx_buffer
-*/
+ * linux (vpe0) reads lx_buffer and writes rt_buffer
+ * SP (vpe1) reads rt_buffer and writes lx_buffer
+ */
 struct rtlx_channel {
-	enum rtlx_state rt_state;
-	enum rtlx_state lx_state;
+  enum rtlx_state rt_state;
+  enum rtlx_state lx_state;
 
-	int buffer_size;
+  int buffer_size;
 
-	/* read and write indexes per buffer */
-	int rt_write, rt_read;
-	char *rt_buffer;
+  /* read and write indexes per buffer */
+  int rt_write, rt_read;
+  char *rt_buffer;
 
-	int lx_write, lx_read;
-	char *lx_buffer;
+  int lx_write, lx_read;
+  char *lx_buffer;
 };
 
 extern struct rtlx_info {
-	unsigned long id;
-	enum rtlx_state state;
+  unsigned long id;
+  enum rtlx_state state;
 
-	struct rtlx_channel channel[RTLX_CHANNELS];
+  struct rtlx_channel channel[RTLX_CHANNELS];
 } *rtlx;
 #endif /* __ASM_RTLX_H_ */

@@ -11,23 +11,23 @@
 #include <linux/irqchip/arm-gic-common.h>
 
 struct gic_quirk {
-	const char *desc;
-	const char *compatible;
-	const char *property;
-	bool (*init)(void *data);
-	u32 iidr;
-	u32 mask;
+  const char *desc;
+  const char *compatible;
+  const char *property;
+  bool (*init)(void *data);
+  u32 iidr;
+  u32 mask;
 };
 
 int gic_configure_irq(unsigned int irq, unsigned int type,
-                       void __iomem *base, void (*sync_access)(void));
+    void __iomem *base, void (*sync_access)(void));
 void gic_dist_config(void __iomem *base, int gic_irqs,
-		     void (*sync_access)(void));
+    void (*sync_access)(void));
 void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void));
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
-		void *data);
+    void *data);
 void gic_enable_of_quirks(const struct device_node *np,
-			  const struct gic_quirk *quirks, void *data);
+    const struct gic_quirk *quirks, void *data);
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING    (1 << 0)
 #define RDIST_FLAGS_RD_TABLES_PREALLOCATED     (1 << 1)

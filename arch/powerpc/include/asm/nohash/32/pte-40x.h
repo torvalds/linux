@@ -38,34 +38,34 @@
  *   PRESENT.
  */
 
-#define	_PAGE_GUARDED	0x001	/* G: page is guarded from prefetch */
-#define _PAGE_PRESENT	0x002	/* software: PTE contains a translation */
-#define	_PAGE_NO_CACHE	0x004	/* I: caching is inhibited */
-#define	_PAGE_WRITETHRU	0x008	/* W: caching is write-through */
-#define	_PAGE_READ	0x010	/* software: read permission */
-#define	_PAGE_SPECIAL	0x020	/* software: Special page */
-#define	_PAGE_DIRTY	0x080	/* software: dirty page */
-#define _PAGE_WRITE	0x100	/* hardware: WR, anded with dirty in exception */
-#define _PAGE_EXEC	0x200	/* hardware: EX permission */
-#define _PAGE_ACCESSED	0x400	/* software: R: page referenced */
+#define _PAGE_GUARDED 0x001 /* G: page is guarded from prefetch */
+#define _PAGE_PRESENT 0x002 /* software: PTE contains a translation */
+#define _PAGE_NO_CACHE  0x004 /* I: caching is inhibited */
+#define _PAGE_WRITETHRU 0x008 /* W: caching is write-through */
+#define _PAGE_READ  0x010 /* software: read permission */
+#define _PAGE_SPECIAL 0x020 /* software: Special page */
+#define _PAGE_DIRTY 0x080 /* software: dirty page */
+#define _PAGE_WRITE 0x100 /* hardware: WR, anded with dirty in exception */
+#define _PAGE_EXEC  0x200 /* hardware: EX permission */
+#define _PAGE_ACCESSED  0x400 /* software: R: page referenced */
 
 /* No page size encoding in the linux PTE */
-#define _PAGE_PSIZE		0
+#define _PAGE_PSIZE   0
 
 /* cache related flags non existing on 40x */
-#define _PAGE_COHERENT	0
+#define _PAGE_COHERENT  0
 
-#define _PMD_PRESENT	0x400	/* PMD points to page of PTEs */
-#define _PMD_PRESENT_MASK	_PMD_PRESENT
-#define _PMD_BAD	0x802
-#define _PMD_SIZE_4M	0x0c0
-#define _PMD_SIZE_16M	0x0e0
-#define _PMD_USER	0
+#define _PMD_PRESENT  0x400 /* PMD points to page of PTEs */
+#define _PMD_PRESENT_MASK _PMD_PRESENT
+#define _PMD_BAD  0x802
+#define _PMD_SIZE_4M  0x0c0
+#define _PMD_SIZE_16M 0x0e0
+#define _PMD_USER 0
 
-#define _PTE_NONE_MASK	0
+#define _PTE_NONE_MASK  0
 
-#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
-#define _PAGE_BASE	(_PAGE_BASE_NC)
+#define _PAGE_BASE_NC (_PAGE_PRESENT | _PAGE_ACCESSED)
+#define _PAGE_BASE  (_PAGE_BASE_NC)
 
 #include <asm/pgtable-masks.h>
 

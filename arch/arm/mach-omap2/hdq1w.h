@@ -14,9 +14,8 @@
  * XXX A future cleanup patch should modify
  * drivers/w1/masters/omap_hdq.c to use these macros
  */
-#define HDQ_CTRL_STATUS_OFFSET			0x0c
-#define HDQ_CTRL_STATUS_CLOCKENABLE_SHIFT	5
-
+#define HDQ_CTRL_STATUS_OFFSET      0x0c
+#define HDQ_CTRL_STATUS_CLOCKENABLE_SHIFT 5
 
 extern int omap_hdq1w_reset(struct omap_hwmod *oh);
 

@@ -31,9 +31,9 @@
  * See Documentation/locking/seqlock.rst
  */
 typedef struct seqcount {
-	unsigned sequence;
+  unsigned sequence;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map dep_map;
+  struct lockdep_map dep_map;
 #endif
 } seqcount_t;
 
@@ -54,21 +54,21 @@ typedef struct seqcount {
  * sleeping locks.  See Documentation/locking/locktypes.rst
  */
 #if defined(CONFIG_LOCKDEP) || defined(CONFIG_PREEMPT_RT)
-#define __SEQ_LOCK(expr)	expr
+#define __SEQ_LOCK(expr)  expr
 #else
 #define __SEQ_LOCK(expr)
 #endif
 
-#define SEQCOUNT_LOCKNAME(lockname, locktype, preemptible, lockbase)	\
-typedef struct seqcount_##lockname {					\
-	seqcount_t		seqcount;				\
-	__SEQ_LOCK(locktype	*lock);					\
-} seqcount_##lockname##_t;
+#define SEQCOUNT_LOCKNAME(lockname, locktype, preemptible, lockbase)  \
+  typedef struct seqcount_ ## lockname {          \
+    seqcount_t seqcount;       \
+    __SEQ_LOCK(locktype * lock);         \
+  } seqcount_ ## lockname ## _t;
 
-SEQCOUNT_LOCKNAME(raw_spinlock, raw_spinlock_t,  false,    raw_spin)
-SEQCOUNT_LOCKNAME(spinlock,     spinlock_t,      __SEQ_RT, spin)
-SEQCOUNT_LOCKNAME(rwlock,       rwlock_t,        __SEQ_RT, read)
-SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
+SEQCOUNT_LOCKNAME(raw_spinlock, raw_spinlock_t, false, raw_spin)
+SEQCOUNT_LOCKNAME(spinlock, spinlock_t, __SEQ_RT, spin)
+SEQCOUNT_LOCKNAME(rwlock, rwlock_t, __SEQ_RT, read)
+SEQCOUNT_LOCKNAME(mutex, struct mutex, true, mutex)
 #undef SEQCOUNT_LOCKNAME
 
 /*
@@ -82,12 +82,12 @@ SEQCOUNT_LOCKNAME(mutex,        struct mutex,    true,     mutex)
  *    - Documentation/locking/seqlock.rst
  */
 typedef struct {
-	/*
-	 * Make sure that readers don't starve writers on PREEMPT_RT: use
-	 * seqcount_spinlock_t instead of seqcount_t. Check __SEQ_LOCK().
-	 */
-	seqcount_spinlock_t seqcount;
-	spinlock_t lock;
+  /*
+   * Make sure that readers don't starve writers on PREEMPT_RT: use
+   * seqcount_spinlock_t instead of seqcount_t. Check __SEQ_LOCK().
+   */
+  seqcount_spinlock_t seqcount;
+  spinlock_t lock;
 } seqlock_t;
 
 #endif /* __LINUX_SEQLOCK_TYPES_H */

@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef	__HMM_BO_H__
-#define	__HMM_BO_H__
+#ifndef __HMM_BO_H__
+#define __HMM_BO_H__
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -30,123 +30,123 @@
 #include "hmm/hmm_common.h"
 #include "ia_css_types.h"
 
-#define	check_bodev_null_return(bdev, exp)	\
-		check_null_return(bdev, exp, \
-			"NULL hmm_bo_device.\n")
+#define check_bodev_null_return(bdev, exp)  \
+  check_null_return(bdev, exp, \
+    "NULL hmm_bo_device.\n")
 
-#define	check_bodev_null_return_void(bdev)	\
-		check_null_return_void(bdev, \
-			"NULL hmm_bo_device.\n")
+#define check_bodev_null_return_void(bdev)  \
+  check_null_return_void(bdev, \
+    "NULL hmm_bo_device.\n")
 
-#define	check_bo_status_yes_goto(bo, _status, label) \
-	var_not_equal_goto((bo->status & (_status)), (_status), \
-			label, \
-			"HMM buffer status not contain %s.\n", \
-			#_status)
+#define check_bo_status_yes_goto(bo, _status, label) \
+  var_not_equal_goto((bo->status & (_status)), (_status), \
+    label, \
+    "HMM buffer status not contain %s.\n", \
+    #_status)
 
-#define	check_bo_status_no_goto(bo, _status, label) \
-	var_equal_goto((bo->status & (_status)), (_status), \
-			label, \
-			"HMM buffer status contains %s.\n", \
-			#_status)
+#define check_bo_status_no_goto(bo, _status, label) \
+  var_equal_goto((bo->status & (_status)), (_status), \
+    label, \
+    "HMM buffer status contains %s.\n", \
+    #_status)
 
-#define rbtree_node_to_hmm_bo(root_node)	\
-	container_of((root_node), struct hmm_buffer_object, node)
+#define rbtree_node_to_hmm_bo(root_node)  \
+  container_of((root_node), struct hmm_buffer_object, node)
 
-#define	list_to_hmm_bo(list_ptr)	\
-	list_entry((list_ptr), struct hmm_buffer_object, list)
+#define list_to_hmm_bo(list_ptr)  \
+  list_entry((list_ptr), struct hmm_buffer_object, list)
 
-#define	kref_to_hmm_bo(kref_ptr)	\
-	list_entry((kref_ptr), struct hmm_buffer_object, kref)
+#define kref_to_hmm_bo(kref_ptr)  \
+  list_entry((kref_ptr), struct hmm_buffer_object, kref)
 
-#define	check_bo_null_return(bo, exp)	\
-	check_null_return(bo, exp, "NULL hmm buffer object.\n")
+#define check_bo_null_return(bo, exp) \
+  check_null_return(bo, exp, "NULL hmm buffer object.\n")
 
-#define	check_bo_null_return_void(bo)	\
-	check_null_return_void(bo, "NULL hmm buffer object.\n")
+#define check_bo_null_return_void(bo) \
+  check_null_return_void(bo, "NULL hmm buffer object.\n")
 
-#define	ISP_VM_START	0x0
-#define	ISP_VM_SIZE	(0x7FFFFFFF)	/* 2G address space */
-#define	ISP_PTR_NULL	NULL
+#define ISP_VM_START  0x0
+#define ISP_VM_SIZE (0x7FFFFFFF)  /* 2G address space */
+#define ISP_PTR_NULL  NULL
 
-#define	HMM_BO_DEVICE_INITED	0x1
+#define HMM_BO_DEVICE_INITED  0x1
 
 enum hmm_bo_type {
-	HMM_BO_PRIVATE,
-	HMM_BO_VMALLOC,
-	HMM_BO_LAST,
+  HMM_BO_PRIVATE,
+  HMM_BO_VMALLOC,
+  HMM_BO_LAST,
 };
 
-#define	HMM_BO_MASK		0x1
-#define	HMM_BO_FREE		0x0
-#define	HMM_BO_ALLOCED	0x1
-#define	HMM_BO_PAGE_ALLOCED	0x2
-#define	HMM_BO_BINDED		0x4
-#define	HMM_BO_MMAPED		0x8
-#define	HMM_BO_VMAPED		0x10
-#define	HMM_BO_VMAPED_CACHED	0x20
-#define	HMM_BO_ACTIVE		0x1000
+#define HMM_BO_MASK   0x1
+#define HMM_BO_FREE   0x0
+#define HMM_BO_ALLOCED  0x1
+#define HMM_BO_PAGE_ALLOCED 0x2
+#define HMM_BO_BINDED   0x4
+#define HMM_BO_MMAPED   0x8
+#define HMM_BO_VMAPED   0x10
+#define HMM_BO_VMAPED_CACHED  0x20
+#define HMM_BO_ACTIVE   0x1000
 
 struct hmm_bo_device {
-	struct isp_mmu		mmu;
+  struct isp_mmu mmu;
 
-	/* start/pgnr/size is used to record the virtual memory of this bo */
-	unsigned int start;
-	unsigned int pgnr;
-	unsigned int size;
+  /* start/pgnr/size is used to record the virtual memory of this bo */
+  unsigned int start;
+  unsigned int pgnr;
+  unsigned int size;
 
-	/* list lock is used to protect the entire_bo_list */
-	spinlock_t	list_lock;
-	int flag;
+  /* list lock is used to protect the entire_bo_list */
+  spinlock_t list_lock;
+  int flag;
 
-	/* linked list for entire buffer object */
-	struct list_head entire_bo_list;
-	/* rbtree for maintain entire allocated vm */
-	struct rb_root allocated_rbtree;
-	/* rbtree for maintain entire free vm */
-	struct rb_root free_rbtree;
-	struct mutex rbtree_mutex;
-	struct kmem_cache *bo_cache;
+  /* linked list for entire buffer object */
+  struct list_head entire_bo_list;
+  /* rbtree for maintain entire allocated vm */
+  struct rb_root allocated_rbtree;
+  /* rbtree for maintain entire free vm */
+  struct rb_root free_rbtree;
+  struct mutex rbtree_mutex;
+  struct kmem_cache *bo_cache;
 };
 
 struct hmm_buffer_object {
-	struct hmm_bo_device	*bdev;
-	struct list_head	list;
-	struct kref	kref;
+  struct hmm_bo_device *bdev;
+  struct list_head list;
+  struct kref kref;
 
-	struct page **pages;
+  struct page **pages;
 
-	/* mutex protecting this BO */
-	struct mutex		mutex;
-	enum hmm_bo_type	type;
-	int		mmap_count;
-	int		status;
-	void		*vmap_addr; /* kernel virtual address by vmap */
+  /* mutex protecting this BO */
+  struct mutex mutex;
+  enum hmm_bo_type type;
+  int mmap_count;
+  int status;
+  void *vmap_addr; /* kernel virtual address by vmap */
 
-	struct rb_node	node;
-	unsigned int	start;
-	unsigned int	end;
-	unsigned int	pgnr;
-	/*
-	 * When insert a bo which has the same pgnr with an existed
-	 * bo node in the free_rbtree, using "prev & next" pointer
-	 * to maintain a bo linked list instead of insert this bo
-	 * into free_rbtree directly, it will make sure each node
-	 * in free_rbtree has different pgnr.
-	 * "prev & next" default is NULL.
-	 */
-	struct hmm_buffer_object	*prev;
-	struct hmm_buffer_object	*next;
+  struct rb_node node;
+  unsigned int start;
+  unsigned int end;
+  unsigned int pgnr;
+  /*
+   * When insert a bo which has the same pgnr with an existed
+   * bo node in the free_rbtree, using "prev & next" pointer
+   * to maintain a bo linked list instead of insert this bo
+   * into free_rbtree directly, it will make sure each node
+   * in free_rbtree has different pgnr.
+   * "prev & next" default is NULL.
+   */
+  struct hmm_buffer_object *prev;
+  struct hmm_buffer_object *next;
 };
 
 struct hmm_buffer_object *hmm_bo_alloc(struct hmm_bo_device *bdev,
-				       unsigned int pgnr);
+    unsigned int pgnr);
 
 void hmm_bo_release(struct hmm_buffer_object *bo);
 
 int hmm_bo_device_init(struct hmm_bo_device *bdev,
-		       struct isp_mmu_client *mmu_driver,
-		       unsigned int vaddr_start, unsigned int size);
+    struct isp_mmu_client *mmu_driver,
+    unsigned int vaddr_start, unsigned int size);
 
 /*
  * clean up all hmm_bo_device related things.
@@ -184,17 +184,17 @@ void hmm_bo_ref(struct hmm_buffer_object *bo);
  * of the buffer object itself manually. below example shows
  * the normal case of using the buffer object.
  *
- *	struct hmm_buffer_object *bo = hmm_bo_create(bdev, pgnr);
- *	......
- *	hmm_bo_unref(bo);
+ *  struct hmm_buffer_object *bo = hmm_bo_create(bdev, pgnr);
+ *  ......
+ *  hmm_bo_unref(bo);
  *
  * or:
  *
- *	struct hmm_buffer_object bo;
+ *  struct hmm_buffer_object bo;
  *
- *	hmm_bo_init(bdev, &bo, pgnr, NULL);
- *	...
- *	hmm_bo_unref(&bo);
+ *  hmm_bo_init(bdev, &bo, pgnr, NULL);
+ *  ...
+ *  hmm_bo_unref(&bo);
  */
 void hmm_bo_unref(struct hmm_buffer_object *bo);
 
@@ -206,8 +206,8 @@ int hmm_bo_allocated(struct hmm_buffer_object *bo);
  * or by ISP driver itself.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
-		       enum hmm_bo_type type,
-		       void *vmalloc_addr);
+    enum hmm_bo_type type,
+    void *vmalloc_addr);
 void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
 
@@ -244,14 +244,14 @@ void hmm_bo_vunmap(struct hmm_buffer_object *bo);
  * vma->vm_flags will be set to (VM_RESERVED | VM_IO).
  */
 int hmm_bo_mmap(struct vm_area_struct *vma,
-		struct hmm_buffer_object *bo);
+    struct hmm_buffer_object *bo);
 
 /*
  * find the buffer object by its virtual address vaddr.
  * return NULL if no such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_start(
-    struct hmm_bo_device *bdev, ia_css_ptr vaddr);
+  struct hmm_bo_device *bdev, ia_css_ptr vaddr);
 
 /*
  * find the buffer object by its virtual address.
@@ -260,13 +260,13 @@ struct hmm_buffer_object *hmm_bo_device_search_start(
  * return NULL if no such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_in_range(
-    struct hmm_bo_device *bdev, ia_css_ptr vaddr);
+  struct hmm_bo_device *bdev, ia_css_ptr vaddr);
 
 /*
  * find the buffer object with kernel virtual address vaddr.
  * return NULL if no such buffer object found.
  */
 struct hmm_buffer_object *hmm_bo_device_search_vmap_start(
-    struct hmm_bo_device *bdev, const void *vaddr);
+  struct hmm_bo_device *bdev, const void *vaddr);
 
 #endif

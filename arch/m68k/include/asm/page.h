@@ -7,10 +7,10 @@
 #include <asm/page_offset.h>
 
 /* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
-#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
-#define PAGE_OFFSET	(PAGE_OFFSET_RAW)
+#define PAGE_SHIFT  CONFIG_PAGE_SHIFT
+#define PAGE_SIZE (_AC(1, UL) << PAGE_SHIFT)
+#define PAGE_MASK (~(PAGE_SIZE - 1))
+#define PAGE_OFFSET (PAGE_OFFSET_RAW)
 
 #ifndef __ASSEMBLY__
 
@@ -18,14 +18,22 @@
  * These are used to make use of C type-checking..
  */
 #if !defined(CONFIG_MMU) || CONFIG_PGTABLE_LEVELS == 3
-typedef struct { unsigned long pmd; } pmd_t;
-#define pmd_val(x)	((&x)->pmd)
-#define __pmd(x)	((pmd_t) { (x) } )
+typedef struct {
+  unsigned long pmd;
+} pmd_t;
+#define pmd_val(x)  ((&x)->pmd)
+#define __pmd(x)  ((pmd_t) { (x) })
 #endif
 
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct {
+  unsigned long pte;
+} pte_t;
+typedef struct {
+  unsigned long pgd;
+} pgd_t;
+typedef struct {
+  unsigned long pgprot;
+} pgprot_t;
 
 #if defined(CONFIG_SUN3)
 /*
@@ -38,13 +46,13 @@ typedef struct page *pgtable_t;
 typedef pte_t *pgtable_t;
 #endif
 
-#define pte_val(x)	((x).pte)
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
+#define pte_val(x)  ((x).pte)
+#define pgd_val(x)  ((x).pgd)
+#define pgprot_val(x) ((x).pgprot)
 
-#define __pte(x)	((pte_t) { (x) } )
-#define __pgd(x)	((pgd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
+#define __pte(x)  ((pte_t) { (x) })
+#define __pgd(x)  ((pgd_t) { (x) })
+#define __pgprot(x) ((pgprot_t) { (x) })
 
 extern unsigned long _rambase;
 extern unsigned long _ramstart;

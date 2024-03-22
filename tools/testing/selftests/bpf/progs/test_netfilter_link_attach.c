@@ -6,9 +6,8 @@
 #define NF_ACCEPT 1
 
 SEC("netfilter")
-int nf_link_attach_test(struct bpf_nf_ctx *ctx)
-{
-	return NF_ACCEPT;
+int nf_link_attach_test(struct bpf_nf_ctx *ctx) {
+  return NF_ACCEPT;
 }
 
 char _license[] SEC("license") = "GPL";

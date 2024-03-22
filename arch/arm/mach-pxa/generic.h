@@ -2,8 +2,8 @@
 /*
  *  linux/arch/arm/mach-pxa/generic.h
  *
- * Author:	Nicolas Pitre
- * Copyright:	MontaVista Software Inc.
+ * Author:  Nicolas Pitre
+ * Copyright: MontaVista Software Inc.
  */
 
 #include <linux/reboot.h>
@@ -11,15 +11,15 @@
 struct irq_data;
 
 extern void __init pxa_dt_irq_init(int (*fn)(struct irq_data *,
-					     unsigned int));
+    unsigned int));
 extern void __init pxa_map_io(void);
 extern void pxa_timer_init(void);
 
-#define SET_BANK(__nr,__start,__size) \
-	mi->bank[__nr].start = (__start), \
-	mi->bank[__nr].size = (__size)
+#define SET_BANK(__nr, __start, __size) \
+  mi->bank[__nr].start = (__start), \
+  mi->bank[__nr].size = (__size)
 
-#define ARRAY_AND_SIZE(x)	(x), ARRAY_SIZE(x)
+#define ARRAY_AND_SIZE(x) (x), ARRAY_SIZE(x)
 
 #define pxa25x_handle_irq icip_handle_irq
 extern void __init pxa25x_init_irq(void);
@@ -48,7 +48,7 @@ void pxa_restart(enum reboot_mode, const char *);
 #if defined(CONFIG_PXA25x) || defined(CONFIG_PXA27x)
 extern void pxa2xx_clear_reset_status(unsigned int);
 #else
-static inline void pxa2xx_clear_reset_status(unsigned int mask) {}
+static inline void pxa2xx_clear_reset_status(unsigned int mask) {
+}
+
 #endif
-
-

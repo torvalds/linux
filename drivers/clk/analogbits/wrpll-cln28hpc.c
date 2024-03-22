@@ -33,37 +33,37 @@
 #include <linux/clk/analogbits-wrpll-cln28hpc.h>
 
 /* MIN_INPUT_FREQ: minimum input clock frequency, in Hz (Fref_min) */
-#define MIN_INPUT_FREQ			7000000
+#define MIN_INPUT_FREQ      7000000
 
 /* MAX_INPUT_FREQ: maximum input clock frequency, in Hz (Fref_max) */
-#define MAX_INPUT_FREQ			600000000
+#define MAX_INPUT_FREQ      600000000
 
 /* MIN_POST_DIVIDE_REF_FREQ: minimum post-divider reference frequency, in Hz */
-#define MIN_POST_DIVR_FREQ		7000000
+#define MIN_POST_DIVR_FREQ    7000000
 
 /* MAX_POST_DIVIDE_REF_FREQ: maximum post-divider reference frequency, in Hz */
-#define MAX_POST_DIVR_FREQ		200000000
+#define MAX_POST_DIVR_FREQ    200000000
 
 /* MIN_VCO_FREQ: minimum VCO frequency, in Hz (Fvco_min) */
-#define MIN_VCO_FREQ			2400000000UL
+#define MIN_VCO_FREQ      2400000000UL
 
 /* MAX_VCO_FREQ: maximum VCO frequency, in Hz (Fvco_max) */
-#define MAX_VCO_FREQ			4800000000ULL
+#define MAX_VCO_FREQ      4800000000ULL
 
 /* MAX_DIVQ_DIVISOR: maximum output divisor.  Selected by DIVQ = 6 */
-#define MAX_DIVQ_DIVISOR		64
+#define MAX_DIVQ_DIVISOR    64
 
 /* MAX_DIVR_DIVISOR: maximum reference divisor.  Selected by DIVR = 63 */
-#define MAX_DIVR_DIVISOR		64
+#define MAX_DIVR_DIVISOR    64
 
 /* MAX_LOCK_US: maximum PLL lock time, in microseconds (tLOCK_max) */
-#define MAX_LOCK_US			70
+#define MAX_LOCK_US     70
 
 /*
  * ROUND_SHIFT: number of bits to shift to avoid precision loss in the rounding
  *              algorithm
  */
-#define ROUND_SHIFT			20
+#define ROUND_SHIFT     20
 
 /*
  * Private functions
@@ -81,31 +81,28 @@
  * Return: The RANGE value to be presented to the PLL configuration inputs,
  *         or a negative return code upon error.
  */
-static int __wrpll_calc_filter_range(unsigned long post_divr_freq)
-{
-	if (post_divr_freq < MIN_POST_DIVR_FREQ ||
-	    post_divr_freq > MAX_POST_DIVR_FREQ) {
-		WARN(1, "%s: post-divider reference freq out of range: %lu",
-		     __func__, post_divr_freq);
-		return -ERANGE;
-	}
-
-	switch (post_divr_freq) {
-	case 0 ... 10999999:
-		return 1;
-	case 11000000 ... 17999999:
-		return 2;
-	case 18000000 ... 29999999:
-		return 3;
-	case 30000000 ... 49999999:
-		return 4;
-	case 50000000 ... 79999999:
-		return 5;
-	case 80000000 ... 129999999:
-		return 6;
-	}
-
-	return 7;
+static int __wrpll_calc_filter_range(unsigned long post_divr_freq) {
+  if (post_divr_freq < MIN_POST_DIVR_FREQ
+      || post_divr_freq > MAX_POST_DIVR_FREQ) {
+    WARN(1, "%s: post-divider reference freq out of range: %lu",
+        __func__, post_divr_freq);
+    return -ERANGE;
+  }
+  switch (post_divr_freq) {
+    case 0 ... 10999999:
+      return 1;
+    case 11000000 ... 17999999:
+      return 2;
+    case 18000000 ... 29999999:
+      return 3;
+    case 30000000 ... 49999999:
+      return 4;
+    case 50000000 ... 79999999:
+      return 5;
+    case 80000000 ... 129999999:
+      return 6;
+  }
+  return 7;
 }
 
 /**
@@ -125,9 +122,8 @@ static int __wrpll_calc_filter_range(unsigned long post_divr_freq)
  * Return: 2 if internal feedback is enabled or 1 if external feedback
  *         is enabled.
  */
-static u8 __wrpll_calc_fbdiv(const struct wrpll_cfg *c)
-{
-	return (c->flags & WRPLL_FLAGS_INT_FEEDBACK_MASK) ? 2 : 1;
+static u8 __wrpll_calc_fbdiv(const struct wrpll_cfg *c) {
+  return (c->flags & WRPLL_FLAGS_INT_FEEDBACK_MASK) ? 2 : 1;
 }
 
 /**
@@ -146,30 +142,26 @@ static u8 __wrpll_calc_fbdiv(const struct wrpll_cfg *c)
  * Return: a positive integer DIVQ value to be programmed into the hardware
  *         upon success, or 0 upon error (since 0 is an invalid DIVQ value)
  */
-static u8 __wrpll_calc_divq(u32 target_rate, u64 *vco_rate)
-{
-	u64 s;
-	u8 divq = 0;
-
-	if (!vco_rate) {
-		WARN_ON(1);
-		goto wcd_out;
-	}
-
-	s = div_u64(MAX_VCO_FREQ, target_rate);
-	if (s <= 1) {
-		divq = 1;
-		*vco_rate = MAX_VCO_FREQ;
-	} else if (s > MAX_DIVQ_DIVISOR) {
-		divq = ilog2(MAX_DIVQ_DIVISOR);
-		*vco_rate = MIN_VCO_FREQ;
-	} else {
-		divq = ilog2(s);
-		*vco_rate = (u64)target_rate << divq;
-	}
-
+static u8 __wrpll_calc_divq(u32 target_rate, u64 *vco_rate) {
+  u64 s;
+  u8 divq = 0;
+  if (!vco_rate) {
+    WARN_ON(1);
+    goto wcd_out;
+  }
+  s = div_u64(MAX_VCO_FREQ, target_rate);
+  if (s <= 1) {
+    divq = 1;
+    *vco_rate = MAX_VCO_FREQ;
+  } else if (s > MAX_DIVQ_DIVISOR) {
+    divq = ilog2(MAX_DIVQ_DIVISOR);
+    *vco_rate = MIN_VCO_FREQ;
+  } else {
+    divq = ilog2(s);
+    *vco_rate = (u64) target_rate << divq;
+  }
 wcd_out:
-	return divq;
+  return divq;
 }
 
 /**
@@ -186,20 +178,16 @@ wcd_out:
  * out of range.
  */
 static int __wrpll_update_parent_rate(struct wrpll_cfg *c,
-				      unsigned long parent_rate)
-{
-	u8 max_r_for_parent;
-
-	if (parent_rate > MAX_INPUT_FREQ || parent_rate < MIN_POST_DIVR_FREQ)
-		return -ERANGE;
-
-	c->parent_rate = parent_rate;
-	max_r_for_parent = div_u64(parent_rate, MIN_POST_DIVR_FREQ);
-	c->max_r = min_t(u8, MAX_DIVR_DIVISOR, max_r_for_parent);
-
-	c->init_r = DIV_ROUND_UP_ULL(parent_rate, MAX_POST_DIVR_FREQ);
-
-	return 0;
+    unsigned long parent_rate) {
+  u8 max_r_for_parent;
+  if (parent_rate > MAX_INPUT_FREQ || parent_rate < MIN_POST_DIVR_FREQ) {
+    return -ERANGE;
+  }
+  c->parent_rate = parent_rate;
+  max_r_for_parent = div_u64(parent_rate, MIN_POST_DIVR_FREQ);
+  c->max_r = min_t(u8, MAX_DIVR_DIVISOR, max_r_for_parent);
+  c->init_r = DIV_ROUND_UP_ULL(parent_rate, MAX_POST_DIVR_FREQ);
+  return 0;
 }
 
 /**
@@ -224,95 +212,81 @@ static int __wrpll_update_parent_rate(struct wrpll_cfg *c,
  * Return: 0 upon success; anything else upon failure.
  */
 int wrpll_configure_for_rate(struct wrpll_cfg *c, u32 target_rate,
-			     unsigned long parent_rate)
-{
-	unsigned long ratio;
-	u64 target_vco_rate, delta, best_delta, f_pre_div, vco, vco_pre;
-	u32 best_f, f, post_divr_freq;
-	u8 fbdiv, divq, best_r, r;
-	int range;
-
-	if (c->flags == 0) {
-		WARN(1, "%s called with uninitialized PLL config", __func__);
-		return -EINVAL;
-	}
-
-	/* Initialize rounding data if it hasn't been initialized already */
-	if (parent_rate != c->parent_rate) {
-		if (__wrpll_update_parent_rate(c, parent_rate)) {
-			pr_err("%s: PLL input rate is out of range\n",
-			       __func__);
-			return -ERANGE;
-		}
-	}
-
-	c->flags &= ~WRPLL_FLAGS_RESET_MASK;
-
-	/* Put the PLL into bypass if the user requests the parent clock rate */
-	if (target_rate == parent_rate) {
-		c->flags |= WRPLL_FLAGS_BYPASS_MASK;
-		return 0;
-	}
-
-	c->flags &= ~WRPLL_FLAGS_BYPASS_MASK;
-
-	/* Calculate the Q shift and target VCO rate */
-	divq = __wrpll_calc_divq(target_rate, &target_vco_rate);
-	if (!divq)
-		return -1;
-	c->divq = divq;
-
-	/* Precalculate the pre-Q divider target ratio */
-	ratio = div64_u64((target_vco_rate << ROUND_SHIFT), parent_rate);
-
-	fbdiv = __wrpll_calc_fbdiv(c);
-	best_r = 0;
-	best_f = 0;
-	best_delta = MAX_VCO_FREQ;
-
-	/*
-	 * Consider all values for R which land within
-	 * [MIN_POST_DIVR_FREQ, MAX_POST_DIVR_FREQ]; prefer smaller R
-	 */
-	for (r = c->init_r; r <= c->max_r; ++r) {
-		f_pre_div = ratio * r;
-		f = (f_pre_div + (1 << ROUND_SHIFT)) >> ROUND_SHIFT;
-		f >>= (fbdiv - 1);
-
-		post_divr_freq = div_u64(parent_rate, r);
-		vco_pre = fbdiv * post_divr_freq;
-		vco = vco_pre * f;
-
-		/* Ensure rounding didn't take us out of range */
-		if (vco > target_vco_rate) {
-			--f;
-			vco = vco_pre * f;
-		} else if (vco < MIN_VCO_FREQ) {
-			++f;
-			vco = vco_pre * f;
-		}
-
-		delta = abs(target_rate - vco);
-		if (delta < best_delta) {
-			best_delta = delta;
-			best_r = r;
-			best_f = f;
-		}
-	}
-
-	c->divr = best_r - 1;
-	c->divf = best_f - 1;
-
-	post_divr_freq = div_u64(parent_rate, best_r);
-
-	/* Pick the best PLL jitter filter */
-	range = __wrpll_calc_filter_range(post_divr_freq);
-	if (range < 0)
-		return range;
-	c->range = range;
-
-	return 0;
+    unsigned long parent_rate) {
+  unsigned long ratio;
+  u64 target_vco_rate, delta, best_delta, f_pre_div, vco, vco_pre;
+  u32 best_f, f, post_divr_freq;
+  u8 fbdiv, divq, best_r, r;
+  int range;
+  if (c->flags == 0) {
+    WARN(1, "%s called with uninitialized PLL config", __func__);
+    return -EINVAL;
+  }
+  /* Initialize rounding data if it hasn't been initialized already */
+  if (parent_rate != c->parent_rate) {
+    if (__wrpll_update_parent_rate(c, parent_rate)) {
+      pr_err("%s: PLL input rate is out of range\n",
+          __func__);
+      return -ERANGE;
+    }
+  }
+  c->flags &= ~WRPLL_FLAGS_RESET_MASK;
+  /* Put the PLL into bypass if the user requests the parent clock rate */
+  if (target_rate == parent_rate) {
+    c->flags |= WRPLL_FLAGS_BYPASS_MASK;
+    return 0;
+  }
+  c->flags &= ~WRPLL_FLAGS_BYPASS_MASK;
+  /* Calculate the Q shift and target VCO rate */
+  divq = __wrpll_calc_divq(target_rate, &target_vco_rate);
+  if (!divq) {
+    return -1;
+  }
+  c->divq = divq;
+  /* Precalculate the pre-Q divider target ratio */
+  ratio = div64_u64((target_vco_rate << ROUND_SHIFT), parent_rate);
+  fbdiv = __wrpll_calc_fbdiv(c);
+  best_r = 0;
+  best_f = 0;
+  best_delta = MAX_VCO_FREQ;
+  /*
+   * Consider all values for R which land within
+   * [MIN_POST_DIVR_FREQ, MAX_POST_DIVR_FREQ]; prefer smaller R
+   */
+  for (r = c->init_r; r <= c->max_r; ++r) {
+    f_pre_div = ratio * r;
+    f = (f_pre_div + (1 << ROUND_SHIFT)) >> ROUND_SHIFT;
+    f >>= (fbdiv - 1);
+    post_divr_freq = div_u64(parent_rate, r);
+    vco_pre = fbdiv * post_divr_freq;
+    vco = vco_pre * f;
+    /* Ensure rounding didn't take us out of range */
+    if (vco > target_vco_rate) {
+      --f;
+      vco = vco_pre * f;
+    } else if (vco < MIN_VCO_FREQ) {
+      ++f;
+      vco = vco_pre * f;
+    }
+    delta = abs(target_rate - vco);
+    if (delta < best_delta) {
+      best_delta = delta;
+      best_r = r;
+      best_f = f;
+    }
+  }
+  c->divr = best_r - 1;
+  c->divf = best_f - 1;
+  post_divr_freq = div_u64(parent_rate, best_r);
+  /* Pick the best PLL jitter filter */
+  range = __wrpll_calc_filter_range(post_divr_freq);
+  if (range < 0) {
+    return range;
+  }
+  c->range = range;
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(wrpll_configure_for_rate);
 
 /**
@@ -334,23 +308,20 @@ EXPORT_SYMBOL_GPL(wrpll_configure_for_rate);
  *         error return value.
  */
 unsigned long wrpll_calc_output_rate(const struct wrpll_cfg *c,
-				     unsigned long parent_rate)
-{
-	u8 fbdiv;
-	u64 n;
-
-	if (c->flags & WRPLL_FLAGS_EXT_FEEDBACK_MASK) {
-		WARN(1, "external feedback mode not yet supported");
-		return ULONG_MAX;
-	}
-
-	fbdiv = __wrpll_calc_fbdiv(c);
-	n = parent_rate * fbdiv * (c->divf + 1);
-	n = div_u64(n, c->divr + 1);
-	n >>= c->divq;
-
-	return n;
+    unsigned long parent_rate) {
+  u8 fbdiv;
+  u64 n;
+  if (c->flags & WRPLL_FLAGS_EXT_FEEDBACK_MASK) {
+    WARN(1, "external feedback mode not yet supported");
+    return ULONG_MAX;
+  }
+  fbdiv = __wrpll_calc_fbdiv(c);
+  n = parent_rate * fbdiv * (c->divf + 1);
+  n = div_u64(n, c->divr + 1);
+  n >>= c->divq;
+  return n;
 }
+
 EXPORT_SYMBOL_GPL(wrpll_calc_output_rate);
 
 /**
@@ -365,10 +336,10 @@ EXPORT_SYMBOL_GPL(wrpll_calc_output_rate);
  * Return: the minimum amount of time the caller must wait for the PLL
  *         to lock (in microseconds)
  */
-unsigned int wrpll_calc_max_lock_us(const struct wrpll_cfg *c)
-{
-	return MAX_LOCK_US;
+unsigned int wrpll_calc_max_lock_us(const struct wrpll_cfg *c) {
+  return MAX_LOCK_US;
 }
+
 EXPORT_SYMBOL_GPL(wrpll_calc_max_lock_us);
 
 MODULE_AUTHOR("Paul Walmsley <paul.walmsley@sifive.com>");

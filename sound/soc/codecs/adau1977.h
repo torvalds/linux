@@ -14,23 +14,23 @@
 struct device;
 
 enum adau1977_type {
-	ADAU1977,
-	ADAU1978,
-	ADAU1979,
+  ADAU1977,
+  ADAU1978,
+  ADAU1979,
 };
 
 int adau1977_probe(struct device *dev, struct regmap *regmap,
-	enum adau1977_type type, void (*switch_mode)(struct device *dev));
+    enum adau1977_type type, void (*switch_mode)(struct device *dev));
 
 extern const struct regmap_config adau1977_regmap_config;
 
 enum adau1977_clk_id {
-	ADAU1977_SYSCLK,
+  ADAU1977_SYSCLK,
 };
 
 enum adau1977_sysclk_src {
-	ADAU1977_SYSCLK_SRC_MCLK,
-	ADAU1977_SYSCLK_SRC_LRCLK,
+  ADAU1977_SYSCLK_SRC_MCLK,
+  ADAU1977_SYSCLK_SRC_LRCLK,
 };
 
 #endif

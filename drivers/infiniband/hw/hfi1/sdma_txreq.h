@@ -17,11 +17,12 @@
  *
  */
 struct sdma_desc {
-	/* private:  don't use directly */
-	u64 qw[2];
-	void *pinning_ctx;
-	/* Release reference to @pinning_ctx. May be called in interrupt context. Must not sleep. */
-	void (*ctx_put)(void *ctx);
+  /* private:  don't use directly */
+  u64 qw[2];
+  void *pinning_ctx;
+  /* Release reference to @pinning_ctx. May be called in interrupt context. Must
+   * not sleep. */
+  void (*ctx_put)(void *ctx);
 };
 
 /**
@@ -59,39 +60,38 @@ typedef void (*callback_t)(struct sdma_txreq *, int);
 
 struct iowait;
 struct sdma_txreq {
-	struct list_head list;
-	/* private: */
-	struct sdma_desc *descp;
-	/* private: */
-	void *coalesce_buf;
-	/* private: */
-	struct iowait *wait;
-	/* private: */
-	callback_t                  complete;
+  struct list_head list;
+  /* private: */
+  struct sdma_desc *descp;
+  /* private: */
+  void *coalesce_buf;
+  /* private: */
+  struct iowait *wait;
+  /* private: */
+  callback_t complete;
 #ifdef CONFIG_HFI1_DEBUG_SDMA_ORDER
-	u64 sn;
+  u64 sn;
 #endif
-	/* private: - used in coalesce/pad processing */
-	u16                         packet_len;
-	/* private: - down-counted to trigger last */
-	u16                         tlen;
-	/* private: */
-	u16                         num_desc;
-	/* private: */
-	u16                         desc_limit;
-	/* private: */
-	u16                         next_descq_idx;
-	/* private: */
-	u16 coalesce_idx;
-	/* private: flags */
-	u16                         flags;
-	/* private: */
-	struct sdma_desc descs[NUM_DESC];
+  /* private: - used in coalesce/pad processing */
+  u16 packet_len;
+  /* private: - down-counted to trigger last */
+  u16 tlen;
+  /* private: */
+  u16 num_desc;
+  /* private: */
+  u16 desc_limit;
+  /* private: */
+  u16 next_descq_idx;
+  /* private: */
+  u16 coalesce_idx;
+  /* private: flags */
+  u16 flags;
+  /* private: */
+  struct sdma_desc descs[NUM_DESC];
 };
 
-static inline int sdma_txreq_built(struct sdma_txreq *tx)
-{
-	return tx->num_desc;
+static inline int sdma_txreq_built(struct sdma_txreq *tx) {
+  return tx->num_desc;
 }
 
 #endif                          /* HFI1_SDMA_TXREQ_H */

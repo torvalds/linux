@@ -9,10 +9,10 @@
 
 #include <asm/errno.h>
 
-#define CPU_PROFILING	1
-#define SCHED_PROFILING	2
-#define SLEEP_PROFILING	3
-#define KVM_PROFILING	4
+#define CPU_PROFILING 1
+#define SCHED_PROFILING 2
+#define SLEEP_PROFILING 3
+#define KVM_PROFILING 4
 
 struct proc_dir_entry;
 struct notifier_block;
@@ -21,14 +21,13 @@ struct notifier_block;
 void create_prof_cpu_mask(void);
 int create_proc_profile(void);
 #else
-static inline void create_prof_cpu_mask(void)
-{
+static inline void create_prof_cpu_mask(void) {
 }
 
-static inline int create_proc_profile(void)
-{
-	return 0;
+static inline int create_proc_profile(void) {
+  return 0;
 }
+
 #endif
 
 #ifdef CONFIG_PROFILING
@@ -49,13 +48,13 @@ void profile_hits(int type, void *ip, unsigned int nr_hits);
 /*
  * Single profiler hit:
  */
-static inline void profile_hit(int type, void *ip)
-{
-	/*
-	 * Speedup for the common (no profiling enabled) case:
-	 */
-	if (unlikely(prof_on == type))
-		profile_hits(type, ip, 1);
+static inline void profile_hit(int type, void *ip) {
+  /*
+   * Speedup for the common (no profiling enabled) case:
+   */
+  if (unlikely(prof_on == type)) {
+    profile_hits(type, ip, 1);
+  }
 }
 
 struct task_struct;
@@ -65,26 +64,18 @@ struct mm_struct;
 
 #define prof_on 0
 
-static inline int profile_init(void)
-{
-	return 0;
+static inline int profile_init(void) {
+  return 0;
 }
 
-static inline void profile_tick(int type)
-{
-	return;
+static inline void profile_tick(int type) {
 }
 
-static inline void profile_hits(int type, void *ip, unsigned int nr_hits)
-{
-	return;
+static inline void profile_hits(int type, void *ip, unsigned int nr_hits) {
 }
 
-static inline void profile_hit(int type, void *ip)
-{
-	return;
+static inline void profile_hit(int type, void *ip) {
 }
-
 
 #endif /* CONFIG_PROFILING */
 

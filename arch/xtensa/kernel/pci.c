@@ -37,33 +37,28 @@
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-resource_size_t
-pcibios_align_resource(void *data, const struct resource *res,
-		       resource_size_t size, resource_size_t align)
-{
-	struct pci_dev *dev = data;
-	resource_size_t start = res->start;
-
-	if (res->flags & IORESOURCE_IO) {
-		if (size > 0x100) {
-			pr_err("PCI: I/O Region %s/%d too large (%u bytes)\n",
-					pci_name(dev), dev->resource - res,
-					size);
-		}
-
-		if (start & 0x300)
-			start = (start + 0x3ff) & ~0x3ff;
-	}
-
-	return start;
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+    resource_size_t size, resource_size_t align) {
+  struct pci_dev *dev = data;
+  resource_size_t start = res->start;
+  if (res->flags & IORESOURCE_IO) {
+    if (size > 0x100) {
+      pr_err("PCI: I/O Region %s/%d too large (%u bytes)\n",
+          pci_name(dev), dev->resource - res,
+          size);
+    }
+    if (start & 0x300) {
+      start = (start + 0x3ff) & ~0x3ff;
+    }
+  }
+  return start;
 }
 
-void pcibios_fixup_bus(struct pci_bus *bus)
-{
-	if (bus->parent) {
-		/* This is a subordinate bridge */
-		pci_read_bridge_bases(bus);
-	}
+void pcibios_fixup_bus(struct pci_bus *bus) {
+  if (bus->parent) {
+    /* This is a subordinate bridge */
+    pci_read_bridge_bases(bus);
+  }
 }
 
 /*
@@ -71,17 +66,14 @@ void pcibios_fixup_bus(struct pci_bus *bus)
  *  -- paulus.
  */
 
-int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma)
-{
-	struct pci_controller *pci_ctrl = (struct pci_controller*) pdev->sysdata;
-	resource_size_t ioaddr = pci_resource_start(pdev, bar);
-
-	if (!pci_ctrl)
-		return -EINVAL;		/* should never happen */
-
-	/* Convert to an offset within this PCI controller */
-	ioaddr -= (unsigned long)pci_ctrl->io_space.base;
-
-	vma->vm_pgoff += (ioaddr + pci_ctrl->io_space.start) >> PAGE_SHIFT;
-	return 0;
+int pci_iobar_pfn(struct pci_dev *pdev, int bar, struct vm_area_struct *vma) {
+  struct pci_controller *pci_ctrl = (struct pci_controller *) pdev->sysdata;
+  resource_size_t ioaddr = pci_resource_start(pdev, bar);
+  if (!pci_ctrl) {
+    return -EINVAL;   /* should never happen */
+  }
+  /* Convert to an offset within this PCI controller */
+  ioaddr -= (unsigned long) pci_ctrl->io_space.base;
+  vma->vm_pgoff += (ioaddr + pci_ctrl->io_space.start) >> PAGE_SHIFT;
+  return 0;
 }

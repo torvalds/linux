@@ -14,10 +14,10 @@
 #include "chsc.h"
 #include "css.h"
 
-#define CHP_STATUS_STANDBY		0
-#define CHP_STATUS_CONFIGURED		1
-#define CHP_STATUS_RESERVED		2
-#define CHP_STATUS_NOT_RECOGNIZED	3
+#define CHP_STATUS_STANDBY    0
+#define CHP_STATUS_CONFIGURED   1
+#define CHP_STATUS_RESERVED   2
+#define CHP_STATUS_NOT_RECOGNIZED 3
 
 #define CHP_ONLINE 0
 #define CHP_OFFLINE 1
@@ -26,38 +26,34 @@
 #define CHP_FCES_EVENT 4
 
 struct chp_link {
-	struct chp_id chpid;
-	u32 fla_mask;
-	u16 fla;
+  struct chp_id chpid;
+  u32 fla_mask;
+  u16 fla;
 };
 
-static inline int chp_test_bit(u8 *bitmap, int num)
-{
-	int byte = num >> 3;
-	int mask = 128 >> (num & 7);
-
-	return (bitmap[byte] & mask) ? 1 : 0;
+static inline int chp_test_bit(u8 *bitmap, int num) {
+  int byte = num >> 3;
+  int mask = 128 >> (num & 7);
+  return (bitmap[byte] & mask) ? 1 : 0;
 }
 
-
 struct channel_path {
-	struct device dev;
-	struct chp_id chpid;
-	struct mutex lock; /* Serialize access to below members. */
-	int state;
-	struct channel_path_desc_fmt0 desc;
-	struct channel_path_desc_fmt1 desc_fmt1;
-	struct channel_path_desc_fmt3 desc_fmt3;
-	/* Channel-measurement related stuff: */
-	int cmg;
-	int shared;
-	struct cmg_chars cmg_chars;
+  struct device dev;
+  struct chp_id chpid;
+  struct mutex lock; /* Serialize access to below members. */
+  int state;
+  struct channel_path_desc_fmt0 desc;
+  struct channel_path_desc_fmt1 desc_fmt1;
+  struct channel_path_desc_fmt3 desc_fmt3;
+  /* Channel-measurement related stuff: */
+  int cmg;
+  int shared;
+  struct cmg_chars cmg_chars;
 };
 
 /* Return channel_path struct for given chpid. */
-static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
-{
-	return css_by_id(chpid.cssid)->chps[chpid.id];
+static inline struct channel_path *chpid_to_chp(struct chp_id chpid) {
+  return css_by_id(chpid.cssid)->chps[chpid.id];
 }
 
 int chp_get_status(struct chp_id chpid);

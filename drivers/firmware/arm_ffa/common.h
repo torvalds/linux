@@ -22,10 +22,10 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid);
 #ifdef CONFIG_ARM_FFA_SMCCC
 int __init ffa_transport_init(ffa_fn **invoke_ffa_fn);
 #else
-static inline int __init ffa_transport_init(ffa_fn **invoke_ffa_fn)
-{
-	return -EOPNOTSUPP;
+static inline int __init ffa_transport_init(ffa_fn **invoke_ffa_fn) {
+  return -EOPNOTSUPP;
 }
+
 #endif
 
 #endif /* _FFA_COMMON_H */

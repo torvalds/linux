@@ -11,36 +11,33 @@
 #include "trace.h"
 #include "reg.h"
 
-#define PMC_INDEX(pmc)	((pmc)-1)
+#define PMC_INDEX(pmc)  ((pmc) - 1)
 
-#define NUM_PMC_VALUES	128
+#define NUM_PMC_VALUES  128
 
-struct ebb_state
-{
-	struct {
-		u64 pmc_count[6];
-		volatile int ebb_count;
-		int spurious;
-		int negative;
-		int no_overflow;
-	} stats;
+struct ebb_state {
+  struct {
+    u64 pmc_count[6];
+    volatile int ebb_count;
+    int spurious;
+    int negative;
+    int no_overflow;
+  } stats;
 
-	bool pmc_enable[6];
-	struct trace_buffer *trace;
+  bool pmc_enable[6];
+  struct trace_buffer *trace;
 };
 
 extern struct ebb_state ebb_state;
 
 #define COUNTER_OVERFLOW 0x80000000ull
 
-static inline uint32_t pmc_sample_period(uint32_t value)
-{
-	return COUNTER_OVERFLOW - value;
+static inline uint32_t pmc_sample_period(uint32_t value) {
+  return COUNTER_OVERFLOW - value;
 }
 
-static inline void ebb_enable_pmc_counting(int pmc)
-{
-	ebb_state.pmc_enable[PMC_INDEX(pmc)] = true;
+static inline void ebb_enable_pmc_counting(int pmc) {
+  ebb_state.pmc_enable[PMC_INDEX(pmc)] = true;
 }
 
 bool ebb_check_count(int pmc, u64 sample_period, int fudge);

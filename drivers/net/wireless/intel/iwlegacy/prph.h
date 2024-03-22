@@ -60,43 +60,43 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef	__il_prph_h__
+#ifndef __il_prph_h__
 #define __il_prph_h__
 
 /*
  * Registers in this file are internal, not PCI bus memory mapped.
  * Driver accesses these via HBUS_TARG_PRPH_* registers.
  */
-#define PRPH_BASE	(0x00000)
-#define PRPH_END	(0xFFFFF)
+#define PRPH_BASE (0x00000)
+#define PRPH_END  (0xFFFFF)
 
 /* APMG (power management) constants */
-#define APMG_BASE			(PRPH_BASE + 0x3000)
-#define APMG_CLK_CTRL_REG		(APMG_BASE + 0x0000)
-#define APMG_CLK_EN_REG			(APMG_BASE + 0x0004)
-#define APMG_CLK_DIS_REG		(APMG_BASE + 0x0008)
-#define APMG_PS_CTRL_REG		(APMG_BASE + 0x000c)
-#define APMG_PCIDEV_STT_REG		(APMG_BASE + 0x0010)
-#define APMG_RFKILL_REG			(APMG_BASE + 0x0014)
-#define APMG_RTC_INT_STT_REG		(APMG_BASE + 0x001c)
-#define APMG_RTC_INT_MSK_REG		(APMG_BASE + 0x0020)
-#define APMG_DIGITAL_SVR_REG		(APMG_BASE + 0x0058)
-#define APMG_ANALOG_SVR_REG		(APMG_BASE + 0x006C)
+#define APMG_BASE     (PRPH_BASE + 0x3000)
+#define APMG_CLK_CTRL_REG   (APMG_BASE + 0x0000)
+#define APMG_CLK_EN_REG     (APMG_BASE + 0x0004)
+#define APMG_CLK_DIS_REG    (APMG_BASE + 0x0008)
+#define APMG_PS_CTRL_REG    (APMG_BASE + 0x000c)
+#define APMG_PCIDEV_STT_REG   (APMG_BASE + 0x0010)
+#define APMG_RFKILL_REG     (APMG_BASE + 0x0014)
+#define APMG_RTC_INT_STT_REG    (APMG_BASE + 0x001c)
+#define APMG_RTC_INT_MSK_REG    (APMG_BASE + 0x0020)
+#define APMG_DIGITAL_SVR_REG    (APMG_BASE + 0x0058)
+#define APMG_ANALOG_SVR_REG   (APMG_BASE + 0x006C)
 
-#define APMS_CLK_VAL_MRB_FUNC_MODE	(0x00000001)
-#define APMG_CLK_VAL_DMA_CLK_RQT	(0x00000200)
-#define APMG_CLK_VAL_BSM_CLK_RQT	(0x00000800)
+#define APMS_CLK_VAL_MRB_FUNC_MODE  (0x00000001)
+#define APMG_CLK_VAL_DMA_CLK_RQT  (0x00000200)
+#define APMG_CLK_VAL_BSM_CLK_RQT  (0x00000800)
 
-#define APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS	(0x00400000)
-#define APMG_PS_CTRL_VAL_RESET_REQ		(0x04000000)
-#define APMG_PS_CTRL_MSK_PWR_SRC		(0x03000000)
-#define APMG_PS_CTRL_VAL_PWR_SRC_VMAIN		(0x00000000)
-#define APMG_PS_CTRL_VAL_PWR_SRC_MAX		(0x01000000)	/* 3945 only */
-#define APMG_PS_CTRL_VAL_PWR_SRC_VAUX		(0x02000000)
-#define APMG_SVR_VOLTAGE_CONFIG_BIT_MSK	(0x000001E0)	/* bit 8:5 */
-#define APMG_SVR_DIGITAL_VOLTAGE_1_32		(0x00000060)
+#define APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS  (0x00400000)
+#define APMG_PS_CTRL_VAL_RESET_REQ    (0x04000000)
+#define APMG_PS_CTRL_MSK_PWR_SRC    (0x03000000)
+#define APMG_PS_CTRL_VAL_PWR_SRC_VMAIN    (0x00000000)
+#define APMG_PS_CTRL_VAL_PWR_SRC_MAX    (0x01000000)  /* 3945 only */
+#define APMG_PS_CTRL_VAL_PWR_SRC_VAUX   (0x02000000)
+#define APMG_SVR_VOLTAGE_CONFIG_BIT_MSK (0x000001E0)  /* bit 8:5 */
+#define APMG_SVR_DIGITAL_VOLTAGE_1_32   (0x00000060)
 
-#define APMG_PCIDEV_STT_VAL_L1_ACT_DIS		(0x00000800)
+#define APMG_PCIDEV_STT_VAL_L1_ACT_DIS    (0x00000800)
 
 /**
  * BSM (Bootstrap State Machine)
@@ -202,19 +202,20 @@
  */
 
 /* BSM bit fields */
-#define BSM_WR_CTRL_REG_BIT_START     (0x80000000)	/* start boot load now */
-#define BSM_WR_CTRL_REG_BIT_START_EN  (0x40000000)	/* enable boot after pwrup */
-#define BSM_DRAM_INST_LOAD            (0x80000000)	/* start program load now */
+#define BSM_WR_CTRL_REG_BIT_START     (0x80000000)  /* start boot load now */
+#define BSM_WR_CTRL_REG_BIT_START_EN  (0x40000000)  /* enable boot after pwrup
+                                                     * */
+#define BSM_DRAM_INST_LOAD            (0x80000000)  /* start program load now */
 
 /* BSM addresses */
 #define BSM_BASE                     (PRPH_BASE + 0x3400)
 #define BSM_END                      (PRPH_BASE + 0x3800)
 
-#define BSM_WR_CTRL_REG              (BSM_BASE + 0x000)	/* ctl and status */
-#define BSM_WR_MEM_SRC_REG           (BSM_BASE + 0x004)	/* source in BSM mem */
-#define BSM_WR_MEM_DST_REG           (BSM_BASE + 0x008)	/* dest in SRAM mem */
-#define BSM_WR_DWCOUNT_REG           (BSM_BASE + 0x00C)	/* bytes */
-#define BSM_WR_STATUS_REG            (BSM_BASE + 0x010)	/* bit 0:  1 == done */
+#define BSM_WR_CTRL_REG              (BSM_BASE + 0x000) /* ctl and status */
+#define BSM_WR_MEM_SRC_REG           (BSM_BASE + 0x004) /* source in BSM mem */
+#define BSM_WR_MEM_DST_REG           (BSM_BASE + 0x008) /* dest in SRAM mem */
+#define BSM_WR_DWCOUNT_REG           (BSM_BASE + 0x00C) /* bytes */
+#define BSM_WR_STATUS_REG            (BSM_BASE + 0x010) /* bit 0:  1 == done */
 
 /*
  * Pointers and size regs for bootstrap load and data SRAM save/restore.
@@ -231,7 +232,7 @@
  * Read/write, address range from LOWER_BOUND to (LOWER_BOUND + SIZE -1)
  */
 #define BSM_SRAM_LOWER_BOUND         (PRPH_BASE + 0x3800)
-#define BSM_SRAM_SIZE			(1024)	/* bytes */
+#define BSM_SRAM_SIZE     (1024)  /* bytes */
 
 /* 3945 Tx scheduler registers */
 #define ALM_SCD_BASE                        (PRPH_BASE + 0x2E00)
@@ -321,11 +322,11 @@
  * Driver should use SCD_WIN_SIZE and SCD_FRAME_LIMIT values to initialize
  * IL49_SCD_CONTEXT_QUEUE_OFFSET(x) values.
  */
-#define SCD_WIN_SIZE				64
-#define SCD_FRAME_LIMIT				64
+#define SCD_WIN_SIZE        64
+#define SCD_FRAME_LIMIT       64
 
 /* SCD registers are internal, must be accessed via HBUS_TARG_PRPH regs */
-#define IL49_SCD_START_OFFSET		0xa02c00
+#define IL49_SCD_START_OFFSET   0xa02c00
 
 /*
  * 4965 tells driver SRAM address for internal scheduler structs via this reg.
@@ -422,18 +423,18 @@
  * NOTE:  If enabling Scheduler-ACK mode, chain mode should also be enabled
  *        via SCD_QUEUECHAIN_SEL.
  */
-#define IL49_SCD_QUEUE_STATUS_BITS(x)\
-	(IL49_SCD_START_OFFSET + 0x104 + (x) * 4)
+#define IL49_SCD_QUEUE_STATUS_BITS(x) \
+  (IL49_SCD_START_OFFSET + 0x104 + (x) * 4)
 
 /* Bit field positions */
-#define IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE	(0)
-#define IL49_SCD_QUEUE_STTS_REG_POS_TXF	(1)
-#define IL49_SCD_QUEUE_STTS_REG_POS_WSL	(5)
-#define IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK	(8)
+#define IL49_SCD_QUEUE_STTS_REG_POS_ACTIVE  (0)
+#define IL49_SCD_QUEUE_STTS_REG_POS_TXF (1)
+#define IL49_SCD_QUEUE_STTS_REG_POS_WSL (5)
+#define IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACK (8)
 
 /* Write masks */
-#define IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN	(10)
-#define IL49_SCD_QUEUE_STTS_REG_MSK		(0x0007FC00)
+#define IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN  (10)
+#define IL49_SCD_QUEUE_STTS_REG_MSK   (0x0007FC00)
 
 /**
  * 4965 internal SRAM structures for scheduler, shared with driver ...
@@ -469,14 +470,14 @@
  * Init must be done after driver receives "Alive" response from 4965 uCode,
  * and when setting up queue for aggregation.
  */
-#define IL49_SCD_CONTEXT_DATA_OFFSET			0x380
+#define IL49_SCD_CONTEXT_DATA_OFFSET      0x380
 #define IL49_SCD_CONTEXT_QUEUE_OFFSET(x) \
-			(IL49_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
+  (IL49_SCD_CONTEXT_DATA_OFFSET + ((x) * 8))
 
-#define IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS		(0)
-#define IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK		(0x0000007F)
-#define IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS	(16)
-#define IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK	(0x007F0000)
+#define IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_POS    (0)
+#define IL49_SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK    (0x0000007F)
+#define IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS (16)
+#define IL49_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK (0x007F0000)
 
 /*
  * Tx Status Bitmap
@@ -485,7 +486,7 @@
  * "Alive" notification from uCode.  Area is used only by device itself;
  * no other support (besides clearing) is required from driver.
  */
-#define IL49_SCD_TX_STTS_BITMAP_OFFSET		0x400
+#define IL49_SCD_TX_STTS_BITMAP_OFFSET    0x400
 
 /*
  * RAxTID to queue translation mapping.
@@ -507,15 +508,15 @@
  * must read a dword-aligned value from device SRAM, replace the 16-bit map
  * value of interest, and write the dword value back into device SRAM.
  */
-#define IL49_SCD_TRANSLATE_TBL_OFFSET		0x500
+#define IL49_SCD_TRANSLATE_TBL_OFFSET   0x500
 
 /* Find translation table dword to read/write for given queue */
 #define IL49_SCD_TRANSLATE_TBL_OFFSET_QUEUE(x) \
-	((IL49_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffffffc)
+  ((IL49_SCD_TRANSLATE_TBL_OFFSET + ((x) * 2)) & 0xfffffffc)
 
-#define IL_SCD_TXFIFO_POS_TID			(0)
-#define IL_SCD_TXFIFO_POS_RA			(4)
-#define IL_SCD_QUEUE_RA_TID_MAP_RATID_MSK	(0x01FF)
+#define IL_SCD_TXFIFO_POS_TID     (0)
+#define IL_SCD_TXFIFO_POS_RA      (4)
+#define IL_SCD_QUEUE_RA_TID_MAP_RATID_MSK (0x01FF)
 
 /*********************** END TX SCHEDULER *************************************/
 

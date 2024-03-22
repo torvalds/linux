@@ -9,8 +9,8 @@
  */
 
 struct bitmask {
-	unsigned int size;
-	unsigned long *maskp;
+  unsigned int size;
+  unsigned long *maskp;
 };
 
 struct bitmask *bitmask_alloc(unsigned int n);
@@ -28,7 +28,5 @@ int bitmask_isbitset(const struct bitmask *bmp, unsigned int i);
 
 int bitmask_parselist(const char *buf, struct bitmask *bmp);
 int bitmask_displaylist(char *buf, int len, const struct bitmask *bmp);
-
-
 
 #endif /*__CPUPOWER_BITMASK__ */

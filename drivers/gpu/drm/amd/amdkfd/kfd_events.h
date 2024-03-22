@@ -46,33 +46,33 @@
  * must not be a valid event ID.
  * For the sake of easy memset-ing, this must be a byte pattern.
  */
-#define UNSIGNALED_EVENT_SLOT ((uint64_t)-1)
+#define UNSIGNALED_EVENT_SLOT ((uint64_t) -1)
 
 struct kfd_event_waiter;
 struct signal_page;
 
 struct kfd_event {
-	u32 event_id;
-	u64 event_age;
+  u32 event_id;
+  u64 event_age;
 
-	bool signaled;
-	bool auto_reset;
+  bool signaled;
+  bool auto_reset;
 
-	int type;
+  int type;
 
-	spinlock_t lock;
-	wait_queue_head_t wq; /* List of event waiters. */
+  spinlock_t lock;
+  wait_queue_head_t wq; /* List of event waiters. */
 
-	/* Only for signal events. */
-	uint64_t __user *user_signal_address;
+  /* Only for signal events. */
+  uint64_t __user *user_signal_address;
 
-	/* type specific data */
-	union {
-		struct kfd_hsa_memory_exception_data memory_exception_data;
-		struct kfd_hsa_hw_exception_data hw_exception_data;
-	};
+  /* type specific data */
+  union {
+    struct kfd_hsa_memory_exception_data memory_exception_data;
+    struct kfd_hsa_hw_exception_data hw_exception_data;
+  };
 
-	struct rcu_head rcu; /* for asynchronous kfree_rcu */
+  struct rcu_head rcu; /* for asynchronous kfree_rcu */
 };
 
 #define KFD_EVENT_TIMEOUT_IMMEDIATE 0
@@ -85,6 +85,6 @@ struct kfd_event {
 #define KFD_EVENT_TYPE_MEMORY 8
 
 extern void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
-				       uint32_t valid_id_bits);
+    uint32_t valid_id_bits);
 
 #endif

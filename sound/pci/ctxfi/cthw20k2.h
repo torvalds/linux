@@ -2,13 +2,13 @@
 /*
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
  *
- * @File	cthw20k2.h
+ * @File  cthw20k2.h
  *
  * @Brief
  * This file contains the definition of hardware access methord.
  *
- * @Author	Liu Chun
- * @Date 	May 13 2008
+ * @Author  Liu Chun
+ * @Date  May 13 2008
  */
 
 #ifndef CTHW20K2_H

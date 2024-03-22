@@ -20,8 +20,8 @@
  * @app_id: ID of the loaded application.
  */
 struct qseecom_client {
-	struct auxiliary_device aux_dev;
-	u32 app_id;
+  struct auxiliary_device aux_dev;
+  u32 app_id;
 };
 
 /**
@@ -43,10 +43,11 @@ struct qseecom_client {
  *
  * Return: Zero on success, nonzero on failure.
  */
-static inline int qcom_qseecom_app_send(struct qseecom_client *client, void *req, size_t req_size,
-					void *rsp, size_t rsp_size)
-{
-	return qcom_scm_qseecom_app_send(client->app_id, req, req_size, rsp, rsp_size);
+static inline int qcom_qseecom_app_send(struct qseecom_client *client,
+    void *req, size_t req_size,
+    void *rsp, size_t rsp_size) {
+  return qcom_scm_qseecom_app_send(client->app_id, req, req_size, rsp,
+      rsp_size);
 }
 
 #endif /* __QCOM_QSEECOM_H */

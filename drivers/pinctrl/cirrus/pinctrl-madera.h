@@ -9,25 +9,25 @@
 #define PINCTRL_MADERA_H
 
 struct madera_pin_groups {
-	const char *name;
-	const unsigned int *pins;
-	unsigned int n_pins;
+  const char *name;
+  const unsigned int *pins;
+  unsigned int n_pins;
 };
 
 struct madera_pin_chip {
-	unsigned int n_pins;
+  unsigned int n_pins;
 
-	const struct madera_pin_groups *pin_groups;
-	unsigned int n_pin_groups;
+  const struct madera_pin_groups *pin_groups;
+  unsigned int n_pin_groups;
 };
 
 struct madera_pin_private {
-	struct madera *madera;
+  struct madera *madera;
 
-	const struct madera_pin_chip *chip; /* chip-specific groups */
+  const struct madera_pin_chip *chip; /* chip-specific groups */
 
-	struct device *dev;
-	struct pinctrl_dev *pctl;
+  struct device *dev;
+  struct pinctrl_dev *pctl;
 };
 
 extern const struct madera_pin_chip cs47l15_pin_chip;

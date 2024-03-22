@@ -6,8 +6,8 @@
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
- *	Colin Cross <ccross@google.com>
- *	Erik Gilling <konkers@google.com>
+ *  Colin Cross <ccross@google.com>
+ *  Erik Gilling <konkers@google.com>
  */
 
 #ifndef __MACH_TEGRA_BOARD_H

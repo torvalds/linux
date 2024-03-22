@@ -13,9 +13,8 @@ extern "C" {
 #endif
 
 /* Use gcc builtin thread pointer. */
-static inline void *rseq_thread_pointer(void)
-{
-	return __builtin_thread_pointer();
+static inline void *rseq_thread_pointer(void) {
+  return __builtin_thread_pointer();
 }
 
 #ifdef __cplusplus

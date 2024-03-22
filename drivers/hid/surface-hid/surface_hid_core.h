@@ -18,30 +18,30 @@
 #include <linux/surface_aggregator/device.h>
 
 enum surface_hid_descriptor_entry {
-	SURFACE_HID_DESC_HID    = 0,
-	SURFACE_HID_DESC_REPORT = 1,
-	SURFACE_HID_DESC_ATTRS  = 2,
+  SURFACE_HID_DESC_HID = 0,
+  SURFACE_HID_DESC_REPORT = 1,
+  SURFACE_HID_DESC_ATTRS = 2,
 };
 
 struct surface_hid_descriptor {
-	__u8 desc_len;			/* = 9 */
-	__u8 desc_type;			/* = HID_DT_HID */
-	__le16 hid_version;
-	__u8 country_code;
-	__u8 num_descriptors;		/* = 1 */
+  __u8 desc_len;      /* = 9 */
+  __u8 desc_type;     /* = HID_DT_HID */
+  __le16 hid_version;
+  __u8 country_code;
+  __u8 num_descriptors;   /* = 1 */
 
-	__u8 report_desc_type;		/* = HID_DT_REPORT */
-	__le16 report_desc_len;
+  __u8 report_desc_type;    /* = HID_DT_REPORT */
+  __le16 report_desc_len;
 } __packed;
 
 static_assert(sizeof(struct surface_hid_descriptor) == 9);
 
 struct surface_hid_attributes {
-	__le32 length;
-	__le16 vendor;
-	__le16 product;
-	__le16 version;
-	__u8 _unknown[22];
+  __le32 length;
+  __le16 vendor;
+  __le16 product;
+  __le16 version;
+  __u8 _unknown[22];
 } __packed;
 
 static_assert(sizeof(struct surface_hid_attributes) == 32);
@@ -49,24 +49,28 @@ static_assert(sizeof(struct surface_hid_attributes) == 32);
 struct surface_hid_device;
 
 struct surface_hid_device_ops {
-	int (*get_descriptor)(struct surface_hid_device *shid, u8 entry, u8 *buf, size_t len);
-	int (*output_report)(struct surface_hid_device *shid, u8 rprt_id, u8 *buf, size_t len);
-	int (*get_feature_report)(struct surface_hid_device *shid, u8 rprt_id, u8 *buf, size_t len);
-	int (*set_feature_report)(struct surface_hid_device *shid, u8 rprt_id, u8 *buf, size_t len);
+  int (*get_descriptor)(struct surface_hid_device *shid, u8 entry, u8 *buf,
+      size_t len);
+  int (*output_report)(struct surface_hid_device *shid, u8 rprt_id, u8 *buf,
+      size_t len);
+  int (*get_feature_report)(struct surface_hid_device *shid, u8 rprt_id,
+      u8 *buf, size_t len);
+  int (*set_feature_report)(struct surface_hid_device *shid, u8 rprt_id,
+      u8 *buf, size_t len);
 };
 
 struct surface_hid_device {
-	struct device *dev;
-	struct ssam_controller *ctrl;
-	struct ssam_device_uid uid;
+  struct device *dev;
+  struct ssam_controller *ctrl;
+  struct ssam_device_uid uid;
 
-	struct surface_hid_descriptor hid_desc;
-	struct surface_hid_attributes attrs;
+  struct surface_hid_descriptor hid_desc;
+  struct surface_hid_attributes attrs;
 
-	struct ssam_event_notifier notif;
-	struct hid_device *hid;
+  struct ssam_event_notifier notif;
+  struct hid_device *hid;
 
-	struct surface_hid_device_ops ops;
+  struct surface_hid_device_ops ops;
 };
 
 int surface_hid_device_add(struct surface_hid_device *shid);

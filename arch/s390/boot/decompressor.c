@@ -25,11 +25,11 @@
 #define memzero(s, n) memset((s), 0, (n))
 
 #if defined(CONFIG_KERNEL_BZIP2)
-#define BOOT_HEAP_SIZE	0x400000
+#define BOOT_HEAP_SIZE  0x400000
 #elif defined(CONFIG_KERNEL_ZSTD)
-#define BOOT_HEAP_SIZE	0x30000
+#define BOOT_HEAP_SIZE  0x30000
 #else
-#define BOOT_HEAP_SIZE	0x10000
+#define BOOT_HEAP_SIZE  0x10000
 #endif
 
 static unsigned long free_mem_ptr = (unsigned long) _end;
@@ -63,24 +63,22 @@ static unsigned long free_mem_end_ptr = (unsigned long) _end + BOOT_HEAP_SIZE;
 #include "../../../../lib/decompress_unzstd.c"
 #endif
 
-#define decompress_offset ALIGN((unsigned long)_end + BOOT_HEAP_SIZE, PAGE_SIZE)
+#define decompress_offset ALIGN((unsigned long) _end + BOOT_HEAP_SIZE, \
+    PAGE_SIZE)
 
-unsigned long mem_safe_offset(void)
-{
-	/*
-	 * due to 4MB HEAD_SIZE for bzip2
-	 * 'decompress_offset + vmlinux.image_size' could be larger than
-	 * kernel at final position + its .bss, so take the larger of two
-	 */
-	return max(decompress_offset + vmlinux.image_size,
-		   vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size);
+unsigned long mem_safe_offset(void) {
+  /*
+   * due to 4MB HEAD_SIZE for bzip2
+   * 'decompress_offset + vmlinux.image_size' could be larger than
+   * kernel at final position + its .bss, so take the larger of two
+   */
+  return max(decompress_offset + vmlinux.image_size,
+      vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size);
 }
 
-void *decompress_kernel(void)
-{
-	void *output = (void *)decompress_offset;
-
-	__decompress(_compressed_start, _compressed_end - _compressed_start,
-		     NULL, NULL, output, vmlinux.image_size, NULL, error);
-	return output;
+void *decompress_kernel(void) {
+  void *output = (void *) decompress_offset;
+  __decompress(_compressed_start, _compressed_end - _compressed_start,
+      NULL, NULL, output, vmlinux.image_size, NULL, error);
+  return output;
 }

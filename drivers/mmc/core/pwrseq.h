@@ -14,17 +14,17 @@ struct device;
 struct module;
 
 struct mmc_pwrseq_ops {
-	void (*pre_power_on)(struct mmc_host *host);
-	void (*post_power_on)(struct mmc_host *host);
-	void (*power_off)(struct mmc_host *host);
-	void (*reset)(struct mmc_host *host);
+  void (*pre_power_on)(struct mmc_host *host);
+  void (*post_power_on)(struct mmc_host *host);
+  void (*power_off)(struct mmc_host *host);
+  void (*reset)(struct mmc_host *host);
 };
 
 struct mmc_pwrseq {
-	const struct mmc_pwrseq_ops *ops;
-	struct device *dev;
-	struct list_head pwrseq_node;
-	struct module *owner;
+  const struct mmc_pwrseq_ops *ops;
+  struct device *dev;
+  struct list_head pwrseq_node;
+  struct module *owner;
 };
 
 #ifdef CONFIG_OF
@@ -41,17 +41,31 @@ void mmc_pwrseq_free(struct mmc_host *host);
 
 #else
 
-static inline int mmc_pwrseq_register(struct mmc_pwrseq *pwrseq)
-{
-	return -ENOSYS;
+static inline int mmc_pwrseq_register(struct mmc_pwrseq *pwrseq) {
+  return -ENOSYS;
 }
-static inline void mmc_pwrseq_unregister(struct mmc_pwrseq *pwrseq) {}
-static inline int mmc_pwrseq_alloc(struct mmc_host *host) { return 0; }
-static inline void mmc_pwrseq_pre_power_on(struct mmc_host *host) {}
-static inline void mmc_pwrseq_post_power_on(struct mmc_host *host) {}
-static inline void mmc_pwrseq_power_off(struct mmc_host *host) {}
-static inline void mmc_pwrseq_reset(struct mmc_host *host) {}
-static inline void mmc_pwrseq_free(struct mmc_host *host) {}
+
+static inline void mmc_pwrseq_unregister(struct mmc_pwrseq *pwrseq) {
+}
+
+static inline int mmc_pwrseq_alloc(struct mmc_host *host) {
+  return 0;
+}
+
+static inline void mmc_pwrseq_pre_power_on(struct mmc_host *host) {
+}
+
+static inline void mmc_pwrseq_post_power_on(struct mmc_host *host) {
+}
+
+static inline void mmc_pwrseq_power_off(struct mmc_host *host) {
+}
+
+static inline void mmc_pwrseq_reset(struct mmc_host *host) {
+}
+
+static inline void mmc_pwrseq_free(struct mmc_host *host) {
+}
 
 #endif
 

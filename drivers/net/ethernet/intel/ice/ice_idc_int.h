@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2021, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2021, Intel Corporation.*/
 
 #ifndef _ICE_IDC_INT_H_
 #define _ICE_IDC_INT_H_

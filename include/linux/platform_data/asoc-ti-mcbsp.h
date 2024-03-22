@@ -13,20 +13,20 @@
 
 /* Platform specific configuration */
 struct omap_mcbsp_ops {
-	void (*request)(unsigned int);
-	void (*free)(unsigned int);
+  void (*request)(unsigned int);
+  void (*free)(unsigned int);
 };
 
 struct omap_mcbsp_platform_data {
-	struct omap_mcbsp_ops *ops;
-	u16 buffer_size;
-	u8 reg_size;
-	u8 reg_step;
+  struct omap_mcbsp_ops *ops;
+  u16 buffer_size;
+  u8 reg_size;
+  u8 reg_step;
 
-	/* McBSP platform and instance specific features */
-	bool has_wakeup; /* Wakeup capability */
-	bool has_ccr; /* Transceiver has configuration control registers */
-	int (*force_ick_on)(struct clk *clk, bool force_on);
+  /* McBSP platform and instance specific features */
+  bool has_wakeup; /* Wakeup capability */
+  bool has_ccr; /* Transceiver has configuration control registers */
+  int (*force_ick_on)(struct clk *clk, bool force_on);
 };
 
 void omap3_mcbsp_init_pdata_callback(struct omap_mcbsp_platform_data *pdata);

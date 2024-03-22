@@ -15,11 +15,11 @@
 #include "meson_venc.h"
 
 struct meson_cvbs_mode {
-	struct meson_cvbs_enci_mode *enci;
-	struct drm_display_mode mode;
+  struct meson_cvbs_enci_mode *enci;
+  struct drm_display_mode mode;
 };
 
-#define MESON_CVBS_MODES_COUNT	2
+#define MESON_CVBS_MODES_COUNT  2
 
 /* Modes supported by the CVBS output */
 extern struct meson_cvbs_mode meson_cvbs_modes[MESON_CVBS_MODES_COUNT];

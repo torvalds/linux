@@ -2,10 +2,10 @@
 #ifndef _ASM_X86_IRQ_H
 #define _ASM_X86_IRQ_H
 /*
- *	(C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
+ *  (C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
  *
- *	IRQ/IPI changes taken from work by Thomas Radke
- *	<tomsoft@informatik.tu-chemnitz.de>
+ *  IRQ/IPI changes taken from work by Thomas Radke
+ *  <tomsoft@informatik.tu-chemnitz.de>
  */
 
 #include <asm/apicdef.h>
@@ -18,9 +18,8 @@
  */
 #define __irq_entry __invalid_section
 
-static inline int irq_canonicalize(int irq)
-{
-	return ((irq == 2) ? 9 : irq);
+static inline int irq_canonicalize(int irq) {
+  return (irq == 2) ? 9 : irq;
 }
 
 extern int irq_init_percpu_irqstack(unsigned int cpu);
@@ -42,7 +41,7 @@ extern void init_ISA_irqs(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
 void arch_trigger_cpumask_backtrace(const struct cpumask *mask,
-				    int exclude_cpu);
+    int exclude_cpu);
 
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 #endif

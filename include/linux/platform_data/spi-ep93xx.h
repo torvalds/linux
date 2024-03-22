@@ -9,7 +9,7 @@ struct spi_device;
  * @use_dma: use DMA for the transfers
  */
 struct ep93xx_spi_info {
-	bool	use_dma;
+  bool use_dma;
 };
 
 #endif /* __ASM_MACH_EP93XX_SPI_H */

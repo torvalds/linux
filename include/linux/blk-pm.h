@@ -17,7 +17,9 @@ extern void blk_pre_runtime_resume(struct request_queue *q);
 extern void blk_post_runtime_resume(struct request_queue *q);
 #else
 static inline void blk_pm_runtime_init(struct request_queue *q,
-				       struct device *dev) {}
+    struct device *dev) {
+}
+
 #endif
 
 #endif /* _BLK_PM_H_ */

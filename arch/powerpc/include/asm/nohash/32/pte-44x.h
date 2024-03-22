@@ -62,30 +62,30 @@
  * to distinguish swap PTEs from ordinary PTEs, and must be used with care.
  */
 
-#define _PAGE_PRESENT	0x00000001		/* S: PTE valid */
-#define _PAGE_WRITE	0x00000002		/* S: Write permission */
-#define _PAGE_EXEC	0x00000004		/* H: Execute permission */
-#define _PAGE_READ	0x00000008		/* S: Read permission */
-#define _PAGE_DIRTY	0x00000010		/* S: Page dirty */
-#define _PAGE_SPECIAL	0x00000020		/* S: Special page */
-#define _PAGE_ACCESSED	0x00000040		/* S: Page referenced */
-#define _PAGE_ENDIAN	0x00000080		/* H: E bit */
-#define _PAGE_GUARDED	0x00000100		/* H: G bit */
-#define _PAGE_COHERENT	0x00000200		/* H: M bit */
-#define _PAGE_NO_CACHE	0x00000400		/* H: I bit */
-#define _PAGE_WRITETHRU	0x00000800		/* H: W bit */
+#define _PAGE_PRESENT 0x00000001    /* S: PTE valid */
+#define _PAGE_WRITE 0x00000002    /* S: Write permission */
+#define _PAGE_EXEC  0x00000004    /* H: Execute permission */
+#define _PAGE_READ  0x00000008    /* S: Read permission */
+#define _PAGE_DIRTY 0x00000010    /* S: Page dirty */
+#define _PAGE_SPECIAL 0x00000020    /* S: Special page */
+#define _PAGE_ACCESSED  0x00000040    /* S: Page referenced */
+#define _PAGE_ENDIAN  0x00000080    /* H: E bit */
+#define _PAGE_GUARDED 0x00000100    /* H: G bit */
+#define _PAGE_COHERENT  0x00000200    /* H: M bit */
+#define _PAGE_NO_CACHE  0x00000400    /* H: I bit */
+#define _PAGE_WRITETHRU 0x00000800    /* H: W bit */
 
 /* No page size encoding in the linux PTE */
-#define _PAGE_PSIZE		0
+#define _PAGE_PSIZE   0
 
 /* TODO: Add large page lowmem mapping support */
-#define _PMD_PRESENT	0
+#define _PMD_PRESENT  0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
-#define _PMD_BAD	(~PAGE_MASK)
-#define _PMD_USER	0
+#define _PMD_BAD  (~PAGE_MASK)
+#define _PMD_USER 0
 
 /* ERPN in a PTE never gets cleared, ignore it */
-#define _PTE_NONE_MASK	0xffffffff00000000ULL
+#define _PTE_NONE_MASK  0xffffffff00000000ULL
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
@@ -93,11 +93,11 @@
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
-#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
+#define _PAGE_BASE_NC (_PAGE_PRESENT | _PAGE_ACCESSED)
 #if defined(CONFIG_SMP)
-#define _PAGE_BASE	(_PAGE_BASE_NC | _PAGE_COHERENT)
+#define _PAGE_BASE  (_PAGE_BASE_NC | _PAGE_COHERENT)
 #else
-#define _PAGE_BASE	(_PAGE_BASE_NC)
+#define _PAGE_BASE  (_PAGE_BASE_NC)
 #endif
 
 #include <asm/pgtable-masks.h>

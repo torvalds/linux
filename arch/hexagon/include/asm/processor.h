@@ -24,7 +24,7 @@ extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
  * Specifically, to hold the state necessary to perform switch_to...
  */
 struct thread_struct {
-	void *switch_sp;
+  void *switch_sp;
 };
 
 /*
@@ -51,11 +51,10 @@ struct thread_struct {
  * If the two requests collide, you get authentic segfaulting action, so
  * you have to kick the "unmapped" base requests higher up.
  */
-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE/3))
-
+#define TASK_UNMAPPED_BASE  (PAGE_ALIGN(TASK_SIZE / 3))
 
 #define task_pt_regs(task) \
-	((struct pt_regs *)(task_stack_page(task) + THREAD_SIZE) - 1)
+  ((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE) - 1)
 
 #define KSTK_EIP(tsk) (pt_elr(task_pt_regs(tsk)))
 #define KSTK_ESP(tsk) (pt_psp(task_pt_regs(tsk)))
@@ -65,7 +64,7 @@ extern unsigned long __get_wchan(struct task_struct *p);
 /*  The following stuff is pretty HEXAGON specific.  */
 
 /*  This is really just here for __switch_to.
-    Offsets are pulled via asm-offsets.c  */
+ *  Offsets are pulled via asm-offsets.c  */
 
 /*
  * No real reason why VM and native switch stacks should be different.
@@ -77,51 +76,51 @@ extern unsigned long __get_wchan(struct task_struct *p);
  */
 
 struct hexagon_switch_stack {
-	union {
-		struct {
-			unsigned long r16;
-			unsigned long r17;
-		};
-		unsigned long long	r1716;
-	};
-	union {
-		struct {
-			unsigned long r18;
-			unsigned long r19;
-		};
-		unsigned long long	r1918;
-	};
-	union {
-		struct {
-			unsigned long r20;
-			unsigned long r21;
-		};
-		unsigned long long	r2120;
-	};
-	union {
-		struct {
-			unsigned long r22;
-			unsigned long r23;
-		};
-		unsigned long long	r2322;
-	};
-	union {
-		struct {
-			unsigned long r24;
-			unsigned long r25;
-		};
-		unsigned long long	r2524;
-	};
-	union {
-		struct {
-			unsigned long r26;
-			unsigned long r27;
-		};
-		unsigned long long	r2726;
-	};
+  union {
+    struct {
+      unsigned long r16;
+      unsigned long r17;
+    };
+    unsigned long long r1716;
+  };
+  union {
+    struct {
+      unsigned long r18;
+      unsigned long r19;
+    };
+    unsigned long long r1918;
+  };
+  union {
+    struct {
+      unsigned long r20;
+      unsigned long r21;
+    };
+    unsigned long long r2120;
+  };
+  union {
+    struct {
+      unsigned long r22;
+      unsigned long r23;
+    };
+    unsigned long long r2322;
+  };
+  union {
+    struct {
+      unsigned long r24;
+      unsigned long r25;
+    };
+    unsigned long long r2524;
+  };
+  union {
+    struct {
+      unsigned long r26;
+      unsigned long r27;
+    };
+    unsigned long long r2726;
+  };
 
-	unsigned long		fp;
-	unsigned long		lr;
+  unsigned long fp;
+  unsigned long lr;
 };
 
 #endif /* !__ASSEMBLY__ */

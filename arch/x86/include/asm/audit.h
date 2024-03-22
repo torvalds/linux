@@ -10,5 +10,4 @@ extern unsigned ia32_read_class[];
 extern unsigned ia32_chattr_class[];
 extern unsigned ia32_signal_class[];
 
-
 #endif /* _ASM_X86_AUDIT_H */

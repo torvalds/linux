@@ -24,16 +24,16 @@
 #if defined(CONFIG_PPC_POWERNV) || defined(CONFIG_PPC_SVM)
 long ucall_norets(unsigned long opcode, ...);
 #else
-static inline long ucall_norets(unsigned long opcode, ...)
-{
-	return U_NOT_AVAILABLE;
+static inline long ucall_norets(unsigned long opcode, ...) {
+  return U_NOT_AVAILABLE;
 }
+
 #endif
 
 /* OPAL */
 int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
-		    int64_t a4, int64_t a5, int64_t a6, int64_t a7,
-		    int64_t opcode, uint64_t msr);
+    int64_t a4, int64_t a5, int64_t a6, int64_t a7,
+    int64_t opcode, uint64_t msr);
 
 /* misc runtime */
 void enable_machine_check(void);
@@ -61,15 +61,19 @@ void kvmppc_save_tm_hv(struct kvm_vcpu *vcpu, u64 msr, bool preserve_nv);
 void kvmppc_restore_tm_hv(struct kvm_vcpu *vcpu, u64 msr, bool preserve_nv);
 #else
 static inline void kvmppc_save_tm_hv(struct kvm_vcpu *vcpu, u64 msr,
-				     bool preserve_nv) { }
+    bool preserve_nv) {
+}
+
 static inline void kvmppc_restore_tm_hv(struct kvm_vcpu *vcpu, u64 msr,
-					bool preserve_nv) { }
+    bool preserve_nv) {
+}
+
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 void kvmppc_p9_enter_guest(struct kvm_vcpu *vcpu);
 
 long kvmppc_h_set_dabr(struct kvm_vcpu *vcpu, unsigned long dabr);
 long kvmppc_h_set_xdabr(struct kvm_vcpu *vcpu, unsigned long dabr,
-			unsigned long dabrx);
+    unsigned long dabrx);
 
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */

@@ -42,8 +42,8 @@
 struct xen_dm_op_buf;
 
 long privcmd_call(unsigned call, unsigned long a1,
-		unsigned long a2, unsigned long a3,
-		unsigned long a4, unsigned long a5);
+    unsigned long a2, unsigned long a3,
+    unsigned long a4, unsigned long a5);
 int HYPERVISOR_xen_version(int cmd, void *arg);
 int HYPERVISOR_console_io(int cmd, int count, char *str);
 int HYPERVISOR_grant_table_op(unsigned int cmd, void *uop, unsigned int count);
@@ -55,22 +55,21 @@ int HYPERVISOR_physdev_op(int cmd, void *arg);
 int HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args);
 int HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type);
 int HYPERVISOR_dm_op(domid_t domid, unsigned int nr_bufs,
-		     struct xen_dm_op_buf *bufs);
+    struct xen_dm_op_buf *bufs);
 int HYPERVISOR_platform_op_raw(void *arg);
-static inline int HYPERVISOR_platform_op(struct xen_platform_op *op)
-{
-	op->interface_version = XENPF_INTERFACE_VERSION;
-	return HYPERVISOR_platform_op_raw(op);
+static inline int HYPERVISOR_platform_op(struct xen_platform_op *op) {
+  op->interface_version = XENPF_INTERFACE_VERSION;
+  return HYPERVISOR_platform_op_raw(op);
 }
+
 int HYPERVISOR_multicall(struct multicall_entry *calls, uint32_t nr);
 
-static inline int
-HYPERVISOR_suspend(unsigned long start_info_mfn)
-{
-	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
-
-	/* start_info_mfn is unused on ARM */
-	return HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
+static inline int HYPERVISOR_suspend(unsigned long start_info_mfn) {
+  struct sched_shutdown r = {
+    .reason = SHUTDOWN_suspend
+  };
+  /* start_info_mfn is unused on ARM */
+  return HYPERVISOR_sched_op(SCHEDOP_shutdown, &r);
 }
 
 #endif /* _ASM_ARM_XEN_HYPERCALL_H */

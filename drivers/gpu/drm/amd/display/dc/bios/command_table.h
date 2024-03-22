@@ -30,68 +30,68 @@ struct bios_parser;
 struct bp_encoder_control;
 
 struct cmd_tbl {
-	enum bp_result (*dig_encoder_control)(
-		struct bios_parser *bp,
-		struct bp_encoder_control *control);
-	enum bp_result (*encoder_control_dig1)(
-		struct bios_parser *bp,
-		struct bp_encoder_control *control);
-	enum bp_result (*encoder_control_dig2)(
-		struct bios_parser *bp,
-		struct bp_encoder_control *control);
-	enum bp_result (*transmitter_control)(
-		struct bios_parser *bp,
-		struct bp_transmitter_control *control);
-	enum bp_result (*set_pixel_clock)(
-		struct bios_parser *bp,
-		struct bp_pixel_clock_parameters *bp_params);
-	enum bp_result (*enable_spread_spectrum_on_ppll)(
-		struct bios_parser *bp,
-		struct bp_spread_spectrum_parameters *bp_params,
-		bool enable);
-	enum bp_result (*adjust_display_pll)(
-		struct bios_parser *bp,
-		struct bp_adjust_pixel_clock_parameters *bp_params);
-	enum bp_result (*dac1_encoder_control)(
-		struct bios_parser *bp,
-		bool enable,
-		uint32_t pixel_clock,
-		uint8_t dac_standard);
-	enum bp_result (*dac2_encoder_control)(
-		struct bios_parser *bp,
-		bool enable,
-		uint32_t pixel_clock,
-		uint8_t dac_standard);
-	enum bp_result (*dac1_output_control)(
-		struct bios_parser *bp,
-		bool enable);
-	enum bp_result (*dac2_output_control)(
-		struct bios_parser *bp,
-		bool enable);
-	enum bp_result (*set_crtc_timing)(
-		struct bios_parser *bp,
-		struct bp_hw_crtc_timing_parameters *bp_params);
-	enum bp_result (*enable_crtc)(
-		struct bios_parser *bp,
-		enum controller_id controller_id,
-		bool enable);
-	enum bp_result (*enable_crtc_mem_req)(
-		struct bios_parser *bp,
-		enum controller_id controller_id,
-		bool enable);
-	enum bp_result (*program_clock)(
-		struct bios_parser *bp,
-		struct bp_pixel_clock_parameters *bp_params);
-	enum bp_result (*external_encoder_control)(
-			struct bios_parser *bp,
-			struct bp_external_encoder_control *cntl);
-	enum bp_result (*enable_disp_power_gating)(
-		struct bios_parser *bp,
-		enum controller_id crtc_id,
-		enum bp_pipe_control_action action);
-	enum bp_result (*set_dce_clock)(
-		struct bios_parser *bp,
-		struct bp_set_dce_clock_parameters *bp_params);
+  enum bp_result (*dig_encoder_control)(
+      struct bios_parser *bp,
+      struct bp_encoder_control *control);
+  enum bp_result (*encoder_control_dig1)(
+      struct bios_parser *bp,
+      struct bp_encoder_control *control);
+  enum bp_result (*encoder_control_dig2)(
+      struct bios_parser *bp,
+      struct bp_encoder_control *control);
+  enum bp_result (*transmitter_control)(
+      struct bios_parser *bp,
+      struct bp_transmitter_control *control);
+  enum bp_result (*set_pixel_clock)(
+      struct bios_parser *bp,
+      struct bp_pixel_clock_parameters *bp_params);
+  enum bp_result (*enable_spread_spectrum_on_ppll)(
+      struct bios_parser *bp,
+      struct bp_spread_spectrum_parameters *bp_params,
+      bool enable);
+  enum bp_result (*adjust_display_pll)(
+      struct bios_parser *bp,
+      struct bp_adjust_pixel_clock_parameters *bp_params);
+  enum bp_result (*dac1_encoder_control)(
+      struct bios_parser *bp,
+      bool enable,
+      uint32_t pixel_clock,
+      uint8_t dac_standard);
+  enum bp_result (*dac2_encoder_control)(
+      struct bios_parser *bp,
+      bool enable,
+      uint32_t pixel_clock,
+      uint8_t dac_standard);
+  enum bp_result (*dac1_output_control)(
+      struct bios_parser *bp,
+      bool enable);
+  enum bp_result (*dac2_output_control)(
+      struct bios_parser *bp,
+      bool enable);
+  enum bp_result (*set_crtc_timing)(
+      struct bios_parser *bp,
+      struct bp_hw_crtc_timing_parameters *bp_params);
+  enum bp_result (*enable_crtc)(
+      struct bios_parser *bp,
+      enum controller_id controller_id,
+      bool enable);
+  enum bp_result (*enable_crtc_mem_req)(
+      struct bios_parser *bp,
+      enum controller_id controller_id,
+      bool enable);
+  enum bp_result (*program_clock)(
+      struct bios_parser *bp,
+      struct bp_pixel_clock_parameters *bp_params);
+  enum bp_result (*external_encoder_control)(
+      struct bios_parser *bp,
+      struct bp_external_encoder_control *cntl);
+  enum bp_result (*enable_disp_power_gating)(
+      struct bios_parser *bp,
+      enum controller_id crtc_id,
+      enum bp_pipe_control_action action);
+  enum bp_result (*set_dce_clock)(
+      struct bios_parser *bp,
+      struct bp_set_dce_clock_parameters *bp_params);
 };
 
 void dal_bios_parser_init_cmd_tbl(struct bios_parser *bp);

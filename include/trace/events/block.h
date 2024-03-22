@@ -10,32 +10,32 @@
 #include <linux/buffer_head.h>
 #include <linux/tracepoint.h>
 
-#define RWBS_LEN	8
+#define RWBS_LEN  8
 
 #ifdef CONFIG_BUFFER_HEAD
 DECLARE_EVENT_CLASS(block_buffer,
 
-	TP_PROTO(struct buffer_head *bh),
+    TP_PROTO(struct buffer_head *bh),
 
-	TP_ARGS(bh),
+    TP_ARGS(bh),
 
-	TP_STRUCT__entry (
-		__field(  dev_t,	dev			)
-		__field(  sector_t,	sector			)
-		__field(  size_t,	size			)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(size_t, size)
+    ),
 
-	TP_fast_assign(
-		__entry->dev		= bh->b_bdev->bd_dev;
-		__entry->sector		= bh->b_blocknr;
-		__entry->size		= bh->b_size;
-	),
+    TP_fast_assign(
+    __entry->dev = bh->b_bdev->bd_dev;
+    __entry->sector = bh->b_blocknr;
+    __entry->size = bh->b_size;
+    ),
 
-	TP_printk("%d,%d sector=%llu size=%zu",
-		MAJOR(__entry->dev), MINOR(__entry->dev),
-		(unsigned long long)__entry->sector, __entry->size
-	)
-);
+    TP_printk("%d,%d sector=%llu size=%zu",
+    MAJOR(__entry->dev), MINOR(__entry->dev),
+    (unsigned long long) __entry->sector, __entry->size
+    )
+    );
 
 /**
  * block_touch_buffer - mark a buffer accessed
@@ -45,10 +45,10 @@ DECLARE_EVENT_CLASS(block_buffer,
  */
 DEFINE_EVENT(block_buffer, block_touch_buffer,
 
-	TP_PROTO(struct buffer_head *bh),
+    TP_PROTO(struct buffer_head *bh),
 
-	TP_ARGS(bh)
-);
+    TP_ARGS(bh)
+    );
 
 /**
  * block_dirty_buffer - mark a buffer dirty
@@ -58,10 +58,10 @@ DEFINE_EVENT(block_buffer, block_touch_buffer,
  */
 DEFINE_EVENT(block_buffer, block_dirty_buffer,
 
-	TP_PROTO(struct buffer_head *bh),
+    TP_PROTO(struct buffer_head *bh),
 
-	TP_ARGS(bh)
-);
+    TP_ARGS(bh)
+    );
 #endif /* CONFIG_BUFFER_HEAD */
 
 /**
@@ -74,65 +74,65 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
  */
 TRACE_EVENT(block_rq_requeue,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq),
+    TP_ARGS(rq),
 
-	TP_STRUCT__entry(
-		__field(  dev_t,	dev			)
-		__field(  sector_t,	sector			)
-		__field(  unsigned int,	nr_sector		)
-		__array(  char,		rwbs,	RWBS_LEN	)
-		__dynamic_array( char,	cmd,	1		)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned int, nr_sector)
+    __array(char, rwbs, RWBS_LEN)
+    __dynamic_array(char, cmd, 1)
+    ),
 
-	TP_fast_assign(
-		__entry->dev	   = rq->q->disk ? disk_devt(rq->q->disk) : 0;
-		__entry->sector    = blk_rq_trace_sector(rq);
-		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
+    TP_fast_assign(
+    __entry->dev = rq->q->disk ? disk_devt(rq->q->disk) : 0;
+    __entry->sector = blk_rq_trace_sector(rq);
+    __entry->nr_sector = blk_rq_trace_nr_sectors(rq);
 
-		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
-		__get_str(cmd)[0] = '\0';
-	),
+    blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
+    __get_str(cmd)[0] = '\0';
+    ),
 
-	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->rwbs, __get_str(cmd),
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, 0)
-);
+    TP_printk("%d,%d %s (%s) %llu + %u [%d]",
+    MAJOR(__entry->dev), MINOR(__entry->dev),
+    __entry->rwbs, __get_str(cmd),
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector, 0)
+    );
 
 DECLARE_EVENT_CLASS(block_rq_completion,
 
-	TP_PROTO(struct request *rq, blk_status_t error, unsigned int nr_bytes),
+    TP_PROTO(struct request *rq, blk_status_t error, unsigned int nr_bytes),
 
-	TP_ARGS(rq, error, nr_bytes),
+    TP_ARGS(rq, error, nr_bytes),
 
-	TP_STRUCT__entry(
-		__field(  dev_t,	dev			)
-		__field(  sector_t,	sector			)
-		__field(  unsigned int,	nr_sector		)
-		__field(  int	,	error			)
-		__array(  char,		rwbs,	RWBS_LEN	)
-		__dynamic_array( char,	cmd,	1		)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned int, nr_sector)
+    __field(int, error)
+    __array(char, rwbs, RWBS_LEN)
+    __dynamic_array(char, cmd, 1)
+    ),
 
-	TP_fast_assign(
-		__entry->dev	   = rq->q->disk ? disk_devt(rq->q->disk) : 0;
-		__entry->sector    = blk_rq_pos(rq);
-		__entry->nr_sector = nr_bytes >> 9;
-		__entry->error     = blk_status_to_errno(error);
+    TP_fast_assign(
+    __entry->dev = rq->q->disk ? disk_devt(rq->q->disk) : 0;
+    __entry->sector = blk_rq_pos(rq);
+    __entry->nr_sector = nr_bytes >> 9;
+    __entry->error = blk_status_to_errno(error);
 
-		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
-		__get_str(cmd)[0] = '\0';
-	),
+    blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
+    __get_str(cmd)[0] = '\0';
+    ),
 
-	TP_printk("%d,%d %s (%s) %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->rwbs, __get_str(cmd),
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->error)
-);
+    TP_printk("%d,%d %s (%s) %llu + %u [%d]",
+    MAJOR(__entry->dev), MINOR(__entry->dev),
+    __entry->rwbs, __get_str(cmd),
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector, __entry->error)
+    );
 
 /**
  * block_rq_complete - block IO operation completed by device driver
@@ -148,10 +148,10 @@ DECLARE_EVENT_CLASS(block_rq_completion,
  */
 DEFINE_EVENT(block_rq_completion, block_rq_complete,
 
-	TP_PROTO(struct request *rq, blk_status_t error, unsigned int nr_bytes),
+    TP_PROTO(struct request *rq, blk_status_t error, unsigned int nr_bytes),
 
-	TP_ARGS(rq, error, nr_bytes)
-);
+    TP_ARGS(rq, error, nr_bytes)
+    );
 
 /**
  * block_rq_error - block IO operation error reported by device driver
@@ -164,44 +164,44 @@ DEFINE_EVENT(block_rq_completion, block_rq_complete,
  */
 DEFINE_EVENT(block_rq_completion, block_rq_error,
 
-	TP_PROTO(struct request *rq, blk_status_t error, unsigned int nr_bytes),
+    TP_PROTO(struct request *rq, blk_status_t error, unsigned int nr_bytes),
 
-	TP_ARGS(rq, error, nr_bytes)
-);
+    TP_ARGS(rq, error, nr_bytes)
+    );
 
 DECLARE_EVENT_CLASS(block_rq,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq),
+    TP_ARGS(rq),
 
-	TP_STRUCT__entry(
-		__field(  dev_t,	dev			)
-		__field(  sector_t,	sector			)
-		__field(  unsigned int,	nr_sector		)
-		__field(  unsigned int,	bytes			)
-		__array(  char,		rwbs,	RWBS_LEN	)
-		__array(  char,         comm,   TASK_COMM_LEN   )
-		__dynamic_array( char,	cmd,	1		)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned int, nr_sector)
+    __field(unsigned int, bytes)
+    __array(char, rwbs, RWBS_LEN)
+    __array(char, comm, TASK_COMM_LEN)
+    __dynamic_array(char, cmd, 1)
+    ),
 
-	TP_fast_assign(
-		__entry->dev	   = rq->q->disk ? disk_devt(rq->q->disk) : 0;
-		__entry->sector    = blk_rq_trace_sector(rq);
-		__entry->nr_sector = blk_rq_trace_nr_sectors(rq);
-		__entry->bytes     = blk_rq_bytes(rq);
+    TP_fast_assign(
+    __entry->dev = rq->q->disk ? disk_devt(rq->q->disk) : 0;
+    __entry->sector = blk_rq_trace_sector(rq);
+    __entry->nr_sector = blk_rq_trace_nr_sectors(rq);
+    __entry->bytes = blk_rq_bytes(rq);
 
-		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
-		__get_str(cmd)[0] = '\0';
-		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
-	),
+    blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
+    __get_str(cmd)[0] = '\0';
+    memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
+    ),
 
-	TP_printk("%d,%d %s %u (%s) %llu + %u [%s]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->rwbs, __entry->bytes, __get_str(cmd),
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->comm)
-);
+    TP_printk("%d,%d %s %u (%s) %llu + %u [%s]",
+    MAJOR(__entry->dev), MINOR(__entry->dev),
+    __entry->rwbs, __entry->bytes, __get_str(cmd),
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector, __entry->comm)
+    );
 
 /**
  * block_rq_insert - insert block operation request into queue
@@ -214,10 +214,10 @@ DECLARE_EVENT_CLASS(block_rq,
  */
 DEFINE_EVENT(block_rq, block_rq_insert,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq)
-);
+    TP_ARGS(rq)
+    );
 
 /**
  * block_rq_issue - issue pending block IO request operation to device driver
@@ -228,10 +228,10 @@ DEFINE_EVENT(block_rq, block_rq_insert,
  */
 DEFINE_EVENT(block_rq, block_rq_issue,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq)
-);
+    TP_ARGS(rq)
+    );
 
 /**
  * block_rq_merge - merge request with another one in the elevator
@@ -242,10 +242,10 @@ DEFINE_EVENT(block_rq, block_rq_issue,
  */
 DEFINE_EVENT(block_rq, block_rq_merge,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq)
-);
+    TP_ARGS(rq)
+    );
 
 /**
  * block_io_start - insert a request for execution
@@ -255,10 +255,10 @@ DEFINE_EVENT(block_rq, block_rq_merge,
  */
 DEFINE_EVENT(block_rq, block_io_start,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq)
-);
+    TP_ARGS(rq)
+    );
 
 /**
  * block_io_done - block IO operation request completed
@@ -268,10 +268,10 @@ DEFINE_EVENT(block_rq, block_io_start,
  */
 DEFINE_EVENT(block_rq, block_io_done,
 
-	TP_PROTO(struct request *rq),
+    TP_PROTO(struct request *rq),
 
-	TP_ARGS(rq)
-);
+    TP_ARGS(rq)
+    );
 
 /**
  * block_bio_complete - completed all work on the block operation
@@ -283,59 +283,59 @@ DEFINE_EVENT(block_rq, block_io_done,
  */
 TRACE_EVENT(block_bio_complete,
 
-	TP_PROTO(struct request_queue *q, struct bio *bio),
+    TP_PROTO(struct request_queue *q, struct bio *bio),
 
-	TP_ARGS(q, bio),
+    TP_ARGS(q, bio),
 
-	TP_STRUCT__entry(
-		__field( dev_t,		dev		)
-		__field( sector_t,	sector		)
-		__field( unsigned,	nr_sector	)
-		__field( int,		error		)
-		__array( char,		rwbs,	RWBS_LEN)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned, nr_sector)
+    __field(int, error)
+    __array(char, rwbs, RWBS_LEN)
+    ),
 
-	TP_fast_assign(
-		__entry->dev		= bio_dev(bio);
-		__entry->sector		= bio->bi_iter.bi_sector;
-		__entry->nr_sector	= bio_sectors(bio);
-		__entry->error		= blk_status_to_errno(bio->bi_status);
-		blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
-	),
+    TP_fast_assign(
+    __entry->dev = bio_dev(bio);
+    __entry->sector = bio->bi_iter.bi_sector;
+    __entry->nr_sector = bio_sectors(bio);
+    __entry->error = blk_status_to_errno(bio->bi_status);
+    blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
+    ),
 
-	TP_printk("%d,%d %s %llu + %u [%d]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->error)
-);
+    TP_printk("%d,%d %s %llu + %u [%d]",
+    MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector, __entry->error)
+    );
 
 DECLARE_EVENT_CLASS(block_bio,
 
-	TP_PROTO(struct bio *bio),
+    TP_PROTO(struct bio *bio),
 
-	TP_ARGS(bio),
+    TP_ARGS(bio),
 
-	TP_STRUCT__entry(
-		__field( dev_t,		dev			)
-		__field( sector_t,	sector			)
-		__field( unsigned int,	nr_sector		)
-		__array( char,		rwbs,	RWBS_LEN	)
-		__array( char,		comm,	TASK_COMM_LEN	)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned int, nr_sector)
+    __array(char, rwbs, RWBS_LEN)
+    __array(char, comm, TASK_COMM_LEN)
+    ),
 
-	TP_fast_assign(
-		__entry->dev		= bio_dev(bio);
-		__entry->sector		= bio->bi_iter.bi_sector;
-		__entry->nr_sector	= bio_sectors(bio);
-		blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
-		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
-	),
+    TP_fast_assign(
+    __entry->dev = bio_dev(bio);
+    __entry->sector = bio->bi_iter.bi_sector;
+    __entry->nr_sector = bio_sectors(bio);
+    blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
+    memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
+    ),
 
-	TP_printk("%d,%d %s %llu + %u [%s]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector, __entry->comm)
-);
+    TP_printk("%d,%d %s %llu + %u [%s]",
+    MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector, __entry->comm)
+    );
 
 /**
  * block_bio_bounce - used bounce buffer when processing block operation
@@ -348,31 +348,34 @@ DECLARE_EVENT_CLASS(block_bio,
  * performance.
  */
 DEFINE_EVENT(block_bio, block_bio_bounce,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
-);
+    TP_PROTO(struct bio *bio),
+    TP_ARGS(bio)
+    );
 
 /**
- * block_bio_backmerge - merging block operation to the end of an existing operation
+ * block_bio_backmerge - merging block operation to the end of an existing
+ * operation
  * @bio: new block operation to merge
  *
  * Merging block request @bio to the end of an existing block request.
  */
 DEFINE_EVENT(block_bio, block_bio_backmerge,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
-);
+    TP_PROTO(struct bio *bio),
+    TP_ARGS(bio)
+    );
 
 /**
- * block_bio_frontmerge - merging block operation to the beginning of an existing operation
+ * block_bio_frontmerge - merging block operation to the beginning of an
+ * existing operation
  * @bio: new block operation to merge
  *
- * Merging block IO operation @bio to the beginning of an existing block request.
+ * Merging block IO operation @bio to the beginning of an existing block
+ * request.
  */
 DEFINE_EVENT(block_bio, block_bio_frontmerge,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
-);
+    TP_PROTO(struct bio *bio),
+    TP_ARGS(bio)
+    );
 
 /**
  * block_bio_queue - putting new block IO operation in queue
@@ -381,9 +384,9 @@ DEFINE_EVENT(block_bio, block_bio_frontmerge,
  * About to place the block IO operation @bio into queue @q.
  */
 DEFINE_EVENT(block_bio, block_bio_queue,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
-);
+    TP_PROTO(struct bio *bio),
+    TP_ARGS(bio)
+    );
 
 /**
  * block_getrq - get a free request entry in queue for block IO operations
@@ -392,9 +395,9 @@ DEFINE_EVENT(block_bio, block_bio_queue,
  * A request struct has been allocated to handle the block IO operation @bio.
  */
 DEFINE_EVENT(block_bio, block_getrq,
-	TP_PROTO(struct bio *bio),
-	TP_ARGS(bio)
-);
+    TP_PROTO(struct bio *bio),
+    TP_ARGS(bio)
+    );
 
 /**
  * block_plug - keep operations requests in request queue
@@ -406,39 +409,39 @@ DEFINE_EVENT(block_bio, block_getrq,
  */
 TRACE_EVENT(block_plug,
 
-	TP_PROTO(struct request_queue *q),
+    TP_PROTO(struct request_queue *q),
 
-	TP_ARGS(q),
+    TP_ARGS(q),
 
-	TP_STRUCT__entry(
-		__array( char,		comm,	TASK_COMM_LEN	)
-	),
+    TP_STRUCT__entry(
+    __array(char, comm, TASK_COMM_LEN)
+    ),
 
-	TP_fast_assign(
-		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
-	),
+    TP_fast_assign(
+    memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
+    ),
 
-	TP_printk("[%s]", __entry->comm)
-);
+    TP_printk("[%s]", __entry->comm)
+    );
 
 DECLARE_EVENT_CLASS(block_unplug,
 
-	TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
+    TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
 
-	TP_ARGS(q, depth, explicit),
+    TP_ARGS(q, depth, explicit),
 
-	TP_STRUCT__entry(
-		__field( int,		nr_rq			)
-		__array( char,		comm,	TASK_COMM_LEN	)
-	),
+    TP_STRUCT__entry(
+    __field(int, nr_rq)
+    __array(char, comm, TASK_COMM_LEN)
+    ),
 
-	TP_fast_assign(
-		__entry->nr_rq = depth;
-		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
-	),
+    TP_fast_assign(
+    __entry->nr_rq = depth;
+    memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
+    ),
 
-	TP_printk("[%s] %d", __entry->comm, __entry->nr_rq)
-);
+    TP_printk("[%s] %d", __entry->comm, __entry->nr_rq)
+    );
 
 /**
  * block_unplug - release of operations requests in request queue
@@ -451,10 +454,10 @@ DECLARE_EVENT_CLASS(block_unplug,
  */
 DEFINE_EVENT(block_unplug, block_unplug,
 
-	TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
+    TP_PROTO(struct request_queue *q, unsigned int depth, bool explicit),
 
-	TP_ARGS(q, depth, explicit)
-);
+    TP_ARGS(q, depth, explicit)
+    );
 
 /**
  * block_split - split a single bio struct into two bio structs
@@ -468,32 +471,32 @@ DEFINE_EVENT(block_unplug, block_unplug,
  */
 TRACE_EVENT(block_split,
 
-	TP_PROTO(struct bio *bio, unsigned int new_sector),
+    TP_PROTO(struct bio *bio, unsigned int new_sector),
 
-	TP_ARGS(bio, new_sector),
+    TP_ARGS(bio, new_sector),
 
-	TP_STRUCT__entry(
-		__field( dev_t,		dev				)
-		__field( sector_t,	sector				)
-		__field( sector_t,	new_sector			)
-		__array( char,		rwbs,		RWBS_LEN	)
-		__array( char,		comm,		TASK_COMM_LEN	)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(sector_t, new_sector)
+    __array(char, rwbs, RWBS_LEN)
+    __array(char, comm, TASK_COMM_LEN)
+    ),
 
-	TP_fast_assign(
-		__entry->dev		= bio_dev(bio);
-		__entry->sector		= bio->bi_iter.bi_sector;
-		__entry->new_sector	= new_sector;
-		blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
-		memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
-	),
+    TP_fast_assign(
+    __entry->dev = bio_dev(bio);
+    __entry->sector = bio->bi_iter.bi_sector;
+    __entry->new_sector = new_sector;
+    blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
+    memcpy(__entry->comm, current->comm, TASK_COMM_LEN);
+    ),
 
-	TP_printk("%d,%d %s %llu / %llu [%s]",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  (unsigned long long)__entry->sector,
-		  (unsigned long long)__entry->new_sector,
-		  __entry->comm)
-);
+    TP_printk("%d,%d %s %llu / %llu [%s]",
+    MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+    (unsigned long long) __entry->sector,
+    (unsigned long long) __entry->new_sector,
+    __entry->comm)
+    );
 
 /**
  * block_bio_remap - map request for a logical device to the raw device
@@ -506,35 +509,35 @@ TRACE_EVENT(block_split,
  */
 TRACE_EVENT(block_bio_remap,
 
-	TP_PROTO(struct bio *bio, dev_t dev, sector_t from),
+    TP_PROTO(struct bio *bio, dev_t dev, sector_t from),
 
-	TP_ARGS(bio, dev, from),
+    TP_ARGS(bio, dev, from),
 
-	TP_STRUCT__entry(
-		__field( dev_t,		dev		)
-		__field( sector_t,	sector		)
-		__field( unsigned int,	nr_sector	)
-		__field( dev_t,		old_dev		)
-		__field( sector_t,	old_sector	)
-		__array( char,		rwbs,	RWBS_LEN)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned int, nr_sector)
+    __field(dev_t, old_dev)
+    __field(sector_t, old_sector)
+    __array(char, rwbs, RWBS_LEN)
+    ),
 
-	TP_fast_assign(
-		__entry->dev		= bio_dev(bio);
-		__entry->sector		= bio->bi_iter.bi_sector;
-		__entry->nr_sector	= bio_sectors(bio);
-		__entry->old_dev	= dev;
-		__entry->old_sector	= from;
-		blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
-	),
+    TP_fast_assign(
+    __entry->dev = bio_dev(bio);
+    __entry->sector = bio->bi_iter.bi_sector;
+    __entry->nr_sector = bio_sectors(bio);
+    __entry->old_dev = dev;
+    __entry->old_sector = from;
+    blk_fill_rwbs(__entry->rwbs, bio->bi_opf);
+    ),
 
-	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector,
-		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
-		  (unsigned long long)__entry->old_sector)
-);
+    TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu",
+    MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector,
+    MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
+    (unsigned long long) __entry->old_sector)
+    );
 
 /**
  * block_rq_remap - map request for a block operation request
@@ -548,40 +551,39 @@ TRACE_EVENT(block_bio_remap,
  */
 TRACE_EVENT(block_rq_remap,
 
-	TP_PROTO(struct request *rq, dev_t dev, sector_t from),
+    TP_PROTO(struct request *rq, dev_t dev, sector_t from),
 
-	TP_ARGS(rq, dev, from),
+    TP_ARGS(rq, dev, from),
 
-	TP_STRUCT__entry(
-		__field( dev_t,		dev		)
-		__field( sector_t,	sector		)
-		__field( unsigned int,	nr_sector	)
-		__field( dev_t,		old_dev		)
-		__field( sector_t,	old_sector	)
-		__field( unsigned int,	nr_bios		)
-		__array( char,		rwbs,	RWBS_LEN)
-	),
+    TP_STRUCT__entry(
+    __field(dev_t, dev)
+    __field(sector_t, sector)
+    __field(unsigned int, nr_sector)
+    __field(dev_t, old_dev)
+    __field(sector_t, old_sector)
+    __field(unsigned int, nr_bios)
+    __array(char, rwbs, RWBS_LEN)
+    ),
 
-	TP_fast_assign(
-		__entry->dev		= disk_devt(rq->q->disk);
-		__entry->sector		= blk_rq_pos(rq);
-		__entry->nr_sector	= blk_rq_sectors(rq);
-		__entry->old_dev	= dev;
-		__entry->old_sector	= from;
-		__entry->nr_bios	= blk_rq_count_bios(rq);
-		blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
-	),
+    TP_fast_assign(
+    __entry->dev = disk_devt(rq->q->disk);
+    __entry->sector = blk_rq_pos(rq);
+    __entry->nr_sector = blk_rq_sectors(rq);
+    __entry->old_dev = dev;
+    __entry->old_sector = from;
+    __entry->nr_bios = blk_rq_count_bios(rq);
+    blk_fill_rwbs(__entry->rwbs, rq->cmd_flags);
+    ),
 
-	TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
-		  (unsigned long long)__entry->sector,
-		  __entry->nr_sector,
-		  MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
-		  (unsigned long long)__entry->old_sector, __entry->nr_bios)
-);
+    TP_printk("%d,%d %s %llu + %u <- (%d,%d) %llu %u",
+    MAJOR(__entry->dev), MINOR(__entry->dev), __entry->rwbs,
+    (unsigned long long) __entry->sector,
+    __entry->nr_sector,
+    MAJOR(__entry->old_dev), MINOR(__entry->old_dev),
+    (unsigned long long) __entry->old_sector, __entry->nr_bios)
+    );
 
 #endif /* _TRACE_BLOCK_H */
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
-

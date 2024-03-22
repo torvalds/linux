@@ -32,105 +32,96 @@
  * One channel for the lid angle, the other for timestamp.
  */
 static const struct iio_chan_spec cros_ec_lid_angle_channels[] = {
-	{
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.scan_type.realbits = CROS_EC_SENSOR_BITS,
-		.scan_type.storagebits = CROS_EC_SENSOR_BITS,
-		.scan_type.sign = 'u',
-		.type = IIO_ANGL
-	},
-	IIO_CHAN_SOFT_TIMESTAMP(1)
+  {
+    .info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+    .scan_type.realbits = CROS_EC_SENSOR_BITS,
+    .scan_type.storagebits = CROS_EC_SENSOR_BITS,
+    .scan_type.sign = 'u',
+    .type = IIO_ANGL
+  },
+  IIO_CHAN_SOFT_TIMESTAMP(1)
 };
 
 /* State data for ec_sensors iio driver. */
 struct cros_ec_lid_angle_state {
-	/* Shared by all sensors */
-	struct cros_ec_sensors_core_state core;
+  /* Shared by all sensors */
+  struct cros_ec_sensors_core_state core;
 };
 
 static int cros_ec_sensors_read_lid_angle(struct iio_dev *indio_dev,
-					  unsigned long scan_mask, s16 *data)
-{
-	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
-	int ret;
-
-	st->param.cmd = MOTIONSENSE_CMD_LID_ANGLE;
-	ret = cros_ec_motion_send_host_cmd(st, sizeof(st->resp->lid_angle));
-	if (ret) {
-		dev_warn(&indio_dev->dev, "Unable to read lid angle\n");
-		return ret;
-	}
-
-	*data = st->resp->lid_angle.value;
-	return 0;
+    unsigned long scan_mask, s16 *data) {
+  struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+  int ret;
+  st->param.cmd = MOTIONSENSE_CMD_LID_ANGLE;
+  ret = cros_ec_motion_send_host_cmd(st, sizeof(st->resp->lid_angle));
+  if (ret) {
+    dev_warn(&indio_dev->dev, "Unable to read lid angle\n");
+    return ret;
+  }
+  *data = st->resp->lid_angle.value;
+  return 0;
 }
 
 static int cros_ec_lid_angle_read(struct iio_dev *indio_dev,
-				    struct iio_chan_spec const *chan,
-				    int *val, int *val2, long mask)
-{
-	struct cros_ec_lid_angle_state *st = iio_priv(indio_dev);
-	s16 data;
-	int ret;
-
-	mutex_lock(&st->core.cmd_lock);
-	ret = cros_ec_sensors_read_lid_angle(indio_dev, 1, &data);
-	if (ret == 0) {
-		*val = data;
-		ret = IIO_VAL_INT;
-	}
-	mutex_unlock(&st->core.cmd_lock);
-	return ret;
+    struct iio_chan_spec const *chan,
+    int *val, int *val2, long mask) {
+  struct cros_ec_lid_angle_state *st = iio_priv(indio_dev);
+  s16 data;
+  int ret;
+  mutex_lock(&st->core.cmd_lock);
+  ret = cros_ec_sensors_read_lid_angle(indio_dev, 1, &data);
+  if (ret == 0) {
+    *val = data;
+    ret = IIO_VAL_INT;
+  }
+  mutex_unlock(&st->core.cmd_lock);
+  return ret;
 }
 
 static const struct iio_info cros_ec_lid_angle_info = {
-	.read_raw = &cros_ec_lid_angle_read,
+  .read_raw = &cros_ec_lid_angle_read,
 };
 
-static int cros_ec_lid_angle_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct iio_dev *indio_dev;
-	struct cros_ec_lid_angle_state *state;
-	int ret;
-
-	indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
-	if (!indio_dev)
-		return -ENOMEM;
-
-	ret = cros_ec_sensors_core_init(pdev, indio_dev, false, NULL);
-	if (ret)
-		return ret;
-
-	indio_dev->info = &cros_ec_lid_angle_info;
-	state = iio_priv(indio_dev);
-	indio_dev->channels = cros_ec_lid_angle_channels;
-	indio_dev->num_channels = ARRAY_SIZE(cros_ec_lid_angle_channels);
-
-	state->core.read_ec_sensors_data = cros_ec_sensors_read_lid_angle;
-
-	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
-			cros_ec_sensors_capture, NULL);
-	if (ret)
-		return ret;
-
-	return cros_ec_sensors_core_register(dev, indio_dev, NULL);
+static int cros_ec_lid_angle_probe(struct platform_device *pdev) {
+  struct device *dev = &pdev->dev;
+  struct iio_dev *indio_dev;
+  struct cros_ec_lid_angle_state *state;
+  int ret;
+  indio_dev = devm_iio_device_alloc(dev, sizeof(*state));
+  if (!indio_dev) {
+    return -ENOMEM;
+  }
+  ret = cros_ec_sensors_core_init(pdev, indio_dev, false, NULL);
+  if (ret) {
+    return ret;
+  }
+  indio_dev->info = &cros_ec_lid_angle_info;
+  state = iio_priv(indio_dev);
+  indio_dev->channels = cros_ec_lid_angle_channels;
+  indio_dev->num_channels = ARRAY_SIZE(cros_ec_lid_angle_channels);
+  state->core.read_ec_sensors_data = cros_ec_sensors_read_lid_angle;
+  ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+      cros_ec_sensors_capture, NULL);
+  if (ret) {
+    return ret;
+  }
+  return cros_ec_sensors_core_register(dev, indio_dev, NULL);
 }
 
 static const struct platform_device_id cros_ec_lid_angle_ids[] = {
-	{
-		.name = DRV_NAME,
-	},
-	{ /* sentinel */ }
+  {
+    .name = DRV_NAME,
+  },
+  { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_lid_angle_ids);
 
 static struct platform_driver cros_ec_lid_angle_platform_driver = {
-	.driver = {
-		.name	= DRV_NAME,
-	},
-	.probe		= cros_ec_lid_angle_probe,
-	.id_table	= cros_ec_lid_angle_ids,
+  .driver = {
+    .name = DRV_NAME,
+  },
+  .probe = cros_ec_lid_angle_probe,
+  .id_table = cros_ec_lid_angle_ids,
 };
 module_platform_driver(cros_ec_lid_angle_platform_driver);
 

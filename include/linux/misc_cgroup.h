@@ -13,12 +13,12 @@
  */
 enum misc_res_type {
 #ifdef CONFIG_KVM_AMD_SEV
-	/* AMD SEV ASIDs resource */
-	MISC_CG_RES_SEV,
-	/* AMD SEV-ES ASIDs resource */
-	MISC_CG_RES_SEV_ES,
+  /* AMD SEV ASIDs resource */
+  MISC_CG_RES_SEV,
+  /* AMD SEV-ES ASIDs resource */
+  MISC_CG_RES_SEV_ES,
 #endif
-	MISC_CG_RES_TYPES
+  MISC_CG_RES_TYPES
 };
 
 struct misc_cg;
@@ -34,9 +34,9 @@ struct misc_cg;
  * @events: Number of times, the resource limit exceeded.
  */
 struct misc_res {
-	u64 max;
-	atomic64_t usage;
-	atomic64_t events;
+  u64 max;
+  atomic64_t usage;
+  atomic64_t events;
 };
 
 /**
@@ -46,12 +46,12 @@ struct misc_res {
  * @res: Array of misc resources usage in the cgroup.
  */
 struct misc_cg {
-	struct cgroup_subsys_state css;
+  struct cgroup_subsys_state css;
 
-	/* misc.events */
-	struct cgroup_file events_file;
+  /* misc.events */
+  struct cgroup_file events_file;
 
-	struct misc_res res[MISC_CG_RES_TYPES];
+  struct misc_res res[MISC_CG_RES_TYPES];
 };
 
 u64 misc_cg_res_total_usage(enum misc_res_type type);
@@ -68,9 +68,8 @@ void misc_cg_uncharge(enum misc_res_type type, struct misc_cg *cg, u64 amount);
  * * %NULL - If @css is null.
  * * struct misc_cg* - misc cgroup pointer of the passed css.
  */
-static inline struct misc_cg *css_misc(struct cgroup_subsys_state *css)
-{
-	return css ? container_of(css, struct misc_cg, css) : NULL;
+static inline struct misc_cg *css_misc(struct cgroup_subsys_state *css) {
+  return css ? container_of(css, struct misc_cg, css) : NULL;
 }
 
 /*
@@ -81,53 +80,46 @@ static inline struct misc_cg *css_misc(struct cgroup_subsys_state *css)
  *
  * Return: Misc cgroup to which the current task belongs to.
  */
-static inline struct misc_cg *get_current_misc_cg(void)
-{
-	return css_misc(task_get_css(current, misc_cgrp_id));
+static inline struct misc_cg *get_current_misc_cg(void) {
+  return css_misc(task_get_css(current, misc_cgrp_id));
 }
 
 /*
  * put_misc_cg() - Put the misc cgroup and reduce its ref count.
  * @cg - cgroup to put.
  */
-static inline void put_misc_cg(struct misc_cg *cg)
-{
-	if (cg)
-		css_put(&cg->css);
+static inline void put_misc_cg(struct misc_cg *cg) {
+  if (cg) {
+    css_put(&cg->css);
+  }
 }
 
 #else /* !CONFIG_CGROUP_MISC */
 
-static inline u64 misc_cg_res_total_usage(enum misc_res_type type)
-{
-	return 0;
+static inline u64 misc_cg_res_total_usage(enum misc_res_type type) {
+  return 0;
 }
 
-static inline int misc_cg_set_capacity(enum misc_res_type type, u64 capacity)
-{
-	return 0;
+static inline int misc_cg_set_capacity(enum misc_res_type type, u64 capacity) {
+  return 0;
 }
 
 static inline int misc_cg_try_charge(enum misc_res_type type,
-				     struct misc_cg *cg,
-				     u64 amount)
-{
-	return 0;
+    struct misc_cg *cg,
+    u64 amount) {
+  return 0;
 }
 
 static inline void misc_cg_uncharge(enum misc_res_type type,
-				    struct misc_cg *cg,
-				    u64 amount)
-{
+    struct misc_cg *cg,
+    u64 amount) {
 }
 
-static inline struct misc_cg *get_current_misc_cg(void)
-{
-	return NULL;
+static inline struct misc_cg *get_current_misc_cg(void) {
+  return NULL;
 }
 
-static inline void put_misc_cg(struct misc_cg *cg)
-{
+static inline void put_misc_cg(struct misc_cg *cg) {
 }
 
 #endif /* CONFIG_CGROUP_MISC */

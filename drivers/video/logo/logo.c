@@ -29,10 +29,9 @@ MODULE_PARM_DESC(nologo, "Disables startup logo");
 
 static bool logos_freed;
 
-static int __init fb_logo_late_init(void)
-{
-	logos_freed = true;
-	return 0;
+static int __init fb_logo_late_init(void) {
+  logos_freed = true;
+  return 0;
 }
 
 late_initcall_sync(fb_logo_late_init);
@@ -41,66 +40,64 @@ late_initcall_sync(fb_logo_late_init);
  * modpost that it is intended that this function uses data
  * marked __initdata.
  */
-const struct linux_logo * __ref fb_find_logo(int depth)
-{
-	const struct linux_logo *logo = NULL;
-
-	if (nologo || logos_freed)
-		return NULL;
-
-	if (depth >= 1) {
+const struct linux_logo *__ref fb_find_logo(int depth) {
+  const struct linux_logo *logo = NULL;
+  if (nologo || logos_freed) {
+    return NULL;
+  }
+  if (depth >= 1) {
 #ifdef CONFIG_LOGO_LINUX_MONO
-		/* Generic Linux logo */
-		logo = &logo_linux_mono;
+    /* Generic Linux logo */
+    logo = &logo_linux_mono;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_MONO
-		/* SuperH Linux logo */
-		logo = &logo_superh_mono;
+    /* SuperH Linux logo */
+    logo = &logo_superh_mono;
 #endif
-	}
-	
-	if (depth >= 4) {
+  }
+  if (depth >= 4) {
 #ifdef CONFIG_LOGO_LINUX_VGA16
-		/* Generic Linux logo */
-		logo = &logo_linux_vga16;
+    /* Generic Linux logo */
+    logo = &logo_linux_vga16;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_VGA16
-		/* SuperH Linux logo */
-		logo = &logo_superh_vga16;
+    /* SuperH Linux logo */
+    logo = &logo_superh_vga16;
 #endif
-	}
-	
-	if (depth >= 8) {
+  }
+  if (depth >= 8) {
 #ifdef CONFIG_LOGO_LINUX_CLUT224
-		/* Generic Linux logo */
-		logo = &logo_linux_clut224;
+    /* Generic Linux logo */
+    logo = &logo_linux_clut224;
 #endif
 #ifdef CONFIG_LOGO_DEC_CLUT224
-		/* DEC Linux logo on MIPS/MIPS64 or ALPHA */
-		logo = &logo_dec_clut224;
+    /* DEC Linux logo on MIPS/MIPS64 or ALPHA */
+    logo = &logo_dec_clut224;
 #endif
 #ifdef CONFIG_LOGO_MAC_CLUT224
-		/* Macintosh Linux logo on m68k */
-		if (MACH_IS_MAC)
-			logo = &logo_mac_clut224;
+    /* Macintosh Linux logo on m68k */
+    if (MACH_IS_MAC) {
+      logo = &logo_mac_clut224;
+    }
 #endif
 #ifdef CONFIG_LOGO_PARISC_CLUT224
-		/* PA-RISC Linux logo */
-		logo = &logo_parisc_clut224;
+    /* PA-RISC Linux logo */
+    logo = &logo_parisc_clut224;
 #endif
 #ifdef CONFIG_LOGO_SGI_CLUT224
-		/* SGI Linux logo on MIPS/MIPS64 */
-		logo = &logo_sgi_clut224;
+    /* SGI Linux logo on MIPS/MIPS64 */
+    logo = &logo_sgi_clut224;
 #endif
 #ifdef CONFIG_LOGO_SUN_CLUT224
-		/* Sun Linux logo */
-		logo = &logo_sun_clut224;
+    /* Sun Linux logo */
+    logo = &logo_sun_clut224;
 #endif
 #ifdef CONFIG_LOGO_SUPERH_CLUT224
-		/* SuperH Linux logo */
-		logo = &logo_superh_clut224;
+    /* SuperH Linux logo */
+    logo = &logo_superh_clut224;
 #endif
-	}
-	return logo;
+  }
+  return logo;
 }
+
 EXPORT_SYMBOL_GPL(fb_find_logo);

@@ -27,63 +27,56 @@
 #include <nvif/ifc00d.h>
 #include <nvif/unpack.h>
 
-int
-gv100_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst)
-{
-	u64 data[2], mask;
-	int ret = gp100_vmm_join(vmm, inst), i;
-	if (ret)
-		return ret;
-
-	nvkm_kmap(inst);
-	data[0] = nvkm_ro32(inst, 0x200);
-	data[1] = nvkm_ro32(inst, 0x204);
-	mask = BIT_ULL(0);
-
-	nvkm_wo32(inst, 0x21c, 0x00000000);
-
-	for (i = 0; i < 64; i++) {
-		if (mask & BIT_ULL(i)) {
-			nvkm_wo32(inst, 0x2a4 + (i * 0x10), data[1]);
-			nvkm_wo32(inst, 0x2a0 + (i * 0x10), data[0]);
-		} else {
-			nvkm_wo32(inst, 0x2a4 + (i * 0x10), 0x00000001);
-			nvkm_wo32(inst, 0x2a0 + (i * 0x10), 0x00000001);
-		}
-		nvkm_wo32(inst, 0x2a8 + (i * 0x10), 0x00000000);
-	}
-
-	nvkm_wo32(inst, 0x298, lower_32_bits(mask));
-	nvkm_wo32(inst, 0x29c, upper_32_bits(mask));
-	nvkm_done(inst);
-	return 0;
+int gv100_vmm_join(struct nvkm_vmm *vmm, struct nvkm_memory *inst) {
+  u64 data[2], mask;
+  int ret = gp100_vmm_join(vmm, inst), i;
+  if (ret) {
+    return ret;
+  }
+  nvkm_kmap(inst);
+  data[0] = nvkm_ro32(inst, 0x200);
+  data[1] = nvkm_ro32(inst, 0x204);
+  mask = BIT_ULL(0);
+  nvkm_wo32(inst, 0x21c, 0x00000000);
+  for (i = 0; i < 64; i++) {
+    if (mask & BIT_ULL(i)) {
+      nvkm_wo32(inst, 0x2a4 + (i * 0x10), data[1]);
+      nvkm_wo32(inst, 0x2a0 + (i * 0x10), data[0]);
+    } else {
+      nvkm_wo32(inst, 0x2a4 + (i * 0x10), 0x00000001);
+      nvkm_wo32(inst, 0x2a0 + (i * 0x10), 0x00000001);
+    }
+    nvkm_wo32(inst, 0x2a8 + (i * 0x10), 0x00000000);
+  }
+  nvkm_wo32(inst, 0x298, lower_32_bits(mask));
+  nvkm_wo32(inst, 0x29c, upper_32_bits(mask));
+  nvkm_done(inst);
+  return 0;
 }
 
 static const struct nvkm_vmm_func
-gv100_vmm = {
-	.join = gv100_vmm_join,
-	.part = gf100_vmm_part,
-	.aper = gf100_vmm_aper,
-	.valid = gp100_vmm_valid,
-	.flush = gp100_vmm_flush,
-	.mthd = gp100_vmm_mthd,
-	.invalidate_pdb = gp100_vmm_invalidate_pdb,
-	.page = {
-		{ 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
-		{ 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
-		{ 29, &gp100_vmm_desc_16[2], NVKM_VMM_PAGE_Sxxx },
-		{ 21, &gp100_vmm_desc_16[1], NVKM_VMM_PAGE_SVxC },
-		{ 16, &gp100_vmm_desc_16[0], NVKM_VMM_PAGE_SVxC },
-		{ 12, &gp100_vmm_desc_12[0], NVKM_VMM_PAGE_SVHx },
-		{}
-	}
+    gv100_vmm = {
+  .join = gv100_vmm_join,
+  .part = gf100_vmm_part,
+  .aper = gf100_vmm_aper,
+  .valid = gp100_vmm_valid,
+  .flush = gp100_vmm_flush,
+  .mthd = gp100_vmm_mthd,
+  .invalidate_pdb = gp100_vmm_invalidate_pdb,
+  .page = {
+    { 47, &gp100_vmm_desc_16[4], NVKM_VMM_PAGE_Sxxx },
+    { 38, &gp100_vmm_desc_16[3], NVKM_VMM_PAGE_Sxxx },
+    { 29, &gp100_vmm_desc_16[2], NVKM_VMM_PAGE_Sxxx },
+    { 21, &gp100_vmm_desc_16[1], NVKM_VMM_PAGE_SVxC },
+    { 16, &gp100_vmm_desc_16[0], NVKM_VMM_PAGE_SVxC },
+    { 12, &gp100_vmm_desc_12[0], NVKM_VMM_PAGE_SVHx },
+    {}
+  }
 };
 
-int
-gv100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
-	      void *argv, u32 argc, struct lock_class_key *key,
-	      const char *name, struct nvkm_vmm **pvmm)
-{
-	return gp100_vmm_new_(&gv100_vmm, mmu, managed, addr, size,
-			      argv, argc, key, name, pvmm);
+int gv100_vmm_new(struct nvkm_mmu *mmu, bool managed, u64 addr, u64 size,
+    void *argv, u32 argc, struct lock_class_key *key,
+    const char *name, struct nvkm_vmm **pvmm) {
+  return gp100_vmm_new_(&gv100_vmm, mmu, managed, addr, size,
+      argv, argc, key, name, pvmm);
 }

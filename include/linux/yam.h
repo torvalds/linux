@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/*****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *****************************************************************************/
 
 /*
- *	yam.h  -- YAM radio modem driver.
+ *  yam.h  -- YAM radio modem driver.
  *
- *	Copyright (C) 1998 Frederic Rible F1OAT (frible@teaser.fr)
- *	Adapted from baycom.c driver written by Thomas Sailer (sailer@ife.ee.ethz.ch)
+ *  Copyright (C) 1998 Frederic Rible F1OAT (frible@teaser.fr)
+ *  Adapted from baycom.c driver written by Thomas Sailer
+ *(sailer@ife.ee.ethz.ch)
  *
  *  Please note that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
@@ -14,10 +15,10 @@
 
 /*****************************************************************************/
 
-#define SIOCYAMRESERVED	(0)
-#define SIOCYAMSCFG 	(1)	/* Set configuration */
-#define SIOCYAMGCFG 	(2)	/* Get configuration */
-#define SIOCYAMSMCS 	(3)	/* Set mcs data */
+#define SIOCYAMRESERVED (0)
+#define SIOCYAMSCFG   (1) /* Set configuration */
+#define SIOCYAMGCFG   (2) /* Get configuration */
+#define SIOCYAMSMCS   (3) /* Set mcs data */
 
 #define YAM_IOBASE   (1 << 0)
 #define YAM_IRQ      (1 << 1)
@@ -39,29 +40,29 @@
 #define YAM_MAXPERSIST  255
 #define YAM_MAXSLOTTIME 999
 
-#define YAM_FPGA_SIZE	5302
+#define YAM_FPGA_SIZE 5302
 
 struct yamcfg {
-	unsigned int mask;		/* Mask of commands */
-	unsigned int iobase;	/* IO Base of COM port */
-	unsigned int irq;		/* IRQ of COM port */
-	unsigned int bitrate;	/* Bit rate of radio port */
-	unsigned int baudrate;	/* Baud rate of the RS232 port */
-	unsigned int txdelay;	/* TxDelay */
-	unsigned int txtail;	/* TxTail */
-	unsigned int persist;	/* Persistence */
-	unsigned int slottime;	/* Slottime */
-	unsigned int mode;		/* mode 0 (simp), 1(Dupl), 2(Dupl+delay) */
-	unsigned int holddly;	/* PTT delay in FullDuplex 2 mode */
+  unsigned int mask;    /* Mask of commands */
+  unsigned int iobase;  /* IO Base of COM port */
+  unsigned int irq;   /* IRQ of COM port */
+  unsigned int bitrate; /* Bit rate of radio port */
+  unsigned int baudrate;  /* Baud rate of the RS232 port */
+  unsigned int txdelay; /* TxDelay */
+  unsigned int txtail;  /* TxTail */
+  unsigned int persist; /* Persistence */
+  unsigned int slottime;  /* Slottime */
+  unsigned int mode;    /* mode 0 (simp), 1(Dupl), 2(Dupl+delay) */
+  unsigned int holddly; /* PTT delay in FullDuplex 2 mode */
 };
 
 struct yamdrv_ioctl_cfg {
-	int cmd;
-	struct yamcfg cfg;
+  int cmd;
+  struct yamcfg cfg;
 };
 
 struct yamdrv_ioctl_mcs {
-	int cmd;
-	unsigned int bitrate;
-	unsigned char bits[YAM_FPGA_SIZE];
+  int cmd;
+  unsigned int bitrate;
+  unsigned char bits[YAM_FPGA_SIZE];
 };

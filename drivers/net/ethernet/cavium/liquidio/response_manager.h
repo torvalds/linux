@@ -1,21 +1,21 @@
 /**********************************************************************
- * Author: Cavium, Inc.
- *
- * Contact: support@cavium.com
- *          Please include "LiquidIO" in the subject.
- *
- * Copyright (c) 2003-2016 Cavium, Inc.
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- **********************************************************************/
+* Author: Cavium, Inc.
+*
+* Contact: support@cavium.com
+*          Please include "LiquidIO" in the subject.
+*
+* Copyright (c) 2003-2016 Cavium, Inc.
+*
+* This file is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License, Version 2, as
+* published by the Free Software Foundation.
+*
+* This file is distributed in the hope that it will be useful, but
+* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+* NONINFRINGEMENT.  See the GNU General Public License for more
+* details.
+**********************************************************************/
 
 /*! \file response_manager.h
  *  \brief Host Driver:  Response queues for host instructions.
@@ -38,31 +38,31 @@
  *  and 1 for noresponse entries on each instruction queue.
  */
 struct octeon_response_list {
-	/** List structure to add delete pending entries to */
-	struct list_head head;
+  /** List structure to add delete pending entries to */
+  struct list_head head;
 
-	/** A lock for this response list */
-	spinlock_t lock;
+  /** A lock for this response list */
+  spinlock_t lock;
 
-	atomic_t pending_req_count;
+  atomic_t pending_req_count;
 };
 
 /** The type of response list.
  */
 enum {
-	OCTEON_ORDERED_LIST = 0,
-	OCTEON_UNORDERED_NONBLOCKING_LIST = 1,
-	OCTEON_UNORDERED_BLOCKING_LIST = 2,
-	OCTEON_ORDERED_SC_LIST = 3,
-	OCTEON_DONE_SC_LIST = 4,
-	OCTEON_ZOMBIE_SC_LIST = 5
+  OCTEON_ORDERED_LIST = 0,
+  OCTEON_UNORDERED_NONBLOCKING_LIST = 1,
+  OCTEON_UNORDERED_BLOCKING_LIST = 2,
+  OCTEON_ORDERED_SC_LIST = 3,
+  OCTEON_DONE_SC_LIST = 4,
+  OCTEON_ZOMBIE_SC_LIST = 5
 };
 
 /** Response Order values for a Octeon Request. */
 enum {
-	OCTEON_RESP_ORDERED = 0,
-	OCTEON_RESP_UNORDERED = 1,
-	OCTEON_RESP_NORESPONSE = 2
+  OCTEON_RESP_ORDERED = 0,
+  OCTEON_RESP_UNORDERED = 1,
+  OCTEON_RESP_NORESPONSE = 2
 };
 
 /** Error codes  used in Octeon Host-Core communication.
@@ -104,24 +104,23 @@ enum {
  * the request processing * got interrupted due to a signal respectively.
  */
 enum {
-	OCTEON_REQUEST_DONE = (DRIVER_ERROR_NONE),
-	OCTEON_REQUEST_PENDING = (DRIVER_ERROR_REQ_PENDING),
-	OCTEON_REQUEST_TIMEOUT = (DRIVER_ERROR_REQ_TIMEOUT),
-	OCTEON_REQUEST_INTERRUPTED = (DRIVER_ERROR_REQ_EINTR),
-	OCTEON_REQUEST_NO_DEVICE = (0x00000021),
-	OCTEON_REQUEST_NOT_RUNNING,
-	OCTEON_REQUEST_INVALID_IQ,
-	OCTEON_REQUEST_INVALID_BUFCNT,
-	OCTEON_REQUEST_INVALID_RESP_ORDER,
-	OCTEON_REQUEST_NO_MEMORY,
-	OCTEON_REQUEST_INVALID_BUFSIZE,
-	OCTEON_REQUEST_NO_PENDING_ENTRY,
-	OCTEON_REQUEST_NO_IQ_SPACE = (0x7FFFFFFF)
-
+  OCTEON_REQUEST_DONE = (DRIVER_ERROR_NONE),
+  OCTEON_REQUEST_PENDING = (DRIVER_ERROR_REQ_PENDING),
+  OCTEON_REQUEST_TIMEOUT = (DRIVER_ERROR_REQ_TIMEOUT),
+  OCTEON_REQUEST_INTERRUPTED = (DRIVER_ERROR_REQ_EINTR),
+  OCTEON_REQUEST_NO_DEVICE = (0x00000021),
+  OCTEON_REQUEST_NOT_RUNNING,
+  OCTEON_REQUEST_INVALID_IQ,
+  OCTEON_REQUEST_INVALID_BUFCNT,
+  OCTEON_REQUEST_INVALID_RESP_ORDER,
+  OCTEON_REQUEST_NO_MEMORY,
+  OCTEON_REQUEST_INVALID_BUFSIZE,
+  OCTEON_REQUEST_NO_PENDING_ENTRY,
+  OCTEON_REQUEST_NO_IQ_SPACE = (0x7FFFFFFF)
 };
 
 #define FIRMWARE_STATUS_CODE(status) \
-	((FIRMWARE_MAJOR_ERROR_CODE << 16) | (status))
+  ((FIRMWARE_MAJOR_ERROR_CODE << 16) | (status))
 
 /** Initialize the response lists. The number of response lists to create is
  * given by count.
@@ -138,6 +137,6 @@ void octeon_delete_response_list(struct octeon_device *octeon_dev);
  * @return 1 if the ordered list is empty, 0 otherwise.
  */
 int lio_process_ordered_list(struct octeon_device *octeon_dev,
-			     u32 force_quit);
+    u32 force_quit);
 
 #endif

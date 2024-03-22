@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Misc low level processor primitives */
+/* SPDX-License-Identifier: GPL-2.0
+ * Misc low level processor primitives*/
 #ifndef _LINUX_PROCESSOR_H
 #define _LINUX_PROCESSOR_H
 
@@ -46,16 +46,16 @@
  * primitives, above.
  */
 #ifndef spin_until_cond
-#define spin_until_cond(cond)					\
-do {								\
-	if (unlikely(!(cond))) {				\
-		spin_begin();					\
-		do {						\
-			spin_cpu_relax();			\
-		} while (!(cond));				\
-		spin_end();					\
-	}							\
-} while (0)
+#define spin_until_cond(cond)         \
+  do {                \
+    if (unlikely(!(cond))) {        \
+      spin_begin();         \
+      do {            \
+        spin_cpu_relax();     \
+      } while (!(cond));        \
+      spin_end();         \
+    }             \
+  } while (0)
 
 #endif
 

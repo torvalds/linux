@@ -49,7 +49,7 @@
  * 1. kvm->srcu - Protects KVM memslots
  * 2. kvm->mm->mmap_lock - find_vma, migrate_vma_pages and helpers, ksm_madvise
  * 3. kvm->arch.uvmem_lock - protects read/writes to uvmem slots thus acting
- *			     as sync-points for page-in/out
+ *           as sync-points for page-in/out
  */
 
 /*
@@ -107,44 +107,44 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * The GFN can be in one of the following states.
  *
  * (a) Secure - The GFN is secure. The GFN is associated with
- *	a Secure VM, the contents of the GFN is not accessible
- *	to the Hypervisor.  This GFN can be backed by a secure-PFN,
- *	or can be backed by a normal-PFN with contents encrypted.
- *	The former is true when the GFN is paged-in into the
- *	ultravisor. The latter is true when the GFN is paged-out
- *	of the ultravisor.
+ *  a Secure VM, the contents of the GFN is not accessible
+ *  to the Hypervisor.  This GFN can be backed by a secure-PFN,
+ *  or can be backed by a normal-PFN with contents encrypted.
+ *  The former is true when the GFN is paged-in into the
+ *  ultravisor. The latter is true when the GFN is paged-out
+ *  of the ultravisor.
  *
  * (b) Shared - The GFN is shared. The GFN is associated with a
- *	a secure VM. The contents of the GFN is accessible to
- *	Hypervisor. This GFN is backed by a normal-PFN and its
- *	content is un-encrypted.
+ *  a secure VM. The contents of the GFN is accessible to
+ *  Hypervisor. This GFN is backed by a normal-PFN and its
+ *  content is un-encrypted.
  *
  * (c) Normal - The GFN is a normal. The GFN is associated with
- *	a normal VM. The contents of the GFN is accessible to
- *	the Hypervisor. Its content is never encrypted.
+ *  a normal VM. The contents of the GFN is accessible to
+ *  the Hypervisor. Its content is never encrypted.
  *
  * States of a VM.
  * ---------------
  *
  * Normal VM:  A VM whose contents are always accessible to
- *	the hypervisor.  All its GFNs are normal-GFNs.
+ *  the hypervisor.  All its GFNs are normal-GFNs.
  *
  * Secure VM: A VM whose contents are not accessible to the
- *	hypervisor without the VM's consent.  Its GFNs are
- *	either Shared-GFN or Secure-GFNs.
+ *  hypervisor without the VM's consent.  Its GFNs are
+ *  either Shared-GFN or Secure-GFNs.
  *
  * Transient VM: A Normal VM that is transitioning to secure VM.
- *	The transition starts on successful return of
- *	H_SVM_INIT_START, and ends on successful return
- *	of H_SVM_INIT_DONE. This transient VM, can have GFNs
- *	in any of the three states; i.e Secure-GFN, Shared-GFN,
- *	and Normal-GFN.	The VM never executes in this state
- *	in supervisor-mode.
+ *  The transition starts on successful return of
+ *  H_SVM_INIT_START, and ends on successful return
+ *  of H_SVM_INIT_DONE. This transient VM, can have GFNs
+ *  in any of the three states; i.e Secure-GFN, Shared-GFN,
+ *  and Normal-GFN. The VM never executes in this state
+ *  in supervisor-mode.
  *
  * Memory slot State.
  * -----------------------------
- *	The state of a memory slot mirrors the state of the
- *	VM the memory slot is associated with.
+ *  The state of a memory slot mirrors the state of the
+ *  VM the memory slot is associated with.
  *
  * VM State transition.
  * --------------------
@@ -216,139 +216,128 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  * --------------------------------------------------------------------
  */
 
-#define KVMPPC_GFN_UVMEM_PFN	(1UL << 63)
-#define KVMPPC_GFN_MEM_PFN	(1UL << 62)
-#define KVMPPC_GFN_SHARED	(1UL << 61)
-#define KVMPPC_GFN_SECURE	(KVMPPC_GFN_UVMEM_PFN | KVMPPC_GFN_MEM_PFN)
-#define KVMPPC_GFN_FLAG_MASK	(KVMPPC_GFN_SECURE | KVMPPC_GFN_SHARED)
-#define KVMPPC_GFN_PFN_MASK	(~KVMPPC_GFN_FLAG_MASK)
+#define KVMPPC_GFN_UVMEM_PFN  (1UL << 63)
+#define KVMPPC_GFN_MEM_PFN  (1UL << 62)
+#define KVMPPC_GFN_SHARED (1UL << 61)
+#define KVMPPC_GFN_SECURE (KVMPPC_GFN_UVMEM_PFN | KVMPPC_GFN_MEM_PFN)
+#define KVMPPC_GFN_FLAG_MASK  (KVMPPC_GFN_SECURE | KVMPPC_GFN_SHARED)
+#define KVMPPC_GFN_PFN_MASK (~KVMPPC_GFN_FLAG_MASK)
 
 struct kvmppc_uvmem_slot {
-	struct list_head list;
-	unsigned long nr_pfns;
-	unsigned long base_pfn;
-	unsigned long *pfns;
+  struct list_head list;
+  unsigned long nr_pfns;
+  unsigned long base_pfn;
+  unsigned long *pfns;
 };
 struct kvmppc_uvmem_page_pvt {
-	struct kvm *kvm;
-	unsigned long gpa;
-	bool skip_page_out;
-	bool remove_gfn;
+  struct kvm *kvm;
+  unsigned long gpa;
+  bool skip_page_out;
+  bool remove_gfn;
 };
 
-bool kvmppc_uvmem_available(void)
-{
-	/*
-	 * If kvmppc_uvmem_bitmap != NULL, then there is an ultravisor
-	 * and our data structures have been initialized successfully.
-	 */
-	return !!kvmppc_uvmem_bitmap;
+bool kvmppc_uvmem_available(void) {
+  /*
+   * If kvmppc_uvmem_bitmap != NULL, then there is an ultravisor
+   * and our data structures have been initialized successfully.
+   */
+  return !!kvmppc_uvmem_bitmap;
 }
 
-int kvmppc_uvmem_slot_init(struct kvm *kvm, const struct kvm_memory_slot *slot)
-{
-	struct kvmppc_uvmem_slot *p;
-
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-	p->pfns = vcalloc(slot->npages, sizeof(*p->pfns));
-	if (!p->pfns) {
-		kfree(p);
-		return -ENOMEM;
-	}
-	p->nr_pfns = slot->npages;
-	p->base_pfn = slot->base_gfn;
-
-	mutex_lock(&kvm->arch.uvmem_lock);
-	list_add(&p->list, &kvm->arch.uvmem_pfns);
-	mutex_unlock(&kvm->arch.uvmem_lock);
-
-	return 0;
+int kvmppc_uvmem_slot_init(struct kvm *kvm,
+    const struct kvm_memory_slot *slot) {
+  struct kvmppc_uvmem_slot *p;
+  p = kzalloc(sizeof(*p), GFP_KERNEL);
+  if (!p) {
+    return -ENOMEM;
+  }
+  p->pfns = vcalloc(slot->npages, sizeof(*p->pfns));
+  if (!p->pfns) {
+    kfree(p);
+    return -ENOMEM;
+  }
+  p->nr_pfns = slot->npages;
+  p->base_pfn = slot->base_gfn;
+  mutex_lock(&kvm->arch.uvmem_lock);
+  list_add(&p->list, &kvm->arch.uvmem_pfns);
+  mutex_unlock(&kvm->arch.uvmem_lock);
+  return 0;
 }
 
 /*
  * All device PFNs are already released by the time we come here.
  */
-void kvmppc_uvmem_slot_free(struct kvm *kvm, const struct kvm_memory_slot *slot)
-{
-	struct kvmppc_uvmem_slot *p, *next;
-
-	mutex_lock(&kvm->arch.uvmem_lock);
-	list_for_each_entry_safe(p, next, &kvm->arch.uvmem_pfns, list) {
-		if (p->base_pfn == slot->base_gfn) {
-			vfree(p->pfns);
-			list_del(&p->list);
-			kfree(p);
-			break;
-		}
-	}
-	mutex_unlock(&kvm->arch.uvmem_lock);
+void kvmppc_uvmem_slot_free(struct kvm *kvm,
+    const struct kvm_memory_slot *slot) {
+  struct kvmppc_uvmem_slot *p, *next;
+  mutex_lock(&kvm->arch.uvmem_lock);
+  list_for_each_entry_safe(p, next, &kvm->arch.uvmem_pfns, list) {
+    if (p->base_pfn == slot->base_gfn) {
+      vfree(p->pfns);
+      list_del(&p->list);
+      kfree(p);
+      break;
+    }
+  }
+  mutex_unlock(&kvm->arch.uvmem_lock);
 }
 
 static void kvmppc_mark_gfn(unsigned long gfn, struct kvm *kvm,
-			unsigned long flag, unsigned long uvmem_pfn)
-{
-	struct kvmppc_uvmem_slot *p;
-
-	list_for_each_entry(p, &kvm->arch.uvmem_pfns, list) {
-		if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
-			unsigned long index = gfn - p->base_pfn;
-
-			if (flag == KVMPPC_GFN_UVMEM_PFN)
-				p->pfns[index] = uvmem_pfn | flag;
-			else
-				p->pfns[index] = flag;
-			return;
-		}
-	}
+    unsigned long flag, unsigned long uvmem_pfn) {
+  struct kvmppc_uvmem_slot *p;
+  list_for_each_entry(p, &kvm->arch.uvmem_pfns, list) {
+    if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
+      unsigned long index = gfn - p->base_pfn;
+      if (flag == KVMPPC_GFN_UVMEM_PFN) {
+        p->pfns[index] = uvmem_pfn | flag;
+      } else {
+        p->pfns[index] = flag;
+      }
+      return;
+    }
+  }
 }
 
 /* mark the GFN as secure-GFN associated with @uvmem pfn device-PFN. */
 static void kvmppc_gfn_secure_uvmem_pfn(unsigned long gfn,
-			unsigned long uvmem_pfn, struct kvm *kvm)
-{
-	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_UVMEM_PFN, uvmem_pfn);
+    unsigned long uvmem_pfn, struct kvm *kvm) {
+  kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_UVMEM_PFN, uvmem_pfn);
 }
 
 /* mark the GFN as secure-GFN associated with a memory-PFN. */
-static void kvmppc_gfn_secure_mem_pfn(unsigned long gfn, struct kvm *kvm)
-{
-	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_MEM_PFN, 0);
+static void kvmppc_gfn_secure_mem_pfn(unsigned long gfn, struct kvm *kvm) {
+  kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_MEM_PFN, 0);
 }
 
 /* mark the GFN as a shared GFN. */
-static void kvmppc_gfn_shared(unsigned long gfn, struct kvm *kvm)
-{
-	kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_SHARED, 0);
+static void kvmppc_gfn_shared(unsigned long gfn, struct kvm *kvm) {
+  kvmppc_mark_gfn(gfn, kvm, KVMPPC_GFN_SHARED, 0);
 }
 
 /* mark the GFN as a non-existent GFN. */
-static void kvmppc_gfn_remove(unsigned long gfn, struct kvm *kvm)
-{
-	kvmppc_mark_gfn(gfn, kvm, 0, 0);
+static void kvmppc_gfn_remove(unsigned long gfn, struct kvm *kvm) {
+  kvmppc_mark_gfn(gfn, kvm, 0, 0);
 }
 
 /* return true, if the GFN is a secure-GFN backed by a secure-PFN */
 static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
-				    unsigned long *uvmem_pfn)
-{
-	struct kvmppc_uvmem_slot *p;
-
-	list_for_each_entry(p, &kvm->arch.uvmem_pfns, list) {
-		if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
-			unsigned long index = gfn - p->base_pfn;
-
-			if (p->pfns[index] & KVMPPC_GFN_UVMEM_PFN) {
-				if (uvmem_pfn)
-					*uvmem_pfn = p->pfns[index] &
-						     KVMPPC_GFN_PFN_MASK;
-				return true;
-			} else
-				return false;
-		}
-	}
-	return false;
+    unsigned long *uvmem_pfn) {
+  struct kvmppc_uvmem_slot *p;
+  list_for_each_entry(p, &kvm->arch.uvmem_pfns, list) {
+    if (gfn >= p->base_pfn && gfn < p->base_pfn + p->nr_pfns) {
+      unsigned long index = gfn - p->base_pfn;
+      if (p->pfns[index] & KVMPPC_GFN_UVMEM_PFN) {
+        if (uvmem_pfn) {
+          *uvmem_pfn = p->pfns[index]
+              & KVMPPC_GFN_PFN_MASK;
+        }
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+  return false;
 }
 
 /*
@@ -358,151 +347,139 @@ static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
  *
  * Must be called with kvm->arch.uvmem_lock  held.
  */
-static bool kvmppc_next_nontransitioned_gfn(const struct kvm_memory_slot *memslot,
-		struct kvm *kvm, unsigned long *gfn)
-{
-	struct kvmppc_uvmem_slot *p = NULL, *iter;
-	bool ret = false;
-	unsigned long i;
-
-	list_for_each_entry(iter, &kvm->arch.uvmem_pfns, list)
-		if (*gfn >= iter->base_pfn && *gfn < iter->base_pfn + iter->nr_pfns) {
-			p = iter;
-			break;
-		}
-	if (!p)
-		return ret;
-	/*
-	 * The code below assumes, one to one correspondence between
-	 * kvmppc_uvmem_slot and memslot.
-	 */
-	for (i = *gfn; i < p->base_pfn + p->nr_pfns; i++) {
-		unsigned long index = i - p->base_pfn;
-
-		if (!(p->pfns[index] & KVMPPC_GFN_FLAG_MASK)) {
-			*gfn = i;
-			ret = true;
-			break;
-		}
-	}
-	return ret;
+static bool kvmppc_next_nontransitioned_gfn(
+    const struct kvm_memory_slot *memslot,
+    struct kvm *kvm, unsigned long *gfn) {
+  struct kvmppc_uvmem_slot *p = NULL, *iter;
+  bool ret = false;
+  unsigned long i;
+  list_for_each_entry(iter, &kvm->arch.uvmem_pfns, list)
+  if (*gfn >= iter->base_pfn && *gfn < iter->base_pfn + iter->nr_pfns) {
+    p = iter;
+    break;
+  }
+  if (!p) {
+    return ret;
+  }
+  /*
+   * The code below assumes, one to one correspondence between
+   * kvmppc_uvmem_slot and memslot.
+   */
+  for (i = *gfn; i < p->base_pfn + p->nr_pfns; i++) {
+    unsigned long index = i - p->base_pfn;
+    if (!(p->pfns[index] & KVMPPC_GFN_FLAG_MASK)) {
+      *gfn = i;
+      ret = true;
+      break;
+    }
+  }
+  return ret;
 }
 
 static int kvmppc_memslot_page_merge(struct kvm *kvm,
-		const struct kvm_memory_slot *memslot, bool merge)
-{
-	unsigned long gfn = memslot->base_gfn;
-	unsigned long end, start = gfn_to_hva(kvm, gfn);
-	unsigned long vm_flags;
-	int ret = 0;
-	struct vm_area_struct *vma;
-	int merge_flag = (merge) ? MADV_MERGEABLE : MADV_UNMERGEABLE;
-
-	if (kvm_is_error_hva(start))
-		return H_STATE;
-
-	end = start + (memslot->npages << PAGE_SHIFT);
-
-	mmap_write_lock(kvm->mm);
-	do {
-		vma = find_vma_intersection(kvm->mm, start, end);
-		if (!vma) {
-			ret = H_STATE;
-			break;
-		}
-		vma_start_write(vma);
-		/* Copy vm_flags to avoid partial modifications in ksm_madvise */
-		vm_flags = vma->vm_flags;
-		ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,
-			  merge_flag, &vm_flags);
-		if (ret) {
-			ret = H_STATE;
-			break;
-		}
-		vm_flags_reset(vma, vm_flags);
-		start = vma->vm_end;
-	} while (end > vma->vm_end);
-
-	mmap_write_unlock(kvm->mm);
-	return ret;
+    const struct kvm_memory_slot *memslot, bool merge) {
+  unsigned long gfn = memslot->base_gfn;
+  unsigned long end, start = gfn_to_hva(kvm, gfn);
+  unsigned long vm_flags;
+  int ret = 0;
+  struct vm_area_struct *vma;
+  int merge_flag = (merge) ? MADV_MERGEABLE : MADV_UNMERGEABLE;
+  if (kvm_is_error_hva(start)) {
+    return H_STATE;
+  }
+  end = start + (memslot->npages << PAGE_SHIFT);
+  mmap_write_lock(kvm->mm);
+  do {
+    vma = find_vma_intersection(kvm->mm, start, end);
+    if (!vma) {
+      ret = H_STATE;
+      break;
+    }
+    vma_start_write(vma);
+    /* Copy vm_flags to avoid partial modifications in ksm_madvise */
+    vm_flags = vma->vm_flags;
+    ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,
+        merge_flag, &vm_flags);
+    if (ret) {
+      ret = H_STATE;
+      break;
+    }
+    vm_flags_reset(vma, vm_flags);
+    start = vma->vm_end;
+  } while (end > vma->vm_end);
+  mmap_write_unlock(kvm->mm);
+  return ret;
 }
 
 static void __kvmppc_uvmem_memslot_delete(struct kvm *kvm,
-		const struct kvm_memory_slot *memslot)
-{
-	uv_unregister_mem_slot(kvm->arch.lpid, memslot->id);
-	kvmppc_uvmem_slot_free(kvm, memslot);
-	kvmppc_memslot_page_merge(kvm, memslot, true);
+    const struct kvm_memory_slot *memslot) {
+  uv_unregister_mem_slot(kvm->arch.lpid, memslot->id);
+  kvmppc_uvmem_slot_free(kvm, memslot);
+  kvmppc_memslot_page_merge(kvm, memslot, true);
 }
 
 static int __kvmppc_uvmem_memslot_create(struct kvm *kvm,
-		const struct kvm_memory_slot *memslot)
-{
-	int ret = H_PARAMETER;
-
-	if (kvmppc_memslot_page_merge(kvm, memslot, false))
-		return ret;
-
-	if (kvmppc_uvmem_slot_init(kvm, memslot))
-		goto out1;
-
-	ret = uv_register_mem_slot(kvm->arch.lpid,
-				   memslot->base_gfn << PAGE_SHIFT,
-				   memslot->npages * PAGE_SIZE,
-				   0, memslot->id);
-	if (ret < 0) {
-		ret = H_PARAMETER;
-		goto out;
-	}
-	return 0;
+    const struct kvm_memory_slot *memslot) {
+  int ret = H_PARAMETER;
+  if (kvmppc_memslot_page_merge(kvm, memslot, false)) {
+    return ret;
+  }
+  if (kvmppc_uvmem_slot_init(kvm, memslot)) {
+    goto out1;
+  }
+  ret = uv_register_mem_slot(kvm->arch.lpid,
+      memslot->base_gfn << PAGE_SHIFT,
+        memslot->npages * PAGE_SIZE,
+        0, memslot->id);
+  if (ret < 0) {
+    ret = H_PARAMETER;
+    goto out;
+  }
+  return 0;
 out:
-	kvmppc_uvmem_slot_free(kvm, memslot);
+  kvmppc_uvmem_slot_free(kvm, memslot);
 out1:
-	kvmppc_memslot_page_merge(kvm, memslot, true);
-	return ret;
+  kvmppc_memslot_page_merge(kvm, memslot, true);
+  return ret;
 }
 
-unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
-{
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot, *m;
-	int ret = H_SUCCESS;
-	int srcu_idx, bkt;
-
-	kvm->arch.secure_guest = KVMPPC_SECURE_INIT_START;
-
-	if (!kvmppc_uvmem_bitmap)
-		return H_UNSUPPORTED;
-
-	/* Only radix guests can be secure guests */
-	if (!kvm_is_radix(kvm))
-		return H_UNSUPPORTED;
-
-	/* NAK the transition to secure if not enabled */
-	if (!kvm->arch.svm_enabled)
-		return H_AUTHORITY;
-
-	srcu_idx = srcu_read_lock(&kvm->srcu);
-
-	/* register the memslot */
-	slots = kvm_memslots(kvm);
-	kvm_for_each_memslot(memslot, bkt, slots) {
-		ret = __kvmppc_uvmem_memslot_create(kvm, memslot);
-		if (ret)
-			break;
-	}
-
-	if (ret) {
-		slots = kvm_memslots(kvm);
-		kvm_for_each_memslot(m, bkt, slots) {
-			if (m == memslot)
-				break;
-			__kvmppc_uvmem_memslot_delete(kvm, memslot);
-		}
-	}
-
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-	return ret;
+unsigned long kvmppc_h_svm_init_start(struct kvm *kvm) {
+  struct kvm_memslots *slots;
+  struct kvm_memory_slot *memslot, *m;
+  int ret = H_SUCCESS;
+  int srcu_idx, bkt;
+  kvm->arch.secure_guest = KVMPPC_SECURE_INIT_START;
+  if (!kvmppc_uvmem_bitmap) {
+    return H_UNSUPPORTED;
+  }
+  /* Only radix guests can be secure guests */
+  if (!kvm_is_radix(kvm)) {
+    return H_UNSUPPORTED;
+  }
+  /* NAK the transition to secure if not enabled */
+  if (!kvm->arch.svm_enabled) {
+    return H_AUTHORITY;
+  }
+  srcu_idx = srcu_read_lock(&kvm->srcu);
+  /* register the memslot */
+  slots = kvm_memslots(kvm);
+  kvm_for_each_memslot(memslot, bkt, slots) {
+    ret = __kvmppc_uvmem_memslot_create(kvm, memslot);
+    if (ret) {
+      break;
+    }
+  }
+  if (ret) {
+    slots = kvm_memslots(kvm);
+    kvm_for_each_memslot(m, bkt, slots) {
+      if (m == memslot) {
+        break;
+      }
+      __kvmppc_uvmem_memslot_delete(kvm, memslot);
+    }
+  }
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
 
 /*
@@ -511,92 +488,84 @@ unsigned long kvmppc_h_svm_init_start(struct kvm *kvm)
  * Caller must held kvm->arch.uvmem_lock.
  */
 static int __kvmppc_svm_page_out(struct vm_area_struct *vma,
-		unsigned long start,
-		unsigned long end, unsigned long page_shift,
-		struct kvm *kvm, unsigned long gpa, struct page *fault_page)
-{
-	unsigned long src_pfn, dst_pfn = 0;
-	struct migrate_vma mig = { 0 };
-	struct page *dpage, *spage;
-	struct kvmppc_uvmem_page_pvt *pvt;
-	unsigned long pfn;
-	int ret = U_SUCCESS;
-
-	memset(&mig, 0, sizeof(mig));
-	mig.vma = vma;
-	mig.start = start;
-	mig.end = end;
-	mig.src = &src_pfn;
-	mig.dst = &dst_pfn;
-	mig.pgmap_owner = &kvmppc_uvmem_pgmap;
-	mig.flags = MIGRATE_VMA_SELECT_DEVICE_PRIVATE;
-	mig.fault_page = fault_page;
-
-	/* The requested page is already paged-out, nothing to do */
-	if (!kvmppc_gfn_is_uvmem_pfn(gpa >> page_shift, kvm, NULL))
-		return ret;
-
-	ret = migrate_vma_setup(&mig);
-	if (ret)
-		return -1;
-
-	spage = migrate_pfn_to_page(*mig.src);
-	if (!spage || !(*mig.src & MIGRATE_PFN_MIGRATE))
-		goto out_finalize;
-
-	if (!is_zone_device_page(spage))
-		goto out_finalize;
-
-	dpage = alloc_page_vma(GFP_HIGHUSER, vma, start);
-	if (!dpage) {
-		ret = -1;
-		goto out_finalize;
-	}
-
-	lock_page(dpage);
-	pvt = spage->zone_device_data;
-	pfn = page_to_pfn(dpage);
-
-	/*
-	 * This function is used in two cases:
-	 * - When HV touches a secure page, for which we do UV_PAGE_OUT
-	 * - When a secure page is converted to shared page, we *get*
-	 *   the page to essentially unmap the device page. In this
-	 *   case we skip page-out.
-	 */
-	if (!pvt->skip_page_out)
-		ret = uv_page_out(kvm->arch.lpid, pfn << page_shift,
-				  gpa, 0, page_shift);
-
-	if (ret == U_SUCCESS)
-		*mig.dst = migrate_pfn(pfn);
-	else {
-		unlock_page(dpage);
-		__free_page(dpage);
-		goto out_finalize;
-	}
-
-	migrate_vma_pages(&mig);
-
+    unsigned long start,
+    unsigned long end, unsigned long page_shift,
+    struct kvm *kvm, unsigned long gpa, struct page *fault_page) {
+  unsigned long src_pfn, dst_pfn = 0;
+  struct migrate_vma mig = {
+    0
+  };
+  struct page *dpage, *spage;
+  struct kvmppc_uvmem_page_pvt *pvt;
+  unsigned long pfn;
+  int ret = U_SUCCESS;
+  memset(&mig, 0, sizeof(mig));
+  mig.vma = vma;
+  mig.start = start;
+  mig.end = end;
+  mig.src = &src_pfn;
+  mig.dst = &dst_pfn;
+  mig.pgmap_owner = &kvmppc_uvmem_pgmap;
+  mig.flags = MIGRATE_VMA_SELECT_DEVICE_PRIVATE;
+  mig.fault_page = fault_page;
+  /* The requested page is already paged-out, nothing to do */
+  if (!kvmppc_gfn_is_uvmem_pfn(gpa >> page_shift, kvm, NULL)) {
+    return ret;
+  }
+  ret = migrate_vma_setup(&mig);
+  if (ret) {
+    return -1;
+  }
+  spage = migrate_pfn_to_page(*mig.src);
+  if (!spage || !(*mig.src & MIGRATE_PFN_MIGRATE)) {
+    goto out_finalize;
+  }
+  if (!is_zone_device_page(spage)) {
+    goto out_finalize;
+  }
+  dpage = alloc_page_vma(GFP_HIGHUSER, vma, start);
+  if (!dpage) {
+    ret = -1;
+    goto out_finalize;
+  }
+  lock_page(dpage);
+  pvt = spage->zone_device_data;
+  pfn = page_to_pfn(dpage);
+  /*
+   * This function is used in two cases:
+   * - When HV touches a secure page, for which we do UV_PAGE_OUT
+   * - When a secure page is converted to shared page, we *get*
+   *   the page to essentially unmap the device page. In this
+   *   case we skip page-out.
+   */
+  if (!pvt->skip_page_out) {
+    ret = uv_page_out(kvm->arch.lpid, pfn << page_shift,
+          gpa, 0, page_shift);
+  }
+  if (ret == U_SUCCESS) {
+    *mig.dst = migrate_pfn(pfn);
+  } else {
+    unlock_page(dpage);
+    __free_page(dpage);
+    goto out_finalize;
+  }
+  migrate_vma_pages(&mig);
 out_finalize:
-	migrate_vma_finalize(&mig);
-	return ret;
+  migrate_vma_finalize(&mig);
+  return ret;
 }
 
 static inline int kvmppc_svm_page_out(struct vm_area_struct *vma,
-				      unsigned long start, unsigned long end,
-				      unsigned long page_shift,
-				      struct kvm *kvm, unsigned long gpa,
-				      struct page *fault_page)
-{
-	int ret;
-
-	mutex_lock(&kvm->arch.uvmem_lock);
-	ret = __kvmppc_svm_page_out(vma, start, end, page_shift, kvm, gpa,
-				fault_page);
-	mutex_unlock(&kvm->arch.uvmem_lock);
-
-	return ret;
+    unsigned long start, unsigned long end,
+    unsigned long page_shift,
+    struct kvm *kvm, unsigned long gpa,
+    struct page *fault_page) {
+  int ret;
+  mutex_lock(&kvm->arch.uvmem_lock);
+  ret = __kvmppc_svm_page_out(vma, start, end, page_shift, kvm, gpa,
+      fault_page);
+  mutex_unlock(&kvm->arch.uvmem_lock);
+  return ret;
 }
 
 /*
@@ -608,80 +577,65 @@ static inline int kvmppc_svm_page_out(struct vm_area_struct *vma,
  * QEMU page table with normal PTEs from newly allocated pages.
  */
 void kvmppc_uvmem_drop_pages(const struct kvm_memory_slot *slot,
-			     struct kvm *kvm, bool skip_page_out)
-{
-	int i;
-	struct kvmppc_uvmem_page_pvt *pvt;
-	struct page *uvmem_page;
-	struct vm_area_struct *vma = NULL;
-	unsigned long uvmem_pfn, gfn;
-	unsigned long addr;
-
-	mmap_read_lock(kvm->mm);
-
-	addr = slot->userspace_addr;
-
-	gfn = slot->base_gfn;
-	for (i = slot->npages; i; --i, ++gfn, addr += PAGE_SIZE) {
-
-		/* Fetch the VMA if addr is not in the latest fetched one */
-		if (!vma || addr >= vma->vm_end) {
-			vma = vma_lookup(kvm->mm, addr);
-			if (!vma) {
-				pr_err("Can't find VMA for gfn:0x%lx\n", gfn);
-				break;
-			}
-		}
-
-		mutex_lock(&kvm->arch.uvmem_lock);
-
-		if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
-			uvmem_page = pfn_to_page(uvmem_pfn);
-			pvt = uvmem_page->zone_device_data;
-			pvt->skip_page_out = skip_page_out;
-			pvt->remove_gfn = true;
-
-			if (__kvmppc_svm_page_out(vma, addr, addr + PAGE_SIZE,
-						  PAGE_SHIFT, kvm, pvt->gpa, NULL))
-				pr_err("Can't page out gpa:0x%lx addr:0x%lx\n",
-				       pvt->gpa, addr);
-		} else {
-			/* Remove the shared flag if any */
-			kvmppc_gfn_remove(gfn, kvm);
-		}
-
-		mutex_unlock(&kvm->arch.uvmem_lock);
-	}
-
-	mmap_read_unlock(kvm->mm);
+    struct kvm *kvm, bool skip_page_out) {
+  int i;
+  struct kvmppc_uvmem_page_pvt *pvt;
+  struct page *uvmem_page;
+  struct vm_area_struct *vma = NULL;
+  unsigned long uvmem_pfn, gfn;
+  unsigned long addr;
+  mmap_read_lock(kvm->mm);
+  addr = slot->userspace_addr;
+  gfn = slot->base_gfn;
+  for (i = slot->npages; i; --i, ++gfn, addr += PAGE_SIZE) {
+    /* Fetch the VMA if addr is not in the latest fetched one */
+    if (!vma || addr >= vma->vm_end) {
+      vma = vma_lookup(kvm->mm, addr);
+      if (!vma) {
+        pr_err("Can't find VMA for gfn:0x%lx\n", gfn);
+        break;
+      }
+    }
+    mutex_lock(&kvm->arch.uvmem_lock);
+    if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+      uvmem_page = pfn_to_page(uvmem_pfn);
+      pvt = uvmem_page->zone_device_data;
+      pvt->skip_page_out = skip_page_out;
+      pvt->remove_gfn = true;
+      if (__kvmppc_svm_page_out(vma, addr, addr + PAGE_SIZE,
+          PAGE_SHIFT, kvm, pvt->gpa, NULL)) {
+        pr_err("Can't page out gpa:0x%lx addr:0x%lx\n",
+            pvt->gpa, addr);
+      }
+    } else {
+      /* Remove the shared flag if any */
+      kvmppc_gfn_remove(gfn, kvm);
+    }
+    mutex_unlock(&kvm->arch.uvmem_lock);
+  }
+  mmap_read_unlock(kvm->mm);
 }
 
-unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm)
-{
-	int srcu_idx, bkt;
-	struct kvm_memory_slot *memslot;
-
-	/*
-	 * Expect to be called only after INIT_START and before INIT_DONE.
-	 * If INIT_DONE was completed, use normal VM termination sequence.
-	 */
-	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
-		return H_UNSUPPORTED;
-
-	if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE)
-		return H_STATE;
-
-	srcu_idx = srcu_read_lock(&kvm->srcu);
-
-	kvm_for_each_memslot(memslot, bkt, kvm_memslots(kvm))
-		kvmppc_uvmem_drop_pages(memslot, kvm, false);
-
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-
-	kvm->arch.secure_guest = 0;
-	uv_svm_terminate(kvm->arch.lpid);
-
-	return H_PARAMETER;
+unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm) {
+  int srcu_idx, bkt;
+  struct kvm_memory_slot *memslot;
+  /*
+   * Expect to be called only after INIT_START and before INIT_DONE.
+   * If INIT_DONE was completed, use normal VM termination sequence.
+   */
+  if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START)) {
+    return H_UNSUPPORTED;
+  }
+  if (kvm->arch.secure_guest & KVMPPC_SECURE_INIT_DONE) {
+    return H_STATE;
+  }
+  srcu_idx = srcu_read_lock(&kvm->srcu);
+  kvm_for_each_memslot(memslot, bkt, kvm_memslots(kvm))
+  kvmppc_uvmem_drop_pages(memslot, kvm, false);
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  kvm->arch.secure_guest = 0;
+  uv_svm_terminate(kvm->arch.lpid);
+  return H_PARAMETER;
 }
 
 /*
@@ -692,45 +646,40 @@ unsigned long kvmppc_h_svm_init_abort(struct kvm *kvm)
  *
  * Called with kvm->arch.uvmem_lock held
  */
-static struct page *kvmppc_uvmem_get_page(unsigned long gpa, struct kvm *kvm)
-{
-	struct page *dpage = NULL;
-	unsigned long bit, uvmem_pfn;
-	struct kvmppc_uvmem_page_pvt *pvt;
-	unsigned long pfn_last, pfn_first;
-
-	pfn_first = kvmppc_uvmem_pgmap.range.start >> PAGE_SHIFT;
-	pfn_last = pfn_first +
-		   (range_len(&kvmppc_uvmem_pgmap.range) >> PAGE_SHIFT);
-
-	spin_lock(&kvmppc_uvmem_bitmap_lock);
-	bit = find_first_zero_bit(kvmppc_uvmem_bitmap,
-				  pfn_last - pfn_first);
-	if (bit >= (pfn_last - pfn_first))
-		goto out;
-	bitmap_set(kvmppc_uvmem_bitmap, bit, 1);
-	spin_unlock(&kvmppc_uvmem_bitmap_lock);
-
-	pvt = kzalloc(sizeof(*pvt), GFP_KERNEL);
-	if (!pvt)
-		goto out_clear;
-
-	uvmem_pfn = bit + pfn_first;
-	kvmppc_gfn_secure_uvmem_pfn(gpa >> PAGE_SHIFT, uvmem_pfn, kvm);
-
-	pvt->gpa = gpa;
-	pvt->kvm = kvm;
-
-	dpage = pfn_to_page(uvmem_pfn);
-	dpage->zone_device_data = pvt;
-	zone_device_page_init(dpage);
-	return dpage;
+static struct page *kvmppc_uvmem_get_page(unsigned long gpa, struct kvm *kvm) {
+  struct page *dpage = NULL;
+  unsigned long bit, uvmem_pfn;
+  struct kvmppc_uvmem_page_pvt *pvt;
+  unsigned long pfn_last, pfn_first;
+  pfn_first = kvmppc_uvmem_pgmap.range.start >> PAGE_SHIFT;
+  pfn_last = pfn_first
+      + (range_len(&kvmppc_uvmem_pgmap.range) >> PAGE_SHIFT);
+  spin_lock(&kvmppc_uvmem_bitmap_lock);
+  bit = find_first_zero_bit(kvmppc_uvmem_bitmap,
+      pfn_last - pfn_first);
+  if (bit >= (pfn_last - pfn_first)) {
+    goto out;
+  }
+  bitmap_set(kvmppc_uvmem_bitmap, bit, 1);
+  spin_unlock(&kvmppc_uvmem_bitmap_lock);
+  pvt = kzalloc(sizeof(*pvt), GFP_KERNEL);
+  if (!pvt) {
+    goto out_clear;
+  }
+  uvmem_pfn = bit + pfn_first;
+  kvmppc_gfn_secure_uvmem_pfn(gpa >> PAGE_SHIFT, uvmem_pfn, kvm);
+  pvt->gpa = gpa;
+  pvt->kvm = kvm;
+  dpage = pfn_to_page(uvmem_pfn);
+  dpage->zone_device_data = pvt;
+  zone_device_page_init(dpage);
+  return dpage;
 out_clear:
-	spin_lock(&kvmppc_uvmem_bitmap_lock);
-	bitmap_clear(kvmppc_uvmem_bitmap, bit, 1);
+  spin_lock(&kvmppc_uvmem_bitmap_lock);
+  bitmap_clear(kvmppc_uvmem_bitmap, bit, 1);
 out:
-	spin_unlock(&kvmppc_uvmem_bitmap_lock);
-	return NULL;
+  spin_unlock(&kvmppc_uvmem_bitmap_lock);
+  return NULL;
 }
 
 /*
@@ -738,131 +687,121 @@ out:
  * copy page from normal memory to secure memory using UV_PAGE_IN uvcall.
  */
 static int kvmppc_svm_page_in(struct vm_area_struct *vma,
-		unsigned long start,
-		unsigned long end, unsigned long gpa, struct kvm *kvm,
-		unsigned long page_shift,
-		bool pagein)
-{
-	unsigned long src_pfn, dst_pfn = 0;
-	struct migrate_vma mig = { 0 };
-	struct page *spage;
-	unsigned long pfn;
-	struct page *dpage;
-	int ret = 0;
-
-	memset(&mig, 0, sizeof(mig));
-	mig.vma = vma;
-	mig.start = start;
-	mig.end = end;
-	mig.src = &src_pfn;
-	mig.dst = &dst_pfn;
-	mig.flags = MIGRATE_VMA_SELECT_SYSTEM;
-
-	ret = migrate_vma_setup(&mig);
-	if (ret)
-		return ret;
-
-	if (!(*mig.src & MIGRATE_PFN_MIGRATE)) {
-		ret = -1;
-		goto out_finalize;
-	}
-
-	dpage = kvmppc_uvmem_get_page(gpa, kvm);
-	if (!dpage) {
-		ret = -1;
-		goto out_finalize;
-	}
-
-	if (pagein) {
-		pfn = *mig.src >> MIGRATE_PFN_SHIFT;
-		spage = migrate_pfn_to_page(*mig.src);
-		if (spage) {
-			ret = uv_page_in(kvm->arch.lpid, pfn << page_shift,
-					gpa, 0, page_shift);
-			if (ret)
-				goto out_finalize;
-		}
-	}
-
-	*mig.dst = migrate_pfn(page_to_pfn(dpage));
-	migrate_vma_pages(&mig);
+    unsigned long start,
+    unsigned long end, unsigned long gpa, struct kvm *kvm,
+    unsigned long page_shift,
+    bool pagein) {
+  unsigned long src_pfn, dst_pfn = 0;
+  struct migrate_vma mig = {
+    0
+  };
+  struct page *spage;
+  unsigned long pfn;
+  struct page *dpage;
+  int ret = 0;
+  memset(&mig, 0, sizeof(mig));
+  mig.vma = vma;
+  mig.start = start;
+  mig.end = end;
+  mig.src = &src_pfn;
+  mig.dst = &dst_pfn;
+  mig.flags = MIGRATE_VMA_SELECT_SYSTEM;
+  ret = migrate_vma_setup(&mig);
+  if (ret) {
+    return ret;
+  }
+  if (!(*mig.src & MIGRATE_PFN_MIGRATE)) {
+    ret = -1;
+    goto out_finalize;
+  }
+  dpage = kvmppc_uvmem_get_page(gpa, kvm);
+  if (!dpage) {
+    ret = -1;
+    goto out_finalize;
+  }
+  if (pagein) {
+    pfn = *mig.src >> MIGRATE_PFN_SHIFT;
+    spage = migrate_pfn_to_page(*mig.src);
+    if (spage) {
+      ret = uv_page_in(kvm->arch.lpid, pfn << page_shift,
+            gpa, 0, page_shift);
+      if (ret) {
+        goto out_finalize;
+      }
+    }
+  }
+  *mig.dst = migrate_pfn(page_to_pfn(dpage));
+  migrate_vma_pages(&mig);
 out_finalize:
-	migrate_vma_finalize(&mig);
-	return ret;
+  migrate_vma_finalize(&mig);
+  return ret;
 }
 
 static int kvmppc_uv_migrate_mem_slot(struct kvm *kvm,
-		const struct kvm_memory_slot *memslot)
-{
-	unsigned long gfn = memslot->base_gfn;
-	struct vm_area_struct *vma;
-	unsigned long start, end;
-	int ret = 0;
-
-	mmap_read_lock(kvm->mm);
-	mutex_lock(&kvm->arch.uvmem_lock);
-	while (kvmppc_next_nontransitioned_gfn(memslot, kvm, &gfn)) {
-		ret = H_STATE;
-		start = gfn_to_hva(kvm, gfn);
-		if (kvm_is_error_hva(start))
-			break;
-
-		end = start + (1UL << PAGE_SHIFT);
-		vma = find_vma_intersection(kvm->mm, start, end);
-		if (!vma || vma->vm_start > start || vma->vm_end < end)
-			break;
-
-		ret = kvmppc_svm_page_in(vma, start, end,
-				(gfn << PAGE_SHIFT), kvm, PAGE_SHIFT, false);
-		if (ret) {
-			ret = H_STATE;
-			break;
-		}
-
-		/* relinquish the cpu if needed */
-		cond_resched();
-	}
-	mutex_unlock(&kvm->arch.uvmem_lock);
-	mmap_read_unlock(kvm->mm);
-	return ret;
+    const struct kvm_memory_slot *memslot) {
+  unsigned long gfn = memslot->base_gfn;
+  struct vm_area_struct *vma;
+  unsigned long start, end;
+  int ret = 0;
+  mmap_read_lock(kvm->mm);
+  mutex_lock(&kvm->arch.uvmem_lock);
+  while (kvmppc_next_nontransitioned_gfn(memslot, kvm, &gfn)) {
+    ret = H_STATE;
+    start = gfn_to_hva(kvm, gfn);
+    if (kvm_is_error_hva(start)) {
+      break;
+    }
+    end = start + (1UL << PAGE_SHIFT);
+    vma = find_vma_intersection(kvm->mm, start, end);
+    if (!vma || vma->vm_start > start || vma->vm_end < end) {
+      break;
+    }
+    ret = kvmppc_svm_page_in(vma, start, end,
+        (gfn << PAGE_SHIFT), kvm, PAGE_SHIFT, false);
+    if (ret) {
+      ret = H_STATE;
+      break;
+    }
+    /* relinquish the cpu if needed */
+    cond_resched();
+  }
+  mutex_unlock(&kvm->arch.uvmem_lock);
+  mmap_read_unlock(kvm->mm);
+  return ret;
 }
 
-unsigned long kvmppc_h_svm_init_done(struct kvm *kvm)
-{
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *memslot;
-	int srcu_idx, bkt;
-	long ret = H_SUCCESS;
-
-	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
-		return H_UNSUPPORTED;
-
-	/* migrate any unmoved normal pfn to device pfns*/
-	srcu_idx = srcu_read_lock(&kvm->srcu);
-	slots = kvm_memslots(kvm);
-	kvm_for_each_memslot(memslot, bkt, slots) {
-		ret = kvmppc_uv_migrate_mem_slot(kvm, memslot);
-		if (ret) {
-			/*
-			 * The pages will remain transitioned.
-			 * Its the callers responsibility to
-			 * terminate the VM, which will undo
-			 * all state of the VM. Till then
-			 * this VM is in a erroneous state.
-			 * Its KVMPPC_SECURE_INIT_DONE will
-			 * remain unset.
-			 */
-			ret = H_STATE;
-			goto out;
-		}
-	}
-
-	kvm->arch.secure_guest |= KVMPPC_SECURE_INIT_DONE;
-	pr_info("LPID %lld went secure\n", kvm->arch.lpid);
-
+unsigned long kvmppc_h_svm_init_done(struct kvm *kvm) {
+  struct kvm_memslots *slots;
+  struct kvm_memory_slot *memslot;
+  int srcu_idx, bkt;
+  long ret = H_SUCCESS;
+  if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START)) {
+    return H_UNSUPPORTED;
+  }
+  /* migrate any unmoved normal pfn to device pfns*/
+  srcu_idx = srcu_read_lock(&kvm->srcu);
+  slots = kvm_memslots(kvm);
+  kvm_for_each_memslot(memslot, bkt, slots) {
+    ret = kvmppc_uv_migrate_mem_slot(kvm, memslot);
+    if (ret) {
+      /*
+       * The pages will remain transitioned.
+       * Its the callers responsibility to
+       * terminate the VM, which will undo
+       * all state of the VM. Till then
+       * this VM is in a erroneous state.
+       * Its KVMPPC_SECURE_INIT_DONE will
+       * remain unset.
+       */
+      ret = H_STATE;
+      goto out;
+    }
+  }
+  kvm->arch.secure_guest |= KVMPPC_SECURE_INIT_DONE;
+  pr_info("LPID %lld went secure\n", kvm->arch.lpid);
 out:
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-	return ret;
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
 
 /*
@@ -875,56 +814,51 @@ out:
  * to unmap the device page from QEMU's page tables.
  */
 static unsigned long kvmppc_share_page(struct kvm *kvm, unsigned long gpa,
-		unsigned long page_shift)
-{
-
-	int ret = H_PARAMETER;
-	struct page *uvmem_page;
-	struct kvmppc_uvmem_page_pvt *pvt;
-	unsigned long pfn;
-	unsigned long gfn = gpa >> page_shift;
-	int srcu_idx;
-	unsigned long uvmem_pfn;
-
-	srcu_idx = srcu_read_lock(&kvm->srcu);
-	mutex_lock(&kvm->arch.uvmem_lock);
-	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
-		uvmem_page = pfn_to_page(uvmem_pfn);
-		pvt = uvmem_page->zone_device_data;
-		pvt->skip_page_out = true;
-		/*
-		 * do not drop the GFN. It is a valid GFN
-		 * that is transitioned to a shared GFN.
-		 */
-		pvt->remove_gfn = false;
-	}
-
+    unsigned long page_shift) {
+  int ret = H_PARAMETER;
+  struct page *uvmem_page;
+  struct kvmppc_uvmem_page_pvt *pvt;
+  unsigned long pfn;
+  unsigned long gfn = gpa >> page_shift;
+  int srcu_idx;
+  unsigned long uvmem_pfn;
+  srcu_idx = srcu_read_lock(&kvm->srcu);
+  mutex_lock(&kvm->arch.uvmem_lock);
+  if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+    uvmem_page = pfn_to_page(uvmem_pfn);
+    pvt = uvmem_page->zone_device_data;
+    pvt->skip_page_out = true;
+    /*
+     * do not drop the GFN. It is a valid GFN
+     * that is transitioned to a shared GFN.
+     */
+    pvt->remove_gfn = false;
+  }
 retry:
-	mutex_unlock(&kvm->arch.uvmem_lock);
-	pfn = gfn_to_pfn(kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
-		goto out;
-
-	mutex_lock(&kvm->arch.uvmem_lock);
-	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
-		uvmem_page = pfn_to_page(uvmem_pfn);
-		pvt = uvmem_page->zone_device_data;
-		pvt->skip_page_out = true;
-		pvt->remove_gfn = false; /* it continues to be a valid GFN */
-		kvm_release_pfn_clean(pfn);
-		goto retry;
-	}
-
-	if (!uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0,
-				page_shift)) {
-		kvmppc_gfn_shared(gfn, kvm);
-		ret = H_SUCCESS;
-	}
-	kvm_release_pfn_clean(pfn);
-	mutex_unlock(&kvm->arch.uvmem_lock);
+  mutex_unlock(&kvm->arch.uvmem_lock);
+  pfn = gfn_to_pfn(kvm, gfn);
+  if (is_error_noslot_pfn(pfn)) {
+    goto out;
+  }
+  mutex_lock(&kvm->arch.uvmem_lock);
+  if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, &uvmem_pfn)) {
+    uvmem_page = pfn_to_page(uvmem_pfn);
+    pvt = uvmem_page->zone_device_data;
+    pvt->skip_page_out = true;
+    pvt->remove_gfn = false; /* it continues to be a valid GFN */
+    kvm_release_pfn_clean(pfn);
+    goto retry;
+  }
+  if (!uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0,
+        page_shift)) {
+    kvmppc_gfn_shared(gfn, kvm);
+    ret = H_SUCCESS;
+  }
+  kvm_release_pfn_clean(pfn);
+  mutex_unlock(&kvm->arch.uvmem_lock);
 out:
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-	return ret;
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
 
 /*
@@ -934,59 +868,54 @@ out:
  * memory in is visible from both UV and HV.
  */
 unsigned long kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
-		unsigned long flags,
-		unsigned long page_shift)
-{
-	unsigned long start, end;
-	struct vm_area_struct *vma;
-	int srcu_idx;
-	unsigned long gfn = gpa >> page_shift;
-	int ret;
-
-	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
-		return H_UNSUPPORTED;
-
-	if (page_shift != PAGE_SHIFT)
-		return H_P3;
-
-	if (flags & ~H_PAGE_IN_SHARED)
-		return H_P2;
-
-	if (flags & H_PAGE_IN_SHARED)
-		return kvmppc_share_page(kvm, gpa, page_shift);
-
-	ret = H_PARAMETER;
-	srcu_idx = srcu_read_lock(&kvm->srcu);
-	mmap_read_lock(kvm->mm);
-
-	start = gfn_to_hva(kvm, gfn);
-	if (kvm_is_error_hva(start))
-		goto out;
-
-	mutex_lock(&kvm->arch.uvmem_lock);
-	/* Fail the page-in request of an already paged-in page */
-	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, NULL))
-		goto out_unlock;
-
-	end = start + (1UL << page_shift);
-	vma = find_vma_intersection(kvm->mm, start, end);
-	if (!vma || vma->vm_start > start || vma->vm_end < end)
-		goto out_unlock;
-
-	if (kvmppc_svm_page_in(vma, start, end, gpa, kvm, page_shift,
-				true))
-		goto out_unlock;
-
-	ret = H_SUCCESS;
-
+    unsigned long flags,
+    unsigned long page_shift) {
+  unsigned long start, end;
+  struct vm_area_struct *vma;
+  int srcu_idx;
+  unsigned long gfn = gpa >> page_shift;
+  int ret;
+  if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START)) {
+    return H_UNSUPPORTED;
+  }
+  if (page_shift != PAGE_SHIFT) {
+    return H_P3;
+  }
+  if (flags & ~H_PAGE_IN_SHARED) {
+    return H_P2;
+  }
+  if (flags & H_PAGE_IN_SHARED) {
+    return kvmppc_share_page(kvm, gpa, page_shift);
+  }
+  ret = H_PARAMETER;
+  srcu_idx = srcu_read_lock(&kvm->srcu);
+  mmap_read_lock(kvm->mm);
+  start = gfn_to_hva(kvm, gfn);
+  if (kvm_is_error_hva(start)) {
+    goto out;
+  }
+  mutex_lock(&kvm->arch.uvmem_lock);
+  /* Fail the page-in request of an already paged-in page */
+  if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, NULL)) {
+    goto out_unlock;
+  }
+  end = start + (1UL << page_shift);
+  vma = find_vma_intersection(kvm->mm, start, end);
+  if (!vma || vma->vm_start > start || vma->vm_end < end) {
+    goto out_unlock;
+  }
+  if (kvmppc_svm_page_in(vma, start, end, gpa, kvm, page_shift,
+      true)) {
+    goto out_unlock;
+  }
+  ret = H_SUCCESS;
 out_unlock:
-	mutex_unlock(&kvm->arch.uvmem_lock);
+  mutex_unlock(&kvm->arch.uvmem_lock);
 out:
-	mmap_read_unlock(kvm->mm);
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-	return ret;
+  mmap_read_unlock(kvm->mm);
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
-
 
 /*
  * Fault handler callback that gets called when HV touches any page that
@@ -996,16 +925,15 @@ out:
  * This eventually results in dropping of device PFN and the newly
  * provisioned page/PFN gets populated in QEMU page tables.
  */
-static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
-{
-	struct kvmppc_uvmem_page_pvt *pvt = vmf->page->zone_device_data;
-
-	if (kvmppc_svm_page_out(vmf->vma, vmf->address,
-				vmf->address + PAGE_SIZE, PAGE_SHIFT,
-				pvt->kvm, pvt->gpa, vmf->page))
-		return VM_FAULT_SIGBUS;
-	else
-		return 0;
+static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf) {
+  struct kvmppc_uvmem_page_pvt *pvt = vmf->page->zone_device_data;
+  if (kvmppc_svm_page_out(vmf->vma, vmf->address,
+      vmf->address + PAGE_SIZE, PAGE_SHIFT,
+      pvt->kvm, pvt->gpa, vmf->page)) {
+    return VM_FAULT_SIGBUS;
+  } else {
+    return 0;
+  }
 }
 
 /*
@@ -1015,209 +943,194 @@ static vm_fault_t kvmppc_uvmem_migrate_to_ram(struct vm_fault *vmf)
  * to a normal PFN during H_SVM_PAGE_OUT.
  * Gets called with kvm->arch.uvmem_lock held.
  */
-static void kvmppc_uvmem_page_free(struct page *page)
-{
-	unsigned long pfn = page_to_pfn(page) -
-			(kvmppc_uvmem_pgmap.range.start >> PAGE_SHIFT);
-	struct kvmppc_uvmem_page_pvt *pvt;
-
-	spin_lock(&kvmppc_uvmem_bitmap_lock);
-	bitmap_clear(kvmppc_uvmem_bitmap, pfn, 1);
-	spin_unlock(&kvmppc_uvmem_bitmap_lock);
-
-	pvt = page->zone_device_data;
-	page->zone_device_data = NULL;
-	if (pvt->remove_gfn)
-		kvmppc_gfn_remove(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
-	else
-		kvmppc_gfn_secure_mem_pfn(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
-	kfree(pvt);
+static void kvmppc_uvmem_page_free(struct page *page) {
+  unsigned long pfn = page_to_pfn(page)
+      - (kvmppc_uvmem_pgmap.range.start >> PAGE_SHIFT);
+  struct kvmppc_uvmem_page_pvt *pvt;
+  spin_lock(&kvmppc_uvmem_bitmap_lock);
+  bitmap_clear(kvmppc_uvmem_bitmap, pfn, 1);
+  spin_unlock(&kvmppc_uvmem_bitmap_lock);
+  pvt = page->zone_device_data;
+  page->zone_device_data = NULL;
+  if (pvt->remove_gfn) {
+    kvmppc_gfn_remove(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
+  } else {
+    kvmppc_gfn_secure_mem_pfn(pvt->gpa >> PAGE_SHIFT, pvt->kvm);
+  }
+  kfree(pvt);
 }
 
 static const struct dev_pagemap_ops kvmppc_uvmem_ops = {
-	.page_free = kvmppc_uvmem_page_free,
-	.migrate_to_ram	= kvmppc_uvmem_migrate_to_ram,
+  .page_free = kvmppc_uvmem_page_free,
+  .migrate_to_ram = kvmppc_uvmem_migrate_to_ram,
 };
 
 /*
  * H_SVM_PAGE_OUT: Move page from secure memory to normal memory.
  */
-unsigned long
-kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
-		      unsigned long flags, unsigned long page_shift)
-{
-	unsigned long gfn = gpa >> page_shift;
-	unsigned long start, end;
-	struct vm_area_struct *vma;
-	int srcu_idx;
-	int ret;
-
-	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
-		return H_UNSUPPORTED;
-
-	if (page_shift != PAGE_SHIFT)
-		return H_P3;
-
-	if (flags)
-		return H_P2;
-
-	ret = H_PARAMETER;
-	srcu_idx = srcu_read_lock(&kvm->srcu);
-	mmap_read_lock(kvm->mm);
-	start = gfn_to_hva(kvm, gfn);
-	if (kvm_is_error_hva(start))
-		goto out;
-
-	end = start + (1UL << page_shift);
-	vma = find_vma_intersection(kvm->mm, start, end);
-	if (!vma || vma->vm_start > start || vma->vm_end < end)
-		goto out;
-
-	if (!kvmppc_svm_page_out(vma, start, end, page_shift, kvm, gpa, NULL))
-		ret = H_SUCCESS;
+unsigned long kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
+    unsigned long flags, unsigned long page_shift) {
+  unsigned long gfn = gpa >> page_shift;
+  unsigned long start, end;
+  struct vm_area_struct *vma;
+  int srcu_idx;
+  int ret;
+  if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START)) {
+    return H_UNSUPPORTED;
+  }
+  if (page_shift != PAGE_SHIFT) {
+    return H_P3;
+  }
+  if (flags) {
+    return H_P2;
+  }
+  ret = H_PARAMETER;
+  srcu_idx = srcu_read_lock(&kvm->srcu);
+  mmap_read_lock(kvm->mm);
+  start = gfn_to_hva(kvm, gfn);
+  if (kvm_is_error_hva(start)) {
+    goto out;
+  }
+  end = start + (1UL << page_shift);
+  vma = find_vma_intersection(kvm->mm, start, end);
+  if (!vma || vma->vm_start > start || vma->vm_end < end) {
+    goto out;
+  }
+  if (!kvmppc_svm_page_out(vma, start, end, page_shift, kvm, gpa, NULL)) {
+    ret = H_SUCCESS;
+  }
 out:
-	mmap_read_unlock(kvm->mm);
-	srcu_read_unlock(&kvm->srcu, srcu_idx);
-	return ret;
+  mmap_read_unlock(kvm->mm);
+  srcu_read_unlock(&kvm->srcu, srcu_idx);
+  return ret;
 }
 
-int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn)
-{
-	unsigned long pfn;
-	int ret = U_SUCCESS;
-
-	pfn = gfn_to_pfn(kvm, gfn);
-	if (is_error_noslot_pfn(pfn))
-		return -EFAULT;
-
-	mutex_lock(&kvm->arch.uvmem_lock);
-	if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, NULL))
-		goto out;
-
-	ret = uv_page_in(kvm->arch.lpid, pfn << PAGE_SHIFT, gfn << PAGE_SHIFT,
-			 0, PAGE_SHIFT);
+int kvmppc_send_page_to_uv(struct kvm *kvm, unsigned long gfn) {
+  unsigned long pfn;
+  int ret = U_SUCCESS;
+  pfn = gfn_to_pfn(kvm, gfn);
+  if (is_error_noslot_pfn(pfn)) {
+    return -EFAULT;
+  }
+  mutex_lock(&kvm->arch.uvmem_lock);
+  if (kvmppc_gfn_is_uvmem_pfn(gfn, kvm, NULL)) {
+    goto out;
+  }
+  ret = uv_page_in(kvm->arch.lpid, pfn << PAGE_SHIFT, gfn << PAGE_SHIFT,
+        0, PAGE_SHIFT);
 out:
-	kvm_release_pfn_clean(pfn);
-	mutex_unlock(&kvm->arch.uvmem_lock);
-	return (ret == U_SUCCESS) ? RESUME_GUEST : -EFAULT;
+  kvm_release_pfn_clean(pfn);
+  mutex_unlock(&kvm->arch.uvmem_lock);
+  return (ret == U_SUCCESS) ? RESUME_GUEST : -EFAULT;
 }
 
-int kvmppc_uvmem_memslot_create(struct kvm *kvm, const struct kvm_memory_slot *new)
-{
-	int ret = __kvmppc_uvmem_memslot_create(kvm, new);
-
-	if (!ret)
-		ret = kvmppc_uv_migrate_mem_slot(kvm, new);
-
-	return ret;
+int kvmppc_uvmem_memslot_create(struct kvm *kvm,
+    const struct kvm_memory_slot *new) {
+  int ret = __kvmppc_uvmem_memslot_create(kvm, new);
+  if (!ret) {
+    ret = kvmppc_uv_migrate_mem_slot(kvm, new);
+  }
+  return ret;
 }
 
-void kvmppc_uvmem_memslot_delete(struct kvm *kvm, const struct kvm_memory_slot *old)
-{
-	__kvmppc_uvmem_memslot_delete(kvm, old);
+void kvmppc_uvmem_memslot_delete(struct kvm *kvm,
+    const struct kvm_memory_slot *old) {
+  __kvmppc_uvmem_memslot_delete(kvm, old);
 }
 
-static u64 kvmppc_get_secmem_size(void)
-{
-	struct device_node *np;
-	int i, len;
-	const __be32 *prop;
-	u64 size = 0;
-
-	/*
-	 * First try the new ibm,secure-memory nodes which supersede the
-	 * secure-memory-ranges property.
-	 * If we found some, no need to read the deprecated ones.
-	 */
-	for_each_compatible_node(np, NULL, "ibm,secure-memory") {
-		prop = of_get_property(np, "reg", &len);
-		if (!prop)
-			continue;
-		size += of_read_number(prop + 2, 2);
-	}
-	if (size)
-		return size;
-
-	np = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
-	if (!np)
-		goto out;
-
-	prop = of_get_property(np, "secure-memory-ranges", &len);
-	if (!prop)
-		goto out_put;
-
-	for (i = 0; i < len / (sizeof(*prop) * 4); i++)
-		size += of_read_number(prop + (i * 4) + 2, 2);
-
+static u64 kvmppc_get_secmem_size(void) {
+  struct device_node *np;
+  int i, len;
+  const __be32 *prop;
+  u64 size = 0;
+  /*
+   * First try the new ibm,secure-memory nodes which supersede the
+   * secure-memory-ranges property.
+   * If we found some, no need to read the deprecated ones.
+   */
+  for_each_compatible_node(np, NULL, "ibm,secure-memory") {
+    prop = of_get_property(np, "reg", &len);
+    if (!prop) {
+      continue;
+    }
+    size += of_read_number(prop + 2, 2);
+  }
+  if (size) {
+    return size;
+  }
+  np = of_find_compatible_node(NULL, NULL, "ibm,uv-firmware");
+  if (!np) {
+    goto out;
+  }
+  prop = of_get_property(np, "secure-memory-ranges", &len);
+  if (!prop) {
+    goto out_put;
+  }
+  for (i = 0; i < len / (sizeof(*prop) * 4); i++) {
+    size += of_read_number(prop + (i * 4) + 2, 2);
+  }
 out_put:
-	of_node_put(np);
+  of_node_put(np);
 out:
-	return size;
+  return size;
 }
 
-int kvmppc_uvmem_init(void)
-{
-	int ret = 0;
-	unsigned long size;
-	struct resource *res;
-	void *addr;
-	unsigned long pfn_last, pfn_first;
-
-	size = kvmppc_get_secmem_size();
-	if (!size) {
-		/*
-		 * Don't fail the initialization of kvm-hv module if
-		 * the platform doesn't export ibm,uv-firmware node.
-		 * Let normal guests run on such PEF-disabled platform.
-		 */
-		pr_info("KVMPPC-UVMEM: No support for secure guests\n");
-		goto out;
-	}
-
-	res = request_free_mem_region(&iomem_resource, size, "kvmppc_uvmem");
-	if (IS_ERR(res)) {
-		ret = PTR_ERR(res);
-		goto out;
-	}
-
-	kvmppc_uvmem_pgmap.type = MEMORY_DEVICE_PRIVATE;
-	kvmppc_uvmem_pgmap.range.start = res->start;
-	kvmppc_uvmem_pgmap.range.end = res->end;
-	kvmppc_uvmem_pgmap.nr_range = 1;
-	kvmppc_uvmem_pgmap.ops = &kvmppc_uvmem_ops;
-	/* just one global instance: */
-	kvmppc_uvmem_pgmap.owner = &kvmppc_uvmem_pgmap;
-	addr = memremap_pages(&kvmppc_uvmem_pgmap, NUMA_NO_NODE);
-	if (IS_ERR(addr)) {
-		ret = PTR_ERR(addr);
-		goto out_free_region;
-	}
-
-	pfn_first = res->start >> PAGE_SHIFT;
-	pfn_last = pfn_first + (resource_size(res) >> PAGE_SHIFT);
-	kvmppc_uvmem_bitmap = bitmap_zalloc(pfn_last - pfn_first, GFP_KERNEL);
-	if (!kvmppc_uvmem_bitmap) {
-		ret = -ENOMEM;
-		goto out_unmap;
-	}
-
-	pr_info("KVMPPC-UVMEM: Secure Memory size 0x%lx\n", size);
-	return ret;
+int kvmppc_uvmem_init(void) {
+  int ret = 0;
+  unsigned long size;
+  struct resource *res;
+  void *addr;
+  unsigned long pfn_last, pfn_first;
+  size = kvmppc_get_secmem_size();
+  if (!size) {
+    /*
+     * Don't fail the initialization of kvm-hv module if
+     * the platform doesn't export ibm,uv-firmware node.
+     * Let normal guests run on such PEF-disabled platform.
+     */
+    pr_info("KVMPPC-UVMEM: No support for secure guests\n");
+    goto out;
+  }
+  res = request_free_mem_region(&iomem_resource, size, "kvmppc_uvmem");
+  if (IS_ERR(res)) {
+    ret = PTR_ERR(res);
+    goto out;
+  }
+  kvmppc_uvmem_pgmap.type = MEMORY_DEVICE_PRIVATE;
+  kvmppc_uvmem_pgmap.range.start = res->start;
+  kvmppc_uvmem_pgmap.range.end = res->end;
+  kvmppc_uvmem_pgmap.nr_range = 1;
+  kvmppc_uvmem_pgmap.ops = &kvmppc_uvmem_ops;
+  /* just one global instance: */
+  kvmppc_uvmem_pgmap.owner = &kvmppc_uvmem_pgmap;
+  addr = memremap_pages(&kvmppc_uvmem_pgmap, NUMA_NO_NODE);
+  if (IS_ERR(addr)) {
+    ret = PTR_ERR(addr);
+    goto out_free_region;
+  }
+  pfn_first = res->start >> PAGE_SHIFT;
+  pfn_last = pfn_first + (resource_size(res) >> PAGE_SHIFT);
+  kvmppc_uvmem_bitmap = bitmap_zalloc(pfn_last - pfn_first, GFP_KERNEL);
+  if (!kvmppc_uvmem_bitmap) {
+    ret = -ENOMEM;
+    goto out_unmap;
+  }
+  pr_info("KVMPPC-UVMEM: Secure Memory size 0x%lx\n", size);
+  return ret;
 out_unmap:
-	memunmap_pages(&kvmppc_uvmem_pgmap);
+  memunmap_pages(&kvmppc_uvmem_pgmap);
 out_free_region:
-	release_mem_region(res->start, size);
+  release_mem_region(res->start, size);
 out:
-	return ret;
+  return ret;
 }
 
-void kvmppc_uvmem_free(void)
-{
-	if (!kvmppc_uvmem_bitmap)
-		return;
-
-	memunmap_pages(&kvmppc_uvmem_pgmap);
-	release_mem_region(kvmppc_uvmem_pgmap.range.start,
-			   range_len(&kvmppc_uvmem_pgmap.range));
-	bitmap_free(kvmppc_uvmem_bitmap);
+void kvmppc_uvmem_free(void) {
+  if (!kvmppc_uvmem_bitmap) {
+    return;
+  }
+  memunmap_pages(&kvmppc_uvmem_pgmap);
+  release_mem_region(kvmppc_uvmem_pgmap.range.start,
+      range_len(&kvmppc_uvmem_pgmap.range));
+  bitmap_free(kvmppc_uvmem_bitmap);
 }

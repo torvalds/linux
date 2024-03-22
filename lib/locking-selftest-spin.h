@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef LOCK
-#define LOCK		L
+#define LOCK    L
 
 #undef UNLOCK
-#define UNLOCK		U
+#define UNLOCK    U
 
 #undef RLOCK
 #undef WLOCK
 
 #undef INIT
-#define INIT		SI
+#define INIT    SI

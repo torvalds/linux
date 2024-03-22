@@ -11,25 +11,24 @@
 #include <linux/dvb/frontend.h>
 
 struct mn88473_config {
-	/*
-	 * Max num of bytes given I2C adapter could write at once.
-	 * Default: unlimited
-	 */
-	u16 i2c_wr_max;
+  /*
+   * Max num of bytes given I2C adapter could write at once.
+   * Default: unlimited
+   */
+  u16 i2c_wr_max;
 
-	/*
-	 * Xtal frequency Hz.
-	 * Default: 25000000
-	 */
-	u32 xtal;
+  /*
+   * Xtal frequency Hz.
+   * Default: 25000000
+   */
+  u32 xtal;
 
+  /* Everything after that is returned by the driver. */
 
-	/* Everything after that is returned by the driver. */
-
-	/*
-	 * DVB frontend.
-	 */
-	struct dvb_frontend **fe;
+  /*
+   * DVB frontend.
+   */
+  struct dvb_frontend **fe;
 };
 
 #endif

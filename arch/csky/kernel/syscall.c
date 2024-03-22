@@ -5,28 +5,29 @@
 
 SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 {
-	struct thread_info *ti = task_thread_info(current);
-	struct pt_regs *reg = current_pt_regs();
+  struct thread_info *ti = task_thread_info(current);
+  struct pt_regs *reg = current_pt_regs();
 
-	reg->tls = addr;
-	ti->tp_value = addr;
+  reg->tls = addr;
+  ti->tp_value = addr;
 
-	return 0;
+  return 0;
 }
 
 SYSCALL_DEFINE6(mmap2,
-	unsigned long, addr,
-	unsigned long, len,
-	unsigned long, prot,
-	unsigned long, flags,
-	unsigned long, fd,
-	off_t, offset)
+    unsigned long, addr,
+    unsigned long, len,
+    unsigned long, prot,
+    unsigned long, flags,
+    unsigned long, fd,
+    off_t, offset)
 {
-	if (unlikely(offset & (~PAGE_MASK >> 12)))
-		return -EINVAL;
+  if (unlikely(offset & (~PAGE_MASK >> 12))) {
+    return -EINVAL;
+  }
 
-	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
-			       offset >> (PAGE_SHIFT - 12));
+  return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+      offset >> (PAGE_SHIFT - 12));
 }
 
 /*
@@ -34,10 +35,10 @@ SYSCALL_DEFINE6(mmap2,
  * forward.
  */
 SYSCALL_DEFINE4(csky_fadvise64_64,
-	int, fd,
-	int, advice,
-	loff_t, offset,
-	loff_t, len)
+    int, fd,
+    int, advice,
+    loff_t, offset,
+    loff_t, len)
 {
-	return ksys_fadvise64_64(fd, offset, len, advice);
+  return ksys_fadvise64_64(fd, offset, len, advice);
 }

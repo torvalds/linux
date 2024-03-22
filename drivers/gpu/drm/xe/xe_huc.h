@@ -11,9 +11,9 @@
 struct drm_printer;
 
 enum xe_huc_auth_types {
-	XE_HUC_AUTH_VIA_GUC = 0,
-	XE_HUC_AUTH_VIA_GSC,
-	XE_HUC_AUTH_TYPES_COUNT
+  XE_HUC_AUTH_VIA_GUC = 0,
+  XE_HUC_AUTH_VIA_GSC,
+  XE_HUC_AUTH_TYPES_COUNT
 };
 
 int xe_huc_init(struct xe_huc *huc);

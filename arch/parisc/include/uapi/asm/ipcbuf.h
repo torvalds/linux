@@ -12,22 +12,21 @@
  * on 64-bit kernels as on 32-bit ones.
  */
 
-struct ipc64_perm
-{
-	__kernel_key_t		key;
-	__kernel_uid_t		uid;
-	__kernel_gid_t		gid;
-	__kernel_uid_t		cuid;
-	__kernel_gid_t		cgid;
+struct ipc64_perm {
+  __kernel_key_t key;
+  __kernel_uid_t uid;
+  __kernel_gid_t gid;
+  __kernel_uid_t cuid;
+  __kernel_gid_t cgid;
 #if __BITS_PER_LONG != 64
-	unsigned short int	__pad1;
+  unsigned short int __pad1;
 #endif
-	__kernel_mode_t		mode;
-	unsigned short int	__pad2;
-	unsigned short int	seq;
-	unsigned int		__pad3;
-	unsigned long long int __unused1;
-	unsigned long long int __unused2;
+  __kernel_mode_t mode;
+  unsigned short int __pad2;
+  unsigned short int seq;
+  unsigned int __pad3;
+  unsigned long long int __unused1;
+  unsigned long long int __unused2;
 };
 
 #endif /* __PARISC_IPCBUF_H__ */

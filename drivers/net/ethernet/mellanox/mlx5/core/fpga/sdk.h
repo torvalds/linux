@@ -52,8 +52,8 @@
  * @MLX5_FPGA_ACCESS_TYPE_DONTCARE: Use the fastest available method
  */
 enum mlx5_fpga_access_type {
-	MLX5_FPGA_ACCESS_TYPE_I2C = 0x0,
-	MLX5_FPGA_ACCESS_TYPE_DONTCARE = 0x0,
+  MLX5_FPGA_ACCESS_TYPE_I2C = 0x0,
+  MLX5_FPGA_ACCESS_TYPE_DONTCARE = 0x0,
 };
 
 struct mlx5_fpga_conn;
@@ -63,12 +63,12 @@ struct mlx5_fpga_device;
  * struct mlx5_fpga_dma_entry - A scatter-gather DMA entry
  */
 struct mlx5_fpga_dma_entry {
-	/** @data: Virtual address pointer to the data */
-	void *data;
-	/** @size: Size in bytes of the data */
-	unsigned int size;
-	/** @dma_addr: Private member. Physical DMA-mapped address of the data */
-	dma_addr_t dma_addr;
+  /** @data: Virtual address pointer to the data */
+  void *data;
+  /** @size: Size in bytes of the data */
+  unsigned int size;
+  /** @dma_addr: Private member. Physical DMA-mapped address of the data */
+  dma_addr_t dma_addr;
 };
 
 /**
@@ -76,22 +76,22 @@ struct mlx5_fpga_dma_entry {
  * May contain up to 2 scatter-gather data entries
  */
 struct mlx5_fpga_dma_buf {
-	/** @dma_dir: DMA direction */
-	enum dma_data_direction dma_dir;
-	/** @sg: Scatter-gather entries pointing to the data in memory */
-	struct mlx5_fpga_dma_entry sg[2];
-	/** @list: Item in SQ backlog, for TX packets */
-	struct list_head list;
-	/**
-	 * @complete: Completion routine, for TX packets
-	 * @conn: FPGA Connection this packet was sent to
-	 * @fdev: FPGA device this packet was sent to
-	 * @buf: The packet buffer
-	 * @status: 0 if successful, or an error code otherwise
-	 */
-	void (*complete)(struct mlx5_fpga_conn *conn,
-			 struct mlx5_fpga_device *fdev,
-			 struct mlx5_fpga_dma_buf *buf, u8 status);
+  /** @dma_dir: DMA direction */
+  enum dma_data_direction dma_dir;
+  /** @sg: Scatter-gather entries pointing to the data in memory */
+  struct mlx5_fpga_dma_entry sg[2];
+  /** @list: Item in SQ backlog, for TX packets */
+  struct list_head list;
+  /**
+   * @complete: Completion routine, for TX packets
+   * @conn: FPGA Connection this packet was sent to
+   * @fdev: FPGA device this packet was sent to
+   * @buf: The packet buffer
+   * @status: 0 if successful, or an error code otherwise
+   */
+  void (*complete)(struct mlx5_fpga_conn *conn,
+      struct mlx5_fpga_device *fdev,
+      struct mlx5_fpga_dma_buf *buf, u8 status);
 };
 
 /**
@@ -99,23 +99,23 @@ struct mlx5_fpga_dma_buf {
  * Describes the attributes of a connection
  */
 struct mlx5_fpga_conn_attr {
-	/** @tx_size: Size of connection TX queue, in packets */
-	unsigned int tx_size;
-	/** @rx_size: Size of connection RX queue, in packets */
-	unsigned int rx_size;
-	/**
-	 * @recv_cb: Callback function which is called for received packets
-	 * @cb_arg: The value provided in mlx5_fpga_conn_attr.cb_arg
-	 * @buf: A buffer containing a received packet
-	 *
-	 * buf is guaranteed to only contain a single scatter-gather entry.
-	 * The size of the actual packet received is specified in buf.sg[0].size
-	 * When this callback returns, the packet buffer may be re-used for
-	 * subsequent receives.
-	 */
-	void (*recv_cb)(void *cb_arg, struct mlx5_fpga_dma_buf *buf);
-	/** @cb_arg: A context to be passed to recv_cb callback */
-	void *cb_arg;
+  /** @tx_size: Size of connection TX queue, in packets */
+  unsigned int tx_size;
+  /** @rx_size: Size of connection RX queue, in packets */
+  unsigned int rx_size;
+  /**
+   * @recv_cb: Callback function which is called for received packets
+   * @cb_arg: The value provided in mlx5_fpga_conn_attr.cb_arg
+   * @buf: A buffer containing a received packet
+   *
+   * buf is guaranteed to only contain a single scatter-gather entry.
+   * The size of the actual packet received is specified in buf.sg[0].size
+   * When this callback returns, the packet buffer may be re-used for
+   * subsequent receives.
+   */
+  void (*recv_cb)(void *cb_arg, struct mlx5_fpga_dma_buf *buf);
+  /** @cb_arg: A context to be passed to recv_cb callback */
+  void *cb_arg;
 };
 
 /**
@@ -132,9 +132,8 @@ struct mlx5_fpga_conn_attr {
  *
  * Return: A new connection, or ERR_PTR() error value otherwise.
  */
-struct mlx5_fpga_conn *
-mlx5_fpga_sbu_conn_create(struct mlx5_fpga_device *fdev,
-			  struct mlx5_fpga_conn_attr *attr);
+struct mlx5_fpga_conn *mlx5_fpga_sbu_conn_create(struct mlx5_fpga_device *fdev,
+    struct mlx5_fpga_conn_attr *attr);
 
 /**
  * mlx5_fpga_sbu_conn_destroy() - Destroy an FPGA SBU connection
@@ -158,7 +157,7 @@ void mlx5_fpga_sbu_conn_destroy(struct mlx5_fpga_conn *conn);
  * Return: 0 if successful, or an error value otherwise.
  */
 int mlx5_fpga_sbu_conn_sendmsg(struct mlx5_fpga_conn *conn,
-			       struct mlx5_fpga_dma_buf *buf);
+    struct mlx5_fpga_dma_buf *buf);
 
 /**
  * mlx5_fpga_mem_read() - Read from FPGA memory address space
@@ -176,7 +175,7 @@ int mlx5_fpga_sbu_conn_sendmsg(struct mlx5_fpga_conn *conn,
  * Return: 0 if successful, or an error value otherwise.
  */
 int mlx5_fpga_mem_read(struct mlx5_fpga_device *fdev, size_t size, u64 addr,
-		       void *buf, enum mlx5_fpga_access_type access_type);
+    void *buf, enum mlx5_fpga_access_type access_type);
 
 /**
  * mlx5_fpga_mem_write() - Write to FPGA memory address space
@@ -194,7 +193,7 @@ int mlx5_fpga_mem_read(struct mlx5_fpga_device *fdev, size_t size, u64 addr,
  * Return: 0 if successful, or an error value otherwise.
  */
 int mlx5_fpga_mem_write(struct mlx5_fpga_device *fdev, size_t size, u64 addr,
-			void *buf, enum mlx5_fpga_access_type access_type);
+    void *buf, enum mlx5_fpga_access_type access_type);
 
 /**
  * mlx5_fpga_get_sbu_caps() - Read the SBU capabilities

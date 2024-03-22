@@ -494,14 +494,22 @@
 #define WM831X_IM_PPM_SYSLO_EINT_MASK           0x8000  /* IM_PPM_SYSLO_EINT */
 #define WM831X_IM_PPM_SYSLO_EINT_SHIFT              15  /* IM_PPM_SYSLO_EINT */
 #define WM831X_IM_PPM_SYSLO_EINT_WIDTH               1  /* IM_PPM_SYSLO_EINT */
-#define WM831X_IM_PPM_PWR_SRC_EINT              0x4000  /* IM_PPM_PWR_SRC_EINT */
-#define WM831X_IM_PPM_PWR_SRC_EINT_MASK         0x4000  /* IM_PPM_PWR_SRC_EINT */
-#define WM831X_IM_PPM_PWR_SRC_EINT_SHIFT            14  /* IM_PPM_PWR_SRC_EINT */
-#define WM831X_IM_PPM_PWR_SRC_EINT_WIDTH             1  /* IM_PPM_PWR_SRC_EINT */
-#define WM831X_IM_PPM_USB_CURR_EINT             0x2000  /* IM_PPM_USB_CURR_EINT */
-#define WM831X_IM_PPM_USB_CURR_EINT_MASK        0x2000  /* IM_PPM_USB_CURR_EINT */
-#define WM831X_IM_PPM_USB_CURR_EINT_SHIFT           13  /* IM_PPM_USB_CURR_EINT */
-#define WM831X_IM_PPM_USB_CURR_EINT_WIDTH            1  /* IM_PPM_USB_CURR_EINT */
+#define WM831X_IM_PPM_PWR_SRC_EINT              0x4000  /* IM_PPM_PWR_SRC_EINT
+                                                         * */
+#define WM831X_IM_PPM_PWR_SRC_EINT_MASK         0x4000  /* IM_PPM_PWR_SRC_EINT
+                                                         * */
+#define WM831X_IM_PPM_PWR_SRC_EINT_SHIFT            14  /* IM_PPM_PWR_SRC_EINT
+                                                         * */
+#define WM831X_IM_PPM_PWR_SRC_EINT_WIDTH             1  /* IM_PPM_PWR_SRC_EINT
+                                                         * */
+#define WM831X_IM_PPM_USB_CURR_EINT             0x2000  /* IM_PPM_USB_CURR_EINT
+                                                         * */
+#define WM831X_IM_PPM_USB_CURR_EINT_MASK        0x2000  /* IM_PPM_USB_CURR_EINT
+                                                         * */
+#define WM831X_IM_PPM_USB_CURR_EINT_SHIFT           13  /* IM_PPM_USB_CURR_EINT
+                                                         * */
+#define WM831X_IM_PPM_USB_CURR_EINT_WIDTH            1  /* IM_PPM_USB_CURR_EINT
+                                                         * */
 #define WM831X_IM_ON_PIN_EINT                   0x1000  /* IM_ON_PIN_EINT */
 #define WM831X_IM_ON_PIN_EINT_MASK              0x1000  /* IM_ON_PIN_EINT */
 #define WM831X_IM_ON_PIN_EINT_SHIFT                 12  /* IM_ON_PIN_EINT */
@@ -518,26 +526,46 @@
 #define WM831X_IM_TCHPD_EINT_MASK               0x0200  /* IM_TCHPD_EINT */
 #define WM831X_IM_TCHPD_EINT_SHIFT                   9  /* IM_TCHPD_EINT */
 #define WM831X_IM_TCHPD_EINT_WIDTH                   1  /* IM_TCHPD_EINT */
-#define WM831X_IM_AUXADC_DATA_EINT              0x0100  /* IM_AUXADC_DATA_EINT */
-#define WM831X_IM_AUXADC_DATA_EINT_MASK         0x0100  /* IM_AUXADC_DATA_EINT */
-#define WM831X_IM_AUXADC_DATA_EINT_SHIFT             8  /* IM_AUXADC_DATA_EINT */
-#define WM831X_IM_AUXADC_DATA_EINT_WIDTH             1  /* IM_AUXADC_DATA_EINT */
-#define WM831X_IM_AUXADC_DCOMP4_EINT            0x0080  /* IM_AUXADC_DCOMP4_EINT */
-#define WM831X_IM_AUXADC_DCOMP4_EINT_MASK       0x0080  /* IM_AUXADC_DCOMP4_EINT */
-#define WM831X_IM_AUXADC_DCOMP4_EINT_SHIFT           7  /* IM_AUXADC_DCOMP4_EINT */
-#define WM831X_IM_AUXADC_DCOMP4_EINT_WIDTH           1  /* IM_AUXADC_DCOMP4_EINT */
-#define WM831X_IM_AUXADC_DCOMP3_EINT            0x0040  /* IM_AUXADC_DCOMP3_EINT */
-#define WM831X_IM_AUXADC_DCOMP3_EINT_MASK       0x0040  /* IM_AUXADC_DCOMP3_EINT */
-#define WM831X_IM_AUXADC_DCOMP3_EINT_SHIFT           6  /* IM_AUXADC_DCOMP3_EINT */
-#define WM831X_IM_AUXADC_DCOMP3_EINT_WIDTH           1  /* IM_AUXADC_DCOMP3_EINT */
-#define WM831X_IM_AUXADC_DCOMP2_EINT            0x0020  /* IM_AUXADC_DCOMP2_EINT */
-#define WM831X_IM_AUXADC_DCOMP2_EINT_MASK       0x0020  /* IM_AUXADC_DCOMP2_EINT */
-#define WM831X_IM_AUXADC_DCOMP2_EINT_SHIFT           5  /* IM_AUXADC_DCOMP2_EINT */
-#define WM831X_IM_AUXADC_DCOMP2_EINT_WIDTH           1  /* IM_AUXADC_DCOMP2_EINT */
-#define WM831X_IM_AUXADC_DCOMP1_EINT            0x0010  /* IM_AUXADC_DCOMP1_EINT */
-#define WM831X_IM_AUXADC_DCOMP1_EINT_MASK       0x0010  /* IM_AUXADC_DCOMP1_EINT */
-#define WM831X_IM_AUXADC_DCOMP1_EINT_SHIFT           4  /* IM_AUXADC_DCOMP1_EINT */
-#define WM831X_IM_AUXADC_DCOMP1_EINT_WIDTH           1  /* IM_AUXADC_DCOMP1_EINT */
+#define WM831X_IM_AUXADC_DATA_EINT              0x0100  /* IM_AUXADC_DATA_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DATA_EINT_MASK         0x0100  /* IM_AUXADC_DATA_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DATA_EINT_SHIFT             8  /* IM_AUXADC_DATA_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DATA_EINT_WIDTH             1  /* IM_AUXADC_DATA_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP4_EINT            0x0080  /* IM_AUXADC_DCOMP4_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP4_EINT_MASK       0x0080  /* IM_AUXADC_DCOMP4_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP4_EINT_SHIFT           7  /* IM_AUXADC_DCOMP4_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP4_EINT_WIDTH           1  /* IM_AUXADC_DCOMP4_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP3_EINT            0x0040  /* IM_AUXADC_DCOMP3_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP3_EINT_MASK       0x0040  /* IM_AUXADC_DCOMP3_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP3_EINT_SHIFT           6  /* IM_AUXADC_DCOMP3_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP3_EINT_WIDTH           1  /* IM_AUXADC_DCOMP3_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP2_EINT            0x0020  /* IM_AUXADC_DCOMP2_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP2_EINT_MASK       0x0020  /* IM_AUXADC_DCOMP2_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP2_EINT_SHIFT           5  /* IM_AUXADC_DCOMP2_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP2_EINT_WIDTH           1  /* IM_AUXADC_DCOMP2_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP1_EINT            0x0010  /* IM_AUXADC_DCOMP1_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP1_EINT_MASK       0x0010  /* IM_AUXADC_DCOMP1_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP1_EINT_SHIFT           4  /* IM_AUXADC_DCOMP1_EINT
+                                                         * */
+#define WM831X_IM_AUXADC_DCOMP1_EINT_WIDTH           1  /* IM_AUXADC_DCOMP1_EINT
+                                                         * */
 #define WM831X_IM_RTC_PER_EINT                  0x0008  /* IM_RTC_PER_EINT */
 #define WM831X_IM_RTC_PER_EINT_MASK             0x0008  /* IM_RTC_PER_EINT */
 #define WM831X_IM_RTC_PER_EINT_SHIFT                 3  /* IM_RTC_PER_EINT */
@@ -554,18 +582,30 @@
 /*
  * R16410 (0x401A) - Interrupt Status 2 Mask
  */
-#define WM831X_IM_CHG_BATT_HOT_EINT             0x8000  /* IM_CHG_BATT_HOT_EINT */
-#define WM831X_IM_CHG_BATT_HOT_EINT_MASK        0x8000  /* IM_CHG_BATT_HOT_EINT */
-#define WM831X_IM_CHG_BATT_HOT_EINT_SHIFT           15  /* IM_CHG_BATT_HOT_EINT */
-#define WM831X_IM_CHG_BATT_HOT_EINT_WIDTH            1  /* IM_CHG_BATT_HOT_EINT */
-#define WM831X_IM_CHG_BATT_COLD_EINT            0x4000  /* IM_CHG_BATT_COLD_EINT */
-#define WM831X_IM_CHG_BATT_COLD_EINT_MASK       0x4000  /* IM_CHG_BATT_COLD_EINT */
-#define WM831X_IM_CHG_BATT_COLD_EINT_SHIFT          14  /* IM_CHG_BATT_COLD_EINT */
-#define WM831X_IM_CHG_BATT_COLD_EINT_WIDTH           1  /* IM_CHG_BATT_COLD_EINT */
-#define WM831X_IM_CHG_BATT_FAIL_EINT            0x2000  /* IM_CHG_BATT_FAIL_EINT */
-#define WM831X_IM_CHG_BATT_FAIL_EINT_MASK       0x2000  /* IM_CHG_BATT_FAIL_EINT */
-#define WM831X_IM_CHG_BATT_FAIL_EINT_SHIFT          13  /* IM_CHG_BATT_FAIL_EINT */
-#define WM831X_IM_CHG_BATT_FAIL_EINT_WIDTH           1  /* IM_CHG_BATT_FAIL_EINT */
+#define WM831X_IM_CHG_BATT_HOT_EINT             0x8000  /* IM_CHG_BATT_HOT_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_HOT_EINT_MASK        0x8000  /* IM_CHG_BATT_HOT_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_HOT_EINT_SHIFT           15  /* IM_CHG_BATT_HOT_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_HOT_EINT_WIDTH            1  /* IM_CHG_BATT_HOT_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_COLD_EINT            0x4000  /* IM_CHG_BATT_COLD_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_COLD_EINT_MASK       0x4000  /* IM_CHG_BATT_COLD_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_COLD_EINT_SHIFT          14  /* IM_CHG_BATT_COLD_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_COLD_EINT_WIDTH           1  /* IM_CHG_BATT_COLD_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_FAIL_EINT            0x2000  /* IM_CHG_BATT_FAIL_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_FAIL_EINT_MASK       0x2000  /* IM_CHG_BATT_FAIL_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_FAIL_EINT_SHIFT          13  /* IM_CHG_BATT_FAIL_EINT
+                                                         * */
+#define WM831X_IM_CHG_BATT_FAIL_EINT_WIDTH           1  /* IM_CHG_BATT_FAIL_EINT
+                                                         * */
 #define WM831X_IM_CHG_OV_EINT                   0x1000  /* IM_CHG_OV_EINT */
 #define WM831X_IM_CHG_OV_EINT_MASK              0x1000  /* IM_CHG_OV_EINT */
 #define WM831X_IM_CHG_OV_EINT_SHIFT                 12  /* IM_CHG_OV_EINT */
@@ -594,10 +634,14 @@
 #define WM831X_IM_CS1_EINT_MASK                 0x0040  /* IM_CS1_EINT */
 #define WM831X_IM_CS1_EINT_SHIFT                     6  /* IM_CS1_EINT */
 #define WM831X_IM_CS1_EINT_WIDTH                     1  /* IM_CS1_EINT */
-#define WM831X_IM_OTP_CMD_END_EINT              0x0020  /* IM_OTP_CMD_END_EINT */
-#define WM831X_IM_OTP_CMD_END_EINT_MASK         0x0020  /* IM_OTP_CMD_END_EINT */
-#define WM831X_IM_OTP_CMD_END_EINT_SHIFT             5  /* IM_OTP_CMD_END_EINT */
-#define WM831X_IM_OTP_CMD_END_EINT_WIDTH             1  /* IM_OTP_CMD_END_EINT */
+#define WM831X_IM_OTP_CMD_END_EINT              0x0020  /* IM_OTP_CMD_END_EINT
+                                                         * */
+#define WM831X_IM_OTP_CMD_END_EINT_MASK         0x0020  /* IM_OTP_CMD_END_EINT
+                                                         * */
+#define WM831X_IM_OTP_CMD_END_EINT_SHIFT             5  /* IM_OTP_CMD_END_EINT
+                                                         * */
+#define WM831X_IM_OTP_CMD_END_EINT_WIDTH             1  /* IM_OTP_CMD_END_EINT
+                                                         * */
 #define WM831X_IM_OTP_ERR_EINT                  0x0010  /* IM_OTP_ERR_EINT */
 #define WM831X_IM_OTP_ERR_EINT_MASK             0x0010  /* IM_OTP_ERR_EINT */
 #define WM831X_IM_OTP_ERR_EINT_SHIFT                 4  /* IM_OTP_ERR_EINT */
@@ -606,10 +650,14 @@
 #define WM831X_IM_PS_POR_EINT_MASK              0x0004  /* IM_PS_POR_EINT */
 #define WM831X_IM_PS_POR_EINT_SHIFT                  2  /* IM_PS_POR_EINT */
 #define WM831X_IM_PS_POR_EINT_WIDTH                  1  /* IM_PS_POR_EINT */
-#define WM831X_IM_PS_SLEEP_OFF_EINT             0x0002  /* IM_PS_SLEEP_OFF_EINT */
-#define WM831X_IM_PS_SLEEP_OFF_EINT_MASK        0x0002  /* IM_PS_SLEEP_OFF_EINT */
-#define WM831X_IM_PS_SLEEP_OFF_EINT_SHIFT            1  /* IM_PS_SLEEP_OFF_EINT */
-#define WM831X_IM_PS_SLEEP_OFF_EINT_WIDTH            1  /* IM_PS_SLEEP_OFF_EINT */
+#define WM831X_IM_PS_SLEEP_OFF_EINT             0x0002  /* IM_PS_SLEEP_OFF_EINT
+                                                         * */
+#define WM831X_IM_PS_SLEEP_OFF_EINT_MASK        0x0002  /* IM_PS_SLEEP_OFF_EINT
+                                                         * */
+#define WM831X_IM_PS_SLEEP_OFF_EINT_SHIFT            1  /* IM_PS_SLEEP_OFF_EINT
+                                                         * */
+#define WM831X_IM_PS_SLEEP_OFF_EINT_WIDTH            1  /* IM_PS_SLEEP_OFF_EINT
+                                                         * */
 #define WM831X_IM_PS_ON_WAKE_EINT               0x0001  /* IM_PS_ON_WAKE_EINT */
 #define WM831X_IM_PS_ON_WAKE_EINT_MASK          0x0001  /* IM_PS_ON_WAKE_EINT */
 #define WM831X_IM_PS_ON_WAKE_EINT_SHIFT              0  /* IM_PS_ON_WAKE_EINT */
@@ -754,6 +802,5 @@
 #define WM831X_IM_GP1_EINT_MASK                 0x0001  /* IM_GP1_EINT */
 #define WM831X_IM_GP1_EINT_SHIFT                     0  /* IM_GP1_EINT */
 #define WM831X_IM_GP1_EINT_WIDTH                     1  /* IM_GP1_EINT */
-
 
 #endif

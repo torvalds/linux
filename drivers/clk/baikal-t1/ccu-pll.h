@@ -17,7 +17,7 @@
  * CCU PLL private flags
  * @CCU_PLL_BASIC: Basic PLL required by the kernel as early as possible.
  */
-#define CCU_PLL_BASIC		BIT(0)
+#define CCU_PLL_BASIC   BIT(0)
 
 /*
  * struct ccu_pll_init_data - CCU PLL initialization data
@@ -31,14 +31,14 @@
  * @features: PLL private features.
  */
 struct ccu_pll_init_data {
-	unsigned int id;
-	const char *name;
-	const char *parent_name;
-	unsigned int base;
-	struct regmap *sys_regs;
-	struct device_node *np;
-	unsigned long flags;
-	unsigned long features;
+  unsigned int id;
+  const char *name;
+  const char *parent_name;
+  unsigned int base;
+  struct regmap *sys_regs;
+  struct device_node *np;
+  unsigned long flags;
+  unsigned long features;
 };
 
 /*
@@ -51,18 +51,17 @@ struct ccu_pll_init_data {
  * @lock: PLL state change spin-lock.
  */
 struct ccu_pll {
-	struct clk_hw hw;
-	unsigned int id;
-	unsigned int reg_ctl;
-	unsigned int reg_ctl1;
-	struct regmap *sys_regs;
-	spinlock_t lock;
+  struct clk_hw hw;
+  unsigned int id;
+  unsigned int reg_ctl;
+  unsigned int reg_ctl1;
+  struct regmap *sys_regs;
+  spinlock_t lock;
 };
 #define to_ccu_pll(_hw) container_of(_hw, struct ccu_pll, hw)
 
-static inline struct clk_hw *ccu_pll_get_clk_hw(struct ccu_pll *pll)
-{
-	return pll ? &pll->hw : NULL;
+static inline struct clk_hw *ccu_pll_get_clk_hw(struct ccu_pll *pll) {
+  return pll ? &pll->hw : NULL;
 }
 
 struct ccu_pll *ccu_pll_hw_register(const struct ccu_pll_init_data *init);

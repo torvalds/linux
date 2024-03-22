@@ -30,23 +30,23 @@ struct davinci_gpio_controller;
  * use.
  */
 struct davinci_soc_info {
-	struct map_desc			*io_desc;
-	unsigned long			io_desc_num;
-	u32				cpu_id;
-	u32				jtag_id;
-	u32				jtag_id_reg;
-	struct davinci_id		*ids;
-	unsigned long			ids_num;
-	u32				pinmux_base;
-	const struct mux_config		*pinmux_pins;
-	unsigned long			pinmux_pins_num;
-	int				gpio_type;
-	u32				gpio_base;
-	unsigned			gpio_num;
-	unsigned			gpio_irq;
-	unsigned			gpio_unbanked;
-	dma_addr_t			sram_dma;
-	unsigned			sram_len;
+  struct map_desc *io_desc;
+  unsigned long io_desc_num;
+  u32 cpu_id;
+  u32 jtag_id;
+  u32 jtag_id_reg;
+  struct davinci_id *ids;
+  unsigned long ids_num;
+  u32 pinmux_base;
+  const struct mux_config *pinmux_pins;
+  unsigned long pinmux_pins_num;
+  int gpio_type;
+  u32 gpio_base;
+  unsigned gpio_num;
+  unsigned gpio_irq;
+  unsigned gpio_unbanked;
+  dma_addr_t sram_dma;
+  unsigned sram_len;
 };
 
 extern struct davinci_soc_info davinci_soc_info;
@@ -58,11 +58,14 @@ void davinci_init_late(void);
 #ifdef CONFIG_SUSPEND
 int davinci_pm_init(void);
 #else
-static inline int davinci_pm_init(void) { return 0; }
+static inline int davinci_pm_init(void) {
+  return 0;
+}
+
 #endif
 
 void __init pdata_quirks_init(void);
 
-#define SRAM_SIZE	SZ_128K
+#define SRAM_SIZE SZ_128K
 
 #endif /* __ARCH_ARM_MACH_DAVINCI_COMMON_H */

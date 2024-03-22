@@ -25,8 +25,8 @@ struct linedisp;
  * @LINEDISP_MAP_SEG14: Map characters to 14 segment display
  */
 enum linedisp_map_type {
-	LINEDISP_MAP_SEG7,
-	LINEDISP_MAP_SEG14,
+  LINEDISP_MAP_SEG7,
+  LINEDISP_MAP_SEG14,
 };
 
 /**
@@ -36,12 +36,12 @@ enum linedisp_map_type {
  * @size: size of the @map
  */
 struct linedisp_map {
-	enum linedisp_map_type type;
-	union {
-		struct seg7_conversion_map seg7;
-		struct seg14_conversion_map seg14;
-	} map;
-	unsigned int size;
+  enum linedisp_map_type type;
+  union {
+    struct seg7_conversion_map seg7;
+    struct seg14_conversion_map seg14;
+  } map;
+  unsigned int size;
 };
 
 /**
@@ -50,8 +50,8 @@ struct linedisp_map {
  * @update: Function called to update the display. This must not sleep!
  */
 struct linedisp_ops {
-	int (*get_map_type)(struct linedisp *linedisp);
-	void (*update)(struct linedisp *linedisp);
+  int (*get_map_type)(struct linedisp *linedisp);
+  void (*update)(struct linedisp *linedisp);
 };
 
 /**
@@ -68,21 +68,21 @@ struct linedisp_ops {
  * @id: instance id of this display
  */
 struct linedisp {
-	struct device dev;
-	struct timer_list timer;
-	const struct linedisp_ops *ops;
-	struct linedisp_map *map;
-	char *buf;
-	char *message;
-	unsigned int num_chars;
-	unsigned int message_len;
-	unsigned int scroll_pos;
-	unsigned int scroll_rate;
-	unsigned int id;
+  struct device dev;
+  struct timer_list timer;
+  const struct linedisp_ops *ops;
+  struct linedisp_map *map;
+  char *buf;
+  char *message;
+  unsigned int num_chars;
+  unsigned int message_len;
+  unsigned int scroll_pos;
+  unsigned int scroll_rate;
+  unsigned int id;
 };
 
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
-		      unsigned int num_chars, const struct linedisp_ops *ops);
+    unsigned int num_chars, const struct linedisp_ops *ops);
 void linedisp_unregister(struct linedisp *linedisp);
 
 #endif /* LINEDISP_H */

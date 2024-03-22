@@ -13,13 +13,13 @@
 #include <net/fou.h>
 
 struct bpf_fou_encap {
-	__be16 sport;
-	__be16 dport;
+  __be16 sport;
+  __be16 dport;
 };
 
 enum bpf_fou_encap_type {
-	FOU_BPF_ENCAP_FOU,
-	FOU_BPF_ENCAP_GUE,
+  FOU_BPF_ENCAP_FOU,
+  FOU_BPF_ENCAP_GUE,
 };
 
 __bpf_kfunc_start_defs();
@@ -33,44 +33,40 @@ __bpf_kfunc_start_defs();
  * bpf_skb_set_tunnel_key helper, responsible for setting IP addresses.
  *
  * Parameters:
- * @skb_ctx	Pointer to ctx (__sk_buff) in TC program. Cannot be NULL
- * @encap	Pointer to a `struct bpf_fou_encap` storing UDP src and
- * 		dst ports. If sport is set to 0 the kernel will auto-assign a
- * 		port. This is similar to using `encap-sport auto`.
- * 		Cannot be NULL
- * @type	Encapsulation type for the packet. Their definitions are
- * 		specified in `enum bpf_fou_encap_type`
+ * @skb_ctx Pointer to ctx (__sk_buff) in TC program. Cannot be NULL
+ * @encap Pointer to a `struct bpf_fou_encap` storing UDP src and
+ *    dst ports. If sport is set to 0 the kernel will auto-assign a
+ *    port. This is similar to using `encap-sport auto`.
+ *    Cannot be NULL
+ * @type  Encapsulation type for the packet. Their definitions are
+ *    specified in `enum bpf_fou_encap_type`
  */
 __bpf_kfunc int bpf_skb_set_fou_encap(struct __sk_buff *skb_ctx,
-				      struct bpf_fou_encap *encap, int type)
-{
-	struct sk_buff *skb = (struct sk_buff *)skb_ctx;
-	struct ip_tunnel_info *info = skb_tunnel_info(skb);
-
-	if (unlikely(!encap))
-		return -EINVAL;
-
-	if (unlikely(!info || !(info->mode & IP_TUNNEL_INFO_TX)))
-		return -EINVAL;
-
-	switch (type) {
-	case FOU_BPF_ENCAP_FOU:
-		info->encap.type = TUNNEL_ENCAP_FOU;
-		break;
-	case FOU_BPF_ENCAP_GUE:
-		info->encap.type = TUNNEL_ENCAP_GUE;
-		break;
-	default:
-		info->encap.type = TUNNEL_ENCAP_NONE;
-	}
-
-	if (info->key.tun_flags & TUNNEL_CSUM)
-		info->encap.flags |= TUNNEL_ENCAP_FLAG_CSUM;
-
-	info->encap.sport = encap->sport;
-	info->encap.dport = encap->dport;
-
-	return 0;
+    struct bpf_fou_encap *encap, int type) {
+  struct sk_buff *skb = (struct sk_buff *) skb_ctx;
+  struct ip_tunnel_info *info = skb_tunnel_info(skb);
+  if (unlikely(!encap)) {
+    return -EINVAL;
+  }
+  if (unlikely(!info || !(info->mode & IP_TUNNEL_INFO_TX))) {
+    return -EINVAL;
+  }
+  switch (type) {
+    case FOU_BPF_ENCAP_FOU:
+      info->encap.type = TUNNEL_ENCAP_FOU;
+      break;
+    case FOU_BPF_ENCAP_GUE:
+      info->encap.type = TUNNEL_ENCAP_GUE;
+      break;
+    default:
+      info->encap.type = TUNNEL_ENCAP_NONE;
+  }
+  if (info->key.tun_flags & TUNNEL_CSUM) {
+    info->encap.flags |= TUNNEL_ENCAP_FLAG_CSUM;
+  }
+  info->encap.sport = encap->sport;
+  info->encap.dport = encap->dport;
+  return 0;
 }
 
 /* bpf_skb_get_fou_encap - Get FOU encap parameters
@@ -79,23 +75,20 @@ __bpf_kfunc int bpf_skb_set_fou_encap(struct __sk_buff *skb_ctx,
  * on an ipip device in collect-metadata mode.
  *
  * Parameters:
- * @skb_ctx	Pointer to ctx (__sk_buff) in TC program. Cannot be NULL
- * @encap	Pointer to a struct bpf_fou_encap storing UDP source and
- * 		destination port. Cannot be NULL
+ * @skb_ctx Pointer to ctx (__sk_buff) in TC program. Cannot be NULL
+ * @encap Pointer to a struct bpf_fou_encap storing UDP source and
+ *    destination port. Cannot be NULL
  */
 __bpf_kfunc int bpf_skb_get_fou_encap(struct __sk_buff *skb_ctx,
-				      struct bpf_fou_encap *encap)
-{
-	struct sk_buff *skb = (struct sk_buff *)skb_ctx;
-	struct ip_tunnel_info *info = skb_tunnel_info(skb);
-
-	if (unlikely(!info))
-		return -EINVAL;
-
-	encap->sport = info->encap.sport;
-	encap->dport = info->encap.dport;
-
-	return 0;
+    struct bpf_fou_encap *encap) {
+  struct sk_buff *skb = (struct sk_buff *) skb_ctx;
+  struct ip_tunnel_info *info = skb_tunnel_info(skb);
+  if (unlikely(!info)) {
+    return -EINVAL;
+  }
+  encap->sport = info->encap.sport;
+  encap->dport = info->encap.dport;
+  return 0;
 }
 
 __bpf_kfunc_end_defs();
@@ -106,12 +99,11 @@ BTF_ID_FLAGS(func, bpf_skb_get_fou_encap)
 BTF_KFUNCS_END(fou_kfunc_set)
 
 static const struct btf_kfunc_id_set fou_bpf_kfunc_set = {
-	.owner = THIS_MODULE,
-	.set   = &fou_kfunc_set,
+  .owner = THIS_MODULE,
+  .set = &fou_kfunc_set,
 };
 
-int register_fou_bpf(void)
-{
-	return register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS,
-					 &fou_bpf_kfunc_set);
+int register_fou_bpf(void) {
+  return register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS,
+      &fou_bpf_kfunc_set);
 }

@@ -12,7 +12,9 @@ DECLARE_PER_CPU_READ_MOSTLY(unsigned long, espfix_waddr);
 extern void init_espfix_bsp(void);
 extern void init_espfix_ap(int cpu);
 #else
-static inline void init_espfix_ap(int cpu) { }
+static inline void init_espfix_ap(int cpu) {
+}
+
 #endif
 
 #endif /* _ASM_X86_ESPFIX_H */

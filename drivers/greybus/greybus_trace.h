@@ -21,34 +21,34 @@ struct gb_host_device;
 
 DECLARE_EVENT_CLASS(gb_message,
 
-	TP_PROTO(struct gb_message *message),
+    TP_PROTO(struct gb_message *message),
 
-	TP_ARGS(message),
+    TP_ARGS(message),
 
-	TP_STRUCT__entry(
-		__field(u16, size)
-		__field(u16, operation_id)
-		__field(u8, type)
-		__field(u8, result)
-	),
+    TP_STRUCT__entry(
+    __field(u16, size)
+    __field(u16, operation_id)
+    __field(u8, type)
+    __field(u8, result)
+    ),
 
-	TP_fast_assign(
-		__entry->size = le16_to_cpu(message->header->size);
-		__entry->operation_id =
-			le16_to_cpu(message->header->operation_id);
-		__entry->type = message->header->type;
-		__entry->result = message->header->result;
-	),
+    TP_fast_assign(
+    __entry->size = le16_to_cpu(message->header->size);
+    __entry->operation_id
+      = le16_to_cpu(message->header->operation_id);
+    __entry->type = message->header->type;
+    __entry->result = message->header->result;
+    ),
 
-	TP_printk("size=%u operation_id=0x%04x type=0x%02x result=0x%02x",
-		  __entry->size, __entry->operation_id,
-		  __entry->type, __entry->result)
-);
+    TP_printk("size=%u operation_id=0x%04x type=0x%02x result=0x%02x",
+    __entry->size, __entry->operation_id,
+    __entry->type, __entry->result)
+    );
 
-#define DEFINE_MESSAGE_EVENT(name)					\
-		DEFINE_EVENT(gb_message, name,				\
-				TP_PROTO(struct gb_message *message),	\
-				TP_ARGS(message))
+#define DEFINE_MESSAGE_EVENT(name)          \
+  DEFINE_EVENT(gb_message, name,        \
+    TP_PROTO(struct gb_message *message), \
+    TP_ARGS(message))
 
 /*
  * Occurs immediately before calling a host device's message_send()
@@ -89,39 +89,40 @@ DEFINE_MESSAGE_EVENT(gb_message_submit);
 
 DECLARE_EVENT_CLASS(gb_operation,
 
-	TP_PROTO(struct gb_operation *operation),
+    TP_PROTO(struct gb_operation *operation),
 
-	TP_ARGS(operation),
+    TP_ARGS(operation),
 
-	TP_STRUCT__entry(
-		__field(u16, cport_id)	/* CPort of HD side of connection */
-		__field(u16, id)	/* Operation ID */
-		__field(u8, type)
-		__field(unsigned long, flags)
-		__field(int, active)
-		__field(int, waiters)
-		__field(int, errno)
-	),
+    TP_STRUCT__entry(
+    __field(u16, cport_id)  /* CPort of HD side of connection */
+    __field(u16, id)  /* Operation ID */
+    __field(u8, type)
+    __field(unsigned long, flags)
+    __field(int, active)
+    __field(int, waiters)
+    __field(int, errno)
+    ),
 
-	TP_fast_assign(
-		__entry->cport_id = operation->connection->hd_cport_id;
-		__entry->id = operation->id;
-		__entry->type = operation->type;
-		__entry->flags = operation->flags;
-		__entry->active = operation->active;
-		__entry->waiters = atomic_read(&operation->waiters);
-		__entry->errno = operation->errno;
-	),
+    TP_fast_assign(
+    __entry->cport_id = operation->connection->hd_cport_id;
+    __entry->id = operation->id;
+    __entry->type = operation->type;
+    __entry->flags = operation->flags;
+    __entry->active = operation->active;
+    __entry->waiters = atomic_read(&operation->waiters);
+    __entry->errno = operation->errno;
+    ),
 
-	TP_printk("id=%04x type=0x%02x cport_id=%04x flags=0x%lx active=%d waiters=%d errno=%d",
-		  __entry->id, __entry->cport_id, __entry->type, __entry->flags,
-		  __entry->active, __entry->waiters, __entry->errno)
-);
+    TP_printk(
+    "id=%04x type=0x%02x cport_id=%04x flags=0x%lx active=%d waiters=%d errno=%d",
+    __entry->id, __entry->cport_id, __entry->type, __entry->flags,
+    __entry->active, __entry->waiters, __entry->errno)
+    );
 
-#define DEFINE_OPERATION_EVENT(name)					\
-		DEFINE_EVENT(gb_operation, name,			\
-				TP_PROTO(struct gb_operation *operation), \
-				TP_ARGS(operation))
+#define DEFINE_OPERATION_EVENT(name)          \
+  DEFINE_EVENT(gb_operation, name,      \
+    TP_PROTO(struct gb_operation *operation), \
+    TP_ARGS(operation))
 
 /*
  * Occurs after a new operation is created for an outgoing request
@@ -162,38 +163,38 @@ DEFINE_OPERATION_EVENT(gb_operation_put_active);
 
 DECLARE_EVENT_CLASS(gb_connection,
 
-	TP_PROTO(struct gb_connection *connection),
+    TP_PROTO(struct gb_connection *connection),
 
-	TP_ARGS(connection),
+    TP_ARGS(connection),
 
-	TP_STRUCT__entry(
-		__field(int, hd_bus_id)
-		__field(u8, bundle_id)
-		/* name contains "hd_cport_id/intf_id:cport_id" */
-		__dynamic_array(char, name, sizeof(connection->name))
-		__field(enum gb_connection_state, state)
-		__field(unsigned long, flags)
-	),
+    TP_STRUCT__entry(
+    __field(int, hd_bus_id)
+    __field(u8, bundle_id)
+    /* name contains "hd_cport_id/intf_id:cport_id" */
+    __dynamic_array(char, name, sizeof(connection->name))
+    __field(enum gb_connection_state, state)
+    __field(unsigned long, flags)
+    ),
 
-	TP_fast_assign(
-		__entry->hd_bus_id = connection->hd->bus_id;
-		__entry->bundle_id = connection->bundle ?
-				connection->bundle->id : BUNDLE_ID_NONE;
-		memcpy(__get_str(name), connection->name,
-					sizeof(connection->name));
-		__entry->state = connection->state;
-		__entry->flags = connection->flags;
-	),
+    TP_fast_assign(
+    __entry->hd_bus_id = connection->hd->bus_id;
+    __entry->bundle_id = connection->bundle
+    ? connection->bundle->id : BUNDLE_ID_NONE;
+    memcpy(__get_str(name), connection->name,
+    sizeof(connection->name));
+    __entry->state = connection->state;
+    __entry->flags = connection->flags;
+    ),
 
-	TP_printk("hd_bus_id=%d bundle_id=0x%02x name=\"%s\" state=%u flags=0x%lx",
-		  __entry->hd_bus_id, __entry->bundle_id, __get_str(name),
-		  (unsigned int)__entry->state, __entry->flags)
-);
+    TP_printk("hd_bus_id=%d bundle_id=0x%02x name=\"%s\" state=%u flags=0x%lx",
+    __entry->hd_bus_id, __entry->bundle_id, __get_str(name),
+    (unsigned int) __entry->state, __entry->flags)
+    );
 
-#define DEFINE_CONNECTION_EVENT(name)					\
-		DEFINE_EVENT(gb_connection, name,			\
-				TP_PROTO(struct gb_connection *connection), \
-				TP_ARGS(connection))
+#define DEFINE_CONNECTION_EVENT(name)         \
+  DEFINE_EVENT(gb_connection, name,     \
+    TP_PROTO(struct gb_connection *connection), \
+    TP_ARGS(connection))
 
 /*
  * Occurs after a new connection is successfully created.
@@ -236,33 +237,33 @@ DEFINE_CONNECTION_EVENT(gb_connection_disable);
 
 DECLARE_EVENT_CLASS(gb_bundle,
 
-	TP_PROTO(struct gb_bundle *bundle),
+    TP_PROTO(struct gb_bundle *bundle),
 
-	TP_ARGS(bundle),
+    TP_ARGS(bundle),
 
-	TP_STRUCT__entry(
-		__field(u8, intf_id)
-		__field(u8, id)
-		__field(u8, class)
-		__field(size_t, num_cports)
-	),
+    TP_STRUCT__entry(
+    __field(u8, intf_id)
+    __field(u8, id)
+    __field(u8, class)
+    __field(size_t, num_cports)
+    ),
 
-	TP_fast_assign(
-		__entry->intf_id = bundle->intf->interface_id;
-		__entry->id = bundle->id;
-		__entry->class = bundle->class;
-		__entry->num_cports = bundle->num_cports;
-	),
+    TP_fast_assign(
+    __entry->intf_id = bundle->intf->interface_id;
+    __entry->id = bundle->id;
+    __entry->class = bundle->class;
+    __entry->num_cports = bundle->num_cports;
+    ),
 
-	TP_printk("intf_id=0x%02x id=%02x class=0x%02x num_cports=%zu",
-		  __entry->intf_id, __entry->id, __entry->class,
-		  __entry->num_cports)
-);
+    TP_printk("intf_id=0x%02x id=%02x class=0x%02x num_cports=%zu",
+    __entry->intf_id, __entry->id, __entry->class,
+    __entry->num_cports)
+    );
 
-#define DEFINE_BUNDLE_EVENT(name)					\
-		DEFINE_EVENT(gb_bundle, name,			\
-				TP_PROTO(struct gb_bundle *bundle), \
-				TP_ARGS(bundle))
+#define DEFINE_BUNDLE_EVENT(name)         \
+  DEFINE_EVENT(gb_bundle, name,     \
+    TP_PROTO(struct gb_bundle *bundle), \
+    TP_ARGS(bundle))
 
 /*
  * Occurs after a new bundle is successfully created.
@@ -291,42 +292,42 @@ DEFINE_BUNDLE_EVENT(gb_bundle_destroy);
 
 DECLARE_EVENT_CLASS(gb_interface,
 
-	TP_PROTO(struct gb_interface *intf),
+    TP_PROTO(struct gb_interface *intf),
 
-	TP_ARGS(intf),
+    TP_ARGS(intf),
 
-	TP_STRUCT__entry(
-		__field(u8, module_id)
-		__field(u8, id)		/* Interface id */
-		__field(u8, device_id)
-		__field(int, disconnected)	/* bool */
-		__field(int, ejected)		/* bool */
-		__field(int, active)		/* bool */
-		__field(int, enabled)		/* bool */
-		__field(int, mode_switch)	/* bool */
-	),
+    TP_STRUCT__entry(
+    __field(u8, module_id)
+    __field(u8, id)   /* Interface id */
+    __field(u8, device_id)
+    __field(int, disconnected)  /* bool */
+    __field(int, ejected)   /* bool */
+    __field(int, active)    /* bool */
+    __field(int, enabled)   /* bool */
+    __field(int, mode_switch) /* bool */
+    ),
 
-	TP_fast_assign(
-		__entry->module_id = intf->module->module_id;
-		__entry->id = intf->interface_id;
-		__entry->device_id = intf->device_id;
-		__entry->disconnected = intf->disconnected;
-		__entry->ejected = intf->ejected;
-		__entry->active = intf->active;
-		__entry->enabled = intf->enabled;
-		__entry->mode_switch = intf->mode_switch;
-	),
+    TP_fast_assign(
+    __entry->module_id = intf->module->module_id;
+    __entry->id = intf->interface_id;
+    __entry->device_id = intf->device_id;
+    __entry->disconnected = intf->disconnected;
+    __entry->ejected = intf->ejected;
+    __entry->active = intf->active;
+    __entry->enabled = intf->enabled;
+    __entry->mode_switch = intf->mode_switch;
+    ),
 
-	TP_printk("intf_id=%u device_id=%u module_id=%u D=%d J=%d A=%d E=%d M=%d",
-		__entry->id, __entry->device_id, __entry->module_id,
-		__entry->disconnected, __entry->ejected, __entry->active,
-		__entry->enabled, __entry->mode_switch)
-);
+    TP_printk("intf_id=%u device_id=%u module_id=%u D=%d J=%d A=%d E=%d M=%d",
+    __entry->id, __entry->device_id, __entry->module_id,
+    __entry->disconnected, __entry->ejected, __entry->active,
+    __entry->enabled, __entry->mode_switch)
+    );
 
-#define DEFINE_INTERFACE_EVENT(name)					\
-		DEFINE_EVENT(gb_interface, name,			\
-				TP_PROTO(struct gb_interface *intf),	\
-				TP_ARGS(intf))
+#define DEFINE_INTERFACE_EVENT(name)          \
+  DEFINE_EVENT(gb_interface, name,      \
+    TP_PROTO(struct gb_interface *intf),  \
+    TP_ARGS(intf))
 
 /*
  * Occurs after a new interface is successfully created.
@@ -373,33 +374,33 @@ DEFINE_INTERFACE_EVENT(gb_interface_disable);
 
 DECLARE_EVENT_CLASS(gb_module,
 
-	TP_PROTO(struct gb_module *module),
+    TP_PROTO(struct gb_module *module),
 
-	TP_ARGS(module),
+    TP_ARGS(module),
 
-	TP_STRUCT__entry(
-		__field(int, hd_bus_id)
-		__field(u8, module_id)
-		__field(size_t, num_interfaces)
-		__field(int, disconnected)	/* bool */
-	),
+    TP_STRUCT__entry(
+    __field(int, hd_bus_id)
+    __field(u8, module_id)
+    __field(size_t, num_interfaces)
+    __field(int, disconnected)  /* bool */
+    ),
 
-	TP_fast_assign(
-		__entry->hd_bus_id = module->hd->bus_id;
-		__entry->module_id = module->module_id;
-		__entry->num_interfaces = module->num_interfaces;
-		__entry->disconnected = module->disconnected;
-	),
+    TP_fast_assign(
+    __entry->hd_bus_id = module->hd->bus_id;
+    __entry->module_id = module->module_id;
+    __entry->num_interfaces = module->num_interfaces;
+    __entry->disconnected = module->disconnected;
+    ),
 
-	TP_printk("hd_bus_id=%d module_id=%u num_interfaces=%zu disconnected=%d",
-		__entry->hd_bus_id, __entry->module_id,
-		__entry->num_interfaces, __entry->disconnected)
-);
+    TP_printk("hd_bus_id=%d module_id=%u num_interfaces=%zu disconnected=%d",
+    __entry->hd_bus_id, __entry->module_id,
+    __entry->num_interfaces, __entry->disconnected)
+    );
 
-#define DEFINE_MODULE_EVENT(name)					\
-		DEFINE_EVENT(gb_module, name,				\
-				TP_PROTO(struct gb_module *module),	\
-				TP_ARGS(module))
+#define DEFINE_MODULE_EVENT(name)         \
+  DEFINE_EVENT(gb_module, name,       \
+    TP_PROTO(struct gb_module *module), \
+    TP_ARGS(module))
 
 /*
  * Occurs after a new module is successfully created, before
@@ -428,31 +429,31 @@ DEFINE_MODULE_EVENT(gb_module_del);
 
 DECLARE_EVENT_CLASS(gb_host_device,
 
-	TP_PROTO(struct gb_host_device *hd),
+    TP_PROTO(struct gb_host_device *hd),
 
-	TP_ARGS(hd),
+    TP_ARGS(hd),
 
-	TP_STRUCT__entry(
-		__field(int, bus_id)
-		__field(size_t, num_cports)
-		__field(size_t, buffer_size_max)
-	),
+    TP_STRUCT__entry(
+    __field(int, bus_id)
+    __field(size_t, num_cports)
+    __field(size_t, buffer_size_max)
+    ),
 
-	TP_fast_assign(
-		__entry->bus_id = hd->bus_id;
-		__entry->num_cports = hd->num_cports;
-		__entry->buffer_size_max = hd->buffer_size_max;
-	),
+    TP_fast_assign(
+    __entry->bus_id = hd->bus_id;
+    __entry->num_cports = hd->num_cports;
+    __entry->buffer_size_max = hd->buffer_size_max;
+    ),
 
-	TP_printk("bus_id=%d num_cports=%zu mtu=%zu",
-		__entry->bus_id, __entry->num_cports,
-		__entry->buffer_size_max)
-);
+    TP_printk("bus_id=%d num_cports=%zu mtu=%zu",
+    __entry->bus_id, __entry->num_cports,
+    __entry->buffer_size_max)
+    );
 
-#define DEFINE_HD_EVENT(name)						\
-		DEFINE_EVENT(gb_host_device, name,			\
-				TP_PROTO(struct gb_host_device *hd),	\
-				TP_ARGS(hd))
+#define DEFINE_HD_EVENT(name)           \
+  DEFINE_EVENT(gb_host_device, name,      \
+    TP_PROTO(struct gb_host_device *hd),  \
+    TP_ARGS(hd))
 
 /*
  * Occurs after a new host device is successfully created, before
@@ -499,4 +500,3 @@ DEFINE_HD_EVENT(gb_hd_in);
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE greybus_trace
 #include <trace/define_trace.h>
-

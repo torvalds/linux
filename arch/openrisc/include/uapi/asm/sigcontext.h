@@ -23,15 +23,15 @@
 #include <asm/ptrace.h>
 
 /* This struct is saved by setup_frame in signal.c, to keep the current
-   context while a signal handler is executed. It's restored by sys_sigreturn.
-*/
+ * context while a signal handler is executed. It's restored by sys_sigreturn.
+ */
 
 struct sigcontext {
-	struct user_regs_struct regs;  /* needs to be first */
-	union {
-		unsigned long fpcsr;
-		unsigned long oldmask;	/* unused */
-	};
+  struct user_regs_struct regs;  /* needs to be first */
+  union {
+    unsigned long fpcsr;
+    unsigned long oldmask;  /* unused */
+  };
 };
 
 #endif /* __ASM_OPENRISC_SIGCONTEXT_H */

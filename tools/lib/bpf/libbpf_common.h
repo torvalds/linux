@@ -19,13 +19,13 @@
 #define LIBBPF_DEPRECATED(msg) __attribute__((deprecated(msg)))
 
 /* Mark a symbol as deprecated when libbpf version is >= {major}.{minor} */
-#define LIBBPF_DEPRECATED_SINCE(major, minor, msg)			    \
-	__LIBBPF_MARK_DEPRECATED_ ## major ## _ ## minor		    \
-		(LIBBPF_DEPRECATED("libbpf v" # major "." # minor "+: " msg))
+#define LIBBPF_DEPRECATED_SINCE(major, minor, msg)          \
+  __LIBBPF_MARK_DEPRECATED_ ## major ## _ ## minor        \
+    (LIBBPF_DEPRECATED("libbpf v" # major "." # minor "+: " msg))
 
-#define __LIBBPF_CURRENT_VERSION_GEQ(major, minor)			    \
-	(LIBBPF_MAJOR_VERSION > (major) ||				    \
-	 (LIBBPF_MAJOR_VERSION == (major) && LIBBPF_MINOR_VERSION >= (minor)))
+#define __LIBBPF_CURRENT_VERSION_GEQ(major, minor)          \
+  (LIBBPF_MAJOR_VERSION > (major)               \
+  || (LIBBPF_MAJOR_VERSION == (major) && LIBBPF_MINOR_VERSION >= (minor)))
 
 /* Add checks for other versions below when planning deprecation of API symbols
  * with the LIBBPF_DEPRECATED_SINCE macro.
@@ -46,7 +46,8 @@
 #define ___libbpf_select(NAME, NUM) ___libbpf_cat(NAME, NUM)
 #define ___libbpf_nth(_1, _2, _3, _4, _5, _6, N, ...) N
 #define ___libbpf_cnt(...) ___libbpf_nth(__VA_ARGS__, 6, 5, 4, 3, 2, 1)
-#define ___libbpf_overload(NAME, ...) ___libbpf_select(NAME, ___libbpf_cnt(__VA_ARGS__))(__VA_ARGS__)
+#define ___libbpf_overload(NAME, ...) ___libbpf_select(NAME, \
+    ___libbpf_cnt(__VA_ARGS__)) (__VA_ARGS__)
 
 /* Helper macro to declare and initialize libbpf options struct
  *
@@ -61,14 +62,14 @@
  * including any extra padding, it with memset() and then assigns initial
  * values provided by users in struct initializer-syntax as varargs.
  */
-#define LIBBPF_OPTS(TYPE, NAME, ...)					    \
-	struct TYPE NAME = ({ 						    \
-		memset(&NAME, 0, sizeof(struct TYPE));			    \
-		(struct TYPE) {						    \
-			.sz = sizeof(struct TYPE),			    \
-			__VA_ARGS__					    \
-		};							    \
-	})
+#define LIBBPF_OPTS(TYPE, NAME, ...)              \
+  struct TYPE NAME = ({                 \
+    memset(&NAME, 0, sizeof(struct TYPE));          \
+    (struct TYPE) {               \
+      .sz = sizeof(struct TYPE),          \
+      __VA_ARGS__             \
+    };                  \
+  })
 
 /* Helper macro to clear and optionally reinitialize libbpf options struct
  *
@@ -77,16 +78,16 @@
  * syntax as varargs can be provided as well to reinitialize options struct
  * specific members.
  */
-#define LIBBPF_OPTS_RESET(NAME, ...)					    \
-	do {								    \
-		typeof(NAME) ___##NAME = ({ 				    \
-			memset(&___##NAME, 0, sizeof(NAME));		    \
-			(typeof(NAME)) {				    \
-				.sz = sizeof(NAME),			    \
-				__VA_ARGS__				    \
-			};						    \
-		});							    \
-		memcpy(&NAME, &___##NAME, sizeof(NAME));		    \
-	} while (0)
+#define LIBBPF_OPTS_RESET(NAME, ...)              \
+  do {                    \
+    typeof(NAME) ___ ## NAME = ({             \
+      memset(&___ ## NAME, 0, sizeof(NAME));        \
+      (typeof(NAME)) {            \
+        .sz = sizeof(NAME),         \
+        __VA_ARGS__           \
+      };                \
+    });                 \
+    memcpy(&NAME, &___ ## NAME, sizeof(NAME));        \
+  } while (0)
 
 #endif /* __LIBBPF_LIBBPF_COMMON_H */

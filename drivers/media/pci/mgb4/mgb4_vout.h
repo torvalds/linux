@@ -15,47 +15,47 @@
 #include "mgb4_i2c.h"
 
 struct mgb4_vout_regs {
-	u32 address;
-	u32 config;
-	u32 status;
-	u32 resolution;
-	u32 frame_period;
-	u32 hsync;
-	u32 vsync;
-	u32 padding;
+  u32 address;
+  u32 config;
+  u32 status;
+  u32 resolution;
+  u32 frame_period;
+  u32 hsync;
+  u32 vsync;
+  u32 padding;
 };
 
 struct mgb4_vout_config {
-	int id;
-	int dma_channel;
-	int irq;
-	struct mgb4_vout_regs regs;
+  int id;
+  int dma_channel;
+  int irq;
+  struct mgb4_vout_regs regs;
 };
 
 struct mgb4_vout_dev {
-	struct mgb4_dev *mgbdev;
-	struct v4l2_device v4l2dev;
-	struct video_device vdev;
-	struct vb2_queue queue;
-	struct mutex lock; /* vdev lock */
+  struct mgb4_dev *mgbdev;
+  struct v4l2_device v4l2dev;
+  struct video_device vdev;
+  struct vb2_queue queue;
+  struct mutex lock; /* vdev lock */
 
-	spinlock_t qlock; /* buffer queue lock */
-	struct list_head buf_list;
-	struct work_struct dma_work;
+  spinlock_t qlock; /* buffer queue lock */
+  struct list_head buf_list;
+  struct work_struct dma_work;
 
-	u32 width;
-	u32 height;
-	u32 freq;
-	u32 padding;
+  u32 width;
+  u32 height;
+  u32 freq;
+  u32 padding;
 
-	struct mgb4_i2c_client ser;
+  struct mgb4_i2c_client ser;
 
-	const struct mgb4_vout_config *config;
+  const struct mgb4_vout_config *config;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
-	struct debugfs_regset32 regset;
-	struct debugfs_reg32 regs[7];
+  struct dentry *debugfs;
+  struct debugfs_regset32 regset;
+  struct debugfs_reg32 regs[7];
 #endif
 };
 

@@ -11,13 +11,13 @@ struct regulator;
 struct iio_dev;
 
 struct st_lsm9ds0 {
-	struct device *dev;
-	const char *name;
-	int irq;
-	struct iio_dev *accel;
-	struct iio_dev *magn;
-	struct regulator *vdd;
-	struct regulator *vdd_io;
+  struct device *dev;
+  const char *name;
+  int irq;
+  struct iio_dev *accel;
+  struct iio_dev *magn;
+  struct regulator *vdd;
+  struct regulator *vdd_io;
 };
 
 int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap);

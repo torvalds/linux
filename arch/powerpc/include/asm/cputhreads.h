@@ -25,44 +25,45 @@ extern int threads_per_subcore;
 extern int threads_shift;
 extern cpumask_t threads_core_mask;
 #else
-#define threads_per_core	1
-#define threads_per_subcore	1
-#define threads_shift		0
-#define has_big_cores		0
-#define threads_core_mask	(*get_cpu_mask(0))
+#define threads_per_core  1
+#define threads_per_subcore 1
+#define threads_shift   0
+#define has_big_cores   0
+#define threads_core_mask (*get_cpu_mask(0))
 #endif
 
-static inline int cpu_nr_cores(void)
-{
-	return nr_cpu_ids >> threads_shift;
+static inline int cpu_nr_cores(void) {
+  return nr_cpu_ids >> threads_shift;
 }
 
 #ifdef CONFIG_SMP
 int cpu_core_index_of_thread(int cpu);
 int cpu_first_thread_of_core(int core);
 #else
-static inline int cpu_core_index_of_thread(int cpu) { return cpu; }
-static inline int cpu_first_thread_of_core(int core) { return core; }
+static inline int cpu_core_index_of_thread(int cpu) {
+  return cpu;
+}
+
+static inline int cpu_first_thread_of_core(int core) {
+  return core;
+}
+
 #endif
 
-static inline int cpu_thread_in_core(int cpu)
-{
-	return cpu & (threads_per_core - 1);
+static inline int cpu_thread_in_core(int cpu) {
+  return cpu & (threads_per_core - 1);
 }
 
-static inline int cpu_thread_in_subcore(int cpu)
-{
-	return cpu & (threads_per_subcore - 1);
+static inline int cpu_thread_in_subcore(int cpu) {
+  return cpu & (threads_per_subcore - 1);
 }
 
-static inline int cpu_first_thread_sibling(int cpu)
-{
-	return cpu & ~(threads_per_core - 1);
+static inline int cpu_first_thread_sibling(int cpu) {
+  return cpu & ~(threads_per_core - 1);
 }
 
-static inline int cpu_last_thread_sibling(int cpu)
-{
-	return cpu | (threads_per_core - 1);
+static inline int cpu_last_thread_sibling(int cpu) {
+  return cpu | (threads_per_core - 1);
 }
 
 /*
@@ -71,37 +72,37 @@ static inline int cpu_last_thread_sibling(int cpu)
  * CPU may change behaviour even in compat mode, so this should only be
  * used on PowerNV, and only with care.
  */
-static inline int cpu_first_tlb_thread_sibling(int cpu)
-{
-	if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8))
-		return cpu & ~0x6;	/* Big Core */
-	else
-		return cpu_first_thread_sibling(cpu);
+static inline int cpu_first_tlb_thread_sibling(int cpu) {
+  if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8)) {
+    return cpu & ~0x6;  /* Big Core */
+  } else {
+    return cpu_first_thread_sibling(cpu);
+  }
 }
 
-static inline int cpu_last_tlb_thread_sibling(int cpu)
-{
-	if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8))
-		return cpu | 0x6;	/* Big Core */
-	else
-		return cpu_last_thread_sibling(cpu);
+static inline int cpu_last_tlb_thread_sibling(int cpu) {
+  if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8)) {
+    return cpu | 0x6; /* Big Core */
+  } else {
+    return cpu_last_thread_sibling(cpu);
+  }
 }
 
-static inline int cpu_tlb_thread_sibling_step(void)
-{
-	if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8))
-		return 2;		/* Big Core */
-	else
-		return 1;
+static inline int cpu_tlb_thread_sibling_step(void) {
+  if (cpu_has_feature(CPU_FTR_ARCH_300) && (threads_per_core == 8)) {
+    return 2;   /* Big Core */
+  } else {
+    return 1;
+  }
 }
 
-static inline u32 get_tensr(void)
-{
-#ifdef	CONFIG_BOOKE
-	if (cpu_has_feature(CPU_FTR_SMT))
-		return mfspr(SPRN_TENSR);
+static inline u32 get_tensr(void) {
+#ifdef  CONFIG_BOOKE
+  if (cpu_has_feature(CPU_FTR_SMT)) {
+    return mfspr(SPRN_TENSR);
+  }
 #endif
-	return 1;
+  return 1;
 }
 
 void book3e_start_thread(int thread, unsigned long addr);
@@ -109,7 +110,6 @@ void book3e_stop_thread(int thread);
 
 #endif /* __ASSEMBLY__ */
 
-#define INVALID_THREAD_HWID	0x0fff
+#define INVALID_THREAD_HWID 0x0fff
 
 #endif /* _ASM_POWERPC_CPUTHREADS_H */
-

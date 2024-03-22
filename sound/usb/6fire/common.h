@@ -2,9 +2,9 @@
 /*
  * Linux driver for TerraTec DMX 6Fire USB
  *
- * Author:	Torsten Schenk <torsten.schenk@zoho.com>
- * Created:	Jan 01, 2011
- * Copyright:	(C) Torsten Schenk
+ * Author:  Torsten Schenk <torsten.schenk@zoho.com>
+ * Created: Jan 01, 2011
+ * Copyright: (C) Torsten Schenk
  */
 
 #ifndef USB6FIRE_COMMON_H
@@ -22,4 +22,3 @@ struct pcm_runtime;
 struct control_runtime;
 struct comm_runtime;
 #endif /* USB6FIRE_COMMON_H */
-

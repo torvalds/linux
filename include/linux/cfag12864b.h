@@ -11,21 +11,21 @@
 #ifndef _CFAG12864B_H_
 #define _CFAG12864B_H_
 
-#define CFAG12864B_WIDTH	(128)
-#define CFAG12864B_HEIGHT	(64)
-#define CFAG12864B_CONTROLLERS	(2)
-#define CFAG12864B_PAGES	(8)
-#define CFAG12864B_ADDRESSES	(64)
-#define CFAG12864B_SIZE		((CFAG12864B_CONTROLLERS) * \
-				(CFAG12864B_PAGES) * \
-				(CFAG12864B_ADDRESSES))
+#define CFAG12864B_WIDTH  (128)
+#define CFAG12864B_HEIGHT (64)
+#define CFAG12864B_CONTROLLERS  (2)
+#define CFAG12864B_PAGES  (8)
+#define CFAG12864B_ADDRESSES  (64)
+#define CFAG12864B_SIZE   ((CFAG12864B_CONTROLLERS) * \
+  (CFAG12864B_PAGES) * \
+  (CFAG12864B_ADDRESSES))
 
 /*
  * The driver will blit this buffer to the LCD
  *
  * Its size is CFAG12864B_SIZE.
  */
-extern unsigned char * cfag12864b_buffer;
+extern unsigned char *cfag12864b_buffer;
 
 /*
  * Get the refresh rate of the LCD
@@ -65,4 +65,3 @@ extern unsigned char cfag12864b_isenabled(void);
 extern unsigned char cfag12864b_isinited(void);
 
 #endif /* _CFAG12864B_H_ */
-

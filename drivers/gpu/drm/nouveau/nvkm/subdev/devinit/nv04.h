@@ -6,16 +6,16 @@
 struct nvkm_pll_vals;
 
 struct nv04_devinit {
-	struct nvkm_devinit base;
-	int owner;
+  struct nvkm_devinit base;
+  int owner;
 };
 
 int nv04_devinit_new_(const struct nvkm_devinit_func *, struct nvkm_device *,
-		      enum nvkm_subdev_type, int, struct nvkm_devinit **);
+    enum nvkm_subdev_type, int, struct nvkm_devinit **);
 void *nv04_devinit_dtor(struct nvkm_devinit *);
 void nv04_devinit_preinit(struct nvkm_devinit *);
 void nv04_devinit_fini(struct nvkm_devinit *);
-int  nv04_devinit_pll_set(struct nvkm_devinit *, u32, u32);
+int nv04_devinit_pll_set(struct nvkm_devinit *, u32, u32);
 
 void setPLL_single(struct nvkm_devinit *, u32, struct nvkm_pll_vals *);
 void setPLL_double_highregs(struct nvkm_devinit *, u32, struct nvkm_pll_vals *);

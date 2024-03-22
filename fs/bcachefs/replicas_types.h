@@ -3,25 +3,25 @@
 #define _BCACHEFS_REPLICAS_TYPES_H
 
 struct bch_replicas_cpu {
-	unsigned		nr;
-	unsigned		entry_size;
-	struct bch_replicas_entry_v1 *entries;
+  unsigned nr;
+  unsigned entry_size;
+  struct bch_replicas_entry_v1 *entries;
 };
 
 struct replicas_delta {
-	s64			delta;
-	struct bch_replicas_entry_v1 r;
+  s64 delta;
+  struct bch_replicas_entry_v1 r;
 } __packed;
 
 struct replicas_delta_list {
-	unsigned		size;
-	unsigned		used;
+  unsigned size;
+  unsigned used;
 
-	struct			{} memset_start;
-	u64			nr_inodes;
-	u64			persistent_reserved[BCH_REPLICAS_MAX];
-	struct			{} memset_end;
-	struct replicas_delta	d[];
+  struct      {} memset_start;
+  u64 nr_inodes;
+  u64 persistent_reserved[BCH_REPLICAS_MAX];
+  struct      {} memset_end;
+  struct replicas_delta d[];
 };
 
 #endif /* _BCACHEFS_REPLICAS_TYPES_H */

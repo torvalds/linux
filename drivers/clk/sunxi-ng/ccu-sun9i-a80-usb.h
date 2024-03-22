@@ -11,6 +11,6 @@
 #include <dt-bindings/clock/sun9i-a80-usb.h>
 #include <dt-bindings/reset/sun9i-a80-usb.h>
 
-#define CLK_NUMBER	(CLK_USB_HSIC + 1)
+#define CLK_NUMBER  (CLK_USB_HSIC + 1)
 
 #endif /* _CCU_SUN9I_A80_USB_H_ */

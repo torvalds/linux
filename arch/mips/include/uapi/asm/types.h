@@ -20,12 +20,11 @@
  * flag __SANE_USERSPACE_TYPES__ to get int-ll64.h here.
  */
 #ifndef __KERNEL__
-# if _MIPS_SZLONG == 64 && !defined(__SANE_USERSPACE_TYPES__)
-#  include <asm-generic/int-l64.h>
-# else
-#  include <asm-generic/int-ll64.h>
-# endif
+#if _MIPS_SZLONG == 64 && !defined(__SANE_USERSPACE_TYPES__)
+#include <asm-generic/int-l64.h>
+#else
+#include <asm-generic/int-ll64.h>
 #endif
-
+#endif
 
 #endif /* _UAPI_ASM_TYPES_H */

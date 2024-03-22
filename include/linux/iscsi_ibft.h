@@ -36,7 +36,9 @@ void reserve_ibft_region(void);
 #define IBFT_END 0x100000 /* 1MB */
 
 #else
-static inline void reserve_ibft_region(void) {}
+static inline void reserve_ibft_region(void) {
+}
+
 #endif
 
 #endif /* ISCSI_IBFT_H */

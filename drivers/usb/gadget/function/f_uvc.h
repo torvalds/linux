@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *	f_uvc.h  --  USB Video Class Gadget driver
+ *  f_uvc.h  --  USB Video Class Gadget driver
  *
- *	Copyright (C) 2009-2010
- *	    Laurent Pinchart (laurent.pinchart@ideasonboard.com)
+ *  Copyright (C) 2009-2010
+ *      Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  */
 
 #ifndef _F_UVC_H_

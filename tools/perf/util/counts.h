@@ -10,28 +10,26 @@
 struct evsel;
 
 struct perf_counts {
-	s8			  scaled;
-	struct xyarray		  *values;
-	struct xyarray		  *loaded;
+  s8 scaled;
+  struct xyarray *values;
+  struct xyarray *loaded;
 };
 
-
-static inline struct perf_counts_values*
-perf_counts(struct perf_counts *counts, int cpu_map_idx, int thread)
-{
-	return xyarray__entry(counts->values, cpu_map_idx, thread);
+static inline struct perf_counts_values *perf_counts(struct perf_counts *counts,
+    int cpu_map_idx,
+    int thread) {
+  return xyarray__entry(counts->values, cpu_map_idx, thread);
 }
 
-static inline bool
-perf_counts__is_loaded(struct perf_counts *counts, int cpu_map_idx, int thread)
-{
-	return *((bool *) xyarray__entry(counts->loaded, cpu_map_idx, thread));
+static inline bool perf_counts__is_loaded(struct perf_counts *counts,
+    int cpu_map_idx, int thread) {
+  return *((bool *) xyarray__entry(counts->loaded, cpu_map_idx, thread));
 }
 
-static inline void
-perf_counts__set_loaded(struct perf_counts *counts, int cpu_map_idx, int thread, bool loaded)
-{
-	*((bool *) xyarray__entry(counts->loaded, cpu_map_idx, thread)) = loaded;
+static inline void perf_counts__set_loaded(struct perf_counts *counts,
+    int cpu_map_idx, int thread,
+    bool loaded) {
+  *((bool *) xyarray__entry(counts->loaded, cpu_map_idx, thread)) = loaded;
 }
 
 struct perf_counts *perf_counts__new(int ncpus, int nthreads);

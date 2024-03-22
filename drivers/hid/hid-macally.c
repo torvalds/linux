@@ -19,27 +19,26 @@ MODULE_LICENSE("GPL");
  * 101, but the power key is 102 and the equals key is 103
  */
 static __u8 *macally_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				 unsigned int *rsize)
-{
-	if (*rsize >= 60 && rdesc[53] == 0x65 && rdesc[59] == 0x65) {
-		hid_info(hdev,
-			"fixing up Macally ikey keyboard report descriptor\n");
-		rdesc[53] = rdesc[59] = 0x67;
-	}
-	return rdesc;
+    unsigned int *rsize) {
+  if (*rsize >= 60 && rdesc[53] == 0x65 && rdesc[59] == 0x65) {
+    hid_info(hdev,
+        "fixing up Macally ikey keyboard report descriptor\n");
+    rdesc[53] = rdesc[59] = 0x67;
+  }
+  return rdesc;
 }
 
 static const struct hid_device_id macally_id_table[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
-			 USB_DEVICE_ID_MACALLY_IKEY_KEYBOARD) },
-	{ }
+  { HID_USB_DEVICE(USB_VENDOR_ID_SOLID_YEAR,
+      USB_DEVICE_ID_MACALLY_IKEY_KEYBOARD) },
+  {}
 };
 MODULE_DEVICE_TABLE(hid, macally_id_table);
 
 static struct hid_driver macally_driver = {
-	.name			= "macally",
-	.id_table		= macally_id_table,
-	.report_fixup		= macally_report_fixup,
+  .name = "macally",
+  .id_table = macally_id_table,
+  .report_fixup = macally_report_fixup,
 };
 
 module_hid_driver(macally_driver);

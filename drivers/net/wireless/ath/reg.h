@@ -17,30 +17,30 @@
 #ifndef ATH_REGISTERS_H
 #define ATH_REGISTERS_H
 
-#define AR_MIBC			0x0040
-#define AR_MIBC_COW		0x00000001
-#define AR_MIBC_FMC		0x00000002
-#define AR_MIBC_CMC		0x00000004
-#define AR_MIBC_MCS		0x00000008
+#define AR_MIBC     0x0040
+#define AR_MIBC_COW   0x00000001
+#define AR_MIBC_FMC   0x00000002
+#define AR_MIBC_CMC   0x00000004
+#define AR_MIBC_MCS   0x00000008
 
-#define AR_STA_ID0		0x8000
-#define AR_STA_ID1		0x8004
-#define AR_STA_ID1_SADH_MASK	0x0000ffff
+#define AR_STA_ID0    0x8000
+#define AR_STA_ID1    0x8004
+#define AR_STA_ID1_SADH_MASK  0x0000ffff
 
 /*
  * BSSID mask registers. See ath_hw_set_bssid_mask()
  * for detailed documentation about these registers.
  */
-#define AR_BSSMSKL		0x80e0
-#define AR_BSSMSKU		0x80e4
+#define AR_BSSMSKL    0x80e0
+#define AR_BSSMSKU    0x80e4
 
-#define AR_TFCNT		0x80ec
-#define AR_RFCNT		0x80f0
-#define AR_RCCNT		0x80f4
-#define AR_CCCNT		0x80f8
+#define AR_TFCNT    0x80ec
+#define AR_RFCNT    0x80f0
+#define AR_RCCNT    0x80f4
+#define AR_CCCNT    0x80f8
 
 #define AR_KEYTABLE_0           0x8800
-#define AR_KEYTABLE(_n)         (AR_KEYTABLE_0 + ((_n)*32))
+#define AR_KEYTABLE(_n)         (AR_KEYTABLE_0 + ((_n) * 32))
 #define AR_KEY_CACHE_SIZE       128
 #define AR_RSVD_KEYTABLE_ENTRIES 4
 #define AR_KEY_TYPE             0x00000007

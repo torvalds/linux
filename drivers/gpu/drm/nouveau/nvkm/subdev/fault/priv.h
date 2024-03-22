@@ -8,39 +8,40 @@
 #include <core/object.h>
 
 struct nvkm_fault_buffer {
-	struct nvkm_object object;
-	struct nvkm_fault *fault;
-	int id;
-	int entries;
-	u32 get;
-	u32 put;
-	struct nvkm_memory *mem;
-	u64 addr;
+  struct nvkm_object object;
+  struct nvkm_fault *fault;
+  int id;
+  int entries;
+  u32 get;
+  u32 put;
+  struct nvkm_memory *mem;
+  u64 addr;
 
-	struct nvkm_inth inth;
+  struct nvkm_inth inth;
 };
 
-int nvkm_fault_new_(const struct nvkm_fault_func *, struct nvkm_device *, enum nvkm_subdev_type,
-		    int inst, struct nvkm_fault **);
+int nvkm_fault_new_(const struct nvkm_fault_func *, struct nvkm_device *,
+    enum nvkm_subdev_type,
+    int inst, struct nvkm_fault **);
 
 struct nvkm_fault_func {
-	int (*oneinit)(struct nvkm_fault *);
-	void (*init)(struct nvkm_fault *);
-	void (*fini)(struct nvkm_fault *);
-	void (*intr)(struct nvkm_fault *);
-	struct {
-		int nr;
-		u32 entry_size;
-		void (*info)(struct nvkm_fault_buffer *);
-		u64 (*pin)(struct nvkm_fault_buffer *);
-		void (*init)(struct nvkm_fault_buffer *);
-		void (*fini)(struct nvkm_fault_buffer *);
-		void (*intr)(struct nvkm_fault_buffer *, bool enable);
-	} buffer;
-	struct {
-		struct nvkm_sclass base;
-		int rp;
-	} user;
+  int (*oneinit)(struct nvkm_fault *);
+  void (*init)(struct nvkm_fault *);
+  void (*fini)(struct nvkm_fault *);
+  void (*intr)(struct nvkm_fault *);
+  struct {
+    int nr;
+    u32 entry_size;
+    void (*info)(struct nvkm_fault_buffer *);
+    u64 (*pin)(struct nvkm_fault_buffer *);
+    void (*init)(struct nvkm_fault_buffer *);
+    void (*fini)(struct nvkm_fault_buffer *);
+    void (*intr)(struct nvkm_fault_buffer *, bool enable);
+  } buffer;
+  struct {
+    struct nvkm_sclass base;
+    int rp;
+  } user;
 };
 
 void gp100_fault_buffer_intr(struct nvkm_fault_buffer *, bool enable);
@@ -56,5 +57,5 @@ u64 gp10b_fault_buffer_pin(struct nvkm_fault_buffer *);
 int gv100_fault_oneinit(struct nvkm_fault *);
 
 int nvkm_ufault_new(struct nvkm_device *, const struct nvkm_oclass *,
-		    void *, u32, struct nvkm_object **);
+    void *, u32, struct nvkm_object **);
 #endif

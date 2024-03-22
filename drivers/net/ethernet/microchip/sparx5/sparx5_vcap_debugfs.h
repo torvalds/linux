@@ -16,16 +16,15 @@
 
 /* Provide port information via a callback interface */
 int sparx5_port_info(struct net_device *ndev,
-		     struct vcap_admin *admin,
-		     struct vcap_output_print *out);
+    struct vcap_admin *admin,
+    struct vcap_output_print *out);
 
 #else
 
 static inline int sparx5_port_info(struct net_device *ndev,
-				   struct vcap_admin *admin,
-				   struct vcap_output_print *out)
-{
-	return 0;
+    struct vcap_admin *admin,
+    struct vcap_output_print *out) {
+  return 0;
 }
 
 #endif

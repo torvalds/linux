@@ -12,14 +12,14 @@
 #include "state.h"
 #include "transition.h"
 
-#define klp_for_each_state(patch, state)		\
-	for (state = patch->states; state && state->id; state++)
+#define klp_for_each_state(patch, state)    \
+  for (state = patch->states; state && state->id; state++)
 
 /**
  * klp_get_state() - get information about system state modified by
- *	the given patch
- * @patch:	livepatch that modifies the given system state
- * @id:		custom identifier of the modified system state
+ *  the given patch
+ * @patch:  livepatch that modifies the given system state
+ * @id:   custom identifier of the modified system state
  *
  * Checks whether the given patch modifies the given system state.
  *
@@ -28,23 +28,22 @@
  *
  * Return: pointer to struct klp_state when found, otherwise NULL.
  */
-struct klp_state *klp_get_state(struct klp_patch *patch, unsigned long id)
-{
-	struct klp_state *state;
-
-	klp_for_each_state(patch, state) {
-		if (state->id == id)
-			return state;
-	}
-
-	return NULL;
+struct klp_state *klp_get_state(struct klp_patch *patch, unsigned long id) {
+  struct klp_state *state;
+  klp_for_each_state(patch, state) {
+    if (state->id == id) {
+      return state;
+    }
+  }
+  return NULL;
 }
+
 EXPORT_SYMBOL_GPL(klp_get_state);
 
 /**
  * klp_get_prev_state() - get information about system state modified by
- *	the already installed livepatches
- * @id:		custom identifier of the modified system state
+ *  the already installed livepatches
+ * @id:   custom identifier of the modified system state
  *
  * Checks whether already installed livepatches modify the given
  * system state.
@@ -59,43 +58,39 @@ EXPORT_SYMBOL_GPL(klp_get_state);
  * callbacks.
  *
  * Return: pointer to the latest struct klp_state from already
- *	installed livepatches, NULL when not found.
+ *  installed livepatches, NULL when not found.
  */
-struct klp_state *klp_get_prev_state(unsigned long id)
-{
-	struct klp_patch *patch;
-	struct klp_state *state, *last_state = NULL;
-
-	if (WARN_ON_ONCE(!klp_transition_patch))
-		return NULL;
-
-	klp_for_each_patch(patch) {
-		if (patch == klp_transition_patch)
-			goto out;
-
-		state = klp_get_state(patch, id);
-		if (state)
-			last_state = state;
-	}
-
+struct klp_state *klp_get_prev_state(unsigned long id) {
+  struct klp_patch *patch;
+  struct klp_state *state, *last_state = NULL;
+  if (WARN_ON_ONCE(!klp_transition_patch)) {
+    return NULL;
+  }
+  klp_for_each_patch(patch) {
+    if (patch == klp_transition_patch) {
+      goto out;
+    }
+    state = klp_get_state(patch, id);
+    if (state) {
+      last_state = state;
+    }
+  }
 out:
-	return last_state;
+  return last_state;
 }
+
 EXPORT_SYMBOL_GPL(klp_get_prev_state);
 
 /* Check if the patch is able to deal with the existing system state. */
 static bool klp_is_state_compatible(struct klp_patch *patch,
-				    struct klp_state *old_state)
-{
-	struct klp_state *state;
-
-	state = klp_get_state(patch, old_state->id);
-
-	/* A cumulative livepatch must handle all already modified states. */
-	if (!state)
-		return !patch->replace;
-
-	return state->version >= old_state->version;
+    struct klp_state *old_state) {
+  struct klp_state *state;
+  state = klp_get_state(patch, old_state->id);
+  /* A cumulative livepatch must handle all already modified states. */
+  if (!state) {
+    return !patch->replace;
+  }
+  return state->version >= old_state->version;
 }
 
 /*
@@ -103,17 +98,15 @@ static bool klp_is_state_compatible(struct klp_patch *patch,
  * Cumulative patches must handle all already modified states.
  * Non-cumulative patches can touch already modified states.
  */
-bool klp_is_patch_compatible(struct klp_patch *patch)
-{
-	struct klp_patch *old_patch;
-	struct klp_state *old_state;
-
-	klp_for_each_patch(old_patch) {
-		klp_for_each_state(old_patch, old_state) {
-			if (!klp_is_state_compatible(patch, old_state))
-				return false;
-		}
-	}
-
-	return true;
+bool klp_is_patch_compatible(struct klp_patch *patch) {
+  struct klp_patch *old_patch;
+  struct klp_state *old_state;
+  klp_for_each_patch(old_patch) {
+    klp_for_each_state(old_patch, old_state) {
+      if (!klp_is_state_compatible(patch, old_state)) {
+        return false;
+      }
+    }
+  }
+  return true;
 }

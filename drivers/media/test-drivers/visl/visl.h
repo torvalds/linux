@@ -29,7 +29,8 @@
  *
  * Based on the vicodec driver, that is:
  *
- * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights
+ *reserved.
  *
  * Based on the Cedrus VPU driver, that is:
  *
@@ -48,37 +49,37 @@
 #include <media/v4l2-device.h>
 #include <media/tpg/v4l2-tpg.h>
 
-#define VISL_NAME		"visl"
-#define VISL_M2M_NQUEUES	2
+#define VISL_NAME   "visl"
+#define VISL_M2M_NQUEUES  2
 
-#define TPG_STR_BUF_SZ		2048
+#define TPG_STR_BUF_SZ    2048
 
 extern unsigned int visl_transtime_ms;
 
 struct visl_ctrls {
-	const struct visl_ctrl_desc *ctrls;
-	unsigned int num_ctrls;
+  const struct visl_ctrl_desc *ctrls;
+  unsigned int num_ctrls;
 };
 
 struct visl_coded_format_desc {
-	u32 pixelformat;
-	struct v4l2_frmsize_stepwise frmsize;
-	const struct visl_ctrls *ctrls;
-	unsigned int num_decoded_fmts;
-	const u32 *decoded_fmts;
+  u32 pixelformat;
+  struct v4l2_frmsize_stepwise frmsize;
+  const struct visl_ctrls *ctrls;
+  unsigned int num_decoded_fmts;
+  const u32 *decoded_fmts;
 };
 
 extern const struct visl_coded_format_desc visl_coded_fmts[];
 extern const size_t num_coded_fmts;
 
 enum {
-	V4L2_M2M_SRC = 0,
-	V4L2_M2M_DST = 1,
+  V4L2_M2M_SRC = 0,
+  V4L2_M2M_DST = 1,
 };
 
 extern unsigned int visl_debug;
-#define dprintk(dev, fmt, arg...) \
-	v4l2_dbg(1, visl_debug, &(dev)->v4l2_dev, "%s: " fmt, __func__, ## arg)
+#define dprintk(dev, fmt, arg ...) \
+  v4l2_dbg(1, visl_debug, &(dev)->v4l2_dev, "%s: " fmt, __func__, ## arg)
 
 extern int visl_dprintk_frame_start;
 extern unsigned int visl_dprintk_nframes;
@@ -87,88 +88,86 @@ extern int bitstream_trace_frame_start;
 extern unsigned int bitstream_trace_nframes;
 extern bool tpg_verbose;
 
-#define frame_dprintk(dev, current, fmt, arg...) \
-	do { \
-		if (visl_dprintk_frame_start > -1 && \
-		    (current) >= visl_dprintk_frame_start && \
-		    (current) < visl_dprintk_frame_start + visl_dprintk_nframes) \
-			dprintk(dev, fmt, ## arg); \
-	} while (0) \
+#define frame_dprintk(dev, current, fmt, arg ...) \
+  do { \
+    if (visl_dprintk_frame_start > -1    \
+        && (current) >= visl_dprintk_frame_start    \
+        && (current) < visl_dprintk_frame_start + visl_dprintk_nframes) \
+    dprintk(dev, fmt, ## arg); \
+  } while (0) \
 
 struct visl_q_data {
-	unsigned int		sequence;
+  unsigned int sequence;
 };
 
 struct visl_dev {
-	struct v4l2_device	v4l2_dev;
-	struct video_device	vfd;
+  struct v4l2_device v4l2_dev;
+  struct video_device vfd;
 #ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_device	mdev;
+  struct media_device mdev;
 #endif
 
-	struct mutex		dev_mutex;
+  struct mutex dev_mutex;
 
-	struct v4l2_m2m_dev	*m2m_dev;
+  struct v4l2_m2m_dev *m2m_dev;
 
 #ifdef CONFIG_VISL_DEBUGFS
-	struct dentry		*debugfs_root;
-	struct dentry		*bitstream_debugfs;
-	struct list_head	bitstream_blobs;
+  struct dentry *debugfs_root;
+  struct dentry *bitstream_debugfs;
+  struct list_head bitstream_blobs;
 
-	/* Protects the "blob" list */
-	struct mutex		bitstream_lock;
+  /* Protects the "blob" list */
+  struct mutex bitstream_lock;
 #endif
 };
 
 enum visl_codec {
-	VISL_CODEC_NONE,
-	VISL_CODEC_FWHT,
-	VISL_CODEC_MPEG2,
-	VISL_CODEC_VP8,
-	VISL_CODEC_VP9,
-	VISL_CODEC_H264,
-	VISL_CODEC_HEVC,
-	VISL_CODEC_AV1,
+  VISL_CODEC_NONE,
+  VISL_CODEC_FWHT,
+  VISL_CODEC_MPEG2,
+  VISL_CODEC_VP8,
+  VISL_CODEC_VP9,
+  VISL_CODEC_H264,
+  VISL_CODEC_HEVC,
+  VISL_CODEC_AV1,
 };
 
 struct visl_blob {
-	struct list_head list;
-	struct dentry *dentry;
-	struct debugfs_blob_wrapper blob;
+  struct list_head list;
+  struct dentry *dentry;
+  struct debugfs_blob_wrapper blob;
 };
 
 struct visl_ctx {
-	struct v4l2_fh		fh;
-	struct visl_dev	*dev;
-	struct v4l2_ctrl_handler hdl;
+  struct v4l2_fh fh;
+  struct visl_dev *dev;
+  struct v4l2_ctrl_handler hdl;
 
-	struct mutex		vb_mutex;
+  struct mutex vb_mutex;
 
-	struct visl_q_data	q_data[VISL_M2M_NQUEUES];
-	enum   visl_codec	current_codec;
+  struct visl_q_data q_data[VISL_M2M_NQUEUES];
+  enum   visl_codec current_codec;
 
-	const struct visl_coded_format_desc *coded_format_desc;
+  const struct visl_coded_format_desc *coded_format_desc;
 
-	struct v4l2_format	coded_fmt;
-	struct v4l2_format	decoded_fmt;
+  struct v4l2_format coded_fmt;
+  struct v4l2_format decoded_fmt;
 
-	struct tpg_data		tpg;
-	u64			capture_streamon_jiffies;
-	char			*tpg_str_buf;
+  struct tpg_data tpg;
+  u64 capture_streamon_jiffies;
+  char *tpg_str_buf;
 };
 
 struct visl_ctrl_desc {
-	struct v4l2_ctrl_config cfg;
+  struct v4l2_ctrl_config cfg;
 };
 
-static inline struct visl_ctx *visl_file_to_ctx(struct file *file)
-{
-	return container_of(file->private_data, struct visl_ctx, fh);
+static inline struct visl_ctx *visl_file_to_ctx(struct file *file) {
+  return container_of(file->private_data, struct visl_ctx, fh);
 }
 
-static inline struct visl_ctx *visl_v4l2fh_to_ctx(struct v4l2_fh *v4l2_fh)
-{
-	return container_of(v4l2_fh, struct visl_ctx, fh);
+static inline struct visl_ctx *visl_v4l2fh_to_ctx(struct v4l2_fh *v4l2_fh) {
+  return container_of(v4l2_fh, struct visl_ctx, fh);
 }
 
 void *visl_find_control_data(struct visl_ctx *ctx, u32 id);

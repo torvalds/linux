@@ -32,25 +32,29 @@
 #define HOST_PORT_DF_VLAN_OFFSET                           0x001C
 
 /* Same as HOST_PORT_DF_VLAN_OFFSET */
-#define EMAC_ICSSG_SWITCH_PORT0_DEFAULT_VLAN_OFFSET        HOST_PORT_DF_VLAN_OFFSET
+#define EMAC_ICSSG_SWITCH_PORT0_DEFAULT_VLAN_OFFSET        \
+  HOST_PORT_DF_VLAN_OFFSET
 
 /* Default VLAN tag for P1 Port */
 #define P1_PORT_DF_VLAN_OFFSET                             0x0020
 
 /* Same as P1_PORT_DF_VLAN_OFFSET */
-#define EMAC_ICSSG_SWITCH_PORT1_DEFAULT_VLAN_OFFSET        P1_PORT_DF_VLAN_OFFSET
+#define EMAC_ICSSG_SWITCH_PORT1_DEFAULT_VLAN_OFFSET        \
+  P1_PORT_DF_VLAN_OFFSET
 
 /* default VLAN tag for P2 Port */
 #define P2_PORT_DF_VLAN_OFFSET                             0x0024
 
 /* Same as P2_PORT_DF_VLAN_OFFSET */
-#define EMAC_ICSSG_SWITCH_PORT2_DEFAULT_VLAN_OFFSET        P2_PORT_DF_VLAN_OFFSET
+#define EMAC_ICSSG_SWITCH_PORT2_DEFAULT_VLAN_OFFSET        \
+  P2_PORT_DF_VLAN_OFFSET
 
 /* VLAN-FID Table offset. 4096 VIDs. 2B per VID = 8KB = 0x2000 */
 #define VLAN_STATIC_REG_TABLE_OFFSET                       0x0100
 
 /* VLAN-FID Table offset for EMAC  */
-#define EMAC_ICSSG_SWITCH_DEFAULT_VLAN_TABLE_OFFSET        VLAN_STATIC_REG_TABLE_OFFSET
+#define EMAC_ICSSG_SWITCH_DEFAULT_VLAN_TABLE_OFFSET        \
+  VLAN_STATIC_REG_TABLE_OFFSET
 
 /* Packet descriptor Q reserved memory */
 #define PORT_DESC0_HI                                      0x2104
@@ -149,13 +153,15 @@
 #define PSI_L_REGULAR_FLOW_ID_BASE_OFFSET                  0x0024
 
 /* Same as PSI_L_REGULAR_FLOW_ID_BASE_OFFSET */
-#define EMAC_ICSSG_SWITCH_PSI_L_REGULAR_FLOW_ID_BASE_OFFSET PSI_L_REGULAR_FLOW_ID_BASE_OFFSET
+#define EMAC_ICSSG_SWITCH_PSI_L_REGULAR_FLOW_ID_BASE_OFFSET \
+  PSI_L_REGULAR_FLOW_ID_BASE_OFFSET
 
 /* Base Flow ID for sending mgmt and Tx TS to Host for Slice0 */
 #define PSI_L_MGMT_FLOW_ID_OFFSET                          0x0026
 
 /* Same as PSI_L_MGMT_FLOW_ID_OFFSET */
-#define EMAC_ICSSG_SWITCH_PSI_L_MGMT_FLOW_ID_BASE_OFFSET   PSI_L_MGMT_FLOW_ID_OFFSET
+#define EMAC_ICSSG_SWITCH_PSI_L_MGMT_FLOW_ID_BASE_OFFSET   \
+  PSI_L_MGMT_FLOW_ID_OFFSET
 
 /* Queue number for Special  Packets written here */
 #define SPL_PKT_DEFAULT_PRIORITY                           0x0028

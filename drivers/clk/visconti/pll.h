@@ -14,50 +14,50 @@
 #include <linux/spinlock.h>
 
 struct visconti_pll_provider {
-	void __iomem *reg_base;
-	struct device_node *node;
+  void __iomem *reg_base;
+  struct device_node *node;
 
-	/* Must be last */
-	struct clk_hw_onecell_data clk_data;
+  /* Must be last */
+  struct clk_hw_onecell_data clk_data;
 };
 
 #define VISCONTI_PLL_RATE(_rate, _dacen, _dsmen, \
-	_refdiv, _intin, _fracin, _postdiv1, _postdiv2) \
-{				\
-	.rate = _rate,		\
-	.dacen = _dacen,	\
-	.dsmen = _dsmen,	\
-	.refdiv = _refdiv,	\
-	.intin = _intin,	\
-	.fracin = _fracin,	\
-	.postdiv1 = _postdiv1,	\
-	.postdiv2 = _postdiv2	\
-}
+      _refdiv, _intin, _fracin, _postdiv1, _postdiv2) \
+  {       \
+    .rate = _rate,    \
+    .dacen = _dacen,  \
+    .dsmen = _dsmen,  \
+    .refdiv = _refdiv,  \
+    .intin = _intin,  \
+    .fracin = _fracin,  \
+    .postdiv1 = _postdiv1,  \
+    .postdiv2 = _postdiv2 \
+  }
 
 struct visconti_pll_rate_table {
-	unsigned long rate;
-	unsigned int dacen;
-	unsigned int dsmen;
-	unsigned int refdiv;
-	unsigned long intin;
-	unsigned long fracin;
-	unsigned int postdiv1;
-	unsigned int postdiv2;
+  unsigned long rate;
+  unsigned int dacen;
+  unsigned int dsmen;
+  unsigned int refdiv;
+  unsigned long intin;
+  unsigned long fracin;
+  unsigned int postdiv1;
+  unsigned int postdiv2;
 };
 
 struct visconti_pll_info {
-	unsigned int id;
-	const char *name;
-	const char *parent;
-	unsigned long base_reg;
-	const struct visconti_pll_rate_table *rate_table;
+  unsigned int id;
+  const char *name;
+  const char *parent;
+  unsigned long base_reg;
+  const struct visconti_pll_rate_table *rate_table;
 };
 
-struct visconti_pll_provider * __init visconti_init_pll(struct device_node *np,
-							void __iomem *base,
-							unsigned long nr_plls);
+struct visconti_pll_provider *__init visconti_init_pll(struct device_node *np,
+    void __iomem *base,
+    unsigned long nr_plls);
 void visconti_register_plls(struct visconti_pll_provider *ctx,
-			    const struct visconti_pll_info *list,
-			    unsigned int nr_plls, spinlock_t *lock);
+    const struct visconti_pll_info *list,
+    unsigned int nr_plls, spinlock_t *lock);
 
 #endif /* _VISCONTI_PLL_H_ */

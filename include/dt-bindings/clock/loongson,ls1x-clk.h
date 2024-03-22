@@ -8,12 +8,12 @@
 #ifndef __DT_BINDINGS_CLOCK_LS1X_CLK_H__
 #define __DT_BINDINGS_CLOCK_LS1X_CLK_H__
 
-#define LS1X_CLKID_PLL	0
-#define LS1X_CLKID_CPU	1
-#define LS1X_CLKID_DC	2
-#define LS1X_CLKID_AHB	3
-#define LS1X_CLKID_APB	4
+#define LS1X_CLKID_PLL  0
+#define LS1X_CLKID_CPU  1
+#define LS1X_CLKID_DC 2
+#define LS1X_CLKID_AHB  3
+#define LS1X_CLKID_APB  4
 
-#define CLK_NR_CLKS	(LS1X_CLKID_APB + 1)
+#define CLK_NR_CLKS (LS1X_CLKID_APB + 1)
 
 #endif /* __DT_BINDINGS_CLOCK_LS1X_CLK_H__ */

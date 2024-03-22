@@ -18,24 +18,24 @@
 /**
  * struct tvp7002_config - Platform dependent data
  *@clk_polarity: Clock polarity
- *		0 - Data clocked out on rising edge of DATACLK signal
- *		1 - Data clocked out on falling edge of DATACLK signal
+ *    0 - Data clocked out on rising edge of DATACLK signal
+ *    1 - Data clocked out on falling edge of DATACLK signal
  *@hs_polarity:  HSYNC polarity
- *		0 - Active low HSYNC output, 1 - Active high HSYNC output
+ *    0 - Active low HSYNC output, 1 - Active high HSYNC output
  *@vs_polarity: VSYNC Polarity
- *		0 - Active low VSYNC output, 1 - Active high VSYNC output
+ *    0 - Active low VSYNC output, 1 - Active high VSYNC output
  *@fid_polarity: Active-high Field ID polarity.
- *		0 - The field ID output is set to logic 1 for an odd field
- *		    (field 1) and set to logic 0 for an even field (field 0).
- *		1 - Operation with polarity inverted.
+ *    0 - The field ID output is set to logic 1 for an odd field
+ *        (field 1) and set to logic 0 for an even field (field 0).
+ *    1 - Operation with polarity inverted.
  *@sog_polarity: Active high Sync on Green output polarity.
- *		0 - Normal operation, 1 - Operation with polarity inverted
+ *    0 - Normal operation, 1 - Operation with polarity inverted
  */
 struct tvp7002_config {
-	bool clk_polarity;
-	bool hs_polarity;
-	bool vs_polarity;
-	bool fid_polarity;
-	bool sog_polarity;
+  bool clk_polarity;
+  bool hs_polarity;
+  bool vs_polarity;
+  bool fid_polarity;
+  bool sog_polarity;
 };
 #endif

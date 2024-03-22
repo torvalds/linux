@@ -8,24 +8,23 @@
 
 #include <linux/mm.h>
 
-static inline void local_flush_icache_all(void)
-{
-	asm volatile ("fence.i" ::: "memory");
+static inline void local_flush_icache_all(void) {
+  asm volatile ("fence.i" ::: "memory");
 }
 
 #define PG_dcache_clean PG_arch_1
 
-static inline void flush_dcache_folio(struct folio *folio)
-{
-	if (test_bit(PG_dcache_clean, &folio->flags))
-		clear_bit(PG_dcache_clean, &folio->flags);
+static inline void flush_dcache_folio(struct folio *folio) {
+  if (test_bit(PG_dcache_clean, &folio->flags)) {
+    clear_bit(PG_dcache_clean, &folio->flags);
+  }
 }
+
 #define flush_dcache_folio flush_dcache_folio
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
-static inline void flush_dcache_page(struct page *page)
-{
-	flush_dcache_folio(page_folio(page));
+static inline void flush_dcache_page(struct page *page) {
+  flush_dcache_folio(page_folio(page));
 }
 
 /*
@@ -34,11 +33,12 @@ static inline void flush_dcache_page(struct page *page)
  */
 #define flush_icache_range(start, end) flush_icache_all()
 #define flush_icache_user_page(vma, pg, addr, len) \
-	flush_icache_mm(vma->vm_mm, 0)
+  flush_icache_mm(vma->vm_mm, 0)
 
 #ifdef CONFIG_64BIT
-#define flush_cache_vmap(start, end)		flush_tlb_kernel_range(start, end)
-#define flush_cache_vmap_early(start, end)	local_flush_tlb_kernel_range(start, end)
+#define flush_cache_vmap(start, end)    flush_tlb_kernel_range(start, end)
+#define flush_cache_vmap_early(start, end)  local_flush_tlb_kernel_range(start, \
+    end)
 #endif
 
 #ifndef CONFIG_SMP
@@ -61,8 +61,12 @@ void riscv_init_cbo_blocksizes(void);
 void riscv_noncoherent_supported(void);
 void __init riscv_set_dma_cache_alignment(void);
 #else
-static inline void riscv_noncoherent_supported(void) {}
-static inline void riscv_set_dma_cache_alignment(void) {}
+static inline void riscv_noncoherent_supported(void) {
+}
+
+static inline void riscv_set_dma_cache_alignment(void) {
+}
+
 #endif
 
 /*

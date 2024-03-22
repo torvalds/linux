@@ -25,11 +25,10 @@
 
 #if XCHAL_HAVE_NSA
 
-static inline unsigned long __cntlz (unsigned long x)
-{
-	int lz;
-	asm ("nsau %0, %1" : "=r" (lz) : "r" (x));
-	return lz;
+static inline unsigned long __cntlz(unsigned long x) {
+  int lz;
+  asm ("nsau %0, %1" : "=r" (lz) : "r" (x));
+  return lz;
 }
 
 /*
@@ -37,18 +36,16 @@ static inline unsigned long __cntlz (unsigned long x)
  * bit 0 is the LSB of addr; bit 32 is the LSB of (addr+1).
  */
 
-static inline int ffz(unsigned long x)
-{
-	return 31 - __cntlz(~x & -~x);
+static inline int ffz(unsigned long x) {
+  return 31 - __cntlz(~x & -~x);
 }
 
 /*
  * __ffs: Find first bit set in word. Return 0 for bit 0
  */
 
-static inline unsigned long __ffs(unsigned long x)
-{
-	return 31 - __cntlz(x & -x);
+static inline unsigned long __ffs(unsigned long x) {
+  return 31 - __cntlz(x & -x);
 }
 
 /*
@@ -57,9 +54,8 @@ static inline unsigned long __ffs(unsigned long x)
  * differs in spirit from the above ffz (man ffs).
  */
 
-static inline int ffs(unsigned long x)
-{
-	return 32 - __cntlz(x & -x);
+static inline int ffs(unsigned long x) {
+  return 32 - __cntlz(x & -x);
 }
 
 /*
@@ -67,9 +63,8 @@ static inline int ffs(unsigned long x)
  * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
  */
 
-static inline int fls (unsigned int x)
-{
-	return 32 - __cntlz(x);
+static inline int fls(unsigned int x) {
+  return 32 - __cntlz(x);
 }
 
 /**
@@ -78,19 +73,19 @@ static inline int fls (unsigned int x)
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-static inline unsigned long __fls(unsigned long word)
-{
-	return 31 - __cntlz(word);
+static inline unsigned long __fls(unsigned long word) {
+  return 31 - __cntlz(word);
 }
+
 #else
 
 /* Use the generic implementation if we don't have the nsa/nsau instructions. */
 
-# include <asm-generic/bitops/ffs.h>
-# include <asm-generic/bitops/__ffs.h>
-# include <asm-generic/bitops/ffz.h>
-# include <asm-generic/bitops/fls.h>
-# include <asm-generic/bitops/__fls.h>
+#include <asm-generic/bitops/ffs.h>
+#include <asm-generic/bitops/__ffs.h>
+#include <asm-generic/bitops/ffz.h>
+#include <asm-generic/bitops/fls.h>
+#include <asm-generic/bitops/__fls.h>
 
 #endif
 
@@ -98,91 +93,93 @@ static inline unsigned long __fls(unsigned long word)
 
 #if XCHAL_HAVE_EXCLUSIVE
 
-#define BIT_OP(op, insn, inv)						\
-static inline void arch_##op##_bit(unsigned int bit, volatile unsigned long *p)\
-{									\
-	unsigned long tmp;						\
-	unsigned long mask = 1UL << (bit & 31);				\
-									\
-	p += bit >> 5;							\
-									\
-	__asm__ __volatile__(						\
-			"1:     l32ex   %[tmp], %[addr]\n"		\
-			"      "insn"   %[tmp], %[tmp], %[mask]\n"	\
-			"       s32ex   %[tmp], %[addr]\n"		\
-			"       getex   %[tmp]\n"			\
-			"       beqz    %[tmp], 1b\n"			\
-			: [tmp] "=&a" (tmp)				\
-			: [mask] "a" (inv mask), [addr] "a" (p)		\
-			: "memory");					\
-}
+#define BIT_OP(op, insn, inv)           \
+  static inline void arch_ ## op ## _bit(unsigned int bit, \
+    volatile unsigned long *p) \
+  {                 \
+    unsigned long tmp;            \
+    unsigned long mask = 1UL << (bit & 31);       \
+                  \
+    p += bit >> 5;              \
+                  \
+    __asm__ __volatile__ (           \
+      "1:     l32ex   %[tmp], %[addr]\n"    \
+      "      "insn "   %[tmp], %[tmp], %[mask]\n"  \
+      "       s32ex   %[tmp], %[addr]\n"    \
+      "       getex   %[tmp]\n"     \
+      "       beqz    %[tmp], 1b\n"     \
+      : [tmp] "=&a" (tmp)       \
+      : [mask] "a" (inv mask), [addr] "a" (p)   \
+      : "memory");          \
+  }
 
-#define TEST_AND_BIT_OP(op, insn, inv)					\
-static inline int							\
-arch_test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
-{									\
-	unsigned long tmp, value;					\
-	unsigned long mask = 1UL << (bit & 31);				\
-									\
-	p += bit >> 5;							\
-									\
-	__asm__ __volatile__(						\
-			"1:     l32ex   %[value], %[addr]\n"		\
-			"      "insn"   %[tmp], %[value], %[mask]\n"	\
-			"       s32ex   %[tmp], %[addr]\n"		\
-			"       getex   %[tmp]\n"			\
-			"       beqz    %[tmp], 1b\n"			\
-			: [tmp] "=&a" (tmp), [value] "=&a" (value)	\
-			: [mask] "a" (inv mask), [addr] "a" (p)		\
-			: "memory");					\
-									\
-	return value & mask;						\
-}
+#define TEST_AND_BIT_OP(op, insn, inv)          \
+  static inline int             \
+  arch_test_and_ ## op ## _bit(unsigned int bit, volatile unsigned long *p) \
+  {                 \
+    unsigned long tmp, value;         \
+    unsigned long mask = 1UL << (bit & 31);       \
+                  \
+    p += bit >> 5;              \
+                  \
+    __asm__ __volatile__ (           \
+      "1:     l32ex   %[value], %[addr]\n"    \
+      "      "insn "   %[tmp], %[value], %[mask]\n"  \
+      "       s32ex   %[tmp], %[addr]\n"    \
+      "       getex   %[tmp]\n"     \
+      "       beqz    %[tmp], 1b\n"     \
+      : [tmp] "=&a" (tmp), [value] "=&a" (value)  \
+      : [mask] "a" (inv mask), [addr] "a" (p)   \
+      : "memory");          \
+                  \
+    return value & mask;            \
+  }
 
 #elif XCHAL_HAVE_S32C1I
 
-#define BIT_OP(op, insn, inv)						\
-static inline void arch_##op##_bit(unsigned int bit, volatile unsigned long *p)\
-{									\
-	unsigned long tmp, value;					\
-	unsigned long mask = 1UL << (bit & 31);				\
-									\
-	p += bit >> 5;							\
-									\
-	__asm__ __volatile__(						\
-			"1:     l32i    %[value], %[mem]\n"		\
-			"       wsr     %[value], scompare1\n"		\
-			"      "insn"   %[tmp], %[value], %[mask]\n"	\
-			"       s32c1i  %[tmp], %[mem]\n"		\
-			"       bne     %[tmp], %[value], 1b\n"		\
-			: [tmp] "=&a" (tmp), [value] "=&a" (value),	\
-			  [mem] "+m" (*p)				\
-			: [mask] "a" (inv mask)				\
-			: "memory");					\
-}
+#define BIT_OP(op, insn, inv)           \
+  static inline void arch_ ## op ## _bit(unsigned int bit, \
+    volatile unsigned long *p) \
+  {                 \
+    unsigned long tmp, value;         \
+    unsigned long mask = 1UL << (bit & 31);       \
+                  \
+    p += bit >> 5;              \
+                  \
+    __asm__ __volatile__ (           \
+      "1:     l32i    %[value], %[mem]\n"   \
+      "       wsr     %[value], scompare1\n"    \
+      "      "insn "   %[tmp], %[value], %[mask]\n"  \
+      "       s32c1i  %[tmp], %[mem]\n"   \
+      "       bne     %[tmp], %[value], 1b\n"   \
+      : [tmp] "=&a" (tmp), [value] "=&a" (value), \
+      [mem] "+m" (*p)       \
+      : [mask] "a" (inv mask)       \
+      : "memory");          \
+  }
 
-#define TEST_AND_BIT_OP(op, insn, inv)					\
-static inline int							\
-arch_test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
-{									\
-	unsigned long tmp, value;					\
-	unsigned long mask = 1UL << (bit & 31);				\
-									\
-	p += bit >> 5;							\
-									\
-	__asm__ __volatile__(						\
-			"1:     l32i    %[value], %[mem]\n"		\
-			"       wsr     %[value], scompare1\n"		\
-			"      "insn"   %[tmp], %[value], %[mask]\n"	\
-			"       s32c1i  %[tmp], %[mem]\n"		\
-			"       bne     %[tmp], %[value], 1b\n"		\
-			: [tmp] "=&a" (tmp), [value] "=&a" (value),	\
-			  [mem] "+m" (*p)				\
-			: [mask] "a" (inv mask)				\
-			: "memory");					\
-									\
-	return tmp & mask;						\
-}
+#define TEST_AND_BIT_OP(op, insn, inv)          \
+  static inline int             \
+  arch_test_and_ ## op ## _bit(unsigned int bit, volatile unsigned long *p) \
+  {                 \
+    unsigned long tmp, value;         \
+    unsigned long mask = 1UL << (bit & 31);       \
+                  \
+    p += bit >> 5;              \
+                  \
+    __asm__ __volatile__ (           \
+      "1:     l32i    %[value], %[mem]\n"   \
+      "       wsr     %[value], scompare1\n"    \
+      "      "insn "   %[tmp], %[value], %[mask]\n"  \
+      "       s32c1i  %[tmp], %[mem]\n"   \
+      "       bne     %[tmp], %[value], 1b\n"   \
+      : [tmp] "=&a" (tmp), [value] "=&a" (value), \
+      [mem] "+m" (*p)       \
+      : [mask] "a" (inv mask)       \
+      : "memory");          \
+                  \
+    return tmp & mask;            \
+  }
 
 #else
 
@@ -193,9 +190,9 @@ arch_test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
 
 #endif /* XCHAL_HAVE_S32C1I */
 
-#define BIT_OPS(op, insn, inv)		\
-	BIT_OP(op, insn, inv)		\
-	TEST_AND_BIT_OP(op, insn, inv)
+#define BIT_OPS(op, insn, inv)    \
+  BIT_OP(op, insn, inv)   \
+  TEST_AND_BIT_OP(op, insn, inv)
 
 BIT_OPS(set, "or", )
 BIT_OPS(clear, "and", ~)
@@ -215,4 +212,4 @@ BIT_OPS(change, "xor", )
 #include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/sched.h>
 
-#endif	/* _XTENSA_BITOPS_H */
+#endif  /* _XTENSA_BITOPS_H */

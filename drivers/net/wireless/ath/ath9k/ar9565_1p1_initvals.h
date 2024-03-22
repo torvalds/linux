@@ -36,29 +36,36 @@
 
 #define ar9565_1p1_Common_rx_gain_table ar9565_1p0_Common_rx_gain_table
 
-#define ar9565_1p1_Modes_lowest_ob_db_tx_gain_table ar9565_1p0_Modes_lowest_ob_db_tx_gain_table
+#define ar9565_1p1_Modes_lowest_ob_db_tx_gain_table \
+  ar9565_1p0_Modes_lowest_ob_db_tx_gain_table
 
-#define ar9565_1p1_pciephy_clkreq_disable_L1 ar9565_1p0_pciephy_clkreq_disable_L1
+#define ar9565_1p1_pciephy_clkreq_disable_L1 \
+  ar9565_1p0_pciephy_clkreq_disable_L1
 
 #define ar9565_1p1_modes_fast_clock ar9565_1p0_modes_fast_clock
 
-#define ar9565_1p1_common_wo_xlna_rx_gain_table ar9565_1p0_common_wo_xlna_rx_gain_table
+#define ar9565_1p1_common_wo_xlna_rx_gain_table \
+  ar9565_1p0_common_wo_xlna_rx_gain_table
 
-#define ar9565_1p1_modes_low_ob_db_tx_gain_table ar9565_1p0_modes_low_ob_db_tx_gain_table
+#define ar9565_1p1_modes_low_ob_db_tx_gain_table \
+  ar9565_1p0_modes_low_ob_db_tx_gain_table
 
-#define ar9565_1p1_modes_high_ob_db_tx_gain_table ar9565_1p0_modes_high_ob_db_tx_gain_table
+#define ar9565_1p1_modes_high_ob_db_tx_gain_table \
+  ar9565_1p0_modes_high_ob_db_tx_gain_table
 
-#define ar9565_1p1_modes_high_power_tx_gain_table ar9565_1p0_modes_high_power_tx_gain_table
+#define ar9565_1p1_modes_high_power_tx_gain_table \
+  ar9565_1p0_modes_high_power_tx_gain_table
 
-#define ar9565_1p1_baseband_core_txfir_coeff_japan_2484 ar9565_1p0_baseband_core_txfir_coeff_japan_2484
+#define ar9565_1p1_baseband_core_txfir_coeff_japan_2484 \
+  ar9565_1p0_baseband_core_txfir_coeff_japan_2484
 
 static const u32 ar9565_1p1_radio_postamble[][5] = {
-	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
-	{0x0001609c, 0x0b8ee524, 0x0b8ee524, 0x0b8ee524, 0x0b8ee524},
-	{0x000160ac, 0xa4646c08, 0xa4646c08, 0x24645808, 0x24645808},
-	{0x000160b0, 0x01d67f70, 0x01d67f70, 0x01d67f70, 0x01d67f70},
-	{0x0001610c, 0x40000000, 0x40000000, 0x40000000, 0x40000000},
-	{0x00016140, 0x10804008, 0x10804008, 0x50804008, 0x50804008},
+  /* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
+  {0x0001609c, 0x0b8ee524, 0x0b8ee524, 0x0b8ee524, 0x0b8ee524},
+  {0x000160ac, 0xa4646c08, 0xa4646c08, 0x24645808, 0x24645808},
+  {0x000160b0, 0x01d67f70, 0x01d67f70, 0x01d67f70, 0x01d67f70},
+  {0x0001610c, 0x40000000, 0x40000000, 0x40000000, 0x40000000},
+  {0x00016140, 0x10804008, 0x10804008, 0x50804008, 0x50804008},
 };
 
 #endif /* INITVALS_9565_1P1_H */

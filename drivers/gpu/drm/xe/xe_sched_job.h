@@ -18,7 +18,7 @@ int xe_sched_job_module_init(void);
 void xe_sched_job_module_exit(void);
 
 struct xe_sched_job *xe_sched_job_create(struct xe_exec_queue *q,
-					 u64 *batch_addr);
+    u64 *batch_addr);
 void xe_sched_job_destroy(struct kref *ref);
 
 /**
@@ -27,10 +27,9 @@ void xe_sched_job_destroy(struct kref *ref);
  *
  * Increment XE schedule job's reference count
  */
-static inline struct xe_sched_job *xe_sched_job_get(struct xe_sched_job *job)
-{
-	kref_get(&job->refcount);
-	return job;
+static inline struct xe_sched_job *xe_sched_job_get(struct xe_sched_job *job) {
+  kref_get(&job->refcount);
+  return job;
 }
 
 /**
@@ -40,15 +39,13 @@ static inline struct xe_sched_job *xe_sched_job_get(struct xe_sched_job *job)
  * Decrement XE schedule job's reference count, call xe_sched_job_destroy when
  * reference count == 0.
  */
-static inline void xe_sched_job_put(struct xe_sched_job *job)
-{
-	kref_put(&job->refcount, xe_sched_job_destroy);
+static inline void xe_sched_job_put(struct xe_sched_job *job) {
+  kref_put(&job->refcount, xe_sched_job_destroy);
 }
 
 void xe_sched_job_set_error(struct xe_sched_job *job, int error);
-static inline bool xe_sched_job_is_error(struct xe_sched_job *job)
-{
-	return job->fence->error < 0;
+static inline bool xe_sched_job_is_error(struct xe_sched_job *job) {
+  return job->fence->error < 0;
 }
 
 bool xe_sched_job_started(struct xe_sched_job *job);
@@ -59,27 +56,25 @@ void xe_sched_job_push(struct xe_sched_job *job);
 
 int xe_sched_job_last_fence_add_dep(struct xe_sched_job *job, struct xe_vm *vm);
 
-static inline struct xe_sched_job *
-to_xe_sched_job(struct drm_sched_job *drm)
-{
-	return container_of(drm, struct xe_sched_job, drm);
+static inline struct xe_sched_job *to_xe_sched_job(struct drm_sched_job *drm) {
+  return container_of(drm, struct xe_sched_job, drm);
 }
 
-static inline u32 xe_sched_job_seqno(struct xe_sched_job *job)
-{
-	return job->fence->seqno;
+static inline u32 xe_sched_job_seqno(struct xe_sched_job *job) {
+  return job->fence->seqno;
 }
 
-static inline void
-xe_sched_job_add_migrate_flush(struct xe_sched_job *job, u32 flags)
-{
-	job->migrate_flush_flags = flags;
+static inline void xe_sched_job_add_migrate_flush(struct xe_sched_job *job,
+    u32 flags) {
+  job->migrate_flush_flags = flags;
 }
 
 bool xe_sched_job_is_migration(struct xe_exec_queue *q);
 
-struct xe_sched_job_snapshot *xe_sched_job_snapshot_capture(struct xe_sched_job *job);
+struct xe_sched_job_snapshot *xe_sched_job_snapshot_capture(
+  struct xe_sched_job *job);
 void xe_sched_job_snapshot_free(struct xe_sched_job_snapshot *snapshot);
-void xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot, struct drm_printer *p);
+void xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot,
+    struct drm_printer *p);
 
 #endif

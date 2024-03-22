@@ -12,20 +12,20 @@
 #ifndef _DT_BINDINGS_CLOCK_S5PV210_AUDSS_H
 #define _DT_BINDINGS_CLOCK_S5PV210_AUDSS_H
 
-#define CLK_MOUT_AUDSS		0
-#define CLK_MOUT_I2S_A		1
+#define CLK_MOUT_AUDSS    0
+#define CLK_MOUT_I2S_A    1
 
-#define CLK_DOUT_AUD_BUS	2
-#define CLK_DOUT_I2S_A		3
+#define CLK_DOUT_AUD_BUS  2
+#define CLK_DOUT_I2S_A    3
 
-#define CLK_I2S			4
-#define CLK_HCLK_I2S		5
-#define CLK_HCLK_UART		6
-#define CLK_HCLK_HWA		7
-#define CLK_HCLK_DMA		8
-#define CLK_HCLK_BUF		9
-#define CLK_HCLK_RP		10
+#define CLK_I2S     4
+#define CLK_HCLK_I2S    5
+#define CLK_HCLK_UART   6
+#define CLK_HCLK_HWA    7
+#define CLK_HCLK_DMA    8
+#define CLK_HCLK_BUF    9
+#define CLK_HCLK_RP   10
 
-#define AUDSS_MAX_CLKS		11
+#define AUDSS_MAX_CLKS    11
 
 #endif

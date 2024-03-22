@@ -8,7 +8,9 @@ extern void pti_init(void);
 extern void pti_check_boottime_disable(void);
 extern void pti_finalize(void);
 #else
-static inline void pti_check_boottime_disable(void) { }
+static inline void pti_check_boottime_disable(void) {
+}
+
 #endif
 
 #endif /* __ASSEMBLY__ */

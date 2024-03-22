@@ -13,10 +13,10 @@
  * addresses even when the code model suggests those low addresses would not
  * otherwise be available.
  */
-#define VDSO_SYMBOL(base, name)							\
-({										\
-	extern const char __vdso_##name[];					\
-	(void __user *)((unsigned long)(base) + __vdso_##name);			\
-})
+#define VDSO_SYMBOL(base, name)             \
+  ({                    \
+    extern const char __vdso_ ## name[];          \
+    (void __user *) ((unsigned long) (base) + __vdso_ ## name);     \
+  })
 
 #endif /* __ASM_CSKY_VDSO_H */

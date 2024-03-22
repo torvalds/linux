@@ -16,11 +16,11 @@ extern const u8 kallsyms_names[] __weak;
  * Tell the compiler that the count isn't in the small data section if the arch
  * has one (eg: FRV).
  */
-extern const unsigned int kallsyms_num_syms
-__section(".rodata") __attribute__((weak));
+extern const unsigned int kallsyms_num_syms __section(".rodata") __attribute__((
+      weak));
 
-extern const unsigned long kallsyms_relative_base
-__section(".rodata") __attribute__((weak));
+extern const unsigned long kallsyms_relative_base __section(".rodata")
+__attribute__((weak));
 
 extern const char kallsyms_token_table[] __weak;
 extern const u16 kallsyms_token_index[] __weak;

@@ -70,66 +70,63 @@
 /* Map our scrub type to a sick mask and a set of health update functions. */
 
 enum xchk_health_group {
-	XHG_FS = 1,
-	XHG_RT,
-	XHG_AG,
-	XHG_INO,
+  XHG_FS = 1,
+  XHG_RT,
+  XHG_AG,
+  XHG_INO,
 };
 
 struct xchk_health_map {
-	enum xchk_health_group	group;
-	unsigned int		sick_mask;
+  enum xchk_health_group group;
+  unsigned int sick_mask;
 };
 
 static const struct xchk_health_map type_to_health_flag[XFS_SCRUB_TYPE_NR] = {
-	[XFS_SCRUB_TYPE_SB]		= { XHG_AG,  XFS_SICK_AG_SB },
-	[XFS_SCRUB_TYPE_AGF]		= { XHG_AG,  XFS_SICK_AG_AGF },
-	[XFS_SCRUB_TYPE_AGFL]		= { XHG_AG,  XFS_SICK_AG_AGFL },
-	[XFS_SCRUB_TYPE_AGI]		= { XHG_AG,  XFS_SICK_AG_AGI },
-	[XFS_SCRUB_TYPE_BNOBT]		= { XHG_AG,  XFS_SICK_AG_BNOBT },
-	[XFS_SCRUB_TYPE_CNTBT]		= { XHG_AG,  XFS_SICK_AG_CNTBT },
-	[XFS_SCRUB_TYPE_INOBT]		= { XHG_AG,  XFS_SICK_AG_INOBT },
-	[XFS_SCRUB_TYPE_FINOBT]		= { XHG_AG,  XFS_SICK_AG_FINOBT },
-	[XFS_SCRUB_TYPE_RMAPBT]		= { XHG_AG,  XFS_SICK_AG_RMAPBT },
-	[XFS_SCRUB_TYPE_REFCNTBT]	= { XHG_AG,  XFS_SICK_AG_REFCNTBT },
-	[XFS_SCRUB_TYPE_INODE]		= { XHG_INO, XFS_SICK_INO_CORE },
-	[XFS_SCRUB_TYPE_BMBTD]		= { XHG_INO, XFS_SICK_INO_BMBTD },
-	[XFS_SCRUB_TYPE_BMBTA]		= { XHG_INO, XFS_SICK_INO_BMBTA },
-	[XFS_SCRUB_TYPE_BMBTC]		= { XHG_INO, XFS_SICK_INO_BMBTC },
-	[XFS_SCRUB_TYPE_DIR]		= { XHG_INO, XFS_SICK_INO_DIR },
-	[XFS_SCRUB_TYPE_XATTR]		= { XHG_INO, XFS_SICK_INO_XATTR },
-	[XFS_SCRUB_TYPE_SYMLINK]	= { XHG_INO, XFS_SICK_INO_SYMLINK },
-	[XFS_SCRUB_TYPE_PARENT]		= { XHG_INO, XFS_SICK_INO_PARENT },
-	[XFS_SCRUB_TYPE_RTBITMAP]	= { XHG_RT,  XFS_SICK_RT_BITMAP },
-	[XFS_SCRUB_TYPE_RTSUM]		= { XHG_RT,  XFS_SICK_RT_SUMMARY },
-	[XFS_SCRUB_TYPE_UQUOTA]		= { XHG_FS,  XFS_SICK_FS_UQUOTA },
-	[XFS_SCRUB_TYPE_GQUOTA]		= { XHG_FS,  XFS_SICK_FS_GQUOTA },
-	[XFS_SCRUB_TYPE_PQUOTA]		= { XHG_FS,  XFS_SICK_FS_PQUOTA },
-	[XFS_SCRUB_TYPE_FSCOUNTERS]	= { XHG_FS,  XFS_SICK_FS_COUNTERS },
-	[XFS_SCRUB_TYPE_QUOTACHECK]	= { XHG_FS,  XFS_SICK_FS_QUOTACHECK },
-	[XFS_SCRUB_TYPE_NLINKS]		= { XHG_FS,  XFS_SICK_FS_NLINKS },
+  [XFS_SCRUB_TYPE_SB] = { XHG_AG, XFS_SICK_AG_SB },
+  [XFS_SCRUB_TYPE_AGF] = { XHG_AG, XFS_SICK_AG_AGF },
+  [XFS_SCRUB_TYPE_AGFL] = { XHG_AG, XFS_SICK_AG_AGFL },
+  [XFS_SCRUB_TYPE_AGI] = { XHG_AG, XFS_SICK_AG_AGI },
+  [XFS_SCRUB_TYPE_BNOBT] = { XHG_AG, XFS_SICK_AG_BNOBT },
+  [XFS_SCRUB_TYPE_CNTBT] = { XHG_AG, XFS_SICK_AG_CNTBT },
+  [XFS_SCRUB_TYPE_INOBT] = { XHG_AG, XFS_SICK_AG_INOBT },
+  [XFS_SCRUB_TYPE_FINOBT] = { XHG_AG, XFS_SICK_AG_FINOBT },
+  [XFS_SCRUB_TYPE_RMAPBT] = { XHG_AG, XFS_SICK_AG_RMAPBT },
+  [XFS_SCRUB_TYPE_REFCNTBT] = { XHG_AG, XFS_SICK_AG_REFCNTBT },
+  [XFS_SCRUB_TYPE_INODE] = { XHG_INO, XFS_SICK_INO_CORE },
+  [XFS_SCRUB_TYPE_BMBTD] = { XHG_INO, XFS_SICK_INO_BMBTD },
+  [XFS_SCRUB_TYPE_BMBTA] = { XHG_INO, XFS_SICK_INO_BMBTA },
+  [XFS_SCRUB_TYPE_BMBTC] = { XHG_INO, XFS_SICK_INO_BMBTC },
+  [XFS_SCRUB_TYPE_DIR] = { XHG_INO, XFS_SICK_INO_DIR },
+  [XFS_SCRUB_TYPE_XATTR] = { XHG_INO, XFS_SICK_INO_XATTR },
+  [XFS_SCRUB_TYPE_SYMLINK] = { XHG_INO, XFS_SICK_INO_SYMLINK },
+  [XFS_SCRUB_TYPE_PARENT] = { XHG_INO, XFS_SICK_INO_PARENT },
+  [XFS_SCRUB_TYPE_RTBITMAP] = { XHG_RT, XFS_SICK_RT_BITMAP },
+  [XFS_SCRUB_TYPE_RTSUM] = { XHG_RT, XFS_SICK_RT_SUMMARY },
+  [XFS_SCRUB_TYPE_UQUOTA] = { XHG_FS, XFS_SICK_FS_UQUOTA },
+  [XFS_SCRUB_TYPE_GQUOTA] = { XHG_FS, XFS_SICK_FS_GQUOTA },
+  [XFS_SCRUB_TYPE_PQUOTA] = { XHG_FS, XFS_SICK_FS_PQUOTA },
+  [XFS_SCRUB_TYPE_FSCOUNTERS] = { XHG_FS, XFS_SICK_FS_COUNTERS },
+  [XFS_SCRUB_TYPE_QUOTACHECK] = { XHG_FS, XFS_SICK_FS_QUOTACHECK },
+  [XFS_SCRUB_TYPE_NLINKS] = { XHG_FS, XFS_SICK_FS_NLINKS },
 };
 
 /* Return the health status mask for this scrub type. */
-unsigned int
-xchk_health_mask_for_scrub_type(
-	__u32			scrub_type)
-{
-	return type_to_health_flag[scrub_type].sick_mask;
+unsigned int xchk_health_mask_for_scrub_type(
+    __u32 scrub_type) {
+  return type_to_health_flag[scrub_type].sick_mask;
 }
 
 /*
  * If the scrub state is clean, add @mask to the scrub sick mask to clear
  * additional sick flags from the metadata object's sick state.
  */
-void
-xchk_mark_healthy_if_clean(
-	struct xfs_scrub	*sc,
-	unsigned int		mask)
-{
-	if (!(sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
-				  XFS_SCRUB_OFLAG_XCORRUPT)))
-		sc->sick_mask |= mask;
+void xchk_mark_healthy_if_clean(
+    struct xfs_scrub *sc,
+    unsigned int mask) {
+  if (!(sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT
+      | XFS_SCRUB_OFLAG_XCORRUPT))) {
+    sc->sick_mask |= mask;
+  }
 }
 
 /*
@@ -137,17 +134,14 @@ xchk_mark_healthy_if_clean(
  * like it has been zapped?  Skip the check if we just repaired the metadata
  * and are revalidating it.
  */
-bool
-xchk_file_looks_zapped(
-	struct xfs_scrub	*sc,
-	unsigned int		mask)
-{
-	ASSERT((mask & ~XFS_SICK_INO_ZAPPED) == 0);
-
-	if (sc->flags & XREP_ALREADY_FIXED)
-		return false;
-
-	return xfs_inode_has_sickness(sc->ip, mask);
+bool xchk_file_looks_zapped(
+    struct xfs_scrub *sc,
+    unsigned int mask) {
+  ASSERT((mask & ~XFS_SICK_INO_ZAPPED) == 0);
+  if (sc->flags & XREP_ALREADY_FIXED) {
+    return false;
+  }
+  return xfs_inode_has_sickness(sc->ip, mask);
 }
 
 /*
@@ -155,17 +149,14 @@ xchk_file_looks_zapped(
  * markers of past problems (at least for the fs and ags) so that we can be
  * healthy again.
  */
-STATIC void
-xchk_mark_all_healthy(
-	struct xfs_mount	*mp)
-{
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
-
-	xfs_fs_mark_healthy(mp, XFS_SICK_FS_INDIRECT);
-	xfs_rt_mark_healthy(mp, XFS_SICK_RT_INDIRECT);
-	for_each_perag(mp, agno, pag)
-		xfs_ag_mark_healthy(pag, XFS_SICK_AG_INDIRECT);
+STATIC void xchk_mark_all_healthy(
+    struct xfs_mount *mp) {
+  struct xfs_perag *pag;
+  xfs_agnumber_t agno;
+  xfs_fs_mark_healthy(mp, XFS_SICK_FS_INDIRECT);
+  xfs_rt_mark_healthy(mp, XFS_SICK_RT_INDIRECT);
+  for_each_perag(mp, agno, pag)
+  xfs_ag_mark_healthy(pag, XFS_SICK_AG_INDIRECT);
 }
 
 /*
@@ -178,109 +169,107 @@ xchk_mark_all_healthy(
  * Otherwise, no direct corruption was found, so mark whatever's in
  * sick_mask as healthy.
  */
-void
-xchk_update_health(
-	struct xfs_scrub	*sc)
-{
-	struct xfs_perag	*pag;
-	bool			bad;
-
-	/*
-	 * The HEALTHY scrub type is a request from userspace to clear all the
-	 * indirect flags after a clean scan of the entire filesystem.  As such
-	 * there's no sick flag defined for it, so we branch here ahead of the
-	 * mask check.
-	 */
-	if (sc->sm->sm_type == XFS_SCRUB_TYPE_HEALTHY &&
-	    !(sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
-		xchk_mark_all_healthy(sc->mp);
-		return;
-	}
-
-	if (!sc->sick_mask)
-		return;
-
-	bad = (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
-				   XFS_SCRUB_OFLAG_XCORRUPT));
-	switch (type_to_health_flag[sc->sm->sm_type].group) {
-	case XHG_AG:
-		pag = xfs_perag_get(sc->mp, sc->sm->sm_agno);
-		if (bad)
-			xfs_ag_mark_corrupt(pag, sc->sick_mask);
-		else
-			xfs_ag_mark_healthy(pag, sc->sick_mask);
-		xfs_perag_put(pag);
-		break;
-	case XHG_INO:
-		if (!sc->ip)
-			return;
-		if (bad) {
-			unsigned int	mask = sc->sick_mask;
-
-			/*
-			 * If we're coming in for repairs then we don't want
-			 * sickness flags to propagate to the incore health
-			 * status if the inode gets inactivated before we can
-			 * fix it.
-			 */
-			if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
-				mask |= XFS_SICK_INO_FORGET;
-			xfs_inode_mark_corrupt(sc->ip, mask);
-		} else
-			xfs_inode_mark_healthy(sc->ip, sc->sick_mask);
-		break;
-	case XHG_FS:
-		if (bad)
-			xfs_fs_mark_corrupt(sc->mp, sc->sick_mask);
-		else
-			xfs_fs_mark_healthy(sc->mp, sc->sick_mask);
-		break;
-	case XHG_RT:
-		if (bad)
-			xfs_rt_mark_corrupt(sc->mp, sc->sick_mask);
-		else
-			xfs_rt_mark_healthy(sc->mp, sc->sick_mask);
-		break;
-	default:
-		ASSERT(0);
-		break;
-	}
+void xchk_update_health(
+    struct xfs_scrub *sc) {
+  struct xfs_perag *pag;
+  bool bad;
+  /*
+   * The HEALTHY scrub type is a request from userspace to clear all the
+   * indirect flags after a clean scan of the entire filesystem.  As such
+   * there's no sick flag defined for it, so we branch here ahead of the
+   * mask check.
+   */
+  if (sc->sm->sm_type == XFS_SCRUB_TYPE_HEALTHY
+      && !(sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
+    xchk_mark_all_healthy(sc->mp);
+    return;
+  }
+  if (!sc->sick_mask) {
+    return;
+  }
+  bad = (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT
+      | XFS_SCRUB_OFLAG_XCORRUPT));
+  switch (type_to_health_flag[sc->sm->sm_type].group) {
+    case XHG_AG:
+      pag = xfs_perag_get(sc->mp, sc->sm->sm_agno);
+      if (bad) {
+        xfs_ag_mark_corrupt(pag, sc->sick_mask);
+      } else {
+        xfs_ag_mark_healthy(pag, sc->sick_mask);
+      }
+      xfs_perag_put(pag);
+      break;
+    case XHG_INO:
+      if (!sc->ip) {
+        return;
+      }
+      if (bad) {
+        unsigned int mask = sc->sick_mask;
+        /*
+         * If we're coming in for repairs then we don't want
+         * sickness flags to propagate to the incore health
+         * status if the inode gets inactivated before we can
+         * fix it.
+         */
+        if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) {
+          mask |= XFS_SICK_INO_FORGET;
+        }
+        xfs_inode_mark_corrupt(sc->ip, mask);
+      } else {
+        xfs_inode_mark_healthy(sc->ip, sc->sick_mask);
+      }
+      break;
+    case XHG_FS:
+      if (bad) {
+        xfs_fs_mark_corrupt(sc->mp, sc->sick_mask);
+      } else {
+        xfs_fs_mark_healthy(sc->mp, sc->sick_mask);
+      }
+      break;
+    case XHG_RT:
+      if (bad) {
+        xfs_rt_mark_corrupt(sc->mp, sc->sick_mask);
+      } else {
+        xfs_rt_mark_healthy(sc->mp, sc->sick_mask);
+      }
+      break;
+    default:
+      ASSERT(0);
+      break;
+  }
 }
 
 /* Is the given per-AG btree healthy enough for scanning? */
-void
-xchk_ag_btree_del_cursor_if_sick(
-	struct xfs_scrub	*sc,
-	struct xfs_btree_cur	**curp,
-	unsigned int		sm_type)
-{
-	unsigned int		mask = (*curp)->bc_ops->sick_mask;
-
-	/*
-	 * We always want the cursor if it's the same type as whatever we're
-	 * scrubbing, even if we already know the structure is corrupt.
-	 *
-	 * Otherwise, we're only interested in the btree for cross-referencing.
-	 * If we know the btree is bad then don't bother, just set XFAIL.
-	 */
-	if (sc->sm->sm_type == sm_type)
-		return;
-
-	/*
-	 * If we just repaired some AG metadata, sc->sick_mask will reflect all
-	 * the per-AG metadata types that were repaired.  Exclude these from
-	 * the filesystem health query because we have not yet updated the
-	 * health status and we want everything to be scanned.
-	 */
-	if ((sc->flags & XREP_ALREADY_FIXED) &&
-	    type_to_health_flag[sc->sm->sm_type].group == XHG_AG)
-		mask &= ~sc->sick_mask;
-
-	if (xfs_ag_has_sickness((*curp)->bc_ag.pag, mask)) {
-		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XFAIL;
-		xfs_btree_del_cursor(*curp, XFS_BTREE_NOERROR);
-		*curp = NULL;
-	}
+void xchk_ag_btree_del_cursor_if_sick(
+    struct xfs_scrub *sc,
+    struct xfs_btree_cur **curp,
+    unsigned int sm_type) {
+  unsigned int mask = (*curp)->bc_ops->sick_mask;
+  /*
+   * We always want the cursor if it's the same type as whatever we're
+   * scrubbing, even if we already know the structure is corrupt.
+   *
+   * Otherwise, we're only interested in the btree for cross-referencing.
+   * If we know the btree is bad then don't bother, just set XFAIL.
+   */
+  if (sc->sm->sm_type == sm_type) {
+    return;
+  }
+  /*
+   * If we just repaired some AG metadata, sc->sick_mask will reflect all
+   * the per-AG metadata types that were repaired.  Exclude these from
+   * the filesystem health query because we have not yet updated the
+   * health status and we want everything to be scanned.
+   */
+  if ((sc->flags & XREP_ALREADY_FIXED)
+      && type_to_health_flag[sc->sm->sm_type].group == XHG_AG) {
+    mask &= ~sc->sick_mask;
+  }
+  if (xfs_ag_has_sickness((*curp)->bc_ag.pag, mask)) {
+    sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XFAIL;
+    xfs_btree_del_cursor(*curp, XFS_BTREE_NOERROR);
+    *curp = NULL;
+  }
 }
 
 /*
@@ -288,30 +277,26 @@ xchk_ag_btree_del_cursor_if_sick(
  * primary health problems.  If we're still clear, then the health update will
  * take care of clearing the indirect evidence.
  */
-int
-xchk_health_record(
-	struct xfs_scrub	*sc)
-{
-	struct xfs_mount	*mp = sc->mp;
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
-
-	unsigned int		sick;
-	unsigned int		checked;
-
-	xfs_fs_measure_sickness(mp, &sick, &checked);
-	if (sick & XFS_SICK_FS_PRIMARY)
-		xchk_set_corrupt(sc);
-
-	xfs_rt_measure_sickness(mp, &sick, &checked);
-	if (sick & XFS_SICK_RT_PRIMARY)
-		xchk_set_corrupt(sc);
-
-	for_each_perag(mp, agno, pag) {
-		xfs_ag_measure_sickness(pag, &sick, &checked);
-		if (sick & XFS_SICK_AG_PRIMARY)
-			xchk_set_corrupt(sc);
-	}
-
-	return 0;
+int xchk_health_record(
+    struct xfs_scrub *sc) {
+  struct xfs_mount *mp = sc->mp;
+  struct xfs_perag *pag;
+  xfs_agnumber_t agno;
+  unsigned int sick;
+  unsigned int checked;
+  xfs_fs_measure_sickness(mp, &sick, &checked);
+  if (sick & XFS_SICK_FS_PRIMARY) {
+    xchk_set_corrupt(sc);
+  }
+  xfs_rt_measure_sickness(mp, &sick, &checked);
+  if (sick & XFS_SICK_RT_PRIMARY) {
+    xchk_set_corrupt(sc);
+  }
+  for_each_perag(mp, agno, pag) {
+    xfs_ag_measure_sickness(pag, &sick, &checked);
+    if (sick & XFS_SICK_AG_PRIMARY) {
+      xchk_set_corrupt(sc);
+    }
+  }
+  return 0;
 }

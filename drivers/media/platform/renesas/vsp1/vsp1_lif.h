@@ -16,16 +16,15 @@
 
 struct vsp1_device;
 
-#define LIF_PAD_SINK				0
-#define LIF_PAD_SOURCE				1
+#define LIF_PAD_SINK        0
+#define LIF_PAD_SOURCE        1
 
 struct vsp1_lif {
-	struct vsp1_entity entity;
+  struct vsp1_entity entity;
 };
 
-static inline struct vsp1_lif *to_lif(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_lif, entity.subdev);
+static inline struct vsp1_lif *to_lif(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_lif, entity.subdev);
 }
 
 struct vsp1_lif *vsp1_lif_create(struct vsp1_device *vsp1, unsigned int index);

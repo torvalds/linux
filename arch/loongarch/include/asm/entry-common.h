@@ -5,9 +5,9 @@
 #include <linux/sched.h>
 #include <linux/processor.h>
 
-static inline bool on_thread_stack(void)
-{
-	return !(((unsigned long)(current->stack) ^ current_stack_pointer) & ~(THREAD_SIZE - 1));
+static inline bool on_thread_stack(void) {
+  return !(((unsigned long) (current->stack) ^ current_stack_pointer)
+    & ~(THREAD_SIZE - 1));
 }
 
 #endif

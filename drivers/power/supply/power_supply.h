@@ -16,12 +16,15 @@ struct power_supply;
 #ifdef CONFIG_SYSFS
 
 extern void power_supply_init_attrs(void);
-extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
+extern int power_supply_uevent(const struct device *dev,
+    struct kobj_uevent_env *env);
 extern const struct attribute_group *power_supply_attr_groups[];
 
 #else
 
-static inline void power_supply_init_attrs(void) {}
+static inline void power_supply_init_attrs(void) {
+}
+
 #define power_supply_attr_groups NULL
 #define power_supply_uevent NULL
 
@@ -35,9 +38,14 @@ extern void power_supply_remove_triggers(struct power_supply *psy);
 
 #else
 
-static inline void power_supply_update_leds(struct power_supply *psy) {}
-static inline int power_supply_create_triggers(struct power_supply *psy)
-{ return 0; }
-static inline void power_supply_remove_triggers(struct power_supply *psy) {}
+static inline void power_supply_update_leds(struct power_supply *psy) {
+}
+
+static inline int power_supply_create_triggers(struct power_supply *psy) {
+  return 0;
+}
+
+static inline void power_supply_remove_triggers(struct power_supply *psy) {
+}
 
 #endif /* CONFIG_LEDS_TRIGGERS */

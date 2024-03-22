@@ -21,18 +21,17 @@
 
 extern unsigned int ivpu_log_level;
 
-#define IVPU_FW_VERBOSE_BUFFER_SMALL_SIZE	SZ_1M
-#define IVPU_FW_VERBOSE_BUFFER_LARGE_SIZE	SZ_8M
-#define IVPU_FW_CRITICAL_BUFFER_SIZE		SZ_512K
+#define IVPU_FW_VERBOSE_BUFFER_SMALL_SIZE SZ_1M
+#define IVPU_FW_VERBOSE_BUFFER_LARGE_SIZE SZ_8M
+#define IVPU_FW_CRITICAL_BUFFER_SIZE    SZ_512K
 
-void ivpu_fw_log_print(struct ivpu_device *vdev, bool only_new_msgs, struct drm_printer *p);
+void ivpu_fw_log_print(struct ivpu_device *vdev, bool only_new_msgs,
+    struct drm_printer *p);
 void ivpu_fw_log_clear(struct ivpu_device *vdev);
 
-static inline void ivpu_fw_log_dump(struct ivpu_device *vdev)
-{
-	struct drm_printer p = drm_info_printer(vdev->drm.dev);
-
-	ivpu_fw_log_print(vdev, false, &p);
+static inline void ivpu_fw_log_dump(struct ivpu_device *vdev) {
+  struct drm_printer p = drm_info_printer(vdev->drm.dev);
+  ivpu_fw_log_print(vdev, false, &p);
 }
 
 #endif /* __IVPU_FW_LOG_H__ */

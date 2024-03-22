@@ -20,8 +20,8 @@
  * @MT_ALS: Message ID to know the Ambient light info from MP2 FW
  */
 enum sfh_message_type {
-	MT_HPD,
-	MT_ALS,
+  MT_HPD,
+  MT_ALS,
 };
 
 /**
@@ -31,9 +31,9 @@ enum sfh_message_type {
  * @SFH_USER_AWAY: Check if the user is away from HPD sensor
  */
 enum sfh_hpd_info {
-	SFH_NOT_DETECTED,
-	SFH_USER_PRESENT,
-	SFH_USER_AWAY,
+  SFH_NOT_DETECTED,
+  SFH_USER_PRESENT,
+  SFH_USER_AWAY,
 };
 
 /**
@@ -42,8 +42,8 @@ enum sfh_hpd_info {
  * @user_present: Populates the user presence information
  */
 struct amd_sfh_info {
-	u32 ambient_light;
-	u8 user_present;
+  u32 ambient_light;
+  u8 user_present;
 };
 
 int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op);

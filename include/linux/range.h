@@ -4,26 +4,23 @@
 #include <linux/types.h>
 
 struct range {
-	u64   start;
-	u64   end;
+  u64 start;
+  u64 end;
 };
 
-static inline u64 range_len(const struct range *range)
-{
-	return range->end - range->start + 1;
+static inline u64 range_len(const struct range *range) {
+  return range->end - range->start + 1;
 }
 
-static inline bool range_contains(struct range *r1, struct range *r2)
-{
-	return r1->start <= r2->start && r1->end >= r2->end;
+static inline bool range_contains(struct range *r1, struct range *r2) {
+  return r1->start <= r2->start && r1->end >= r2->end;
 }
 
 int add_range(struct range *range, int az, int nr_range,
-		u64 start, u64 end);
-
+    u64 start, u64 end);
 
 int add_range_with_merge(struct range *range, int az, int nr_range,
-				u64 start, u64 end);
+    u64 start, u64 end);
 
 void subtract_range(struct range *range, int az, u64 start, u64 end);
 

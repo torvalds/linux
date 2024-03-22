@@ -11,32 +11,29 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 
-void machine_shutdown(void)
-{
-	pr_notice("Machine shutdown...\n");
-	while (1)
-		;
+void machine_shutdown(void) {
+  pr_notice("Machine shutdown...\n");
+  while (1) {
+  }
 }
 
-void machine_halt(void)
-{
-	pr_notice("Machine halt...\n");
-	while (1)
-		;
+void machine_halt(void) {
+  pr_notice("Machine halt...\n");
+  while (1) {
+  }
 }
 
-void machine_power_off(void)
-{
-	pr_notice("Machine power off...\n");
-	while (1)
-		;
+void machine_power_off(void) {
+  pr_notice("Machine power off...\n");
+  while (1) {
+  }
 }
 
-void machine_restart(char *cmd)
-{
-	do_kernel_restart(cmd);
-	/* Give the restart hook 1 s to take us down */
-	mdelay(1000);
-	pr_emerg("Reboot failed -- System halted\n");
-	while (1);
+void machine_restart(char *cmd) {
+  do_kernel_restart(cmd);
+  /* Give the restart hook 1 s to take us down */
+  mdelay(1000);
+  pr_emerg("Reboot failed -- System halted\n");
+  while (1) {
+  }
 }

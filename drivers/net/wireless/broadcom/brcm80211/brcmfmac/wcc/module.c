@@ -9,18 +9,17 @@
 
 #include "vops.h"
 
-static int __init brcmf_wcc_init(void)
-{
-	return brcmf_fwvid_register_vendor(BRCMF_FWVENDOR_WCC, THIS_MODULE,
-					   &brcmf_wcc_ops);
+static int __init brcmf_wcc_init(void) {
+  return brcmf_fwvid_register_vendor(BRCMF_FWVENDOR_WCC, THIS_MODULE,
+      &brcmf_wcc_ops);
 }
 
-static void __exit brcmf_wcc_exit(void)
-{
-	brcmf_fwvid_unregister_vendor(BRCMF_FWVENDOR_WCC, THIS_MODULE);
+static void __exit brcmf_wcc_exit(void) {
+  brcmf_fwvid_unregister_vendor(BRCMF_FWVENDOR_WCC, THIS_MODULE);
 }
 
-MODULE_DESCRIPTION("Broadcom FullMAC WLAN driver plugin for Broadcom mobility chipsets");
+MODULE_DESCRIPTION(
+    "Broadcom FullMAC WLAN driver plugin for Broadcom mobility chipsets");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_IMPORT_NS(BRCMFMAC);
 

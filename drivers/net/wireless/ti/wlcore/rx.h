@@ -16,8 +16,8 @@
 #define WL1271_RX_MAX_RSSI -30
 #define WL1271_RX_MIN_RSSI -95
 
-#define RSSI_LEVEL_BITMASK	0x7F
-#define ANT_DIVERSITY_BITMASK	BIT(7)
+#define RSSI_LEVEL_BITMASK  0x7F
+#define ANT_DIVERSITY_BITMASK BIT(7)
 
 #define SHORT_PREAMBLE_BIT   BIT(0)
 #define OFDM_RATE_BIT        BIT(6)
@@ -38,8 +38,8 @@
 #define RX_DESC_ENCRYPTION_MASK   0x0300
 #define RX_DESC_MEASURMENT        0x0400
 #define RX_DESC_SEQNUM_MASK       0x1800
-#define	RX_DESC_MIC_FAIL	  0x2000
-#define	RX_DESC_DECRYPT_FAIL	  0x4000
+#define RX_DESC_MIC_FAIL    0x2000
+#define RX_DESC_DECRYPT_FAIL    0x4000
 
 /*
  * RX Descriptor flags:
@@ -99,43 +99,43 @@
 
 /* Describes the alignment state of a Rx buffer */
 enum wl_rx_buf_align {
-	WLCORE_RX_BUF_ALIGNED,
-	WLCORE_RX_BUF_UNALIGNED,
-	WLCORE_RX_BUF_PADDED,
+  WLCORE_RX_BUF_ALIGNED,
+  WLCORE_RX_BUF_UNALIGNED,
+  WLCORE_RX_BUF_PADDED,
 };
 
 enum {
-	WL12XX_RX_CLASS_UNKNOWN,
-	WL12XX_RX_CLASS_MANAGEMENT,
-	WL12XX_RX_CLASS_DATA,
-	WL12XX_RX_CLASS_QOS_DATA,
-	WL12XX_RX_CLASS_BCN_PRBRSP,
-	WL12XX_RX_CLASS_EAPOL,
-	WL12XX_RX_CLASS_BA_EVENT,
-	WL12XX_RX_CLASS_AMSDU,
-	WL12XX_RX_CLASS_LOGGER,
+  WL12XX_RX_CLASS_UNKNOWN,
+  WL12XX_RX_CLASS_MANAGEMENT,
+  WL12XX_RX_CLASS_DATA,
+  WL12XX_RX_CLASS_QOS_DATA,
+  WL12XX_RX_CLASS_BCN_PRBRSP,
+  WL12XX_RX_CLASS_EAPOL,
+  WL12XX_RX_CLASS_BA_EVENT,
+  WL12XX_RX_CLASS_AMSDU,
+  WL12XX_RX_CLASS_LOGGER,
 };
 
 struct wl1271_rx_descriptor {
-	__le16 length;
-	u8  status;
-	u8  flags;
-	u8  rate;
-	u8  channel;
-	s8  rssi;
-	u8  snr;
-	__le32 timestamp;
-	u8  packet_class;
-	u8  hlid;
-	u8  pad_len;
-	u8  reserved;
+  __le16 length;
+  u8 status;
+  u8 flags;
+  u8 rate;
+  u8 channel;
+  s8 rssi;
+  u8 snr;
+  __le32 timestamp;
+  u8 packet_class;
+  u8 hlid;
+  u8 pad_len;
+  u8 reserved;
 } __packed;
 
 int wlcore_rx(struct wl1271 *wl, struct wl_fw_status *status);
 u8 wl1271_rate_to_idx(int rate, enum nl80211_band band);
 int wl1271_rx_filter_enable(struct wl1271 *wl,
-			    int index, bool enable,
-			    struct wl12xx_rx_filter *filter);
+    int index, bool enable,
+    struct wl12xx_rx_filter *filter);
 int wl1271_rx_filter_clear_all(struct wl1271 *wl);
 
 #endif

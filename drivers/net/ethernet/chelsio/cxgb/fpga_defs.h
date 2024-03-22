@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* $Date: 2005/03/07 23:59:05 $ $RCSfile: fpga_defs.h,v $ $Revision: 1.4 $ */
+/* SPDX-License-Identifier: GPL-2.0
+ * $Date: 2005/03/07 23:59:05 $ $RCSfile: fpga_defs.h,v $ $Revision: 1.4 $*/
 
 /*
  * FPGA specific definitions
@@ -99,9 +99,9 @@
 #define A_MI0_DATA_INT 0xb10
 
 /* GMAC registers */
-#define A_GMAC_MACID_LO	0x28
-#define A_GMAC_MACID_HI	0x2c
-#define A_GMAC_CSR	0x30
+#define A_GMAC_MACID_LO 0x28
+#define A_GMAC_MACID_HI 0x2c
+#define A_GMAC_CSR  0x30
 
 #define S_INTERFACE    0
 #define M_INTERFACE    0x3
@@ -204,12 +204,14 @@
 #define S_TXF_READ_THRESHOLD    0
 #define M_TXF_READ_THRESHOLD    0xff
 #define V_TXF_READ_THRESHOLD(x) ((x) << S_TXF_READ_THRESHOLD)
-#define G_TXF_READ_THRESHOLD(x) (((x) >> S_TXF_READ_THRESHOLD) & M_TXF_READ_THRESHOLD)
+#define G_TXF_READ_THRESHOLD(x) (((x) >> \
+  S_TXF_READ_THRESHOLD) & M_TXF_READ_THRESHOLD)
 
 #define S_TXF_WRITE_THRESHOLD    16
 #define M_TXF_WRITE_THRESHOLD    0xff
 #define V_TXF_WRITE_THRESHOLD(x) ((x) << S_TXF_WRITE_THRESHOLD)
-#define G_TXF_WRITE_THRESHOLD(x) (((x) >> S_TXF_WRITE_THRESHOLD) & M_TXF_WRITE_THRESHOLD)
+#define G_TXF_WRITE_THRESHOLD(x) (((x) >> \
+  S_TXF_WRITE_THRESHOLD) & M_TXF_WRITE_THRESHOLD)
 
 #define MAC_REG_BASE 0x600
 #define MAC_REG_ADDR(idx, reg) (MAC_REG_BASE + (idx) * 128 + (reg))

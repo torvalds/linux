@@ -14,7 +14,8 @@
  * 3. Neither the name of IBM nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
+ * AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL IBM OR CONTRIBUTORS BE LIABLE
@@ -31,34 +32,34 @@
 #include <linux/virtio_config.h>
 
 /* The feature bitmap for virtio balloon */
-#define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
-#define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
-#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-#define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
-#define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
-#define VIRTIO_BALLOON_F_REPORTING	5 /* Page reporting virtqueue */
+#define VIRTIO_BALLOON_F_MUST_TELL_HOST 0 /* Tell before reclaiming pages */
+#define VIRTIO_BALLOON_F_STATS_VQ 1 /* Memory Stats virtqueue */
+#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM 2 /* Deflate balloon on OOM */
+#define VIRTIO_BALLOON_F_FREE_PAGE_HINT 3 /* VQ to report free pages */
+#define VIRTIO_BALLOON_F_PAGE_POISON  4 /* Guest is using page poisoning */
+#define VIRTIO_BALLOON_F_REPORTING  5 /* Page reporting virtqueue */
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
 
-#define VIRTIO_BALLOON_CMD_ID_STOP	0
-#define VIRTIO_BALLOON_CMD_ID_DONE	1
+#define VIRTIO_BALLOON_CMD_ID_STOP  0
+#define VIRTIO_BALLOON_CMD_ID_DONE  1
 struct virtio_balloon_config {
-	/* Number of pages host wants Guest to give up. */
-	__le32 num_pages;
-	/* Number of pages we've actually got in balloon. */
-	__le32 actual;
-	/*
-	 * Free page hint command id, readonly by guest.
-	 * Was previously named free_page_report_cmd_id so we
-	 * need to carry that name for legacy support.
-	 */
-	union {
-		__le32 free_page_hint_cmd_id;
-		__le32 free_page_report_cmd_id;	/* deprecated */
-	};
-	/* Stores PAGE_POISON if page poisoning is in use */
-	__le32 poison_val;
+  /* Number of pages host wants Guest to give up. */
+  __le32 num_pages;
+  /* Number of pages we've actually got in balloon. */
+  __le32 actual;
+  /*
+   * Free page hint command id, readonly by guest.
+   * Was previously named free_page_report_cmd_id so we
+   * need to carry that name for legacy support.
+   */
+  union {
+    __le32 free_page_hint_cmd_id;
+    __le32 free_page_report_cmd_id; /* deprecated */
+  };
+  /* Stores PAGE_POISON if page poisoning is in use */
+  __le32 poison_val;
 };
 
 #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
@@ -74,16 +75,16 @@ struct virtio_balloon_config {
 #define VIRTIO_BALLOON_S_NR       10
 
 #define VIRTIO_BALLOON_S_NAMES_WITH_PREFIX(VIRTIO_BALLOON_S_NAMES_prefix) { \
-	VIRTIO_BALLOON_S_NAMES_prefix "swap-in", \
-	VIRTIO_BALLOON_S_NAMES_prefix "swap-out", \
-	VIRTIO_BALLOON_S_NAMES_prefix "major-faults", \
-	VIRTIO_BALLOON_S_NAMES_prefix "minor-faults", \
-	VIRTIO_BALLOON_S_NAMES_prefix "free-memory", \
-	VIRTIO_BALLOON_S_NAMES_prefix "total-memory", \
-	VIRTIO_BALLOON_S_NAMES_prefix "available-memory", \
-	VIRTIO_BALLOON_S_NAMES_prefix "disk-caches", \
-	VIRTIO_BALLOON_S_NAMES_prefix "hugetlb-allocations", \
-	VIRTIO_BALLOON_S_NAMES_prefix "hugetlb-failures" \
+    VIRTIO_BALLOON_S_NAMES_prefix "swap-in", \
+    VIRTIO_BALLOON_S_NAMES_prefix "swap-out", \
+    VIRTIO_BALLOON_S_NAMES_prefix "major-faults", \
+    VIRTIO_BALLOON_S_NAMES_prefix "minor-faults", \
+    VIRTIO_BALLOON_S_NAMES_prefix "free-memory", \
+    VIRTIO_BALLOON_S_NAMES_prefix "total-memory", \
+    VIRTIO_BALLOON_S_NAMES_prefix "available-memory", \
+    VIRTIO_BALLOON_S_NAMES_prefix "disk-caches", \
+    VIRTIO_BALLOON_S_NAMES_prefix "hugetlb-allocations", \
+    VIRTIO_BALLOON_S_NAMES_prefix "hugetlb-failures" \
 }
 
 #define VIRTIO_BALLOON_S_NAMES VIRTIO_BALLOON_S_NAMES_WITH_PREFIX("")
@@ -112,8 +113,8 @@ struct virtio_balloon_config {
  * without the packed attribute.
  */
 struct virtio_balloon_stat {
-	__virtio16 tag;
-	__virtio64 val;
+  __virtio16 tag;
+  __virtio64 val;
 } __attribute__((packed));
 
 #endif /* _LINUX_VIRTIO_BALLOON_H */

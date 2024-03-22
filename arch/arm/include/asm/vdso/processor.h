@@ -8,13 +8,13 @@
 #ifndef __ASSEMBLY__
 
 #if __LINUX_ARM_ARCH__ == 6 || defined(CONFIG_ARM_ERRATA_754327)
-#define cpu_relax()						\
-	do {							\
-		smp_mb();					\
-		__asm__ __volatile__("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;");	\
-	} while (0)
+#define cpu_relax()           \
+  do {              \
+    smp_mb();         \
+    __asm__ __volatile__ ("nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;");  \
+  } while (0)
 #else
-#define cpu_relax()			barrier()
+#define cpu_relax()     barrier()
 #endif
 
 #endif /* __ASSEMBLY__ */

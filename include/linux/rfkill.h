@@ -22,9 +22,9 @@
 
 /* don't allow anyone to use these in the kernel */
 enum rfkill_user_states {
-	RFKILL_USER_STATE_SOFT_BLOCKED	= RFKILL_STATE_SOFT_BLOCKED,
-	RFKILL_USER_STATE_UNBLOCKED	= RFKILL_STATE_UNBLOCKED,
-	RFKILL_USER_STATE_HARD_BLOCKED	= RFKILL_STATE_HARD_BLOCKED,
+  RFKILL_USER_STATE_SOFT_BLOCKED = RFKILL_STATE_SOFT_BLOCKED,
+  RFKILL_USER_STATE_UNBLOCKED = RFKILL_STATE_UNBLOCKED,
+  RFKILL_USER_STATE_HARD_BLOCKED = RFKILL_STATE_HARD_BLOCKED,
 };
 #undef RFKILL_STATE_SOFT_BLOCKED
 #undef RFKILL_STATE_UNBLOCKED
@@ -44,24 +44,24 @@ struct rfkill;
  * struct rfkill_ops - rfkill driver methods
  *
  * @poll: poll the rfkill block state(s) -- only assign this method
- *	when you need polling. When called, simply call one of the
- *	rfkill_set{,_hw,_sw}_state family of functions. If the hw
- *	is getting unblocked you need to take into account the return
- *	value of those functions to make sure the software block is
- *	properly used.
+ *  when you need polling. When called, simply call one of the
+ *  rfkill_set{,_hw,_sw}_state family of functions. If the hw
+ *  is getting unblocked you need to take into account the return
+ *  value of those functions to make sure the software block is
+ *  properly used.
  * @query: query the rfkill block state(s) and call exactly one of the
- *	rfkill_set{,_hw,_sw}_state family of functions. Assign this
- *	method if input events can cause hardware state changes to make
- *	the rfkill core query your driver before setting a requested
- *	block.
+ *  rfkill_set{,_hw,_sw}_state family of functions. Assign this
+ *  method if input events can cause hardware state changes to make
+ *  the rfkill core query your driver before setting a requested
+ *  block.
  * @set_block: turn the transmitter on (blocked == false) or off
- *	(blocked == true) -- ignore and return 0 when hard blocked.
- *	This callback must be assigned.
+ *  (blocked == true) -- ignore and return 0 when hard blocked.
+ *  This callback must be assigned.
  */
 struct rfkill_ops {
-	void	(*poll)(struct rfkill *rfkill, void *data);
-	void	(*query)(struct rfkill *rfkill, void *data);
-	int	(*set_block)(void *data, bool blocked);
+  void (*poll)(struct rfkill *rfkill, void *data);
+  void (*query)(struct rfkill *rfkill, void *data);
+  int (*set_block)(void *data, bool blocked);
 };
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
@@ -76,11 +76,11 @@ struct rfkill_ops {
  * This function should be called by the transmitter driver to allocate an
  * rfkill structure. Returns %NULL on failure.
  */
-struct rfkill * __must_check rfkill_alloc(const char *name,
-					  struct device *parent,
-					  const enum rfkill_type type,
-					  const struct rfkill_ops *ops,
-					  void *ops_data);
+struct rfkill *__must_check rfkill_alloc(const char *name,
+    struct device *parent,
+    const enum rfkill_type type,
+    const struct rfkill_ops *ops,
+    void *ops_data);
 
 /**
  * rfkill_register - Register a rfkill structure.
@@ -118,7 +118,6 @@ void rfkill_pause_polling(struct rfkill *rfkill);
  */
 void rfkill_resume_polling(struct rfkill *rfkill);
 
-
 /**
  * rfkill_unregister - Unregister a rfkill structure.
  * @rfkill: rfkill structure to be unregistered
@@ -139,7 +138,7 @@ void rfkill_destroy(struct rfkill *rfkill);
 
 /**
  * rfkill_set_hw_state_reason - Set the internal rfkill hardware block state
- *	with a reason
+ *  with a reason
  * @rfkill: pointer to the rfkill class to modify.
  * @blocked: the current hardware block state to set
  * @reason: one of &enum rfkill_hard_block_reasons
@@ -147,7 +146,7 @@ void rfkill_destroy(struct rfkill *rfkill);
  * Prefer to use rfkill_set_hw_state if you don't need any special reason.
  */
 bool rfkill_set_hw_state_reason(struct rfkill *rfkill,
-				bool blocked, unsigned long reason);
+    bool blocked, unsigned long reason);
 /**
  * rfkill_set_hw_state - Set the internal rfkill hardware block state
  * @rfkill: pointer to the rfkill class to modify.
@@ -167,10 +166,9 @@ bool rfkill_set_hw_state_reason(struct rfkill *rfkill,
  * should be blocked) so that drivers need not keep track of the soft
  * block state -- which they might not be able to.
  */
-static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
-{
-	return rfkill_set_hw_state_reason(rfkill, blocked,
-					  RFKILL_HARD_BLOCK_SIGNAL);
+static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked) {
+  return rfkill_set_hw_state_reason(rfkill, blocked,
+      RFKILL_HARD_BLOCK_SIGNAL);
 }
 
 /**
@@ -245,81 +243,66 @@ bool rfkill_soft_blocked(struct rfkill *rfkill);
 enum rfkill_type rfkill_find_type(const char *name);
 
 #else /* !RFKILL */
-static inline struct rfkill * __must_check
-rfkill_alloc(const char *name,
-	     struct device *parent,
-	     const enum rfkill_type type,
-	     const struct rfkill_ops *ops,
-	     void *ops_data)
-{
-	return ERR_PTR(-ENODEV);
+static inline struct rfkill *__must_check rfkill_alloc(const char *name,
+    struct device *parent,
+    const enum rfkill_type type,
+    const struct rfkill_ops *ops,
+    void *ops_data) {
+  return ERR_PTR(-ENODEV);
 }
 
-static inline int __must_check rfkill_register(struct rfkill *rfkill)
-{
-	if (rfkill == ERR_PTR(-ENODEV))
-		return 0;
-	return -EINVAL;
+static inline int __must_check rfkill_register(struct rfkill *rfkill) {
+  if (rfkill == ERR_PTR(-ENODEV)) {
+    return 0;
+  }
+  return -EINVAL;
 }
 
-static inline void rfkill_pause_polling(struct rfkill *rfkill)
-{
+static inline void rfkill_pause_polling(struct rfkill *rfkill) {
 }
 
-static inline void rfkill_resume_polling(struct rfkill *rfkill)
-{
+static inline void rfkill_resume_polling(struct rfkill *rfkill) {
 }
 
-static inline void rfkill_unregister(struct rfkill *rfkill)
-{
+static inline void rfkill_unregister(struct rfkill *rfkill) {
 }
 
-static inline void rfkill_destroy(struct rfkill *rfkill)
-{
+static inline void rfkill_destroy(struct rfkill *rfkill) {
 }
 
 static inline bool rfkill_set_hw_state_reason(struct rfkill *rfkill,
-					      bool blocked,
-					      unsigned long reason)
-{
-	return blocked;
+    bool blocked,
+    unsigned long reason) {
+  return blocked;
 }
 
-static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
-{
-	return blocked;
+static inline bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked) {
+  return blocked;
 }
 
-static inline bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked)
-{
-	return blocked;
+static inline bool rfkill_set_sw_state(struct rfkill *rfkill, bool blocked) {
+  return blocked;
 }
 
-static inline void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked)
-{
+static inline void rfkill_init_sw_state(struct rfkill *rfkill, bool blocked) {
 }
 
-static inline void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw)
-{
+static inline void rfkill_set_states(struct rfkill *rfkill, bool sw, bool hw) {
 }
 
-static inline bool rfkill_blocked(struct rfkill *rfkill)
-{
-	return false;
+static inline bool rfkill_blocked(struct rfkill *rfkill) {
+  return false;
 }
 
-static inline bool rfkill_soft_blocked(struct rfkill *rfkill)
-{
-	return false;
+static inline bool rfkill_soft_blocked(struct rfkill *rfkill) {
+  return false;
 }
 
-static inline enum rfkill_type rfkill_find_type(const char *name)
-{
-	return RFKILL_TYPE_ALL;
+static inline enum rfkill_type rfkill_find_type(const char *name) {
+  return RFKILL_TYPE_ALL;
 }
 
 #endif /* RFKILL || RFKILL_MODULE */
-
 
 #ifdef CONFIG_RFKILL_LEDS
 /**
@@ -340,15 +323,14 @@ const char *rfkill_get_led_trigger_name(struct rfkill *rfkill);
  */
 void rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name);
 #else
-static inline const char *rfkill_get_led_trigger_name(struct rfkill *rfkill)
-{
-	return NULL;
+static inline const char *rfkill_get_led_trigger_name(struct rfkill *rfkill) {
+  return NULL;
 }
 
-static inline void
-rfkill_set_led_trigger_name(struct rfkill *rfkill, const char *name)
-{
+static inline void rfkill_set_led_trigger_name(struct rfkill *rfkill,
+    const char *name) {
 }
+
 #endif
 
 #endif /* RFKILL_H */

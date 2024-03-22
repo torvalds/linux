@@ -29,9 +29,9 @@ struct call_path;
  *                       symbol
  */
 enum {
-	CALL_RETURN_NO_CALL	= 1 << 0,
-	CALL_RETURN_NO_RETURN	= 1 << 1,
-	CALL_RETURN_NON_CALL	= 1 << 2,
+  CALL_RETURN_NO_CALL = 1 << 0,
+  CALL_RETURN_NO_RETURN = 1 << 1,
+  CALL_RETURN_NON_CALL = 1 << 2,
 };
 
 /**
@@ -51,19 +51,19 @@ enum {
  * @flags: Call/Return flags
  */
 struct call_return {
-	struct thread *thread;
-	struct comm *comm;
-	struct call_path *cp;
-	u64 call_time;
-	u64 return_time;
-	u64 branch_count;
-	u64 insn_count;
-	u64 cyc_count;
-	u64 call_ref;
-	u64 return_ref;
-	u64 db_id;
-	u64 parent_db_id;
-	u32 flags;
+  struct thread *thread;
+  struct comm *comm;
+  struct call_path *cp;
+  u64 call_time;
+  u64 return_time;
+  u64 branch_count;
+  u64 insn_count;
+  u64 cyc_count;
+  u64 call_ref;
+  u64 return_ref;
+  u64 db_id;
+  u64 parent_db_id;
+  u32 flags;
 };
 
 /**
@@ -74,37 +74,38 @@ struct call_return {
  * @data: anonymous data for call-back
  */
 struct call_return_processor {
-	struct call_path_root *cpr;
-	int (*process)(struct call_return *cr, u64 *parent_db_id, void *data);
-	void *data;
+  struct call_path_root *cpr;
+  int (*process)(struct call_return *cr, u64 *parent_db_id, void *data);
+  void *data;
 };
 
 int thread_stack__event(struct thread *thread, int cpu, u32 flags, u64 from_ip,
-			u64 to_ip, u16 insn_len, u64 trace_nr, bool callstack,
-			unsigned int br_stack_sz, bool mispred_all);
+    u64 to_ip, u16 insn_len, u64 trace_nr, bool callstack,
+    unsigned int br_stack_sz, bool mispred_all);
 void thread_stack__set_trace_nr(struct thread *thread, int cpu, u64 trace_nr);
-void thread_stack__sample(struct thread *thread, int cpu, struct ip_callchain *chain,
-			  size_t sz, u64 ip, u64 kernel_start);
+void thread_stack__sample(struct thread *thread, int cpu,
+    struct ip_callchain *chain,
+    size_t sz, u64 ip, u64 kernel_start);
 void thread_stack__sample_late(struct thread *thread, int cpu,
-			       struct ip_callchain *chain, size_t sz, u64 ip,
-			       u64 kernel_start);
+    struct ip_callchain *chain, size_t sz, u64 ip,
+    u64 kernel_start);
 void thread_stack__br_sample(struct thread *thread, int cpu,
-			     struct branch_stack *dst, unsigned int sz);
+    struct branch_stack *dst, unsigned int sz);
 void thread_stack__br_sample_late(struct thread *thread, int cpu,
-				  struct branch_stack *dst, unsigned int sz,
-				  u64 sample_ip, u64 kernel_start);
+    struct branch_stack *dst, unsigned int sz,
+    u64 sample_ip, u64 kernel_start);
 int thread_stack__flush(struct thread *thread);
 void thread_stack__free(struct thread *thread);
 size_t thread_stack__depth(struct thread *thread, int cpu);
 
-struct call_return_processor *
-call_return_processor__new(int (*process)(struct call_return *cr, u64 *parent_db_id, void *data),
-			   void *data);
+struct call_return_processor *call_return_processor__new(int (*process)(
+    struct call_return *cr, u64 *parent_db_id, void *data),
+    void *data);
 void call_return_processor__free(struct call_return_processor *crp);
 int thread_stack__process(struct thread *thread, struct comm *comm,
-			  struct perf_sample *sample,
-			  struct addr_location *from_al,
-			  struct addr_location *to_al, u64 ref,
-			  struct call_return_processor *crp);
+    struct perf_sample *sample,
+    struct addr_location *from_al,
+    struct addr_location *to_al, u64 ref,
+    struct call_return_processor *crp);
 
 #endif

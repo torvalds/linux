@@ -15,35 +15,35 @@
 #include <linux/nvmem-consumer.h>
 
 struct mdio_platform_data {
-	unsigned long		bus_freq;
+  unsigned long bus_freq;
 };
 
 struct emac_platform_data {
-	char mac_addr[ETH_ALEN];
-	u32 ctrl_reg_offset;
-	u32 ctrl_mod_reg_offset;
-	u32 ctrl_ram_offset;
-	u32 hw_ram_addr;
-	u32 ctrl_ram_size;
+  char mac_addr[ETH_ALEN];
+  u32 ctrl_reg_offset;
+  u32 ctrl_mod_reg_offset;
+  u32 ctrl_ram_offset;
+  u32 hw_ram_addr;
+  u32 ctrl_ram_size;
 
-	/*
-	 * phy_id can be one of the following:
-	 *   - NULL		: use the first phy on the bus,
-	 *   - ""		: force to 100/full, no mdio control
-	 *   - "<bus>:<addr>"	: use the specified bus and phy
-	 */
-	const char *phy_id;
+  /*
+   * phy_id can be one of the following:
+   *   - NULL   : use the first phy on the bus,
+   *   - ""   : force to 100/full, no mdio control
+   *   - "<bus>:<addr>" : use the specified bus and phy
+   */
+  const char *phy_id;
 
-	u8 rmii_en;
-	u8 version;
-	bool no_bd_ram;
-	void (*interrupt_enable) (void);
-	void (*interrupt_disable) (void);
+  u8 rmii_en;
+  u8 version;
+  bool no_bd_ram;
+  void (*interrupt_enable)(void);
+  void (*interrupt_disable)(void);
 };
 
 enum {
-	EMAC_VERSION_1,	/* DM644x */
-	EMAC_VERSION_2,	/* DM646x */
+  EMAC_VERSION_1, /* DM644x */
+  EMAC_VERSION_2, /* DM646x */
 };
 
 #endif

@@ -25,14 +25,14 @@ struct mei_dma_data;
  * @MEI_HBM_STOPPED : stopping exchange
  */
 enum mei_hbm_state {
-	MEI_HBM_IDLE = 0,
-	MEI_HBM_STARTING,
-	MEI_HBM_CAP_SETUP,
-	MEI_HBM_DR_SETUP,
-	MEI_HBM_ENUM_CLIENTS,
-	MEI_HBM_CLIENT_PROPERTIES,
-	MEI_HBM_STARTED,
-	MEI_HBM_STOPPED,
+  MEI_HBM_IDLE = 0,
+  MEI_HBM_STARTING,
+  MEI_HBM_CAP_SETUP,
+  MEI_HBM_DR_SETUP,
+  MEI_HBM_ENUM_CLIENTS,
+  MEI_HBM_CLIENT_PROPERTIES,
+  MEI_HBM_STARTED,
+  MEI_HBM_STOPPED,
 };
 
 const char *mei_hbm_state_str(enum mei_hbm_state state);
@@ -51,8 +51,7 @@ bool mei_hbm_version_is_supported(struct mei_device *dev);
 int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd);
 void mei_hbm_pg_resume(struct mei_device *dev);
 int mei_hbm_cl_notify_req(struct mei_device *dev,
-			  struct mei_cl *cl, u8 request);
+    struct mei_cl *cl, u8 request);
 int mei_hbm_cl_dma_map_req(struct mei_device *dev, struct mei_cl *cl);
 int mei_hbm_cl_dma_unmap_req(struct mei_device *dev, struct mei_cl *cl);
 #endif /* _MEI_HBM_H_ */
-

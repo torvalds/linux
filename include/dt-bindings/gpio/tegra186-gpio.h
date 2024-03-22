@@ -39,7 +39,7 @@
 #define TEGRA186_MAIN_GPIO_PORT_CC 22
 
 #define TEGRA186_MAIN_GPIO(port, offset) \
-	((TEGRA186_MAIN_GPIO_PORT_##port * 8) + offset)
+  ((TEGRA186_MAIN_GPIO_PORT_ ## port * 8) + offset)
 
 /* GPIOs implemented by AON GPIO controller */
 #define TEGRA186_AON_GPIO_PORT_S 0
@@ -52,6 +52,6 @@
 #define TEGRA186_AON_GPIO_PORT_FF 7
 
 #define TEGRA186_AON_GPIO(port, offset) \
-	((TEGRA186_AON_GPIO_PORT_##port * 8) + offset)
+  ((TEGRA186_AON_GPIO_PORT_ ## port * 8) + offset)
 
 #endif

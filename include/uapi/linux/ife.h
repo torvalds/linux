@@ -5,12 +5,12 @@
 #define IFE_METAHDRLEN 2
 
 enum {
-	IFE_META_SKBMARK = 1,
-	IFE_META_HASHID,
-	IFE_META_PRIO,
-	IFE_META_QMAP,
-	IFE_META_TCINDEX,
-	__IFE_META_MAX
+  IFE_META_SKBMARK = 1,
+  IFE_META_HASHID,
+  IFE_META_PRIO,
+  IFE_META_QMAP,
+  IFE_META_TCINDEX,
+  __IFE_META_MAX
 };
 
 /*Can be overridden at runtime by module option*/

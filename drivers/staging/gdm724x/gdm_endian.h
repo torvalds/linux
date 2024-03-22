@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.*/
 
 #ifndef __GDM_ENDIAN_H__
 #define __GDM_ENDIAN_H__
@@ -14,12 +14,12 @@ typedef __u32 __bitwise __dev32;
 typedef __u16 __bitwise __dev16;
 
 enum {
-	ENDIANNESS_MIN = 0,
-	ENDIANNESS_UNKNOWN,
-	ENDIANNESS_LITTLE,
-	ENDIANNESS_BIG,
-	ENDIANNESS_MIDDLE,
-	ENDIANNESS_MAX
+  ENDIANNESS_MIN = 0,
+  ENDIANNESS_UNKNOWN,
+  ENDIANNESS_LITTLE,
+  ENDIANNESS_BIG,
+  ENDIANNESS_MIDDLE,
+  ENDIANNESS_MAX
 };
 
 __dev16 gdm_cpu_to_dev16(u8 dev_ed, u16 x);

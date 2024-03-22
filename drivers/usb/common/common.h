@@ -7,8 +7,12 @@
 void ledtrig_usb_init(void);
 void ledtrig_usb_exit(void);
 #else
-static inline void ledtrig_usb_init(void) { }
-static inline void ledtrig_usb_exit(void) { }
+static inline void ledtrig_usb_init(void) {
+}
+
+static inline void ledtrig_usb_exit(void) {
+}
+
 #endif
 
-#endif	/* __LINUX_USB_COMMON_H */
+#endif  /* __LINUX_USB_COMMON_H */

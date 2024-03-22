@@ -15,16 +15,16 @@
 
 /* Source clocks for McBSP sample rate generator */
 enum omap_mcbsp_clksrg_clk {
-	OMAP_MCBSP_SYSCLK_CLKS_FCLK,	/* Internal FCLK */
-	OMAP_MCBSP_SYSCLK_CLKS_EXT,	/* External CLKS pin */
-	OMAP_MCBSP_SYSCLK_CLK,		/* Internal ICLK */
-	OMAP_MCBSP_SYSCLK_CLKX_EXT,	/* External CLKX pin */
-	OMAP_MCBSP_SYSCLK_CLKR_EXT,	/* External CLKR pin */
+  OMAP_MCBSP_SYSCLK_CLKS_FCLK,  /* Internal FCLK */
+  OMAP_MCBSP_SYSCLK_CLKS_EXT, /* External CLKS pin */
+  OMAP_MCBSP_SYSCLK_CLK,    /* Internal ICLK */
+  OMAP_MCBSP_SYSCLK_CLKX_EXT, /* External CLKX pin */
+  OMAP_MCBSP_SYSCLK_CLKR_EXT, /* External CLKR pin */
 };
 
 /* McBSP dividers */
 enum omap_mcbsp_div {
-	OMAP_MCBSP_CLKGDV,		/* Sample rate generator divider */
+  OMAP_MCBSP_CLKGDV,    /* Sample rate generator divider */
 };
 
 int omap_mcbsp_st_add_controls(struct snd_soc_pcm_runtime *rtd, int port_id);

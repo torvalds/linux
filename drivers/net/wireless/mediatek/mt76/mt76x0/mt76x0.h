@@ -20,25 +20,23 @@
 #include "../mt76x02.h"
 #include "eeprom.h"
 
-#define MT7610E_FIRMWARE		"mediatek/mt7610e.bin"
-#define MT7650E_FIRMWARE		"mediatek/mt7650e.bin"
+#define MT7610E_FIRMWARE    "mediatek/mt7610e.bin"
+#define MT7650E_FIRMWARE    "mediatek/mt7650e.bin"
 
-#define MT7610U_FIRMWARE		"mediatek/mt7610u.bin"
+#define MT7610U_FIRMWARE    "mediatek/mt7610u.bin"
 
-#define MT_USB_AGGR_SIZE_LIMIT		21 /* * 1024B */
-#define MT_USB_AGGR_TIMEOUT		0x80 /* * 33ns */
+#define MT_USB_AGGR_SIZE_LIMIT    21 /* * 1024B */
+#define MT_USB_AGGR_TIMEOUT   0x80 /* * 33ns */
 
-static inline bool is_mt7610e(struct mt76x02_dev *dev)
-{
-	if (!mt76_is_mmio(&dev->mt76))
-		return false;
-
-	return mt76_chip(&dev->mt76) == 0x7610;
+static inline bool is_mt7610e(struct mt76x02_dev *dev) {
+  if (!mt76_is_mmio(&dev->mt76)) {
+    return false;
+  }
+  return mt76_chip(&dev->mt76) == 0x7610;
 }
 
-static inline bool is_mt7630(struct mt76x02_dev *dev)
-{
-	return mt76_chip(&dev->mt76) == 0x7630;
+static inline bool is_mt7630(struct mt76x02_dev *dev) {
+  return mt76_chip(&dev->mt76) == 0x7630;
 }
 
 /* Init */
@@ -50,13 +48,13 @@ void mt76x0_mac_stop(struct mt76x02_dev *dev);
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed);
 int mt76x0_set_sar_specs(struct ieee80211_hw *hw,
-			 const struct cfg80211_sar_specs *sar);
+    const struct cfg80211_sar_specs *sar);
 
 /* PHY */
 void mt76x0_phy_init(struct mt76x02_dev *dev);
 int mt76x0_phy_wait_bbp_ready(struct mt76x02_dev *dev);
 void mt76x0_phy_set_channel(struct mt76x02_dev *dev,
-			    struct cfg80211_chan_def *chandef);
+    struct cfg80211_chan_def *chandef);
 void mt76x0_phy_set_txpower(struct mt76x02_dev *dev);
 void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on);
 #endif

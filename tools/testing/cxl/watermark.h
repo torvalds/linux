@@ -15,11 +15,11 @@ int cxl_port_test(void);
  * dummy routine for cxl_test to validate it is linking to the properly
  * mocked module and not the standard one from the base tree.
  */
-#define cxl_test_watermark(x)				\
-int x##_test(void)					\
-{							\
-	pr_debug("%s for cxl_test\n", KBUILD_MODNAME);	\
-	return 0;					\
-}							\
-EXPORT_SYMBOL(x##_test)
+#define cxl_test_watermark(x)       \
+  int x ## _test(void)          \
+  {             \
+    pr_debug("%s for cxl_test\n", KBUILD_MODNAME);  \
+    return 0;         \
+  }             \
+  EXPORT_SYMBOL(x ## _test)
 #endif /* _TEST_CXL_WATERMARK_H_ */

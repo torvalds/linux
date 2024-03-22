@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2008 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
+ *  http://armlinux.simtec.co.uk/
+ *  Ben Dooks <ben@simtec.co.uk>
  *
  * S3C Platform - GPIO core
  */
@@ -14,8 +14,8 @@
 #include "gpio-samsung.h"
 #include <linux/gpio/driver.h>
 
-#define GPIOCON_OFF	(0x00)
-#define GPIODAT_OFF	(0x04)
+#define GPIOCON_OFF (0x00)
+#define GPIODAT_OFF (0x04)
 
 #define con_4bit_shift(__off) ((__off) * 4)
 
@@ -26,7 +26,7 @@
  * These definitions are not intended for driver inclusion, there is
  * nothing here that should not live outside the platform and core
  * specific code.
-*/
+ */
 
 struct samsung_gpio_chip;
 
@@ -36,8 +36,8 @@ struct samsung_gpio_chip;
  * @resume: Routine to resume the GPIO block.
  */
 struct samsung_gpio_pm {
-	void (*save)(struct samsung_gpio_chip *chip);
-	void (*resume)(struct samsung_gpio_chip *chip);
+  void (*save)(struct samsung_gpio_chip *chip);
+  void (*resume)(struct samsung_gpio_chip *chip);
 };
 
 struct samsung_gpio_cfg;
@@ -65,22 +65,21 @@ struct samsung_gpio_cfg;
  * bank of GPIO has its own register space and configuration registers.
  */
 struct samsung_gpio_chip {
-	struct gpio_chip	chip;
-	struct samsung_gpio_cfg	*config;
-	struct samsung_gpio_pm	*pm;
-	void __iomem		*base;
-	int			irq_base;
-	int			group;
-	spinlock_t		 lock;
+  struct gpio_chip chip;
+  struct samsung_gpio_cfg *config;
+  struct samsung_gpio_pm *pm;
+  void __iomem *base;
+  int irq_base;
+  int group;
+  spinlock_t lock;
 #ifdef CONFIG_PM
-	u32			pm_save[4];
+  u32 pm_save[4];
 #endif
-	u32			bitmap_gpio_int;
+  u32 bitmap_gpio_int;
 };
 
-static inline struct samsung_gpio_chip *to_samsung_gpio(struct gpio_chip *gpc)
-{
-	return container_of(gpc, struct samsung_gpio_chip, chip);
+static inline struct samsung_gpio_chip *to_samsung_gpio(struct gpio_chip *gpc) {
+  return container_of(gpc, struct samsung_gpio_chip, chip);
 }
 
 /**
@@ -96,27 +95,29 @@ extern int samsung_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset);
 #ifdef CONFIG_S3C_GPIO_TRACK
 extern struct samsung_gpio_chip *s3c_gpios[S3C_GPIO_END];
 
-static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(unsigned int chip)
-{
-	return (chip < S3C_GPIO_END) ? s3c_gpios[chip] : NULL;
+static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(
+    unsigned int chip) {
+  return (chip < S3C_GPIO_END) ? s3c_gpios[chip] : NULL;
 }
+
 #else
 /* machine specific code should provide samsung_gpiolib_getchip */
 
 extern struct samsung_gpio_chip s3c24xx_gpios[];
 
-static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(unsigned int pin)
-{
-	struct samsung_gpio_chip *chip;
-
-	if (pin > S3C_GPIO_END)
-		return NULL;
-
-	chip = &s3c24xx_gpios[pin/32];
-	return ((pin - chip->chip.base) < chip->chip.ngpio) ? chip : NULL;
+static inline struct samsung_gpio_chip *samsung_gpiolib_getchip(
+    unsigned int pin) {
+  struct samsung_gpio_chip *chip;
+  if (pin > S3C_GPIO_END) {
+    return NULL;
+  }
+  chip = &s3c24xx_gpios[pin / 32];
+  return ((pin - chip->chip.base) < chip->chip.ngpio) ? chip : NULL;
 }
 
-static inline void s3c_gpiolib_track(struct samsung_gpio_chip *chip) { }
+static inline void s3c_gpiolib_track(struct samsung_gpio_chip *chip) {
+}
+
 #endif
 
 #ifdef CONFIG_PM

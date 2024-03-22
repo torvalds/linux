@@ -52,12 +52,12 @@
 #include <engine/vic.h>
 #include <engine/vp.h>
 
-int  nvkm_device_ctor(const struct nvkm_device_func *,
-		      const struct nvkm_device_quirk *,
-		      struct device *, enum nvkm_device_type, u64 handle,
-		      const char *name, const char *cfg, const char *dbg,
-		      bool detect, bool mmio, u64 subdev_mask,
-		      struct nvkm_device *);
-int  nvkm_device_init(struct nvkm_device *);
-int  nvkm_device_fini(struct nvkm_device *, bool suspend);
+int nvkm_device_ctor(const struct nvkm_device_func *,
+    const struct nvkm_device_quirk *,
+    struct device *, enum nvkm_device_type, u64 handle,
+    const char *name, const char *cfg, const char *dbg,
+    bool detect, bool mmio, u64 subdev_mask,
+    struct nvkm_device *);
+int nvkm_device_init(struct nvkm_device *);
+int nvkm_device_fini(struct nvkm_device *, bool suspend);
 #endif

@@ -11,23 +11,22 @@
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
 /*  we can't #include <linux/syscalls.h> here,
-    but tell gcc to not warn with -Wmissing-prototypes  */
+ *  but tell gcc to not warn with -Wmissing-prototypes  */
 asmlinkage long sys_ni_syscall(void);
 
 /*
  * Non-implemented system calls get redirected here.
  */
-asmlinkage long sys_ni_syscall(void)
-{
-	return -ENOSYS;
+asmlinkage long sys_ni_syscall(void) {
+  return -ENOSYS;
 }
 
 #ifndef COND_SYSCALL
-#define COND_SYSCALL(name) cond_syscall(sys_##name)
+#define COND_SYSCALL(name) cond_syscall(sys_ ## name)
 #endif /* COND_SYSCALL */
 
 #ifndef COND_SYSCALL_COMPAT
-#define COND_SYSCALL_COMPAT(name) cond_syscall(compat_sys_##name)
+#define COND_SYSCALL_COMPAT(name) cond_syscall(compat_sys_ ## name)
 #endif /* COND_SYSCALL_COMPAT */
 
 /*
@@ -305,7 +304,6 @@ COND_SYSCALL(rtas);
 COND_SYSCALL(spu_run);
 COND_SYSCALL(spu_create);
 COND_SYSCALL(subpage_prot);
-
 
 /*
  * Deprecated system calls which are still defined in

@@ -18,35 +18,35 @@
 #endif
 
 #ifndef BIT
-#define BIT(nr)			(1 << (nr))
+#define BIT(nr)     (1 << (nr))
 #endif
 
 /* Non-existent checksum status */
-#define XDP_CHECKSUM_MAGIC	BIT(2)
+#define XDP_CHECKSUM_MAGIC  BIT(2)
 
 enum xdp_meta_field {
-	XDP_META_FIELD_TS	= BIT(0),
-	XDP_META_FIELD_RSS	= BIT(1),
-	XDP_META_FIELD_VLAN_TAG	= BIT(2),
+  XDP_META_FIELD_TS = BIT(0),
+  XDP_META_FIELD_RSS = BIT(1),
+  XDP_META_FIELD_VLAN_TAG = BIT(2),
 };
 
 struct xdp_meta {
-	union {
-		__u64 rx_timestamp;
-		__s32 rx_timestamp_err;
-	};
-	__u64 xdp_timestamp;
-	__u32 rx_hash;
-	union {
-		__u32 rx_hash_type;
-		__s32 rx_hash_err;
-	};
-	union {
-		struct {
-			__be16 rx_vlan_proto;
-			__u16 rx_vlan_tci;
-		};
-		__s32 rx_vlan_tag_err;
-	};
-	enum xdp_meta_field hint_valid;
+  union {
+    __u64 rx_timestamp;
+    __s32 rx_timestamp_err;
+  };
+  __u64 xdp_timestamp;
+  __u32 rx_hash;
+  union {
+    __u32 rx_hash_type;
+    __s32 rx_hash_err;
+  };
+  union {
+    struct {
+      __be16 rx_vlan_proto;
+      __u16 rx_vlan_tci;
+    };
+    __s32 rx_vlan_tag_err;
+  };
+  enum xdp_meta_field hint_valid;
 };

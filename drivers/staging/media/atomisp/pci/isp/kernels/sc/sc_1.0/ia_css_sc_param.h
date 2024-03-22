@@ -20,12 +20,13 @@
 
 /* SC (Shading Corrction) */
 struct sh_css_isp_sc_params {
-	s32 gain_shift;
+  s32 gain_shift;
 };
 
 /* Number of horizontal slice times for interpolated gain:
  *
- * The start position of the internal frame does not match the start position of the shading table.
+ * The start position of the internal frame does not match the start position of
+ *the shading table.
  * To get a vector of shading gains (interpolated horizontally and vertically)
  * which matches a vector on the internal frame,
  * vec_slice is used for 2 adjacent vectors of shading gains.
@@ -36,8 +37,8 @@ struct sh_css_isp_sc_params {
 #define SH_CSS_SC_INTERPED_GAIN_HOR_SLICE_TIMES   8
 
 struct sh_css_isp_sc_isp_config {
-	u32 interped_gain_hor_slice_bqs[SH_CSS_SC_INTERPED_GAIN_HOR_SLICE_TIMES];
-	u32 internal_frame_origin_y_bqs_on_sctbl;
+  u32 interped_gain_hor_slice_bqs[SH_CSS_SC_INTERPED_GAIN_HOR_SLICE_TIMES];
+  u32 internal_frame_origin_y_bqs_on_sctbl;
 };
 
 #endif /* __IA_CSS_SC_PARAM_H */

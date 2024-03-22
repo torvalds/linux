@@ -16,7 +16,7 @@
 
 #include <asm/rmwcc.h>
 
-#define ADDR (*(volatile long *)addr)
+#define ADDR (*(volatile long *) addr)
 
 /**
  * sync_set_bit - Atomically set a bit in memory
@@ -29,12 +29,11 @@
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void sync_set_bit(long nr, volatile unsigned long *addr)
-{
-	asm volatile("lock; " __ASM_SIZE(bts) " %1,%0"
-		     : "+m" (ADDR)
-		     : "Ir" (nr)
-		     : "memory");
+static inline void sync_set_bit(long nr, volatile unsigned long *addr) {
+  asm volatile ("lock; " __ASM_SIZE(bts) " %1,%0"
+  : "+m" (ADDR)
+  : "Ir" (nr)
+  : "memory");
 }
 
 /**
@@ -47,12 +46,11 @@ static inline void sync_set_bit(long nr, volatile unsigned long *addr)
  * you should call smp_mb__before_atomic() and/or smp_mb__after_atomic()
  * in order to ensure changes are visible on other processors.
  */
-static inline void sync_clear_bit(long nr, volatile unsigned long *addr)
-{
-	asm volatile("lock; " __ASM_SIZE(btr) " %1,%0"
-		     : "+m" (ADDR)
-		     : "Ir" (nr)
-		     : "memory");
+static inline void sync_clear_bit(long nr, volatile unsigned long *addr) {
+  asm volatile ("lock; " __ASM_SIZE(btr) " %1,%0"
+  : "+m" (ADDR)
+  : "Ir" (nr)
+  : "memory");
 }
 
 /**
@@ -64,12 +62,11 @@ static inline void sync_clear_bit(long nr, volatile unsigned long *addr)
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void sync_change_bit(long nr, volatile unsigned long *addr)
-{
-	asm volatile("lock; " __ASM_SIZE(btc) " %1,%0"
-		     : "+m" (ADDR)
-		     : "Ir" (nr)
-		     : "memory");
+static inline void sync_change_bit(long nr, volatile unsigned long *addr) {
+  asm volatile ("lock; " __ASM_SIZE(btc) " %1,%0"
+  : "+m" (ADDR)
+  : "Ir" (nr)
+  : "memory");
 }
 
 /**
@@ -80,9 +77,9 @@ static inline void sync_change_bit(long nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline bool sync_test_and_set_bit(long nr, volatile unsigned long *addr)
-{
-	return GEN_BINARY_RMWcc("lock; " __ASM_SIZE(bts), *addr, c, "Ir", nr);
+static inline bool sync_test_and_set_bit(long nr,
+    volatile unsigned long *addr) {
+  return GEN_BINARY_RMWcc("lock; " __ASM_SIZE(bts), *addr, c, "Ir", nr);
 }
 
 /**
@@ -93,9 +90,9 @@ static inline bool sync_test_and_set_bit(long nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int sync_test_and_clear_bit(long nr, volatile unsigned long *addr)
-{
-	return GEN_BINARY_RMWcc("lock; " __ASM_SIZE(btr), *addr, c, "Ir", nr);
+static inline int sync_test_and_clear_bit(long nr,
+    volatile unsigned long *addr) {
+  return GEN_BINARY_RMWcc("lock; " __ASM_SIZE(btr), *addr, c, "Ir", nr);
 }
 
 /**
@@ -106,9 +103,9 @@ static inline int sync_test_and_clear_bit(long nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int sync_test_and_change_bit(long nr, volatile unsigned long *addr)
-{
-	return GEN_BINARY_RMWcc("lock; " __ASM_SIZE(btc), *addr, c, "Ir", nr);
+static inline int sync_test_and_change_bit(long nr,
+    volatile unsigned long *addr) {
+  return GEN_BINARY_RMWcc("lock; " __ASM_SIZE(btc), *addr, c, "Ir", nr);
 }
 
 #define sync_test_bit(nr, addr) test_bit(nr, addr)

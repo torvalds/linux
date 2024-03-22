@@ -16,12 +16,12 @@
 #define LOW_IF_4MHZ        4000000
 
 struct mn88443x_config {
-	struct clk *mclk;
-	u32 if_freq;
-	struct gpio_desc *reset_gpio;
+  struct clk *mclk;
+  u32 if_freq;
+  struct gpio_desc *reset_gpio;
 
-	/* Everything after that is returned by the driver. */
-	struct dvb_frontend **fe;
+  /* Everything after that is returned by the driver. */
+  struct dvb_frontend **fe;
 };
 
 #endif /* MN88443X_H */

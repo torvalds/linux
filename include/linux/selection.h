@@ -16,7 +16,7 @@ struct vc_data;
 
 void clear_selection(void);
 int set_selection_user(const struct tiocl_selection __user *sel,
-		       struct tty_struct *tty);
+    struct tty_struct *tty);
 int set_selection_kernel(struct tiocl_selection *v, struct tty_struct *tty);
 int paste_selection(struct tty_struct *tty);
 int sel_loadlut(u32 __user *lut);
@@ -47,6 +47,6 @@ void vcs_scr_updated(struct vc_data *vc);
 
 int vc_uniscr_check(struct vc_data *vc);
 void vc_uniscr_copy_line(const struct vc_data *vc, void *dest, bool viewed,
-			 unsigned int row, unsigned int col, unsigned int nr);
+    unsigned int row, unsigned int col, unsigned int nr);
 
 #endif

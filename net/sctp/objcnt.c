@@ -43,63 +43,57 @@ SCTP_DBG_OBJCNT(keys);
  * to the proc fs.
  */
 static struct sctp_dbg_objcnt_entry sctp_dbg_objcnt[] = {
-	SCTP_DBG_OBJCNT_ENTRY(sock),
-	SCTP_DBG_OBJCNT_ENTRY(ep),
-	SCTP_DBG_OBJCNT_ENTRY(assoc),
-	SCTP_DBG_OBJCNT_ENTRY(transport),
-	SCTP_DBG_OBJCNT_ENTRY(chunk),
-	SCTP_DBG_OBJCNT_ENTRY(bind_addr),
-	SCTP_DBG_OBJCNT_ENTRY(bind_bucket),
-	SCTP_DBG_OBJCNT_ENTRY(addr),
-	SCTP_DBG_OBJCNT_ENTRY(datamsg),
-	SCTP_DBG_OBJCNT_ENTRY(keys),
+  SCTP_DBG_OBJCNT_ENTRY(sock),
+  SCTP_DBG_OBJCNT_ENTRY(ep),
+  SCTP_DBG_OBJCNT_ENTRY(assoc),
+  SCTP_DBG_OBJCNT_ENTRY(transport),
+  SCTP_DBG_OBJCNT_ENTRY(chunk),
+  SCTP_DBG_OBJCNT_ENTRY(bind_addr),
+  SCTP_DBG_OBJCNT_ENTRY(bind_bucket),
+  SCTP_DBG_OBJCNT_ENTRY(addr),
+  SCTP_DBG_OBJCNT_ENTRY(datamsg),
+  SCTP_DBG_OBJCNT_ENTRY(keys),
 };
 
 /* Callback from procfs to read out objcount information.
  * Walk through the entries in the sctp_dbg_objcnt array, dumping
  * the raw object counts for each monitored type.
  */
-static int sctp_objcnt_seq_show(struct seq_file *seq, void *v)
-{
-	int i;
-
-	i = (int)*(loff_t *)v;
-	seq_setwidth(seq, 127);
-	seq_printf(seq, "%s: %d", sctp_dbg_objcnt[i].label,
-				atomic_read(sctp_dbg_objcnt[i].counter));
-	seq_pad(seq, '\n');
-	return 0;
+static int sctp_objcnt_seq_show(struct seq_file *seq, void *v) {
+  int i;
+  i = (int) *(loff_t *) v;
+  seq_setwidth(seq, 127);
+  seq_printf(seq, "%s: %d", sctp_dbg_objcnt[i].label,
+      atomic_read(sctp_dbg_objcnt[i].counter));
+  seq_pad(seq, '\n');
+  return 0;
 }
 
-static void *sctp_objcnt_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *)pos;
+static void *sctp_objcnt_seq_start(struct seq_file *seq, loff_t *pos) {
+  return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *) pos;
 }
 
-static void sctp_objcnt_seq_stop(struct seq_file *seq, void *v)
-{
+static void sctp_objcnt_seq_stop(struct seq_file *seq, void *v) {
 }
 
-static void *sctp_objcnt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	++*pos;
-	return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *)pos;
+static void *sctp_objcnt_seq_next(struct seq_file *seq, void *v, loff_t *pos) {
+  ++*pos;
+  return (*pos >= ARRAY_SIZE(sctp_dbg_objcnt)) ? NULL : (void *) pos;
 }
 
 static const struct seq_operations sctp_objcnt_seq_ops = {
-	.start = sctp_objcnt_seq_start,
-	.next  = sctp_objcnt_seq_next,
-	.stop  = sctp_objcnt_seq_stop,
-	.show  = sctp_objcnt_seq_show,
+  .start = sctp_objcnt_seq_start,
+  .next = sctp_objcnt_seq_next,
+  .stop = sctp_objcnt_seq_stop,
+  .show = sctp_objcnt_seq_show,
 };
 
 /* Initialize the objcount in the proc filesystem.  */
-void sctp_dbg_objcnt_init(struct net *net)
-{
-	struct proc_dir_entry *ent;
-
-	ent = proc_create_seq("sctp_dbg_objcnt", 0,
-			  net->sctp.proc_net_sctp, &sctp_objcnt_seq_ops);
-	if (!ent)
-		pr_warn("sctp_dbg_objcnt: Unable to create /proc entry.\n");
+void sctp_dbg_objcnt_init(struct net *net) {
+  struct proc_dir_entry *ent;
+  ent = proc_create_seq("sctp_dbg_objcnt", 0,
+      net->sctp.proc_net_sctp, &sctp_objcnt_seq_ops);
+  if (!ent) {
+    pr_warn("sctp_dbg_objcnt: Unable to create /proc entry.\n");
+  }
 }

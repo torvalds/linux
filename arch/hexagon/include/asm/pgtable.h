@@ -30,10 +30,10 @@ extern unsigned long empty_zero_page;
  * To maximize the comfort level for the PTE manipulation macros,
  * define the "well known" architecture-specific bits.
  */
-#define _PAGE_READ	__HVM_PTE_R
-#define _PAGE_WRITE	__HVM_PTE_W
-#define _PAGE_EXECUTE	__HVM_PTE_X
-#define _PAGE_USER	__HVM_PTE_U
+#define _PAGE_READ  __HVM_PTE_R
+#define _PAGE_WRITE __HVM_PTE_W
+#define _PAGE_EXECUTE __HVM_PTE_X
+#define _PAGE_USER  __HVM_PTE_U
 
 /*
  * We have a total of 4 "soft" bits available in the abstract PTE.
@@ -42,16 +42,16 @@ extern unsigned long empty_zero_page;
  * model, we want a low order "Present" bit to indicate whether
  * the PTE describes MMU programming or swap space.
  */
-#define _PAGE_PRESENT	(1<<0)
-#define _PAGE_DIRTY	(1<<1)
-#define _PAGE_ACCESSED	(1<<2)
+#define _PAGE_PRESENT (1 << 0)
+#define _PAGE_DIRTY (1 << 1)
+#define _PAGE_ACCESSED  (1 << 2)
 
 /*
  * For now, let's say that Valid and Present are the same thing.
  * Alternatively, we could say that it's the "or" of R, W, and X
  * permissions.
  */
-#define _PAGE_VALID	_PAGE_PRESENT
+#define _PAGE_VALID _PAGE_PRESENT
 
 /*
  * We're not defining _PAGE_GLOBAL here, since there's no concept
@@ -62,7 +62,7 @@ extern unsigned long empty_zero_page;
  */
 
 /* We borrow bit 6 to store the exclusive marker in swap PTEs. */
-#define _PAGE_SWP_EXCLUSIVE	(1<<6)
+#define _PAGE_SWP_EXCLUSIVE (1 << 6)
 
 /*
  * Top "FOURTH" level (pgd), which for the Hexagon VM is really
@@ -74,7 +74,7 @@ extern unsigned long empty_zero_page;
 #define PTRS_PER_PGD 1024
 
 #define PGDIR_SIZE (1UL << PGDIR_SHIFT)
-#define PGDIR_MASK (~(PGDIR_SIZE-1))
+#define PGDIR_MASK (~(PGDIR_SIZE - 1))
 
 #ifdef CONFIG_PAGE_SIZE_4KB
 #define PTRS_PER_PTE 1024
@@ -98,27 +98,26 @@ extern unsigned long empty_zero_page;
 
 /*  Any bigger and the PTE disappears.  */
 #define pgd_ERROR(e) \
-	printk(KERN_ERR "%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__,\
-		pgd_val(e))
+  printk(KERN_ERR "%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, \
+    pgd_val(e))
 
 /*
  * Page Protection Constants. Includes (in this variant) cache attributes.
  */
 extern unsigned long _dflt_cache_att;
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER | \
-				_dflt_cache_att)
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | \
-				_PAGE_READ | _PAGE_EXECUTE | _dflt_cache_att)
-#define PAGE_COPY	PAGE_READONLY
-#define PAGE_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER | \
-				_PAGE_READ | _PAGE_EXECUTE | _dflt_cache_att)
-#define PAGE_COPY_EXEC	PAGE_EXEC
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | \
-				_PAGE_EXECUTE | _PAGE_WRITE | _dflt_cache_att)
-#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_READ | \
-				_PAGE_WRITE | _PAGE_EXECUTE | _dflt_cache_att)
-
+#define PAGE_NONE __pgprot(_PAGE_PRESENT | _PAGE_USER   \
+    | _dflt_cache_att)
+#define PAGE_READONLY __pgprot(_PAGE_PRESENT | _PAGE_USER   \
+    | _PAGE_READ | _PAGE_EXECUTE | _dflt_cache_att)
+#define PAGE_COPY PAGE_READONLY
+#define PAGE_EXEC __pgprot(_PAGE_PRESENT | _PAGE_USER   \
+    | _PAGE_READ | _PAGE_EXECUTE | _dflt_cache_att)
+#define PAGE_COPY_EXEC  PAGE_EXEC
+#define PAGE_SHARED __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ   \
+    | _PAGE_EXECUTE | _PAGE_WRITE | _dflt_cache_att)
+#define PAGE_KERNEL __pgprot(_PAGE_PRESENT | _PAGE_READ   \
+    | _PAGE_WRITE | _PAGE_EXECUTE | _dflt_cache_att)
 
 /*
  * Aliases for mapping mmap() protection bits to page protections.
@@ -127,7 +126,7 @@ extern unsigned long _dflt_cache_att;
  * default gets changed at boot time, the boot option code has to
  * update data structures like the protaction_map[] array.
  */
-#define CACHEDEF	(CACHE_DEFAULT << 6)
+#define CACHEDEF  (CACHE_DEFAULT << 6)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];  /* located in head.S */
 
@@ -143,16 +142,15 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];  /* located in head.S */
 extern void sync_icache_dcache(pte_t pte);
 
 #define pte_present_exec_user(pte) \
-	((pte_val(pte) & (_PAGE_EXECUTE | _PAGE_USER)) == \
-	(_PAGE_EXECUTE | _PAGE_USER))
+  ((pte_val(pte) & (_PAGE_EXECUTE | _PAGE_USER))    \
+  == (_PAGE_EXECUTE | _PAGE_USER))
 
-static inline void set_pte(pte_t *ptep, pte_t pteval)
-{
-	/*  should really be using pte_exec, if it weren't declared later. */
-	if (pte_present_exec_user(pteval))
-		sync_icache_dcache(pteval);
-
-	*ptep = pteval;
+static inline void set_pte(pte_t *ptep, pte_t pteval) {
+  /*  should really be using pte_exec, if it weren't declared later. */
+  if (pte_present_exec_user(pteval)) {
+    sync_icache_dcache(pteval);
+  }
+  *ptep = pteval;
 }
 
 /*
@@ -162,21 +160,19 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
  * as a universal null entry, but some of those least significant bits
  * are interpreted by software.
  */
-#define _NULL_PMD	0x7
-#define _NULL_PTE	0x0
+#define _NULL_PMD 0x7
+#define _NULL_PTE 0x0
 
-static inline void pmd_clear(pmd_t *pmd_entry_ptr)
-{
-	 pmd_val(*pmd_entry_ptr) = _NULL_PMD;
+static inline void pmd_clear(pmd_t *pmd_entry_ptr) {
+  pmd_val(*pmd_entry_ptr) = _NULL_PMD;
 }
 
 /*
  * Conveniently, a null PTE value is invalid.
  */
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
-				pte_t *ptep)
-{
-	pte_val(*ptep) = _NULL_PTE;
+    pte_t *ptep) {
+  pte_val(*ptep) = _NULL_PTE;
 }
 
 /**
@@ -185,9 +181,8 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
  *
  * MIPS checks it against that "invalid pte table" thing.
  */
-static inline int pmd_none(pmd_t pmd)
-{
-	return pmd_val(pmd) == _NULL_PMD;
+static inline int pmd_none(pmd_t pmd) {
+  return pmd_val(pmd) == _NULL_PMD;
 }
 
 /**
@@ -196,9 +191,8 @@ static inline int pmd_none(pmd_t pmd)
  * save an inline instruction by defining it this
  * way, instead of simply "!pmd_none".
  */
-static inline int pmd_present(pmd_t pmd)
-{
-	return pmd_val(pmd) != (unsigned long)_NULL_PMD;
+static inline int pmd_present(pmd_t pmd) {
+  return pmd_val(pmd) != (unsigned long) _NULL_PMD;
 }
 
 /**
@@ -206,9 +200,8 @@ static inline int pmd_present(pmd_t pmd)
  * As we have no known cause of badness, it's null, as it is for many
  * architectures.
  */
-static inline int pmd_bad(pmd_t pmd)
-{
-	return 0;
+static inline int pmd_bad(pmd_t pmd) {
+  return 0;
 }
 
 /*
@@ -225,17 +218,15 @@ static inline int pmd_bad(pmd_t pmd)
  * pte_none - check if pte is mapped
  * @pte: pte_t entry
  */
-static inline int pte_none(pte_t pte)
-{
-	return pte_val(pte) == _NULL_PTE;
-};
+static inline int pte_none(pte_t pte) {
+  return pte_val(pte) == _NULL_PTE;
+}
 
 /*
  * pte_present - check if page is present
  */
-static inline int pte_present(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_PRESENT;
+static inline int pte_present(pte_t pte) {
+  return pte_val(pte) & _PAGE_PRESENT;
 }
 
 /* mk_pte - make a PTE out of a page pointer and protection bits */
@@ -245,91 +236,77 @@ static inline int pte_present(pte_t pte)
 #define pte_page(x) pfn_to_page(pte_pfn(x))
 
 /* pte_mkold - mark PTE as not recently accessed */
-static inline pte_t pte_mkold(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_ACCESSED;
-	return pte;
+static inline pte_t pte_mkold(pte_t pte) {
+  pte_val(pte) &= ~_PAGE_ACCESSED;
+  return pte;
 }
 
 /* pte_mkyoung - mark PTE as recently accessed */
-static inline pte_t pte_mkyoung(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_ACCESSED;
-	return pte;
+static inline pte_t pte_mkyoung(pte_t pte) {
+  pte_val(pte) |= _PAGE_ACCESSED;
+  return pte;
 }
 
 /* pte_mkclean - mark page as in sync with backing store */
-static inline pte_t pte_mkclean(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_DIRTY;
-	return pte;
+static inline pte_t pte_mkclean(pte_t pte) {
+  pte_val(pte) &= ~_PAGE_DIRTY;
+  return pte;
 }
 
 /* pte_mkdirty - mark page as modified */
-static inline pte_t pte_mkdirty(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_DIRTY;
-	return pte;
+static inline pte_t pte_mkdirty(pte_t pte) {
+  pte_val(pte) |= _PAGE_DIRTY;
+  return pte;
 }
 
 /* pte_young - "is PTE marked as accessed"? */
-static inline int pte_young(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_ACCESSED;
+static inline int pte_young(pte_t pte) {
+  return pte_val(pte) & _PAGE_ACCESSED;
 }
 
 /* pte_dirty - "is PTE dirty?" */
-static inline int pte_dirty(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_DIRTY;
+static inline int pte_dirty(pte_t pte) {
+  return pte_val(pte) & _PAGE_DIRTY;
 }
 
 /* pte_modify - set protection bits on PTE */
-static inline pte_t pte_modify(pte_t pte, pgprot_t prot)
-{
-	pte_val(pte) &= PAGE_MASK;
-	pte_val(pte) |= pgprot_val(prot);
-	return pte;
+static inline pte_t pte_modify(pte_t pte, pgprot_t prot) {
+  pte_val(pte) &= PAGE_MASK;
+  pte_val(pte) |= pgprot_val(prot);
+  return pte;
 }
 
 /* pte_wrprotect - mark page as not writable */
-static inline pte_t pte_wrprotect(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_WRITE;
-	return pte;
+static inline pte_t pte_wrprotect(pte_t pte) {
+  pte_val(pte) &= ~_PAGE_WRITE;
+  return pte;
 }
 
 /* pte_mkwrite - mark page as writable */
-static inline pte_t pte_mkwrite_novma(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_WRITE;
-	return pte;
+static inline pte_t pte_mkwrite_novma(pte_t pte) {
+  pte_val(pte) |= _PAGE_WRITE;
+  return pte;
 }
 
 /* pte_mkexec - mark PTE as executable */
-static inline pte_t pte_mkexec(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_EXECUTE;
-	return pte;
+static inline pte_t pte_mkexec(pte_t pte) {
+  pte_val(pte) |= _PAGE_EXECUTE;
+  return pte;
 }
 
 /* pte_read - "is PTE marked as readable?" */
-static inline int pte_read(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_READ;
+static inline int pte_read(pte_t pte) {
+  return pte_val(pte) & _PAGE_READ;
 }
 
 /* pte_write - "is PTE marked as writable?" */
-static inline int pte_write(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_WRITE;
+static inline int pte_write(pte_t pte) {
+  return pte_val(pte) & _PAGE_WRITE;
 }
 
-
 /* pte_exec - "is PTE marked as executable?" */
-static inline int pte_exec(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_EXECUTE;
+static inline int pte_exec(pte_t pte) {
+  return pte_val(pte) & _PAGE_EXECUTE;
 }
 
 /* __pte_to_swp_entry - extract swap entry from PTE */
@@ -338,7 +315,7 @@ static inline int pte_exec(pte_t pte)
 /* __swp_entry_to_pte - extract PTE from swap entry */
 #define __swp_entry_to_pte(x) ((pte_t) { (x).val })
 
-#define PFN_PTE_SHIFT	PAGE_SHIFT
+#define PFN_PTE_SHIFT PAGE_SHIFT
 /* pfn_pte - convert page number and protection value to page table entry */
 #define pfn_pte(pfn, pgprot) __pte((pfn << PAGE_SHIFT) | pgprot_val(pgprot))
 
@@ -346,9 +323,8 @@ static inline int pte_exec(pte_t pte)
 #define pte_pfn(pte) (pte_val(pte) >> PAGE_SHIFT)
 #define set_pmd(pmdptr, pmdval) (*(pmdptr) = (pmdval))
 
-static inline unsigned long pmd_page_vaddr(pmd_t pmd)
-{
-	return (unsigned long)__va(pmd_val(pmd) & PAGE_MASK);
+static inline unsigned long pmd_page_vaddr(pmd_t pmd) {
+  return (unsigned long) __va(pmd_val(pmd) & PAGE_MASK);
 }
 
 /* ZERO_PAGE - returns the globally shared zero page */
@@ -368,43 +344,40 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  * and not much swap space.
  *
  * Format of swap PTE:
- *	bit	0:	Present (zero)
- *	bits	1-5:	swap type (arch independent layer uses 5 bits max)
- *	bit	6:	exclusive marker
- *	bits	7-9:	bits 2:0 of offset
- *	bits	10-12:	effectively _PAGE_PROTNONE (all zero)
- *	bits	13-31:  bits 21:3 of swap offset
+ *  bit 0:  Present (zero)
+ *  bits  1-5:  swap type (arch independent layer uses 5 bits max)
+ *  bit 6:  exclusive marker
+ *  bits  7-9:  bits 2:0 of offset
+ *  bits  10-12:  effectively _PAGE_PROTNONE (all zero)
+ *  bits  13-31:  bits 21:3 of swap offset
  *
  * The split offset makes some of the following macros a little gnarly,
  * but there's plenty of precedent for this sort of thing.
  */
 
 /* Used for swap PTEs */
-#define __swp_type(swp_pte)		(((swp_pte).val >> 1) & 0x1f)
+#define __swp_type(swp_pte)   (((swp_pte).val >> 1) & 0x1f)
 
 #define __swp_offset(swp_pte) \
-	((((swp_pte).val >> 7) & 0x7) | (((swp_pte).val >> 10) & 0x3ffff8))
+  ((((swp_pte).val >> 7) & 0x7) | (((swp_pte).val >> 10) & 0x3ffff8))
 
 #define __swp_entry(type, offset) \
-	((swp_entry_t)	{ \
-		(((type & 0x1f) << 1) | \
-		 ((offset & 0x3ffff8) << 10) | ((offset & 0x7) << 7)) })
+  ((swp_entry_t)  { \
+    (((type & 0x1f) << 1)   \
+    | ((offset & 0x3ffff8) << 10) | ((offset & 0x7) << 7)) })
 
-static inline int pte_swp_exclusive(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
+static inline int pte_swp_exclusive(pte_t pte) {
+  return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
 }
 
-static inline pte_t pte_swp_mkexclusive(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_SWP_EXCLUSIVE;
-	return pte;
+static inline pte_t pte_swp_mkexclusive(pte_t pte) {
+  pte_val(pte) |= _PAGE_SWP_EXCLUSIVE;
+  return pte;
 }
 
-static inline pte_t pte_swp_clear_exclusive(pte_t pte)
-{
-	pte_val(pte) &= ~_PAGE_SWP_EXCLUSIVE;
-	return pte;
+static inline pte_t pte_swp_clear_exclusive(pte_t pte) {
+  pte_val(pte) &= ~_PAGE_SWP_EXCLUSIVE;
+  return pte;
 }
 
 #endif

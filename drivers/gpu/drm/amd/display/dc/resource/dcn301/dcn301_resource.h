@@ -36,10 +36,10 @@ extern struct _vcs_dpi_ip_params_st dcn3_01_ip;
 extern struct _vcs_dpi_soc_bounding_box_st dcn3_01_soc;
 
 struct dcn301_resource_pool {
-	struct resource_pool base;
+  struct resource_pool base;
 };
 struct resource_pool *dcn301_create_resource_pool(
-		const struct dc_init_data *init_data,
-		struct dc *dc);
+  const struct dc_init_data *init_data,
+  struct dc *dc);
 
 #endif /* _DCN301_RESOURCE_H_ */

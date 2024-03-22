@@ -14,10 +14,10 @@
 #endif
 
 /* packet size info */
-#define XTE_HDR_SIZE			14      /* size of Ethernet header */
-#define XTE_TRL_SIZE			4       /* size of Ethernet trailer (FCS) */
-#define XTE_JUMBO_MTU			9000
-#define XTE_MAX_JUMBO_FRAME_SIZE	(XTE_JUMBO_MTU + XTE_HDR_SIZE + XTE_TRL_SIZE)
+#define XTE_HDR_SIZE      14      /* size of Ethernet header */
+#define XTE_TRL_SIZE      4       /* size of Ethernet trailer (FCS) */
+#define XTE_JUMBO_MTU     9000
+#define XTE_MAX_JUMBO_FRAME_SIZE  (XTE_JUMBO_MTU + XTE_HDR_SIZE + XTE_TRL_SIZE)
 
 /*  Configuration options */
 
@@ -65,9 +65,9 @@
 
 /*  Default options set when device is initialized or reset */
 #define XTE_OPTION_DEFAULTS                     \
-	(XTE_OPTION_TXEN |                          \
-	 XTE_OPTION_FLOW_CONTROL |                  \
-	 XTE_OPTION_RXEN)
+  (XTE_OPTION_TXEN                            \
+  | XTE_OPTION_FLOW_CONTROL                    \
+  | XTE_OPTION_RXEN)
 
 /* XPS_LL_TEMAC SDMA registers definition */
 
@@ -230,60 +230,60 @@
 
 /* XPS_LL_TEMAC indirect registers offset definition */
 
-#define	XTE_RXC0_OFFSET			0x00000200 /* Rx configuration word 0 */
-#define	XTE_RXC1_OFFSET			0x00000240 /* Rx configuration word 1 */
-#define XTE_RXC1_RXRST_MASK		(1 << 31)  /* Receiver reset */
-#define XTE_RXC1_RXJMBO_MASK		(1 << 30)  /* Jumbo frame enable */
-#define XTE_RXC1_RXFCS_MASK		(1 << 29)  /* FCS not stripped */
-#define XTE_RXC1_RXEN_MASK		(1 << 28)  /* Receiver enable */
-#define XTE_RXC1_RXVLAN_MASK		(1 << 27)  /* VLAN enable */
-#define XTE_RXC1_RXHD_MASK		(1 << 26)  /* Half duplex */
-#define XTE_RXC1_RXLT_MASK		(1 << 25)  /* Length/type check disable */
+#define XTE_RXC0_OFFSET     0x00000200 /* Rx configuration word 0 */
+#define XTE_RXC1_OFFSET     0x00000240 /* Rx configuration word 1 */
+#define XTE_RXC1_RXRST_MASK   (1 << 31)  /* Receiver reset */
+#define XTE_RXC1_RXJMBO_MASK    (1 << 30)  /* Jumbo frame enable */
+#define XTE_RXC1_RXFCS_MASK   (1 << 29)  /* FCS not stripped */
+#define XTE_RXC1_RXEN_MASK    (1 << 28)  /* Receiver enable */
+#define XTE_RXC1_RXVLAN_MASK    (1 << 27)  /* VLAN enable */
+#define XTE_RXC1_RXHD_MASK    (1 << 26)  /* Half duplex */
+#define XTE_RXC1_RXLT_MASK    (1 << 25)  /* Length/type check disable */
 
-#define XTE_TXC_OFFSET			0x00000280 /*  Tx configuration */
-#define XTE_TXC_TXRST_MASK		(1 << 31)  /* Transmitter reset */
-#define XTE_TXC_TXJMBO_MASK		(1 << 30)  /* Jumbo frame enable */
-#define XTE_TXC_TXFCS_MASK		(1 << 29)  /* Generate FCS */
-#define XTE_TXC_TXEN_MASK		(1 << 28)  /* Transmitter enable */
-#define XTE_TXC_TXVLAN_MASK		(1 << 27)  /* VLAN enable */
-#define XTE_TXC_TXHD_MASK		(1 << 26)  /* Half duplex */
+#define XTE_TXC_OFFSET      0x00000280 /*  Tx configuration */
+#define XTE_TXC_TXRST_MASK    (1 << 31)  /* Transmitter reset */
+#define XTE_TXC_TXJMBO_MASK   (1 << 30)  /* Jumbo frame enable */
+#define XTE_TXC_TXFCS_MASK    (1 << 29)  /* Generate FCS */
+#define XTE_TXC_TXEN_MASK   (1 << 28)  /* Transmitter enable */
+#define XTE_TXC_TXVLAN_MASK   (1 << 27)  /* VLAN enable */
+#define XTE_TXC_TXHD_MASK   (1 << 26)  /* Half duplex */
 
-#define XTE_FCC_OFFSET			0x000002C0 /* Flow control config */
-#define XTE_FCC_RXFLO_MASK		(1 << 29)  /* Rx flow control enable */
-#define XTE_FCC_TXFLO_MASK		(1 << 30)  /* Tx flow control enable */
+#define XTE_FCC_OFFSET      0x000002C0 /* Flow control config */
+#define XTE_FCC_RXFLO_MASK    (1 << 29)  /* Rx flow control enable */
+#define XTE_FCC_TXFLO_MASK    (1 << 30)  /* Tx flow control enable */
 
-#define XTE_EMCFG_OFFSET		0x00000300 /* EMAC configuration */
-#define XTE_EMCFG_LINKSPD_MASK		0xC0000000 /* Link speed */
-#define XTE_EMCFG_HOSTEN_MASK		(1 << 26)  /* Host interface enable */
-#define XTE_EMCFG_LINKSPD_10		0x00000000 /* 10 Mbit LINKSPD_MASK */
-#define XTE_EMCFG_LINKSPD_100		(1 << 30)  /* 100 Mbit LINKSPD_MASK */
-#define XTE_EMCFG_LINKSPD_1000		(1 << 31)  /* 1000 Mbit LINKSPD_MASK */
+#define XTE_EMCFG_OFFSET    0x00000300 /* EMAC configuration */
+#define XTE_EMCFG_LINKSPD_MASK    0xC0000000 /* Link speed */
+#define XTE_EMCFG_HOSTEN_MASK   (1 << 26)  /* Host interface enable */
+#define XTE_EMCFG_LINKSPD_10    0x00000000 /* 10 Mbit LINKSPD_MASK */
+#define XTE_EMCFG_LINKSPD_100   (1 << 30)  /* 100 Mbit LINKSPD_MASK */
+#define XTE_EMCFG_LINKSPD_1000    (1 << 31)  /* 1000 Mbit LINKSPD_MASK */
 
-#define XTE_GMIC_OFFSET			0x00000320 /* RGMII/SGMII config */
-#define XTE_MC_OFFSET			0x00000340 /* MDIO configuration */
-#define XTE_UAW0_OFFSET			0x00000380 /* Unicast address word 0 */
-#define XTE_UAW1_OFFSET			0x00000384 /* Unicast address word 1 */
+#define XTE_GMIC_OFFSET     0x00000320 /* RGMII/SGMII config */
+#define XTE_MC_OFFSET     0x00000340 /* MDIO configuration */
+#define XTE_UAW0_OFFSET     0x00000380 /* Unicast address word 0 */
+#define XTE_UAW1_OFFSET     0x00000384 /* Unicast address word 1 */
 
-#define XTE_MAW0_OFFSET			0x00000388 /* Multicast addr word 0 */
-#define XTE_MAW1_OFFSET			0x0000038C /* Multicast addr word 1 */
-#define XTE_AFM_OFFSET			0x00000390 /* Promiscuous mode */
-#define XTE_AFM_EPPRM_MASK		(1 << 31)  /* Promiscuous mode enable */
+#define XTE_MAW0_OFFSET     0x00000388 /* Multicast addr word 0 */
+#define XTE_MAW1_OFFSET     0x0000038C /* Multicast addr word 1 */
+#define XTE_AFM_OFFSET      0x00000390 /* Promiscuous mode */
+#define XTE_AFM_EPPRM_MASK    (1 << 31)  /* Promiscuous mode enable */
 
 /* Interrupt Request status */
-#define XTE_TIS_OFFSET			0x000003A0
-#define TIS_FRIS			(1 << 0)
-#define TIS_MRIS			(1 << 1)
-#define TIS_MWIS			(1 << 2)
-#define TIS_ARIS			(1 << 3)
-#define TIS_AWIS			(1 << 4)
-#define TIS_CRIS			(1 << 5)
-#define TIS_CWIS			(1 << 6)
+#define XTE_TIS_OFFSET      0x000003A0
+#define TIS_FRIS      (1 << 0)
+#define TIS_MRIS      (1 << 1)
+#define TIS_MWIS      (1 << 2)
+#define TIS_ARIS      (1 << 3)
+#define TIS_AWIS      (1 << 4)
+#define TIS_CRIS      (1 << 5)
+#define TIS_CWIS      (1 << 6)
 
-#define XTE_TIE_OFFSET			0x000003A4 /* Interrupt enable */
+#define XTE_TIE_OFFSET      0x000003A4 /* Interrupt enable */
 
 /* MII Management Control register (MGTCR) */
-#define XTE_MGTDR_OFFSET		0x000003B0 /* MII data */
-#define XTE_MIIMAI_OFFSET		0x000003B4 /* MII control */
+#define XTE_MGTDR_OFFSET    0x000003B0 /* MII data */
+#define XTE_MIIMAI_OFFSET   0x000003B4 /* MII control */
 
 #define CNTLREG_WRITE_ENABLE_MASK   0x8000
 #define CNTLREG_EMAC1SEL_MASK       0x0400
@@ -310,91 +310,91 @@
 #define TEMAC_FEATURE_RX_CSUM  (1 << 0)
 #define TEMAC_FEATURE_TX_CSUM  (1 << 1)
 
-/* TX/RX CURDESC_PTR points to first descriptor */
-/* TX/RX TAILDESC_PTR points to last descriptor in linked list */
+/* TX/RX CURDESC_PTR points to first descriptor
+ * TX/RX TAILDESC_PTR points to last descriptor in linked list*/
 
 /**
  * struct cdmac_bd - LocalLink buffer descriptor format
  *
  * app0 bits:
- *	0    Error
- *	1    IrqOnEnd    generate an interrupt at completion of DMA  op
- *	2    reserved
- *	3    completed   Current descriptor completed
- *	4    SOP         TX - marks first desc/ RX marks first desct
- *	5    EOP         TX marks last desc/RX marks last desc
- *	6    EngBusy     DMA is processing
- *	7    reserved
- *	8:31 application specific
+ *  0    Error
+ *  1    IrqOnEnd    generate an interrupt at completion of DMA  op
+ *  2    reserved
+ *  3    completed   Current descriptor completed
+ *  4    SOP         TX - marks first desc/ RX marks first desct
+ *  5    EOP         TX marks last desc/RX marks last desc
+ *  6    EngBusy     DMA is processing
+ *  7    reserved
+ *  8:31 application specific
  */
 struct cdmac_bd {
-	u32 next;	/* Physical address of next buffer descriptor */
-	u32 phys;
-	u32 len;
-	u32 app0;
-	u32 app1;	/* TX start << 16 | insert */
-	u32 app2;	/* TX csum */
-	u32 app3;
-	u32 app4;	/* skb for TX length for RX */
+  u32 next; /* Physical address of next buffer descriptor */
+  u32 phys;
+  u32 len;
+  u32 app0;
+  u32 app1; /* TX start << 16 | insert */
+  u32 app2; /* TX csum */
+  u32 app3;
+  u32 app4; /* skb for TX length for RX */
 };
 
 struct temac_local {
-	struct net_device *ndev;
-	struct device *dev;
+  struct net_device *ndev;
+  struct device *dev;
 
-	/* Connection to PHY device */
-	struct device_node *phy_node;
-	/* For non-device-tree devices */
-	char phy_name[MII_BUS_ID_SIZE + 3];
-	phy_interface_t phy_interface;
+  /* Connection to PHY device */
+  struct device_node *phy_node;
+  /* For non-device-tree devices */
+  char phy_name[MII_BUS_ID_SIZE + 3];
+  phy_interface_t phy_interface;
 
-	/* MDIO bus data */
-	struct mii_bus *mii_bus;	/* MII bus reference */
+  /* MDIO bus data */
+  struct mii_bus *mii_bus;  /* MII bus reference */
 
-	/* IO registers, dma functions and IRQs */
-	void __iomem *regs;
-	void __iomem *sdma_regs;
+  /* IO registers, dma functions and IRQs */
+  void __iomem *regs;
+  void __iomem *sdma_regs;
 #ifdef CONFIG_PPC_DCR
-	dcr_host_t sdma_dcrs;
+  dcr_host_t sdma_dcrs;
 #endif
-	u32 (*temac_ior)(struct temac_local *lp, int offset);
-	void (*temac_iow)(struct temac_local *lp, int offset, u32 value);
-	u32 (*dma_in)(struct temac_local *lp, int reg);
-	void (*dma_out)(struct temac_local *lp, int reg, u32 value);
+  u32 (*temac_ior)(struct temac_local *lp, int offset);
+  void (*temac_iow)(struct temac_local *lp, int offset, u32 value);
+  u32 (*dma_in)(struct temac_local *lp, int reg);
+  void (*dma_out)(struct temac_local *lp, int reg, u32 value);
 
-	int tx_irq;
-	int rx_irq;
-	int emac_num;
+  int tx_irq;
+  int rx_irq;
+  int emac_num;
 
-	struct sk_buff **rx_skb;
-	spinlock_t rx_lock;
-	/* For synchronization of indirect register access.  Must be
-	 * shared mutex between interfaces in same TEMAC block.
-	 */
-	spinlock_t *indirect_lock;
-	u32 options;			/* Current options word */
-	int last_link;
-	unsigned int temac_features;
+  struct sk_buff **rx_skb;
+  spinlock_t rx_lock;
+  /* For synchronization of indirect register access.  Must be
+   * shared mutex between interfaces in same TEMAC block.
+   */
+  spinlock_t *indirect_lock;
+  u32 options;      /* Current options word */
+  int last_link;
+  unsigned int temac_features;
 
-	/* Buffer descriptors */
-	struct cdmac_bd *tx_bd_v;
-	dma_addr_t tx_bd_p;
-	u32 tx_bd_num;
-	struct cdmac_bd *rx_bd_v;
-	dma_addr_t rx_bd_p;
-	u32 rx_bd_num;
-	int tx_bd_ci;
-	int tx_bd_tail;
-	int rx_bd_ci;
-	int rx_bd_tail;
+  /* Buffer descriptors */
+  struct cdmac_bd *tx_bd_v;
+  dma_addr_t tx_bd_p;
+  u32 tx_bd_num;
+  struct cdmac_bd *rx_bd_v;
+  dma_addr_t rx_bd_p;
+  u32 rx_bd_num;
+  int tx_bd_ci;
+  int tx_bd_tail;
+  int rx_bd_ci;
+  int rx_bd_tail;
 
-	/* DMA channel control setup */
-	u8 coalesce_count_tx;
-	u8 coalesce_delay_tx;
-	u8 coalesce_count_rx;
-	u8 coalesce_delay_rx;
+  /* DMA channel control setup */
+  u8 coalesce_count_tx;
+  u8 coalesce_delay_tx;
+  u8 coalesce_count_rx;
+  u8 coalesce_delay_rx;
 
-	struct delayed_work restart_work;
+  struct delayed_work restart_work;
 };
 
 /* Wrappers for temac_ior()/temac_iow() function pointers above */

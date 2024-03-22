@@ -3,13 +3,13 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *   notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
- *	 documentation and/or other materials provided with the distribution.
+ *   notice, this list of conditions and the following disclaimer in the
+ *   documentation and/or other materials provided with the distribution.
  *     * Neither the name of NXP Semiconductor nor the
- *	 names of its contributors may be used to endorse or promote products
- *	 derived from this software without specific prior written permission.
+ *   names of its contributors may be used to endorse or promote products
+ *   derived from this software without specific prior written permission.
  *
  * ALTERNATIVELY, this software may be distributed under the terms of the
  * GNU General Public License ("GPL") as published by the Free Software
@@ -35,59 +35,57 @@
  * Initialize a devices private memory region
  */
 int qbman_init_private_mem(struct device *dev, int idx, const char *compat,
-			   dma_addr_t *addr, size_t *size)
-{
-	struct device_node *mem_node;
-	struct reserved_mem *rmem;
-	int err;
-	__be32 *res_array;
-
-	mem_node = of_parse_phandle(dev->of_node, "memory-region", idx);
-	if (!mem_node) {
-		mem_node = of_find_compatible_node(NULL, NULL, compat);
-		if (!mem_node) {
-			dev_err(dev, "No memory-region found for index %d or compatible '%s'\n",
-				idx, compat);
-			return -ENODEV;
-		}
-	}
-
-	rmem = of_reserved_mem_lookup(mem_node);
-	if (!rmem) {
-		dev_err(dev, "of_reserved_mem_lookup() returned NULL\n");
-		return -ENODEV;
-	}
-	*addr = rmem->base;
-	*size = rmem->size;
-
-	/*
-	 * Check if the reg property exists - if not insert the node
-	 * so upon kexec() the same memory region address will be preserved.
-	 * This is needed because QBMan HW does not allow the base address/
-	 * size to be modified once set.
-	 */
-	if (!of_property_present(mem_node, "reg")) {
-		struct property *prop;
-
-		prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
-		if (!prop)
-			return -ENOMEM;
-		prop->value = res_array = devm_kzalloc(dev, sizeof(__be32) * 4,
-						       GFP_KERNEL);
-		if (!prop->value)
-			return -ENOMEM;
-		res_array[0] = cpu_to_be32(upper_32_bits(*addr));
-		res_array[1] = cpu_to_be32(lower_32_bits(*addr));
-		res_array[2] = cpu_to_be32(upper_32_bits(*size));
-		res_array[3] = cpu_to_be32(lower_32_bits(*size));
-		prop->length = sizeof(__be32) * 4;
-		prop->name = devm_kstrdup(dev, "reg", GFP_KERNEL);
-		if (!prop->name)
-			return -ENOMEM;
-		err = of_add_property(mem_node, prop);
-		if (err)
-			return err;
-	}
-
-	return 0;
+    dma_addr_t *addr, size_t *size) {
+  struct device_node *mem_node;
+  struct reserved_mem *rmem;
+  int err;
+  __be32 *res_array;
+  mem_node = of_parse_phandle(dev->of_node, "memory-region", idx);
+  if (!mem_node) {
+    mem_node = of_find_compatible_node(NULL, NULL, compat);
+    if (!mem_node) {
+      dev_err(dev, "No memory-region found for index %d or compatible '%s'\n",
+          idx, compat);
+      return -ENODEV;
+    }
+  }
+  rmem = of_reserved_mem_lookup(mem_node);
+  if (!rmem) {
+    dev_err(dev, "of_reserved_mem_lookup() returned NULL\n");
+    return -ENODEV;
+  }
+  *addr = rmem->base;
+  *size = rmem->size;
+  /*
+   * Check if the reg property exists - if not insert the node
+   * so upon kexec() the same memory region address will be preserved.
+   * This is needed because QBMan HW does not allow the base address/
+   * size to be modified once set.
+   */
+  if (!of_property_present(mem_node, "reg")) {
+    struct property *prop;
+    prop = devm_kzalloc(dev, sizeof(*prop), GFP_KERNEL);
+    if (!prop) {
+      return -ENOMEM;
+    }
+    prop->value = res_array = devm_kzalloc(dev, sizeof(__be32) * 4,
+        GFP_KERNEL);
+    if (!prop->value) {
+      return -ENOMEM;
+    }
+    res_array[0] = cpu_to_be32(upper_32_bits(*addr));
+    res_array[1] = cpu_to_be32(lower_32_bits(*addr));
+    res_array[2] = cpu_to_be32(upper_32_bits(*size));
+    res_array[3] = cpu_to_be32(lower_32_bits(*size));
+    prop->length = sizeof(__be32) * 4;
+    prop->name = devm_kstrdup(dev, "reg", GFP_KERNEL);
+    if (!prop->name) {
+      return -ENOMEM;
+    }
+    err = of_add_property(mem_node, prop);
+    if (err) {
+      return err;
+    }
+  }
+  return 0;
 }

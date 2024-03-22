@@ -23,16 +23,16 @@
  * The named struct can also be explicitly tagged for layer reuse, as well
  * as both having struct attributes appended.
  */
-#define __struct_group(TAG, NAME, ATTRS, MEMBERS...) \
-	union { \
-		struct { MEMBERS } ATTRS; \
-		struct TAG { MEMBERS } ATTRS NAME; \
-	} ATTRS
+#define __struct_group(TAG, NAME, ATTRS, MEMBERS ...) \
+  union { \
+    struct { MEMBERS } ATTRS; \
+    struct TAG { MEMBERS } ATTRS NAME; \
+  } ATTRS
 
 #ifdef __cplusplus
 /* sizeof(struct{}) is 1 in C++, not 0, can't use C version of the macro. */
-#define __DECLARE_FLEX_ARRAY(T, member)	\
-	T member[0]
+#define __DECLARE_FLEX_ARRAY(T, member) \
+  T member[0]
 #else
 /**
  * __DECLARE_FLEX_ARRAY() - Declare a flexible array usable in a union
@@ -44,11 +44,11 @@
  * struct, it needs to be wrapped in an anonymous struct with at least 1
  * named member, but that member can be empty.
  */
-#define __DECLARE_FLEX_ARRAY(TYPE, NAME)	\
-	struct { \
-		struct { } __empty_ ## NAME; \
-		TYPE NAME[]; \
-	}
+#define __DECLARE_FLEX_ARRAY(TYPE, NAME)  \
+  struct { \
+    struct {} __empty_ ## NAME; \
+    TYPE NAME[]; \
+  }
 #endif
 
 #ifndef __counted_by

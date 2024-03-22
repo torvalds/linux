@@ -48,51 +48,47 @@
  * obviously.
  */
 
-#define BIOS_RAM_SIZE_KB_PTR	0x413
+#define BIOS_RAM_SIZE_KB_PTR  0x413
 
-#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
-#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
+#define BIOS_START_MIN    0x20000U  /* 128K, less than this is insane */
+#define BIOS_START_MAX    0x9f000U  /* 640K, absolute maximum */
 
-void __init reserve_bios_regions(void)
-{
-	unsigned int bios_start, ebda_start;
-
-	/*
-	 * NOTE: In a paravirtual environment the BIOS reserved
-	 * area is absent. We'll just have to assume that the
-	 * paravirt case can handle memory setup correctly,
-	 * without our help.
-	 */
-	if (!x86_platform.legacy.reserve_bios_regions)
-		return;
-
-	/*
-	 * BIOS RAM size is encoded in kilobytes, convert it
-	 * to bytes to get a first guess at where the BIOS
-	 * firmware area starts:
-	 */
-	bios_start = *(unsigned short *)__va(BIOS_RAM_SIZE_KB_PTR);
-	bios_start <<= 10;
-
-	/*
-	 * If bios_start is less than 128K, assume it is bogus
-	 * and bump it up to 640K.  Similarly, if bios_start is above 640K,
-	 * don't trust it.
-	 */
-	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
-		bios_start = BIOS_START_MAX;
-
-	/* Get the start address of the EBDA page: */
-	ebda_start = get_bios_ebda();
-
-	/*
-	 * If the EBDA start address is sane and is below the BIOS region,
-	 * then also reserve everything from the EBDA start address up to
-	 * the BIOS region.
-	 */
-	if (ebda_start >= BIOS_START_MIN && ebda_start < bios_start)
-		bios_start = ebda_start;
-
-	/* Reserve all memory between bios_start and the 1MB mark: */
-	memblock_reserve(bios_start, 0x100000 - bios_start);
+void __init reserve_bios_regions(void) {
+  unsigned int bios_start, ebda_start;
+  /*
+   * NOTE: In a paravirtual environment the BIOS reserved
+   * area is absent. We'll just have to assume that the
+   * paravirt case can handle memory setup correctly,
+   * without our help.
+   */
+  if (!x86_platform.legacy.reserve_bios_regions) {
+    return;
+  }
+  /*
+   * BIOS RAM size is encoded in kilobytes, convert it
+   * to bytes to get a first guess at where the BIOS
+   * firmware area starts:
+   */
+  bios_start = *(unsigned short *) __va(BIOS_RAM_SIZE_KB_PTR);
+  bios_start <<= 10;
+  /*
+   * If bios_start is less than 128K, assume it is bogus
+   * and bump it up to 640K.  Similarly, if bios_start is above 640K,
+   * don't trust it.
+   */
+  if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX) {
+    bios_start = BIOS_START_MAX;
+  }
+  /* Get the start address of the EBDA page: */
+  ebda_start = get_bios_ebda();
+  /*
+   * If the EBDA start address is sane and is below the BIOS region,
+   * then also reserve everything from the EBDA start address up to
+   * the BIOS region.
+   */
+  if (ebda_start >= BIOS_START_MIN && ebda_start < bios_start) {
+    bios_start = ebda_start;
+  }
+  /* Reserve all memory between bios_start and the 1MB mark: */
+  memblock_reserve(bios_start, 0x100000 - bios_start);
 }

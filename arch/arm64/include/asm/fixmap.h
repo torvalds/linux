@@ -34,69 +34,69 @@
  * to associate physical memory with a fixmap index.
  */
 enum fixed_addresses {
-	FIX_HOLE,
+  FIX_HOLE,
 
-	/*
-	 * Reserve a virtual window for the FDT that is a page bigger than the
-	 * maximum supported size. The additional space ensures that any FDT
-	 * that does not exceed MAX_FDT_SIZE can be mapped regardless of
-	 * whether it crosses any page boundary.
-	 */
-	FIX_FDT_END,
-	FIX_FDT = FIX_FDT_END + DIV_ROUND_UP(MAX_FDT_SIZE, PAGE_SIZE) + 1,
+  /*
+   * Reserve a virtual window for the FDT that is a page bigger than the
+   * maximum supported size. The additional space ensures that any FDT
+   * that does not exceed MAX_FDT_SIZE can be mapped regardless of
+   * whether it crosses any page boundary.
+   */
+  FIX_FDT_END,
+  FIX_FDT = FIX_FDT_END + DIV_ROUND_UP(MAX_FDT_SIZE, PAGE_SIZE) + 1,
 
-	FIX_EARLYCON_MEM_BASE,
-	FIX_TEXT_POKE0,
+  FIX_EARLYCON_MEM_BASE,
+  FIX_TEXT_POKE0,
 
 #ifdef CONFIG_ACPI_APEI_GHES
-	/* Used for GHES mapping from assorted contexts */
-	FIX_APEI_GHES_IRQ,
-	FIX_APEI_GHES_SEA,
+  /* Used for GHES mapping from assorted contexts */
+  FIX_APEI_GHES_IRQ,
+  FIX_APEI_GHES_SEA,
 #ifdef CONFIG_ARM_SDE_INTERFACE
-	FIX_APEI_GHES_SDEI_NORMAL,
-	FIX_APEI_GHES_SDEI_CRITICAL,
+  FIX_APEI_GHES_SDEI_NORMAL,
+  FIX_APEI_GHES_SDEI_CRITICAL,
 #endif
 #endif /* CONFIG_ACPI_APEI_GHES */
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 #ifdef CONFIG_RELOCATABLE
-	FIX_ENTRY_TRAMP_TEXT4,	/* one extra slot for the data page */
+  FIX_ENTRY_TRAMP_TEXT4,  /* one extra slot for the data page */
 #endif
-	FIX_ENTRY_TRAMP_TEXT3,
-	FIX_ENTRY_TRAMP_TEXT2,
-	FIX_ENTRY_TRAMP_TEXT1,
-#define TRAMP_VALIAS		(__fix_to_virt(FIX_ENTRY_TRAMP_TEXT1))
+  FIX_ENTRY_TRAMP_TEXT3,
+  FIX_ENTRY_TRAMP_TEXT2,
+  FIX_ENTRY_TRAMP_TEXT1,
+#define TRAMP_VALIAS    (__fix_to_virt(FIX_ENTRY_TRAMP_TEXT1))
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
-	__end_of_permanent_fixed_addresses,
+  __end_of_permanent_fixed_addresses,
 
-	/*
-	 * Temporary boot-time mappings, used by early_ioremap(),
-	 * before ioremap() is functional.
-	 */
-#define NR_FIX_BTMAPS		(SZ_256K / PAGE_SIZE)
-#define FIX_BTMAPS_SLOTS	7
-#define TOTAL_FIX_BTMAPS	(NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
+  /*
+   * Temporary boot-time mappings, used by early_ioremap(),
+   * before ioremap() is functional.
+   */
+#define NR_FIX_BTMAPS   (SZ_256K / PAGE_SIZE)
+#define FIX_BTMAPS_SLOTS  7
+#define TOTAL_FIX_BTMAPS  (NR_FIX_BTMAPS * FIX_BTMAPS_SLOTS)
 
-	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
-	FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
+  FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
+  FIX_BTMAP_BEGIN = FIX_BTMAP_END + TOTAL_FIX_BTMAPS - 1,
 
-	/*
-	 * Used for kernel page table creation, so unmapped memory may be used
-	 * for tables.
-	 */
-	FIX_PTE,
-	FIX_PMD,
-	FIX_PUD,
-	FIX_P4D,
-	FIX_PGD,
+  /*
+   * Used for kernel page table creation, so unmapped memory may be used
+   * for tables.
+   */
+  FIX_PTE,
+  FIX_PMD,
+  FIX_PUD,
+  FIX_P4D,
+  FIX_PGD,
 
-	__end_of_fixed_addresses
+  __end_of_fixed_addresses
 };
 
-#define FIXADDR_SIZE		(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_START		(FIXADDR_TOP - FIXADDR_SIZE)
-#define FIXADDR_TOT_SIZE	(__end_of_fixed_addresses << PAGE_SHIFT)
-#define FIXADDR_TOT_START	(FIXADDR_TOP - FIXADDR_TOT_SIZE)
+#define FIXADDR_SIZE    (__end_of_permanent_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_START   (FIXADDR_TOP - FIXADDR_SIZE)
+#define FIXADDR_TOT_SIZE  (__end_of_fixed_addresses << PAGE_SHIFT)
+#define FIXADDR_TOT_START (FIXADDR_TOP - FIXADDR_TOT_SIZE)
 
 #define FIXMAP_PAGE_IO     __pgprot(PROT_DEVICE_nGnRE)
 
@@ -107,7 +107,8 @@ void __init early_fixmap_init(void);
 #define __late_set_fixmap __set_fixmap
 #define __late_clear_fixmap(idx) __set_fixmap((idx), 0, FIXMAP_PAGE_CLEAR)
 
-extern void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot);
+extern void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
+    pgprot_t prot);
 
 #include <asm-generic/fixmap.h>
 

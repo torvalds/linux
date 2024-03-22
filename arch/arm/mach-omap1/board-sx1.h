@@ -8,22 +8,21 @@
 #ifndef __ASM_ARCH_SX1_I2C_CHIPS_H
 #define __ASM_ARCH_SX1_I2C_CHIPS_H
 
-#define SOFIA_MAX_LIGHT_VAL	0x2B
+#define SOFIA_MAX_LIGHT_VAL 0x2B
 
-#define SOFIA_I2C_ADDR		0x32
+#define SOFIA_I2C_ADDR    0x32
 /* Sofia reg 3 bits masks */
-#define SOFIA_POWER1_REG	0x03
+#define SOFIA_POWER1_REG  0x03
 
-#define	SOFIA_USB_POWER		0x01
-#define	SOFIA_MMC_POWER		0x04
-#define	SOFIA_BLUETOOTH_POWER	0x08
-#define	SOFIA_MMILIGHT_POWER	0x20
+#define SOFIA_USB_POWER   0x01
+#define SOFIA_MMC_POWER   0x04
+#define SOFIA_BLUETOOTH_POWER 0x08
+#define SOFIA_MMILIGHT_POWER  0x20
 
-#define SOFIA_POWER2_REG	0x04
-#define SOFIA_BACKLIGHT_REG	0x06
-#define SOFIA_KEYLIGHT_REG	0x07
-#define SOFIA_DIMMING_REG	0x09
-
+#define SOFIA_POWER2_REG  0x04
+#define SOFIA_BACKLIGHT_REG 0x06
+#define SOFIA_KEYLIGHT_REG  0x07
+#define SOFIA_DIMMING_REG 0x09
 
 /* Function Prototypes for SX1 devices control on I2C bus */
 

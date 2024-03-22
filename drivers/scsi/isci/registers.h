@@ -86,22 +86,22 @@
 #define SCU_VIIT_IPPT_SSP_INITIATOR (0x01 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
 #define SCU_VIIT_IPPT_SMP_INITIATOR (0x02 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
 #define SCU_VIIT_IPPT_STP_INITIATOR (0x04 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
-#define SCU_VIIT_IPPT_INITIATOR	    \
-	(\
-		SCU_VIIT_IPPT_SSP_INITIATOR  \
-		| SCU_VIIT_IPPT_SMP_INITIATOR  \
-		| SCU_VIIT_IPPT_STP_INITIATOR  \
-	)
+#define SCU_VIIT_IPPT_INITIATOR     \
+  ( \
+    SCU_VIIT_IPPT_SSP_INITIATOR  \
+    | SCU_VIIT_IPPT_SMP_INITIATOR  \
+    | SCU_VIIT_IPPT_STP_INITIATOR  \
+  )
 
 #define SCU_VIIT_STATUS_RNC_VALID      (0x01 << SCU_VIIT_ENTRY_STATUS_SHIFT)
 #define SCU_VIIT_STATUS_ADDRESS_VALID  (0x02 << SCU_VIIT_ENTRY_STATUS_SHIFT)
 #define SCU_VIIT_STATUS_RNI_VALID      (0x04 << SCU_VIIT_ENTRY_STATUS_SHIFT)
 #define SCU_VIIT_STATUS_ALL_VALID      \
-	(\
-		SCU_VIIT_STATUS_RNC_VALID	\
-		| SCU_VIIT_STATUS_ADDRESS_VALID	  \
-		| SCU_VIIT_STATUS_RNI_VALID	  \
-	)
+  ( \
+    SCU_VIIT_STATUS_RNC_VALID \
+    | SCU_VIIT_STATUS_ADDRESS_VALID   \
+    | SCU_VIIT_STATUS_RNI_VALID   \
+  )
 
 #define SCU_VIIT_IPPT_SMP_TARGET    (0x10 << SCU_VIIT_ENTRY_IPPTMODE_SHIFT)
 
@@ -111,29 +111,27 @@
  *
  */
 struct scu_viit_entry {
-	/**
-	 * This must be encoded as to the type of initiator that is being constructed
-	 * for this port.
-	 */
-	u32 status;
+  /**
+   * This must be encoded as to the type of initiator that is being constructed
+   * for this port.
+   */
+  u32 status;
 
-	/**
-	 * Virtual initiator high SAS Address
-	 */
-	u32 initiator_sas_address_hi;
+  /**
+   * Virtual initiator high SAS Address
+   */
+  u32 initiator_sas_address_hi;
 
-	/**
-	 * Virtual initiator low SAS Address
-	 */
-	u32 initiator_sas_address_lo;
+  /**
+   * Virtual initiator low SAS Address
+   */
+  u32 initiator_sas_address_lo;
 
-	/**
-	 * This must be 0
-	 */
-	u32 reserved;
-
+  /**
+   * This must be 0
+   */
+  u32 reserved;
 };
-
 
 /* IIT Status Defines */
 #define SCU_IIT_ENTRY_ID_MASK                (0xC0000000)
@@ -167,34 +165,34 @@ struct scu_viit_entry {
  *
  */
 struct scu_iit_entry {
-	u32 status;
-	u32 remote_initiator_sas_address_hi;
-	u32 remote_initiator_sas_address_lo;
-	u32 remote_initiator;
-
+  u32 status;
+  u32 remote_initiator_sas_address_hi;
+  u32 remote_initiator_sas_address_lo;
+  u32 remote_initiator;
 };
 
 /* Generate a value for an SCU register */
 #define SCU_GEN_VALUE(name, value) \
-	(((value) << name ## _SHIFT) & (name ## _MASK))
+  (((value) << name ## _SHIFT) & (name ## _MASK))
 
 /*
  * Generate a bit value for an SCU register
  * Make sure that the register MASK is just a single bit */
 #define SCU_GEN_BIT(name) \
-	SCU_GEN_VALUE(name, ((u32)1))
+  SCU_GEN_VALUE(name, ((u32) 1))
 
 #define SCU_SET_BIT(name, reg_value) \
-	((reg_value) | SCU_GEN_BIT(name))
+  ((reg_value) | SCU_GEN_BIT(name))
 
 #define SCU_CLEAR_BIT(name, reg_value) \
-	((reg_value)$ ~(SCU_GEN_BIT(name)))
+  ((reg_value) $ ~(SCU_GEN_BIT(name)))
 
 /*
  * *****************************************************************************
  * Unions for bitfield definitions of SCU Registers
  * SMU Post Context Port
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SMU_POST_CONTEXT_PORT_CONTEXT_INDEX_SHIFT         (0)
 #define SMU_POST_CONTEXT_PORT_CONTEXT_INDEX_MASK          (0x00000FFF)
 #define SMU_POST_CONTEXT_PORT_LOGICAL_PORT_INDEX_SHIFT    (12)
@@ -206,9 +204,10 @@ struct scu_iit_entry {
 #define SMU_POST_CONTEXT_PORT_RESERVED_MASK               (0xFF000000)
 
 #define SMU_PCP_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_POST_CONTEXT_PORT_ ## name, value)
+  SCU_GEN_VALUE(SMU_POST_CONTEXT_PORT_ ## name, value)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_INTERRUPT_STATUS_COMPLETION_SHIFT       (31)
 #define SMU_INTERRUPT_STATUS_COMPLETION_MASK        (0x80000000)
 #define SMU_INTERRUPT_STATUS_QUEUE_SUSPEND_SHIFT    (1)
@@ -218,13 +217,14 @@ struct scu_iit_entry {
 #define SMU_INTERRUPT_STATUS_RESERVED_MASK          (0x7FFFFFFC)
 
 #define SMU_ISR_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_INTERRUPT_STATUS_ ## name)
+  SCU_GEN_BIT(SMU_INTERRUPT_STATUS_ ## name)
 
 #define SMU_ISR_QUEUE_ERROR   SMU_ISR_GEN_BIT(QUEUE_ERROR)
 #define SMU_ISR_QUEUE_SUSPEND SMU_ISR_GEN_BIT(QUEUE_SUSPEND)
 #define SMU_ISR_COMPLETION    SMU_ISR_GEN_BIT(COMPLETION)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_INTERRUPT_MASK_COMPLETION_SHIFT         (31)
 #define SMU_INTERRUPT_MASK_COMPLETION_MASK          (0x80000000)
 #define SMU_INTERRUPT_MASK_QUEUE_SUSPEND_SHIFT      (1)
@@ -234,13 +234,14 @@ struct scu_iit_entry {
 #define SMU_INTERRUPT_MASK_RESERVED_MASK            (0x7FFFFFFC)
 
 #define SMU_IMR_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_INTERRUPT_MASK_ ## name)
+  SCU_GEN_BIT(SMU_INTERRUPT_MASK_ ## name)
 
 #define SMU_IMR_QUEUE_ERROR   SMU_IMR_GEN_BIT(QUEUE_ERROR)
 #define SMU_IMR_QUEUE_SUSPEND SMU_IMR_GEN_BIT(QUEUE_SUSPEND)
 #define SMU_IMR_COMPLETION    SMU_IMR_GEN_BIT(COMPLETION)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_INTERRUPT_COALESCING_CONTROL_TIMER_SHIFT    (0)
 #define SMU_INTERRUPT_COALESCING_CONTROL_TIMER_MASK     (0x0000001F)
 #define SMU_INTERRUPT_COALESCING_CONTROL_NUMBER_SHIFT   (8)
@@ -248,9 +249,10 @@ struct scu_iit_entry {
 #define SMU_INTERRUPT_COALESCING_CONTROL_RESERVED_MASK  (0xFFFF00E0)
 
 #define SMU_ICC_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_INTERRUPT_COALESCING_CONTROL_ ## name, value)
+  SCU_GEN_VALUE(SMU_INTERRUPT_COALESCING_CONTROL_ ## name, value)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_TASK_CONTEXT_RANGE_START_SHIFT      (0)
 #define SMU_TASK_CONTEXT_RANGE_START_MASK       (0x00000FFF)
 #define SMU_TASK_CONTEXT_RANGE_ENDING_SHIFT     (16)
@@ -260,12 +262,13 @@ struct scu_iit_entry {
 #define SMU_TASK_CONTEXT_RANGE_RESERVED_MASK    (0x7000F000)
 
 #define SMU_TCR_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_TASK_CONTEXT_RANGE_ ## name, value)
+  SCU_GEN_VALUE(SMU_TASK_CONTEXT_RANGE_ ## name, value)
 
 #define SMU_TCR_GEN_BIT(name, value) \
-	SCU_GEN_BIT(SMU_TASK_CONTEXT_RANGE_ ## name)
+  SCU_GEN_BIT(SMU_TASK_CONTEXT_RANGE_ ## name)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 
 #define SMU_COMPLETION_QUEUE_PUT_POINTER_SHIFT          (0)
 #define SMU_COMPLETION_QUEUE_PUT_POINTER_MASK           (0x00003FFF)
@@ -278,12 +281,13 @@ struct scu_iit_entry {
 #define SMU_COMPLETION_QUEUE_PUT_RESERVED_MASK          (0xF8004000)
 
 #define SMU_CQPR_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_COMPLETION_QUEUE_PUT_ ## name, value)
+  SCU_GEN_VALUE(SMU_COMPLETION_QUEUE_PUT_ ## name, value)
 
 #define SMU_CQPR_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_COMPLETION_QUEUE_PUT_ ## name)
+  SCU_GEN_BIT(SMU_COMPLETION_QUEUE_PUT_ ## name)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 
 #define SMU_COMPLETION_QUEUE_GET_POINTER_SHIFT          (0)
 #define SMU_COMPLETION_QUEUE_GET_POINTER_MASK           (0x00003FFF)
@@ -300,22 +304,22 @@ struct scu_iit_entry {
 #define SMU_COMPLETION_QUEUE_GET_RESERVED_MASK          (0x38004000)
 
 #define SMU_CQGR_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_COMPLETION_QUEUE_GET_ ## name, value)
+  SCU_GEN_VALUE(SMU_COMPLETION_QUEUE_GET_ ## name, value)
 
 #define SMU_CQGR_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_COMPLETION_QUEUE_GET_ ## name)
+  SCU_GEN_BIT(SMU_COMPLETION_QUEUE_GET_ ## name)
 
 #define SMU_CQGR_CYCLE_BIT \
-	SMU_CQGR_GEN_BIT(CYCLE_BIT)
+  SMU_CQGR_GEN_BIT(CYCLE_BIT)
 
 #define SMU_CQGR_EVENT_CYCLE_BIT \
-	SMU_CQGR_GEN_BIT(EVENT_CYCLE_BIT)
+  SMU_CQGR_GEN_BIT(EVENT_CYCLE_BIT)
 
-#define SMU_CQGR_GET_POINTER_SET(value)	\
-	SMU_CQGR_GEN_VAL(POINTER, value)
+#define SMU_CQGR_GET_POINTER_SET(value) \
+  SMU_CQGR_GEN_VAL(POINTER, value)
 
-
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_COMPLETION_QUEUE_CONTROL_QUEUE_LIMIT_SHIFT  (0)
 #define SMU_COMPLETION_QUEUE_CONTROL_QUEUE_LIMIT_MASK   (0x00003FFF)
 #define SMU_COMPLETION_QUEUE_CONTROL_EVENT_LIMIT_SHIFT  (16)
@@ -323,16 +327,16 @@ struct scu_iit_entry {
 #define SMU_COMPLETION_QUEUE_CONTROL_RESERVED_MASK      (0xFC00C000)
 
 #define SMU_CQC_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_COMPLETION_QUEUE_CONTROL_ ## name, value)
+  SCU_GEN_VALUE(SMU_COMPLETION_QUEUE_CONTROL_ ## name, value)
 
 #define SMU_CQC_QUEUE_LIMIT_SET(value) \
-	SMU_CQC_GEN_VAL(QUEUE_LIMIT, value)
+  SMU_CQC_GEN_VAL(QUEUE_LIMIT, value)
 
 #define SMU_CQC_EVENT_LIMIT_SET(value) \
-	SMU_CQC_GEN_VAL(EVENT_LIMIT, value)
+  SMU_CQC_GEN_VAL(EVENT_LIMIT, value)
 
-
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_SHIFT    (0)
 #define SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_MASK     (0x00000FFF)
 #define SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_SHIFT    (12)
@@ -344,33 +348,34 @@ struct scu_iit_entry {
 #define SMU_DEVICE_CONTEXT_CAPACITY_RESERVED_MASK   (0xF0000000)
 
 #define SMU_DCC_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_DEVICE_CONTEXT_CAPACITY_ ## name, value)
+  SCU_GEN_VALUE(SMU_DEVICE_CONTEXT_CAPACITY_ ## name, value)
 
 #define SMU_DCC_GET_MAX_PEG(value) \
-	(\
-		((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_PEG_MASK) \
-		>> SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_SHIFT \
-	)
+  ( \
+    ((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_PEG_MASK) \
+    >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_SHIFT \
+  )
 
 #define SMU_DCC_GET_MAX_LP(value) \
-	(\
-		((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_MASK) \
-		>> SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_SHIFT \
-	)
+  ( \
+    ((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_MASK) \
+    >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_LP_SHIFT \
+  )
 
 #define SMU_DCC_GET_MAX_TC(value) \
-	(\
-		((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_MASK) \
-		>> SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_SHIFT \
-	)
+  ( \
+    ((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_MASK) \
+    >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_TC_SHIFT \
+  )
 
 #define SMU_DCC_GET_MAX_RNC(value) \
-	(\
-		((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_MASK) \
-		>> SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_SHIFT \
-	)
+  ( \
+    ((value) & SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_MASK) \
+    >> SMU_DEVICE_CONTEXT_CAPACITY_MAX_RNC_SHIFT \
+  )
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_CLOCK_GATING_CONTROL_IDLE_ENABLE_SHIFT    (0)
 #define SMU_CLOCK_GATING_CONTROL_IDLE_ENABLE_MASK     (0x00000001)
 #define SMU_CLOCK_GATING_CONTROL_XCLK_ENABLE_SHIFT    (1)
@@ -386,10 +391,10 @@ struct scu_iit_entry {
 #define SMU_CLOCK_GATING_CONTROL_RESERVED_MASK        (0x7FF0FFF0)
 
 #define SMU_CGUCR_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_CLOCK_GATING_CONTROL_##name, value)
+  SCU_GEN_VALUE(SMU_CLOCK_GATING_CONTROL_ ## name, value)
 
 #define SMU_CGUCR_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_CLOCK_GATING_CONTROL_##name)
+  SCU_GEN_BIT(SMU_CLOCK_GATING_CONTROL_ ## name)
 
 /* -------------------------------------------------------------------------- */
 
@@ -404,19 +409,19 @@ struct scu_iit_entry {
 #define SMU_CONTROL_STATUS_RESERVED_MASK                        (0xFFFCFFFC)
 
 #define SMU_SMUCSR_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_CONTROL_STATUS_ ## name)
+  SCU_GEN_BIT(SMU_CONTROL_STATUS_ ## name)
 
-#define SMU_SMUCSR_SCHEDULER_RAM_INIT_COMPLETED	\
-	(SMU_SMUCSR_GEN_BIT(SCHEDULER_RAM_INIT_COMPLETED))
+#define SMU_SMUCSR_SCHEDULER_RAM_INIT_COMPLETED \
+  (SMU_SMUCSR_GEN_BIT(SCHEDULER_RAM_INIT_COMPLETED))
 
-#define SMU_SMUCSR_CONTEXT_RAM_INIT_COMPLETED	\
-	(SMU_SMUCSR_GEN_BIT(CONTEXT_RAM_INIT_COMPLETED))
+#define SMU_SMUCSR_CONTEXT_RAM_INIT_COMPLETED \
+  (SMU_SMUCSR_GEN_BIT(CONTEXT_RAM_INIT_COMPLETED))
 
 #define SCU_RAM_INIT_COMPLETED \
-	(\
-		SMU_SMUCSR_CONTEXT_RAM_INIT_COMPLETED \
-		| SMU_SMUCSR_SCHEDULER_RAM_INIT_COMPLETED \
-	)
+  ( \
+    SMU_SMUCSR_CONTEXT_RAM_INIT_COMPLETED \
+    | SMU_SMUCSR_SCHEDULER_RAM_INIT_COMPLETED \
+  )
 
 /* -------------------------------------------------------------------------- */
 
@@ -438,21 +443,21 @@ struct scu_iit_entry {
 #define SMU_SOFTRESET_CONTROL_RESET_PEG1_PE3_MASK   (0x00000800)
 
 #define SMU_RESET_PROTOCOL_ENGINE(peg, pe) \
-	((1 << (pe)) << ((peg) * 8))
+  ((1 << (pe)) << ((peg) * 8))
 
 #define SMU_RESET_PEG_PROTOCOL_ENGINES(peg) \
-	(\
-		SMU_RESET_PROTOCOL_ENGINE(peg, 0) \
-		| SMU_RESET_PROTOCOL_ENGINE(peg, 1) \
-		| SMU_RESET_PROTOCOL_ENGINE(peg, 2) \
-		| SMU_RESET_PROTOCOL_ENGINE(peg, 3) \
-	)
+  ( \
+    SMU_RESET_PROTOCOL_ENGINE(peg, 0) \
+    | SMU_RESET_PROTOCOL_ENGINE(peg, 1) \
+    | SMU_RESET_PROTOCOL_ENGINE(peg, 2) \
+    | SMU_RESET_PROTOCOL_ENGINE(peg, 3) \
+  )
 
 #define SMU_RESET_ALL_PROTOCOL_ENGINES() \
-	(\
-		SMU_RESET_PEG_PROTOCOL_ENGINES(0) \
-		| SMU_RESET_PEG_PROTOCOL_ENGINES(1) \
-	)
+  ( \
+    SMU_RESET_PEG_PROTOCOL_ENGINES(0) \
+    | SMU_RESET_PEG_PROTOCOL_ENGINES(1) \
+  )
 
 #define SMU_SOFTRESET_CONTROL_RESET_WIDE_PORT_PEG0_LP0_SHIFT  (16)
 #define SMU_SOFTRESET_CONTROL_RESET_WIDE_PORT_PEG0_LP0_MASK   (0x00010000)
@@ -464,7 +469,7 @@ struct scu_iit_entry {
 #define SMU_SOFTRESET_CONTROL_RESET_WIDE_PORT_PEG1_LP2_MASK   (0x00080000)
 
 #define SMU_RESET_WIDE_PORT_QUEUE(peg, wide_port) \
-	((1 << ((wide_port) / 2)) << ((peg) * 2) << 16)
+  ((1 << ((wide_port) / 2)) << ((peg) * 2) << 16)
 
 #define SMU_SOFTRESET_CONTROL_RESET_PEG0_SHIFT      (20)
 #define SMU_SOFTRESET_CONTROL_RESET_PEG0_MASK       (0x00100000)
@@ -477,24 +482,23 @@ struct scu_iit_entry {
  * It seems to make sense that if you are going to reset the protocol
  * engine group that you would also reset all of the protocol engines */
 #define SMU_RESET_PROTOCOL_ENGINE_GROUP(peg) \
-	(\
-		(1 << ((peg) + 20)) \
-		| SMU_RESET_WIDE_PORT_QUEUE(peg, 0) \
-		| SMU_RESET_WIDE_PORT_QUEUE(peg, 1) \
-		| SMU_RESET_PEG_PROTOCOL_ENGINES(peg) \
-	)
+  ( \
+    (1 << ((peg) + 20)) \
+    | SMU_RESET_WIDE_PORT_QUEUE(peg, 0) \
+    | SMU_RESET_WIDE_PORT_QUEUE(peg, 1) \
+    | SMU_RESET_PEG_PROTOCOL_ENGINES(peg) \
+  )
 
 #define SMU_RESET_ALL_PROTOCOL_ENGINE_GROUPS() \
-	(\
-		SMU_RESET_PROTOCOL_ENGINE_GROUP(0) \
-		| SMU_RESET_PROTOCOL_ENGINE_GROUP(1) \
-	)
+  ( \
+    SMU_RESET_PROTOCOL_ENGINE_GROUP(0) \
+    | SMU_RESET_PROTOCOL_ENGINE_GROUP(1) \
+  )
 
 #define SMU_RESET_SCU()  (0xFFFFFFFF)
 
-
-
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SMU_TASK_CONTEXT_ASSIGNMENT_STARTING_SHIFT              (0)
 #define SMU_TASK_CONTEXT_ASSIGNMENT_STARTING_MASK               (0x00000FFF)
 #define SMU_TASK_CONTEXT_ASSIGNMENT_ENDING_SHIFT                (16)
@@ -504,23 +508,25 @@ struct scu_iit_entry {
 #define SMU_TASK_CONTEXT_ASSIGNMENT_RESERVED_MASK               (0x7000F000)
 
 #define SMU_TCA_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SMU_TASK_CONTEXT_ASSIGNMENT_ ## name, value)
+  SCU_GEN_VALUE(SMU_TASK_CONTEXT_ASSIGNMENT_ ## name, value)
 
 #define SMU_TCA_GEN_BIT(name) \
-	SCU_GEN_BIT(SMU_TASK_CONTEXT_ASSIGNMENT_ ## name)
+  SCU_GEN_BIT(SMU_TASK_CONTEXT_ASSIGNMENT_ ## name)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_CONTROL_QUEUE_SIZE_SHIFT   (0)
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_CONTROL_QUEUE_SIZE_MASK    (0x00000FFF)
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_CONTROL_RESERVED_MASK      (0xFFFFF000)
 
 #define SCU_UFQC_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_CONTROL_ ## name, value)
+  SCU_GEN_VALUE(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_CONTROL_ ## name, value)
 
 #define SCU_UFQC_QUEUE_SIZE_SET(value) \
-	SCU_UFQC_GEN_VAL(QUEUE_SIZE, value)
+  SCU_UFQC_GEN_VAL(QUEUE_SIZE, value)
 
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_POINTER_SHIFT      (0)
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_POINTER_MASK       (0x00000FFF)
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_CYCLE_BIT_SHIFT    (12)
@@ -528,15 +534,16 @@ struct scu_iit_entry {
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_RESERVED_MASK      (0xFFFFE000)
 
 #define SCU_UFQPP_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_ ## name, value)
+  SCU_GEN_VALUE(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_ ## name, value)
 
-#define SCU_UFQPP_GEN_BIT(name)	\
-	SCU_GEN_BIT(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_ ## name)
+#define SCU_UFQPP_GEN_BIT(name) \
+  SCU_GEN_BIT(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_PUT_ ## name)
 
 /*
  * *****************************************************************************
  * * SDMA Registers
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_POINTER_SHIFT      (0)
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_POINTER_MASK       (0x00000FFF)
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_CYCLE_BIT_SHIFT    (12)
@@ -546,80 +553,112 @@ struct scu_iit_entry {
 #define SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_RESERVED_MASK      (0x7FFFE000)
 
 #define SCU_UFQGP_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_ ## name, value)
+  SCU_GEN_VALUE(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_ ## name, value)
 
-#define SCU_UFQGP_GEN_BIT(name)	\
-	SCU_GEN_BIT(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_ ## name)
+#define SCU_UFQGP_GEN_BIT(name) \
+  SCU_GEN_BIT(SCU_SDMA_UNSOLICITED_FRAME_QUEUE_GET_ ## name)
 
 #define SCU_UFQGP_CYCLE_BIT(value) \
-	SCU_UFQGP_GEN_BIT(CYCLE_BIT, value)
+  SCU_UFQGP_GEN_BIT(CYCLE_BIT, value)
 
 #define SCU_UFQGP_GET_POINTER(value) \
-	SCU_UFQGP_GEN_VALUE(POINTER, value)
+  SCU_UFQGP_GEN_VALUE(POINTER, value)
 
-#define SCU_UFQGP_ENABLE(value)	\
-	(SCU_UFQGP_GEN_BIT(ENABLE) | value)
+#define SCU_UFQGP_ENABLE(value) \
+  (SCU_UFQGP_GEN_BIT(ENABLE) | value)
 
 #define SCU_UFQGP_DISABLE(value) \
-	(~SCU_UFQGP_GEN_BIT(ENABLE) & value)
+  (~SCU_UFQGP_GEN_BIT(ENABLE) & value)
 
 #define SCU_UFQGP_VALUE(bit, value) \
-	(SCU_UFQGP_CYCLE_BIT(bit) | SCU_UFQGP_GET_POINTER(value))
+  (SCU_UFQGP_CYCLE_BIT(bit) | SCU_UFQGP_GET_POINTER(value))
 
-/* ***************************************************************************** */
-#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_SHIFT                               (0)
-#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_MASK                                (0x0000FFFF)
-#define SCU_PDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_SHIFT                    (16)
-#define SCU_PDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_MASK                     (0x00010000)
-#define SCU_PDMA_CONFIGURATION_PCI_NO_SNOOP_ENABLE_SHIFT                            (17)
-#define SCU_PDMA_CONFIGURATION_PCI_NO_SNOOP_ENABLE_MASK                             (0x00020000)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_BYTE_SWAP_SHIFT                   (18)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_BYTE_SWAP_MASK                    (0x00040000)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_SGL_FETCH_SHIFT               (19)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_SGL_FETCH_MASK                (0x00080000)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_RX_HEADER_RAM_WRITE_SHIFT     (20)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_RX_HEADER_RAM_WRITE_MASK      (0x00100000)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_UF_ADDRESS_FETCH_SHIFT        (21)
-#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_UF_ADDRESS_FETCH_MASK         (0x00200000)
-#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_SELECT_SHIFT                        (22)
-#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_SELECT_MASK                         (0x00400000)
-#define SCU_PDMA_CONFIGURATION_RESERVED_MASK                                        (0xFF800000)
+/* *****************************************************************************
+ * */
+#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_SHIFT                               ( \
+    0)
+#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_MASK                                ( \
+    0x0000FFFF)
+#define SCU_PDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_SHIFT                    ( \
+    16)
+#define SCU_PDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_MASK                     ( \
+    0x00010000)
+#define SCU_PDMA_CONFIGURATION_PCI_NO_SNOOP_ENABLE_SHIFT                            ( \
+    17)
+#define SCU_PDMA_CONFIGURATION_PCI_NO_SNOOP_ENABLE_MASK                             ( \
+    0x00020000)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_BYTE_SWAP_SHIFT                   ( \
+    18)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_BYTE_SWAP_MASK                    ( \
+    0x00040000)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_SGL_FETCH_SHIFT               ( \
+    19)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_SGL_FETCH_MASK                ( \
+    0x00080000)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_RX_HEADER_RAM_WRITE_SHIFT     ( \
+    20)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_RX_HEADER_RAM_WRITE_MASK      ( \
+    0x00100000)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_UF_ADDRESS_FETCH_SHIFT        ( \
+    21)
+#define SCU_PDMA_CONFIGURATION_BIG_ENDIAN_CONTROL_XPI_UF_ADDRESS_FETCH_MASK         ( \
+    0x00200000)
+#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_SELECT_SHIFT                        ( \
+    22)
+#define SCU_PDMA_CONFIGURATION_ADDRESS_MODIFIER_SELECT_MASK                         ( \
+    0x00400000)
+#define SCU_PDMA_CONFIGURATION_RESERVED_MASK                                        ( \
+    0xFF800000)
 
 #define SCU_PDMACR_GEN_VALUE(name, value) \
-	SCU_GEN_VALUE(SCU_PDMA_CONFIGURATION_ ## name, value)
+  SCU_GEN_VALUE(SCU_PDMA_CONFIGURATION_ ## name, value)
 
 #define SCU_PDMACR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_PDMA_CONFIGURATION_ ## name)
+  SCU_GEN_BIT(SCU_PDMA_CONFIGURATION_ ## name)
 
 #define SCU_PDMACR_BE_GEN_BIT(name) \
-	SCU_PCMACR_GEN_BIT(BIG_ENDIAN_CONTROL_ ## name)
+  SCU_PCMACR_GEN_BIT(BIG_ENDIAN_CONTROL_ ## name)
 
-/* ***************************************************************************** */
-#define SCU_CDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_SHIFT                    (8)
-#define SCU_CDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_MASK                     (0x00000100)
+/* *****************************************************************************
+ * */
+#define SCU_CDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_SHIFT                    ( \
+    8)
+#define SCU_CDMA_CONFIGURATION_PCI_RELAXED_ORDERING_ENABLE_MASK                     ( \
+    0x00000100)
 
 #define SCU_CDMACR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_CDMA_CONFIGURATION_ ## name)
+  SCU_GEN_BIT(SCU_CDMA_CONFIGURATION_ ## name)
 
 /*
  * *****************************************************************************
  * * SCU Link Layer Registers
- * ***************************************************************************** */
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_TIMEOUT_SHIFT             (0)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_TIMEOUT_MASK              (0x000000FF)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_LOCK_TIME_SHIFT           (8)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_LOCK_TIME_MASK            (0x0000FF00)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_RATE_CHANGE_DELAY_SHIFT   (16)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_RATE_CHANGE_DELAY_MASK    (0x00FF0000)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_DWORD_SYNC_TIMEOUT_SHIFT  (24)
-#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_DWORD_SYNC_TIMEOUT_MASK   (0xFF000000)
-#define SCU_LINK_LAYER_SPEED_NECGOIATION_TIMER_VALUES_REQUIRED_MASK             (0x00000000)
-#define SCU_LINK_LAYER_SPEED_NECGOIATION_TIMER_VALUES_DEFAULT_MASK              (0x7D00676F)
-#define SCU_LINK_LAYER_SPEED_NECGOIATION_TIMER_VALUES_RESERVED_MASK             (0x00FF0000)
+ * *****************************************************************************
+ **/
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_TIMEOUT_SHIFT             ( \
+    0)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_TIMEOUT_MASK              ( \
+    0x000000FF)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_LOCK_TIME_SHIFT           ( \
+    8)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_LOCK_TIME_MASK            ( \
+    0x0000FF00)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_RATE_CHANGE_DELAY_SHIFT   ( \
+    16)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_RATE_CHANGE_DELAY_MASK    ( \
+    0x00FF0000)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_DWORD_SYNC_TIMEOUT_SHIFT  ( \
+    24)
+#define SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_DWORD_SYNC_TIMEOUT_MASK   ( \
+    0xFF000000)
+#define SCU_LINK_LAYER_SPEED_NECGOIATION_TIMER_VALUES_REQUIRED_MASK             ( \
+    0x00000000)
+#define SCU_LINK_LAYER_SPEED_NECGOIATION_TIMER_VALUES_DEFAULT_MASK              ( \
+    0x7D00676F)
+#define SCU_LINK_LAYER_SPEED_NECGOIATION_TIMER_VALUES_RESERVED_MASK             ( \
+    0x00FF0000)
 
 #define SCU_SAS_SPDTOV_GEN_VALUE(name, value) \
-	SCU_GEN_VALUE(SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_ ## name, value)
-
+  SCU_GEN_VALUE(SCU_LINK_LAYER_SPEED_NEGOTIATION_TIMER_VALUES_ ## name, value)
 
 #define SCU_LINK_STATUS_DWORD_SYNC_AQUIRED_SHIFT            (2)
 #define SCU_LINK_STATUS_DWORD_SYNC_AQUIRED_MASK             (0x00000004)
@@ -630,26 +669,25 @@ struct scu_iit_entry {
 #define SCU_LINK_STATUS_RESERVED_MASK                       (0xFFFFFFCD)
 
 #define SCU_SAS_LLSTA_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_LINK_STATUS_ ## name)
-
+  SCU_GEN_BIT(SCU_LINK_STATUS_ ## name)
 
 /* TODO: Where is the SATA_PSELTOV register? */
 
 /*
  * *****************************************************************************
  * * SCU SAS Maximum Arbitration Wait Time Timeout Register
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_VALUE_SHIFT       (0)
 #define SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_VALUE_MASK        (0x00007FFF)
 #define SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_SCALE_SHIFT       (15)
 #define SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_SCALE_MASK        (0x00008000)
 
 #define SCU_SAS_MAWTTOV_GEN_VALUE(name, value) \
-	SCU_GEN_VALUE(SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_ ## name, value)
+  SCU_GEN_VALUE(SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_ ## name, value)
 
 #define SCU_SAS_MAWTTOV_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_ ## name)
-
+  SCU_GEN_BIT(SCU_SAS_MAX_ARBITRATION_WAIT_TIME_TIMEOUT_ ## name)
 
 /*
  * TODO: Where is the SAS_LNKTOV register?
@@ -678,67 +716,97 @@ struct scu_iit_entry {
 #define SCU_SAS_TRANSMIT_IDENTIFICATION_RESERVED_MASK               (0x80F0F1F1)
 
 #define SCU_SAS_TIID_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SAS_TRANSMIT_IDENTIFICATION_ ## name, value)
+  SCU_GEN_VALUE(SCU_SAS_TRANSMIT_IDENTIFICATION_ ## name, value)
 
 #define SCU_SAS_TIID_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_SAS_TRANSMIT_IDENTIFICATION_ ## name)
+  SCU_GEN_BIT(SCU_SAS_TRANSMIT_IDENTIFICATION_ ## name)
 
 /* SAS Identify Frame PHY Identifier Register */
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_BREAK_REPLY_CAPABLE_SHIFT      (16)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_BREAK_REPLY_CAPABLE_MASK       (0x00010000)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_REQUESTED_INSIDE_ZPSDS_SHIFT   (17)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_REQUESTED_INSIDE_ZPSDS_MASK    (0x00020000)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_INSIDE_ZPSDS_PERSISTENT_SHIFT  (18)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_INSIDE_ZPSDS_PERSISTENT_MASK   (0x00040000)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ID_SHIFT                       (24)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ID_MASK                        (0xFF000000)
-#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_RESERVED_MASK                  (0x00F800FF)
+#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_BREAK_REPLY_CAPABLE_SHIFT      ( \
+    16)
+#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_BREAK_REPLY_CAPABLE_MASK       ( \
+    0x00010000)
+#define \
+  SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_REQUESTED_INSIDE_ZPSDS_SHIFT   ( \
+    17)
+#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_REQUESTED_INSIDE_ZPSDS_MASK    ( \
+    0x00020000)
+#define \
+  SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_INSIDE_ZPSDS_PERSISTENT_SHIFT  ( \
+    18)
+#define \
+  SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_INSIDE_ZPSDS_PERSISTENT_MASK   ( \
+    0x00040000)
+#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ID_SHIFT                       ( \
+    24)
+#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ID_MASK                        ( \
+    0xFF000000)
+#define SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_RESERVED_MASK                  ( \
+    0x00F800FF)
 
 #define SCU_SAS_TIPID_GEN_VALUE(name, value) \
-	SCU_GEN_VALUE(SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ ## name, value)
+  SCU_GEN_VALUE(SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ ## name, value)
 
 #define SCU_SAS_TIPID_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ ## name)
-
+  SCU_GEN_BIT(SCU_LINK_LAYER_IDENTIFY_FRAME_PHY_IDENTIFIER_ ## name)
 
 #define SCU_SAS_PHY_CONFIGURATION_TX_PARITY_CHECK_SHIFT                     (4)
-#define SCU_SAS_PHY_CONFIGURATION_TX_PARITY_CHECK_MASK                      (0x00000010)
+#define SCU_SAS_PHY_CONFIGURATION_TX_PARITY_CHECK_MASK                      ( \
+    0x00000010)
 #define SCU_SAS_PHY_CONFIGURATION_TX_BAD_CRC_SHIFT                          (6)
-#define SCU_SAS_PHY_CONFIGURATION_TX_BAD_CRC_MASK                           (0x00000040)
+#define SCU_SAS_PHY_CONFIGURATION_TX_BAD_CRC_MASK                           ( \
+    0x00000040)
 #define SCU_SAS_PHY_CONFIGURATION_DISABLE_SCRAMBLER_SHIFT                   (7)
-#define SCU_SAS_PHY_CONFIGURATION_DISABLE_SCRAMBLER_MASK                    (0x00000080)
+#define SCU_SAS_PHY_CONFIGURATION_DISABLE_SCRAMBLER_MASK                    ( \
+    0x00000080)
 #define SCU_SAS_PHY_CONFIGURATION_DISABLE_DESCRAMBLER_SHIFT                 (8)
-#define SCU_SAS_PHY_CONFIGURATION_DISABLE_DESCRAMBLER_MASK                  (0x00000100)
+#define SCU_SAS_PHY_CONFIGURATION_DISABLE_DESCRAMBLER_MASK                  ( \
+    0x00000100)
 #define SCU_SAS_PHY_CONFIGURATION_DISABLE_CREDIT_INSERTION_SHIFT            (9)
-#define SCU_SAS_PHY_CONFIGURATION_DISABLE_CREDIT_INSERTION_MASK             (0x00000200)
+#define SCU_SAS_PHY_CONFIGURATION_DISABLE_CREDIT_INSERTION_MASK             ( \
+    0x00000200)
 #define SCU_SAS_PHY_CONFIGURATION_SUSPEND_PROTOCOL_ENGINE_SHIFT             (11)
-#define SCU_SAS_PHY_CONFIGURATION_SUSPEND_PROTOCOL_ENGINE_MASK              (0x00000800)
+#define SCU_SAS_PHY_CONFIGURATION_SUSPEND_PROTOCOL_ENGINE_MASK              ( \
+    0x00000800)
 #define SCU_SAS_PHY_CONFIGURATION_SATA_SPINUP_HOLD_SHIFT                    (12)
-#define SCU_SAS_PHY_CONFIGURATION_SATA_SPINUP_HOLD_MASK                     (0x00001000)
+#define SCU_SAS_PHY_CONFIGURATION_SATA_SPINUP_HOLD_MASK                     ( \
+    0x00001000)
 #define SCU_SAS_PHY_CONFIGURATION_TRANSMIT_PORT_SELECTION_SIGNAL_SHIFT      (13)
-#define SCU_SAS_PHY_CONFIGURATION_TRANSMIT_PORT_SELECTION_SIGNAL_MASK       (0x00002000)
+#define SCU_SAS_PHY_CONFIGURATION_TRANSMIT_PORT_SELECTION_SIGNAL_MASK       ( \
+    0x00002000)
 #define SCU_SAS_PHY_CONFIGURATION_HARD_RESET_SHIFT                          (14)
-#define SCU_SAS_PHY_CONFIGURATION_HARD_RESET_MASK                           (0x00004000)
+#define SCU_SAS_PHY_CONFIGURATION_HARD_RESET_MASK                           ( \
+    0x00004000)
 #define SCU_SAS_PHY_CONFIGURATION_OOB_ENABLE_SHIFT                          (15)
-#define SCU_SAS_PHY_CONFIGURATION_OOB_ENABLE_MASK                           (0x00008000)
+#define SCU_SAS_PHY_CONFIGURATION_OOB_ENABLE_MASK                           ( \
+    0x00008000)
 #define SCU_SAS_PHY_CONFIGURATION_ENABLE_FRAME_TX_INSERT_ALIGN_SHIFT        (23)
-#define SCU_SAS_PHY_CONFIGURATION_ENABLE_FRAME_TX_INSERT_ALIGN_MASK         (0x00800000)
+#define SCU_SAS_PHY_CONFIGURATION_ENABLE_FRAME_TX_INSERT_ALIGN_MASK         ( \
+    0x00800000)
 #define SCU_SAS_PHY_CONFIGURATION_FORWARD_IDENTIFY_FRAME_SHIFT              (27)
-#define SCU_SAS_PHY_CONFIGURATION_FORWARD_IDENTIFY_FRAME_MASK               (0x08000000)
+#define SCU_SAS_PHY_CONFIGURATION_FORWARD_IDENTIFY_FRAME_MASK               ( \
+    0x08000000)
 #define SCU_SAS_PHY_CONFIGURATION_DISABLE_BYTE_TRANSPOSE_STP_FRAME_SHIFT    (28)
-#define SCU_SAS_PHY_CONFIGURATION_DISABLE_BYTE_TRANSPOSE_STP_FRAME_MASK     (0x10000000)
+#define SCU_SAS_PHY_CONFIGURATION_DISABLE_BYTE_TRANSPOSE_STP_FRAME_MASK     ( \
+    0x10000000)
 #define SCU_SAS_PHY_CONFIGURATION_OOB_RESET_SHIFT                           (29)
-#define SCU_SAS_PHY_CONFIGURATION_OOB_RESET_MASK                            (0x20000000)
+#define SCU_SAS_PHY_CONFIGURATION_OOB_RESET_MASK                            ( \
+    0x20000000)
 #define SCU_SAS_PHY_CONFIGURATION_THREE_IAF_ENABLE_SHIFT                    (30)
-#define SCU_SAS_PHY_CONFIGURATION_THREE_IAF_ENABLE_MASK                     (0x40000000)
+#define SCU_SAS_PHY_CONFIGURATION_THREE_IAF_ENABLE_MASK                     ( \
+    0x40000000)
 #define SCU_SAS_PHY_CONFIGURATION_OOB_ALIGN0_ENABLE_SHIFT                   (31)
-#define SCU_SAS_PHY_CONFIGURATION_OOB_ALIGN0_ENABLE_MASK                    (0x80000000)
-#define SCU_SAS_PHY_CONFIGURATION_REQUIRED_MASK                             (0x0100000F)
-#define SCU_SAS_PHY_CONFIGURATION_DEFAULT_MASK                              (0x4180100F)
-#define SCU_SAS_PHY_CONFIGURATION_RESERVED_MASK                             (0x00000000)
+#define SCU_SAS_PHY_CONFIGURATION_OOB_ALIGN0_ENABLE_MASK                    ( \
+    0x80000000)
+#define SCU_SAS_PHY_CONFIGURATION_REQUIRED_MASK                             ( \
+    0x0100000F)
+#define SCU_SAS_PHY_CONFIGURATION_DEFAULT_MASK                              ( \
+    0x4180100F)
+#define SCU_SAS_PHY_CONFIGURATION_RESERVED_MASK                             ( \
+    0x00000000)
 
 #define SCU_SAS_PCFG_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_SAS_PHY_CONFIGURATION_ ## name)
+  SCU_GEN_BIT(SCU_SAS_PHY_CONFIGURATION_ ## name)
 
 #define SCU_LINK_LAYER_ALIGN_INSERTION_FREQUENCY_GENERAL_SHIFT      (0)
 #define SCU_LINK_LAYER_ALIGN_INSERTION_FREQUENCY_GENERAL_MASK       (0x000007FF)
@@ -746,7 +814,7 @@ struct scu_iit_entry {
 #define SCU_LINK_LAYER_ALIGN_INSERTION_FREQUENCY_CONNECTED_MASK     (0x00ff0000)
 
 #define SCU_ALIGN_INSERTION_FREQUENCY_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_LINK_LAYER_ALIGN_INSERTION_FREQUENCY_##name, value)
+  SCU_GEN_VALUE(SCU_LINK_LAYER_ALIGN_INSERTION_FREQUENCY_ ## name, value)
 
 #define SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_COUNT_SHIFT    (0)
 #define SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_COUNT_MASK     (0x0003FFFF)
@@ -755,11 +823,10 @@ struct scu_iit_entry {
 #define SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_RESERVED_MASK  (0x7FFC0000)
 
 #define SCU_ENSPINUP_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_ ## name, value)
+  SCU_GEN_VALUE(SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_ ## name, value)
 
 #define SCU_ENSPINUP_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_ ## name)
-
+  SCU_GEN_BIT(SCU_LINK_LAYER_ENABLE_SPINUP_CONTROL_ ## name)
 
 #define SCU_LINK_LAYER_PHY_CAPABILITIES_TXSSCTYPE_SHIFT     (1)
 #define SCU_LINK_LAYER_PHY_CAPABILITIES_TXSSCTYPE_MASK      (0x00000002)
@@ -784,61 +851,119 @@ struct scu_iit_entry {
 #define SCU_LINK_LAYER_PHY_CAPABILITIES_RESERVED_MASK       (0x7FFFC00D)
 
 #define SCU_SAS_PHYCAP_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_LINK_LAYER_PHY_CAPABILITIES_ ## name, value)
+  SCU_GEN_VALUE(SCU_LINK_LAYER_PHY_CAPABILITIES_ ## name, value)
 
 #define SCU_SAS_PHYCAP_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_LINK_LAYER_PHY_CAPABILITIES_ ## name)
+  SCU_GEN_BIT(SCU_LINK_LAYER_PHY_CAPABILITIES_ ## name)
 
+#define \
+  SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_VIRTUAL_EXPANDER_PHY_ZONE_GROUP_SHIFT  ( \
+    0)
+#define \
+  SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_VIRTUAL_EXPANDER_PHY_ZONE_GROUP_MASK   ( \
+    0x000000FF)
+#define \
+  SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_INSIDE_SOURCE_ZONE_GROUP_SHIFT         ( \
+    31)
+#define \
+  SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_INSIDE_SOURCE_ZONE_GROUP_MASK          ( \
+    0x80000000)
+#define SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_RESERVED_MASK                          ( \
+    0x7FFFFF00)
 
-#define SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_VIRTUAL_EXPANDER_PHY_ZONE_GROUP_SHIFT  (0)
-#define SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_VIRTUAL_EXPANDER_PHY_ZONE_GROUP_MASK   (0x000000FF)
-#define SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_INSIDE_SOURCE_ZONE_GROUP_SHIFT         (31)
-#define SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_INSIDE_SOURCE_ZONE_GROUP_MASK          (0x80000000)
-#define SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_RESERVED_MASK                          (0x7FFFFF00)
-
-#define SCU_PSZGCR_GEN_VAL(name, value)	\
-	SCU_GEN_VALUE(SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_ ## name, value)
+#define SCU_PSZGCR_GEN_VAL(name, value) \
+  SCU_GEN_VALUE(SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_ ## name, value)
 
 #define SCU_PSZGCR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_ ## name)
+  SCU_GEN_BIT(SCU_LINK_LAYER_PHY_SOURCE_ZONE_GROUP_CONTROL_ ## name)
 
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_LOCKED_SHIFT        (1)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_LOCKED_MASK         (0x00000002)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_UPDATING_SHIFT      (2)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_UPDATING_MASK       (0x00000004)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_LOCKED_SHIFT        (4)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_LOCKED_MASK         (0x00000010)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_UPDATING_SHIFT      (5)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_UPDATING_MASK       (0x00000020)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE0_SHIFT (16)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE0_MASK  (0x00030000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE0_SHIFT      (19)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE0_MASK       (0x00080000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE1_SHIFT (20)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE1_MASK  (0x00300000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE1_SHIFT      (23)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE1_MASK       (0x00800000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE2_SHIFT (24)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE2_MASK  (0x03000000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE2_SHIFT      (27)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE2_MASK       (0x08000000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE3_SHIFT (28)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE3_MASK  (0x30000000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE3_SHIFT      (31)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE3_MASK       (0x80000000)
-#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_RESERVED_MASK             (0x4444FFC9)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_LOCKED_SHIFT        ( \
+    1)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_LOCKED_MASK         ( \
+    0x00000002)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_UPDATING_SHIFT      ( \
+    2)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE0_UPDATING_MASK       ( \
+    0x00000004)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_LOCKED_SHIFT        ( \
+    4)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_LOCKED_MASK         ( \
+    0x00000010)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_UPDATING_SHIFT      ( \
+    5)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZONE1_UPDATING_MASK       ( \
+    0x00000020)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE0_SHIFT ( \
+    16)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE0_MASK  ( \
+    0x00030000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE0_SHIFT      ( \
+    19)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE0_MASK       ( \
+    0x00080000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE1_SHIFT ( \
+    20)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE1_MASK  ( \
+    0x00300000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE1_SHIFT      ( \
+    23)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE1_MASK       ( \
+    0x00800000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE2_SHIFT ( \
+    24)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE2_MASK  ( \
+    0x03000000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE2_SHIFT      ( \
+    27)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE2_MASK       ( \
+    0x08000000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE3_SHIFT ( \
+    28)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ZPT_ASSOCIATION_PE3_MASK  ( \
+    0x30000000)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE3_SHIFT      ( \
+    31)
+#define \
+  SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_AIP_ENABLE_PE3_MASK       ( \
+    0x80000000)
+#define SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_RESERVED_MASK             ( \
+    0x4444FFC9)
 
 #define SCU_PEG_SCUVZECR_GEN_VAL(name, val) \
-	SCU_GEN_VALUE(SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ ## name, val)
+  SCU_GEN_VALUE( \
+    SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ ## name, val)
 
 #define SCU_PEG_SCUVZECR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ ## name)
-
+  SCU_GEN_BIT(SCU_PROTOCOL_ENGINE_GROUP_VIRTUAL_ZONING_EXPANDER_CONTROL_ ## name)
 
 /*
  * *****************************************************************************
  * * Port Task Scheduler registers shift and mask values
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SCU_PTSG_CONTROL_IT_NEXUS_TIMEOUT_SHIFT     (0)
 #define SCU_PTSG_CONTROL_IT_NEXUS_TIMEOUT_MASK      (0x0000FFFF)
 #define SCU_PTSG_CONTROL_TASK_TIMEOUT_SHIFT         (16)
@@ -852,28 +977,26 @@ struct scu_iit_entry {
 #define SCU_PTSG_CONTROL_RESERVED_MASK              (0xFC000000)
 
 #define SCU_PTSGCR_GEN_VAL(name, val) \
-	SCU_GEN_VALUE(SCU_PTSG_CONTROL_ ## name, val)
+  SCU_GEN_VALUE(SCU_PTSG_CONTROL_ ## name, val)
 
 #define SCU_PTSGCR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_PTSG_CONTROL_ ## name)
+  SCU_GEN_BIT(SCU_PTSG_CONTROL_ ## name)
 
-
-/* ***************************************************************************** */
+/* *****************************************************************************
+ * */
 #define SCU_PTSG_REAL_TIME_CLOCK_SHIFT          (0)
 #define SCU_PTSG_REAL_TIME_CLOCK_MASK           (0x0000FFFF)
 #define SCU_PTSG_REAL_TIME_CLOCK_RESERVED_MASK  (0xFFFF0000)
 
 #define SCU_RTCR_GEN_VAL(name, val) \
-	SCU_GEN_VALUE(SCU_PTSG_ ## name, val)
-
+  SCU_GEN_VALUE(SCU_PTSG_ ## name, val)
 
 #define SCU_PTSG_REAL_TIME_CLOCK_CONTROL_PRESCALER_VALUE_SHIFT  (0)
 #define SCU_PTSG_REAL_TIME_CLOCK_CONTROL_PRESCALER_VALUE_MASK   (0x00FFFFFF)
 #define SCU_PTSG_REAL_TIME_CLOCK_CONTROL_RESERVED_MASK          (0xFF000000)
 
 #define SCU_RTCCR_GEN_VAL(name, val) \
-	SCU_GEN_VALUE(SCU_PTSG_REAL_TIME_CLOCK_CONTROL_ ## name, val)
-
+  SCU_GEN_VALUE(SCU_PTSG_REAL_TIME_CLOCK_CONTROL_ ## name, val)
 
 #define SCU_PTSG_PORT_TASK_SCHEDULER_CONTROL_SUSPEND_SHIFT  (0)
 #define SCU_PTSG_PORT_TASK_SCHEDULER_CONTROL_SUSPEND_MASK   (0x00000001)
@@ -882,24 +1005,28 @@ struct scu_iit_entry {
 #define SCU_PTSG_PORT_TASK_SCHEDULER_CONTROL_RESERVED_MASK  (0xFFFFFFFC)
 
 #define SCU_PTSxCR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_PTSG_PORT_TASK_SCHEDULER_CONTROL_ ## name)
-
+  SCU_GEN_BIT(SCU_PTSG_PORT_TASK_SCHEDULER_CONTROL_ ## name)
 
 #define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_NEXT_RN_VALID_SHIFT             (0)
-#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_NEXT_RN_VALID_MASK              (0x00000001)
+#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_NEXT_RN_VALID_MASK              ( \
+    0x00000001)
 #define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_ACTIVE_RNSC_LIST_VALID_SHIFT    (1)
-#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_ACTIVE_RNSC_LIST_VALID_MASK     (0x00000002)
+#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_ACTIVE_RNSC_LIST_VALID_MASK     ( \
+    0x00000002)
 #define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_PTS_SUSPENDED_SHIFT             (2)
-#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_PTS_SUSPENDED_MASK              (0x00000004)
-#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_RESERVED_MASK                   (0xFFFFFFF8)
+#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_PTS_SUSPENDED_MASK              ( \
+    0x00000004)
+#define SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_RESERVED_MASK                   ( \
+    0xFFFFFFF8)
 
 #define SCU_PTSxSR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_ ## name)
+  SCU_GEN_BIT(SCU_PTSG_PORT_TASK_SCHEDULER_STATUS_ ## name)
 
 /*
  * *****************************************************************************
  * * SMU Registers
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 
 /*
  * ----------------------------------------------------------------------------
@@ -957,86 +1084,87 @@ struct scu_iit_entry {
  *
  */
 struct smu_registers {
-/* 0x0000 PCP */
-	u32 post_context_port;
-/* 0x0004 AMR */
-	u32 address_modifier;
-	u32 reserved_08;
-	u32 reserved_0C;
-/* 0x0010 ISR */
-	u32 interrupt_status;
-/* 0x0014 IMR */
-	u32 interrupt_mask;
-/* 0x0018 ICC */
-	u32 interrupt_coalesce_control;
-	u32 reserved_1C;
-/* 0x0020 HTTLBAR */
-	u32 host_task_table_lower;
-/* 0x0024 HTTUBAR */
-	u32 host_task_table_upper;
-/* 0x0028 TCR */
-	u32 task_context_range;
-	u32 reserved_2C;
-/* 0x0030 CQLBAR */
-	u32 completion_queue_lower;
-/* 0x0034 CQUBAR */
-	u32 completion_queue_upper;
-	u32 reserved_38;
-	u32 reserved_3C;
-/* 0x0040 CQPR */
-	u32 completion_queue_put;
-/* 0x0044 CQGR */
-	u32 completion_queue_get;
-/* 0x0048 CQC */
-	u32 completion_queue_control;
-	u32 reserved_4C;
-	u32 reserved_5x[4];
-	u32 reserved_6x[4];
-	u32 reserved_7x[4];
-/*
- * Accessable to FN#0 only
- * 0x0080 RNCLBAR */
-	u32 remote_node_context_lower;
-/* 0x0084 RNCUBAR */
-	u32 remote_node_context_upper;
-	u32 reserved_88;
-	u32 reserved_8C;
-/* 0x0090 DCC */
-	u32 device_context_capacity;
-/* 0x0094 DFC */
-	u32 device_function_capacity;
-/* 0x0098 SMUCSR */
-	u32 control_status;
-/* 0x009C SCUSRCR */
-	u32 soft_reset_control;
-/* 0x00A0 SMAW */
-	u32 mmr_address_window;
-/* 0x00A4 SMDW */
-	u32 mmr_data_window;
-/* 0x00A8 CGUCR */
-	u32 clock_gating_control;
-/* 0x00AC CGUPC */
-	u32 clock_gating_performance;
-/* A whole bunch of reserved space */
-	u32 reserved_Bx[4];
-	u32 reserved_Cx[4];
-	u32 reserved_Dx[4];
-	u32 reserved_Ex[4];
-	u32 reserved_Fx[4];
-	u32 reserved_1xx[64];
-	u32 reserved_2xx[64];
-	u32 reserved_3xx[64];
-/*
- * Accessable to FN#0 only
- * 0x0400 TCA */
-	u32 task_context_assignment[256];
-/* MSI-X registers not included */
+  /* 0x0000 PCP */
+  u32 post_context_port;
+  /* 0x0004 AMR */
+  u32 address_modifier;
+  u32 reserved_08;
+  u32 reserved_0C;
+  /* 0x0010 ISR */
+  u32 interrupt_status;
+  /* 0x0014 IMR */
+  u32 interrupt_mask;
+  /* 0x0018 ICC */
+  u32 interrupt_coalesce_control;
+  u32 reserved_1C;
+  /* 0x0020 HTTLBAR */
+  u32 host_task_table_lower;
+  /* 0x0024 HTTUBAR */
+  u32 host_task_table_upper;
+  /* 0x0028 TCR */
+  u32 task_context_range;
+  u32 reserved_2C;
+  /* 0x0030 CQLBAR */
+  u32 completion_queue_lower;
+  /* 0x0034 CQUBAR */
+  u32 completion_queue_upper;
+  u32 reserved_38;
+  u32 reserved_3C;
+  /* 0x0040 CQPR */
+  u32 completion_queue_put;
+  /* 0x0044 CQGR */
+  u32 completion_queue_get;
+  /* 0x0048 CQC */
+  u32 completion_queue_control;
+  u32 reserved_4C;
+  u32 reserved_5x[4];
+  u32 reserved_6x[4];
+  u32 reserved_7x[4];
+  /*
+   * Accessable to FN#0 only
+   * 0x0080 RNCLBAR */
+  u32 remote_node_context_lower;
+  /* 0x0084 RNCUBAR */
+  u32 remote_node_context_upper;
+  u32 reserved_88;
+  u32 reserved_8C;
+  /* 0x0090 DCC */
+  u32 device_context_capacity;
+  /* 0x0094 DFC */
+  u32 device_function_capacity;
+  /* 0x0098 SMUCSR */
+  u32 control_status;
+  /* 0x009C SCUSRCR */
+  u32 soft_reset_control;
+  /* 0x00A0 SMAW */
+  u32 mmr_address_window;
+  /* 0x00A4 SMDW */
+  u32 mmr_data_window;
+  /* 0x00A8 CGUCR */
+  u32 clock_gating_control;
+  /* 0x00AC CGUPC */
+  u32 clock_gating_performance;
+  /* A whole bunch of reserved space */
+  u32 reserved_Bx[4];
+  u32 reserved_Cx[4];
+  u32 reserved_Dx[4];
+  u32 reserved_Ex[4];
+  u32 reserved_Fx[4];
+  u32 reserved_1xx[64];
+  u32 reserved_2xx[64];
+  u32 reserved_3xx[64];
+  /*
+   * Accessable to FN#0 only
+   * 0x0400 TCA */
+  u32 task_context_assignment[256];
+  /* MSI-X registers not included */
 };
 
 /*
  * *****************************************************************************
  * SDMA Registers
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SCU_SDMA_BASE               0x6000
 #define SCU_SDMA_PUFATLHAR_OFFSET   0x0000
 #define SCU_SDMA_PUFATUHAR_OFFSET   0x0004
@@ -1054,35 +1182,35 @@ struct smu_registers {
  *
  */
 struct scu_sdma_registers {
-/* 0x0000 PUFATLHAR */
-	u32 uf_address_table_lower;
-/* 0x0004 PUFATUHAR */
-	u32 uf_address_table_upper;
-/* 0x0008 UFLHBAR */
-	u32 uf_header_base_address_lower;
-/* 0x000C UFUHBAR */
-	u32 uf_header_base_address_upper;
-/* 0x0010 UFQC */
-	u32 unsolicited_frame_queue_control;
-/* 0x0014 UFQPP */
-	u32 unsolicited_frame_put_pointer;
-/* 0x0018 UFQGP */
-	u32 unsolicited_frame_get_pointer;
-/* 0x001C PDMACR */
-	u32 pdma_configuration;
-/* Reserved until offset 0x80 */
-	u32 reserved_0020_007C[0x18];
-/* 0x0080 CDMACR */
-	u32 cdma_configuration;
-/* Remainder SDMA register space */
-	u32 reserved_0084_0400[0xDF];
-
+  /* 0x0000 PUFATLHAR */
+  u32 uf_address_table_lower;
+  /* 0x0004 PUFATUHAR */
+  u32 uf_address_table_upper;
+  /* 0x0008 UFLHBAR */
+  u32 uf_header_base_address_lower;
+  /* 0x000C UFUHBAR */
+  u32 uf_header_base_address_upper;
+  /* 0x0010 UFQC */
+  u32 unsolicited_frame_queue_control;
+  /* 0x0014 UFQPP */
+  u32 unsolicited_frame_put_pointer;
+  /* 0x0018 UFQGP */
+  u32 unsolicited_frame_get_pointer;
+  /* 0x001C PDMACR */
+  u32 pdma_configuration;
+  /* Reserved until offset 0x80 */
+  u32 reserved_0020_007C[0x18];
+  /* 0x0080 CDMACR */
+  u32 cdma_configuration;
+  /* Remainder SDMA register space */
+  u32 reserved_0084_0400[0xDF];
 };
 
 /*
  * *****************************************************************************
  * * SCU Link Registers
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SCU_PEG0_OFFSET    0x0000
 #define SCU_PEG1_OFFSET    0x8000
 
@@ -1104,7 +1232,6 @@ struct scu_sdma_registers {
 #define SCU_TLEECR0_OFFSET      0x000C
 #define SCU_STPTLDARNI_OFFSET   0x0010
 
-
 #define SCU_TLCR_HASH_SAS_CHECKING_ENABLE_SHIFT    (0)
 #define SCU_TLCR_HASH_SAS_CHECKING_ENABLE_MASK     (0x00000001)
 #define SCU_TLCR_CLEAR_TCI_NCQ_MAPPING_TABLE_SHIFT (1)
@@ -1116,7 +1243,7 @@ struct scu_sdma_registers {
 #define SCU_TLCR_RESERVED_MASK                     (0xFFFFFFEB)
 
 #define SCU_TLCR_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_TLCR_ ## name)
+  SCU_GEN_BIT(SCU_TLCR_ ## name)
 
 /**
  * struct scu_transport_layer_registers - These are the SCU Transport Layer
@@ -1125,29 +1252,28 @@ struct scu_sdma_registers {
  *
  */
 struct scu_transport_layer_registers {
-	/* 0x0000 TLCR */
-	u32 control;
-	/* 0x0004 TLADTR */
-	u32 arbitration_delay_timer;
-	/* 0x0008 TLTTMR */
-	u32 timer_test_mode;
-	/* 0x000C reserved */
-	u32 reserved_0C;
-	/* 0x0010 STPTLDARNI */
-	u32 stp_rni;
-	/* 0x0014 TLFEWPORCTRL */
-	u32 tlfe_wpo_read_control;
-	/* 0x0018 TLFEWPORDATA */
-	u32 tlfe_wpo_read_data;
-	/* 0x001C RXTLSSCSR1 */
-	u32 rxtl_single_step_control_status_1;
-	/* 0x0020 RXTLSSCSR2 */
-	u32 rxtl_single_step_control_status_2;
-	/* 0x0024 AWTRDDCR */
-	u32 tlfe_awt_retry_delay_debug_control;
-	/* Remainder of TL memory space */
-	u32 reserved_0028_007F[0x16];
-
+  /* 0x0000 TLCR */
+  u32 control;
+  /* 0x0004 TLADTR */
+  u32 arbitration_delay_timer;
+  /* 0x0008 TLTTMR */
+  u32 timer_test_mode;
+  /* 0x000C reserved */
+  u32 reserved_0C;
+  /* 0x0010 STPTLDARNI */
+  u32 stp_rni;
+  /* 0x0014 TLFEWPORCTRL */
+  u32 tlfe_wpo_read_control;
+  /* 0x0018 TLFEWPORDATA */
+  u32 tlfe_wpo_read_data;
+  /* 0x001C RXTLSSCSR1 */
+  u32 rxtl_single_step_control_status_1;
+  /* 0x0020 RXTLSSCSR2 */
+  u32 rxtl_single_step_control_status_2;
+  /* 0x0024 AWTRDDCR */
+  u32 tlfe_awt_retry_delay_debug_control;
+  /* Remainder of TL memory space */
+  u32 reserved_0028_007F[0x16];
 };
 
 /* Protocol Engine Group Registers */
@@ -1207,37 +1333,47 @@ struct scu_transport_layer_registers {
 #define SCU_AFE_LUTCR_OFFSET        0x00E0
 
 #define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_ALIGN_DETECTION_SHIFT          (0UL)
-#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_ALIGN_DETECTION_MASK           (0x000000FFUL)
+#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_ALIGN_DETECTION_MASK           ( \
+    0x000000FFUL)
 #define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_HOT_PLUG_SHIFT                 (8UL)
-#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_HOT_PLUG_MASK                  (0x0000FF00UL)
+#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_HOT_PLUG_MASK                  ( \
+    0x0000FF00UL)
 #define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_COMSAS_DETECTION_SHIFT         (16UL)
-#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_COMSAS_DETECTION_MASK          (0x00FF0000UL)
+#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_COMSAS_DETECTION_MASK          ( \
+    0x00FF0000UL)
 #define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_RATE_CHANGE_SHIFT              (24UL)
-#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_RATE_CHANGE_MASK               (0xFF000000UL)
+#define SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_RATE_CHANGE_MASK               ( \
+    0xFF000000UL)
 
 #define SCU_SAS_PHYTOV_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_##name, value)
+  SCU_GEN_VALUE(SCU_SAS_PHY_TIMER_TIMEOUT_VALUES_ ## name, value)
 
 #define SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_SHIFT                  (0)
-#define SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_MASK                   (0x00000003)
+#define SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_MASK                   ( \
+    0x00000003)
 #define SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN1                   (0)
 #define SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN2                   (1)
 #define SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN3                   (2)
 #define SCU_SAS_LINK_LAYER_CONTROL_BROADCAST_PRIMITIVE_SHIFT            (2)
-#define SCU_SAS_LINK_LAYER_CONTROL_BROADCAST_PRIMITIVE_MASK             (0x000003FC)
+#define SCU_SAS_LINK_LAYER_CONTROL_BROADCAST_PRIMITIVE_MASK             ( \
+    0x000003FC)
 #define SCU_SAS_LINK_LAYER_CONTROL_CLOSE_NO_ACTIVE_TASK_DISABLE_SHIFT   (16)
-#define SCU_SAS_LINK_LAYER_CONTROL_CLOSE_NO_ACTIVE_TASK_DISABLE_MASK    (0x00010000)
+#define SCU_SAS_LINK_LAYER_CONTROL_CLOSE_NO_ACTIVE_TASK_DISABLE_MASK    ( \
+    0x00010000)
 #define SCU_SAS_LINK_LAYER_CONTROL_CLOSE_NO_OUTBOUND_TASK_DISABLE_SHIFT (17)
-#define SCU_SAS_LINK_LAYER_CONTROL_CLOSE_NO_OUTBOUND_TASK_DISABLE_MASK  (0x00020000)
+#define SCU_SAS_LINK_LAYER_CONTROL_CLOSE_NO_OUTBOUND_TASK_DISABLE_MASK  ( \
+    0x00020000)
 #define SCU_SAS_LINK_LAYER_CONTROL_NO_OUTBOUND_TASK_TIMEOUT_SHIFT       (24)
-#define SCU_SAS_LINK_LAYER_CONTROL_NO_OUTBOUND_TASK_TIMEOUT_MASK        (0xFF000000)
-#define SCU_SAS_LINK_LAYER_CONTROL_RESERVED                             (0x00FCFC00)
+#define SCU_SAS_LINK_LAYER_CONTROL_NO_OUTBOUND_TASK_TIMEOUT_MASK        ( \
+    0xFF000000)
+#define SCU_SAS_LINK_LAYER_CONTROL_RESERVED                             ( \
+    0x00FCFC00)
 
 #define SCU_SAS_LLCTL_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SAS_LINK_LAYER_CONTROL_ ## name, value)
+  SCU_GEN_VALUE(SCU_SAS_LINK_LAYER_CONTROL_ ## name, value)
 
 #define SCU_SAS_LLCTL_GEN_BIT(name) \
-	SCU_GEN_BIT(SCU_SAS_LINK_LAYER_CONTROL_ ## name)
+  SCU_GEN_BIT(SCU_SAS_LINK_LAYER_CONTROL_ ## name)
 
 #define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT                     (0xF0)
 #define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_EXTENDED                    (0x1FF)
@@ -1245,8 +1381,7 @@ struct scu_transport_layer_registers {
 #define SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_MASK                        (0x3FF)
 
 #define SCU_SAS_LLTXCOMSAS_GEN_VAL(name, value) \
-	SCU_GEN_VALUE(SCU_SAS_LINK_LAYER_TXCOMSAS_ ## name, value)
-
+  SCU_GEN_VALUE(SCU_SAS_LINK_LAYER_TXCOMSAS_ ## name, value)
 
 /* #define SCU_FRXHECR_DCNT_OFFSET      0x00B0 */
 #define SCU_PSZGCR_OFFSET           0x00E4
@@ -1261,146 +1396,145 @@ struct scu_transport_layer_registers {
  *
  */
 struct scu_link_layer_registers {
-/* 0x0000 SAS_SPDTOV */
-	u32 speed_negotiation_timers;
-/* 0x0004 SAS_LLSTA */
-	u32 link_layer_status;
-/* 0x0008 SATA_PSELTOV */
-	u32 port_selector_timeout;
-	u32 reserved0C;
-/* 0x0010 SAS_TIMETOV */
-	u32 timeout_unit_value;
-/* 0x0014 SAS_RCDTOV */
-	u32 rcd_timeout;
-/* 0x0018 SAS_LNKTOV */
-	u32 link_timer_timeouts;
-/* 0x001C SAS_PHYTOV */
-	u32 sas_phy_timeouts;
-/* 0x0020 SAS_AFERCNT */
-	u32 received_address_frame_error_counter;
-/* 0x0024 SAS_WERCNT */
-	u32 invalid_dword_counter;
-/* 0x0028 SAS_TIID */
-	u32 transmit_identification;
-/* 0x002C SAS_TIDNH */
-	u32 sas_device_name_high;
-/* 0x0030 SAS_TIDNL */
-	u32 sas_device_name_low;
-/* 0x0034 SAS_TISSAH */
-	u32 source_sas_address_high;
-/* 0x0038 SAS_TISSAL */
-	u32 source_sas_address_low;
-/* 0x003C SAS_TIPID */
-	u32 identify_frame_phy_id;
-/* 0x0040 SAS_TIRES2 */
-	u32 identify_frame_reserved;
-/* 0x0044 SAS_ADRSTA */
-	u32 received_address_frame;
-/* 0x0048 SAS_MAWTTOV */
-	u32 maximum_arbitration_wait_timer_timeout;
-/* 0x004C SAS_PTxC */
-	u32 transmit_primitive;
-/* 0x0050 SAS_RORES */
-	u32 error_counter_event_notification_control;
-/* 0x0054 SAS_FRPLDFIL */
-	u32 frxq_payload_fill_threshold;
-/* 0x0058 SAS_LLHANG_TOT */
-	u32 link_layer_hang_detection_timeout;
-	u32 reserved_5C;
-/* 0x0060 SAS_RFCNT */
-	u32 received_frame_count;
-/* 0x0064 SAS_TFCNT */
-	u32 transmit_frame_count;
-/* 0x0068 SAS_RFDCNT */
-	u32 received_dword_count;
-/* 0x006C SAS_TFDCNT */
-	u32 transmit_dword_count;
-/* 0x0070 SAS_LERCNT */
-	u32 loss_of_sync_error_count;
-/* 0x0074 SAS_RDISERRCNT */
-	u32 running_disparity_error_count;
-/* 0x0078 SAS_CRERCNT */
-	u32 received_frame_crc_error_count;
-/* 0x007C STPCTL */
-	u32 stp_control;
-/* 0x0080 SAS_PCFG */
-	u32 phy_configuration;
-/* 0x0084 SAS_CLKSM */
-	u32 clock_skew_management;
-/* 0x0088 SAS_TXCOMWAKE */
-	u32 transmit_comwake_signal;
-/* 0x008C SAS_TXCOMINIT */
-	u32 transmit_cominit_signal;
-/* 0x0090 SAS_TXCOMSAS */
-	u32 transmit_comsas_signal;
-/* 0x0094 SAS_COMINIT */
-	u32 cominit_control;
-/* 0x0098 SAS_COMWAKE */
-	u32 comwake_control;
-/* 0x009C SAS_COMSAS */
-	u32 comsas_control;
-/* 0x00A0 SAS_SFERCNT */
-	u32 received_short_frame_count;
-/* 0x00A4 SAS_CDFERCNT */
-	u32 received_frame_without_credit_count;
-/* 0x00A8 SAS_DNFERCNT */
-	u32 received_frame_after_done_count;
-/* 0x00AC SAS_PRSTERCNT */
-	u32 phy_reset_problem_count;
-/* 0x00B0 SAS_CNTCTL */
-	u32 counter_control;
-/* 0x00B4 SAS_SSPTOV */
-	u32 ssp_timer_timeout_values;
-/* 0x00B8 FTCTL */
-	u32 ftx_control;
-/* 0x00BC FRCTL */
-	u32 frx_control;
-/* 0x00C0 FTWMRK */
-	u32 ftx_watermark;
-/* 0x00C4 ENSPINUP */
-	u32 notify_enable_spinup_control;
-/* 0x00C8 SAS_TRNTOV */
-	u32 sas_training_sequence_timer_values;
-/* 0x00CC SAS_PHYCAP */
-	u32 phy_capabilities;
-/* 0x00D0 SAS_PHYCTL */
-	u32 phy_control;
-	u32 reserved_d4;
-/* 0x00D8 LLCTL */
-	u32 link_layer_control;
-/* 0x00DC AFE_XCVRCR */
-	u32 afe_xcvr_control;
-/* 0x00E0 AFE_LUTCR */
-	u32 afe_lookup_table_control;
-/* 0x00E4 PSZGCR */
-	u32 phy_source_zone_group_control;
-/* 0x00E8 SAS_RECPHYCAP */
-	u32 receive_phycap;
-	u32 reserved_ec;
-/* 0x00F0 SNAFERXRSTCTL */
-	u32 speed_negotiation_afe_rx_reset_control;
-/* 0x00F4 SAS_SSIPMCTL */
-	u32 power_management_control;
-/* 0x00F8 SAS_PSPREQ_PRIM */
-	u32 sas_pm_partial_request_primitive;
-/* 0x00FC SAS_PSSREQ_PRIM */
-	u32 sas_pm_slumber_request_primitive;
-/* 0x0100 SAS_PPSACK_PRIM */
-	u32 sas_pm_ack_primitive_register;
-/* 0x0104 SAS_PSNAK_PRIM */
-	u32 sas_pm_nak_primitive_register;
-/* 0x0108 SAS_SSIPMTOV */
-	u32 sas_primitive_timeout;
-	u32 reserved_10c;
-/* 0x0110 - 0x011C PLAPRDCTRLxREG */
-	u32 pla_product_control[4];
-/* 0x0120 PLAPRDSUMREG */
-	u32 pla_product_sum;
-/* 0x0124 PLACONTROLREG */
-	u32 pla_control;
-/* Remainder of memory space 896 bytes */
-	u32 reserved_0128_037f[0x96];
-
+  /* 0x0000 SAS_SPDTOV */
+  u32 speed_negotiation_timers;
+  /* 0x0004 SAS_LLSTA */
+  u32 link_layer_status;
+  /* 0x0008 SATA_PSELTOV */
+  u32 port_selector_timeout;
+  u32 reserved0C;
+  /* 0x0010 SAS_TIMETOV */
+  u32 timeout_unit_value;
+  /* 0x0014 SAS_RCDTOV */
+  u32 rcd_timeout;
+  /* 0x0018 SAS_LNKTOV */
+  u32 link_timer_timeouts;
+  /* 0x001C SAS_PHYTOV */
+  u32 sas_phy_timeouts;
+  /* 0x0020 SAS_AFERCNT */
+  u32 received_address_frame_error_counter;
+  /* 0x0024 SAS_WERCNT */
+  u32 invalid_dword_counter;
+  /* 0x0028 SAS_TIID */
+  u32 transmit_identification;
+  /* 0x002C SAS_TIDNH */
+  u32 sas_device_name_high;
+  /* 0x0030 SAS_TIDNL */
+  u32 sas_device_name_low;
+  /* 0x0034 SAS_TISSAH */
+  u32 source_sas_address_high;
+  /* 0x0038 SAS_TISSAL */
+  u32 source_sas_address_low;
+  /* 0x003C SAS_TIPID */
+  u32 identify_frame_phy_id;
+  /* 0x0040 SAS_TIRES2 */
+  u32 identify_frame_reserved;
+  /* 0x0044 SAS_ADRSTA */
+  u32 received_address_frame;
+  /* 0x0048 SAS_MAWTTOV */
+  u32 maximum_arbitration_wait_timer_timeout;
+  /* 0x004C SAS_PTxC */
+  u32 transmit_primitive;
+  /* 0x0050 SAS_RORES */
+  u32 error_counter_event_notification_control;
+  /* 0x0054 SAS_FRPLDFIL */
+  u32 frxq_payload_fill_threshold;
+  /* 0x0058 SAS_LLHANG_TOT */
+  u32 link_layer_hang_detection_timeout;
+  u32 reserved_5C;
+  /* 0x0060 SAS_RFCNT */
+  u32 received_frame_count;
+  /* 0x0064 SAS_TFCNT */
+  u32 transmit_frame_count;
+  /* 0x0068 SAS_RFDCNT */
+  u32 received_dword_count;
+  /* 0x006C SAS_TFDCNT */
+  u32 transmit_dword_count;
+  /* 0x0070 SAS_LERCNT */
+  u32 loss_of_sync_error_count;
+  /* 0x0074 SAS_RDISERRCNT */
+  u32 running_disparity_error_count;
+  /* 0x0078 SAS_CRERCNT */
+  u32 received_frame_crc_error_count;
+  /* 0x007C STPCTL */
+  u32 stp_control;
+  /* 0x0080 SAS_PCFG */
+  u32 phy_configuration;
+  /* 0x0084 SAS_CLKSM */
+  u32 clock_skew_management;
+  /* 0x0088 SAS_TXCOMWAKE */
+  u32 transmit_comwake_signal;
+  /* 0x008C SAS_TXCOMINIT */
+  u32 transmit_cominit_signal;
+  /* 0x0090 SAS_TXCOMSAS */
+  u32 transmit_comsas_signal;
+  /* 0x0094 SAS_COMINIT */
+  u32 cominit_control;
+  /* 0x0098 SAS_COMWAKE */
+  u32 comwake_control;
+  /* 0x009C SAS_COMSAS */
+  u32 comsas_control;
+  /* 0x00A0 SAS_SFERCNT */
+  u32 received_short_frame_count;
+  /* 0x00A4 SAS_CDFERCNT */
+  u32 received_frame_without_credit_count;
+  /* 0x00A8 SAS_DNFERCNT */
+  u32 received_frame_after_done_count;
+  /* 0x00AC SAS_PRSTERCNT */
+  u32 phy_reset_problem_count;
+  /* 0x00B0 SAS_CNTCTL */
+  u32 counter_control;
+  /* 0x00B4 SAS_SSPTOV */
+  u32 ssp_timer_timeout_values;
+  /* 0x00B8 FTCTL */
+  u32 ftx_control;
+  /* 0x00BC FRCTL */
+  u32 frx_control;
+  /* 0x00C0 FTWMRK */
+  u32 ftx_watermark;
+  /* 0x00C4 ENSPINUP */
+  u32 notify_enable_spinup_control;
+  /* 0x00C8 SAS_TRNTOV */
+  u32 sas_training_sequence_timer_values;
+  /* 0x00CC SAS_PHYCAP */
+  u32 phy_capabilities;
+  /* 0x00D0 SAS_PHYCTL */
+  u32 phy_control;
+  u32 reserved_d4;
+  /* 0x00D8 LLCTL */
+  u32 link_layer_control;
+  /* 0x00DC AFE_XCVRCR */
+  u32 afe_xcvr_control;
+  /* 0x00E0 AFE_LUTCR */
+  u32 afe_lookup_table_control;
+  /* 0x00E4 PSZGCR */
+  u32 phy_source_zone_group_control;
+  /* 0x00E8 SAS_RECPHYCAP */
+  u32 receive_phycap;
+  u32 reserved_ec;
+  /* 0x00F0 SNAFERXRSTCTL */
+  u32 speed_negotiation_afe_rx_reset_control;
+  /* 0x00F4 SAS_SSIPMCTL */
+  u32 power_management_control;
+  /* 0x00F8 SAS_PSPREQ_PRIM */
+  u32 sas_pm_partial_request_primitive;
+  /* 0x00FC SAS_PSSREQ_PRIM */
+  u32 sas_pm_slumber_request_primitive;
+  /* 0x0100 SAS_PPSACK_PRIM */
+  u32 sas_pm_ack_primitive_register;
+  /* 0x0104 SAS_PSNAK_PRIM */
+  u32 sas_pm_nak_primitive_register;
+  /* 0x0108 SAS_SSIPMTOV */
+  u32 sas_primitive_timeout;
+  u32 reserved_10c;
+  /* 0x0110 - 0x011C PLAPRDCTRLxREG */
+  u32 pla_product_control[4];
+  /* 0x0120 PLAPRDSUMREG */
+  u32 pla_product_sum;
+  /* 0x0124 PLACONTROLREG */
+  u32 pla_control;
+  /* Remainder of memory space 896 bytes */
+  u32 reserved_0128_037f[0x96];
 };
 
 /*
@@ -1410,10 +1544,12 @@ struct scu_link_layer_registers {
 /*
  * ----------------------------------------------------------------------------
  * SGPIO
- * ---------------------------------------------------------------------------- */
+ * ----------------------------------------------------------------------------
+ **/
 #define SCU_SGPIO_OFFSET         0x1400
 
-/* #define SCU_SGPIO_OFFSET         0x6000   // later moves to 0x1400 see HSD 652625 */
+/* #define SCU_SGPIO_OFFSET         0x6000   // later moves to 0x1400 see HSD
+ * 652625 */
 #define SCU_SGPIO_SGICR_OFFSET   0x0000
 #define SCU_SGPIO_SGPBR_OFFSET   0x0004
 #define SCU_SGPIO_SGSDLR_OFFSET  0x0008
@@ -1430,44 +1566,45 @@ struct scu_link_layer_registers {
  *
  */
 struct scu_sgpio_registers {
-/* 0x0000 SGPIO_SGICR */
-	u32 interface_control;
-/* 0x0004 SGPIO_SGPBR */
-	u32 blink_rate;
-/* 0x0008 SGPIO_SGSDLR */
-	u32 start_drive_lower;
-/* 0x000C SGPIO_SGSDUR */
-	u32 start_drive_upper;
-/* 0x0010 SGPIO_SGSIDLR */
-	u32 serial_input_lower;
-/* 0x0014 SGPIO_SGSIDUR */
-	u32 serial_input_upper;
-/* 0x0018 SGPIO_SGVSCR */
-	u32 vendor_specific_code;
-/* 0x001C Reserved */
-	u32 reserved_001c;
-/* 0x0020 SGPIO_SGODSR */
-	u32 output_data_select[8];
-/* Remainder of memory space 256 bytes */
-	u32 reserved_1444_14ff[0x30];
-
+  /* 0x0000 SGPIO_SGICR */
+  u32 interface_control;
+  /* 0x0004 SGPIO_SGPBR */
+  u32 blink_rate;
+  /* 0x0008 SGPIO_SGSDLR */
+  u32 start_drive_lower;
+  /* 0x000C SGPIO_SGSDUR */
+  u32 start_drive_upper;
+  /* 0x0010 SGPIO_SGSIDLR */
+  u32 serial_input_lower;
+  /* 0x0014 SGPIO_SGSIDUR */
+  u32 serial_input_upper;
+  /* 0x0018 SGPIO_SGVSCR */
+  u32 vendor_specific_code;
+  /* 0x001C Reserved */
+  u32 reserved_001c;
+  /* 0x0020 SGPIO_SGODSR */
+  u32 output_data_select[8];
+  /* Remainder of memory space 256 bytes */
+  u32 reserved_1444_14ff[0x30];
 };
 
 /*
  * *****************************************************************************
  * * Defines for VIIT entry offsets
  * * Access additional entries by SCU_VIIT_BASE + index * 0x10
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define     SCU_VIIT_BASE     0x1c00
 
 struct scu_viit_registers {
-	u32 registers[256];
+  u32 registers[256];
 };
 
 /*
  * *****************************************************************************
  * * SCU PORT TASK SCHEDULER REGISTERS
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 
 #define SCU_PTSG_BASE               0x1000
 
@@ -1496,8 +1633,8 @@ struct scu_viit_registers {
  *
  */
 struct scu_port_task_scheduler_registers {
-	u32 control;
-	u32 status;
+  u32 control;
+  u32 status;
 };
 
 /**
@@ -1507,37 +1644,36 @@ struct scu_port_task_scheduler_registers {
  *
  */
 struct scu_port_task_scheduler_group_registers {
-/* 0x0000 PTSGCR */
-	u32 control;
-/* 0x0004 RTCR */
-	u32 real_time_clock;
-/* 0x0008 RTCCR */
-	u32 real_time_clock_control;
-/* 0x000C */
-	u32 reserved_0C;
-/*
- * 0x0010 PTS0CR
- * 0x0014 PTS0SR
- * 0x0018 PTS1CR
- * 0x001C PTS1SR
- * 0x0020 PTS2CR
- * 0x0024 PTS2SR
- * 0x0028 PTS3CR
- * 0x002C PTS3SR */
-	struct scu_port_task_scheduler_registers port[4];
-/*
- * 0x0030 PCSPE0CR
- * 0x0034 PCSPE1CR
- * 0x0038 PCSPE2CR
- * 0x003C PCSPE3CR */
-	u32 protocol_engine[4];
-/* 0x0040 ETMTSCCR */
-	u32 tc_scanning_interval_control;
-/* 0x0044 ETMRNSCCR */
-	u32 rnc_scanning_interval_control;
-/* Remainder of memory space 128 bytes */
-	u32 reserved_1048_107f[0x0E];
-
+  /* 0x0000 PTSGCR */
+  u32 control;
+  /* 0x0004 RTCR */
+  u32 real_time_clock;
+  /* 0x0008 RTCCR */
+  u32 real_time_clock_control;
+  /* 0x000C */
+  u32 reserved_0C;
+  /*
+   * 0x0010 PTS0CR
+   * 0x0014 PTS0SR
+   * 0x0018 PTS1CR
+   * 0x001C PTS1SR
+   * 0x0020 PTS2CR
+   * 0x0024 PTS2SR
+   * 0x0028 PTS3CR
+   * 0x002C PTS3SR */
+  struct scu_port_task_scheduler_registers port[4];
+  /*
+   * 0x0030 PCSPE0CR
+   * 0x0034 PCSPE1CR
+   * 0x0038 PCSPE2CR
+   * 0x003C PCSPE3CR */
+  u32 protocol_engine[4];
+  /* 0x0040 ETMTSCCR */
+  u32 tc_scanning_interval_control;
+  /* 0x0044 ETMRNSCCR */
+  u32 rnc_scanning_interval_control;
+  /* Remainder of memory space 128 bytes */
+  u32 reserved_1048_107f[0x0E];
 };
 
 #define SCU_PTSG_SCUVZECR_OFFSET        0x003C
@@ -1545,7 +1681,8 @@ struct scu_port_task_scheduler_group_registers {
 /*
  * *****************************************************************************
  * * AFE REGISTERS
- * ***************************************************************************** */
+ * *****************************************************************************
+ **/
 #define SCU_AFE_MMR_BASE                  0xE000
 
 /*
@@ -1554,70 +1691,70 @@ struct scu_port_task_scheduler_group_registers {
  * AFE 2 is at offset 0x0a00
  * AFE 3 is at offset 0x0b00 */
 struct scu_afe_transceiver {
-	/* 0x0000 AFE_XCVR_CTRL0 */
-	u32 afe_xcvr_control0;
-	/* 0x0004 AFE_XCVR_CTRL1 */
-	u32 afe_xcvr_control1;
-	/* 0x0008 */
-	u32 reserved_0008;
-	/* 0x000c afe_dfx_rx_control0 */
-	u32 afe_dfx_rx_control0;
-	/* 0x0010 AFE_DFX_RX_CTRL1 */
-	u32 afe_dfx_rx_control1;
-	/* 0x0014 */
-	u32 reserved_0014;
-	/* 0x0018 AFE_DFX_RX_STS0 */
-	u32 afe_dfx_rx_status0;
-	/* 0x001c AFE_DFX_RX_STS1 */
-	u32 afe_dfx_rx_status1;
-	/* 0x0020 */
-	u32 reserved_0020;
-	/* 0x0024 AFE_TX_CTRL */
-	u32 afe_tx_control;
-	/* 0x0028 AFE_TX_AMP_CTRL0 */
-	u32 afe_tx_amp_control0;
-	/* 0x002c AFE_TX_AMP_CTRL1 */
-	u32 afe_tx_amp_control1;
-	/* 0x0030 AFE_TX_AMP_CTRL2 */
-	u32 afe_tx_amp_control2;
-	/* 0x0034 AFE_TX_AMP_CTRL3 */
-	u32 afe_tx_amp_control3;
-	/* 0x0038 afe_tx_ssc_control */
-	u32 afe_tx_ssc_control;
-	/* 0x003c */
-	u32 reserved_003c;
-	/* 0x0040 AFE_RX_SSC_CTRL0 */
-	u32 afe_rx_ssc_control0;
-	/* 0x0044 AFE_RX_SSC_CTRL1 */
-	u32 afe_rx_ssc_control1;
-	/* 0x0048 AFE_RX_SSC_CTRL2 */
-	u32 afe_rx_ssc_control2;
-	/* 0x004c AFE_RX_EQ_STS0 */
-	u32 afe_rx_eq_status0;
-	/* 0x0050 AFE_RX_EQ_STS1 */
-	u32 afe_rx_eq_status1;
-	/* 0x0054 AFE_RX_CDR_STS */
-	u32 afe_rx_cdr_status;
-	/* 0x0058 */
-	u32 reserved_0058;
-	/* 0x005c AFE_CHAN_CTRL */
-	u32 afe_channel_control;
-	/* 0x0060-0x006c */
-	u32 reserved_0060_006c[0x04];
-	/* 0x0070 AFE_XCVR_EC_STS0 */
-	u32 afe_xcvr_error_capture_status0;
-	/* 0x0074 AFE_XCVR_EC_STS1 */
-	u32 afe_xcvr_error_capture_status1;
-	/* 0x0078 AFE_XCVR_EC_STS2 */
-	u32 afe_xcvr_error_capture_status2;
-	/* 0x007c afe_xcvr_ec_status3 */
-	u32 afe_xcvr_error_capture_status3;
-	/* 0x0080 AFE_XCVR_EC_STS4 */
-	u32 afe_xcvr_error_capture_status4;
-	/* 0x0084 AFE_XCVR_EC_STS5 */
-	u32 afe_xcvr_error_capture_status5;
-	/* 0x0088-0x00fc */
-	u32 reserved_008c_00fc[0x1e];
+  /* 0x0000 AFE_XCVR_CTRL0 */
+  u32 afe_xcvr_control0;
+  /* 0x0004 AFE_XCVR_CTRL1 */
+  u32 afe_xcvr_control1;
+  /* 0x0008 */
+  u32 reserved_0008;
+  /* 0x000c afe_dfx_rx_control0 */
+  u32 afe_dfx_rx_control0;
+  /* 0x0010 AFE_DFX_RX_CTRL1 */
+  u32 afe_dfx_rx_control1;
+  /* 0x0014 */
+  u32 reserved_0014;
+  /* 0x0018 AFE_DFX_RX_STS0 */
+  u32 afe_dfx_rx_status0;
+  /* 0x001c AFE_DFX_RX_STS1 */
+  u32 afe_dfx_rx_status1;
+  /* 0x0020 */
+  u32 reserved_0020;
+  /* 0x0024 AFE_TX_CTRL */
+  u32 afe_tx_control;
+  /* 0x0028 AFE_TX_AMP_CTRL0 */
+  u32 afe_tx_amp_control0;
+  /* 0x002c AFE_TX_AMP_CTRL1 */
+  u32 afe_tx_amp_control1;
+  /* 0x0030 AFE_TX_AMP_CTRL2 */
+  u32 afe_tx_amp_control2;
+  /* 0x0034 AFE_TX_AMP_CTRL3 */
+  u32 afe_tx_amp_control3;
+  /* 0x0038 afe_tx_ssc_control */
+  u32 afe_tx_ssc_control;
+  /* 0x003c */
+  u32 reserved_003c;
+  /* 0x0040 AFE_RX_SSC_CTRL0 */
+  u32 afe_rx_ssc_control0;
+  /* 0x0044 AFE_RX_SSC_CTRL1 */
+  u32 afe_rx_ssc_control1;
+  /* 0x0048 AFE_RX_SSC_CTRL2 */
+  u32 afe_rx_ssc_control2;
+  /* 0x004c AFE_RX_EQ_STS0 */
+  u32 afe_rx_eq_status0;
+  /* 0x0050 AFE_RX_EQ_STS1 */
+  u32 afe_rx_eq_status1;
+  /* 0x0054 AFE_RX_CDR_STS */
+  u32 afe_rx_cdr_status;
+  /* 0x0058 */
+  u32 reserved_0058;
+  /* 0x005c AFE_CHAN_CTRL */
+  u32 afe_channel_control;
+  /* 0x0060-0x006c */
+  u32 reserved_0060_006c[0x04];
+  /* 0x0070 AFE_XCVR_EC_STS0 */
+  u32 afe_xcvr_error_capture_status0;
+  /* 0x0074 AFE_XCVR_EC_STS1 */
+  u32 afe_xcvr_error_capture_status1;
+  /* 0x0078 AFE_XCVR_EC_STS2 */
+  u32 afe_xcvr_error_capture_status2;
+  /* 0x007c afe_xcvr_ec_status3 */
+  u32 afe_xcvr_error_capture_status3;
+  /* 0x0080 AFE_XCVR_EC_STS4 */
+  u32 afe_xcvr_error_capture_status4;
+  /* 0x0084 AFE_XCVR_EC_STS5 */
+  u32 afe_xcvr_error_capture_status5;
+  /* 0x0088-0x00fc */
+  u32 reserved_008c_00fc[0x1e];
 };
 
 /**
@@ -1627,105 +1764,104 @@ struct scu_afe_transceiver {
  */
 /* Uaoa AFE registers */
 struct scu_afe_registers {
-	/* 0Xe000 AFE_BIAS_CTRL */
-	u32 afe_bias_control;
-	u32 reserved_0004;
-	/* 0x0008 AFE_PLL_CTRL0 */
-	u32 afe_pll_control0;
-	/* 0x000c AFE_PLL_CTRL1 */
-	u32 afe_pll_control1;
-	/* 0x0010 AFE_PLL_CTRL2 */
-	u32 afe_pll_control2;
-	/* 0x0014 AFE_CB_STS */
-	u32 afe_common_block_status;
-	/* 0x0018-0x007c */
-	u32 reserved_18_7c[0x1a];
-	/* 0x0080 AFE_PMSN_MCTRL0 */
-	u32 afe_pmsn_master_control0;
-	/* 0x0084 AFE_PMSN_MCTRL1 */
-	u32 afe_pmsn_master_control1;
-	/* 0x0088 AFE_PMSN_MCTRL2 */
-	u32 afe_pmsn_master_control2;
-	/* 0x008C-0x00fc */
-	u32 reserved_008c_00fc[0x1D];
-	/* 0x0100 AFE_DFX_MST_CTRL0 */
-	u32 afe_dfx_master_control0;
-	/* 0x0104 AFE_DFX_MST_CTRL1 */
-	u32 afe_dfx_master_control1;
-	/* 0x0108 AFE_DFX_DCL_CTRL */
-	u32 afe_dfx_dcl_control;
-	/* 0x010c AFE_DFX_DMON_CTRL */
-	u32 afe_dfx_digital_monitor_control;
-	/* 0x0110 AFE_DFX_AMONP_CTRL */
-	u32 afe_dfx_analog_p_monitor_control;
-	/* 0x0114 AFE_DFX_AMONN_CTRL */
-	u32 afe_dfx_analog_n_monitor_control;
-	/* 0x0118 AFE_DFX_NTL_STS */
-	u32 afe_dfx_ntl_status;
-	/* 0x011c AFE_DFX_FIFO_STS0 */
-	u32 afe_dfx_fifo_status0;
-	/* 0x0120 AFE_DFX_FIFO_STS1 */
-	u32 afe_dfx_fifo_status1;
-	/* 0x0124 AFE_DFX_MPAT_CTRL */
-	u32 afe_dfx_master_pattern_control;
-	/* 0x0128 AFE_DFX_P0_CTRL */
-	u32 afe_dfx_p0_control;
-	/* 0x012c-0x01a8 AFE_DFX_P0_DRx */
-	u32 afe_dfx_p0_data[32];
-	/* 0x01ac */
-	u32 reserved_01ac;
-	/* 0x01b0-0x020c AFE_DFX_P0_IRx */
-	u32 afe_dfx_p0_instruction[24];
-	/* 0x0210 */
-	u32 reserved_0210;
-	/* 0x0214 AFE_DFX_P1_CTRL */
-	u32 afe_dfx_p1_control;
-	/* 0x0218-0x245 AFE_DFX_P1_DRx */
-	u32 afe_dfx_p1_data[16];
-	/* 0x0258-0x029c */
-	u32 reserved_0258_029c[0x12];
-	/* 0x02a0-0x02bc AFE_DFX_P1_IRx */
-	u32 afe_dfx_p1_instruction[8];
-	/* 0x02c0-0x2fc */
-	u32 reserved_02c0_02fc[0x10];
-	/* 0x0300 AFE_DFX_TX_PMSN_CTRL */
-	u32 afe_dfx_tx_pmsn_control;
-	/* 0x0304 AFE_DFX_RX_PMSN_CTRL */
-	u32 afe_dfx_rx_pmsn_control;
-	u32 reserved_0308;
-	/* 0x030c AFE_DFX_NOA_CTRL0 */
-	u32 afe_dfx_noa_control0;
-	/* 0x0310 AFE_DFX_NOA_CTRL1 */
-	u32 afe_dfx_noa_control1;
-	/* 0x0314 AFE_DFX_NOA_CTRL2 */
-	u32 afe_dfx_noa_control2;
-	/* 0x0318 AFE_DFX_NOA_CTRL3 */
-	u32 afe_dfx_noa_control3;
-	/* 0x031c AFE_DFX_NOA_CTRL4 */
-	u32 afe_dfx_noa_control4;
-	/* 0x0320 AFE_DFX_NOA_CTRL5 */
-	u32 afe_dfx_noa_control5;
-	/* 0x0324 AFE_DFX_NOA_CTRL6 */
-	u32 afe_dfx_noa_control6;
-	/* 0x0328 AFE_DFX_NOA_CTRL7 */
-	u32 afe_dfx_noa_control7;
-	/* 0x032c-0x07fc */
-	u32 reserved_032c_07fc[0x135];
+  /* 0Xe000 AFE_BIAS_CTRL */
+  u32 afe_bias_control;
+  u32 reserved_0004;
+  /* 0x0008 AFE_PLL_CTRL0 */
+  u32 afe_pll_control0;
+  /* 0x000c AFE_PLL_CTRL1 */
+  u32 afe_pll_control1;
+  /* 0x0010 AFE_PLL_CTRL2 */
+  u32 afe_pll_control2;
+  /* 0x0014 AFE_CB_STS */
+  u32 afe_common_block_status;
+  /* 0x0018-0x007c */
+  u32 reserved_18_7c[0x1a];
+  /* 0x0080 AFE_PMSN_MCTRL0 */
+  u32 afe_pmsn_master_control0;
+  /* 0x0084 AFE_PMSN_MCTRL1 */
+  u32 afe_pmsn_master_control1;
+  /* 0x0088 AFE_PMSN_MCTRL2 */
+  u32 afe_pmsn_master_control2;
+  /* 0x008C-0x00fc */
+  u32 reserved_008c_00fc[0x1D];
+  /* 0x0100 AFE_DFX_MST_CTRL0 */
+  u32 afe_dfx_master_control0;
+  /* 0x0104 AFE_DFX_MST_CTRL1 */
+  u32 afe_dfx_master_control1;
+  /* 0x0108 AFE_DFX_DCL_CTRL */
+  u32 afe_dfx_dcl_control;
+  /* 0x010c AFE_DFX_DMON_CTRL */
+  u32 afe_dfx_digital_monitor_control;
+  /* 0x0110 AFE_DFX_AMONP_CTRL */
+  u32 afe_dfx_analog_p_monitor_control;
+  /* 0x0114 AFE_DFX_AMONN_CTRL */
+  u32 afe_dfx_analog_n_monitor_control;
+  /* 0x0118 AFE_DFX_NTL_STS */
+  u32 afe_dfx_ntl_status;
+  /* 0x011c AFE_DFX_FIFO_STS0 */
+  u32 afe_dfx_fifo_status0;
+  /* 0x0120 AFE_DFX_FIFO_STS1 */
+  u32 afe_dfx_fifo_status1;
+  /* 0x0124 AFE_DFX_MPAT_CTRL */
+  u32 afe_dfx_master_pattern_control;
+  /* 0x0128 AFE_DFX_P0_CTRL */
+  u32 afe_dfx_p0_control;
+  /* 0x012c-0x01a8 AFE_DFX_P0_DRx */
+  u32 afe_dfx_p0_data[32];
+  /* 0x01ac */
+  u32 reserved_01ac;
+  /* 0x01b0-0x020c AFE_DFX_P0_IRx */
+  u32 afe_dfx_p0_instruction[24];
+  /* 0x0210 */
+  u32 reserved_0210;
+  /* 0x0214 AFE_DFX_P1_CTRL */
+  u32 afe_dfx_p1_control;
+  /* 0x0218-0x245 AFE_DFX_P1_DRx */
+  u32 afe_dfx_p1_data[16];
+  /* 0x0258-0x029c */
+  u32 reserved_0258_029c[0x12];
+  /* 0x02a0-0x02bc AFE_DFX_P1_IRx */
+  u32 afe_dfx_p1_instruction[8];
+  /* 0x02c0-0x2fc */
+  u32 reserved_02c0_02fc[0x10];
+  /* 0x0300 AFE_DFX_TX_PMSN_CTRL */
+  u32 afe_dfx_tx_pmsn_control;
+  /* 0x0304 AFE_DFX_RX_PMSN_CTRL */
+  u32 afe_dfx_rx_pmsn_control;
+  u32 reserved_0308;
+  /* 0x030c AFE_DFX_NOA_CTRL0 */
+  u32 afe_dfx_noa_control0;
+  /* 0x0310 AFE_DFX_NOA_CTRL1 */
+  u32 afe_dfx_noa_control1;
+  /* 0x0314 AFE_DFX_NOA_CTRL2 */
+  u32 afe_dfx_noa_control2;
+  /* 0x0318 AFE_DFX_NOA_CTRL3 */
+  u32 afe_dfx_noa_control3;
+  /* 0x031c AFE_DFX_NOA_CTRL4 */
+  u32 afe_dfx_noa_control4;
+  /* 0x0320 AFE_DFX_NOA_CTRL5 */
+  u32 afe_dfx_noa_control5;
+  /* 0x0324 AFE_DFX_NOA_CTRL6 */
+  u32 afe_dfx_noa_control6;
+  /* 0x0328 AFE_DFX_NOA_CTRL7 */
+  u32 afe_dfx_noa_control7;
+  /* 0x032c-0x07fc */
+  u32 reserved_032c_07fc[0x135];
 
-	/* 0x0800-0x0bfc */
-	struct scu_afe_transceiver scu_afe_xcvr[4];
+  /* 0x0800-0x0bfc */
+  struct scu_afe_transceiver scu_afe_xcvr[4];
 
-	/* 0x0c00-0x0ffc */
-	u32 reserved_0c00_0ffc[0x0100];
+  /* 0x0c00-0x0ffc */
+  u32 reserved_0c00_0ffc[0x0100];
 };
 
 struct scu_protocol_engine_group_registers {
-	u32 table[0xE0];
+  u32 table[0xE0];
 };
 
-
 struct scu_viit_iit {
-	u32 table[256];
+  u32 table[256];
 };
 
 /**
@@ -1735,7 +1871,7 @@ struct scu_viit_iit {
  *
  */
 struct scu_zone_partition_table {
-	u32 table[2048];
+  u32 table[2048];
 };
 
 /**
@@ -1745,7 +1881,7 @@ struct scu_zone_partition_table {
  *
  */
 struct scu_completion_ram {
-	u32 ram[128];
+  u32 ram[128];
 };
 
 /**
@@ -1755,7 +1891,7 @@ struct scu_completion_ram {
  *
  */
 struct scu_frame_buffer_ram {
-	u32 ram[128];
+  u32 ram[128];
 };
 
 #define scu_scratch_ram_SIZE_IN_DWORDS  256
@@ -1766,7 +1902,7 @@ struct scu_frame_buffer_ram {
  *
  */
 struct scu_scratch_ram {
-	u32 ram[scu_scratch_ram_SIZE_IN_DWORDS];
+  u32 ram[scu_scratch_ram_SIZE_IN_DWORDS];
 };
 
 /**
@@ -1775,7 +1911,7 @@ struct scu_scratch_ram {
  *
  */
 struct noa_protocol_engine_partition {
-	u32 reserved[64];
+  u32 reserved[64];
 };
 
 /**
@@ -1784,7 +1920,7 @@ struct noa_protocol_engine_partition {
  *
  */
 struct noa_hub_partition {
-	u32 reserved[64];
+  u32 reserved[64];
 };
 
 /**
@@ -1793,7 +1929,7 @@ struct noa_hub_partition {
  *
  */
 struct noa_host_interface_partition {
-	u32 reserved[64];
+  u32 reserved[64];
 };
 
 /**
@@ -1804,8 +1940,8 @@ struct noa_host_interface_partition {
  *
  */
 struct transport_link_layer_pair {
-	struct scu_transport_layer_registers tl;
-	struct scu_link_layer_registers ll;
+  struct scu_transport_layer_registers tl;
+  struct scu_link_layer_registers ll;
 };
 
 /**
@@ -1816,14 +1952,14 @@ struct transport_link_layer_pair {
  *
  */
 struct scu_peg_registers {
-	struct transport_link_layer_pair pe[4];
-	struct scu_port_task_scheduler_group_registers ptsg;
-	struct scu_protocol_engine_group_registers peg;
-	struct scu_sgpio_registers sgpio;
-	u32 reserved_01500_1BFF[0x1C0];
-	struct scu_viit_entry viit[64];
-	struct scu_zone_partition_table zpt0;
-	struct scu_zone_partition_table zpt1;
+  struct transport_link_layer_pair pe[4];
+  struct scu_port_task_scheduler_group_registers ptsg;
+  struct scu_protocol_engine_group_registers peg;
+  struct scu_sgpio_registers sgpio;
+  u32 reserved_01500_1BFF[0x1C0];
+  struct scu_viit_entry viit[64];
+  struct scu_zone_partition_table zpt0;
+  struct scu_zone_partition_table zpt1;
 };
 
 /**
@@ -1834,30 +1970,30 @@ struct scu_peg_registers {
  *
  */
 struct scu_registers {
-	/* 0x0000 - PEG 0 */
-	struct scu_peg_registers peg0;
+  /* 0x0000 - PEG 0 */
+  struct scu_peg_registers peg0;
 
-	/* 0x6000 - SDMA and Miscellaneous */
-	struct scu_sdma_registers sdma;
-	struct scu_completion_ram cram;
-	struct scu_frame_buffer_ram fbram;
-	u32 reserved_6800_69FF[0x80];
-	struct noa_protocol_engine_partition noa_pe;
-	struct noa_hub_partition noa_hub;
-	struct noa_host_interface_partition noa_if;
-	u32 reserved_6d00_7fff[0x4c0];
+  /* 0x6000 - SDMA and Miscellaneous */
+  struct scu_sdma_registers sdma;
+  struct scu_completion_ram cram;
+  struct scu_frame_buffer_ram fbram;
+  u32 reserved_6800_69FF[0x80];
+  struct noa_protocol_engine_partition noa_pe;
+  struct noa_hub_partition noa_hub;
+  struct noa_host_interface_partition noa_if;
+  u32 reserved_6d00_7fff[0x4c0];
 
-	/* 0x8000 - PEG 1 */
-	struct scu_peg_registers peg1;
+  /* 0x8000 - PEG 1 */
+  struct scu_peg_registers peg1;
 
-	/* 0xE000 - AFE Registers */
-	struct scu_afe_registers afe;
+  /* 0xE000 - AFE Registers */
+  struct scu_afe_registers afe;
 
-	/* 0xF000 - reserved */
-	u32 reserved_f000_211fff[0x80c00];
+  /* 0xF000 - reserved */
+  u32 reserved_f000_211fff[0x80c00];
 
-	/* 0x212000 - scratch RAM */
-	struct scu_scratch_ram scratch_ram;
+  /* 0x212000 - scratch RAM */
+  struct scu_scratch_ram scratch_ram;
 };
 
 #endif   /* _SCU_REGISTERS_HEADER_ */

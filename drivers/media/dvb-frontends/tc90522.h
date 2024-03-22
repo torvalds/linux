@@ -23,14 +23,14 @@
 #define TC90522_I2C_DEV_TER "tc90522ter"
 
 struct tc90522_config {
-	/* [OUT] frontend returned by driver */
-	struct dvb_frontend *fe;
+  /* [OUT] frontend returned by driver */
+  struct dvb_frontend *fe;
 
-	/* [OUT] tuner I2C adapter returned by driver */
-	struct i2c_adapter *tuner_i2c;
+  /* [OUT] tuner I2C adapter returned by driver */
+  struct i2c_adapter *tuner_i2c;
 
-	/* [IN] use two separate I2C transactions for one tuner read */
-	bool split_tuner_read_i2c;
+  /* [IN] use two separate I2C transactions for one tuner read */
+  bool split_tuner_read_i2c;
 };
 
 #endif /* TC90522_H */

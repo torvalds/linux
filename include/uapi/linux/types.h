@@ -5,9 +5,9 @@
 #include <asm/types.h>
 
 #ifndef __ASSEMBLY__
-#ifndef	__KERNEL__
+#ifndef __KERNEL__
 #ifndef __EXPORTED_HEADERS__
-#warning "Attempt to use kernel headers from user space, see https://kernelnewbies.org/KernelHeaders"
+#warning "Attempt to use kernel headers from user space, see https: //kernelnewbies.org/KernelHeaders"
 #endif /* __EXPORTED_HEADERS__ */
 #endif
 
@@ -25,7 +25,7 @@ typedef unsigned __int128 __u128 __attribute__((aligned(16)));
 
 /* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
-#define __bitwise	__attribute__((bitwise))
+#define __bitwise __attribute__((bitwise))
 #else
 #define __bitwise
 #endif

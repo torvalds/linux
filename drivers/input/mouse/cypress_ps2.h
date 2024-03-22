@@ -8,12 +8,17 @@
 #define COMPOSIT(x, s) (((x) & CMD_BITS_MASK) << (s))
 
 #define ENCODE_CMD(aa, bb, cc, dd) \
-	(COMPOSIT((aa), 6) | COMPOSIT((bb), 4) | COMPOSIT((cc), 2) | COMPOSIT((dd), 0))
+  (COMPOSIT((aa), \
+    6) | COMPOSIT((bb), 4) | COMPOSIT((cc), 2) | COMPOSIT((dd), 0))
 #define CYTP_CMD_ABS_NO_PRESSURE_MODE       ENCODE_CMD(0, 1, 0, 0)
 #define CYTP_CMD_ABS_WITH_PRESSURE_MODE     ENCODE_CMD(0, 1, 0, 1)
 #define CYTP_CMD_SMBUS_MODE                 ENCODE_CMD(0, 1, 1, 0)
-#define CYTP_CMD_STANDARD_MODE              ENCODE_CMD(0, 2, 0, 0)  /* not implemented yet. */
-#define CYTP_CMD_CYPRESS_REL_MODE           ENCODE_CMD(1, 1, 1, 1)  /* not implemented yet. */
+#define CYTP_CMD_STANDARD_MODE              ENCODE_CMD(0, 2, 0, 0)  /* not
+                                                                     * implemented
+                                                                     * yet. */
+#define CYTP_CMD_CYPRESS_REL_MODE           ENCODE_CMD(1, 1, 1, 1)  /* not
+                                                                     * implemented
+                                                                     * yet. */
 #define CYTP_CMD_READ_CYPRESS_ID            ENCODE_CMD(0, 0, 0, 0)
 #define CYTP_CMD_READ_TP_METRICS            ENCODE_CMD(0, 0, 0, 1)
 #define CYTP_CMD_SET_HSCROLL_WIDTH(w)       ENCODE_CMD(1, 1, 0, (w))
@@ -78,7 +83,6 @@
 #define CYTP_RESP_RETRY 0x01
 #define CYTP_RESP_ERROR 0xfe
 
-
 #define CYTP_105001_WIDTH  97   /* Dell XPS 13 */
 #define CYTP_105001_HIGH   59
 #define CYTP_DEFAULT_WIDTH (CYTP_105001_WIDTH)
@@ -134,41 +138,40 @@
 #define CYTP_MAX_MT_SLOTS 2
 
 struct cytp_contact {
-	int x;
-	int y;
-	int z;  /* also named as touch pressure. */
+  int x;
+  int y;
+  int z;  /* also named as touch pressure. */
 };
 
 /* The structure of Cypress Trackpad event data. */
 struct cytp_report_data {
-	int contact_cnt;
-	struct cytp_contact contacts[CYTP_MAX_MT_SLOTS];
-	unsigned int left:1;
-	unsigned int right:1;
-	unsigned int middle:1;
-	unsigned int tap:1;  /* multi-finger tap detected. */
+  int contact_cnt;
+  struct cytp_contact contacts[CYTP_MAX_MT_SLOTS];
+  unsigned int left : 1;
+  unsigned int right : 1;
+  unsigned int middle : 1;
+  unsigned int tap : 1;  /* multi-finger tap detected. */
 };
 
 /* The structure of Cypress Trackpad device private data. */
 struct cytp_data {
-	int fw_version;
+  int fw_version;
 
-	int pkt_size;
-	int mode;
+  int pkt_size;
+  int mode;
 
-	int tp_min_pressure;
-	int tp_max_pressure;
-	int tp_width;  /* X direction physical size in mm. */
-	int tp_high;  /* Y direction physical size in mm. */
-	int tp_max_abs_x;  /* Max X absolute units that can be reported. */
-	int tp_max_abs_y;  /* Max Y absolute units that can be reported. */
+  int tp_min_pressure;
+  int tp_max_pressure;
+  int tp_width;  /* X direction physical size in mm. */
+  int tp_high;  /* Y direction physical size in mm. */
+  int tp_max_abs_x;  /* Max X absolute units that can be reported. */
+  int tp_max_abs_y;  /* Max Y absolute units that can be reported. */
 
-	int tp_res_x;  /* X resolution in units/mm. */
-	int tp_res_y;  /* Y resolution in units/mm. */
+  int tp_res_x;  /* X resolution in units/mm. */
+  int tp_res_y;  /* Y resolution in units/mm. */
 
-	int tp_metrics_supported;
+  int tp_metrics_supported;
 };
-
 
 int cypress_detect(struct psmouse *psmouse, bool set_properties);
 int cypress_init(struct psmouse *psmouse);

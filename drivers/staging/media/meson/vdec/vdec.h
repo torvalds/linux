@@ -21,8 +21,8 @@
 #define MAX_CANVAS (32 * 3)
 
 struct amvdec_buffer {
-	struct list_head list;
-	struct vb2_buffer *vb;
+  struct list_head list;
+  struct vb2_buffer *vb;
 };
 
 /**
@@ -36,12 +36,12 @@ struct amvdec_buffer {
  * @used_count: times this timestamp was checked for a match with a dst buffer
  */
 struct amvdec_timestamp {
-	struct list_head list;
-	struct v4l2_timecode tc;
-	u64 ts;
-	u32 offset;
-	u32 flags;
-	u32 used_count;
+  struct list_head list;
+  struct v4l2_timecode tc;
+  u64 ts;
+  u32 offset;
+  u32 flags;
+  u32 used_count;
 };
 
 struct amvdec_session;
@@ -68,29 +68,29 @@ struct amvdec_session;
  * @lock: video device lock
  */
 struct amvdec_core {
-	void __iomem *dos_base;
-	void __iomem *esparser_base;
-	struct regmap *regmap_ao;
+  void __iomem *dos_base;
+  void __iomem *esparser_base;
+  struct regmap *regmap_ao;
 
-	struct device *dev;
-	struct device *dev_dec;
-	const struct vdec_platform *platform;
+  struct device *dev;
+  struct device *dev_dec;
+  const struct vdec_platform *platform;
 
-	struct meson_canvas *canvas;
+  struct meson_canvas *canvas;
 
-	struct clk *dos_parser_clk;
-	struct clk *dos_clk;
-	struct clk *vdec_1_clk;
-	struct clk *vdec_hevc_clk;
-	struct clk *vdec_hevcf_clk;
+  struct clk *dos_parser_clk;
+  struct clk *dos_clk;
+  struct clk *vdec_1_clk;
+  struct clk *vdec_hevc_clk;
+  struct clk *vdec_hevcf_clk;
 
-	struct reset_control *esparser_reset;
+  struct reset_control *esparser_reset;
 
-	struct video_device *vdev_dec;
-	struct v4l2_device v4l2_dev;
+  struct video_device *vdev_dec;
+  struct v4l2_device v4l2_dev;
 
-	struct amvdec_session *cur_sess;
-	struct mutex lock;
+  struct amvdec_session *cur_sess;
+  struct mutex lock;
 };
 
 /**
@@ -100,13 +100,13 @@ struct amvdec_core {
  * @stop: mandatory call when the vdec needs to stop
  * @conf_esparser: mandatory call to let the vdec configure the ESPARSER
  * @vififo_level: mandatory call to get the current amount of data
- *		  in the VIFIFO
+ *      in the VIFIFO
  */
 struct amvdec_ops {
-	int (*start)(struct amvdec_session *sess);
-	int (*stop)(struct amvdec_session *sess);
-	void (*conf_esparser)(struct amvdec_session *sess);
-	u32 (*vififo_level)(struct amvdec_session *sess);
+  int (*start)(struct amvdec_session *sess);
+  int (*stop)(struct amvdec_session *sess);
+  void (*conf_esparser)(struct amvdec_session *sess);
+  u32 (*vififo_level)(struct amvdec_session *sess);
 };
 
 /**
@@ -117,29 +117,29 @@ struct amvdec_ops {
  * @load_extended_firmware: optional call to load additional firmware bits
  * @num_pending_bufs: optional call to get the number of dst buffers on hold
  * @can_recycle: optional call to know if the codec is ready to recycle
- *		 a dst buffer
+ *     a dst buffer
  * @recycle: optional call to tell the codec to recycle a dst buffer. Must go
- *	     in pair with @can_recycle
+ *       in pair with @can_recycle
  * @drain: optional call if the codec has a custom way of draining
  * @resume: optional call to resume after a resolution change
  * @eos_sequence: optional call to get an end sequence to send to esparser
- *		  for flush. Mutually exclusive with @drain.
+ *      for flush. Mutually exclusive with @drain.
  * @isr: mandatory call when the ISR triggers
  * @threaded_isr: mandatory call for the threaded ISR
  */
 struct amvdec_codec_ops {
-	int (*start)(struct amvdec_session *sess);
-	int (*stop)(struct amvdec_session *sess);
-	int (*load_extended_firmware)(struct amvdec_session *sess,
-				      const u8 *data, u32 len);
-	u32 (*num_pending_bufs)(struct amvdec_session *sess);
-	int (*can_recycle)(struct amvdec_core *core);
-	void (*recycle)(struct amvdec_core *core, u32 buf_idx);
-	void (*drain)(struct amvdec_session *sess);
-	void (*resume)(struct amvdec_session *sess);
-	const u8 * (*eos_sequence)(u32 *len);
-	irqreturn_t (*isr)(struct amvdec_session *sess);
-	irqreturn_t (*threaded_isr)(struct amvdec_session *sess);
+  int (*start)(struct amvdec_session *sess);
+  int (*stop)(struct amvdec_session *sess);
+  int (*load_extended_firmware)(struct amvdec_session *sess,
+      const u8 *data, u32 len);
+  u32 (*num_pending_bufs)(struct amvdec_session *sess);
+  int (*can_recycle)(struct amvdec_core *core);
+  void (*recycle)(struct amvdec_core *core, u32 buf_idx);
+  void (*drain)(struct amvdec_session *sess);
+  void (*resume)(struct amvdec_session *sess);
+  const u8 *(*eos_sequence)(u32 *len);
+  irqreturn_t (*isr)(struct amvdec_session *sess);
+  irqreturn_t (*threaded_isr)(struct amvdec_session *sess);
 };
 
 /**
@@ -157,25 +157,25 @@ struct amvdec_codec_ops {
  * @pixfmts_cap: list of CAPTURE pixel formats available with pixfmt
  */
 struct amvdec_format {
-	u32 pixfmt;
-	u32 min_buffers;
-	u32 max_buffers;
-	u32 max_width;
-	u32 max_height;
-	u32 flags;
+  u32 pixfmt;
+  u32 min_buffers;
+  u32 max_buffers;
+  u32 max_width;
+  u32 max_height;
+  u32 flags;
 
-	struct amvdec_ops *vdec_ops;
-	struct amvdec_codec_ops *codec_ops;
+  struct amvdec_ops *vdec_ops;
+  struct amvdec_codec_ops *codec_ops;
 
-	char *firmware_path;
-	u32 pixfmts_cap[4];
+  char *firmware_path;
+  u32 pixfmts_cap[4];
 };
 
 enum amvdec_status {
-	STATUS_STOPPED,
-	STATUS_INIT,
-	STATUS_RUNNING,
-	STATUS_NEEDS_RESUME,
+  STATUS_STOPPED,
+  STATUS_INIT,
+  STATUS_RUNNING,
+  STATUS_NEEDS_RESUME,
 };
 
 /**
@@ -205,7 +205,7 @@ enum amvdec_status {
  * @sequence_cap: capture sequence counter
  * @sequence_out: output sequence counter
  * @should_stop: flag set if userspace signaled EOS via command
- *		 or empty buffer
+ *     or empty buffer
  * @keyframe_found: flag set once a keyframe has been parsed
  * @num_dst_bufs: number of destination buffers
  * @changed_format: the format changed
@@ -227,59 +227,59 @@ enum amvdec_status {
  * @priv: codec private data
  */
 struct amvdec_session {
-	struct amvdec_core *core;
+  struct amvdec_core *core;
 
-	struct v4l2_fh fh;
-	struct v4l2_m2m_dev *m2m_dev;
-	struct v4l2_m2m_ctx *m2m_ctx;
-	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl *ctrl_min_buf_capture;
-	struct mutex lock;
+  struct v4l2_fh fh;
+  struct v4l2_m2m_dev *m2m_dev;
+  struct v4l2_m2m_ctx *m2m_ctx;
+  struct v4l2_ctrl_handler ctrl_handler;
+  struct v4l2_ctrl *ctrl_min_buf_capture;
+  struct mutex lock;
 
-	const struct amvdec_format *fmt_out;
-	u32 pixfmt_cap;
-	u32 src_buffer_size;
+  const struct amvdec_format *fmt_out;
+  u32 pixfmt_cap;
+  u32 src_buffer_size;
 
-	u32 width;
-	u32 height;
-	u32 colorspace;
-	u8 ycbcr_enc;
-	u8 quantization;
-	u8 xfer_func;
+  u32 width;
+  u32 height;
+  u32 colorspace;
+  u8 ycbcr_enc;
+  u8 quantization;
+  u8 xfer_func;
 
-	struct v4l2_fract pixelaspect;
+  struct v4l2_fract pixelaspect;
 
-	atomic_t esparser_queued_bufs;
-	struct work_struct esparser_queue_work;
+  atomic_t esparser_queued_bufs;
+  struct work_struct esparser_queue_work;
 
-	unsigned int streamon_cap, streamon_out;
-	unsigned int sequence_cap, sequence_out;
-	unsigned int should_stop;
-	unsigned int keyframe_found;
-	unsigned int num_dst_bufs;
-	unsigned int changed_format;
+  unsigned int streamon_cap, streamon_out;
+  unsigned int sequence_cap, sequence_out;
+  unsigned int should_stop;
+  unsigned int keyframe_found;
+  unsigned int num_dst_bufs;
+  unsigned int changed_format;
 
-	u8 canvas_alloc[MAX_CANVAS];
-	u32 canvas_num;
+  u8 canvas_alloc[MAX_CANVAS];
+  u32 canvas_num;
 
-	void *vififo_vaddr;
-	dma_addr_t vififo_paddr;
-	u32 vififo_size;
+  void *vififo_vaddr;
+  dma_addr_t vififo_paddr;
+  u32 vififo_size;
 
-	struct list_head bufs_recycle;
-	struct mutex bufs_recycle_lock; /* bufs_recycle list lock */
-	struct task_struct *recycle_thread;
+  struct list_head bufs_recycle;
+  struct mutex bufs_recycle_lock; /* bufs_recycle list lock */
+  struct task_struct *recycle_thread;
 
-	struct list_head timestamps;
-	spinlock_t ts_spinlock; /* timestamp list lock */
+  struct list_head timestamps;
+  spinlock_t ts_spinlock; /* timestamp list lock */
 
-	u64 last_irq_jiffies;
-	u32 last_offset;
-	u32 wrap_count;
-	u32 fw_idx_to_vb2_idx[32];
+  u64 last_irq_jiffies;
+  u32 last_offset;
+  u32 wrap_count;
+  u32 fw_idx_to_vb2_idx[32];
 
-	enum amvdec_status status;
-	void *priv;
+  enum amvdec_status status;
+  void *priv;
 };
 
 u32 amvdec_get_output_size(struct amvdec_session *sess);

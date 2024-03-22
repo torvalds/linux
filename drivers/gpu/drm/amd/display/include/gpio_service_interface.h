@@ -33,89 +33,88 @@
 struct gpio_service;
 
 struct gpio *dal_gpio_create(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en,
-	enum gpio_pin_output_state output_state);
+  struct gpio_service *service,
+  enum gpio_id id,
+  uint32_t en,
+  enum gpio_pin_output_state output_state);
 
 void dal_gpio_destroy(
-	struct gpio **ptr);
+  struct gpio **ptr);
 
 struct gpio_service *dal_gpio_service_create(
-	enum dce_version dce_version,
-	enum dce_environment dce_environment,
-	struct dc_context *ctx);
+  enum dce_version dce_version,
+  enum dce_environment dce_environment,
+  struct dc_context *ctx);
 
 struct gpio *dal_gpio_service_create_irq(
-	struct gpio_service *service,
-	uint32_t offset,
-	uint32_t mask);
+  struct gpio_service *service,
+  uint32_t offset,
+  uint32_t mask);
 
 struct gpio *dal_gpio_service_create_generic_mux(
-	struct gpio_service *service,
-	uint32_t offset,
-	uint32_t mask);
+  struct gpio_service *service,
+  uint32_t offset,
+  uint32_t mask);
 
 void dal_gpio_destroy_generic_mux(
-	struct gpio **mux);
+  struct gpio **mux);
 
 enum gpio_result dal_mux_setup_config(
-	struct gpio *mux,
-	struct gpio_generic_mux_config *config);
+  struct gpio *mux,
+  struct gpio_generic_mux_config *config);
 
 struct gpio_pin_info dal_gpio_get_generic_pin_info(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en);
+  struct gpio_service *service,
+  enum gpio_id id,
+  uint32_t en);
 
 struct ddc *dal_gpio_create_ddc(
-	struct gpio_service *service,
-	uint32_t offset,
-	uint32_t mask,
-	struct gpio_ddc_hw_info *info);
+  struct gpio_service *service,
+  uint32_t offset,
+  uint32_t mask,
+  struct gpio_ddc_hw_info *info);
 
 void dal_gpio_destroy_ddc(
-	struct ddc **ddc);
+  struct ddc **ddc);
 
 void dal_gpio_service_destroy(
-	struct gpio_service **ptr);
+  struct gpio_service **ptr);
 
 enum dc_irq_source dal_irq_get_source(
-	const struct gpio *irq);
+  const struct gpio *irq);
 
 enum dc_irq_source dal_irq_get_rx_source(
-	const struct gpio *irq);
+  const struct gpio *irq);
 
 enum gpio_result dal_irq_setup_hpd_filter(
-	struct gpio *irq,
-	struct gpio_hpd_config *config);
+  struct gpio *irq,
+  struct gpio_hpd_config *config);
 
 struct gpio *dal_gpio_create_irq(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en);
+  struct gpio_service *service,
+  enum gpio_id id,
+  uint32_t en);
 
 void dal_gpio_destroy_irq(
-	struct gpio **ptr);
-
+  struct gpio **ptr);
 
 enum gpio_result dal_ddc_open(
-	struct ddc *ddc,
-	enum gpio_mode mode,
-	enum gpio_ddc_config_type config_type);
+  struct ddc *ddc,
+  enum gpio_mode mode,
+  enum gpio_ddc_config_type config_type);
 
 enum gpio_result dal_ddc_change_mode(
-	struct ddc *ddc,
-	enum gpio_mode mode);
+  struct ddc *ddc,
+  enum gpio_mode mode);
 
 enum gpio_ddc_line dal_ddc_get_line(
-	const struct ddc *ddc);
+  const struct ddc *ddc);
 
 enum gpio_result dal_ddc_set_config(
-	struct ddc *ddc,
-	enum gpio_ddc_config_type config_type);
+  struct ddc *ddc,
+  enum gpio_ddc_config_type config_type);
 
 void dal_ddc_close(
-	struct ddc *ddc);
+  struct ddc *ddc);
 
 #endif

@@ -10,11 +10,11 @@ struct device_node;
 struct attribute;
 
 enum cache_type {
-	CACHE_TYPE_NOCACHE = 0,
-	CACHE_TYPE_INST = BIT(0),
-	CACHE_TYPE_DATA = BIT(1),
-	CACHE_TYPE_SEPARATE = CACHE_TYPE_INST | CACHE_TYPE_DATA,
-	CACHE_TYPE_UNIFIED = BIT(2),
+  CACHE_TYPE_NOCACHE = 0,
+  CACHE_TYPE_INST = BIT(0),
+  CACHE_TYPE_DATA = BIT(1),
+  CACHE_TYPE_SEPARATE = CACHE_TYPE_INST | CACHE_TYPE_DATA,
+  CACHE_TYPE_UNIFIED = BIT(2),
 };
 
 extern unsigned int coherency_max_size;
@@ -25,59 +25,59 @@ extern unsigned int coherency_max_size;
  * @type: type of the cache - data, inst or unified
  * @level: represents the hierarchy in the multi-level cache
  * @coherency_line_size: size of each cache line usually representing
- *	the minimum amount of data that gets transferred from memory
+ *  the minimum amount of data that gets transferred from memory
  * @number_of_sets: total number of sets, a set is a collection of cache
- *	lines sharing the same index
+ *  lines sharing the same index
  * @ways_of_associativity: number of ways in which a particular memory
- *	block can be placed in the cache
+ *  block can be placed in the cache
  * @physical_line_partition: number of physical cache lines sharing the
- *	same cachetag
+ *  same cachetag
  * @size: Total size of the cache
  * @shared_cpu_map: logical cpumask representing all the cpus sharing
- *	this cache node
+ *  this cache node
  * @attributes: bitfield representing various cache attributes
  * @fw_token: Unique value used to determine if different cacheinfo
- *	structures represent a single hardware cache instance.
+ *  structures represent a single hardware cache instance.
  * @disable_sysfs: indicates whether this node is visible to the user via
- *	sysfs or not
+ *  sysfs or not
  * @priv: pointer to any private data structure specific to particular
- *	cache design
+ *  cache design
  *
  * While @of_node, @disable_sysfs and @priv are used for internal book
  * keeping, the remaining members form the core properties of the cache
  */
 struct cacheinfo {
-	unsigned int id;
-	enum cache_type type;
-	unsigned int level;
-	unsigned int coherency_line_size;
-	unsigned int number_of_sets;
-	unsigned int ways_of_associativity;
-	unsigned int physical_line_partition;
-	unsigned int size;
-	cpumask_t shared_cpu_map;
-	unsigned int attributes;
-#define CACHE_WRITE_THROUGH	BIT(0)
-#define CACHE_WRITE_BACK	BIT(1)
-#define CACHE_WRITE_POLICY_MASK		\
-	(CACHE_WRITE_THROUGH | CACHE_WRITE_BACK)
-#define CACHE_READ_ALLOCATE	BIT(2)
-#define CACHE_WRITE_ALLOCATE	BIT(3)
-#define CACHE_ALLOCATE_POLICY_MASK	\
-	(CACHE_READ_ALLOCATE | CACHE_WRITE_ALLOCATE)
-#define CACHE_ID		BIT(4)
-	void *fw_token;
-	bool disable_sysfs;
-	void *priv;
+  unsigned int id;
+  enum cache_type type;
+  unsigned int level;
+  unsigned int coherency_line_size;
+  unsigned int number_of_sets;
+  unsigned int ways_of_associativity;
+  unsigned int physical_line_partition;
+  unsigned int size;
+  cpumask_t shared_cpu_map;
+  unsigned int attributes;
+#define CACHE_WRITE_THROUGH BIT(0)
+#define CACHE_WRITE_BACK  BIT(1)
+#define CACHE_WRITE_POLICY_MASK   \
+  (CACHE_WRITE_THROUGH | CACHE_WRITE_BACK)
+#define CACHE_READ_ALLOCATE BIT(2)
+#define CACHE_WRITE_ALLOCATE  BIT(3)
+#define CACHE_ALLOCATE_POLICY_MASK  \
+  (CACHE_READ_ALLOCATE | CACHE_WRITE_ALLOCATE)
+#define CACHE_ID    BIT(4)
+  void *fw_token;
+  bool disable_sysfs;
+  void *priv;
 };
 
 struct cpu_cacheinfo {
-	struct cacheinfo *info_list;
-	unsigned int per_cpu_data_slice_size;
-	unsigned int num_levels;
-	unsigned int num_leaves;
-	bool cpu_map_populated;
-	bool early_ci_levels;
+  struct cacheinfo *info_list;
+  unsigned int per_cpu_data_slice_size;
+  unsigned int num_levels;
+  unsigned int num_leaves;
+  bool cpu_map_populated;
+  bool early_ci_levels;
 };
 
 struct cpu_cacheinfo *get_cpu_cacheinfo(unsigned int cpu);
@@ -101,13 +101,13 @@ int detect_cache_attributes(unsigned int cpu);
  */
 static inline
 int acpi_get_cache_info(unsigned int cpu,
-			unsigned int *levels, unsigned int *split_levels)
-{
-	return -ENOENT;
+    unsigned int *levels, unsigned int *split_levels) {
+  return -ENOENT;
 }
+
 #else
 int acpi_get_cache_info(unsigned int cpu,
-			unsigned int *levels, unsigned int *split_levels);
+    unsigned int *levels, unsigned int *split_levels);
 #endif
 
 const struct attribute_group *cache_get_priv_group(struct cacheinfo *this_leaf);
@@ -116,30 +116,28 @@ const struct attribute_group *cache_get_priv_group(struct cacheinfo *this_leaf);
  * Get the id of the cache associated with @cpu at level @level.
  * cpuhp lock must be held.
  */
-static inline int get_cpu_cacheinfo_id(int cpu, int level)
-{
-	struct cpu_cacheinfo *ci = get_cpu_cacheinfo(cpu);
-	int i;
-
-	for (i = 0; i < ci->num_leaves; i++) {
-		if (ci->info_list[i].level == level) {
-			if (ci->info_list[i].attributes & CACHE_ID)
-				return ci->info_list[i].id;
-			return -1;
-		}
-	}
-
-	return -1;
+static inline int get_cpu_cacheinfo_id(int cpu, int level) {
+  struct cpu_cacheinfo *ci = get_cpu_cacheinfo(cpu);
+  int i;
+  for (i = 0; i < ci->num_leaves; i++) {
+    if (ci->info_list[i].level == level) {
+      if (ci->info_list[i].attributes & CACHE_ID) {
+        return ci->info_list[i].id;
+      }
+      return -1;
+    }
+  }
+  return -1;
 }
 
 #ifdef CONFIG_ARM64
-#define use_arch_cache_info()	(true)
+#define use_arch_cache_info() (true)
 #else
-#define use_arch_cache_info()	(false)
+#define use_arch_cache_info() (false)
 #endif
 
 #ifndef CONFIG_ARCH_HAS_CPU_CACHE_ALIASING
-#define cpu_dcache_is_aliasing()	false
+#define cpu_dcache_is_aliasing()  false
 #else
 #include <asm/cachetype.h>
 #endif

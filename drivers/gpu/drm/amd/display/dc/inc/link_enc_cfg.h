@@ -36,13 +36,14 @@
  * Initialise link encoder resource tracking.
  */
 void link_enc_cfg_init(
-		const struct dc *dc,
-		struct dc_state *state);
+  const struct dc *dc,
+  struct dc_state *state);
 
 /*
  * Copies a link encoder assignment from another state.
  */
-void link_enc_cfg_copy(const struct dc_state *src_ctx, struct dc_state *dst_ctx);
+void link_enc_cfg_copy(const struct dc_state *src_ctx,
+    struct dc_state *dst_ctx);
 
 /*
  * Algorithm for assigning available DIG link encoders to streams.
@@ -55,10 +56,10 @@ void link_enc_cfg_copy(const struct dc_state *src_ctx, struct dc_state *dst_ctx)
  * b) Then assign encoders to mappable endpoints.
  */
 void link_enc_cfg_link_encs_assign(
-		struct dc *dc,
-		struct dc_state *state,
-		struct dc_stream_state *streams[],
-		uint8_t stream_count);
+  struct dc *dc,
+  struct dc_state *state,
+  struct dc_stream_state *streams[],
+  uint8_t stream_count);
 
 /*
  * Unassign a link encoder from a stream.
@@ -67,59 +68,68 @@ void link_enc_cfg_link_encs_assign(
  * struct resource_context.
  */
 void link_enc_cfg_link_enc_unassign(
-		struct dc_state *state,
-		struct dc_stream_state *stream);
+  struct dc_state *state,
+  struct dc_stream_state *stream);
 
 /*
  * Check whether the transmitter driven by a link encoder is a mappable
  * endpoint.
  */
 bool link_enc_cfg_is_transmitter_mappable(
-		struct dc *dc,
-		struct link_encoder *link_enc);
+  struct dc *dc,
+  struct link_encoder *link_enc);
 
 /* Return stream using DIG link encoder resource. NULL if unused. */
 struct dc_stream_state *link_enc_cfg_get_stream_using_link_enc(
-		struct dc *dc,
-		enum engine_id eng_id);
+  struct dc *dc,
+  enum engine_id eng_id);
 
 /* Return link using DIG link encoder resource. NULL if unused. */
 struct dc_link *link_enc_cfg_get_link_using_link_enc(
-		struct dc *dc,
-		enum engine_id eng_id);
+  struct dc *dc,
+  enum engine_id eng_id);
 
 /* Return DIG link encoder used by link. NULL if unused. */
 struct link_encoder *link_enc_cfg_get_link_enc_used_by_link(
-		struct dc *dc,
-		const struct dc_link *link);
+  struct dc *dc,
+  const struct dc_link *link);
 
 /* Return next available DIG link encoder. NULL if none available. */
 struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc);
 
 /* Return DIG link encoder used by stream. NULL if unused. */
 struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
-		struct dc *dc,
-		const struct dc_stream_state *stream);
+  struct dc *dc,
+  const struct dc_stream_state *stream);
 
 /* Return DIG link encoder. NULL if unused. */
 struct link_encoder *link_enc_cfg_get_link_enc(const struct dc_link *link);
 
-/* Return DIG link encoder used by stream in current/previous state. NULL if unused. */
+/* Return DIG link encoder used by stream in current/previous state. NULL if
+ * unused. */
 struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream_current(
-		struct dc *dc,
-		const struct dc_stream_state *stream);
+  struct dc *dc,
+  const struct dc_stream_state *stream);
 
 /* Return true if encoder available to use. */
-bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link);
+bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id,
+    struct dc_link *link);
 
-/* Returns true if encoder assignments in supplied state pass validity checks. */
+/* Returns true if encoder assignments in supplied state pass validity checks.
+ * */
 bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state);
 
-/* Set the link encoder assignment mode for the current_state to LINK_ENC_CFG_TRANSIENT mode.
- * This indicates that a new_state is in the process of being applied to hardware.
- * During this transition, old and new encoder assignments should be accessible from the old_state.
- * Only allow transition into transient mode if new encoder assignments are valid.
+/* Set the link encoder assignment mode for the current_state to
+ * LINK_ENC_CFG_TRANSIENT mode.
+ * This indicates that a new_state is in the process of being applied to
+ *hardware.
+ * During this transition, old and new encoder assignments should be accessible
+ *from the old_state.
+ * Only allow transition into transient mode if new encoder assignments are
+ *valid.
  */
-void link_enc_cfg_set_transient_mode(struct dc *dc, struct dc_state *current_state, struct dc_state *new_state);
+void link_enc_cfg_set_transient_mode(struct dc *dc,
+    struct dc_state *current_state,
+    struct dc_state *new_state);
 
 #endif /* DC_INC_LINK_ENC_CFG_H_ */

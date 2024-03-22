@@ -21,21 +21,21 @@
  * to the port's type) - always starting at 0.
  */
 
-/* FM Frame error */
-/* Frame Descriptor errors */
-/* Not for Rx-Port! Unsupported Format */
-#define FM_PORT_FRM_ERR_UNSUPPORTED_FORMAT	FM_FD_ERR_UNSUPPORTED_FORMAT
+/* FM Frame error
+ * Frame Descriptor errors
+ * Not for Rx-Port! Unsupported Format*/
+#define FM_PORT_FRM_ERR_UNSUPPORTED_FORMAT  FM_FD_ERR_UNSUPPORTED_FORMAT
 /* Not for Rx-Port! Length Error */
-#define FM_PORT_FRM_ERR_LENGTH			FM_FD_ERR_LENGTH
+#define FM_PORT_FRM_ERR_LENGTH      FM_FD_ERR_LENGTH
 /* DMA Data error */
-#define FM_PORT_FRM_ERR_DMA			FM_FD_ERR_DMA
+#define FM_PORT_FRM_ERR_DMA     FM_FD_ERR_DMA
 /* non Frame-Manager error; probably come from SEC that was chained to FM */
-#define FM_PORT_FRM_ERR_NON_FM			FM_FD_RX_STATUS_ERR_NON_FM
- /* IPR error */
-#define FM_PORT_FRM_ERR_IPRE			(FM_FD_ERR_IPR & ~FM_FD_IPR)
+#define FM_PORT_FRM_ERR_NON_FM      FM_FD_RX_STATUS_ERR_NON_FM
+/* IPR error */
+#define FM_PORT_FRM_ERR_IPRE      (FM_FD_ERR_IPR & ~FM_FD_IPR)
 /* IPR non-consistent-sp */
-#define FM_PORT_FRM_ERR_IPR_NCSP		(FM_FD_ERR_IPR_NCSP &	\
-						~FM_FD_IPR)
+#define FM_PORT_FRM_ERR_IPR_NCSP    (FM_FD_ERR_IPR_NCSP   \
+  & ~FM_FD_IPR)
 
 /* Rx FIFO overflow, FCS error, code error, running disparity
  * error (SGMII and TBI modes), FIFO parity error.
@@ -71,41 +71,41 @@ struct fman_port;
 
 /* A structure for additional Rx port parameters */
 struct fman_port_rx_params {
-	u32 err_fqid;			/* Error Queue Id. */
-	u32 dflt_fqid;			/* Default Queue Id. */
-	u32 pcd_base_fqid;		/* PCD base Queue Id. */
-	u32 pcd_fqs_count;		/* Number of PCD FQs. */
+  u32 err_fqid;     /* Error Queue Id. */
+  u32 dflt_fqid;      /* Default Queue Id. */
+  u32 pcd_base_fqid;    /* PCD base Queue Id. */
+  u32 pcd_fqs_count;    /* Number of PCD FQs. */
 
-	/* Which external buffer pools are used
-	 * (up to FMAN_PORT_MAX_EXT_POOLS_NUM), and their sizes.
-	 */
-	struct fman_ext_pools ext_buf_pools;
+  /* Which external buffer pools are used
+   * (up to FMAN_PORT_MAX_EXT_POOLS_NUM), and their sizes.
+   */
+  struct fman_ext_pools ext_buf_pools;
 };
 
 /* A structure for additional non-Rx port parameters */
 struct fman_port_non_rx_params {
-	/* Error Queue Id. */
-	u32 err_fqid;
-	/* For Tx - Default Confirmation queue, 0 means no Tx confirmation
-	 * for processed frames. For OP port - default Rx queue.
-	 */
-	u32 dflt_fqid;
+  /* Error Queue Id. */
+  u32 err_fqid;
+  /* For Tx - Default Confirmation queue, 0 means no Tx confirmation
+   * for processed frames. For OP port - default Rx queue.
+   */
+  u32 dflt_fqid;
 };
 
 /* A union for additional parameters depending on port type */
 union fman_port_specific_params {
-	/* Rx port parameters structure */
-	struct fman_port_rx_params rx_params;
-	/* Non-Rx port parameters structure */
-	struct fman_port_non_rx_params non_rx_params;
+  /* Rx port parameters structure */
+  struct fman_port_rx_params rx_params;
+  /* Non-Rx port parameters structure */
+  struct fman_port_non_rx_params non_rx_params;
 };
 
 /* A structure representing FM initialization parameters */
 struct fman_port_params {
-	/* Virtual Address of memory mapped FM Port registers. */
-	void *fm;
-	union fman_port_specific_params specific_params;
-	/* Additional parameters depending on port type. */
+  /* Virtual Address of memory mapped FM Port registers. */
+  void *fm;
+  union fman_port_specific_params specific_params;
+  /* Additional parameters depending on port type. */
 };
 
 int fman_port_config(struct fman_port *port, struct fman_port_params *params);
@@ -115,8 +115,8 @@ void fman_port_use_kg_hash(struct fman_port *port, bool enable);
 int fman_port_init(struct fman_port *port);
 
 int fman_port_cfg_buf_prefix_content(struct fman_port *port,
-				     struct fman_buffer_prefix_content
-				     *buffer_prefix_content);
+    struct fman_buffer_prefix_content
+    *buffer_prefix_content);
 
 int fman_port_disable(struct fman_port *port);
 

@@ -7,9 +7,8 @@
 #include <linux/ima.h>
 #include <asm/secure_boot.h>
 
-bool arch_ima_get_secureboot(void)
-{
-	return is_ppc_secureboot_enabled();
+bool arch_ima_get_secureboot(void) {
+  return is_ppc_secureboot_enabled();
 }
 
 /*
@@ -22,12 +21,12 @@ bool arch_ima_get_secureboot(void)
  * policy rule for module appraisal is added only if CONFIG_MODULE_SIG
  * is not enabled.
  */
-static const char *const secure_rules[] = {
-	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",
+static const char * const secure_rules[] = {
+  "appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",
 #ifndef CONFIG_MODULE_SIG
-	"appraise func=MODULE_CHECK appraise_type=imasig|modsig",
+  "appraise func=MODULE_CHECK appraise_type=imasig|modsig",
 #endif
-	NULL
+  NULL
 };
 
 /*
@@ -35,10 +34,10 @@ static const char *const secure_rules[] = {
  * These rules add the kexec kernel image and kernel modules file hashes to
  * the IMA measurement list.
  */
-static const char *const trusted_rules[] = {
-	"measure func=KEXEC_KERNEL_CHECK",
-	"measure func=MODULE_CHECK",
-	NULL
+static const char * const trusted_rules[] = {
+  "measure func=KEXEC_KERNEL_CHECK",
+  "measure func=MODULE_CHECK",
+  NULL
 };
 
 /*
@@ -46,33 +45,32 @@ static const char *const trusted_rules[] = {
  * trusted boot. The "template=ima-modsig" option includes the appended
  * signature, when available, in the IMA measurement list.
  */
-static const char *const secure_and_trusted_rules[] = {
-	"measure func=KEXEC_KERNEL_CHECK template=ima-modsig",
-	"measure func=MODULE_CHECK template=ima-modsig",
-	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",
+static const char * const secure_and_trusted_rules[] = {
+  "measure func=KEXEC_KERNEL_CHECK template=ima-modsig",
+  "measure func=MODULE_CHECK template=ima-modsig",
+  "appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig|modsig",
 #ifndef CONFIG_MODULE_SIG
-	"appraise func=MODULE_CHECK appraise_type=imasig|modsig",
+  "appraise func=MODULE_CHECK appraise_type=imasig|modsig",
 #endif
-	NULL
+  NULL
 };
 
 /*
  * Returns the relevant IMA arch-specific policies based on the system secure
  * boot state.
  */
-const char *const *arch_get_ima_policy(void)
-{
-	if (is_ppc_secureboot_enabled()) {
-		if (IS_ENABLED(CONFIG_MODULE_SIG))
-			set_module_sig_enforced();
-
-		if (is_ppc_trustedboot_enabled())
-			return secure_and_trusted_rules;
-		else
-			return secure_rules;
-	} else if (is_ppc_trustedboot_enabled()) {
-		return trusted_rules;
-	}
-
-	return NULL;
+const char *const *arch_get_ima_policy(void) {
+  if (is_ppc_secureboot_enabled()) {
+    if (IS_ENABLED(CONFIG_MODULE_SIG)) {
+      set_module_sig_enforced();
+    }
+    if (is_ppc_trustedboot_enabled()) {
+      return secure_and_trusted_rules;
+    } else {
+      return secure_rules;
+    }
+  } else if (is_ppc_trustedboot_enabled()) {
+    return trusted_rules;
+  }
+  return NULL;
 }

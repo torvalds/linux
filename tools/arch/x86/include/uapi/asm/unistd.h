@@ -10,16 +10,16 @@
  * Fortunately, expressions like (nr & ~__X32_SYSCALL_BIT) do the right
  * thing regardless.
  */
-#define __X32_SYSCALL_BIT	0x40000000
+#define __X32_SYSCALL_BIT 0x40000000
 
 #ifndef __KERNEL__
-# ifdef __i386__
-#  include <asm/unistd_32.h>
-# elif defined(__ILP32__)
-#  include <asm/unistd_x32.h>
-# else
-#  include <asm/unistd_64.h>
-# endif
+#ifdef __i386__
+#include <asm/unistd_32.h>
+#elif defined(__ILP32__)
+#include <asm/unistd_x32.h>
+#else
+#include <asm/unistd_64.h>
+#endif
 #endif
 
 #endif /* _UAPI_ASM_X86_UNISTD_H */

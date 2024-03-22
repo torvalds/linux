@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 1999 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 1999 - 2018 Intel Corporation.*/
 
 #ifndef _IXGBE_MBX_H_
 #define _IXGBE_MBX_H_
@@ -22,17 +22,16 @@
 #define IXGBE_MBVFICR_VFACK_MASK 0xFFFF0000 /* bits for VF acks */
 #define IXGBE_MBVFICR_VFACK_VF1  0x00010000 /* bit for VF 1 ack */
 
-
 /* If it's a IXGBE_VF_* msg then it originates in the VF and is sent to the
  * PF.  The reverse is true if it is IXGBE_PF_*.
  * Message ACK's are the value or'd with 0xF0000000
  */
 #define IXGBE_VT_MSGTYPE_ACK      0x80000000  /* Messages below or'd with
-					       * this are the ACK */
+                                               * this are the ACK */
 #define IXGBE_VT_MSGTYPE_NACK     0x40000000  /* Messages below or'd with
-					       * this are the NACK */
+                                               * this are the NACK */
 #define IXGBE_VT_MSGTYPE_CTS      0x20000000  /* Indicates that VF is still
-						 clear to send requests */
+                                               * clear to send requests */
 #define IXGBE_VT_MSGINFO_SHIFT    16
 /* bits 23:16 are used for exra info for certain messages */
 #define IXGBE_VT_MSGINFO_MASK     (0xFF << IXGBE_VT_MSGINFO_SHIFT)
@@ -44,14 +43,14 @@
  * change; any additions must go at the end
  */
 enum ixgbe_pfvf_api_rev {
-	ixgbe_mbox_api_10,	/* API version 1.0, linux/freebsd VF driver */
-	ixgbe_mbox_api_20,	/* API version 2.0, solaris Phase1 VF driver */
-	ixgbe_mbox_api_11,	/* API version 1.1, linux/freebsd VF driver */
-	ixgbe_mbox_api_12,	/* API version 1.2, linux/freebsd VF driver */
-	ixgbe_mbox_api_13,	/* API version 1.3, linux/freebsd VF driver */
-	ixgbe_mbox_api_14,	/* API version 1.4, linux/freebsd VF driver */
-	/* This value should always be last */
-	ixgbe_mbox_api_unknown,	/* indicates that API version is not known */
+  ixgbe_mbox_api_10,  /* API version 1.0, linux/freebsd VF driver */
+  ixgbe_mbox_api_20,  /* API version 2.0, solaris Phase1 VF driver */
+  ixgbe_mbox_api_11,  /* API version 1.1, linux/freebsd VF driver */
+  ixgbe_mbox_api_12,  /* API version 1.2, linux/freebsd VF driver */
+  ixgbe_mbox_api_13,  /* API version 1.3, linux/freebsd VF driver */
+  ixgbe_mbox_api_14,  /* API version 1.4, linux/freebsd VF driver */
+  /* This value should always be last */
+  ixgbe_mbox_api_unknown, /* indicates that API version is not known */
 };
 
 /* mailbox API, legacy requests */
@@ -61,28 +60,28 @@ enum ixgbe_pfvf_api_rev {
 #define IXGBE_VF_SET_VLAN         0x04 /* VF requests PF to set VLAN */
 
 /* mailbox API, version 1.0 VF requests */
-#define IXGBE_VF_SET_LPE	0x05 /* VF requests PF to set VMOLR.LPE */
-#define IXGBE_VF_SET_MACVLAN	0x06 /* VF requests PF for unicast filter */
-#define IXGBE_VF_API_NEGOTIATE	0x08 /* negotiate API version */
+#define IXGBE_VF_SET_LPE  0x05 /* VF requests PF to set VMOLR.LPE */
+#define IXGBE_VF_SET_MACVLAN  0x06 /* VF requests PF for unicast filter */
+#define IXGBE_VF_API_NEGOTIATE  0x08 /* negotiate API version */
 
 /* mailbox API, version 1.1 VF requests */
-#define IXGBE_VF_GET_QUEUES	0x09 /* get queue configuration */
+#define IXGBE_VF_GET_QUEUES 0x09 /* get queue configuration */
 
 /* GET_QUEUES return data indices within the mailbox */
-#define IXGBE_VF_TX_QUEUES	1	/* number of Tx queues supported */
-#define IXGBE_VF_RX_QUEUES	2	/* number of Rx queues supported */
-#define IXGBE_VF_TRANS_VLAN	3	/* Indication of port vlan */
-#define IXGBE_VF_DEF_QUEUE	4	/* Default queue offset */
+#define IXGBE_VF_TX_QUEUES  1 /* number of Tx queues supported */
+#define IXGBE_VF_RX_QUEUES  2 /* number of Rx queues supported */
+#define IXGBE_VF_TRANS_VLAN 3 /* Indication of port vlan */
+#define IXGBE_VF_DEF_QUEUE  4 /* Default queue offset */
 
 /* mailbox API, version 1.2 VF requests */
-#define IXGBE_VF_GET_RETA	0x0a	/* VF request for RETA */
-#define IXGBE_VF_GET_RSS_KEY	0x0b	/* get RSS key */
+#define IXGBE_VF_GET_RETA 0x0a  /* VF request for RETA */
+#define IXGBE_VF_GET_RSS_KEY  0x0b  /* get RSS key */
 
-#define IXGBE_VF_UPDATE_XCAST_MODE	0x0c
+#define IXGBE_VF_UPDATE_XCAST_MODE  0x0c
 
 /* mailbox API, version 1.4 VF requests */
-#define IXGBE_VF_IPSEC_ADD	0x0d
-#define IXGBE_VF_IPSEC_DEL	0x0e
+#define IXGBE_VF_IPSEC_ADD  0x0d
+#define IXGBE_VF_IPSEC_DEL  0x0e
 
 #define IXGBE_VF_GET_LINK_STATE 0x10 /* get vf link state */
 

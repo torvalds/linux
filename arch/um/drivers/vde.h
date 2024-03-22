@@ -7,19 +7,19 @@
 #define __UM_VDE_H__
 
 struct vde_data {
-	char *vde_switch;
-	char *descr;
-	void *args;
-	void *conn;
-	void *dev;
+  char *vde_switch;
+  char *descr;
+  void *args;
+  void *conn;
+  void *dev;
 };
 
 struct vde_init {
-	char *vde_switch;
-	char *descr;
-	int port;
-	char *group;
-	int mode;
+  char *vde_switch;
+  char *descr;
+  int port;
+  char *group;
+  int mode;
 };
 
 extern const struct net_user_info vde_user_info;

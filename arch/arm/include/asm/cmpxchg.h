@@ -25,100 +25,95 @@
 #define swp_is_buggy
 #endif
 
-static inline unsigned long
-__arch_xchg(unsigned long x, volatile void *ptr, int size)
-{
-	extern void __bad_xchg(volatile void *, int);
-	unsigned long ret;
+static inline unsigned long __arch_xchg(unsigned long x, volatile void *ptr,
+    int size) {
+  extern void __bad_xchg(volatile void *, int);
+  unsigned long ret;
 #ifdef swp_is_buggy
-	unsigned long flags;
+  unsigned long flags;
 #endif
 #if __LINUX_ARM_ARCH__ >= 6
-	unsigned int tmp;
+  unsigned int tmp;
 #endif
-
-	prefetchw((const void *)ptr);
-
-	switch (size) {
+  prefetchw((const void *) ptr);
+  switch (size) {
 #if __LINUX_ARM_ARCH__ >= 6
 #ifndef CONFIG_CPU_V6 /* MIN ARCH >= V6K */
-	case 1:
-		asm volatile("@	__xchg1\n"
-		"1:	ldrexb	%0, [%3]\n"
-		"	strexb	%1, %2, [%3]\n"
-		"	teq	%1, #0\n"
-		"	bne	1b"
-			: "=&r" (ret), "=&r" (tmp)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		break;
-	case 2:
-		asm volatile("@	__xchg2\n"
-		"1:	ldrexh	%0, [%3]\n"
-		"	strexh	%1, %2, [%3]\n"
-		"	teq	%1, #0\n"
-		"	bne	1b"
-			: "=&r" (ret), "=&r" (tmp)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		break;
+    case 1:
+      asm volatile ("@	__xchg1\n"
+      "1:	ldrexb	%0, [%3]\n"
+      "	strexb	%1, %2, [%3]\n"
+      "	teq	%1, #0\n"
+      "	bne	1b"
+      : "=&r" (ret), "=&r" (tmp)
+      : "r" (x), "r" (ptr)
+      : "memory", "cc");
+      break;
+    case 2:
+      asm volatile ("@	__xchg2\n"
+      "1:	ldrexh	%0, [%3]\n"
+      "	strexh	%1, %2, [%3]\n"
+      "	teq	%1, #0\n"
+      "	bne	1b"
+      : "=&r" (ret), "=&r" (tmp)
+      : "r" (x), "r" (ptr)
+      : "memory", "cc");
+      break;
 #endif
-	case 4:
-		asm volatile("@	__xchg4\n"
-		"1:	ldrex	%0, [%3]\n"
-		"	strex	%1, %2, [%3]\n"
-		"	teq	%1, #0\n"
-		"	bne	1b"
-			: "=&r" (ret), "=&r" (tmp)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		break;
+    case 4:
+      asm volatile ("@	__xchg4\n"
+      "1:	ldrex	%0, [%3]\n"
+      "	strex	%1, %2, [%3]\n"
+      "	teq	%1, #0\n"
+      "	bne	1b"
+      : "=&r" (ret), "=&r" (tmp)
+      : "r" (x), "r" (ptr)
+      : "memory", "cc");
+      break;
 #elif defined(swp_is_buggy)
 #ifdef CONFIG_SMP
 #error SMP is not supported on this platform
 #endif
-	case 1:
-		raw_local_irq_save(flags);
-		ret = *(volatile unsigned char *)ptr;
-		*(volatile unsigned char *)ptr = x;
-		raw_local_irq_restore(flags);
-		break;
-
-	case 4:
-		raw_local_irq_save(flags);
-		ret = *(volatile unsigned long *)ptr;
-		*(volatile unsigned long *)ptr = x;
-		raw_local_irq_restore(flags);
-		break;
+    case 1:
+      raw_local_irq_save(flags);
+      ret = *(volatile unsigned char *) ptr;
+      *(volatile unsigned char *) ptr = x;
+      raw_local_irq_restore(flags);
+      break;
+    case 4:
+      raw_local_irq_save(flags);
+      ret = *(volatile unsigned long *) ptr;
+      *(volatile unsigned long *) ptr = x;
+      raw_local_irq_restore(flags);
+      break;
 #else
-	case 1:
-		asm volatile("@	__xchg1\n"
-		"	swpb	%0, %1, [%2]"
-			: "=&r" (ret)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		break;
-	case 4:
-		asm volatile("@	__xchg4\n"
-		"	swp	%0, %1, [%2]"
-			: "=&r" (ret)
-			: "r" (x), "r" (ptr)
-			: "memory", "cc");
-		break;
+    case 1:
+      asm volatile ("@	__xchg1\n"
+      "	swpb	%0, %1, [%2]"
+      : "=&r" (ret)
+      : "r" (x), "r" (ptr)
+      : "memory", "cc");
+      break;
+    case 4:
+      asm volatile ("@	__xchg4\n"
+      "	swp	%0, %1, [%2]"
+      : "=&r" (ret)
+      : "r" (x), "r" (ptr)
+      : "memory", "cc");
+      break;
 #endif
-	default:
-		/* Cause a link-time error, the xchg() size is not supported */
-		__bad_xchg(ptr, size), ret = 0;
-		break;
-	}
-
-	return ret;
+    default:
+      /* Cause a link-time error, the xchg() size is not supported */
+      __bad_xchg(ptr, size), ret = 0;
+      break;
+  }
+  return ret;
 }
 
-#define arch_xchg_relaxed(ptr, x) ({					\
-	(__typeof__(*(ptr)))__arch_xchg((unsigned long)(x), (ptr),	\
-					sizeof(*(ptr)));		\
-})
+#define arch_xchg_relaxed(ptr, x) ({          \
+    (__typeof__(*(ptr)))__arch_xchg((unsigned long) (x), (ptr),  \
+    sizeof(*(ptr)));    \
+  })
 
 #include <asm-generic/cmpxchg-local.h>
 
@@ -135,18 +130,19 @@ __arch_xchg(unsigned long x, volatile void *ptr, int size)
  * cmpxchg_local and cmpxchg64_local are atomic wrt current CPU. Always make
  * them available.
  */
-#define arch_cmpxchg_local(ptr, o, n) ({				\
-	(__typeof(*ptr))__generic_cmpxchg_local((ptr),			\
-					        (unsigned long)(o),	\
-					        (unsigned long)(n),	\
-					        sizeof(*(ptr)));	\
-})
+#define arch_cmpxchg_local(ptr, o, n) ({        \
+    (__typeof(*ptr))__generic_cmpxchg_local((ptr),      \
+    (unsigned long) (o), \
+    (unsigned long) (n), \
+    sizeof(*(ptr)));  \
+  })
 
-#define arch_cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), (n))
+#define arch_cmpxchg64_local(ptr, o, n) __generic_cmpxchg64_local((ptr), (o), \
+    (n))
 
 #include <asm-generic/cmpxchg.h>
 
-#else	/* min ARCH >= ARMv6 */
+#else /* min ARCH >= ARMv6 */
 
 extern void __bad_cmpxchg(volatile void *ptr, int size);
 
@@ -155,126 +151,115 @@ extern void __bad_cmpxchg(volatile void *ptr, int size);
  */
 
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
-				      unsigned long new, int size)
-{
-	unsigned long oldval, res;
-
-	prefetchw((const void *)ptr);
-
-	switch (size) {
-#ifndef CONFIG_CPU_V6	/* min ARCH >= ARMv6K */
-	case 1:
-		do {
-			asm volatile("@ __cmpxchg1\n"
-			"	ldrexb	%1, [%2]\n"
-			"	mov	%0, #0\n"
-			"	teq	%1, %3\n"
-			"	strexbeq %0, %4, [%2]\n"
-				: "=&r" (res), "=&r" (oldval)
-				: "r" (ptr), "Ir" (old), "r" (new)
-				: "memory", "cc");
-		} while (res);
-		break;
-	case 2:
-		do {
-			asm volatile("@ __cmpxchg1\n"
-			"	ldrexh	%1, [%2]\n"
-			"	mov	%0, #0\n"
-			"	teq	%1, %3\n"
-			"	strexheq %0, %4, [%2]\n"
-				: "=&r" (res), "=&r" (oldval)
-				: "r" (ptr), "Ir" (old), "r" (new)
-				: "memory", "cc");
-		} while (res);
-		break;
+    unsigned long new, int size) {
+  unsigned long oldval, res;
+  prefetchw((const void *) ptr);
+  switch (size) {
+#ifndef CONFIG_CPU_V6 /* min ARCH >= ARMv6K */
+    case 1:
+      do {
+        asm volatile ("@ __cmpxchg1\n"
+        "	ldrexb	%1, [%2]\n"
+        "	mov	%0, #0\n"
+        "	teq	%1, %3\n"
+        "	strexbeq %0, %4, [%2]\n"
+        : "=&r" (res), "=&r" (oldval)
+        : "r" (ptr), "Ir" (old), "r" (new)
+        : "memory", "cc");
+      } while (res);
+      break;
+    case 2:
+      do {
+        asm volatile ("@ __cmpxchg1\n"
+        "	ldrexh	%1, [%2]\n"
+        "	mov	%0, #0\n"
+        "	teq	%1, %3\n"
+        "	strexheq %0, %4, [%2]\n"
+        : "=&r" (res), "=&r" (oldval)
+        : "r" (ptr), "Ir" (old), "r" (new)
+        : "memory", "cc");
+      } while (res);
+      break;
 #endif
-	case 4:
-		do {
-			asm volatile("@ __cmpxchg4\n"
-			"	ldrex	%1, [%2]\n"
-			"	mov	%0, #0\n"
-			"	teq	%1, %3\n"
-			"	strexeq %0, %4, [%2]\n"
-				: "=&r" (res), "=&r" (oldval)
-				: "r" (ptr), "Ir" (old), "r" (new)
-				: "memory", "cc");
-		} while (res);
-		break;
-	default:
-		__bad_cmpxchg(ptr, size);
-		oldval = 0;
-	}
-
-	return oldval;
+    case 4:
+      do {
+        asm volatile ("@ __cmpxchg4\n"
+        "	ldrex	%1, [%2]\n"
+        "	mov	%0, #0\n"
+        "	teq	%1, %3\n"
+        "	strexeq %0, %4, [%2]\n"
+        : "=&r" (res), "=&r" (oldval)
+        : "r" (ptr), "Ir" (old), "r" (new)
+        : "memory", "cc");
+      } while (res);
+      break;
+    default:
+      __bad_cmpxchg(ptr, size);
+      oldval = 0;
+  }
+  return oldval;
 }
 
-#define arch_cmpxchg_relaxed(ptr,o,n) ({				\
-	(__typeof__(*(ptr)))__cmpxchg((ptr),				\
-				      (unsigned long)(o),		\
-				      (unsigned long)(n),		\
-				      sizeof(*(ptr)));			\
-})
+#define arch_cmpxchg_relaxed(ptr, o, n) ({        \
+    (__typeof__(*(ptr)))__cmpxchg((ptr),        \
+    (unsigned long) (o),   \
+    (unsigned long) (n),   \
+    sizeof(*(ptr)));      \
+  })
 
 static inline unsigned long __cmpxchg_local(volatile void *ptr,
-					    unsigned long old,
-					    unsigned long new, int size)
-{
-	unsigned long ret;
-
-	switch (size) {
-#ifdef CONFIG_CPU_V6	/* min ARCH == ARMv6 */
-	case 1:
-	case 2:
-		ret = __generic_cmpxchg_local(ptr, old, new, size);
-		break;
+    unsigned long old,
+    unsigned long new, int size) {
+  unsigned long ret;
+  switch (size) {
+#ifdef CONFIG_CPU_V6  /* min ARCH == ARMv6 */
+    case 1:
+    case 2:
+      ret = __generic_cmpxchg_local(ptr, old, new, size);
+      break;
 #endif
-	default:
-		ret = __cmpxchg(ptr, old, new, size);
-	}
-
-	return ret;
+    default:
+      ret = __cmpxchg(ptr, old, new, size);
+  }
+  return ret;
 }
 
-#define arch_cmpxchg_local(ptr, o, n) ({				\
-	(__typeof(*ptr))__cmpxchg_local((ptr),				\
-				        (unsigned long)(o),		\
-				        (unsigned long)(n),		\
-				        sizeof(*(ptr)));		\
-})
+#define arch_cmpxchg_local(ptr, o, n) ({        \
+    (__typeof(*ptr))__cmpxchg_local((ptr),        \
+    (unsigned long) (o),   \
+    (unsigned long) (n),   \
+    sizeof(*(ptr)));    \
+  })
 
 static inline unsigned long long __cmpxchg64(unsigned long long *ptr,
-					     unsigned long long old,
-					     unsigned long long new)
-{
-	unsigned long long oldval;
-	unsigned long res;
-
-	prefetchw(ptr);
-
-	__asm__ __volatile__(
-"1:	ldrexd		%1, %H1, [%3]\n"
-"	teq		%1, %4\n"
-"	teqeq		%H1, %H4\n"
-"	bne		2f\n"
-"	strexd		%0, %5, %H5, [%3]\n"
-"	teq		%0, #0\n"
-"	bne		1b\n"
-"2:"
-	: "=&r" (res), "=&r" (oldval), "+Qo" (*ptr)
-	: "r" (ptr), "r" (old), "r" (new)
-	: "cc");
-
-	return oldval;
+    unsigned long long old,
+    unsigned long long new) {
+  unsigned long long oldval;
+  unsigned long res;
+  prefetchw(ptr);
+  __asm__ __volatile__ (
+    "1:	ldrexd		%1, %H1, [%3]\n"
+    "	teq		%1, %4\n"
+    "	teqeq		%H1, %H4\n"
+    "	bne		2f\n"
+    "	strexd		%0, %5, %H5, [%3]\n"
+    "	teq		%0, #0\n"
+    "	bne		1b\n"
+    "2:"
+    : "=&r" (res), "=&r" (oldval), "+Qo" (*ptr)
+    : "r" (ptr), "r" (old), "r" (new)
+    : "cc");
+  return oldval;
 }
 
-#define arch_cmpxchg64_relaxed(ptr, o, n) ({				\
-	(__typeof__(*(ptr)))__cmpxchg64((ptr),				\
-					(unsigned long long)(o),	\
-					(unsigned long long)(n));	\
-})
+#define arch_cmpxchg64_relaxed(ptr, o, n) ({        \
+    (__typeof__(*(ptr)))__cmpxchg64((ptr),        \
+    (unsigned long long) (o),  \
+    (unsigned long long) (n)); \
+  })
 
 #define arch_cmpxchg64_local(ptr, o, n) arch_cmpxchg64_relaxed((ptr), (o), (n))
 
-#endif	/* __LINUX_ARM_ARCH__ >= 6 */
+#endif  /* __LINUX_ARM_ARCH__ >= 6 */
 
 #endif /* __ASM_ARM_CMPXCHG_H */

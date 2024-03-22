@@ -18,8 +18,8 @@
 #include "qed_sp.h"
 
 struct qed_fcoe_info {
-	spinlock_t lock; /* Connection resources. */
-	struct list_head free_list;
+  spinlock_t lock; /* Connection resources. */
+  struct list_head free_list;
 };
 
 #if IS_ENABLED(CONFIG_QED_FCOE)
@@ -30,7 +30,7 @@ void qed_fcoe_setup(struct qed_hwfn *p_hwfn);
 void qed_fcoe_free(struct qed_hwfn *p_hwfn);
 /**
  * qed_get_protocol_stats_fcoe(): Fills provided statistics
- *				  struct with statistics.
+ *          struct with statistics.
  *
  * @cdev: Qed dev pointer.
  * @stats: Points to struct that will be filled with statistics.
@@ -40,22 +40,24 @@ void qed_fcoe_free(struct qed_hwfn *p_hwfn);
  * Return: Void.
  */
 void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,
-				 struct qed_mcp_fcoe_stats *stats,
-				 bool is_atomic);
+    struct qed_mcp_fcoe_stats *stats,
+    bool is_atomic);
 #else /* CONFIG_QED_FCOE */
-static inline int qed_fcoe_alloc(struct qed_hwfn *p_hwfn)
-{
-	return -EINVAL;
+static inline int qed_fcoe_alloc(struct qed_hwfn *p_hwfn) {
+  return -EINVAL;
 }
 
-static inline void qed_fcoe_setup(struct qed_hwfn *p_hwfn) {}
-static inline void qed_fcoe_free(struct qed_hwfn *p_hwfn) {}
+static inline void qed_fcoe_setup(struct qed_hwfn *p_hwfn) {
+}
+
+static inline void qed_fcoe_free(struct qed_hwfn *p_hwfn) {
+}
 
 static inline void qed_get_protocol_stats_fcoe(struct qed_dev *cdev,
-					       struct qed_mcp_fcoe_stats *stats,
-					       bool is_atomic)
-{
+    struct qed_mcp_fcoe_stats *stats,
+    bool is_atomic) {
 }
+
 #endif /* CONFIG_QED_FCOE */
 
 #endif /* _QED_FCOE_H */

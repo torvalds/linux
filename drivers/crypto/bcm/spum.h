@@ -10,7 +10,7 @@
 #ifndef _SPUM_H_
 #define _SPUM_H_
 
-#define SPU_CRYPTO_OPERATION_GENERIC	0x1
+#define SPU_CRYPTO_OPERATION_GENERIC  0x1
 
 /* Length of STATUS field in tx and rx packets */
 #define SPU_TX_STATUS_LEN  4
@@ -43,8 +43,8 @@
  * For SPU2, FMD_SIZE (32) plus lengths of hash and cipher keys,
  * hash and cipher IVs. If SPU2 does not support RC4, then
  */
-#define SPU_HEADER_ALLOC_LEN  (SPU_REQ_FIXED_LEN + MAX_KEY_SIZE + \
-				MAX_KEY_SIZE + MAX_IV_SIZE)
+#define SPU_HEADER_ALLOC_LEN  (SPU_REQ_FIXED_LEN + MAX_KEY_SIZE   \
+  + MAX_KEY_SIZE + MAX_IV_SIZE)
 
 /*
  * Response message header length. Normally MH, EMH, BD header, but when
@@ -65,29 +65,29 @@
  * and stay within limitation.
  */
 
-#define SPUM_NSP_MAX_PAYLOAD	8192
+#define SPUM_NSP_MAX_PAYLOAD  8192
 
 /* Buffer Descriptor Header [BDESC]. SPU in big-endian mode. */
 struct BDESC_HEADER {
-	__be16 offset_mac;		/* word 0 [31-16] */
-	__be16 length_mac;		/* word 0 [15-0]  */
-	__be16 offset_crypto;		/* word 1 [31-16] */
-	__be16 length_crypto;		/* word 1 [15-0]  */
-	__be16 offset_icv;		/* word 2 [31-16] */
-	__be16 offset_iv;		/* word 2 [15-0]  */
+  __be16 offset_mac;    /* word 0 [31-16] */
+  __be16 length_mac;    /* word 0 [15-0]  */
+  __be16 offset_crypto;   /* word 1 [31-16] */
+  __be16 length_crypto;   /* word 1 [15-0]  */
+  __be16 offset_icv;    /* word 2 [31-16] */
+  __be16 offset_iv;   /* word 2 [15-0]  */
 };
 
 /* Buffer Data Header [BD]. SPU in big-endian mode. */
 struct BD_HEADER {
-	__be16 size;
-	__be16 prev_length;
+  __be16 size;
+  __be16 prev_length;
 };
 
 /* Command Context Header. SPU-M in big endian mode. */
 struct MHEADER {
-	u8 flags;	/* [31:24] */
-	u8 op_code;	/* [23:16] */
-	u16 reserved;	/* [15:0] */
+  u8 flags; /* [31:24] */
+  u8 op_code; /* [23:16] */
+  u16 reserved; /* [15:0] */
 };
 
 /* MH header flags bits */
@@ -96,7 +96,7 @@ struct MHEADER {
 #define MH_BD_PRES      BIT(3)
 #define MH_MFM_PRES     BIT(4)
 #define MH_BDESC_PRES   BIT(5)
-#define MH_SCTX_PRES	BIT(7)
+#define MH_SCTX_PRES  BIT(7)
 
 /* SCTX word 0 bit offsets and fields masks */
 #define SCTX_SIZE               0x000000FF
@@ -116,7 +116,7 @@ struct MHEADER {
 #define  CIPHER_ALG             0x00E00000   /* encryption algo */
 #define  CIPHER_ALG_SHIFT               21
 #define  ICV_IS_512                BIT(27)
-#define  ICV_IS_512_SHIFT		27
+#define  ICV_IS_512_SHIFT   27
 #define  CIPHER_ORDER               BIT(30)
 #define  CIPHER_ORDER_SHIFT             30
 #define  CIPHER_INBOUND             BIT(31)
@@ -143,21 +143,20 @@ struct MHEADER {
 
 /* Generic Mode Security Context Structure [SCTX] */
 struct SCTX {
-/* word 0: protocol flags */
-	__be32 proto_flags;
+  /* word 0: protocol flags */
+  __be32 proto_flags;
 
-/* word 1: cipher flags */
-	__be32 cipher_flags;
+  /* word 1: cipher flags */
+  __be32 cipher_flags;
 
-/* word 2: Extended cipher flags */
-	__be32 ecf;
-
+  /* word 2: Extended cipher flags */
+  __be32 ecf;
 };
 
 struct SPUHEADER {
-	struct MHEADER mh;
-	u32 emh;
-	struct SCTX sa;
+  struct MHEADER mh;
+  u32 emh;
+  struct SCTX sa;
 };
 
 #endif /* _SPUM_H_ */

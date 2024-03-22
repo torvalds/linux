@@ -25,9 +25,9 @@
 #define __JPEG_V4_0_5_H__
 
 enum amdgpu_jpeg_v4_0_5_sub_block {
-	AMDGPU_JPEG_V4_0_5_JPEG0 = 0,
+  AMDGPU_JPEG_V4_0_5_JPEG0 = 0,
 
-	AMDGPU_JPEG_V4_0_5_MAX_SUB_BLOCK,
+  AMDGPU_JPEG_V4_0_5_MAX_SUB_BLOCK,
 };
 
 extern const struct amdgpu_ip_block_version jpeg_v4_0_5_ip_block;

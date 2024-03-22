@@ -9,30 +9,30 @@
 #include "rtw8723d.h"
 #include "sdio.h"
 
-static const struct sdio_device_id rtw_8723ds_id_table[] =  {
-	{
-		SDIO_DEVICE(SDIO_VENDOR_ID_REALTEK,
-			    SDIO_DEVICE_ID_REALTEK_RTW8723DS_1ANT),
-		.driver_data = (kernel_ulong_t)&rtw8723d_hw_spec,
-	},
-	{
-		SDIO_DEVICE(SDIO_VENDOR_ID_REALTEK,
-			    SDIO_DEVICE_ID_REALTEK_RTW8723DS_2ANT),
-		.driver_data = (kernel_ulong_t)&rtw8723d_hw_spec,
-	},
-	{}
+static const struct sdio_device_id rtw_8723ds_id_table[] = {
+  {
+    SDIO_DEVICE(SDIO_VENDOR_ID_REALTEK,
+        SDIO_DEVICE_ID_REALTEK_RTW8723DS_1ANT),
+    .driver_data = (kernel_ulong_t) &rtw8723d_hw_spec,
+  },
+  {
+    SDIO_DEVICE(SDIO_VENDOR_ID_REALTEK,
+        SDIO_DEVICE_ID_REALTEK_RTW8723DS_2ANT),
+    .driver_data = (kernel_ulong_t) &rtw8723d_hw_spec,
+  },
+  {}
 };
 MODULE_DEVICE_TABLE(sdio, rtw_8723ds_id_table);
 
 static struct sdio_driver rtw_8723ds_driver = {
-	.name = "rtw_8723ds",
-	.probe = rtw_sdio_probe,
-	.remove = rtw_sdio_remove,
-	.id_table = rtw_8723ds_id_table,
-	.drv = {
-		.pm = &rtw_sdio_pm_ops,
-		.shutdown = rtw_sdio_shutdown,
-	}
+  .name = "rtw_8723ds",
+  .probe = rtw_sdio_probe,
+  .remove = rtw_sdio_remove,
+  .id_table = rtw_8723ds_id_table,
+  .drv = {
+    .pm = &rtw_sdio_pm_ops,
+    .shutdown = rtw_sdio_shutdown,
+  }
 };
 module_sdio_driver(rtw_8723ds_driver);
 

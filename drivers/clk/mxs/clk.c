@@ -11,13 +11,12 @@
 
 DEFINE_SPINLOCK(mxs_lock);
 
-int mxs_clk_wait(void __iomem *reg, u8 shift)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
-
-	while (readl_relaxed(reg) & (1 << shift))
-		if (time_after(jiffies, timeout))
-			return -ETIMEDOUT;
-
-	return 0;
+int mxs_clk_wait(void __iomem *reg, u8 shift) {
+  unsigned long timeout = jiffies + msecs_to_jiffies(10);
+  while (readl_relaxed(reg) & (1 << shift)) {
+    if (time_after(jiffies, timeout)) {
+      return -ETIMEDOUT;
+    }
+  }
+  return 0;
 }

@@ -38,17 +38,15 @@
  *
  * Just clear the sync object for now.
  */
-void radeon_sync_create(struct radeon_sync *sync)
-{
-	unsigned i;
-
-	for (i = 0; i < RADEON_NUM_SYNCS; ++i)
-		sync->semaphores[i] = NULL;
-
-	for (i = 0; i < RADEON_NUM_RINGS; ++i)
-		sync->sync_to[i] = NULL;
-
-	sync->last_vm_update = NULL;
+void radeon_sync_create(struct radeon_sync *sync) {
+  unsigned i;
+  for (i = 0; i < RADEON_NUM_SYNCS; ++i) {
+    sync->semaphores[i] = NULL;
+  }
+  for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+    sync->sync_to[i] = NULL;
+  }
+  sync->last_vm_update = NULL;
 }
 
 /**
@@ -60,20 +58,17 @@ void radeon_sync_create(struct radeon_sync *sync)
  * Sync to the fence using the semaphore objects
  */
 void radeon_sync_fence(struct radeon_sync *sync,
-		       struct radeon_fence *fence)
-{
-	struct radeon_fence *other;
-
-	if (!fence)
-		return;
-
-	other = sync->sync_to[fence->ring];
-	sync->sync_to[fence->ring] = radeon_fence_later(fence, other);
-
-	if (fence->is_vm_update) {
-		other = sync->last_vm_update;
-		sync->last_vm_update = radeon_fence_later(fence, other);
-	}
+    struct radeon_fence *fence) {
+  struct radeon_fence *other;
+  if (!fence) {
+    return;
+  }
+  other = sync->sync_to[fence->ring];
+  sync->sync_to[fence->ring] = radeon_fence_later(fence, other);
+  if (fence->is_vm_update) {
+    other = sync->last_vm_update;
+    sync->last_vm_update = radeon_fence_later(fence, other);
+  }
 }
 
 /**
@@ -87,25 +82,25 @@ void radeon_sync_fence(struct radeon_sync *sync,
  * Sync to the fence using the semaphore objects
  */
 int radeon_sync_resv(struct radeon_device *rdev,
-		     struct radeon_sync *sync,
-		     struct dma_resv *resv,
-		     bool shared)
-{
-	struct dma_resv_iter cursor;
-	struct radeon_fence *fence;
-	struct dma_fence *f;
-	int r = 0;
-
-	dma_resv_for_each_fence(&cursor, resv, dma_resv_usage_rw(!shared), f) {
-		fence = to_radeon_fence(f);
-		if (fence && fence->rdev == rdev)
-			radeon_sync_fence(sync, fence);
-		else
-			r = dma_fence_wait(f, true);
-		if (r)
-			break;
-	}
-	return r;
+    struct radeon_sync *sync,
+    struct dma_resv *resv,
+    bool shared) {
+  struct dma_resv_iter cursor;
+  struct radeon_fence *fence;
+  struct dma_fence *f;
+  int r = 0;
+  dma_resv_for_each_fence(&cursor, resv, dma_resv_usage_rw(!shared), f) {
+    fence = to_radeon_fence(f);
+    if (fence && fence->rdev == rdev) {
+      radeon_sync_fence(sync, fence);
+    } else {
+      r = dma_fence_wait(f, true);
+    }
+    if (r) {
+      break;
+    }
+  }
+  return r;
 }
 
 /**
@@ -119,69 +114,64 @@ int radeon_sync_resv(struct radeon_device *rdev,
  * the ring continue. The caller must hold the ring lock.
  */
 int radeon_sync_rings(struct radeon_device *rdev,
-		      struct radeon_sync *sync,
-		      int ring)
-{
-	unsigned count = 0;
-	int i, r;
-
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		struct radeon_fence *fence = sync->sync_to[i];
-		struct radeon_semaphore *semaphore;
-
-		/* check if we really need to sync */
-		if (!radeon_fence_need_sync(fence, ring))
-			continue;
-
-		/* prevent GPU deadlocks */
-		if (!rdev->ring[i].ready) {
-			dev_err(rdev->dev, "Syncing to a disabled ring!");
-			return -EINVAL;
-		}
-
-		if (count >= RADEON_NUM_SYNCS) {
-			/* not enough room, wait manually */
-			r = radeon_fence_wait(fence, false);
-			if (r)
-				return r;
-			continue;
-		}
-		r = radeon_semaphore_create(rdev, &semaphore);
-		if (r)
-			return r;
-
-		sync->semaphores[count++] = semaphore;
-
-		/* allocate enough space for sync command */
-		r = radeon_ring_alloc(rdev, &rdev->ring[i], 16);
-		if (r)
-			return r;
-
-		/* emit the signal semaphore */
-		if (!radeon_semaphore_emit_signal(rdev, i, semaphore)) {
-			/* signaling wasn't successful wait manually */
-			radeon_ring_undo(&rdev->ring[i]);
-			r = radeon_fence_wait(fence, false);
-			if (r)
-				return r;
-			continue;
-		}
-
-		/* we assume caller has already allocated space on waiters ring */
-		if (!radeon_semaphore_emit_wait(rdev, ring, semaphore)) {
-			/* waiting wasn't successful wait manually */
-			radeon_ring_undo(&rdev->ring[i]);
-			r = radeon_fence_wait(fence, false);
-			if (r)
-				return r;
-			continue;
-		}
-
-		radeon_ring_commit(rdev, &rdev->ring[i], false);
-		radeon_fence_note_sync(fence, ring);
-	}
-
-	return 0;
+    struct radeon_sync *sync,
+    int ring) {
+  unsigned count = 0;
+  int i, r;
+  for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+    struct radeon_fence *fence = sync->sync_to[i];
+    struct radeon_semaphore *semaphore;
+    /* check if we really need to sync */
+    if (!radeon_fence_need_sync(fence, ring)) {
+      continue;
+    }
+    /* prevent GPU deadlocks */
+    if (!rdev->ring[i].ready) {
+      dev_err(rdev->dev, "Syncing to a disabled ring!");
+      return -EINVAL;
+    }
+    if (count >= RADEON_NUM_SYNCS) {
+      /* not enough room, wait manually */
+      r = radeon_fence_wait(fence, false);
+      if (r) {
+        return r;
+      }
+      continue;
+    }
+    r = radeon_semaphore_create(rdev, &semaphore);
+    if (r) {
+      return r;
+    }
+    sync->semaphores[count++] = semaphore;
+    /* allocate enough space for sync command */
+    r = radeon_ring_alloc(rdev, &rdev->ring[i], 16);
+    if (r) {
+      return r;
+    }
+    /* emit the signal semaphore */
+    if (!radeon_semaphore_emit_signal(rdev, i, semaphore)) {
+      /* signaling wasn't successful wait manually */
+      radeon_ring_undo(&rdev->ring[i]);
+      r = radeon_fence_wait(fence, false);
+      if (r) {
+        return r;
+      }
+      continue;
+    }
+    /* we assume caller has already allocated space on waiters ring */
+    if (!radeon_semaphore_emit_wait(rdev, ring, semaphore)) {
+      /* waiting wasn't successful wait manually */
+      radeon_ring_undo(&rdev->ring[i]);
+      r = radeon_fence_wait(fence, false);
+      if (r) {
+        return r;
+      }
+      continue;
+    }
+    radeon_ring_commit(rdev, &rdev->ring[i], false);
+    radeon_fence_note_sync(fence, ring);
+  }
+  return 0;
 }
 
 /**
@@ -194,11 +184,10 @@ int radeon_sync_rings(struct radeon_device *rdev,
  * Free the sync object by freeing all semaphores in it.
  */
 void radeon_sync_free(struct radeon_device *rdev,
-		      struct radeon_sync *sync,
-		      struct radeon_fence *fence)
-{
-	unsigned i;
-
-	for (i = 0; i < RADEON_NUM_SYNCS; ++i)
-		radeon_semaphore_free(rdev, &sync->semaphores[i], fence);
+    struct radeon_sync *sync,
+    struct radeon_fence *fence) {
+  unsigned i;
+  for (i = 0; i < RADEON_NUM_SYNCS; ++i) {
+    radeon_semaphore_free(rdev, &sync->semaphores[i], fence);
+  }
 }

@@ -8,7 +8,7 @@
  */
 
 #ifndef _LINUX_REGSET_H
-#define _LINUX_REGSET_H	1
+#define _LINUX_REGSET_H 1
 
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -18,68 +18,66 @@ struct task_struct;
 struct user_regset;
 
 struct membuf {
-	void *p;
-	size_t left;
+  void *p;
+  size_t left;
 };
 
-static inline int membuf_zero(struct membuf *s, size_t size)
-{
-	if (s->left) {
-		if (size > s->left)
-			size = s->left;
-		memset(s->p, 0, size);
-		s->p += size;
-		s->left -= size;
-	}
-	return s->left;
+static inline int membuf_zero(struct membuf *s, size_t size) {
+  if (s->left) {
+    if (size > s->left) {
+      size = s->left;
+    }
+    memset(s->p, 0, size);
+    s->p += size;
+    s->left -= size;
+  }
+  return s->left;
 }
 
-static inline int membuf_write(struct membuf *s, const void *v, size_t size)
-{
-	if (s->left) {
-		if (size > s->left)
-			size = s->left;
-		memcpy(s->p, v, size);
-		s->p += size;
-		s->left -= size;
-	}
-	return s->left;
+static inline int membuf_write(struct membuf *s, const void *v, size_t size) {
+  if (s->left) {
+    if (size > s->left) {
+      size = s->left;
+    }
+    memcpy(s->p, v, size);
+    s->p += size;
+    s->left -= size;
+  }
+  return s->left;
 }
 
-static inline struct membuf membuf_at(const struct membuf *s, size_t offs)
-{
-	struct membuf n = *s;
-
-	if (offs > n.left)
-		offs = n.left;
-	n.p += offs;
-	n.left -= offs;
-
-	return n;
+static inline struct membuf membuf_at(const struct membuf *s, size_t offs) {
+  struct membuf n = *s;
+  if (offs > n.left) {
+    offs = n.left;
+  }
+  n.p += offs;
+  n.left -= offs;
+  return n;
 }
 
 /* current s->p must be aligned for v; v must be a scalar */
-#define membuf_store(s, v)				\
-({							\
-	struct membuf *__s = (s);			\
-        if (__s->left) {				\
-		typeof(v) __v = (v);			\
-		size_t __size = sizeof(__v);		\
-		if (unlikely(__size > __s->left)) {	\
-			__size = __s->left;		\
-			memcpy(__s->p, &__v, __size);	\
-		} else {				\
-			*(typeof(__v + 0) *)__s->p = __v;	\
-		}					\
-		__s->p += __size;			\
-		__s->left -= __size;			\
-	}						\
-	__s->left;})
+#define membuf_store(s, v)        \
+  ({              \
+    struct membuf *__s = (s);     \
+    if (__s->left) {        \
+      typeof(v) __v = (v);      \
+      size_t __size = sizeof(__v);    \
+      if (unlikely(__size > __s->left)) { \
+        __size = __s->left;   \
+        memcpy(__s->p, &__v, __size); \
+      } else {        \
+        *(typeof(__v + 0) *)__s->p = __v; \
+      }         \
+      __s->p += __size;     \
+      __s->left -= __size;      \
+    }           \
+    __s->left;})
 
 /**
  * user_regset_active_fn - type of @active function in &struct user_regset
- * @target:	thread being examined
- * @regset:	regset being examined
+ * @target: thread being examined
+ * @regset: regset being examined
  *
  * Return -%ENODEV if not available on the hardware found.
  * Return %0 if no interesting state in this thread.
@@ -92,20 +90,20 @@ static inline struct membuf membuf_at(const struct membuf *s, size_t offs)
  * is no inexpensive check to yield a value < @n.
  */
 typedef int user_regset_active_fn(struct task_struct *target,
-				  const struct user_regset *regset);
+    const struct user_regset *regset);
 
 typedef int user_regset_get2_fn(struct task_struct *target,
-			       const struct user_regset *regset,
-			       struct membuf to);
+    const struct user_regset *regset,
+    struct membuf to);
 
 /**
  * user_regset_set_fn - type of @set function in &struct user_regset
- * @target:	thread being examined
- * @regset:	regset being examined
- * @pos:	offset into the regset data to access, in bytes
- * @count:	amount of data to copy, in bytes
- * @kbuf:	if not %NULL, a kernel-space pointer to copy from
- * @ubuf:	if @kbuf is %NULL, a user-space pointer to copy from
+ * @target: thread being examined
+ * @regset: regset being examined
+ * @pos:  offset into the regset data to access, in bytes
+ * @count:  amount of data to copy, in bytes
+ * @kbuf: if not %NULL, a kernel-space pointer to copy from
+ * @ubuf: if @kbuf is %NULL, a user-space pointer to copy from
  *
  * Store register values.  Return %0 on success; -%EIO or -%ENODEV
  * are usual failure returns.  The @pos and @count values are in
@@ -115,15 +113,15 @@ typedef int user_regset_get2_fn(struct task_struct *target,
  * return value is possible.
  */
 typedef int user_regset_set_fn(struct task_struct *target,
-			       const struct user_regset *regset,
-			       unsigned int pos, unsigned int count,
-			       const void *kbuf, const void __user *ubuf);
+    const struct user_regset *regset,
+    unsigned int pos, unsigned int count,
+    const void *kbuf, const void __user *ubuf);
 
 /**
  * user_regset_writeback_fn - type of @writeback function in &struct user_regset
- * @target:	thread being examined
- * @regset:	regset being examined
- * @immediate:	zero if writeback at completion of next context switch is OK
+ * @target: thread being examined
+ * @regset: regset being examined
+ * @immediate:  zero if writeback at completion of next context switch is OK
  *
  * This call is optional; usually the pointer is %NULL.  When
  * provided, there is some user memory associated with this regset's
@@ -141,20 +139,20 @@ typedef int user_regset_set_fn(struct task_struct *target,
  * hardware problem.
  */
 typedef int user_regset_writeback_fn(struct task_struct *target,
-				     const struct user_regset *regset,
-				     int immediate);
+    const struct user_regset *regset,
+    int immediate);
 
 /**
  * struct user_regset - accessible thread CPU state
- * @n:			Number of slots (registers).
- * @size:		Size in bytes of a slot (register).
- * @align:		Required alignment, in bytes.
- * @bias:		Bias from natural indexing.
- * @core_note_type:	ELF note @n_type value used in core dumps.
- * @get:		Function to fetch values.
- * @set:		Function to store values.
- * @active:		Function to report if regset is active, or %NULL.
- * @writeback:		Function to write data back to user memory, or %NULL.
+ * @n:      Number of slots (registers).
+ * @size:   Size in bytes of a slot (register).
+ * @align:    Required alignment, in bytes.
+ * @bias:   Bias from natural indexing.
+ * @core_note_type: ELF note @n_type value used in core dumps.
+ * @get:    Function to fetch values.
+ * @set:    Function to store values.
+ * @active:   Function to report if regset is active, or %NULL.
+ * @writeback:    Function to write data back to user memory, or %NULL.
  *
  * This data structure describes a machine resource we call a register set.
  * This is part of the state of an individual thread, not necessarily
@@ -198,25 +196,25 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
  * omitted when there is an @active function and it returns zero.
  */
 struct user_regset {
-	user_regset_get2_fn		*regset_get;
-	user_regset_set_fn		*set;
-	user_regset_active_fn		*active;
-	user_regset_writeback_fn	*writeback;
-	unsigned int			n;
-	unsigned int 			size;
-	unsigned int 			align;
-	unsigned int 			bias;
-	unsigned int 			core_note_type;
+  user_regset_get2_fn *regset_get;
+  user_regset_set_fn *set;
+  user_regset_active_fn *active;
+  user_regset_writeback_fn *writeback;
+  unsigned int n;
+  unsigned int size;
+  unsigned int align;
+  unsigned int bias;
+  unsigned int core_note_type;
 };
 
 /**
  * struct user_regset_view - available regsets
- * @name:	Identifier, e.g. UTS_MACHINE string.
- * @regsets:	Array of @n regsets available in this view.
- * @n:		Number of elements in @regsets.
- * @e_machine:	ELF header @e_machine %EM_* value written in core dumps.
- * @e_flags:	ELF header @e_flags value written in core dumps.
- * @ei_osabi:	ELF header @e_ident[%EI_OSABI] value written in core dumps.
+ * @name: Identifier, e.g. UTS_MACHINE string.
+ * @regsets:  Array of @n regsets available in this view.
+ * @n:    Number of elements in @regsets.
+ * @e_machine:  ELF header @e_machine %EM_* value written in core dumps.
+ * @e_flags:  ELF header @e_flags value written in core dumps.
+ * @ei_osabi: ELF header @e_ident[%EI_OSABI] value written in core dumps.
  *
  * A regset view is a collection of regsets (&struct user_regset,
  * above).  This describes all the state of a thread that can be seen
@@ -228,12 +226,12 @@ struct user_regset {
  * register state, doing appropriate widening or truncation.
  */
 struct user_regset_view {
-	const char *name;
-	const struct user_regset *regsets;
-	unsigned int n;
-	u32 e_flags;
-	u16 e_machine;
-	u8 ei_osabi;
+  const char *name;
+  const struct user_regset *regsets;
+  unsigned int n;
+  u32 e_flags;
+  u16 e_machine;
+  u8 ei_osabi;
 };
 
 /*
@@ -251,90 +249,90 @@ struct user_regset_view {
 const struct user_regset_view *task_user_regset_view(struct task_struct *tsk);
 
 static inline int user_regset_copyin(unsigned int *pos, unsigned int *count,
-				     const void **kbuf,
-				     const void __user **ubuf, void *data,
-				     const int start_pos, const int end_pos)
-{
-	if (*count == 0)
-		return 0;
-	BUG_ON(*pos < start_pos);
-	if (end_pos < 0 || *pos < end_pos) {
-		unsigned int copy = (end_pos < 0 ? *count
-				     : min(*count, end_pos - *pos));
-		data += *pos - start_pos;
-		if (*kbuf) {
-			memcpy(data, *kbuf, copy);
-			*kbuf += copy;
-		} else if (__copy_from_user(data, *ubuf, copy))
-			return -EFAULT;
-		else
-			*ubuf += copy;
-		*pos += copy;
-		*count -= copy;
-	}
-	return 0;
+    const void **kbuf,
+    const void __user **ubuf, void *data,
+    const int start_pos, const int end_pos) {
+  if (*count == 0) {
+    return 0;
+  }
+  BUG_ON(*pos < start_pos);
+  if (end_pos < 0 || *pos < end_pos) {
+    unsigned int copy = (end_pos < 0 ? *count
+        : min(*count, end_pos - *pos));
+    data += *pos - start_pos;
+    if (*kbuf) {
+      memcpy(data, *kbuf, copy);
+      *kbuf += copy;
+    } else if (__copy_from_user(data, *ubuf, copy)) {
+      return -EFAULT;
+    } else {
+      *ubuf += copy;
+    }
+    *pos += copy;
+    *count -= copy;
+  }
+  return 0;
 }
 
 static inline void user_regset_copyin_ignore(unsigned int *pos,
-					     unsigned int *count,
-					     const void **kbuf,
-					     const void __user **ubuf,
-					     const int start_pos,
-					     const int end_pos)
-{
-	if (*count == 0)
-		return;
-	BUG_ON(*pos < start_pos);
-	if (end_pos < 0 || *pos < end_pos) {
-		unsigned int copy = (end_pos < 0 ? *count
-				     : min(*count, end_pos - *pos));
-		if (*kbuf)
-			*kbuf += copy;
-		else
-			*ubuf += copy;
-		*pos += copy;
-		*count -= copy;
-	}
+    unsigned int *count,
+    const void **kbuf,
+    const void __user **ubuf,
+    const int start_pos,
+    const int end_pos) {
+  if (*count == 0) {
+    return;
+  }
+  BUG_ON(*pos < start_pos);
+  if (end_pos < 0 || *pos < end_pos) {
+    unsigned int copy = (end_pos < 0 ? *count
+        : min(*count, end_pos - *pos));
+    if (*kbuf) {
+      *kbuf += copy;
+    } else {
+      *ubuf += copy;
+    }
+    *pos += copy;
+    *count -= copy;
+  }
 }
 
 extern int regset_get(struct task_struct *target,
-		      const struct user_regset *regset,
-		      unsigned int size, void *data);
+    const struct user_regset *regset,
+    unsigned int size, void *data);
 
 extern int regset_get_alloc(struct task_struct *target,
-			    const struct user_regset *regset,
-			    unsigned int size,
-			    void **data);
+    const struct user_regset *regset,
+    unsigned int size,
+    void **data);
 
 extern int copy_regset_to_user(struct task_struct *target,
-			       const struct user_regset_view *view,
-			       unsigned int setno, unsigned int offset,
-			       unsigned int size, void __user *data);
+    const struct user_regset_view *view,
+    unsigned int setno, unsigned int offset,
+    unsigned int size, void __user *data);
 
 /**
  * copy_regset_from_user - store into thread's user_regset data from user memory
- * @target:	thread to be examined
- * @view:	&struct user_regset_view describing user thread machine state
- * @setno:	index in @view->regsets
- * @offset:	offset into the regset data, in bytes
- * @size:	amount of data to copy, in bytes
- * @data:	user-mode pointer to copy from
+ * @target: thread to be examined
+ * @view: &struct user_regset_view describing user thread machine state
+ * @setno:  index in @view->regsets
+ * @offset: offset into the regset data, in bytes
+ * @size: amount of data to copy, in bytes
+ * @data: user-mode pointer to copy from
  */
 static inline int copy_regset_from_user(struct task_struct *target,
-					const struct user_regset_view *view,
-					unsigned int setno,
-					unsigned int offset, unsigned int size,
-					const void __user *data)
-{
-	const struct user_regset *regset = &view->regsets[setno];
-
-	if (!regset->set)
-		return -EOPNOTSUPP;
-
-	if (!access_ok(data, size))
-		return -EFAULT;
-
-	return regset->set(target, regset, offset, size, NULL, data);
+    const struct user_regset_view *view,
+    unsigned int setno,
+    unsigned int offset, unsigned int size,
+    const void __user *data) {
+  const struct user_regset *regset = &view->regsets[setno];
+  if (!regset->set) {
+    return -EOPNOTSUPP;
+  }
+  if (!access_ok(data, size)) {
+    return -EFAULT;
+  }
+  return regset->set(target, regset, offset, size, NULL, data);
 }
 
-#endif	/* <linux/regset.h> */
+#endif  /* <linux/regset.h> */

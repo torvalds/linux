@@ -34,86 +34,74 @@
  */
 
 static struct sleep_save irq_save[] = {
-	SAVE_ITEM(S3C64XX_PRIORITY),
-	SAVE_ITEM(S3C64XX_EINT0CON0),
-	SAVE_ITEM(S3C64XX_EINT0CON1),
-	SAVE_ITEM(S3C64XX_EINT0FLTCON0),
-	SAVE_ITEM(S3C64XX_EINT0FLTCON1),
-	SAVE_ITEM(S3C64XX_EINT0FLTCON2),
-	SAVE_ITEM(S3C64XX_EINT0FLTCON3),
-	SAVE_ITEM(S3C64XX_EINT0MASK),
+  SAVE_ITEM(S3C64XX_PRIORITY),
+  SAVE_ITEM(S3C64XX_EINT0CON0),
+  SAVE_ITEM(S3C64XX_EINT0CON1),
+  SAVE_ITEM(S3C64XX_EINT0FLTCON0),
+  SAVE_ITEM(S3C64XX_EINT0FLTCON1),
+  SAVE_ITEM(S3C64XX_EINT0FLTCON2),
+  SAVE_ITEM(S3C64XX_EINT0FLTCON3),
+  SAVE_ITEM(S3C64XX_EINT0MASK),
 };
 
 static struct irq_grp_save {
-	u32	fltcon;
-	u32	con;
-	u32	mask;
+  u32 fltcon;
+  u32 con;
+  u32 mask;
 } eint_grp_save[5];
 
 #ifndef CONFIG_SERIAL_SAMSUNG_UARTS
 #define SERIAL_SAMSUNG_UARTS 0
 #else
-#define	SERIAL_SAMSUNG_UARTS CONFIG_SERIAL_SAMSUNG_UARTS
+#define SERIAL_SAMSUNG_UARTS CONFIG_SERIAL_SAMSUNG_UARTS
 #endif
 
 static u32 irq_uart_mask[SERIAL_SAMSUNG_UARTS];
 
-static int s3c64xx_irq_pm_suspend(void)
-{
-	struct irq_grp_save *grp = eint_grp_save;
-	int i;
-
-	S3C_PMDBG("%s: suspending IRQs\n", __func__);
-
-	s3c_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
-
-	for (i = 0; i < SERIAL_SAMSUNG_UARTS; i++)
-		irq_uart_mask[i] = __raw_readl(S3C_VA_UARTx(i) + S3C64XX_UINTM);
-
-	for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
-		grp->con = __raw_readl(S3C64XX_EINT12CON + (i * 4));
-		grp->mask = __raw_readl(S3C64XX_EINT12MASK + (i * 4));
-		grp->fltcon = __raw_readl(S3C64XX_EINT12FLTCON + (i * 4));
-	}
-
-	return 0;
+static int s3c64xx_irq_pm_suspend(void) {
+  struct irq_grp_save *grp = eint_grp_save;
+  int i;
+  S3C_PMDBG("%s: suspending IRQs\n", __func__);
+  s3c_pm_do_save(irq_save, ARRAY_SIZE(irq_save));
+  for (i = 0; i < SERIAL_SAMSUNG_UARTS; i++) {
+    irq_uart_mask[i] = __raw_readl(S3C_VA_UARTx(i) + S3C64XX_UINTM);
+  }
+  for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
+    grp->con = __raw_readl(S3C64XX_EINT12CON + (i * 4));
+    grp->mask = __raw_readl(S3C64XX_EINT12MASK + (i * 4));
+    grp->fltcon = __raw_readl(S3C64XX_EINT12FLTCON + (i * 4));
+  }
+  return 0;
 }
 
-static void s3c64xx_irq_pm_resume(void)
-{
-	struct irq_grp_save *grp = eint_grp_save;
-	int i;
-
-	S3C_PMDBG("%s: resuming IRQs\n", __func__);
-
-	s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
-
-	for (i = 0; i < SERIAL_SAMSUNG_UARTS; i++)
-		__raw_writel(irq_uart_mask[i], S3C_VA_UARTx(i) + S3C64XX_UINTM);
-
-	for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
-		__raw_writel(grp->con, S3C64XX_EINT12CON + (i * 4));
-		__raw_writel(grp->mask, S3C64XX_EINT12MASK + (i * 4));
-		__raw_writel(grp->fltcon, S3C64XX_EINT12FLTCON + (i * 4));
-	}
-
-	S3C_PMDBG("%s: IRQ configuration restored\n", __func__);
+static void s3c64xx_irq_pm_resume(void) {
+  struct irq_grp_save *grp = eint_grp_save;
+  int i;
+  S3C_PMDBG("%s: resuming IRQs\n", __func__);
+  s3c_pm_do_restore(irq_save, ARRAY_SIZE(irq_save));
+  for (i = 0; i < SERIAL_SAMSUNG_UARTS; i++) {
+    __raw_writel(irq_uart_mask[i], S3C_VA_UARTx(i) + S3C64XX_UINTM);
+  }
+  for (i = 0; i < ARRAY_SIZE(eint_grp_save); i++, grp++) {
+    __raw_writel(grp->con, S3C64XX_EINT12CON + (i * 4));
+    __raw_writel(grp->mask, S3C64XX_EINT12MASK + (i * 4));
+    __raw_writel(grp->fltcon, S3C64XX_EINT12FLTCON + (i * 4));
+  }
+  S3C_PMDBG("%s: IRQ configuration restored\n", __func__);
 }
 
 static struct syscore_ops s3c64xx_irq_syscore_ops = {
-	.suspend = s3c64xx_irq_pm_suspend,
-	.resume	 = s3c64xx_irq_pm_resume,
+  .suspend = s3c64xx_irq_pm_suspend,
+  .resume = s3c64xx_irq_pm_resume,
 };
 
-static __init int s3c64xx_syscore_init(void)
-{
-	/* Appropriate drivers (pinctrl, uart) handle this when using DT. */
-	if (of_have_populated_dt() || !soc_is_s3c64xx())
-		return 0;
-
-	register_syscore_ops(&s3c64xx_irq_syscore_ops);
-
-	return 0;
+static __init int s3c64xx_syscore_init(void) {
+  /* Appropriate drivers (pinctrl, uart) handle this when using DT. */
+  if (of_have_populated_dt() || !soc_is_s3c64xx()) {
+    return 0;
+  }
+  register_syscore_ops(&s3c64xx_irq_syscore_ops);
+  return 0;
 }
 
 core_initcall(s3c64xx_syscore_init);

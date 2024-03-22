@@ -40,9 +40,9 @@
 extern struct genl_family tipc_genl_family;
 
 struct tipc_nl_msg {
-	struct sk_buff *skb;
-	u32 portid;
-	u32 seq;
+  struct sk_buff *skb;
+  u32 portid;
+  u32 seq;
 };
 
 extern const struct nla_policy tipc_nl_name_table_policy[];

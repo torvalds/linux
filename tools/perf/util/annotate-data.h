@@ -23,12 +23,12 @@ struct map_symbol;
  * This represents a member type in a data type.
  */
 struct annotated_member {
-	struct list_head node;
-	struct list_head children;
-	char *type_name;
-	char *var_name;
-	int offset;
-	int size;
+  struct list_head node;
+  struct list_head children;
+  char *type_name;
+  char *var_name;
+  int offset;
+  int size;
 };
 
 /**
@@ -37,8 +37,8 @@ struct annotated_member {
  * @period: Count of event
  */
 struct type_hist_entry {
-	int nr_samples;
-	u64 period;
+  int nr_samples;
+  u64 period;
 };
 
 /**
@@ -48,9 +48,9 @@ struct type_hist_entry {
  * @offset: Array of histogram entry
  */
 struct type_hist {
-	u64			nr_samples;
-	u64			period;
-	struct type_hist_entry	addr[];
+  u64 nr_samples;
+  u64 period;
+  struct type_hist_entry addr[];
 };
 
 /**
@@ -63,10 +63,10 @@ struct type_hist {
  * This represents a data type accessed by samples in the profile data.
  */
 struct annotated_data_type {
-	struct rb_node node;
-	struct annotated_member self;
-	int nr_histograms;
-	struct type_hist **histograms;
+  struct rb_node node;
+  struct annotated_member self;
+  int nr_histograms;
+  struct type_hist **histograms;
 };
 
 extern struct annotated_data_type unknown_type;
@@ -88,18 +88,18 @@ extern struct annotated_data_type stackop_type;
  * @bad_offset: The access offset is out of the type
  */
 struct annotated_data_stat {
-	int total;
-	int no_sym;
-	int no_insn;
-	int no_insn_ops;
-	int no_mem_ops;
-	int no_reg;
-	int no_dbginfo;
-	int no_cuinfo;
-	int no_var;
-	int no_typeinfo;
-	int invalid_size;
-	int bad_offset;
+  int total;
+  int no_sym;
+  int no_insn;
+  int no_insn_ops;
+  int no_mem_ops;
+  int no_reg;
+  int no_dbginfo;
+  int no_cuinfo;
+  int no_var;
+  int no_typeinfo;
+  int invalid_size;
+  int bad_offset;
 };
 extern struct annotated_data_stat ann_data_stat;
 
@@ -107,39 +107,37 @@ extern struct annotated_data_stat ann_data_stat;
 
 /* Returns data type at the location (ip, reg, offset) */
 struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
-					   struct annotated_op_loc *loc, u64 addr,
-					   const char *var_name);
+    struct annotated_op_loc *loc, u64 addr,
+    const char *var_name);
 
 /* Update type access histogram at the given offset */
 int annotated_data_type__update_samples(struct annotated_data_type *adt,
-					struct evsel *evsel, int offset,
-					int nr_samples, u64 period);
+    struct evsel *evsel, int offset,
+    int nr_samples, u64 period);
 
 /* Release all data type information in the tree */
 void annotated_data_type__tree_delete(struct rb_root *root);
 
 #else /* HAVE_DWARF_SUPPORT */
 
-static inline struct annotated_data_type *
-find_data_type(struct map_symbol *ms __maybe_unused, u64 ip __maybe_unused,
-	       struct annotated_op_loc *loc __maybe_unused,
-	       u64 addr __maybe_unused, const char *var_name __maybe_unused)
-{
-	return NULL;
+static inline struct annotated_data_type *find_data_type(
+    struct map_symbol *ms __maybe_unused, u64 ip __maybe_unused,
+    struct annotated_op_loc *loc __maybe_unused,
+    u64 addr __maybe_unused, const char *var_name __maybe_unused) {
+  return NULL;
 }
 
-static inline int
-annotated_data_type__update_samples(struct annotated_data_type *adt __maybe_unused,
-				    struct evsel *evsel __maybe_unused,
-				    int offset __maybe_unused,
-				    int nr_samples __maybe_unused,
-				    u64 period __maybe_unused)
-{
-	return -1;
+static inline int annotated_data_type__update_samples(
+    struct annotated_data_type *adt __maybe_unused,
+    struct evsel *evsel __maybe_unused,
+    int offset __maybe_unused,
+    int nr_samples __maybe_unused,
+    u64 period __maybe_unused) {
+  return -1;
 }
 
-static inline void annotated_data_type__tree_delete(struct rb_root *root __maybe_unused)
-{
+static inline void annotated_data_type__tree_delete(
+    struct rb_root *root __maybe_unused) {
 }
 
 #endif /* HAVE_DWARF_SUPPORT */

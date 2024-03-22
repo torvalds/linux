@@ -12,8 +12,7 @@ void pl111_nomadik_init(struct device *dev);
 
 #else
 
-static inline void pl111_nomadik_init(struct device *dev)
-{
+static inline void pl111_nomadik_init(struct device *dev) {
 }
 
 #endif

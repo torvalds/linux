@@ -12,18 +12,17 @@
  * For compatibility with clang, we have to specifically take the equivalence
  * of 'r11' <-> 'fp' and 'r12' <-> 'ip' into account as well.
  */
-#define __asmeq(x, y)				\
-	".ifnc " x "," y "; "			\
-	  ".ifnc " x y ",fpr11; " 		\
-	    ".ifnc " x y ",r11fp; "		\
-	      ".ifnc " x y ",ipr12; " 		\
-	        ".ifnc " x y ",r12ip; "		\
-	          ".err; "			\
-	        ".endif; "			\
-	      ".endif; "			\
-	    ".endif; "				\
-	  ".endif; "				\
-	".endif\n\t"
-
+#define __asmeq(x, y)       \
+  ".ifnc " x "," y "; "     \
+  ".ifnc " x y ",fpr11; "     \
+  ".ifnc " x y ",r11fp; "   \
+  ".ifnc " x y ",ipr12; "     \
+  ".ifnc " x y ",r12ip; "   \
+  ".err; "      \
+  ".endif; "      \
+  ".endif; "      \
+  ".endif; "        \
+  ".endif; "        \
+  ".endif\n\t"
 
 #endif /* __ASM_ARM_COMPILER_H */

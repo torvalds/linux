@@ -23,17 +23,17 @@ struct shmob_drm_device;
 struct shmob_drm_format_info;
 
 struct shmob_drm_crtc {
-	struct drm_crtc base;
+  struct drm_crtc base;
 
-	struct drm_pending_vblank_event *event;
-	wait_queue_head_t flip_wait;
+  struct drm_pending_vblank_event *event;
+  wait_queue_head_t flip_wait;
 };
 
 /* Legacy connector */
 struct shmob_drm_connector {
-	struct drm_connector base;
-	struct drm_encoder *encoder;
-	const struct videomode *mode;
+  struct drm_connector base;
+  struct drm_encoder *encoder;
+  const struct videomode *mode;
 };
 
 int shmob_drm_crtc_create(struct shmob_drm_device *sdev);
@@ -41,6 +41,6 @@ void shmob_drm_crtc_finish_page_flip(struct shmob_drm_crtc *scrtc);
 
 int shmob_drm_encoder_create(struct shmob_drm_device *sdev);
 int shmob_drm_connector_create(struct shmob_drm_device *sdev,
-			       struct drm_encoder *encoder);
+    struct drm_encoder *encoder);
 
 #endif /* __SHMOB_DRM_CRTC_H__ */

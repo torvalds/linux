@@ -13,92 +13,92 @@
 
 /* ### define USB registers here
  */
-#define USB_MAX_CTRL_PAYLOAD		64
-#define USB_DR_SYS_OFFSET		0x400
+#define USB_MAX_CTRL_PAYLOAD    64
+#define USB_DR_SYS_OFFSET   0x400
 
- /* USB DR device mode registers (Little Endian) */
+/* USB DR device mode registers (Little Endian) */
 struct usb_dr_device {
-	/* Capability register */
-	u8 res1[256];
-	u16 caplength;		/* Capability Register Length */
-	u16 hciversion;		/* Host Controller Interface Version */
-	u32 hcsparams;		/* Host Controller Structural Parameters */
-	u32 hccparams;		/* Host Controller Capability Parameters */
-	u8 res2[20];
-	u32 dciversion;		/* Device Controller Interface Version */
-	u32 dccparams;		/* Device Controller Capability Parameters */
-	u8 res3[24];
-	/* Operation register */
-	u32 usbcmd;		/* USB Command Register */
-	u32 usbsts;		/* USB Status Register */
-	u32 usbintr;		/* USB Interrupt Enable Register */
-	u32 frindex;		/* Frame Index Register */
-	u8 res4[4];
-	u32 deviceaddr;		/* Device Address */
-	u32 endpointlistaddr;	/* Endpoint List Address Register */
-	u8 res5[4];
-	u32 burstsize;		/* Master Interface Data Burst Size Register */
-	u32 txttfilltuning;	/* Transmit FIFO Tuning Controls Register */
-	u8 res6[24];
-	u32 configflag;		/* Configure Flag Register */
-	u32 portsc1;		/* Port 1 Status and Control Register */
-	u8 res7[28];
-	u32 otgsc;		/* On-The-Go Status and Control */
-	u32 usbmode;		/* USB Mode Register */
-	u32 endptsetupstat;	/* Endpoint Setup Status Register */
-	u32 endpointprime;	/* Endpoint Initialization Register */
-	u32 endptflush;		/* Endpoint Flush Register */
-	u32 endptstatus;	/* Endpoint Status Register */
-	u32 endptcomplete;	/* Endpoint Complete Register */
-	u32 endptctrl[6];	/* Endpoint Control Registers */
+  /* Capability register */
+  u8 res1[256];
+  u16 caplength;    /* Capability Register Length */
+  u16 hciversion;   /* Host Controller Interface Version */
+  u32 hcsparams;    /* Host Controller Structural Parameters */
+  u32 hccparams;    /* Host Controller Capability Parameters */
+  u8 res2[20];
+  u32 dciversion;   /* Device Controller Interface Version */
+  u32 dccparams;    /* Device Controller Capability Parameters */
+  u8 res3[24];
+  /* Operation register */
+  u32 usbcmd;   /* USB Command Register */
+  u32 usbsts;   /* USB Status Register */
+  u32 usbintr;    /* USB Interrupt Enable Register */
+  u32 frindex;    /* Frame Index Register */
+  u8 res4[4];
+  u32 deviceaddr;   /* Device Address */
+  u32 endpointlistaddr; /* Endpoint List Address Register */
+  u8 res5[4];
+  u32 burstsize;    /* Master Interface Data Burst Size Register */
+  u32 txttfilltuning; /* Transmit FIFO Tuning Controls Register */
+  u8 res6[24];
+  u32 configflag;   /* Configure Flag Register */
+  u32 portsc1;    /* Port 1 Status and Control Register */
+  u8 res7[28];
+  u32 otgsc;    /* On-The-Go Status and Control */
+  u32 usbmode;    /* USB Mode Register */
+  u32 endptsetupstat; /* Endpoint Setup Status Register */
+  u32 endpointprime;  /* Endpoint Initialization Register */
+  u32 endptflush;   /* Endpoint Flush Register */
+  u32 endptstatus;  /* Endpoint Status Register */
+  u32 endptcomplete;  /* Endpoint Complete Register */
+  u32 endptctrl[6]; /* Endpoint Control Registers */
 };
 
- /* USB DR host mode registers (Little Endian) */
+/* USB DR host mode registers (Little Endian) */
 struct usb_dr_host {
-	/* Capability register */
-	u8 res1[256];
-	u16 caplength;		/* Capability Register Length */
-	u16 hciversion;		/* Host Controller Interface Version */
-	u32 hcsparams;		/* Host Controller Structural Parameters */
-	u32 hccparams;		/* Host Controller Capability Parameters */
-	u8 res2[20];
-	u32 dciversion;		/* Device Controller Interface Version */
-	u32 dccparams;		/* Device Controller Capability Parameters */
-	u8 res3[24];
-	/* Operation register */
-	u32 usbcmd;		/* USB Command Register */
-	u32 usbsts;		/* USB Status Register */
-	u32 usbintr;		/* USB Interrupt Enable Register */
-	u32 frindex;		/* Frame Index Register */
-	u8 res4[4];
-	u32 periodiclistbase;	/* Periodic Frame List Base Address Register */
-	u32 asynclistaddr;	/* Current Asynchronous List Address Register */
-	u8 res5[4];
-	u32 burstsize;		/* Master Interface Data Burst Size Register */
-	u32 txttfilltuning;	/* Transmit FIFO Tuning Controls Register */
-	u8 res6[24];
-	u32 configflag;		/* Configure Flag Register */
-	u32 portsc1;		/* Port 1 Status and Control Register */
-	u8 res7[28];
-	u32 otgsc;		/* On-The-Go Status and Control */
-	u32 usbmode;		/* USB Mode Register */
-	u32 endptsetupstat;	/* Endpoint Setup Status Register */
-	u32 endpointprime;	/* Endpoint Initialization Register */
-	u32 endptflush;		/* Endpoint Flush Register */
-	u32 endptstatus;	/* Endpoint Status Register */
-	u32 endptcomplete;	/* Endpoint Complete Register */
-	u32 endptctrl[6];	/* Endpoint Control Registers */
+  /* Capability register */
+  u8 res1[256];
+  u16 caplength;    /* Capability Register Length */
+  u16 hciversion;   /* Host Controller Interface Version */
+  u32 hcsparams;    /* Host Controller Structural Parameters */
+  u32 hccparams;    /* Host Controller Capability Parameters */
+  u8 res2[20];
+  u32 dciversion;   /* Device Controller Interface Version */
+  u32 dccparams;    /* Device Controller Capability Parameters */
+  u8 res3[24];
+  /* Operation register */
+  u32 usbcmd;   /* USB Command Register */
+  u32 usbsts;   /* USB Status Register */
+  u32 usbintr;    /* USB Interrupt Enable Register */
+  u32 frindex;    /* Frame Index Register */
+  u8 res4[4];
+  u32 periodiclistbase; /* Periodic Frame List Base Address Register */
+  u32 asynclistaddr;  /* Current Asynchronous List Address Register */
+  u8 res5[4];
+  u32 burstsize;    /* Master Interface Data Burst Size Register */
+  u32 txttfilltuning; /* Transmit FIFO Tuning Controls Register */
+  u8 res6[24];
+  u32 configflag;   /* Configure Flag Register */
+  u32 portsc1;    /* Port 1 Status and Control Register */
+  u8 res7[28];
+  u32 otgsc;    /* On-The-Go Status and Control */
+  u32 usbmode;    /* USB Mode Register */
+  u32 endptsetupstat; /* Endpoint Setup Status Register */
+  u32 endpointprime;  /* Endpoint Initialization Register */
+  u32 endptflush;   /* Endpoint Flush Register */
+  u32 endptstatus;  /* Endpoint Status Register */
+  u32 endptcomplete;  /* Endpoint Complete Register */
+  u32 endptctrl[6]; /* Endpoint Control Registers */
 };
 
- /* non-EHCI USB system interface registers (Big Endian) */
+/* non-EHCI USB system interface registers (Big Endian) */
 struct usb_sys_interface {
-	u32 snoop1;
-	u32 snoop2;
-	u32 age_cnt_thresh;	/* Age Count Threshold Register */
-	u32 pri_ctrl;		/* Priority Control Register */
-	u32 si_ctrl;		/* System Interface Control Register */
-	u8 res[236];
-	u32 control;		/* General Purpose Control Register */
+  u32 snoop1;
+  u32 snoop2;
+  u32 age_cnt_thresh; /* Age Count Threshold Register */
+  u32 pri_ctrl;   /* Priority Control Register */
+  u32 si_ctrl;    /* System Interface Control Register */
+  u8 res[236];
+  u32 control;    /* General Purpose Control Register */
 };
 
 /* ep0 transfer state */
@@ -109,11 +109,11 @@ struct usb_sys_interface {
 #define DATA_STATE_RECV         4
 
 /* Device Controller Capability Parameter register */
-#define DCCPARAMS_DC				0x00000080
-#define DCCPARAMS_DEN_MASK			0x0000001f
+#define DCCPARAMS_DC        0x00000080
+#define DCCPARAMS_DEN_MASK      0x0000001f
 
 /* Frame Index Register Bit Masks */
-#define	USB_FRINDEX_MASKS			0x3fff
+#define USB_FRINDEX_MASKS     0x3fff
 /* USB CMD  Register Bit Masks */
 #define  USB_CMD_RUN_STOP                     0x00000001
 #define  USB_CMD_CTRL_RESET                   0x00000002
@@ -288,25 +288,25 @@ struct usb_sys_interface {
 #define  USB_MODE_SETUP_LOCK_OFF              0x00000008
 #define  USB_MODE_STREAM_DISABLE              0x00000010
 /* Endpoint Flush Register */
-#define EPFLUSH_TX_OFFSET		      0x00010000
-#define EPFLUSH_RX_OFFSET		      0x00000000
+#define EPFLUSH_TX_OFFSET         0x00010000
+#define EPFLUSH_RX_OFFSET         0x00000000
 
 /* Endpoint Setup Status bit masks */
 #define  EP_SETUP_STATUS_MASK                 0x0000003F
-#define  EP_SETUP_STATUS_EP0		      0x00000001
+#define  EP_SETUP_STATUS_EP0          0x00000001
 
 /* ENDPOINTCTRLx  Register Bit Masks */
 #define  EPCTRL_TX_ENABLE                     0x00800000
-#define  EPCTRL_TX_DATA_TOGGLE_RST            0x00400000	/* Not EP0 */
-#define  EPCTRL_TX_DATA_TOGGLE_INH            0x00200000	/* Not EP0 */
+#define  EPCTRL_TX_DATA_TOGGLE_RST            0x00400000  /* Not EP0 */
+#define  EPCTRL_TX_DATA_TOGGLE_INH            0x00200000  /* Not EP0 */
 #define  EPCTRL_TX_TYPE                       0x000C0000
-#define  EPCTRL_TX_DATA_SOURCE                0x00020000	/* Not EP0 */
+#define  EPCTRL_TX_DATA_SOURCE                0x00020000  /* Not EP0 */
 #define  EPCTRL_TX_EP_STALL                   0x00010000
 #define  EPCTRL_RX_ENABLE                     0x00000080
-#define  EPCTRL_RX_DATA_TOGGLE_RST            0x00000040	/* Not EP0 */
-#define  EPCTRL_RX_DATA_TOGGLE_INH            0x00000020	/* Not EP0 */
+#define  EPCTRL_RX_DATA_TOGGLE_RST            0x00000040  /* Not EP0 */
+#define  EPCTRL_RX_DATA_TOGGLE_INH            0x00000020  /* Not EP0 */
 #define  EPCTRL_RX_TYPE                       0x0000000C
-#define  EPCTRL_RX_DATA_SINK                  0x00000002	/* Not EP0 */
+#define  EPCTRL_RX_DATA_SINK                  0x00000002  /* Not EP0 */
 #define  EPCTRL_RX_EP_STALL                   0x00000001
 
 /* bit 19-18 and 3-2 are endpoint type */
@@ -319,8 +319,8 @@ struct usb_sys_interface {
 
 /* SNOOPn Register Bit Masks */
 #define  SNOOP_ADDRESS_MASK                   0xFFFFF000
-#define  SNOOP_SIZE_ZERO                      0x00	/* snooping disable */
-#define  SNOOP_SIZE_4KB                       0x0B	/* 4KB snoop size */
+#define  SNOOP_SIZE_ZERO                      0x00  /* snooping disable */
+#define  SNOOP_SIZE_4KB                       0x0B  /* 4KB snoop size */
 #define  SNOOP_SIZE_8KB                       0x0C
 #define  SNOOP_SIZE_16KB                      0x0D
 #define  SNOOP_SIZE_32KB                      0x0E
@@ -339,7 +339,7 @@ struct usb_sys_interface {
 #define  SNOOP_SIZE_256MB                     0x1B
 #define  SNOOP_SIZE_512MB                     0x1C
 #define  SNOOP_SIZE_1GB                       0x1D
-#define  SNOOP_SIZE_2GB                       0x1E	/* 2GB snoop size */
+#define  SNOOP_SIZE_2GB                       0x1E  /* 2GB snoop size */
 
 /* pri_ctrl Register Bit Masks */
 #define  PRI_CTRL_PRI_LVL1                    0x0000000C
@@ -355,64 +355,64 @@ struct usb_sys_interface {
 /* control Register Bit Masks */
 #define  USB_CTRL_IOENB                       0x00000004
 #define  USB_CTRL_ULPI_INT0EN                 0x00000001
-#define USB_CTRL_UTMI_PHY_EN		      0x00000200
-#define USB_CTRL_USB_EN			      0x00000004
-#define USB_CTRL_ULPI_PHY_CLK_SEL	      0x00000400
+#define USB_CTRL_UTMI_PHY_EN          0x00000200
+#define USB_CTRL_USB_EN           0x00000004
+#define USB_CTRL_ULPI_PHY_CLK_SEL       0x00000400
 
 /* Endpoint Queue Head data struct
  * Rem: all the variables of qh are LittleEndian Mode
  * and NEXT_POINTER_MASK should operate on a LittleEndian, Phy Addr
  */
 struct ep_queue_head {
-	u32 max_pkt_length;	/* Mult(31-30) , Zlt(29) , Max Pkt len
-				   and IOS(15) */
-	u32 curr_dtd_ptr;	/* Current dTD Pointer(31-5) */
-	u32 next_dtd_ptr;	/* Next dTD Pointer(31-5), T(0) */
-	u32 size_ioc_int_sts;	/* Total bytes (30-16), IOC (15),
-				   MultO(11-10), STS (7-0)  */
-	u32 buff_ptr0;		/* Buffer pointer Page 0 (31-12) */
-	u32 buff_ptr1;		/* Buffer pointer Page 1 (31-12) */
-	u32 buff_ptr2;		/* Buffer pointer Page 2 (31-12) */
-	u32 buff_ptr3;		/* Buffer pointer Page 3 (31-12) */
-	u32 buff_ptr4;		/* Buffer pointer Page 4 (31-12) */
-	u32 res1;
-	u8 setup_buffer[8];	/* Setup data 8 bytes */
-	u32 res2[4];
+  u32 max_pkt_length; /* Mult(31-30) , Zlt(29) , Max Pkt len
+                       * and IOS(15) */
+  u32 curr_dtd_ptr; /* Current dTD Pointer(31-5) */
+  u32 next_dtd_ptr; /* Next dTD Pointer(31-5), T(0) */
+  u32 size_ioc_int_sts; /* Total bytes (30-16), IOC (15),
+                         * MultO(11-10), STS (7-0)  */
+  u32 buff_ptr0;    /* Buffer pointer Page 0 (31-12) */
+  u32 buff_ptr1;    /* Buffer pointer Page 1 (31-12) */
+  u32 buff_ptr2;    /* Buffer pointer Page 2 (31-12) */
+  u32 buff_ptr3;    /* Buffer pointer Page 3 (31-12) */
+  u32 buff_ptr4;    /* Buffer pointer Page 4 (31-12) */
+  u32 res1;
+  u8 setup_buffer[8]; /* Setup data 8 bytes */
+  u32 res2[4];
 };
 
 /* Endpoint Queue Head Bit Masks */
 #define  EP_QUEUE_HEAD_MULT_POS               30
 #define  EP_QUEUE_HEAD_ZLT_SEL                0x20000000
 #define  EP_QUEUE_HEAD_MAX_PKT_LEN_POS        16
-#define  EP_QUEUE_HEAD_MAX_PKT_LEN(ep_info)   (((ep_info)>>16)&0x07ff)
+#define  EP_QUEUE_HEAD_MAX_PKT_LEN(ep_info)   (((ep_info) >> 16) & 0x07ff)
 #define  EP_QUEUE_HEAD_IOS                    0x00008000
 #define  EP_QUEUE_HEAD_NEXT_TERMINATE         0x00000001
 #define  EP_QUEUE_HEAD_IOC                    0x00008000
 #define  EP_QUEUE_HEAD_MULTO                  0x00000C00
-#define  EP_QUEUE_HEAD_STATUS_HALT	      0x00000040
+#define  EP_QUEUE_HEAD_STATUS_HALT        0x00000040
 #define  EP_QUEUE_HEAD_STATUS_ACTIVE          0x00000080
 #define  EP_QUEUE_CURRENT_OFFSET_MASK         0x00000FFF
 #define  EP_QUEUE_HEAD_NEXT_POINTER_MASK      0xFFFFFFE0
 #define  EP_QUEUE_FRINDEX_MASK                0x000007FF
 #define  EP_MAX_LENGTH_TRANSFER               0x4000
 
-/* Endpoint Transfer Descriptor data struct */
-/* Rem: all the variables of td are LittleEndian Mode */
+/* Endpoint Transfer Descriptor data struct
+ * Rem: all the variables of td are LittleEndian Mode*/
 struct ep_td_struct {
-	u32 next_td_ptr;	/* Next TD pointer(31-5), T(0) set
-				   indicate invalid */
-	u32 size_ioc_sts;	/* Total bytes (30-16), IOC (15),
-				   MultO(11-10), STS (7-0)  */
-	u32 buff_ptr0;		/* Buffer pointer Page 0 */
-	u32 buff_ptr1;		/* Buffer pointer Page 1 */
-	u32 buff_ptr2;		/* Buffer pointer Page 2 */
-	u32 buff_ptr3;		/* Buffer pointer Page 3 */
-	u32 buff_ptr4;		/* Buffer pointer Page 4 */
-	u32 res;
-	/* 32 bytes */
-	dma_addr_t td_dma;	/* dma address for this td */
-	/* virtual address of next td specified in next_td_ptr */
-	struct ep_td_struct *next_td_virt;
+  u32 next_td_ptr;  /* Next TD pointer(31-5), T(0) set
+                     * indicate invalid */
+  u32 size_ioc_sts; /* Total bytes (30-16), IOC (15),
+                     * MultO(11-10), STS (7-0)  */
+  u32 buff_ptr0;    /* Buffer pointer Page 0 */
+  u32 buff_ptr1;    /* Buffer pointer Page 1 */
+  u32 buff_ptr2;    /* Buffer pointer Page 2 */
+  u32 buff_ptr3;    /* Buffer pointer Page 3 */
+  u32 buff_ptr4;    /* Buffer pointer Page 4 */
+  u32 res;
+  /* 32 bytes */
+  dma_addr_t td_dma;  /* dma address for this td */
+  /* virtual address of next td specified in next_td_ptr */
+  struct ep_td_struct *next_td_virt;
 };
 
 /* Endpoint Transfer Descriptor bit Masks */
@@ -426,84 +426,84 @@ struct ep_td_struct {
 #define  DTD_ADDR_MASK                        0xFFFFFFE0
 #define  DTD_PACKET_SIZE                      0x7FFF0000
 #define  DTD_LENGTH_BIT_POS                   16
-#define  DTD_ERROR_MASK                       (DTD_STATUS_HALTED | \
-                                               DTD_STATUS_DATA_BUFF_ERR | \
-                                               DTD_STATUS_TRANSACTION_ERR)
+#define  DTD_ERROR_MASK                       (DTD_STATUS_HALTED   \
+  | DTD_STATUS_DATA_BUFF_ERR   \
+  | DTD_STATUS_TRANSACTION_ERR)
 /* Alignment requirements; must be a power of two */
-#define DTD_ALIGNMENT				0x20
-#define QH_ALIGNMENT				2048
+#define DTD_ALIGNMENT       0x20
+#define QH_ALIGNMENT        2048
 
 /* Controller dma boundary */
-#define UDC_DMA_BOUNDARY			0x1000
+#define UDC_DMA_BOUNDARY      0x1000
 
 /*-------------------------------------------------------------------------*/
 
 /* ### driver private data
  */
 struct fsl_req {
-	struct usb_request req;
-	struct list_head queue;
-	/* ep_queue() func will add
-	   a request->queue into a udc_ep->queue 'd tail */
-	struct fsl_ep *ep;
-	unsigned mapped:1;
+  struct usb_request req;
+  struct list_head queue;
+  /* ep_queue() func will add
+   * a request->queue into a udc_ep->queue 'd tail */
+  struct fsl_ep *ep;
+  unsigned mapped : 1;
 
-	struct ep_td_struct *head, *tail;	/* For dTD List
-						   cpu endian Virtual addr */
-	unsigned int dtd_count;
+  struct ep_td_struct *head, *tail; /* For dTD List
+                                     * cpu endian Virtual addr */
+  unsigned int dtd_count;
 };
 
-#define REQ_UNCOMPLETE			1
+#define REQ_UNCOMPLETE      1
 
 struct fsl_ep {
-	struct usb_ep ep;
-	struct list_head queue;
-	struct fsl_udc *udc;
-	struct ep_queue_head *qh;
-	struct usb_gadget *gadget;
+  struct usb_ep ep;
+  struct list_head queue;
+  struct fsl_udc *udc;
+  struct ep_queue_head *qh;
+  struct usb_gadget *gadget;
 
-	char name[14];
-	unsigned stopped:1;
+  char name[14];
+  unsigned stopped : 1;
 };
 
-#define EP_DIR_IN	1
-#define EP_DIR_OUT	0
+#define EP_DIR_IN 1
+#define EP_DIR_OUT  0
 
 struct fsl_udc {
-	struct usb_gadget gadget;
-	struct usb_gadget_driver *driver;
-	struct fsl_usb2_platform_data *pdata;
-	struct completion *done;	/* to make sure release() is done */
-	struct fsl_ep *eps;
-	unsigned int max_ep;
-	unsigned int irq;
+  struct usb_gadget gadget;
+  struct usb_gadget_driver *driver;
+  struct fsl_usb2_platform_data *pdata;
+  struct completion *done;  /* to make sure release() is done */
+  struct fsl_ep *eps;
+  unsigned int max_ep;
+  unsigned int irq;
 
-	struct usb_ctrlrequest local_setup_buff;
-	spinlock_t lock;
-	struct usb_phy *transceiver;
-	unsigned softconnect:1;
-	unsigned vbus_active:1;
-	unsigned stopped:1;
-	unsigned remote_wakeup:1;
-	unsigned already_stopped:1;
-	unsigned big_endian_desc:1;
+  struct usb_ctrlrequest local_setup_buff;
+  spinlock_t lock;
+  struct usb_phy *transceiver;
+  unsigned softconnect : 1;
+  unsigned vbus_active : 1;
+  unsigned stopped : 1;
+  unsigned remote_wakeup : 1;
+  unsigned already_stopped : 1;
+  unsigned big_endian_desc : 1;
 
-	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
-	struct fsl_req *status_req;	/* ep0 status request */
-	struct dma_pool *td_pool;	/* dma pool for DTD */
-	enum fsl_usb2_phy_modes phy_mode;
+  struct ep_queue_head *ep_qh;  /* Endpoints Queue-Head */
+  struct fsl_req *status_req; /* ep0 status request */
+  struct dma_pool *td_pool; /* dma pool for DTD */
+  enum fsl_usb2_phy_modes phy_mode;
 
-	size_t ep_qh_size;		/* size after alignment adjustment*/
-	dma_addr_t ep_qh_dma;		/* dma address of QH */
+  size_t ep_qh_size;    /* size after alignment adjustment*/
+  dma_addr_t ep_qh_dma;   /* dma address of QH */
 
-	u32 max_pipes;          /* Device max pipes */
-	u32 bus_reset;		/* Device is bus resetting */
-	u32 resume_state;	/* USB state to resume */
-	u32 usb_state;		/* USB current state */
-	u32 ep0_state;		/* Endpoint zero state */
-	u32 ep0_dir;		/* Endpoint zero direction: can be
-				   USB_DIR_IN or USB_DIR_OUT */
-	u8 device_address;	/* Device USB address */
+  u32 max_pipes;          /* Device max pipes */
+  u32 bus_reset;    /* Device is bus resetting */
+  u32 resume_state; /* USB state to resume */
+  u32 usb_state;    /* USB current state */
+  u32 ep0_state;    /* Endpoint zero state */
+  u32 ep0_dir;    /* Endpoint zero direction: can be
+                   * USB_DIR_IN or USB_DIR_OUT */
+  u8 device_address;  /* Device USB address */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -514,31 +514,31 @@ struct fsl_udc {
 /*
  * ### pipe direction macro from device view
  */
-#define USB_RECV	0	/* OUT EP */
-#define USB_SEND	1	/* IN EP */
+#define USB_RECV  0 /* OUT EP */
+#define USB_SEND  1 /* IN EP */
 
 /*
  * ### internal used help routines.
  */
-#define ep_index(EP)		((EP)->ep.desc->bEndpointAddress&0xF)
-#define ep_maxpacket(EP)	((EP)->ep.maxpacket)
-#define ep_is_in(EP)	( (ep_index(EP) == 0) ? (EP->udc->ep0_dir == \
-			USB_DIR_IN) : ((EP)->ep.desc->bEndpointAddress \
-			& USB_DIR_IN)==USB_DIR_IN)
-#define get_ep_by_pipe(udc, pipe)	((pipe == 1)? &udc->eps[0]: \
-					&udc->eps[pipe])
-#define get_pipe_by_windex(windex)	((windex & USB_ENDPOINT_NUMBER_MASK) \
-					* 2 + ((windex & USB_DIR_IN) ? 1 : 0))
-#define get_pipe_by_ep(EP)	(ep_index(EP) * 2 + ep_is_in(EP))
+#define ep_index(EP)    ((EP)->ep.desc->bEndpointAddress & 0xF)
+#define ep_maxpacket(EP)  ((EP)->ep.maxpacket)
+#define ep_is_in(EP)  ((ep_index(EP) == 0) ? (EP->udc->ep0_dir    \
+  == USB_DIR_IN) : ((EP)->ep.desc->bEndpointAddress \
+  & USB_DIR_IN) == USB_DIR_IN)
+#define get_ep_by_pipe(udc, pipe) ((pipe == 1) ? &udc->eps[0]  \
+  : &udc->eps[pipe])
+#define get_pipe_by_windex(windex)  ((windex & USB_ENDPOINT_NUMBER_MASK) \
+  * 2 + ((windex & USB_DIR_IN) ? 1 : 0))
+#define get_pipe_by_ep(EP)  (ep_index(EP) * 2 + ep_is_in(EP))
 
-static inline struct ep_queue_head *get_qh_by_ep(struct fsl_ep *ep)
-{
-	/* we only have one ep0 structure but two queue heads */
-	if (ep_index(ep) != 0)
-		return ep->qh;
-	else
-		return &ep->udc->ep_qh[(ep->udc->ep0_dir ==
-				USB_DIR_IN) ? 1 : 0];
+static inline struct ep_queue_head *get_qh_by_ep(struct fsl_ep *ep) {
+  /* we only have one ep0 structure but two queue heads */
+  if (ep_index(ep) != 0) {
+    return ep->qh;
+  } else {
+    return &ep->udc->ep_qh[(ep->udc->ep0_dir
+          == USB_DIR_IN) ? 1 : 0];
+  }
 }
 
 #endif

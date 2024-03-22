@@ -24,8 +24,8 @@
 #define PTP_CLASS_IPV4  0x10 /* event in an IPV4 UDP packet */
 #define PTP_CLASS_IPV6  0x20 /* event in an IPV6 UDP packet */
 #define PTP_CLASS_L2    0x40 /* event in a L2 packet */
-#define PTP_CLASS_PMASK	0x70 /* mask for the packet type field */
-#define PTP_CLASS_VLAN	0x80 /* event in a VLAN tagged packet */
+#define PTP_CLASS_PMASK 0x70 /* mask for the packet type field */
+#define PTP_CLASS_VLAN  0x80 /* event in a VLAN tagged packet */
 
 #define PTP_CLASS_V1_IPV4 (PTP_CLASS_V1 | PTP_CLASS_IPV4)
 #define PTP_CLASS_V1_IPV6 (PTP_CLASS_V1 | PTP_CLASS_IPV6) /* probably DNE */
@@ -44,40 +44,40 @@
 #define PTP_GEN_PORT 320
 #define PTP_GEN_BIT 0x08 /* indicates general message, if set in message type */
 
-#define OFF_PTP_SOURCE_UUID	22 /* PTPv1 only */
-#define OFF_PTP_SEQUENCE_ID	30
+#define OFF_PTP_SOURCE_UUID 22 /* PTPv1 only */
+#define OFF_PTP_SEQUENCE_ID 30
 
 /* PTP header flag fields */
-#define PTP_FLAG_TWOSTEP	BIT(1)
+#define PTP_FLAG_TWOSTEP  BIT(1)
 
 /* Below defines should actually be removed at some point in time. */
-#define IP6_HLEN	40
-#define UDP_HLEN	8
-#define OFF_IHL		14
-#define IPV4_HLEN(data) (((struct iphdr *)(data + OFF_IHL))->ihl << 2)
+#define IP6_HLEN  40
+#define UDP_HLEN  8
+#define OFF_IHL   14
+#define IPV4_HLEN(data) (((struct iphdr *) (data + OFF_IHL))->ihl << 2)
 
 struct clock_identity {
-	u8 id[8];
+  u8 id[8];
 } __packed;
 
 struct port_identity {
-	struct clock_identity	clock_identity;
-	__be16			port_number;
+  struct clock_identity clock_identity;
+  __be16 port_number;
 } __packed;
 
 struct ptp_header {
-	u8			tsmt;  /* transportSpecific | messageType */
-	u8			ver;   /* reserved          | versionPTP  */
-	__be16			message_length;
-	u8			domain_number;
-	u8			reserved1;
-	u8			flag_field[2];
-	__be64			correction;
-	__be32			reserved2;
-	struct port_identity	source_port_identity;
-	__be16			sequence_id;
-	u8			control;
-	u8			log_message_interval;
+  u8 tsmt;  /* transportSpecific | messageType */
+  u8 ver;   /* reserved          | versionPTP  */
+  __be16 message_length;
+  u8 domain_number;
+  u8 reserved1;
+  u8 flag_field[2];
+  __be64 correction;
+  __be32 reserved2;
+  struct port_identity source_port_identity;
+  __be16 sequence_id;
+  u8 control;
+  u8 log_message_interval;
 } __packed;
 
 #if defined(CONFIG_NET_PTP_CLASSIFY)
@@ -119,18 +119,15 @@ struct ptp_header *ptp_parse_header(struct sk_buff *skb, unsigned int type);
  * Return: The message type
  */
 static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
-				 unsigned int type)
-{
-	u8 msgtype;
-
-	if (unlikely(type & PTP_CLASS_V1)) {
-		/* msg type is located at the control field for ptp v1 */
-		msgtype = hdr->control;
-	} else {
-		msgtype = hdr->tsmt & 0x0f;
-	}
-
-	return msgtype;
+    unsigned int type) {
+  u8 msgtype;
+  if (unlikely(type & PTP_CLASS_V1)) {
+    /* msg type is located at the control field for ptp v1 */
+    msgtype = hdr->control;
+  } else {
+    msgtype = hdr->tsmt & 0x0f;
+  }
+  return msgtype;
 }
 
 /**
@@ -144,11 +141,11 @@ static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
  *
  * Return: Updated checksum
  */
-static inline __wsum ptp_check_diff8(__be64 old, __be64 new, __wsum oldsum)
-{
-	__be64 diff[2] = { ~old, new };
-
-	return csum_partial(diff, sizeof(diff), oldsum);
+static inline __wsum ptp_check_diff8(__be64 old, __be64 new, __wsum oldsum) {
+  __be64 diff[2] = {
+    ~old, new
+  };
+  return csum_partial(diff, sizeof(diff), oldsum);
 }
 
 /**
@@ -165,35 +162,30 @@ static inline __wsum ptp_check_diff8(__be64 old, __be64 new, __wsum oldsum)
  */
 static inline
 void ptp_header_update_correction(struct sk_buff *skb, unsigned int type,
-				  struct ptp_header *hdr, s64 correction)
-{
-	__be64 correction_old;
-	struct udphdr *uhdr;
-
-	/* previous correction value is required for checksum update. */
-	memcpy(&correction_old,  &hdr->correction, sizeof(correction_old));
-
-	/* write new correction value */
-	put_unaligned_be64((u64)correction, &hdr->correction);
-
-	switch (type & PTP_CLASS_PMASK) {
-	case PTP_CLASS_IPV4:
-	case PTP_CLASS_IPV6:
-		/* locate udp header */
-		uhdr = (struct udphdr *)((char *)hdr - sizeof(struct udphdr));
-		break;
-	default:
-		return;
-	}
-
-	/* update checksum */
-	uhdr->check = csum_fold(ptp_check_diff8(correction_old,
-						hdr->correction,
-						~csum_unfold(uhdr->check)));
-	if (!uhdr->check)
-		uhdr->check = CSUM_MANGLED_0;
-
-	skb->ip_summed = CHECKSUM_NONE;
+    struct ptp_header *hdr, s64 correction) {
+  __be64 correction_old;
+  struct udphdr *uhdr;
+  /* previous correction value is required for checksum update. */
+  memcpy(&correction_old, &hdr->correction, sizeof(correction_old));
+  /* write new correction value */
+  put_unaligned_be64((u64) correction, &hdr->correction);
+  switch (type & PTP_CLASS_PMASK) {
+    case PTP_CLASS_IPV4:
+    case PTP_CLASS_IPV6:
+      /* locate udp header */
+      uhdr = (struct udphdr *) ((char *) hdr - sizeof(struct udphdr));
+      break;
+    default:
+      return;
+  }
+  /* update checksum */
+  uhdr->check = csum_fold(ptp_check_diff8(correction_old,
+      hdr->correction,
+      ~csum_unfold(uhdr->check)));
+  if (!uhdr->check) {
+    uhdr->check = CSUM_MANGLED_0;
+  }
+  skb->ip_summed = CHECKSUM_NONE;
 }
 
 /**
@@ -209,35 +201,34 @@ bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type);
 
 void __init ptp_classifier_init(void);
 #else
-static inline void ptp_classifier_init(void)
-{
+static inline void ptp_classifier_init(void) {
 }
-static inline unsigned int ptp_classify_raw(struct sk_buff *skb)
-{
-	return PTP_CLASS_NONE;
+
+static inline unsigned int ptp_classify_raw(struct sk_buff *skb) {
+  return PTP_CLASS_NONE;
 }
+
 static inline struct ptp_header *ptp_parse_header(struct sk_buff *skb,
-						  unsigned int type)
-{
-	return NULL;
+    unsigned int type) {
+  return NULL;
 }
+
 static inline u8 ptp_get_msgtype(const struct ptp_header *hdr,
-				 unsigned int type)
-{
-	/* The return is meaningless. The stub function would not be
-	 * executed since no available header from ptp_parse_header.
-	 */
-	return PTP_MSGTYPE_SYNC;
+    unsigned int type) {
+  /* The return is meaningless. The stub function would not be
+   * executed since no available header from ptp_parse_header.
+   */
+  return PTP_MSGTYPE_SYNC;
 }
-static inline bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type)
-{
-	return false;
+
+static inline bool ptp_msg_is_sync(struct sk_buff *skb, unsigned int type) {
+  return false;
 }
 
 static inline
 void ptp_header_update_correction(struct sk_buff *skb, unsigned int type,
-				  struct ptp_header *hdr, s64 correction)
-{
+    struct ptp_header *hdr, s64 correction) {
 }
+
 #endif
 #endif /* _PTP_CLASSIFY_H_ */

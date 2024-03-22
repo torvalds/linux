@@ -2,14 +2,13 @@
 #define SRCCODE_H 1
 
 struct srccode_state {
-	char	 *srcfile;
-	unsigned line;
+  char *srcfile;
+  unsigned line;
 };
 
-static inline void srccode_state_init(struct srccode_state *state)
-{
-	state->srcfile = NULL;
-	state->line    = 0;
+static inline void srccode_state_init(struct srccode_state *state) {
+  state->srcfile = NULL;
+  state->line = 0;
 }
 
 void srccode_state_free(struct srccode_state *state);

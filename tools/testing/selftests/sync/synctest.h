@@ -32,10 +32,10 @@
 #include "../kselftest.h"
 
 #define ASSERT(cond, msg) do { \
-	if (!(cond)) { \
-		ksft_print_msg("[ERROR]\t%s", (msg)); \
-		return 1; \
-	} \
+    if (!(cond)) { \
+      ksft_print_msg("[ERROR]\t%s", (msg)); \
+      return 1; \
+    } \
 } while (0)
 
 #define RUN_TEST(x) run_test((x), #x)

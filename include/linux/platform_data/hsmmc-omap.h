@@ -21,52 +21,52 @@
  *    Operation Issue" in _OMAP3530/3525/3515/3503 Silicon Errata_
  *    Revision F (October 2010) (SPRZ278F).
  */
-#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT		BIT(0)
-#define OMAP_HSMMC_BROKEN_MULTIBLOCK_READ	BIT(1)
-#define OMAP_HSMMC_SWAKEUP_MISSING		BIT(2)
+#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT   BIT(0)
+#define OMAP_HSMMC_BROKEN_MULTIBLOCK_READ BIT(1)
+#define OMAP_HSMMC_SWAKEUP_MISSING    BIT(2)
 
 struct omap_hsmmc_dev_attr {
-	u8 flags;
+  u8 flags;
 };
 
 struct mmc_card;
 
 struct omap_hsmmc_platform_data {
-	/* back-link to device */
-	struct device *dev;
+  /* back-link to device */
+  struct device *dev;
 
-	/* set if your board has components or wiring that limits the
-	 * maximum frequency on the MMC bus */
-	unsigned int max_freq;
+  /* set if your board has components or wiring that limits the
+   * maximum frequency on the MMC bus */
+  unsigned int max_freq;
 
-	/* Integrating attributes from the omap_hwmod layer */
-	u8 controller_flags;
+  /* Integrating attributes from the omap_hwmod layer */
+  u8 controller_flags;
 
-	/* Register offset deviation */
-	u16 reg_offset;
+  /* Register offset deviation */
+  u16 reg_offset;
 
-	/*
-	 * 4/8 wires and any additional host capabilities
-	 * need to OR'd all capabilities (ref. linux/mmc/host.h)
-	 */
-	u32 caps;	/* Used for the MMC driver on 2430 and later */
-	u32 pm_caps;	/* PM capabilities of the mmc */
+  /*
+   * 4/8 wires and any additional host capabilities
+   * need to OR'd all capabilities (ref. linux/mmc/host.h)
+   */
+  u32 caps; /* Used for the MMC driver on 2430 and later */
+  u32 pm_caps;  /* PM capabilities of the mmc */
 
-	/* nonremovable e.g. eMMC */
-	unsigned nonremovable:1;
+  /* nonremovable e.g. eMMC */
+  unsigned nonremovable : 1;
 
-	/* eMMC does not handle power off when not in sleep state */
-	unsigned no_regulator_off_init:1;
+  /* eMMC does not handle power off when not in sleep state */
+  unsigned no_regulator_off_init : 1;
 
-	/* we can put the features above into this variable */
-#define HSMMC_HAS_PBIAS		(1 << 0)
-#define HSMMC_HAS_UPDATED_RESET	(1 << 1)
-#define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
-	unsigned features;
+  /* we can put the features above into this variable */
+#define HSMMC_HAS_PBIAS   (1 << 0)
+#define HSMMC_HAS_UPDATED_RESET (1 << 1)
+#define HSMMC_HAS_HSPE_SUPPORT  (1 << 2)
+  unsigned features;
 
-	/* string specifying a particular variant of hardware */
-	char *version;
+  /* string specifying a particular variant of hardware */
+  char *version;
 
-	const char *name;
-	u32 ocr_mask;
+  const char *name;
+  u32 ocr_mask;
 };

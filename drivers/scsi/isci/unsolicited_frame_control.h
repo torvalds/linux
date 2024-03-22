@@ -68,39 +68,36 @@
  * depicts actual header information received on the link.
  */
 struct scu_unsolicited_frame_header {
-	/**
-	 * This field indicates if there is an Initiator Index Table entry with
-	 * which this header is associated.
-	 */
-	u32 iit_exists:1;
+  /**
+   * This field indicates if there is an Initiator Index Table entry with
+   * which this header is associated.
+   */
+  u32 iit_exists : 1;
 
-	/**
-	 * This field simply indicates the protocol type (i.e. SSP, STP, SMP).
-	 */
-	u32 protocol_type:3;
+  /**
+   * This field simply indicates the protocol type (i.e. SSP, STP, SMP).
+   */
+  u32 protocol_type : 3;
 
-	/**
-	 * This field indicates if the frame is an address frame (IAF or OAF)
-	 * or if it is a information unit frame.
-	 */
-	u32 is_address_frame:1;
+  /**
+   * This field indicates if the frame is an address frame (IAF or OAF)
+   * or if it is a information unit frame.
+   */
+  u32 is_address_frame : 1;
 
-	/**
-	 * This field simply indicates the connection rate at which the frame
-	 * was received.
-	 */
-	u32 connection_rate:4;
+  /**
+   * This field simply indicates the connection rate at which the frame
+   * was received.
+   */
+  u32 connection_rate : 4;
 
-	u32 reserved:23;
+  u32 reserved : 23;
 
-	/**
-	 * This field represents the actual header data received on the link.
-	 */
-	u32 data[SCU_UNSOLICITED_FRAME_HEADER_DATA_DWORDS];
-
+  /**
+   * This field represents the actual header data received on the link.
+   */
+  u32 data[SCU_UNSOLICITED_FRAME_HEADER_DATA_DWORDS];
 };
-
-
 
 /**
  * enum unsolicited_frame_state -
@@ -110,28 +107,28 @@ struct scu_unsolicited_frame_header {
  * unless it has already processed the priror unsolicited frames.
  */
 enum unsolicited_frame_state {
-	/**
-	 * This state is when the frame is empty and not in use.  It is
-	 * different from the released state in that the hardware could DMA
-	 * data to this frame buffer.
-	 */
-	UNSOLICITED_FRAME_EMPTY,
+  /**
+   * This state is when the frame is empty and not in use.  It is
+   * different from the released state in that the hardware could DMA
+   * data to this frame buffer.
+   */
+  UNSOLICITED_FRAME_EMPTY,
 
-	/**
-	 * This state is set when the frame buffer is in use by by some
-	 * object in the system.
-	 */
-	UNSOLICITED_FRAME_IN_USE,
+  /**
+   * This state is set when the frame buffer is in use by by some
+   * object in the system.
+   */
+  UNSOLICITED_FRAME_IN_USE,
 
-	/**
-	 * This state is set when the frame is returned to the free pool
-	 * but one or more frames prior to this one are still in use.
-	 * Once all of the frame before this one are freed it will go to
-	 * the empty state.
-	 */
-	UNSOLICITED_FRAME_RELEASED,
+  /**
+   * This state is set when the frame is returned to the free pool
+   * but one or more frames prior to this one are still in use.
+   * Once all of the frame before this one are freed it will go to
+   * the empty state.
+   */
+  UNSOLICITED_FRAME_RELEASED,
 
-	UNSOLICITED_FRAME_MAX_STATES
+  UNSOLICITED_FRAME_MAX_STATES
 };
 
 /**
@@ -141,21 +138,20 @@ enum unsolicited_frame_state {
  * the current frame state, frame header and frame buffer.
  */
 struct sci_unsolicited_frame {
-	/**
-	 * This field contains the current frame state
-	 */
-	enum unsolicited_frame_state state;
+  /**
+   * This field contains the current frame state
+   */
+  enum unsolicited_frame_state state;
 
-	/**
-	 * This field points to the frame header data.
-	 */
-	struct scu_unsolicited_frame_header *header;
+  /**
+   * This field points to the frame header data.
+   */
+  struct scu_unsolicited_frame_header *header;
 
-	/**
-	 * This field points to the frame buffer data.
-	 */
-	void *buffer;
-
+  /**
+   * This field points to the frame buffer data.
+   */
+  void *buffer;
 };
 
 /**
@@ -164,19 +160,18 @@ struct sci_unsolicited_frame {
  * This structure contains all of the unsolicited frame header information.
  */
 struct sci_uf_header_array {
-	/**
-	 * This field is represents a virtual pointer to the start
-	 * address of the UF address table.  The table contains
-	 * 64-bit pointers as required by the hardware.
-	 */
-	struct scu_unsolicited_frame_header *array;
+  /**
+   * This field is represents a virtual pointer to the start
+   * address of the UF address table.  The table contains
+   * 64-bit pointers as required by the hardware.
+   */
+  struct scu_unsolicited_frame_header *array;
 
-	/**
-	 * This field specifies the physical address location for the UF
-	 * buffer array.
-	 */
-	dma_addr_t physical_address;
-
+  /**
+   * This field specifies the physical address location for the UF
+   * buffer array.
+   */
+  dma_addr_t physical_address;
 };
 
 /**
@@ -186,19 +181,19 @@ struct sci_uf_header_array {
  * information.
  */
 struct sci_uf_buffer_array {
-	/**
-	 * This field is the unsolicited frame data its used to manage
-	 * the data for the unsolicited frame requests.  It also represents
-	 * the virtual address location that corresponds to the
-	 * physical_address field.
-	 */
-	struct sci_unsolicited_frame array[SCU_MAX_UNSOLICITED_FRAMES];
+  /**
+   * This field is the unsolicited frame data its used to manage
+   * the data for the unsolicited frame requests.  It also represents
+   * the virtual address location that corresponds to the
+   * physical_address field.
+   */
+  struct sci_unsolicited_frame array[SCU_MAX_UNSOLICITED_FRAMES];
 
-	/**
-	 * This field specifies the physical address location for the UF
-	 * buffer array.
-	 */
-	dma_addr_t physical_address;
+  /**
+   * This field specifies the physical address location for the UF
+   * buffer array.
+   */
+  dma_addr_t physical_address;
 };
 
 /**
@@ -209,19 +204,18 @@ struct sci_uf_buffer_array {
  * 1KB buffers into which the silicon will DMA unsolicited frames.
  */
 struct sci_uf_address_table_array {
-	/**
-	 * This field represents a virtual pointer that refers to the
-	 * starting address of the UF address table.
-	 * 64-bit pointers are required by the hardware.
-	 */
-	u64 *array;
+  /**
+   * This field represents a virtual pointer that refers to the
+   * starting address of the UF address table.
+   * 64-bit pointers are required by the hardware.
+   */
+  u64 *array;
 
-	/**
-	 * This field specifies the physical address location for the UF
-	 * address table.
-	 */
-	dma_addr_t physical_address;
-
+  /**
+   * This field specifies the physical address location for the UF
+   * address table.
+   */
+  dma_addr_t physical_address;
 };
 
 /**
@@ -230,53 +224,55 @@ struct sci_uf_address_table_array {
  * This object contains all of the data necessary to handle unsolicited frames.
  */
 struct sci_unsolicited_frame_control {
-	/**
-	 * This field is the software copy of the unsolicited frame queue
-	 * get pointer.  The controller object writes this value to the
-	 * hardware to let the hardware put more unsolicited frame entries.
-	 */
-	u32 get;
+  /**
+   * This field is the software copy of the unsolicited frame queue
+   * get pointer.  The controller object writes this value to the
+   * hardware to let the hardware put more unsolicited frame entries.
+   */
+  u32 get;
 
-	/**
-	 * This field contains all of the unsolicited frame header
-	 * specific fields.
-	 */
-	struct sci_uf_header_array headers;
+  /**
+   * This field contains all of the unsolicited frame header
+   * specific fields.
+   */
+  struct sci_uf_header_array headers;
 
-	/**
-	 * This field contains all of the unsolicited frame buffer
-	 * specific fields.
-	 */
-	struct sci_uf_buffer_array buffers;
+  /**
+   * This field contains all of the unsolicited frame buffer
+   * specific fields.
+   */
+  struct sci_uf_buffer_array buffers;
 
-	/**
-	 * This field contains all of the unsolicited frame address table
-	 * specific fields.
-	 */
-	struct sci_uf_address_table_array address_table;
-
+  /**
+   * This field contains all of the unsolicited frame address table
+   * specific fields.
+   */
+  struct sci_uf_address_table_array address_table;
 };
 
-#define SCI_UFI_BUF_SIZE (SCU_MAX_UNSOLICITED_FRAMES * SCU_UNSOLICITED_FRAME_BUFFER_SIZE)
-#define SCI_UFI_HDR_SIZE (SCU_MAX_UNSOLICITED_FRAMES * sizeof(struct scu_unsolicited_frame_header))
-#define SCI_UFI_TOTAL_SIZE (SCI_UFI_BUF_SIZE + SCI_UFI_HDR_SIZE + SCU_MAX_UNSOLICITED_FRAMES * sizeof(u64))
+#define SCI_UFI_BUF_SIZE (SCU_MAX_UNSOLICITED_FRAMES \
+  * SCU_UNSOLICITED_FRAME_BUFFER_SIZE)
+#define SCI_UFI_HDR_SIZE (SCU_MAX_UNSOLICITED_FRAMES \
+  * sizeof(struct scu_unsolicited_frame_header))
+#define SCI_UFI_TOTAL_SIZE (SCI_UFI_BUF_SIZE + SCI_UFI_HDR_SIZE \
+  + SCU_MAX_UNSOLICITED_FRAMES * sizeof(u64))
 
 struct isci_host;
 
 void sci_unsolicited_frame_control_construct(struct isci_host *ihost);
 
 enum sci_status sci_unsolicited_frame_control_get_header(
-	struct sci_unsolicited_frame_control *uf_control,
-	u32 frame_index,
-	void **frame_header);
+  struct sci_unsolicited_frame_control *uf_control,
+  u32 frame_index,
+  void **frame_header);
 
 enum sci_status sci_unsolicited_frame_control_get_buffer(
-	struct sci_unsolicited_frame_control *uf_control,
-	u32 frame_index,
-	void **frame_buffer);
+  struct sci_unsolicited_frame_control *uf_control,
+  u32 frame_index,
+  void **frame_buffer);
 
 bool sci_unsolicited_frame_control_release_frame(
-	struct sci_unsolicited_frame_control *uf_control,
-	u32 frame_index);
+  struct sci_unsolicited_frame_control *uf_control,
+  u32 frame_index);
 
 #endif /* _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_ */

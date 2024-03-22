@@ -33,11 +33,11 @@
  * LSM specified by @id; they MUST be set to zero/0 when not used.
  */
 struct lsm_ctx {
-	__u64 id;
-	__u64 flags;
-	__u64 len;
-	__u64 ctx_len;
-	__u8 ctx[] __counted_by(ctx_len);
+  __u64 id;
+  __u64 flags;
+  __u64 len;
+  __u64 ctx_len;
+  __u8 ctx[] __counted_by(ctx_len);
 };
 
 /*
@@ -50,20 +50,20 @@ struct lsm_ctx {
  * outside the kernel. Values 1-99 are reserved for potential
  * future use.
  */
-#define LSM_ID_UNDEF		0
-#define LSM_ID_CAPABILITY	100
-#define LSM_ID_SELINUX		101
-#define LSM_ID_SMACK		102
-#define LSM_ID_TOMOYO		103
-#define LSM_ID_APPARMOR		104
-#define LSM_ID_YAMA		105
-#define LSM_ID_LOADPIN		106
-#define LSM_ID_SAFESETID	107
-#define LSM_ID_LOCKDOWN		108
-#define LSM_ID_BPF		109
-#define LSM_ID_LANDLOCK		110
-#define LSM_ID_IMA		111
-#define LSM_ID_EVM		112
+#define LSM_ID_UNDEF    0
+#define LSM_ID_CAPABILITY 100
+#define LSM_ID_SELINUX    101
+#define LSM_ID_SMACK    102
+#define LSM_ID_TOMOYO   103
+#define LSM_ID_APPARMOR   104
+#define LSM_ID_YAMA   105
+#define LSM_ID_LOADPIN    106
+#define LSM_ID_SAFESETID  107
+#define LSM_ID_LOCKDOWN   108
+#define LSM_ID_BPF    109
+#define LSM_ID_LANDLOCK   110
+#define LSM_ID_IMA    111
+#define LSM_ID_EVM    112
 
 /*
  * LSM_ATTR_XXX definitions identify different LSM attributes
@@ -75,18 +75,18 @@ struct lsm_ctx {
  * outside the kernel. Values 1-99 are reserved for potential
  * future use.
  */
-#define LSM_ATTR_UNDEF		0
-#define LSM_ATTR_CURRENT	100
-#define LSM_ATTR_EXEC		101
-#define LSM_ATTR_FSCREATE	102
-#define LSM_ATTR_KEYCREATE	103
-#define LSM_ATTR_PREV		104
-#define LSM_ATTR_SOCKCREATE	105
+#define LSM_ATTR_UNDEF    0
+#define LSM_ATTR_CURRENT  100
+#define LSM_ATTR_EXEC   101
+#define LSM_ATTR_FSCREATE 102
+#define LSM_ATTR_KEYCREATE  103
+#define LSM_ATTR_PREV   104
+#define LSM_ATTR_SOCKCREATE 105
 
 /*
  * LSM_FLAG_XXX definitions identify special handling instructions
  * for the API.
  */
-#define LSM_FLAG_SINGLE	0x0001
+#define LSM_FLAG_SINGLE 0x0001
 
 #endif /* _UAPI_LINUX_LSM_H */

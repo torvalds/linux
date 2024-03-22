@@ -19,7 +19,7 @@ int cw1200_bh_suspend(struct cw1200_common *priv);
 int cw1200_bh_resume(struct cw1200_common *priv);
 /* Must be called from BH thread. */
 void cw1200_enable_powersave(struct cw1200_common *priv,
-			     bool enable);
+    bool enable);
 int wsm_release_tx_buffer(struct cw1200_common *priv, int count);
 
 #endif /* CW1200_BH_H */

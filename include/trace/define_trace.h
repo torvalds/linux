@@ -10,9 +10,11 @@
  *     This macro may be defined to tell define_trace.h what file to include.
  *     Note, leave off the ".h".
  *
- * TRACE_INCLUDE_PATH if the path is something other than core kernel include/trace
+ * TRACE_INCLUDE_PATH if the path is something other than core kernel
+ * include/trace
  *     then this macro can define the path to use. Note, the path is relative to
- *     define_trace.h, not the file including it. Full path names for out of tree
+ *     define_trace.h, not the file including it. Full path names for out of
+ * tree
  *     modules must be used.
  */
 
@@ -24,27 +26,27 @@
 #include <linux/stringify.h>
 
 #undef TRACE_EVENT
-#define TRACE_EVENT(name, proto, args, tstruct, assign, print)	\
-	DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT(name, proto, args, tstruct, assign, print)  \
+  DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
 
 #undef TRACE_EVENT_CONDITION
 #define TRACE_EVENT_CONDITION(name, proto, args, cond, tstruct, assign, print) \
-	TRACE_EVENT(name,						\
-		PARAMS(proto),						\
-		PARAMS(args),						\
-		PARAMS(tstruct),					\
-		PARAMS(assign),						\
-		PARAMS(print))
+  TRACE_EVENT(name,           \
+    PARAMS(proto),            \
+    PARAMS(args),           \
+    PARAMS(tstruct),          \
+    PARAMS(assign),           \
+    PARAMS(print))
 
 #undef TRACE_EVENT_FN
-#define TRACE_EVENT_FN(name, proto, args, tstruct,		\
-		assign, print, reg, unreg)			\
-	DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_FN(name, proto, args, tstruct,    \
+      assign, print, reg, unreg)      \
+  DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
 
 #undef TRACE_EVENT_FN_COND
-#define TRACE_EVENT_FN_COND(name, proto, args, cond, tstruct,		\
-		assign, print, reg, unreg)			\
-	DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
+#define TRACE_EVENT_FN_COND(name, proto, args, cond, tstruct,   \
+      assign, print, reg, unreg)      \
+  DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
 
 #undef TRACE_EVENT_NOP
 #define TRACE_EVENT_NOP(name, proto, args, struct, assign, print)
@@ -54,40 +56,40 @@
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args) \
-	DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
+  DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
 
 #undef DEFINE_EVENT_FN
 #define DEFINE_EVENT_FN(template, name, proto, args, reg, unreg) \
-	DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
+  DEFINE_TRACE_FN(name, reg, unreg, PARAMS(proto), PARAMS(args))
 
 #undef DEFINE_EVENT_PRINT
-#define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
-	DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define DEFINE_EVENT_PRINT(template, name, proto, args, print)  \
+  DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
 
 #undef DEFINE_EVENT_CONDITION
 #define DEFINE_EVENT_CONDITION(template, name, proto, args, cond) \
-	DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
+  DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
 
 #undef DECLARE_TRACE
-#define DECLARE_TRACE(name, proto, args)	\
-	DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
+#define DECLARE_TRACE(name, proto, args)  \
+  DEFINE_TRACE(name, PARAMS(proto), PARAMS(args))
 
 #undef TRACE_INCLUDE
 #undef __TRACE_INCLUDE
 
 #ifndef TRACE_INCLUDE_FILE
-# define TRACE_INCLUDE_FILE TRACE_SYSTEM
-# define UNDEF_TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_FILE TRACE_SYSTEM
+#define UNDEF_TRACE_INCLUDE_FILE
 #endif
 
 #ifndef TRACE_INCLUDE_PATH
-# define __TRACE_INCLUDE(system) <trace/events/system.h>
-# define UNDEF_TRACE_INCLUDE_PATH
+#define __TRACE_INCLUDE(system) < trace / events / system.h >
+#define UNDEF_TRACE_INCLUDE_PATH
 #else
-# define __TRACE_INCLUDE(system) __stringify(TRACE_INCLUDE_PATH/system.h)
+#define __TRACE_INCLUDE(system) __stringify(TRACE_INCLUDE_PATH / system.h)
 #endif
 
-# define TRACE_INCLUDE(system) __TRACE_INCLUDE(system)
+#define TRACE_INCLUDE(system) __TRACE_INCLUDE(system)
 
 /* Let the trace headers be reread */
 #define TRACE_HEADER_MULTI_READ
@@ -120,13 +122,13 @@
 
 /* Only undef what we defined in this file */
 #ifdef UNDEF_TRACE_INCLUDE_FILE
-# undef TRACE_INCLUDE_FILE
-# undef UNDEF_TRACE_INCLUDE_FILE
+#undef TRACE_INCLUDE_FILE
+#undef UNDEF_TRACE_INCLUDE_FILE
 #endif
 
 #ifdef UNDEF_TRACE_INCLUDE_PATH
-# undef TRACE_INCLUDE_PATH
-# undef UNDEF_TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_PATH
+#undef UNDEF_TRACE_INCLUDE_PATH
 #endif
 
 /* We may be processing more files */

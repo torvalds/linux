@@ -13,10 +13,10 @@
  * struct crypto_sig - user-instantiated objects which encapsulate
  * algorithms and core processing logic
  *
- * @base:	Common crypto API algorithm data structure
+ * @base: Common crypto API algorithm data structure
  */
 struct crypto_sig {
-	struct crypto_tfm base;
+  struct crypto_tfm base;
 };
 
 /**
@@ -29,7 +29,7 @@ struct crypto_sig {
 /**
  * crypto_alloc_sig() - allocate signature tfm handle
  * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      signing algorithm e.g. "ecdsa"
+ *        signing algorithm e.g. "ecdsa"
  * @type: specifies the type of the algorithm
  * @mask: specifies the mask for the algorithm
  *
@@ -38,13 +38,12 @@ struct crypto_sig {
  * API invocation for signature operations.
  *
  * Return: allocated handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ *     of an error, PTR_ERR() returns the error code.
  */
 struct crypto_sig *crypto_alloc_sig(const char *alg_name, u32 type, u32 mask);
 
-static inline struct crypto_tfm *crypto_sig_tfm(struct crypto_sig *tfm)
-{
-	return &tfm->base;
+static inline struct crypto_tfm *crypto_sig_tfm(struct crypto_sig *tfm) {
+  return &tfm->base;
 }
 
 /**
@@ -54,9 +53,8 @@ static inline struct crypto_tfm *crypto_sig_tfm(struct crypto_sig *tfm)
  *
  * If @tfm is a NULL or error pointer, this function does nothing.
  */
-static inline void crypto_free_sig(struct crypto_sig *tfm)
-{
-	crypto_destroy_tfm(tfm, crypto_sig_tfm(tfm));
+static inline void crypto_free_sig(struct crypto_sig *tfm) {
+  crypto_destroy_tfm(tfm, crypto_sig_tfm(tfm));
 }
 
 /**
@@ -67,7 +65,7 @@ static inline void crypto_free_sig(struct crypto_sig *tfm)
  * function is called without a setkey or with a failed setkey, you will end up
  * in a NULL dereference.
  *
- * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
+ * @tfm:  signature tfm handle allocated with crypto_alloc_sig()
  */
 int crypto_sig_maxsize(struct crypto_sig *tfm);
 
@@ -76,17 +74,17 @@ int crypto_sig_maxsize(struct crypto_sig *tfm);
  *
  * Function invokes the specific signing operation for a given algorithm
  *
- * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
- * @src:	source buffer
- * @slen:	source length
- * @dst:	destination obuffer
- * @dlen:	destination length
+ * @tfm:  signature tfm handle allocated with crypto_alloc_sig()
+ * @src:  source buffer
+ * @slen: source length
+ * @dst:  destination obuffer
+ * @dlen: destination length
  *
  * Return: zero on success; error code in case of error
  */
 int crypto_sig_sign(struct crypto_sig *tfm,
-		    const void *src, unsigned int slen,
-		    void *dst, unsigned int dlen);
+    const void *src, unsigned int slen,
+    void *dst, unsigned int dlen);
 
 /**
  * crypto_sig_verify() - Invoke signature verification
@@ -94,17 +92,17 @@ int crypto_sig_sign(struct crypto_sig *tfm,
  * Function invokes the specific signature verification operation
  * for a given algorithm.
  *
- * @tfm:	signature tfm handle allocated with crypto_alloc_sig()
- * @src:	source buffer
- * @slen:	source length
- * @digest:	digest
- * @dlen:	digest length
+ * @tfm:  signature tfm handle allocated with crypto_alloc_sig()
+ * @src:  source buffer
+ * @slen: source length
+ * @digest: digest
+ * @dlen: digest length
  *
  * Return: zero on verification success; error code in case of error.
  */
 int crypto_sig_verify(struct crypto_sig *tfm,
-		      const void *src, unsigned int slen,
-		      const void *digest, unsigned int dlen);
+    const void *src, unsigned int slen,
+    const void *digest, unsigned int dlen);
 
 /**
  * crypto_sig_set_pubkey() - Invoke set public key operation
@@ -112,15 +110,15 @@ int crypto_sig_verify(struct crypto_sig *tfm,
  * Function invokes the algorithm specific set key function, which knows
  * how to decode and interpret the encoded key and parameters
  *
- * @tfm:	tfm handle
- * @key:	BER encoded public key, algo OID, paramlen, BER encoded
- *		parameters
- * @keylen:	length of the key (not including other data)
+ * @tfm:  tfm handle
+ * @key:  BER encoded public key, algo OID, paramlen, BER encoded
+ *    parameters
+ * @keylen: length of the key (not including other data)
  *
  * Return: zero on success; error code in case of error
  */
 int crypto_sig_set_pubkey(struct crypto_sig *tfm,
-			  const void *key, unsigned int keylen);
+    const void *key, unsigned int keylen);
 
 /**
  * crypto_sig_set_privkey() - Invoke set private key operation
@@ -128,13 +126,13 @@ int crypto_sig_set_pubkey(struct crypto_sig *tfm,
  * Function invokes the algorithm specific set key function, which knows
  * how to decode and interpret the encoded key and parameters
  *
- * @tfm:	tfm handle
- * @key:	BER encoded private key, algo OID, paramlen, BER encoded
- *		parameters
- * @keylen:	length of the key (not including other data)
+ * @tfm:  tfm handle
+ * @key:  BER encoded private key, algo OID, paramlen, BER encoded
+ *    parameters
+ * @keylen: length of the key (not including other data)
  *
  * Return: zero on success; error code in case of error
  */
 int crypto_sig_set_privkey(struct crypto_sig *tfm,
-			   const void *key, unsigned int keylen);
+    const void *key, unsigned int keylen);
 #endif

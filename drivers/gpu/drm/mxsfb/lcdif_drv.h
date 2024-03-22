@@ -16,25 +16,24 @@
 struct clk;
 
 struct lcdif_drm_private {
-	void __iomem			*base;	/* registers */
-	struct clk			*clk;
-	struct clk			*clk_axi;
-	struct clk			*clk_disp_axi;
+  void __iomem *base;  /* registers */
+  struct clk *clk;
+  struct clk *clk_axi;
+  struct clk *clk_disp_axi;
 
-	unsigned int			irq;
+  unsigned int irq;
 
-	struct drm_device		*drm;
-	struct {
-		struct drm_plane	primary;
-		/* i.MXRT does support overlay planes, add them here. */
-	} planes;
-	struct drm_crtc			crtc;
+  struct drm_device *drm;
+  struct {
+    struct drm_plane primary;
+    /* i.MXRT does support overlay planes, add them here. */
+  } planes;
+  struct drm_crtc crtc;
 };
 
-static inline struct lcdif_drm_private *
-to_lcdif_drm_private(struct drm_device *drm)
-{
-	return drm->dev_private;
+static inline struct lcdif_drm_private *to_lcdif_drm_private(
+    struct drm_device *drm) {
+  return drm->dev_private;
 }
 
 int lcdif_kms_init(struct lcdif_drm_private *lcdif);

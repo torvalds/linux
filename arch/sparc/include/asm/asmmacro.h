@@ -12,14 +12,14 @@
  * c-code can be called.
  */
 #define SAVE_ALL_HEAD \
-	sethi	%hi(trap_setup), %l4; \
-	jmpl	%l4 + %lo(trap_setup), %l6;
+  sethi % hi(trap_setup), % l4; \
+  jmpl % l4 + % lo(trap_setup), % l6;
 #define SAVE_ALL \
-	SAVE_ALL_HEAD \
-	 nop;
+  SAVE_ALL_HEAD \
+  nop;
 
 /* All traps low-level code here must end with this macro. */
-#define RESTORE_ALL b ret_trap_entry; clr %l6;
+#define RESTORE_ALL b ret_trap_entry; clr % l6;
 
 /* Support for run-time patching of single instructions.
  * This is used to handle the differences in the ASI for
@@ -34,13 +34,13 @@
  * and for all other we will use the SUN variant.
  * The order is important.
  */
-#define LEON_PI(...)				\
-662:	__VA_ARGS__
+#define LEON_PI(...)        \
+  662 :  __VA_ARGS__
 
-#define SUN_PI_(...)				\
-	.section .leon_1insn_patch, "ax";	\
-	.word 662b;				\
-	__VA_ARGS__;				\
-	.previous
+#define SUN_PI_(...)        \
+  .section.leon_1insn_patch, "ax"; \
+  .word 662b;       \
+  __VA_ARGS__;        \
+  .previous
 
 #endif /* !(_SPARC_ASMMACRO_H) */

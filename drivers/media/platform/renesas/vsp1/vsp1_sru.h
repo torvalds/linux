@@ -17,20 +17,19 @@
 
 struct vsp1_device;
 
-#define SRU_PAD_SINK				0
-#define SRU_PAD_SOURCE				1
+#define SRU_PAD_SINK        0
+#define SRU_PAD_SOURCE        1
 
 struct vsp1_sru {
-	struct vsp1_entity entity;
+  struct vsp1_entity entity;
 
-	struct v4l2_ctrl_handler ctrls;
+  struct v4l2_ctrl_handler ctrls;
 
-	unsigned int intensity;
+  unsigned int intensity;
 };
 
-static inline struct vsp1_sru *to_sru(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_sru, entity.subdev);
+static inline struct vsp1_sru *to_sru(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_sru, entity.subdev);
 }
 
 struct vsp1_sru *vsp1_sru_create(struct vsp1_device *vsp1);

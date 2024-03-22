@@ -6,8 +6,8 @@
  * /proc/<pid>/oom_score_adj set to OOM_SCORE_ADJ_MIN disables oom killing for
  * pid.
  */
-#define OOM_SCORE_ADJ_MIN	(-1000)
-#define OOM_SCORE_ADJ_MAX	1000
+#define OOM_SCORE_ADJ_MIN (-1000)
+#define OOM_SCORE_ADJ_MAX 1000
 
 /*
  * /proc/<pid>/oom_adj set to -17 protects from the oom killer for legacy

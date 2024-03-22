@@ -9,31 +9,28 @@
 #include "common.h"
 #include "hardware.h"
 
-static void __init imx53_init_early(void)
-{
-	mxc_set_cpu_type(MXC_CPU_MX53);
+static void __init imx53_init_early(void) {
+  mxc_set_cpu_type(MXC_CPU_MX53);
 }
 
-static void __init imx53_dt_init(void)
-{
-	imx_src_init();
-	imx5_pmu_init();
-	imx_aips_allow_unprivileged_access("fsl,imx53-aipstz");
+static void __init imx53_dt_init(void) {
+  imx_src_init();
+  imx5_pmu_init();
+  imx_aips_allow_unprivileged_access("fsl,imx53-aipstz");
 }
 
-static void __init imx53_init_late(void)
-{
-	imx53_pm_init();
+static void __init imx53_init_late(void) {
+  imx53_pm_init();
 }
 
 static const char * const imx53_dt_board_compat[] __initconst = {
-	"fsl,imx53",
-	NULL
+  "fsl,imx53",
+  NULL
 };
 
 DT_MACHINE_START(IMX53_DT, "Freescale i.MX53 (Device Tree Support)")
-	.init_early	= imx53_init_early,
-	.init_machine	= imx53_dt_init,
-	.init_late	= imx53_init_late,
-	.dt_compat	= imx53_dt_board_compat,
+.init_early = imx53_init_early,
+.init_machine = imx53_dt_init,
+.init_late = imx53_init_late,
+.dt_compat = imx53_dt_board_compat,
 MACHINE_END

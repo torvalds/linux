@@ -11,15 +11,15 @@
  * address(es).
  */
 struct ath25_boarddata {
-	u32 magic;                   /* board data is valid */
+  u32 magic;                   /* board data is valid */
 #define ATH25_BD_MAGIC 0x35333131    /* "5311", for all 531x/231x platforms */
-	u16 cksum;                   /* checksum (starting with BD_REV 2) */
-	u16 rev;                     /* revision of this struct */
+  u16 cksum;                   /* checksum (starting with BD_REV 2) */
+  u16 rev;                     /* revision of this struct */
 #define BD_REV 4
-	char board_name[64];         /* Name of board */
-	u16 major;                   /* Board major number */
-	u16 minor;                   /* Board minor number */
-	u32 flags;                   /* Board configuration */
+  char board_name[64];         /* Name of board */
+  u16 major;                   /* Board major number */
+  u16 minor;                   /* Board minor number */
+  u32 flags;                   /* Board configuration */
 #define BD_ENET0        0x00000001   /* ENET0 is stuffed */
 #define BD_ENET1        0x00000002   /* ENET1 is stuffed */
 #define BD_UART1        0x00000004   /* UART1 is stuffed */
@@ -38,37 +38,37 @@ struct ath25_boarddata {
 #define BD_WLAN0_5G_EN  0x00008000   /* FLAG for radio0_2G */
 #define BD_WLAN1_2G_EN  0x00020000   /* FLAG for radio0_2G */
 #define BD_WLAN1_5G_EN  0x00040000   /* FLAG for radio0_2G */
-	u16 reset_config_gpio;       /* Reset factory GPIO pin */
-	u16 sys_led_gpio;            /* System LED GPIO pin */
+  u16 reset_config_gpio;       /* Reset factory GPIO pin */
+  u16 sys_led_gpio;            /* System LED GPIO pin */
 
-	u32 cpu_freq;                /* CPU core frequency in Hz */
-	u32 sys_freq;                /* System frequency in Hz */
-	u32 cnt_freq;                /* Calculated C0_COUNT frequency */
+  u32 cpu_freq;                /* CPU core frequency in Hz */
+  u32 sys_freq;                /* System frequency in Hz */
+  u32 cnt_freq;                /* Calculated C0_COUNT frequency */
 
-	u8  wlan0_mac[ETH_ALEN];
-	u8  enet0_mac[ETH_ALEN];
-	u8  enet1_mac[ETH_ALEN];
+  u8 wlan0_mac[ETH_ALEN];
+  u8 enet0_mac[ETH_ALEN];
+  u8 enet1_mac[ETH_ALEN];
 
-	u16 pci_id;                  /* Pseudo PCIID for common code */
-	u16 mem_cap;                 /* cap bank1 in MB */
+  u16 pci_id;                  /* Pseudo PCIID for common code */
+  u16 mem_cap;                 /* cap bank1 in MB */
 
-	/* version 3 */
-	u8  wlan1_mac[ETH_ALEN];     /* (ar5212) */
+  /* version 3 */
+  u8 wlan1_mac[ETH_ALEN];     /* (ar5212) */
 };
 
-#define BOARD_CONFIG_BUFSZ		0x1000
+#define BOARD_CONFIG_BUFSZ    0x1000
 
 /*
  * Platform device information for the Wireless MAC
  */
 struct ar231x_board_config {
-	u16 devid;
+  u16 devid;
 
-	/* board config data */
-	struct ath25_boarddata *config;
+  /* board config data */
+  struct ath25_boarddata *config;
 
-	/* radio calibration data */
-	const char *radio;
+  /* radio calibration data */
+  const char *radio;
 };
 
 #endif /* __ASM_MACH_ATH25_PLATFORM_H */

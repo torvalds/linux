@@ -31,6 +31,6 @@
 #include <asm/atomic64-arcv2.h>
 #endif
 
-#endif	/* !__ASSEMBLY__ */
+#endif  /* !__ASSEMBLY__ */
 
 #endif

@@ -1,23 +1,23 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
- *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
- *
- ******************************************************************************/
+*
+* Copyright(c) 2013 Realtek Corporation. All rights reserved.
+*
+******************************************************************************/
 #ifndef __HAL_BTCOEX_H__
 #define __HAL_BTCOEX_H__
 
 #include <drv_types.h>
 
-#define LPS_RPWM_WAIT_MS	300
+#define LPS_RPWM_WAIT_MS  300
 
-/*  Some variables can't get from outsrc BT-Coex, */
-/*  so we need to save here */
+/*  Some variables can't get from outsrc BT-Coex,
+ *  so we need to save here*/
 struct bt_coexist {
-	u8 bBtExist;
-	u8 btTotalAntNum;
-	u8 btChipType;
-	u8 bInitlized;
+  u8 bBtExist;
+  u8 btTotalAntNum;
+  u8 btChipType;
+  u8 bInitlized;
 };
 
 void hal_btcoex_SetBTCoexist(struct adapter *padapter, u8 bBtExist);

@@ -24,7 +24,8 @@
  *
  */
 
-/* This header intentinally does not include an #ifdef guard as it only contains includes for other headers*/
+/* This header intentinally does not include an #ifdef guard as it only contains
+ * includes for other headers*/
 
 /*
  * Standard Types

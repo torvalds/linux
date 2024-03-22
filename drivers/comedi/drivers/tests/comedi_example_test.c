@@ -23,44 +23,41 @@
 
 /* *** BEGIN fake board data *** */
 struct comedi_device {
-	const char *board_name;
-	int item;
+  const char *board_name;
+  int item;
 };
 
 static struct comedi_device dev = {
-	.board_name = "fake_device",
+  .board_name = "fake_device",
 };
 
 /* *** END fake board data *** */
 
 /* *** BEGIN fake data init *** */
-static void init_fake(void)
-{
-	dev.item = 10;
+static void init_fake(void) {
+  dev.item = 10;
 }
 
 /* *** END fake data init *** */
 
-static void test0(void)
-{
-	init_fake();
-	unittest(dev.item != 11, "negative result\n");
-	unittest(dev.item == 10, "positive result\n");
+static void test0(void) {
+  init_fake();
+  unittest(dev.item != 11, "negative result\n");
+  unittest(dev.item == 10, "positive result\n");
 }
 
 /* **** BEGIN simple module entry/exit functions **** */
-static int __init unittest_enter(void)
-{
-	static const unittest_fptr unit_tests[] = {
-		test0,
-		NULL,
-	};
-
-	exec_unittests("example", unit_tests);
-	return 0;
+static int __init unittest_enter(void) {
+  static const unittest_fptr unit_tests[] = {
+    test0,
+    NULL,
+  };
+  exec_unittests("example", unit_tests);
+  return 0;
 }
 
-static void __exit unittest_exit(void) { }
+static void __exit unittest_exit(void) {
+}
 
 module_init(unittest_enter);
 module_exit(unittest_exit);

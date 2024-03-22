@@ -2,8 +2,8 @@
 #ifndef __LINUX_STRINGHASH_H
 #define __LINUX_STRINGHASH_H
 
-#include <linux/compiler.h>	/* For __pure */
-#include <linux/types.h>	/* For u32, u64 */
+#include <linux/compiler.h> /* For __pure */
+#include <linux/types.h>  /* For u32, u64 */
 #include <linux/hash.h>
 
 /*
@@ -28,7 +28,7 @@
  *
  * unsigned long hash = init_name_hash;
  * while (*p)
- *	hash = partial_name_hash(tolower(*p++), hash);
+ *  hash = partial_name_hash(tolower(*p++), hash);
  * hash = end_name_hash(hash);
  *
  * Although this is designed for bytes, fs/hfsplus/unicode.c
@@ -36,13 +36,12 @@
  */
 
 /* Hash courtesy of the R5 hash in reiserfs modulo sign bits */
-#define init_name_hash(salt)		(unsigned long)(salt)
+#define init_name_hash(salt)    (unsigned long) (salt)
 
 /* partial hash update function. Assume roughly 4 bits per character */
-static inline unsigned long
-partial_name_hash(unsigned long c, unsigned long prevhash)
-{
-	return (prevhash + (c << 4) + (c >> 4)) * 11;
+static inline unsigned long partial_name_hash(unsigned long c,
+    unsigned long prevhash) {
+  return (prevhash + (c << 4) + (c >> 4)) * 11;
 }
 
 /*
@@ -50,9 +49,8 @@ partial_name_hash(unsigned long c, unsigned long prevhash)
  * losing bits).  This also has the property (wanted by the dcache)
  * that the msbits make a good hash table index.
  */
-static inline unsigned int end_name_hash(unsigned long hash)
-{
-	return hash_long(hash, 32);
+static inline unsigned int end_name_hash(unsigned long hash) {
+  return hash_long(hash, 32);
 }
 
 /*
@@ -63,17 +61,18 @@ static inline unsigned int end_name_hash(unsigned long hash)
  *
  * If not set, this falls back to a wrapper around the preceding.
  */
-extern unsigned int __pure full_name_hash(const void *salt, const char *, unsigned int);
+extern unsigned int __pure full_name_hash(const void *salt, const char *,
+    unsigned int);
 
 /*
  * A hash_len is a u64 with the hash of a string in the low
  * half and the length in the high half.
  */
-#define hashlen_hash(hashlen) ((u32)(hashlen))
-#define hashlen_len(hashlen)  ((u32)((hashlen) >> 32))
-#define hashlen_create(hash, len) ((u64)(len)<<32 | (u32)(hash))
+#define hashlen_hash(hashlen) ((u32) (hashlen))
+#define hashlen_len(hashlen)  ((u32) ((hashlen) >> 32))
+#define hashlen_create(hash, len) ((u64) (len) << 32 | (u32) (hash))
 
 /* Return the "hash_len" (hash and length) of a null-terminated string */
 extern u64 __pure hashlen_string(const void *salt, const char *name);
 
-#endif	/* __LINUX_STRINGHASH_H */
+#endif  /* __LINUX_STRINGHASH_H */

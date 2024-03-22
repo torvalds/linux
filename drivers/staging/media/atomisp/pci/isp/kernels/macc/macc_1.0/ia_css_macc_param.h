@@ -20,7 +20,7 @@
 
 /* MACC */
 struct sh_css_isp_macc_params {
-	s32 exp;
+  s32 exp;
 };
 
 #endif /* __IA_CSS_MACC_PARAM_H */

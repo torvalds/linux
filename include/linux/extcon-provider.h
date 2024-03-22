@@ -20,15 +20,15 @@ struct extcon_dev;
 int extcon_dev_register(struct extcon_dev *edev);
 void extcon_dev_unregister(struct extcon_dev *edev);
 int devm_extcon_dev_register(struct device *dev,
-				struct extcon_dev *edev);
+    struct extcon_dev *edev);
 void devm_extcon_dev_unregister(struct device *dev,
-				struct extcon_dev *edev);
+    struct extcon_dev *edev);
 
 /* Following APIs allocate/free the memory of the extcon device. */
 struct extcon_dev *extcon_dev_allocate(const unsigned int *cable);
 void extcon_dev_free(struct extcon_dev *edev);
 struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-				const unsigned int *cable);
+    const unsigned int *cable);
 void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /* Synchronize the state and property value for each external connector. */
@@ -39,9 +39,9 @@ int extcon_sync(struct extcon_dev *edev, unsigned int id);
  * The 'id' argument indicates the defined external connector.
  */
 int extcon_set_state(struct extcon_dev *edev, unsigned int id,
-				bool state);
+    bool state);
 int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
-				bool state);
+    bool state);
 
 /*
  * Following APIs set the property of each external connector.
@@ -53,82 +53,78 @@ int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
  * property of each external connector based on the id and property.
  */
 int extcon_set_property(struct extcon_dev *edev, unsigned int id,
-				unsigned int prop,
-				union extcon_property_value prop_val);
+    unsigned int prop,
+    union extcon_property_value prop_val);
 int extcon_set_property_sync(struct extcon_dev *edev, unsigned int id,
-				unsigned int prop,
-				union extcon_property_value prop_val);
+    unsigned int prop,
+    union extcon_property_value prop_val);
 int extcon_set_property_capability(struct extcon_dev *edev,
-				unsigned int id, unsigned int prop);
+    unsigned int id, unsigned int prop);
 
 #else /* CONFIG_EXTCON */
-static inline int extcon_dev_register(struct extcon_dev *edev)
-{
-	return 0;
+static inline int extcon_dev_register(struct extcon_dev *edev) {
+  return 0;
 }
 
-static inline void extcon_dev_unregister(struct extcon_dev *edev) { }
+static inline void extcon_dev_unregister(struct extcon_dev *edev) {
+}
 
 static inline int devm_extcon_dev_register(struct device *dev,
-				struct extcon_dev *edev)
-{
-	return -EINVAL;
+    struct extcon_dev *edev) {
+  return -EINVAL;
 }
 
 static inline void devm_extcon_dev_unregister(struct device *dev,
-				struct extcon_dev *edev) { }
+    struct extcon_dev *edev) {
+}
 
 static inline struct extcon_dev *extcon_dev_allocate(const unsigned int *cable)
 {
-	return ERR_PTR(-ENOSYS);
+  return ERR_PTR(-ENOSYS);
 }
 
-static inline void extcon_dev_free(struct extcon_dev *edev) { }
+static inline void extcon_dev_free(struct extcon_dev *edev) {
+}
 
 static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-				const unsigned int *cable)
-{
-	return ERR_PTR(-ENOSYS);
+    const unsigned int *cable) {
+  return ERR_PTR(-ENOSYS);
 }
 
-static inline void devm_extcon_dev_free(struct extcon_dev *edev) { }
-
+static inline void devm_extcon_dev_free(struct extcon_dev *edev) {
+}
 
 static inline int extcon_set_state(struct extcon_dev *edev, unsigned int id,
-				bool state)
-{
-	return 0;
+    bool state) {
+  return 0;
 }
 
-static inline int extcon_set_state_sync(struct extcon_dev *edev, unsigned int id,
-				bool state)
-{
-	return 0;
+static inline int extcon_set_state_sync(struct extcon_dev *edev,
+    unsigned int id,
+    bool state) {
+  return 0;
 }
 
-static inline int extcon_sync(struct extcon_dev *edev, unsigned int id)
-{
-	return 0;
+static inline int extcon_sync(struct extcon_dev *edev, unsigned int id) {
+  return 0;
 }
 
 static inline int extcon_set_property(struct extcon_dev *edev, unsigned int id,
-				unsigned int prop,
-				union extcon_property_value prop_val)
-{
-	return 0;
+    unsigned int prop,
+    union extcon_property_value prop_val) {
+  return 0;
 }
 
 static inline int extcon_set_property_sync(struct extcon_dev *edev,
-				unsigned int id, unsigned int prop,
-				union extcon_property_value prop_val)
-{
-	return 0;
+    unsigned int id, unsigned int prop,
+    union extcon_property_value prop_val) {
+  return 0;
 }
 
 static inline int extcon_set_property_capability(struct extcon_dev *edev,
-				unsigned int id, unsigned int prop)
-{
-	return 0;
+    unsigned int id, unsigned int prop) {
+  return 0;
 }
+
 #endif /* CONFIG_EXTCON */
 #endif /* __LINUX_EXTCON_PROVIDER_H__ */

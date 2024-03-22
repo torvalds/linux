@@ -32,81 +32,87 @@
  * or else it might break Edid Utility functionality.
  */
 
-
 /* Input parameters for configuring DSC from the outside of DSC */
 struct dsc_config {
-	uint32_t pic_width;
-	uint32_t pic_height;
-	enum dc_pixel_encoding pixel_encoding;
-	enum dc_color_depth color_depth;  /* Bits per component */
-	bool is_odm;
-	struct dc_dsc_config dc_dsc_cfg;
+  uint32_t pic_width;
+  uint32_t pic_height;
+  enum dc_pixel_encoding pixel_encoding;
+  enum dc_color_depth color_depth;  /* Bits per component */
+  bool is_odm;
+  struct dc_dsc_config dc_dsc_cfg;
 };
-
 
 /* Output parameters for configuring DSC-related part of OPTC */
 struct dsc_optc_config {
-	uint32_t slice_width; /* Slice width in pixels */
-	uint32_t bytes_per_pixel; /* Bytes per pixel in u3.28 format */
-	bool is_pixel_format_444; /* 'true' if pixel format is 'RGB 444' or 'Simple YCbCr 4:2:2' (4:2:2 upsampled to 4:4:4)' */
+  uint32_t slice_width; /* Slice width in pixels */
+  uint32_t bytes_per_pixel; /* Bytes per pixel in u3.28 format */
+  bool is_pixel_format_444; /* 'true' if pixel format is 'RGB 444' or 'Simple
+                             * YCbCr 4:2:2' (4:2:2 upsampled to 4:4:4)' */
 };
-
 
 struct dcn_dsc_state {
-	uint32_t dsc_clock_en;
-	uint32_t dsc_slice_width;
-	uint32_t dsc_bits_per_pixel;
-	uint32_t dsc_slice_height;
-	uint32_t dsc_pic_width;
-	uint32_t dsc_pic_height;
-	uint32_t dsc_slice_bpg_offset;
-	uint32_t dsc_chunk_size;
-	uint32_t dsc_fw_en;
-	uint32_t dsc_opp_source;
+  uint32_t dsc_clock_en;
+  uint32_t dsc_slice_width;
+  uint32_t dsc_bits_per_pixel;
+  uint32_t dsc_slice_height;
+  uint32_t dsc_pic_width;
+  uint32_t dsc_pic_height;
+  uint32_t dsc_slice_bpg_offset;
+  uint32_t dsc_chunk_size;
+  uint32_t dsc_fw_en;
+  uint32_t dsc_opp_source;
 };
 
-
 /* DSC encoder capabilities
- * They differ from the DPCD DSC caps because they are based on AMD DSC encoder caps.
+ * They differ from the DPCD DSC caps because they are based on AMD DSC encoder
+ *caps.
  */
 union dsc_enc_slice_caps {
-	struct {
-		uint8_t NUM_SLICES_1 : 1;
-		uint8_t NUM_SLICES_2 : 1;
-		uint8_t NUM_SLICES_3 : 1; /* This one is not per DSC spec, but our encoder supports it */
-		uint8_t NUM_SLICES_4 : 1;
-		uint8_t NUM_SLICES_8 : 1;
-		uint8_t NUM_SLICES_12 : 1;
-		uint8_t NUM_SLICES_16 : 1;
-	} bits;
-	uint8_t raw;
+  struct {
+    uint8_t NUM_SLICES_1 : 1;
+    uint8_t NUM_SLICES_2 : 1;
+    uint8_t NUM_SLICES_3 : 1; /* This one is not per DSC spec, but our encoder
+                               * supports it */
+    uint8_t NUM_SLICES_4 : 1;
+    uint8_t NUM_SLICES_8 : 1;
+    uint8_t NUM_SLICES_12 : 1;
+    uint8_t NUM_SLICES_16 : 1;
+  } bits;
+  uint8_t raw;
 };
 
 struct dsc_enc_caps {
-	uint8_t dsc_version;
-	union dsc_enc_slice_caps slice_caps;
-	int32_t lb_bit_depth;
-	bool is_block_pred_supported;
-	union dsc_color_formats color_formats;
-	union dsc_color_depth color_depth;
-	int32_t max_total_throughput_mps; /* Maximum total throughput with all the slices combined */
-	int32_t max_slice_width;
-	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
-	uint32_t edp_sink_max_bits_per_pixel;
-	bool is_dp;
+  uint8_t dsc_version;
+  union dsc_enc_slice_caps slice_caps;
+  int32_t lb_bit_depth;
+  bool is_block_pred_supported;
+  union dsc_color_formats color_formats;
+  union dsc_color_depth color_depth;
+  int32_t max_total_throughput_mps; /* Maximum total throughput with all the
+                                     * slices combined */
+  int32_t max_slice_width;
+  uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th
+                               * of a bit */
+  uint32_t edp_sink_max_bits_per_pixel;
+  bool is_dp;
 };
 
 struct dsc_funcs {
-	void (*dsc_get_enc_caps)(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
-	void (*dsc_read_state)(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
-	bool (*dsc_validate_stream)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
-	void (*dsc_set_config)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
-			struct dsc_optc_config *dsc_optc_cfg);
-	bool (*dsc_get_packed_pps)(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
-			uint8_t *dsc_packed_pps);
-	void (*dsc_enable)(struct display_stream_compressor *dsc, int opp_pipe);
-	void (*dsc_disable)(struct display_stream_compressor *dsc);
-	void (*dsc_disconnect)(struct display_stream_compressor *dsc);
+  void (*dsc_get_enc_caps)(struct dsc_enc_caps *dsc_enc_caps,
+      int pixel_clock_100Hz);
+  void (*dsc_read_state)(struct display_stream_compressor *dsc,
+      struct dcn_dsc_state *s);
+  bool (*dsc_validate_stream)(struct display_stream_compressor *dsc,
+      const struct dsc_config *dsc_cfg);
+  void (*dsc_set_config)(struct display_stream_compressor *dsc,
+      const struct dsc_config *dsc_cfg,
+      struct dsc_optc_config *dsc_optc_cfg);
+  bool (*dsc_get_packed_pps)(struct display_stream_compressor *dsc,
+      const struct dsc_config *dsc_cfg,
+      uint8_t *dsc_packed_pps);
+  void (*dsc_enable)(struct display_stream_compressor *dsc, int opp_pipe);
+  void (*dsc_disable)(struct display_stream_compressor *dsc);
+  void (*dsc_disconnect)(struct display_stream_compressor *dsc);
 };
 
 #endif

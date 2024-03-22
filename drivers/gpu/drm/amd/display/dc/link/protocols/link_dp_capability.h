@@ -35,13 +35,13 @@ void detect_edp_sink_caps(struct dc_link *link);
 struct dc_link_settings dp_get_max_link_cap(struct dc_link *link);
 
 bool dp_get_max_link_enc_cap(const struct dc_link *link,
-		struct dc_link_settings *max_link_enc_cap);
+    struct dc_link_settings *max_link_enc_cap);
 
 const struct dc_link_settings *dp_get_verified_link_cap(
-		const struct dc_link *link);
+  const struct dc_link *link);
 
 enum dp_link_encoding link_dp_get_encoding_format(
-		const struct dc_link_settings *link_settings);
+  const struct dc_link_settings *link_settings);
 
 enum dc_status dp_retrieve_lttpr_cap(struct dc_link *link);
 
@@ -66,23 +66,24 @@ bool dp_is_128b_132b_signal(struct pipe_ctx *pipe_ctx);
 
 /* Initialize output parameter lt_settings. */
 void dp_decide_training_settings(
-	struct dc_link *link,
-	const struct dc_link_settings *link_setting,
-	struct link_training_settings *lt_settings);
+  struct dc_link *link,
+  const struct dc_link_settings *link_setting,
+  struct link_training_settings *lt_settings);
 
 bool link_decide_link_settings(
-	struct dc_stream_state *stream,
-	struct dc_link_settings *link_setting);
+  struct dc_stream_state *stream,
+  struct dc_link_settings *link_setting);
 
 bool edp_decide_link_settings(struct dc_link *link,
-		struct dc_link_settings *link_setting, uint32_t req_bw);
+    struct dc_link_settings *link_setting, uint32_t req_bw);
 
 bool decide_edp_link_settings_with_dsc(struct dc_link *link,
-		struct dc_link_settings *link_setting,
-		uint32_t req_bw,
-		enum dc_link_rate max_link_rate);
+    struct dc_link_settings *link_setting,
+    uint32_t req_bw,
+    enum dc_link_rate max_link_rate);
 
-enum dp_link_encoding mst_decide_link_encoding_format(const struct dc_link *link);
+enum dp_link_encoding mst_decide_link_encoding_format(
+  const struct dc_link *link);
 
 void dpcd_set_source_specific_data(struct dc_link *link);
 
@@ -90,15 +91,15 @@ void dpcd_set_source_specific_data(struct dc_link *link);
 bool read_is_mst_supported(struct dc_link *link);
 
 bool decide_fallback_link_setting(
-		struct dc_link *link,
-		struct dc_link_settings *max,
-		struct dc_link_settings *cur,
-		enum link_training_result training_result);
+  struct dc_link *link,
+  struct dc_link_settings *max,
+  struct dc_link_settings *cur,
+  enum link_training_result training_result);
 
 bool dp_verify_link_cap_with_retries(
-	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting,
-	int attempts);
+  struct dc_link *link,
+  struct dc_link_settings *known_limit_link_setting,
+  int attempts);
 
 uint32_t link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 

@@ -14,7 +14,6 @@
 #ifndef __ASM_OPENRISC_PTRACE_H
 #define __ASM_OPENRISC_PTRACE_H
 
-
 #include <asm/spr_defs.h>
 #include <uapi/asm/ptrace.h>
 
@@ -37,43 +36,42 @@
  */
 
 struct pt_regs {
-	union {
-		struct {
-			/* Named registers */
-			long  sr;	/* Stored in place of r0 */
-			long  sp;	/* r1 */
-		};
-		struct {
-			/* Old style */
-			long offset[2];
-			long gprs[30];
-		};
-		struct {
-			/* New style */
-			long gpr[32];
-		};
-	};
-	long  pc;
-	/* For restarting system calls:
-	 * Set to syscall number for syscall exceptions,
-	 * -1 for all other exceptions.
-	 */
-	long  orig_gpr11;	/* For restarting system calls */
-	long fpcsr;		/* Floating point control status register. */
-	long dummy2;		/* Cheap alignment fix */
+  union {
+    struct {
+      /* Named registers */
+      long sr; /* Stored in place of r0 */
+      long sp; /* r1 */
+    };
+    struct {
+      /* Old style */
+      long offset[2];
+      long gprs[30];
+    };
+    struct {
+      /* New style */
+      long gpr[32];
+    };
+  };
+  long pc;
+  /* For restarting system calls:
+   * Set to syscall number for syscall exceptions,
+   * -1 for all other exceptions.
+   */
+  long orig_gpr11; /* For restarting system calls */
+  long fpcsr;   /* Floating point control status register. */
+  long dummy2;    /* Cheap alignment fix */
 };
 
 /* TODO: Rename this to REDZONE because that's what it is */
 #define STACK_FRAME_OVERHEAD  128  /* size of minimum stack frame */
 
-#define instruction_pointer(regs)	((regs)->pc)
-#define user_mode(regs)			(((regs)->sr & SPR_SR_SM) == 0)
-#define user_stack_pointer(regs)	((unsigned long)(regs)->sp)
-#define profile_pc(regs)		instruction_pointer(regs)
+#define instruction_pointer(regs) ((regs)->pc)
+#define user_mode(regs)     (((regs)->sr & SPR_SR_SM) == 0)
+#define user_stack_pointer(regs)  ((unsigned long) (regs)->sp)
+#define profile_pc(regs)    instruction_pointer(regs)
 
-static inline long regs_return_value(struct pt_regs *regs)
-{
-	return regs->gpr[11];
+static inline long regs_return_value(struct pt_regs *regs) {
+  return regs->gpr[11];
 }
 
 #endif /* __ASSEMBLY__ */
@@ -113,7 +111,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 #define PT_GPR29      116
 #define PT_GPR30      120
 #define PT_GPR31      124
-#define PT_PC	      128
+#define PT_PC       128
 #define PT_ORIG_GPR11 132
 #define PT_FPCSR      136
 

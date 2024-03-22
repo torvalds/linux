@@ -11,19 +11,18 @@
 #include <linux/io.h>
 
 enum davinci_matrix_types {
-	DAVINCI_KEYSCAN_MATRIX_4X4,
-	DAVINCI_KEYSCAN_MATRIX_5X3,
+  DAVINCI_KEYSCAN_MATRIX_4X4,
+  DAVINCI_KEYSCAN_MATRIX_5X3,
 };
 
 struct davinci_ks_platform_data {
-	int		(*device_enable)(struct device *dev);
-	unsigned short	*keymap;
-	u32		keymapsize;
-	u8		rep:1;
-	u8		strobe;
-	u8		interval;
-	u8		matrix_type;
+  int (*device_enable)(struct device *dev);
+  unsigned short *keymap;
+  u32 keymapsize;
+  u8 rep : 1;
+  u8 strobe;
+  u8 interval;
+  u8 matrix_type;
 };
 
 #endif
-

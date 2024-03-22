@@ -55,48 +55,48 @@
 #define STATION_DISCONNECT_MESSAGE           3
 
 int plfxlc_usb_wreq(struct usb_interface *ez_usb, void *buffer, int buffer_len,
-		    enum plf_usb_req_enum usb_req_id);
+    enum plf_usb_req_enum usb_req_id);
 void plfxlc_tx_urb_complete(struct urb *urb);
 
 enum {
-	USB_MAX_RX_SIZE       = 4800,
-	USB_MAX_EP_INT_BUFFER = 64,
+  USB_MAX_RX_SIZE = 4800,
+  USB_MAX_EP_INT_BUFFER = 64,
 };
 
 struct plfxlc_usb_interrupt {
-	spinlock_t lock; /* spin lock for usb interrupt buffer */
-	struct urb *urb;
-	void *buffer;
-	int interval;
+  spinlock_t lock; /* spin lock for usb interrupt buffer */
+  struct urb *urb;
+  void *buffer;
+  int interval;
 };
 
 #define RX_URBS_COUNT 5
 
 struct plfxlc_usb_rx {
-	spinlock_t lock; /* spin lock for rx urb */
-	struct mutex setup_mutex; /* mutex lockt for rx urb */
-	u8 fragment[2 * USB_MAX_RX_SIZE];
-	unsigned int fragment_length;
-	unsigned int usb_packet_size;
-	struct urb **urbs;
-	int urbs_count;
+  spinlock_t lock; /* spin lock for rx urb */
+  struct mutex setup_mutex; /* mutex lockt for rx urb */
+  u8 fragment[2 * USB_MAX_RX_SIZE];
+  unsigned int fragment_length;
+  unsigned int usb_packet_size;
+  struct urb **urbs;
+  int urbs_count;
 };
 
 struct plf_station {
-   /*  7...3    |    2      |     1     |     0	    |
-    * Reserved  | Heartbeat | FIFO full | Connected |
-    */
-	unsigned char flag;
-	unsigned char mac[ETH_ALEN];
-	struct sk_buff_head data_list;
+  /*  7...3    |    2      |     1     |     0      |
+   * Reserved  | Heartbeat | FIFO full | Connected |
+   */
+  unsigned char flag;
+  unsigned char mac[ETH_ALEN];
+  struct sk_buff_head data_list;
 };
 
 struct plfxlc_firmware_file {
-	u32 total_files;
-	u32 total_size;
-	u32 size;
-	u32 start_addr;
-	u32 control_packets;
+  u32 total_files;
+  u32 total_size;
+  u32 size;
+  u32 start_addr;
+  u32 control_packets;
 } __packed;
 
 #define STATION_CONNECTED_FLAG 0x1
@@ -109,74 +109,69 @@ struct plfxlc_firmware_file {
 #define MAX_STA_NUM         (AP_USER_LIMIT + 1)
 
 struct plfxlc_usb_tx {
-	unsigned long enabled;
-	spinlock_t lock; /* spinlock for USB tx */
-	u8 mac_fifo_full;
-	struct sk_buff_head submitted_skbs;
-	struct usb_anchor submitted;
-	int submitted_urbs;
-	bool stopped;
-	struct timer_list tx_retry_timer;
-	struct plf_station station[MAX_STA_NUM];
+  unsigned long enabled;
+  spinlock_t lock; /* spinlock for USB tx */
+  u8 mac_fifo_full;
+  struct sk_buff_head submitted_skbs;
+  struct usb_anchor submitted;
+  int submitted_urbs;
+  bool stopped;
+  struct timer_list tx_retry_timer;
+  struct plf_station station[MAX_STA_NUM];
 };
 
 /* Contains the usb parts. The structure doesn't require a lock because intf
  * will not be changed after initialization.
  */
 struct plfxlc_usb {
-	struct timer_list sta_queue_cleanup;
-	struct plfxlc_usb_rx rx;
-	struct plfxlc_usb_tx tx;
-	struct usb_interface *intf;
-	struct usb_interface *ez_usb;
-	u8 req_buf[64]; /* plfxlc_usb_iowrite16v needs 62 bytes */
-	u8 sidx; /* store last served */
-	bool rx_usb_enabled;
-	bool initialized;
-	bool was_running;
-	bool link_up;
+  struct timer_list sta_queue_cleanup;
+  struct plfxlc_usb_rx rx;
+  struct plfxlc_usb_tx tx;
+  struct usb_interface *intf;
+  struct usb_interface *ez_usb;
+  u8 req_buf[64]; /* plfxlc_usb_iowrite16v needs 62 bytes */
+  u8 sidx; /* store last served */
+  bool rx_usb_enabled;
+  bool initialized;
+  bool was_running;
+  bool link_up;
 };
 
 enum endpoints {
-	EP_DATA_IN  = 2,
-	EP_DATA_OUT = 8,
+  EP_DATA_IN = 2,
+  EP_DATA_OUT = 8,
 };
 
 enum devicetype {
-	DEVICE_LIFI_X  = 0,
-	DEVICE_LIFI_XC  = 1,
-	DEVICE_LIFI_XL  = 1,
+  DEVICE_LIFI_X = 0,
+  DEVICE_LIFI_XC = 1,
+  DEVICE_LIFI_XL = 1,
 };
 
 enum {
-	PLF_BIT_ENABLED = 1,
-	PLF_BIT_MAX = 2,
+  PLF_BIT_ENABLED = 1,
+  PLF_BIT_MAX = 2,
 };
 
 int plfxlc_usb_wreq_async(struct plfxlc_usb *usb, const u8 *buffer,
-			  int buffer_len, enum plf_usb_req_enum usb_req_id,
-			  usb_complete_t complete_fn, void *context);
+    int buffer_len, enum plf_usb_req_enum usb_req_id,
+    usb_complete_t complete_fn, void *context);
 
-static inline struct usb_device *
-plfxlc_usb_to_usbdev(struct plfxlc_usb *usb)
-{
-	return interface_to_usbdev(usb->intf);
+static inline struct usb_device *plfxlc_usb_to_usbdev(struct plfxlc_usb *usb) {
+  return interface_to_usbdev(usb->intf);
 }
 
-static inline struct ieee80211_hw *
-plfxlc_intf_to_hw(struct usb_interface *intf)
+static inline struct ieee80211_hw *plfxlc_intf_to_hw(struct usb_interface *intf)
 {
-	return usb_get_intfdata(intf);
+  return usb_get_intfdata(intf);
 }
 
-static inline struct ieee80211_hw *
-plfxlc_usb_to_hw(struct plfxlc_usb *usb)
-{
-	return plfxlc_intf_to_hw(usb->intf);
+static inline struct ieee80211_hw *plfxlc_usb_to_hw(struct plfxlc_usb *usb) {
+  return plfxlc_intf_to_hw(usb->intf);
 }
 
 void plfxlc_usb_init(struct plfxlc_usb *usb, struct ieee80211_hw *hw,
-		     struct usb_interface *intf);
+    struct usb_interface *intf);
 void plfxlc_send_packet_from_data_queue(struct plfxlc_usb *usb);
 void plfxlc_usb_release(struct plfxlc_usb *usb);
 void plfxlc_usb_disable_rx(struct plfxlc_usb *usb);
@@ -192,7 +187,7 @@ int plfxlc_download_xl_firmware(struct usb_interface *intf);
 int plfxlc_download_fpga(struct usb_interface *intf);
 
 int plfxlc_upload_mac_and_serial(struct usb_interface *intf,
-				 unsigned char *hw_address,
-				 unsigned char *serial_number);
+    unsigned char *hw_address,
+    unsigned char *serial_number);
 
 #endif /* PLFXLC_USB_H */

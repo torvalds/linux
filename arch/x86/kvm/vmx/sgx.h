@@ -19,16 +19,20 @@ void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12);
 #else
 #define enable_sgx 0
 
-static inline void setup_default_sgx_lepubkeyhash(void) { }
-static inline void vcpu_setup_sgx_lepubkeyhash(struct kvm_vcpu *vcpu) { }
+static inline void setup_default_sgx_lepubkeyhash(void) {
+}
+
+static inline void vcpu_setup_sgx_lepubkeyhash(struct kvm_vcpu *vcpu) {
+}
 
 static inline void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu,
-					  struct vmcs12 *vmcs12)
-{
-	/* Nothing to do if hardware doesn't support SGX */
-	if (cpu_has_vmx_encls_vmexit())
-		vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
+    struct vmcs12 *vmcs12) {
+  /* Nothing to do if hardware doesn't support SGX */
+  if (cpu_has_vmx_encls_vmexit()) {
+    vmcs_write64(ENCLS_EXITING_BITMAP, -1ull);
+  }
 }
+
 #endif
 
 #endif /* __KVM_X86_SGX_H */

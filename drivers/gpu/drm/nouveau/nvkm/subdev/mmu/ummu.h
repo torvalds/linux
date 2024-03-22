@@ -5,10 +5,10 @@
 #include "priv.h"
 
 struct nvkm_ummu {
-	struct nvkm_object object;
-	struct nvkm_mmu *mmu;
+  struct nvkm_object object;
+  struct nvkm_mmu *mmu;
 };
 
 int nvkm_ummu_new(struct nvkm_device *, const struct nvkm_oclass *,
-		  void *argv, u32 argc, struct nvkm_object **);
+    void *argv, u32 argc, struct nvkm_object **);
 #endif

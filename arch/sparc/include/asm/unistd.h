@@ -17,11 +17,11 @@
 
 #include <uapi/asm/unistd.h>
 
-#define NR_syscalls	__NR_syscalls
+#define NR_syscalls __NR_syscalls
 
 #ifdef __32bit_syscall_numbers__
 #else
-#define __NR_time		231 /* Linux sparc32                               */
+#define __NR_time   231 /* Linux sparc32                               */
 #endif
 #define __ARCH_WANT_NEW_STAT
 #define __ARCH_WANT_OLD_READDIR

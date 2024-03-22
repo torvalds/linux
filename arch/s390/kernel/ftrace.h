@@ -5,11 +5,11 @@
 #include <asm/types.h>
 
 struct ftrace_hotpatch_trampoline {
-	u16 brasl_opc;
-	s32 brasl_disp;
-	s16: 16;
-	u64 rest_of_intercepted_function;
-	u64 interceptor;
+  u16 brasl_opc;
+  s32 brasl_disp;
+  s16 : 16;
+  u64 rest_of_intercepted_function;
+  u64 interceptor;
 } __packed;
 
 extern struct ftrace_hotpatch_trampoline __ftrace_hotpatch_trampolines_start[];

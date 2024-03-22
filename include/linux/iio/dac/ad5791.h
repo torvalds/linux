@@ -10,15 +10,15 @@
 
 /**
  * struct ad5791_platform_data - platform specific information
- * @vref_pos_mv:	Vdd Positive Analog Supply Volatge (mV)
- * @vref_neg_mv:	Vdd Negative Analog Supply Volatge (mV)
- * @use_rbuf_gain2:	ext. amplifier connected in gain of two configuration
+ * @vref_pos_mv:  Vdd Positive Analog Supply Volatge (mV)
+ * @vref_neg_mv:  Vdd Negative Analog Supply Volatge (mV)
+ * @use_rbuf_gain2: ext. amplifier connected in gain of two configuration
  */
 
 struct ad5791_platform_data {
-	u16				vref_pos_mv;
-	u16				vref_neg_mv;
-	bool				use_rbuf_gain2;
+  u16 vref_pos_mv;
+  u16 vref_neg_mv;
+  bool use_rbuf_gain2;
 };
 
 #endif /* SPI_AD5791_H_ */

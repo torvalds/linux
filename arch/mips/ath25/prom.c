@@ -17,6 +17,5 @@
 #include <linux/init.h>
 #include <asm/bootinfo.h>
 
-void __init prom_init(void)
-{
+void __init prom_init(void) {
 }

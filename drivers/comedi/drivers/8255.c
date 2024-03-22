@@ -44,78 +44,71 @@
 #include <linux/comedi/comedi_8255.h>
 
 static int dev_8255_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	unsigned long iobase;
-	int ret;
-	int i;
-
-	for (i = 0; i < COMEDI_NDEVCONFOPTS; i++) {
-		iobase = it->options[i];
-		if (!iobase)
-			break;
-	}
-	if (i == 0) {
-		dev_warn(dev->class_dev, "no devices specified\n");
-		return -EINVAL;
-	}
-
-	ret = comedi_alloc_subdevices(dev, i);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < dev->n_subdevices; i++) {
-		s = &dev->subdevices[i];
-		iobase = it->options[i];
-
-		/*
-		 * __comedi_request_region() does not set dev->iobase.
-		 *
-		 * For 8255 devices that are manually attached using
-		 * comedi_config, the 'iobase' is the actual I/O port
-		 * base address of the chip.
-		 */
-		ret = __comedi_request_region(dev, iobase, I8255_SIZE);
-		if (ret) {
-			s->type = COMEDI_SUBD_UNUSED;
-		} else {
-			ret = subdev_8255_io_init(dev, s, iobase);
-			if (ret) {
-				/*
-				 * Release the I/O port region here, as the
-				 * "detach" handler cannot find it.
-				 */
-				release_region(iobase, I8255_SIZE);
-				s->type = COMEDI_SUBD_UNUSED;
-				return ret;
-			}
-		}
-	}
-
-	return 0;
+    struct comedi_devconfig *it) {
+  struct comedi_subdevice *s;
+  unsigned long iobase;
+  int ret;
+  int i;
+  for (i = 0; i < COMEDI_NDEVCONFOPTS; i++) {
+    iobase = it->options[i];
+    if (!iobase) {
+      break;
+    }
+  }
+  if (i == 0) {
+    dev_warn(dev->class_dev, "no devices specified\n");
+    return -EINVAL;
+  }
+  ret = comedi_alloc_subdevices(dev, i);
+  if (ret) {
+    return ret;
+  }
+  for (i = 0; i < dev->n_subdevices; i++) {
+    s = &dev->subdevices[i];
+    iobase = it->options[i];
+    /*
+     * __comedi_request_region() does not set dev->iobase.
+     *
+     * For 8255 devices that are manually attached using
+     * comedi_config, the 'iobase' is the actual I/O port
+     * base address of the chip.
+     */
+    ret = __comedi_request_region(dev, iobase, I8255_SIZE);
+    if (ret) {
+      s->type = COMEDI_SUBD_UNUSED;
+    } else {
+      ret = subdev_8255_io_init(dev, s, iobase);
+      if (ret) {
+        /*
+         * Release the I/O port region here, as the
+         * "detach" handler cannot find it.
+         */
+        release_region(iobase, I8255_SIZE);
+        s->type = COMEDI_SUBD_UNUSED;
+        return ret;
+      }
+    }
+  }
+  return 0;
 }
 
-static void dev_8255_detach(struct comedi_device *dev)
-{
-	struct comedi_subdevice *s;
-	int i;
-
-	for (i = 0; i < dev->n_subdevices; i++) {
-		s = &dev->subdevices[i];
-		if (s->type != COMEDI_SUBD_UNUSED) {
-			unsigned long regbase = subdev_8255_regbase(s);
-
-			release_region(regbase, I8255_SIZE);
-		}
-	}
+static void dev_8255_detach(struct comedi_device *dev) {
+  struct comedi_subdevice *s;
+  int i;
+  for (i = 0; i < dev->n_subdevices; i++) {
+    s = &dev->subdevices[i];
+    if (s->type != COMEDI_SUBD_UNUSED) {
+      unsigned long regbase = subdev_8255_regbase(s);
+      release_region(regbase, I8255_SIZE);
+    }
+  }
 }
 
 static struct comedi_driver dev_8255_driver = {
-	.driver_name	= "8255",
-	.module		= THIS_MODULE,
-	.attach		= dev_8255_attach,
-	.detach		= dev_8255_detach,
+  .driver_name = "8255",
+  .module = THIS_MODULE,
+  .attach = dev_8255_attach,
+  .detach = dev_8255_detach,
 };
 module_comedi_driver(dev_8255_driver);
 

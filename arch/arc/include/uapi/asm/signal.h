@@ -21,7 +21,7 @@
  * -TLB Flush (after making the stack page executable)
  * -Cache line Flush (to make I/D Cache lines coherent)
  */
-#define SA_RESTORER	0x04000000
+#define SA_RESTORER 0x04000000
 
 #include <asm-generic/signal.h>
 

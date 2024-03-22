@@ -36,4 +36,4 @@
 #define __print_ns_without_secs(val) (val) % 1000000000UL
 
 #undef TP_printk
-#define TP_printk(fmt, args...) "\"" fmt "\", "  __stringify(args)
+#define TP_printk(fmt, args ...) "\"" fmt "\", "  __stringify(args)

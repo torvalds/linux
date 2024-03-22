@@ -8,9 +8,9 @@
 #ifndef _DT_BINDINGS_BUS_MOXTET_H
 #define _DT_BINDINGS_BUS_MOXTET_H
 
-#define MOXTET_IRQ_PCI		0
-#define MOXTET_IRQ_USB3		4
-#define MOXTET_IRQ_PERIDOT(n)	(8 + (n))
-#define MOXTET_IRQ_TOPAZ	12
+#define MOXTET_IRQ_PCI    0
+#define MOXTET_IRQ_USB3   4
+#define MOXTET_IRQ_PERIDOT(n) (8 + (n))
+#define MOXTET_IRQ_TOPAZ  12
 
 #endif /* _DT_BINDINGS_BUS_MOXTET_H */

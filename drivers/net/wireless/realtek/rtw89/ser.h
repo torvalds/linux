@@ -12,4 +12,3 @@ int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err);
 void rtw89_ser_recfg_done(struct rtw89_dev *rtwdev);
 
 #endif /* __SER_H__*/
-

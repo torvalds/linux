@@ -48,14 +48,14 @@ void __init kmsan_init_runtime(void);
 
 /**
  * kmsan_memblock_free_pages() - handle freeing of memblock pages.
- * @page:	struct page to free.
- * @order:	order of @page.
+ * @page: struct page to free.
+ * @order:  order of @page.
  *
  * Freed pages are either returned to buddy allocator or held back to be used
  * as metadata pages.
  */
 bool __init __must_check kmsan_memblock_free_pages(struct page *page,
-						   unsigned int order);
+    unsigned int order);
 
 /**
  * kmsan_alloc_page() - Notify KMSAN about an alloc_pages() call.
@@ -128,21 +128,21 @@ void kmsan_kfree_large(const void *ptr);
 
 /**
  * kmsan_map_kernel_range_noflush() - Notify KMSAN about a vmap.
- * @start:	start of vmapped range.
- * @end:	end of vmapped range.
- * @prot:	page protection flags used for vmap.
- * @pages:	array of pages.
- * @page_shift:	page_shift passed to vmap_range_noflush().
+ * @start:  start of vmapped range.
+ * @end:  end of vmapped range.
+ * @prot: page protection flags used for vmap.
+ * @pages:  array of pages.
+ * @page_shift: page_shift passed to vmap_range_noflush().
  *
  * KMSAN maps shadow and origin pages of @pages into contiguous ranges in
  * vmalloc metadata address range. Returns 0 on success, callers must check
  * for non-zero return value.
  */
 int __must_check kmsan_vmap_pages_range_noflush(unsigned long start,
-						unsigned long end,
-						pgprot_t prot,
-						struct page **pages,
-						unsigned int page_shift);
+    unsigned long end,
+    pgprot_t prot,
+    struct page **pages,
+    unsigned int page_shift);
 
 /**
  * kmsan_vunmap_kernel_range_noflush() - Notify KMSAN about a vunmap.
@@ -156,19 +156,19 @@ void kmsan_vunmap_range_noflush(unsigned long start, unsigned long end);
 
 /**
  * kmsan_ioremap_page_range() - Notify KMSAN about a ioremap_page_range() call.
- * @addr:	range start.
- * @end:	range end.
- * @phys_addr:	physical range start.
- * @prot:	page protection flags used for ioremap_page_range().
- * @page_shift:	page_shift argument passed to vmap_range_noflush().
+ * @addr: range start.
+ * @end:  range end.
+ * @phys_addr:  physical range start.
+ * @prot: page protection flags used for ioremap_page_range().
+ * @page_shift: page_shift argument passed to vmap_range_noflush().
  *
  * KMSAN creates new metadata pages for the physical pages mapped into the
  * virtual memory. Returns 0 on success, callers must check for non-zero return
  * value.
  */
 int __must_check kmsan_ioremap_page_range(unsigned long addr, unsigned long end,
-					  phys_addr_t phys_addr, pgprot_t prot,
-					  unsigned int page_shift);
+    phys_addr_t phys_addr, pgprot_t prot,
+    unsigned int page_shift);
 
 /**
  * kmsan_iounmap_page_range() - Notify KMSAN about a iounmap_page_range() call.
@@ -193,7 +193,7 @@ void kmsan_iounmap_page_range(unsigned long start, unsigned long end);
  * * does both, if this is a DMA_BIDIRECTIONAL transfer.
  */
 void kmsan_handle_dma(struct page *page, size_t offset, size_t size,
-		      enum dma_data_direction dir);
+    enum dma_data_direction dir);
 
 /**
  * kmsan_handle_dma_sg() - Handle a DMA transfer using scatterlist.
@@ -207,7 +207,7 @@ void kmsan_handle_dma(struct page *page, size_t offset, size_t size,
  * * does both, if this is a DMA_BIDIRECTIONAL transfer.
  */
 void kmsan_handle_dma_sg(struct scatterlist *sg, int nents,
-			 enum dma_data_direction dir);
+    enum dma_data_direction dir);
 
 /**
  * kmsan_handle_urb() - Handle a USB data transfer.
@@ -221,7 +221,7 @@ void kmsan_handle_urb(const struct urb *urb, bool is_out);
 
 /**
  * kmsan_unpoison_entry_regs() - Handle pt_regs in low-level entry code.
- * @regs:	struct pt_regs pointer received from assembly code.
+ * @regs: struct pt_regs pointer received from assembly code.
  *
  * KMSAN unpoisons the contents of the passed pt_regs, preventing potential
  * false positive reports. Unlike kmsan_unpoison_memory(),
@@ -232,101 +232,81 @@ void kmsan_unpoison_entry_regs(const struct pt_regs *regs);
 
 #else
 
-static inline void kmsan_init_shadow(void)
-{
+static inline void kmsan_init_shadow(void) {
 }
 
-static inline void kmsan_init_runtime(void)
-{
+static inline void kmsan_init_runtime(void) {
 }
 
 static inline bool __must_check kmsan_memblock_free_pages(struct page *page,
-							  unsigned int order)
-{
-	return true;
+    unsigned int order) {
+  return true;
 }
 
-static inline void kmsan_task_create(struct task_struct *task)
-{
+static inline void kmsan_task_create(struct task_struct *task) {
 }
 
-static inline void kmsan_task_exit(struct task_struct *task)
-{
+static inline void kmsan_task_exit(struct task_struct *task) {
 }
 
 static inline void kmsan_alloc_page(struct page *page, unsigned int order,
-				    gfp_t flags)
-{
+    gfp_t flags) {
 }
 
-static inline void kmsan_free_page(struct page *page, unsigned int order)
-{
+static inline void kmsan_free_page(struct page *page, unsigned int order) {
 }
 
-static inline void kmsan_copy_page_meta(struct page *dst, struct page *src)
-{
+static inline void kmsan_copy_page_meta(struct page *dst, struct page *src) {
 }
 
 static inline void kmsan_slab_alloc(struct kmem_cache *s, void *object,
-				    gfp_t flags)
-{
+    gfp_t flags) {
 }
 
-static inline void kmsan_slab_free(struct kmem_cache *s, void *object)
-{
+static inline void kmsan_slab_free(struct kmem_cache *s, void *object) {
 }
 
 static inline void kmsan_kmalloc_large(const void *ptr, size_t size,
-				       gfp_t flags)
-{
+    gfp_t flags) {
 }
 
-static inline void kmsan_kfree_large(const void *ptr)
-{
+static inline void kmsan_kfree_large(const void *ptr) {
 }
 
 static inline int __must_check kmsan_vmap_pages_range_noflush(
-	unsigned long start, unsigned long end, pgprot_t prot,
-	struct page **pages, unsigned int page_shift)
-{
-	return 0;
+    unsigned long start, unsigned long end, pgprot_t prot,
+    struct page **pages, unsigned int page_shift) {
+  return 0;
 }
 
 static inline void kmsan_vunmap_range_noflush(unsigned long start,
-					      unsigned long end)
-{
+    unsigned long end) {
 }
 
 static inline int __must_check kmsan_ioremap_page_range(unsigned long start,
-							unsigned long end,
-							phys_addr_t phys_addr,
-							pgprot_t prot,
-							unsigned int page_shift)
-{
-	return 0;
+    unsigned long end,
+    phys_addr_t phys_addr,
+    pgprot_t prot,
+    unsigned int page_shift) {
+  return 0;
 }
 
 static inline void kmsan_iounmap_page_range(unsigned long start,
-					    unsigned long end)
-{
+    unsigned long end) {
 }
 
 static inline void kmsan_handle_dma(struct page *page, size_t offset,
-				    size_t size, enum dma_data_direction dir)
-{
+    size_t size, enum dma_data_direction dir) {
 }
 
 static inline void kmsan_handle_dma_sg(struct scatterlist *sg, int nents,
-				       enum dma_data_direction dir)
-{
+    enum dma_data_direction dir) {
 }
 
-static inline void kmsan_handle_urb(const struct urb *urb, bool is_out)
-{
+static inline void kmsan_handle_urb(const struct urb *urb, bool is_out) {
 }
 
-static inline void kmsan_unpoison_entry_regs(const struct pt_regs *regs)
-{
+static inline void kmsan_unpoison_entry_regs(const struct pt_regs *regs) {
 }
 
 #endif

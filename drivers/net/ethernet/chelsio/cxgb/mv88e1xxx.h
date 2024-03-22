@@ -1,17 +1,17 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* $Date: 2005/03/07 23:59:05 $ $RCSfile: mv88e1xxx.h,v $ $Revision: 1.13 $ */
+/* SPDX-License-Identifier: GPL-2.0
+ * $Date: 2005/03/07 23:59:05 $ $RCSfile: mv88e1xxx.h,v $ $Revision: 1.13 $*/
 #ifndef CHELSIO_MV8E1XXX_H
 #define CHELSIO_MV8E1XXX_H
 
 #ifndef BMCR_SPEED1000
-# define BMCR_SPEED1000 0x40
+#define BMCR_SPEED1000 0x40
 #endif
 
 #ifndef ADVERTISE_PAUSE
-# define ADVERTISE_PAUSE 0x400
+#define ADVERTISE_PAUSE 0x400
 #endif
 #ifndef ADVERTISE_PAUSE_ASYM
-# define ADVERTISE_PAUSE_ASYM 0x800
+#define ADVERTISE_PAUSE_ASYM 0x800
 #endif
 
 /* Gigabit MII registers */
@@ -70,7 +70,8 @@
 #define S_PSCR_MDI_XOVER_MODE    5
 #define M_PSCR_MDI_XOVER_MODE    0x3
 #define V_PSCR_MDI_XOVER_MODE(x) ((x) << S_PSCR_MDI_XOVER_MODE)
-#define G_PSCR_MDI_XOVER_MODE(x) (((x) >> S_PSCR_MDI_XOVER_MODE) & M_PSCR_MDI_XOVER_MODE)
+#define G_PSCR_MDI_XOVER_MODE(x) (((x) >> \
+  S_PSCR_MDI_XOVER_MODE) & M_PSCR_MDI_XOVER_MODE)
 
 /* Extended PHY specific control register fields */
 #define S_DOWNSHIFT_ENABLE 8

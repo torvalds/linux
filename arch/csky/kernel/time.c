@@ -4,8 +4,7 @@
 #include <linux/clocksource.h>
 #include <linux/of_clk.h>
 
-void __init time_init(void)
-{
-	of_clk_init(NULL);
-	timer_probe();
+void __init time_init(void) {
+  of_clk_init(NULL);
+  timer_probe();
 }

@@ -14,26 +14,23 @@
 #include <linux/padata.h>
 
 struct pcrypt_request {
-	struct padata_priv	padata;
-	void			*data;
-	void			*__ctx[] CRYPTO_MINALIGN_ATTR;
+  struct padata_priv padata;
+  void *data;
+  void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
-static inline void *pcrypt_request_ctx(struct pcrypt_request *req)
-{
-	return req->__ctx;
+static inline void *pcrypt_request_ctx(struct pcrypt_request *req) {
+  return req->__ctx;
 }
 
 static inline
-struct padata_priv *pcrypt_request_padata(struct pcrypt_request *req)
-{
-	return &req->padata;
+struct padata_priv *pcrypt_request_padata(struct pcrypt_request *req) {
+  return &req->padata;
 }
 
 static inline
-struct pcrypt_request *pcrypt_padata_request(struct padata_priv *padata)
-{
-	return container_of(padata, struct pcrypt_request, padata);
+struct pcrypt_request *pcrypt_padata_request(struct padata_priv *padata) {
+  return container_of(padata, struct pcrypt_request, padata);
 }
 
 #endif

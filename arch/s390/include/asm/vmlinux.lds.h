@@ -11,23 +11,25 @@
  * into single .boot.data section. This way big holes cased by page aligned
  * structs are avoided and linker produces consistent result.
  */
-#define BOOT_DATA							\
-	. = ALIGN(PAGE_SIZE);						\
-	.boot.data : {							\
-		__boot_data_start = .;					\
-		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.boot.data*)))		\
-		__boot_data_end = .;					\
-	}
+#define BOOT_DATA             \
+  . = ALIGN(PAGE_SIZE);           \
+  .boot.data: \
+  {              \
+    __boot_data_start = .;          \
+    *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.boot.data *)))   \
+    __boot_data_end = .;          \
+  }
 
 /*
  * .boot.preserved.data is similar to .boot.data, but it is not part of the
  * .init section and thus will be preserved for later use in the decompressed
  * kernel.
  */
-#define BOOT_DATA_PRESERVED						\
-	. = ALIGN(PAGE_SIZE);						\
-	.boot.preserved.data : {					\
-		__boot_data_preserved_start = .;			\
-		*(SORT_BY_ALIGNMENT(SORT_BY_NAME(.boot.preserved.data*))) \
-		__boot_data_preserved_end = .;				\
-	}
+#define BOOT_DATA_PRESERVED           \
+  . = ALIGN(PAGE_SIZE);           \
+  .boot.preserved.data: \
+  {          \
+    __boot_data_preserved_start = .;      \
+    *(SORT_BY_ALIGNMENT(SORT_BY_NAME(.boot.preserved.data *))) \
+    __boot_data_preserved_end = .;        \
+  }

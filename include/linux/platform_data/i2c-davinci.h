@@ -7,17 +7,17 @@
  * the terms of the GNU General Public License version 2. This program
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
-*/
+ */
 
 #ifndef __ASM_ARCH_I2C_H
 #define __ASM_ARCH_I2C_H
 
 /* All frequencies are expressed in kHz */
 struct davinci_i2c_platform_data {
-	unsigned int	bus_freq;	/* standard bus frequency (kHz) */
-	unsigned int	bus_delay;	/* post-transaction delay (usec) */
-	bool		gpio_recovery;	/* Use GPIO recovery method */
-	bool		has_pfunc;	/* Chip has a ICPFUNC register */
+  unsigned int bus_freq; /* standard bus frequency (kHz) */
+  unsigned int bus_delay;  /* post-transaction delay (usec) */
+  bool gpio_recovery;  /* Use GPIO recovery method */
+  bool has_pfunc;  /* Chip has a ICPFUNC register */
 };
 
 /* for board setup code */

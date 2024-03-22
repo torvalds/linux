@@ -46,7 +46,8 @@ typedef enum {
   I2C_SPEED_STANDARD_100K,    //100 Kbits/s
   I2C_SPEED_FAST_400K,        //400 Kbits/s
   I2C_SPEED_FAST_PLUS_1M,     //1   Mbits/s (in fast mode)
-  UNSUPPORTED_2,              //1   Mbits/s (in high speed mode)  not supported anymore!
+  UNSUPPORTED_2,              //1   Mbits/s (in high speed mode)  not supported
+                              // anymore!
   UNSUPPORTED_3,              //2.3 Mbits/s  not supported anymore!
   I2C_SPEED_COUNT,
 } I2cSpeed_e;
@@ -152,24 +153,24 @@ typedef enum {
   MP5_CODE_UNKNOWN = 42,
 } GC_ERROR_CODE_e;
 
-
 typedef struct {
   uint8_t ReadWriteData;  //Return data for read. Data to send for write
-  uint8_t CmdConfig; //Includes whether associated command should have a stop or restart command, and is a read or write
+  uint8_t CmdConfig; //Includes whether associated command should have a stop or
+                     // restart command, and is a read or write
 } SwI2cCmd_t; //SW I2C Command Table
 
 typedef struct {
-  uint8_t    I2CcontrollerPort; //CKSVII2C0(0) or //CKSVII2C1(1)
-  uint8_t    I2CSpeed;          //Use I2cSpeed_e to indicate speed to select
-  uint8_t    SlaveAddress;      //Slave address of device
-  uint8_t    NumCmds;           //Number of commands
+  uint8_t I2CcontrollerPort; //CKSVII2C0(0) or //CKSVII2C1(1)
+  uint8_t I2CSpeed;          //Use I2cSpeed_e to indicate speed to select
+  uint8_t SlaveAddress;      //Slave address of device
+  uint8_t NumCmds;           //Number of commands
   SwI2cCmd_t SwI2cCmds[MAX_SW_I2C_COMMANDS];
 } SwI2cRequest_t; // SW I2C Request Table
 
 typedef struct {
   SwI2cRequest_t SwI2cRequest;
-  uint32_t       Spare[8];
-  uint32_t       MmHubPadding[8]; // SMU internal use
+  uint32_t Spare[8];
+  uint32_t MmHubPadding[8]; // SMU internal use
 } SwI2cRequestExternal_t;
 
 typedef enum {
@@ -197,16 +198,16 @@ typedef struct {
   //0-23 SOC, 24-26 SOCIO, 27-29 SOC
   uint16_t avgPsmCount[30];
   uint16_t minPsmCount[30];
-  float    avgPsmVoltage[30];
-  float    minPsmVoltage[30];
+  float avgPsmVoltage[30];
+  float minPsmVoltage[30];
 } AvfsDebugTableAid_t;
 
 typedef struct {
   //0-27 GFX, 28-29 SOC
   uint16_t avgPsmCount[30];
   uint16_t minPsmCount[30];
-  float    avgPsmVoltage[30];
-  float    minPsmVoltage[30];
+  float avgPsmVoltage[30];
+  float minPsmVoltage[30];
 } AvfsDebugTableXcd_t;
 
 // Defines used for IH-based thermal interrupts to GFX driver - A/X only
@@ -216,8 +217,8 @@ typedef struct {
 //thermal over-temp mask defines for IH interrupt to host
 #define THROTTLER_PROCHOT_BIT           0
 #define THROTTLER_PPT_BIT               1
-#define THROTTLER_THERMAL_SOCKET_BIT    2//AID, XCD, CCD throttling
-#define THROTTLER_THERMAL_VR_BIT        3//VRHOT
+#define THROTTLER_THERMAL_SOCKET_BIT    2 //AID, XCD, CCD throttling
+#define THROTTLER_THERMAL_VR_BIT        3 //VRHOT
 #define THROTTLER_THERMAL_HBM_BIT       4
 
 #define ClearMcaOnRead_UE_FLAG_MASK              0x1

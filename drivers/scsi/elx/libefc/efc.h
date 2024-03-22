@@ -18,35 +18,36 @@
 #include "efc_device.h"
 #include "efc_els.h"
 
-#define EFC_MAX_REMOTE_NODES			2048
-#define NODE_SPARAMS_SIZE			256
+#define EFC_MAX_REMOTE_NODES      2048
+#define NODE_SPARAMS_SIZE     256
 
 enum efc_scsi_del_initiator_reason {
-	EFC_SCSI_INITIATOR_DELETED,
-	EFC_SCSI_INITIATOR_MISSING,
+  EFC_SCSI_INITIATOR_DELETED,
+  EFC_SCSI_INITIATOR_MISSING,
 };
 
 enum efc_scsi_del_target_reason {
-	EFC_SCSI_TARGET_DELETED,
-	EFC_SCSI_TARGET_MISSING,
+  EFC_SCSI_TARGET_DELETED,
+  EFC_SCSI_TARGET_MISSING,
 };
 
-#define EFC_FC_ELS_DEFAULT_RETRIES		3
+#define EFC_FC_ELS_DEFAULT_RETRIES    3
 
 #define domain_sm_trace(domain) \
-	efc_log_debug(domain->efc, "[domain:%s] %-20s %-20s\n", \
-		      domain->display_name, __func__, efc_sm_event_name(evt)) \
+  efc_log_debug(domain->efc, "[domain:%s] %-20s %-20s\n", \
+    domain->display_name, __func__, efc_sm_event_name(evt)) \
 
 #define domain_trace(domain, fmt, ...) \
-	efc_log_debug(domain->efc, \
-		      "[%s]" fmt, domain->display_name, ##__VA_ARGS__) \
+  efc_log_debug(domain->efc, \
+    "[%s]" fmt, domain->display_name, ## __VA_ARGS__) \
 
 #define node_sm_trace() \
-	efc_log_debug(node->efc, "[%s] %-20s %-20s\n", \
-		      node->display_name, __func__, efc_sm_event_name(evt)) \
+  efc_log_debug(node->efc, "[%s] %-20s %-20s\n", \
+    node->display_name, __func__, efc_sm_event_name(evt)) \
 
 #define nport_sm_trace(nport) \
-	efc_log_debug(nport->efc, \
-		"[%s]  %-20s %-20s\n", nport->display_name, __func__, efc_sm_event_name(evt)) \
+  efc_log_debug(nport->efc, \
+    "[%s]  %-20s %-20s\n", nport->display_name, __func__, \
+    efc_sm_event_name(evt)) \
 
 #endif /* __EFC_H__ */

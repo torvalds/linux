@@ -19,13 +19,13 @@ struct device;
  * @alloc: track pages consumed, private to vmemmap_populate()
  */
 struct vmem_altmap {
-	unsigned long base_pfn;
-	const unsigned long end_pfn;
-	const unsigned long reserve;
-	unsigned long free;
-	unsigned long align;
-	unsigned long alloc;
-	bool inaccessible;
+  unsigned long base_pfn;
+  const unsigned long end_pfn;
+  const unsigned long reserve;
+  unsigned long free;
+  unsigned long align;
+  unsigned long alloc;
+  bool inaccessible;
 };
 
 /*
@@ -67,42 +67,42 @@ struct vmem_altmap {
  * transactions.
  */
 enum memory_type {
-	/* 0 is reserved to catch uninitialized type fields */
-	MEMORY_DEVICE_PRIVATE = 1,
-	MEMORY_DEVICE_COHERENT,
-	MEMORY_DEVICE_FS_DAX,
-	MEMORY_DEVICE_GENERIC,
-	MEMORY_DEVICE_PCI_P2PDMA,
+  /* 0 is reserved to catch uninitialized type fields */
+  MEMORY_DEVICE_PRIVATE = 1,
+  MEMORY_DEVICE_COHERENT,
+  MEMORY_DEVICE_FS_DAX,
+  MEMORY_DEVICE_GENERIC,
+  MEMORY_DEVICE_PCI_P2PDMA,
 };
 
 struct dev_pagemap_ops {
-	/*
-	 * Called once the page refcount reaches 0.  The reference count will be
-	 * reset to one by the core code after the method is called to prepare
-	 * for handing out the page again.
-	 */
-	void (*page_free)(struct page *page);
+  /*
+   * Called once the page refcount reaches 0.  The reference count will be
+   * reset to one by the core code after the method is called to prepare
+   * for handing out the page again.
+   */
+  void (*page_free)(struct page *page);
 
-	/*
-	 * Used for private (un-addressable) device memory only.  Must migrate
-	 * the page back to a CPU accessible page.
-	 */
-	vm_fault_t (*migrate_to_ram)(struct vm_fault *vmf);
+  /*
+   * Used for private (un-addressable) device memory only.  Must migrate
+   * the page back to a CPU accessible page.
+   */
+  vm_fault_t (*migrate_to_ram)(struct vm_fault *vmf);
 
-	/*
-	 * Handle the memory failure happens on a range of pfns.  Notify the
-	 * processes who are using these pfns, and try to recover the data on
-	 * them if necessary.  The mf_flags is finally passed to the recover
-	 * function through the whole notify routine.
-	 *
-	 * When this is not implemented, or it returns -EOPNOTSUPP, the caller
-	 * will fall back to a common handler called mf_generic_kill_procs().
-	 */
-	int (*memory_failure)(struct dev_pagemap *pgmap, unsigned long pfn,
-			      unsigned long nr_pages, int mf_flags);
+  /*
+   * Handle the memory failure happens on a range of pfns.  Notify the
+   * processes who are using these pfns, and try to recover the data on
+   * them if necessary.  The mf_flags is finally passed to the recover
+   * function through the whole notify routine.
+   *
+   * When this is not implemented, or it returns -EOPNOTSUPP, the caller
+   * will fall back to a common handler called mf_generic_kill_procs().
+   */
+  int (*memory_failure)(struct dev_pagemap *pgmap, unsigned long pfn,
+      unsigned long nr_pages, int mf_flags);
 };
 
-#define PGMAP_ALTMAP_VALID	(1 << 0)
+#define PGMAP_ALTMAP_VALID  (1 << 0)
 
 /**
  * struct dev_pagemap - metadata for ZONE_DEVICE mappings
@@ -113,78 +113,71 @@ struct dev_pagemap_ops {
  * @flags: PGMAP_* flags to specify defailed behavior
  * @vmemmap_shift: structural definition of how the vmemmap page metadata
  *      is populated, specifically the metadata page order.
- *	A zero value (default) uses base pages as the vmemmap metadata
- *	representation. A bigger value will set up compound struct pages
- *	of the requested order value.
+ *  A zero value (default) uses base pages as the vmemmap metadata
+ *  representation. A bigger value will set up compound struct pages
+ *  of the requested order value.
  * @ops: method table
  * @owner: an opaque pointer identifying the entity that manages this
- *	instance.  Used by various helpers to make sure that no
- *	foreign ZONE_DEVICE memory is accessed.
+ *  instance.  Used by various helpers to make sure that no
+ *  foreign ZONE_DEVICE memory is accessed.
  * @nr_range: number of ranges to be mapped
  * @range: range to be mapped when nr_range == 1
  * @ranges: array of ranges to be mapped when nr_range > 1
  */
 struct dev_pagemap {
-	struct vmem_altmap altmap;
-	struct percpu_ref ref;
-	struct completion done;
-	enum memory_type type;
-	unsigned int flags;
-	unsigned long vmemmap_shift;
-	const struct dev_pagemap_ops *ops;
-	void *owner;
-	int nr_range;
-	union {
-		struct range range;
-		DECLARE_FLEX_ARRAY(struct range, ranges);
-	};
+  struct vmem_altmap altmap;
+  struct percpu_ref ref;
+  struct completion done;
+  enum memory_type type;
+  unsigned int flags;
+  unsigned long vmemmap_shift;
+  const struct dev_pagemap_ops *ops;
+  void *owner;
+  int nr_range;
+  union {
+    struct range range;
+    DECLARE_FLEX_ARRAY(struct range, ranges);
+  };
 };
 
-static inline bool pgmap_has_memory_failure(struct dev_pagemap *pgmap)
-{
-	return pgmap->ops && pgmap->ops->memory_failure;
+static inline bool pgmap_has_memory_failure(struct dev_pagemap *pgmap) {
+  return pgmap->ops && pgmap->ops->memory_failure;
 }
 
-static inline struct vmem_altmap *pgmap_altmap(struct dev_pagemap *pgmap)
-{
-	if (pgmap->flags & PGMAP_ALTMAP_VALID)
-		return &pgmap->altmap;
-	return NULL;
+static inline struct vmem_altmap *pgmap_altmap(struct dev_pagemap *pgmap) {
+  if (pgmap->flags & PGMAP_ALTMAP_VALID) {
+    return &pgmap->altmap;
+  }
+  return NULL;
 }
 
-static inline unsigned long pgmap_vmemmap_nr(struct dev_pagemap *pgmap)
-{
-	return 1 << pgmap->vmemmap_shift;
+static inline unsigned long pgmap_vmemmap_nr(struct dev_pagemap *pgmap) {
+  return 1 << pgmap->vmemmap_shift;
 }
 
-static inline bool is_device_private_page(const struct page *page)
-{
-	return IS_ENABLED(CONFIG_DEVICE_PRIVATE) &&
-		is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PRIVATE;
+static inline bool is_device_private_page(const struct page *page) {
+  return IS_ENABLED(CONFIG_DEVICE_PRIVATE)
+    && is_zone_device_page(page)
+    && page->pgmap->type == MEMORY_DEVICE_PRIVATE;
 }
 
-static inline bool folio_is_device_private(const struct folio *folio)
-{
-	return is_device_private_page(&folio->page);
+static inline bool folio_is_device_private(const struct folio *folio) {
+  return is_device_private_page(&folio->page);
 }
 
-static inline bool is_pci_p2pdma_page(const struct page *page)
-{
-	return IS_ENABLED(CONFIG_PCI_P2PDMA) &&
-		is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_PCI_P2PDMA;
+static inline bool is_pci_p2pdma_page(const struct page *page) {
+  return IS_ENABLED(CONFIG_PCI_P2PDMA)
+    && is_zone_device_page(page)
+    && page->pgmap->type == MEMORY_DEVICE_PCI_P2PDMA;
 }
 
-static inline bool is_device_coherent_page(const struct page *page)
-{
-	return is_zone_device_page(page) &&
-		page->pgmap->type == MEMORY_DEVICE_COHERENT;
+static inline bool is_device_coherent_page(const struct page *page) {
+  return is_zone_device_page(page)
+    && page->pgmap->type == MEMORY_DEVICE_COHERENT;
 }
 
-static inline bool folio_is_device_coherent(const struct folio *folio)
-{
-	return is_device_coherent_page(&folio->page);
+static inline bool folio_is_device_coherent(const struct folio *folio) {
+  return is_device_coherent_page(&folio->page);
 }
 
 #ifdef CONFIG_ZONE_DEVICE
@@ -194,50 +187,47 @@ void memunmap_pages(struct dev_pagemap *pgmap);
 void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
 void devm_memunmap_pages(struct device *dev, struct dev_pagemap *pgmap);
 struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
-		struct dev_pagemap *pgmap);
+    struct dev_pagemap *pgmap);
 bool pgmap_pfn_valid(struct dev_pagemap *pgmap, unsigned long pfn);
 
 unsigned long memremap_compat_align(void);
 #else
 static inline void *devm_memremap_pages(struct device *dev,
-		struct dev_pagemap *pgmap)
-{
-	/*
-	 * Fail attempts to call devm_memremap_pages() without
-	 * ZONE_DEVICE support enabled, this requires callers to fall
-	 * back to plain devm_memremap() based on config
-	 */
-	WARN_ON_ONCE(1);
-	return ERR_PTR(-ENXIO);
+    struct dev_pagemap *pgmap) {
+  /*
+   * Fail attempts to call devm_memremap_pages() without
+   * ZONE_DEVICE support enabled, this requires callers to fall
+   * back to plain devm_memremap() based on config
+   */
+  WARN_ON_ONCE(1);
+  return ERR_PTR(-ENXIO);
 }
 
 static inline void devm_memunmap_pages(struct device *dev,
-		struct dev_pagemap *pgmap)
-{
+    struct dev_pagemap *pgmap) {
 }
 
 static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
-		struct dev_pagemap *pgmap)
-{
-	return NULL;
+    struct dev_pagemap *pgmap) {
+  return NULL;
 }
 
-static inline bool pgmap_pfn_valid(struct dev_pagemap *pgmap, unsigned long pfn)
-{
-	return false;
+static inline bool pgmap_pfn_valid(struct dev_pagemap *pgmap,
+    unsigned long pfn) {
+  return false;
 }
 
 /* when memremap_pages() is disabled all archs can remap a single page */
-static inline unsigned long memremap_compat_align(void)
-{
-	return PAGE_SIZE;
+static inline unsigned long memremap_compat_align(void) {
+  return PAGE_SIZE;
 }
+
 #endif /* CONFIG_ZONE_DEVICE */
 
-static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
-{
-	if (pgmap)
-		percpu_ref_put(&pgmap->ref);
+static inline void put_dev_pagemap(struct dev_pagemap *pgmap) {
+  if (pgmap) {
+    percpu_ref_put(&pgmap->ref);
+  }
 }
 
 #endif /* _LINUX_MEMREMAP_H_ */

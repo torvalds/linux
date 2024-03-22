@@ -12,34 +12,35 @@
  * on the blocked task's kernel stack:
  */
 struct mutex_waiter {
-	struct list_head	list;
-	struct task_struct	*task;
-	struct ww_acquire_ctx	*ww_ctx;
+  struct list_head list;
+  struct task_struct *task;
+  struct ww_acquire_ctx *ww_ctx;
 #ifdef CONFIG_DEBUG_MUTEXES
-	void			*magic;
+  void *magic;
 #endif
 };
 
 #ifdef CONFIG_DEBUG_MUTEXES
 extern void debug_mutex_lock_common(struct mutex *lock,
-				    struct mutex_waiter *waiter);
+    struct mutex_waiter *waiter);
 extern void debug_mutex_wake_waiter(struct mutex *lock,
-				    struct mutex_waiter *waiter);
+    struct mutex_waiter *waiter);
 extern void debug_mutex_free_waiter(struct mutex_waiter *waiter);
 extern void debug_mutex_add_waiter(struct mutex *lock,
-				   struct mutex_waiter *waiter,
-				   struct task_struct *task);
-extern void debug_mutex_remove_waiter(struct mutex *lock, struct mutex_waiter *waiter,
-				      struct task_struct *task);
+    struct mutex_waiter *waiter,
+    struct task_struct *task);
+extern void debug_mutex_remove_waiter(struct mutex *lock,
+    struct mutex_waiter *waiter,
+    struct task_struct *task);
 extern void debug_mutex_unlock(struct mutex *lock);
 extern void debug_mutex_init(struct mutex *lock, const char *name,
-			     struct lock_class_key *key);
+    struct lock_class_key *key);
 #else /* CONFIG_DEBUG_MUTEXES */
-# define debug_mutex_lock_common(lock, waiter)		do { } while (0)
-# define debug_mutex_wake_waiter(lock, waiter)		do { } while (0)
-# define debug_mutex_free_waiter(waiter)		do { } while (0)
-# define debug_mutex_add_waiter(lock, waiter, ti)	do { } while (0)
-# define debug_mutex_remove_waiter(lock, waiter, ti)	do { } while (0)
-# define debug_mutex_unlock(lock)			do { } while (0)
-# define debug_mutex_init(lock, name, key)		do { } while (0)
+#define debug_mutex_lock_common(lock, waiter)    do {} while (0)
+#define debug_mutex_wake_waiter(lock, waiter)    do {} while (0)
+#define debug_mutex_free_waiter(waiter)    do {} while (0)
+#define debug_mutex_add_waiter(lock, waiter, ti) do {} while (0)
+#define debug_mutex_remove_waiter(lock, waiter, ti)  do {} while (0)
+#define debug_mutex_unlock(lock)     do {} while (0)
+#define debug_mutex_init(lock, name, key)    do {} while (0)
 #endif /* !CONFIG_DEBUG_MUTEXES */

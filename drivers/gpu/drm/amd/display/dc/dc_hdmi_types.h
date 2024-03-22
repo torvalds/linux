@@ -44,14 +44,13 @@
 #define DP_ADAPTOR_HDMI_SAFE_MAX_TMDS_CLK 165000
 
 struct dp_hdmi_dongle_signature_data {
-	int8_t id[15];/* "DP-HDMI ADAPTOR"*/
-	uint8_t eot;/* end of transmition '\x4' */
+  int8_t id[15]; /* "DP-HDMI ADAPTOR"*/
+  uint8_t eot; /* end of transmition '\x4' */
 };
 
 /* DP-HDMI dongle slave address for retrieving dongle signature*/
 #define DP_HDMI_DONGLE_ADDRESS 0x40
 #define DP_HDMI_DONGLE_SIGNATURE_EOT 0x04
-
 
 /* SCDC Address defines (HDMI 2.0)*/
 #define HDMI_SCDC_WRITE_UPDATE_0_ARRAY 3
@@ -72,62 +71,62 @@ struct dp_hdmi_dongle_signature_data {
 #define HDMI_SCDC_DEVICE_ID 0xDB
 
 union hdmi_scdc_update_read_data {
-	uint8_t byte[2];
-	struct {
-		uint8_t STATUS_UPDATE:1;
-		uint8_t CED_UPDATE:1;
-		uint8_t RR_TEST:1;
-		uint8_t RESERVED:5;
-		uint8_t RESERVED2:8;
-	} fields;
+  uint8_t byte[2];
+  struct {
+    uint8_t STATUS_UPDATE : 1;
+    uint8_t CED_UPDATE : 1;
+    uint8_t RR_TEST : 1;
+    uint8_t RESERVED : 5;
+    uint8_t RESERVED2 : 8;
+  } fields;
 };
 
 union hdmi_scdc_status_flags_data {
-	uint8_t byte;
-	struct {
-		uint8_t CLOCK_DETECTED:1;
-		uint8_t CH0_LOCKED:1;
-		uint8_t CH1_LOCKED:1;
-		uint8_t CH2_LOCKED:1;
-		uint8_t RESERVED:4;
-	} fields;
+  uint8_t byte;
+  struct {
+    uint8_t CLOCK_DETECTED : 1;
+    uint8_t CH0_LOCKED : 1;
+    uint8_t CH1_LOCKED : 1;
+    uint8_t CH2_LOCKED : 1;
+    uint8_t RESERVED : 4;
+  } fields;
 };
 
 union hdmi_scdc_ced_data {
-	uint8_t byte[11];
-	struct {
-		uint8_t CH0_8LOW:8;
-		uint8_t CH0_7HIGH:7;
-		uint8_t CH0_VALID:1;
-		uint8_t CH1_8LOW:8;
-		uint8_t CH1_7HIGH:7;
-		uint8_t CH1_VALID:1;
-		uint8_t CH2_8LOW:8;
-		uint8_t CH2_7HIGH:7;
-		uint8_t CH2_VALID:1;
-		uint8_t CHECKSUM:8;
-		uint8_t RESERVED:8;
-		uint8_t RESERVED2:8;
-		uint8_t RESERVED3:8;
-		uint8_t RESERVED4:4;
-	} fields;
+  uint8_t byte[11];
+  struct {
+    uint8_t CH0_8LOW : 8;
+    uint8_t CH0_7HIGH : 7;
+    uint8_t CH0_VALID : 1;
+    uint8_t CH1_8LOW : 8;
+    uint8_t CH1_7HIGH : 7;
+    uint8_t CH1_VALID : 1;
+    uint8_t CH2_8LOW : 8;
+    uint8_t CH2_7HIGH : 7;
+    uint8_t CH2_VALID : 1;
+    uint8_t CHECKSUM : 8;
+    uint8_t RESERVED : 8;
+    uint8_t RESERVED2 : 8;
+    uint8_t RESERVED3 : 8;
+    uint8_t RESERVED4 : 4;
+  } fields;
 };
 
 union hdmi_scdc_manufacturer_OUI_data {
-	uint8_t byte[3];
-	struct {
-		uint8_t Manufacturer_OUI_1:8;
-		uint8_t Manufacturer_OUI_2:8;
-		uint8_t Manufacturer_OUI_3:8;
-	} fields;
+  uint8_t byte[3];
+  struct {
+    uint8_t Manufacturer_OUI_1 : 8;
+    uint8_t Manufacturer_OUI_2 : 8;
+    uint8_t Manufacturer_OUI_3 : 8;
+  } fields;
 };
 
 union hdmi_scdc_device_id_data {
-	uint8_t byte;
-	struct {
-		uint8_t Hardware_Minor_Rev:4;
-		uint8_t Hardware_Major_Rev:4;
-	} fields;
+  uint8_t byte;
+  struct {
+    uint8_t Hardware_Minor_Rev : 4;
+    uint8_t Hardware_Major_Rev : 4;
+  } fields;
 };
 
 #endif /* DC_HDMI_TYPES_H */

@@ -89,7 +89,6 @@
 #ifndef MPI_H
 #define MPI_H
 
-
 /*****************************************************************************
 *
 *        M P I    V e r s i o n    D e f i n i t i o n s
@@ -102,8 +101,8 @@
 #define MPI_VERSION_MAJOR_SHIFT             (8)
 #define MPI_VERSION_MINOR_MASK              (0x00FF)
 #define MPI_VERSION_MINOR_SHIFT             (0)
-#define MPI_VERSION ((MPI_VERSION_MAJOR << MPI_VERSION_MAJOR_SHIFT) |   \
-                                      MPI_VERSION_MINOR)
+#define MPI_VERSION ((MPI_VERSION_MAJOR << MPI_VERSION_MAJOR_SHIFT)     \
+  | MPI_VERSION_MINOR)
 
 #define MPI_VERSION_01_00                   (0x0100)
 #define MPI_VERSION_01_01                   (0x0101)
@@ -119,7 +118,8 @@
 #define MPI_HEADER_VERSION_UNIT_SHIFT       (8)
 #define MPI_HEADER_VERSION_DEV_MASK         (0x00FF)
 #define MPI_HEADER_VERSION_DEV_SHIFT        (0)
-#define MPI_HEADER_VERSION ((MPI_HEADER_VERSION_UNIT << 8) | MPI_HEADER_VERSION_DEV)
+#define MPI_HEADER_VERSION ((MPI_HEADER_VERSION_UNIT << \
+      8) | MPI_HEADER_VERSION_DEV)
 
 /*****************************************************************************
 *
@@ -145,7 +145,6 @@
 #define MPI_FAULT_DATA_SEND_PCI_BUS_FAULT           (0x8116)
 #define MPI_FAULT_DATA_RECEIVE_PCI_PARITY_ERROR     (0x8117)
 #define MPI_FAULT_DATA_RECEIVE_PCI_BUS_FAULT        (0x8118)
-
 
 /*****************************************************************************
 *
@@ -176,7 +175,6 @@
 #define MPI_DB_HPBAC_ENABLE_ACCESS          (0x01)
 #define MPI_DB_HPBAC_DISABLE_ACCESS         (0x02)
 #define MPI_DB_HPBAC_FREE_BUFFER            (0x03)
-
 
 #define MPI_WRITE_SEQUENCE_OFFSET           (0x00000004)
 #define MPI_WRSEQ_KEY_VALUE_MASK            (0x0000000F)
@@ -221,8 +219,6 @@
 
 #define MPI_HI_PRI_REQUEST_QUEUE_OFFSET     (0x00000048)
 
-
-
 /*****************************************************************************
 *
 *        M e s s a g e    F r a m e    D e s c r i p t o r s
@@ -244,19 +240,17 @@
 #define MPI_CONTEXT_REPLY_TYPE_SHIFT        (29)
 #define MPI_CONTEXT_REPLY_CONTEXT_MASK      (0x1FFFFFFF)
 
-
-/****************************************************************************/
-/* Context Reply macros                                                     */
-/****************************************************************************/
+/* **************************************************************************
+ * Context Reply macros
+ ****************************************************************************/
 
 #define MPI_GET_CONTEXT_REPLY_TYPE(x)  (((x) & MPI_CONTEXT_REPLY_TYPE_MASK) \
-                                          >> MPI_CONTEXT_REPLY_TYPE_SHIFT)
+  >> MPI_CONTEXT_REPLY_TYPE_SHIFT)
 
 #define MPI_SET_CONTEXT_REPLY_TYPE(x, typ)                                  \
-            ((x) = ((x) & ~MPI_CONTEXT_REPLY_TYPE_MASK) |                   \
-                            (((typ) << MPI_CONTEXT_REPLY_TYPE_SHIFT) &      \
-                                        MPI_CONTEXT_REPLY_TYPE_MASK))
-
+  ((x) = ((x) & ~MPI_CONTEXT_REPLY_TYPE_MASK)                     \
+  | (((typ) << MPI_CONTEXT_REPLY_TYPE_SHIFT)        \
+  & MPI_CONTEXT_REPLY_TYPE_MASK))
 
 /*****************************************************************************
 *
@@ -325,24 +319,20 @@
 #define MPI_FUNCTION_REPLY_FRAME_REMOVAL            (0x43)
 #define MPI_FUNCTION_HOST_PAGEBUF_ACCESS_CONTROL    (0x44)
 
-
 /* standard version format */
-typedef struct _MPI_VERSION_STRUCT
-{
-    U8                      Dev;                        /* 00h */
-    U8                      Unit;                       /* 01h */
-    U8                      Minor;                      /* 02h */
-    U8                      Major;                      /* 03h */
+typedef struct _MPI_VERSION_STRUCT {
+  U8 Dev;                        /* 00h */
+  U8 Unit;                       /* 01h */
+  U8 Minor;                      /* 02h */
+  U8 Major;                      /* 03h */
 } MPI_VERSION_STRUCT, MPI_POINTER PTR_MPI_VERSION_STRUCT,
-  MpiVersionStruct_t, MPI_POINTER pMpiVersionStruct;
+MpiVersionStruct_t, MPI_POINTER pMpiVersionStruct;
 
-typedef union _MPI_VERSION_FORMAT
-{
-    MPI_VERSION_STRUCT      Struct;
-    U32                     Word;
+typedef union _MPI_VERSION_FORMAT {
+  MPI_VERSION_STRUCT Struct;
+  U32 Word;
 } MPI_VERSION_FORMAT, MPI_POINTER PTR_MPI_VERSION_FORMAT,
-  MpiVersionFormat_t, MPI_POINTER pMpiVersionFormat_t;
-
+MpiVersionFormat_t, MPI_POINTER pMpiVersionFormat_t;
 
 /*****************************************************************************
 *
@@ -350,184 +340,162 @@ typedef union _MPI_VERSION_FORMAT
 *
 *****************************************************************************/
 
-/****************************************************************************/
-/*  Simple element structures                                               */
-/****************************************************************************/
+/* **************************************************************************
+ *  Simple element structures
+ ****************************************************************************/
 
-typedef struct _SGE_SIMPLE32
-{
-    U32                     FlagsLength;
-    U32                     Address;
+typedef struct _SGE_SIMPLE32 {
+  U32 FlagsLength;
+  U32 Address;
 } SGE_SIMPLE32, MPI_POINTER PTR_SGE_SIMPLE32,
-  SGESimple32_t, MPI_POINTER pSGESimple32_t;
+SGESimple32_t, MPI_POINTER pSGESimple32_t;
 
-typedef struct _SGE_SIMPLE64
-{
-    U32                     FlagsLength;
-    U64                     Address;
+typedef struct _SGE_SIMPLE64 {
+  U32 FlagsLength;
+  U64 Address;
 } SGE_SIMPLE64, MPI_POINTER PTR_SGE_SIMPLE64,
-  SGESimple64_t, MPI_POINTER pSGESimple64_t;
+SGESimple64_t, MPI_POINTER pSGESimple64_t;
 
-typedef struct _SGE_SIMPLE_UNION
-{
-    U32                     FlagsLength;
-    union
-    {
-        U32                 Address32;
-        U64                 Address64;
-    }u;
+typedef struct _SGE_SIMPLE_UNION {
+  U32 FlagsLength;
+  union {
+    U32 Address32;
+    U64 Address64;
+  } u;
 } SGE_SIMPLE_UNION, MPI_POINTER PTR_SGE_SIMPLE_UNION,
-  SGESimpleUnion_t, MPI_POINTER pSGESimpleUnion_t;
+SGESimpleUnion_t, MPI_POINTER pSGESimpleUnion_t;
 
-/****************************************************************************/
-/*  Chain element structures                                                */
-/****************************************************************************/
+/* **************************************************************************
+ *  Chain element structures
+ ****************************************************************************/
 
-typedef struct _SGE_CHAIN32
-{
-    U16                     Length;
-    U8                      NextChainOffset;
-    U8                      Flags;
-    U32                     Address;
+typedef struct _SGE_CHAIN32 {
+  U16 Length;
+  U8 NextChainOffset;
+  U8 Flags;
+  U32 Address;
 } SGE_CHAIN32, MPI_POINTER PTR_SGE_CHAIN32,
-  SGEChain32_t, MPI_POINTER pSGEChain32_t;
+SGEChain32_t, MPI_POINTER pSGEChain32_t;
 
-typedef struct _SGE_CHAIN64
-{
-    U16                     Length;
-    U8                      NextChainOffset;
-    U8                      Flags;
-    U64                     Address;
+typedef struct _SGE_CHAIN64 {
+  U16 Length;
+  U8 NextChainOffset;
+  U8 Flags;
+  U64 Address;
 } SGE_CHAIN64, MPI_POINTER PTR_SGE_CHAIN64,
-  SGEChain64_t, MPI_POINTER pSGEChain64_t;
+SGEChain64_t, MPI_POINTER pSGEChain64_t;
 
-typedef struct _SGE_CHAIN_UNION
-{
-    U16                     Length;
-    U8                      NextChainOffset;
-    U8                      Flags;
-    union
-    {
-        U32                 Address32;
-        U64                 Address64;
-    }u;
+typedef struct _SGE_CHAIN_UNION {
+  U16 Length;
+  U8 NextChainOffset;
+  U8 Flags;
+  union {
+    U32 Address32;
+    U64 Address64;
+  } u;
 } SGE_CHAIN_UNION, MPI_POINTER PTR_SGE_CHAIN_UNION,
-  SGEChainUnion_t, MPI_POINTER pSGEChainUnion_t;
+SGEChainUnion_t, MPI_POINTER pSGEChainUnion_t;
 
-/****************************************************************************/
-/*  Transaction Context element                                             */
-/****************************************************************************/
+/* **************************************************************************
+ *  Transaction Context element
+ ****************************************************************************/
 
-typedef struct _SGE_TRANSACTION32
-{
-    U8                      Reserved;
-    U8                      ContextSize;
-    U8                      DetailsLength;
-    U8                      Flags;
-    U32                     TransactionContext;
-    U32                     TransactionDetails[];
+typedef struct _SGE_TRANSACTION32 {
+  U8 Reserved;
+  U8 ContextSize;
+  U8 DetailsLength;
+  U8 Flags;
+  U32 TransactionContext;
+  U32 TransactionDetails[];
 } SGE_TRANSACTION32, MPI_POINTER PTR_SGE_TRANSACTION32,
-  SGETransaction32_t, MPI_POINTER pSGETransaction32_t;
+SGETransaction32_t, MPI_POINTER pSGETransaction32_t;
 
-typedef struct _SGE_TRANSACTION64
-{
-    U8                      Reserved;
-    U8                      ContextSize;
-    U8                      DetailsLength;
-    U8                      Flags;
-    U32                     TransactionContext[2];
-    U32                     TransactionDetails[1];
+typedef struct _SGE_TRANSACTION64 {
+  U8 Reserved;
+  U8 ContextSize;
+  U8 DetailsLength;
+  U8 Flags;
+  U32 TransactionContext[2];
+  U32 TransactionDetails[1];
 } SGE_TRANSACTION64, MPI_POINTER PTR_SGE_TRANSACTION64,
-  SGETransaction64_t, MPI_POINTER pSGETransaction64_t;
+SGETransaction64_t, MPI_POINTER pSGETransaction64_t;
 
-typedef struct _SGE_TRANSACTION96
-{
-    U8                      Reserved;
-    U8                      ContextSize;
-    U8                      DetailsLength;
-    U8                      Flags;
-    U32                     TransactionContext[3];
-    U32                     TransactionDetails[1];
+typedef struct _SGE_TRANSACTION96 {
+  U8 Reserved;
+  U8 ContextSize;
+  U8 DetailsLength;
+  U8 Flags;
+  U32 TransactionContext[3];
+  U32 TransactionDetails[1];
 } SGE_TRANSACTION96, MPI_POINTER PTR_SGE_TRANSACTION96,
-  SGETransaction96_t, MPI_POINTER pSGETransaction96_t;
+SGETransaction96_t, MPI_POINTER pSGETransaction96_t;
 
-typedef struct _SGE_TRANSACTION128
-{
-    U8                      Reserved;
-    U8                      ContextSize;
-    U8                      DetailsLength;
-    U8                      Flags;
-    U32                     TransactionContext[4];
-    U32                     TransactionDetails[1];
+typedef struct _SGE_TRANSACTION128 {
+  U8 Reserved;
+  U8 ContextSize;
+  U8 DetailsLength;
+  U8 Flags;
+  U32 TransactionContext[4];
+  U32 TransactionDetails[1];
 } SGE_TRANSACTION128, MPI_POINTER PTR_SGE_TRANSACTION128,
-  SGETransaction_t128, MPI_POINTER pSGETransaction_t128;
+SGETransaction_t128, MPI_POINTER pSGETransaction_t128;
 
-typedef struct _SGE_TRANSACTION_UNION
-{
-    U8                      Reserved;
-    U8                      ContextSize;
-    U8                      DetailsLength;
-    U8                      Flags;
-    union
-    {
-        U32                 TransactionContext32[1];
-        U32                 TransactionContext64[2];
-        U32                 TransactionContext96[3];
-        U32                 TransactionContext128[4];
-    }u;
-    U32                     TransactionDetails[1];
+typedef struct _SGE_TRANSACTION_UNION {
+  U8 Reserved;
+  U8 ContextSize;
+  U8 DetailsLength;
+  U8 Flags;
+  union {
+    U32 TransactionContext32[1];
+    U32 TransactionContext64[2];
+    U32 TransactionContext96[3];
+    U32 TransactionContext128[4];
+  } u;
+  U32 TransactionDetails[1];
 } SGE_TRANSACTION_UNION, MPI_POINTER PTR_SGE_TRANSACTION_UNION,
-  SGETransactionUnion_t, MPI_POINTER pSGETransactionUnion_t;
+SGETransactionUnion_t, MPI_POINTER pSGETransactionUnion_t;
 
+/* **************************************************************************
+ *  SGE IO types union  for IO SGL's
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  SGE IO types union  for IO SGL's                                        */
-/****************************************************************************/
-
-typedef struct _SGE_IO_UNION
-{
-    union
-    {
-        SGE_SIMPLE_UNION    Simple;
-        SGE_CHAIN_UNION     Chain;
-    } u;
+typedef struct _SGE_IO_UNION {
+  union {
+    SGE_SIMPLE_UNION Simple;
+    SGE_CHAIN_UNION Chain;
+  } u;
 } SGE_IO_UNION, MPI_POINTER PTR_SGE_IO_UNION,
-  SGEIOUnion_t, MPI_POINTER pSGEIOUnion_t;
+SGEIOUnion_t, MPI_POINTER pSGEIOUnion_t;
 
-/****************************************************************************/
-/*  SGE union for SGL's with Simple and Transaction elements                */
-/****************************************************************************/
+/* **************************************************************************
+ *  SGE union for SGL's with Simple and Transaction elements
+ ****************************************************************************/
 
-typedef struct _SGE_TRANS_SIMPLE_UNION
-{
-    union
-    {
-        SGE_SIMPLE_UNION        Simple;
-        SGE_TRANSACTION_UNION   Transaction;
-    } u;
+typedef struct _SGE_TRANS_SIMPLE_UNION {
+  union {
+    SGE_SIMPLE_UNION Simple;
+    SGE_TRANSACTION_UNION Transaction;
+  } u;
 } SGE_TRANS_SIMPLE_UNION, MPI_POINTER PTR_SGE_TRANS_SIMPLE_UNION,
-  SGETransSimpleUnion_t, MPI_POINTER pSGETransSimpleUnion_t;
+SGETransSimpleUnion_t, MPI_POINTER pSGETransSimpleUnion_t;
 
-/****************************************************************************/
-/*  All SGE types union                                                     */
-/****************************************************************************/
+/* **************************************************************************
+ *  All SGE types union
+ ****************************************************************************/
 
-typedef struct _SGE_MPI_UNION
-{
-    union
-    {
-        SGE_SIMPLE_UNION        Simple;
-        SGE_CHAIN_UNION         Chain;
-        SGE_TRANSACTION_UNION   Transaction;
-    } u;
+typedef struct _SGE_MPI_UNION {
+  union {
+    SGE_SIMPLE_UNION Simple;
+    SGE_CHAIN_UNION Chain;
+    SGE_TRANSACTION_UNION Transaction;
+  } u;
 } SGE_MPI_UNION, MPI_POINTER PTR_SGE_MPI_UNION,
-  MPI_SGE_UNION_t, MPI_POINTER pMPI_SGE_UNION_t,
-  SGEAllUnion_t, MPI_POINTER pSGEAllUnion_t;
+MPI_SGE_UNION_t, MPI_POINTER pMPI_SGE_UNION_t,
+SGEAllUnion_t, MPI_POINTER pSGEAllUnion_t;
 
-
-/****************************************************************************/
-/*  SGE field definition and masks                                          */
-/****************************************************************************/
+/* **************************************************************************
+ *  SGE field definition and masks
+ ****************************************************************************/
 
 /* Flags field bit definitions */
 
@@ -575,29 +543,31 @@ typedef struct _SGE_MPI_UNION
 #define MPI_SGE_CHAIN_OFFSET_MASK               (0x00FF0000)
 #define MPI_SGE_CHAIN_OFFSET_SHIFT              (16)
 
+/* **************************************************************************
+ *  SGE operation Macros
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  SGE operation Macros                                                    */
-/****************************************************************************/
-
-         /* SIMPLE FlagsLength manipulations... */
-#define  MPI_SGE_SET_FLAGS(f)           ((U32)(f) << MPI_SGE_FLAGS_SHIFT)
-#define  MPI_SGE_GET_FLAGS(fl)          (((fl) & ~MPI_SGE_LENGTH_MASK) >> MPI_SGE_FLAGS_SHIFT)
+/* SIMPLE FlagsLength manipulations... */
+#define  MPI_SGE_SET_FLAGS(f)           ((U32) (f) << MPI_SGE_FLAGS_SHIFT)
+#define  MPI_SGE_GET_FLAGS(fl)          (((fl) & ~MPI_SGE_LENGTH_MASK) >> \
+  MPI_SGE_FLAGS_SHIFT)
 #define  MPI_SGE_LENGTH(fl)             ((fl) & MPI_SGE_LENGTH_MASK)
 #define  MPI_SGE_CHAIN_LENGTH(fl)       ((fl) & MPI_SGE_CHAIN_LENGTH_MASK)
 
-#define  MPI_SGE_SET_FLAGS_LENGTH(f,l)  (MPI_SGE_SET_FLAGS(f) | MPI_SGE_LENGTH(l))
+#define  MPI_SGE_SET_FLAGS_LENGTH(f, \
+      l)  (MPI_SGE_SET_FLAGS(f) | MPI_SGE_LENGTH(l))
 
 #define  MPI_pSGE_GET_FLAGS(psg)        MPI_SGE_GET_FLAGS((psg)->FlagsLength)
 #define  MPI_pSGE_GET_LENGTH(psg)       MPI_SGE_LENGTH((psg)->FlagsLength)
-#define  MPI_pSGE_SET_FLAGS_LENGTH(psg,f,l)  (psg)->FlagsLength = MPI_SGE_SET_FLAGS_LENGTH(f,l)
-         /* CAUTION - The following are READ-MODIFY-WRITE! */
-#define  MPI_pSGE_SET_FLAGS(psg,f)      (psg)->FlagsLength |= MPI_SGE_SET_FLAGS(f)
-#define  MPI_pSGE_SET_LENGTH(psg,l)     (psg)->FlagsLength |= MPI_SGE_LENGTH(l)
+#define  MPI_pSGE_SET_FLAGS_LENGTH(psg, f, \
+      l)  (psg)->FlagsLength = MPI_SGE_SET_FLAGS_LENGTH(f, l)
+/* CAUTION - The following are READ-MODIFY-WRITE! */
+#define  MPI_pSGE_SET_FLAGS(psg, \
+      f)      (psg)->FlagsLength |= MPI_SGE_SET_FLAGS(f)
+#define  MPI_pSGE_SET_LENGTH(psg, l)     (psg)->FlagsLength |= MPI_SGE_LENGTH(l)
 
-#define  MPI_GET_CHAIN_OFFSET(x) ((x&MPI_SGE_CHAIN_OFFSET_MASK)>>MPI_SGE_CHAIN_OFFSET_SHIFT)
-
-
+#define  MPI_GET_CHAIN_OFFSET(x) ((x & MPI_SGE_CHAIN_OFFSET_MASK) >> \
+  MPI_SGE_CHAIN_OFFSET_SHIFT)
 
 /*****************************************************************************
 *
@@ -605,45 +575,40 @@ typedef struct _SGE_MPI_UNION
 *
 *****************************************************************************/
 
-/****************************************************************************/
-/* Standard message request header for all request messages                 */
-/****************************************************************************/
+/* **************************************************************************
+ * Standard message request header for all request messages
+ ****************************************************************************/
 
-typedef struct _MSG_REQUEST_HEADER
-{
-    U8                      Reserved[2];      /* function specific */
-    U8                      ChainOffset;
-    U8                      Function;
-    U8                      Reserved1[3];     /* function specific */
-    U8                      MsgFlags;
-    U32                     MsgContext;
+typedef struct _MSG_REQUEST_HEADER {
+  U8 Reserved[2];      /* function specific */
+  U8 ChainOffset;
+  U8 Function;
+  U8 Reserved1[3];     /* function specific */
+  U8 MsgFlags;
+  U32 MsgContext;
 } MSG_REQUEST_HEADER, MPI_POINTER PTR_MSG_REQUEST_HEADER,
-  MPIHeader_t, MPI_POINTER pMPIHeader_t;
+MPIHeader_t, MPI_POINTER pMPIHeader_t;
 
+/* **************************************************************************
+ *  Default Reply
+ ****************************************************************************/
 
-/****************************************************************************/
-/*  Default Reply                                                           */
-/****************************************************************************/
-
-typedef struct _MSG_DEFAULT_REPLY
-{
-    U8                      Reserved[2];      /* function specific */
-    U8                      MsgLength;
-    U8                      Function;
-    U8                      Reserved1[3];     /* function specific */
-    U8                      MsgFlags;
-    U32                     MsgContext;
-    U8                      Reserved2[2];     /* function specific */
-    U16                     IOCStatus;
-    U32                     IOCLogInfo;
+typedef struct _MSG_DEFAULT_REPLY {
+  U8 Reserved[2];      /* function specific */
+  U8 MsgLength;
+  U8 Function;
+  U8 Reserved1[3];     /* function specific */
+  U8 MsgFlags;
+  U32 MsgContext;
+  U8 Reserved2[2];     /* function specific */
+  U16 IOCStatus;
+  U32 IOCLogInfo;
 } MSG_DEFAULT_REPLY, MPI_POINTER PTR_MSG_DEFAULT_REPLY,
-  MPIDefaultReply_t, MPI_POINTER pMPIDefaultReply_t;
-
+MPIDefaultReply_t, MPI_POINTER pMPIDefaultReply_t;
 
 /* MsgFlags definition for all replies */
 
 #define MPI_MSGFLAGS_CONTINUATION_REPLY         (0x80)
-
 
 /*****************************************************************************
 *
@@ -651,9 +616,9 @@ typedef struct _MSG_DEFAULT_REPLY
 *
 *****************************************************************************/
 
-/****************************************************************************/
-/*  Common IOCStatus values for all replies                                 */
-/****************************************************************************/
+/* **************************************************************************
+ *  Common IOCStatus values for all replies
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_SUCCESS                   (0x0000)
 #define MPI_IOCSTATUS_INVALID_FUNCTION          (0x0001)
@@ -666,9 +631,9 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_INVALID_STATE             (0x0008)
 #define MPI_IOCSTATUS_OP_STATE_NOT_SUPPORTED    (0x0009)
 
-/****************************************************************************/
-/*  Config IOCStatus values                                                 */
-/****************************************************************************/
+/* **************************************************************************
+ *  Config IOCStatus values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_CONFIG_INVALID_ACTION     (0x0020)
 #define MPI_IOCSTATUS_CONFIG_INVALID_TYPE       (0x0021)
@@ -677,9 +642,9 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_CONFIG_NO_DEFAULTS        (0x0024)
 #define MPI_IOCSTATUS_CONFIG_CANT_COMMIT        (0x0025)
 
-/****************************************************************************/
-/*  SCSIIO Reply (SPI & FCP) initiator values                               */
-/****************************************************************************/
+/* **************************************************************************
+ *  SCSIIO Reply (SPI & FCP) initiator values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_SCSI_RECOVERED_ERROR      (0x0040)
 #define MPI_IOCSTATUS_SCSI_INVALID_BUS          (0x0041)
@@ -695,18 +660,17 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_SCSI_IOC_TERMINATED       (0x004B)
 #define MPI_IOCSTATUS_SCSI_EXT_TERMINATED       (0x004C)
 
-/****************************************************************************/
-/*  For use by SCSI Initiator and SCSI Target end-to-end data protection    */
-/****************************************************************************/
+/* **************************************************************************
+ *  For use by SCSI Initiator and SCSI Target end-to-end data protection
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_EEDP_GUARD_ERROR          (0x004D)
 #define MPI_IOCSTATUS_EEDP_REF_TAG_ERROR        (0x004E)
 #define MPI_IOCSTATUS_EEDP_APP_TAG_ERROR        (0x004F)
 
-
-/****************************************************************************/
-/*  SCSI Target values                                                      */
-/****************************************************************************/
+/* **************************************************************************
+ *  SCSI Target values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_TARGET_PRIORITY_IO         (0x0060)
 #define MPI_IOCSTATUS_TARGET_INVALID_PORT        (0x0061)
@@ -723,18 +687,18 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_TARGET_ACK_NAK_TIMEOUT     (0x0070)
 #define MPI_IOCSTATUS_TARGET_NAK_RECEIVED        (0x0071)
 
-/****************************************************************************/
-/*  Additional FCP target values (obsolete)                                 */
-/****************************************************************************/
+/* **************************************************************************
+ *  Additional FCP target values (obsolete)
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_TARGET_FC_ABORTED         (0x0066)    /* obsolete */
 #define MPI_IOCSTATUS_TARGET_FC_RX_ID_INVALID   (0x0067)    /* obsolete */
 #define MPI_IOCSTATUS_TARGET_FC_DID_INVALID     (0x0068)    /* obsolete */
 #define MPI_IOCSTATUS_TARGET_FC_NODE_LOGGED_OUT (0x0069)    /* obsolete */
 
-/****************************************************************************/
-/*  Fibre Channel Direct Access values                                      */
-/****************************************************************************/
+/* **************************************************************************
+ *  Fibre Channel Direct Access values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_FC_ABORTED                (0x0066)
 #define MPI_IOCSTATUS_FC_RX_ID_INVALID          (0x0067)
@@ -742,9 +706,9 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_FC_NODE_LOGGED_OUT        (0x0069)
 #define MPI_IOCSTATUS_FC_EXCHANGE_CANCELED      (0x006C)
 
-/****************************************************************************/
-/*  LAN values                                                              */
-/****************************************************************************/
+/* **************************************************************************
+ *  LAN values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_LAN_DEVICE_NOT_FOUND      (0x0080)
 #define MPI_IOCSTATUS_LAN_DEVICE_FAILURE        (0x0081)
@@ -755,37 +719,36 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_LAN_PARTIAL_PACKET        (0x0086)
 #define MPI_IOCSTATUS_LAN_CANCELED              (0x0087)
 
-/****************************************************************************/
-/*  Serial Attached SCSI values                                             */
-/****************************************************************************/
+/* **************************************************************************
+ *  Serial Attached SCSI values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_SAS_SMP_REQUEST_FAILED    (0x0090)
 #define MPI_IOCSTATUS_SAS_SMP_DATA_OVERRUN      (0x0091)
 
-/****************************************************************************/
-/*  Inband values                                                           */
-/****************************************************************************/
+/* **************************************************************************
+ *  Inband values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_INBAND_ABORTED            (0x0098)
 #define MPI_IOCSTATUS_INBAND_NO_CONNECTION      (0x0099)
 
-/****************************************************************************/
-/*  Diagnostic Tools values                                                 */
-/****************************************************************************/
+/* **************************************************************************
+ *  Diagnostic Tools values
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_DIAGNOSTIC_RELEASED       (0x00A0)
 
-
-/****************************************************************************/
-/*  IOCStatus flag to indicate that log info is available                   */
-/****************************************************************************/
+/* **************************************************************************
+ *  IOCStatus flag to indicate that log info is available
+ ****************************************************************************/
 
 #define MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE   (0x8000)
 #define MPI_IOCSTATUS_MASK                      (0x7FFF)
 
-/****************************************************************************/
-/*  LogInfo Types                                                           */
-/****************************************************************************/
+/* **************************************************************************
+ *  LogInfo Types
+ ****************************************************************************/
 
 #define MPI_IOCLOGINFO_TYPE_MASK                (0xF0000000)
 #define MPI_IOCLOGINFO_TYPE_SHIFT               (28)
@@ -795,6 +758,5 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCLOGINFO_TYPE_SAS                 (0x3)
 #define MPI_IOCLOGINFO_TYPE_ISCSI               (0x4)
 #define MPI_IOCLOGINFO_LOG_DATA_MASK            (0x0FFFFFFF)
-
 
 #endif

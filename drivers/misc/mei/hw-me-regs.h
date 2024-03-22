@@ -121,25 +121,27 @@
 
 /* Host Firmware Status Registers in PCI Config Space */
 #define PCI_CFG_HFS_1         0x40
-#  define PCI_CFG_HFS_1_D0I3_MSK     0x80000000
-#  define PCI_CFG_HFS_1_OPMODE_MSK 0xf0000 /* OP MODE Mask: SPS <= 4.0 */
-#  define PCI_CFG_HFS_1_OPMODE_SPS 0xf0000 /* SPS SKU : SPS <= 4.0 */
+#define PCI_CFG_HFS_1_D0I3_MSK     0x80000000
+#define PCI_CFG_HFS_1_OPMODE_MSK 0xf0000 /* OP MODE Mask: SPS <= 4.0 */
+#define PCI_CFG_HFS_1_OPMODE_SPS 0xf0000 /* SPS SKU : SPS <= 4.0 */
 #define PCI_CFG_HFS_2         0x48
-#  define PCI_CFG_HFS_2_PM_CMOFF_TO_CMX_ERROR 0x1000000 /* CMoff->CMx wake after an error */
-#  define PCI_CFG_HFS_2_PM_CM_RESET_ERROR     0x5000000 /* CME reset due to exception */
-#  define PCI_CFG_HFS_2_PM_EVENT_MASK         0xf000000
+#define PCI_CFG_HFS_2_PM_CMOFF_TO_CMX_ERROR 0x1000000 /* CMoff->CMx wake after
+                                                       * an error */
+#define PCI_CFG_HFS_2_PM_CM_RESET_ERROR     0x5000000 /* CME reset due to
+                                                       * exception */
+#define PCI_CFG_HFS_2_PM_EVENT_MASK         0xf000000
 #define PCI_CFG_HFS_3         0x60
-#  define PCI_CFG_HFS_3_FW_SKU_MSK   0x00000070
-#  define PCI_CFG_HFS_3_FW_SKU_IGN   0x00000000
-#  define PCI_CFG_HFS_3_FW_SKU_SPS   0x00000060
+#define PCI_CFG_HFS_3_FW_SKU_MSK   0x00000070
+#define PCI_CFG_HFS_3_FW_SKU_IGN   0x00000000
+#define PCI_CFG_HFS_3_FW_SKU_SPS   0x00000060
 #define PCI_CFG_HFS_4         0x64
 #define PCI_CFG_HFS_5         0x68
-#  define GSC_CFG_HFS_5_BOOT_TYPE_MSK      0x00000003
-#  define GSC_CFG_HFS_5_BOOT_TYPE_PXP               3
+#define GSC_CFG_HFS_5_BOOT_TYPE_MSK      0x00000003
+#define GSC_CFG_HFS_5_BOOT_TYPE_PXP               3
 #define PCI_CFG_HFS_6         0x6C
 
-/* MEI registers */
-/* H_CB_WW - Host Circular Buffer (CB) Write Window register */
+/* MEI registers
+ * H_CB_WW - Host Circular Buffer (CB) Write Window register*/
 #define H_CB_WW    0
 /* H_CSR - Host Control Status register */
 #define H_CSR      4
@@ -157,8 +159,8 @@
 #define H_GSC_EXT_OP_MEM_LIMIT_REG        0x108
 #define GSC_EXT_OP_MEM_VALID              BIT(31)
 
-/* register bits of H_CSR (Host Control Status register) */
-/* Host Circular Buffer Depth - maximum number of 32-bit entries in CB */
+/* register bits of H_CSR (Host Control Status register)
+ * Host Circular Buffer Depth - maximum number of 32-bit entries in CB*/
 #define H_CBD             0xFF000000
 /* Host Circular Buffer Write Pointer */
 #define H_CBWP            0x00FF0000
@@ -185,7 +187,7 @@
 
 /* register bits of ME_CSR_HA (ME Control Status Host Access register) */
 /* ME CB (Circular Buffer) Depth HRA (Host Read Access) - host read only
-access to ME_CBD */
+ * access to ME_CBD */
 #define ME_CBD_HRA        0xFF000000
 /* ME CB Write Pointer HRA - host read only access to ME_CBWP */
 #define ME_CBWP_HRA       0x00FF0000

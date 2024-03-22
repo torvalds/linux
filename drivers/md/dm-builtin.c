@@ -41,8 +41,8 @@
  * into a helper code that is compiled directly into the kernel.
  */
 
-void dm_kobject_release(struct kobject *kobj)
-{
-	complete(dm_get_completion_from_kobject(kobj));
+void dm_kobject_release(struct kobject *kobj) {
+  complete(dm_get_completion_from_kobject(kobj));
 }
+
 EXPORT_SYMBOL(dm_kobject_release);

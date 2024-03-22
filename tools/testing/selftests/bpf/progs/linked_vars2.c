@@ -6,7 +6,8 @@
 #include <bpf/bpf_tracing.h>
 
 extern int LINUX_KERNEL_VERSION __kconfig;
-/* when an extern is defined as both strong and weak, resulting symbol will be strong */
+/* when an extern is defined as both strong and weak, resulting symbol will be
+ * strong */
 extern bool CONFIG_BPF_SYSCALL __kconfig;
 extern const void __start_BTF __ksym;
 
@@ -29,27 +30,23 @@ int output_rodata2;
 
 int output_sink2;
 
-static __noinline int get_data_res(void)
-{
-	/* just make sure all the relocations work against .text as well */
-	return input_data1 + input_data2 + input_data_weak;
+static __noinline int get_data_res(void) {
+  /* just make sure all the relocations work against .text as well */
+  return input_data1 + input_data2 + input_data_weak;
 }
 
 SEC("raw_tp/sys_enter")
-int BPF_PROG(handler2)
-{
-	output_bss2 = input_bss1 + input_bss2 + input_bss_weak;
-	output_data2 = get_data_res();
-	output_rodata2 = input_rodata1 + input_rodata2 + input_rodata_weak;
-
-	/* make sure we actually use above special externs, otherwise compiler
-	 * will optimize them out
-	 */
-	output_sink2 = LINUX_KERNEL_VERSION
-		       + CONFIG_BPF_SYSCALL
-		       + (long)&__start_BTF;
-
-	return 0;
+int BPF_PROG(handler2) {
+  output_bss2 = input_bss1 + input_bss2 + input_bss_weak;
+  output_data2 = get_data_res();
+  output_rodata2 = input_rodata1 + input_rodata2 + input_rodata_weak;
+  /* make sure we actually use above special externs, otherwise compiler
+   * will optimize them out
+   */
+  output_sink2 = LINUX_KERNEL_VERSION
+      + CONFIG_BPF_SYSCALL
+      + (long) &__start_BTF;
+  return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

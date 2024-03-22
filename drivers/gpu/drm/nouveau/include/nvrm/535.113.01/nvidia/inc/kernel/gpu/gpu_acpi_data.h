@@ -2,10 +2,12 @@
 #define __src_nvidia_inc_kernel_gpu_gpu_acpi_data_h__
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl0073/ctrl0073system.h>
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES.
+ *All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,48 +29,44 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-typedef struct DOD_METHOD_DATA
-{
-    NV_STATUS status;
-    NvU32     acpiIdListLen;
-    NvU32     acpiIdList[NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS];
+typedef struct DOD_METHOD_DATA {
+  NV_STATUS status;
+  NvU32 acpiIdListLen;
+  NvU32 acpiIdList[NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS];
 } DOD_METHOD_DATA;
 
-typedef struct JT_METHOD_DATA
-{
-    NV_STATUS status;
-    NvU32     jtCaps;
-    NvU16     jtRevId;
-    NvBool    bSBIOSCaps;
+typedef struct JT_METHOD_DATA {
+  NV_STATUS status;
+  NvU32 jtCaps;
+  NvU16 jtRevId;
+  NvBool bSBIOSCaps;
 } JT_METHOD_DATA;
 
-typedef struct MUX_METHOD_DATA_ELEMENT
-{
-    NvU32       acpiId;
-    NvU32       mode;
-    NV_STATUS   status;
+typedef struct MUX_METHOD_DATA_ELEMENT {
+  NvU32 acpiId;
+  NvU32 mode;
+  NV_STATUS status;
 } MUX_METHOD_DATA_ELEMENT;
 
-typedef struct MUX_METHOD_DATA
-{
-    NvU32                       tableLen;
-    MUX_METHOD_DATA_ELEMENT     acpiIdMuxModeTable[NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS];
-    MUX_METHOD_DATA_ELEMENT     acpiIdMuxPartTable[NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS];
+typedef struct MUX_METHOD_DATA {
+  NvU32 tableLen;
+  MUX_METHOD_DATA_ELEMENT acpiIdMuxModeTable[
+    NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS];
+  MUX_METHOD_DATA_ELEMENT acpiIdMuxPartTable[
+    NV0073_CTRL_SYSTEM_ACPI_ID_MAP_MAX_DISPLAYS];
 } MUX_METHOD_DATA;
 
-typedef struct CAPS_METHOD_DATA
-{
-    NV_STATUS status;
-    NvU32     optimusCaps;
+typedef struct CAPS_METHOD_DATA {
+  NV_STATUS status;
+  NvU32 optimusCaps;
 } CAPS_METHOD_DATA;
 
-typedef struct ACPI_METHOD_DATA
-{
-    NvBool                                               bValid;
-    DOD_METHOD_DATA                                      dodMethodData;
-    JT_METHOD_DATA                                       jtMethodData;
-    MUX_METHOD_DATA                                      muxMethodData;
-    CAPS_METHOD_DATA                                     capsMethodData;
+typedef struct ACPI_METHOD_DATA {
+  NvBool bValid;
+  DOD_METHOD_DATA dodMethodData;
+  JT_METHOD_DATA jtMethodData;
+  MUX_METHOD_DATA muxMethodData;
+  CAPS_METHOD_DATA capsMethodData;
 } ACPI_METHOD_DATA;
 
 #endif

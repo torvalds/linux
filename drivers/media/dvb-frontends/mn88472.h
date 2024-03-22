@@ -26,25 +26,25 @@
  * @get_dvb_frontend: Get DVB frontend callback.
  */
 struct mn88472_config {
-	unsigned int xtal;
+  unsigned int xtal;
 
 #define MN88472_TS_MODE_SERIAL      0
 #define MN88472_TS_MODE_PARALLEL    1
-	int ts_mode;
+  int ts_mode;
 
 #define MN88472_TS_CLK_FIXED        0
 #define MN88472_TS_CLK_VARIABLE     1
-	int ts_clock;
+  int ts_clock;
 
-	u16 i2c_wr_max;
+  u16 i2c_wr_max;
 
-	/* Everything after that is returned by the driver. */
+  /* Everything after that is returned by the driver. */
 
-	/*
-	 * DVB frontend.
-	 */
-	struct dvb_frontend **fe;
-	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
+  /*
+   * DVB frontend.
+   */
+  struct dvb_frontend **fe;
+  struct dvb_frontend *(*get_dvb_frontend)(struct i2c_client *);
 };
 
 #endif

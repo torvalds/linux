@@ -35,43 +35,45 @@ long nobuf_ret = 0;
 extern const void schedule __ksym;
 
 SEC("raw_tp/sys_enter")
-int handler(const void *ctx)
-{
-	/* Convenient values to pretty-print */
-	const __u8 ex_ipv4[] = {127, 0, 0, 1};
-	const __u8 ex_ipv6[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
-	static const char str1[] = "str1";
-	static const char longstr[] = "longstr";
-
-	if ((int)bpf_get_current_pid_tgid() != pid)
-		return 0;
-
-	/* Integer types */
-	num_ret  = BPF_SNPRINTF(num_out, sizeof(num_out),
-				"%d %u %x %li %llu %lX",
-				-8, 9, 150, -424242, 1337, 0xDABBAD00);
-	/* IP addresses */
-	ip_ret   = BPF_SNPRINTF(ip_out, sizeof(ip_out), "%pi4 %pI6",
-				&ex_ipv4, &ex_ipv6);
-	/* Symbol lookup formatting */
-	sym_ret  = BPF_SNPRINTF(sym_out,  sizeof(sym_out), "%ps %pS %pB",
-				&schedule, &schedule, &schedule);
-	/* Kernel pointers */
-	addr_ret = BPF_SNPRINTF(addr_out, sizeof(addr_out), "%pK %px %p",
-				0, 0xFFFF00000ADD4E55, 0xFFFF00000ADD4E55);
-	/* Strings and single-byte character embedding */
-	str_ret  = BPF_SNPRINTF(str_out, sizeof(str_out), "%s % 9c %+2c %-3c %04c %0c %+05s",
-				str1, 'a', 'b', 'c', 'd', 'e', longstr);
-	/* Overflow */
-	over_ret = BPF_SNPRINTF(over_out, sizeof(over_out), "%%overflow");
-	/* Padding of fixed width numbers */
-	pad_ret = BPF_SNPRINTF(pad_out, sizeof(pad_out), "%5d %0900000X", 4, 4);
-	/* No args */
-	noarg_ret = BPF_SNPRINTF(noarg_out, sizeof(noarg_out), "simple case");
-	/* No buffer */
-	nobuf_ret = BPF_SNPRINTF(NULL, 0, "only interested in length %d", 60);
-
-	return 0;
+int handler(const void *ctx) {
+  /* Convenient values to pretty-print */
+  const __u8 ex_ipv4[] = {
+    127, 0, 0, 1
+  };
+  const __u8 ex_ipv6[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+  };
+  static const char str1[] = "str1";
+  static const char longstr[] = "longstr";
+  if ((int) bpf_get_current_pid_tgid() != pid) {
+    return 0;
+  }
+  /* Integer types */
+  num_ret = BPF_SNPRINTF(num_out, sizeof(num_out),
+      "%d %u %x %li %llu %lX",
+      -8, 9, 150, -424242, 1337, 0xDABBAD00);
+  /* IP addresses */
+  ip_ret = BPF_SNPRINTF(ip_out, sizeof(ip_out), "%pi4 %pI6",
+      &ex_ipv4, &ex_ipv6);
+  /* Symbol lookup formatting */
+  sym_ret = BPF_SNPRINTF(sym_out, sizeof(sym_out), "%ps %pS %pB",
+      &schedule, &schedule, &schedule);
+  /* Kernel pointers */
+  addr_ret = BPF_SNPRINTF(addr_out, sizeof(addr_out), "%pK %px %p",
+      0, 0xFFFF00000ADD4E55, 0xFFFF00000ADD4E55);
+  /* Strings and single-byte character embedding */
+  str_ret = BPF_SNPRINTF(str_out, sizeof(str_out),
+      "%s % 9c %+2c %-3c %04c %0c %+05s",
+      str1, 'a', 'b', 'c', 'd', 'e', longstr);
+  /* Overflow */
+  over_ret = BPF_SNPRINTF(over_out, sizeof(over_out), "%%overflow");
+  /* Padding of fixed width numbers */
+  pad_ret = BPF_SNPRINTF(pad_out, sizeof(pad_out), "%5d %0900000X", 4, 4);
+  /* No args */
+  noarg_ret = BPF_SNPRINTF(noarg_out, sizeof(noarg_out), "simple case");
+  /* No buffer */
+  nobuf_ret = BPF_SNPRINTF(NULL, 0, "only interested in length %d", 60);
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

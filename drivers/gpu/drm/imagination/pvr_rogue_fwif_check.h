@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT
+ * Copyright (c) 2023 Imagination Technologies Ltd.*/
 
 #ifndef PVR_ROGUE_FWIF_CHECK_H
 #define PVR_ROGUE_FWIF_CHECK_H
@@ -7,11 +7,11 @@
 #include <linux/build_bug.h>
 
 #define OFFSET_CHECK(type, member, offset) \
-	static_assert(offsetof(type, member) == (offset), \
-		      "offsetof(" #type ", " #member ") incorrect")
+  static_assert(offsetof(type, member) == (offset), \
+    "offsetof(" #type ", " #member ") incorrect")
 
 #define SIZE_CHECK(type, size) \
-	static_assert(sizeof(type) == (size), #type " is incorrect size")
+  static_assert(sizeof(type) == (size), #type " is incorrect size")
 
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, path, 0);
 OFFSET_CHECK(struct rogue_fwif_file_info_buf, info, 200);
@@ -144,17 +144,22 @@ OFFSET_CHECK(struct rogue_fwif_fwmemcontext, breakpoint_ctl, 20);
 OFFSET_CHECK(struct rogue_fwif_fwmemcontext, fw_mem_ctx_flags, 24);
 SIZE_CHECK(struct rogue_fwif_fwmemcontext, 32);
 
-OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom, geom_reg_vdm_call_stack_pointer, 0);
-OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom, geom_reg_vdm_call_stack_pointer_init, 8);
-OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom, geom_reg_vbs_so_prim, 16);
+OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom,
+    geom_reg_vdm_call_stack_pointer, 0);
+OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom,
+    geom_reg_vdm_call_stack_pointer_init, 8);
+OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom, geom_reg_vbs_so_prim,
+    16);
 OFFSET_CHECK(struct rogue_fwif_geom_ctx_state_per_geom, geom_current_idx, 32);
 SIZE_CHECK(struct rogue_fwif_geom_ctx_state_per_geom, 40);
 
 OFFSET_CHECK(struct rogue_fwif_geom_ctx_state, geom_core, 0);
 SIZE_CHECK(struct rogue_fwif_geom_ctx_state, 160);
 
-OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_pm_deallocated_mask_status, 0);
-OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_dm_pds_mtilefree_status, 4);
+OFFSET_CHECK(struct rogue_fwif_frag_ctx_state,
+    frag_reg_pm_deallocated_mask_status, 0);
+OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_dm_pds_mtilefree_status,
+    4);
 OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, ctx_state_flags, 8);
 OFFSET_CHECK(struct rogue_fwif_frag_ctx_state, frag_reg_isp_store, 12);
 SIZE_CHECK(struct rogue_fwif_frag_ctx_state, 16);
@@ -204,11 +209,14 @@ OFFSET_CHECK(struct rogue_fwif_kccb_cmd_kick_data, client_woff_update, 4);
 OFFSET_CHECK(struct rogue_fwif_kccb_cmd_kick_data, client_wrap_mask_update, 8);
 OFFSET_CHECK(struct rogue_fwif_kccb_cmd_kick_data, num_cleanup_ctl, 12);
 OFFSET_CHECK(struct rogue_fwif_kccb_cmd_kick_data, cleanup_ctl_fw_addr, 16);
-OFFSET_CHECK(struct rogue_fwif_kccb_cmd_kick_data, work_est_cmd_header_offset, 28);
+OFFSET_CHECK(struct rogue_fwif_kccb_cmd_kick_data, work_est_cmd_header_offset,
+    28);
 SIZE_CHECK(struct rogue_fwif_kccb_cmd_kick_data, 32);
 
-OFFSET_CHECK(struct rogue_fwif_kccb_cmd_combined_geom_frag_kick_data, geom_cmd_kick_data, 0);
-OFFSET_CHECK(struct rogue_fwif_kccb_cmd_combined_geom_frag_kick_data, frag_cmd_kick_data, 32);
+OFFSET_CHECK(struct rogue_fwif_kccb_cmd_combined_geom_frag_kick_data,
+    geom_cmd_kick_data, 0);
+OFFSET_CHECK(struct rogue_fwif_kccb_cmd_combined_geom_frag_kick_data,
+    frag_cmd_kick_data, 32);
 SIZE_CHECK(struct rogue_fwif_kccb_cmd_combined_geom_frag_kick_data, 64);
 
 OFFSET_CHECK(struct rogue_fwif_kccb_cmd_force_update_data, context_fw_addr, 0);
@@ -235,7 +243,8 @@ OFFSET_CHECK(struct rogue_fwif_hwperf_ctrl, mask, 8);
 SIZE_CHECK(struct rogue_fwif_hwperf_ctrl, 16);
 
 OFFSET_CHECK(struct rogue_fwif_hwperf_config_enable_blks, num_blocks, 0);
-OFFSET_CHECK(struct rogue_fwif_hwperf_config_enable_blks, block_configs_fw_addr, 4);
+OFFSET_CHECK(struct rogue_fwif_hwperf_config_enable_blks, block_configs_fw_addr,
+    4);
 SIZE_CHECK(struct rogue_fwif_hwperf_config_enable_blks, 8);
 
 OFFSET_CHECK(struct rogue_fwif_hwperf_config_da_blks, num_blocks, 0);
@@ -252,7 +261,8 @@ SIZE_CHECK(struct rogue_fwif_hwperf_ctrl_blks, 40);
 
 OFFSET_CHECK(struct rogue_fwif_hwperf_select_custom_cntrs, custom_block, 0);
 OFFSET_CHECK(struct rogue_fwif_hwperf_select_custom_cntrs, num_counters, 2);
-OFFSET_CHECK(struct rogue_fwif_hwperf_select_custom_cntrs, custom_counter_ids_fw_addr, 4);
+OFFSET_CHECK(struct rogue_fwif_hwperf_select_custom_cntrs,
+    custom_counter_ids_fw_addr, 4);
 SIZE_CHECK(struct rogue_fwif_hwperf_select_custom_cntrs, 8);
 
 OFFSET_CHECK(struct rogue_fwif_zsbuffer_backing_data, zs_buffer_fw_addr, 0);
@@ -265,7 +275,8 @@ OFFSET_CHECK(struct rogue_fwif_freelist_gs_data, new_pages, 8);
 OFFSET_CHECK(struct rogue_fwif_freelist_gs_data, ready_pages, 12);
 SIZE_CHECK(struct rogue_fwif_freelist_gs_data, 16);
 
-OFFSET_CHECK(struct rogue_fwif_freelists_reconstruction_data, freelist_count, 0);
+OFFSET_CHECK(struct rogue_fwif_freelists_reconstruction_data, freelist_count,
+    0);
 OFFSET_CHECK(struct rogue_fwif_freelists_reconstruction_data, freelist_ids, 4);
 SIZE_CHECK(struct rogue_fwif_freelists_reconstruction_data, 76);
 
@@ -277,7 +288,8 @@ OFFSET_CHECK(struct rogue_fwif_kccb_cmd, kccb_flags, 4);
 OFFSET_CHECK(struct rogue_fwif_kccb_cmd, cmd_data, 8);
 SIZE_CHECK(struct rogue_fwif_kccb_cmd, 88);
 
-OFFSET_CHECK(struct rogue_fwif_fwccb_cmd_context_reset_data, server_common_context_id, 0);
+OFFSET_CHECK(struct rogue_fwif_fwccb_cmd_context_reset_data,
+    server_common_context_id, 0);
 OFFSET_CHECK(struct rogue_fwif_fwccb_cmd_context_reset_data, reset_reason, 4);
 OFFSET_CHECK(struct rogue_fwif_fwccb_cmd_context_reset_data, dm, 8);
 OFFSET_CHECK(struct rogue_fwif_fwccb_cmd_context_reset_data, reset_job_ref, 12);

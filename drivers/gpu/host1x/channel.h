@@ -18,28 +18,28 @@ struct host1x;
 struct host1x_channel;
 
 struct host1x_channel_list {
-	struct host1x_channel *channels;
+  struct host1x_channel *channels;
 
-	struct mutex lock;
-	unsigned long *allocated_channels;
+  struct mutex lock;
+  unsigned long *allocated_channels;
 };
 
 struct host1x_channel {
-	struct kref refcount;
-	unsigned int id;
-	struct mutex submitlock;
-	void __iomem *regs;
-	struct host1x_client *client;
-	struct device *dev;
-	struct host1x_cdma cdma;
+  struct kref refcount;
+  unsigned int id;
+  struct mutex submitlock;
+  void __iomem *regs;
+  struct host1x_client *client;
+  struct device *dev;
+  struct host1x_cdma cdma;
 };
 
 /* channel list operations */
 int host1x_channel_list_init(struct host1x_channel_list *chlist,
-			     unsigned int num_channels);
+    unsigned int num_channels);
 void host1x_channel_list_free(struct host1x_channel_list *chlist);
 struct host1x_channel *host1x_channel_get_index(struct host1x *host,
-						unsigned int index);
+    unsigned int index);
 void host1x_channel_stop_all(struct host1x *host);
 
 #endif

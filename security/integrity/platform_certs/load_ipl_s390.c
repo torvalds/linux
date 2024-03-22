@@ -15,22 +15,22 @@
  * Load the certs contained in the IPL report created by the machine loader
  * into the platform trusted keyring.
  */
-static int __init load_ipl_certs(void)
-{
-	void *ptr, *end;
-	unsigned int len;
-
-	if (!ipl_cert_list_addr)
-		return 0;
-	/* Copy the certificates to the platform keyring */
-	ptr = __va(ipl_cert_list_addr);
-	end = ptr + ipl_cert_list_size;
-	while ((void *) ptr < end) {
-		len = *(unsigned int *) ptr;
-		ptr += sizeof(unsigned int);
-		add_to_platform_keyring("IPL:db", ptr, len);
-		ptr += len;
-	}
-	return 0;
+static int __init load_ipl_certs(void) {
+  void *ptr, *end;
+  unsigned int len;
+  if (!ipl_cert_list_addr) {
+    return 0;
+  }
+  /* Copy the certificates to the platform keyring */
+  ptr = __va(ipl_cert_list_addr);
+  end = ptr + ipl_cert_list_size;
+  while ((void *) ptr < end) {
+    len = *(unsigned int *) ptr;
+    ptr += sizeof(unsigned int);
+    add_to_platform_keyring("IPL:db", ptr, len);
+    ptr += len;
+  }
+  return 0;
 }
+
 late_initcall(load_ipl_certs);

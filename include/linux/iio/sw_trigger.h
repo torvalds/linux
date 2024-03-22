@@ -14,35 +14,34 @@
 #include <linux/configfs.h>
 
 #define module_iio_sw_trigger_driver(__iio_sw_trigger_type) \
-	module_driver(__iio_sw_trigger_type, iio_register_sw_trigger_type, \
-		      iio_unregister_sw_trigger_type)
+  module_driver(__iio_sw_trigger_type, iio_register_sw_trigger_type, \
+    iio_unregister_sw_trigger_type)
 
 struct iio_sw_trigger_ops;
 
 struct iio_sw_trigger_type {
-	const char *name;
-	struct module *owner;
-	const struct iio_sw_trigger_ops *ops;
-	struct list_head list;
-	struct config_group *group;
+  const char *name;
+  struct module *owner;
+  const struct iio_sw_trigger_ops *ops;
+  struct list_head list;
+  struct config_group *group;
 };
 
 struct iio_sw_trigger {
-	struct iio_trigger *trigger;
-	struct iio_sw_trigger_type *trigger_type;
-	struct config_group group;
+  struct iio_trigger *trigger;
+  struct iio_sw_trigger_type *trigger_type;
+  struct config_group group;
 };
 
 struct iio_sw_trigger_ops {
-	struct iio_sw_trigger* (*probe)(const char *);
-	int (*remove)(struct iio_sw_trigger *);
+  struct iio_sw_trigger *(*probe)(const char *);
+  int (*remove)(struct iio_sw_trigger *);
 };
 
 static inline
-struct iio_sw_trigger *to_iio_sw_trigger(struct config_item *item)
-{
-	return container_of(to_config_group(item), struct iio_sw_trigger,
-			    group);
+struct iio_sw_trigger *to_iio_sw_trigger(struct config_item *item) {
+  return container_of(to_config_group(item), struct iio_sw_trigger,
+      group);
 }
 
 int iio_register_sw_trigger_type(struct iio_sw_trigger_type *tt);
@@ -53,11 +52,10 @@ void iio_sw_trigger_destroy(struct iio_sw_trigger *);
 
 static inline
 void iio_swt_group_init_type_name(struct iio_sw_trigger *t,
-				  const char *name,
-				  const struct config_item_type *type)
-{
+    const char *name,
+    const struct config_item_type *type) {
 #if IS_ENABLED(CONFIG_CONFIGFS_FS)
-	config_group_init_type_name(&t->group, name, type);
+  config_group_init_type_name(&t->group, name, type);
 #endif
 }
 

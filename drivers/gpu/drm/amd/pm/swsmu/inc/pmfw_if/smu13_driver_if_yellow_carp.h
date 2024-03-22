@@ -52,9 +52,9 @@ typedef struct {
   uint16_t MinMclk;
   uint16_t MaxMclk;
 
-  uint8_t  WmSetting;
-  uint8_t  WmType;  // Used for normal pstate change or memory retraining
-  uint8_t  Padding[2];
+  uint8_t WmSetting;
+  uint8_t WmType;  // Used for normal pstate change or memory retraining
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -85,15 +85,15 @@ typedef enum {
 } CUSTOM_DPM_SETTING_e;
 
 typedef struct {
-  uint8_t             ActiveHystLimit;
-  uint8_t             IdleHystLimit;
-  uint8_t             FPS;
-  uint8_t             MinActiveFreqType;
-  FloatInIntFormat_t  MinActiveFreq;
-  FloatInIntFormat_t  PD_Data_limit;
-  FloatInIntFormat_t  PD_Data_time_constant;
-  FloatInIntFormat_t  PD_Data_error_coeff;
-  FloatInIntFormat_t  PD_Data_error_rate_coeff;
+  uint8_t ActiveHystLimit;
+  uint8_t IdleHystLimit;
+  uint8_t FPS;
+  uint8_t MinActiveFreqType;
+  FloatInIntFormat_t MinActiveFreq;
+  FloatInIntFormat_t PD_Data_limit;
+  FloatInIntFormat_t PD_Data_time_constant;
+  FloatInIntFormat_t PD_Data_error_coeff;
+  FloatInIntFormat_t PD_Data_error_rate_coeff;
 } DpmActivityMonitorCoeffExt_t;
 
 typedef struct {
@@ -112,8 +112,8 @@ typedef struct {
   uint32_t FClk;
   uint32_t MemClk;
   uint32_t Voltage;
-  uint8_t  WckRatio;
-  uint8_t  Spare[3];
+  uint8_t WckRatio;
+  uint8_t Spare[3];
 } DfPstateTable_t;
 
 //Freq in MHz
@@ -128,17 +128,16 @@ typedef struct {
   uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
   DfPstateTable_t DfPstateTable[NUM_DF_PSTATE_LEVELS];
 
-  uint8_t  NumDcfClkLevelsEnabled;
-  uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
-  uint8_t  NumSocClkLevelsEnabled;
-  uint8_t  VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
-  uint8_t  NumDfPstatesEnabled;
-  uint8_t  spare[3];
+  uint8_t NumDcfClkLevelsEnabled;
+  uint8_t NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
+  uint8_t NumSocClkLevelsEnabled;
+  uint8_t VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
+  uint8_t NumDfPstatesEnabled;
+  uint8_t spare[3];
 
   uint32_t MinGfxClk;
   uint32_t MaxGfxClk;
 } DpmClocks_t;
-
 
 // Throttler Status Bitmask
 #define THROTTLER_STATUS_BIT_SPL            0
@@ -198,7 +197,6 @@ typedef struct {
   uint16_t SkinTemp;
   uint16_t DeviceState;
 } SmuMetrics_t;
-
 
 // Workload bits
 #define WORKLOAD_PPLIB_FULL_SCREEN_3D_BIT 0

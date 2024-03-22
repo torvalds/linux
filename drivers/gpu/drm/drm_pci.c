@@ -36,32 +36,29 @@
 
 #include "drm_internal.h"
 
-static int drm_get_pci_domain(struct drm_device *dev)
-{
+static int drm_get_pci_domain(struct drm_device *dev) {
 #ifndef __alpha__
-	/* For historical reasons, drm_get_pci_domain() is busticated
-	 * on most archs and has to remain so for userspace interface
-	 * < 1.4, except on alpha which was right from the beginning
-	 */
-	if (dev->if_version < 0x10004)
-		return 0;
+  /* For historical reasons, drm_get_pci_domain() is busticated
+   * on most archs and has to remain so for userspace interface
+   * < 1.4, except on alpha which was right from the beginning
+   */
+  if (dev->if_version < 0x10004) {
+    return 0;
+  }
 #endif /* __alpha__ */
-
-	return pci_domain_nr(to_pci_dev(dev->dev)->bus);
+  return pci_domain_nr(to_pci_dev(dev->dev)->bus);
 }
 
-int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
-{
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-
-	master->unique = kasprintf(GFP_KERNEL, "pci:%04x:%02x:%02x.%d",
-					drm_get_pci_domain(dev),
-					pdev->bus->number,
-					PCI_SLOT(pdev->devfn),
-					PCI_FUNC(pdev->devfn));
-	if (!master->unique)
-		return -ENOMEM;
-
-	master->unique_len = strlen(master->unique);
-	return 0;
+int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master) {
+  struct pci_dev *pdev = to_pci_dev(dev->dev);
+  master->unique = kasprintf(GFP_KERNEL, "pci:%04x:%02x:%02x.%d",
+      drm_get_pci_domain(dev),
+      pdev->bus->number,
+      PCI_SLOT(pdev->devfn),
+      PCI_FUNC(pdev->devfn));
+  if (!master->unique) {
+    return -ENOMEM;
+  }
+  master->unique_len = strlen(master->unique);
+  return 0;
 }

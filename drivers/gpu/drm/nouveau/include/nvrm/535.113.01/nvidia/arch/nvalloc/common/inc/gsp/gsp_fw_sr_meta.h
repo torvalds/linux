@@ -1,10 +1,12 @@
 #ifndef __src_nvidia_arch_nvalloc_common_inc_gsp_gsp_fw_sr_meta_h__
 #define __src_nvidia_arch_nvalloc_common_inc_gsp_gsp_fw_sr_meta_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022-2023 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -29,51 +31,50 @@
 #define GSP_FW_SR_META_MAGIC     0x8a3bb9e6c6c39d93ULL
 #define GSP_FW_SR_META_REVISION  2
 
-typedef struct
-{
-    //
-    // Magic
-    // Use for verification by Booter
-    //
-    NvU64 magic;  // = GSP_FW_SR_META_MAGIC;
+typedef struct {
+  //
+  // Magic
+  // Use for verification by Booter
+  //
+  NvU64 magic;  // = GSP_FW_SR_META_MAGIC;
 
-    //
-    // Revision number
-    // Bumped up when we change this interface so it is not backward compatible.
-    // Bumped up when we revoke GSP-RM ucode
-    //
-    NvU64 revision;  // = GSP_FW_SR_META_MAGIC_REVISION;
+  //
+  // Revision number
+  // Bumped up when we change this interface so it is not backward compatible.
+  // Bumped up when we revoke GSP-RM ucode
+  //
+  NvU64 revision;  // = GSP_FW_SR_META_MAGIC_REVISION;
 
-    //
-    // ---- Members regarding data in SYSMEM ----------------------------
-    // Consumed by Booter for DMA
-    //
-    NvU64 sysmemAddrOfSuspendResumeData;
-    NvU64 sizeOfSuspendResumeData;
+  //
+  // ---- Members regarding data in SYSMEM ----------------------------
+  // Consumed by Booter for DMA
+  //
+  NvU64 sysmemAddrOfSuspendResumeData;
+  NvU64 sizeOfSuspendResumeData;
 
-    // ---- Members for crypto ops across S/R ---------------------------
+  // ---- Members for crypto ops across S/R ---------------------------
 
-    //
-    // HMAC over the entire GspFwSRMeta structure (including padding)
-    // with the hmac field itself zeroed.
-    //
-    NvU8 hmac[32];
+  //
+  // HMAC over the entire GspFwSRMeta structure (including padding)
+  // with the hmac field itself zeroed.
+  //
+  NvU8 hmac[32];
 
-    // Hash over GspFwWprMeta structure
-    NvU8 wprMetaHash[32];
+  // Hash over GspFwWprMeta structure
+  NvU8 wprMetaHash[32];
 
-    // Hash over GspFwHeapFreeList structure. All zeros signifies no free list.
-    NvU8 heapFreeListHash[32];
+  // Hash over GspFwHeapFreeList structure. All zeros signifies no free list.
+  NvU8 heapFreeListHash[32];
 
-    // Hash over data in WPR2 (skipping over free heap chunks; see Booter for details)
-    NvU8 dataHash[32];
+  // Hash over data in WPR2 (skipping over free heap chunks; see Booter for
+  // details)
+  NvU8 dataHash[32];
 
-    //
-    // Pad structure to exactly 256 bytes (1 DMA chunk).
-    // Padding initialized to zero.
-    //
-    NvU32 padding[24];
-
+  //
+  // Pad structure to exactly 256 bytes (1 DMA chunk).
+  // Padding initialized to zero.
+  //
+  NvU32 padding[24];
 } GspFwSRMeta;
 
 #endif

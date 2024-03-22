@@ -34,15 +34,15 @@
 #include <asm/ptrace.h>
 
 /* The OR1K relocation types... not all relevant for module loader */
-#define R_OR32_NONE	0
-#define R_OR32_32	1
-#define R_OR32_16	2
-#define R_OR32_8	3
-#define R_OR32_CONST	4
-#define R_OR32_CONSTH	5
-#define R_OR32_JUMPTARG	6
+#define R_OR32_NONE 0
+#define R_OR32_32 1
+#define R_OR32_16 2
+#define R_OR32_8  3
+#define R_OR32_CONST  4
+#define R_OR32_CONSTH 5
+#define R_OR32_JUMPTARG 6
 #define R_OR32_VTINHERIT 7
-#define R_OR32_VTENTRY	8
+#define R_OR32_VTENTRY  8
 
 typedef unsigned long elf_greg_t;
 
@@ -61,8 +61,8 @@ typedef struct __or1k_fpu_state elf_fpregset_t;
 /*
  * These are used to set parameters in the core dumps.
  */
-#define ELF_ARCH	EM_OR32
-#define ELF_CLASS	ELFCLASS32
-#define ELF_DATA	ELFDATA2MSB
+#define ELF_ARCH  EM_OR32
+#define ELF_CLASS ELFCLASS32
+#define ELF_DATA  ELFDATA2MSB
 
 #endif /* _UAPI__ASM_OPENRISC_ELF_H */

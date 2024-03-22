@@ -18,9 +18,9 @@ int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem);
 
 #else /* CONFIG_P2SB */
 
-static inline int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
-{
-	return -ENODEV;
+static inline int p2sb_bar(struct pci_bus *bus, unsigned int devfn,
+    struct resource *mem) {
+  return -ENODEV;
 }
 
 #endif /* CONFIG_P2SB is not set */

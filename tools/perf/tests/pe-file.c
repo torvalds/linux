@@ -8,7 +8,6 @@
 // x86_64-w64-mingw32-objcopy --strip-debug
 //   --add-gnu-debuglink=pe-file.exe.debug pe-file.exe
 
-int main(int argc, char const *argv[])
-{
-	return 0;
+int main(int argc, char const *argv[]) {
+  return 0;
 }

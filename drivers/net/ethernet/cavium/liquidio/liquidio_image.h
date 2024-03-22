@@ -32,9 +32,9 @@
 #define LIO_MAX_IMAGES 16
 #define LIO_NIC_MAGIC 0x434E4943     /* "CNIC" */
 struct octeon_firmware_desc {
-	__be64 addr;
-	__be32 len;
-	__be32 crc32;         /* crc32 of image */
+  __be64 addr;
+  __be32 len;
+  __be32 crc32;         /* crc32 of image */
 };
 
 /* Following the header is a list of 64-bit aligned binary images,
@@ -42,13 +42,13 @@ struct octeon_firmware_desc {
  * Numeric fields are in network byte order.
  */
 struct octeon_firmware_file_header {
-	__be32 magic;
-	char version[LIO_MAX_FIRMWARE_VERSION_LEN];
-	char bootcmd[LIO_MAX_BOOTCMD_LEN];
-	__be32 num_images;
-	struct octeon_firmware_desc desc[LIO_MAX_IMAGES];
-	__be32 pad;
-	__be32 crc32;         /* header checksum */
+  __be32 magic;
+  char version[LIO_MAX_FIRMWARE_VERSION_LEN];
+  char bootcmd[LIO_MAX_BOOTCMD_LEN];
+  __be32 num_images;
+  struct octeon_firmware_desc desc[LIO_MAX_IMAGES];
+  __be32 pad;
+  __be32 crc32;         /* header checksum */
 };
 
 #endif /* _LIQUIDIO_IMAGE_H_ */

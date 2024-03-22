@@ -42,55 +42,54 @@
 #include "wq.h"
 
 struct mlx5_fpga_conn {
-	struct mlx5_fpga_device *fdev;
+  struct mlx5_fpga_device *fdev;
 
-	void (*recv_cb)(void *cb_arg, struct mlx5_fpga_dma_buf *buf);
-	void *cb_arg;
+  void (*recv_cb)(void *cb_arg, struct mlx5_fpga_dma_buf *buf);
+  void *cb_arg;
 
-	/* FPGA QP */
-	u32 fpga_qpc[MLX5_ST_SZ_DW(fpga_qpc)];
-	u32 fpga_qpn;
+  /* FPGA QP */
+  u32 fpga_qpc[MLX5_ST_SZ_DW(fpga_qpc)];
+  u32 fpga_qpn;
 
-	/* CQ */
-	struct {
-		struct mlx5_cqwq wq;
-		struct mlx5_wq_ctrl wq_ctrl;
-		struct mlx5_core_cq mcq;
-		struct tasklet_struct tasklet;
-	} cq;
+  /* CQ */
+  struct {
+    struct mlx5_cqwq wq;
+    struct mlx5_wq_ctrl wq_ctrl;
+    struct mlx5_core_cq mcq;
+    struct tasklet_struct tasklet;
+  } cq;
 
-	/* QP */
-	struct {
-		bool active;
-		int sgid_index;
-		struct mlx5_wq_qp wq;
-		struct mlx5_wq_ctrl wq_ctrl;
-		u32 qpn;
-		struct {
-			spinlock_t lock; /* Protects all SQ state */
-			unsigned int pc;
-			unsigned int cc;
-			unsigned int size;
-			struct mlx5_fpga_dma_buf **bufs;
-			struct list_head backlog;
-		} sq;
-		struct {
-			unsigned int pc;
-			unsigned int cc;
-			unsigned int size;
-			struct mlx5_fpga_dma_buf **bufs;
-		} rq;
-	} qp;
+  /* QP */
+  struct {
+    bool active;
+    int sgid_index;
+    struct mlx5_wq_qp wq;
+    struct mlx5_wq_ctrl wq_ctrl;
+    u32 qpn;
+    struct {
+      spinlock_t lock; /* Protects all SQ state */
+      unsigned int pc;
+      unsigned int cc;
+      unsigned int size;
+      struct mlx5_fpga_dma_buf **bufs;
+      struct list_head backlog;
+    } sq;
+    struct {
+      unsigned int pc;
+      unsigned int cc;
+      unsigned int size;
+      struct mlx5_fpga_dma_buf **bufs;
+    } rq;
+  } qp;
 };
 
 int mlx5_fpga_conn_device_init(struct mlx5_fpga_device *fdev);
 void mlx5_fpga_conn_device_cleanup(struct mlx5_fpga_device *fdev);
-struct mlx5_fpga_conn *
-mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
-		      struct mlx5_fpga_conn_attr *attr,
-		      enum mlx5_ifc_fpga_qp_type qp_type);
+struct mlx5_fpga_conn *mlx5_fpga_conn_create(struct mlx5_fpga_device *fdev,
+    struct mlx5_fpga_conn_attr *attr,
+    enum mlx5_ifc_fpga_qp_type qp_type);
 void mlx5_fpga_conn_destroy(struct mlx5_fpga_conn *conn);
 int mlx5_fpga_conn_send(struct mlx5_fpga_conn *conn,
-			struct mlx5_fpga_dma_buf *buf);
+    struct mlx5_fpga_dma_buf *buf);
 
 #endif /* __MLX5_FPGA_CONN_H__ */

@@ -34,52 +34,52 @@ struct irq_service;
 struct irq_source_info;
 
 struct irq_source_info_funcs {
-	bool (*set)(
-		struct irq_service *irq_service,
-		const struct irq_source_info *info,
-		bool enable);
-	bool (*ack)(
-		struct irq_service *irq_service,
-		const struct irq_source_info *info);
+  bool (*set)(
+    struct irq_service *irq_service,
+    const struct irq_source_info *info,
+    bool enable);
+  bool (*ack)(
+    struct irq_service *irq_service,
+    const struct irq_source_info *info);
 };
 
 struct irq_source_info {
-	uint32_t src_id;
-	uint32_t ext_id;
-	uint32_t enable_reg;
-	uint32_t enable_mask;
-	uint32_t enable_value[2];
-	uint32_t ack_reg;
-	uint32_t ack_mask;
-	uint32_t ack_value;
-	uint32_t status_reg;
-	struct irq_source_info_funcs *funcs;
+  uint32_t src_id;
+  uint32_t ext_id;
+  uint32_t enable_reg;
+  uint32_t enable_mask;
+  uint32_t enable_value[2];
+  uint32_t ack_reg;
+  uint32_t ack_mask;
+  uint32_t ack_value;
+  uint32_t status_reg;
+  struct irq_source_info_funcs *funcs;
 };
 
 struct irq_service_funcs {
-	enum dc_irq_source (*to_dal_irq_source)(
-			struct irq_service *irq_service,
-			uint32_t src_id,
-			uint32_t ext_id);
+  enum dc_irq_source (*to_dal_irq_source)(
+      struct irq_service *irq_service,
+      uint32_t src_id,
+      uint32_t ext_id);
 };
 
 struct irq_service {
-	struct dc_context *ctx;
-	const struct irq_source_info *info;
-	const struct irq_service_funcs *funcs;
+  struct dc_context *ctx;
+  const struct irq_source_info *info;
+  const struct irq_service_funcs *funcs;
 };
 
 void dal_irq_service_construct(
-	struct irq_service *irq_service,
-	struct irq_service_init_data *init_data);
+  struct irq_service *irq_service,
+  struct irq_service_init_data *init_data);
 
 void dal_irq_service_ack_generic(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info);
+  struct irq_service *irq_service,
+  const struct irq_source_info *info);
 
 void dal_irq_service_set_generic(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info,
-	bool enable);
+  struct irq_service *irq_service,
+  const struct irq_source_info *info,
+  bool enable);
 
 #endif

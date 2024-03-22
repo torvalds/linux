@@ -23,11 +23,11 @@
 
 /* LDPC tables depth */
 #define XSDFEC_SC_TABLE_DEPTH                                                  \
-	(XSDFEC_LDPC_SC_TABLE_ADDR_HIGH - XSDFEC_LDPC_SC_TABLE_ADDR_BASE)
+  (XSDFEC_LDPC_SC_TABLE_ADDR_HIGH - XSDFEC_LDPC_SC_TABLE_ADDR_BASE)
 #define XSDFEC_LA_TABLE_DEPTH                                                  \
-	(XSDFEC_LDPC_LA_TABLE_ADDR_HIGH - XSDFEC_LDPC_LA_TABLE_ADDR_BASE)
+  (XSDFEC_LDPC_LA_TABLE_ADDR_HIGH - XSDFEC_LDPC_LA_TABLE_ADDR_BASE)
 #define XSDFEC_QC_TABLE_DEPTH                                                  \
-	(XSDFEC_LDPC_QC_TABLE_ADDR_HIGH - XSDFEC_LDPC_QC_TABLE_ADDR_BASE)
+  (XSDFEC_LDPC_QC_TABLE_ADDR_HIGH - XSDFEC_LDPC_QC_TABLE_ADDR_BASE)
 
 /**
  * enum xsdfec_code - Code Type.
@@ -39,8 +39,8 @@
  * changed by the driver.
  */
 enum xsdfec_code {
-	XSDFEC_TURBO_CODE = 0,
-	XSDFEC_LDPC_CODE,
+  XSDFEC_TURBO_CODE = 0,
+  XSDFEC_LDPC_CODE,
 };
 
 /**
@@ -52,24 +52,24 @@ enum xsdfec_code {
  * input to output.
  */
 enum xsdfec_order {
-	XSDFEC_MAINTAIN_ORDER = 0,
-	XSDFEC_OUT_OF_ORDER,
+  XSDFEC_MAINTAIN_ORDER = 0,
+  XSDFEC_OUT_OF_ORDER,
 };
 
 /**
  * enum xsdfec_turbo_alg - Turbo Algorithm Type.
  * @XSDFEC_MAX_SCALE: Max Log-Map algorithm with extrinsic scaling. When
- *		      scaling is set to this is equivalent to the Max Log-Map
- *		      algorithm.
+ *          scaling is set to this is equivalent to the Max Log-Map
+ *          algorithm.
  * @XSDFEC_MAX_STAR: Log-Map algorithm.
  * @XSDFEC_TURBO_ALG_MAX: Used to indicate out of bound Turbo algorithms.
  *
  * This enum specifies which Turbo Decode algorithm is in use.
  */
 enum xsdfec_turbo_alg {
-	XSDFEC_MAX_SCALE = 0,
-	XSDFEC_MAX_STAR,
-	XSDFEC_TURBO_ALG_MAX,
+  XSDFEC_MAX_SCALE = 0,
+  XSDFEC_MAX_STAR,
+  XSDFEC_TURBO_ALG_MAX,
 };
 
 /**
@@ -83,11 +83,11 @@ enum xsdfec_turbo_alg {
  * This enum is used to indicate the state of the driver.
  */
 enum xsdfec_state {
-	XSDFEC_INIT = 0,
-	XSDFEC_STARTED,
-	XSDFEC_STOPPED,
-	XSDFEC_NEEDS_RESET,
-	XSDFEC_PL_RECONFIGURE,
+  XSDFEC_INIT = 0,
+  XSDFEC_STARTED,
+  XSDFEC_STOPPED,
+  XSDFEC_NEEDS_RESET,
+  XSDFEC_PL_RECONFIGURE,
 };
 
 /**
@@ -101,45 +101,45 @@ enum xsdfec_state {
  * AXIS_WIDTH.DIN parameter.
  */
 enum xsdfec_axis_width {
-	XSDFEC_1x128b = 1,
-	XSDFEC_2x128b = 2,
-	XSDFEC_4x128b = 4,
+  XSDFEC_1x128b = 1,
+  XSDFEC_2x128b = 2,
+  XSDFEC_4x128b = 4,
 };
 
 /**
  * enum xsdfec_axis_word_include - Words Configuration.
  * @XSDFEC_FIXED_VALUE: Fixed, the DIN_WORDS AXI4-Stream interface is removed
- *			from the IP instance and is driven with the specified
- *			number of words.
+ *      from the IP instance and is driven with the specified
+ *      number of words.
  * @XSDFEC_IN_BLOCK: In Block, configures the IP instance to expect a single
- *		     DIN_WORDS value per input code block. The DIN_WORDS
- *		     interface is present.
+ *         DIN_WORDS value per input code block. The DIN_WORDS
+ *         interface is present.
  * @XSDFEC_PER_AXI_TRANSACTION: Per Transaction, configures the IP instance to
  * expect one DIN_WORDS value per input transaction on the DIN interface. The
  * DIN_WORDS interface is present.
  * @XSDFEC_AXIS_WORDS_INCLUDE_MAX: Used to indicate out of bound Words
- *				   Configurations.
+ *           Configurations.
  *
  * This enum is used to specify the DIN_WORDS configuration.
  */
 enum xsdfec_axis_word_include {
-	XSDFEC_FIXED_VALUE = 0,
-	XSDFEC_IN_BLOCK,
-	XSDFEC_PER_AXI_TRANSACTION,
-	XSDFEC_AXIS_WORDS_INCLUDE_MAX,
+  XSDFEC_FIXED_VALUE = 0,
+  XSDFEC_IN_BLOCK,
+  XSDFEC_PER_AXI_TRANSACTION,
+  XSDFEC_AXIS_WORDS_INCLUDE_MAX,
 };
 
 /**
  * struct xsdfec_turbo - User data for Turbo codes.
  * @alg: Specifies which Turbo decode algorithm to use
  * @scale: Specifies the extrinsic scaling to apply when the Max Scale algorithm
- *	   has been selected
+ *     has been selected
  *
  * Turbo code structure to communicate parameters to XSDFEC driver.
  */
 struct xsdfec_turbo {
-	__u32 alg;
-	__u8 scale;
+  __u32 alg;
+  __u8 scale;
 };
 
 /**
@@ -168,25 +168,25 @@ struct xsdfec_turbo {
  * application.
  */
 struct xsdfec_ldpc_params {
-	__u32 n;
-	__u32 k;
-	__u32 psize;
-	__u32 nlayers;
-	__u32 nqc;
-	__u32 nmqc;
-	__u32 nm;
-	__u32 norm_type;
-	__u32 no_packing;
-	__u32 special_qc;
-	__u32 no_final_parity;
-	__u32 max_schedule;
-	__u32 sc_off;
-	__u32 la_off;
-	__u32 qc_off;
-	__u32 *sc_table;
-	__u32 *la_table;
-	__u32 *qc_table;
-	__u16 code_id;
+  __u32 n;
+  __u32 k;
+  __u32 psize;
+  __u32 nlayers;
+  __u32 nqc;
+  __u32 nmqc;
+  __u32 nm;
+  __u32 norm_type;
+  __u32 no_packing;
+  __u32 special_qc;
+  __u32 no_final_parity;
+  __u32 max_schedule;
+  __u32 sc_off;
+  __u32 la_off;
+  __u32 qc_off;
+  __u32 *sc_table;
+  __u32 *la_table;
+  __u32 *qc_table;
+  __u16 code_id;
 };
 
 /**
@@ -195,8 +195,8 @@ struct xsdfec_ldpc_params {
  * @activity: Describes if the SD-FEC instance is Active
  */
 struct xsdfec_status {
-	__u32 state;
-	__s8 activity;
+  __u32 state;
+  __s8 activity;
 };
 
 /**
@@ -205,8 +205,8 @@ struct xsdfec_status {
  * @enable_ecc_isr: If true enables the ECC ISR
  */
 struct xsdfec_irq {
-	__s8 enable_isr;
-	__s8 enable_ecc_isr;
+  __s8 enable_isr;
+  __s8 enable_ecc_isr;
 };
 
 /**
@@ -222,44 +222,44 @@ struct xsdfec_irq {
  * @code_wr_protect: Is write protection of LDPC codes enabled
  */
 struct xsdfec_config {
-	__u32 code;
-	__u32 order;
-	__u32 din_width;
-	__u32 din_word_include;
-	__u32 dout_width;
-	__u32 dout_word_include;
-	struct xsdfec_irq irq;
-	__s8 bypass;
-	__s8 code_wr_protect;
+  __u32 code;
+  __u32 order;
+  __u32 din_width;
+  __u32 din_word_include;
+  __u32 dout_width;
+  __u32 dout_word_include;
+  struct xsdfec_irq irq;
+  __s8 bypass;
+  __s8 code_wr_protect;
 };
 
 /**
  * struct xsdfec_stats - Stats retrived by ioctl XSDFEC_GET_STATS. Used
- *			 to buffer atomic_t variables from struct
- *			 xsdfec_dev. Counts are accumulated until
- *			 the user clears them.
+ *       to buffer atomic_t variables from struct
+ *       xsdfec_dev. Counts are accumulated until
+ *       the user clears them.
  * @isr_err_count: Count of ISR errors
  * @cecc_count: Count of Correctable ECC errors (SBE)
  * @uecc_count: Count of Uncorrectable ECC errors (MBE)
  */
 struct xsdfec_stats {
-	__u32 isr_err_count;
-	__u32 cecc_count;
-	__u32 uecc_count;
+  __u32 isr_err_count;
+  __u32 cecc_count;
+  __u32 uecc_count;
 };
 
 /**
  * struct xsdfec_ldpc_param_table_sizes - Used to store sizes of SD-FEC table
- *					  entries for an individual LPDC code
- *					  parameter.
+ *            entries for an individual LPDC code
+ *            parameter.
  * @sc_size: Size of SC table used
  * @la_size: Size of LA table used
  * @qc_size: Size of QC table used
  */
 struct xsdfec_ldpc_param_table_sizes {
-	__u32 sc_size;
-	__u32 la_size;
-	__u32 qc_size;
+  __u32 sc_size;
+  __u32 la_size;
+  __u32 qc_size;
 };
 
 /*
@@ -297,8 +297,8 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct xsdfec_irq *
- *	Pointer to the &struct xsdfec_irq that contains the interrupt settings
- *	for the SD-FEC core
+ *  Pointer to the &struct xsdfec_irq that contains the interrupt settings
+ *  for the SD-FEC core
  *
  * @Description
  *
@@ -310,8 +310,8 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct xsdfec_turbo *
- *	Pointer to the &struct xsdfec_turbo that contains the Turbo decode
- *	settings for the SD-FEC core
+ *  Pointer to the &struct xsdfec_turbo that contains the Turbo decode
+ *  settings for the SD-FEC core
  *
  * @Description
  *
@@ -325,8 +325,8 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct xsdfec_ldpc_params *
- *	Pointer to the &struct xsdfec_ldpc_params that contains the LDPC code
- *	parameters to be added to the SD-FEC Block
+ *  Pointer to the &struct xsdfec_ldpc_params that contains the LDPC code
+ *  parameters to be added to the SD-FEC Block
  *
  * @Description
  * ioctl to add an LDPC code to the SD-FEC LDPC codes
@@ -340,14 +340,14 @@ struct xsdfec_ldpc_param_table_sizes {
  * - SD-FEC Code Write Protection is disabled
  */
 #define XSDFEC_ADD_LDPC_CODE_PARAMS                                            \
-	_IOW(XSDFEC_MAGIC, 5, struct xsdfec_ldpc_params)
+  _IOW(XSDFEC_MAGIC, 5, struct xsdfec_ldpc_params)
 /**
  * DOC: XSDFEC_GET_CONFIG
  * @Parameters
  *
  * @struct xsdfec_config *
- *	Pointer to the &struct xsdfec_config that contains the current
- *	configuration settings of the SD-FEC Block
+ *  Pointer to the &struct xsdfec_config that contains the current
+ *  configuration settings of the SD-FEC Block
  *
  * @Description
  *
@@ -359,8 +359,8 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct xsdfec_turbo *
- *	Pointer to the &struct xsdfec_turbo that contains the current Turbo
- *	decode settings of the SD-FEC Block
+ *  Pointer to the &struct xsdfec_turbo that contains the current Turbo
+ *  decode settings of the SD-FEC Block
  *
  * @Description
  *
@@ -372,8 +372,8 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct unsigned long *
- *	Pointer to the unsigned long that contains a value from the
- *	@enum xsdfec_order
+ *  Pointer to the unsigned long that contains a value from the
+ *  @enum xsdfec_order
  *
  * @Description
  *
@@ -387,10 +387,10 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct bool *
- *	Pointer to bool that sets the bypass value, where false results in
- *	normal operation and false results in the SD-FEC performing the
- *	configured operations (same number of cycles) but output data matches
- *	the input data
+ *  Pointer to bool that sets the bypass value, where false results in
+ *  normal operation and false results in the SD-FEC performing the
+ *  configured operations (same number of cycles) but output data matches
+ *  the input data
  *
  * @Description
  *
@@ -404,7 +404,7 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct bool *
- *	Pointer to bool that returns true if the SD-FEC is processing data
+ *  Pointer to bool that returns true if the SD-FEC is processing data
  *
  * @Description
  *
@@ -424,8 +424,8 @@ struct xsdfec_ldpc_param_table_sizes {
  * @Parameters
  *
  * @struct xsdfec_stats *
- *	Pointer to the &struct xsdfec_stats that will contain the updated stats
- *	values
+ *  Pointer to the &struct xsdfec_stats that will contain the updated stats
+ *  values
  *
  * @Description
  *

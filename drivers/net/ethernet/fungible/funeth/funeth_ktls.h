@@ -8,8 +8,8 @@
 struct funeth_priv;
 
 struct fun_ktls_tx_ctx {
-	__be64 tlsid;
-	u32 next_seq;
+  __be64 tlsid;
+  u32 next_seq;
 };
 
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
@@ -18,13 +18,12 @@ void fun_ktls_cleanup(struct funeth_priv *fp);
 
 #else
 
-static inline void fun_ktls_init(struct net_device *netdev)
-{
+static inline void fun_ktls_init(struct net_device *netdev) {
 }
 
-static inline void fun_ktls_cleanup(struct funeth_priv *fp)
-{
+static inline void fun_ktls_cleanup(struct funeth_priv *fp) {
 }
+
 #endif
 
 #endif /* _FUN_KTLS_H */

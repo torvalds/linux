@@ -12,12 +12,10 @@
 
 const struct secvar_operations *secvar_ops __ro_after_init = NULL;
 
-int set_secvar_ops(const struct secvar_operations *ops)
-{
-	if (WARN_ON_ONCE(secvar_ops))
-		return -EBUSY;
-
-	secvar_ops = ops;
-
-	return 0;
+int set_secvar_ops(const struct secvar_operations *ops) {
+  if (WARN_ON_ONCE(secvar_ops)) {
+    return -EBUSY;
+  }
+  secvar_ops = ops;
+  return 0;
 }

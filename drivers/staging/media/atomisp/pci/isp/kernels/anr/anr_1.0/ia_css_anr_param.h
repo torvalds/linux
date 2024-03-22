@@ -20,7 +20,7 @@
 
 /* ANR (Advanced Noise Reduction) */
 struct sh_css_isp_anr_params {
-	s32 threshold;
+  s32 threshold;
 };
 
 #endif /* __IA_CSS_ANR_PARAM_H */

@@ -23,18 +23,18 @@
 #define KEY_CTL_TKIP        0x02
 #define KEY_CTL_CCMP        0x03
 
-#define VNT_KEY_ONFLY_ALL	0x4000
-#define VNT_KEY_ONFLY		0x8000
-#define VNT_KEY_ALLGROUP	0x04
-#define VNT_KEY_GROUP		0x40
-#define VNT_KEY_PAIRWISE	VNT_KEY_ONFLY
-#define VNT_KEY_GROUP_ADDRESS	(VNT_KEY_ALLGROUP | VNT_KEY_GROUP)
-#define VNT_KEY_DEFAULTKEY	(VNT_KEY_GROUP_ADDRESS | VNT_KEY_ONFLY |\
-				VNT_KEY_ONFLY_ALL)
+#define VNT_KEY_ONFLY_ALL 0x4000
+#define VNT_KEY_ONFLY   0x8000
+#define VNT_KEY_ALLGROUP  0x04
+#define VNT_KEY_GROUP   0x40
+#define VNT_KEY_PAIRWISE  VNT_KEY_ONFLY
+#define VNT_KEY_GROUP_ADDRESS (VNT_KEY_ALLGROUP | VNT_KEY_GROUP)
+#define VNT_KEY_DEFAULTKEY  (VNT_KEY_GROUP_ADDRESS | VNT_KEY_ONFLY  \
+  | VNT_KEY_ONFLY_ALL)
 
 int vnt_key_init_table(struct vnt_private *priv);
 
 int vnt_set_keys(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-		 struct ieee80211_vif *vif, struct ieee80211_key_conf *key);
+    struct ieee80211_vif *vif, struct ieee80211_key_conf *key);
 
 #endif /* __KEY_H__ */

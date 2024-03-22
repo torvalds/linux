@@ -4,11 +4,11 @@
  *
  *  Kendrick Smith <kmsmith@umich.edu>
  *  Andy Adamson <andros@umich.edu>
- *  
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *  1. Redistributions of source code must retain the above copyright
  *     notice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
@@ -42,43 +42,43 @@
 #include "nfsd.h"
 
 typedef struct {
-	u32             cl_boot;
-	u32             cl_id;
+  u32 cl_boot;
+  u32 cl_id;
 } clientid_t;
 
 typedef struct {
-	clientid_t	so_clid;
-	u32		so_id;
+  clientid_t so_clid;
+  u32 so_id;
 } stateid_opaque_t;
 
 typedef struct {
-	u32                     si_generation;
-	stateid_opaque_t        si_opaque;
+  u32 si_generation;
+  stateid_opaque_t si_opaque;
 } stateid_t;
 
 typedef struct {
-	stateid_t		cs_stid;
+  stateid_t cs_stid;
 #define NFS4_COPY_STID 1
 #define NFS4_COPYNOTIFY_STID 2
-	unsigned char		cs_type;
-	refcount_t		cs_count;
+  unsigned char cs_type;
+  refcount_t cs_count;
 } copy_stateid_t;
 
 struct nfsd4_callback {
-	struct nfs4_client *cb_clp;
-	struct rpc_message cb_msg;
-	const struct nfsd4_callback_ops *cb_ops;
-	struct delayed_work cb_work;
-	int cb_seq_status;
-	int cb_status;
-	bool cb_need_restart;
-	bool cb_holds_slot;
+  struct nfs4_client *cb_clp;
+  struct rpc_message cb_msg;
+  const struct nfsd4_callback_ops *cb_ops;
+  struct delayed_work cb_work;
+  int cb_seq_status;
+  int cb_status;
+  bool cb_need_restart;
+  bool cb_holds_slot;
 };
 
 struct nfsd4_callback_ops {
-	void (*prepare)(struct nfsd4_callback *);
-	int (*done)(struct nfsd4_callback *, struct rpc_task *);
-	void (*release)(struct nfsd4_callback *);
+  void (*prepare)(struct nfsd4_callback *);
+  int (*done)(struct nfsd4_callback *, struct rpc_task *);
+  void (*release)(struct nfsd4_callback *);
 };
 
 /*
@@ -87,70 +87,70 @@ struct nfsd4_callback_ops {
  * fields that are of general use to any stateid.
  */
 struct nfs4_stid {
-	refcount_t		sc_count;
+  refcount_t sc_count;
 
-	/* A new stateid is added to the cl_stateids idr early before it
-	 * is fully initialised.  Its sc_type is then zero.  After
-	 * initialisation the sc_type it set under cl_lock, and then
-	 * never changes.
-	 */
-#define SC_TYPE_OPEN		BIT(0)
-#define SC_TYPE_LOCK		BIT(1)
-#define SC_TYPE_DELEG		BIT(2)
-#define SC_TYPE_LAYOUT		BIT(3)
-	unsigned short		sc_type;
+  /* A new stateid is added to the cl_stateids idr early before it
+   * is fully initialised.  Its sc_type is then zero.  After
+   * initialisation the sc_type it set under cl_lock, and then
+   * never changes.
+   */
+#define SC_TYPE_OPEN    BIT(0)
+#define SC_TYPE_LOCK    BIT(1)
+#define SC_TYPE_DELEG   BIT(2)
+#define SC_TYPE_LAYOUT    BIT(3)
+  unsigned short sc_type;
 
-/* state_lock protects sc_status for delegation stateids.
- * ->cl_lock protects sc_status for open and lock stateids.
- * ->st_mutex also protect sc_status for open stateids.
- * ->ls_lock protects sc_status for layout stateids.
- */
-/*
- * For an open stateid kept around *only* to process close replays.
- * For deleg stateid, kept in idr until last reference is dropped.
- */
-#define SC_STATUS_CLOSED	BIT(0)
-/* For a deleg stateid kept around only to process free_stateid's: */
-#define SC_STATUS_REVOKED	BIT(1)
-#define SC_STATUS_ADMIN_REVOKED	BIT(2)
-	unsigned short		sc_status;
+  /* state_lock protects sc_status for delegation stateids.
+   * ->cl_lock protects sc_status for open and lock stateids.
+   * ->st_mutex also protect sc_status for open stateids.
+   * ->ls_lock protects sc_status for layout stateids.
+   */
+  /*
+   * For an open stateid kept around *only* to process close replays.
+   * For deleg stateid, kept in idr until last reference is dropped.
+   */
+#define SC_STATUS_CLOSED  BIT(0)
+  /* For a deleg stateid kept around only to process free_stateid's: */
+#define SC_STATUS_REVOKED BIT(1)
+#define SC_STATUS_ADMIN_REVOKED BIT(2)
+  unsigned short sc_status;
 
-	struct list_head	sc_cp_list;
-	stateid_t		sc_stateid;
-	spinlock_t		sc_lock;
-	struct nfs4_client	*sc_client;
-	struct nfs4_file	*sc_file;
-	void			(*sc_free)(struct nfs4_stid *);
+  struct list_head sc_cp_list;
+  stateid_t sc_stateid;
+  spinlock_t sc_lock;
+  struct nfs4_client *sc_client;
+  struct nfs4_file *sc_file;
+  void (*sc_free)(struct nfs4_stid *);
 };
 
 /* Keep a list of stateids issued by the COPY_NOTIFY, associate it with the
  * parent OPEN/LOCK/DELEG stateid.
  */
 struct nfs4_cpntf_state {
-	copy_stateid_t		cp_stateid;
-	struct list_head	cp_list;	/* per parent nfs4_stid */
-	stateid_t		cp_p_stateid;	/* copy of parent's stateid */
-	clientid_t		cp_p_clid;	/* copy of parent's clid */
-	time64_t		cpntf_time;	/* last time stateid used */
+  copy_stateid_t cp_stateid;
+  struct list_head cp_list;  /* per parent nfs4_stid */
+  stateid_t cp_p_stateid; /* copy of parent's stateid */
+  clientid_t cp_p_clid;  /* copy of parent's clid */
+  time64_t cpntf_time; /* last time stateid used */
 };
 
 struct nfs4_cb_fattr {
-	struct nfsd4_callback ncf_getattr;
-	u32 ncf_cb_status;
-	u32 ncf_cb_bmap[1];
+  struct nfsd4_callback ncf_getattr;
+  u32 ncf_cb_status;
+  u32 ncf_cb_bmap[1];
 
-	/* from CB_GETATTR reply */
-	u64 ncf_cb_change;
-	u64 ncf_cb_fsize;
+  /* from CB_GETATTR reply */
+  u64 ncf_cb_change;
+  u64 ncf_cb_fsize;
 
-	unsigned long ncf_cb_flags;
-	bool ncf_file_modified;
-	u64 ncf_initial_cinfo;
-	u64 ncf_cur_fsize;
+  unsigned long ncf_cb_flags;
+  bool ncf_file_modified;
+  u64 ncf_initial_cinfo;
+  u64 ncf_cur_fsize;
 };
 
 /* bits for ncf_cb_flags */
-#define	CB_GETATTR_BUSY		0
+#define CB_GETATTR_BUSY   0
 
 /*
  * Represents a delegation stateid. The nfs4_client holds references to these
@@ -174,117 +174,116 @@ struct nfs4_cb_fattr {
  * This object is a superset of the nfs4_stid.
  */
 struct nfs4_delegation {
-	struct nfs4_stid	dl_stid; /* must be first field */
-	struct list_head	dl_perfile;
-	struct list_head	dl_perclnt;
-	struct list_head	dl_recall_lru;  /* delegation recalled */
-	struct nfs4_clnt_odstate *dl_clnt_odstate;
-	u32			dl_type;
-	time64_t		dl_time;
-/* For recall: */
-	int			dl_retries;
-	struct nfsd4_callback	dl_recall;
-	bool			dl_recalled;
+  struct nfs4_stid dl_stid; /* must be first field */
+  struct list_head dl_perfile;
+  struct list_head dl_perclnt;
+  struct list_head dl_recall_lru;  /* delegation recalled */
+  struct nfs4_clnt_odstate *dl_clnt_odstate;
+  u32 dl_type;
+  time64_t dl_time;
+  /* For recall: */
+  int dl_retries;
+  struct nfsd4_callback dl_recall;
+  bool dl_recalled;
 
-	/* for CB_GETATTR */
-	struct nfs4_cb_fattr    dl_cb_fattr;
+  /* for CB_GETATTR */
+  struct nfs4_cb_fattr dl_cb_fattr;
 };
 
 #define cb_to_delegation(cb) \
-	container_of(cb, struct nfs4_delegation, dl_recall)
+  container_of(cb, struct nfs4_delegation, dl_recall)
 
 /* client delegation callback info */
 struct nfs4_cb_conn {
-	/* SETCLIENTID info */
-	struct sockaddr_storage	cb_addr;
-	struct sockaddr_storage	cb_saddr;
-	size_t			cb_addrlen;
-	u32                     cb_prog; /* used only in 4.0 case;
-					    per-session otherwise */
-	u32                     cb_ident;	/* minorversion 0 only */
-	struct svc_xprt		*cb_xprt;	/* minorversion 1 only */
+  /* SETCLIENTID info */
+  struct sockaddr_storage cb_addr;
+  struct sockaddr_storage cb_saddr;
+  size_t cb_addrlen;
+  u32 cb_prog; /* used only in 4.0 case;
+                * per-session otherwise */
+  u32 cb_ident; /* minorversion 0 only */
+  struct svc_xprt *cb_xprt; /* minorversion 1 only */
 };
 
-static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
-{
-	return container_of(s, struct nfs4_delegation, dl_stid);
+static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s) {
+  return container_of(s, struct nfs4_delegation, dl_stid);
 }
 
 /* Maximum number of slots per session. 160 is useful for long haul TCP */
 #define NFSD_MAX_SLOTS_PER_SESSION     160
 /* Maximum  session per slot cache size */
-#define NFSD_SLOT_CACHE_SIZE		2048
+#define NFSD_SLOT_CACHE_SIZE    2048
 /* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
-#define NFSD_CACHE_SIZE_SLOTS_PER_SESSION	32
+#define NFSD_CACHE_SIZE_SLOTS_PER_SESSION 32
 #define NFSD_MAX_MEM_PER_SESSION  \
-		(NFSD_CACHE_SIZE_SLOTS_PER_SESSION * NFSD_SLOT_CACHE_SIZE)
+  (NFSD_CACHE_SIZE_SLOTS_PER_SESSION * NFSD_SLOT_CACHE_SIZE)
 
 struct nfsd4_slot {
-	u32	sl_seqid;
-	__be32	sl_status;
-	struct svc_cred sl_cred;
-	u32	sl_datalen;
-	u16	sl_opcnt;
-#define NFSD4_SLOT_INUSE	(1 << 0)
-#define NFSD4_SLOT_CACHETHIS	(1 << 1)
-#define NFSD4_SLOT_INITIALIZED	(1 << 2)
-#define NFSD4_SLOT_CACHED	(1 << 3)
-	u8	sl_flags;
-	char	sl_data[];
+  u32 sl_seqid;
+  __be32 sl_status;
+  struct svc_cred sl_cred;
+  u32 sl_datalen;
+  u16 sl_opcnt;
+#define NFSD4_SLOT_INUSE  (1 << 0)
+#define NFSD4_SLOT_CACHETHIS  (1 << 1)
+#define NFSD4_SLOT_INITIALIZED  (1 << 2)
+#define NFSD4_SLOT_CACHED (1 << 3)
+  u8 sl_flags;
+  char sl_data[];
 };
 
 struct nfsd4_channel_attrs {
-	u32		headerpadsz;
-	u32		maxreq_sz;
-	u32		maxresp_sz;
-	u32		maxresp_cached;
-	u32		maxops;
-	u32		maxreqs;
-	u32		nr_rdma_attrs;
-	u32		rdma_attrs;
+  u32 headerpadsz;
+  u32 maxreq_sz;
+  u32 maxresp_sz;
+  u32 maxresp_cached;
+  u32 maxops;
+  u32 maxreqs;
+  u32 nr_rdma_attrs;
+  u32 rdma_attrs;
 };
 
 struct nfsd4_cb_sec {
-	u32	flavor; /* (u32)(-1) used to mean "no valid flavor" */
-	kuid_t	uid;
-	kgid_t	gid;
+  u32 flavor; /* (u32)(-1) used to mean "no valid flavor" */
+  kuid_t uid;
+  kgid_t gid;
 };
 
 struct nfsd4_create_session {
-	clientid_t			clientid;
-	struct nfs4_sessionid		sessionid;
-	u32				seqid;
-	u32				flags;
-	struct nfsd4_channel_attrs	fore_channel;
-	struct nfsd4_channel_attrs	back_channel;
-	u32				callback_prog;
-	struct nfsd4_cb_sec		cb_sec;
+  clientid_t clientid;
+  struct nfs4_sessionid sessionid;
+  u32 seqid;
+  u32 flags;
+  struct nfsd4_channel_attrs fore_channel;
+  struct nfsd4_channel_attrs back_channel;
+  u32 callback_prog;
+  struct nfsd4_cb_sec cb_sec;
 };
 
 struct nfsd4_backchannel_ctl {
-	u32	bc_cb_program;
-	struct nfsd4_cb_sec		bc_cb_sec;
+  u32 bc_cb_program;
+  struct nfsd4_cb_sec bc_cb_sec;
 };
 
 struct nfsd4_bind_conn_to_session {
-	struct nfs4_sessionid		sessionid;
-	u32				dir;
+  struct nfs4_sessionid sessionid;
+  u32 dir;
 };
 
 /* The single slot clientid cache structure */
 struct nfsd4_clid_slot {
-	u32				sl_seqid;
-	__be32				sl_status;
-	struct nfsd4_create_session	sl_cr_ses;
+  u32 sl_seqid;
+  __be32 sl_status;
+  struct nfsd4_create_session sl_cr_ses;
 };
 
 struct nfsd4_conn {
-	struct list_head cn_persession;
-	struct svc_xprt *cn_xprt;
-	struct svc_xpt_user cn_xpt_user;
-	struct nfsd4_session *cn_session;
-/* CDFC4_FORE, CDFC4_BACK: */
-	unsigned char cn_flags;
+  struct list_head cn_persession;
+  struct svc_xprt *cn_xprt;
+  struct svc_xpt_user cn_xpt_user;
+  struct nfsd4_session *cn_session;
+  /* CDFC4_FORE, CDFC4_BACK: */
+  unsigned char cn_flags;
 };
 
 /*
@@ -293,28 +292,28 @@ struct nfsd4_conn {
  * working on the object (primarily during the processing of compounds).
  */
 struct nfsd4_session {
-	atomic_t		se_ref;
-	struct list_head	se_hash;	/* hash by sessionid */
-	struct list_head	se_perclnt;
-/* See SESSION4_PERSIST, etc. for standard flags; this is internal-only: */
-#define NFS4_SESSION_DEAD	0x010
-	u32			se_flags;
-	struct nfs4_client	*se_client;
-	struct nfs4_sessionid	se_sessionid;
-	struct nfsd4_channel_attrs se_fchannel;
-	struct nfsd4_channel_attrs se_bchannel;
-	struct nfsd4_cb_sec	se_cb_sec;
-	struct list_head	se_conns;
-	u32			se_cb_prog;
-	u32			se_cb_seq_nr;
-	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
+  atomic_t se_ref;
+  struct list_head se_hash;  /* hash by sessionid */
+  struct list_head se_perclnt;
+  /* See SESSION4_PERSIST, etc. for standard flags; this is internal-only: */
+#define NFS4_SESSION_DEAD 0x010
+  u32 se_flags;
+  struct nfs4_client *se_client;
+  struct nfs4_sessionid se_sessionid;
+  struct nfsd4_channel_attrs se_fchannel;
+  struct nfsd4_channel_attrs se_bchannel;
+  struct nfsd4_cb_sec se_cb_sec;
+  struct list_head se_conns;
+  u32 se_cb_prog;
+  u32 se_cb_seq_nr;
+  struct nfsd4_slot *se_slots[];  /* forward channel slots */
 };
 
 /* formatted contents of nfs4_sessionid */
 struct nfsd4_sessionid {
-	clientid_t	clientid;
-	u32		sequence;
-	u32		reserved;
+  clientid_t clientid;
+  u32 sequence;
+  u32 reserved;
 };
 
 #define HEXDIR_LEN     33 /* hex version of 16 byte md5 of cl_name plus '\0' */
@@ -336,9 +335,9 @@ struct nfsd4_sessionid {
  * |------------------------------------------------------------------------|
  */
 enum {
-	NFSD4_ACTIVE = 0,
-	NFSD4_COURTESY,
-	NFSD4_EXPIRABLE,
+  NFSD4_ACTIVE = 0,
+  NFSD4_COURTESY,
+  NFSD4_EXPIRABLE,
 };
 
 /*
@@ -370,90 +369,90 @@ enum {
  *   when we expire the nfs4_client
  */
 struct nfs4_client {
-	struct list_head	cl_idhash; 	/* hash by cl_clientid.id */
-	struct rb_node		cl_namenode;	/* link into by-name trees */
-	struct list_head	*cl_ownerstr_hashtbl;
-	struct list_head	cl_openowners;
-	struct idr		cl_stateids;	/* stateid lookup */
-	struct list_head	cl_delegations;
-	struct list_head	cl_revoked;	/* unacknowledged, revoked 4.1 state */
-	struct list_head        cl_lru;         /* tail queue */
+  struct list_head cl_idhash;  /* hash by cl_clientid.id */
+  struct rb_node cl_namenode;  /* link into by-name trees */
+  struct list_head *cl_ownerstr_hashtbl;
+  struct list_head cl_openowners;
+  struct idr cl_stateids;  /* stateid lookup */
+  struct list_head cl_delegations;
+  struct list_head cl_revoked; /* unacknowledged, revoked 4.1 state */
+  struct list_head cl_lru;         /* tail queue */
 #ifdef CONFIG_NFSD_PNFS
-	struct list_head	cl_lo_states;	/* outstanding layout states */
+  struct list_head cl_lo_states; /* outstanding layout states */
 #endif
-	struct xdr_netobj	cl_name; 	/* id generated by client */
-	nfs4_verifier		cl_verifier; 	/* generated by client */
-	time64_t		cl_time;	/* time of last lease renewal */
-	struct sockaddr_storage	cl_addr; 	/* client ipaddress */
-	bool			cl_mach_cred;	/* SP4_MACH_CRED in force */
-	struct svc_cred		cl_cred; 	/* setclientid principal */
-	clientid_t		cl_clientid;	/* generated by server */
-	nfs4_verifier		cl_confirm;	/* generated by server */
-	u32			cl_minorversion;
-	atomic_t		cl_admin_revoked; /* count of admin-revoked states */
-	/* NFSv4.1 client implementation id: */
-	struct xdr_netobj	cl_nii_domain;
-	struct xdr_netobj	cl_nii_name;
-	struct timespec64	cl_nii_time;
+  struct xdr_netobj cl_name;  /* id generated by client */
+  nfs4_verifier cl_verifier;  /* generated by client */
+  time64_t cl_time;  /* time of last lease renewal */
+  struct sockaddr_storage cl_addr;  /* client ipaddress */
+  bool cl_mach_cred; /* SP4_MACH_CRED in force */
+  struct svc_cred cl_cred;  /* setclientid principal */
+  clientid_t cl_clientid;  /* generated by server */
+  nfs4_verifier cl_confirm; /* generated by server */
+  u32 cl_minorversion;
+  atomic_t cl_admin_revoked; /* count of admin-revoked states */
+  /* NFSv4.1 client implementation id: */
+  struct xdr_netobj cl_nii_domain;
+  struct xdr_netobj cl_nii_name;
+  struct timespec64 cl_nii_time;
 
-	/* for v4.0 and v4.1 callbacks: */
-	struct nfs4_cb_conn	cl_cb_conn;
-#define NFSD4_CLIENT_CB_UPDATE		(0)
-#define NFSD4_CLIENT_CB_KILL		(1)
-#define NFSD4_CLIENT_STABLE		(2)	/* client on stable storage */
-#define NFSD4_CLIENT_RECLAIM_COMPLETE	(3)	/* reclaim_complete done */
-#define NFSD4_CLIENT_CONFIRMED		(4)	/* client is confirmed */
-#define NFSD4_CLIENT_UPCALL_LOCK	(5)	/* upcall serialization */
-#define NFSD4_CLIENT_CB_FLAG_MASK	(1 << NFSD4_CLIENT_CB_UPDATE | \
-					 1 << NFSD4_CLIENT_CB_KILL)
-#define NFSD4_CLIENT_CB_RECALL_ANY	(6)
-	unsigned long		cl_flags;
-	const struct cred	*cl_cb_cred;
-	struct rpc_clnt		*cl_cb_client;
-	u32			cl_cb_ident;
-#define NFSD4_CB_UP		0
-#define NFSD4_CB_UNKNOWN	1
-#define NFSD4_CB_DOWN		2
-#define NFSD4_CB_FAULT		3
-	int			cl_cb_state;
-	struct nfsd4_callback	cl_cb_null;
-	struct nfsd4_session	*cl_cb_session;
+  /* for v4.0 and v4.1 callbacks: */
+  struct nfs4_cb_conn cl_cb_conn;
+#define NFSD4_CLIENT_CB_UPDATE    (0)
+#define NFSD4_CLIENT_CB_KILL    (1)
+#define NFSD4_CLIENT_STABLE   (2) /* client on stable storage */
+#define NFSD4_CLIENT_RECLAIM_COMPLETE (3) /* reclaim_complete done */
+#define NFSD4_CLIENT_CONFIRMED    (4) /* client is confirmed */
+#define NFSD4_CLIENT_UPCALL_LOCK  (5) /* upcall serialization */
+#define NFSD4_CLIENT_CB_FLAG_MASK (1 << NFSD4_CLIENT_CB_UPDATE   \
+    | 1 << NFSD4_CLIENT_CB_KILL)
+#define NFSD4_CLIENT_CB_RECALL_ANY  (6)
+  unsigned long cl_flags;
+  const struct cred *cl_cb_cred;
+  struct rpc_clnt *cl_cb_client;
+  u32 cl_cb_ident;
+#define NFSD4_CB_UP   0
+#define NFSD4_CB_UNKNOWN  1
+#define NFSD4_CB_DOWN   2
+#define NFSD4_CB_FAULT    3
+  int cl_cb_state;
+  struct nfsd4_callback cl_cb_null;
+  struct nfsd4_session *cl_cb_session;
 
-	/* for all client information that callback code might need: */
-	spinlock_t		cl_lock;
+  /* for all client information that callback code might need: */
+  spinlock_t cl_lock;
 
-	/* for nfs41 */
-	struct list_head	cl_sessions;
-	struct nfsd4_clid_slot	cl_cs_slot;	/* create_session slot */
-	u32			cl_exchange_flags;
-	/* number of rpc's in progress over an associated session: */
-	atomic_t		cl_rpc_users;
-	struct nfsdfs_client	cl_nfsdfs;
-	struct nfs4_op_map      cl_spo_must_allow;
+  /* for nfs41 */
+  struct list_head cl_sessions;
+  struct nfsd4_clid_slot cl_cs_slot; /* create_session slot */
+  u32 cl_exchange_flags;
+  /* number of rpc's in progress over an associated session: */
+  atomic_t cl_rpc_users;
+  struct nfsdfs_client cl_nfsdfs;
+  struct nfs4_op_map cl_spo_must_allow;
 
-	/* debugging info directory under nfsd/clients/ : */
-	struct dentry		*cl_nfsd_dentry;
-	/* 'info' file within that directory. Ref is not counted,
-	 * but will remain valid iff cl_nfsd_dentry != NULL
-	 */
-	struct dentry		*cl_nfsd_info_dentry;
+  /* debugging info directory under nfsd/clients/ : */
+  struct dentry *cl_nfsd_dentry;
+  /* 'info' file within that directory. Ref is not counted,
+   * but will remain valid iff cl_nfsd_dentry != NULL
+   */
+  struct dentry *cl_nfsd_info_dentry;
 
-	/* for nfs41 callbacks */
-	/* We currently support a single back channel with a single slot */
-	unsigned long		cl_cb_slot_busy;
-	struct rpc_wait_queue	cl_cb_waitq;	/* backchannel callers may */
-						/* wait here for slots */
-	struct net		*net;
-	struct list_head	async_copies;	/* list of async copies */
-	spinlock_t		async_lock;	/* lock for async copies */
-	atomic_t		cl_cb_inflight;	/* Outstanding callbacks */
+  /* for nfs41 callbacks
+   * We currently support a single back channel with a single slot*/
+  unsigned long cl_cb_slot_busy;
+  struct rpc_wait_queue cl_cb_waitq;  /* backchannel callers may */
+  /* wait here for slots */
+  struct net *net;
+  struct list_head async_copies; /* list of async copies */
+  spinlock_t async_lock; /* lock for async copies */
+  atomic_t cl_cb_inflight; /* Outstanding callbacks */
 
-	unsigned int		cl_state;
-	atomic_t		cl_delegs_in_recall;
+  unsigned int cl_state;
+  atomic_t cl_delegs_in_recall;
 
-	struct nfsd4_cb_recall_any	*cl_ra;
-	time64_t		cl_ra_time;
-	struct list_head	cl_ra_cblist;
+  struct nfsd4_cb_recall_any *cl_ra;
+  time64_t cl_ra_time;
+  struct list_head cl_ra_cblist;
 };
 
 /* struct nfs4_client_reset
@@ -462,39 +461,39 @@ struct nfs4_client {
  * from non-volitile storage) upon reboot.
  */
 struct nfs4_client_reclaim {
-	struct list_head	cr_strhash;	/* hash by cr_name */
-	struct nfs4_client	*cr_clp;	/* pointer to associated clp */
-	struct xdr_netobj	cr_name;	/* recovery dir name */
-	struct xdr_netobj	cr_princhash;
+  struct list_head cr_strhash; /* hash by cr_name */
+  struct nfs4_client *cr_clp;  /* pointer to associated clp */
+  struct xdr_netobj cr_name;  /* recovery dir name */
+  struct xdr_netobj cr_princhash;
 };
 
-/* A reasonable value for REPLAY_ISIZE was estimated as follows:  
- * The OPEN response, typically the largest, requires 
- *   4(status) + 8(stateid) + 20(changeinfo) + 4(rflags) +  8(verifier) + 
- *   4(deleg. type) + 8(deleg. stateid) + 4(deleg. recall flag) + 
- *   20(deleg. space limit) + ~32(deleg. ace) = 112 bytes 
+/* A reasonable value for REPLAY_ISIZE was estimated as follows:
+ * The OPEN response, typically the largest, requires
+ *   4(status) + 8(stateid) + 20(changeinfo) + 4(rflags) +  8(verifier) +
+ *   4(deleg. type) + 8(deleg. stateid) + 4(deleg. recall flag) +
+ *   20(deleg. space limit) + ~32(deleg. ace) = 112 bytes
  */
 
-#define NFSD4_REPLAY_ISIZE       112 
+#define NFSD4_REPLAY_ISIZE       112
 
 /*
- * Replay buffer, where the result of the last seqid-mutating operation 
- * is cached. 
+ * Replay buffer, where the result of the last seqid-mutating operation
+ * is cached.
  */
 struct nfs4_replay {
-	__be32			rp_status;
-	unsigned int		rp_buflen;
-	char			*rp_buf;
-	struct knfsd_fh		rp_openfh;
-	struct mutex		rp_mutex;
-	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
+  __be32 rp_status;
+  unsigned int rp_buflen;
+  char *rp_buf;
+  struct knfsd_fh rp_openfh;
+  struct mutex rp_mutex;
+  char rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
 struct nfs4_stateowner;
 
 struct nfs4_stateowner_operations {
-	void (*so_unhash)(struct nfs4_stateowner *);
-	void (*so_free)(struct nfs4_stateowner *);
+  void (*so_unhash)(struct nfs4_stateowner *);
+  void (*so_free)(struct nfs4_stateowner *);
 };
 
 /*
@@ -504,17 +503,17 @@ struct nfs4_stateowner_operations {
  * structures.
  */
 struct nfs4_stateowner {
-	struct list_head			so_strhash;
-	struct list_head			so_stateids;
-	struct nfs4_client			*so_client;
-	const struct nfs4_stateowner_operations	*so_ops;
-	/* after increment in nfsd4_bump_seqid, represents the next
-	 * sequence id expected from the client: */
-	atomic_t				so_count;
-	u32					so_seqid;
-	struct xdr_netobj			so_owner; /* open owner name */
-	struct nfs4_replay			so_replay;
-	bool					so_is_open_owner;
+  struct list_head so_strhash;
+  struct list_head so_stateids;
+  struct nfs4_client *so_client;
+  const struct nfs4_stateowner_operations *so_ops;
+  /* after increment in nfsd4_bump_seqid, represents the next
+   * sequence id expected from the client: */
+  atomic_t so_count;
+  u32 so_seqid;
+  struct xdr_netobj so_owner; /* open owner name */
+  struct nfs4_replay so_replay;
+  bool so_is_open_owner;
 };
 
 /*
@@ -524,20 +523,20 @@ struct nfs4_stateowner {
  * is a superset of the nfs4_stateowner struct.
  */
 struct nfs4_openowner {
-	struct nfs4_stateowner	oo_owner; /* must be first field */
-	struct list_head        oo_perclient;
-	/*
-	 * We keep around openowners a little while after last close,
-	 * which saves clients from having to confirm, and allows us to
-	 * handle close replays if they come soon enough.  The close_lru
-	 * is a list of such openowners, to be reaped by the laundromat
-	 * thread eventually if they remain unused:
-	 */
-	struct list_head	oo_close_lru;
-	struct nfs4_ol_stateid *oo_last_closed_stid;
-	time64_t		oo_time; /* time of placement on so_close_lru */
+  struct nfs4_stateowner oo_owner; /* must be first field */
+  struct list_head oo_perclient;
+  /*
+   * We keep around openowners a little while after last close,
+   * which saves clients from having to confirm, and allows us to
+   * handle close replays if they come soon enough.  The close_lru
+   * is a list of such openowners, to be reaped by the laundromat
+   * thread eventually if they remain unused:
+   */
+  struct list_head oo_close_lru;
+  struct nfs4_ol_stateid *oo_last_closed_stid;
+  time64_t oo_time; /* time of placement on so_close_lru */
 #define NFS4_OO_CONFIRMED   1
-	unsigned char		oo_flags;
+  unsigned char oo_flags;
 };
 
 /*
@@ -546,18 +545,16 @@ struct nfs4_openowner {
  * a superset of the nfs4_stateowner struct.
  */
 struct nfs4_lockowner {
-	struct nfs4_stateowner	lo_owner;	/* must be first element */
-	struct list_head	lo_blocked;	/* blocked file_locks */
+  struct nfs4_stateowner lo_owner; /* must be first element */
+  struct list_head lo_blocked; /* blocked file_locks */
 };
 
-static inline struct nfs4_openowner * openowner(struct nfs4_stateowner *so)
-{
-	return container_of(so, struct nfs4_openowner, oo_owner);
+static inline struct nfs4_openowner *openowner(struct nfs4_stateowner *so) {
+  return container_of(so, struct nfs4_openowner, oo_owner);
 }
 
-static inline struct nfs4_lockowner * lockowner(struct nfs4_stateowner *so)
-{
-	return container_of(so, struct nfs4_lockowner, lo_owner);
+static inline struct nfs4_lockowner *lockowner(struct nfs4_stateowner *so) {
+  return container_of(so, struct nfs4_lockowner, lo_owner);
 }
 
 /*
@@ -565,10 +562,10 @@ static inline struct nfs4_lockowner * lockowner(struct nfs4_stateowner *so)
  * on a file from a particular client.'od' stands for 'open & delegation'
  */
 struct nfs4_clnt_odstate {
-	struct nfs4_client	*co_client;
-	struct nfs4_file	*co_file;
-	struct list_head	co_perfile;
-	refcount_t		co_odcount;
+  struct nfs4_client *co_client;
+  struct nfs4_file *co_file;
+  struct list_head co_perfile;
+  refcount_t co_odcount;
 };
 
 /*
@@ -581,35 +578,35 @@ struct nfs4_clnt_odstate {
  * inode.
  */
 struct nfs4_file {
-	refcount_t		fi_ref;
-	struct inode *		fi_inode;
-	bool			fi_aliased;
-	spinlock_t		fi_lock;
-	struct rhlist_head	fi_rlist;
-	struct list_head        fi_stateids;
-	union {
-		struct list_head	fi_delegations;
-		struct rcu_head		fi_rcu;
-	};
-	struct list_head	fi_clnt_odstate;
-	/* One each for O_RDONLY, O_WRONLY, O_RDWR: */
-	struct nfsd_file	*fi_fds[3];
-	/*
-	 * Each open or lock stateid contributes 0-4 to the counts
-	 * below depending on which bits are set in st_access_bitmap:
-	 *     1 to fi_access[O_RDONLY] if NFS4_SHARE_ACCES_READ is set
-	 *   + 1 to fi_access[O_WRONLY] if NFS4_SHARE_ACCESS_WRITE is set
-	 *   + 1 to both of the above if NFS4_SHARE_ACCESS_BOTH is set.
-	 */
-	atomic_t		fi_access[2];
-	u32			fi_share_deny;
-	struct nfsd_file	*fi_deleg_file;
-	int			fi_delegees;
-	struct knfsd_fh		fi_fhandle;
-	bool			fi_had_conflict;
+  refcount_t fi_ref;
+  struct inode *fi_inode;
+  bool fi_aliased;
+  spinlock_t fi_lock;
+  struct rhlist_head fi_rlist;
+  struct list_head fi_stateids;
+  union {
+    struct list_head fi_delegations;
+    struct rcu_head fi_rcu;
+  };
+  struct list_head fi_clnt_odstate;
+  /* One each for O_RDONLY, O_WRONLY, O_RDWR: */
+  struct nfsd_file *fi_fds[3];
+  /*
+   * Each open or lock stateid contributes 0-4 to the counts
+   * below depending on which bits are set in st_access_bitmap:
+   *     1 to fi_access[O_RDONLY] if NFS4_SHARE_ACCES_READ is set
+   *   + 1 to fi_access[O_WRONLY] if NFS4_SHARE_ACCESS_WRITE is set
+   *   + 1 to both of the above if NFS4_SHARE_ACCESS_BOTH is set.
+   */
+  atomic_t fi_access[2];
+  u32 fi_share_deny;
+  struct nfsd_file *fi_deleg_file;
+  int fi_delegees;
+  struct knfsd_fh fi_fhandle;
+  bool fi_had_conflict;
 #ifdef CONFIG_NFSD_PNFS
-	struct list_head	fi_lo_states;
-	atomic_t		fi_lo_recalls;
+  struct list_head fi_lo_states;
+  atomic_t fi_lo_recalls;
 #endif
 };
 
@@ -628,65 +625,62 @@ struct nfs4_file {
  * Better suggestions welcome.
  */
 struct nfs4_ol_stateid {
-	struct nfs4_stid		st_stid;
-	struct list_head		st_perfile;
-	struct list_head		st_perstateowner;
-	struct list_head		st_locks;
-	struct nfs4_stateowner		*st_stateowner;
-	struct nfs4_clnt_odstate	*st_clnt_odstate;
-/*
- * These bitmasks use 3 separate bits for READ, ALLOW, and BOTH; see the
- * comment above bmap_to_share_mode() for explanation:
- */
-	unsigned char			st_access_bmap;
-	unsigned char			st_deny_bmap;
-	struct nfs4_ol_stateid		*st_openstp;
-	struct mutex			st_mutex;
+  struct nfs4_stid st_stid;
+  struct list_head st_perfile;
+  struct list_head st_perstateowner;
+  struct list_head st_locks;
+  struct nfs4_stateowner *st_stateowner;
+  struct nfs4_clnt_odstate *st_clnt_odstate;
+  /*
+   * These bitmasks use 3 separate bits for READ, ALLOW, and BOTH; see the
+   * comment above bmap_to_share_mode() for explanation:
+   */
+  unsigned char st_access_bmap;
+  unsigned char st_deny_bmap;
+  struct nfs4_ol_stateid *st_openstp;
+  struct mutex st_mutex;
 };
 
-static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
-{
-	return container_of(s, struct nfs4_ol_stateid, st_stid);
+static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s) {
+  return container_of(s, struct nfs4_ol_stateid, st_stid);
 }
 
 struct nfs4_layout_stateid {
-	struct nfs4_stid		ls_stid;
-	struct list_head		ls_perclnt;
-	struct list_head		ls_perfile;
-	spinlock_t			ls_lock;
-	struct list_head		ls_layouts;
-	u32				ls_layout_type;
-	struct nfsd_file		*ls_file;
-	struct nfsd4_callback		ls_recall;
-	stateid_t			ls_recall_sid;
-	bool				ls_recalled;
-	struct mutex			ls_mutex;
+  struct nfs4_stid ls_stid;
+  struct list_head ls_perclnt;
+  struct list_head ls_perfile;
+  spinlock_t ls_lock;
+  struct list_head ls_layouts;
+  u32 ls_layout_type;
+  struct nfsd_file *ls_file;
+  struct nfsd4_callback ls_recall;
+  stateid_t ls_recall_sid;
+  bool ls_recalled;
+  struct mutex ls_mutex;
 };
 
-static inline struct nfs4_layout_stateid *layoutstateid(struct nfs4_stid *s)
-{
-	return container_of(s, struct nfs4_layout_stateid, ls_stid);
+static inline struct nfs4_layout_stateid *layoutstateid(struct nfs4_stid *s) {
+  return container_of(s, struct nfs4_layout_stateid, ls_stid);
 }
 
 /* flags for preprocess_seqid_op() */
-#define RD_STATE	        0x00000010
-#define WR_STATE	        0x00000020
+#define RD_STATE          0x00000010
+#define WR_STATE          0x00000020
 
 enum nfsd4_cb_op {
-	NFSPROC4_CLNT_CB_NULL = 0,
-	NFSPROC4_CLNT_CB_RECALL,
-	NFSPROC4_CLNT_CB_LAYOUT,
-	NFSPROC4_CLNT_CB_OFFLOAD,
-	NFSPROC4_CLNT_CB_SEQUENCE,
-	NFSPROC4_CLNT_CB_NOTIFY_LOCK,
-	NFSPROC4_CLNT_CB_RECALL_ANY,
-	NFSPROC4_CLNT_CB_GETATTR,
+  NFSPROC4_CLNT_CB_NULL = 0,
+  NFSPROC4_CLNT_CB_RECALL,
+  NFSPROC4_CLNT_CB_LAYOUT,
+  NFSPROC4_CLNT_CB_OFFLOAD,
+  NFSPROC4_CLNT_CB_SEQUENCE,
+  NFSPROC4_CLNT_CB_NOTIFY_LOCK,
+  NFSPROC4_CLNT_CB_RECALL_ANY,
+  NFSPROC4_CLNT_CB_GETATTR,
 };
 
 /* Returns true iff a is later than b: */
-static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b)
-{
-	return (s32)(a->si_generation - b->si_generation) > 0;
+static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b) {
+  return (s32) (a->si_generation - b->si_generation) > 0;
 }
 
 /*
@@ -695,13 +689,13 @@ static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b)
  * CB_NOTIFY_LOCK to the server.
  */
 struct nfsd4_blocked_lock {
-	struct list_head	nbl_list;
-	struct list_head	nbl_lru;
-	time64_t		nbl_time;
-	struct file_lock	nbl_lock;
-	struct knfsd_fh		nbl_fh;
-	struct nfsd4_callback	nbl_cb;
-	struct kref		nbl_kref;
+  struct list_head nbl_list;
+  struct list_head nbl_lru;
+  time64_t nbl_time;
+  struct file_lock nbl_lock;
+  struct knfsd_fh nbl_fh;
+  struct nfsd4_callback nbl_cb;
+  struct kref nbl_kref;
 };
 
 struct nfsd4_compound_state;
@@ -709,58 +703,65 @@ struct nfsd_net;
 struct nfsd4_copy;
 
 extern __be32 nfs4_preprocess_stateid_op(struct svc_rqst *rqstp,
-		struct nfsd4_compound_state *cstate, struct svc_fh *fhp,
-		stateid_t *stateid, int flags, struct nfsd_file **filp,
-		struct nfs4_stid **cstid);
+    struct nfsd4_compound_state *cstate, struct svc_fh *fhp,
+    stateid_t *stateid, int flags, struct nfsd_file **filp,
+    struct nfs4_stid **cstid);
 __be32 nfsd4_lookup_stateid(struct nfsd4_compound_state *cstate,
-			    stateid_t *stateid, unsigned short typemask,
-			    unsigned short statusmask,
-			    struct nfs4_stid **s, struct nfsd_net *nn);
-struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl, struct kmem_cache *slab,
-				  void (*sc_free)(struct nfs4_stid *));
+    stateid_t *stateid, unsigned short typemask,
+    unsigned short statusmask,
+    struct nfs4_stid **s, struct nfsd_net *nn);
+struct nfs4_stid *nfs4_alloc_stid(struct nfs4_client *cl,
+    struct kmem_cache *slab,
+    void (*sc_free)(struct nfs4_stid *));
 int nfs4_init_copy_state(struct nfsd_net *nn, struct nfsd4_copy *copy);
 void nfs4_free_copy_state(struct nfsd4_copy *copy);
 struct nfs4_cpntf_state *nfs4_alloc_init_cpntf_state(struct nfsd_net *nn,
-			struct nfs4_stid *p_stid);
+    struct nfs4_stid *p_stid);
 void nfs4_put_stid(struct nfs4_stid *s);
 void nfs4_inc_and_copy_stateid(stateid_t *dst, struct nfs4_stid *stid);
-void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *, struct nfsd_net *);
+void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *,
+    struct nfsd_net *);
 extern void nfs4_release_reclaim(struct nfsd_net *);
-extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(struct xdr_netobj name,
-							struct nfsd_net *nn);
+extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(
+  struct xdr_netobj name,
+  struct nfsd_net *nn);
 extern __be32 nfs4_check_open_reclaim(struct nfs4_client *);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
 extern void nfsd4_probe_callback_sync(struct nfs4_client *clp);
-extern void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
+extern void nfsd4_change_callback(struct nfs4_client *clp,
+    struct nfs4_cb_conn *);
 extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
-		const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
+    const struct nfsd4_callback_ops *ops, enum nfsd4_cb_op op);
 extern bool nfsd4_run_cb(struct nfsd4_callback *cb);
 extern int nfsd4_create_callback_queue(void);
 extern void nfsd4_destroy_callback_queue(void);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
-extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,
-				struct xdr_netobj princhash, struct nfsd_net *nn);
-extern bool nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn);
+extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(
+  struct xdr_netobj name,
+  struct xdr_netobj princhash, struct nfsd_net *nn);
+extern bool nfs4_has_reclaimed_state(struct xdr_netobj name,
+    struct nfsd_net *nn);
 
 void put_nfs4_file(struct nfs4_file *fi);
 extern void nfs4_put_cpntf_state(struct nfsd_net *nn,
-				 struct nfs4_cpntf_state *cps);
+    struct nfs4_cpntf_state *cps);
 extern __be32 manage_cpntf_state(struct nfsd_net *nn, stateid_t *st,
-				 struct nfs4_client *clp,
-				 struct nfs4_cpntf_state **cps);
-static inline void get_nfs4_file(struct nfs4_file *fi)
-{
-	refcount_inc(&fi->fi_ref);
+    struct nfs4_client *clp,
+    struct nfs4_cpntf_state **cps);
+static inline void get_nfs4_file(struct nfs4_file *fi) {
+  refcount_inc(&fi->fi_ref);
 }
+
 struct nfsd_file *find_any_file(struct nfs4_file *f);
 
 #ifdef CONFIG_NFSD_V4
 void nfsd4_revoke_states(struct net *net, struct super_block *sb);
 #else
-static inline void nfsd4_revoke_states(struct net *net, struct super_block *sb)
-{
+static inline void nfsd4_revoke_states(struct net *net,
+    struct super_block *sb) {
 }
+
 #endif
 
 /* grace period management */
@@ -774,12 +775,11 @@ extern void nfsd4_client_record_remove(struct nfs4_client *clp);
 extern int nfsd4_client_record_check(struct nfs4_client *clp);
 extern void nfsd4_record_grace_done(struct nfsd_net *nn);
 
-static inline bool try_to_expire_client(struct nfs4_client *clp)
-{
-	cmpxchg(&clp->cl_state, NFSD4_COURTESY, NFSD4_EXPIRABLE);
-	return clp->cl_state == NFSD4_EXPIRABLE;
+static inline bool try_to_expire_client(struct nfs4_client *clp) {
+  cmpxchg(&clp->cl_state, NFSD4_COURTESY, NFSD4_EXPIRABLE);
+  return clp->cl_state == NFSD4_EXPIRABLE;
 }
 
 extern __be32 nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp,
-		struct inode *inode, bool *file_modified, u64 *size);
+    struct inode *inode, bool *file_modified, u64 *size);
 #endif   /* NFSD4_STATE_H */

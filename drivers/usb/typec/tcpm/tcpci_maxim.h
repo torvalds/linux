@@ -45,46 +45,47 @@
 #define ADCEN                                   BIT(0)
 
 enum contamiant_state {
-	NOT_DETECTED,
-	DETECTED,
-	SINK,
+  NOT_DETECTED,
+  DETECTED,
+  SINK,
 };
 
 /*
  * @potential_contaminant:
- *		Last returned result to tcpm indicating whether the TCPM port
- *		has potential contaminant.
+ *    Last returned result to tcpm indicating whether the TCPM port
+ *    has potential contaminant.
  */
 struct max_tcpci_chip {
-	struct tcpci_data data;
-	struct tcpci *tcpci;
-	struct device *dev;
-	struct i2c_client *client;
-	struct tcpm_port *port;
-	enum contamiant_state contaminant_state;
-	bool veto_vconn_swap;
+  struct tcpci_data data;
+  struct tcpci *tcpci;
+  struct device *dev;
+  struct i2c_client *client;
+  struct tcpm_port *port;
+  enum contamiant_state contaminant_state;
+  bool veto_vconn_swap;
 };
 
-static inline int max_tcpci_read16(struct max_tcpci_chip *chip, unsigned int reg, u16 *val)
-{
-	return regmap_raw_read(chip->data.regmap, reg, val, sizeof(u16));
+static inline int max_tcpci_read16(struct max_tcpci_chip *chip,
+    unsigned int reg, u16 *val) {
+  return regmap_raw_read(chip->data.regmap, reg, val, sizeof(u16));
 }
 
-static inline int max_tcpci_write16(struct max_tcpci_chip *chip, unsigned int reg, u16 val)
-{
-	return regmap_raw_write(chip->data.regmap, reg, &val, sizeof(u16));
+static inline int max_tcpci_write16(struct max_tcpci_chip *chip,
+    unsigned int reg, u16 val) {
+  return regmap_raw_write(chip->data.regmap, reg, &val, sizeof(u16));
 }
 
-static inline int max_tcpci_read8(struct max_tcpci_chip *chip, unsigned int reg, u8 *val)
-{
-	return regmap_raw_read(chip->data.regmap, reg, val, sizeof(u8));
+static inline int max_tcpci_read8(struct max_tcpci_chip *chip, unsigned int reg,
+    u8 *val) {
+  return regmap_raw_read(chip->data.regmap, reg, val, sizeof(u8));
 }
 
-static inline int max_tcpci_write8(struct max_tcpci_chip *chip, unsigned int reg, u8 val)
-{
-	return regmap_raw_write(chip->data.regmap, reg, &val, sizeof(u8));
+static inline int max_tcpci_write8(struct max_tcpci_chip *chip,
+    unsigned int reg, u8 val) {
+  return regmap_raw_write(chip->data.regmap, reg, &val, sizeof(u8));
 }
 
-bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip, bool disconnect_while_debounce);
+bool max_contaminant_is_contaminant(struct max_tcpci_chip *chip,
+    bool disconnect_while_debounce);
 
 #endif  // TCPCI_MAXIM_H_

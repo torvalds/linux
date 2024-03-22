@@ -19,13 +19,13 @@
  * @completion_notify: callback to notify when all the adapters are created
  */
 struct mlxcpld_mux_plat_data {
-	int *chan_ids;
-	int num_adaps;
-	int sel_reg_addr;
-	u8 reg_size;
-	void *handle;
-	int (*completion_notify)(void *handle, struct i2c_adapter *parent,
-				 struct i2c_adapter *adapters[]);
+  int *chan_ids;
+  int num_adaps;
+  int sel_reg_addr;
+  u8 reg_size;
+  void *handle;
+  int (*completion_notify)(void *handle, struct i2c_adapter *parent,
+      struct i2c_adapter *adapters[]);
 };
 
 #endif /* _LINUX_I2C_MLXCPLD_H */

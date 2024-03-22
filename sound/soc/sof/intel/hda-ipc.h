@@ -24,29 +24,29 @@
 /* Common bits in primary register */
 
 /* Reserved for doorbell */
-#define HDA_IPC_RSVD_31		BIT(31)
+#define HDA_IPC_RSVD_31   BIT(31)
 /* Target, 0 - normal message, 1 - compact message(cAVS compatible) */
-#define HDA_IPC_MSG_COMPACT	BIT(30)
+#define HDA_IPC_MSG_COMPACT BIT(30)
 /* Direction, 0 - request, 1 - response */
-#define HDA_IPC_RSP		BIT(29)
+#define HDA_IPC_RSP   BIT(29)
 
-#define HDA_IPC_TYPE_SHIFT	24
-#define HDA_IPC_TYPE_MASK	GENMASK(28, 24)
-#define HDA_IPC_TYPE(x)		((x) << HDA_IPC_TYPE_SHIFT)
+#define HDA_IPC_TYPE_SHIFT  24
+#define HDA_IPC_TYPE_MASK GENMASK(28, 24)
+#define HDA_IPC_TYPE(x)   ((x) << HDA_IPC_TYPE_SHIFT)
 
-#define HDA_IPC_PM_GATE		HDA_IPC_TYPE(0x8U)
+#define HDA_IPC_PM_GATE   HDA_IPC_TYPE(0x8U)
 
 /* Command specific payload bits in secondary register */
 
 /* Disable DMA tracing (0 - keep tracing, 1 - to disable DMA trace) */
-#define HDA_PM_NO_DMA_TRACE	BIT(4)
+#define HDA_PM_NO_DMA_TRACE BIT(4)
 /* Prevent clock gating (0 - cg allowed, 1 - DSP clock always on) */
-#define HDA_PM_PCG		BIT(3)
+#define HDA_PM_PCG    BIT(3)
 /* Prevent power gating (0 - deep power state transitions allowed) */
-#define HDA_PM_PPG		BIT(2)
+#define HDA_PM_PPG    BIT(2)
 /* Indicates whether streaming is active */
-#define HDA_PM_PG_STREAMING	BIT(1)
-#define HDA_PM_PG_RSVD		BIT(0)
+#define HDA_PM_PG_STREAMING BIT(1)
+#define HDA_PM_PG_RSVD    BIT(0)
 
 irqreturn_t cnl_ipc_irq_thread(int irq, void *context);
 int cnl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);

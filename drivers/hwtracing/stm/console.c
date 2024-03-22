@@ -16,52 +16,43 @@ static int stm_console_link(struct stm_source_data *data);
 static void stm_console_unlink(struct stm_source_data *data);
 
 static struct stm_console {
-	struct stm_source_data	data;
-	struct console		console;
+  struct stm_source_data data;
+  struct console console;
 } stm_console = {
-	.data	= {
-		.name		= "console",
-		.nr_chans	= 1,
-		.link		= stm_console_link,
-		.unlink		= stm_console_unlink,
-	},
+  .data = {
+    .name = "console",
+    .nr_chans = 1,
+    .link = stm_console_link,
+    .unlink = stm_console_unlink,
+  },
 };
 
-static void
-stm_console_write(struct console *con, const char *buf, unsigned len)
-{
-	struct stm_console *sc = container_of(con, struct stm_console, console);
-
-	stm_source_write(&sc->data, 0, buf, len);
+static void stm_console_write(struct console *con, const char *buf,
+    unsigned len) {
+  struct stm_console *sc = container_of(con, struct stm_console, console);
+  stm_source_write(&sc->data, 0, buf, len);
 }
 
-static int stm_console_link(struct stm_source_data *data)
-{
-	struct stm_console *sc = container_of(data, struct stm_console, data);
-
-	strcpy(sc->console.name, "stm_console");
-	sc->console.write = stm_console_write;
-	sc->console.flags = CON_ENABLED | CON_PRINTBUFFER;
-	register_console(&sc->console);
-
-	return 0;
+static int stm_console_link(struct stm_source_data *data) {
+  struct stm_console *sc = container_of(data, struct stm_console, data);
+  strcpy(sc->console.name, "stm_console");
+  sc->console.write = stm_console_write;
+  sc->console.flags = CON_ENABLED | CON_PRINTBUFFER;
+  register_console(&sc->console);
+  return 0;
 }
 
-static void stm_console_unlink(struct stm_source_data *data)
-{
-	struct stm_console *sc = container_of(data, struct stm_console, data);
-
-	unregister_console(&sc->console);
+static void stm_console_unlink(struct stm_source_data *data) {
+  struct stm_console *sc = container_of(data, struct stm_console, data);
+  unregister_console(&sc->console);
 }
 
-static int stm_console_init(void)
-{
-	return stm_source_register_device(NULL, &stm_console.data);
+static int stm_console_init(void) {
+  return stm_source_register_device(NULL, &stm_console.data);
 }
 
-static void stm_console_exit(void)
-{
-	stm_source_unregister_device(&stm_console.data);
+static void stm_console_exit(void) {
+  stm_source_unregister_device(&stm_console.data);
 }
 
 module_init(stm_console_init);

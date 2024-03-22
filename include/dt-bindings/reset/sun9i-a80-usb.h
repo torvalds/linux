@@ -43,14 +43,14 @@
 #ifndef _DT_BINDINGS_RESET_SUN9I_A80_USB_H_
 #define _DT_BINDINGS_RESET_SUN9I_A80_USB_H_
 
-#define RST_USB0_HCI	0
-#define RST_USB1_HCI	1
-#define RST_USB2_HCI	2
+#define RST_USB0_HCI  0
+#define RST_USB1_HCI  1
+#define RST_USB2_HCI  2
 
-#define RST_USB0_PHY	3
-#define RST_USB1_HSIC	4
-#define RST_USB1_PHY	5
-#define RST_USB2_HSIC	6
-#define RST_USB2_PHY	7
+#define RST_USB0_PHY  3
+#define RST_USB1_HSIC 4
+#define RST_USB1_PHY  5
+#define RST_USB2_HSIC 6
+#define RST_USB2_PHY  7
 
 #endif /* _DT_BINDINGS_RESET_SUN9I_A80_USB_H_ */

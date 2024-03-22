@@ -18,46 +18,46 @@
 
 struct platform_device;
 
-#define IMX_ICC_MAX_LINKS	4
+#define IMX_ICC_MAX_LINKS 4
 
 /*
  * High throughput priority level in Regulator mode
  * Read Priority in Fixed/Limiter mode
  */
-#define PRIORITY0_SHIFT	0
+#define PRIORITY0_SHIFT 0
 /*
  * Low throughput priority level in Regulator mode
  * Write Priority in Fixed/Limiter mode
  */
-#define PRIORITY1_SHIFT	8
-#define PRIORITY_MASK		0x7
+#define PRIORITY1_SHIFT 8
+#define PRIORITY_MASK   0x7
 
-#define PRIORITY_COMP_MARK	BIT(31)	/* Must set */
+#define PRIORITY_COMP_MARK  BIT(31) /* Must set */
 
-#define IMX_NOC_MODE_FIXED		0
-#define IMX_NOC_MODE_LIMITER		1
-#define IMX_NOC_MODE_BYPASS		2
-#define IMX_NOC_MODE_REGULATOR		3
-#define IMX_NOC_MODE_UNCONFIGURED	0xFF
+#define IMX_NOC_MODE_FIXED    0
+#define IMX_NOC_MODE_LIMITER    1
+#define IMX_NOC_MODE_BYPASS   2
+#define IMX_NOC_MODE_REGULATOR    3
+#define IMX_NOC_MODE_UNCONFIGURED 0xFF
 
-#define IMX_NOC_PRIO_REG	0x8
-#define IMX_NOC_MODE_REG	0xC
-#define IMX_NOC_BANDWIDTH_REG	0x10
-#define IMX_NOC_SATURATION	0x14
-#define IMX_NOC_EXT_CTL_REG	0x18
+#define IMX_NOC_PRIO_REG  0x8
+#define IMX_NOC_MODE_REG  0xC
+#define IMX_NOC_BANDWIDTH_REG 0x10
+#define IMX_NOC_SATURATION  0x14
+#define IMX_NOC_EXT_CTL_REG 0x18
 
 struct imx_icc_provider {
-	void __iomem *noc_base;
-	struct icc_provider provider;
+  void __iomem *noc_base;
+  struct icc_provider provider;
 };
 
 /*
  * struct imx_icc_node_adj - Describe a dynamic adjustable node
  */
 struct imx_icc_node_adj_desc {
-	unsigned int bw_mul, bw_div;
-	const char *phandle_name;
-	bool main_noc;
+  unsigned int bw_mul, bw_div;
+  const char *phandle_name;
+  bool main_noc;
 };
 
 /*
@@ -68,11 +68,11 @@ struct imx_icc_node_adj_desc {
  * @num_links: number of id defined in links
  */
 struct imx_icc_node_desc {
-	const char *name;
-	u16 id;
-	u16 links[IMX_ICC_MAX_LINKS];
-	u16 num_links;
-	const struct imx_icc_node_adj_desc *adj;
+  const char *name;
+  u16 id;
+  u16 links[IMX_ICC_MAX_LINKS];
+  u16 num_links;
+  const struct imx_icc_node_adj_desc *adj;
 };
 
 /*
@@ -83,31 +83,31 @@ struct imx_icc_node_desc {
  * @ext_control: external input control
  */
 struct imx_icc_noc_setting {
-	u32 reg;
-	u32 prio_level;
-	u32 mode;
-	u32 ext_control;
+  u32 reg;
+  u32 prio_level;
+  u32 mode;
+  u32 ext_control;
 };
 
-#define DEFINE_BUS_INTERCONNECT(_name, _id, _adj, ...)			\
-	{								\
-		.id = _id,						\
-		.name = _name,						\
-		.adj = _adj,						\
-		.num_links = COUNT_ARGS(__VA_ARGS__),			\
-		.links = { __VA_ARGS__ },				\
-	}
+#define DEFINE_BUS_INTERCONNECT(_name, _id, _adj, ...)      \
+  {               \
+    .id = _id,            \
+    .name = _name,            \
+    .adj = _adj,            \
+    .num_links = COUNT_ARGS(__VA_ARGS__),     \
+    .links = { __VA_ARGS__ },       \
+  }
 
-#define DEFINE_BUS_MASTER(_name, _id, _dest_id)				\
-	DEFINE_BUS_INTERCONNECT(_name, _id, NULL, _dest_id)
+#define DEFINE_BUS_MASTER(_name, _id, _dest_id)       \
+  DEFINE_BUS_INTERCONNECT(_name, _id, NULL, _dest_id)
 
-#define DEFINE_BUS_SLAVE(_name, _id, _adj)				\
-	DEFINE_BUS_INTERCONNECT(_name, _id, _adj)
+#define DEFINE_BUS_SLAVE(_name, _id, _adj)        \
+  DEFINE_BUS_INTERCONNECT(_name, _id, _adj)
 
 int imx_icc_register(struct platform_device *pdev,
-		     struct imx_icc_node_desc *nodes,
-		     int nodes_count,
-		     struct imx_icc_noc_setting *noc_settings);
+    struct imx_icc_node_desc *nodes,
+    int nodes_count,
+    struct imx_icc_noc_setting *noc_settings);
 void imx_icc_unregister(struct platform_device *pdev);
 
 #endif /* __DRIVERS_INTERCONNECT_IMX_H */

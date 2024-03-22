@@ -20,46 +20,46 @@ struct dpu_hw_dsc;
  * Assumption is these functions will be called after clocks are enabled
  */
 struct dpu_hw_dsc_ops {
-	/**
-	 * dsc_disable - disable dsc
-	 * @hw_dsc: Pointer to dsc context
-	 */
-	void (*dsc_disable)(struct dpu_hw_dsc *hw_dsc);
+  /**
+   * dsc_disable - disable dsc
+   * @hw_dsc: Pointer to dsc context
+   */
+  void (*dsc_disable)(struct dpu_hw_dsc *hw_dsc);
 
-	/**
-	 * dsc_config - configures dsc encoder
-	 * @hw_dsc: Pointer to dsc context
-	 * @dsc: panel dsc parameters
-	 * @mode: dsc topology mode to be set
-	 * @initial_lines: amount of initial lines to be used
-	 */
-	void (*dsc_config)(struct dpu_hw_dsc *hw_dsc,
-			   struct drm_dsc_config *dsc,
-			   u32 mode,
-			   u32 initial_lines);
+  /**
+   * dsc_config - configures dsc encoder
+   * @hw_dsc: Pointer to dsc context
+   * @dsc: panel dsc parameters
+   * @mode: dsc topology mode to be set
+   * @initial_lines: amount of initial lines to be used
+   */
+  void (*dsc_config)(struct dpu_hw_dsc *hw_dsc,
+      struct drm_dsc_config *dsc,
+      u32 mode,
+      u32 initial_lines);
 
-	/**
-	 * dsc_config_thresh - programs panel thresholds
-	 * @hw_dsc: Pointer to dsc context
-	 * @dsc: panel dsc parameters
-	 */
-	void (*dsc_config_thresh)(struct dpu_hw_dsc *hw_dsc,
-				  struct drm_dsc_config *dsc);
+  /**
+   * dsc_config_thresh - programs panel thresholds
+   * @hw_dsc: Pointer to dsc context
+   * @dsc: panel dsc parameters
+   */
+  void (*dsc_config_thresh)(struct dpu_hw_dsc *hw_dsc,
+      struct drm_dsc_config *dsc);
 
-	void (*dsc_bind_pingpong_blk)(struct dpu_hw_dsc *hw_dsc,
-				  enum dpu_pingpong pp);
+  void (*dsc_bind_pingpong_blk)(struct dpu_hw_dsc *hw_dsc,
+      enum dpu_pingpong pp);
 };
 
 struct dpu_hw_dsc {
-	struct dpu_hw_blk base;
-	struct dpu_hw_blk_reg_map hw;
+  struct dpu_hw_blk base;
+  struct dpu_hw_blk_reg_map hw;
 
-	/* dsc */
-	enum dpu_dsc idx;
-	const struct dpu_dsc_cfg *caps;
+  /* dsc */
+  enum dpu_dsc idx;
+  const struct dpu_dsc_cfg *caps;
 
-	/* ops */
-	struct dpu_hw_dsc_ops ops;
+  /* ops */
+  struct dpu_hw_dsc_ops ops;
 };
 
 /**
@@ -70,8 +70,8 @@ struct dpu_hw_dsc {
  * Return: Error code or allocated dpu_hw_dsc context
  */
 struct dpu_hw_dsc *dpu_hw_dsc_init(struct drm_device *dev,
-				   const struct dpu_dsc_cfg *cfg,
-				   void __iomem *addr);
+    const struct dpu_dsc_cfg *cfg,
+    void __iomem *addr);
 
 /**
  * dpu_hw_dsc_init_1_2() - initializes the v1.2 DSC hw driver object
@@ -81,8 +81,8 @@ struct dpu_hw_dsc *dpu_hw_dsc_init(struct drm_device *dev,
  * Returns: Error code or allocated dpu_hw_dsc context
  */
 struct dpu_hw_dsc *dpu_hw_dsc_init_1_2(struct drm_device *dev,
-				       const struct dpu_dsc_cfg *cfg,
-				       void __iomem *addr);
+    const struct dpu_dsc_cfg *cfg,
+    void __iomem *addr);
 
 /**
  * dpu_hw_dsc_destroy - destroys dsc driver context
@@ -90,9 +90,8 @@ struct dpu_hw_dsc *dpu_hw_dsc_init_1_2(struct drm_device *dev,
  */
 void dpu_hw_dsc_destroy(struct dpu_hw_dsc *dsc);
 
-static inline struct dpu_hw_dsc *to_dpu_hw_dsc(struct dpu_hw_blk *hw)
-{
-	return container_of(hw, struct dpu_hw_dsc, base);
+static inline struct dpu_hw_dsc *to_dpu_hw_dsc(struct dpu_hw_blk *hw) {
+  return container_of(hw, struct dpu_hw_dsc, base);
 }
 
 #endif /* _DPU_HW_DSC_H */

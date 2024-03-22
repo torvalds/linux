@@ -6,9 +6,9 @@
 
 /* Read an uninitialized value from stack at a fixed offset */
 SEC("socket")
-__naked int read_uninit_stack_fixed_off(void *ctx)
-{
-	asm volatile ("					\
+__naked int read_uninit_stack_fixed_off(void *ctx) {
+  asm volatile (
+    "					\
 		r0 = 0;					\
 		/* force stack depth to be 128 */	\
 		*(u64*)(r10 - 128) = r1;		\
@@ -27,15 +27,14 @@ __naked int read_uninit_stack_fixed_off(void *ctx)
 		r1 = *(u64*)(r10 - 72);			\
 		r0 = 0;					\
 		exit;					\
-"
-		      ::: __clobber_all);
+"         ::: __clobber_all);
 }
 
 /* Read an uninitialized value from stack at a variable offset */
 SEC("socket")
-__naked int read_uninit_stack_var_off(void *ctx)
-{
-	asm volatile ("					\
+__naked int read_uninit_stack_var_off(void *ctx) {
+  asm volatile (
+    "					\
 		call %[bpf_get_prandom_u32];		\
 		/* force stack depth to be 64 */	\
 		*(u64*)(r10 - 64) = r0;			\
@@ -49,22 +48,22 @@ __naked int read_uninit_stack_var_off(void *ctx)
 		r2 = *(u8*)(r1 + 0);			\
 exit_%=:	r0 = 0;					\
 		exit;					\
-"
-		      :
-		      : __imm(bpf_get_prandom_u32)
-		      : __clobber_all);
+"         :
+    : __imm(bpf_get_prandom_u32)
+    : __clobber_all);
 }
 
-static __noinline void dummy(void) {}
+static __noinline void dummy(void) {
+}
 
 /* Pass a pointer to uninitialized stack memory to a helper.
  * Passed memory block should be marked as STACK_MISC after helper call.
  */
 SEC("socket")
 __log_level(7) __msg("fp-104=mmmmmmmm")
-__naked int helper_uninit_to_misc(void *ctx)
-{
-	asm volatile ("					\
+__naked int helper_uninit_to_misc(void *ctx) {
+  asm volatile (
+    "					\
 		/* force stack depth to be 128 */	\
 		*(u64*)(r10 - 128) = r1;		\
 		r1 = r10;				\
@@ -77,11 +76,10 @@ __naked int helper_uninit_to_misc(void *ctx)
 		call %[dummy];				\
 		r0 = 0;					\
 		exit;					\
-"
-		      :
-		      : __imm(bpf_trace_printk),
-			__imm(dummy)
-		      : __clobber_all);
+"         :
+    : __imm(bpf_trace_printk),
+    __imm(dummy)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

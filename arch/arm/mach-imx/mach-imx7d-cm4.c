@@ -8,11 +8,11 @@
 #include <asm/mach/arch.h>
 
 static const char * const imx7d_cm4_dt_compat[] __initconst = {
-	"fsl,imx7d-cm4",
-	NULL,
+  "fsl,imx7d-cm4",
+  NULL,
 };
 
 DT_MACHINE_START(IMX7D, "Freescale i.MX7 Dual Cortex-M4 (Device Tree)")
-	.dt_compat = imx7d_cm4_dt_compat,
-	.restart = armv7m_restart,
+.dt_compat = imx7d_cm4_dt_compat,
+.restart = armv7m_restart,
 MACHINE_END

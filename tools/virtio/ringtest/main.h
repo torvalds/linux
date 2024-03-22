@@ -18,21 +18,19 @@ extern bool do_exit;
 #if defined(__x86_64__) || defined(__i386__)
 #include "x86intrin.h"
 
-static inline void wait_cycles(unsigned long long cycles)
-{
-	unsigned long long t;
-
-	t = __rdtsc();
-	while (__rdtsc() - t < cycles) {}
+static inline void wait_cycles(unsigned long long cycles) {
+  unsigned long long t;
+  t = __rdtsc();
+  while (__rdtsc() - t < cycles) {
+  }
 }
 
 #define VMEXIT_CYCLES 500
 #define VMENTRY_CYCLES 500
 
 #elif defined(__s390x__)
-static inline void wait_cycles(unsigned long long cycles)
-{
-	asm volatile("0: brctg %0,0b" : : "d" (cycles));
+static inline void wait_cycles(unsigned long long cycles) {
+  asm volatile ("0: brctg %0,0b" : : "d" (cycles));
 }
 
 /* tweak me */
@@ -40,27 +38,26 @@ static inline void wait_cycles(unsigned long long cycles)
 #define VMENTRY_CYCLES 200
 
 #else
-static inline void wait_cycles(unsigned long long cycles)
-{
-	_Exit(5);
+static inline void wait_cycles(unsigned long long cycles) {
+  _Exit(5);
 }
+
 #define VMEXIT_CYCLES 0
 #define VMENTRY_CYCLES 0
 #endif
 
-static inline void vmexit(void)
-{
-	if (!do_exit)
-		return;
-	
-	wait_cycles(VMEXIT_CYCLES);
+static inline void vmexit(void) {
+  if (!do_exit) {
+    return;
+  }
+  wait_cycles(VMEXIT_CYCLES);
 }
-static inline void vmentry(void)
-{
-	if (!do_exit)
-		return;
-	
-	wait_cycles(VMENTRY_CYCLES);
+
+static inline void vmentry(void) {
+  if (!do_exit) {
+    return;
+  }
+  wait_cycles(VMENTRY_CYCLES);
 }
 
 /* implemented by ring */
@@ -89,7 +86,7 @@ void wait_for_call(void);
 extern unsigned ring_size;
 
 /* Compiler barrier - similar to what Linux uses */
-#define barrier() asm volatile("" ::: "memory")
+#define barrier() asm volatile ("" ::: "memory")
 
 /* Is there a portable way to do this? */
 #if defined(__x86_64__) || defined(__i386__)
@@ -104,19 +101,20 @@ extern unsigned ring_size;
 
 extern bool do_relax;
 
-static inline void busy_wait(void)
-{
-	if (do_relax)
-		cpu_relax();
-	else
-		/* prevent compiler from removing busy loops */
-		barrier();
-} 
+static inline void busy_wait(void) {
+  if (do_relax) {
+    cpu_relax();
+  } else {
+    /* prevent compiler from removing busy loops */
+    barrier();
+  }
+}
 
 #if defined(__x86_64__) || defined(__i386__)
-#define smp_mb()     asm volatile("lock; addl $0,-132(%%rsp)" ::: "memory", "cc")
+#define smp_mb()     asm volatile ("lock; addl $0,-132(%%rsp)" ::: "memory", \
+  "cc")
 #elif defined(__aarch64__)
-#define smp_mb()     asm volatile("dmb ish" ::: "memory")
+#define smp_mb()     asm volatile ("dmb ish" ::: "memory")
 #else
 /*
  * Not using __ATOMIC_SEQ_CST since gcc docs say they are only synchronized
@@ -142,7 +140,7 @@ static inline void busy_wait(void)
 #if defined(__i386__) || defined(__x86_64__) || defined(__s390x__)
 #define smp_wmb() barrier()
 #elif defined(__aarch64__)
-#define smp_wmb() asm volatile("dmb ishst" ::: "memory")
+#define smp_wmb() asm volatile ("dmb ishst" ::: "memory")
 #else
 #define smp_wmb() smp_release()
 #endif
@@ -152,57 +150,72 @@ static inline void busy_wait(void)
 #endif
 
 static __always_inline
-void __read_once_size(const volatile void *p, void *res, int size)
-{
-	switch (size) {
-	case 1: *(unsigned char *)res = *(volatile unsigned char *)p; break;
-	case 2: *(unsigned short *)res = *(volatile unsigned short *)p; break;
-	case 4: *(unsigned int *)res = *(volatile unsigned int *)p; break;
-	case 8: *(unsigned long long *)res = *(volatile unsigned long long *)p; break;
-	default:
-		barrier();
-		__builtin_memcpy((void *)res, (const void *)p, size);
-		barrier();
-	}
+void __read_once_size(const volatile void *p, void *res, int size) {
+  switch (size) {
+    case 1:
+      *(unsigned char *) res = *(volatile unsigned char *) p;
+      break;
+    case 2:
+      *(unsigned short *) res = *(volatile unsigned short *) p;
+      break;
+    case 4:
+      *(unsigned int *) res = *(volatile unsigned int *) p;
+      break;
+    case 8:
+      *(unsigned long long *) res = *(volatile unsigned long long *) p;
+      break;
+    default:
+      barrier();
+      __builtin_memcpy((void *) res, (const void *) p, size);
+      barrier();
+  }
 }
 
-static __always_inline void __write_once_size(volatile void *p, void *res, int size)
-{
-	switch (size) {
-	case 1: *(volatile unsigned char *)p = *(unsigned char *)res; break;
-	case 2: *(volatile unsigned short *)p = *(unsigned short *)res; break;
-	case 4: *(volatile unsigned int *)p = *(unsigned int *)res; break;
-	case 8: *(volatile unsigned long long *)p = *(unsigned long long *)res; break;
-	default:
-		barrier();
-		__builtin_memcpy((void *)p, (const void *)res, size);
-		barrier();
-	}
+static __always_inline void __write_once_size(volatile void *p, void *res,
+    int size) {
+  switch (size) {
+    case 1:
+      *(volatile unsigned char *) p = *(unsigned char *) res;
+      break;
+    case 2:
+      *(volatile unsigned short *) p = *(unsigned short *) res;
+      break;
+    case 4:
+      *(volatile unsigned int *) p = *(unsigned int *) res;
+      break;
+    case 8:
+      *(volatile unsigned long long *) p = *(unsigned long long *) res;
+      break;
+    default:
+      barrier();
+      __builtin_memcpy((void *) p, (const void *) res, size);
+      barrier();
+  }
 }
 
 #ifdef __alpha__
 #define READ_ONCE(x) \
-({									\
-	union { typeof(x) __val; char __c[1]; } __u;			\
-	__read_once_size(&(x), __u.__c, sizeof(x));		\
-	smp_mb(); /* Enforce dependency ordering from x */		\
-	__u.__val;							\
-})
+  ({                  \
+    union { typeof(x) __val; char __c[1]; } __u;      \
+    __read_once_size(&(x), __u.__c, sizeof(x));   \
+    smp_mb(); /* Enforce dependency ordering from x */    \
+    __u.__val;              \
+  })
 #else
-#define READ_ONCE(x)							\
-({									\
-	union { typeof(x) __val; char __c[1]; } __u;			\
-	__read_once_size(&(x), __u.__c, sizeof(x));			\
-	__u.__val;							\
-})
+#define READ_ONCE(x)              \
+  ({                  \
+    union { typeof(x) __val; char __c[1]; } __u;      \
+    __read_once_size(&(x), __u.__c, sizeof(x));     \
+    __u.__val;              \
+  })
 #endif
 
 #define WRITE_ONCE(x, val) \
-({							\
-	union { typeof(x) __val; char __c[1]; } __u =	\
-		{ .__val = (typeof(x)) (val) }; \
-	__write_once_size(&(x), __u.__c, sizeof(x));	\
-	__u.__val;					\
-})
+  ({              \
+    union { typeof(x) __val; char __c[1]; } __u = \
+    { .__val = (typeof(x))(val) }; \
+    __write_once_size(&(x), __u.__c, sizeof(x));  \
+    __u.__val;          \
+  })
 
 #endif

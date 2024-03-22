@@ -41,7 +41,7 @@
  * be branches to code and satisfy linker requirements for microMIPS kernels.
  */
 #undef barrier_before_unreachable
-#define barrier_before_unreachable() asm volatile(".insn")
+#define barrier_before_unreachable() asm volatile (".insn")
 
 #define GCC_OFF_SMALL_ASM() "ZC"
 

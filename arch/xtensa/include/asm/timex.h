@@ -11,20 +11,20 @@
 
 #include <asm/processor.h>
 
-#if XCHAL_NUM_TIMERS > 0 && \
-	XTENSA_INT_LEVEL(XCHAL_TIMER0_INTERRUPT) <= XCHAL_EXCM_LEVEL
-# define LINUX_TIMER     0
-# define LINUX_TIMER_INT XCHAL_TIMER0_INTERRUPT
-#elif XCHAL_NUM_TIMERS > 1 && \
-	XTENSA_INT_LEVEL(XCHAL_TIMER1_INTERRUPT) <= XCHAL_EXCM_LEVEL
-# define LINUX_TIMER     1
-# define LINUX_TIMER_INT XCHAL_TIMER1_INTERRUPT
-#elif XCHAL_NUM_TIMERS > 2 && \
-	XTENSA_INT_LEVEL(XCHAL_TIMER2_INTERRUPT) <= XCHAL_EXCM_LEVEL
-# define LINUX_TIMER     2
-# define LINUX_TIMER_INT XCHAL_TIMER2_INTERRUPT
+#if XCHAL_NUM_TIMERS > 0    \
+  && XTENSA_INT_LEVEL(XCHAL_TIMER0_INTERRUPT) <= XCHAL_EXCM_LEVEL
+#define LINUX_TIMER     0
+#define LINUX_TIMER_INT XCHAL_TIMER0_INTERRUPT
+#elif XCHAL_NUM_TIMERS > 1    \
+  && XTENSA_INT_LEVEL(XCHAL_TIMER1_INTERRUPT) <= XCHAL_EXCM_LEVEL
+#define LINUX_TIMER     1
+#define LINUX_TIMER_INT XCHAL_TIMER1_INTERRUPT
+#elif XCHAL_NUM_TIMERS > 2    \
+  && XTENSA_INT_LEVEL(XCHAL_TIMER2_INTERRUPT) <= XCHAL_EXCM_LEVEL
+#define LINUX_TIMER     2
+#define LINUX_TIMER_INT XCHAL_TIMER2_INTERRUPT
 #else
-# error "Bad timer number for Linux configurations!"
+#error "Bad timer number for Linux configurations!"
 #endif
 
 extern unsigned long ccount_freq;
@@ -35,26 +35,22 @@ void local_timer_setup(unsigned cpu);
  * Register access.
  */
 
-static inline unsigned long get_ccount (void)
-{
-	return xtensa_get_sr(ccount);
+static inline unsigned long get_ccount(void) {
+  return xtensa_get_sr(ccount);
 }
 
-static inline void set_ccount (unsigned long ccount)
-{
-	xtensa_set_sr(ccount, ccount);
+static inline void set_ccount(unsigned long ccount) {
+  xtensa_set_sr(ccount, ccount);
 }
 
-static inline unsigned long get_linux_timer (void)
-{
-	return xtensa_get_sr(SREG_CCOMPARE + LINUX_TIMER);
+static inline unsigned long get_linux_timer(void) {
+  return xtensa_get_sr(SREG_CCOMPARE + LINUX_TIMER);
 }
 
-static inline void set_linux_timer (unsigned long ccompare)
-{
-	xtensa_set_sr(ccompare, SREG_CCOMPARE + LINUX_TIMER);
+static inline void set_linux_timer(unsigned long ccompare) {
+  xtensa_set_sr(ccompare, SREG_CCOMPARE + LINUX_TIMER);
 }
 
 #include <asm-generic/timex.h>
 
-#endif	/* _XTENSA_TIMEX_H */
+#endif  /* _XTENSA_TIMEX_H */

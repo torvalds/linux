@@ -7,24 +7,24 @@
 #ifndef __ASSEMBLY__
 
 struct pci_setup_rom {
-	struct setup_data data;
-	uint16_t vendor;
-	uint16_t devid;
-	uint64_t pcilen;
-	unsigned long segment;
-	unsigned long bus;
-	unsigned long device;
-	unsigned long function;
-	uint8_t romdata[];
+  struct setup_data data;
+  uint16_t vendor;
+  uint16_t devid;
+  uint64_t pcilen;
+  unsigned long segment;
+  unsigned long bus;
+  unsigned long device;
+  unsigned long function;
+  uint8_t romdata[];
 };
 
 /* kexec external ABI */
 struct efi_setup_data {
-	u64 fw_vendor;
-	u64 __unused;
-	u64 tables;
-	u64 smbios;
-	u64 reserved[8];
+  u64 fw_vendor;
+  u64 __unused;
+  u64 tables;
+  u64 smbios;
+  u64 reserved[8];
 };
 
 #endif /* __ASSEMBLY__ */

@@ -11,12 +11,12 @@
 
 /* AUXIO implementations:
  * sbus-based NCR89C105 "Slavio"
- *	LED/Floppy (AUX1) register
- *	Power (AUX2) register
+ *  LED/Floppy (AUX1) register
+ *  Power (AUX2) register
  *
  * ebus-based auxio on PCIO
- *	LED Auxio Register
- *	Power Auxio Register
+ *  LED Auxio Register
+ *  Power Auxio Register
  *
  * Register definitions from NCR _NCR89C105 Chip Specification_
  *
@@ -31,12 +31,12 @@
  *  T  - Terminal Count: sends TC pulse to 82077 floppy controller
  *  L  - System LED on front panel (0=off, 1=on)
  */
-#define AUXIO_AUX1_MASK		0xc0 /* Mask bits 		*/
-#define AUXIO_AUX1_FDENS	0x20 /* Floppy Density Sense	*/
-#define AUXIO_AUX1_LTE 		0x08 /* Link Test Enable 	*/
-#define AUXIO_AUX1_MMUX		0x04 /* Monitor/Mouse Mux	*/
-#define AUXIO_AUX1_FTCNT	0x02 /* Terminal Count, 	*/
-#define AUXIO_AUX1_LED		0x01 /* System LED		*/
+#define AUXIO_AUX1_MASK   0xc0 /* Mask bits     */
+#define AUXIO_AUX1_FDENS  0x20 /* Floppy Density Sense  */
+#define AUXIO_AUX1_LTE    0x08 /* Link Test Enable  */
+#define AUXIO_AUX1_MMUX   0x04 /* Monitor/Mouse Mux */
+#define AUXIO_AUX1_FTCNT  0x02 /* Terminal Count,   */
+#define AUXIO_AUX1_LED    0x01 /* System LED    */
 
 /* SLAVIO AUX2 @ 0x1910000
  * -------------------------------------------------
@@ -47,10 +47,10 @@
  *  C  - Clear Power Failure Detect Int (1=clear)
  *  F  - Power Off (1=power off)
  */
-#define AUXIO_AUX2_MASK		0xdc /* Mask Bits		*/
-#define AUXIO_AUX2_PFAILDET	0x20 /* Power Fail Detect	*/
-#define AUXIO_AUX2_PFAILCLR 	0x02 /* Clear Pwr Fail Det Intr	*/
-#define AUXIO_AUX2_PWR_OFF	0x01 /* Power Off		*/
+#define AUXIO_AUX2_MASK   0xdc /* Mask Bits   */
+#define AUXIO_AUX2_PFAILDET 0x20 /* Power Fail Detect */
+#define AUXIO_AUX2_PFAILCLR   0x02 /* Clear Pwr Fail Det Intr */
+#define AUXIO_AUX2_PWR_OFF  0x01 /* Power Off   */
 
 /* Register definitions from Sun Microsystems _PCIO_ p/n 802-7837
  *
@@ -61,7 +61,7 @@
  * Bits 31:1 unused
  * LED - System LED on front panel (0=off, 1=on)
  */
-#define AUXIO_PCIO_LED		0x01 /* System LED 		*/
+#define AUXIO_PCIO_LED    0x01 /* System LED    */
 
 /* PCIO Power Auxio @ 0x724000
  * -------------------------------------------------
@@ -71,13 +71,13 @@
  * CPO - Courtesy Power Off (1=off)
  * SPO - System Power Off   (1=off)
  */
-#define AUXIO_PCIO_CPWR_OFF	0x02 /* Courtesy Power Off	*/
-#define AUXIO_PCIO_SPWR_OFF	0x01 /* System Power Off	*/
+#define AUXIO_PCIO_CPWR_OFF 0x02 /* Courtesy Power Off  */
+#define AUXIO_PCIO_SPWR_OFF 0x01 /* System Power Off  */
 
 #ifndef __ASSEMBLY__
 
-#define AUXIO_LTE_ON	1
-#define AUXIO_LTE_OFF	0
+#define AUXIO_LTE_ON  1
+#define AUXIO_LTE_OFF 0
 
 /* auxio_set_lte - Set Link Test Enable (TPE Link Detect)
  *
@@ -85,8 +85,8 @@
  */
 void auxio_set_lte(int on);
 
-#define AUXIO_LED_ON	1
-#define AUXIO_LED_OFF	0
+#define AUXIO_LED_ON  1
+#define AUXIO_LED_OFF 0
 
 /* auxio_set_led - Set system front panel LED
  *

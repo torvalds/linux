@@ -76,9 +76,12 @@
 /*
  * R0 (0x00) - Software Reset
  */
-#define WM8985_SOFTWARE_RESET_MASK              0x01FF  /* SOFTWARE_RESET - [8:0] */
-#define WM8985_SOFTWARE_RESET_SHIFT                  0  /* SOFTWARE_RESET - [8:0] */
-#define WM8985_SOFTWARE_RESET_WIDTH                  9  /* SOFTWARE_RESET - [8:0] */
+#define WM8985_SOFTWARE_RESET_MASK              0x01FF  /* SOFTWARE_RESET -
+                                                         * [8:0] */
+#define WM8985_SOFTWARE_RESET_SHIFT                  0  /* SOFTWARE_RESET -
+                                                         * [8:0] */
+#define WM8985_SOFTWARE_RESET_WIDTH                  9  /* SOFTWARE_RESET -
+                                                         * [8:0] */
 
 /*
  * R1 (0x01) - Power management 1
@@ -620,9 +623,12 @@
 /*
  * R37 (0x25) - PLL K 1
  */
-#define WM8985_PLLK_23_18_MASK                  0x003F  /* PLLK(23:18) - [5:0] */
-#define WM8985_PLLK_23_18_SHIFT                      0  /* PLLK(23:18) - [5:0] */
-#define WM8985_PLLK_23_18_WIDTH                      6  /* PLLK(23:18) - [5:0] */
+#define WM8985_PLLK_23_18_MASK                  0x003F  /* PLLK(23:18) - [5:0]
+                                                         * */
+#define WM8985_PLLK_23_18_SHIFT                      0  /* PLLK(23:18) - [5:0]
+                                                         * */
+#define WM8985_PLLK_23_18_WIDTH                      6  /* PLLK(23:18) - [5:0]
+                                                         * */
 
 /*
  * R38 (0x26) - PLL K 2
@@ -648,9 +654,12 @@
 /*
  * R42 (0x2A) - OUT4 to ADC
  */
-#define WM8985_OUT4_2ADCVOL_MASK                0x01C0  /* OUT4_2ADCVOL - [8:6] */
-#define WM8985_OUT4_2ADCVOL_SHIFT                    6  /* OUT4_2ADCVOL - [8:6] */
-#define WM8985_OUT4_2ADCVOL_WIDTH                    3  /* OUT4_2ADCVOL - [8:6] */
+#define WM8985_OUT4_2ADCVOL_MASK                0x01C0  /* OUT4_2ADCVOL - [8:6]
+                                                         * */
+#define WM8985_OUT4_2ADCVOL_SHIFT                    6  /* OUT4_2ADCVOL - [8:6]
+                                                         * */
+#define WM8985_OUT4_2ADCVOL_WIDTH                    3  /* OUT4_2ADCVOL - [8:6]
+                                                         * */
 #define WM8985_OUT4_2LNR                        0x0020  /* OUT4_2LNR */
 #define WM8985_OUT4_2LNR_MASK                   0x0020  /* OUT4_2LNR */
 #define WM8985_OUT4_2LNR_SHIFT                       5  /* OUT4_2LNR */
@@ -781,12 +790,18 @@
 #define WM8985_PGABOOSTL_MASK                   0x0100  /* PGABOOSTL */
 #define WM8985_PGABOOSTL_SHIFT                       8  /* PGABOOSTL */
 #define WM8985_PGABOOSTL_WIDTH                       1  /* PGABOOSTL */
-#define WM8985_L2_2BOOSTVOL_MASK                0x0070  /* L2_2BOOSTVOL - [6:4] */
-#define WM8985_L2_2BOOSTVOL_SHIFT                    4  /* L2_2BOOSTVOL - [6:4] */
-#define WM8985_L2_2BOOSTVOL_WIDTH                    3  /* L2_2BOOSTVOL - [6:4] */
-#define WM8985_AUXL2BOOSTVOL_MASK               0x0007  /* AUXL2BOOSTVOL - [2:0] */
-#define WM8985_AUXL2BOOSTVOL_SHIFT                   0  /* AUXL2BOOSTVOL - [2:0] */
-#define WM8985_AUXL2BOOSTVOL_WIDTH                   3  /* AUXL2BOOSTVOL - [2:0] */
+#define WM8985_L2_2BOOSTVOL_MASK                0x0070  /* L2_2BOOSTVOL - [6:4]
+                                                         * */
+#define WM8985_L2_2BOOSTVOL_SHIFT                    4  /* L2_2BOOSTVOL - [6:4]
+                                                         * */
+#define WM8985_L2_2BOOSTVOL_WIDTH                    3  /* L2_2BOOSTVOL - [6:4]
+                                                         * */
+#define WM8985_AUXL2BOOSTVOL_MASK               0x0007  /* AUXL2BOOSTVOL - [2:0]
+                                                         * */
+#define WM8985_AUXL2BOOSTVOL_SHIFT                   0  /* AUXL2BOOSTVOL - [2:0]
+                                                         * */
+#define WM8985_AUXL2BOOSTVOL_WIDTH                   3  /* AUXL2BOOSTVOL - [2:0]
+                                                         * */
 
 /*
  * R48 (0x30) - Right ADC BOOST ctrl
@@ -795,12 +810,18 @@
 #define WM8985_PGABOOSTR_MASK                   0x0100  /* PGABOOSTR */
 #define WM8985_PGABOOSTR_SHIFT                       8  /* PGABOOSTR */
 #define WM8985_PGABOOSTR_WIDTH                       1  /* PGABOOSTR */
-#define WM8985_R2_2BOOSTVOL_MASK                0x0070  /* R2_2BOOSTVOL - [6:4] */
-#define WM8985_R2_2BOOSTVOL_SHIFT                    4  /* R2_2BOOSTVOL - [6:4] */
-#define WM8985_R2_2BOOSTVOL_WIDTH                    3  /* R2_2BOOSTVOL - [6:4] */
-#define WM8985_AUXR2BOOSTVOL_MASK               0x0007  /* AUXR2BOOSTVOL - [2:0] */
-#define WM8985_AUXR2BOOSTVOL_SHIFT                   0  /* AUXR2BOOSTVOL - [2:0] */
-#define WM8985_AUXR2BOOSTVOL_WIDTH                   3  /* AUXR2BOOSTVOL - [2:0] */
+#define WM8985_R2_2BOOSTVOL_MASK                0x0070  /* R2_2BOOSTVOL - [6:4]
+                                                         * */
+#define WM8985_R2_2BOOSTVOL_SHIFT                    4  /* R2_2BOOSTVOL - [6:4]
+                                                         * */
+#define WM8985_R2_2BOOSTVOL_WIDTH                    3  /* R2_2BOOSTVOL - [6:4]
+                                                         * */
+#define WM8985_AUXR2BOOSTVOL_MASK               0x0007  /* AUXR2BOOSTVOL - [2:0]
+                                                         * */
+#define WM8985_AUXR2BOOSTVOL_SHIFT                   0  /* AUXR2BOOSTVOL - [2:0]
+                                                         * */
+#define WM8985_AUXR2BOOSTVOL_WIDTH                   3  /* AUXR2BOOSTVOL - [2:0]
+                                                         * */
 
 /*
  * R49 (0x31) - Output ctrl
@@ -1071,8 +1092,8 @@
 #define WM8985_HALFOPBIAS_WIDTH                      1  /* HALFOPBIAS */
 
 enum clk_src {
-	WM8985_CLKSRC_MCLK,
-	WM8985_CLKSRC_PLL
+  WM8985_CLKSRC_MCLK,
+  WM8985_CLKSRC_PLL
 };
 
 #define WM8985_PLL 0

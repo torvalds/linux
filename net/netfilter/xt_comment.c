@@ -16,30 +16,26 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_comment");
 MODULE_ALIAS("ip6t_comment");
 
-static bool
-comment_mt(const struct sk_buff *skb, struct xt_action_param *par)
-{
-	/* We always match */
-	return true;
+static bool comment_mt(const struct sk_buff *skb, struct xt_action_param *par) {
+  /* We always match */
+  return true;
 }
 
 static struct xt_match comment_mt_reg __read_mostly = {
-	.name      = "comment",
-	.revision  = 0,
-	.family    = NFPROTO_UNSPEC,
-	.match     = comment_mt,
-	.matchsize = sizeof(struct xt_comment_info),
-	.me        = THIS_MODULE,
+  .name = "comment",
+  .revision = 0,
+  .family = NFPROTO_UNSPEC,
+  .match = comment_mt,
+  .matchsize = sizeof(struct xt_comment_info),
+  .me = THIS_MODULE,
 };
 
-static int __init comment_mt_init(void)
-{
-	return xt_register_match(&comment_mt_reg);
+static int __init comment_mt_init(void) {
+  return xt_register_match(&comment_mt_reg);
 }
 
-static void __exit comment_mt_exit(void)
-{
-	xt_unregister_match(&comment_mt_reg);
+static void __exit comment_mt_exit(void) {
+  xt_unregister_match(&comment_mt_reg);
 }
 
 module_init(comment_mt_init);

@@ -7,53 +7,53 @@
 #include <stdint.h>
 
 enum thp_enabled {
-	THP_NEVER,
-	THP_ALWAYS,
-	THP_INHERIT,
-	THP_MADVISE,
+  THP_NEVER,
+  THP_ALWAYS,
+  THP_INHERIT,
+  THP_MADVISE,
 };
 
 enum thp_defrag {
-	THP_DEFRAG_ALWAYS,
-	THP_DEFRAG_DEFER,
-	THP_DEFRAG_DEFER_MADVISE,
-	THP_DEFRAG_MADVISE,
-	THP_DEFRAG_NEVER,
+  THP_DEFRAG_ALWAYS,
+  THP_DEFRAG_DEFER,
+  THP_DEFRAG_DEFER_MADVISE,
+  THP_DEFRAG_MADVISE,
+  THP_DEFRAG_NEVER,
 };
 
 enum shmem_enabled {
-	SHMEM_ALWAYS,
-	SHMEM_WITHIN_SIZE,
-	SHMEM_ADVISE,
-	SHMEM_NEVER,
-	SHMEM_DENY,
-	SHMEM_FORCE,
+  SHMEM_ALWAYS,
+  SHMEM_WITHIN_SIZE,
+  SHMEM_ADVISE,
+  SHMEM_NEVER,
+  SHMEM_DENY,
+  SHMEM_FORCE,
 };
 
 #define NR_ORDERS 20
 
 struct hugepages_settings {
-	enum thp_enabled enabled;
+  enum thp_enabled enabled;
 };
 
 struct khugepaged_settings {
-	bool defrag;
-	unsigned int alloc_sleep_millisecs;
-	unsigned int scan_sleep_millisecs;
-	unsigned int max_ptes_none;
-	unsigned int max_ptes_swap;
-	unsigned int max_ptes_shared;
-	unsigned long pages_to_scan;
+  bool defrag;
+  unsigned int alloc_sleep_millisecs;
+  unsigned int scan_sleep_millisecs;
+  unsigned int max_ptes_none;
+  unsigned int max_ptes_swap;
+  unsigned int max_ptes_shared;
+  unsigned long pages_to_scan;
 };
 
 struct thp_settings {
-	enum thp_enabled thp_enabled;
-	enum thp_defrag thp_defrag;
-	enum shmem_enabled shmem_enabled;
-	bool use_zero_page;
-	struct khugepaged_settings khugepaged;
-	unsigned long read_ahead_kb;
-	struct hugepages_settings hugepages[NR_ORDERS];
+  enum thp_enabled thp_enabled;
+  enum thp_defrag thp_defrag;
+  enum shmem_enabled shmem_enabled;
+  bool use_zero_page;
+  struct khugepaged_settings khugepaged;
+  unsigned long read_ahead_kb;
+  struct hugepages_settings hugepages[NR_ORDERS];
 };
 
 int read_file(const char *path, char *buf, size_t buflen);

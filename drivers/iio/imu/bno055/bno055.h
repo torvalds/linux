@@ -7,7 +7,7 @@
 
 struct device;
 int bno055_probe(struct device *dev, struct regmap *regmap,
-		 int xfer_burst_break_thr, bool sw_reset);
+    int xfer_burst_break_thr, bool sw_reset);
 extern const struct regmap_config bno055_regmap_config;
 
 #endif

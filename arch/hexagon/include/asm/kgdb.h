@@ -12,9 +12,8 @@
 #define CACHE_FLUSH_IS_SAFE   1
 #define BUFMAX       ((NUMREGBYTES * 2) + 512)
 
-static inline void arch_kgdb_breakpoint(void)
-{
-	asm("trap0(#0xDB)");
+static inline void arch_kgdb_breakpoint(void) {
+  asm ("trap0(#0xDB)");
 }
 
 /* Registers:
@@ -26,6 +25,6 @@ static inline void arch_kgdb_breakpoint(void)
  */
 #define DBG_USER_REGS 42
 #define DBG_MAX_REG_NUM (DBG_USER_REGS + 8)
-#define NUMREGBYTES  (DBG_MAX_REG_NUM*4)
+#define NUMREGBYTES  (DBG_MAX_REG_NUM * 4)
 
 #endif /* __HEXAGON_KGDB_H__ */

@@ -12,9 +12,8 @@ struct whatever {};
 SEC("kprobe")
 __success __log_level(2)
 /* context type is wrong, making it impossible to freplace this program */
-int btf_unreliable_kprobe(struct whatever *ctx)
-{
-	return 0;
+int btf_unreliable_kprobe(struct whatever *ctx) {
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

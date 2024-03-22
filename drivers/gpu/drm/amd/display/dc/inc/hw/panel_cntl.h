@@ -35,38 +35,38 @@
 #define MAX_BACKLIGHT_LEVEL 0xFFFF
 
 struct panel_cntl_backlight_registers {
-	unsigned int BL_PWM_CNTL;
-	unsigned int BL_PWM_CNTL2;
-	unsigned int BL_PWM_PERIOD_CNTL;
-	unsigned int LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-	unsigned int PANEL_PWRSEQ_REF_DIV2;
-	unsigned int USER_LEVEL;
+  unsigned int BL_PWM_CNTL;
+  unsigned int BL_PWM_CNTL2;
+  unsigned int BL_PWM_PERIOD_CNTL;
+  unsigned int LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
+  unsigned int PANEL_PWRSEQ_REF_DIV2;
+  unsigned int USER_LEVEL;
 };
 
 struct panel_cntl_funcs {
-	void (*destroy)(struct panel_cntl **panel_cntl);
-	uint32_t (*hw_init)(struct panel_cntl *panel_cntl);
-	bool (*is_panel_backlight_on)(struct panel_cntl *panel_cntl);
-	bool (*is_panel_powered_on)(struct panel_cntl *panel_cntl);
-	void (*store_backlight_level)(struct panel_cntl *panel_cntl);
-	void (*driver_set_backlight)(struct panel_cntl *panel_cntl,
-			uint32_t backlight_pwm_u16_16);
-	uint32_t (*get_current_backlight)(struct panel_cntl *panel_cntl);
+  void (*destroy)(struct panel_cntl **panel_cntl);
+  uint32_t (*hw_init)(struct panel_cntl *panel_cntl);
+  bool (*is_panel_backlight_on)(struct panel_cntl *panel_cntl);
+  bool (*is_panel_powered_on)(struct panel_cntl *panel_cntl);
+  void (*store_backlight_level)(struct panel_cntl *panel_cntl);
+  void (*driver_set_backlight)(struct panel_cntl *panel_cntl,
+      uint32_t backlight_pwm_u16_16);
+  uint32_t (*get_current_backlight)(struct panel_cntl *panel_cntl);
 };
 
 struct panel_cntl_init_data {
-	struct dc_context *ctx;
-	uint32_t inst;
-	uint32_t eng_id;
+  struct dc_context *ctx;
+  uint32_t inst;
+  uint32_t eng_id;
 };
 
 struct panel_cntl {
-	const struct panel_cntl_funcs *funcs;
-	struct dc_context *ctx;
-	uint32_t inst;
-	uint32_t pwrseq_inst;
-	/* registers setting needs to be saved and restored at InitBacklight */
-	struct panel_cntl_backlight_registers stored_backlight_registers;
+  const struct panel_cntl_funcs *funcs;
+  struct dc_context *ctx;
+  uint32_t inst;
+  uint32_t pwrseq_inst;
+  /* registers setting needs to be saved and restored at InitBacklight */
+  struct panel_cntl_backlight_registers stored_backlight_registers;
 };
 
 #endif /* DC_PANEL_CNTL_H_ */

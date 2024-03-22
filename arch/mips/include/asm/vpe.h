@@ -27,75 +27,74 @@
 
 #define MAX_VPES 16
 
-static inline int aprp_cpu_index(void)
-{
-	extern int tclimit;
-	return tclimit;
+static inline int aprp_cpu_index(void) {
+  extern int tclimit;
+  return tclimit;
 }
 
 enum vpe_state {
-	VPE_STATE_UNUSED = 0,
-	VPE_STATE_INUSE,
-	VPE_STATE_RUNNING
+  VPE_STATE_UNUSED = 0,
+  VPE_STATE_INUSE,
+  VPE_STATE_RUNNING
 };
 
 enum tc_state {
-	TC_STATE_UNUSED = 0,
-	TC_STATE_INUSE,
-	TC_STATE_RUNNING,
-	TC_STATE_DYNAMIC
+  TC_STATE_UNUSED = 0,
+  TC_STATE_INUSE,
+  TC_STATE_RUNNING,
+  TC_STATE_DYNAMIC
 };
 
 struct vpe {
-	enum vpe_state state;
+  enum vpe_state state;
 
-	/* (device) minor associated with this vpe */
-	int minor;
+  /* (device) minor associated with this vpe */
+  int minor;
 
-	/* elfloader stuff */
-	void *load_addr;
-	unsigned long len;
-	char *pbuffer;
-	unsigned long plen;
+  /* elfloader stuff */
+  void *load_addr;
+  unsigned long len;
+  char *pbuffer;
+  unsigned long plen;
 
-	unsigned long __start;
+  unsigned long __start;
 
-	/* tc's associated with this vpe */
-	struct list_head tc;
+  /* tc's associated with this vpe */
+  struct list_head tc;
 
-	/* The list of vpe's */
-	struct list_head list;
+  /* The list of vpe's */
+  struct list_head list;
 
-	/* shared symbol address */
-	void *shared_ptr;
+  /* shared symbol address */
+  void *shared_ptr;
 
-	/* the list of who wants to know when something major happens */
-	struct list_head notify;
+  /* the list of who wants to know when something major happens */
+  struct list_head notify;
 
-	unsigned int ntcs;
+  unsigned int ntcs;
 };
 
 struct tc {
-	enum tc_state state;
-	int index;
+  enum tc_state state;
+  int index;
 
-	struct vpe *pvpe;	/* parent VPE */
-	struct list_head tc;	/* The list of TC's with this VPE */
-	struct list_head list;	/* The global list of tc's */
+  struct vpe *pvpe; /* parent VPE */
+  struct list_head tc;  /* The list of TC's with this VPE */
+  struct list_head list;  /* The global list of tc's */
 };
 
 struct vpe_notifications {
-	void (*start)(int vpe);
-	void (*stop)(int vpe);
+  void (*start)(int vpe);
+  void (*stop)(int vpe);
 
-	struct list_head list;
+  struct list_head list;
 };
 
 struct vpe_control {
-	spinlock_t vpe_list_lock;
-	struct list_head vpe_list;      /* Virtual processing elements */
-	spinlock_t tc_list_lock;
-	struct list_head tc_list;       /* Thread contexts */
+  spinlock_t vpe_list_lock;
+  struct list_head vpe_list;      /* Virtual processing elements */
+  spinlock_t tc_list_lock;
+  struct list_head tc_list;       /* Thread contexts */
 };
 
 extern struct vpe_control vpecontrol;

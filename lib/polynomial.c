@@ -76,32 +76,31 @@
  *
  * Returns the result of the polynomial calculation.
  */
-long polynomial_calc(const struct polynomial *poly, long data)
-{
-	const struct polynomial_term *term = poly->terms;
-	long total_divider = poly->total_divider ?: 1;
-	long tmp, ret = 0;
-	int deg;
-
-	/*
-	 * Here is the polynomial calculation function, which performs the
-	 * redistributed terms calculations. It's pretty straightforward.
-	 * We walk over each degree term up to the free one, and perform
-	 * the redistributed multiplication of the term coefficient, its
-	 * divider (as for the rationale fraction representation), data
-	 * power and the rational fraction divider leftover. Then all of
-	 * this is collected in a total sum variable, which value is
-	 * normalized by the total divider before being returned.
-	 */
-	do {
-		tmp = term->coef;
-		for (deg = 0; deg < term->deg; ++deg)
-			tmp = mult_frac(tmp, data, term->divider);
-		ret += tmp / term->divider_leftover;
-	} while ((term++)->deg);
-
-	return ret / total_divider;
+long polynomial_calc(const struct polynomial *poly, long data) {
+  const struct polynomial_term *term = poly->terms;
+  long total_divider = poly->total_divider ? : 1;
+  long tmp, ret = 0;
+  int deg;
+  /*
+   * Here is the polynomial calculation function, which performs the
+   * redistributed terms calculations. It's pretty straightforward.
+   * We walk over each degree term up to the free one, and perform
+   * the redistributed multiplication of the term coefficient, its
+   * divider (as for the rationale fraction representation), data
+   * power and the rational fraction divider leftover. Then all of
+   * this is collected in a total sum variable, which value is
+   * normalized by the total divider before being returned.
+   */
+  do {
+    tmp = term->coef;
+    for (deg = 0; deg < term->deg; ++deg) {
+      tmp = mult_frac(tmp, data, term->divider);
+    }
+    ret += tmp / term->divider_leftover;
+  } while ((term++)->deg);
+  return ret / total_divider;
 }
+
 EXPORT_SYMBOL_GPL(polynomial_calc);
 
 MODULE_DESCRIPTION("Generic polynomial calculations");

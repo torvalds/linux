@@ -5,8 +5,8 @@
 #include <uapi/linux/types.h>
 
 struct timens_offset {
-	s64	sec;
-	u64	nsec;
+  s64 sec;
+  u64 nsec;
 };
 
 #endif /* __VDSO_TIME_H */

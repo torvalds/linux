@@ -29,6 +29,7 @@
 
 #include "dml/display_mode_vba.h"
 
-void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params);
+void dcn321_update_bw_bounding_box_fpu(struct dc *dc,
+    struct clk_bw_params *bw_params);
 
 #endif

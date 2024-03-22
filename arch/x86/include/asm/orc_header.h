@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
-/* Copyright (c) Meta Platforms, Inc. and affiliates. */
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ * Copyright (c) Meta Platforms, Inc. and affiliates.*/
 
 #ifndef _ORC_HEADER_H
 #define _ORC_HEADER_H
@@ -12,8 +12,8 @@
  * The header is currently a 20-byte hash of the ORC entry definition; see
  * scripts/orc_hash.sh.
  */
-#define ORC_HEADER					\
-	__used __section(".orc_header") __aligned(4)	\
-	static const u8 orc_header[] = { ORC_HASH }
+#define ORC_HEADER          \
+  __used __section(".orc_header") __aligned(4)  \
+  static const u8 orc_header[] = { ORC_HASH }
 
 #endif /* _ORC_HEADER_H */

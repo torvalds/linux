@@ -20,13 +20,13 @@
  * @peak_bw: an integer describing the peak bandwidth in kBps
  */
 struct icc_req {
-	struct hlist_node req_node;
-	struct icc_node *node;
-	struct device *dev;
-	bool enabled;
-	u32 tag;
-	u32 avg_bw;
-	u32 peak_bw;
+  struct hlist_node req_node;
+  struct icc_node *node;
+  struct device *dev;
+  bool enabled;
+  u32 tag;
+  u32 avg_bw;
+  u32 peak_bw;
 };
 
 /**
@@ -36,9 +36,9 @@ struct icc_req {
  * @reqs: array of the requests applicable to this path of nodes
  */
 struct icc_path {
-	const char *name;
-	size_t num_nodes;
-	struct icc_req reqs[] __counted_by(num_nodes);
+  const char *name;
+  size_t num_nodes;
+  struct icc_req reqs[] __counted_by(num_nodes);
 };
 
 struct icc_path *icc_get(struct device *dev, const char *src, const char *dst);

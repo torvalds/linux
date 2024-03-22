@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Copyright © 2000-2010 David Woodhouse <dwmw2@infradead.org>
- *			  Steven J. Hill <sjhill@realitydiluted.com>
- *			  Thomas Gleixner <tglx@linutronix.de>
+ *        Steven J. Hill <sjhill@realitydiluted.com>
+ *        Thomas Gleixner <tglx@linutronix.de>
  *
  * Contains all platform NAND related definitions.
  */
@@ -26,14 +26,14 @@
  * @part_probe_types: NULL-terminated array of probe types
  */
 struct platform_nand_chip {
-	int nr_chips;
-	int chip_offset;
-	int nr_partitions;
-	struct mtd_partition *partitions;
-	int chip_delay;
-	unsigned int options;
-	unsigned int bbt_options;
-	const char **part_probe_types;
+  int nr_chips;
+  int chip_offset;
+  int nr_partitions;
+  struct mtd_partition *partitions;
+  int chip_delay;
+  unsigned int options;
+  unsigned int bbt_options;
+  const char **part_probe_types;
 };
 
 /**
@@ -43,7 +43,7 @@ struct platform_nand_chip {
  * @dev_ready: platform specific function to read ready/busy pin
  * @select_chip: platform specific chip select function
  * @cmd_ctrl: platform specific function for controlling
- *	      ALE/CLE/nCE. Also used to write command and address
+ *        ALE/CLE/nCE. Also used to write command and address
  * @write_buf: platform specific function for write buffer
  * @read_buf: platform specific function for read buffer
  * @priv: private data to transport driver specific settings
@@ -51,14 +51,14 @@ struct platform_nand_chip {
  * All fields are optional and depend on the hardware driver requirements
  */
 struct platform_nand_ctrl {
-	int (*probe)(struct platform_device *pdev);
-	void (*remove)(struct platform_device *pdev);
-	int (*dev_ready)(struct nand_chip *chip);
-	void (*select_chip)(struct nand_chip *chip, int cs);
-	void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
-	void (*write_buf)(struct nand_chip *chip, const uint8_t *buf, int len);
-	void (*read_buf)(struct nand_chip *chip, uint8_t *buf, int len);
-	void *priv;
+  int (*probe)(struct platform_device *pdev);
+  void (*remove)(struct platform_device *pdev);
+  int (*dev_ready)(struct nand_chip *chip);
+  void (*select_chip)(struct nand_chip *chip, int cs);
+  void (*cmd_ctrl)(struct nand_chip *chip, int dat, unsigned int ctrl);
+  void (*write_buf)(struct nand_chip *chip, const uint8_t *buf, int len);
+  void (*read_buf)(struct nand_chip *chip, uint8_t *buf, int len);
+  void *priv;
 };
 
 /**
@@ -67,8 +67,8 @@ struct platform_nand_ctrl {
  * @ctrl: controller level device structure
  */
 struct platform_nand_data {
-	struct platform_nand_chip chip;
-	struct platform_nand_ctrl ctrl;
+  struct platform_nand_chip chip;
+  struct platform_nand_ctrl ctrl;
 };
 
 #endif /* __LINUX_MTD_PLATNAND_H */

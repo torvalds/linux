@@ -22,16 +22,14 @@ __u32 const32 = 0;
 __u64 const64 = 0;
 
 SEC("raw_tp/sys_enter")
-int sys_enter(const void *ctx)
-{
-	out16 = __builtin_bswap16(in16);
-	out32 = __builtin_bswap32(in32);
-	out64 = __builtin_bswap64(in64);
-	const16 = ___bpf_swab16(IN16);
-	const32 = ___bpf_swab32(IN32);
-	const64 = ___bpf_swab64(IN64);
-
-	return 0;
+int sys_enter(const void *ctx) {
+  out16 = __builtin_bswap16(in16);
+  out32 = __builtin_bswap32(in32);
+  out64 = __builtin_bswap64(in64);
+  const16 = ___bpf_swab16(IN16);
+  const32 = ___bpf_swab32(IN32);
+  const64 = ___bpf_swab64(IN64);
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

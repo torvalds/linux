@@ -23,9 +23,9 @@ void icp_irq_handler(struct drm_i915_private *i915, u32 pch_iir);
 void spt_irq_handler(struct drm_i915_private *i915, u32 pch_iir);
 
 void i915_hotplug_interrupt_update_locked(struct drm_i915_private *i915,
-					  u32 mask, u32 bits);
+    u32 mask, u32 bits);
 void i915_hotplug_interrupt_update(struct drm_i915_private *i915,
-				   u32 mask, u32 bits);
+    u32 mask, u32 bits);
 
 void intel_hpd_enable_detection(struct intel_encoder *encoder);
 void intel_hpd_irq_setup(struct drm_i915_private *i915);

@@ -6,8 +6,8 @@
 /*
  * See "man cacheflush"
  */
-#define ICACHE  (1<<0)
-#define DCACHE  (1<<1)
-#define BCACHE  (ICACHE|DCACHE)
+#define ICACHE  (1 << 0)
+#define DCACHE  (1 << 1)
+#define BCACHE  (ICACHE | DCACHE)
 
 #endif /* __ASM_CSKY_CACHECTL_H */

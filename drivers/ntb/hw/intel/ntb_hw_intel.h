@@ -53,186 +53,182 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 
 /* PCI device IDs */
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF	0x3725
-#define PCI_DEVICE_ID_INTEL_NTB_PS_JSF	0x3726
-#define PCI_DEVICE_ID_INTEL_NTB_SS_JSF	0x3727
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_SNB	0x3C0D
-#define PCI_DEVICE_ID_INTEL_NTB_PS_SNB	0x3C0E
-#define PCI_DEVICE_ID_INTEL_NTB_SS_SNB	0x3C0F
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_IVT	0x0E0D
-#define PCI_DEVICE_ID_INTEL_NTB_PS_IVT	0x0E0E
-#define PCI_DEVICE_ID_INTEL_NTB_SS_IVT	0x0E0F
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_HSX	0x2F0D
-#define PCI_DEVICE_ID_INTEL_NTB_PS_HSX	0x2F0E
-#define PCI_DEVICE_ID_INTEL_NTB_SS_HSX	0x2F0F
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_BDX	0x6F0D
-#define PCI_DEVICE_ID_INTEL_NTB_PS_BDX	0x6F0E
-#define PCI_DEVICE_ID_INTEL_NTB_SS_BDX	0x6F0F
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_SKX	0x201C
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_ICX	0x347e
-#define PCI_DEVICE_ID_INTEL_NTB_B2B_GNR	0x0db4
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_JSF 0x3725
+#define PCI_DEVICE_ID_INTEL_NTB_PS_JSF  0x3726
+#define PCI_DEVICE_ID_INTEL_NTB_SS_JSF  0x3727
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_SNB 0x3C0D
+#define PCI_DEVICE_ID_INTEL_NTB_PS_SNB  0x3C0E
+#define PCI_DEVICE_ID_INTEL_NTB_SS_SNB  0x3C0F
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_IVT 0x0E0D
+#define PCI_DEVICE_ID_INTEL_NTB_PS_IVT  0x0E0E
+#define PCI_DEVICE_ID_INTEL_NTB_SS_IVT  0x0E0F
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_HSX 0x2F0D
+#define PCI_DEVICE_ID_INTEL_NTB_PS_HSX  0x2F0E
+#define PCI_DEVICE_ID_INTEL_NTB_SS_HSX  0x2F0F
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_BDX 0x6F0D
+#define PCI_DEVICE_ID_INTEL_NTB_PS_BDX  0x6F0E
+#define PCI_DEVICE_ID_INTEL_NTB_SS_BDX  0x6F0F
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_SKX 0x201C
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_ICX 0x347e
+#define PCI_DEVICE_ID_INTEL_NTB_B2B_GNR 0x0db4
 
 /* Ntb control and link status */
-#define NTB_CTL_CFG_LOCK		BIT(0)
-#define NTB_CTL_DISABLE			BIT(1)
-#define NTB_CTL_S2P_BAR2_SNOOP		BIT(2)
-#define NTB_CTL_P2S_BAR2_SNOOP		BIT(4)
-#define NTB_CTL_S2P_BAR4_SNOOP		BIT(6)
-#define NTB_CTL_P2S_BAR4_SNOOP		BIT(8)
-#define NTB_CTL_S2P_BAR5_SNOOP		BIT(12)
-#define NTB_CTL_P2S_BAR5_SNOOP		BIT(14)
+#define NTB_CTL_CFG_LOCK    BIT(0)
+#define NTB_CTL_DISABLE     BIT(1)
+#define NTB_CTL_S2P_BAR2_SNOOP    BIT(2)
+#define NTB_CTL_P2S_BAR2_SNOOP    BIT(4)
+#define NTB_CTL_S2P_BAR4_SNOOP    BIT(6)
+#define NTB_CTL_P2S_BAR4_SNOOP    BIT(8)
+#define NTB_CTL_S2P_BAR5_SNOOP    BIT(12)
+#define NTB_CTL_P2S_BAR5_SNOOP    BIT(14)
 
-#define NTB_LNK_STA_ACTIVE_BIT		0x2000
-#define NTB_LNK_STA_SPEED_MASK		0x000f
-#define NTB_LNK_STA_WIDTH_MASK		0x03f0
-#define NTB_LNK_STA_ACTIVE(x)		(!!((x) & NTB_LNK_STA_ACTIVE_BIT))
-#define NTB_LNK_STA_SPEED(x)		((x) & NTB_LNK_STA_SPEED_MASK)
-#define NTB_LNK_STA_WIDTH(x)		(((x) & NTB_LNK_STA_WIDTH_MASK) >> 4)
+#define NTB_LNK_STA_ACTIVE_BIT    0x2000
+#define NTB_LNK_STA_SPEED_MASK    0x000f
+#define NTB_LNK_STA_WIDTH_MASK    0x03f0
+#define NTB_LNK_STA_ACTIVE(x)   (!!((x) & NTB_LNK_STA_ACTIVE_BIT))
+#define NTB_LNK_STA_SPEED(x)    ((x) & NTB_LNK_STA_SPEED_MASK)
+#define NTB_LNK_STA_WIDTH(x)    (((x) & NTB_LNK_STA_WIDTH_MASK) >> 4)
 
 /* flags to indicate unsafe api */
-#define NTB_UNSAFE_DB			BIT_ULL(0)
-#define NTB_UNSAFE_SPAD			BIT_ULL(1)
+#define NTB_UNSAFE_DB     BIT_ULL(0)
+#define NTB_UNSAFE_SPAD     BIT_ULL(1)
 
-#define NTB_BAR_MASK_64			~(0xfull)
-#define NTB_BAR_MASK_32			~(0xfu)
+#define NTB_BAR_MASK_64     ~(0xfull)
+#define NTB_BAR_MASK_32     ~(0xfu)
 
 struct intel_ntb_dev;
 
 struct intel_ntb_reg {
-	int (*poll_link)(struct intel_ntb_dev *ndev);
-	int (*link_is_up)(struct intel_ntb_dev *ndev);
-	u64 (*db_ioread)(const void __iomem *mmio);
-	void (*db_iowrite)(u64 db_bits, void __iomem *mmio);
-	unsigned long			ntb_ctl;
-	resource_size_t			db_size;
-	int				mw_bar[];
+  int (*poll_link)(struct intel_ntb_dev *ndev);
+  int (*link_is_up)(struct intel_ntb_dev *ndev);
+  u64 (*db_ioread)(const void __iomem *mmio);
+  void (*db_iowrite)(u64 db_bits, void __iomem *mmio);
+  unsigned long ntb_ctl;
+  resource_size_t db_size;
+  int mw_bar[];
 };
 
 struct intel_ntb_alt_reg {
-	unsigned long			db_bell;
-	unsigned long			db_mask;
-	unsigned long			db_clear;
-	unsigned long			spad;
+  unsigned long db_bell;
+  unsigned long db_mask;
+  unsigned long db_clear;
+  unsigned long spad;
 };
 
 struct intel_ntb_xlat_reg {
-	unsigned long			bar0_base;
-	unsigned long			bar2_xlat;
-	unsigned long			bar2_limit;
-	unsigned short			bar2_idx;
+  unsigned long bar0_base;
+  unsigned long bar2_xlat;
+  unsigned long bar2_limit;
+  unsigned short bar2_idx;
 };
 
 struct intel_b2b_addr {
-	phys_addr_t			bar0_addr;
-	phys_addr_t			bar2_addr64;
-	phys_addr_t			bar4_addr64;
-	phys_addr_t			bar4_addr32;
-	phys_addr_t			bar5_addr32;
+  phys_addr_t bar0_addr;
+  phys_addr_t bar2_addr64;
+  phys_addr_t bar4_addr64;
+  phys_addr_t bar4_addr32;
+  phys_addr_t bar5_addr32;
 };
 
 struct intel_ntb_vec {
-	struct intel_ntb_dev		*ndev;
-	int				num;
+  struct intel_ntb_dev *ndev;
+  int num;
 };
 
 struct intel_ntb_dev {
-	struct ntb_dev			ntb;
+  struct ntb_dev ntb;
 
-	/* offset of peer bar0 in b2b bar */
-	unsigned long			b2b_off;
-	/* mw idx used to access peer bar0 */
-	unsigned int			b2b_idx;
+  /* offset of peer bar0 in b2b bar */
+  unsigned long b2b_off;
+  /* mw idx used to access peer bar0 */
+  unsigned int b2b_idx;
 
-	/* BAR45 is split into BAR4 and BAR5 */
-	bool				bar4_split;
+  /* BAR45 is split into BAR4 and BAR5 */
+  bool bar4_split;
 
-	u32				ntb_ctl;
-	u32				lnk_sta;
+  u32 ntb_ctl;
+  u32 lnk_sta;
 
-	unsigned char			mw_count;
-	unsigned char			spad_count;
-	unsigned char			db_count;
-	unsigned char			db_vec_count;
-	unsigned char			db_vec_shift;
+  unsigned char mw_count;
+  unsigned char spad_count;
+  unsigned char db_count;
+  unsigned char db_vec_count;
+  unsigned char db_vec_shift;
 
-	u64				db_valid_mask;
-	u64				db_link_mask;
-	u64				db_mask;
+  u64 db_valid_mask;
+  u64 db_link_mask;
+  u64 db_mask;
 
-	/* synchronize rmw access of db_mask and hw reg */
-	spinlock_t			db_mask_lock;
+  /* synchronize rmw access of db_mask and hw reg */
+  spinlock_t db_mask_lock;
 
-	struct msix_entry		*msix;
-	struct intel_ntb_vec		*vec;
+  struct msix_entry *msix;
+  struct intel_ntb_vec *vec;
 
-	const struct intel_ntb_reg	*reg;
-	const struct intel_ntb_alt_reg	*self_reg;
-	const struct intel_ntb_alt_reg	*peer_reg;
-	const struct intel_ntb_xlat_reg	*xlat_reg;
-	void				__iomem *self_mmio;
-	void				__iomem *peer_mmio;
-	phys_addr_t			peer_addr;
+  const struct intel_ntb_reg *reg;
+  const struct intel_ntb_alt_reg *self_reg;
+  const struct intel_ntb_alt_reg *peer_reg;
+  const struct intel_ntb_xlat_reg *xlat_reg;
+  void __iomem *self_mmio;
+  void __iomem *peer_mmio;
+  phys_addr_t peer_addr;
 
-	unsigned long			last_ts;
-	struct delayed_work		hb_timer;
+  unsigned long last_ts;
+  struct delayed_work hb_timer;
 
-	unsigned long			hwerr_flags;
-	unsigned long			unsafe_flags;
-	unsigned long			unsafe_flags_ignore;
+  unsigned long hwerr_flags;
+  unsigned long unsafe_flags;
+  unsigned long unsafe_flags_ignore;
 
-	struct dentry			*debugfs_dir;
-	struct dentry			*debugfs_info;
+  struct dentry *debugfs_dir;
+  struct dentry *debugfs_info;
 
-	/* gen4 entries */
-	int				dev_up;
+  /* gen4 entries */
+  int dev_up;
 };
 
 #define ntb_ndev(__ntb) container_of(__ntb, struct intel_ntb_dev, ntb)
 #define hb_ndev(__work) container_of(__work, struct intel_ntb_dev, \
-				     hb_timer.work)
+    hb_timer.work)
 
-static inline int pdev_is_gen1(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_SS_BDX:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_PS_BDX:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
-	case PCI_DEVICE_ID_INTEL_NTB_B2B_BDX:
-		return 1;
-	}
-	return 0;
+static inline int pdev_is_gen1(struct pci_dev *pdev) {
+  switch (pdev->device) {
+    case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+    case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+    case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+    case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+    case PCI_DEVICE_ID_INTEL_NTB_SS_BDX:
+    case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+    case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+    case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+    case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+    case PCI_DEVICE_ID_INTEL_NTB_PS_BDX:
+    case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+    case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+    case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+    case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+    case PCI_DEVICE_ID_INTEL_NTB_B2B_BDX:
+      return 1;
+  }
+  return 0;
 }
 
-static inline int pdev_is_gen3(struct pci_dev *pdev)
-{
-	if (pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_SKX)
-		return 1;
-
-	return 0;
+static inline int pdev_is_gen3(struct pci_dev *pdev) {
+  if (pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_SKX) {
+    return 1;
+  }
+  return 0;
 }
 
-static inline int pdev_is_gen4(struct pci_dev *pdev)
-{
-	if (pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_ICX)
-		return 1;
-
-	return 0;
+static inline int pdev_is_gen4(struct pci_dev *pdev) {
+  if (pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_ICX) {
+    return 1;
+  }
+  return 0;
 }
 
-static inline int pdev_is_gen5(struct pci_dev *pdev)
-{
-	return pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_GNR;
+static inline int pdev_is_gen5(struct pci_dev *pdev) {
+  return pdev->device == PCI_DEVICE_ID_INTEL_NTB_B2B_GNR;
 }
 
 #endif

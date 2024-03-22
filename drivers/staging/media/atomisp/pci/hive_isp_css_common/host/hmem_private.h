@@ -21,11 +21,10 @@
 #include "assert_support.h"
 
 STORAGE_CLASS_HMEM_C size_t sizeof_hmem(
-    const hmem_ID_t		ID)
-{
-	assert(ID < N_HMEM_ID);
-	(void)ID;
-	return HMEM_SIZE * sizeof(hmem_data_t);
+    const hmem_ID_t ID) {
+  assert(ID < N_HMEM_ID);
+  (void) ID;
+  return HMEM_SIZE * sizeof(hmem_data_t);
 }
 
 #endif /* __HMEM_PRIVATE_H_INCLUDED__ */

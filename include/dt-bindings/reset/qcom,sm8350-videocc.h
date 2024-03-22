@@ -7,12 +7,12 @@
 #ifndef _DT_BINDINGS_RESET_QCOM_VIDEO_CC_SM8350_H
 #define _DT_BINDINGS_RESET_QCOM_VIDEO_CC_SM8350_H
 
-#define VIDEO_CC_CVP_INTERFACE_BCR				0
-#define VIDEO_CC_CVP_MVS0_BCR					1
-#define VIDEO_CC_MVS0C_CLK_ARES					2
-#define VIDEO_CC_CVP_MVS0C_BCR					3
-#define VIDEO_CC_CVP_MVS1_BCR					4
-#define VIDEO_CC_MVS1C_CLK_ARES					5
-#define VIDEO_CC_CVP_MVS1C_BCR					6
+#define VIDEO_CC_CVP_INTERFACE_BCR        0
+#define VIDEO_CC_CVP_MVS0_BCR         1
+#define VIDEO_CC_MVS0C_CLK_ARES         2
+#define VIDEO_CC_CVP_MVS0C_BCR          3
+#define VIDEO_CC_CVP_MVS1_BCR         4
+#define VIDEO_CC_MVS1C_CLK_ARES         5
+#define VIDEO_CC_CVP_MVS1C_BCR          6
 
 #endif

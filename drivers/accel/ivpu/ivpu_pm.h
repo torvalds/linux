@@ -12,14 +12,14 @@
 struct ivpu_device;
 
 struct ivpu_pm_info {
-	struct ivpu_device *vdev;
-	struct delayed_work job_timeout_work;
-	struct work_struct recovery_work;
-	struct rw_semaphore reset_lock;
-	atomic_t reset_counter;
-	atomic_t reset_pending;
-	bool is_warmboot;
-	u32 suspend_reschedule_counter;
+  struct ivpu_device *vdev;
+  struct delayed_work job_timeout_work;
+  struct work_struct recovery_work;
+  struct rw_semaphore reset_lock;
+  atomic_t reset_counter;
+  atomic_t reset_pending;
+  bool is_warmboot;
+  u32 suspend_reschedule_counter;
 };
 
 void ivpu_pm_init(struct ivpu_device *vdev);

@@ -6,9 +6,9 @@
 #include <net/net_namespace.h>
 
 enum {
-	NFACCT_NO_QUOTA		= -1,
-	NFACCT_UNDERQUOTA,
-	NFACCT_OVERQUOTA,
+  NFACCT_NO_QUOTA = -1,
+  NFACCT_UNDERQUOTA,
+  NFACCT_OVERQUOTA,
 };
 
 struct nf_acct;

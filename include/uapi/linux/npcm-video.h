@@ -21,14 +21,14 @@
  *
  * The VCD engine supports two modes:
  * COMPLETE - Capture the next complete frame into memory.
- * DIFF	    - Compare the incoming frame with the frame stored in memory, and
- *	      updates the differentiated frame in memory.
+ * DIFF     - Compare the incoming frame with the frame stored in memory, and
+ *        updates the differentiated frame in memory.
  */
-#define V4L2_CID_NPCM_CAPTURE_MODE	(V4L2_CID_USER_NPCM_BASE + 0)
+#define V4L2_CID_NPCM_CAPTURE_MODE  (V4L2_CID_USER_NPCM_BASE + 0)
 
 enum v4l2_npcm_capture_mode {
-	V4L2_NPCM_CAPTURE_MODE_COMPLETE	= 0, /* COMPLETE mode */
-	V4L2_NPCM_CAPTURE_MODE_DIFF	= 1, /* DIFF mode */
+  V4L2_NPCM_CAPTURE_MODE_COMPLETE = 0, /* COMPLETE mode */
+  V4L2_NPCM_CAPTURE_MODE_DIFF = 1, /* DIFF mode */
 };
 
 /*
@@ -36,6 +36,6 @@ enum v4l2_npcm_capture_mode {
  * is relevant to the number of differentiated frames if VCD is in DIFF mode.
  * And the count will always be 1 if VCD is in COMPLETE mode.
  */
-#define V4L2_CID_NPCM_RECT_COUNT	(V4L2_CID_USER_NPCM_BASE + 1)
+#define V4L2_CID_NPCM_RECT_COUNT  (V4L2_CID_USER_NPCM_BASE + 1)
 
 #endif /* _UAPI_LINUX_NPCM_VIDEO_H */

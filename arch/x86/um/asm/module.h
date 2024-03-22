@@ -3,8 +3,7 @@
 #define __UM_MODULE_H
 
 /* UML is simple */
-struct mod_arch_specific
-{
+struct mod_arch_specific {
 };
 
 #ifdef CONFIG_X86_32

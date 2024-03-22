@@ -36,8 +36,8 @@
  * This function should be called exactly once - during DM initialization.
  *
  * Returns:
- *	0 - success
- *	non-zero - error
+ *  0 - success
+ *  non-zero - error
  */
 int amdgpu_dm_irq_init(struct amdgpu_device *adev);
 
@@ -58,27 +58,27 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev);
  * @handler_args: arguments which will be passed to ih
  *
  * Returns:
- * 	IRQ Handler Index on success.
- * 	NULL on failure.
+ *  IRQ Handler Index on success.
+ *  NULL on failure.
  *
  * Cannot be called from an interrupt handler.
  */
 void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
-				       struct dc_interrupt_params *int_params,
-				       void (*ih)(void *),
-				       void *handler_args);
+    struct dc_interrupt_params *int_params,
+    void (*ih)(void *),
+    void *handler_args);
 
 /**
  * amdgpu_dm_irq_unregister_interrupt - unregister handler which was registered
- *	by amdgpu_dm_irq_register_interrupt().
+ *  by amdgpu_dm_irq_register_interrupt().
  *
  * @adev: AMD DRM device.
  * @ih_index: irq handler index which was returned by
- *	amdgpu_dm_irq_register_interrupt
+ *  amdgpu_dm_irq_register_interrupt
  */
 void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
-					enum dc_irq_source irq_source,
-					void *ih_index);
+    enum dc_irq_source irq_source,
+    void *ih_index);
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev);
 

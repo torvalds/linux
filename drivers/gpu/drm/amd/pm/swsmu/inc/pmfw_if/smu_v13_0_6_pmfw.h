@@ -36,52 +36,53 @@
 #define NUM_XGMI_WIDTHS       3
 
 typedef enum {
-/*0*/   FEATURE_DATA_CALCULATION            = 0,
-/*1*/   FEATURE_DPM_CCLK                    = 1,
-/*2*/   FEATURE_DPM_FCLK                    = 2,
-/*3*/   FEATURE_DPM_GFXCLK                  = 3,
-/*4*/   FEATURE_DPM_LCLK                    = 4,
-/*5*/   FEATURE_DPM_SOCCLK                  = 5,
-/*6*/   FEATURE_DPM_UCLK                    = 6,
-/*7*/   FEATURE_DPM_VCN                     = 7,
-/*8*/   FEATURE_DPM_XGMI                    = 8,
-/*9*/   FEATURE_DS_FCLK                     = 9,
-/*10*/  FEATURE_DS_GFXCLK                   = 10,
-/*11*/  FEATURE_DS_LCLK                     = 11,
-/*12*/  FEATURE_DS_MP0CLK                   = 12,
-/*13*/  FEATURE_DS_MP1CLK                   = 13,
-/*14*/  FEATURE_DS_MPIOCLK                  = 14,
-/*15*/  FEATURE_DS_SOCCLK                   = 15,
-/*16*/  FEATURE_DS_VCN                      = 16,
-/*17*/  FEATURE_APCC_DFLL                   = 17,
-/*18*/  FEATURE_APCC_PLUS                   = 18,
-/*19*/  FEATURE_DF_CSTATE                   = 19,
-/*20*/  FEATURE_CC6                         = 20,
-/*21*/  FEATURE_PC6                         = 21,
-/*22*/  FEATURE_CPPC                        = 22,
-/*23*/  FEATURE_PPT                         = 23,
-/*24*/  FEATURE_TDC                         = 24,
-/*25*/  FEATURE_THERMAL                     = 25,
-/*26*/  FEATURE_SOC_PCC                     = 26,
-/*27*/  FEATURE_CCD_PCC                     = 27,
-/*28*/  FEATURE_CCD_EDC                     = 28,
-/*29*/  FEATURE_PROCHOT                     = 29,
-/*30*/  FEATURE_DVO_CCLK                    = 30,
-/*31*/  FEATURE_FDD_AID_HBM                 = 31,
-/*32*/  FEATURE_FDD_AID_SOC                 = 32,
-/*33*/  FEATURE_FDD_XCD_EDC                 = 33,
-/*34*/  FEATURE_FDD_XCD_XVMIN               = 34,
-/*35*/  FEATURE_FW_CTF                      = 35,
-/*36*/  FEATURE_GFXOFF                      = 36,
-/*37*/  FEATURE_SMU_CG                      = 37,
-/*38*/  FEATURE_PSI7                        = 38,
-/*39*/  FEATURE_CSTATE_BOOST                = 39,
-/*40*/  FEATURE_XGMI_PER_LINK_PWR_DOWN      = 40,
-/*41*/  FEATURE_CXL_QOS                     = 41,
-/*42*/  FEATURE_SOC_DC_RTC                  = 42,
-/*43*/  FEATURE_GFX_DC_RTC                  = 43,
+  /*0*/
+  FEATURE_DATA_CALCULATION = 0,
+  /*1*/ FEATURE_DPM_CCLK = 1,
+  /*2*/ FEATURE_DPM_FCLK = 2,
+  /*3*/ FEATURE_DPM_GFXCLK = 3,
+  /*4*/ FEATURE_DPM_LCLK = 4,
+  /*5*/ FEATURE_DPM_SOCCLK = 5,
+  /*6*/ FEATURE_DPM_UCLK = 6,
+  /*7*/ FEATURE_DPM_VCN = 7,
+  /*8*/ FEATURE_DPM_XGMI = 8,
+  /*9*/ FEATURE_DS_FCLK = 9,
+  /*10*/ FEATURE_DS_GFXCLK = 10,
+  /*11*/ FEATURE_DS_LCLK = 11,
+  /*12*/ FEATURE_DS_MP0CLK = 12,
+  /*13*/ FEATURE_DS_MP1CLK = 13,
+  /*14*/ FEATURE_DS_MPIOCLK = 14,
+  /*15*/ FEATURE_DS_SOCCLK = 15,
+  /*16*/ FEATURE_DS_VCN = 16,
+  /*17*/ FEATURE_APCC_DFLL = 17,
+  /*18*/ FEATURE_APCC_PLUS = 18,
+  /*19*/ FEATURE_DF_CSTATE = 19,
+  /*20*/ FEATURE_CC6 = 20,
+  /*21*/ FEATURE_PC6 = 21,
+  /*22*/ FEATURE_CPPC = 22,
+  /*23*/ FEATURE_PPT = 23,
+  /*24*/ FEATURE_TDC = 24,
+  /*25*/ FEATURE_THERMAL = 25,
+  /*26*/ FEATURE_SOC_PCC = 26,
+  /*27*/ FEATURE_CCD_PCC = 27,
+  /*28*/ FEATURE_CCD_EDC = 28,
+  /*29*/ FEATURE_PROCHOT = 29,
+  /*30*/ FEATURE_DVO_CCLK = 30,
+  /*31*/ FEATURE_FDD_AID_HBM = 31,
+  /*32*/ FEATURE_FDD_AID_SOC = 32,
+  /*33*/ FEATURE_FDD_XCD_EDC = 33,
+  /*34*/ FEATURE_FDD_XCD_XVMIN = 34,
+  /*35*/ FEATURE_FW_CTF = 35,
+  /*36*/ FEATURE_GFXOFF = 36,
+  /*37*/ FEATURE_SMU_CG = 37,
+  /*38*/ FEATURE_PSI7 = 38,
+  /*39*/ FEATURE_CSTATE_BOOST = 39,
+  /*40*/ FEATURE_XGMI_PER_LINK_PWR_DOWN = 40,
+  /*41*/ FEATURE_CXL_QOS = 41,
+  /*42*/ FEATURE_SOC_DC_RTC = 42,
+  /*43*/ FEATURE_GFX_DC_RTC = 43,
 
-/*44*/  NUM_FEATURES                        = 44
+  /*44*/ NUM_FEATURES = 44
 } FEATURE_LIST_e;
 
 //enum for MPIO PCIe gen speed msgs
@@ -209,16 +210,21 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t PublicSerialNumber_CCD[12];
 
   //XGMI Data tranfser size
-  uint64_t XgmiReadDataSizeAcc[8];//in KByte
-  uint64_t XgmiWriteDataSizeAcc[8];//in KByte
+  uint64_t XgmiReadDataSizeAcc[8]; //in KByte
+  uint64_t XgmiWriteDataSizeAcc[8]; //in KByte
 
   //PCIE BW Data and error count
   uint32_t PcieBandwidth[4];
-  uint32_t PCIeL0ToRecoveryCountAcc;      // The Pcie counter itself is accumulated
-  uint32_t PCIenReplayAAcc;               // The Pcie counter itself is accumulated
-  uint32_t PCIenReplayARolloverCountAcc;  // The Pcie counter itself is accumulated
-  uint32_t PCIeNAKSentCountAcc;           // The Pcie counter itself is accumulated
-  uint32_t PCIeNAKReceivedCountAcc;       // The Pcie counter itself is accumulated
+  uint32_t PCIeL0ToRecoveryCountAcc;      // The Pcie counter itself is
+                                          // accumulated
+  uint32_t PCIenReplayAAcc;               // The Pcie counter itself is
+                                          // accumulated
+  uint32_t PCIenReplayARolloverCountAcc;  // The Pcie counter itself is
+                                          // accumulated
+  uint32_t PCIeNAKSentCountAcc;           // The Pcie counter itself is
+                                          // accumulated
+  uint32_t PCIeNAKReceivedCountAcc;       // The Pcie counter itself is
+                                          // accumulated
 
   // VCN/JPEG ACTIVITY
   uint32_t VcnBusy[4];
@@ -309,8 +315,8 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint64_t PublicSerialNumber_CCD[12];
 
   //XGMI Data tranfser size
-  uint64_t XgmiReadDataSizeAcc[8];//in KByte
-  uint64_t XgmiWriteDataSizeAcc[8];//in KByte
+  uint64_t XgmiReadDataSizeAcc[8]; //in KByte
+  uint64_t XgmiWriteDataSizeAcc[8]; //in KByte
 
   // VCN/JPEG ACTIVITY
   uint32_t VcnBusy[4];

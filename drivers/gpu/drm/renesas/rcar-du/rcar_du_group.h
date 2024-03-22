@@ -33,22 +33,22 @@ struct rcar_du_device;
  * @need_restart: the group needs to be restarted due to a configuration change
  */
 struct rcar_du_group {
-	struct rcar_du_device *dev;
-	unsigned int mmio_offset;
-	unsigned int index;
+  struct rcar_du_device *dev;
+  unsigned int mmio_offset;
+  unsigned int index;
 
-	unsigned int channels_mask;
-	unsigned int cmms_mask;
-	unsigned int num_crtcs;
-	unsigned int use_count;
-	unsigned int used_crtcs;
+  unsigned int channels_mask;
+  unsigned int cmms_mask;
+  unsigned int num_crtcs;
+  unsigned int use_count;
+  unsigned int used_crtcs;
 
-	struct mutex lock;
-	unsigned int dptsr_planes;
+  struct mutex lock;
+  unsigned int dptsr_planes;
 
-	unsigned int num_planes;
-	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
-	bool need_restart;
+  unsigned int num_planes;
+  struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
+  bool need_restart;
 };
 
 u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg);

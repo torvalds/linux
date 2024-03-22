@@ -9,25 +9,23 @@ struct iommu_ops;
 #ifdef CONFIG_OF_IOMMU
 
 extern int of_iommu_configure(struct device *dev, struct device_node *master_np,
-			      const u32 *id);
+    const u32 *id);
 
 extern void of_iommu_get_resv_regions(struct device *dev,
-				      struct list_head *list);
+    struct list_head *list);
 
 #else
 
 static inline int of_iommu_configure(struct device *dev,
-				     struct device_node *master_np,
-				     const u32 *id)
-{
-	return -ENODEV;
+    struct device_node *master_np,
+    const u32 *id) {
+  return -ENODEV;
 }
 
 static inline void of_iommu_get_resv_regions(struct device *dev,
-					     struct list_head *list)
-{
+    struct list_head *list) {
 }
 
-#endif	/* CONFIG_OF_IOMMU */
+#endif  /* CONFIG_OF_IOMMU */
 
 #endif /* __OF_IOMMU_H */

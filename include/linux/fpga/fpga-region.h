@@ -22,10 +22,10 @@ struct fpga_region;
  * maintaining a stable API.
  */
 struct fpga_region_info {
-	struct fpga_manager *mgr;
-	struct fpga_compat_id *compat_id;
-	void *priv;
-	int (*get_bridges)(struct fpga_region *region);
+  struct fpga_manager *mgr;
+  struct fpga_compat_id *compat_id;
+  void *priv;
+  int (*get_bridges)(struct fpga_region *region);
 };
 
 /**
@@ -40,30 +40,30 @@ struct fpga_region_info {
  * @get_bridges: optional function to get bridges to a list
  */
 struct fpga_region {
-	struct device dev;
-	struct mutex mutex; /* for exclusive reference to region */
-	struct list_head bridge_list;
-	struct fpga_manager *mgr;
-	struct fpga_image_info *info;
-	struct fpga_compat_id *compat_id;
-	void *priv;
-	int (*get_bridges)(struct fpga_region *region);
+  struct device dev;
+  struct mutex mutex; /* for exclusive reference to region */
+  struct list_head bridge_list;
+  struct fpga_manager *mgr;
+  struct fpga_image_info *info;
+  struct fpga_compat_id *compat_id;
+  void *priv;
+  int (*get_bridges)(struct fpga_region *region);
 };
 
 #define to_fpga_region(d) container_of(d, struct fpga_region, dev)
 
-struct fpga_region *
-fpga_region_class_find(struct device *start, const void *data,
-		       int (*match)(struct device *, const void *));
+struct fpga_region *fpga_region_class_find(struct device *start,
+    const void *data,
+    int (*match)(struct device *, const void *));
 
 int fpga_region_program_fpga(struct fpga_region *region);
 
-struct fpga_region *
-fpga_region_register_full(struct device *parent, const struct fpga_region_info *info);
+struct fpga_region *fpga_region_register_full(struct device *parent,
+    const struct fpga_region_info *info);
 
-struct fpga_region *
-fpga_region_register(struct device *parent, struct fpga_manager *mgr,
-		     int (*get_bridges)(struct fpga_region *));
+struct fpga_region *fpga_region_register(struct device *parent,
+    struct fpga_manager *mgr,
+    int (*get_bridges)(struct fpga_region *));
 void fpga_region_unregister(struct fpga_region *region);
 
 #endif /* _FPGA_REGION_H */

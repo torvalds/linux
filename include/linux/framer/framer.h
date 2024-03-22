@@ -23,8 +23,8 @@
  * @FRAMER_IFACE_T1: T1 interface
  */
 enum framer_iface {
-	FRAMER_IFACE_E1,
-	FRAMER_IFACE_T1,
+  FRAMER_IFACE_E1,
+  FRAMER_IFACE_T1,
 };
 
 /**
@@ -33,8 +33,8 @@ enum framer_iface {
  * @FRAMER_CLOCK_INT: Internal clock
  */
 enum framer_clock_type {
-	FRAMER_CLOCK_EXT,
-	FRAMER_CLOCK_INT,
+  FRAMER_CLOCK_EXT,
+  FRAMER_CLOCK_INT,
 };
 
 /**
@@ -44,9 +44,9 @@ enum framer_clock_type {
  * @line_clock_rate: Framer line clock rate
  */
 struct framer_config {
-	enum framer_iface iface;
-	enum framer_clock_type clock_type;
-	unsigned long line_clock_rate;
+  enum framer_iface iface;
+  enum framer_clock_type clock_type;
+  unsigned long line_clock_rate;
 };
 
 /**
@@ -54,7 +54,7 @@ struct framer_config {
  * @link_is_on: Framer link state. true, the link is on, false, the link is off.
  */
 struct framer_status {
-	bool link_is_on;
+  bool link_is_on;
 };
 
 /**
@@ -62,7 +62,7 @@ struct framer_status {
  * @FRAMER_EVENT_STATUS: Event notified on framer_status changes
  */
 enum framer_event {
-	FRAMER_EVENT_STATUS,
+  FRAMER_EVENT_STATUS,
 };
 
 /**
@@ -80,17 +80,17 @@ enum framer_event {
  * @prev_status: previous read status used by the polling task to detect changes
  */
 struct framer {
-	struct device			dev;
-	int				id;
-	const struct framer_ops		*ops;
-	struct mutex			mutex;	/* Protect framer */
-	int				init_count;
-	int				power_count;
-	struct regulator		*pwr;
-	struct work_struct		notify_status_work;
-	struct blocking_notifier_head	notifier_list;
-	struct delayed_work		polling_work;
-	struct framer_status		prev_status;
+  struct device dev;
+  int id;
+  const struct framer_ops *ops;
+  struct mutex mutex;  /* Protect framer */
+  int init_count;
+  int power_count;
+  struct regulator *pwr;
+  struct work_struct notify_status_work;
+  struct blocking_notifier_head notifier_list;
+  struct delayed_work polling_work;
+  struct framer_status prev_status;
 };
 
 #if IS_ENABLED(CONFIG_GENERIC_FRAMER)
@@ -104,9 +104,11 @@ int framer_power_on(struct framer *framer);
 int framer_power_off(struct framer *framer);
 int framer_get_status(struct framer *framer, struct framer_status *status);
 int framer_get_config(struct framer *framer, struct framer_config *config);
-int framer_set_config(struct framer *framer, const struct framer_config *config);
+int framer_set_config(struct framer *framer,
+    const struct framer_config *config);
 int framer_notifier_register(struct framer *framer, struct notifier_block *nb);
-int framer_notifier_unregister(struct framer *framer, struct notifier_block *nb);
+int framer_notifier_unregister(struct framer *framer,
+    struct notifier_block *nb);
 
 struct framer *framer_get(struct device *dev, const char *con_id);
 void framer_put(struct device *dev, struct framer *framer);
@@ -114,90 +116,78 @@ void framer_put(struct device *dev, struct framer *framer);
 struct framer *devm_framer_get(struct device *dev, const char *con_id);
 struct framer *devm_framer_optional_get(struct device *dev, const char *con_id);
 #else
-static inline int framer_pm_runtime_get(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_pm_runtime_get(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_pm_runtime_get_sync(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_pm_runtime_get_sync(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_pm_runtime_put(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_pm_runtime_put(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_pm_runtime_put_sync(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_pm_runtime_put_sync(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_init(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_init(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_exit(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_exit(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_power_on(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_power_on(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_power_off(struct framer *framer)
-{
-	return -ENOSYS;
+static inline int framer_power_off(struct framer *framer) {
+  return -ENOSYS;
 }
 
-static inline int framer_get_status(struct framer *framer, struct framer_status *status)
-{
-	return -ENOSYS;
+static inline int framer_get_status(struct framer *framer,
+    struct framer_status *status) {
+  return -ENOSYS;
 }
 
-static inline int framer_get_config(struct framer *framer, struct framer_config *config)
-{
-	return -ENOSYS;
+static inline int framer_get_config(struct framer *framer,
+    struct framer_config *config) {
+  return -ENOSYS;
 }
 
-static inline int framer_set_config(struct framer *framer, const struct framer_config *config)
-{
-	return -ENOSYS;
+static inline int framer_set_config(struct framer *framer,
+    const struct framer_config *config) {
+  return -ENOSYS;
 }
 
 static inline int framer_notifier_register(struct framer *framer,
-					   struct notifier_block *nb)
-{
-	return -ENOSYS;
+    struct notifier_block *nb) {
+  return -ENOSYS;
 }
 
 static inline int framer_notifier_unregister(struct framer *framer,
-					     struct notifier_block *nb)
-{
-	return -ENOSYS;
+    struct notifier_block *nb) {
+  return -ENOSYS;
 }
 
-struct framer *framer_get(struct device *dev, const char *con_id)
-{
-	return ERR_PTR(-ENOSYS);
+struct framer *framer_get(struct device *dev, const char *con_id) {
+  return ERR_PTR(-ENOSYS);
 }
 
-void framer_put(struct device *dev, struct framer *framer)
-{
+void framer_put(struct device *dev, struct framer *framer) {
 }
 
-static inline struct framer *devm_framer_get(struct device *dev, const char *con_id)
-{
-	return ERR_PTR(-ENOSYS);
+static inline struct framer *devm_framer_get(struct device *dev,
+    const char *con_id) {
+  return ERR_PTR(-ENOSYS);
 }
 
-static inline struct framer *devm_framer_optional_get(struct device *dev, const char *con_id)
-{
-	return NULL;
+static inline struct framer *devm_framer_optional_get(struct device *dev,
+    const char *con_id) {
+  return NULL;
 }
 
 #endif

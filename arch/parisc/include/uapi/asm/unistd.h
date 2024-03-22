@@ -8,6 +8,6 @@
 #include <asm/unistd_32.h>
 #endif
 
-#define LINUX_GATEWAY_ADDR	0x100
+#define LINUX_GATEWAY_ADDR  0x100
 
 #endif /* _UAPI_ASM_PARISC_UNISTD_H_ */

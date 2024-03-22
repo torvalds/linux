@@ -15,25 +15,23 @@
  *
  * Panic, watchdog has not been fed till pretimeout event.
  */
-static void pretimeout_panic(struct watchdog_device *wdd)
-{
-	panic("watchdog pretimeout event\n");
+static void pretimeout_panic(struct watchdog_device *wdd) {
+  panic("watchdog pretimeout event\n");
 }
 
 static struct watchdog_governor watchdog_gov_panic = {
-	.name		= "panic",
-	.pretimeout	= pretimeout_panic,
+  .name = "panic",
+  .pretimeout = pretimeout_panic,
 };
 
-static int __init watchdog_gov_panic_register(void)
-{
-	return watchdog_register_governor(&watchdog_gov_panic);
+static int __init watchdog_gov_panic_register(void) {
+  return watchdog_register_governor(&watchdog_gov_panic);
 }
 
-static void __exit watchdog_gov_panic_unregister(void)
-{
-	watchdog_unregister_governor(&watchdog_gov_panic);
+static void __exit watchdog_gov_panic_unregister(void) {
+  watchdog_unregister_governor(&watchdog_gov_panic);
 }
+
 module_init(watchdog_gov_panic_register);
 module_exit(watchdog_gov_panic_unregister);
 

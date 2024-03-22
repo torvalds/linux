@@ -56,18 +56,18 @@
 #define NEO_MODE1_BLT_ON_ADDR   0x2000
 
 /* These are offseted in MMIO space by par->CursorOff */
-#define NEOREG_CURSCNTL		0x00
-#define NEOREG_CURSX		0x04
-#define NEOREG_CURSY		0x08
-#define NEOREG_CURSBGCOLOR	0x0C
-#define NEOREG_CURSFGCOLOR	0x10
-#define NEOREG_CURSMEMPOS	0x14
+#define NEOREG_CURSCNTL   0x00
+#define NEOREG_CURSX    0x04
+#define NEOREG_CURSY    0x08
+#define NEOREG_CURSBGCOLOR  0x0C
+#define NEOREG_CURSFGCOLOR  0x10
+#define NEOREG_CURSMEMPOS 0x14
 
-#define NEO_CURS_DISABLE	0x00000000
-#define NEO_CURS_ENABLE		0x00000001
-#define NEO_ICON64_ENABLE	0x00000008
-#define NEO_ICON128_ENABLE	0x0000000C
-#define NEO_ICON_BLANK		0x00000010
+#define NEO_CURS_DISABLE  0x00000000
+#define NEO_CURS_ENABLE   0x00000001
+#define NEO_ICON64_ENABLE 0x00000008
+#define NEO_ICON128_ENABLE  0x0000000C
+#define NEO_ICON_BLANK    0x00000010
 
 #define NEO_GR01_SUPPRESS_VSYNC 0x10
 #define NEO_GR01_SUPPRESS_HSYNC 0x20
@@ -75,9 +75,9 @@
 #ifdef __KERNEL__
 
 #ifdef NEOFB_DEBUG
-# define DBG(x)		printk (KERN_DEBUG "neofb: %s\n", (x));
+#define DBG(x)   printk(KERN_DEBUG "neofb: %s\n", (x));
 #else
-# define DBG(x)
+#define DBG(x)
 #endif
 
 #define PCI_CHIP_NM2070 0x0001
@@ -93,27 +93,27 @@
 /* --------------------------------------------------------------------- */
 
 typedef volatile struct {
-	__u32 bltStat;
-	__u32 bltCntl;
-	__u32 xpColor;
-	__u32 fgColor;
-	__u32 bgColor;
-	__u32 pitch;
-	__u32 clipLT;
-	__u32 clipRB;
-	__u32 srcBitOffset;
-	__u32 srcStart;
-	__u32 reserved0;
-	__u32 dstStart;
-	__u32 xyExt;
+  __u32 bltStat;
+  __u32 bltCntl;
+  __u32 xpColor;
+  __u32 fgColor;
+  __u32 bgColor;
+  __u32 pitch;
+  __u32 clipLT;
+  __u32 clipRB;
+  __u32 srcBitOffset;
+  __u32 srcStart;
+  __u32 reserved0;
+  __u32 dstStart;
+  __u32 xyExt;
 
-	__u32 reserved1[19];
+  __u32 reserved1[19];
 
-	__u32 pageCntl;
-	__u32 pageBase;
-	__u32 postBase;
-	__u32 postPtr;
-	__u32 dataPtr;
+  __u32 pageCntl;
+  __u32 pageBase;
+  __u32 postBase;
+  __u32 postPtr;
+  __u32 dataPtr;
 } Neo2200;
 
 #define MMIO_SIZE 0x200000
@@ -122,68 +122,68 @@ typedef volatile struct {
 #define NEO_EXT_GR_MAX 0xC7
 
 struct neofb_par {
-	struct vgastate state;
-	unsigned int ref_count;
+  struct vgastate state;
+  unsigned int ref_count;
 
-	unsigned char MiscOutReg;	/* Misc */
-	unsigned char CRTC[25];		/* Crtc Controller */
-	unsigned char Sequencer[5];	/* Video Sequencer */
-	unsigned char Graphics[9];	/* Video Graphics */
-	unsigned char Attribute[21];	/* Video Attribute */
+  unsigned char MiscOutReg; /* Misc */
+  unsigned char CRTC[25];   /* Crtc Controller */
+  unsigned char Sequencer[5]; /* Video Sequencer */
+  unsigned char Graphics[9];  /* Video Graphics */
+  unsigned char Attribute[21];  /* Video Attribute */
 
-	unsigned char GeneralLockReg;
-	unsigned char ExtCRTDispAddr;
-	unsigned char ExtCRTOffset;
-	unsigned char SysIfaceCntl1;
-	unsigned char SysIfaceCntl2;
-	unsigned char ExtColorModeSelect;
-	unsigned char biosMode;
+  unsigned char GeneralLockReg;
+  unsigned char ExtCRTDispAddr;
+  unsigned char ExtCRTOffset;
+  unsigned char SysIfaceCntl1;
+  unsigned char SysIfaceCntl2;
+  unsigned char ExtColorModeSelect;
+  unsigned char biosMode;
 
-	unsigned char PanelDispCntlReg1;
-	unsigned char PanelDispCntlReg2;
-	unsigned char PanelDispCntlReg3;
-	unsigned char PanelDispCntlRegRead;
-	unsigned char PanelVertCenterReg1;
-	unsigned char PanelVertCenterReg2;
-	unsigned char PanelVertCenterReg3;
-	unsigned char PanelVertCenterReg4;
-	unsigned char PanelVertCenterReg5;
-	unsigned char PanelHorizCenterReg1;
-	unsigned char PanelHorizCenterReg2;
-	unsigned char PanelHorizCenterReg3;
-	unsigned char PanelHorizCenterReg4;
-	unsigned char PanelHorizCenterReg5;
+  unsigned char PanelDispCntlReg1;
+  unsigned char PanelDispCntlReg2;
+  unsigned char PanelDispCntlReg3;
+  unsigned char PanelDispCntlRegRead;
+  unsigned char PanelVertCenterReg1;
+  unsigned char PanelVertCenterReg2;
+  unsigned char PanelVertCenterReg3;
+  unsigned char PanelVertCenterReg4;
+  unsigned char PanelVertCenterReg5;
+  unsigned char PanelHorizCenterReg1;
+  unsigned char PanelHorizCenterReg2;
+  unsigned char PanelHorizCenterReg3;
+  unsigned char PanelHorizCenterReg4;
+  unsigned char PanelHorizCenterReg5;
 
-	int ProgramVCLK;
-	unsigned char VCLK3NumeratorLow;
-	unsigned char VCLK3NumeratorHigh;
-	unsigned char VCLK3Denominator;
-	unsigned char VerticalExt;
-	int wc_cookie;
-	u8 __iomem *mmio_vbase;
-	u8 cursorOff;
-	u8 *cursorPad;		/* Must die !! */
+  int ProgramVCLK;
+  unsigned char VCLK3NumeratorLow;
+  unsigned char VCLK3NumeratorHigh;
+  unsigned char VCLK3Denominator;
+  unsigned char VerticalExt;
+  int wc_cookie;
+  u8 __iomem *mmio_vbase;
+  u8 cursorOff;
+  u8 *cursorPad;    /* Must die !! */
 
-	Neo2200 __iomem *neo2200;
+  Neo2200 __iomem *neo2200;
 
-	/* Panels size */
-	int NeoPanelWidth;
-	int NeoPanelHeight;
+  /* Panels size */
+  int NeoPanelWidth;
+  int NeoPanelHeight;
 
-	int maxClock;
+  int maxClock;
 
-	int pci_burst;
-	int lcd_stretch;
-	int internal_display;
-	int external_display;
-	int libretto;
-	u32 palette[16];
+  int pci_burst;
+  int lcd_stretch;
+  int internal_display;
+  int external_display;
+  int libretto;
+  u32 palette[16];
 };
 
 typedef struct {
-	int x_res;
-	int y_res;
-	int mode;
+  int x_res;
+  int y_res;
+  int mode;
 } biosMode;
 
 #endif

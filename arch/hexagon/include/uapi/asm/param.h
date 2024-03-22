@@ -20,7 +20,7 @@
 #ifndef _ASM_PARAM_H
 #define _ASM_PARAM_H
 
-#define EXEC_PAGESIZE	16384
+#define EXEC_PAGESIZE 16384
 
 #include <asm-generic/param.h>
 

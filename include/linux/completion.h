@@ -24,22 +24,25 @@
  * DECLARE_COMPLETION_ONSTACK().
  */
 struct completion {
-	unsigned int done;
-	struct swait_queue_head wait;
+  unsigned int done;
+  struct swait_queue_head wait;
 };
 
 #define init_completion_map(x, m) init_completion(x)
-static inline void complete_acquire(struct completion *x) {}
-static inline void complete_release(struct completion *x) {}
+static inline void complete_acquire(struct completion *x) {
+}
+
+static inline void complete_release(struct completion *x) {
+}
 
 #define COMPLETION_INITIALIZER(work) \
-	{ 0, __SWAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
+  { 0, __SWAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
 
 #define COMPLETION_INITIALIZER_ONSTACK_MAP(work, map) \
-	(*({ init_completion_map(&(work), &(map)); &(work); }))
+  (*({ init_completion_map(&(work), &(map)); &(work); }))
 
 #define COMPLETION_INITIALIZER_ONSTACK(work) \
-	(*({ init_completion(&work); &work; }))
+  (*({ init_completion(&work); &work; }))
 
 /**
  * DECLARE_COMPLETION - declare and initialize a completion structure
@@ -50,7 +53,7 @@ static inline void complete_release(struct completion *x) {}
  * variables.
  */
 #define DECLARE_COMPLETION(work) \
-	struct completion work = COMPLETION_INITIALIZER(work)
+  struct completion work = COMPLETION_INITIALIZER(work)
 
 /*
  * Lockdep needs to run a non-constant initializer for on-stack
@@ -65,13 +68,13 @@ static inline void complete_release(struct completion *x) {}
  * stack.
  */
 #ifdef CONFIG_LOCKDEP
-# define DECLARE_COMPLETION_ONSTACK(work) \
-	struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
-# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
-	struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
+#define DECLARE_COMPLETION_ONSTACK(work) \
+  struct completion work = COMPLETION_INITIALIZER_ONSTACK(work)
+#define DECLARE_COMPLETION_ONSTACK_MAP(work, map) \
+  struct completion work = COMPLETION_INITIALIZER_ONSTACK_MAP(work, map)
 #else
-# define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
-# define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
+#define DECLARE_COMPLETION_ONSTACK(work) DECLARE_COMPLETION(work)
+#define DECLARE_COMPLETION_ONSTACK_MAP(work, map) DECLARE_COMPLETION(work)
 #endif
 
 /**
@@ -81,22 +84,21 @@ static inline void complete_release(struct completion *x) {}
  * This inline function will initialize a dynamically created completion
  * structure.
  */
-static inline void init_completion(struct completion *x)
-{
-	x->done = 0;
-	init_swait_queue_head(&x->wait);
+static inline void init_completion(struct completion *x) {
+  x->done = 0;
+  init_swait_queue_head(&x->wait);
 }
 
 /**
  * reinit_completion - reinitialize a completion structure
  * @x:  pointer to completion structure that is to be reinitialized
  *
- * This inline function should be used to reinitialize a completion structure so it can
+ * This inline function should be used to reinitialize a completion structure so
+ * it can
  * be reused. This is especially important after complete_all() is used.
  */
-static inline void reinit_completion(struct completion *x)
-{
-	x->done = 0;
+static inline void reinit_completion(struct completion *x) {
+  x->done = 0;
 }
 
 extern void wait_for_completion(struct completion *);
@@ -105,13 +107,13 @@ extern int wait_for_completion_interruptible(struct completion *x);
 extern int wait_for_completion_killable(struct completion *x);
 extern int wait_for_completion_state(struct completion *x, unsigned int state);
 extern unsigned long wait_for_completion_timeout(struct completion *x,
-						   unsigned long timeout);
+    unsigned long timeout);
 extern unsigned long wait_for_completion_io_timeout(struct completion *x,
-						    unsigned long timeout);
+    unsigned long timeout);
 extern long wait_for_completion_interruptible_timeout(
-	struct completion *x, unsigned long timeout);
+  struct completion *x, unsigned long timeout);
 extern long wait_for_completion_killable_timeout(
-	struct completion *x, unsigned long timeout);
+  struct completion *x, unsigned long timeout);
 extern bool try_wait_for_completion(struct completion *x);
 extern bool completion_done(struct completion *x);
 

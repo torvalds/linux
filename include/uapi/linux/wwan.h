@@ -6,10 +6,10 @@
 #define _UAPI_WWAN_H_
 
 enum {
-	IFLA_WWAN_UNSPEC,
-	IFLA_WWAN_LINK_ID, /* u32 */
+  IFLA_WWAN_UNSPEC,
+  IFLA_WWAN_LINK_ID, /* u32 */
 
-	__IFLA_WWAN_MAX
+  __IFLA_WWAN_MAX
 };
 #define IFLA_WWAN_MAX (__IFLA_WWAN_MAX - 1)
 

@@ -15,52 +15,47 @@
 #include "bus.h"
 #include "controller.h"
 
-
 /* -- Device and bus functions. --------------------------------------------- */
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	struct ssam_device *sdev = to_ssam_device(dev);
-
-	return sysfs_emit(buf, "ssam:d%02Xc%02Xt%02Xi%02Xf%02X\n",
-			sdev->uid.domain, sdev->uid.category, sdev->uid.target,
-			sdev->uid.instance, sdev->uid.function);
+    char *buf) {
+  struct ssam_device *sdev = to_ssam_device(dev);
+  return sysfs_emit(buf, "ssam:d%02Xc%02Xt%02Xi%02Xf%02X\n",
+      sdev->uid.domain, sdev->uid.category, sdev->uid.target,
+      sdev->uid.instance, sdev->uid.function);
 }
+
 static DEVICE_ATTR_RO(modalias);
 
 static struct attribute *ssam_device_attrs[] = {
-	&dev_attr_modalias.attr,
-	NULL,
+  &dev_attr_modalias.attr,
+  NULL,
 };
 ATTRIBUTE_GROUPS(ssam_device);
 
 static const struct bus_type ssam_bus_type;
 
-static int ssam_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
-{
-	const struct ssam_device *sdev = to_ssam_device(dev);
-
-	return add_uevent_var(env, "MODALIAS=ssam:d%02Xc%02Xt%02Xi%02Xf%02X",
-			      sdev->uid.domain, sdev->uid.category,
-			      sdev->uid.target, sdev->uid.instance,
-			      sdev->uid.function);
+static int ssam_device_uevent(const struct device *dev,
+    struct kobj_uevent_env *env) {
+  const struct ssam_device *sdev = to_ssam_device(dev);
+  return add_uevent_var(env, "MODALIAS=ssam:d%02Xc%02Xt%02Xi%02Xf%02X",
+      sdev->uid.domain, sdev->uid.category,
+      sdev->uid.target, sdev->uid.instance,
+      sdev->uid.function);
 }
 
-static void ssam_device_release(struct device *dev)
-{
-	struct ssam_device *sdev = to_ssam_device(dev);
-
-	ssam_controller_put(sdev->ctrl);
-	fwnode_handle_put(sdev->dev.fwnode);
-	kfree(sdev);
+static void ssam_device_release(struct device *dev) {
+  struct ssam_device *sdev = to_ssam_device(dev);
+  ssam_controller_put(sdev->ctrl);
+  fwnode_handle_put(sdev->dev.fwnode);
+  kfree(sdev);
 }
 
 const struct device_type ssam_device_type = {
-	.name    = "surface_aggregator_device",
-	.groups  = ssam_device_groups,
-	.uevent  = ssam_device_uevent,
-	.release = ssam_device_release,
+  .name = "surface_aggregator_device",
+  .groups = ssam_device_groups,
+  .uevent = ssam_device_uevent,
+  .release = ssam_device_release,
 };
 EXPORT_SYMBOL_GPL(ssam_device_type);
 
@@ -78,27 +73,24 @@ EXPORT_SYMBOL_GPL(ssam_device_type);
  * %NULL if it could not be allocated.
  */
 struct ssam_device *ssam_device_alloc(struct ssam_controller *ctrl,
-				      struct ssam_device_uid uid)
-{
-	struct ssam_device *sdev;
-
-	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
-	if (!sdev)
-		return NULL;
-
-	device_initialize(&sdev->dev);
-	sdev->dev.bus = &ssam_bus_type;
-	sdev->dev.type = &ssam_device_type;
-	sdev->dev.parent = ssam_controller_device(ctrl);
-	sdev->ctrl = ssam_controller_get(ctrl);
-	sdev->uid = uid;
-
-	dev_set_name(&sdev->dev, "%02x:%02x:%02x:%02x:%02x",
-		     sdev->uid.domain, sdev->uid.category, sdev->uid.target,
-		     sdev->uid.instance, sdev->uid.function);
-
-	return sdev;
+    struct ssam_device_uid uid) {
+  struct ssam_device *sdev;
+  sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+  if (!sdev) {
+    return NULL;
+  }
+  device_initialize(&sdev->dev);
+  sdev->dev.bus = &ssam_bus_type;
+  sdev->dev.type = &ssam_device_type;
+  sdev->dev.parent = ssam_controller_device(ctrl);
+  sdev->ctrl = ssam_controller_get(ctrl);
+  sdev->uid = uid;
+  dev_set_name(&sdev->dev, "%02x:%02x:%02x:%02x:%02x",
+      sdev->uid.domain, sdev->uid.category, sdev->uid.target,
+      sdev->uid.instance, sdev->uid.function);
+  return sdev;
 }
+
 EXPORT_SYMBOL_GPL(ssam_device_alloc);
 
 /**
@@ -126,39 +118,35 @@ EXPORT_SYMBOL_GPL(ssam_device_alloc);
  *
  * Return: Returns zero on success, a negative error code on failure.
  */
-int ssam_device_add(struct ssam_device *sdev)
-{
-	int status;
-
-	/*
-	 * Ensure that we can only add new devices to a controller if it has
-	 * been started and is not going away soon. This works in combination
-	 * with ssam_controller_remove_clients to ensure driver presence for the
-	 * controller device, i.e. it ensures that the controller (sdev->ctrl)
-	 * is always valid and can be used for requests as long as the client
-	 * device we add here is registered as child under it. This essentially
-	 * guarantees that the client driver can always expect the preconditions
-	 * for functions like ssam_request_do_sync() (controller has to be
-	 * started and is not suspended) to hold and thus does not have to check
-	 * for them.
-	 *
-	 * Note that for this to work, the controller has to be a parent device.
-	 * If it is not a direct parent, care has to be taken that the device is
-	 * removed via ssam_device_remove(), as device_unregister does not
-	 * remove child devices recursively.
-	 */
-	ssam_controller_statelock(sdev->ctrl);
-
-	if (sdev->ctrl->state != SSAM_CONTROLLER_STARTED) {
-		ssam_controller_stateunlock(sdev->ctrl);
-		return -ENODEV;
-	}
-
-	status = device_add(&sdev->dev);
-
-	ssam_controller_stateunlock(sdev->ctrl);
-	return status;
+int ssam_device_add(struct ssam_device *sdev) {
+  int status;
+  /*
+   * Ensure that we can only add new devices to a controller if it has
+   * been started and is not going away soon. This works in combination
+   * with ssam_controller_remove_clients to ensure driver presence for the
+   * controller device, i.e. it ensures that the controller (sdev->ctrl)
+   * is always valid and can be used for requests as long as the client
+   * device we add here is registered as child under it. This essentially
+   * guarantees that the client driver can always expect the preconditions
+   * for functions like ssam_request_do_sync() (controller has to be
+   * started and is not suspended) to hold and thus does not have to check
+   * for them.
+   *
+   * Note that for this to work, the controller has to be a parent device.
+   * If it is not a direct parent, care has to be taken that the device is
+   * removed via ssam_device_remove(), as device_unregister does not
+   * remove child devices recursively.
+   */
+  ssam_controller_statelock(sdev->ctrl);
+  if (sdev->ctrl->state != SSAM_CONTROLLER_STARTED) {
+    ssam_controller_stateunlock(sdev->ctrl);
+    return -ENODEV;
+  }
+  status = device_add(&sdev->dev);
+  ssam_controller_stateunlock(sdev->ctrl);
+  return status;
 }
+
 EXPORT_SYMBOL_GPL(ssam_device_add);
 
 /**
@@ -167,10 +155,10 @@ EXPORT_SYMBOL_GPL(ssam_device_add);
  *
  * Removes and unregisters the provided SSAM client device.
  */
-void ssam_device_remove(struct ssam_device *sdev)
-{
-	device_unregister(&sdev->dev);
+void ssam_device_remove(struct ssam_device *sdev) {
+  device_unregister(&sdev->dev);
 }
+
 EXPORT_SYMBOL_GPL(ssam_device_remove);
 
 /**
@@ -186,21 +174,20 @@ EXPORT_SYMBOL_GPL(ssam_device_remove);
  * described by the given ID, %false otherwise.
  */
 static bool ssam_device_id_compatible(const struct ssam_device_id *id,
-				      struct ssam_device_uid uid)
-{
-	if (id->domain != uid.domain || id->category != uid.category)
-		return false;
-
-	if ((id->match_flags & SSAM_MATCH_TARGET) && id->target != uid.target)
-		return false;
-
-	if ((id->match_flags & SSAM_MATCH_INSTANCE) && id->instance != uid.instance)
-		return false;
-
-	if ((id->match_flags & SSAM_MATCH_FUNCTION) && id->function != uid.function)
-		return false;
-
-	return true;
+    struct ssam_device_uid uid) {
+  if (id->domain != uid.domain || id->category != uid.category) {
+    return false;
+  }
+  if ((id->match_flags & SSAM_MATCH_TARGET) && id->target != uid.target) {
+    return false;
+  }
+  if ((id->match_flags & SSAM_MATCH_INSTANCE) && id->instance != uid.instance) {
+    return false;
+  }
+  if ((id->match_flags & SSAM_MATCH_FUNCTION) && id->function != uid.function) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -213,15 +200,14 @@ static bool ssam_device_id_compatible(const struct ssam_device_id *id,
  * Return: Returns %true if the given ID represents a null ID, %false
  * otherwise.
  */
-static bool ssam_device_id_is_null(const struct ssam_device_id *id)
-{
-	return id->match_flags == 0 &&
-		id->domain == 0 &&
-		id->category == 0 &&
-		id->target == 0 &&
-		id->instance == 0 &&
-		id->function == 0 &&
-		id->driver_data == 0;
+static bool ssam_device_id_is_null(const struct ssam_device_id *id) {
+  return id->match_flags == 0
+    && id->domain == 0
+    && id->category == 0
+    && id->target == 0
+    && id->instance == 0
+    && id->function == 0
+    && id->driver_data == 0;
 }
 
 /**
@@ -232,17 +218,18 @@ static bool ssam_device_id_is_null(const struct ssam_device_id *id)
  * Find the first match for the provided device UID in the provided ID table
  * and return it. Returns %NULL if no match could be found.
  */
-const struct ssam_device_id *ssam_device_id_match(const struct ssam_device_id *table,
-						  const struct ssam_device_uid uid)
-{
-	const struct ssam_device_id *id;
-
-	for (id = table; !ssam_device_id_is_null(id); ++id)
-		if (ssam_device_id_compatible(id, uid))
-			return id;
-
-	return NULL;
+const struct ssam_device_id *ssam_device_id_match(
+    const struct ssam_device_id *table,
+    const struct ssam_device_uid uid) {
+  const struct ssam_device_id *id;
+  for (id = table; !ssam_device_id_is_null(id); ++id) {
+    if (ssam_device_id_compatible(id, uid)) {
+      return id;
+    }
+  }
+  return NULL;
 }
+
 EXPORT_SYMBOL_GPL(ssam_device_id_match);
 
 /**
@@ -261,19 +248,19 @@ EXPORT_SYMBOL_GPL(ssam_device_id_match);
  * Return: Returns the first match for the UID of the device in the device
  * driver's match table, or %NULL if no such match could be found.
  */
-const struct ssam_device_id *ssam_device_get_match(const struct ssam_device *dev)
-{
-	const struct ssam_device_driver *sdrv;
-
-	sdrv = to_ssam_device_driver(dev->dev.driver);
-	if (!sdrv)
-		return NULL;
-
-	if (!sdrv->match_table)
-		return NULL;
-
-	return ssam_device_id_match(sdrv->match_table, dev->uid);
+const struct ssam_device_id *ssam_device_get_match(
+    const struct ssam_device *dev) {
+  const struct ssam_device_driver *sdrv;
+  sdrv = to_ssam_device_driver(dev->dev.driver);
+  if (!sdrv) {
+    return NULL;
+  }
+  if (!sdrv->match_table) {
+    return NULL;
+  }
+  return ssam_device_id_match(sdrv->match_table, dev->uid);
 }
+
 EXPORT_SYMBOL_GPL(ssam_device_get_match);
 
 /**
@@ -294,48 +281,43 @@ EXPORT_SYMBOL_GPL(ssam_device_get_match);
  * of the device in the device driver's match table, or %NULL if no such match
  * could be found.
  */
-const void *ssam_device_get_match_data(const struct ssam_device *dev)
-{
-	const struct ssam_device_id *id;
-
-	id = ssam_device_get_match(dev);
-	if (!id)
-		return NULL;
-
-	return (const void *)id->driver_data;
+const void *ssam_device_get_match_data(const struct ssam_device *dev) {
+  const struct ssam_device_id *id;
+  id = ssam_device_get_match(dev);
+  if (!id) {
+    return NULL;
+  }
+  return (const void *) id->driver_data;
 }
+
 EXPORT_SYMBOL_GPL(ssam_device_get_match_data);
 
-static int ssam_bus_match(struct device *dev, struct device_driver *drv)
-{
-	struct ssam_device_driver *sdrv = to_ssam_device_driver(drv);
-	struct ssam_device *sdev = to_ssam_device(dev);
-
-	if (!is_ssam_device(dev))
-		return 0;
-
-	return !!ssam_device_id_match(sdrv->match_table, sdev->uid);
+static int ssam_bus_match(struct device *dev, struct device_driver *drv) {
+  struct ssam_device_driver *sdrv = to_ssam_device_driver(drv);
+  struct ssam_device *sdev = to_ssam_device(dev);
+  if (!is_ssam_device(dev)) {
+    return 0;
+  }
+  return !!ssam_device_id_match(sdrv->match_table, sdev->uid);
 }
 
-static int ssam_bus_probe(struct device *dev)
-{
-	return to_ssam_device_driver(dev->driver)
-		->probe(to_ssam_device(dev));
+static int ssam_bus_probe(struct device *dev) {
+  return to_ssam_device_driver(dev->driver)
+    ->probe(to_ssam_device(dev));
 }
 
-static void ssam_bus_remove(struct device *dev)
-{
-	struct ssam_device_driver *sdrv = to_ssam_device_driver(dev->driver);
-
-	if (sdrv->remove)
-		sdrv->remove(to_ssam_device(dev));
+static void ssam_bus_remove(struct device *dev) {
+  struct ssam_device_driver *sdrv = to_ssam_device_driver(dev->driver);
+  if (sdrv->remove) {
+    sdrv->remove(to_ssam_device(dev));
+  }
 }
 
 static const struct bus_type ssam_bus_type = {
-	.name   = "surface_aggregator",
-	.match  = ssam_bus_match,
-	.probe  = ssam_bus_probe,
-	.remove = ssam_bus_remove,
+  .name = "surface_aggregator",
+  .match = ssam_bus_match,
+  .probe = ssam_bus_probe,
+  .remove = ssam_bus_remove,
 };
 
 /**
@@ -347,106 +329,95 @@ static const struct bus_type ssam_bus_type = {
  * to register a driver from inside its owning module.
  */
 int __ssam_device_driver_register(struct ssam_device_driver *sdrv,
-				  struct module *owner)
-{
-	sdrv->driver.owner = owner;
-	sdrv->driver.bus = &ssam_bus_type;
-
-	/* force drivers to async probe so I/O is possible in probe */
-	sdrv->driver.probe_type = PROBE_PREFER_ASYNCHRONOUS;
-
-	return driver_register(&sdrv->driver);
+    struct module *owner) {
+  sdrv->driver.owner = owner;
+  sdrv->driver.bus = &ssam_bus_type;
+  /* force drivers to async probe so I/O is possible in probe */
+  sdrv->driver.probe_type = PROBE_PREFER_ASYNCHRONOUS;
+  return driver_register(&sdrv->driver);
 }
+
 EXPORT_SYMBOL_GPL(__ssam_device_driver_register);
 
 /**
  * ssam_device_driver_unregister - Unregister a SSAM device driver.
  * @sdrv: The driver to unregister.
  */
-void ssam_device_driver_unregister(struct ssam_device_driver *sdrv)
-{
-	driver_unregister(&sdrv->driver);
+void ssam_device_driver_unregister(struct ssam_device_driver *sdrv) {
+  driver_unregister(&sdrv->driver);
 }
-EXPORT_SYMBOL_GPL(ssam_device_driver_unregister);
 
+EXPORT_SYMBOL_GPL(ssam_device_driver_unregister);
 
 /* -- Bus registration. ----------------------------------------------------- */
 
 /**
  * ssam_bus_register() - Register and set-up the SSAM client device bus.
  */
-int ssam_bus_register(void)
-{
-	return bus_register(&ssam_bus_type);
+int ssam_bus_register(void) {
+  return bus_register(&ssam_bus_type);
 }
 
 /**
  * ssam_bus_unregister() - Unregister the SSAM client device bus.
  */
-void ssam_bus_unregister(void)
-{
-	return bus_unregister(&ssam_bus_type);
+void ssam_bus_unregister(void) {
+  return bus_unregister(&ssam_bus_type);
 }
-
 
 /* -- Helpers for controller and hub devices. ------------------------------- */
 
-static int ssam_device_uid_from_string(const char *str, struct ssam_device_uid *uid)
-{
-	u8 d, tc, tid, iid, fn;
-	int n;
-
-	n = sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx", &d, &tc, &tid, &iid, &fn);
-	if (n != 5)
-		return -EINVAL;
-
-	uid->domain = d;
-	uid->category = tc;
-	uid->target = tid;
-	uid->instance = iid;
-	uid->function = fn;
-
-	return 0;
+static int ssam_device_uid_from_string(const char *str,
+    struct ssam_device_uid *uid) {
+  u8 d, tc, tid, iid, fn;
+  int n;
+  n = sscanf(str, "%hhx:%hhx:%hhx:%hhx:%hhx", &d, &tc, &tid, &iid, &fn);
+  if (n != 5) {
+    return -EINVAL;
+  }
+  uid->domain = d;
+  uid->category = tc;
+  uid->target = tid;
+  uid->instance = iid;
+  uid->function = fn;
+  return 0;
 }
 
-static int ssam_get_uid_for_node(struct fwnode_handle *node, struct ssam_device_uid *uid)
-{
-	const char *str = fwnode_get_name(node);
-
-	/*
-	 * To simplify definitions of firmware nodes, we set the device name
-	 * based on the UID of the device, prefixed with "ssam:".
-	 */
-	if (strncmp(str, "ssam:", strlen("ssam:")) != 0)
-		return -ENODEV;
-
-	str += strlen("ssam:");
-	return ssam_device_uid_from_string(str, uid);
+static int ssam_get_uid_for_node(struct fwnode_handle *node,
+    struct ssam_device_uid *uid) {
+  const char *str = fwnode_get_name(node);
+  /*
+   * To simplify definitions of firmware nodes, we set the device name
+   * based on the UID of the device, prefixed with "ssam:".
+   */
+  if (strncmp(str, "ssam:", strlen("ssam:")) != 0) {
+    return -ENODEV;
+  }
+  str += strlen("ssam:");
+  return ssam_device_uid_from_string(str, uid);
 }
 
-static int ssam_add_client_device(struct device *parent, struct ssam_controller *ctrl,
-				  struct fwnode_handle *node)
-{
-	struct ssam_device_uid uid;
-	struct ssam_device *sdev;
-	int status;
-
-	status = ssam_get_uid_for_node(node, &uid);
-	if (status)
-		return status;
-
-	sdev = ssam_device_alloc(ctrl, uid);
-	if (!sdev)
-		return -ENOMEM;
-
-	sdev->dev.parent = parent;
-	sdev->dev.fwnode = fwnode_handle_get(node);
-
-	status = ssam_device_add(sdev);
-	if (status)
-		ssam_device_put(sdev);
-
-	return status;
+static int ssam_add_client_device(struct device *parent,
+    struct ssam_controller *ctrl,
+    struct fwnode_handle *node) {
+  struct ssam_device_uid uid;
+  struct ssam_device *sdev;
+  int status;
+  status = ssam_get_uid_for_node(node, &uid);
+  if (status) {
+    return status;
+  }
+  sdev = ssam_device_alloc(ctrl, uid);
+  if (!sdev) {
+    return -ENOMEM;
+  }
+  sdev->dev.parent = parent;
+  sdev->dev.fwnode = fwnode_handle_get(node);
+  status = ssam_device_add(sdev);
+  if (status) {
+    ssam_device_put(sdev);
+  }
+  return status;
 }
 
 /**
@@ -474,39 +445,35 @@ static int ssam_add_client_device(struct device *parent, struct ssam_controller 
  * Return: Returns zero on success, nonzero on failure.
  */
 int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
-			    struct fwnode_handle *node)
-{
-	struct fwnode_handle *child;
-	int status;
-
-	fwnode_for_each_child_node(node, child) {
-		/*
-		 * Try to add the device specified in the firmware node. If
-		 * this fails with -ENODEV, the node does not specify any SSAM
-		 * device, so ignore it and continue with the next one.
-		 */
-		status = ssam_add_client_device(parent, ctrl, child);
-		if (status && status != -ENODEV) {
-			fwnode_handle_put(child);
-			goto err;
-		}
-	}
-
-	return 0;
+    struct fwnode_handle *node) {
+  struct fwnode_handle *child;
+  int status;
+  fwnode_for_each_child_node(node, child) {
+    /*
+     * Try to add the device specified in the firmware node. If
+     * this fails with -ENODEV, the node does not specify any SSAM
+     * device, so ignore it and continue with the next one.
+     */
+    status = ssam_add_client_device(parent, ctrl, child);
+    if (status && status != -ENODEV) {
+      fwnode_handle_put(child);
+      goto err;
+    }
+  }
+  return 0;
 err:
-	ssam_remove_clients(parent);
-	return status;
+  ssam_remove_clients(parent);
+  return status;
 }
+
 EXPORT_SYMBOL_GPL(__ssam_register_clients);
 
-static int ssam_remove_device(struct device *dev, void *_data)
-{
-	struct ssam_device *sdev = to_ssam_device(dev);
-
-	if (is_ssam_device(dev))
-		ssam_device_remove(sdev);
-
-	return 0;
+static int ssam_remove_device(struct device *dev, void *_data) {
+  struct ssam_device *sdev = to_ssam_device(dev);
+  if (is_ssam_device(dev)) {
+    ssam_device_remove(sdev);
+  }
+  return 0;
 }
 
 /**
@@ -518,8 +485,8 @@ static int ssam_remove_device(struct device *dev, void *_data)
  * device. Note that this only accounts for direct children of the device.
  * Refer to ssam_device_add()/ssam_device_remove() for more details.
  */
-void ssam_remove_clients(struct device *dev)
-{
-	device_for_each_child_reverse(dev, NULL, ssam_remove_device);
+void ssam_remove_clients(struct device *dev) {
+  device_for_each_child_reverse(dev, NULL, ssam_remove_device);
 }
+
 EXPORT_SYMBOL_GPL(ssam_remove_clients);

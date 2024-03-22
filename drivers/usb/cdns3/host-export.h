@@ -15,12 +15,12 @@ int cdns_host_init(struct cdns *cdns);
 
 #else
 
-static inline int cdns_host_init(struct cdns *cdns)
-{
-	return -ENXIO;
+static inline int cdns_host_init(struct cdns *cdns) {
+  return -ENXIO;
 }
 
-static inline void cdns_host_exit(struct cdns *cdns) { }
+static inline void cdns_host_exit(struct cdns *cdns) {
+}
 
 #endif /* USB_CDNS_HOST */
 

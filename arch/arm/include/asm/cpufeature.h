@@ -22,14 +22,13 @@
  * However, all capabilities are exposed via the modalias, and can be matched
  * using an explicit MODULE_DEVICE_TABLE() that uses __hwcap_feature() directly.
  */
-#define MAX_CPU_FEATURES	64
-#define __hwcap_feature(x)	ilog2(HWCAP_ ## x)
-#define __hwcap2_feature(x)	(32 + ilog2(HWCAP2_ ## x))
-#define cpu_feature(x)		__hwcap2_feature(x)
+#define MAX_CPU_FEATURES  64
+#define __hwcap_feature(x)  ilog2(HWCAP_ ## x)
+#define __hwcap2_feature(x) (32 + ilog2(HWCAP2_ ## x))
+#define cpu_feature(x)    __hwcap2_feature(x)
 
-static inline bool cpu_have_feature(unsigned int num)
-{
-	return num < 32 ? elf_hwcap & BIT(num) : elf_hwcap2 & BIT(num - 32);
+static inline bool cpu_have_feature(unsigned int num) {
+  return num < 32 ? elf_hwcap & BIT(num) : elf_hwcap2 &BIT(num - 32);
 }
 
 #endif

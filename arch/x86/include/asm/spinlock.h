@@ -22,7 +22,7 @@
  */
 
 /* How long a lock should spin before we consider blocking */
-#define SPIN_THRESHOLD	(1 << 15)
+#define SPIN_THRESHOLD  (1 << 15)
 
 #include <asm/qspinlock.h>
 

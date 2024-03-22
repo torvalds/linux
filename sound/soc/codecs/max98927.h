@@ -21,9 +21,9 @@
 #define MAX98927_R000A_INT_EN1 0x000A
 #define MAX98927_R000B_INT_EN2 0x000B
 #define MAX98927_R000C_INT_EN3 0x000C
-#define MAX98927_R000D_INT_FLAG_CLR1	0x000D
-#define MAX98927_R000E_INT_FLAG_CLR2	0x000E
-#define MAX98927_R000F_INT_FLAG_CLR3	0x000F
+#define MAX98927_R000D_INT_FLAG_CLR1  0x000D
+#define MAX98927_R000E_INT_FLAG_CLR2  0x000E
+#define MAX98927_R000F_INT_FLAG_CLR3  0x000F
 #define MAX98927_R0010_IRQ_CTRL 0x0010
 #define MAX98927_R0011_CLK_MON 0x0011
 #define MAX98927_R0012_WDOG_CTRL 0x0012
@@ -44,7 +44,7 @@
 #define MAX98927_R0021_PCM_MASTER_MODE 0x0021
 #define MAX98927_R0022_PCM_CLK_SETUP 0x0022
 #define MAX98927_R0023_PCM_SR_SETUP1 0x0023
-#define MAX98927_R0024_PCM_SR_SETUP2	0x0024
+#define MAX98927_R0024_PCM_SR_SETUP2  0x0024
 #define MAX98927_R0025_PCM_TO_SPK_MONOMIX_A 0x0025
 #define MAX98927_R0026_PCM_TO_SPK_MONOMIX_B 0x0026
 #define MAX98927_R0027_ICC_RX_EN_A 0x0027
@@ -216,7 +216,7 @@
 #define MAX98927_AMP_DSP_CFG_RMP_SHIFT (4)
 
 /* MAX98927_R0039_DRE_CTRL */
-#define MAX98927_DRE_CTRL_DRE_EN	(0x1 << 0)
+#define MAX98927_DRE_CTRL_DRE_EN  (0x1 << 0)
 #define MAX98927_DRE_EN_SHIFT 0x1
 
 /* MAX98927_R003A_AMP_EN */
@@ -252,20 +252,20 @@
 #define MAX98927_GLOBAL_EN_MASK (0x1 << 0)
 
 struct max98927_priv {
-	struct regmap *regmap;
-	struct snd_soc_component *component;
-	struct max98927_pdata *pdata;
-	struct gpio_desc *reset_gpio; 
-	unsigned int spk_gain;
-	unsigned int sysclk;
-	unsigned int v_l_slot;
-	unsigned int i_l_slot;
-	bool interleave_mode;
-	unsigned int ch_size;
-	unsigned int rate;
-	unsigned int iface;
-	unsigned int provider;
-	unsigned int digital_gain;
-	bool tdm_mode;
+  struct regmap *regmap;
+  struct snd_soc_component *component;
+  struct max98927_pdata *pdata;
+  struct gpio_desc *reset_gpio;
+  unsigned int spk_gain;
+  unsigned int sysclk;
+  unsigned int v_l_slot;
+  unsigned int i_l_slot;
+  bool interleave_mode;
+  unsigned int ch_size;
+  unsigned int rate;
+  unsigned int iface;
+  unsigned int provider;
+  unsigned int digital_gain;
+  bool tdm_mode;
 };
 #endif

@@ -24,18 +24,16 @@
 #include <asm-generic/bitops/non-atomic.h>
 #endif
 
-static inline unsigned long ffz(unsigned long word)
-{
-	unsigned long result;
-
-	__asm__("1:\n\t"
-		"shlr	%1\n\t"
-		"bt/s	1b\n\t"
-		" add	#1, %0"
-		: "=r" (result), "=r" (word)
-		: "0" (~0L), "1" (word)
-		: "t");
-	return result;
+static inline unsigned long ffz(unsigned long word) {
+  unsigned long result;
+  __asm__ ("1:\n\t"
+  "shlr	%1\n\t"
+  "bt/s	1b\n\t"
+  " add	#1, %0"
+  : "=r" (result), "=r" (word)
+  : "0" (~0L), "1" (word)
+  : "t");
+  return result;
 }
 
 /**
@@ -44,18 +42,16 @@ static inline unsigned long ffz(unsigned long word)
  *
  * Undefined if no bit exists, so code should check against 0 first.
  */
-static inline unsigned long __ffs(unsigned long word)
-{
-	unsigned long result;
-
-	__asm__("1:\n\t"
-		"shlr	%1\n\t"
-		"bf/s	1b\n\t"
-		" add	#1, %0"
-		: "=r" (result), "=r" (word)
-		: "0" (~0L), "1" (word)
-		: "t");
-	return result;
+static inline unsigned long __ffs(unsigned long word) {
+  unsigned long result;
+  __asm__ ("1:\n\t"
+  "shlr	%1\n\t"
+  "bf/s	1b\n\t"
+  " add	#1, %0"
+  : "=r" (result), "=r" (word)
+  : "0" (~0L), "1" (word)
+  : "t");
+  return result;
 }
 
 #include <asm-generic/bitops/ffs.h>

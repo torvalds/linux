@@ -39,17 +39,17 @@
  *   locks and tasks (and only those tasks)
  */
 struct mutex {
-	atomic_long_t		owner;
-	raw_spinlock_t		wait_lock;
+  atomic_long_t owner;
+  raw_spinlock_t wait_lock;
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
-	struct optimistic_spin_queue osq; /* Spinner MCS lock */
+  struct optimistic_spin_queue osq; /* Spinner MCS lock */
 #endif
-	struct list_head	wait_list;
+  struct list_head wait_list;
 #ifdef CONFIG_DEBUG_MUTEXES
-	void			*magic;
+  void *magic;
 #endif
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map	dep_map;
+  struct lockdep_map dep_map;
 #endif
 };
 
@@ -60,9 +60,9 @@ struct mutex {
 #include <linux/rtmutex.h>
 
 struct mutex {
-	struct rt_mutex_base	rtmutex;
+  struct rt_mutex_base rtmutex;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map	dep_map;
+  struct lockdep_map dep_map;
 #endif
 };
 

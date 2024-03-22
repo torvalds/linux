@@ -32,17 +32,18 @@
  *
  *****************************************************************************/
 
-/* Common application configuration. All single threaded except for acpi_exec. */
+/* Common application configuration. All single threaded except for acpi_exec.
+ * */
 
-#if (defined ACPI_ASL_COMPILER) || \
-	(defined ACPI_BIN_APP)      || \
-	(defined ACPI_DUMP_APP)     || \
-	(defined ACPI_HELP_APP)     || \
-	(defined ACPI_NAMES_APP)    || \
-	(defined ACPI_SRC_APP)      || \
-	(defined ACPI_XTRACT_APP)   || \
-	(defined ACPI_EXAMPLE_APP)  || \
-	(defined ACPI_EFI_HELLO)
+#if (defined ACPI_ASL_COMPILER)    \
+  || (defined ACPI_BIN_APP)         \
+  || (defined ACPI_DUMP_APP)        \
+  || (defined ACPI_HELP_APP)        \
+  || (defined ACPI_NAMES_APP)       \
+  || (defined ACPI_SRC_APP)         \
+  || (defined ACPI_XTRACT_APP)      \
+  || (defined ACPI_EXAMPLE_APP)     \
+  || (defined ACPI_EFI_HELLO)
 #define ACPI_APPLICATION
 #define ACPI_SINGLE_THREADED
 #define USE_NATIVE_ALLOCATE_ZEROED
@@ -82,9 +83,9 @@
 
 /* acpi_exec/acpi_names/Example configuration. Native RSDP used. */
 
-#if (defined ACPI_EXEC_APP)     || \
-	(defined ACPI_EXAMPLE_APP)  || \
-	(defined ACPI_NAMES_APP)
+#if (defined ACPI_EXEC_APP)        \
+  || (defined ACPI_EXAMPLE_APP)     \
+  || (defined ACPI_NAMES_APP)
 #define ACPI_USE_NATIVE_RSDP_POINTER
 #endif
 
@@ -96,8 +97,8 @@
 
 /* acpi_names/Example configuration. Hardware disabled */
 
-#if (defined ACPI_EXAMPLE_APP)  || \
-	(defined ACPI_NAMES_APP)
+#if (defined ACPI_EXAMPLE_APP)     \
+  || (defined ACPI_NAMES_APP)
 #define ACPI_REDUCED_HARDWARE 1
 #endif
 
@@ -126,7 +127,6 @@
 #define ACPI_DEBUGGER 1
 #define ACPI_DISASSEMBLER 1
 #endif
-
 
 /*
  * acpisrc CR\LF support
@@ -302,13 +302,13 @@
  * multi-threaded if ACPI_APPLICATION is not set.
  */
 #ifndef DEBUGGER_THREADING
-#if !defined (ACPI_APPLICATION) || defined (ACPI_EXEC_APP)
+#if !defined(ACPI_APPLICATION) || defined(ACPI_EXEC_APP)
 #define DEBUGGER_THREADING          DEBUGGER_MULTI_THREADED
 
 #else
 #define DEBUGGER_THREADING          DEBUGGER_SINGLE_THREADED
 #endif
-#endif				/* !DEBUGGER_THREADING */
+#endif        /* !DEBUGGER_THREADING */
 
 /******************************************************************************
  *
@@ -339,7 +339,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#if defined (ACPI_APPLICATION) || defined(ACPI_LIBRARY)
+#if defined(ACPI_APPLICATION) || defined(ACPI_LIBRARY)
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -347,7 +347,7 @@
 #include <signal.h>
 #endif
 
-#endif				/* ACPI_USE_STANDARD_HEADERS */
+#endif        /* ACPI_USE_STANDARD_HEADERS */
 
 #ifdef ACPI_APPLICATION
 #define ACPI_FILE              FILE *
@@ -357,10 +357,10 @@
 #define ACPI_FILE              void *
 #define ACPI_FILE_OUT          NULL
 #define ACPI_FILE_ERR          NULL
-#endif				/* ACPI_APPLICATION */
+#endif        /* ACPI_APPLICATION */
 
 #ifndef ACPI_INIT_FUNCTION
 #define ACPI_INIT_FUNCTION
 #endif
 
-#endif				/* __ACENV_H__ */
+#endif        /* __ACENV_H__ */

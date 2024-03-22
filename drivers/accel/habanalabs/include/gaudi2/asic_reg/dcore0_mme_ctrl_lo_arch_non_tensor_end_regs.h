@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_DCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_REGS_H_
 #define ASIC_REG_DCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_REGS_H_
@@ -20,7 +20,8 @@
  *****************************************
  */
 
-#define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_CONV_KERNEL_SIZE_MINUS_1 0x40CB280
+#define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_CONV_KERNEL_SIZE_MINUS_1 \
+  0x40CB280
 
 #define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_CONV_LOW 0x40CB284
 
@@ -28,7 +29,8 @@
 
 #define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_OUTER_LOOP 0x40CB28C
 
-#define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_NUM_ITERATIONS_MINUS_1 0x40CB290
+#define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_NUM_ITERATIONS_MINUS_1 \
+  0x40CB290
 
 #define mmDCORE0_MME_CTRL_LO_ARCH_NON_TENSOR_END_SB_REPEAT 0x40CB294
 

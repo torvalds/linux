@@ -3,22 +3,22 @@
 #define _TELEMETRY_H
 
 /* Telemetry types */
-#define PMT_TELEM_TELEMETRY	0
-#define PMT_TELEM_CRASHLOG	1
+#define PMT_TELEM_TELEMETRY 0
+#define PMT_TELEM_CRASHLOG  1
 
 struct telem_endpoint;
 struct pci_dev;
 
 struct telem_header {
-	u8	access_type;
-	u16	size;
-	u32	guid;
-	u32	base_offset;
+  u8 access_type;
+  u16 size;
+  u32 guid;
+  u32 base_offset;
 };
 
 struct telem_endpoint_info {
-	struct pci_dev		*pdev;
-	struct telem_header	header;
+  struct pci_dev *pdev;
+  struct telem_header header;
 };
 
 /**
@@ -80,8 +80,9 @@ int pmt_telem_get_endpoint_info(int devid, struct telem_endpoint_info *info);
  * * endpoint    - On success returns pointer to the telemetry endpoint
  * * -ENXIO      - telemetry endpoint not found
  */
-struct telem_endpoint *pmt_telem_find_and_register_endpoint(struct pci_dev *pcidev,
-				u32 guid, u16 pos);
+struct telem_endpoint *pmt_telem_find_and_register_endpoint(
+  struct pci_dev *pcidev,
+  u32 guid, u16 pos);
 
 /**
  * pmt_telem_read() - Read qwords from counter sram using sample id

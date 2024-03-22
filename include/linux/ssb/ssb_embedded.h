@@ -5,7 +5,6 @@
 #include <linux/types.h>
 #include <linux/ssb/ssb.h>
 
-
 extern int ssb_watchdog_timer_set(struct ssb_bus *bus, u32 ticks);
 
 /* Generic GPIO API */

@@ -19,51 +19,46 @@ bool seen_tc6;
 bool seen_eth;
 
 SEC("tc/ingress")
-int tc1(struct __sk_buff *skb)
-{
-	struct ethhdr eth = {};
-
-	if (skb->protocol != __bpf_constant_htons(ETH_P_IP))
-		goto out;
-	if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth)))
-		goto out;
-	seen_eth = eth.h_proto == bpf_htons(ETH_P_IP);
+int tc1(struct __sk_buff *skb) {
+  struct ethhdr eth = {};
+  if (skb->protocol != __bpf_constant_htons(ETH_P_IP)) {
+    goto out;
+  }
+  if (bpf_skb_load_bytes(skb, 0, &eth, sizeof(eth))) {
+    goto out;
+  }
+  seen_eth = eth.h_proto == bpf_htons(ETH_P_IP);
 out:
-	seen_tc1 = true;
-	return TCX_NEXT;
+  seen_tc1 = true;
+  return TCX_NEXT;
 }
 
 SEC("tc/egress")
-int tc2(struct __sk_buff *skb)
-{
-	seen_tc2 = true;
-	return TCX_NEXT;
+int tc2(struct __sk_buff *skb) {
+  seen_tc2 = true;
+  return TCX_NEXT;
 }
 
 SEC("tc/egress")
-int tc3(struct __sk_buff *skb)
-{
-	seen_tc3 = true;
-	return TCX_NEXT;
+int tc3(struct __sk_buff *skb) {
+  seen_tc3 = true;
+  return TCX_NEXT;
 }
 
 SEC("tc/egress")
-int tc4(struct __sk_buff *skb)
-{
-	seen_tc4 = true;
-	return TCX_NEXT;
+int tc4(struct __sk_buff *skb) {
+  seen_tc4 = true;
+  return TCX_NEXT;
 }
 
 SEC("tc/egress")
-int tc5(struct __sk_buff *skb)
-{
-	seen_tc5 = true;
-	return TCX_PASS;
+int tc5(struct __sk_buff *skb) {
+  seen_tc5 = true;
+  return TCX_PASS;
 }
 
 SEC("tc/egress")
-int tc6(struct __sk_buff *skb)
-{
-	seen_tc6 = true;
-	return TCX_PASS;
+int tc6(struct __sk_buff *skb) {
+  seen_tc6 = true;
+  return TCX_PASS;
 }

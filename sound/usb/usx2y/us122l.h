@@ -2,27 +2,25 @@
 #ifndef US122L_H
 #define US122L_H
 
-
 struct us122l {
-	struct usb_device	*dev;
-	int			card_index;
-	int			stride;
-	struct usb_stream_kernel sk;
+  struct usb_device *dev;
+  int card_index;
+  int stride;
+  struct usb_stream_kernel sk;
 
-	struct mutex		mutex;
-	struct file		*first;
-	unsigned int		second_periods_polled;
-	struct file		*master;
-	struct file		*slave;
-	struct list_head	midi_list;
+  struct mutex mutex;
+  struct file *first;
+  unsigned int second_periods_polled;
+  struct file *master;
+  struct file *slave;
+  struct list_head midi_list;
 
-	atomic_t		mmap_count;
+  atomic_t mmap_count;
 
-	bool			is_us144;
+  bool is_us144;
 };
 
-
-#define US122L(c) ((struct us122l *)(c)->private_data)
+#define US122L(c) ((struct us122l *) (c)->private_data)
 
 #define NAME_ALLCAPS "US-122L"
 

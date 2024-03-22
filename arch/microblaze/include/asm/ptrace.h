@@ -8,16 +8,15 @@
 #include <uapi/asm/ptrace.h>
 
 #ifndef __ASSEMBLY__
-#define kernel_mode(regs)		((regs)->pt_mode)
-#define user_mode(regs)			(!kernel_mode(regs))
+#define kernel_mode(regs)   ((regs)->pt_mode)
+#define user_mode(regs)     (!kernel_mode(regs))
 
-#define instruction_pointer(regs)	((regs)->pc)
-#define profile_pc(regs)		instruction_pointer(regs)
-#define user_stack_pointer(regs)	((regs)->r1)
+#define instruction_pointer(regs) ((regs)->pc)
+#define profile_pc(regs)    instruction_pointer(regs)
+#define user_stack_pointer(regs)  ((regs)->r1)
 
-static inline long regs_return_value(struct pt_regs *regs)
-{
-	return regs->r3;
+static inline long regs_return_value(struct pt_regs *regs) {
+  return regs->r3;
 }
 
 #endif /* __ASSEMBLY__ */

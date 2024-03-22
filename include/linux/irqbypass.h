@@ -43,15 +43,15 @@ struct irq_bypass_consumer;
  * for a physical device assigned to a VM.
  */
 struct irq_bypass_producer {
-	struct list_head node;
-	void *token;
-	int irq;
-	int (*add_consumer)(struct irq_bypass_producer *,
-			    struct irq_bypass_consumer *);
-	void (*del_consumer)(struct irq_bypass_producer *,
-			     struct irq_bypass_consumer *);
-	void (*stop)(struct irq_bypass_producer *);
-	void (*start)(struct irq_bypass_producer *);
+  struct list_head node;
+  void *token;
+  int irq;
+  int (*add_consumer)(struct irq_bypass_producer *,
+      struct irq_bypass_consumer *);
+  void (*del_consumer)(struct irq_bypass_producer *,
+      struct irq_bypass_consumer *);
+  void (*stop)(struct irq_bypass_producer *);
+  void (*start)(struct irq_bypass_producer *);
 };
 
 /**
@@ -69,14 +69,14 @@ struct irq_bypass_producer {
  * portions of the interrupt handling to the VM.
  */
 struct irq_bypass_consumer {
-	struct list_head node;
-	void *token;
-	int (*add_producer)(struct irq_bypass_consumer *,
-			    struct irq_bypass_producer *);
-	void (*del_producer)(struct irq_bypass_consumer *,
-			     struct irq_bypass_producer *);
-	void (*stop)(struct irq_bypass_consumer *);
-	void (*start)(struct irq_bypass_consumer *);
+  struct list_head node;
+  void *token;
+  int (*add_producer)(struct irq_bypass_consumer *,
+      struct irq_bypass_producer *);
+  void (*del_producer)(struct irq_bypass_consumer *,
+      struct irq_bypass_producer *);
+  void (*stop)(struct irq_bypass_consumer *);
+  void (*start)(struct irq_bypass_consumer *);
 };
 
 int irq_bypass_register_producer(struct irq_bypass_producer *);

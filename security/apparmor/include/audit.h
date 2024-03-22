@@ -20,25 +20,25 @@
 #include "file.h"
 #include "label.h"
 
-extern const char *const audit_mode_names[];
+extern const char * const audit_mode_names[];
 #define AUDIT_MAX_INDEX 5
 enum audit_mode {
-	AUDIT_NORMAL,		/* follow normal auditing of accesses */
-	AUDIT_QUIET_DENIED,	/* quiet all denied access messages */
-	AUDIT_QUIET,		/* quiet all messages */
-	AUDIT_NOQUIET,		/* do not quiet audit messages */
-	AUDIT_ALL		/* audit all accesses */
+  AUDIT_NORMAL,   /* follow normal auditing of accesses */
+  AUDIT_QUIET_DENIED, /* quiet all denied access messages */
+  AUDIT_QUIET,    /* quiet all messages */
+  AUDIT_NOQUIET,    /* do not quiet audit messages */
+  AUDIT_ALL   /* audit all accesses */
 };
 
 enum audit_type {
-	AUDIT_APPARMOR_AUDIT,
-	AUDIT_APPARMOR_ALLOWED,
-	AUDIT_APPARMOR_DENIED,
-	AUDIT_APPARMOR_HINT,
-	AUDIT_APPARMOR_STATUS,
-	AUDIT_APPARMOR_ERROR,
-	AUDIT_APPARMOR_KILL,
-	AUDIT_APPARMOR_AUTO
+  AUDIT_APPARMOR_AUDIT,
+  AUDIT_APPARMOR_ALLOWED,
+  AUDIT_APPARMOR_DENIED,
+  AUDIT_APPARMOR_HINT,
+  AUDIT_APPARMOR_STATUS,
+  AUDIT_APPARMOR_ERROR,
+  AUDIT_APPARMOR_KILL,
+  AUDIT_APPARMOR_AUTO
 };
 
 #define OP_NULL NULL
@@ -109,94 +109,93 @@ enum audit_type {
 #define OP_URING_SQPOLL "uring_sqpoll"
 
 struct apparmor_audit_data {
-	int error;
-	int type;
-	u16 class;
-	const char *op;
-	const struct cred *subj_cred;
-	struct aa_label *subj_label;
-	const char *name;
-	const char *info;
-	u32 request;
-	u32 denied;
-	union {
-		/* these entries require a custom callback fn */
-		struct {
-			struct aa_label *peer;
-			union {
-				struct {
-					const char *target;
-					kuid_t ouid;
-				} fs;
-				struct {
-					int rlim;
-					unsigned long max;
-				} rlim;
-				struct {
-					int signal;
-					int unmappedsig;
-				};
-				struct {
-					int type, protocol;
-					struct sock *peer_sk;
-					void *addr;
-					int addrlen;
-				} net;
-			};
-		};
-		struct {
-			struct aa_profile *profile;
-			const char *ns;
-			long pos;
-		} iface;
-		struct {
-			const char *src_name;
-			const char *type;
-			const char *trans;
-			const char *data;
-			unsigned long flags;
-		} mnt;
-		struct {
-			struct aa_label *target;
-		} uring;
-	};
+  int error;
+  int type;
+  u16 class;
+  const char *op;
+  const struct cred *subj_cred;
+  struct aa_label *subj_label;
+  const char *name;
+  const char *info;
+  u32 request;
+  u32 denied;
+  union {
+    /* these entries require a custom callback fn */
+    struct {
+      struct aa_label *peer;
+      union {
+        struct {
+          const char *target;
+          kuid_t ouid;
+        } fs;
+        struct {
+          int rlim;
+          unsigned long max;
+        } rlim;
+        struct {
+          int signal;
+          int unmappedsig;
+        };
+        struct {
+          int type, protocol;
+          struct sock *peer_sk;
+          void *addr;
+          int addrlen;
+        } net;
+      };
+    };
+    struct {
+      struct aa_profile *profile;
+      const char *ns;
+      long pos;
+    } iface;
+    struct {
+      const char *src_name;
+      const char *type;
+      const char *trans;
+      const char *data;
+      unsigned long flags;
+    } mnt;
+    struct {
+      struct aa_label *target;
+    } uring;
+  };
 
-	struct common_audit_data common;
+  struct common_audit_data common;
 };
 
 /* macros for dealing with  apparmor_audit_data structure */
 #define aad(SA) (container_of(SA, struct apparmor_audit_data, common))
-#define aad_of_va(VA) aad((struct common_audit_data *)(VA))
+#define aad_of_va(VA) aad((struct common_audit_data *) (VA))
 
-#define DEFINE_AUDIT_DATA(NAME, T, C, X)				\
-	/* TODO: cleanup audit init so we don't need _aad = {0,} */	\
-	struct apparmor_audit_data NAME = {				\
-		.class = (C),						\
-		.op = (X),                                              \
-		.common.type = (T),					\
-		.common.u.tsk = NULL,					\
-		.common.apparmor_audit_data = &NAME,			\
-	};
+#define DEFINE_AUDIT_DATA(NAME, T, C, X)        \
+  /* TODO: cleanup audit init so we don't need _aad = {0,} */ \
+  struct apparmor_audit_data NAME = {       \
+    .class = (C),           \
+    .op = (X),                                              \
+    .common.type = (T),         \
+    .common.u.tsk = NULL,         \
+    .common.apparmor_audit_data = &NAME,      \
+  };
 
 void aa_audit_msg(int type, struct apparmor_audit_data *ad,
-		  void (*cb) (struct audit_buffer *, void *));
+    void (*cb)(struct audit_buffer *, void *));
 int aa_audit(int type, struct aa_profile *profile,
-	     struct apparmor_audit_data *ad,
-	     void (*cb) (struct audit_buffer *, void *));
+    struct apparmor_audit_data *ad,
+    void (*cb)(struct audit_buffer *, void *));
 
-#define aa_audit_error(ERROR, AD, CB)				\
-({								\
-	(AD)->error = (ERROR);					\
-	aa_audit_msg(AUDIT_APPARMOR_ERROR, (AD), (CB));		\
-	(AD)->error;					\
-})
+#define aa_audit_error(ERROR, AD, CB)       \
+  ({                \
+    (AD)->error = (ERROR);          \
+    aa_audit_msg(AUDIT_APPARMOR_ERROR, (AD), (CB));   \
+    (AD)->error;          \
+  })
 
-
-static inline int complain_error(int error)
-{
-	if (error == -EPERM || error == -EACCES)
-		return 0;
-	return error;
+static inline int complain_error(int error) {
+  if (error == -EPERM || error == -EACCES) {
+    return 0;
+  }
+  return error;
 }
 
 void aa_audit_rule_free(void *vrule);

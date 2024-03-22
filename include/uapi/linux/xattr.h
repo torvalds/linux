@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
-  File: linux/xattr.h
-
-  Extended attributes handling.
-
-  Copyright (C) 2001 by Andreas Gruenbacher <a.gruenbacher@computer.org>
-  Copyright (c) 2001-2002 Silicon Graphics, Inc.  All Rights Reserved.
-  Copyright (c) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
-  Copyright (c) 2020 Jan (janneke) Nieuwenhuizen <janneke@gnu.org>
-*/
+ * File: linux/xattr.h
+ *
+ * Extended attributes handling.
+ *
+ * Copyright (C) 2001 by Andreas Gruenbacher <a.gruenbacher@computer.org>
+ * Copyright (c) 2001-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ * Copyright (c) 2020 Jan (janneke) Nieuwenhuizen <janneke@gnu.org>
+ */
 
 #include <linux/libc-compat.h>
 
@@ -18,8 +18,8 @@
 #if __UAPI_DEF_XATTR
 #define __USE_KERNEL_XATTR_DEFS
 
-#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
-#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
+#define XATTR_CREATE  0x1 /* set value, fail if attr already exists */
+#define XATTR_REPLACE 0x2 /* set value, fail if attr does not exist */
 #endif
 
 /* Namespaces */
@@ -35,7 +35,7 @@
 #define XATTR_HURD_PREFIX "gnu."
 #define XATTR_HURD_PREFIX_LEN (sizeof(XATTR_HURD_PREFIX) - 1)
 
-#define XATTR_SECURITY_PREFIX	"security."
+#define XATTR_SECURITY_PREFIX "security."
 #define XATTR_SECURITY_PREFIX_LEN (sizeof(XATTR_SECURITY_PREFIX) - 1)
 
 #define XATTR_SYSTEM_PREFIX "system."
@@ -64,9 +64,9 @@
 #define XATTR_SMACK_TRANSMUTE "SMACK64TRANSMUTE"
 #define XATTR_SMACK_MMAP "SMACK64MMAP"
 #define XATTR_NAME_SMACK XATTR_SECURITY_PREFIX XATTR_SMACK_SUFFIX
-#define XATTR_NAME_SMACKIPIN	XATTR_SECURITY_PREFIX XATTR_SMACK_IPIN
-#define XATTR_NAME_SMACKIPOUT	XATTR_SECURITY_PREFIX XATTR_SMACK_IPOUT
-#define XATTR_NAME_SMACKEXEC	XATTR_SECURITY_PREFIX XATTR_SMACK_EXEC
+#define XATTR_NAME_SMACKIPIN  XATTR_SECURITY_PREFIX XATTR_SMACK_IPIN
+#define XATTR_NAME_SMACKIPOUT XATTR_SECURITY_PREFIX XATTR_SMACK_IPOUT
+#define XATTR_NAME_SMACKEXEC  XATTR_SECURITY_PREFIX XATTR_SMACK_EXEC
 #define XATTR_NAME_SMACKTRANSMUTE XATTR_SECURITY_PREFIX XATTR_SMACK_TRANSMUTE
 #define XATTR_NAME_SMACKMMAP XATTR_SECURITY_PREFIX XATTR_SMACK_MMAP
 
@@ -80,6 +80,5 @@
 #define XATTR_NAME_POSIX_ACL_ACCESS XATTR_SYSTEM_PREFIX XATTR_POSIX_ACL_ACCESS
 #define XATTR_POSIX_ACL_DEFAULT  "posix_acl_default"
 #define XATTR_NAME_POSIX_ACL_DEFAULT XATTR_SYSTEM_PREFIX XATTR_POSIX_ACL_DEFAULT
-
 
 #endif /* _UAPI_LINUX_XATTR_H */

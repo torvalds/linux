@@ -13,13 +13,13 @@
 #include <linux/nfs_xdr.h>
 
 struct nfs_subversion {
-	struct module *owner;	/* THIS_MODULE pointer */
-	struct file_system_type *nfs_fs;	/* NFS filesystem type */
-	const struct rpc_version *rpc_vers;	/* NFS version information */
-	const struct nfs_rpc_ops *rpc_ops;	/* NFS operations */
-	const struct super_operations *sops;	/* NFS Super operations */
-	const struct xattr_handler * const *xattr;	/* NFS xattr handlers */
-	struct list_head list;		/* List of NFS versions */
+  struct module *owner; /* THIS_MODULE pointer */
+  struct file_system_type *nfs_fs;  /* NFS filesystem type */
+  const struct rpc_version *rpc_vers; /* NFS version information */
+  const struct nfs_rpc_ops *rpc_ops;  /* NFS operations */
+  const struct super_operations *sops;  /* NFS Super operations */
+  const struct xattr_handler * const *xattr;  /* NFS xattr handlers */
+  struct list_head list;    /* List of NFS versions */
 };
 
 struct nfs_subversion *get_nfs_version(unsigned int);

@@ -3,4 +3,3 @@
  * Arch specific extensions to struct device
  */
 #include <asm-generic/device.h>
-

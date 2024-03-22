@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2004 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Written by Ben Dooks, <ben@simtec.co.uk>
+ *  http://armlinux.simtec.co.uk/
+ *  Written by Ben Dooks, <ben@simtec.co.uk>
  */
 
 /* s3c_pm_init
  *
  * called from board at initialisation time to setup the power
  * management
-*/
+ */
 
 #include "pm-common.h"
 
@@ -22,15 +22,14 @@ extern __init int s3c64xx_pm_init(void);
 
 #else
 
-static inline int s3c_pm_init(void)
-{
-	return 0;
+static inline int s3c_pm_init(void) {
+  return 0;
 }
 
-static inline int s3c64xx_pm_init(void)
-{
-	return 0;
+static inline int s3c64xx_pm_init(void) {
+  return 0;
 }
+
 #endif
 
 /* configuration for the IRQ mask over sleep */
@@ -79,18 +78,24 @@ extern void s3c_pm_configure_extint(void);
  * Restore the state of the GPIO pins after sleep, which may involve ensuring
  * that we do not glitch the state of the pins from that the bootloader's
  * resume code has done.
-*/
+ */
 extern void samsung_pm_restore_gpios(void);
 
 /**
- * samsung_pm_save_gpios() - save the state of the GPIOs for restoring after sleep.
+ * samsung_pm_save_gpios() - save the state of the GPIOs for restoring after
+ * sleep.
  *
- * Save the GPIO states for resotration on resume. See samsung_pm_restore_gpios().
+ * Save the GPIO states for resotration on resume. See
+ * samsung_pm_restore_gpios().
  */
 extern void samsung_pm_save_gpios(void);
 #else
-static inline void samsung_pm_restore_gpios(void) {}
-static inline void samsung_pm_save_gpios(void) {}
+static inline void samsung_pm_restore_gpios(void) {
+}
+
+static inline void samsung_pm_save_gpios(void) {
+}
+
 #endif
 
 extern void s3c_pm_save_core(void);

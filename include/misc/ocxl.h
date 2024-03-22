@@ -14,44 +14,43 @@
  * reuse common code. A bit like a in-kernel library.
  */
 
-#define OCXL_AFU_NAME_SZ      (24+1)  /* add 1 for NULL termination */
-
+#define OCXL_AFU_NAME_SZ      (24 + 1)  /* add 1 for NULL termination */
 
 struct ocxl_afu_config {
-	u8 idx;
-	int dvsec_afu_control_pos; /* offset of AFU control DVSEC */
-	char name[OCXL_AFU_NAME_SZ];
-	u8 version_major;
-	u8 version_minor;
-	u8 afuc_type;
-	u8 afum_type;
-	u8 profile;
-	u8 global_mmio_bar;     /* global MMIO area */
-	u64 global_mmio_offset;
-	u32 global_mmio_size;
-	u8 pp_mmio_bar;         /* per-process MMIO area */
-	u64 pp_mmio_offset;
-	u32 pp_mmio_stride;
-	u64 lpc_mem_offset;
-	u64 lpc_mem_size;
-	u64 special_purpose_mem_offset;
-	u64 special_purpose_mem_size;
-	u8 pasid_supported_log;
-	u16 actag_supported;
+  u8 idx;
+  int dvsec_afu_control_pos; /* offset of AFU control DVSEC */
+  char name[OCXL_AFU_NAME_SZ];
+  u8 version_major;
+  u8 version_minor;
+  u8 afuc_type;
+  u8 afum_type;
+  u8 profile;
+  u8 global_mmio_bar;     /* global MMIO area */
+  u64 global_mmio_offset;
+  u32 global_mmio_size;
+  u8 pp_mmio_bar;         /* per-process MMIO area */
+  u64 pp_mmio_offset;
+  u32 pp_mmio_stride;
+  u64 lpc_mem_offset;
+  u64 lpc_mem_size;
+  u64 special_purpose_mem_offset;
+  u64 special_purpose_mem_size;
+  u8 pasid_supported_log;
+  u16 actag_supported;
 };
 
 struct ocxl_fn_config {
-	int dvsec_tl_pos;       /* offset of the Transaction Layer DVSEC */
-	int dvsec_function_pos; /* offset of the Function DVSEC */
-	int dvsec_afu_info_pos; /* offset of the AFU information DVSEC */
-	s8 max_pasid_log;
-	s8 max_afu_index;
+  int dvsec_tl_pos;       /* offset of the Transaction Layer DVSEC */
+  int dvsec_function_pos; /* offset of the Function DVSEC */
+  int dvsec_afu_info_pos; /* offset of the AFU information DVSEC */
+  s8 max_pasid_log;
+  s8 max_afu_index;
 };
 
 enum ocxl_endian {
-	OCXL_BIG_ENDIAN = 0,    /**< AFU data is big-endian */
-	OCXL_LITTLE_ENDIAN = 1, /**< AFU data is little-endian */
-	OCXL_HOST_ENDIAN = 2,   /**< AFU data is the same endianness as the host */
+  OCXL_BIG_ENDIAN = 0,    /**< AFU data is big-endian */
+  OCXL_LITTLE_ENDIAN = 1, /**< AFU data is little-endian */
+  OCXL_HOST_ENDIAN = 2,   /**< AFU data is the same endianness as the host */
 };
 
 // These are opaque outside the ocxl driver
@@ -65,12 +64,14 @@ struct ocxl_context;
  * ocxl_function_open() - Open an OpenCAPI function on an OpenCAPI device
  * @dev: The PCI device that contains the function
  *
- * Returns an opaque pointer to the function, or an error pointer (check with IS_ERR)
+ * Returns an opaque pointer to the function, or an error pointer (check with
+ * IS_ERR)
  */
 struct ocxl_fn *ocxl_function_open(struct pci_dev *dev);
 
 /**
- * ocxl_function_afu_list() - Get the list of AFUs associated with a PCI function device
+ * ocxl_function_afu_list() - Get the list of AFUs associated with a PCI
+ * function device
  * Returns a list of struct ocxl_afu *
  *
  * @fn: The OpenCAPI function containing the AFUs
@@ -100,9 +101,9 @@ void ocxl_afu_get(struct ocxl_afu *afu);
  */
 void ocxl_afu_put(struct ocxl_afu *afu);
 
-
 /**
- * ocxl_function_config() - Get the configuration information for an OpenCAPI function
+ * ocxl_function_config() - Get the configuration information for an OpenCAPI
+ * function
  * @fn: The OpenCAPI function to get the config for
  *
  * Returns the function config, or NULL on error
@@ -123,12 +124,13 @@ void ocxl_function_close(struct ocxl_fn *fn);
 
 /**
  * ocxl_context_alloc() - Allocate an OpenCAPI context
- * @context: The OpenCAPI context to allocate, must be freed with ocxl_context_free
+ * @context: The OpenCAPI context to allocate, must be freed with
+ * ocxl_context_free
  * @afu: The AFU the context belongs to
  * @mapping: The mapping to unmap when the context is closed (may be NULL)
  */
 int ocxl_context_alloc(struct ocxl_context **context, struct ocxl_afu *afu,
-			struct address_space *mapping);
+    struct address_space *mapping);
 
 /**
  * ocxl_context_free() - Free an OpenCAPI context
@@ -145,7 +147,7 @@ void ocxl_context_free(struct ocxl_context *ctx);
  * Returns 0 on success, negative on failure
  */
 int ocxl_context_attach(struct ocxl_context *ctx, u64 amr,
-				struct mm_struct *mm);
+    struct mm_struct *mm);
 
 /**
  * ocxl_context_detach() - Detach an MM from an OpenCAPI context
@@ -187,7 +189,8 @@ int ocxl_afu_irq_free(struct ocxl_context *ctx, int irq_id);
 u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
 
 /**
- * ocxl_irq_set_handler() - Provide a callback to be called when an IRQ is triggered
+ * ocxl_irq_set_handler() - Provide a callback to be called when an IRQ is
+ * triggered
  * @ctx: The AFU context that the IRQ is associated with
  * @irq_id: The IRQ ID
  * @handler: the callback to be called when the IRQ is triggered
@@ -197,9 +200,9 @@ u64 ocxl_afu_irq_get_addr(struct ocxl_context *ctx, int irq_id);
  * Returns 0 on success, negative on failure
  */
 int ocxl_irq_set_handler(struct ocxl_context *ctx, int irq_id,
-		irqreturn_t (*handler)(void *private),
-		void (*free_private)(void *private),
-		void *private);
+    irqreturn_t (*handler)(void * private),
+    void (*free_private)(void * private),
+    void * private);
 
 // AFU Metadata
 
@@ -212,15 +215,18 @@ int ocxl_irq_set_handler(struct ocxl_context *ctx, int irq_id,
 struct ocxl_afu_config *ocxl_afu_config(struct ocxl_afu *afu);
 
 /**
- * ocxl_afu_set_private() - Assign opaque hardware specific information to an OpenCAPI AFU.
+ * ocxl_afu_set_private() - Assign opaque hardware specific information to an
+ * OpenCAPI AFU.
  * @afu: The OpenCAPI AFU
  * @private: the opaque hardware specific information to assign to the driver
  */
-void ocxl_afu_set_private(struct ocxl_afu *afu, void *private);
+void ocxl_afu_set_private(struct ocxl_afu *afu, void * private);
 
 /**
- * ocxl_afu_get_private() - Fetch the hardware specific information associated with
- * an external OpenCAPI AFU. This may be consumed by an external OpenCAPI driver.
+ * ocxl_afu_get_private() - Fetch the hardware specific information associated
+ * with
+ * an external OpenCAPI AFU. This may be consumed by an external OpenCAPI
+ * driver.
  * @afu: The OpenCAPI AFU
  *
  * Returns the opaque pointer associated with the device, or NULL if not set
@@ -238,7 +244,7 @@ void *ocxl_afu_get_private(struct ocxl_afu *afu);
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_read32(struct ocxl_afu *afu, size_t offset,
-			    enum ocxl_endian endian, u32 *val);
+    enum ocxl_endian endian, u32 *val);
 
 /**
  * ocxl_global_mmio_read64() - Read a 64 bit value from global MMIO
@@ -250,7 +256,7 @@ int ocxl_global_mmio_read32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_read64(struct ocxl_afu *afu, size_t offset,
-			    enum ocxl_endian endian, u64 *val);
+    enum ocxl_endian endian, u64 *val);
 
 /**
  * ocxl_global_mmio_write32() - Write a 32 bit value to global MMIO
@@ -262,7 +268,7 @@ int ocxl_global_mmio_read64(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_write32(struct ocxl_afu *afu, size_t offset,
-			     enum ocxl_endian endian, u32 val);
+    enum ocxl_endian endian, u32 val);
 
 /**
  * ocxl_global_mmio_write64() - Write a 64 bit value to global MMIO
@@ -274,7 +280,7 @@ int ocxl_global_mmio_write32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_write64(struct ocxl_afu *afu, size_t offset,
-			     enum ocxl_endian endian, u64 val);
+    enum ocxl_endian endian, u64 val);
 
 /**
  * ocxl_global_mmio_set32() - Set bits in a 32 bit global MMIO register
@@ -286,7 +292,7 @@ int ocxl_global_mmio_write64(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_set32(struct ocxl_afu *afu, size_t offset,
-			   enum ocxl_endian endian, u32 mask);
+    enum ocxl_endian endian, u32 mask);
 
 /**
  * ocxl_global_mmio_set64() - Set bits in a 64 bit global MMIO register
@@ -298,7 +304,7 @@ int ocxl_global_mmio_set32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_set64(struct ocxl_afu *afu, size_t offset,
-			   enum ocxl_endian endian, u64 mask);
+    enum ocxl_endian endian, u64 mask);
 
 /**
  * ocxl_global_mmio_clear32() - Set bits in a 32 bit global MMIO register
@@ -310,7 +316,7 @@ int ocxl_global_mmio_set64(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_clear32(struct ocxl_afu *afu, size_t offset,
-			     enum ocxl_endian endian, u32 mask);
+    enum ocxl_endian endian, u32 mask);
 
 /**
  * ocxl_global_mmio_clear64() - Set bits in a 64 bit global MMIO register
@@ -322,7 +328,7 @@ int ocxl_global_mmio_clear32(struct ocxl_afu *afu, size_t offset,
  * Returns 0 for success, negative on error
  */
 int ocxl_global_mmio_clear64(struct ocxl_afu *afu, size_t offset,
-			     enum ocxl_endian endian, u64 mask);
+    enum ocxl_endian endian, u64 mask);
 
 // Functions left here are for compatibility with the cxlflash driver
 
@@ -331,9 +337,9 @@ int ocxl_global_mmio_clear64(struct ocxl_afu *afu, size_t offset,
  * the index 'afu_idx'. Fills in a ocxl_afu_config structure
  */
 int ocxl_config_read_afu(struct pci_dev *dev,
-				struct ocxl_fn_config *fn,
-				struct ocxl_afu_config *afu,
-				u8 afu_idx);
+    struct ocxl_fn_config *fn,
+    struct ocxl_afu_config *afu,
+    u8 afu_idx);
 
 /*
  * Tell an AFU, by writing in the configuration space, the PASIDs that
@@ -344,8 +350,8 @@ int ocxl_config_read_afu(struct pci_dev *dev,
  * can be found in the function configuration
  */
 void ocxl_config_set_afu_pasid(struct pci_dev *dev,
-				int afu_control_offset,
-				int pasid_base, u32 pasid_count_log);
+    int afu_control_offset,
+    int pasid_base, u32 pasid_count_log);
 
 /*
  * Get the actag configuration for the function:
@@ -355,7 +361,7 @@ void ocxl_config_set_afu_pasid(struct pci_dev *dev,
  *             of the function.
  */
 int ocxl_config_get_actag_info(struct pci_dev *dev,
-				u16 *base, u16 *enabled, u16 *supported);
+    u16 *base, u16 *enabled, u16 *supported);
 
 /*
  * Tell a function, by writing in the configuration space, the actags
@@ -365,7 +371,7 @@ int ocxl_config_get_actag_info(struct pci_dev *dev,
  * the function configuration
  */
 void ocxl_config_set_actag(struct pci_dev *dev, int func_offset,
-				u32 actag_base, u32 actag_count);
+    u32 actag_base, u32 actag_count);
 
 /*
  * Tell an AFU, by writing in the configuration space, the actags it
@@ -375,8 +381,8 @@ void ocxl_config_set_actag(struct pci_dev *dev, int func_offset,
  * desired AFU. It can be found in the AFU configuration
  */
 void ocxl_config_set_afu_actag(struct pci_dev *dev,
-				int afu_control_offset,
-				int actag_base, int actag_count);
+    int afu_control_offset,
+    int actag_base, int actag_count);
 
 /*
  * Enable/disable an AFU, by writing in the configuration space.
@@ -385,7 +391,7 @@ void ocxl_config_set_afu_actag(struct pci_dev *dev,
  * desired AFU. It can be found in the AFU configuration
  */
 void ocxl_config_set_afu_state(struct pci_dev *dev,
-				int afu_control_offset, int enable);
+    int afu_control_offset, int enable);
 
 /*
  * Set the Transaction Layer configuration in the configuration space.
@@ -409,14 +415,14 @@ int ocxl_config_set_TL(struct pci_dev *dev, int tl_dvsec);
  * desired AFU. It can be found in the AFU configuration
  */
 int ocxl_config_terminate_pasid(struct pci_dev *dev,
-				int afu_control_offset, int pasid);
+    int afu_control_offset, int pasid);
 
 /*
  * Read the configuration space of a function and fill in a
  * ocxl_fn_config structure with all the function details
  */
 int ocxl_config_read_function(struct pci_dev *dev,
-				struct ocxl_fn_config *fn);
+    struct ocxl_fn_config *fn);
 
 /*
  * Set up the opencapi link for the function.
@@ -429,7 +435,7 @@ int ocxl_config_read_function(struct pci_dev *dev,
  * the link
  */
 int ocxl_link_setup(struct pci_dev *dev, int PE_mask,
-			void **link_handle);
+    void **link_handle);
 
 /*
  * Remove the association between the function and its link.
@@ -447,9 +453,9 @@ void ocxl_link_release(struct pci_dev *dev, void *link_handle);
  * defined
  */
 int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
-		u64 amr, u16 bdf, struct mm_struct *mm,
-		void (*xsl_err_cb)(void *data, u64 addr, u64 dsisr),
-		void *xsl_err_data);
+    u64 amr, u16 bdf, struct mm_struct *mm,
+    void (*xsl_err_cb)(void *data, u64 addr, u64 dsisr),
+    void *xsl_err_data);
 
 /*
  * Remove a Process Element from the Shared Process Area for a link

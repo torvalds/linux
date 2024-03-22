@@ -11,8 +11,8 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 
-#define W1_SLAVE_ACTIVE		0
-#define W1_SLAVE_DETACH		1
+#define W1_SLAVE_ACTIVE   0
+#define W1_SLAVE_DETACH   1
 
 /**
  * struct w1_async_cmd - execute callback from the w1_process kthread
@@ -24,16 +24,16 @@
  * the callback.  Embed this into the structure with the command details.
  */
 struct w1_async_cmd {
-	struct list_head	async_entry;
-	void (*cb)(struct w1_master *dev, struct w1_async_cmd *async_cmd);
+  struct list_head async_entry;
+  void (*cb)(struct w1_master *dev, struct w1_async_cmd *async_cmd);
 };
 
 int w1_create_master_attributes(struct w1_master *master);
 void w1_destroy_master_attributes(struct w1_master *master);
 void w1_search(struct w1_master *dev, u8 search_type,
-	       w1_slave_found_callback cb);
+    w1_slave_found_callback cb);
 void w1_search_devices(struct w1_master *dev, u8 search_type,
-		       w1_slave_found_callback cb);
+    w1_slave_found_callback cb);
 /* call w1_unref_slave to release the reference counts w1_search_slave added */
 struct w1_slave *w1_search_slave(struct w1_reg_num *id);
 /*
@@ -43,9 +43,9 @@ struct w1_slave *w1_search_slave(struct w1_reg_num *id);
 int w1_unref_slave(struct w1_slave *sl);
 void w1_slave_found(struct w1_master *dev, u64 rn);
 void w1_search_process_cb(struct w1_master *dev, u8 search_type,
-			  w1_slave_found_callback cb);
+    w1_slave_found_callback cb);
 struct w1_slave *w1_slave_search_device(struct w1_master *dev,
-					struct w1_reg_num *rn);
+    struct w1_reg_num *rn);
 struct w1_master *w1_search_master_id(u32 id);
 
 /* Disconnect and reconnect devices in the given family.  Used for finding

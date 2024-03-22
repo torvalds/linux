@@ -25,12 +25,10 @@
 /* time in ms for runtime suspend delay */
 #define ACP_SUSPEND_DELAY_MS    2000
 
-static inline u32 rpl_acp_readl(void __iomem *base_addr)
-{
-	return readl(base_addr - ACP6x_PHY_BASE_ADDRESS);
+static inline u32 rpl_acp_readl(void __iomem *base_addr) {
+  return readl(base_addr - ACP6x_PHY_BASE_ADDRESS);
 }
 
-static inline void rpl_acp_writel(u32 val, void __iomem *base_addr)
-{
-	writel(val, base_addr - ACP6x_PHY_BASE_ADDRESS);
+static inline void rpl_acp_writel(u32 val, void __iomem *base_addr) {
+  writel(val, base_addr - ACP6x_PHY_BASE_ADDRESS);
 }

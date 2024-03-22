@@ -1,30 +1,30 @@
 /* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
 /**************************************************************************
- *
- * Copyright © 2009-2023 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- **************************************************************************/
+*
+* Copyright © 2009-2023 VMware, Inc., Palo Alto, CA., USA
+* All Rights Reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sub license, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice (including the
+* next paragraph) shall be included in all copies or substantial portions
+* of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+* THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+**************************************************************************/
 
 #ifndef __VMWGFX_DRM_H__
 #define __VMWGFX_DRM_H__
@@ -37,7 +37,6 @@ extern "C" {
 
 #define DRM_VMW_MAX_SURFACE_FACES 6
 #define DRM_VMW_MAX_MIP_LEVELS 24
-
 
 #define DRM_VMW_GET_PARAM            0
 #define DRM_VMW_ALLOC_DMABUF         1
@@ -125,8 +124,8 @@ extern "C" {
  *
  */
 enum drm_vmw_handle_type {
-	DRM_VMW_HANDLE_LEGACY = 0,
-	DRM_VMW_HANDLE_PRIME = 1
+  DRM_VMW_HANDLE_LEGACY = 0,
+  DRM_VMW_HANDLE_PRIME = 1
 };
 
 /**
@@ -139,9 +138,9 @@ enum drm_vmw_handle_type {
  */
 
 struct drm_vmw_getparam_arg {
-	__u64 value;
-	__u32 param;
-	__u32 pad64;
+  __u64 value;
+  __u32 param;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -162,8 +161,8 @@ struct drm_vmw_getparam_arg {
  */
 
 struct drm_vmw_context_arg {
-	__s32 cid;
-	__u32 pad64;
+  __s32 cid;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -205,12 +204,12 @@ struct drm_vmw_context_arg {
  */
 
 struct drm_vmw_surface_create_req {
-	__u32 flags;
-	__u32 format;
-	__u32 mip_levels[DRM_VMW_MAX_SURFACE_FACES];
-	__u64 size_addr;
-	__s32 shareable;
-	__s32 scanout;
+  __u32 flags;
+  __u32 format;
+  __u32 mip_levels[DRM_VMW_MAX_SURFACE_FACES];
+  __u64 size_addr;
+  __s32 shareable;
+  __s32 scanout;
 };
 
 /**
@@ -225,8 +224,8 @@ struct drm_vmw_surface_create_req {
  */
 
 struct drm_vmw_surface_arg {
-	__s32 sid;
-	enum drm_vmw_handle_type handle_type;
+  __s32 sid;
+  enum drm_vmw_handle_type handle_type;
 };
 
 /**
@@ -241,10 +240,10 @@ struct drm_vmw_surface_arg {
  */
 
 struct drm_vmw_size {
-	__u32 width;
-	__u32 height;
-	__u32 depth;
-	__u32 pad64;
+  __u32 width;
+  __u32 height;
+  __u32 depth;
+  __u32 pad64;
 };
 
 /**
@@ -257,8 +256,8 @@ struct drm_vmw_size {
  */
 
 union drm_vmw_surface_create_arg {
-	struct drm_vmw_surface_arg rep;
-	struct drm_vmw_surface_create_req req;
+  struct drm_vmw_surface_arg rep;
+  struct drm_vmw_surface_create_req req;
 };
 
 /*************************************************************************/
@@ -285,8 +284,8 @@ union drm_vmw_surface_create_arg {
  */
 
 union drm_vmw_surface_reference_arg {
-	struct drm_vmw_surface_create_req rep;
-	struct drm_vmw_surface_arg req;
+  struct drm_vmw_surface_create_req rep;
+  struct drm_vmw_surface_arg req;
 };
 
 /*************************************************************************/
@@ -334,14 +333,14 @@ union drm_vmw_surface_reference_arg {
 #define DRM_VMW_EXECBUF_FLAG_EXPORT_FENCE_FD (1 << 1)
 
 struct drm_vmw_execbuf_arg {
-	__u64 commands;
-	__u32 command_size;
-	__u32 throttle_us;
-	__u64 fence_rep;
-	__u32 version;
-	__u32 flags;
-	__u32 context_handle;
-	__s32 imported_fence_fd;
+  __u64 commands;
+  __u32 command_size;
+  __u32 throttle_us;
+  __u64 fence_rep;
+  __u32 version;
+  __u32 flags;
+  __u32 context_handle;
+  __s32 imported_fence_fd;
 };
 
 /**
@@ -371,12 +370,12 @@ struct drm_vmw_execbuf_arg {
  */
 
 struct drm_vmw_fence_rep {
-	__u32 handle;
-	__u32 mask;
-	__u32 seqno;
-	__u32 passed_seqno;
-	__s32 fd;
-	__s32 error;
+  __u32 handle;
+  __u32 mask;
+  __u32 seqno;
+  __u32 passed_seqno;
+  __s32 fd;
+  __s32 error;
 };
 
 /*************************************************************************/
@@ -406,8 +405,8 @@ struct drm_vmw_fence_rep {
  */
 
 struct drm_vmw_alloc_bo_req {
-	__u32 size;
-	__u32 pad64;
+  __u32 size;
+  __u32 pad64;
 };
 #define drm_vmw_alloc_dmabuf_req drm_vmw_alloc_bo_req
 
@@ -425,11 +424,11 @@ struct drm_vmw_alloc_bo_req {
  */
 
 struct drm_vmw_bo_rep {
-	__u64 map_handle;
-	__u32 handle;
-	__u32 cur_gmr_id;
-	__u32 cur_gmr_offset;
-	__u32 pad64;
+  __u64 map_handle;
+  __u32 handle;
+  __u32 cur_gmr_id;
+  __u32 cur_gmr_offset;
+  __u32 pad64;
 };
 #define drm_vmw_dmabuf_rep drm_vmw_bo_rep
 
@@ -443,8 +442,8 @@ struct drm_vmw_bo_rep {
  */
 
 union drm_vmw_alloc_bo_arg {
-	struct drm_vmw_alloc_bo_req req;
-	struct drm_vmw_bo_rep rep;
+  struct drm_vmw_alloc_bo_req req;
+  struct drm_vmw_bo_rep rep;
 };
 #define drm_vmw_alloc_dmabuf_arg drm_vmw_alloc_bo_arg
 
@@ -468,10 +467,10 @@ union drm_vmw_alloc_bo_arg {
  */
 
 struct drm_vmw_rect {
-	__s32 x;
-	__s32 y;
-	__u32 w;
-	__u32 h;
+  __s32 x;
+  __s32 y;
+  __u32 w;
+  __u32 h;
 };
 
 /**
@@ -493,23 +492,23 @@ struct drm_vmw_rect {
  */
 
 struct drm_vmw_control_stream_arg {
-	__u32 stream_id;
-	__u32 enabled;
+  __u32 stream_id;
+  __u32 enabled;
 
-	__u32 flags;
-	__u32 color_key;
+  __u32 flags;
+  __u32 color_key;
 
-	__u32 handle;
-	__u32 offset;
-	__s32 format;
-	__u32 size;
-	__u32 width;
-	__u32 height;
-	__u32 pitch[3];
+  __u32 handle;
+  __u32 offset;
+  __s32 format;
+  __u32 size;
+  __u32 width;
+  __u32 height;
+  __u32 pitch[3];
 
-	__u32 pad64;
-	struct drm_vmw_rect src;
-	struct drm_vmw_rect dst;
+  __u32 pad64;
+  struct drm_vmw_rect src;
+  struct drm_vmw_rect dst;
 };
 
 /*************************************************************************/
@@ -535,12 +534,12 @@ struct drm_vmw_control_stream_arg {
  */
 
 struct drm_vmw_cursor_bypass_arg {
-	__u32 flags;
-	__u32 crtc_id;
-	__s32 xpos;
-	__s32 ypos;
-	__s32 xhot;
-	__s32 yhot;
+  __u32 flags;
+  __u32 crtc_id;
+  __s32 xpos;
+  __s32 ypos;
+  __s32 xhot;
+  __s32 yhot;
 };
 
 /*************************************************************************/
@@ -558,8 +557,8 @@ struct drm_vmw_cursor_bypass_arg {
  */
 
 struct drm_vmw_stream_arg {
-	__u32 stream_id;
-	__u32 pad64;
+  __u32 stream_id;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -589,9 +588,9 @@ struct drm_vmw_stream_arg {
  */
 
 struct drm_vmw_get_3d_cap_arg {
-	__u64 buffer;
-	__u32 max_size;
-	__u32 pad64;
+  __u64 buffer;
+  __u32 max_size;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -640,14 +639,14 @@ struct drm_vmw_get_3d_cap_arg {
  */
 
 struct drm_vmw_fence_wait_arg {
-	__u32 handle;
-	__s32  cookie_valid;
-	__u64 kernel_cookie;
-	__u64 timeout_us;
-	__s32 lazy;
-	__s32 flags;
-	__s32 wait_options;
-	__s32 pad64;
+  __u32 handle;
+  __s32 cookie_valid;
+  __u64 kernel_cookie;
+  __u64 timeout_us;
+  __s32 lazy;
+  __s32 flags;
+  __s32 wait_options;
+  __s32 pad64;
 };
 
 /*************************************************************************/
@@ -671,12 +670,12 @@ struct drm_vmw_fence_wait_arg {
  */
 
 struct drm_vmw_fence_signaled_arg {
-	 __u32 handle;
-	 __u32 flags;
-	 __s32 signaled;
-	 __u32 passed_seqno;
-	 __u32 signaled_flags;
-	 __u32 pad64;
+  __u32 handle;
+  __u32 flags;
+  __s32 signaled;
+  __u32 passed_seqno;
+  __u32 signaled_flags;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -697,10 +696,9 @@ struct drm_vmw_fence_signaled_arg {
  */
 
 struct drm_vmw_fence_arg {
-	 __u32 handle;
-	 __u32 pad64;
+  __u32 handle;
+  __u32 pad64;
 };
-
 
 /*************************************************************************/
 /**
@@ -718,10 +716,10 @@ struct drm_vmw_fence_arg {
 #define DRM_VMW_EVENT_FENCE_SIGNALED 0x80000000
 
 struct drm_vmw_event_fence {
-	struct drm_event base;
-	__u64 user_data;
-	__u32 tv_sec;
-	__u32 tv_usec;
+  struct drm_event base;
+  __u64 user_data;
+  __u32 tv_sec;
+  __u32 tv_usec;
 };
 
 /*
@@ -740,12 +738,11 @@ struct drm_vmw_event_fence {
  * @flags: A set of flags as defined above.
  */
 struct drm_vmw_fence_event_arg {
-	__u64 fence_rep;
-	__u64 user_data;
-	__u32 handle;
-	__u32 flags;
+  __u64 fence_rep;
+  __u64 user_data;
+  __u32 handle;
+  __u32 flags;
 };
-
 
 /*************************************************************************/
 /**
@@ -772,15 +769,14 @@ struct drm_vmw_fence_event_arg {
  */
 
 struct drm_vmw_present_arg {
-	__u32 fb_id;
-	__u32 sid;
-	__s32 dest_x;
-	__s32 dest_y;
-	__u64 clips_ptr;
-	__u32 num_clips;
-	__u32 pad64;
+  __u32 fb_id;
+  __u32 sid;
+  __s32 dest_x;
+  __s32 dest_y;
+  __u64 clips_ptr;
+  __u32 num_clips;
+  __u32 pad64;
 };
-
 
 /*************************************************************************/
 /**
@@ -802,10 +798,10 @@ struct drm_vmw_present_arg {
  */
 
 struct drm_vmw_present_readback_arg {
-	 __u32 fb_id;
-	 __u32 num_clips;
-	 __u64 clips_ptr;
-	 __u64 fence_rep;
+  __u32 fb_id;
+  __u32 num_clips;
+  __u64 clips_ptr;
+  __u64 fence_rep;
 };
 
 /*************************************************************************/
@@ -826,11 +822,10 @@ struct drm_vmw_present_readback_arg {
  * Input argument to the DRM_VMW_UPDATE_LAYOUT Ioctl.
  */
 struct drm_vmw_update_layout_arg {
-	__u32 num_outputs;
-	__u32 pad64;
-	__u64 rects;
+  __u32 num_outputs;
+  __u32 pad64;
+  __u64 rects;
 };
-
 
 /*************************************************************************/
 /**
@@ -844,10 +839,9 @@ struct drm_vmw_update_layout_arg {
  * enum drm_vmw_shader_type - Shader types
  */
 enum drm_vmw_shader_type {
-	drm_vmw_shader_type_vs = 0,
-	drm_vmw_shader_type_ps,
+  drm_vmw_shader_type_vs = 0,
+  drm_vmw_shader_type_ps,
 };
-
 
 /**
  * struct drm_vmw_shader_create_arg
@@ -864,11 +858,11 @@ enum drm_vmw_shader_type {
  * Input / Output argument to the DRM_VMW_CREATE_SHADER Ioctl.
  */
 struct drm_vmw_shader_create_arg {
-	enum drm_vmw_shader_type shader_type;
-	__u32 size;
-	__u32 buffer_handle;
-	__u32 shader_handle;
-	__u64 offset;
+  enum drm_vmw_shader_type shader_type;
+  __u32 size;
+  __u32 buffer_handle;
+  __u32 shader_handle;
+  __u64 offset;
 };
 
 /*************************************************************************/
@@ -887,8 +881,8 @@ struct drm_vmw_shader_create_arg {
  * Input argument to the DRM_VMW_UNREF_SHADER ioctl.
  */
 struct drm_vmw_shader_arg {
-	__u32 handle;
-	__u32 pad64;
+  __u32 handle;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -912,10 +906,10 @@ struct drm_vmw_shader_arg {
  * @drm_vmw_surface_flag_coherent:      Back surface with coherent memory.
  */
 enum drm_vmw_surface_flags {
-	drm_vmw_surface_flag_shareable = (1 << 0),
-	drm_vmw_surface_flag_scanout = (1 << 1),
-	drm_vmw_surface_flag_create_buffer = (1 << 2),
-	drm_vmw_surface_flag_coherent = (1 << 3),
+  drm_vmw_surface_flag_shareable = (1 << 0),
+  drm_vmw_surface_flag_scanout = (1 << 1),
+  drm_vmw_surface_flag_create_buffer = (1 << 2),
+  drm_vmw_surface_flag_coherent = (1 << 3),
 };
 
 /**
@@ -937,15 +931,15 @@ enum drm_vmw_surface_flags {
  * Part of output argument for the DRM_VMW_GB_SURFACE_REF Ioctl.
  */
 struct drm_vmw_gb_surface_create_req {
-	__u32 svga3d_flags;
-	__u32 format;
-	__u32 mip_levels;
-	enum drm_vmw_surface_flags drm_surface_flags;
-	__u32 multisample_count;
-	__u32 autogen_filter;
-	__u32 buffer_handle;
-	__u32 array_size;
-	struct drm_vmw_size base_size;
+  __u32 svga3d_flags;
+  __u32 format;
+  __u32 mip_levels;
+  enum drm_vmw_surface_flags drm_surface_flags;
+  __u32 multisample_count;
+  __u32 autogen_filter;
+  __u32 buffer_handle;
+  __u32 array_size;
+  struct drm_vmw_size base_size;
 };
 
 /**
@@ -963,11 +957,11 @@ struct drm_vmw_gb_surface_create_req {
  * Output argument for the DRM_VMW_GB_SURFACE_CREATE ioctl.
  */
 struct drm_vmw_gb_surface_create_rep {
-	__u32 handle;
-	__u32 backup_size;
-	__u32 buffer_handle;
-	__u32 buffer_size;
-	__u64 buffer_map_handle;
+  __u32 handle;
+  __u32 backup_size;
+  __u32 buffer_handle;
+  __u32 buffer_size;
+  __u64 buffer_map_handle;
 };
 
 /**
@@ -979,8 +973,8 @@ struct drm_vmw_gb_surface_create_rep {
  * Argument to the DRM_VMW_GB_SURFACE_CREATE ioctl.
  */
 union drm_vmw_gb_surface_create_arg {
-	struct drm_vmw_gb_surface_create_rep rep;
-	struct drm_vmw_gb_surface_create_req req;
+  struct drm_vmw_gb_surface_create_rep rep;
+  struct drm_vmw_gb_surface_create_req req;
 };
 
 /*************************************************************************/
@@ -1008,8 +1002,8 @@ union drm_vmw_gb_surface_create_arg {
  * Output Argument to the DRM_VMW_GB_SURFACE_REF ioctl.
  */
 struct drm_vmw_gb_surface_ref_rep {
-	struct drm_vmw_gb_surface_create_req creq;
-	struct drm_vmw_gb_surface_create_rep crep;
+  struct drm_vmw_gb_surface_create_req creq;
+  struct drm_vmw_gb_surface_create_rep crep;
 };
 
 /**
@@ -1021,10 +1015,9 @@ struct drm_vmw_gb_surface_ref_rep {
  * Argument to the DRM_VMW_GB_SURFACE_REF Ioctl.
  */
 union drm_vmw_gb_surface_reference_arg {
-	struct drm_vmw_gb_surface_ref_rep rep;
-	struct drm_vmw_surface_arg req;
+  struct drm_vmw_gb_surface_ref_rep rep;
+  struct drm_vmw_surface_arg req;
 };
-
 
 /*************************************************************************/
 /**
@@ -1053,10 +1046,10 @@ union drm_vmw_gb_surface_reference_arg {
  * behavior.
  */
 enum drm_vmw_synccpu_flags {
-	drm_vmw_synccpu_read = (1 << 0),
-	drm_vmw_synccpu_write = (1 << 1),
-	drm_vmw_synccpu_dontblock = (1 << 2),
-	drm_vmw_synccpu_allow_cs = (1 << 3)
+  drm_vmw_synccpu_read = (1 << 0),
+  drm_vmw_synccpu_write = (1 << 1),
+  drm_vmw_synccpu_dontblock = (1 << 2),
+  drm_vmw_synccpu_allow_cs = (1 << 3)
 };
 
 /**
@@ -1066,22 +1059,22 @@ enum drm_vmw_synccpu_flags {
  * @drm_vmw_synccpu_release: Release a previous grab.
  */
 enum drm_vmw_synccpu_op {
-	drm_vmw_synccpu_grab,
-	drm_vmw_synccpu_release
+  drm_vmw_synccpu_grab,
+  drm_vmw_synccpu_release
 };
 
 /**
  * struct drm_vmw_synccpu_arg
  *
- * @op:			     The synccpu operation as described above.
- * @handle:		     Handle identifying the buffer object.
- * @flags:		     Flags as described above.
+ * @op:          The synccpu operation as described above.
+ * @handle:        Handle identifying the buffer object.
+ * @flags:         Flags as described above.
  */
 struct drm_vmw_synccpu_arg {
-	enum drm_vmw_synccpu_op op;
-	enum drm_vmw_synccpu_flags flags;
-	__u32 handle;
-	__u32 pad64;
+  enum drm_vmw_synccpu_op op;
+  enum drm_vmw_synccpu_flags flags;
+  __u32 handle;
+  __u32 pad64;
 };
 
 /*************************************************************************/
@@ -1092,8 +1085,8 @@ struct drm_vmw_synccpu_arg {
  * for the host. Does not wait for host completion.
  */
 enum drm_vmw_extended_context {
-	drm_vmw_context_legacy,
-	drm_vmw_context_dx
+  drm_vmw_context_legacy,
+  drm_vmw_context_dx
 };
 
 /**
@@ -1105,8 +1098,8 @@ enum drm_vmw_extended_context {
  * Argument to the DRM_VMW_CREATE_EXTENDED_CONTEXT Ioctl.
  */
 union drm_vmw_extended_context_arg {
-	enum drm_vmw_extended_context req;
-	struct drm_vmw_context_arg rep;
+  enum drm_vmw_extended_context req;
+  struct drm_vmw_context_arg rep;
 };
 
 /*************************************************************************/
@@ -1126,8 +1119,8 @@ union drm_vmw_extended_context_arg {
  * Argument to the DRM_VMW_HANDLE_CLOSE Ioctl.
  */
 struct drm_vmw_handle_close_arg {
-	__u32 handle;
-	__u32 pad64;
+  __u32 handle;
+  __u32 pad64;
 };
 #define drm_vmw_unref_dmabuf_arg drm_vmw_handle_close_arg
 
@@ -1150,7 +1143,7 @@ struct drm_vmw_handle_close_arg {
  * svga3d surface flags split into 2, upper half and lower half.
  */
 enum drm_vmw_surface_version {
-	drm_vmw_gb_surface_v1,
+  drm_vmw_gb_surface_v1,
 };
 
 /**
@@ -1168,13 +1161,13 @@ enum drm_vmw_surface_version {
  * Part of output argument for the DRM_VMW_GB_SURFACE_REF_EXT Ioctl.
  */
 struct drm_vmw_gb_surface_create_ext_req {
-	struct drm_vmw_gb_surface_create_req base;
-	enum drm_vmw_surface_version version;
-	__u32 svga3d_flags_upper_32_bits;
-	__u32 multisample_pattern;
-	__u32 quality_level;
-	__u32 buffer_byte_stride;
-	__u32 must_be_zero;
+  struct drm_vmw_gb_surface_create_req base;
+  enum drm_vmw_surface_version version;
+  __u32 svga3d_flags_upper_32_bits;
+  __u32 multisample_pattern;
+  __u32 quality_level;
+  __u32 buffer_byte_stride;
+  __u32 must_be_zero;
 };
 
 /**
@@ -1186,8 +1179,8 @@ struct drm_vmw_gb_surface_create_ext_req {
  * Argument to the DRM_VMW_GB_SURFACE_CREATE_EXT ioctl.
  */
 union drm_vmw_gb_surface_create_ext_arg {
-	struct drm_vmw_gb_surface_create_rep rep;
-	struct drm_vmw_gb_surface_create_ext_req req;
+  struct drm_vmw_gb_surface_create_rep rep;
+  struct drm_vmw_gb_surface_create_ext_req req;
 };
 
 /*************************************************************************/
@@ -1215,8 +1208,8 @@ union drm_vmw_gb_surface_create_ext_arg {
  * Output Argument to the DRM_VMW_GB_SURFACE_REF_EXT ioctl.
  */
 struct drm_vmw_gb_surface_ref_ext_rep {
-	struct drm_vmw_gb_surface_create_ext_req creq;
-	struct drm_vmw_gb_surface_create_rep crep;
+  struct drm_vmw_gb_surface_create_ext_req creq;
+  struct drm_vmw_gb_surface_create_rep crep;
 };
 
 /**
@@ -1229,8 +1222,8 @@ struct drm_vmw_gb_surface_ref_ext_rep {
  * Argument to the DRM_VMW_GB_SURFACE_REF Ioctl.
  */
 union drm_vmw_gb_surface_reference_ext_arg {
-	struct drm_vmw_gb_surface_ref_ext_rep rep;
-	struct drm_vmw_surface_arg req;
+  struct drm_vmw_gb_surface_ref_ext_rep rep;
+  struct drm_vmw_surface_arg req;
 };
 
 /**
@@ -1243,10 +1236,10 @@ union drm_vmw_gb_surface_reference_ext_arg {
  * Argument to the DRM_VMW_MSG ioctl.
  */
 struct drm_vmw_msg_arg {
-	__u64 send;
-	__u64 receive;
-	__s32 send_only;
-	__u32 receive_len;
+  __u64 send;
+  __u64 receive;
+  __s32 send_only;
+  __u32 receive_len;
 };
 
 /**
@@ -1265,14 +1258,14 @@ struct drm_vmw_msg_arg {
  * Argument to the DRM_VMW_MKSSTAT_ADD ioctl.
  */
 struct drm_vmw_mksstat_add_arg {
-	__u64 stat;
-	__u64 info;
-	__u64 strs;
-	__u64 stat_len;
-	__u64 info_len;
-	__u64 strs_len;
-	__u64 description;
-	__u64 id;
+  __u64 stat;
+  __u64 info;
+  __u64 strs;
+  __u64 stat_len;
+  __u64 info_len;
+  __u64 strs_len;
+  __u64 description;
+  __u64 id;
 };
 
 /**
@@ -1284,7 +1277,7 @@ struct drm_vmw_mksstat_add_arg {
  * Argument to the DRM_VMW_MKSSTAT_REMOVE ioctl.
  */
 struct drm_vmw_mksstat_remove_arg {
-	__u64 id;
+  __u64 id;
 };
 
 #if defined(__cplusplus)

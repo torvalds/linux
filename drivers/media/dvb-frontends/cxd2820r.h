@@ -5,7 +5,6 @@
  * Copyright (C) 2010 Antti Palosaari <crope@iki.fi>
  */
 
-
 #ifndef CXD2820R_H
 #define CXD2820R_H
 
@@ -37,62 +36,61 @@
  * @get_dvb_frontend: Get DVB frontend.
  */
 struct cxd2820r_platform_data {
-	u8 ts_mode;
-	bool ts_clk_inv;
-	bool if_agc_polarity;
-	bool spec_inv;
-	int **gpio_chip_base;
+  u8 ts_mode;
+  bool ts_clk_inv;
+  bool if_agc_polarity;
+  bool spec_inv;
+  int **gpio_chip_base;
 
-	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
-/* private: For legacy media attach wrapper. Do not set value. */
-	bool attach_in_use;
+  struct dvb_frontend *(*get_dvb_frontend)(struct i2c_client *);
+  /* private: For legacy media attach wrapper. Do not set value. */
+  bool attach_in_use;
 };
 
 /**
  * struct cxd2820r_config - configuration for cxd2020r demod
  *
  * @i2c_address: Demodulator I2C address. Driver determines DVB-C slave I2C
- *		 address automatically from master address.
- *		 Default: none, must set. Values: 0x6c, 0x6d.
- * @ts_mode:	TS output mode. Default: none, must set. Values: FIXME?
+ *     address automatically from master address.
+ *     Default: none, must set. Values: 0x6c, 0x6d.
+ * @ts_mode:  TS output mode. Default: none, must set. Values: FIXME?
  * @ts_clock_inv: TS clock inverted. Default: 0. Values: 0, 1.
  * @if_agc_polarity: Default: 0. Values: 0, 1
- * @spec_inv:	Spectrum inversion. Default: 0. Values: 0, 1.
+ * @spec_inv: Spectrum inversion. Default: 0. Values: 0, 1.
  */
 struct cxd2820r_config {
-	/* Demodulator I2C address.
-	 * Driver determines DVB-C slave I2C address automatically from master
-	 * address.
-	 * Default: none, must set
-	 * Values: 0x6c, 0x6d
-	 */
-	u8 i2c_address;
+  /* Demodulator I2C address.
+   * Driver determines DVB-C slave I2C address automatically from master
+   * address.
+   * Default: none, must set
+   * Values: 0x6c, 0x6d
+   */
+  u8 i2c_address;
 
-	/* TS output mode.
-	 * Default: none, must set.
-	 * Values:
-	 */
-	u8 ts_mode;
+  /* TS output mode.
+   * Default: none, must set.
+   * Values:
+   */
+  u8 ts_mode;
 
-	/* TS clock inverted.
-	 * Default: 0
-	 * Values: 0, 1
-	 */
-	bool ts_clock_inv;
+  /* TS clock inverted.
+   * Default: 0
+   * Values: 0, 1
+   */
+  bool ts_clock_inv;
 
-	/* IF AGC polarity.
-	 * Default: 0
-	 * Values: 0, 1
-	 */
-	bool if_agc_polarity;
+  /* IF AGC polarity.
+   * Default: 0
+   * Values: 0, 1
+   */
+  bool if_agc_polarity;
 
-	/* Spectrum inversion.
-	 * Default: 0
-	 * Values: 0, 1
-	 */
-	bool spec_inv;
+  /* Spectrum inversion.
+   * Default: 0
+   * Values: 0, 1
+   */
+  bool spec_inv;
 };
-
 
 #if IS_REACHABLE(CONFIG_DVB_CXD2820R)
 /**
@@ -101,26 +99,23 @@ struct cxd2820r_config {
  * @config: pointer to &struct cxd2820r_config with demod configuration.
  * @i2c: i2c adapter to use.
  * @gpio_chip_base: if zero, disables GPIO setting. Otherwise, if
- *		    CONFIG_GPIOLIB is set dynamically allocate
- *		    gpio base; if is not set, use its value to
- *		    setup the GPIO pins.
+ *        CONFIG_GPIOLIB is set dynamically allocate
+ *        gpio base; if is not set, use its value to
+ *        setup the GPIO pins.
  *
  * return: FE pointer on success, NULL on failure.
  */
 extern struct dvb_frontend *cxd2820r_attach(
-	const struct cxd2820r_config *config,
-	struct i2c_adapter *i2c,
-	int *gpio_chip_base
-);
+  const struct cxd2820r_config *config,
+  struct i2c_adapter *i2c,
+  int *gpio_chip_base);
 #else
 static inline struct dvb_frontend *cxd2820r_attach(
-	const struct cxd2820r_config *config,
-	struct i2c_adapter *i2c,
-	int *gpio_chip_base
-)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
+    const struct cxd2820r_config *config,
+    struct i2c_adapter *i2c,
+    int *gpio_chip_base) {
+  printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+  return NULL;
 }
 
 #endif

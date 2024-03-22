@@ -9,20 +9,20 @@
 #if IS_ENABLED(CONFIG_NVME_KEYRING)
 
 key_serial_t nvme_tls_psk_default(struct key *keyring,
-		const char *hostnqn, const char *subnqn);
+    const char *hostnqn, const char *subnqn);
 
 key_serial_t nvme_keyring_id(void);
 
 #else
 
 static inline key_serial_t nvme_tls_psk_default(struct key *keyring,
-		const char *hostnqn, const char *subnqn)
-{
-	return 0;
+    const char *hostnqn, const char *subnqn) {
+  return 0;
 }
-static inline key_serial_t nvme_keyring_id(void)
-{
-	return 0;
+
+static inline key_serial_t nvme_keyring_id(void) {
+  return 0;
 }
+
 #endif /* !CONFIG_NVME_KEYRING */
 #endif /* _NVME_KEYRING_H */

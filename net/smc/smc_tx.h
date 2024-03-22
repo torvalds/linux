@@ -18,13 +18,11 @@
 #include "smc.h"
 #include "smc_cdc.h"
 
-static inline int smc_tx_prepared_sends(struct smc_connection *conn)
-{
-	union smc_host_cursor sent, prep;
-
-	smc_curs_copy(&sent, &conn->tx_curs_sent, conn);
-	smc_curs_copy(&prep, &conn->tx_curs_prep, conn);
-	return smc_curs_diff(conn->sndbuf_desc->len, &sent, &prep);
+static inline int smc_tx_prepared_sends(struct smc_connection *conn) {
+  union smc_host_cursor sent, prep;
+  smc_curs_copy(&sent, &conn->tx_curs_sent, conn);
+  smc_curs_copy(&prep, &conn->tx_curs_prep, conn);
+  return smc_curs_diff(conn->sndbuf_desc->len, &sent, &prep);
 }
 
 void smc_tx_pending(struct smc_connection *conn);
@@ -35,6 +33,6 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn);
 void smc_tx_sndbuf_nonfull(struct smc_sock *smc);
 void smc_tx_consumer_update(struct smc_connection *conn, bool force);
 int smcd_tx_ism_write(struct smc_connection *conn, void *data, size_t len,
-		      u32 offset, int signal);
+    u32 offset, int signal);
 
 #endif /* SMC_TX_H */

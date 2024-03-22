@@ -12,8 +12,8 @@
 #include "sap.h"
 
 rx_handler_result_t iwl_mei_rx_filter(struct sk_buff *skb,
-				      const struct iwl_sap_oob_filters *filters,
-				      bool *pass_to_csme);
+    const struct iwl_sap_oob_filters *filters,
+    bool *pass_to_csme);
 
 void iwl_mei_add_data_to_ring(struct sk_buff *skb, bool cb_tx);
 

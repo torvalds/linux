@@ -9,13 +9,13 @@
 #include <linux/device.h>
 
 struct soc_device_attribute {
-	const char *machine;
-	const char *family;
-	const char *revision;
-	const char *serial_number;
-	const char *soc_id;
-	const void *data;
-	const struct attribute_group *custom_attr_group;
+  const char *machine;
+  const char *family;
+  const char *revision;
+  const char *serial_number;
+  const char *soc_id;
+  const void *data;
+  const struct attribute_group *custom_attr_group;
 };
 
 /**
@@ -23,7 +23,7 @@ struct soc_device_attribute {
  * @soc_plat_dev_attr: Attributes passed from platform to be attributed to a SoC
  */
 struct soc_device *soc_device_register(
-	struct soc_device_attribute *soc_plat_dev_attr);
+  struct soc_device_attribute *soc_plat_dev_attr);
 
 /**
  * soc_device_unregister - unregister SoC device
@@ -39,10 +39,13 @@ struct device *soc_device_to_device(struct soc_device *soc);
 
 #ifdef CONFIG_SOC_BUS
 const struct soc_device_attribute *soc_device_match(
-	const struct soc_device_attribute *matches);
+  const struct soc_device_attribute *matches);
 #else
 static inline const struct soc_device_attribute *soc_device_match(
-	const struct soc_device_attribute *matches) { return NULL; }
+    const struct soc_device_attribute *matches) {
+  return NULL;
+}
+
 #endif
 
 #endif /* __SOC_BUS_H */

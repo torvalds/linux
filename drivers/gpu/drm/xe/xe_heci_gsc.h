@@ -24,8 +24,8 @@ struct mei_aux_device;
  *
  */
 struct xe_heci_gsc {
-	struct mei_aux_device *adev;
-	int irq;
+  struct mei_aux_device *adev;
+  int irq;
 };
 
 void xe_heci_gsc_init(struct xe_device *xe);

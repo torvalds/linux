@@ -22,35 +22,35 @@
 #define IPIC_PRIORITY_DEFAULT 0x05309770
 
 /* System Global Interrupt Configuration Register */
-#define	SICFR_IPSA	0x00010000
-#define	SICFR_IPSB	0x00020000
-#define	SICFR_IPSC	0x00040000
-#define	SICFR_IPSD	0x00080000
-#define	SICFR_MPSA	0x00200000
-#define	SICFR_MPSB	0x00400000
+#define SICFR_IPSA  0x00010000
+#define SICFR_IPSB  0x00020000
+#define SICFR_IPSC  0x00040000
+#define SICFR_IPSD  0x00080000
+#define SICFR_MPSA  0x00200000
+#define SICFR_MPSB  0x00400000
 
 /* System External Interrupt Mask Register */
-#define	SEMSR_SIRQ0	0x00008000
+#define SEMSR_SIRQ0 0x00008000
 
 /* System Error Control Register */
-#define SERCR_MCPR	0x00000001
+#define SERCR_MCPR  0x00000001
 
 struct ipic {
-	volatile u32 __iomem	*regs;
+  volatile u32 __iomem *regs;
 
-	/* The remapper for this IPIC */
-	struct irq_domain		*irqhost;
+  /* The remapper for this IPIC */
+  struct irq_domain *irqhost;
 };
 
 struct ipic_info {
-	u8	ack;		/* pending register offset from base if the irq
-				   supports ack operation */
-	u8	mask;		/* mask register offset from base */
-	u8	prio;		/* priority register offset from base */
-	u8	force;		/* force register offset from base */
-	u8	bit;		/* register bit position (as per doc)
-				   bit mask = 1 << (31 - bit) */
-	u8	prio_mask;	/* priority mask value */
+  u8 ack;    /* pending register offset from base if the irq
+              * supports ack operation */
+  u8 mask;   /* mask register offset from base */
+  u8 prio;   /* priority register offset from base */
+  u8 force;    /* force register offset from base */
+  u8 bit;    /* register bit position (as per doc)
+              * bit mask = 1 << (31 - bit) */
+  u8 prio_mask;  /* priority mask value */
 };
 
 #endif /* __IPIC_H__ */

@@ -7,10 +7,8 @@
 
 #define intel_runtime_pm xe_runtime_pm
 
-static inline void disable_rpm_wakeref_asserts(void *rpm)
-{
+static inline void disable_rpm_wakeref_asserts(void *rpm) {
 }
 
-static inline void enable_rpm_wakeref_asserts(void *rpm)
-{
+static inline void enable_rpm_wakeref_asserts(void *rpm) {
 }

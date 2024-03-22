@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
+/* SPDX-License-Identifier: GPL-2.0 OR MIT
+ * Copyright 2017-2019 Qiang Yu <yuq825@gmail.com>*/
 
 #ifndef __LIMA_L2_CACHE_H__
 #define __LIMA_L2_CACHE_H__

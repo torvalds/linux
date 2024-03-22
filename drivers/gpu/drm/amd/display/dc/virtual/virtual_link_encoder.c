@@ -29,104 +29,108 @@
 #include "virtual_link_encoder.h"
 
 static bool virtual_link_encoder_validate_output_with_stream(
-	struct link_encoder *enc,
-	const struct dc_stream_state *stream) { return true; }
+    struct link_encoder *enc,
+    const struct dc_stream_state *stream) {
+  return true;
+}
 
-static void virtual_link_encoder_hw_init(struct link_encoder *enc) {}
+static void virtual_link_encoder_hw_init(struct link_encoder *enc) {
+}
 
 static void virtual_link_encoder_setup(
-	struct link_encoder *enc,
-	enum signal_type signal) {}
+    struct link_encoder *enc,
+    enum signal_type signal) {
+}
 
 static void virtual_link_encoder_enable_tmds_output(
-	struct link_encoder *enc,
-	enum clock_source_id clock_source,
-	enum dc_color_depth color_depth,
-	enum signal_type signal,
-	uint32_t pixel_clock) {}
+    struct link_encoder *enc,
+    enum clock_source_id clock_source,
+    enum dc_color_depth color_depth,
+    enum signal_type signal,
+    uint32_t pixel_clock) {
+}
 
 static void virtual_link_encoder_enable_dp_output(
-	struct link_encoder *enc,
-	const struct dc_link_settings *link_settings,
-	enum clock_source_id clock_source) {}
+    struct link_encoder *enc,
+    const struct dc_link_settings *link_settings,
+    enum clock_source_id clock_source) {
+}
 
 static void virtual_link_encoder_enable_dp_mst_output(
-	struct link_encoder *enc,
-	const struct dc_link_settings *link_settings,
-	enum clock_source_id clock_source) {}
+    struct link_encoder *enc,
+    const struct dc_link_settings *link_settings,
+    enum clock_source_id clock_source) {
+}
 
 static void virtual_link_encoder_disable_output(
-	struct link_encoder *link_enc,
-	enum signal_type signal) {}
+    struct link_encoder *link_enc,
+    enum signal_type signal) {
+}
 
 static void virtual_link_encoder_dp_set_lane_settings(
-	struct link_encoder *enc,
-	const struct dc_link_settings *link_settings,
-	const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]) {}
+    struct link_encoder *enc,
+    const struct dc_link_settings *link_settings,
+    const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]) {
+}
 
 static void virtual_link_encoder_dp_set_phy_pattern(
-	struct link_encoder *enc,
-	const struct encoder_set_dp_phy_pattern_param *param) {}
+    struct link_encoder *enc,
+    const struct encoder_set_dp_phy_pattern_param *param) {
+}
 
 static void virtual_link_encoder_update_mst_stream_allocation_table(
-	struct link_encoder *enc,
-	const struct link_mst_stream_allocation_table *table) {}
+    struct link_encoder *enc,
+    const struct link_mst_stream_allocation_table *table) {
+}
 
 static void virtual_link_encoder_connect_dig_be_to_fe(
-	struct link_encoder *enc,
-	enum engine_id engine,
-	bool connect) {}
+    struct link_encoder *enc,
+    enum engine_id engine,
+    bool connect) {
+}
 
-static void virtual_link_encoder_destroy(struct link_encoder **enc)
-{
-	kfree(*enc);
-	*enc = NULL;
+static void virtual_link_encoder_destroy(struct link_encoder **enc) {
+  kfree(*enc);
+  *enc = NULL;
 }
 
 static void virtual_link_encoder_get_max_link_cap(struct link_encoder *enc,
-		struct dc_link_settings *link_settings)
-{
-	/* Set Default link settings */
-	struct dc_link_settings max_link_cap = {LANE_COUNT_FOUR, LINK_RATE_HIGH,
-				LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0};
-	*link_settings = max_link_cap;
+    struct dc_link_settings *link_settings) {
+  /* Set Default link settings */
+  struct dc_link_settings max_link_cap = {
+    LANE_COUNT_FOUR, LINK_RATE_HIGH,
+    LINK_SPREAD_05_DOWNSPREAD_30KHZ, false, 0
+  };
+  *link_settings = max_link_cap;
 }
 
 static const struct link_encoder_funcs virtual_lnk_enc_funcs = {
-	.validate_output_with_stream =
-		virtual_link_encoder_validate_output_with_stream,
-	.hw_init = virtual_link_encoder_hw_init,
-	.setup = virtual_link_encoder_setup,
-	.enable_tmds_output = virtual_link_encoder_enable_tmds_output,
-	.enable_dp_output = virtual_link_encoder_enable_dp_output,
-	.enable_dp_mst_output = virtual_link_encoder_enable_dp_mst_output,
-	.disable_output = virtual_link_encoder_disable_output,
-	.get_max_link_cap = virtual_link_encoder_get_max_link_cap,
-	.dp_set_lane_settings = virtual_link_encoder_dp_set_lane_settings,
-	.dp_set_phy_pattern = virtual_link_encoder_dp_set_phy_pattern,
-	.update_mst_stream_allocation_table =
-		virtual_link_encoder_update_mst_stream_allocation_table,
-	.connect_dig_be_to_fe = virtual_link_encoder_connect_dig_be_to_fe,
-	.destroy = virtual_link_encoder_destroy
+  .validate_output_with_stream
+    = virtual_link_encoder_validate_output_with_stream,
+  .hw_init = virtual_link_encoder_hw_init,
+  .setup = virtual_link_encoder_setup,
+  .enable_tmds_output = virtual_link_encoder_enable_tmds_output,
+  .enable_dp_output = virtual_link_encoder_enable_dp_output,
+  .enable_dp_mst_output = virtual_link_encoder_enable_dp_mst_output,
+  .disable_output = virtual_link_encoder_disable_output,
+  .get_max_link_cap = virtual_link_encoder_get_max_link_cap,
+  .dp_set_lane_settings = virtual_link_encoder_dp_set_lane_settings,
+  .dp_set_phy_pattern = virtual_link_encoder_dp_set_phy_pattern,
+  .update_mst_stream_allocation_table
+    = virtual_link_encoder_update_mst_stream_allocation_table,
+  .connect_dig_be_to_fe = virtual_link_encoder_connect_dig_be_to_fe,
+  .destroy = virtual_link_encoder_destroy
 };
 
 bool virtual_link_encoder_construct(
-	struct link_encoder *enc, const struct encoder_init_data *init_data)
-{
-	enc->funcs = &virtual_lnk_enc_funcs;
-	enc->ctx = init_data->ctx;
-	enc->id = init_data->encoder;
-
-	enc->hpd_source = init_data->hpd_source;
-	enc->connector = init_data->connector;
-
-	enc->transmitter = init_data->transmitter;
-
-	enc->output_signals = SIGNAL_TYPE_VIRTUAL;
-
-	enc->preferred_engine = ENGINE_ID_VIRTUAL;
-
-	return true;
+    struct link_encoder *enc, const struct encoder_init_data *init_data) {
+  enc->funcs = &virtual_lnk_enc_funcs;
+  enc->ctx = init_data->ctx;
+  enc->id = init_data->encoder;
+  enc->hpd_source = init_data->hpd_source;
+  enc->connector = init_data->connector;
+  enc->transmitter = init_data->transmitter;
+  enc->output_signals = SIGNAL_TYPE_VIRTUAL;
+  enc->preferred_engine = ENGINE_ID_VIRTUAL;
+  return true;
 }
-
-

@@ -32,33 +32,33 @@
 
 /* For converting from number of lanes to lane bits.  */
 static const unsigned char pp_r600_encode_lanes[] = {
-	0,          /*  0 Not Supported  */
-	1,          /*  1 Lane  */
-	2,          /*  2 Lanes  */
-	0,          /*  3 Not Supported  */
-	3,          /*  4 Lanes  */
-	0,          /*  5 Not Supported  */
-	0,          /*  6 Not Supported  */
-	0,          /*  7 Not Supported  */
-	4,          /*  8 Lanes  */
-	0,          /*  9 Not Supported  */
-	0,          /* 10 Not Supported  */
-	0,          /* 11 Not Supported  */
-	5,          /* 12 Lanes (Not actually supported)  */
-	0,          /* 13 Not Supported  */
-	0,          /* 14 Not Supported  */
-	0,          /* 15 Not Supported  */
-	6           /* 16 Lanes  */
+  0,          /*  0 Not Supported  */
+  1,          /*  1 Lane  */
+  2,          /*  2 Lanes  */
+  0,          /*  3 Not Supported  */
+  3,          /*  4 Lanes  */
+  0,          /*  5 Not Supported  */
+  0,          /*  6 Not Supported  */
+  0,          /*  7 Not Supported  */
+  4,          /*  8 Lanes  */
+  0,          /*  9 Not Supported  */
+  0,          /* 10 Not Supported  */
+  0,          /* 11 Not Supported  */
+  5,          /* 12 Lanes (Not actually supported)  */
+  0,          /* 13 Not Supported  */
+  0,          /* 14 Not Supported  */
+  0,          /* 15 Not Supported  */
+  6           /* 16 Lanes  */
 };
 
-static const unsigned char pp_r600_decoded_lanes[8] = { 16, 1, 2, 4, 8, 12, 16, };
+static const unsigned char pp_r600_decoded_lanes[8] = {
+  16, 1, 2, 4, 8, 12, 16,
+};
 
-uint8_t encode_pcie_lane_width(uint32_t num_lanes)
-{
-	return pp_r600_encode_lanes[num_lanes];
+uint8_t encode_pcie_lane_width(uint32_t num_lanes) {
+  return pp_r600_encode_lanes[num_lanes];
 }
 
-uint8_t decode_pcie_lane_width(uint32_t num_lanes)
-{
-	return pp_r600_decoded_lanes[num_lanes];
+uint8_t decode_pcie_lane_width(uint32_t num_lanes) {
+  return pp_r600_decoded_lanes[num_lanes];
 }

@@ -16,23 +16,23 @@ struct fw_unit;
  * bandwidth) for one isochronous stream.
  */
 struct fw_iso_resources {
-	u64 channels_mask;
-	/* private: */
-	struct fw_unit *unit;
-	struct mutex mutex;
-	unsigned int channel;
-	unsigned int bandwidth; /* in bandwidth units, without overhead */
-	unsigned int bandwidth_overhead;
-	int generation; /* in which allocation is valid */
-	bool allocated;
+  u64 channels_mask;
+  /* private: */
+  struct fw_unit *unit;
+  struct mutex mutex;
+  unsigned int channel;
+  unsigned int bandwidth; /* in bandwidth units, without overhead */
+  unsigned int bandwidth_overhead;
+  int generation; /* in which allocation is valid */
+  bool allocated;
 };
 
 int fw_iso_resources_init(struct fw_iso_resources *r,
-			  struct fw_unit *unit);
+    struct fw_unit *unit);
 void fw_iso_resources_destroy(struct fw_iso_resources *r);
 
 int fw_iso_resources_allocate(struct fw_iso_resources *r,
-			      unsigned int max_payload_bytes, int speed);
+    unsigned int max_payload_bytes, int speed);
 int fw_iso_resources_update(struct fw_iso_resources *r);
 void fw_iso_resources_free(struct fw_iso_resources *r);
 

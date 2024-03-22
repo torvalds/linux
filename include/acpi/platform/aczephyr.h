@@ -33,7 +33,7 @@
  *
  * FUNCTION:    acpi_enable_dbg_print
  *
- * PARAMETERS:  Enable, 	            - Enable/Disable debug print
+ * PARAMETERS:  Enable,               - Enable/Disable debug print
  *
  * RETURN:      None
  *

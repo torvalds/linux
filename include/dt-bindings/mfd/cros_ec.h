@@ -9,10 +9,10 @@
 #define _DT_BINDINGS_MFD_CROS_EC_H
 
 /* Typed channel for keyboard backlight. */
-#define CROS_EC_PWM_DT_KB_LIGHT		0
+#define CROS_EC_PWM_DT_KB_LIGHT   0
 /* Typed channel for display backlight. */
-#define CROS_EC_PWM_DT_DISPLAY_LIGHT	1
+#define CROS_EC_PWM_DT_DISPLAY_LIGHT  1
 /* Number of typed channels. */
-#define CROS_EC_PWM_DT_COUNT		2
+#define CROS_EC_PWM_DT_COUNT    2
 
 #endif

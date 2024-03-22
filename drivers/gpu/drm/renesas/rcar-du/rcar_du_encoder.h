@@ -15,15 +15,15 @@
 struct rcar_du_device;
 
 struct rcar_du_encoder {
-	struct drm_encoder base;
-	enum rcar_du_output output;
+  struct drm_encoder base;
+  enum rcar_du_output output;
 };
 
 #define to_rcar_encoder(e) \
-	container_of(e, struct rcar_du_encoder, base)
+  container_of(e, struct rcar_du_encoder, base)
 
 int rcar_du_encoder_init(struct rcar_du_device *rcdu,
-			 enum rcar_du_output output,
-			 struct device_node *enc_node);
+    enum rcar_du_output output,
+    struct device_node *enc_node);
 
 #endif /* __RCAR_DU_ENCODER_H__ */

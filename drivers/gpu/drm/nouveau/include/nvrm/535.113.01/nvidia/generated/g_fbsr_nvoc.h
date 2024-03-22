@@ -1,10 +1,12 @@
 #ifndef __src_nvidia_generated_g_fbsr_nvoc_h__
 #define __src_nvidia_generated_g_fbsr_nvoc_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2009-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2009-2021 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,6 +28,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#define FBSR_TYPE_DMA                                 4   // Copy using DMA. Fastest.
+#define FBSR_TYPE_DMA                                 4   // Copy using DMA.
+                                                          // Fastest.
 
 #endif

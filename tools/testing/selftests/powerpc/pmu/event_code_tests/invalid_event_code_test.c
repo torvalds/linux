@@ -30,38 +30,31 @@
  * event code should cause event_open to fail.
  */
 
-static int invalid_event_code(void)
-{
-	struct event event;
-
-	/* Check for platform support for the test */
-	SKIP_IF(platform_check_for_tests());
-
-	/*
-	 * Events using MMCR3 bits and radix scope qual bits
-	 * should fail in power9 and should succeed in power10.
-	 * Init the events and check for pass/fail in event open.
-	 */
-	if (have_hwcap2(PPC_FEATURE2_ARCH_3_1)) {
-		event_init(&event, EventCode_1);
-		FAIL_IF(event_open(&event));
-		event_close(&event);
-
-		event_init(&event, EventCode_2);
-		FAIL_IF(event_open(&event));
-		event_close(&event);
-	} else {
-		event_init(&event, EventCode_1);
-		FAIL_IF(!event_open(&event));
-
-		event_init(&event, EventCode_2);
-		FAIL_IF(!event_open(&event));
-	}
-
-	return 0;
+static int invalid_event_code(void) {
+  struct event event;
+  /* Check for platform support for the test */
+  SKIP_IF(platform_check_for_tests());
+  /*
+   * Events using MMCR3 bits and radix scope qual bits
+   * should fail in power9 and should succeed in power10.
+   * Init the events and check for pass/fail in event open.
+   */
+  if (have_hwcap2(PPC_FEATURE2_ARCH_3_1)) {
+    event_init(&event, EventCode_1);
+    FAIL_IF(event_open(&event));
+    event_close(&event);
+    event_init(&event, EventCode_2);
+    FAIL_IF(event_open(&event));
+    event_close(&event);
+  } else {
+    event_init(&event, EventCode_1);
+    FAIL_IF(!event_open(&event));
+    event_init(&event, EventCode_2);
+    FAIL_IF(!event_open(&event));
+  }
+  return 0;
 }
 
-int main(void)
-{
-	return test_harness(invalid_event_code, "invalid_event_code");
+int main(void) {
+  return test_harness(invalid_event_code, "invalid_event_code");
 }

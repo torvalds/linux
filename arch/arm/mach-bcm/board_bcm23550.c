@@ -4,10 +4,10 @@
 #include <asm/mach/arch.h>
 
 static const char * const bcm23550_dt_compat[] = {
-	"brcm,bcm23550",
-	NULL,
+  "brcm,bcm23550",
+  NULL,
 };
 
 DT_MACHINE_START(BCM23550_DT, "BCM23550 Broadcom Application Processor")
-	.dt_compat = bcm23550_dt_compat,
+.dt_compat = bcm23550_dt_compat,
 MACHINE_END

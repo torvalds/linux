@@ -10,10 +10,10 @@
 #include "orangefs-bufmap.h"
 
 const struct inode_operations orangefs_symlink_inode_operations = {
-	.get_link = simple_get_link,
-	.setattr = orangefs_setattr,
-	.getattr = orangefs_getattr,
-	.listxattr = orangefs_listxattr,
-	.permission = orangefs_permission,
-	.update_time = orangefs_update_time,
+  .get_link = simple_get_link,
+  .setattr = orangefs_setattr,
+  .getattr = orangefs_getattr,
+  .listxattr = orangefs_listxattr,
+  .permission = orangefs_permission,
+  .update_time = orangefs_update_time,
 };

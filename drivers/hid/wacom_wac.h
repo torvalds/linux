@@ -8,66 +8,66 @@
 #include <linux/kfifo.h>
 
 /* maximum packet length for USB/BT devices */
-#define WACOM_PKGLEN_MAX	361
+#define WACOM_PKGLEN_MAX  361
 
-#define WACOM_NAME_MAX		64
-#define WACOM_MAX_REMOTES	5
-#define WACOM_STATUS_UNKNOWN	255
-#define WACOM_REMOTE_BATTERY_TIMEOUT	21000000000ll
+#define WACOM_NAME_MAX    64
+#define WACOM_MAX_REMOTES 5
+#define WACOM_STATUS_UNKNOWN  255
+#define WACOM_REMOTE_BATTERY_TIMEOUT  21000000000ll
 #define WACOM_AES_BATTERY_TIMEOUT       1800000
 
 /* packet length for individual models */
-#define WACOM_PKGLEN_BBFUN	 9
-#define WACOM_PKGLEN_TPC1FG	 5
-#define WACOM_PKGLEN_TPC1FG_B	10
-#define WACOM_PKGLEN_TPC2FG	14
-#define WACOM_PKGLEN_BBTOUCH	20
-#define WACOM_PKGLEN_BBTOUCH3	64
-#define WACOM_PKGLEN_BBPEN	10
-#define WACOM_PKGLEN_WIRELESS	32
-#define WACOM_PKGLEN_PENABLED	 8
-#define WACOM_PKGLEN_BPAD_TOUCH	32
-#define WACOM_PKGLEN_BPAD_TOUCH_USB	64
+#define WACOM_PKGLEN_BBFUN   9
+#define WACOM_PKGLEN_TPC1FG  5
+#define WACOM_PKGLEN_TPC1FG_B 10
+#define WACOM_PKGLEN_TPC2FG 14
+#define WACOM_PKGLEN_BBTOUCH  20
+#define WACOM_PKGLEN_BBTOUCH3 64
+#define WACOM_PKGLEN_BBPEN  10
+#define WACOM_PKGLEN_WIRELESS 32
+#define WACOM_PKGLEN_PENABLED  8
+#define WACOM_PKGLEN_BPAD_TOUCH 32
+#define WACOM_PKGLEN_BPAD_TOUCH_USB 64
 
 /* wacom data size per MT contact */
-#define WACOM_BYTES_PER_MT_PACKET	11
-#define WACOM_BYTES_PER_24HDT_PACKET	14
-#define WACOM_BYTES_PER_QHDTHID_PACKET	 6
+#define WACOM_BYTES_PER_MT_PACKET 11
+#define WACOM_BYTES_PER_24HDT_PACKET  14
+#define WACOM_BYTES_PER_QHDTHID_PACKET   6
 
 /* device IDs */
-#define STYLUS_DEVICE_ID	0x02
-#define TOUCH_DEVICE_ID		0x03
-#define CURSOR_DEVICE_ID	0x06
-#define ERASER_DEVICE_ID	0x0A
-#define PAD_DEVICE_ID		0x0F
+#define STYLUS_DEVICE_ID  0x02
+#define TOUCH_DEVICE_ID   0x03
+#define CURSOR_DEVICE_ID  0x06
+#define ERASER_DEVICE_ID  0x0A
+#define PAD_DEVICE_ID   0x0F
 
 /* wacom data packet report IDs */
-#define WACOM_REPORT_PENABLED		2
-#define WACOM_REPORT_PENABLED_BT	3
-#define WACOM_REPORT_INTUOS_ID1		5
-#define WACOM_REPORT_INTUOS_ID2		6
-#define WACOM_REPORT_INTUOSPAD		12
-#define WACOM_REPORT_INTUOS5PAD		3
-#define WACOM_REPORT_DTUSPAD		21
-#define WACOM_REPORT_TPC1FG		6
-#define WACOM_REPORT_TPC2FG		13
-#define WACOM_REPORT_TPCMT		13
-#define WACOM_REPORT_TPCMT2		3
-#define WACOM_REPORT_TPCHID		15
-#define WACOM_REPORT_CINTIQ		16
-#define WACOM_REPORT_CINTIQPAD		17
-#define WACOM_REPORT_TPCST		16
-#define WACOM_REPORT_DTUS		17
-#define WACOM_REPORT_TPC1FGE		18
-#define WACOM_REPORT_24HDT		1
-#define WACOM_REPORT_WL			128
-#define WACOM_REPORT_USB		192
-#define WACOM_REPORT_BPAD_PEN		3
-#define WACOM_REPORT_BPAD_TOUCH		16
-#define WACOM_REPORT_DEVICE_LIST	16
-#define WACOM_REPORT_INTUOS_PEN		16
-#define WACOM_REPORT_REMOTE		17
-#define WACOM_REPORT_INTUOSHT2_ID	8
+#define WACOM_REPORT_PENABLED   2
+#define WACOM_REPORT_PENABLED_BT  3
+#define WACOM_REPORT_INTUOS_ID1   5
+#define WACOM_REPORT_INTUOS_ID2   6
+#define WACOM_REPORT_INTUOSPAD    12
+#define WACOM_REPORT_INTUOS5PAD   3
+#define WACOM_REPORT_DTUSPAD    21
+#define WACOM_REPORT_TPC1FG   6
+#define WACOM_REPORT_TPC2FG   13
+#define WACOM_REPORT_TPCMT    13
+#define WACOM_REPORT_TPCMT2   3
+#define WACOM_REPORT_TPCHID   15
+#define WACOM_REPORT_CINTIQ   16
+#define WACOM_REPORT_CINTIQPAD    17
+#define WACOM_REPORT_TPCST    16
+#define WACOM_REPORT_DTUS   17
+#define WACOM_REPORT_TPC1FGE    18
+#define WACOM_REPORT_24HDT    1
+#define WACOM_REPORT_WL     128
+#define WACOM_REPORT_USB    192
+#define WACOM_REPORT_BPAD_PEN   3
+#define WACOM_REPORT_BPAD_TOUCH   16
+#define WACOM_REPORT_DEVICE_LIST  16
+#define WACOM_REPORT_INTUOS_PEN   16
+#define WACOM_REPORT_REMOTE   17
+#define WACOM_REPORT_INTUOSHT2_ID 8
 
 /* wacom command report ids */
 #define WAC_CMD_WL_LED_CONTROL          0x03
@@ -81,12 +81,12 @@
 #define WAC_CMD_WL_INTUOSP2             0x82
 
 /* device quirks */
-#define WACOM_QUIRK_BBTOUCH_LOWRES	0x0001
-#define WACOM_QUIRK_SENSE		0x0002
-#define WACOM_QUIRK_AESPEN		0x0004
-#define WACOM_QUIRK_BATTERY		0x0008
-#define WACOM_QUIRK_TOOLSERIAL		0x0010
-#define WACOM_QUIRK_PEN_BUTTON3	0x0020
+#define WACOM_QUIRK_BBTOUCH_LOWRES  0x0001
+#define WACOM_QUIRK_SENSE   0x0002
+#define WACOM_QUIRK_AESPEN    0x0004
+#define WACOM_QUIRK_BATTERY   0x0008
+#define WACOM_QUIRK_TOOLSERIAL    0x0010
+#define WACOM_QUIRK_PEN_BUTTON3 0x0020
 
 /* device types */
 #define WACOM_DEVICETYPE_NONE           0x0000
@@ -160,209 +160,209 @@
 #define WACOM_HID_WT_Y                  (WACOM_HID_UP_WACOMTOUCH | 0x131)
 #define WACOM_HID_WT_REPORT_VALID       (WACOM_HID_UP_WACOMTOUCH | 0x1d0)
 
-#define WACOM_BATTERY_USAGE(f)	(((f)->hid == HID_DG_BATTERYSTRENGTH) || \
-				 ((f)->hid == WACOM_HID_WD_BATTERY_CHARGING) || \
-				 ((f)->hid == WACOM_HID_WD_BATTERY_LEVEL))
+#define WACOM_BATTERY_USAGE(f)  (((f)->hid == HID_DG_BATTERYSTRENGTH)    \
+  || ((f)->hid == WACOM_HID_WD_BATTERY_CHARGING)    \
+  || ((f)->hid == WACOM_HID_WD_BATTERY_LEVEL))
 
-#define WACOM_PAD_FIELD(f)	(((f)->physical == HID_DG_TABLETFUNCTIONKEY) || \
-				 ((f)->physical == WACOM_HID_WD_DIGITIZERFNKEYS) || \
-				 ((f)->physical == WACOM_HID_WD_DIGITIZERINFO))
+#define WACOM_PAD_FIELD(f)  (((f)->physical == HID_DG_TABLETFUNCTIONKEY)    \
+  || ((f)->physical == WACOM_HID_WD_DIGITIZERFNKEYS)    \
+  || ((f)->physical == WACOM_HID_WD_DIGITIZERINFO))
 
-#define WACOM_PEN_FIELD(f)	(((f)->logical == HID_DG_STYLUS) || \
-				 ((f)->physical == HID_DG_STYLUS) || \
-				 ((f)->physical == HID_DG_PEN) || \
-				 ((f)->application == HID_DG_PEN) || \
-				 ((f)->application == HID_DG_DIGITIZER) || \
-				 ((f)->application == WACOM_HID_WD_PEN) || \
-				 ((f)->application == WACOM_HID_WD_DIGITIZER) || \
-				 ((f)->application == WACOM_HID_G9_PEN) || \
-				 ((f)->application == WACOM_HID_G11_PEN))
-#define WACOM_FINGER_FIELD(f)	(((f)->logical == HID_DG_FINGER) || \
-				 ((f)->physical == HID_DG_FINGER) || \
-				 ((f)->application == HID_DG_TOUCHSCREEN) || \
-				 ((f)->application == WACOM_HID_G9_TOUCHSCREEN) || \
-				 ((f)->application == WACOM_HID_G11_TOUCHSCREEN) || \
-				 ((f)->application == WACOM_HID_WT_TOUCHPAD) || \
-				 ((f)->application == HID_DG_TOUCHPAD))
+#define WACOM_PEN_FIELD(f)  (((f)->logical == HID_DG_STYLUS)    \
+  || ((f)->physical == HID_DG_STYLUS)    \
+  || ((f)->physical == HID_DG_PEN)    \
+  || ((f)->application == HID_DG_PEN)    \
+  || ((f)->application == HID_DG_DIGITIZER)    \
+  || ((f)->application == WACOM_HID_WD_PEN)    \
+  || ((f)->application == WACOM_HID_WD_DIGITIZER)    \
+  || ((f)->application == WACOM_HID_G9_PEN)    \
+  || ((f)->application == WACOM_HID_G11_PEN))
+#define WACOM_FINGER_FIELD(f) (((f)->logical == HID_DG_FINGER)    \
+  || ((f)->physical == HID_DG_FINGER)    \
+  || ((f)->application == HID_DG_TOUCHSCREEN)    \
+  || ((f)->application == WACOM_HID_G9_TOUCHSCREEN)    \
+  || ((f)->application == WACOM_HID_G11_TOUCHSCREEN)    \
+  || ((f)->application == WACOM_HID_WT_TOUCHPAD)    \
+  || ((f)->application == HID_DG_TOUCHPAD))
 
-#define WACOM_DIRECT_DEVICE(f)	(((f)->application == HID_DG_TOUCHSCREEN) || \
-				 ((f)->application == WACOM_HID_WT_TOUCHSCREEN) || \
-				 ((f)->application == HID_DG_PEN) || \
-				 ((f)->application == WACOM_HID_WD_PEN))
+#define WACOM_DIRECT_DEVICE(f)  (((f)->application == HID_DG_TOUCHSCREEN)    \
+  || ((f)->application == WACOM_HID_WT_TOUCHSCREEN)    \
+  || ((f)->application == HID_DG_PEN)    \
+  || ((f)->application == WACOM_HID_WD_PEN))
 
 enum {
-	PENPARTNER = 0,
-	GRAPHIRE,
-	GRAPHIRE_BT,
-	WACOM_G4,
-	PTU,
-	PL,
-	DTU,
-	DTUS,
-	DTUSX,
-	INTUOS,
-	INTUOS3S,
-	INTUOS3,
-	INTUOS3L,
-	INTUOS4S,
-	INTUOS4,
-	INTUOS4WL,
-	INTUOS4L,
-	INTUOS5S,
-	INTUOS5,
-	INTUOS5L,
-	INTUOSPS,
-	INTUOSPM,
-	INTUOSPL,
-	INTUOSP2_BT,
-	INTUOSP2S_BT,
-	INTUOSHT3_BT,
-	WACOM_21UX2,
-	WACOM_22HD,
-	DTK,
-	WACOM_24HD,
-	WACOM_27QHD,
-	CINTIQ_HYBRID,
-	CINTIQ_COMPANION_2,
-	CINTIQ,
-	WACOM_BEE,
-	WACOM_13HD,
-	WACOM_MO,
-	BAMBOO_PEN,
-	INTUOSHT,
-	INTUOSHT2,
-	BAMBOO_TOUCH,
-	BAMBOO_PT,
-	WACOM_24HDT,
-	WACOM_27QHDT,
-	BAMBOO_PAD,
-	WIRELESS,
-	REMOTE,
-	TABLETPC,   /* add new TPC below */
-	TABLETPCE,
-	TABLETPC2FG,
-	MTSCREEN,
-	MTTPC,
-	MTTPC_B,
-	HID_GENERIC,
-	BOOTLOADER,
-	MAX_TYPE
+  PENPARTNER = 0,
+  GRAPHIRE,
+  GRAPHIRE_BT,
+  WACOM_G4,
+  PTU,
+  PL,
+  DTU,
+  DTUS,
+  DTUSX,
+  INTUOS,
+  INTUOS3S,
+  INTUOS3,
+  INTUOS3L,
+  INTUOS4S,
+  INTUOS4,
+  INTUOS4WL,
+  INTUOS4L,
+  INTUOS5S,
+  INTUOS5,
+  INTUOS5L,
+  INTUOSPS,
+  INTUOSPM,
+  INTUOSPL,
+  INTUOSP2_BT,
+  INTUOSP2S_BT,
+  INTUOSHT3_BT,
+  WACOM_21UX2,
+  WACOM_22HD,
+  DTK,
+  WACOM_24HD,
+  WACOM_27QHD,
+  CINTIQ_HYBRID,
+  CINTIQ_COMPANION_2,
+  CINTIQ,
+  WACOM_BEE,
+  WACOM_13HD,
+  WACOM_MO,
+  BAMBOO_PEN,
+  INTUOSHT,
+  INTUOSHT2,
+  BAMBOO_TOUCH,
+  BAMBOO_PT,
+  WACOM_24HDT,
+  WACOM_27QHDT,
+  BAMBOO_PAD,
+  WIRELESS,
+  REMOTE,
+  TABLETPC,   /* add new TPC below */
+  TABLETPCE,
+  TABLETPC2FG,
+  MTSCREEN,
+  MTTPC,
+  MTTPC_B,
+  HID_GENERIC,
+  BOOTLOADER,
+  MAX_TYPE
 };
 
 struct wacom_features {
-	const char *name;
-	int x_max;
-	int y_max;
-	int pressure_max;
-	int distance_max;
-	int type;
-	int x_resolution;
-	int y_resolution;
-	int numbered_buttons;
-	int offset_left;
-	int offset_right;
-	int offset_top;
-	int offset_bottom;
-	int device_type;
-	int x_phy;
-	int y_phy;
-	unsigned unit;
-	int unitExpo;
-	int x_fuzz;
-	int y_fuzz;
-	int pressure_fuzz;
-	int distance_fuzz;
-	int tilt_fuzz;
-	unsigned quirks;
-	unsigned touch_max;
-	int oVid;
-	int oPid;
-	int pktlen;
-	bool check_for_hid_type;
-	int hid_type;
+  const char *name;
+  int x_max;
+  int y_max;
+  int pressure_max;
+  int distance_max;
+  int type;
+  int x_resolution;
+  int y_resolution;
+  int numbered_buttons;
+  int offset_left;
+  int offset_right;
+  int offset_top;
+  int offset_bottom;
+  int device_type;
+  int x_phy;
+  int y_phy;
+  unsigned unit;
+  int unitExpo;
+  int x_fuzz;
+  int y_fuzz;
+  int pressure_fuzz;
+  int distance_fuzz;
+  int tilt_fuzz;
+  unsigned quirks;
+  unsigned touch_max;
+  int oVid;
+  int oPid;
+  int pktlen;
+  bool check_for_hid_type;
+  int hid_type;
 };
 
 struct wacom_shared {
-	bool stylus_in_proximity;
-	bool touch_down;
-	/* for wireless device to access USB interfaces */
-	unsigned touch_max;
-	int type;
-	struct input_dev *touch_input;
-	struct hid_device *pen;
-	struct hid_device *touch;
-	bool has_mute_touch_switch;
-	bool is_touch_on;
+  bool stylus_in_proximity;
+  bool touch_down;
+  /* for wireless device to access USB interfaces */
+  unsigned touch_max;
+  int type;
+  struct input_dev *touch_input;
+  struct hid_device *pen;
+  struct hid_device *touch;
+  bool has_mute_touch_switch;
+  bool is_touch_on;
 };
 
 struct hid_data {
-	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
-	__s16 inputmode_index;	/* InputMode HID feature index in the report */
-	bool sense_state;
-	bool inrange_state;
-	bool invert_state;
-	bool tipswitch;
-	bool barrelswitch;
-	bool barrelswitch2;
-	bool barrelswitch3;
-	bool serialhi;
-	bool confidence;
-	int x;
-	int y;
-	int width;
-	int height;
-	int id;
-	int cc_report;
-	int cc_index;
-	int cc_value_index;
-	int last_slot_field;
-	int num_expected;
-	int num_received;
-	int bat_status;
-	int battery_capacity;
-	int bat_charging;
-	int bat_connected;
-	int ps_connected;
-	bool pad_input_event_flag;
-	unsigned short sequence_number;
-	ktime_t time_delayed;
+  __s16 inputmode;  /* InputMode HID feature, -1 if non-existent */
+  __s16 inputmode_index;  /* InputMode HID feature index in the report */
+  bool sense_state;
+  bool inrange_state;
+  bool invert_state;
+  bool tipswitch;
+  bool barrelswitch;
+  bool barrelswitch2;
+  bool barrelswitch3;
+  bool serialhi;
+  bool confidence;
+  int x;
+  int y;
+  int width;
+  int height;
+  int id;
+  int cc_report;
+  int cc_index;
+  int cc_value_index;
+  int last_slot_field;
+  int num_expected;
+  int num_received;
+  int bat_status;
+  int battery_capacity;
+  int bat_charging;
+  int bat_connected;
+  int ps_connected;
+  bool pad_input_event_flag;
+  unsigned short sequence_number;
+  ktime_t time_delayed;
 };
 
 struct wacom_remote_work_data {
-	struct {
-		u32 serial;
-	} remote[WACOM_MAX_REMOTES];
+  struct {
+    u32 serial;
+  } remote[WACOM_MAX_REMOTES];
 };
 
 struct wacom_wac {
-	char name[WACOM_NAME_MAX];
-	char pen_name[WACOM_NAME_MAX];
-	char touch_name[WACOM_NAME_MAX];
-	char pad_name[WACOM_NAME_MAX];
-	unsigned char data[WACOM_PKGLEN_MAX];
-	int tool[2];
-	int id[2];
-	__u64 serial[2];
-	bool probe_complete;
-	bool reporting_data;
-	struct wacom_features features;
-	struct wacom_shared *shared;
-	struct input_dev *pen_input;
-	struct input_dev *touch_input;
-	struct input_dev *pad_input;
-	struct kfifo_rec_ptr_2 *pen_fifo;
-	int pid;
-	int num_contacts_left;
-	u8 bt_features;
-	u8 bt_high_speed;
-	int mode_report;
-	int mode_value;
-	struct hid_data hid_data;
-	bool has_mute_touch_switch;
-	bool is_soft_touch_switch;
-	bool has_mode_change;
-	bool is_direct_mode;
-	bool is_invalid_bt_frame;
+  char name[WACOM_NAME_MAX];
+  char pen_name[WACOM_NAME_MAX];
+  char touch_name[WACOM_NAME_MAX];
+  char pad_name[WACOM_NAME_MAX];
+  unsigned char data[WACOM_PKGLEN_MAX];
+  int tool[2];
+  int id[2];
+  __u64 serial[2];
+  bool probe_complete;
+  bool reporting_data;
+  struct wacom_features features;
+  struct wacom_shared *shared;
+  struct input_dev *pen_input;
+  struct input_dev *touch_input;
+  struct input_dev *pad_input;
+  struct kfifo_rec_ptr_2 *pen_fifo;
+  int pid;
+  int num_contacts_left;
+  u8 bt_features;
+  u8 bt_high_speed;
+  int mode_report;
+  int mode_value;
+  struct hid_data hid_data;
+  bool has_mute_touch_switch;
+  bool is_soft_touch_switch;
+  bool has_mode_change;
+  bool is_direct_mode;
+  bool is_invalid_bt_frame;
 };
 
 #endif

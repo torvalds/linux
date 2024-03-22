@@ -8,12 +8,12 @@
 
 /* CLKRST4 is missing making it hard to index things */
 enum clkrst_index {
-	CLKRST1_INDEX = 0,
-	CLKRST2_INDEX,
-	CLKRST3_INDEX,
-	CLKRST5_INDEX,
-	CLKRST6_INDEX,
-	CLKRST_MAX,
+  CLKRST1_INDEX = 0,
+  CLKRST2_INDEX,
+  CLKRST3_INDEX,
+  CLKRST5_INDEX,
+  CLKRST6_INDEX,
+  CLKRST_MAX,
 };
 
 #endif

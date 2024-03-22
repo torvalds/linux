@@ -19,7 +19,7 @@
  * struct w1_netlink_cmd in one packet.
  */
 enum w1_cn_msg_flags {
-	W1_CN_BUNDLE = 1,
+  W1_CN_BUNDLE = 1,
 };
 
 /**
@@ -35,13 +35,13 @@ enum w1_cn_msg_flags {
  * @W1_LIST_MASTERS: used to determine the bus master identifiers
  */
 enum w1_netlink_message_types {
-	W1_SLAVE_ADD = 0,
-	W1_SLAVE_REMOVE,
-	W1_MASTER_ADD,
-	W1_MASTER_REMOVE,
-	W1_MASTER_CMD,
-	W1_SLAVE_CMD,
-	W1_LIST_MASTERS,
+  W1_SLAVE_ADD = 0,
+  W1_SLAVE_REMOVE,
+  W1_MASTER_ADD,
+  W1_MASTER_REMOVE,
+  W1_MASTER_CMD,
+  W1_SLAVE_CMD,
+  W1_LIST_MASTERS,
 };
 
 /**
@@ -61,19 +61,18 @@ enum w1_netlink_message_types {
  * The netlink connector data sequence is, struct nlmsghdr, struct cn_msg,
  * then one or more struct w1_netlink_msg (each with optional data).
  */
-struct w1_netlink_msg
-{
-	__u8				type;
-	__u8				status;
-	__u16				len;
-	union {
-		__u8			id[8];
-		struct w1_mst {
-			__u32		id;
-			__u32		res;
-		} mst;
-	} id;
-	__u8				data[];
+struct w1_netlink_msg {
+  __u8 type;
+  __u8 status;
+  __u16 len;
+  union {
+    __u8 id[8];
+    struct w1_mst {
+      __u32 id;
+      __u32 res;
+    } mst;
+  } id;
+  __u8 data[];
 };
 
 /**
@@ -94,16 +93,16 @@ struct w1_netlink_msg
  * @W1_CMD_MAX: number of available commands
  */
 enum w1_commands {
-	W1_CMD_READ = 0,
-	W1_CMD_WRITE,
-	W1_CMD_SEARCH,
-	W1_CMD_ALARM_SEARCH,
-	W1_CMD_TOUCH,
-	W1_CMD_RESET,
-	W1_CMD_SLAVE_ADD,
-	W1_CMD_SLAVE_REMOVE,
-	W1_CMD_LIST_SLAVES,
-	W1_CMD_MAX
+  W1_CMD_READ = 0,
+  W1_CMD_WRITE,
+  W1_CMD_SEARCH,
+  W1_CMD_ALARM_SEARCH,
+  W1_CMD_TOUCH,
+  W1_CMD_RESET,
+  W1_CMD_SLAVE_ADD,
+  W1_CMD_SLAVE_REMOVE,
+  W1_CMD_LIST_SLAVES,
+  W1_CMD_MAX
 };
 
 /**
@@ -117,12 +116,11 @@ enum w1_commands {
  * One or more struct w1_netlink_cmd is placed starting at w1_netlink_msg.data
  * each with optional data.
  */
-struct w1_netlink_cmd
-{
-	__u8				cmd;
-	__u8				res;
-	__u16				len;
-	__u8				data[];
+struct w1_netlink_cmd {
+  __u8 cmd;
+  __u8 res;
+  __u16 len;
+  __u8 data[];
 };
 
 #ifdef __KERNEL__

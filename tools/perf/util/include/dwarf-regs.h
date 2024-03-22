@@ -25,10 +25,10 @@ int get_dwarf_regnum(const char *name, unsigned int machine);
 #else /* HAVE_DWARF_SUPPORT */
 
 static inline int get_dwarf_regnum(const char *name __maybe_unused,
-				   unsigned int machine __maybe_unused)
-{
-	return -1;
+    unsigned int machine __maybe_unused) {
+  return -1;
 }
+
 #endif
 
 #ifdef HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET

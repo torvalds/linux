@@ -26,11 +26,9 @@
  *
  * Return: The value loaded from @v.
  */
-static __always_inline int
-atomic_read(const atomic_t *v)
-{
-	instrument_atomic_read(v, sizeof(*v));
-	return raw_atomic_read(v);
+static __always_inline int atomic_read(const atomic_t *v) {
+  instrument_atomic_read(v, sizeof(*v));
+  return raw_atomic_read(v);
 }
 
 /**
@@ -43,11 +41,9 @@ atomic_read(const atomic_t *v)
  *
  * Return: The value loaded from @v.
  */
-static __always_inline int
-atomic_read_acquire(const atomic_t *v)
-{
-	instrument_atomic_read(v, sizeof(*v));
-	return raw_atomic_read_acquire(v);
+static __always_inline int atomic_read_acquire(const atomic_t *v) {
+  instrument_atomic_read(v, sizeof(*v));
+  return raw_atomic_read_acquire(v);
 }
 
 /**
@@ -61,11 +57,9 @@ atomic_read_acquire(const atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_set(atomic_t *v, int i)
-{
-	instrument_atomic_write(v, sizeof(*v));
-	raw_atomic_set(v, i);
+static __always_inline void atomic_set(atomic_t *v, int i) {
+  instrument_atomic_write(v, sizeof(*v));
+  raw_atomic_set(v, i);
 }
 
 /**
@@ -79,12 +73,10 @@ atomic_set(atomic_t *v, int i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_set_release(atomic_t *v, int i)
-{
-	kcsan_release();
-	instrument_atomic_write(v, sizeof(*v));
-	raw_atomic_set_release(v, i);
+static __always_inline void atomic_set_release(atomic_t *v, int i) {
+  kcsan_release();
+  instrument_atomic_write(v, sizeof(*v));
+  raw_atomic_set_release(v, i);
 }
 
 /**
@@ -98,11 +90,9 @@ atomic_set_release(atomic_t *v, int i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_add(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_add(i, v);
+static __always_inline void atomic_add(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_add(i, v);
 }
 
 /**
@@ -116,12 +106,10 @@ atomic_add(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_add_return(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_return(i, v);
+static __always_inline int atomic_add_return(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_return(i, v);
 }
 
 /**
@@ -135,11 +123,9 @@ atomic_add_return(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_add_return_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_return_acquire(i, v);
+static __always_inline int atomic_add_return_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_return_acquire(i, v);
 }
 
 /**
@@ -153,12 +139,10 @@ atomic_add_return_acquire(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_add_return_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_return_release(i, v);
+static __always_inline int atomic_add_return_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_return_release(i, v);
 }
 
 /**
@@ -172,11 +156,9 @@ atomic_add_return_release(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_add_return_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_return_relaxed(i, v);
+static __always_inline int atomic_add_return_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_return_relaxed(i, v);
 }
 
 /**
@@ -190,12 +172,10 @@ atomic_add_return_relaxed(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_add(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_add(i, v);
+static __always_inline int atomic_fetch_add(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_add(i, v);
 }
 
 /**
@@ -209,11 +189,9 @@ atomic_fetch_add(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_add_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_add_acquire(i, v);
+static __always_inline int atomic_fetch_add_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_add_acquire(i, v);
 }
 
 /**
@@ -227,12 +205,10 @@ atomic_fetch_add_acquire(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_add_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_add_release(i, v);
+static __always_inline int atomic_fetch_add_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_add_release(i, v);
 }
 
 /**
@@ -246,11 +222,9 @@ atomic_fetch_add_release(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_add_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_add_relaxed(i, v);
+static __always_inline int atomic_fetch_add_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_add_relaxed(i, v);
 }
 
 /**
@@ -264,11 +238,9 @@ atomic_fetch_add_relaxed(int i, atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_sub(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_sub(i, v);
+static __always_inline void atomic_sub(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_sub(i, v);
 }
 
 /**
@@ -282,12 +254,10 @@ atomic_sub(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_sub_return(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_sub_return(i, v);
+static __always_inline int atomic_sub_return(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_sub_return(i, v);
 }
 
 /**
@@ -301,11 +271,9 @@ atomic_sub_return(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_sub_return_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_sub_return_acquire(i, v);
+static __always_inline int atomic_sub_return_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_sub_return_acquire(i, v);
 }
 
 /**
@@ -319,12 +287,10 @@ atomic_sub_return_acquire(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_sub_return_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_sub_return_release(i, v);
+static __always_inline int atomic_sub_return_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_sub_return_release(i, v);
 }
 
 /**
@@ -338,11 +304,9 @@ atomic_sub_return_release(int i, atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_sub_return_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_sub_return_relaxed(i, v);
+static __always_inline int atomic_sub_return_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_sub_return_relaxed(i, v);
 }
 
 /**
@@ -356,12 +320,10 @@ atomic_sub_return_relaxed(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_sub(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_sub(i, v);
+static __always_inline int atomic_fetch_sub(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_sub(i, v);
 }
 
 /**
@@ -375,11 +337,9 @@ atomic_fetch_sub(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_sub_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_sub_acquire(i, v);
+static __always_inline int atomic_fetch_sub_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_sub_acquire(i, v);
 }
 
 /**
@@ -393,12 +353,10 @@ atomic_fetch_sub_acquire(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_sub_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_sub_release(i, v);
+static __always_inline int atomic_fetch_sub_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_sub_release(i, v);
 }
 
 /**
@@ -412,11 +370,9 @@ atomic_fetch_sub_release(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_sub_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_sub_relaxed(i, v);
+static __always_inline int atomic_fetch_sub_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_sub_relaxed(i, v);
 }
 
 /**
@@ -429,11 +385,9 @@ atomic_fetch_sub_relaxed(int i, atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_inc(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_inc(v);
+static __always_inline void atomic_inc(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_inc(v);
 }
 
 /**
@@ -446,12 +400,10 @@ atomic_inc(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_inc_return(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_return(v);
+static __always_inline int atomic_inc_return(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_return(v);
 }
 
 /**
@@ -464,11 +416,9 @@ atomic_inc_return(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_inc_return_acquire(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_return_acquire(v);
+static __always_inline int atomic_inc_return_acquire(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_return_acquire(v);
 }
 
 /**
@@ -481,12 +431,10 @@ atomic_inc_return_acquire(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_inc_return_release(atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_return_release(v);
+static __always_inline int atomic_inc_return_release(atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_return_release(v);
 }
 
 /**
@@ -499,11 +447,9 @@ atomic_inc_return_release(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_inc_return_relaxed(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_return_relaxed(v);
+static __always_inline int atomic_inc_return_relaxed(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_return_relaxed(v);
 }
 
 /**
@@ -516,12 +462,10 @@ atomic_inc_return_relaxed(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_inc(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_inc(v);
+static __always_inline int atomic_fetch_inc(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_inc(v);
 }
 
 /**
@@ -534,11 +478,9 @@ atomic_fetch_inc(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_inc_acquire(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_inc_acquire(v);
+static __always_inline int atomic_fetch_inc_acquire(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_inc_acquire(v);
 }
 
 /**
@@ -551,12 +493,10 @@ atomic_fetch_inc_acquire(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_inc_release(atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_inc_release(v);
+static __always_inline int atomic_fetch_inc_release(atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_inc_release(v);
 }
 
 /**
@@ -569,11 +509,9 @@ atomic_fetch_inc_release(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_inc_relaxed(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_inc_relaxed(v);
+static __always_inline int atomic_fetch_inc_relaxed(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_inc_relaxed(v);
 }
 
 /**
@@ -586,11 +524,9 @@ atomic_fetch_inc_relaxed(atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_dec(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_dec(v);
+static __always_inline void atomic_dec(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_dec(v);
 }
 
 /**
@@ -603,12 +539,10 @@ atomic_dec(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_dec_return(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_return(v);
+static __always_inline int atomic_dec_return(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_return(v);
 }
 
 /**
@@ -621,11 +555,9 @@ atomic_dec_return(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_dec_return_acquire(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_return_acquire(v);
+static __always_inline int atomic_dec_return_acquire(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_return_acquire(v);
 }
 
 /**
@@ -638,12 +570,10 @@ atomic_dec_return_acquire(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_dec_return_release(atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_return_release(v);
+static __always_inline int atomic_dec_return_release(atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_return_release(v);
 }
 
 /**
@@ -656,11 +586,9 @@ atomic_dec_return_release(atomic_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline int
-atomic_dec_return_relaxed(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_return_relaxed(v);
+static __always_inline int atomic_dec_return_relaxed(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_return_relaxed(v);
 }
 
 /**
@@ -673,12 +601,10 @@ atomic_dec_return_relaxed(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_dec(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_dec(v);
+static __always_inline int atomic_fetch_dec(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_dec(v);
 }
 
 /**
@@ -691,11 +617,9 @@ atomic_fetch_dec(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_dec_acquire(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_dec_acquire(v);
+static __always_inline int atomic_fetch_dec_acquire(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_dec_acquire(v);
 }
 
 /**
@@ -708,12 +632,10 @@ atomic_fetch_dec_acquire(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_dec_release(atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_dec_release(v);
+static __always_inline int atomic_fetch_dec_release(atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_dec_release(v);
 }
 
 /**
@@ -726,11 +648,9 @@ atomic_fetch_dec_release(atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_dec_relaxed(atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_dec_relaxed(v);
+static __always_inline int atomic_fetch_dec_relaxed(atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_dec_relaxed(v);
 }
 
 /**
@@ -744,11 +664,9 @@ atomic_fetch_dec_relaxed(atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_and(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_and(i, v);
+static __always_inline void atomic_and(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_and(i, v);
 }
 
 /**
@@ -762,12 +680,10 @@ atomic_and(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_and(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_and(i, v);
+static __always_inline int atomic_fetch_and(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_and(i, v);
 }
 
 /**
@@ -781,11 +697,9 @@ atomic_fetch_and(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_and_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_and_acquire(i, v);
+static __always_inline int atomic_fetch_and_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_and_acquire(i, v);
 }
 
 /**
@@ -799,12 +713,10 @@ atomic_fetch_and_acquire(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_and_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_and_release(i, v);
+static __always_inline int atomic_fetch_and_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_and_release(i, v);
 }
 
 /**
@@ -818,11 +730,9 @@ atomic_fetch_and_release(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_and_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_and_relaxed(i, v);
+static __always_inline int atomic_fetch_and_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_and_relaxed(i, v);
 }
 
 /**
@@ -836,11 +746,9 @@ atomic_fetch_and_relaxed(int i, atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_andnot(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_andnot(i, v);
+static __always_inline void atomic_andnot(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_andnot(i, v);
 }
 
 /**
@@ -854,12 +762,10 @@ atomic_andnot(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_andnot(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_andnot(i, v);
+static __always_inline int atomic_fetch_andnot(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_andnot(i, v);
 }
 
 /**
@@ -873,11 +779,9 @@ atomic_fetch_andnot(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_andnot_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_andnot_acquire(i, v);
+static __always_inline int atomic_fetch_andnot_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_andnot_acquire(i, v);
 }
 
 /**
@@ -891,12 +795,10 @@ atomic_fetch_andnot_acquire(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_andnot_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_andnot_release(i, v);
+static __always_inline int atomic_fetch_andnot_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_andnot_release(i, v);
 }
 
 /**
@@ -910,11 +812,9 @@ atomic_fetch_andnot_release(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_andnot_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_andnot_relaxed(i, v);
+static __always_inline int atomic_fetch_andnot_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_andnot_relaxed(i, v);
 }
 
 /**
@@ -928,11 +828,9 @@ atomic_fetch_andnot_relaxed(int i, atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_or(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_or(i, v);
+static __always_inline void atomic_or(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_or(i, v);
 }
 
 /**
@@ -946,12 +844,10 @@ atomic_or(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_or(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_or(i, v);
+static __always_inline int atomic_fetch_or(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_or(i, v);
 }
 
 /**
@@ -965,11 +861,9 @@ atomic_fetch_or(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_or_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_or_acquire(i, v);
+static __always_inline int atomic_fetch_or_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_or_acquire(i, v);
 }
 
 /**
@@ -983,12 +877,10 @@ atomic_fetch_or_acquire(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_or_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_or_release(i, v);
+static __always_inline int atomic_fetch_or_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_or_release(i, v);
 }
 
 /**
@@ -1002,11 +894,9 @@ atomic_fetch_or_release(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_or_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_or_relaxed(i, v);
+static __always_inline int atomic_fetch_or_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_or_relaxed(i, v);
 }
 
 /**
@@ -1020,11 +910,9 @@ atomic_fetch_or_relaxed(int i, atomic_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_xor(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_xor(i, v);
+static __always_inline void atomic_xor(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_xor(i, v);
 }
 
 /**
@@ -1038,12 +926,10 @@ atomic_xor(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_xor(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_xor(i, v);
+static __always_inline int atomic_fetch_xor(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_xor(i, v);
 }
 
 /**
@@ -1057,11 +943,9 @@ atomic_fetch_xor(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_xor_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_xor_acquire(i, v);
+static __always_inline int atomic_fetch_xor_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_xor_acquire(i, v);
 }
 
 /**
@@ -1075,12 +959,10 @@ atomic_fetch_xor_acquire(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_xor_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_xor_release(i, v);
+static __always_inline int atomic_fetch_xor_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_xor_release(i, v);
 }
 
 /**
@@ -1094,11 +976,9 @@ atomic_fetch_xor_release(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_xor_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_xor_relaxed(i, v);
+static __always_inline int atomic_fetch_xor_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_xor_relaxed(i, v);
 }
 
 /**
@@ -1112,12 +992,10 @@ atomic_fetch_xor_relaxed(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_xchg(atomic_t *v, int new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg(v, new);
+static __always_inline int atomic_xchg(atomic_t *v, int new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_xchg(v, new);
 }
 
 /**
@@ -1131,11 +1009,9 @@ atomic_xchg(atomic_t *v, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_xchg_acquire(atomic_t *v, int new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg_acquire(v, new);
+static __always_inline int atomic_xchg_acquire(atomic_t *v, int new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_xchg_acquire(v, new);
 }
 
 /**
@@ -1149,12 +1025,10 @@ atomic_xchg_acquire(atomic_t *v, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_xchg_release(atomic_t *v, int new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg_release(v, new);
+static __always_inline int atomic_xchg_release(atomic_t *v, int new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_xchg_release(v, new);
 }
 
 /**
@@ -1168,11 +1042,9 @@ atomic_xchg_release(atomic_t *v, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_xchg_relaxed(atomic_t *v, int new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_xchg_relaxed(v, new);
+static __always_inline int atomic_xchg_relaxed(atomic_t *v, int new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_xchg_relaxed(v, new);
 }
 
 /**
@@ -1188,12 +1060,10 @@ atomic_xchg_relaxed(atomic_t *v, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_cmpxchg(atomic_t *v, int old, int new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_cmpxchg(v, old, new);
+static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_cmpxchg(v, old, new);
 }
 
 /**
@@ -1209,11 +1079,10 @@ atomic_cmpxchg(atomic_t *v, int old, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_cmpxchg_acquire(atomic_t *v, int old, int new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_cmpxchg_acquire(v, old, new);
+static __always_inline int atomic_cmpxchg_acquire(atomic_t *v, int old,
+    int new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_cmpxchg_acquire(v, old, new);
 }
 
 /**
@@ -1229,12 +1098,11 @@ atomic_cmpxchg_acquire(atomic_t *v, int old, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_cmpxchg_release(atomic_t *v, int old, int new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_cmpxchg_release(v, old, new);
+static __always_inline int atomic_cmpxchg_release(atomic_t *v, int old,
+    int new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_cmpxchg_release(v, old, new);
 }
 
 /**
@@ -1250,11 +1118,10 @@ atomic_cmpxchg_release(atomic_t *v, int old, int new)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_cmpxchg_relaxed(atomic_t *v, int old, int new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_cmpxchg_relaxed(v, old, new);
+static __always_inline int atomic_cmpxchg_relaxed(atomic_t *v, int old,
+    int new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_cmpxchg_relaxed(v, old, new);
 }
 
 /**
@@ -1271,17 +1138,16 @@ atomic_cmpxchg_relaxed(atomic_t *v, int old, int new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_try_cmpxchg(atomic_t *v, int *old, int new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_try_cmpxchg(v, old, new);
+static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_try_cmpxchg(v, old, new);
 }
 
 /**
- * atomic_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * atomic_try_cmpxchg_acquire() - atomic compare and exchange with acquire
+ * ordering
  * @v: pointer to atomic_t
  * @old: pointer to int value to compare with
  * @new: int value to assign
@@ -1294,16 +1160,16 @@ atomic_try_cmpxchg(atomic_t *v, int *old, int new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_try_cmpxchg_acquire(atomic_t *v, int *old, int new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_try_cmpxchg_acquire(v, old, new);
+static __always_inline bool atomic_try_cmpxchg_acquire(atomic_t *v, int *old,
+    int new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_try_cmpxchg_acquire(v, old, new);
 }
 
 /**
- * atomic_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * atomic_try_cmpxchg_release() - atomic compare and exchange with release
+ * ordering
  * @v: pointer to atomic_t
  * @old: pointer to int value to compare with
  * @new: int value to assign
@@ -1316,17 +1182,17 @@ atomic_try_cmpxchg_acquire(atomic_t *v, int *old, int new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_try_cmpxchg_release(atomic_t *v, int *old, int new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_try_cmpxchg_release(v, old, new);
+static __always_inline bool atomic_try_cmpxchg_release(atomic_t *v, int *old,
+    int new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_try_cmpxchg_release(v, old, new);
 }
 
 /**
- * atomic_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * atomic_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed
+ * ordering
  * @v: pointer to atomic_t
  * @old: pointer to int value to compare with
  * @new: int value to assign
@@ -1339,12 +1205,11 @@ atomic_try_cmpxchg_release(atomic_t *v, int *old, int new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_try_cmpxchg_relaxed(atomic_t *v, int *old, int new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_try_cmpxchg_relaxed(v, old, new);
+static __always_inline bool atomic_try_cmpxchg_relaxed(atomic_t *v, int *old,
+    int new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_try_cmpxchg_relaxed(v, old, new);
 }
 
 /**
@@ -1358,12 +1223,10 @@ atomic_try_cmpxchg_relaxed(atomic_t *v, int *old, int new)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic_sub_and_test(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_sub_and_test(i, v);
+static __always_inline bool atomic_sub_and_test(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_sub_and_test(i, v);
 }
 
 /**
@@ -1376,12 +1239,10 @@ atomic_sub_and_test(int i, atomic_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic_dec_and_test(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_and_test(v);
+static __always_inline bool atomic_dec_and_test(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_and_test(v);
 }
 
 /**
@@ -1394,12 +1255,10 @@ atomic_dec_and_test(atomic_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic_inc_and_test(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_and_test(v);
+static __always_inline bool atomic_inc_and_test(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_and_test(v);
 }
 
 /**
@@ -1413,16 +1272,15 @@ atomic_inc_and_test(atomic_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_add_negative(int i, atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_negative(i, v);
+static __always_inline bool atomic_add_negative(int i, atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_negative(i, v);
 }
 
 /**
- * atomic_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * atomic_add_negative_acquire() - atomic add and test if negative with acquire
+ * ordering
  * @i: int value to add
  * @v: pointer to atomic_t
  *
@@ -1432,15 +1290,14 @@ atomic_add_negative(int i, atomic_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_add_negative_acquire(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_negative_acquire(i, v);
+static __always_inline bool atomic_add_negative_acquire(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_negative_acquire(i, v);
 }
 
 /**
- * atomic_add_negative_release() - atomic add and test if negative with release ordering
+ * atomic_add_negative_release() - atomic add and test if negative with release
+ * ordering
  * @i: int value to add
  * @v: pointer to atomic_t
  *
@@ -1450,16 +1307,15 @@ atomic_add_negative_acquire(int i, atomic_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_add_negative_release(int i, atomic_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_negative_release(i, v);
+static __always_inline bool atomic_add_negative_release(int i, atomic_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_negative_release(i, v);
 }
 
 /**
- * atomic_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * atomic_add_negative_relaxed() - atomic add and test if negative with relaxed
+ * ordering
  * @i: int value to add
  * @v: pointer to atomic_t
  *
@@ -1469,11 +1325,9 @@ atomic_add_negative_release(int i, atomic_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_add_negative_relaxed(int i, atomic_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_negative_relaxed(i, v);
+static __always_inline bool atomic_add_negative_relaxed(int i, atomic_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_negative_relaxed(i, v);
 }
 
 /**
@@ -1489,12 +1343,10 @@ atomic_add_negative_relaxed(int i, atomic_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline int
-atomic_fetch_add_unless(atomic_t *v, int a, int u)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_fetch_add_unless(v, a, u);
+static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_fetch_add_unless(v, a, u);
 }
 
 /**
@@ -1510,12 +1362,10 @@ atomic_fetch_add_unless(atomic_t *v, int a, int u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_add_unless(atomic_t *v, int a, int u)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_add_unless(v, a, u);
+static __always_inline bool atomic_add_unless(atomic_t *v, int a, int u) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_add_unless(v, a, u);
 }
 
 /**
@@ -1529,16 +1379,15 @@ atomic_add_unless(atomic_t *v, int a, int u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_inc_not_zero(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_not_zero(v);
+static __always_inline bool atomic_inc_not_zero(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_not_zero(v);
 }
 
 /**
- * atomic_inc_unless_negative() - atomic increment unless negative with full ordering
+ * atomic_inc_unless_negative() - atomic increment unless negative with full
+ * ordering
  * @v: pointer to atomic_t
  *
  * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
@@ -1548,16 +1397,15 @@ atomic_inc_not_zero(atomic_t *v)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_inc_unless_negative(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_inc_unless_negative(v);
+static __always_inline bool atomic_inc_unless_negative(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_inc_unless_negative(v);
 }
 
 /**
- * atomic_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * atomic_dec_unless_positive() - atomic decrement unless positive with full
+ * ordering
  * @v: pointer to atomic_t
  *
  * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
@@ -1567,12 +1415,10 @@ atomic_inc_unless_negative(atomic_t *v)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_dec_unless_positive(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_unless_positive(v);
+static __always_inline bool atomic_dec_unless_positive(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_unless_positive(v);
 }
 
 /**
@@ -1586,12 +1432,10 @@ atomic_dec_unless_positive(atomic_t *v)
  *
  * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
-static __always_inline int
-atomic_dec_if_positive(atomic_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_dec_if_positive(v);
+static __always_inline int atomic_dec_if_positive(atomic_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_dec_if_positive(v);
 }
 
 /**
@@ -1604,11 +1448,9 @@ atomic_dec_if_positive(atomic_t *v)
  *
  * Return: The value loaded from @v.
  */
-static __always_inline s64
-atomic64_read(const atomic64_t *v)
-{
-	instrument_atomic_read(v, sizeof(*v));
-	return raw_atomic64_read(v);
+static __always_inline s64 atomic64_read(const atomic64_t *v) {
+  instrument_atomic_read(v, sizeof(*v));
+  return raw_atomic64_read(v);
 }
 
 /**
@@ -1621,11 +1463,9 @@ atomic64_read(const atomic64_t *v)
  *
  * Return: The value loaded from @v.
  */
-static __always_inline s64
-atomic64_read_acquire(const atomic64_t *v)
-{
-	instrument_atomic_read(v, sizeof(*v));
-	return raw_atomic64_read_acquire(v);
+static __always_inline s64 atomic64_read_acquire(const atomic64_t *v) {
+  instrument_atomic_read(v, sizeof(*v));
+  return raw_atomic64_read_acquire(v);
 }
 
 /**
@@ -1639,11 +1479,9 @@ atomic64_read_acquire(const atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_set(atomic64_t *v, s64 i)
-{
-	instrument_atomic_write(v, sizeof(*v));
-	raw_atomic64_set(v, i);
+static __always_inline void atomic64_set(atomic64_t *v, s64 i) {
+  instrument_atomic_write(v, sizeof(*v));
+  raw_atomic64_set(v, i);
 }
 
 /**
@@ -1657,12 +1495,10 @@ atomic64_set(atomic64_t *v, s64 i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_set_release(atomic64_t *v, s64 i)
-{
-	kcsan_release();
-	instrument_atomic_write(v, sizeof(*v));
-	raw_atomic64_set_release(v, i);
+static __always_inline void atomic64_set_release(atomic64_t *v, s64 i) {
+  kcsan_release();
+  instrument_atomic_write(v, sizeof(*v));
+  raw_atomic64_set_release(v, i);
 }
 
 /**
@@ -1676,11 +1512,9 @@ atomic64_set_release(atomic64_t *v, s64 i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_add(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_add(i, v);
+static __always_inline void atomic64_add(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_add(i, v);
 }
 
 /**
@@ -1694,12 +1528,10 @@ atomic64_add(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_add_return(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_return(i, v);
+static __always_inline s64 atomic64_add_return(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_return(i, v);
 }
 
 /**
@@ -1713,11 +1545,9 @@ atomic64_add_return(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_add_return_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_return_acquire(i, v);
+static __always_inline s64 atomic64_add_return_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_return_acquire(i, v);
 }
 
 /**
@@ -1731,12 +1561,10 @@ atomic64_add_return_acquire(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_add_return_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_return_release(i, v);
+static __always_inline s64 atomic64_add_return_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_return_release(i, v);
 }
 
 /**
@@ -1750,11 +1578,9 @@ atomic64_add_return_release(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_add_return_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_return_relaxed(i, v);
+static __always_inline s64 atomic64_add_return_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_return_relaxed(i, v);
 }
 
 /**
@@ -1768,12 +1594,10 @@ atomic64_add_return_relaxed(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_add(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_add(i, v);
+static __always_inline s64 atomic64_fetch_add(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_add(i, v);
 }
 
 /**
@@ -1787,11 +1611,9 @@ atomic64_fetch_add(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_add_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_add_acquire(i, v);
+static __always_inline s64 atomic64_fetch_add_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_add_acquire(i, v);
 }
 
 /**
@@ -1805,12 +1627,10 @@ atomic64_fetch_add_acquire(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_add_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_add_release(i, v);
+static __always_inline s64 atomic64_fetch_add_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_add_release(i, v);
 }
 
 /**
@@ -1824,11 +1644,9 @@ atomic64_fetch_add_release(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_add_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_add_relaxed(i, v);
+static __always_inline s64 atomic64_fetch_add_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_add_relaxed(i, v);
 }
 
 /**
@@ -1842,11 +1660,9 @@ atomic64_fetch_add_relaxed(s64 i, atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_sub(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_sub(i, v);
+static __always_inline void atomic64_sub(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_sub(i, v);
 }
 
 /**
@@ -1860,12 +1676,10 @@ atomic64_sub(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_sub_return(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_sub_return(i, v);
+static __always_inline s64 atomic64_sub_return(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_sub_return(i, v);
 }
 
 /**
@@ -1879,11 +1693,9 @@ atomic64_sub_return(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_sub_return_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_sub_return_acquire(i, v);
+static __always_inline s64 atomic64_sub_return_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_sub_return_acquire(i, v);
 }
 
 /**
@@ -1897,12 +1709,10 @@ atomic64_sub_return_acquire(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_sub_return_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_sub_return_release(i, v);
+static __always_inline s64 atomic64_sub_return_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_sub_return_release(i, v);
 }
 
 /**
@@ -1916,11 +1726,9 @@ atomic64_sub_return_release(s64 i, atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_sub_return_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_sub_return_relaxed(i, v);
+static __always_inline s64 atomic64_sub_return_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_sub_return_relaxed(i, v);
 }
 
 /**
@@ -1934,12 +1742,10 @@ atomic64_sub_return_relaxed(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_sub(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_sub(i, v);
+static __always_inline s64 atomic64_fetch_sub(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_sub(i, v);
 }
 
 /**
@@ -1953,11 +1759,9 @@ atomic64_fetch_sub(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_sub_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_sub_acquire(i, v);
+static __always_inline s64 atomic64_fetch_sub_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_sub_acquire(i, v);
 }
 
 /**
@@ -1971,12 +1775,10 @@ atomic64_fetch_sub_acquire(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_sub_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_sub_release(i, v);
+static __always_inline s64 atomic64_fetch_sub_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_sub_release(i, v);
 }
 
 /**
@@ -1990,11 +1792,9 @@ atomic64_fetch_sub_release(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_sub_relaxed(i, v);
+static __always_inline s64 atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_sub_relaxed(i, v);
 }
 
 /**
@@ -2007,11 +1807,9 @@ atomic64_fetch_sub_relaxed(s64 i, atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_inc(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_inc(v);
+static __always_inline void atomic64_inc(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_inc(v);
 }
 
 /**
@@ -2024,12 +1822,10 @@ atomic64_inc(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_inc_return(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_return(v);
+static __always_inline s64 atomic64_inc_return(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_return(v);
 }
 
 /**
@@ -2042,11 +1838,9 @@ atomic64_inc_return(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_inc_return_acquire(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_return_acquire(v);
+static __always_inline s64 atomic64_inc_return_acquire(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_return_acquire(v);
 }
 
 /**
@@ -2059,12 +1853,10 @@ atomic64_inc_return_acquire(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_inc_return_release(atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_return_release(v);
+static __always_inline s64 atomic64_inc_return_release(atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_return_release(v);
 }
 
 /**
@@ -2077,11 +1869,9 @@ atomic64_inc_return_release(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_inc_return_relaxed(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_return_relaxed(v);
+static __always_inline s64 atomic64_inc_return_relaxed(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_return_relaxed(v);
 }
 
 /**
@@ -2094,12 +1884,10 @@ atomic64_inc_return_relaxed(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_inc(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_inc(v);
+static __always_inline s64 atomic64_fetch_inc(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_inc(v);
 }
 
 /**
@@ -2112,11 +1900,9 @@ atomic64_fetch_inc(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_inc_acquire(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_inc_acquire(v);
+static __always_inline s64 atomic64_fetch_inc_acquire(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_inc_acquire(v);
 }
 
 /**
@@ -2129,12 +1915,10 @@ atomic64_fetch_inc_acquire(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_inc_release(atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_inc_release(v);
+static __always_inline s64 atomic64_fetch_inc_release(atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_inc_release(v);
 }
 
 /**
@@ -2147,11 +1931,9 @@ atomic64_fetch_inc_release(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_inc_relaxed(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_inc_relaxed(v);
+static __always_inline s64 atomic64_fetch_inc_relaxed(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_inc_relaxed(v);
 }
 
 /**
@@ -2164,11 +1946,9 @@ atomic64_fetch_inc_relaxed(atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_dec(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_dec(v);
+static __always_inline void atomic64_dec(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_dec(v);
 }
 
 /**
@@ -2181,12 +1961,10 @@ atomic64_dec(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_dec_return(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_return(v);
+static __always_inline s64 atomic64_dec_return(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_return(v);
 }
 
 /**
@@ -2199,11 +1977,9 @@ atomic64_dec_return(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_dec_return_acquire(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_return_acquire(v);
+static __always_inline s64 atomic64_dec_return_acquire(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_return_acquire(v);
 }
 
 /**
@@ -2216,12 +1992,10 @@ atomic64_dec_return_acquire(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_dec_return_release(atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_return_release(v);
+static __always_inline s64 atomic64_dec_return_release(atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_return_release(v);
 }
 
 /**
@@ -2234,11 +2008,9 @@ atomic64_dec_return_release(atomic64_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline s64
-atomic64_dec_return_relaxed(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_return_relaxed(v);
+static __always_inline s64 atomic64_dec_return_relaxed(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_return_relaxed(v);
 }
 
 /**
@@ -2251,12 +2023,10 @@ atomic64_dec_return_relaxed(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_dec(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_dec(v);
+static __always_inline s64 atomic64_fetch_dec(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_dec(v);
 }
 
 /**
@@ -2269,11 +2039,9 @@ atomic64_fetch_dec(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_dec_acquire(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_dec_acquire(v);
+static __always_inline s64 atomic64_fetch_dec_acquire(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_dec_acquire(v);
 }
 
 /**
@@ -2286,12 +2054,10 @@ atomic64_fetch_dec_acquire(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_dec_release(atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_dec_release(v);
+static __always_inline s64 atomic64_fetch_dec_release(atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_dec_release(v);
 }
 
 /**
@@ -2304,11 +2070,9 @@ atomic64_fetch_dec_release(atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_dec_relaxed(atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_dec_relaxed(v);
+static __always_inline s64 atomic64_fetch_dec_relaxed(atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_dec_relaxed(v);
 }
 
 /**
@@ -2322,11 +2086,9 @@ atomic64_fetch_dec_relaxed(atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_and(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_and(i, v);
+static __always_inline void atomic64_and(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_and(i, v);
 }
 
 /**
@@ -2340,12 +2102,10 @@ atomic64_and(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_and(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_and(i, v);
+static __always_inline s64 atomic64_fetch_and(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_and(i, v);
 }
 
 /**
@@ -2359,11 +2119,9 @@ atomic64_fetch_and(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_and_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_and_acquire(i, v);
+static __always_inline s64 atomic64_fetch_and_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_and_acquire(i, v);
 }
 
 /**
@@ -2377,12 +2135,10 @@ atomic64_fetch_and_acquire(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_and_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_and_release(i, v);
+static __always_inline s64 atomic64_fetch_and_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_and_release(i, v);
 }
 
 /**
@@ -2396,11 +2152,9 @@ atomic64_fetch_and_release(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_and_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_and_relaxed(i, v);
+static __always_inline s64 atomic64_fetch_and_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_and_relaxed(i, v);
 }
 
 /**
@@ -2414,11 +2168,9 @@ atomic64_fetch_and_relaxed(s64 i, atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_andnot(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_andnot(i, v);
+static __always_inline void atomic64_andnot(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_andnot(i, v);
 }
 
 /**
@@ -2432,16 +2184,15 @@ atomic64_andnot(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_andnot(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_andnot(i, v);
+static __always_inline s64 atomic64_fetch_andnot(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_andnot(i, v);
 }
 
 /**
- * atomic64_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire ordering
+ * atomic64_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire
+ * ordering
  * @i: s64 value
  * @v: pointer to atomic64_t
  *
@@ -2451,15 +2202,14 @@ atomic64_fetch_andnot(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_andnot_acquire(i, v);
+static __always_inline s64 atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_andnot_acquire(i, v);
 }
 
 /**
- * atomic64_fetch_andnot_release() - atomic bitwise AND NOT with release ordering
+ * atomic64_fetch_andnot_release() - atomic bitwise AND NOT with release
+ * ordering
  * @i: s64 value
  * @v: pointer to atomic64_t
  *
@@ -2469,16 +2219,15 @@ atomic64_fetch_andnot_acquire(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_andnot_release(i, v);
+static __always_inline s64 atomic64_fetch_andnot_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_andnot_release(i, v);
 }
 
 /**
- * atomic64_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed ordering
+ * atomic64_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed
+ * ordering
  * @i: s64 value
  * @v: pointer to atomic64_t
  *
@@ -2488,11 +2237,9 @@ atomic64_fetch_andnot_release(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_andnot_relaxed(i, v);
+static __always_inline s64 atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_andnot_relaxed(i, v);
 }
 
 /**
@@ -2506,11 +2253,9 @@ atomic64_fetch_andnot_relaxed(s64 i, atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_or(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_or(i, v);
+static __always_inline void atomic64_or(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_or(i, v);
 }
 
 /**
@@ -2524,12 +2269,10 @@ atomic64_or(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_or(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_or(i, v);
+static __always_inline s64 atomic64_fetch_or(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_or(i, v);
 }
 
 /**
@@ -2543,11 +2286,9 @@ atomic64_fetch_or(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_or_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_or_acquire(i, v);
+static __always_inline s64 atomic64_fetch_or_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_or_acquire(i, v);
 }
 
 /**
@@ -2561,12 +2302,10 @@ atomic64_fetch_or_acquire(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_or_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_or_release(i, v);
+static __always_inline s64 atomic64_fetch_or_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_or_release(i, v);
 }
 
 /**
@@ -2580,11 +2319,9 @@ atomic64_fetch_or_release(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_or_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_or_relaxed(i, v);
+static __always_inline s64 atomic64_fetch_or_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_or_relaxed(i, v);
 }
 
 /**
@@ -2598,11 +2335,9 @@ atomic64_fetch_or_relaxed(s64 i, atomic64_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic64_xor(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic64_xor(i, v);
+static __always_inline void atomic64_xor(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic64_xor(i, v);
 }
 
 /**
@@ -2616,12 +2351,10 @@ atomic64_xor(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_xor(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_xor(i, v);
+static __always_inline s64 atomic64_fetch_xor(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_xor(i, v);
 }
 
 /**
@@ -2635,11 +2368,9 @@ atomic64_fetch_xor(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_xor_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_xor_acquire(i, v);
+static __always_inline s64 atomic64_fetch_xor_acquire(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_xor_acquire(i, v);
 }
 
 /**
@@ -2653,12 +2384,10 @@ atomic64_fetch_xor_acquire(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_xor_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_xor_release(i, v);
+static __always_inline s64 atomic64_fetch_xor_release(s64 i, atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_xor_release(i, v);
 }
 
 /**
@@ -2672,11 +2401,9 @@ atomic64_fetch_xor_release(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_xor_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_xor_relaxed(i, v);
+static __always_inline s64 atomic64_fetch_xor_relaxed(s64 i, atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_xor_relaxed(i, v);
 }
 
 /**
@@ -2690,12 +2417,10 @@ atomic64_fetch_xor_relaxed(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_xchg(atomic64_t *v, s64 new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg(v, new);
+static __always_inline s64 atomic64_xchg(atomic64_t *v, s64 new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_xchg(v, new);
 }
 
 /**
@@ -2709,11 +2434,9 @@ atomic64_xchg(atomic64_t *v, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_xchg_acquire(atomic64_t *v, s64 new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg_acquire(v, new);
+static __always_inline s64 atomic64_xchg_acquire(atomic64_t *v, s64 new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_xchg_acquire(v, new);
 }
 
 /**
@@ -2727,12 +2450,10 @@ atomic64_xchg_acquire(atomic64_t *v, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_xchg_release(atomic64_t *v, s64 new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg_release(v, new);
+static __always_inline s64 atomic64_xchg_release(atomic64_t *v, s64 new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_xchg_release(v, new);
 }
 
 /**
@@ -2746,11 +2467,9 @@ atomic64_xchg_release(atomic64_t *v, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_xchg_relaxed(atomic64_t *v, s64 new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_xchg_relaxed(v, new);
+static __always_inline s64 atomic64_xchg_relaxed(atomic64_t *v, s64 new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_xchg_relaxed(v, new);
 }
 
 /**
@@ -2766,16 +2485,15 @@ atomic64_xchg_relaxed(atomic64_t *v, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_cmpxchg(v, old, new);
+static __always_inline s64 atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_cmpxchg(v, old, new);
 }
 
 /**
- * atomic64_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * atomic64_cmpxchg_acquire() - atomic compare and exchange with acquire
+ * ordering
  * @v: pointer to atomic64_t
  * @old: s64 value to compare with
  * @new: s64 value to assign
@@ -2787,15 +2505,15 @@ atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_cmpxchg_acquire(atomic64_t *v, s64 old, s64 new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_cmpxchg_acquire(v, old, new);
+static __always_inline s64 atomic64_cmpxchg_acquire(atomic64_t *v, s64 old,
+    s64 new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_cmpxchg_acquire(v, old, new);
 }
 
 /**
- * atomic64_cmpxchg_release() - atomic compare and exchange with release ordering
+ * atomic64_cmpxchg_release() - atomic compare and exchange with release
+ * ordering
  * @v: pointer to atomic64_t
  * @old: s64 value to compare with
  * @new: s64 value to assign
@@ -2807,16 +2525,16 @@ atomic64_cmpxchg_acquire(atomic64_t *v, s64 old, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_cmpxchg_release(atomic64_t *v, s64 old, s64 new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_cmpxchg_release(v, old, new);
+static __always_inline s64 atomic64_cmpxchg_release(atomic64_t *v, s64 old,
+    s64 new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_cmpxchg_release(v, old, new);
 }
 
 /**
- * atomic64_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * atomic64_cmpxchg_relaxed() - atomic compare and exchange with relaxed
+ * ordering
  * @v: pointer to atomic64_t
  * @old: s64 value to compare with
  * @new: s64 value to assign
@@ -2828,11 +2546,10 @@ atomic64_cmpxchg_release(atomic64_t *v, s64 old, s64 new)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old, s64 new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_cmpxchg_relaxed(v, old, new);
+static __always_inline s64 atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old,
+    s64 new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_cmpxchg_relaxed(v, old, new);
 }
 
 /**
@@ -2849,17 +2566,17 @@ atomic64_cmpxchg_relaxed(atomic64_t *v, s64 old, s64 new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic64_try_cmpxchg(v, old, new);
+static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old,
+    s64 new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic64_try_cmpxchg(v, old, new);
 }
 
 /**
- * atomic64_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * atomic64_try_cmpxchg_acquire() - atomic compare and exchange with acquire
+ * ordering
  * @v: pointer to atomic64_t
  * @old: pointer to s64 value to compare with
  * @new: s64 value to assign
@@ -2872,16 +2589,16 @@ atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic64_try_cmpxchg_acquire(atomic64_t *v, s64 *old, s64 new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic64_try_cmpxchg_acquire(v, old, new);
+static __always_inline bool atomic64_try_cmpxchg_acquire(atomic64_t *v,
+    s64 *old, s64 new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic64_try_cmpxchg_acquire(v, old, new);
 }
 
 /**
- * atomic64_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * atomic64_try_cmpxchg_release() - atomic compare and exchange with release
+ * ordering
  * @v: pointer to atomic64_t
  * @old: pointer to s64 value to compare with
  * @new: s64 value to assign
@@ -2894,17 +2611,17 @@ atomic64_try_cmpxchg_acquire(atomic64_t *v, s64 *old, s64 new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic64_try_cmpxchg_release(atomic64_t *v, s64 *old, s64 new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic64_try_cmpxchg_release(v, old, new);
+static __always_inline bool atomic64_try_cmpxchg_release(atomic64_t *v,
+    s64 *old, s64 new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic64_try_cmpxchg_release(v, old, new);
 }
 
 /**
- * atomic64_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * atomic64_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed
+ * ordering
  * @v: pointer to atomic64_t
  * @old: pointer to s64 value to compare with
  * @new: s64 value to assign
@@ -2917,12 +2634,11 @@ atomic64_try_cmpxchg_release(atomic64_t *v, s64 *old, s64 new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic64_try_cmpxchg_relaxed(atomic64_t *v, s64 *old, s64 new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic64_try_cmpxchg_relaxed(v, old, new);
+static __always_inline bool atomic64_try_cmpxchg_relaxed(atomic64_t *v,
+    s64 *old, s64 new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic64_try_cmpxchg_relaxed(v, old, new);
 }
 
 /**
@@ -2936,16 +2652,15 @@ atomic64_try_cmpxchg_relaxed(atomic64_t *v, s64 *old, s64 new)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic64_sub_and_test(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_sub_and_test(i, v);
+static __always_inline bool atomic64_sub_and_test(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_sub_and_test(i, v);
 }
 
 /**
- * atomic64_dec_and_test() - atomic decrement and test if zero with full ordering
+ * atomic64_dec_and_test() - atomic decrement and test if zero with full
+ * ordering
  * @v: pointer to atomic64_t
  *
  * Atomically updates @v to (@v - 1) with full ordering.
@@ -2954,16 +2669,15 @@ atomic64_sub_and_test(s64 i, atomic64_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic64_dec_and_test(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_and_test(v);
+static __always_inline bool atomic64_dec_and_test(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_and_test(v);
 }
 
 /**
- * atomic64_inc_and_test() - atomic increment and test if zero with full ordering
+ * atomic64_inc_and_test() - atomic increment and test if zero with full
+ * ordering
  * @v: pointer to atomic64_t
  *
  * Atomically updates @v to (@v + 1) with full ordering.
@@ -2972,12 +2686,10 @@ atomic64_dec_and_test(atomic64_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic64_inc_and_test(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_and_test(v);
+static __always_inline bool atomic64_inc_and_test(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_and_test(v);
 }
 
 /**
@@ -2991,16 +2703,15 @@ atomic64_inc_and_test(atomic64_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic64_add_negative(s64 i, atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_negative(i, v);
+static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_negative(i, v);
 }
 
 /**
- * atomic64_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * atomic64_add_negative_acquire() - atomic add and test if negative with
+ * acquire ordering
  * @i: s64 value to add
  * @v: pointer to atomic64_t
  *
@@ -3010,15 +2721,15 @@ atomic64_add_negative(s64 i, atomic64_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic64_add_negative_acquire(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_negative_acquire(i, v);
+static __always_inline bool atomic64_add_negative_acquire(s64 i,
+    atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_negative_acquire(i, v);
 }
 
 /**
- * atomic64_add_negative_release() - atomic add and test if negative with release ordering
+ * atomic64_add_negative_release() - atomic add and test if negative with
+ * release ordering
  * @i: s64 value to add
  * @v: pointer to atomic64_t
  *
@@ -3028,16 +2739,16 @@ atomic64_add_negative_acquire(s64 i, atomic64_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic64_add_negative_release(s64 i, atomic64_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_negative_release(i, v);
+static __always_inline bool atomic64_add_negative_release(s64 i,
+    atomic64_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_negative_release(i, v);
 }
 
 /**
- * atomic64_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * atomic64_add_negative_relaxed() - atomic add and test if negative with
+ * relaxed ordering
  * @i: s64 value to add
  * @v: pointer to atomic64_t
  *
@@ -3047,11 +2758,10 @@ atomic64_add_negative_release(s64 i, atomic64_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic64_add_negative_relaxed(s64 i, atomic64_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_negative_relaxed(i, v);
+static __always_inline bool atomic64_add_negative_relaxed(s64 i,
+    atomic64_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_negative_relaxed(i, v);
 }
 
 /**
@@ -3067,12 +2777,11 @@ atomic64_add_negative_relaxed(s64 i, atomic64_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline s64
-atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_fetch_add_unless(v, a, u);
+static __always_inline s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a,
+    s64 u) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_fetch_add_unless(v, a, u);
 }
 
 /**
@@ -3088,12 +2797,10 @@ atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_add_unless(v, a, u);
+static __always_inline bool atomic64_add_unless(atomic64_t *v, s64 a, s64 u) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_add_unless(v, a, u);
 }
 
 /**
@@ -3107,16 +2814,15 @@ atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic64_inc_not_zero(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_not_zero(v);
+static __always_inline bool atomic64_inc_not_zero(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_not_zero(v);
 }
 
 /**
- * atomic64_inc_unless_negative() - atomic increment unless negative with full ordering
+ * atomic64_inc_unless_negative() - atomic increment unless negative with full
+ * ordering
  * @v: pointer to atomic64_t
  *
  * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
@@ -3126,16 +2832,15 @@ atomic64_inc_not_zero(atomic64_t *v)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic64_inc_unless_negative(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_inc_unless_negative(v);
+static __always_inline bool atomic64_inc_unless_negative(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_inc_unless_negative(v);
 }
 
 /**
- * atomic64_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * atomic64_dec_unless_positive() - atomic decrement unless positive with full
+ * ordering
  * @v: pointer to atomic64_t
  *
  * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
@@ -3145,12 +2850,10 @@ atomic64_inc_unless_negative(atomic64_t *v)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic64_dec_unless_positive(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_unless_positive(v);
+static __always_inline bool atomic64_dec_unless_positive(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_unless_positive(v);
 }
 
 /**
@@ -3164,12 +2867,10 @@ atomic64_dec_unless_positive(atomic64_t *v)
  *
  * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
-static __always_inline s64
-atomic64_dec_if_positive(atomic64_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic64_dec_if_positive(v);
+static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic64_dec_if_positive(v);
 }
 
 /**
@@ -3182,11 +2883,9 @@ atomic64_dec_if_positive(atomic64_t *v)
  *
  * Return: The value loaded from @v.
  */
-static __always_inline long
-atomic_long_read(const atomic_long_t *v)
-{
-	instrument_atomic_read(v, sizeof(*v));
-	return raw_atomic_long_read(v);
+static __always_inline long atomic_long_read(const atomic_long_t *v) {
+  instrument_atomic_read(v, sizeof(*v));
+  return raw_atomic_long_read(v);
 }
 
 /**
@@ -3199,11 +2898,9 @@ atomic_long_read(const atomic_long_t *v)
  *
  * Return: The value loaded from @v.
  */
-static __always_inline long
-atomic_long_read_acquire(const atomic_long_t *v)
-{
-	instrument_atomic_read(v, sizeof(*v));
-	return raw_atomic_long_read_acquire(v);
+static __always_inline long atomic_long_read_acquire(const atomic_long_t *v) {
+  instrument_atomic_read(v, sizeof(*v));
+  return raw_atomic_long_read_acquire(v);
 }
 
 /**
@@ -3217,11 +2914,9 @@ atomic_long_read_acquire(const atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_set(atomic_long_t *v, long i)
-{
-	instrument_atomic_write(v, sizeof(*v));
-	raw_atomic_long_set(v, i);
+static __always_inline void atomic_long_set(atomic_long_t *v, long i) {
+  instrument_atomic_write(v, sizeof(*v));
+  raw_atomic_long_set(v, i);
 }
 
 /**
@@ -3235,12 +2930,10 @@ atomic_long_set(atomic_long_t *v, long i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_set_release(atomic_long_t *v, long i)
-{
-	kcsan_release();
-	instrument_atomic_write(v, sizeof(*v));
-	raw_atomic_long_set_release(v, i);
+static __always_inline void atomic_long_set_release(atomic_long_t *v, long i) {
+  kcsan_release();
+  instrument_atomic_write(v, sizeof(*v));
+  raw_atomic_long_set_release(v, i);
 }
 
 /**
@@ -3254,11 +2947,9 @@ atomic_long_set_release(atomic_long_t *v, long i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_add(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_add(i, v);
+static __always_inline void atomic_long_add(long i, atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_add(i, v);
 }
 
 /**
@@ -3272,12 +2963,10 @@ atomic_long_add(long i, atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_add_return(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_return(i, v);
+static __always_inline long atomic_long_add_return(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_return(i, v);
 }
 
 /**
@@ -3287,15 +2976,15 @@ atomic_long_add_return(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with acquire ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_add_return_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_add_return_acquire()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_add_return_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_return_acquire(i, v);
+static __always_inline long atomic_long_add_return_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_return_acquire(i, v);
 }
 
 /**
@@ -3305,16 +2994,16 @@ atomic_long_add_return_acquire(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with release ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_add_return_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_add_return_release()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_add_return_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_return_release(i, v);
+static __always_inline long atomic_long_add_return_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_return_release(i, v);
 }
 
 /**
@@ -3324,15 +3013,15 @@ atomic_long_add_return_release(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with relaxed ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_add_return_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_add_return_relaxed()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_add_return_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_return_relaxed(i, v);
+static __always_inline long atomic_long_add_return_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_return_relaxed(i, v);
 }
 
 /**
@@ -3346,12 +3035,10 @@ atomic_long_add_return_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_add(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_add(i, v);
+static __always_inline long atomic_long_fetch_add(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_add(i, v);
 }
 
 /**
@@ -3365,11 +3052,10 @@ atomic_long_fetch_add(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_add_acquire(i, v);
+static __always_inline long atomic_long_fetch_add_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_add_acquire(i, v);
 }
 
 /**
@@ -3383,12 +3069,11 @@ atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_add_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_add_release(i, v);
+static __always_inline long atomic_long_fetch_add_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_add_release(i, v);
 }
 
 /**
@@ -3402,11 +3087,10 @@ atomic_long_fetch_add_release(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_add_relaxed(i, v);
+static __always_inline long atomic_long_fetch_add_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_add_relaxed(i, v);
 }
 
 /**
@@ -3420,11 +3104,9 @@ atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_sub(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_sub(i, v);
+static __always_inline void atomic_long_sub(long i, atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_sub(i, v);
 }
 
 /**
@@ -3438,12 +3120,10 @@ atomic_long_sub(long i, atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_sub_return(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_sub_return(i, v);
+static __always_inline long atomic_long_sub_return(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_sub_return(i, v);
 }
 
 /**
@@ -3453,15 +3133,15 @@ atomic_long_sub_return(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with acquire ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_sub_return_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_sub_return_acquire()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_sub_return_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_sub_return_acquire(i, v);
+static __always_inline long atomic_long_sub_return_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_sub_return_acquire(i, v);
 }
 
 /**
@@ -3471,16 +3151,16 @@ atomic_long_sub_return_acquire(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with release ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_sub_return_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_sub_return_release()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_sub_return_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_sub_return_release(i, v);
+static __always_inline long atomic_long_sub_return_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_sub_return_release(i, v);
 }
 
 /**
@@ -3490,15 +3170,15 @@ atomic_long_sub_return_release(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with relaxed ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_sub_return_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_sub_return_relaxed()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_sub_return_relaxed(i, v);
+static __always_inline long atomic_long_sub_return_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_sub_return_relaxed(i, v);
 }
 
 /**
@@ -3512,12 +3192,10 @@ atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_sub(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_sub(i, v);
+static __always_inline long atomic_long_fetch_sub(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_sub(i, v);
 }
 
 /**
@@ -3531,11 +3209,10 @@ atomic_long_fetch_sub(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_sub_acquire(i, v);
+static __always_inline long atomic_long_fetch_sub_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_sub_acquire(i, v);
 }
 
 /**
@@ -3549,12 +3226,11 @@ atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_sub_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_sub_release(i, v);
+static __always_inline long atomic_long_fetch_sub_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_sub_release(i, v);
 }
 
 /**
@@ -3568,11 +3244,10 @@ atomic_long_fetch_sub_release(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_sub_relaxed(i, v);
+static __always_inline long atomic_long_fetch_sub_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_sub_relaxed(i, v);
 }
 
 /**
@@ -3585,11 +3260,9 @@ atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_inc(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_inc(v);
+static __always_inline void atomic_long_inc(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_inc(v);
 }
 
 /**
@@ -3602,12 +3275,10 @@ atomic_long_inc(atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_inc_return(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_return(v);
+static __always_inline long atomic_long_inc_return(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_return(v);
 }
 
 /**
@@ -3616,15 +3287,14 @@ atomic_long_inc_return(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with acquire ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_inc_return_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_inc_return_acquire()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_inc_return_acquire(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_return_acquire(v);
+static __always_inline long atomic_long_inc_return_acquire(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_return_acquire(v);
 }
 
 /**
@@ -3633,16 +3303,15 @@ atomic_long_inc_return_acquire(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with release ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_inc_return_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_inc_return_release()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_inc_return_release(atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_return_release(v);
+static __always_inline long atomic_long_inc_return_release(atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_return_release(v);
 }
 
 /**
@@ -3651,15 +3320,14 @@ atomic_long_inc_return_release(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with relaxed ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_inc_return_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_inc_return_relaxed()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_inc_return_relaxed(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_return_relaxed(v);
+static __always_inline long atomic_long_inc_return_relaxed(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_return_relaxed(v);
 }
 
 /**
@@ -3672,12 +3340,10 @@ atomic_long_inc_return_relaxed(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_inc(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_inc(v);
+static __always_inline long atomic_long_fetch_inc(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_inc(v);
 }
 
 /**
@@ -3690,11 +3356,9 @@ atomic_long_fetch_inc(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_inc_acquire(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_inc_acquire(v);
+static __always_inline long atomic_long_fetch_inc_acquire(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_inc_acquire(v);
 }
 
 /**
@@ -3707,12 +3371,10 @@ atomic_long_fetch_inc_acquire(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_inc_release(atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_inc_release(v);
+static __always_inline long atomic_long_fetch_inc_release(atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_inc_release(v);
 }
 
 /**
@@ -3725,11 +3387,9 @@ atomic_long_fetch_inc_release(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_inc_relaxed(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_inc_relaxed(v);
+static __always_inline long atomic_long_fetch_inc_relaxed(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_inc_relaxed(v);
 }
 
 /**
@@ -3742,11 +3402,9 @@ atomic_long_fetch_inc_relaxed(atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_dec(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_dec(v);
+static __always_inline void atomic_long_dec(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_dec(v);
 }
 
 /**
@@ -3759,12 +3417,10 @@ atomic_long_dec(atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_dec_return(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_return(v);
+static __always_inline long atomic_long_dec_return(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_return(v);
 }
 
 /**
@@ -3773,15 +3429,14 @@ atomic_long_dec_return(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with acquire ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_dec_return_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_dec_return_acquire()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_dec_return_acquire(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_return_acquire(v);
+static __always_inline long atomic_long_dec_return_acquire(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_return_acquire(v);
 }
 
 /**
@@ -3790,16 +3445,15 @@ atomic_long_dec_return_acquire(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with release ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_dec_return_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_dec_return_release()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_dec_return_release(atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_return_release(v);
+static __always_inline long atomic_long_dec_return_release(atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_return_release(v);
 }
 
 /**
@@ -3808,15 +3462,14 @@ atomic_long_dec_return_release(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with relaxed ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_dec_return_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_dec_return_relaxed()
+ * there.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-atomic_long_dec_return_relaxed(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_return_relaxed(v);
+static __always_inline long atomic_long_dec_return_relaxed(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_return_relaxed(v);
 }
 
 /**
@@ -3829,12 +3482,10 @@ atomic_long_dec_return_relaxed(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_dec(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_dec(v);
+static __always_inline long atomic_long_fetch_dec(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_dec(v);
 }
 
 /**
@@ -3847,11 +3498,9 @@ atomic_long_fetch_dec(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_dec_acquire(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_dec_acquire(v);
+static __always_inline long atomic_long_fetch_dec_acquire(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_dec_acquire(v);
 }
 
 /**
@@ -3864,12 +3513,10 @@ atomic_long_fetch_dec_acquire(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_dec_release(atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_dec_release(v);
+static __always_inline long atomic_long_fetch_dec_release(atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_dec_release(v);
 }
 
 /**
@@ -3882,11 +3529,9 @@ atomic_long_fetch_dec_release(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_dec_relaxed(atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_dec_relaxed(v);
+static __always_inline long atomic_long_fetch_dec_relaxed(atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_dec_relaxed(v);
 }
 
 /**
@@ -3900,11 +3545,9 @@ atomic_long_fetch_dec_relaxed(atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_and(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_and(i, v);
+static __always_inline void atomic_long_and(long i, atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_and(i, v);
 }
 
 /**
@@ -3918,12 +3561,10 @@ atomic_long_and(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_and(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_and(i, v);
+static __always_inline long atomic_long_fetch_and(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_and(i, v);
 }
 
 /**
@@ -3937,11 +3578,10 @@ atomic_long_fetch_and(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_and_acquire(i, v);
+static __always_inline long atomic_long_fetch_and_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_and_acquire(i, v);
 }
 
 /**
@@ -3955,12 +3595,11 @@ atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_and_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_and_release(i, v);
+static __always_inline long atomic_long_fetch_and_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_and_release(i, v);
 }
 
 /**
@@ -3974,11 +3613,10 @@ atomic_long_fetch_and_release(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_and_relaxed(i, v);
+static __always_inline long atomic_long_fetch_and_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_and_relaxed(i, v);
 }
 
 /**
@@ -3992,11 +3630,9 @@ atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_andnot(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_andnot(i, v);
+static __always_inline void atomic_long_andnot(long i, atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_andnot(i, v);
 }
 
 /**
@@ -4010,67 +3646,68 @@ atomic_long_andnot(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_andnot(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_andnot(i, v);
+static __always_inline long atomic_long_fetch_andnot(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_andnot(i, v);
 }
 
 /**
- * atomic_long_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire ordering
+ * atomic_long_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & ~@i) with acquire ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_fetch_andnot_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_fetch_andnot_acquire()
+ * there.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_andnot_acquire(i, v);
+static __always_inline long atomic_long_fetch_andnot_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_andnot_acquire(i, v);
 }
 
 /**
- * atomic_long_fetch_andnot_release() - atomic bitwise AND NOT with release ordering
+ * atomic_long_fetch_andnot_release() - atomic bitwise AND NOT with release
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & ~@i) with release ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_fetch_andnot_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_fetch_andnot_release()
+ * there.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_andnot_release(i, v);
+static __always_inline long atomic_long_fetch_andnot_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_andnot_release(i, v);
 }
 
 /**
- * atomic_long_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed ordering
+ * atomic_long_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & ~@i) with relaxed ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_fetch_andnot_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_fetch_andnot_relaxed()
+ * there.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_andnot_relaxed(i, v);
+static __always_inline long atomic_long_fetch_andnot_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_andnot_relaxed(i, v);
 }
 
 /**
@@ -4084,11 +3721,9 @@ atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_or(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_or(i, v);
+static __always_inline void atomic_long_or(long i, atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_or(i, v);
 }
 
 /**
@@ -4102,12 +3737,10 @@ atomic_long_or(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_or(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_or(i, v);
+static __always_inline long atomic_long_fetch_or(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_or(i, v);
 }
 
 /**
@@ -4121,11 +3754,10 @@ atomic_long_fetch_or(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_or_acquire(i, v);
+static __always_inline long atomic_long_fetch_or_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_or_acquire(i, v);
 }
 
 /**
@@ -4139,12 +3771,11 @@ atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_or_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_or_release(i, v);
+static __always_inline long atomic_long_fetch_or_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_or_release(i, v);
 }
 
 /**
@@ -4158,11 +3789,10 @@ atomic_long_fetch_or_release(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_or_relaxed(i, v);
+static __always_inline long atomic_long_fetch_or_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_or_relaxed(i, v);
 }
 
 /**
@@ -4176,11 +3806,9 @@ atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-atomic_long_xor(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	raw_atomic_long_xor(i, v);
+static __always_inline void atomic_long_xor(long i, atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  raw_atomic_long_xor(i, v);
 }
 
 /**
@@ -4194,12 +3822,10 @@ atomic_long_xor(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_xor(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_xor(i, v);
+static __always_inline long atomic_long_fetch_xor(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_xor(i, v);
 }
 
 /**
@@ -4213,11 +3839,10 @@ atomic_long_fetch_xor(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_xor_acquire(i, v);
+static __always_inline long atomic_long_fetch_xor_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_xor_acquire(i, v);
 }
 
 /**
@@ -4231,12 +3856,11 @@ atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_xor_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_xor_release(i, v);
+static __always_inline long atomic_long_fetch_xor_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_xor_release(i, v);
 }
 
 /**
@@ -4250,11 +3874,10 @@ atomic_long_fetch_xor_release(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_xor_relaxed(i, v);
+static __always_inline long atomic_long_fetch_xor_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_xor_relaxed(i, v);
 }
 
 /**
@@ -4268,12 +3891,10 @@ atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_xchg(atomic_long_t *v, long new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg(v, new);
+static __always_inline long atomic_long_xchg(atomic_long_t *v, long new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_xchg(v, new);
 }
 
 /**
@@ -4287,11 +3908,10 @@ atomic_long_xchg(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_xchg_acquire(atomic_long_t *v, long new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg_acquire(v, new);
+static __always_inline long atomic_long_xchg_acquire(atomic_long_t *v,
+    long new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_xchg_acquire(v, new);
 }
 
 /**
@@ -4305,12 +3925,11 @@ atomic_long_xchg_acquire(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_xchg_release(atomic_long_t *v, long new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg_release(v, new);
+static __always_inline long atomic_long_xchg_release(atomic_long_t *v,
+    long new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_xchg_release(v, new);
 }
 
 /**
@@ -4324,11 +3943,10 @@ atomic_long_xchg_release(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_xchg_relaxed(atomic_long_t *v, long new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_xchg_relaxed(v, new);
+static __always_inline long atomic_long_xchg_relaxed(atomic_long_t *v,
+    long new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_xchg_relaxed(v, new);
 }
 
 /**
@@ -4344,16 +3962,16 @@ atomic_long_xchg_relaxed(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_cmpxchg(v, old, new);
+static __always_inline long atomic_long_cmpxchg(atomic_long_t *v, long old,
+    long new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_cmpxchg(v, old, new);
 }
 
 /**
- * atomic_long_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * atomic_long_cmpxchg_acquire() - atomic compare and exchange with acquire
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: long value to compare with
  * @new: long value to assign
@@ -4365,15 +3983,15 @@ atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_cmpxchg_acquire(v, old, new);
+static __always_inline long atomic_long_cmpxchg_acquire(atomic_long_t *v,
+    long old, long new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_cmpxchg_acquire(v, old, new);
 }
 
 /**
- * atomic_long_cmpxchg_release() - atomic compare and exchange with release ordering
+ * atomic_long_cmpxchg_release() - atomic compare and exchange with release
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: long value to compare with
  * @new: long value to assign
@@ -4385,16 +4003,16 @@ atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_cmpxchg_release(v, old, new);
+static __always_inline long atomic_long_cmpxchg_release(atomic_long_t *v,
+    long old, long new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_cmpxchg_release(v, old, new);
 }
 
 /**
- * atomic_long_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * atomic_long_cmpxchg_relaxed() - atomic compare and exchange with relaxed
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: long value to compare with
  * @new: long value to assign
@@ -4406,11 +4024,10 @@ atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_cmpxchg_relaxed(v, old, new);
+static __always_inline long atomic_long_cmpxchg_relaxed(atomic_long_t *v,
+    long old, long new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_cmpxchg_relaxed(v, old, new);
 }
 
 /**
@@ -4427,17 +4044,17 @@ atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_long_try_cmpxchg(v, old, new);
+static __always_inline bool atomic_long_try_cmpxchg(atomic_long_t *v, long *old,
+    long new) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_long_try_cmpxchg(v, old, new);
 }
 
 /**
- * atomic_long_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * atomic_long_try_cmpxchg_acquire() - atomic compare and exchange with acquire
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -4446,20 +4063,22 @@ atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
  * Otherwise, @v is not modified, @old is updated to the current value of @v,
  * and relaxed ordering is provided.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_try_cmpxchg_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_try_cmpxchg_acquire()
+ * there.
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_long_try_cmpxchg_acquire(v, old, new);
+static __always_inline bool atomic_long_try_cmpxchg_acquire(atomic_long_t *v,
+    long *old,
+    long new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_long_try_cmpxchg_acquire(v, old, new);
 }
 
 /**
- * atomic_long_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * atomic_long_try_cmpxchg_release() - atomic compare and exchange with release
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -4468,21 +4087,23 @@ atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
  * Otherwise, @v is not modified, @old is updated to the current value of @v,
  * and relaxed ordering is provided.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_try_cmpxchg_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_try_cmpxchg_release()
+ * there.
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_long_try_cmpxchg_release(v, old, new);
+static __always_inline bool atomic_long_try_cmpxchg_release(atomic_long_t *v,
+    long *old,
+    long new) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_long_try_cmpxchg_release(v, old, new);
 }
 
 /**
- * atomic_long_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * atomic_long_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -4491,20 +4112,22 @@ atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
  * Otherwise, @v is not modified, @old is updated to the current value of @v,
  * and relaxed ordering is provided.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_try_cmpxchg_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_try_cmpxchg_relaxed()
+ * there.
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	instrument_atomic_read_write(old, sizeof(*old));
-	return raw_atomic_long_try_cmpxchg_relaxed(v, old, new);
+static __always_inline bool atomic_long_try_cmpxchg_relaxed(atomic_long_t *v,
+    long *old,
+    long new) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  instrument_atomic_read_write(old, sizeof(*old));
+  return raw_atomic_long_try_cmpxchg_relaxed(v, old, new);
 }
 
 /**
- * atomic_long_sub_and_test() - atomic subtract and test if zero with full ordering
+ * atomic_long_sub_and_test() - atomic subtract and test if zero with full
+ * ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
@@ -4514,16 +4137,15 @@ atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic_long_sub_and_test(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_sub_and_test(i, v);
+static __always_inline bool atomic_long_sub_and_test(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_sub_and_test(i, v);
 }
 
 /**
- * atomic_long_dec_and_test() - atomic decrement and test if zero with full ordering
+ * atomic_long_dec_and_test() - atomic decrement and test if zero with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v - 1) with full ordering.
@@ -4532,16 +4154,15 @@ atomic_long_sub_and_test(long i, atomic_long_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic_long_dec_and_test(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_and_test(v);
+static __always_inline bool atomic_long_dec_and_test(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_and_test(v);
 }
 
 /**
- * atomic_long_inc_and_test() - atomic increment and test if zero with full ordering
+ * atomic_long_inc_and_test() - atomic increment and test if zero with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + 1) with full ordering.
@@ -4550,16 +4171,15 @@ atomic_long_dec_and_test(atomic_long_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-atomic_long_inc_and_test(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_and_test(v);
+static __always_inline bool atomic_long_inc_and_test(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_and_test(v);
 }
 
 /**
- * atomic_long_add_negative() - atomic add and test if negative with full ordering
+ * atomic_long_add_negative() - atomic add and test if negative with full
+ * ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
@@ -4569,67 +4189,68 @@ atomic_long_inc_and_test(atomic_long_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_long_add_negative(long i, atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_negative(i, v);
+static __always_inline bool atomic_long_add_negative(long i, atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_negative(i, v);
 }
 
 /**
- * atomic_long_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * atomic_long_add_negative_acquire() - atomic add and test if negative with
+ * acquire ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + @i) with acquire ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_add_negative_acquire() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_add_negative_acquire()
+ * there.
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_long_add_negative_acquire(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_negative_acquire(i, v);
+static __always_inline bool atomic_long_add_negative_acquire(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_negative_acquire(i, v);
 }
 
 /**
- * atomic_long_add_negative_release() - atomic add and test if negative with release ordering
+ * atomic_long_add_negative_release() - atomic add and test if negative with
+ * release ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + @i) with release ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_add_negative_release() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_add_negative_release()
+ * there.
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_long_add_negative_release(long i, atomic_long_t *v)
-{
-	kcsan_release();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_negative_release(i, v);
+static __always_inline bool atomic_long_add_negative_release(long i,
+    atomic_long_t *v) {
+  kcsan_release();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_negative_release(i, v);
 }
 
 /**
- * atomic_long_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * atomic_long_add_negative_relaxed() - atomic add and test if negative with
+ * relaxed ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + @i) with relaxed ordering.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_add_negative_relaxed() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_add_negative_relaxed()
+ * there.
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
-{
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_negative_relaxed(i, v);
+static __always_inline bool atomic_long_add_negative_relaxed(long i,
+    atomic_long_t *v) {
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_negative_relaxed(i, v);
 }
 
 /**
@@ -4645,12 +4266,11 @@ atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_fetch_add_unless(v, a, u);
+static __always_inline long atomic_long_fetch_add_unless(atomic_long_t *v,
+    long a, long u) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_fetch_add_unless(v, a, u);
 }
 
 /**
@@ -4666,12 +4286,11 @@ atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_long_add_unless(atomic_long_t *v, long a, long u)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_add_unless(v, a, u);
+static __always_inline bool atomic_long_add_unless(atomic_long_t *v, long a,
+    long u) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_add_unless(v, a, u);
 }
 
 /**
@@ -4685,54 +4304,53 @@ atomic_long_add_unless(atomic_long_t *v, long a, long u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_long_inc_not_zero(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_not_zero(v);
+static __always_inline bool atomic_long_inc_not_zero(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_not_zero(v);
 }
 
 /**
- * atomic_long_inc_unless_negative() - atomic increment unless negative with full ordering
+ * atomic_long_inc_unless_negative() - atomic increment unless negative with
+ * full ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
  * Otherwise, @v is not modified and relaxed ordering is provided.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_inc_unless_negative() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_inc_unless_negative()
+ * there.
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_long_inc_unless_negative(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_inc_unless_negative(v);
+static __always_inline bool atomic_long_inc_unless_negative(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_inc_unless_negative(v);
 }
 
 /**
- * atomic_long_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * atomic_long_dec_unless_positive() - atomic decrement unless positive with
+ * full ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
  * Otherwise, @v is not modified and relaxed ordering is provided.
  *
- * Unsafe to use in noinstr code; use raw_atomic_long_dec_unless_positive() there.
+ * Unsafe to use in noinstr code; use raw_atomic_long_dec_unless_positive()
+ * there.
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-atomic_long_dec_unless_positive(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_unless_positive(v);
+static __always_inline bool atomic_long_dec_unless_positive(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_unless_positive(v);
 }
 
 /**
- * atomic_long_dec_if_positive() - atomic decrement if positive with full ordering
+ * atomic_long_dec_if_positive() - atomic decrement if positive with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v > 0), atomically updates @v to (@v - 1) with full ordering.
@@ -4742,312 +4360,309 @@ atomic_long_dec_unless_positive(atomic_long_t *v)
  *
  * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
-static __always_inline long
-atomic_long_dec_if_positive(atomic_long_t *v)
-{
-	kcsan_mb();
-	instrument_atomic_read_write(v, sizeof(*v));
-	return raw_atomic_long_dec_if_positive(v);
+static __always_inline long atomic_long_dec_if_positive(atomic_long_t *v) {
+  kcsan_mb();
+  instrument_atomic_read_write(v, sizeof(*v));
+  return raw_atomic_long_dec_if_positive(v);
 }
 
 #define xchg(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_xchg(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_xchg(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define xchg_acquire(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_xchg_acquire(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_xchg_acquire(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define xchg_release(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_xchg_release(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_xchg_release(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define xchg_relaxed(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_xchg_relaxed(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_xchg_relaxed(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg_acquire(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg_acquire(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg_acquire(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg_release(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg_release(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg_release(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg_relaxed(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg_relaxed(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg_relaxed(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg64(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg64(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg64(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg64_acquire(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg64_acquire(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg64_acquire(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg64_release(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg64_release(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg64_release(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg64_relaxed(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg64_relaxed(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg64_relaxed(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg128(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg128(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg128(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg128_acquire(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg128_acquire(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg128_acquire(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg128_release(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg128_release(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg128_release(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg128_relaxed(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg128_relaxed(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg128_relaxed(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg_acquire(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg_release(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg_relaxed(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg64(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg64(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg64(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg64_acquire(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg64_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg64_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg64_release(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg64_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg64_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg64_relaxed(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg64_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg64_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg128(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg128(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg128(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg128_acquire(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg128_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg128_acquire(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg128_release(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	kcsan_release(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg128_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    kcsan_release(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg128_release(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg128_relaxed(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg128_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg128_relaxed(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define cmpxchg_local(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg_local(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg_local(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg64_local(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg64_local(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg64_local(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define cmpxchg128_local(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_cmpxchg128_local(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_cmpxchg128_local(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define sync_cmpxchg(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_sync_cmpxchg(__ai_ptr, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_sync_cmpxchg(__ai_ptr, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg_local(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg64_local(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg64_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg64_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define try_cmpxchg128_local(ptr, oldp, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	typeof(oldp) __ai_oldp = (oldp); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
-	raw_try_cmpxchg128_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
-})
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    typeof(oldp) __ai_oldp = (oldp); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    instrument_read_write(__ai_oldp, sizeof(*__ai_oldp)); \
+    raw_try_cmpxchg128_local(__ai_ptr, __ai_oldp, __VA_ARGS__); \
+  })
 
 #define sync_try_cmpxchg(ptr, ...) \
-({ \
-	typeof(ptr) __ai_ptr = (ptr); \
-	kcsan_mb(); \
-	instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
-	raw_sync_try_cmpxchg(__ai_ptr, __VA_ARGS__); \
-})
-
+  ({ \
+    typeof(ptr) __ai_ptr = (ptr); \
+    kcsan_mb(); \
+    instrument_atomic_read_write(__ai_ptr, sizeof(*__ai_ptr)); \
+    raw_sync_try_cmpxchg(__ai_ptr, __VA_ARGS__); \
+  })
 
 #endif /* _LINUX_ATOMIC_INSTRUMENTED_H */
 // ce5b65e0f1f8a276268b667194581d24bed219d4

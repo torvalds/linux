@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2021, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2021, Intel Corporation.*/
 
 #ifndef _ICE_PTP_H_
 #define _ICE_PTP_H_
@@ -10,27 +10,27 @@
 #include "ice_ptp_hw.h"
 
 enum ice_ptp_pin_e810 {
-	GPIO_20 = 0,
-	GPIO_21,
-	GPIO_22,
-	GPIO_23,
-	NUM_PTP_PIN_E810
+  GPIO_20 = 0,
+  GPIO_21,
+  GPIO_22,
+  GPIO_23,
+  NUM_PTP_PIN_E810
 };
 
 enum ice_ptp_pin_e810t {
-	GNSS = 0,
-	SMA1,
-	UFL1,
-	SMA2,
-	UFL2,
-	NUM_PTP_PINS_E810T
+  GNSS = 0,
+  SMA1,
+  UFL1,
+  SMA2,
+  UFL2,
+  NUM_PTP_PINS_E810T
 };
 
 struct ice_perout_channel {
-	bool ena;
-	u32 gpio_pin;
-	u64 period;
-	u64 start_time;
+  bool ena;
+  u32 gpio_pin;
+  u64 period;
+  u64 start_time;
 };
 
 /* The ice hardware captures Tx hardware timestamps in the PHY. The timestamp
@@ -103,9 +103,9 @@ struct ice_perout_channel {
  * only done if the has_ready_bitmap flag is not set in ice_ptp_tx structure.
  */
 struct ice_tx_tstamp {
-	struct sk_buff *skb;
-	unsigned long start;
-	u64 cached_tstamp;
+  struct sk_buff *skb;
+  unsigned long start;
+  u64 cached_tstamp;
 };
 
 /**
@@ -114,12 +114,13 @@ struct ice_tx_tstamp {
  * @ICE_TX_TSTAMP_WORK_PENDING: More Tx timestamps are pending
  */
 enum ice_tx_tstamp_work {
-	ICE_TX_TSTAMP_WORK_DONE = 0,
-	ICE_TX_TSTAMP_WORK_PENDING,
+  ICE_TX_TSTAMP_WORK_DONE = 0,
+  ICE_TX_TSTAMP_WORK_PENDING,
 };
 
 /**
- * struct ice_ptp_tx - Tracking structure for all Tx timestamp requests on a port
+ * struct ice_ptp_tx - Tracking structure for all Tx timestamp requests on a
+ * port
  * @lock: lock to prevent concurrent access to fields of this struct
  * @tstamps: array of len to store outstanding requests
  * @in_use: bitmap of len to indicate which slots are in use
@@ -136,23 +137,23 @@ enum ice_tx_tstamp_work {
  * @last_ll_ts_idx_read: index of the last LL TS read by the FW
  */
 struct ice_ptp_tx {
-	spinlock_t lock; /* lock protecting in_use bitmap */
-	struct ice_tx_tstamp *tstamps;
-	unsigned long *in_use;
-	unsigned long *stale;
-	u8 block;
-	u8 offset;
-	u8 len;
-	u8 init : 1;
-	u8 calibrating : 1;
-	u8 has_ready_bitmap : 1;
-	s8 last_ll_ts_idx_read;
+  spinlock_t lock; /* lock protecting in_use bitmap */
+  struct ice_tx_tstamp *tstamps;
+  unsigned long *in_use;
+  unsigned long *stale;
+  u8 block;
+  u8 offset;
+  u8 len;
+  u8 init : 1;
+  u8 calibrating : 1;
+  u8 has_ready_bitmap : 1;
+  s8 last_ll_ts_idx_read;
 };
 
 /* Quad and port information for initializing timestamp blocks */
-#define INDEX_PER_QUAD			64
-#define INDEX_PER_PORT_E82X		16
-#define INDEX_PER_PORT_E810		64
+#define INDEX_PER_QUAD      64
+#define INDEX_PER_PORT_E82X   16
+#define INDEX_PER_PORT_E810   64
 
 /**
  * struct ice_ptp_port - data used to initialize an external port for PTP
@@ -171,20 +172,20 @@ struct ice_ptp_tx {
  * @port_num: the port number this structure represents
  */
 struct ice_ptp_port {
-	struct list_head list_member;
-	struct ice_ptp_tx tx;
-	struct auxiliary_device aux_dev;
-	struct kthread_delayed_work ov_work;
-	struct mutex ps_lock; /* protects overall PTP PHY start procedure */
-	bool link_up;
-	u8 tx_fifo_busy_cnt;
-	u8 port_num;
+  struct list_head list_member;
+  struct ice_ptp_tx tx;
+  struct auxiliary_device aux_dev;
+  struct kthread_delayed_work ov_work;
+  struct mutex ps_lock; /* protects overall PTP PHY start procedure */
+  bool link_up;
+  u8 tx_fifo_busy_cnt;
+  u8 port_num;
 };
 
 enum ice_ptp_tx_interrupt {
-	ICE_PTP_TX_INTERRUPT_NONE = 0,
-	ICE_PTP_TX_INTERRUPT_SELF,
-	ICE_PTP_TX_INTERRUPT_ALL,
+  ICE_PTP_TX_INTERRUPT_NONE = 0,
+  ICE_PTP_TX_INTERRUPT_SELF,
+  ICE_PTP_TX_INTERRUPT_ALL,
 };
 
 /**
@@ -198,19 +199,19 @@ enum ice_ptp_tx_interrupt {
  * @lock: protect access to ports list
  */
 struct ice_ptp_port_owner {
-	struct auxiliary_driver aux_driver;
-	struct list_head ports;
-	struct mutex lock;
+  struct auxiliary_driver aux_driver;
+  struct list_head ports;
+  struct mutex lock;
 };
 
-#define GLTSYN_TGT_H_IDX_MAX		4
+#define GLTSYN_TGT_H_IDX_MAX    4
 
 enum ice_ptp_state {
-	ICE_PTP_UNINIT = 0,
-	ICE_PTP_INITIALIZING,
-	ICE_PTP_READY,
-	ICE_PTP_RESETTING,
-	ICE_PTP_ERROR,
+  ICE_PTP_UNINIT = 0,
+  ICE_PTP_INITIALIZING,
+  ICE_PTP_READY,
+  ICE_PTP_RESETTING,
+  ICE_PTP_ERROR,
 };
 
 /**
@@ -238,68 +239,68 @@ enum ice_ptp_state {
  * @late_cached_phc_updates: number of times cached PHC update is late
  */
 struct ice_ptp {
-	enum ice_ptp_state state;
-	enum ice_ptp_tx_interrupt tx_interrupt_mode;
-	struct ice_ptp_port port;
-	struct ice_ptp_port_owner ports_owner;
-	struct kthread_delayed_work work;
-	u64 cached_phc_time;
-	unsigned long cached_phc_jiffies;
-	u8 ext_ts_chan;
-	u8 ext_ts_irq;
-	struct kthread_worker *kworker;
-	struct ice_perout_channel perout_channels[GLTSYN_TGT_H_IDX_MAX];
-	struct ptp_clock_info info;
-	struct ptp_clock *clock;
-	struct hwtstamp_config tstamp_config;
-	u64 reset_time;
-	u32 tx_hwtstamp_skipped;
-	u32 tx_hwtstamp_timeouts;
-	u32 tx_hwtstamp_flushed;
-	u32 tx_hwtstamp_discarded;
-	u32 late_cached_phc_updates;
+  enum ice_ptp_state state;
+  enum ice_ptp_tx_interrupt tx_interrupt_mode;
+  struct ice_ptp_port port;
+  struct ice_ptp_port_owner ports_owner;
+  struct kthread_delayed_work work;
+  u64 cached_phc_time;
+  unsigned long cached_phc_jiffies;
+  u8 ext_ts_chan;
+  u8 ext_ts_irq;
+  struct kthread_worker *kworker;
+  struct ice_perout_channel perout_channels[GLTSYN_TGT_H_IDX_MAX];
+  struct ptp_clock_info info;
+  struct ptp_clock *clock;
+  struct hwtstamp_config tstamp_config;
+  u64 reset_time;
+  u32 tx_hwtstamp_skipped;
+  u32 tx_hwtstamp_timeouts;
+  u32 tx_hwtstamp_flushed;
+  u32 tx_hwtstamp_discarded;
+  u32 late_cached_phc_updates;
 };
 
 #define __ptp_port_to_ptp(p) \
-	container_of((p), struct ice_ptp, port)
+  container_of((p), struct ice_ptp, port)
 #define ptp_port_to_pf(p) \
-	container_of(__ptp_port_to_ptp((p)), struct ice_pf, ptp)
+  container_of(__ptp_port_to_ptp((p)), struct ice_pf, ptp)
 
 #define __ptp_info_to_ptp(i) \
-	container_of((i), struct ice_ptp, info)
+  container_of((i), struct ice_ptp, info)
 #define ptp_info_to_pf(i) \
-	container_of(__ptp_info_to_ptp((i)), struct ice_pf, ptp)
+  container_of(__ptp_info_to_ptp((i)), struct ice_pf, ptp)
 
-#define PFTSYN_SEM_BYTES		4
-#define PTP_SHARED_CLK_IDX_VALID	BIT(31)
-#define TS_CMD_MASK			0xF
-#define SYNC_EXEC_CMD			0x3
-#define ICE_PTP_TS_VALID		BIT(0)
+#define PFTSYN_SEM_BYTES    4
+#define PTP_SHARED_CLK_IDX_VALID  BIT(31)
+#define TS_CMD_MASK     0xF
+#define SYNC_EXEC_CMD     0x3
+#define ICE_PTP_TS_VALID    BIT(0)
 
-#define FIFO_EMPTY			BIT(2)
-#define FIFO_OK				0xFF
-#define ICE_PTP_FIFO_NUM_CHECKS		5
+#define FIFO_EMPTY      BIT(2)
+#define FIFO_OK       0xFF
+#define ICE_PTP_FIFO_NUM_CHECKS   5
 /* Per-channel register definitions */
-#define GLTSYN_AUX_OUT(_chan, _idx)	(GLTSYN_AUX_OUT_0(_idx) + ((_chan) * 8))
-#define GLTSYN_AUX_IN(_chan, _idx)	(GLTSYN_AUX_IN_0(_idx) + ((_chan) * 8))
-#define GLTSYN_CLKO(_chan, _idx)	(GLTSYN_CLKO_0(_idx) + ((_chan) * 8))
-#define GLTSYN_TGT_L(_chan, _idx)	(GLTSYN_TGT_L_0(_idx) + ((_chan) * 16))
-#define GLTSYN_TGT_H(_chan, _idx)	(GLTSYN_TGT_H_0(_idx) + ((_chan) * 16))
-#define GLTSYN_EVNT_L(_chan, _idx)	(GLTSYN_EVNT_L_0(_idx) + ((_chan) * 16))
-#define GLTSYN_EVNT_H(_chan, _idx)	(GLTSYN_EVNT_H_0(_idx) + ((_chan) * 16))
-#define GLTSYN_EVNT_H_IDX_MAX		3
+#define GLTSYN_AUX_OUT(_chan, _idx) (GLTSYN_AUX_OUT_0(_idx) + ((_chan) * 8))
+#define GLTSYN_AUX_IN(_chan, _idx)  (GLTSYN_AUX_IN_0(_idx) + ((_chan) * 8))
+#define GLTSYN_CLKO(_chan, _idx)  (GLTSYN_CLKO_0(_idx) + ((_chan) * 8))
+#define GLTSYN_TGT_L(_chan, _idx) (GLTSYN_TGT_L_0(_idx) + ((_chan) * 16))
+#define GLTSYN_TGT_H(_chan, _idx) (GLTSYN_TGT_H_0(_idx) + ((_chan) * 16))
+#define GLTSYN_EVNT_L(_chan, _idx)  (GLTSYN_EVNT_L_0(_idx) + ((_chan) * 16))
+#define GLTSYN_EVNT_H(_chan, _idx)  (GLTSYN_EVNT_H_0(_idx) + ((_chan) * 16))
+#define GLTSYN_EVNT_H_IDX_MAX   3
 
 /* Pin definitions for PTP PPS out */
-#define PPS_CLK_GEN_CHAN		3
-#define PPS_CLK_SRC_CHAN		2
-#define PPS_PIN_INDEX			5
-#define TIME_SYNC_PIN_INDEX		4
-#define N_EXT_TS_E810			3
-#define N_PER_OUT_E810			4
-#define N_PER_OUT_E810T			3
-#define N_PER_OUT_NO_SMA_E810T		2
-#define N_EXT_TS_NO_SMA_E810T		2
-#define ETH_GLTSYN_ENA(_i)		(0x03000348 + ((_i) * 4))
+#define PPS_CLK_GEN_CHAN    3
+#define PPS_CLK_SRC_CHAN    2
+#define PPS_PIN_INDEX     5
+#define TIME_SYNC_PIN_INDEX   4
+#define N_EXT_TS_E810     3
+#define N_PER_OUT_E810      4
+#define N_PER_OUT_E810T     3
+#define N_PER_OUT_NO_SMA_E810T    2
+#define N_EXT_TS_NO_SMA_E810T   2
+#define ETH_GLTSYN_ENA(_i)    (0x03000348 + ((_i) * 4))
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 int ice_ptp_clock_index(struct ice_pf *pf);
@@ -315,67 +316,69 @@ void ice_ptp_complete_tx_single_tstamp(struct ice_ptp_tx *tx);
 enum ice_tx_tstamp_work ice_ptp_process_ts(struct ice_pf *pf);
 
 u64 ice_ptp_get_rx_hwts(const union ice_32b_rx_flex_desc *rx_desc,
-			const struct ice_pkt_ctx *pkt_ctx);
+    const struct ice_pkt_ctx *pkt_ctx);
 void ice_ptp_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type);
 void ice_ptp_prepare_for_reset(struct ice_pf *pf,
-			       enum ice_reset_req reset_type);
+    enum ice_reset_req reset_type);
 void ice_ptp_init(struct ice_pf *pf);
 void ice_ptp_release(struct ice_pf *pf);
 void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup);
 #else /* IS_ENABLED(CONFIG_PTP_1588_CLOCK) */
-static inline int ice_ptp_set_ts_config(struct ice_pf *pf, struct ifreq *ifr)
-{
-	return -EOPNOTSUPP;
+static inline int ice_ptp_set_ts_config(struct ice_pf *pf, struct ifreq *ifr) {
+  return -EOPNOTSUPP;
 }
 
-static inline int ice_ptp_get_ts_config(struct ice_pf *pf, struct ifreq *ifr)
-{
-	return -EOPNOTSUPP;
+static inline int ice_ptp_get_ts_config(struct ice_pf *pf, struct ifreq *ifr) {
+  return -EOPNOTSUPP;
 }
 
-static inline void ice_ptp_restore_timestamp_mode(struct ice_pf *pf) { }
-static inline void ice_ptp_extts_event(struct ice_pf *pf) { }
-static inline s8
-ice_ptp_request_ts(struct ice_ptp_tx *tx, struct sk_buff *skb)
-{
-	return -1;
+static inline void ice_ptp_restore_timestamp_mode(struct ice_pf *pf) {
 }
 
-static inline void ice_ptp_req_tx_single_tstamp(struct ice_ptp_tx *tx, u8 idx)
-{ }
-
-static inline void ice_ptp_complete_tx_single_tstamp(struct ice_ptp_tx *tx) { }
-
-static inline bool ice_ptp_process_ts(struct ice_pf *pf)
-{
-	return true;
+static inline void ice_ptp_extts_event(struct ice_pf *pf) {
 }
 
-static inline u64
-ice_ptp_get_rx_hwts(const union ice_32b_rx_flex_desc *rx_desc,
-		    const struct ice_pkt_ctx *pkt_ctx)
-{
-	return 0;
+static inline s8 ice_ptp_request_ts(struct ice_ptp_tx *tx,
+    struct sk_buff *skb) {
+  return -1;
+}
+
+static inline void ice_ptp_req_tx_single_tstamp(struct ice_ptp_tx *tx, u8 idx) {
+}
+
+static inline void ice_ptp_complete_tx_single_tstamp(struct ice_ptp_tx *tx) {
+}
+
+static inline bool ice_ptp_process_ts(struct ice_pf *pf) {
+  return true;
+}
+
+static inline u64 ice_ptp_get_rx_hwts(const union ice_32b_rx_flex_desc *rx_desc,
+    const struct ice_pkt_ctx *pkt_ctx) {
+  return 0;
 }
 
 static inline void ice_ptp_rebuild(struct ice_pf *pf,
-				   enum ice_reset_req reset_type)
-{
+    enum ice_reset_req reset_type) {
 }
 
 static inline void ice_ptp_prepare_for_reset(struct ice_pf *pf,
-					     enum ice_reset_req reset_type)
-{
-}
-static inline void ice_ptp_init(struct ice_pf *pf) { }
-static inline void ice_ptp_release(struct ice_pf *pf) { }
-static inline void ice_ptp_link_change(struct ice_pf *pf, u8 port, bool linkup)
-{
+    enum ice_reset_req reset_type) {
 }
 
-static inline int ice_ptp_clock_index(struct ice_pf *pf)
-{
-	return -1;
+static inline void ice_ptp_init(struct ice_pf *pf) {
 }
+
+static inline void ice_ptp_release(struct ice_pf *pf) {
+}
+
+static inline void ice_ptp_link_change(struct ice_pf *pf, u8 port,
+    bool linkup) {
+}
+
+static inline int ice_ptp_clock_index(struct ice_pf *pf) {
+  return -1;
+}
+
 #endif /* IS_ENABLED(CONFIG_PTP_1588_CLOCK) */
 #endif /* _ICE_PTP_H_ */

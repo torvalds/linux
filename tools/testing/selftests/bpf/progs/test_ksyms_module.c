@@ -25,26 +25,26 @@ int out_bpf_testmod_ksym = 0;
 const volatile int x = 0;
 
 SEC("tc")
-int load(struct __sk_buff *skb)
-{
-	/* This will be kept by clang, but removed by verifier. Since it is
-	 * marked as __weak, libbpf and gen_loader don't error out if BTF ID
-	 * is not found for it, instead imm and off is set to 0 for it.
-	 */
-	if (x)
-		bpf_testmod_invalid_mod_kfunc();
-	bpf_testmod_test_mod_kfunc(42);
-	out_bpf_testmod_ksym = *(int *)bpf_this_cpu_ptr(&bpf_testmod_ksym_percpu);
-	return 0;
+int load(struct __sk_buff *skb) {
+  /* This will be kept by clang, but removed by verifier. Since it is
+   * marked as __weak, libbpf and gen_loader don't error out if BTF ID
+   * is not found for it, instead imm and off is set to 0 for it.
+   */
+  if (x) {
+    bpf_testmod_invalid_mod_kfunc();
+  }
+  bpf_testmod_test_mod_kfunc(42);
+  out_bpf_testmod_ksym = *(int *) bpf_this_cpu_ptr(&bpf_testmod_ksym_percpu);
+  return 0;
 }
 
 SEC("tc")
-int load_256(struct __sk_buff *skb)
-{
-	/* this will fail if kfunc doesn't reuse its own btf fd index */
-	REPEAT_256(bpf_testmod_test_mod_kfunc(42););
-	bpf_testmod_test_mod_kfunc(42);
-	return 0;
+int load_256(struct __sk_buff *skb) {
+  /* this will fail if kfunc doesn't reuse its own btf fd index */
+  REPEAT_256(bpf_testmod_test_mod_kfunc(42);
+      );
+  bpf_testmod_test_mod_kfunc(42);
+  return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";

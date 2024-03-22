@@ -5,8 +5,8 @@
 #include <core/object.h>
 
 struct nvkm_control {
-	struct nvkm_object object;
-	struct nvkm_device *device;
+  struct nvkm_object object;
+  struct nvkm_device *device;
 };
 
 extern const struct nvkm_device_oclass nvkm_control_oclass;

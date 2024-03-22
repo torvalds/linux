@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 #ifndef __SANE_USERSPACE_TYPES__
-#define __SANE_USERSPACE_TYPES__	/* For PPC64, to get LL64 types */
+#define __SANE_USERSPACE_TYPES__  /* For PPC64, to get LL64 types */
 #endif
 
 #include <asm/types.h>
@@ -17,10 +17,10 @@ struct page;
 struct kmem_cache;
 
 typedef enum {
-	GFP_KERNEL,
-	GFP_ATOMIC,
-	__GFP_HIGHMEM,
-	__GFP_HIGH
+  GFP_KERNEL,
+  GFP_ATOMIC,
+  __GFP_HIGHMEM,
+  __GFP_HIGH
 } gfp_t;
 
 /*
@@ -39,11 +39,11 @@ typedef __s32 s32;
 typedef __u16 u16;
 typedef __s16 s16;
 
-typedef __u8  u8;
-typedef __s8  s8;
+typedef __u8 u8;
+typedef __s8 s8;
 
 #ifdef __CHECKER__
-#define __bitwise	__attribute__((bitwise))
+#define __bitwise __attribute__((bitwise))
 #else
 #define __bitwise
 #endif
@@ -75,27 +75,27 @@ typedef u32 phys_addr_t;
 #endif
 
 typedef struct {
-	int counter;
+  int counter;
 } atomic_t;
 
 typedef struct {
-	long counter;
+  long counter;
 } atomic_long_t;
 
 #ifndef __aligned_u64
-# define __aligned_u64 __u64 __attribute__((aligned(8)))
+#define __aligned_u64 __u64 __attribute__((aligned(8)))
 #endif
 
 struct list_head {
-	struct list_head *next, *prev;
+  struct list_head *next, *prev;
 };
 
 struct hlist_head {
-	struct hlist_node *first;
+  struct hlist_node *first;
 };
 
 struct hlist_node {
-	struct hlist_node *next, **pprev;
+  struct hlist_node *next, **pprev;
 };
 
 #endif /* _TOOLS_LINUX_TYPES_H_ */

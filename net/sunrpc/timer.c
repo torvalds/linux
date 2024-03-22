@@ -22,9 +22,9 @@
 
 #include <linux/sunrpc/clnt.h>
 
-#define RPC_RTO_MAX (60*HZ)
-#define RPC_RTO_INIT (HZ/5)
-#define RPC_RTO_MIN (HZ/10)
+#define RPC_RTO_MAX (60 * HZ)
+#define RPC_RTO_INIT (HZ / 5)
+#define RPC_RTO_MIN (HZ / 10)
 
 /**
  * rpc_init_rtt - Initialize an RPC RTT estimator context
@@ -32,21 +32,20 @@
  * @timeo: initial timeout value, in jiffies
  *
  */
-void rpc_init_rtt(struct rpc_rtt *rt, unsigned long timeo)
-{
-	unsigned long init = 0;
-	unsigned int i;
-
-	rt->timeo = timeo;
-
-	if (timeo > RPC_RTO_INIT)
-		init = (timeo - RPC_RTO_INIT) << 3;
-	for (i = 0; i < 5; i++) {
-		rt->srtt[i] = init;
-		rt->sdrtt[i] = RPC_RTO_INIT;
-		rt->ntimeouts[i] = 0;
-	}
+void rpc_init_rtt(struct rpc_rtt *rt, unsigned long timeo) {
+  unsigned long init = 0;
+  unsigned int i;
+  rt->timeo = timeo;
+  if (timeo > RPC_RTO_INIT) {
+    init = (timeo - RPC_RTO_INIT) << 3;
+  }
+  for (i = 0; i < 5; i++) {
+    rt->srtt[i] = init;
+    rt->sdrtt[i] = RPC_RTO_INIT;
+    rt->ntimeouts[i] = 0;
+  }
 }
+
 EXPORT_SYMBOL_GPL(rpc_init_rtt);
 
 /**
@@ -58,35 +57,33 @@ EXPORT_SYMBOL_GPL(rpc_init_rtt);
  * NB: When computing the smoothed RTT and standard deviation,
  *     be careful not to produce negative intermediate results.
  */
-void rpc_update_rtt(struct rpc_rtt *rt, unsigned int timer, long m)
-{
-	long *srtt, *sdrtt;
-
-	if (timer-- == 0)
-		return;
-
-	/* jiffies wrapped; ignore this one */
-	if (m < 0)
-		return;
-
-	if (m == 0)
-		m = 1L;
-
-	srtt = (long *)&rt->srtt[timer];
-	m -= *srtt >> 3;
-	*srtt += m;
-
-	if (m < 0)
-		m = -m;
-
-	sdrtt = (long *)&rt->sdrtt[timer];
-	m -= *sdrtt >> 2;
-	*sdrtt += m;
-
-	/* Set lower bound on the variance */
-	if (*sdrtt < RPC_RTO_MIN)
-		*sdrtt = RPC_RTO_MIN;
+void rpc_update_rtt(struct rpc_rtt *rt, unsigned int timer, long m) {
+  long *srtt, *sdrtt;
+  if (timer-- == 0) {
+    return;
+  }
+  /* jiffies wrapped; ignore this one */
+  if (m < 0) {
+    return;
+  }
+  if (m == 0) {
+    m = 1L;
+  }
+  srtt = (long *) &rt->srtt[timer];
+  m -= *srtt >> 3;
+  *srtt += m;
+  if (m < 0) {
+    m = -m;
+  }
+  sdrtt = (long *) &rt->sdrtt[timer];
+  m -= *sdrtt >> 2;
+  *sdrtt += m;
+  /* Set lower bound on the variance */
+  if (*sdrtt < RPC_RTO_MIN) {
+    *sdrtt = RPC_RTO_MIN;
+  }
 }
+
 EXPORT_SYMBOL_GPL(rpc_update_rtt);
 
 /**
@@ -107,17 +104,16 @@ EXPORT_SYMBOL_GPL(rpc_update_rtt);
  * read, write, commit     - A+4D
  * other                   - timeo
  */
-unsigned long rpc_calc_rto(struct rpc_rtt *rt, unsigned int timer)
-{
-	unsigned long res;
-
-	if (timer-- == 0)
-		return rt->timeo;
-
-	res = ((rt->srtt[timer] + 7) >> 3) + rt->sdrtt[timer];
-	if (res > RPC_RTO_MAX)
-		res = RPC_RTO_MAX;
-
-	return res;
+unsigned long rpc_calc_rto(struct rpc_rtt *rt, unsigned int timer) {
+  unsigned long res;
+  if (timer-- == 0) {
+    return rt->timeo;
+  }
+  res = ((rt->srtt[timer] + 7) >> 3) + rt->sdrtt[timer];
+  if (res > RPC_RTO_MAX) {
+    res = RPC_RTO_MAX;
+  }
+  return res;
 }
+
 EXPORT_SYMBOL_GPL(rpc_calc_rto);

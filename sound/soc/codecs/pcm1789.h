@@ -6,8 +6,8 @@
 #ifndef __PCM1789_H__
 #define __PCM1789_H__
 
-#define PCM1789_FORMATS (SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S24_LE | \
-			 SNDRV_PCM_FMTBIT_S16_LE)
+#define PCM1789_FORMATS (SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S24_LE   \
+  | SNDRV_PCM_FMTBIT_S16_LE)
 
 extern const struct regmap_config pcm1789_regmap_config;
 

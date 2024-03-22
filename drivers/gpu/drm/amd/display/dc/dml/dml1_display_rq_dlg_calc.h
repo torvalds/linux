@@ -31,36 +31,36 @@ struct display_mode_lib;
 #include "display_rq_dlg_helpers.h"
 
 void dml1_extract_rq_regs(
-		struct display_mode_lib *mode_lib,
-		struct _vcs_dpi_display_rq_regs_st *rq_regs,
-		const struct _vcs_dpi_display_rq_params_st *rq_param);
+  struct display_mode_lib *mode_lib,
+  struct _vcs_dpi_display_rq_regs_st *rq_regs,
+  const struct _vcs_dpi_display_rq_params_st *rq_param);
 /* Function: dml_rq_dlg_get_rq_params
  *  Calculate requestor related parameters that register definition agnostic
  *  (i.e. this layer does try to separate real values from register definition)
  * Input:
  *  pipe_src_param - pipe source configuration (e.g. vp, pitch, etc.)
  * Output:
- *  rq_param - values that can be used to setup RQ (e.g. swath_height, plane1_addr, etc.)
+ *  rq_param - values that can be used to setup RQ (e.g. swath_height,
+ *plane1_addr, etc.)
  */
 void dml1_rq_dlg_get_rq_params(
-		struct display_mode_lib *mode_lib,
-		struct _vcs_dpi_display_rq_params_st *rq_param,
-		const struct _vcs_dpi_display_pipe_source_params_st *pipe_src_param);
-
+  struct display_mode_lib *mode_lib,
+  struct _vcs_dpi_display_rq_params_st *rq_param,
+  const struct _vcs_dpi_display_pipe_source_params_st *pipe_src_param);
 
 /* Function: dml_rq_dlg_get_dlg_params
  *  Calculate deadline related parameters
  */
 void dml1_rq_dlg_get_dlg_params(
-		struct display_mode_lib *mode_lib,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_regs,
-		const struct _vcs_dpi_display_rq_dlg_params_st *rq_dlg_param,
-		const struct _vcs_dpi_display_dlg_sys_params_st *dlg_sys_param,
-		const struct _vcs_dpi_display_e2e_pipe_params_st *e2e_pipe_param,
-		const bool cstate_en,
-		const bool pstate_en,
-		const bool vm_en,
-		const bool iflip_en);
+  struct display_mode_lib *mode_lib,
+  struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
+  struct _vcs_dpi_display_ttu_regs_st *ttu_regs,
+  const struct _vcs_dpi_display_rq_dlg_params_st *rq_dlg_param,
+  const struct _vcs_dpi_display_dlg_sys_params_st *dlg_sys_param,
+  const struct _vcs_dpi_display_e2e_pipe_params_st *e2e_pipe_param,
+  const bool cstate_en,
+  const bool pstate_en,
+  const bool vm_en,
+  const bool iflip_en);
 
 #endif

@@ -6,43 +6,43 @@
 #include <linux/rbtree.h>
 
 struct lock_filter {
-	int			nr_types;
-	int			nr_addrs;
-	int			nr_syms;
-	int			nr_cgrps;
-	unsigned int		*types;
-	unsigned long		*addrs;
-	char			**syms;
-	u64			*cgrps;
+  int nr_types;
+  int nr_addrs;
+  int nr_syms;
+  int nr_cgrps;
+  unsigned int *types;
+  unsigned long *addrs;
+  char **syms;
+  u64 *cgrps;
 };
 
 struct lock_stat {
-	struct hlist_node	hash_entry;
-	struct rb_node		rb;		/* used for sorting */
+  struct hlist_node hash_entry;
+  struct rb_node rb;   /* used for sorting */
 
-	u64			addr;		/* address of lockdep_map, used as ID */
-	char			*name;		/* for strcpy(), we cannot use const */
-	u64			*callstack;
+  u64 addr;   /* address of lockdep_map, used as ID */
+  char *name;    /* for strcpy(), we cannot use const */
+  u64 *callstack;
 
-	unsigned int		nr_acquire;
-	unsigned int		nr_acquired;
-	unsigned int		nr_contended;
-	unsigned int		nr_release;
+  unsigned int nr_acquire;
+  unsigned int nr_acquired;
+  unsigned int nr_contended;
+  unsigned int nr_release;
 
-	union {
-		unsigned int	nr_readlock;
-		unsigned int	flags;
-	};
-	unsigned int		nr_trylock;
+  union {
+    unsigned int nr_readlock;
+    unsigned int flags;
+  };
+  unsigned int nr_trylock;
 
-	/* these times are in nano sec. */
-	u64                     avg_wait_time;
-	u64			wait_time_total;
-	u64			wait_time_min;
-	u64			wait_time_max;
+  /* these times are in nano sec. */
+  u64 avg_wait_time;
+  u64 wait_time_total;
+  u64 wait_time_min;
+  u64 wait_time_max;
 
-	int			broken; /* flag of blacklist */
-	int			combined;
+  int broken; /* flag of blacklist */
+  int combined;
 };
 
 /*
@@ -53,12 +53,12 @@ struct lock_stat {
  * that the first event for the locks are acquire,
  * it can be acquired, contended or release.
  */
-#define SEQ_STATE_UNINITIALIZED      0	       /* initial state */
-#define SEQ_STATE_RELEASED	1
-#define SEQ_STATE_ACQUIRING	2
-#define SEQ_STATE_ACQUIRED	3
-#define SEQ_STATE_READ_ACQUIRED	4
-#define SEQ_STATE_CONTENDED	5
+#define SEQ_STATE_UNINITIALIZED      0         /* initial state */
+#define SEQ_STATE_RELEASED  1
+#define SEQ_STATE_ACQUIRING 2
+#define SEQ_STATE_ACQUIRED  3
+#define SEQ_STATE_READ_ACQUIRED 4
+#define SEQ_STATE_CONTENDED 5
 
 /*
  * MAX_LOCK_DEPTH
@@ -81,19 +81,19 @@ bool match_callstack_filter(struct machine *machine, u64 *callstack);
  * 4) Are there other patterns?
  */
 struct lock_seq_stat {
-	struct list_head        list;
-	int			state;
-	u64			prev_event_time;
-	u64                     addr;
+  struct list_head list;
+  int state;
+  u64 prev_event_time;
+  u64 addr;
 
-	int                     read_count;
+  int read_count;
 };
 
 struct thread_stat {
-	struct rb_node		rb;
+  struct rb_node rb;
 
-	u32                     tid;
-	struct list_head        seq_list;
+  u32 tid;
+  struct list_head seq_list;
 };
 
 /*
@@ -113,39 +113,39 @@ struct thread_stat {
  * flags for lock:contention_begin
  * Imported from include/trace/events/lock.h.
  */
-#define LCB_F_SPIN	(1U << 0)
-#define LCB_F_READ	(1U << 1)
-#define LCB_F_WRITE	(1U << 2)
-#define LCB_F_RT	(1U << 3)
-#define LCB_F_PERCPU	(1U << 4)
-#define LCB_F_MUTEX	(1U << 5)
+#define LCB_F_SPIN  (1U << 0)
+#define LCB_F_READ  (1U << 1)
+#define LCB_F_WRITE (1U << 2)
+#define LCB_F_RT  (1U << 3)
+#define LCB_F_PERCPU  (1U << 4)
+#define LCB_F_MUTEX (1U << 5)
 
 struct evlist;
 struct machine;
 struct target;
 
 struct lock_contention_fails {
-	int task;
-	int stack;
-	int time;
-	int data;
+  int task;
+  int stack;
+  int time;
+  int data;
 };
 
 struct lock_contention {
-	struct evlist *evlist;
-	struct target *target;
-	struct machine *machine;
-	struct hlist_head *result;
-	struct lock_filter *filters;
-	struct lock_contention_fails fails;
-	struct rb_root cgroups;
-	unsigned long map_nr_entries;
-	int max_stack;
-	int stack_skip;
-	int aggr_mode;
-	int owner;
-	int nr_filtered;
-	bool save_callstack;
+  struct evlist *evlist;
+  struct target *target;
+  struct machine *machine;
+  struct hlist_head *result;
+  struct lock_filter *filters;
+  struct lock_contention_fails fails;
+  struct rb_root cgroups;
+  unsigned long map_nr_entries;
+  int max_stack;
+  int stack_skip;
+  int aggr_mode;
+  int owner;
+  int nr_filtered;
+  bool save_callstack;
 };
 
 #ifdef HAVE_BPF_SKEL
@@ -158,21 +158,27 @@ int lock_contention_finish(struct lock_contention *con);
 
 #else  /* !HAVE_BPF_SKEL */
 
-static inline int lock_contention_prepare(struct lock_contention *con __maybe_unused)
-{
-	return 0;
+static inline int lock_contention_prepare(
+    struct lock_contention *con __maybe_unused) {
+  return 0;
 }
 
-static inline int lock_contention_start(void) { return 0; }
-static inline int lock_contention_stop(void) { return 0; }
-static inline int lock_contention_finish(struct lock_contention *con __maybe_unused)
-{
-	return 0;
+static inline int lock_contention_start(void) {
+  return 0;
 }
 
-static inline int lock_contention_read(struct lock_contention *con __maybe_unused)
-{
-	return 0;
+static inline int lock_contention_stop(void) {
+  return 0;
+}
+
+static inline int lock_contention_finish(
+    struct lock_contention *con __maybe_unused) {
+  return 0;
+}
+
+static inline int lock_contention_read(
+    struct lock_contention *con __maybe_unused) {
+  return 0;
 }
 
 #endif  /* HAVE_BPF_SKEL */

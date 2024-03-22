@@ -30,6 +30,6 @@
 #include "nouveau_display.h"
 #include "nouveau_reg.h"
 
-int  nv50_display_create(struct drm_device *);
+int nv50_display_create(struct drm_device *);
 
 #endif /* __NV50_DISPLAY_H__ */

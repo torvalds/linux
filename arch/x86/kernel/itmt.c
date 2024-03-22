@@ -39,41 +39,34 @@ static bool __read_mostly sched_itmt_capable;
 unsigned int __read_mostly sysctl_sched_itmt_enabled;
 
 static int sched_itmt_update_handler(struct ctl_table *table, int write,
-				     void *buffer, size_t *lenp, loff_t *ppos)
-{
-	unsigned int old_sysctl;
-	int ret;
-
-	mutex_lock(&itmt_update_mutex);
-
-	if (!sched_itmt_capable) {
-		mutex_unlock(&itmt_update_mutex);
-		return -EINVAL;
-	}
-
-	old_sysctl = sysctl_sched_itmt_enabled;
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-
-	if (!ret && write && old_sysctl != sysctl_sched_itmt_enabled) {
-		x86_topology_update = true;
-		rebuild_sched_domains();
-	}
-
-	mutex_unlock(&itmt_update_mutex);
-
-	return ret;
+    void *buffer, size_t *lenp, loff_t *ppos) {
+  unsigned int old_sysctl;
+  int ret;
+  mutex_lock(&itmt_update_mutex);
+  if (!sched_itmt_capable) {
+    mutex_unlock(&itmt_update_mutex);
+    return -EINVAL;
+  }
+  old_sysctl = sysctl_sched_itmt_enabled;
+  ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+  if (!ret && write && old_sysctl != sysctl_sched_itmt_enabled) {
+    x86_topology_update = true;
+    rebuild_sched_domains();
+  }
+  mutex_unlock(&itmt_update_mutex);
+  return ret;
 }
 
 static struct ctl_table itmt_kern_table[] = {
-	{
-		.procname	= "sched_itmt_enabled",
-		.data		= &sysctl_sched_itmt_enabled,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= sched_itmt_update_handler,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
+  {
+    .procname = "sched_itmt_enabled",
+    .data = &sysctl_sched_itmt_enabled,
+    .maxlen = sizeof(unsigned int),
+    .mode = 0644,
+    .proc_handler = sched_itmt_update_handler,
+    .extra1 = SYSCTL_ZERO,
+    .extra2 = SYSCTL_ONE,
+  },
 };
 
 static struct ctl_table_header *itmt_sysctl_header;
@@ -95,31 +88,23 @@ static struct ctl_table_header *itmt_sysctl_header;
  *
  * Return: 0 on success
  */
-int sched_set_itmt_support(void)
-{
-	mutex_lock(&itmt_update_mutex);
-
-	if (sched_itmt_capable) {
-		mutex_unlock(&itmt_update_mutex);
-		return 0;
-	}
-
-	itmt_sysctl_header = register_sysctl("kernel", itmt_kern_table);
-	if (!itmt_sysctl_header) {
-		mutex_unlock(&itmt_update_mutex);
-		return -ENOMEM;
-	}
-
-	sched_itmt_capable = true;
-
-	sysctl_sched_itmt_enabled = 1;
-
-	x86_topology_update = true;
-	rebuild_sched_domains();
-
-	mutex_unlock(&itmt_update_mutex);
-
-	return 0;
+int sched_set_itmt_support(void) {
+  mutex_lock(&itmt_update_mutex);
+  if (sched_itmt_capable) {
+    mutex_unlock(&itmt_update_mutex);
+    return 0;
+  }
+  itmt_sysctl_header = register_sysctl("kernel", itmt_kern_table);
+  if (!itmt_sysctl_header) {
+    mutex_unlock(&itmt_update_mutex);
+    return -ENOMEM;
+  }
+  sched_itmt_capable = true;
+  sysctl_sched_itmt_enabled = 1;
+  x86_topology_update = true;
+  rebuild_sched_domains();
+  mutex_unlock(&itmt_update_mutex);
+  return 0;
 }
 
 /**
@@ -132,40 +117,34 @@ int sched_set_itmt_support(void)
  * held as we need to acquire the lock to rebuild sched domains
  * later.
  */
-void sched_clear_itmt_support(void)
-{
-	mutex_lock(&itmt_update_mutex);
-
-	if (!sched_itmt_capable) {
-		mutex_unlock(&itmt_update_mutex);
-		return;
-	}
-	sched_itmt_capable = false;
-
-	if (itmt_sysctl_header) {
-		unregister_sysctl_table(itmt_sysctl_header);
-		itmt_sysctl_header = NULL;
-	}
-
-	if (sysctl_sched_itmt_enabled) {
-		/* disable sched_itmt if we are no longer ITMT capable */
-		sysctl_sched_itmt_enabled = 0;
-		x86_topology_update = true;
-		rebuild_sched_domains();
-	}
-
-	mutex_unlock(&itmt_update_mutex);
+void sched_clear_itmt_support(void) {
+  mutex_lock(&itmt_update_mutex);
+  if (!sched_itmt_capable) {
+    mutex_unlock(&itmt_update_mutex);
+    return;
+  }
+  sched_itmt_capable = false;
+  if (itmt_sysctl_header) {
+    unregister_sysctl_table(itmt_sysctl_header);
+    itmt_sysctl_header = NULL;
+  }
+  if (sysctl_sched_itmt_enabled) {
+    /* disable sched_itmt if we are no longer ITMT capable */
+    sysctl_sched_itmt_enabled = 0;
+    x86_topology_update = true;
+    rebuild_sched_domains();
+  }
+  mutex_unlock(&itmt_update_mutex);
 }
 
-int arch_asym_cpu_priority(int cpu)
-{
-	return per_cpu(sched_core_priority, cpu);
+int arch_asym_cpu_priority(int cpu) {
+  return per_cpu(sched_core_priority, cpu);
 }
 
 /**
  * sched_set_itmt_core_prio() - Set CPU priority based on ITMT
- * @prio:	Priority of @cpu
- * @cpu:	The CPU number
+ * @prio: Priority of @cpu
+ * @cpu:  The CPU number
  *
  * The pstate driver will find out the max boost frequency
  * and call this function to set a priority proportional
@@ -176,7 +155,6 @@ int arch_asym_cpu_priority(int cpu)
  * the CPU priorities. The sched domains have no
  * dependency on CPU priorities.
  */
-void sched_set_itmt_core_prio(int prio, int cpu)
-{
-	per_cpu(sched_core_priority, cpu) = prio;
+void sched_set_itmt_core_prio(int prio, int cpu) {
+  per_cpu(sched_core_priority, cpu) = prio;
 }

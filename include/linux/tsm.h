@@ -21,9 +21,9 @@
  * @inblob: arbitrary input data
  */
 struct tsm_desc {
-	unsigned int privlevel;
-	size_t inblob_len;
-	u8 inblob[TSM_INBLOB_MAX];
+  unsigned int privlevel;
+  size_t inblob_len;
+  u8 inblob[TSM_INBLOB_MAX];
 };
 
 /**
@@ -35,11 +35,11 @@ struct tsm_desc {
  * @auxblob: (optional) auxiliary data to the report (e.g. certificate data)
  */
 struct tsm_report {
-	struct tsm_desc desc;
-	size_t outblob_len;
-	u8 *outblob;
-	size_t auxblob_len;
-	u8 *auxblob;
+  struct tsm_desc desc;
+  size_t outblob_len;
+  u8 *outblob;
+  size_t auxblob_len;
+  u8 *auxblob;
 };
 
 /**
@@ -53,9 +53,9 @@ struct tsm_report {
  * a time i.e. only one of "sev-guest", "tdx-guest", etc.
  */
 struct tsm_ops {
-	const char *name;
-	const unsigned int privlevel_floor;
-	int (*report_new)(struct tsm_report *report, void *data);
+  const char *name;
+  const unsigned int privlevel_floor;
+  int (*report_new)(struct tsm_report *report, void *data);
 };
 
 extern const struct config_item_type tsm_report_default_type;
@@ -64,6 +64,6 @@ extern const struct config_item_type tsm_report_default_type;
 extern const struct config_item_type tsm_report_extra_type;
 
 int tsm_register(const struct tsm_ops *ops, void *priv,
-		 const struct config_item_type *type);
+    const struct config_item_type *type);
 int tsm_unregister(const struct tsm_ops *ops);
 #endif /* __TSM_H */

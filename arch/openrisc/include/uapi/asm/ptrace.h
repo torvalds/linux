@@ -25,16 +25,15 @@
  * This is the layout of the regset returned by the GETREGSET ptrace call
  */
 struct user_regs_struct {
-	/* GPR R0-R31... */
-	unsigned long gpr[32];
-	unsigned long pc;
-	unsigned long sr;
+  /* GPR R0-R31... */
+  unsigned long gpr[32];
+  unsigned long pc;
+  unsigned long sr;
 };
 
 struct __or1k_fpu_state {
-	unsigned long fpcsr;
+  unsigned long fpcsr;
 };
 #endif
-
 
 #endif /* _UAPI__ASM_OPENRISC_PTRACE_H */

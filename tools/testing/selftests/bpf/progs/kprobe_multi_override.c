@@ -6,8 +6,7 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("kprobe.multi")
-int test_override(struct pt_regs *ctx)
-{
-	bpf_override_return(ctx, 123);
-	return 0;
+int test_override(struct pt_regs *ctx) {
+  bpf_override_return(ctx, 123);
+  return 0;
 }

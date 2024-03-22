@@ -13,37 +13,35 @@
 int msg_to_mpoad(struct k_message *msg, struct mpoa_client *mpc);
 
 struct mpoa_client {
-	struct mpoa_client *next;
-	struct net_device *dev;      /* lec in question                     */
-	int dev_num;                 /* e.g. 2 for lec2                     */
+  struct mpoa_client *next;
+  struct net_device *dev;      /* lec in question                     */
+  int dev_num;                 /* e.g. 2 for lec2                     */
 
-	struct atm_vcc *mpoad_vcc;   /* control channel to mpoad            */
-	uint8_t mps_ctrl_addr[ATM_ESA_LEN];  /* MPS control ATM address     */
-	uint8_t our_ctrl_addr[ATM_ESA_LEN];  /* MPC's control ATM address   */
+  struct atm_vcc *mpoad_vcc;   /* control channel to mpoad            */
+  uint8_t mps_ctrl_addr[ATM_ESA_LEN];  /* MPS control ATM address     */
+  uint8_t our_ctrl_addr[ATM_ESA_LEN];  /* MPC's control ATM address   */
 
-	rwlock_t ingress_lock;
-	const struct in_cache_ops *in_ops; /* ingress cache operations      */
-	in_cache_entry *in_cache;    /* the ingress cache of this MPC       */
+  rwlock_t ingress_lock;
+  const struct in_cache_ops *in_ops; /* ingress cache operations      */
+  in_cache_entry *in_cache;    /* the ingress cache of this MPC       */
 
-	rwlock_t egress_lock;
-	const struct eg_cache_ops *eg_ops; /* egress cache operations       */
-	eg_cache_entry *eg_cache;    /* the egress  cache of this MPC       */
+  rwlock_t egress_lock;
+  const struct eg_cache_ops *eg_ops; /* egress cache operations       */
+  eg_cache_entry *eg_cache;    /* the egress  cache of this MPC       */
 
-	uint8_t *mps_macs;           /* array of MPS MAC addresses, >=1     */
-	int number_of_mps_macs;      /* number of the above MAC addresses   */
-	struct mpc_parameters parameters;  /* parameters for this client    */
+  uint8_t *mps_macs;           /* array of MPS MAC addresses, >=1     */
+  int number_of_mps_macs;      /* number of the above MAC addresses   */
+  struct mpc_parameters parameters;  /* parameters for this client    */
 
-	const struct net_device_ops *old_ops;
-	struct net_device_ops new_ops;
+  const struct net_device_ops *old_ops;
+  struct net_device_ops new_ops;
 };
-
 
 struct atm_mpoa_qos {
-	struct atm_mpoa_qos *next;
-	__be32 ipaddr;
-	struct atm_qos qos;
+  struct atm_mpoa_qos *next;
+  __be32 ipaddr;
+  struct atm_qos qos;
 };
-
 
 /* MPOA QoS operations */
 struct atm_mpoa_qos *atm_mpoa_add_qos(__be32 dst_ip, struct atm_qos *qos);
@@ -59,7 +57,7 @@ int mpc_proc_init(void);
 void mpc_proc_clean(void);
 #else
 #define mpc_proc_init() (0)
-#define mpc_proc_clean() do { } while(0)
+#define mpc_proc_clean() do {} while (0)
 #endif
 
 #endif /* _MPC_H_ */

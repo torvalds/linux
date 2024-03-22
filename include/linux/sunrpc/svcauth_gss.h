@@ -21,7 +21,7 @@ void gss_svc_shutdown(void);
 int gss_svc_init_net(struct net *net);
 void gss_svc_shutdown_net(struct net *net);
 struct auth_domain *svcauth_gss_register_pseudoflavor(u32 pseudoflavor,
-						      char *name);
+    char *name);
 u32 svcauth_gss_flavor(struct auth_domain *dom);
 
 #endif /* _LINUX_SUNRPC_SVCAUTH_GSS_H */

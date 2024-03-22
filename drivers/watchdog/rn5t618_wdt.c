@@ -21,11 +21,11 @@ MODULE_PARM_DESC(timeout, "Initial watchdog timeout in seconds");
 
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
-		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+    __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct rn5t618_wdt {
-	struct watchdog_device wdt_dev;
-	struct rn5t618 *rn5t618;
+  struct watchdog_device wdt_dev;
+  struct rn5t618 *rn5t618;
 };
 
 /*
@@ -35,157 +35,143 @@ struct rn5t618_wdt {
  * doesn't clear it within one second the system is restarted.
  */
 static const struct {
-	u8 reg_val;
-	unsigned int time;
+  u8 reg_val;
+  unsigned int time;
 } rn5t618_wdt_map[] = {
-	{ 0, 1 },
-	{ 1, 8 },
-	{ 2, 32 },
-	{ 3, 128 },
+  { 0, 1 },
+  { 1, 8 },
+  { 2, 32 },
+  { 3, 128 },
 };
 
 static int rn5t618_wdt_set_timeout(struct watchdog_device *wdt_dev,
-				   unsigned int t)
-{
-	struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
-	int ret, i;
-
-	for (i = 0; i < ARRAY_SIZE(rn5t618_wdt_map); i++) {
-		if (rn5t618_wdt_map[i].time + 1 >= t)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(rn5t618_wdt_map))
-		return -EINVAL;
-
-	ret = regmap_update_bits(wdt->rn5t618->regmap, RN5T618_WATCHDOG,
-				 RN5T618_WATCHDOG_WDOGTIM_M,
-				 rn5t618_wdt_map[i].reg_val);
-	if (!ret)
-		wdt_dev->timeout = rn5t618_wdt_map[i].time;
-
-	return ret;
+    unsigned int t) {
+  struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
+  int ret, i;
+  for (i = 0; i < ARRAY_SIZE(rn5t618_wdt_map); i++) {
+    if (rn5t618_wdt_map[i].time + 1 >= t) {
+      break;
+    }
+  }
+  if (i == ARRAY_SIZE(rn5t618_wdt_map)) {
+    return -EINVAL;
+  }
+  ret = regmap_update_bits(wdt->rn5t618->regmap, RN5T618_WATCHDOG,
+      RN5T618_WATCHDOG_WDOGTIM_M,
+      rn5t618_wdt_map[i].reg_val);
+  if (!ret) {
+    wdt_dev->timeout = rn5t618_wdt_map[i].time;
+  }
+  return ret;
 }
 
-static int rn5t618_wdt_start(struct watchdog_device *wdt_dev)
-{
-	struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
-	int ret;
-
-	ret = rn5t618_wdt_set_timeout(wdt_dev, wdt_dev->timeout);
-	if (ret)
-		return ret;
-
-	/* enable repower-on */
-	ret = regmap_update_bits(wdt->rn5t618->regmap, RN5T618_REPCNT,
-				 RN5T618_REPCNT_REPWRON,
-				 RN5T618_REPCNT_REPWRON);
-	if (ret)
-		return ret;
-
-	/* enable watchdog */
-	ret = regmap_update_bits(wdt->rn5t618->regmap, RN5T618_WATCHDOG,
-				 RN5T618_WATCHDOG_WDOGEN,
-				 RN5T618_WATCHDOG_WDOGEN);
-	if (ret)
-		return ret;
-
-	/* enable watchdog interrupt */
-	return regmap_update_bits(wdt->rn5t618->regmap, RN5T618_PWRIREN,
-				  RN5T618_PWRIRQ_IR_WDOG,
-				  RN5T618_PWRIRQ_IR_WDOG);
+static int rn5t618_wdt_start(struct watchdog_device *wdt_dev) {
+  struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
+  int ret;
+  ret = rn5t618_wdt_set_timeout(wdt_dev, wdt_dev->timeout);
+  if (ret) {
+    return ret;
+  }
+  /* enable repower-on */
+  ret = regmap_update_bits(wdt->rn5t618->regmap, RN5T618_REPCNT,
+      RN5T618_REPCNT_REPWRON,
+      RN5T618_REPCNT_REPWRON);
+  if (ret) {
+    return ret;
+  }
+  /* enable watchdog */
+  ret = regmap_update_bits(wdt->rn5t618->regmap, RN5T618_WATCHDOG,
+      RN5T618_WATCHDOG_WDOGEN,
+      RN5T618_WATCHDOG_WDOGEN);
+  if (ret) {
+    return ret;
+  }
+  /* enable watchdog interrupt */
+  return regmap_update_bits(wdt->rn5t618->regmap, RN5T618_PWRIREN,
+      RN5T618_PWRIRQ_IR_WDOG,
+      RN5T618_PWRIRQ_IR_WDOG);
 }
 
-static int rn5t618_wdt_stop(struct watchdog_device *wdt_dev)
-{
-	struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
-
-	return regmap_update_bits(wdt->rn5t618->regmap, RN5T618_WATCHDOG,
-				  RN5T618_WATCHDOG_WDOGEN, 0);
+static int rn5t618_wdt_stop(struct watchdog_device *wdt_dev) {
+  struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
+  return regmap_update_bits(wdt->rn5t618->regmap, RN5T618_WATCHDOG,
+      RN5T618_WATCHDOG_WDOGEN, 0);
 }
 
-static int rn5t618_wdt_ping(struct watchdog_device *wdt_dev)
-{
-	struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
-	unsigned int val;
-	int ret;
-
-	/* The counter is restarted after a R/W access to watchdog register */
-	ret = regmap_read(wdt->rn5t618->regmap, RN5T618_WATCHDOG, &val);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(wdt->rn5t618->regmap, RN5T618_WATCHDOG, val);
-	if (ret)
-		return ret;
-
-	/* Clear pending watchdog interrupt */
-	return regmap_update_bits(wdt->rn5t618->regmap, RN5T618_PWRIRQ,
-				  RN5T618_PWRIRQ_IR_WDOG, 0);
+static int rn5t618_wdt_ping(struct watchdog_device *wdt_dev) {
+  struct rn5t618_wdt *wdt = watchdog_get_drvdata(wdt_dev);
+  unsigned int val;
+  int ret;
+  /* The counter is restarted after a R/W access to watchdog register */
+  ret = regmap_read(wdt->rn5t618->regmap, RN5T618_WATCHDOG, &val);
+  if (ret) {
+    return ret;
+  }
+  ret = regmap_write(wdt->rn5t618->regmap, RN5T618_WATCHDOG, val);
+  if (ret) {
+    return ret;
+  }
+  /* Clear pending watchdog interrupt */
+  return regmap_update_bits(wdt->rn5t618->regmap, RN5T618_PWRIRQ,
+      RN5T618_PWRIRQ_IR_WDOG, 0);
 }
 
 static const struct watchdog_info rn5t618_wdt_info = {
-	.options	= WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE |
-			  WDIOF_KEEPALIVEPING,
-	.identity	= DRIVER_NAME,
+  .options = WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE
+      | WDIOF_KEEPALIVEPING,
+  .identity = DRIVER_NAME,
 };
 
 static const struct watchdog_ops rn5t618_wdt_ops = {
-	.owner          = THIS_MODULE,
-	.start          = rn5t618_wdt_start,
-	.stop           = rn5t618_wdt_stop,
-	.ping           = rn5t618_wdt_ping,
-	.set_timeout    = rn5t618_wdt_set_timeout,
+  .owner = THIS_MODULE,
+  .start = rn5t618_wdt_start,
+  .stop = rn5t618_wdt_stop,
+  .ping = rn5t618_wdt_ping,
+  .set_timeout = rn5t618_wdt_set_timeout,
 };
 
-static int rn5t618_wdt_probe(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct rn5t618 *rn5t618 = dev_get_drvdata(dev->parent);
-	struct rn5t618_wdt *wdt;
-	int min_timeout, max_timeout;
-	int ret;
-	unsigned int val;
-
-	wdt = devm_kzalloc(dev, sizeof(struct rn5t618_wdt), GFP_KERNEL);
-	if (!wdt)
-		return -ENOMEM;
-
-	min_timeout = rn5t618_wdt_map[0].time;
-	max_timeout = rn5t618_wdt_map[ARRAY_SIZE(rn5t618_wdt_map) - 1].time;
-
-	wdt->rn5t618 = rn5t618;
-	wdt->wdt_dev.info = &rn5t618_wdt_info;
-	wdt->wdt_dev.ops = &rn5t618_wdt_ops;
-	wdt->wdt_dev.min_timeout = min_timeout;
-	wdt->wdt_dev.max_timeout = max_timeout;
-	wdt->wdt_dev.timeout = max_timeout;
-	wdt->wdt_dev.parent = dev;
-
-	/* Read out previous power-off factor */
-	ret = regmap_read(wdt->rn5t618->regmap, RN5T618_POFFHIS, &val);
-	if (ret)
-		return ret;
-
-	if (val & RN5T618_POFFHIS_VINDET)
-		wdt->wdt_dev.bootstatus = WDIOF_POWERUNDER;
-	else if (val & RN5T618_POFFHIS_WDG)
-		wdt->wdt_dev.bootstatus = WDIOF_CARDRESET;
-
-	watchdog_set_drvdata(&wdt->wdt_dev, wdt);
-	watchdog_init_timeout(&wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&wdt->wdt_dev, nowayout);
-
-	platform_set_drvdata(pdev, wdt);
-
-	return devm_watchdog_register_device(dev, &wdt->wdt_dev);
+static int rn5t618_wdt_probe(struct platform_device *pdev) {
+  struct device *dev = &pdev->dev;
+  struct rn5t618 *rn5t618 = dev_get_drvdata(dev->parent);
+  struct rn5t618_wdt *wdt;
+  int min_timeout, max_timeout;
+  int ret;
+  unsigned int val;
+  wdt = devm_kzalloc(dev, sizeof(struct rn5t618_wdt), GFP_KERNEL);
+  if (!wdt) {
+    return -ENOMEM;
+  }
+  min_timeout = rn5t618_wdt_map[0].time;
+  max_timeout = rn5t618_wdt_map[ARRAY_SIZE(rn5t618_wdt_map) - 1].time;
+  wdt->rn5t618 = rn5t618;
+  wdt->wdt_dev.info = &rn5t618_wdt_info;
+  wdt->wdt_dev.ops = &rn5t618_wdt_ops;
+  wdt->wdt_dev.min_timeout = min_timeout;
+  wdt->wdt_dev.max_timeout = max_timeout;
+  wdt->wdt_dev.timeout = max_timeout;
+  wdt->wdt_dev.parent = dev;
+  /* Read out previous power-off factor */
+  ret = regmap_read(wdt->rn5t618->regmap, RN5T618_POFFHIS, &val);
+  if (ret) {
+    return ret;
+  }
+  if (val & RN5T618_POFFHIS_VINDET) {
+    wdt->wdt_dev.bootstatus = WDIOF_POWERUNDER;
+  } else if (val & RN5T618_POFFHIS_WDG) {
+    wdt->wdt_dev.bootstatus = WDIOF_CARDRESET;
+  }
+  watchdog_set_drvdata(&wdt->wdt_dev, wdt);
+  watchdog_init_timeout(&wdt->wdt_dev, timeout, dev);
+  watchdog_set_nowayout(&wdt->wdt_dev, nowayout);
+  platform_set_drvdata(pdev, wdt);
+  return devm_watchdog_register_device(dev, &wdt->wdt_dev);
 }
 
 static struct platform_driver rn5t618_wdt_driver = {
-	.probe = rn5t618_wdt_probe,
-	.driver = {
-		.name	= DRIVER_NAME,
-	},
+  .probe = rn5t618_wdt_probe,
+  .driver = {
+    .name = DRIVER_NAME,
+  },
 };
 
 module_platform_driver(rn5t618_wdt_driver);

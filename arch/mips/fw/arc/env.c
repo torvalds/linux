@@ -14,8 +14,6 @@
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 
-PCHAR __init
-ArcGetEnvironmentVariable(CHAR *name)
-{
-	return (CHAR *) ARC_CALL1(get_evar, name);
+PCHAR __init ArcGetEnvironmentVariable(CHAR *name) {
+  return (CHAR *) ARC_CALL1(get_evar, name);
 }

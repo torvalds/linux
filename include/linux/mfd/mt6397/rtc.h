@@ -69,18 +69,18 @@
 #define MTK_RTC_POLL_TIMEOUT   (jiffies_to_usecs(HZ))
 
 struct mtk_rtc_data {
-	u32                     wrtgr;
+  u32 wrtgr;
 };
 
 struct mt6397_rtc {
-	struct rtc_device       *rtc_dev;
+  struct rtc_device *rtc_dev;
 
-	/* Protect register access from multiple tasks */
-	struct mutex            lock;
-	struct regmap           *regmap;
-	int                     irq;
-	u32                     addr_base;
-	const struct mtk_rtc_data *data;
+  /* Protect register access from multiple tasks */
+  struct mutex lock;
+  struct regmap *regmap;
+  int irq;
+  u32 addr_base;
+  const struct mtk_rtc_data *data;
 };
 
 #endif /* _LINUX_MFD_MT6397_RTC_H_ */

@@ -19,8 +19,8 @@
 /* PKO queues per port for Loop devices (ports 36-39) */
 #define CVMX_PKO_QUEUES_PER_PORT_LOOP 1
 
-/************************* FPA allocation *********************************/
-/* Pool sizes in bytes, must be multiple of a cache line */
+/* ************************ FPA allocation ********************************
+ * Pool sizes in bytes, must be multiple of a cache line*/
 #define CVMX_FPA_POOL_0_SIZE (16 * CVMX_CACHE_LINE_SIZE)
 #define CVMX_FPA_POOL_1_SIZE (1 * CVMX_CACHE_LINE_SIZE)
 #define CVMX_FPA_POOL_2_SIZE (8 * CVMX_CACHE_LINE_SIZE)
@@ -30,15 +30,15 @@
 #define CVMX_FPA_POOL_6_SIZE (0 * CVMX_CACHE_LINE_SIZE)
 #define CVMX_FPA_POOL_7_SIZE (0 * CVMX_CACHE_LINE_SIZE)
 
-/* Pools in use */
-/* Packet buffers */
-#define CVMX_FPA_PACKET_POOL		    (0)
-#define CVMX_FPA_PACKET_POOL_SIZE	    CVMX_FPA_POOL_0_SIZE
+/* Pools in use
+ * Packet buffers*/
+#define CVMX_FPA_PACKET_POOL        (0)
+#define CVMX_FPA_PACKET_POOL_SIZE     CVMX_FPA_POOL_0_SIZE
 /* Work queue entries */
-#define CVMX_FPA_WQE_POOL		    (1)
-#define CVMX_FPA_WQE_POOL_SIZE		    CVMX_FPA_POOL_1_SIZE
+#define CVMX_FPA_WQE_POOL       (1)
+#define CVMX_FPA_WQE_POOL_SIZE        CVMX_FPA_POOL_1_SIZE
 /* PKO queue command buffers */
-#define CVMX_FPA_OUTPUT_BUFFER_POOL	    (2)
+#define CVMX_FPA_OUTPUT_BUFFER_POOL     (2)
 #define CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE    CVMX_FPA_POOL_2_SIZE
 
 /*************************  FAU allocation ********************************/
@@ -46,7 +46,7 @@
  * in order of descending size so that all alignment constraints are
  * automatically met.  The enums are linked so that the following enum
  * continues allocating where the previous one left off, so the
- * numbering within each enum always starts with zero.	The macros
+ * numbering within each enum always starts with zero.  The macros
  * take care of the address increment size, so the values entered
  * always increase by 1.  FAU registers are accessed with byte
  * addresses.
@@ -54,26 +54,26 @@
 
 #define CVMX_FAU_REG_64_ADDR(x) ((x << 3) + CVMX_FAU_REG_64_START)
 typedef enum {
-	CVMX_FAU_REG_64_START	= 0,
-	CVMX_FAU_REG_64_END	= CVMX_FAU_REG_64_ADDR(0),
+  CVMX_FAU_REG_64_START = 0,
+  CVMX_FAU_REG_64_END = CVMX_FAU_REG_64_ADDR(0),
 } cvmx_fau_reg_64_t;
 
 #define CVMX_FAU_REG_32_ADDR(x) ((x << 2) + CVMX_FAU_REG_32_START)
 typedef enum {
-	CVMX_FAU_REG_32_START	= CVMX_FAU_REG_64_END,
-	CVMX_FAU_REG_32_END	= CVMX_FAU_REG_32_ADDR(0),
+  CVMX_FAU_REG_32_START = CVMX_FAU_REG_64_END,
+  CVMX_FAU_REG_32_END = CVMX_FAU_REG_32_ADDR(0),
 } cvmx_fau_reg_32_t;
 
 #define CVMX_FAU_REG_16_ADDR(x) ((x << 1) + CVMX_FAU_REG_16_START)
 typedef enum {
-	CVMX_FAU_REG_16_START	= CVMX_FAU_REG_32_END,
-	CVMX_FAU_REG_16_END	= CVMX_FAU_REG_16_ADDR(0),
+  CVMX_FAU_REG_16_START = CVMX_FAU_REG_32_END,
+  CVMX_FAU_REG_16_END = CVMX_FAU_REG_16_ADDR(0),
 } cvmx_fau_reg_16_t;
 
 #define CVMX_FAU_REG_8_ADDR(x) ((x) + CVMX_FAU_REG_8_START)
 typedef enum {
-	CVMX_FAU_REG_8_START	= CVMX_FAU_REG_16_END,
-	CVMX_FAU_REG_8_END	= CVMX_FAU_REG_8_ADDR(0),
+  CVMX_FAU_REG_8_START = CVMX_FAU_REG_16_END,
+  CVMX_FAU_REG_8_END = CVMX_FAU_REG_8_ADDR(0),
 } cvmx_fau_reg_8_t;
 
 /*
@@ -91,9 +91,9 @@ typedef enum {
  * be taken into account.
  */
 /* Generic scratch iobdma area */
-#define CVMX_SCR_SCRATCH	       (0)
+#define CVMX_SCR_SCRATCH         (0)
 /* First location available after cvmx-config.h allocated region. */
-#define CVMX_SCR_REG_AVAIL_BASE	       (8)
+#define CVMX_SCR_REG_AVAIL_BASE        (8)
 
 /*
  * CVMX_HELPER_FIRST_MBUFF_SKIP is the number of bytes to reserve
@@ -145,20 +145,20 @@ typedef enum {
  * 0: don't include
  * 1: include
  */
-#define CVMX_HELPER_INPUT_TAG_IPV6_SRC_IP	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_DST_IP	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_SRC_PORT	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_DST_PORT	0
-#define CVMX_HELPER_INPUT_TAG_IPV6_NEXT_HEADER	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_SRC_IP	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_DST_IP	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_SRC_PORT	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_DST_PORT	0
-#define CVMX_HELPER_INPUT_TAG_IPV4_PROTOCOL	0
-#define CVMX_HELPER_INPUT_TAG_INPUT_PORT	1
+#define CVMX_HELPER_INPUT_TAG_IPV6_SRC_IP 0
+#define CVMX_HELPER_INPUT_TAG_IPV6_DST_IP 0
+#define CVMX_HELPER_INPUT_TAG_IPV6_SRC_PORT 0
+#define CVMX_HELPER_INPUT_TAG_IPV6_DST_PORT 0
+#define CVMX_HELPER_INPUT_TAG_IPV6_NEXT_HEADER  0
+#define CVMX_HELPER_INPUT_TAG_IPV4_SRC_IP 0
+#define CVMX_HELPER_INPUT_TAG_IPV4_DST_IP 0
+#define CVMX_HELPER_INPUT_TAG_IPV4_SRC_PORT 0
+#define CVMX_HELPER_INPUT_TAG_IPV4_DST_PORT 0
+#define CVMX_HELPER_INPUT_TAG_IPV4_PROTOCOL 0
+#define CVMX_HELPER_INPUT_TAG_INPUT_PORT  1
 
 /* Select skip mode for input ports */
-#define CVMX_HELPER_INPUT_PORT_SKIP_MODE	CVMX_PIP_PORT_CFG_MODE_SKIPL2
+#define CVMX_HELPER_INPUT_PORT_SKIP_MODE  CVMX_PIP_PORT_CFG_MODE_SKIPL2
 
 /*
  * Force backpressure to be disabled.  This overrides all other

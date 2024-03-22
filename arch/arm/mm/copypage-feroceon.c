@@ -10,11 +10,10 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 
-static void feroceon_copy_user_page(void *kto, const void *kfrom)
-{
-	int tmp;
-
-	asm volatile ("\
+static void feroceon_copy_user_page(void *kto, const void *kfrom) {
+  int tmp;
+  asm volatile (
+    "\
 .arch	armv5te					\n\
 1:	ldmia	%1!, {r2 - r7, ip, lr}		\n\
 	pld	[%1, #0]			\n\
@@ -57,29 +56,27 @@ static void feroceon_copy_user_page(void *kto, const void *kfrom)
 	mcr	p15, 0, %0, c7, c14, 1		@ clean and invalidate D line\n\
 	add	%0, %0, #32			\n\
 	bne	1b				\n\
-	mcr	p15, 0, %2, c7, c10, 4		@ drain WB"
-	: "+&r" (kto), "+&r" (kfrom), "=&r" (tmp)
-	: "2" (PAGE_SIZE)
-	: "r2", "r3", "r4", "r5", "r6", "r7", "ip", "lr");
+	mcr	p15, 0, %2, c7, c10, 4		@ drain WB" : "+&r" (kto), "+&r" (kfrom),
+    "=&r" (tmp)
+    : "2" (PAGE_SIZE)
+    : "r2", "r3", "r4", "r5", "r6", "r7", "ip", "lr");
 }
 
 void feroceon_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma)
-{
-	void *kto, *kfrom;
-
-	kto = kmap_atomic(to);
-	kfrom = kmap_atomic(from);
-	flush_cache_page(vma, vaddr, page_to_pfn(from));
-	feroceon_copy_user_page(kto, kfrom);
-	kunmap_atomic(kfrom);
-	kunmap_atomic(kto);
+    unsigned long vaddr, struct vm_area_struct *vma) {
+  void *kto, *kfrom;
+  kto = kmap_atomic(to);
+  kfrom = kmap_atomic(from);
+  flush_cache_page(vma, vaddr, page_to_pfn(from));
+  feroceon_copy_user_page(kto, kfrom);
+  kunmap_atomic(kfrom);
+  kunmap_atomic(kto);
 }
 
-void feroceon_clear_user_highpage(struct page *page, unsigned long vaddr)
-{
-	void *ptr, *kaddr = kmap_atomic(page);
-	asm volatile ("\
+void feroceon_clear_user_highpage(struct page *page, unsigned long vaddr) {
+  void *ptr, *kaddr = kmap_atomic(page);
+  asm volatile (
+    "\
 	mov	r1, %2				\n\
 	mov	r2, #0				\n\
 	mov	r3, #0				\n\
@@ -94,15 +91,13 @@ void feroceon_clear_user_highpage(struct page *page, unsigned long vaddr)
 	mcr	p15, 0, %0, c7, c14, 1		@ clean and invalidate D line\n\
 	add	%0, %0, #32			\n\
 	bne	1b				\n\
-	mcr	p15, 0, r1, c7, c10, 4		@ drain WB"
-	: "=r" (ptr)
-	: "0" (kaddr), "I" (PAGE_SIZE / 32)
-	: "r1", "r2", "r3", "r4", "r5", "r6", "r7", "ip", "lr");
-	kunmap_atomic(kaddr);
+	mcr	p15, 0, r1, c7, c10, 4		@ drain WB" : "=r" (ptr)
+    : "0" (kaddr), "I" (PAGE_SIZE / 32)
+    : "r1", "r2", "r3", "r4", "r5", "r6", "r7", "ip", "lr");
+  kunmap_atomic(kaddr);
 }
 
 struct cpu_user_fns feroceon_user_fns __initdata = {
-	.cpu_clear_user_highpage = feroceon_clear_user_highpage,
-	.cpu_copy_user_highpage	= feroceon_copy_user_highpage,
+  .cpu_clear_user_highpage = feroceon_clear_user_highpage,
+  .cpu_copy_user_highpage = feroceon_copy_user_highpage,
 };
-

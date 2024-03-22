@@ -30,12 +30,12 @@ struct zynqmp_dpsub;
  * @encoder: The dummy DRM encoder
  */
 struct zynqmp_dpsub_drm {
-	struct zynqmp_dpsub *dpsub;
+  struct zynqmp_dpsub *dpsub;
 
-	struct drm_device dev;
-	struct drm_plane planes[ZYNQMP_DPSUB_NUM_LAYERS];
-	struct drm_crtc crtc;
-	struct drm_encoder encoder;
+  struct drm_device dev;
+  struct drm_plane planes[ZYNQMP_DPSUB_NUM_LAYERS];
+  struct drm_crtc crtc;
+  struct drm_encoder encoder;
 };
 
 void zynqmp_dpsub_drm_handle_vblank(struct zynqmp_dpsub *dpsub);

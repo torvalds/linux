@@ -6,7 +6,7 @@
  * PCMCIA driver platform data
  */
 struct bcm63xx_pcmcia_platform_data {
-	unsigned int ready_gpio;
+  unsigned int ready_gpio;
 };
 
 int bcm63xx_pcmcia_register(void);

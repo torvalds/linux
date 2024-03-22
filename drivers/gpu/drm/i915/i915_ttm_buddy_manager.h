@@ -29,11 +29,11 @@ struct drm_buddy;
  * one or more struct i915_buddy_block.
  */
 struct i915_ttm_buddy_resource {
-	struct ttm_resource base;
-	struct list_head blocks;
-	unsigned long flags;
-	unsigned long used_visible_size;
-	struct drm_buddy *mm;
+  struct ttm_resource base;
+  struct list_head blocks;
+  unsigned long flags;
+  unsigned long used_visible_size;
+  struct drm_buddy *mm;
 };
 
 /**
@@ -43,30 +43,29 @@ struct i915_ttm_buddy_resource {
  *
  * Upcast the struct ttm_resource object into a struct i915_ttm_buddy_resource.
  */
-static inline struct i915_ttm_buddy_resource *
-to_ttm_buddy_resource(struct ttm_resource *res)
-{
-	return container_of(res, struct i915_ttm_buddy_resource, base);
+static inline struct i915_ttm_buddy_resource *to_ttm_buddy_resource(
+    struct ttm_resource *res) {
+  return container_of(res, struct i915_ttm_buddy_resource, base);
 }
 
 int i915_ttm_buddy_man_init(struct ttm_device *bdev,
-			    unsigned type, bool use_tt,
-			    u64 size, u64 visible_size,
-			    u64 default_page_size, u64 chunk_size);
+    unsigned type, bool use_tt,
+    u64 size, u64 visible_size,
+    u64 default_page_size, u64 chunk_size);
 int i915_ttm_buddy_man_fini(struct ttm_device *bdev,
-			    unsigned int type);
+    unsigned int type);
 
 int i915_ttm_buddy_man_reserve(struct ttm_resource_manager *man,
-			       u64 start, u64 size);
+    u64 start, u64 size);
 
 u64 i915_ttm_buddy_man_visible_size(struct ttm_resource_manager *man);
 
 void i915_ttm_buddy_man_avail(struct ttm_resource_manager *man,
-			      u64 *avail, u64 *avail_visible);
+    u64 *avail, u64 *avail_visible);
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 void i915_ttm_buddy_man_force_visible_size(struct ttm_resource_manager *man,
-					   u64 size);
+    u64 size);
 #endif
 
 #endif

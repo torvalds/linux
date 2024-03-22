@@ -12,18 +12,15 @@ int var2 = -1;
 const volatile long rovar2;
 
 /* same "subprog" name in both files */
-static __noinline int subprog(int x)
-{
-	/* but different formula */
-	return x * 3;
+static __noinline int subprog(int x) {
+  /* but different formula */
+  return x * 3;
 }
 
 SEC("raw_tp/sys_enter")
-int handler2(const void *ctx)
-{
-	var2 = subprog(rovar2) + static_var1 + static_var2;
-
-	return 0;
+int handler2(const void *ctx) {
+  var2 = subprog(rovar2) + static_var1 + static_var2;
+  return 0;
 }
 
 /* different name and/or type of the variable doesn't matter */

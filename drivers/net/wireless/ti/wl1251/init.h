@@ -11,22 +11,22 @@
 #include "wl1251.h"
 
 enum {
-	/* best effort/legacy */
-	AC_BE = 0,
+  /* best effort/legacy */
+  AC_BE = 0,
 
-	/* background */
-	AC_BK = 1,
+  /* background */
+  AC_BK = 1,
 
-	/* video */
-	AC_VI = 2,
+  /* video */
+  AC_VI = 2,
 
-	/* voice */
-	AC_VO = 3,
+  /* voice */
+  AC_VO = 3,
 
-	/* broadcast dummy access category */
-	AC_BCAST = 4,
+  /* broadcast dummy access category */
+  AC_BCAST = 4,
 
-	NUM_ACCESS_CATEGORIES = 4
+  NUM_ACCESS_CATEGORIES = 4
 };
 
 /* following are defult values for the IE fields*/

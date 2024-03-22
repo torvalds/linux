@@ -6,9 +6,9 @@
  *  S390 version
  *    Copyright 2000, 2006 IBM Corporation
  *    Author(s):Alan Altmark (Alan_Altmark@us.ibm.com)
- *		Xenia Tkatschow (xenia@us.ibm.com)
+ *    Xenia Tkatschow (xenia@us.ibm.com)
  *    Rewritten for af_iucv:
- *	Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *  Martin Schwidefsky <schwidefsky@de.ibm.com>
  *
  *
  * Functionality:
@@ -37,37 +37,37 @@
  * IUCV option flags usable by device drivers:
  *
  * IUCV_IPRMDATA  Indicates that your program can handle a message in the
- *		  parameter list / a message is sent in the parameter list.
- *		  Used for iucv_path_accept, iucv_path_connect,
- *		  iucv_message_reply, iucv_message_send, iucv_message_send2way.
- * IUCV_IPQUSCE	  Indicates that you do not want to receive messages on this
- *		  path until an iucv_path_resume is issued.
- *		  Used for iucv_path_accept, iucv_path_connect.
+ *      parameter list / a message is sent in the parameter list.
+ *      Used for iucv_path_accept, iucv_path_connect,
+ *      iucv_message_reply, iucv_message_send, iucv_message_send2way.
+ * IUCV_IPQUSCE   Indicates that you do not want to receive messages on this
+ *      path until an iucv_path_resume is issued.
+ *      Used for iucv_path_accept, iucv_path_connect.
  * IUCV_IPBUFLST  Indicates that an address list is used for the message data.
- *		  Used for iucv_message_receive, iucv_message_send,
- *		  iucv_message_send2way.
- * IUCV_IPPRTY	  Specifies that you want to send priority messages.
- *		  Used for iucv_path_accept, iucv_path_connect,
- *		  iucv_message_reply, iucv_message_send, iucv_message_send2way.
- * IUCV_IPSYNC	  Indicates a synchronous send request.
- *		  Used for iucv_message_send, iucv_message_send2way.
+ *      Used for iucv_message_receive, iucv_message_send,
+ *      iucv_message_send2way.
+ * IUCV_IPPRTY    Specifies that you want to send priority messages.
+ *      Used for iucv_path_accept, iucv_path_connect,
+ *      iucv_message_reply, iucv_message_send, iucv_message_send2way.
+ * IUCV_IPSYNC    Indicates a synchronous send request.
+ *      Used for iucv_message_send, iucv_message_send2way.
  * IUCV_IPANSLST  Indicates that an address list is used for the reply data.
- *		  Used for iucv_message_reply, iucv_message_send2way.
- * IUCV_IPLOCAL	  Specifies that the communication partner has to be on the
- *		  local system. If local is specified no target class can be
- *		  specified.
- *		  Used for iucv_path_connect.
+ *      Used for iucv_message_reply, iucv_message_send2way.
+ * IUCV_IPLOCAL   Specifies that the communication partner has to be on the
+ *      local system. If local is specified no target class can be
+ *      specified.
+ *      Used for iucv_path_connect.
  *
  * All flags are defined in the input field IPFLAGS1 of each function
  * and can be found in CP Programming Services.
  */
-#define IUCV_IPRMDATA	0x80
-#define IUCV_IPQUSCE	0x40
-#define IUCV_IPBUFLST	0x40
-#define IUCV_IPPRTY	0x20
-#define IUCV_IPANSLST	0x08
-#define IUCV_IPSYNC	0x04
-#define IUCV_IPLOCAL	0x01
+#define IUCV_IPRMDATA 0x80
+#define IUCV_IPQUSCE  0x40
+#define IUCV_IPBUFLST 0x40
+#define IUCV_IPPRTY 0x20
+#define IUCV_IPANSLST 0x08
+#define IUCV_IPSYNC 0x04
+#define IUCV_IPLOCAL  0x01
 
 /*
  * iucv_array : Defines buffer array.
@@ -77,9 +77,9 @@
  * and iucv_message_reply if IUCV_IPBUFLST or IUCV_IPANSLST are used.
  */
 struct iucv_array {
-	dma32_t address;
-	u32 length;
-} __attribute__ ((aligned (8)));
+  dma32_t address;
+  u32 length;
+} __attribute__ ((aligned(8)));
 
 extern const struct bus_type iucv_bus;
 extern struct device *iucv_root;
@@ -94,12 +94,12 @@ extern struct device *iucv_root;
  * list: list_head for the iucv_handler path list.
  */
 struct iucv_path {
-	u16 pathid;
-	u16 msglim;
-	u8  flags;
-	void *private;
-	struct iucv_handler *handler;
-	struct list_head list;
+  u16 pathid;
+  u16 msglim;
+  u8 flags;
+  void * private;
+  struct iucv_handler *handler;
+  struct list_head list;
 };
 
 /*
@@ -114,14 +114,14 @@ struct iucv_path {
  * flags: message properties (IUCV_IPPRTY)
  */
 struct iucv_message {
-	u32 id;
-	u32 audit;
-	u32 class;
-	u32 tag;
-	u32 length;
-	u32 reply_size;
-	u8  rmmsg[8];
-	u8  flags;
+  u32 id;
+  u32 audit;
+  u32 class;
+  u32 tag;
+  u32 length;
+  u32 reply_size;
+  u8 rmmsg[8];
+  u8 flags;
 } __packed;
 
 /*
@@ -132,62 +132,62 @@ struct iucv_message {
  * pointer that is provided by the user of the interface.
  */
 struct iucv_handler {
-	 /*
-	  * The path_pending function is called after an iucv interrupt
-	  * type 0x01 has been received. The base code allocates a path
-	  * structure and "asks" the handler if this path belongs to the
-	  * handler. To accept the path the path_pending function needs
-	  * to call iucv_path_accept and return 0. If the callback returns
-	  * a value != 0 the iucv base code will continue with the next
-	  * handler. The order in which the path_pending functions are
-	  * called is the order of the registration of the iucv handlers
-	  * to the base code.
-	  */
-	int  (*path_pending)(struct iucv_path *, u8 *ipvmid, u8 *ipuser);
-	/*
-	 * The path_complete function is called after an iucv interrupt
-	 * type 0x02 has been received for a path that has been established
-	 * for this handler with iucv_path_connect and got accepted by the
-	 * peer with iucv_path_accept.
-	 */
-	void (*path_complete)(struct iucv_path *, u8 *ipuser);
-	 /*
-	  * The path_severed function is called after an iucv interrupt
-	  * type 0x03 has been received. The communication peer shutdown
-	  * his end of the communication path. The path still exists and
-	  * remaining messages can be received until a iucv_path_sever
-	  * shuts down the other end of the path as well.
-	  */
-	void (*path_severed)(struct iucv_path *, u8 *ipuser);
-	/*
-	 * The path_quiesced function is called after an icuv interrupt
-	 * type 0x04 has been received. The communication peer has quiesced
-	 * the path. Delivery of messages is stopped until iucv_path_resume
-	 * has been called.
-	 */
-	void (*path_quiesced)(struct iucv_path *, u8 *ipuser);
-	/*
-	 * The path_resumed function is called after an icuv interrupt
-	 * type 0x05 has been received. The communication peer has resumed
-	 * the path.
-	 */
-	void (*path_resumed)(struct iucv_path *, u8 *ipuser);
-	/*
-	 * The message_pending function is called after an icuv interrupt
-	 * type 0x06 or type 0x07 has been received. A new message is
-	 * available and can be received with iucv_message_receive.
-	 */
-	void (*message_pending)(struct iucv_path *, struct iucv_message *);
-	/*
-	 * The message_complete function is called after an icuv interrupt
-	 * type 0x08 or type 0x09 has been received. A message send with
-	 * iucv_message_send2way has been replied to. The reply can be
-	 * received with iucv_message_receive.
-	 */
-	void (*message_complete)(struct iucv_path *, struct iucv_message *);
+  /*
+   * The path_pending function is called after an iucv interrupt
+   * type 0x01 has been received. The base code allocates a path
+   * structure and "asks" the handler if this path belongs to the
+   * handler. To accept the path the path_pending function needs
+   * to call iucv_path_accept and return 0. If the callback returns
+   * a value != 0 the iucv base code will continue with the next
+   * handler. The order in which the path_pending functions are
+   * called is the order of the registration of the iucv handlers
+   * to the base code.
+   */
+  int (*path_pending)(struct iucv_path *, u8 *ipvmid, u8 *ipuser);
+  /*
+   * The path_complete function is called after an iucv interrupt
+   * type 0x02 has been received for a path that has been established
+   * for this handler with iucv_path_connect and got accepted by the
+   * peer with iucv_path_accept.
+   */
+  void (*path_complete)(struct iucv_path *, u8 *ipuser);
+  /*
+   * The path_severed function is called after an iucv interrupt
+   * type 0x03 has been received. The communication peer shutdown
+   * his end of the communication path. The path still exists and
+   * remaining messages can be received until a iucv_path_sever
+   * shuts down the other end of the path as well.
+   */
+  void (*path_severed)(struct iucv_path *, u8 *ipuser);
+  /*
+   * The path_quiesced function is called after an icuv interrupt
+   * type 0x04 has been received. The communication peer has quiesced
+   * the path. Delivery of messages is stopped until iucv_path_resume
+   * has been called.
+   */
+  void (*path_quiesced)(struct iucv_path *, u8 *ipuser);
+  /*
+   * The path_resumed function is called after an icuv interrupt
+   * type 0x05 has been received. The communication peer has resumed
+   * the path.
+   */
+  void (*path_resumed)(struct iucv_path *, u8 *ipuser);
+  /*
+   * The message_pending function is called after an icuv interrupt
+   * type 0x06 or type 0x07 has been received. A new message is
+   * available and can be received with iucv_message_receive.
+   */
+  void (*message_pending)(struct iucv_path *, struct iucv_message *);
+  /*
+   * The message_complete function is called after an icuv interrupt
+   * type 0x08 or type 0x09 has been received. A message send with
+   * iucv_message_send2way has been replied to. The reply can be
+   * received with iucv_message_receive.
+   */
+  void (*message_complete)(struct iucv_path *, struct iucv_message *);
 
-	struct list_head list;
-	struct list_head paths;
+  struct list_head list;
+  struct list_head paths;
 };
 
 /**
@@ -222,16 +222,15 @@ void iucv_unregister(struct iucv_handler *handle, int smp);
  * Returns NULL if the memory allocation failed or a pointer to the
  * path structure.
  */
-static inline struct iucv_path *iucv_path_alloc(u16 msglim, u8 flags, gfp_t gfp)
-{
-	struct iucv_path *path;
-
-	path = kzalloc(sizeof(struct iucv_path), gfp);
-	if (path) {
-		path->msglim = msglim;
-		path->flags = flags;
-	}
-	return path;
+static inline struct iucv_path *iucv_path_alloc(u16 msglim, u8 flags,
+    gfp_t gfp) {
+  struct iucv_path *path;
+  path = kzalloc(sizeof(struct iucv_path), gfp);
+  if (path) {
+    path->msglim = msglim;
+    path->flags = flags;
+  }
+  return path;
 }
 
 /**
@@ -240,9 +239,8 @@ static inline struct iucv_path *iucv_path_alloc(u16 msglim, u8 flags, gfp_t gfp)
  *
  * Frees a path structure.
  */
-static inline void iucv_path_free(struct iucv_path *path)
-{
-	kfree(path);
+static inline void iucv_path_free(struct iucv_path *path) {
+  kfree(path);
 }
 
 /**
@@ -258,7 +256,7 @@ static inline void iucv_path_free(struct iucv_path *path)
  * Returns the result of the CP IUCV call.
  */
 int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
-		     u8 *userdata, void *private);
+    u8 *userdata, void * private);
 
 /**
  * iucv_path_connect
@@ -276,8 +274,8 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
  * Returns the result of the CP IUCV call.
  */
 int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
-		      u8 *userid, u8 *system, u8 *userdata,
-		      void *private);
+    u8 *userid, u8 *system, u8 *userdata,
+    void * private);
 
 /**
  * iucv_path_quiesce:
@@ -325,7 +323,7 @@ int iucv_path_sever(struct iucv_path *path, u8 *userdata);
  * Returns the result from the CP IUCV call.
  */
 int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
-		       u32 srccls);
+    u32 srccls);
 
 /**
  * iucv_message_receive
@@ -340,12 +338,12 @@ int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
  * established paths. This function will deal with RMDATA messages
  * embedded in struct iucv_message as well.
  *
- * Locking:	local_bh_enable/local_bh_disable
+ * Locking: local_bh_enable/local_bh_disable
  *
  * Returns the result from the CP IUCV call.
  */
 int iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
-			 u8 flags, void *buffer, size_t size, size_t *residual);
+    u8 flags, void *buffer, size_t size, size_t *residual);
 
 /**
  * __iucv_message_receive
@@ -360,13 +358,13 @@ int iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
  * established paths. This function will deal with RMDATA messages
  * embedded in struct iucv_message as well.
  *
- * Locking:	no locking.
+ * Locking: no locking.
  *
  * Returns the result from the CP IUCV call.
  */
 int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
-			   u8 flags, void *buffer, size_t size,
-			   size_t *residual);
+    u8 flags, void *buffer, size_t size,
+    size_t *residual);
 
 /**
  * iucv_message_reject
@@ -397,7 +395,7 @@ int iucv_message_reject(struct iucv_path *path, struct iucv_message *msg);
  * Returns the result from the CP IUCV call.
  */
 int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
-		       u8 flags, void *reply, size_t size);
+    u8 flags, void *reply, size_t size);
 
 /**
  * iucv_message_send
@@ -412,12 +410,12 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
  * transmitted is in a buffer and this is a one-way message and the
  * receiver will not reply to the message.
  *
- * Locking:	local_bh_enable/local_bh_disable
+ * Locking: local_bh_enable/local_bh_disable
  *
  * Returns the result from the CP IUCV call.
  */
 int iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
-		      u8 flags, u32 srccls, void *buffer, size_t size);
+    u8 flags, u32 srccls, void *buffer, size_t size);
 
 /**
  * __iucv_message_send
@@ -432,19 +430,19 @@ int iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
  * transmitted is in a buffer and this is a one-way message and the
  * receiver will not reply to the message.
  *
- * Locking:	no locking.
+ * Locking: no locking.
  *
  * Returns the result from the CP IUCV call.
  */
 int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
-			u8 flags, u32 srccls, void *buffer, size_t size);
+    u8 flags, u32 srccls, void *buffer, size_t size);
 
 /**
  * iucv_message_send2way
  * @path: address of iucv path structure
  * @msg: address of iucv msg structure
  * @flags: how the message is sent and the reply is received
- *	   (IUCV_IPRMDATA, IUCV_IPBUFLST, IUCV_IPPRTY, IUCV_ANSLST)
+ *     (IUCV_IPRMDATA, IUCV_IPBUFLST, IUCV_IPPRTY, IUCV_ANSLST)
  * @srccls: source class of message
  * @buffer: address of data buffer or address of struct iucv_array
  * @size: length of send buffer
@@ -459,39 +457,39 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
  * Returns the result from the CP IUCV call.
  */
 int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
-			  u8 flags, u32 srccls, void *buffer, size_t size,
-			  void *answer, size_t asize, size_t *residual);
+    u8 flags, u32 srccls, void *buffer, size_t size,
+    void *answer, size_t asize, size_t *residual);
 
 struct iucv_interface {
-	int (*message_receive)(struct iucv_path *path, struct iucv_message *msg,
-		u8 flags, void *buffer, size_t size, size_t *residual);
-	int (*__message_receive)(struct iucv_path *path,
-		struct iucv_message *msg, u8 flags, void *buffer, size_t size,
-		size_t *residual);
-	int (*message_reply)(struct iucv_path *path, struct iucv_message *msg,
-		u8 flags, void *reply, size_t size);
-	int (*message_reject)(struct iucv_path *path, struct iucv_message *msg);
-	int (*message_send)(struct iucv_path *path, struct iucv_message *msg,
-		u8 flags, u32 srccls, void *buffer, size_t size);
-	int (*__message_send)(struct iucv_path *path, struct iucv_message *msg,
-		u8 flags, u32 srccls, void *buffer, size_t size);
-	int (*message_send2way)(struct iucv_path *path,
-		struct iucv_message *msg, u8 flags, u32 srccls, void *buffer,
-		size_t size, void *answer, size_t asize, size_t *residual);
-	int (*message_purge)(struct iucv_path *path, struct iucv_message *msg,
-		u32 srccls);
-	int (*path_accept)(struct iucv_path *path, struct iucv_handler *handler,
-		u8 userdata[16], void *private);
-	int (*path_connect)(struct iucv_path *path,
-		struct iucv_handler *handler,
-		u8 userid[8], u8 system[8], u8 userdata[16], void *private);
-	int (*path_quiesce)(struct iucv_path *path, u8 userdata[16]);
-	int (*path_resume)(struct iucv_path *path, u8 userdata[16]);
-	int (*path_sever)(struct iucv_path *path, u8 userdata[16]);
-	int (*iucv_register)(struct iucv_handler *handler, int smp);
-	void (*iucv_unregister)(struct iucv_handler *handler, int smp);
-	const struct bus_type *bus;
-	struct device *root;
+  int (*message_receive)(struct iucv_path *path, struct iucv_message *msg,
+      u8 flags, void *buffer, size_t size, size_t *residual);
+  int (*__message_receive)(struct iucv_path *path,
+      struct iucv_message *msg, u8 flags, void *buffer, size_t size,
+      size_t *residual);
+  int (*message_reply)(struct iucv_path *path, struct iucv_message *msg,
+      u8 flags, void *reply, size_t size);
+  int (*message_reject)(struct iucv_path *path, struct iucv_message *msg);
+  int (*message_send)(struct iucv_path *path, struct iucv_message *msg,
+      u8 flags, u32 srccls, void *buffer, size_t size);
+  int (*__message_send)(struct iucv_path *path, struct iucv_message *msg,
+      u8 flags, u32 srccls, void *buffer, size_t size);
+  int (*message_send2way)(struct iucv_path *path,
+      struct iucv_message *msg, u8 flags, u32 srccls, void *buffer,
+      size_t size, void *answer, size_t asize, size_t *residual);
+  int (*message_purge)(struct iucv_path *path, struct iucv_message *msg,
+      u32 srccls);
+  int (*path_accept)(struct iucv_path *path, struct iucv_handler *handler,
+      u8 userdata[16], void * private);
+  int (*path_connect)(struct iucv_path *path,
+      struct iucv_handler *handler,
+      u8 userid[8], u8 system[8], u8 userdata[16], void * private);
+  int (*path_quiesce)(struct iucv_path *path, u8 userdata[16]);
+  int (*path_resume)(struct iucv_path *path, u8 userdata[16]);
+  int (*path_sever)(struct iucv_path *path, u8 userdata[16]);
+  int (*iucv_register)(struct iucv_handler *handler, int smp);
+  void (*iucv_unregister)(struct iucv_handler *handler, int smp);
+  const struct bus_type *bus;
+  struct device *root;
 };
 
 extern struct iucv_interface iucv_if;

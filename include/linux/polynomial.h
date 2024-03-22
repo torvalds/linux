@@ -14,10 +14,10 @@
  * @divider_leftover: divider leftover, which couldn't be redistributed.
  */
 struct polynomial_term {
-	unsigned int deg;
-	long coef;
-	long divider;
-	long divider_leftover;
+  unsigned int deg;
+  long coef;
+  long divider;
+  long divider_leftover;
 };
 
 /*
@@ -26,8 +26,8 @@ struct polynomial_term {
  * @terms: polynomial terms, last term must have degree of 0
  */
 struct polynomial {
-	long total_divider;
-	struct polynomial_term terms[];
+  long total_divider;
+  struct polynomial_term terms[];
 };
 
 long polynomial_calc(const struct polynomial *poly, long data);

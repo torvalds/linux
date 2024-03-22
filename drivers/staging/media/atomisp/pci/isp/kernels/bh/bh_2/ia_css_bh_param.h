@@ -27,15 +27,15 @@
 
 /* AE (3A Support) */
 struct sh_css_isp_bh_params {
-	/* coefficients to calculate Y */
-	s32 y_coef_r;
-	s32 y_coef_g;
-	s32 y_coef_b;
+  /* coefficients to calculate Y */
+  s32 y_coef_r;
+  s32 y_coef_g;
+  s32 y_coef_b;
 };
 
 /* This should be hmem_data_t, but that breaks the pipe generator */
 struct sh_css_isp_bh_hmem_params {
-	u32 bh[ISP_HIST_COMPONENTS][IA_CSS_HMEM_BH_UNIT_SIZE];
+  u32 bh[ISP_HIST_COMPONENTS][IA_CSS_HMEM_BH_UNIT_SIZE];
 };
 
 #endif /* __IA_CSS_HB_PARAM_H */

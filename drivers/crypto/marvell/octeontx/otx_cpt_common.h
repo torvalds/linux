@@ -18,34 +18,34 @@
 #define OTX_CPT_MAX_MBOX_DATA_STR_SIZE 64
 
 enum otx_cptpf_type {
-	OTX_CPT_AE = 2,
-	OTX_CPT_SE = 3,
-	BAD_OTX_CPTPF_TYPE,
+  OTX_CPT_AE = 2,
+  OTX_CPT_SE = 3,
+  BAD_OTX_CPTPF_TYPE,
 };
 
 enum otx_cptvf_type {
-	OTX_CPT_AE_TYPES = 1,
-	OTX_CPT_SE_TYPES = 2,
-	BAD_OTX_CPTVF_TYPE,
+  OTX_CPT_AE_TYPES = 1,
+  OTX_CPT_SE_TYPES = 2,
+  BAD_OTX_CPTVF_TYPE,
 };
 
 /* VF-PF message opcodes */
 enum otx_cpt_mbox_opcode {
-	OTX_CPT_MSG_VF_UP = 1,
-	OTX_CPT_MSG_VF_DOWN,
-	OTX_CPT_MSG_READY,
-	OTX_CPT_MSG_QLEN,
-	OTX_CPT_MSG_QBIND_GRP,
-	OTX_CPT_MSG_VQ_PRIORITY,
-	OTX_CPT_MSG_PF_TYPE,
-	OTX_CPT_MSG_ACK,
-	OTX_CPT_MSG_NACK
+  OTX_CPT_MSG_VF_UP = 1,
+  OTX_CPT_MSG_VF_DOWN,
+  OTX_CPT_MSG_READY,
+  OTX_CPT_MSG_QLEN,
+  OTX_CPT_MSG_QBIND_GRP,
+  OTX_CPT_MSG_VQ_PRIORITY,
+  OTX_CPT_MSG_PF_TYPE,
+  OTX_CPT_MSG_ACK,
+  OTX_CPT_MSG_NACK
 };
 
 /* OcteonTX CPT mailbox structure */
 struct otx_cpt_mbox {
-	u64 msg; /* Message type MBOX[0] */
-	u64 data;/* Data         MBOX[1] */
+  u64 msg; /* Message type MBOX[0] */
+  u64 data; /* Data         MBOX[1] */
 };
 
 #endif /* __OTX_CPT_COMMON_H */

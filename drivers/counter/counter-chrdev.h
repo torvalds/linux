@@ -8,7 +8,7 @@
 
 #include <linux/counter.h>
 
-int counter_chrdev_add(struct counter_device *const counter);
-void counter_chrdev_remove(struct counter_device *const counter);
+int counter_chrdev_add(struct counter_device * const counter);
+void counter_chrdev_remove(struct counter_device * const counter);
 
 #endif /* _COUNTER_CHRDEV_H_ */

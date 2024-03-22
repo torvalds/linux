@@ -29,21 +29,19 @@
  * Useful for tracing that does not cross to other CPUs nor
  * does it go through idle events.
  */
-u64 notrace trace_clock_local(void)
-{
-	u64 clock;
-
-	/*
-	 * sched_clock() is an architecture implemented, fast, scalable,
-	 * lockless clock. It is not guaranteed to be coherent across
-	 * CPUs, nor across CPU idle events.
-	 */
-	preempt_disable_notrace();
-	clock = sched_clock();
-	preempt_enable_notrace();
-
-	return clock;
+u64 notrace trace_clock_local(void) {
+  u64 clock;
+  /*
+   * sched_clock() is an architecture implemented, fast, scalable,
+   * lockless clock. It is not guaranteed to be coherent across
+   * CPUs, nor across CPU idle events.
+   */
+  preempt_disable_notrace();
+  clock = sched_clock();
+  preempt_enable_notrace();
+  return clock;
 }
+
 EXPORT_SYMBOL_GPL(trace_clock_local);
 
 /*
@@ -54,10 +52,10 @@ EXPORT_SYMBOL_GPL(trace_clock_local);
  * jitter between CPUs. So it's a pretty scalable clock, but there
  * can be offsets in the trace data.
  */
-u64 notrace trace_clock(void)
-{
-	return local_clock();
+u64 notrace trace_clock(void) {
+  return local_clock();
 }
+
 EXPORT_SYMBOL_GPL(trace_clock);
 
 /*
@@ -67,10 +65,10 @@ EXPORT_SYMBOL_GPL(trace_clock);
  * we are affected is that we will have an obviously bogus
  * timestamp on a trace event - i.e. not life threatening.
  */
-u64 notrace trace_clock_jiffies(void)
-{
-	return jiffies_64_to_clock_t(jiffies_64 - INITIAL_JIFFIES);
+u64 notrace trace_clock_jiffies(void) {
+  return jiffies_64_to_clock_t(jiffies_64 - INITIAL_JIFFIES);
 }
+
 EXPORT_SYMBOL_GPL(trace_clock_jiffies);
 
 /*
@@ -84,65 +82,58 @@ EXPORT_SYMBOL_GPL(trace_clock_jiffies);
 
 /* keep prev_time and lock in the same cacheline. */
 static struct {
-	u64 prev_time;
-	arch_spinlock_t lock;
-} trace_clock_struct ____cacheline_aligned_in_smp =
-	{
-		.lock = (arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED,
-	};
+  u64 prev_time;
+  arch_spinlock_t lock;
+} trace_clock_struct ____cacheline_aligned_in_smp = {
+  .lock = (arch_spinlock_t) __ARCH_SPIN_LOCK_UNLOCKED,
+};
 
-u64 notrace trace_clock_global(void)
-{
-	unsigned long flags;
-	int this_cpu;
-	u64 now, prev_time;
-
-	raw_local_irq_save(flags);
-
-	this_cpu = raw_smp_processor_id();
-
-	/*
-	 * The global clock "guarantees" that the events are ordered
-	 * between CPUs. But if two events on two different CPUS call
-	 * trace_clock_global at roughly the same time, it really does
-	 * not matter which one gets the earlier time. Just make sure
-	 * that the same CPU will always show a monotonic clock.
-	 *
-	 * Use a read memory barrier to get the latest written
-	 * time that was recorded.
-	 */
-	smp_rmb();
-	prev_time = READ_ONCE(trace_clock_struct.prev_time);
-	now = sched_clock_cpu(this_cpu);
-
-	/* Make sure that now is always greater than or equal to prev_time */
-	if ((s64)(now - prev_time) < 0)
-		now = prev_time;
-
-	/*
-	 * If in an NMI context then dont risk lockups and simply return
-	 * the current time.
-	 */
-	if (unlikely(in_nmi()))
-		goto out;
-
-	/* Tracing can cause strange recursion, always use a try lock */
-	if (arch_spin_trylock(&trace_clock_struct.lock)) {
-		/* Reread prev_time in case it was already updated */
-		prev_time = READ_ONCE(trace_clock_struct.prev_time);
-		if ((s64)(now - prev_time) < 0)
-			now = prev_time;
-
-		trace_clock_struct.prev_time = now;
-
-		/* The unlock acts as the wmb for the above rmb */
-		arch_spin_unlock(&trace_clock_struct.lock);
-	}
- out:
-	raw_local_irq_restore(flags);
-
-	return now;
+u64 notrace trace_clock_global(void) {
+  unsigned long flags;
+  int this_cpu;
+  u64 now, prev_time;
+  raw_local_irq_save(flags);
+  this_cpu = raw_smp_processor_id();
+  /*
+   * The global clock "guarantees" that the events are ordered
+   * between CPUs. But if two events on two different CPUS call
+   * trace_clock_global at roughly the same time, it really does
+   * not matter which one gets the earlier time. Just make sure
+   * that the same CPU will always show a monotonic clock.
+   *
+   * Use a read memory barrier to get the latest written
+   * time that was recorded.
+   */
+  smp_rmb();
+  prev_time = READ_ONCE(trace_clock_struct.prev_time);
+  now = sched_clock_cpu(this_cpu);
+  /* Make sure that now is always greater than or equal to prev_time */
+  if ((s64) (now - prev_time) < 0) {
+    now = prev_time;
+  }
+  /*
+   * If in an NMI context then dont risk lockups and simply return
+   * the current time.
+   */
+  if (unlikely(in_nmi())) {
+    goto out;
+  }
+  /* Tracing can cause strange recursion, always use a try lock */
+  if (arch_spin_trylock(&trace_clock_struct.lock)) {
+    /* Reread prev_time in case it was already updated */
+    prev_time = READ_ONCE(trace_clock_struct.prev_time);
+    if ((s64) (now - prev_time) < 0) {
+      now = prev_time;
+    }
+    trace_clock_struct.prev_time = now;
+    /* The unlock acts as the wmb for the above rmb */
+    arch_spin_unlock(&trace_clock_struct.lock);
+  }
+out:
+  raw_local_irq_restore(flags);
+  return now;
 }
+
 EXPORT_SYMBOL_GPL(trace_clock_global);
 
 static atomic64_t trace_counter;
@@ -152,7 +143,6 @@ static atomic64_t trace_counter;
  * Use the trace_counter "counter" for cases where you do not care
  * about timings, but are interested in strict ordering.
  */
-u64 notrace trace_clock_counter(void)
-{
-	return atomic64_add_return(1, &trace_counter);
+u64 notrace trace_clock_counter(void) {
+  return atomic64_add_return(1, &trace_counter);
 }

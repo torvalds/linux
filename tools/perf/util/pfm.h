@@ -12,27 +12,26 @@
 
 #ifdef HAVE_LIBPFM
 int parse_libpfm_events_option(const struct option *opt, const char *str,
-			int unset);
+    int unset);
 
-void print_libpfm_events(const struct print_callbacks *print_cb, void *print_state);
+void print_libpfm_events(const struct print_callbacks *print_cb,
+    void *print_state);
 
 #else
 #include <linux/compiler.h>
 
 static inline int parse_libpfm_events_option(
-	const struct option *opt __maybe_unused,
-	const char *str __maybe_unused,
-	int unset __maybe_unused)
-{
-	return 0;
+    const struct option *opt __maybe_unused,
+    const char *str __maybe_unused,
+    int unset __maybe_unused) {
+  return 0;
 }
 
-static inline void print_libpfm_events(const struct print_callbacks *print_cb __maybe_unused,
-				       void *print_state __maybe_unused)
-{
+static inline void print_libpfm_events(
+    const struct print_callbacks *print_cb __maybe_unused,
+    void *print_state __maybe_unused) {
 }
 
 #endif
-
 
 #endif /* __PERF_PFM_H */

@@ -4,7 +4,7 @@
 #define SELFTEST_KVM_ARM64_SPINLOCK_H
 
 struct spinlock {
-	int v;
+  int v;
 };
 
 extern void spin_lock(struct spinlock *lock);

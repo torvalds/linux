@@ -20,10 +20,9 @@
  * (combined (32- and 64-bit) gdb.
  */
 
-int vr_active(struct task_struct *target, const struct user_regset *regset)
-{
-	flush_altivec_to_thread(target);
-	return target->thread.used_vr ? regset->n : 0;
+int vr_active(struct task_struct *target, const struct user_regset *regset) {
+  flush_altivec_to_thread(target);
+  return target->thread.used_vr ? regset->n : 0;
 }
 
 /*
@@ -35,31 +34,27 @@ int vr_active(struct task_struct *target, const struct user_regset *regset)
  * Userspace interface buffer layout:
  *
  * struct data {
- *	vector128	vr[32];
- *	vector128	vscr;
- *	vector128	vrsave;
+ *  vector128 vr[32];
+ *  vector128 vscr;
+ *  vector128 vrsave;
  * };
  */
 int vr_get(struct task_struct *target, const struct user_regset *regset,
-	   struct membuf to)
-{
-	union {
-		elf_vrreg_t reg;
-		u32 word;
-	} vrsave;
-
-	flush_altivec_to_thread(target);
-
-	BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr) !=
-		     offsetof(struct thread_vr_state, vr[32]));
-
-	membuf_write(&to, &target->thread.vr_state, 33 * sizeof(vector128));
-	/*
-	 * Copy out only the low-order word of vrsave.
-	 */
-	memset(&vrsave, 0, sizeof(vrsave));
-	vrsave.word = target->thread.vrsave;
-	return membuf_write(&to, &vrsave, sizeof(vrsave));
+    struct membuf to) {
+  union {
+    elf_vrreg_t reg;
+    u32 word;
+  } vrsave;
+  flush_altivec_to_thread(target);
+  BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr)
+      != offsetof(struct thread_vr_state, vr[32]));
+  membuf_write(&to, &target->thread.vr_state, 33 * sizeof(vector128));
+  /*
+   * Copy out only the low-order word of vrsave.
+   */
+  memset(&vrsave, 0, sizeof(vrsave));
+  vrsave.word = target->thread.vrsave;
+  return membuf_write(&to, &vrsave, sizeof(vrsave));
 }
 
 /*
@@ -71,45 +66,39 @@ int vr_get(struct task_struct *target, const struct user_regset *regset,
  * Userspace interface buffer layout:
  *
  * struct data {
- *	vector128	vr[32];
- *	vector128	vscr;
- *	vector128	vrsave;
+ *  vector128 vr[32];
+ *  vector128 vscr;
+ *  vector128 vrsave;
  * };
  */
 int vr_set(struct task_struct *target, const struct user_regset *regset,
-	   unsigned int pos, unsigned int count,
-	   const void *kbuf, const void __user *ubuf)
-{
-	int ret;
-
-	flush_altivec_to_thread(target);
-
-	BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr) !=
-		     offsetof(struct thread_vr_state, vr[32]));
-
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.vr_state, 0,
-				 33 * sizeof(vector128));
-	if (!ret && count > 0) {
-		/*
-		 * We use only the first word of vrsave.
-		 */
-		int start, end;
-		union {
-			elf_vrreg_t reg;
-			u32 word;
-		} vrsave;
-		memset(&vrsave, 0, sizeof(vrsave));
-
-		vrsave.word = target->thread.vrsave;
-
-		start = 33 * sizeof(vector128);
-		end = start + sizeof(vrsave);
-		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &vrsave,
-					 start, end);
-		if (!ret)
-			target->thread.vrsave = vrsave.word;
-	}
-
-	return ret;
+    unsigned int pos, unsigned int count,
+    const void *kbuf, const void __user *ubuf) {
+  int ret;
+  flush_altivec_to_thread(target);
+  BUILD_BUG_ON(offsetof(struct thread_vr_state, vscr)
+      != offsetof(struct thread_vr_state, vr[32]));
+  ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+      &target->thread.vr_state, 0,
+      33 * sizeof(vector128));
+  if (!ret && count > 0) {
+    /*
+     * We use only the first word of vrsave.
+     */
+    int start, end;
+    union {
+      elf_vrreg_t reg;
+      u32 word;
+    } vrsave;
+    memset(&vrsave, 0, sizeof(vrsave));
+    vrsave.word = target->thread.vrsave;
+    start = 33 * sizeof(vector128);
+    end = start + sizeof(vrsave);
+    ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &vrsave,
+        start, end);
+    if (!ret) {
+      target->thread.vrsave = vrsave.word;
+    }
+  }
+  return ret;
 }

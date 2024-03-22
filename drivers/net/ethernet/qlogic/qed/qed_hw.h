@@ -18,27 +18,27 @@
 struct qed_ptt;
 
 enum reserved_ptts {
-	RESERVED_PTT_EDIAG,
-	RESERVED_PTT_USER_SPACE,
-	RESERVED_PTT_MAIN,
-	RESERVED_PTT_DPC,
-	RESERVED_PTT_MAX
+  RESERVED_PTT_EDIAG,
+  RESERVED_PTT_USER_SPACE,
+  RESERVED_PTT_MAIN,
+  RESERVED_PTT_DPC,
+  RESERVED_PTT_MAX
 };
 
 enum _dmae_cmd_dst_mask {
-	DMAE_CMD_DST_MASK_NONE	= 0,
-	DMAE_CMD_DST_MASK_PCIE	= 1,
-	DMAE_CMD_DST_MASK_GRC	= 2
+  DMAE_CMD_DST_MASK_NONE = 0,
+  DMAE_CMD_DST_MASK_PCIE = 1,
+  DMAE_CMD_DST_MASK_GRC = 2
 };
 
 enum _dmae_cmd_src_mask {
-	DMAE_CMD_SRC_MASK_PCIE	= 0,
-	DMAE_CMD_SRC_MASK_GRC	= 1
+  DMAE_CMD_SRC_MASK_PCIE = 0,
+  DMAE_CMD_SRC_MASK_GRC = 1
 };
 
 enum _dmae_cmd_crc_mask {
-	DMAE_CMD_COMP_CRC_EN_MASK_NONE	= 0,
-	DMAE_CMD_COMP_CRC_EN_MASK_SET	= 1
+  DMAE_CMD_COMP_CRC_EN_MASK_NONE = 0,
+  DMAE_CMD_COMP_CRC_EN_MASK_SET = 1
 };
 
 /* definitions for DMA constants */
@@ -97,7 +97,7 @@ void qed_ptt_pool_free(struct qed_hwfn *p_hwfn);
  * Return: u32.
  */
 u32 qed_ptt_get_hw_addr(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt);
+    struct qed_ptt *p_ptt);
 
 /**
  * qed_ptt_get_bar_addr(): Get PPT's external BAR address.
@@ -118,8 +118,8 @@ u32 qed_ptt_get_bar_addr(struct qed_ptt *p_ptt);
  * Return: Void.
  */
 void qed_ptt_set_win(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     u32 new_hw_addr);
+    struct qed_ptt *p_ptt,
+    u32 new_hw_addr);
 
 /**
  * qed_get_reserved_ptt(): Get a specific reserved PTT.
@@ -130,7 +130,7 @@ void qed_ptt_set_win(struct qed_hwfn *p_hwfn,
  * Return: struct qed_ptt *.
  */
 struct qed_ptt *qed_get_reserved_ptt(struct qed_hwfn *p_hwfn,
-				     enum reserved_ptts ptt_idx);
+    enum reserved_ptts ptt_idx);
 
 /**
  * qed_wr(): Write value to BAR using the given ptt.
@@ -143,9 +143,9 @@ struct qed_ptt *qed_get_reserved_ptt(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_wr(struct qed_hwfn *p_hwfn,
-	    struct qed_ptt *p_ptt,
-	    u32 hw_addr,
-	    u32 val);
+    struct qed_ptt *p_ptt,
+    u32 hw_addr,
+    u32 val);
 
 /**
  * qed_rd(): Read value from BAR using the given ptt.
@@ -157,8 +157,8 @@ void qed_wr(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 u32 qed_rd(struct qed_hwfn *p_hwfn,
-	   struct qed_ptt *p_ptt,
-	   u32 hw_addr);
+    struct qed_ptt *p_ptt,
+    u32 hw_addr);
 
 /**
  * qed_memcpy_from(): Copy n bytes from BAR using the given ptt.
@@ -172,10 +172,10 @@ u32 qed_rd(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_memcpy_from(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     void *dest,
-		     u32 hw_addr,
-		     size_t n);
+    struct qed_ptt *p_ptt,
+    void *dest,
+    u32 hw_addr,
+    size_t n);
 
 /**
  * qed_memcpy_to(): Copy n bytes to BAR using the given  ptt
@@ -189,10 +189,10 @@ void qed_memcpy_from(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_memcpy_to(struct qed_hwfn *p_hwfn,
-		   struct qed_ptt *p_ptt,
-		   u32 hw_addr,
-		   void *src,
-		   size_t n);
+    struct qed_ptt *p_ptt,
+    u32 hw_addr,
+    void *src,
+    size_t n);
 /**
  * qed_fid_pretend(): pretend to another function when
  *                    accessing the ptt window. There is no way to unpretend
@@ -207,8 +207,8 @@ void qed_memcpy_to(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_fid_pretend(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     u16 fid);
+    struct qed_ptt *p_ptt,
+    u16 fid);
 
 /**
  * qed_port_pretend(): Pretend to another port when accessing the ptt window
@@ -220,8 +220,8 @@ void qed_fid_pretend(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_port_pretend(struct qed_hwfn *p_hwfn,
-		      struct qed_ptt *p_ptt,
-		      u8 port_id);
+    struct qed_ptt *p_ptt,
+    u8 port_id);
 
 /**
  * qed_port_unpretend(): Cancel any previously set port pretend
@@ -232,7 +232,7 @@ void qed_port_pretend(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_port_unpretend(struct qed_hwfn *p_hwfn,
-			struct qed_ptt *p_ptt);
+    struct qed_ptt *p_ptt);
 
 /**
  * qed_port_fid_pretend(): Pretend to another port and another function
@@ -246,7 +246,7 @@ void qed_port_unpretend(struct qed_hwfn *p_hwfn,
  * Return: Void.
  */
 void qed_port_fid_pretend(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 port_id, u16 fid);
+    struct qed_ptt *p_ptt, u8 port_id, u16 fid);
 
 /**
  * qed_vfid_to_concrete(): Build a concrete FID for a given VF ID
@@ -289,31 +289,31 @@ int qed_dmae_info_alloc(struct qed_hwfn *p_hwfn);
 void qed_dmae_info_free(struct qed_hwfn *p_hwfn);
 
 union qed_qm_pq_params {
-	struct {
-		u8 q_idx;
-	} iscsi;
+  struct {
+    u8 q_idx;
+  } iscsi;
 
-	struct {
-		u8 tc;
-	}	core;
+  struct {
+    u8 tc;
+  } core;
 
-	struct {
-		u8	is_vf;
-		u8	vf_id;
-		u8	tc;
-	}	eth;
+  struct {
+    u8 is_vf;
+    u8 vf_id;
+    u8 tc;
+  } eth;
 
-	struct {
-		u8 dcqcn;
-		u8 qpid;	/* roce relative */
-	} roce;
+  struct {
+    u8 dcqcn;
+    u8 qpid;  /* roce relative */
+  } roce;
 };
 
 int qed_init_fw_data(struct qed_dev *cdev,
-		     const u8 *fw_data);
+    const u8 *fw_data);
 
 int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
-		    struct qed_ptt *p_ptt, const char *phase);
+    struct qed_ptt *p_ptt, const char *phase);
 
 #define QED_HW_ERR_MAX_STR_SIZE 256
 
@@ -330,7 +330,7 @@ int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
  * Return void.
  */
 void __printf(4, 5) __cold qed_hw_err_notify(struct qed_hwfn *p_hwfn,
-					     struct qed_ptt *p_ptt,
-					     enum qed_hw_err_type err_type,
-					     const char *fmt, ...);
+    struct qed_ptt *p_ptt,
+    enum qed_hw_err_type err_type,
+    const char *fmt, ...);
 #endif

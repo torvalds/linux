@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl0073_ctrl0073common_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl0073_ctrl0073common_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES.
+ *All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,13 +29,13 @@
  */
 
 typedef struct NV0073_CTRL_CMD_DSC_CAP_PARAMS {
-    NvBool bDscSupported;
-    NvU32  encoderColorFormatMask;
-    NvU32  lineBufferSizeKB;
-    NvU32  rateBufferSizeKB;
-    NvU32  bitsPerPixelPrecision;
-    NvU32  maxNumHztSlices;
-    NvU32  lineBufferBitDepth;
+  NvBool bDscSupported;
+  NvU32 encoderColorFormatMask;
+  NvU32 lineBufferSizeKB;
+  NvU32 rateBufferSizeKB;
+  NvU32 bitsPerPixelPrecision;
+  NvU32 maxNumHztSlices;
+  NvU32 lineBufferBitDepth;
 } NV0073_CTRL_CMD_DSC_CAP_PARAMS;
 
 #endif

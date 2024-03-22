@@ -28,89 +28,77 @@
 
 #include <nvif/class.h>
 
-static int
-nvkm_dma_oclass_new(struct nvkm_device *device,
-		    const struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
-{
-	struct nvkm_dma *dma = nvkm_dma(oclass->engine);
-	struct nvkm_dmaobj *dmaobj = NULL;
-	int ret;
-
-	ret = dma->func->class_new(dma, oclass, data, size, &dmaobj);
-	if (dmaobj)
-		*pobject = &dmaobj->object;
-	return ret;
+static int nvkm_dma_oclass_new(struct nvkm_device *device,
+    const struct nvkm_oclass *oclass, void *data, u32 size,
+    struct nvkm_object **pobject) {
+  struct nvkm_dma *dma = nvkm_dma(oclass->engine);
+  struct nvkm_dmaobj *dmaobj = NULL;
+  int ret;
+  ret = dma->func->class_new(dma, oclass, data, size, &dmaobj);
+  if (dmaobj) {
+    *pobject = &dmaobj->object;
+  }
+  return ret;
 }
 
 static const struct nvkm_device_oclass
-nvkm_dma_oclass_base = {
-	.ctor = nvkm_dma_oclass_new,
+    nvkm_dma_oclass_base = {
+  .ctor = nvkm_dma_oclass_new,
 };
 
-static int
-nvkm_dma_oclass_fifo_new(const struct nvkm_oclass *oclass, void *data, u32 size,
-			 struct nvkm_object **pobject)
-{
-	return nvkm_dma_oclass_new(oclass->engine->subdev.device,
-				   oclass, data, size, pobject);
+static int nvkm_dma_oclass_fifo_new(const struct nvkm_oclass *oclass,
+    void *data, u32 size,
+    struct nvkm_object **pobject) {
+  return nvkm_dma_oclass_new(oclass->engine->subdev.device,
+      oclass, data, size, pobject);
 }
 
 static const struct nvkm_sclass
-nvkm_dma_sclass[] = {
-	{ 0, 0, NV_DMA_FROM_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
-	{ 0, 0, NV_DMA_TO_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
-	{ 0, 0, NV_DMA_IN_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
+    nvkm_dma_sclass[] = {
+  { 0, 0, NV_DMA_FROM_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
+  { 0, 0, NV_DMA_TO_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
+  { 0, 0, NV_DMA_IN_MEMORY, NULL, nvkm_dma_oclass_fifo_new },
 };
 
-static int
-nvkm_dma_oclass_base_get(struct nvkm_oclass *sclass, int index,
-			 const struct nvkm_device_oclass **class)
-{
-	const int count = ARRAY_SIZE(nvkm_dma_sclass);
-	if (index < count) {
-		const struct nvkm_sclass *oclass = &nvkm_dma_sclass[index];
-		sclass->base = oclass[0];
-		sclass->engn = oclass;
-		*class = &nvkm_dma_oclass_base;
-		return index;
-	}
-	return count;
+static int nvkm_dma_oclass_base_get(struct nvkm_oclass *sclass, int index,
+    const struct nvkm_device_oclass **class) {
+  const int count = ARRAY_SIZE(nvkm_dma_sclass);
+  if (index < count) {
+    const struct nvkm_sclass *oclass = &nvkm_dma_sclass[index];
+    sclass->base = oclass[0];
+    sclass->engn = oclass;
+    *class = &nvkm_dma_oclass_base;
+    return index;
+  }
+  return count;
 }
 
-static int
-nvkm_dma_oclass_fifo_get(struct nvkm_oclass *oclass, int index)
-{
-	const int count = ARRAY_SIZE(nvkm_dma_sclass);
-	if (index < count) {
-		oclass->base = nvkm_dma_sclass[index];
-		return index;
-	}
-	return count;
+static int nvkm_dma_oclass_fifo_get(struct nvkm_oclass *oclass, int index) {
+  const int count = ARRAY_SIZE(nvkm_dma_sclass);
+  if (index < count) {
+    oclass->base = nvkm_dma_sclass[index];
+    return index;
+  }
+  return count;
 }
 
-static void *
-nvkm_dma_dtor(struct nvkm_engine *engine)
-{
-	return nvkm_dma(engine);
+static void *nvkm_dma_dtor(struct nvkm_engine *engine) {
+  return nvkm_dma(engine);
 }
 
 static const struct nvkm_engine_func
-nvkm_dma = {
-	.dtor = nvkm_dma_dtor,
-	.base.sclass = nvkm_dma_oclass_base_get,
-	.fifo.sclass = nvkm_dma_oclass_fifo_get,
+    nvkm_dma = {
+  .dtor = nvkm_dma_dtor,
+  .base.sclass = nvkm_dma_oclass_base_get,
+  .fifo.sclass = nvkm_dma_oclass_fifo_get,
 };
 
-int
-nvkm_dma_new_(const struct nvkm_dma_func *func, struct nvkm_device *device,
-	      enum nvkm_subdev_type type, int inst, struct nvkm_dma **pdma)
-{
-	struct nvkm_dma *dma;
-
-	if (!(dma = *pdma = kzalloc(sizeof(*dma), GFP_KERNEL)))
-		return -ENOMEM;
-	dma->func = func;
-
-	return nvkm_engine_ctor(&nvkm_dma, device, type, inst, true, &dma->engine);
+int nvkm_dma_new_(const struct nvkm_dma_func *func, struct nvkm_device *device,
+    enum nvkm_subdev_type type, int inst, struct nvkm_dma **pdma) {
+  struct nvkm_dma *dma;
+  if (!(dma = *pdma = kzalloc(sizeof(*dma), GFP_KERNEL))) {
+    return -ENOMEM;
+  }
+  dma->func = func;
+  return nvkm_engine_ctor(&nvkm_dma, device, type, inst, true, &dma->engine);
 }

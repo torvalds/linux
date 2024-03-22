@@ -17,7 +17,7 @@
 #include "cxd2880_tnrdmd.h"
 
 int cxd2880_io_spi_create(struct cxd2880_io *io,
-			  struct cxd2880_spi *spi,
-			  u8 slave_select);
+    struct cxd2880_spi *spi,
+    u8 slave_select);
 
 #endif

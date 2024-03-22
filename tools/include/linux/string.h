@@ -2,7 +2,7 @@
 #ifndef _TOOLS_LINUX_STRING_H_
 #define _TOOLS_LINUX_STRING_H_
 
-#include <linux/types.h>	/* for size_t */
+#include <linux/types.h>  /* for size_t */
 #include <string.h>
 
 void *memdup(const void *src, size_t len);
@@ -37,12 +37,11 @@ char *strreplace(char *s, char old, char new);
  * @str: string to examine
  * @prefix: prefix to look for.
  */
-static inline bool strstarts(const char *str, const char *prefix)
-{
-	return strncmp(str, prefix, strlen(prefix)) == 0;
+static inline bool strstarts(const char *str, const char *prefix) {
+  return strncmp(str, prefix, strlen(prefix)) == 0;
 }
 
-extern char * __must_check skip_spaces(const char *);
+extern char *__must_check skip_spaces(const char *);
 
 extern char *strim(char *);
 

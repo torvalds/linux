@@ -12,7 +12,8 @@
  * to do something like:
  *
  * #define type_min(T) (T)(is_signed_type(T) ? (T)1 << (8*sizeof(T)-1) : 0)
- * #define type_max(T) (T)(is_signed_type(T) ? ((T)1 << (8*sizeof(T)-1)) - 1 : ~(T)0)
+ * #define type_max(T) (T)(is_signed_type(T) ? ((T)1 << (8*sizeof(T)-1)) - 1 :
+ *~(T)0)
  *
  * Unfortunately, the middle expressions, strictly speaking, have
  * undefined behaviour, and at least some versions of gcc warn about
@@ -30,11 +31,12 @@
  * https://mail-index.netbsd.org/tech-misc/2007/02/05/0000.html -
  * credit to Christian Biere.
  */
-#define __type_half_max(type) ((type)1 << (8*sizeof(type) - 1 - is_signed_type(type)))
-#define __type_max(T) ((T)((__type_half_max(T) - 1) + __type_half_max(T)))
-#define type_max(t)	__type_max(typeof(t))
-#define __type_min(T) ((T)((T)-type_max(T)-(T)1))
-#define type_min(t)	__type_min(typeof(t))
+#define __type_half_max(type) ((type) 1 << \
+    (8 * sizeof(type) - 1 - is_signed_type(type)))
+#define __type_max(T) ((T) ((__type_half_max(T) - 1) + __type_half_max(T)))
+#define type_max(t) __type_max(typeof(t))
+#define __type_min(T) ((T) ((T) -type_max(T) - (T) 1))
+#define type_min(t) __type_min(typeof(t))
 
 /*
  * Avoids triggering -Wtype-limits compilation warning,
@@ -48,9 +50,8 @@
  * both the type-agnostic benefits of the macros while also being able to
  * enforce that the return value is, in fact, checked.
  */
-static inline bool __must_check __must_check_overflow(bool overflow)
-{
-	return unlikely(overflow);
+static inline bool __must_check __must_check_overflow(bool overflow) {
+  return unlikely(overflow);
 }
 
 /**
@@ -64,8 +65,8 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * *@d holds the results of the attempted addition, regardless of whether
  * wrap-around occurred.
  */
-#define check_add_overflow(a, b, d)	\
-	__must_check_overflow(__builtin_add_overflow(a, b, d))
+#define check_add_overflow(a, b, d) \
+  __must_check_overflow(__builtin_add_overflow(a, b, d))
 
 /**
  * wrapping_add() - Intentionally perform a wrapping addition
@@ -76,12 +77,12 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * Return the potentially wrapped-around addition without
  * tripping any wrap-around sanitizers that may be enabled.
  */
-#define wrapping_add(type, a, b)				\
-	({							\
-		type __val;					\
-		__builtin_add_overflow(a, b, &__val);		\
-		__val;						\
-	})
+#define wrapping_add(type, a, b)        \
+  ({              \
+    type __val;         \
+    __builtin_add_overflow(a, b, &__val);   \
+    __val;            \
+  })
 
 /**
  * wrapping_assign_add() - Intentionally perform a wrapping increment assignment
@@ -93,11 +94,11 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  *
  * Returns the new value of @var.
  */
-#define wrapping_assign_add(var, offset)				\
-	({								\
-		typeof(var) *__ptr = &(var);				\
-		*__ptr = wrapping_add(typeof(var), *__ptr, offset);	\
-	})
+#define wrapping_assign_add(var, offset)        \
+  ({                \
+    typeof(var) * __ptr = &(var);        \
+    *__ptr = wrapping_add(typeof(var), *__ptr, offset); \
+  })
 
 /**
  * check_sub_overflow() - Calculate subtraction with overflow checking
@@ -110,8 +111,8 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * *@d holds the results of the attempted subtraction, regardless of whether
  * wrap-around occurred.
  */
-#define check_sub_overflow(a, b, d)	\
-	__must_check_overflow(__builtin_sub_overflow(a, b, d))
+#define check_sub_overflow(a, b, d) \
+  __must_check_overflow(__builtin_sub_overflow(a, b, d))
 
 /**
  * wrapping_sub() - Intentionally perform a wrapping subtraction
@@ -122,12 +123,12 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * Return the potentially wrapped-around subtraction without
  * tripping any wrap-around sanitizers that may be enabled.
  */
-#define wrapping_sub(type, a, b)				\
-	({							\
-		type __val;					\
-		__builtin_sub_overflow(a, b, &__val);		\
-		__val;						\
-	})
+#define wrapping_sub(type, a, b)        \
+  ({              \
+    type __val;         \
+    __builtin_sub_overflow(a, b, &__val);   \
+    __val;            \
+  })
 
 /**
  * wrapping_assign_sub() - Intentionally perform a wrapping decrement assign
@@ -139,11 +140,11 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  *
  * Returns the new value of @var.
  */
-#define wrapping_assign_sub(var, offset)				\
-	({								\
-		typeof(var) *__ptr = &(var);				\
-		*__ptr = wrapping_sub(typeof(var), *__ptr, offset);	\
-	})
+#define wrapping_assign_sub(var, offset)        \
+  ({                \
+    typeof(var) * __ptr = &(var);        \
+    *__ptr = wrapping_sub(typeof(var), *__ptr, offset); \
+  })
 
 /**
  * check_mul_overflow() - Calculate multiplication with overflow checking
@@ -156,8 +157,8 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * *@d holds the results of the attempted multiplication, regardless of whether
  * wrap-around occurred.
  */
-#define check_mul_overflow(a, b, d)	\
-	__must_check_overflow(__builtin_mul_overflow(a, b, d))
+#define check_mul_overflow(a, b, d) \
+  __must_check_overflow(__builtin_mul_overflow(a, b, d))
 
 /**
  * wrapping_mul() - Intentionally perform a wrapping multiplication
@@ -168,12 +169,12 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * Return the potentially wrapped-around multiplication without
  * tripping any wrap-around sanitizers that may be enabled.
  */
-#define wrapping_mul(type, a, b)				\
-	({							\
-		type __val;					\
-		__builtin_mul_overflow(a, b, &__val);		\
-		__val;						\
-	})
+#define wrapping_mul(type, a, b)        \
+  ({              \
+    type __val;         \
+    __builtin_mul_overflow(a, b, &__val);   \
+    __val;            \
+  })
 
 /**
  * check_shl_overflow() - Calculate a left-shifted value and check overflow
@@ -195,33 +196,33 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * '*@d' will hold the results of the attempted shift, but is not
  * considered "safe for use" if true is returned.
  */
-#define check_shl_overflow(a, s, d) __must_check_overflow(({		\
-	typeof(a) _a = a;						\
-	typeof(s) _s = s;						\
-	typeof(d) _d = d;						\
-	unsigned long long _a_full = _a;				\
-	unsigned int _to_shift =					\
-		is_non_negative(_s) && _s < 8 * sizeof(*d) ? _s : 0;	\
-	*_d = (_a_full << _to_shift);					\
-	(_to_shift != _s || is_negative(*_d) || is_negative(_a) ||	\
-	(*_d >> _to_shift) != _a);					\
-}))
+#define check_shl_overflow(a, s, d) __must_check_overflow(({    \
+    typeof(a) _a = a;           \
+    typeof(s) _s = s;           \
+    typeof(d) _d = d;           \
+    unsigned long long _a_full = _a;        \
+    unsigned int _to_shift            \
+      = is_non_negative(_s) && _s < 8 * sizeof(*d) ? _s : 0;  \
+    *_d = (_a_full << _to_shift);         \
+    (_to_shift != _s || is_negative(*_d) || is_negative(_a)     \
+    || (*_d >> _to_shift) != _a);          \
+  }))
 
-#define __overflows_type_constexpr(x, T) (			\
-	is_unsigned_type(typeof(x)) ?				\
-		(x) > type_max(T) :				\
-	is_unsigned_type(typeof(T)) ?				\
-		(x) < 0 || (x) > type_max(T) :			\
-	(x) < type_min(T) || (x) > type_max(T))
+#define __overflows_type_constexpr(x, T) (      \
+    is_unsigned_type(typeof(x))         \
+    ? (x) > type_max(T)         \
+    : is_unsigned_type(typeof(T))         \
+    ? (x) < 0 || (x) > type_max(T)        \
+    : (x) < type_min(T) || (x) > type_max(T))
 
-#define __overflows_type(x, T)		({	\
-	typeof(T) v = 0;			\
-	check_add_overflow((x), v, &v);		\
-})
+#define __overflows_type(x, T)    ({  \
+    typeof(T) v = 0;      \
+    check_add_overflow((x), v, &v);   \
+  })
 
 /**
  * overflows_type - helper for checking the overflows between value, variables,
- *		    or data type
+ *        or data type
  *
  * @n: source constant value or variable to be checked
  * @T: destination variable or data type proposed to store @x
@@ -233,10 +234,10 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  *
  * Returns: true if overflow can occur, false otherwise.
  */
-#define overflows_type(n, T)					\
-	__builtin_choose_expr(__is_constexpr(n),		\
-			      __overflows_type_constexpr(n, T),	\
-			      __overflows_type(n, T))
+#define overflows_type(n, T)          \
+  __builtin_choose_expr(__is_constexpr(n),    \
+    __overflows_type_constexpr(n, T), \
+    __overflows_type(n, T))
 
 /**
  * castable_to_type - like __same_type(), but also allows for casted literals
@@ -249,10 +250,10 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * of the second argument's type, it returns true. Otherwise, this falls
  * back to __same_type().
  */
-#define castable_to_type(n, T)						\
-	__builtin_choose_expr(__is_constexpr(n),			\
-			      !__overflows_type_constexpr(n, T),	\
-			      __same_type(n, T))
+#define castable_to_type(n, T)            \
+  __builtin_choose_expr(__is_constexpr(n),      \
+    !__overflows_type_constexpr(n, T),  \
+    __same_type(n, T))
 
 /**
  * size_mul() - Calculate size_t multiplication with saturation at SIZE_MAX
@@ -263,14 +264,12 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * with any overflow causing the return value to be SIZE_MAX. The
  * lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_mul(size_t factor1, size_t factor2)
-{
-	size_t bytes;
-
-	if (check_mul_overflow(factor1, factor2, &bytes))
-		return SIZE_MAX;
-
-	return bytes;
+static inline size_t __must_check size_mul(size_t factor1, size_t factor2) {
+  size_t bytes;
+  if (check_mul_overflow(factor1, factor2, &bytes)) {
+    return SIZE_MAX;
+  }
+  return bytes;
 }
 
 /**
@@ -282,14 +281,12 @@ static inline size_t __must_check size_mul(size_t factor1, size_t factor2)
  * with any overflow causing the return value to be SIZE_MAX. The
  * lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_add(size_t addend1, size_t addend2)
-{
-	size_t bytes;
-
-	if (check_add_overflow(addend1, addend2, &bytes))
-		return SIZE_MAX;
-
-	return bytes;
+static inline size_t __must_check size_add(size_t addend1, size_t addend2) {
+  size_t bytes;
+  if (check_add_overflow(addend1, addend2, &bytes)) {
+    return SIZE_MAX;
+  }
+  return bytes;
 }
 
 /**
@@ -303,15 +300,13 @@ static inline size_t __must_check size_add(size_t addend1, size_t addend2)
  * argument may be SIZE_MAX (or the result with be forced to SIZE_MAX).
  * The lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
-{
-	size_t bytes;
-
-	if (minuend == SIZE_MAX || subtrahend == SIZE_MAX ||
-	    check_sub_overflow(minuend, subtrahend, &bytes))
-		return SIZE_MAX;
-
-	return bytes;
+static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend) {
+  size_t bytes;
+  if (minuend == SIZE_MAX || subtrahend == SIZE_MAX
+      || check_sub_overflow(minuend, subtrahend, &bytes)) {
+    return SIZE_MAX;
+  }
+  return bytes;
 }
 
 /**
@@ -324,7 +319,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * Returns: number of bytes needed to represent the array or SIZE_MAX on
  * overflow.
  */
-#define array_size(a, b)	size_mul(a, b)
+#define array_size(a, b)  size_mul(a, b)
 
 /**
  * array3_size() - Calculate size of 3-dimensional array.
@@ -337,7 +332,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * Returns: number of bytes needed to represent the array or SIZE_MAX on
  * overflow.
  */
-#define array3_size(a, b, c)	size_mul(size_mul(a, b), c)
+#define array3_size(a, b, c)  size_mul(size_mul(a, b), c)
 
 /**
  * flex_array_size() - Calculate size of a flexible array member
@@ -351,10 +346,10 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  *
  * Return: number of bytes needed or SIZE_MAX on overflow.
  */
-#define flex_array_size(p, member, count)				\
-	__builtin_choose_expr(__is_constexpr(count),			\
-		(count) * sizeof(*(p)->member) + __must_be_array((p)->member),	\
-		size_mul(count, sizeof(*(p)->member) + __must_be_array((p)->member)))
+#define flex_array_size(p, member, count)       \
+  __builtin_choose_expr(__is_constexpr(count),      \
+    (count) * sizeof(*(p)->member) + __must_be_array((p)->member),  \
+    size_mul(count, sizeof(*(p)->member) + __must_be_array((p)->member)))
 
 /**
  * struct_size() - Calculate size of structure with trailing flexible array.
@@ -367,10 +362,10 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  *
  * Return: number of bytes needed or SIZE_MAX on overflow.
  */
-#define struct_size(p, member, count)					\
-	__builtin_choose_expr(__is_constexpr(count),			\
-		sizeof(*(p)) + flex_array_size(p, member, count),	\
-		size_add(sizeof(*(p)), flex_array_size(p, member, count)))
+#define struct_size(p, member, count)         \
+  __builtin_choose_expr(__is_constexpr(count),      \
+    sizeof(*(p)) + flex_array_size(p, member, count), \
+    size_add(sizeof(*(p)), flex_array_size(p, member, count)))
 
 /**
  * struct_size_t() - Calculate size of structure with trailing flexible array
@@ -385,8 +380,8 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  *
  * Return: number of bytes needed or SIZE_MAX on overflow.
  */
-#define struct_size_t(type, member, count)					\
-	struct_size((type *)NULL, member, count)
+#define struct_size_t(type, member, count)          \
+  struct_size((type *) NULL, member, count)
 
 /**
  * _DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
@@ -398,14 +393,14 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * @count: Number of elements in the array; must be compile-time const.
  * @initializer: initializer expression (could be empty for no init).
  */
-#define _DEFINE_FLEX(type, name, member, count, initializer)			\
-	_Static_assert(__builtin_constant_p(count),				\
-		       "onstack flex array members require compile-time const count"); \
-	union {									\
-		u8 bytes[struct_size_t(type, member, count)];			\
-		type obj;							\
-	} name##_u initializer;							\
-	type *name = (type *)&name##_u
+#define _DEFINE_FLEX(type, name, member, count, initializer)      \
+  _Static_assert(__builtin_constant_p(count),       \
+    "onstack flex array members require compile-time const count"); \
+  union {                 \
+    u8 bytes[struct_size_t(type, member, count)];     \
+    type obj;             \
+  } name ## _u initializer;             \
+  type *name = (type *) &name ## _u
 
 /**
  * DEFINE_FLEX() - Define an on-stack instance of structure with a trailing
@@ -420,7 +415,7 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
  * flexible array member.
  * Use __struct_size(@name) to get compile-time size of it afterwards.
  */
-#define DEFINE_FLEX(type, name, member, count)			\
-	_DEFINE_FLEX(type, name, member, count, = {})
+#define DEFINE_FLEX(type, name, member, count)      \
+  _DEFINE_FLEX(type, name, member, count, = {})
 
 #endif /* __LINUX_OVERFLOW_H */

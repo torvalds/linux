@@ -9,7 +9,7 @@
 #include <linux/cpumask.h>
 
 struct arch_tlbflush_unmap_batch {
-	struct cpumask cpumask;
+  struct cpumask cpumask;
 };
 
 #endif /* _ASM_RISCV_TLBBATCH_H */

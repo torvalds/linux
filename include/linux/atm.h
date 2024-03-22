@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* atm.h - general ATM declarations */
+/* SPDX-License-Identifier: GPL-2.0
+ * atm.h - general ATM declarations*/
 #ifndef _LINUX_ATM_H
 #define _LINUX_ATM_H
 
@@ -8,9 +8,9 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 struct compat_atmif_sioc {
-	int number;
-	int length;
-	compat_uptr_t arg;
+  int number;
+  int length;
+  compat_uptr_t arg;
 };
 #endif
 #endif

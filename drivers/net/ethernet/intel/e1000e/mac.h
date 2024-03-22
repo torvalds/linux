@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 1999 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 1999 - 2018 Intel Corporation.*/
 
 #ifndef _E1000E_MAC_H_
 #define _E1000E_MAC_H_
@@ -17,14 +17,14 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw);
 void e1000_set_lan_id_single_port(struct e1000_hw *hw);
 s32 e1000e_get_hw_semaphore(struct e1000_hw *hw);
 s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
-				       u16 *duplex);
+    u16 *duplex);
 s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw,
-					     u16 *speed, u16 *duplex);
+    u16 *speed, u16 *duplex);
 s32 e1000e_id_led_init_generic(struct e1000_hw *hw);
 s32 e1000e_led_on_generic(struct e1000_hw *hw);
 s32 e1000e_led_off_generic(struct e1000_hw *hw);
 void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
-					u8 *mc_addr_list, u32 mc_addr_count);
+    u8 *mc_addr_list, u32 mc_addr_count);
 s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw);
 s32 e1000e_setup_led_generic(struct e1000_hw *hw);

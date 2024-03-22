@@ -55,8 +55,8 @@ unsigned int btracker_nr_demotions_queued(struct background_tracker *b);
  * couldn't be queued for another reason.
  */
 int btracker_queue(struct background_tracker *b,
-		   struct policy_work *work,
-		   struct policy_work **pwork);
+    struct policy_work *work,
+    struct policy_work **pwork);
 
 /*
  * Hands out the next piece of work to be performed.
@@ -74,7 +74,7 @@ void btracker_complete(struct background_tracker *b, struct policy_work *op);
  * Predicate to see if an origin block is already scheduled for promotion.
  */
 bool btracker_promotion_already_present(struct background_tracker *b,
-					dm_oblock_t oblock);
+    dm_oblock_t oblock);
 
 /*----------------------------------------------------------------*/
 

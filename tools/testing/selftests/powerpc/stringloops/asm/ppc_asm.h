@@ -26,8 +26,8 @@
 #define R30 r30
 #define R31 r31
 
-#define STACKFRAMESIZE	256
-#define STK_REG(i)	(112 + ((i)-14)*8)
+#define STACKFRAMESIZE  256
+#define STK_REG(i)  (112 + ((i) - 14) * 8)
 
 #define BEGIN_FTR_SECTION
 #define END_FTR_SECTION_IFSET(val)

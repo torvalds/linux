@@ -16,8 +16,8 @@
 
 #include "smc.h"
 
-#define SMC_MAX_STREAM_WAIT_TIMEOUT		(2 * HZ)
-#define SMC_CLOSE_SOCK_PUT_DELAY		HZ
+#define SMC_MAX_STREAM_WAIT_TIMEOUT   (2 * HZ)
+#define SMC_CLOSE_SOCK_PUT_DELAY    HZ
 
 void smc_close_wake_tx_prepared(struct smc_sock *smc);
 int smc_close_active(struct smc_sock *smc);

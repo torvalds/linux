@@ -31,37 +31,37 @@
 #define    CN93_VF_SDP_R_IN_BYTE_CNT_START         0x10090
 
 #define    CN93_VF_SDP_R_IN_CONTROL(ring)          \
-	(CN93_VF_SDP_R_IN_CONTROL_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_CONTROL_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_ENABLE(ring)          \
-	(CN93_VF_SDP_R_IN_ENABLE_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_ENABLE_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_INSTR_BADDR(ring)          \
-	(CN93_VF_SDP_R_IN_INSTR_BADDR_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_INSTR_BADDR_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_INSTR_RSIZE(ring)          \
-	(CN93_VF_SDP_R_IN_INSTR_RSIZE_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_INSTR_RSIZE_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_INSTR_DBELL(ring)          \
-	(CN93_VF_SDP_R_IN_INSTR_DBELL_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_INSTR_DBELL_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_CNTS(ring)          \
-	(CN93_VF_SDP_R_IN_CNTS_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_CNTS_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_INT_LEVELS(ring)          \
-	(CN93_VF_SDP_R_IN_INT_LEVELS_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_INT_LEVELS_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_PKT_CNT(ring)          \
-	(CN93_VF_SDP_R_IN_PKT_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_PKT_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_IN_BYTE_CNT(ring)          \
-	(CN93_VF_SDP_R_IN_BYTE_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_IN_BYTE_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
 
 /*------------------ R_IN Masks ----------------*/
 
 /** Rings per Virtual Function **/
 #define    CN93_VF_R_IN_CTL_RPVF_MASK    (0xF)
-#define	   CN93_VF_R_IN_CTL_RPVF_POS     (48)
+#define    CN93_VF_R_IN_CTL_RPVF_POS     (48)
 
 /* Number of instructions to be read in one MAC read request.
  * setting to Max value(4)
@@ -76,7 +76,8 @@
 #define    CN93_VF_R_IN_CTL_ESR                   BIT_ULL(1)
 #define    CN93_VF_R_IN_CTL_ROR                   BIT_ULL(0)
 
-#define    CN93_VF_R_IN_CTL_MASK     (CN93_VF_R_IN_CTL_RDSIZE | CN93_VF_R_IN_CTL_IS_64B)
+#define    CN93_VF_R_IN_CTL_MASK     (CN93_VF_R_IN_CTL_RDSIZE \
+  | CN93_VF_R_IN_CTL_IS_64B)
 
 /*###################### RING OUT REGISTERS #########################*/
 #define    CN93_VF_SDP_R_OUT_CNTS_START            0x10100
@@ -90,31 +91,31 @@
 #define    CN93_VF_SDP_R_OUT_BYTE_CNT_START        0x10190
 
 #define    CN93_VF_SDP_R_OUT_CONTROL(ring)          \
-	(CN93_VF_SDP_R_OUT_CONTROL_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_CONTROL_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_ENABLE(ring)          \
-	(CN93_VF_SDP_R_OUT_ENABLE_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_ENABLE_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_SLIST_BADDR(ring)          \
-	(CN93_VF_SDP_R_OUT_SLIST_BADDR_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_SLIST_BADDR_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_SLIST_RSIZE(ring)          \
-	(CN93_VF_SDP_R_OUT_SLIST_RSIZE_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_SLIST_RSIZE_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_SLIST_DBELL(ring)          \
-	(CN93_VF_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_CNTS(ring)          \
-	(CN93_VF_SDP_R_OUT_CNTS_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_CNTS_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_INT_LEVELS(ring)          \
-	(CN93_VF_SDP_R_OUT_INT_LEVELS_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_INT_LEVELS_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_PKT_CNT(ring)          \
-	(CN93_VF_SDP_R_OUT_PKT_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_PKT_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_OUT_BYTE_CNT(ring)          \
-	(CN93_VF_SDP_R_OUT_BYTE_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_OUT_BYTE_CNT_START + ((ring) * CN93_VF_RING_OFFSET))
 
 /*------------------ R_OUT Masks ----------------*/
 #define    CN93_VF_R_OUT_INT_LEVELS_BMODE            BIT_ULL(63)
@@ -132,8 +133,8 @@
 #define    CN93_VF_R_OUT_CTL_ROR_P                   BIT_ULL(24)
 #define    CN93_VF_R_OUT_CTL_IMODE                   BIT_ULL(23)
 
-/* ##################### Mail Box Registers ########################## */
-/* SDP PF to VF Mailbox Data Register */
+/* ##################### Mail Box Registers ##########################
+ * SDP PF to VF Mailbox Data Register*/
 #define    CN93_VF_SDP_R_MBOX_PF_VF_DATA_START    0x10210
 /* SDP Packet PF to VF Mailbox Interrupt Register */
 #define    CN93_VF_SDP_R_MBOX_PF_VF_INT_START     0x10220
@@ -144,11 +145,11 @@
 #define    CN93_VF_SDP_R_MBOX_PF_VF_INT_STATUS       BIT_ULL(0)
 
 #define    CN93_VF_SDP_R_MBOX_PF_VF_DATA(ring)          \
-	(CN93_VF_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_MBOX_PF_VF_INT(ring)          \
-	(CN93_VF_SDP_R_MBOX_PF_VF_INT_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_MBOX_PF_VF_INT_START + ((ring) * CN93_VF_RING_OFFSET))
 
 #define    CN93_VF_SDP_R_MBOX_VF_PF_DATA(ring)          \
-	(CN93_VF_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CN93_VF_RING_OFFSET))
+  (CN93_VF_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CN93_VF_RING_OFFSET))
 #endif /* _OCTEP_VF_REGS_CN9K_H_ */

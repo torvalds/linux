@@ -77,84 +77,84 @@
 
 /* Hardware Tx Queue configuration. */
 struct octep_vf_iq_config {
-	/* Size of the Input queue (number of commands) */
-	u16 num_descs;
+  /* Size of the Input queue (number of commands) */
+  u16 num_descs;
 
-	/* Command size - 32 or 64 bytes */
-	u16 instr_type;
+  /* Command size - 32 or 64 bytes */
+  u16 instr_type;
 
-	/* Minimum number of commands pending to be posted to Octeon before driver
-	 * hits the Input queue doorbell.
-	 */
-	u16 db_min;
+  /* Minimum number of commands pending to be posted to Octeon before driver
+   * hits the Input queue doorbell.
+   */
+  u16 db_min;
 
-	/* Trigger the IQ interrupt when processed cmd count reaches
-	 * this level.
-	 */
-	u32 intr_threshold;
+  /* Trigger the IQ interrupt when processed cmd count reaches
+   * this level.
+   */
+  u32 intr_threshold;
 };
 
 /* Hardware Rx Queue configuration. */
 struct octep_vf_oq_config {
-	/* Size of Output queue (number of descriptors) */
-	u16 num_descs;
+  /* Size of Output queue (number of descriptors) */
+  u16 num_descs;
 
-	/* Size of buffer in this Output queue. */
-	u16 buf_size;
+  /* Size of buffer in this Output queue. */
+  u16 buf_size;
 
-	/* The number of buffers that were consumed during packet processing
-	 * by the driver on this Output queue before the driver attempts to
-	 * replenish the descriptor ring with new buffers.
-	 */
-	u16 refill_threshold;
+  /* The number of buffers that were consumed during packet processing
+   * by the driver on this Output queue before the driver attempts to
+   * replenish the descriptor ring with new buffers.
+   */
+  u16 refill_threshold;
 
-	/* Interrupt Coalescing (Packet Count). Octeon will interrupt the host
-	 * only if it sent as many packets as specified by this field.
-	 * The driver usually does not use packet count interrupt coalescing.
-	 */
-	u32 oq_intr_pkt;
+  /* Interrupt Coalescing (Packet Count). Octeon will interrupt the host
+   * only if it sent as many packets as specified by this field.
+   * The driver usually does not use packet count interrupt coalescing.
+   */
+  u32 oq_intr_pkt;
 
-	/* Interrupt Coalescing (Time Interval). Octeon will interrupt the host
-	 * if at least one packet was sent in the time interval specified by
-	 * this field. The driver uses time interval interrupt coalescing by
-	 * default. The time is specified in microseconds.
-	 */
-	u32 oq_intr_time;
+  /* Interrupt Coalescing (Time Interval). Octeon will interrupt the host
+   * if at least one packet was sent in the time interval specified by
+   * this field. The driver uses time interval interrupt coalescing by
+   * default. The time is specified in microseconds.
+   */
+  u32 oq_intr_time;
 
-	/* Water mark for backpressure.
-	 * Output queue sends backpressure signal to source when
-	 * free buffer count falls below wmark.
-	 */
-	u32 wmark;
+  /* Water mark for backpressure.
+   * Output queue sends backpressure signal to source when
+   * free buffer count falls below wmark.
+   */
+  u32 wmark;
 };
 
 /* Tx/Rx configuration */
 struct octep_vf_ring_config {
-	/* Max number of IOQs */
-	u16 max_io_rings;
+  /* Max number of IOQs */
+  u16 max_io_rings;
 
-	/* Number of active IOQs */
-	u16 active_io_rings;
+  /* Number of active IOQs */
+  u16 active_io_rings;
 };
 
 /* Octeon MSI-x config. */
 struct octep_vf_msix_config {
-	/* Number of IOQ interrupts */
-	u16 ioq_msix;
+  /* Number of IOQ interrupts */
+  u16 ioq_msix;
 };
 
 /* Data Structure to hold configuration limits and active config */
 struct octep_vf_config {
-	/* Input Queue attributes. */
-	struct octep_vf_iq_config iq;
+  /* Input Queue attributes. */
+  struct octep_vf_iq_config iq;
 
-	/* Output Queue attributes. */
-	struct octep_vf_oq_config oq;
+  /* Output Queue attributes. */
+  struct octep_vf_oq_config oq;
 
-	/* MSI-X interrupt config */
-	struct octep_vf_msix_config msix_cfg;
+  /* MSI-X interrupt config */
+  struct octep_vf_msix_config msix_cfg;
 
-	/* NIC VF ring Configuration */
-	struct octep_vf_ring_config ring_cfg;
+  /* NIC VF ring Configuration */
+  struct octep_vf_ring_config ring_cfg;
 };
 #endif /* _OCTEP_VF_CONFIG_H_ */

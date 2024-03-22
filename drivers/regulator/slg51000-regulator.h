@@ -502,4 +502,3 @@
 #define SLG51000_LDO1_LOCK_MASK                 (0x01 << 1)
 
 #endif /* __SLG51000_REGISTERS_H__ */
-

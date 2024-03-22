@@ -10,14 +10,14 @@
 
 /**
  * struct xdma_chan_info - DMA channel information
- *	This information is used to match channel when request dma channel
+ *  This information is used to match channel when request dma channel
  * @dir: Channel transfer direction
  */
 struct xdma_chan_info {
-	enum dma_transfer_direction dir;
+  enum dma_transfer_direction dir;
 };
 
-#define XDMA_FILTER_PARAM(chan_info)	((void *)(chan_info))
+#define XDMA_FILTER_PARAM(chan_info)  ((void *) (chan_info))
 
 struct dma_slave_map;
 
@@ -26,9 +26,9 @@ struct dma_slave_map;
  * @max_dma_channels: Maximum dma channels in each direction
  */
 struct xdma_platdata {
-	u32 max_dma_channels;
-	u32 device_map_cnt;
-	struct dma_slave_map *device_map;
+  u32 max_dma_channels;
+  u32 device_map_cnt;
+  struct dma_slave_map *device_map;
 };
 
 #endif /* _PLATDATA_AMD_XDMA_H */

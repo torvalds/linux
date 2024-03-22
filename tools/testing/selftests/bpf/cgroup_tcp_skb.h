@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2023 Meta Platforms, Inc. and affiliates. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2023 Meta Platforms, Inc. and affiliates.*/
 
 /* Define states of a socket to tracking messages sending to and from the
  * socket.
@@ -16,20 +16,20 @@
 #define __CGROUP_TCP_SKB_H__
 
 enum {
-	INIT,
-	CLOSED,
-	SYN_SENT,
-	SYN_RECV_SENDING_SYN_ACK,
-	SYN_RECV,
-	ESTABLISHED,
-	FIN_WAIT1,
-	FIN_WAIT2,
-	CLOSE_WAIT_SENDING_ACK,
-	CLOSE_WAIT,
-	CLOSING,
-	LAST_ACK,
-	TIME_WAIT_SENDING_ACK,
-	TIME_WAIT,
+  INIT,
+  CLOSED,
+  SYN_SENT,
+  SYN_RECV_SENDING_SYN_ACK,
+  SYN_RECV,
+  ESTABLISHED,
+  FIN_WAIT1,
+  FIN_WAIT2,
+  CLOSE_WAIT_SENDING_ACK,
+  CLOSE_WAIT,
+  CLOSING,
+  LAST_ACK,
+  TIME_WAIT_SENDING_ACK,
+  TIME_WAIT,
 };
 
 #endif /* __CGROUP_TCP_SKB_H__ */

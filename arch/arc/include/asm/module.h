@@ -12,10 +12,10 @@
 
 struct mod_arch_specific {
 #ifdef CONFIG_ARC_DW2_UNWIND
-	void *unw_info;
-	int unw_sec_idx;
+  void *unw_info;
+  int unw_sec_idx;
 #endif
-	const char *secstr;
+  const char *secstr;
 };
 
 #endif /* _ASM_ARC_MODULE_H */

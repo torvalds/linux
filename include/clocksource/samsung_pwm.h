@@ -7,7 +7,7 @@
 
 #include <linux/spinlock.h>
 
-#define SAMSUNG_PWM_NUM		5
+#define SAMSUNG_PWM_NUM   5
 
 /*
  * Following declaration must be in an ifdef due to this symbol being static
@@ -19,15 +19,15 @@ extern spinlock_t samsung_pwm_lock;
 #endif
 
 struct samsung_pwm_variant {
-	u8 bits;
-	u8 div_base;
-	u8 tclk_mask;
-	u8 output_mask;
-	bool has_tint_cstat;
+  u8 bits;
+  u8 div_base;
+  u8 tclk_mask;
+  u8 output_mask;
+  bool has_tint_cstat;
 };
 
 void samsung_pwm_clocksource_init(void __iomem *base,
-				  unsigned int *irqs,
-				  const struct samsung_pwm_variant *variant);
+    unsigned int *irqs,
+    const struct samsung_pwm_variant *variant);
 
 #endif /* __CLOCKSOURCE_SAMSUNG_PWM_H */

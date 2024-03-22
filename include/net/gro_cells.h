@@ -9,7 +9,7 @@
 struct gro_cell;
 
 struct gro_cells {
-	struct gro_cell __percpu	*cells;
+  struct gro_cell __percpu *cells;
 };
 
 int gro_cells_receive(struct gro_cells *gcells, struct sk_buff *skb);

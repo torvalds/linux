@@ -13,15 +13,15 @@ int udp_v4_get_port(struct sock *sk, unsigned short snum);
 void udp_v4_rehash(struct sock *sk);
 
 int udp_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
-		   unsigned int optlen);
+    unsigned int optlen);
 int udp_getsockopt(struct sock *sk, int level, int optname,
-		   char __user *optval, int __user *optlen);
+    char __user *optval, int __user *optlen);
 
 int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
-		int *addr_len);
+    int *addr_len);
 void udp_destroy_sock(struct sock *sk);
 
 #ifdef CONFIG_PROC_FS
 int udp4_seq_show(struct seq_file *seq, void *v);
 #endif
-#endif	/* _UDP4_IMPL_H */
+#endif  /* _UDP4_IMPL_H */

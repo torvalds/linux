@@ -50,157 +50,139 @@ DEFINE_PER_CPU(unsigned long *, sdei_shadow_call_stack_critical_ptr);
 DEFINE_PER_CPU(struct sdei_registered_event *, sdei_active_normal_event);
 DEFINE_PER_CPU(struct sdei_registered_event *, sdei_active_critical_event);
 
-static void _free_sdei_stack(unsigned long * __percpu *ptr, int cpu)
-{
-	unsigned long *p;
-
-	p = per_cpu(*ptr, cpu);
-	if (p) {
-		per_cpu(*ptr, cpu) = NULL;
-		vfree(p);
-	}
+static void _free_sdei_stack(unsigned long *__percpu *ptr, int cpu) {
+  unsigned long *p;
+  p = per_cpu(*ptr, cpu);
+  if (p) {
+    per_cpu(*ptr, cpu) = NULL;
+    vfree(p);
+  }
 }
 
-static void free_sdei_stacks(void)
-{
-	int cpu;
-
-	if (!IS_ENABLED(CONFIG_VMAP_STACK))
-		return;
-
-	for_each_possible_cpu(cpu) {
-		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
-		_free_sdei_stack(&sdei_stack_critical_ptr, cpu);
-	}
+static void free_sdei_stacks(void) {
+  int cpu;
+  if (!IS_ENABLED(CONFIG_VMAP_STACK)) {
+    return;
+  }
+  for_each_possible_cpu(cpu) {
+    _free_sdei_stack(&sdei_stack_normal_ptr, cpu);
+    _free_sdei_stack(&sdei_stack_critical_ptr, cpu);
+  }
 }
 
-static int _init_sdei_stack(unsigned long * __percpu *ptr, int cpu)
-{
-	unsigned long *p;
-
-	p = arch_alloc_vmap_stack(SDEI_STACK_SIZE, cpu_to_node(cpu));
-	if (!p)
-		return -ENOMEM;
-	per_cpu(*ptr, cpu) = p;
-
-	return 0;
+static int _init_sdei_stack(unsigned long *__percpu *ptr, int cpu) {
+  unsigned long *p;
+  p = arch_alloc_vmap_stack(SDEI_STACK_SIZE, cpu_to_node(cpu));
+  if (!p) {
+    return -ENOMEM;
+  }
+  per_cpu(*ptr, cpu) = p;
+  return 0;
 }
 
-static int init_sdei_stacks(void)
-{
-	int cpu;
-	int err = 0;
-
-	if (!IS_ENABLED(CONFIG_VMAP_STACK))
-		return 0;
-
-	for_each_possible_cpu(cpu) {
-		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
-		if (err)
-			break;
-		err = _init_sdei_stack(&sdei_stack_critical_ptr, cpu);
-		if (err)
-			break;
-	}
-
-	if (err)
-		free_sdei_stacks();
-
-	return err;
+static int init_sdei_stacks(void) {
+  int cpu;
+  int err = 0;
+  if (!IS_ENABLED(CONFIG_VMAP_STACK)) {
+    return 0;
+  }
+  for_each_possible_cpu(cpu) {
+    err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
+    if (err) {
+      break;
+    }
+    err = _init_sdei_stack(&sdei_stack_critical_ptr, cpu);
+    if (err) {
+      break;
+    }
+  }
+  if (err) {
+    free_sdei_stacks();
+  }
+  return err;
 }
 
-static void _free_sdei_scs(unsigned long * __percpu *ptr, int cpu)
-{
-	void *s;
-
-	s = per_cpu(*ptr, cpu);
-	if (s) {
-		per_cpu(*ptr, cpu) = NULL;
-		scs_free(s);
-	}
+static void _free_sdei_scs(unsigned long *__percpu *ptr, int cpu) {
+  void *s;
+  s = per_cpu(*ptr, cpu);
+  if (s) {
+    per_cpu(*ptr, cpu) = NULL;
+    scs_free(s);
+  }
 }
 
-static void free_sdei_scs(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		_free_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
-		_free_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
-	}
+static void free_sdei_scs(void) {
+  int cpu;
+  for_each_possible_cpu(cpu) {
+    _free_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
+    _free_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
+  }
 }
 
-static int _init_sdei_scs(unsigned long * __percpu *ptr, int cpu)
-{
-	void *s;
-
-	s = scs_alloc(cpu_to_node(cpu));
-	if (!s)
-		return -ENOMEM;
-	per_cpu(*ptr, cpu) = s;
-
-	return 0;
+static int _init_sdei_scs(unsigned long *__percpu *ptr, int cpu) {
+  void *s;
+  s = scs_alloc(cpu_to_node(cpu));
+  if (!s) {
+    return -ENOMEM;
+  }
+  per_cpu(*ptr, cpu) = s;
+  return 0;
 }
 
-static int init_sdei_scs(void)
-{
-	int cpu;
-	int err = 0;
-
-	if (!scs_is_enabled())
-		return 0;
-
-	for_each_possible_cpu(cpu) {
-		err = _init_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
-		if (err)
-			break;
-		err = _init_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
-		if (err)
-			break;
-	}
-
-	if (err)
-		free_sdei_scs();
-
-	return err;
+static int init_sdei_scs(void) {
+  int cpu;
+  int err = 0;
+  if (!scs_is_enabled()) {
+    return 0;
+  }
+  for_each_possible_cpu(cpu) {
+    err = _init_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
+    if (err) {
+      break;
+    }
+    err = _init_sdei_scs(&sdei_shadow_call_stack_critical_ptr, cpu);
+    if (err) {
+      break;
+    }
+  }
+  if (err) {
+    free_sdei_scs();
+  }
+  return err;
 }
 
-unsigned long sdei_arch_get_entry_point(int conduit)
-{
-	/*
-	 * SDEI works between adjacent exception levels. If we booted at EL1 we
-	 * assume a hypervisor is marshalling events. If we booted at EL2 and
-	 * dropped to EL1 because we don't support VHE, then we can't support
-	 * SDEI.
-	 */
-	if (is_hyp_nvhe()) {
-		pr_err("Not supported on this hardware/boot configuration\n");
-		goto out_err;
-	}
-
-	if (init_sdei_stacks())
-		goto out_err;
-
-	if (init_sdei_scs())
-		goto out_err_free_stacks;
-
-	sdei_exit_mode = (conduit == SMCCC_CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
-
+unsigned long sdei_arch_get_entry_point(int conduit) {
+  /*
+   * SDEI works between adjacent exception levels. If we booted at EL1 we
+   * assume a hypervisor is marshalling events. If we booted at EL2 and
+   * dropped to EL1 because we don't support VHE, then we can't support
+   * SDEI.
+   */
+  if (is_hyp_nvhe()) {
+    pr_err("Not supported on this hardware/boot configuration\n");
+    goto out_err;
+  }
+  if (init_sdei_stacks()) {
+    goto out_err;
+  }
+  if (init_sdei_scs()) {
+    goto out_err_free_stacks;
+  }
+  sdei_exit_mode
+    = (conduit == SMCCC_CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	if (arm64_kernel_unmapped_at_el0()) {
-		unsigned long offset;
-
-		offset = (unsigned long)__sdei_asm_entry_trampoline -
-			 (unsigned long)__entry_tramp_text_start;
-		return TRAMP_VALIAS + offset;
-	} else
+  if (arm64_kernel_unmapped_at_el0()) {
+    unsigned long offset;
+    offset = (unsigned long) __sdei_asm_entry_trampoline
+        - (unsigned long) __entry_tramp_text_start;
+    return TRAMP_VALIAS + offset;
+  } else
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
-		return (unsigned long)__sdei_asm_handler;
-
+  return (unsigned long) __sdei_asm_handler;
 out_err_free_stacks:
-	free_sdei_stacks();
+  free_sdei_stacks();
 out_err:
-	return 0;
+  return 0;
 }
 
 /*
@@ -210,58 +192,53 @@ out_err:
  *  virtual-address -  success, return to this address.
  */
 unsigned long __kprobes do_sdei_event(struct pt_regs *regs,
-				      struct sdei_registered_event *arg)
-{
-	u32 mode;
-	int i, err = 0;
-	int clobbered_registers = 4;
-	u64 elr = read_sysreg(elr_el1);
-	u32 kernel_mode = read_sysreg(CurrentEL) | 1;	/* +SPSel */
-	unsigned long vbar = read_sysreg(vbar_el1);
-
-	if (arm64_kernel_unmapped_at_el0())
-		clobbered_registers++;
-
-	/* Retrieve the missing registers values */
-	for (i = 0; i < clobbered_registers; i++) {
-		/* from within the handler, this call always succeeds */
-		sdei_api_event_context(i, &regs->regs[i]);
-	}
-
-	err = sdei_event_handler(regs, arg);
-	if (err)
-		return SDEI_EV_FAILED;
-
-	if (elr != read_sysreg(elr_el1)) {
-		/*
-		 * We took a synchronous exception from the SDEI handler.
-		 * This could deadlock, and if you interrupt KVM it will
-		 * hyp-panic instead.
-		 */
-		pr_warn("unsafe: exception during handler\n");
-	}
-
-	mode = regs->pstate & (PSR_MODE32_BIT | PSR_MODE_MASK);
-
-	/*
-	 * If we interrupted the kernel with interrupts masked, we always go
-	 * back to wherever we came from.
-	 */
-	if (mode == kernel_mode && !interrupts_enabled(regs))
-		return SDEI_EV_HANDLED;
-
-	/*
-	 * Otherwise, we pretend this was an IRQ. This lets user space tasks
-	 * receive signals before we return to them, and KVM to invoke it's
-	 * world switch to do the same.
-	 *
-	 * See DDI0487B.a Table D1-7 'Vector offsets from vector table base
-	 * address'.
-	 */
-	if (mode == kernel_mode)
-		return vbar + 0x280;
-	else if (mode & PSR_MODE32_BIT)
-		return vbar + 0x680;
-
-	return vbar + 0x480;
+    struct sdei_registered_event *arg) {
+  u32 mode;
+  int i, err = 0;
+  int clobbered_registers = 4;
+  u64 elr = read_sysreg(elr_el1);
+  u32 kernel_mode = read_sysreg(CurrentEL) | 1; /* +SPSel */
+  unsigned long vbar = read_sysreg(vbar_el1);
+  if (arm64_kernel_unmapped_at_el0()) {
+    clobbered_registers++;
+  }
+  /* Retrieve the missing registers values */
+  for (i = 0; i < clobbered_registers; i++) {
+    /* from within the handler, this call always succeeds */
+    sdei_api_event_context(i, &regs->regs[i]);
+  }
+  err = sdei_event_handler(regs, arg);
+  if (err) {
+    return SDEI_EV_FAILED;
+  }
+  if (elr != read_sysreg(elr_el1)) {
+    /*
+     * We took a synchronous exception from the SDEI handler.
+     * This could deadlock, and if you interrupt KVM it will
+     * hyp-panic instead.
+     */
+    pr_warn("unsafe: exception during handler\n");
+  }
+  mode = regs->pstate & (PSR_MODE32_BIT | PSR_MODE_MASK);
+  /*
+   * If we interrupted the kernel with interrupts masked, we always go
+   * back to wherever we came from.
+   */
+  if (mode == kernel_mode && !interrupts_enabled(regs)) {
+    return SDEI_EV_HANDLED;
+  }
+  /*
+   * Otherwise, we pretend this was an IRQ. This lets user space tasks
+   * receive signals before we return to them, and KVM to invoke it's
+   * world switch to do the same.
+   *
+   * See DDI0487B.a Table D1-7 'Vector offsets from vector table base
+   * address'.
+   */
+  if (mode == kernel_mode) {
+    return vbar + 0x280;
+  } else if (mode & PSR_MODE32_BIT) {
+    return vbar + 0x680;
+  }
+  return vbar + 0x480;
 }

@@ -12,19 +12,18 @@
 unsigned long sh_io_port_base __read_mostly = -1;
 EXPORT_SYMBOL(sh_io_port_base);
 
-void __iomem *ioport_map(unsigned long port, unsigned int nr)
-{
-	void __iomem *ret;
-
-	ret = __ioport_map_trapped(port, nr);
-	if (ret)
-		return ret;
-
-	return (void __iomem *)(port + sh_io_port_base);
+void __iomem *ioport_map(unsigned long port, unsigned int nr) {
+  void __iomem *ret;
+  ret = __ioport_map_trapped(port, nr);
+  if (ret) {
+    return ret;
+  }
+  return (void __iomem *) (port + sh_io_port_base);
 }
+
 EXPORT_SYMBOL(ioport_map);
 
-void ioport_unmap(void __iomem *addr)
-{
+void ioport_unmap(void __iomem *addr) {
 }
+
 EXPORT_SYMBOL(ioport_unmap);

@@ -67,9 +67,9 @@
  * init function below.
  */
 struct dm_array_info {
-	struct dm_transaction_manager *tm;
-	struct dm_btree_value_type value_type;
-	struct dm_btree_info btree_info;
+  struct dm_transaction_manager *tm;
+  struct dm_btree_value_type value_type;
+  struct dm_btree_info btree_info;
 };
 
 /*
@@ -81,8 +81,8 @@ struct dm_array_info {
  * vt   - describes the leaf values.
  */
 void dm_array_info_init(struct dm_array_info *info,
-			struct dm_transaction_manager *tm,
-			struct dm_btree_value_type *vt);
+    struct dm_transaction_manager *tm,
+    struct dm_btree_value_type *vt);
 
 /*
  * Create an empty, zero length array.
@@ -108,9 +108,9 @@ int dm_array_empty(struct dm_array_info *info, dm_block_t *root);
  * to drop it.
  */
 int dm_array_resize(struct dm_array_info *info, dm_block_t root,
-		    uint32_t old_size, uint32_t new_size,
-		    const void *value, dm_block_t *new_root)
-	__dm_written_to_disk(value);
+    uint32_t old_size, uint32_t new_size,
+    const void *value, dm_block_t *new_root)
+__dm_written_to_disk(value);
 
 /*
  * Creates a new array populated with values provided by a callback
@@ -129,7 +129,7 @@ int dm_array_resize(struct dm_array_info *info, dm_block_t root,
  */
 typedef int (*value_fn)(uint32_t index, void *value_le, void *context);
 int dm_array_new(struct dm_array_info *info, dm_block_t *root,
-		 uint32_t size, value_fn fn, void *context);
+    uint32_t size, value_fn fn, void *context);
 
 /*
  * Frees a whole array.  The value_type's decrement operation will be called
@@ -148,7 +148,7 @@ int dm_array_del(struct dm_array_info *info, dm_block_t root);
  * -ENODATA will be returned if the index is out of bounds.
  */
 int dm_array_get_value(struct dm_array_info *info, dm_block_t root,
-		       uint32_t index, void *value);
+    uint32_t index, void *value);
 
 /*
  * Set an entry in the array.
@@ -166,8 +166,8 @@ int dm_array_get_value(struct dm_array_info *info, dm_block_t root,
  * -ENODATA will be returned if the index is out of bounds.
  */
 int dm_array_set_value(struct dm_array_info *info, dm_block_t root,
-		       uint32_t index, const void *value, dm_block_t *new_root)
-	__dm_written_to_disk(value);
+    uint32_t index, const void *value, dm_block_t *new_root)
+__dm_written_to_disk(value);
 
 /*
  * Walk through all the entries in an array.
@@ -178,8 +178,8 @@ int dm_array_set_value(struct dm_array_info *info, dm_block_t root,
  * context - passed to the callback
  */
 int dm_array_walk(struct dm_array_info *info, dm_block_t root,
-		  int (*fn)(void *context, uint64_t key, void *leaf),
-		  void *context);
+    int (*fn)(void *context, uint64_t key, void *leaf),
+    void *context);
 
 /*----------------------------------------------------------------*/
 
@@ -194,16 +194,16 @@ int dm_array_walk(struct dm_array_info *info, dm_block_t root,
  * unison.
  */
 struct dm_array_cursor {
-	struct dm_array_info *info;
-	struct dm_btree_cursor cursor;
+  struct dm_array_info *info;
+  struct dm_btree_cursor cursor;
 
-	struct dm_block *block;
-	struct array_block *ab;
-	unsigned int index;
+  struct dm_block *block;
+  struct array_block *ab;
+  unsigned int index;
 };
 
 int dm_array_cursor_begin(struct dm_array_info *info,
-			  dm_block_t root, struct dm_array_cursor *c);
+    dm_block_t root, struct dm_array_cursor *c);
 void dm_array_cursor_end(struct dm_array_cursor *c);
 
 uint32_t dm_array_cursor_index(struct dm_array_cursor *c);
@@ -217,4 +217,4 @@ void dm_array_cursor_get_value(struct dm_array_cursor *c, void **value_le);
 
 /*----------------------------------------------------------------*/
 
-#endif	/* _LINUX_DM_ARRAY_H */
+#endif  /* _LINUX_DM_ARRAY_H */

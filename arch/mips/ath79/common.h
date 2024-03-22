@@ -13,8 +13,8 @@
 
 #include <linux/types.h>
 
-#define ATH79_MEM_SIZE_MIN	(2 * 1024 * 1024)
-#define ATH79_MEM_SIZE_MAX	(256 * 1024 * 1024)
+#define ATH79_MEM_SIZE_MIN  (2 * 1024 * 1024)
+#define ATH79_MEM_SIZE_MAX  (256 * 1024 * 1024)
 
 void ath79_ddr_ctrl_init(void);
 

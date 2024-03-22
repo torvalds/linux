@@ -7,7 +7,7 @@
 
 #include <uapi/asm/unistd.h>
 
-#define NR_syscalls	__NR_syscalls
+#define NR_syscalls __NR_syscalls
 
 #ifndef __ASSEMBLY__
 
@@ -53,5 +53,5 @@
 #define __ARCH_WANT_SYS_CLONE
 #define __ARCH_WANT_SYS_CLONE3
 
-#endif		/* __ASSEMBLY__ */
+#endif    /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_UNISTD_H_ */

@@ -13,16 +13,16 @@
 #define ATH10K_THERMAL_THROTTLE_MAX     100
 
 struct ath10k_thermal {
-	struct thermal_cooling_device *cdev;
-	struct completion wmi_sync;
+  struct thermal_cooling_device *cdev;
+  struct completion wmi_sync;
 
-	/* protected by conf_mutex */
-	u32 throttle_state;
-	u32 quiet_period;
-	/* temperature value in Celsius degree
-	 * protected by data_lock
-	 */
-	int temperature;
+  /* protected by conf_mutex */
+  u32 throttle_state;
+  u32 quiet_period;
+  /* temperature value in Celsius degree
+   * protected by data_lock
+   */
+  int temperature;
 };
 
 #if IS_REACHABLE(CONFIG_THERMAL)
@@ -31,22 +31,18 @@ void ath10k_thermal_unregister(struct ath10k *ar);
 void ath10k_thermal_event_temperature(struct ath10k *ar, int temperature);
 void ath10k_thermal_set_throttling(struct ath10k *ar);
 #else
-static inline int ath10k_thermal_register(struct ath10k *ar)
-{
-	return 0;
+static inline int ath10k_thermal_register(struct ath10k *ar) {
+  return 0;
 }
 
-static inline void ath10k_thermal_unregister(struct ath10k *ar)
-{
+static inline void ath10k_thermal_unregister(struct ath10k *ar) {
 }
 
 static inline void ath10k_thermal_event_temperature(struct ath10k *ar,
-						    int temperature)
-{
+    int temperature) {
 }
 
-static inline void ath10k_thermal_set_throttling(struct ath10k *ar)
-{
+static inline void ath10k_thermal_set_throttling(struct ath10k *ar) {
 }
 
 #endif

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+ * Copyright (C) 2015-2018 Netronome Systems, Inc.*/
 
 /*
  * nfp_nffw.h
@@ -32,76 +32,76 @@ void nfp_mip_strtab(const struct nfp_mip *mip, u32 *addr, u32 *size);
 /* Implemented in nfp_rtsym.c */
 
 enum nfp_rtsym_type {
-	NFP_RTSYM_TYPE_NONE	= 0,
-	NFP_RTSYM_TYPE_OBJECT	= 1,
-	NFP_RTSYM_TYPE_FUNCTION	= 2,
-	NFP_RTSYM_TYPE_ABS	= 3,
+  NFP_RTSYM_TYPE_NONE = 0,
+  NFP_RTSYM_TYPE_OBJECT = 1,
+  NFP_RTSYM_TYPE_FUNCTION = 2,
+  NFP_RTSYM_TYPE_ABS = 3,
 };
 
-#define NFP_RTSYM_TARGET_NONE		0
-#define NFP_RTSYM_TARGET_LMEM		-1
-#define NFP_RTSYM_TARGET_EMU_CACHE	-7
+#define NFP_RTSYM_TARGET_NONE   0
+#define NFP_RTSYM_TARGET_LMEM   -1
+#define NFP_RTSYM_TARGET_EMU_CACHE  -7
 
 /**
  * struct nfp_rtsym - RTSYM descriptor
- * @name:	Symbol name
- * @addr:	Address in the domain/target's address space
- * @size:	Size (in bytes) of the symbol
- * @type:	NFP_RTSYM_TYPE_* of the symbol
- * @target:	CPP Target identifier, or NFP_RTSYM_TARGET_*
- * @domain:	CPP Target Domain (island)
+ * @name: Symbol name
+ * @addr: Address in the domain/target's address space
+ * @size: Size (in bytes) of the symbol
+ * @type: NFP_RTSYM_TYPE_* of the symbol
+ * @target: CPP Target identifier, or NFP_RTSYM_TARGET_*
+ * @domain: CPP Target Domain (island)
  */
 struct nfp_rtsym {
-	const char *name;
-	u64 addr;
-	u64 size;
-	enum nfp_rtsym_type type;
-	int target;
-	int domain;
+  const char *name;
+  u64 addr;
+  u64 size;
+  enum nfp_rtsym_type type;
+  int target;
+  int domain;
 };
 
 struct nfp_rtsym_table;
 
 struct nfp_rtsym_table *nfp_rtsym_table_read(struct nfp_cpp *cpp);
-struct nfp_rtsym_table *
-__nfp_rtsym_table_read(struct nfp_cpp *cpp, const struct nfp_mip *mip);
+struct nfp_rtsym_table *__nfp_rtsym_table_read(struct nfp_cpp *cpp,
+    const struct nfp_mip *mip);
 int nfp_rtsym_count(struct nfp_rtsym_table *rtbl);
 const struct nfp_rtsym *nfp_rtsym_get(struct nfp_rtsym_table *rtbl, int idx);
-const struct nfp_rtsym *
-nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name);
+const struct nfp_rtsym *nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl,
+    const char *name);
 
 u64 nfp_rtsym_size(const struct nfp_rtsym *rtsym);
 int __nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
-		     u8 action, u8 token, u64 off, void *buf, size_t len);
+    u8 action, u8 token, u64 off, void *buf, size_t len);
 int nfp_rtsym_read(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
-		   void *buf, size_t len);
+    void *buf, size_t len);
 int __nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
-		      u8 action, u8 token, u64 off, u32 *value);
+    u8 action, u8 token, u64 off, u32 *value);
 int nfp_rtsym_readl(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
-		    u32 *value);
+    u32 *value);
 int __nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
-		      u8 action, u8 token, u64 off, u64 *value);
+    u8 action, u8 token, u64 off, u64 *value);
 int nfp_rtsym_readq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
-		    u64 *value);
+    u64 *value);
 int __nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
-		      u8 action, u8 token, u64 off, void *buf, size_t len);
+    u8 action, u8 token, u64 off, void *buf, size_t len);
 int nfp_rtsym_write(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
-		    void *buf, size_t len);
+    void *buf, size_t len);
 int __nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
-		       u8 action, u8 token, u64 off, u32 value);
+    u8 action, u8 token, u64 off, u32 value);
 int nfp_rtsym_writel(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
-		     u32 value);
+    u32 value);
 int __nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym,
-		       u8 action, u8 token, u64 off, u64 value);
+    u8 action, u8 token, u64 off, u64 value);
 int nfp_rtsym_writeq(struct nfp_cpp *cpp, const struct nfp_rtsym *sym, u64 off,
-		     u64 value);
+    u64 value);
 
 u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
-		      int *error);
+    int *error);
 int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
-		       u64 value);
-u8 __iomem *
-nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
-	      unsigned int min_size, struct nfp_cpp_area **area);
+    u64 value);
+u8 __iomem *nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name,
+    const char *id,
+    unsigned int min_size, struct nfp_cpp_area **area);
 
 #endif /* NFP_NFFW_H */

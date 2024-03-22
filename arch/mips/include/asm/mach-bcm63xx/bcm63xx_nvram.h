@@ -6,7 +6,7 @@
 
 /**
  * bcm63xx_nvram_init() - initializes nvram
- * @nvram:	address of the nvram data
+ * @nvram:  address of the nvram data
  *
  * Initialized the local nvram copy from the target address and checks
  * its checksum.
@@ -23,7 +23,7 @@ u8 *bcm63xx_nvram_get_name(void);
 
 /**
  * bcm63xx_nvram_get_mac_address() - register & return a new mac address
- * @mac:	pointer to array for allocated mac
+ * @mac:  pointer to array for allocated mac
  *
  * Registers and returns a mac address from the allocated macs from nvram.
  *

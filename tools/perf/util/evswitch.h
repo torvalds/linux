@@ -10,22 +10,22 @@ struct evsel;
 struct evlist;
 
 struct evswitch {
-	struct evsel *on, *off;
-	const char   *on_name, *off_name;
-	bool	     discarding;
-	bool	     show_on_off_events;
+  struct evsel *on, *off;
+  const char *on_name, *off_name;
+  bool discarding;
+  bool show_on_off_events;
 };
 
 int evswitch__init(struct evswitch *evswitch, struct evlist *evlist, FILE *fp);
 
 bool evswitch__discard(struct evswitch *evswitch, struct evsel *evsel);
 
-#define OPTS_EVSWITCH(evswitch)								  \
-	OPT_STRING(0, "switch-on", &(evswitch)->on_name,				  \
-		   "event", "Consider events after the occurrence of this event"),	  \
-	OPT_STRING(0, "switch-off", &(evswitch)->off_name,				  \
-		   "event", "Stop considering events after the occurrence of this event"), \
-	OPT_BOOLEAN(0, "show-on-off-events", &(evswitch)->show_on_off_events,		  \
-		    "Show the on/off switch events, used with --switch-on and --switch-off")
+#define OPTS_EVSWITCH(evswitch)                 \
+  OPT_STRING(0, "switch-on", &(evswitch)->on_name,          \
+    "event", "Consider events after the occurrence of this event"),    \
+  OPT_STRING(0, "switch-off", &(evswitch)->off_name,          \
+    "event", "Stop considering events after the occurrence of this event"), \
+  OPT_BOOLEAN(0, "show-on-off-events", &(evswitch)->show_on_off_events,     \
+    "Show the on/off switch events, used with --switch-on and --switch-off")
 
 #endif /* __PERF_EVSWITCH_H */

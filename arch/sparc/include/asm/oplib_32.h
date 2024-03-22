@@ -18,10 +18,10 @@ extern struct linux_romvec *romvec;
 
 /* Enumeration to describe the prom major version we have detected. */
 enum prom_major_version {
-	PROM_V0,      /* Original sun4c V0 prom */
-	PROM_V2,      /* sun4c and early sun4m V2 prom */
-	PROM_V3,      /* sun4m and later, up to sun4d/sun4e machines V3 */
-	PROM_P1275,   /* IEEE compliant ISA based Sun PROM, only sun4u */
+  PROM_V0,      /* Original sun4c V0 prom */
+  PROM_V2,      /* sun4c and early sun4m V2 prom */
+  PROM_V3,      /* sun4m and later, up to sun4d/sun4e machines V3 */
+  PROM_P1275,   /* IEEE compliant ISA based Sun PROM, only sun4u */
 };
 
 extern enum prom_major_version prom_vers;
@@ -104,7 +104,7 @@ void prom_write(const char *buf, unsigned int len);
  * at the passed program counter.
  */
 int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
-		  int context, char *program_counter);
+    int context, char *program_counter);
 
 /* Initialize the memory lists based upon the prom version. */
 void prom_meminit(void);
@@ -128,7 +128,7 @@ int prom_getproplen(phandle thisnode, const char *property);
  * the number of bytes the prom put into your buffer or -1 on error.
  */
 int __must_check prom_getproperty(phandle thisnode, const char *property,
-				  char *prop_buffer, int propbuf_size);
+    char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
 int prom_getint(phandle node, char *property);
@@ -159,7 +159,7 @@ phandle prom_finddevice(char *name);
  * Returns the number of bytes of your value that the prom took.
  */
 int prom_setprop(phandle node, const char *prop_name, char *prop_value,
-		 int value_size);
+    int value_size);
 
 phandle prom_inst2pkg(int);
 
@@ -168,9 +168,10 @@ phandle prom_inst2pkg(int);
 /* Apply promlib probes OBIO ranges to registers. */
 void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nregs);
 
-/* Apply ranges of any prom node (and optionally parent node as well) to registers. */
+/* Apply ranges of any prom node (and optionally parent node as well) to
+ * registers. */
 void prom_apply_generic_ranges(phandle node, phandle parent,
-			       struct linux_prom_registers *sbusregs, int nregs);
+    struct linux_prom_registers *sbusregs, int nregs);
 
 void prom_ranges_init(void);
 

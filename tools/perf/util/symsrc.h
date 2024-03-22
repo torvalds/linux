@@ -13,32 +13,33 @@
 #include <elf.h>
 
 struct symsrc {
-	char		     *name;
-	int		     fd;
-	enum dso_binary_type type;
+  char *name;
+  int fd;
+  enum dso_binary_type type;
 
 #ifdef HAVE_LIBELF_SUPPORT
-	Elf		     *elf;
-	GElf_Ehdr	     ehdr;
+  Elf *elf;
+  GElf_Ehdr ehdr;
 
-	Elf_Scn		     *opdsec;
-	size_t		     opdidx;
-	GElf_Shdr	     opdshdr;
+  Elf_Scn *opdsec;
+  size_t opdidx;
+  GElf_Shdr opdshdr;
 
-	Elf_Scn		     *symtab;
-	size_t		     symtab_idx;
-	GElf_Shdr	     symshdr;
+  Elf_Scn *symtab;
+  size_t symtab_idx;
+  GElf_Shdr symshdr;
 
-	Elf_Scn		     *dynsym;
-	size_t		     dynsym_idx;
-	GElf_Shdr	     dynshdr;
+  Elf_Scn *dynsym;
+  size_t dynsym_idx;
+  GElf_Shdr dynshdr;
 
-	bool		     adjust_symbols;
-	bool		     is_64_bit;
+  bool adjust_symbols;
+  bool is_64_bit;
 #endif
 };
 
-int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name, enum dso_binary_type type);
+int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
+    enum dso_binary_type type);
 void symsrc__destroy(struct symsrc *ss);
 
 bool symsrc__has_symtab(struct symsrc *ss);

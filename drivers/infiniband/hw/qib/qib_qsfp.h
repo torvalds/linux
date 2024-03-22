@@ -49,10 +49,10 @@
 #define QSFP_GPIO_PORT2_SHIFT 5
 
 #define QSFP_PAGESIZE 128
-/* Defined fields that QLogic requires of qualified cables */
-/* Byte 0 is Identifier, not checked */
-/* Byte 1 is reserved "status MSB" */
-/* Byte 2 is "status LSB" We only care that D2 "Flat Mem" is set. */
+/* Defined fields that QLogic requires of qualified cables
+ * Byte 0 is Identifier, not checked
+ * Byte 1 is reserved "status MSB"
+ * Byte 2 is "status LSB" We only care that D2 "Flat Mem" is set.*/
 /*
  * Rest of first 128 not used, although 127 is reserved for page select
  * if module is not "Flat memory".
@@ -64,20 +64,20 @@
  *  0:1.5W, 1:2.0W, 2:2.5W, 3:3.5W
  */
 #define QSFP_MOD_PWR_OFFS 129
-/* Byte 130 is Connector type. Not QLogic req'd */
-/* Bytes 131..138 are Transceiver types, bit maps for various tech, none IB */
-/* Byte 139 is encoding. code 0x01 is 8b10b. Not QLogic req'd */
-/* byte 140 is nominal bit-rate, in units of 100Mbits/sec Not QLogic req'd */
-/* Byte 141 is Extended Rate Select. Not QLogic req'd */
-/* Bytes 142..145 are lengths for various fiber types. Not QLogic req'd */
-/* Byte 146 is length for Copper. Units of 1 meter */
+/* Byte 130 is Connector type. Not QLogic req'd
+ * Bytes 131..138 are Transceiver types, bit maps for various tech, none IB
+ * Byte 139 is encoding. code 0x01 is 8b10b. Not QLogic req'd
+ * byte 140 is nominal bit-rate, in units of 100Mbits/sec Not QLogic req'd
+ * Byte 141 is Extended Rate Select. Not QLogic req'd
+ * Bytes 142..145 are lengths for various fiber types. Not QLogic req'd
+ * Byte 146 is length for Copper. Units of 1 meter*/
 #define QSFP_MOD_LEN_OFFS 146
 /*
  * Byte 147 is Device technology. D0..3 not Qlogc req'd
  * D4..7 select from 15 choices, translated by table:
  */
 #define QSFP_MOD_TECH_OFFS 147
-extern const char *const qib_qsfp_devtech[16];
+extern const char * const qib_qsfp_devtech[16];
 /* Active Equalization includes fiber, copper full EQ, and copper near Eq */
 #define QSFP_IS_ACTIVE(tech) ((0xA2FF >> ((tech) >> 4)) & 1)
 /* Active Equalization includes fiber, copper full EQ, and copper far Eq */
@@ -88,8 +88,8 @@ extern const char *const qib_qsfp_devtech[16];
 #define QSFP_IS_CU(tech) ((0xED00 >> ((tech) >> 4)) & 1)
 #define QSFP_TECH_1490 9
 
-#define QSFP_OUI(oui) (((unsigned)oui[0] << 16) | ((unsigned)oui[1] << 8) | \
-			oui[2])
+#define QSFP_OUI(oui) (((unsigned) oui[0] << 16) | ((unsigned) oui[1] << 8)   \
+  | oui[2])
 #define QSFP_OUI_AMPHENOL 0x415048
 #define QSFP_OUI_FINISAR  0x009065
 #define QSFP_OUI_GORE     0x002177
@@ -115,12 +115,12 @@ extern const char *const qib_qsfp_devtech[16];
  */
 #define QSFP_ATTEN_OFFS 186
 #define QSFP_ATTEN_LEN 2
-/* Bytes 188,189 are Wavelength tolerance, not QLogic req'd */
-/* Byte 190 is Max Case Temp. Not QLogic req'd */
-/* Byte 191 is LSB of sum of bytes 128..190. Not QLogic req'd */
+/* Bytes 188,189 are Wavelength tolerance, not QLogic req'd
+ * Byte 190 is Max Case Temp. Not QLogic req'd
+ * Byte 191 is LSB of sum of bytes 128..190. Not QLogic req'd*/
 #define QSFP_CC_OFFS 191
-/* Bytes 192..195 are Options implemented in qsfp. Not Qlogic req'd */
-/* Bytes 196..211 are Serial Number, String */
+/* Bytes 192..195 are Options implemented in qsfp. Not Qlogic req'd
+ * Bytes 196..211 are Serial Number, String*/
 #define QSFP_SN_OFFS 196
 #define QSFP_SN_LEN 16
 /* Bytes 212..219 are date-code YYMMDD (MM==1 for Jan) */
@@ -129,8 +129,8 @@ extern const char *const qib_qsfp_devtech[16];
 /* Bytes 218,219 are optional lot-code, string */
 #define QSFP_LOT_OFFS 218
 #define QSFP_LOT_LEN 2
-/* Bytes 220, 221 indicate monitoring options, Not QLogic req'd */
-/* Byte 223 is LSB of sum of bytes 192..222 */
+/* Bytes 220, 221 indicate monitoring options, Not QLogic req'd
+ * Byte 223 is LSB of sum of bytes 192..222*/
 #define QSFP_CC_EXT_OFFS 223
 
 /*
@@ -151,21 +151,21 @@ extern const char *const qib_qsfp_devtech[16];
  * coonstantly bit-boffing
  */
 struct qib_qsfp_cache {
-	u8 id;	/* must be 0x0C or 0x0D; 0 indicates invalid EEPROM read */
-	u8 pwr; /* in D6,7 */
-	u8 len;	/* in meters, Cu only */
-	u8 tech;
-	char vendor[QSFP_VEND_LEN];
-	u8 xt_xcv; /* Ext. tranceiver codes, 4 lsbs are IB speed supported */
-	u8 oui[QSFP_VOUI_LEN];
-	u8 partnum[QSFP_PN_LEN];
-	u8 rev[QSFP_REV_LEN];
-	u8 atten[QSFP_ATTEN_LEN];
-	u8 cks1;	/* Checksum of bytes 128..190 */
-	u8 serial[QSFP_SN_LEN];
-	u8 date[QSFP_DATE_LEN];
-	u8 lot[QSFP_LOT_LEN];
-	u8 cks2;	/* Checsum of bytes 192..222 */
+  u8 id;  /* must be 0x0C or 0x0D; 0 indicates invalid EEPROM read */
+  u8 pwr; /* in D6,7 */
+  u8 len; /* in meters, Cu only */
+  u8 tech;
+  char vendor[QSFP_VEND_LEN];
+  u8 xt_xcv; /* Ext. tranceiver codes, 4 lsbs are IB speed supported */
+  u8 oui[QSFP_VOUI_LEN];
+  u8 partnum[QSFP_PN_LEN];
+  u8 rev[QSFP_REV_LEN];
+  u8 atten[QSFP_ATTEN_LEN];
+  u8 cks1;  /* Checksum of bytes 128..190 */
+  u8 serial[QSFP_SN_LEN];
+  u8 date[QSFP_DATE_LEN];
+  u8 lot[QSFP_LOT_LEN];
+  u8 cks2;  /* Checsum of bytes 192..222 */
 };
 
 #define QSFP_PWR(pbyte) (((pbyte) >> 6) & 3)
@@ -173,16 +173,16 @@ struct qib_qsfp_cache {
 #define QSFP_ATTEN_DDR(attenarray) (attenarray[1])
 
 struct qib_qsfp_data {
-	/* Helps to find our way */
-	struct qib_pportdata *ppd;
-	struct work_struct work;
-	struct qib_qsfp_cache cache;
-	unsigned long t_insert;
-	u8 modpresent;
+  /* Helps to find our way */
+  struct qib_pportdata *ppd;
+  struct work_struct work;
+  struct qib_qsfp_cache cache;
+  unsigned long t_insert;
+  u8 modpresent;
 };
 
 extern int qib_refresh_qsfp_cache(struct qib_pportdata *ppd,
-				  struct qib_qsfp_cache *cp);
+    struct qib_qsfp_cache *cp);
 extern int qib_qsfp_mod_present(struct qib_pportdata *ppd);
 extern void qib_qsfp_init(struct qib_qsfp_data *qd,
-			  void (*fevent)(struct work_struct *));
+    void (*fevent)(struct work_struct *));

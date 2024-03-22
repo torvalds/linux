@@ -12,15 +12,14 @@
 extern "C" {
 #endif
 
-static inline void *rseq_thread_pointer(void)
-{
+static inline void *rseq_thread_pointer(void) {
 #ifdef __powerpc64__
-	register void *__result asm ("r13");
+  register void *__result asm ("r13");
 #else
-	register void *__result asm ("r2");
+  register void *__result asm ("r2");
 #endif
-	asm ("" : "=r" (__result));
-	return __result;
+  asm ("" : "=r" (__result));
+  return __result;
 }
 
 #ifdef __cplusplus

@@ -30,27 +30,27 @@
 #include "dcn32/dcn32_dpp.h"
 
 #define DPP_REG_LIST_SH_MASK_DCN35(mask_sh)  \
-	DPP_REG_LIST_SH_MASK_DCN30_COMMON(mask_sh), \
-		TF_SF(DPP_TOP0_DPP_CONTROL, DPP_FGCG_REP_DIS, mask_sh)
+  DPP_REG_LIST_SH_MASK_DCN30_COMMON(mask_sh), \
+  TF_SF(DPP_TOP0_DPP_CONTROL, DPP_FGCG_REP_DIS, mask_sh)
 
 #define DPP_REG_FIELD_LIST_DCN35(type)         \
-	struct {                               \
-		DPP_REG_FIELD_LIST_DCN3(type); \
-		type DPP_FGCG_REP_DIS;         \
-	}
+  struct {                               \
+    DPP_REG_FIELD_LIST_DCN3(type); \
+    type DPP_FGCG_REP_DIS;         \
+  }
 
 struct dcn35_dpp_shift {
-	DPP_REG_FIELD_LIST_DCN35(uint8_t);
+  DPP_REG_FIELD_LIST_DCN35(uint8_t);
 };
 
 struct dcn35_dpp_mask {
-	DPP_REG_FIELD_LIST_DCN35(uint32_t);
+  DPP_REG_FIELD_LIST_DCN35(uint32_t);
 };
 
 bool dpp35_construct(struct dcn3_dpp *dpp3, struct dc_context *ctx,
-		     uint32_t inst, const struct dcn3_dpp_registers *tf_regs,
-		     const struct dcn35_dpp_shift *tf_shift,
-		     const struct dcn35_dpp_mask *tf_mask);
+    uint32_t inst, const struct dcn3_dpp_registers *tf_regs,
+    const struct dcn35_dpp_shift *tf_shift,
+    const struct dcn35_dpp_mask *tf_mask);
 
 void dpp35_set_fgcg(struct dcn3_dpp *dpp, bool enable);
 

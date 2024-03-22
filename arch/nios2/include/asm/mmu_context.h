@@ -34,14 +34,13 @@ extern pgd_t *pgd_current;
  */
 #define init_new_context init_new_context
 static inline int init_new_context(struct task_struct *tsk,
-					struct mm_struct *mm)
-{
-	mm->context = 0;
-	return 0;
+    struct mm_struct *mm) {
+  mm->context = 0;
+  return 0;
 }
 
 void switch_mm(struct mm_struct *prev, struct mm_struct *next,
-		struct task_struct *tsk);
+    struct task_struct *tsk);
 
 /*
  * After we have set current->mm to a new value, this activates

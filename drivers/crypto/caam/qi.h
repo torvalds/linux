@@ -17,7 +17,7 @@
 #include "desc_constr.h"
 
 /* Length of a single buffer in the QI driver memory cache */
-#define CAAM_QI_MEMCACHE_SIZE	768
+#define CAAM_QI_MEMCACHE_SIZE 768
 
 extern bool caam_congested __read_mostly;
 
@@ -36,9 +36,9 @@ struct caam_drv_req;
 typedef void (*caam_qi_cbk)(struct caam_drv_req *drv_req, u32 status);
 
 enum optype {
-	ENCRYPT,
-	DECRYPT,
-	NUM_OP
+  ENCRYPT,
+  DECRYPT,
+  NUM_OP
 };
 
 /**
@@ -60,17 +60,17 @@ enum optype {
  * @qidev: device pointer for CAAM/QI backend
  */
 struct caam_drv_ctx {
-	struct {
-		u32 prehdr[2];
-		u32 sh_desc[MAX_SDLEN];
-	} __aligned(CRYPTO_DMA_ALIGN);
-	dma_addr_t context_a;
-	struct qman_fq *req_fq;
-	struct qman_fq *rsp_fq;
-	refcount_t refcnt;
-	int cpu;
-	enum optype op_type;
-	struct device *qidev;
+  struct {
+    u32 prehdr[2];
+    u32 sh_desc[MAX_SDLEN];
+  } __aligned(CRYPTO_DMA_ALIGN);
+  dma_addr_t context_a;
+  struct qman_fq *req_fq;
+  struct qman_fq *rsp_fq;
+  refcount_t refcnt;
+  int cpu;
+  enum optype op_type;
+  struct device *qidev;
 };
 
 /**
@@ -88,10 +88,10 @@ struct caam_drv_ctx {
  * @hwaddr: DMA address for the S/G table.
  */
 struct caam_drv_req {
-	struct qm_sg_entry fd_sgt[2];
-	struct caam_drv_ctx *drv_ctx;
-	caam_qi_cbk cbk;
-	void *app_ctx;
+  struct qm_sg_entry fd_sgt[2];
+  struct caam_drv_ctx *drv_ctx;
+  caam_qi_cbk cbk;
+  void *app_ctx;
 } __aligned(CRYPTO_DMA_ALIGN);
 
 /**
@@ -111,7 +111,7 @@ struct caam_drv_req {
  * Returns a driver context on success or negative error code on failure.
  */
 struct caam_drv_ctx *caam_drv_ctx_init(struct device *qidev, int *cpu,
-				       u32 *sh_desc);
+    u32 *sh_desc);
 
 /**
  * caam_qi_enqueue - Submit a request to QI backend driver.
@@ -127,7 +127,7 @@ int caam_qi_enqueue(struct device *qidev, struct caam_drv_req *req);
 
 /**
  * caam_drv_ctx_busy - Check if there are too many jobs pending with CAAM
- *		       or too many CAAM responses are pending to be processed.
+ *           or too many CAAM responses are pending to be processed.
  * @drv_ctx: driver context for which job is to be submitted
  *
  * Returns caam congestion status 'true/false'

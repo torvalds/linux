@@ -83,259 +83,227 @@ u32 tau_interrupts(unsigned long cpu);
 #endif
 #endif /* CONFIG_PPC32 */
 
-int arch_show_interrupts(struct seq_file *p, int prec)
-{
-	int j;
-
+int arch_show_interrupts(struct seq_file *p, int prec) {
+  int j;
 #if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
-	if (tau_initialized) {
-		seq_printf(p, "%*s: ", prec, "TAU");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", tau_interrupts(j));
-		seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
-	}
+  if (tau_initialized) {
+    seq_printf(p, "%*s: ", prec, "TAU");
+    for_each_online_cpu(j)
+    seq_printf(p, "%10u ", tau_interrupts(j));
+    seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
+  }
 #endif /* CONFIG_PPC32 && CONFIG_TAU_INT */
-
-	seq_printf(p, "%*s: ", prec, "LOC");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_event);
-        seq_printf(p, "  Local timer interrupts for timer event device\n");
-
-	seq_printf(p, "%*s: ", prec, "BCT");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).broadcast_irqs_event);
-	seq_printf(p, "  Broadcast timer interrupts for timer event device\n");
-
-	seq_printf(p, "%*s: ", prec, "LOC");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_others);
-        seq_printf(p, "  Local timer interrupts for others\n");
-
-	seq_printf(p, "%*s: ", prec, "SPU");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).spurious_irqs);
-	seq_printf(p, "  Spurious interrupts\n");
-
-	seq_printf(p, "%*s: ", prec, "PMI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).pmu_irqs);
-	seq_printf(p, "  Performance monitoring interrupts\n");
-
-	seq_printf(p, "%*s: ", prec, "MCE");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
-	seq_printf(p, "  Machine check exceptions\n");
-
+  seq_printf(p, "%*s: ", prec, "LOC");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_event);
+  seq_printf(p, "  Local timer interrupts for timer event device\n");
+  seq_printf(p, "%*s: ", prec, "BCT");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).broadcast_irqs_event);
+  seq_printf(p, "  Broadcast timer interrupts for timer event device\n");
+  seq_printf(p, "%*s: ", prec, "LOC");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_others);
+  seq_printf(p, "  Local timer interrupts for others\n");
+  seq_printf(p, "%*s: ", prec, "SPU");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).spurious_irqs);
+  seq_printf(p, "  Spurious interrupts\n");
+  seq_printf(p, "%*s: ", prec, "PMI");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).pmu_irqs);
+  seq_printf(p, "  Performance monitoring interrupts\n");
+  seq_printf(p, "%*s: ", prec, "MCE");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).mce_exceptions);
+  seq_printf(p, "  Machine check exceptions\n");
 #ifdef CONFIG_PPC_BOOK3S_64
-	if (cpu_has_feature(CPU_FTR_HVMODE)) {
-		seq_printf(p, "%*s: ", prec, "HMI");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", paca_ptrs[j]->hmi_irqs);
-		seq_printf(p, "  Hypervisor Maintenance Interrupts\n");
-	}
+  if (cpu_has_feature(CPU_FTR_HVMODE)) {
+    seq_printf(p, "%*s: ", prec, "HMI");
+    for_each_online_cpu(j)
+    seq_printf(p, "%10u ", paca_ptrs[j]->hmi_irqs);
+    seq_printf(p, "  Hypervisor Maintenance Interrupts\n");
+  }
 #endif
-
-	seq_printf(p, "%*s: ", prec, "NMI");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).sreset_irqs);
-	seq_printf(p, "  System Reset interrupts\n");
-
+  seq_printf(p, "%*s: ", prec, "NMI");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).sreset_irqs);
+  seq_printf(p, "  System Reset interrupts\n");
 #ifdef CONFIG_PPC_WATCHDOG
-	seq_printf(p, "%*s: ", prec, "WDG");
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", per_cpu(irq_stat, j).soft_nmi_irqs);
-	seq_printf(p, "  Watchdog soft-NMI interrupts\n");
+  seq_printf(p, "%*s: ", prec, "WDG");
+  for_each_online_cpu(j)
+  seq_printf(p, "%10u ", per_cpu(irq_stat, j).soft_nmi_irqs);
+  seq_printf(p, "  Watchdog soft-NMI interrupts\n");
 #endif
-
 #ifdef CONFIG_PPC_DOORBELL
-	if (cpu_has_feature(CPU_FTR_DBELL)) {
-		seq_printf(p, "%*s: ", prec, "DBL");
-		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", per_cpu(irq_stat, j).doorbell_irqs);
-		seq_printf(p, "  Doorbell interrupts\n");
-	}
+  if (cpu_has_feature(CPU_FTR_DBELL)) {
+    seq_printf(p, "%*s: ", prec, "DBL");
+    for_each_online_cpu(j)
+    seq_printf(p, "%10u ", per_cpu(irq_stat, j).doorbell_irqs);
+    seq_printf(p, "  Doorbell interrupts\n");
+  }
 #endif
-
-	return 0;
+  return 0;
 }
 
 /*
  * /proc/stat helpers
  */
-u64 arch_irq_stat_cpu(unsigned int cpu)
-{
-	u64 sum = per_cpu(irq_stat, cpu).timer_irqs_event;
-
-	sum += per_cpu(irq_stat, cpu).broadcast_irqs_event;
-	sum += per_cpu(irq_stat, cpu).pmu_irqs;
-	sum += per_cpu(irq_stat, cpu).mce_exceptions;
-	sum += per_cpu(irq_stat, cpu).spurious_irqs;
-	sum += per_cpu(irq_stat, cpu).timer_irqs_others;
+u64 arch_irq_stat_cpu(unsigned int cpu) {
+  u64 sum = per_cpu(irq_stat, cpu).timer_irqs_event;
+  sum += per_cpu(irq_stat, cpu).broadcast_irqs_event;
+  sum += per_cpu(irq_stat, cpu).pmu_irqs;
+  sum += per_cpu(irq_stat, cpu).mce_exceptions;
+  sum += per_cpu(irq_stat, cpu).spurious_irqs;
+  sum += per_cpu(irq_stat, cpu).timer_irqs_others;
 #ifdef CONFIG_PPC_BOOK3S_64
-	sum += paca_ptrs[cpu]->hmi_irqs;
+  sum += paca_ptrs[cpu]->hmi_irqs;
 #endif
-	sum += per_cpu(irq_stat, cpu).sreset_irqs;
+  sum += per_cpu(irq_stat, cpu).sreset_irqs;
 #ifdef CONFIG_PPC_WATCHDOG
-	sum += per_cpu(irq_stat, cpu).soft_nmi_irqs;
+  sum += per_cpu(irq_stat, cpu).soft_nmi_irqs;
 #endif
 #ifdef CONFIG_PPC_DOORBELL
-	sum += per_cpu(irq_stat, cpu).doorbell_irqs;
+  sum += per_cpu(irq_stat, cpu).doorbell_irqs;
 #endif
-
-	return sum;
+  return sum;
 }
 
-static inline void check_stack_overflow(unsigned long sp)
-{
-	if (!IS_ENABLED(CONFIG_DEBUG_STACKOVERFLOW))
-		return;
-
-	sp &= THREAD_SIZE - 1;
-
-	/* check for stack overflow: is there less than 1/4th free? */
-	if (unlikely(sp < THREAD_SIZE / 4)) {
-		pr_err("do_IRQ: stack overflow: %ld\n", sp);
-		dump_stack();
-	}
+static inline void check_stack_overflow(unsigned long sp) {
+  if (!IS_ENABLED(CONFIG_DEBUG_STACKOVERFLOW)) {
+    return;
+  }
+  sp &= THREAD_SIZE - 1;
+  /* check for stack overflow: is there less than 1/4th free? */
+  if (unlikely(sp < THREAD_SIZE / 4)) {
+    pr_err("do_IRQ: stack overflow: %ld\n", sp);
+    dump_stack();
+  }
 }
 
 #ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
-static __always_inline void call_do_softirq(const void *sp)
-{
-	/* Temporarily switch r1 to sp, call __do_softirq() then restore r1. */
-	asm volatile (
-		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
-		"mr		%%r1, %[sp]		;"
+static __always_inline void call_do_softirq(const void *sp) {
+  /* Temporarily switch r1 to sp, call __do_softirq() then restore r1. */
+  asm volatile (
+    PPC_STLU "	%%r1, %[offset](%[sp])	;"
+    "mr		%%r1, %[sp]		;"
 #ifdef CONFIG_PPC_KERNEL_PCREL
-		"bl		%[callee]@notoc		;"
+    "bl		%[callee]@notoc		;"
 #else
-		"bl		%[callee]		;"
+    "bl		%[callee]		;"
 #endif
-		 PPC_LL "	%%r1, 0(%%r1)		;"
-		 : // Outputs
-		 : // Inputs
-		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
-		   [callee] "i" (__do_softirq)
-		 : // Clobbers
-		   "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
-		   "cr7", "r0", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
-		   "r11", "r12"
-	);
+    PPC_LL "	%%r1, 0(%%r1)		;"
+    : // Outputs
+    : // Inputs
+    [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
+    [callee] "i" (__do_softirq)
+    : // Clobbers
+    "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
+    "cr7", "r0", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+    "r11", "r12"
+    );
 }
+
 #endif
 
 DEFINE_STATIC_CALL_RET0(ppc_get_irq, *ppc_md.get_irq);
 
-static void __do_irq(struct pt_regs *regs, unsigned long oldsp)
-{
-	unsigned int irq;
-
-	trace_irq_entry(regs);
-
-	check_stack_overflow(oldsp);
-
-	/*
-	 * Query the platform PIC for the interrupt & ack it.
-	 *
-	 * This will typically lower the interrupt line to the CPU
-	 */
-	irq = static_call(ppc_get_irq)();
-
-	/* We can hard enable interrupts now to allow perf interrupts */
-	if (should_hard_irq_enable(regs))
-		do_hard_irq_enable();
-
-	/* And finally process it */
-	if (unlikely(!irq))
-		__this_cpu_inc(irq_stat.spurious_irqs);
-	else
-		generic_handle_irq(irq);
-
-	trace_irq_exit(regs);
+static void __do_irq(struct pt_regs *regs, unsigned long oldsp) {
+  unsigned int irq;
+  trace_irq_entry(regs);
+  check_stack_overflow(oldsp);
+  /*
+   * Query the platform PIC for the interrupt & ack it.
+   *
+   * This will typically lower the interrupt line to the CPU
+   */
+  irq = static_call(ppc_get_irq) ();
+  /* We can hard enable interrupts now to allow perf interrupts */
+  if (should_hard_irq_enable(regs)) {
+    do_hard_irq_enable();
+  }
+  /* And finally process it */
+  if (unlikely(!irq)) {
+    __this_cpu_inc(irq_stat.spurious_irqs);
+  } else {
+    generic_handle_irq(irq);
+  }
+  trace_irq_exit(regs);
 }
 
-static __always_inline void call_do_irq(struct pt_regs *regs, void *sp)
-{
-	register unsigned long r3 asm("r3") = (unsigned long)regs;
-
-	/* Temporarily switch r1 to sp, call __do_irq() then restore r1. */
-	asm volatile (
-		 PPC_STLU "	%%r1, %[offset](%[sp])	;"
-		"mr		%%r4, %%r1		;"
-		"mr		%%r1, %[sp]		;"
+static __always_inline void call_do_irq(struct pt_regs *regs, void *sp) {
+  register unsigned long r3 asm ("r3") = (unsigned long) regs;
+  /* Temporarily switch r1 to sp, call __do_irq() then restore r1. */
+  asm volatile (
+    PPC_STLU "	%%r1, %[offset](%[sp])	;"
+    "mr		%%r4, %%r1		;"
+    "mr		%%r1, %[sp]		;"
 #ifdef CONFIG_PPC_KERNEL_PCREL
-		"bl		%[callee]@notoc		;"
+    "bl		%[callee]@notoc		;"
 #else
-		"bl		%[callee]		;"
+    "bl		%[callee]		;"
 #endif
-		 PPC_LL "	%%r1, 0(%%r1)		;"
-		 : // Outputs
-		   "+r" (r3)
-		 : // Inputs
-		   [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
-		   [callee] "i" (__do_irq)
-		 : // Clobbers
-		   "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
-		   "cr7", "r0", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
-		   "r11", "r12"
-	);
+    PPC_LL "	%%r1, 0(%%r1)		;"
+    : // Outputs
+    "+r" (r3)
+    : // Inputs
+    [sp] "b" (sp), [offset] "i" (THREAD_SIZE - STACK_FRAME_MIN_SIZE),
+    [callee] "i" (__do_irq)
+    : // Clobbers
+    "lr", "xer", "ctr", "memory", "cr0", "cr1", "cr5", "cr6",
+    "cr7", "r0", "r4", "r5", "r6", "r7", "r8", "r9", "r10",
+    "r11", "r12"
+    );
 }
 
-void __do_IRQ(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-	void *cursp, *irqsp;
-
-	/* Switch to the irq stack to handle this */
-	cursp = (void *)(current_stack_pointer & ~(THREAD_SIZE - 1));
-	irqsp = hardirq_ctx[raw_smp_processor_id()];
-
-	/* Already there ? If not switch stack and call */
-	if (unlikely(cursp == irqsp))
-		__do_irq(regs, current_stack_pointer);
-	else
-		call_do_irq(regs, irqsp);
-
-	set_irq_regs(old_regs);
+void __do_IRQ(struct pt_regs *regs) {
+  struct pt_regs *old_regs = set_irq_regs(regs);
+  void *cursp, *irqsp;
+  /* Switch to the irq stack to handle this */
+  cursp = (void *) (current_stack_pointer & ~(THREAD_SIZE - 1));
+  irqsp = hardirq_ctx[raw_smp_processor_id()];
+  /* Already there ? If not switch stack and call */
+  if (unlikely(cursp == irqsp)) {
+    __do_irq(regs, current_stack_pointer);
+  } else {
+    call_do_irq(regs, irqsp);
+  }
+  set_irq_regs(old_regs);
 }
 
 DEFINE_INTERRUPT_HANDLER_ASYNC(do_IRQ)
 {
-	__do_IRQ(regs);
+  __do_IRQ(regs);
 }
 
-static void *__init alloc_vm_stack(void)
-{
-	return __vmalloc_node(THREAD_SIZE, THREAD_ALIGN, THREADINFO_GFP,
-			      NUMA_NO_NODE, (void *)_RET_IP_);
+static void *__init alloc_vm_stack(void) {
+  return __vmalloc_node(THREAD_SIZE, THREAD_ALIGN, THREADINFO_GFP,
+      NUMA_NO_NODE, (void *) _RET_IP_);
 }
 
-static void __init vmap_irqstack_init(void)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		softirq_ctx[i] = alloc_vm_stack();
-		hardirq_ctx[i] = alloc_vm_stack();
-	}
+static void __init vmap_irqstack_init(void) {
+  int i;
+  for_each_possible_cpu(i) {
+    softirq_ctx[i] = alloc_vm_stack();
+    hardirq_ctx[i] = alloc_vm_stack();
+  }
 }
 
-
-void __init init_IRQ(void)
-{
-	if (IS_ENABLED(CONFIG_VMAP_STACK))
-		vmap_irqstack_init();
-
-	if (ppc_md.init_IRQ)
-		ppc_md.init_IRQ();
-
-	if (!WARN_ON(!ppc_md.get_irq))
-		static_call_update(ppc_get_irq, ppc_md.get_irq);
+void __init init_IRQ(void) {
+  if (IS_ENABLED(CONFIG_VMAP_STACK)) {
+    vmap_irqstack_init();
+  }
+  if (ppc_md.init_IRQ) {
+    ppc_md.init_IRQ();
+  }
+  if (!WARN_ON(!ppc_md.get_irq)) {
+    static_call_update(ppc_get_irq, ppc_md.get_irq);
+  }
 }
 
 #ifdef CONFIG_BOOKE_OR_40x
-void   *critirq_ctx[NR_CPUS] __read_mostly;
-void    *dbgirq_ctx[NR_CPUS] __read_mostly;
+void *critirq_ctx[NR_CPUS] __read_mostly;
+void *dbgirq_ctx[NR_CPUS] __read_mostly;
 void *mcheckirq_ctx[NR_CPUS] __read_mostly;
 #endif
 
@@ -343,51 +311,47 @@ void *softirq_ctx[NR_CPUS] __read_mostly;
 void *hardirq_ctx[NR_CPUS] __read_mostly;
 
 #ifdef CONFIG_SOFTIRQ_ON_OWN_STACK
-void do_softirq_own_stack(void)
-{
-	call_do_softirq(softirq_ctx[smp_processor_id()]);
+void do_softirq_own_stack(void) {
+  call_do_softirq(softirq_ctx[smp_processor_id()]);
 }
+
 #endif
 
-irq_hw_number_t virq_to_hw(unsigned int virq)
-{
-	struct irq_data *irq_data = irq_get_irq_data(virq);
-	return WARN_ON(!irq_data) ? 0 : irq_data->hwirq;
+irq_hw_number_t virq_to_hw(unsigned int virq) {
+  struct irq_data *irq_data = irq_get_irq_data(virq);
+  return WARN_ON(!irq_data) ? 0 : irq_data->hwirq;
 }
+
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
 #ifdef CONFIG_SMP
-int irq_choose_cpu(const struct cpumask *mask)
-{
-	int cpuid;
-
-	if (cpumask_equal(mask, cpu_online_mask)) {
-		static int irq_rover;
-		static DEFINE_RAW_SPINLOCK(irq_rover_lock);
-		unsigned long flags;
-
-		/* Round-robin distribution... */
+int irq_choose_cpu(const struct cpumask *mask) {
+  int cpuid;
+  if (cpumask_equal(mask, cpu_online_mask)) {
+    static int irq_rover;
+    static DEFINE_RAW_SPINLOCK(irq_rover_lock);
+    unsigned long flags;
+    /* Round-robin distribution... */
 do_round_robin:
-		raw_spin_lock_irqsave(&irq_rover_lock, flags);
-
-		irq_rover = cpumask_next(irq_rover, cpu_online_mask);
-		if (irq_rover >= nr_cpu_ids)
-			irq_rover = cpumask_first(cpu_online_mask);
-
-		cpuid = irq_rover;
-
-		raw_spin_unlock_irqrestore(&irq_rover_lock, flags);
-	} else {
-		cpuid = cpumask_first_and(mask, cpu_online_mask);
-		if (cpuid >= nr_cpu_ids)
-			goto do_round_robin;
-	}
-
-	return get_hard_smp_processor_id(cpuid);
+    raw_spin_lock_irqsave(&irq_rover_lock, flags);
+    irq_rover = cpumask_next(irq_rover, cpu_online_mask);
+    if (irq_rover >= nr_cpu_ids) {
+      irq_rover = cpumask_first(cpu_online_mask);
+    }
+    cpuid = irq_rover;
+    raw_spin_unlock_irqrestore(&irq_rover_lock, flags);
+  } else {
+    cpuid = cpumask_first_and(mask, cpu_online_mask);
+    if (cpuid >= nr_cpu_ids) {
+      goto do_round_robin;
+    }
+  }
+  return get_hard_smp_processor_id(cpuid);
 }
+
 #else
-int irq_choose_cpu(const struct cpumask *mask)
-{
-	return hard_smp_processor_id();
+int irq_choose_cpu(const struct cpumask *mask) {
+  return hard_smp_processor_id();
 }
+
 #endif

@@ -14,15 +14,14 @@ extern void exit_sem(struct task_struct *tsk);
 
 #else
 
-static inline int copy_semundo(unsigned long clone_flags, struct task_struct *tsk)
-{
-	return 0;
+static inline int copy_semundo(unsigned long clone_flags,
+    struct task_struct *tsk) {
+  return 0;
 }
 
-static inline void exit_sem(struct task_struct *tsk)
-{
-	return;
+static inline void exit_sem(struct task_struct *tsk) {
 }
+
 #endif
 
 #endif /* _LINUX_SEM_H */

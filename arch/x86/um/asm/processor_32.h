@@ -13,41 +13,41 @@
 extern int host_has_cmov;
 
 struct uml_tls_struct {
-	struct user_desc tls;
-	unsigned flushed:1;
-	unsigned present:1;
+  struct user_desc tls;
+  unsigned flushed : 1;
+  unsigned present : 1;
 };
 
 struct arch_thread {
-	struct uml_tls_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
-	unsigned long debugregs[8];
-	int debugregs_seq;
-	struct faultinfo faultinfo;
+  struct uml_tls_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
+  unsigned long debugregs[8];
+  int debugregs_seq;
+  struct faultinfo faultinfo;
 };
 
 #define INIT_ARCH_THREAD { \
-	.tls_array  		= { [ 0 ... GDT_ENTRY_TLS_ENTRIES - 1 ] = \
-				    { .present = 0, .flushed = 0 } }, \
-	.debugregs  		= { [ 0 ... 7 ] = 0 }, \
-	.debugregs_seq		= 0, \
-	.faultinfo		= { 0, 0, 0 } \
+    .tls_array = {[0 ... GDT_ENTRY_TLS_ENTRIES - 1] = \
+                  { .present = 0, .flushed = 0 } }, \
+    .debugregs = {[0 ... 7] = 0 }, \
+    .debugregs_seq = 0, \
+    .faultinfo = { 0, 0, 0 } \
 }
 
 #define STACKSLOTS_PER_LINE 8
 
-static inline void arch_flush_thread(struct arch_thread *thread)
-{
-	/* Clear any TLS still hanging */
-	memset(&thread->tls_array, 0, sizeof(thread->tls_array));
+static inline void arch_flush_thread(struct arch_thread *thread) {
+  /* Clear any TLS still hanging */
+  memset(&thread->tls_array, 0, sizeof(thread->tls_array));
 }
 
 static inline void arch_copy_thread(struct arch_thread *from,
-                                    struct arch_thread *to)
-{
-        memcpy(&to->tls_array, &from->tls_array, sizeof(from->tls_array));
+    struct arch_thread *to) {
+  memcpy(&to->tls_array, &from->tls_array, sizeof(from->tls_array));
 }
 
-#define current_sp() ({ void *sp; __asm__("movl %%esp, %0" : "=r" (sp) : ); sp; })
-#define current_bp() ({ unsigned long bp; __asm__("movl %%ebp, %0" : "=r" (bp) : ); bp; })
+#define current_sp() ({ void *sp; __asm__ ("movl %%esp, %0" : "=r" (sp) :); sp; \
+  })
+#define current_bp() ({ unsigned long bp; \
+                        __asm__ ("movl %%ebp, %0" : "=r" (bp) :); bp; })
 
 #endif

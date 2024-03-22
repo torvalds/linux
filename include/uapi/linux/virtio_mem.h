@@ -87,51 +87,49 @@
 /* --- virtio-mem: feature bits --- */
 
 /* node_id is an ACPI PXM and is valid */
-#define VIRTIO_MEM_F_ACPI_PXM		0
+#define VIRTIO_MEM_F_ACPI_PXM   0
 /* unplugged memory must not be accessed */
-#define VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE	1
-
+#define VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE 1
 
 /* --- virtio-mem: guest -> host requests --- */
 
 /* request to plug memory blocks */
-#define VIRTIO_MEM_REQ_PLUG			0
+#define VIRTIO_MEM_REQ_PLUG     0
 /* request to unplug memory blocks */
-#define VIRTIO_MEM_REQ_UNPLUG			1
+#define VIRTIO_MEM_REQ_UNPLUG     1
 /* request to unplug all blocks and shrink the usable size */
-#define VIRTIO_MEM_REQ_UNPLUG_ALL		2
+#define VIRTIO_MEM_REQ_UNPLUG_ALL   2
 /* request information about the plugged state of memory blocks */
-#define VIRTIO_MEM_REQ_STATE			3
+#define VIRTIO_MEM_REQ_STATE      3
 
 struct virtio_mem_req_plug {
-	__virtio64 addr;
-	__virtio16 nb_blocks;
-	__virtio16 padding[3];
+  __virtio64 addr;
+  __virtio16 nb_blocks;
+  __virtio16 padding[3];
 };
 
 struct virtio_mem_req_unplug {
-	__virtio64 addr;
-	__virtio16 nb_blocks;
-	__virtio16 padding[3];
+  __virtio64 addr;
+  __virtio16 nb_blocks;
+  __virtio16 padding[3];
 };
 
 struct virtio_mem_req_state {
-	__virtio64 addr;
-	__virtio16 nb_blocks;
-	__virtio16 padding[3];
+  __virtio64 addr;
+  __virtio16 nb_blocks;
+  __virtio16 padding[3];
 };
 
 struct virtio_mem_req {
-	__virtio16 type;
-	__virtio16 padding[3];
+  __virtio16 type;
+  __virtio16 padding[3];
 
-	union {
-		struct virtio_mem_req_plug plug;
-		struct virtio_mem_req_unplug unplug;
-		struct virtio_mem_req_state state;
-	} u;
+  union {
+    struct virtio_mem_req_plug plug;
+    struct virtio_mem_req_unplug unplug;
+    struct virtio_mem_req_state state;
+  } u;
 };
-
 
 /* --- virtio-mem: host -> guest response --- */
 
@@ -142,73 +140,72 @@ struct virtio_mem_req {
  * - VIRTIO_MEM_REQ_UNPLUG_ALL
  * - VIRTIO_MEM_REQ_STATE
  */
-#define VIRTIO_MEM_RESP_ACK			0
+#define VIRTIO_MEM_RESP_ACK     0
 /*
  * Request denied - e.g. trying to plug more than requested, applicable for
  * - VIRTIO_MEM_REQ_PLUG
  */
-#define VIRTIO_MEM_RESP_NACK			1
+#define VIRTIO_MEM_RESP_NACK      1
 /*
  * Request cannot be processed right now, try again later, applicable for
  * - VIRTIO_MEM_REQ_PLUG
  * - VIRTIO_MEM_REQ_UNPLUG
  * - VIRTIO_MEM_REQ_UNPLUG_ALL
  */
-#define VIRTIO_MEM_RESP_BUSY			2
+#define VIRTIO_MEM_RESP_BUSY      2
 /*
  * Error in request (e.g. addresses/alignment), applicable for
  * - VIRTIO_MEM_REQ_PLUG
  * - VIRTIO_MEM_REQ_UNPLUG
  * - VIRTIO_MEM_REQ_STATE
  */
-#define VIRTIO_MEM_RESP_ERROR			3
-
+#define VIRTIO_MEM_RESP_ERROR     3
 
 /* State of memory blocks is "plugged" */
-#define VIRTIO_MEM_STATE_PLUGGED		0
+#define VIRTIO_MEM_STATE_PLUGGED    0
 /* State of memory blocks is "unplugged" */
-#define VIRTIO_MEM_STATE_UNPLUGGED		1
+#define VIRTIO_MEM_STATE_UNPLUGGED    1
 /* State of memory blocks is "mixed" */
-#define VIRTIO_MEM_STATE_MIXED			2
+#define VIRTIO_MEM_STATE_MIXED      2
 
 struct virtio_mem_resp_state {
-	__virtio16 state;
+  __virtio16 state;
 };
 
 struct virtio_mem_resp {
-	__virtio16 type;
-	__virtio16 padding[3];
+  __virtio16 type;
+  __virtio16 padding[3];
 
-	union {
-		struct virtio_mem_resp_state state;
-	} u;
+  union {
+    struct virtio_mem_resp_state state;
+  } u;
 };
 
 /* --- virtio-mem: configuration --- */
 
 struct virtio_mem_config {
-	/* Block size and alignment. Cannot change. */
-	__le64 block_size;
-	/* Valid with VIRTIO_MEM_F_ACPI_PXM. Cannot change. */
-	__le16 node_id;
-	__u8 padding[6];
-	/* Start address of the memory region. Cannot change. */
-	__le64 addr;
-	/* Region size (maximum). Cannot change. */
-	__le64 region_size;
-	/*
-	 * Currently usable region size. Can grow up to region_size. Can
-	 * shrink due to VIRTIO_MEM_REQ_UNPLUG_ALL (in which case no config
-	 * update will be sent).
-	 */
-	__le64 usable_region_size;
-	/*
-	 * Currently used size. Changes due to plug/unplug requests, but no
-	 * config updates will be sent.
-	 */
-	__le64 plugged_size;
-	/* Requested size. New plug requests cannot exceed it. Can change. */
-	__le64 requested_size;
+  /* Block size and alignment. Cannot change. */
+  __le64 block_size;
+  /* Valid with VIRTIO_MEM_F_ACPI_PXM. Cannot change. */
+  __le16 node_id;
+  __u8 padding[6];
+  /* Start address of the memory region. Cannot change. */
+  __le64 addr;
+  /* Region size (maximum). Cannot change. */
+  __le64 region_size;
+  /*
+   * Currently usable region size. Can grow up to region_size. Can
+   * shrink due to VIRTIO_MEM_REQ_UNPLUG_ALL (in which case no config
+   * update will be sent).
+   */
+  __le64 usable_region_size;
+  /*
+   * Currently used size. Changes due to plug/unplug requests, but no
+   * config updates will be sent.
+   */
+  __le64 plugged_size;
+  /* Requested size. New plug requests cannot exceed it. Can change. */
+  __le64 requested_size;
 };
 
 #endif /* _LINUX_VIRTIO_MEM_H */

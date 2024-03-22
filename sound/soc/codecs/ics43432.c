@@ -25,46 +25,45 @@
 #define ICS43432_FORMATS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32)
 
 static struct snd_soc_dai_driver ics43432_dai = {
-	.name = "ics43432-hifi",
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rate_min = ICS43432_RATE_MIN,
-		.rate_max = ICS43432_RATE_MAX,
-		.rates = SNDRV_PCM_RATE_CONTINUOUS,
-		.formats = ICS43432_FORMATS,
-	},
+  .name = "ics43432-hifi",
+  .capture = {
+    .stream_name = "Capture",
+    .channels_min = 1,
+    .channels_max = 2,
+    .rate_min = ICS43432_RATE_MIN,
+    .rate_max = ICS43432_RATE_MAX,
+    .rates = SNDRV_PCM_RATE_CONTINUOUS,
+    .formats = ICS43432_FORMATS,
+  },
 };
 
 static const struct snd_soc_component_driver ics43432_component_driver = {
-	.idle_bias_on		= 1,
-	.use_pmdown_time	= 1,
-	.endianness		= 1,
+  .idle_bias_on = 1,
+  .use_pmdown_time = 1,
+  .endianness = 1,
 };
 
-static int ics43432_probe(struct platform_device *pdev)
-{
-	return devm_snd_soc_register_component(&pdev->dev,
-			&ics43432_component_driver,
-			&ics43432_dai, 1);
+static int ics43432_probe(struct platform_device *pdev) {
+  return devm_snd_soc_register_component(&pdev->dev,
+      &ics43432_component_driver,
+      &ics43432_dai, 1);
 }
 
 #ifdef CONFIG_OF
 static const struct of_device_id ics43432_ids[] = {
-	{ .compatible = "invensense,ics43432", },
-	{ .compatible = "cui,cmm-4030d-261", },
-	{ }
+  { .compatible = "invensense,ics43432", },
+  { .compatible = "cui,cmm-4030d-261", },
+  {}
 };
 MODULE_DEVICE_TABLE(of, ics43432_ids);
 #endif
 
 static struct platform_driver ics43432_driver = {
-	.driver = {
-		.name = "ics43432",
-		.of_match_table = of_match_ptr(ics43432_ids),
-	},
-	.probe = ics43432_probe,
+  .driver = {
+    .name = "ics43432",
+    .of_match_table = of_match_ptr(ics43432_ids),
+  },
+  .probe = ics43432_probe,
 };
 
 module_platform_driver(ics43432_driver);

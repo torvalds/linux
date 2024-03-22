@@ -10,4 +10,3 @@
 int modify_match_busid(char *busid, int add);
 
 #endif /* __UTILS_H */
-

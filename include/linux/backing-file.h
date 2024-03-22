@@ -13,30 +13,30 @@
 #include <linux/fs.h>
 
 struct backing_file_ctx {
-	const struct cred *cred;
-	struct file *user_file;
-	void (*accessed)(struct file *);
-	void (*end_write)(struct file *);
+  const struct cred *cred;
+  struct file *user_file;
+  void (*accessed)(struct file *);
+  void (*end_write)(struct file *);
 };
 
 struct file *backing_file_open(const struct path *user_path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred);
+    const struct path *real_path,
+    const struct cred *cred);
 ssize_t backing_file_read_iter(struct file *file, struct iov_iter *iter,
-			       struct kiocb *iocb, int flags,
-			       struct backing_file_ctx *ctx);
+    struct kiocb *iocb, int flags,
+    struct backing_file_ctx *ctx);
 ssize_t backing_file_write_iter(struct file *file, struct iov_iter *iter,
-				struct kiocb *iocb, int flags,
-				struct backing_file_ctx *ctx);
+    struct kiocb *iocb, int flags,
+    struct backing_file_ctx *ctx);
 ssize_t backing_file_splice_read(struct file *in, loff_t *ppos,
-				 struct pipe_inode_info *pipe, size_t len,
-				 unsigned int flags,
-				 struct backing_file_ctx *ctx);
+    struct pipe_inode_info *pipe, size_t len,
+    unsigned int flags,
+    struct backing_file_ctx *ctx);
 ssize_t backing_file_splice_write(struct pipe_inode_info *pipe,
-				  struct file *out, loff_t *ppos, size_t len,
-				  unsigned int flags,
-				  struct backing_file_ctx *ctx);
+    struct file *out, loff_t *ppos, size_t len,
+    unsigned int flags,
+    struct backing_file_ctx *ctx);
 int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
-		      struct backing_file_ctx *ctx);
+    struct backing_file_ctx *ctx);
 
 #endif /* _LINUX_BACKING_FILE_H */

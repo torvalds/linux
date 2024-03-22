@@ -17,13 +17,13 @@
  * Also, there is AUX2_CTRL for some Marvell specific control.
  */
 
-#define TAUROS3_EVENT_CNT2_CFG		0x224
-#define TAUROS3_EVENT_CNT2_VAL		0x228
-#define TAUROS3_INV_ALL			0x780
-#define TAUROS3_CLEAN_ALL		0x784
-#define TAUROS3_AUX2_CTRL		0x820
+#define TAUROS3_EVENT_CNT2_CFG    0x224
+#define TAUROS3_EVENT_CNT2_VAL    0x228
+#define TAUROS3_INV_ALL     0x780
+#define TAUROS3_CLEAN_ALL   0x784
+#define TAUROS3_AUX2_CTRL   0x820
 
 /* Registers shifts and masks */
-#define TAUROS3_AUX2_CTRL_LINEFILL_BURST8_EN	(1 << 2)
+#define TAUROS3_AUX2_CTRL_LINEFILL_BURST8_EN  (1 << 2)
 
 #endif

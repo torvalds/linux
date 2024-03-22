@@ -15,36 +15,35 @@
 #endif
 
 static size_t syscall_arg__scnprintf_sched_policy(char *bf, size_t size,
-						  struct syscall_arg *arg)
-{
-	bool show_prefix = arg->show_string_prefix;
-	const char *prefix = "SCHED_";
-	const char *policies[] = {
-		"NORMAL", "FIFO", "RR", "BATCH", "ISO", "IDLE", "DEADLINE",
-	};
-	size_t printed;
-	int policy = arg->val,
-	    flags = policy & ~SCHED_POLICY_MASK;
-
-	policy &= SCHED_POLICY_MASK;
-	if (policy <= SCHED_DEADLINE)
-		printed = scnprintf(bf, size, "%s%s", show_prefix ? prefix : "", policies[policy]);
-	else
-		printed = scnprintf(bf, size, "%#x", policy);
-
-#define	P_POLICY_FLAG(n) \
-	if (flags & SCHED_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "|%s%s", show_prefix ? prefix : "",  #n); \
-		flags &= ~SCHED_##n; \
-	}
-
-	P_POLICY_FLAG(RESET_ON_FORK);
+    struct syscall_arg *arg) {
+  bool show_prefix = arg->show_string_prefix;
+  const char *prefix = "SCHED_";
+  const char *policies[] = {
+    "NORMAL", "FIFO", "RR", "BATCH", "ISO", "IDLE", "DEADLINE",
+  };
+  size_t printed;
+  int policy = arg->val,
+      flags = policy & ~SCHED_POLICY_MASK;
+  policy &= SCHED_POLICY_MASK;
+  if (policy <= SCHED_DEADLINE) {
+    printed
+      = scnprintf(bf, size, "%s%s", show_prefix ? prefix : "",
+        policies[policy]);
+  } else {
+    printed = scnprintf(bf, size, "%#x", policy);
+  }
+#define P_POLICY_FLAG(n) \
+  if (flags & SCHED_ ## n) { \
+    printed += scnprintf(bf + printed, size - printed, "|%s%s", \
+      show_prefix ? prefix : "",  #n); \
+    flags &= ~SCHED_ ## n; \
+  }
+  P_POLICY_FLAG(RESET_ON_FORK);
 #undef P_POLICY_FLAG
-
-	if (flags)
-		printed += scnprintf(bf + printed, size - printed, "|%#x", flags);
-
-	return printed;
+  if (flags) {
+    printed += scnprintf(bf + printed, size - printed, "|%#x", flags);
+  }
+  return printed;
 }
 
 #define SCA_SCHED_POLICY syscall_arg__scnprintf_sched_policy

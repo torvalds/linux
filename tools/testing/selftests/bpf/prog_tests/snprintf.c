@@ -33,95 +33,77 @@
 
 #define EXP_NO_BUF_RET 29
 
-static void test_snprintf_positive(void)
-{
-	char exp_addr_out[] = EXP_ADDR_OUT;
-	char exp_sym_out[]  = EXP_SYM_OUT;
-	struct test_snprintf *skel;
-
-	skel = test_snprintf__open_and_load();
-	if (!ASSERT_OK_PTR(skel, "skel_open"))
-		return;
-
-	skel->bss->pid = getpid();
-
-	if (!ASSERT_OK(test_snprintf__attach(skel), "skel_attach"))
-		goto cleanup;
-
-	/* trigger tracepoint */
-	usleep(1);
-
-	ASSERT_STREQ(skel->bss->num_out, EXP_NUM_OUT, "num_out");
-	ASSERT_EQ(skel->bss->num_ret, EXP_NUM_RET, "num_ret");
-
-	ASSERT_STREQ(skel->bss->ip_out, EXP_IP_OUT, "ip_out");
-	ASSERT_EQ(skel->bss->ip_ret, EXP_IP_RET, "ip_ret");
-
-	ASSERT_OK(memcmp(skel->bss->sym_out, exp_sym_out,
-			 sizeof(exp_sym_out) - 1), "sym_out");
-	ASSERT_LT(MIN_SYM_RET, skel->bss->sym_ret, "sym_ret");
-
-	ASSERT_OK(memcmp(skel->bss->addr_out, exp_addr_out,
-			 sizeof(exp_addr_out) - 1), "addr_out");
-	ASSERT_EQ(skel->bss->addr_ret, EXP_ADDR_RET, "addr_ret");
-
-	ASSERT_STREQ(skel->bss->str_out, EXP_STR_OUT, "str_out");
-	ASSERT_EQ(skel->bss->str_ret, EXP_STR_RET, "str_ret");
-
-	ASSERT_STREQ(skel->bss->over_out, EXP_OVER_OUT, "over_out");
-	ASSERT_EQ(skel->bss->over_ret, EXP_OVER_RET, "over_ret");
-
-	ASSERT_STREQ(skel->bss->pad_out, EXP_PAD_OUT, "pad_out");
-	ASSERT_EQ(skel->bss->pad_ret, EXP_PAD_RET, "pad_ret");
-
-	ASSERT_STREQ(skel->bss->noarg_out, EXP_NO_ARG_OUT, "no_arg_out");
-	ASSERT_EQ(skel->bss->noarg_ret, EXP_NO_ARG_RET, "no_arg_ret");
-
-	ASSERT_EQ(skel->bss->nobuf_ret, EXP_NO_BUF_RET, "no_buf_ret");
-
+static void test_snprintf_positive(void) {
+  char exp_addr_out[] = EXP_ADDR_OUT;
+  char exp_sym_out[] = EXP_SYM_OUT;
+  struct test_snprintf *skel;
+  skel = test_snprintf__open_and_load();
+  if (!ASSERT_OK_PTR(skel, "skel_open")) {
+    return;
+  }
+  skel->bss->pid = getpid();
+  if (!ASSERT_OK(test_snprintf__attach(skel), "skel_attach")) {
+    goto cleanup;
+  }
+  /* trigger tracepoint */
+  usleep(1);
+  ASSERT_STREQ(skel->bss->num_out, EXP_NUM_OUT, "num_out");
+  ASSERT_EQ(skel->bss->num_ret, EXP_NUM_RET, "num_ret");
+  ASSERT_STREQ(skel->bss->ip_out, EXP_IP_OUT, "ip_out");
+  ASSERT_EQ(skel->bss->ip_ret, EXP_IP_RET, "ip_ret");
+  ASSERT_OK(memcmp(skel->bss->sym_out, exp_sym_out,
+      sizeof(exp_sym_out) - 1), "sym_out");
+  ASSERT_LT(MIN_SYM_RET, skel->bss->sym_ret, "sym_ret");
+  ASSERT_OK(memcmp(skel->bss->addr_out, exp_addr_out,
+      sizeof(exp_addr_out) - 1), "addr_out");
+  ASSERT_EQ(skel->bss->addr_ret, EXP_ADDR_RET, "addr_ret");
+  ASSERT_STREQ(skel->bss->str_out, EXP_STR_OUT, "str_out");
+  ASSERT_EQ(skel->bss->str_ret, EXP_STR_RET, "str_ret");
+  ASSERT_STREQ(skel->bss->over_out, EXP_OVER_OUT, "over_out");
+  ASSERT_EQ(skel->bss->over_ret, EXP_OVER_RET, "over_ret");
+  ASSERT_STREQ(skel->bss->pad_out, EXP_PAD_OUT, "pad_out");
+  ASSERT_EQ(skel->bss->pad_ret, EXP_PAD_RET, "pad_ret");
+  ASSERT_STREQ(skel->bss->noarg_out, EXP_NO_ARG_OUT, "no_arg_out");
+  ASSERT_EQ(skel->bss->noarg_ret, EXP_NO_ARG_RET, "no_arg_ret");
+  ASSERT_EQ(skel->bss->nobuf_ret, EXP_NO_BUF_RET, "no_buf_ret");
 cleanup:
-	test_snprintf__destroy(skel);
+  test_snprintf__destroy(skel);
 }
 
 /* Loads an eBPF object calling bpf_snprintf with up to 10 characters of fmt */
-static int load_single_snprintf(char *fmt)
-{
-	struct test_snprintf_single *skel;
-	int ret;
-
-	skel = test_snprintf_single__open();
-	if (!skel)
-		return -EINVAL;
-
-	memcpy(skel->rodata->fmt, fmt, MIN(strlen(fmt) + 1, 10));
-
-	ret = test_snprintf_single__load(skel);
-	test_snprintf_single__destroy(skel);
-
-	return ret;
+static int load_single_snprintf(char *fmt) {
+  struct test_snprintf_single *skel;
+  int ret;
+  skel = test_snprintf_single__open();
+  if (!skel) {
+    return -EINVAL;
+  }
+  memcpy(skel->rodata->fmt, fmt, MIN(strlen(fmt) + 1, 10));
+  ret = test_snprintf_single__load(skel);
+  test_snprintf_single__destroy(skel);
+  return ret;
 }
 
-static void test_snprintf_negative(void)
-{
-	ASSERT_OK(load_single_snprintf("valid %d"), "valid usage");
-
-	ASSERT_ERR(load_single_snprintf("0123456789"), "no terminating zero");
-	ASSERT_ERR(load_single_snprintf("%d %d"), "too many specifiers");
-	ASSERT_ERR(load_single_snprintf("%pi5"), "invalid specifier 1");
-	ASSERT_ERR(load_single_snprintf("%a"), "invalid specifier 2");
-	ASSERT_ERR(load_single_snprintf("%"), "invalid specifier 3");
-	ASSERT_ERR(load_single_snprintf("%12345678"), "invalid specifier 4");
-	ASSERT_ERR(load_single_snprintf("%--------"), "invalid specifier 5");
-	ASSERT_ERR(load_single_snprintf("%lc"), "invalid specifier 6");
-	ASSERT_ERR(load_single_snprintf("%llc"), "invalid specifier 7");
-	ASSERT_ERR(load_single_snprintf("\x80"), "non ascii character");
-	ASSERT_ERR(load_single_snprintf("\x1"), "non printable character");
+static void test_snprintf_negative(void) {
+  ASSERT_OK(load_single_snprintf("valid %d"), "valid usage");
+  ASSERT_ERR(load_single_snprintf("0123456789"), "no terminating zero");
+  ASSERT_ERR(load_single_snprintf("%d %d"), "too many specifiers");
+  ASSERT_ERR(load_single_snprintf("%pi5"), "invalid specifier 1");
+  ASSERT_ERR(load_single_snprintf("%a"), "invalid specifier 2");
+  ASSERT_ERR(load_single_snprintf("%"), "invalid specifier 3");
+  ASSERT_ERR(load_single_snprintf("%12345678"), "invalid specifier 4");
+  ASSERT_ERR(load_single_snprintf("%--------"), "invalid specifier 5");
+  ASSERT_ERR(load_single_snprintf("%lc"), "invalid specifier 6");
+  ASSERT_ERR(load_single_snprintf("%llc"), "invalid specifier 7");
+  ASSERT_ERR(load_single_snprintf("\x80"), "non ascii character");
+  ASSERT_ERR(load_single_snprintf("\x1"), "non printable character");
 }
 
-void test_snprintf(void)
-{
-	if (test__start_subtest("snprintf_positive"))
-		test_snprintf_positive();
-	if (test__start_subtest("snprintf_negative"))
-		test_snprintf_negative();
+void test_snprintf(void) {
+  if (test__start_subtest("snprintf_positive")) {
+    test_snprintf_positive();
+  }
+  if (test__start_subtest("snprintf_negative")) {
+    test_snprintf_negative();
+  }
 }

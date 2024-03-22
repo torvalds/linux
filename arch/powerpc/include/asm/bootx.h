@@ -16,34 +16,34 @@
  * component. Later versions may contain the gamma table for direct-color
  * devices here.
  */
-#define BOOTX_COLORTABLE_SIZE    (256UL*3UL*2UL)
+#define BOOTX_COLORTABLE_SIZE    (256UL * 3UL * 2UL)
 
 /* BootX passes the device-tree using a format that comes from earlier
  * ppc32 kernels. This used to match what is in prom.h, but not anymore
  * so we now define it here
  */
 struct bootx_dt_prop {
-	u32	name;
-	int	length;
-	u32	value;
-	u32	next;
+  u32 name;
+  int length;
+  u32 value;
+  u32 next;
 };
 
 struct bootx_dt_node {
-	u32	unused0;
-	u32	unused1;
-	u32	phandle;	/* not really available */
-	u32	unused2;
-	u32	unused3;
-	u32	unused4;
-	u32	unused5;
-	u32	full_name;
-	u32	properties;
-	u32	parent;
-	u32	child;
-	u32	sibling;
-	u32	next;
-	u32	allnext;
+  u32 unused0;
+  u32 unused1;
+  u32 phandle;  /* not really available */
+  u32 unused2;
+  u32 unused3;
+  u32 unused4;
+  u32 unused5;
+  u32 full_name;
+  u32 properties;
+  u32 parent;
+  u32 child;
+  u32 sibling;
+  u32 next;
+  u32 allnext;
 };
 
 extern void bootx_init(unsigned long r4, unsigned long phys);

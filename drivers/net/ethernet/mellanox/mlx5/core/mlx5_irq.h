@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2021 Mellanox Technologies. */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+ * Copyright (c) 2021 Mellanox Technologies.*/
 
 #ifndef __MLX5_IRQ_H__
 #define __MLX5_IRQ_H__
@@ -21,16 +21,16 @@ int mlx5_irq_table_get_sfs_vec(struct mlx5_irq_table *table);
 struct mlx5_irq_table *mlx5_irq_table_get(struct mlx5_core_dev *dev);
 
 int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int devfn,
-			    int msix_vec_count);
+    int msix_vec_count);
 int mlx5_get_default_msix_vec_count(struct mlx5_core_dev *dev, int num_vfs);
 
 struct mlx5_irq *mlx5_ctrl_irq_request(struct mlx5_core_dev *dev);
 void mlx5_ctrl_irq_release(struct mlx5_irq *ctrl_irq);
 struct mlx5_irq *mlx5_irq_request(struct mlx5_core_dev *dev, u16 vecidx,
-				  struct irq_affinity_desc *af_desc,
-				  struct cpu_rmap **rmap);
+    struct irq_affinity_desc *af_desc,
+    struct cpu_rmap **rmap);
 struct mlx5_irq *mlx5_irq_request_vector(struct mlx5_core_dev *dev, u16 cpu,
-					 u16 vecidx, struct cpu_rmap **rmap);
+    u16 vecidx, struct cpu_rmap **rmap);
 void mlx5_irq_release_vector(struct mlx5_irq *irq);
 int mlx5_irq_attach_nb(struct mlx5_irq *irq, struct notifier_block *nb);
 int mlx5_irq_detach_nb(struct mlx5_irq *irq, struct notifier_block *nb);
@@ -40,27 +40,27 @@ int mlx5_irq_get_index(struct mlx5_irq *irq);
 struct mlx5_irq_pool;
 #ifdef CONFIG_MLX5_SF
 struct mlx5_irq *mlx5_irq_affinity_irq_request_auto(struct mlx5_core_dev *dev,
-						    struct cpumask *used_cpus, u16 vecidx);
+    struct cpumask *used_cpus, u16 vecidx);
 struct mlx5_irq *mlx5_irq_affinity_request(struct mlx5_irq_pool *pool,
-					   struct irq_affinity_desc *af_desc);
-void mlx5_irq_affinity_irq_release(struct mlx5_core_dev *dev, struct mlx5_irq *irq);
+    struct irq_affinity_desc *af_desc);
+void mlx5_irq_affinity_irq_release(struct mlx5_core_dev *dev,
+    struct mlx5_irq *irq);
 #else
 static inline
 struct mlx5_irq *mlx5_irq_affinity_irq_request_auto(struct mlx5_core_dev *dev,
-						    struct cpumask *used_cpus, u16 vecidx)
-{
-	return ERR_PTR(-EOPNOTSUPP);
+    struct cpumask *used_cpus, u16 vecidx) {
+  return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline struct mlx5_irq *
-mlx5_irq_affinity_request(struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_desc)
-{
-	return ERR_PTR(-EOPNOTSUPP);
+static inline struct mlx5_irq *mlx5_irq_affinity_request(
+    struct mlx5_irq_pool *pool, struct irq_affinity_desc *af_desc) {
+  return ERR_PTR(-EOPNOTSUPP);
 }
 
 static inline
-void mlx5_irq_affinity_irq_release(struct mlx5_core_dev *dev, struct mlx5_irq *irq)
-{
+void mlx5_irq_affinity_irq_release(struct mlx5_core_dev *dev,
+    struct mlx5_irq *irq) {
 }
+
 #endif
 #endif /* __MLX5_IRQ_H__ */

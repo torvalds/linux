@@ -27,71 +27,72 @@
 #include "evergreen_smc.h"
 
 struct evergreen_mc_reg_entry {
-	u32 mclk_max;
-	u32 mc_data[SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE];
+  u32 mclk_max;
+  u32 mc_data[SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE];
 };
 
 struct evergreen_mc_reg_table {
-	u8 last;
-	u8 num_entries;
-	u16 valid_flag;
-	struct evergreen_mc_reg_entry mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
-	SMC_Evergreen_MCRegisterAddress mc_reg_address[SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE];
+  u8 last;
+  u8 num_entries;
+  u16 valid_flag;
+  struct evergreen_mc_reg_entry mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
+  SMC_Evergreen_MCRegisterAddress mc_reg_address[
+    SMC_EVERGREEN_MC_REGISTER_ARRAY_SIZE];
 };
 
 struct evergreen_ulv_param {
-	bool supported;
-	struct rv7xx_pl *pl;
+  bool supported;
+  struct rv7xx_pl *pl;
 };
 
 struct evergreen_arb_registers {
-	u32 mc_arb_dram_timing;
-	u32 mc_arb_dram_timing2;
-	u32 mc_arb_rfsh_rate;
-	u32 mc_arb_burst_time;
+  u32 mc_arb_dram_timing;
+  u32 mc_arb_dram_timing2;
+  u32 mc_arb_rfsh_rate;
+  u32 mc_arb_burst_time;
 };
 
 struct at {
-	u32 rlp;
-	u32 rmp;
-	u32 lhp;
-	u32 lmp;
+  u32 rlp;
+  u32 rmp;
+  u32 lhp;
+  u32 lmp;
 };
 
 struct evergreen_power_info {
-	/* must be first! */
-	struct rv7xx_power_info rv7xx;
-	/* flags */
-	bool vddci_control;
-	bool dynamic_ac_timing;
-	bool abm;
-	bool mcls;
-	bool light_sleep;
-	bool memory_transition;
-	bool pcie_performance_request;
-	bool pcie_performance_request_registered;
-	bool sclk_deep_sleep;
-	bool dll_default_on;
-	bool ls_clock_gating;
-	bool smu_uvd_hs;
-	bool uvd_enabled;
-	/* stored values */
-	u16 acpi_vddci;
-	u8 mvdd_high_index;
-	u8 mvdd_low_index;
-	u32 mclk_edc_wr_enable_threshold;
-	struct evergreen_mc_reg_table mc_reg_table;
-	struct atom_voltage_table vddc_voltage_table;
-	struct atom_voltage_table vddci_voltage_table;
-	struct evergreen_arb_registers bootup_arb_registers;
-	struct evergreen_ulv_param ulv;
-	struct at ats[2];
-	/* smc offsets */
-	u16 mc_reg_table_start;
-	struct radeon_ps current_rps;
-	struct rv7xx_ps current_ps;
-	struct radeon_ps requested_rps;
-	struct rv7xx_ps requested_ps;
+  /* must be first! */
+  struct rv7xx_power_info rv7xx;
+  /* flags */
+  bool vddci_control;
+  bool dynamic_ac_timing;
+  bool abm;
+  bool mcls;
+  bool light_sleep;
+  bool memory_transition;
+  bool pcie_performance_request;
+  bool pcie_performance_request_registered;
+  bool sclk_deep_sleep;
+  bool dll_default_on;
+  bool ls_clock_gating;
+  bool smu_uvd_hs;
+  bool uvd_enabled;
+  /* stored values */
+  u16 acpi_vddci;
+  u8 mvdd_high_index;
+  u8 mvdd_low_index;
+  u32 mclk_edc_wr_enable_threshold;
+  struct evergreen_mc_reg_table mc_reg_table;
+  struct atom_voltage_table vddc_voltage_table;
+  struct atom_voltage_table vddci_voltage_table;
+  struct evergreen_arb_registers bootup_arb_registers;
+  struct evergreen_ulv_param ulv;
+  struct at ats[2];
+  /* smc offsets */
+  u16 mc_reg_table_start;
+  struct radeon_ps current_rps;
+  struct rv7xx_ps current_ps;
+  struct radeon_ps requested_rps;
+  struct rv7xx_ps requested_ps;
 };
 
 #define CYPRESS_HASI_DFLT                               400000
@@ -111,50 +112,52 @@ struct evergreen_power_info {
 #define PCIE_PERF_REQ_PECI_GEN3         4
 
 int cypress_convert_power_level_to_smc(struct radeon_device *rdev,
-				       struct rv7xx_pl *pl,
-				       RV770_SMC_HW_PERFORMANCE_LEVEL *level,
-				       u8 watermark_level);
+    struct rv7xx_pl *pl,
+    RV770_SMC_HW_PERFORMANCE_LEVEL *level,
+    u8 watermark_level);
 int cypress_populate_smc_acpi_state(struct radeon_device *rdev,
-				    RV770_SMC_STATETABLE *table);
+    RV770_SMC_STATETABLE *table);
 int cypress_populate_smc_voltage_tables(struct radeon_device *rdev,
-					RV770_SMC_STATETABLE *table);
+    RV770_SMC_STATETABLE *table);
 int cypress_populate_smc_initial_state(struct radeon_device *rdev,
-				       struct radeon_ps *radeon_initial_state,
-				       RV770_SMC_STATETABLE *table);
+    struct radeon_ps *radeon_initial_state,
+    RV770_SMC_STATETABLE *table);
 u32 cypress_calculate_burst_time(struct radeon_device *rdev,
-				 u32 engine_clock, u32 memory_clock);
-void cypress_notify_link_speed_change_before_state_change(struct radeon_device *rdev,
-							  struct radeon_ps *radeon_new_state,
-							  struct radeon_ps *radeon_current_state);
+    u32 engine_clock, u32 memory_clock);
+void cypress_notify_link_speed_change_before_state_change(
+  struct radeon_device *rdev,
+  struct radeon_ps *radeon_new_state,
+  struct radeon_ps *radeon_current_state);
 int cypress_upload_sw_state(struct radeon_device *rdev,
-			    struct radeon_ps *radeon_new_state);
+    struct radeon_ps *radeon_new_state);
 int cypress_upload_mc_reg_table(struct radeon_device *rdev,
-				struct radeon_ps *radeon_new_state);
+    struct radeon_ps *radeon_new_state);
 void cypress_program_memory_timing_parameters(struct radeon_device *rdev,
-					      struct radeon_ps *radeon_new_state);
-void cypress_notify_link_speed_change_after_state_change(struct radeon_device *rdev,
-							 struct radeon_ps *radeon_new_state,
-							 struct radeon_ps *radeon_current_state);
+    struct radeon_ps *radeon_new_state);
+void cypress_notify_link_speed_change_after_state_change(
+  struct radeon_device *rdev,
+  struct radeon_ps *radeon_new_state,
+  struct radeon_ps *radeon_current_state);
 int cypress_construct_voltage_tables(struct radeon_device *rdev);
 int cypress_get_mvdd_configuration(struct radeon_device *rdev);
 void cypress_enable_spread_spectrum(struct radeon_device *rdev,
-				    bool enable);
+    bool enable);
 void cypress_enable_display_gap(struct radeon_device *rdev);
 int cypress_get_table_locations(struct radeon_device *rdev);
 int cypress_populate_mc_reg_table(struct radeon_device *rdev,
-				  struct radeon_ps *radeon_boot_state);
+    struct radeon_ps *radeon_boot_state);
 void cypress_program_response_times(struct radeon_device *rdev);
 int cypress_notify_smc_display_change(struct radeon_device *rdev,
-				      bool has_display);
+    bool has_display);
 void cypress_enable_sclk_control(struct radeon_device *rdev,
-				 bool enable);
+    bool enable);
 void cypress_enable_mclk_control(struct radeon_device *rdev,
-				 bool enable);
+    bool enable);
 void cypress_start_dpm(struct radeon_device *rdev);
 void cypress_advertise_gen2_capability(struct radeon_device *rdev);
 u32 cypress_map_clkf_to_ibias(struct radeon_device *rdev, u32 clkf);
 u8 cypress_get_mclk_frequency_ratio(struct radeon_device *rdev,
-				    u32 memory_clock, bool strobe_mode);
+    u32 memory_clock, bool strobe_mode);
 u8 cypress_get_strobe_mode_settings(struct radeon_device *rdev, u32 mclk);
 
 #endif

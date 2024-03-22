@@ -4,10 +4,10 @@
 
 /* clock divider register */
 #define CDR_CLKOUT_MASK 0x07
-#define CDR_CLK_OFF	0x08 /* Clock off (CLKOUT pin) */
-#define CDR_RXINPEN	0x20 /* TX1 output is RX irq output */
-#define CDR_CBP		0x40 /* CAN input comparator bypass */
-#define CDR_PELICAN	0x80 /* PeliCAN mode */
+#define CDR_CLK_OFF 0x08 /* Clock off (CLKOUT pin) */
+#define CDR_RXINPEN 0x20 /* TX1 output is RX irq output */
+#define CDR_CBP   0x40 /* CAN input comparator bypass */
+#define CDR_PELICAN 0x80 /* PeliCAN mode */
 
 /* output control register */
 #define OCR_MODE_BIPHASE  0x00
@@ -27,10 +27,10 @@
 #define OCR_TX_SHIFT      2
 
 struct sja1000_platform_data {
-	u32 osc_freq;	/* CAN bus oscillator frequency in Hz */
+  u32 osc_freq; /* CAN bus oscillator frequency in Hz */
 
-	u8 ocr;		/* output control register */
-	u8 cdr;		/* clock divider register */
+  u8 ocr;   /* output control register */
+  u8 cdr;   /* clock divider register */
 };
 
-#endif	/* !_CAN_PLATFORM_SJA1000_H */
+#endif  /* !_CAN_PLATFORM_SJA1000_H */

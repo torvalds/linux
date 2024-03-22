@@ -9,49 +9,49 @@
 /*
  * Power10 event codes.
  */
-EVENT(PM_CYC,				0x600f4);
-EVENT(PM_DISP_STALL_CYC,			0x100f8);
-EVENT(PM_EXEC_STALL,				0x30008);
-EVENT(PM_INST_CMPL,				0x500fa);
-EVENT(PM_BR_CMPL,                               0x4d05e);
-EVENT(PM_BR_MPRED_CMPL,                         0x400f6);
-EVENT(PM_BR_FIN,				0x2f04a);
-EVENT(PM_MPRED_BR_FIN,				0x3e098);
-EVENT(PM_LD_DEMAND_MISS_L1_FIN,			0x400f0);
+EVENT(PM_CYC, 0x600f4);
+EVENT(PM_DISP_STALL_CYC, 0x100f8);
+EVENT(PM_EXEC_STALL, 0x30008);
+EVENT(PM_INST_CMPL, 0x500fa);
+EVENT(PM_BR_CMPL, 0x4d05e);
+EVENT(PM_BR_MPRED_CMPL, 0x400f6);
+EVENT(PM_BR_FIN, 0x2f04a);
+EVENT(PM_MPRED_BR_FIN, 0x3e098);
+EVENT(PM_LD_DEMAND_MISS_L1_FIN, 0x400f0);
 
 /* All L1 D cache load references counted at finish, gated by reject */
-EVENT(PM_LD_REF_L1,				0x100fc);
+EVENT(PM_LD_REF_L1, 0x100fc);
 /* Load Missed L1 */
-EVENT(PM_LD_MISS_L1,				0x3e054);
+EVENT(PM_LD_MISS_L1, 0x3e054);
 /* Store Missed L1 */
-EVENT(PM_ST_MISS_L1,				0x300f0);
+EVENT(PM_ST_MISS_L1, 0x300f0);
 /* L1 cache data prefetches */
-EVENT(PM_LD_PREFETCH_CACHE_LINE_MISS,		0x1002c);
+EVENT(PM_LD_PREFETCH_CACHE_LINE_MISS, 0x1002c);
 /* Demand iCache Miss */
-EVENT(PM_L1_ICACHE_MISS,			0x200fc);
+EVENT(PM_L1_ICACHE_MISS, 0x200fc);
 /* Instruction fetches from L1 */
-EVENT(PM_INST_FROM_L1,				0x04080);
+EVENT(PM_INST_FROM_L1, 0x04080);
 /* Instruction Demand sectors wriittent into IL1 */
-EVENT(PM_INST_FROM_L1MISS,			0x03f00000001c040);
+EVENT(PM_INST_FROM_L1MISS, 0x03f00000001c040);
 /* Instruction prefetch written into IL1 */
-EVENT(PM_IC_PREF_REQ,				0x040a0);
+EVENT(PM_IC_PREF_REQ, 0x040a0);
 /* The data cache was reloaded from local core's L3 due to a demand load */
-EVENT(PM_DATA_FROM_L3,				0x01340000001c040);
+EVENT(PM_DATA_FROM_L3, 0x01340000001c040);
 /* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
-EVENT(PM_DATA_FROM_L3MISS,			0x300fe);
+EVENT(PM_DATA_FROM_L3MISS, 0x300fe);
 /* All successful D-side store dispatches for this thread */
-EVENT(PM_L2_ST,					0x010000046080);
+EVENT(PM_L2_ST, 0x010000046080);
 /* All successful D-side store dispatches for this thread that were L2 Miss */
-EVENT(PM_L2_ST_MISS,				0x26880);
+EVENT(PM_L2_ST_MISS, 0x26880);
 /* Total HW L3 prefetches(Load+store) */
-EVENT(PM_L3_PF_MISS_L3,				0x100000016080);
+EVENT(PM_L3_PF_MISS_L3, 0x100000016080);
 /* Data PTEG reload */
-EVENT(PM_DTLB_MISS,				0x300fc);
+EVENT(PM_DTLB_MISS, 0x300fc);
 /* ITLB Reloaded */
-EVENT(PM_ITLB_MISS,				0x400fc);
+EVENT(PM_ITLB_MISS, 0x400fc);
 
-EVENT(PM_CYC_ALT,				0x0001e);
-EVENT(PM_INST_CMPL_ALT,				0x00002);
+EVENT(PM_CYC_ALT, 0x0001e);
+EVENT(PM_INST_CMPL_ALT, 0x00002);
 
 /*
  * Memory Access Events
@@ -75,5 +75,5 @@ EVENT(PM_INST_CMPL_ALT,				0x00002);
  *     thresh end (TE)
  */
 
-EVENT(MEM_LOADS,				0x35340401e0);
-EVENT(MEM_STORES,				0x353c0401e0);
+EVENT(MEM_LOADS, 0x35340401e0);
+EVENT(MEM_STORES, 0x353c0401e0);

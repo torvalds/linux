@@ -26,21 +26,20 @@
 #include <nvif/class.h>
 
 static const struct gf100_gr_func
-ad102_gr = {
-	.sclass = {
-		{ -1, -1, FERMI_TWOD_A },
-		{ -1, -1, KEPLER_INLINE_TO_MEMORY_B },
-		{ -1, -1, ADA_A },
-		{ -1, -1, ADA_COMPUTE_A },
-		{}
-	}
+    ad102_gr = {
+  .sclass = {
+    { -1, -1, FERMI_TWOD_A },
+    { -1, -1, KEPLER_INLINE_TO_MEMORY_B },
+    { -1, -1, ADA_A },
+    { -1, -1, ADA_COMPUTE_A },
+    {}
+  }
 };
 
-int
-ad102_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
-{
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_gr_new(&ad102_gr, device, type, inst, pgr);
-
-	return -ENODEV;
+int ad102_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst, struct nvkm_gr **pgr) {
+  if (nvkm_gsp_rm(device->gsp)) {
+    return r535_gr_new(&ad102_gr, device, type, inst, pgr);
+  }
+  return -ENODEV;
 }

@@ -1,29 +1,29 @@
 /**************************************************************************
- *
- * Copyright (c) 2006-2023 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- **************************************************************************/
+*
+* Copyright (c) 2006-2023 VMware, Inc., Palo Alto, CA., USA
+* All Rights Reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sub license, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice (including the
+* next paragraph) shall be included in all copies or substantial portions
+* of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+* THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+**************************************************************************/
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
@@ -53,15 +53,15 @@
  */
 
 enum ttm_object_type {
-	ttm_fence_type,
-	ttm_lock_type,
-	ttm_prime_type,
-	ttm_driver_type0 = 256,
-	ttm_driver_type1,
-	ttm_driver_type2,
-	ttm_driver_type3,
-	ttm_driver_type4,
-	ttm_driver_type5
+  ttm_fence_type,
+  ttm_lock_type,
+  ttm_prime_type,
+  ttm_driver_type0 = 256,
+  ttm_driver_type1,
+  ttm_driver_type2,
+  ttm_driver_type3,
+  ttm_driver_type4,
+  ttm_driver_type5
 };
 
 struct ttm_object_file;
@@ -100,15 +100,14 @@ struct ttm_object_device;
  */
 
 struct ttm_base_object {
-	struct rcu_head rhead;
-	struct ttm_object_file *tfile;
-	struct kref refcount;
-	void (*refcount_release) (struct ttm_base_object **base);
-	u64 handle;
-	enum ttm_object_type object_type;
-	u32 shareable;
+  struct rcu_head rhead;
+  struct ttm_object_file *tfile;
+  struct kref refcount;
+  void (*refcount_release)(struct ttm_base_object **base);
+  u64 handle;
+  enum ttm_object_type object_type;
+  u32 shareable;
 };
-
 
 /**
  * struct ttm_prime_object - Modified base object that is prime-aware
@@ -125,12 +124,12 @@ struct ttm_base_object {
  */
 
 struct ttm_prime_object {
-	struct ttm_base_object base;
-	struct mutex mutex;
-	size_t size;
-	enum ttm_object_type real_type;
-	struct dma_buf *dma_buf;
-	void (*refcount_release) (struct ttm_base_object **);
+  struct ttm_base_object base;
+  struct mutex mutex;
+  size_t size;
+  enum ttm_object_type real_type;
+  struct dma_buf *dma_buf;
+  void (*refcount_release)(struct ttm_base_object **);
 };
 
 /**
@@ -148,11 +147,11 @@ struct ttm_prime_object {
  */
 
 extern int ttm_base_object_init(struct ttm_object_file *tfile,
-				struct ttm_base_object *base,
-				bool shareable,
-				enum ttm_object_type type,
-				void (*refcount_release) (struct ttm_base_object
-							  **));
+    struct ttm_base_object *base,
+    bool shareable,
+    enum ttm_object_type type,
+    void (*refcount_release)(struct ttm_base_object
+    **));
 
 /**
  * ttm_base_object_lookup
@@ -164,7 +163,7 @@ extern int ttm_base_object_init(struct ttm_object_file *tfile,
  */
 
 extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
-						      *tfile, uint64_t key);
+    *tfile, uint64_t key);
 
 /**
  * ttm_base_object_lookup_for_ref
@@ -177,8 +176,8 @@ extern struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file
  * caller doesn't yet have a reference to the base object.
  */
 
-extern struct ttm_base_object *
-ttm_base_object_lookup_for_ref(struct ttm_object_device *tdev, uint64_t key);
+extern struct ttm_base_object *ttm_base_object_lookup_for_ref(
+  struct ttm_object_device *tdev, uint64_t key);
 
 /**
  * ttm_base_object_unref
@@ -215,9 +214,9 @@ extern void ttm_base_object_unref(struct ttm_base_object **p_base);
  * will hold a single reference on a base object.
  */
 extern int ttm_ref_object_add(struct ttm_object_file *tfile,
-			      struct ttm_base_object *base,
-			      bool *existed,
-			      bool require_existed);
+    struct ttm_base_object *base,
+    bool *existed,
+    bool require_existed);
 
 /**
  * ttm_ref_object_base_unref
@@ -231,7 +230,7 @@ extern int ttm_ref_object_add(struct ttm_object_file *tfile,
  * will be unreferenced.
  */
 extern int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
-				     unsigned long key);
+    unsigned long key);
 
 /**
  * ttm_object_file_init - initialize a struct ttm_object file
@@ -242,7 +241,7 @@ extern int ttm_ref_object_base_unref(struct ttm_object_file *tfile,
  */
 
 extern struct ttm_object_file *ttm_object_file_init(struct ttm_object_device
-						    *tdev);
+    *tdev);
 
 /**
  * ttm_object_file_release - release data held by a ttm_object_file
@@ -266,8 +265,8 @@ extern void ttm_object_file_release(struct ttm_object_file **p_tfile);
  * data structures needed for ttm base and ref objects.
  */
 
-extern struct ttm_object_device *
-ttm_object_device_init(const struct dma_buf_ops *ops);
+extern struct ttm_object_device *ttm_object_device_init(
+  const struct dma_buf_ops *ops);
 
 /**
  * ttm_object_device_release - release data held by a ttm_object_device
@@ -282,38 +281,38 @@ ttm_object_device_init(const struct dma_buf_ops *ops);
 
 extern void ttm_object_device_release(struct ttm_object_device **p_tdev);
 
-#define ttm_base_object_kfree(__object, __base)\
-	kfree_rcu(__object, __base.rhead)
+#define ttm_base_object_kfree(__object, __base) \
+  kfree_rcu(__object, __base.rhead)
 
 extern int ttm_prime_object_init(struct ttm_object_file *tfile,
-				 size_t size,
-				 struct ttm_prime_object *prime,
-				 enum ttm_object_type type,
-				 void (*refcount_release)
-				 (struct ttm_base_object **));
+    size_t size,
+    struct ttm_prime_object *prime,
+    enum ttm_object_type type,
+    void (*refcount_release)
+    (struct ttm_base_object **));
 
-static inline enum ttm_object_type
-ttm_base_object_type(struct ttm_base_object *base)
-{
-	return (base->object_type == ttm_prime_type) ?
-		container_of(base, struct ttm_prime_object, base)->real_type :
-		base->object_type;
+static inline enum ttm_object_type ttm_base_object_type(
+    struct ttm_base_object *base) {
+  return (base->object_type == ttm_prime_type)
+    ? container_of(base, struct ttm_prime_object, base)->real_type
+    : base->object_type;
 }
-extern int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
-				  int fd, u32 *handle);
-extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
-				  uint32_t handle, uint32_t flags,
-				  int *prime_fd);
 
-#define ttm_prime_object_kfree(__obj, __prime)		\
-	kfree_rcu(__obj, __prime.base.rhead)
+extern int ttm_prime_fd_to_handle(struct ttm_object_file *tfile,
+    int fd, u32 *handle);
+extern int ttm_prime_handle_to_fd(struct ttm_object_file *tfile,
+    uint32_t handle, uint32_t flags,
+    int *prime_fd);
+
+#define ttm_prime_object_kfree(__obj, __prime)    \
+  kfree_rcu(__obj, __prime.base.rhead)
 
 static inline int ttm_bo_wait(struct ttm_buffer_object *bo, bool intr,
-			      bool no_wait)
-{
-	struct ttm_operation_ctx ctx = { intr, no_wait };
-
-	return ttm_bo_wait_ctx(bo, &ctx);
+    bool no_wait) {
+  struct ttm_operation_ctx ctx = {
+    intr, no_wait
+  };
+  return ttm_bo_wait_ctx(bo, &ctx);
 }
 
 #endif

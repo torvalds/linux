@@ -14,9 +14,9 @@ struct dentry;
 
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu);
 int btrfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
-		  struct posix_acl *acl, int type);
+    struct posix_acl *acl, int type);
 int __btrfs_set_acl(struct btrfs_trans_handle *trans, struct inode *inode,
-		    struct posix_acl *acl, int type);
+    struct posix_acl *acl, int type);
 
 #else
 
@@ -27,10 +27,9 @@ struct btrfs_trans_handle;
 #define btrfs_get_acl NULL
 #define btrfs_set_acl NULL
 static inline int __btrfs_set_acl(struct btrfs_trans_handle *trans,
-				  struct inode *inode, struct posix_acl *acl,
-				  int type)
-{
-	return -EOPNOTSUPP;
+    struct inode *inode, struct posix_acl *acl,
+    int type) {
+  return -EOPNOTSUPP;
 }
 
 #endif

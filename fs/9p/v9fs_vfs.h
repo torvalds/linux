@@ -23,7 +23,7 @@
  * unlink calls remove, which is an implicit clunk. So we have to track
  * that kind of thing so that we don't try to clunk a dead fid.
  */
-#define P9_LOCK_TIMEOUT (30*HZ)
+#define P9_LOCK_TIMEOUT (30 * HZ)
 
 /* flags for v9fs_stat2inode() & v9fs_stat2inode_dotl() */
 #define V9FS_STAT2INODE_KEEP_ISIZE 1
@@ -42,50 +42,50 @@ struct inode *v9fs_alloc_inode(struct super_block *sb);
 void v9fs_free_inode(struct inode *inode);
 void v9fs_set_netfs_context(struct inode *inode);
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, struct p9_qid *qid, umode_t mode, dev_t rdev);
+    struct inode *inode, struct p9_qid *qid, umode_t mode, dev_t rdev);
 void v9fs_evict_inode(struct inode *inode);
 #if (BITS_PER_LONG == 32)
-#define QID2INO(q) ((ino_t) (((q)->path+2) ^ (((q)->path) >> 32)))
+#define QID2INO(q) ((ino_t) (((q)->path + 2) ^ (((q)->path) >> 32)))
 #else
-#define QID2INO(q) ((ino_t) ((q)->path+2))
+#define QID2INO(q) ((ino_t) ((q)->path + 2))
 #endif
 
 void v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
-		      struct super_block *sb, unsigned int flags);
+    struct super_block *sb, unsigned int flags);
 void v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode,
-			   unsigned int flags);
+    unsigned int flags);
 int v9fs_dir_release(struct inode *inode, struct file *filp);
 int v9fs_file_open(struct inode *inode, struct file *file);
 int v9fs_uflags2omode(int uflags, int extended);
 
 void v9fs_blank_wstat(struct p9_wstat *wstat);
 int v9fs_vfs_setattr_dotl(struct mnt_idmap *idmap,
-			  struct dentry *dentry, struct iattr *iattr);
+    struct dentry *dentry, struct iattr *iattr);
 int v9fs_file_fsync_dotl(struct file *filp, loff_t start, loff_t end,
-			 int datasync);
+    int datasync);
 int v9fs_refresh_inode(struct p9_fid *fid, struct inode *inode);
 int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode);
-static inline void v9fs_invalidate_inode_attr(struct inode *inode)
-{
-	struct v9fs_inode *v9inode;
-
-	v9inode = V9FS_I(inode);
-	v9inode->cache_validity |= V9FS_INO_INVALID_ATTR;
+static inline void v9fs_invalidate_inode_attr(struct inode *inode) {
+  struct v9fs_inode *v9inode;
+  v9inode = V9FS_I(inode);
+  v9inode->cache_validity |= V9FS_INO_INVALID_ATTR;
 }
 
 int v9fs_open_to_dotl_flags(int flags);
 
-static inline void v9fs_i_size_write(struct inode *inode, loff_t i_size)
-{
-	/*
-	 * 32-bit need the lock, concurrent updates could break the
-	 * sequences and make i_size_read() loop forever.
-	 * 64-bit updates are atomic and can skip the locking.
-	 */
-	if (sizeof(i_size) > sizeof(long))
-		spin_lock(&inode->i_lock);
-	i_size_write(inode, i_size);
-	if (sizeof(i_size) > sizeof(long))
-		spin_unlock(&inode->i_lock);
+static inline void v9fs_i_size_write(struct inode *inode, loff_t i_size) {
+  /*
+   * 32-bit need the lock, concurrent updates could break the
+   * sequences and make i_size_read() loop forever.
+   * 64-bit updates are atomic and can skip the locking.
+   */
+  if (sizeof(i_size) > sizeof(long)) {
+    spin_lock(&inode->i_lock);
+  }
+  i_size_write(inode, i_size);
+  if (sizeof(i_size) > sizeof(long)) {
+    spin_unlock(&inode->i_lock);
+  }
 }
+
 #endif

@@ -19,11 +19,10 @@
 
 int split_cmdline(char *cmdline, const char ***argv);
 
-#define alloc_nr(x) (((x)+16)*3/2)
+#define alloc_nr(x) (((x) + 16) * 3 / 2)
 
-static inline int is_absolute_path(const char *path)
-{
-	return path[0] == '/';
+static inline int is_absolute_path(const char *path) {
+  return path[0] == '/';
 }
 
 char *mkpath(char *path_buf, size_t sz, const char *fmt, ...) __printf(3, 4);

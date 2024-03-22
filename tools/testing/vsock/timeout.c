@@ -29,32 +29,28 @@ static volatile bool timeout;
  * setitimer(2) while using this API - they may interfere with each
  * other.
  */
-void sigalrm(int signo)
-{
-	timeout = true;
+void sigalrm(int signo) {
+  timeout = true;
 }
 
 /* Start a timeout.  Call timeout_check() to verify that the timeout hasn't
  * expired.  timeout_end() must be called to stop the timeout.  Timeouts cannot
  * be nested.
  */
-void timeout_begin(unsigned int seconds)
-{
-	alarm(seconds);
+void timeout_begin(unsigned int seconds) {
+  alarm(seconds);
 }
 
 /* Exit with an error message if the timeout has expired */
-void timeout_check(const char *operation)
-{
-	if (timeout) {
-		fprintf(stderr, "%s timed out\n", operation);
-		exit(EXIT_FAILURE);
-	}
+void timeout_check(const char *operation) {
+  if (timeout) {
+    fprintf(stderr, "%s timed out\n", operation);
+    exit(EXIT_FAILURE);
+  }
 }
 
 /* Stop a timeout */
-void timeout_end(void)
-{
-	alarm(0);
-	timeout = false;
+void timeout_end(void) {
+  alarm(0);
+  timeout = false;
 }

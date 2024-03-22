@@ -16,8 +16,8 @@
 
 #include <irq.h>
 
-#define IRQ_STACK_SIZE			THREAD_SIZE
-#define IRQ_STACK_START			(IRQ_STACK_SIZE - 16)
+#define IRQ_STACK_SIZE      THREAD_SIZE
+#define IRQ_STACK_START     (IRQ_STACK_SIZE - 16)
 
 extern void *irq_stack[NR_CPUS];
 
@@ -35,21 +35,19 @@ extern void *irq_stack[NR_CPUS];
  * from exception entry can be found.
  */
 
-static inline bool on_irq_stack(int cpu, unsigned long sp)
-{
-	unsigned long low = (unsigned long)irq_stack[cpu];
-	unsigned long high = low + IRQ_STACK_SIZE;
-
-	return (low <= sp && sp <= high);
+static inline bool on_irq_stack(int cpu, unsigned long sp) {
+  unsigned long low = (unsigned long) irq_stack[cpu];
+  unsigned long high = low + IRQ_STACK_SIZE;
+  return low <= sp && sp <= high;
 }
 
 #ifdef CONFIG_I8259
-static inline int irq_canonicalize(int irq)
-{
-	return ((irq == I8259A_IRQ_BASE + 2) ? I8259A_IRQ_BASE + 9 : irq);
+static inline int irq_canonicalize(int irq) {
+  return (irq == I8259A_IRQ_BASE + 2) ? I8259A_IRQ_BASE + 9 : irq;
 }
+
 #else
-#define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
+#define irq_canonicalize(irq) (irq) /* Sane hardware, sane code ... */
 #endif
 
 asmlinkage void plat_irq_dispatch(void);
@@ -64,7 +62,7 @@ extern void spurious_interrupt(void);
 
 /*
  * Before R2 the timer and performance counter interrupts were both fixed to
- * IE7.	 Since R2 their number has to be read from the c0_intctl register.
+ * IE7.  Since R2 their number has to be read from the c0_intctl register.
  */
 #define CP0_LEGACY_COMPARE_IRQ 7
 #define CP0_LEGACY_PERFCNT_IRQ 7
@@ -77,7 +75,7 @@ extern int cp0_fdc_irq;
 extern int get_c0_fdc_int(void);
 
 void arch_trigger_cpumask_backtrace(const struct cpumask *mask,
-				    int exclude_cpu);
+    int exclude_cpu);
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 
 #endif /* _ASM_IRQ_H */

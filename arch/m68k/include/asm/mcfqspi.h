@@ -3,7 +3,7 @@
  * Definitions for Freescale Coldfire QSPI module
  *
  * Copyright 2010 Steven King <sfking@fdwdc.com>
-*/
+ */
 
 #ifndef mcfqspi_h
 #define mcfqspi_h
@@ -19,12 +19,12 @@
  * platforms are required to supply a mcfqspi_cs_control as a part of the
  * platform data for each QSPI master controller.  Only the select and
  * deselect functions are required.
-*/
+ */
 struct mcfqspi_cs_control {
-	int 	(*setup)(struct mcfqspi_cs_control *);
-	void	(*teardown)(struct mcfqspi_cs_control *);
-	void	(*select)(struct mcfqspi_cs_control *, u8, bool);
-	void	(*deselect)(struct mcfqspi_cs_control *, u8, bool);
+  int (*setup)(struct mcfqspi_cs_control *);
+  void (*teardown)(struct mcfqspi_cs_control *);
+  void (*select)(struct mcfqspi_cs_control *, u8, bool);
+  void (*deselect)(struct mcfqspi_cs_control *, u8, bool);
 };
 
 /**
@@ -32,11 +32,11 @@ struct mcfqspi_cs_control {
  * @bus_num: board specific identifier for this qspi driver.
  * @num_chipselects: number of chip selects supported by this qspi driver.
  * @cs_control: platform dependent chip select control.
-*/
+ */
 struct mcfqspi_platform_data {
-	s16	bus_num;
-	u16	num_chipselect;
-	struct mcfqspi_cs_control *cs_control;
+  s16 bus_num;
+  u16 num_chipselect;
+  struct mcfqspi_cs_control *cs_control;
 };
 
 #endif /* mcfqspi_h */

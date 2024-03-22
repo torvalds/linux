@@ -10,9 +10,8 @@
 
 #include <asm/svm.h>
 
-static inline bool force_dma_unencrypted(struct device *dev)
-{
-	return is_secure_guest();
+static inline bool force_dma_unencrypted(struct device *dev) {
+  return is_secure_guest();
 }
 
 int set_memory_encrypted(unsigned long addr, int numpages);

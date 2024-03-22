@@ -4,16 +4,13 @@
 #include <objtool/special.h>
 #include <objtool/builtin.h>
 
-
 bool arch_support_alt_relocation(struct special_alt *special_alt,
-				 struct instruction *insn,
-				 struct reloc *reloc)
-{
-	exit(-1);
+    struct instruction *insn,
+    struct reloc *reloc) {
+  exit(-1);
 }
 
 struct reloc *arch_find_switch_table(struct objtool_file *file,
-				    struct instruction *insn)
-{
-	exit(-1);
+    struct instruction *insn) {
+  exit(-1);
 }

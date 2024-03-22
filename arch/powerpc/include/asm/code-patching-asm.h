@@ -7,12 +7,12 @@
 
 /* Define a "site" that can be patched */
 .macro patch_site label name
-	.pushsection ".rodata"
-	.balign 4
-	.global \name
-\name:
-	.4byte	\label - .
-	.popsection
+.pushsection ".rodata"
+.balign 4
+.global \ name
+\ name:
+.4byte  \ label -.
+.popsection
 .endm
 
 #endif /* _ASM_POWERPC_CODE_PATCHING_ASM_H */

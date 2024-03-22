@@ -15,9 +15,9 @@
 #define CPHYSADDR(a) 0
 #endif
 
-static inline struct clk *clk_get_fpi(void)
-{
-	return NULL;
+static inline struct clk *clk_get_fpi(void) {
+  return NULL;
 }
+
 #endif /* CONFIG_LANTIQ */
 #endif /* __LINUX_LANTIQ_H */

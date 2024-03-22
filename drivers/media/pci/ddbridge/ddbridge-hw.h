@@ -19,16 +19,16 @@
 /******************************************************************************/
 
 struct ddb_device_id {
-	u16 vendor;
-	u16 device;
-	u16 subvendor;
-	u16 subdevice;
-	const struct ddb_info *info;
+  u16 vendor;
+  u16 device;
+  u16 subvendor;
+  u16 subdevice;
+  const struct ddb_info *info;
 };
 
 /******************************************************************************/
 
 const struct ddb_info *get_ddb_info(u16 vendor, u16 device,
-				    u16 subvendor, u16 subdevice);
+    u16 subvendor, u16 subdevice);
 
 #endif /* _DDBRIDGE_HW_H_ */

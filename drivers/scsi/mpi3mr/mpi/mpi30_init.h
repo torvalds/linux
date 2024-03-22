@@ -5,34 +5,34 @@
 #ifndef MPI30_INIT_H
 #define MPI30_INIT_H     1
 struct mpi3_scsi_io_cdb_eedp32 {
-	u8                 cdb[20];
-	__be32             primary_reference_tag;
-	__le16             primary_application_tag;
-	__le16             primary_application_tag_mask;
-	__le32             transfer_length;
+  u8 cdb[20];
+  __be32 primary_reference_tag;
+  __le16 primary_application_tag;
+  __le16 primary_application_tag_mask;
+  __le32 transfer_length;
 };
 
 union mpi3_scsi_io_cdb_union {
-	u8                         cdb32[32];
-	struct mpi3_scsi_io_cdb_eedp32 eedp32;
-	struct mpi3_sge_common         sge;
+  u8 cdb32[32];
+  struct mpi3_scsi_io_cdb_eedp32 eedp32;
+  struct mpi3_sge_common sge;
 };
 
 struct mpi3_scsi_io_request {
-	__le16                     host_tag;
-	u8                         ioc_use_only02;
-	u8                         function;
-	__le16                     ioc_use_only04;
-	u8                         ioc_use_only06;
-	u8                         msg_flags;
-	__le16                     change_count;
-	__le16                     dev_handle;
-	__le32                     flags;
-	__le32                     skip_count;
-	__le32                     data_length;
-	u8                         lun[8];
-	union mpi3_scsi_io_cdb_union  cdb;
-	union mpi3_sge_union          sgl[4];
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 change_count;
+  __le16 dev_handle;
+  __le32 flags;
+  __le32 skip_count;
+  __le32 data_length;
+  u8 lun[8];
+  union mpi3_scsi_io_cdb_union cdb;
+  union mpi3_sge_union sgl[4];
 };
 
 #define MPI3_SCSIIO_MSGFLAGS_METASGL_VALID                  (0x80)
@@ -60,28 +60,28 @@ struct mpi3_scsi_io_request {
 #define MPI3_SCSIIO_FLAGS_DIVERT_REASON_PROD_SPECIFIC       (0x00000080)
 #define MPI3_SCSIIO_METASGL_INDEX                           (3)
 struct mpi3_scsi_io_reply {
-	__le16                     host_tag;
-	u8                         ioc_use_only02;
-	u8                         function;
-	__le16                     ioc_use_only04;
-	u8                         ioc_use_only06;
-	u8                         msg_flags;
-	__le16                     ioc_use_only08;
-	__le16                     ioc_status;
-	__le32                     ioc_log_info;
-	u8                         scsi_status;
-	u8                         scsi_state;
-	__le16                     dev_handle;
-	__le32                     transfer_count;
-	__le32                     sense_count;
-	__le32                     response_data;
-	__le16                     task_tag;
-	__le16                     scsi_status_qualifier;
-	__le32                     eedp_error_offset;
-	__le16                     eedp_observed_app_tag;
-	__le16                     eedp_observed_guard;
-	__le32                     eedp_observed_ref_tag;
-	__le64                     sense_data_buffer_address;
+  __le16 host_tag;
+  u8 ioc_use_only02;
+  u8 function;
+  __le16 ioc_use_only04;
+  u8 ioc_use_only06;
+  u8 msg_flags;
+  __le16 ioc_use_only08;
+  __le16 ioc_status;
+  __le32 ioc_log_info;
+  u8 scsi_status;
+  u8 scsi_state;
+  __le16 dev_handle;
+  __le32 transfer_count;
+  __le32 sense_count;
+  __le32 response_data;
+  __le16 task_tag;
+  __le16 scsi_status_qualifier;
+  __le32 eedp_error_offset;
+  __le16 eedp_observed_app_tag;
+  __le16 eedp_observed_guard;
+  __le32 eedp_observed_ref_tag;
+  __le64 sense_data_buffer_address;
 };
 
 #define MPI3_SCSIIO_REPLY_MSGFLAGS_REFTAG_OBSERVED_VALID        (0x01)

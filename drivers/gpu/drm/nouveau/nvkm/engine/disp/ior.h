@@ -5,112 +5,111 @@
 struct nvkm_i2c_aux;
 
 struct nvkm_ior {
-	const struct nvkm_ior_func *func;
-	struct nvkm_disp *disp;
-	enum nvkm_ior_type {
-		DAC,
-		SOR,
-		PIOR,
-	} type;
-	int id;
-	bool hda;
-	char name[8];
+  const struct nvkm_ior_func *func;
+  struct nvkm_disp *disp;
+  enum nvkm_ior_type {
+    DAC,
+    SOR,
+    PIOR,
+  } type;
+  int id;
+  bool hda;
+  char name[8];
 
-	struct list_head head;
-	bool identity;
+  struct list_head head;
+  bool identity;
 
-	struct nvkm_ior_state {
-		struct nvkm_outp *outp;
-		unsigned rgdiv;
-		unsigned proto_evo:4;
-		enum nvkm_ior_proto {
-			CRT,
-			TV,
-			TMDS,
-			LVDS,
-			DP,
-			UNKNOWN
-		} proto:3;
-		unsigned link:2;
-		unsigned head:8;
-	} arm, asy;
+  struct nvkm_ior_state {
+    struct nvkm_outp *outp;
+    unsigned rgdiv;
+    unsigned proto_evo : 4;
+    enum nvkm_ior_proto {
+      CRT,
+      TV,
+      TMDS,
+      LVDS,
+      DP,
+      UNKNOWN
+    } proto : 3;
+    unsigned link : 2;
+    unsigned head : 8;
+  } arm, asy;
 
-	/* Armed DP state. */
-	struct {
-		bool mst;
-		bool ef;
-		u8 nr;
-		u8 bw;
-	} dp;
+  /* Armed DP state. */
+  struct {
+    bool mst;
+    bool ef;
+    u8 nr;
+    u8 bw;
+  } dp;
 
-	/* Armed TMDS state. */
-	struct {
-		bool high_speed;
-	} tmds;
+  /* Armed TMDS state. */
+  struct {
+    bool high_speed;
+  } tmds;
 };
 
 struct nvkm_ior_func {
-	struct {
-		int (*get)(struct nvkm_outp *, int *link);
-		void (*set)(struct nvkm_outp *, struct nvkm_ior *);
-	} route;
+  struct {
+    int (*get)(struct nvkm_outp *, int *link);
+    void (*set)(struct nvkm_outp *, struct nvkm_ior *);
+  } route;
 
-	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
-	void (*power)(struct nvkm_ior *, bool normal, bool pu,
-		      bool data, bool vsync, bool hsync);
-	int (*sense)(struct nvkm_ior *, u32 loadval);
-	void (*clock)(struct nvkm_ior *);
-	void (*war_2)(struct nvkm_ior *);
-	void (*war_3)(struct nvkm_ior *);
+  void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
+  void (*power)(struct nvkm_ior *, bool normal, bool pu,
+      bool data, bool vsync, bool hsync);
+  int (*sense)(struct nvkm_ior *, u32 loadval);
+  void (*clock)(struct nvkm_ior *);
+  void (*war_2)(struct nvkm_ior *);
+  void (*war_3)(struct nvkm_ior *);
 
-	const struct nvkm_ior_func_bl {
-		int (*get)(struct nvkm_ior *);
-		int (*set)(struct nvkm_ior *, int lvl);
-	} *bl;
+  const struct nvkm_ior_func_bl {
+    int (*get)(struct nvkm_ior *);
+    int (*set)(struct nvkm_ior *, int lvl);
+  } *bl;
 
-	const struct nvkm_ior_func_hdmi {
-		void (*ctrl)(struct nvkm_ior *, int head, bool enable, u8 max_ac_packet, u8 rekey);
-		void (*scdc)(struct nvkm_ior *, u32 khz, bool support, bool scrambling,
-			     bool scrambling_low_rates);
-		void (*infoframe_avi)(struct nvkm_ior *, int head, void *data, u32 size);
-		void (*infoframe_vsi)(struct nvkm_ior *, int head, void *data, u32 size);
-		void (*audio)(struct nvkm_ior *, int head, bool enable);
-	} *hdmi;
+  const struct nvkm_ior_func_hdmi {
+    void (*ctrl)(struct nvkm_ior *, int head, bool enable, u8 max_ac_packet,
+        u8 rekey);
+    void (*scdc)(struct nvkm_ior *, u32 khz, bool support, bool scrambling,
+        bool scrambling_low_rates);
+    void (*infoframe_avi)(struct nvkm_ior *, int head, void *data, u32 size);
+    void (*infoframe_vsi)(struct nvkm_ior *, int head, void *data, u32 size);
+    void (*audio)(struct nvkm_ior *, int head, bool enable);
+  } *hdmi;
 
-	const struct nvkm_ior_func_dp {
-		u8 lanes[4];
-		int (*links)(struct nvkm_ior *, struct nvkm_i2c_aux *);
-		void (*power)(struct nvkm_ior *, int nr);
-		void (*pattern)(struct nvkm_ior *, int pattern);
-		void (*drive)(struct nvkm_ior *, int ln, int pc,
-			      int dc, int pe, int tx_pu);
-		int (*sst)(struct nvkm_ior *, int head, bool ef,
-			   u32 watermark, u32 hblanksym, u32 vblanksym);
-		void (*vcpi)(struct nvkm_ior *, int head, u8 slot,
-			     u8 slot_nr, u16 pbn, u16 aligned);
-		void (*audio)(struct nvkm_ior *, int head, bool enable);
-		void (*audio_sym)(struct nvkm_ior *, int head, u16 h, u32 v);
-		void (*activesym)(struct nvkm_ior *, int head,
-				  u8 TU, u8 VTUa, u8 VTUf, u8 VTUi);
-		void (*watermark)(struct nvkm_ior *, int head, u8 watermark);
-	} *dp;
+  const struct nvkm_ior_func_dp {
+    u8 lanes[4];
+    int (*links)(struct nvkm_ior *, struct nvkm_i2c_aux *);
+    void (*power)(struct nvkm_ior *, int nr);
+    void (*pattern)(struct nvkm_ior *, int pattern);
+    void (*drive)(struct nvkm_ior *, int ln, int pc,
+        int dc, int pe, int tx_pu);
+    int (*sst)(struct nvkm_ior *, int head, bool ef,
+        u32 watermark, u32 hblanksym, u32 vblanksym);
+    void (*vcpi)(struct nvkm_ior *, int head, u8 slot,
+        u8 slot_nr, u16 pbn, u16 aligned);
+    void (*audio)(struct nvkm_ior *, int head, bool enable);
+    void (*audio_sym)(struct nvkm_ior *, int head, u16 h, u32 v);
+    void (*activesym)(struct nvkm_ior *, int head,
+        u8 TU, u8 VTUa, u8 VTUf, u8 VTUi);
+    void (*watermark)(struct nvkm_ior *, int head, u8 watermark);
+  } *dp;
 
-	const struct nvkm_ior_func_hda {
-		void (*hpd)(struct nvkm_ior *, int head, bool present);
-		void (*eld)(struct nvkm_ior *, int head, u8 *data, u8 size);
-		void (*device_entry)(struct nvkm_ior *, int head);
-	} *hda;
+  const struct nvkm_ior_func_hda {
+    void (*hpd)(struct nvkm_ior *, int head, bool present);
+    void (*eld)(struct nvkm_ior *, int head, u8 *data, u8 size);
+    void (*device_entry)(struct nvkm_ior *, int head);
+  } *hda;
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
-		  enum nvkm_ior_type type, int id, bool hda);
+    enum nvkm_ior_type type, int id, bool hda);
 void nvkm_ior_del(struct nvkm_ior **);
 struct nvkm_ior *nvkm_ior_find(struct nvkm_disp *, enum nvkm_ior_type, int id);
 
-static inline u32
-nv50_ior_base(struct nvkm_ior *ior)
-{
-	return ior->id * 0x800;
+static inline u32 nv50_ior_base(struct nvkm_ior *ior) {
+  return ior->id * 0x800;
 }
 
 int nv50_dac_cnt(struct nvkm_disp *, unsigned long *);
@@ -121,10 +120,8 @@ int nv50_dac_sense(struct nvkm_ior *, u32);
 int gf119_dac_cnt(struct nvkm_disp *, unsigned long *);
 int gf119_dac_new(struct nvkm_disp *, int);
 
-static inline u32
-nv50_sor_link(struct nvkm_ior *ior)
-{
-	return nv50_ior_base(ior) + ((ior->asy.link == 2) * 0x80);
+static inline u32 nv50_sor_link(struct nvkm_ior *ior) {
+  return nv50_ior_base(ior) + ((ior->asy.link == 2) * 0x80);
 }
 
 int nv50_sor_cnt(struct nvkm_disp *, unsigned long *);
@@ -200,10 +197,10 @@ int nv50_pior_cnt(struct nvkm_disp *, unsigned long *);
 int nv50_pior_new(struct nvkm_disp *, int);
 void nv50_pior_depth(struct nvkm_ior *, struct nvkm_ior_state *, u32 ctrl);
 
-#define IOR_MSG(i,l,f,a...) do {                                               \
-	struct nvkm_ior *_ior = (i);                                           \
-	nvkm_##l(&_ior->disp->engine.subdev, "%s: "f"\n", _ior->name, ##a);    \
-} while(0)
-#define IOR_WARN(i,f,a...) IOR_MSG((i), warn, f, ##a)
-#define IOR_DBG(i,f,a...) IOR_MSG((i), debug, f, ##a)
+#define IOR_MSG(i, l, f, a ...) do {                                               \
+    struct nvkm_ior *_ior = (i);                                           \
+    nvkm_ ## l(&_ior->disp->engine.subdev, "%s: "f "\n", _ior->name, ## a);    \
+} while (0)
+#define IOR_WARN(i, f, a ...) IOR_MSG((i), warn, f, ## a)
+#define IOR_DBG(i, f, a ...) IOR_MSG((i), debug, f, ## a)
 #endif

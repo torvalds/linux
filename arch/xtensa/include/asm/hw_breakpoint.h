@@ -18,16 +18,16 @@
 #include <uapi/linux/hw_breakpoint.h>
 
 /* Breakpoint */
-#define XTENSA_BREAKPOINT_EXECUTE	0
+#define XTENSA_BREAKPOINT_EXECUTE 0
 
 /* Watchpoints */
-#define XTENSA_BREAKPOINT_LOAD		1
-#define XTENSA_BREAKPOINT_STORE		2
+#define XTENSA_BREAKPOINT_LOAD    1
+#define XTENSA_BREAKPOINT_STORE   2
 
 struct arch_hw_breakpoint {
-	unsigned long address;
-	u16 len;
-	u16 type;
+  unsigned long address;
+  u16 len;
+  u16 type;
 };
 
 struct perf_event_attr;
@@ -38,10 +38,10 @@ struct task_struct;
 int hw_breakpoint_slots(int type);
 int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
 int hw_breakpoint_arch_parse(struct perf_event *bp,
-			     const struct perf_event_attr *attr,
-			     struct arch_hw_breakpoint *hw);
+    const struct perf_event_attr *attr,
+    struct arch_hw_breakpoint *hw);
 int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
-				    unsigned long val, void *data);
+    unsigned long val, void *data);
 
 int arch_install_hw_breakpoint(struct perf_event *bp);
 void arch_uninstall_hw_breakpoint(struct perf_event *bp);
@@ -54,8 +54,7 @@ void restore_dbreak(void);
 
 struct task_struct;
 
-static inline void clear_ptrace_hw_breakpoint(struct task_struct *tsk)
-{
+static inline void clear_ptrace_hw_breakpoint(struct task_struct *tsk) {
 }
 
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */

@@ -14,10 +14,10 @@
 #include <linux/sched.h>
 
 /* hwspinlock mode argument */
-#define HWLOCK_IRQSTATE		0x01 /* Disable interrupts, save state */
-#define HWLOCK_IRQ		0x02 /* Disable interrupts, don't save state */
-#define HWLOCK_RAW		0x03
-#define HWLOCK_IN_ATOMIC	0x04 /* Called while in atomic context */
+#define HWLOCK_IRQSTATE   0x01 /* Disable interrupts, save state */
+#define HWLOCK_IRQ    0x02 /* Disable interrupts, don't save state */
+#define HWLOCK_RAW    0x03
+#define HWLOCK_IN_ATOMIC  0x04 /* Called while in atomic context */
 
 struct device;
 struct device_node;
@@ -50,13 +50,13 @@ struct hwspinlock_ops;
  * its location.
  */
 struct hwspinlock_pdata {
-	int base_id;
+  int base_id;
 };
 
 #ifdef CONFIG_HWSPINLOCK
 
 int hwspin_lock_register(struct hwspinlock_device *bank, struct device *dev,
-		const struct hwspinlock_ops *ops, int base_id, int num_locks);
+    const struct hwspinlock_ops *ops, int base_id, int num_locks);
 int hwspin_lock_unregister(struct hwspinlock_device *bank);
 struct hwspinlock *hwspin_lock_request(void);
 struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
@@ -64,20 +64,20 @@ int hwspin_lock_free(struct hwspinlock *hwlock);
 int of_hwspin_lock_get_id(struct device_node *np, int index);
 int hwspin_lock_get_id(struct hwspinlock *hwlock);
 int __hwspin_lock_timeout(struct hwspinlock *, unsigned int, int,
-							unsigned long *);
+    unsigned long *);
 int __hwspin_trylock(struct hwspinlock *, int, unsigned long *);
 void __hwspin_unlock(struct hwspinlock *, int, unsigned long *);
 int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name);
 int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock);
 struct hwspinlock *devm_hwspin_lock_request(struct device *dev);
 struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
-						     unsigned int id);
+    unsigned int id);
 int devm_hwspin_lock_unregister(struct device *dev,
-				struct hwspinlock_device *bank);
+    struct hwspinlock_device *bank);
 int devm_hwspin_lock_register(struct device *dev,
-			      struct hwspinlock_device *bank,
-			      const struct hwspinlock_ops *ops,
-			      int base_id, int num_locks);
+    struct hwspinlock_device *bank,
+    const struct hwspinlock_ops *ops,
+    int base_id, int num_locks);
 
 #else /* !CONFIG_HWSPINLOCK */
 
@@ -94,71 +94,61 @@ int devm_hwspin_lock_register(struct device *dev,
  * Note: ERR_PTR(-ENODEV) will still be considered a success for NULL-checking
  * users. Others, which care, can still check this with IS_ERR.
  */
-static inline struct hwspinlock *hwspin_lock_request(void)
-{
-	return ERR_PTR(-ENODEV);
+static inline struct hwspinlock *hwspin_lock_request(void) {
+  return ERR_PTR(-ENODEV);
 }
 
-static inline struct hwspinlock *hwspin_lock_request_specific(unsigned int id)
-{
-	return ERR_PTR(-ENODEV);
+static inline struct hwspinlock *hwspin_lock_request_specific(unsigned int id) {
+  return ERR_PTR(-ENODEV);
 }
 
-static inline int hwspin_lock_free(struct hwspinlock *hwlock)
-{
-	return 0;
+static inline int hwspin_lock_free(struct hwspinlock *hwlock) {
+  return 0;
 }
 
 static inline
 int __hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to,
-					int mode, unsigned long *flags)
-{
-	return 0;
+    int mode, unsigned long *flags) {
+  return 0;
 }
 
 static inline
-int __hwspin_trylock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
-{
-	return 0;
+int __hwspin_trylock(struct hwspinlock *hwlock, int mode,
+    unsigned long *flags) {
+  return 0;
 }
 
 static inline
-void __hwspin_unlock(struct hwspinlock *hwlock, int mode, unsigned long *flags)
-{
+void __hwspin_unlock(struct hwspinlock *hwlock, int mode,
+    unsigned long *flags) {
 }
 
-static inline int of_hwspin_lock_get_id(struct device_node *np, int index)
-{
-	return 0;
+static inline int of_hwspin_lock_get_id(struct device_node *np, int index) {
+  return 0;
 }
 
-static inline int hwspin_lock_get_id(struct hwspinlock *hwlock)
-{
-	return 0;
-}
-
-static inline
-int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name)
-{
-	return 0;
+static inline int hwspin_lock_get_id(struct hwspinlock *hwlock) {
+  return 0;
 }
 
 static inline
-int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock)
-{
-	return 0;
+int of_hwspin_lock_get_id_byname(struct device_node *np, const char *name) {
+  return 0;
 }
 
-static inline struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
-{
-	return ERR_PTR(-ENODEV);
+static inline
+int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock) {
+  return 0;
+}
+
+static inline struct hwspinlock *devm_hwspin_lock_request(struct device *dev) {
+  return ERR_PTR(-ENODEV);
 }
 
 static inline
 struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
-						     unsigned int id)
-{
-	return ERR_PTR(-ENODEV);
+    unsigned int id) {
+  return ERR_PTR(-ENODEV);
 }
 
 #endif /* !CONFIG_HWSPINLOCK */
@@ -180,9 +170,8 @@ struct hwspinlock *devm_hwspin_lock_request_specific(struct device *dev,
  * the hwspinlock was already taken, and -EINVAL if @hwlock is invalid.
  */
 static inline
-int hwspin_trylock_irqsave(struct hwspinlock *hwlock, unsigned long *flags)
-{
-	return __hwspin_trylock(hwlock, HWLOCK_IRQSTATE, flags);
+int hwspin_trylock_irqsave(struct hwspinlock *hwlock, unsigned long *flags) {
+  return __hwspin_trylock(hwlock, HWLOCK_IRQSTATE, flags);
 }
 
 /**
@@ -199,9 +188,8 @@ int hwspin_trylock_irqsave(struct hwspinlock *hwlock, unsigned long *flags)
  * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
  * the hwspinlock was already taken, and -EINVAL if @hwlock is invalid.
  */
-static inline int hwspin_trylock_irq(struct hwspinlock *hwlock)
-{
-	return __hwspin_trylock(hwlock, HWLOCK_IRQ, NULL);
+static inline int hwspin_trylock_irq(struct hwspinlock *hwlock) {
+  return __hwspin_trylock(hwlock, HWLOCK_IRQ, NULL);
 }
 
 /**
@@ -218,9 +206,8 @@ static inline int hwspin_trylock_irq(struct hwspinlock *hwlock)
  * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
  * the hwspinlock was already taken, and -EINVAL if @hwlock is invalid.
  */
-static inline int hwspin_trylock_raw(struct hwspinlock *hwlock)
-{
-	return __hwspin_trylock(hwlock, HWLOCK_RAW, NULL);
+static inline int hwspin_trylock_raw(struct hwspinlock *hwlock) {
+  return __hwspin_trylock(hwlock, HWLOCK_RAW, NULL);
 }
 
 /**
@@ -235,9 +222,8 @@ static inline int hwspin_trylock_raw(struct hwspinlock *hwlock)
  * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
  * the hwspinlock was already taken, and -EINVAL if @hwlock is invalid.
  */
-static inline int hwspin_trylock_in_atomic(struct hwspinlock *hwlock)
-{
-	return __hwspin_trylock(hwlock, HWLOCK_IN_ATOMIC, NULL);
+static inline int hwspin_trylock_in_atomic(struct hwspinlock *hwlock) {
+  return __hwspin_trylock(hwlock, HWLOCK_IN_ATOMIC, NULL);
 }
 
 /**
@@ -255,9 +241,8 @@ static inline int hwspin_trylock_in_atomic(struct hwspinlock *hwlock)
  * Returns 0 if we successfully locked the hwspinlock, -EBUSY if
  * the hwspinlock was already taken, and -EINVAL if @hwlock is invalid.
  */
-static inline int hwspin_trylock(struct hwspinlock *hwlock)
-{
-	return __hwspin_trylock(hwlock, 0, NULL);
+static inline int hwspin_trylock(struct hwspinlock *hwlock) {
+  return __hwspin_trylock(hwlock, 0, NULL);
 }
 
 /**
@@ -279,9 +264,8 @@ static inline int hwspin_trylock(struct hwspinlock *hwlock)
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline int hwspin_lock_timeout_irqsave(struct hwspinlock *hwlock,
-				unsigned int to, unsigned long *flags)
-{
-	return __hwspin_lock_timeout(hwlock, to, HWLOCK_IRQSTATE, flags);
+    unsigned int to, unsigned long *flags) {
+  return __hwspin_lock_timeout(hwlock, to, HWLOCK_IRQSTATE, flags);
 }
 
 /**
@@ -302,9 +286,8 @@ static inline int hwspin_lock_timeout_irqsave(struct hwspinlock *hwlock,
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
-int hwspin_lock_timeout_irq(struct hwspinlock *hwlock, unsigned int to)
-{
-	return __hwspin_lock_timeout(hwlock, to, HWLOCK_IRQ, NULL);
+int hwspin_lock_timeout_irq(struct hwspinlock *hwlock, unsigned int to) {
+  return __hwspin_lock_timeout(hwlock, to, HWLOCK_IRQ, NULL);
 }
 
 /**
@@ -325,9 +308,8 @@ int hwspin_lock_timeout_irq(struct hwspinlock *hwlock, unsigned int to)
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
-int hwspin_lock_timeout_raw(struct hwspinlock *hwlock, unsigned int to)
-{
-	return __hwspin_lock_timeout(hwlock, to, HWLOCK_RAW, NULL);
+int hwspin_lock_timeout_raw(struct hwspinlock *hwlock, unsigned int to) {
+  return __hwspin_lock_timeout(hwlock, to, HWLOCK_RAW, NULL);
 }
 
 /**
@@ -347,9 +329,8 @@ int hwspin_lock_timeout_raw(struct hwspinlock *hwlock, unsigned int to)
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
-int hwspin_lock_timeout_in_atomic(struct hwspinlock *hwlock, unsigned int to)
-{
-	return __hwspin_lock_timeout(hwlock, to, HWLOCK_IN_ATOMIC, NULL);
+int hwspin_lock_timeout_in_atomic(struct hwspinlock *hwlock, unsigned int to) {
+  return __hwspin_lock_timeout(hwlock, to, HWLOCK_IN_ATOMIC, NULL);
 }
 
 /**
@@ -372,9 +353,8 @@ int hwspin_lock_timeout_in_atomic(struct hwspinlock *hwlock, unsigned int to)
  * busy after @timeout msecs). The function will never sleep.
  */
 static inline
-int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to)
-{
-	return __hwspin_lock_timeout(hwlock, to, 0, NULL);
+int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to) {
+  return __hwspin_lock_timeout(hwlock, to, 0, NULL);
 }
 
 /**
@@ -390,9 +370,8 @@ int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int to)
  * to call unlock on a @hwlock that is already unlocked.
  */
 static inline void hwspin_unlock_irqrestore(struct hwspinlock *hwlock,
-							unsigned long *flags)
-{
-	__hwspin_unlock(hwlock, HWLOCK_IRQSTATE, flags);
+    unsigned long *flags) {
+  __hwspin_unlock(hwlock, HWLOCK_IRQSTATE, flags);
 }
 
 /**
@@ -406,9 +385,8 @@ static inline void hwspin_unlock_irqrestore(struct hwspinlock *hwlock,
  * calling this function: it is a bug to call unlock on a @hwlock that is
  * already unlocked.
  */
-static inline void hwspin_unlock_irq(struct hwspinlock *hwlock)
-{
-	__hwspin_unlock(hwlock, HWLOCK_IRQ, NULL);
+static inline void hwspin_unlock_irq(struct hwspinlock *hwlock) {
+  __hwspin_unlock(hwlock, HWLOCK_IRQ, NULL);
 }
 
 /**
@@ -421,9 +399,8 @@ static inline void hwspin_unlock_irq(struct hwspinlock *hwlock)
  * this function: it is a bug to call unlock on a @hwlock that is already
  * unlocked.
  */
-static inline void hwspin_unlock_raw(struct hwspinlock *hwlock)
-{
-	__hwspin_unlock(hwlock, HWLOCK_RAW, NULL);
+static inline void hwspin_unlock_raw(struct hwspinlock *hwlock) {
+  __hwspin_unlock(hwlock, HWLOCK_RAW, NULL);
 }
 
 /**
@@ -436,9 +413,8 @@ static inline void hwspin_unlock_raw(struct hwspinlock *hwlock)
  * this function: it is a bug to call unlock on a @hwlock that is already
  * unlocked.
  */
-static inline void hwspin_unlock_in_atomic(struct hwspinlock *hwlock)
-{
-	__hwspin_unlock(hwlock, HWLOCK_IN_ATOMIC, NULL);
+static inline void hwspin_unlock_in_atomic(struct hwspinlock *hwlock) {
+  __hwspin_unlock(hwlock, HWLOCK_IN_ATOMIC, NULL);
 }
 
 /**
@@ -452,9 +428,8 @@ static inline void hwspin_unlock_in_atomic(struct hwspinlock *hwlock)
  * this function: it is a bug to call unlock on a @hwlock that is already
  * unlocked.
  */
-static inline void hwspin_unlock(struct hwspinlock *hwlock)
-{
-	__hwspin_unlock(hwlock, 0, NULL);
+static inline void hwspin_unlock(struct hwspinlock *hwlock) {
+  __hwspin_unlock(hwlock, 0, NULL);
 }
 
 #endif /* __LINUX_HWSPINLOCK_H */

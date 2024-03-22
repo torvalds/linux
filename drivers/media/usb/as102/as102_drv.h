@@ -17,55 +17,55 @@
 #define DRIVER_FULL_NAME "Abilis Systems as10x usb driver"
 #define DRIVER_NAME "as10x_usb"
 
-#define debug	as102_debug
+#define debug as102_debug
 extern struct usb_driver as102_usb_driver;
 extern int elna_enable;
 
-#define AS102_DEVICE_MAJOR	192
+#define AS102_DEVICE_MAJOR  192
 
-#define AS102_USB_BUF_SIZE	512
-#define MAX_STREAM_URB		32
+#define AS102_USB_BUF_SIZE  512
+#define MAX_STREAM_URB    32
 
 struct as10x_bus_adapter_t {
-	struct usb_device *usb_dev;
-	/* bus token lock */
-	struct mutex lock;
-	/* low level interface for bus adapter */
-	union as10x_bus_token_t {
-		/* usb token */
-		struct as10x_usb_token_cmd_t usb;
-	} token;
+  struct usb_device *usb_dev;
+  /* bus token lock */
+  struct mutex lock;
+  /* low level interface for bus adapter */
+  union as10x_bus_token_t {
+    /* usb token */
+    struct as10x_usb_token_cmd_t usb;
+  } token;
 
-	/* token cmd xfer id */
-	uint16_t cmd_xid;
+  /* token cmd xfer id */
+  uint16_t cmd_xid;
 
-	/* as10x command and response for dvb interface*/
-	struct as10x_cmd_t *cmd, *rsp;
+  /* as10x command and response for dvb interface*/
+  struct as10x_cmd_t *cmd, *rsp;
 
-	/* bus adapter private ops callback */
-	const struct as102_priv_ops_t *ops;
+  /* bus adapter private ops callback */
+  const struct as102_priv_ops_t *ops;
 };
 
 struct as102_dev_t {
-	const char *name;
-	struct as10x_bus_adapter_t bus_adap;
-	struct list_head device_entry;
-	struct kref kref;
-	uint8_t elna_cfg;
+  const char *name;
+  struct as10x_bus_adapter_t bus_adap;
+  struct list_head device_entry;
+  struct kref kref;
+  uint8_t elna_cfg;
 
-	struct dvb_adapter dvb_adap;
-	struct dvb_frontend *dvb_fe;
-	struct dvb_demux dvb_dmx;
-	struct dmxdev dvb_dmxdev;
+  struct dvb_adapter dvb_adap;
+  struct dvb_frontend *dvb_fe;
+  struct dvb_demux dvb_dmx;
+  struct dmxdev dvb_dmxdev;
 
-	/* timer handle to trig ts stream download */
-	struct timer_list timer_handle;
+  /* timer handle to trig ts stream download */
+  struct timer_list timer_handle;
 
-	struct mutex sem;
-	dma_addr_t dma_addr;
-	void *stream;
-	int streaming;
-	struct urb *stream_urb[MAX_STREAM_URB];
+  struct mutex sem;
+  dma_addr_t dma_addr;
+  void *stream;
+  int streaming;
+  struct urb *stream_urb[MAX_STREAM_URB];
 };
 
 int as102_dvb_register(struct as102_dev_t *dev);

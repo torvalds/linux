@@ -5,12 +5,11 @@
  * Copyright 2019-2020 Xilinx Inc.
  */
 
-
 #ifndef MCDI_PCOL_H
 #define MCDI_PCOL_H
 
-/* Values to be written into FMCR_CZ_RESET_STATE_REG to control boot. */
-/* Power-on reset state */
+/* Values to be written into FMCR_CZ_RESET_STATE_REG to control boot.
+ * Power-on reset state*/
 #define MC_FW_STATE_POR (1)
 /* If this is set in MC_RESET_STATE_REG then it should be
  * possible to jump into IMEM without loading code from flash. */
@@ -31,17 +30,17 @@
 /* BIST state has been initialized */
 #define MC_FW_BIST_INIT_OK (128)
 
-/* Siena MC shared memmory offsets */
-/* The 'doorbell' addresses are hard-wired to alert the MC when written */
-#define	MC_SMEM_P0_DOORBELL_OFST	0x000
-#define	MC_SMEM_P1_DOORBELL_OFST	0x004
+/* Siena MC shared memmory offsets
+ * The 'doorbell' addresses are hard-wired to alert the MC when written*/
+#define MC_SMEM_P0_DOORBELL_OFST  0x000
+#define MC_SMEM_P1_DOORBELL_OFST  0x004
 /* The rest of these are firmware-defined */
-#define	MC_SMEM_P0_PDU_OFST		0x008
-#define	MC_SMEM_P1_PDU_OFST		0x108
-#define	MC_SMEM_PDU_LEN			0x100
-#define	MC_SMEM_P0_PTP_TIME_OFST	0x7f0
-#define	MC_SMEM_P0_STATUS_OFST		0x7f8
-#define	MC_SMEM_P1_STATUS_OFST		0x7fc
+#define MC_SMEM_P0_PDU_OFST   0x008
+#define MC_SMEM_P1_PDU_OFST   0x108
+#define MC_SMEM_PDU_LEN     0x100
+#define MC_SMEM_P0_PTP_TIME_OFST  0x7f0
+#define MC_SMEM_P0_STATUS_OFST    0x7f8
+#define MC_SMEM_P1_STATUS_OFST    0x7fc
 
 /* Values to be written to the per-port status dword in shared
  * memory on reboot and assert */
@@ -121,7 +120,6 @@
 
 #define MCDI_CTL_SDU_LEN_MAX MCDI_CTL_SDU_LEN_MAX_V2
 
-
 /* The MC can generate events for two reasons:
  *   - To advance a shared memory request if XFLAGS_EVREQ was set
  *   - As a notification (link state, i2c event), controlled
@@ -163,7 +161,6 @@
  * generated events.
  */
 #define FSE_AZ_EV_CODE_MCDI_EVRESPONSE 0xc
-
 
 /* Operation not permitted. */
 #define MC_CMD_ERR_EPERM 1
@@ -239,9 +236,9 @@
 /* The requesting client is not a function */
 #define MC_CMD_ERR_CLIENT_NOT_FN  0x100c
 /* The requested operation might require the
-   command to be passed between MCs, and the
-   transport doesn't support that.  Should
-   only ever been seen over the UART. */
+ * command to be passed between MCs, and the
+ * transport doesn't support that.  Should
+ * only ever been seen over the UART. */
 #define MC_CMD_ERR_TRANSPORT_NOPROXY 0x100d
 /* VLAN tag(s) exists */
 #define MC_CMD_ERR_VLAN_EXIST 0x100e
@@ -299,27 +296,29 @@
 #define MC_CMD_ERR_CODE_OFST 0
 
 /* We define 8 "escape" commands to allow
-   for command number space extension */
+ * for command number space extension */
 
-#define MC_CMD_CMD_SPACE_ESCAPE_0	      0x78
-#define MC_CMD_CMD_SPACE_ESCAPE_1	      0x79
-#define MC_CMD_CMD_SPACE_ESCAPE_2	      0x7A
-#define MC_CMD_CMD_SPACE_ESCAPE_3	      0x7B
-#define MC_CMD_CMD_SPACE_ESCAPE_4	      0x7C
-#define MC_CMD_CMD_SPACE_ESCAPE_5	      0x7D
-#define MC_CMD_CMD_SPACE_ESCAPE_6	      0x7E
-#define MC_CMD_CMD_SPACE_ESCAPE_7	      0x7F
+#define MC_CMD_CMD_SPACE_ESCAPE_0       0x78
+#define MC_CMD_CMD_SPACE_ESCAPE_1       0x79
+#define MC_CMD_CMD_SPACE_ESCAPE_2       0x7A
+#define MC_CMD_CMD_SPACE_ESCAPE_3       0x7B
+#define MC_CMD_CMD_SPACE_ESCAPE_4       0x7C
+#define MC_CMD_CMD_SPACE_ESCAPE_5       0x7D
+#define MC_CMD_CMD_SPACE_ESCAPE_6       0x7E
+#define MC_CMD_CMD_SPACE_ESCAPE_7       0x7F
 
-/* Vectors in the boot ROM */
-/* Point to the copycode entry point. */
+/* Vectors in the boot ROM
+ * Point to the copycode entry point.*/
 #define SIENA_MC_BOOTROM_COPYCODE_VEC (0x800 - 3 * 0x4)
 #define HUNT_MC_BOOTROM_COPYCODE_VEC (0x8000 - 3 * 0x4)
 #define MEDFORD_MC_BOOTROM_COPYCODE_VEC (0x10000 - 3 * 0x4)
-/* Points to the recovery mode entry point. Misnamed but kept for compatibility. */
+/* Points to the recovery mode entry point. Misnamed but kept for compatibility.
+ * */
 #define SIENA_MC_BOOTROM_NOFLASH_VEC (0x800 - 2 * 0x4)
 #define HUNT_MC_BOOTROM_NOFLASH_VEC (0x8000 - 2 * 0x4)
 #define MEDFORD_MC_BOOTROM_NOFLASH_VEC (0x10000 - 2 * 0x4)
-/* Points to the recovery mode entry point. Same as above, but the right name. */
+/* Points to the recovery mode entry point. Same as above, but the right name.
+ * */
 #define SIENA_MC_BOOTROM_RECOVERY_VEC (0x800 - 2 * 0x4)
 #define HUNT_MC_BOOTROM_RECOVERY_VEC (0x8000 - 2 * 0x4)
 #define MEDFORD_MC_BOOTROM_RECOVERY_VEC (0x10000 - 2 * 0x4)
@@ -328,36 +327,35 @@
 #define MEDFORD_MC_BOOTROM_REAL_NOFLASH_VEC (0x10000 - 4 * 0x4)
 
 /* The command set exported by the boot ROM (MCDI v0) */
-#define MC_CMD_GET_VERSION_V0_SUPPORTED_FUNCS {		\
-	(1 << MC_CMD_READ32)	|			\
-	(1 << MC_CMD_WRITE32)	|			\
-	(1 << MC_CMD_COPYCODE)	|			\
-	(1 << MC_CMD_GET_VERSION),			\
-	0, 0, 0 }
+#define MC_CMD_GET_VERSION_V0_SUPPORTED_FUNCS {   \
+    (1 << MC_CMD_READ32)        \
+    | (1 << MC_CMD_WRITE32)       \
+    | (1 << MC_CMD_COPYCODE)        \
+    | (1 << MC_CMD_GET_VERSION),      \
+    0, 0, 0 }
 
-#define MC_CMD_SENSOR_INFO_OUT_OFFSET_OFST(_x)		\
-	(MC_CMD_SENSOR_ENTRY_OFST + (_x))
+#define MC_CMD_SENSOR_INFO_OUT_OFFSET_OFST(_x)    \
+  (MC_CMD_SENSOR_ENTRY_OFST + (_x))
 
-#define MC_CMD_DBI_WRITE_IN_ADDRESS_OFST(n)		\
-	(MC_CMD_DBI_WRITE_IN_DBIWROP_OFST +		\
-	 MC_CMD_DBIWROP_TYPEDEF_ADDRESS_OFST +		\
-	 (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
+#define MC_CMD_DBI_WRITE_IN_ADDRESS_OFST(n)   \
+  (MC_CMD_DBI_WRITE_IN_DBIWROP_OFST     \
+  + MC_CMD_DBIWROP_TYPEDEF_ADDRESS_OFST      \
+  + (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
 
-#define MC_CMD_DBI_WRITE_IN_BYTE_MASK_OFST(n)		\
-	(MC_CMD_DBI_WRITE_IN_DBIWROP_OFST +		\
-	 MC_CMD_DBIWROP_TYPEDEF_BYTE_MASK_OFST +	\
-	 (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
+#define MC_CMD_DBI_WRITE_IN_BYTE_MASK_OFST(n)   \
+  (MC_CMD_DBI_WRITE_IN_DBIWROP_OFST     \
+  + MC_CMD_DBIWROP_TYPEDEF_BYTE_MASK_OFST    \
+  + (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
 
-#define MC_CMD_DBI_WRITE_IN_VALUE_OFST(n)		\
-	(MC_CMD_DBI_WRITE_IN_DBIWROP_OFST +		\
-	 MC_CMD_DBIWROP_TYPEDEF_VALUE_OFST +		\
-	 (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
+#define MC_CMD_DBI_WRITE_IN_VALUE_OFST(n)   \
+  (MC_CMD_DBI_WRITE_IN_DBIWROP_OFST     \
+  + MC_CMD_DBIWROP_TYPEDEF_VALUE_OFST      \
+  + (n) * MC_CMD_DBIWROP_TYPEDEF_LEN)
 
 /* This may be ORed with an EVB_PORT_ID_xxx constant to pass a non-default
  * stack ID (which must be in the range 1-255) along with an EVB port ID.
  */
 #define EVB_STACK_ID(n)  (((n) & 0xff) << 16)
-
 
 /* Version 2 adds an optional argument to error returns: the errno value
  * may be followed by the (0-based) number of the first argument that
@@ -627,16 +625,16 @@
 #define        MCDI_EVENT_LINKCHANGE_V2_SPEED_OFST 0
 #define        MCDI_EVENT_LINKCHANGE_V2_SPEED_LBN 24
 #define        MCDI_EVENT_LINKCHANGE_V2_SPEED_WIDTH 4
-/*             Enum values, see field(s): */
-/*                MCDI_EVENT/LINKCHANGE_SPEED */
+/*             Enum values, see field(s):
+ *                MCDI_EVENT/LINKCHANGE_SPEED*/
 #define        MCDI_EVENT_LINKCHANGE_V2_FLAGS_LINK_UP_OFST 0
 #define        MCDI_EVENT_LINKCHANGE_V2_FLAGS_LINK_UP_LBN 28
 #define        MCDI_EVENT_LINKCHANGE_V2_FLAGS_LINK_UP_WIDTH 1
 #define        MCDI_EVENT_LINKCHANGE_V2_FCNTL_OFST 0
 #define        MCDI_EVENT_LINKCHANGE_V2_FCNTL_LBN 29
 #define        MCDI_EVENT_LINKCHANGE_V2_FCNTL_WIDTH 3
-/*             Enum values, see field(s): */
-/*                MC_CMD_SET_MAC/MC_CMD_SET_MAC_IN/FCNTL */
+/*             Enum values, see field(s):
+ *                MC_CMD_SET_MAC/MC_CMD_SET_MAC_IN/FCNTL*/
 #define        MCDI_EVENT_MODULECHANGE_LD_CAP_OFST 0
 #define        MCDI_EVENT_MODULECHANGE_LD_CAP_LBN 0
 #define        MCDI_EVENT_MODULECHANGE_LD_CAP_WIDTH 30
@@ -1035,8 +1033,8 @@
 #define       FCDI_EVENT_PORT_CONFIG_DATA_WIDTH 32
 #define       FCDI_EVENT_BOOT_RESULT_OFST 0
 #define       FCDI_EVENT_BOOT_RESULT_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_AOE/MC_CMD_AOE_OUT_INFO/FC_BOOT_RESULT */
+/*            Enum values, see field(s):
+ *               MC_CMD_AOE/MC_CMD_AOE_OUT_INFO/FC_BOOT_RESULT*/
 #define       FCDI_EVENT_BOOT_RESULT_LBN 0
 #define       FCDI_EVENT_BOOT_RESULT_WIDTH 32
 
@@ -1049,8 +1047,8 @@
 #define    FCDI_EXTENDED_EVENT_PPS_LENMIN 16
 #define    FCDI_EXTENDED_EVENT_PPS_LENMAX 248
 #define    FCDI_EXTENDED_EVENT_PPS_LENMAX_MCDI2 1016
-#define    FCDI_EXTENDED_EVENT_PPS_LEN(num) (8+8*(num))
-#define    FCDI_EXTENDED_EVENT_PPS_TIMESTAMPS_NUM(len) (((len)-8)/8)
+#define    FCDI_EXTENDED_EVENT_PPS_LEN(num) (8 + 8 * (num))
+#define    FCDI_EXTENDED_EVENT_PPS_TIMESTAMPS_NUM(len) (((len) - 8) / 8)
 /* Number of timestamps following */
 #define       FCDI_EXTENDED_EVENT_PPS_COUNT_OFST 0
 #define       FCDI_EXTENDED_EVENT_PPS_COUNT_LEN 4
@@ -1096,8 +1094,8 @@
 #define        MUM_EVENT_SENSOR_ID_OFST 0
 #define        MUM_EVENT_SENSOR_ID_LBN 0
 #define        MUM_EVENT_SENSOR_ID_WIDTH 8
-/*             Enum values, see field(s): */
-/*                MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK */
+/*             Enum values, see field(s):
+ *                MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK*/
 #define        MUM_EVENT_SENSOR_STATE_OFST 0
 #define        MUM_EVENT_SENSOR_STATE_LBN 8
 #define        MUM_EVENT_SENSOR_STATE_WIDTH 8
@@ -1156,14 +1154,29 @@
 #define       MUM_EVENT_PORT_PHY_CAPS_WIDTH 32
 #define       MUM_EVENT_PORT_PHY_TECH_OFST 0
 #define       MUM_EVENT_PORT_PHY_TECH_LEN 4
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_UNKNOWN 0x0 /* enum */
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_OPTICAL 0x1 /* enum */
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_PASSIVE 0x2 /* enum */
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_PASSIVE_EQUALIZED 0x3 /* enum */
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_ACTIVE_LIMITING 0x4 /* enum */
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_ACTIVE_LINEAR 0x5 /* enum */
+#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_UNKNOWN 0x0 /* enum
+                                                                        * */
+#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_OPTICAL 0x1 /* enum
+                                                                        * */
+#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_PASSIVE 0x2 /*
+                                                                               *
+                                                                               *enum
+                                                                               *
+                                                                               **/
+#define          \
+  MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_PASSIVE_EQUALIZED 0x3 /* enum
+                                                                          * */
+#define          \
+  MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_ACTIVE_LIMITING 0x4 /* enum
+                                                                        * */
+#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_COPPER_ACTIVE_LINEAR \
+  0x5 /* enum */
 #define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_BASE_T 0x6 /* enum */
-#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_LOOPBACK_PASSIVE 0x7 /* enum */
+#define          MUM_EVENT_PORT_PHY_STATE_QSFP_MODULE_TECH_LOOPBACK_PASSIVE 0x7 /*
+                                                                                 *
+                                                                                 *enum
+                                                                                 *
+                                                                                 **/
 #define       MUM_EVENT_PORT_PHY_TECH_LBN 0
 #define       MUM_EVENT_PORT_PHY_TECH_WIDTH 32
 #define       MUM_EVENT_PORT_PHY_SRC_DATA_ID_LBN 36
@@ -1175,7 +1188,6 @@
 #define          MUM_EVENT_PORT_PHY_SRC_DATA_ID_MAX 0x4 /* enum */
 #define       MUM_EVENT_PORT_PHY_SRC_PORT_NO_LBN 40
 #define       MUM_EVENT_PORT_PHY_SRC_PORT_NO_WIDTH 4
-
 
 /***********************************/
 /* MC_CMD_READ32
@@ -1199,14 +1211,13 @@
 #define    MC_CMD_READ32_OUT_LENMIN 4
 #define    MC_CMD_READ32_OUT_LENMAX 252
 #define    MC_CMD_READ32_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_READ32_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_READ32_OUT_BUFFER_NUM(len) (((len)-0)/4)
+#define    MC_CMD_READ32_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_READ32_OUT_BUFFER_NUM(len) (((len) - 0) / 4)
 #define       MC_CMD_READ32_OUT_BUFFER_OFST 0
 #define       MC_CMD_READ32_OUT_BUFFER_LEN 4
 #define       MC_CMD_READ32_OUT_BUFFER_MINNUM 1
 #define       MC_CMD_READ32_OUT_BUFFER_MAXNUM 63
 #define       MC_CMD_READ32_OUT_BUFFER_MAXNUM_MCDI2 255
-
 
 /***********************************/
 /* MC_CMD_WRITE32
@@ -1221,8 +1232,8 @@
 #define    MC_CMD_WRITE32_IN_LENMIN 8
 #define    MC_CMD_WRITE32_IN_LENMAX 252
 #define    MC_CMD_WRITE32_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_WRITE32_IN_LEN(num) (4+4*(num))
-#define    MC_CMD_WRITE32_IN_BUFFER_NUM(len) (((len)-4)/4)
+#define    MC_CMD_WRITE32_IN_LEN(num) (4 + 4 * (num))
+#define    MC_CMD_WRITE32_IN_BUFFER_NUM(len) (((len) - 4) / 4)
 #define       MC_CMD_WRITE32_IN_ADDR_OFST 0
 #define       MC_CMD_WRITE32_IN_ADDR_LEN 4
 #define       MC_CMD_WRITE32_IN_BUFFER_OFST 4
@@ -1233,7 +1244,6 @@
 
 /* MC_CMD_WRITE32_OUT msgresponse */
 #define    MC_CMD_WRITE32_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_COPYCODE
@@ -1299,7 +1309,6 @@
 /* MC_CMD_COPYCODE_OUT msgresponse */
 #define    MC_CMD_COPYCODE_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_SET_FUNC
  * Select function for function-specific commands.
@@ -1317,7 +1326,6 @@
 
 /* MC_CMD_SET_FUNC_OUT msgresponse */
 #define    MC_CMD_SET_FUNC_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_BOOT_STATUS
@@ -1349,7 +1357,6 @@
 #define        MC_CMD_GET_BOOT_STATUS_OUT_FLAGS_BACKUP_OFST 4
 #define        MC_CMD_GET_BOOT_STATUS_OUT_FLAGS_BACKUP_LBN 2
 #define        MC_CMD_GET_BOOT_STATUS_OUT_FLAGS_BACKUP_WIDTH 1
-
 
 /***********************************/
 /* MC_CMD_GET_ASSERTS
@@ -1407,17 +1414,17 @@
 /* Assertion status flag. */
 #define       MC_CMD_GET_ASSERTS_OUT_V2_GLOBAL_FLAGS_OFST 0
 #define       MC_CMD_GET_ASSERTS_OUT_V2_GLOBAL_FLAGS_LEN 4
-/* enum: No assertions have failed. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_NO_FAILS 0x1 */
-/* enum: A system-level assertion has failed. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_SYS_FAIL 0x2 */
-/* enum: A thread-level assertion has failed. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_THR_FAIL 0x3 */
-/* enum: The system was reset by the watchdog. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_WDOG_FIRED 0x4 */
-/* enum: An illegal address trap stopped the system (huntington and later) */
-/*               MC_CMD_GET_ASSERTS_FLAGS_ADDR_TRAP 0x5 */
-/* Failing PC value */
+/* enum: No assertions have failed.
+ *               MC_CMD_GET_ASSERTS_FLAGS_NO_FAILS 0x1
+ * enum: A system-level assertion has failed.
+ *               MC_CMD_GET_ASSERTS_FLAGS_SYS_FAIL 0x2
+ * enum: A thread-level assertion has failed.
+ *               MC_CMD_GET_ASSERTS_FLAGS_THR_FAIL 0x3
+ * enum: The system was reset by the watchdog.
+ *               MC_CMD_GET_ASSERTS_FLAGS_WDOG_FIRED 0x4
+ * enum: An illegal address trap stopped the system (huntington and later)
+ *               MC_CMD_GET_ASSERTS_FLAGS_ADDR_TRAP 0x5
+ * Failing PC value*/
 #define       MC_CMD_GET_ASSERTS_OUT_V2_SAVED_PC_OFFS_OFST 4
 #define       MC_CMD_GET_ASSERTS_OUT_V2_SAVED_PC_OFFS_LEN 4
 /* Saved GP regs */
@@ -1427,8 +1434,8 @@
 /* enum: A magic value hinting that the value in this register at the time of
  * the failure has likely been lost.
  */
-/*               MC_CMD_GET_ASSERTS_REG_NO_DATA 0xda7a1057 */
-/* Failing thread address */
+/*               MC_CMD_GET_ASSERTS_REG_NO_DATA 0xda7a1057
+ * Failing thread address*/
 #define       MC_CMD_GET_ASSERTS_OUT_V2_THREAD_OFFS_OFST 132
 #define       MC_CMD_GET_ASSERTS_OUT_V2_THREAD_OFFS_LEN 4
 #define       MC_CMD_GET_ASSERTS_OUT_V2_RESERVED_OFST 136
@@ -1445,17 +1452,17 @@
 /* Assertion status flag. */
 #define       MC_CMD_GET_ASSERTS_OUT_V3_GLOBAL_FLAGS_OFST 0
 #define       MC_CMD_GET_ASSERTS_OUT_V3_GLOBAL_FLAGS_LEN 4
-/* enum: No assertions have failed. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_NO_FAILS 0x1 */
-/* enum: A system-level assertion has failed. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_SYS_FAIL 0x2 */
-/* enum: A thread-level assertion has failed. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_THR_FAIL 0x3 */
-/* enum: The system was reset by the watchdog. */
-/*               MC_CMD_GET_ASSERTS_FLAGS_WDOG_FIRED 0x4 */
-/* enum: An illegal address trap stopped the system (huntington and later) */
-/*               MC_CMD_GET_ASSERTS_FLAGS_ADDR_TRAP 0x5 */
-/* Failing PC value */
+/* enum: No assertions have failed.
+ *               MC_CMD_GET_ASSERTS_FLAGS_NO_FAILS 0x1
+ * enum: A system-level assertion has failed.
+ *               MC_CMD_GET_ASSERTS_FLAGS_SYS_FAIL 0x2
+ * enum: A thread-level assertion has failed.
+ *               MC_CMD_GET_ASSERTS_FLAGS_THR_FAIL 0x3
+ * enum: The system was reset by the watchdog.
+ *               MC_CMD_GET_ASSERTS_FLAGS_WDOG_FIRED 0x4
+ * enum: An illegal address trap stopped the system (huntington and later)
+ *               MC_CMD_GET_ASSERTS_FLAGS_ADDR_TRAP 0x5
+ * Failing PC value*/
 #define       MC_CMD_GET_ASSERTS_OUT_V3_SAVED_PC_OFFS_OFST 4
 #define       MC_CMD_GET_ASSERTS_OUT_V3_SAVED_PC_OFFS_LEN 4
 /* Saved GP regs */
@@ -1465,8 +1472,8 @@
 /* enum: A magic value hinting that the value in this register at the time of
  * the failure has likely been lost.
  */
-/*               MC_CMD_GET_ASSERTS_REG_NO_DATA 0xda7a1057 */
-/* Failing thread address */
+/*               MC_CMD_GET_ASSERTS_REG_NO_DATA 0xda7a1057
+ * Failing thread address*/
 #define       MC_CMD_GET_ASSERTS_OUT_V3_THREAD_OFFS_OFST 132
 #define       MC_CMD_GET_ASSERTS_OUT_V3_THREAD_OFFS_LEN 4
 #define       MC_CMD_GET_ASSERTS_OUT_V3_RESERVED_OFST 136
@@ -1498,7 +1505,6 @@
 #define       MC_CMD_GET_ASSERTS_OUT_V3_MC_FW_BUILD_NAME_OFST 296
 #define       MC_CMD_GET_ASSERTS_OUT_V3_MC_FW_BUILD_NAME_LEN 64
 
-
 /***********************************/
 /* MC_CMD_LOG_CTRL
  * Configure the output stream for log events such as link state changes,
@@ -1524,7 +1530,6 @@
 
 /* MC_CMD_LOG_CTRL_OUT msgresponse */
 #define    MC_CMD_LOG_CTRL_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_VERSION
@@ -1559,10 +1564,10 @@
 
 /* MC_CMD_GET_VERSION_OUT msgresponse */
 #define    MC_CMD_GET_VERSION_OUT_LEN 32
-/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_OFST 0 */
-/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_LEN 4 */
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_VERSION_V0_OUT/MC_CMD_GET_VERSION_OUT_FIRMWARE */
+/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_OFST 0
+ *            MC_CMD_GET_VERSION_OUT_FIRMWARE_LEN 4
+ *            Enum values, see field(s):
+ *               MC_CMD_GET_VERSION_V0_OUT/MC_CMD_GET_VERSION_OUT_FIRMWARE*/
 #define       MC_CMD_GET_VERSION_OUT_PCOL_OFST 4
 #define       MC_CMD_GET_VERSION_OUT_PCOL_LEN 4
 /* 128bit mask of functions supported by the current firmware */
@@ -1575,10 +1580,10 @@
 
 /* MC_CMD_GET_VERSION_EXT_OUT msgresponse */
 #define    MC_CMD_GET_VERSION_EXT_OUT_LEN 48
-/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_OFST 0 */
-/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_LEN 4 */
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_VERSION_V0_OUT/MC_CMD_GET_VERSION_OUT_FIRMWARE */
+/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_OFST 0
+ *            MC_CMD_GET_VERSION_OUT_FIRMWARE_LEN 4
+ *            Enum values, see field(s):
+ *               MC_CMD_GET_VERSION_V0_OUT/MC_CMD_GET_VERSION_OUT_FIRMWARE*/
 #define       MC_CMD_GET_VERSION_EXT_OUT_PCOL_OFST 4
 #define       MC_CMD_GET_VERSION_EXT_OUT_PCOL_LEN 4
 /* 128bit mask of functions supported by the current firmware */
@@ -1599,10 +1604,10 @@
  * (depending on which components exist on a particular adapter)
  */
 #define    MC_CMD_GET_VERSION_V2_OUT_LEN 304
-/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_OFST 0 */
-/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_LEN 4 */
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_VERSION_V0_OUT/MC_CMD_GET_VERSION_OUT_FIRMWARE */
+/*            MC_CMD_GET_VERSION_OUT_FIRMWARE_OFST 0
+ *            MC_CMD_GET_VERSION_OUT_FIRMWARE_LEN 4
+ *            Enum values, see field(s):
+ *               MC_CMD_GET_VERSION_V0_OUT/MC_CMD_GET_VERSION_OUT_FIRMWARE*/
 #define       MC_CMD_GET_VERSION_V2_OUT_PCOL_OFST 4
 #define       MC_CMD_GET_VERSION_V2_OUT_PCOL_LEN 4
 /* 128bit mask of functions supported by the current firmware */
@@ -1685,7 +1690,6 @@
 /* Board serial number (as null-terminated US-ASCII string) */
 #define       MC_CMD_GET_VERSION_V2_OUT_BOARD_SERIAL_OFST 240
 #define       MC_CMD_GET_VERSION_V2_OUT_BOARD_SERIAL_LEN 64
-
 
 /***********************************/
 /* MC_CMD_PTP
@@ -1810,22 +1814,22 @@
 
 /* MC_CMD_PTP_IN_DISABLE msgrequest */
 #define    MC_CMD_PTP_IN_DISABLE_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_TRANSMIT msgrequest */
 #define    MC_CMD_PTP_IN_TRANSMIT_LENMIN 13
 #define    MC_CMD_PTP_IN_TRANSMIT_LENMAX 252
 #define    MC_CMD_PTP_IN_TRANSMIT_LENMAX_MCDI2 1020
-#define    MC_CMD_PTP_IN_TRANSMIT_LEN(num) (12+1*(num))
-#define    MC_CMD_PTP_IN_TRANSMIT_PACKET_NUM(len) (((len)-12)/1)
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Transmit packet length */
+#define    MC_CMD_PTP_IN_TRANSMIT_LEN(num) (12 + 1 * (num))
+#define    MC_CMD_PTP_IN_TRANSMIT_PACKET_NUM(len) (((len) - 12) / 1)
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Transmit packet length*/
 #define       MC_CMD_PTP_IN_TRANSMIT_LENGTH_OFST 8
 #define       MC_CMD_PTP_IN_TRANSMIT_LENGTH_LEN 4
 /* Transmit packet data */
@@ -1837,32 +1841,32 @@
 
 /* MC_CMD_PTP_IN_READ_NIC_TIME msgrequest */
 #define    MC_CMD_PTP_IN_READ_NIC_TIME_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_READ_NIC_TIME_V2 msgrequest */
 #define    MC_CMD_PTP_IN_READ_NIC_TIME_V2_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_STATUS msgrequest */
 #define    MC_CMD_PTP_IN_STATUS_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_ADJUST msgrequest */
 #define    MC_CMD_PTP_IN_ADJUST_LEN 24
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Frequency adjustment 40 bit fixed point ns */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Frequency adjustment 40 bit fixed point ns*/
 #define       MC_CMD_PTP_IN_ADJUST_FREQ_OFST 8
 #define       MC_CMD_PTP_IN_ADJUST_FREQ_LEN 8
 #define       MC_CMD_PTP_IN_ADJUST_FREQ_LO_OFST 8
@@ -1889,23 +1893,23 @@
 
 /* MC_CMD_PTP_IN_ADJUST_V2 msgrequest */
 #define    MC_CMD_PTP_IN_ADJUST_V2_LEN 28
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Frequency adjustment 40 bit fixed point ns */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Frequency adjustment 40 bit fixed point ns*/
 #define       MC_CMD_PTP_IN_ADJUST_V2_FREQ_OFST 8
 #define       MC_CMD_PTP_IN_ADJUST_V2_FREQ_LEN 8
 #define       MC_CMD_PTP_IN_ADJUST_V2_FREQ_LO_OFST 8
 #define       MC_CMD_PTP_IN_ADJUST_V2_FREQ_HI_OFST 12
-/* enum: Number of fractional bits in frequency adjustment */
-/*               MC_CMD_PTP_IN_ADJUST_BITS 0x28 */
+/* enum: Number of fractional bits in frequency adjustment
+ *               MC_CMD_PTP_IN_ADJUST_BITS 0x28*/
 /* enum: Number of fractional bits in frequency adjustment when FP44_FREQ_ADJ
  * is indicated in the MC_CMD_PTP_OUT_GET_ATTRIBUTES command CAPABILITIES
  * field.
  */
-/*               MC_CMD_PTP_IN_ADJUST_BITS_FP44 0x2c */
-/* Time adjustment in seconds */
+/*               MC_CMD_PTP_IN_ADJUST_BITS_FP44 0x2c
+ * Time adjustment in seconds*/
 #define       MC_CMD_PTP_IN_ADJUST_V2_SECONDS_OFST 16
 #define       MC_CMD_PTP_IN_ADJUST_V2_SECONDS_LEN 4
 /* Time adjustment major value */
@@ -1923,11 +1927,11 @@
 
 /* MC_CMD_PTP_IN_SYNCHRONIZE msgrequest */
 #define    MC_CMD_PTP_IN_SYNCHRONIZE_LEN 20
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Number of time readings to capture */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+*            MC_CMD_PTP_IN_CMD_LEN 4
+*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+* Number of time readings to capture*/
 #define       MC_CMD_PTP_IN_SYNCHRONIZE_NUMTIMESETS_OFST 8
 #define       MC_CMD_PTP_IN_SYNCHRONIZE_NUMTIMESETS_LEN 4
 /* Host address in which to write "synchronization started" indication (64
@@ -1940,44 +1944,44 @@
 
 /* MC_CMD_PTP_IN_MANFTEST_BASIC msgrequest */
 #define    MC_CMD_PTP_IN_MANFTEST_BASIC_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_MANFTEST_PACKET msgrequest */
 #define    MC_CMD_PTP_IN_MANFTEST_PACKET_LEN 12
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Enable or disable packet testing */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Enable or disable packet testing*/
 #define       MC_CMD_PTP_IN_MANFTEST_PACKET_TEST_ENABLE_OFST 8
 #define       MC_CMD_PTP_IN_MANFTEST_PACKET_TEST_ENABLE_LEN 4
 
 /* MC_CMD_PTP_IN_RESET_STATS msgrequest: Reset PTP statistics */
 #define    MC_CMD_PTP_IN_RESET_STATS_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_DEBUG msgrequest */
 #define    MC_CMD_PTP_IN_DEBUG_LEN 12
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Debug operations */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Debug operations*/
 #define       MC_CMD_PTP_IN_DEBUG_DEBUG_PARAM_OFST 8
 #define       MC_CMD_PTP_IN_DEBUG_DEBUG_PARAM_LEN 4
 
 /* MC_CMD_PTP_IN_FPGAREAD msgrequest */
 #define    MC_CMD_PTP_IN_FPGAREAD_LEN 16
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 #define       MC_CMD_PTP_IN_FPGAREAD_ADDR_OFST 8
 #define       MC_CMD_PTP_IN_FPGAREAD_ADDR_LEN 4
 #define       MC_CMD_PTP_IN_FPGAREAD_NUMBYTES_OFST 12
@@ -1987,12 +1991,12 @@
 #define    MC_CMD_PTP_IN_FPGAWRITE_LENMIN 13
 #define    MC_CMD_PTP_IN_FPGAWRITE_LENMAX 252
 #define    MC_CMD_PTP_IN_FPGAWRITE_LENMAX_MCDI2 1020
-#define    MC_CMD_PTP_IN_FPGAWRITE_LEN(num) (12+1*(num))
-#define    MC_CMD_PTP_IN_FPGAWRITE_BUFFER_NUM(len) (((len)-12)/1)
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+#define    MC_CMD_PTP_IN_FPGAWRITE_LEN(num) (12 + 1 * (num))
+#define    MC_CMD_PTP_IN_FPGAWRITE_BUFFER_NUM(len) (((len) - 12) / 1)
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 #define       MC_CMD_PTP_IN_FPGAWRITE_ADDR_OFST 8
 #define       MC_CMD_PTP_IN_FPGAWRITE_ADDR_LEN 4
 #define       MC_CMD_PTP_IN_FPGAWRITE_BUFFER_OFST 12
@@ -2003,11 +2007,11 @@
 
 /* MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST msgrequest */
 #define    MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_LEN 16
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Time adjustment in seconds */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Time adjustment in seconds*/
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_SECONDS_OFST 8
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_SECONDS_LEN 4
 /* Time adjustment major value */
@@ -2022,11 +2026,11 @@
 
 /* MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2 msgrequest */
 #define    MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_LEN 20
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Time adjustment in seconds */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Time adjustment in seconds*/
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_SECONDS_OFST 8
 #define       MC_CMD_PTP_IN_CLOCK_OFFSET_ADJUST_V2_SECONDS_LEN 4
 /* Time adjustment major value */
@@ -2044,25 +2048,25 @@
 
 /* MC_CMD_PTP_IN_CLOCK_FREQ_ADJUST msgrequest */
 #define    MC_CMD_PTP_IN_CLOCK_FREQ_ADJUST_LEN 16
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Frequency adjustment 40 bit fixed point ns */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Frequency adjustment 40 bit fixed point ns*/
 #define       MC_CMD_PTP_IN_CLOCK_FREQ_ADJUST_FREQ_OFST 8
 #define       MC_CMD_PTP_IN_CLOCK_FREQ_ADJUST_FREQ_LEN 8
 #define       MC_CMD_PTP_IN_CLOCK_FREQ_ADJUST_FREQ_LO_OFST 8
 #define       MC_CMD_PTP_IN_CLOCK_FREQ_ADJUST_FREQ_HI_OFST 12
-/*            Enum values, see field(s): */
-/*               MC_CMD_PTP/MC_CMD_PTP_IN_ADJUST/FREQ */
+/*            Enum values, see field(s):
+ *               MC_CMD_PTP/MC_CMD_PTP_IN_ADJUST/FREQ*/
 
 /* MC_CMD_PTP_IN_RX_SET_VLAN_FILTER msgrequest */
 #define    MC_CMD_PTP_IN_RX_SET_VLAN_FILTER_LEN 24
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Number of VLAN tags, 0 if not VLAN */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+*            MC_CMD_PTP_IN_CMD_LEN 4
+*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+* Number of VLAN tags, 0 if not VLAN*/
 #define       MC_CMD_PTP_IN_RX_SET_VLAN_FILTER_NUM_VLAN_TAGS_OFST 8
 #define       MC_CMD_PTP_IN_RX_SET_VLAN_FILTER_NUM_VLAN_TAGS_LEN 4
 /* Set of VLAN tags to filter against */
@@ -2072,11 +2076,11 @@
 
 /* MC_CMD_PTP_IN_RX_SET_UUID_FILTER msgrequest */
 #define    MC_CMD_PTP_IN_RX_SET_UUID_FILTER_LEN 20
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* 1 to enable UUID filtering, 0 to disable */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * 1 to enable UUID filtering, 0 to disable*/
 #define       MC_CMD_PTP_IN_RX_SET_UUID_FILTER_ENABLE_OFST 8
 #define       MC_CMD_PTP_IN_RX_SET_UUID_FILTER_ENABLE_LEN 4
 /* UUID to filter against */
@@ -2087,11 +2091,11 @@
 
 /* MC_CMD_PTP_IN_RX_SET_DOMAIN_FILTER msgrequest */
 #define    MC_CMD_PTP_IN_RX_SET_DOMAIN_FILTER_LEN 16
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* 1 to enable Domain filtering, 0 to disable */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * 1 to enable Domain filtering, 0 to disable*/
 #define       MC_CMD_PTP_IN_RX_SET_DOMAIN_FILTER_ENABLE_OFST 8
 #define       MC_CMD_PTP_IN_RX_SET_DOMAIN_FILTER_ENABLE_LEN 4
 /* Domain number to filter against */
@@ -2100,11 +2104,11 @@
 
 /* MC_CMD_PTP_IN_SET_CLK_SRC msgrequest */
 #define    MC_CMD_PTP_IN_SET_CLK_SRC_LEN 12
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Set the clock source. */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Set the clock source.*/
 #define       MC_CMD_PTP_IN_SET_CLK_SRC_CLK_OFST 8
 #define       MC_CMD_PTP_IN_SET_CLK_SRC_CLK_LEN 4
 /* enum: Internal. */
@@ -2114,16 +2118,16 @@
 
 /* MC_CMD_PTP_IN_RST_CLK msgrequest: Reset value of Timer Reg. */
 #define    MC_CMD_PTP_IN_RST_CLK_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_PPS_ENABLE msgrequest */
 #define    MC_CMD_PTP_IN_PPS_ENABLE_LEN 12
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/* Enable or disable */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ * Enable or disable*/
 #define       MC_CMD_PTP_IN_PPS_ENABLE_OP_OFST 4
 #define       MC_CMD_PTP_IN_PPS_ENABLE_OP_LEN 4
 /* enum: Enable */
@@ -2136,32 +2140,32 @@
 
 /* MC_CMD_PTP_IN_GET_TIME_FORMAT msgrequest */
 #define    MC_CMD_PTP_IN_GET_TIME_FORMAT_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_GET_ATTRIBUTES msgrequest */
 #define    MC_CMD_PTP_IN_GET_ATTRIBUTES_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_GET_TIMESTAMP_CORRECTIONS msgrequest */
 #define    MC_CMD_PTP_IN_GET_TIMESTAMP_CORRECTIONS_LEN 8
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4*/
 
 /* MC_CMD_PTP_IN_TIME_EVENT_SUBSCRIBE msgrequest */
 #define    MC_CMD_PTP_IN_TIME_EVENT_SUBSCRIBE_LEN 12
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Original field containing queue ID. Now extended to include flags. */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Original field containing queue ID. Now extended to include flags.*/
 #define       MC_CMD_PTP_IN_TIME_EVENT_SUBSCRIBE_QUEUE_OFST 8
 #define       MC_CMD_PTP_IN_TIME_EVENT_SUBSCRIBE_QUEUE_LEN 4
 #define        MC_CMD_PTP_IN_TIME_EVENT_SUBSCRIBE_QUEUE_ID_OFST 8
@@ -2173,11 +2177,11 @@
 
 /* MC_CMD_PTP_IN_TIME_EVENT_UNSUBSCRIBE msgrequest */
 #define    MC_CMD_PTP_IN_TIME_EVENT_UNSUBSCRIBE_LEN 16
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* Unsubscribe options */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * Unsubscribe options*/
 #define       MC_CMD_PTP_IN_TIME_EVENT_UNSUBSCRIBE_CONTROL_OFST 8
 #define       MC_CMD_PTP_IN_TIME_EVENT_UNSUBSCRIBE_CONTROL_LEN 4
 /* enum: Unsubscribe a single queue */
@@ -2190,21 +2194,21 @@
 
 /* MC_CMD_PTP_IN_MANFTEST_PPS msgrequest */
 #define    MC_CMD_PTP_IN_MANFTEST_PPS_LEN 12
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* 1 to enable PPS test mode, 0 to disable and return result. */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * 1 to enable PPS test mode, 0 to disable and return result.*/
 #define       MC_CMD_PTP_IN_MANFTEST_PPS_TEST_ENABLE_OFST 8
 #define       MC_CMD_PTP_IN_MANFTEST_PPS_TEST_ENABLE_LEN 4
 
 /* MC_CMD_PTP_IN_SET_SYNC_STATUS msgrequest */
 #define    MC_CMD_PTP_IN_SET_SYNC_STATUS_LEN 24
-/*            MC_CMD_PTP_IN_CMD_OFST 0 */
-/*            MC_CMD_PTP_IN_CMD_LEN 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_OFST 4 */
-/*            MC_CMD_PTP_IN_PERIPH_ID_LEN 4 */
-/* NIC - Host System Clock Synchronization status */
+/*            MC_CMD_PTP_IN_CMD_OFST 0
+ *            MC_CMD_PTP_IN_CMD_LEN 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_OFST 4
+ *            MC_CMD_PTP_IN_PERIPH_ID_LEN 4
+ * NIC - Host System Clock Synchronization status*/
 #define       MC_CMD_PTP_IN_SET_SYNC_STATUS_STATUS_OFST 8
 #define       MC_CMD_PTP_IN_SET_SYNC_STATUS_STATUS_LEN 4
 /* enum: Host System clock and NIC clock are not in sync */
@@ -2333,8 +2337,8 @@
 #define    MC_CMD_PTP_OUT_SYNCHRONIZE_LENMIN 20
 #define    MC_CMD_PTP_OUT_SYNCHRONIZE_LENMAX 240
 #define    MC_CMD_PTP_OUT_SYNCHRONIZE_LENMAX_MCDI2 1020
-#define    MC_CMD_PTP_OUT_SYNCHRONIZE_LEN(num) (0+20*(num))
-#define    MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_NUM(len) (((len)-0)/20)
+#define    MC_CMD_PTP_OUT_SYNCHRONIZE_LEN(num) (0 + 20 * (num))
+#define    MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_NUM(len) (((len) - 0) / 20)
 /* A set of host and NIC times */
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_OFST 0
 #define       MC_CMD_PTP_OUT_SYNCHRONIZE_TIMESET_LEN 20
@@ -2418,8 +2422,8 @@
 #define    MC_CMD_PTP_OUT_FPGAREAD_LENMIN 1
 #define    MC_CMD_PTP_OUT_FPGAREAD_LENMAX 252
 #define    MC_CMD_PTP_OUT_FPGAREAD_LENMAX_MCDI2 1020
-#define    MC_CMD_PTP_OUT_FPGAREAD_LEN(num) (0+1*(num))
-#define    MC_CMD_PTP_OUT_FPGAREAD_BUFFER_NUM(len) (((len)-0)/1)
+#define    MC_CMD_PTP_OUT_FPGAREAD_LEN(num) (0 + 1 * (num))
+#define    MC_CMD_PTP_OUT_FPGAREAD_BUFFER_NUM(len) (((len) - 0) / 1)
 #define       MC_CMD_PTP_OUT_FPGAREAD_BUFFER_OFST 0
 #define       MC_CMD_PTP_OUT_FPGAREAD_BUFFER_LEN 1
 #define       MC_CMD_PTP_OUT_FPGAREAD_BUFFER_MINNUM 1
@@ -2533,12 +2537,11 @@
 /* Results of testing */
 #define       MC_CMD_PTP_OUT_MANFTEST_PPS_TEST_RESULT_OFST 0
 #define       MC_CMD_PTP_OUT_MANFTEST_PPS_TEST_RESULT_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_PTP_OUT_MANFTEST_BASIC/TEST_RESULT */
+/*            Enum values, see field(s):
+ *               MC_CMD_PTP_OUT_MANFTEST_BASIC/TEST_RESULT*/
 
 /* MC_CMD_PTP_OUT_SET_SYNC_STATUS msgresponse */
 #define    MC_CMD_PTP_OUT_SET_SYNC_STATUS_LEN 0
-
 
 /***********************************/
 /* MC_CMD_CSR_READ32
@@ -2563,15 +2566,14 @@
 #define    MC_CMD_CSR_READ32_OUT_LENMIN 4
 #define    MC_CMD_CSR_READ32_OUT_LENMAX 252
 #define    MC_CMD_CSR_READ32_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_CSR_READ32_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_CSR_READ32_OUT_BUFFER_NUM(len) (((len)-0)/4)
+#define    MC_CMD_CSR_READ32_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_CSR_READ32_OUT_BUFFER_NUM(len) (((len) - 0) / 4)
 /* The last dword is the status, not a value read */
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_OFST 0
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_LEN 4
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_MINNUM 1
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_MAXNUM 63
 #define       MC_CMD_CSR_READ32_OUT_BUFFER_MAXNUM_MCDI2 255
-
 
 /***********************************/
 /* MC_CMD_CSR_WRITE32
@@ -2586,8 +2588,8 @@
 #define    MC_CMD_CSR_WRITE32_IN_LENMIN 12
 #define    MC_CMD_CSR_WRITE32_IN_LENMAX 252
 #define    MC_CMD_CSR_WRITE32_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_CSR_WRITE32_IN_LEN(num) (8+4*(num))
-#define    MC_CMD_CSR_WRITE32_IN_BUFFER_NUM(len) (((len)-8)/4)
+#define    MC_CMD_CSR_WRITE32_IN_LEN(num) (8 + 4 * (num))
+#define    MC_CMD_CSR_WRITE32_IN_BUFFER_NUM(len) (((len) - 8) / 4)
 /* Address */
 #define       MC_CMD_CSR_WRITE32_IN_ADDR_OFST 0
 #define       MC_CMD_CSR_WRITE32_IN_ADDR_LEN 4
@@ -2603,7 +2605,6 @@
 #define    MC_CMD_CSR_WRITE32_OUT_LEN 4
 #define       MC_CMD_CSR_WRITE32_OUT_STATUS_OFST 0
 #define       MC_CMD_CSR_WRITE32_OUT_STATUS_LEN 4
-
 
 /***********************************/
 /* MC_CMD_HP
@@ -2652,7 +2653,6 @@
 /* enum: OCSD was already started for this card. */
 #define          MC_CMD_HP_OUT_OCSD_ALREADY_STARTED 0x3
 
-
 /***********************************/
 /* MC_CMD_STACKINFO
  * Get stack information.
@@ -2669,15 +2669,14 @@
 #define    MC_CMD_STACKINFO_OUT_LENMIN 12
 #define    MC_CMD_STACKINFO_OUT_LENMAX 252
 #define    MC_CMD_STACKINFO_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_STACKINFO_OUT_LEN(num) (0+12*(num))
-#define    MC_CMD_STACKINFO_OUT_THREAD_INFO_NUM(len) (((len)-0)/12)
+#define    MC_CMD_STACKINFO_OUT_LEN(num) (0 + 12 * (num))
+#define    MC_CMD_STACKINFO_OUT_THREAD_INFO_NUM(len) (((len) - 0) / 12)
 /* (thread ptr, stack size, free space) for each thread in system */
 #define       MC_CMD_STACKINFO_OUT_THREAD_INFO_OFST 0
 #define       MC_CMD_STACKINFO_OUT_THREAD_INFO_LEN 12
 #define       MC_CMD_STACKINFO_OUT_THREAD_INFO_MINNUM 1
 #define       MC_CMD_STACKINFO_OUT_THREAD_INFO_MAXNUM 21
 #define       MC_CMD_STACKINFO_OUT_THREAD_INFO_MAXNUM_MCDI2 85
-
 
 /***********************************/
 /* MC_CMD_MDIO_READ
@@ -2726,7 +2725,6 @@
 /* enum: Good. */
 #define          MC_CMD_MDIO_STATUS_GOOD 0x8
 
-
 /***********************************/
 /* MC_CMD_MDIO_WRITE
  * MDIO register write.
@@ -2743,11 +2741,11 @@
  */
 #define       MC_CMD_MDIO_WRITE_IN_BUS_OFST 0
 #define       MC_CMD_MDIO_WRITE_IN_BUS_LEN 4
-/* enum: Internal. */
-/*               MC_CMD_MDIO_BUS_INTERNAL 0x0 */
-/* enum: External. */
-/*               MC_CMD_MDIO_BUS_EXTERNAL 0x1 */
-/* Port address */
+/* enum: Internal.
+ *               MC_CMD_MDIO_BUS_INTERNAL 0x0
+ * enum: External.
+ *               MC_CMD_MDIO_BUS_EXTERNAL 0x1
+ * Port address*/
 #define       MC_CMD_MDIO_WRITE_IN_PRTAD_OFST 4
 #define       MC_CMD_MDIO_WRITE_IN_PRTAD_LEN 4
 /* Device Address or clause 22. */
@@ -2756,8 +2754,8 @@
 /* enum: By default all the MCDI MDIO operations perform clause45 mode. If you
  * want to use clause22 then set DEVAD = MC_CMD_MDIO_CLAUSE22.
  */
-/*               MC_CMD_MDIO_CLAUSE22 0x20 */
-/* Address */
+/*               MC_CMD_MDIO_CLAUSE22 0x20
+ * Address*/
 #define       MC_CMD_MDIO_WRITE_IN_ADDR_OFST 12
 #define       MC_CMD_MDIO_WRITE_IN_ADDR_LEN 4
 /* Value */
@@ -2771,9 +2769,8 @@
  */
 #define       MC_CMD_MDIO_WRITE_OUT_STATUS_OFST 0
 #define       MC_CMD_MDIO_WRITE_OUT_STATUS_LEN 4
-/* enum: Good. */
-/*               MC_CMD_MDIO_STATUS_GOOD 0x8 */
-
+/* enum: Good.
+ *               MC_CMD_MDIO_STATUS_GOOD 0x8*/
 
 /***********************************/
 /* MC_CMD_DBI_WRITE
@@ -2788,8 +2785,8 @@
 #define    MC_CMD_DBI_WRITE_IN_LENMIN 12
 #define    MC_CMD_DBI_WRITE_IN_LENMAX 252
 #define    MC_CMD_DBI_WRITE_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_DBI_WRITE_IN_LEN(num) (0+12*(num))
-#define    MC_CMD_DBI_WRITE_IN_DBIWROP_NUM(len) (((len)-0)/12)
+#define    MC_CMD_DBI_WRITE_IN_LEN(num) (0 + 12 * (num))
+#define    MC_CMD_DBI_WRITE_IN_DBIWROP_NUM(len) (((len) - 0) / 12)
 /* Each write op consists of an address (offset 0), byte enable/VF/CS2 (offset
  * 32) and value (offset 64). See MC_CMD_DBIWROP_TYPEDEF.
  */
@@ -2826,7 +2823,6 @@
 #define       MC_CMD_DBIWROP_TYPEDEF_VALUE_LBN 64
 #define       MC_CMD_DBIWROP_TYPEDEF_VALUE_WIDTH 32
 
-
 /***********************************/
 /* MC_CMD_PORT_READ32
  * Read a 32-bit register from the indirect port register map. The port to
@@ -2848,7 +2844,6 @@
 /* Status */
 #define       MC_CMD_PORT_READ32_OUT_STATUS_OFST 4
 #define       MC_CMD_PORT_READ32_OUT_STATUS_LEN 4
-
 
 /***********************************/
 /* MC_CMD_PORT_WRITE32
@@ -2872,7 +2867,6 @@
 #define       MC_CMD_PORT_WRITE32_OUT_STATUS_OFST 0
 #define       MC_CMD_PORT_WRITE32_OUT_STATUS_LEN 4
 
-
 /***********************************/
 /* MC_CMD_PORT_READ128
  * Read a 128-bit register from the indirect port register map. The port to
@@ -2894,7 +2888,6 @@
 /* Status */
 #define       MC_CMD_PORT_READ128_OUT_STATUS_OFST 16
 #define       MC_CMD_PORT_READ128_OUT_STATUS_LEN 4
-
 
 /***********************************/
 /* MC_CMD_PORT_WRITE128
@@ -2944,7 +2937,6 @@
 #define       MC_CMD_CAPABILITIES_RESERVED_LBN 7
 #define       MC_CMD_CAPABILITIES_RESERVED_WIDTH 25
 
-
 /***********************************/
 /* MC_CMD_GET_BOARD_CFG
  * Returns the MC firmware configuration structure.
@@ -2961,8 +2953,8 @@
 #define    MC_CMD_GET_BOARD_CFG_OUT_LENMIN 96
 #define    MC_CMD_GET_BOARD_CFG_OUT_LENMAX 136
 #define    MC_CMD_GET_BOARD_CFG_OUT_LENMAX_MCDI2 136
-#define    MC_CMD_GET_BOARD_CFG_OUT_LEN(num) (72+2*(num))
-#define    MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_NUM(len) (((len)-72)/2)
+#define    MC_CMD_GET_BOARD_CFG_OUT_LEN(num) (72 + 2 * (num))
+#define    MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_NUM(len) (((len) - 72) / 2)
 #define       MC_CMD_GET_BOARD_CFG_OUT_BOARD_TYPE_OFST 0
 #define       MC_CMD_GET_BOARD_CFG_OUT_BOARD_TYPE_LEN 4
 #define       MC_CMD_GET_BOARD_CFG_OUT_BOARD_NAME_OFST 4
@@ -3019,7 +3011,6 @@
 #define       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM 32
 #define       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM_MCDI2 32
 
-
 /***********************************/
 /* MC_CMD_DBI_READX
  * Read DBI register(s) -- extended functionality
@@ -3033,8 +3024,8 @@
 #define    MC_CMD_DBI_READX_IN_LENMIN 8
 #define    MC_CMD_DBI_READX_IN_LENMAX 248
 #define    MC_CMD_DBI_READX_IN_LENMAX_MCDI2 1016
-#define    MC_CMD_DBI_READX_IN_LEN(num) (0+8*(num))
-#define    MC_CMD_DBI_READX_IN_DBIRDOP_NUM(len) (((len)-0)/8)
+#define    MC_CMD_DBI_READX_IN_LEN(num) (0 + 8 * (num))
+#define    MC_CMD_DBI_READX_IN_DBIRDOP_NUM(len) (((len) - 0) / 8)
 /* Each Read op consists of an address (offset 0), VF/CS2) */
 #define       MC_CMD_DBI_READX_IN_DBIRDOP_OFST 0
 #define       MC_CMD_DBI_READX_IN_DBIRDOP_LEN 8
@@ -3048,8 +3039,8 @@
 #define    MC_CMD_DBI_READX_OUT_LENMIN 4
 #define    MC_CMD_DBI_READX_OUT_LENMAX 252
 #define    MC_CMD_DBI_READX_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_DBI_READX_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_DBI_READX_OUT_VALUE_NUM(len) (((len)-0)/4)
+#define    MC_CMD_DBI_READX_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_DBI_READX_OUT_VALUE_NUM(len) (((len) - 0) / 4)
 /* Value */
 #define       MC_CMD_DBI_READX_OUT_VALUE_OFST 0
 #define       MC_CMD_DBI_READX_OUT_VALUE_LEN 4
@@ -3077,7 +3068,6 @@
 #define       MC_CMD_DBIRDOP_TYPEDEF_PARMS_LBN 32
 #define       MC_CMD_DBIRDOP_TYPEDEF_PARMS_WIDTH 32
 
-
 /***********************************/
 /* MC_CMD_SET_RAND_SEED
  * Set the 16byte seed for the MC pseudo-random generator.
@@ -3096,7 +3086,6 @@
 /* MC_CMD_SET_RAND_SEED_OUT msgresponse */
 #define    MC_CMD_SET_RAND_SEED_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_LTSSM_HIST
  * Retrieve the history of the LTSSM, if the build supports it.
@@ -3110,15 +3099,14 @@
 #define    MC_CMD_LTSSM_HIST_OUT_LENMIN 0
 #define    MC_CMD_LTSSM_HIST_OUT_LENMAX 252
 #define    MC_CMD_LTSSM_HIST_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_LTSSM_HIST_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_LTSSM_HIST_OUT_DATA_NUM(len) (((len)-0)/4)
+#define    MC_CMD_LTSSM_HIST_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_LTSSM_HIST_OUT_DATA_NUM(len) (((len) - 0) / 4)
 /* variable number of LTSSM values, as bytes. The history is read-to-clear. */
 #define       MC_CMD_LTSSM_HIST_OUT_DATA_OFST 0
 #define       MC_CMD_LTSSM_HIST_OUT_DATA_LEN 4
 #define       MC_CMD_LTSSM_HIST_OUT_DATA_MINNUM 0
 #define       MC_CMD_LTSSM_HIST_OUT_DATA_MAXNUM 63
 #define       MC_CMD_LTSSM_HIST_OUT_DATA_MAXNUM_MCDI2 255
-
 
 /***********************************/
 /* MC_CMD_DRV_ATTACH
@@ -3210,15 +3198,15 @@
 /* new state to set if UPDATE=1 */
 #define       MC_CMD_DRV_ATTACH_IN_V2_NEW_STATE_OFST 0
 #define       MC_CMD_DRV_ATTACH_IN_V2_NEW_STATE_LEN 4
-/*             MC_CMD_DRV_ATTACH_OFST 0 */
-/*             MC_CMD_DRV_ATTACH_LBN 0 */
-/*             MC_CMD_DRV_ATTACH_WIDTH 1 */
+/*             MC_CMD_DRV_ATTACH_OFST 0
+ *             MC_CMD_DRV_ATTACH_LBN 0
+ *             MC_CMD_DRV_ATTACH_WIDTH 1*/
 #define        MC_CMD_DRV_ATTACH_IN_V2_ATTACH_OFST 0
 #define        MC_CMD_DRV_ATTACH_IN_V2_ATTACH_LBN 0
 #define        MC_CMD_DRV_ATTACH_IN_V2_ATTACH_WIDTH 1
-/*             MC_CMD_DRV_PREBOOT_OFST 0 */
-/*             MC_CMD_DRV_PREBOOT_LBN 1 */
-/*             MC_CMD_DRV_PREBOOT_WIDTH 1 */
+/*             MC_CMD_DRV_PREBOOT_OFST 0
+ *             MC_CMD_DRV_PREBOOT_LBN 1
+ *             MC_CMD_DRV_PREBOOT_WIDTH 1*/
 #define        MC_CMD_DRV_ATTACH_IN_V2_PREBOOT_OFST 0
 #define        MC_CMD_DRV_ATTACH_IN_V2_PREBOOT_LBN 1
 #define        MC_CMD_DRV_ATTACH_IN_V2_PREBOOT_WIDTH 1
@@ -3243,24 +3231,24 @@
 /* preferred datapath firmware (for Huntington; ignored for Siena) */
 #define       MC_CMD_DRV_ATTACH_IN_V2_FIRMWARE_ID_OFST 8
 #define       MC_CMD_DRV_ATTACH_IN_V2_FIRMWARE_ID_LEN 4
-/* enum: Prefer to use full featured firmware */
-/*               MC_CMD_FW_FULL_FEATURED 0x0 */
-/* enum: Prefer to use firmware with fewer features but lower latency */
-/*               MC_CMD_FW_LOW_LATENCY 0x1 */
-/* enum: Prefer to use firmware for SolarCapture packed stream mode */
-/*               MC_CMD_FW_PACKED_STREAM 0x2 */
+/* enum: Prefer to use full featured firmware
+*               MC_CMD_FW_FULL_FEATURED 0x0
+* enum: Prefer to use firmware with fewer features but lower latency
+*               MC_CMD_FW_LOW_LATENCY 0x1
+* enum: Prefer to use firmware for SolarCapture packed stream mode
+*               MC_CMD_FW_PACKED_STREAM 0x2*/
 /* enum: Prefer to use firmware with fewer features and simpler TX event
  * batching but higher TX packet rate
  */
-/*               MC_CMD_FW_HIGH_TX_RATE 0x3 */
-/* enum: Reserved value */
-/*               MC_CMD_FW_PACKED_STREAM_HASH_MODE_1 0x4 */
+/*               MC_CMD_FW_HIGH_TX_RATE 0x3
+ * enum: Reserved value
+ *               MC_CMD_FW_PACKED_STREAM_HASH_MODE_1 0x4*/
 /* enum: Prefer to use firmware with additional "rules engine" filtering
  * support
  */
-/*               MC_CMD_FW_RULES_ENGINE 0x5 */
-/* enum: Prefer to use firmware with additional DPDK support */
-/*               MC_CMD_FW_DPDK 0x6 */
+/*               MC_CMD_FW_RULES_ENGINE 0x5
+ * enum: Prefer to use firmware with additional DPDK support
+ *               MC_CMD_FW_DPDK 0x6*/
 /* enum: Prefer to use "l3xudp" custom datapath firmware (see SF-119495-PD and
  * bug69716)
  */
@@ -3270,9 +3258,9 @@
  * special test firmware variants. This option is only recognised in eftest
  * (i.e. non-production) builds.
  */
-/*               MC_CMD_FW_KEEP_CURRENT_EFTEST_ONLY 0xfffffffe */
-/* enum: Only this option is allowed for non-admin functions */
-/*               MC_CMD_FW_DONT_CARE 0xffffffff */
+/*               MC_CMD_FW_KEEP_CURRENT_EFTEST_ONLY 0xfffffffe
+ * enum: Only this option is allowed for non-admin functions
+ *               MC_CMD_FW_DONT_CARE 0xffffffff*/
 /* Version of the driver to be reported by management protocols (e.g. NC-SI)
  * handled by the NIC. This is a zero-terminated ASCII string.
  */
@@ -3318,7 +3306,6 @@
  */
 #define          MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_TX_ONLY_VI_SPREADING_ENABLED 0x5
 
-
 /***********************************/
 /* MC_CMD_SHMUART
  * Route UART output to circular buffer in shared memory instead.
@@ -3333,7 +3320,6 @@
 
 /* MC_CMD_SHMUART_OUT msgresponse */
 #define    MC_CMD_SHMUART_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_PORT_RESET
@@ -3351,7 +3337,6 @@
 
 /* MC_CMD_PORT_RESET_OUT msgresponse */
 #define    MC_CMD_PORT_RESET_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_ENTITY_RESET
@@ -3375,7 +3360,6 @@
 
 /* MC_CMD_ENTITY_RESET_OUT msgresponse */
 #define    MC_CMD_ENTITY_RESET_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_PCIE_CREDITS
@@ -3410,7 +3394,6 @@
 #define       MC_CMD_PCIE_CREDITS_OUT_MINIMUM_NP_HDR_LEN 2
 #define       MC_CMD_PCIE_CREDITS_OUT_MINIMUM_NP_DATA_OFST 14
 #define       MC_CMD_PCIE_CREDITS_OUT_MINIMUM_NP_DATA_LEN 2
-
 
 /***********************************/
 /* MC_CMD_RXD_MONITOR
@@ -3470,7 +3453,6 @@
 #define       MC_CMD_RXD_MONITOR_OUT_CACHE_GE_32_OFST 76
 #define       MC_CMD_RXD_MONITOR_OUT_CACHE_GE_32_LEN 4
 
-
 /***********************************/
 /* MC_CMD_PUTS
  * Copy the given ASCII string out onto UART and/or out of the network port.
@@ -3484,8 +3466,8 @@
 #define    MC_CMD_PUTS_IN_LENMIN 13
 #define    MC_CMD_PUTS_IN_LENMAX 252
 #define    MC_CMD_PUTS_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_PUTS_IN_LEN(num) (12+1*(num))
-#define    MC_CMD_PUTS_IN_STRING_NUM(len) (((len)-12)/1)
+#define    MC_CMD_PUTS_IN_LEN(num) (12 + 1 * (num))
+#define    MC_CMD_PUTS_IN_STRING_NUM(len) (((len) - 12) / 1)
 #define       MC_CMD_PUTS_IN_DEST_OFST 0
 #define       MC_CMD_PUTS_IN_DEST_LEN 4
 #define        MC_CMD_PUTS_IN_UART_OFST 0
@@ -3504,7 +3486,6 @@
 
 /* MC_CMD_PUTS_OUT msgresponse */
 #define    MC_CMD_PUTS_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_PHY_CFG
@@ -3661,7 +3642,6 @@
 #define       MC_CMD_GET_PHY_CFG_OUT_REVISION_OFST 52
 #define       MC_CMD_GET_PHY_CFG_OUT_REVISION_LEN 20
 
-
 /***********************************/
 /* MC_CMD_START_BIST
  * Start a BIST test on the PHY. Locks required: PHY_LOCK if doing a PHY BIST
@@ -3696,7 +3676,6 @@
 
 /* MC_CMD_START_BIST_OUT msgresponse */
 #define    MC_CMD_START_BIST_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_POLL_BIST
@@ -3733,11 +3712,11 @@
 
 /* MC_CMD_POLL_BIST_OUT_SFT9001 msgresponse */
 #define    MC_CMD_POLL_BIST_OUT_SFT9001_LEN 36
-/* result */
-/*            MC_CMD_POLL_BIST_OUT_RESULT_OFST 0 */
-/*            MC_CMD_POLL_BIST_OUT_RESULT_LEN 4 */
-/*            Enum values, see field(s): */
-/*               MC_CMD_POLL_BIST_OUT/MC_CMD_POLL_BIST_OUT_RESULT */
+/* result
+ *            MC_CMD_POLL_BIST_OUT_RESULT_OFST 0
+ *            MC_CMD_POLL_BIST_OUT_RESULT_LEN 4
+ *            Enum values, see field(s):
+ *               MC_CMD_POLL_BIST_OUT/MC_CMD_POLL_BIST_OUT_RESULT*/
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A_OFST 4
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_LENGTH_A_LEN 4
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_LENGTH_B_OFST 8
@@ -3762,26 +3741,26 @@
 /* Status of each channel B */
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_STATUS_B_OFST 24
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_STATUS_B_LEN 4
-/*            Enum values, see field(s): */
-/*               CABLE_STATUS_A */
-/* Status of each channel C */
+/*            Enum values, see field(s):
+ *               CABLE_STATUS_A
+ * Status of each channel C*/
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_STATUS_C_OFST 28
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_STATUS_C_LEN 4
-/*            Enum values, see field(s): */
-/*               CABLE_STATUS_A */
-/* Status of each channel D */
+/*            Enum values, see field(s):
+ *               CABLE_STATUS_A
+ * Status of each channel D*/
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_STATUS_D_OFST 32
 #define       MC_CMD_POLL_BIST_OUT_SFT9001_CABLE_STATUS_D_LEN 4
-/*            Enum values, see field(s): */
-/*               CABLE_STATUS_A */
+/*            Enum values, see field(s):
+ *               CABLE_STATUS_A*/
 
 /* MC_CMD_POLL_BIST_OUT_MRSFP msgresponse */
 #define    MC_CMD_POLL_BIST_OUT_MRSFP_LEN 8
-/* result */
-/*            MC_CMD_POLL_BIST_OUT_RESULT_OFST 0 */
-/*            MC_CMD_POLL_BIST_OUT_RESULT_LEN 4 */
-/*            Enum values, see field(s): */
-/*               MC_CMD_POLL_BIST_OUT/MC_CMD_POLL_BIST_OUT_RESULT */
+/* result
+ *            MC_CMD_POLL_BIST_OUT_RESULT_OFST 0
+ *            MC_CMD_POLL_BIST_OUT_RESULT_LEN 4
+ *            Enum values, see field(s):
+ *               MC_CMD_POLL_BIST_OUT/MC_CMD_POLL_BIST_OUT_RESULT*/
 #define       MC_CMD_POLL_BIST_OUT_MRSFP_TEST_OFST 4
 #define       MC_CMD_POLL_BIST_OUT_MRSFP_TEST_LEN 4
 /* enum: Complete. */
@@ -3789,9 +3768,11 @@
 /* enum: Bus switch off I2C write. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_WRITE 0x1
 /* enum: Bus switch off I2C no access IO exp. */
-#define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_NO_ACCESS_IO_EXP 0x2
+#define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_NO_ACCESS_IO_EXP \
+  0x2
 /* enum: Bus switch off I2C no access module. */
-#define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_NO_ACCESS_MODULE 0x3
+#define          MC_CMD_POLL_BIST_MRSFP_TEST_BUS_SWITCH_OFF_I2C_NO_ACCESS_MODULE \
+  0x3
 /* enum: IO exp I2C configure. */
 #define          MC_CMD_POLL_BIST_MRSFP_TEST_IO_EXP_I2C_CONFIGURE 0x4
 /* enum: Bus switch I2C no cross talk. */
@@ -3805,11 +3786,11 @@
 
 /* MC_CMD_POLL_BIST_OUT_MEM msgresponse */
 #define    MC_CMD_POLL_BIST_OUT_MEM_LEN 36
-/* result */
-/*            MC_CMD_POLL_BIST_OUT_RESULT_OFST 0 */
-/*            MC_CMD_POLL_BIST_OUT_RESULT_LEN 4 */
-/*            Enum values, see field(s): */
-/*               MC_CMD_POLL_BIST_OUT/MC_CMD_POLL_BIST_OUT_RESULT */
+/* result
+ *            MC_CMD_POLL_BIST_OUT_RESULT_OFST 0
+ *            MC_CMD_POLL_BIST_OUT_RESULT_LEN 4
+ *            Enum values, see field(s):
+ *               MC_CMD_POLL_BIST_OUT/MC_CMD_POLL_BIST_OUT_RESULT*/
 #define       MC_CMD_POLL_BIST_OUT_MEM_TEST_OFST 4
 #define       MC_CMD_POLL_BIST_OUT_MEM_TEST_LEN 4
 /* enum: Test has completed. */
@@ -3866,7 +3847,6 @@
 #define       MC_CMD_POLL_BIST_OUT_MEM_ECC_FATAL_OFST 32
 #define       MC_CMD_POLL_BIST_OUT_MEM_ECC_FATAL_LEN 4
 
-
 /***********************************/
 /* MC_CMD_FLUSH_RX_QUEUES
  * Flush receive queue(s). If SRIOV is enabled (via MC_CMD_SRIOV), then RXQ
@@ -3882,8 +3862,8 @@
 #define    MC_CMD_FLUSH_RX_QUEUES_IN_LENMIN 4
 #define    MC_CMD_FLUSH_RX_QUEUES_IN_LENMAX 252
 #define    MC_CMD_FLUSH_RX_QUEUES_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_FLUSH_RX_QUEUES_IN_LEN(num) (0+4*(num))
-#define    MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_NUM(len) (((len)-0)/4)
+#define    MC_CMD_FLUSH_RX_QUEUES_IN_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_NUM(len) (((len) - 0) / 4)
 #define       MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_OFST 0
 #define       MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_LEN 4
 #define       MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MINNUM 1
@@ -3892,7 +3872,6 @@
 
 /* MC_CMD_FLUSH_RX_QUEUES_OUT msgresponse */
 #define    MC_CMD_FLUSH_RX_QUEUES_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_LOOPBACK_MODES
@@ -3996,29 +3975,29 @@
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_1G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_1G_LO_OFST 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_1G_HI_OFST 12
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_10G_OFST 16
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_10G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_10G_LO_OFST 16
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_10G_HI_OFST 20
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_SUGGESTED_OFST 24
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_SUGGESTED_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_SUGGESTED_LO_OFST 24
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_SUGGESTED_HI_OFST 28
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_40G_OFST 32
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_40G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_40G_LO_OFST 32
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_40G_HI_OFST 36
-/*            Enum values, see field(s): */
-/*               100M */
+/*            Enum values, see field(s):
+ *               100M*/
 
 /* MC_CMD_GET_LOOPBACK_MODES_OUT_V2 msgresponse: Supported loopback modes for
  * newer NICs with 25G/50G/100G support
@@ -4029,133 +4008,133 @@
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100M_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100M_LO_OFST 0
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100M_HI_OFST 4
-/* enum: None. */
-/*               MC_CMD_LOOPBACK_NONE 0x0 */
-/* enum: Data. */
-/*               MC_CMD_LOOPBACK_DATA 0x1 */
-/* enum: GMAC. */
-/*               MC_CMD_LOOPBACK_GMAC 0x2 */
-/* enum: XGMII. */
-/*               MC_CMD_LOOPBACK_XGMII 0x3 */
-/* enum: XGXS. */
-/*               MC_CMD_LOOPBACK_XGXS 0x4 */
-/* enum: XAUI. */
-/*               MC_CMD_LOOPBACK_XAUI 0x5 */
-/* enum: GMII. */
-/*               MC_CMD_LOOPBACK_GMII 0x6 */
-/* enum: SGMII. */
-/*               MC_CMD_LOOPBACK_SGMII 0x7 */
-/* enum: XGBR. */
-/*               MC_CMD_LOOPBACK_XGBR 0x8 */
-/* enum: XFI. */
-/*               MC_CMD_LOOPBACK_XFI 0x9 */
-/* enum: XAUI Far. */
-/*               MC_CMD_LOOPBACK_XAUI_FAR 0xa */
-/* enum: GMII Far. */
-/*               MC_CMD_LOOPBACK_GMII_FAR 0xb */
-/* enum: SGMII Far. */
-/*               MC_CMD_LOOPBACK_SGMII_FAR 0xc */
-/* enum: XFI Far. */
-/*               MC_CMD_LOOPBACK_XFI_FAR 0xd */
-/* enum: GPhy. */
-/*               MC_CMD_LOOPBACK_GPHY 0xe */
-/* enum: PhyXS. */
-/*               MC_CMD_LOOPBACK_PHYXS 0xf */
-/* enum: PCS. */
-/*               MC_CMD_LOOPBACK_PCS 0x10 */
-/* enum: PMA-PMD. */
-/*               MC_CMD_LOOPBACK_PMAPMD 0x11 */
-/* enum: Cross-Port. */
-/*               MC_CMD_LOOPBACK_XPORT 0x12 */
-/* enum: XGMII-Wireside. */
-/*               MC_CMD_LOOPBACK_XGMII_WS 0x13 */
-/* enum: XAUI Wireside. */
-/*               MC_CMD_LOOPBACK_XAUI_WS 0x14 */
-/* enum: XAUI Wireside Far. */
-/*               MC_CMD_LOOPBACK_XAUI_WS_FAR 0x15 */
-/* enum: XAUI Wireside near. */
-/*               MC_CMD_LOOPBACK_XAUI_WS_NEAR 0x16 */
-/* enum: GMII Wireside. */
-/*               MC_CMD_LOOPBACK_GMII_WS 0x17 */
-/* enum: XFI Wireside. */
-/*               MC_CMD_LOOPBACK_XFI_WS 0x18 */
-/* enum: XFI Wireside Far. */
-/*               MC_CMD_LOOPBACK_XFI_WS_FAR 0x19 */
-/* enum: PhyXS Wireside. */
-/*               MC_CMD_LOOPBACK_PHYXS_WS 0x1a */
-/* enum: PMA lanes MAC-Serdes. */
-/*               MC_CMD_LOOPBACK_PMA_INT 0x1b */
-/* enum: KR Serdes Parallel (Encoder). */
-/*               MC_CMD_LOOPBACK_SD_NEAR 0x1c */
-/* enum: KR Serdes Serial. */
-/*               MC_CMD_LOOPBACK_SD_FAR 0x1d */
-/* enum: PMA lanes MAC-Serdes Wireside. */
-/*               MC_CMD_LOOPBACK_PMA_INT_WS 0x1e */
-/* enum: KR Serdes Parallel Wireside (Full PCS). */
-/*               MC_CMD_LOOPBACK_SD_FEP2_WS 0x1f */
-/* enum: KR Serdes Parallel Wireside (Sym Aligner to TX). */
-/*               MC_CMD_LOOPBACK_SD_FEP1_5_WS 0x20 */
-/* enum: KR Serdes Parallel Wireside (Deserializer to Serializer). */
-/*               MC_CMD_LOOPBACK_SD_FEP_WS 0x21 */
-/* enum: KR Serdes Serial Wireside. */
-/*               MC_CMD_LOOPBACK_SD_FES_WS 0x22 */
-/* enum: Near side of AOE Siena side port */
-/*               MC_CMD_LOOPBACK_AOE_INT_NEAR 0x23 */
-/* enum: Medford Wireside datapath loopback */
-/*               MC_CMD_LOOPBACK_DATA_WS 0x24 */
+/* enum: None.
+ *               MC_CMD_LOOPBACK_NONE 0x0
+ * enum: Data.
+ *               MC_CMD_LOOPBACK_DATA 0x1
+ * enum: GMAC.
+ *               MC_CMD_LOOPBACK_GMAC 0x2
+ * enum: XGMII.
+ *               MC_CMD_LOOPBACK_XGMII 0x3
+ * enum: XGXS.
+ *               MC_CMD_LOOPBACK_XGXS 0x4
+ * enum: XAUI.
+ *               MC_CMD_LOOPBACK_XAUI 0x5
+ * enum: GMII.
+ *               MC_CMD_LOOPBACK_GMII 0x6
+ * enum: SGMII.
+ *               MC_CMD_LOOPBACK_SGMII 0x7
+ * enum: XGBR.
+ *               MC_CMD_LOOPBACK_XGBR 0x8
+ * enum: XFI.
+ *               MC_CMD_LOOPBACK_XFI 0x9
+ * enum: XAUI Far.
+ *               MC_CMD_LOOPBACK_XAUI_FAR 0xa
+ * enum: GMII Far.
+ *               MC_CMD_LOOPBACK_GMII_FAR 0xb
+ * enum: SGMII Far.
+ *               MC_CMD_LOOPBACK_SGMII_FAR 0xc
+ * enum: XFI Far.
+ *               MC_CMD_LOOPBACK_XFI_FAR 0xd
+ * enum: GPhy.
+ *               MC_CMD_LOOPBACK_GPHY 0xe
+ * enum: PhyXS.
+ *               MC_CMD_LOOPBACK_PHYXS 0xf
+ * enum: PCS.
+ *               MC_CMD_LOOPBACK_PCS 0x10
+ * enum: PMA-PMD.
+ *               MC_CMD_LOOPBACK_PMAPMD 0x11
+ * enum: Cross-Port.
+ *               MC_CMD_LOOPBACK_XPORT 0x12
+ * enum: XGMII-Wireside.
+ *               MC_CMD_LOOPBACK_XGMII_WS 0x13
+ * enum: XAUI Wireside.
+ *               MC_CMD_LOOPBACK_XAUI_WS 0x14
+ * enum: XAUI Wireside Far.
+ *               MC_CMD_LOOPBACK_XAUI_WS_FAR 0x15
+ * enum: XAUI Wireside near.
+ *               MC_CMD_LOOPBACK_XAUI_WS_NEAR 0x16
+ * enum: GMII Wireside.
+ *               MC_CMD_LOOPBACK_GMII_WS 0x17
+ * enum: XFI Wireside.
+ *               MC_CMD_LOOPBACK_XFI_WS 0x18
+ * enum: XFI Wireside Far.
+ *               MC_CMD_LOOPBACK_XFI_WS_FAR 0x19
+ * enum: PhyXS Wireside.
+ *               MC_CMD_LOOPBACK_PHYXS_WS 0x1a
+ * enum: PMA lanes MAC-Serdes.
+ *               MC_CMD_LOOPBACK_PMA_INT 0x1b
+ * enum: KR Serdes Parallel (Encoder).
+ *               MC_CMD_LOOPBACK_SD_NEAR 0x1c
+ * enum: KR Serdes Serial.
+ *               MC_CMD_LOOPBACK_SD_FAR 0x1d
+ * enum: PMA lanes MAC-Serdes Wireside.
+ *               MC_CMD_LOOPBACK_PMA_INT_WS 0x1e
+ * enum: KR Serdes Parallel Wireside (Full PCS).
+ *               MC_CMD_LOOPBACK_SD_FEP2_WS 0x1f
+ * enum: KR Serdes Parallel Wireside (Sym Aligner to TX).
+ *               MC_CMD_LOOPBACK_SD_FEP1_5_WS 0x20
+ * enum: KR Serdes Parallel Wireside (Deserializer to Serializer).
+ *               MC_CMD_LOOPBACK_SD_FEP_WS 0x21
+ * enum: KR Serdes Serial Wireside.
+ *               MC_CMD_LOOPBACK_SD_FES_WS 0x22
+ * enum: Near side of AOE Siena side port
+ *               MC_CMD_LOOPBACK_AOE_INT_NEAR 0x23
+ * enum: Medford Wireside datapath loopback
+ *               MC_CMD_LOOPBACK_DATA_WS 0x24*/
 /* enum: Force link up without setting up any physical loopback (snapper use
  * only)
  */
-/*               MC_CMD_LOOPBACK_FORCE_EXT_LINK 0x25 */
-/* Supported loopbacks. */
+/*               MC_CMD_LOOPBACK_FORCE_EXT_LINK 0x25
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_1G_OFST 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_1G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_1G_LO_OFST 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_1G_HI_OFST 12
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_10G_OFST 16
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_10G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_10G_LO_OFST 16
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_10G_HI_OFST 20
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_SUGGESTED_OFST 24
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_SUGGESTED_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_SUGGESTED_LO_OFST 24
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_SUGGESTED_HI_OFST 28
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_40G_OFST 32
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_40G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_40G_LO_OFST 32
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_40G_HI_OFST 36
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported 25G loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported 25G loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_25G_OFST 40
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_25G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_25G_LO_OFST 40
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_25G_HI_OFST 44
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported 50 loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported 50 loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_50G_OFST 48
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_50G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_50G_LO_OFST 48
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_50G_HI_OFST 52
-/*            Enum values, see field(s): */
-/*               100M */
-/* Supported 100G loopbacks. */
+/*            Enum values, see field(s):
+ *               100M
+ * Supported 100G loopbacks.*/
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100G_OFST 56
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100G_LEN 8
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100G_LO_OFST 56
 #define       MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100G_HI_OFST 60
-/*            Enum values, see field(s): */
-/*               100M */
+/*            Enum values, see field(s):
+ *               100M*/
 
 /* AN_TYPE structuredef: Auto-negotiation types defined in IEEE802.3 */
 #define    AN_TYPE_LEN 4
@@ -4187,7 +4166,6 @@
 #define          MC_CMD_FEC_RS 0x2
 #define       FEC_TYPE_TYPE_LBN 0
 #define       FEC_TYPE_TYPE_WIDTH 32
-
 
 /***********************************/
 /* MC_CMD_GET_LINK
@@ -4222,8 +4200,8 @@
 /* Current loopback setting. */
 #define       MC_CMD_GET_LINK_OUT_LOOPBACK_MODE_OFST 12
 #define       MC_CMD_GET_LINK_OUT_LOOPBACK_MODE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M */
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M*/
 #define       MC_CMD_GET_LINK_OUT_FLAGS_OFST 16
 #define       MC_CMD_GET_LINK_OUT_FLAGS_LEN 4
 #define        MC_CMD_GET_LINK_OUT_LINK_UP_OFST 16
@@ -4253,8 +4231,8 @@
 /* This returns the negotiated flow control value. */
 #define       MC_CMD_GET_LINK_OUT_FCNTL_OFST 20
 #define       MC_CMD_GET_LINK_OUT_FCNTL_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_SET_MAC/MC_CMD_SET_MAC_IN/FCNTL */
+/*            Enum values, see field(s):
+ *               MC_CMD_SET_MAC/MC_CMD_SET_MAC_IN/FCNTL*/
 #define       MC_CMD_GET_LINK_OUT_MAC_FAULT_OFST 24
 #define       MC_CMD_GET_LINK_OUT_MAC_FAULT_LEN 4
 #define        MC_CMD_MAC_FAULT_XGMII_LOCAL_OFST 24
@@ -4290,8 +4268,8 @@
 /* Current loopback setting. */
 #define       MC_CMD_GET_LINK_OUT_V2_LOOPBACK_MODE_OFST 12
 #define       MC_CMD_GET_LINK_OUT_V2_LOOPBACK_MODE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M */
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M*/
 #define       MC_CMD_GET_LINK_OUT_V2_FLAGS_OFST 16
 #define       MC_CMD_GET_LINK_OUT_V2_FLAGS_LEN 4
 #define        MC_CMD_GET_LINK_OUT_V2_LINK_UP_OFST 16
@@ -4321,22 +4299,22 @@
 /* This returns the negotiated flow control value. */
 #define       MC_CMD_GET_LINK_OUT_V2_FCNTL_OFST 20
 #define       MC_CMD_GET_LINK_OUT_V2_FCNTL_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_SET_MAC/MC_CMD_SET_MAC_IN/FCNTL */
+/*            Enum values, see field(s):
+ *               MC_CMD_SET_MAC/MC_CMD_SET_MAC_IN/FCNTL*/
 #define       MC_CMD_GET_LINK_OUT_V2_MAC_FAULT_OFST 24
 #define       MC_CMD_GET_LINK_OUT_V2_MAC_FAULT_LEN 4
-/*             MC_CMD_MAC_FAULT_XGMII_LOCAL_OFST 24 */
-/*             MC_CMD_MAC_FAULT_XGMII_LOCAL_LBN 0 */
-/*             MC_CMD_MAC_FAULT_XGMII_LOCAL_WIDTH 1 */
-/*             MC_CMD_MAC_FAULT_XGMII_REMOTE_OFST 24 */
-/*             MC_CMD_MAC_FAULT_XGMII_REMOTE_LBN 1 */
-/*             MC_CMD_MAC_FAULT_XGMII_REMOTE_WIDTH 1 */
-/*             MC_CMD_MAC_FAULT_SGMII_REMOTE_OFST 24 */
-/*             MC_CMD_MAC_FAULT_SGMII_REMOTE_LBN 2 */
-/*             MC_CMD_MAC_FAULT_SGMII_REMOTE_WIDTH 1 */
-/*             MC_CMD_MAC_FAULT_PENDING_RECONFIG_OFST 24 */
-/*             MC_CMD_MAC_FAULT_PENDING_RECONFIG_LBN 3 */
-/*             MC_CMD_MAC_FAULT_PENDING_RECONFIG_WIDTH 1 */
+/*             MC_CMD_MAC_FAULT_XGMII_LOCAL_OFST 24
+ *             MC_CMD_MAC_FAULT_XGMII_LOCAL_LBN 0
+ *             MC_CMD_MAC_FAULT_XGMII_LOCAL_WIDTH 1
+ *             MC_CMD_MAC_FAULT_XGMII_REMOTE_OFST 24
+ *             MC_CMD_MAC_FAULT_XGMII_REMOTE_LBN 1
+ *             MC_CMD_MAC_FAULT_XGMII_REMOTE_WIDTH 1
+ *             MC_CMD_MAC_FAULT_SGMII_REMOTE_OFST 24
+ *             MC_CMD_MAC_FAULT_SGMII_REMOTE_LBN 2
+ *             MC_CMD_MAC_FAULT_SGMII_REMOTE_WIDTH 1
+ *             MC_CMD_MAC_FAULT_PENDING_RECONFIG_OFST 24
+ *             MC_CMD_MAC_FAULT_PENDING_RECONFIG_LBN 3
+ *             MC_CMD_MAC_FAULT_PENDING_RECONFIG_WIDTH 1*/
 /* True local device capabilities (taking into account currently used PMD/MDI,
  * e.g. plugged-in module). In general, subset of
  * MC_CMD_GET_PHY_CFG_OUT/SUPPORTED_CAP, but may include extra _FEC_REQUEST
@@ -4349,13 +4327,13 @@
 /* Auto-negotiation type used on the link */
 #define       MC_CMD_GET_LINK_OUT_V2_AN_TYPE_OFST 32
 #define       MC_CMD_GET_LINK_OUT_V2_AN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               AN_TYPE/TYPE */
-/* Forward error correction used on the link */
+/*            Enum values, see field(s):
+ *               AN_TYPE/TYPE
+ * Forward error correction used on the link*/
 #define       MC_CMD_GET_LINK_OUT_V2_FEC_TYPE_OFST 36
 #define       MC_CMD_GET_LINK_OUT_V2_FEC_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               FEC_TYPE/TYPE */
+/*            Enum values, see field(s):
+ *               FEC_TYPE/TYPE*/
 #define       MC_CMD_GET_LINK_OUT_V2_EXT_FLAGS_OFST 40
 #define       MC_CMD_GET_LINK_OUT_V2_EXT_FLAGS_LEN 4
 #define        MC_CMD_GET_LINK_OUT_V2_PMD_MDI_CONNECTED_OFST 40
@@ -4388,7 +4366,6 @@
 #define        MC_CMD_GET_LINK_OUT_V2_PORT_SHUTDOWN_OFST 40
 #define        MC_CMD_GET_LINK_OUT_V2_PORT_SHUTDOWN_LBN 9
 #define        MC_CMD_GET_LINK_OUT_V2_PORT_SHUTDOWN_WIDTH 1
-
 
 /***********************************/
 /* MC_CMD_SET_LINK
@@ -4425,8 +4402,8 @@
 /* Loopback mode. */
 #define       MC_CMD_SET_LINK_IN_LOOPBACK_MODE_OFST 8
 #define       MC_CMD_SET_LINK_IN_LOOPBACK_MODE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M */
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M*/
 /* A loopback speed of "0" is supported, and means (choose any available
  * speed).
  */
@@ -4461,8 +4438,8 @@
 /* Loopback mode. */
 #define       MC_CMD_SET_LINK_IN_V2_LOOPBACK_MODE_OFST 8
 #define       MC_CMD_SET_LINK_IN_V2_LOOPBACK_MODE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M */
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_LOOPBACK_MODES/MC_CMD_GET_LOOPBACK_MODES_OUT/100M*/
 /* A loopback speed of "0" is supported, and means (choose any available
  * speed).
  */
@@ -4479,7 +4456,6 @@
 
 /* MC_CMD_SET_LINK_OUT msgresponse */
 #define    MC_CMD_SET_LINK_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_SET_ID_LED
@@ -4501,7 +4477,6 @@
 
 /* MC_CMD_SET_ID_LED_OUT msgresponse */
 #define    MC_CMD_SET_ID_LED_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_SET_MAC
@@ -4576,18 +4551,18 @@
 #define        MC_CMD_SET_MAC_EXT_IN_REJECT_BRDCST_WIDTH 1
 #define       MC_CMD_SET_MAC_EXT_IN_FCNTL_OFST 20
 #define       MC_CMD_SET_MAC_EXT_IN_FCNTL_LEN 4
-/* enum: Flow control is off. */
-/*               MC_CMD_FCNTL_OFF 0x0 */
-/* enum: Respond to flow control. */
-/*               MC_CMD_FCNTL_RESPOND 0x1 */
-/* enum: Respond to and Issue flow control. */
-/*               MC_CMD_FCNTL_BIDIR 0x2 */
-/* enum: Auto neg flow control. */
-/*               MC_CMD_FCNTL_AUTO 0x3 */
-/* enum: Priority flow control (eftest builds only). */
-/*               MC_CMD_FCNTL_QBB 0x4 */
-/* enum: Issue flow control. */
-/*               MC_CMD_FCNTL_GENERATE 0x5 */
+/* enum: Flow control is off.
+ *               MC_CMD_FCNTL_OFF 0x0
+ * enum: Respond to flow control.
+ *               MC_CMD_FCNTL_RESPOND 0x1
+ * enum: Respond to and Issue flow control.
+ *               MC_CMD_FCNTL_BIDIR 0x2
+ * enum: Auto neg flow control.
+ *               MC_CMD_FCNTL_AUTO 0x3
+ * enum: Priority flow control (eftest builds only).
+ *               MC_CMD_FCNTL_QBB 0x4
+ * enum: Issue flow control.
+ *               MC_CMD_FCNTL_GENERATE 0x5*/
 #define       MC_CMD_SET_MAC_EXT_IN_FLAGS_OFST 24
 #define       MC_CMD_SET_MAC_EXT_IN_FLAGS_LEN 4
 #define        MC_CMD_SET_MAC_EXT_IN_FLAG_INCLUDE_FCS_OFST 24
@@ -4628,7 +4603,6 @@
 #define       MC_CMD_SET_MAC_V2_OUT_MTU_OFST 0
 #define       MC_CMD_SET_MAC_V2_OUT_MTU_LEN 4
 
-
 /***********************************/
 /* MC_CMD_PHY_STATS
  * Get generic PHY statistics. This call returns the statistics for a generic
@@ -4655,7 +4629,7 @@
 #define    MC_CMD_PHY_STATS_OUT_DMA_LEN 0
 
 /* MC_CMD_PHY_STATS_OUT_NO_DMA msgresponse */
-#define    MC_CMD_PHY_STATS_OUT_NO_DMA_LEN (((MC_CMD_PHY_NSTATS*32))>>3)
+#define    MC_CMD_PHY_STATS_OUT_NO_DMA_LEN (((MC_CMD_PHY_NSTATS * 32)) >> 3)
 #define       MC_CMD_PHY_STATS_OUT_NO_DMA_STATISTICS_OFST 0
 #define       MC_CMD_PHY_STATS_OUT_NO_DMA_STATISTICS_LEN 4
 #define       MC_CMD_PHY_STATS_OUT_NO_DMA_STATISTICS_NUM MC_CMD_PHY_NSTATS
@@ -4707,7 +4681,6 @@
 #define          MC_CMD_CL22_LINK_UP 0x16
 /* enum: (Last entry) */
 #define          MC_CMD_PHY_NSTATS 0x17
-
 
 /***********************************/
 /* MC_CMD_MAC_STATS
@@ -4770,7 +4743,7 @@
 #define    MC_CMD_MAC_STATS_OUT_DMA_LEN 0
 
 /* MC_CMD_MAC_STATS_OUT_NO_DMA msgresponse */
-#define    MC_CMD_MAC_STATS_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS*64))>>3)
+#define    MC_CMD_MAC_STATS_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS * 64)) >> 3)
 #define       MC_CMD_MAC_STATS_OUT_NO_DMA_STATISTICS_OFST 0
 #define       MC_CMD_MAC_STATS_OUT_NO_DMA_STATISTICS_LEN 8
 #define       MC_CMD_MAC_STATS_OUT_NO_DMA_STATISTICS_LO_OFST 0
@@ -4926,7 +4899,8 @@
 #define    MC_CMD_MAC_STATS_V2_OUT_DMA_LEN 0
 
 /* MC_CMD_MAC_STATS_V2_OUT_NO_DMA msgresponse */
-#define    MC_CMD_MAC_STATS_V2_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V2*64))>>3)
+#define    MC_CMD_MAC_STATS_V2_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V2 * 64)) >> \
+  3)
 #define       MC_CMD_MAC_STATS_V2_OUT_NO_DMA_STATISTICS_OFST 0
 #define       MC_CMD_MAC_STATS_V2_OUT_NO_DMA_STATISTICS_LEN 8
 #define       MC_CMD_MAC_STATS_V2_OUT_NO_DMA_STATISTICS_LO_OFST 0
@@ -4952,14 +4926,15 @@
  * GENERATION_END in a MAC_STATS_V2 response and otherwise unused.
  */
 #define          MC_CMD_MAC_NSTATS_V2 0x68
-/*            Other enum values, see field(s): */
-/*               MC_CMD_MAC_STATS_OUT_NO_DMA/STATISTICS */
+/*            Other enum values, see field(s):
+ *               MC_CMD_MAC_STATS_OUT_NO_DMA/STATISTICS*/
 
 /* MC_CMD_MAC_STATS_V3_OUT_DMA msgresponse */
 #define    MC_CMD_MAC_STATS_V3_OUT_DMA_LEN 0
 
 /* MC_CMD_MAC_STATS_V3_OUT_NO_DMA msgresponse */
-#define    MC_CMD_MAC_STATS_V3_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V3*64))>>3)
+#define    MC_CMD_MAC_STATS_V3_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V3 * 64)) >> \
+  3)
 #define       MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_OFST 0
 #define       MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_LEN 8
 #define       MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_LO_OFST 0
@@ -5026,14 +5001,15 @@
  * GENERATION_END in a MAC_STATS_V3 response and otherwise unused.
  */
 #define          MC_CMD_MAC_NSTATS_V3 0x79
-/*            Other enum values, see field(s): */
-/*               MC_CMD_MAC_STATS_V2_OUT_NO_DMA/STATISTICS */
+/*            Other enum values, see field(s):
+ *               MC_CMD_MAC_STATS_V2_OUT_NO_DMA/STATISTICS*/
 
 /* MC_CMD_MAC_STATS_V4_OUT_DMA msgresponse */
 #define    MC_CMD_MAC_STATS_V4_OUT_DMA_LEN 0
 
 /* MC_CMD_MAC_STATS_V4_OUT_NO_DMA msgresponse */
-#define    MC_CMD_MAC_STATS_V4_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V4*64))>>3)
+#define    MC_CMD_MAC_STATS_V4_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V4 * 64)) >> \
+  3)
 #define       MC_CMD_MAC_STATS_V4_OUT_NO_DMA_STATISTICS_OFST 0
 #define       MC_CMD_MAC_STATS_V4_OUT_NO_DMA_STATISTICS_LEN 8
 #define       MC_CMD_MAC_STATS_V4_OUT_NO_DMA_STATISTICS_LO_OFST 0
@@ -5057,9 +5033,8 @@
  * GENERATION_END in a MAC_STATS_V4 response and otherwise unused.
  */
 #define          MC_CMD_MAC_NSTATS_V4 0x7d
-/*            Other enum values, see field(s): */
-/*               MC_CMD_MAC_STATS_V3_OUT_NO_DMA/STATISTICS */
-
+/*            Other enum values, see field(s):
+ *               MC_CMD_MAC_STATS_V3_OUT_NO_DMA/STATISTICS*/
 
 /***********************************/
 /* MC_CMD_SRIOV
@@ -5116,7 +5091,6 @@
 #define       MC_CMD_MEMCPY_RECORD_TYPEDEF_LENGTH_LBN 224
 #define       MC_CMD_MEMCPY_RECORD_TYPEDEF_LENGTH_WIDTH 32
 
-
 /***********************************/
 /* MC_CMD_MEMCPY
  * DMA write data into (Rid,Addr), either by dma reading (Rid,Addr), or by data
@@ -5143,8 +5117,8 @@
 #define    MC_CMD_MEMCPY_IN_LENMIN 32
 #define    MC_CMD_MEMCPY_IN_LENMAX 224
 #define    MC_CMD_MEMCPY_IN_LENMAX_MCDI2 992
-#define    MC_CMD_MEMCPY_IN_LEN(num) (0+32*(num))
-#define    MC_CMD_MEMCPY_IN_RECORD_NUM(len) (((len)-0)/32)
+#define    MC_CMD_MEMCPY_IN_LEN(num) (0 + 32 * (num))
+#define    MC_CMD_MEMCPY_IN_RECORD_NUM(len) (((len) - 0) / 32)
 /* see MC_CMD_MEMCPY_RECORD_TYPEDEF */
 #define       MC_CMD_MEMCPY_IN_RECORD_OFST 0
 #define       MC_CMD_MEMCPY_IN_RECORD_LEN 32
@@ -5154,7 +5128,6 @@
 
 /* MC_CMD_MEMCPY_OUT msgresponse */
 #define    MC_CMD_MEMCPY_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_WOL_FILTER_SET
@@ -5194,10 +5167,10 @@
 
 /* MC_CMD_WOL_FILTER_SET_IN_MAGIC msgrequest */
 #define    MC_CMD_WOL_FILTER_SET_IN_MAGIC_LEN 16
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0 */
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4 */
+/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0
+ *            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4*/
 #define       MC_CMD_WOL_FILTER_SET_IN_MAGIC_MAC_OFST 8
 #define       MC_CMD_WOL_FILTER_SET_IN_MAGIC_MAC_LEN 8
 #define       MC_CMD_WOL_FILTER_SET_IN_MAGIC_MAC_LO_OFST 8
@@ -5205,10 +5178,10 @@
 
 /* MC_CMD_WOL_FILTER_SET_IN_IPV4_SYN msgrequest */
 #define    MC_CMD_WOL_FILTER_SET_IN_IPV4_SYN_LEN 20
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0 */
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4 */
+/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0
+ *            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4*/
 #define       MC_CMD_WOL_FILTER_SET_IN_IPV4_SYN_SRC_IP_OFST 8
 #define       MC_CMD_WOL_FILTER_SET_IN_IPV4_SYN_SRC_IP_LEN 4
 #define       MC_CMD_WOL_FILTER_SET_IN_IPV4_SYN_DST_IP_OFST 12
@@ -5220,10 +5193,10 @@
 
 /* MC_CMD_WOL_FILTER_SET_IN_IPV6_SYN msgrequest */
 #define    MC_CMD_WOL_FILTER_SET_IN_IPV6_SYN_LEN 44
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0 */
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4 */
+/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0
+ *            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4*/
 #define       MC_CMD_WOL_FILTER_SET_IN_IPV6_SYN_SRC_IP_OFST 8
 #define       MC_CMD_WOL_FILTER_SET_IN_IPV6_SYN_SRC_IP_LEN 16
 #define       MC_CMD_WOL_FILTER_SET_IN_IPV6_SYN_DST_IP_OFST 24
@@ -5235,10 +5208,10 @@
 
 /* MC_CMD_WOL_FILTER_SET_IN_BITMAP msgrequest */
 #define    MC_CMD_WOL_FILTER_SET_IN_BITMAP_LEN 187
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0 */
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4 */
+/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0
+ *            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4*/
 #define       MC_CMD_WOL_FILTER_SET_IN_BITMAP_MASK_OFST 8
 #define       MC_CMD_WOL_FILTER_SET_IN_BITMAP_MASK_LEN 48
 #define       MC_CMD_WOL_FILTER_SET_IN_BITMAP_BITMAP_OFST 56
@@ -5252,10 +5225,10 @@
 
 /* MC_CMD_WOL_FILTER_SET_IN_LINK msgrequest */
 #define    MC_CMD_WOL_FILTER_SET_IN_LINK_LEN 12
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0 */
-/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4 */
-/*            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4 */
+/*            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_OFST 0
+ *            MC_CMD_WOL_FILTER_SET_IN_FILTER_MODE_LEN 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_OFST 4
+ *            MC_CMD_WOL_FILTER_SET_IN_WOL_TYPE_LEN 4*/
 #define       MC_CMD_WOL_FILTER_SET_IN_LINK_MASK_OFST 8
 #define       MC_CMD_WOL_FILTER_SET_IN_LINK_MASK_LEN 4
 #define        MC_CMD_WOL_FILTER_SET_IN_LINK_UP_OFST 8
@@ -5269,7 +5242,6 @@
 #define    MC_CMD_WOL_FILTER_SET_OUT_LEN 4
 #define       MC_CMD_WOL_FILTER_SET_OUT_FILTER_ID_OFST 0
 #define       MC_CMD_WOL_FILTER_SET_OUT_FILTER_ID_LEN 4
-
 
 /***********************************/
 /* MC_CMD_WOL_FILTER_REMOVE
@@ -5287,7 +5259,6 @@
 
 /* MC_CMD_WOL_FILTER_REMOVE_OUT msgresponse */
 #define    MC_CMD_WOL_FILTER_REMOVE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_WOL_FILTER_RESET
@@ -5309,7 +5280,6 @@
 /* MC_CMD_WOL_FILTER_RESET_OUT msgresponse */
 #define    MC_CMD_WOL_FILTER_RESET_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_SET_MCAST_HASH
  * Set the MCAST hash value without otherwise reconfiguring the MAC
@@ -5325,7 +5295,6 @@
 
 /* MC_CMD_SET_MCAST_HASH_OUT msgresponse */
 #define    MC_CMD_SET_MCAST_HASH_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_NVRAM_TYPES
@@ -5388,7 +5357,6 @@
 /* enum: Additional flash on FPGA. */
 #define          MC_CMD_NVRAM_TYPE_FC_EXTRA 0x14
 
-
 /***********************************/
 /* MC_CMD_NVRAM_INFO
  * Read info about a virtual NVRAM partition. Locks required: none. Returns: 0,
@@ -5403,15 +5371,15 @@
 #define    MC_CMD_NVRAM_INFO_IN_LEN 4
 #define       MC_CMD_NVRAM_INFO_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_INFO_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 
 /* MC_CMD_NVRAM_INFO_OUT msgresponse */
 #define    MC_CMD_NVRAM_INFO_OUT_LEN 24
 #define       MC_CMD_NVRAM_INFO_OUT_TYPE_OFST 0
 #define       MC_CMD_NVRAM_INFO_OUT_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_INFO_OUT_SIZE_OFST 4
 #define       MC_CMD_NVRAM_INFO_OUT_SIZE_LEN 4
 #define       MC_CMD_NVRAM_INFO_OUT_ERASESIZE_OFST 8
@@ -5448,8 +5416,8 @@
 #define    MC_CMD_NVRAM_INFO_V2_OUT_LEN 28
 #define       MC_CMD_NVRAM_INFO_V2_OUT_TYPE_OFST 0
 #define       MC_CMD_NVRAM_INFO_V2_OUT_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_INFO_V2_OUT_SIZE_OFST 4
 #define       MC_CMD_NVRAM_INFO_V2_OUT_SIZE_LEN 4
 #define       MC_CMD_NVRAM_INFO_V2_OUT_ERASESIZE_OFST 8
@@ -5480,7 +5448,6 @@
 #define       MC_CMD_NVRAM_INFO_V2_OUT_WRITESIZE_OFST 24
 #define       MC_CMD_NVRAM_INFO_V2_OUT_WRITESIZE_LEN 4
 
-
 /***********************************/
 /* MC_CMD_NVRAM_UPDATE_START
  * Start a group of update operations on a virtual NVRAM partition. Locks
@@ -5502,8 +5469,8 @@
 #define    MC_CMD_NVRAM_UPDATE_START_IN_LEN 4
 #define       MC_CMD_NVRAM_UPDATE_START_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_UPDATE_START_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 
 /* MC_CMD_NVRAM_UPDATE_START_V2_IN msgrequest: Extended NVRAM_UPDATE_START
  * request with additional flags indicating version of command in use. See
@@ -5513,8 +5480,8 @@
 #define    MC_CMD_NVRAM_UPDATE_START_V2_IN_LEN 8
 #define       MC_CMD_NVRAM_UPDATE_START_V2_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_UPDATE_START_V2_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_UPDATE_START_V2_IN_FLAGS_OFST 4
 #define       MC_CMD_NVRAM_UPDATE_START_V2_IN_FLAGS_LEN 4
 #define        MC_CMD_NVRAM_UPDATE_START_V2_IN_FLAG_REPORT_VERIFY_RESULT_OFST 4
@@ -5523,7 +5490,6 @@
 
 /* MC_CMD_NVRAM_UPDATE_START_OUT msgresponse */
 #define    MC_CMD_NVRAM_UPDATE_START_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_NVRAM_READ
@@ -5540,8 +5506,8 @@
 #define    MC_CMD_NVRAM_READ_IN_LEN 12
 #define       MC_CMD_NVRAM_READ_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_READ_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_READ_IN_OFFSET_OFST 4
 #define       MC_CMD_NVRAM_READ_IN_OFFSET_LEN 4
 /* amount to read in bytes */
@@ -5552,8 +5518,8 @@
 #define    MC_CMD_NVRAM_READ_IN_V2_LEN 16
 #define       MC_CMD_NVRAM_READ_IN_V2_TYPE_OFST 0
 #define       MC_CMD_NVRAM_READ_IN_V2_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_READ_IN_V2_OFFSET_OFST 4
 #define       MC_CMD_NVRAM_READ_IN_V2_OFFSET_LEN 4
 /* amount to read in bytes */
@@ -5587,14 +5553,13 @@
 #define    MC_CMD_NVRAM_READ_OUT_LENMIN 1
 #define    MC_CMD_NVRAM_READ_OUT_LENMAX 252
 #define    MC_CMD_NVRAM_READ_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_NVRAM_READ_OUT_LEN(num) (0+1*(num))
-#define    MC_CMD_NVRAM_READ_OUT_READ_BUFFER_NUM(len) (((len)-0)/1)
+#define    MC_CMD_NVRAM_READ_OUT_LEN(num) (0 + 1 * (num))
+#define    MC_CMD_NVRAM_READ_OUT_READ_BUFFER_NUM(len) (((len) - 0) / 1)
 #define       MC_CMD_NVRAM_READ_OUT_READ_BUFFER_OFST 0
 #define       MC_CMD_NVRAM_READ_OUT_READ_BUFFER_LEN 1
 #define       MC_CMD_NVRAM_READ_OUT_READ_BUFFER_MINNUM 1
 #define       MC_CMD_NVRAM_READ_OUT_READ_BUFFER_MAXNUM 252
 #define       MC_CMD_NVRAM_READ_OUT_READ_BUFFER_MAXNUM_MCDI2 1020
-
 
 /***********************************/
 /* MC_CMD_NVRAM_WRITE
@@ -5611,12 +5576,12 @@
 #define    MC_CMD_NVRAM_WRITE_IN_LENMIN 13
 #define    MC_CMD_NVRAM_WRITE_IN_LENMAX 252
 #define    MC_CMD_NVRAM_WRITE_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_NVRAM_WRITE_IN_LEN(num) (12+1*(num))
-#define    MC_CMD_NVRAM_WRITE_IN_WRITE_BUFFER_NUM(len) (((len)-12)/1)
+#define    MC_CMD_NVRAM_WRITE_IN_LEN(num) (12 + 1 * (num))
+#define    MC_CMD_NVRAM_WRITE_IN_WRITE_BUFFER_NUM(len) (((len) - 12) / 1)
 #define       MC_CMD_NVRAM_WRITE_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_WRITE_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_WRITE_IN_OFFSET_OFST 4
 #define       MC_CMD_NVRAM_WRITE_IN_OFFSET_LEN 4
 #define       MC_CMD_NVRAM_WRITE_IN_LENGTH_OFST 8
@@ -5629,7 +5594,6 @@
 
 /* MC_CMD_NVRAM_WRITE_OUT msgresponse */
 #define    MC_CMD_NVRAM_WRITE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_NVRAM_ERASE
@@ -5646,8 +5610,8 @@
 #define    MC_CMD_NVRAM_ERASE_IN_LEN 12
 #define       MC_CMD_NVRAM_ERASE_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_ERASE_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_ERASE_IN_OFFSET_OFST 4
 #define       MC_CMD_NVRAM_ERASE_IN_OFFSET_LEN 4
 #define       MC_CMD_NVRAM_ERASE_IN_LENGTH_OFST 8
@@ -5655,7 +5619,6 @@
 
 /* MC_CMD_NVRAM_ERASE_OUT msgresponse */
 #define    MC_CMD_NVRAM_ERASE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_NVRAM_UPDATE_FINISH
@@ -5678,8 +5641,8 @@
 #define    MC_CMD_NVRAM_UPDATE_FINISH_IN_LEN 8
 #define       MC_CMD_NVRAM_UPDATE_FINISH_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_UPDATE_FINISH_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_UPDATE_FINISH_IN_REBOOT_OFST 4
 #define       MC_CMD_NVRAM_UPDATE_FINISH_IN_REBOOT_LEN 4
 
@@ -5691,15 +5654,16 @@
 #define    MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN 12
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_REBOOT_OFST 4
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_REBOOT_LEN 4
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAGS_OFST 8
 #define       MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAGS_LEN 4
 #define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT_OFST 8
 #define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT_LBN 0
-#define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT_WIDTH 1
+#define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_REPORT_VERIFY_RESULT_WIDTH \
+  1
 #define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_RUN_IN_BACKGROUND_OFST 8
 #define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_RUN_IN_BACKGROUND_LBN 1
 #define        MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_FLAG_RUN_IN_BACKGROUND_WIDTH 1
@@ -5790,7 +5754,8 @@
 /* enum: Internal-error. The number of components in a bundle do not match the
  * number of components advertised by the bundle manifest.
  */
-#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_MANIFEST_NUM_COMPONENTS_MISMATCH 0x13
+#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_MANIFEST_NUM_COMPONENTS_MISMATCH \
+  0x13
 /* enum: Internal-error. The bundle contains too many components for the MC
  * firmware to process
  */
@@ -5802,20 +5767,22 @@
 /* enum: Internal-error. The hash of a component does not match the hash stored
  * in the bundle manifest.
  */
-#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_MANIFEST_COMPONENT_HASH_MISMATCH 0x16
+#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_MANIFEST_COMPONENT_HASH_MISMATCH \
+  0x16
 /* enum: Internal-error. Component hash calculation failed. */
-#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_MANIFEST_COMPONENT_HASH_FAILED 0x17
+#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_MANIFEST_COMPONENT_HASH_FAILED \
+  0x17
 /* enum: Internal-error. The component does not have a valid reflash image
  * layout.
  */
-#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_COMPONENT_REFLASH_IMAGE_INVALID 0x18
+#define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_COMPONENT_REFLASH_IMAGE_INVALID \
+  0x18
 /* enum: The bundle processing code failed to copy a component to its target
  * partition.
  */
 #define          MC_CMD_NVRAM_VERIFY_RC_BUNDLE_COMPONENT_COPY_FAILED 0x19
 /* enum: The update operation is in-progress. */
 #define          MC_CMD_NVRAM_VERIFY_RC_PENDING 0x1a
-
 
 /***********************************/
 /* MC_CMD_REBOOT
@@ -5849,7 +5816,6 @@
 /* MC_CMD_REBOOT_OUT msgresponse */
 #define    MC_CMD_REBOOT_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_SCHEDINFO
  * Request scheduler info. Locks required: NONE. Returns: An array of
@@ -5868,14 +5834,13 @@
 #define    MC_CMD_SCHEDINFO_OUT_LENMIN 4
 #define    MC_CMD_SCHEDINFO_OUT_LENMAX 252
 #define    MC_CMD_SCHEDINFO_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_SCHEDINFO_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_SCHEDINFO_OUT_DATA_NUM(len) (((len)-0)/4)
+#define    MC_CMD_SCHEDINFO_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_SCHEDINFO_OUT_DATA_NUM(len) (((len) - 0) / 4)
 #define       MC_CMD_SCHEDINFO_OUT_DATA_OFST 0
 #define       MC_CMD_SCHEDINFO_OUT_DATA_LEN 4
 #define       MC_CMD_SCHEDINFO_OUT_DATA_MINNUM 1
 #define       MC_CMD_SCHEDINFO_OUT_DATA_MAXNUM 63
 #define       MC_CMD_SCHEDINFO_OUT_DATA_MAXNUM_MCDI2 255
-
 
 /***********************************/
 /* MC_CMD_REBOOT_MODE
@@ -5907,7 +5872,6 @@
 #define    MC_CMD_REBOOT_MODE_OUT_LEN 4
 #define       MC_CMD_REBOOT_MODE_OUT_VALUE_OFST 0
 #define       MC_CMD_REBOOT_MODE_OUT_VALUE_LEN 4
-
 
 /***********************************/
 /* MC_CMD_SENSOR_INFO
@@ -5980,8 +5944,8 @@
 #define    MC_CMD_SENSOR_INFO_OUT_LENMIN 4
 #define    MC_CMD_SENSOR_INFO_OUT_LENMAX 252
 #define    MC_CMD_SENSOR_INFO_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_SENSOR_INFO_OUT_LEN(num) (4+8*(num))
-#define    MC_CMD_SENSOR_INFO_OUT_MC_CMD_SENSOR_ENTRY_NUM(len) (((len)-4)/8)
+#define    MC_CMD_SENSOR_INFO_OUT_LEN(num) (4 + 8 * (num))
+#define    MC_CMD_SENSOR_INFO_OUT_MC_CMD_SENSOR_ENTRY_NUM(len) (((len) - 4) / 8)
 #define       MC_CMD_SENSOR_INFO_OUT_MASK_OFST 0
 #define       MC_CMD_SENSOR_INFO_OUT_MASK_LEN 4
 /* enum: Controller temperature: degC */
@@ -6189,23 +6153,24 @@
 #define    MC_CMD_SENSOR_INFO_EXT_OUT_LENMIN 4
 #define    MC_CMD_SENSOR_INFO_EXT_OUT_LENMAX 252
 #define    MC_CMD_SENSOR_INFO_EXT_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_SENSOR_INFO_EXT_OUT_LEN(num) (4+8*(num))
-#define    MC_CMD_SENSOR_INFO_EXT_OUT_MC_CMD_SENSOR_ENTRY_NUM(len) (((len)-4)/8)
+#define    MC_CMD_SENSOR_INFO_EXT_OUT_LEN(num) (4 + 8 * (num))
+#define    MC_CMD_SENSOR_INFO_EXT_OUT_MC_CMD_SENSOR_ENTRY_NUM(len) (((len) \
+  - 4) / 8)
 #define       MC_CMD_SENSOR_INFO_EXT_OUT_MASK_OFST 0
 #define       MC_CMD_SENSOR_INFO_EXT_OUT_MASK_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_SENSOR_INFO_OUT */
+/*            Enum values, see field(s):
+*               MC_CMD_SENSOR_INFO_OUT*/
 #define        MC_CMD_SENSOR_INFO_EXT_OUT_NEXT_PAGE_OFST 0
 #define        MC_CMD_SENSOR_INFO_EXT_OUT_NEXT_PAGE_LBN 31
 #define        MC_CMD_SENSOR_INFO_EXT_OUT_NEXT_PAGE_WIDTH 1
-/* MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF */
-/*            MC_CMD_SENSOR_ENTRY_OFST 4 */
-/*            MC_CMD_SENSOR_ENTRY_LEN 8 */
-/*            MC_CMD_SENSOR_ENTRY_LO_OFST 4 */
-/*            MC_CMD_SENSOR_ENTRY_HI_OFST 8 */
-/*            MC_CMD_SENSOR_ENTRY_MINNUM 0 */
-/*            MC_CMD_SENSOR_ENTRY_MAXNUM 31 */
-/*            MC_CMD_SENSOR_ENTRY_MAXNUM_MCDI2 127 */
+/* MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF
+ *            MC_CMD_SENSOR_ENTRY_OFST 4
+ *            MC_CMD_SENSOR_ENTRY_LEN 8
+ *            MC_CMD_SENSOR_ENTRY_LO_OFST 4
+ *            MC_CMD_SENSOR_ENTRY_HI_OFST 8
+ *            MC_CMD_SENSOR_ENTRY_MINNUM 0
+ *            MC_CMD_SENSOR_ENTRY_MAXNUM 31
+ *            MC_CMD_SENSOR_ENTRY_MAXNUM_MCDI2 127*/
 
 /* MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF structuredef */
 #define    MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_LEN 8
@@ -6225,7 +6190,6 @@
 #define       MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MAX2_LEN 2
 #define       MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MAX2_LBN 48
 #define       MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MAX2_WIDTH 16
-
 
 /***********************************/
 /* MC_CMD_READ_SENSORS
@@ -6327,11 +6291,10 @@
 #define       MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE_WIDTH 8
 #define       MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_TYPE_OFST 3
 #define       MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_TYPE_LEN 1
-/*            Enum values, see field(s): */
-/*               MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK */
+/*            Enum values, see field(s):
+ *               MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK*/
 #define       MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_TYPE_LBN 24
 #define       MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_TYPE_WIDTH 8
-
 
 /***********************************/
 /* MC_CMD_GET_PHY_STATE
@@ -6356,7 +6319,6 @@
 /* enum: Faulty. */
 #define          MC_CMD_PHY_STATE_ZOMBIE 0x2
 
-
 /***********************************/
 /* MC_CMD_SETUP_8021QBB
  * 802.1Qbb control. 8 Tx queues that map to priorities 0 - 7. Use all 1s to
@@ -6371,7 +6333,6 @@
 
 /* MC_CMD_SETUP_8021QBB_OUT msgresponse */
 #define    MC_CMD_SETUP_8021QBB_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_WOL_FILTER_GET
@@ -6390,7 +6351,6 @@
 #define       MC_CMD_WOL_FILTER_GET_OUT_FILTER_ID_OFST 0
 #define       MC_CMD_WOL_FILTER_GET_OUT_FILTER_ID_LEN 4
 
-
 /***********************************/
 /* MC_CMD_ADD_LIGHTSOUT_OFFLOAD
  * Add a protocol offload to NIC for lights-out state. Locks required: None.
@@ -6405,8 +6365,8 @@
 #define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_LENMIN 8
 #define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_LENMAX 252
 #define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_LEN(num) (4+4*(num))
-#define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_DATA_NUM(len) (((len)-4)/4)
+#define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_LEN(num) (4 + 4 * (num))
+#define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_DATA_NUM(len) (((len) - 4) / 4)
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_OFST 0
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_LEN 4
 #define          MC_CMD_LIGHTSOUT_OFFLOAD_PROTOCOL_ARP 0x1 /* enum */
@@ -6419,8 +6379,8 @@
 
 /* MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_ARP msgrequest */
 #define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_ARP_LEN 14
-/*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_OFST 0 */
-/*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_LEN 4 */
+/*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_OFST 0
+*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_LEN 4*/
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_ARP_MAC_OFST 4
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_ARP_MAC_LEN 6
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_ARP_IP_OFST 10
@@ -6428,8 +6388,8 @@
 
 /* MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_NS msgrequest */
 #define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_NS_LEN 42
-/*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_OFST 0 */
-/*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_LEN 4 */
+/*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_OFST 0
+*            MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_PROTOCOL_LEN 4*/
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_NS_MAC_OFST 4
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_NS_MAC_LEN 6
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_IN_NS_SNIPV6_OFST 10
@@ -6441,7 +6401,6 @@
 #define    MC_CMD_ADD_LIGHTSOUT_OFFLOAD_OUT_LEN 4
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_OUT_FILTER_ID_OFST 0
 #define       MC_CMD_ADD_LIGHTSOUT_OFFLOAD_OUT_FILTER_ID_LEN 4
-
 
 /***********************************/
 /* MC_CMD_REMOVE_LIGHTSOUT_OFFLOAD
@@ -6463,7 +6422,6 @@
 /* MC_CMD_REMOVE_LIGHTSOUT_OFFLOAD_OUT msgresponse */
 #define    MC_CMD_REMOVE_LIGHTSOUT_OFFLOAD_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_MAC_RESET_RESTORE
  * Restore MAC after block reset. Locks required: None. Returns: 0.
@@ -6475,7 +6433,6 @@
 
 /* MC_CMD_MAC_RESET_RESTORE_OUT msgresponse */
 #define    MC_CMD_MAC_RESET_RESTORE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_TESTASSERT
@@ -6516,7 +6473,6 @@
 
 /* MC_CMD_TESTASSERT_V2_OUT msgresponse */
 #define    MC_CMD_TESTASSERT_V2_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_WORKAROUND
@@ -6579,7 +6535,6 @@
 #define        MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_LBN 0
 #define        MC_CMD_WORKAROUND_EXT_OUT_FLR_DONE_WIDTH 1
 
-
 /***********************************/
 /* MC_CMD_GET_PHY_MEDIA_INFO
  * Read media-specific data from PHY (e.g. SFP/SFP+ module ID information for
@@ -6603,8 +6558,8 @@
 #define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMIN 5
 #define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX 252
 #define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(num) (4+1*(num))
-#define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_NUM(len) (((len)-4)/1)
+#define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_LEN(num) (4 + 1 * (num))
+#define    MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_NUM(len) (((len) - 4) / 1)
 /* in bytes */
 #define       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATALEN_OFST 0
 #define       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATALEN_LEN 4
@@ -6613,7 +6568,6 @@
 #define       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_MINNUM 1
 #define       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_MAXNUM 248
 #define       MC_CMD_GET_PHY_MEDIA_INFO_OUT_DATA_MAXNUM_MCDI2 1016
-
 
 /***********************************/
 /* MC_CMD_NVRAM_TEST
@@ -6629,8 +6583,8 @@
 #define    MC_CMD_NVRAM_TEST_IN_LEN 4
 #define       MC_CMD_NVRAM_TEST_IN_TYPE_OFST 0
 #define       MC_CMD_NVRAM_TEST_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES */
+/*            Enum values, see field(s):
+ *               MC_CMD_NVRAM_TYPES/MC_CMD_NVRAM_TYPES_OUT/TYPES*/
 
 /* MC_CMD_NVRAM_TEST_OUT msgresponse */
 #define    MC_CMD_NVRAM_TEST_OUT_LEN 4
@@ -6642,7 +6596,6 @@
 #define          MC_CMD_NVRAM_TEST_FAIL 0x1
 /* enum: Not supported. */
 #define          MC_CMD_NVRAM_TEST_NOTSUPP 0x2
-
 
 /***********************************/
 /* MC_CMD_MRSFP_TWEAK
@@ -6686,7 +6639,6 @@
 /* enum: In. */
 #define          MC_CMD_MRSFP_TWEAK_OUT_IOEXP_DIRECTION_IN 0x1
 
-
 /***********************************/
 /* MC_CMD_SENSOR_SET_LIMS
  * Adjusts the sensor limits. This is a warranty-voiding operation. Returns:
@@ -6702,9 +6654,9 @@
 #define    MC_CMD_SENSOR_SET_LIMS_IN_LEN 20
 #define       MC_CMD_SENSOR_SET_LIMS_IN_SENSOR_OFST 0
 #define       MC_CMD_SENSOR_SET_LIMS_IN_SENSOR_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK */
-/* interpretation is is sensor-specific. */
+/*            Enum values, see field(s):
+ *               MC_CMD_SENSOR_INFO/MC_CMD_SENSOR_INFO_OUT/MASK
+ * interpretation is is sensor-specific.*/
 #define       MC_CMD_SENSOR_SET_LIMS_IN_LOW0_OFST 4
 #define       MC_CMD_SENSOR_SET_LIMS_IN_LOW0_LEN 4
 /* interpretation is is sensor-specific. */
@@ -6719,7 +6671,6 @@
 
 /* MC_CMD_SENSOR_SET_LIMS_OUT msgresponse */
 #define    MC_CMD_SENSOR_SET_LIMS_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_RESOURCE_LIMITS
@@ -6740,7 +6691,6 @@
 #define       MC_CMD_GET_RESOURCE_LIMITS_OUT_TXQ_OFST 12
 #define       MC_CMD_GET_RESOURCE_LIMITS_OUT_TXQ_LEN 4
 
-
 /***********************************/
 /* MC_CMD_NVRAM_PARTITIONS
  * Reads the list of available virtual NVRAM partition types. Locks required:
@@ -6758,8 +6708,8 @@
 #define    MC_CMD_NVRAM_PARTITIONS_OUT_LENMIN 4
 #define    MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX 252
 #define    MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_NVRAM_PARTITIONS_OUT_LEN(num) (4+4*(num))
-#define    MC_CMD_NVRAM_PARTITIONS_OUT_TYPE_ID_NUM(len) (((len)-4)/4)
+#define    MC_CMD_NVRAM_PARTITIONS_OUT_LEN(num) (4 + 4 * (num))
+#define    MC_CMD_NVRAM_PARTITIONS_OUT_TYPE_ID_NUM(len) (((len) - 4) / 4)
 /* total number of partitions */
 #define       MC_CMD_NVRAM_PARTITIONS_OUT_NUM_PARTITIONS_OFST 0
 #define       MC_CMD_NVRAM_PARTITIONS_OUT_NUM_PARTITIONS_LEN 4
@@ -6769,7 +6719,6 @@
 #define       MC_CMD_NVRAM_PARTITIONS_OUT_TYPE_ID_MINNUM 0
 #define       MC_CMD_NVRAM_PARTITIONS_OUT_TYPE_ID_MAXNUM 62
 #define       MC_CMD_NVRAM_PARTITIONS_OUT_TYPE_ID_MAXNUM_MCDI2 254
-
 
 /***********************************/
 /* MC_CMD_NVRAM_METADATA
@@ -6791,8 +6740,8 @@
 #define    MC_CMD_NVRAM_METADATA_OUT_LENMIN 20
 #define    MC_CMD_NVRAM_METADATA_OUT_LENMAX 252
 #define    MC_CMD_NVRAM_METADATA_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_NVRAM_METADATA_OUT_LEN(num) (20+1*(num))
-#define    MC_CMD_NVRAM_METADATA_OUT_DESCRIPTION_NUM(len) (((len)-20)/1)
+#define    MC_CMD_NVRAM_METADATA_OUT_LEN(num) (20 + 1 * (num))
+#define    MC_CMD_NVRAM_METADATA_OUT_DESCRIPTION_NUM(len) (((len) - 20) / 1)
 /* Partition type ID code */
 #define       MC_CMD_NVRAM_METADATA_OUT_TYPE_OFST 0
 #define       MC_CMD_NVRAM_METADATA_OUT_TYPE_LEN 4
@@ -6829,7 +6778,6 @@
 #define       MC_CMD_NVRAM_METADATA_OUT_DESCRIPTION_MAXNUM 232
 #define       MC_CMD_NVRAM_METADATA_OUT_DESCRIPTION_MAXNUM_MCDI2 1000
 
-
 /***********************************/
 /* MC_CMD_GET_MAC_ADDRESSES
  * Returns the base MAC, count and stride for the requesting function
@@ -6856,7 +6804,6 @@
 /* Spacing of allocated MAC addresses */
 #define       MC_CMD_GET_MAC_ADDRESSES_OUT_MAC_STRIDE_OFST 12
 #define       MC_CMD_GET_MAC_ADDRESSES_OUT_MAC_STRIDE_LEN 4
-
 
 /***********************************/
 /* MC_CMD_CLP
@@ -6891,16 +6838,16 @@
 
 /* MC_CMD_CLP_IN_DEFAULT msgrequest */
 #define    MC_CMD_CLP_IN_DEFAULT_LEN 4
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+*            MC_CMD_CLP_IN_OP_LEN 4*/
 
 /* MC_CMD_CLP_OUT_DEFAULT msgresponse */
 #define    MC_CMD_CLP_OUT_DEFAULT_LEN 0
 
 /* MC_CMD_CLP_IN_SET_MAC msgrequest */
 #define    MC_CMD_CLP_IN_SET_MAC_LEN 12
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+*            MC_CMD_CLP_IN_OP_LEN 4*/
 /* The MAC address assigned to port. A zero MAC address of 00:00:00:00:00:00
  * restores the permanent (factory-programmed) MAC address associated with the
  * port. A non-zero MAC address persists until a PCIe reset or a power cycle.
@@ -6916,8 +6863,8 @@
 
 /* MC_CMD_CLP_IN_SET_MAC_V2 msgrequest */
 #define    MC_CMD_CLP_IN_SET_MAC_V2_LEN 16
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+*            MC_CMD_CLP_IN_OP_LEN 4*/
 /* The MAC address assigned to port. A zero MAC address of 00:00:00:00:00:00
  * restores the permanent (factory-programmed) MAC address associated with the
  * port. A non-zero MAC address persists until a PCIe reset or a power cycle.
@@ -6935,13 +6882,13 @@
 
 /* MC_CMD_CLP_IN_GET_MAC msgrequest */
 #define    MC_CMD_CLP_IN_GET_MAC_LEN 4
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+*            MC_CMD_CLP_IN_OP_LEN 4*/
 
 /* MC_CMD_CLP_IN_GET_MAC_V2 msgrequest */
 #define    MC_CMD_CLP_IN_GET_MAC_V2_LEN 8
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+*            MC_CMD_CLP_IN_OP_LEN 4*/
 #define       MC_CMD_CLP_IN_GET_MAC_V2_FLAGS_OFST 4
 #define       MC_CMD_CLP_IN_GET_MAC_V2_FLAGS_LEN 4
 #define        MC_CMD_CLP_IN_GET_MAC_V2_PERMANENT_OFST 4
@@ -6959,9 +6906,9 @@
 
 /* MC_CMD_CLP_IN_SET_BOOT msgrequest */
 #define    MC_CMD_CLP_IN_SET_BOOT_LEN 5
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
-/* Boot flag */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+ *            MC_CMD_CLP_IN_OP_LEN 4
+ * Boot flag*/
 #define       MC_CMD_CLP_IN_SET_BOOT_FLAG_OFST 4
 #define       MC_CMD_CLP_IN_SET_BOOT_FLAG_LEN 1
 
@@ -6970,8 +6917,8 @@
 
 /* MC_CMD_CLP_IN_GET_BOOT msgrequest */
 #define    MC_CMD_CLP_IN_GET_BOOT_LEN 4
-/*            MC_CMD_CLP_IN_OP_OFST 0 */
-/*            MC_CMD_CLP_IN_OP_LEN 4 */
+/*            MC_CMD_CLP_IN_OP_OFST 0
+*            MC_CMD_CLP_IN_OP_LEN 4*/
 
 /* MC_CMD_CLP_OUT_GET_BOOT msgresponse */
 #define    MC_CMD_CLP_OUT_GET_BOOT_LEN 4
@@ -6981,7 +6928,6 @@
 /* Padding */
 #define       MC_CMD_CLP_OUT_GET_BOOT_RESERVED_OFST 1
 #define       MC_CMD_CLP_OUT_GET_BOOT_RESERVED_LEN 3
-
 
 /***********************************/
 /* MC_CMD_MUM
@@ -7040,16 +6986,16 @@
 
 /* MC_CMD_MUM_IN_GET_VERSION msgrequest */
 #define    MC_CMD_MUM_IN_GET_VERSION_LEN 4
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 
 /* MC_CMD_MUM_IN_READ msgrequest */
 #define    MC_CMD_MUM_IN_READ_LEN 16
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
-/* ID of (device connected to MUM) to read from registers of */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4
+ * ID of (device connected to MUM) to read from registers of*/
 #define       MC_CMD_MUM_IN_READ_DEVICE_OFST 4
 #define       MC_CMD_MUM_IN_READ_DEVICE_LEN 4
 /* enum: Hittite HMC1035 clock generator on Sorrento board */
@@ -7067,17 +7013,17 @@
 #define    MC_CMD_MUM_IN_WRITE_LENMIN 16
 #define    MC_CMD_MUM_IN_WRITE_LENMAX 252
 #define    MC_CMD_MUM_IN_WRITE_LENMAX_MCDI2 1020
-#define    MC_CMD_MUM_IN_WRITE_LEN(num) (12+4*(num))
-#define    MC_CMD_MUM_IN_WRITE_BUFFER_NUM(len) (((len)-12)/4)
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
-/* ID of (device connected to MUM) to write to registers of */
+#define    MC_CMD_MUM_IN_WRITE_LEN(num) (12 + 4 * (num))
+#define    MC_CMD_MUM_IN_WRITE_BUFFER_NUM(len) (((len) - 12) / 4)
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4
+ * ID of (device connected to MUM) to write to registers of*/
 #define       MC_CMD_MUM_IN_WRITE_DEVICE_OFST 4
 #define       MC_CMD_MUM_IN_WRITE_DEVICE_LEN 4
-/* enum: Hittite HMC1035 clock generator on Sorrento board */
-/*               MC_CMD_MUM_DEV_HITTITE 0x1 */
-/* 32-bit address to write to */
+/* enum: Hittite HMC1035 clock generator on Sorrento board
+ *               MC_CMD_MUM_DEV_HITTITE 0x1
+ * 32-bit address to write to*/
 #define       MC_CMD_MUM_IN_WRITE_ADDR_OFST 8
 #define       MC_CMD_MUM_IN_WRITE_ADDR_LEN 4
 /* Words to write */
@@ -7091,12 +7037,12 @@
 #define    MC_CMD_MUM_IN_RAW_CMD_LENMIN 17
 #define    MC_CMD_MUM_IN_RAW_CMD_LENMAX 252
 #define    MC_CMD_MUM_IN_RAW_CMD_LENMAX_MCDI2 1020
-#define    MC_CMD_MUM_IN_RAW_CMD_LEN(num) (16+1*(num))
-#define    MC_CMD_MUM_IN_RAW_CMD_WRITE_DATA_NUM(len) (((len)-16)/1)
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
-/* MUM I2C cmd code */
+#define    MC_CMD_MUM_IN_RAW_CMD_LEN(num) (16 + 1 * (num))
+#define    MC_CMD_MUM_IN_RAW_CMD_WRITE_DATA_NUM(len) (((len) - 16) / 1)
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4
+ * MUM I2C cmd code*/
 #define       MC_CMD_MUM_IN_RAW_CMD_CMD_CODE_OFST 4
 #define       MC_CMD_MUM_IN_RAW_CMD_CMD_CODE_LEN 4
 /* Number of bytes to write */
@@ -7114,28 +7060,28 @@
 
 /* MC_CMD_MUM_IN_LOG msgrequest */
 #define    MC_CMD_MUM_IN_LOG_LEN 8
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_LOG_OP_OFST 4
 #define       MC_CMD_MUM_IN_LOG_OP_LEN 4
 #define          MC_CMD_MUM_IN_LOG_OP_UART 0x1 /* enum */
 
 /* MC_CMD_MUM_IN_LOG_OP_UART msgrequest */
 #define    MC_CMD_MUM_IN_LOG_OP_UART_LEN 12
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
-/*            MC_CMD_MUM_IN_LOG_OP_OFST 4 */
-/*            MC_CMD_MUM_IN_LOG_OP_LEN 4 */
-/* Enable/disable debug output to UART */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4
+ *            MC_CMD_MUM_IN_LOG_OP_OFST 4
+ *            MC_CMD_MUM_IN_LOG_OP_LEN 4
+ * Enable/disable debug output to UART*/
 #define       MC_CMD_MUM_IN_LOG_OP_UART_ENABLE_OFST 8
 #define       MC_CMD_MUM_IN_LOG_OP_UART_ENABLE_LEN 4
 
 /* MC_CMD_MUM_IN_GPIO msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_LEN 8
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_HDR_LEN 4
 #define        MC_CMD_MUM_IN_GPIO_OPCODE_OFST 4
@@ -7150,15 +7096,15 @@
 
 /* MC_CMD_MUM_IN_GPIO_IN_READ msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_IN_READ_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_IN_READ_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_IN_READ_HDR_LEN 4
 
 /* MC_CMD_MUM_IN_GPIO_OUT_WRITE msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OUT_WRITE_LEN 16
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OUT_WRITE_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OUT_WRITE_HDR_LEN 4
 /* The first 32-bit word to be written to the GPIO OUT register. */
@@ -7170,15 +7116,15 @@
 
 /* MC_CMD_MUM_IN_GPIO_OUT_READ msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OUT_READ_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OUT_READ_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OUT_READ_HDR_LEN 4
 
 /* MC_CMD_MUM_IN_GPIO_OUT_ENABLE_WRITE msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OUT_ENABLE_WRITE_LEN 16
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OUT_ENABLE_WRITE_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OUT_ENABLE_WRITE_HDR_LEN 4
 /* The first 32-bit word to be written to the GPIO OUT ENABLE register. */
@@ -7190,15 +7136,15 @@
 
 /* MC_CMD_MUM_IN_GPIO_OUT_ENABLE_READ msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OUT_ENABLE_READ_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OUT_ENABLE_READ_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OUT_ENABLE_READ_HDR_LEN 4
 
 /* MC_CMD_MUM_IN_GPIO_OP msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OP_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OP_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OP_HDR_LEN 4
 #define        MC_CMD_MUM_IN_GPIO_OP_BITWISE_OP_OFST 4
@@ -7214,15 +7160,15 @@
 
 /* MC_CMD_MUM_IN_GPIO_OP_OUT_READ msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OP_OUT_READ_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_READ_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_READ_HDR_LEN 4
 
 /* MC_CMD_MUM_IN_GPIO_OP_OUT_WRITE msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OP_OUT_WRITE_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_WRITE_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_WRITE_HDR_LEN 4
 #define        MC_CMD_MUM_IN_GPIO_OP_OUT_WRITE_WRITEBIT_OFST 4
@@ -7231,8 +7177,8 @@
 
 /* MC_CMD_MUM_IN_GPIO_OP_OUT_CONFIG msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OP_OUT_CONFIG_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_CONFIG_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_CONFIG_HDR_LEN 4
 #define        MC_CMD_MUM_IN_GPIO_OP_OUT_CONFIG_CFG_OFST 4
@@ -7241,8 +7187,8 @@
 
 /* MC_CMD_MUM_IN_GPIO_OP_OUT_ENABLE msgrequest */
 #define    MC_CMD_MUM_IN_GPIO_OP_OUT_ENABLE_LEN 8
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_ENABLE_HDR_OFST 4
 #define       MC_CMD_MUM_IN_GPIO_OP_OUT_ENABLE_HDR_LEN 4
 #define        MC_CMD_MUM_IN_GPIO_OP_OUT_ENABLE_ENABLEBIT_OFST 4
@@ -7251,9 +7197,9 @@
 
 /* MC_CMD_MUM_IN_READ_SENSORS msgrequest */
 #define    MC_CMD_MUM_IN_READ_SENSORS_LEN 8
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_READ_SENSORS_PARAMS_OFST 4
 #define       MC_CMD_MUM_IN_READ_SENSORS_PARAMS_LEN 4
 #define        MC_CMD_MUM_IN_READ_SENSORS_SENSOR_ID_OFST 4
@@ -7265,10 +7211,10 @@
 
 /* MC_CMD_MUM_IN_PROGRAM_CLOCKS msgrequest */
 #define    MC_CMD_MUM_IN_PROGRAM_CLOCKS_LEN 12
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
-/* Bit-mask of clocks to be programmed */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4
+ * Bit-mask of clocks to be programmed*/
 #define       MC_CMD_MUM_IN_PROGRAM_CLOCKS_MASK_OFST 4
 #define       MC_CMD_MUM_IN_PROGRAM_CLOCKS_MASK_LEN 4
 #define          MC_CMD_MUM_CLOCK_ID_FPGA 0x0 /* enum */
@@ -7289,24 +7235,24 @@
 
 /* MC_CMD_MUM_IN_FPGA_LOAD msgrequest */
 #define    MC_CMD_MUM_IN_FPGA_LOAD_LEN 8
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
-/* Enable/Disable FPGA config from flash */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4
+ * Enable/Disable FPGA config from flash*/
 #define       MC_CMD_MUM_IN_FPGA_LOAD_ENABLE_OFST 4
 #define       MC_CMD_MUM_IN_FPGA_LOAD_ENABLE_LEN 4
 
 /* MC_CMD_MUM_IN_READ_ATB_SENSOR msgrequest */
 #define    MC_CMD_MUM_IN_READ_ATB_SENSOR_LEN 4
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 
 /* MC_CMD_MUM_IN_QSFP msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_LEN 12
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_HDR_LEN 4
 #define        MC_CMD_MUM_IN_QSFP_OPCODE_OFST 4
@@ -7323,8 +7269,8 @@
 
 /* MC_CMD_MUM_IN_QSFP_INIT msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_INIT_LEN 16
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_INIT_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_INIT_HDR_LEN 4
 #define       MC_CMD_MUM_IN_QSFP_INIT_IDX_OFST 8
@@ -7334,8 +7280,8 @@
 
 /* MC_CMD_MUM_IN_QSFP_RECONFIGURE msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_RECONFIGURE_LEN 24
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_RECONFIGURE_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_RECONFIGURE_HDR_LEN 4
 #define       MC_CMD_MUM_IN_QSFP_RECONFIGURE_IDX_OFST 8
@@ -7349,8 +7295,8 @@
 
 /* MC_CMD_MUM_IN_QSFP_GET_SUPPORTED_CAP msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_GET_SUPPORTED_CAP_LEN 12
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_GET_SUPPORTED_CAP_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_GET_SUPPORTED_CAP_HDR_LEN 4
 #define       MC_CMD_MUM_IN_QSFP_GET_SUPPORTED_CAP_IDX_OFST 8
@@ -7358,8 +7304,8 @@
 
 /* MC_CMD_MUM_IN_QSFP_GET_MEDIA_INFO msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_GET_MEDIA_INFO_LEN 16
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_GET_MEDIA_INFO_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_GET_MEDIA_INFO_HDR_LEN 4
 #define       MC_CMD_MUM_IN_QSFP_GET_MEDIA_INFO_IDX_OFST 8
@@ -7369,8 +7315,8 @@
 
 /* MC_CMD_MUM_IN_QSFP_FILL_STATS msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_FILL_STATS_LEN 12
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_FILL_STATS_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_FILL_STATS_HDR_LEN 4
 #define       MC_CMD_MUM_IN_QSFP_FILL_STATS_IDX_OFST 8
@@ -7378,8 +7324,8 @@
 
 /* MC_CMD_MUM_IN_QSFP_POLL_BIST msgrequest */
 #define    MC_CMD_MUM_IN_QSFP_POLL_BIST_LEN 12
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/*            MC_CMD_MUM_IN_CMD_OFST 0
+*            MC_CMD_MUM_IN_CMD_LEN 4*/
 #define       MC_CMD_MUM_IN_QSFP_POLL_BIST_HDR_OFST 4
 #define       MC_CMD_MUM_IN_QSFP_POLL_BIST_HDR_LEN 4
 #define       MC_CMD_MUM_IN_QSFP_POLL_BIST_IDX_OFST 8
@@ -7387,9 +7333,9 @@
 
 /* MC_CMD_MUM_IN_READ_DDR_INFO msgrequest */
 #define    MC_CMD_MUM_IN_READ_DDR_INFO_LEN 4
-/* MUM cmd header */
-/*            MC_CMD_MUM_IN_CMD_OFST 0 */
-/*            MC_CMD_MUM_IN_CMD_LEN 4 */
+/* MUM cmd header
+ *            MC_CMD_MUM_IN_CMD_OFST 0
+ *            MC_CMD_MUM_IN_CMD_LEN 4*/
 
 /* MC_CMD_MUM_OUT msgresponse */
 #define    MC_CMD_MUM_OUT_LEN 0
@@ -7410,8 +7356,8 @@
 #define    MC_CMD_MUM_OUT_RAW_CMD_LENMIN 1
 #define    MC_CMD_MUM_OUT_RAW_CMD_LENMAX 252
 #define    MC_CMD_MUM_OUT_RAW_CMD_LENMAX_MCDI2 1020
-#define    MC_CMD_MUM_OUT_RAW_CMD_LEN(num) (0+1*(num))
-#define    MC_CMD_MUM_OUT_RAW_CMD_DATA_NUM(len) (((len)-0)/1)
+#define    MC_CMD_MUM_OUT_RAW_CMD_LEN(num) (0 + 1 * (num))
+#define    MC_CMD_MUM_OUT_RAW_CMD_DATA_NUM(len) (((len) - 0) / 1)
 /* returned data */
 #define       MC_CMD_MUM_OUT_RAW_CMD_DATA_OFST 0
 #define       MC_CMD_MUM_OUT_RAW_CMD_DATA_LEN 1
@@ -7423,8 +7369,8 @@
 #define    MC_CMD_MUM_OUT_READ_LENMIN 4
 #define    MC_CMD_MUM_OUT_READ_LENMAX 252
 #define    MC_CMD_MUM_OUT_READ_LENMAX_MCDI2 1020
-#define    MC_CMD_MUM_OUT_READ_LEN(num) (0+4*(num))
-#define    MC_CMD_MUM_OUT_READ_BUFFER_NUM(len) (((len)-0)/4)
+#define    MC_CMD_MUM_OUT_READ_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_MUM_OUT_READ_BUFFER_NUM(len) (((len) - 0) / 4)
 #define       MC_CMD_MUM_OUT_READ_BUFFER_OFST 0
 #define       MC_CMD_MUM_OUT_READ_BUFFER_LEN 4
 #define       MC_CMD_MUM_OUT_READ_BUFFER_MINNUM 1
@@ -7489,8 +7435,8 @@
 #define    MC_CMD_MUM_OUT_READ_SENSORS_LENMIN 4
 #define    MC_CMD_MUM_OUT_READ_SENSORS_LENMAX 252
 #define    MC_CMD_MUM_OUT_READ_SENSORS_LENMAX_MCDI2 1020
-#define    MC_CMD_MUM_OUT_READ_SENSORS_LEN(num) (0+4*(num))
-#define    MC_CMD_MUM_OUT_READ_SENSORS_DATA_NUM(len) (((len)-0)/4)
+#define    MC_CMD_MUM_OUT_READ_SENSORS_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_MUM_OUT_READ_SENSORS_DATA_NUM(len) (((len) - 0) / 4)
 #define       MC_CMD_MUM_OUT_READ_SENSORS_DATA_OFST 0
 #define       MC_CMD_MUM_OUT_READ_SENSORS_DATA_LEN 4
 #define       MC_CMD_MUM_OUT_READ_SENSORS_DATA_MINNUM 1
@@ -7544,8 +7490,8 @@
 #define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_LENMIN 5
 #define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_LENMAX 252
 #define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_LENMAX_MCDI2 1020
-#define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_LEN(num) (4+1*(num))
-#define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_DATA_NUM(len) (((len)-4)/1)
+#define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_LEN(num) (4 + 1 * (num))
+#define    MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_DATA_NUM(len) (((len) - 4) / 1)
 /* in bytes */
 #define       MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_DATALEN_OFST 0
 #define       MC_CMD_MUM_OUT_QSFP_GET_MEDIA_INFO_DATALEN_LEN 4
@@ -7557,8 +7503,10 @@
 
 /* MC_CMD_MUM_OUT_QSFP_FILL_STATS msgresponse */
 #define    MC_CMD_MUM_OUT_QSFP_FILL_STATS_LEN 8
-#define       MC_CMD_MUM_OUT_QSFP_FILL_STATS_PORT_PHY_STATS_PMA_PMD_LINK_UP_OFST 0
-#define       MC_CMD_MUM_OUT_QSFP_FILL_STATS_PORT_PHY_STATS_PMA_PMD_LINK_UP_LEN 4
+#define       MC_CMD_MUM_OUT_QSFP_FILL_STATS_PORT_PHY_STATS_PMA_PMD_LINK_UP_OFST \
+  0
+#define       MC_CMD_MUM_OUT_QSFP_FILL_STATS_PORT_PHY_STATS_PMA_PMD_LINK_UP_LEN \
+  4
 #define       MC_CMD_MUM_OUT_QSFP_FILL_STATS_PORT_PHY_STATS_PCS_LINK_UP_OFST 4
 #define       MC_CMD_MUM_OUT_QSFP_FILL_STATS_PORT_PHY_STATS_PCS_LINK_UP_LEN 4
 
@@ -7571,8 +7519,9 @@
 #define    MC_CMD_MUM_OUT_READ_DDR_INFO_LENMIN 24
 #define    MC_CMD_MUM_OUT_READ_DDR_INFO_LENMAX 248
 #define    MC_CMD_MUM_OUT_READ_DDR_INFO_LENMAX_MCDI2 1016
-#define    MC_CMD_MUM_OUT_READ_DDR_INFO_LEN(num) (8+8*(num))
-#define    MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_NUM(len) (((len)-8)/8)
+#define    MC_CMD_MUM_OUT_READ_DDR_INFO_LEN(num) (8 + 8 * (num))
+#define    MC_CMD_MUM_OUT_READ_DDR_INFO_SODIMM_INFO_RECORD_NUM(len) (((len) \
+  - 8) / 8)
 /* Discrete (soldered) DDR resistor strap info */
 #define       MC_CMD_MUM_OUT_READ_DDR_INFO_DISCRETE_DDR_INFO_OFST 0
 #define       MC_CMD_MUM_OUT_READ_DDR_INFO_DISCRETE_DDR_INFO_LEN 4
@@ -7756,7 +7705,6 @@
 #define       MC_CMD_DYNAMIC_SENSORS_READING_STATE_LBN 64
 #define       MC_CMD_DYNAMIC_SENSORS_READING_STATE_WIDTH 32
 
-
 /***********************************/
 /* MC_CMD_DYNAMIC_SENSORS_LIST
  * Return a complete list of handles for sensors currently managed by the MC,
@@ -7797,8 +7745,8 @@
 #define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_LENMIN 8
 #define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_LENMAX 252
 #define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_LEN(num) (8+4*(num))
-#define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_HANDLES_NUM(len) (((len)-8)/4)
+#define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_LEN(num) (8 + 4 * (num))
+#define    MC_CMD_DYNAMIC_SENSORS_LIST_OUT_HANDLES_NUM(len) (((len) - 8) / 4)
 /* Generation count, which will be updated each time a sensor is added to or
  * removed from the MC sensor table.
  */
@@ -7815,7 +7763,6 @@
 #define       MC_CMD_DYNAMIC_SENSORS_LIST_OUT_HANDLES_MINNUM 0
 #define       MC_CMD_DYNAMIC_SENSORS_LIST_OUT_HANDLES_MAXNUM 61
 #define       MC_CMD_DYNAMIC_SENSORS_LIST_OUT_HANDLES_MAXNUM_MCDI2 253
-
 
 /***********************************/
 /* MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS
@@ -7839,28 +7786,31 @@
 #define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_LENMIN 0
 #define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_LENMAX 252
 #define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_LEN(num) (0+4*(num))
-#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_NUM(len) (((len)-0)/4)
+#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_NUM(len) (((len) \
+  - 0) / 4)
 /* Array of sensor handles */
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_OFST 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_LEN 4
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_MINNUM 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_MAXNUM 63
-#define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_MAXNUM_MCDI2 255
+#define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_IN_HANDLES_MAXNUM_MCDI2 \
+  255
 
 /* MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT msgresponse */
 #define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_LENMIN 0
 #define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_LENMAX 192
 #define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_LENMAX_MCDI2 960
-#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_LEN(num) (0+64*(num))
-#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_NUM(len) (((len)-0)/64)
+#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_LEN(num) (0 + 64 * (num))
+#define    MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_NUM(len) (((len) \
+  - 0) / 64)
 /* Array of MC_CMD_DYNAMIC_SENSORS_DESCRIPTION structures */
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_OFST 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_LEN 64
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_MINNUM 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_MAXNUM 3
-#define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_MAXNUM_MCDI2 15
-
+#define       MC_CMD_DYNAMIC_SENSORS_GET_DESCRIPTIONS_OUT_SENSORS_MAXNUM_MCDI2 \
+  15
 
 /***********************************/
 /* MC_CMD_DYNAMIC_SENSORS_GET_READINGS
@@ -7888,8 +7838,9 @@
 #define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_LENMIN 0
 #define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_LENMAX 252
 #define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_LEN(num) (0+4*(num))
-#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_HANDLES_NUM(len) (((len)-0)/4)
+#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_HANDLES_NUM(len) (((len) \
+  - 0) / 4)
 /* Array of sensor handles */
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_HANDLES_OFST 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_IN_HANDLES_LEN 4
@@ -7901,15 +7852,15 @@
 #define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_LENMIN 0
 #define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_LENMAX 252
 #define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_LEN(num) (0+12*(num))
-#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_NUM(len) (((len)-0)/12)
+#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_LEN(num) (0 + 12 * (num))
+#define    MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_NUM(len) (((len) \
+  - 0) / 12)
 /* Array of MC_CMD_DYNAMIC_SENSORS_READING structures */
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_OFST 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_LEN 12
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_MINNUM 0
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_MAXNUM 21
 #define       MC_CMD_DYNAMIC_SENSORS_GET_READINGS_OUT_VALUES_MAXNUM_MCDI2 85
-
 
 /***********************************/
 /* MC_CMD_EVENT_CTRL
@@ -7925,8 +7876,8 @@
 #define    MC_CMD_EVENT_CTRL_IN_LENMIN 0
 #define    MC_CMD_EVENT_CTRL_IN_LENMAX 252
 #define    MC_CMD_EVENT_CTRL_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_EVENT_CTRL_IN_LEN(num) (0+4*(num))
-#define    MC_CMD_EVENT_CTRL_IN_EVENT_TYPE_NUM(len) (((len)-0)/4)
+#define    MC_CMD_EVENT_CTRL_IN_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_EVENT_CTRL_IN_EVENT_TYPE_NUM(len) (((len) - 0) / 4)
 /* Array of event categories for which the driver wishes to receive events. */
 #define       MC_CMD_EVENT_CTRL_IN_EVENT_TYPE_OFST 0
 #define       MC_CMD_EVENT_CTRL_IN_EVENT_TYPE_LEN 4
@@ -8375,7 +8326,6 @@
 #define       CTPIO_STATS_MAP_BUCKET_LBN 16
 #define       CTPIO_STATS_MAP_BUCKET_WIDTH 16
 
-
 /***********************************/
 /* MC_CMD_READ_REGS
  * Get a dump of the MCPU registers
@@ -8400,7 +8350,6 @@
 #define       MC_CMD_READ_REGS_OUT_REGS_LEN 4
 #define       MC_CMD_READ_REGS_OUT_REGS_NUM 73
 
-
 /***********************************/
 /* MC_CMD_INIT_EVQ
  * Set up an event queue according to the supplied parameters. The IN arguments
@@ -8415,8 +8364,8 @@
 #define    MC_CMD_INIT_EVQ_IN_LENMIN 44
 #define    MC_CMD_INIT_EVQ_IN_LENMAX 548
 #define    MC_CMD_INIT_EVQ_IN_LENMAX_MCDI2 548
-#define    MC_CMD_INIT_EVQ_IN_LEN(num) (36+8*(num))
-#define    MC_CMD_INIT_EVQ_IN_DMA_ADDR_NUM(len) (((len)-36)/8)
+#define    MC_CMD_INIT_EVQ_IN_LEN(num) (36 + 8 * (num))
+#define    MC_CMD_INIT_EVQ_IN_DMA_ADDR_NUM(len) (((len) - 36) / 8)
 /* Size, in entries */
 #define       MC_CMD_INIT_EVQ_IN_SIZE_OFST 0
 #define       MC_CMD_INIT_EVQ_IN_SIZE_LEN 4
@@ -8508,8 +8457,8 @@
 #define    MC_CMD_INIT_EVQ_V2_IN_LENMIN 44
 #define    MC_CMD_INIT_EVQ_V2_IN_LENMAX 548
 #define    MC_CMD_INIT_EVQ_V2_IN_LENMAX_MCDI2 548
-#define    MC_CMD_INIT_EVQ_V2_IN_LEN(num) (36+8*(num))
-#define    MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_NUM(len) (((len)-36)/8)
+#define    MC_CMD_INIT_EVQ_V2_IN_LEN(num) (36 + 8 * (num))
+#define    MC_CMD_INIT_EVQ_V2_IN_DMA_ADDR_NUM(len) (((len) - 36) / 8)
 /* Size, in entries */
 #define       MC_CMD_INIT_EVQ_V2_IN_SIZE_OFST 0
 #define       MC_CMD_INIT_EVQ_V2_IN_SIZE_LEN 4
@@ -8656,7 +8605,6 @@
 #define       QUEUE_CRC_MODE_SPARE_LBN 4
 #define       QUEUE_CRC_MODE_SPARE_WIDTH 4
 
-
 /***********************************/
 /* MC_CMD_INIT_RXQ
  * set up a receive queue according to the supplied parameters. The IN
@@ -8674,8 +8622,8 @@
 #define    MC_CMD_INIT_RXQ_IN_LENMIN 36
 #define    MC_CMD_INIT_RXQ_IN_LENMAX 252
 #define    MC_CMD_INIT_RXQ_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_INIT_RXQ_IN_LEN(num) (28+8*(num))
-#define    MC_CMD_INIT_RXQ_IN_DMA_ADDR_NUM(len) (((len)-28)/8)
+#define    MC_CMD_INIT_RXQ_IN_LEN(num) (28 + 8 * (num))
+#define    MC_CMD_INIT_RXQ_IN_DMA_ADDR_NUM(len) (((len) - 28) / 8)
 /* Size, in entries */
 #define       MC_CMD_INIT_RXQ_IN_SIZE_OFST 0
 #define       MC_CMD_INIT_RXQ_IN_SIZE_LEN 4
@@ -9256,7 +9204,6 @@
 /* MC_CMD_INIT_RXQ_V5_OUT msgresponse */
 #define    MC_CMD_INIT_RXQ_V5_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_INIT_TXQ
  */
@@ -9271,8 +9218,8 @@
 #define    MC_CMD_INIT_TXQ_IN_LENMIN 36
 #define    MC_CMD_INIT_TXQ_IN_LENMAX 252
 #define    MC_CMD_INIT_TXQ_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_INIT_TXQ_IN_LEN(num) (28+8*(num))
-#define    MC_CMD_INIT_TXQ_IN_DMA_ADDR_NUM(len) (((len)-28)/8)
+#define    MC_CMD_INIT_TXQ_IN_LEN(num) (28 + 8 * (num))
+#define    MC_CMD_INIT_TXQ_IN_DMA_ADDR_NUM(len) (((len) - 28) / 8)
 /* Size, in entries */
 #define       MC_CMD_INIT_TXQ_IN_SIZE_OFST 0
 #define       MC_CMD_INIT_TXQ_IN_SIZE_LEN 4
@@ -9426,7 +9373,6 @@
 /* MC_CMD_INIT_TXQ_OUT msgresponse */
 #define    MC_CMD_INIT_TXQ_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_FINI_EVQ
  * Teardown an EVQ.
@@ -9450,7 +9396,6 @@
 /* MC_CMD_FINI_EVQ_OUT msgresponse */
 #define    MC_CMD_FINI_EVQ_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_FINI_RXQ
  * Teardown a RXQ.
@@ -9469,7 +9414,6 @@
 /* MC_CMD_FINI_RXQ_OUT msgresponse */
 #define    MC_CMD_FINI_RXQ_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_FINI_TXQ
  * Teardown a TXQ.
@@ -9487,7 +9431,6 @@
 
 /* MC_CMD_FINI_TXQ_OUT msgresponse */
 #define    MC_CMD_FINI_TXQ_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_DRIVER_EVENT
@@ -9511,7 +9454,6 @@
 
 /* MC_CMD_DRIVER_EVENT_OUT msgresponse */
 #define    MC_CMD_DRIVER_EVENT_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_ALLOC_BUFTBL_CHUNK
@@ -9545,7 +9487,6 @@
 #define       MC_CMD_ALLOC_BUFTBL_CHUNK_OUT_ID_OFST 8
 #define       MC_CMD_ALLOC_BUFTBL_CHUNK_OUT_ID_LEN 4
 
-
 /***********************************/
 /* MC_CMD_PROGRAM_BUFTBL_ENTRIES
  * Reprogram a set of buffer table entries in the specified chunk.
@@ -9559,8 +9500,8 @@
 #define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_LENMIN 20
 #define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_LENMAX 268
 #define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_LENMAX_MCDI2 268
-#define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_LEN(num) (12+8*(num))
-#define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_ENTRY_NUM(len) (((len)-12)/8)
+#define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_LEN(num) (12 + 8 * (num))
+#define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_ENTRY_NUM(len) (((len) - 12) / 8)
 #define       MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_HANDLE_OFST 0
 #define       MC_CMD_PROGRAM_BUFTBL_ENTRIES_IN_HANDLE_LEN 4
 /* ID */
@@ -9581,7 +9522,6 @@
 /* MC_CMD_PROGRAM_BUFTBL_ENTRIES_OUT msgresponse */
 #define    MC_CMD_PROGRAM_BUFTBL_ENTRIES_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_FREE_BUFTBL_CHUNK
  */
@@ -9597,7 +9537,6 @@
 
 /* MC_CMD_FREE_BUFTBL_CHUNK_OUT msgresponse */
 #define    MC_CMD_FREE_BUFTBL_CHUNK_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_FILTER_OP
@@ -9779,9 +9718,9 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_FILTER_OP_EXT_IN_OP_OFST 0
 #define       MC_CMD_FILTER_OP_EXT_IN_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_FILTER_OP_IN/OP */
-/* filter handle (for remove / unsubscribe operations) */
+/*            Enum values, see field(s):
+ *               MC_CMD_FILTER_OP_IN/OP
+ * filter handle (for remove / unsubscribe operations)*/
 #define       MC_CMD_FILTER_OP_EXT_IN_HANDLE_OFST 4
 #define       MC_CMD_FILTER_OP_EXT_IN_HANDLE_LEN 8
 #define       MC_CMD_FILTER_OP_EXT_IN_HANDLE_LO_OFST 4
@@ -10057,9 +9996,9 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_FILTER_OP_V3_IN_OP_OFST 0
 #define       MC_CMD_FILTER_OP_V3_IN_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_FILTER_OP_IN/OP */
-/* filter handle (for remove / unsubscribe operations) */
+/*            Enum values, see field(s):
+ *               MC_CMD_FILTER_OP_IN/OP
+ * filter handle (for remove / unsubscribe operations)*/
 #define       MC_CMD_FILTER_OP_V3_IN_HANDLE_OFST 4
 #define       MC_CMD_FILTER_OP_V3_IN_HANDLE_LEN 8
 #define       MC_CMD_FILTER_OP_V3_IN_HANDLE_LO_OFST 4
@@ -10356,8 +10295,8 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_FILTER_OP_OUT_OP_OFST 0
 #define       MC_CMD_FILTER_OP_OUT_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_FILTER_OP_IN/OP */
+/*            Enum values, see field(s):
+*               MC_CMD_FILTER_OP_IN/OP*/
 /* Returned filter handle (for insert / subscribe operations). Note that these
  * handles should be considered opaque to the host, although a value of
  * 0xFFFFFFFF_FFFFFFFF is guaranteed never to be a valid handle.
@@ -10376,8 +10315,8 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_FILTER_OP_EXT_OUT_OP_OFST 0
 #define       MC_CMD_FILTER_OP_EXT_OUT_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_FILTER_OP_EXT_IN/OP */
+/*            Enum values, see field(s):
+ *               MC_CMD_FILTER_OP_EXT_IN/OP*/
 /* Returned filter handle (for insert / subscribe operations). Note that these
  * handles should be considered opaque to the host, although a value of
  * 0xFFFFFFFF_FFFFFFFF is guaranteed never to be a valid handle.
@@ -10386,9 +10325,8 @@
 #define       MC_CMD_FILTER_OP_EXT_OUT_HANDLE_LEN 8
 #define       MC_CMD_FILTER_OP_EXT_OUT_HANDLE_LO_OFST 4
 #define       MC_CMD_FILTER_OP_EXT_OUT_HANDLE_HI_OFST 8
-/*            Enum values, see field(s): */
-/*               MC_CMD_FILTER_OP_OUT/HANDLE */
-
+/*            Enum values, see field(s):
+ *               MC_CMD_FILTER_OP_OUT/HANDLE*/
 
 /***********************************/
 /* MC_CMD_GET_PARSER_DISP_INFO
@@ -10418,24 +10356,27 @@
  * encapsulated frames, which follow a different match sequence to normal
  * frames (Medford only)
  */
-#define          MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SUPPORTED_ENCAP_RX_MATCHES 0x4
+#define          \
+  MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SUPPORTED_ENCAP_RX_MATCHES 0x4
 /* enum: read the list of supported matches for the encapsulation detection
  * rules inserted by MC_CMD_VNIC_ENCAP_RULE_ADD. (ef100 and later)
  */
-#define          MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SUPPORTED_VNIC_ENCAP_MATCHES 0x5
+#define          \
+  MC_CMD_GET_PARSER_DISP_INFO_IN_OP_GET_SUPPORTED_VNIC_ENCAP_MATCHES 0x5
 
 /* MC_CMD_GET_PARSER_DISP_INFO_OUT msgresponse */
 #define    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMIN 8
 #define    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX 252
 #define    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_GET_PARSER_DISP_INFO_OUT_LEN(num) (8+4*(num))
-#define    MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_NUM(len) (((len)-8)/4)
+#define    MC_CMD_GET_PARSER_DISP_INFO_OUT_LEN(num) (8 + 4 * (num))
+#define    MC_CMD_GET_PARSER_DISP_INFO_OUT_SUPPORTED_MATCHES_NUM(len) (((len) \
+  - 8) / 4)
 /* identifies the type of operation requested */
 #define       MC_CMD_GET_PARSER_DISP_INFO_OUT_OP_OFST 0
 #define       MC_CMD_GET_PARSER_DISP_INFO_OUT_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_PARSER_DISP_INFO_IN/OP */
-/* number of supported match types */
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_PARSER_DISP_INFO_IN/OP
+ * number of supported match types*/
 #define       MC_CMD_GET_PARSER_DISP_INFO_OUT_NUM_SUPPORTED_MATCHES_OFST 4
 #define       MC_CMD_GET_PARSER_DISP_INFO_OUT_NUM_SUPPORTED_MATCHES_LEN 4
 /* array of supported match types (valid MATCH_FIELDS values for
@@ -10452,9 +10393,9 @@
 /* identifies the type of operation requested */
 #define       MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_OP_OFST 0
 #define       MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_PARSER_DISP_INFO_IN/OP */
-/* bitfield of filter insertion restrictions */
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_PARSER_DISP_INFO_IN/OP
+ * bitfield of filter insertion restrictions*/
 #define       MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_RESTRICTION_FLAGS_OFST 4
 #define       MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_RESTRICTION_FLAGS_LEN 4
 #define        MC_CMD_GET_PARSER_DISP_RESTRICTIONS_OUT_DST_IP_MCAST_ONLY_OFST 4
@@ -10470,25 +10411,34 @@
 #define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_LENMIN 8
 #define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_LENMAX 252
 #define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_LEN(num) (8+4*(num))
-#define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_NUM(len) (((len)-8)/4)
+#define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_LEN(num) (8 + 4 \
+  * (num))
+#define    MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_NUM( \
+    len) (((len) - 8) / 4)
 /* The op code OP_GET_SUPPORTED_VNIC_ENCAP_MATCHES is returned. */
 #define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_OP_OFST 0
 #define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_OP_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_GET_PARSER_DISP_INFO_IN/OP */
-/* number of supported match types */
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_NUM_SUPPORTED_MATCHES_OFST 4
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_NUM_SUPPORTED_MATCHES_LEN 4
+/*            Enum values, see field(s):
+ *               MC_CMD_GET_PARSER_DISP_INFO_IN/OP
+ * number of supported match types*/
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_NUM_SUPPORTED_MATCHES_OFST 4
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_NUM_SUPPORTED_MATCHES_LEN 4
 /* array of supported match types (valid MATCH_FLAGS values for
  * MC_CMD_VNIC_ENCAP_RULE_ADD) sorted in decreasing priority order
  */
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_OFST 8
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_LEN 4
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_MINNUM 0
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_MAXNUM 61
-#define       MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_MAXNUM_MCDI2 253
-
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_OFST 8
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_LEN 4
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_MINNUM 0
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_MAXNUM 61
+#define       \
+  MC_CMD_GET_PARSER_DISP_VNIC_ENCAP_MATCHES_OUT_SUPPORTED_MATCHES_MAXNUM_MCDI2 \
+  253
 
 /***********************************/
 /* MC_CMD_GET_PORT_ASSIGNMENT
@@ -10508,7 +10458,6 @@
 #define       MC_CMD_GET_PORT_ASSIGNMENT_OUT_PORT_OFST 0
 #define       MC_CMD_GET_PORT_ASSIGNMENT_OUT_PORT_LEN 4
 
-
 /***********************************/
 /* MC_CMD_SET_PORT_ASSIGNMENT
  * Set port assignment for current PCI function.
@@ -10526,7 +10475,6 @@
 
 /* MC_CMD_SET_PORT_ASSIGNMENT_OUT msgresponse */
 #define    MC_CMD_SET_PORT_ASSIGNMENT_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_ALLOC_VIS
@@ -10573,7 +10521,6 @@
 #define       MC_CMD_ALLOC_VIS_EXT_OUT_VI_SHIFT_OFST 8
 #define       MC_CMD_ALLOC_VIS_EXT_OUT_VI_SHIFT_LEN 4
 
-
 /***********************************/
 /* MC_CMD_FREE_VIS
  * Free VIs for current PCI function. Any linked PIO buffers will be unlinked,
@@ -10589,7 +10536,6 @@
 
 /* MC_CMD_FREE_VIS_OUT msgresponse */
 #define    MC_CMD_FREE_VIS_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_SRIOV_CFG
@@ -10622,7 +10568,6 @@
 /* RID offset of each subsequent VF from the previous. */
 #define       MC_CMD_GET_SRIOV_CFG_OUT_VF_STRIDE_OFST 16
 #define       MC_CMD_GET_SRIOV_CFG_OUT_VF_STRIDE_LEN 4
-
 
 /***********************************/
 /* MC_CMD_SET_SRIOV_CFG
@@ -10660,7 +10605,6 @@
 /* MC_CMD_SET_SRIOV_CFG_OUT msgresponse */
 #define    MC_CMD_SET_SRIOV_CFG_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_GET_VI_ALLOC_INFO
  * Get information about number of VI's and base VI number allocated to this
@@ -10687,7 +10631,6 @@
 /* Function's port vi_shift value (always 0 on Huntington) */
 #define       MC_CMD_GET_VI_ALLOC_INFO_OUT_VI_SHIFT_OFST 8
 #define       MC_CMD_GET_VI_ALLOC_INFO_OUT_VI_SHIFT_LEN 4
-
 
 /***********************************/
 /* MC_CMD_DUMP_VI_STATE
@@ -10814,7 +10757,6 @@
 #define        MC_CMD_DUMP_VI_STATE_OUT_VI_RX_META_WAITCOUNT_LBN 32
 #define        MC_CMD_DUMP_VI_STATE_OUT_VI_RX_META_WAITCOUNT_WIDTH 8
 
-
 /***********************************/
 /* MC_CMD_ALLOC_PIOBUF
  * Allocate a push I/O buffer for later use with a tx queue.
@@ -10833,7 +10775,6 @@
 #define       MC_CMD_ALLOC_PIOBUF_OUT_PIOBUF_HANDLE_OFST 0
 #define       MC_CMD_ALLOC_PIOBUF_OUT_PIOBUF_HANDLE_LEN 4
 
-
 /***********************************/
 /* MC_CMD_FREE_PIOBUF
  * Free a push I/O buffer.
@@ -10851,7 +10792,6 @@
 
 /* MC_CMD_FREE_PIOBUF_OUT msgresponse */
 #define    MC_CMD_FREE_PIOBUF_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_CAPABILITIES
@@ -10894,12 +10834,24 @@
 #define        MC_CMD_GET_CAPABILITIES_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -10976,13 +10928,17 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -11062,11 +11018,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE \
+  0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -11098,7 +11056,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                           * enum
+                                                                           * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -11110,7 +11070,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE \
+  0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_OUT_HW_CAPABILITIES_LEN 4
@@ -11147,12 +11108,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -11162,9 +11135,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -11229,13 +11205,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -11245,7 +11226,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -11287,7 +11269,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -11315,11 +11298,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -11338,7 +11323,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -11351,7 +11337,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -11363,7 +11351,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_HW_CAPABILITIES_LEN 4
@@ -11412,9 +11401,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -11472,9 +11464,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V2_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V2_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -11506,11 +11501,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V2_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V2_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V2_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V2_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -11557,12 +11552,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -11572,9 +11579,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -11639,13 +11649,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -11655,7 +11670,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -11697,7 +11713,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -11725,11 +11742,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -11748,7 +11767,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -11761,7 +11781,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -11773,7 +11795,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_HW_CAPABILITIES_LEN 4
@@ -11822,9 +11845,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -11882,9 +11908,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V3_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V3_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -11916,11 +11945,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V3_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V3_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V3_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V3_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -11963,7 +11992,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V3_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V3_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V3_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 
 /* MC_CMD_GET_CAPABILITIES_V4_OUT msgresponse */
@@ -11992,12 +12022,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -12007,9 +12049,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -12074,13 +12119,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -12090,7 +12140,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -12132,7 +12183,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -12160,11 +12212,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -12183,7 +12237,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -12196,7 +12251,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -12208,7 +12265,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_HW_CAPABILITIES_LEN 4
@@ -12257,9 +12315,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -12317,9 +12378,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V4_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V4_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -12351,11 +12415,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V4_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V4_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V4_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V4_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -12398,7 +12462,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V4_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V4_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V4_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
  * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
@@ -12435,12 +12500,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -12450,9 +12527,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -12517,13 +12597,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -12533,7 +12618,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -12575,7 +12661,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -12603,11 +12690,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -12626,7 +12715,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -12639,7 +12729,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -12651,7 +12743,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_HW_CAPABILITIES_LEN 4
@@ -12700,9 +12793,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -12760,9 +12856,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V5_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V5_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -12794,11 +12893,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V5_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V5_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V5_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V5_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -12841,7 +12940,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V5_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V5_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V5_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
  * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
@@ -12883,12 +12983,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -12898,9 +13010,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -12965,13 +13080,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -12981,7 +13101,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -13023,7 +13144,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -13051,11 +13173,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -13074,7 +13198,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -13087,7 +13212,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -13099,7 +13226,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_HW_CAPABILITIES_LEN 4
@@ -13148,9 +13276,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -13208,9 +13339,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V6_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V6_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -13242,11 +13376,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V6_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V6_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V6_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V6_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -13289,7 +13423,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V6_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V6_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V6_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
  * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
@@ -13342,12 +13477,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -13357,9 +13504,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -13424,13 +13574,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -13440,7 +13595,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -13482,7 +13638,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -13510,11 +13667,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -13533,7 +13692,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -13546,7 +13706,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -13558,7 +13720,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_HW_CAPABILITIES_LEN 4
@@ -13607,9 +13770,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -13667,9 +13833,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -13701,11 +13870,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V7_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V7_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V7_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V7_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -13748,7 +13917,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V7_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V7_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V7_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
  * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
@@ -13792,12 +13962,18 @@
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_VDPA_SUPPORTED_OFST 148
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_VDPA_SUPPORTED_LBN 4
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_VDPA_SUPPORTED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_OFST 148
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_LBN 5
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_OFST 148
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_LBN 6
-#define        MC_CMD_GET_CAPABILITIES_V7_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_OFST 148
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_LBN 5
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V7_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_OFST \
+  148
+#define        MC_CMD_GET_CAPABILITIES_V7_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_LBN \
+  6
+#define        \
+  MC_CMD_GET_CAPABILITIES_V7_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_UNSOL_EV_CREDIT_SUPPORTED_OFST 148
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_UNSOL_EV_CREDIT_SUPPORTED_LBN 7
 #define        MC_CMD_GET_CAPABILITIES_V7_OUT_UNSOL_EV_CREDIT_SUPPORTED_WIDTH 1
@@ -13828,12 +14004,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -13843,9 +14031,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -13910,13 +14101,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -13926,7 +14122,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -13968,7 +14165,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -13996,11 +14194,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -14019,7 +14219,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -14032,7 +14233,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -14044,7 +14247,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_HW_CAPABILITIES_LEN 4
@@ -14093,9 +14297,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -14153,9 +14360,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -14187,11 +14397,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V8_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V8_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V8_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V8_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -14234,7 +14444,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V8_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V8_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V8_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
  * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
@@ -14278,12 +14489,18 @@
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_VDPA_SUPPORTED_OFST 148
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_VDPA_SUPPORTED_LBN 4
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_VDPA_SUPPORTED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_OFST 148
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_LBN 5
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_OFST 148
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_LBN 6
-#define        MC_CMD_GET_CAPABILITIES_V8_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_OFST 148
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_LBN 5
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V8_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_OFST \
+  148
+#define        MC_CMD_GET_CAPABILITIES_V8_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_LBN \
+  6
+#define        \
+  MC_CMD_GET_CAPABILITIES_V8_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_UNSOL_EV_CREDIT_SUPPORTED_OFST 148
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_UNSOL_EV_CREDIT_SUPPORTED_LBN 7
 #define        MC_CMD_GET_CAPABILITIES_V8_OUT_UNSOL_EV_CREDIT_SUPPORTED_WIDTH 1
@@ -14322,12 +14539,24 @@
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_SET_MAC_ENHANCED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_SET_MAC_ENHANCED_LBN 9
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_SET_MAC_ENHANCED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN 10
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 11
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_LBN \
+  10
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_UNKNOWN_UCAST_DST_FILTER_ALWAYS_MULTI_RECIPIENT_WIDTH \
+  1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST \
+  0
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN \
+  11
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TX_MAC_SECURITY_FILTERING_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TX_MAC_SECURITY_FILTERING_LBN 12
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TX_MAC_SECURITY_FILTERING_WIDTH 1
@@ -14337,9 +14566,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_QBB_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_QBB_LBN 14
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_QBB_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST 0
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN 15
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_PACKED_STREAM_VAR_BUFFERS_OFST \
+  0
+#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_PACKED_STREAM_VAR_BUFFERS_LBN \
+  15
+#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_PACKED_STREAM_VAR_BUFFERS_WIDTH \
+  1
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_RSS_LIMITED_OFST 0
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_RSS_LIMITED_LBN 16
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_RSS_LIMITED_WIDTH 1
@@ -14404,13 +14636,18 @@
 /* enum: BIST RXDP firmware */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_BIST 0x10a
 /* enum: RXDP Test firmware image 1 */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH 0x101
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_TO_MC_CUT_THROUGH \
+  0x101
 /* enum: RXDP Test firmware image 2 */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD 0x102
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD \
+  0x102
 /* enum: RXDP Test firmware image 3 */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST 0x103
+#define          \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_TO_MC_STORE_FORWARD_FIRST \
+  0x103
 /* enum: RXDP Test firmware image 4 */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE 0x104
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_EVERY_EVENT_BATCHABLE \
+  0x104
 /* enum: RXDP Test firmware image 5 */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_BACKPRESSURE 0x105
 /* enum: RXDP Test firmware image 6 */
@@ -14420,7 +14657,8 @@
 /* enum: RXDP Test firmware image 8 */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_DISABLE_DL 0x108
 /* enum: RXDP Test firmware image 9 */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_DOORBELL_DELAY 0x10b
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_DOORBELL_DELAY \
+  0x10b
 /* enum: RXDP Test firmware image 10 */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXDP_TEST_FW_SLOW 0x10c
 /* TxDPCPU firmware id. */
@@ -14462,7 +14700,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: RX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: RX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -14490,11 +14729,13 @@
 /* enum: DPDK RX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
  * encapsulations (Medford development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
+#define          \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_RXPD_FW_TYPE_TESTFW_ENCAP_PARSING_ONLY 0xf
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_VERSION_OFST 10
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_VERSION_LEN 2
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_VERSION_REV_OFST 10
@@ -14513,7 +14754,8 @@
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_FIRST_PKT 0x1
 /* enum: TX PD firmware for telemetry prototyping (Medford2 development only)
  */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY 0x1
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_TESTFW_TELEMETRY \
+  0x1
 /* enum: TX PD firmware with approximately Siena-compatible behaviour
  * (Huntington development only)
  */
@@ -14526,7 +14768,9 @@
  * (Huntington development only)
  */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_SIENA_COMPAT_PM 0x4
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /* enum */
+#define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_LOW_LATENCY 0x5 /*
+                                                                              * enum
+                                                                              * */
 /* enum: TX PD firmware handling layer 2 only for high packet rate performance
  * tests (Medford development only)
  */
@@ -14538,7 +14782,8 @@
 /* enum: DPDK TX PD production firmware */
 #define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_DPDK 0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
-#define          MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
+#define          \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE 0xe
 /* Hardware capabilities of NIC */
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_HW_CAPABILITIES_OFST 12
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_HW_CAPABILITIES_LEN 4
@@ -14587,9 +14832,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TX_SNIFF_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TX_SNIFF_LBN 11
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_TX_SNIFF_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_LBN 12
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_REPORT_VERIFY_RESULT_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_MCDI_BACKGROUND_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_MCDI_BACKGROUND_LBN 13
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_MCDI_BACKGROUND_WIDTH 1
@@ -14647,9 +14895,12 @@
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_DYNAMIC_SENSORS_OFST 20
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_DYNAMIC_SENSORS_LBN 30
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_DYNAMIC_SENSORS_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_OFST 20
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_LBN 31
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_NVRAM_UPDATE_POLL_VERIFY_RESULT_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC (when
  * TX_TSO_V2 == 1). Not present on older firmware (check the length).
  */
@@ -14681,11 +14932,11 @@
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_NUM_VFS_PER_PF_OFST 42
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_NUM_VFS_PER_PF_LEN 1
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_NUM_VFS_PER_PF_NUM 16
-/* enum: The caller is not permitted to access information on this PF. */
-/*               MC_CMD_GET_CAPABILITIES_V9_OUT_ACCESS_NOT_PERMITTED 0xff */
-/* enum: PF does not exist. */
-/*               MC_CMD_GET_CAPABILITIES_V9_OUT_PF_NOT_PRESENT 0xfe */
-/* Number of VIs available for each external port */
+/* enum: The caller is not permitted to access information on this PF.
+ *               MC_CMD_GET_CAPABILITIES_V9_OUT_ACCESS_NOT_PERMITTED 0xff
+ * enum: PF does not exist.
+ *               MC_CMD_GET_CAPABILITIES_V9_OUT_PF_NOT_PRESENT 0xfe
+ * Number of VIs available for each external port*/
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_NUM_VIS_PER_PORT_OFST 58
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_NUM_VIS_PER_PORT_LEN 2
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_NUM_VIS_PER_PORT_NUM 4
@@ -14728,7 +14979,8 @@
 /* Number of buffers per adapter that can be used for VFIFO Stuffing
  * (SF-115995-SW) in the present configuration of firmware and port mode.
  */
-#define       MC_CMD_GET_CAPABILITIES_V9_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST 74
+#define       MC_CMD_GET_CAPABILITIES_V9_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_OFST \
+  74
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_VFIFO_STUFFING_NUM_CP_BUFFERS_LEN 2
 /* Entry count in the MAC stats array, including the final GENERATION_END
  * entry. For MAC stats DMA, drivers should allocate a buffer large enough to
@@ -14772,12 +15024,18 @@
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_VDPA_SUPPORTED_OFST 148
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_VDPA_SUPPORTED_LBN 4
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_VDPA_SUPPORTED_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_OFST 148
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_LBN 5
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_WIDTH 1
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_OFST 148
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_LBN 6
-#define        MC_CMD_GET_CAPABILITIES_V9_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_WIDTH 1
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_OFST 148
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_LBN 5
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_RX_VLAN_STRIPPING_PER_ENCAP_RULE_WIDTH 1
+#define        MC_CMD_GET_CAPABILITIES_V9_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_OFST \
+  148
+#define        MC_CMD_GET_CAPABILITIES_V9_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_LBN \
+  6
+#define        \
+  MC_CMD_GET_CAPABILITIES_V9_OUT_EXTENDED_WIDTH_EVQS_SUPPORTED_WIDTH 1
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_UNSOL_EV_CREDIT_SUPPORTED_OFST 148
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_UNSOL_EV_CREDIT_SUPPORTED_LBN 7
 #define        MC_CMD_GET_CAPABILITIES_V9_OUT_UNSOL_EV_CREDIT_SUPPORTED_WIDTH 1
@@ -14793,14 +15051,18 @@
  * from the pool for an RSS context. Note that the table size used must be a
  * power of 2.
  */
-#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MIN_INDIRECTION_TABLE_SIZE_OFST 160
-#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MIN_INDIRECTION_TABLE_SIZE_LEN 4
+#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MIN_INDIRECTION_TABLE_SIZE_OFST \
+  160
+#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MIN_INDIRECTION_TABLE_SIZE_LEN \
+  4
 /* The maximum size (in table entries) of indirection table to be allocated
  * from the pool for an RSS context. Note that the table size used must be a
  * power of 2.
  */
-#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_INDIRECTION_TABLE_SIZE_OFST 164
-#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_INDIRECTION_TABLE_SIZE_LEN 4
+#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_INDIRECTION_TABLE_SIZE_OFST \
+  164
+#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_INDIRECTION_TABLE_SIZE_LEN \
+  4
 /* The maximum number of queues that can be used by an RSS context in exclusive
  * mode. In exclusive mode the context has a configurable indirection table and
  * a configurable RSS key.
@@ -14811,7 +15073,8 @@
  * spreading mode. In even-spreading mode the context has no indirection table
  * but it does have a configurable RSS key.
  */
-#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_EVEN_SPREADING_QUEUES_OFST 172
+#define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_EVEN_SPREADING_QUEUES_OFST \
+  172
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_MAX_EVEN_SPREADING_QUEUES_LEN 4
 /* The total number of RSS contexts supported. Note that the number of
  * available contexts using indirection tables is also limited by the
@@ -14824,7 +15087,6 @@
  */
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_TABLE_POOL_SIZE_OFST 180
 #define       MC_CMD_GET_CAPABILITIES_V9_OUT_RSS_TABLE_POOL_SIZE_LEN 4
-
 
 /***********************************/
 /* MC_CMD_V2_EXTN
@@ -14856,7 +15118,6 @@
  */
 #define          MC_CMD_V2_EXTN_IN_MCDI_MESSAGE_TYPE_TSA 0x1
 
-
 /***********************************/
 /* MC_CMD_LINK_PIOBUF
  * Link a push I/O buffer to a TxQ
@@ -14878,7 +15139,6 @@
 /* MC_CMD_LINK_PIOBUF_OUT msgresponse */
 #define    MC_CMD_LINK_PIOBUF_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_UNLINK_PIOBUF
  * Unlink a push I/O buffer from a TxQ
@@ -14896,7 +15156,6 @@
 
 /* MC_CMD_UNLINK_PIOBUF_OUT msgresponse */
 #define    MC_CMD_UNLINK_PIOBUF_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_VSWITCH_ALLOC
@@ -14944,7 +15203,6 @@
 /* MC_CMD_VSWITCH_ALLOC_OUT msgresponse */
 #define    MC_CMD_VSWITCH_ALLOC_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_VSWITCH_FREE
  * de-allocate a v-switch.
@@ -14962,7 +15220,6 @@
 
 /* MC_CMD_VSWITCH_FREE_OUT msgresponse */
 #define    MC_CMD_VSWITCH_FREE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_VSWITCH_QUERY
@@ -14983,7 +15240,6 @@
 
 /* MC_CMD_VSWITCH_QUERY_OUT msgresponse */
 #define    MC_CMD_VSWITCH_QUERY_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_VPORT_ALLOC
@@ -15051,7 +15307,6 @@
 #define       MC_CMD_VPORT_ALLOC_OUT_VPORT_ID_OFST 0
 #define       MC_CMD_VPORT_ALLOC_OUT_VPORT_ID_LEN 4
 
-
 /***********************************/
 /* MC_CMD_VPORT_FREE
  * de-allocate a v-port.
@@ -15069,7 +15324,6 @@
 
 /* MC_CMD_VPORT_FREE_OUT msgresponse */
 #define    MC_CMD_VPORT_FREE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_VADAPTOR_ALLOC
@@ -15091,9 +15345,13 @@
 #define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_AUTO_VADAPTOR_OFST 8
 #define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_AUTO_VADAPTOR_LBN 0
 #define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_AUTO_VADAPTOR_WIDTH 1
-#define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 8
-#define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 1
-#define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH 1
+#define        \
+  MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_OFST 8
+#define        \
+  MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_LBN 1
+#define        \
+  MC_CMD_VADAPTOR_ALLOC_IN_FLAG_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED_WIDTH \
+  1
 /* The number of VLAN tags to strip on receive */
 #define       MC_CMD_VADAPTOR_ALLOC_IN_NUM_VLANS_OFST 12
 #define       MC_CMD_VADAPTOR_ALLOC_IN_NUM_VLANS_LEN 4
@@ -15118,7 +15376,6 @@
 /* MC_CMD_VADAPTOR_ALLOC_OUT msgresponse */
 #define    MC_CMD_VADAPTOR_ALLOC_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_VADAPTOR_FREE
  * de-allocate a v-adaptor.
@@ -15136,7 +15393,6 @@
 
 /* MC_CMD_VADAPTOR_FREE_OUT msgresponse */
 #define    MC_CMD_VADAPTOR_FREE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_VADAPTOR_SET_MAC
@@ -15159,7 +15415,6 @@
 /* MC_CMD_VADAPTOR_SET_MAC_OUT msgresponse */
 #define    MC_CMD_VADAPTOR_SET_MAC_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_VADAPTOR_GET_MAC
  * read the MAC address assigned to a v-adaptor.
@@ -15180,7 +15435,6 @@
 /* The MAC address assigned to this v-adaptor */
 #define       MC_CMD_VADAPTOR_GET_MAC_OUT_MACADDR_OFST 0
 #define       MC_CMD_VADAPTOR_GET_MAC_OUT_MACADDR_LEN 6
-
 
 /***********************************/
 /* MC_CMD_VADAPTOR_QUERY
@@ -15209,7 +15463,6 @@
 #define       MC_CMD_VADAPTOR_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS_OFST 8
 #define       MC_CMD_VADAPTOR_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS_LEN 4
 
-
 /***********************************/
 /* MC_CMD_EVB_PORT_ASSIGN
  * assign a port to a PCI function.
@@ -15236,7 +15489,6 @@
 
 /* MC_CMD_EVB_PORT_ASSIGN_OUT msgresponse */
 #define    MC_CMD_EVB_PORT_ASSIGN_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_RDWR_A64_REGIONS
@@ -15276,7 +15528,6 @@
 #define       MC_CMD_RDWR_A64_REGIONS_OUT_REGION3_OFST 12
 #define       MC_CMD_RDWR_A64_REGIONS_OUT_REGION3_LEN 4
 
-
 /***********************************/
 /* MC_CMD_ONLOAD_STACK_ALLOC
  * Allocate an Onload stack ID.
@@ -15298,7 +15549,6 @@
 #define       MC_CMD_ONLOAD_STACK_ALLOC_OUT_ONLOAD_STACK_ID_OFST 0
 #define       MC_CMD_ONLOAD_STACK_ALLOC_OUT_ONLOAD_STACK_ID_LEN 4
 
-
 /***********************************/
 /* MC_CMD_ONLOAD_STACK_FREE
  * Free an Onload stack ID.
@@ -15316,7 +15566,6 @@
 
 /* MC_CMD_ONLOAD_STACK_FREE_OUT msgresponse */
 #define    MC_CMD_ONLOAD_STACK_FREE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_ALLOC
@@ -15417,7 +15666,6 @@
 /* enum: guaranteed invalid RSS context handle value */
 #define          MC_CMD_RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID_INVALID 0xffffffff
 
-
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_FREE
  * Free an RSS context.
@@ -15435,7 +15683,6 @@
 
 /* MC_CMD_RSS_CONTEXT_FREE_OUT msgresponse */
 #define    MC_CMD_RSS_CONTEXT_FREE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_SET_KEY
@@ -15458,7 +15705,6 @@
 /* MC_CMD_RSS_CONTEXT_SET_KEY_OUT msgresponse */
 #define    MC_CMD_RSS_CONTEXT_SET_KEY_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_GET_KEY
  * Get the Toeplitz hash key for an RSS context.
@@ -15479,7 +15725,6 @@
 /* The 40-byte Toeplitz hash key (TBD endianness issues?) */
 #define       MC_CMD_RSS_CONTEXT_GET_KEY_OUT_TOEPLITZ_KEY_OFST 4
 #define       MC_CMD_RSS_CONTEXT_GET_KEY_OUT_TOEPLITZ_KEY_LEN 40
-
 
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_SET_TABLE
@@ -15504,7 +15749,6 @@
 /* MC_CMD_RSS_CONTEXT_SET_TABLE_OUT msgresponse */
 #define    MC_CMD_RSS_CONTEXT_SET_TABLE_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_GET_TABLE
  * Get the indirection table for an RSS context. This command should only be
@@ -15528,7 +15772,6 @@
 #define       MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE_OFST 4
 #define       MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE_LEN 128
 
-
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_WRITE_TABLE
  * Write a portion of a selectable-size indirection table for an RSS context.
@@ -15544,8 +15787,8 @@
 #define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_LENMIN 8
 #define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_LENMAX 252
 #define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_LEN(num) (4+4*(num))
-#define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_ENTRIES_NUM(len) (((len)-4)/4)
+#define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_LEN(num) (4 + 4 * (num))
+#define    MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_ENTRIES_NUM(len) (((len) - 4) / 4)
 /* The handle of the RSS context */
 #define       MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_RSS_CONTEXT_ID_OFST 0
 #define       MC_CMD_RSS_CONTEXT_WRITE_TABLE_IN_RSS_CONTEXT_ID_LEN 4
@@ -15574,7 +15817,6 @@
 #define       MC_CMD_RSS_CONTEXT_WRITE_TABLE_ENTRY_VALUE_LBN 16
 #define       MC_CMD_RSS_CONTEXT_WRITE_TABLE_ENTRY_VALUE_WIDTH 16
 
-
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_READ_TABLE
  * Read a portion of a selectable-size indirection table for an RSS context.
@@ -15590,8 +15832,8 @@
 #define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_LENMIN 6
 #define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_LENMAX 252
 #define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_LEN(num) (4+2*(num))
-#define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_INDICES_NUM(len) (((len)-4)/2)
+#define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_LEN(num) (4 + 2 * (num))
+#define    MC_CMD_RSS_CONTEXT_READ_TABLE_IN_INDICES_NUM(len) (((len) - 4) / 2)
 /* The handle of the RSS context */
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_IN_RSS_CONTEXT_ID_OFST 0
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_IN_RSS_CONTEXT_ID_LEN 4
@@ -15606,15 +15848,14 @@
 #define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_LENMIN 2
 #define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_LENMAX 252
 #define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_LEN(num) (0+2*(num))
-#define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_NUM(len) (((len)-0)/2)
+#define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_LEN(num) (0 + 2 * (num))
+#define    MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_NUM(len) (((len) - 0) / 2)
 /* A buffer containing the requested entries read from the table. */
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_OFST 0
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_LEN 2
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_MINNUM 1
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_MAXNUM 126
 #define       MC_CMD_RSS_CONTEXT_READ_TABLE_OUT_DATA_MAXNUM_MCDI2 510
-
 
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_SET_FLAGS
@@ -15680,7 +15921,6 @@
 
 /* MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT msgresponse */
 #define    MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_RSS_CONTEXT_GET_FLAGS
@@ -15748,7 +15988,6 @@
 #define        MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_OTHER_IPV6_RSS_MODE_LBN 28
 #define        MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_OTHER_IPV6_RSS_MODE_WIDTH 4
 
-
 /***********************************/
 /* MC_CMD_VPORT_ADD_MAC_ADDRESS
  * Add a MAC address to a v-port
@@ -15769,7 +16008,6 @@
 
 /* MC_CMD_VPORT_ADD_MAC_ADDRESS_OUT msgresponse */
 #define    MC_CMD_VPORT_ADD_MAC_ADDRESS_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_VPORT_DEL_MAC_ADDRESS
@@ -15792,7 +16030,6 @@
 /* MC_CMD_VPORT_DEL_MAC_ADDRESS_OUT msgresponse */
 #define    MC_CMD_VPORT_DEL_MAC_ADDRESS_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_VPORT_GET_MAC_ADDRESSES
  * Delete a MAC address from a v-port
@@ -15812,8 +16049,8 @@
 #define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMIN 4
 #define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMAX 250
 #define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMAX_MCDI2 1018
-#define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LEN(num) (4+6*(num))
-#define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_NUM(len) (((len)-4)/6)
+#define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LEN(num) (4 + 6 * (num))
+#define    MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_NUM(len) (((len) - 4) / 6)
 /* The number of MAC addresses returned */
 #define       MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_COUNT_OFST 0
 #define       MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_COUNT_LEN 4
@@ -15823,7 +16060,6 @@
 #define       MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_MINNUM 0
 #define       MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_MAXNUM 41
 #define       MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_MAXNUM_MCDI2 169
-
 
 /***********************************/
 /* MC_CMD_VPORT_RECONFIGURE
@@ -15881,7 +16117,6 @@
 #define        MC_CMD_VPORT_RECONFIGURE_OUT_RESET_DONE_LBN 0
 #define        MC_CMD_VPORT_RECONFIGURE_OUT_RESET_DONE_WIDTH 1
 
-
 /***********************************/
 /* MC_CMD_EVB_PORT_QUERY
  * read some config of v-port.
@@ -15908,7 +16143,6 @@
 #define       MC_CMD_EVB_PORT_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS_OFST 4
 #define       MC_CMD_EVB_PORT_QUERY_OUT_NUM_AVAILABLE_VLAN_TAGS_LEN 4
 
-
 /***********************************/
 /* MC_CMD_GET_CLOCK
  * Return the system and PDCPU clock frequencies.
@@ -15930,7 +16164,6 @@
 #define       MC_CMD_GET_CLOCK_OUT_DPCPU_FREQ_OFST 4
 #define       MC_CMD_GET_CLOCK_OUT_DPCPU_FREQ_LEN 4
 
-
 /***********************************/
 /* MC_CMD_TRIGGER_INTERRUPT
  * Trigger an interrupt by prodding the BIU.
@@ -15948,7 +16181,6 @@
 
 /* MC_CMD_TRIGGER_INTERRUPT_OUT msgresponse */
 #define    MC_CMD_TRIGGER_INTERRUPT_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_SHMBOOT_OP
@@ -15969,7 +16201,6 @@
 
 /* MC_CMD_SHMBOOT_OP_OUT msgresponse */
 #define    MC_CMD_SHMBOOT_OP_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_SET_PSU
@@ -15998,7 +16229,6 @@
 /* MC_CMD_SET_PSU_OUT msgresponse */
 #define    MC_CMD_SET_PSU_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_GET_FUNCTION_INFO
  * Get function information. PF and VF number.
@@ -16018,7 +16248,6 @@
 #define       MC_CMD_GET_FUNCTION_INFO_OUT_VF_OFST 4
 #define       MC_CMD_GET_FUNCTION_INFO_OUT_VF_LEN 4
 
-
 /***********************************/
 /* MC_CMD_ENABLE_OFFLINE_BIST
  * Enters offline BIST mode. All queues are torn down, chip enters quiescent
@@ -16035,7 +16264,6 @@
 
 /* MC_CMD_ENABLE_OFFLINE_BIST_OUT msgresponse */
 #define    MC_CMD_ENABLE_OFFLINE_BIST_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_READ_FUSES
@@ -16059,8 +16287,8 @@
 #define    MC_CMD_READ_FUSES_OUT_LENMIN 4
 #define    MC_CMD_READ_FUSES_OUT_LENMAX 252
 #define    MC_CMD_READ_FUSES_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_READ_FUSES_OUT_LEN(num) (4+1*(num))
-#define    MC_CMD_READ_FUSES_OUT_DATA_NUM(len) (((len)-4)/1)
+#define    MC_CMD_READ_FUSES_OUT_LEN(num) (4 + 1 * (num))
+#define    MC_CMD_READ_FUSES_OUT_DATA_NUM(len) (((len) - 4) / 1)
 /* Length of returned OTP data in bytes */
 #define       MC_CMD_READ_FUSES_OUT_LENGTH_OFST 0
 #define       MC_CMD_READ_FUSES_OUT_LENGTH_LEN 4
@@ -16070,7 +16298,6 @@
 #define       MC_CMD_READ_FUSES_OUT_DATA_MINNUM 0
 #define       MC_CMD_READ_FUSES_OUT_DATA_MAXNUM 248
 #define       MC_CMD_READ_FUSES_OUT_DATA_MAXNUM_MCDI2 1016
-
 
 /***********************************/
 /* MC_CMD_LICENSING
@@ -16126,7 +16353,6 @@
 #define          MC_CMD_LICENSING_OUT_SELF_TEST_FAIL 0x0
 /* enum: licensing subsystem self-test passed */
 #define          MC_CMD_LICENSING_OUT_SELF_TEST_PASS 0x1
-
 
 /***********************************/
 /* MC_CMD_LICENSING_V3
@@ -16197,7 +16423,6 @@
 #define       MC_CMD_LICENSING_V3_OUT_RESERVED_1_OFST 64
 #define       MC_CMD_LICENSING_V3_OUT_RESERVED_1_LEN 24
 
-
 /***********************************/
 /* MC_CMD_LICENSING_GET_ID_V3
  * Get ID and type from the NVRAM_PARTITION_TYPE_LICENSE application license
@@ -16215,8 +16440,8 @@
 #define    MC_CMD_LICENSING_GET_ID_V3_OUT_LENMIN 8
 #define    MC_CMD_LICENSING_GET_ID_V3_OUT_LENMAX 252
 #define    MC_CMD_LICENSING_GET_ID_V3_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_LICENSING_GET_ID_V3_OUT_LEN(num) (8+1*(num))
-#define    MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_NUM(len) (((len)-8)/1)
+#define    MC_CMD_LICENSING_GET_ID_V3_OUT_LEN(num) (8 + 1 * (num))
+#define    MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_NUM(len) (((len) - 8) / 1)
 /* type of license (eg 3) */
 #define       MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_TYPE_OFST 0
 #define       MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_TYPE_LEN 4
@@ -16229,7 +16454,6 @@
 #define       MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_MINNUM 0
 #define       MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_MAXNUM 244
 #define       MC_CMD_LICENSING_GET_ID_V3_OUT_LICENSE_ID_MAXNUM_MCDI2 1012
-
 
 /***********************************/
 /* MC_CMD_GET_LICENSED_APP_STATE
@@ -16257,7 +16481,6 @@
 #define          MC_CMD_GET_LICENSED_APP_STATE_OUT_NOT_LICENSED 0x0
 /* enum: a valid license is present for the application */
 #define          MC_CMD_GET_LICENSED_APP_STATE_OUT_LICENSED 0x1
-
 
 /***********************************/
 /* MC_CMD_GET_LICENSED_V3_APP_STATE
@@ -16290,7 +16513,6 @@
 /* enum: a valid license is present for the application */
 #define          MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_LICENSED 0x1
 
-
 /***********************************/
 /* MC_CMD_GET_LICENSED_V3_FEATURE_STATES
  * Query the state of an one or more licensed features. (Note that the actual
@@ -16320,7 +16542,6 @@
 #define       MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_LO_OFST 0
 #define       MC_CMD_GET_LICENSED_V3_FEATURE_STATES_OUT_STATES_HI_OFST 4
 
-
 /***********************************/
 /* MC_CMD_LICENSED_APP_OP
  * Perform an action for an individual licensed application - not used for V3
@@ -16335,8 +16556,8 @@
 #define    MC_CMD_LICENSED_APP_OP_IN_LENMIN 8
 #define    MC_CMD_LICENSED_APP_OP_IN_LENMAX 252
 #define    MC_CMD_LICENSED_APP_OP_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_LICENSED_APP_OP_IN_LEN(num) (8+4*(num))
-#define    MC_CMD_LICENSED_APP_OP_IN_ARGS_NUM(len) (((len)-8)/4)
+#define    MC_CMD_LICENSED_APP_OP_IN_LEN(num) (8 + 4 * (num))
+#define    MC_CMD_LICENSED_APP_OP_IN_ARGS_NUM(len) (((len) - 8) / 4)
 /* application ID */
 #define       MC_CMD_LICENSED_APP_OP_IN_APP_ID_OFST 0
 #define       MC_CMD_LICENSED_APP_OP_IN_APP_ID_LEN 4
@@ -16358,8 +16579,8 @@
 #define    MC_CMD_LICENSED_APP_OP_OUT_LENMIN 0
 #define    MC_CMD_LICENSED_APP_OP_OUT_LENMAX 252
 #define    MC_CMD_LICENSED_APP_OP_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_LICENSED_APP_OP_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_LICENSED_APP_OP_OUT_RESULT_NUM(len) (((len)-0)/4)
+#define    MC_CMD_LICENSED_APP_OP_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_LICENSED_APP_OP_OUT_RESULT_NUM(len) (((len) - 0) / 4)
 /* result specific to this particular operation */
 #define       MC_CMD_LICENSED_APP_OP_OUT_RESULT_OFST 0
 #define       MC_CMD_LICENSED_APP_OP_OUT_RESULT_LEN 4
@@ -16402,7 +16623,6 @@
 
 /* MC_CMD_LICENSED_APP_OP_MASK_OUT msgresponse */
 #define    MC_CMD_LICENSED_APP_OP_MASK_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_LICENSED_V3_VALIDATE_APP
@@ -16457,7 +16677,6 @@
 #define       MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_VADAPTOR_MACADDR_OFST 110
 #define       MC_CMD_LICENSED_V3_VALIDATE_APP_OUT_VADAPTOR_MACADDR_LEN 6
 
-
 /***********************************/
 /* MC_CMD_LICENSED_V3_MASK_FEATURES
  * Mask features - V3 licensing (Medford)
@@ -16484,7 +16703,6 @@
 
 /* MC_CMD_LICENSED_V3_MASK_FEATURES_OUT msgresponse */
 #define    MC_CMD_LICENSED_V3_MASK_FEATURES_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_LICENSING_V3_TEMPORARY
@@ -16552,9 +16770,10 @@
 /* bitmask of licensed features */
 #define       MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_OFST 4
 #define       MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_LEN 8
-#define       MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_LO_OFST 4
-#define       MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_HI_OFST 8
-
+#define       MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_LO_OFST \
+  4
+#define       MC_CMD_LICENSING_V3_TEMPORARY_OUT_STATUS_LICENSED_FEATURES_HI_OFST \
+  8
 
 /***********************************/
 /* MC_CMD_SET_PARSER_DISP_CONFIG
@@ -16569,15 +16788,16 @@
 #define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_LENMIN 12
 #define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_LENMAX 252
 #define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_LENMAX_MCDI2 1020
-#define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_LEN(num) (8+4*(num))
-#define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_VALUE_NUM(len) (((len)-8)/4)
+#define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_LEN(num) (8 + 4 * (num))
+#define    MC_CMD_SET_PARSER_DISP_CONFIG_IN_VALUE_NUM(len) (((len) - 8) / 4)
 /* the type of configuration setting to change */
 #define       MC_CMD_SET_PARSER_DISP_CONFIG_IN_TYPE_OFST 0
 #define       MC_CMD_SET_PARSER_DISP_CONFIG_IN_TYPE_LEN 4
 /* enum: Per-TXQ enable for multicast UDP destination lookup for possible
  * internal loopback. (ENTITY is a queue handle, VALUE is a single boolean.)
  */
-#define          MC_CMD_SET_PARSER_DISP_CONFIG_IN_TXQ_MCAST_UDP_DST_LOOKUP_EN 0x0
+#define          MC_CMD_SET_PARSER_DISP_CONFIG_IN_TXQ_MCAST_UDP_DST_LOOKUP_EN \
+  0x0
 /* enum: Per-v-adaptor enable for suppression of self-transmissions on the
  * internal loopback path. (ENTITY is an EVB_PORT_ID, VALUE is a single
  * boolean.)
@@ -16600,7 +16820,6 @@
 /* MC_CMD_SET_PARSER_DISP_CONFIG_OUT msgresponse */
 #define    MC_CMD_SET_PARSER_DISP_CONFIG_OUT_LEN 0
 
-
 /***********************************/
 /* MC_CMD_GET_PARSER_DISP_CONFIG
  * Read configuration related to the parser-dispatcher subsystem.
@@ -16615,8 +16834,10 @@
 /* the type of configuration setting to read */
 #define       MC_CMD_GET_PARSER_DISP_CONFIG_IN_TYPE_OFST 0
 #define       MC_CMD_GET_PARSER_DISP_CONFIG_IN_TYPE_LEN 4
-/*            Enum values, see field(s): */
-/*               MC_CMD_SET_PARSER_DISP_CONFIG/MC_CMD_SET_PARSER_DISP_CONFIG_IN/TYPE */
+/*            Enum values, see field(s):
+ *
+ *
+ *         MC_CMD_SET_PARSER_DISP_CONFIG/MC_CMD_SET_PARSER_DISP_CONFIG_IN/TYPE*/
 /* handle for the entity to query: queue handle, EVB port ID, etc. depending on
  * the type of configuration setting being read
  */
@@ -16627,8 +16848,8 @@
 #define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_LENMIN 4
 #define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_LENMAX 252
 #define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_LENMAX_MCDI2 1020
-#define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_LEN(num) (0+4*(num))
-#define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_VALUE_NUM(len) (((len)-0)/4)
+#define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_LEN(num) (0 + 4 * (num))
+#define    MC_CMD_GET_PARSER_DISP_CONFIG_OUT_VALUE_NUM(len) (((len) - 0) / 4)
 /* current value: the details depend on the type of configuration setting being
  * read
  */
@@ -16637,7 +16858,6 @@
 #define       MC_CMD_GET_PARSER_DISP_CONFIG_OUT_VALUE_MINNUM 1
 #define       MC_CMD_GET_PARSER_DISP_CONFIG_OUT_VALUE_MAXNUM 63
 #define       MC_CMD_GET_PARSER_DISP_CONFIG_OUT_VALUE_MAXNUM_MCDI2 255
-
 
 /***********************************/
 /* MC_CMD_GET_PORT_MODES
@@ -16690,7 +16910,6 @@
 #define       MC_CMD_GET_PORT_MODES_OUT_V2_ENGINEERING_MODES_OFST 12
 #define       MC_CMD_GET_PORT_MODES_OUT_V2_ENGINEERING_MODES_LEN 4
 
-
 /***********************************/
 /* MC_CMD_OVERRIDE_PORT_MODE
  * Override flash config port mode for subsequent MC reboot(s). Override data
@@ -16717,7 +16936,6 @@
 
 /* MC_CMD_OVERRIDE_PORT_MODE_OUT msgresponse */
 #define    MC_CMD_OVERRIDE_PORT_MODE_OUT_LEN 0
-
 
 /***********************************/
 /* MC_CMD_GET_WORKAROUNDS
@@ -16755,7 +16973,6 @@
 #define          MC_CMD_GET_WORKAROUNDS_OUT_BUG26807 0x40
 /* enum: Bug 61265 work around (broken EVQ TMR writes). */
 #define          MC_CMD_GET_WORKAROUNDS_OUT_BUG61265 0x80
-
 
 /***********************************/
 /* MC_CMD_PRIVILEGE_MASK
@@ -16832,7 +17049,6 @@
 #define       MC_CMD_PRIVILEGE_MASK_OUT_OLD_MASK_OFST 0
 #define       MC_CMD_PRIVILEGE_MASK_OUT_OLD_MASK_LEN 4
 
-
 /***********************************/
 /* MC_CMD_LINK_STATE_MODE
  * Read/set link state mode of a VF
@@ -16869,7 +17085,6 @@
 #define    MC_CMD_LINK_STATE_MODE_OUT_LEN 4
 #define       MC_CMD_LINK_STATE_MODE_OUT_OLD_MODE_OFST 0
 #define       MC_CMD_LINK_STATE_MODE_OUT_OLD_MODE_LEN 4
-
 
 /***********************************/
 /* MC_CMD_FUSE_DIAGS
@@ -16922,7 +17137,6 @@
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_CHECKSUM_OFST 44
 #define       MC_CMD_FUSE_DIAGS_OUT_AREA2_CHECKSUM_LEN 4
 
-
 /***********************************/
 /* MC_CMD_PRIVILEGE_MODIFY
  * Modify the privileges of a set of PCIe functions. Note that this operation
@@ -16968,7 +17182,6 @@
 /* MC_CMD_PRIVILEGE_MODIFY_OUT msgresponse */
 #define    MC_CMD_PRIVILEGE_MODIFY_OUT_LEN 0
 
-
 /* TUNNEL_ENCAP_UDP_PORT_ENTRY structuredef */
 #define    TUNNEL_ENCAP_UDP_PORT_ENTRY_LEN 4
 /* UDP port (the standard ports are named below but any port may be used) */
@@ -16990,7 +17203,6 @@
 #define       TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_LBN 16
 #define       TUNNEL_ENCAP_UDP_PORT_ENTRY_PROTOCOL_WIDTH 16
 
-
 /***********************************/
 /* MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS
  * Configure UDP ports for tunnel encapsulation hardware acceleration. The
@@ -17008,8 +17220,9 @@
 #define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMIN 4
 #define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMAX 68
 #define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMAX_MCDI2 68
-#define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LEN(num) (4+4*(num))
-#define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_NUM(len) (((len)-4)/4)
+#define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LEN(num) (4 + 4 * (num))
+#define    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_NUM(len) (((len) - 4) \
+  / 4)
 /* Flags */
 #define       MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_FLAGS_OFST 0
 #define       MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_FLAGS_LEN 2
@@ -17037,10 +17250,20 @@
 #define        MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_RESETTING_LBN 0
 #define        MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_RESETTING_WIDTH 1
 
-
 /***********************************/
 /* MC_CMD_VNIC_ENCAP_RULE_ADD
- * Add a rule for detecting encapsulations in the VNIC stage. Currently this only affects checksum validation in VNIC RX - on TX the send descriptor explicitly specifies encapsulation. These rules are per-VNIC, i.e. only apply to the current driver. If a rule matches, then the packet is considered to have the corresponding encapsulation type, and the inner packet is parsed. It is up to the driver to ensure that overlapping rules are not inserted. (If a packet would match multiple rules, a random one of them will be used.) A rule with the exact same match criteria may not be inserted twice (EALREADY). Only a limited number MATCH_FLAGS values are supported, use MC_CMD_GET_PARSER_DISP_INFO with OP OP_GET_SUPPORTED_VNIC_ENCAP_RULE_MATCHES to get a list of supported combinations. Each driver may only have a limited set of active rules - returns ENOSPC if the caller's table is full.
+ * Add a rule for detecting encapsulations in the VNIC stage. Currently this
+ * only affects checksum validation in VNIC RX - on TX the send descriptor
+ * explicitly specifies encapsulation. These rules are per-VNIC, i.e. only apply
+ * to the current driver. If a rule matches, then the packet is considered to
+ * have the corresponding encapsulation type, and the inner packet is parsed. It
+ * is up to the driver to ensure that overlapping rules are not inserted. (If a
+ * packet would match multiple rules, a random one of them will be used.) A rule
+ * with the exact same match criteria may not be inserted twice (EALREADY). Only
+ * a limited number MATCH_FLAGS values are supported, use
+ * MC_CMD_GET_PARSER_DISP_INFO with OP OP_GET_SUPPORTED_VNIC_ENCAP_RULE_MATCHES
+ * to get a list of supported combinations. Each driver may only have a limited
+ * set of active rules - returns ENOSPC if the caller's table is full.
  */
 #define MC_CMD_VNIC_ENCAP_RULE_ADD 0x16d
 #undef MC_CMD_0x16d_PRIVILEGE_CTG
@@ -17117,10 +17340,11 @@
 #define       MC_CMD_VNIC_ENCAP_RULE_ADD_OUT_HANDLE_OFST 0
 #define       MC_CMD_VNIC_ENCAP_RULE_ADD_OUT_HANDLE_LEN 4
 
-
 /***********************************/
 /* MC_CMD_VNIC_ENCAP_RULE_REMOVE
- * Remove a VNIC encapsulation rule. Packets which would have previously matched the rule will then be considered as unencapsulated. Returns EALREADY if the input HANDLE doesn't correspond to an existing rule.
+ * Remove a VNIC encapsulation rule. Packets which would have previously matched
+ * the rule will then be considered as unencapsulated. Returns EALREADY if the
+ * input HANDLE doesn't correspond to an existing rule.
  */
 #define MC_CMD_VNIC_ENCAP_RULE_REMOVE 0x16e
 #undef MC_CMD_0x16e_PRIVILEGE_CTG

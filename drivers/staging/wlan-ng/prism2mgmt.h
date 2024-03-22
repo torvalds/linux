@@ -45,7 +45,8 @@ extern int prism2_reset_settletime;
 
 u32 prism2sta_ifstate(struct wlandevice *wlandev, u32 ifstate);
 
-void prism2sta_ev_info(struct wlandevice *wlandev, struct hfa384x_inf_frame *inf);
+void prism2sta_ev_info(struct wlandevice *wlandev,
+    struct hfa384x_inf_frame *inf);
 void prism2sta_ev_tx(struct wlandevice *wlandev, u16 status);
 void prism2sta_ev_alloc(struct wlandevice *wlandev);
 
@@ -72,9 +73,9 @@ void prism2mgmt_bytearea2pstr(u8 *bytearea, struct p80211pstrd *pstr, int len);
 
 /* byte string conversion functions*/
 void prism2mgmt_pstr2bytestr(struct hfa384x_bytestr *bytestr,
-			     struct p80211pstrd *pstr);
+    struct p80211pstrd *pstr);
 void prism2mgmt_bytestr2pstr(struct hfa384x_bytestr *bytestr,
-			     struct p80211pstrd *pstr);
+    struct p80211pstrd *pstr);
 
 void prism2sta_processing_defer(struct work_struct *data);
 

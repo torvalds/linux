@@ -32,7 +32,7 @@
 #include <rdma/iw_cm.h>
 
 int qedr_iw_connect(struct iw_cm_id *cm_id,
-		    struct iw_cm_conn_param *conn_param);
+    struct iw_cm_conn_param *conn_param);
 
 int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog);
 

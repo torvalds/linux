@@ -26,6 +26,6 @@
 #ifndef __DML_LOGGING_H__
 #define __DML_LOGGING_H__
 
-#define dml_print(...) ((void)0)
+#define dml_print(...) ((void) 0)
 
 #endif //__DML_LOGGING_H__

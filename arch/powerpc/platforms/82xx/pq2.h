@@ -8,14 +8,13 @@ void __noreturn pq2_restart(char *cmd);
 int pq2ads_pci_init_irq(void);
 void pq2_init_pci(void);
 #else
-static inline int pq2ads_pci_init_irq(void)
-{
-	return 0;
+static inline int pq2ads_pci_init_irq(void) {
+  return 0;
 }
 
-static inline void pq2_init_pci(void)
-{
+static inline void pq2_init_pci(void) {
 }
+
 #endif
 
 #endif

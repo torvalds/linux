@@ -4,13 +4,13 @@
 struct nvif_device;
 
 struct nvif_disp {
-	struct nvif_object object;
-	unsigned long conn_mask;
-	unsigned long outp_mask;
-	unsigned long head_mask;
+  struct nvif_object object;
+  unsigned long conn_mask;
+  unsigned long outp_mask;
+  unsigned long head_mask;
 };
 
 int nvif_disp_ctor(struct nvif_device *, const char *name, s32 oclass,
-		   struct nvif_disp *);
+    struct nvif_disp *);
 void nvif_disp_dtor(struct nvif_disp *);
 #endif

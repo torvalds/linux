@@ -9,26 +9,23 @@ noinline void parent(volatile int b);
 
 static volatile int a;
 
-noinline void leaf(volatile int b)
-{
-	for (;;)
-		a += b;
+noinline void leaf(volatile int b) {
+  for (;;) {
+    a += b;
+  }
 }
 
-noinline void parent(volatile int b)
-{
-	leaf(b);
+noinline void parent(volatile int b) {
+  leaf(b);
 }
 
-static int leafloop(int argc, const char **argv)
-{
-	int c = 1;
-
-	if (argc > 0)
-		c = atoi(argv[0]);
-
-	parent(c);
-	return 0;
+static int leafloop(int argc, const char **argv) {
+  int c = 1;
+  if (argc > 0) {
+    c = atoi(argv[0]);
+  }
+  parent(c);
+  return 0;
 }
 
 DEFINE_WORKLOAD(leafloop);

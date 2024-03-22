@@ -24,11 +24,9 @@ asmlinkage long sparc_vfork(struct pt_regs *regs);
 struct seq_file;
 void cpucap_info(struct seq_file *);
 
-static inline unsigned long kimage_addr_to_ra(const void *p)
-{
-	unsigned long val = (unsigned long) p;
-
-	return kern_base + (val - KERNBASE);
+static inline unsigned long kimage_addr_to_ra(const void *p) {
+  unsigned long val = (unsigned long) p;
+  return kern_base + (val - KERNBASE);
 }
 
 /* sys_sparc_64.c */
@@ -37,8 +35,10 @@ asmlinkage long sys_kern_features(void);
 /* unaligned_64.c */
 asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn);
 int handle_popc(u32 insn, struct pt_regs *regs);
-void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
-void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr);
+void handle_lddfmna(struct pt_regs *regs, unsigned long sfar,
+    unsigned long sfsr);
+void handle_stdfmna(struct pt_regs *regs, unsigned long sfar,
+    unsigned long sfsr);
 
 /* smp_64.c */
 void __irq_entry smp_call_function_client(int irq, struct pt_regs *regs);
@@ -53,13 +53,13 @@ void __irq_entry smp_kgdb_capture_client(int irq, struct pt_regs *regs);
 #ifdef CONFIG_PCI
 int ali_sound_dma_hack(struct device *dev, u64 device_mask);
 #else
-#define ali_sound_dma_hack(dev, mask)	(0)
+#define ali_sound_dma_hack(dev, mask) (0)
 #endif
 
 /* signal32.c */
 void do_sigreturn32(struct pt_regs *regs);
 asmlinkage void do_rt_sigreturn32(struct pt_regs *regs);
-void do_signal32(struct pt_regs * regs);
+void do_signal32(struct pt_regs *regs);
 asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp);
 
 /* time_64.c */
@@ -84,13 +84,13 @@ void cpu_probe(void);
 
 /* traps_32.c */
 void handle_hw_divzero(struct pt_regs *regs, unsigned long pc,
-                       unsigned long npc, unsigned long psr);
+    unsigned long npc, unsigned long psr);
 /* irq_32.c */
 extern struct irqaction static_irqaction[];
 extern int static_irq_count;
 extern spinlock_t irq_action_lock;
 
-void unexpected_irq(int irq, void *dev_id, struct pt_regs * regs);
+void unexpected_irq(int irq, void *dev_id, struct pt_regs *regs);
 
 /* sun4m_irq.c */
 void sun4m_init_IRQ(void);
@@ -111,9 +111,9 @@ extern spinlock_t sun4d_imsk_lock;
 
 void sun4d_init_IRQ(void);
 int sun4d_request_irq(unsigned int irq,
-                      irq_handler_t handler,
-                      unsigned long irqflags,
-                      const char *devname, void *dev_id);
+    irq_handler_t handler,
+    unsigned long irqflags,
+    const char *devname, void *dev_id);
 int show_sun4d_interrupts(struct seq_file *, void *);
 void sun4d_distribute_irqs(void);
 void sun4d_free_irq(unsigned int irq, void *dev_id);
@@ -161,10 +161,10 @@ extern unsigned long sun4d_cpu_startup;
 asmlinkage void do_sigreturn(struct pt_regs *regs);
 asmlinkage void do_rt_sigreturn(struct pt_regs *regs);
 void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
-                      unsigned long thread_info_flags);
+    unsigned long thread_info_flags);
 asmlinkage int do_sys_sigstack(struct sigstack __user *ssptr,
-                               struct sigstack __user *ossptr,
-                               unsigned long sp);
+    struct sigstack __user *ossptr,
+    unsigned long sp);
 
 /* ptrace_32.c */
 asmlinkage int syscall_trace(struct pt_regs *regs, int syscall_exit_p);

@@ -9,12 +9,13 @@
 #define __OV7670_H
 
 struct ov7670_config {
-	int min_width;			/* Filter out smaller sizes */
-	int min_height;			/* Filter out smaller sizes */
-	int clock_speed;		/* External clock speed (MHz) */
-	bool use_smbus;			/* Use smbus I/O instead of I2C */
-	bool pll_bypass;		/* Choose whether to bypass the PLL */
-	bool pclk_hb_disable;		/* Disable toggling pixclk during horizontal blanking */
+  int min_width;      /* Filter out smaller sizes */
+  int min_height;     /* Filter out smaller sizes */
+  int clock_speed;    /* External clock speed (MHz) */
+  bool use_smbus;     /* Use smbus I/O instead of I2C */
+  bool pll_bypass;    /* Choose whether to bypass the PLL */
+  bool pclk_hb_disable;   /* Disable toggling pixclk during horizontal blanking
+                           * */
 };
 
 #endif

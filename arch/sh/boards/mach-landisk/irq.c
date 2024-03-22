@@ -18,46 +18,43 @@
 #include <mach-landisk/mach/iodata_landisk.h>
 
 enum {
-	UNUSED = 0,
+  UNUSED = 0,
 
-	PCI_INTA, /* PCI int A */
-	PCI_INTB, /* PCI int B */
-	PCI_INTC, /* PCI int C */
-	PCI_INTD, /* PCI int D */
-	ATA,	  /* ATA */
-	FATA,	  /* CF */
-	POWER,	  /* Power switch */
-	BUTTON,	  /* Button switch */
+  PCI_INTA, /* PCI int A */
+  PCI_INTB, /* PCI int B */
+  PCI_INTC, /* PCI int C */
+  PCI_INTD, /* PCI int D */
+  ATA,    /* ATA */
+  FATA,   /* CF */
+  POWER,    /* Power switch */
+  BUTTON,   /* Button switch */
 };
 
 /* Vectors for LANDISK */
 static struct intc_vect vectors_landisk[] __initdata = {
-	INTC_IRQ(PCI_INTA, IRQ_PCIINTA),
-	INTC_IRQ(PCI_INTB, IRQ_PCIINTB),
-	INTC_IRQ(PCI_INTC, IRQ_PCIINTC),
-	INTC_IRQ(PCI_INTD, IRQ_PCIINTD),
-	INTC_IRQ(ATA, IRQ_ATA),
-	INTC_IRQ(FATA, IRQ_FATA),
-	INTC_IRQ(POWER, IRQ_POWER),
-	INTC_IRQ(BUTTON, IRQ_BUTTON),
+  INTC_IRQ(PCI_INTA, IRQ_PCIINTA),
+  INTC_IRQ(PCI_INTB, IRQ_PCIINTB),
+  INTC_IRQ(PCI_INTC, IRQ_PCIINTC),
+  INTC_IRQ(PCI_INTD, IRQ_PCIINTD),
+  INTC_IRQ(ATA, IRQ_ATA),
+  INTC_IRQ(FATA, IRQ_FATA),
+  INTC_IRQ(POWER, IRQ_POWER),
+  INTC_IRQ(BUTTON, IRQ_BUTTON),
 };
 
 /* IRLMSK mask register layout for LANDISK */
 static struct intc_mask_reg mask_registers_landisk[] __initdata = {
-	{ PA_IMASK, 0, 8, /* IRLMSK */
-	  {  BUTTON, POWER, FATA, ATA,
-	     PCI_INTD, PCI_INTC, PCI_INTB, PCI_INTA,
-	  }
-	},
+  { PA_IMASK, 0, 8, /* IRLMSK */
+    {  BUTTON, POWER, FATA, ATA,
+       PCI_INTD, PCI_INTC, PCI_INTB, PCI_INTA, }},
 };
 
 static DECLARE_INTC_DESC(intc_desc_landisk, "landisk", vectors_landisk, NULL,
-			mask_registers_landisk, NULL, NULL);
+    mask_registers_landisk, NULL, NULL);
 /*
  * Initialize IRQ setting
  */
-void __init init_landisk_IRQ(void)
-{
-	register_intc_controller(&intc_desc_landisk);
-	__raw_writeb(0x00, PA_PWRINT_CLR);
+void __init init_landisk_IRQ(void) {
+  register_intc_controller(&intc_desc_landisk);
+  __raw_writeb(0x00, PA_PWRINT_CLR);
 }

@@ -18,17 +18,17 @@
 typedef int (*uffd_handler_t)(int uffd_mode, int uffd, struct uffd_msg *msg);
 
 struct uffd_desc {
-	int uffd_mode;
-	int uffd;
-	int pipefds[2];
-	useconds_t delay;
-	uffd_handler_t handler;
-	pthread_t thread;
+  int uffd_mode;
+  int uffd;
+  int pipefds[2];
+  useconds_t delay;
+  uffd_handler_t handler;
+  pthread_t thread;
 };
 
 struct uffd_desc *uffd_setup_demand_paging(int uffd_mode, useconds_t delay,
-					   void *hva, uint64_t len,
-					   uffd_handler_t handler);
+    void *hva, uint64_t len,
+    uffd_handler_t handler);
 
 void uffd_stop_demand_paging(struct uffd_desc *uffd);
 

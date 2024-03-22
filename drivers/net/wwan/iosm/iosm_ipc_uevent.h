@@ -20,20 +20,20 @@
 
 /**
  * struct ipc_uevent_info - Uevent information structure.
- * @dev:	Pointer to device structure
- * @uevent:	Uevent information
- * @work:	Uevent work struct
+ * @dev:  Pointer to device structure
+ * @uevent: Uevent information
+ * @work: Uevent work struct
  */
 struct ipc_uevent_info {
-	struct device *dev;
-	char uevent[MAX_UEVENT_LEN];
-	struct work_struct work;
+  struct device *dev;
+  char uevent[MAX_UEVENT_LEN];
+  struct work_struct work;
 };
 
 /**
  * ipc_uevent_send - Send modem event to user space.
- * @dev:	Generic device pointer
- * @uevent:	Uevent information
+ * @dev:  Generic device pointer
+ * @uevent: Uevent information
  *
  */
 void ipc_uevent_send(struct device *dev, char *uevent);

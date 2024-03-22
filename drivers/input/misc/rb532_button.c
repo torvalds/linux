@@ -31,60 +31,49 @@
  * The GPIO value occurs to be inverted, so pin high means
  * button is not pressed.
  */
-static bool rb532_button_pressed(void)
-{
-	int val;
-
-	set_latch_u5(0, LO_FOFF);
-	gpio_direction_input(GPIO_BTN_S1);
-
-	val = gpio_get_value(GPIO_BTN_S1);
-
-	rb532_gpio_set_func(GPIO_BTN_S1);
-	set_latch_u5(LO_FOFF, 0);
-
-	return !val;
+static bool rb532_button_pressed(void) {
+  int val;
+  set_latch_u5(0, LO_FOFF);
+  gpio_direction_input(GPIO_BTN_S1);
+  val = gpio_get_value(GPIO_BTN_S1);
+  rb532_gpio_set_func(GPIO_BTN_S1);
+  set_latch_u5(LO_FOFF, 0);
+  return !val;
 }
 
-static void rb532_button_poll(struct input_dev *input)
-{
-	input_report_key(input, RB532_BTN_KSYM, rb532_button_pressed());
-	input_sync(input);
+static void rb532_button_poll(struct input_dev *input) {
+  input_report_key(input, RB532_BTN_KSYM, rb532_button_pressed());
+  input_sync(input);
 }
 
-static int rb532_button_probe(struct platform_device *pdev)
-{
-	struct input_dev *input;
-	int error;
-
-	input = devm_input_allocate_device(&pdev->dev);
-	if (!input)
-		return -ENOMEM;
-
-	input->name = "rb532 button";
-	input->phys = "rb532/button0";
-	input->id.bustype = BUS_HOST;
-
-	input_set_capability(input, EV_KEY, RB532_BTN_KSYM);
-
-	error = input_setup_polling(input, rb532_button_poll);
-	if (error)
-		return error;
-
-	input_set_poll_interval(input, RB532_BTN_RATE);
-
-	error = input_register_device(input);
-	if (error)
-		return error;
-
-	return 0;
+static int rb532_button_probe(struct platform_device *pdev) {
+  struct input_dev *input;
+  int error;
+  input = devm_input_allocate_device(&pdev->dev);
+  if (!input) {
+    return -ENOMEM;
+  }
+  input->name = "rb532 button";
+  input->phys = "rb532/button0";
+  input->id.bustype = BUS_HOST;
+  input_set_capability(input, EV_KEY, RB532_BTN_KSYM);
+  error = input_setup_polling(input, rb532_button_poll);
+  if (error) {
+    return error;
+  }
+  input_set_poll_interval(input, RB532_BTN_RATE);
+  error = input_register_device(input);
+  if (error) {
+    return error;
+  }
+  return 0;
 }
 
 static struct platform_driver rb532_button_driver = {
-	.probe = rb532_button_probe,
-	.driver = {
-		.name = DRV_NAME,
-	},
+  .probe = rb532_button_probe,
+  .driver = {
+    .name = DRV_NAME,
+  },
 };
 module_platform_driver(rb532_button_driver);
 

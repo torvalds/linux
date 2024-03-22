@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2022 Advanced Micro Devices, Inc.
  * Authors:
- *	Christian König <christian.koenig@amd.com>
+ *  Christian König <christian.koenig@amd.com>
  */
 
 #ifndef __LINUX_DMA_FENCE_UNWRAP_H
@@ -16,22 +16,22 @@ struct dma_fence;
  * Should be used with dma_fence_unwrap_for_each() iterator macro.
  */
 struct dma_fence_unwrap {
-	/**
-	 * @chain: potential dma_fence_chain, but can be other fence as well
-	 */
-	struct dma_fence *chain;
-	/**
-	 * @array: potential dma_fence_array, but can be other fence as well
-	 */
-	struct dma_fence *array;
-	/**
-	 * @index: last returned index if @array is really a dma_fence_array
-	 */
-	unsigned int index;
+  /**
+   * @chain: potential dma_fence_chain, but can be other fence as well
+   */
+  struct dma_fence *chain;
+  /**
+   * @array: potential dma_fence_array, but can be other fence as well
+   */
+  struct dma_fence *array;
+  /**
+   * @index: last returned index if @array is really a dma_fence_array
+   */
+  unsigned int index;
 };
 
 struct dma_fence *dma_fence_unwrap_first(struct dma_fence *head,
-					 struct dma_fence_unwrap *cursor);
+    struct dma_fence_unwrap *cursor);
 struct dma_fence *dma_fence_unwrap_next(struct dma_fence_unwrap *cursor);
 
 /**
@@ -44,13 +44,13 @@ struct dma_fence *dma_fence_unwrap_next(struct dma_fence_unwrap *cursor);
  * potential fences in them. If @head is just a normal fence only that one is
  * returned.
  */
-#define dma_fence_unwrap_for_each(fence, cursor, head)			\
-	for (fence = dma_fence_unwrap_first(head, cursor); fence;	\
-	     fence = dma_fence_unwrap_next(cursor))
+#define dma_fence_unwrap_for_each(fence, cursor, head)      \
+  for (fence = dma_fence_unwrap_first(head, cursor); fence; \
+      fence = dma_fence_unwrap_next(cursor))
 
 struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
-					   struct dma_fence **fences,
-					   struct dma_fence_unwrap *cursors);
+    struct dma_fence **fences,
+    struct dma_fence_unwrap *cursors);
 
 /**
  * dma_fence_unwrap_merge - unwrap and merge fences
@@ -64,12 +64,12 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
  * Returns NULL on memory allocation failure, a dma_fence object representing
  * all the given fences otherwise.
  */
-#define dma_fence_unwrap_merge(...)					\
-	({								\
-		struct dma_fence *__f[] = { __VA_ARGS__ };		\
-		struct dma_fence_unwrap __c[ARRAY_SIZE(__f)];		\
-									\
-		__dma_fence_unwrap_merge(ARRAY_SIZE(__f), __f, __c);	\
-	})
+#define dma_fence_unwrap_merge(...)         \
+  ({                \
+    struct dma_fence *__f[] = { __VA_ARGS__ };    \
+    struct dma_fence_unwrap __c[ARRAY_SIZE(__f)];   \
+                  \
+    __dma_fence_unwrap_merge(ARRAY_SIZE(__f), __f, __c);  \
+  })
 
 #endif

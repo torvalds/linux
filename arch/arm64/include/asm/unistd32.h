@@ -24,7 +24,7 @@ __SYSCALL(__NR_write, sys_write)
 __SYSCALL(__NR_open, compat_sys_open)
 #define __NR_close 6
 __SYSCALL(__NR_close, sys_close)
-			/* 7 was sys_waitpid */
+/* 7 was sys_waitpid */
 __SYSCALL(7, sys_ni_syscall)
 #define __NR_creat 8
 __SYSCALL(__NR_creat, sys_creat)
@@ -36,7 +36,7 @@ __SYSCALL(__NR_unlink, sys_unlink)
 __SYSCALL(__NR_execve, compat_sys_execve)
 #define __NR_chdir 12
 __SYSCALL(__NR_chdir, sys_chdir)
-			/* 13 was sys_time */
+/* 13 was sys_time */
 __SYSCALL(13, sys_ni_syscall)
 #define __NR_mknod 14
 __SYSCALL(__NR_mknod, sys_mknod)
@@ -44,9 +44,9 @@ __SYSCALL(__NR_mknod, sys_mknod)
 __SYSCALL(__NR_chmod, sys_chmod)
 #define __NR_lchown 16
 __SYSCALL(__NR_lchown, sys_lchown16)
-			/* 17 was sys_break */
+/* 17 was sys_break */
 __SYSCALL(17, sys_ni_syscall)
-			/* 18 was sys_stat */
+/* 18 was sys_stat */
 __SYSCALL(18, sys_ni_syscall)
 #define __NR_lseek 19
 __SYSCALL(__NR_lseek, compat_sys_lseek)
@@ -54,33 +54,33 @@ __SYSCALL(__NR_lseek, compat_sys_lseek)
 __SYSCALL(__NR_getpid, sys_getpid)
 #define __NR_mount 21
 __SYSCALL(__NR_mount, sys_mount)
-			/* 22 was sys_umount */
+/* 22 was sys_umount */
 __SYSCALL(22, sys_ni_syscall)
 #define __NR_setuid 23
 __SYSCALL(__NR_setuid, sys_setuid16)
 #define __NR_getuid 24
 __SYSCALL(__NR_getuid, sys_getuid16)
-			/* 25 was sys_stime */
+/* 25 was sys_stime */
 __SYSCALL(25, sys_ni_syscall)
 #define __NR_ptrace 26
 __SYSCALL(__NR_ptrace, compat_sys_ptrace)
-			/* 27 was sys_alarm */
+/* 27 was sys_alarm */
 __SYSCALL(27, sys_ni_syscall)
-			/* 28 was sys_fstat */
+/* 28 was sys_fstat */
 __SYSCALL(28, sys_ni_syscall)
 #define __NR_pause 29
 __SYSCALL(__NR_pause, sys_pause)
-			/* 30 was sys_utime */
+/* 30 was sys_utime */
 __SYSCALL(30, sys_ni_syscall)
-			/* 31 was sys_stty */
+/* 31 was sys_stty */
 __SYSCALL(31, sys_ni_syscall)
-			/* 32 was sys_gtty */
+/* 32 was sys_gtty */
 __SYSCALL(32, sys_ni_syscall)
 #define __NR_access 33
 __SYSCALL(__NR_access, sys_access)
 #define __NR_nice 34
 __SYSCALL(__NR_nice, sys_nice)
-			/* 35 was sys_ftime */
+/* 35 was sys_ftime */
 __SYSCALL(35, sys_ni_syscall)
 #define __NR_sync 36
 __SYSCALL(__NR_sync, sys_sync)
@@ -98,7 +98,7 @@ __SYSCALL(__NR_dup, sys_dup)
 __SYSCALL(__NR_pipe, sys_pipe)
 #define __NR_times 43
 __SYSCALL(__NR_times, compat_sys_times)
-			/* 44 was sys_prof */
+/* 44 was sys_prof */
 __SYSCALL(44, sys_ni_syscall)
 #define __NR_brk 45
 __SYSCALL(__NR_brk, sys_brk)
@@ -106,7 +106,7 @@ __SYSCALL(__NR_brk, sys_brk)
 __SYSCALL(__NR_setgid, sys_setgid16)
 #define __NR_getgid 47
 __SYSCALL(__NR_getgid, sys_getgid16)
-			/* 48 was sys_signal */
+/* 48 was sys_signal */
 __SYSCALL(48, sys_ni_syscall)
 #define __NR_geteuid 49
 __SYSCALL(__NR_geteuid, sys_geteuid16)
@@ -116,19 +116,19 @@ __SYSCALL(__NR_getegid, sys_getegid16)
 __SYSCALL(__NR_acct, sys_acct)
 #define __NR_umount2 52
 __SYSCALL(__NR_umount2, sys_umount)
-			/* 53 was sys_lock */
+/* 53 was sys_lock */
 __SYSCALL(53, sys_ni_syscall)
 #define __NR_ioctl 54
 __SYSCALL(__NR_ioctl, compat_sys_ioctl)
 #define __NR_fcntl 55
 __SYSCALL(__NR_fcntl, compat_sys_fcntl)
-			/* 56 was sys_mpx */
+/* 56 was sys_mpx */
 __SYSCALL(56, sys_ni_syscall)
 #define __NR_setpgid 57
 __SYSCALL(__NR_setpgid, sys_setpgid)
-			/* 58 was sys_ulimit */
+/* 58 was sys_ulimit */
 __SYSCALL(58, sys_ni_syscall)
-			/* 59 was sys_olduname */
+/* 59 was sys_olduname */
 __SYSCALL(59, sys_ni_syscall)
 #define __NR_umask 60
 __SYSCALL(__NR_umask, sys_umask)
@@ -146,9 +146,9 @@ __SYSCALL(__NR_getpgrp, sys_getpgrp)
 __SYSCALL(__NR_setsid, sys_setsid)
 #define __NR_sigaction 67
 __SYSCALL(__NR_sigaction, compat_sys_sigaction)
-			/* 68 was sys_sgetmask */
+/* 68 was sys_sgetmask */
 __SYSCALL(68, sys_ni_syscall)
-			/* 69 was sys_ssetmask */
+/* 69 was sys_ssetmask */
 __SYSCALL(69, sys_ni_syscall)
 #define __NR_setreuid 70
 __SYSCALL(__NR_setreuid, sys_setreuid16)
@@ -162,7 +162,7 @@ __SYSCALL(__NR_sigpending, compat_sys_sigpending)
 __SYSCALL(__NR_sethostname, sys_sethostname)
 #define __NR_setrlimit 75
 __SYSCALL(__NR_setrlimit, compat_sys_setrlimit)
-			/* 76 was compat_sys_getrlimit */
+/* 76 was compat_sys_getrlimit */
 __SYSCALL(76, sys_ni_syscall)
 #define __NR_getrusage 77
 __SYSCALL(__NR_getrusage, compat_sys_getrusage)
@@ -174,11 +174,11 @@ __SYSCALL(__NR_settimeofday, compat_sys_settimeofday)
 __SYSCALL(__NR_getgroups, sys_getgroups16)
 #define __NR_setgroups 81
 __SYSCALL(__NR_setgroups, sys_setgroups16)
-			/* 82 was compat_sys_select */
+/* 82 was compat_sys_select */
 __SYSCALL(82, sys_ni_syscall)
 #define __NR_symlink 83
 __SYSCALL(__NR_symlink, sys_symlink)
-			/* 84 was sys_lstat */
+/* 84 was sys_lstat */
 __SYSCALL(84, sys_ni_syscall)
 #define __NR_readlink 85
 __SYSCALL(__NR_readlink, sys_readlink)
@@ -188,9 +188,9 @@ __SYSCALL(__NR_uselib, sys_uselib)
 __SYSCALL(__NR_swapon, sys_swapon)
 #define __NR_reboot 88
 __SYSCALL(__NR_reboot, sys_reboot)
-			/* 89 was sys_readdir */
+/* 89 was sys_readdir */
 __SYSCALL(89, sys_ni_syscall)
-			/* 90 was sys_mmap */
+/* 90 was sys_mmap */
 __SYSCALL(90, sys_ni_syscall)
 #define __NR_munmap 91
 __SYSCALL(__NR_munmap, sys_munmap)
@@ -206,15 +206,15 @@ __SYSCALL(__NR_fchown, sys_fchown16)
 __SYSCALL(__NR_getpriority, sys_getpriority)
 #define __NR_setpriority 97
 __SYSCALL(__NR_setpriority, sys_setpriority)
-			/* 98 was sys_profil */
+/* 98 was sys_profil */
 __SYSCALL(98, sys_ni_syscall)
 #define __NR_statfs 99
 __SYSCALL(__NR_statfs, compat_sys_statfs)
 #define __NR_fstatfs 100
 __SYSCALL(__NR_fstatfs, compat_sys_fstatfs)
-			/* 101 was sys_ioperm */
+/* 101 was sys_ioperm */
 __SYSCALL(101, sys_ni_syscall)
-			/* 102 was sys_socketcall */
+/* 102 was sys_socketcall */
 __SYSCALL(102, sys_ni_syscall)
 #define __NR_syslog 103
 __SYSCALL(__NR_syslog, sys_syslog)
@@ -228,15 +228,15 @@ __SYSCALL(__NR_stat, compat_sys_newstat)
 __SYSCALL(__NR_lstat, compat_sys_newlstat)
 #define __NR_fstat 108
 __SYSCALL(__NR_fstat, compat_sys_newfstat)
-			/* 109 was sys_uname */
+/* 109 was sys_uname */
 __SYSCALL(109, sys_ni_syscall)
-			/* 110 was sys_iopl */
+/* 110 was sys_iopl */
 __SYSCALL(110, sys_ni_syscall)
 #define __NR_vhangup 111
 __SYSCALL(__NR_vhangup, sys_vhangup)
-			/* 112 was sys_idle */
+/* 112 was sys_idle */
 __SYSCALL(112, sys_ni_syscall)
-			/* 113 was sys_syscall */
+/* 113 was sys_syscall */
 __SYSCALL(113, sys_ni_syscall)
 #define __NR_wait4 114
 __SYSCALL(__NR_wait4, compat_sys_wait4)
@@ -244,7 +244,7 @@ __SYSCALL(__NR_wait4, compat_sys_wait4)
 __SYSCALL(__NR_swapoff, sys_swapoff)
 #define __NR_sysinfo 116
 __SYSCALL(__NR_sysinfo, compat_sys_sysinfo)
-			/* 117 was sys_ipc */
+/* 117 was sys_ipc */
 __SYSCALL(117, sys_ni_syscall)
 #define __NR_fsync 118
 __SYSCALL(__NR_fsync, sys_fsync)
@@ -256,7 +256,7 @@ __SYSCALL(__NR_clone, sys_clone)
 __SYSCALL(__NR_setdomainname, sys_setdomainname)
 #define __NR_uname 122
 __SYSCALL(__NR_uname, sys_newuname)
-			/* 123 was sys_modify_ldt */
+/* 123 was sys_modify_ldt */
 __SYSCALL(123, sys_ni_syscall)
 #define __NR_adjtimex 124
 __SYSCALL(__NR_adjtimex, sys_adjtimex_time32)
@@ -264,13 +264,13 @@ __SYSCALL(__NR_adjtimex, sys_adjtimex_time32)
 __SYSCALL(__NR_mprotect, sys_mprotect)
 #define __NR_sigprocmask 126
 __SYSCALL(__NR_sigprocmask, compat_sys_sigprocmask)
-			/* 127 was sys_create_module */
+/* 127 was sys_create_module */
 __SYSCALL(127, sys_ni_syscall)
 #define __NR_init_module 128
 __SYSCALL(__NR_init_module, sys_init_module)
 #define __NR_delete_module 129
 __SYSCALL(__NR_delete_module, sys_delete_module)
-			/* 130 was sys_get_kernel_syms */
+/* 130 was sys_get_kernel_syms */
 __SYSCALL(130, sys_ni_syscall)
 #define __NR_quotactl 131
 __SYSCALL(__NR_quotactl, sys_quotactl)
@@ -284,7 +284,7 @@ __SYSCALL(__NR_bdflush, sys_ni_syscall)
 __SYSCALL(__NR_sysfs, sys_sysfs)
 #define __NR_personality 136
 __SYSCALL(__NR_personality, sys_personality)
-			/* 137 was sys_afs_syscall */
+/* 137 was sys_afs_syscall */
 __SYSCALL(137, sys_ni_syscall)
 #define __NR_setfsuid 138
 __SYSCALL(__NR_setfsuid, sys_setfsuid16)
@@ -308,7 +308,7 @@ __SYSCALL(__NR_writev, sys_writev)
 __SYSCALL(__NR_getsid, sys_getsid)
 #define __NR_fdatasync 148
 __SYSCALL(__NR_fdatasync, sys_fdatasync)
-			/* 149 was sys_sysctl */
+/* 149 was sys_sysctl */
 __SYSCALL(149, sys_ni_syscall)
 #define __NR_mlock 150
 __SYSCALL(__NR_mlock, sys_mlock)
@@ -342,9 +342,9 @@ __SYSCALL(__NR_mremap, sys_mremap)
 __SYSCALL(__NR_setresuid, sys_setresuid16)
 #define __NR_getresuid 165
 __SYSCALL(__NR_getresuid, sys_getresuid16)
-			/* 166 was sys_vm86 */
+/* 166 was sys_vm86 */
 __SYSCALL(166, sys_ni_syscall)
-			/* 167 was sys_query_module */
+/* 167 was sys_query_module */
 __SYSCALL(167, sys_ni_syscall)
 #define __NR_poll 168
 __SYSCALL(__NR_poll, sys_poll)
@@ -386,14 +386,15 @@ __SYSCALL(__NR_capset, sys_capset)
 __SYSCALL(__NR_sigaltstack, compat_sys_sigaltstack)
 #define __NR_sendfile 187
 __SYSCALL(__NR_sendfile, compat_sys_sendfile)
-			/* 188 reserved */
+/* 188 reserved */
 __SYSCALL(188, sys_ni_syscall)
-			/* 189 reserved */
+/* 189 reserved */
 __SYSCALL(189, sys_ni_syscall)
 #define __NR_vfork 190
 __SYSCALL(__NR_vfork, sys_vfork)
-#define __NR_ugetrlimit 191	/* SuS compliant getrlimit */
-__SYSCALL(__NR_ugetrlimit, compat_sys_getrlimit)		/* SuS compliant getrlimit */
+#define __NR_ugetrlimit 191 /* SuS compliant getrlimit */
+__SYSCALL(__NR_ugetrlimit, compat_sys_getrlimit)    /* SuS compliant getrlimit
+                                                     * */
 #define __NR_mmap2 192
 __SYSCALL(__NR_mmap2, compat_sys_aarch32_mmap2)
 #define __NR_truncate64 193
@@ -454,9 +455,9 @@ __SYSCALL(__NR_mincore, sys_mincore)
 __SYSCALL(__NR_madvise, sys_madvise)
 #define __NR_fcntl64 221
 __SYSCALL(__NR_fcntl64, compat_sys_fcntl64)
-			/* 222 for tux */
+/* 222 for tux */
 __SYSCALL(222, sys_ni_syscall)
-			/* 223 is unused */
+/* 223 is unused */
 __SYSCALL(223, sys_ni_syscall)
 #define __NR_gettid 224
 __SYSCALL(__NR_gettid, sys_gettid)
@@ -508,7 +509,7 @@ __SYSCALL(__NR_io_submit, compat_sys_io_submit)
 __SYSCALL(__NR_io_cancel, sys_io_cancel)
 #define __NR_exit_group 248
 __SYSCALL(__NR_exit_group, sys_exit_group)
-			/* 249 was lookup_dcookie */
+/* 249 was lookup_dcookie */
 __SYSCALL(249, sys_ni_syscall)
 #define __NR_epoll_create 250
 __SYSCALL(__NR_epoll_create, sys_epoll_create)
@@ -518,9 +519,9 @@ __SYSCALL(__NR_epoll_ctl, sys_epoll_ctl)
 __SYSCALL(__NR_epoll_wait, sys_epoll_wait)
 #define __NR_remap_file_pages 253
 __SYSCALL(__NR_remap_file_pages, sys_remap_file_pages)
-			/* 254 for set_thread_area */
+/* 254 for set_thread_area */
 __SYSCALL(254, sys_ni_syscall)
-			/* 255 for get_thread_area */
+/* 255 for get_thread_area */
 __SYSCALL(255, sys_ni_syscall)
 #define __NR_set_tid_address 256
 __SYSCALL(__NR_set_tid_address, sys_set_tid_address)

@@ -11,4 +11,3 @@ extern void ceph_debugfs_client_init(struct ceph_client *client);
 extern void ceph_debugfs_client_cleanup(struct ceph_client *client);
 
 #endif
-

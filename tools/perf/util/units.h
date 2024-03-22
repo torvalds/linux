@@ -6,8 +6,8 @@
 #include <linux/types.h>
 
 struct parse_tag {
-	char tag;
-	int  mult;
+  char tag;
+  int mult;
 };
 
 unsigned long parse_tag_value(const char *str, struct parse_tag *tags);

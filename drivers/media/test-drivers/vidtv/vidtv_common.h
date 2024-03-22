@@ -18,15 +18,15 @@
 #define VIDTV_MAX_SLEEP_USECS (2 * VIDTV_SLEEP_USECS)
 
 u32 vidtv_memcpy(void *to,
-		 size_t to_offset,
-		 size_t to_size,
-		 const void *from,
-		 size_t len);
+    size_t to_offset,
+    size_t to_size,
+    const void *from,
+    size_t len);
 
 u32 vidtv_memset(void *to,
-		 size_t to_offset,
-		 size_t to_size,
-		 int c,
-		 size_t len);
+    size_t to_offset,
+    size_t to_size,
+    int c,
+    size_t len);
 
 #endif // VIDTV_COMMON_H

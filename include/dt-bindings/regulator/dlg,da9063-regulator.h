@@ -9,8 +9,8 @@
  * A description of the following modes is in the manufacturers datasheet.
  */
 
-#define DA9063_BUCK_MODE_SLEEP		1
-#define DA9063_BUCK_MODE_SYNC		2
-#define DA9063_BUCK_MODE_AUTO		3
+#define DA9063_BUCK_MODE_SLEEP    1
+#define DA9063_BUCK_MODE_SYNC   2
+#define DA9063_BUCK_MODE_AUTO   3
 
 #endif

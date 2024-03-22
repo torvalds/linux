@@ -9,59 +9,59 @@
 
 DECLARE_EVENT_CLASS(notifier_info,
 
-	TP_PROTO(void *cb),
+    TP_PROTO(void *cb),
 
-	TP_ARGS(cb),
+    TP_ARGS(cb),
 
-	TP_STRUCT__entry(
-		__field(void *, cb)
-	),
+    TP_STRUCT__entry(
+    __field(void *, cb)
+    ),
 
-	TP_fast_assign(
-		__entry->cb = cb;
-	),
+    TP_fast_assign(
+    __entry->cb = cb;
+    ),
 
-	TP_printk("%ps", __entry->cb)
-);
+    TP_printk("%ps", __entry->cb)
+    );
 
 /*
  * notifier_register - called upon notifier callback registration
  *
- * @cb:		callback pointer
+ * @cb:   callback pointer
  *
  */
 DEFINE_EVENT(notifier_info, notifier_register,
 
-	TP_PROTO(void *cb),
+    TP_PROTO(void *cb),
 
-	TP_ARGS(cb)
-);
+    TP_ARGS(cb)
+    );
 
 /*
  * notifier_unregister - called upon notifier callback unregistration
  *
- * @cb:		callback pointer
+ * @cb:   callback pointer
  *
  */
 DEFINE_EVENT(notifier_info, notifier_unregister,
 
-	TP_PROTO(void *cb),
+    TP_PROTO(void *cb),
 
-	TP_ARGS(cb)
-);
+    TP_ARGS(cb)
+    );
 
 /*
  * notifier_run - called upon notifier callback execution
  *
- * @cb:		callback pointer
+ * @cb:   callback pointer
  *
  */
 DEFINE_EVENT(notifier_info, notifier_run,
 
-	TP_PROTO(void *cb),
+    TP_PROTO(void *cb),
 
-	TP_ARGS(cb)
-);
+    TP_ARGS(cb)
+    );
 
 #endif /* _TRACE_NOTIFIERS_H */
 

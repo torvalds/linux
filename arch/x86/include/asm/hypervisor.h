@@ -22,14 +22,14 @@
 
 /* x86 hypervisor types  */
 enum x86_hypervisor_type {
-	X86_HYPER_NATIVE = 0,
-	X86_HYPER_VMWARE,
-	X86_HYPER_MS_HYPERV,
-	X86_HYPER_XEN_PV,
-	X86_HYPER_XEN_HVM,
-	X86_HYPER_KVM,
-	X86_HYPER_JAILHOUSE,
-	X86_HYPER_ACRN,
+  X86_HYPER_NATIVE = 0,
+  X86_HYPER_VMWARE,
+  X86_HYPER_MS_HYPERV,
+  X86_HYPER_XEN_PV,
+  X86_HYPER_XEN_HVM,
+  X86_HYPER_KVM,
+  X86_HYPER_JAILHOUSE,
+  X86_HYPER_ACRN,
 };
 
 #ifdef CONFIG_HYPERVISOR_GUEST
@@ -39,23 +39,23 @@ enum x86_hypervisor_type {
 #include <asm/xen/hypervisor.h>
 
 struct hypervisor_x86 {
-	/* Hypervisor name */
-	const char	*name;
+  /* Hypervisor name */
+  const char *name;
 
-	/* Detection routine */
-	uint32_t	(*detect)(void);
+  /* Detection routine */
+  uint32_t (*detect)(void);
 
-	/* Hypervisor type */
-	enum x86_hypervisor_type type;
+  /* Hypervisor type */
+  enum x86_hypervisor_type type;
 
-	/* init time callbacks */
-	struct x86_hyper_init init;
+  /* init time callbacks */
+  struct x86_hyper_init init;
 
-	/* runtime callbacks */
-	struct x86_hyper_runtime runtime;
+  /* runtime callbacks */
+  struct x86_hyper_runtime runtime;
 
-	/* ignore nopv parameter */
-	bool ignore_nopv;
+  /* ignore nopv parameter */
+  bool ignore_nopv;
 };
 
 extern const struct hypervisor_x86 x86_hyper_vmware;
@@ -69,15 +69,17 @@ extern struct hypervisor_x86 x86_hyper_xen_hvm;
 extern bool nopv;
 extern enum x86_hypervisor_type x86_hyper_type;
 extern void init_hypervisor_platform(void);
-static inline bool hypervisor_is_type(enum x86_hypervisor_type type)
-{
-	return x86_hyper_type == type;
+static inline bool hypervisor_is_type(enum x86_hypervisor_type type) {
+  return x86_hyper_type == type;
 }
+
 #else
-static inline void init_hypervisor_platform(void) { }
-static inline bool hypervisor_is_type(enum x86_hypervisor_type type)
-{
-	return type == X86_HYPER_NATIVE;
+static inline void init_hypervisor_platform(void) {
 }
+
+static inline bool hypervisor_is_type(enum x86_hypervisor_type type) {
+  return type == X86_HYPER_NATIVE;
+}
+
 #endif /* CONFIG_HYPERVISOR_GUEST */
 #endif /* _ASM_X86_HYPERVISOR_H */

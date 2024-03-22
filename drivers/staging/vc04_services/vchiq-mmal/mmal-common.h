@@ -6,7 +6,7 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *    (now dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  *
@@ -26,40 +26,40 @@ struct mmal_msg_context;
 
 /* mapping between v4l and mmal video modes */
 struct mmal_fmt {
-	u32 fourcc;          /* v4l2 format id */
-	int flags;           /* v4l2 flags field */
-	u32 mmal;
-	int depth;
-	u32 mmal_component;  /* MMAL component index to be used to encode */
-	u32 ybbp;            /* depth of first Y plane for planar formats */
-	bool remove_padding;   /* Does the GPU have to remove padding,
-				* or can we do hide padding via bytesperline.
-				*/
+  u32 fourcc;          /* v4l2 format id */
+  int flags;           /* v4l2 flags field */
+  u32 mmal;
+  int depth;
+  u32 mmal_component;  /* MMAL component index to be used to encode */
+  u32 ybbp;            /* depth of first Y plane for planar formats */
+  bool remove_padding;   /* Does the GPU have to remove padding,
+                          * or can we do hide padding via bytesperline.
+                          */
 };
 
 /* buffer for one video frame */
 struct mmal_buffer {
-	/* v4l buffer data -- must be first */
-	struct vb2_v4l2_buffer vb;
+  /* v4l buffer data -- must be first */
+  struct vb2_v4l2_buffer vb;
 
-	/* list of buffers available */
-	struct list_head list;
+  /* list of buffers available */
+  struct list_head list;
 
-	void *buffer; /* buffer pointer */
-	unsigned long buffer_size; /* size of allocated buffer */
+  void *buffer; /* buffer pointer */
+  unsigned long buffer_size; /* size of allocated buffer */
 
-	struct mmal_msg_context *msg_context;
+  struct mmal_msg_context *msg_context;
 
-	unsigned long length;
-	u32 mmal_flags;
-	s64 dts;
-	s64 pts;
+  unsigned long length;
+  u32 mmal_flags;
+  s64 dts;
+  s64 pts;
 };
 
 /* */
 struct mmal_colourfx {
-	s32 enable;
-	u32 u;
-	u32 v;
+  s32 enable;
+  u32 u;
+  u32 v;
 };
 #endif

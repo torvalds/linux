@@ -4,7 +4,6 @@
  * Copyright 2009 Johannes Berg <johannes@sipsolutions.net>
  */
 
-
 #ifndef __RFKILL_INPUT_H
 #define __RFKILL_INPUT_H
 

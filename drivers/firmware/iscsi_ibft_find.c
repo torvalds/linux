@@ -35,10 +35,10 @@ phys_addr_t ibft_phys_addr;
 EXPORT_SYMBOL_GPL(ibft_phys_addr);
 
 static const struct {
-	char *sign;
+  char *sign;
 } ibft_signs[] = {
-	{ "iBFT" },
-	{ "BIFT" },	/* Broadcom iSCSI Offload */
+  { "iBFT" },
+  { "BIFT" }, /* Broadcom iSCSI Offload */
 };
 
 #define IBFT_SIGN_LEN 4
@@ -48,53 +48,49 @@ static const struct {
 /*
  * Routine used to find and reserve the iSCSI Boot Format Table
  */
-void __init reserve_ibft_region(void)
-{
-	unsigned long pos, virt_pos = 0;
-	unsigned int len = 0;
-	void *virt = NULL;
-	int i;
-
-	ibft_phys_addr = 0;
-
-	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
-	 * only use ACPI for this
-	 */
-	if (efi_enabled(EFI_BOOT))
-		return;
-
-	for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
-		/* The table can't be inside the VGA BIOS reserved space,
-		 * so skip that area */
-		if (pos == VGA_MEM)
-			pos += VGA_SIZE;
-
-		/* Map page by page */
-		if (offset_in_page(pos) == 0) {
-			if (virt)
-				early_memunmap(virt, PAGE_SIZE);
-			virt = early_memremap_ro(pos, PAGE_SIZE);
-			virt_pos = pos;
-		}
-
-		for (i = 0; i < ARRAY_SIZE(ibft_signs); i++) {
-			if (memcmp(virt + (pos - virt_pos), ibft_signs[i].sign,
-				   IBFT_SIGN_LEN) == 0) {
-				unsigned long *addr =
-				    (unsigned long *)(virt + pos - virt_pos + 4);
-				len = *addr;
-				/* if the length of the table extends past 1M,
-				 * the table cannot be valid. */
-				if (pos + len <= (IBFT_END-1)) {
-					ibft_phys_addr = pos;
-					memblock_reserve(ibft_phys_addr, PAGE_ALIGN(len));
-					pr_info("iBFT found at %pa.\n", &ibft_phys_addr);
-					goto out;
-				}
-			}
-		}
-	}
-
+void __init reserve_ibft_region(void) {
+  unsigned long pos, virt_pos = 0;
+  unsigned int len = 0;
+  void *virt = NULL;
+  int i;
+  ibft_phys_addr = 0;
+  /* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
+   * only use ACPI for this
+   */
+  if (efi_enabled(EFI_BOOT)) {
+    return;
+  }
+  for (pos = IBFT_START; pos < IBFT_END; pos += 16) {
+    /* The table can't be inside the VGA BIOS reserved space,
+     * so skip that area */
+    if (pos == VGA_MEM) {
+      pos += VGA_SIZE;
+    }
+    /* Map page by page */
+    if (offset_in_page(pos) == 0) {
+      if (virt) {
+        early_memunmap(virt, PAGE_SIZE);
+      }
+      virt = early_memremap_ro(pos, PAGE_SIZE);
+      virt_pos = pos;
+    }
+    for (i = 0; i < ARRAY_SIZE(ibft_signs); i++) {
+      if (memcmp(virt + (pos - virt_pos), ibft_signs[i].sign,
+          IBFT_SIGN_LEN) == 0) {
+        unsigned long *addr
+          = (unsigned long *) (virt + pos - virt_pos + 4);
+        len = *addr;
+        /* if the length of the table extends past 1M,
+         * the table cannot be valid. */
+        if (pos + len <= (IBFT_END - 1)) {
+          ibft_phys_addr = pos;
+          memblock_reserve(ibft_phys_addr, PAGE_ALIGN(len));
+          pr_info("iBFT found at %pa.\n", &ibft_phys_addr);
+          goto out;
+        }
+      }
+    }
+  }
 out:
-	early_memunmap(virt, PAGE_SIZE);
+  early_memunmap(virt, PAGE_SIZE);
 }

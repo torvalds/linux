@@ -23,14 +23,14 @@
 
 /* Obsolete, used only for backwards compatibility and libc5 compiles */
 struct semid_ds {
-	struct ipc_perm	sem_perm;		/* permissions .. see ipc.h */
-	__kernel_old_time_t sem_otime;		/* last semop time */
-	__kernel_old_time_t sem_ctime;		/* create/last semctl() time */
-	struct sem	*sem_base;		/* ptr to first semaphore in array */
-	struct sem_queue *sem_pending;		/* pending operations to be processed */
-	struct sem_queue **sem_pending_last;	/* last pending operation */
-	struct sem_undo	*undo;			/* undo requests on this array */
-	unsigned short	sem_nsems;		/* no. of semaphores in array */
+  struct ipc_perm sem_perm;   /* permissions .. see ipc.h */
+  __kernel_old_time_t sem_otime;    /* last semop time */
+  __kernel_old_time_t sem_ctime;    /* create/last semctl() time */
+  struct sem *sem_base;    /* ptr to first semaphore in array */
+  struct sem_queue *sem_pending;    /* pending operations to be processed */
+  struct sem_queue **sem_pending_last;  /* last pending operation */
+  struct sem_undo *undo;      /* undo requests on this array */
+  unsigned short sem_nsems;    /* no. of semaphores in array */
 };
 
 /* Include the definition of semid64_ds */
@@ -38,31 +38,31 @@ struct semid_ds {
 
 /* semop system calls takes an array of these. */
 struct sembuf {
-	unsigned short  sem_num;	/* semaphore index in array */
-	short		sem_op;		/* semaphore operation */
-	short		sem_flg;	/* operation flags */
+  unsigned short sem_num;  /* semaphore index in array */
+  short sem_op;   /* semaphore operation */
+  short sem_flg;  /* operation flags */
 };
 
 /* arg for semctl system calls. */
 union semun {
-	int val;			/* value for SETVAL */
-	struct semid_ds __user *buf;	/* buffer for IPC_STAT & IPC_SET */
-	unsigned short __user *array;	/* array for GETALL & SETALL */
-	struct seminfo __user *__buf;	/* buffer for IPC_INFO */
-	void __user *__pad;
+  int val;      /* value for SETVAL */
+  struct semid_ds __user *buf;  /* buffer for IPC_STAT & IPC_SET */
+  unsigned short __user *array; /* array for GETALL & SETALL */
+  struct seminfo __user *__buf; /* buffer for IPC_INFO */
+  void __user *__pad;
 };
 
 struct  seminfo {
-	int semmap;
-	int semmni;
-	int semmns;
-	int semmnu;
-	int semmsl;
-	int semopm;
-	int semume;
-	int semusz;
-	int semvmx;
-	int semaem;
+  int semmap;
+  int semmni;
+  int semmns;
+  int semmnu;
+  int semmsl;
+  int semopm;
+  int semume;
+  int semusz;
+  int semvmx;
+  int semaem;
 };
 
 /*
@@ -76,11 +76,10 @@ struct  seminfo {
  * allocating the sop array.
  */
 
-
 #define SEMMNI  32000           /* <= IPCMNI  max # of semaphore identifiers */
 #define SEMMSL  32000           /* <= INT_MAX max num of semaphores per id */
-#define SEMMNS  (SEMMNI*SEMMSL) /* <= INT_MAX max # of semaphores in system */
-#define SEMOPM  500	        /* <= 1 000 max num of ops per semop call */
+#define SEMMNS  (SEMMNI * SEMMSL) /* <= INT_MAX max # of semaphores in system */
+#define SEMOPM  500         /* <= 1 000 max num of ops per semop call */
 #define SEMVMX  32767           /* <= 32767 semaphore maximum value */
 #define SEMAEM  SEMVMX          /* adjust on exit max value */
 
@@ -88,7 +87,6 @@ struct  seminfo {
 #define SEMUME  SEMOPM          /* max num of undo entries per process */
 #define SEMMNU  SEMMNS          /* num of undo structures system wide */
 #define SEMMAP  SEMMNS          /* # of entries in semaphore map */
-#define SEMUSZ  20		/* sizeof struct sem_undo */
-
+#define SEMUSZ  20    /* sizeof struct sem_undo */
 
 #endif /* _UAPI_LINUX_SEM_H */

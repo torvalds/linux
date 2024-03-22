@@ -14,4 +14,4 @@
 
 #define MODULE_ARCH_VERMAGIC "xtensa-" __stringify(XCHAL_CORE_ID) " "
 
-#endif	/* _ASM_VERMAGIC_H */
+#endif  /* _ASM_VERMAGIC_H */

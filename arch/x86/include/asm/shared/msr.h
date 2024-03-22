@@ -3,13 +3,13 @@
 #define _ASM_X86_SHARED_MSR_H
 
 struct msr {
-	union {
-		struct {
-			u32 l;
-			u32 h;
-		};
-		u64 q;
-	};
+  union {
+    struct {
+      u32 l;
+      u32 h;
+    };
+    u64 q;
+  };
 };
 
 #endif /* _ASM_X86_SHARED_MSR_H */

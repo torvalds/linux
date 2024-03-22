@@ -32,10 +32,10 @@
  *  i.e. the data stored in the volume table, but not in any of volume LEBs.
  */
 enum {
-	UBI_READONLY = 1,
-	UBI_READWRITE,
-	UBI_EXCLUSIVE,
-	UBI_METAONLY
+  UBI_READONLY = 1,
+  UBI_READWRITE,
+  UBI_EXCLUSIVE,
+  UBI_METAONLY
 };
 
 /**
@@ -87,7 +87,7 @@ enum {
  * physical eraseblock size and on how much bytes UBI headers consume. But
  * because of the volume alignment (@alignment), the usable size of logical
  * eraseblocks if a volume may be less. The following equation is true:
- *	@usable_leb_size = LEB size - (LEB size mod @alignment),
+ *  @usable_leb_size = LEB size - (LEB size mod @alignment),
  * where LEB size is the logical eraseblock size defined by the UBI device.
  *
  * The alignment is multiple to the minimal flash input/output unit size or %1
@@ -97,20 +97,20 @@ enum {
  * volume logical eraseblock sizes.
  */
 struct ubi_volume_info {
-	int ubi_num;
-	int vol_id;
-	int size;
-	long long used_bytes;
-	int used_ebs;
-	int vol_type;
-	int corrupted;
-	int upd_marker;
-	int alignment;
-	int usable_leb_size;
-	int name_len;
-	const char *name;
-	dev_t cdev;
-	struct device *dev;
+  int ubi_num;
+  int vol_id;
+  int size;
+  long long used_bytes;
+  int used_ebs;
+  int vol_type;
+  int corrupted;
+  int upd_marker;
+  int alignment;
+  int usable_leb_size;
+  int name_len;
+  const char *name;
+  dev_t cdev;
+  struct device *dev;
 };
 
 /**
@@ -124,9 +124,9 @@ struct ubi_volume_info {
  * it can be used across multiple ubi_leb_read_sg() calls.
  */
 struct ubi_sgl {
-	int list_pos;
-	int page_pos;
-	struct scatterlist sg[UBI_MAX_SG_COUNT];
+  int list_pos;
+  int page_pos;
+  struct scatterlist sg[UBI_MAX_SG_COUNT];
 };
 
 /**
@@ -136,10 +136,9 @@ struct ubi_sgl {
  * Please note that you still have to use sg_init_table() or any adequate
  * function to initialize the unterlaying struct scatterlist.
  */
-static inline void ubi_sgl_init(struct ubi_sgl *usgl)
-{
-	usgl->list_pos = 0;
-	usgl->page_pos = 0;
+static inline void ubi_sgl_init(struct ubi_sgl *usgl) {
+  usgl->list_pos = 0;
+  usgl->page_pos = 0;
 }
 
 /**
@@ -175,13 +174,13 @@ static inline void ubi_sgl_init(struct ubi_sgl *usgl)
  * page size.
  */
 struct ubi_device_info {
-	int ubi_num;
-	int leb_size;
-	int leb_start;
-	int min_io_size;
-	int max_write_size;
-	int ro_mode;
-	dev_t cdev;
+  int ubi_num;
+  int leb_size;
+  int leb_start;
+  int min_io_size;
+  int max_write_size;
+  int ro_mode;
+  dev_t cdev;
 };
 
 /*
@@ -189,7 +188,7 @@ struct ubi_device_info {
  * @UBI_VOLUME_ADDED: a volume has been added (an UBI device was attached or a
  *                    volume was created)
  * @UBI_VOLUME_REMOVED: a volume has been removed (an UBI device was detached
- *			or a volume was removed)
+ *      or a volume was removed)
  * @UBI_VOLUME_RESIZED: a volume has been re-sized
  * @UBI_VOLUME_RENAMED: a volume has been re-named
  * @UBI_VOLUME_SHUTDOWN: a volume is going to removed, shutdown users
@@ -199,12 +198,12 @@ struct ubi_device_info {
  * notification function is invoked.
  */
 enum {
-	UBI_VOLUME_ADDED,
-	UBI_VOLUME_REMOVED,
-	UBI_VOLUME_RESIZED,
-	UBI_VOLUME_RENAMED,
-	UBI_VOLUME_SHUTDOWN,
-	UBI_VOLUME_UPDATED,
+  UBI_VOLUME_ADDED,
+  UBI_VOLUME_REMOVED,
+  UBI_VOLUME_RESIZED,
+  UBI_VOLUME_RENAMED,
+  UBI_VOLUME_SHUTDOWN,
+  UBI_VOLUME_UPDATED,
 };
 
 /*
@@ -217,8 +216,8 @@ enum {
  * UBI device and UBI volume the notification informs about.
  */
 struct ubi_notification {
-	struct ubi_device_info di;
-	struct ubi_volume_info vi;
+  struct ubi_device_info di;
+  struct ubi_volume_info vi;
 };
 
 /* UBI descriptor given to users when they open UBI volumes */
@@ -226,25 +225,25 @@ struct ubi_volume_desc;
 
 int ubi_get_device_info(int ubi_num, struct ubi_device_info *di);
 void ubi_get_volume_info(struct ubi_volume_desc *desc,
-			 struct ubi_volume_info *vi);
+    struct ubi_volume_info *vi);
 struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode);
 struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
-					   int mode);
+    int mode);
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode);
 
 int ubi_register_volume_notifier(struct notifier_block *nb,
-				 int ignore_existing);
+    int ignore_existing);
 int ubi_unregister_volume_notifier(struct notifier_block *nb);
 
 void ubi_close_volume(struct ubi_volume_desc *desc);
 int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
-		 int len, int check);
+    int len, int check);
 int ubi_leb_read_sg(struct ubi_volume_desc *desc, int lnum, struct ubi_sgl *sgl,
-		   int offset, int len, int check);
+    int offset, int len, int check);
 int ubi_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
-		  int offset, int len);
+    int offset, int len);
 int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
-		   int len);
+    int len);
 int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum);
 int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum);
 int ubi_leb_map(struct ubi_volume_desc *desc, int lnum);
@@ -257,9 +256,8 @@ int ubi_flush(int ubi_num, int vol_id, int lnum);
  * provide the checking capability.
  */
 static inline int ubi_read(struct ubi_volume_desc *desc, int lnum, char *buf,
-			   int offset, int len)
-{
-	return ubi_leb_read(desc, lnum, buf, offset, len, 0);
+    int offset, int len) {
+  return ubi_leb_read(desc, lnum, buf, offset, len, 0);
 }
 
 /*
@@ -267,8 +265,8 @@ static inline int ubi_read(struct ubi_volume_desc *desc, int lnum, char *buf,
  * not provide the checking capability.
  */
 static inline int ubi_read_sg(struct ubi_volume_desc *desc, int lnum,
-			      struct ubi_sgl *sgl, int offset, int len)
-{
-	return ubi_leb_read_sg(desc, lnum, sgl, offset, len, 0);
+    struct ubi_sgl *sgl, int offset, int len) {
+  return ubi_leb_read_sg(desc, lnum, sgl, offset, len, 0);
 }
+
 #endif /* !__LINUX_UBI_H__ */

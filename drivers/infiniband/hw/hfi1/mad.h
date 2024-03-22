@@ -35,96 +35,95 @@
 /*
  * Generic trap/notice other local changes flags (trap 144).
  */
-#define	OPA_NOTICE_TRAP_LWDE_CHG        0x08 /* Link Width Downgrade Enable
-					      * changed
-					      */
+#define OPA_NOTICE_TRAP_LWDE_CHG        0x08 /* Link Width Downgrade Enable
+                                              * changed
+                                              */
 #define OPA_NOTICE_TRAP_LSE_CHG         0x04 /* Link Speed Enable changed */
 #define OPA_NOTICE_TRAP_LWE_CHG         0x02 /* Link Width Enable changed */
 #define OPA_NOTICE_TRAP_NODE_DESC_CHG   0x01
 
 struct opa_mad_notice_attr {
-	u8 generic_type;
-	u8 prod_type_msb;
-	__be16 prod_type_lsb;
-	__be16 trap_num;
-	__be16 toggle_count;
-	__be32 issuer_lid;
-	__be32 reserved1;
-	union ib_gid issuer_gid;
+  u8 generic_type;
+  u8 prod_type_msb;
+  __be16 prod_type_lsb;
+  __be16 trap_num;
+  __be16 toggle_count;
+  __be32 issuer_lid;
+  __be32 reserved1;
+  union ib_gid issuer_gid;
 
-	union {
-		struct {
-			u8	details[64];
-		} raw_data;
+  union {
+    struct {
+      u8 details[64];
+    } raw_data;
 
-		struct {
-			union ib_gid	gid;
-		} __packed ntc_64_65_66_67;
+    struct {
+      union ib_gid gid;
+    } __packed ntc_64_65_66_67;
 
-		struct {
-			__be32	lid;
-		} __packed ntc_128;
+    struct {
+      __be32 lid;
+    } __packed ntc_128;
 
-		struct {
-			__be32	lid;		/* where violation happened */
-			u8	port_num;	/* where violation happened */
-		} __packed ntc_129_130_131;
+    struct {
+      __be32 lid;    /* where violation happened */
+      u8 port_num; /* where violation happened */
+    } __packed ntc_129_130_131;
 
-		struct {
-			__be32	lid;		/* LID where change occurred */
-			__be32	new_cap_mask;	/* new capability mask */
-			__be16	reserved2;
-			__be16	cap_mask3;
-			__be16	change_flags;	/* low 4 bits only */
-		} __packed ntc_144;
+    struct {
+      __be32 lid;    /* LID where change occurred */
+      __be32 new_cap_mask; /* new capability mask */
+      __be16 reserved2;
+      __be16 cap_mask3;
+      __be16 change_flags; /* low 4 bits only */
+    } __packed ntc_144;
 
-		struct {
-			__be64	new_sys_guid;
-			__be32	lid;		/* lid where sys guid changed */
-		} __packed ntc_145;
+    struct {
+      __be64 new_sys_guid;
+      __be32 lid;    /* lid where sys guid changed */
+    } __packed ntc_145;
 
-		struct {
-			__be32	lid;
-			__be32	dr_slid;
-			u8	method;
-			u8	dr_trunc_hop;
-			__be16	attr_id;
-			__be32	attr_mod;
-			__be64	mkey;
-			u8	dr_rtn_path[30];
-		} __packed ntc_256;
+    struct {
+      __be32 lid;
+      __be32 dr_slid;
+      u8 method;
+      u8 dr_trunc_hop;
+      __be16 attr_id;
+      __be32 attr_mod;
+      __be64 mkey;
+      u8 dr_rtn_path[30];
+    } __packed ntc_256;
 
-		struct {
-			__be32		lid1;
-			__be32		lid2;
-			__be32		key;
-			u8		sl;	/* SL: high 5 bits */
-			u8		reserved3[3];
-			union ib_gid	gid1;
-			union ib_gid	gid2;
-			__be32		qp1;	/* high 8 bits reserved */
-			__be32		qp2;	/* high 8 bits reserved */
-		} __packed ntc_257_258;
+    struct {
+      __be32 lid1;
+      __be32 lid2;
+      __be32 key;
+      u8 sl; /* SL: high 5 bits */
+      u8 reserved3[3];
+      union ib_gid gid1;
+      union ib_gid gid2;
+      __be32 qp1;  /* high 8 bits reserved */
+      __be32 qp2;  /* high 8 bits reserved */
+    } __packed ntc_257_258;
 
-		struct {
-			__be16		flags;	/* low 8 bits reserved */
-			__be16		pkey;
-			__be32		lid1;
-			__be32		lid2;
-			u8		sl;	/* SL: high 5 bits */
-			u8		reserved4[3];
-			union ib_gid	gid1;
-			union ib_gid	gid2;
-			__be32		qp1;	/* high 8 bits reserved */
-			__be32		qp2;	/* high 8 bits reserved */
-		} __packed ntc_259;
+    struct {
+      __be16 flags;  /* low 8 bits reserved */
+      __be16 pkey;
+      __be32 lid1;
+      __be32 lid2;
+      u8 sl; /* SL: high 5 bits */
+      u8 reserved4[3];
+      union ib_gid gid1;
+      union ib_gid gid2;
+      __be32 qp1;  /* high 8 bits reserved */
+      __be32 qp2;  /* high 8 bits reserved */
+    } __packed ntc_259;
 
-		struct {
-			__be32	lid;
-		} __packed ntc_2048;
-
-	};
-	u8	class_data[];
+    struct {
+      __be32 lid;
+    } __packed ntc_2048;
+  };
+  u8 class_data[];
 };
 
 #define IB_VLARB_LOWPRI_0_31    1
@@ -139,39 +138,39 @@ struct opa_mad_notice_attr {
 #define OPA_VLARB_PREEMPT_MATRIX     3
 
 #define IB_PMA_PORT_COUNTERS_CONG       cpu_to_be16(0xFF00)
-#define LINK_SPEED_25G		1
-#define LINK_SPEED_12_5G	2
-#define LINK_WIDTH_DEFAULT	4
-#define DECIMAL_FACTORING	1000
+#define LINK_SPEED_25G    1
+#define LINK_SPEED_12_5G  2
+#define LINK_WIDTH_DEFAULT  4
+#define DECIMAL_FACTORING 1000
 /*
  * The default link width is multiplied by 1000
  * to get accurate value after division.
  */
-#define FACTOR_LINK_WIDTH	(LINK_WIDTH_DEFAULT * DECIMAL_FACTORING)
+#define FACTOR_LINK_WIDTH (LINK_WIDTH_DEFAULT * DECIMAL_FACTORING)
 
 struct ib_pma_portcounters_cong {
-	u8 reserved;
-	u8 reserved1;
-	__be16 port_check_rate;
-	__be16 symbol_error_counter;
-	u8 link_error_recovery_counter;
-	u8 link_downed_counter;
-	__be16 port_rcv_errors;
-	__be16 port_rcv_remphys_errors;
-	__be16 port_rcv_switch_relay_errors;
-	__be16 port_xmit_discards;
-	u8 port_xmit_constraint_errors;
-	u8 port_rcv_constraint_errors;
-	u8 reserved2;
-	u8 link_overrun_errors; /* LocalLink: 7:4, BufferOverrun: 3:0 */
-	__be16 reserved3;
-	__be16 vl15_dropped;
-	__be64 port_xmit_data;
-	__be64 port_rcv_data;
-	__be64 port_xmit_packets;
-	__be64 port_rcv_packets;
-	__be64 port_xmit_wait;
-	__be64 port_adr_events;
+  u8 reserved;
+  u8 reserved1;
+  __be16 port_check_rate;
+  __be16 symbol_error_counter;
+  u8 link_error_recovery_counter;
+  u8 link_downed_counter;
+  __be16 port_rcv_errors;
+  __be16 port_rcv_remphys_errors;
+  __be16 port_rcv_switch_relay_errors;
+  __be16 port_xmit_discards;
+  u8 port_xmit_constraint_errors;
+  u8 port_rcv_constraint_errors;
+  u8 reserved2;
+  u8 link_overrun_errors; /* LocalLink: 7:4, BufferOverrun: 3:0 */
+  __be16 reserved3;
+  __be16 vl15_dropped;
+  __be64 port_xmit_data;
+  __be64 port_rcv_data;
+  __be64 port_xmit_packets;
+  __be64 port_rcv_packets;
+  __be64 port_xmit_wait;
+  __be64 port_adr_events;
 } __packed;
 
 #define IB_SMP_UNSUP_VERSION    cpu_to_be16(0x0004)
@@ -199,35 +198,35 @@ struct ib_pma_portcounters_cong {
  * There should be an equivalent IB #define for the following, but
  * I cannot find it.
  */
-#define OPA_CC_LOG_TYPE_HFI	2
+#define OPA_CC_LOG_TYPE_HFI 2
 
 struct opa_hfi1_cong_log_event_internal {
-	u32 lqpn;
-	u32 rqpn;
-	u8 sl;
-	u8 svc_type;
-	u32 rlid;
-	u64 timestamp; /* wider than 32 bits to detect 32 bit rollover */
+  u32 lqpn;
+  u32 rqpn;
+  u8 sl;
+  u8 svc_type;
+  u32 rlid;
+  u64 timestamp; /* wider than 32 bits to detect 32 bit rollover */
 };
 
 struct opa_hfi1_cong_log_event {
-	u8 local_qp_cn_entry[3];
-	u8 remote_qp_number_cn_entry[3];
-	u8 sl_svc_type_cn_entry; /* 5 bits SL, 3 bits svc type */
-	u8 reserved;
-	__be32 remote_lid_cn_entry;
-	__be32 timestamp_cn_entry;
+  u8 local_qp_cn_entry[3];
+  u8 remote_qp_number_cn_entry[3];
+  u8 sl_svc_type_cn_entry; /* 5 bits SL, 3 bits svc type */
+  u8 reserved;
+  __be32 remote_lid_cn_entry;
+  __be32 timestamp_cn_entry;
 } __packed;
 
-#define OPA_CONG_LOG_ELEMS	96
+#define OPA_CONG_LOG_ELEMS  96
 
 struct opa_hfi1_cong_log {
-	u8 log_type;
-	u8 congestion_flags;
-	__be16 threshold_event_counter;
-	__be32 current_time_stamp;
-	u8 threshold_cong_event_map[OPA_MAX_SLS / 8];
-	struct opa_hfi1_cong_log_event events[OPA_CONG_LOG_ELEMS];
+  u8 log_type;
+  u8 congestion_flags;
+  __be16 threshold_event_counter;
+  __be32 current_time_stamp;
+  u8 threshold_cong_event_map[OPA_MAX_SLS / 8];
+  struct opa_hfi1_cong_log_event events[OPA_CONG_LOG_ELEMS];
 } __packed;
 
 #define IB_CC_TABLE_CAP_DEFAULT 31
@@ -236,31 +235,31 @@ struct opa_hfi1_cong_log {
 #define IB_CC_CCS_PC_SL_BASED 0x01
 
 struct opa_congestion_setting_entry {
-	u8 ccti_increase;
-	u8 reserved;
-	__be16 ccti_timer;
-	u8 trigger_threshold;
-	u8 ccti_min; /* min CCTI for cc table */
+  u8 ccti_increase;
+  u8 reserved;
+  __be16 ccti_timer;
+  u8 trigger_threshold;
+  u8 ccti_min; /* min CCTI for cc table */
 } __packed;
 
 struct opa_congestion_setting_entry_shadow {
-	u8 ccti_increase;
-	u8 reserved;
-	u16 ccti_timer;
-	u8 trigger_threshold;
-	u8 ccti_min; /* min CCTI for cc table */
+  u8 ccti_increase;
+  u8 reserved;
+  u16 ccti_timer;
+  u8 trigger_threshold;
+  u8 ccti_min; /* min CCTI for cc table */
 } __packed;
 
 struct opa_congestion_setting_attr {
-	__be32 control_map;
-	__be16 port_control;
-	struct opa_congestion_setting_entry entries[OPA_MAX_SLS];
+  __be32 control_map;
+  __be16 port_control;
+  struct opa_congestion_setting_entry entries[OPA_MAX_SLS];
 } __packed;
 
 struct opa_congestion_setting_attr_shadow {
-	u32 control_map;
-	u16 port_control;
-	struct opa_congestion_setting_entry_shadow entries[OPA_MAX_SLS];
+  u32 control_map;
+  u16 port_control;
+  struct opa_congestion_setting_entry_shadow entries[OPA_MAX_SLS];
 } __packed;
 
 #define IB_CC_TABLE_ENTRY_INCREASE_DEFAULT 1
@@ -271,29 +270,29 @@ struct opa_congestion_setting_attr_shadow {
 #define IB_CCT_MIN_ENTRIES (IB_CCT_ENTRIES * 2)
 
 struct ib_cc_table_entry {
-	__be16 entry; /* shift:2, multiplier:14 */
+  __be16 entry; /* shift:2, multiplier:14 */
 };
 
 struct ib_cc_table_entry_shadow {
-	u16 entry; /* shift:2, multiplier:14 */
+  u16 entry; /* shift:2, multiplier:14 */
 };
 
 struct ib_cc_table_attr {
-	__be16 ccti_limit; /* max CCTI for cc table */
-	struct ib_cc_table_entry ccti_entries[IB_CCT_ENTRIES];
+  __be16 ccti_limit; /* max CCTI for cc table */
+  struct ib_cc_table_entry ccti_entries[IB_CCT_ENTRIES];
 } __packed;
 
 struct ib_cc_table_attr_shadow {
-	u16 ccti_limit; /* max CCTI for cc table */
-	struct ib_cc_table_entry_shadow ccti_entries[IB_CCT_ENTRIES];
+  u16 ccti_limit; /* max CCTI for cc table */
+  struct ib_cc_table_entry_shadow ccti_entries[IB_CCT_ENTRIES];
 } __packed;
 
 #define CC_TABLE_SHADOW_MAX \
-	(IB_CC_TABLE_CAP_DEFAULT * IB_CCT_ENTRIES)
+  (IB_CC_TABLE_CAP_DEFAULT * IB_CCT_ENTRIES)
 
 struct cc_table_shadow {
-	u16 ccti_limit; /* max CCTI for cc table */
-	struct ib_cc_table_entry_shadow entries[CC_TABLE_SHADOW_MAX];
+  u16 ccti_limit; /* max CCTI for cc table */
+  struct ib_cc_table_entry_shadow entries[CC_TABLE_SHADOW_MAX];
 } __packed;
 
 /*
@@ -303,9 +302,9 @@ struct cc_table_shadow {
  * is an RCU protected structure.
  */
 struct cc_state {
-	struct rcu_head rcu;
-	struct cc_table_shadow cct;
-	struct opa_congestion_setting_attr_shadow cong_setting;
+  struct rcu_head rcu;
+  struct cc_table_shadow cct;
+  struct opa_congestion_setting_attr_shadow cong_setting;
 };
 
 /*
@@ -313,73 +312,73 @@ struct cc_state {
  */
 
 /* attribute modifier macros */
-#define OPA_AM_NPORT_SHIFT	24
-#define OPA_AM_NPORT_MASK	0xff
-#define OPA_AM_NPORT_SMASK	(OPA_AM_NPORT_MASK << OPA_AM_NPORT_SHIFT)
-#define OPA_AM_NPORT(am)	(((am) >> OPA_AM_NPORT_SHIFT) & \
-					OPA_AM_NPORT_MASK)
+#define OPA_AM_NPORT_SHIFT  24
+#define OPA_AM_NPORT_MASK 0xff
+#define OPA_AM_NPORT_SMASK  (OPA_AM_NPORT_MASK << OPA_AM_NPORT_SHIFT)
+#define OPA_AM_NPORT(am)  (((am) >> OPA_AM_NPORT_SHIFT)   \
+  & OPA_AM_NPORT_MASK)
 
-#define OPA_AM_NBLK_SHIFT	24
-#define OPA_AM_NBLK_MASK	0xff
-#define OPA_AM_NBLK_SMASK	(OPA_AM_NBLK_MASK << OPA_AM_NBLK_SHIFT)
-#define OPA_AM_NBLK(am)		(((am) >> OPA_AM_NBLK_SHIFT) & \
-					OPA_AM_NBLK_MASK)
+#define OPA_AM_NBLK_SHIFT 24
+#define OPA_AM_NBLK_MASK  0xff
+#define OPA_AM_NBLK_SMASK (OPA_AM_NBLK_MASK << OPA_AM_NBLK_SHIFT)
+#define OPA_AM_NBLK(am)   (((am) >> OPA_AM_NBLK_SHIFT)   \
+  & OPA_AM_NBLK_MASK)
 
-#define OPA_AM_START_BLK_SHIFT	0
-#define OPA_AM_START_BLK_MASK	0xff
-#define OPA_AM_START_BLK_SMASK	(OPA_AM_START_BLK_MASK << \
-					OPA_AM_START_BLK_SHIFT)
-#define OPA_AM_START_BLK(am)	(((am) >> OPA_AM_START_BLK_SHIFT) & \
-					OPA_AM_START_BLK_MASK)
+#define OPA_AM_START_BLK_SHIFT  0
+#define OPA_AM_START_BLK_MASK 0xff
+#define OPA_AM_START_BLK_SMASK  (OPA_AM_START_BLK_MASK << \
+    OPA_AM_START_BLK_SHIFT)
+#define OPA_AM_START_BLK(am)  (((am) >> OPA_AM_START_BLK_SHIFT)   \
+  & OPA_AM_START_BLK_MASK)
 
-#define OPA_AM_PORTNUM_SHIFT	0
-#define OPA_AM_PORTNUM_MASK	0xff
-#define OPA_AM_PORTNUM_SMASK	(OPA_AM_PORTNUM_MASK << OPA_AM_PORTNUM_SHIFT)
-#define OPA_AM_PORTNUM(am)	(((am) >> OPA_AM_PORTNUM_SHIFT) & \
-					OPA_AM_PORTNUM_MASK)
+#define OPA_AM_PORTNUM_SHIFT  0
+#define OPA_AM_PORTNUM_MASK 0xff
+#define OPA_AM_PORTNUM_SMASK  (OPA_AM_PORTNUM_MASK << OPA_AM_PORTNUM_SHIFT)
+#define OPA_AM_PORTNUM(am)  (((am) >> OPA_AM_PORTNUM_SHIFT)   \
+  & OPA_AM_PORTNUM_MASK)
 
-#define OPA_AM_ASYNC_SHIFT	12
-#define OPA_AM_ASYNC_MASK	0x1
-#define OPA_AM_ASYNC_SMASK	(OPA_AM_ASYNC_MASK << OPA_AM_ASYNC_SHIFT)
-#define OPA_AM_ASYNC(am)	(((am) >> OPA_AM_ASYNC_SHIFT) & \
-					OPA_AM_ASYNC_MASK)
+#define OPA_AM_ASYNC_SHIFT  12
+#define OPA_AM_ASYNC_MASK 0x1
+#define OPA_AM_ASYNC_SMASK  (OPA_AM_ASYNC_MASK << OPA_AM_ASYNC_SHIFT)
+#define OPA_AM_ASYNC(am)  (((am) >> OPA_AM_ASYNC_SHIFT)   \
+  & OPA_AM_ASYNC_MASK)
 
-#define OPA_AM_START_SM_CFG_SHIFT	9
-#define OPA_AM_START_SM_CFG_MASK	0x1
-#define OPA_AM_START_SM_CFG_SMASK	(OPA_AM_START_SM_CFG_MASK << \
-						OPA_AM_START_SM_CFG_SHIFT)
-#define OPA_AM_START_SM_CFG(am)		(((am) >> OPA_AM_START_SM_CFG_SHIFT) \
-						& OPA_AM_START_SM_CFG_MASK)
+#define OPA_AM_START_SM_CFG_SHIFT 9
+#define OPA_AM_START_SM_CFG_MASK  0x1
+#define OPA_AM_START_SM_CFG_SMASK (OPA_AM_START_SM_CFG_MASK << \
+    OPA_AM_START_SM_CFG_SHIFT)
+#define OPA_AM_START_SM_CFG(am)   (((am) >> OPA_AM_START_SM_CFG_SHIFT) \
+  & OPA_AM_START_SM_CFG_MASK)
 
-#define OPA_AM_CI_ADDR_SHIFT	19
-#define OPA_AM_CI_ADDR_MASK	0xfff
-#define OPA_AM_CI_ADDR_SMASK	(OPA_AM_CI_ADDR_MASK << OPA_CI_ADDR_SHIFT)
-#define OPA_AM_CI_ADDR(am)	(((am) >> OPA_AM_CI_ADDR_SHIFT) & \
-					OPA_AM_CI_ADDR_MASK)
+#define OPA_AM_CI_ADDR_SHIFT  19
+#define OPA_AM_CI_ADDR_MASK 0xfff
+#define OPA_AM_CI_ADDR_SMASK  (OPA_AM_CI_ADDR_MASK << OPA_CI_ADDR_SHIFT)
+#define OPA_AM_CI_ADDR(am)  (((am) >> OPA_AM_CI_ADDR_SHIFT)   \
+  & OPA_AM_CI_ADDR_MASK)
 
-#define OPA_AM_CI_LEN_SHIFT	13
-#define OPA_AM_CI_LEN_MASK	0x3f
-#define OPA_AM_CI_LEN_SMASK	(OPA_AM_CI_LEN_MASK << OPA_CI_LEN_SHIFT)
-#define OPA_AM_CI_LEN(am)	(((am) >> OPA_AM_CI_LEN_SHIFT) & \
-					OPA_AM_CI_LEN_MASK)
+#define OPA_AM_CI_LEN_SHIFT 13
+#define OPA_AM_CI_LEN_MASK  0x3f
+#define OPA_AM_CI_LEN_SMASK (OPA_AM_CI_LEN_MASK << OPA_CI_LEN_SHIFT)
+#define OPA_AM_CI_LEN(am) (((am) >> OPA_AM_CI_LEN_SHIFT)   \
+  & OPA_AM_CI_LEN_MASK)
 
 /* error info macros */
-#define OPA_EI_STATUS_SMASK	0x80
-#define OPA_EI_CODE_SMASK	0x0f
+#define OPA_EI_STATUS_SMASK 0x80
+#define OPA_EI_CODE_SMASK 0x0f
 
 struct vl_limit {
-	__be16 dedicated;
-	__be16 shared;
+  __be16 dedicated;
+  __be16 shared;
 };
 
 struct buffer_control {
-	__be16 reserved;
-	__be16 overall_shared_limit;
-	struct vl_limit vl[OPA_MAX_VLS];
+  __be16 reserved;
+  __be16 overall_shared_limit;
+  struct vl_limit vl[OPA_MAX_VLS];
 };
 
 struct sc2vlnt {
-	u8 vlnt[32]; /* 5 bit VL, 3 bits reserved */
+  u8 vlnt[32]; /* 5 bit VL, 3 bits reserved */
 };
 
 /*
@@ -389,17 +388,17 @@ struct sc2vlnt {
  */
 #define COUNTER_MASK(q, n) (q << ((9 - n) * 3))
 #define COUNTER_MASK0_9 \
-	cpu_to_be32(COUNTER_MASK(1, 0) | \
-		    COUNTER_MASK(1, 1) | \
-		    COUNTER_MASK(1, 2) | \
-		    COUNTER_MASK(1, 3) | \
-		    COUNTER_MASK(1, 4))
+  cpu_to_be32(COUNTER_MASK(1, 0)   \
+    | COUNTER_MASK(1, 1)   \
+    | COUNTER_MASK(1, 2)   \
+    | COUNTER_MASK(1, 3)   \
+    | COUNTER_MASK(1, 4))
 
 void hfi1_event_pkey_change(struct hfi1_devdata *dd, u32 port);
 void hfi1_handle_trap_timer(struct timer_list *t);
 u16 tx_link_width(u16 link_width);
 u64 get_xmit_wait_counters(struct hfi1_pportdata *ppd, u16 link_width,
-			   u16 link_speed, int vl);
+    u16 link_speed, int vl);
 /**
  * get_link_speed - determine whether 12.5G or 25G speed
  * @link_speed: the speed of active link
@@ -414,10 +413,9 @@ u64 get_xmit_wait_counters(struct hfi1_pportdata *ppd, u16 link_width,
  * link speed is 25G or 2 if 12.5G.This is done to avoid
  * 12.5 float number conversion.
  */
-static inline u16 get_link_speed(u16 link_speed)
-{
-	return (link_speed == 1) ?
-		 LINK_SPEED_12_5G : LINK_SPEED_25G;
+static inline u16 get_link_speed(u16 link_speed) {
+  return (link_speed == 1)
+    ? LINK_SPEED_12_5G : LINK_SPEED_25G;
 }
 
 /**
@@ -429,9 +427,9 @@ static inline u16 get_link_speed(u16 link_speed)
  * @return: return xmit counter value in flit times.
  */
 static inline u64 convert_xmit_counter(u64 xmit_wait_val, u16 link_width,
-				       u16 link_speed)
-{
-	return (xmit_wait_val * 2 * (FACTOR_LINK_WIDTH / link_width)
-		 * link_speed) / DECIMAL_FACTORING;
+    u16 link_speed) {
+  return (xmit_wait_val * 2 * (FACTOR_LINK_WIDTH / link_width)
+    * link_speed) / DECIMAL_FACTORING;
 }
-#endif				/* _HFI1_MAD_H */
+
+#endif        /* _HFI1_MAD_H */

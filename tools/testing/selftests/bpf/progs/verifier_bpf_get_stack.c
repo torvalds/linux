@@ -8,30 +8,30 @@
 #define MAX_ENTRIES 11
 
 struct test_val {
-	unsigned int index;
-	int foo[MAX_ENTRIES];
+  unsigned int index;
+  int foo[MAX_ENTRIES];
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
-	__type(key, int);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, int);
+  __type(value, struct test_val);
 } map_array_48b SEC(".maps");
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, struct test_val);
 } map_hash_48b SEC(".maps");
 
 SEC("tracepoint")
 __description("bpf_get_stack return R0 within range")
 __success
-__naked void stack_return_r0_within_range(void)
-{
-	asm volatile ("					\
+__naked void stack_return_r0_within_range(void) {
+  asm volatile (
+    "					\
 	r6 = r1;					\
 	r1 = 0;						\
 	*(u64*)(r10 - 8) = r1;				\
@@ -69,20 +69,20 @@ __naked void stack_return_r0_within_range(void)
 	r4 = 0;						\
 	call %[bpf_get_stack];				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_get_stack),
-	  __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b),
-	  __imm_const(__imm_0, sizeof(struct test_val) / 2)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_stack),
+    __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b),
+    __imm_const(__imm_0, sizeof(struct test_val) / 2)
+    : __clobber_all);
 }
 
 SEC("iter/task")
 __description("bpf_get_task_stack return R0 range is refined")
 __success
-__naked void return_r0_range_is_refined(void)
-{
-	asm volatile ("					\
+__naked void return_r0_range_is_refined(void) {
+  asm volatile (
+    "					\
 	r6 = *(u64*)(r1 + 0);				\
 	r6 = *(u64*)(r6 + 0);		/* ctx->meta->seq */\
 	r7 = *(u64*)(r1 + 8);		/* ctx->task */\
@@ -113,12 +113,12 @@ l2_%=:	r1 = r6;					\
 	call %[bpf_seq_write];				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_get_task_stack),
-	  __imm(bpf_map_lookup_elem),
-	  __imm(bpf_seq_write),
-	  __imm_addr(map_array_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_get_task_stack),
+    __imm(bpf_map_lookup_elem),
+    __imm(bpf_seq_write),
+    __imm_addr(map_array_48b)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

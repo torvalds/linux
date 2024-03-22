@@ -19,51 +19,47 @@
 
 #include "aesp8-ppc.h"
 
-static int __init p8_init(void)
-{
-	int ret;
-
-	ret = crypto_register_shash(&p8_ghash_alg);
-	if (ret)
-		goto err;
-
-	ret = crypto_register_alg(&p8_aes_alg);
-	if (ret)
-		goto err_unregister_ghash;
-
-	ret = crypto_register_skcipher(&p8_aes_cbc_alg);
-	if (ret)
-		goto err_unregister_aes;
-
-	ret = crypto_register_skcipher(&p8_aes_ctr_alg);
-	if (ret)
-		goto err_unregister_aes_cbc;
-
-	ret = crypto_register_skcipher(&p8_aes_xts_alg);
-	if (ret)
-		goto err_unregister_aes_ctr;
-
-	return 0;
-
+static int __init p8_init(void) {
+  int ret;
+  ret = crypto_register_shash(&p8_ghash_alg);
+  if (ret) {
+    goto err;
+  }
+  ret = crypto_register_alg(&p8_aes_alg);
+  if (ret) {
+    goto err_unregister_ghash;
+  }
+  ret = crypto_register_skcipher(&p8_aes_cbc_alg);
+  if (ret) {
+    goto err_unregister_aes;
+  }
+  ret = crypto_register_skcipher(&p8_aes_ctr_alg);
+  if (ret) {
+    goto err_unregister_aes_cbc;
+  }
+  ret = crypto_register_skcipher(&p8_aes_xts_alg);
+  if (ret) {
+    goto err_unregister_aes_ctr;
+  }
+  return 0;
 err_unregister_aes_ctr:
-	crypto_unregister_skcipher(&p8_aes_ctr_alg);
+  crypto_unregister_skcipher(&p8_aes_ctr_alg);
 err_unregister_aes_cbc:
-	crypto_unregister_skcipher(&p8_aes_cbc_alg);
+  crypto_unregister_skcipher(&p8_aes_cbc_alg);
 err_unregister_aes:
-	crypto_unregister_alg(&p8_aes_alg);
+  crypto_unregister_alg(&p8_aes_alg);
 err_unregister_ghash:
-	crypto_unregister_shash(&p8_ghash_alg);
+  crypto_unregister_shash(&p8_ghash_alg);
 err:
-	return ret;
+  return ret;
 }
 
-static void __exit p8_exit(void)
-{
-	crypto_unregister_skcipher(&p8_aes_xts_alg);
-	crypto_unregister_skcipher(&p8_aes_ctr_alg);
-	crypto_unregister_skcipher(&p8_aes_cbc_alg);
-	crypto_unregister_alg(&p8_aes_alg);
-	crypto_unregister_shash(&p8_ghash_alg);
+static void __exit p8_exit(void) {
+  crypto_unregister_skcipher(&p8_aes_xts_alg);
+  crypto_unregister_skcipher(&p8_aes_ctr_alg);
+  crypto_unregister_skcipher(&p8_aes_cbc_alg);
+  crypto_unregister_alg(&p8_aes_alg);
+  crypto_unregister_shash(&p8_ghash_alg);
 }
 
 module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, p8_init);
@@ -71,7 +67,7 @@ module_exit(p8_exit);
 
 MODULE_AUTHOR("Marcelo Cerri<mhcerri@br.ibm.com>");
 MODULE_DESCRIPTION("IBM VMX cryptographic acceleration instructions "
-		   "support on Power 8");
+    "support on Power 8");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 MODULE_IMPORT_NS(CRYPTO_INTERNAL);

@@ -24,32 +24,32 @@
 #define MKHI_GFX_MEM_READY_PXP_ALLOWED  0x1
 
 struct mkhi_rule_id {
-	__le16 rule_type;
-	u8 feature_id;
-	u8 reserved;
+  __le16 rule_type;
+  u8 feature_id;
+  u8 reserved;
 } __packed;
 
 struct mkhi_fwcaps {
-	struct mkhi_rule_id id;
-	u8 len;
-	u8 data[];
+  struct mkhi_rule_id id;
+  u8 len;
+  u8 data[];
 } __packed;
 
 struct mkhi_msg_hdr {
-	u8  group_id;
-	u8  command;
-	u8  reserved;
-	u8  result;
+  u8 group_id;
+  u8 command;
+  u8 reserved;
+  u8 result;
 } __packed;
 
 struct mkhi_msg {
-	struct mkhi_msg_hdr hdr;
-	u8 data[];
+  struct mkhi_msg_hdr hdr;
+  u8 data[];
 } __packed;
 
 struct mkhi_gfx_mem_ready {
-	struct mkhi_msg_hdr hdr;
-	u32    flags;
+  struct mkhi_msg_hdr hdr;
+  u32 flags;
 } __packed;
 
 #endif /* _MEI_MKHI_H_ */

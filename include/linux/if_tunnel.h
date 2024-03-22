@@ -12,6 +12,6 @@
  */
 
 #define for_each_ip_tunnel_rcu(pos, start) \
-	for (pos = rcu_dereference(start); pos; pos = rcu_dereference(pos->next))
+  for (pos = rcu_dereference(start); pos; pos = rcu_dereference(pos->next))
 
 #endif /* _IF_TUNNEL_H_ */

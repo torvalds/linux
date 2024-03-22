@@ -18,7 +18,7 @@
  * assume GCC is being used.
  */
 
-typedef long		__kernel_daddr_t;
+typedef long __kernel_daddr_t;
 #define __kernel_daddr_t __kernel_daddr_t
 
 #include <asm-generic/posix_types.h>

@@ -3,8 +3,8 @@
 #define _IP6_TUNNEL_H
 
 #include <linux/types.h>
-#include <linux/if.h>		/* For IFNAMSIZ. */
-#include <linux/in6.h>		/* For struct in6_addr. */
+#include <linux/if.h>   /* For IFNAMSIZ. */
+#include <linux/in6.h>    /* For struct in6_addr. */
 
 #define IPV6_TLV_TNL_ENCAP_LIMIT 4
 #define IPV6_DEFAULT_TNL_ENCAP_LIMIT 4
@@ -25,32 +25,32 @@
 #define IP6_TNL_F_ALLOW_LOCAL_REMOTE 0x40
 
 struct ip6_tnl_parm {
-	char name[IFNAMSIZ];	/* name of tunnel device */
-	int link;		/* ifindex of underlying L2 interface */
-	__u8 proto;		/* tunnel protocol */
-	__u8 encap_limit;	/* encapsulation limit for tunnel */
-	__u8 hop_limit;		/* hop limit for tunnel */
-	__be32 flowinfo;	/* traffic class and flowlabel for tunnel */
-	__u32 flags;		/* tunnel flags */
-	struct in6_addr laddr;	/* local tunnel end-point address */
-	struct in6_addr raddr;	/* remote tunnel end-point address */
+  char name[IFNAMSIZ];  /* name of tunnel device */
+  int link;   /* ifindex of underlying L2 interface */
+  __u8 proto;   /* tunnel protocol */
+  __u8 encap_limit; /* encapsulation limit for tunnel */
+  __u8 hop_limit;   /* hop limit for tunnel */
+  __be32 flowinfo;  /* traffic class and flowlabel for tunnel */
+  __u32 flags;    /* tunnel flags */
+  struct in6_addr laddr;  /* local tunnel end-point address */
+  struct in6_addr raddr;  /* remote tunnel end-point address */
 };
 
 struct ip6_tnl_parm2 {
-	char name[IFNAMSIZ];	/* name of tunnel device */
-	int link;		/* ifindex of underlying L2 interface */
-	__u8 proto;		/* tunnel protocol */
-	__u8 encap_limit;	/* encapsulation limit for tunnel */
-	__u8 hop_limit;		/* hop limit for tunnel */
-	__be32 flowinfo;	/* traffic class and flowlabel for tunnel */
-	__u32 flags;		/* tunnel flags */
-	struct in6_addr laddr;	/* local tunnel end-point address */
-	struct in6_addr raddr;	/* remote tunnel end-point address */
+  char name[IFNAMSIZ];  /* name of tunnel device */
+  int link;   /* ifindex of underlying L2 interface */
+  __u8 proto;   /* tunnel protocol */
+  __u8 encap_limit; /* encapsulation limit for tunnel */
+  __u8 hop_limit;   /* hop limit for tunnel */
+  __be32 flowinfo;  /* traffic class and flowlabel for tunnel */
+  __u32 flags;    /* tunnel flags */
+  struct in6_addr laddr;  /* local tunnel end-point address */
+  struct in6_addr raddr;  /* remote tunnel end-point address */
 
-	__be16			i_flags;
-	__be16			o_flags;
-	__be32			i_key;
-	__be32			o_key;
+  __be16 i_flags;
+  __be16 o_flags;
+  __be32 i_key;
+  __be32 o_key;
 };
 
 #endif

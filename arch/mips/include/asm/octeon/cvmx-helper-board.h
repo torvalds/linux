@@ -37,25 +37,26 @@
 #include <asm/octeon/cvmx-helper.h>
 
 enum cvmx_helper_board_usb_clock_types {
-	USB_CLOCK_TYPE_REF_12,
-	USB_CLOCK_TYPE_REF_24,
-	USB_CLOCK_TYPE_REF_48,
-	USB_CLOCK_TYPE_CRYSTAL_12,
+  USB_CLOCK_TYPE_REF_12,
+  USB_CLOCK_TYPE_REF_24,
+  USB_CLOCK_TYPE_REF_48,
+  USB_CLOCK_TYPE_CRYSTAL_12,
 };
 
 typedef enum {
-	set_phy_link_flags_autoneg = 0x1,
-	set_phy_link_flags_flow_control_dont_touch = 0x0 << 1,
-	set_phy_link_flags_flow_control_enable = 0x1 << 1,
-	set_phy_link_flags_flow_control_disable = 0x2 << 1,
-	set_phy_link_flags_flow_control_mask = 0x3 << 1,	/* Mask for 2 bit wide flow control field */
+  set_phy_link_flags_autoneg = 0x1,
+  set_phy_link_flags_flow_control_dont_touch = 0x0 << 1,
+  set_phy_link_flags_flow_control_enable = 0x1 << 1,
+  set_phy_link_flags_flow_control_disable = 0x2 << 1,
+  set_phy_link_flags_flow_control_mask = 0x3 << 1,  /* Mask for 2 bit wide flow
+                                                     * control field */
 } cvmx_helper_board_set_phy_link_flags_types_t;
 
 /*
  * Fake IPD port, the RGMII/MII interface may use different PHY, use
  * this macro to return appropriate MIX address to read the PHY.
  */
-#define CVMX_HELPER_BOARD_MGMT_IPD_PORT	    -10
+#define CVMX_HELPER_BOARD_MGMT_IPD_PORT     -10
 
 /**
  * Return the MII PHY address associated with the given IPD
@@ -88,10 +89,10 @@ extern int cvmx_helper_board_get_mii_address(int ipd_port);
  * enumeration from the bootloader.
  *
  * @ipd_port: IPD input port associated with the port we want to get link
- *		   status for.
+ *       status for.
  *
  * Returns The ports link status. If the link isn't fully resolved, this must
- *	   return zero.
+ *     return zero.
  */
 extern union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port);
 
@@ -111,14 +112,15 @@ extern union cvmx_helper_link_info __cvmx_helper_board_link_get(int ipd_port);
  *
  * @interface: Interface to probe
  * @supported_ports:
- *		    Number of ports Octeon supports.
+ *        Number of ports Octeon supports.
  *
  * Returns Number of ports the actual board supports. Many times this will
- *	   simple be "support_ports".
+ *     simple be "support_ports".
  */
 extern int __cvmx_helper_board_interface_probe(int interface,
-					       int supported_ports);
+    int supported_ports);
 
-enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(void);
+enum cvmx_helper_board_usb_clock_types __cvmx_helper_board_usb_get_clock_type(
+  void);
 
 #endif /* __CVMX_HELPER_BOARD_H__ */

@@ -12,7 +12,9 @@
 #ifdef CONFIG_PM
 void kirkwood_pm_init(void);
 #else
-static inline void kirkwood_pm_init(void) {};
+static inline void kirkwood_pm_init(void) {
+}
+
 #endif
 
 #endif

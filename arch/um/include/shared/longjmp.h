@@ -10,15 +10,15 @@ extern int setjmp(jmp_buf);
 extern void longjmp(jmp_buf, int);
 
 #define UML_LONGJMP(buf, val) do { \
-	longjmp(*buf, val);	\
-} while(0)
+    longjmp(*buf, val); \
+} while (0)
 
-#define UML_SETJMP(buf) ({				\
-	int n, enable;					\
-	enable = *(volatile int *)&signals_enabled;	\
-	n = setjmp(*buf);				\
-	if(n != 0)					\
-		um_set_signals_trace(enable);		\
-	n; })
+#define UML_SETJMP(buf) ({        \
+    int n, enable;          \
+    enable = *(volatile int *) &signals_enabled; \
+    n = setjmp(*buf);       \
+    if (n != 0)          \
+    um_set_signals_trace(enable);   \
+    n; })
 
 #endif

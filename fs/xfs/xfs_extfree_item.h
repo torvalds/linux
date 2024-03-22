@@ -3,8 +3,8 @@
  * Copyright (c) 2000,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
  */
-#ifndef	__XFS_EXTFREE_ITEM_H__
-#define	__XFS_EXTFREE_ITEM_H__
+#ifndef __XFS_EXTFREE_ITEM_H__
+#define __XFS_EXTFREE_ITEM_H__
 
 /* kernel only EFI/EFD definitions */
 
@@ -14,7 +14,7 @@ struct kmem_cache;
 /*
  * Max number of extents in fast allocation path.
  */
-#define	XFS_EFI_MAX_FAST_EXTENTS	16
+#define XFS_EFI_MAX_FAST_EXTENTS  16
 
 /*
  * This is the "extent free intention" log item.  It is used to log the fact
@@ -26,8 +26,8 @@ struct kmem_cache;
  * the AIL even in the event of out of order EFI/EFD processing. In other words,
  * an EFI is born with two references:
  *
- * 	1.) an EFI held reference to track EFI AIL insertion
- * 	2.) an EFD held reference to track EFD commit
+ *  1.) an EFI held reference to track EFI AIL insertion
+ *  2.) an EFD held reference to track EFD commit
  *
  * On allocation, both references are the responsibility of the caller. Once the
  * EFI is added to and dirtied in a transaction, ownership of reference one
@@ -46,18 +46,16 @@ struct kmem_cache;
  * AIL, so at this point both the EFI and EFD are freed.
  */
 struct xfs_efi_log_item {
-	struct xfs_log_item	efi_item;
-	atomic_t		efi_refcount;
-	atomic_t		efi_next_extent;
-	xfs_efi_log_format_t	efi_format;
+  struct xfs_log_item efi_item;
+  atomic_t efi_refcount;
+  atomic_t efi_next_extent;
+  xfs_efi_log_format_t efi_format;
 };
 
-static inline size_t
-xfs_efi_log_item_sizeof(
-	unsigned int		nr)
-{
-	return offsetof(struct xfs_efi_log_item, efi_format) +
-			xfs_efi_log_format_sizeof(nr);
+static inline size_t xfs_efi_log_item_sizeof(
+    unsigned int nr) {
+  return offsetof(struct xfs_efi_log_item, efi_format)
+    + xfs_efi_log_format_sizeof(nr);
 }
 
 /*
@@ -66,26 +64,24 @@ xfs_efi_log_item_sizeof(
  * have been freed.
  */
 struct xfs_efd_log_item {
-	struct xfs_log_item	efd_item;
-	struct xfs_efi_log_item *efd_efip;
-	uint			efd_next_extent;
-	xfs_efd_log_format_t	efd_format;
+  struct xfs_log_item efd_item;
+  struct xfs_efi_log_item *efd_efip;
+  uint efd_next_extent;
+  xfs_efd_log_format_t efd_format;
 };
 
-static inline size_t
-xfs_efd_log_item_sizeof(
-	unsigned int		nr)
-{
-	return offsetof(struct xfs_efd_log_item, efd_format) +
-			xfs_efd_log_format_sizeof(nr);
+static inline size_t xfs_efd_log_item_sizeof(
+    unsigned int nr) {
+  return offsetof(struct xfs_efd_log_item, efd_format)
+    + xfs_efd_log_format_sizeof(nr);
 }
 
 /*
  * Max number of extents in fast allocation path.
  */
-#define	XFS_EFD_MAX_FAST_EXTENTS	16
+#define XFS_EFD_MAX_FAST_EXTENTS  16
 
-extern struct kmem_cache	*xfs_efi_cache;
-extern struct kmem_cache	*xfs_efd_cache;
+extern struct kmem_cache *xfs_efi_cache;
+extern struct kmem_cache *xfs_efd_cache;
 
-#endif	/* __XFS_EXTFREE_ITEM_H__ */
+#endif  /* __XFS_EXTFREE_ITEM_H__ */

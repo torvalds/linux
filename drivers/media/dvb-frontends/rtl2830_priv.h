@@ -17,23 +17,23 @@
 #include <linux/bitops.h>
 
 struct rtl2830_dev {
-	struct rtl2830_platform_data *pdata;
-	struct i2c_client *client;
-	struct regmap *regmap;
-	struct i2c_mux_core *muxc;
-	struct dvb_frontend fe;
-	bool sleeping;
-	unsigned long filters;
-	enum fe_status fe_status;
-	u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
-	u64 post_bit_error;
-	u64 post_bit_count;
+  struct rtl2830_platform_data *pdata;
+  struct i2c_client *client;
+  struct regmap *regmap;
+  struct i2c_mux_core *muxc;
+  struct dvb_frontend fe;
+  bool sleeping;
+  unsigned long filters;
+  enum fe_status fe_status;
+  u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
+  u64 post_bit_error;
+  u64 post_bit_count;
 };
 
 struct rtl2830_reg_val_mask {
-	u16 reg;
-	u8  val;
-	u8  mask;
+  u16 reg;
+  u8 val;
+  u8 mask;
 };
 
 #endif /* RTL2830_PRIV_H */

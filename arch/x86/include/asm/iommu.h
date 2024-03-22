@@ -19,22 +19,21 @@ extern bool x86_swiotlb_enable;
 #endif
 
 /* 10 seconds */
-#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000)
+#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz * 10 * 1000)
 
-static inline int __init
-arch_rmrr_sanity_check(struct acpi_dmar_reserved_memory *rmrr)
-{
-	u64 start = rmrr->base_address;
-	u64 end = rmrr->end_address + 1;
-	int entry_type;
-
-	entry_type = e820__get_entry_type(start, end);
-	if (entry_type == E820_TYPE_RESERVED || entry_type == E820_TYPE_NVS)
-		return 0;
-
-	pr_err(FW_BUG "No firmware reserved region can cover this RMRR [%#018Lx-%#018Lx], contact BIOS vendor for fixes\n",
-	       start, end - 1);
-	return -EINVAL;
+static inline int __init arch_rmrr_sanity_check(
+    struct acpi_dmar_reserved_memory *rmrr) {
+  u64 start = rmrr->base_address;
+  u64 end = rmrr->end_address + 1;
+  int entry_type;
+  entry_type = e820__get_entry_type(start, end);
+  if (entry_type == E820_TYPE_RESERVED || entry_type == E820_TYPE_NVS) {
+    return 0;
+  }
+  pr_err(
+      FW_BUG "No firmware reserved region can cover this RMRR [%#018Lx-%#018Lx], contact BIOS vendor for fixes\n",
+      start, end - 1);
+  return -EINVAL;
 }
 
 #endif /* _ASM_X86_IOMMU_H */

@@ -29,12 +29,12 @@
  */
 
 #ifdef CONFIG_KERNEL_GZIP
-#	include "decompress_inflate.c"
+#include "decompress_inflate.c"
 #endif
 
 #ifdef CONFIG_KERNEL_XZ
-#	include "xz_config.h"
-#	include "../../../lib/decompress_unxz.c"
+#include "xz_config.h"
+#include "../../../lib/decompress_unxz.c"
 #endif
 
 /* globals for tracking the state of the decompression */
@@ -47,52 +47,44 @@ static char *output_buffer;
  * flush() is called by __decompress() when the decompressor's scratch buffer is
  * full.
  */
-static long flush(void *v, unsigned long buffer_size)
-{
-	unsigned long end = decompressed_bytes + buffer_size;
-	unsigned long size = buffer_size;
-	unsigned long offset = 0;
-	char *in = v;
-	char *out;
-
-	/*
-	 * if we hit our decompression limit, we need to fake an error to abort
-	 * the in-progress decompression.
-	 */
-	if (decompressed_bytes >= limit)
-		return -1;
-
-	/* skip this entire block */
-	if (end <= skip) {
-		decompressed_bytes += buffer_size;
-		return buffer_size;
-	}
-
-	/* skip some data at the start, but keep the rest of the block */
-	if (decompressed_bytes < skip && end > skip) {
-		offset = skip - decompressed_bytes;
-
-		in += offset;
-		size -= offset;
-		decompressed_bytes += offset;
-	}
-
-	out = &output_buffer[decompressed_bytes - skip];
-	size = min(decompressed_bytes + size, limit) - decompressed_bytes;
-
-	memcpy(out, in, size);
-	decompressed_bytes += size;
-
-	return buffer_size;
+static long flush(void *v, unsigned long buffer_size) {
+  unsigned long end = decompressed_bytes + buffer_size;
+  unsigned long size = buffer_size;
+  unsigned long offset = 0;
+  char *in = v;
+  char *out;
+  /*
+   * if we hit our decompression limit, we need to fake an error to abort
+   * the in-progress decompression.
+   */
+  if (decompressed_bytes >= limit) {
+    return -1;
+  }
+  /* skip this entire block */
+  if (end <= skip) {
+    decompressed_bytes += buffer_size;
+    return buffer_size;
+  }
+  /* skip some data at the start, but keep the rest of the block */
+  if (decompressed_bytes < skip && end > skip) {
+    offset = skip - decompressed_bytes;
+    in += offset;
+    size -= offset;
+    decompressed_bytes += offset;
+  }
+  out = &output_buffer[decompressed_bytes - skip];
+  size = min(decompressed_bytes + size, limit) - decompressed_bytes;
+  memcpy(out, in, size);
+  decompressed_bytes += size;
+  return buffer_size;
 }
 
-static void print_err(char *s)
-{
-	/* suppress the "error" when we terminate the decompressor */
-	if (decompressed_bytes >= limit)
-		return;
-
-	printf("Decompression error: '%s'\n\r", s);
+static void print_err(char *s) {
+  /* suppress the "error" when we terminate the decompressor */
+  if (decompressed_bytes >= limit) {
+    return;
+  }
+  printf("Decompression error: '%s'\n\r", s);
 }
 
 /**
@@ -114,30 +106,25 @@ static void print_err(char *s)
  * for an appropriately sized buffer.
  */
 long partial_decompress(void *inbuf, unsigned long input_size,
-	void *outbuf, unsigned long output_size, unsigned long _skip)
-{
-	int ret;
-
-	/*
-	 * The skipped bytes needs to be included in the size of data we want
-	 * to decompress.
-	 */
-	output_size += _skip;
-
-	decompressed_bytes = 0;
-	output_buffer = outbuf;
-	limit = output_size;
-	skip = _skip;
-
-	ret = __decompress(inbuf, input_size, NULL, flush, outbuf,
-		output_size, NULL, print_err);
-
-	/*
-	 * If decompression was aborted due to an actual error rather than
-	 * a fake error that we used to abort, then we should report it.
-	 */
-	if (decompressed_bytes < limit)
-		return ret;
-
-	return decompressed_bytes - skip;
+    void *outbuf, unsigned long output_size, unsigned long _skip) {
+  int ret;
+  /*
+   * The skipped bytes needs to be included in the size of data we want
+   * to decompress.
+   */
+  output_size += _skip;
+  decompressed_bytes = 0;
+  output_buffer = outbuf;
+  limit = output_size;
+  skip = _skip;
+  ret = __decompress(inbuf, input_size, NULL, flush, outbuf,
+      output_size, NULL, print_err);
+  /*
+   * If decompression was aborted due to an actual error rather than
+   * a fake error that we used to abort, then we should report it.
+   */
+  if (decompressed_bytes < limit) {
+    return ret;
+  }
+  return decompressed_bytes - skip;
 }

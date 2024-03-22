@@ -10,8 +10,12 @@
 void ipc_debugfs_init(struct iosm_imem *ipc_imem);
 void ipc_debugfs_deinit(struct iosm_imem *ipc_imem);
 #else
-static inline void ipc_debugfs_init(struct iosm_imem *ipc_imem) {}
-static inline void ipc_debugfs_deinit(struct iosm_imem *ipc_imem) {}
+static inline void ipc_debugfs_init(struct iosm_imem *ipc_imem) {
+}
+
+static inline void ipc_debugfs_deinit(struct iosm_imem *ipc_imem) {
+}
+
 #endif
 
 #endif

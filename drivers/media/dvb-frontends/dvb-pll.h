@@ -27,13 +27,13 @@
 #define DVB_PLL_SAMSUNG_TDTC9251DH0    15
 #define DVB_PLL_SAMSUNG_TBDU18132      16
 #define DVB_PLL_SAMSUNG_TBMU24112      17
-#define DVB_PLL_TDEE4		       18
+#define DVB_PLL_TDEE4          18
 #define DVB_PLL_THOMSON_DTT7520X       19
 #define DVB_PLL_TUA6034_FRIIO          20
 #define DVB_PLL_TDA665X_EARTH_PT1      21
 
 struct dvb_pll_config {
-	struct dvb_frontend *fe;
+  struct dvb_frontend *fe;
 };
 
 #if IS_REACHABLE(CONFIG_DVB_PLL)
@@ -48,18 +48,18 @@ struct dvb_pll_config {
  * return: Frontend pointer on success, NULL on failure
  */
 extern struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
-					   int pll_addr,
-					   struct i2c_adapter *i2c,
-					   unsigned int pll_desc_id);
+    int pll_addr,
+    struct i2c_adapter *i2c,
+    unsigned int pll_desc_id);
 #else
 static inline struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe,
-					   int pll_addr,
-					   struct i2c_adapter *i2c,
-					   unsigned int pll_desc_id)
-{
-	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
+    int pll_addr,
+    struct i2c_adapter *i2c,
+    unsigned int pll_desc_id) {
+  printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+  return NULL;
 }
+
 #endif
 
 #endif

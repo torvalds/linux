@@ -11,24 +11,21 @@
 #include <sound/soc.h>
 #include "cs4271.h"
 
-static int cs4271_spi_probe(struct spi_device *spi)
-{
-	struct regmap_config config;
-
-	config = cs4271_regmap_config;
-	config.reg_bits = 16;
-	config.read_flag_mask = 0x21;
-	config.write_flag_mask = 0x20;
-
-	return cs4271_probe(&spi->dev, devm_regmap_init_spi(spi, &config));
+static int cs4271_spi_probe(struct spi_device *spi) {
+  struct regmap_config config;
+  config = cs4271_regmap_config;
+  config.reg_bits = 16;
+  config.read_flag_mask = 0x21;
+  config.write_flag_mask = 0x20;
+  return cs4271_probe(&spi->dev, devm_regmap_init_spi(spi, &config));
 }
 
 static struct spi_driver cs4271_spi_driver = {
-	.driver = {
-		.name	= "cs4271",
-		.of_match_table = of_match_ptr(cs4271_dt_ids),
-	},
-	.probe		= cs4271_spi_probe,
+  .driver = {
+    .name = "cs4271",
+    .of_match_table = of_match_ptr(cs4271_dt_ids),
+  },
+  .probe = cs4271_spi_probe,
 };
 module_spi_driver(cs4271_spi_driver);
 

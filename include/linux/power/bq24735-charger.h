@@ -9,16 +9,16 @@
 #include <linux/power_supply.h>
 
 struct bq24735_platform {
-	uint32_t charge_current;
-	uint32_t charge_voltage;
-	uint32_t input_current;
+  uint32_t charge_current;
+  uint32_t charge_voltage;
+  uint32_t input_current;
 
-	const char *name;
+  const char *name;
 
-	bool ext_control;
+  bool ext_control;
 
-	char **supplied_to;
-	size_t num_supplicants;
+  char **supplied_to;
+  size_t num_supplicants;
 };
 
 #endif /* __CHARGER_BQ24735_H_ */

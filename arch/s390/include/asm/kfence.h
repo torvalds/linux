@@ -10,9 +10,8 @@
 
 void __kernel_map_pages(struct page *page, int numpages, int enable);
 
-static __always_inline bool arch_kfence_init_pool(void)
-{
-	return true;
+static __always_inline bool arch_kfence_init_pool(void) {
+  return true;
 }
 
 #define arch_kfence_test_address(addr) ((addr) & PAGE_MASK)
@@ -24,19 +23,16 @@ static __always_inline bool arch_kfence_init_pool(void)
  * is still in a limbo state - disabling and enabling bottom halves is
  * not yet allowed, but that is what our page_table_alloc() would do.
  */
-static __always_inline void kfence_split_mapping(void)
-{
+static __always_inline void kfence_split_mapping(void) {
 #ifdef CONFIG_KFENCE
-	unsigned long pool_pages = KFENCE_POOL_SIZE >> PAGE_SHIFT;
-
-	set_memory_4k((unsigned long)__kfence_pool, pool_pages);
+  unsigned long pool_pages = KFENCE_POOL_SIZE >> PAGE_SHIFT;
+  set_memory_4k((unsigned long) __kfence_pool, pool_pages);
 #endif
 }
 
-static inline bool kfence_protect_page(unsigned long addr, bool protect)
-{
-	__kernel_map_pages(virt_to_page((void *)addr), 1, !protect);
-	return true;
+static inline bool kfence_protect_page(unsigned long addr, bool protect) {
+  __kernel_map_pages(virt_to_page((void *) addr), 1, !protect);
+  return true;
 }
 
 #endif /* _ASM_S390_KFENCE_H */

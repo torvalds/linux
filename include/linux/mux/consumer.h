@@ -18,36 +18,32 @@ struct mux_state;
 
 unsigned int mux_control_states(struct mux_control *mux);
 int __must_check mux_control_select_delay(struct mux_control *mux,
-					  unsigned int state,
-					  unsigned int delay_us);
+    unsigned int state,
+    unsigned int delay_us);
 int __must_check mux_state_select_delay(struct mux_state *mstate,
-					unsigned int delay_us);
+    unsigned int delay_us);
 int __must_check mux_control_try_select_delay(struct mux_control *mux,
-					      unsigned int state,
-					      unsigned int delay_us);
+    unsigned int state,
+    unsigned int delay_us);
 int __must_check mux_state_try_select_delay(struct mux_state *mstate,
-					    unsigned int delay_us);
+    unsigned int delay_us);
 
 static inline int __must_check mux_control_select(struct mux_control *mux,
-						  unsigned int state)
-{
-	return mux_control_select_delay(mux, state, 0);
+    unsigned int state) {
+  return mux_control_select_delay(mux, state, 0);
 }
 
-static inline int __must_check mux_state_select(struct mux_state *mstate)
-{
-	return mux_state_select_delay(mstate, 0);
+static inline int __must_check mux_state_select(struct mux_state *mstate) {
+  return mux_state_select_delay(mstate, 0);
 }
 
 static inline int __must_check mux_control_try_select(struct mux_control *mux,
-						      unsigned int state)
-{
-	return mux_control_try_select_delay(mux, state, 0);
+    unsigned int state) {
+  return mux_control_try_select_delay(mux, state, 0);
 }
 
-static inline int __must_check mux_state_try_select(struct mux_state *mstate)
-{
-	return mux_state_try_select_delay(mstate, 0);
+static inline int __must_check mux_state_try_select(struct mux_state *mstate) {
+  return mux_state_try_select_delay(mstate, 0);
 }
 
 int mux_control_deselect(struct mux_control *mux);
@@ -57,8 +53,8 @@ struct mux_control *mux_control_get(struct device *dev, const char *mux_name);
 void mux_control_put(struct mux_control *mux);
 
 struct mux_control *devm_mux_control_get(struct device *dev,
-					 const char *mux_name);
+    const char *mux_name);
 struct mux_state *devm_mux_state_get(struct device *dev,
-				     const char *mux_name);
+    const char *mux_name);
 
 #endif /* _LINUX_MUX_CONSUMER_H */

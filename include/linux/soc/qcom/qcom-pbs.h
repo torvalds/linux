@@ -16,15 +16,14 @@ struct pbs_dev;
 int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap);
 struct pbs_dev *get_pbs_client_device(struct device *client_dev);
 #else
-static inline int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap)
-{
-	return -ENODEV;
+static inline int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap) {
+  return -ENODEV;
 }
 
-static inline struct pbs_dev *get_pbs_client_device(struct device *client_dev)
-{
-	return ERR_PTR(-ENODEV);
+static inline struct pbs_dev *get_pbs_client_device(struct device *client_dev) {
+  return ERR_PTR(-ENODEV);
 }
+
 #endif
 
 #endif

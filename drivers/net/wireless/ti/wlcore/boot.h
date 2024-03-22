@@ -21,12 +21,12 @@ int wlcore_boot_run_firmware(struct wl1271 *wl);
 #define WL1271_FW_VERSION_MAX_LEN 20
 
 struct wl1271_static_data {
-	u8 mac_address[ETH_ALEN];
-	u8 padding[2];
-	u8 fw_version[WL1271_FW_VERSION_MAX_LEN];
-	u32 hw_version;
-	u8 tx_power_table[WL1271_NO_SUBBANDS][WL1271_NO_POWER_LEVELS];
-	u8 priv[];
+  u8 mac_address[ETH_ALEN];
+  u8 padding[2];
+  u8 fw_version[WL1271_FW_VERSION_MAX_LEN];
+  u32 hw_version;
+  u8 tx_power_table[WL1271_NO_SUBBANDS][WL1271_NO_POWER_LEVELS];
+  u8 priv[];
 };
 
 /* number of times we try to read the INIT interrupt */

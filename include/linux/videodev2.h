@@ -41,17 +41,17 @@
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	Header file for v4l or V4L2 drivers and applications
+ *  Header file for v4l or V4L2 drivers and applications
  * with public API.
  * All kernel-specific stuff were moved to media/v4l2-dev.h, so
  * no #if __KERNEL tests are allowed here
  *
- *	See https://linuxtv.org for more info
+ *  See https://linuxtv.org for more info
  *
- *	Author: Bill Dirks <bill@thedirks.org>
- *		Justin Schoeman
+ *  Author: Bill Dirks <bill@thedirks.org>
+ *    Justin Schoeman
  *              Hans Verkuil <hverkuil@xs4all.nl>
- *		et al.
+ *    et al.
  */
 #ifndef __LINUX_VIDEODEV2_H
 #define __LINUX_VIDEODEV2_H

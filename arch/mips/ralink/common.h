@@ -7,17 +7,17 @@
 #ifndef _RALINK_COMMON_H__
 #define _RALINK_COMMON_H__
 
-#define RAMIPS_SYS_TYPE_LEN	32
+#define RAMIPS_SYS_TYPE_LEN 32
 
 struct ralink_soc_info {
-	unsigned char sys_type[RAMIPS_SYS_TYPE_LEN];
-	unsigned char *compatible;
+  unsigned char sys_type[RAMIPS_SYS_TYPE_LEN];
+  unsigned char *compatible;
 
-	unsigned long mem_base;
-	unsigned long mem_size;
-	unsigned long mem_size_min;
-	unsigned long mem_size_max;
-	void (*mem_detect)(void);
+  unsigned long mem_base;
+  unsigned long mem_size;
+  unsigned long mem_size_min;
+  unsigned long mem_size_max;
+  void (*mem_detect)(void);
 };
 extern struct ralink_soc_info soc_info;
 

@@ -21,21 +21,20 @@
  * Callers must not assume that the result remains true beyond the next
  * preempt_enable() or return from softirq context.
  */
-static __must_check inline bool may_use_simd(void)
-{
-	/*
-	 * We must make sure that the SVE has been initialized properly
-	 * before using the SIMD in kernel.
-	 */
-	return !WARN_ON(!system_capabilities_finalized()) &&
-	       system_supports_fpsimd() &&
-	       !in_hardirq() && !irqs_disabled() && !in_nmi();
+static __must_check inline bool may_use_simd(void) {
+  /*
+   * We must make sure that the SVE has been initialized properly
+   * before using the SIMD in kernel.
+   */
+  return !WARN_ON(!system_capabilities_finalized())
+    && system_supports_fpsimd()
+    && !in_hardirq() && !irqs_disabled() && !in_nmi();
 }
 
 #else /* ! CONFIG_KERNEL_MODE_NEON */
 
 static __must_check inline bool may_use_simd(void) {
-	return false;
+  return false;
 }
 
 #endif /* ! CONFIG_KERNEL_MODE_NEON */

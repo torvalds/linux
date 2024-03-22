@@ -22,7 +22,7 @@ int rkisp1_csi_register(struct rkisp1_device *rkisp1);
 void rkisp1_csi_unregister(struct rkisp1_device *rkisp1);
 
 int rkisp1_csi_link_sensor(struct rkisp1_device *rkisp1, struct v4l2_subdev *sd,
-			   struct rkisp1_sensor_async *s_asd,
-			   unsigned int source_pad);
+    struct rkisp1_sensor_async *s_asd,
+    unsigned int source_pad);
 
 #endif /* _RKISP1_CSI_H */

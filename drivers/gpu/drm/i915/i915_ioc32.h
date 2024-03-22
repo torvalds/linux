@@ -9,7 +9,7 @@
 #ifdef CONFIG_COMPAT
 struct file;
 long i915_ioc32_compat_ioctl(struct file *filp, unsigned int cmd,
-			     unsigned long arg);
+    unsigned long arg);
 #else
 #define i915_ioc32_compat_ioctl NULL
 #endif

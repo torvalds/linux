@@ -24,8 +24,8 @@
 #define MCONTEXT_VERSION 2
 
 struct sigcontext {
-	int version;
-	unsigned long gregs[32];
+  int version;
+  unsigned long gregs[32];
 };
 
 #endif

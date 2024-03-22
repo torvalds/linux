@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Hash: Hash algorithms under the crypto API
- * 
+ *
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
@@ -25,14 +25,14 @@ struct crypto_ahash;
 
 /*
  * struct crypto_istat_hash - statistics for has algorithm
- * @hash_cnt:		number of hash requests
- * @hash_tlen:		total data size hashed
- * @err_cnt:		number of error for hash requests
+ * @hash_cnt:   number of hash requests
+ * @hash_tlen:    total data size hashed
+ * @err_cnt:    number of error for hash requests
  */
 struct crypto_istat_hash {
-	atomic64_t hash_cnt;
-	atomic64_t hash_tlen;
-	atomic64_t err_cnt;
+  atomic64_t hash_cnt;
+  atomic64_t hash_tlen;
+  atomic64_t err_cnt;
 };
 
 #ifdef CONFIG_CRYPTO_STATS
@@ -45,150 +45,154 @@ struct crypto_istat_hash {
  * struct hash_alg_common - define properties of message digest
  * @stat: Statistics for hash algorithm.
  * @digestsize: Size of the result of the transformation. A buffer of this size
- *	        must be available to the @final and @finup calls, so they can
- *	        store the resulting hash into it. For various predefined sizes,
- *	        search include/crypto/ using
- *	        git grep _DIGEST_SIZE include/crypto.
+ *          must be available to the @final and @finup calls, so they can
+ *          store the resulting hash into it. For various predefined sizes,
+ *          search include/crypto/ using
+ *          git grep _DIGEST_SIZE include/crypto.
  * @statesize: Size of the block for partial state of the transformation. A
- *	       buffer of this size must be passed to the @export function as it
- *	       will save the partial state of the transformation into it. On the
- *	       other side, the @import function will load the state from a
- *	       buffer of this size as well.
+ *         buffer of this size must be passed to the @export function as it
+ *         will save the partial state of the transformation into it. On the
+ *         other side, the @import function will load the state from a
+ *         buffer of this size as well.
  * @base: Start of data structure of cipher algorithm. The common data
- *	  structure of crypto_alg contains information common to all ciphers.
- *	  The hash_alg_common data structure now adds the hash-specific
- *	  information.
+ *    structure of crypto_alg contains information common to all ciphers.
+ *    The hash_alg_common data structure now adds the hash-specific
+ *    information.
  */
-#define HASH_ALG_COMMON {		\
-	HASH_ALG_COMMON_STAT		\
-					\
-	unsigned int digestsize;	\
-	unsigned int statesize;		\
-					\
-	struct crypto_alg base;		\
+#define HASH_ALG_COMMON {   \
+    HASH_ALG_COMMON_STAT    \
+          \
+    unsigned int digestsize;  \
+    unsigned int statesize;   \
+          \
+    struct crypto_alg base;   \
 }
 struct hash_alg_common HASH_ALG_COMMON;
 
 struct ahash_request {
-	struct crypto_async_request base;
+  struct crypto_async_request base;
 
-	unsigned int nbytes;
-	struct scatterlist *src;
-	u8 *result;
+  unsigned int nbytes;
+  struct scatterlist *src;
+  u8 *result;
 
-	/* This field may only be used by the ahash API code. */
-	void *priv;
+  /* This field may only be used by the ahash API code. */
+  void *priv;
 
-	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+  void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
 /**
  * struct ahash_alg - asynchronous message digest definition
- * @init: **[mandatory]** Initialize the transformation context. Intended only to initialize the
- *	  state of the HASH transformation at the beginning. This shall fill in
- *	  the internal structures used during the entire duration of the whole
- *	  transformation. No data processing happens at this point. Driver code
- *	  implementation must not use req->result.
- * @update: **[mandatory]** Push a chunk of data into the driver for transformation. This
- *	   function actually pushes blocks of data from upper layers into the
- *	   driver, which then passes those to the hardware as seen fit. This
- *	   function must not finalize the HASH transformation by calculating the
- *	   final message digest as this only adds more data into the
- *	   transformation. This function shall not modify the transformation
- *	   context, as this function may be called in parallel with the same
- *	   transformation object. Data processing can happen synchronously
- *	   [SHASH] or asynchronously [AHASH] at this point. Driver must not use
- *	   req->result.
- * @final: **[mandatory]** Retrieve result from the driver. This function finalizes the
- *	   transformation and retrieves the resulting hash from the driver and
- *	   pushes it back to upper layers. No data processing happens at this
- *	   point unless hardware requires it to finish the transformation
- *	   (then the data buffered by the device driver is processed).
- * @finup: **[optional]** Combination of @update and @final. This function is effectively a
- *	   combination of @update and @final calls issued in sequence. As some
- *	   hardware cannot do @update and @final separately, this callback was
- *	   added to allow such hardware to be used at least by IPsec. Data
- *	   processing can happen synchronously [SHASH] or asynchronously [AHASH]
- *	   at this point.
+ * @init: **[mandatory]** Initialize the transformation context. Intended only
+ * to initialize the
+ *    state of the HASH transformation at the beginning. This shall fill in
+ *    the internal structures used during the entire duration of the whole
+ *    transformation. No data processing happens at this point. Driver code
+ *    implementation must not use req->result.
+ * @update: **[mandatory]** Push a chunk of data into the driver for
+ * transformation. This
+ *     function actually pushes blocks of data from upper layers into the
+ *     driver, which then passes those to the hardware as seen fit. This
+ *     function must not finalize the HASH transformation by calculating the
+ *     final message digest as this only adds more data into the
+ *     transformation. This function shall not modify the transformation
+ *     context, as this function may be called in parallel with the same
+ *     transformation object. Data processing can happen synchronously
+ *     [SHASH] or asynchronously [AHASH] at this point. Driver must not use
+ *     req->result.
+ * @final: **[mandatory]** Retrieve result from the driver. This function
+ * finalizes the
+ *     transformation and retrieves the resulting hash from the driver and
+ *     pushes it back to upper layers. No data processing happens at this
+ *     point unless hardware requires it to finish the transformation
+ *     (then the data buffered by the device driver is processed).
+ * @finup: **[optional]** Combination of @update and @final. This function is
+ * effectively a
+ *     combination of @update and @final calls issued in sequence. As some
+ *     hardware cannot do @update and @final separately, this callback was
+ *     added to allow such hardware to be used at least by IPsec. Data
+ *     processing can happen synchronously [SHASH] or asynchronously [AHASH]
+ *     at this point.
  * @digest: Combination of @init and @update and @final. This function
- *	    effectively behaves as the entire chain of operations, @init,
- *	    @update and @final issued in sequence. Just like @finup, this was
- *	    added for hardware which cannot do even the @finup, but can only do
- *	    the whole transformation in one run. Data processing can happen
- *	    synchronously [SHASH] or asynchronously [AHASH] at this point.
+ *      effectively behaves as the entire chain of operations, @init,
+ *      @update and @final issued in sequence. Just like @finup, this was
+ *      added for hardware which cannot do even the @finup, but can only do
+ *      the whole transformation in one run. Data processing can happen
+ *      synchronously [SHASH] or asynchronously [AHASH] at this point.
  * @setkey: Set optional key used by the hashing algorithm. Intended to push
- *	    optional key used by the hashing algorithm from upper layers into
- *	    the driver. This function can store the key in the transformation
- *	    context or can outright program it into the hardware. In the former
- *	    case, one must be careful to program the key into the hardware at
- *	    appropriate time and one must be careful that .setkey() can be
- *	    called multiple times during the existence of the transformation
- *	    object. Not  all hashing algorithms do implement this function as it
- *	    is only needed for keyed message digests. SHAx/MDx/CRCx do NOT
- *	    implement this function. HMAC(MDx)/HMAC(SHAx)/CMAC(AES) do implement
- *	    this function. This function must be called before any other of the
- *	    @init, @update, @final, @finup, @digest is called. No data
- *	    processing happens at this point.
+ *      optional key used by the hashing algorithm from upper layers into
+ *      the driver. This function can store the key in the transformation
+ *      context or can outright program it into the hardware. In the former
+ *      case, one must be careful to program the key into the hardware at
+ *      appropriate time and one must be careful that .setkey() can be
+ *      called multiple times during the existence of the transformation
+ *      object. Not  all hashing algorithms do implement this function as it
+ *      is only needed for keyed message digests. SHAx/MDx/CRCx do NOT
+ *      implement this function. HMAC(MDx)/HMAC(SHAx)/CMAC(AES) do implement
+ *      this function. This function must be called before any other of the
+ *      @init, @update, @final, @finup, @digest is called. No data
+ *      processing happens at this point.
  * @export: Export partial state of the transformation. This function dumps the
- *	    entire state of the ongoing transformation into a provided block of
- *	    data so it can be @import 'ed back later on. This is useful in case
- *	    you want to save partial result of the transformation after
- *	    processing certain amount of data and reload this partial result
- *	    multiple times later on for multiple re-use. No data processing
- *	    happens at this point. Driver must not use req->result.
+ *      entire state of the ongoing transformation into a provided block of
+ *      data so it can be @import 'ed back later on. This is useful in case
+ *      you want to save partial result of the transformation after
+ *      processing certain amount of data and reload this partial result
+ *      multiple times later on for multiple re-use. No data processing
+ *      happens at this point. Driver must not use req->result.
  * @import: Import partial state of the transformation. This function loads the
- *	    entire state of the ongoing transformation from a provided block of
- *	    data so the transformation can continue from this point onward. No
- *	    data processing happens at this point. Driver must not use
- *	    req->result.
+ *      entire state of the ongoing transformation from a provided block of
+ *      data so the transformation can continue from this point onward. No
+ *      data processing happens at this point. Driver must not use
+ *      req->result.
  * @init_tfm: Initialize the cryptographic transformation object.
- *	      This function is called only once at the instantiation
- *	      time, right after the transformation context was
- *	      allocated. In case the cryptographic hardware has
- *	      some special requirements which need to be handled
- *	      by software, this function shall check for the precise
- *	      requirement of the transformation and put any software
- *	      fallbacks in place.
+ *        This function is called only once at the instantiation
+ *        time, right after the transformation context was
+ *        allocated. In case the cryptographic hardware has
+ *        some special requirements which need to be handled
+ *        by software, this function shall check for the precise
+ *        requirement of the transformation and put any software
+ *        fallbacks in place.
  * @exit_tfm: Deinitialize the cryptographic transformation object.
- *	      This is a counterpart to @init_tfm, used to remove
- *	      various changes set in @init_tfm.
+ *        This is a counterpart to @init_tfm, used to remove
+ *        various changes set in @init_tfm.
  * @clone_tfm: Copy transform into new object, may allocate memory.
  * @halg: see struct hash_alg_common
  */
 struct ahash_alg {
-	int (*init)(struct ahash_request *req);
-	int (*update)(struct ahash_request *req);
-	int (*final)(struct ahash_request *req);
-	int (*finup)(struct ahash_request *req);
-	int (*digest)(struct ahash_request *req);
-	int (*export)(struct ahash_request *req, void *out);
-	int (*import)(struct ahash_request *req, const void *in);
-	int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
-		      unsigned int keylen);
-	int (*init_tfm)(struct crypto_ahash *tfm);
-	void (*exit_tfm)(struct crypto_ahash *tfm);
-	int (*clone_tfm)(struct crypto_ahash *dst, struct crypto_ahash *src);
+  int (*init)(struct ahash_request *req);
+  int (*update)(struct ahash_request *req);
+  int (*final)(struct ahash_request *req);
+  int (*finup)(struct ahash_request *req);
+  int (*digest)(struct ahash_request *req);
+  int (*export)(struct ahash_request *req, void *out);
+  int (*import)(struct ahash_request *req, const void *in);
+  int (*setkey)(struct crypto_ahash *tfm, const u8 *key,
+      unsigned int keylen);
+  int (*init_tfm)(struct crypto_ahash *tfm);
+  void (*exit_tfm)(struct crypto_ahash *tfm);
+  int (*clone_tfm)(struct crypto_ahash *dst, struct crypto_ahash *src);
 
-	struct hash_alg_common halg;
+  struct hash_alg_common halg;
 };
 
 struct shash_desc {
-	struct crypto_shash *tfm;
-	void *__ctx[] __aligned(ARCH_SLAB_MINALIGN);
+  struct crypto_shash *tfm;
+  void *__ctx[] __aligned(ARCH_SLAB_MINALIGN);
 };
 
-#define HASH_MAX_DIGESTSIZE	 64
+#define HASH_MAX_DIGESTSIZE  64
 
 /*
  * Worst case is hmac(sha3-224-generic).  Its context is a nested 'shash_desc'
  * containing a 'struct sha3_state'.
  */
-#define HASH_MAX_DESCSIZE	(sizeof(struct shash_desc) + 360)
+#define HASH_MAX_DESCSIZE (sizeof(struct shash_desc) + 360)
 
-#define SHASH_DESC_ON_STACK(shash, ctx)					     \
-	char __##shash##_desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \
-		__aligned(__alignof__(struct shash_desc));		     \
-	struct shash_desc *shash = (struct shash_desc *)__##shash##_desc
+#define SHASH_DESC_ON_STACK(shash, ctx)              \
+  char __ ## shash ## _desc[sizeof(struct shash_desc) + HASH_MAX_DESCSIZE] \
+  __aligned(__alignof__(struct shash_desc));         \
+  struct shash_desc *shash = (struct shash_desc *) __ ## shash ## _desc
 
 /**
  * struct shash_alg - synchronous message digest definition
@@ -201,60 +205,60 @@ struct shash_desc {
  * @import: see struct ahash_alg
  * @setkey: see struct ahash_alg
  * @init_tfm: Initialize the cryptographic transformation object.
- *	      This function is called only once at the instantiation
- *	      time, right after the transformation context was
- *	      allocated. In case the cryptographic hardware has
- *	      some special requirements which need to be handled
- *	      by software, this function shall check for the precise
- *	      requirement of the transformation and put any software
- *	      fallbacks in place.
+ *        This function is called only once at the instantiation
+ *        time, right after the transformation context was
+ *        allocated. In case the cryptographic hardware has
+ *        some special requirements which need to be handled
+ *        by software, this function shall check for the precise
+ *        requirement of the transformation and put any software
+ *        fallbacks in place.
  * @exit_tfm: Deinitialize the cryptographic transformation object.
- *	      This is a counterpart to @init_tfm, used to remove
- *	      various changes set in @init_tfm.
+ *        This is a counterpart to @init_tfm, used to remove
+ *        various changes set in @init_tfm.
  * @clone_tfm: Copy transform into new object, may allocate memory.
  * @descsize: Size of the operational state for the message digest. This state
- * 	      size is the memory size that needs to be allocated for
- *	      shash_desc.__ctx
+ *        size is the memory size that needs to be allocated for
+ *        shash_desc.__ctx
  * @halg: see struct hash_alg_common
  * @HASH_ALG_COMMON: see struct hash_alg_common
  */
 struct shash_alg {
-	int (*init)(struct shash_desc *desc);
-	int (*update)(struct shash_desc *desc, const u8 *data,
-		      unsigned int len);
-	int (*final)(struct shash_desc *desc, u8 *out);
-	int (*finup)(struct shash_desc *desc, const u8 *data,
-		     unsigned int len, u8 *out);
-	int (*digest)(struct shash_desc *desc, const u8 *data,
-		      unsigned int len, u8 *out);
-	int (*export)(struct shash_desc *desc, void *out);
-	int (*import)(struct shash_desc *desc, const void *in);
-	int (*setkey)(struct crypto_shash *tfm, const u8 *key,
-		      unsigned int keylen);
-	int (*init_tfm)(struct crypto_shash *tfm);
-	void (*exit_tfm)(struct crypto_shash *tfm);
-	int (*clone_tfm)(struct crypto_shash *dst, struct crypto_shash *src);
+  int (*init)(struct shash_desc *desc);
+  int (*update)(struct shash_desc *desc, const u8 *data,
+      unsigned int len);
+  int (*final)(struct shash_desc *desc, u8 *out);
+  int (*finup)(struct shash_desc *desc, const u8 *data,
+      unsigned int len, u8 *out);
+  int (*digest)(struct shash_desc *desc, const u8 *data,
+      unsigned int len, u8 *out);
+  int (*export)(struct shash_desc *desc, void *out);
+  int (*import)(struct shash_desc *desc, const void *in);
+  int (*setkey)(struct crypto_shash *tfm, const u8 *key,
+      unsigned int keylen);
+  int (*init_tfm)(struct crypto_shash *tfm);
+  void (*exit_tfm)(struct crypto_shash *tfm);
+  int (*clone_tfm)(struct crypto_shash *dst, struct crypto_shash *src);
 
-	unsigned int descsize;
+  unsigned int descsize;
 
-	union {
-		struct HASH_ALG_COMMON;
-		struct hash_alg_common halg;
-	};
+  union {
+    struct HASH_ALG_COMMON;
+    struct hash_alg_common halg;
+  };
 };
 #undef HASH_ALG_COMMON
 #undef HASH_ALG_COMMON_STAT
 
 struct crypto_ahash {
-	bool using_shash; /* Underlying algorithm is shash, not ahash */
-	unsigned int statesize;
-	unsigned int reqsize;
-	struct crypto_tfm base;
+  bool using_shash; /* Underlying algorithm is shash, not ahash */
+  unsigned int statesize;
+  unsigned int reqsize;
+  struct crypto_tfm base;
 };
 
 struct crypto_shash {
-	unsigned int descsize;
-	struct crypto_tfm base;
+  unsigned int descsize;
+  struct crypto_tfm base;
 };
 
 /**
@@ -267,15 +271,14 @@ struct crypto_shash {
  * CRYPTO_ALG_TYPE_SKCIPHER API applies here as well.
  */
 
-static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)
-{
-	return container_of(tfm, struct crypto_ahash, base);
+static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm) {
+  return container_of(tfm, struct crypto_ahash, base);
 }
 
 /**
  * crypto_alloc_ahash() - allocate ahash cipher handle
  * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      ahash cipher
+ *        ahash cipher
  * @type: specifies the type of the cipher
  * @mask: specifies the mask for the cipher
  *
@@ -284,16 +287,15 @@ static inline struct crypto_ahash *__crypto_ahash_cast(struct crypto_tfm *tfm)
  * API invocation for that ahash.
  *
  * Return: allocated cipher handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ *     of an error, PTR_ERR() returns the error code.
  */
 struct crypto_ahash *crypto_alloc_ahash(const char *alg_name, u32 type,
-					u32 mask);
+    u32 mask);
 
 struct crypto_ahash *crypto_clone_ahash(struct crypto_ahash *tfm);
 
-static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
-{
-	return &tfm->base;
+static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm) {
+  return &tfm->base;
 }
 
 /**
@@ -302,31 +304,28 @@ static inline struct crypto_tfm *crypto_ahash_tfm(struct crypto_ahash *tfm)
  *
  * If @tfm is a NULL or error pointer, this function does nothing.
  */
-static inline void crypto_free_ahash(struct crypto_ahash *tfm)
-{
-	crypto_destroy_tfm(tfm, crypto_ahash_tfm(tfm));
+static inline void crypto_free_ahash(struct crypto_ahash *tfm) {
+  crypto_destroy_tfm(tfm, crypto_ahash_tfm(tfm));
 }
 
 /**
  * crypto_has_ahash() - Search for the availability of an ahash.
  * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      ahash
+ *        ahash
  * @type: specifies the type of the ahash
  * @mask: specifies the mask for the ahash
  *
  * Return: true when the ahash is known to the kernel crypto API; false
- *	   otherwise
+ *     otherwise
  */
 int crypto_has_ahash(const char *alg_name, u32 type, u32 mask);
 
-static inline const char *crypto_ahash_alg_name(struct crypto_ahash *tfm)
-{
-	return crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
+static inline const char *crypto_ahash_alg_name(struct crypto_ahash *tfm) {
+  return crypto_tfm_alg_name(crypto_ahash_tfm(tfm));
 }
 
-static inline const char *crypto_ahash_driver_name(struct crypto_ahash *tfm)
-{
-	return crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
+static inline const char *crypto_ahash_driver_name(struct crypto_ahash *tfm) {
+  return crypto_tfm_alg_driver_name(crypto_ahash_tfm(tfm));
 }
 
 /**
@@ -338,21 +337,18 @@ static inline const char *crypto_ahash_driver_name(struct crypto_ahash *tfm)
  *
  * Return: block size of cipher
  */
-static inline unsigned int crypto_ahash_blocksize(struct crypto_ahash *tfm)
-{
-	return crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
+static inline unsigned int crypto_ahash_blocksize(struct crypto_ahash *tfm) {
+  return crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 }
 
 static inline struct hash_alg_common *__crypto_hash_alg_common(
-	struct crypto_alg *alg)
-{
-	return container_of(alg, struct hash_alg_common, base);
+    struct crypto_alg *alg) {
+  return container_of(alg, struct hash_alg_common, base);
 }
 
 static inline struct hash_alg_common *crypto_hash_alg_common(
-	struct crypto_ahash *tfm)
-{
-	return __crypto_hash_alg_common(crypto_ahash_tfm(tfm)->__crt_alg);
+    struct crypto_ahash *tfm) {
+  return __crypto_hash_alg_common(crypto_ahash_tfm(tfm)->__crt_alg);
 }
 
 /**
@@ -365,9 +361,8 @@ static inline struct hash_alg_common *crypto_hash_alg_common(
  *
  * Return: message digest size of cipher
  */
-static inline unsigned int crypto_ahash_digestsize(struct crypto_ahash *tfm)
-{
-	return crypto_hash_alg_common(tfm)->digestsize;
+static inline unsigned int crypto_ahash_digestsize(struct crypto_ahash *tfm) {
+  return crypto_hash_alg_common(tfm)->digestsize;
 }
 
 /**
@@ -380,30 +375,27 @@ static inline unsigned int crypto_ahash_digestsize(struct crypto_ahash *tfm)
  *
  * Return: size of the ahash state
  */
-static inline unsigned int crypto_ahash_statesize(struct crypto_ahash *tfm)
-{
-	return tfm->statesize;
+static inline unsigned int crypto_ahash_statesize(struct crypto_ahash *tfm) {
+  return tfm->statesize;
 }
 
-static inline u32 crypto_ahash_get_flags(struct crypto_ahash *tfm)
-{
-	return crypto_tfm_get_flags(crypto_ahash_tfm(tfm));
+static inline u32 crypto_ahash_get_flags(struct crypto_ahash *tfm) {
+  return crypto_tfm_get_flags(crypto_ahash_tfm(tfm));
 }
 
-static inline void crypto_ahash_set_flags(struct crypto_ahash *tfm, u32 flags)
-{
-	crypto_tfm_set_flags(crypto_ahash_tfm(tfm), flags);
+static inline void crypto_ahash_set_flags(struct crypto_ahash *tfm, u32 flags) {
+  crypto_tfm_set_flags(crypto_ahash_tfm(tfm), flags);
 }
 
-static inline void crypto_ahash_clear_flags(struct crypto_ahash *tfm, u32 flags)
-{
-	crypto_tfm_clear_flags(crypto_ahash_tfm(tfm), flags);
+static inline void crypto_ahash_clear_flags(struct crypto_ahash *tfm,
+    u32 flags) {
+  crypto_tfm_clear_flags(crypto_ahash_tfm(tfm), flags);
 }
 
 /**
  * crypto_ahash_reqtfm() - obtain cipher handle from request
  * @req: asynchronous request handle that contains the reference to the ahash
- *	 cipher handle
+ *   cipher handle
  *
  * Return the ahash cipher handle that is registered with the asynchronous
  * request handle ahash_request.
@@ -411,9 +403,8 @@ static inline void crypto_ahash_clear_flags(struct crypto_ahash *tfm, u32 flags)
  * Return: ahash cipher handle
  */
 static inline struct crypto_ahash *crypto_ahash_reqtfm(
-	struct ahash_request *req)
-{
-	return __crypto_ahash_cast(req->base.tfm);
+    struct ahash_request *req) {
+  return __crypto_ahash_cast(req->base.tfm);
 }
 
 /**
@@ -422,14 +413,12 @@ static inline struct crypto_ahash *crypto_ahash_reqtfm(
  *
  * Return: size of the request data
  */
-static inline unsigned int crypto_ahash_reqsize(struct crypto_ahash *tfm)
-{
-	return tfm->reqsize;
+static inline unsigned int crypto_ahash_reqsize(struct crypto_ahash *tfm) {
+  return tfm->reqsize;
 }
 
-static inline void *ahash_request_ctx(struct ahash_request *req)
-{
-	return req->__ctx;
+static inline void *ahash_request_ctx(struct ahash_request *req) {
+  return req->__ctx;
 }
 
 /**
@@ -444,12 +433,12 @@ static inline void *ahash_request_ctx(struct ahash_request *req)
  * Return: 0 if the setting of the key was successful; < 0 if an error occurred
  */
 int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
-			unsigned int keylen);
+    unsigned int keylen);
 
 /**
  * crypto_ahash_finup() - update and finalize message digest
  * @req: reference to the ahash_request handle that holds all information
- *	 needed to perform the cipher operation
+ *   needed to perform the cipher operation
  *
  * This function is a "short-hand" for the function calls of
  * crypto_ahash_update and crypto_ahash_final. The parameters have the same
@@ -462,24 +451,24 @@ int crypto_ahash_finup(struct ahash_request *req);
 /**
  * crypto_ahash_final() - calculate message digest
  * @req: reference to the ahash_request handle that holds all information
- *	 needed to perform the cipher operation
+ *   needed to perform the cipher operation
  *
  * Finalize the message digest operation and create the message digest
  * based on all data added to the cipher handle. The message digest is placed
  * into the output buffer registered with the ahash_request handle.
  *
  * Return:
- * 0		if the message digest was successfully calculated;
- * -EINPROGRESS	if data is fed into hardware (DMA) or queued for later;
- * -EBUSY	if queue is full and request should be resubmitted later;
- * other < 0	if an error occurred
+ * 0    if the message digest was successfully calculated;
+ * -EINPROGRESS if data is fed into hardware (DMA) or queued for later;
+ * -EBUSY if queue is full and request should be resubmitted later;
+ * other < 0  if an error occurred
  */
 int crypto_ahash_final(struct ahash_request *req);
 
 /**
  * crypto_ahash_digest() - calculate message digest for a buffer
  * @req: reference to the ahash_request handle that holds all information
- *	 needed to perform the cipher operation
+ *   needed to perform the cipher operation
  *
  * This function is a "short-hand" for the function calls of crypto_ahash_init,
  * crypto_ahash_update and crypto_ahash_final. The parameters have the same
@@ -518,7 +507,7 @@ int crypto_ahash_import(struct ahash_request *req, const void *in);
 /**
  * crypto_ahash_init() - (re)initialize message digest handle
  * @req: ahash_request handle that already is initialized with all necessary
- *	 data using the ahash_request_* API functions
+ *   data using the ahash_request_* API functions
  *
  * The call (re-)initializes the message digest referenced by the ahash_request
  * handle. Any potentially existing state created by previous operations is
@@ -531,7 +520,7 @@ int crypto_ahash_init(struct ahash_request *req);
 /**
  * crypto_ahash_update() - add data to message digest for processing
  * @req: ahash_request handle that was previously initialized with the
- *	 crypto_ahash_init call.
+ *   crypto_ahash_init call.
  *
  * Updates the message digest state of the &ahash_request handle. The input data
  * is pointed to by the scatter/gather list registered in the &ahash_request
@@ -561,9 +550,8 @@ int crypto_ahash_update(struct ahash_request *req);
  * data structure with a different one.
  */
 static inline void ahash_request_set_tfm(struct ahash_request *req,
-					 struct crypto_ahash *tfm)
-{
-	req->base.tfm = crypto_ahash_tfm(tfm);
+    struct crypto_ahash *tfm) {
+  req->base.tfm = crypto_ahash_tfm(tfm);
 }
 
 /**
@@ -579,56 +567,50 @@ static inline void ahash_request_set_tfm(struct ahash_request *req,
  * Return: allocated request handle in case of success, or NULL if out of memory
  */
 static inline struct ahash_request *ahash_request_alloc(
-	struct crypto_ahash *tfm, gfp_t gfp)
-{
-	struct ahash_request *req;
-
-	req = kmalloc(sizeof(struct ahash_request) +
-		      crypto_ahash_reqsize(tfm), gfp);
-
-	if (likely(req))
-		ahash_request_set_tfm(req, tfm);
-
-	return req;
+    struct crypto_ahash *tfm, gfp_t gfp) {
+  struct ahash_request *req;
+  req = kmalloc(sizeof(struct ahash_request)
+      + crypto_ahash_reqsize(tfm), gfp);
+  if (likely(req)) {
+    ahash_request_set_tfm(req, tfm);
+  }
+  return req;
 }
 
 /**
  * ahash_request_free() - zeroize and free the request data structure
  * @req: request data structure cipher handle to be freed
  */
-static inline void ahash_request_free(struct ahash_request *req)
-{
-	kfree_sensitive(req);
+static inline void ahash_request_free(struct ahash_request *req) {
+  kfree_sensitive(req);
 }
 
-static inline void ahash_request_zero(struct ahash_request *req)
-{
-	memzero_explicit(req, sizeof(*req) +
-			      crypto_ahash_reqsize(crypto_ahash_reqtfm(req)));
+static inline void ahash_request_zero(struct ahash_request *req) {
+  memzero_explicit(req, sizeof(*req)
+      + crypto_ahash_reqsize(crypto_ahash_reqtfm(req)));
 }
 
 static inline struct ahash_request *ahash_request_cast(
-	struct crypto_async_request *req)
-{
-	return container_of(req, struct ahash_request, base);
+    struct crypto_async_request *req) {
+  return container_of(req, struct ahash_request, base);
 }
 
 /**
  * ahash_request_set_callback() - set asynchronous callback function
  * @req: request handle
  * @flags: specify zero or an ORing of the flags
- *	   CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
- *	   increase the wait queue beyond the initial maximum size;
- *	   CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
+ *     CRYPTO_TFM_REQ_MAY_BACKLOG the request queue may back log and
+ *     increase the wait queue beyond the initial maximum size;
+ *     CRYPTO_TFM_REQ_MAY_SLEEP the request processing may sleep
  * @compl: callback function pointer to be registered with the request handle
  * @data: The data pointer refers to memory that is not used by the kernel
- *	  crypto API, but provided to the callback function for it to use. Here,
- *	  the caller can provide a reference to memory the callback function can
- *	  operate on. As the callback function is invoked asynchronously to the
- *	  related functionality, it may need to access data structures of the
- *	  related functionality which can be referenced using this pointer. The
- *	  callback function can access the memory via the "data" field in the
- *	  &crypto_async_request data structure provided to the callback function.
+ *    crypto API, but provided to the callback function for it to use. Here,
+ *    the caller can provide a reference to memory the callback function can
+ *    operate on. As the callback function is invoked asynchronously to the
+ *    related functionality, it may need to access data structures of the
+ *    related functionality which can be referenced using this pointer. The
+ *    callback function can access the memory via the "data" field in the
+ *    &crypto_async_request data structure provided to the callback function.
  *
  * This function allows setting the callback function that is triggered once
  * the cipher operation completes.
@@ -636,16 +618,15 @@ static inline struct ahash_request *ahash_request_cast(
  * The callback function is registered with the &ahash_request handle and
  * must comply with the following template::
  *
- *	void callback_function(struct crypto_async_request *req, int error)
+ *  void callback_function(struct crypto_async_request *req, int error)
  */
 static inline void ahash_request_set_callback(struct ahash_request *req,
-					      u32 flags,
-					      crypto_completion_t compl,
-					      void *data)
-{
-	req->base.complete = compl;
-	req->base.data = data;
-	req->base.flags = flags;
+    u32 flags,
+    crypto_completion_t compl,
+    void *data) {
+  req->base.complete = compl;
+  req->base.data = data;
+  req->base.flags = flags;
 }
 
 /**
@@ -653,8 +634,8 @@ static inline void ahash_request_set_callback(struct ahash_request *req,
  * @req: ahash_request handle to be updated
  * @src: source scatter/gather list
  * @result: buffer that is filled with the message digest -- the caller must
- *	    ensure that the buffer has sufficient space by, for example, calling
- *	    crypto_ahash_digestsize()
+ *      ensure that the buffer has sufficient space by, for example, calling
+ *      crypto_ahash_digestsize()
  * @nbytes: number of bytes to process from the source scatter/gather list
  *
  * By using this call, the caller references the source scatter/gather list.
@@ -662,12 +643,11 @@ static inline void ahash_request_set_callback(struct ahash_request *req,
  * be calculated for.
  */
 static inline void ahash_request_set_crypt(struct ahash_request *req,
-					   struct scatterlist *src, u8 *result,
-					   unsigned int nbytes)
-{
-	req->src = src;
-	req->nbytes = nbytes;
-	req->result = result;
+    struct scatterlist *src, u8 *result,
+    unsigned int nbytes) {
+  req->src = src;
+  req->nbytes = nbytes;
+  req->result = result;
 }
 
 /**
@@ -686,7 +666,7 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
 /**
  * crypto_alloc_shash() - allocate message digest handle
  * @alg_name: is the cra_name / name or cra_driver_name / driver name of the
- *	      message digest cipher
+ *        message digest cipher
  * @type: specifies the type of the cipher
  * @mask: specifies the mask for the cipher
  *
@@ -695,18 +675,17 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
  * API invocation for that message digest.
  *
  * Return: allocated cipher handle in case of success; IS_ERR() is true in case
- *	   of an error, PTR_ERR() returns the error code.
+ *     of an error, PTR_ERR() returns the error code.
  */
 struct crypto_shash *crypto_alloc_shash(const char *alg_name, u32 type,
-					u32 mask);
+    u32 mask);
 
 struct crypto_shash *crypto_clone_shash(struct crypto_shash *tfm);
 
 int crypto_has_shash(const char *alg_name, u32 type, u32 mask);
 
-static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
-{
-	return &tfm->base;
+static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm) {
+  return &tfm->base;
 }
 
 /**
@@ -715,19 +694,16 @@ static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
  *
  * If @tfm is a NULL or error pointer, this function does nothing.
  */
-static inline void crypto_free_shash(struct crypto_shash *tfm)
-{
-	crypto_destroy_tfm(tfm, crypto_shash_tfm(tfm));
+static inline void crypto_free_shash(struct crypto_shash *tfm) {
+  crypto_destroy_tfm(tfm, crypto_shash_tfm(tfm));
 }
 
-static inline const char *crypto_shash_alg_name(struct crypto_shash *tfm)
-{
-	return crypto_tfm_alg_name(crypto_shash_tfm(tfm));
+static inline const char *crypto_shash_alg_name(struct crypto_shash *tfm) {
+  return crypto_tfm_alg_name(crypto_shash_tfm(tfm));
 }
 
-static inline const char *crypto_shash_driver_name(struct crypto_shash *tfm)
-{
-	return crypto_tfm_alg_driver_name(crypto_shash_tfm(tfm));
+static inline const char *crypto_shash_driver_name(struct crypto_shash *tfm) {
+  return crypto_tfm_alg_driver_name(crypto_shash_tfm(tfm));
 }
 
 /**
@@ -739,19 +715,16 @@ static inline const char *crypto_shash_driver_name(struct crypto_shash *tfm)
  *
  * Return: block size of cipher
  */
-static inline unsigned int crypto_shash_blocksize(struct crypto_shash *tfm)
-{
-	return crypto_tfm_alg_blocksize(crypto_shash_tfm(tfm));
+static inline unsigned int crypto_shash_blocksize(struct crypto_shash *tfm) {
+  return crypto_tfm_alg_blocksize(crypto_shash_tfm(tfm));
 }
 
-static inline struct shash_alg *__crypto_shash_alg(struct crypto_alg *alg)
-{
-	return container_of(alg, struct shash_alg, base);
+static inline struct shash_alg *__crypto_shash_alg(struct crypto_alg *alg) {
+  return container_of(alg, struct shash_alg, base);
 }
 
-static inline struct shash_alg *crypto_shash_alg(struct crypto_shash *tfm)
-{
-	return __crypto_shash_alg(crypto_shash_tfm(tfm)->__crt_alg);
+static inline struct shash_alg *crypto_shash_alg(struct crypto_shash *tfm) {
+  return __crypto_shash_alg(crypto_shash_tfm(tfm)->__crt_alg);
 }
 
 /**
@@ -763,29 +736,25 @@ static inline struct shash_alg *crypto_shash_alg(struct crypto_shash *tfm)
  *
  * Return: digest size of cipher
  */
-static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm)
-{
-	return crypto_shash_alg(tfm)->digestsize;
+static inline unsigned int crypto_shash_digestsize(struct crypto_shash *tfm) {
+  return crypto_shash_alg(tfm)->digestsize;
 }
 
-static inline unsigned int crypto_shash_statesize(struct crypto_shash *tfm)
-{
-	return crypto_shash_alg(tfm)->statesize;
+static inline unsigned int crypto_shash_statesize(struct crypto_shash *tfm) {
+  return crypto_shash_alg(tfm)->statesize;
 }
 
-static inline u32 crypto_shash_get_flags(struct crypto_shash *tfm)
-{
-	return crypto_tfm_get_flags(crypto_shash_tfm(tfm));
+static inline u32 crypto_shash_get_flags(struct crypto_shash *tfm) {
+  return crypto_tfm_get_flags(crypto_shash_tfm(tfm));
 }
 
-static inline void crypto_shash_set_flags(struct crypto_shash *tfm, u32 flags)
-{
-	crypto_tfm_set_flags(crypto_shash_tfm(tfm), flags);
+static inline void crypto_shash_set_flags(struct crypto_shash *tfm, u32 flags) {
+  crypto_tfm_set_flags(crypto_shash_tfm(tfm), flags);
 }
 
-static inline void crypto_shash_clear_flags(struct crypto_shash *tfm, u32 flags)
-{
-	crypto_tfm_clear_flags(crypto_shash_tfm(tfm), flags);
+static inline void crypto_shash_clear_flags(struct crypto_shash *tfm,
+    u32 flags) {
+  crypto_tfm_clear_flags(crypto_shash_tfm(tfm), flags);
 }
 
 /**
@@ -803,14 +772,12 @@ static inline void crypto_shash_clear_flags(struct crypto_shash *tfm, u32 flags)
  *
  * Return: size of the operational state
  */
-static inline unsigned int crypto_shash_descsize(struct crypto_shash *tfm)
-{
-	return tfm->descsize;
+static inline unsigned int crypto_shash_descsize(struct crypto_shash *tfm) {
+  return tfm->descsize;
 }
 
-static inline void *shash_desc_ctx(struct shash_desc *desc)
-{
-	return desc->__ctx;
+static inline void *shash_desc_ctx(struct shash_desc *desc) {
+  return desc->__ctx;
 }
 
 /**
@@ -827,7 +794,7 @@ static inline void *shash_desc_ctx(struct shash_desc *desc)
  * Return: 0 if the setting of the key was successful; < 0 if an error occurred
  */
 int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
-			unsigned int keylen);
+    unsigned int keylen);
 
 /**
  * crypto_shash_digest() - calculate message digest for buffer
@@ -842,10 +809,10 @@ int crypto_shash_setkey(struct crypto_shash *tfm, const u8 *key,
  *
  * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
- *	   occurred
+ *     occurred
  */
 int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
-			unsigned int len, u8 *out);
+    unsigned int len, u8 *out);
 
 /**
  * crypto_shash_tfm_digest() - calculate message digest for buffer
@@ -864,7 +831,7 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
  * Return: 0 on success; < 0 if an error occurred.
  */
 int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
-			    unsigned int len, u8 *out);
+    unsigned int len, u8 *out);
 
 /**
  * crypto_shash_export() - extract operational state for message digest
@@ -904,16 +871,14 @@ int crypto_shash_import(struct shash_desc *desc, const void *in);
  *
  * Context: Any context.
  * Return: 0 if the message digest initialization was successful; < 0 if an
- *	   error occurred
+ *     error occurred
  */
-static inline int crypto_shash_init(struct shash_desc *desc)
-{
-	struct crypto_shash *tfm = desc->tfm;
-
-	if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
-		return -ENOKEY;
-
-	return crypto_shash_alg(tfm)->init(desc);
+static inline int crypto_shash_init(struct shash_desc *desc) {
+  struct crypto_shash *tfm = desc->tfm;
+  if (crypto_shash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY) {
+    return -ENOKEY;
+  }
+  return crypto_shash_alg(tfm)->init(desc);
 }
 
 /**
@@ -926,10 +891,10 @@ static inline int crypto_shash_init(struct shash_desc *desc)
  *
  * Context: Any context.
  * Return: 0 if the message digest update was successful; < 0 if an error
- *	   occurred
+ *     occurred
  */
 int crypto_shash_update(struct shash_desc *desc, const u8 *data,
-			unsigned int len);
+    unsigned int len);
 
 /**
  * crypto_shash_final() - calculate message digest
@@ -943,7 +908,7 @@ int crypto_shash_update(struct shash_desc *desc, const u8 *data,
  *
  * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
- *	   occurred
+ *     occurred
  */
 int crypto_shash_final(struct shash_desc *desc, u8 *out);
 
@@ -960,15 +925,14 @@ int crypto_shash_final(struct shash_desc *desc, u8 *out);
  *
  * Context: Any context.
  * Return: 0 if the message digest creation was successful; < 0 if an error
- *	   occurred
+ *     occurred
  */
 int crypto_shash_finup(struct shash_desc *desc, const u8 *data,
-		       unsigned int len, u8 *out);
+    unsigned int len, u8 *out);
 
-static inline void shash_desc_zero(struct shash_desc *desc)
-{
-	memzero_explicit(desc,
-			 sizeof(*desc) + crypto_shash_descsize(desc->tfm));
+static inline void shash_desc_zero(struct shash_desc *desc) {
+  memzero_explicit(desc,
+      sizeof(*desc) + crypto_shash_descsize(desc->tfm));
 }
 
-#endif	/* _CRYPTO_HASH_H */
+#endif  /* _CRYPTO_HASH_H */

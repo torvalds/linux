@@ -13,18 +13,18 @@
 #include <linux/types.h>
 
 struct tca6416_button {
-	/* Configuration parameters */
-	int code;		/* input event code (KEY_*, SW_*) */
-	int active_low;
-	int type;		/* input event type (EV_KEY, EV_SW) */
+  /* Configuration parameters */
+  int code;   /* input event code (KEY_*, SW_*) */
+  int active_low;
+  int type;   /* input event type (EV_KEY, EV_SW) */
 };
 
 struct tca6416_keys_platform_data {
-	struct tca6416_button *buttons;
-	int nbuttons;
-	unsigned int rep:1;	/* enable input subsystem auto repeat */
-	uint16_t pinmask;
-	uint16_t invert;
-	int use_polling;	/* use polling if Interrupt is not connected*/
+  struct tca6416_button *buttons;
+  int nbuttons;
+  unsigned int rep : 1; /* enable input subsystem auto repeat */
+  uint16_t pinmask;
+  uint16_t invert;
+  int use_polling;  /* use polling if Interrupt is not connected*/
 };
 #endif

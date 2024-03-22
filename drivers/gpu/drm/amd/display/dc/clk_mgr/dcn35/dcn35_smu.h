@@ -51,9 +51,9 @@ typedef struct {
   uint16_t MinMclk;
   uint16_t MaxMclk;
 
-  uint8_t  WmSetting;
-  uint8_t  WmType;  // Used for normal pstate change or memory retraining
-  uint8_t  Padding[2];
+  uint8_t WmSetting;
+  uint8_t WmType;  // Used for normal pstate change or memory retraining
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
@@ -83,7 +83,7 @@ typedef struct {
 #define NUM_FCLK_DPM_LEVELS       8
 #define NUM_MEM_PSTATE_LEVELS     4
 
-typedef enum{
+typedef enum {
   WCK_RATIO_1_1 = 0,  // DDR5, Wck:ck is always 1:1;
   WCK_RATIO_1_2,
   WCK_RATIO_1_4,
@@ -94,8 +94,8 @@ typedef struct {
   uint32_t UClk;
   uint32_t MemClk;
   uint32_t Voltage;
-  uint8_t  WckRatio;
-  uint8_t  Spare[3];
+  uint8_t WckRatio;
+  uint8_t Spare[3];
 } MemPstateTable_t;
 
 //Freq in MHz
@@ -113,31 +113,20 @@ typedef struct {
   uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
   MemPstateTable_t MemPstateTable[NUM_MEM_PSTATE_LEVELS];
 
-  uint8_t  NumDcfClkLevelsEnabled;
-  uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
-  uint8_t  NumSocClkLevelsEnabled;
-  uint8_t  VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
-  uint8_t  VpeClkLevelsEnabled;
-  uint8_t  NumMemPstatesEnabled;
-  uint8_t  NumFclkLevelsEnabled;
-  uint8_t  spare[2];
+  uint8_t NumDcfClkLevelsEnabled;
+  uint8_t NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
+  uint8_t NumSocClkLevelsEnabled;
+  uint8_t VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
+  uint8_t VpeClkLevelsEnabled;
+  uint8_t NumMemPstatesEnabled;
+  uint8_t NumFclkLevelsEnabled;
+  uint8_t spare[2];
 
   uint32_t MinGfxClk;
   uint32_t MaxGfxClk;
 } DpmClocks_t_dcn35;
 
-
 // Throttler Status Bitmask
-
-
-
-
-
-
-
-
-
-
 
 #define TABLE_BIOS_IF            0 // Called by BIOS
 #define TABLE_WATERMARKS         1 // Called by DAL through VBIOS
@@ -159,45 +148,56 @@ struct dcn35_watermarks {
 };
 
 struct dcn35_smu_dpm_clks {
-	DpmClocks_t_dcn35 *dpm_clks;
-	union large_integer mc_address;
+  DpmClocks_t_dcn35 *dpm_clks;
+  union large_integer mc_address;
 };
 
 /* TODO: taken from vgh, may not be correct */
 struct display_idle_optimization {
-	unsigned int df_request_disabled : 1;
-	unsigned int phy_ref_clk_off     : 1;
-	unsigned int s0i2_rdy            : 1;
-	unsigned int reserved            : 29;
+  unsigned int df_request_disabled : 1;
+  unsigned int phy_ref_clk_off     : 1;
+  unsigned int s0i2_rdy            : 1;
+  unsigned int reserved            : 29;
 };
 
 union display_idle_optimization_u {
-	struct display_idle_optimization idle_info;
-	uint32_t data;
+  struct display_idle_optimization idle_info;
+  uint32_t data;
 };
 
 int dcn35_smu_get_smu_version(struct clk_mgr_internal *clk_mgr);
-int dcn35_smu_set_dispclk(struct clk_mgr_internal *clk_mgr, int requested_dispclk_khz);
+int dcn35_smu_set_dispclk(struct clk_mgr_internal *clk_mgr,
+    int requested_dispclk_khz);
 int dcn35_smu_set_dprefclk(struct clk_mgr_internal *clk_mgr);
-int dcn35_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_dcfclk_khz);
-int dcn35_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr, int requested_min_ds_dcfclk_khz);
-int dcn35_smu_set_dppclk(struct clk_mgr_internal *clk_mgr, int requested_dpp_khz);
-void dcn35_smu_set_display_idle_optimization(struct clk_mgr_internal *clk_mgr, uint32_t idle_info);
-void dcn35_smu_enable_phy_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable);
+int dcn35_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr,
+    int requested_dcfclk_khz);
+int dcn35_smu_set_min_deep_sleep_dcfclk(struct clk_mgr_internal *clk_mgr,
+    int requested_min_ds_dcfclk_khz);
+int dcn35_smu_set_dppclk(struct clk_mgr_internal *clk_mgr,
+    int requested_dpp_khz);
+void dcn35_smu_set_display_idle_optimization(struct clk_mgr_internal *clk_mgr,
+    uint32_t idle_info);
+void dcn35_smu_enable_phy_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr,
+    bool enable);
 void dcn35_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr);
-void dcn35_smu_set_dram_addr_high(struct clk_mgr_internal *clk_mgr, uint32_t addr_high);
-void dcn35_smu_set_dram_addr_low(struct clk_mgr_internal *clk_mgr, uint32_t addr_low);
+void dcn35_smu_set_dram_addr_high(struct clk_mgr_internal *clk_mgr,
+    uint32_t addr_high);
+void dcn35_smu_set_dram_addr_low(struct clk_mgr_internal *clk_mgr,
+    uint32_t addr_low);
 void dcn35_smu_transfer_dpm_table_smu_2_dram(struct clk_mgr_internal *clk_mgr);
 void dcn35_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
 
-void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zstate_support_state support);
+void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr,
+    enum dcn_zstate_support_state support);
 void dcn35_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable);
-void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable);
+void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(
+  struct clk_mgr_internal *clk_mgr, bool enable);
 
 int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr);
 int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr);
 int dcn35_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr);
 int dcn35_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr);
-void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t param);
+void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr,
+    uint32_t param);
 uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr);
 #endif /* DAL_DC_35_SMU_H_ */

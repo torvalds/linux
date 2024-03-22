@@ -1,17 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /**
-Support for Intel Camera Imaging ISP subsystem.
-Copyright (c) 2010 - 2015, Intel Corporation.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms and conditions of the GNU General Public License,
-version 2, as published by the Free Software Foundation.
-
-This program is distributed in the hope it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-more details.
-*/
+ * Support for Intel Camera Imaging ISP subsystem.
+ * Copyright (c) 2010 - 2015, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ */
 
 #ifndef _IA_CSS_ISP_PARAM_TYPES_H_
 #define _IA_CSS_ISP_PARAM_TYPES_H_
@@ -29,11 +29,12 @@ more details.
 
 /* Explicit member numbering to avoid fish type checker bug */
 enum ia_css_param_class {
-	IA_CSS_PARAM_CLASS_PARAM  = 0,	/* Late binding parameters, like 3A */
-	IA_CSS_PARAM_CLASS_CONFIG = 1,	/* Pipe config time parameters, like resolution */
-	IA_CSS_PARAM_CLASS_STATE  = 2,  /* State parameters, like tnr buffer index */
+  IA_CSS_PARAM_CLASS_PARAM = 0,  /* Late binding parameters, like 3A */
+  IA_CSS_PARAM_CLASS_CONFIG = 1,  /* Pipe config time parameters, like
+                                   * resolution */
+  IA_CSS_PARAM_CLASS_STATE = 2,  /* State parameters, like tnr buffer index */
 #if 0 /* Not yet implemented */
-	IA_CSS_PARAM_CLASS_FRAME  = 3,  /* Frame time parameters, like output buffer */
+  IA_CSS_PARAM_CLASS_FRAME = 3,  /* Frame time parameters, like output buffer */
 #endif
 };
 
@@ -41,42 +42,45 @@ enum ia_css_param_class {
 
 /* ISP parameter descriptor */
 struct ia_css_isp_parameter {
-	u32 offset; /* Offset in isp_<mem>)parameters, etc. */
-	u32 size;   /* Disabled if 0 */
+  u32 offset; /* Offset in isp_<mem>)parameters, etc. */
+  u32 size;   /* Disabled if 0 */
 };
 
-/* Address/size of each parameter class in each isp memory, host memory pointers */
+/* Address/size of each parameter class in each isp memory, host memory pointers
+ * */
 struct ia_css_isp_param_host_segments {
-	struct ia_css_host_data params[IA_CSS_NUM_PARAM_CLASSES][IA_CSS_NUM_MEMORIES];
+  struct ia_css_host_data params[IA_CSS_NUM_PARAM_CLASSES][IA_CSS_NUM_MEMORIES];
 };
 
-/* Address/size of each parameter class in each isp memory, css memory pointers */
+/* Address/size of each parameter class in each isp memory, css memory pointers
+ * */
 struct ia_css_isp_param_css_segments {
-	struct ia_css_data      params[IA_CSS_NUM_PARAM_CLASSES][IA_CSS_NUM_MEMORIES];
+  struct ia_css_data params[IA_CSS_NUM_PARAM_CLASSES][IA_CSS_NUM_MEMORIES];
 };
 
-/* Address/size of each parameter class in each isp memory, isp memory pointers */
+/* Address/size of each parameter class in each isp memory, isp memory pointers
+ * */
 struct ia_css_isp_param_isp_segments {
-	struct ia_css_isp_data  params[IA_CSS_NUM_PARAM_CLASSES][IA_CSS_NUM_MEMORIES];
+  struct ia_css_isp_data params[IA_CSS_NUM_PARAM_CLASSES][IA_CSS_NUM_MEMORIES];
 };
 
 /* Memory offsets in binary info */
 struct ia_css_isp_param_memory_offsets {
-	u32 offsets[IA_CSS_NUM_PARAM_CLASSES];  /** offset wrt hdr in bytes */
+  u32 offsets[IA_CSS_NUM_PARAM_CLASSES];  /** offset wrt hdr in bytes */
 };
 
 /* Offsets for ISP kernel parameters per isp memory.
  * Only relevant for standard ISP binaries, not ACC or SP.
  */
 union ia_css_all_memory_offsets {
-	struct {
-		CSS_ALIGN(struct ia_css_memory_offsets	      *param, 8);
-		CSS_ALIGN(struct ia_css_config_memory_offsets *config, 8);
-		CSS_ALIGN(struct ia_css_state_memory_offsets  *state, 8);
-	} offsets;
-	struct {
-		CSS_ALIGN(void *ptr, 8);
-	} array[IA_CSS_NUM_PARAM_CLASSES];
+  struct {
+    CSS_ALIGN(struct ia_css_memory_offsets *param, 8);
+    CSS_ALIGN(struct ia_css_config_memory_offsets *config, 8);
+    CSS_ALIGN(struct ia_css_state_memory_offsets *state, 8);
+  } offsets;
+  struct {
+    CSS_ALIGN(void *ptr, 8);
+  } array[IA_CSS_NUM_PARAM_CLASSES];
 };
 
 #endif /* _IA_CSS_ISP_PARAM_TYPES_H_ */

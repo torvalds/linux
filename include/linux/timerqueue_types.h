@@ -6,12 +6,12 @@
 #include <linux/types.h>
 
 struct timerqueue_node {
-	struct rb_node node;
-	ktime_t expires;
+  struct rb_node node;
+  ktime_t expires;
 };
 
 struct timerqueue_head {
-	struct rb_root_cached rb_root;
+  struct rb_root_cached rb_root;
 };
 
 #endif /* _LINUX_TIMERQUEUE_TYPES_H */

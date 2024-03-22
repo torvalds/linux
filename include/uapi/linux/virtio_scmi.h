@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+ * */
 /*
  * Copyright (C) 2020-2021 OpenSynergy GmbH
  * Copyright (C) 2021 ARM Ltd.

@@ -34,55 +34,50 @@ bool arch_vcpu_is_preempted(int cpu);
  */
 
 void arch_spin_relax(arch_spinlock_t *lock);
-#define arch_spin_relax	arch_spin_relax
+#define arch_spin_relax arch_spin_relax
 
 void arch_spin_lock_wait(arch_spinlock_t *);
 int arch_spin_trylock_retry(arch_spinlock_t *);
 void arch_spin_lock_setup(int cpu);
 
-static inline u32 arch_spin_lockval(int cpu)
-{
-	return cpu + 1;
+static inline u32 arch_spin_lockval(int cpu) {
+  return cpu + 1;
 }
 
-static inline int arch_spin_value_unlocked(arch_spinlock_t lock)
-{
-	return lock.lock == 0;
+static inline int arch_spin_value_unlocked(arch_spinlock_t lock) {
+  return lock.lock == 0;
 }
 
-static inline int arch_spin_is_locked(arch_spinlock_t *lp)
-{
-	return READ_ONCE(lp->lock) != 0;
+static inline int arch_spin_is_locked(arch_spinlock_t *lp) {
+  return READ_ONCE(lp->lock) != 0;
 }
 
-static inline int arch_spin_trylock_once(arch_spinlock_t *lp)
-{
-	barrier();
-	return likely(__atomic_cmpxchg_bool(&lp->lock, 0, SPINLOCK_LOCKVAL));
+static inline int arch_spin_trylock_once(arch_spinlock_t *lp) {
+  barrier();
+  return likely(__atomic_cmpxchg_bool(&lp->lock, 0, SPINLOCK_LOCKVAL));
 }
 
-static inline void arch_spin_lock(arch_spinlock_t *lp)
-{
-	if (!arch_spin_trylock_once(lp))
-		arch_spin_lock_wait(lp);
+static inline void arch_spin_lock(arch_spinlock_t *lp) {
+  if (!arch_spin_trylock_once(lp)) {
+    arch_spin_lock_wait(lp);
+  }
 }
 
-static inline int arch_spin_trylock(arch_spinlock_t *lp)
-{
-	if (!arch_spin_trylock_once(lp))
-		return arch_spin_trylock_retry(lp);
-	return 1;
+static inline int arch_spin_trylock(arch_spinlock_t *lp) {
+  if (!arch_spin_trylock_once(lp)) {
+    return arch_spin_trylock_retry(lp);
+  }
+  return 1;
 }
 
-static inline void arch_spin_unlock(arch_spinlock_t *lp)
-{
-	typecheck(int, lp->lock);
-	kcsan_release();
-	asm_inline volatile(
-		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,7,0", 49) /* NIAI 7 */
-		"	sth	%1,%0\n"
-		: "=R" (((unsigned short *) &lp->lock)[1])
-		: "d" (0) : "cc", "memory");
+static inline void arch_spin_unlock(arch_spinlock_t *lp) {
+  typecheck(int, lp->lock);
+  kcsan_release();
+  asm_inline volatile (
+    ALTERNATIVE("nop", ".insn rre,0xb2fa0000,7,0", 49) /* NIAI 7 */
+    "	sth	%1,%0\n"
+    : "=R" (((unsigned short *) &lp->lock)[1])
+    : "d" (0) : "cc", "memory");
 }
 
 /*
@@ -102,47 +97,39 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 void arch_read_lock_wait(arch_rwlock_t *lp);
 void arch_write_lock_wait(arch_rwlock_t *lp);
 
-static inline void arch_read_lock(arch_rwlock_t *rw)
-{
-	int old;
-
-	old = __atomic_add(1, &rw->cnts);
-	if (old & 0xffff0000)
-		arch_read_lock_wait(rw);
+static inline void arch_read_lock(arch_rwlock_t *rw) {
+  int old;
+  old = __atomic_add(1, &rw->cnts);
+  if (old & 0xffff0000) {
+    arch_read_lock_wait(rw);
+  }
 }
 
-static inline void arch_read_unlock(arch_rwlock_t *rw)
-{
-	__atomic_add_const_barrier(-1, &rw->cnts);
+static inline void arch_read_unlock(arch_rwlock_t *rw) {
+  __atomic_add_const_barrier(-1, &rw->cnts);
 }
 
-static inline void arch_write_lock(arch_rwlock_t *rw)
-{
-	if (!__atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000))
-		arch_write_lock_wait(rw);
+static inline void arch_write_lock(arch_rwlock_t *rw) {
+  if (!__atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000)) {
+    arch_write_lock_wait(rw);
+  }
 }
 
-static inline void arch_write_unlock(arch_rwlock_t *rw)
-{
-	__atomic_add_barrier(-0x30000, &rw->cnts);
+static inline void arch_write_unlock(arch_rwlock_t *rw) {
+  __atomic_add_barrier(-0x30000, &rw->cnts);
 }
 
-
-static inline int arch_read_trylock(arch_rwlock_t *rw)
-{
-	int old;
-
-	old = READ_ONCE(rw->cnts);
-	return (!(old & 0xffff0000) &&
-		__atomic_cmpxchg_bool(&rw->cnts, old, old + 1));
+static inline int arch_read_trylock(arch_rwlock_t *rw) {
+  int old;
+  old = READ_ONCE(rw->cnts);
+  return !(old & 0xffff0000)
+    && __atomic_cmpxchg_bool(&rw->cnts, old, old + 1);
 }
 
-static inline int arch_write_trylock(arch_rwlock_t *rw)
-{
-	int old;
-
-	old = READ_ONCE(rw->cnts);
-	return !old && __atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000);
+static inline int arch_write_trylock(arch_rwlock_t *rw) {
+  int old;
+  old = READ_ONCE(rw->cnts);
+  return !old && __atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000);
 }
 
 #endif /* __ASM_SPINLOCK_H */

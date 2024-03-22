@@ -3,40 +3,37 @@
 
 static struct workqueue_struct *wq;
 
-bool edac_queue_work(struct delayed_work *work, unsigned long delay)
-{
-	return queue_delayed_work(wq, work, delay);
+bool edac_queue_work(struct delayed_work *work, unsigned long delay) {
+  return queue_delayed_work(wq, work, delay);
 }
+
 EXPORT_SYMBOL_GPL(edac_queue_work);
 
-bool edac_mod_work(struct delayed_work *work, unsigned long delay)
-{
-	return mod_delayed_work(wq, work, delay);
+bool edac_mod_work(struct delayed_work *work, unsigned long delay) {
+  return mod_delayed_work(wq, work, delay);
 }
+
 EXPORT_SYMBOL_GPL(edac_mod_work);
 
-bool edac_stop_work(struct delayed_work *work)
-{
-	bool ret;
-
-	ret = cancel_delayed_work_sync(work);
-	flush_workqueue(wq);
-
-	return ret;
+bool edac_stop_work(struct delayed_work *work) {
+  bool ret;
+  ret = cancel_delayed_work_sync(work);
+  flush_workqueue(wq);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(edac_stop_work);
 
-int edac_workqueue_setup(void)
-{
-	wq = alloc_ordered_workqueue("edac-poller", WQ_MEM_RECLAIM);
-	if (!wq)
-		return -ENODEV;
-	else
-		return 0;
+int edac_workqueue_setup(void) {
+  wq = alloc_ordered_workqueue("edac-poller", WQ_MEM_RECLAIM);
+  if (!wq) {
+    return -ENODEV;
+  } else {
+    return 0;
+  }
 }
 
-void edac_workqueue_teardown(void)
-{
-	destroy_workqueue(wq);
-	wq = NULL;
+void edac_workqueue_teardown(void) {
+  destroy_workqueue(wq);
+  wq = NULL;
 }

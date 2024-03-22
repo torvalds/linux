@@ -9,15 +9,15 @@
  * 6 64-bit registers unpacked into up to 24 be32 associativity values. To
  * form the complete property we have to add the length in the first cell.
  */
-#define VPHN_ASSOC_BUFSIZE (VPHN_REGISTER_COUNT*sizeof(u64)/sizeof(u16) + 1)
+#define VPHN_ASSOC_BUFSIZE (VPHN_REGISTER_COUNT * sizeof(u64) / sizeof(u16) + 1)
 
 /*
  * The H_HOME_NODE_ASSOCIATIVITY hcall takes two values for flags:
  * 1 for retrieving associativity information for a guest cpu
  * 2 for retrieving associativity information for a host/hypervisor cpu
  */
-#define VPHN_FLAG_VCPU	1
-#define VPHN_FLAG_PCPU	2
+#define VPHN_FLAG_VCPU  1
+#define VPHN_FLAG_PCPU  2
 
 long hcall_vphn(unsigned long cpu, u64 flags, __be32 *associativity);
 

@@ -5,12 +5,12 @@
  *
  */
 
-#ifndef	OTX2_DEVLINK_H
-#define	OTX2_DEVLINK_H
+#ifndef OTX2_DEVLINK_H
+#define OTX2_DEVLINK_H
 
 struct otx2_devlink {
-	struct devlink *dl;
-	struct otx2_nic *pfvf;
+  struct devlink *dl;
+  struct otx2_nic *pfvf;
 };
 
 /* Devlink APIs */

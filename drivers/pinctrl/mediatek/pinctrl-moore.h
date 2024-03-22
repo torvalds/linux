@@ -24,26 +24,26 @@
 #include "mtk-eint.h"
 #include "pinctrl-mtk-common-v2.h"
 
-#define MTK_RANGE(_a)		{ .range = (_a), .nranges = ARRAY_SIZE(_a), }
+#define MTK_RANGE(_a)   { .range = (_a), .nranges = ARRAY_SIZE(_a), }
 
-#define MTK_PIN(_number, _name, _eint_m, _eint_n, _drv_n) {	\
-		.number = _number,			\
-		.name = _name,				\
-		.eint = {				\
-			.eint_m = _eint_m,		\
-			.eint_n = _eint_n,		\
-		},					\
-		.drv_n = _drv_n,			\
-		.funcs = NULL,				\
-	}
+#define MTK_PIN(_number, _name, _eint_m, _eint_n, _drv_n) { \
+    .number = _number,      \
+    .name = _name,        \
+    .eint = {       \
+      .eint_m = _eint_m,    \
+      .eint_n = _eint_n,    \
+    },          \
+    .drv_n = _drv_n,      \
+    .funcs = NULL,        \
+}
 
-#define PINCTRL_PIN_GROUP(_name_, id)							\
-	{										\
-		.grp = PINCTRL_PINGROUP(_name_, id##_pins, ARRAY_SIZE(id##_pins)),	\
-		.data = id##_funcs,							\
-	}
+#define PINCTRL_PIN_GROUP(_name_, id)             \
+  {                   \
+    .grp = PINCTRL_PINGROUP(_name_, id ## _pins, ARRAY_SIZE(id ## _pins)),  \
+    .data = id ## _funcs,             \
+  }
 
 int mtk_moore_pinctrl_probe(struct platform_device *pdev,
-			    const struct mtk_pin_soc *soc);
+    const struct mtk_pin_soc *soc);
 
 #endif /* __PINCTRL_MOORE_H */

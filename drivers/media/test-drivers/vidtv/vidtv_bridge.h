@@ -4,7 +4,8 @@
  * validate the existing APIs in the media subsystem. It can also aid
  * developers working on userspace applications.
  *
- * When this module is loaded, it will attempt to modprobe 'dvb_vidtv_tuner' and 'dvb_vidtv_demod'.
+ * When this module is loaded, it will attempt to modprobe 'dvb_vidtv_tuner' and
+ *'dvb_vidtv_demod'.
  *
  * Copyright (C) 2020 Daniel W. S. Almeida
  */
@@ -43,29 +44,31 @@
  * @nfeeds: The number of feeds active.
  * @feed_lock: Protects access to the start/stop stream logic/data.
  * @streaming: Whether we are streaming now.
- * @mux: The abstraction responsible for delivering MPEG TS packets to the bridge.
+ * @mux: The abstraction responsible for delivering MPEG TS packets to the
+ *bridge.
  * @mdev: The media_device struct for media controller support.
  */
 struct vidtv_dvb {
-	struct platform_device *pdev;
-	struct dvb_frontend *fe[NUM_FE];
-	struct dvb_adapter adapter;
-	struct dvb_demux demux;
-	struct dmxdev dmx_dev;
-	struct dmx_frontend dmx_fe[NUM_FE];
-	struct i2c_adapter i2c_adapter;
-	struct i2c_client *i2c_client_demod[NUM_FE];
-	struct i2c_client *i2c_client_tuner[NUM_FE];
+  struct platform_device *pdev;
+  struct dvb_frontend *fe[NUM_FE];
+  struct dvb_adapter adapter;
+  struct dvb_demux demux;
+  struct dmxdev dmx_dev;
+  struct dmx_frontend dmx_fe[NUM_FE];
+  struct i2c_adapter i2c_adapter;
+  struct i2c_client *i2c_client_demod[NUM_FE];
+  struct i2c_client *i2c_client_tuner[NUM_FE];
 
-	u32 nfeeds;
-	struct mutex feed_lock; /* Protects access to the start/stop stream logic/data. */
+  u32 nfeeds;
+  struct mutex feed_lock; /* Protects access to the start/stop stream
+                           * logic/data. */
 
-	bool streaming;
+  bool streaming;
 
-	struct vidtv_mux *mux;
+  struct vidtv_mux *mux;
 
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
-	struct media_device mdev;
+  struct media_device mdev;
 #endif /* CONFIG_MEDIA_CONTROLLER_DVB */
 };
 

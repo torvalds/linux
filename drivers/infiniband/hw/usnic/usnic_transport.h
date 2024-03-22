@@ -42,7 +42,7 @@ const char *usnic_transport_to_str(enum usnic_transport_type trans_type);
  * nothing was written, the function returns 0.
  */
 int usnic_transport_sock_to_str(char *buf, int buf_sz,
-					struct socket *sock);
+    struct socket *sock);
 /*
  * Reserve a port. If "port_num" is set, then the function will try
  * to reserve that particular port.
@@ -60,7 +60,7 @@ void usnic_transport_put_socket(struct socket *sock);
  * Call usnic_transport_get_socket before calling *_sock_get_addr
  */
 int usnic_transport_sock_get_addr(struct socket *sock, int *proto,
-					uint32_t *addr, uint16_t *port);
+    uint32_t *addr, uint16_t *port);
 int usnic_transport_init(void);
 void usnic_transport_fini(void);
 #endif /* !USNIC_TRANSPORT_H */

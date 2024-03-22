@@ -3,9 +3,9 @@
  * Generic OPP Interface
  *
  * Copyright (C) 2009-2010 Texas Instruments Incorporated.
- *	Nishanth Menon
- *	Romit Dasgupta
- *	Kevin Hilman
+ *  Nishanth Menon
+ *  Romit Dasgupta
+ *  Kevin Hilman
  */
 
 #ifndef __DRIVER_OPP_H__
@@ -29,13 +29,13 @@ extern struct mutex opp_table_lock;
 extern struct list_head opp_tables;
 
 /* OPP Config flags */
-#define OPP_CONFIG_CLK			BIT(0)
-#define OPP_CONFIG_REGULATOR		BIT(1)
-#define OPP_CONFIG_REGULATOR_HELPER	BIT(2)
-#define OPP_CONFIG_PROP_NAME		BIT(3)
-#define OPP_CONFIG_SUPPORTED_HW		BIT(4)
-#define OPP_CONFIG_GENPD		BIT(5)
-#define OPP_CONFIG_REQUIRED_DEVS	BIT(6)
+#define OPP_CONFIG_CLK      BIT(0)
+#define OPP_CONFIG_REGULATOR    BIT(1)
+#define OPP_CONFIG_REGULATOR_HELPER BIT(2)
+#define OPP_CONFIG_PROP_NAME    BIT(3)
+#define OPP_CONFIG_SUPPORTED_HW   BIT(4)
+#define OPP_CONFIG_GENPD    BIT(5)
+#define OPP_CONFIG_REQUIRED_DEVS  BIT(6)
 
 /**
  * struct opp_config_data - data for set config operations
@@ -46,127 +46,127 @@ extern struct list_head opp_tables;
  * configuration by the callers.
  */
 struct opp_config_data {
-	struct opp_table *opp_table;
-	unsigned int flags;
+  struct opp_table *opp_table;
+  unsigned int flags;
 };
 
 /**
  * struct dev_pm_opp_icc_bw - Interconnect bandwidth values
- * @avg:	Average bandwidth corresponding to this OPP (in icc units)
- * @peak:	Peak bandwidth corresponding to this OPP (in icc units)
+ * @avg:  Average bandwidth corresponding to this OPP (in icc units)
+ * @peak: Peak bandwidth corresponding to this OPP (in icc units)
  *
  * This structure stores the bandwidth values for a single interconnect path.
  */
 struct dev_pm_opp_icc_bw {
-	u32 avg;
-	u32 peak;
+  u32 avg;
+  u32 peak;
 };
 
 /*
  * Internal data structure organization with the OPP layer library is as
  * follows:
  * opp_tables (root)
- *	|- device 1 (represents voltage domain 1)
- *	|	|- opp 1 (availability, freq, voltage)
- *	|	|- opp 2 ..
- *	...	...
- *	|	`- opp n ..
- *	|- device 2 (represents the next voltage domain)
- *	...
- *	`- device m (represents mth voltage domain)
+ *  |- device 1 (represents voltage domain 1)
+ *  | |- opp 1 (availability, freq, voltage)
+ *  | |- opp 2 ..
+ *  ... ...
+ *  | `- opp n ..
+ *  |- device 2 (represents the next voltage domain)
+ *  ...
+ *  `- device m (represents mth voltage domain)
  * device 1, 2.. are represented by opp_table structure while each opp
  * is represented by the opp structure.
  */
 
 /**
  * struct dev_pm_opp - Generic OPP description structure
- * @node:	opp table node. The nodes are maintained throughout the lifetime
- *		of boot. It is expected only an optimal set of OPPs are
- *		added to the library by the SoC framework.
- *		IMPORTANT: the opp nodes should be maintained in increasing
- *		order.
- * @kref:	for reference count of the OPP.
- * @available:	true/false - marks if this OPP as available or not
- * @dynamic:	not-created from static DT entries.
- * @turbo:	true if turbo (boost) OPP
- * @suspend:	true if suspend OPP
- * @removed:	flag indicating that OPP's reference is dropped by OPP core.
- * @rates:	Frequencies in hertz
- * @level:	Performance level
- * @supplies:	Power supplies voltage/current values
- * @bandwidth:	Interconnect bandwidth values
+ * @node: opp table node. The nodes are maintained throughout the lifetime
+ *    of boot. It is expected only an optimal set of OPPs are
+ *    added to the library by the SoC framework.
+ *    IMPORTANT: the opp nodes should be maintained in increasing
+ *    order.
+ * @kref: for reference count of the OPP.
+ * @available:  true/false - marks if this OPP as available or not
+ * @dynamic:  not-created from static DT entries.
+ * @turbo:  true if turbo (boost) OPP
+ * @suspend:  true if suspend OPP
+ * @removed:  flag indicating that OPP's reference is dropped by OPP core.
+ * @rates:  Frequencies in hertz
+ * @level:  Performance level
+ * @supplies: Power supplies voltage/current values
+ * @bandwidth:  Interconnect bandwidth values
  * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
- *		frequency from any other OPP's frequency.
+ *    frequency from any other OPP's frequency.
  * @required_opps: List of OPPs that are required by this OPP.
- * @opp_table:	points back to the opp_table struct this opp belongs to
- * @np:		OPP's device node.
- * @dentry:	debugfs dentry pointer (per opp)
+ * @opp_table:  points back to the opp_table struct this opp belongs to
+ * @np:   OPP's device node.
+ * @dentry: debugfs dentry pointer (per opp)
  *
  * This structure stores the OPP information for a given device.
  */
 struct dev_pm_opp {
-	struct list_head node;
-	struct kref kref;
+  struct list_head node;
+  struct kref kref;
 
-	bool available;
-	bool dynamic;
-	bool turbo;
-	bool suspend;
-	bool removed;
-	unsigned long *rates;
-	unsigned int level;
+  bool available;
+  bool dynamic;
+  bool turbo;
+  bool suspend;
+  bool removed;
+  unsigned long *rates;
+  unsigned int level;
 
-	struct dev_pm_opp_supply *supplies;
-	struct dev_pm_opp_icc_bw *bandwidth;
+  struct dev_pm_opp_supply *supplies;
+  struct dev_pm_opp_icc_bw *bandwidth;
 
-	unsigned long clock_latency_ns;
+  unsigned long clock_latency_ns;
 
-	struct dev_pm_opp **required_opps;
-	struct opp_table *opp_table;
+  struct dev_pm_opp **required_opps;
+  struct opp_table *opp_table;
 
-	struct device_node *np;
+  struct device_node *np;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *dentry;
-	const char *of_name;
+  struct dentry *dentry;
+  const char *of_name;
 #endif
 };
 
 /**
  * struct opp_device - devices managed by 'struct opp_table'
- * @node:	list node
- * @dev:	device to which the struct object belongs
- * @dentry:	debugfs dentry pointer (per device)
+ * @node: list node
+ * @dev:  device to which the struct object belongs
+ * @dentry: debugfs dentry pointer (per device)
  *
  * This is an internal data structure maintaining the devices that are managed
  * by 'struct opp_table'.
  */
 struct opp_device {
-	struct list_head node;
-	const struct device *dev;
+  struct list_head node;
+  const struct device *dev;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *dentry;
+  struct dentry *dentry;
 #endif
 };
 
 enum opp_table_access {
-	OPP_TABLE_ACCESS_UNKNOWN = 0,
-	OPP_TABLE_ACCESS_EXCLUSIVE = 1,
-	OPP_TABLE_ACCESS_SHARED = 2,
+  OPP_TABLE_ACCESS_UNKNOWN = 0,
+  OPP_TABLE_ACCESS_EXCLUSIVE = 1,
+  OPP_TABLE_ACCESS_SHARED = 2,
 };
 
 /**
  * struct opp_table - Device opp structure
- * @node:	table node - contains the devices with OPPs that
- *		have been registered. Nodes once added are not modified in this
- *		table.
- * @head:	notifier head to notify the OPP availability changes.
- * @dev_list:	list of devices that share these OPPs
- * @opp_list:	table of opps
- * @kref:	for reference count of the table.
- * @lock:	mutex protecting the opp_list and dev_list.
- * @np:		struct device_node pointer for opp's DT node.
+ * @node: table node - contains the devices with OPPs that
+ *    have been registered. Nodes once added are not modified in this
+ *    table.
+ * @head: notifier head to notify the OPP availability changes.
+ * @dev_list: list of devices that share these OPPs
+ * @opp_list: table of opps
+ * @kref: for reference count of the table.
+ * @lock: mutex protecting the opp_list and dev_list.
+ * @np:   struct device_node pointer for opp's DT node.
  * @clock_latency_ns_max: Max clock latency in nanoseconds.
  * @parsed_static_opps: Count of devices for which OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
@@ -174,7 +174,7 @@ enum opp_table_access {
  * @current_opp: Currently configured OPP for the table.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
  * @required_opp_tables: List of device OPP tables that are required by OPPs in
- *		this table.
+ *    this table.
  * @required_devs: List of devices for required OPP tables.
  * @required_opp_count: Number of required devices.
  * @supported_hw: Array of version number to support.
@@ -193,7 +193,7 @@ enum opp_table_access {
  * @path_count: Number of interconnect paths
  * @enabled: Set to true if the device's resources are enabled/configured.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
- * @dentry:	debugfs dentry pointer of the real device directory (not links).
+ * @dentry: debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
  * @voltage_tolerance_v1: In percentage, for v1 bindings only.
@@ -203,48 +203,48 @@ enum opp_table_access {
  * meant for book keeping and private to OPP library.
  */
 struct opp_table {
-	struct list_head node, lazy;
+  struct list_head node, lazy;
 
-	struct blocking_notifier_head head;
-	struct list_head dev_list;
-	struct list_head opp_list;
-	struct kref kref;
-	struct mutex lock;
+  struct blocking_notifier_head head;
+  struct list_head dev_list;
+  struct list_head opp_list;
+  struct kref kref;
+  struct mutex lock;
 
-	struct device_node *np;
-	unsigned long clock_latency_ns_max;
+  struct device_node *np;
+  unsigned long clock_latency_ns_max;
 
-	/* For backward compatibility with v1 bindings */
-	unsigned int voltage_tolerance_v1;
+  /* For backward compatibility with v1 bindings */
+  unsigned int voltage_tolerance_v1;
 
-	unsigned int parsed_static_opps;
-	enum opp_table_access shared_opp;
-	unsigned long current_rate_single_clk;
-	struct dev_pm_opp *current_opp;
-	struct dev_pm_opp *suspend_opp;
+  unsigned int parsed_static_opps;
+  enum opp_table_access shared_opp;
+  unsigned long current_rate_single_clk;
+  struct dev_pm_opp *current_opp;
+  struct dev_pm_opp *suspend_opp;
 
-	struct opp_table **required_opp_tables;
-	struct device **required_devs;
-	unsigned int required_opp_count;
+  struct opp_table **required_opp_tables;
+  struct device **required_devs;
+  unsigned int required_opp_count;
 
-	unsigned int *supported_hw;
-	unsigned int supported_hw_count;
-	const char *prop_name;
-	config_clks_t config_clks;
-	struct clk **clks;
-	struct clk *clk;
-	int clk_count;
-	config_regulators_t config_regulators;
-	struct regulator **regulators;
-	int regulator_count;
-	struct icc_path **paths;
-	unsigned int path_count;
-	bool enabled;
-	bool is_genpd;
+  unsigned int *supported_hw;
+  unsigned int supported_hw_count;
+  const char *prop_name;
+  config_clks_t config_clks;
+  struct clk **clks;
+  struct clk *clk;
+  int clk_count;
+  config_regulators_t config_regulators;
+  struct regulator **regulators;
+  int regulator_count;
+  struct icc_path **paths;
+  unsigned int path_count;
+  bool enabled;
+  bool is_genpd;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *dentry;
-	char dentry_name[NAME_MAX];
+  struct dentry *dentry;
+  char dentry_name[NAME_MAX];
 #endif
 };
 
@@ -254,52 +254,75 @@ bool _opp_remove_all_static(struct opp_table *opp_table);
 void _get_opp_table_kref(struct opp_table *opp_table);
 int _get_opp_count(struct opp_table *opp_table);
 struct opp_table *_find_opp_table(struct device *dev);
-struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
+struct opp_device *_add_opp_dev(const struct device *dev,
+    struct opp_table *opp_table);
 struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
 void _opp_free(struct dev_pm_opp *opp);
-int _opp_compare_key(struct opp_table *opp_table, struct dev_pm_opp *opp1, struct dev_pm_opp *opp2);
-int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table);
-int _opp_add_v1(struct opp_table *opp_table, struct device *dev, struct dev_pm_opp_data *data, bool dynamic);
-void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
-struct opp_table *_add_opp_table_indexed(struct device *dev, int index, bool getclk);
+int _opp_compare_key(struct opp_table *opp_table, struct dev_pm_opp *opp1,
+    struct dev_pm_opp *opp2);
+int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
+    struct opp_table *opp_table);
+int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
+    struct dev_pm_opp_data *data, bool dynamic);
+void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask,
+    int last_cpu);
+struct opp_table *_add_opp_table_indexed(struct device *dev, int index,
+    bool getclk);
 void _put_opp_list_kref(struct opp_table *opp_table);
 void _required_opps_available(struct dev_pm_opp *opp, int count);
 void _update_set_required_opps(struct opp_table *opp_table);
 
-static inline bool lazy_linking_pending(struct opp_table *opp_table)
-{
-	return unlikely(!list_empty(&opp_table->lazy));
+static inline bool lazy_linking_pending(struct opp_table *opp_table) {
+  return unlikely(!list_empty(&opp_table->lazy));
 }
 
 #ifdef CONFIG_OF
-void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);
+void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
+    int index);
 void _of_clear_opp_table(struct opp_table *opp_table);
 struct opp_table *_managed_opp(struct device *dev, int index);
 void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp);
 #else
-static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index) {}
-static inline void _of_clear_opp_table(struct opp_table *opp_table) {}
-static inline struct opp_table *_managed_opp(struct device *dev, int index) { return NULL; }
-static inline void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp) {}
+static inline void _of_init_opp_table(struct opp_table *opp_table,
+    struct device *dev, int index) {
+}
+
+static inline void _of_clear_opp_table(struct opp_table *opp_table) {
+}
+
+static inline struct opp_table *_managed_opp(struct device *dev, int index) {
+  return NULL;
+}
+
+static inline void _of_clear_opp(struct opp_table *opp_table,
+    struct dev_pm_opp *opp) {
+}
+
 #endif
 
 #ifdef CONFIG_DEBUG_FS
 void opp_debug_remove_one(struct dev_pm_opp *opp);
 void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table);
-void opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table);
-void opp_debug_unregister(struct opp_device *opp_dev, struct opp_table *opp_table);
+void opp_debug_register(struct opp_device *opp_dev,
+    struct opp_table *opp_table);
+void opp_debug_unregister(struct opp_device *opp_dev,
+    struct opp_table *opp_table);
 #else
-static inline void opp_debug_remove_one(struct dev_pm_opp *opp) {}
+static inline void opp_debug_remove_one(struct dev_pm_opp *opp) {
+}
 
 static inline void opp_debug_create_one(struct dev_pm_opp *opp,
-					struct opp_table *opp_table) { }
+    struct opp_table *opp_table) {
+}
 
 static inline void opp_debug_register(struct opp_device *opp_dev,
-				      struct opp_table *opp_table) { }
+    struct opp_table *opp_table) {
+}
 
 static inline void opp_debug_unregister(struct opp_device *opp_dev,
-					struct opp_table *opp_table)
-{ }
-#endif		/* DEBUG_FS */
+    struct opp_table *opp_table) {
+}
 
-#endif		/* __DRIVER_OPP_H__ */
+#endif    /* DEBUG_FS */
+
+#endif    /* __DRIVER_OPP_H__ */

@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *	linux/arch/alpha/kernel/err_impl.h
+ *  linux/arch/alpha/kernel/err_impl.h
  *
- *	Copyright (C) 2000 Jeff Wiedemeier (Compaq Computer Corporation)
+ *  Copyright (C) 2000 Jeff Wiedemeier (Compaq Computer Corporation)
  *
- *	Contains declarations and macros to support Alpha error handling
- * 	implementations.
+ *  Contains declarations and macros to support Alpha error handling
+ *  implementations.
  */
 
 #include <asm/mce.h>
@@ -15,19 +15,19 @@ struct el_subpacket;
 struct ev7_lf_subpackets;
 
 struct el_subpacket_annotation {
-	struct el_subpacket_annotation *next;
-	u16 class;
-	u16 type;
-	u16 revision;
-	char *description;
-	char **annotation;
+  struct el_subpacket_annotation *next;
+  u16 class;
+  u16 type;
+  u16 revision;
+  char *description;
+  char **annotation;
 };
 #define SUBPACKET_ANNOTATION(c, t, r, d, a) {NULL, (c), (t), (r), (d), (a)}
 
 struct el_subpacket_handler {
-	struct el_subpacket_handler *next;
-	u16 class;
-	struct el_subpacket *(*handler)(struct el_subpacket *);
+  struct el_subpacket_handler *next;
+  u16 class;
+  struct el_subpacket *(*handler)(struct el_subpacket *);
 };
 #define SUBPACKET_HANDLER_INIT(c, h) {NULL, (c), (h)}
 
@@ -38,8 +38,8 @@ struct el_subpacket_handler {
  * EXTRACT(u, f) - extracts the field and places it at bit position 0
  * GEN_MASK(f) - creates an in-position mask for the field
  */
-#define EXTRACT(u, f) (((u) >> f##__S) & f##__M)
-#define GEN_MASK(f) ((u64)f##__M << f##__S)
+#define EXTRACT(u, f) (((u) >> f ## __S) & f ## __M)
+#define GEN_MASK(f) ((u64) f ## __M << f ## __S)
 
 /*
  * err_common.c
@@ -59,9 +59,9 @@ extern int cdl_register_subpacket_handler(struct el_subpacket_handler *);
 /*
  * err_ev7.c
  */
-extern struct ev7_lf_subpackets *
-ev7_collect_logout_frame_subpackets(struct el_subpacket *,
-				    struct ev7_lf_subpackets *);
+extern struct ev7_lf_subpackets *ev7_collect_logout_frame_subpackets(
+  struct el_subpacket *,
+  struct ev7_lf_subpackets *);
 extern void ev7_register_error_handlers(void);
 extern void ev7_machine_check(unsigned long, unsigned long);
 

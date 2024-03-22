@@ -30,11 +30,10 @@
 ACPI_MODULE_NAME("osunixxf")
 
 /* Upcalls to acpi_exec */
-void
-ae_table_override(struct acpi_table_header *existing_table,
-		  struct acpi_table_header **new_table);
+void ae_table_override(struct acpi_table_header *existing_table,
+    struct acpi_table_header **new_table);
 
-typedef void *(*PTHREAD_CALLBACK) (void *);
+typedef void *(*PTHREAD_CALLBACK)(void *);
 
 /* Buffer used by acpi_os_vprintf */
 
@@ -81,54 +80,39 @@ static void os_exit_line_edit_mode(void);
  *
  *****************************************************************************/
 
-static void os_enter_line_edit_mode(void)
-{
-	struct termios local_term_attributes;
-
-	term_attributes_were_set = 0;
-
-	/* STDIN must be a terminal */
-
-	if (!isatty(STDIN_FILENO)) {
-		return;
-	}
-
-	/* Get and keep the original attributes */
-
-	if (tcgetattr(STDIN_FILENO, &original_term_attributes)) {
-		fprintf(stderr, "Could not get terminal attributes!\n");
-		return;
-	}
-
-	/* Set the new attributes to enable raw character input */
-
-	memcpy(&local_term_attributes, &original_term_attributes,
-	       sizeof(struct termios));
-
-	local_term_attributes.c_lflag &= ~(ICANON | ECHO);
-	local_term_attributes.c_cc[VMIN] = 1;
-	local_term_attributes.c_cc[VTIME] = 0;
-
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &local_term_attributes)) {
-		fprintf(stderr, "Could not set terminal attributes!\n");
-		return;
-	}
-
-	term_attributes_were_set = 1;
+static void os_enter_line_edit_mode(void) {
+  struct termios local_term_attributes;
+  term_attributes_were_set = 0;
+  /* STDIN must be a terminal */
+  if (!isatty(STDIN_FILENO)) {
+    return;
+  }
+  /* Get and keep the original attributes */
+  if (tcgetattr(STDIN_FILENO, &original_term_attributes)) {
+    fprintf(stderr, "Could not get terminal attributes!\n");
+    return;
+  }
+  /* Set the new attributes to enable raw character input */
+  memcpy(&local_term_attributes, &original_term_attributes,
+      sizeof(struct termios));
+  local_term_attributes.c_lflag &= ~(ICANON | ECHO);
+  local_term_attributes.c_cc[VMIN] = 1;
+  local_term_attributes.c_cc[VTIME] = 0;
+  if (tcsetattr(STDIN_FILENO, TCSANOW, &local_term_attributes)) {
+    fprintf(stderr, "Could not set terminal attributes!\n");
+    return;
+  }
+  term_attributes_were_set = 1;
 }
 
-static void os_exit_line_edit_mode(void)
-{
-
-	if (!term_attributes_were_set) {
-		return;
-	}
-
-	/* Set terminal attributes back to the original values */
-
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &original_term_attributes)) {
-		fprintf(stderr, "Could not restore terminal attributes!\n");
-	}
+static void os_exit_line_edit_mode(void) {
+  if (!term_attributes_were_set) {
+    return;
+  }
+  /* Set terminal attributes back to the original values */
+  if (tcsetattr(STDIN_FILENO, TCSANOW, &original_term_attributes)) {
+    fprintf(stderr, "Could not restore terminal attributes!\n");
+  }
 }
 
 #else
@@ -151,27 +135,20 @@ static void os_exit_line_edit_mode(void)
  *
  *****************************************************************************/
 
-acpi_status acpi_os_initialize(void)
-{
-	acpi_status status;
-
-	acpi_gbl_output_file = stdout;
-
-	os_enter_line_edit_mode();
-
-	status = acpi_os_create_lock(&acpi_gbl_print_lock);
-	if (ACPI_FAILURE(status)) {
-		return (status);
-	}
-
-	return (AE_OK);
+acpi_status acpi_os_initialize(void) {
+  acpi_status status;
+  acpi_gbl_output_file = stdout;
+  os_enter_line_edit_mode();
+  status = acpi_os_create_lock(&acpi_gbl_print_lock);
+  if (ACPI_FAILURE(status)) {
+    return status;
+  }
+  return AE_OK;
 }
 
-acpi_status acpi_os_terminate(void)
-{
-
-	os_exit_line_edit_mode();
-	return (AE_OK);
+acpi_status acpi_os_terminate(void) {
+  os_exit_line_edit_mode();
+  return AE_OK;
 }
 
 #ifndef ACPI_USE_NATIVE_RSDP_POINTER
@@ -187,11 +164,10 @@ acpi_status acpi_os_terminate(void)
  *
  *****************************************************************************/
 
-acpi_physical_address acpi_os_get_root_pointer(void)
-{
-
-	return (0);
+acpi_physical_address acpi_os_get_root_pointer(void) {
+  return 0;
 }
+
 #endif
 
 /******************************************************************************
@@ -208,17 +184,14 @@ acpi_physical_address acpi_os_get_root_pointer(void)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
-			    acpi_string *new_val)
-{
-
-	if (!init_val || !new_val) {
-		return (AE_BAD_PARAMETER);
-	}
-
-	*new_val = NULL;
-	return (AE_OK);
+acpi_status acpi_os_predefined_override(
+    const struct acpi_predefined_names *init_val,
+    acpi_string *new_val) {
+  if (!init_val || !new_val) {
+    return AE_BAD_PARAMETER;
+  }
+  *new_val = NULL;
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -236,24 +209,17 @@ acpi_os_predefined_override(const struct acpi_predefined_names *init_val,
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_table_override(struct acpi_table_header *existing_table,
-		       struct acpi_table_header **new_table)
-{
-
-	if (!existing_table || !new_table) {
-		return (AE_BAD_PARAMETER);
-	}
-
-	*new_table = NULL;
-
+acpi_status acpi_os_table_override(struct acpi_table_header *existing_table,
+    struct acpi_table_header **new_table) {
+  if (!existing_table || !new_table) {
+    return AE_BAD_PARAMETER;
+  }
+  *new_table = NULL;
 #ifdef ACPI_EXEC_APP
-
-	ae_table_override(existing_table, new_table);
-	return (AE_OK);
+  ae_table_override(existing_table, new_table);
+  return AE_OK;
 #else
-
-	return (AE_NO_ACPI_TABLES);
+  return AE_NO_ACPI_TABLES;
 #endif
 }
 
@@ -261,7 +227,8 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
  *
  * FUNCTION:    acpi_os_physical_table_override
  *
- * PARAMETERS:  existing_table      - Header of current table (probably firmware)
+ * PARAMETERS:  existing_table      - Header of current table (probably
+ * firmware)
  *              new_address         - Where new table address is returned
  *                                    (Physical address)
  *              new_table_length    - Where new table length is returned
@@ -273,13 +240,11 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_physical_table_override(struct acpi_table_header *existing_table,
-				acpi_physical_address *new_address,
-				u32 *new_table_length)
-{
-
-	return (AE_SUPPORT);
+acpi_status acpi_os_physical_table_override(
+    struct acpi_table_header *existing_table,
+    acpi_physical_address *new_address,
+    u32 *new_table_length) {
+  return AE_SUPPORT;
 }
 
 /******************************************************************************
@@ -298,10 +263,9 @@ acpi_os_physical_table_override(struct acpi_table_header *existing_table,
  *
  *****************************************************************************/
 
-acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value)
-{
-
-	return (AE_OK);
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value,
+    u32 regb_value) {
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -316,10 +280,8 @@ acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value)
  *
  *****************************************************************************/
 
-void acpi_os_redirect_output(void *destination)
-{
-
-	acpi_gbl_output_file = destination;
+void acpi_os_redirect_output(void *destination) {
+  acpi_gbl_output_file = destination;
 }
 
 /******************************************************************************
@@ -335,35 +297,27 @@ void acpi_os_redirect_output(void *destination)
  *
  *****************************************************************************/
 
-void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...)
-{
-	va_list args;
-	u8 flags;
-
-	flags = acpi_gbl_db_output_flags;
-	if (flags & ACPI_DB_REDIRECTABLE_OUTPUT) {
-
-		/* Output is directable to either a file (if open) or the console */
-
-		if (acpi_gbl_debug_file) {
-
-			/* Output file is open, send the output there */
-
-			va_start(args, fmt);
-			vfprintf(acpi_gbl_debug_file, fmt, args);
-			va_end(args);
-		} else {
-			/* No redirection, send output to console (once only!) */
-
-			flags |= ACPI_DB_CONSOLE_OUTPUT;
-		}
-	}
-
-	if (flags & ACPI_DB_CONSOLE_OUTPUT) {
-		va_start(args, fmt);
-		vfprintf(acpi_gbl_output_file, fmt, args);
-		va_end(args);
-	}
+void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...) {
+  va_list args;
+  u8 flags;
+  flags = acpi_gbl_db_output_flags;
+  if (flags & ACPI_DB_REDIRECTABLE_OUTPUT) {
+    /* Output is directable to either a file (if open) or the console */
+    if (acpi_gbl_debug_file) {
+      /* Output file is open, send the output there */
+      va_start(args, fmt);
+      vfprintf(acpi_gbl_debug_file, fmt, args);
+      va_end(args);
+    } else {
+      /* No redirection, send output to console (once only!) */
+      flags |= ACPI_DB_CONSOLE_OUTPUT;
+    }
+  }
+  if (flags & ACPI_DB_CONSOLE_OUTPUT) {
+    va_start(args, fmt);
+    vfprintf(acpi_gbl_output_file, fmt, args);
+    va_end(args);
+  }
 }
 
 /******************************************************************************
@@ -381,43 +335,34 @@ void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *fmt, ...)
  *
  *****************************************************************************/
 
-void acpi_os_vprintf(const char *fmt, va_list args)
-{
-	u8 flags;
-	char buffer[ACPI_VPRINTF_BUFFER_SIZE];
-
-	/*
-	 * We build the output string in a local buffer because we may be
-	 * outputting the buffer twice. Using vfprintf is problematic because
-	 * some implementations modify the args pointer/structure during
-	 * execution. Thus, we use the local buffer for portability.
-	 *
-	 * Note: Since this module is intended for use by the various ACPICA
-	 * utilities/applications, we can safely declare the buffer on the stack.
-	 * Also, This function is used for relatively small error messages only.
-	 */
-	vsnprintf(buffer, ACPI_VPRINTF_BUFFER_SIZE, fmt, args);
-
-	flags = acpi_gbl_db_output_flags;
-	if (flags & ACPI_DB_REDIRECTABLE_OUTPUT) {
-
-		/* Output is directable to either a file (if open) or the console */
-
-		if (acpi_gbl_debug_file) {
-
-			/* Output file is open, send the output there */
-
-			fputs(buffer, acpi_gbl_debug_file);
-		} else {
-			/* No redirection, send output to console (once only!) */
-
-			flags |= ACPI_DB_CONSOLE_OUTPUT;
-		}
-	}
-
-	if (flags & ACPI_DB_CONSOLE_OUTPUT) {
-		fputs(buffer, acpi_gbl_output_file);
-	}
+void acpi_os_vprintf(const char *fmt, va_list args) {
+  u8 flags;
+  char buffer[ACPI_VPRINTF_BUFFER_SIZE];
+  /*
+   * We build the output string in a local buffer because we may be
+   * outputting the buffer twice. Using vfprintf is problematic because
+   * some implementations modify the args pointer/structure during
+   * execution. Thus, we use the local buffer for portability.
+   *
+   * Note: Since this module is intended for use by the various ACPICA
+   * utilities/applications, we can safely declare the buffer on the stack.
+   * Also, This function is used for relatively small error messages only.
+   */
+  vsnprintf(buffer, ACPI_VPRINTF_BUFFER_SIZE, fmt, args);
+  flags = acpi_gbl_db_output_flags;
+  if (flags & ACPI_DB_REDIRECTABLE_OUTPUT) {
+    /* Output is directable to either a file (if open) or the console */
+    if (acpi_gbl_debug_file) {
+      /* Output file is open, send the output there */
+      fputs(buffer, acpi_gbl_debug_file);
+    } else {
+      /* No redirection, send output to console (once only!) */
+      flags |= ACPI_DB_CONSOLE_OUTPUT;
+    }
+  }
+  if (flags & ACPI_DB_CONSOLE_OUTPUT) {
+    fputs(buffer, acpi_gbl_output_file);
+  }
 }
 
 #ifndef ACPI_EXEC_APP
@@ -437,41 +382,31 @@ void acpi_os_vprintf(const char *fmt, va_list args)
  *
  *****************************************************************************/
 
-acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
-{
-	int input_char;
-	u32 end_of_line;
-
-	/* Standard acpi_os_get_line for all utilities except acpi_exec */
-
-	for (end_of_line = 0;; end_of_line++) {
-		if (end_of_line >= buffer_length) {
-			return (AE_BUFFER_OVERFLOW);
-		}
-
-		if ((input_char = getchar()) == EOF) {
-			return (AE_ERROR);
-		}
-
-		if (!input_char || input_char == _ASCII_NEWLINE) {
-			break;
-		}
-
-		buffer[end_of_line] = (char)input_char;
-	}
-
-	/* Null terminate the buffer */
-
-	buffer[end_of_line] = 0;
-
-	/* Return the number of bytes in the string */
-
-	if (bytes_read) {
-		*bytes_read = end_of_line;
-	}
-
-	return (AE_OK);
+acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read) {
+  int input_char;
+  u32 end_of_line;
+  /* Standard acpi_os_get_line for all utilities except acpi_exec */
+  for (end_of_line = 0;; end_of_line++) {
+    if (end_of_line >= buffer_length) {
+      return AE_BUFFER_OVERFLOW;
+    }
+    if ((input_char = getchar()) == EOF) {
+      return AE_ERROR;
+    }
+    if (!input_char || input_char == _ASCII_NEWLINE) {
+      break;
+    }
+    buffer[end_of_line] = (char) input_char;
+  }
+  /* Null terminate the buffer */
+  buffer[end_of_line] = 0;
+  /* Return the number of bytes in the string */
+  if (bytes_read) {
+    *bytes_read = end_of_line;
+  }
+  return AE_OK;
 }
+
 #endif
 
 #ifndef ACPI_USE_NATIVE_MEMORY_MAPPING
@@ -488,10 +423,8 @@ acpi_status acpi_os_get_line(char *buffer, u32 buffer_length, u32 *bytes_read)
  *
  *****************************************************************************/
 
-void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
-{
-
-	return (ACPI_TO_POINTER((acpi_size)where));
+void *acpi_os_map_memory(acpi_physical_address where, acpi_size length) {
+  return ACPI_TO_POINTER((acpi_size) where);
 }
 
 /******************************************************************************
@@ -508,11 +441,10 @@ void *acpi_os_map_memory(acpi_physical_address where, acpi_size length)
  *
  *****************************************************************************/
 
-void acpi_os_unmap_memory(void *where, acpi_size length)
-{
-
-	return;
+void acpi_os_unmap_memory(void *where, acpi_size length) {
+  return;
 }
+
 #endif
 
 /******************************************************************************
@@ -527,12 +459,10 @@ void acpi_os_unmap_memory(void *where, acpi_size length)
  *
  *****************************************************************************/
 
-void *acpi_os_allocate(acpi_size size)
-{
-	void *mem;
-
-	mem = (void *)malloc((size_t) size);
-	return (mem);
+void *acpi_os_allocate(acpi_size size) {
+  void *mem;
+  mem = (void *) malloc((size_t) size);
+  return mem;
 }
 
 #ifdef USE_NATIVE_ALLOCATE_ZEROED
@@ -548,13 +478,12 @@ void *acpi_os_allocate(acpi_size size)
  *
  *****************************************************************************/
 
-void *acpi_os_allocate_zeroed(acpi_size size)
-{
-	void *mem;
-
-	mem = (void *)calloc(1, (size_t) size);
-	return (mem);
+void *acpi_os_allocate_zeroed(acpi_size size) {
+  void *mem;
+  mem = (void *) calloc(1, (size_t) size);
+  return mem;
 }
+
 #endif
 
 /******************************************************************************
@@ -569,10 +498,8 @@ void *acpi_os_allocate_zeroed(acpi_size size)
  *
  *****************************************************************************/
 
-void acpi_os_free(void *mem)
-{
-
-	free(mem);
+void acpi_os_free(void *mem) {
+  free(mem);
 }
 
 #ifdef ACPI_SINGLE_THREADED
@@ -586,27 +513,22 @@ void acpi_os_free(void *mem)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle *out_handle)
-{
-	*out_handle = (acpi_handle)1;
-	return (AE_OK);
+acpi_status acpi_os_create_semaphore(u32 max_units,
+    u32 initial_units, acpi_handle *out_handle) {
+  *out_handle = (acpi_handle) 1;
+  return AE_OK;
 }
 
-acpi_status acpi_os_delete_semaphore(acpi_handle handle)
-{
-	return (AE_OK);
+acpi_status acpi_os_delete_semaphore(acpi_handle handle) {
+  return AE_OK;
 }
 
-acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout)
-{
-	return (AE_OK);
+acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 timeout) {
+  return AE_OK;
 }
 
-acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
-{
-	return (AE_OK);
+acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units) {
+  return AE_OK;
 }
 
 #else
@@ -623,53 +545,47 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_create_semaphore(u32 max_units,
-			 u32 initial_units, acpi_handle *out_handle)
-{
-	sem_t *sem;
-
-	if (!out_handle) {
-		return (AE_BAD_PARAMETER);
-	}
+acpi_status acpi_os_create_semaphore(u32 max_units,
+    u32 initial_units, acpi_handle *out_handle) {
+  sem_t *sem;
+  if (!out_handle) {
+    return AE_BAD_PARAMETER;
+  }
 #ifdef __APPLE__
-	{
-		static int semaphore_count = 0;
-		char semaphore_name[32];
-
-		snprintf(semaphore_name, sizeof(semaphore_name), "acpi_sem_%d",
-			 semaphore_count++);
-		printf("%s\n", semaphore_name);
-		sem =
-		    sem_open(semaphore_name, O_EXCL | O_CREAT, 0755,
-			     initial_units);
-		if (!sem) {
-			return (AE_NO_MEMORY);
-		}
-		sem_unlink(semaphore_name);	/* This just deletes the name */
-	}
-
+  {
+    static int semaphore_count = 0;
+    char semaphore_name[32];
+    snprintf(semaphore_name, sizeof(semaphore_name), "acpi_sem_%d",
+        semaphore_count++);
+    printf("%s\n", semaphore_name);
+    sem
+      = sem_open(semaphore_name, O_EXCL | O_CREAT, 0755,
+        initial_units);
+    if (!sem) {
+      return AE_NO_MEMORY;
+    }
+    sem_unlink(semaphore_name); /* This just deletes the name */
+  }
 #else
-	sem = acpi_os_allocate(sizeof(sem_t));
-	if (!sem) {
-		return (AE_NO_MEMORY);
-	}
-
-	if (sem_init(sem, 0, initial_units) == -1) {
-		acpi_os_free(sem);
-		return (AE_BAD_PARAMETER);
-	}
+  sem = acpi_os_allocate(sizeof(sem_t));
+  if (!sem) {
+    return AE_NO_MEMORY;
+  }
+  if (sem_init(sem, 0, initial_units) == -1) {
+    acpi_os_free(sem);
+    return AE_BAD_PARAMETER;
+  }
 #endif
-
-	*out_handle = (acpi_handle)sem;
-	return (AE_OK);
+  *out_handle = (acpi_handle) sem;
+  return AE_OK;
 }
 
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_delete_semaphore
  *
- * PARAMETERS:  handle              - Handle returned by acpi_os_create_semaphore
+ * PARAMETERS:  handle              - Handle returned by
+ * acpi_os_create_semaphore
  *
  * RETURN:      Status
  *
@@ -677,31 +593,29 @@ acpi_os_create_semaphore(u32 max_units,
  *
  *****************************************************************************/
 
-acpi_status acpi_os_delete_semaphore(acpi_handle handle)
-{
-	sem_t *sem = (sem_t *) handle;
-
-	if (!sem) {
-		return (AE_BAD_PARAMETER);
-	}
+acpi_status acpi_os_delete_semaphore(acpi_handle handle) {
+  sem_t *sem = (sem_t *) handle;
+  if (!sem) {
+    return AE_BAD_PARAMETER;
+  }
 #ifdef __APPLE__
-	if (sem_close(sem) == -1) {
-		return (AE_BAD_PARAMETER);
-	}
+  if (sem_close(sem) == -1) {
+    return AE_BAD_PARAMETER;
+  }
 #else
-	if (sem_destroy(sem) == -1) {
-		return (AE_BAD_PARAMETER);
-	}
+  if (sem_destroy(sem) == -1) {
+    return AE_BAD_PARAMETER;
+  }
 #endif
-
-	return (AE_OK);
+  return AE_OK;
 }
 
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_wait_semaphore
  *
- * PARAMETERS:  handle              - Handle returned by acpi_os_create_semaphore
+ * PARAMETERS:  handle              - Handle returned by
+ * acpi_os_create_semaphore
  *              units               - How many units to wait for
  *              msec_timeout        - How long to wait (milliseconds)
  *
@@ -711,117 +625,99 @@ acpi_status acpi_os_delete_semaphore(acpi_handle handle)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
-{
-	acpi_status status = AE_OK;
-	sem_t *sem = (sem_t *) handle;
-	int ret_val;
+acpi_status acpi_os_wait_semaphore(acpi_handle handle, u32 units,
+    u16 msec_timeout) {
+  acpi_status status = AE_OK;
+  sem_t *sem = (sem_t *) handle;
+  int ret_val;
 #ifndef ACPI_USE_ALTERNATE_TIMEOUT
-	struct timespec time;
+  struct timespec time;
 #endif
-
-	if (!sem) {
-		return (AE_BAD_PARAMETER);
-	}
-
-	switch (msec_timeout) {
-		/*
-		 * No Wait:
-		 * --------
-		 * A zero timeout value indicates that we shouldn't wait - just
-		 * acquire the semaphore if available otherwise return AE_TIME
-		 * (a.k.a. 'would block').
-		 */
-	case 0:
-
-		if (sem_trywait(sem) == -1) {
-			status = (AE_TIME);
-		}
-		break;
-
-		/* Wait Indefinitely */
-
-	case ACPI_WAIT_FOREVER:
-
-		while (((ret_val = sem_wait(sem)) == -1) && (errno == EINTR)) {
-			continue;	/* Restart if interrupted */
-		}
-		if (ret_val != 0) {
-			status = (AE_TIME);
-		}
-		break;
-
-		/* Wait with msec_timeout */
-
-	default:
-
+  if (!sem) {
+    return AE_BAD_PARAMETER;
+  }
+  switch (msec_timeout) {
+    /*
+     * No Wait:
+     * --------
+     * A zero timeout value indicates that we shouldn't wait - just
+     * acquire the semaphore if available otherwise return AE_TIME
+     * (a.k.a. 'would block').
+     */
+    case 0:
+      if (sem_trywait(sem) == -1) {
+        status = (AE_TIME);
+      }
+      break;
+    /* Wait Indefinitely */
+    case ACPI_WAIT_FOREVER:
+      while (((ret_val = sem_wait(sem)) == -1) && (errno == EINTR)) {
+        continue; /* Restart if interrupted */
+      }
+      if (ret_val != 0) {
+        status = (AE_TIME);
+      }
+      break;
+    /* Wait with msec_timeout */
+    default:
 #ifdef ACPI_USE_ALTERNATE_TIMEOUT
-		/*
-		 * Alternate timeout mechanism for environments where
-		 * sem_timedwait is not available or does not work properly.
-		 */
-		while (msec_timeout) {
-			if (sem_trywait(sem) == 0) {
-
-				/* Got the semaphore */
-				return (AE_OK);
-			}
-
-			if (msec_timeout >= 10) {
-				msec_timeout -= 10;
-				usleep(10 * ACPI_USEC_PER_MSEC);	/* ten milliseconds */
-			} else {
-				msec_timeout--;
-				usleep(ACPI_USEC_PER_MSEC);	/* one millisecond */
-			}
-		}
-		status = (AE_TIME);
+      /*
+       * Alternate timeout mechanism for environments where
+       * sem_timedwait is not available or does not work properly.
+       */
+      while (msec_timeout) {
+        if (sem_trywait(sem) == 0) {
+          /* Got the semaphore */
+          return AE_OK;
+        }
+        if (msec_timeout >= 10) {
+          msec_timeout -= 10;
+          usleep(10 * ACPI_USEC_PER_MSEC);  /* ten milliseconds */
+        } else {
+          msec_timeout--;
+          usleep(ACPI_USEC_PER_MSEC); /* one millisecond */
+        }
+      }
+      status = (AE_TIME);
 #else
-		/*
-		 * The interface to sem_timedwait is an absolute time, so we need to
-		 * get the current time, then add in the millisecond Timeout value.
-		 */
-		if (clock_gettime(CLOCK_REALTIME, &time) == -1) {
-			perror("clock_gettime");
-			return (AE_TIME);
-		}
-
-		time.tv_sec += (msec_timeout / ACPI_MSEC_PER_SEC);
-		time.tv_nsec +=
-		    ((msec_timeout % ACPI_MSEC_PER_SEC) * ACPI_NSEC_PER_MSEC);
-
-		/* Handle nanosecond overflow (field must be less than one second) */
-
-		if (time.tv_nsec >= ACPI_NSEC_PER_SEC) {
-			time.tv_sec += (time.tv_nsec / ACPI_NSEC_PER_SEC);
-			time.tv_nsec = (time.tv_nsec % ACPI_NSEC_PER_SEC);
-		}
-
-		while (((ret_val = sem_timedwait(sem, &time)) == -1)
-		       && (errno == EINTR)) {
-			continue;	/* Restart if interrupted */
-
-		}
-
-		if (ret_val != 0) {
-			if (errno != ETIMEDOUT) {
-				perror("sem_timedwait");
-			}
-			status = (AE_TIME);
-		}
+      /*
+       * The interface to sem_timedwait is an absolute time, so we need to
+       * get the current time, then add in the millisecond Timeout value.
+       */
+      if (clock_gettime(CLOCK_REALTIME, &time) == -1) {
+        perror("clock_gettime");
+        return AE_TIME;
+      }
+      time.tv_sec += (msec_timeout / ACPI_MSEC_PER_SEC);
+      time.tv_nsec
+        += ((msec_timeout % ACPI_MSEC_PER_SEC) * ACPI_NSEC_PER_MSEC);
+      /* Handle nanosecond overflow (field must be less than one second) */
+      if (time.tv_nsec >= ACPI_NSEC_PER_SEC) {
+        time.tv_sec += (time.tv_nsec / ACPI_NSEC_PER_SEC);
+        time.tv_nsec = (time.tv_nsec % ACPI_NSEC_PER_SEC);
+      }
+      while (((ret_val = sem_timedwait(sem, &time)) == -1)
+          && (errno == EINTR)) {
+        continue; /* Restart if interrupted */
+      }
+      if (ret_val != 0) {
+        if (errno != ETIMEDOUT) {
+          perror("sem_timedwait");
+        }
+        status = (AE_TIME);
+      }
 #endif
-		break;
-	}
-
-	return (status);
+      break;
+  }
+  return status;
 }
 
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_signal_semaphore
  *
- * PARAMETERS:  handle              - Handle returned by acpi_os_create_semaphore
+ * PARAMETERS:  handle              - Handle returned by
+ * acpi_os_create_semaphore
  *              units               - Number of units to send
  *
  * RETURN:      Status
@@ -830,22 +726,18 @@ acpi_os_wait_semaphore(acpi_handle handle, u32 units, u16 msec_timeout)
  *
  *****************************************************************************/
 
-acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
-{
-	sem_t *sem = (sem_t *) handle;
-
-	if (!sem) {
-		return (AE_BAD_PARAMETER);
-	}
-
-	if (sem_post(sem) == -1) {
-		return (AE_LIMIT);
-	}
-
-	return (AE_OK);
+acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units) {
+  sem_t *sem = (sem_t *) handle;
+  if (!sem) {
+    return AE_BAD_PARAMETER;
+  }
+  if (sem_post(sem) == -1) {
+    return AE_LIMIT;
+  }
+  return AE_OK;
 }
 
-#endif				/* ACPI_SINGLE_THREADED */
+#endif        /* ACPI_SINGLE_THREADED */
 
 /******************************************************************************
  *
@@ -855,26 +747,21 @@ acpi_status acpi_os_signal_semaphore(acpi_handle handle, u32 units)
  *
  *****************************************************************************/
 
-acpi_status acpi_os_create_lock(acpi_spinlock * out_handle)
-{
-
-	return (acpi_os_create_semaphore(1, 1, out_handle));
+acpi_status acpi_os_create_lock(acpi_spinlock *out_handle) {
+  return acpi_os_create_semaphore(1, 1, out_handle);
 }
 
-void acpi_os_delete_lock(acpi_spinlock handle)
-{
-	acpi_os_delete_semaphore(handle);
+void acpi_os_delete_lock(acpi_spinlock handle) {
+  acpi_os_delete_semaphore(handle);
 }
 
-acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle)
-{
-	acpi_os_wait_semaphore(handle, 1, 0xFFFF);
-	return (0);
+acpi_cpu_flags acpi_os_acquire_lock(acpi_handle handle) {
+  acpi_os_wait_semaphore(handle, 1, 0xFFFF);
+  return 0;
 }
 
-void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags)
-{
-	acpi_os_signal_semaphore(handle, 1);
+void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags) {
+  acpi_os_signal_semaphore(handle, 1);
 }
 
 /******************************************************************************
@@ -892,13 +779,10 @@ void acpi_os_release_lock(acpi_spinlock handle, acpi_cpu_flags flags)
  *
  *****************************************************************************/
 
-u32
-acpi_os_install_interrupt_handler(u32 interrupt_number,
-				  acpi_osd_handler service_routine,
-				  void *context)
-{
-
-	return (AE_OK);
+u32 acpi_os_install_interrupt_handler(u32 interrupt_number,
+    acpi_osd_handler service_routine,
+    void *context) {
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -913,12 +797,9 @@ acpi_os_install_interrupt_handler(u32 interrupt_number,
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_remove_interrupt_handler(u32 interrupt_number,
-				 acpi_osd_handler service_routine)
-{
-
-	return (AE_OK);
+acpi_status acpi_os_remove_interrupt_handler(u32 interrupt_number,
+    acpi_osd_handler service_routine) {
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -933,12 +814,10 @@ acpi_os_remove_interrupt_handler(u32 interrupt_number,
  *
  *****************************************************************************/
 
-void acpi_os_stall(u32 microseconds)
-{
-
-	if (microseconds) {
-		usleep(microseconds);
-	}
+void acpi_os_stall(u32 microseconds) {
+  if (microseconds) {
+    usleep(microseconds);
+  }
 }
 
 /******************************************************************************
@@ -953,18 +832,14 @@ void acpi_os_stall(u32 microseconds)
  *
  *****************************************************************************/
 
-void acpi_os_sleep(u64 milliseconds)
-{
-
-	/* Sleep for whole seconds */
-
-	sleep(milliseconds / ACPI_MSEC_PER_SEC);
-
-	/*
-	 * Sleep for remaining microseconds.
-	 * Arg to usleep() is in usecs and must be less than 1,000,000 (1 second).
-	 */
-	usleep((milliseconds % ACPI_MSEC_PER_SEC) * ACPI_USEC_PER_MSEC);
+void acpi_os_sleep(u64 milliseconds) {
+  /* Sleep for whole seconds */
+  sleep(milliseconds / ACPI_MSEC_PER_SEC);
+  /*
+   * Sleep for remaining microseconds.
+   * Arg to usleep() is in usecs and must be less than 1,000,000 (1 second).
+   */
+  usleep((milliseconds % ACPI_MSEC_PER_SEC) * ACPI_USEC_PER_MSEC);
 }
 
 /******************************************************************************
@@ -979,18 +854,13 @@ void acpi_os_sleep(u64 milliseconds)
  *
  *****************************************************************************/
 
-u64 acpi_os_get_timer(void)
-{
-	struct timeval time;
-
-	/* This timer has sufficient resolution for user-space application code */
-
-	gettimeofday(&time, NULL);
-
-	/* (Seconds * 10^7 = 100ns(10^-7)) + (Microseconds(10^-6) * 10^1 = 100ns) */
-
-	return (((u64)time.tv_sec * ACPI_100NSEC_PER_SEC) +
-		((u64)time.tv_usec * ACPI_100NSEC_PER_USEC));
+u64 acpi_os_get_timer(void) {
+  struct timeval time;
+  /* This timer has sufficient resolution for user-space application code */
+  gettimeofday(&time, NULL);
+  /* (Seconds * 10^7 = 100ns(10^-7)) + (Microseconds(10^-6) * 10^1 = 100ns) */
+  return ((u64) time.tv_sec * ACPI_100NSEC_PER_SEC)
+    + ((u64) time.tv_usec * ACPI_100NSEC_PER_USEC);
 }
 
 /******************************************************************************
@@ -1008,13 +878,10 @@ u64 acpi_os_get_timer(void)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_read_pci_configuration(struct acpi_pci_id *pci_id,
-			       u32 pci_register, u64 *value, u32 width)
-{
-
-	*value = 0;
-	return (AE_OK);
+acpi_status acpi_os_read_pci_configuration(struct acpi_pci_id *pci_id,
+    u32 pci_register, u64 *value, u32 width) {
+  *value = 0;
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -1032,12 +899,9 @@ acpi_os_read_pci_configuration(struct acpi_pci_id *pci_id,
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
-				u32 pci_register, u64 value, u32 width)
-{
-
-	return (AE_OK);
+acpi_status acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
+    u32 pci_register, u64 value, u32 width) {
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -1054,31 +918,21 @@ acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
  *
  *****************************************************************************/
 
-acpi_status acpi_os_read_port(acpi_io_address address, u32 *value, u32 width)
-{
-
-	switch (width) {
-	case 8:
-
-		*value = 0xFF;
-		break;
-
-	case 16:
-
-		*value = 0xFFFF;
-		break;
-
-	case 32:
-
-		*value = 0xFFFFFFFF;
-		break;
-
-	default:
-
-		return (AE_BAD_PARAMETER);
-	}
-
-	return (AE_OK);
+acpi_status acpi_os_read_port(acpi_io_address address, u32 *value, u32 width) {
+  switch (width) {
+    case 8:
+      *value = 0xFF;
+      break;
+    case 16:
+      *value = 0xFFFF;
+      break;
+    case 32:
+      *value = 0xFFFFFFFF;
+      break;
+    default:
+      return AE_BAD_PARAMETER;
+  }
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -1095,10 +949,8 @@ acpi_status acpi_os_read_port(acpi_io_address address, u32 *value, u32 width)
  *
  *****************************************************************************/
 
-acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width)
-{
-
-	return (AE_OK);
+acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width) {
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -1116,24 +968,19 @@ acpi_status acpi_os_write_port(acpi_io_address address, u32 value, u32 width)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_read_memory(acpi_physical_address address, u64 *value, u32 width)
-{
-
-	switch (width) {
-	case 8:
-	case 16:
-	case 32:
-	case 64:
-
-		*value = 0;
-		break;
-
-	default:
-
-		return (AE_BAD_PARAMETER);
-	}
-	return (AE_OK);
+acpi_status acpi_os_read_memory(acpi_physical_address address, u64 *value,
+    u32 width) {
+  switch (width) {
+    case 8:
+    case 16:
+    case 32:
+    case 64:
+      *value = 0;
+      break;
+    default:
+      return AE_BAD_PARAMETER;
+  }
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -1150,11 +997,9 @@ acpi_os_read_memory(acpi_physical_address address, u64 *value, u32 width)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_write_memory(acpi_physical_address address, u64 value, u32 width)
-{
-
-	return (AE_OK);
+acpi_status acpi_os_write_memory(acpi_physical_address address, u64 value,
+    u32 width) {
+  return AE_OK;
 }
 
 /******************************************************************************
@@ -1170,10 +1015,8 @@ acpi_os_write_memory(acpi_physical_address address, u64 value, u32 width)
  *
  *****************************************************************************/
 
-u8 acpi_os_readable(void *pointer, acpi_size length)
-{
-
-	return (TRUE);
+u8 acpi_os_readable(void *pointer, acpi_size length) {
+  return TRUE;
 }
 
 /******************************************************************************
@@ -1189,10 +1032,8 @@ u8 acpi_os_readable(void *pointer, acpi_size length)
  *
  *****************************************************************************/
 
-u8 acpi_os_writable(void *pointer, acpi_size length)
-{
-
-	return (TRUE);
+u8 acpi_os_writable(void *pointer, acpi_size length) {
+  return TRUE;
 }
 
 /******************************************************************************
@@ -1208,24 +1049,16 @@ u8 acpi_os_writable(void *pointer, acpi_size length)
  *
  *****************************************************************************/
 
-acpi_status acpi_os_signal(u32 function, void *info)
-{
-
-	switch (function) {
-	case ACPI_SIGNAL_FATAL:
-
-		break;
-
-	case ACPI_SIGNAL_BREAKPOINT:
-
-		break;
-
-	default:
-
-		break;
-	}
-
-	return (AE_OK);
+acpi_status acpi_os_signal(u32 function, void *info) {
+  switch (function) {
+    case ACPI_SIGNAL_FATAL:
+      break;
+    case ACPI_SIGNAL_BREAKPOINT:
+      break;
+    default:
+      break;
+  }
+  return AE_OK;
 }
 
 /* Optional multi-thread support */
@@ -1243,12 +1076,10 @@ acpi_status acpi_os_signal(u32 function, void *info)
  *
  *****************************************************************************/
 
-acpi_thread_id acpi_os_get_thread_id(void)
-{
-	pthread_t thread;
-
-	thread = pthread_self();
-	return (ACPI_CAST_PTHREAD_T(thread));
+acpi_thread_id acpi_os_get_thread_id(void) {
+  pthread_t thread;
+  thread = pthread_self();
+  return ACPI_CAST_PTHREAD_T(thread);
 }
 
 /******************************************************************************
@@ -1265,38 +1096,30 @@ acpi_thread_id acpi_os_get_thread_id(void)
  *
  *****************************************************************************/
 
-acpi_status
-acpi_os_execute(acpi_execute_type type,
-		acpi_osd_exec_callback function, void *context)
-{
-	pthread_t thread;
-	int ret;
-
-	ret =
-	    pthread_create(&thread, NULL, (PTHREAD_CALLBACK) function, context);
-	if (ret) {
-		acpi_os_printf("Create thread failed");
-	}
-	return (0);
+acpi_status acpi_os_execute(acpi_execute_type type,
+    acpi_osd_exec_callback function, void *context) {
+  pthread_t thread;
+  int ret;
+  ret
+    = pthread_create(&thread, NULL, (PTHREAD_CALLBACK) function, context);
+  if (ret) {
+    acpi_os_printf("Create thread failed");
+  }
+  return 0;
 }
 
-#else				/* ACPI_SINGLE_THREADED */
-acpi_thread_id acpi_os_get_thread_id(void)
-{
-	return (1);
+#else       /* ACPI_SINGLE_THREADED */
+acpi_thread_id acpi_os_get_thread_id(void) {
+  return 1;
 }
 
-acpi_status
-acpi_os_execute(acpi_execute_type type,
-		acpi_osd_exec_callback function, void *context)
-{
-
-	function(context);
-
-	return (AE_OK);
+acpi_status acpi_os_execute(acpi_execute_type type,
+    acpi_osd_exec_callback function, void *context) {
+  function(context);
+  return AE_OK;
 }
 
-#endif				/* ACPI_SINGLE_THREADED */
+#endif        /* ACPI_SINGLE_THREADED */
 
 /******************************************************************************
  *
@@ -1311,7 +1134,5 @@ acpi_os_execute(acpi_execute_type type,
  *
  *****************************************************************************/
 
-void acpi_os_wait_events_complete(void)
-{
-	return;
+void acpi_os_wait_events_complete(void) {
 }

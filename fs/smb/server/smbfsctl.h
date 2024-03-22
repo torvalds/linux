@@ -83,9 +83,9 @@
 #define IO_REPARSE_TAG_SIS           0x80000007
 
 /* WSL reparse tags */
-#define IO_REPARSE_TAG_LX_SYMLINK_LE	cpu_to_le32(0xA000001D)
-#define IO_REPARSE_TAG_AF_UNIX_LE	cpu_to_le32(0x80000023)
-#define IO_REPARSE_TAG_LX_FIFO_LE	cpu_to_le32(0x80000024)
-#define IO_REPARSE_TAG_LX_CHR_LE	cpu_to_le32(0x80000025)
-#define IO_REPARSE_TAG_LX_BLK_LE	cpu_to_le32(0x80000026)
+#define IO_REPARSE_TAG_LX_SYMLINK_LE  cpu_to_le32(0xA000001D)
+#define IO_REPARSE_TAG_AF_UNIX_LE cpu_to_le32(0x80000023)
+#define IO_REPARSE_TAG_LX_FIFO_LE cpu_to_le32(0x80000024)
+#define IO_REPARSE_TAG_LX_CHR_LE  cpu_to_le32(0x80000025)
+#define IO_REPARSE_TAG_LX_BLK_LE  cpu_to_le32(0x80000026)
 #endif /* __KSMBD_SMBFSCTL_H */

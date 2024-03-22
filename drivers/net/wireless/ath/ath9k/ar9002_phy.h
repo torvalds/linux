@@ -34,7 +34,7 @@
 #define AR_PHY_FC_SINGLE_HT_LTF1    0x00000200
 #define AR_PHY_FC_ENABLE_DAC_FIFO   0x00000800
 
-#define AR_PHY_TEST2			0x9808
+#define AR_PHY_TEST2      0x9808
 
 #define AR_PHY_TIMING2           0x9810
 #define AR_PHY_TIMING3           0x9814
@@ -165,23 +165,35 @@
 #define AR_PHY_PLL_CTL_44_2133  0xeb
 #define AR_PHY_PLL_CTL_40_2133  0xea
 
-#define AR_PHY_SPECTRAL_SCAN			0x9910  /* AR9280 spectral scan configuration register */
-#define	AR_PHY_SPECTRAL_SCAN_ENABLE		0x1
-#define AR_PHY_SPECTRAL_SCAN_ENA		0x00000001  /* Enable spectral scan, reg 68, bit 0 */
-#define AR_PHY_SPECTRAL_SCAN_ENA_S		0  /* Enable spectral scan, reg 68, bit 0 */
-#define AR_PHY_SPECTRAL_SCAN_ACTIVE		0x00000002  /* Activate spectral scan reg 68, bit 1*/
-#define AR_PHY_SPECTRAL_SCAN_ACTIVE_S		1  /* Activate spectral scan reg 68, bit 1*/
-#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD		0x000000F0  /* Interval for FFT reports, reg 68, bits 4-7*/
-#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD_S	4
-#define AR_PHY_SPECTRAL_SCAN_PERIOD		0x0000FF00  /* Interval for FFT reports, reg 68, bits 8-15*/
-#define AR_PHY_SPECTRAL_SCAN_PERIOD_S		8
-#define AR_PHY_SPECTRAL_SCAN_COUNT		0x00FF0000  /* Number of reports, reg 68, bits 16-23*/
-#define AR_PHY_SPECTRAL_SCAN_COUNT_S		16
-#define AR_PHY_SPECTRAL_SCAN_COUNT_KIWI		0x0FFF0000  /* Number of reports, reg 68, bits 16-27*/
-#define AR_PHY_SPECTRAL_SCAN_COUNT_KIWI_S	16
-#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT	0x01000000  /* Short repeat, reg 68, bit 24*/
-#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_KIWI	0x10000000  /* Short repeat, reg 68, bit 28*/
-#define AR_PHY_SPECTRAL_SCAN_PHYERR_MASK_SELECT	0x40000000
+#define AR_PHY_SPECTRAL_SCAN      0x9910  /* AR9280 spectral scan configuration
+                                           * register */
+#define AR_PHY_SPECTRAL_SCAN_ENABLE   0x1
+#define AR_PHY_SPECTRAL_SCAN_ENA    0x00000001  /* Enable spectral scan, reg 68,
+                                                 * bit 0 */
+#define AR_PHY_SPECTRAL_SCAN_ENA_S    0  /* Enable spectral scan, reg 68, bit 0
+                                          * */
+#define AR_PHY_SPECTRAL_SCAN_ACTIVE   0x00000002  /* Activate spectral scan reg
+                                                   * 68, bit 1*/
+#define AR_PHY_SPECTRAL_SCAN_ACTIVE_S   1  /* Activate spectral scan reg 68, bit
+                                            * 1*/
+#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD   0x000000F0  /* Interval for FFT
+                                                       * reports, reg 68, bits
+                                                       * 4-7*/
+#define AR_PHY_SPECTRAL_SCAN_FFT_PERIOD_S 4
+#define AR_PHY_SPECTRAL_SCAN_PERIOD   0x0000FF00  /* Interval for FFT reports,
+                                                   * reg 68, bits 8-15*/
+#define AR_PHY_SPECTRAL_SCAN_PERIOD_S   8
+#define AR_PHY_SPECTRAL_SCAN_COUNT    0x00FF0000  /* Number of reports, reg 68,
+                                                   * bits 16-23*/
+#define AR_PHY_SPECTRAL_SCAN_COUNT_S    16
+#define AR_PHY_SPECTRAL_SCAN_COUNT_KIWI   0x0FFF0000  /* Number of reports, reg
+                                                       * 68, bits 16-27*/
+#define AR_PHY_SPECTRAL_SCAN_COUNT_KIWI_S 16
+#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT 0x01000000  /* Short repeat, reg 68,
+                                                       * bit 24*/
+#define AR_PHY_SPECTRAL_SCAN_SHORT_REPEAT_KIWI  0x10000000  /* Short repeat, reg
+                                                             * 68, bit 28*/
+#define AR_PHY_SPECTRAL_SCAN_PHYERR_MASK_SELECT 0x40000000
 
 #define AR_PHY_RX_DELAY           0x9914
 #define AR_PHY_SEARCH_START_DELAY 0x9918
@@ -197,10 +209,10 @@
 #define AR_PHY_TIMING_CTRL4_IQCAL_LOG_COUNT_MAX_S   12
 #define AR_PHY_TIMING_CTRL4_DO_CAL    0x10000
 
-#define AR_PHY_TIMING_CTRL4_ENABLE_SPUR_RSSI	0x80000000
-#define	AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER	0x40000000
-#define	AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK	0x20000000
-#define	AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK	0x10000000
+#define AR_PHY_TIMING_CTRL4_ENABLE_SPUR_RSSI  0x80000000
+#define AR_PHY_TIMING_CTRL4_ENABLE_SPUR_FILTER  0x40000000
+#define AR_PHY_TIMING_CTRL4_ENABLE_CHAN_MASK  0x20000000
+#define AR_PHY_TIMING_CTRL4_ENABLE_PILOT_MASK 0x10000000
 
 #define AR_PHY_TIMING5               0x9924
 #define AR_PHY_TIMING5_CYCPWR_THR1   0x000000FE
@@ -271,35 +283,35 @@
 #define AR_PHY_RFBUS_REQ        0x997C
 #define AR_PHY_RFBUS_REQ_EN     0x00000001
 
-#define	AR_PHY_TIMING7		        0x9980
-#define	AR_PHY_TIMING8		        0x9984
-#define	AR_PHY_TIMING8_PILOT_MASK_2	0x000FFFFF
-#define	AR_PHY_TIMING8_PILOT_MASK_2_S	0
+#define AR_PHY_TIMING7            0x9980
+#define AR_PHY_TIMING8            0x9984
+#define AR_PHY_TIMING8_PILOT_MASK_2 0x000FFFFF
+#define AR_PHY_TIMING8_PILOT_MASK_2_S 0
 
-#define	AR_PHY_BIN_MASK2_1	0x9988
-#define	AR_PHY_BIN_MASK2_2	0x998c
-#define	AR_PHY_BIN_MASK2_3	0x9990
-#define	AR_PHY_BIN_MASK2_4	0x9994
+#define AR_PHY_BIN_MASK2_1  0x9988
+#define AR_PHY_BIN_MASK2_2  0x998c
+#define AR_PHY_BIN_MASK2_3  0x9990
+#define AR_PHY_BIN_MASK2_4  0x9994
 
-#define	AR_PHY_BIN_MASK_1	0x9900
-#define	AR_PHY_BIN_MASK_2	0x9904
-#define	AR_PHY_BIN_MASK_3	0x9908
+#define AR_PHY_BIN_MASK_1 0x9900
+#define AR_PHY_BIN_MASK_2 0x9904
+#define AR_PHY_BIN_MASK_3 0x9908
 
-#define	AR_PHY_MASK_CTL		0x990c
+#define AR_PHY_MASK_CTL   0x990c
 
-#define	AR_PHY_BIN_MASK2_4_MASK_4	0x00003FFF
-#define	AR_PHY_BIN_MASK2_4_MASK_4_S	0
+#define AR_PHY_BIN_MASK2_4_MASK_4 0x00003FFF
+#define AR_PHY_BIN_MASK2_4_MASK_4_S 0
 
-#define	AR_PHY_TIMING9		        0x9998
-#define	AR_PHY_TIMING10		        0x999c
-#define	AR_PHY_TIMING10_PILOT_MASK_2	0x000FFFFF
-#define	AR_PHY_TIMING10_PILOT_MASK_2_S	0
+#define AR_PHY_TIMING9            0x9998
+#define AR_PHY_TIMING10           0x999c
+#define AR_PHY_TIMING10_PILOT_MASK_2  0x000FFFFF
+#define AR_PHY_TIMING10_PILOT_MASK_2_S  0
 
-#define	AR_PHY_TIMING11			        0x99a0
-#define	AR_PHY_TIMING11_SPUR_DELTA_PHASE	0x000FFFFF
-#define	AR_PHY_TIMING11_SPUR_DELTA_PHASE_S	0
-#define AR_PHY_TIMING11_USE_SPUR_IN_AGC		0x40000000
-#define AR_PHY_TIMING11_USE_SPUR_IN_SELFCOR	0x80000000
+#define AR_PHY_TIMING11             0x99a0
+#define AR_PHY_TIMING11_SPUR_DELTA_PHASE  0x000FFFFF
+#define AR_PHY_TIMING11_SPUR_DELTA_PHASE_S  0
+#define AR_PHY_TIMING11_USE_SPUR_IN_AGC   0x40000000
+#define AR_PHY_TIMING11_USE_SPUR_IN_SELFCOR 0x80000000
 
 #define AR_PHY_RX_CHAINMASK     0x99a4
 #define AR_PHY_NEW_ADC_DC_GAIN_CORR(_i) (0x99b4 + ((_i) << 12))
@@ -307,8 +319,8 @@
 #define AR_PHY_NEW_ADC_DC_OFFSET_CORR_ENABLE 0x80000000
 
 #define AR_PHY_MULTICHAIN_GAIN_CTL          0x99ac
-#define AR_PHY_9285_FAST_DIV_BIAS	    0x00007E00
-#define AR_PHY_9285_FAST_DIV_BIAS_S	    9
+#define AR_PHY_9285_FAST_DIV_BIAS     0x00007E00
+#define AR_PHY_9285_FAST_DIV_BIAS_S     9
 #define AR_PHY_9285_ANT_DIV_CTL_ALL         0x7f000000
 #define AR_PHY_9285_ANT_DIV_CTL             0x01000000
 #define AR_PHY_9285_ANT_DIV_CTL_S           24
@@ -567,9 +579,9 @@
 #define AR_PHY_POWER_TX_RATE8   0xA3D0
 #define AR_PHY_POWER_TX_RATE9   0xA3D4
 
-#define AR_PHY_XPA_CFG		0xA3D8
-#define AR_PHY_FORCE_XPA_CFG	0x000000001
-#define AR_PHY_FORCE_XPA_CFG_S	0
+#define AR_PHY_XPA_CFG    0xA3D8
+#define AR_PHY_FORCE_XPA_CFG  0x000000001
+#define AR_PHY_FORCE_XPA_CFG_S  0
 
 #define AR_PHY_CH1_CCA          0xa864
 #define AR_PHY_CH1_MINCCA_PWR   0x0FF80000

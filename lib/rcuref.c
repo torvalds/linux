@@ -11,18 +11,18 @@
  * A common usage pattern is:
  *
  * get()
- *	rcu_read_lock();
- *	p = get_ptr();
- *	if (p && !atomic_inc_not_zero(&p->refcnt))
- *		p = NULL;
- *	rcu_read_unlock();
- *	return p;
+ *  rcu_read_lock();
+ *  p = get_ptr();
+ *  if (p && !atomic_inc_not_zero(&p->refcnt))
+ *    p = NULL;
+ *  rcu_read_unlock();
+ *  return p;
  *
  * put()
- *	if (!atomic_dec_return(&->refcnt)) {
- *		remove_ptr(p);
- *		kfree_rcu((p, rcu);
- *	}
+ *  if (!atomic_dec_return(&->refcnt)) {
+ *    remove_ptr(p);
+ *    kfree_rcu((p, rcu);
+ *  }
  *
  * atomic_inc_not_zero() is implemented with a try_cmpxchg() loop which has
  * O(N^2) behaviour under contention with N concurrent operations.
@@ -44,8 +44,10 @@
  * counter value is greater than or equal to RCUREF_ONEREF and not larger
  * than RCUREF_MAXREF the reference is alive:
  *
- * ONEREF   MAXREF               SATURATED             RELEASED      DEAD    NOREF
- * 0        0x7FFFFFFF 0x8000000 0xA0000000 0xBFFFFFFF 0xC0000000 0xE0000000 0xFFFFFFFF
+ * ONEREF   MAXREF               SATURATED             RELEASED      DEAD
+ *   NOREF
+ * 0        0x7FFFFFFF 0x8000000 0xA0000000 0xBFFFFFFF 0xC0000000 0xE0000000
+ * 0xFFFFFFFF
  * <---valid --------> <-------saturation zone-------> <-----dead zone----->
  *
  * The get() and put() operations do unconditional increments and
@@ -72,28 +74,28 @@
  * The actual race is possible due to the unconditional increment and
  * decrements in rcuref_get() and rcuref_put():
  *
- *	T1				T2
- *	get()				put()
- *					if (atomic_add_negative(-1, &ref->refcnt))
- *		succeeds->			atomic_cmpxchg(&ref->refcnt, NOREF, DEAD);
+ *  T1        T2
+ *  get()       put()
+ *          if (atomic_add_negative(-1, &ref->refcnt))
+ *    succeeds->      atomic_cmpxchg(&ref->refcnt, NOREF, DEAD);
  *
- *	atomic_add_negative(1, &ref->refcnt);	<- Elevates refcount to DEAD + 1
+ *  atomic_add_negative(1, &ref->refcnt); <- Elevates refcount to DEAD + 1
  *
  * As the result of T1's add is negative, the get() goes into the slow path
  * and observes refcnt being in the dead zone which makes the operation fail.
  *
  * Possible critical states:
  *
- *	Context Counter	References	Operation
- *	T1	0	1		init()
- *	T2	1	2		get()
- *	T1	0	1		put()
- *	T2     -1	0		put() tries to mark dead
- *	T1	0	1		get()
- *	T2	0	1		put() mark dead fails
- *	T1     -1	0		put() tries to mark dead
- *	T1    DEAD	0		put() mark dead succeeds
- *	T2    DEAD+1	0		get() fails and puts it back to DEAD
+ *  Context Counter References  Operation
+ *  T1  0 1   init()
+ *  T2  1 2   get()
+ *  T1  0 1   put()
+ *  T2     -1 0   put() tries to mark dead
+ *  T1  0 1   get()
+ *  T2  0 1   put() mark dead fails
+ *  T1     -1 0   put() tries to mark dead
+ *  T1    DEAD  0   put() mark dead succeeds
+ *  T2    DEAD+1  0   get() fails and puts it back to DEAD
  *
  * Of course there are more complex scenarios, but the above illustrates
  * the working principle. The rest is left to the imagination of the
@@ -105,26 +107,26 @@
  * The release operation must be protected by prohibiting a grace period in
  * order to prevent a possible use after free:
  *
- *	T1				T2
- *	put()				get()
- *	// ref->refcnt = ONEREF
- *	if (!atomic_add_negative(-1, &ref->refcnt))
- *		return false;				<- Not taken
+ *  T1        T2
+ *  put()       get()
+ *  // ref->refcnt = ONEREF
+ *  if (!atomic_add_negative(-1, &ref->refcnt))
+ *    return false;       <- Not taken
  *
- *	// ref->refcnt == NOREF
- *	--> preemption
- *					// Elevates ref->refcnt to ONEREF
- *					if (!atomic_add_negative(1, &ref->refcnt))
- *						return true;			<- taken
+ *  // ref->refcnt == NOREF
+ *  --> preemption
+ *          // Elevates ref->refcnt to ONEREF
+ *          if (!atomic_add_negative(1, &ref->refcnt))
+ *            return true;      <- taken
  *
- *					if (put(&p->ref)) { <-- Succeeds
- *						remove_pointer(p);
- *						kfree_rcu(p, rcu);
- *					}
+ *          if (put(&p->ref)) { <-- Succeeds
+ *            remove_pointer(p);
+ *            kfree_rcu(p, rcu);
+ *          }
  *
- *		RCU grace period ends, object is freed
+ *    RCU grace period ends, object is freed
  *
- *	atomic_cmpxchg(&ref->refcnt, NOREF, DEAD);	<- UAF
+ *  atomic_cmpxchg(&ref->refcnt, NOREF, DEAD);  <- UAF
  *
  * This is prevented by disabling preemption around the put() operation as
  * that's in most kernel configurations cheaper than a rcu_read_lock() /
@@ -179,103 +181,100 @@
 
 /**
  * rcuref_get_slowpath - Slowpath of rcuref_get()
- * @ref:	Pointer to the reference count
+ * @ref:  Pointer to the reference count
  *
  * Invoked when the reference count is outside of the valid zone.
  *
  * Return:
- *	False if the reference count was already marked dead
+ *  False if the reference count was already marked dead
  *
- *	True if the reference count is saturated, which prevents the
- *	object from being deconstructed ever.
+ *  True if the reference count is saturated, which prevents the
+ *  object from being deconstructed ever.
  */
-bool rcuref_get_slowpath(rcuref_t *ref)
-{
-	unsigned int cnt = atomic_read(&ref->refcnt);
-
-	/*
-	 * If the reference count was already marked dead, undo the
-	 * increment so it stays in the middle of the dead zone and return
-	 * fail.
-	 */
-	if (cnt >= RCUREF_RELEASED) {
-		atomic_set(&ref->refcnt, RCUREF_DEAD);
-		return false;
-	}
-
-	/*
-	 * If it was saturated, warn and mark it so. In case the increment
-	 * was already on a saturated value restore the saturation
-	 * marker. This keeps it in the middle of the saturation zone and
-	 * prevents the reference count from overflowing. This leaks the
-	 * object memory, but prevents the obvious reference count overflow
-	 * damage.
-	 */
-	if (WARN_ONCE(cnt > RCUREF_MAXREF, "rcuref saturated - leaking memory"))
-		atomic_set(&ref->refcnt, RCUREF_SATURATED);
-	return true;
+bool rcuref_get_slowpath(rcuref_t *ref) {
+  unsigned int cnt = atomic_read(&ref->refcnt);
+  /*
+   * If the reference count was already marked dead, undo the
+   * increment so it stays in the middle of the dead zone and return
+   * fail.
+   */
+  if (cnt >= RCUREF_RELEASED) {
+    atomic_set(&ref->refcnt, RCUREF_DEAD);
+    return false;
+  }
+  /*
+   * If it was saturated, warn and mark it so. In case the increment
+   * was already on a saturated value restore the saturation
+   * marker. This keeps it in the middle of the saturation zone and
+   * prevents the reference count from overflowing. This leaks the
+   * object memory, but prevents the obvious reference count overflow
+   * damage.
+   */
+  if (WARN_ONCE(cnt > RCUREF_MAXREF, "rcuref saturated - leaking memory")) {
+    atomic_set(&ref->refcnt, RCUREF_SATURATED);
+  }
+  return true;
 }
+
 EXPORT_SYMBOL_GPL(rcuref_get_slowpath);
 
 /**
  * rcuref_put_slowpath - Slowpath of __rcuref_put()
- * @ref:	Pointer to the reference count
+ * @ref:  Pointer to the reference count
  *
  * Invoked when the reference count is outside of the valid zone.
  *
  * Return:
- *	True if this was the last reference with no future references
- *	possible. This signals the caller that it can safely schedule the
- *	object, which is protected by the reference counter, for
- *	deconstruction.
+ *  True if this was the last reference with no future references
+ *  possible. This signals the caller that it can safely schedule the
+ *  object, which is protected by the reference counter, for
+ *  deconstruction.
  *
- *	False if there are still active references or the put() raced
- *	with a concurrent get()/put() pair. Caller is not allowed to
- *	deconstruct the protected object.
+ *  False if there are still active references or the put() raced
+ *  with a concurrent get()/put() pair. Caller is not allowed to
+ *  deconstruct the protected object.
  */
-bool rcuref_put_slowpath(rcuref_t *ref)
-{
-	unsigned int cnt = atomic_read(&ref->refcnt);
-
-	/* Did this drop the last reference? */
-	if (likely(cnt == RCUREF_NOREF)) {
-		/*
-		 * Carefully try to set the reference count to RCUREF_DEAD.
-		 *
-		 * This can fail if a concurrent get() operation has
-		 * elevated it again or the corresponding put() even marked
-		 * it dead already. Both are valid situations and do not
-		 * require a retry. If this fails the caller is not
-		 * allowed to deconstruct the object.
-		 */
-		if (!atomic_try_cmpxchg_release(&ref->refcnt, &cnt, RCUREF_DEAD))
-			return false;
-
-		/*
-		 * The caller can safely schedule the object for
-		 * deconstruction. Provide acquire ordering.
-		 */
-		smp_acquire__after_ctrl_dep();
-		return true;
-	}
-
-	/*
-	 * If the reference count was already in the dead zone, then this
-	 * put() operation is imbalanced. Warn, put the reference count back to
-	 * DEAD and tell the caller to not deconstruct the object.
-	 */
-	if (WARN_ONCE(cnt >= RCUREF_RELEASED, "rcuref - imbalanced put()")) {
-		atomic_set(&ref->refcnt, RCUREF_DEAD);
-		return false;
-	}
-
-	/*
-	 * This is a put() operation on a saturated refcount. Restore the
-	 * mean saturation value and tell the caller to not deconstruct the
-	 * object.
-	 */
-	if (cnt > RCUREF_MAXREF)
-		atomic_set(&ref->refcnt, RCUREF_SATURATED);
-	return false;
+bool rcuref_put_slowpath(rcuref_t *ref) {
+  unsigned int cnt = atomic_read(&ref->refcnt);
+  /* Did this drop the last reference? */
+  if (likely(cnt == RCUREF_NOREF)) {
+    /*
+     * Carefully try to set the reference count to RCUREF_DEAD.
+     *
+     * This can fail if a concurrent get() operation has
+     * elevated it again or the corresponding put() even marked
+     * it dead already. Both are valid situations and do not
+     * require a retry. If this fails the caller is not
+     * allowed to deconstruct the object.
+     */
+    if (!atomic_try_cmpxchg_release(&ref->refcnt, &cnt, RCUREF_DEAD)) {
+      return false;
+    }
+    /*
+     * The caller can safely schedule the object for
+     * deconstruction. Provide acquire ordering.
+     */
+    smp_acquire__after_ctrl_dep();
+    return true;
+  }
+  /*
+   * If the reference count was already in the dead zone, then this
+   * put() operation is imbalanced. Warn, put the reference count back to
+   * DEAD and tell the caller to not deconstruct the object.
+   */
+  if (WARN_ONCE(cnt >= RCUREF_RELEASED, "rcuref - imbalanced put()")) {
+    atomic_set(&ref->refcnt, RCUREF_DEAD);
+    return false;
+  }
+  /*
+   * This is a put() operation on a saturated refcount. Restore the
+   * mean saturation value and tell the caller to not deconstruct the
+   * object.
+   */
+  if (cnt > RCUREF_MAXREF) {
+    atomic_set(&ref->refcnt, RCUREF_SATURATED);
+  }
+  return false;
 }
+
 EXPORT_SYMBOL_GPL(rcuref_put_slowpath);

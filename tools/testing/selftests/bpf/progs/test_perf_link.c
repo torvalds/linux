@@ -7,10 +7,9 @@
 int run_cnt = 0;
 
 SEC("perf_event")
-int handler(struct pt_regs *ctx)
-{
-	__sync_fetch_and_add(&run_cnt, 1);
-	return 0;
+int handler(struct pt_regs *ctx) {
+  __sync_fetch_and_add(&run_cnt, 1);
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

@@ -52,74 +52,69 @@
  * - read /proc/self/fdinfo/<pidfd> and observe that both Pid and NSpid
  *   have exactly one entry, which is 0
  */
-static void pidfd_show_fdinfo(struct seq_file *m, struct file *f)
-{
-	struct pid *pid = pidfd_pid(f);
-	struct pid_namespace *ns;
-	pid_t nr = -1;
-
-	if (likely(pid_has_task(pid, PIDTYPE_PID))) {
-		ns = proc_pid_ns(file_inode(m->file)->i_sb);
-		nr = pid_nr_ns(pid, ns);
-	}
-
-	seq_put_decimal_ll(m, "Pid:\t", nr);
-
+static void pidfd_show_fdinfo(struct seq_file *m, struct file *f) {
+  struct pid *pid = pidfd_pid(f);
+  struct pid_namespace *ns;
+  pid_t nr = -1;
+  if (likely(pid_has_task(pid, PIDTYPE_PID))) {
+    ns = proc_pid_ns(file_inode(m->file)->i_sb);
+    nr = pid_nr_ns(pid, ns);
+  }
+  seq_put_decimal_ll(m, "Pid:\t", nr);
 #ifdef CONFIG_PID_NS
-	seq_put_decimal_ll(m, "\nNSpid:\t", nr);
-	if (nr > 0) {
-		int i;
-
-		/* If nr is non-zero it means that 'pid' is valid and that
-		 * ns, i.e. the pid namespace associated with the procfs
-		 * instance, is in the pid namespace hierarchy of pid.
-		 * Start at one below the already printed level.
-		 */
-		for (i = ns->level + 1; i <= pid->level; i++)
-			seq_put_decimal_ll(m, "\t", pid->numbers[i].nr);
-	}
+  seq_put_decimal_ll(m, "\nNSpid:\t", nr);
+  if (nr > 0) {
+    int i;
+    /* If nr is non-zero it means that 'pid' is valid and that
+     * ns, i.e. the pid namespace associated with the procfs
+     * instance, is in the pid namespace hierarchy of pid.
+     * Start at one below the already printed level.
+     */
+    for (i = ns->level + 1; i <= pid->level; i++) {
+      seq_put_decimal_ll(m, "\t", pid->numbers[i].nr);
+    }
+  }
 #endif
-	seq_putc(m, '\n');
+  seq_putc(m, '\n');
 }
+
 #endif
 
 /*
  * Poll support for process exit notification.
  */
-static __poll_t pidfd_poll(struct file *file, struct poll_table_struct *pts)
-{
-	struct pid *pid = pidfd_pid(file);
-	bool thread = file->f_flags & PIDFD_THREAD;
-	struct task_struct *task;
-	__poll_t poll_flags = 0;
-
-	poll_wait(file, &pid->wait_pidfd, pts);
-	/*
-	 * Depending on PIDFD_THREAD, inform pollers when the thread
-	 * or the whole thread-group exits.
-	 */
-	guard(rcu)();
-	task = pid_task(pid, PIDTYPE_PID);
-	if (!task)
-		poll_flags = EPOLLIN | EPOLLRDNORM | EPOLLHUP;
-	else if (task->exit_state && (thread || thread_group_empty(task)))
-		poll_flags = EPOLLIN | EPOLLRDNORM;
-
-	return poll_flags;
+static __poll_t pidfd_poll(struct file *file, struct poll_table_struct *pts) {
+  struct pid *pid = pidfd_pid(file);
+  bool thread = file->f_flags & PIDFD_THREAD;
+  struct task_struct *task;
+  __poll_t poll_flags = 0;
+  poll_wait(file, &pid->wait_pidfd, pts);
+  /*
+   * Depending on PIDFD_THREAD, inform pollers when the thread
+   * or the whole thread-group exits.
+   */
+  guard(rcu) ();
+  task = pid_task(pid, PIDTYPE_PID);
+  if (!task) {
+    poll_flags = EPOLLIN | EPOLLRDNORM | EPOLLHUP;
+  } else if (task->exit_state && (thread || thread_group_empty(task))) {
+    poll_flags = EPOLLIN | EPOLLRDNORM;
+  }
+  return poll_flags;
 }
 
 static const struct file_operations pidfs_file_operations = {
-	.poll		= pidfd_poll,
+  .poll = pidfd_poll,
 #ifdef CONFIG_PROC_FS
-	.show_fdinfo	= pidfd_show_fdinfo,
+  .show_fdinfo = pidfd_show_fdinfo,
 #endif
 };
 
-struct pid *pidfd_pid(const struct file *file)
-{
-	if (file->f_op != &pidfs_file_operations)
-		return ERR_PTR(-EBADF);
-	return file_inode(file)->i_private;
+struct pid *pidfd_pid(const struct file *file) {
+  if (file->f_op != &pidfs_file_operations) {
+    return ERR_PTR(-EBADF);
+  }
+  return file_inode(file)->i_private;
 }
 
 static struct vfsmount *pidfs_mnt __ro_after_init;
@@ -131,31 +126,30 @@ static struct vfsmount *pidfs_mnt __ro_after_init;
  */
 static DEFINE_IDA(pidfd_inum_ida);
 
-static int pidfs_inum(struct pid *pid, unsigned long *ino)
-{
-	int ret;
-
-	ret = ida_alloc_range(&pidfd_inum_ida, RESERVED_PIDS + 1,
-			      UINT_MAX, GFP_ATOMIC);
-	if (ret < 0)
-		return -ENOSPC;
-
-	*ino = ret;
-	return 0;
+static int pidfs_inum(struct pid *pid, unsigned long *ino) {
+  int ret;
+  ret = ida_alloc_range(&pidfd_inum_ida, RESERVED_PIDS + 1,
+      UINT_MAX, GFP_ATOMIC);
+  if (ret < 0) {
+    return -ENOSPC;
+  }
+  *ino = ret;
+  return 0;
 }
 
-static inline void pidfs_free_inum(unsigned long ino)
-{
-	if (ino > 0)
-		ida_free(&pidfd_inum_ida, ino);
+static inline void pidfs_free_inum(unsigned long ino) {
+  if (ino > 0) {
+    ida_free(&pidfd_inum_ida, ino);
+  }
 }
+
 #else
-static inline int pidfs_inum(struct pid *pid, unsigned long *ino)
-{
-	*ino = pid->ino;
-	return 0;
+static inline int pidfs_inum(struct pid *pid, unsigned long *ino) {
+  *ino = pid->ino;
+  return 0;
 }
-#define pidfs_free_inum(ino) ((void)(ino))
+
+#define pidfs_free_inum(ino) ((void) (ino))
 #endif
 
 /*
@@ -164,120 +158,106 @@ static inline int pidfs_inum(struct pid *pid, unsigned long *ino)
  * permission concept for pidfds.
  */
 static int pidfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
-			 struct iattr *attr)
-{
-	return -EOPNOTSUPP;
+    struct iattr *attr) {
+  return -EOPNOTSUPP;
 }
 
 static int pidfs_getattr(struct mnt_idmap *idmap, const struct path *path,
-			 struct kstat *stat, u32 request_mask,
-			 unsigned int query_flags)
-{
-	struct inode *inode = d_inode(path->dentry);
-
-	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-	return 0;
+    struct kstat *stat, u32 request_mask,
+    unsigned int query_flags) {
+  struct inode *inode = d_inode(path->dentry);
+  generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
+  return 0;
 }
 
 static const struct inode_operations pidfs_inode_operations = {
-	.getattr = pidfs_getattr,
-	.setattr = pidfs_setattr,
+  .getattr = pidfs_getattr,
+  .setattr = pidfs_setattr,
 };
 
-static void pidfs_evict_inode(struct inode *inode)
-{
-	struct pid *pid = inode->i_private;
-
-	clear_inode(inode);
-	put_pid(pid);
-	pidfs_free_inum(inode->i_ino);
+static void pidfs_evict_inode(struct inode *inode) {
+  struct pid *pid = inode->i_private;
+  clear_inode(inode);
+  put_pid(pid);
+  pidfs_free_inum(inode->i_ino);
 }
 
 static const struct super_operations pidfs_sops = {
-	.drop_inode	= generic_delete_inode,
-	.evict_inode	= pidfs_evict_inode,
-	.statfs		= simple_statfs,
+  .drop_inode = generic_delete_inode,
+  .evict_inode = pidfs_evict_inode,
+  .statfs = simple_statfs,
 };
 
-static char *pidfs_dname(struct dentry *dentry, char *buffer, int buflen)
-{
-	struct inode *inode = d_inode(dentry);
-	struct pid *pid = inode->i_private;
-
-	return dynamic_dname(buffer, buflen, "pidfd:[%llu]", pid->ino);
+static char *pidfs_dname(struct dentry *dentry, char *buffer, int buflen) {
+  struct inode *inode = d_inode(dentry);
+  struct pid *pid = inode->i_private;
+  return dynamic_dname(buffer, buflen, "pidfd:[%llu]", pid->ino);
 }
 
 static const struct dentry_operations pidfs_dentry_operations = {
-	.d_delete	= always_delete_dentry,
-	.d_dname	= pidfs_dname,
-	.d_prune	= stashed_dentry_prune,
+  .d_delete = always_delete_dentry,
+  .d_dname = pidfs_dname,
+  .d_prune = stashed_dentry_prune,
 };
 
-static int pidfs_init_inode(struct inode *inode, void *data)
-{
-	inode->i_private = data;
-	inode->i_flags |= S_PRIVATE;
-	inode->i_mode |= S_IRWXU;
-	inode->i_op = &pidfs_inode_operations;
-	inode->i_fop = &pidfs_file_operations;
-	/*
-	 * Inode numbering for pidfs start at RESERVED_PIDS + 1. This
-	 * avoids collisions with the root inode which is 1 for pseudo
-	 * filesystems.
-	 */
-	return pidfs_inum(data, &inode->i_ino);
+static int pidfs_init_inode(struct inode *inode, void *data) {
+  inode->i_private = data;
+  inode->i_flags |= S_PRIVATE;
+  inode->i_mode |= S_IRWXU;
+  inode->i_op = &pidfs_inode_operations;
+  inode->i_fop = &pidfs_file_operations;
+  /*
+   * Inode numbering for pidfs start at RESERVED_PIDS + 1. This
+   * avoids collisions with the root inode which is 1 for pseudo
+   * filesystems.
+   */
+  return pidfs_inum(data, &inode->i_ino);
 }
 
-static void pidfs_put_data(void *data)
-{
-	struct pid *pid = data;
-	put_pid(pid);
+static void pidfs_put_data(void *data) {
+  struct pid *pid = data;
+  put_pid(pid);
 }
 
 static const struct stashed_operations pidfs_stashed_ops = {
-	.init_inode = pidfs_init_inode,
-	.put_data = pidfs_put_data,
+  .init_inode = pidfs_init_inode,
+  .put_data = pidfs_put_data,
 };
 
-static int pidfs_init_fs_context(struct fs_context *fc)
-{
-	struct pseudo_fs_context *ctx;
-
-	ctx = init_pseudo(fc, PID_FS_MAGIC);
-	if (!ctx)
-		return -ENOMEM;
-
-	ctx->ops = &pidfs_sops;
-	ctx->dops = &pidfs_dentry_operations;
-	fc->s_fs_info = (void *)&pidfs_stashed_ops;
-	return 0;
+static int pidfs_init_fs_context(struct fs_context *fc) {
+  struct pseudo_fs_context *ctx;
+  ctx = init_pseudo(fc, PID_FS_MAGIC);
+  if (!ctx) {
+    return -ENOMEM;
+  }
+  ctx->ops = &pidfs_sops;
+  ctx->dops = &pidfs_dentry_operations;
+  fc->s_fs_info = (void *) &pidfs_stashed_ops;
+  return 0;
 }
 
 static struct file_system_type pidfs_type = {
-	.name			= "pidfs",
-	.init_fs_context	= pidfs_init_fs_context,
-	.kill_sb		= kill_anon_super,
+  .name = "pidfs",
+  .init_fs_context = pidfs_init_fs_context,
+  .kill_sb = kill_anon_super,
 };
 
-struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
-{
-
-	struct file *pidfd_file;
-	struct path path;
-	int ret;
-
-	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
-	if (ret < 0)
-		return ERR_PTR(ret);
-
-	pidfd_file = dentry_open(&path, flags, current_cred());
-	path_put(&path);
-	return pidfd_file;
+struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags) {
+  struct file *pidfd_file;
+  struct path path;
+  int ret;
+  ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
+  if (ret < 0) {
+    return ERR_PTR(ret);
+  }
+  pidfd_file = dentry_open(&path, flags, current_cred());
+  path_put(&path);
+  return pidfd_file;
 }
 
-void __init pidfs_init(void)
-{
-	pidfs_mnt = kern_mount(&pidfs_type);
-	if (IS_ERR(pidfs_mnt))
-		panic("Failed to mount pidfs pseudo filesystem");
+void __init pidfs_init(void) {
+  pidfs_mnt = kern_mount(&pidfs_type);
+  if (IS_ERR(pidfs_mnt)) {
+    panic("Failed to mount pidfs pseudo filesystem");
+  }
 }

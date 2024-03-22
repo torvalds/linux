@@ -51,15 +51,15 @@
  * @next: Optionally chain this channel.
  */
 struct vidtv_channel {
-	char *name;
-	u16 transport_stream_id;
-	struct vidtv_psi_table_sdt_service *service;
-	u16 program_num;
-	struct vidtv_psi_table_pat_program *program;
-	struct vidtv_psi_table_pmt_stream *streams;
-	struct vidtv_encoder *encoders;
-	struct vidtv_psi_table_eit_event *events;
-	struct vidtv_channel *next;
+  char *name;
+  u16 transport_stream_id;
+  struct vidtv_psi_table_sdt_service *service;
+  u16 program_num;
+  struct vidtv_psi_table_pat_program *program;
+  struct vidtv_psi_table_pmt_stream *streams;
+  struct vidtv_encoder *encoders;
+  struct vidtv_psi_table_eit_event *events;
+  struct vidtv_channel *next;
 };
 
 /**

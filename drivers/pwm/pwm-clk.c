@@ -28,109 +28,100 @@
 #include <linux/pwm.h>
 
 struct pwm_clk_chip {
-	struct clk *clk;
-	bool clk_enabled;
+  struct clk *clk;
+  bool clk_enabled;
 };
 
-static inline struct pwm_clk_chip *to_pwm_clk_chip(struct pwm_chip *chip)
-{
-	return pwmchip_get_drvdata(chip);
+static inline struct pwm_clk_chip *to_pwm_clk_chip(struct pwm_chip *chip) {
+  return pwmchip_get_drvdata(chip);
 }
 
 static int pwm_clk_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			 const struct pwm_state *state)
-{
-	struct pwm_clk_chip *pcchip = to_pwm_clk_chip(chip);
-	int ret;
-	u32 rate;
-	u64 period = state->period;
-	u64 duty_cycle = state->duty_cycle;
-
-	if (!state->enabled) {
-		if (pwm->state.enabled) {
-			clk_disable(pcchip->clk);
-			pcchip->clk_enabled = false;
-		}
-		return 0;
-	} else if (!pwm->state.enabled) {
-		ret = clk_enable(pcchip->clk);
-		if (ret)
-			return ret;
-		pcchip->clk_enabled = true;
-	}
-
-	/*
-	 * We have to enable the clk before setting the rate and duty_cycle,
-	 * that however results in a window where the clk is on with a
-	 * (potentially) different setting. Also setting period and duty_cycle
-	 * are two separate calls, so that probably isn't atomic either.
-	 */
-
-	rate = DIV64_U64_ROUND_UP(NSEC_PER_SEC, period);
-	ret = clk_set_rate(pcchip->clk, rate);
-	if (ret)
-		return ret;
-
-	if (state->polarity == PWM_POLARITY_INVERSED)
-		duty_cycle = period - duty_cycle;
-
-	return clk_set_duty_cycle(pcchip->clk, duty_cycle, period);
+    const struct pwm_state *state) {
+  struct pwm_clk_chip *pcchip = to_pwm_clk_chip(chip);
+  int ret;
+  u32 rate;
+  u64 period = state->period;
+  u64 duty_cycle = state->duty_cycle;
+  if (!state->enabled) {
+    if (pwm->state.enabled) {
+      clk_disable(pcchip->clk);
+      pcchip->clk_enabled = false;
+    }
+    return 0;
+  } else if (!pwm->state.enabled) {
+    ret = clk_enable(pcchip->clk);
+    if (ret) {
+      return ret;
+    }
+    pcchip->clk_enabled = true;
+  }
+  /*
+   * We have to enable the clk before setting the rate and duty_cycle,
+   * that however results in a window where the clk is on with a
+   * (potentially) different setting. Also setting period and duty_cycle
+   * are two separate calls, so that probably isn't atomic either.
+   */
+  rate = DIV64_U64_ROUND_UP(NSEC_PER_SEC, period);
+  ret = clk_set_rate(pcchip->clk, rate);
+  if (ret) {
+    return ret;
+  }
+  if (state->polarity == PWM_POLARITY_INVERSED) {
+    duty_cycle = period - duty_cycle;
+  }
+  return clk_set_duty_cycle(pcchip->clk, duty_cycle, period);
 }
 
 static const struct pwm_ops pwm_clk_ops = {
-	.apply = pwm_clk_apply,
+  .apply = pwm_clk_apply,
 };
 
-static int pwm_clk_probe(struct platform_device *pdev)
-{
-	struct pwm_chip *chip;
-	struct pwm_clk_chip *pcchip;
-	int ret;
-
-	chip = devm_pwmchip_alloc(&pdev->dev, 1, sizeof(*pcchip));
-	if (IS_ERR(chip))
-		return PTR_ERR(chip);
-	pcchip = to_pwm_clk_chip(chip);
-
-	pcchip->clk = devm_clk_get_prepared(&pdev->dev, NULL);
-	if (IS_ERR(pcchip->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(pcchip->clk),
-				     "Failed to get clock\n");
-
-	chip->ops = &pwm_clk_ops;
-
-	ret = pwmchip_add(chip);
-	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret, "Failed to add pwm chip\n");
-
-	platform_set_drvdata(pdev, chip);
-	return 0;
+static int pwm_clk_probe(struct platform_device *pdev) {
+  struct pwm_chip *chip;
+  struct pwm_clk_chip *pcchip;
+  int ret;
+  chip = devm_pwmchip_alloc(&pdev->dev, 1, sizeof(*pcchip));
+  if (IS_ERR(chip)) {
+    return PTR_ERR(chip);
+  }
+  pcchip = to_pwm_clk_chip(chip);
+  pcchip->clk = devm_clk_get_prepared(&pdev->dev, NULL);
+  if (IS_ERR(pcchip->clk)) {
+    return dev_err_probe(&pdev->dev, PTR_ERR(pcchip->clk),
+        "Failed to get clock\n");
+  }
+  chip->ops = &pwm_clk_ops;
+  ret = pwmchip_add(chip);
+  if (ret < 0) {
+    return dev_err_probe(&pdev->dev, ret, "Failed to add pwm chip\n");
+  }
+  platform_set_drvdata(pdev, chip);
+  return 0;
 }
 
-static void pwm_clk_remove(struct platform_device *pdev)
-{
-	struct pwm_chip *chip = platform_get_drvdata(pdev);
-	struct pwm_clk_chip *pcchip = to_pwm_clk_chip(chip);
-
-	pwmchip_remove(chip);
-
-	if (pcchip->clk_enabled)
-		clk_disable(pcchip->clk);
+static void pwm_clk_remove(struct platform_device *pdev) {
+  struct pwm_chip *chip = platform_get_drvdata(pdev);
+  struct pwm_clk_chip *pcchip = to_pwm_clk_chip(chip);
+  pwmchip_remove(chip);
+  if (pcchip->clk_enabled) {
+    clk_disable(pcchip->clk);
+  }
 }
 
 static const struct of_device_id pwm_clk_dt_ids[] = {
-	{ .compatible = "clk-pwm", },
-	{ /* sentinel */ }
+  { .compatible = "clk-pwm", },
+  { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, pwm_clk_dt_ids);
 
 static struct platform_driver pwm_clk_driver = {
-	.driver = {
-		.name = "pwm-clk",
-		.of_match_table = pwm_clk_dt_ids,
-	},
-	.probe = pwm_clk_probe,
-	.remove_new = pwm_clk_remove,
+  .driver = {
+    .name = "pwm-clk",
+    .of_match_table = pwm_clk_dt_ids,
+  },
+  .probe = pwm_clk_probe,
+  .remove_new = pwm_clk_remove,
 };
 module_platform_driver(pwm_clk_driver);
 

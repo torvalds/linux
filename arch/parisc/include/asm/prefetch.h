@@ -20,23 +20,22 @@
 #ifdef CONFIG_PREFETCH
 
 #define ARCH_HAS_PREFETCH
-static inline void prefetch(const void *addr)
-{
-	__asm__(
+static inline void prefetch(const void *addr) {
+  __asm__ (
 #ifndef CONFIG_PA20
-		/* Need to avoid prefetch of NULL on PA7300LC */
-		"	extrw,u,= %0,31,32,%%r0\n"
+    /* Need to avoid prefetch of NULL on PA7300LC */
+    "	extrw,u,= %0,31,32,%%r0\n"
 #endif
-		"	ldw 0(%0), %%r0" : : "r" (addr));
+    "	ldw 0(%0), %%r0" : : "r" (addr));
 }
 
 /* LDD is a PA2.0 addition. */
 #ifdef CONFIG_PA20
 #define ARCH_HAS_PREFETCHW
-static inline void prefetchw(const void *addr)
-{
-	__asm__("ldd 0(%0), %%r0" : : "r" (addr));
+static inline void prefetchw(const void *addr) {
+  __asm__ ("ldd 0(%0), %%r0" : : "r" (addr));
 }
+
 #endif /* CONFIG_PA20 */
 
 #endif /* CONFIG_PREFETCH */

@@ -32,41 +32,33 @@
 #include <asm/thread_info.h>
 #include <asm/paravirt.h>
 
-static bool profile_pc_cb(void *arg, unsigned long pc)
-{
-	unsigned long *prof_pc = arg;
-
-	if (in_lock_functions(pc))
-		return true;
-	*prof_pc = pc;
-	return false;
+static bool profile_pc_cb(void *arg, unsigned long pc) {
+  unsigned long *prof_pc = arg;
+  if (in_lock_functions(pc)) {
+    return true;
+  }
+  *prof_pc = pc;
+  return false;
 }
 
-unsigned long profile_pc(struct pt_regs *regs)
-{
-	unsigned long prof_pc = 0;
-
-	arch_stack_walk(profile_pc_cb, &prof_pc, current, regs);
-
-	return prof_pc;
+unsigned long profile_pc(struct pt_regs *regs) {
+  unsigned long prof_pc = 0;
+  arch_stack_walk(profile_pc_cb, &prof_pc, current, regs);
+  return prof_pc;
 }
+
 EXPORT_SYMBOL(profile_pc);
 
-void __init time_init(void)
-{
-	u32 arch_timer_rate;
-
-	of_clk_init(NULL);
-	timer_probe();
-
-	tick_setup_hrtimer_broadcast();
-
-	arch_timer_rate = arch_timer_get_rate();
-	if (!arch_timer_rate)
-		panic("Unable to initialise architected timer.\n");
-
-	/* Calibrate the delay loop directly */
-	lpj_fine = arch_timer_rate / HZ;
-
-	pv_time_init();
+void __init time_init(void) {
+  u32 arch_timer_rate;
+  of_clk_init(NULL);
+  timer_probe();
+  tick_setup_hrtimer_broadcast();
+  arch_timer_rate = arch_timer_get_rate();
+  if (!arch_timer_rate) {
+    panic("Unable to initialise architected timer.\n");
+  }
+  /* Calibrate the delay loop directly */
+  lpj_fine = arch_timer_rate / HZ;
+  pv_time_init();
 }

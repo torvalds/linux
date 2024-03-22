@@ -2,8 +2,6 @@
 #ifndef _LINUX_STDDEF_H
 #define _LINUX_STDDEF_H
 
-
-
 #ifndef __always_inline
 #define __always_inline __inline__
 #endif
@@ -23,11 +21,11 @@
  * The named struct can also be explicitly tagged for layer reuse, as well
  * as both having struct attributes appended.
  */
-#define __struct_group(TAG, NAME, ATTRS, MEMBERS...) \
-	union { \
-		struct { MEMBERS } ATTRS; \
-		struct TAG { MEMBERS } ATTRS NAME; \
-	}
+#define __struct_group(TAG, NAME, ATTRS, MEMBERS ...) \
+  union { \
+    struct { MEMBERS } ATTRS; \
+    struct TAG { MEMBERS } ATTRS NAME; \
+  }
 
 /**
  * __DECLARE_FLEX_ARRAY() - Declare a flexible array usable in a union
@@ -39,9 +37,9 @@
  * struct, it needs to be wrapped in an anonymous struct with at least 1
  * named member, but that member can be empty.
  */
-#define __DECLARE_FLEX_ARRAY(TYPE, NAME)	\
-	struct { \
-		struct { } __empty_ ## NAME; \
-		TYPE NAME[]; \
-	}
+#define __DECLARE_FLEX_ARRAY(TYPE, NAME)  \
+  struct { \
+    struct {} __empty_ ## NAME; \
+    TYPE NAME[]; \
+  }
 #endif

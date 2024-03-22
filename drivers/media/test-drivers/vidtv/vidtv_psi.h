@@ -32,27 +32,28 @@
 #define VIDTV_EIT_PID 0x0012 /*mandated by the specs */
 
 enum vidtv_psi_descriptors {
-	REGISTRATION_DESCRIPTOR	= 0x05, /* See ISO/IEC 13818-1 section 2.6.8 */
-	NETWORK_NAME_DESCRIPTOR = 0x40, /* See ETSI EN 300 468 section 6.2.27 */
-	SERVICE_LIST_DESCRIPTOR = 0x41, /* See ETSI EN 300 468 section 6.2.35 */
-	SERVICE_DESCRIPTOR = 0x48, /* See ETSI EN 300 468 section 6.2.33 */
-	SHORT_EVENT_DESCRIPTOR = 0x4d, /* See ETSI EN 300 468 section 6.2.37 */
+  REGISTRATION_DESCRIPTOR = 0x05, /* See ISO/IEC 13818-1 section 2.6.8 */
+  NETWORK_NAME_DESCRIPTOR = 0x40, /* See ETSI EN 300 468 section 6.2.27 */
+  SERVICE_LIST_DESCRIPTOR = 0x41, /* See ETSI EN 300 468 section 6.2.35 */
+  SERVICE_DESCRIPTOR = 0x48, /* See ETSI EN 300 468 section 6.2.33 */
+  SHORT_EVENT_DESCRIPTOR = 0x4d, /* See ETSI EN 300 468 section 6.2.37 */
 };
 
 enum vidtv_psi_stream_types {
-	STREAM_PRIVATE_DATA = 0x06, /* see ISO/IEC 13818-1 2000 p. 48 */
+  STREAM_PRIVATE_DATA = 0x06, /* see ISO/IEC 13818-1 2000 p. 48 */
 };
 
 /*
  * struct vidtv_psi_desc - A generic PSI descriptor type.
- * The descriptor length is an 8-bit field specifying the total number of bytes of the data portion
+ * The descriptor length is an 8-bit field specifying the total number of bytes
+ *of the data portion
  * of the descriptor following the byte defining the value of this field.
  */
 struct vidtv_psi_desc {
-	struct vidtv_psi_desc *next;
-	u8 type;
-	u8 length;
-	u8 data[];
+  struct vidtv_psi_desc *next;
+  u8 type;
+  u8 length;
+  u8 data[];
 } __packed;
 
 /*
@@ -60,15 +61,15 @@ struct vidtv_psi_desc {
  * See ETSI EN 300 468 section 6.2.33.
  */
 struct vidtv_psi_desc_service {
-	struct vidtv_psi_desc *next;
-	u8 type;
-	u8 length;
+  struct vidtv_psi_desc *next;
+  u8 type;
+  u8 length;
 
-	u8 service_type;
-	u8 provider_name_len;
-	char *provider_name;
-	u8 service_name_len;
-	char *service_name;
+  u8 service_type;
+  u8 provider_name_len;
+  char *provider_name;
+  u8 service_name_len;
+  char *service_name;
 } __packed;
 
 /*
@@ -76,21 +77,21 @@ struct vidtv_psi_desc_service {
  * See ISO/IEC 13818-1 section 2.6.8
  */
 struct vidtv_psi_desc_registration {
-	struct vidtv_psi_desc *next;
-	u8 type;
-	u8 length;
+  struct vidtv_psi_desc *next;
+  u8 type;
+  u8 length;
 
-	/*
-	 * The format_identifier is a 32-bit value obtained from a Registration
-	 * Authority as designated by ISO/IEC JTC 1/SC 29.
-	 */
-	__be32 format_id;
-	/*
-	 * The meaning of additional_identification_info bytes, if any, are
-	 * defined by the assignee of that format_identifier, and once defined
-	 * they shall not change.
-	 */
-	u8 additional_identification_info[];
+  /*
+   * The format_identifier is a 32-bit value obtained from a Registration
+   * Authority as designated by ISO/IEC JTC 1/SC 29.
+   */
+  __be32 format_id;
+  /*
+   * The meaning of additional_identification_info bytes, if any, are
+   * defined by the assignee of that format_identifier, and once defined
+   * they shall not change.
+   */
+  u8 additional_identification_info[];
 } __packed;
 
 /*
@@ -98,16 +99,16 @@ struct vidtv_psi_desc_registration {
  * see ETSI EN 300 468 v1.15.1 section 6.2.27
  */
 struct vidtv_psi_desc_network_name {
-	struct vidtv_psi_desc *next;
-	u8 type;
-	u8 length;
-	char *network_name;
+  struct vidtv_psi_desc *next;
+  u8 type;
+  u8 length;
+  char *network_name;
 } __packed;
 
 struct vidtv_psi_desc_service_list_entry {
-	__be16 service_id;
-	u8 service_type;
-	struct vidtv_psi_desc_service_list_entry *next;
+  __be16 service_id;
+  u8 service_type;
+  struct vidtv_psi_desc_service_list_entry *next;
 } __packed;
 
 /*
@@ -115,10 +116,10 @@ struct vidtv_psi_desc_service_list_entry {
  * see ETSI EN 300 468 v1.15.1 section 6.2.35
  */
 struct vidtv_psi_desc_service_list {
-	struct vidtv_psi_desc *next;
-	u8 type;
-	u8 length;
-	struct vidtv_psi_desc_service_list_entry *service_list;
+  struct vidtv_psi_desc *next;
+  u8 type;
+  u8 length;
+  struct vidtv_psi_desc_service_list_entry *service_list;
 } __packed;
 
 /*
@@ -126,36 +127,36 @@ struct vidtv_psi_desc_service_list {
  * see ETSI EN 300 468 v1.15.1 section 6.2.37
  */
 struct vidtv_psi_desc_short_event {
-	struct vidtv_psi_desc *next;
-	u8 type;
-	u8 length;
-	char *iso_language_code;
-	u8 event_name_len;
-	char *event_name;
-	u8 text_len;
-	char *text;
+  struct vidtv_psi_desc *next;
+  u8 type;
+  u8 length;
+  char *iso_language_code;
+  u8 event_name_len;
+  char *event_name;
+  u8 text_len;
+  char *text;
 } __packed;
 
 struct vidtv_psi_desc_short_event
 *vidtv_psi_short_event_desc_init(struct vidtv_psi_desc *head,
-				 char *iso_language_code,
-				 char *event_name,
-				 char *text);
+    char *iso_language_code,
+    char *event_name,
+    char *text);
 
 /*
  * struct vidtv_psi_table_header - A header that is present for all PSI tables.
  */
 struct vidtv_psi_table_header {
-	u8  table_id;
+  u8 table_id;
 
-	__be16 bitfield; /* syntax: 1, zero: 1, one: 2, section_length: 13 */
+  __be16 bitfield; /* syntax: 1, zero: 1, one: 2, section_length: 13 */
 
-	__be16 id; /* TS ID */
-	u8  current_next:1;
-	u8  version:5;
-	u8  one2:2;
-	u8  section_id;	/* section_number */
-	u8  last_section; /* last_section_number */
+  __be16 id; /* TS ID */
+  u8 current_next : 1;
+  u8 version : 5;
+  u8 one2 : 2;
+  u8 section_id; /* section_number */
+  u8 last_section; /* last_section_number */
 } __packed;
 
 /*
@@ -163,9 +164,9 @@ struct vidtv_psi_table_header {
  * See ISO/IEC 13818-1 : 2000 p.43
  */
 struct vidtv_psi_table_pat_program {
-	__be16 service_id;
-	__be16 bitfield; /* reserved: 3, program_map_pid/network_pid: 13 */
-	struct vidtv_psi_table_pat_program *next;
+  __be16 service_id;
+  __be16 bitfield; /* reserved: 3, program_map_pid/network_pid: 13 */
+  struct vidtv_psi_table_pat_program *next;
 } __packed;
 
 /*
@@ -173,10 +174,10 @@ struct vidtv_psi_table_pat_program {
  * See ISO/IEC 13818-1 : 2000 p.43
  */
 struct vidtv_psi_table_pat {
-	struct vidtv_psi_table_header header;
-	u16 num_pat;
-	u16 num_pmt;
-	struct vidtv_psi_table_pat_program *program;
+  struct vidtv_psi_table_header header;
+  u16 num_pat;
+  u16 num_pmt;
+  struct vidtv_psi_table_pat_program *program;
 } __packed;
 
 /*
@@ -184,13 +185,13 @@ struct vidtv_psi_table_pat {
  * see ETSI EN 300 468 v1.15.1 section 5.2.3.
  */
 struct vidtv_psi_table_sdt_service {
-	__be16 service_id;
-	u8 EIT_present_following:1;
-	u8 EIT_schedule:1;
-	u8 reserved:6;
-	__be16 bitfield; /* running_status: 3, free_ca:1, desc_loop_len:12 */
-	struct vidtv_psi_desc *descriptor;
-	struct vidtv_psi_table_sdt_service *next;
+  __be16 service_id;
+  u8 EIT_present_following : 1;
+  u8 EIT_schedule : 1;
+  u8 reserved : 6;
+  __be16 bitfield; /* running_status: 3, free_ca:1, desc_loop_len:12 */
+  struct vidtv_psi_desc *descriptor;
+  struct vidtv_psi_table_sdt_service *next;
 } __packed;
 
 /*
@@ -199,10 +200,10 @@ struct vidtv_psi_table_sdt_service {
  */
 
 struct vidtv_psi_table_sdt {
-	struct vidtv_psi_table_header header;
-	__be16 network_id; /* original_network_id */
-	u8  reserved;
-	struct vidtv_psi_table_sdt_service *service;
+  struct vidtv_psi_table_header header;
+  __be16 network_id; /* original_network_id */
+  u8 reserved;
+  struct vidtv_psi_table_sdt_service *service;
 } __packed;
 
 /*
@@ -210,7 +211,7 @@ struct vidtv_psi_table_sdt {
  * see ETSI EN 300 468 v1.15.1 section 5.2.3 table 6.
  */
 enum service_running_status {
-	RUNNING = 0x4,
+  RUNNING = 0x4,
 };
 
 /*
@@ -218,9 +219,9 @@ enum service_running_status {
  * see ETSI EN 300 468 v1.15.1 section 6.2.33, table 81.
  */
 enum service_type {
-	/* see ETSI EN 300 468 v1.15.1 p. 77 */
-	DIGITAL_TELEVISION_SERVICE = 0x1,
-	DIGITAL_RADIO_SOUND_SERVICE = 0X2,
+  /* see ETSI EN 300 468 v1.15.1 p. 77 */
+  DIGITAL_TELEVISION_SERVICE = 0x1,
+  DIGITAL_RADIO_SOUND_SERVICE = 0X2,
 };
 
 /*
@@ -228,11 +229,11 @@ enum service_type {
  * See ISO/IEC 13818-1 : 2000 p.46.
  */
 struct vidtv_psi_table_pmt_stream {
-	u8 type;
-	__be16 bitfield; /* reserved: 3, elementary_pid: 13 */
-	__be16 bitfield2; /*reserved: 4, zero: 2, desc_length: 10 */
-	struct vidtv_psi_desc *descriptor;
-	struct vidtv_psi_table_pmt_stream *next;
+  u8 type;
+  __be16 bitfield; /* reserved: 3, elementary_pid: 13 */
+  __be16 bitfield2; /*reserved: 4, zero: 2, desc_length: 10 */
+  struct vidtv_psi_desc *descriptor;
+  struct vidtv_psi_table_pmt_stream *next;
 } __packed;
 
 /*
@@ -240,11 +241,11 @@ struct vidtv_psi_table_pmt_stream {
  * See ISO/IEC 13818-1 : 2000 p.46.
  */
 struct vidtv_psi_table_pmt {
-	struct vidtv_psi_table_header header;
-	__be16 bitfield; /* reserved:3, pcr_pid: 13 */
-	__be16 bitfield2; /* reserved: 4, zero: 2, desc_len: 10 */
-	struct vidtv_psi_desc *descriptor;
-	struct vidtv_psi_table_pmt_stream *stream;
+  struct vidtv_psi_table_header header;
+  __be16 bitfield; /* reserved:3, pcr_pid: 13 */
+  __be16 bitfield2; /* reserved: 4, zero: 2, desc_len: 10 */
+  struct vidtv_psi_desc *descriptor;
+  struct vidtv_psi_table_pmt_stream *stream;
 } __packed;
 
 /**
@@ -261,16 +262,16 @@ struct vidtv_psi_table_pmt {
  * @crc: a pointer to store the crc for this chunk
  */
 struct psi_write_args {
-	void *dest_buf;
-	void *from;
-	size_t len;
-	u32 dest_offset;
-	u16 pid;
-	bool new_psi_section;
-	u8 *continuity_counter;
-	bool is_crc;
-	u32 dest_buf_sz;
-	u32 *crc;
+  void *dest_buf;
+  void *from;
+  size_t len;
+  u32 dest_offset;
+  u16 pid;
+  bool new_psi_section;
+  u8 *continuity_counter;
+  bool is_crc;
+  u32 dest_buf_sz;
+  u32 *crc;
 };
 
 /**
@@ -284,13 +285,13 @@ struct psi_write_args {
  * @crc: a pointer to store the crc for this chunk
  */
 struct desc_write_args {
-	void *dest_buf;
-	u32 dest_offset;
-	struct vidtv_psi_desc *desc;
-	u16 pid;
-	u8 *continuity_counter;
-	u32 dest_buf_sz;
-	u32 *crc;
+  void *dest_buf;
+  u32 dest_offset;
+  struct vidtv_psi_desc *desc;
+  u16 pid;
+  u8 *continuity_counter;
+  u32 dest_buf_sz;
+  u32 *crc;
 };
 
 /**
@@ -304,12 +305,12 @@ struct desc_write_args {
  * @dest_buf_sz: The size of the dest_buffer
  */
 struct crc32_write_args {
-	void *dest_buf;
-	u32 dest_offset;
-	__be32 crc;
-	u16 pid;
-	u8 *continuity_counter;
-	u32 dest_buf_sz;
+  void *dest_buf;
+  u32 dest_offset;
+  __be32 crc;
+  u16 pid;
+  u8 *continuity_counter;
+  u32 dest_buf_sz;
 };
 
 /**
@@ -324,77 +325,72 @@ struct crc32_write_args {
  * @crc: a pointer to store the crc for this chunk
  */
 struct header_write_args {
-	void *dest_buf;
-	u32 dest_offset;
-	struct vidtv_psi_table_header *h;
-	u16 pid;
-	u8 *continuity_counter;
-	u32 dest_buf_sz;
-	u32 *crc;
+  void *dest_buf;
+  u32 dest_offset;
+  struct vidtv_psi_table_header *h;
+  u16 pid;
+  u8 *continuity_counter;
+  u32 dest_buf_sz;
+  u32 *crc;
 };
 
-struct vidtv_psi_desc_service *vidtv_psi_service_desc_init(struct vidtv_psi_desc *head,
-							   enum service_type service_type,
-							   char *service_name,
-							   char *provider_name);
+struct vidtv_psi_desc_service *vidtv_psi_service_desc_init(
+  struct vidtv_psi_desc *head,
+  enum service_type service_type,
+  char *service_name,
+  char *provider_name);
 
 struct vidtv_psi_desc_registration
 *vidtv_psi_registration_desc_init(struct vidtv_psi_desc *head,
-				  __be32 format_id,
-				  u8 *additional_ident_info,
-				  u32 additional_info_len);
+    __be32 format_id,
+    u8 *additional_ident_info,
+    u32 additional_info_len);
 
 struct vidtv_psi_desc_network_name
-*vidtv_psi_network_name_desc_init(struct vidtv_psi_desc *head, char *network_name);
+*vidtv_psi_network_name_desc_init(struct vidtv_psi_desc *head,
+    char *network_name);
 
 struct vidtv_psi_desc_service_list
 *vidtv_psi_service_list_desc_init(struct vidtv_psi_desc *head,
-				  struct vidtv_psi_desc_service_list_entry *entry);
+    struct vidtv_psi_desc_service_list_entry *entry);
 
 struct vidtv_psi_table_pat_program
 *vidtv_psi_pat_program_init(struct vidtv_psi_table_pat_program *head,
-			    u16 service_id,
-			    u16 program_map_pid);
+    u16 service_id,
+    u16 program_map_pid);
 
-struct vidtv_psi_table_pmt_stream*
-vidtv_psi_pmt_stream_init(struct vidtv_psi_table_pmt_stream *head,
-			  enum vidtv_psi_stream_types stream_type,
-			  u16 es_pid);
+struct vidtv_psi_table_pmt_stream *vidtv_psi_pmt_stream_init(
+  struct vidtv_psi_table_pmt_stream *head,
+  enum vidtv_psi_stream_types stream_type,
+  u16 es_pid);
 
 struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id);
 
 struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
-						     u16 pcr_pid);
+    u16 pcr_pid);
 
 struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 network_id,
-						     u16 transport_stream_id);
+    u16 transport_stream_id);
 
-struct vidtv_psi_table_sdt_service*
-vidtv_psi_sdt_service_init(struct vidtv_psi_table_sdt_service *head,
-			   u16 service_id,
-			   bool eit_schedule,
-			   bool eit_present_following);
+struct vidtv_psi_table_sdt_service *vidtv_psi_sdt_service_init(
+  struct vidtv_psi_table_sdt_service *head,
+  u16 service_id,
+  bool eit_schedule,
+  bool eit_present_following);
 
-void
-vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc);
+void vidtv_psi_desc_destroy(struct vidtv_psi_desc *desc);
 
-void
-vidtv_psi_pat_program_destroy(struct vidtv_psi_table_pat_program *p);
+void vidtv_psi_pat_program_destroy(struct vidtv_psi_table_pat_program *p);
 
-void
-vidtv_psi_pat_table_destroy(struct vidtv_psi_table_pat *p);
+void vidtv_psi_pat_table_destroy(struct vidtv_psi_table_pat *p);
 
-void
-vidtv_psi_pmt_stream_destroy(struct vidtv_psi_table_pmt_stream *s);
+void vidtv_psi_pmt_stream_destroy(struct vidtv_psi_table_pmt_stream *s);
 
-void
-vidtv_psi_pmt_table_destroy(struct vidtv_psi_table_pmt *pmt);
+void vidtv_psi_pmt_table_destroy(struct vidtv_psi_table_pmt *pmt);
 
-void
-vidtv_psi_sdt_table_destroy(struct vidtv_psi_table_sdt *sdt);
+void vidtv_psi_sdt_table_destroy(struct vidtv_psi_table_sdt *sdt);
 
-void
-vidtv_psi_sdt_service_destroy(struct vidtv_psi_table_sdt_service *service);
+void vidtv_psi_sdt_service_destroy(struct vidtv_psi_table_sdt_service *service);
 
 /**
  * vidtv_psi_sdt_service_assign - Assigns the service loop to the SDT.
@@ -405,9 +401,8 @@ vidtv_psi_sdt_service_destroy(struct vidtv_psi_table_sdt_service *service);
  * This will assign ownership of the service loop to the table, i.e. the table
  * will free this service loop when a call to its destroy function is made.
  */
-void
-vidtv_psi_sdt_service_assign(struct vidtv_psi_table_sdt *sdt,
-			     struct vidtv_psi_table_sdt_service *service);
+void vidtv_psi_sdt_service_assign(struct vidtv_psi_table_sdt *sdt,
+    struct vidtv_psi_table_sdt_service *service);
 
 /**
  * vidtv_psi_desc_assign - Assigns a descriptor loop at some point
@@ -417,10 +412,11 @@ vidtv_psi_sdt_service_assign(struct vidtv_psi_table_sdt *sdt,
  * This will free the loop in 'to', if any.
  */
 void vidtv_psi_desc_assign(struct vidtv_psi_desc **to,
-			   struct vidtv_psi_desc *desc);
+    struct vidtv_psi_desc *desc);
 
 /**
- * vidtv_pmt_desc_assign - Assigns a descriptor loop at some point in a PMT section.
+ * vidtv_pmt_desc_assign - Assigns a descriptor loop at some point in a PMT
+ *section.
  * @pmt: The PMT section that will contain the descriptor loop
  * @to: Where in the PMT to assign this descriptor loop to
  * @desc: The descriptor loop that will be assigned.
@@ -430,8 +426,8 @@ void vidtv_psi_desc_assign(struct vidtv_psi_desc **to,
  * will free this loop when a call to its destroy function is made.
  */
 void vidtv_pmt_desc_assign(struct vidtv_psi_table_pmt *pmt,
-			   struct vidtv_psi_desc **to,
-			   struct vidtv_psi_desc *desc);
+    struct vidtv_psi_desc **to,
+    struct vidtv_psi_desc *desc);
 
 /**
  * vidtv_sdt_desc_assign - Assigns a descriptor loop at some point in a SDT.
@@ -444,8 +440,8 @@ void vidtv_pmt_desc_assign(struct vidtv_psi_table_pmt *pmt,
  * will free this loop when a call to its destroy function is made.
  */
 void vidtv_sdt_desc_assign(struct vidtv_psi_table_sdt *sdt,
-			   struct vidtv_psi_desc **to,
-			   struct vidtv_psi_desc *desc);
+    struct vidtv_psi_desc **to,
+    struct vidtv_psi_desc *desc);
 
 /**
  * vidtv_psi_pat_program_assign - Assigns the program loop to the PAT.
@@ -457,7 +453,7 @@ void vidtv_sdt_desc_assign(struct vidtv_psi_table_sdt *sdt,
  * will free this program loop when a call to its destroy function is made.
  */
 void vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
-				  struct vidtv_psi_table_pat_program *p);
+    struct vidtv_psi_table_pat_program *p);
 
 /**
  * vidtv_psi_pmt_stream_assign - Assigns the stream loop to the PAT.
@@ -469,7 +465,7 @@ void vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
  * will free this stream loop when a call to its destroy function is made.
  */
 void vidtv_psi_pmt_stream_assign(struct vidtv_psi_table_pmt *pmt,
-				 struct vidtv_psi_table_pmt_stream *s);
+    struct vidtv_psi_table_pmt_stream *s);
 
 struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc);
 
@@ -480,8 +476,8 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc);
  * @pcr_pid: packet ID for the PCR to be used for the program described in this
  * PMT section
  */
-struct vidtv_psi_table_pmt**
-vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat, u16 pcr_pid);
+struct vidtv_psi_table_pmt **vidtv_psi_pmt_create_sec_for_each_pat_entry(
+  struct vidtv_psi_table_pat *pat, u16 pcr_pid);
 
 /**
  * vidtv_psi_pmt_get_pid - Get the TS PID for a PMT section.
@@ -491,10 +487,11 @@ vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat, u16
  * Returns: the TS PID for 'section'
  */
 u16 vidtv_psi_pmt_get_pid(struct vidtv_psi_table_pmt *section,
-			  struct vidtv_psi_table_pat *pat);
+    struct vidtv_psi_table_pat *pat);
 
 /**
- * vidtv_psi_pat_table_update_sec_len - Recompute and update the PAT section length.
+ * vidtv_psi_pat_table_update_sec_len - Recompute and update the PAT section
+ *length.
  * @pat: The PAT whose length is to be updated.
  *
  * This will traverse the table and accumulate the length of its components,
@@ -505,7 +502,8 @@ u16 vidtv_psi_pmt_get_pid(struct vidtv_psi_table_pmt *section,
 void vidtv_psi_pat_table_update_sec_len(struct vidtv_psi_table_pat *pat);
 
 /**
- * vidtv_psi_pmt_table_update_sec_len - Recompute and update the PMT section length.
+ * vidtv_psi_pmt_table_update_sec_len - Recompute and update the PMT section
+ *length.
  * @pmt: The PMT whose length is to be updated.
  *
  * This will traverse the table and accumulate the length of its components,
@@ -516,7 +514,8 @@ void vidtv_psi_pat_table_update_sec_len(struct vidtv_psi_table_pat *pat);
 void vidtv_psi_pmt_table_update_sec_len(struct vidtv_psi_table_pmt *pmt);
 
 /**
- * vidtv_psi_sdt_table_update_sec_len - Recompute and update the SDT section length.
+ * vidtv_psi_sdt_table_update_sec_len - Recompute and update the SDT section
+ *length.
  * @sdt: The SDT whose length is to be updated.
  *
  * This will traverse the table and accumulate the length of its components,
@@ -536,11 +535,11 @@ void vidtv_psi_sdt_table_update_sec_len(struct vidtv_psi_table_sdt *sdt);
  *
  */
 struct vidtv_psi_pat_write_args {
-	char *buf;
-	u32 offset;
-	struct vidtv_psi_table_pat *pat;
-	u32 buf_sz;
-	u8 *continuity_counter;
+  char *buf;
+  u32 offset;
+  struct vidtv_psi_table_pat *pat;
+  u32 buf_sz;
+  u8 *continuity_counter;
 };
 
 /**
@@ -552,7 +551,8 @@ struct vidtv_psi_pat_write_args {
  * and thus is responsible for freeing it.
  *
  * Return: The number of bytes written into the buffer. This is NOT
- * equal to the size of the PAT, since more space is needed for TS headers during TS
+ * equal to the size of the PAT, since more space is needed for TS headers
+ *during TS
  * encapsulation.
  */
 u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args *args);
@@ -568,11 +568,11 @@ u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args *args);
  */
 
 struct vidtv_psi_sdt_write_args {
-	char *buf;
-	u32 offset;
-	struct vidtv_psi_table_sdt *sdt;
-	u32 buf_sz;
-	u8 *continuity_counter;
+  char *buf;
+  u32 offset;
+  struct vidtv_psi_table_sdt *sdt;
+  u32 buf_sz;
+  u8 *continuity_counter;
 };
 
 /**
@@ -584,7 +584,8 @@ struct vidtv_psi_sdt_write_args {
  * and thus is responsible for freeing it.
  *
  * Return: The number of bytes written into the buffer. This is NOT
- * equal to the size of the SDT, since more space is needed for TS headers during TS
+ * equal to the size of the SDT, since more space is needed for TS headers
+ *during TS
  * encapsulation.
  */
 u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args *args);
@@ -601,13 +602,13 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args *args);
  * same PCR.
  */
 struct vidtv_psi_pmt_write_args {
-	char *buf;
-	u32 offset;
-	struct vidtv_psi_table_pmt *pmt;
-	u16 pid;
-	u32 buf_sz;
-	u8 *continuity_counter;
-	u16 pcr_pid;
+  char *buf;
+  u32 offset;
+  struct vidtv_psi_table_pmt *pmt;
+  u16 pid;
+  u32 buf_sz;
+  u8 *continuity_counter;
+  u16 pcr_pid;
 };
 
 /**
@@ -615,11 +616,13 @@ struct vidtv_psi_pmt_write_args {
  * @args: an instance of struct vidtv_psi_pmt_write_args
  *
  * This function writes the MPEG TS packets for a PMT section into a buffer.
- * Calling code will usually generate the PMT section via a call to its init function
+ * Calling code will usually generate the PMT section via a call to its init
+ *function
  * and thus is responsible for freeing it.
  *
  * Return: The number of bytes written into the buffer. This is NOT
- * equal to the size of the PMT section, since more space is needed for TS headers
+ * equal to the size of the PMT section, since more space is needed for TS
+ *headers
  * during TS encapsulation.
  */
 u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args *args);
@@ -632,15 +635,17 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args *args);
  *
  * Return: A pointer to the PMT, if found, or NULL.
  */
-struct vidtv_psi_table_pmt *vidtv_psi_find_pmt_sec(struct vidtv_psi_table_pmt **pmt_sections,
-						   u16 nsections,
-						   u16 program_num);
+struct vidtv_psi_table_pmt *vidtv_psi_find_pmt_sec(
+  struct vidtv_psi_table_pmt **pmt_sections,
+  u16 nsections,
+  u16 program_num);
 
 u16 vidtv_psi_get_pat_program_pid(struct vidtv_psi_table_pat_program *p);
 u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *s);
 
 /**
- * struct vidtv_psi_table_transport - A entry in the TS loop for the NIT and/or other tables.
+ * struct vidtv_psi_table_transport - A entry in the TS loop for the NIT and/or
+ *other tables.
  * See ETSI 300 468 section 5.2.1
  * @transport_id: The TS ID being described
  * @network_id: The network_id that contains the TS ID
@@ -650,11 +655,11 @@ u16 vidtv_psi_pmt_stream_get_elem_pid(struct vidtv_psi_table_pmt_stream *s);
  *
  */
 struct vidtv_psi_table_transport {
-	__be16 transport_id;
-	__be16 network_id;
-	__be16 bitfield; /* desc_len: 12, reserved: 4 */
-	struct vidtv_psi_desc *descriptor;
-	struct vidtv_psi_table_transport *next;
+  __be16 transport_id;
+  __be16 network_id;
+  __be16 bitfield; /* desc_len: 12, reserved: 4 */
+  struct vidtv_psi_desc *descriptor;
+  struct vidtv_psi_table_transport *next;
 } __packed;
 
 /**
@@ -668,18 +673,18 @@ struct vidtv_psi_table_transport {
  *
  */
 struct vidtv_psi_table_nit {
-	struct vidtv_psi_table_header header;
-	__be16 bitfield; /* network_desc_len: 12, reserved:4 */
-	struct vidtv_psi_desc *descriptor;
-	__be16 bitfield2; /* ts_loop_len: 12, reserved: 4 */
-	struct vidtv_psi_table_transport *transport;
+  struct vidtv_psi_table_header header;
+  __be16 bitfield; /* network_desc_len: 12, reserved:4 */
+  struct vidtv_psi_desc *descriptor;
+  __be16 bitfield2; /* ts_loop_len: 12, reserved: 4 */
+  struct vidtv_psi_table_transport *transport;
 } __packed;
 
 struct vidtv_psi_table_nit
 *vidtv_psi_nit_table_init(u16 network_id,
-			  u16 transport_stream_id,
-			  char *network_name,
-			  struct vidtv_psi_desc_service_list_entry *service_list);
+    u16 transport_stream_id,
+    char *network_name,
+    struct vidtv_psi_desc_service_list_entry *service_list);
 
 /**
  * struct vidtv_psi_nit_write_args - Arguments for writing a NIT section
@@ -691,11 +696,11 @@ struct vidtv_psi_table_nit
  *
  */
 struct vidtv_psi_nit_write_args {
-	char *buf;
-	u32 offset;
-	struct vidtv_psi_table_nit *nit;
-	u32 buf_sz;
-	u8 *continuity_counter;
+  char *buf;
+  u32 offset;
+  struct vidtv_psi_table_nit *nit;
+  u32 buf_sz;
+  u8 *continuity_counter;
 };
 
 /**
@@ -707,7 +712,8 @@ struct vidtv_psi_nit_write_args {
  * and thus is responsible for freeing it.
  *
  * Return: The number of bytes written into the buffer. This is NOT
- * equal to the size of the NIT, since more space is needed for TS headers during TS
+ * equal to the size of the NIT, since more space is needed for TS headers
+ *during TS
  * encapsulation.
  */
 u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args *args);
@@ -719,12 +725,12 @@ void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit);
  * see ETSI EN 300 468 v1.15.1 section 6.2.37
  */
 struct vidtv_psi_table_eit_event {
-	__be16 event_id;
-	u8 start_time[5];
-	u8 duration[3];
-	__be16 bitfield; /* desc_length: 12, free_CA_mode: 1, running_status: 1 */
-	struct vidtv_psi_desc *descriptor;
-	struct vidtv_psi_table_eit_event *next;
+  __be16 event_id;
+  u8 start_time[5];
+  u8 duration[3];
+  __be16 bitfield; /* desc_length: 12, free_CA_mode: 1, running_status: 1 */
+  struct vidtv_psi_desc *descriptor;
+  struct vidtv_psi_table_eit_event *next;
 } __packed;
 
 /*
@@ -732,18 +738,18 @@ struct vidtv_psi_table_eit_event {
  * See ETSI 300 468 section 5.2.4
  */
 struct vidtv_psi_table_eit {
-	struct vidtv_psi_table_header header;
-	__be16 transport_id;
-	__be16 network_id;
-	u8 last_segment;
-	u8 last_table_id;
-	struct vidtv_psi_table_eit_event *event;
+  struct vidtv_psi_table_header header;
+  __be16 transport_id;
+  __be16 network_id;
+  u8 last_segment;
+  u8 last_table_id;
+  struct vidtv_psi_table_eit_event *event;
 } __packed;
 
 struct vidtv_psi_table_eit
 *vidtv_psi_eit_table_init(u16 network_id,
-			  u16 transport_stream_id,
-			  __be16 service_id);
+    u16 transport_stream_id,
+    __be16 service_id);
 
 /**
  * struct vidtv_psi_eit_write_args - Arguments for writing an EIT section
@@ -755,11 +761,11 @@ struct vidtv_psi_table_eit
  *
  */
 struct vidtv_psi_eit_write_args {
-	char *buf;
-	u32 offset;
-	struct vidtv_psi_table_eit *eit;
-	u32 buf_sz;
-	u8 *continuity_counter;
+  char *buf;
+  u32 offset;
+  struct vidtv_psi_table_eit *eit;
+  u32 buf_sz;
+  u8 *continuity_counter;
 };
 
 /**
@@ -771,7 +777,8 @@ struct vidtv_psi_eit_write_args {
  * and thus is responsible for freeing it.
  *
  * Return: The number of bytes written into the buffer. This is NOT
- * equal to the size of the EIT, since more space is needed for TS headers during TS
+ * equal to the size of the EIT, since more space is needed for TS headers
+ *during TS
  * encapsulation.
  */
 u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args *args);
@@ -779,7 +786,8 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args *args);
 void vidtv_psi_eit_table_destroy(struct vidtv_psi_table_eit *eit);
 
 /**
- * vidtv_psi_eit_table_update_sec_len - Recompute and update the EIT section length.
+ * vidtv_psi_eit_table_update_sec_len - Recompute and update the EIT section
+ *length.
  * @eit: The EIT whose length is to be updated.
  *
  * This will traverse the table and accumulate the length of its components,
@@ -799,7 +807,7 @@ void vidtv_psi_eit_table_update_sec_len(struct vidtv_psi_table_eit *eit);
  * will free this stream loop when a call to its destroy function is made.
  */
 void vidtv_psi_eit_event_assign(struct vidtv_psi_table_eit *eit,
-				struct vidtv_psi_table_eit_event *e);
+    struct vidtv_psi_table_eit_event *e);
 
 struct vidtv_psi_table_eit_event
 *vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id);

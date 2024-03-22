@@ -18,9 +18,9 @@
  * more info, see errata advisory 2.1.87. We leave bit 18 out of
  * function-mask in dm814x.h and rely on the bootloader for it.
  */
-#define INPUT_EN		(1 << 18)
-#define PULL_UP			(1 << 17)
-#define PULL_DISABLE		(1 << 16)
+#define INPUT_EN    (1 << 18)
+#define PULL_UP     (1 << 17)
+#define PULL_DISABLE    (1 << 16)
 
 /* update macro depending on INPUT_EN and PULL_ENA */
 #undef PIN_OUTPUT
@@ -30,12 +30,12 @@
 #undef PIN_INPUT_PULLUP
 #undef PIN_INPUT_PULLDOWN
 
-#define PIN_OUTPUT		(PULL_DISABLE)
-#define PIN_OUTPUT_PULLUP	(PULL_UP)
-#define PIN_OUTPUT_PULLDOWN	0
-#define PIN_INPUT		(INPUT_EN | PULL_DISABLE)
-#define PIN_INPUT_PULLUP	(INPUT_EN | PULL_UP)
-#define PIN_INPUT_PULLDOWN	(INPUT_EN)
+#define PIN_OUTPUT    (PULL_DISABLE)
+#define PIN_OUTPUT_PULLUP (PULL_UP)
+#define PIN_OUTPUT_PULLDOWN 0
+#define PIN_INPUT   (INPUT_EN | PULL_DISABLE)
+#define PIN_INPUT_PULLUP  (INPUT_EN | PULL_UP)
+#define PIN_INPUT_PULLDOWN  (INPUT_EN)
 
 /* undef non-existing modes */
 #undef PIN_OFF_NONE
@@ -46,4 +46,3 @@
 #undef PIN_OFF_WAKEUPENABLE
 
 #endif
-

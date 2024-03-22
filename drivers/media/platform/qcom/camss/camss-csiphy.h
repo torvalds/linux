@@ -22,75 +22,75 @@
 #define MSM_CSIPHY_PADS_NUM 2
 
 struct csiphy_lane {
-	u8 pos;
-	u8 pol;
+  u8 pos;
+  u8 pol;
 };
 
 struct csiphy_lanes_cfg {
-	int num_data;
-	struct csiphy_lane *data;
-	struct csiphy_lane clk;
+  int num_data;
+  struct csiphy_lane *data;
+  struct csiphy_lane clk;
 };
 
 struct csiphy_csi2_cfg {
-	struct csiphy_lanes_cfg lane_cfg;
+  struct csiphy_lanes_cfg lane_cfg;
 };
 
 struct csiphy_config {
-	u8 combo_mode;
-	u8 csid_id;
-	struct csiphy_csi2_cfg *csi2;
+  u8 combo_mode;
+  u8 csid_id;
+  struct csiphy_csi2_cfg *csi2;
 };
 
 struct csiphy_device;
 
 struct csiphy_hw_ops {
-	/*
-	 * csiphy_get_lane_mask - Calculate CSI2 lane mask configuration parameter
-	 * @lane_cfg - CSI2 lane configuration
-	 *
-	 * Return lane mask
-	 */
-	u8 (*get_lane_mask)(struct csiphy_lanes_cfg *lane_cfg);
-	void (*hw_version_read)(struct csiphy_device *csiphy,
-				struct device *dev);
-	void (*reset)(struct csiphy_device *csiphy);
-	void (*lanes_enable)(struct csiphy_device *csiphy,
-			     struct csiphy_config *cfg,
-			     s64 link_freq, u8 lane_mask);
-	void (*lanes_disable)(struct csiphy_device *csiphy,
-			      struct csiphy_config *cfg);
-	irqreturn_t (*isr)(int irq, void *dev);
+  /*
+   * csiphy_get_lane_mask - Calculate CSI2 lane mask configuration parameter
+   * @lane_cfg - CSI2 lane configuration
+   *
+   * Return lane mask
+   */
+  u8 (*get_lane_mask)(struct csiphy_lanes_cfg *lane_cfg);
+  void (*hw_version_read)(struct csiphy_device *csiphy,
+      struct device *dev);
+  void (*reset)(struct csiphy_device *csiphy);
+  void (*lanes_enable)(struct csiphy_device *csiphy,
+      struct csiphy_config *cfg,
+      s64 link_freq, u8 lane_mask);
+  void (*lanes_disable)(struct csiphy_device *csiphy,
+      struct csiphy_config *cfg);
+  irqreturn_t (*isr)(int irq, void *dev);
 };
 
 struct csiphy_device {
-	struct camss *camss;
-	u8 id;
-	struct v4l2_subdev subdev;
-	struct media_pad pads[MSM_CSIPHY_PADS_NUM];
-	void __iomem *base;
-	void __iomem *base_clk_mux;
-	u32 irq;
-	char irq_name[30];
-	struct camss_clock *clock;
-	bool *rate_set;
-	int nclocks;
-	u32 timer_clk_rate;
-	struct csiphy_config cfg;
-	struct v4l2_mbus_framefmt fmt[MSM_CSIPHY_PADS_NUM];
-	const struct csiphy_hw_ops *ops;
-	const struct csiphy_format *formats;
-	unsigned int nformats;
+  struct camss *camss;
+  u8 id;
+  struct v4l2_subdev subdev;
+  struct media_pad pads[MSM_CSIPHY_PADS_NUM];
+  void __iomem *base;
+  void __iomem *base_clk_mux;
+  u32 irq;
+  char irq_name[30];
+  struct camss_clock *clock;
+  bool *rate_set;
+  int nclocks;
+  u32 timer_clk_rate;
+  struct csiphy_config cfg;
+  struct v4l2_mbus_framefmt fmt[MSM_CSIPHY_PADS_NUM];
+  const struct csiphy_hw_ops *ops;
+  const struct csiphy_format *formats;
+  unsigned int nformats;
 };
 
 struct camss_subdev_resources;
 
 int msm_csiphy_subdev_init(struct camss *camss,
-			   struct csiphy_device *csiphy,
-			   const struct camss_subdev_resources *res, u8 id);
+    struct csiphy_device *csiphy,
+    const struct camss_subdev_resources *res, u8 id);
 
 int msm_csiphy_register_entity(struct csiphy_device *csiphy,
-			       struct v4l2_device *v4l2_dev);
+    struct v4l2_device *v4l2_dev);
 
 void msm_csiphy_unregister_entity(struct csiphy_device *csiphy);
 

@@ -22,36 +22,36 @@
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
-	static inline void trace_ ## name(proto) {}
+  static inline void trace_ ## name(proto) {}
 
 #endif /* CONFIG_BATMAN_ADV_TRACING */
 
 TRACE_EVENT(batadv_dbg,
 
-	    TP_PROTO(struct batadv_priv *bat_priv,
-		     struct va_format *vaf),
+    TP_PROTO(struct batadv_priv *bat_priv,
+    struct va_format *vaf),
 
-	    TP_ARGS(bat_priv, vaf),
+    TP_ARGS(bat_priv, vaf),
 
-	    TP_STRUCT__entry(
-		    __string(device, bat_priv->soft_iface->name)
-		    __string(driver, KBUILD_MODNAME)
-		    __vstring(msg, vaf->fmt, vaf->va)
-	    ),
+    TP_STRUCT__entry(
+    __string(device, bat_priv->soft_iface->name)
+    __string(driver, KBUILD_MODNAME)
+    __vstring(msg, vaf->fmt, vaf->va)
+    ),
 
-	    TP_fast_assign(
-		    __assign_str(device, bat_priv->soft_iface->name);
-		    __assign_str(driver, KBUILD_MODNAME);
-		    __assign_vstr(msg, vaf->fmt, vaf->va);
-	    ),
+    TP_fast_assign(
+    __assign_str(device, bat_priv->soft_iface->name);
+    __assign_str(driver, KBUILD_MODNAME);
+    __assign_vstr(msg, vaf->fmt, vaf->va);
+    ),
 
-	    TP_printk(
-		    "%s %s %s",
-		    __get_str(driver),
-		    __get_str(device),
-		    __get_str(msg)
-	    )
-);
+    TP_printk(
+    "%s %s %s",
+    __get_str(driver),
+    __get_str(device),
+    __get_str(msg)
+    )
+    );
 
 #endif /* _NET_BATMAN_ADV_TRACE_H_ || TRACE_HEADER_MULTI_READ */
 

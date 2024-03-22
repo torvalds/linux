@@ -13,27 +13,26 @@
 #define PXA3XX_GCU_BATCH_WORDS   8192
 
 struct pxa3xx_gcu_shared {
-	u32            buffer[PXA3XX_GCU_BUFFER_WORDS];
+  u32 buffer[PXA3XX_GCU_BUFFER_WORDS];
 
-	bool           hw_running;
+  bool hw_running;
 
-	unsigned long  buffer_phys;
+  unsigned long buffer_phys;
 
-	unsigned int   num_words;
-	unsigned int   num_writes;
-	unsigned int   num_done;
-	unsigned int   num_interrupts;
-	unsigned int   num_wait_idle;
-	unsigned int   num_wait_free;
-	unsigned int   num_idle;
+  unsigned int num_words;
+  unsigned int num_writes;
+  unsigned int num_done;
+  unsigned int num_interrupts;
+  unsigned int num_wait_idle;
+  unsigned int num_wait_free;
+  unsigned int num_idle;
 
-	u32            magic;
+  u32 magic;
 };
 
 /* Initialization and synchronization.
- * Hardware is started upon write(). */
-#define PXA3XX_GCU_IOCTL_RESET		_IO('G', 0)
-#define PXA3XX_GCU_IOCTL_WAIT_IDLE	_IO('G', 2)
+* Hardware is started upon write(). */
+#define PXA3XX_GCU_IOCTL_RESET    _IO('G', 0)
+#define PXA3XX_GCU_IOCTL_WAIT_IDLE  _IO('G', 2)
 
 #endif /* __PXA3XX_GCU_H__ */
-

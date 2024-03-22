@@ -9,10 +9,10 @@
 /*
  * Memory in IP30/Octane is offset 512MB in the physical address space.
  */
-#define PHYS_OFFSET	_AC(0x20000000, UL)
+#define PHYS_OFFSET _AC(0x20000000, UL)
 
 #ifdef CONFIG_64BIT
-#define CAC_BASE	_AC(0xA800000000000000, UL)
+#define CAC_BASE  _AC(0xA800000000000000, UL)
 #endif
 
 #include <asm/mach-generic/spaces.h>

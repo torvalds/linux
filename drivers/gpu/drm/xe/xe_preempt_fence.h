@@ -10,22 +10,20 @@
 
 struct list_head;
 
-struct dma_fence *
-xe_preempt_fence_create(struct xe_exec_queue *q,
-			u64 context, u32 seqno);
+struct dma_fence *xe_preempt_fence_create(struct xe_exec_queue *q,
+    u64 context, u32 seqno);
 
 struct xe_preempt_fence *xe_preempt_fence_alloc(void);
 
 void xe_preempt_fence_free(struct xe_preempt_fence *pfence);
 
-struct dma_fence *
-xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
-		     u64 context, u32 seqno);
+struct dma_fence *xe_preempt_fence_arm(struct xe_preempt_fence *pfence,
+    struct xe_exec_queue *q,
+    u64 context, u32 seqno);
 
-static inline struct xe_preempt_fence *
-to_preempt_fence(struct dma_fence *fence)
+static inline struct xe_preempt_fence *to_preempt_fence(struct dma_fence *fence)
 {
-	return container_of(fence, struct xe_preempt_fence, base);
+  return container_of(fence, struct xe_preempt_fence, base);
 }
 
 /**
@@ -38,10 +36,9 @@ to_preempt_fence(struct dma_fence *fence)
  *
  * Return: A pointer to an embedded struct list_head.
  */
-static inline struct list_head *
-xe_preempt_fence_link(struct xe_preempt_fence *pfence)
-{
-	return &pfence->link;
+static inline struct list_head *xe_preempt_fence_link(
+    struct xe_preempt_fence *pfence) {
+  return &pfence->link;
 }
 
 /**
@@ -51,10 +48,9 @@ xe_preempt_fence_link(struct xe_preempt_fence *pfence)
  *
  * Return: A pointer to the embedding struct xe_preempt_fence.
  */
-static inline struct xe_preempt_fence *
-to_preempt_fence_from_link(struct list_head *link)
-{
-	return container_of(link, struct xe_preempt_fence, link);
+static inline struct xe_preempt_fence *to_preempt_fence_from_link(
+    struct list_head *link) {
+  return container_of(link, struct xe_preempt_fence, link);
 }
 
 bool xe_fence_is_xe_preempt(const struct dma_fence *fence);

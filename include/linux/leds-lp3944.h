@@ -18,29 +18,29 @@
 #define LP3944_LED7 7
 #define LP3944_LEDS_MAX 8
 
-#define LP3944_LED_STATUS_MASK	0x03
+#define LP3944_LED_STATUS_MASK  0x03
 enum lp3944_status {
-	LP3944_LED_STATUS_OFF  = 0x0,
-	LP3944_LED_STATUS_ON   = 0x1,
-	LP3944_LED_STATUS_DIM0 = 0x2,
-	LP3944_LED_STATUS_DIM1 = 0x3
+  LP3944_LED_STATUS_OFF = 0x0,
+  LP3944_LED_STATUS_ON = 0x1,
+  LP3944_LED_STATUS_DIM0 = 0x2,
+  LP3944_LED_STATUS_DIM1 = 0x3
 };
 
 enum lp3944_type {
-	LP3944_LED_TYPE_NONE,
-	LP3944_LED_TYPE_LED,
-	LP3944_LED_TYPE_LED_INVERTED,
+  LP3944_LED_TYPE_NONE,
+  LP3944_LED_TYPE_LED,
+  LP3944_LED_TYPE_LED_INVERTED,
 };
 
 struct lp3944_led {
-	char *name;
-	enum lp3944_type type;
-	enum lp3944_status status;
+  char *name;
+  enum lp3944_type type;
+  enum lp3944_status status;
 };
 
 struct lp3944_platform_data {
-	struct lp3944_led leds[LP3944_LEDS_MAX];
-	u8 leds_size;
+  struct lp3944_led leds[LP3944_LEDS_MAX];
+  u8 leds_size;
 };
 
 #endif /* __LINUX_LEDS_LP3944_H */

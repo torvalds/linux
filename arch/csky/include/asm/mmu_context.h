@@ -13,25 +13,22 @@
 #include <linux/sched.h>
 #include <abi/ckmmu.h>
 
-#define ASID_MASK		((1 << CONFIG_CPU_ASID_BITS) - 1)
-#define cpu_asid(mm)		(atomic64_read(&mm->context.asid) & ASID_MASK)
+#define ASID_MASK   ((1 << CONFIG_CPU_ASID_BITS) - 1)
+#define cpu_asid(mm)    (atomic64_read(&mm->context.asid) & ASID_MASK)
 
-#define init_new_context(tsk,mm)	({ atomic64_set(&(mm)->context.asid, 0); 0; })
+#define init_new_context(tsk, \
+      mm)  ({ atomic64_set(&(mm)->context.asid, 0); 0; })
 
 void check_and_switch_context(struct mm_struct *mm, unsigned int cpu);
 
-static inline void
-switch_mm(struct mm_struct *prev, struct mm_struct *next,
-	  struct task_struct *tsk)
-{
-	unsigned int cpu = smp_processor_id();
-
-	if (prev != next)
-		check_and_switch_context(next, cpu);
-
-	setup_pgd(next->pgd, next->context.asid.counter);
-
-	flush_icache_deferred(next);
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+    struct task_struct *tsk) {
+  unsigned int cpu = smp_processor_id();
+  if (prev != next) {
+    check_and_switch_context(next, cpu);
+  }
+  setup_pgd(next->pgd, next->context.asid.counter);
+  flush_icache_deferred(next);
 }
 
 #include <asm-generic/mmu_context.h>

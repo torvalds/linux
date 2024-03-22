@@ -11,25 +11,25 @@
  * the "right shift count >= width of type" warning when that quantity is
  * 32-bits.
  */
-#define upper_32_bits(n) ((u32)(((n) >> 16) >> 16))
+#define upper_32_bits(n) ((u32) (((n) >> 16) >> 16))
 
 /**
  * lower_32_bits - return bits 0-31 of a number
  * @n: the number we're accessing
  */
-#define lower_32_bits(n) ((u32)((n) & 0xffffffff))
+#define lower_32_bits(n) ((u32) ((n) & 0xffffffff))
 
 /**
  * upper_16_bits - return bits 16-31 of a number
  * @n: the number we're accessing
  */
-#define upper_16_bits(n) ((u16)((n) >> 16))
+#define upper_16_bits(n) ((u16) ((n) >> 16))
 
 /**
  * lower_16_bits - return bits 0-15 of a number
  * @n: the number we're accessing
  */
-#define lower_16_bits(n) ((u16)((n) & 0xffff))
+#define lower_16_bits(n) ((u16) ((n) & 0xffff))
 
 /**
  * REPEAT_BYTE - repeat the value @x multiple times as an unsigned long value
@@ -37,6 +37,6 @@
  *
  * NOTE: @x is not checked for > 0xff; larger values produce odd results.
  */
-#define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
+#define REPEAT_BYTE(x)  ((~0ul / 0xff) * (x))
 
 #endif // _LINUX_WORDPART_H

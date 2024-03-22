@@ -34,8 +34,8 @@
 #define VPRBRD_I2C_CMD_READ         0x01
 #define VPRBRD_I2C_CMD_ADDR         0x02
 
-#define VPRBRD_USB_TYPE_OUT	    0x40
-#define VPRBRD_USB_TYPE_IN	    0xc0
+#define VPRBRD_USB_TYPE_OUT     0x40
+#define VPRBRD_USB_TYPE_IN      0xc0
 #define VPRBRD_USB_TIMEOUT_MS       100
 #define VPRBRD_USB_REQUEST_I2C_FREQ 0xe6
 #define VPRBRD_USB_REQUEST_I2C      0xe9
@@ -46,60 +46,60 @@
 #define VPRBRD_USB_REQUEST_GPIOB    0xdd
 
 struct vprbrd_i2c_write_hdr {
-	u8 cmd;
-	u16 addr;
-	u8 len1;
-	u8 len2;
-	u8 last;
-	u8 chan;
-	u16 spi;
+  u8 cmd;
+  u16 addr;
+  u8 len1;
+  u8 len2;
+  u8 last;
+  u8 chan;
+  u16 spi;
 } __packed;
 
 struct vprbrd_i2c_read_hdr {
-	u8 cmd;
-	u16 addr;
-	u8 len0;
-	u8 len1;
-	u8 len2;
-	u8 len3;
-	u8 len4;
-	u8 len5;
-	u16 tf1;                        /* transfer 1 length */
-	u16 tf2;                        /* transfer 2 length */
+  u8 cmd;
+  u16 addr;
+  u8 len0;
+  u8 len1;
+  u8 len2;
+  u8 len3;
+  u8 len4;
+  u8 len5;
+  u16 tf1;                        /* transfer 1 length */
+  u16 tf2;                        /* transfer 2 length */
 } __packed;
 
 struct vprbrd_i2c_status {
-	u8 unknown[11];
-	u8 status;
+  u8 unknown[11];
+  u8 status;
 } __packed;
 
 struct vprbrd_i2c_write_msg {
-	struct vprbrd_i2c_write_hdr header;
-	u8 data[VPRBRD_I2C_MSG_LEN
-		- sizeof(struct vprbrd_i2c_write_hdr)];
+  struct vprbrd_i2c_write_hdr header;
+  u8 data[VPRBRD_I2C_MSG_LEN
+      - sizeof(struct vprbrd_i2c_write_hdr)];
 } __packed;
 
 struct vprbrd_i2c_read_msg {
-	struct vprbrd_i2c_read_hdr header;
-	u8 data[VPRBRD_I2C_MSG_LEN
-		- sizeof(struct vprbrd_i2c_read_hdr)];
+  struct vprbrd_i2c_read_hdr header;
+  u8 data[VPRBRD_I2C_MSG_LEN
+      - sizeof(struct vprbrd_i2c_read_hdr)];
 } __packed;
 
 struct vprbrd_i2c_addr_msg {
-	u8 cmd;
-	u8 addr;
-	u8 unknown1;
-	u16 len;
-	u8 unknown2;
-	u8 unknown3;
+  u8 cmd;
+  u8 addr;
+  u8 unknown1;
+  u16 len;
+  u8 unknown2;
+  u8 unknown3;
 } __packed;
 
 /* Structure to hold all device specific stuff */
 struct vprbrd {
-	struct usb_device *usb_dev; /* the usb device for this device */
-	struct mutex lock;
-	u8 buf[sizeof(struct vprbrd_i2c_write_msg)];
-	struct platform_device pdev;
+  struct usb_device *usb_dev; /* the usb device for this device */
+  struct mutex lock;
+  u8 buf[sizeof(struct vprbrd_i2c_write_msg)];
+  struct platform_device pdev;
 };
 
 #endif /* __MFD_VIPERBOARD_H__ */

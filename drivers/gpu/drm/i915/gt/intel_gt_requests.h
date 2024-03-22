@@ -13,15 +13,14 @@ struct intel_gt;
 struct intel_timeline;
 
 long intel_gt_retire_requests_timeout(struct intel_gt *gt, long timeout,
-				      long *remaining_timeout);
-static inline void intel_gt_retire_requests(struct intel_gt *gt)
-{
-	intel_gt_retire_requests_timeout(gt, 0, NULL);
+    long *remaining_timeout);
+static inline void intel_gt_retire_requests(struct intel_gt *gt) {
+  intel_gt_retire_requests_timeout(gt, 0, NULL);
 }
 
 void intel_engine_init_retire(struct intel_engine_cs *engine);
 void intel_engine_add_retire(struct intel_engine_cs *engine,
-			     struct intel_timeline *tl);
+    struct intel_timeline *tl);
 void intel_engine_fini_retire(struct intel_engine_cs *engine);
 
 void intel_gt_init_requests(struct intel_gt *gt);

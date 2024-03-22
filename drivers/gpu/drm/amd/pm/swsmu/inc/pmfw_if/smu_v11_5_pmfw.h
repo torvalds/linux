@@ -110,13 +110,12 @@ typedef struct {
   uint32_t InWhisperMode        : 1;
   uint32_t spare1               : 16;
   // MP1_EXT_SCRATCH2
-  uint32_t P2JobHandler			: 32;
+  uint32_t P2JobHandler     : 32;
   // MP1_EXT_SCRATCH3: used for postcodes
 
   // MP1_EXT_SCRATCH4:6 are used by Kernel
   // MP1_EXT_SCRATCH7: used by HW
 } FwStatus_t;
-
 
 #pragma pack(pop)
 

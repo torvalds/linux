@@ -26,51 +26,39 @@
 
 volatile char *clock_va;
 
-void sun3_leds(unsigned char byte)
-{
-
+void sun3_leds(unsigned char byte) {
 }
 
-static void sun3x_get_hardware_list(struct seq_file *m)
-{
-	seq_printf(m, "PROM Revision:\t%s\n", romvec->pv_monid);
+static void sun3x_get_hardware_list(struct seq_file *m) {
+  seq_printf(m, "PROM Revision:\t%s\n", romvec->pv_monid);
 }
 
 /*
  *  Setup the sun3x configuration info
  */
-void __init config_sun3x(void)
-{
-
-	sun3x_prom_init();
-
-	mach_sched_init      = sun3x_sched_init;
-	mach_init_IRQ        = sun3_init_IRQ;
-
-	mach_reset           = sun3x_reboot;
-
-	mach_hwclk           = sun3x_hwclk;
-	mach_get_model       = sun3_get_model;
-	mach_get_hardware_list = sun3x_get_hardware_list;
-
-	sun3_intreg = (unsigned char *)SUN3X_INTREG;
-
-	/* only the serial console is known to work anyway... */
+void __init config_sun3x(void) {
+  sun3x_prom_init();
+  mach_sched_init = sun3x_sched_init;
+  mach_init_IRQ = sun3_init_IRQ;
+  mach_reset = sun3x_reboot;
+  mach_hwclk = sun3x_hwclk;
+  mach_get_model = sun3_get_model;
+  mach_get_hardware_list = sun3x_get_hardware_list;
+  sun3_intreg = (unsigned char *) SUN3X_INTREG;
+  /* only the serial console is known to work anyway... */
 #if 0
-	switch (*(unsigned char *)SUN3X_EEPROM_CONS) {
-	case 0x10:
-		serial_console = 1;
-		conswitchp = NULL;
-		break;
-	case 0x11:
-		serial_console = 2;
-		conswitchp = NULL;
-		break;
-	default:
-		serial_console = 0;
-		break;
-	}
+  switch (*(unsigned char *) SUN3X_EEPROM_CONS) {
+    case 0x10:
+      serial_console = 1;
+      conswitchp = NULL;
+      break;
+    case 0x11:
+      serial_console = 2;
+      conswitchp = NULL;
+      break;
+    default:
+      serial_console = 0;
+      break;
+  }
 #endif
-
 }
-

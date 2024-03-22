@@ -14,15 +14,17 @@
 #include <linux/types.h>
 
 /* Access types -- if KCSAN_ACCESS_WRITE is not set, the access is a read. */
-#define KCSAN_ACCESS_WRITE	(1 << 0) /* Access is a write. */
-#define KCSAN_ACCESS_COMPOUND	(1 << 1) /* Compounded read-write instrumentation. */
-#define KCSAN_ACCESS_ATOMIC	(1 << 2) /* Access is atomic. */
+#define KCSAN_ACCESS_WRITE  (1 << 0) /* Access is a write. */
+#define KCSAN_ACCESS_COMPOUND (1 << 1) /* Compounded read-write instrumentation.
+                                        * */
+#define KCSAN_ACCESS_ATOMIC (1 << 2) /* Access is atomic. */
 /* The following are special, and never due to compiler instrumentation. */
-#define KCSAN_ACCESS_ASSERT	(1 << 3) /* Access is an assertion. */
-#define KCSAN_ACCESS_SCOPED	(1 << 4) /* Access is a scoped access. */
+#define KCSAN_ACCESS_ASSERT (1 << 3) /* Access is an assertion. */
+#define KCSAN_ACCESS_SCOPED (1 << 4) /* Access is a scoped access. */
 
 /*
- * __kcsan_*: Always calls into the runtime when KCSAN is enabled. This may be used
+ * __kcsan_*: Always calls into the runtime when KCSAN is enabled. This may be
+ * used
  * even in compilation units that selectively disable KCSAN, but must use KCSAN
  * to validate access to an address. Never use these in header files!
  */
@@ -41,10 +43,10 @@ void __kcsan_check_access(const volatile void *ptr, size_t size, int type);
  * Note: The mappings are arbitrary, and do not reflect any real mappings of C11
  * memory orders to the LKMM memory orders and vice-versa!
  */
-#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_mb	__ATOMIC_SEQ_CST
-#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_wmb	__ATOMIC_ACQ_REL
-#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_rmb	__ATOMIC_ACQUIRE
-#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_release	__ATOMIC_RELEASE
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_mb  __ATOMIC_SEQ_CST
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_wmb __ATOMIC_ACQ_REL
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_rmb __ATOMIC_ACQUIRE
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE_release __ATOMIC_RELEASE
 
 /**
  * __kcsan_mb - full memory barrier instrumentation
@@ -129,21 +131,21 @@ void kcsan_set_access_mask(unsigned long mask);
 
 /* Scoped access information. */
 struct kcsan_scoped_access {
-	union {
-		struct list_head list; /* scoped_accesses list */
-		/*
-		 * Not an entry in scoped_accesses list; stack depth from where
-		 * the access was initialized.
-		 */
-		int stack_depth;
-	};
+  union {
+    struct list_head list; /* scoped_accesses list */
+    /*
+     * Not an entry in scoped_accesses list; stack depth from where
+     * the access was initialized.
+     */
+    int stack_depth;
+  };
 
-	/* Access information. */
-	const volatile void *ptr;
-	size_t size;
-	int type;
-	/* Location where scoped access was set up. */
-	unsigned long ip;
+  /* Access information. */
+  const volatile void *ptr;
+  size_t size;
+  int type;
+  /* Location where scoped access was set up. */
+  unsigned long ip;
 };
 /*
  * Automatically call kcsan_end_scoped_access() when kcsan_scoped_access goes
@@ -151,7 +153,7 @@ struct kcsan_scoped_access {
  * compilers that support KCSAN.
  */
 #define __kcsan_cleanup_scoped                                                 \
-	__maybe_unused __attribute__((__cleanup__(kcsan_end_scoped_access)))
+  __maybe_unused __attribute__((__cleanup__(kcsan_end_scoped_access)))
 
 /**
  * kcsan_begin_scoped_access - begin scoped access
@@ -169,9 +171,9 @@ struct kcsan_scoped_access {
  * @type: access type modifier
  * @sa: struct kcsan_scoped_access to use for the scope of the access
  */
-struct kcsan_scoped_access *
-kcsan_begin_scoped_access(const volatile void *ptr, size_t size, int type,
-			  struct kcsan_scoped_access *sa);
+struct kcsan_scoped_access *kcsan_begin_scoped_access(const volatile void *ptr,
+    size_t size, int type,
+    struct kcsan_scoped_access *sa);
 
 /**
  * kcsan_end_scoped_access - end scoped access
@@ -183,32 +185,61 @@ kcsan_begin_scoped_access(const volatile void *ptr, size_t size, int type,
  */
 void kcsan_end_scoped_access(struct kcsan_scoped_access *sa);
 
-
 #else /* CONFIG_KCSAN */
 
 static inline void __kcsan_check_access(const volatile void *ptr, size_t size,
-					int type) { }
+    int type) {
+}
 
-static inline void __kcsan_mb(void)			{ }
-static inline void __kcsan_wmb(void)			{ }
-static inline void __kcsan_rmb(void)			{ }
-static inline void __kcsan_release(void)		{ }
-static inline void kcsan_disable_current(void)		{ }
-static inline void kcsan_enable_current(void)		{ }
-static inline void kcsan_enable_current_nowarn(void)	{ }
-static inline void kcsan_nestable_atomic_begin(void)	{ }
-static inline void kcsan_nestable_atomic_end(void)	{ }
-static inline void kcsan_flat_atomic_begin(void)	{ }
-static inline void kcsan_flat_atomic_end(void)		{ }
-static inline void kcsan_atomic_next(int n)		{ }
-static inline void kcsan_set_access_mask(unsigned long mask) { }
+static inline void __kcsan_mb(void) {
+}
 
-struct kcsan_scoped_access { };
+static inline void __kcsan_wmb(void) {
+}
+
+static inline void __kcsan_rmb(void) {
+}
+
+static inline void __kcsan_release(void) {
+}
+
+static inline void kcsan_disable_current(void) {
+}
+
+static inline void kcsan_enable_current(void) {
+}
+
+static inline void kcsan_enable_current_nowarn(void) {
+}
+
+static inline void kcsan_nestable_atomic_begin(void) {
+}
+
+static inline void kcsan_nestable_atomic_end(void) {
+}
+
+static inline void kcsan_flat_atomic_begin(void) {
+}
+
+static inline void kcsan_flat_atomic_end(void) {
+}
+
+static inline void kcsan_atomic_next(int n) {
+}
+
+static inline void kcsan_set_access_mask(unsigned long mask) {
+}
+
+struct kcsan_scoped_access {};
 #define __kcsan_cleanup_scoped __maybe_unused
-static inline struct kcsan_scoped_access *
-kcsan_begin_scoped_access(const volatile void *ptr, size_t size, int type,
-			  struct kcsan_scoped_access *sa) { return sa; }
-static inline void kcsan_end_scoped_access(struct kcsan_scoped_access *sa) { }
+static inline struct kcsan_scoped_access *kcsan_begin_scoped_access(
+    const volatile void *ptr, size_t size, int type,
+    struct kcsan_scoped_access *sa) {
+  return sa;
+}
+
+static inline void kcsan_end_scoped_access(struct kcsan_scoped_access *sa) {
+}
 
 #endif /* CONFIG_KCSAN */
 
@@ -227,9 +258,15 @@ static inline void kcsan_end_scoped_access(struct kcsan_scoped_access *sa) { }
 #define __kcsan_enable_current kcsan_enable_current_nowarn
 #else /* __SANITIZE_THREAD__ */
 static inline void kcsan_check_access(const volatile void *ptr, size_t size,
-				      int type) { }
-static inline void __kcsan_enable_current(void)  { }
-static inline void __kcsan_disable_current(void) { }
+    int type) {
+}
+
+static inline void __kcsan_enable_current(void) {
+}
+
+static inline void __kcsan_disable_current(void) {
+}
+
 #endif /* __SANITIZE_THREAD__ */
 
 #if defined(CONFIG_KCSAN_WEAK_MEMORY) && defined(__SANITIZE_THREAD__)
@@ -245,26 +282,27 @@ static inline void __kcsan_disable_current(void) { }
  * These are all macros, like <asm/barrier.h>, since some architectures use them
  * in non-static inline functions.
  */
-#define __KCSAN_BARRIER_TO_SIGNAL_FENCE(name)					\
-	do {									\
-		barrier();							\
-		__atomic_signal_fence(__KCSAN_BARRIER_TO_SIGNAL_FENCE_##name);	\
-		barrier();							\
-	} while (0)
-#define kcsan_mb()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(mb)
-#define kcsan_wmb()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(wmb)
-#define kcsan_rmb()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(rmb)
-#define kcsan_release()	__KCSAN_BARRIER_TO_SIGNAL_FENCE(release)
-#elif defined(CONFIG_KCSAN_WEAK_MEMORY) && defined(__KCSAN_INSTRUMENT_BARRIERS__)
-#define kcsan_mb	__kcsan_mb
-#define kcsan_wmb	__kcsan_wmb
-#define kcsan_rmb	__kcsan_rmb
-#define kcsan_release	__kcsan_release
+#define __KCSAN_BARRIER_TO_SIGNAL_FENCE(name)         \
+  do {                  \
+    barrier();              \
+    __atomic_signal_fence(__KCSAN_BARRIER_TO_SIGNAL_FENCE_ ## name);  \
+    barrier();              \
+  } while (0)
+#define kcsan_mb()  __KCSAN_BARRIER_TO_SIGNAL_FENCE(mb)
+#define kcsan_wmb() __KCSAN_BARRIER_TO_SIGNAL_FENCE(wmb)
+#define kcsan_rmb() __KCSAN_BARRIER_TO_SIGNAL_FENCE(rmb)
+#define kcsan_release() __KCSAN_BARRIER_TO_SIGNAL_FENCE(release)
+#elif defined(CONFIG_KCSAN_WEAK_MEMORY) \
+  && defined(__KCSAN_INSTRUMENT_BARRIERS__)
+#define kcsan_mb  __kcsan_mb
+#define kcsan_wmb __kcsan_wmb
+#define kcsan_rmb __kcsan_rmb
+#define kcsan_release __kcsan_release
 #else /* CONFIG_KCSAN_WEAK_MEMORY && ... */
-#define kcsan_mb()	do { } while (0)
-#define kcsan_wmb()	do { } while (0)
-#define kcsan_rmb()	do { } while (0)
-#define kcsan_release()	do { } while (0)
+#define kcsan_mb()  do {} while (0)
+#define kcsan_wmb() do {} while (0)
+#define kcsan_rmb() do {} while (0)
+#define kcsan_release() do {} while (0)
 #endif /* CONFIG_KCSAN_WEAK_MEMORY && ... */
 
 /**
@@ -282,7 +320,7 @@ static inline void __kcsan_disable_current(void) { }
  * @size: size of access
  */
 #define __kcsan_check_write(ptr, size)                                         \
-	__kcsan_check_access(ptr, size, KCSAN_ACCESS_WRITE)
+  __kcsan_check_access(ptr, size, KCSAN_ACCESS_WRITE)
 
 /**
  * __kcsan_check_read_write - check regular read-write access for races
@@ -291,7 +329,7 @@ static inline void __kcsan_disable_current(void) { }
  * @size: size of access
  */
 #define __kcsan_check_read_write(ptr, size)                                    \
-	__kcsan_check_access(ptr, size, KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE)
+  __kcsan_check_access(ptr, size, KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE)
 
 /**
  * kcsan_check_read - check regular read access for races
@@ -308,7 +346,7 @@ static inline void __kcsan_disable_current(void) { }
  * @size: size of access
  */
 #define kcsan_check_write(ptr, size)                                           \
-	kcsan_check_access(ptr, size, KCSAN_ACCESS_WRITE)
+  kcsan_check_access(ptr, size, KCSAN_ACCESS_WRITE)
 
 /**
  * kcsan_check_read_write - check regular read-write access for races
@@ -317,23 +355,25 @@ static inline void __kcsan_disable_current(void) { }
  * @size: size of access
  */
 #define kcsan_check_read_write(ptr, size)                                      \
-	kcsan_check_access(ptr, size, KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE)
+  kcsan_check_access(ptr, size, KCSAN_ACCESS_COMPOUND | KCSAN_ACCESS_WRITE)
 
 /*
  * Check for atomic accesses: if atomic accesses are not ignored, this simply
  * aliases to kcsan_check_access(), otherwise becomes a no-op.
  */
 #ifdef CONFIG_KCSAN_IGNORE_ATOMICS
-#define kcsan_check_atomic_read(...)		do { } while (0)
-#define kcsan_check_atomic_write(...)		do { } while (0)
-#define kcsan_check_atomic_read_write(...)	do { } while (0)
+#define kcsan_check_atomic_read(...)    do {} while (0)
+#define kcsan_check_atomic_write(...)   do {} while (0)
+#define kcsan_check_atomic_read_write(...)  do {} while (0)
 #else
 #define kcsan_check_atomic_read(ptr, size)                                     \
-	kcsan_check_access(ptr, size, KCSAN_ACCESS_ATOMIC)
+  kcsan_check_access(ptr, size, KCSAN_ACCESS_ATOMIC)
 #define kcsan_check_atomic_write(ptr, size)                                    \
-	kcsan_check_access(ptr, size, KCSAN_ACCESS_ATOMIC | KCSAN_ACCESS_WRITE)
+  kcsan_check_access(ptr, size, KCSAN_ACCESS_ATOMIC | KCSAN_ACCESS_WRITE)
 #define kcsan_check_atomic_read_write(ptr, size)                               \
-	kcsan_check_access(ptr, size, KCSAN_ACCESS_ATOMIC | KCSAN_ACCESS_WRITE | KCSAN_ACCESS_COMPOUND)
+  kcsan_check_access(ptr, size, \
+    KCSAN_ACCESS_ATOMIC | KCSAN_ACCESS_WRITE \
+    | KCSAN_ACCESS_COMPOUND)
 #endif
 
 /**
@@ -351,16 +391,16 @@ static inline void __kcsan_disable_current(void) { }
  *
  * .. code-block:: c
  *
- *	void writer(void) {
- *		spin_lock(&update_foo_lock);
- *		ASSERT_EXCLUSIVE_WRITER(shared_foo);
- *		WRITE_ONCE(shared_foo, ...);
- *		spin_unlock(&update_foo_lock);
- *	}
- *	void reader(void) {
- *		// update_foo_lock does not need to be held!
- *		... = READ_ONCE(shared_foo);
- *	}
+ *  void writer(void) {
+ *    spin_lock(&update_foo_lock);
+ *    ASSERT_EXCLUSIVE_WRITER(shared_foo);
+ *    WRITE_ONCE(shared_foo, ...);
+ *    spin_unlock(&update_foo_lock);
+ *  }
+ *  void reader(void) {
+ *    // update_foo_lock does not need to be held!
+ *    ... = READ_ONCE(shared_foo);
+ *  }
  *
  * Note: ASSERT_EXCLUSIVE_WRITER_SCOPED(), if applicable, performs more thorough
  * checking if a clear scope where no concurrent writes are expected exists.
@@ -368,21 +408,21 @@ static inline void __kcsan_disable_current(void) { }
  * @var: variable to assert on
  */
 #define ASSERT_EXCLUSIVE_WRITER(var)                                           \
-	__kcsan_check_access(&(var), sizeof(var), KCSAN_ACCESS_ASSERT)
+  __kcsan_check_access(&(var), sizeof(var), KCSAN_ACCESS_ASSERT)
 
 /*
  * Helper macros for implementation of for ASSERT_EXCLUSIVE_*_SCOPED(). @id is
  * expected to be unique for the scope in which instances of kcsan_scoped_access
  * are declared.
  */
-#define __kcsan_scoped_name(c, suffix) __kcsan_scoped_##c##suffix
+#define __kcsan_scoped_name(c, suffix) __kcsan_scoped_ ## c ## suffix
 #define __ASSERT_EXCLUSIVE_SCOPED(var, type, id)                               \
-	struct kcsan_scoped_access __kcsan_scoped_name(id, _)                  \
-		__kcsan_cleanup_scoped;                                        \
-	struct kcsan_scoped_access *__kcsan_scoped_name(id, _dummy_p)          \
-		__maybe_unused = kcsan_begin_scoped_access(                    \
-			&(var), sizeof(var), KCSAN_ACCESS_SCOPED | (type),     \
-			&__kcsan_scoped_name(id, _))
+  struct kcsan_scoped_access __kcsan_scoped_name(id, _)                  \
+  __kcsan_cleanup_scoped;                                        \
+  struct kcsan_scoped_access *__kcsan_scoped_name(id, _dummy_p)          \
+  __maybe_unused = kcsan_begin_scoped_access(                    \
+    &(var), sizeof(var), KCSAN_ACCESS_SCOPED | (type),     \
+    &__kcsan_scoped_name(id, _))
 
 /**
  * ASSERT_EXCLUSIVE_WRITER_SCOPED - assert no concurrent writes to @var in scope
@@ -399,25 +439,25 @@ static inline void __kcsan_disable_current(void) { }
  *
  * .. code-block:: c
  *
- *	void writer(void) {
- *		spin_lock(&update_foo_lock);
- *		{
- *			ASSERT_EXCLUSIVE_WRITER_SCOPED(shared_foo);
- *			WRITE_ONCE(shared_foo, 42);
- *			...
- *			// shared_foo should still be 42 here!
- *		}
- *		spin_unlock(&update_foo_lock);
- *	}
- *	void buggy(void) {
- *		if (READ_ONCE(shared_foo) == 42)
- *			WRITE_ONCE(shared_foo, 1); // bug!
- *	}
+ *  void writer(void) {
+ *    spin_lock(&update_foo_lock);
+ *    {
+ *      ASSERT_EXCLUSIVE_WRITER_SCOPED(shared_foo);
+ *      WRITE_ONCE(shared_foo, 42);
+ *      ...
+ *      // shared_foo should still be 42 here!
+ *    }
+ *    spin_unlock(&update_foo_lock);
+ *  }
+ *  void buggy(void) {
+ *    if (READ_ONCE(shared_foo) == 42)
+ *      WRITE_ONCE(shared_foo, 1); // bug!
+ *  }
  *
  * @var: variable to assert on
  */
 #define ASSERT_EXCLUSIVE_WRITER_SCOPED(var)                                    \
-	__ASSERT_EXCLUSIVE_SCOPED(var, KCSAN_ACCESS_ASSERT, __COUNTER__)
+  __ASSERT_EXCLUSIVE_SCOPED(var, KCSAN_ACCESS_ASSERT, __COUNTER__)
 
 /**
  * ASSERT_EXCLUSIVE_ACCESS - assert no concurrent accesses to @var
@@ -432,16 +472,17 @@ static inline void __kcsan_disable_current(void) { }
  *
  * .. code-block:: c
  *
- *	if (refcount_dec_and_test(&obj->refcnt)) {
- *		ASSERT_EXCLUSIVE_ACCESS(*obj);
- *		do_some_cleanup(obj);
- *		release_for_reuse(obj);
- *	}
+ *  if (refcount_dec_and_test(&obj->refcnt)) {
+ *    ASSERT_EXCLUSIVE_ACCESS(*obj);
+ *    do_some_cleanup(obj);
+ *    release_for_reuse(obj);
+ *  }
  *
  * Note:
  *
  * 1. ASSERT_EXCLUSIVE_ACCESS_SCOPED(), if applicable, performs more thorough
- *    checking if a clear scope where no concurrent accesses are expected exists.
+ *    checking if a clear scope where no concurrent accesses are expected
+ * exists.
  *
  * 2. For cases where the object is freed, `KASAN <kasan.html>`_ is a better
  *    fit to detect use-after-free bugs.
@@ -449,10 +490,12 @@ static inline void __kcsan_disable_current(void) { }
  * @var: variable to assert on
  */
 #define ASSERT_EXCLUSIVE_ACCESS(var)                                           \
-	__kcsan_check_access(&(var), sizeof(var), KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT)
+  __kcsan_check_access(&(var), sizeof(var), \
+    KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT)
 
 /**
- * ASSERT_EXCLUSIVE_ACCESS_SCOPED - assert no concurrent accesses to @var in scope
+ * ASSERT_EXCLUSIVE_ACCESS_SCOPED - assert no concurrent accesses to @var in
+ * scope
  *
  * Scoped variant of ASSERT_EXCLUSIVE_ACCESS().
  *
@@ -465,7 +508,8 @@ static inline void __kcsan_disable_current(void) { }
  * @var: variable to assert on
  */
 #define ASSERT_EXCLUSIVE_ACCESS_SCOPED(var)                                    \
-	__ASSERT_EXCLUSIVE_SCOPED(var, KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT, __COUNTER__)
+  __ASSERT_EXCLUSIVE_SCOPED(var, KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT, \
+    __COUNTER__)
 
 /**
  * ASSERT_EXCLUSIVE_BITS - assert no concurrent writes to subset of bits in @var
@@ -488,8 +532,8 @@ static inline void __kcsan_disable_current(void) { }
  *
  * .. code-block:: c
  *
- *	ASSERT_EXCLUSIVE_BITS(flags, READ_ONLY_MASK);
- *	foo = (READ_ONCE(flags) & READ_ONLY_MASK) >> READ_ONLY_SHIFT;
+ *  ASSERT_EXCLUSIVE_BITS(flags, READ_ONLY_MASK);
+ *  foo = (READ_ONCE(flags) & READ_ONLY_MASK) >> READ_ONLY_SHIFT;
  *
  * Note: The access that immediately follows ASSERT_EXCLUSIVE_BITS() is assumed
  * to access the masked bits only, and KCSAN optimistically assumes it is
@@ -502,8 +546,8 @@ static inline void __kcsan_disable_current(void) { }
  *
  * .. code-block:: c
  *
- *	ASSERT_EXCLUSIVE_BITS(flags, READ_ONLY_MASK);
- *	foo = (flags & READ_ONLY_MASK) >> READ_ONLY_SHIFT;
+ *  ASSERT_EXCLUSIVE_BITS(flags, READ_ONLY_MASK);
+ *  foo = (flags & READ_ONLY_MASK) >> READ_ONLY_SHIFT;
  *
  * Another example, where this may be used, is when certain bits of @var may
  * only be modified when holding the appropriate lock, but other bits may still
@@ -512,22 +556,22 @@ static inline void __kcsan_disable_current(void) { }
  *
  * .. code-block:: c
  *
- *	spin_lock(&foo_lock);
- *	ASSERT_EXCLUSIVE_BITS(flags, FOO_MASK);
- *	old_flags = flags;
- *	new_flags = (old_flags & ~FOO_MASK) | (new_foo << FOO_SHIFT);
- *	if (cmpxchg(&flags, old_flags, new_flags) != old_flags) { ... }
- *	spin_unlock(&foo_lock);
+ *  spin_lock(&foo_lock);
+ *  ASSERT_EXCLUSIVE_BITS(flags, FOO_MASK);
+ *  old_flags = flags;
+ *  new_flags = (old_flags & ~FOO_MASK) | (new_foo << FOO_SHIFT);
+ *  if (cmpxchg(&flags, old_flags, new_flags) != old_flags) { ... }
+ *  spin_unlock(&foo_lock);
  *
  * @var: variable to assert on
  * @mask: only check for modifications to bits set in @mask
  */
 #define ASSERT_EXCLUSIVE_BITS(var, mask)                                       \
-	do {                                                                   \
-		kcsan_set_access_mask(mask);                                   \
-		__kcsan_check_access(&(var), sizeof(var), KCSAN_ACCESS_ASSERT);\
-		kcsan_set_access_mask(0);                                      \
-		kcsan_atomic_next(1);                                          \
-	} while (0)
+  do {                                                                   \
+    kcsan_set_access_mask(mask);                                   \
+    __kcsan_check_access(&(var), sizeof(var), KCSAN_ACCESS_ASSERT); \
+    kcsan_set_access_mask(0);                                      \
+    kcsan_atomic_next(1);                                          \
+  } while (0)
 
 #endif /* _LINUX_KCSAN_CHECKS_H */

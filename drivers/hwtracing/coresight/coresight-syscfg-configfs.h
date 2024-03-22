@@ -13,30 +13,30 @@
 
 /* container for configuration view */
 struct cscfg_fs_config {
-	struct cscfg_config_desc *config_desc;
-	struct config_group group;
-	bool active;
-	int preset;
+  struct cscfg_config_desc *config_desc;
+  struct config_group group;
+  bool active;
+  int preset;
 };
 
 /* container for feature view */
 struct cscfg_fs_feature {
-	struct cscfg_feature_desc *feat_desc;
-	struct config_group group;
+  struct cscfg_feature_desc *feat_desc;
+  struct config_group group;
 };
 
 /* container for parameter view */
 struct cscfg_fs_param {
-	int param_idx;
-	struct cscfg_feature_desc *feat_desc;
-	struct config_group group;
+  int param_idx;
+  struct cscfg_feature_desc *feat_desc;
+  struct config_group group;
 };
 
 /* container for preset view */
 struct cscfg_fs_preset {
-	int preset_num;
-	struct cscfg_config_desc *config_desc;
-	struct config_group group;
+  int preset_num;
+  struct cscfg_config_desc *config_desc;
+  struct config_group group;
 };
 
 int cscfg_configfs_init(struct cscfg_manager *cscfg_mgr);

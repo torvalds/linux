@@ -6,8 +6,8 @@
  * <elezegarcia--a.t--gmail.com>
  *
  * Based on Easycap driver by R.M. Thomas
- *	Copyright (C) 2010 R.M. Thomas
- *	<rmthomas--a.t--sciolus.org>
+ *  Copyright (C) 2010 R.M. Thomas
+ *  <rmthomas--a.t--sciolus.org>
  */
 
 #include <linux/i2c.h>
@@ -19,8 +19,8 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
-#define STK1160_VERSION		"0.9.5"
-#define STK1160_VERSION_NUM	0x000905
+#define STK1160_VERSION   "0.9.5"
+#define STK1160_VERSION_NUM 0x000905
 
 /* Decide on number of packets for each buffer */
 #define STK1160_NUM_PACKETS 64
@@ -53,119 +53,119 @@
  *
  */
 #ifdef DEBUG
-#define stk1160_dbg(fmt, args...) \
-	printk(KERN_DEBUG "stk1160: " fmt,  ## args)
+#define stk1160_dbg(fmt, args ...) \
+  printk(KERN_DEBUG "stk1160: " fmt, ## args)
 #else
-#define stk1160_dbg(fmt, args...)
+#define stk1160_dbg(fmt, args ...)
 #endif
 
-#define stk1160_info(fmt, args...) \
-	pr_info("stk1160: " fmt, ## args)
+#define stk1160_info(fmt, args ...) \
+  pr_info("stk1160: " fmt, ## args)
 
-#define stk1160_warn(fmt, args...) \
-	pr_warn("stk1160: " fmt, ## args)
+#define stk1160_warn(fmt, args ...) \
+  pr_warn("stk1160: " fmt, ## args)
 
-#define stk1160_err(fmt, args...) \
-	pr_err("stk1160: " fmt, ## args)
+#define stk1160_err(fmt, args ...) \
+  pr_err("stk1160: " fmt, ## args)
 
 /* Buffer for one video frame */
 struct stk1160_buffer {
-	/* common v4l buffer stuff -- must be first */
-	struct vb2_v4l2_buffer vb;
-	struct list_head list;
+  /* common v4l buffer stuff -- must be first */
+  struct vb2_v4l2_buffer vb;
+  struct list_head list;
 
-	void *mem;
-	unsigned int length;		/* buffer length */
-	unsigned int bytesused;		/* bytes written */
-	int odd;			/* current oddity */
+  void *mem;
+  unsigned int length;    /* buffer length */
+  unsigned int bytesused;   /* bytes written */
+  int odd;      /* current oddity */
 
-	/*
-	 * Since we interlace two fields per frame,
-	 * this is different from bytesused.
-	 */
-	unsigned int pos;		/* current pos inside buffer */
+  /*
+   * Since we interlace two fields per frame,
+   * this is different from bytesused.
+   */
+  unsigned int pos;   /* current pos inside buffer */
 };
 
 struct stk1160_urb {
-	struct urb *urb;
-	char *transfer_buffer;
-	struct sg_table *sgt;
-	struct stk1160 *dev;
-	dma_addr_t dma;
+  struct urb *urb;
+  char *transfer_buffer;
+  struct sg_table *sgt;
+  struct stk1160 *dev;
+  dma_addr_t dma;
 };
 
 struct stk1160_isoc_ctl {
-	/* max packet size of isoc transaction */
-	int max_pkt_size;
+  /* max packet size of isoc transaction */
+  int max_pkt_size;
 
-	/* number of allocated urbs */
-	int num_bufs;
+  /* number of allocated urbs */
+  int num_bufs;
 
-	struct stk1160_urb urb_ctl[STK1160_NUM_BUFS];
+  struct stk1160_urb urb_ctl[STK1160_NUM_BUFS];
 
-	/* current buffer */
-	struct stk1160_buffer *buf;
+  /* current buffer */
+  struct stk1160_buffer *buf;
 };
 
 struct stk1160_fmt {
-	u32   fourcc;          /* v4l2 format id */
-	int   depth;
+  u32 fourcc;          /* v4l2 format id */
+  int depth;
 };
 
 struct stk1160 {
-	struct v4l2_device v4l2_dev;
-	struct video_device vdev;
-	struct v4l2_ctrl_handler ctrl_handler;
+  struct v4l2_device v4l2_dev;
+  struct video_device vdev;
+  struct v4l2_ctrl_handler ctrl_handler;
 
-	struct device *dev;
-	struct usb_device *udev;
+  struct device *dev;
+  struct usb_device *udev;
 
-	/* saa7115 subdev */
-	struct v4l2_subdev *sd_saa7115;
+  /* saa7115 subdev */
+  struct v4l2_subdev *sd_saa7115;
 
-	/* isoc control struct */
-	struct list_head avail_bufs;
+  /* isoc control struct */
+  struct list_head avail_bufs;
 
-	/* video capture */
-	struct vb2_queue vb_vidq;
+  /* video capture */
+  struct vb2_queue vb_vidq;
 
-	/* max packet size of isoc transaction */
-	int max_pkt_size;
-	/* array of wMaxPacketSize */
-	unsigned int *alt_max_pkt_size;
-	/* alternate */
-	int alt;
-	/* Number of alternative settings */
-	int num_alt;
+  /* max packet size of isoc transaction */
+  int max_pkt_size;
+  /* array of wMaxPacketSize */
+  unsigned int *alt_max_pkt_size;
+  /* alternate */
+  int alt;
+  /* Number of alternative settings */
+  int num_alt;
 
-	struct stk1160_isoc_ctl isoc_ctl;
+  struct stk1160_isoc_ctl isoc_ctl;
 
-	/* frame properties */
-	int width;		  /* current frame width */
-	int height;		  /* current frame height */
-	unsigned int ctl_input;	  /* selected input */
-	v4l2_std_id norm;	  /* current norm */
-	struct stk1160_fmt *fmt;  /* selected format */
+  /* frame properties */
+  int width;      /* current frame width */
+  int height;     /* current frame height */
+  unsigned int ctl_input;   /* selected input */
+  v4l2_std_id norm;   /* current norm */
+  struct stk1160_fmt *fmt;  /* selected format */
 
-	unsigned int sequence;
+  unsigned int sequence;
 
-	/* i2c i/o */
-	struct i2c_adapter i2c_adap;
-	struct i2c_client i2c_client;
+  /* i2c i/o */
+  struct i2c_adapter i2c_adap;
+  struct i2c_client i2c_client;
 
-	struct mutex v4l_lock;
-	struct mutex vb_queue_lock;
-	spinlock_t buf_lock;
+  struct mutex v4l_lock;
+  struct mutex vb_queue_lock;
+  spinlock_t buf_lock;
 
-	struct file *fh_owner;	/* filehandle ownership */
+  struct file *fh_owner;  /* filehandle ownership */
 
-	/* EXPERIMENTAL */
-	struct snd_card *snd_card;
+  /* EXPERIMENTAL */
+  struct snd_card *snd_card;
 };
 
 struct regval {
-	u16 reg;
-	u16 val;
+  u16 reg;
+  u16 val;
 };
 
 /* Provided by stk1160-v4l.c */
@@ -188,15 +188,14 @@ int stk1160_i2c_unregister(struct stk1160 *dev);
 int stk1160_read_reg(struct stk1160 *dev, u16 reg, u8 *value);
 int stk1160_write_reg(struct stk1160 *dev, u16 reg, u16 value);
 int stk1160_write_regs_req(struct stk1160 *dev, u8 req, u16 reg,
-		char *buf, int len);
+    char *buf, int len);
 int stk1160_read_reg_req_len(struct stk1160 *dev, u8 req, u16 reg,
-		char *buf, int len);
+    char *buf, int len);
 void stk1160_select_input(struct stk1160 *dev);
 
 /* Provided by stk1160-ac97.c */
 void stk1160_ac97_setup(struct stk1160 *dev);
 
-static inline struct device *stk1160_get_dmadev(struct stk1160 *dev)
-{
-	return bus_to_hcd(dev->udev->bus)->self.sysdev;
+static inline struct device *stk1160_get_dmadev(struct stk1160 *dev) {
+  return bus_to_hcd(dev->udev->bus)->self.sysdev;
 }

@@ -12,8 +12,8 @@
 #include <asm/spr.h>
 #include <asm/spr_defs.h>
 
-#define raw_smp_processor_id()	(current_thread_info()->cpu)
-#define hard_smp_processor_id()	mfspr(SPR_COREID)
+#define raw_smp_processor_id()  (current_thread_info()->cpu)
+#define hard_smp_processor_id() mfspr(SPR_COREID)
 
 extern void smp_init_cpus(void);
 

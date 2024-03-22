@@ -9,33 +9,33 @@
  * enum mpu3050_fullscale - indicates the full range of the sensor in deg/sec
  */
 enum mpu3050_fullscale {
-	FS_250_DPS = 0,
-	FS_500_DPS,
-	FS_1000_DPS,
-	FS_2000_DPS,
+  FS_250_DPS = 0,
+  FS_500_DPS,
+  FS_1000_DPS,
+  FS_2000_DPS,
 };
 
 /**
  * enum mpu3050_lpf - indicates the low pass filter width
  */
 enum mpu3050_lpf {
-	/* This implicity sets sample frequency to 8 kHz */
-	LPF_256_HZ_NOLPF = 0,
-	/* All others sets the sample frequency to 1 kHz */
-	LPF_188_HZ,
-	LPF_98_HZ,
-	LPF_42_HZ,
-	LPF_20_HZ,
-	LPF_10_HZ,
-	LPF_5_HZ,
-	LPF_2100_HZ_NOLPF,
+  /* This implicity sets sample frequency to 8 kHz */
+  LPF_256_HZ_NOLPF = 0,
+  /* All others sets the sample frequency to 1 kHz */
+  LPF_188_HZ,
+  LPF_98_HZ,
+  LPF_42_HZ,
+  LPF_20_HZ,
+  LPF_10_HZ,
+  LPF_5_HZ,
+  LPF_2100_HZ_NOLPF,
 };
 
 enum mpu3050_axis {
-	AXIS_X = 0,
-	AXIS_Y,
-	AXIS_Z,
-	AXIS_MAX,
+  AXIS_X = 0,
+  AXIS_Y,
+  AXIS_Z,
+  AXIS_MAX,
 };
 
 /**
@@ -66,31 +66,31 @@ enum mpu3050_axis {
  * powered up in order to reach devices on the other side of this mux
  */
 struct mpu3050 {
-	struct device *dev;
-	struct iio_mount_matrix orientation;
-	struct regmap *map;
-	struct mutex lock;
-	int irq;
-	struct regulator_bulk_data regs[2];
-	enum mpu3050_fullscale fullscale;
-	enum mpu3050_lpf lpf;
-	u8 divisor;
-	s16 calibration[3];
-	struct iio_trigger *trig;
-	bool hw_irq_trigger;
-	bool irq_actl;
-	bool irq_latch;
-	bool irq_opendrain;
-	bool pending_fifo_footer;
-	s64 hw_timestamp;
-	struct i2c_mux_core *i2cmux;
+  struct device *dev;
+  struct iio_mount_matrix orientation;
+  struct regmap *map;
+  struct mutex lock;
+  int irq;
+  struct regulator_bulk_data regs[2];
+  enum mpu3050_fullscale fullscale;
+  enum mpu3050_lpf lpf;
+  u8 divisor;
+  s16 calibration[3];
+  struct iio_trigger *trig;
+  bool hw_irq_trigger;
+  bool irq_actl;
+  bool irq_latch;
+  bool irq_opendrain;
+  bool pending_fifo_footer;
+  s64 hw_timestamp;
+  struct i2c_mux_core *i2cmux;
 };
 
 /* Probe called from different transports */
 int mpu3050_common_probe(struct device *dev,
-			 struct regmap *map,
-			 int irq,
-			 const char *name);
+    struct regmap *map,
+    int irq,
+    const char *name);
 void mpu3050_common_remove(struct device *dev);
 
 /* PM ops */

@@ -30,8 +30,6 @@
  *    Definitions for our own (vendor-specific) SVGA Escape commands.
  */
 
-
-
 #ifndef _SVGA_ESCAPE_H_
 #define _SVGA_ESCAPE_H_
 
@@ -45,11 +43,11 @@
 
 #pragma pack(push, 1)
 typedef struct {
-	uint32 command;
-	uint32 fullscreen;
-	struct {
-		int32 x, y;
-	} monitorPosition;
+  uint32 command;
+  uint32 fullscreen;
+  struct {
+    int32 x, y;
+  } monitorPosition;
 } SVGAEscapeHintFullscreen;
 #pragma pack(pop)
 

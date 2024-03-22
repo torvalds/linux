@@ -52,118 +52,121 @@ struct sg_table;
  * drm_core_check_feature().
  */
 enum drm_driver_feature {
-	/**
-	 * @DRIVER_GEM:
-	 *
-	 * Driver use the GEM memory manager. This should be set for all modern
-	 * drivers.
-	 */
-	DRIVER_GEM			= BIT(0),
-	/**
-	 * @DRIVER_MODESET:
-	 *
-	 * Driver supports mode setting interfaces (KMS).
-	 */
-	DRIVER_MODESET			= BIT(1),
-	/**
-	 * @DRIVER_RENDER:
-	 *
-	 * Driver supports dedicated render nodes. See also the :ref:`section on
-	 * render nodes <drm_render_node>` for details.
-	 */
-	DRIVER_RENDER			= BIT(3),
-	/**
-	 * @DRIVER_ATOMIC:
-	 *
-	 * Driver supports the full atomic modesetting userspace API. Drivers
-	 * which only use atomic internally, but do not support the full
-	 * userspace API (e.g. not all properties converted to atomic, or
-	 * multi-plane updates are not guaranteed to be tear-free) should not
-	 * set this flag.
-	 */
-	DRIVER_ATOMIC			= BIT(4),
-	/**
-	 * @DRIVER_SYNCOBJ:
-	 *
-	 * Driver supports &drm_syncobj for explicit synchronization of command
-	 * submission.
-	 */
-	DRIVER_SYNCOBJ                  = BIT(5),
-	/**
-	 * @DRIVER_SYNCOBJ_TIMELINE:
-	 *
-	 * Driver supports the timeline flavor of &drm_syncobj for explicit
-	 * synchronization of command submission.
-	 */
-	DRIVER_SYNCOBJ_TIMELINE         = BIT(6),
-	/**
-	 * @DRIVER_COMPUTE_ACCEL:
-	 *
-	 * Driver supports compute acceleration devices. This flag is mutually exclusive with
-	 * @DRIVER_RENDER and @DRIVER_MODESET. Devices that support both graphics and compute
-	 * acceleration should be handled by two drivers that are connected using auxiliary bus.
-	 */
-	DRIVER_COMPUTE_ACCEL            = BIT(7),
-	/**
-	 * @DRIVER_GEM_GPUVA:
-	 *
-	 * Driver supports user defined GPU VA bindings for GEM objects.
-	 */
-	DRIVER_GEM_GPUVA		= BIT(8),
-	/**
-	 * @DRIVER_CURSOR_HOTSPOT:
-	 *
-	 * Driver supports and requires cursor hotspot information in the
-	 * cursor plane (e.g. cursor plane has to actually track the mouse
-	 * cursor and the clients are required to set hotspot in order for
-	 * the cursor planes to work correctly).
-	 */
-	DRIVER_CURSOR_HOTSPOT           = BIT(9),
+  /**
+   * @DRIVER_GEM:
+   *
+   * Driver use the GEM memory manager. This should be set for all modern
+   * drivers.
+   */
+  DRIVER_GEM = BIT(0),
+  /**
+   * @DRIVER_MODESET:
+   *
+   * Driver supports mode setting interfaces (KMS).
+   */
+  DRIVER_MODESET = BIT(1),
+  /**
+   * @DRIVER_RENDER:
+   *
+   * Driver supports dedicated render nodes. See also the :ref:`section on
+   * render nodes <drm_render_node>` for details.
+   */
+  DRIVER_RENDER = BIT(3),
+  /**
+   * @DRIVER_ATOMIC:
+   *
+   * Driver supports the full atomic modesetting userspace API. Drivers
+   * which only use atomic internally, but do not support the full
+   * userspace API (e.g. not all properties converted to atomic, or
+   * multi-plane updates are not guaranteed to be tear-free) should not
+   * set this flag.
+   */
+  DRIVER_ATOMIC = BIT(4),
+  /**
+   * @DRIVER_SYNCOBJ:
+   *
+   * Driver supports &drm_syncobj for explicit synchronization of command
+   * submission.
+   */
+  DRIVER_SYNCOBJ = BIT(5),
+  /**
+   * @DRIVER_SYNCOBJ_TIMELINE:
+   *
+   * Driver supports the timeline flavor of &drm_syncobj for explicit
+   * synchronization of command submission.
+   */
+  DRIVER_SYNCOBJ_TIMELINE = BIT(6),
+  /**
+   * @DRIVER_COMPUTE_ACCEL:
+   *
+   * Driver supports compute acceleration devices. This flag is mutually
+   * exclusive with
+   * @DRIVER_RENDER and @DRIVER_MODESET. Devices that support both graphics and
+   * compute
+   * acceleration should be handled by two drivers that are connected using
+   * auxiliary bus.
+   */
+  DRIVER_COMPUTE_ACCEL = BIT(7),
+  /**
+   * @DRIVER_GEM_GPUVA:
+   *
+   * Driver supports user defined GPU VA bindings for GEM objects.
+   */
+  DRIVER_GEM_GPUVA = BIT(8),
+  /**
+   * @DRIVER_CURSOR_HOTSPOT:
+   *
+   * Driver supports and requires cursor hotspot information in the
+   * cursor plane (e.g. cursor plane has to actually track the mouse
+   * cursor and the clients are required to set hotspot in order for
+   * the cursor planes to work correctly).
+   */
+  DRIVER_CURSOR_HOTSPOT = BIT(9),
 
-	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
+  /* IMPORTANT: Below are all the legacy flags, add new ones above. */
 
-	/**
-	 * @DRIVER_USE_AGP:
-	 *
-	 * Set up DRM AGP support, see drm_agp_init(), the DRM core will manage
-	 * AGP resources. New drivers don't need this.
-	 */
-	DRIVER_USE_AGP			= BIT(25),
-	/**
-	 * @DRIVER_LEGACY:
-	 *
-	 * Denote a legacy driver using shadow attach. Do not use.
-	 */
-	DRIVER_LEGACY			= BIT(26),
-	/**
-	 * @DRIVER_PCI_DMA:
-	 *
-	 * Driver is capable of PCI DMA, mapping of PCI DMA buffers to userspace
-	 * will be enabled. Only for legacy drivers. Do not use.
-	 */
-	DRIVER_PCI_DMA			= BIT(27),
-	/**
-	 * @DRIVER_SG:
-	 *
-	 * Driver can perform scatter/gather DMA, allocation and mapping of
-	 * scatter/gather buffers will be enabled. Only for legacy drivers. Do
-	 * not use.
-	 */
-	DRIVER_SG			= BIT(28),
+  /**
+   * @DRIVER_USE_AGP:
+   *
+   * Set up DRM AGP support, see drm_agp_init(), the DRM core will manage
+   * AGP resources. New drivers don't need this.
+   */
+  DRIVER_USE_AGP = BIT(25),
+  /**
+   * @DRIVER_LEGACY:
+   *
+   * Denote a legacy driver using shadow attach. Do not use.
+   */
+  DRIVER_LEGACY = BIT(26),
+  /**
+   * @DRIVER_PCI_DMA:
+   *
+   * Driver is capable of PCI DMA, mapping of PCI DMA buffers to userspace
+   * will be enabled. Only for legacy drivers. Do not use.
+   */
+  DRIVER_PCI_DMA = BIT(27),
+  /**
+   * @DRIVER_SG:
+   *
+   * Driver can perform scatter/gather DMA, allocation and mapping of
+   * scatter/gather buffers will be enabled. Only for legacy drivers. Do
+   * not use.
+   */
+  DRIVER_SG = BIT(28),
 
-	/**
-	 * @DRIVER_HAVE_DMA:
-	 *
-	 * Driver supports DMA, the userspace DMA API will be supported. Only
-	 * for legacy drivers. Do not use.
-	 */
-	DRIVER_HAVE_DMA			= BIT(29),
-	/**
-	 * @DRIVER_HAVE_IRQ:
-	 *
-	 * Legacy irq support. Only for legacy drivers. Do not use.
-	 */
-	DRIVER_HAVE_IRQ			= BIT(30),
+  /**
+   * @DRIVER_HAVE_DMA:
+   *
+   * Driver supports DMA, the userspace DMA API will be supported. Only
+   * for legacy drivers. Do not use.
+   */
+  DRIVER_HAVE_DMA = BIT(29),
+  /**
+   * @DRIVER_HAVE_IRQ:
+   *
+   * Legacy irq support. Only for legacy drivers. Do not use.
+   */
+  DRIVER_HAVE_IRQ = BIT(30),
 };
 
 /**
@@ -176,277 +179,279 @@ enum drm_driver_feature {
  * structure for GEM drivers.
  */
 struct drm_driver {
-	/**
-	 * @load:
-	 *
-	 * Backward-compatible driver callback to complete initialization steps
-	 * after the driver is registered.  For this reason, may suffer from
-	 * race conditions and its use is deprecated for new drivers.  It is
-	 * therefore only supported for existing drivers not yet converted to
-	 * the new scheme.  See devm_drm_dev_alloc() and drm_dev_register() for
-	 * proper and race-free way to set up a &struct drm_device.
-	 *
-	 * This is deprecated, do not use!
-	 *
-	 * Returns:
-	 *
-	 * Zero on success, non-zero value on failure.
-	 */
-	int (*load) (struct drm_device *, unsigned long flags);
+  /**
+   * @load:
+   *
+   * Backward-compatible driver callback to complete initialization steps
+   * after the driver is registered.  For this reason, may suffer from
+   * race conditions and its use is deprecated for new drivers.  It is
+   * therefore only supported for existing drivers not yet converted to
+   * the new scheme.  See devm_drm_dev_alloc() and drm_dev_register() for
+   * proper and race-free way to set up a &struct drm_device.
+   *
+   * This is deprecated, do not use!
+   *
+   * Returns:
+   *
+   * Zero on success, non-zero value on failure.
+   */
+  int (*load)(struct drm_device *, unsigned long flags);
 
-	/**
-	 * @open:
-	 *
-	 * Driver callback when a new &struct drm_file is opened. Useful for
-	 * setting up driver-private data structures like buffer allocators,
-	 * execution contexts or similar things. Such driver-private resources
-	 * must be released again in @postclose.
-	 *
-	 * Since the display/modeset side of DRM can only be owned by exactly
-	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
-	 * there should never be a need to set up any modeset related resources
-	 * in this callback. Doing so would be a driver design bug.
-	 *
-	 * Returns:
-	 *
-	 * 0 on success, a negative error code on failure, which will be
-	 * promoted to userspace as the result of the open() system call.
-	 */
-	int (*open) (struct drm_device *, struct drm_file *);
+  /**
+   * @open:
+   *
+   * Driver callback when a new &struct drm_file is opened. Useful for
+   * setting up driver-private data structures like buffer allocators,
+   * execution contexts or similar things. Such driver-private resources
+   * must be released again in @postclose.
+   *
+   * Since the display/modeset side of DRM can only be owned by exactly
+   * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+   * there should never be a need to set up any modeset related resources
+   * in this callback. Doing so would be a driver design bug.
+   *
+   * Returns:
+   *
+   * 0 on success, a negative error code on failure, which will be
+   * promoted to userspace as the result of the open() system call.
+   */
+  int (*open)(struct drm_device *, struct drm_file *);
 
-	/**
-	 * @postclose:
-	 *
-	 * One of the driver callbacks when a new &struct drm_file is closed.
-	 * Useful for tearing down driver-private data structures allocated in
-	 * @open like buffer allocators, execution contexts or similar things.
-	 *
-	 * Since the display/modeset side of DRM can only be owned by exactly
-	 * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
-	 * there should never be a need to tear down any modeset related
-	 * resources in this callback. Doing so would be a driver design bug.
-	 */
-	void (*postclose) (struct drm_device *, struct drm_file *);
+  /**
+   * @postclose:
+   *
+   * One of the driver callbacks when a new &struct drm_file is closed.
+   * Useful for tearing down driver-private data structures allocated in
+   * @open like buffer allocators, execution contexts or similar things.
+   *
+   * Since the display/modeset side of DRM can only be owned by exactly
+   * one &struct drm_file (see &drm_file.is_master and &drm_device.master)
+   * there should never be a need to tear down any modeset related
+   * resources in this callback. Doing so would be a driver design bug.
+   */
+  void (*postclose)(struct drm_device *, struct drm_file *);
 
-	/**
-	 * @lastclose:
-	 *
-	 * Called when the last &struct drm_file has been closed and there's
-	 * currently no userspace client for the &struct drm_device.
-	 *
-	 * Modern drivers should only use this to force-restore the fbdev
-	 * framebuffer using drm_fb_helper_restore_fbdev_mode_unlocked().
-	 * Anything else would indicate there's something seriously wrong.
-	 * Modern drivers can also use this to execute delayed power switching
-	 * state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
-	 * infrastructure.
-	 *
-	 * This is called after @postclose hook has been called.
-	 *
-	 * NOTE:
-	 *
-	 * All legacy drivers use this callback to de-initialize the hardware.
-	 * This is purely because of the shadow-attach model, where the DRM
-	 * kernel driver does not really own the hardware. Instead ownershipe is
-	 * handled with the help of userspace through an inheritedly racy dance
-	 * to set/unset the VT into raw mode.
-	 *
-	 * Legacy drivers initialize the hardware in the @firstopen callback,
-	 * which isn't even called for modern drivers.
-	 */
-	void (*lastclose) (struct drm_device *);
+  /**
+   * @lastclose:
+   *
+   * Called when the last &struct drm_file has been closed and there's
+   * currently no userspace client for the &struct drm_device.
+   *
+   * Modern drivers should only use this to force-restore the fbdev
+   * framebuffer using drm_fb_helper_restore_fbdev_mode_unlocked().
+   * Anything else would indicate there's something seriously wrong.
+   * Modern drivers can also use this to execute delayed power switching
+   * state changes, e.g. in conjunction with the :ref:`vga_switcheroo`
+   * infrastructure.
+   *
+   * This is called after @postclose hook has been called.
+   *
+   * NOTE:
+   *
+   * All legacy drivers use this callback to de-initialize the hardware.
+   * This is purely because of the shadow-attach model, where the DRM
+   * kernel driver does not really own the hardware. Instead ownershipe is
+   * handled with the help of userspace through an inheritedly racy dance
+   * to set/unset the VT into raw mode.
+   *
+   * Legacy drivers initialize the hardware in the @firstopen callback,
+   * which isn't even called for modern drivers.
+   */
+  void (*lastclose)(struct drm_device *);
 
-	/**
-	 * @unload:
-	 *
-	 * Reverse the effects of the driver load callback.  Ideally,
-	 * the clean up performed by the driver should happen in the
-	 * reverse order of the initialization.  Similarly to the load
-	 * hook, this handler is deprecated and its usage should be
-	 * dropped in favor of an open-coded teardown function at the
-	 * driver layer.  See drm_dev_unregister() and drm_dev_put()
-	 * for the proper way to remove a &struct drm_device.
-	 *
-	 * The unload() hook is called right after unregistering
-	 * the device.
-	 *
-	 */
-	void (*unload) (struct drm_device *);
+  /**
+   * @unload:
+   *
+   * Reverse the effects of the driver load callback.  Ideally,
+   * the clean up performed by the driver should happen in the
+   * reverse order of the initialization.  Similarly to the load
+   * hook, this handler is deprecated and its usage should be
+   * dropped in favor of an open-coded teardown function at the
+   * driver layer.  See drm_dev_unregister() and drm_dev_put()
+   * for the proper way to remove a &struct drm_device.
+   *
+   * The unload() hook is called right after unregistering
+   * the device.
+   *
+   */
+  void (*unload)(struct drm_device *);
 
-	/**
-	 * @release:
-	 *
-	 * Optional callback for destroying device data after the final
-	 * reference is released, i.e. the device is being destroyed.
-	 *
-	 * This is deprecated, clean up all memory allocations associated with a
-	 * &drm_device using drmm_add_action(), drmm_kmalloc() and related
-	 * managed resources functions.
-	 */
-	void (*release) (struct drm_device *);
+  /**
+   * @release:
+   *
+   * Optional callback for destroying device data after the final
+   * reference is released, i.e. the device is being destroyed.
+   *
+   * This is deprecated, clean up all memory allocations associated with a
+   * &drm_device using drmm_add_action(), drmm_kmalloc() and related
+   * managed resources functions.
+   */
+  void (*release)(struct drm_device *);
 
-	/**
-	 * @master_set:
-	 *
-	 * Called whenever the minor master is set. Only used by vmwgfx.
-	 */
-	void (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
-			   bool from_open);
-	/**
-	 * @master_drop:
-	 *
-	 * Called whenever the minor master is dropped. Only used by vmwgfx.
-	 */
-	void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
+  /**
+   * @master_set:
+   *
+   * Called whenever the minor master is set. Only used by vmwgfx.
+   */
+  void (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
+      bool from_open);
+  /**
+   * @master_drop:
+   *
+   * Called whenever the minor master is dropped. Only used by vmwgfx.
+   */
+  void (*master_drop)(struct drm_device *dev, struct drm_file *file_priv);
 
-	/**
-	 * @debugfs_init:
-	 *
-	 * Allows drivers to create driver-specific debugfs files.
-	 */
-	void (*debugfs_init)(struct drm_minor *minor);
+  /**
+   * @debugfs_init:
+   *
+   * Allows drivers to create driver-specific debugfs files.
+   */
+  void (*debugfs_init)(struct drm_minor *minor);
 
-	/**
-	 * @gem_create_object: constructor for gem objects
-	 *
-	 * Hook for allocating the GEM object struct, for use by the CMA
-	 * and SHMEM GEM helpers. Returns a GEM object on success, or an
-	 * ERR_PTR()-encoded error code otherwise.
-	 */
-	struct drm_gem_object *(*gem_create_object)(struct drm_device *dev,
-						    size_t size);
+  /**
+   * @gem_create_object: constructor for gem objects
+   *
+   * Hook for allocating the GEM object struct, for use by the CMA
+   * and SHMEM GEM helpers. Returns a GEM object on success, or an
+   * ERR_PTR()-encoded error code otherwise.
+   */
+  struct drm_gem_object *(*gem_create_object)(struct drm_device *dev,
+      size_t size);
 
-	/**
-	 * @prime_handle_to_fd:
-	 *
-	 * PRIME export function. Only used by vmwgfx.
-	 */
-	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
-				uint32_t handle, uint32_t flags, int *prime_fd);
-	/**
-	 * @prime_fd_to_handle:
-	 *
-	 * PRIME import function. Only used by vmwgfx.
-	 */
-	int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
-				int prime_fd, uint32_t *handle);
+  /**
+   * @prime_handle_to_fd:
+   *
+   * PRIME export function. Only used by vmwgfx.
+   */
+  int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
+      uint32_t handle, uint32_t flags, int *prime_fd);
+  /**
+   * @prime_fd_to_handle:
+   *
+   * PRIME import function. Only used by vmwgfx.
+   */
+  int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
+      int prime_fd, uint32_t *handle);
 
-	/**
-	 * @gem_prime_import:
-	 *
-	 * Import hook for GEM drivers.
-	 *
-	 * This defaults to drm_gem_prime_import() if not set.
-	 */
-	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
-				struct dma_buf *dma_buf);
-	/**
-	 * @gem_prime_import_sg_table:
-	 *
-	 * Optional hook used by the PRIME helper functions
-	 * drm_gem_prime_import() respectively drm_gem_prime_import_dev().
-	 */
-	struct drm_gem_object *(*gem_prime_import_sg_table)(
-				struct drm_device *dev,
-				struct dma_buf_attachment *attach,
-				struct sg_table *sgt);
+  /**
+   * @gem_prime_import:
+   *
+   * Import hook for GEM drivers.
+   *
+   * This defaults to drm_gem_prime_import() if not set.
+   */
+  struct drm_gem_object *(*gem_prime_import)(struct drm_device *dev,
+      struct dma_buf *dma_buf);
+  /**
+   * @gem_prime_import_sg_table:
+   *
+   * Optional hook used by the PRIME helper functions
+   * drm_gem_prime_import() respectively drm_gem_prime_import_dev().
+   */
+  struct drm_gem_object *(*gem_prime_import_sg_table)(
+    struct drm_device *dev,
+    struct dma_buf_attachment *attach,
+    struct sg_table *sgt);
 
-	/**
-	 * @dumb_create:
-	 *
-	 * This creates a new dumb buffer in the driver's backing storage manager (GEM,
-	 * TTM or something else entirely) and returns the resulting buffer handle. This
-	 * handle can then be wrapped up into a framebuffer modeset object.
-	 *
-	 * Note that userspace is not allowed to use such objects for render
-	 * acceleration - drivers must create their own private ioctls for such a use
-	 * case.
-	 *
-	 * Width, height and depth are specified in the &drm_mode_create_dumb
-	 * argument. The callback needs to fill the handle, pitch and size for
-	 * the created buffer.
-	 *
-	 * Called by the user via ioctl.
-	 *
-	 * Returns:
-	 *
-	 * Zero on success, negative errno on failure.
-	 */
-	int (*dumb_create)(struct drm_file *file_priv,
-			   struct drm_device *dev,
-			   struct drm_mode_create_dumb *args);
-	/**
-	 * @dumb_map_offset:
-	 *
-	 * Allocate an offset in the drm device node's address space to be able to
-	 * memory map a dumb buffer.
-	 *
-	 * The default implementation is drm_gem_create_mmap_offset(). GEM based
-	 * drivers must not overwrite this.
-	 *
-	 * Called by the user via ioctl.
-	 *
-	 * Returns:
-	 *
-	 * Zero on success, negative errno on failure.
-	 */
-	int (*dumb_map_offset)(struct drm_file *file_priv,
-			       struct drm_device *dev, uint32_t handle,
-			       uint64_t *offset);
+  /**
+   * @dumb_create:
+   *
+   * This creates a new dumb buffer in the driver's backing storage manager
+   *(GEM,
+   * TTM or something else entirely) and returns the resulting buffer handle.
+   * This
+   * handle can then be wrapped up into a framebuffer modeset object.
+   *
+   * Note that userspace is not allowed to use such objects for render
+   * acceleration - drivers must create their own private ioctls for such a use
+   * case.
+   *
+   * Width, height and depth are specified in the &drm_mode_create_dumb
+   * argument. The callback needs to fill the handle, pitch and size for
+   * the created buffer.
+   *
+   * Called by the user via ioctl.
+   *
+   * Returns:
+   *
+   * Zero on success, negative errno on failure.
+   */
+  int (*dumb_create)(struct drm_file *file_priv,
+      struct drm_device *dev,
+      struct drm_mode_create_dumb *args);
+  /**
+   * @dumb_map_offset:
+   *
+   * Allocate an offset in the drm device node's address space to be able to
+   * memory map a dumb buffer.
+   *
+   * The default implementation is drm_gem_create_mmap_offset(). GEM based
+   * drivers must not overwrite this.
+   *
+   * Called by the user via ioctl.
+   *
+   * Returns:
+   *
+   * Zero on success, negative errno on failure.
+   */
+  int (*dumb_map_offset)(struct drm_file *file_priv,
+      struct drm_device *dev, uint32_t handle,
+      uint64_t *offset);
 
-	/**
-	 * @show_fdinfo:
-	 *
-	 * Print device specific fdinfo.  See Documentation/gpu/drm-usage-stats.rst.
-	 */
-	void (*show_fdinfo)(struct drm_printer *p, struct drm_file *f);
+  /**
+   * @show_fdinfo:
+   *
+   * Print device specific fdinfo.  See Documentation/gpu/drm-usage-stats.rst.
+   */
+  void (*show_fdinfo)(struct drm_printer *p, struct drm_file *f);
 
-	/** @major: driver major number */
-	int major;
-	/** @minor: driver minor number */
-	int minor;
-	/** @patchlevel: driver patch level */
-	int patchlevel;
-	/** @name: driver name */
-	char *name;
-	/** @desc: driver description */
-	char *desc;
-	/** @date: driver date */
-	char *date;
+  /** @major: driver major number */
+  int major;
+  /** @minor: driver minor number */
+  int minor;
+  /** @patchlevel: driver patch level */
+  int patchlevel;
+  /** @name: driver name */
+  char *name;
+  /** @desc: driver description */
+  char *desc;
+  /** @date: driver date */
+  char *date;
 
-	/**
-	 * @driver_features:
-	 * Driver features, see &enum drm_driver_feature. Drivers can disable
-	 * some features on a per-instance basis using
-	 * &drm_device.driver_features.
-	 */
-	u32 driver_features;
+  /**
+   * @driver_features:
+   * Driver features, see &enum drm_driver_feature. Drivers can disable
+   * some features on a per-instance basis using
+   * &drm_device.driver_features.
+   */
+  u32 driver_features;
 
-	/**
-	 * @ioctls:
-	 *
-	 * Array of driver-private IOCTL description entries. See the chapter on
-	 * :ref:`IOCTL support in the userland interfaces
-	 * chapter<drm_driver_ioctl>` for the full details.
-	 */
+  /**
+   * @ioctls:
+   *
+   * Array of driver-private IOCTL description entries. See the chapter on
+   * :ref:`IOCTL support in the userland interfaces
+   * chapter<drm_driver_ioctl>` for the full details.
+   */
 
-	const struct drm_ioctl_desc *ioctls;
-	/** @num_ioctls: Number of entries in @ioctls. */
-	int num_ioctls;
+  const struct drm_ioctl_desc *ioctls;
+  /** @num_ioctls: Number of entries in @ioctls. */
+  int num_ioctls;
 
-	/**
-	 * @fops:
-	 *
-	 * File operations for the DRM device node. See the discussion in
-	 * :ref:`file operations<drm_driver_fops>` for in-depth coverage and
-	 * some examples.
-	 */
-	const struct file_operations *fops;
+  /**
+   * @fops:
+   *
+   * File operations for the DRM device node. See the discussion in
+   * :ref:`file operations<drm_driver_fops>` for in-depth coverage and
+   * some examples.
+   */
+  const struct file_operations *fops;
 };
 
 void *__devm_drm_dev_alloc(struct device *parent,
-			   const struct drm_driver *driver,
-			   size_t size, size_t offset);
+    const struct drm_driver *driver,
+    size_t size, size_t offset);
 
 /**
  * devm_drm_dev_alloc - Resource managed allocation of a &drm_device instance
@@ -455,7 +460,8 @@ void *__devm_drm_dev_alloc(struct device *parent,
  * @type: the type of the struct which contains struct &drm_device
  * @member: the name of the &drm_device within @type.
  *
- * This allocates and initialize a new DRM device. No device registration is done.
+ * This allocates and initialize a new DRM device. No device registration is
+ * done.
  * Call drm_dev_register() to advertice the device to user space and register it
  * with other core subsystems. This should be done last in the device
  * initialization sequence to make sure userspace can't access an inconsistent
@@ -475,11 +481,11 @@ void *__devm_drm_dev_alloc(struct device *parent,
  * Pointer to new DRM device, or ERR_PTR on failure.
  */
 #define devm_drm_dev_alloc(parent, driver, type, member) \
-	((type *) __devm_drm_dev_alloc(parent, driver, sizeof(type), \
-				       offsetof(type, member)))
+  ((type *) __devm_drm_dev_alloc(parent, driver, sizeof(type), \
+    offsetof(type, member)))
 
 struct drm_device *drm_dev_alloc(const struct drm_driver *driver,
-				 struct device *parent);
+    struct device *parent);
 int drm_dev_register(struct drm_device *dev, unsigned long flags);
 void drm_dev_unregister(struct drm_device *dev);
 
@@ -503,16 +509,13 @@ void drm_dev_unplug(struct drm_device *dev);
  * recommended that drivers instead use the underlying drm_dev_enter() and
  * drm_dev_exit() function pairs.
  */
-static inline bool drm_dev_is_unplugged(struct drm_device *dev)
-{
-	int idx;
-
-	if (drm_dev_enter(dev, &idx)) {
-		drm_dev_exit(idx);
-		return false;
-	}
-
-	return true;
+static inline bool drm_dev_is_unplugged(struct drm_device *dev) {
+  int idx;
+  if (drm_dev_enter(dev, &idx)) {
+    drm_dev_exit(idx);
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -527,11 +530,9 @@ static inline bool drm_dev_is_unplugged(struct drm_device *dev)
  * otherwise.
  */
 static inline bool drm_core_check_all_features(const struct drm_device *dev,
-					       u32 features)
-{
-	u32 supported = dev->driver->driver_features & dev->driver_features;
-
-	return features && (supported & features) == features;
+    u32 features) {
+  u32 supported = dev->driver->driver_features & dev->driver_features;
+  return features && (supported & features) == features;
 }
 
 /**
@@ -545,9 +546,8 @@ static inline bool drm_core_check_all_features(const struct drm_device *dev,
  * Returns true if the @feature is supported, false otherwise.
  */
 static inline bool drm_core_check_feature(const struct drm_device *dev,
-					  enum drm_driver_feature feature)
-{
-	return drm_core_check_all_features(dev, feature);
+    enum drm_driver_feature feature) {
+  return drm_core_check_all_features(dev, feature);
 }
 
 /**
@@ -558,25 +558,24 @@ static inline bool drm_core_check_feature(const struct drm_device *dev,
  * This check is useful if drivers do not have DRIVER_ATOMIC set but
  * have atomic modesetting internally implemented.
  */
-static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
-{
-	return drm_core_check_feature(dev, DRIVER_ATOMIC) ||
-		(dev->mode_config.funcs && dev->mode_config.funcs->atomic_commit != NULL);
+static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev) {
+  return drm_core_check_feature(dev, DRIVER_ATOMIC)
+    || (dev->mode_config.funcs
+    && dev->mode_config.funcs->atomic_commit != NULL);
 }
 
-
 /* TODO: Inline drm_firmware_drivers_only() in all its callers. */
-static inline bool drm_firmware_drivers_only(void)
-{
-	return video_firmware_drivers_only();
+static inline bool drm_firmware_drivers_only(void) {
+  return video_firmware_drivers_only();
 }
 
 #if defined(CONFIG_DEBUG_FS)
 void drm_debugfs_dev_init(struct drm_device *dev, struct dentry *root);
 #else
-static inline void drm_debugfs_dev_init(struct drm_device *dev, struct dentry *root)
-{
+static inline void drm_debugfs_dev_init(struct drm_device *dev,
+    struct dentry *root) {
 }
+
 #endif
 
 #endif

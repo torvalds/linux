@@ -39,7 +39,7 @@
 #define WSPI_INIT_CMD_LEN           8
 
 #define HW_ACCESS_WSPI_FIXED_BUSY_LEN \
-		((WL1251_BUSY_WORD_LEN - 4) / sizeof(u32))
+  ((WL1251_BUSY_WORD_LEN - 4) / sizeof(u32))
 #define HW_ACCESS_WSPI_INIT_CMD_MASK  0
 
 #endif /* __WL1251_SPI_H__ */

@@ -15,25 +15,24 @@
 #define PACKED  __attribute__ ((__packed__))
 #endif /* PACKED */
 
-
 /*
  * Sequence Status Block.
  * This format is set by the FC-FS standard and is sent over the wire.
  * Note that the fields aren't all naturally aligned.
  */
 struct fc_ssb {
-	__u8	ssb_seq_id;		/* sequence ID */
-	__u8	_ssb_resvd;
-	__be16	ssb_low_seq_cnt;	/* lowest SEQ_CNT */
+  __u8 ssb_seq_id;   /* sequence ID */
+  __u8 _ssb_resvd;
+  __be16 ssb_low_seq_cnt;  /* lowest SEQ_CNT */
 
-	__be16	ssb_high_seq_cnt;	/* highest SEQ_CNT */
-	__be16	ssb_s_stat;		/* sequence status flags */
+  __be16 ssb_high_seq_cnt; /* highest SEQ_CNT */
+  __be16 ssb_s_stat;   /* sequence status flags */
 
-	__be16	ssb_err_seq_cnt;	/* error SEQ_CNT */
-	__u8	ssb_fh_cs_ctl;		/* frame header CS_CTL */
-	__be16	ssb_fh_ox_id;		/* frame header OX_ID */
-	__be16	ssb_rx_id;		/* responder's exchange ID */
-	__u8	_ssb_resvd2[2];
+  __be16 ssb_err_seq_cnt;  /* error SEQ_CNT */
+  __u8 ssb_fh_cs_ctl;    /* frame header CS_CTL */
+  __be16 ssb_fh_ox_id;   /* frame header OX_ID */
+  __be16 ssb_rx_id;    /* responder's exchange ID */
+  __u8 _ssb_resvd2[2];
 } PACKED;
 
 /*
@@ -71,22 +70,22 @@ struct fc_ssb {
  * Note that the fields aren't all naturally aligned.
  */
 struct fc_esb {
-	__u8	esb_cs_ctl;		/* CS_CTL for frame header */
-	__be16	esb_ox_id;		/* originator exchange ID */
-	__be16	esb_rx_id;		/* responder exchange ID */
-	__be32	esb_orig_fid;		/* fabric ID of originator */
-	__be32	esb_resp_fid;		/* fabric ID of responder */
-	__be32	esb_e_stat;		/* status */
-	__u8	_esb_resvd[4];
-	__u8	esb_service_params[112]; /* TBD */
-	__u8	esb_seq_status[8];	/* sequence statuses, 8 bytes each */
+  __u8 esb_cs_ctl;   /* CS_CTL for frame header */
+  __be16 esb_ox_id;    /* originator exchange ID */
+  __be16 esb_rx_id;    /* responder exchange ID */
+  __be32 esb_orig_fid;   /* fabric ID of originator */
+  __be32 esb_resp_fid;   /* fabric ID of responder */
+  __be32 esb_e_stat;   /* status */
+  __u8 _esb_resvd[4];
+  __u8 esb_service_params[112]; /* TBD */
+  __u8 esb_seq_status[8];  /* sequence statuses, 8 bytes each */
 } __attribute__((packed));
 
 /*
  * Define expected size for ASSERTs.
  * See comments on FC_SSB_SIZE.
  */
-#define FC_ESB_SIZE         (1 + 5*4 + 112 + 8)     /* expected size */
+#define FC_ESB_SIZE         (1 + 5 * 4 + 112 + 8)     /* expected size */
 
 /*
  * esb_e_stat - flags from FC-FS-2 T11/1619-D Rev 0.90.

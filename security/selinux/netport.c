@@ -36,15 +36,15 @@
 #define SEL_NETPORT_HASH_BKT_LIMIT   16
 
 struct sel_netport_bkt {
-	int size;
-	struct list_head list;
+  int size;
+  struct list_head list;
 };
 
 struct sel_netport {
-	struct netport_security_struct psec;
+  struct netport_security_struct psec;
 
-	struct list_head list;
-	struct rcu_head rcu;
+  struct list_head list;
+  struct rcu_head rcu;
 };
 
 /* NOTE: we are using a combined hash table for both IPv4 and IPv6, the reason
@@ -65,9 +65,8 @@ static struct sel_netport_bkt sel_netport_hash[SEL_NETPORT_HASH_SIZE];
  * number for the given port.
  *
  */
-static unsigned int sel_netport_hashfn(u16 pnum)
-{
-	return (pnum & (SEL_NETPORT_HASH_SIZE - 1));
+static unsigned int sel_netport_hashfn(u16 pnum) {
+  return pnum & (SEL_NETPORT_HASH_SIZE - 1);
 }
 
 /**
@@ -80,17 +79,15 @@ static unsigned int sel_netport_hashfn(u16 pnum)
  * can not be found in the table return NULL.
  *
  */
-static struct sel_netport *sel_netport_find(u8 protocol, u16 pnum)
-{
-	unsigned int idx;
-	struct sel_netport *port;
-
-	idx = sel_netport_hashfn(pnum);
-	list_for_each_entry_rcu(port, &sel_netport_hash[idx].list, list)
-		if (port->psec.port == pnum && port->psec.protocol == protocol)
-			return port;
-
-	return NULL;
+static struct sel_netport *sel_netport_find(u8 protocol, u16 pnum) {
+  unsigned int idx;
+  struct sel_netport *port;
+  idx = sel_netport_hashfn(pnum);
+  list_for_each_entry_rcu(port, &sel_netport_hash[idx].list, list)
+  if (port->psec.port == pnum && port->psec.protocol == protocol) {
+    return port;
+  }
+  return NULL;
 }
 
 /**
@@ -101,25 +98,24 @@ static struct sel_netport *sel_netport_find(u8 protocol, u16 pnum)
  * Add a new port record to the network address hash table.
  *
  */
-static void sel_netport_insert(struct sel_netport *port)
-{
-	unsigned int idx;
-
-	/* we need to impose a limit on the growth of the hash table so check
-	 * this bucket to make sure it is within the specified bounds */
-	idx = sel_netport_hashfn(port->psec.port);
-	list_add_rcu(&port->list, &sel_netport_hash[idx].list);
-	if (sel_netport_hash[idx].size == SEL_NETPORT_HASH_BKT_LIMIT) {
-		struct sel_netport *tail;
-		tail = list_entry(
-			rcu_dereference_protected(
-				list_tail_rcu(&sel_netport_hash[idx].list),
-				lockdep_is_held(&sel_netport_lock)),
-			struct sel_netport, list);
-		list_del_rcu(&tail->list);
-		kfree_rcu(tail, rcu);
-	} else
-		sel_netport_hash[idx].size++;
+static void sel_netport_insert(struct sel_netport *port) {
+  unsigned int idx;
+  /* we need to impose a limit on the growth of the hash table so check
+   * this bucket to make sure it is within the specified bounds */
+  idx = sel_netport_hashfn(port->psec.port);
+  list_add_rcu(&port->list, &sel_netport_hash[idx].list);
+  if (sel_netport_hash[idx].size == SEL_NETPORT_HASH_BKT_LIMIT) {
+    struct sel_netport *tail;
+    tail = list_entry(
+        rcu_dereference_protected(
+        list_tail_rcu(&sel_netport_hash[idx].list),
+        lockdep_is_held(&sel_netport_lock)),
+        struct sel_netport, list);
+    list_del_rcu(&tail->list);
+    kfree_rcu(tail, rcu);
+  } else {
+    sel_netport_hash[idx].size++;
+  }
 }
 
 /**
@@ -134,37 +130,36 @@ static void sel_netport_insert(struct sel_netport *port)
  * queries.  Returns zero on success, negative values on failure.
  *
  */
-static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
-{
-	int ret;
-	struct sel_netport *port;
-	struct sel_netport *new;
-
-	spin_lock_bh(&sel_netport_lock);
-	port = sel_netport_find(protocol, pnum);
-	if (port != NULL) {
-		*sid = port->psec.sid;
-		spin_unlock_bh(&sel_netport_lock);
-		return 0;
-	}
-
-	ret = security_port_sid(protocol, pnum, sid);
-	if (ret != 0)
-		goto out;
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
-	if (new) {
-		new->psec.port = pnum;
-		new->psec.protocol = protocol;
-		new->psec.sid = *sid;
-		sel_netport_insert(new);
-	}
-
+static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid) {
+  int ret;
+  struct sel_netport *port;
+  struct sel_netport *new;
+  spin_lock_bh(&sel_netport_lock);
+  port = sel_netport_find(protocol, pnum);
+  if (port != NULL) {
+    *sid = port->psec.sid;
+    spin_unlock_bh(&sel_netport_lock);
+    return 0;
+  }
+  ret = security_port_sid(protocol, pnum, sid);
+  if (ret != 0) {
+    goto out;
+  }
+  new = kzalloc(sizeof(*new), GFP_ATOMIC);
+  if (new) {
+    new->psec.port = pnum;
+    new->psec.protocol = protocol;
+    new->psec.sid = *sid;
+    sel_netport_insert(new);
+  }
 out:
-	spin_unlock_bh(&sel_netport_lock);
-	if (unlikely(ret))
-		pr_warn("SELinux: failure in %s(), unable to determine network port label\n",
-			__func__);
-	return ret;
+  spin_unlock_bh(&sel_netport_lock);
+  if (unlikely(ret)) {
+    pr_warn(
+        "SELinux: failure in %s(), unable to determine network port label\n",
+        __func__);
+  }
+  return ret;
 }
 
 /**
@@ -180,20 +175,17 @@ out:
  * future queries.  Returns zero on success, negative values on failure.
  *
  */
-int sel_netport_sid(u8 protocol, u16 pnum, u32 *sid)
-{
-	struct sel_netport *port;
-
-	rcu_read_lock();
-	port = sel_netport_find(protocol, pnum);
-	if (port != NULL) {
-		*sid = port->psec.sid;
-		rcu_read_unlock();
-		return 0;
-	}
-	rcu_read_unlock();
-
-	return sel_netport_sid_slow(protocol, pnum, sid);
+int sel_netport_sid(u8 protocol, u16 pnum, u32 *sid) {
+  struct sel_netport *port;
+  rcu_read_lock();
+  port = sel_netport_find(protocol, pnum);
+  if (port != NULL) {
+    *sid = port->psec.sid;
+    rcu_read_unlock();
+    return 0;
+  }
+  rcu_read_unlock();
+  return sel_netport_sid_slow(protocol, pnum, sid);
 }
 
 /**
@@ -203,36 +195,31 @@ int sel_netport_sid(u8 protocol, u16 pnum, u32 *sid)
  * Remove all entries from the network address table.
  *
  */
-void sel_netport_flush(void)
-{
-	unsigned int idx;
-	struct sel_netport *port, *port_tmp;
-
-	spin_lock_bh(&sel_netport_lock);
-	for (idx = 0; idx < SEL_NETPORT_HASH_SIZE; idx++) {
-		list_for_each_entry_safe(port, port_tmp,
-					 &sel_netport_hash[idx].list, list) {
-			list_del_rcu(&port->list);
-			kfree_rcu(port, rcu);
-		}
-		sel_netport_hash[idx].size = 0;
-	}
-	spin_unlock_bh(&sel_netport_lock);
+void sel_netport_flush(void) {
+  unsigned int idx;
+  struct sel_netport *port, *port_tmp;
+  spin_lock_bh(&sel_netport_lock);
+  for (idx = 0; idx < SEL_NETPORT_HASH_SIZE; idx++) {
+    list_for_each_entry_safe(port, port_tmp,
+        &sel_netport_hash[idx].list, list) {
+      list_del_rcu(&port->list);
+      kfree_rcu(port, rcu);
+    }
+    sel_netport_hash[idx].size = 0;
+  }
+  spin_unlock_bh(&sel_netport_lock);
 }
 
-static __init int sel_netport_init(void)
-{
-	int iter;
-
-	if (!selinux_enabled_boot)
-		return 0;
-
-	for (iter = 0; iter < SEL_NETPORT_HASH_SIZE; iter++) {
-		INIT_LIST_HEAD(&sel_netport_hash[iter].list);
-		sel_netport_hash[iter].size = 0;
-	}
-
-	return 0;
+static __init int sel_netport_init(void) {
+  int iter;
+  if (!selinux_enabled_boot) {
+    return 0;
+  }
+  for (iter = 0; iter < SEL_NETPORT_HASH_SIZE; iter++) {
+    INIT_LIST_HEAD(&sel_netport_hash[iter].list);
+    sel_netport_hash[iter].size = 0;
+  }
+  return 0;
 }
 
 __initcall(sel_netport_init);

@@ -15,9 +15,8 @@
 struct static_key paravirt_steal_enabled;
 struct static_key paravirt_steal_rq_enabled;
 
-static u64 native_steal_clock(int cpu)
-{
-	return 0;
+static u64 native_steal_clock(int cpu) {
+  return 0;
 }
 
 DEFINE_STATIC_CALL(pv_steal_clock, native_steal_clock);

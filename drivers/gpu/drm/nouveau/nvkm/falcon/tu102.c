@@ -21,8 +21,6 @@
  */
 #include "priv.h"
 
-bool
-tu102_flcn_riscv_active(struct nvkm_falcon *falcon)
-{
-	return (nvkm_falcon_rd32(falcon, falcon->addr2 + 0x240) & 0x00000001) != 0;
+bool tu102_flcn_riscv_active(struct nvkm_falcon *falcon) {
+  return (nvkm_falcon_rd32(falcon, falcon->addr2 + 0x240) & 0x00000001) != 0;
 }

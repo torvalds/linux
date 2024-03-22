@@ -13,35 +13,35 @@
 #define OCM_LOADING_TIME 10
 
 /*********  ANX7625 Register  **********/
-#define TX_P0_ADDR				0x70
-#define TX_P1_ADDR				0x7A
-#define TX_P2_ADDR				0x72
+#define TX_P0_ADDR        0x70
+#define TX_P1_ADDR        0x7A
+#define TX_P2_ADDR        0x72
 
-#define RX_P0_ADDR				0x7e
-#define RX_P1_ADDR				0x84
-#define RX_P2_ADDR				0x54
+#define RX_P0_ADDR        0x7e
+#define RX_P1_ADDR        0x84
+#define RX_P2_ADDR        0x54
 
-#define RSVD_00_ADDR				0x00
-#define RSVD_D1_ADDR				0xD1
-#define RSVD_60_ADDR				0x60
-#define RSVD_39_ADDR				0x39
-#define RSVD_7F_ADDR				0x7F
+#define RSVD_00_ADDR        0x00
+#define RSVD_D1_ADDR        0xD1
+#define RSVD_60_ADDR        0x60
+#define RSVD_39_ADDR        0x39
+#define RSVD_7F_ADDR        0x7F
 
-#define TCPC_INTERFACE_ADDR			0x58
+#define TCPC_INTERFACE_ADDR     0x58
 
 /* Clock frequency in Hz */
 #define XTAL_FRQ        (27 * 1000000)
 
-#define  POST_DIVIDER_MIN	1
-#define  POST_DIVIDER_MAX	16
-#define  PLL_OUT_FREQ_MIN	520000000UL
-#define  PLL_OUT_FREQ_MAX	730000000UL
-#define  PLL_OUT_FREQ_ABS_MIN	300000000UL
-#define  PLL_OUT_FREQ_ABS_MAX	800000000UL
-#define  MAX_UNSIGNED_24BIT	16777215UL
+#define  POST_DIVIDER_MIN 1
+#define  POST_DIVIDER_MAX 16
+#define  PLL_OUT_FREQ_MIN 520000000UL
+#define  PLL_OUT_FREQ_MAX 730000000UL
+#define  PLL_OUT_FREQ_ABS_MIN 300000000UL
+#define  PLL_OUT_FREQ_ABS_MAX 800000000UL
+#define  MAX_UNSIGNED_24BIT 16777215UL
 
-/***************************************************************/
-/* Register definition of device address 0x58 */
+/* *************************************************************
+ * Register definition of device address 0x58*/
 
 #define PRODUCT_ID_L 0x02
 #define PRODUCT_ID_H 0x03
@@ -57,25 +57,25 @@
 
 /******** END of I2C Address 0x58 ********/
 
-/***************************************************************/
-/* Register definition of device address 0x70 */
-#define TX_HDCP_CTRL0			0x01
-#define STORE_AN			BIT(7)
-#define RX_REPEATER			BIT(6)
-#define RE_AUTHEN			BIT(5)
-#define SW_AUTH_OK			BIT(4)
-#define HARD_AUTH_EN			BIT(3)
-#define ENC_EN				BIT(2)
-#define BKSV_SRM_PASS			BIT(1)
-#define KSVLIST_VLD			BIT(0)
+/* *************************************************************
+ * Register definition of device address 0x70*/
+#define TX_HDCP_CTRL0     0x01
+#define STORE_AN      BIT(7)
+#define RX_REPEATER     BIT(6)
+#define RE_AUTHEN     BIT(5)
+#define SW_AUTH_OK      BIT(4)
+#define HARD_AUTH_EN      BIT(3)
+#define ENC_EN        BIT(2)
+#define BKSV_SRM_PASS     BIT(1)
+#define KSVLIST_VLD     BIT(0)
 
-#define SP_TX_WAIT_R0_TIME		0x40
-#define SP_TX_WAIT_KSVR_TIME		0x42
-#define SP_TX_SYS_CTRL1_REG		0x80
-#define HDCP2TX_FW_EN			BIT(4)
+#define SP_TX_WAIT_R0_TIME    0x40
+#define SP_TX_WAIT_KSVR_TIME    0x42
+#define SP_TX_SYS_CTRL1_REG   0x80
+#define HDCP2TX_FW_EN     BIT(4)
 
-#define SP_TX_LINK_BW_SET_REG		0xA0
-#define SP_TX_LANE_COUNT_SET_REG	0xA1
+#define SP_TX_LINK_BW_SET_REG   0xA0
+#define SP_TX_LANE_COUNT_SET_REG  0xA1
 
 #define M_VID_0 0xC0
 #define M_VID_1 0xC1
@@ -84,15 +84,15 @@
 #define N_VID_1 0xC4
 #define N_VID_2 0xC5
 
-#define KEY_START_ADDR			0x9000
-#define KEY_RESERVED			416
+#define KEY_START_ADDR      0x9000
+#define KEY_RESERVED      416
 
-#define HDCP14KEY_START_ADDR		(KEY_START_ADDR + KEY_RESERVED)
-#define HDCP14KEY_SIZE			624
+#define HDCP14KEY_START_ADDR    (KEY_START_ADDR + KEY_RESERVED)
+#define HDCP14KEY_SIZE      624
 
-/***************************************************************/
-/* Register definition of device address 0x72 */
-#define AUX_RST	0x04
+/* *************************************************************
+ * Register definition of device address 0x72*/
+#define AUX_RST 0x04
 #define RST_CTRL2 0x07
 
 #define SP_TX_TOTAL_LINE_STA_L 0x24
@@ -143,11 +143,11 @@
 
 #define I2C_ADDR_72_DPTX              0x72
 
-#define HP_MIN			8
-#define HBLANKING_MIN		80
-#define SYNC_LEN_DEF		32
-#define HFP_HBP_DEF		((HBLANKING_MIN - SYNC_LEN_DEF) / 2)
-#define VIDEO_CONTROL_0	0x08
+#define HP_MIN      8
+#define HBLANKING_MIN   80
+#define SYNC_LEN_DEF    32
+#define HFP_HBP_DEF   ((HBLANKING_MIN - SYNC_LEN_DEF) / 2)
+#define VIDEO_CONTROL_0 0x08
 
 #define  ACTIVE_LINES_L         0x14
 #define  ACTIVE_LINES_H         0x15  /* Bit[7:6] are reserved */
@@ -168,25 +168,25 @@
 
 /******** END of I2C Address 0x72 *********/
 
-/***************************************************************/
-/* Register definition of device address 0x7a */
-#define DP_TX_SWING_REG_CNT		0x14
-#define DP_TX_LANE0_SWING_REG0		0x00
-#define DP_TX_LANE1_SWING_REG0		0x14
+/* *************************************************************
+ * Register definition of device address 0x7a*/
+#define DP_TX_SWING_REG_CNT   0x14
+#define DP_TX_LANE0_SWING_REG0    0x00
+#define DP_TX_LANE1_SWING_REG0    0x14
 /******** END of I2C Address 0x7a *********/
 
-/***************************************************************/
-/* Register definition of device address 0x7e */
+/* *************************************************************
+ * Register definition of device address 0x7e*/
 
 #define  I2C_ADDR_7E_FLASH_CONTROLLER  0x7E
 
-#define R_BOOT_RETRY		0x00
-#define R_RAM_ADDR_H		0x01
-#define R_RAM_ADDR_L		0x02
-#define R_RAM_LEN_H		0x03
-#define R_RAM_LEN_L		0x04
+#define R_BOOT_RETRY    0x00
+#define R_RAM_ADDR_H    0x01
+#define R_RAM_ADDR_L    0x02
+#define R_RAM_LEN_H   0x03
+#define R_RAM_LEN_L   0x04
 #define FLASH_LOAD_STA          0x05
-#define FLASH_LOAD_STA_CHK	BIT(7)
+#define FLASH_LOAD_STA_CHK  BIT(7)
 
 #define R_RAM_CTRL              0x05
 /* bit positions */
@@ -243,15 +243,15 @@
 #define AP_AUX_CTRL_ADDRONLY 0x20
 
 #define AP_AUX_BUFF_START 0x15
-#define PIXEL_CLOCK_L	0x25
-#define PIXEL_CLOCK_H	0x26
+#define PIXEL_CLOCK_L 0x25
+#define PIXEL_CLOCK_H 0x26
 
-#define AP_AUX_COMMAND	0x27  /* com+len */
-#define LENGTH_SHIFT	4
-#define DPCD_CMD(len, cmd)	((((len) - 1) << LENGTH_SHIFT) | (cmd))
+#define AP_AUX_COMMAND  0x27  /* com+len */
+#define LENGTH_SHIFT  4
+#define DPCD_CMD(len, cmd)  ((((len) - 1) << LENGTH_SHIFT) | (cmd))
 
-/* Bit 0&1: 3D video structure */
-/* 0x01: frame packing,  0x02:Line alternative, 0x03:Side-by-side(full) */
+/* Bit 0&1: 3D video structure
+ * 0x01: frame packing,  0x02:Line alternative, 0x03:Side-by-side(full)*/
 #define AP_AV_STATUS 0x28
 #define AP_VIDEO_CHG  BIT(2)
 #define AP_AUDIO_CHG  BIT(3)
@@ -263,8 +263,8 @@
 #define GPIO_CTRL_2   0x49
 #define HPD_SOURCE    BIT(6)
 
-/***************************************************************/
-/* Register definition of device address 0x84 */
+/* *************************************************************
+ * Register definition of device address 0x84*/
 #define  MIPI_PHY_CONTROL_3            0x03
 #define  MIPI_HS_PWD_CLK               7
 #define  MIPI_HS_RT_CLK                6
@@ -275,8 +275,8 @@
 #define  MIPI_CLK_MISS_CTRL            1
 #define  MIPI_PD_LPTX_CH_MANUAL_PD_EN  0
 
-#define  MIPI_LANE_CTRL_0		0x05
-#define  MIPI_TIME_HS_PRPR		0x08
+#define  MIPI_LANE_CTRL_0   0x05
+#define  MIPI_TIME_HS_PRPR    0x08
 
 /*
  * After MIPI RX protocol layer received video frames,
@@ -302,21 +302,21 @@
 #define  MIPI_N_NUM_READY        0x08
 #define  STABLE_INTEGER_CNT_EN   0x04
 #define  MIPI_PLL_TEST_BIT       0
-/* Bit[1:0]: test point output select - */
-/* 00: VCO power, 01: dvdd_pdt, 10: dvdd, 11: vcox */
+/* Bit[1:0]: test point output select -
+ * 00: VCO power, 01: dvdd_pdt, 10: dvdd, 11: vcox*/
 
 #define  MIPI_DIGITAL_PLL_7      0x2B
 #define  MIPI_PLL_FORCE_N_EN     7
 #define  MIPI_PLL_FORCE_BAND_EN  6
 
 #define  MIPI_PLL_VCO_TUNE_REG   4
-/* Bit[5:4]: VCO metal capacitance - */
-/* 00: +20% fast, 01: +10% fast (default), 10: typical, 11: -10% slow */
+/* Bit[5:4]: VCO metal capacitance -
+ * 00: +20% fast, 01: +10% fast (default), 10: typical, 11: -10% slow*/
 #define  MIPI_PLL_VCO_TUNE_REG_VAL   0x30
 
 #define  MIPI_PLL_PLL_LDO_BIT    2
-/* Bit[3:2]: vco_v2i power - */
-/* 00: 1.40V, 01: 1.45V (default), 10: 1.50V, 11: 1.55V */
+/* Bit[3:2]: vco_v2i power -
+ * 00: 1.40V, 01: 1.45V (default), 10: 1.50V, 11: 1.55V*/
 #define  MIPI_PLL_RESET_N        0x02
 #define  MIPI_FRQ_FORCE_NDET     0
 
@@ -381,110 +381,110 @@
 
 /***************** Display *****************/
 enum audio_fs {
-	AUDIO_FS_441K  = 0x00,
-	AUDIO_FS_48K   = 0x02,
-	AUDIO_FS_32K   = 0x03,
-	AUDIO_FS_882K  = 0x08,
-	AUDIO_FS_96K   = 0x0a,
-	AUDIO_FS_1764K = 0x0c,
-	AUDIO_FS_192K  = 0x0e
+  AUDIO_FS_441K = 0x00,
+  AUDIO_FS_48K = 0x02,
+  AUDIO_FS_32K = 0x03,
+  AUDIO_FS_882K = 0x08,
+  AUDIO_FS_96K = 0x0a,
+  AUDIO_FS_1764K = 0x0c,
+  AUDIO_FS_192K = 0x0e
 };
 
 enum audio_wd_len {
-	AUDIO_W_LEN_16_20MAX = 0x02,
-	AUDIO_W_LEN_18_20MAX = 0x04,
-	AUDIO_W_LEN_17_20MAX = 0x0c,
-	AUDIO_W_LEN_19_20MAX = 0x08,
-	AUDIO_W_LEN_20_20MAX = 0x0a,
-	AUDIO_W_LEN_20_24MAX = 0x03,
-	AUDIO_W_LEN_22_24MAX = 0x05,
-	AUDIO_W_LEN_21_24MAX = 0x0d,
-	AUDIO_W_LEN_23_24MAX = 0x09,
-	AUDIO_W_LEN_24_24MAX = 0x0b
+  AUDIO_W_LEN_16_20MAX = 0x02,
+  AUDIO_W_LEN_18_20MAX = 0x04,
+  AUDIO_W_LEN_17_20MAX = 0x0c,
+  AUDIO_W_LEN_19_20MAX = 0x08,
+  AUDIO_W_LEN_20_20MAX = 0x0a,
+  AUDIO_W_LEN_20_24MAX = 0x03,
+  AUDIO_W_LEN_22_24MAX = 0x05,
+  AUDIO_W_LEN_21_24MAX = 0x0d,
+  AUDIO_W_LEN_23_24MAX = 0x09,
+  AUDIO_W_LEN_24_24MAX = 0x0b
 };
 
-#define I2S_CH_2	0x01
-#define TDM_CH_4	0x03
-#define TDM_CH_6	0x05
-#define TDM_CH_8	0x07
+#define I2S_CH_2  0x01
+#define TDM_CH_4  0x03
+#define TDM_CH_6  0x05
+#define TDM_CH_8  0x07
 
-#define MAX_DPCD_BUFFER_SIZE	16
+#define MAX_DPCD_BUFFER_SIZE  16
 
 #define ONE_BLOCK_SIZE      128
 #define FOUR_BLOCK_SIZE     (128 * 4)
 
-#define MAX_EDID_BLOCK	3
-#define EDID_TRY_CNT	3
-#define SUPPORT_PIXEL_CLOCK	300000
+#define MAX_EDID_BLOCK  3
+#define EDID_TRY_CNT  3
+#define SUPPORT_PIXEL_CLOCK 300000
 
 struct s_edid_data {
-	int edid_block_num;
-	u8 edid_raw_data[FOUR_BLOCK_SIZE];
+  int edid_block_num;
+  u8 edid_raw_data[FOUR_BLOCK_SIZE];
 };
 
 /***************** Display End *****************/
 
-#define MAX_LANES_SUPPORT	4
+#define MAX_LANES_SUPPORT 4
 
 struct anx7625_platform_data {
-	struct gpio_desc *gpio_p_on;
-	struct gpio_desc *gpio_reset;
-	struct regulator_bulk_data supplies[3];
-	struct drm_bridge *panel_bridge;
-	int intp_irq;
-	int is_dpi;
-	int mipi_lanes;
-	int audio_en;
-	int dp_lane0_swing_reg_cnt;
-	u8 lane0_reg_data[DP_TX_SWING_REG_CNT];
-	int dp_lane1_swing_reg_cnt;
-	u8 lane1_reg_data[DP_TX_SWING_REG_CNT];
-	u32 low_power_mode;
-	struct device_node *mipi_host_node;
+  struct gpio_desc *gpio_p_on;
+  struct gpio_desc *gpio_reset;
+  struct regulator_bulk_data supplies[3];
+  struct drm_bridge *panel_bridge;
+  int intp_irq;
+  int is_dpi;
+  int mipi_lanes;
+  int audio_en;
+  int dp_lane0_swing_reg_cnt;
+  u8 lane0_reg_data[DP_TX_SWING_REG_CNT];
+  int dp_lane1_swing_reg_cnt;
+  u8 lane1_reg_data[DP_TX_SWING_REG_CNT];
+  u32 low_power_mode;
+  struct device_node *mipi_host_node;
 };
 
 struct anx7625_i2c_client {
-	struct i2c_client *tx_p0_client;
-	struct i2c_client *tx_p1_client;
-	struct i2c_client *tx_p2_client;
-	struct i2c_client *rx_p0_client;
-	struct i2c_client *rx_p1_client;
-	struct i2c_client *rx_p2_client;
-	struct i2c_client *tcpc_client;
+  struct i2c_client *tx_p0_client;
+  struct i2c_client *tx_p1_client;
+  struct i2c_client *tx_p2_client;
+  struct i2c_client *rx_p0_client;
+  struct i2c_client *rx_p1_client;
+  struct i2c_client *rx_p2_client;
+  struct i2c_client *tcpc_client;
 };
 
 struct anx7625_data {
-	struct anx7625_platform_data pdata;
-	struct platform_device *audio_pdev;
-	int hpd_status;
-	int hpd_high_cnt;
-	int dp_en;
-	int hdcp_cp;
-	/* Lock for work queue */
-	struct mutex lock;
-	struct device *dev;
-	struct anx7625_i2c_client i2c;
-	struct i2c_client *last_client;
-	struct timer_list hdcp_timer;
-	struct s_edid_data slimport_edid_p;
-	struct device *codec_dev;
-	hdmi_codec_plugged_cb plugged_cb;
-	struct work_struct work;
-	struct workqueue_struct *workqueue;
-	struct delayed_work hdcp_work;
-	struct workqueue_struct *hdcp_workqueue;
-	/* Lock for hdcp work queue */
-	struct mutex hdcp_wq_lock;
-	/* Lock for aux transfer and disable */
-	struct mutex aux_lock;
-	char edid_block;
-	struct display_timing dt;
-	u8 display_timing_valid;
-	struct drm_bridge bridge;
-	u8 bridge_attached;
-	struct drm_connector *connector;
-	struct mipi_dsi_device *dsi;
-	struct drm_dp_aux aux;
+  struct anx7625_platform_data pdata;
+  struct platform_device *audio_pdev;
+  int hpd_status;
+  int hpd_high_cnt;
+  int dp_en;
+  int hdcp_cp;
+  /* Lock for work queue */
+  struct mutex lock;
+  struct device *dev;
+  struct anx7625_i2c_client i2c;
+  struct i2c_client *last_client;
+  struct timer_list hdcp_timer;
+  struct s_edid_data slimport_edid_p;
+  struct device *codec_dev;
+  hdmi_codec_plugged_cb plugged_cb;
+  struct work_struct work;
+  struct workqueue_struct *workqueue;
+  struct delayed_work hdcp_work;
+  struct workqueue_struct *hdcp_workqueue;
+  /* Lock for hdcp work queue */
+  struct mutex hdcp_wq_lock;
+  /* Lock for aux transfer and disable */
+  struct mutex aux_lock;
+  char edid_block;
+  struct display_timing dt;
+  u8 display_timing_valid;
+  struct drm_bridge bridge;
+  u8 bridge_attached;
+  struct drm_connector *connector;
+  struct mipi_dsi_device *dsi;
+  struct drm_dp_aux aux;
 };
 
 #endif  /* __ANX7625_H__ */

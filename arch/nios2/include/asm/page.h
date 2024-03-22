@@ -21,54 +21,60 @@
 /*
  * PAGE_SHIFT determines the page size
  */
-#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
-#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE - 1))
+#define PAGE_SHIFT  CONFIG_PAGE_SHIFT
+#define PAGE_SIZE (_AC(1, UL) << PAGE_SHIFT)
+#define PAGE_MASK (~(PAGE_SIZE - 1))
 
 /*
  * PAGE_OFFSET -- the first address of the first page of memory.
  */
-#define PAGE_OFFSET	\
-	(CONFIG_NIOS2_MEM_BASE + CONFIG_NIOS2_KERNEL_REGION_BASE)
+#define PAGE_OFFSET \
+  (CONFIG_NIOS2_MEM_BASE + CONFIG_NIOS2_KERNEL_REGION_BASE)
 
 #ifndef __ASSEMBLY__
 
 /*
  * This gives the physical RAM offset.
  */
-#define PHYS_OFFSET		CONFIG_NIOS2_MEM_BASE
+#define PHYS_OFFSET   CONFIG_NIOS2_MEM_BASE
 
 /*
  * It's normally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
  * So always define it.
  */
-#define ARCH_PFN_OFFSET		PFN_UP(PHYS_OFFSET)
+#define ARCH_PFN_OFFSET   PFN_UP(PHYS_OFFSET)
 
-#define clear_page(page)	memset((page), 0, PAGE_SIZE)
-#define copy_page(to, from)	memcpy((to), (from), PAGE_SIZE)
+#define clear_page(page)  memset((page), 0, PAGE_SIZE)
+#define copy_page(to, from) memcpy((to), (from), PAGE_SIZE)
 
 struct page;
 
 extern void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
 extern void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
-				struct page *to);
+    struct page *to);
 
 /*
  * These are used to make use of C type-checking.
  */
 typedef struct page *pgtable_t;
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct {
+  unsigned long pte;
+} pte_t;
+typedef struct {
+  unsigned long pgd;
+} pgd_t;
+typedef struct {
+  unsigned long pgprot;
+} pgprot_t;
 
-#define pte_val(x)	((x).pte)
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
+#define pte_val(x)  ((x).pte)
+#define pgd_val(x)  ((x).pgd)
+#define pgprot_val(x) ((x).pgprot)
 
-#define __pte(x)	((pte_t) { (x) })
-#define __pgd(x)	((pgd_t) { (x) })
-#define __pgprot(x)	((pgprot_t) { (x) })
+#define __pte(x)  ((pte_t) { (x) })
+#define __pgd(x)  ((pgd_t) { (x) })
+#define __pgprot(x) ((pgprot_t) { (x) })
 
 extern unsigned long memory_start;
 extern unsigned long memory_end;
@@ -76,20 +82,20 @@ extern unsigned long memory_size;
 
 extern struct page *mem_map;
 
-# define __pa(x)		\
-	((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
-# define __va(x)		\
-	((void *)((unsigned long)(x) + PAGE_OFFSET - PHYS_OFFSET))
+#define __pa(x)    \
+  ((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)
+#define __va(x)    \
+  ((void *) ((unsigned long) (x) + PAGE_OFFSET - PHYS_OFFSET))
 
-#define page_to_virt(page)	\
-	((void *)(((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
+#define page_to_virt(page)  \
+  ((void *) (((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
 
-# define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
+#define pfn_to_kaddr(pfn)  __va((pfn) << PAGE_SHIFT)
 
-# define virt_to_page(vaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(vaddr)))
-# define virt_addr_valid(vaddr)	pfn_valid(PFN_DOWN(virt_to_phys(vaddr)))
+#define virt_to_page(vaddr)  pfn_to_page(PFN_DOWN(virt_to_phys(vaddr)))
+#define virt_addr_valid(vaddr) pfn_valid(PFN_DOWN(virt_to_phys(vaddr)))
 
-# define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+#define VM_DATA_DEFAULT_FLAGS  VM_DATA_FLAGS_NON_EXEC
 
 #include <asm-generic/memory_model.h>
 

@@ -20,20 +20,20 @@
 #define ARIZONA_MAX_CORE_SUPPLIES 2
 
 enum {
-	ARIZONA_MCLK1,
-	ARIZONA_MCLK2,
-	ARIZONA_NUM_MCLK
+  ARIZONA_MCLK1,
+  ARIZONA_MCLK2,
+  ARIZONA_NUM_MCLK
 };
 
 enum arizona_type {
-	WM5102 = 1,
-	WM5110 = 2,
-	WM8997 = 3,
-	WM8280 = 4,
-	WM8998 = 5,
-	WM1814 = 6,
-	WM1831 = 7,
-	CS47L24 = 8,
+  WM5102 = 1,
+  WM5110 = 2,
+  WM8997 = 3,
+  WM8280 = 4,
+  WM8998 = 5,
+  WM1814 = 6,
+  WM1831 = 7,
+  CS47L24 = 8,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -86,8 +86,8 @@ enum arizona_type {
 #define ARIZONA_IRQ_DCS_HP_DONE           47
 #define ARIZONA_IRQ_FLL2_CLOCK_OK         48
 #define ARIZONA_IRQ_FLL1_CLOCK_OK         49
-#define ARIZONA_IRQ_MICD_CLAMP_RISE	  50
-#define ARIZONA_IRQ_MICD_CLAMP_FALL	  51
+#define ARIZONA_IRQ_MICD_CLAMP_RISE   50
+#define ARIZONA_IRQ_MICD_CLAMP_FALL   51
 #define ARIZONA_IRQ_HP3R_DONE             52
 #define ARIZONA_IRQ_HP3L_DONE             53
 #define ARIZONA_IRQ_HP2R_DONE             54
@@ -117,70 +117,69 @@ enum arizona_type {
 struct snd_soc_dapm_context;
 
 struct arizona {
-	struct regmap *regmap;
-	struct device *dev;
+  struct regmap *regmap;
+  struct device *dev;
 
-	enum arizona_type type;
-	unsigned int rev;
+  enum arizona_type type;
+  unsigned int rev;
 
-	int num_core_supplies;
-	struct regulator_bulk_data core_supplies[ARIZONA_MAX_CORE_SUPPLIES];
-	struct regulator *dcvdd;
-	bool has_fully_powered_off;
+  int num_core_supplies;
+  struct regulator_bulk_data core_supplies[ARIZONA_MAX_CORE_SUPPLIES];
+  struct regulator *dcvdd;
+  bool has_fully_powered_off;
 
-	struct arizona_pdata pdata;
+  struct arizona_pdata pdata;
 
-	unsigned int external_dcvdd:1;
+  unsigned int external_dcvdd : 1;
 
-	int irq;
-	struct irq_domain *virq;
-	struct regmap_irq_chip_data *aod_irq_chip;
-	struct regmap_irq_chip_data *irq_chip;
+  int irq;
+  struct irq_domain *virq;
+  struct regmap_irq_chip_data *aod_irq_chip;
+  struct regmap_irq_chip_data *irq_chip;
 
-	bool hpdet_clamp;
-	unsigned int hp_ena;
+  bool hpdet_clamp;
+  unsigned int hp_ena;
 
-	struct mutex clk_lock;
-	int clk32k_ref;
+  struct mutex clk_lock;
+  int clk32k_ref;
 
-	struct clk *mclk[ARIZONA_NUM_MCLK];
+  struct clk *mclk[ARIZONA_NUM_MCLK];
 
-	bool ctrlif_error;
+  bool ctrlif_error;
 
-	struct snd_soc_dapm_context *dapm;
+  struct snd_soc_dapm_context *dapm;
 
-	int tdm_width[ARIZONA_MAX_AIF];
-	int tdm_slots[ARIZONA_MAX_AIF];
+  int tdm_width[ARIZONA_MAX_AIF];
+  int tdm_slots[ARIZONA_MAX_AIF];
 
-	uint16_t dac_comp_coeff;
-	uint8_t dac_comp_enabled;
-	struct mutex dac_comp_lock;
+  uint16_t dac_comp_coeff;
+  uint8_t dac_comp_enabled;
+  struct mutex dac_comp_lock;
 
-	struct blocking_notifier_head notifier;
+  struct blocking_notifier_head notifier;
 };
 
 static inline int arizona_call_notifiers(struct arizona *arizona,
-					 unsigned long event,
-					 void *data)
-{
-	return blocking_notifier_call_chain(&arizona->notifier, event, data);
+    unsigned long event,
+    void *data) {
+  return blocking_notifier_call_chain(&arizona->notifier, event, data);
 }
 
 int arizona_clk32k_enable(struct arizona *arizona);
 int arizona_clk32k_disable(struct arizona *arizona);
 
 int arizona_request_irq(struct arizona *arizona, int irq, char *name,
-			irq_handler_t handler, void *data);
+    irq_handler_t handler, void *data);
 void arizona_free_irq(struct arizona *arizona, int irq, void *data);
 int arizona_set_irq_wake(struct arizona *arizona, int irq, int on);
 
 #ifdef CONFIG_MFD_WM5102
 int wm5102_patch(struct arizona *arizona);
 #else
-static inline int wm5102_patch(struct arizona *arizona)
-{
-	return 0;
+static inline int wm5102_patch(struct arizona *arizona) {
+  return 0;
 }
+
 #endif
 
 int wm5110_patch(struct arizona *arizona);

@@ -9,7 +9,8 @@
 #include "regs/xe_reg_defs.h"
 
 /*
- * This file contains addresses of PCODE registers visible through GT MMIO space.
+ * This file contains addresses of PCODE registers visible through GT MMIO
+ *space.
  */
 
 #define PVC_GT0_PACKAGE_ENERGY_STATUS           XE_REG(0x281004)

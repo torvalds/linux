@@ -11,8 +11,12 @@ irqreturn_t xen_pmu_irq_handler(int irq, void *dev_id);
 void xen_pmu_init(int cpu);
 void xen_pmu_finish(int cpu);
 #else
-static inline void xen_pmu_init(int cpu) {}
-static inline void xen_pmu_finish(int cpu) {}
+static inline void xen_pmu_init(int cpu) {
+}
+
+static inline void xen_pmu_finish(int cpu) {
+}
+
 #endif
 bool pmu_msr_read(unsigned int msr, uint64_t *val, int *err);
 bool pmu_msr_write(unsigned int msr, uint32_t low, uint32_t high, int *err);

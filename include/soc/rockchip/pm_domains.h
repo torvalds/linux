@@ -13,12 +13,12 @@ void rockchip_pmu_unblock(void);
 
 #else /* CONFIG_ROCKCHIP_PM_DOMAINS */
 
-static inline int rockchip_pmu_block(void)
-{
-	return 0;
+static inline int rockchip_pmu_block(void) {
+  return 0;
 }
 
-static inline void rockchip_pmu_unblock(void) { }
+static inline void rockchip_pmu_unblock(void) {
+}
 
 #endif /* CONFIG_ROCKCHIP_PM_DOMAINS */
 

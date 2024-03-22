@@ -13,17 +13,16 @@
 
 struct vsp1_device;
 
-#define UIF_PAD_SINK				0
-#define UIF_PAD_SOURCE				1
+#define UIF_PAD_SINK        0
+#define UIF_PAD_SOURCE        1
 
 struct vsp1_uif {
-	struct vsp1_entity entity;
-	bool m3w_quirk;
+  struct vsp1_entity entity;
+  bool m3w_quirk;
 };
 
-static inline struct vsp1_uif *to_uif(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_uif, entity.subdev);
+static inline struct vsp1_uif *to_uif(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_uif, entity.subdev);
 }
 
 struct vsp1_uif *vsp1_uif_create(struct vsp1_device *vsp1, unsigned int index);

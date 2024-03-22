@@ -25,24 +25,24 @@
  * right place. Also, it's used by kernel code to import offsets values.
  */
 #define DECLARE_VVAR(offset, type, name) \
-	EMIT_VVAR(name, offset)
+  EMIT_VVAR(name, offset)
 
 #else
 
 extern char __vvar_page;
 
-#define DECLARE_VVAR(offset, type, name)				\
-	extern type vvar_ ## name[CS_BASES]				\
-	__attribute__((visibility("hidden")));				\
-	extern type timens_ ## name[CS_BASES]				\
-	__attribute__((visibility("hidden")));				\
+#define DECLARE_VVAR(offset, type, name)        \
+  extern type vvar_ ## name[CS_BASES]       \
+  __attribute__((visibility("hidden")));        \
+  extern type timens_ ## name[CS_BASES]       \
+  __attribute__((visibility("hidden")));        \
 
 #define VVAR(name) (vvar_ ## name)
 #define TIMENS(name) (timens_ ## name)
 
-#define DEFINE_VVAR(type, name)						\
-	type name[CS_BASES]						\
-	__attribute__((section(".vvar_" #name), aligned(16))) __visible
+#define DEFINE_VVAR(type, name)           \
+  type name[CS_BASES]           \
+  __attribute__((section(".vvar_" #name), aligned(16))) __visible
 
 #endif
 

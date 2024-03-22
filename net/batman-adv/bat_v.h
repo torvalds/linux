@@ -18,22 +18,18 @@ void batadv_v_mesh_free(struct batadv_priv *bat_priv);
 
 #else
 
-static inline int batadv_v_init(void)
-{
-	return 0;
+static inline int batadv_v_init(void) {
+  return 0;
 }
 
-static inline void batadv_v_hardif_init(struct batadv_hard_iface *hardif)
-{
+static inline void batadv_v_hardif_init(struct batadv_hard_iface *hardif) {
 }
 
-static inline int batadv_v_mesh_init(struct batadv_priv *bat_priv)
-{
-	return 0;
+static inline int batadv_v_mesh_init(struct batadv_priv *bat_priv) {
+  return 0;
 }
 
-static inline void batadv_v_mesh_free(struct batadv_priv *bat_priv)
-{
+static inline void batadv_v_mesh_free(struct batadv_priv *bat_priv) {
 }
 
 #endif /* CONFIG_BATMAN_ADV_BATMAN_V */

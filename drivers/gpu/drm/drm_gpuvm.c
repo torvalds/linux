@@ -176,14 +176,14 @@
  *
  *    ::
  *
- *	     0     a     1
- *	old: |-----------| (bo_offset=n)
+ *       0     a     1
+ *  old: |-----------| (bo_offset=n)
  *
- *	     0     a     1
- *	req: |-----------| (bo_offset=n)
+ *       0     a     1
+ *  req: |-----------| (bo_offset=n)
  *
- *	     0     a     1
- *	new: |-----------| (bo_offset=n)
+ *       0     a     1
+ *  new: |-----------| (bo_offset=n)
  *
  *
  * 2) Requested mapping is identical, except for the BO offset, hence replace
@@ -191,14 +191,14 @@
  *
  *    ::
  *
- *	     0     a     1
- *	old: |-----------| (bo_offset=n)
+ *       0     a     1
+ *  old: |-----------| (bo_offset=n)
  *
- *	     0     a     1
- *	req: |-----------| (bo_offset=m)
+ *       0     a     1
+ *  req: |-----------| (bo_offset=m)
  *
- *	     0     a     1
- *	new: |-----------| (bo_offset=m)
+ *       0     a     1
+ *  new: |-----------| (bo_offset=m)
  *
  *
  * 3) Requested mapping is identical, except for the backing BO, hence replace
@@ -206,14 +206,14 @@
  *
  *    ::
  *
- *	     0     a     1
- *	old: |-----------| (bo_offset=n)
+ *       0     a     1
+ *  old: |-----------| (bo_offset=n)
  *
- *	     0     b     1
- *	req: |-----------| (bo_offset=n)
+ *       0     b     1
+ *  req: |-----------| (bo_offset=n)
  *
- *	     0     b     1
- *	new: |-----------| (bo_offset=n)
+ *       0     b     1
+ *  new: |-----------| (bo_offset=n)
  *
  *
  * 4) Existent mapping is a left aligned subset of the requested one, hence
@@ -221,14 +221,14 @@
  *
  *    ::
  *
- *	     0  a  1
- *	old: |-----|       (bo_offset=n)
+ *       0  a  1
+ *  old: |-----|       (bo_offset=n)
  *
- *	     0     a     2
- *	req: |-----------| (bo_offset=n)
+ *       0     a     2
+ *  req: |-----------| (bo_offset=n)
  *
- *	     0     a     2
- *	new: |-----------| (bo_offset=n)
+ *       0     a     2
+ *  new: |-----------| (bo_offset=n)
  *
  *    .. note::
  *       We expect to see the same result for a request with a different BO
@@ -241,14 +241,14 @@
  *
  *    ::
  *
- *	     0     a     2
- *	old: |-----------| (bo_offset=n)
+ *       0     a     2
+ *  old: |-----------| (bo_offset=n)
  *
- *	     0  b  1
- *	req: |-----|       (bo_offset=n)
+ *       0  b  1
+ *  req: |-----|       (bo_offset=n)
  *
- *	     0  b  1  a' 2
- *	new: |-----|-----| (b.bo_offset=n, a.bo_offset=n+1)
+ *       0  b  1  a' 2
+ *  new: |-----|-----| (b.bo_offset=n, a.bo_offset=n+1)
  *
  *    .. note::
  *       We expect to see the same result for a request with a different BO
@@ -260,14 +260,14 @@
  *
  *    ::
  *
- *	     0     a     2
- *	old: |-----------| (bo_offset=n)
+ *       0     a     2
+ *  old: |-----------| (bo_offset=n)
  *
- *	     0  a  1
- *	req: |-----|       (bo_offset=n)
+ *       0  a  1
+ *  req: |-----|       (bo_offset=n)
  *
- *	     0  a  1  a' 2
- *	new: |-----|-----| (a.bo_offset=n, a'.bo_offset=n+1)
+ *       0  a  1  a' 2
+ *  new: |-----|-----| (a.bo_offset=n, a'.bo_offset=n+1)
  *
  *
  * 7) Requested mapping's range is a right aligned subset of the existent one,
@@ -276,14 +276,14 @@
  *
  *    ::
  *
- *	     0     a     2
- *	old: |-----------| (bo_offset=n)
+ *       0     a     2
+ *  old: |-----------| (bo_offset=n)
  *
- *	           1  b  2
- *	req:       |-----| (bo_offset=m)
+ *             1  b  2
+ *  req:       |-----| (bo_offset=m)
  *
- *	     0  a  1  b  2
- *	new: |-----|-----| (a.bo_offset=n,b.bo_offset=m)
+ *       0  a  1  b  2
+ *  new: |-----|-----| (a.bo_offset=n,b.bo_offset=m)
  *
  *
  * 8) Existent mapping is a superset of the requested mapping. Split it up, but
@@ -291,14 +291,14 @@
  *
  *    ::
  *
- *	      0     a     2
- *	old: |-----------| (bo_offset=n)
+ *        0     a     2
+ *  old: |-----------| (bo_offset=n)
  *
- *	           1  a  2
- *	req:       |-----| (bo_offset=n+1)
+ *             1  a  2
+ *  req:       |-----| (bo_offset=n+1)
  *
- *	     0  a' 1  a  2
- *	new: |-----|-----| (a'.bo_offset=n, a.bo_offset=n+1)
+ *       0  a' 1  a  2
+ *  new: |-----|-----| (a'.bo_offset=n, a.bo_offset=n+1)
  *
  *
  * 9) Existent mapping is overlapped at the end by the requested mapping backed
@@ -307,14 +307,14 @@
  *
  *    ::
  *
- *	     0     a     2
- *	old: |-----------|       (bo_offset=n)
+ *       0     a     2
+ *  old: |-----------|       (bo_offset=n)
  *
- *	           1     b     3
- *	req:       |-----------| (bo_offset=m)
+ *             1     b     3
+ *  req:       |-----------| (bo_offset=m)
  *
- *	     0  a  1     b     3
- *	new: |-----|-----------| (a.bo_offset=n,b.bo_offset=m)
+ *       0  a  1     b     3
+ *  new: |-----|-----------| (a.bo_offset=n,b.bo_offset=m)
  *
  *
  * 10) Existent mapping is overlapped by the requested mapping, both having the
@@ -323,14 +323,14 @@
  *
  *     ::
  *
- *	      0     a     2
- *	 old: |-----------|       (bo_offset=n)
+ *        0     a     2
+ *   old: |-----------|       (bo_offset=n)
  *
- *	            1     a     3
- *	 req:       |-----------| (bo_offset=n+1)
+ *              1     a     3
+ *   req:       |-----------| (bo_offset=n+1)
  *
- *	      0  a' 1     a     3
- *	 new: |-----|-----------| (a'.bo_offset=n, a.bo_offset=n+1)
+ *        0  a' 1     a     3
+ *   new: |-----|-----------| (a'.bo_offset=n, a.bo_offset=n+1)
  *
  *
  * 11) Requested mapping's range is a centered subset of the existent one
@@ -340,14 +340,14 @@
  *
  *     ::
  *
- *	      0        a        3
- *	 old: |-----------------| (bo_offset=n)
+ *        0        a        3
+ *   old: |-----------------| (bo_offset=n)
  *
- *	            1  b  2
- *	 req:       |-----|       (bo_offset=m)
+ *              1  b  2
+ *   req:       |-----|       (bo_offset=m)
  *
- *	      0  a  1  b  2  a' 3
- *	 new: |-----|-----|-----| (a.bo_offset=n,b.bo_offset=m,a'.bo_offset=n+2)
+ *        0  a  1  b  2  a' 3
+ *   new: |-----|-----|-----| (a.bo_offset=n,b.bo_offset=m,a'.bo_offset=n+2)
  *
  *
  * 12) Requested mapping is a contiguous subset of the existent one. Split it
@@ -355,14 +355,15 @@
  *
  *     ::
  *
- *	      0        a        3
- *	 old: |-----------------| (bo_offset=n)
+ *        0        a        3
+ *   old: |-----------------| (bo_offset=n)
  *
- *	            1  a  2
- *	 req:       |-----|       (bo_offset=n+1)
+ *              1  a  2
+ *   req:       |-----|       (bo_offset=n+1)
  *
- *	      0  a' 1  a  2 a'' 3
- *	 old: |-----|-----|-----| (a'.bo_offset=n, a.bo_offset=n+1, a''.bo_offset=n+2)
+ *        0  a' 1  a  2 a'' 3
+ *   old: |-----|-----|-----| (a'.bo_offset=n, a.bo_offset=n+1,
+ *a''.bo_offset=n+2)
  *
  *
  * 13) Existent mapping is a right aligned subset of the requested one, hence
@@ -370,14 +371,14 @@
  *
  *     ::
  *
- *	            1  a  2
- *	 old:       |-----| (bo_offset=n+1)
+ *              1  a  2
+ *   old:       |-----| (bo_offset=n+1)
  *
- *	      0     a     2
- *	 req: |-----------| (bo_offset=n)
+ *        0     a     2
+ *   req: |-----------| (bo_offset=n)
  *
- *	      0     a     2
- *	 new: |-----------| (bo_offset=n)
+ *        0     a     2
+ *   new: |-----------| (bo_offset=n)
  *
  *     .. note::
  *        We expect to see the same result for a request with a different bo
@@ -389,14 +390,14 @@
  *
  *     ::
  *
- *	            1  a  2
- *	 old:       |-----| (bo_offset=n+1)
+ *              1  a  2
+ *   old:       |-----| (bo_offset=n+1)
  *
- *	      0        a       3
- *	 req: |----------------| (bo_offset=n)
+ *        0        a       3
+ *   req: |----------------| (bo_offset=n)
  *
- *	      0        a       3
- *	 new: |----------------| (bo_offset=n)
+ *        0        a       3
+ *   new: |----------------| (bo_offset=n)
  *
  *     .. note::
  *        We expect to see the same result for a request with a different bo
@@ -409,14 +410,14 @@
  *
  *     ::
  *
- *	            1     a     3
- *	 old:       |-----------| (bo_offset=n)
+ *              1     a     3
+ *   old:       |-----------| (bo_offset=n)
  *
- *	      0     b     2
- *	 req: |-----------|       (bo_offset=m)
+ *        0     b     2
+ *   req: |-----------|       (bo_offset=m)
  *
- *	      0     b     2  a' 3
- *	 new: |-----------|-----| (b.bo_offset=m,a.bo_offset=n+2)
+ *        0     b     2  a' 3
+ *   new: |-----------|-----| (b.bo_offset=m,a.bo_offset=n+2)
  */
 
 /**
@@ -475,206 +476,207 @@
  *
  * 1) Obtain a list of &drm_gpuva_op to create a new mapping::
  *
- *	// Allocates a new &drm_gpuva.
- *	struct drm_gpuva * driver_gpuva_alloc(void);
+ *  // Allocates a new &drm_gpuva.
+ *  struct drm_gpuva * driver_gpuva_alloc(void);
  *
- *	// Typically drivers would embedd the &drm_gpuvm and &drm_gpuva
- *	// structure in individual driver structures and lock the dma-resv with
- *	// drm_exec or similar helpers.
- *	int driver_mapping_create(struct drm_gpuvm *gpuvm,
- *				  u64 addr, u64 range,
- *				  struct drm_gem_object *obj, u64 offset)
- *	{
- *		struct drm_gpuva_ops *ops;
- *		struct drm_gpuva_op *op
- *		struct drm_gpuvm_bo *vm_bo;
+ *  // Typically drivers would embedd the &drm_gpuvm and &drm_gpuva
+ *  // structure in individual driver structures and lock the dma-resv with
+ *  // drm_exec or similar helpers.
+ *  int driver_mapping_create(struct drm_gpuvm *gpuvm,
+ *          u64 addr, u64 range,
+ *          struct drm_gem_object *obj, u64 offset)
+ *  {
+ *    struct drm_gpuva_ops *ops;
+ *    struct drm_gpuva_op *op
+ *    struct drm_gpuvm_bo *vm_bo;
  *
- *		driver_lock_va_space();
- *		ops = drm_gpuvm_sm_map_ops_create(gpuvm, addr, range,
- *						  obj, offset);
- *		if (IS_ERR(ops))
- *			return PTR_ERR(ops);
+ *    driver_lock_va_space();
+ *    ops = drm_gpuvm_sm_map_ops_create(gpuvm, addr, range,
+ *              obj, offset);
+ *    if (IS_ERR(ops))
+ *      return PTR_ERR(ops);
  *
- *		vm_bo = drm_gpuvm_bo_obtain(gpuvm, obj);
- *		if (IS_ERR(vm_bo))
- *			return PTR_ERR(vm_bo);
+ *    vm_bo = drm_gpuvm_bo_obtain(gpuvm, obj);
+ *    if (IS_ERR(vm_bo))
+ *      return PTR_ERR(vm_bo);
  *
- *		drm_gpuva_for_each_op(op, ops) {
- *			struct drm_gpuva *va;
+ *    drm_gpuva_for_each_op(op, ops) {
+ *      struct drm_gpuva *va;
  *
- *			switch (op->op) {
- *			case DRM_GPUVA_OP_MAP:
- *				va = driver_gpuva_alloc();
- *				if (!va)
- *					; // unwind previous VA space updates,
- *					  // free memory and unlock
+ *      switch (op->op) {
+ *      case DRM_GPUVA_OP_MAP:
+ *        va = driver_gpuva_alloc();
+ *        if (!va)
+ *          ; // unwind previous VA space updates,
+ *            // free memory and unlock
  *
- *				driver_vm_map();
- *				drm_gpuva_map(gpuvm, va, &op->map);
- *				drm_gpuva_link(va, vm_bo);
+ *        driver_vm_map();
+ *        drm_gpuva_map(gpuvm, va, &op->map);
+ *        drm_gpuva_link(va, vm_bo);
  *
- *				break;
- *			case DRM_GPUVA_OP_REMAP: {
- *				struct drm_gpuva *prev = NULL, *next = NULL;
+ *        break;
+ *      case DRM_GPUVA_OP_REMAP: {
+ *        struct drm_gpuva *prev = NULL, *next = NULL;
  *
- *				va = op->remap.unmap->va;
+ *        va = op->remap.unmap->va;
  *
- *				if (op->remap.prev) {
- *					prev = driver_gpuva_alloc();
- *					if (!prev)
- *						; // unwind previous VA space
- *						  // updates, free memory and
- *						  // unlock
- *				}
+ *        if (op->remap.prev) {
+ *          prev = driver_gpuva_alloc();
+ *          if (!prev)
+ *            ; // unwind previous VA space
+ *              // updates, free memory and
+ *              // unlock
+ *        }
  *
- *				if (op->remap.next) {
- *					next = driver_gpuva_alloc();
- *					if (!next)
- *						; // unwind previous VA space
- *						  // updates, free memory and
- *						  // unlock
- *				}
+ *        if (op->remap.next) {
+ *          next = driver_gpuva_alloc();
+ *          if (!next)
+ *            ; // unwind previous VA space
+ *              // updates, free memory and
+ *              // unlock
+ *        }
  *
- *				driver_vm_remap();
- *				drm_gpuva_remap(prev, next, &op->remap);
+ *        driver_vm_remap();
+ *        drm_gpuva_remap(prev, next, &op->remap);
  *
- *				if (prev)
- *					drm_gpuva_link(prev, va->vm_bo);
- *				if (next)
- *					drm_gpuva_link(next, va->vm_bo);
- *				drm_gpuva_unlink(va);
+ *        if (prev)
+ *          drm_gpuva_link(prev, va->vm_bo);
+ *        if (next)
+ *          drm_gpuva_link(next, va->vm_bo);
+ *        drm_gpuva_unlink(va);
  *
- *				break;
- *			}
- *			case DRM_GPUVA_OP_UNMAP:
- *				va = op->unmap->va;
+ *        break;
+ *      }
+ *      case DRM_GPUVA_OP_UNMAP:
+ *        va = op->unmap->va;
  *
- *				driver_vm_unmap();
- *				drm_gpuva_unlink(va);
- *				drm_gpuva_unmap(&op->unmap);
+ *        driver_vm_unmap();
+ *        drm_gpuva_unlink(va);
+ *        drm_gpuva_unmap(&op->unmap);
  *
- *				break;
- *			default:
- *				break;
- *			}
- *		}
- *		drm_gpuvm_bo_put(vm_bo);
- *		driver_unlock_va_space();
+ *        break;
+ *      default:
+ *        break;
+ *      }
+ *    }
+ *    drm_gpuvm_bo_put(vm_bo);
+ *    driver_unlock_va_space();
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
  * 2) Receive a callback for each &drm_gpuva_op to create a new mapping::
  *
- *	struct driver_context {
- *		struct drm_gpuvm *gpuvm;
- *		struct drm_gpuvm_bo *vm_bo;
- *		struct drm_gpuva *new_va;
- *		struct drm_gpuva *prev_va;
- *		struct drm_gpuva *next_va;
- *	};
+ *  struct driver_context {
+ *    struct drm_gpuvm *gpuvm;
+ *    struct drm_gpuvm_bo *vm_bo;
+ *    struct drm_gpuva *new_va;
+ *    struct drm_gpuva *prev_va;
+ *    struct drm_gpuva *next_va;
+ *  };
  *
- *	// ops to pass to drm_gpuvm_init()
- *	static const struct drm_gpuvm_ops driver_gpuvm_ops = {
- *		.sm_step_map = driver_gpuva_map,
- *		.sm_step_remap = driver_gpuva_remap,
- *		.sm_step_unmap = driver_gpuva_unmap,
- *	};
+ *  // ops to pass to drm_gpuvm_init()
+ *  static const struct drm_gpuvm_ops driver_gpuvm_ops = {
+ *    .sm_step_map = driver_gpuva_map,
+ *    .sm_step_remap = driver_gpuva_remap,
+ *    .sm_step_unmap = driver_gpuva_unmap,
+ *  };
  *
- *	// Typically drivers would embedd the &drm_gpuvm and &drm_gpuva
- *	// structure in individual driver structures and lock the dma-resv with
- *	// drm_exec or similar helpers.
- *	int driver_mapping_create(struct drm_gpuvm *gpuvm,
- *				  u64 addr, u64 range,
- *				  struct drm_gem_object *obj, u64 offset)
- *	{
- *		struct driver_context ctx;
- *		struct drm_gpuvm_bo *vm_bo;
- *		struct drm_gpuva_ops *ops;
- *		struct drm_gpuva_op *op;
- *		int ret = 0;
+ *  // Typically drivers would embedd the &drm_gpuvm and &drm_gpuva
+ *  // structure in individual driver structures and lock the dma-resv with
+ *  // drm_exec or similar helpers.
+ *  int driver_mapping_create(struct drm_gpuvm *gpuvm,
+ *          u64 addr, u64 range,
+ *          struct drm_gem_object *obj, u64 offset)
+ *  {
+ *    struct driver_context ctx;
+ *    struct drm_gpuvm_bo *vm_bo;
+ *    struct drm_gpuva_ops *ops;
+ *    struct drm_gpuva_op *op;
+ *    int ret = 0;
  *
- *		ctx.gpuvm = gpuvm;
+ *    ctx.gpuvm = gpuvm;
  *
- *		ctx.new_va = kzalloc(sizeof(*ctx.new_va), GFP_KERNEL);
- *		ctx.prev_va = kzalloc(sizeof(*ctx.prev_va), GFP_KERNEL);
- *		ctx.next_va = kzalloc(sizeof(*ctx.next_va), GFP_KERNEL);
- *		ctx.vm_bo = drm_gpuvm_bo_create(gpuvm, obj);
- *		if (!ctx.new_va || !ctx.prev_va || !ctx.next_va || !vm_bo) {
- *			ret = -ENOMEM;
- *			goto out;
- *		}
+ *    ctx.new_va = kzalloc(sizeof(*ctx.new_va), GFP_KERNEL);
+ *    ctx.prev_va = kzalloc(sizeof(*ctx.prev_va), GFP_KERNEL);
+ *    ctx.next_va = kzalloc(sizeof(*ctx.next_va), GFP_KERNEL);
+ *    ctx.vm_bo = drm_gpuvm_bo_create(gpuvm, obj);
+ *    if (!ctx.new_va || !ctx.prev_va || !ctx.next_va || !vm_bo) {
+ *      ret = -ENOMEM;
+ *      goto out;
+ *    }
  *
- *		// Typically protected with a driver specific GEM gpuva lock
- *		// used in the fence signaling path for drm_gpuva_link() and
- *		// drm_gpuva_unlink(), hence pre-allocate.
- *		ctx.vm_bo = drm_gpuvm_bo_obtain_prealloc(ctx.vm_bo);
+ *    // Typically protected with a driver specific GEM gpuva lock
+ *    // used in the fence signaling path for drm_gpuva_link() and
+ *    // drm_gpuva_unlink(), hence pre-allocate.
+ *    ctx.vm_bo = drm_gpuvm_bo_obtain_prealloc(ctx.vm_bo);
  *
- *		driver_lock_va_space();
- *		ret = drm_gpuvm_sm_map(gpuvm, &ctx, addr, range, obj, offset);
- *		driver_unlock_va_space();
+ *    driver_lock_va_space();
+ *    ret = drm_gpuvm_sm_map(gpuvm, &ctx, addr, range, obj, offset);
+ *    driver_unlock_va_space();
  *
- *	out:
- *		drm_gpuvm_bo_put(ctx.vm_bo);
- *		kfree(ctx.new_va);
- *		kfree(ctx.prev_va);
- *		kfree(ctx.next_va);
- *		return ret;
- *	}
+ *  out:
+ *    drm_gpuvm_bo_put(ctx.vm_bo);
+ *    kfree(ctx.new_va);
+ *    kfree(ctx.prev_va);
+ *    kfree(ctx.next_va);
+ *    return ret;
+ *  }
  *
- *	int driver_gpuva_map(struct drm_gpuva_op *op, void *__ctx)
- *	{
- *		struct driver_context *ctx = __ctx;
+ *  int driver_gpuva_map(struct drm_gpuva_op *op, void *__ctx)
+ *  {
+ *    struct driver_context *ctx = __ctx;
  *
- *		drm_gpuva_map(ctx->vm, ctx->new_va, &op->map);
+ *    drm_gpuva_map(ctx->vm, ctx->new_va, &op->map);
  *
- *		drm_gpuva_link(ctx->new_va, ctx->vm_bo);
+ *    drm_gpuva_link(ctx->new_va, ctx->vm_bo);
  *
- *		// prevent the new GPUVA from being freed in
- *		// driver_mapping_create()
- *		ctx->new_va = NULL;
+ *    // prevent the new GPUVA from being freed in
+ *    // driver_mapping_create()
+ *    ctx->new_va = NULL;
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
- *	int driver_gpuva_remap(struct drm_gpuva_op *op, void *__ctx)
- *	{
- *		struct driver_context *ctx = __ctx;
- *		struct drm_gpuva *va = op->remap.unmap->va;
+ *  int driver_gpuva_remap(struct drm_gpuva_op *op, void *__ctx)
+ *  {
+ *    struct driver_context *ctx = __ctx;
+ *    struct drm_gpuva *va = op->remap.unmap->va;
  *
- *		drm_gpuva_remap(ctx->prev_va, ctx->next_va, &op->remap);
+ *    drm_gpuva_remap(ctx->prev_va, ctx->next_va, &op->remap);
  *
- *		if (op->remap.prev) {
- *			drm_gpuva_link(ctx->prev_va, va->vm_bo);
- *			ctx->prev_va = NULL;
- *		}
+ *    if (op->remap.prev) {
+ *      drm_gpuva_link(ctx->prev_va, va->vm_bo);
+ *      ctx->prev_va = NULL;
+ *    }
  *
- *		if (op->remap.next) {
- *			drm_gpuva_link(ctx->next_va, va->vm_bo);
- *			ctx->next_va = NULL;
- *		}
+ *    if (op->remap.next) {
+ *      drm_gpuva_link(ctx->next_va, va->vm_bo);
+ *      ctx->next_va = NULL;
+ *    }
  *
- *		drm_gpuva_unlink(va);
- *		kfree(va);
+ *    drm_gpuva_unlink(va);
+ *    kfree(va);
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  *
- *	int driver_gpuva_unmap(struct drm_gpuva_op *op, void *__ctx)
- *	{
- *		drm_gpuva_unlink(op->unmap.va);
- *		drm_gpuva_unmap(&op->unmap);
- *		kfree(op->unmap.va);
+ *  int driver_gpuva_unmap(struct drm_gpuva_op *op, void *__ctx)
+ *  {
+ *    drm_gpuva_unlink(op->unmap.va);
+ *    drm_gpuva_unmap(&op->unmap);
+ *    kfree(op->unmap.va);
  *
- *		return 0;
- *	}
+ *    return 0;
+ *  }
  */
 
 /**
  * get_next_vm_bo_from_list() - get the next vm_bo element
  * @__gpuvm: the &drm_gpuvm
  * @__list_name: the name of the list we're iterating on
- * @__local_list: a pointer to the local list used to store already iterated items
+ * @__local_list: a pointer to the local list used to store already iterated
+ *items
  * @__prev_vm_bo: the previous element we got from get_next_vm_bo_from_list()
  *
  * This helper is here to provide lockless list iteration. Lockless as in, the
@@ -684,89 +686,91 @@
  * Elements popped from the original list are kept in a local list, so removal
  * and is_empty checks can still happen while we're iterating the list.
  */
-#define get_next_vm_bo_from_list(__gpuvm, __list_name, __local_list, __prev_vm_bo)	\
-	({										\
-		struct drm_gpuvm_bo *__vm_bo = NULL;					\
-											\
-		drm_gpuvm_bo_put(__prev_vm_bo);						\
-											\
-		spin_lock(&(__gpuvm)->__list_name.lock);				\
-		if (!(__gpuvm)->__list_name.local_list)					\
-			(__gpuvm)->__list_name.local_list = __local_list;		\
-		else									\
-			drm_WARN_ON((__gpuvm)->drm,					\
-				    (__gpuvm)->__list_name.local_list != __local_list);	\
-											\
-		while (!list_empty(&(__gpuvm)->__list_name.list)) {			\
-			__vm_bo = list_first_entry(&(__gpuvm)->__list_name.list,	\
-						   struct drm_gpuvm_bo,			\
-						   list.entry.__list_name);		\
-			if (kref_get_unless_zero(&__vm_bo->kref)) {			\
-				list_move_tail(&(__vm_bo)->list.entry.__list_name,	\
-					       __local_list);				\
-				break;							\
-			} else {							\
-				list_del_init(&(__vm_bo)->list.entry.__list_name);	\
-				__vm_bo = NULL;						\
-			}								\
-		}									\
-		spin_unlock(&(__gpuvm)->__list_name.lock);				\
-											\
-		__vm_bo;								\
-	})
+#define get_next_vm_bo_from_list(__gpuvm, __list_name, __local_list, \
+      __prev_vm_bo)  \
+  ({                    \
+    struct drm_gpuvm_bo *__vm_bo = NULL;          \
+                      \
+    drm_gpuvm_bo_put(__prev_vm_bo);           \
+                      \
+    spin_lock(&(__gpuvm)->__list_name.lock);        \
+    if (!(__gpuvm)->__list_name.local_list)         \
+    (__gpuvm)->__list_name.local_list = __local_list;   \
+    else                  \
+    drm_WARN_ON((__gpuvm)->drm,         \
+    (__gpuvm)->__list_name.local_list != __local_list); \
+                      \
+    while (!list_empty(&(__gpuvm)->__list_name.list)) {     \
+      __vm_bo = list_first_entry(&(__gpuvm)->__list_name.list,  \
+    struct drm_gpuvm_bo,     \
+    list.entry.__list_name);   \
+      if (kref_get_unless_zero(&__vm_bo->kref)) {     \
+        list_move_tail(&(__vm_bo)->list.entry.__list_name,  \
+    __local_list);       \
+        break;              \
+      } else {              \
+        list_del_init(&(__vm_bo)->list.entry.__list_name);  \
+        __vm_bo = NULL;           \
+      }               \
+    }                 \
+    spin_unlock(&(__gpuvm)->__list_name.lock);        \
+                      \
+    __vm_bo;                \
+  })
 
 /**
  * for_each_vm_bo_in_list() - internal vm_bo list iterator
  * @__gpuvm: the &drm_gpuvm
  * @__list_name: the name of the list we're iterating on
- * @__local_list: a pointer to the local list used to store already iterated items
+ * @__local_list: a pointer to the local list used to store already iterated
+ *items
  * @__vm_bo: the struct drm_gpuvm_bo to assign in each iteration step
  *
  * This helper is here to provide lockless list iteration. Lockless as in, the
- * iterator releases the lock immediately after picking the first element from the
+ * iterator releases the lock immediately after picking the first element from
+ *the
  * list, hence list insertion and deletion can happen concurrently.
  *
  * It is not allowed to re-assign the vm_bo pointer from inside this loop.
  *
  * Typical use:
  *
- *	struct drm_gpuvm_bo *vm_bo;
- *	LIST_HEAD(my_local_list);
+ *  struct drm_gpuvm_bo *vm_bo;
+ *  LIST_HEAD(my_local_list);
  *
- *	ret = 0;
- *	for_each_vm_bo_in_list(gpuvm, <list_name>, &my_local_list, vm_bo) {
- *		ret = do_something_with_vm_bo(..., vm_bo);
- *		if (ret)
- *			break;
- *	}
- *	// Drop ref in case we break out of the loop.
- *	drm_gpuvm_bo_put(vm_bo);
- *	restore_vm_bo_list(gpuvm, <list_name>, &my_local_list);
+ *  ret = 0;
+ *  for_each_vm_bo_in_list(gpuvm, <list_name>, &my_local_list, vm_bo) {
+ *    ret = do_something_with_vm_bo(..., vm_bo);
+ *    if (ret)
+ *      break;
+ *  }
+ *  // Drop ref in case we break out of the loop.
+ *  drm_gpuvm_bo_put(vm_bo);
+ *  restore_vm_bo_list(gpuvm, <list_name>, &my_local_list);
  *
  *
- * Only used for internal list iterations, not meant to be exposed to the outside
+ * Only used for internal list iterations, not meant to be exposed to the
+ *outside
  * world.
  */
-#define for_each_vm_bo_in_list(__gpuvm, __list_name, __local_list, __vm_bo)	\
-	for (__vm_bo = get_next_vm_bo_from_list(__gpuvm, __list_name,		\
-						__local_list, NULL);		\
-	     __vm_bo;								\
-	     __vm_bo = get_next_vm_bo_from_list(__gpuvm, __list_name,		\
-						__local_list, __vm_bo))
+#define for_each_vm_bo_in_list(__gpuvm, __list_name, __local_list, __vm_bo) \
+  for (__vm_bo = get_next_vm_bo_from_list(__gpuvm, __list_name,   \
+    __local_list, NULL);    \
+      __vm_bo;               \
+      __vm_bo = get_next_vm_bo_from_list(__gpuvm, __list_name,   \
+    __local_list, __vm_bo))
 
-static void
-__restore_vm_bo_list(struct drm_gpuvm *gpuvm, spinlock_t *lock,
-		     struct list_head *list, struct list_head **local_list)
-{
-	/* Merge back the two lists, moving local list elements to the
-	 * head to preserve previous ordering, in case it matters.
-	 */
-	spin_lock(lock);
-	if (*local_list) {
-		list_splice(*local_list, list);
-		*local_list = NULL;
-	}
-	spin_unlock(lock);
+static void __restore_vm_bo_list(struct drm_gpuvm *gpuvm, spinlock_t *lock,
+    struct list_head *list, struct list_head **local_list) {
+  /* Merge back the two lists, moving local list elements to the
+   * head to preserve previous ordering, in case it matters.
+   */
+  spin_lock(lock);
+  if (*local_list) {
+    list_splice(*local_list, list);
+    *local_list = NULL;
+  }
+  spin_unlock(lock);
 }
 
 /**
@@ -777,33 +781,30 @@ __restore_vm_bo_list(struct drm_gpuvm *gpuvm, spinlock_t *lock,
  * When we're done iterating a vm_bo list, we should call restore_vm_bo_list()
  * to restore the original state and let new iterations take place.
  */
-#define restore_vm_bo_list(__gpuvm, __list_name)			\
-	__restore_vm_bo_list((__gpuvm), &(__gpuvm)->__list_name.lock,	\
-			     &(__gpuvm)->__list_name.list,		\
-			     &(__gpuvm)->__list_name.local_list)
+#define restore_vm_bo_list(__gpuvm, __list_name)      \
+  __restore_vm_bo_list((__gpuvm), &(__gpuvm)->__list_name.lock, \
+    &(__gpuvm)->__list_name.list,    \
+    &(__gpuvm)->__list_name.local_list)
 
-static void
-cond_spin_lock(spinlock_t *lock, bool cond)
-{
-	if (cond)
-		spin_lock(lock);
+static void cond_spin_lock(spinlock_t *lock, bool cond) {
+  if (cond) {
+    spin_lock(lock);
+  }
 }
 
-static void
-cond_spin_unlock(spinlock_t *lock, bool cond)
-{
-	if (cond)
-		spin_unlock(lock);
+static void cond_spin_unlock(spinlock_t *lock, bool cond) {
+  if (cond) {
+    spin_unlock(lock);
+  }
 }
 
-static void
-__drm_gpuvm_bo_list_add(struct drm_gpuvm *gpuvm, spinlock_t *lock,
-			struct list_head *entry, struct list_head *list)
-{
-	cond_spin_lock(lock, !!lock);
-	if (list_empty(entry))
-		list_add_tail(entry, list);
-	cond_spin_unlock(lock, !!lock);
+static void __drm_gpuvm_bo_list_add(struct drm_gpuvm *gpuvm, spinlock_t *lock,
+    struct list_head *entry, struct list_head *list) {
+  cond_spin_lock(lock, !!lock);
+  if (list_empty(entry)) {
+    list_add_tail(entry, list);
+  }
+  cond_spin_unlock(lock, !!lock);
 }
 
 /**
@@ -814,25 +815,24 @@ __drm_gpuvm_bo_list_add(struct drm_gpuvm *gpuvm, spinlock_t *lock,
  *
  * Inserts the given @__vm_bo into the list specified by @__list_name.
  */
-#define drm_gpuvm_bo_list_add(__vm_bo, __list_name, __lock)			\
-	__drm_gpuvm_bo_list_add((__vm_bo)->vm,					\
-				__lock ? &(__vm_bo)->vm->__list_name.lock :	\
-					 NULL,					\
-				&(__vm_bo)->list.entry.__list_name,		\
-				&(__vm_bo)->vm->__list_name.list)
+#define drm_gpuvm_bo_list_add(__vm_bo, __list_name, __lock)     \
+  __drm_gpuvm_bo_list_add((__vm_bo)->vm,          \
+    __lock ? &(__vm_bo)->vm->__list_name.lock   \
+    : NULL,          \
+    &(__vm_bo)->list.entry.__list_name,   \
+    &(__vm_bo)->vm->__list_name.list)
 
-static void
-__drm_gpuvm_bo_list_del(struct drm_gpuvm *gpuvm, spinlock_t *lock,
-			struct list_head *entry, bool init)
-{
-	cond_spin_lock(lock, !!lock);
-	if (init) {
-		if (!list_empty(entry))
-			list_del_init(entry);
-	} else {
-		list_del(entry);
-	}
-	cond_spin_unlock(lock, !!lock);
+static void __drm_gpuvm_bo_list_del(struct drm_gpuvm *gpuvm, spinlock_t *lock,
+    struct list_head *entry, bool init) {
+  cond_spin_lock(lock, !!lock);
+  if (init) {
+    if (!list_empty(entry)) {
+      list_del_init(entry);
+    }
+  } else {
+    list_del(entry);
+  }
+  cond_spin_unlock(lock, !!lock);
 }
 
 /**
@@ -843,12 +843,12 @@ __drm_gpuvm_bo_list_del(struct drm_gpuvm *gpuvm, spinlock_t *lock,
  *
  * Removes the given @__vm_bo from the list specified by @__list_name.
  */
-#define drm_gpuvm_bo_list_del_init(__vm_bo, __list_name, __lock)		\
-	__drm_gpuvm_bo_list_del((__vm_bo)->vm,					\
-				__lock ? &(__vm_bo)->vm->__list_name.lock :	\
-					 NULL,					\
-				&(__vm_bo)->list.entry.__list_name,		\
-				true)
+#define drm_gpuvm_bo_list_del_init(__vm_bo, __list_name, __lock)    \
+  __drm_gpuvm_bo_list_del((__vm_bo)->vm,          \
+    __lock ? &(__vm_bo)->vm->__list_name.lock   \
+    : NULL,          \
+    &(__vm_bo)->list.entry.__list_name,   \
+    true)
 
 /**
  * drm_gpuvm_bo_list_del() - remove a vm_bo from the given list
@@ -858,14 +858,14 @@ __drm_gpuvm_bo_list_del(struct drm_gpuvm *gpuvm, spinlock_t *lock,
  *
  * Removes the given @__vm_bo from the list specified by @__list_name.
  */
-#define drm_gpuvm_bo_list_del(__vm_bo, __list_name, __lock)			\
-	__drm_gpuvm_bo_list_del((__vm_bo)->vm,					\
-				__lock ? &(__vm_bo)->vm->__list_name.lock :	\
-					 NULL,					\
-				&(__vm_bo)->list.entry.__list_name,		\
-				false)
+#define drm_gpuvm_bo_list_del(__vm_bo, __list_name, __lock)     \
+  __drm_gpuvm_bo_list_del((__vm_bo)->vm,          \
+    __lock ? &(__vm_bo)->vm->__list_name.lock   \
+    : NULL,          \
+    &(__vm_bo)->list.entry.__list_name,   \
+    false)
 
-#define to_drm_gpuva(__node)	container_of((__node), struct drm_gpuva, rb.node)
+#define to_drm_gpuva(__node)  container_of((__node), struct drm_gpuva, rb.node)
 
 #define GPUVA_START(node) ((node)->va.addr)
 #define GPUVA_LAST(node) ((node)->va.addr + (node)->va.range - 1)
@@ -874,47 +874,39 @@ __drm_gpuvm_bo_list_del(struct drm_gpuvm *gpuvm, spinlock_t *lock,
  * about this.
  */
 INTERVAL_TREE_DEFINE(struct drm_gpuva, rb.node, u64, rb.__subtree_last,
-		     GPUVA_START, GPUVA_LAST, static __maybe_unused,
-		     drm_gpuva_it)
+    GPUVA_START, GPUVA_LAST, static __maybe_unused,
+    drm_gpuva_it)
 
 static int __drm_gpuva_insert(struct drm_gpuvm *gpuvm,
-			      struct drm_gpuva *va);
+    struct drm_gpuva *va);
 static void __drm_gpuva_remove(struct drm_gpuva *va);
 
-static bool
-drm_gpuvm_check_overflow(u64 addr, u64 range)
-{
-	u64 end;
-
-	return check_add_overflow(addr, range, &end);
+static bool drm_gpuvm_check_overflow(u64 addr, u64 range) {
+  u64 end;
+  return check_add_overflow(addr, range, &end);
 }
 
-static bool
-drm_gpuvm_warn_check_overflow(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
-{
-	return drm_WARN(gpuvm->drm, drm_gpuvm_check_overflow(addr, range),
-			"GPUVA address limited to %zu bytes.\n", sizeof(addr));
+static bool drm_gpuvm_warn_check_overflow(struct drm_gpuvm *gpuvm, u64 addr,
+    u64 range) {
+  return drm_WARN(gpuvm->drm, drm_gpuvm_check_overflow(addr, range),
+      "GPUVA address limited to %zu bytes.\n", sizeof(addr));
 }
 
-static bool
-drm_gpuvm_in_mm_range(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
-{
-	u64 end = addr + range;
-	u64 mm_start = gpuvm->mm_start;
-	u64 mm_end = mm_start + gpuvm->mm_range;
-
-	return addr >= mm_start && end <= mm_end;
+static bool drm_gpuvm_in_mm_range(struct drm_gpuvm *gpuvm, u64 addr,
+    u64 range) {
+  u64 end = addr + range;
+  u64 mm_start = gpuvm->mm_start;
+  u64 mm_end = mm_start + gpuvm->mm_range;
+  return addr >= mm_start && end <= mm_end;
 }
 
-static bool
-drm_gpuvm_in_kernel_node(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
-{
-	u64 end = addr + range;
-	u64 kstart = gpuvm->kernel_alloc_node.va.addr;
-	u64 krange = gpuvm->kernel_alloc_node.va.range;
-	u64 kend = kstart + krange;
-
-	return krange && addr < kend && kstart < end;
+static bool drm_gpuvm_in_kernel_node(struct drm_gpuvm *gpuvm, u64 addr,
+    u64 range) {
+  u64 end = addr + range;
+  u64 kstart = gpuvm->kernel_alloc_node.va.addr;
+  u64 krange = gpuvm->kernel_alloc_node.va.range;
+  u64 kend = kstart + krange;
+  return krange && addr < kend && kstart < end;
 }
 
 /**
@@ -928,25 +920,22 @@ drm_gpuvm_in_kernel_node(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
  *
  * Returns: true for a valid range, false otherwise
  */
-bool
-drm_gpuvm_range_valid(struct drm_gpuvm *gpuvm,
-		      u64 addr, u64 range)
-{
-	return !drm_gpuvm_check_overflow(addr, range) &&
-	       drm_gpuvm_in_mm_range(gpuvm, addr, range) &&
-	       !drm_gpuvm_in_kernel_node(gpuvm, addr, range);
+bool drm_gpuvm_range_valid(struct drm_gpuvm *gpuvm,
+    u64 addr, u64 range) {
+  return !drm_gpuvm_check_overflow(addr, range)
+    && drm_gpuvm_in_mm_range(gpuvm, addr, range)
+    && !drm_gpuvm_in_kernel_node(gpuvm, addr, range);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_range_valid);
 
-static void
-drm_gpuvm_gem_object_free(struct drm_gem_object *obj)
-{
-	drm_gem_object_release(obj);
-	kfree(obj);
+static void drm_gpuvm_gem_object_free(struct drm_gem_object *obj) {
+  drm_gem_object_release(obj);
+  kfree(obj);
 }
 
 static const struct drm_gem_object_funcs drm_gpuvm_object_funcs = {
-	.free = drm_gpuvm_gem_object_free,
+  .free = drm_gpuvm_gem_object_free,
 };
 
 /**
@@ -959,20 +948,17 @@ static const struct drm_gem_object_funcs drm_gpuvm_object_funcs = {
  *
  * Returns: the &drm_gem_object on success, NULL on failure
  */
-struct drm_gem_object *
-drm_gpuvm_resv_object_alloc(struct drm_device *drm)
-{
-	struct drm_gem_object *obj;
-
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
-	if (!obj)
-		return NULL;
-
-	obj->funcs = &drm_gpuvm_object_funcs;
-	drm_gem_private_object_init(drm, obj, 0);
-
-	return obj;
+struct drm_gem_object *drm_gpuvm_resv_object_alloc(struct drm_device *drm) {
+  struct drm_gem_object *obj;
+  obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+  if (!obj) {
+    return NULL;
+  }
+  obj->funcs = &drm_gpuvm_object_funcs;
+  drm_gem_private_object_init(drm, obj, 0);
+  return obj;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_resv_object_alloc);
 
 /**
@@ -993,80 +979,63 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_resv_object_alloc);
  * Note that @gpuvm must be cleared to 0 before calling this function. The given
  * &name is expected to be managed by the surrounding driver structures.
  */
-void
-drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
-	       enum drm_gpuvm_flags flags,
-	       struct drm_device *drm,
-	       struct drm_gem_object *r_obj,
-	       u64 start_offset, u64 range,
-	       u64 reserve_offset, u64 reserve_range,
-	       const struct drm_gpuvm_ops *ops)
-{
-	gpuvm->rb.tree = RB_ROOT_CACHED;
-	INIT_LIST_HEAD(&gpuvm->rb.list);
-
-	INIT_LIST_HEAD(&gpuvm->extobj.list);
-	spin_lock_init(&gpuvm->extobj.lock);
-
-	INIT_LIST_HEAD(&gpuvm->evict.list);
-	spin_lock_init(&gpuvm->evict.lock);
-
-	kref_init(&gpuvm->kref);
-
-	gpuvm->name = name ? name : "unknown";
-	gpuvm->flags = flags;
-	gpuvm->ops = ops;
-	gpuvm->drm = drm;
-	gpuvm->r_obj = r_obj;
-
-	drm_gem_object_get(r_obj);
-
-	drm_gpuvm_warn_check_overflow(gpuvm, start_offset, range);
-	gpuvm->mm_start = start_offset;
-	gpuvm->mm_range = range;
-
-	memset(&gpuvm->kernel_alloc_node, 0, sizeof(struct drm_gpuva));
-	if (reserve_range) {
-		gpuvm->kernel_alloc_node.va.addr = reserve_offset;
-		gpuvm->kernel_alloc_node.va.range = reserve_range;
-
-		if (likely(!drm_gpuvm_warn_check_overflow(gpuvm, reserve_offset,
-							  reserve_range)))
-			__drm_gpuva_insert(gpuvm, &gpuvm->kernel_alloc_node);
-	}
+void drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
+    enum drm_gpuvm_flags flags,
+    struct drm_device *drm,
+    struct drm_gem_object *r_obj,
+    u64 start_offset, u64 range,
+    u64 reserve_offset, u64 reserve_range,
+    const struct drm_gpuvm_ops *ops) {
+  gpuvm->rb.tree = RB_ROOT_CACHED;
+  INIT_LIST_HEAD(&gpuvm->rb.list);
+  INIT_LIST_HEAD(&gpuvm->extobj.list);
+  spin_lock_init(&gpuvm->extobj.lock);
+  INIT_LIST_HEAD(&gpuvm->evict.list);
+  spin_lock_init(&gpuvm->evict.lock);
+  kref_init(&gpuvm->kref);
+  gpuvm->name = name ? name : "unknown";
+  gpuvm->flags = flags;
+  gpuvm->ops = ops;
+  gpuvm->drm = drm;
+  gpuvm->r_obj = r_obj;
+  drm_gem_object_get(r_obj);
+  drm_gpuvm_warn_check_overflow(gpuvm, start_offset, range);
+  gpuvm->mm_start = start_offset;
+  gpuvm->mm_range = range;
+  memset(&gpuvm->kernel_alloc_node, 0, sizeof(struct drm_gpuva));
+  if (reserve_range) {
+    gpuvm->kernel_alloc_node.va.addr = reserve_offset;
+    gpuvm->kernel_alloc_node.va.range = reserve_range;
+    if (likely(!drm_gpuvm_warn_check_overflow(gpuvm, reserve_offset,
+        reserve_range))) {
+      __drm_gpuva_insert(gpuvm, &gpuvm->kernel_alloc_node);
+    }
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_init);
 
-static void
-drm_gpuvm_fini(struct drm_gpuvm *gpuvm)
-{
-	gpuvm->name = NULL;
-
-	if (gpuvm->kernel_alloc_node.va.range)
-		__drm_gpuva_remove(&gpuvm->kernel_alloc_node);
-
-	drm_WARN(gpuvm->drm, !RB_EMPTY_ROOT(&gpuvm->rb.tree.rb_root),
-		 "GPUVA tree is not empty, potentially leaking memory.\n");
-
-	drm_WARN(gpuvm->drm, !list_empty(&gpuvm->extobj.list),
-		 "Extobj list should be empty.\n");
-	drm_WARN(gpuvm->drm, !list_empty(&gpuvm->evict.list),
-		 "Evict list should be empty.\n");
-
-	drm_gem_object_put(gpuvm->r_obj);
+static void drm_gpuvm_fini(struct drm_gpuvm *gpuvm) {
+  gpuvm->name = NULL;
+  if (gpuvm->kernel_alloc_node.va.range) {
+    __drm_gpuva_remove(&gpuvm->kernel_alloc_node);
+  }
+  drm_WARN(gpuvm->drm, !RB_EMPTY_ROOT(&gpuvm->rb.tree.rb_root),
+      "GPUVA tree is not empty, potentially leaking memory.\n");
+  drm_WARN(gpuvm->drm, !list_empty(&gpuvm->extobj.list),
+      "Extobj list should be empty.\n");
+  drm_WARN(gpuvm->drm, !list_empty(&gpuvm->evict.list),
+      "Evict list should be empty.\n");
+  drm_gem_object_put(gpuvm->r_obj);
 }
 
-static void
-drm_gpuvm_free(struct kref *kref)
-{
-	struct drm_gpuvm *gpuvm = container_of(kref, struct drm_gpuvm, kref);
-
-	drm_gpuvm_fini(gpuvm);
-
-	if (drm_WARN_ON(gpuvm->drm, !gpuvm->ops->vm_free))
-		return;
-
-	gpuvm->ops->vm_free(gpuvm);
+static void drm_gpuvm_free(struct kref *kref) {
+  struct drm_gpuvm *gpuvm = container_of(kref, struct drm_gpuvm, kref);
+  drm_gpuvm_fini(gpuvm);
+  if (drm_WARN_ON(gpuvm->drm, !gpuvm->ops->vm_free)) {
+    return;
+  }
+  gpuvm->ops->vm_free(gpuvm);
 }
 
 /**
@@ -1077,20 +1046,18 @@ drm_gpuvm_free(struct kref *kref)
  *
  * This function may be called from atomic context.
  */
-void
-drm_gpuvm_put(struct drm_gpuvm *gpuvm)
-{
-	if (gpuvm)
-		kref_put(&gpuvm->kref, drm_gpuvm_free);
+void drm_gpuvm_put(struct drm_gpuvm *gpuvm) {
+  if (gpuvm) {
+    kref_put(&gpuvm->kref, drm_gpuvm_free);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_put);
 
-static int
-exec_prepare_obj(struct drm_exec *exec, struct drm_gem_object *obj,
-		 unsigned int num_fences)
-{
-	return num_fences ? drm_exec_prepare_obj(exec, obj, num_fences) :
-			    drm_exec_lock_obj(exec, obj);
+static int exec_prepare_obj(struct drm_exec *exec, struct drm_gem_object *obj,
+    unsigned int num_fences) {
+  return num_fences ? drm_exec_prepare_obj(exec, obj, num_fences)
+    : drm_exec_lock_obj(exec, obj);
 }
 
 /**
@@ -1107,55 +1074,48 @@ exec_prepare_obj(struct drm_exec *exec, struct drm_gem_object *obj,
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_prepare_vm(struct drm_gpuvm *gpuvm,
-		     struct drm_exec *exec,
-		     unsigned int num_fences)
-{
-	return exec_prepare_obj(exec, gpuvm->r_obj, num_fences);
+int drm_gpuvm_prepare_vm(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec,
+    unsigned int num_fences) {
+  return exec_prepare_obj(exec, gpuvm->r_obj, num_fences);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_vm);
 
-static int
-__drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
-			    struct drm_exec *exec,
-			    unsigned int num_fences)
-{
-	struct drm_gpuvm_bo *vm_bo;
-	LIST_HEAD(extobjs);
-	int ret = 0;
-
-	for_each_vm_bo_in_list(gpuvm, extobj, &extobjs, vm_bo) {
-		ret = exec_prepare_obj(exec, vm_bo->obj, num_fences);
-		if (ret)
-			break;
-	}
-	/* Drop ref in case we break out of the loop. */
-	drm_gpuvm_bo_put(vm_bo);
-	restore_vm_bo_list(gpuvm, extobj);
-
-	return ret;
+static int __drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec,
+    unsigned int num_fences) {
+  struct drm_gpuvm_bo *vm_bo;
+  LIST_HEAD(extobjs);
+  int ret = 0;
+  for_each_vm_bo_in_list(gpuvm, extobj, &extobjs, vm_bo) {
+    ret = exec_prepare_obj(exec, vm_bo->obj, num_fences);
+    if (ret) {
+      break;
+    }
+  }
+  /* Drop ref in case we break out of the loop. */
+  drm_gpuvm_bo_put(vm_bo);
+  restore_vm_bo_list(gpuvm, extobj);
+  return ret;
 }
 
-static int
-drm_gpuvm_prepare_objects_locked(struct drm_gpuvm *gpuvm,
-				 struct drm_exec *exec,
-				 unsigned int num_fences)
-{
-	struct drm_gpuvm_bo *vm_bo;
-	int ret = 0;
-
-	drm_gpuvm_resv_assert_held(gpuvm);
-	list_for_each_entry(vm_bo, &gpuvm->extobj.list, list.entry.extobj) {
-		ret = exec_prepare_obj(exec, vm_bo->obj, num_fences);
-		if (ret)
-			break;
-
-		if (vm_bo->evicted)
-			drm_gpuvm_bo_list_add(vm_bo, evict, false);
-	}
-
-	return ret;
+static int drm_gpuvm_prepare_objects_locked(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec,
+    unsigned int num_fences) {
+  struct drm_gpuvm_bo *vm_bo;
+  int ret = 0;
+  drm_gpuvm_resv_assert_held(gpuvm);
+  list_for_each_entry(vm_bo, &gpuvm->extobj.list, list.entry.extobj) {
+    ret = exec_prepare_obj(exec, vm_bo->obj, num_fences);
+    if (ret) {
+      break;
+    }
+    if (vm_bo->evicted) {
+      drm_gpuvm_bo_list_add(vm_bo, evict, false);
+    }
+  }
+  return ret;
 }
 
 /**
@@ -1181,17 +1141,17 @@ drm_gpuvm_prepare_objects_locked(struct drm_gpuvm *gpuvm,
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
-			  struct drm_exec *exec,
-			  unsigned int num_fences)
-{
-	if (drm_gpuvm_resv_protected(gpuvm))
-		return drm_gpuvm_prepare_objects_locked(gpuvm, exec,
-							num_fences);
-	else
-		return __drm_gpuvm_prepare_objects(gpuvm, exec, num_fences);
+int drm_gpuvm_prepare_objects(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec,
+    unsigned int num_fences) {
+  if (drm_gpuvm_resv_protected(gpuvm)) {
+    return drm_gpuvm_prepare_objects_locked(gpuvm, exec,
+        num_fences);
+  } else {
+    return __drm_gpuvm_prepare_objects(gpuvm, exec, num_fences);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_objects);
 
 /**
@@ -1208,24 +1168,21 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_objects);
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_prepare_range(struct drm_gpuvm *gpuvm, struct drm_exec *exec,
-			u64 addr, u64 range, unsigned int num_fences)
-{
-	struct drm_gpuva *va;
-	u64 end = addr + range;
-	int ret;
-
-	drm_gpuvm_for_each_va_range(va, gpuvm, addr, end) {
-		struct drm_gem_object *obj = va->gem.obj;
-
-		ret = exec_prepare_obj(exec, obj, num_fences);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+int drm_gpuvm_prepare_range(struct drm_gpuvm *gpuvm, struct drm_exec *exec,
+    u64 addr, u64 range, unsigned int num_fences) {
+  struct drm_gpuva *va;
+  u64 end = addr + range;
+  int ret;
+  drm_gpuvm_for_each_va_range(va, gpuvm, addr, end) {
+    struct drm_gem_object *obj = va->gem.obj;
+    ret = exec_prepare_obj(exec, obj, num_fences);
+    if (ret) {
+      return ret;
+    }
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_range);
 
 /**
@@ -1242,53 +1199,46 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_prepare_range);
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_exec_lock(struct drm_gpuvm_exec *vm_exec)
-{
-	struct drm_gpuvm *gpuvm = vm_exec->vm;
-	struct drm_exec *exec = &vm_exec->exec;
-	unsigned int num_fences = vm_exec->num_fences;
-	int ret;
-
-	drm_exec_init(exec, vm_exec->flags, 0);
-
-	drm_exec_until_all_locked(exec) {
-		ret = drm_gpuvm_prepare_vm(gpuvm, exec, num_fences);
-		drm_exec_retry_on_contention(exec);
-		if (ret)
-			goto err;
-
-		ret = drm_gpuvm_prepare_objects(gpuvm, exec, num_fences);
-		drm_exec_retry_on_contention(exec);
-		if (ret)
-			goto err;
-
-		if (vm_exec->extra.fn) {
-			ret = vm_exec->extra.fn(vm_exec);
-			drm_exec_retry_on_contention(exec);
-			if (ret)
-				goto err;
-		}
-	}
-
-	return 0;
-
+int drm_gpuvm_exec_lock(struct drm_gpuvm_exec *vm_exec) {
+  struct drm_gpuvm *gpuvm = vm_exec->vm;
+  struct drm_exec *exec = &vm_exec->exec;
+  unsigned int num_fences = vm_exec->num_fences;
+  int ret;
+  drm_exec_init(exec, vm_exec->flags, 0);
+  drm_exec_until_all_locked(exec) {
+    ret = drm_gpuvm_prepare_vm(gpuvm, exec, num_fences);
+    drm_exec_retry_on_contention(exec);
+    if (ret) {
+      goto err;
+    }
+    ret = drm_gpuvm_prepare_objects(gpuvm, exec, num_fences);
+    drm_exec_retry_on_contention(exec);
+    if (ret) {
+      goto err;
+    }
+    if (vm_exec->extra.fn) {
+      ret = vm_exec->extra.fn(vm_exec);
+      drm_exec_retry_on_contention(exec);
+      if (ret) {
+        goto err;
+      }
+    }
+  }
+  return 0;
 err:
-	drm_exec_fini(exec);
-	return ret;
+  drm_exec_fini(exec);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_exec_lock);
 
-static int
-fn_lock_array(struct drm_gpuvm_exec *vm_exec)
-{
-	struct {
-		struct drm_gem_object **objs;
-		unsigned int num_objs;
-	} *args = vm_exec->extra.priv;
-
-	return drm_exec_prepare_array(&vm_exec->exec, args->objs,
-				      args->num_objs, vm_exec->num_fences);
+static int fn_lock_array(struct drm_gpuvm_exec *vm_exec) {
+  struct {
+    struct drm_gem_object **objs;
+    unsigned int num_objs;
+  } *args = vm_exec->extra.priv;
+  return drm_exec_prepare_array(&vm_exec->exec, args->objs,
+      args->num_objs, vm_exec->num_fences);
 }
 
 /**
@@ -1302,24 +1252,20 @@ fn_lock_array(struct drm_gpuvm_exec *vm_exec)
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_exec_lock_array(struct drm_gpuvm_exec *vm_exec,
-			  struct drm_gem_object **objs,
-			  unsigned int num_objs)
-{
-	struct {
-		struct drm_gem_object **objs;
-		unsigned int num_objs;
-	} args;
-
-	args.objs = objs;
-	args.num_objs = num_objs;
-
-	vm_exec->extra.fn = fn_lock_array;
-	vm_exec->extra.priv = &args;
-
-	return drm_gpuvm_exec_lock(vm_exec);
+int drm_gpuvm_exec_lock_array(struct drm_gpuvm_exec *vm_exec,
+    struct drm_gem_object **objs,
+    unsigned int num_objs) {
+  struct {
+    struct drm_gem_object **objs;
+    unsigned int num_objs;
+  } args;
+  args.objs = objs;
+  args.num_objs = num_objs;
+  vm_exec->extra.fn = fn_lock_array;
+  vm_exec->extra.priv = &args;
+  return drm_gpuvm_exec_lock(vm_exec);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_exec_lock_array);
 
 /**
@@ -1333,73 +1279,64 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_exec_lock_array);
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_exec_lock_range(struct drm_gpuvm_exec *vm_exec,
-			  u64 addr, u64 range)
-{
-	struct drm_gpuvm *gpuvm = vm_exec->vm;
-	struct drm_exec *exec = &vm_exec->exec;
-	int ret;
-
-	drm_exec_init(exec, vm_exec->flags, 0);
-
-	drm_exec_until_all_locked(exec) {
-		ret = drm_gpuvm_prepare_range(gpuvm, exec, addr, range,
-					      vm_exec->num_fences);
-		drm_exec_retry_on_contention(exec);
-		if (ret)
-			goto err;
-	}
-
-	return ret;
-
+int drm_gpuvm_exec_lock_range(struct drm_gpuvm_exec *vm_exec,
+    u64 addr, u64 range) {
+  struct drm_gpuvm *gpuvm = vm_exec->vm;
+  struct drm_exec *exec = &vm_exec->exec;
+  int ret;
+  drm_exec_init(exec, vm_exec->flags, 0);
+  drm_exec_until_all_locked(exec) {
+    ret = drm_gpuvm_prepare_range(gpuvm, exec, addr, range,
+        vm_exec->num_fences);
+    drm_exec_retry_on_contention(exec);
+    if (ret) {
+      goto err;
+    }
+  }
+  return ret;
 err:
-	drm_exec_fini(exec);
-	return ret;
+  drm_exec_fini(exec);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_exec_lock_range);
 
-static int
-__drm_gpuvm_validate(struct drm_gpuvm *gpuvm, struct drm_exec *exec)
-{
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-	struct drm_gpuvm_bo *vm_bo;
-	LIST_HEAD(evict);
-	int ret = 0;
-
-	for_each_vm_bo_in_list(gpuvm, evict, &evict, vm_bo) {
-		ret = ops->vm_bo_validate(vm_bo, exec);
-		if (ret)
-			break;
-	}
-	/* Drop ref in case we break out of the loop. */
-	drm_gpuvm_bo_put(vm_bo);
-	restore_vm_bo_list(gpuvm, evict);
-
-	return ret;
+static int __drm_gpuvm_validate(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec) {
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  struct drm_gpuvm_bo *vm_bo;
+  LIST_HEAD(evict);
+  int ret = 0;
+  for_each_vm_bo_in_list(gpuvm, evict, &evict, vm_bo) {
+    ret = ops->vm_bo_validate(vm_bo, exec);
+    if (ret) {
+      break;
+    }
+  }
+  /* Drop ref in case we break out of the loop. */
+  drm_gpuvm_bo_put(vm_bo);
+  restore_vm_bo_list(gpuvm, evict);
+  return ret;
 }
 
-static int
-drm_gpuvm_validate_locked(struct drm_gpuvm *gpuvm, struct drm_exec *exec)
-{
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-	struct drm_gpuvm_bo *vm_bo, *next;
-	int ret = 0;
-
-	drm_gpuvm_resv_assert_held(gpuvm);
-
-	list_for_each_entry_safe(vm_bo, next, &gpuvm->evict.list,
-				 list.entry.evict) {
-		ret = ops->vm_bo_validate(vm_bo, exec);
-		if (ret)
-			break;
-
-		dma_resv_assert_held(vm_bo->obj->resv);
-		if (!vm_bo->evicted)
-			drm_gpuvm_bo_list_del_init(vm_bo, evict, false);
-	}
-
-	return ret;
+static int drm_gpuvm_validate_locked(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec) {
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  struct drm_gpuvm_bo *vm_bo, *next;
+  int ret = 0;
+  drm_gpuvm_resv_assert_held(gpuvm);
+  list_for_each_entry_safe(vm_bo, next, &gpuvm->evict.list,
+      list.entry.evict) {
+    ret = ops->vm_bo_validate(vm_bo, exec);
+    if (ret) {
+      break;
+    }
+    dma_resv_assert_held(vm_bo->obj->resv);
+    if (!vm_bo->evicted) {
+      drm_gpuvm_bo_list_del_init(vm_bo, evict, false);
+    }
+  }
+  return ret;
 }
 
 /**
@@ -1412,19 +1349,18 @@ drm_gpuvm_validate_locked(struct drm_gpuvm *gpuvm, struct drm_exec *exec)
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuvm_validate(struct drm_gpuvm *gpuvm, struct drm_exec *exec)
-{
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-
-	if (unlikely(!ops || !ops->vm_bo_validate))
-		return -EOPNOTSUPP;
-
-	if (drm_gpuvm_resv_protected(gpuvm))
-		return drm_gpuvm_validate_locked(gpuvm, exec);
-	else
-		return __drm_gpuvm_validate(gpuvm, exec);
+int drm_gpuvm_validate(struct drm_gpuvm *gpuvm, struct drm_exec *exec) {
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  if (unlikely(!ops || !ops->vm_bo_validate)) {
+    return -EOPNOTSUPP;
+  }
+  if (drm_gpuvm_resv_protected(gpuvm)) {
+    return drm_gpuvm_validate_locked(gpuvm, exec);
+  } else {
+    return __drm_gpuvm_validate(gpuvm, exec);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_validate);
 
 /**
@@ -1436,23 +1372,21 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_validate);
  * @private_usage: private dma-resv usage
  * @extobj_usage: extobj dma-resv usage
  */
-void
-drm_gpuvm_resv_add_fence(struct drm_gpuvm *gpuvm,
-			 struct drm_exec *exec,
-			 struct dma_fence *fence,
-			 enum dma_resv_usage private_usage,
-			 enum dma_resv_usage extobj_usage)
-{
-	struct drm_gem_object *obj;
-	unsigned long index;
-
-	drm_exec_for_each_locked_object(exec, index, obj) {
-		dma_resv_assert_held(obj->resv);
-		dma_resv_add_fence(obj->resv, fence,
-				   drm_gpuvm_is_extobj(gpuvm, obj) ?
-				   extobj_usage : private_usage);
-	}
+void drm_gpuvm_resv_add_fence(struct drm_gpuvm *gpuvm,
+    struct drm_exec *exec,
+    struct dma_fence *fence,
+    enum dma_resv_usage private_usage,
+    enum dma_resv_usage extobj_usage) {
+  struct drm_gem_object *obj;
+  unsigned long index;
+  drm_exec_for_each_locked_object(exec, index, obj) {
+    dma_resv_assert_held(obj->resv);
+    dma_resv_add_fence(obj->resv, fence,
+        drm_gpuvm_is_extobj(gpuvm, obj)
+        ? extobj_usage : private_usage);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_resv_add_fence);
 
 /**
@@ -1465,62 +1399,52 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_resv_add_fence);
  *
  * Returns: a pointer to the &drm_gpuvm_bo on success, NULL on failure
  */
-struct drm_gpuvm_bo *
-drm_gpuvm_bo_create(struct drm_gpuvm *gpuvm,
-		    struct drm_gem_object *obj)
-{
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-	struct drm_gpuvm_bo *vm_bo;
-
-	if (ops && ops->vm_bo_alloc)
-		vm_bo = ops->vm_bo_alloc();
-	else
-		vm_bo = kzalloc(sizeof(*vm_bo), GFP_KERNEL);
-
-	if (unlikely(!vm_bo))
-		return NULL;
-
-	vm_bo->vm = drm_gpuvm_get(gpuvm);
-	vm_bo->obj = obj;
-	drm_gem_object_get(obj);
-
-	kref_init(&vm_bo->kref);
-	INIT_LIST_HEAD(&vm_bo->list.gpuva);
-	INIT_LIST_HEAD(&vm_bo->list.entry.gem);
-
-	INIT_LIST_HEAD(&vm_bo->list.entry.extobj);
-	INIT_LIST_HEAD(&vm_bo->list.entry.evict);
-
-	return vm_bo;
+struct drm_gpuvm_bo *drm_gpuvm_bo_create(struct drm_gpuvm *gpuvm,
+    struct drm_gem_object *obj) {
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  struct drm_gpuvm_bo *vm_bo;
+  if (ops && ops->vm_bo_alloc) {
+    vm_bo = ops->vm_bo_alloc();
+  } else {
+    vm_bo = kzalloc(sizeof(*vm_bo), GFP_KERNEL);
+  }
+  if (unlikely(!vm_bo)) {
+    return NULL;
+  }
+  vm_bo->vm = drm_gpuvm_get(gpuvm);
+  vm_bo->obj = obj;
+  drm_gem_object_get(obj);
+  kref_init(&vm_bo->kref);
+  INIT_LIST_HEAD(&vm_bo->list.gpuva);
+  INIT_LIST_HEAD(&vm_bo->list.entry.gem);
+  INIT_LIST_HEAD(&vm_bo->list.entry.extobj);
+  INIT_LIST_HEAD(&vm_bo->list.entry.evict);
+  return vm_bo;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_create);
 
-static void
-drm_gpuvm_bo_destroy(struct kref *kref)
-{
-	struct drm_gpuvm_bo *vm_bo = container_of(kref, struct drm_gpuvm_bo,
-						  kref);
-	struct drm_gpuvm *gpuvm = vm_bo->vm;
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-	struct drm_gem_object *obj = vm_bo->obj;
-	bool lock = !drm_gpuvm_resv_protected(gpuvm);
-
-	if (!lock)
-		drm_gpuvm_resv_assert_held(gpuvm);
-
-	drm_gpuvm_bo_list_del(vm_bo, extobj, lock);
-	drm_gpuvm_bo_list_del(vm_bo, evict, lock);
-
-	drm_gem_gpuva_assert_lock_held(obj);
-	list_del(&vm_bo->list.entry.gem);
-
-	if (ops && ops->vm_bo_free)
-		ops->vm_bo_free(vm_bo);
-	else
-		kfree(vm_bo);
-
-	drm_gpuvm_put(gpuvm);
-	drm_gem_object_put(obj);
+static void drm_gpuvm_bo_destroy(struct kref *kref) {
+  struct drm_gpuvm_bo *vm_bo = container_of(kref, struct drm_gpuvm_bo,
+      kref);
+  struct drm_gpuvm *gpuvm = vm_bo->vm;
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  struct drm_gem_object *obj = vm_bo->obj;
+  bool lock = !drm_gpuvm_resv_protected(gpuvm);
+  if (!lock) {
+    drm_gpuvm_resv_assert_held(gpuvm);
+  }
+  drm_gpuvm_bo_list_del(vm_bo, extobj, lock);
+  drm_gpuvm_bo_list_del(vm_bo, evict, lock);
+  drm_gem_gpuva_assert_lock_held(obj);
+  list_del(&vm_bo->list.entry.gem);
+  if (ops && ops->vm_bo_free) {
+    ops->vm_bo_free(vm_bo);
+  } else {
+    kfree(vm_bo);
+  }
+  drm_gpuvm_put(gpuvm);
+  drm_gem_object_put(obj);
 }
 
 /**
@@ -1538,30 +1462,25 @@ drm_gpuvm_bo_destroy(struct kref *kref)
  *
  * Returns: true if vm_bo was destroyed, false otherwise.
  */
-bool
-drm_gpuvm_bo_put(struct drm_gpuvm_bo *vm_bo)
-{
-	might_sleep();
-
-	if (vm_bo)
-		return !!kref_put(&vm_bo->kref, drm_gpuvm_bo_destroy);
-
-	return false;
+bool drm_gpuvm_bo_put(struct drm_gpuvm_bo *vm_bo) {
+  might_sleep();
+  if (vm_bo) {
+    return !!kref_put(&vm_bo->kref, drm_gpuvm_bo_destroy);
+  }
+  return false;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_put);
 
-static struct drm_gpuvm_bo *
-__drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
-		    struct drm_gem_object *obj)
-{
-	struct drm_gpuvm_bo *vm_bo;
-
-	drm_gem_gpuva_assert_lock_held(obj);
-	drm_gem_for_each_gpuvm_bo(vm_bo, obj)
-		if (vm_bo->vm == gpuvm)
-			return vm_bo;
-
-	return NULL;
+static struct drm_gpuvm_bo *__drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
+    struct drm_gem_object *obj) {
+  struct drm_gpuvm_bo *vm_bo;
+  drm_gem_gpuva_assert_lock_held(obj);
+  drm_gem_for_each_gpuvm_bo(vm_bo, obj)
+  if (vm_bo->vm == gpuvm) {
+    return vm_bo;
+  }
+  return NULL;
 }
 
 /**
@@ -1576,14 +1495,12 @@ __drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
  *
  * Returns: a pointer to the &drm_gpuvm_bo on success, NULL on failure
  */
-struct drm_gpuvm_bo *
-drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
-		  struct drm_gem_object *obj)
-{
-	struct drm_gpuvm_bo *vm_bo = __drm_gpuvm_bo_find(gpuvm, obj);
-
-	return vm_bo ? drm_gpuvm_bo_get(vm_bo) : NULL;
+struct drm_gpuvm_bo *drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
+    struct drm_gem_object *obj) {
+  struct drm_gpuvm_bo *vm_bo = __drm_gpuvm_bo_find(gpuvm, obj);
+  return vm_bo ? drm_gpuvm_bo_get(vm_bo) : NULL;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_find);
 
 /**
@@ -1601,25 +1518,22 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_find);
  *
  * Returns: a pointer to the &drm_gpuvm_bo on success, an ERR_PTR on failure
  */
-struct drm_gpuvm_bo *
-drm_gpuvm_bo_obtain(struct drm_gpuvm *gpuvm,
-		    struct drm_gem_object *obj)
-{
-	struct drm_gpuvm_bo *vm_bo;
-
-	vm_bo = drm_gpuvm_bo_find(gpuvm, obj);
-	if (vm_bo)
-		return vm_bo;
-
-	vm_bo = drm_gpuvm_bo_create(gpuvm, obj);
-	if (!vm_bo)
-		return ERR_PTR(-ENOMEM);
-
-	drm_gem_gpuva_assert_lock_held(obj);
-	list_add_tail(&vm_bo->list.entry.gem, &obj->gpuva.list);
-
-	return vm_bo;
+struct drm_gpuvm_bo *drm_gpuvm_bo_obtain(struct drm_gpuvm *gpuvm,
+    struct drm_gem_object *obj) {
+  struct drm_gpuvm_bo *vm_bo;
+  vm_bo = drm_gpuvm_bo_find(gpuvm, obj);
+  if (vm_bo) {
+    return vm_bo;
+  }
+  vm_bo = drm_gpuvm_bo_create(gpuvm, obj);
+  if (!vm_bo) {
+    return ERR_PTR(-ENOMEM);
+  }
+  drm_gem_gpuva_assert_lock_held(obj);
+  list_add_tail(&vm_bo->list.entry.gem, &obj->gpuva.list);
+  return vm_bo;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain);
 
 /**
@@ -1638,24 +1552,21 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain);
  * Returns: a pointer to the found &drm_gpuvm_bo or @__vm_bo if no existing
  * &drm_gpuvm_bo was found
  */
-struct drm_gpuvm_bo *
-drm_gpuvm_bo_obtain_prealloc(struct drm_gpuvm_bo *__vm_bo)
+struct drm_gpuvm_bo *drm_gpuvm_bo_obtain_prealloc(struct drm_gpuvm_bo *__vm_bo)
 {
-	struct drm_gpuvm *gpuvm = __vm_bo->vm;
-	struct drm_gem_object *obj = __vm_bo->obj;
-	struct drm_gpuvm_bo *vm_bo;
-
-	vm_bo = drm_gpuvm_bo_find(gpuvm, obj);
-	if (vm_bo) {
-		drm_gpuvm_bo_put(__vm_bo);
-		return vm_bo;
-	}
-
-	drm_gem_gpuva_assert_lock_held(obj);
-	list_add_tail(&__vm_bo->list.entry.gem, &obj->gpuva.list);
-
-	return __vm_bo;
+  struct drm_gpuvm *gpuvm = __vm_bo->vm;
+  struct drm_gem_object *obj = __vm_bo->obj;
+  struct drm_gpuvm_bo *vm_bo;
+  vm_bo = drm_gpuvm_bo_find(gpuvm, obj);
+  if (vm_bo) {
+    drm_gpuvm_bo_put(__vm_bo);
+    return vm_bo;
+  }
+  drm_gem_gpuva_assert_lock_held(obj);
+  list_add_tail(&__vm_bo->list.entry.gem, &obj->gpuva.list);
+  return __vm_bo;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain_prealloc);
 
 /**
@@ -1667,18 +1578,17 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_obtain_prealloc);
  * already and if the corresponding &drm_gem_object is an external object,
  * actually.
  */
-void
-drm_gpuvm_bo_extobj_add(struct drm_gpuvm_bo *vm_bo)
-{
-	struct drm_gpuvm *gpuvm = vm_bo->vm;
-	bool lock = !drm_gpuvm_resv_protected(gpuvm);
-
-	if (!lock)
-		drm_gpuvm_resv_assert_held(gpuvm);
-
-	if (drm_gpuvm_is_extobj(gpuvm, vm_bo->obj))
-		drm_gpuvm_bo_list_add(vm_bo, extobj, lock);
+void drm_gpuvm_bo_extobj_add(struct drm_gpuvm_bo *vm_bo) {
+  struct drm_gpuvm *gpuvm = vm_bo->vm;
+  bool lock = !drm_gpuvm_resv_protected(gpuvm);
+  if (!lock) {
+    drm_gpuvm_resv_assert_held(gpuvm);
+  }
+  if (drm_gpuvm_is_extobj(gpuvm, vm_bo->obj)) {
+    drm_gpuvm_bo_list_add(vm_bo, extobj, lock);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_extobj_add);
 
 /**
@@ -1689,55 +1599,47 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_extobj_add);
  *
  * Adds a &drm_gpuvm_bo to or removes it from the &drm_gpuvms evicted list.
  */
-void
-drm_gpuvm_bo_evict(struct drm_gpuvm_bo *vm_bo, bool evict)
-{
-	struct drm_gpuvm *gpuvm = vm_bo->vm;
-	struct drm_gem_object *obj = vm_bo->obj;
-	bool lock = !drm_gpuvm_resv_protected(gpuvm);
-
-	dma_resv_assert_held(obj->resv);
-	vm_bo->evicted = evict;
-
-	/* Can't add external objects to the evicted list directly if not using
-	 * internal spinlocks, since in this case the evicted list is protected
-	 * with the VM's common dma-resv lock.
-	 */
-	if (drm_gpuvm_is_extobj(gpuvm, obj) && !lock)
-		return;
-
-	if (evict)
-		drm_gpuvm_bo_list_add(vm_bo, evict, lock);
-	else
-		drm_gpuvm_bo_list_del_init(vm_bo, evict, lock);
+void drm_gpuvm_bo_evict(struct drm_gpuvm_bo *vm_bo, bool evict) {
+  struct drm_gpuvm *gpuvm = vm_bo->vm;
+  struct drm_gem_object *obj = vm_bo->obj;
+  bool lock = !drm_gpuvm_resv_protected(gpuvm);
+  dma_resv_assert_held(obj->resv);
+  vm_bo->evicted = evict;
+  /* Can't add external objects to the evicted list directly if not using
+   * internal spinlocks, since in this case the evicted list is protected
+   * with the VM's common dma-resv lock.
+   */
+  if (drm_gpuvm_is_extobj(gpuvm, obj) && !lock) {
+    return;
+  }
+  if (evict) {
+    drm_gpuvm_bo_list_add(vm_bo, evict, lock);
+  } else {
+    drm_gpuvm_bo_list_del_init(vm_bo, evict, lock);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_evict);
 
-static int
-__drm_gpuva_insert(struct drm_gpuvm *gpuvm,
-		   struct drm_gpuva *va)
-{
-	struct rb_node *node;
-	struct list_head *head;
-
-	if (drm_gpuva_it_iter_first(&gpuvm->rb.tree,
-				    GPUVA_START(va),
-				    GPUVA_LAST(va)))
-		return -EEXIST;
-
-	va->vm = gpuvm;
-
-	drm_gpuva_it_insert(va, &gpuvm->rb.tree);
-
-	node = rb_prev(&va->rb.node);
-	if (node)
-		head = &(to_drm_gpuva(node))->rb.entry;
-	else
-		head = &gpuvm->rb.list;
-
-	list_add(&va->rb.entry, head);
-
-	return 0;
+static int __drm_gpuva_insert(struct drm_gpuvm *gpuvm,
+    struct drm_gpuva *va) {
+  struct rb_node *node;
+  struct list_head *head;
+  if (drm_gpuva_it_iter_first(&gpuvm->rb.tree,
+      GPUVA_START(va),
+      GPUVA_LAST(va))) {
+    return -EEXIST;
+  }
+  va->vm = gpuvm;
+  drm_gpuva_it_insert(va, &gpuvm->rb.tree);
+  node = rb_prev(&va->rb.node);
+  if (node) {
+    head = &(to_drm_gpuva(node))->rb.entry;
+  } else {
+    head = &gpuvm->rb.list;
+  }
+  list_add(&va->rb.entry, head);
+  return 0;
 }
 
 /**
@@ -1754,35 +1656,31 @@ __drm_gpuva_insert(struct drm_gpuvm *gpuvm,
  *
  * Returns: 0 on success, negative error code on failure.
  */
-int
-drm_gpuva_insert(struct drm_gpuvm *gpuvm,
-		 struct drm_gpuva *va)
-{
-	u64 addr = va->va.addr;
-	u64 range = va->va.range;
-	int ret;
-
-	if (unlikely(!drm_gpuvm_range_valid(gpuvm, addr, range)))
-		return -EINVAL;
-
-	ret = __drm_gpuva_insert(gpuvm, va);
-	if (likely(!ret))
-		/* Take a reference of the GPUVM for the successfully inserted
-		 * drm_gpuva. We can't take the reference in
-		 * __drm_gpuva_insert() itself, since we don't want to increse
-		 * the reference count for the GPUVM's kernel_alloc_node.
-		 */
-		drm_gpuvm_get(gpuvm);
-
-	return ret;
+int drm_gpuva_insert(struct drm_gpuvm *gpuvm,
+    struct drm_gpuva *va) {
+  u64 addr = va->va.addr;
+  u64 range = va->va.range;
+  int ret;
+  if (unlikely(!drm_gpuvm_range_valid(gpuvm, addr, range))) {
+    return -EINVAL;
+  }
+  ret = __drm_gpuva_insert(gpuvm, va);
+  if (likely(!ret)) {
+    /* Take a reference of the GPUVM for the successfully inserted
+     * drm_gpuva. We can't take the reference in
+     * __drm_gpuva_insert() itself, since we don't want to increse
+     * the reference count for the GPUVM's kernel_alloc_node.
+     */
+    drm_gpuvm_get(gpuvm);
+  }
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_insert);
 
-static void
-__drm_gpuva_remove(struct drm_gpuva *va)
-{
-	drm_gpuva_it_remove(va, &va->vm->rb.tree);
-	list_del_init(&va->rb.entry);
+static void __drm_gpuva_remove(struct drm_gpuva *va) {
+  drm_gpuva_it_remove(va, &va->vm->rb.tree);
+  list_del_init(&va->rb.entry);
 }
 
 /**
@@ -1795,20 +1693,17 @@ __drm_gpuva_remove(struct drm_gpuva *va)
  * VA space, such as drm_gpuvm_for_each_va_safe() and
  * drm_gpuvm_for_each_va_range_safe().
  */
-void
-drm_gpuva_remove(struct drm_gpuva *va)
-{
-	struct drm_gpuvm *gpuvm = va->vm;
-
-	if (unlikely(va == &gpuvm->kernel_alloc_node)) {
-		drm_WARN(gpuvm->drm, 1,
-			 "Can't destroy kernel reserved node.\n");
-		return;
-	}
-
-	__drm_gpuva_remove(va);
-	drm_gpuvm_put(va->vm);
+void drm_gpuva_remove(struct drm_gpuva *va) {
+  struct drm_gpuvm *gpuvm = va->vm;
+  if (unlikely(va == &gpuvm->kernel_alloc_node)) {
+    drm_WARN(gpuvm->drm, 1,
+        "Can't destroy kernel reserved node.\n");
+    return;
+  }
+  __drm_gpuva_remove(va);
+  drm_gpuvm_put(va->vm);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_remove);
 
 /**
@@ -1826,22 +1721,18 @@ EXPORT_SYMBOL_GPL(drm_gpuva_remove);
  * concurrent access using either the GEMs dma_resv lock or a driver specific
  * lock set through drm_gem_gpuva_set_lock().
  */
-void
-drm_gpuva_link(struct drm_gpuva *va, struct drm_gpuvm_bo *vm_bo)
-{
-	struct drm_gem_object *obj = va->gem.obj;
-	struct drm_gpuvm *gpuvm = va->vm;
-
-	if (unlikely(!obj))
-		return;
-
-	drm_WARN_ON(gpuvm->drm, obj != vm_bo->obj);
-
-	va->vm_bo = drm_gpuvm_bo_get(vm_bo);
-
-	drm_gem_gpuva_assert_lock_held(obj);
-	list_add_tail(&va->gem.entry, &vm_bo->list.gpuva);
+void drm_gpuva_link(struct drm_gpuva *va, struct drm_gpuvm_bo *vm_bo) {
+  struct drm_gem_object *obj = va->gem.obj;
+  struct drm_gpuvm *gpuvm = va->vm;
+  if (unlikely(!obj)) {
+    return;
+  }
+  drm_WARN_ON(gpuvm->drm, obj != vm_bo->obj);
+  va->vm_bo = drm_gpuvm_bo_get(vm_bo);
+  drm_gem_gpuva_assert_lock_held(obj);
+  list_add_tail(&va->gem.entry, &vm_bo->list.gpuva);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_link);
 
 /**
@@ -1862,21 +1753,18 @@ EXPORT_SYMBOL_GPL(drm_gpuva_link);
  * concurrent access using either the GEMs dma_resv lock or a driver specific
  * lock set through drm_gem_gpuva_set_lock().
  */
-void
-drm_gpuva_unlink(struct drm_gpuva *va)
-{
-	struct drm_gem_object *obj = va->gem.obj;
-	struct drm_gpuvm_bo *vm_bo = va->vm_bo;
-
-	if (unlikely(!obj))
-		return;
-
-	drm_gem_gpuva_assert_lock_held(obj);
-	list_del_init(&va->gem.entry);
-
-	va->vm_bo = NULL;
-	drm_gpuvm_bo_put(vm_bo);
+void drm_gpuva_unlink(struct drm_gpuva *va) {
+  struct drm_gem_object *obj = va->gem.obj;
+  struct drm_gpuvm_bo *vm_bo = va->vm_bo;
+  if (unlikely(!obj)) {
+    return;
+  }
+  drm_gem_gpuva_assert_lock_held(obj);
+  list_del_init(&va->gem.entry);
+  va->vm_bo = NULL;
+  drm_gpuvm_bo_put(vm_bo);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_unlink);
 
 /**
@@ -1887,14 +1775,12 @@ EXPORT_SYMBOL_GPL(drm_gpuva_unlink);
  *
  * Returns: the first &drm_gpuva within the given range
  */
-struct drm_gpuva *
-drm_gpuva_find_first(struct drm_gpuvm *gpuvm,
-		     u64 addr, u64 range)
-{
-	u64 last = addr + range - 1;
-
-	return drm_gpuva_it_iter_first(&gpuvm->rb.tree, addr, last);
+struct drm_gpuva *drm_gpuva_find_first(struct drm_gpuvm *gpuvm,
+    u64 addr, u64 range) {
+  u64 last = addr + range - 1;
+  return drm_gpuva_it_iter_first(&gpuvm->rb.tree, addr, last);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_find_first);
 
 /**
@@ -1905,25 +1791,22 @@ EXPORT_SYMBOL_GPL(drm_gpuva_find_first);
  *
  * Returns: the &drm_gpuva at a given &addr and with a given &range
  */
-struct drm_gpuva *
-drm_gpuva_find(struct drm_gpuvm *gpuvm,
-	       u64 addr, u64 range)
-{
-	struct drm_gpuva *va;
-
-	va = drm_gpuva_find_first(gpuvm, addr, range);
-	if (!va)
-		goto out;
-
-	if (va->va.addr != addr ||
-	    va->va.range != range)
-		goto out;
-
-	return va;
-
+struct drm_gpuva *drm_gpuva_find(struct drm_gpuvm *gpuvm,
+    u64 addr, u64 range) {
+  struct drm_gpuva *va;
+  va = drm_gpuva_find_first(gpuvm, addr, range);
+  if (!va) {
+    goto out;
+  }
+  if (va->va.addr != addr
+      || va->va.range != range) {
+    goto out;
+  }
+  return va;
 out:
-	return NULL;
+  return NULL;
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_find);
 
 /**
@@ -1938,14 +1821,13 @@ EXPORT_SYMBOL_GPL(drm_gpuva_find);
  *
  * Returns: a pointer to the found &drm_gpuva or NULL if none was found
  */
-struct drm_gpuva *
-drm_gpuva_find_prev(struct drm_gpuvm *gpuvm, u64 start)
-{
-	if (!drm_gpuvm_range_valid(gpuvm, start - 1, 1))
-		return NULL;
-
-	return drm_gpuva_it_iter_first(&gpuvm->rb.tree, start - 1, start);
+struct drm_gpuva *drm_gpuva_find_prev(struct drm_gpuvm *gpuvm, u64 start) {
+  if (!drm_gpuvm_range_valid(gpuvm, start - 1, 1)) {
+    return NULL;
+  }
+  return drm_gpuva_it_iter_first(&gpuvm->rb.tree, start - 1, start);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_find_prev);
 
 /**
@@ -1960,18 +1842,18 @@ EXPORT_SYMBOL_GPL(drm_gpuva_find_prev);
  *
  * Returns: a pointer to the found &drm_gpuva or NULL if none was found
  */
-struct drm_gpuva *
-drm_gpuva_find_next(struct drm_gpuvm *gpuvm, u64 end)
-{
-	if (!drm_gpuvm_range_valid(gpuvm, end, 1))
-		return NULL;
-
-	return drm_gpuva_it_iter_first(&gpuvm->rb.tree, end, end + 1);
+struct drm_gpuva *drm_gpuva_find_next(struct drm_gpuvm *gpuvm, u64 end) {
+  if (!drm_gpuvm_range_valid(gpuvm, end, 1)) {
+    return NULL;
+  }
+  return drm_gpuva_it_iter_first(&gpuvm->rb.tree, end, end + 1);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_find_next);
 
 /**
- * drm_gpuvm_interval_empty() - indicate whether a given interval of the VA space
+ * drm_gpuvm_interval_empty() - indicate whether a given interval of the VA
+ *space
  * is empty
  * @gpuvm: the &drm_gpuvm to check the range for
  * @addr: the start address of the range
@@ -1979,11 +1861,10 @@ EXPORT_SYMBOL_GPL(drm_gpuva_find_next);
  *
  * Returns: true if the interval is empty, false otherwise
  */
-bool
-drm_gpuvm_interval_empty(struct drm_gpuvm *gpuvm, u64 addr, u64 range)
-{
-	return !drm_gpuva_find_first(gpuvm, addr, range);
+bool drm_gpuvm_interval_empty(struct drm_gpuvm *gpuvm, u64 addr, u64 range) {
+  return !drm_gpuva_find_first(gpuvm, addr, range);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_interval_empty);
 
 /**
@@ -1995,14 +1876,13 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_interval_empty);
  *
  * Initializes the @va from the @op and inserts it into the given @gpuvm.
  */
-void
-drm_gpuva_map(struct drm_gpuvm *gpuvm,
-	      struct drm_gpuva *va,
-	      struct drm_gpuva_op_map *op)
-{
-	drm_gpuva_init_from_op(va, op);
-	drm_gpuva_insert(gpuvm, va);
+void drm_gpuva_map(struct drm_gpuvm *gpuvm,
+    struct drm_gpuva *va,
+    struct drm_gpuva_op_map *op) {
+  drm_gpuva_init_from_op(va, op);
+  drm_gpuva_insert(gpuvm, va);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_map);
 
 /**
@@ -2015,26 +1895,22 @@ EXPORT_SYMBOL_GPL(drm_gpuva_map);
  * Removes the currently mapped &drm_gpuva and remaps it using @prev and/or
  * @next.
  */
-void
-drm_gpuva_remap(struct drm_gpuva *prev,
-		struct drm_gpuva *next,
-		struct drm_gpuva_op_remap *op)
-{
-	struct drm_gpuva *va = op->unmap->va;
-	struct drm_gpuvm *gpuvm = va->vm;
-
-	drm_gpuva_remove(va);
-
-	if (op->prev) {
-		drm_gpuva_init_from_op(prev, op->prev);
-		drm_gpuva_insert(gpuvm, prev);
-	}
-
-	if (op->next) {
-		drm_gpuva_init_from_op(next, op->next);
-		drm_gpuva_insert(gpuvm, next);
-	}
+void drm_gpuva_remap(struct drm_gpuva *prev,
+    struct drm_gpuva *next,
+    struct drm_gpuva_op_remap *op) {
+  struct drm_gpuva *va = op->unmap->va;
+  struct drm_gpuvm *gpuvm = va->vm;
+  drm_gpuva_remove(va);
+  if (op->prev) {
+    drm_gpuva_init_from_op(prev, op->prev);
+    drm_gpuva_insert(gpuvm, prev);
+  }
+  if (op->next) {
+    drm_gpuva_init_from_op(next, op->next);
+    drm_gpuva_insert(gpuvm, next);
+  }
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_remap);
 
 /**
@@ -2044,258 +1920,232 @@ EXPORT_SYMBOL_GPL(drm_gpuva_remap);
  *
  * Removes the &drm_gpuva associated with the &drm_gpuva_op_unmap.
  */
-void
-drm_gpuva_unmap(struct drm_gpuva_op_unmap *op)
-{
-	drm_gpuva_remove(op->va);
+void drm_gpuva_unmap(struct drm_gpuva_op_unmap *op) {
+  drm_gpuva_remove(op->va);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_unmap);
 
-static int
-op_map_cb(const struct drm_gpuvm_ops *fn, void *priv,
-	  u64 addr, u64 range,
-	  struct drm_gem_object *obj, u64 offset)
-{
-	struct drm_gpuva_op op = {};
-
-	op.op = DRM_GPUVA_OP_MAP;
-	op.map.va.addr = addr;
-	op.map.va.range = range;
-	op.map.gem.obj = obj;
-	op.map.gem.offset = offset;
-
-	return fn->sm_step_map(&op, priv);
+static int op_map_cb(const struct drm_gpuvm_ops *fn, void *priv,
+    u64 addr, u64 range,
+    struct drm_gem_object *obj, u64 offset) {
+  struct drm_gpuva_op op = {};
+  op.op = DRM_GPUVA_OP_MAP;
+  op.map.va.addr = addr;
+  op.map.va.range = range;
+  op.map.gem.obj = obj;
+  op.map.gem.offset = offset;
+  return fn->sm_step_map(&op, priv);
 }
 
-static int
-op_remap_cb(const struct drm_gpuvm_ops *fn, void *priv,
-	    struct drm_gpuva_op_map *prev,
-	    struct drm_gpuva_op_map *next,
-	    struct drm_gpuva_op_unmap *unmap)
-{
-	struct drm_gpuva_op op = {};
-	struct drm_gpuva_op_remap *r;
-
-	op.op = DRM_GPUVA_OP_REMAP;
-	r = &op.remap;
-	r->prev = prev;
-	r->next = next;
-	r->unmap = unmap;
-
-	return fn->sm_step_remap(&op, priv);
+static int op_remap_cb(const struct drm_gpuvm_ops *fn, void *priv,
+    struct drm_gpuva_op_map *prev,
+    struct drm_gpuva_op_map *next,
+    struct drm_gpuva_op_unmap *unmap) {
+  struct drm_gpuva_op op = {};
+  struct drm_gpuva_op_remap *r;
+  op.op = DRM_GPUVA_OP_REMAP;
+  r = &op.remap;
+  r->prev = prev;
+  r->next = next;
+  r->unmap = unmap;
+  return fn->sm_step_remap(&op, priv);
 }
 
-static int
-op_unmap_cb(const struct drm_gpuvm_ops *fn, void *priv,
-	    struct drm_gpuva *va, bool merge)
-{
-	struct drm_gpuva_op op = {};
-
-	op.op = DRM_GPUVA_OP_UNMAP;
-	op.unmap.va = va;
-	op.unmap.keep = merge;
-
-	return fn->sm_step_unmap(&op, priv);
+static int op_unmap_cb(const struct drm_gpuvm_ops *fn, void *priv,
+    struct drm_gpuva *va, bool merge) {
+  struct drm_gpuva_op op = {};
+  op.op = DRM_GPUVA_OP_UNMAP;
+  op.unmap.va = va;
+  op.unmap.keep = merge;
+  return fn->sm_step_unmap(&op, priv);
 }
 
-static int
-__drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
-		   const struct drm_gpuvm_ops *ops, void *priv,
-		   u64 req_addr, u64 req_range,
-		   struct drm_gem_object *req_obj, u64 req_offset)
-{
-	struct drm_gpuva *va, *next;
-	u64 req_end = req_addr + req_range;
-	int ret;
-
-	if (unlikely(!drm_gpuvm_range_valid(gpuvm, req_addr, req_range)))
-		return -EINVAL;
-
-	drm_gpuvm_for_each_va_range_safe(va, next, gpuvm, req_addr, req_end) {
-		struct drm_gem_object *obj = va->gem.obj;
-		u64 offset = va->gem.offset;
-		u64 addr = va->va.addr;
-		u64 range = va->va.range;
-		u64 end = addr + range;
-		bool merge = !!va->gem.obj;
-
-		if (addr == req_addr) {
-			merge &= obj == req_obj &&
-				 offset == req_offset;
-
-			if (end == req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
-				if (ret)
-					return ret;
-				break;
-			}
-
-			if (end < req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
-				if (ret)
-					return ret;
-				continue;
-			}
-
-			if (end > req_end) {
-				struct drm_gpuva_op_map n = {
-					.va.addr = req_end,
-					.va.range = range - req_range,
-					.gem.obj = obj,
-					.gem.offset = offset + req_range,
-				};
-				struct drm_gpuva_op_unmap u = {
-					.va = va,
-					.keep = merge,
-				};
-
-				ret = op_remap_cb(ops, priv, NULL, &n, &u);
-				if (ret)
-					return ret;
-				break;
-			}
-		} else if (addr < req_addr) {
-			u64 ls_range = req_addr - addr;
-			struct drm_gpuva_op_map p = {
-				.va.addr = addr,
-				.va.range = ls_range,
-				.gem.obj = obj,
-				.gem.offset = offset,
-			};
-			struct drm_gpuva_op_unmap u = { .va = va };
-
-			merge &= obj == req_obj &&
-				 offset + ls_range == req_offset;
-			u.keep = merge;
-
-			if (end == req_end) {
-				ret = op_remap_cb(ops, priv, &p, NULL, &u);
-				if (ret)
-					return ret;
-				break;
-			}
-
-			if (end < req_end) {
-				ret = op_remap_cb(ops, priv, &p, NULL, &u);
-				if (ret)
-					return ret;
-				continue;
-			}
-
-			if (end > req_end) {
-				struct drm_gpuva_op_map n = {
-					.va.addr = req_end,
-					.va.range = end - req_end,
-					.gem.obj = obj,
-					.gem.offset = offset + ls_range +
-						      req_range,
-				};
-
-				ret = op_remap_cb(ops, priv, &p, &n, &u);
-				if (ret)
-					return ret;
-				break;
-			}
-		} else if (addr > req_addr) {
-			merge &= obj == req_obj &&
-				 offset == req_offset +
-					   (addr - req_addr);
-
-			if (end == req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
-				if (ret)
-					return ret;
-				break;
-			}
-
-			if (end < req_end) {
-				ret = op_unmap_cb(ops, priv, va, merge);
-				if (ret)
-					return ret;
-				continue;
-			}
-
-			if (end > req_end) {
-				struct drm_gpuva_op_map n = {
-					.va.addr = req_end,
-					.va.range = end - req_end,
-					.gem.obj = obj,
-					.gem.offset = offset + req_end - addr,
-				};
-				struct drm_gpuva_op_unmap u = {
-					.va = va,
-					.keep = merge,
-				};
-
-				ret = op_remap_cb(ops, priv, NULL, &n, &u);
-				if (ret)
-					return ret;
-				break;
-			}
-		}
-	}
-
-	return op_map_cb(ops, priv,
-			 req_addr, req_range,
-			 req_obj, req_offset);
+static int __drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm,
+    const struct drm_gpuvm_ops *ops, void *priv,
+    u64 req_addr, u64 req_range,
+    struct drm_gem_object *req_obj, u64 req_offset) {
+  struct drm_gpuva *va, *next;
+  u64 req_end = req_addr + req_range;
+  int ret;
+  if (unlikely(!drm_gpuvm_range_valid(gpuvm, req_addr, req_range))) {
+    return -EINVAL;
+  }
+  drm_gpuvm_for_each_va_range_safe(va, next, gpuvm, req_addr, req_end) {
+    struct drm_gem_object *obj = va->gem.obj;
+    u64 offset = va->gem.offset;
+    u64 addr = va->va.addr;
+    u64 range = va->va.range;
+    u64 end = addr + range;
+    bool merge = !!va->gem.obj;
+    if (addr == req_addr) {
+      merge &= obj == req_obj
+          && offset == req_offset;
+      if (end == req_end) {
+        ret = op_unmap_cb(ops, priv, va, merge);
+        if (ret) {
+          return ret;
+        }
+        break;
+      }
+      if (end < req_end) {
+        ret = op_unmap_cb(ops, priv, va, merge);
+        if (ret) {
+          return ret;
+        }
+        continue;
+      }
+      if (end > req_end) {
+        struct drm_gpuva_op_map n = {
+          .va.addr = req_end,
+          .va.range = range - req_range,
+          .gem.obj = obj,
+          .gem.offset = offset + req_range,
+        };
+        struct drm_gpuva_op_unmap u = {
+          .va = va,
+          .keep = merge,
+        };
+        ret = op_remap_cb(ops, priv, NULL, &n, &u);
+        if (ret) {
+          return ret;
+        }
+        break;
+      }
+    } else if (addr < req_addr) {
+      u64 ls_range = req_addr - addr;
+      struct drm_gpuva_op_map p = {
+        .va.addr = addr,
+        .va.range = ls_range,
+        .gem.obj = obj,
+        .gem.offset = offset,
+      };
+      struct drm_gpuva_op_unmap u = {
+        .va = va
+      };
+      merge &= obj == req_obj
+          && offset + ls_range == req_offset;
+      u.keep = merge;
+      if (end == req_end) {
+        ret = op_remap_cb(ops, priv, &p, NULL, &u);
+        if (ret) {
+          return ret;
+        }
+        break;
+      }
+      if (end < req_end) {
+        ret = op_remap_cb(ops, priv, &p, NULL, &u);
+        if (ret) {
+          return ret;
+        }
+        continue;
+      }
+      if (end > req_end) {
+        struct drm_gpuva_op_map n = {
+          .va.addr = req_end,
+          .va.range = end - req_end,
+          .gem.obj = obj,
+          .gem.offset = offset + ls_range
+              + req_range,
+        };
+        ret = op_remap_cb(ops, priv, &p, &n, &u);
+        if (ret) {
+          return ret;
+        }
+        break;
+      }
+    } else if (addr > req_addr) {
+      merge &= obj == req_obj
+          && offset == req_offset
+          + (addr - req_addr);
+      if (end == req_end) {
+        ret = op_unmap_cb(ops, priv, va, merge);
+        if (ret) {
+          return ret;
+        }
+        break;
+      }
+      if (end < req_end) {
+        ret = op_unmap_cb(ops, priv, va, merge);
+        if (ret) {
+          return ret;
+        }
+        continue;
+      }
+      if (end > req_end) {
+        struct drm_gpuva_op_map n = {
+          .va.addr = req_end,
+          .va.range = end - req_end,
+          .gem.obj = obj,
+          .gem.offset = offset + req_end - addr,
+        };
+        struct drm_gpuva_op_unmap u = {
+          .va = va,
+          .keep = merge,
+        };
+        ret = op_remap_cb(ops, priv, NULL, &n, &u);
+        if (ret) {
+          return ret;
+        }
+        break;
+      }
+    }
+  }
+  return op_map_cb(ops, priv,
+      req_addr, req_range,
+      req_obj, req_offset);
 }
 
-static int
-__drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
-		     const struct drm_gpuvm_ops *ops, void *priv,
-		     u64 req_addr, u64 req_range)
-{
-	struct drm_gpuva *va, *next;
-	u64 req_end = req_addr + req_range;
-	int ret;
-
-	if (unlikely(!drm_gpuvm_range_valid(gpuvm, req_addr, req_range)))
-		return -EINVAL;
-
-	drm_gpuvm_for_each_va_range_safe(va, next, gpuvm, req_addr, req_end) {
-		struct drm_gpuva_op_map prev = {}, next = {};
-		bool prev_split = false, next_split = false;
-		struct drm_gem_object *obj = va->gem.obj;
-		u64 offset = va->gem.offset;
-		u64 addr = va->va.addr;
-		u64 range = va->va.range;
-		u64 end = addr + range;
-
-		if (addr < req_addr) {
-			prev.va.addr = addr;
-			prev.va.range = req_addr - addr;
-			prev.gem.obj = obj;
-			prev.gem.offset = offset;
-
-			prev_split = true;
-		}
-
-		if (end > req_end) {
-			next.va.addr = req_end;
-			next.va.range = end - req_end;
-			next.gem.obj = obj;
-			next.gem.offset = offset + (req_end - addr);
-
-			next_split = true;
-		}
-
-		if (prev_split || next_split) {
-			struct drm_gpuva_op_unmap unmap = { .va = va };
-
-			ret = op_remap_cb(ops, priv,
-					  prev_split ? &prev : NULL,
-					  next_split ? &next : NULL,
-					  &unmap);
-			if (ret)
-				return ret;
-		} else {
-			ret = op_unmap_cb(ops, priv, va, false);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
+static int __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
+    const struct drm_gpuvm_ops *ops, void *priv,
+    u64 req_addr, u64 req_range) {
+  struct drm_gpuva *va, *next;
+  u64 req_end = req_addr + req_range;
+  int ret;
+  if (unlikely(!drm_gpuvm_range_valid(gpuvm, req_addr, req_range))) {
+    return -EINVAL;
+  }
+  drm_gpuvm_for_each_va_range_safe(va, next, gpuvm, req_addr, req_end) {
+    struct drm_gpuva_op_map prev = {}, next = {};
+    bool prev_split = false, next_split = false;
+    struct drm_gem_object *obj = va->gem.obj;
+    u64 offset = va->gem.offset;
+    u64 addr = va->va.addr;
+    u64 range = va->va.range;
+    u64 end = addr + range;
+    if (addr < req_addr) {
+      prev.va.addr = addr;
+      prev.va.range = req_addr - addr;
+      prev.gem.obj = obj;
+      prev.gem.offset = offset;
+      prev_split = true;
+    }
+    if (end > req_end) {
+      next.va.addr = req_end;
+      next.va.range = end - req_end;
+      next.gem.obj = obj;
+      next.gem.offset = offset + (req_end - addr);
+      next_split = true;
+    }
+    if (prev_split || next_split) {
+      struct drm_gpuva_op_unmap unmap = {
+        .va = va
+      };
+      ret = op_remap_cb(ops, priv,
+          prev_split ? &prev : NULL,
+          next_split ? &next : NULL,
+          &unmap);
+      if (ret) {
+        return ret;
+      }
+    } else {
+      ret = op_unmap_cb(ops, priv, va, false);
+      if (ret) {
+        return ret;
+      }
+    }
+  }
+  return 0;
 }
 
 /**
@@ -2330,22 +2180,20 @@ __drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm,
  *
  * Returns: 0 on success or a negative error code
  */
-int
-drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm, void *priv,
-		 u64 req_addr, u64 req_range,
-		 struct drm_gem_object *req_obj, u64 req_offset)
-{
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-
-	if (unlikely(!(ops && ops->sm_step_map &&
-		       ops->sm_step_remap &&
-		       ops->sm_step_unmap)))
-		return -EINVAL;
-
-	return __drm_gpuvm_sm_map(gpuvm, ops, priv,
-				  req_addr, req_range,
-				  req_obj, req_offset);
+int drm_gpuvm_sm_map(struct drm_gpuvm *gpuvm, void *priv,
+    u64 req_addr, u64 req_range,
+    struct drm_gem_object *req_obj, u64 req_offset) {
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  if (unlikely(!(ops && ops->sm_step_map
+      && ops->sm_step_remap
+      && ops->sm_step_unmap))) {
+    return -EINVAL;
+  }
+  return __drm_gpuvm_sm_map(gpuvm, ops, priv,
+      req_addr, req_range,
+      req_obj, req_offset);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map);
 
 /**
@@ -2375,110 +2223,96 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map);
  *
  * Returns: 0 on success or a negative error code
  */
-int
-drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm, void *priv,
-		   u64 req_addr, u64 req_range)
-{
-	const struct drm_gpuvm_ops *ops = gpuvm->ops;
-
-	if (unlikely(!(ops && ops->sm_step_remap &&
-		       ops->sm_step_unmap)))
-		return -EINVAL;
-
-	return __drm_gpuvm_sm_unmap(gpuvm, ops, priv,
-				    req_addr, req_range);
+int drm_gpuvm_sm_unmap(struct drm_gpuvm *gpuvm, void *priv,
+    u64 req_addr, u64 req_range) {
+  const struct drm_gpuvm_ops *ops = gpuvm->ops;
+  if (unlikely(!(ops && ops->sm_step_remap
+      && ops->sm_step_unmap))) {
+    return -EINVAL;
+  }
+  return __drm_gpuvm_sm_unmap(gpuvm, ops, priv,
+      req_addr, req_range);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_unmap);
 
-static struct drm_gpuva_op *
-gpuva_op_alloc(struct drm_gpuvm *gpuvm)
-{
-	const struct drm_gpuvm_ops *fn = gpuvm->ops;
-	struct drm_gpuva_op *op;
-
-	if (fn && fn->op_alloc)
-		op = fn->op_alloc();
-	else
-		op = kzalloc(sizeof(*op), GFP_KERNEL);
-
-	if (unlikely(!op))
-		return NULL;
-
-	return op;
+static struct drm_gpuva_op *gpuva_op_alloc(struct drm_gpuvm *gpuvm) {
+  const struct drm_gpuvm_ops *fn = gpuvm->ops;
+  struct drm_gpuva_op *op;
+  if (fn && fn->op_alloc) {
+    op = fn->op_alloc();
+  } else {
+    op = kzalloc(sizeof(*op), GFP_KERNEL);
+  }
+  if (unlikely(!op)) {
+    return NULL;
+  }
+  return op;
 }
 
-static void
-gpuva_op_free(struct drm_gpuvm *gpuvm,
-	      struct drm_gpuva_op *op)
-{
-	const struct drm_gpuvm_ops *fn = gpuvm->ops;
-
-	if (fn && fn->op_free)
-		fn->op_free(op);
-	else
-		kfree(op);
+static void gpuva_op_free(struct drm_gpuvm *gpuvm,
+    struct drm_gpuva_op *op) {
+  const struct drm_gpuvm_ops *fn = gpuvm->ops;
+  if (fn && fn->op_free) {
+    fn->op_free(op);
+  } else {
+    kfree(op);
+  }
 }
 
-static int
-drm_gpuva_sm_step(struct drm_gpuva_op *__op,
-		  void *priv)
-{
-	struct {
-		struct drm_gpuvm *vm;
-		struct drm_gpuva_ops *ops;
-	} *args = priv;
-	struct drm_gpuvm *gpuvm = args->vm;
-	struct drm_gpuva_ops *ops = args->ops;
-	struct drm_gpuva_op *op;
-
-	op = gpuva_op_alloc(gpuvm);
-	if (unlikely(!op))
-		goto err;
-
-	memcpy(op, __op, sizeof(*op));
-
-	if (op->op == DRM_GPUVA_OP_REMAP) {
-		struct drm_gpuva_op_remap *__r = &__op->remap;
-		struct drm_gpuva_op_remap *r = &op->remap;
-
-		r->unmap = kmemdup(__r->unmap, sizeof(*r->unmap),
-				   GFP_KERNEL);
-		if (unlikely(!r->unmap))
-			goto err_free_op;
-
-		if (__r->prev) {
-			r->prev = kmemdup(__r->prev, sizeof(*r->prev),
-					  GFP_KERNEL);
-			if (unlikely(!r->prev))
-				goto err_free_unmap;
-		}
-
-		if (__r->next) {
-			r->next = kmemdup(__r->next, sizeof(*r->next),
-					  GFP_KERNEL);
-			if (unlikely(!r->next))
-				goto err_free_prev;
-		}
-	}
-
-	list_add_tail(&op->entry, &ops->list);
-
-	return 0;
-
+static int drm_gpuva_sm_step(struct drm_gpuva_op *__op,
+    void *priv) {
+  struct {
+    struct drm_gpuvm *vm;
+    struct drm_gpuva_ops *ops;
+  } *args = priv;
+  struct drm_gpuvm *gpuvm = args->vm;
+  struct drm_gpuva_ops *ops = args->ops;
+  struct drm_gpuva_op *op;
+  op = gpuva_op_alloc(gpuvm);
+  if (unlikely(!op)) {
+    goto err;
+  }
+  memcpy(op, __op, sizeof(*op));
+  if (op->op == DRM_GPUVA_OP_REMAP) {
+    struct drm_gpuva_op_remap *__r = &__op->remap;
+    struct drm_gpuva_op_remap *r = &op->remap;
+    r->unmap = kmemdup(__r->unmap, sizeof(*r->unmap),
+        GFP_KERNEL);
+    if (unlikely(!r->unmap)) {
+      goto err_free_op;
+    }
+    if (__r->prev) {
+      r->prev = kmemdup(__r->prev, sizeof(*r->prev),
+          GFP_KERNEL);
+      if (unlikely(!r->prev)) {
+        goto err_free_unmap;
+      }
+    }
+    if (__r->next) {
+      r->next = kmemdup(__r->next, sizeof(*r->next),
+          GFP_KERNEL);
+      if (unlikely(!r->next)) {
+        goto err_free_prev;
+      }
+    }
+  }
+  list_add_tail(&op->entry, &ops->list);
+  return 0;
 err_free_unmap:
-	kfree(op->remap.unmap);
+  kfree(op->remap.unmap);
 err_free_prev:
-	kfree(op->remap.prev);
+  kfree(op->remap.prev);
 err_free_op:
-	gpuva_op_free(gpuvm, op);
+  gpuva_op_free(gpuvm, op);
 err:
-	return -ENOMEM;
+  return -ENOMEM;
 }
 
 static const struct drm_gpuvm_ops gpuvm_list_ops = {
-	.sm_step_map = drm_gpuva_sm_step,
-	.sm_step_remap = drm_gpuva_sm_step,
-	.sm_step_unmap = drm_gpuva_sm_step,
+  .sm_step_map = drm_gpuva_sm_step,
+  .sm_step_remap = drm_gpuva_sm_step,
+  .sm_step_unmap = drm_gpuva_sm_step,
 };
 
 /**
@@ -2513,39 +2347,34 @@ static const struct drm_gpuvm_ops gpuvm_list_ops = {
  *
  * Returns: a pointer to the &drm_gpuva_ops on success, an ERR_PTR on failure
  */
-struct drm_gpuva_ops *
-drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
-			    u64 req_addr, u64 req_range,
-			    struct drm_gem_object *req_obj, u64 req_offset)
-{
-	struct drm_gpuva_ops *ops;
-	struct {
-		struct drm_gpuvm *vm;
-		struct drm_gpuva_ops *ops;
-	} args;
-	int ret;
-
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	if (unlikely(!ops))
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&ops->list);
-
-	args.vm = gpuvm;
-	args.ops = ops;
-
-	ret = __drm_gpuvm_sm_map(gpuvm, &gpuvm_list_ops, &args,
-				 req_addr, req_range,
-				 req_obj, req_offset);
-	if (ret)
-		goto err_free_ops;
-
-	return ops;
-
+struct drm_gpuva_ops *drm_gpuvm_sm_map_ops_create(struct drm_gpuvm *gpuvm,
+    u64 req_addr, u64 req_range,
+    struct drm_gem_object *req_obj, u64 req_offset) {
+  struct drm_gpuva_ops *ops;
+  struct {
+    struct drm_gpuvm *vm;
+    struct drm_gpuva_ops *ops;
+  } args;
+  int ret;
+  ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+  if (unlikely(!ops)) {
+    return ERR_PTR(-ENOMEM);
+  }
+  INIT_LIST_HEAD(&ops->list);
+  args.vm = gpuvm;
+  args.ops = ops;
+  ret = __drm_gpuvm_sm_map(gpuvm, &gpuvm_list_ops, &args,
+      req_addr, req_range,
+      req_obj, req_offset);
+  if (ret) {
+    goto err_free_ops;
+  }
+  return ops;
 err_free_ops:
-	drm_gpuva_ops_free(gpuvm, ops);
-	return ERR_PTR(ret);
+  drm_gpuva_ops_free(gpuvm, ops);
+  return ERR_PTR(ret);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map_ops_create);
 
 /**
@@ -2577,37 +2406,32 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_sm_map_ops_create);
  *
  * Returns: a pointer to the &drm_gpuva_ops on success, an ERR_PTR on failure
  */
-struct drm_gpuva_ops *
-drm_gpuvm_sm_unmap_ops_create(struct drm_gpuvm *gpuvm,
-			      u64 req_addr, u64 req_range)
-{
-	struct drm_gpuva_ops *ops;
-	struct {
-		struct drm_gpuvm *vm;
-		struct drm_gpuva_ops *ops;
-	} args;
-	int ret;
-
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	if (unlikely(!ops))
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&ops->list);
-
-	args.vm = gpuvm;
-	args.ops = ops;
-
-	ret = __drm_gpuvm_sm_unmap(gpuvm, &gpuvm_list_ops, &args,
-				   req_addr, req_range);
-	if (ret)
-		goto err_free_ops;
-
-	return ops;
-
+struct drm_gpuva_ops *drm_gpuvm_sm_unmap_ops_create(struct drm_gpuvm *gpuvm,
+    u64 req_addr, u64 req_range) {
+  struct drm_gpuva_ops *ops;
+  struct {
+    struct drm_gpuvm *vm;
+    struct drm_gpuva_ops *ops;
+  } args;
+  int ret;
+  ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+  if (unlikely(!ops)) {
+    return ERR_PTR(-ENOMEM);
+  }
+  INIT_LIST_HEAD(&ops->list);
+  args.vm = gpuvm;
+  args.ops = ops;
+  ret = __drm_gpuvm_sm_unmap(gpuvm, &gpuvm_list_ops, &args,
+      req_addr, req_range);
+  if (ret) {
+    goto err_free_ops;
+  }
+  return ops;
 err_free_ops:
-	drm_gpuva_ops_free(gpuvm, ops);
-	return ERR_PTR(ret);
+  drm_gpuva_ops_free(gpuvm, ops);
+  return ERR_PTR(ret);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_sm_unmap_ops_create);
 
 /**
@@ -2628,40 +2452,34 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_sm_unmap_ops_create);
  *
  * Returns: a pointer to the &drm_gpuva_ops on success, an ERR_PTR on failure
  */
-struct drm_gpuva_ops *
-drm_gpuvm_prefetch_ops_create(struct drm_gpuvm *gpuvm,
-			      u64 addr, u64 range)
-{
-	struct drm_gpuva_ops *ops;
-	struct drm_gpuva_op *op;
-	struct drm_gpuva *va;
-	u64 end = addr + range;
-	int ret;
-
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	if (!ops)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&ops->list);
-
-	drm_gpuvm_for_each_va_range(va, gpuvm, addr, end) {
-		op = gpuva_op_alloc(gpuvm);
-		if (!op) {
-			ret = -ENOMEM;
-			goto err_free_ops;
-		}
-
-		op->op = DRM_GPUVA_OP_PREFETCH;
-		op->prefetch.va = va;
-		list_add_tail(&op->entry, &ops->list);
-	}
-
-	return ops;
-
+struct drm_gpuva_ops *drm_gpuvm_prefetch_ops_create(struct drm_gpuvm *gpuvm,
+    u64 addr, u64 range) {
+  struct drm_gpuva_ops *ops;
+  struct drm_gpuva_op *op;
+  struct drm_gpuva *va;
+  u64 end = addr + range;
+  int ret;
+  ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+  if (!ops) {
+    return ERR_PTR(-ENOMEM);
+  }
+  INIT_LIST_HEAD(&ops->list);
+  drm_gpuvm_for_each_va_range(va, gpuvm, addr, end) {
+    op = gpuva_op_alloc(gpuvm);
+    if (!op) {
+      ret = -ENOMEM;
+      goto err_free_ops;
+    }
+    op->op = DRM_GPUVA_OP_PREFETCH;
+    op->prefetch.va = va;
+    list_add_tail(&op->entry, &ops->list);
+  }
+  return ops;
 err_free_ops:
-	drm_gpuva_ops_free(gpuvm, ops);
-	return ERR_PTR(ret);
+  drm_gpuva_ops_free(gpuvm, ops);
+  return ERR_PTR(ret);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_prefetch_ops_create);
 
 /**
@@ -2682,40 +2500,34 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_prefetch_ops_create);
  *
  * Returns: a pointer to the &drm_gpuva_ops on success, an ERR_PTR on failure
  */
-struct drm_gpuva_ops *
-drm_gpuvm_bo_unmap_ops_create(struct drm_gpuvm_bo *vm_bo)
+struct drm_gpuva_ops *drm_gpuvm_bo_unmap_ops_create(struct drm_gpuvm_bo *vm_bo)
 {
-	struct drm_gpuva_ops *ops;
-	struct drm_gpuva_op *op;
-	struct drm_gpuva *va;
-	int ret;
-
-	drm_gem_gpuva_assert_lock_held(vm_bo->obj);
-
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	if (!ops)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&ops->list);
-
-	drm_gpuvm_bo_for_each_va(va, vm_bo) {
-		op = gpuva_op_alloc(vm_bo->vm);
-		if (!op) {
-			ret = -ENOMEM;
-			goto err_free_ops;
-		}
-
-		op->op = DRM_GPUVA_OP_UNMAP;
-		op->unmap.va = va;
-		list_add_tail(&op->entry, &ops->list);
-	}
-
-	return ops;
-
+  struct drm_gpuva_ops *ops;
+  struct drm_gpuva_op *op;
+  struct drm_gpuva *va;
+  int ret;
+  drm_gem_gpuva_assert_lock_held(vm_bo->obj);
+  ops = kzalloc(sizeof(*ops), GFP_KERNEL);
+  if (!ops) {
+    return ERR_PTR(-ENOMEM);
+  }
+  INIT_LIST_HEAD(&ops->list);
+  drm_gpuvm_bo_for_each_va(va, vm_bo) {
+    op = gpuva_op_alloc(vm_bo->vm);
+    if (!op) {
+      ret = -ENOMEM;
+      goto err_free_ops;
+    }
+    op->op = DRM_GPUVA_OP_UNMAP;
+    op->unmap.va = va;
+    list_add_tail(&op->entry, &ops->list);
+  }
+  return ops;
 err_free_ops:
-	drm_gpuva_ops_free(vm_bo->vm, ops);
-	return ERR_PTR(ret);
+  drm_gpuva_ops_free(vm_bo->vm, ops);
+  return ERR_PTR(ret);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuvm_bo_unmap_ops_create);
 
 /**
@@ -2726,26 +2538,21 @@ EXPORT_SYMBOL_GPL(drm_gpuvm_bo_unmap_ops_create);
  * Frees the given &drm_gpuva_ops structure including all the ops associated
  * with it.
  */
-void
-drm_gpuva_ops_free(struct drm_gpuvm *gpuvm,
-		   struct drm_gpuva_ops *ops)
-{
-	struct drm_gpuva_op *op, *next;
-
-	drm_gpuva_for_each_op_safe(op, next, ops) {
-		list_del(&op->entry);
-
-		if (op->op == DRM_GPUVA_OP_REMAP) {
-			kfree(op->remap.prev);
-			kfree(op->remap.next);
-			kfree(op->remap.unmap);
-		}
-
-		gpuva_op_free(gpuvm, op);
-	}
-
-	kfree(ops);
+void drm_gpuva_ops_free(struct drm_gpuvm *gpuvm,
+    struct drm_gpuva_ops *ops) {
+  struct drm_gpuva_op *op, *next;
+  drm_gpuva_for_each_op_safe(op, next, ops) {
+    list_del(&op->entry);
+    if (op->op == DRM_GPUVA_OP_REMAP) {
+      kfree(op->remap.prev);
+      kfree(op->remap.next);
+      kfree(op->remap.unmap);
+    }
+    gpuva_op_free(gpuvm, op);
+  }
+  kfree(ops);
 }
+
 EXPORT_SYMBOL_GPL(drm_gpuva_ops_free);
 
 MODULE_DESCRIPTION("DRM GPUVM");

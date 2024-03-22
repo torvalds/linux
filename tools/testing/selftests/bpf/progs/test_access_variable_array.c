@@ -9,11 +9,9 @@ unsigned long span = 0;
 
 SEC("fentry/load_balance")
 int BPF_PROG(fentry_fentry, int this_cpu, struct rq *this_rq,
-		struct sched_domain *sd)
-{
-	span = sd->span[0];
-
-	return 0;
+    struct sched_domain *sd) {
+  span = sd->span[0];
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

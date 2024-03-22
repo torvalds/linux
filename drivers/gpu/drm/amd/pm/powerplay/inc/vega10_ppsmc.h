@@ -136,7 +136,6 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_UpdatePkgPwrPidAlpha           0x68
 #define PPSMC_Message_Count                      0x69
 
-
 typedef int PPSMC_Msg;
 
 #pragma pack(pop)

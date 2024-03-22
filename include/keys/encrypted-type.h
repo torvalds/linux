@@ -16,18 +16,18 @@
 #include <linux/rcupdate.h>
 
 struct encrypted_key_payload {
-	struct rcu_head rcu;
-	char *format;		/* datablob: format */
-	char *master_desc;	/* datablob: master key name */
-	char *datalen;		/* datablob: decrypted key length */
-	u8 *iv;			/* datablob: iv */
-	u8 *encrypted_data;	/* datablob: encrypted data */
-	unsigned short datablob_len;	/* length of datablob */
-	unsigned short decrypted_datalen;	/* decrypted data length */
-	unsigned short payload_datalen;		/* payload data length */
-	unsigned short encrypted_key_format;	/* encrypted key format */
-	u8 *decrypted_data;	/* decrypted data */
-	u8 payload_data[];	/* payload data + datablob + hmac */
+  struct rcu_head rcu;
+  char *format;   /* datablob: format */
+  char *master_desc;  /* datablob: master key name */
+  char *datalen;    /* datablob: decrypted key length */
+  u8 *iv;     /* datablob: iv */
+  u8 *encrypted_data; /* datablob: encrypted data */
+  unsigned short datablob_len;  /* length of datablob */
+  unsigned short decrypted_datalen; /* decrypted data length */
+  unsigned short payload_datalen;   /* payload data length */
+  unsigned short encrypted_key_format;  /* encrypted key format */
+  u8 *decrypted_data; /* decrypted data */
+  u8 payload_data[];  /* payload data + datablob + hmac */
 };
 
 extern struct key_type key_type_encrypted;

@@ -6,6 +6,6 @@ struct blk_mq_queue_map;
 struct pci_dev;
 
 void blk_mq_pci_map_queues(struct blk_mq_queue_map *qmap, struct pci_dev *pdev,
-			   int offset);
+    int offset);
 
 #endif /* _LINUX_BLK_MQ_PCI_H */

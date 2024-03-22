@@ -5,54 +5,54 @@
 #endif
 
 #if TRIDENTFB_DEBUG
-#define debug(f, a...)	printk("%s:" f,  __func__ , ## a);
+#define debug(f, a ...)  printk("%s:" f, __func__, ## a);
 #else
-#define debug(f, a...)
+#define debug(f, a ...)
 #endif
 
-#define output(f, a...) pr_info("tridentfb: " f, ## a)
+#define output(f, a ...) pr_info("tridentfb: " f, ## a)
 
-#define Kb	(1024)
-#define Mb	(Kb*Kb)
+#define Kb  (1024)
+#define Mb  (Kb * Kb)
 
 /* PCI IDS of supported cards temporarily here */
 
-#define CYBER9320	0x9320
-#define CYBER9388	0x9388
-#define CYBER9382	0x9382		/* the real PCI id for this is 9660 */
-#define CYBER9385	0x9385		/* ditto */		
-#define CYBER9397	0x9397
-#define CYBER9397DVD	0x939A
-#define CYBER9520	0x9520
-#define CYBER9525DVD	0x9525
-#define TGUI9440	0x9440
-#define TGUI9660	0x9660
-#define PROVIDIA9685	0x9685
-#define IMAGE975	0x9750
-#define IMAGE985	0x9850
-#define BLADE3D		0x9880
-#define CYBERBLADEE4	0x9540
-#define CYBERBLADEi7	0x8400
-#define CYBERBLADEi7D	0x8420
-#define CYBERBLADEi1	0x8500
-#define CYBERBLADEi1D	0x8520
-#define CYBERBLADEAi1	0x8600
-#define CYBERBLADEAi1D	0x8620
+#define CYBER9320 0x9320
+#define CYBER9388 0x9388
+#define CYBER9382 0x9382    /* the real PCI id for this is 9660 */
+#define CYBER9385 0x9385    /* ditto */
+#define CYBER9397 0x9397
+#define CYBER9397DVD  0x939A
+#define CYBER9520 0x9520
+#define CYBER9525DVD  0x9525
+#define TGUI9440  0x9440
+#define TGUI9660  0x9660
+#define PROVIDIA9685  0x9685
+#define IMAGE975  0x9750
+#define IMAGE985  0x9850
+#define BLADE3D   0x9880
+#define CYBERBLADEE4  0x9540
+#define CYBERBLADEi7  0x8400
+#define CYBERBLADEi7D 0x8420
+#define CYBERBLADEi1  0x8500
+#define CYBERBLADEi1D 0x8520
+#define CYBERBLADEAi1 0x8600
+#define CYBERBLADEAi1D  0x8620
 #define CYBERBLADEXPAi1 0x8820
 #define CYBERBLADEXPm8  0x9910
 #define CYBERBLADEXPm16 0x9930
 
 /* these defines are for 'lcd' variable */
-#define LCD_STRETCH	0
-#define LCD_CENTER	1
-#define LCD_BIOS	2
+#define LCD_STRETCH 0
+#define LCD_CENTER  1
+#define LCD_BIOS  2
 
 /* General Registers */
-#define SPR	0x1F		/* Software Programming Register (videoram) */
+#define SPR 0x1F    /* Software Programming Register (videoram) */
 
 /* 3C4 */
 #define RevisionID 0x09
-#define OldOrNew 0x0B	
+#define OldOrNew 0x0B
 #define ConfPort1 0x0C
 #define ConfPort2 0x0C
 #define NewMode2 0x0D
@@ -112,7 +112,6 @@
 #define TVMode 0xC1
 #define ClockControl 0xCF
 
-
 /* 3CE */
 #define MiscExtFunc 0x0F
 #define PowerStatus 0x23
@@ -126,22 +125,22 @@
 #define BiosReg      0x5d
 
 /* Graphics Engine */
-#define STATUS	0x2120
-#define OLDCMD	0x2124
-#define DRAWFL	0x2128
-#define OLDCLR	0x212C
-#define OLDDST	0x2138
-#define OLDSRC	0x213C
-#define OLDDIM	0x2140
-#define CMD	0x2144
-#define ROP	0x2148
-#define COLOR	0x2160
-#define BGCOLOR	0x2164
-#define SRC1	0x2100
-#define SRC2	0x2104
-#define DST1	0x2108
-#define DST2	0x210C
+#define STATUS  0x2120
+#define OLDCMD  0x2124
+#define DRAWFL  0x2128
+#define OLDCLR  0x212C
+#define OLDDST  0x2138
+#define OLDSRC  0x213C
+#define OLDDIM  0x2140
+#define CMD 0x2144
+#define ROP 0x2148
+#define COLOR 0x2160
+#define BGCOLOR 0x2164
+#define SRC1  0x2100
+#define SRC2  0x2104
+#define DST1  0x2108
+#define DST2  0x210C
 
-#define ROP_S	0xCC
-#define ROP_P	0xF0
-#define ROP_X	0x66
+#define ROP_S 0xCC
+#define ROP_P 0xF0
+#define ROP_X 0x66

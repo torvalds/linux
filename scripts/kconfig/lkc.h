@@ -23,10 +23,10 @@ extern "C" {
 #ifndef CONFIG_
 #define CONFIG_ "CONFIG_"
 #endif
-static inline const char *CONFIG_prefix(void)
-{
-	return getenv( "CONFIG_" ) ?: CONFIG_;
+static inline const char *CONFIG_prefix(void) {
+  return getenv("CONFIG_") ? : CONFIG_;
 }
+
 #undef CONFIG_
 #define CONFIG_ CONFIG_prefix()
 
@@ -43,12 +43,12 @@ const char *conf_get_configname(void);
 void set_all_choice_values(struct symbol *csym);
 
 /* confdata.c and expr.c */
-static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
-{
-	assert(len != 0);
-
-	if (fwrite(str, len, count, out) != count)
-		fprintf(stderr, "Error in writing or end of file.\n");
+static inline void xfwrite(const void *str, size_t len, size_t count,
+    FILE *out) {
+  assert(len != 0);
+  if (fwrite(str, len, count, out) != count) {
+    fprintf(stderr, "Error in writing or end of file.\n");
+  }
 }
 
 /* util.c */
@@ -64,13 +64,13 @@ char *xstrndup(const char *s, size_t n);
 int yylex(void);
 
 struct gstr {
-	size_t len;
-	char  *s;
-	/*
-	* when max_width is not zero long lines in string s (if any) get
-	* wrapped not to exceed the max_width value
-	*/
-	int max_width;
+  size_t len;
+  char *s;
+  /*
+   * when max_width is not zero long lines in string s (if any) get
+   * wrapped not to exceed the max_width value
+   */
+  int max_width;
 };
 struct gstr str_new(void);
 void str_free(struct gstr *gs);
@@ -86,7 +86,8 @@ void menu_end_menu(void);
 void menu_add_entry(struct symbol *sym);
 void menu_add_dep(struct expr *dep);
 void menu_add_visibility(struct expr *dep);
-struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
+struct property *menu_add_prompt(enum prop_type type, char *prompt,
+    struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
 void menu_finalize(struct menu *parent);
@@ -111,35 +112,28 @@ const char *sym_get_string_default(struct symbol *sym);
 struct symbol *sym_check_deps(struct symbol *sym);
 struct symbol *prop_get_symbol(struct property *prop);
 
-static inline tristate sym_get_tristate_value(struct symbol *sym)
-{
-	return sym->curr.tri;
+static inline tristate sym_get_tristate_value(struct symbol *sym) {
+  return sym->curr.tri;
 }
 
-
-static inline struct symbol *sym_get_choice_value(struct symbol *sym)
-{
-	return (struct symbol *)sym->curr.val;
+static inline struct symbol *sym_get_choice_value(struct symbol *sym) {
+  return (struct symbol *) sym->curr.val;
 }
 
-static inline bool sym_is_choice(struct symbol *sym)
-{
-	return sym->flags & SYMBOL_CHOICE ? true : false;
+static inline bool sym_is_choice(struct symbol *sym) {
+  return sym->flags & SYMBOL_CHOICE ? true : false;
 }
 
-static inline bool sym_is_choice_value(struct symbol *sym)
-{
-	return sym->flags & SYMBOL_CHOICEVAL ? true : false;
+static inline bool sym_is_choice_value(struct symbol *sym) {
+  return sym->flags & SYMBOL_CHOICEVAL ? true : false;
 }
 
-static inline bool sym_is_optional(struct symbol *sym)
-{
-	return sym->flags & SYMBOL_OPTIONAL ? true : false;
+static inline bool sym_is_optional(struct symbol *sym) {
+  return sym->flags & SYMBOL_OPTIONAL ? true : false;
 }
 
-static inline bool sym_has_value(struct symbol *sym)
-{
-	return sym->flags & SYMBOL_DEF_USER ? true : false;
+static inline bool sym_has_value(struct symbol *sym) {
+  return sym->flags & SYMBOL_DEF_USER ? true : false;
 }
 
 #ifdef __cplusplus

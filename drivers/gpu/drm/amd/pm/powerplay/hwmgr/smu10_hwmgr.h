@@ -29,7 +29,6 @@
 #include "smu10_driver_if.h"
 #include "rv_ppsmc.h"
 
-
 #define SMU10_MAX_HARDWARE_POWERLEVELS               8
 #define SMU10_DYNCLK_NUMBER_OF_TREND_COEFFICIENTS   15
 
@@ -53,11 +52,11 @@
 #define SMU10_PCIE_POWERGATING_TARGET_PHY            3
 
 enum VQ_TYPE {
-	CLOCK_TYPE_DCLK = 0L,
-	CLOCK_TYPE_ECLK,
-	CLOCK_TYPE_SCLK,
-	CLOCK_TYPE_CCLK,
-	VQ_GFX_CU
+  CLOCK_TYPE_DCLK = 0L,
+  CLOCK_TYPE_ECLK,
+  CLOCK_TYPE_SCLK,
+  CLOCK_TYPE_CCLK,
+  VQ_GFX_CU
 };
 
 #define SUSTAINABLE_SCLK_MASK  0x00ffffff
@@ -66,242 +65,238 @@ enum VQ_TYPE {
 #define SUSTAINABLE_CU_SHIFT   24
 
 struct smu10_dpm_entry {
-	uint32_t soft_min_clk;
-	uint32_t hard_min_clk;
-	uint32_t soft_max_clk;
-	uint32_t hard_max_clk;
+  uint32_t soft_min_clk;
+  uint32_t hard_min_clk;
+  uint32_t soft_max_clk;
+  uint32_t hard_max_clk;
 };
 
 struct smu10_power_level {
-	uint32_t engine_clock;
-	uint8_t vddc_index;
-	uint8_t ds_divider_index;
-	uint8_t ss_divider_index;
-	uint8_t allow_gnb_slow;
-	uint8_t force_nbp_state;
-	uint8_t display_wm;
-	uint8_t vce_wm;
-	uint8_t num_simd_to_powerdown;
-	uint8_t hysteresis_up;
-	uint8_t rsv[3];
+  uint32_t engine_clock;
+  uint8_t vddc_index;
+  uint8_t ds_divider_index;
+  uint8_t ss_divider_index;
+  uint8_t allow_gnb_slow;
+  uint8_t force_nbp_state;
+  uint8_t display_wm;
+  uint8_t vce_wm;
+  uint8_t num_simd_to_powerdown;
+  uint8_t hysteresis_up;
+  uint8_t rsv[3];
 };
 
 /*used for the nbpsFlags field in smu10_power state*/
-#define SMU10_POWERSTATE_FLAGS_NBPS_FORCEHIGH (1<<0)
-#define SMU10_POWERSTATE_FLAGS_NBPS_LOCKTOHIGH (1<<1)
-#define SMU10_POWERSTATE_FLAGS_NBPS_LOCKTOLOW (1<<2)
+#define SMU10_POWERSTATE_FLAGS_NBPS_FORCEHIGH (1 << 0)
+#define SMU10_POWERSTATE_FLAGS_NBPS_LOCKTOHIGH (1 << 1)
+#define SMU10_POWERSTATE_FLAGS_NBPS_LOCKTOLOW (1 << 2)
 
-#define SMU10_POWERSTATE_FLAGS_BAPM_DISABLE    (1<<0)
+#define SMU10_POWERSTATE_FLAGS_BAPM_DISABLE    (1 << 0)
 
 struct smu10_uvd_clocks {
-	uint32_t vclk;
-	uint32_t dclk;
-	uint32_t vclk_low_divider;
-	uint32_t vclk_high_divider;
-	uint32_t dclk_low_divider;
-	uint32_t dclk_high_divider;
+  uint32_t vclk;
+  uint32_t dclk;
+  uint32_t vclk_low_divider;
+  uint32_t vclk_high_divider;
+  uint32_t dclk_low_divider;
+  uint32_t dclk_high_divider;
 };
 
 struct pp_disable_nbpslo_flags {
-	union {
-		struct {
-			uint32_t entry : 1;
-			uint32_t display : 1;
-			uint32_t driver: 1;
-			uint32_t vce : 1;
-			uint32_t uvd : 1;
-			uint32_t acp : 1;
-			uint32_t reserved: 26;
-		} bits;
-		uint32_t u32All;
-	};
+  union {
+    struct {
+      uint32_t entry : 1;
+      uint32_t display : 1;
+      uint32_t driver : 1;
+      uint32_t vce : 1;
+      uint32_t uvd : 1;
+      uint32_t acp : 1;
+      uint32_t reserved : 26;
+    } bits;
+    uint32_t u32All;
+  };
 };
 
-
 enum smu10_pstate_previous_action {
-	DO_NOTHING = 1,
-	FORCE_HIGH,
-	CANCEL_FORCE_HIGH
+  DO_NOTHING = 1,
+  FORCE_HIGH,
+  CANCEL_FORCE_HIGH
 };
 
 struct smu10_power_state {
-	unsigned int magic;
-	uint32_t level;
-	struct smu10_uvd_clocks uvd_clocks;
-	uint32_t evclk;
-	uint32_t ecclk;
-	uint32_t samclk;
-	uint32_t acpclk;
-	bool need_dfs_bypass;
+  unsigned int magic;
+  uint32_t level;
+  struct smu10_uvd_clocks uvd_clocks;
+  uint32_t evclk;
+  uint32_t ecclk;
+  uint32_t samclk;
+  uint32_t acpclk;
+  bool need_dfs_bypass;
 
-	uint32_t nbps_flags;
-	uint32_t bapm_flags;
-	uint8_t dpm0_pg_nbps_low;
-	uint8_t dpm0_pg_nbps_high;
-	uint8_t dpm_x_nbps_low;
-	uint8_t dpm_x_nbps_high;
+  uint32_t nbps_flags;
+  uint32_t bapm_flags;
+  uint8_t dpm0_pg_nbps_low;
+  uint8_t dpm0_pg_nbps_high;
+  uint8_t dpm_x_nbps_low;
+  uint8_t dpm_x_nbps_high;
 
-	enum smu10_pstate_previous_action action;
+  enum smu10_pstate_previous_action action;
 
-	struct smu10_power_level levels[SMU10_MAX_HARDWARE_POWERLEVELS];
-	struct pp_disable_nbpslo_flags nbpslo_flags;
+  struct smu10_power_level levels[SMU10_MAX_HARDWARE_POWERLEVELS];
+  struct pp_disable_nbpslo_flags nbpslo_flags;
 };
 
 #define SMU10_NUM_NBPSTATES        4
 #define SMU10_NUM_NBPMEMORYCLOCK   2
 
-
 struct smu10_display_phy_info_entry {
-	uint8_t                   phy_present;
-	uint8_t                   active_lane_mapping;
-	uint8_t                   display_config_type;
-	uint8_t                   active_num_of_lanes;
+  uint8_t phy_present;
+  uint8_t active_lane_mapping;
+  uint8_t display_config_type;
+  uint8_t active_num_of_lanes;
 };
 
 #define SMU10_MAX_DISPLAYPHY_IDS       10
 
 struct smu10_display_phy_info {
-	bool                         display_phy_access_initialized;
-	struct smu10_display_phy_info_entry  entries[SMU10_MAX_DISPLAYPHY_IDS];
+  bool display_phy_access_initialized;
+  struct smu10_display_phy_info_entry entries[SMU10_MAX_DISPLAYPHY_IDS];
 };
 
 #define MAX_DISPLAY_CLOCK_LEVEL 8
 
-struct smu10_system_info{
-	uint8_t                      htc_tmp_lmt;
-	uint8_t                      htc_hyst_lmt;
+struct smu10_system_info {
+  uint8_t htc_tmp_lmt;
+  uint8_t htc_hyst_lmt;
 };
 
 #define MAX_REGULAR_DPM_NUMBER 8
 
 struct smu10_mclk_latency_entries {
-	uint32_t  frequency;
-	uint32_t  latency;
+  uint32_t frequency;
+  uint32_t latency;
 };
 
 struct smu10_mclk_latency_table {
-	uint32_t  count;
-	struct smu10_mclk_latency_entries  entries[MAX_REGULAR_DPM_NUMBER];
+  uint32_t count;
+  struct smu10_mclk_latency_entries entries[MAX_REGULAR_DPM_NUMBER];
 };
 
 struct smu10_clock_voltage_dependency_record {
-	uint32_t clk;
-	uint32_t vol;
+  uint32_t clk;
+  uint32_t vol;
 };
 
-
 struct smu10_voltage_dependency_table {
-	uint32_t count;
-	struct smu10_clock_voltage_dependency_record entries[] __counted_by(count);
+  uint32_t count;
+  struct smu10_clock_voltage_dependency_record entries[] __counted_by(count);
 };
 
 struct smu10_clock_voltage_information {
-	struct smu10_voltage_dependency_table    *vdd_dep_on_dcefclk;
-	struct smu10_voltage_dependency_table    *vdd_dep_on_socclk;
-	struct smu10_voltage_dependency_table    *vdd_dep_on_fclk;
-	struct smu10_voltage_dependency_table    *vdd_dep_on_mclk;
-	struct smu10_voltage_dependency_table    *vdd_dep_on_dispclk;
-	struct smu10_voltage_dependency_table    *vdd_dep_on_dppclk;
-	struct smu10_voltage_dependency_table    *vdd_dep_on_phyclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_dcefclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_socclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_fclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_mclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_dispclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_dppclk;
+  struct smu10_voltage_dependency_table *vdd_dep_on_phyclk;
 };
 
 struct smu10_hwmgr {
-	uint32_t disable_driver_thermal_policy;
-	uint32_t thermal_auto_throttling_treshold;
-	struct smu10_system_info sys_info;
-	struct smu10_mclk_latency_table mclk_latency_table;
+  uint32_t disable_driver_thermal_policy;
+  uint32_t thermal_auto_throttling_treshold;
+  struct smu10_system_info sys_info;
+  struct smu10_mclk_latency_table mclk_latency_table;
 
-	uint32_t ddi_power_gating_disabled;
+  uint32_t ddi_power_gating_disabled;
 
-	struct smu10_display_phy_info_entry            display_phy_info;
-	uint32_t dce_slow_sclk_threshold;
+  struct smu10_display_phy_info_entry display_phy_info;
+  uint32_t dce_slow_sclk_threshold;
 
-	bool disp_clk_bypass;
-	bool disp_clk_bypass_pending;
-	uint32_t bapm_enabled;
+  bool disp_clk_bypass;
+  bool disp_clk_bypass_pending;
+  uint32_t bapm_enabled;
 
-	bool video_start;
-	bool battery_state;
+  bool video_start;
+  bool battery_state;
 
-	uint32_t is_nb_dpm_enabled;
-	uint32_t is_voltage_island_enabled;
-	uint32_t disable_smu_acp_s3_handshake;
-	uint32_t disable_notify_smu_vpu_recovery;
-	bool                           in_vpu_recovery;
-	bool pg_acp_init;
-	uint8_t disp_config;
+  uint32_t is_nb_dpm_enabled;
+  uint32_t is_voltage_island_enabled;
+  uint32_t disable_smu_acp_s3_handshake;
+  uint32_t disable_notify_smu_vpu_recovery;
+  bool in_vpu_recovery;
+  bool pg_acp_init;
+  uint8_t disp_config;
 
-	/* PowerTune */
-	uint32_t power_containment_features;
-	bool cac_enabled;
-	bool disable_uvd_power_tune_feature;
-	bool enable_bapm_feature;
-	bool enable_tdc_limit_feature;
+  /* PowerTune */
+  uint32_t power_containment_features;
+  bool cac_enabled;
+  bool disable_uvd_power_tune_feature;
+  bool enable_bapm_feature;
+  bool enable_tdc_limit_feature;
 
+  /* SMC SRAM Address of firmware header tables */
+  uint32_t sram_end;
+  uint32_t dpm_table_start;
+  uint32_t soft_regs_start;
 
-	/* SMC SRAM Address of firmware header tables */
-	uint32_t sram_end;
-	uint32_t dpm_table_start;
-	uint32_t soft_regs_start;
+  /* start of SMU7_Fusion_DpmTable */
 
-	/* start of SMU7_Fusion_DpmTable */
+  uint8_t uvd_level_count;
+  uint8_t vce_level_count;
+  uint8_t acp_level_count;
+  uint8_t samu_level_count;
 
-	uint8_t uvd_level_count;
-	uint8_t vce_level_count;
-	uint8_t acp_level_count;
-	uint8_t samu_level_count;
+  uint32_t fps_high_threshold;
+  uint32_t fps_low_threshold;
 
-	uint32_t fps_high_threshold;
-	uint32_t fps_low_threshold;
+  uint32_t dpm_flags;
+  struct smu10_dpm_entry sclk_dpm;
+  struct smu10_dpm_entry uvd_dpm;
+  struct smu10_dpm_entry vce_dpm;
+  struct smu10_dpm_entry acp_dpm;
+  bool acp_power_up_no_dsp;
 
-	uint32_t dpm_flags;
-	struct smu10_dpm_entry sclk_dpm;
-	struct smu10_dpm_entry uvd_dpm;
-	struct smu10_dpm_entry vce_dpm;
-	struct smu10_dpm_entry acp_dpm;
-	bool acp_power_up_no_dsp;
+  uint32_t max_sclk_level;
+  uint32_t num_of_clk_entries;
 
-	uint32_t max_sclk_level;
-	uint32_t num_of_clk_entries;
+  /* CPU Power State */
+  uint32_t separation_time;
+  bool cc6_disable;
+  bool pstate_disable;
+  bool cc6_setting_changed;
 
-	/* CPU Power State */
-	uint32_t                          separation_time;
-	bool                              cc6_disable;
-	bool                              pstate_disable;
-	bool                              cc6_setting_changed;
+  uint32_t ulTotalActiveCUs;
 
-	uint32_t                             ulTotalActiveCUs;
+  bool isp_tileA_power_gated;
+  bool isp_tileB_power_gated;
+  uint32_t isp_actual_hard_min_freq;
+  uint32_t soc_actual_hard_min_freq;
+  uint32_t dcf_actual_hard_min_freq;
 
-	bool                           isp_tileA_power_gated;
-	bool                           isp_tileB_power_gated;
-	uint32_t                       isp_actual_hard_min_freq;
-	uint32_t                       soc_actual_hard_min_freq;
-	uint32_t                       dcf_actual_hard_min_freq;
+  uint32_t f_actual_hard_min_freq;
+  uint32_t fabric_actual_soft_min_freq;
+  uint32_t vclk_soft_min;
+  uint32_t dclk_soft_min;
+  uint32_t gfx_actual_soft_min_freq;
+  uint32_t gfx_actual_soft_max_freq;
+  uint32_t gfx_min_freq_limit;
+  uint32_t gfx_max_freq_limit; /* in 10Khz*/
 
-	uint32_t                        f_actual_hard_min_freq;
-	uint32_t                        fabric_actual_soft_min_freq;
-	uint32_t                        vclk_soft_min;
-	uint32_t                        dclk_soft_min;
-	uint32_t                        gfx_actual_soft_min_freq;
-	uint32_t                        gfx_actual_soft_max_freq;
-	uint32_t                        gfx_min_freq_limit;
-	uint32_t                        gfx_max_freq_limit; /* in 10Khz*/
+  bool vcn_power_gated;
+  bool vcn_dpg_mode;
 
-	bool                           vcn_power_gated;
-	bool                           vcn_dpg_mode;
+  bool gfx_off_controled_by_driver;
+  bool water_marks_exist;
+  Watermarks_t water_marks_table;
+  struct smu10_clock_voltage_information clock_vol_info;
+  DpmClocks_t clock_table;
 
-	bool                           gfx_off_controled_by_driver;
-	bool                           water_marks_exist;
-	Watermarks_t                      water_marks_table;
-	struct smu10_clock_voltage_information   clock_vol_info;
-	DpmClocks_t                       clock_table;
+  uint32_t active_process_mask;
+  bool need_min_deep_sleep_dcefclk;
+  uint32_t deep_sleep_dcefclk;
+  uint32_t num_active_display;
 
-	uint32_t active_process_mask;
-	bool need_min_deep_sleep_dcefclk;
-	uint32_t                             deep_sleep_dcefclk;
-	uint32_t                             num_active_display;
-
-	bool							fine_grain_enabled;
+  bool fine_grain_enabled;
 };
 
 struct pp_hwmgr;

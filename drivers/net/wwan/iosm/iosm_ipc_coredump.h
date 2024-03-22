@@ -23,8 +23,8 @@
  * @filename:   Coredump filename to be generated on host
  */
 struct iosm_cd_list_entry {
-	__le32 size;
-	char filename[IOSM_MAX_FILENAME_LEN];
+  __le32 size;
+  char filename[IOSM_MAX_FILENAME_LEN];
 } __packed;
 
 /**
@@ -34,8 +34,8 @@ struct iosm_cd_list_entry {
  * @entry:              Contains File info
  */
 struct iosm_cd_list {
-	__le32 num_entries;
-	struct iosm_cd_list_entry entry[];
+  __le32 num_entries;
+  struct iosm_cd_list_entry entry[];
 } __packed;
 
 /**
@@ -44,12 +44,12 @@ struct iosm_cd_list {
  * @list:               Coredump list structure
  */
 struct iosm_cd_table {
-	__le32 version;
-	struct iosm_cd_list list;
+  __le32 version;
+  struct iosm_cd_list list;
 } __packed;
 
 int ipc_coredump_collect(struct iosm_devlink *devlink, u8 **data, int entry,
-			 u32 region_size);
+    u32 region_size);
 
 int ipc_coredump_get_list(struct iosm_devlink *devlink, u16 cmd);
 

@@ -12,10 +12,10 @@ extern struct dtpm_subsys_ops dtpm_devfreq_ops;
 
 struct dtpm_subsys_ops *dtpm_subsys[] = {
 #ifdef CONFIG_DTPM_CPU
-	&dtpm_cpu_ops,
+  &dtpm_cpu_ops,
 #endif
 #ifdef CONFIG_DTPM_DEVFREQ
-	&dtpm_devfreq_ops,
+  &dtpm_devfreq_ops,
 #endif
 };
 

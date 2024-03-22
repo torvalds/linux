@@ -19,13 +19,13 @@
  * OcteonTX CPT device structure
  */
 struct otx_cpt_device {
-	void __iomem *reg_base; /* Register start address */
-	struct pci_dev *pdev;	/* Pci device handle */
-	struct otx_cpt_eng_grps eng_grps;/* Engine groups information */
-	struct list_head list;
-	u8 pf_type;	/* PF type SE or AE */
-	u8 max_vfs;	/* Maximum number of VFs supported by the CPT */
-	u8 vfs_enabled;	/* Number of enabled VFs */
+  void __iomem *reg_base; /* Register start address */
+  struct pci_dev *pdev; /* Pci device handle */
+  struct otx_cpt_eng_grps eng_grps; /* Engine groups information */
+  struct list_head list;
+  u8 pf_type; /* PF type SE or AE */
+  u8 max_vfs; /* Maximum number of VFs supported by the CPT */
+  u8 vfs_enabled; /* Number of enabled VFs */
 };
 
 void otx_cpt_mbox_intr_handler(struct otx_cpt_device *cpt, int mbx);

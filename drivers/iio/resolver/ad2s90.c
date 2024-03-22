@@ -22,106 +22,97 @@
 #define AD2S90_MAX_SPI_FREQ_HZ  830000
 
 struct ad2s90_state {
-	struct mutex lock; /* lock to protect rx buffer */
-	struct spi_device *sdev;
-	u8 rx[2] __aligned(IIO_DMA_MINALIGN);
+  struct mutex lock; /* lock to protect rx buffer */
+  struct spi_device *sdev;
+  u8 rx[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad2s90_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val,
-			   int *val2,
-			   long m)
-{
-	int ret;
-	struct ad2s90_state *st = iio_priv(indio_dev);
-
-	if (chan->type != IIO_ANGL)
-		return -EINVAL;
-
-	switch (m) {
-	case IIO_CHAN_INFO_SCALE:
-		/* 2 * Pi / 2^12 */
-		*val = 6283; /* mV */
-		*val2 = 12;
-		return IIO_VAL_FRACTIONAL_LOG2;
-	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&st->lock);
-		ret = spi_read(st->sdev, st->rx, 2);
-		if (ret < 0) {
-			mutex_unlock(&st->lock);
-			return ret;
-		}
-		*val = (((u16)(st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
-
-		mutex_unlock(&st->lock);
-
-		return IIO_VAL_INT;
-	default:
-		break;
-	}
-
-	return -EINVAL;
+    struct iio_chan_spec const *chan,
+    int *val,
+    int *val2,
+    long m) {
+  int ret;
+  struct ad2s90_state *st = iio_priv(indio_dev);
+  if (chan->type != IIO_ANGL) {
+    return -EINVAL;
+  }
+  switch (m) {
+    case IIO_CHAN_INFO_SCALE:
+      /* 2 * Pi / 2^12 */
+      *val = 6283; /* mV */
+      *val2 = 12;
+      return IIO_VAL_FRACTIONAL_LOG2;
+    case IIO_CHAN_INFO_RAW:
+      mutex_lock(&st->lock);
+      ret = spi_read(st->sdev, st->rx, 2);
+      if (ret < 0) {
+        mutex_unlock(&st->lock);
+        return ret;
+      }
+      *val = (((u16) (st->rx[0])) << 4) | ((st->rx[1] & 0xF0) >> 4);
+      mutex_unlock(&st->lock);
+      return IIO_VAL_INT;
+    default:
+      break;
+  }
+  return -EINVAL;
 }
 
 static const struct iio_info ad2s90_info = {
-	.read_raw = ad2s90_read_raw,
+  .read_raw = ad2s90_read_raw,
 };
 
 static const struct iio_chan_spec ad2s90_chan = {
-	.type = IIO_ANGL,
-	.indexed = 1,
-	.channel = 0,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+  .type = IIO_ANGL,
+  .indexed = 1,
+  .channel = 0,
+  .info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
 };
 
-static int ad2s90_probe(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev;
-	struct ad2s90_state *st;
-
-	if (spi->max_speed_hz > AD2S90_MAX_SPI_FREQ_HZ) {
-		dev_err(&spi->dev, "SPI CLK, %d Hz exceeds %d Hz\n",
-			spi->max_speed_hz, AD2S90_MAX_SPI_FREQ_HZ);
-		return -EINVAL;
-	}
-
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
-	if (!indio_dev)
-		return -ENOMEM;
-	st = iio_priv(indio_dev);
-	spi_set_drvdata(spi, indio_dev);
-
-	mutex_init(&st->lock);
-	st->sdev = spi;
-	indio_dev->info = &ad2s90_info;
-	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->channels = &ad2s90_chan;
-	indio_dev->num_channels = 1;
-	indio_dev->name = spi_get_device_id(spi)->name;
-
-	return devm_iio_device_register(indio_dev->dev.parent, indio_dev);
+static int ad2s90_probe(struct spi_device *spi) {
+  struct iio_dev *indio_dev;
+  struct ad2s90_state *st;
+  if (spi->max_speed_hz > AD2S90_MAX_SPI_FREQ_HZ) {
+    dev_err(&spi->dev, "SPI CLK, %d Hz exceeds %d Hz\n",
+        spi->max_speed_hz, AD2S90_MAX_SPI_FREQ_HZ);
+    return -EINVAL;
+  }
+  indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+  if (!indio_dev) {
+    return -ENOMEM;
+  }
+  st = iio_priv(indio_dev);
+  spi_set_drvdata(spi, indio_dev);
+  mutex_init(&st->lock);
+  st->sdev = spi;
+  indio_dev->info = &ad2s90_info;
+  indio_dev->modes = INDIO_DIRECT_MODE;
+  indio_dev->channels = &ad2s90_chan;
+  indio_dev->num_channels = 1;
+  indio_dev->name = spi_get_device_id(spi)->name;
+  return devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 }
 
 static const struct of_device_id ad2s90_of_match[] = {
-	{ .compatible = "adi,ad2s90", },
-	{}
+  { .compatible = "adi,ad2s90", },
+  {}
 };
 MODULE_DEVICE_TABLE(of, ad2s90_of_match);
 
 static const struct spi_device_id ad2s90_id[] = {
-	{ "ad2s90" },
-	{}
+  { "ad2s90" },
+  {}
 };
 MODULE_DEVICE_TABLE(spi, ad2s90_id);
 
 static struct spi_driver ad2s90_driver = {
-	.driver = {
-		.name = "ad2s90",
-		.of_match_table = ad2s90_of_match,
-	},
-	.probe = ad2s90_probe,
-	.id_table = ad2s90_id,
+  .driver = {
+    .name = "ad2s90",
+    .of_match_table = ad2s90_of_match,
+  },
+  .probe = ad2s90_probe,
+  .id_table = ad2s90_id,
 };
 module_spi_driver(ad2s90_driver);
 

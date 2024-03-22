@@ -10,20 +10,18 @@ struct qcom_smd_edge;
 #if IS_ENABLED(CONFIG_RPMSG_QCOM_SMD)
 
 struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
-					     struct device_node *node);
+    struct device_node *node);
 void qcom_smd_unregister_edge(struct qcom_smd_edge *edge);
 
 #else
 
-static inline struct qcom_smd_edge *
-qcom_smd_register_edge(struct device *parent,
-		       struct device_node *node)
-{
-	return NULL;
+static inline struct qcom_smd_edge *qcom_smd_register_edge(
+    struct device *parent,
+    struct device_node *node) {
+  return NULL;
 }
 
-static inline void qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
-{
+static inline void qcom_smd_unregister_edge(struct qcom_smd_edge *edge) {
 }
 
 #endif

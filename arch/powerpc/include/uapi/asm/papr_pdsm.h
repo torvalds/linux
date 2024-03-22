@@ -36,8 +36,8 @@
  * This is the generic libnvdimm header described as 'struct nd_cmd_pkg'
  * which is interpreted by libnvdimm before passed on to papr_scm. Important
  * member fields used are:
- * 'nd_family'		: (In) NVDIMM_FAMILY_PAPR_SCM
- * 'nd_size_in'		: (In) PDSM-HEADER + PDSM-IN-PAYLOAD (usually 0)
+ * 'nd_family'    : (In) NVDIMM_FAMILY_PAPR_SCM
+ * 'nd_size_in'   : (In) PDSM-HEADER + PDSM-IN-PAYLOAD (usually 0)
  * 'nd_size_out'        : (In) PDSM-HEADER + PDSM-RETURN-PAYLOAD
  * 'nd_command'         : (In) One of PAPR_PDSM_XXX
  * 'nd_fw_size'         : (Out) PDSM-HEADER + size of actual payload returned
@@ -46,8 +46,8 @@
  * This is papr-scm specific header that precedes the payload. This is defined
  * as nd_cmd_pdsm_pkg.  Following fields aare available in this header:
  *
- * 'cmd_status'		: (Out) Errors if any encountered while servicing PDSM.
- * 'reserved'		: Not used, reserved for future and should be set to 0.
+ * 'cmd_status'   : (Out) Errors if any encountered while servicing PDSM.
+ * 'reserved'   : Not used, reserved for future and should be set to 0.
  * 'payload'            : A union of all the possible payload structs
  *
  * PDSM Payload:
@@ -64,7 +64,7 @@
 
 /* Max payload size that we can handle */
 #define ND_PDSM_HDR_SIZE \
-	(sizeof(struct nd_pkg_pdsm) - ND_PDSM_PAYLOAD_MAX_SIZE)
+  (sizeof(struct nd_pkg_pdsm) - ND_PDSM_PAYLOAD_MAX_SIZE)
 
 /* Various nvdimm health indicators */
 #define PAPR_PDSM_DIMM_HEALTHY       0
@@ -84,52 +84,52 @@
  * Struct exchanged between kernel & ndctl in for PAPR_PDSM_HEALTH
  * Various flags indicate the health status of the dimm.
  *
- * extension_flags	: Any extension fields present in the struct.
- * dimm_unarmed		: Dimm not armed. So contents wont persist.
- * dimm_bad_shutdown	: Previous shutdown did not persist contents.
- * dimm_bad_restore	: Contents from previous shutdown werent restored.
- * dimm_scrubbed	: Contents of the dimm have been scrubbed.
- * dimm_locked		: Contents of the dimm cant be modified until CEC reboot
- * dimm_encrypted	: Contents of dimm are encrypted.
- * dimm_health		: Dimm health indicator. One of PAPR_PDSM_DIMM_XXXX
- * dimm_fuel_gauge	: Life remaining of DIMM as a percentage from 0-100
+ * extension_flags  : Any extension fields present in the struct.
+ * dimm_unarmed   : Dimm not armed. So contents wont persist.
+ * dimm_bad_shutdown  : Previous shutdown did not persist contents.
+ * dimm_bad_restore : Contents from previous shutdown werent restored.
+ * dimm_scrubbed  : Contents of the dimm have been scrubbed.
+ * dimm_locked    : Contents of the dimm cant be modified until CEC reboot
+ * dimm_encrypted : Contents of dimm are encrypted.
+ * dimm_health    : Dimm health indicator. One of PAPR_PDSM_DIMM_XXXX
+ * dimm_fuel_gauge  : Life remaining of DIMM as a percentage from 0-100
  */
 struct nd_papr_pdsm_health {
-	union {
-		struct {
-			__u32 extension_flags;
-			__u8 dimm_unarmed;
-			__u8 dimm_bad_shutdown;
-			__u8 dimm_bad_restore;
-			__u8 dimm_scrubbed;
-			__u8 dimm_locked;
-			__u8 dimm_encrypted;
-			__u16 dimm_health;
+  union {
+    struct {
+      __u32 extension_flags;
+      __u8 dimm_unarmed;
+      __u8 dimm_bad_shutdown;
+      __u8 dimm_bad_restore;
+      __u8 dimm_scrubbed;
+      __u8 dimm_locked;
+      __u8 dimm_encrypted;
+      __u16 dimm_health;
 
-			/* Extension flag PDSM_DIMM_HEALTH_RUN_GAUGE_VALID */
-			__u16 dimm_fuel_gauge;
+      /* Extension flag PDSM_DIMM_HEALTH_RUN_GAUGE_VALID */
+      __u16 dimm_fuel_gauge;
 
-			/* Extension flag PDSM_DIMM_DSC_VALID */
-			__u64 dimm_dsc;
-		};
-		__u8 buf[ND_PDSM_PAYLOAD_MAX_SIZE];
-	};
+      /* Extension flag PDSM_DIMM_DSC_VALID */
+      __u64 dimm_dsc;
+    };
+    __u8 buf[ND_PDSM_PAYLOAD_MAX_SIZE];
+  };
 };
 
 /* Flags for injecting specific smart errors */
-#define PDSM_SMART_INJECT_HEALTH_FATAL		(1 << 0)
-#define PDSM_SMART_INJECT_BAD_SHUTDOWN		(1 << 1)
+#define PDSM_SMART_INJECT_HEALTH_FATAL    (1 << 0)
+#define PDSM_SMART_INJECT_BAD_SHUTDOWN    (1 << 1)
 
 struct nd_papr_pdsm_smart_inject {
-	union {
-		struct {
-			/* One or more of PDSM_SMART_INJECT_ */
-			__u32 flags;
-			__u8 fatal_enable;
-			__u8 unsafe_shutdown_enable;
-		};
-		__u8 buf[ND_PDSM_PAYLOAD_MAX_SIZE];
-	};
+  union {
+    struct {
+      /* One or more of PDSM_SMART_INJECT_ */
+      __u32 flags;
+      __u8 fatal_enable;
+      __u8 unsafe_shutdown_enable;
+    };
+    __u8 buf[ND_PDSM_PAYLOAD_MAX_SIZE];
+  };
 };
 
 /*
@@ -137,17 +137,17 @@ struct nd_papr_pdsm_smart_inject {
  * via 'nd_cmd_pkg.nd_command' member of the ioctl struct
  */
 enum papr_pdsm {
-	PAPR_PDSM_MIN = 0x0,
-	PAPR_PDSM_HEALTH,
-	PAPR_PDSM_SMART_INJECT,
-	PAPR_PDSM_MAX,
+  PAPR_PDSM_MIN = 0x0,
+  PAPR_PDSM_HEALTH,
+  PAPR_PDSM_SMART_INJECT,
+  PAPR_PDSM_MAX,
 };
 
 /* Maximal union that can hold all possible payload types */
 union nd_pdsm_payload {
-	struct nd_papr_pdsm_health health;
-	struct nd_papr_pdsm_smart_inject smart_inject;
-	__u8 buf[ND_PDSM_PAYLOAD_MAX_SIZE];
+  struct nd_papr_pdsm_health health;
+  struct nd_papr_pdsm_smart_inject smart_inject;
+  __u8 buf[ND_PDSM_PAYLOAD_MAX_SIZE];
 } __packed;
 
 /*
@@ -157,9 +157,9 @@ union nd_pdsm_payload {
  * interface.
  */
 struct nd_pkg_pdsm {
-	__s32 cmd_status;	/* Out: Sub-cmd status returned back */
-	__u16 reserved[2];	/* Ignored and to be set as '0' */
-	union nd_pdsm_payload payload;
+  __s32 cmd_status; /* Out: Sub-cmd status returned back */
+  __u16 reserved[2];  /* Ignored and to be set as '0' */
+  union nd_pdsm_payload payload;
 } __packed;
 
 #endif /* _UAPI_ASM_POWERPC_PAPR_PDSM_H_ */

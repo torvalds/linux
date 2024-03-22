@@ -21,29 +21,27 @@
  * list of supported boards
  */
 static const char * const board[] __initconst = {
-	"prt,prtlvt",
-	"fsl,mpc5125ads",
-	"ifm,ac14xx",
-	NULL
+  "prt,prtlvt",
+  "fsl,mpc5125ads",
+  "ifm,ac14xx",
+  NULL
 };
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init mpc512x_generic_probe(void)
-{
-	mpc512x_init_early();
-
-	return 1;
+static int __init mpc512x_generic_probe(void) {
+  mpc512x_init_early();
+  return 1;
 }
 
 define_machine(mpc512x_generic) {
-	.name			= "MPC512x generic",
-	.compatibles		= board,
-	.probe			= mpc512x_generic_probe,
-	.init			= mpc512x_init,
-	.setup_arch		= mpc512x_setup_arch,
-	.init_IRQ		= mpc512x_init_IRQ,
-	.get_irq		= ipic_get_irq,
-	.restart		= mpc512x_restart,
+  .name = "MPC512x generic",
+  .compatibles = board,
+  .probe = mpc512x_generic_probe,
+  .init = mpc512x_init,
+  .setup_arch = mpc512x_setup_arch,
+  .init_IRQ = mpc512x_init_IRQ,
+  .get_irq = ipic_get_irq,
+  .restart = mpc512x_restart,
 };

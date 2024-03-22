@@ -24,71 +24,61 @@
 #include <fcntl.h>
 #include "../kselftest.h"
 
-#define LENGTH (256UL*1024*1024)
+#define LENGTH (256UL * 1024 * 1024)
 #define PROTECTION (PROT_READ | PROT_WRITE)
 
 /* Only ia64 requires this */
 #ifdef __ia64__
-#define ADDR (void *)(0x8000000000000000UL)
+#define ADDR (void *) (0x8000000000000000UL)
 #define FLAGS (MAP_SHARED | MAP_FIXED)
 #else
-#define ADDR (void *)(0x0UL)
+#define ADDR (void *) (0x0UL)
 #define FLAGS (MAP_SHARED)
 #endif
 
-static void check_bytes(char *addr)
-{
-	ksft_print_msg("First hex is %x\n", *((unsigned int *)addr));
+static void check_bytes(char *addr) {
+  ksft_print_msg("First hex is %x\n", *((unsigned int *) addr));
 }
 
-static void write_bytes(char *addr)
-{
-	unsigned long i;
-
-	for (i = 0; i < LENGTH; i++)
-		*(addr + i) = (char)i;
+static void write_bytes(char *addr) {
+  unsigned long i;
+  for (i = 0; i < LENGTH; i++) {
+    *(addr + i) = (char) i;
+  }
 }
 
-static int read_bytes(char *addr)
-{
-	unsigned long i;
-
-	check_bytes(addr);
-	for (i = 0; i < LENGTH; i++)
-		if (*(addr + i) != (char)i) {
-			ksft_print_msg("Error: Mismatch at %lu\n", i);
-			return 1;
-		}
-	return 0;
+static int read_bytes(char *addr) {
+  unsigned long i;
+  check_bytes(addr);
+  for (i = 0; i < LENGTH; i++) {
+    if (*(addr + i) != (char) i) {
+      ksft_print_msg("Error: Mismatch at %lu\n", i);
+      return 1;
+    }
+  }
+  return 0;
 }
 
-int main(void)
-{
-	void *addr;
-	int fd, ret;
-
-	ksft_print_header();
-	ksft_set_plan(1);
-
-	fd = memfd_create("hugepage-mmap", MFD_HUGETLB);
-	if (fd < 0)
-		ksft_exit_fail_msg("memfd_create() failed: %s\n", strerror(errno));
-
-	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, fd, 0);
-	if (addr == MAP_FAILED) {
-		close(fd);
-		ksft_exit_fail_msg("mmap(): %s\n", strerror(errno));
-	}
-
-	ksft_print_msg("Returned address is %p\n", addr);
-	check_bytes(addr);
-	write_bytes(addr);
-	ret = read_bytes(addr);
-
-	munmap(addr, LENGTH);
-	close(fd);
-
-	ksft_test_result(!ret, "Read same data\n");
-
-	ksft_exit(!ret);
+int main(void) {
+  void *addr;
+  int fd, ret;
+  ksft_print_header();
+  ksft_set_plan(1);
+  fd = memfd_create("hugepage-mmap", MFD_HUGETLB);
+  if (fd < 0) {
+    ksft_exit_fail_msg("memfd_create() failed: %s\n", strerror(errno));
+  }
+  addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, fd, 0);
+  if (addr == MAP_FAILED) {
+    close(fd);
+    ksft_exit_fail_msg("mmap(): %s\n", strerror(errno));
+  }
+  ksft_print_msg("Returned address is %p\n", addr);
+  check_bytes(addr);
+  write_bytes(addr);
+  ret = read_bytes(addr);
+  munmap(addr, LENGTH);
+  close(fd);
+  ksft_test_result(!ret, "Read same data\n");
+  ksft_exit(!ret);
 }

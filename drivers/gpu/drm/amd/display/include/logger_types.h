@@ -51,7 +51,7 @@
 #define DC_LOG_EVENT_MODE_SET(...) drm_dbg_kms((DC_LOGGER)->dev, __VA_ARGS__)
 #define DC_LOG_EVENT_DETECTION(...) drm_dbg((DC_LOGGER)->dev, __VA_ARGS__)
 #define DC_LOG_EVENT_LINK_TRAINING(...) \
-	drm_dbg_dp((DC_LOGGER)->dev, __VA_ARGS__)
+  drm_dbg_dp((DC_LOGGER)->dev, __VA_ARGS__)
 #define DC_LOG_EVENT_LINK_LOSS(...) drm_dbg_dp((DC_LOGGER)->dev, __VA_ARGS__)
 #define DC_LOG_IF_TRACE(...) pr_debug("[IF_TRACE]:"__VA_ARGS__)
 #define DC_LOG_PERF_TRACE(...) drm_dbg((DC_LOGGER)->dev, __VA_ARGS__)
@@ -66,13 +66,13 @@
 #define DC_LOG_AUTO_DPM_TEST(...) pr_debug("[AutoDPMTest]: "__VA_ARGS__)
 
 struct dc_log_buffer_ctx {
-	char *buf;
-	size_t pos;
-	size_t size;
+  char *buf;
+  size_t pos;
+  size_t size;
 };
 
 struct dal_logger {
-	struct drm_device *dev;
+  struct drm_device *dev;
 };
 
 #endif /* __DAL_LOGGER_TYPES_H__ */

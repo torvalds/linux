@@ -17,15 +17,15 @@
  * if a region wasn't registered as emulated, then you need to have
  * all of the real_* functions implemented.
  */
-#if !defined(real_ioremap) || !defined(real_iounmap) || \
-    !defined(real_raw_readb) || !defined(real_raw_writeb) || \
-    !defined(real_raw_readw) || !defined(real_raw_writew) || \
-    !defined(real_raw_readl) || !defined(real_raw_writel) || \
-    (defined(CONFIG_64BIT) && \
-     (!defined(real_raw_readq) || !defined(real_raw_writeq))) || \
-    !defined(real_memset_io) || \
-    !defined(real_memcpy_fromio) || \
-    !defined(real_memcpy_toio)
+#if !defined(real_ioremap) || !defined(real_iounmap)    \
+  || !defined(real_raw_readb) || !defined(real_raw_writeb)    \
+  || !defined(real_raw_readw) || !defined(real_raw_writew)    \
+  || !defined(real_raw_readl) || !defined(real_raw_writel)    \
+  || (defined(CONFIG_64BIT)    \
+  && (!defined(real_raw_readq) || !defined(real_raw_writeq)))    \
+  || !defined(real_memset_io)    \
+  || !defined(real_memcpy_fromio)    \
+  || !defined(real_memcpy_toio)
 #error "Must provide fallbacks for real IO memory access"
 #endif /* defined ... */
 #endif /* CONFIG_INDIRECT_IOMEM_FALLBACK */
@@ -69,7 +69,7 @@ void memset_io(volatile void __iomem *addr, int value, size_t size);
 
 #define memcpy_fromio memcpy_fromio
 void memcpy_fromio(void *buffer, const volatile void __iomem *addr,
-		   size_t size);
+    size_t size);
 
 #define memcpy_toio memcpy_toio
 void memcpy_toio(volatile void __iomem *addr, const void *buffer, size_t size);

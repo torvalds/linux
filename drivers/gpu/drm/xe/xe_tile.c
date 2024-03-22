@@ -81,21 +81,20 @@
  *
  * Returns -ENOMEM if allocations fail, otherwise 0.
  */
-static int xe_tile_alloc(struct xe_tile *tile)
-{
-	struct drm_device *drm = &tile_to_xe(tile)->drm;
-
-	tile->mem.ggtt = drmm_kzalloc(drm, sizeof(*tile->mem.ggtt),
-				      GFP_KERNEL);
-	if (!tile->mem.ggtt)
-		return -ENOMEM;
-	tile->mem.ggtt->tile = tile;
-
-	tile->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*tile->mem.vram_mgr), GFP_KERNEL);
-	if (!tile->mem.vram_mgr)
-		return -ENOMEM;
-
-	return 0;
+static int xe_tile_alloc(struct xe_tile *tile) {
+  struct drm_device *drm = &tile_to_xe(tile)->drm;
+  tile->mem.ggtt = drmm_kzalloc(drm, sizeof(*tile->mem.ggtt),
+      GFP_KERNEL);
+  if (!tile->mem.ggtt) {
+    return -ENOMEM;
+  }
+  tile->mem.ggtt->tile = tile;
+  tile->mem.vram_mgr
+    = drmm_kzalloc(drm, sizeof(*tile->mem.vram_mgr), GFP_KERNEL);
+  if (!tile->mem.vram_mgr) {
+    return -ENOMEM;
+  }
+  return 0;
 }
 
 /**
@@ -109,41 +108,37 @@ static int xe_tile_alloc(struct xe_tile *tile)
  *
  * Returns: 0 on success, negative error code on error.
  */
-int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id)
-{
-	int err;
-
-	tile->xe = xe;
-	tile->id = id;
-
-	err = xe_tile_alloc(tile);
-	if (err)
-		return err;
-
-	tile->primary_gt = xe_gt_alloc(tile);
-	if (IS_ERR(tile->primary_gt))
-		return PTR_ERR(tile->primary_gt);
-
-	return 0;
+int xe_tile_init_early(struct xe_tile *tile, struct xe_device *xe, u8 id) {
+  int err;
+  tile->xe = xe;
+  tile->id = id;
+  err = xe_tile_alloc(tile);
+  if (err) {
+    return err;
+  }
+  tile->primary_gt = xe_gt_alloc(tile);
+  if (IS_ERR(tile->primary_gt)) {
+    return PTR_ERR(tile->primary_gt);
+  }
+  return 0;
 }
 
-static int tile_ttm_mgr_init(struct xe_tile *tile)
-{
-	struct xe_device *xe = tile_to_xe(tile);
-	int err;
-
-	if (tile->mem.vram.usable_size) {
-		err = xe_ttm_vram_mgr_init(tile, tile->mem.vram_mgr);
-		if (err)
-			return err;
-		xe->info.mem_region_mask |= BIT(tile->id) << 1;
-	}
-
-	return 0;
+static int tile_ttm_mgr_init(struct xe_tile *tile) {
+  struct xe_device *xe = tile_to_xe(tile);
+  int err;
+  if (tile->mem.vram.usable_size) {
+    err = xe_ttm_vram_mgr_init(tile, tile->mem.vram_mgr);
+    if (err) {
+      return err;
+    }
+    xe->info.mem_region_mask |= BIT(tile->id) << 1;
+  }
+  return 0;
 }
 
 /**
- * xe_tile_init_noalloc - Init tile up to the point where allocations can happen.
+ * xe_tile_init_noalloc - Init tile up to the point where allocations can
+ *happen.
  * @tile: The tile to initialize.
  *
  * This function prepares the tile to allow memory allocations to VRAM, but is
@@ -156,31 +151,25 @@ static int tile_ttm_mgr_init(struct xe_tile *tile)
  *
  * Returns: 0 on success, negative error code on error.
  */
-int xe_tile_init_noalloc(struct xe_tile *tile)
-{
-	int err;
-
-	xe_device_mem_access_get(tile_to_xe(tile));
-
-	err = tile_ttm_mgr_init(tile);
-	if (err)
-		goto err_mem_access;
-
-	tile->mem.kernel_bb_pool = xe_sa_bo_manager_init(tile, SZ_1M, 16);
-	if (IS_ERR(tile->mem.kernel_bb_pool)) {
-		err = PTR_ERR(tile->mem.kernel_bb_pool);
-		goto err_mem_access;
-	}
-	xe_wa_apply_tile_workarounds(tile);
-
-	xe_tile_sysfs_init(tile);
-
+int xe_tile_init_noalloc(struct xe_tile *tile) {
+  int err;
+  xe_device_mem_access_get(tile_to_xe(tile));
+  err = tile_ttm_mgr_init(tile);
+  if (err) {
+    goto err_mem_access;
+  }
+  tile->mem.kernel_bb_pool = xe_sa_bo_manager_init(tile, SZ_1M, 16);
+  if (IS_ERR(tile->mem.kernel_bb_pool)) {
+    err = PTR_ERR(tile->mem.kernel_bb_pool);
+    goto err_mem_access;
+  }
+  xe_wa_apply_tile_workarounds(tile);
+  xe_tile_sysfs_init(tile);
 err_mem_access:
-	xe_device_mem_access_put(tile_to_xe(tile));
-	return err;
+  xe_device_mem_access_put(tile_to_xe(tile));
+  return err;
 }
 
-void xe_tile_migrate_wait(struct xe_tile *tile)
-{
-	xe_migrate_wait(tile->migrate);
+void xe_tile_migrate_wait(struct xe_tile *tile) {
+  xe_migrate_wait(tile->migrate);
 }

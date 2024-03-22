@@ -21,8 +21,8 @@
  *                           Protocol version
  ******************************************************************************
  */
-#define XENDISPL_PROTOCOL_VERSION	"2"
-#define XENDISPL_PROTOCOL_VERSION_INT	 2
+#define XENDISPL_PROTOCOL_VERSION "2"
+#define XENDISPL_PROTOCOL_VERSION_INT  2
 
 /*
  ******************************************************************************
@@ -92,14 +92,16 @@
  *--------------------------------- Backend -----------------------------------
  *
  * /local/domain/0/backend/vdispl/1/0/frontend-id = "1"
- * /local/domain/0/backend/vdispl/1/0/frontend = "/local/domain/1/device/vdispl/0"
+ * /local/domain/0/backend/vdispl/1/0/frontend =
+ *"/local/domain/1/device/vdispl/0"
  * /local/domain/0/backend/vdispl/1/0/state = "4"
  * /local/domain/0/backend/vdispl/1/0/versions = "1,2"
  *
  *--------------------------------- Frontend ----------------------------------
  *
  * /local/domain/1/device/vdispl/0/backend-id = "0"
- * /local/domain/1/device/vdispl/0/backend = "/local/domain/0/backend/vdispl/1/0"
+ * /local/domain/1/device/vdispl/0/backend =
+ *"/local/domain/0/backend/vdispl/1/0"
  * /local/domain/1/device/vdispl/0/state = "4"
  * /local/domain/1/device/vdispl/0/version = "1"
  * /local/domain/1/device/vdispl/0/be-alloc = "1"
@@ -330,45 +332,46 @@
  * Request codes [0; 15] are reserved and must not be used
  */
 
-#define XENDISPL_OP_DBUF_CREATE		0x10
-#define XENDISPL_OP_DBUF_DESTROY	0x11
-#define XENDISPL_OP_FB_ATTACH		0x12
-#define XENDISPL_OP_FB_DETACH		0x13
-#define XENDISPL_OP_SET_CONFIG		0x14
-#define XENDISPL_OP_PG_FLIP		0x15
+#define XENDISPL_OP_DBUF_CREATE   0x10
+#define XENDISPL_OP_DBUF_DESTROY  0x11
+#define XENDISPL_OP_FB_ATTACH   0x12
+#define XENDISPL_OP_FB_DETACH   0x13
+#define XENDISPL_OP_SET_CONFIG    0x14
+#define XENDISPL_OP_PG_FLIP   0x15
 /* The below command is available in protocol version 2 and above. */
-#define XENDISPL_OP_GET_EDID		0x16
+#define XENDISPL_OP_GET_EDID    0x16
 
 /*
  ******************************************************************************
  *                                 EVENT CODES
  ******************************************************************************
  */
-#define XENDISPL_EVT_PG_FLIP		0x00
+#define XENDISPL_EVT_PG_FLIP    0x00
 
 /*
  ******************************************************************************
  *               XENSTORE FIELD AND PATH NAME STRINGS, HELPERS
  ******************************************************************************
  */
-#define XENDISPL_DRIVER_NAME		"vdispl"
+#define XENDISPL_DRIVER_NAME    "vdispl"
 
-#define XENDISPL_LIST_SEPARATOR		","
-#define XENDISPL_RESOLUTION_SEPARATOR	"x"
+#define XENDISPL_LIST_SEPARATOR   ","
+#define XENDISPL_RESOLUTION_SEPARATOR "x"
 
-#define XENDISPL_FIELD_BE_VERSIONS	"versions"
-#define XENDISPL_FIELD_FE_VERSION	"version"
-#define XENDISPL_FIELD_REQ_RING_REF	"req-ring-ref"
-#define XENDISPL_FIELD_REQ_CHANNEL	"req-event-channel"
-#define XENDISPL_FIELD_EVT_RING_REF	"evt-ring-ref"
-#define XENDISPL_FIELD_EVT_CHANNEL	"evt-event-channel"
-#define XENDISPL_FIELD_RESOLUTION	"resolution"
-#define XENDISPL_FIELD_BE_ALLOC		"be-alloc"
-#define XENDISPL_FIELD_UNIQUE_ID	"unique-id"
+#define XENDISPL_FIELD_BE_VERSIONS  "versions"
+#define XENDISPL_FIELD_FE_VERSION "version"
+#define XENDISPL_FIELD_REQ_RING_REF "req-ring-ref"
+#define XENDISPL_FIELD_REQ_CHANNEL  "req-event-channel"
+#define XENDISPL_FIELD_EVT_RING_REF "evt-ring-ref"
+#define XENDISPL_FIELD_EVT_CHANNEL  "evt-event-channel"
+#define XENDISPL_FIELD_RESOLUTION "resolution"
+#define XENDISPL_FIELD_BE_ALLOC   "be-alloc"
+#define XENDISPL_FIELD_UNIQUE_ID  "unique-id"
 
-#define XENDISPL_EDID_BLOCK_SIZE	128
-#define XENDISPL_EDID_BLOCK_COUNT	256
-#define XENDISPL_EDID_MAX_SIZE		(XENDISPL_EDID_BLOCK_SIZE * XENDISPL_EDID_BLOCK_COUNT)
+#define XENDISPL_EDID_BLOCK_SIZE  128
+#define XENDISPL_EDID_BLOCK_COUNT 256
+#define XENDISPL_EDID_MAX_SIZE    (XENDISPL_EDID_BLOCK_SIZE \
+  * XENDISPL_EDID_BLOCK_COUNT)
 
 /*
  ******************************************************************************
@@ -492,17 +495,17 @@
  * data_ofs - uint32_t, offset of the data in the buffer, octets
  */
 
-#define XENDISPL_DBUF_FLG_REQ_ALLOC	(1 << 0)
+#define XENDISPL_DBUF_FLG_REQ_ALLOC (1 << 0)
 
 struct xendispl_dbuf_create_req {
-	uint64_t dbuf_cookie;
-	uint32_t width;
-	uint32_t height;
-	uint32_t bpp;
-	uint32_t buffer_sz;
-	uint32_t flags;
-	grant_ref_t gref_directory;
-	uint32_t data_ofs;
+  uint64_t dbuf_cookie;
+  uint32_t width;
+  uint32_t height;
+  uint32_t bpp;
+  uint32_t buffer_sz;
+  uint32_t flags;
+  grant_ref_t gref_directory;
+  uint32_t data_ofs;
 };
 
 /*
@@ -536,8 +539,8 @@ struct xendispl_dbuf_create_req {
  */
 
 struct xendispl_page_directory {
-	grant_ref_t gref_dir_next_page;
-	grant_ref_t gref[];
+  grant_ref_t gref_dir_next_page;
+  grant_ref_t gref[];
 };
 
 /*
@@ -565,7 +568,7 @@ struct xendispl_page_directory {
  */
 
 struct xendispl_dbuf_destroy_req {
-	uint64_t dbuf_cookie;
+  uint64_t dbuf_cookie;
 };
 
 /*
@@ -614,11 +617,11 @@ struct xendispl_dbuf_destroy_req {
  */
 
 struct xendispl_fb_attach_req {
-	uint64_t dbuf_cookie;
-	uint64_t fb_cookie;
-	uint32_t width;
-	uint32_t height;
-	uint32_t pixel_format;
+  uint64_t dbuf_cookie;
+  uint64_t fb_cookie;
+  uint32_t width;
+  uint32_t height;
+  uint32_t pixel_format;
 };
 
 /*
@@ -647,7 +650,7 @@ struct xendispl_fb_attach_req {
  */
 
 struct xendispl_fb_detach_req {
-	uint64_t fb_cookie;
+  uint64_t fb_cookie;
 };
 
 /*
@@ -695,12 +698,12 @@ struct xendispl_fb_detach_req {
  */
 
 struct xendispl_set_config_req {
-	uint64_t fb_cookie;
-	uint32_t x;
-	uint32_t y;
-	uint32_t width;
-	uint32_t height;
-	uint32_t bpp;
+  uint64_t fb_cookie;
+  uint32_t x;
+  uint32_t y;
+  uint32_t width;
+  uint32_t height;
+  uint32_t bpp;
 };
 
 /*
@@ -725,7 +728,7 @@ struct xendispl_set_config_req {
  */
 
 struct xendispl_page_flip_req {
-	uint64_t fb_cookie;
+  uint64_t fb_cookie;
 };
 
 /*
@@ -762,8 +765,8 @@ struct xendispl_page_flip_req {
  */
 
 struct xendispl_get_edid_req {
-	uint32_t buffer_sz;
-	grant_ref_t gref_directory;
+  uint32_t buffer_sz;
+  grant_ref_t gref_directory;
 };
 
 /*
@@ -813,7 +816,7 @@ struct xendispl_get_edid_req {
  */
 
 struct xendispl_get_edid_resp {
-	uint32_t edid_sz;
+  uint32_t edid_sz;
 };
 
 /*
@@ -854,44 +857,44 @@ struct xendispl_get_edid_resp {
  */
 
 struct xendispl_pg_flip_evt {
-	uint64_t fb_cookie;
+  uint64_t fb_cookie;
 };
 
 struct xendispl_req {
-	uint16_t id;
-	uint8_t operation;
-	uint8_t reserved[5];
-	union {
-		struct xendispl_dbuf_create_req dbuf_create;
-		struct xendispl_dbuf_destroy_req dbuf_destroy;
-		struct xendispl_fb_attach_req fb_attach;
-		struct xendispl_fb_detach_req fb_detach;
-		struct xendispl_set_config_req set_config;
-		struct xendispl_page_flip_req pg_flip;
-		struct xendispl_get_edid_req get_edid;
-		uint8_t reserved[56];
-	} op;
+  uint16_t id;
+  uint8_t operation;
+  uint8_t reserved[5];
+  union {
+    struct xendispl_dbuf_create_req dbuf_create;
+    struct xendispl_dbuf_destroy_req dbuf_destroy;
+    struct xendispl_fb_attach_req fb_attach;
+    struct xendispl_fb_detach_req fb_detach;
+    struct xendispl_set_config_req set_config;
+    struct xendispl_page_flip_req pg_flip;
+    struct xendispl_get_edid_req get_edid;
+    uint8_t reserved[56];
+  } op;
 };
 
 struct xendispl_resp {
-	uint16_t id;
-	uint8_t operation;
-	uint8_t reserved;
-	int32_t status;
-	union {
-		struct xendispl_get_edid_resp get_edid;
-		uint8_t reserved1[56];
-	} op;
+  uint16_t id;
+  uint8_t operation;
+  uint8_t reserved;
+  int32_t status;
+  union {
+    struct xendispl_get_edid_resp get_edid;
+    uint8_t reserved1[56];
+  } op;
 };
 
 struct xendispl_evt {
-	uint16_t id;
-	uint8_t type;
-	uint8_t reserved[5];
-	union {
-		struct xendispl_pg_flip_evt pg_flip;
-		uint8_t reserved[56];
-	} op;
+  uint16_t id;
+  uint8_t type;
+  uint8_t reserved[5];
+  union {
+    struct xendispl_pg_flip_evt pg_flip;
+    uint8_t reserved[56];
+  } op;
 };
 
 DEFINE_RING_TYPES(xen_displif, struct xendispl_req, struct xendispl_resp);
@@ -913,18 +916,19 @@ DEFINE_RING_TYPES(xen_displif, struct xendispl_req, struct xendispl_resp);
  */
 
 struct xendispl_event_page {
-	uint32_t in_cons;
-	uint32_t in_prod;
-	uint8_t reserved[56];
+  uint32_t in_cons;
+  uint32_t in_prod;
+  uint8_t reserved[56];
 };
 
 #define XENDISPL_EVENT_PAGE_SIZE XEN_PAGE_SIZE
 #define XENDISPL_IN_RING_OFFS (sizeof(struct xendispl_event_page))
 #define XENDISPL_IN_RING_SIZE (XENDISPL_EVENT_PAGE_SIZE - XENDISPL_IN_RING_OFFS)
-#define XENDISPL_IN_RING_LEN (XENDISPL_IN_RING_SIZE / sizeof(struct xendispl_evt))
+#define XENDISPL_IN_RING_LEN (XENDISPL_IN_RING_SIZE \
+  / sizeof(struct xendispl_evt))
 #define XENDISPL_IN_RING(page) \
-	((struct xendispl_evt *)((char *)(page) + XENDISPL_IN_RING_OFFS))
+  ((struct xendispl_evt *) ((char *) (page) + XENDISPL_IN_RING_OFFS))
 #define XENDISPL_IN_RING_REF(page, idx) \
-	(XENDISPL_IN_RING((page))[(idx) % XENDISPL_IN_RING_LEN])
+  (XENDISPL_IN_RING((page))[(idx) % XENDISPL_IN_RING_LEN])
 
 #endif /* __XEN_PUBLIC_IO_DISPLIF_H__ */

@@ -19,8 +19,8 @@ struct ccu_rst_info;
  * @CCU_RST_DIR: Directly controlled reset signal.
  */
 enum ccu_rst_type {
-	CCU_RST_TRIG,
-	CCU_RST_DIR,
+  CCU_RST_TRIG,
+  CCU_RST_DIR,
 };
 
 /*
@@ -29,8 +29,8 @@ enum ccu_rst_type {
  * @np: Pointer to the node with the System CCU block.
  */
 struct ccu_rst_init_data {
-	struct regmap *sys_regs;
-	struct device_node *np;
+  struct regmap *sys_regs;
+  struct device_node *np;
 };
 
 /*
@@ -40,9 +40,9 @@ struct ccu_rst_init_data {
  * @rsts_info: Reset flag info (base address and mask).
  */
 struct ccu_rst {
-	struct reset_controller_dev rcdev;
-	struct regmap *sys_regs;
-	const struct ccu_rst_info *rsts_info;
+  struct reset_controller_dev rcdev;
+  struct regmap *sys_regs;
+  const struct ccu_rst_info *rsts_info;
 };
 #define to_ccu_rst(_rcdev) container_of(_rcdev, struct ccu_rst, rcdev)
 
@@ -55,12 +55,12 @@ void ccu_rst_hw_unregister(struct ccu_rst *rst);
 #else
 
 static inline
-struct ccu_rst *ccu_rst_hw_register(const struct ccu_rst_init_data *init)
-{
-	return NULL;
+struct ccu_rst *ccu_rst_hw_register(const struct ccu_rst_init_data *init) {
+  return NULL;
 }
 
-static inline void ccu_rst_hw_unregister(struct ccu_rst *rst) {}
+static inline void ccu_rst_hw_unregister(struct ccu_rst *rst) {
+}
 
 #endif
 

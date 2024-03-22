@@ -3,8 +3,8 @@
  *  compress_driver.h - compress offload driver definations
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
- *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+ *  Authors:  Vinod Koul <vinod.koul@linux.intel.com>
+ *    Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  */
 
 #ifndef __COMPRESS_DRIVER_H
@@ -24,12 +24,12 @@ struct snd_compr_ops;
  * @state: stream state
  * @ops: pointer to DSP callbacks
  * @buffer: pointer to kernel buffer, valid only when not in mmap mode or
- *	DSP doesn't implement copy
+ *  DSP doesn't implement copy
  * @buffer_size: size of the above buffer
  * @fragment_size: size of buffer fragment in bytes
  * @fragments: number of such fragments
  * @total_bytes_available: cumulative number of bytes made available in
- *	the ring buffer
+ *  the ring buffer
  * @total_bytes_transferred: cumulative bytes transferred by offload DSP
  * @sleep: poll sleep
  * @private_data: driver private data pointer
@@ -39,21 +39,21 @@ struct snd_compr_ops;
  * @dma_buffer_p: runtime dma buffer pointer
  */
 struct snd_compr_runtime {
-	snd_pcm_state_t state;
-	struct snd_compr_ops *ops;
-	void *buffer;
-	u64 buffer_size;
-	u32 fragment_size;
-	u32 fragments;
-	u64 total_bytes_available;
-	u64 total_bytes_transferred;
-	wait_queue_head_t sleep;
-	void *private_data;
+  snd_pcm_state_t state;
+  struct snd_compr_ops *ops;
+  void *buffer;
+  u64 buffer_size;
+  u32 fragment_size;
+  u32 fragments;
+  u64 total_bytes_available;
+  u64 total_bytes_transferred;
+  wait_queue_head_t sleep;
+  void *private_data;
 
-	unsigned char *dma_area;
-	dma_addr_t dma_addr;
-	size_t dma_bytes;
-	struct snd_dma_buffer *dma_buffer_p;
+  unsigned char *dma_area;
+  dma_addr_t dma_addr;
+  size_t dma_bytes;
+  struct snd_dma_buffer *dma_buffer_p;
 };
 
 /**
@@ -72,18 +72,18 @@ struct snd_compr_runtime {
  * @dma_buffer: allocated buffer if any
  */
 struct snd_compr_stream {
-	const char *name;
-	struct snd_compr_ops *ops;
-	struct snd_compr_runtime *runtime;
-	struct snd_compr *device;
-	struct delayed_work error_work;
-	enum snd_compr_direction direction;
-	bool metadata_set;
-	bool next_track;
-	bool partial_drain;
-	bool pause_in_draining;
-	void *private_data;
-	struct snd_dma_buffer dma_buffer;
+  const char *name;
+  struct snd_compr_ops *ops;
+  struct snd_compr_runtime *runtime;
+  struct snd_compr *device;
+  struct delayed_work error_work;
+  enum snd_compr_direction direction;
+  bool metadata_set;
+  bool next_track;
+  bool partial_drain;
+  bool pause_in_draining;
+  void *private_data;
+  struct snd_dma_buffer dma_buffer;
 };
 
 /**
@@ -110,28 +110,28 @@ struct snd_compr_stream {
  * @get_codec_caps: Retrieve capabilities for a specific codec, mandatory
  */
 struct snd_compr_ops {
-	int (*open)(struct snd_compr_stream *stream);
-	int (*free)(struct snd_compr_stream *stream);
-	int (*set_params)(struct snd_compr_stream *stream,
-			struct snd_compr_params *params);
-	int (*get_params)(struct snd_compr_stream *stream,
-			struct snd_codec *params);
-	int (*set_metadata)(struct snd_compr_stream *stream,
-			struct snd_compr_metadata *metadata);
-	int (*get_metadata)(struct snd_compr_stream *stream,
-			struct snd_compr_metadata *metadata);
-	int (*trigger)(struct snd_compr_stream *stream, int cmd);
-	int (*pointer)(struct snd_compr_stream *stream,
-			struct snd_compr_tstamp *tstamp);
-	int (*copy)(struct snd_compr_stream *stream, char __user *buf,
-		       size_t count);
-	int (*mmap)(struct snd_compr_stream *stream,
-			struct vm_area_struct *vma);
-	int (*ack)(struct snd_compr_stream *stream, size_t bytes);
-	int (*get_caps) (struct snd_compr_stream *stream,
-			struct snd_compr_caps *caps);
-	int (*get_codec_caps) (struct snd_compr_stream *stream,
-			struct snd_compr_codec_caps *codec);
+  int (*open)(struct snd_compr_stream *stream);
+  int (*free)(struct snd_compr_stream *stream);
+  int (*set_params)(struct snd_compr_stream *stream,
+      struct snd_compr_params *params);
+  int (*get_params)(struct snd_compr_stream *stream,
+      struct snd_codec *params);
+  int (*set_metadata)(struct snd_compr_stream *stream,
+      struct snd_compr_metadata *metadata);
+  int (*get_metadata)(struct snd_compr_stream *stream,
+      struct snd_compr_metadata *metadata);
+  int (*trigger)(struct snd_compr_stream *stream, int cmd);
+  int (*pointer)(struct snd_compr_stream *stream,
+      struct snd_compr_tstamp *tstamp);
+  int (*copy)(struct snd_compr_stream *stream, char __user *buf,
+      size_t count);
+  int (*mmap)(struct snd_compr_stream *stream,
+      struct vm_area_struct *vma);
+  int (*ack)(struct snd_compr_stream *stream, size_t bytes);
+  int (*get_caps)(struct snd_compr_stream *stream,
+      struct snd_compr_caps *caps);
+  int (*get_codec_caps)(struct snd_compr_stream *stream,
+      struct snd_compr_codec_caps *codec);
 };
 
 /**
@@ -147,26 +147,26 @@ struct snd_compr_ops {
  * @use_pause_in_draining: allow pause in draining, true when set
  */
 struct snd_compr {
-	const char *name;
-	struct device *dev;
-	struct snd_compr_ops *ops;
-	void *private_data;
-	struct snd_card *card;
-	unsigned int direction;
-	struct mutex lock;
-	int device;
-	bool use_pause_in_draining;
+  const char *name;
+  struct device *dev;
+  struct snd_compr_ops *ops;
+  void *private_data;
+  struct snd_card *card;
+  unsigned int direction;
+  struct mutex lock;
+  int device;
+  bool use_pause_in_draining;
 #ifdef CONFIG_SND_VERBOSE_PROCFS
-	/* private: */
-	char id[64];
-	struct snd_info_entry *proc_root;
-	struct snd_info_entry *proc_info_entry;
+  /* private: */
+  char id[64];
+  struct snd_info_entry *proc_root;
+  struct snd_info_entry *proc_info_entry;
 #endif
 };
 
 /* compress device register APIs */
 int snd_compress_new(struct snd_card *card, int device,
-			int type, const char *id, struct snd_compr *compr);
+    int type, const char *id, struct snd_compr *compr);
 
 /**
  * snd_compr_use_pause_in_draining - Allow pause and resume in draining state
@@ -175,9 +175,9 @@ int snd_compress_new(struct snd_card *card, int device,
  * Allow pause and resume in draining state.
  * Only HW driver supports this transition can call this API.
  */
-static inline void snd_compr_use_pause_in_draining(struct snd_compr_stream *substream)
-{
-	substream->device->use_pause_in_draining = true;
+static inline void snd_compr_use_pause_in_draining(
+    struct snd_compr_stream *substream) {
+  substream->device->use_pause_in_draining = true;
 }
 
 /* dsp driver callback apis
@@ -188,25 +188,22 @@ static inline void snd_compr_use_pause_in_draining(struct snd_compr_stream *subs
  * at least one frame is available so snd_compress_frame_elapsed()
  * callback should be called when a encodeded frame is available
  */
-static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream)
-{
-	wake_up(&stream->runtime->sleep);
+static inline void snd_compr_fragment_elapsed(struct snd_compr_stream *stream) {
+  wake_up(&stream->runtime->sleep);
 }
 
-static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
-{
-	if (snd_BUG_ON(!stream))
-		return;
-
-	/* for partial_drain case we are back to running state on success */
-	if (stream->partial_drain) {
-		stream->runtime->state = SNDRV_PCM_STATE_RUNNING;
-		stream->partial_drain = false; /* clear this flag as well */
-	} else {
-		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
-	}
-
-	wake_up(&stream->runtime->sleep);
+static inline void snd_compr_drain_notify(struct snd_compr_stream *stream) {
+  if (snd_BUG_ON(!stream)) {
+    return;
+  }
+  /* for partial_drain case we are back to running state on success */
+  if (stream->partial_drain) {
+    stream->runtime->state = SNDRV_PCM_STATE_RUNNING;
+    stream->partial_drain = false; /* clear this flag as well */
+  } else {
+    stream->runtime->state = SNDRV_PCM_STATE_SETUP;
+  }
+  wake_up(&stream->runtime->sleep);
 }
 
 /**
@@ -217,29 +214,26 @@ static inline void snd_compr_drain_notify(struct snd_compr_stream *stream)
  * Copy the buffer information to runtime buffer when @bufp is non-NULL.
  * Otherwise it clears the current buffer information.
  */
-static inline void
-snd_compr_set_runtime_buffer(struct snd_compr_stream *stream,
-			     struct snd_dma_buffer *bufp)
-{
-	struct snd_compr_runtime *runtime = stream->runtime;
-
-	if (bufp) {
-		runtime->dma_buffer_p = bufp;
-		runtime->dma_area = bufp->area;
-		runtime->dma_addr = bufp->addr;
-		runtime->dma_bytes = bufp->bytes;
-	} else {
-		runtime->dma_buffer_p = NULL;
-		runtime->dma_area = NULL;
-		runtime->dma_addr = 0;
-		runtime->dma_bytes = 0;
-	}
+static inline void snd_compr_set_runtime_buffer(struct snd_compr_stream *stream,
+    struct snd_dma_buffer *bufp) {
+  struct snd_compr_runtime *runtime = stream->runtime;
+  if (bufp) {
+    runtime->dma_buffer_p = bufp;
+    runtime->dma_area = bufp->area;
+    runtime->dma_addr = bufp->addr;
+    runtime->dma_bytes = bufp->bytes;
+  } else {
+    runtime->dma_buffer_p = NULL;
+    runtime->dma_area = NULL;
+    runtime->dma_addr = 0;
+    runtime->dma_bytes = 0;
+  }
 }
 
 int snd_compr_malloc_pages(struct snd_compr_stream *stream, size_t size);
 int snd_compr_free_pages(struct snd_compr_stream *stream);
 
 int snd_compr_stop_error(struct snd_compr_stream *stream,
-			 snd_pcm_state_t state);
+    snd_pcm_state_t state);
 
 #endif

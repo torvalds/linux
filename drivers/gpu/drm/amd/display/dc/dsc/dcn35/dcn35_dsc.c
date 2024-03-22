@@ -29,32 +29,30 @@
 
 /* Macro definitios for REG_SET macros*/
 #define CTX \
-	dsc20->base.ctx
+  dsc20->base.ctx
 
-#define REG(reg)\
-	dsc20->dsc_regs->reg
+#define REG(reg) \
+  dsc20->dsc_regs->reg
 
 #undef FN
 #define FN(reg_name, field_name)                                          \
-	((const struct dcn35_dsc_shift *)(dsc20->dsc_shift))->field_name, \
-		((const struct dcn35_dsc_mask *)(dsc20->dsc_mask))->field_name
+  ((const struct dcn35_dsc_shift *) (dsc20->dsc_shift))->field_name, \
+  ((const struct dcn35_dsc_mask *) (dsc20->dsc_mask))->field_name
 
 #define DC_LOGGER \
-	dsc->ctx->logger
+  dsc->ctx->logger
 
 void dsc35_construct(struct dcn20_dsc *dsc,
-		struct dc_context *ctx,
-		int inst,
-		const struct dcn20_dsc_registers *dsc_regs,
-		const struct dcn35_dsc_shift *dsc_shift,
-		const struct dcn35_dsc_mask *dsc_mask)
-{
-	dsc2_construct(dsc, ctx, inst, dsc_regs,
-		(const struct dcn20_dsc_shift *)(dsc_shift),
-		(const struct dcn20_dsc_mask *)(dsc_mask));
+    struct dc_context *ctx,
+    int inst,
+    const struct dcn20_dsc_registers *dsc_regs,
+    const struct dcn35_dsc_shift *dsc_shift,
+    const struct dcn35_dsc_mask *dsc_mask) {
+  dsc2_construct(dsc, ctx, inst, dsc_regs,
+      (const struct dcn20_dsc_shift *) (dsc_shift),
+      (const struct dcn20_dsc_mask *) (dsc_mask));
 }
 
-void dsc35_set_fgcg(struct dcn20_dsc *dsc20, bool enable)
-{
-	REG_UPDATE(DSC_TOP_CONTROL, DSC_FGCG_REP_DIS, !enable);
+void dsc35_set_fgcg(struct dcn20_dsc *dsc20, bool enable) {
+  REG_UPDATE(DSC_TOP_CONTROL, DSC_FGCG_REP_DIS, !enable);
 }

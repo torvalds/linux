@@ -23,14 +23,19 @@
 #ifndef __IRQSRCS_VCN_2_0_H__
 #define __IRQSRCS_VCN_2_0_H__
 
-#define VCN_2_0__SRCID__UVD_ENC_GENERAL_PURPOSE				119		// 0x77 Encoder General Purpose
-#define VCN_2_0__SRCID__UVD_ENC_LOW_LATENCY				120		// 0x78 Encoder Low Latency
-#define VCN_2_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT			124		// 0x7c UVD system message interrupt
-#define VCN_2_0__SRCID__JPEG_ENCODE					151		// 0x97 JRBC Encode interrupt
-#define VCN_2_0__SRCID__JPEG_DECODE					153		// 0x99 JRBC Decode interrupt
+#define VCN_2_0__SRCID__UVD_ENC_GENERAL_PURPOSE       119   // 0x77 Encoder
+                                                            // General Purpose
+#define VCN_2_0__SRCID__UVD_ENC_LOW_LATENCY       120   // 0x78 Encoder Low
+                                                        // Latency
+#define VCN_2_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT      124   // 0x7c UVD
+                                                                // system
+                                                                // message
+                                                                // interrupt
+#define VCN_2_0__SRCID__JPEG_ENCODE         151   // 0x97 JRBC Encode interrupt
+#define VCN_2_0__SRCID__JPEG_DECODE         153   // 0x99 JRBC Decode interrupt
 
-#define VCN_2_6__SRCID_UVD_POISON					160
-#define VCN_2_6__SRCID_DJPEG0_POISON					161
-#define VCN_2_6__SRCID_EJPEG0_POISON					162
+#define VCN_2_6__SRCID_UVD_POISON         160
+#define VCN_2_6__SRCID_DJPEG0_POISON          161
+#define VCN_2_6__SRCID_EJPEG0_POISON          162
 
 #endif

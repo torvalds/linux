@@ -3,7 +3,7 @@
  * Texas Instruments' Message Manager
  *
  * Copyright (C) 2015-2022 Texas Instruments Incorporated - https://www.ti.com/
- *	Nishanth Menon
+ *  Nishanth Menon
  */
 
 #ifndef TI_MSGMGR_H
@@ -24,10 +24,10 @@ struct mbox_chan;
  * on SoC. Client is supposed to be aware of this.
  */
 struct ti_msgmgr_message {
-	size_t len;
-	u8 *buf;
-	struct mbox_chan *chan_rx;
-	int timeout_rx_ms;
+  size_t len;
+  u8 *buf;
+  struct mbox_chan *chan_rx;
+  int timeout_rx_ms;
 };
 
 #endif /* TI_MSGMGR_H */

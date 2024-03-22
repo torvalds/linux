@@ -24,13 +24,13 @@ struct dpu_hw_pingpong;
  * @matrix: dither strength matrix
  */
 struct dpu_hw_dither_cfg {
-	u64 flags;
-	u32 temporal_en;
-	u32 c0_bitdepth;
-	u32 c1_bitdepth;
-	u32 c2_bitdepth;
-	u32 c3_bitdepth;
-	u32 matrix[DITHER_MATRIX_SZ];
+  u64 flags;
+  u32 temporal_en;
+  u32 c0_bitdepth;
+  u32 c1_bitdepth;
+  u32 c2_bitdepth;
+  u32 c3_bitdepth;
+  u32 matrix[DITHER_MATRIX_SZ];
 };
 
 /**
@@ -43,69 +43,70 @@ struct dpu_hw_dither_cfg {
  *  @get_line_count: obtain current vertical line counter
  */
 struct dpu_hw_pingpong_ops {
-	/**
-	 * enables vysnc generation and sets up init value of
-	 * read pointer and programs the tear check cofiguration
-	 */
-	int (*enable_tearcheck)(struct dpu_hw_pingpong *pp,
-			struct dpu_hw_tear_check *cfg);
+  /**
+   * enables vysnc generation and sets up init value of
+   * read pointer and programs the tear check cofiguration
+   */
+  int (*enable_tearcheck)(struct dpu_hw_pingpong *pp,
+      struct dpu_hw_tear_check *cfg);
 
-	/**
-	 * disables tear check block
-	 */
-	int (*disable_tearcheck)(struct dpu_hw_pingpong *pp);
+  /**
+   * disables tear check block
+   */
+  int (*disable_tearcheck)(struct dpu_hw_pingpong *pp);
 
-	/**
-	 * read, modify, write to either set or clear listening to external TE
-	 * @Return: 1 if TE was originally connected, 0 if not, or -ERROR
-	 */
-	int (*connect_external_te)(struct dpu_hw_pingpong *pp,
-			bool enable_external_te);
+  /**
+   * read, modify, write to either set or clear listening to external TE
+   * @Return: 1 if TE was originally connected, 0 if not, or -ERROR
+   */
+  int (*connect_external_te)(struct dpu_hw_pingpong *pp,
+      bool enable_external_te);
 
-	/**
-	 * Obtain current vertical line counter
-	 */
-	u32 (*get_line_count)(struct dpu_hw_pingpong *pp);
+  /**
+   * Obtain current vertical line counter
+   */
+  u32 (*get_line_count)(struct dpu_hw_pingpong *pp);
 
-	/**
-	 * Disable autorefresh if enabled
-	 */
-	void (*disable_autorefresh)(struct dpu_hw_pingpong *pp, uint32_t encoder_id, u16 vdisplay);
+  /**
+   * Disable autorefresh if enabled
+   */
+  void (*disable_autorefresh)(struct dpu_hw_pingpong *pp, uint32_t encoder_id,
+      u16 vdisplay);
 
-	/**
-	 * Setup dither matix for pingpong block
-	 */
-	void (*setup_dither)(struct dpu_hw_pingpong *pp,
-			struct dpu_hw_dither_cfg *cfg);
-	/**
-	 * Enable DSC
-	 */
-	int (*enable_dsc)(struct dpu_hw_pingpong *pp);
+  /**
+   * Setup dither matix for pingpong block
+   */
+  void (*setup_dither)(struct dpu_hw_pingpong *pp,
+      struct dpu_hw_dither_cfg *cfg);
+  /**
+   * Enable DSC
+   */
+  int (*enable_dsc)(struct dpu_hw_pingpong *pp);
 
-	/**
-	 * Disable DSC
-	 */
-	void (*disable_dsc)(struct dpu_hw_pingpong *pp);
+  /**
+   * Disable DSC
+   */
+  void (*disable_dsc)(struct dpu_hw_pingpong *pp);
 
-	/**
-	 * Setup DSC
-	 */
-	int (*setup_dsc)(struct dpu_hw_pingpong *pp);
+  /**
+   * Setup DSC
+   */
+  int (*setup_dsc)(struct dpu_hw_pingpong *pp);
 };
 
 struct dpu_hw_merge_3d;
 
 struct dpu_hw_pingpong {
-	struct dpu_hw_blk base;
-	struct dpu_hw_blk_reg_map hw;
+  struct dpu_hw_blk base;
+  struct dpu_hw_blk_reg_map hw;
 
-	/* pingpong */
-	enum dpu_pingpong idx;
-	const struct dpu_pingpong_cfg *caps;
-	struct dpu_hw_merge_3d *merge_3d;
+  /* pingpong */
+  enum dpu_pingpong idx;
+  const struct dpu_pingpong_cfg *caps;
+  struct dpu_hw_merge_3d *merge_3d;
 
-	/* ops */
-	struct dpu_hw_pingpong_ops ops;
+  /* ops */
+  struct dpu_hw_pingpong_ops ops;
 };
 
 /**
@@ -115,7 +116,7 @@ struct dpu_hw_pingpong {
  */
 static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
 {
-	return container_of(hw, struct dpu_hw_pingpong, base);
+  return container_of(hw, struct dpu_hw_pingpong, base);
 }
 
 /**
@@ -128,8 +129,8 @@ static inline struct dpu_hw_pingpong *to_dpu_hw_pingpong(struct dpu_hw_blk *hw)
  * Return: Error code or allocated dpu_hw_pingpong context
  */
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(struct drm_device *dev,
-					     const struct dpu_pingpong_cfg *cfg,
-					     void __iomem *addr,
-					     const struct dpu_mdss_version *mdss_rev);
+    const struct dpu_pingpong_cfg *cfg,
+    void __iomem *addr,
+    const struct dpu_mdss_version *mdss_rev);
 
 #endif /*_DPU_HW_PINGPONG_H */

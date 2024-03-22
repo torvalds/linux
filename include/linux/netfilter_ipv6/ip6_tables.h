@@ -6,11 +6,11 @@
  */
 
 /*
- * 	Format of an IP6 firewall descriptor
+ *  Format of an IP6 firewall descriptor
  *
- * 	src, dst, src_mask, dst_mask are always stored in network byte order.
- * 	flags are stored in host byte order (of course).
- * 	Port numbers are stored in HOST byte order.
+ *  src, dst, src_mask, dst_mask are always stored in network byte order.
+ *  flags are stored in host byte order (of course).
+ *  Port numbers are stored in HOST byte order.
  */
 #ifndef _IP6_TABLES_H
 #define _IP6_TABLES_H
@@ -25,30 +25,29 @@
 extern void *ip6t_alloc_initial_table(const struct xt_table *);
 
 int ip6t_register_table(struct net *net, const struct xt_table *table,
-			const struct ip6t_replace *repl,
-			const struct nf_hook_ops *ops);
+    const struct ip6t_replace *repl,
+    const struct nf_hook_ops *ops);
 void ip6t_unregister_table_pre_exit(struct net *net, const char *name);
 void ip6t_unregister_table_exit(struct net *net, const char *name);
 extern unsigned int ip6t_do_table(void *priv, struct sk_buff *skb,
-				  const struct nf_hook_state *state);
+    const struct nf_hook_state *state);
 
 #ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 #include <net/compat.h>
 
 struct compat_ip6t_entry {
-	struct ip6t_ip6 ipv6;
-	compat_uint_t nfcache;
-	__u16 target_offset;
-	__u16 next_offset;
-	compat_uint_t comefrom;
-	struct compat_xt_counters counters;
-	unsigned char elems[];
+  struct ip6t_ip6 ipv6;
+  compat_uint_t nfcache;
+  __u16 target_offset;
+  __u16 next_offset;
+  compat_uint_t comefrom;
+  struct compat_xt_counters counters;
+  unsigned char elems[];
 };
 
-static inline struct xt_entry_target *
-compat_ip6t_get_target(struct compat_ip6t_entry *e)
-{
-	return (void *)e + e->target_offset;
+static inline struct xt_entry_target *compat_ip6t_get_target(
+    struct compat_ip6t_entry *e) {
+  return (void *) e + e->target_offset;
 }
 
 #endif /* CONFIG_COMPAT */

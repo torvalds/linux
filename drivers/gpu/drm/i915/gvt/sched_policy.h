@@ -38,12 +38,12 @@ struct intel_gvt;
 struct intel_vgpu;
 
 struct intel_gvt_sched_policy_ops {
-	int (*init)(struct intel_gvt *gvt);
-	void (*clean)(struct intel_gvt *gvt);
-	int (*init_vgpu)(struct intel_vgpu *vgpu);
-	void (*clean_vgpu)(struct intel_vgpu *vgpu);
-	void (*start_schedule)(struct intel_vgpu *vgpu);
-	void (*stop_schedule)(struct intel_vgpu *vgpu);
+  int (*init)(struct intel_gvt *gvt);
+  void (*clean)(struct intel_gvt *gvt);
+  int (*init_vgpu)(struct intel_vgpu *vgpu);
+  void (*clean_vgpu)(struct intel_vgpu *vgpu);
+  void (*start_schedule)(struct intel_vgpu *vgpu);
+  void (*stop_schedule)(struct intel_vgpu *vgpu);
 };
 
 void intel_gvt_schedule(struct intel_gvt *gvt);

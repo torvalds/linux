@@ -14,13 +14,12 @@ extern struct dentry *intel_th_dbg;
 void intel_th_debug_init(void);
 void intel_th_debug_done(void);
 #else
-static inline void intel_th_debug_init(void)
-{
+static inline void intel_th_debug_init(void) {
 }
 
-static inline void intel_th_debug_done(void)
-{
+static inline void intel_th_debug_done(void) {
 }
+
 #endif
 
 #endif /* __INTEL_TH_DEBUG_H__ */

@@ -2,7 +2,7 @@
 /* linux/drivers/media/platform/samsung/s5p-jpeg/jpeg-hw.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *    http://www.samsung.com
  *
  * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
@@ -14,14 +14,14 @@
 
 #include "jpeg-regs.h"
 
-#define S5P_JPEG_MIN_WIDTH		32
-#define S5P_JPEG_MIN_HEIGHT		32
-#define S5P_JPEG_MAX_WIDTH		8192
-#define S5P_JPEG_MAX_HEIGHT		8192
-#define S5P_JPEG_RAW_IN_565		0
-#define S5P_JPEG_RAW_IN_422		1
-#define S5P_JPEG_RAW_OUT_422		0
-#define S5P_JPEG_RAW_OUT_420		1
+#define S5P_JPEG_MIN_WIDTH    32
+#define S5P_JPEG_MIN_HEIGHT   32
+#define S5P_JPEG_MAX_WIDTH    8192
+#define S5P_JPEG_MAX_HEIGHT   8192
+#define S5P_JPEG_RAW_IN_565   0
+#define S5P_JPEG_RAW_IN_422   1
+#define S5P_JPEG_RAW_OUT_422    0
+#define S5P_JPEG_RAW_OUT_420    1
 
 void s5p_jpeg_reset(void __iomem *regs);
 void s5p_jpeg_poweron(void __iomem *regs);
@@ -47,7 +47,7 @@ void s5p_jpeg_outform_raw(void __iomem *regs, unsigned long format);
 void s5p_jpeg_jpgadr(void __iomem *regs, unsigned long addr);
 void s5p_jpeg_imgadr(void __iomem *regs, unsigned long addr);
 void s5p_jpeg_coef(void __iomem *regs, unsigned int i,
-			     unsigned int j, unsigned int coef);
+    unsigned int j, unsigned int coef);
 void s5p_jpeg_start(void __iomem *regs);
 int s5p_jpeg_result_stat_ok(void __iomem *regs);
 int s5p_jpeg_stream_stat_ok(void __iomem *regs);

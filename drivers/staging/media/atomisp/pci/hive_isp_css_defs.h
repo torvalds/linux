@@ -21,12 +21,14 @@
 #define HIVE_ISP_CTRL_MAX_BURST_SIZE  1
 #define HIVE_ISP_DDR_ADDRESS_WIDTH   36
 
-#define HIVE_ISP_HOST_MAX_BURST_SIZE  8 /* host supports bursts in order to prevent repeating DDRAM accesses */
+#define HIVE_ISP_HOST_MAX_BURST_SIZE  8 /* host supports bursts in order to
+                                         * prevent repeating DDRAM accesses */
 #define HIVE_ISP_NUM_GPIO_PINS       12
 
-/* This list of vector num_elems/elem_bits pairs is valid both in C as initializer
-   and in the DMA parameter list */
-#define HIVE_ISP_DDR_DMA_SPECS {{32,  8}, {16, 16}, {18, 14}, {25, 10}, {21, 12}}
+/* This list of vector num_elems/elem_bits pairs is valid both in C as
+ * initializer
+ * and in the DMA parameter list */
+#define HIVE_ISP_DDR_DMA_SPECS {{32, 8}, {16, 16}, {18, 14}, {25, 10}, {21, 12}}
 #define HIVE_ISP_DDR_WORD_BITS 256
 #define HIVE_ISP_DDR_WORD_BYTES  (HIVE_ISP_DDR_WORD_BITS / 8)
 #define HIVE_ISP_DDR_BYTES       (512 * 1024 * 1024) /* hss only */
@@ -38,8 +40,10 @@
 #define CSS_DDR_WORD_BITS        HIVE_ISP_DDR_WORD_BITS
 #define CSS_DDR_WORD_BYTES       HIVE_ISP_DDR_WORD_BYTES
 
-/* If HIVE_ISP_DDR_BASE_OFFSET is set to a non-zero value, the wide bus just before the DDRAM gets an extra dummy port where         */
-/* address range 0 .. HIVE_ISP_DDR_BASE_OFFSET-1 maps onto. This effectively creates an offset for the DDRAM from system perspective */
+/* If HIVE_ISP_DDR_BASE_OFFSET is set to a non-zero value, the wide bus just
+ *before the DDRAM gets an extra dummy port where
+ * address range 0 .. HIVE_ISP_DDR_BASE_OFFSET-1 maps onto. This effectively
+ *creates an offset for the DDRAM from system perspective*/
 #define HIVE_ISP_DDR_BASE_OFFSET 0x120000000 /* 0x200000 */
 
 #define HIVE_DMA_ISP_BUS_CONN 0
@@ -261,8 +265,9 @@
 #define HIVE_GP_TIMER_MIPI_EOF_BIT_ID                          58
 #define HIVE_GP_TIMER_INPSYS_SM                                59
 
-/* port definitions for the streaming monitors */
-/* port definititions SP streaming monitor, monitors the status of streaming ports at the SP side of the streaming FIFO's */
+/* port definitions for the streaming monitors
+ * port definititions SP streaming monitor, monitors the status of streaming
+ *ports at the SP side of the streaming FIFO's*/
 #define SP_STR_MON_PORT_SP2SIF            0
 #define SP_STR_MON_PORT_SIF2SP            1
 #define SP_STR_MON_PORT_SP2MC             2
@@ -285,7 +290,8 @@
 #define SP_STR_MON_PORT_B_SP2GDC2         2
 #define SP_STR_MON_PORT_B_GDC22SP         3
 
-/* previously used SP streaming monitor port identifiers, kept for backward compatibility */
+/* previously used SP streaming monitor port identifiers, kept for backward
+ * compatibility */
 #define SP_STR_MON_PORT_SND_SIF           SP_STR_MON_PORT_SP2SIF
 #define SP_STR_MON_PORT_RCV_SIF           SP_STR_MON_PORT_SIF2SP
 #define SP_STR_MON_PORT_SND_MC            SP_STR_MON_PORT_SP2MC
@@ -307,7 +313,8 @@
 #define SP_STR_MON_PORT_SND_PIF_B         SP_STR_MON_PORT_SP2PIFB
 #define SP_STR_MON_PORT_RCV_PIF_B         SP_STR_MON_PORT_PIFB2SP
 
-/* port definititions ISP streaming monitor, monitors the status of streaming ports at the ISP side of the streaming FIFO's */
+/* port definititions ISP streaming monitor, monitors the status of streaming
+ * ports at the ISP side of the streaming FIFO's */
 #define ISP_STR_MON_PORT_ISP2PIFA         0
 #define ISP_STR_MON_PORT_PIFA2ISP         1
 #define ISP_STR_MON_PORT_ISP2PIFB         2
@@ -323,7 +330,8 @@
 #define ISP_STR_MON_PORT_ISP2SP          12
 #define ISP_STR_MON_PORT_SP2ISP          13
 
-/* previously used ISP streaming monitor port identifiers, kept for backward compatibility */
+/* previously used ISP streaming monitor port identifiers, kept for backward
+ * compatibility */
 #define ISP_STR_MON_PORT_SND_PIF_A       ISP_STR_MON_PORT_ISP2PIFA
 #define ISP_STR_MON_PORT_RCV_PIF_A       ISP_STR_MON_PORT_PIFA2ISP
 #define ISP_STR_MON_PORT_SND_PIF_B       ISP_STR_MON_PORT_ISP2PIFB
@@ -337,7 +345,8 @@
 #define ISP_STR_MON_PORT_SND_SP          ISP_STR_MON_PORT_ISP2SP
 #define ISP_STR_MON_PORT_RCV_SP          ISP_STR_MON_PORT_SP2ISP
 
-/* port definititions MOD streaming monitor, monitors the status of streaming ports at the module side of the streaming FIFO's */
+/* port definititions MOD streaming monitor, monitors the status of streaming
+ * ports at the module side of the streaming FIFO's */
 
 #define MOD_STR_MON_PORT_PIFA2CELLS       0
 #define MOD_STR_MON_PORT_CELLS2PIFA       1

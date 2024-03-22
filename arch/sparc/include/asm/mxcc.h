@@ -86,51 +86,44 @@
 
 #ifndef __ASSEMBLY__
 
-static inline void mxcc_set_stream_src(unsigned long *paddr)
-{
-	unsigned long data0 = paddr[0];
-	unsigned long data1 = paddr[1];
-
-	__asm__ __volatile__ ("or %%g0, %0, %%g2\n\t"
-			      "or %%g0, %1, %%g3\n\t"
-			      "stda %%g2, [%2] %3\n\t" : :
-			      "r" (data0), "r" (data1),
-			      "r" (MXCC_SRCSTREAM),
-			      "i" (ASI_M_MXCC) : "g2", "g3");
+static inline void mxcc_set_stream_src(unsigned long *paddr) {
+  unsigned long data0 = paddr[0];
+  unsigned long data1 = paddr[1];
+  __asm__ __volatile__ ("or %%g0, %0, %%g2\n\t"
+  "or %%g0, %1, %%g3\n\t"
+  "stda %%g2, [%2] %3\n\t" : :
+  "r" (data0), "r" (data1),
+  "r" (MXCC_SRCSTREAM),
+  "i" (ASI_M_MXCC) : "g2", "g3");
 }
 
-static inline void mxcc_set_stream_dst(unsigned long *paddr)
-{
-	unsigned long data0 = paddr[0];
-	unsigned long data1 = paddr[1];
-
-	__asm__ __volatile__ ("or %%g0, %0, %%g2\n\t"
-			      "or %%g0, %1, %%g3\n\t"
-			      "stda %%g2, [%2] %3\n\t" : :
-			      "r" (data0), "r" (data1),
-			      "r" (MXCC_DESSTREAM),
-			      "i" (ASI_M_MXCC) : "g2", "g3");
+static inline void mxcc_set_stream_dst(unsigned long *paddr) {
+  unsigned long data0 = paddr[0];
+  unsigned long data1 = paddr[1];
+  __asm__ __volatile__ ("or %%g0, %0, %%g2\n\t"
+  "or %%g0, %1, %%g3\n\t"
+  "stda %%g2, [%2] %3\n\t" : :
+  "r" (data0), "r" (data1),
+  "r" (MXCC_DESSTREAM),
+  "i" (ASI_M_MXCC) : "g2", "g3");
 }
 
-static inline unsigned long mxcc_get_creg(void)
-{
-	unsigned long mxcc_control;
-
-	__asm__ __volatile__("set 0xffffffff, %%g2\n\t"
-			     "set 0xffffffff, %%g3\n\t"
-			     "stda %%g2, [%1] %2\n\t"
-			     "lda [%3] %2, %0\n\t" :
-			     "=r" (mxcc_control) :
-			     "r" (MXCC_EREG), "i" (ASI_M_MXCC),
-			     "r" (MXCC_CREG) : "g2", "g3");
-	return mxcc_control;
+static inline unsigned long mxcc_get_creg(void) {
+  unsigned long mxcc_control;
+  __asm__ __volatile__ ("set 0xffffffff, %%g2\n\t"
+  "set 0xffffffff, %%g3\n\t"
+  "stda %%g2, [%1] %2\n\t"
+  "lda [%3] %2, %0\n\t" :
+  "=r" (mxcc_control) :
+  "r" (MXCC_EREG), "i" (ASI_M_MXCC),
+  "r" (MXCC_CREG) : "g2", "g3");
+  return mxcc_control;
 }
 
-static inline void mxcc_set_creg(unsigned long mxcc_control)
-{
-	__asm__ __volatile__("sta %0, [%1] %2\n\t" : :
-			     "r" (mxcc_control), "r" (MXCC_CREG),
-			     "i" (ASI_M_MXCC));
+static inline void mxcc_set_creg(unsigned long mxcc_control) {
+  __asm__ __volatile__ ("sta %0, [%1] %2\n\t" : :
+  "r" (mxcc_control), "r" (MXCC_CREG),
+  "i" (ASI_M_MXCC));
 }
 
 #endif /* !__ASSEMBLY__ */

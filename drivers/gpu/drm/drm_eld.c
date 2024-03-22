@@ -16,19 +16,16 @@
  *
  * @return: 0 on success, or negative on errors
  */
-int drm_eld_sad_get(const u8 *eld, int sad_index, struct cea_sad *cta_sad)
-{
-	const u8 *sad;
-
-	if (sad_index >= drm_eld_sad_count(eld))
-		return -EINVAL;
-
-	sad = eld + DRM_ELD_CEA_SAD(drm_eld_mnl(eld), sad_index);
-
-	drm_edid_cta_sad_set(cta_sad, sad);
-
-	return 0;
+int drm_eld_sad_get(const u8 *eld, int sad_index, struct cea_sad *cta_sad) {
+  const u8 *sad;
+  if (sad_index >= drm_eld_sad_count(eld)) {
+    return -EINVAL;
+  }
+  sad = eld + DRM_ELD_CEA_SAD(drm_eld_mnl(eld), sad_index);
+  drm_edid_cta_sad_set(cta_sad, sad);
+  return 0;
 }
+
 EXPORT_SYMBOL(drm_eld_sad_get);
 
 /**
@@ -39,17 +36,14 @@ EXPORT_SYMBOL(drm_eld_sad_get);
  *
  * @return: 0 on success, or negative on errors
  */
-int drm_eld_sad_set(u8 *eld, int sad_index, const struct cea_sad *cta_sad)
-{
-	u8 *sad;
-
-	if (sad_index >= drm_eld_sad_count(eld))
-		return -EINVAL;
-
-	sad = eld + DRM_ELD_CEA_SAD(drm_eld_mnl(eld), sad_index);
-
-	drm_edid_cta_sad_get(cta_sad, sad);
-
-	return 0;
+int drm_eld_sad_set(u8 *eld, int sad_index, const struct cea_sad *cta_sad) {
+  u8 *sad;
+  if (sad_index >= drm_eld_sad_count(eld)) {
+    return -EINVAL;
+  }
+  sad = eld + DRM_ELD_CEA_SAD(drm_eld_mnl(eld), sad_index);
+  drm_edid_cta_sad_get(cta_sad, sad);
+  return 0;
 }
+
 EXPORT_SYMBOL(drm_eld_sad_set);

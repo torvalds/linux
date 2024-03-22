@@ -9,9 +9,8 @@
 #include <asm-generic/mm_hooks.h>
 
 static inline void switch_mm(struct mm_struct *prev,
-			struct mm_struct *next,
-			struct task_struct *tsk)
-{
+    struct mm_struct *next,
+    struct task_struct *tsk) {
 }
 
 #include <asm-generic/mmu_context.h>

@@ -15,20 +15,20 @@
 
 /* RT5033 regulator IDs */
 enum rt5033_regulators {
-	RT5033_BUCK = 0,
-	RT5033_LDO,
-	RT5033_SAFE_LDO,
+  RT5033_BUCK = 0,
+  RT5033_LDO,
+  RT5033_SAFE_LDO,
 
-	RT5033_REGULATOR_NUM,
+  RT5033_REGULATOR_NUM,
 };
 
 struct rt5033_dev {
-	struct device *dev;
+  struct device *dev;
 
-	struct regmap *regmap;
-	struct regmap_irq_chip_data *irq_data;
-	int irq;
-	bool wakeup;
+  struct regmap *regmap;
+  struct regmap_irq_chip_data *irq_data;
+  int irq;
+  bool wakeup;
 };
 
 #endif /* __RT5033_H__ */

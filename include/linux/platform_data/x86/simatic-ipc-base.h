@@ -25,7 +25,7 @@
 #define SIMATIC_IPC_DEVICE_BX_59A 8
 
 struct simatic_ipc_platform {
-	u8	devmode;
+  u8 devmode;
 };
 
 #endif /* __PLATFORM_DATA_X86_SIMATIC_IPC_BASE_H */

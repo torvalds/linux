@@ -4,8 +4,8 @@
 
 #include <asm-generic/seccomp.h>
 
-#define SECCOMP_ARCH_NATIVE		AUDIT_ARCH_XTENSA
-#define SECCOMP_ARCH_NATIVE_NR		NR_syscalls
-#define SECCOMP_ARCH_NATIVE_NAME	"xtensa"
+#define SECCOMP_ARCH_NATIVE   AUDIT_ARCH_XTENSA
+#define SECCOMP_ARCH_NATIVE_NR    NR_syscalls
+#define SECCOMP_ARCH_NATIVE_NAME  "xtensa"
 
 #endif /* _ASM_SECCOMP_H */

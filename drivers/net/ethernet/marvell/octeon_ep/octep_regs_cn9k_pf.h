@@ -69,36 +69,36 @@
 #define    CN93_SDP_R_IN_PKT_CNT_START           0x10080
 #define    CN93_SDP_R_IN_BYTE_CNT_START          0x10090
 
-#define    CN93_SDP_R_IN_CONTROL(ring)		\
-	(CN93_SDP_R_IN_CONTROL_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_CONTROL(ring)    \
+  (CN93_SDP_R_IN_CONTROL_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_ENABLE(ring)		\
-	(CN93_SDP_R_IN_ENABLE_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_ENABLE(ring)   \
+  (CN93_SDP_R_IN_ENABLE_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_INSTR_BADDR(ring)	\
-	(CN93_SDP_R_IN_INSTR_BADDR_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INSTR_BADDR(ring)  \
+  (CN93_SDP_R_IN_INSTR_BADDR_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_INSTR_RSIZE(ring)	\
-	(CN93_SDP_R_IN_INSTR_RSIZE_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INSTR_RSIZE(ring)  \
+  (CN93_SDP_R_IN_INSTR_RSIZE_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_INSTR_DBELL(ring)	\
-	(CN93_SDP_R_IN_INSTR_DBELL_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INSTR_DBELL(ring)  \
+  (CN93_SDP_R_IN_INSTR_DBELL_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_CNTS(ring)		\
-	(CN93_SDP_R_IN_CNTS_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_CNTS(ring)   \
+  (CN93_SDP_R_IN_CNTS_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_INT_LEVELS(ring)	\
-	(CN93_SDP_R_IN_INT_LEVELS_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INT_LEVELS(ring) \
+  (CN93_SDP_R_IN_INT_LEVELS_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_PKT_CNT(ring)		\
-	(CN93_SDP_R_IN_PKT_CNT_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_PKT_CNT(ring)    \
+  (CN93_SDP_R_IN_PKT_CNT_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_BYTE_CNT(ring)		\
-	(CN93_SDP_R_IN_BYTE_CNT_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_BYTE_CNT(ring)   \
+  (CN93_SDP_R_IN_BYTE_CNT_START + ((ring) * CN93_RING_OFFSET))
 
 /* Rings per Virtual Function */
-#define    CN93_R_IN_CTL_RPVF_MASK	(0xF)
-#define    CN93_R_IN_CTL_RPVF_POS	(48)
+#define    CN93_R_IN_CTL_RPVF_MASK  (0xF)
+#define    CN93_R_IN_CTL_RPVF_POS (48)
 
 /* Number of instructions to be read in one MAC read request.
  * setting to Max value(4)
@@ -127,31 +127,31 @@
 #define    CN93_SDP_R_OUT_BYTE_CNT_START          0x10190
 
 #define    CN93_SDP_R_OUT_CONTROL(ring)          \
-	(CN93_SDP_R_OUT_CONTROL_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_CONTROL_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_ENABLE(ring)          \
-	(CN93_SDP_R_OUT_ENABLE_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_ENABLE_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_SLIST_BADDR(ring)          \
-	(CN93_SDP_R_OUT_SLIST_BADDR_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_SLIST_BADDR_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_SLIST_RSIZE(ring)          \
-	(CN93_SDP_R_OUT_SLIST_RSIZE_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_SLIST_RSIZE_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_SLIST_DBELL(ring)          \
-	(CN93_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_SLIST_DBELL_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_CNTS(ring)          \
-	(CN93_SDP_R_OUT_CNTS_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_CNTS_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_INT_LEVELS(ring)          \
-	(CN93_SDP_R_OUT_INT_LEVELS_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_INT_LEVELS_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_PKT_CNT(ring)          \
-	(CN93_SDP_R_OUT_PKT_CNT_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_PKT_CNT_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_OUT_BYTE_CNT(ring)          \
-	(CN93_SDP_R_OUT_BYTE_CNT_START + ((ring) * CN93_RING_OFFSET))
+  (CN93_SDP_R_OUT_BYTE_CNT_START + ((ring) * CN93_RING_OFFSET))
 
 /*------------------ R_OUT Masks ----------------*/
 #define    CN93_R_OUT_INT_LEVELS_BMODE            BIT_ULL(63)
@@ -178,23 +178,23 @@
 #define CN93_SDP_R_OUT_INT_MDRT_CTL1_START        0x103A0
 #define CN93_SDP_R_OUT_INT_MDRT_DBG_START         0x103C0
 
-#define    CN93_SDP_R_IN_INT_MDRT_CTL0(ring)		\
-	(CN93_SDP_R_IN_INT_MDRT_CTL0_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INT_MDRT_CTL0(ring)    \
+  (CN93_SDP_R_IN_INT_MDRT_CTL0_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_INT_MDRT_CTL1(ring)		\
-	(CN93_SDP_R_IN_INT_MDRT_CTL1_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INT_MDRT_CTL1(ring)    \
+  (CN93_SDP_R_IN_INT_MDRT_CTL1_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_INT_MDRT_DBG(ring)		\
-	(CN93_SDP_R_IN_INT_MDRT_DBG_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_INT_MDRT_DBG(ring)   \
+  (CN93_SDP_R_IN_INT_MDRT_DBG_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_OUT_INT_MDRT_CTL0(ring)		\
-	(CN93_SDP_R_OUT_INT_MDRT_CTL0_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_OUT_INT_MDRT_CTL0(ring)   \
+  (CN93_SDP_R_OUT_INT_MDRT_CTL0_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_OUT_INT_MDRT_CTL1(ring)		\
-	(CN93_SDP_R_OUT_INT_MDRT_CTL1_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_OUT_INT_MDRT_CTL1(ring)   \
+  (CN93_SDP_R_OUT_INT_MDRT_CTL1_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_OUT_INT_MDRT_DBG(ring)		\
-	(CN93_SDP_R_OUT_INT_MDRT_DBG_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_OUT_INT_MDRT_DBG(ring)    \
+  (CN93_SDP_R_OUT_INT_MDRT_DBG_START + ((ring) * CN93_RING_OFFSET))
 
 /* ##################### Mail Box Registers ########################## */
 /* INT register for VF. when a MBOX write from PF happed to a VF,
@@ -211,161 +211,162 @@
 #define    CN93_SDP_MBOX_VF_PF_DATA_START       0x24000
 #define    CN93_SDP_MBOX_PF_VF_DATA_START       0x22000
 
-#define    CN93_SDP_R_MBOX_PF_VF_DATA(ring)		\
-	(CN93_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_MBOX_PF_VF_DATA(ring)   \
+  (CN93_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_MBOX_PF_VF_INT(ring)		\
-	(CN93_SDP_R_MBOX_PF_VF_INT_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_MBOX_PF_VF_INT(ring)    \
+  (CN93_SDP_R_MBOX_PF_VF_INT_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_MBOX_VF_PF_DATA(ring)		\
-	(CN93_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_MBOX_VF_PF_DATA(ring)   \
+  (CN93_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_MBOX_VF_PF_DATA(ring)          \
-	(CN93_SDP_MBOX_VF_PF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
+  (CN93_SDP_MBOX_VF_PF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
 
 #define    CN93_SDP_MBOX_PF_VF_DATA(ring)      \
-	(CN93_SDP_MBOX_PF_VF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
+  (CN93_SDP_MBOX_PF_VF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
 
 /* ##################### Interrupt Registers ########################## */
-#define	   CN93_SDP_R_ERR_TYPE_START	          0x10400
+#define    CN93_SDP_R_ERR_TYPE_START            0x10400
 
-#define    CN93_SDP_R_ERR_TYPE(ring)		\
-	(CN93_SDP_R_ERR_TYPE_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_ERR_TYPE(ring)    \
+  (CN93_SDP_R_ERR_TYPE_START + ((ring) * CN93_RING_OFFSET))
 
 #define    CN93_SDP_R_MBOX_ISM_START              0x10500
 #define    CN93_SDP_R_OUT_CNTS_ISM_START          0x10510
 #define    CN93_SDP_R_IN_CNTS_ISM_START           0x10520
 
-#define    CN93_SDP_R_MBOX_ISM(ring)		\
-	(CN93_SDP_R_MBOX_ISM_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_MBOX_ISM(ring)    \
+  (CN93_SDP_R_MBOX_ISM_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_OUT_CNTS_ISM(ring)	\
-	(CN93_SDP_R_OUT_CNTS_ISM_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_OUT_CNTS_ISM(ring)  \
+  (CN93_SDP_R_OUT_CNTS_ISM_START + ((ring) * CN93_RING_OFFSET))
 
-#define    CN93_SDP_R_IN_CNTS_ISM(ring)		\
-	(CN93_SDP_R_IN_CNTS_ISM_START + ((ring) * CN93_RING_OFFSET))
+#define    CN93_SDP_R_IN_CNTS_ISM(ring)   \
+  (CN93_SDP_R_IN_CNTS_ISM_START + ((ring) * CN93_RING_OFFSET))
 
-#define	   CN93_SDP_EPF_MBOX_RINT_START	          0x20100
-#define	   CN93_SDP_EPF_MBOX_RINT_W1S_START	  0x20120
-#define	   CN93_SDP_EPF_MBOX_RINT_ENA_W1C_START   0x20140
-#define	   CN93_SDP_EPF_MBOX_RINT_ENA_W1S_START   0x20160
+#define    CN93_SDP_EPF_MBOX_RINT_START           0x20100
+#define    CN93_SDP_EPF_MBOX_RINT_W1S_START   0x20120
+#define    CN93_SDP_EPF_MBOX_RINT_ENA_W1C_START   0x20140
+#define    CN93_SDP_EPF_MBOX_RINT_ENA_W1S_START   0x20160
 
-#define	   CN93_SDP_EPF_VFIRE_RINT_START          0x20180
-#define	   CN93_SDP_EPF_VFIRE_RINT_W1S_START      0x201A0
-#define	   CN93_SDP_EPF_VFIRE_RINT_ENA_W1C_START  0x201C0
-#define	   CN93_SDP_EPF_VFIRE_RINT_ENA_W1S_START  0x201E0
+#define    CN93_SDP_EPF_VFIRE_RINT_START          0x20180
+#define    CN93_SDP_EPF_VFIRE_RINT_W1S_START      0x201A0
+#define    CN93_SDP_EPF_VFIRE_RINT_ENA_W1C_START  0x201C0
+#define    CN93_SDP_EPF_VFIRE_RINT_ENA_W1S_START  0x201E0
 
-#define	   CN93_SDP_EPF_IRERR_RINT                0x20200
-#define	   CN93_SDP_EPF_IRERR_RINT_W1S            0x20210
-#define	   CN93_SDP_EPF_IRERR_RINT_ENA_W1C        0x20220
-#define	   CN93_SDP_EPF_IRERR_RINT_ENA_W1S        0x20230
+#define    CN93_SDP_EPF_IRERR_RINT                0x20200
+#define    CN93_SDP_EPF_IRERR_RINT_W1S            0x20210
+#define    CN93_SDP_EPF_IRERR_RINT_ENA_W1C        0x20220
+#define    CN93_SDP_EPF_IRERR_RINT_ENA_W1S        0x20230
 
-#define	   CN93_SDP_EPF_VFORE_RINT_START          0x20240
-#define	   CN93_SDP_EPF_VFORE_RINT_W1S_START      0x20260
-#define	   CN93_SDP_EPF_VFORE_RINT_ENA_W1C_START  0x20280
-#define	   CN93_SDP_EPF_VFORE_RINT_ENA_W1S_START  0x202A0
+#define    CN93_SDP_EPF_VFORE_RINT_START          0x20240
+#define    CN93_SDP_EPF_VFORE_RINT_W1S_START      0x20260
+#define    CN93_SDP_EPF_VFORE_RINT_ENA_W1C_START  0x20280
+#define    CN93_SDP_EPF_VFORE_RINT_ENA_W1S_START  0x202A0
 
-#define	   CN93_SDP_EPF_ORERR_RINT                0x20320
-#define	   CN93_SDP_EPF_ORERR_RINT_W1S            0x20330
-#define	   CN93_SDP_EPF_ORERR_RINT_ENA_W1C        0x20340
-#define	   CN93_SDP_EPF_ORERR_RINT_ENA_W1S        0x20350
+#define    CN93_SDP_EPF_ORERR_RINT                0x20320
+#define    CN93_SDP_EPF_ORERR_RINT_W1S            0x20330
+#define    CN93_SDP_EPF_ORERR_RINT_ENA_W1C        0x20340
+#define    CN93_SDP_EPF_ORERR_RINT_ENA_W1S        0x20350
 
-#define	   CN93_SDP_EPF_OEI_RINT                  0x20360
-#define	   CN93_SDP_EPF_OEI_RINT_W1S              0x20370
-#define	   CN93_SDP_EPF_OEI_RINT_ENA_W1C          0x20380
-#define	   CN93_SDP_EPF_OEI_RINT_ENA_W1S          0x20390
+#define    CN93_SDP_EPF_OEI_RINT                  0x20360
+#define    CN93_SDP_EPF_OEI_RINT_W1S              0x20370
+#define    CN93_SDP_EPF_OEI_RINT_ENA_W1C          0x20380
+#define    CN93_SDP_EPF_OEI_RINT_ENA_W1S          0x20390
 
-#define	   CN93_SDP_EPF_DMA_RINT                  0x20400
-#define	   CN93_SDP_EPF_DMA_RINT_W1S              0x20410
-#define	   CN93_SDP_EPF_DMA_RINT_ENA_W1C          0x20420
-#define	   CN93_SDP_EPF_DMA_RINT_ENA_W1S          0x20430
+#define    CN93_SDP_EPF_DMA_RINT                  0x20400
+#define    CN93_SDP_EPF_DMA_RINT_W1S              0x20410
+#define    CN93_SDP_EPF_DMA_RINT_ENA_W1C          0x20420
+#define    CN93_SDP_EPF_DMA_RINT_ENA_W1S          0x20430
 
-#define	   CN93_SDP_EPF_DMA_INT_LEVEL_START	    0x20440
-#define	   CN93_SDP_EPF_DMA_CNT_START	            0x20460
-#define	   CN93_SDP_EPF_DMA_TIM_START	            0x20480
+#define    CN93_SDP_EPF_DMA_INT_LEVEL_START     0x20440
+#define    CN93_SDP_EPF_DMA_CNT_START             0x20460
+#define    CN93_SDP_EPF_DMA_TIM_START             0x20480
 
-#define	   CN93_SDP_EPF_MISC_RINT                 0x204A0
-#define	   CN93_SDP_EPF_MISC_RINT_W1S	            0x204B0
-#define	   CN93_SDP_EPF_MISC_RINT_ENA_W1C         0x204C0
-#define	   CN93_SDP_EPF_MISC_RINT_ENA_W1S         0x204D0
+#define    CN93_SDP_EPF_MISC_RINT                 0x204A0
+#define    CN93_SDP_EPF_MISC_RINT_W1S             0x204B0
+#define    CN93_SDP_EPF_MISC_RINT_ENA_W1C         0x204C0
+#define    CN93_SDP_EPF_MISC_RINT_ENA_W1S         0x204D0
 
-#define	   CN93_SDP_EPF_DMA_VF_RINT_START           0x204E0
-#define	   CN93_SDP_EPF_DMA_VF_RINT_W1S_START       0x20500
-#define	   CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C_START   0x20520
-#define	   CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S_START   0x20540
+#define    CN93_SDP_EPF_DMA_VF_RINT_START           0x204E0
+#define    CN93_SDP_EPF_DMA_VF_RINT_W1S_START       0x20500
+#define    CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C_START   0x20520
+#define    CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S_START   0x20540
 
-#define	   CN93_SDP_EPF_PP_VF_RINT_START            0x20560
-#define	   CN93_SDP_EPF_PP_VF_RINT_W1S_START        0x20580
-#define	   CN93_SDP_EPF_PP_VF_RINT_ENA_W1C_START    0x205A0
-#define	   CN93_SDP_EPF_PP_VF_RINT_ENA_W1S_START    0x205C0
+#define    CN93_SDP_EPF_PP_VF_RINT_START            0x20560
+#define    CN93_SDP_EPF_PP_VF_RINT_W1S_START        0x20580
+#define    CN93_SDP_EPF_PP_VF_RINT_ENA_W1C_START    0x205A0
+#define    CN93_SDP_EPF_PP_VF_RINT_ENA_W1S_START    0x205C0
 
-#define	   CN93_SDP_EPF_MBOX_RINT(index)		\
-		(CN93_SDP_EPF_MBOX_RINT_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_MBOX_RINT_W1S(index)		\
-		(CN93_SDP_EPF_MBOX_RINT_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_MBOX_RINT_ENA_W1C(index)	\
-		(CN93_SDP_EPF_MBOX_RINT_ENA_W1C_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_MBOX_RINT_ENA_W1S(index)	\
-		(CN93_SDP_EPF_MBOX_RINT_ENA_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_MBOX_RINT(index)    \
+  (CN93_SDP_EPF_MBOX_RINT_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_MBOX_RINT_W1S(index)    \
+  (CN93_SDP_EPF_MBOX_RINT_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_MBOX_RINT_ENA_W1C(index)  \
+  (CN93_SDP_EPF_MBOX_RINT_ENA_W1C_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_MBOX_RINT_ENA_W1S(index)  \
+  (CN93_SDP_EPF_MBOX_RINT_ENA_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
 
-#define	   CN93_SDP_EPF_VFIRE_RINT(index)		\
-		(CN93_SDP_EPF_VFIRE_RINT_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_VFIRE_RINT_W1S(index)		\
-		(CN93_SDP_EPF_VFIRE_RINT_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_VFIRE_RINT_ENA_W1C(index)	\
-		(CN93_SDP_EPF_VFIRE_RINT_ENA_W1C_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_VFIRE_RINT_ENA_W1S(index)	\
-		(CN93_SDP_EPF_VFIRE_RINT_ENA_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFIRE_RINT(index)   \
+  (CN93_SDP_EPF_VFIRE_RINT_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFIRE_RINT_W1S(index)   \
+  (CN93_SDP_EPF_VFIRE_RINT_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFIRE_RINT_ENA_W1C(index) \
+  (CN93_SDP_EPF_VFIRE_RINT_ENA_W1C_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFIRE_RINT_ENA_W1S(index) \
+  (CN93_SDP_EPF_VFIRE_RINT_ENA_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
 
-#define	   CN93_SDP_EPF_VFORE_RINT(index)		\
-		(CN93_SDP_EPF_VFORE_RINT_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_VFORE_RINT_W1S(index)		\
-		(CN93_SDP_EPF_VFORE_RINT_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_VFORE_RINT_ENA_W1C(index)	\
-		(CN93_SDP_EPF_VFORE_RINT_ENA_W1C_START + ((index) * CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_VFORE_RINT_ENA_W1S(index)	\
-		(CN93_SDP_EPF_VFORE_RINT_ENA_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFORE_RINT(index)   \
+  (CN93_SDP_EPF_VFORE_RINT_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFORE_RINT_W1S(index)   \
+  (CN93_SDP_EPF_VFORE_RINT_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFORE_RINT_ENA_W1C(index) \
+  (CN93_SDP_EPF_VFORE_RINT_ENA_W1C_START + ((index) * CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_VFORE_RINT_ENA_W1S(index) \
+  (CN93_SDP_EPF_VFORE_RINT_ENA_W1S_START + ((index) * CN93_BIT_ARRAY_OFFSET))
 
-#define	   CN93_SDP_EPF_DMA_VF_RINT(index)		\
-		(CN93_SDP_EPF_DMA_VF_RINT_START + ((index) + CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_DMA_VF_RINT_W1S(index)		\
-		(CN93_SDP_EPF_DMA_VF_RINT_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C(index)	\
-		(CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C_START + ((index) + CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S(index)	\
-		(CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_DMA_VF_RINT(index)    \
+  (CN93_SDP_EPF_DMA_VF_RINT_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_DMA_VF_RINT_W1S(index)    \
+  (CN93_SDP_EPF_DMA_VF_RINT_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C(index)  \
+  (CN93_SDP_EPF_DMA_VF_RINT_ENA_W1C_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S(index)  \
+  (CN93_SDP_EPF_DMA_VF_RINT_ENA_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
 
-#define	   CN93_SDP_EPF_PP_VF_RINT(index)		\
-		(CN93_SDP_EPF_PP_VF_RINT_START + ((index) + CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_PP_VF_RINT_W1S(index)		\
-		(CN93_SDP_EPF_PP_VF_RINT_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_PP_VF_RINT_ENA_W1C(index)	\
-		(CN93_SDP_EPF_PP_VF_RINT_ENA_W1C_START + ((index) + CN93_BIT_ARRAY_OFFSET))
-#define	   CN93_SDP_EPF_PP_VF_RINT_ENA_W1S(index)	\
-		(CN93_SDP_EPF_PP_VF_RINT_ENA_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_PP_VF_RINT(index)   \
+  (CN93_SDP_EPF_PP_VF_RINT_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_PP_VF_RINT_W1S(index)   \
+  (CN93_SDP_EPF_PP_VF_RINT_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_PP_VF_RINT_ENA_W1C(index) \
+  (CN93_SDP_EPF_PP_VF_RINT_ENA_W1C_START + ((index) + CN93_BIT_ARRAY_OFFSET))
+#define    CN93_SDP_EPF_PP_VF_RINT_ENA_W1S(index) \
+  (CN93_SDP_EPF_PP_VF_RINT_ENA_W1S_START + ((index) + CN93_BIT_ARRAY_OFFSET))
 
 /*------------------ Interrupt Masks ----------------*/
-#define	   CN93_INTR_R_SEND_ISM       BIT_ULL(63)
-#define	   CN93_INTR_R_OUT_INT        BIT_ULL(62)
+#define    CN93_INTR_R_SEND_ISM       BIT_ULL(63)
+#define    CN93_INTR_R_OUT_INT        BIT_ULL(62)
 #define    CN93_INTR_R_IN_INT         BIT_ULL(61)
 #define    CN93_INTR_R_MBOX_INT       BIT_ULL(60)
 #define    CN93_INTR_R_RESEND         BIT_ULL(59)
 #define    CN93_INTR_R_CLR_TIM        BIT_ULL(58)
 
-/* ####################### Ring Mapping Registers ################################## */
+/* ####################### Ring Mapping Registers
+ * ################################## */
 #define    CN93_SDP_EPVF_RING_START          0x26000
 #define    CN93_SDP_IN_RING_TB_MAP_START     0x28000
 #define    CN93_SDP_IN_RATE_LIMIT_START      0x2A000
 #define    CN93_SDP_MAC_PF_RING_CTL_START    0x2C000
 
-#define	   CN93_SDP_EPVF_RING(ring)		\
-		(CN93_SDP_EPVF_RING_START + ((ring) * CN93_EPVF_RING_OFFSET))
-#define	   CN93_SDP_IN_RING_TB_MAP(ring)	\
-		(CN93_SDP_N_RING_TB_MAP_START + ((ring) * CN93_EPVF_RING_OFFSET))
-#define	   CN93_SDP_IN_RATE_LIMIT(ring)		\
-		(CN93_SDP_IN_RATE_LIMIT_START + ((ring) * CN93_EPVF_RING_OFFSET))
-#define	   CN93_SDP_MAC_PF_RING_CTL(mac)	\
-		(CN93_SDP_MAC_PF_RING_CTL_START + ((mac) * CN93_MAC_OFFSET))
+#define    CN93_SDP_EPVF_RING(ring)   \
+  (CN93_SDP_EPVF_RING_START + ((ring) * CN93_EPVF_RING_OFFSET))
+#define    CN93_SDP_IN_RING_TB_MAP(ring)  \
+  (CN93_SDP_N_RING_TB_MAP_START + ((ring) * CN93_EPVF_RING_OFFSET))
+#define    CN93_SDP_IN_RATE_LIMIT(ring)   \
+  (CN93_SDP_IN_RATE_LIMIT_START + ((ring) * CN93_EPVF_RING_OFFSET))
+#define    CN93_SDP_MAC_PF_RING_CTL(mac)  \
+  (CN93_SDP_MAC_PF_RING_CTL_START + ((mac) * CN93_MAC_OFFSET))
 
 #define    CN93_SDP_MAC_PF_RING_CTL_NPFS(val)  ((val) & 0xF)
 #define    CN93_SDP_MAC_PF_RING_CTL_SRN(val)   (((val) >> 8) & 0xFF)
@@ -379,12 +380,13 @@
 #define    CN93_NUM_NON_IOQ_INTR    16
 
 /* bit 0 for control mbox interrupt */
-#define CN93_SDP_EPF_OEI_RINT_DATA_BIT_MBOX	BIT_ULL(0)
+#define CN93_SDP_EPF_OEI_RINT_DATA_BIT_MBOX BIT_ULL(0)
 /* bit 1 for firmware heartbeat interrupt */
-#define CN93_SDP_EPF_OEI_RINT_DATA_BIT_HBEAT	BIT_ULL(1)
+#define CN93_SDP_EPF_OEI_RINT_DATA_BIT_HBEAT  BIT_ULL(1)
 
 #define CN93_PEM_BAR4_INDEX            7
 #define CN93_PEM_BAR4_INDEX_SIZE       0x400000ULL
-#define CN93_PEM_BAR4_INDEX_OFFSET     (CN93_PEM_BAR4_INDEX * CN93_PEM_BAR4_INDEX_SIZE)
+#define CN93_PEM_BAR4_INDEX_OFFSET     (CN93_PEM_BAR4_INDEX \
+  * CN93_PEM_BAR4_INDEX_SIZE)
 
 #endif /* _OCTEP_REGS_CN9K_PF_H_ */

@@ -21,7 +21,7 @@
 #define HI_I2C_DELAY     84
 #define HI_I2C_BRIDGE_DELAY   750
 
-#define EQ_TD_TPS_PWR_UNKNOWN          0x00C0	/* Unknown configurations */
+#define EQ_TD_TPS_PWR_UNKNOWN          0x00C0 /* Unknown configurations */
 #define EQ_TD_TPS_PWR_QPSK             0x016a
 #define EQ_TD_TPS_PWR_QAM16_ALPHAN     0x0195
 #define EQ_TD_TPS_PWR_QAM16_ALPHA1     0x0195

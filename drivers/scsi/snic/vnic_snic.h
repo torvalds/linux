@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright 2014 Cisco Systems, Inc.  All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright 2014 Cisco Systems, Inc.  All rights reserved.*/
 
 #ifndef _VNIC_SNIC_H_
 #define _VNIC_SNIC_H_
@@ -24,17 +24,17 @@
 
 /* Device-specific region: scsi configuration */
 struct vnic_snic_config {
-	u32 flags;
-	u32 wq_enet_desc_count;
-	u32 io_throttle_count;
-	u32 port_down_timeout;
-	u32 port_down_io_retries;
-	u32 luns_per_tgt;
-	u16 maxdatafieldsize;
-	u16 intr_timer;
-	u8 intr_timer_type;
-	u8 _resvd2;
-	u8 xpt_type;
-	u8 hid;
+  u32 flags;
+  u32 wq_enet_desc_count;
+  u32 io_throttle_count;
+  u32 port_down_timeout;
+  u32 port_down_io_retries;
+  u32 luns_per_tgt;
+  u16 maxdatafieldsize;
+  u16 intr_timer;
+  u8 intr_timer_type;
+  u8 _resvd2;
+  u8 xpt_type;
+  u8 hid;
 };
 #endif /* _VNIC_SNIC_H_ */

@@ -18,7 +18,7 @@ __NR_ftruncate,
 __NR_ftruncate64,
 #endif
 #ifdef __NR_bind
-__NR_bind,		/* bind can affect fs object only in one way... */
+__NR_bind,    /* bind can affect fs object only in one way... */
 #endif
 #ifdef __NR_fallocate
 __NR_fallocate,

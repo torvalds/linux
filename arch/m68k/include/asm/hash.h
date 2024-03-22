@@ -38,23 +38,20 @@
  * can't be a fully general "g" or "m".  Register is preferred, but
  * offsettable memory or immediate will work.)
  */
-static inline u32 __attribute_const__ __hash_32(u32 x)
-{
-	u32 a, b;
-
-	asm(   "move.l %2,%0"	/* a = x * 0x0001 */
-	"\n	lsl.l #2,%0"	/* a = x * 0x0004 */
-	"\n	move.l %0,%1"
-	"\n	lsl.l #7,%0"	/* a = x * 0x0200 */
-	"\n	add.l %2,%0"	/* a = x * 0x0201 */
-	"\n	add.l %0,%1"	/* b = x * 0x0205 */
-	"\n	add.l %0,%0"	/* a = x * 0x0402 */
-	"\n	add.l %0,%1"	/* b = x * 0x0607 */
-	"\n	lsl.l #5,%0"	/* a = x * 0x8040 */
-	: "=&d,d" (a), "=&r,r" (b)
-	: "r,roi?" (x));	/* a+b = x*0x8647 */
-
-	return ((u16)(x*0x61c8) << 16) + a + b;
+static inline u32 __attribute_const__ __hash_32(u32 x) {
+  u32 a, b;
+  asm ("move.l %2,%0" /* a = x * 0x0001 */
+  "\n	lsl.l #2,%0"  /* a = x * 0x0004 */
+  "\n	move.l %0,%1"
+  "\n	lsl.l #7,%0"  /* a = x * 0x0200 */
+  "\n	add.l %2,%0"  /* a = x * 0x0201 */
+  "\n	add.l %0,%1"  /* b = x * 0x0205 */
+  "\n	add.l %0,%0"  /* a = x * 0x0402 */
+  "\n	add.l %0,%1"  /* b = x * 0x0607 */
+  "\n	lsl.l #5,%0"  /* a = x * 0x8040 */
+  : "=&d,d" (a), "=&r,r" (b)
+  : "r,roi?" (x));  /* a+b = x*0x8647 */
+  return ((u16) (x * 0x61c8) << 16) + a + b;
 }
 
-#endif	/* _ASM_HASH_H */
+#endif  /* _ASM_HASH_H */

@@ -6,7 +6,7 @@
  * Convert a physical memory address into a IO memory address.
  * For us this is trivially a type cast.
  */
-#define iomem(a)	((void __iomem *) (a))
+#define iomem(a)  ((void __iomem *) (a))
 
 /*
  * The non-MMU m68k and ColdFire IO and memory mapped hardware access
@@ -14,15 +14,15 @@
  * that behavior here first before we include asm-generic/io.h.
  */
 #define __raw_readb(addr) \
-    ({ u8 __v = (*(__force volatile u8 *) (addr)); __v; })
+  ({ u8 __v = (*(__force volatile u8 *)(addr)); __v; })
 #define __raw_readw(addr) \
-    ({ u16 __v = (*(__force volatile u16 *) (addr)); __v; })
+  ({ u16 __v = (*(__force volatile u16 *)(addr)); __v; })
 #define __raw_readl(addr) \
-    ({ u32 __v = (*(__force volatile u32 *) (addr)); __v; })
+  ({ u32 __v = (*(__force volatile u32 *)(addr)); __v; })
 
-#define __raw_writeb(b, addr) (void)((*(__force volatile u8 *) (addr)) = (b))
-#define __raw_writew(b, addr) (void)((*(__force volatile u16 *) (addr)) = (b))
-#define __raw_writel(b, addr) (void)((*(__force volatile u32 *) (addr)) = (b))
+#define __raw_writeb(b, addr) (void) ((*(__force volatile u8 *)(addr)) = (b))
+#define __raw_writew(b, addr) (void) ((*(__force volatile u16 *)(addr)) = (b))
+#define __raw_writel(b, addr) (void) ((*(__force volatile u32 *)(addr)) = (b))
 
 #if defined(CONFIG_COLDFIRE)
 /*
@@ -45,14 +45,12 @@
  * applies just the same of there is no MMU but something like a PCI bus
  * is present.
  */
-static int __cf_internalio(unsigned long addr)
-{
-	return (addr >= IOMEMBASE) && (addr <= IOMEMBASE + IOMEMSIZE - 1);
+static int __cf_internalio(unsigned long addr) {
+  return (addr >= IOMEMBASE) && (addr <= IOMEMBASE + IOMEMSIZE - 1);
 }
 
-static int cf_internalio(const volatile void __iomem *addr)
-{
-	return __cf_internalio((unsigned long) addr);
+static int cf_internalio(const volatile void __iomem *addr) {
+  return __cf_internalio((unsigned long) addr);
 }
 
 /*
@@ -63,37 +61,37 @@ static int cf_internalio(const volatile void __iomem *addr)
  * are accessed little endian - so we need to byte swap those.
  */
 #define readw readw
-static inline u16 readw(const volatile void __iomem *addr)
-{
-	if (cf_internalio(addr))
-		return __raw_readw(addr);
-	return swab16(__raw_readw(addr));
+static inline u16 readw(const volatile void __iomem *addr) {
+  if (cf_internalio(addr)) {
+    return __raw_readw(addr);
+  }
+  return swab16(__raw_readw(addr));
 }
 
 #define readl readl
-static inline u32 readl(const volatile void __iomem *addr)
-{
-	if (cf_internalio(addr))
-		return __raw_readl(addr);
-	return swab32(__raw_readl(addr));
+static inline u32 readl(const volatile void __iomem *addr) {
+  if (cf_internalio(addr)) {
+    return __raw_readl(addr);
+  }
+  return swab32(__raw_readl(addr));
 }
 
 #define writew writew
-static inline void writew(u16 value, volatile void __iomem *addr)
-{
-	if (cf_internalio(addr))
-		__raw_writew(value, addr);
-	else
-		__raw_writew(swab16(value), addr);
+static inline void writew(u16 value, volatile void __iomem *addr) {
+  if (cf_internalio(addr)) {
+    __raw_writew(value, addr);
+  } else {
+    __raw_writew(swab16(value), addr);
+  }
 }
 
 #define writel writel
-static inline void writel(u32 value, volatile void __iomem *addr)
-{
-	if (cf_internalio(addr))
-		__raw_writel(value, addr);
-	else
-		__raw_writel(swab32(value), addr);
+static inline void writel(u32 value, volatile void __iomem *addr) {
+  if (cf_internalio(addr)) {
+    __raw_writel(value, addr);
+  } else {
+    __raw_writel(swab32(value), addr);
+  }
 }
 
 #else
@@ -113,22 +111,22 @@ static inline void writel(u32 value, volatile void __iomem *addr)
  * We need to supply the base address and masks for the normal memory
  * and IO address space mappings.
  */
-#define PCI_MEM_PA	0xf0000000		/* Host physical address */
-#define PCI_MEM_BA	0xf0000000		/* Bus physical address */
-#define PCI_MEM_SIZE	0x08000000		/* 128 MB */
-#define PCI_MEM_MASK	(PCI_MEM_SIZE - 1)
+#define PCI_MEM_PA  0xf0000000    /* Host physical address */
+#define PCI_MEM_BA  0xf0000000    /* Bus physical address */
+#define PCI_MEM_SIZE  0x08000000    /* 128 MB */
+#define PCI_MEM_MASK  (PCI_MEM_SIZE - 1)
 
-#define PCI_IO_PA	0xf8000000		/* Host physical address */
-#define PCI_IO_BA	0x00000000		/* Bus physical address */
-#define PCI_IO_SIZE	0x00010000		/* 64k */
-#define PCI_IO_MASK	(PCI_IO_SIZE - 1)
+#define PCI_IO_PA 0xf8000000    /* Host physical address */
+#define PCI_IO_BA 0x00000000    /* Bus physical address */
+#define PCI_IO_SIZE 0x00010000    /* 64k */
+#define PCI_IO_MASK (PCI_IO_SIZE - 1)
 
 #define HAVE_ARCH_PIO_SIZE
-#define PIO_OFFSET	0
-#define PIO_MASK	0xffff
-#define PIO_RESERVED	0x10000
-#define PCI_IOBASE	((void __iomem *) PCI_IO_PA)
-#define PCI_SPACE_LIMIT	PCI_IO_MASK
+#define PIO_OFFSET  0
+#define PIO_MASK  0xffff
+#define PIO_RESERVED  0x10000
+#define PCI_IOBASE  ((void __iomem *) PCI_IO_PA)
+#define PCI_SPACE_LIMIT PCI_IO_MASK
 #endif /* CONFIG_PCI */
 
 #include <asm/kmap.h>

@@ -15,22 +15,23 @@ s64 perf_atoll(const char *str);
 bool strglobmatch(const char *str, const char *pat);
 bool strglobmatch_nocase(const char *str, const char *pat);
 bool strlazymatch(const char *str, const char *pat);
-static inline bool strisglob(const char *str)
-{
-	return strpbrk(str, "*?[") != NULL;
+static inline bool strisglob(const char *str) {
+  return strpbrk(str, "*?[") != NULL;
 }
+
 int strtailcmp(const char *s1, const char *s2);
 
-char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints, int *ints);
+char *asprintf_expr_inout_ints(const char *var, bool in, size_t nints,
+    int *ints);
 
-static inline char *asprintf_expr_in_ints(const char *var, size_t nints, int *ints)
-{
-	return asprintf_expr_inout_ints(var, true, nints, ints);
+static inline char *asprintf_expr_in_ints(const char *var, size_t nints,
+    int *ints) {
+  return asprintf_expr_inout_ints(var, true, nints, ints);
 }
 
-static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints, int *ints)
-{
-	return asprintf_expr_inout_ints(var, false, nints, ints);
+static inline char *asprintf_expr_not_in_ints(const char *var, size_t nints,
+    int *ints) {
+  return asprintf_expr_inout_ints(var, false, nints, ints);
 }
 
 char *asprintf__tp_filter_pids(size_t npids, pid_t *pids);

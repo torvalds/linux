@@ -24,17 +24,17 @@
  * host_addr: this address is invisible to ifconfig
  */
 #define USB_ETHERNET_MODULE_PARAMETERS() \
-	static unsigned qmult = QMULT_DEFAULT;				\
-	module_param(qmult, uint, S_IRUGO|S_IWUSR);			\
-	MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");\
-									\
-	static char *dev_addr;						\
-	module_param(dev_addr, charp, S_IRUGO);				\
-	MODULE_PARM_DESC(dev_addr, "Device Ethernet Address");		\
-									\
-	static char *host_addr;						\
-	module_param(host_addr, charp, S_IRUGO);			\
-	MODULE_PARM_DESC(host_addr, "Host Ethernet Address")
+  static unsigned qmult = QMULT_DEFAULT;        \
+  module_param(qmult, uint, S_IRUGO | S_IWUSR);     \
+  MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed"); \
+                  \
+  static char *dev_addr;            \
+  module_param(dev_addr, charp, S_IRUGO);       \
+  MODULE_PARM_DESC(dev_addr, "Device Ethernet Address");    \
+                  \
+  static char *host_addr;           \
+  module_param(host_addr, charp, S_IRUGO);      \
+  MODULE_PARM_DESC(host_addr, "Host Ethernet Address")
 
 struct eth_dev;
 
@@ -50,53 +50,53 @@ struct eth_dev;
  * single "physical" one.
  */
 struct gether {
-	struct usb_function		func;
+  struct usb_function func;
 
-	/* updated by gether_{connect,disconnect} */
-	struct eth_dev			*ioport;
+  /* updated by gether_{connect,disconnect} */
+  struct eth_dev *ioport;
 
-	/* endpoints handle full and/or high speeds */
-	struct usb_ep			*in_ep;
-	struct usb_ep			*out_ep;
+  /* endpoints handle full and/or high speeds */
+  struct usb_ep *in_ep;
+  struct usb_ep *out_ep;
 
-	bool				is_zlp_ok;
+  bool is_zlp_ok;
 
-	u16				cdc_filter;
+  u16 cdc_filter;
 
-	/* hooks for added framing, as needed for RNDIS and EEM. */
-	u32				header_len;
-	/* NCM requires fixed size bundles */
-	bool				is_fixed;
-	u32				fixed_out_len;
-	u32				fixed_in_len;
-	bool				supports_multi_frame;
-	struct sk_buff			*(*wrap)(struct gether *port,
-						struct sk_buff *skb);
-	int				(*unwrap)(struct gether *port,
-						struct sk_buff *skb,
-						struct sk_buff_head *list);
+  /* hooks for added framing, as needed for RNDIS and EEM. */
+  u32 header_len;
+  /* NCM requires fixed size bundles */
+  bool is_fixed;
+  u32 fixed_out_len;
+  u32 fixed_in_len;
+  bool supports_multi_frame;
+  struct sk_buff *(*wrap)(struct gether *port,
+      struct sk_buff *skb);
+  int (*unwrap)(struct gether *port,
+      struct sk_buff *skb,
+      struct sk_buff_head *list);
 
-	/* called on network open/close */
-	void				(*open)(struct gether *);
-	void				(*close)(struct gether *);
-	bool				is_suspend;
+  /* called on network open/close */
+  void (*open)(struct gether *);
+  void (*close)(struct gether *);
+  bool is_suspend;
 };
 
-#define	DEFAULT_FILTER	(USB_CDC_PACKET_TYPE_BROADCAST \
-			|USB_CDC_PACKET_TYPE_ALL_MULTICAST \
-			|USB_CDC_PACKET_TYPE_PROMISCUOUS \
-			|USB_CDC_PACKET_TYPE_DIRECTED)
+#define DEFAULT_FILTER  (USB_CDC_PACKET_TYPE_BROADCAST \
+  | USB_CDC_PACKET_TYPE_ALL_MULTICAST \
+  | USB_CDC_PACKET_TYPE_PROMISCUOUS \
+  | USB_CDC_PACKET_TYPE_DIRECTED)
 
 /* variant of gether_setup that allows customizing network device name */
 struct eth_dev *gether_setup_name(struct usb_gadget *g,
-		const char *dev_addr, const char *host_addr,
-		u8 ethaddr[ETH_ALEN], unsigned qmult, const char *netname);
+    const char *dev_addr, const char *host_addr,
+    u8 ethaddr[ETH_ALEN], unsigned qmult, const char *netname);
 
 /* netdev setup/teardown as directed by the gadget driver */
 /* gether_setup - initialize one ethernet-over-usb link
  * @g: gadget to associated with these links
  * @ethaddr: NULL, or a buffer in which the ethernet address of the
- *	host side of the link is recorded
+ *  host side of the link is recorded
  * Context: may sleep
  *
  * This sets up the single network link that may be exported by a
@@ -106,10 +106,9 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
  * Returns a eth_dev pointer on success, or an ERR_PTR on failure
  */
 static inline struct eth_dev *gether_setup(struct usb_gadget *g,
-		const char *dev_addr, const char *host_addr,
-		u8 ethaddr[ETH_ALEN], unsigned qmult)
-{
-	return gether_setup_name(g, dev_addr, host_addr, ethaddr, qmult, "usb");
+    const char *dev_addr, const char *host_addr,
+    u8 ethaddr[ETH_ALEN], unsigned qmult) {
+  return gether_setup_name(g, dev_addr, host_addr, ethaddr, qmult, "usb");
 }
 
 /*
@@ -136,9 +135,8 @@ int gether_register_netdev(struct net_device *net);
  *
  * Returns negative errno, or zero on success
  */
-static inline struct net_device *gether_setup_default(void)
-{
-	return gether_setup_name_default("usb");
+static inline struct net_device *gether_setup_default(void) {
+  return gether_setup_name_default("usb");
 }
 
 /**
@@ -267,29 +265,29 @@ struct net_device *gether_connect(struct gether *);
 void gether_disconnect(struct gether *);
 
 /* Some controllers can't support CDC Ethernet (ECM) ... */
-static inline bool can_support_ecm(struct usb_gadget *gadget)
-{
-	if (!gadget_is_altset_supported(gadget))
-		return false;
-
-	/* Everything else is *presumably* fine ... but this is a bit
-	 * chancy, so be **CERTAIN** there are no hardware issues with
-	 * your controller.  Add it above if it can't handle CDC.
-	 */
-	return true;
+static inline bool can_support_ecm(struct usb_gadget *gadget) {
+  if (!gadget_is_altset_supported(gadget)) {
+    return false;
+  }
+  /* Everything else is *presumably* fine ... but this is a bit
+   * chancy, so be **CERTAIN** there are no hardware issues with
+   * your controller.  Add it above if it can't handle CDC.
+   */
+  return true;
 }
 
 /* peak (theoretical) bulk transfer rate in bits-per-second */
-static inline unsigned int gether_bitrate(struct usb_gadget *g)
-{
-	if (g->speed >= USB_SPEED_SUPER_PLUS)
-		return 4250000000U;
-	if (g->speed == USB_SPEED_SUPER)
-		return 3750000000U;
-	else if (g->speed == USB_SPEED_HIGH)
-		return 13 * 512 * 8 * 1000 * 8;
-	else
-		return 19 * 64 * 1 * 1000 * 8;
+static inline unsigned int gether_bitrate(struct usb_gadget *g) {
+  if (g->speed >= USB_SPEED_SUPER_PLUS) {
+    return 4250000000U;
+  }
+  if (g->speed == USB_SPEED_SUPER) {
+    return 3750000000U;
+  } else if (g->speed == USB_SPEED_HIGH) {
+    return 13 * 512 * 8 * 1000 * 8;
+  } else {
+    return 19 * 64 * 1 * 1000 * 8;
+  }
 }
 
 #endif /* __U_ETHER_H */

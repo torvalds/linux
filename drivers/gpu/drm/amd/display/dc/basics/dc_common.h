@@ -37,6 +37,6 @@ bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
 bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx);
 
 void build_prescale_params(struct  dc_bias_and_scale *bias_and_scale,
-		const struct dc_plane_state *plane_state);
+    const struct dc_plane_state *plane_state);
 
 #endif

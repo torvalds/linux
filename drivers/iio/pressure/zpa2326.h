@@ -58,11 +58,11 @@ bool zpa2326_isreg_precious(struct device *dev, unsigned int reg);
  *
  * Return: Zero when successful, a negative error code otherwise.
  */
-int zpa2326_probe(struct device        *parent,
-		  const char           *name,
-		  int                   irq,
-		  unsigned int          hwid,
-		  struct regmap        *regmap);
+int zpa2326_probe(struct device *parent,
+    const char *name,
+    int irq,
+    unsigned int hwid,
+    struct regmap *regmap);
 
 /**
  * zpa2326_remove() - Unregister and destroy core ZPA2326 IIO device.

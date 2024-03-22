@@ -10,24 +10,23 @@ struct nvif_event;
 typedef int (*nvif_event_func)(struct nvif_event *, void *repv, u32 repc);
 
 struct nvif_event {
-	struct nvif_object object;
-	nvif_event_func func;
+  struct nvif_object object;
+  nvif_event_func func;
 };
 
-static inline bool
-nvif_event_constructed(struct nvif_event *event)
-{
-	return nvif_object_constructed(&event->object);
+static inline bool nvif_event_constructed(struct nvif_event *event) {
+  return nvif_object_constructed(&event->object);
 }
 
-int nvif_event_ctor_(struct nvif_object *, const char *, u32, nvif_event_func, bool,
-		     struct nvif_event_v0 *, u32, bool, struct nvif_event *);
+int nvif_event_ctor_(struct nvif_object *, const char *, u32, nvif_event_func,
+    bool,
+    struct nvif_event_v0 *, u32, bool, struct nvif_event *);
 
-static inline int
-nvif_event_ctor(struct nvif_object *parent, const char *name, u32 handle, nvif_event_func func,
-		bool wait, struct nvif_event_v0 *args, u32 argc, struct nvif_event *event)
-{
-	return nvif_event_ctor_(parent, name, handle, func, wait, args, argc, true, event);
+static inline int nvif_event_ctor(struct nvif_object *parent, const char *name,
+    u32 handle, nvif_event_func func,
+    bool wait, struct nvif_event_v0 *args, u32 argc, struct nvif_event *event) {
+  return nvif_event_ctor_(parent, name, handle, func, wait, args, argc, true,
+      event);
 }
 
 void nvif_event_dtor(struct nvif_event *);

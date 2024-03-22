@@ -5,10 +5,10 @@
 #ifndef _BRCMF_PNO_H
 #define _BRCMF_PNO_H
 
-#define BRCMF_PNO_SCAN_COMPLETE			1
-#define BRCMF_PNO_MAX_PFN_COUNT			16
-#define BRCMF_PNO_SCHED_SCAN_MIN_PERIOD	10
-#define BRCMF_PNO_SCHED_SCAN_MAX_PERIOD	508
+#define BRCMF_PNO_SCAN_COMPLETE     1
+#define BRCMF_PNO_MAX_PFN_COUNT     16
+#define BRCMF_PNO_SCHED_SCAN_MIN_PERIOD 10
+#define BRCMF_PNO_SCHED_SCAN_MAX_PERIOD 508
 
 /* forward declaration */
 struct brcmf_pno_info;
@@ -20,7 +20,7 @@ struct brcmf_pno_info;
  * @req: configuration parameters for scheduled scan.
  */
 int brcmf_pno_start_sched_scan(struct brcmf_if *ifp,
-			       struct cfg80211_sched_scan_request *req);
+    struct cfg80211_sched_scan_request *req);
 
 /**
  * brcmf_pno_stop_sched_scan - terminate scheduled scan on device.
@@ -67,6 +67,6 @@ u64 brcmf_pno_find_reqid_by_bucket(struct brcmf_pno_info *pi, u32 bucket);
  * @netinfo: netinfo to compare with bucket configuration.
  */
 u32 brcmf_pno_get_bucket_map(struct brcmf_pno_info *pi,
-			     struct brcmf_pno_net_info_le *netinfo);
+    struct brcmf_pno_net_info_le *netinfo);
 
 #endif /* _BRCMF_PNO_H */

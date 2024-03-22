@@ -33,4 +33,4 @@ struct radeon_device;
 int radeon_ttm_init(struct radeon_device *rdev);
 void radeon_ttm_fini(struct radeon_device *rdev);
 
-#endif				/* __RADEON_TTM_H__ */
+#endif        /* __RADEON_TTM_H__ */

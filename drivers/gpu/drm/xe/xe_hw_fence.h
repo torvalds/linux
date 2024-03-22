@@ -21,10 +21,10 @@ void xe_hw_fence_irq_stop(struct xe_hw_fence_irq *irq);
 void xe_hw_fence_irq_start(struct xe_hw_fence_irq *irq);
 
 void xe_hw_fence_ctx_init(struct xe_hw_fence_ctx *ctx, struct xe_gt *gt,
-			  struct xe_hw_fence_irq *irq, const char *name);
+    struct xe_hw_fence_irq *irq, const char *name);
 void xe_hw_fence_ctx_finish(struct xe_hw_fence_ctx *ctx);
 
 struct xe_hw_fence *xe_hw_fence_create(struct xe_hw_fence_ctx *ctx,
-				       struct iosys_map seqno_map);
+    struct iosys_map seqno_map);
 
 #endif

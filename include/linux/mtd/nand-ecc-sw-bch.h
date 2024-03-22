@@ -23,21 +23,21 @@
  * @eccmask: XOR ecc mask, allows erased pages to be decoded as valid
  */
 struct nand_ecc_sw_bch_conf {
-	struct nand_ecc_req_tweak_ctx req_ctx;
-	unsigned int code_size;
-	u8 *calc_buf;
-	u8 *code_buf;
-	struct bch_control *bch;
-	unsigned int *errloc;
-	unsigned char *eccmask;
+  struct nand_ecc_req_tweak_ctx req_ctx;
+  unsigned int code_size;
+  u8 *calc_buf;
+  u8 *code_buf;
+  struct bch_control *bch;
+  unsigned int *errloc;
+  unsigned char *eccmask;
 };
 
 #if IS_ENABLED(CONFIG_MTD_NAND_ECC_SW_BCH)
 
 int nand_ecc_sw_bch_calculate(struct nand_device *nand,
-			      const unsigned char *buf, unsigned char *code);
+    const unsigned char *buf, unsigned char *code);
 int nand_ecc_sw_bch_correct(struct nand_device *nand, unsigned char *buf,
-			    unsigned char *read_ecc, unsigned char *calc_ecc);
+    unsigned char *read_ecc, unsigned char *calc_ecc);
 int nand_ecc_sw_bch_init_ctx(struct nand_device *nand);
 void nand_ecc_sw_bch_cleanup_ctx(struct nand_device *nand);
 struct nand_ecc_engine *nand_ecc_sw_bch_get_engine(void);
@@ -45,26 +45,24 @@ struct nand_ecc_engine *nand_ecc_sw_bch_get_engine(void);
 #else /* !CONFIG_MTD_NAND_ECC_SW_BCH */
 
 static inline int nand_ecc_sw_bch_calculate(struct nand_device *nand,
-					    const unsigned char *buf,
-					    unsigned char *code)
-{
-	return -ENOTSUPP;
+    const unsigned char *buf,
+    unsigned char *code) {
+  return -ENOTSUPP;
 }
 
 static inline int nand_ecc_sw_bch_correct(struct nand_device *nand,
-					  unsigned char *buf,
-					  unsigned char *read_ecc,
-					  unsigned char *calc_ecc)
-{
-	return -ENOTSUPP;
+    unsigned char *buf,
+    unsigned char *read_ecc,
+    unsigned char *calc_ecc) {
+  return -ENOTSUPP;
 }
 
-static inline int nand_ecc_sw_bch_init_ctx(struct nand_device *nand)
-{
-	return -ENOTSUPP;
+static inline int nand_ecc_sw_bch_init_ctx(struct nand_device *nand) {
+  return -ENOTSUPP;
 }
 
-static inline void nand_ecc_sw_bch_cleanup_ctx(struct nand_device *nand) {}
+static inline void nand_ecc_sw_bch_cleanup_ctx(struct nand_device *nand) {
+}
 
 #endif /* CONFIG_MTD_NAND_ECC_SW_BCH */
 

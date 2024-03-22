@@ -21,10 +21,9 @@ void nitrox_common_sw_cleanup(struct nitrox_device *ndev);
 
 void pkt_slc_resp_tasklet(unsigned long data);
 int nitrox_process_se_request(struct nitrox_device *ndev,
-			      struct se_crypto_request *req,
-			      completion_t cb,
-			      void *cb_arg);
+    struct se_crypto_request *req,
+    completion_t cb,
+    void *cb_arg);
 void backlog_qflush_work(struct work_struct *work);
-
 
 #endif /* __NITROX_COMMON_H */

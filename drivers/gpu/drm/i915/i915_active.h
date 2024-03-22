@@ -59,21 +59,18 @@ void i915_active_noop(struct dma_fence *fence, struct dma_fence_cb *cb);
  * associated with it. When the last fence becomes idle, when it is retired
  * after completion, the optional callback @func is invoked.
  */
-static inline void
-__i915_active_fence_init(struct i915_active_fence *active,
-			 void *fence,
-			 dma_fence_func_t fn)
-{
-	RCU_INIT_POINTER(active->fence, fence);
-	active->cb.func = fn ?: i915_active_noop;
+static inline void __i915_active_fence_init(struct i915_active_fence *active,
+    void *fence,
+    dma_fence_func_t fn) {
+  RCU_INIT_POINTER(active->fence, fence);
+  active->cb.func = fn ? : i915_active_noop;
 }
 
 #define INIT_ACTIVE_FENCE(A) \
-	__i915_active_fence_init((A), NULL, NULL)
+  __i915_active_fence_init((A), NULL, NULL)
 
-struct dma_fence *
-__i915_active_fence_set(struct i915_active_fence *active,
-			struct dma_fence *fence);
+struct dma_fence *__i915_active_fence_set(struct i915_active_fence *active,
+    struct dma_fence *fence);
 
 /**
  * i915_active_fence_set - updates the tracker to watch the current fence
@@ -84,9 +81,8 @@ __i915_active_fence_set(struct i915_active_fence *active,
  * that @rq is busy, the @active reports busy. When that @rq is signaled
  * (or else retired) the @active tracker is updated to report idle.
  */
-int __must_check
-i915_active_fence_set(struct i915_active_fence *active,
-		      struct i915_request *rq);
+int __must_check i915_active_fence_set(struct i915_active_fence *active,
+    struct i915_request *rq);
 /**
  * i915_active_fence_get - return a reference to the active fence
  * @active: the active tracker
@@ -97,16 +93,13 @@ i915_active_fence_set(struct i915_active_fence *active,
  *
  * The reference should be freed with dma_fence_put().
  */
-static inline struct dma_fence *
-i915_active_fence_get(struct i915_active_fence *active)
-{
-	struct dma_fence *fence;
-
-	rcu_read_lock();
-	fence = dma_fence_get_rcu_safe(&active->fence);
-	rcu_read_unlock();
-
-	return fence;
+static inline struct dma_fence *i915_active_fence_get(
+    struct i915_active_fence *active) {
+  struct dma_fence *fence;
+  rcu_read_lock();
+  fence = dma_fence_get_rcu_safe(&active->fence);
+  rcu_read_unlock();
+  return fence;
 }
 
 /**
@@ -117,10 +110,9 @@ i915_active_fence_get(struct i915_active_fence *active)
  * assigned to a fence. Due to the lazy retiring, that fence may be idle
  * and this may report stale information.
  */
-static inline bool
-i915_active_fence_isset(const struct i915_active_fence *active)
-{
-	return rcu_access_pointer(active->fence);
+static inline bool i915_active_fence_isset(
+    const struct i915_active_fence *active) {
+  return rcu_access_pointer(active->fence);
 }
 
 /*
@@ -150,37 +142,36 @@ i915_active_fence_isset(const struct i915_active_fence *active)
  */
 
 void __i915_active_init(struct i915_active *ref,
-			int (*active)(struct i915_active *ref),
-			void (*retire)(struct i915_active *ref),
-			unsigned long flags,
-			struct lock_class_key *mkey,
-			struct lock_class_key *wkey);
+    int (*active)(struct i915_active *ref),
+    void (*retire)(struct i915_active *ref),
+    unsigned long flags,
+    struct lock_class_key *mkey,
+    struct lock_class_key *wkey);
 
 /* Specialise each class of i915_active to avoid impossible lockdep cycles. */
-#define i915_active_init(ref, active, retire, flags) do {			\
-	static struct lock_class_key __mkey;					\
-	static struct lock_class_key __wkey;					\
-										\
-	__i915_active_init(ref, active, retire, flags, &__mkey, &__wkey);	\
+#define i915_active_init(ref, active, retire, flags) do {     \
+    static struct lock_class_key __mkey;          \
+    static struct lock_class_key __wkey;          \
+                    \
+    __i915_active_init(ref, active, retire, flags, &__mkey, &__wkey); \
 } while (0)
 
 int i915_active_add_request(struct i915_active *ref, struct i915_request *rq);
 
-struct dma_fence *
-i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f);
+struct dma_fence *i915_active_set_exclusive(struct i915_active *ref,
+    struct dma_fence *f);
 
 int __i915_active_wait(struct i915_active *ref, int state);
-static inline int i915_active_wait(struct i915_active *ref)
-{
-	return __i915_active_wait(ref, TASK_INTERRUPTIBLE);
+static inline int i915_active_wait(struct i915_active *ref) {
+  return __i915_active_wait(ref, TASK_INTERRUPTIBLE);
 }
 
 int i915_sw_fence_await_active(struct i915_sw_fence *fence,
-			       struct i915_active *ref,
-			       unsigned int flags);
+    struct i915_active *ref,
+    unsigned int flags);
 int i915_request_await_active(struct i915_request *rq,
-			      struct i915_active *ref,
-			      unsigned int flags);
+    struct i915_active *ref,
+    unsigned int flags);
 #define I915_ACTIVE_AWAIT_EXCL BIT(0)
 #define I915_ACTIVE_AWAIT_ACTIVE BIT(1)
 #define I915_ACTIVE_AWAIT_BARRIER BIT(2)
@@ -191,22 +182,19 @@ bool i915_active_acquire_if_busy(struct i915_active *ref);
 
 void i915_active_release(struct i915_active *ref);
 
-static inline void __i915_active_acquire(struct i915_active *ref)
-{
-	GEM_BUG_ON(!atomic_read(&ref->count));
-	atomic_inc(&ref->count);
+static inline void __i915_active_acquire(struct i915_active *ref) {
+  GEM_BUG_ON(!atomic_read(&ref->count));
+  atomic_inc(&ref->count);
 }
 
-static inline bool
-i915_active_is_idle(const struct i915_active *ref)
-{
-	return !atomic_read(&ref->count);
+static inline bool i915_active_is_idle(const struct i915_active *ref) {
+  return !atomic_read(&ref->count);
 }
 
 void i915_active_fini(struct i915_active *ref);
 
 int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
-					    struct intel_engine_cs *engine);
+    struct intel_engine_cs *engine);
 void i915_active_acquire_barrier(struct i915_active *ref);
 void i915_request_add_active_barriers(struct i915_request *rq);
 
@@ -218,18 +206,15 @@ struct i915_active *i915_active_get(struct i915_active *ref);
 void i915_active_put(struct i915_active *ref);
 
 static inline int __i915_request_await_exclusive(struct i915_request *rq,
-						 struct i915_active *active)
-{
-	struct dma_fence *fence;
-	int err = 0;
-
-	fence = i915_active_fence_get(&active->excl);
-	if (fence) {
-		err = i915_request_await_dma_fence(rq, fence);
-		dma_fence_put(fence);
-	}
-
-	return err;
+    struct i915_active *active) {
+  struct dma_fence *fence;
+  int err = 0;
+  fence = i915_active_fence_get(&active->excl);
+  if (fence) {
+    err = i915_request_await_dma_fence(rq, fence);
+    dma_fence_put(fence);
+  }
+  return err;
 }
 
 void i915_active_module_exit(void);

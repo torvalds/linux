@@ -9,8 +9,8 @@
 #include "otx2_cptpf.h"
 
 struct otx2_cpt_devlink {
-	struct devlink *dl;
-	struct otx2_cptpf_dev *cptpf;
+  struct devlink *dl;
+  struct otx2_cptpf_dev *cptpf;
 };
 
 /* Devlink APIs */

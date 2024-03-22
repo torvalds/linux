@@ -13,21 +13,17 @@
  * more details.
  */
 
-
 #include "ia_css_types.h"
 #include "sh_css_internal.h"
 #include "sh_css_frac.h"
 
 #include "ia_css_raa.host.h"
 
-void
-ia_css_raa_encode(
+void ia_css_raa_encode(
     struct sh_css_isp_aa_params *to,
     const struct ia_css_aa_config *from,
-    unsigned int size)
-{
-	(void)size;
-	(void)to;
-	(void)from;
+    unsigned int size) {
+  (void) size;
+  (void) to;
+  (void) from;
 }
-

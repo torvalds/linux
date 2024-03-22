@@ -34,25 +34,25 @@
 #include <asm/byteorder.h>
 
 struct sge_intr_counts {
-	unsigned int rx_drops;        /* # of packets dropped due to no mem */
-	unsigned int pure_rsps;        /* # of non-payload responses */
-	unsigned int unhandled_irqs;   /* # of unhandled interrupts */
-	unsigned int respQ_empty;      /* # times respQ empty */
-	unsigned int respQ_overflow;   /* # respQ overflow (fatal) */
-	unsigned int freelistQ_empty;  /* # times freelist empty */
-	unsigned int pkt_too_big;      /* packet too large (fatal) */
-	unsigned int pkt_mismatch;
-	unsigned int cmdQ_full[3];     /* not HW IRQ, host cmdQ[] full */
-	unsigned int cmdQ_restarted[3];/* # of times cmdQ X was restarted */
+  unsigned int rx_drops;        /* # of packets dropped due to no mem */
+  unsigned int pure_rsps;        /* # of non-payload responses */
+  unsigned int unhandled_irqs;   /* # of unhandled interrupts */
+  unsigned int respQ_empty;      /* # times respQ empty */
+  unsigned int respQ_overflow;   /* # respQ overflow (fatal) */
+  unsigned int freelistQ_empty;  /* # times freelist empty */
+  unsigned int pkt_too_big;      /* packet too large (fatal) */
+  unsigned int pkt_mismatch;
+  unsigned int cmdQ_full[3];     /* not HW IRQ, host cmdQ[] full */
+  unsigned int cmdQ_restarted[3]; /* # of times cmdQ X was restarted */
 };
 
 struct sge_port_stats {
-	u64 rx_cso_good;     /* # of successful RX csum offloads */
-	u64 tx_cso;          /* # of TX checksum offloads */
-	u64 tx_tso;          /* # of TSO requests */
-	u64 vlan_xtract;     /* # of VLAN tag extractions */
-	u64 vlan_insert;     /* # of VLAN tag insertions */
-	u64 tx_need_hdrroom; /* # of TX skbs in need of more header room */
+  u64 rx_cso_good;     /* # of successful RX csum offloads */
+  u64 tx_cso;          /* # of TX checksum offloads */
+  u64 tx_tso;          /* # of TSO requests */
+  u64 vlan_xtract;     /* # of VLAN tag extractions */
+  u64 vlan_insert;     /* # of VLAN tag insertions */
+  u64 tx_need_hdrroom; /* # of TX skbs in need of more header room */
 };
 
 struct sk_buff;
@@ -78,8 +78,9 @@ void t1_sge_intr_enable(struct sge *);
 void t1_sge_intr_disable(struct sge *);
 void t1_sge_intr_clear(struct sge *);
 const struct sge_intr_counts *t1_sge_get_intr_counts(const struct sge *sge);
-void t1_sge_get_port_stats(const struct sge *sge, int port, struct sge_port_stats *);
+void t1_sge_get_port_stats(const struct sge *sge, int port,
+    struct sge_port_stats *);
 unsigned int t1_sched_update_parms(struct sge *, unsigned int, unsigned int,
-			   unsigned int);
+    unsigned int);
 
 #endif /* _CXGB_SGE_H_ */

@@ -12,23 +12,21 @@
 #include <stdlib.h>
 #include <linux/compiler.h>
 
-const char perf_usage_string[] =
-	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
+const char perf_usage_string[]
+  = "perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
 
-const char perf_more_info_string[] =
-	"See 'perf help COMMAND' for more information on a specific command.";
+const char perf_more_info_string[]
+  = "See 'perf help COMMAND' for more information on a specific command.";
 
-static __noreturn void usage_builtin(const char *err)
-{
-	fprintf(stderr, "\n Usage: %s\n", err);
-	exit(129);
+static __noreturn void usage_builtin(const char *err) {
+  fprintf(stderr, "\n Usage: %s\n", err);
+  exit(129);
 }
 
 /* If we are in a dlopen()ed .so write to a global variable would segfault
  * (ugh), so keep things static. */
 static void (*usage_routine)(const char *err) __noreturn = usage_builtin;
 
-void usage(const char *err)
-{
-	usage_routine(err);
+void usage(const char *err) {
+  usage_routine(err);
 }

@@ -8,25 +8,24 @@
 #include <linux/init.h>
 #include <os.h>
 
-static void early_console_write(struct console *con, const char *s, unsigned int n)
-{
-	um_early_printk(s, n);
+static void early_console_write(struct console *con, const char *s,
+    unsigned int n) {
+  um_early_printk(s, n);
 }
 
 static struct console early_console_dev = {
-	.name = "earlycon",
-	.write = early_console_write,
-	.flags = CON_BOOT,
-	.index = -1,
+  .name = "earlycon",
+  .write = early_console_write,
+  .flags = CON_BOOT,
+  .index = -1,
 };
 
-static int __init setup_early_printk(char *buf)
-{
-	if (!early_console) {
-		early_console = &early_console_dev;
-		register_console(&early_console_dev);
-	}
-	return 0;
+static int __init setup_early_printk(char *buf) {
+  if (!early_console) {
+    early_console = &early_console_dev;
+    register_console(&early_console_dev);
+  }
+  return 0;
 }
 
 early_param("earlyprintk", setup_early_printk);

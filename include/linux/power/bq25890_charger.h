@@ -9,7 +9,7 @@
 struct regulator_init_data;
 
 struct bq25890_platform_data {
-	const struct regulator_init_data *regulator_init_data;
+  const struct regulator_init_data *regulator_init_data;
 };
 
 #endif

@@ -37,67 +37,57 @@
 #define C_SIGN    0x20
 #define C_CALIB   0x1f
 
-int sun3x_hwclk(int set, struct rtc_time *t)
-{
-	volatile struct mostek_dt *h =
-		(struct mostek_dt *)(SUN3X_EEPROM+M_CONTROL);
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	if(set) {
-		h->csr |= C_WRITE;
-		h->sec = bin2bcd(t->tm_sec);
-		h->min = bin2bcd(t->tm_min);
-		h->hour = bin2bcd(t->tm_hour);
-		h->wday = bin2bcd(t->tm_wday);
-		h->mday = bin2bcd(t->tm_mday);
-		h->month = bin2bcd(t->tm_mon + 1);
-		h->year = bin2bcd(t->tm_year % 100);
-		h->csr &= ~C_WRITE;
-	} else {
-		h->csr |= C_READ;
-		t->tm_sec = bcd2bin(h->sec);
-		t->tm_min = bcd2bin(h->min);
-		t->tm_hour = bcd2bin(h->hour);
-		t->tm_wday = bcd2bin(h->wday);
-		t->tm_mday = bcd2bin(h->mday);
-		t->tm_mon = bcd2bin(h->month) - 1;
-		t->tm_year = bcd2bin(h->year);
-		h->csr &= ~C_READ;
-		if (t->tm_year < 70)
-			t->tm_year += 100;
-	}
-
-	local_irq_restore(flags);
-
-	return 0;
+int sun3x_hwclk(int set, struct rtc_time *t) {
+  volatile struct mostek_dt *h
+    = (struct mostek_dt *) (SUN3X_EEPROM + M_CONTROL);
+  unsigned long flags;
+  local_irq_save(flags);
+  if (set) {
+    h->csr |= C_WRITE;
+    h->sec = bin2bcd(t->tm_sec);
+    h->min = bin2bcd(t->tm_min);
+    h->hour = bin2bcd(t->tm_hour);
+    h->wday = bin2bcd(t->tm_wday);
+    h->mday = bin2bcd(t->tm_mday);
+    h->month = bin2bcd(t->tm_mon + 1);
+    h->year = bin2bcd(t->tm_year % 100);
+    h->csr &= ~C_WRITE;
+  } else {
+    h->csr |= C_READ;
+    t->tm_sec = bcd2bin(h->sec);
+    t->tm_min = bcd2bin(h->min);
+    t->tm_hour = bcd2bin(h->hour);
+    t->tm_wday = bcd2bin(h->wday);
+    t->tm_mday = bcd2bin(h->mday);
+    t->tm_mon = bcd2bin(h->month) - 1;
+    t->tm_year = bcd2bin(h->year);
+    h->csr &= ~C_READ;
+    if (t->tm_year < 70) {
+      t->tm_year += 100;
+    }
+  }
+  local_irq_restore(flags);
+  return 0;
 }
 
 #if 0
-static irqreturn_t sun3x_timer_tick(int irq, void *dev_id)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	/* Clear the pending interrupt - pulse the enable line low */
-	disable_irq(5);
-	enable_irq(5);
-	legacy_timer_tick(1);
-	local_irq_restore(flags);
-
-	return IRQ_HANDLED;
+static irqreturn_t sun3x_timer_tick(int irq, void *dev_id) {
+  unsigned long flags;
+  local_irq_save(flags);
+  /* Clear the pending interrupt - pulse the enable line low */
+  disable_irq(5);
+  enable_irq(5);
+  legacy_timer_tick(1);
+  local_irq_restore(flags);
+  return IRQ_HANDLED;
 }
+
 #endif
 
-void __init sun3x_sched_init(void)
-{
-
-	sun3_disable_interrupts();
-
-
-    /* Pulse enable low to get the clock started */
-	sun3_disable_irq(5);
-	sun3_enable_irq(5);
-	sun3_enable_interrupts();
+void __init sun3x_sched_init(void) {
+  sun3_disable_interrupts();
+  /* Pulse enable low to get the clock started */
+  sun3_disable_irq(5);
+  sun3_enable_irq(5);
+  sun3_enable_interrupts();
 }

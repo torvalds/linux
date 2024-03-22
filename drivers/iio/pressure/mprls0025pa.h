@@ -5,7 +5,8 @@
  * Copyright (c) Andreas Klinger <ak@it-klinger.de>
  *
  * Data sheet:
- *  https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/micropressure-mpr-series/documents/sps-siot-mpr-series-datasheet-32332628-ciid-172626.pdf
+ * 
+ *https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/micropressure-mpr-series/documents/sps-siot-mpr-series-datasheet-32332628-ciid-172626.pdf
  */
 
 #ifndef _MPRLS0025PA_H
@@ -40,14 +41,14 @@ struct mpr_ops;
  * @ts: timestamp
  */
 struct mpr_chan {
-	s32 pres;
-	s64 ts;
+  s32 pres;
+  s64 ts;
 };
 
 enum mpr_func_id {
-	MPR_FUNCTION_A,
-	MPR_FUNCTION_B,
-	MPR_FUNCTION_C,
+  MPR_FUNCTION_A,
+  MPR_FUNCTION_B,
+  MPR_FUNCTION_C,
 };
 
 /**
@@ -72,29 +73,29 @@ enum mpr_func_id {
  * @buffer: raw conversion data
  */
 struct mpr_data {
-	struct device		*dev;
-	const struct mpr_ops	*ops;
-	struct mutex		lock;
-	u32			pmin;
-	u32			pmax;
-	enum mpr_func_id	function;
-	u32			outmin;
-	u32			outmax;
-	int			scale;
-	int			scale2;
-	int			offset;
-	int			offset2;
-	struct gpio_desc	*gpiod_reset;
-	int			irq;
-	struct completion	completion;
-	struct mpr_chan		chan;
-	u8	    buffer[MPR_MEASUREMENT_RD_SIZE] __aligned(IIO_DMA_MINALIGN);
+  struct device *dev;
+  const struct mpr_ops *ops;
+  struct mutex lock;
+  u32 pmin;
+  u32 pmax;
+  enum mpr_func_id function;
+  u32 outmin;
+  u32 outmax;
+  int scale;
+  int scale2;
+  int offset;
+  int offset2;
+  struct gpio_desc *gpiod_reset;
+  int irq;
+  struct completion completion;
+  struct mpr_chan chan;
+  u8 buffer[MPR_MEASUREMENT_RD_SIZE] __aligned(IIO_DMA_MINALIGN);
 };
 
 struct mpr_ops {
-	int (*init)(struct device *dev);
-	int (*read)(struct mpr_data *data, const u8 cmd, const u8 cnt);
-	int (*write)(struct mpr_data *data, const u8 cmd, const u8 cnt);
+  int (*init)(struct device *dev);
+  int (*read)(struct mpr_data *data, const u8 cmd, const u8 cnt);
+  int (*write)(struct mpr_data *data, const u8 cmd, const u8 cnt);
 };
 
 int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq);

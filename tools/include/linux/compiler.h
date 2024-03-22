@@ -5,22 +5,22 @@
 #include <linux/compiler_types.h>
 
 #ifndef __compiletime_error
-# define __compiletime_error(message)
+#define __compiletime_error(message)
 #endif
 
 #ifdef __OPTIMIZE__
-# define __compiletime_assert(condition, msg, prefix, suffix)		\
-	do {								\
-		extern void prefix ## suffix(void) __compiletime_error(msg); \
-		if (!(condition))					\
-			prefix ## suffix();				\
-	} while (0)
+#define __compiletime_assert(condition, msg, prefix, suffix)   \
+  do {                \
+    extern void prefix ## suffix(void) __compiletime_error(msg); \
+    if (!(condition))         \
+    prefix ## suffix();       \
+  } while (0)
 #else
-# define __compiletime_assert(condition, msg, prefix, suffix) do { } while (0)
+#define __compiletime_assert(condition, msg, prefix, suffix) do {} while (0)
 #endif
 
 #define _compiletime_assert(condition, msg, prefix, suffix) \
-	__compiletime_assert(condition, msg, prefix, suffix)
+  __compiletime_assert(condition, msg, prefix, suffix)
 
 /**
  * compiletime_assert - break build and emit msg if condition is false
@@ -32,14 +32,14 @@
  * compiler has support to do so.
  */
 #define compiletime_assert(condition, msg) \
-	_compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
+  _compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
 
-/* Optimization barrier */
-/* The "volatile" is due to gcc bugs */
-#define barrier() __asm__ __volatile__("": : :"memory")
+/* Optimization barrier
+ * The "volatile" is due to gcc bugs*/
+#define barrier() __asm__ __volatile__ ("" : : : "memory")
 
 #ifndef __always_inline
-# define __always_inline	inline __attribute__((always_inline))
+#define __always_inline  inline __attribute__((always_inline))
 #endif
 
 #ifndef __always_unused
@@ -60,7 +60,7 @@
 
 /* Are two types/vars the same type (ignoring qualifiers)? */
 #ifndef __same_type
-# define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
+#define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 #endif
 
 /*
@@ -69,7 +69,7 @@
  * Glory to Martin Uecker <Martin.Uecker@med.uni-goettingen.de>
  */
 #define __is_constexpr(x) \
-	(sizeof(int) == sizeof(*(8 ? ((void *)((long)(x) * 0l)) : (int *)8)))
+  (sizeof(int) == sizeof(*(8 ? ((void *) ((long) (x) * 0l)) : (int *) 8)))
 
 #ifdef __ANDROID__
 /*
@@ -79,7 +79,7 @@
  * At least on android-ndk-r12/platforms/android-24/arch-arm
  */
 #undef __always_inline
-#define __always_inline	inline
+#define __always_inline inline
 #endif
 
 #define __user
@@ -87,39 +87,39 @@
 #define __read_mostly
 
 #ifndef __attribute_const__
-# define __attribute_const__
+#define __attribute_const__
 #endif
 
 #ifndef __maybe_unused
-# define __maybe_unused		__attribute__((unused))
+#define __maybe_unused   __attribute__((unused))
 #endif
 
 #ifndef __used
-# define __used		__attribute__((__unused__))
+#define __used   __attribute__((__unused__))
 #endif
 
 #ifndef __packed
-# define __packed		__attribute__((__packed__))
+#define __packed   __attribute__((__packed__))
 #endif
 
 #ifndef __force
-# define __force
+#define __force
 #endif
 
 #ifndef __weak
-# define __weak			__attribute__((weak))
+#define __weak     __attribute__((weak))
 #endif
 
 #ifndef likely
-# define likely(x)		__builtin_expect(!!(x), 1)
+#define likely(x)    __builtin_expect(!!(x), 1)
 #endif
 
 #ifndef unlikely
-# define unlikely(x)		__builtin_expect(!!(x), 0)
+#define unlikely(x)    __builtin_expect(!!(x), 0)
 #endif
 
 #ifndef __init
-# define __init
+#define __init
 #endif
 
 #include <linux/types.h>
@@ -135,37 +135,53 @@
  * Using extra __may_alias__ type to allow aliasing
  * in this case.
  */
-typedef __u8  __attribute__((__may_alias__))  __u8_alias_t;
+typedef __u8 __attribute__((__may_alias__))  __u8_alias_t;
 typedef __u16 __attribute__((__may_alias__)) __u16_alias_t;
 typedef __u32 __attribute__((__may_alias__)) __u32_alias_t;
 typedef __u64 __attribute__((__may_alias__)) __u64_alias_t;
 
-static __always_inline void __read_once_size(const volatile void *p, void *res, int size)
-{
-	switch (size) {
-	case 1: *(__u8_alias_t  *) res = *(volatile __u8_alias_t  *) p; break;
-	case 2: *(__u16_alias_t *) res = *(volatile __u16_alias_t *) p; break;
-	case 4: *(__u32_alias_t *) res = *(volatile __u32_alias_t *) p; break;
-	case 8: *(__u64_alias_t *) res = *(volatile __u64_alias_t *) p; break;
-	default:
-		barrier();
-		__builtin_memcpy((void *)res, (const void *)p, size);
-		barrier();
-	}
+static __always_inline void __read_once_size(const volatile void *p, void *res,
+    int size) {
+  switch (size) {
+    case 1:
+      *(__u8_alias_t *) res = *(volatile __u8_alias_t *) p;
+      break;
+    case 2:
+      *(__u16_alias_t *) res = *(volatile __u16_alias_t *) p;
+      break;
+    case 4:
+      *(__u32_alias_t *) res = *(volatile __u32_alias_t *) p;
+      break;
+    case 8:
+      *(__u64_alias_t *) res = *(volatile __u64_alias_t *) p;
+      break;
+    default:
+      barrier();
+      __builtin_memcpy((void *) res, (const void *) p, size);
+      barrier();
+  }
 }
 
-static __always_inline void __write_once_size(volatile void *p, void *res, int size)
-{
-	switch (size) {
-	case 1: *(volatile  __u8_alias_t *) p = *(__u8_alias_t  *) res; break;
-	case 2: *(volatile __u16_alias_t *) p = *(__u16_alias_t *) res; break;
-	case 4: *(volatile __u32_alias_t *) p = *(__u32_alias_t *) res; break;
-	case 8: *(volatile __u64_alias_t *) p = *(__u64_alias_t *) res; break;
-	default:
-		barrier();
-		__builtin_memcpy((void *)p, (const void *)res, size);
-		barrier();
-	}
+static __always_inline void __write_once_size(volatile void *p, void *res,
+    int size) {
+  switch (size) {
+    case 1:
+      *(volatile __u8_alias_t *) p = *(__u8_alias_t *) res;
+      break;
+    case 2:
+      *(volatile __u16_alias_t *) p = *(__u16_alias_t *) res;
+      break;
+    case 4:
+      *(volatile __u32_alias_t *) p = *(__u32_alias_t *) res;
+      break;
+    case 8:
+      *(volatile __u64_alias_t *) p = *(__u64_alias_t *) res;
+      break;
+    default:
+      barrier();
+      __builtin_memcpy((void *) p, (const void *) res, size);
+      barrier();
+  }
 }
 
 /*
@@ -189,31 +205,30 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * required ordering.
  */
 
-#define READ_ONCE(x)					\
-({							\
-	union { typeof(x) __val; char __c[1]; } __u =	\
-		{ .__c = { 0 } };			\
-	__read_once_size(&(x), __u.__c, sizeof(x));	\
-	__u.__val;					\
-})
+#define READ_ONCE(x)          \
+  ({              \
+    union { typeof(x) __val; char __c[1]; } __u = \
+    { .__c = { 0 } };     \
+    __read_once_size(&(x), __u.__c, sizeof(x)); \
+    __u.__val;          \
+  })
 
-#define WRITE_ONCE(x, val)				\
-({							\
-	union { typeof(x) __val; char __c[1]; } __u =	\
-		{ .__val = (val) }; 			\
-	__write_once_size(&(x), __u.__c, sizeof(x));	\
-	__u.__val;					\
-})
-
+#define WRITE_ONCE(x, val)        \
+  ({              \
+    union { typeof(x) __val; char __c[1]; } __u = \
+    { .__val = (val) };       \
+    __write_once_size(&(x), __u.__c, sizeof(x));  \
+    __u.__val;          \
+  })
 
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
-#define ___PASTE(a, b) a##b
+#define ___PASTE(a, b) a ## b
 #define __PASTE(a, b) ___PASTE(a, b)
 
 #ifndef OPTIMIZER_HIDE_VAR
 /* Make the optimizer believe the variable can be manipulated arbitrarily. */
-#define OPTIMIZER_HIDE_VAR(var)						\
-	__asm__ ("" : "=r" (var) : "0" (var))
+#define OPTIMIZER_HIDE_VAR(var)           \
+  __asm__ ("" : "=r" (var) : "0" (var))
 #endif
 
 #endif /* _TOOLS_LINUX_COMPILER_H */

@@ -16,14 +16,14 @@ struct drm_gem_dma_object;
 struct shmob_drm_device;
 
 struct shmob_drm_format_info {
-	u32 fourcc;
-	u32 lddfr;	/* LCD Data Format Register */
-	u16 ldbbsifr;	/* CHn Source Image Format Register low bits */
-	u8 ldddsr;	/* LCDC Input Image Data Swap Register low bits */
-	u8 bpp;
+  u32 fourcc;
+  u32 lddfr;  /* LCD Data Format Register */
+  u16 ldbbsifr; /* CHn Source Image Format Register low bits */
+  u8 ldddsr;  /* LCDC Input Image Data Swap Register low bits */
+  u8 bpp;
 };
 
-#define shmob_drm_format_is_yuv(format)	((format)->lddfr & LDDFR_CC)
+#define shmob_drm_format_is_yuv(format) ((format)->lddfr & LDDFR_CC)
 
 const struct shmob_drm_format_info *shmob_drm_format_info(u32 fourcc);
 

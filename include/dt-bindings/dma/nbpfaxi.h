@@ -10,8 +10,8 @@
 /**
  * Use "#dma-cells = <2>;" with the second integer defining slave DMA flags:
  */
-#define NBPF_SLAVE_RQ_HIGH	1
-#define NBPF_SLAVE_RQ_LOW	2
-#define NBPF_SLAVE_RQ_LEVEL	4
+#define NBPF_SLAVE_RQ_HIGH  1
+#define NBPF_SLAVE_RQ_LOW 2
+#define NBPF_SLAVE_RQ_LEVEL 4
 
 #endif

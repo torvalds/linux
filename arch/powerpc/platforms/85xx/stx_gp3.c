@@ -40,55 +40,47 @@
 #include <asm/cpm2.h>
 #endif /* CONFIG_CPM2 */
 
-static void __init stx_gp3_pic_init(void)
-{
-	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
-			0, 256, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
-	mpic_init(mpic);
-
-	mpc85xx_cpm2_pic_init();
+static void __init stx_gp3_pic_init(void) {
+  struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
+      0, 256, " OpenPIC  ");
+  BUG_ON(mpic == NULL);
+  mpic_init(mpic);
+  mpc85xx_cpm2_pic_init();
 }
 
 /*
  * Setup the architecture
  */
-static void __init stx_gp3_setup_arch(void)
-{
-	if (ppc_md.progress)
-		ppc_md.progress("stx_gp3_setup_arch()", 0);
-
-	fsl_pci_assign_primary();
-
+static void __init stx_gp3_setup_arch(void) {
+  if (ppc_md.progress) {
+    ppc_md.progress("stx_gp3_setup_arch()", 0);
+  }
+  fsl_pci_assign_primary();
 #ifdef CONFIG_CPM2
-	cpm2_reset();
+  cpm2_reset();
 #endif
 }
 
-static void stx_gp3_show_cpuinfo(struct seq_file *m)
-{
-	uint pvid, svid, phid1;
-
-	pvid = mfspr(SPRN_PVR);
-	svid = mfspr(SPRN_SVR);
-
-	seq_printf(m, "Vendor\t\t: RPC Electronics STx\n");
-	seq_printf(m, "PVR\t\t: 0x%x\n", pvid);
-	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
-
-	/* Display cpu Pll setting */
-	phid1 = mfspr(SPRN_HID1);
-	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
+static void stx_gp3_show_cpuinfo(struct seq_file *m) {
+  uint pvid, svid, phid1;
+  pvid = mfspr(SPRN_PVR);
+  svid = mfspr(SPRN_SVR);
+  seq_printf(m, "Vendor\t\t: RPC Electronics STx\n");
+  seq_printf(m, "PVR\t\t: 0x%x\n", pvid);
+  seq_printf(m, "SVR\t\t: 0x%x\n", svid);
+  /* Display cpu Pll setting */
+  phid1 = mfspr(SPRN_HID1);
+  seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
 machine_arch_initcall(stx_gp3, mpc85xx_common_publish_devices);
 
 define_machine(stx_gp3) {
-	.name			= "STX GP3",
-	.compatible		= "stx,gp3-8560",
-	.setup_arch		= stx_gp3_setup_arch,
-	.init_IRQ		= stx_gp3_pic_init,
-	.show_cpuinfo		= stx_gp3_show_cpuinfo,
-	.get_irq		= mpic_get_irq,
-	.progress		= udbg_progress,
+  .name = "STX GP3",
+  .compatible = "stx,gp3-8560",
+  .setup_arch = stx_gp3_setup_arch,
+  .init_IRQ = stx_gp3_pic_init,
+  .show_cpuinfo = stx_gp3_show_cpuinfo,
+  .get_irq = mpic_get_irq,
+  .progress = udbg_progress,
 };

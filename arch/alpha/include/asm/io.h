@@ -11,7 +11,7 @@
 #include <asm/hwrpb.h>
 
 /* The generic header contains only prototypes.  Including it ensures that
-   the implementation we have here matches that interface.  */
+ * the implementation we have here matches that interface.  */
 #include <asm-generic/iomap.h>
 
 /*
@@ -30,65 +30,56 @@
  * register not being up-to-date with respect to the hardware
  * value.
  */
-extern inline void __set_hae(unsigned long new_hae)
-{
-	unsigned long flags = swpipl(IPL_MAX);
-
-	barrier();
-
-	alpha_mv.hae_cache = new_hae;
-	*alpha_mv.hae_register = new_hae;
-	mb();
-	/* Re-read to make sure it was written.  */
-	new_hae = *alpha_mv.hae_register;
-
-	setipl(flags);
-	barrier();
+extern inline void __set_hae(unsigned long new_hae) {
+  unsigned long flags = swpipl(IPL_MAX);
+  barrier();
+  alpha_mv.hae_cache = new_hae;
+  *alpha_mv.hae_register = new_hae;
+  mb();
+  /* Re-read to make sure it was written.  */
+  new_hae = *alpha_mv.hae_register;
+  setipl(flags);
+  barrier();
 }
 
-extern inline void set_hae(unsigned long new_hae)
-{
-	if (new_hae != alpha_mv.hae_cache)
-		__set_hae(new_hae);
+extern inline void set_hae(unsigned long new_hae) {
+  if (new_hae != alpha_mv.hae_cache) {
+    __set_hae(new_hae);
+  }
 }
 
 /*
  * Change virtual addresses to physical addresses and vv.
  */
 #ifdef USE_48_BIT_KSEG
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-	return (unsigned long)address - IDENT_ADDR;
+static inline unsigned long virt_to_phys(volatile void *address) {
+  return (unsigned long) address - IDENT_ADDR;
 }
 
-static inline void * phys_to_virt(unsigned long address)
-{
-	return (void *) (address + IDENT_ADDR);
+static inline void *phys_to_virt(unsigned long address) {
+  return (void *) (address + IDENT_ADDR);
 }
+
 #else
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-        unsigned long phys = (unsigned long)address;
-
-	/* Sign-extend from bit 41.  */
-	phys <<= (64 - 41);
-	phys = (long)phys >> (64 - 41);
-
-	/* Crop to the physical address width of the processor.  */
-        phys &= (1ul << hwrpb->pa_bits) - 1;
-
-        return phys;
+static inline unsigned long virt_to_phys(volatile void *address) {
+  unsigned long phys = (unsigned long) address;
+  /* Sign-extend from bit 41.  */
+  phys <<= (64 - 41);
+  phys = (long) phys >> (64 - 41);
+  /* Crop to the physical address width of the processor.  */
+  phys &= (1ul << hwrpb->pa_bits) - 1;
+  return phys;
 }
 
-static inline void * phys_to_virt(unsigned long address)
-{
-        return (void *)(IDENT_ADDR + (address & ((1ul << 41) - 1)));
+static inline void *phys_to_virt(unsigned long address) {
+  return (void *) (IDENT_ADDR + (address & ((1ul << 41) - 1)));
 }
+
 #endif
 
-#define virt_to_phys		virt_to_phys
-#define phys_to_virt		phys_to_virt
-#define page_to_phys(page)	page_to_pa(page)
+#define virt_to_phys    virt_to_phys
+#define phys_to_virt    phys_to_virt
+#define page_to_phys(page)  page_to_pa(page)
 
 /* Maximum PIO space address supported?  */
 #define IO_SPACE_LIMIT 0xffff
@@ -98,7 +89,7 @@ static inline void * phys_to_virt(unsigned long address)
  * seen by a device (bus), and vice versa.
  *
  * Note that this only works for a limited range of kernel addresses,
- * and very well may not span all memory.  Consider this interface 
+ * and very well may not span all memory.  Consider this interface
  * deprecated in favour of the DMA-mapping API.
  */
 extern unsigned long __direct_map_base;
@@ -106,47 +97,47 @@ extern unsigned long __direct_map_size;
 
 static inline unsigned long __deprecated isa_virt_to_bus(volatile void *address)
 {
-	unsigned long phys = virt_to_phys(address);
-	unsigned long bus = phys + __direct_map_base;
-	return phys <= __direct_map_size ? bus : 0;
+  unsigned long phys = virt_to_phys(address);
+  unsigned long bus = phys + __direct_map_base;
+  return phys <= __direct_map_size ? bus : 0;
 }
+
 #define isa_virt_to_bus isa_virt_to_bus
 
-static inline void * __deprecated isa_bus_to_virt(unsigned long address)
-{
-	void *virt;
-
-	/* This check is a sanity check but also ensures that bus address 0
-	   maps to virtual address 0 which is useful to detect null pointers
-	   (the NCR driver is much simpler if NULL pointers are preserved).  */
-	address -= __direct_map_base;
-	virt = phys_to_virt(address);
-	return (long)address <= 0 ? NULL : virt;
+static inline void *__deprecated isa_bus_to_virt(unsigned long address) {
+  void *virt;
+  /* This check is a sanity check but also ensures that bus address 0
+   * maps to virtual address 0 which is useful to detect null pointers
+   * (the NCR driver is much simpler if NULL pointers are preserved).  */
+  address -= __direct_map_base;
+  virt = phys_to_virt(address);
+  return (long) address <= 0 ? NULL : virt;
 }
+
 #define isa_bus_to_virt isa_bus_to_virt
 
 /*
  * There are different chipsets to interface the Alpha CPUs to the world.
  */
 
-#define IO_CONCAT(a,b)	_IO_CONCAT(a,b)
-#define _IO_CONCAT(a,b)	a ## _ ## b
+#define IO_CONCAT(a, b)  _IO_CONCAT(a, b)
+#define _IO_CONCAT(a, b) a ## _ ## b
 
 #ifdef CONFIG_ALPHA_GENERIC
 
 /* In a generic kernel, we always go through the machine vector.  */
 
-#define REMAP1(TYPE, NAME, QUAL)					\
-static inline TYPE generic_##NAME(QUAL void __iomem *addr)		\
-{									\
-	return alpha_mv.mv_##NAME(addr);				\
-}
+#define REMAP1(TYPE, NAME, QUAL)          \
+  static inline TYPE generic_ ## NAME(QUAL void __iomem * addr)    \
+  {                 \
+    return alpha_mv.mv_ ## NAME(addr);        \
+  }
 
-#define REMAP2(TYPE, NAME, QUAL)					\
-static inline void generic_##NAME(TYPE b, QUAL void __iomem *addr)	\
-{									\
-	alpha_mv.mv_##NAME(b, addr);					\
-}
+#define REMAP2(TYPE, NAME, QUAL)          \
+  static inline void generic_ ## NAME(TYPE b, QUAL void __iomem * addr)  \
+  {                 \
+    alpha_mv.mv_ ## NAME(b, addr);          \
+  }
 
 REMAP1(unsigned int, ioread8, const)
 REMAP1(unsigned int, ioread16, const)
@@ -169,64 +160,60 @@ REMAP2(u64, writeq, volatile)
 #undef REMAP1
 #undef REMAP2
 
-extern inline void __iomem *generic_ioportmap(unsigned long a)
+extern inline void __iomem * generic_ioportmap(unsigned long a)
 {
-	return alpha_mv.mv_ioportmap(a);
+  return alpha_mv.mv_ioportmap(a);
 }
 
-static inline void __iomem *generic_ioremap(unsigned long a, unsigned long s)
-{
-	return alpha_mv.mv_ioremap(a, s);
+static inline void __iomem *generic_ioremap(unsigned long a, unsigned long s) {
+  return alpha_mv.mv_ioremap(a, s);
 }
 
-static inline void generic_iounmap(volatile void __iomem *a)
-{
-	return alpha_mv.mv_iounmap(a);
+static inline void generic_iounmap(volatile void __iomem *a) {
+  return alpha_mv.mv_iounmap(a);
 }
 
-static inline int generic_is_ioaddr(unsigned long a)
-{
-	return alpha_mv.mv_is_ioaddr(a);
+static inline int generic_is_ioaddr(unsigned long a) {
+  return alpha_mv.mv_is_ioaddr(a);
 }
 
-static inline int generic_is_mmio(const volatile void __iomem *a)
-{
-	return alpha_mv.mv_is_mmio(a);
+static inline int generic_is_mmio(const volatile void __iomem *a) {
+  return alpha_mv.mv_is_mmio(a);
 }
 
-#define __IO_PREFIX		generic
-#define generic_trivial_rw_bw	0
-#define generic_trivial_rw_lq	0
-#define generic_trivial_io_bw	0
-#define generic_trivial_io_lq	0
-#define generic_trivial_iounmap	0
+#define __IO_PREFIX   generic
+#define generic_trivial_rw_bw 0
+#define generic_trivial_rw_lq 0
+#define generic_trivial_io_bw 0
+#define generic_trivial_io_lq 0
+#define generic_trivial_iounmap 0
 
 #else
 
 #if defined(CONFIG_ALPHA_APECS)
-# include <asm/core_apecs.h>
+#include <asm/core_apecs.h>
 #elif defined(CONFIG_ALPHA_CIA)
-# include <asm/core_cia.h>
+#include <asm/core_cia.h>
 #elif defined(CONFIG_ALPHA_IRONGATE)
-# include <asm/core_irongate.h>
+#include <asm/core_irongate.h>
 #elif defined(CONFIG_ALPHA_JENSEN)
-# include <asm/jensen.h>
+#include <asm/jensen.h>
 #elif defined(CONFIG_ALPHA_LCA)
-# include <asm/core_lca.h>
+#include <asm/core_lca.h>
 #elif defined(CONFIG_ALPHA_MARVEL)
-# include <asm/core_marvel.h>
+#include <asm/core_marvel.h>
 #elif defined(CONFIG_ALPHA_MCPCIA)
-# include <asm/core_mcpcia.h>
+#include <asm/core_mcpcia.h>
 #elif defined(CONFIG_ALPHA_POLARIS)
-# include <asm/core_polaris.h>
+#include <asm/core_polaris.h>
 #elif defined(CONFIG_ALPHA_T2)
-# include <asm/core_t2.h>
+#include <asm/core_t2.h>
 #elif defined(CONFIG_ALPHA_TSUNAMI)
-# include <asm/core_tsunami.h>
+#include <asm/core_tsunami.h>
 #elif defined(CONFIG_ALPHA_TITAN)
-# include <asm/core_titan.h>
+#include <asm/core_titan.h>
 #elif defined(CONFIG_ALPHA_WILDFIRE)
-# include <asm/core_wildfire.h>
+#include <asm/core_wildfire.h>
 #else
 #error "What system is this?"
 #endif
@@ -236,12 +223,12 @@ static inline int generic_is_mmio(const volatile void __iomem *a)
 /*
  * We always have external versions of these routines.
  */
-extern u8		inb(unsigned long port);
-extern u16		inw(unsigned long port);
-extern u32		inl(unsigned long port);
-extern void		outb(u8 b, unsigned long port);
-extern void		outw(u16 b, unsigned long port);
-extern void		outl(u32 b, unsigned long port);
+extern u8 inb(unsigned long port);
+extern u16 inw(unsigned long port);
+extern u32 inl(unsigned long port);
+extern void outb(u8 b, unsigned long port);
+extern void outw(u16 b, unsigned long port);
+extern void outl(u32 b, unsigned long port);
 #define inb inb
 #define inw inw
 #define inl inl
@@ -249,14 +236,14 @@ extern void		outl(u32 b, unsigned long port);
 #define outw outw
 #define outl outl
 
-extern u8		readb(const volatile void __iomem *addr);
-extern u16		readw(const volatile void __iomem *addr);
-extern u32		readl(const volatile void __iomem *addr);
-extern u64		readq(const volatile void __iomem *addr);
-extern void		writeb(u8 b, volatile void __iomem *addr);
-extern void		writew(u16 b, volatile void __iomem *addr);
-extern void		writel(u32 b, volatile void __iomem *addr);
-extern void		writeq(u64 b, volatile void __iomem *addr);
+extern u8 readb(const volatile void __iomem *addr);
+extern u16 readw(const volatile void __iomem *addr);
+extern u32 readl(const volatile void __iomem *addr);
+extern u64 readq(const volatile void __iomem *addr);
+extern void writeb(u8 b, volatile void __iomem *addr);
+extern void writew(u16 b, volatile void __iomem *addr);
+extern void writel(u32 b, volatile void __iomem *addr);
+extern void writeq(u64 b, volatile void __iomem *addr);
 #define readb readb
 #define readw readw
 #define readl readl
@@ -266,14 +253,14 @@ extern void		writeq(u64 b, volatile void __iomem *addr);
 #define writel writel
 #define writeq writeq
 
-extern u8		__raw_readb(const volatile void __iomem *addr);
-extern u16		__raw_readw(const volatile void __iomem *addr);
-extern u32		__raw_readl(const volatile void __iomem *addr);
-extern u64		__raw_readq(const volatile void __iomem *addr);
-extern void		__raw_writeb(u8 b, volatile void __iomem *addr);
-extern void		__raw_writew(u16 b, volatile void __iomem *addr);
-extern void		__raw_writel(u32 b, volatile void __iomem *addr);
-extern void		__raw_writeq(u64 b, volatile void __iomem *addr);
+extern u8 __raw_readb(const volatile void __iomem *addr);
+extern u16 __raw_readw(const volatile void __iomem *addr);
+extern u32 __raw_readl(const volatile void __iomem *addr);
+extern u64 __raw_readq(const volatile void __iomem *addr);
+extern void __raw_writeb(u8 b, volatile void __iomem *addr);
+extern void __raw_writew(u16 b, volatile void __iomem *addr);
+extern void __raw_writel(u32 b, volatile void __iomem *addr);
+extern void __raw_writeq(u64 b, volatile void __iomem *addr);
 #define __raw_readb __raw_readb
 #define __raw_readw __raw_readw
 #define __raw_readl __raw_readl
@@ -288,98 +275,85 @@ extern void		__raw_writeq(u64 b, volatile void __iomem *addr);
  */
 
 /* These two have to be extern inline because of the extern prototype from
-   <asm-generic/iomap.h>.  It is not legal to mix "extern" and "static" for
-   the same declaration.  */
-extern inline void __iomem *ioport_map(unsigned long port, unsigned int size)
-{
-	return IO_CONCAT(__IO_PREFIX,ioportmap) (port);
+ * <asm-generic/iomap.h>.  It is not legal to mix "extern" and "static" for
+ * the same declaration.  */
+extern inline void __iomem *ioport_map(unsigned long port, unsigned int size) {
+  return IO_CONCAT(__IO_PREFIX, ioportmap) (port);
 }
 
-extern inline void ioport_unmap(void __iomem *addr)
-{
+extern inline void ioport_unmap(void __iomem *addr) {
 }
 
 #define ioport_map ioport_map
 #define ioport_unmap ioport_unmap
 
-static inline void __iomem *ioremap(unsigned long port, unsigned long size)
-{
-	return IO_CONCAT(__IO_PREFIX,ioremap) (port, size);
+static inline void __iomem *ioremap(unsigned long port, unsigned long size) {
+  return IO_CONCAT(__IO_PREFIX, ioremap) (port, size);
 }
 
 #define ioremap_wc ioremap
 
-static inline void iounmap(volatile void __iomem *addr)
-{
-	IO_CONCAT(__IO_PREFIX,iounmap)(addr);
+static inline void iounmap(volatile void __iomem *addr) {
+  IO_CONCAT(__IO_PREFIX, iounmap) (addr);
 }
 
-static inline int __is_ioaddr(unsigned long addr)
-{
-	return IO_CONCAT(__IO_PREFIX,is_ioaddr)(addr);
-}
-#define __is_ioaddr(a)		__is_ioaddr((unsigned long)(a))
-
-static inline int __is_mmio(const volatile void __iomem *addr)
-{
-	return IO_CONCAT(__IO_PREFIX,is_mmio)(addr);
+static inline int __is_ioaddr(unsigned long addr) {
+  return IO_CONCAT(__IO_PREFIX, is_ioaddr) (addr);
 }
 
+#define __is_ioaddr(a)    __is_ioaddr((unsigned long) (a))
+
+static inline int __is_mmio(const volatile void __iomem *addr) {
+  return IO_CONCAT(__IO_PREFIX, is_mmio) (addr);
+}
 
 /*
  * If the actual I/O bits are sufficiently trivial, then expand inline.
  */
 
-#if IO_CONCAT(__IO_PREFIX,trivial_io_bw)
-extern inline unsigned int ioread8(const void __iomem *addr)
-{
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread8)(addr);
-	mb();
-	return ret;
+#if IO_CONCAT(__IO_PREFIX, trivial_io_bw)
+extern inline unsigned int ioread8(const void __iomem *addr) {
+  unsigned int ret;
+  mb();
+  ret = IO_CONCAT(__IO_PREFIX, ioread8) (addr);
+  mb();
+  return ret;
 }
 
-extern inline unsigned int ioread16(const void __iomem *addr)
-{
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread16)(addr);
-	mb();
-	return ret;
+extern inline unsigned int ioread16(const void __iomem *addr) {
+  unsigned int ret;
+  mb();
+  ret = IO_CONCAT(__IO_PREFIX, ioread16) (addr);
+  mb();
+  return ret;
 }
 
-extern inline void iowrite8(u8 b, void __iomem *addr)
-{
-	mb();
-	IO_CONCAT(__IO_PREFIX, iowrite8)(b, addr);
+extern inline void iowrite8(u8 b, void __iomem *addr) {
+  mb();
+  IO_CONCAT(__IO_PREFIX, iowrite8) (b, addr);
 }
 
-extern inline void iowrite16(u16 b, void __iomem *addr)
-{
-	mb();
-	IO_CONCAT(__IO_PREFIX, iowrite16)(b, addr);
+extern inline void iowrite16(u16 b, void __iomem *addr) {
+  mb();
+  IO_CONCAT(__IO_PREFIX, iowrite16) (b, addr);
 }
 
-extern inline u8 inb(unsigned long port)
-{
-	return ioread8(ioport_map(port, 1));
+extern inline u8 inb(unsigned long port) {
+  return ioread8(ioport_map(port, 1));
 }
 
-extern inline u16 inw(unsigned long port)
-{
-	return ioread16(ioport_map(port, 2));
+extern inline u16 inw(unsigned long port) {
+  return ioread16(ioport_map(port, 2));
 }
 
-extern inline void outb(u8 b, unsigned long port)
-{
-	iowrite8(b, ioport_map(port, 1));
+extern inline void outb(u8 b, unsigned long port) {
+  iowrite8(b, ioport_map(port, 1));
 }
 
-extern inline void outw(u16 b, unsigned long port)
-{
-	iowrite16(b, ioport_map(port, 2));
+extern inline void outw(u16 b, unsigned long port) {
+  iowrite16(b, ioport_map(port, 2));
 }
+
 #endif
 
 #define ioread8 ioread8
@@ -387,46 +361,41 @@ extern inline void outw(u16 b, unsigned long port)
 #define iowrite8 iowrite8
 #define iowrite16 iowrite16
 
-#if IO_CONCAT(__IO_PREFIX,trivial_io_lq)
-extern inline unsigned int ioread32(const void __iomem *addr)
-{
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread32)(addr);
-	mb();
-	return ret;
+#if IO_CONCAT(__IO_PREFIX, trivial_io_lq)
+extern inline unsigned int ioread32(const void __iomem *addr) {
+  unsigned int ret;
+  mb();
+  ret = IO_CONCAT(__IO_PREFIX, ioread32) (addr);
+  mb();
+  return ret;
 }
 
-extern inline u64 ioread64(const void __iomem *addr)
-{
-	unsigned int ret;
-	mb();
-	ret = IO_CONCAT(__IO_PREFIX,ioread64)(addr);
-	mb();
-	return ret;
+extern inline u64 ioread64(const void __iomem *addr) {
+  unsigned int ret;
+  mb();
+  ret = IO_CONCAT(__IO_PREFIX, ioread64) (addr);
+  mb();
+  return ret;
 }
 
-extern inline void iowrite32(u32 b, void __iomem *addr)
-{
-	mb();
-	IO_CONCAT(__IO_PREFIX, iowrite32)(b, addr);
+extern inline void iowrite32(u32 b, void __iomem *addr) {
+  mb();
+  IO_CONCAT(__IO_PREFIX, iowrite32) (b, addr);
 }
 
-extern inline void iowrite64(u64 b, void __iomem *addr)
-{
-	mb();
-	IO_CONCAT(__IO_PREFIX, iowrite64)(b, addr);
+extern inline void iowrite64(u64 b, void __iomem *addr) {
+  mb();
+  IO_CONCAT(__IO_PREFIX, iowrite64) (b, addr);
 }
 
-extern inline u32 inl(unsigned long port)
-{
-	return ioread32(ioport_map(port, 4));
+extern inline u32 inl(unsigned long port) {
+  return ioread32(ioport_map(port, 4));
 }
 
-extern inline void outl(u32 b, unsigned long port)
-{
-	iowrite32(b, ioport_map(port, 4));
+extern inline void outl(u32 b, unsigned long port) {
+  iowrite32(b, ioport_map(port, 4));
 }
+
 #endif
 
 #define ioread32 ioread32
@@ -434,121 +403,107 @@ extern inline void outl(u32 b, unsigned long port)
 #define iowrite32 iowrite32
 #define iowrite64 iowrite64
 
-#if IO_CONCAT(__IO_PREFIX,trivial_rw_bw) == 1
-extern inline u8 __raw_readb(const volatile void __iomem *addr)
-{
-	return IO_CONCAT(__IO_PREFIX,readb)(addr);
+#if IO_CONCAT(__IO_PREFIX, trivial_rw_bw) == 1
+extern inline u8 __raw_readb(const volatile void __iomem *addr) {
+  return IO_CONCAT(__IO_PREFIX, readb) (addr);
 }
 
-extern inline u16 __raw_readw(const volatile void __iomem *addr)
-{
-	return IO_CONCAT(__IO_PREFIX,readw)(addr);
+extern inline u16 __raw_readw(const volatile void __iomem *addr) {
+  return IO_CONCAT(__IO_PREFIX, readw) (addr);
 }
 
-extern inline void __raw_writeb(u8 b, volatile void __iomem *addr)
-{
-	IO_CONCAT(__IO_PREFIX,writeb)(b, addr);
+extern inline void __raw_writeb(u8 b, volatile void __iomem *addr) {
+  IO_CONCAT(__IO_PREFIX, writeb) (b, addr);
 }
 
-extern inline void __raw_writew(u16 b, volatile void __iomem *addr)
-{
-	IO_CONCAT(__IO_PREFIX,writew)(b, addr);
+extern inline void __raw_writew(u16 b, volatile void __iomem *addr) {
+  IO_CONCAT(__IO_PREFIX, writew) (b, addr);
 }
 
-extern inline u8 readb(const volatile void __iomem *addr)
-{
-	u8 ret;
-	mb();
-	ret = __raw_readb(addr);
-	mb();
-	return ret;
+extern inline u8 readb(const volatile void __iomem *addr) {
+  u8 ret;
+  mb();
+  ret = __raw_readb(addr);
+  mb();
+  return ret;
 }
 
-extern inline u16 readw(const volatile void __iomem *addr)
-{
-	u16 ret;
-	mb();
-	ret = __raw_readw(addr);
-	mb();
-	return ret;
+extern inline u16 readw(const volatile void __iomem *addr) {
+  u16 ret;
+  mb();
+  ret = __raw_readw(addr);
+  mb();
+  return ret;
 }
 
-extern inline void writeb(u8 b, volatile void __iomem *addr)
-{
-	mb();
-	__raw_writeb(b, addr);
+extern inline void writeb(u8 b, volatile void __iomem *addr) {
+  mb();
+  __raw_writeb(b, addr);
 }
 
-extern inline void writew(u16 b, volatile void __iomem *addr)
-{
-	mb();
-	__raw_writew(b, addr);
+extern inline void writew(u16 b, volatile void __iomem *addr) {
+  mb();
+  __raw_writew(b, addr);
 }
+
 #endif
 
-#if IO_CONCAT(__IO_PREFIX,trivial_rw_lq) == 1
-extern inline u32 __raw_readl(const volatile void __iomem *addr)
-{
-	return IO_CONCAT(__IO_PREFIX,readl)(addr);
+#if IO_CONCAT(__IO_PREFIX, trivial_rw_lq) == 1
+extern inline u32 __raw_readl(const volatile void __iomem *addr) {
+  return IO_CONCAT(__IO_PREFIX, readl) (addr);
 }
 
-extern inline u64 __raw_readq(const volatile void __iomem *addr)
-{
-	return IO_CONCAT(__IO_PREFIX,readq)(addr);
+extern inline u64 __raw_readq(const volatile void __iomem *addr) {
+  return IO_CONCAT(__IO_PREFIX, readq) (addr);
 }
 
-extern inline void __raw_writel(u32 b, volatile void __iomem *addr)
-{
-	IO_CONCAT(__IO_PREFIX,writel)(b, addr);
+extern inline void __raw_writel(u32 b, volatile void __iomem *addr) {
+  IO_CONCAT(__IO_PREFIX, writel) (b, addr);
 }
 
-extern inline void __raw_writeq(u64 b, volatile void __iomem *addr)
-{
-	IO_CONCAT(__IO_PREFIX,writeq)(b, addr);
+extern inline void __raw_writeq(u64 b, volatile void __iomem *addr) {
+  IO_CONCAT(__IO_PREFIX, writeq) (b, addr);
 }
 
-extern inline u32 readl(const volatile void __iomem *addr)
-{
-	u32 ret;
-	mb();
-	ret = __raw_readl(addr);
-	mb();
-	return ret;
+extern inline u32 readl(const volatile void __iomem *addr) {
+  u32 ret;
+  mb();
+  ret = __raw_readl(addr);
+  mb();
+  return ret;
 }
 
-extern inline u64 readq(const volatile void __iomem *addr)
-{
-	u64 ret;
-	mb();
-	ret = __raw_readq(addr);
-	mb();
-	return ret;
+extern inline u64 readq(const volatile void __iomem *addr) {
+  u64 ret;
+  mb();
+  ret = __raw_readq(addr);
+  mb();
+  return ret;
 }
 
-extern inline void writel(u32 b, volatile void __iomem *addr)
-{
-	mb();
-	__raw_writel(b, addr);
+extern inline void writel(u32 b, volatile void __iomem *addr) {
+  mb();
+  __raw_writel(b, addr);
 }
 
-extern inline void writeq(u64 b, volatile void __iomem *addr)
-{
-	mb();
-	__raw_writeq(b, addr);
+extern inline void writeq(u64 b, volatile void __iomem *addr) {
+  mb();
+  __raw_writeq(b, addr);
 }
+
 #endif
 
 #define ioread16be(p) swab16(ioread16(p))
 #define ioread32be(p) swab32(ioread32(p))
-#define iowrite16be(v,p) iowrite16(swab16(v), (p))
-#define iowrite32be(v,p) iowrite32(swab32(v), (p))
+#define iowrite16be(v, p) iowrite16(swab16(v), (p))
+#define iowrite32be(v, p) iowrite32(swab32(v), (p))
 
-#define inb_p		inb
-#define inw_p		inw
-#define inl_p		inl
-#define outb_p		outb
-#define outw_p		outw
-#define outl_p		outl
+#define inb_p   inb
+#define inw_p   inw
+#define inl_p   inl
+#define outb_p    outb
+#define outw_p    outw
+#define outl_p    outl
 
 extern u8 readb_relaxed(const volatile void __iomem *addr);
 extern u16 readw_relaxed(const volatile void __iomem *addr);
@@ -559,38 +514,36 @@ extern u64 readq_relaxed(const volatile void __iomem *addr);
 #define readl_relaxed readl_relaxed
 #define readq_relaxed readq_relaxed
 
-#if IO_CONCAT(__IO_PREFIX,trivial_io_bw)
-extern inline u8 readb_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readb(addr);
+#if IO_CONCAT(__IO_PREFIX, trivial_io_bw)
+extern inline u8 readb_relaxed(const volatile void __iomem *addr) {
+  mb();
+  return __raw_readb(addr);
 }
 
-extern inline u16 readw_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readw(addr);
+extern inline u16 readw_relaxed(const volatile void __iomem *addr) {
+  mb();
+  return __raw_readw(addr);
 }
+
 #endif
 
-#if IO_CONCAT(__IO_PREFIX,trivial_io_lq)
-extern inline u32 readl_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readl(addr);
+#if IO_CONCAT(__IO_PREFIX, trivial_io_lq)
+extern inline u32 readl_relaxed(const volatile void __iomem *addr) {
+  mb();
+  return __raw_readl(addr);
 }
 
-extern inline u64 readq_relaxed(const volatile void __iomem *addr)
-{
-	mb();
-	return __raw_readq(addr);
+extern inline u64 readq_relaxed(const volatile void __iomem *addr) {
+  mb();
+  return __raw_readq(addr);
 }
+
 #endif
 
-#define writeb_relaxed	writeb
-#define writew_relaxed	writew
-#define writel_relaxed	writel
-#define writeq_relaxed	writeq
+#define writeb_relaxed  writeb
+#define writew_relaxed  writew
+#define writel_relaxed  writel
+#define writeq_relaxed  writeq
 
 /*
  * String version of IO memory access ops:
@@ -599,15 +552,13 @@ extern void memcpy_fromio(void *, const volatile void __iomem *, long);
 extern void memcpy_toio(volatile void __iomem *, const void *, long);
 extern void _memset_c_io(volatile void __iomem *, unsigned long, long);
 
-static inline void memset_io(volatile void __iomem *addr, u8 c, long len)
-{
-	_memset_c_io(addr, 0x0101010101010101UL * c, len);
+static inline void memset_io(volatile void __iomem *addr, u8 c, long len) {
+  _memset_c_io(addr, 0x0101010101010101UL * c, len);
 }
 
 #define __HAVE_ARCH_MEMSETW_IO
-static inline void memsetw_io(volatile void __iomem *addr, u16 c, long len)
-{
-	_memset_c_io(addr, 0x0001000100010001UL * c, len);
+static inline void memsetw_io(volatile void __iomem *addr, u16 c, long len) {
+  _memset_c_io(addr, 0x0001000100010001UL * c, len);
 }
 
 #define memset_io memset_io
@@ -617,12 +568,12 @@ static inline void memsetw_io(volatile void __iomem *addr, u16 c, long len)
 /*
  * String versions of in/out ops:
  */
-extern void insb (unsigned long port, void *dst, unsigned long count);
-extern void insw (unsigned long port, void *dst, unsigned long count);
-extern void insl (unsigned long port, void *dst, unsigned long count);
-extern void outsb (unsigned long port, const void *src, unsigned long count);
-extern void outsw (unsigned long port, const void *src, unsigned long count);
-extern void outsl (unsigned long port, const void *src, unsigned long count);
+extern void insb(unsigned long port, void *dst, unsigned long count);
+extern void insw(unsigned long port, void *dst, unsigned long count);
+extern void insl(unsigned long port, void *dst, unsigned long count);
+extern void outsb(unsigned long port, const void *src, unsigned long count);
+extern void outsw(unsigned long port, const void *src, unsigned long count);
+extern void outsl(unsigned long port, const void *src, unsigned long count);
 
 #define insb insb
 #define insw insw
@@ -640,15 +591,15 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
  */
 
 #ifdef CONFIG_ALPHA_GENERIC
-# define RTC_PORT(x)	((x) + alpha_mv.rtc_port)
+#define RTC_PORT(x)  ((x) + alpha_mv.rtc_port)
 #else
-# ifdef CONFIG_ALPHA_JENSEN
-#  define RTC_PORT(x)	(0x170+(x))
-# else
-#  define RTC_PORT(x)	(0x70 + (x))
-# endif
+#ifdef CONFIG_ALPHA_JENSEN
+#define RTC_PORT(x) (0x170 + (x))
+#else
+#define RTC_PORT(x) (0x70 + (x))
 #endif
-#define RTC_ALWAYS_BCD	0
+#endif
+#define RTC_ALWAYS_BCD  0
 
 /*
  * These get provided from <asm-generic/iomap.h> since alpha does not

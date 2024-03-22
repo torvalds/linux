@@ -27,14 +27,14 @@
 #include "hwmgr.h"
 
 enum Vega12_I2CLineID {
-	Vega12_I2CLineID_DDC1 = 0x90,
-	Vega12_I2CLineID_DDC2 = 0x91,
-	Vega12_I2CLineID_DDC3 = 0x92,
-	Vega12_I2CLineID_DDC4 = 0x93,
-	Vega12_I2CLineID_DDC5 = 0x94,
-	Vega12_I2CLineID_DDC6 = 0x95,
-	Vega12_I2CLineID_SCLSDA = 0x96,
-	Vega12_I2CLineID_DDCVGA = 0x97
+  Vega12_I2CLineID_DDC1 = 0x90,
+  Vega12_I2CLineID_DDC2 = 0x91,
+  Vega12_I2CLineID_DDC3 = 0x92,
+  Vega12_I2CLineID_DDC4 = 0x93,
+  Vega12_I2CLineID_DDC5 = 0x94,
+  Vega12_I2CLineID_DDC6 = 0x95,
+  Vega12_I2CLineID_SCLSDA = 0x96,
+  Vega12_I2CLineID_DDCVGA = 0x97
 };
 
 #define Vega12_I2C_DDC1DATA          0

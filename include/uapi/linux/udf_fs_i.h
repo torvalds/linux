@@ -2,13 +2,13 @@
 /*
  * udf_fs_i.h
  *
- * This file is intended for the Linux kernel/module. 
+ * This file is intended for the Linux kernel/module.
  *
  * COPYRIGHT
- *	This file is distributed under the terms of the GNU General Public
- *	License (GPL). Copies of the GPL can be obtained from:
- *		ftp://prep.ai.mit.edu/pub/gnu/GPL
- *	Each contributing author retains all rights to their own work.
+ *  This file is distributed under the terms of the GNU General Public
+ *  License (GPL). Copies of the GPL can be obtained from:
+ *    ftp://prep.ai.mit.edu/pub/gnu/GPL
+ *  Each contributing author retains all rights to their own work.
  */
 #ifndef _UDF_FS_I_H
 #define _UDF_FS_I_H 1

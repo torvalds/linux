@@ -16,19 +16,19 @@
 #define GB_AUDIO_MANAGER_MODULE_NAME_LEN_SSCANF "63"
 
 struct gb_audio_manager_module_descriptor {
-	char name[GB_AUDIO_MANAGER_MODULE_NAME_LEN];
-	int vid;
-	int pid;
-	int intf_id;
-	unsigned int ip_devices;
-	unsigned int op_devices;
+  char name[GB_AUDIO_MANAGER_MODULE_NAME_LEN];
+  int vid;
+  int pid;
+  int intf_id;
+  unsigned int ip_devices;
+  unsigned int op_devices;
 };
 
 struct gb_audio_manager_module {
-	struct kobject kobj;
-	struct list_head list;
-	int id;
-	struct gb_audio_manager_module_descriptor desc;
+  struct kobject kobj;
+  struct list_head list;
+  int id;
+  struct gb_audio_manager_module_descriptor desc;
 };
 
 /*

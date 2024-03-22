@@ -9,47 +9,48 @@
 #define NV10_PGRAPH_DEBUG_4                                0x00400090
 #define NV03_PGRAPH_INTR                                   0x00400100
 #define NV03_PGRAPH_NSTATUS                                0x00400104
-#    define NV04_PGRAPH_NSTATUS_STATE_IN_USE                  (1<<11)
-#    define NV04_PGRAPH_NSTATUS_INVALID_STATE                 (1<<12)
-#    define NV04_PGRAPH_NSTATUS_BAD_ARGUMENT                  (1<<13)
-#    define NV04_PGRAPH_NSTATUS_PROTECTION_FAULT              (1<<14)
-#    define NV10_PGRAPH_NSTATUS_STATE_IN_USE                  (1<<23)
-#    define NV10_PGRAPH_NSTATUS_INVALID_STATE                 (1<<24)
-#    define NV10_PGRAPH_NSTATUS_BAD_ARGUMENT                  (1<<25)
-#    define NV10_PGRAPH_NSTATUS_PROTECTION_FAULT              (1<<26)
+#define NV04_PGRAPH_NSTATUS_STATE_IN_USE                  (1 << 11)
+#define NV04_PGRAPH_NSTATUS_INVALID_STATE                 (1 << 12)
+#define NV04_PGRAPH_NSTATUS_BAD_ARGUMENT                  (1 << 13)
+#define NV04_PGRAPH_NSTATUS_PROTECTION_FAULT              (1 << 14)
+#define NV10_PGRAPH_NSTATUS_STATE_IN_USE                  (1 << 23)
+#define NV10_PGRAPH_NSTATUS_INVALID_STATE                 (1 << 24)
+#define NV10_PGRAPH_NSTATUS_BAD_ARGUMENT                  (1 << 25)
+#define NV10_PGRAPH_NSTATUS_PROTECTION_FAULT              (1 << 26)
 #define NV03_PGRAPH_NSOURCE                                0x00400108
-#    define NV03_PGRAPH_NSOURCE_NOTIFICATION                   (1<<0)
-#    define NV03_PGRAPH_NSOURCE_DATA_ERROR                     (1<<1)
-#    define NV03_PGRAPH_NSOURCE_PROTECTION_ERROR               (1<<2)
-#    define NV03_PGRAPH_NSOURCE_RANGE_EXCEPTION                (1<<3)
-#    define NV03_PGRAPH_NSOURCE_LIMIT_COLOR                    (1<<4)
-#    define NV03_PGRAPH_NSOURCE_LIMIT_ZETA                     (1<<5)
-#    define NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD                   (1<<6)
-#    define NV03_PGRAPH_NSOURCE_DMA_R_PROTECTION               (1<<7)
-#    define NV03_PGRAPH_NSOURCE_DMA_W_PROTECTION               (1<<8)
-#    define NV03_PGRAPH_NSOURCE_FORMAT_EXCEPTION               (1<<9)
-#    define NV03_PGRAPH_NSOURCE_PATCH_EXCEPTION               (1<<10)
-#    define NV03_PGRAPH_NSOURCE_STATE_INVALID                 (1<<11)
-#    define NV03_PGRAPH_NSOURCE_DOUBLE_NOTIFY                 (1<<12)
-#    define NV03_PGRAPH_NSOURCE_NOTIFY_IN_USE                 (1<<13)
-#    define NV03_PGRAPH_NSOURCE_METHOD_CNT                    (1<<14)
-#    define NV03_PGRAPH_NSOURCE_BFR_NOTIFICATION              (1<<15)
-#    define NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION            (1<<16)
-#    define NV03_PGRAPH_NSOURCE_DMA_WIDTH_A                   (1<<17)
-#    define NV03_PGRAPH_NSOURCE_DMA_WIDTH_B                   (1<<18)
+#define NV03_PGRAPH_NSOURCE_NOTIFICATION                   (1 << 0)
+#define NV03_PGRAPH_NSOURCE_DATA_ERROR                     (1 << 1)
+#define NV03_PGRAPH_NSOURCE_PROTECTION_ERROR               (1 << 2)
+#define NV03_PGRAPH_NSOURCE_RANGE_EXCEPTION                (1 << 3)
+#define NV03_PGRAPH_NSOURCE_LIMIT_COLOR                    (1 << 4)
+#define NV03_PGRAPH_NSOURCE_LIMIT_ZETA                     (1 << 5)
+#define NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD                   (1 << 6)
+#define NV03_PGRAPH_NSOURCE_DMA_R_PROTECTION               (1 << 7)
+#define NV03_PGRAPH_NSOURCE_DMA_W_PROTECTION               (1 << 8)
+#define NV03_PGRAPH_NSOURCE_FORMAT_EXCEPTION               (1 << 9)
+#define NV03_PGRAPH_NSOURCE_PATCH_EXCEPTION               (1 << 10)
+#define NV03_PGRAPH_NSOURCE_STATE_INVALID                 (1 << 11)
+#define NV03_PGRAPH_NSOURCE_DOUBLE_NOTIFY                 (1 << 12)
+#define NV03_PGRAPH_NSOURCE_NOTIFY_IN_USE                 (1 << 13)
+#define NV03_PGRAPH_NSOURCE_METHOD_CNT                    (1 << 14)
+#define NV03_PGRAPH_NSOURCE_BFR_NOTIFICATION              (1 << 15)
+#define NV03_PGRAPH_NSOURCE_DMA_VTX_PROTECTION            (1 << 16)
+#define NV03_PGRAPH_NSOURCE_DMA_WIDTH_A                   (1 << 17)
+#define NV03_PGRAPH_NSOURCE_DMA_WIDTH_B                   (1 << 18)
 #define NV03_PGRAPH_INTR_EN                                0x00400140
 #define NV40_PGRAPH_INTR_EN                                0x0040013C
-#    define NV_PGRAPH_INTR_NOTIFY                              (1<<0)
-#    define NV_PGRAPH_INTR_MISSING_HW                          (1<<4)
-#    define NV_PGRAPH_INTR_CONTEXT_SWITCH                     (1<<12)
-#    define NV_PGRAPH_INTR_BUFFER_NOTIFY                      (1<<16)
-#    define NV_PGRAPH_INTR_ERROR                              (1<<20)
+#define NV_PGRAPH_INTR_NOTIFY                              (1 << 0)
+#define NV_PGRAPH_INTR_MISSING_HW                          (1 << 4)
+#define NV_PGRAPH_INTR_CONTEXT_SWITCH                     (1 << 12)
+#define NV_PGRAPH_INTR_BUFFER_NOTIFY                      (1 << 16)
+#define NV_PGRAPH_INTR_ERROR                              (1 << 20)
 #define NV10_PGRAPH_CTX_CONTROL                            0x00400144
 #define NV10_PGRAPH_CTX_USER                               0x00400148
-#define NV10_PGRAPH_CTX_SWITCH(i)                         (0x0040014C + 0x4*(i))
+#define NV10_PGRAPH_CTX_SWITCH(i)                         (0x0040014C + 0x4 \
+  * (i))
 #define NV04_PGRAPH_CTX_SWITCH1                            0x00400160
-#define NV10_PGRAPH_CTX_CACHE(i, j)                       (0x00400160	\
-							   + 0x4*(i) + 0x20*(j))
+#define NV10_PGRAPH_CTX_CACHE(i, j)                       (0x00400160 \
+  + 0x4 * (i) + 0x20 * (j))
 #define NV04_PGRAPH_CTX_SWITCH2                            0x00400164
 #define NV04_PGRAPH_CTX_SWITCH3                            0x00400168
 #define NV04_PGRAPH_CTX_SWITCH4                            0x0040016C
@@ -158,7 +159,7 @@
 #define NV04_PGRAPH_BSWIZZLE5                              0x004006A0
 #define NV03_PGRAPH_STATUS                                 0x004006B0
 #define NV04_PGRAPH_STATUS                                 0x00400700
-#    define NV40_PGRAPH_STATUS_SYNC_STALL                  0x00004000
+#define NV40_PGRAPH_STATUS_SYNC_STALL                  0x00004000
 #define NV04_PGRAPH_TRAPPED_ADDR                           0x00400704
 #define NV04_PGRAPH_TRAPPED_DATA                           0x00400708
 #define NV04_PGRAPH_SURFACE                                0x0040070C
@@ -201,24 +202,39 @@
 #define NV04_PGRAPH_BLEND                                  0x00400824
 #define NV04_PGRAPH_STORED_FMT                             0x00400830
 #define NV04_PGRAPH_PATT_COLORRAM                          0x00400900
-#define NV20_PGRAPH_TILE(i)                                (0x00400900 + (i*16))
-#define NV20_PGRAPH_TLIMIT(i)                              (0x00400904 + (i*16))
-#define NV20_PGRAPH_TSIZE(i)                               (0x00400908 + (i*16))
-#define NV20_PGRAPH_TSTATUS(i)                             (0x0040090C + (i*16))
-#define NV20_PGRAPH_ZCOMP(i)                               (0x00400980 + 4*(i))
-#define NV41_PGRAPH_ZCOMP0(i)                              (0x004009c0 + 4*(i))
-#define NV10_PGRAPH_TILE(i)                                (0x00400B00 + (i*16))
-#define NV10_PGRAPH_TLIMIT(i)                              (0x00400B04 + (i*16))
-#define NV10_PGRAPH_TSIZE(i)                               (0x00400B08 + (i*16))
-#define NV10_PGRAPH_TSTATUS(i)                             (0x00400B0C + (i*16))
+#define NV20_PGRAPH_TILE(i)                                (0x00400900 \
+  + (i * 16))
+#define NV20_PGRAPH_TLIMIT(i)                              (0x00400904 \
+  + (i * 16))
+#define NV20_PGRAPH_TSIZE(i)                               (0x00400908 \
+  + (i * 16))
+#define NV20_PGRAPH_TSTATUS(i)                             (0x0040090C \
+  + (i * 16))
+#define NV20_PGRAPH_ZCOMP(i)                               (0x00400980 + 4 \
+  * (i))
+#define NV41_PGRAPH_ZCOMP0(i)                              (0x004009c0 + 4 \
+  * (i))
+#define NV10_PGRAPH_TILE(i)                                (0x00400B00 \
+  + (i * 16))
+#define NV10_PGRAPH_TLIMIT(i)                              (0x00400B04 \
+  + (i * 16))
+#define NV10_PGRAPH_TSIZE(i)                               (0x00400B08 \
+  + (i * 16))
+#define NV10_PGRAPH_TSTATUS(i)                             (0x00400B0C \
+  + (i * 16))
 #define NV04_PGRAPH_U_RAM                                  0x00400D00
-#define NV47_PGRAPH_TILE(i)                                (0x00400D00 + (i*16))
-#define NV47_PGRAPH_TLIMIT(i)                              (0x00400D04 + (i*16))
-#define NV47_PGRAPH_TSIZE(i)                               (0x00400D08 + (i*16))
-#define NV47_PGRAPH_TSTATUS(i)                             (0x00400D0C + (i*16))
+#define NV47_PGRAPH_TILE(i)                                (0x00400D00 \
+  + (i * 16))
+#define NV47_PGRAPH_TLIMIT(i)                              (0x00400D04 \
+  + (i * 16))
+#define NV47_PGRAPH_TSIZE(i)                               (0x00400D08 \
+  + (i * 16))
+#define NV47_PGRAPH_TSTATUS(i)                             (0x00400D0C \
+  + (i * 16))
 #define NV04_PGRAPH_V_RAM                                  0x00400D40
 #define NV04_PGRAPH_W_RAM                                  0x00400D80
-#define NV47_PGRAPH_ZCOMP0(i)                              (0x00400e00 + 4*(i))
+#define NV47_PGRAPH_ZCOMP0(i)                              (0x00400e00 + 4 \
+  * (i))
 #define NV10_PGRAPH_COMBINER0_IN_ALPHA                     0x00400E40
 #define NV10_PGRAPH_COMBINER1_IN_ALPHA                     0x00400E44
 #define NV10_PGRAPH_COMBINER0_IN_RGB                       0x00400E48
@@ -264,12 +280,19 @@
 #define NV04_PGRAPH_DMA_B_OFFSET                           0x00401098
 #define NV04_PGRAPH_DMA_B_SIZE                             0x0040109C
 #define NV04_PGRAPH_DMA_B_Y_SIZE                           0x004010A0
-#define NV47_PGRAPH_ZCOMP1(i)                              (0x004068c0 + 4*(i))
-#define NV40_PGRAPH_TILE1(i)                               (0x00406900 + (i*16))
-#define NV40_PGRAPH_TLIMIT1(i)                             (0x00406904 + (i*16))
-#define NV40_PGRAPH_TSIZE1(i)                              (0x00406908 + (i*16))
-#define NV40_PGRAPH_TSTATUS1(i)                            (0x0040690C + (i*16))
-#define NV40_PGRAPH_ZCOMP1(i)                              (0x00406980 + 4*(i))
-#define NV41_PGRAPH_ZCOMP1(i)                              (0x004069c0 + 4*(i))
+#define NV47_PGRAPH_ZCOMP1(i)                              (0x004068c0 + 4 \
+  * (i))
+#define NV40_PGRAPH_TILE1(i)                               (0x00406900 \
+  + (i * 16))
+#define NV40_PGRAPH_TLIMIT1(i)                             (0x00406904 \
+  + (i * 16))
+#define NV40_PGRAPH_TSIZE1(i)                              (0x00406908 \
+  + (i * 16))
+#define NV40_PGRAPH_TSTATUS1(i)                            (0x0040690C \
+  + (i * 16))
+#define NV40_PGRAPH_ZCOMP1(i)                              (0x00406980 + 4 \
+  * (i))
+#define NV41_PGRAPH_ZCOMP1(i)                              (0x004069c0 + 4 \
+  * (i))
 
 #endif

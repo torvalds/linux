@@ -82,17 +82,23 @@
  */
 #define CSR_BASE    (0x000)
 
-#define CSR_HW_IF_CONFIG_REG    (CSR_BASE+0x000)	/* hardware interface config */
-#define CSR_INT_COALESCING      (CSR_BASE+0x004)	/* accum ints, 32-usec units */
-#define CSR_INT                 (CSR_BASE+0x008)	/* host interrupt status/ack */
-#define CSR_INT_MASK            (CSR_BASE+0x00c)	/* host interrupt enable */
-#define CSR_FH_INT_STATUS       (CSR_BASE+0x010)	/* busmaster int status/ack */
-#define CSR_GPIO_IN             (CSR_BASE+0x018)	/* read external chip pins */
-#define CSR_RESET               (CSR_BASE+0x020)	/* busmaster enable, NMI, etc */
-#define CSR_GP_CNTRL            (CSR_BASE+0x024)
+#define CSR_HW_IF_CONFIG_REG    (CSR_BASE + 0x000)  /* hardware interface config
+                                                     * */
+#define CSR_INT_COALESCING      (CSR_BASE + 0x004)  /* accum ints, 32-usec units
+                                                     * */
+#define CSR_INT                 (CSR_BASE + 0x008)  /* host interrupt status/ack
+                                                     * */
+#define CSR_INT_MASK            (CSR_BASE + 0x00c)  /* host interrupt enable */
+#define CSR_FH_INT_STATUS       (CSR_BASE + 0x010)  /* busmaster int status/ack
+                                                     * */
+#define CSR_GPIO_IN             (CSR_BASE + 0x018)  /* read external chip pins
+                                                     * */
+#define CSR_RESET               (CSR_BASE + 0x020)  /* busmaster enable, NMI,
+                                                     * etc */
+#define CSR_GP_CNTRL            (CSR_BASE + 0x024)
 
 /* 2nd byte of CSR_INT_COALESCING, not accessible via _il_wr()! */
-#define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
+#define CSR_INT_PERIODIC_REG  (CSR_BASE + 0x005)
 
 /*
  * Hardware revision info
@@ -105,7 +111,7 @@
  * NOTE:  Revision step affects calculation of CCK txpower for 4965.
  * NOTE:  See also CSR_HW_REV_WA_REG (work-around for bug in 4965).
  */
-#define CSR_HW_REV              (CSR_BASE+0x028)
+#define CSR_HW_REV              (CSR_BASE + 0x028)
 
 /*
  * EEPROM memory reads
@@ -113,30 +119,30 @@
  * NOTE:  Device must be awake, initialized via apm_ops.init(),
  *        in order to read.
  */
-#define CSR_EEPROM_REG          (CSR_BASE+0x02c)
-#define CSR_EEPROM_GP           (CSR_BASE+0x030)
+#define CSR_EEPROM_REG          (CSR_BASE + 0x02c)
+#define CSR_EEPROM_GP           (CSR_BASE + 0x030)
 
-#define CSR_GIO_REG		(CSR_BASE+0x03C)
-#define CSR_GP_UCODE_REG	(CSR_BASE+0x048)
-#define CSR_GP_DRIVER_REG	(CSR_BASE+0x050)
+#define CSR_GIO_REG   (CSR_BASE + 0x03C)
+#define CSR_GP_UCODE_REG  (CSR_BASE + 0x048)
+#define CSR_GP_DRIVER_REG (CSR_BASE + 0x050)
 
 /*
  * UCODE-DRIVER GP (general purpose) mailbox registers.
  * SET/CLR registers set/clear bit(s) if "1" is written.
  */
-#define CSR_UCODE_DRV_GP1       (CSR_BASE+0x054)
-#define CSR_UCODE_DRV_GP1_SET   (CSR_BASE+0x058)
-#define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
-#define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
+#define CSR_UCODE_DRV_GP1       (CSR_BASE + 0x054)
+#define CSR_UCODE_DRV_GP1_SET   (CSR_BASE + 0x058)
+#define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE + 0x05c)
+#define CSR_UCODE_DRV_GP2       (CSR_BASE + 0x060)
 
-#define CSR_LED_REG             (CSR_BASE+0x094)
-#define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
+#define CSR_LED_REG             (CSR_BASE + 0x094)
+#define CSR_DRAM_INT_TBL_REG  (CSR_BASE + 0x0A0)
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
-#define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
+#define CSR_GIO_CHICKEN_BITS    (CSR_BASE + 0x100)
 
 /* Analog phase-lock-loop configuration  */
-#define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
+#define CSR_ANA_PLL_CFG         (CSR_BASE + 0x20c)
 
 /*
  * CSR Hardware Revision Workaround Register.  Indicates hardware rev;
@@ -146,16 +152,16 @@
  *  3-2:  0 = A, 1 = B, 2 = C, 3 = D step
  *  1-0:  "Dash" (-) value, as in C-1, etc.
  */
-#define CSR_HW_REV_WA_REG		(CSR_BASE+0x22C)
+#define CSR_HW_REV_WA_REG   (CSR_BASE + 0x22C)
 
-#define CSR_DBG_HPET_MEM_REG		(CSR_BASE+0x240)
-#define CSR_DBG_LINK_PWR_MGMT_REG	(CSR_BASE+0x250)
+#define CSR_DBG_HPET_MEM_REG    (CSR_BASE + 0x240)
+#define CSR_DBG_LINK_PWR_MGMT_REG (CSR_BASE + 0x250)
 
 /* Bits for CSR_HW_IF_CONFIG_REG */
-#define CSR49_HW_IF_CONFIG_REG_BIT_4965_R	(0x00000010)
-#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x00000C00)
-#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI 	(0x00000100)
-#define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
+#define CSR49_HW_IF_CONFIG_REG_BIT_4965_R (0x00000010)
+#define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER  (0x00000C00)
+#define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI   (0x00000100)
+#define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI (0x00000200)
 
 #define CSR39_HW_IF_CONFIG_REG_BIT_3945_MB         (0x00000100)
 #define CSR39_HW_IF_CONFIG_REG_BIT_3945_MM         (0x00000200)
@@ -164,63 +170,69 @@
 #define CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A    (0x00000000)
 #define CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B    (0x00001000)
 
-#define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A	(0x00080000)
-#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM	(0x00200000)
-#define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY	(0x00400000)	/* PCI_OWN_SEM */
-#define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000)	/* ME_OWN */
-#define CSR_HW_IF_CONFIG_REG_PREPARE		  (0x08000000)	/* WAKE_ME */
+#define CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A (0x00080000)
+#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM (0x00200000)
+#define CSR_HW_IF_CONFIG_REG_BIT_NIC_READY  (0x00400000)  /* PCI_OWN_SEM */
+#define CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE (0x02000000)  /* ME_OWN */
+#define CSR_HW_IF_CONFIG_REG_PREPARE      (0x08000000)  /* WAKE_ME */
 
-#define CSR_INT_PERIODIC_DIS			(0x00)	/* disable periodic int */
-#define CSR_INT_PERIODIC_ENA			(0xFF)	/* 255*32 usec ~ 8 msec */
+#define CSR_INT_PERIODIC_DIS      (0x00)  /* disable periodic int */
+#define CSR_INT_PERIODIC_ENA      (0xFF)  /* 255*32 usec ~ 8 msec */
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */
-#define CSR_INT_BIT_FH_RX        (1 << 31)	/* Rx DMA, cmd responses, FH_INT[17:16] */
-#define CSR_INT_BIT_HW_ERR       (1 << 29)	/* DMA hardware error FH_INT[31] */
-#define CSR_INT_BIT_RX_PERIODIC	 (1 << 28)	/* Rx periodic */
-#define CSR_INT_BIT_FH_TX        (1 << 27)	/* Tx DMA FH_INT[1:0] */
-#define CSR_INT_BIT_SCD          (1 << 26)	/* TXQ pointer advanced */
-#define CSR_INT_BIT_SW_ERR       (1 << 25)	/* uCode error */
-#define CSR_INT_BIT_RF_KILL      (1 << 7)	/* HW RFKILL switch GP_CNTRL[27] toggled */
-#define CSR_INT_BIT_CT_KILL      (1 << 6)	/* Critical temp (chip too hot) rfkill */
-#define CSR_INT_BIT_SW_RX        (1 << 3)	/* Rx, command responses, 3945 */
-#define CSR_INT_BIT_WAKEUP       (1 << 1)	/* NIC controller waking up (pwr mgmt) */
-#define CSR_INT_BIT_ALIVE        (1 << 0)	/* uCode interrupts once it initializes */
+#define CSR_INT_BIT_FH_RX        (1 << 31)  /* Rx DMA, cmd responses,
+                                             * FH_INT[17:16] */
+#define CSR_INT_BIT_HW_ERR       (1 << 29)  /* DMA hardware error FH_INT[31] */
+#define CSR_INT_BIT_RX_PERIODIC  (1 << 28)  /* Rx periodic */
+#define CSR_INT_BIT_FH_TX        (1 << 27)  /* Tx DMA FH_INT[1:0] */
+#define CSR_INT_BIT_SCD          (1 << 26)  /* TXQ pointer advanced */
+#define CSR_INT_BIT_SW_ERR       (1 << 25)  /* uCode error */
+#define CSR_INT_BIT_RF_KILL      (1 << 7) /* HW RFKILL switch GP_CNTRL[27]
+                                           * toggled */
+#define CSR_INT_BIT_CT_KILL      (1 << 6) /* Critical temp (chip too hot) rfkill
+                                           * */
+#define CSR_INT_BIT_SW_RX        (1 << 3) /* Rx, command responses, 3945 */
+#define CSR_INT_BIT_WAKEUP       (1 << 1) /* NIC controller waking up (pwr mgmt)
+                                           * */
+#define CSR_INT_BIT_ALIVE        (1 << 0) /* uCode interrupts once it
+                                           * initializes */
 
-#define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX   | \
-				 CSR_INT_BIT_HW_ERR  | \
-				 CSR_INT_BIT_FH_TX   | \
-				 CSR_INT_BIT_SW_ERR  | \
-				 CSR_INT_BIT_RF_KILL | \
-				 CSR_INT_BIT_SW_RX   | \
-				 CSR_INT_BIT_WAKEUP  | \
-				 CSR_INT_BIT_ALIVE)
+#define CSR_INI_SET_MASK  (CSR_INT_BIT_FH_RX     \
+  | CSR_INT_BIT_HW_ERR    \
+  | CSR_INT_BIT_FH_TX     \
+  | CSR_INT_BIT_SW_ERR    \
+  | CSR_INT_BIT_RF_KILL   \
+  | CSR_INT_BIT_SW_RX     \
+  | CSR_INT_BIT_WAKEUP    \
+  | CSR_INT_BIT_ALIVE)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
-#define CSR_FH_INT_BIT_ERR       (1 << 31)	/* Error */
-#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30)	/* High priority Rx, bypass coalescing */
-#define CSR39_FH_INT_BIT_RX_CHNL2  (1 << 18)	/* Rx channel 2 (3945 only) */
-#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17)	/* Rx channel 1 */
-#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16)	/* Rx channel 0 */
-#define CSR39_FH_INT_BIT_TX_CHNL6  (1 << 6)	/* Tx channel 6 (3945 only) */
-#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)	/* Tx channel 1 */
-#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)	/* Tx channel 0 */
+#define CSR_FH_INT_BIT_ERR       (1 << 31)  /* Error */
+#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30)  /* High priority Rx, bypass
+                                             * coalescing */
+#define CSR39_FH_INT_BIT_RX_CHNL2  (1 << 18)  /* Rx channel 2 (3945 only) */
+#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17)  /* Rx channel 1 */
+#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16)  /* Rx channel 0 */
+#define CSR39_FH_INT_BIT_TX_CHNL6  (1 << 6) /* Tx channel 6 (3945 only) */
+#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1) /* Tx channel 1 */
+#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0) /* Tx channel 0 */
 
-#define CSR39_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
-				 CSR39_FH_INT_BIT_RX_CHNL2 | \
-				 CSR_FH_INT_BIT_RX_CHNL1 | \
-				 CSR_FH_INT_BIT_RX_CHNL0)
+#define CSR39_FH_INT_RX_MASK  (CSR_FH_INT_BIT_HI_PRIOR   \
+  | CSR39_FH_INT_BIT_RX_CHNL2   \
+  | CSR_FH_INT_BIT_RX_CHNL1   \
+  | CSR_FH_INT_BIT_RX_CHNL0)
 
-#define CSR39_FH_INT_TX_MASK	(CSR39_FH_INT_BIT_TX_CHNL6 | \
-				 CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0)
+#define CSR39_FH_INT_TX_MASK  (CSR39_FH_INT_BIT_TX_CHNL6   \
+  | CSR_FH_INT_BIT_TX_CHNL1   \
+  | CSR_FH_INT_BIT_TX_CHNL0)
 
-#define CSR49_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
-				 CSR_FH_INT_BIT_RX_CHNL1 | \
-				 CSR_FH_INT_BIT_RX_CHNL0)
+#define CSR49_FH_INT_RX_MASK  (CSR_FH_INT_BIT_HI_PRIOR   \
+  | CSR_FH_INT_BIT_RX_CHNL1   \
+  | CSR_FH_INT_BIT_RX_CHNL0)
 
-#define CSR49_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0)
+#define CSR49_FH_INT_TX_MASK  (CSR_FH_INT_BIT_TX_CHNL1   \
+  | CSR_FH_INT_BIT_TX_CHNL0)
 
 /* GPIO */
 #define CSR_GPIO_IN_BIT_AUX_POWER                   (0x00000200)
@@ -285,26 +297,27 @@
 #define CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW          (0x08000000)
 
 /* EEPROM REG */
-#define CSR_EEPROM_REG_READ_VALID_MSK	(0x00000001)
-#define CSR_EEPROM_REG_BIT_CMD		(0x00000002)
-#define CSR_EEPROM_REG_MSK_ADDR		(0x0000FFFC)
-#define CSR_EEPROM_REG_MSK_DATA		(0xFFFF0000)
+#define CSR_EEPROM_REG_READ_VALID_MSK (0x00000001)
+#define CSR_EEPROM_REG_BIT_CMD    (0x00000002)
+#define CSR_EEPROM_REG_MSK_ADDR   (0x0000FFFC)
+#define CSR_EEPROM_REG_MSK_DATA   (0xFFFF0000)
 
 /* EEPROM GP */
-#define CSR_EEPROM_GP_VALID_MSK		(0x00000007)	/* signature */
-#define CSR_EEPROM_GP_IF_OWNER_MSK	(0x00000180)
-#define CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K		(0x00000002)
-#define CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K		(0x00000004)
+#define CSR_EEPROM_GP_VALID_MSK   (0x00000007)  /* signature */
+#define CSR_EEPROM_GP_IF_OWNER_MSK  (0x00000180)
+#define CSR_EEPROM_GP_GOOD_SIG_EEP_LESS_THAN_4K   (0x00000002)
+#define CSR_EEPROM_GP_GOOD_SIG_EEP_MORE_THAN_4K   (0x00000004)
 
 /* GP REG */
-#define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000)	/* bit 24/25 */
+#define CSR_GP_REG_POWER_SAVE_STATUS_MSK            (0x03000000)  /* bit 24/25
+                                                                   * */
 #define CSR_GP_REG_NO_POWER_SAVE            (0x00000000)
 #define CSR_GP_REG_MAC_POWER_SAVE           (0x01000000)
 #define CSR_GP_REG_PHY_POWER_SAVE           (0x02000000)
 #define CSR_GP_REG_POWER_SAVE_ERROR         (0x03000000)
 
 /* CSR GIO */
-#define CSR_GIO_REG_VAL_L0S_ENABLED	(0x00000002)
+#define CSR_GIO_REG_VAL_L0S_ENABLED (0x00000002)
 
 /*
  * UCODE-DRIVER GP (general purpose) mailbox register 1
@@ -352,11 +365,11 @@
 #define CSR39_ANA_PLL_CFG_VAL        (0x01000000)
 
 /* HPET MEM debug */
-#define CSR_DBG_HPET_MEM_REG_VAL	(0xFFFF0000)
+#define CSR_DBG_HPET_MEM_REG_VAL  (0xFFFF0000)
 
 /* DRAM INT TBL */
-#define CSR_DRAM_INT_TBL_ENABLE		(1 << 31)
-#define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
+#define CSR_DRAM_INT_TBL_ENABLE   (1 << 31)
+#define CSR_DRAM_INIT_TBL_WRAP_CHECK  (1 << 27)
 
 /*
  * HBUS (Host-side Bus)
@@ -374,7 +387,7 @@
  * Do not use _il_wr()/_il_rd() family to access these registers;
  * these provide only simple PCI bus access, without waking up the MAC.
  */
-#define HBUS_BASE	(0x400)
+#define HBUS_BASE (0x400)
 
 /*
  * Registers for accessing device's internal SRAM memory (e.g. SCD SRAM
@@ -385,13 +398,13 @@
  * Bit usage for address registers (read or write):
  *  0-31:  memory address within device
  */
-#define HBUS_TARG_MEM_RADDR     (HBUS_BASE+0x00c)
-#define HBUS_TARG_MEM_WADDR     (HBUS_BASE+0x010)
-#define HBUS_TARG_MEM_WDAT      (HBUS_BASE+0x018)
-#define HBUS_TARG_MEM_RDAT      (HBUS_BASE+0x01c)
+#define HBUS_TARG_MEM_RADDR     (HBUS_BASE + 0x00c)
+#define HBUS_TARG_MEM_WADDR     (HBUS_BASE + 0x010)
+#define HBUS_TARG_MEM_WDAT      (HBUS_BASE + 0x018)
+#define HBUS_TARG_MEM_RDAT      (HBUS_BASE + 0x01c)
 
 /* Mailbox C, used as workaround alternative to CSR_UCODE_DRV_GP1 mailbox */
-#define HBUS_TARG_MBX_C         (HBUS_BASE+0x030)
+#define HBUS_TARG_MBX_C         (HBUS_BASE + 0x030)
 #define HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED         (0x00000004)
 
 /*
@@ -402,10 +415,10 @@
  *  0-15:  register address (offset) within device
  * 24-25:  (# bytes - 1) to read or write (e.g. 3 for dword)
  */
-#define HBUS_TARG_PRPH_WADDR    (HBUS_BASE+0x044)
-#define HBUS_TARG_PRPH_RADDR    (HBUS_BASE+0x048)
-#define HBUS_TARG_PRPH_WDAT     (HBUS_BASE+0x04c)
-#define HBUS_TARG_PRPH_RDAT     (HBUS_BASE+0x050)
+#define HBUS_TARG_PRPH_WADDR    (HBUS_BASE + 0x044)
+#define HBUS_TARG_PRPH_RADDR    (HBUS_BASE + 0x048)
+#define HBUS_TARG_PRPH_WDAT     (HBUS_BASE + 0x04c)
+#define HBUS_TARG_PRPH_RDAT     (HBUS_BASE + 0x050)
 
 /*
  * Per-Tx-queue write pointer (idx, really!)
@@ -414,6 +427,6 @@
  *  0-7:  queue write idx
  * 11-8:  queue selector
  */
-#define HBUS_TARG_WRPTR         (HBUS_BASE+0x060)
+#define HBUS_TARG_WRPTR         (HBUS_BASE + 0x060)
 
 #endif /* !__il_csr_h__ */

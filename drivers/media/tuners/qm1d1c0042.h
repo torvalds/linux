@@ -10,16 +10,15 @@
 
 #include <media/dvb_frontend.h>
 
-
 struct qm1d1c0042_config {
-	struct dvb_frontend *fe;
+  struct dvb_frontend *fe;
 
-	u32  xtal_freq;    /* [kHz] */ /* currently ignored */
-	bool lpf;          /* enable LPF */
-	bool fast_srch;    /* enable fast search mode, no LPF */
-	u32  lpf_wait;         /* wait in tuning with LPF enabled. [ms] */
-	u32  fast_srch_wait;   /* with fast-search mode, no LPF. [ms] */
-	u32  normal_srch_wait; /* with no LPF/fast-search mode. [ms] */
+  u32 xtal_freq;    /* [kHz] */ /* currently ignored */
+  bool lpf;          /* enable LPF */
+  bool fast_srch;    /* enable fast search mode, no LPF */
+  u32 lpf_wait;         /* wait in tuning with LPF enabled. [ms] */
+  u32 fast_srch_wait;   /* with fast-search mode, no LPF. [ms] */
+  u32 normal_srch_wait; /* with no LPF/fast-search mode. [ms] */
 };
 /* special values indicating to use the default in qm1d1c0042_config */
 #define QM1D1C0042_CFG_XTAL_DFLT 0

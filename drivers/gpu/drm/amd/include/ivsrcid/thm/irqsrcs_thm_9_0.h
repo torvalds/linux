@@ -26,8 +26,11 @@
 #ifndef __IRQSRCS_THM_9_0_H__
 #define __IRQSRCS_THM_9_0_H__
 
-#define THM_9_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
-#define THM_9_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
+#define THM_9_0__SRCID__THM_DIG_THERM_L2H   0   /* ASIC_TEMP >
+                                                 * CG_THERMAL_INT.DIG_THERM_INTH
+                                                 *  */
+#define THM_9_0__SRCID__THM_DIG_THERM_H2L   1   /* ASIC_TEMP <
+                                                 * CG_THERMAL_INT.DIG_THERM_INTL
+                                                 *  */
 
 #endif /* __IRQSRCS_THM_9_0_H__ */
-

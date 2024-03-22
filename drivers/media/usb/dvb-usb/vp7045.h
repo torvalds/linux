@@ -25,12 +25,12 @@
 #define TUNER_REG_WRITE                   0x04
 
 #define RC_VAL_READ                       0x05
- #define RC_NO_KEY                        0x44
+#define RC_NO_KEY                        0x44
 
 #define SET_TUNER_POWER                   0x06
 #define CHECK_TUNER_POWER                 0x12
- #define Tuner_Power_ON                   1
- #define Tuner_Power_OFF                  0
+#define Tuner_Power_ON                   1
+#define Tuner_Power_OFF                  0
 
 #define GET_USB_SPEED                     0x07
 
@@ -41,17 +41,17 @@
 /* FX2 eeprom */
 #define SET_EE_VALUE                      0x10
 #define GET_EE_VALUE                      0x11
- #define FX2_ID_ADDR                      0x00
- #define VID_MSB_ADDR                     0x02
- #define VID_LSB_ADDR                     0x01
- #define PID_MSB_ADDR                     0x04
- #define PID_LSB_ADDR                     0x03
- #define MAC_0_ADDR                       0x07
- #define MAC_1_ADDR                       0x08
- #define MAC_2_ADDR                       0x09
- #define MAC_3_ADDR                       0x0a
- #define MAC_4_ADDR                       0x0b
- #define MAC_5_ADDR                       0x0c
+#define FX2_ID_ADDR                      0x00
+#define VID_MSB_ADDR                     0x02
+#define VID_LSB_ADDR                     0x01
+#define PID_MSB_ADDR                     0x04
+#define PID_LSB_ADDR                     0x03
+#define MAC_0_ADDR                       0x07
+#define MAC_1_ADDR                       0x08
+#define MAC_2_ADDR                       0x09
+#define MAC_3_ADDR                       0x0a
+#define MAC_4_ADDR                       0x0b
+#define MAC_5_ADDR                       0x0c
 
 #define RESET_FX2                         0x13
 
@@ -60,8 +60,9 @@
 #define PRODUCT_STRING_READ               0x0D
 #define FW_BCD_VERSION_READ               0x14
 
-extern struct dvb_frontend * vp7045_fe_attach(struct dvb_usb_device *d);
-extern int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen, u8 *in, int inlen,int msec);
+extern struct dvb_frontend *vp7045_fe_attach(struct dvb_usb_device *d);
+extern int vp7045_usb_op(struct dvb_usb_device *d, u8 cmd, u8 *out, int outlen,
+    u8 *in, int inlen, int msec);
 extern u8 vp7045_read_reg(struct dvb_usb_device *d, u8 reg);
 
 #endif

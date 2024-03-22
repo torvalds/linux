@@ -6,25 +6,25 @@
 #include <linux/list.h>
 
 struct psample_group {
-	struct list_head list;
-	struct net *net;
-	u32 group_num;
-	u32 refcount;
-	u32 seq;
-	struct rcu_head rcu;
+  struct list_head list;
+  struct net *net;
+  u32 group_num;
+  u32 refcount;
+  u32 seq;
+  struct rcu_head rcu;
 };
 
 struct psample_metadata {
-	u32 trunc_size;
-	int in_ifindex;
-	int out_ifindex;
-	u16 out_tc;
-	u64 out_tc_occ;	/* bytes */
-	u64 latency;	/* nanoseconds */
-	u8 out_tc_valid:1,
-	   out_tc_occ_valid:1,
-	   latency_valid:1,
-	   unused:5;
+  u32 trunc_size;
+  int in_ifindex;
+  int out_ifindex;
+  u16 out_tc;
+  u64 out_tc_occ; /* bytes */
+  u64 latency;  /* nanoseconds */
+  u8 out_tc_valid : 1,
+      out_tc_occ_valid : 1,
+      latency_valid : 1,
+      unused : 5;
 };
 
 struct psample_group *psample_group_get(struct net *net, u32 group_num);
@@ -36,14 +36,13 @@ struct sk_buff;
 #if IS_ENABLED(CONFIG_PSAMPLE)
 
 void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
-			   u32 sample_rate, const struct psample_metadata *md);
+    u32 sample_rate, const struct psample_metadata *md);
 
 #else
 
 static inline void psample_sample_packet(struct psample_group *group,
-					 struct sk_buff *skb, u32 sample_rate,
-					 const struct psample_metadata *md)
-{
+    struct sk_buff *skb, u32 sample_rate,
+    const struct psample_metadata *md) {
 }
 
 #endif

@@ -20,19 +20,18 @@
 #include <asm/vendorid_list.h>
 
 static bool errata_probe_pbmt(unsigned int stage,
-			      unsigned long arch_id, unsigned long impid)
-{
-	if (!IS_ENABLED(CONFIG_ERRATA_THEAD_PBMT))
-		return false;
-
-	if (arch_id != 0 || impid != 0)
-		return false;
-
-	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT ||
-	    stage == RISCV_ALTERNATIVES_MODULE)
-		return true;
-
-	return false;
+    unsigned long arch_id, unsigned long impid) {
+  if (!IS_ENABLED(CONFIG_ERRATA_THEAD_PBMT)) {
+    return false;
+  }
+  if (arch_id != 0 || impid != 0) {
+    return false;
+  }
+  if (stage == RISCV_ALTERNATIVES_EARLY_BOOT
+      || stage == RISCV_ALTERNATIVES_MODULE) {
+    return true;
+  }
+  return false;
 }
 
 /*
@@ -58,130 +57,119 @@ static bool errata_probe_pbmt(unsigned int stage,
  * | 31 - 25 | 24 - 20 | 19 - 15 | 14 - 12 | 11 - 7 | 6 - 0 |
  *   0000000    11001     00000      000      00000  0001011
  */
-#define THEAD_INVAL_A0	".long 0x02a5000b"
-#define THEAD_CLEAN_A0	".long 0x0295000b"
-#define THEAD_FLUSH_A0	".long 0x02b5000b"
-#define THEAD_SYNC_S	".long 0x0190000b"
+#define THEAD_INVAL_A0  ".long 0x02a5000b"
+#define THEAD_CLEAN_A0  ".long 0x0295000b"
+#define THEAD_FLUSH_A0  ".long 0x02b5000b"
+#define THEAD_SYNC_S  ".long 0x0190000b"
 
-#define THEAD_CMO_OP(_op, _start, _size, _cachesize)			\
-asm volatile("mv a0, %1\n\t"						\
-	     "j 2f\n\t"							\
-	     "3:\n\t"							\
-	     THEAD_##_op##_A0 "\n\t"					\
-	     "add a0, a0, %0\n\t"					\
-	     "2:\n\t"							\
-	     "bltu a0, %2, 3b\n\t"					\
-	     THEAD_SYNC_S						\
-	     : : "r"(_cachesize),					\
-		 "r"((unsigned long)(_start) & ~((_cachesize) - 1UL)),	\
-		 "r"((unsigned long)(_start) + (_size))			\
-	     : "a0")
+#define THEAD_CMO_OP(_op, _start, _size, _cachesize)      \
+  asm volatile ("mv a0, %1\n\t"            \
+  "j 2f\n\t"             \
+  "3:\n\t"             \
+  THEAD_ ## _op ## _A0 "\n\t"          \
+  "add a0, a0, %0\n\t"         \
+  "2:\n\t"             \
+  "bltu a0, %2, 3b\n\t"          \
+  THEAD_SYNC_S           \
+  : : "r" (_cachesize),         \
+  "r" ((unsigned long) (_start) & ~((_cachesize) - 1UL)),  \
+  "r" ((unsigned long) (_start) + (_size))     \
+  : "a0")
 
-static void thead_errata_cache_inv(phys_addr_t paddr, size_t size)
-{
-	THEAD_CMO_OP(INVAL, paddr, size, riscv_cbom_block_size);
+static void thead_errata_cache_inv(phys_addr_t paddr, size_t size) {
+  THEAD_CMO_OP(INVAL, paddr, size, riscv_cbom_block_size);
 }
 
-static void thead_errata_cache_wback(phys_addr_t paddr, size_t size)
-{
-	THEAD_CMO_OP(CLEAN, paddr, size, riscv_cbom_block_size);
+static void thead_errata_cache_wback(phys_addr_t paddr, size_t size) {
+  THEAD_CMO_OP(CLEAN, paddr, size, riscv_cbom_block_size);
 }
 
-static void thead_errata_cache_wback_inv(phys_addr_t paddr, size_t size)
-{
-	THEAD_CMO_OP(FLUSH, paddr, size, riscv_cbom_block_size);
+static void thead_errata_cache_wback_inv(phys_addr_t paddr, size_t size) {
+  THEAD_CMO_OP(FLUSH, paddr, size, riscv_cbom_block_size);
 }
 
 static const struct riscv_nonstd_cache_ops thead_errata_cmo_ops = {
-	.wback = &thead_errata_cache_wback,
-	.inv = &thead_errata_cache_inv,
-	.wback_inv = &thead_errata_cache_wback_inv,
+  .wback = &thead_errata_cache_wback,
+  .inv = &thead_errata_cache_inv,
+  .wback_inv = &thead_errata_cache_wback_inv,
 };
 
 static bool errata_probe_cmo(unsigned int stage,
-			     unsigned long arch_id, unsigned long impid)
-{
-	if (!IS_ENABLED(CONFIG_ERRATA_THEAD_CMO))
-		return false;
-
-	if (arch_id != 0 || impid != 0)
-		return false;
-
-	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
-		return false;
-
-	if (stage == RISCV_ALTERNATIVES_BOOT) {
-		riscv_cbom_block_size = L1_CACHE_BYTES;
-		riscv_noncoherent_supported();
-		riscv_noncoherent_register_cache_ops(&thead_errata_cmo_ops);
-	}
-
-	return true;
+    unsigned long arch_id, unsigned long impid) {
+  if (!IS_ENABLED(CONFIG_ERRATA_THEAD_CMO)) {
+    return false;
+  }
+  if (arch_id != 0 || impid != 0) {
+    return false;
+  }
+  if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+    return false;
+  }
+  if (stage == RISCV_ALTERNATIVES_BOOT) {
+    riscv_cbom_block_size = L1_CACHE_BYTES;
+    riscv_noncoherent_supported();
+    riscv_noncoherent_register_cache_ops(&thead_errata_cmo_ops);
+  }
+  return true;
 }
 
 static bool errata_probe_pmu(unsigned int stage,
-			     unsigned long arch_id, unsigned long impid)
-{
-	if (!IS_ENABLED(CONFIG_ERRATA_THEAD_PMU))
-		return false;
-
-	/* target-c9xx cores report arch_id and impid as 0 */
-	if (arch_id != 0 || impid != 0)
-		return false;
-
-	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
-		return false;
-
-	return true;
+    unsigned long arch_id, unsigned long impid) {
+  if (!IS_ENABLED(CONFIG_ERRATA_THEAD_PMU)) {
+    return false;
+  }
+  /* target-c9xx cores report arch_id and impid as 0 */
+  if (arch_id != 0 || impid != 0) {
+    return false;
+  }
+  if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+    return false;
+  }
+  return true;
 }
 
 static u32 thead_errata_probe(unsigned int stage,
-			      unsigned long archid, unsigned long impid)
-{
-	u32 cpu_req_errata = 0;
-
-	if (errata_probe_pbmt(stage, archid, impid))
-		cpu_req_errata |= BIT(ERRATA_THEAD_PBMT);
-
-	errata_probe_cmo(stage, archid, impid);
-
-	if (errata_probe_pmu(stage, archid, impid))
-		cpu_req_errata |= BIT(ERRATA_THEAD_PMU);
-
-	return cpu_req_errata;
+    unsigned long archid, unsigned long impid) {
+  u32 cpu_req_errata = 0;
+  if (errata_probe_pbmt(stage, archid, impid)) {
+    cpu_req_errata |= BIT(ERRATA_THEAD_PBMT);
+  }
+  errata_probe_cmo(stage, archid, impid);
+  if (errata_probe_pmu(stage, archid, impid)) {
+    cpu_req_errata |= BIT(ERRATA_THEAD_PMU);
+  }
+  return cpu_req_errata;
 }
 
 void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
-			     unsigned long archid, unsigned long impid,
-			     unsigned int stage)
-{
-	struct alt_entry *alt;
-	u32 cpu_req_errata = thead_errata_probe(stage, archid, impid);
-	u32 tmp;
-	void *oldptr, *altptr;
-
-	for (alt = begin; alt < end; alt++) {
-		if (alt->vendor_id != THEAD_VENDOR_ID)
-			continue;
-		if (alt->patch_id >= ERRATA_THEAD_NUMBER)
-			continue;
-
-		tmp = (1U << alt->patch_id);
-		if (cpu_req_errata & tmp) {
-			oldptr = ALT_OLD_PTR(alt);
-			altptr = ALT_ALT_PTR(alt);
-
-			/* On vm-alternatives, the mmu isn't running yet */
-			if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
-				memcpy(oldptr, altptr, alt->alt_len);
-			} else {
-				mutex_lock(&text_mutex);
-				patch_text_nosync(oldptr, altptr, alt->alt_len);
-				mutex_unlock(&text_mutex);
-			}
-		}
-	}
-
-	if (stage == RISCV_ALTERNATIVES_EARLY_BOOT)
-		local_flush_icache_all();
+    unsigned long archid, unsigned long impid,
+    unsigned int stage) {
+  struct alt_entry *alt;
+  u32 cpu_req_errata = thead_errata_probe(stage, archid, impid);
+  u32 tmp;
+  void *oldptr, *altptr;
+  for (alt = begin; alt < end; alt++) {
+    if (alt->vendor_id != THEAD_VENDOR_ID) {
+      continue;
+    }
+    if (alt->patch_id >= ERRATA_THEAD_NUMBER) {
+      continue;
+    }
+    tmp = (1U << alt->patch_id);
+    if (cpu_req_errata & tmp) {
+      oldptr = ALT_OLD_PTR(alt);
+      altptr = ALT_ALT_PTR(alt);
+      /* On vm-alternatives, the mmu isn't running yet */
+      if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+        memcpy(oldptr, altptr, alt->alt_len);
+      } else {
+        mutex_lock(&text_mutex);
+        patch_text_nosync(oldptr, altptr, alt->alt_len);
+        mutex_unlock(&text_mutex);
+      }
+    }
+  }
+  if (stage == RISCV_ALTERNATIVES_EARLY_BOOT) {
+    local_flush_icache_all();
+  }
 }

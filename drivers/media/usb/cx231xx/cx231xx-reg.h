@@ -1,41 +1,41 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-   cx231xx-reg.h - driver for Conexant Cx23100/101/102
-	       USB video capture devices
-
-   Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
-
+ * cx231xx-reg.h - driver for Conexant Cx23100/101/102
+ *       USB video capture devices
+ *
+ * Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
+ *
  */
 
 #ifndef _CX231XX_REG_H
 #define _CX231XX_REG_H
 
 /*****************************************************************************
-				* VBI codes *
+* VBI codes *
 *****************************************************************************/
 
-#define SAV_ACTIVE_VIDEO_FIELD1		0x80
-#define EAV_ACTIVE_VIDEO_FIELD1		0x90
+#define SAV_ACTIVE_VIDEO_FIELD1   0x80
+#define EAV_ACTIVE_VIDEO_FIELD1   0x90
 
-#define SAV_ACTIVE_VIDEO_FIELD2		0xc0
-#define EAV_ACTIVE_VIDEO_FIELD2		0xd0
+#define SAV_ACTIVE_VIDEO_FIELD2   0xc0
+#define EAV_ACTIVE_VIDEO_FIELD2   0xd0
 
-#define SAV_VBLANK_FIELD1		0xa0
-#define EAV_VBLANK_FIELD1		0xb0
+#define SAV_VBLANK_FIELD1   0xa0
+#define EAV_VBLANK_FIELD1   0xb0
 
-#define SAV_VBLANK_FIELD2		0xe0
-#define EAV_VBLANK_FIELD2		0xf0
+#define SAV_VBLANK_FIELD2   0xe0
+#define EAV_VBLANK_FIELD2   0xf0
 
-#define SAV_VBI_FIELD1			0x20
-#define EAV_VBI_FIELD1			0x30
+#define SAV_VBI_FIELD1      0x20
+#define EAV_VBI_FIELD1      0x30
 
-#define SAV_VBI_FIELD2			0x60
-#define EAV_VBI_FIELD2			0x70
+#define SAV_VBI_FIELD2      0x60
+#define EAV_VBI_FIELD2      0x70
 
-/*****************************************************************************/
-/* Audio ADC Registers */
-#define CH_PWR_CTRL1			0x0000000e
-#define CH_PWR_CTRL2			0x0000000f
+/* ***************************************************************************
+ * Audio ADC Registers*/
+#define CH_PWR_CTRL1      0x0000000e
+#define CH_PWR_CTRL2      0x0000000f
 /*****************************************************************************/
 
 #define      HOST_REG1                0x000
@@ -52,8 +52,8 @@
 /*****************************************************************************/
 #define      HOST_REG3                0x002
 
-/*****************************************************************************/
-/* added for polaris */
+/* ***************************************************************************
+ * added for polaris*/
 #define      GPIO_PIN_CTL0            0x3
 #define      GPIO_PIN_CTL1            0x4
 #define      GPIO_PIN_CTL2            0x5
@@ -70,8 +70,8 @@
 
 /*****************************************************************************/
 #define      CHIP_CTRL                0x100
-/* Reserved [27] */
-/* Reserved [31:21] */
+/* Reserved [27]
+ * Reserved [31:21]*/
 #define      FLD_CHIP_ACFG_DIS        0x00100000
 /* Reserved [19] */
 #define      FLD_DUAL_MODE_ADC2       0x00040000
@@ -102,8 +102,8 @@
 #define      FLD_EN_12DB_CH2          0x00000002
 #define      FLD_EN_12DB_CH1          0x00000001
 
-/* redefine in Cx231xx */
-/*****************************************************************************/
+/* redefine in Cx231xx
+ *****************************************************************************/
 #define      DC_CTRL1                 0x108
 /* reserve [31:30] */
 #define      FLD_CLAMP_LVL_CH1        0x3fff8000
@@ -195,8 +195,8 @@
 #define      FLD_CUV_DLY_LENGTH       0x0000ff00
 #define      FLD_YC_DLY_LENGTH        0x000000ff
 
-/*****************************************************************************/
-/* Poalris redefine */
+/* ***************************************************************************
+ * Poalris redefine*/
 #define      AFE_DIAG_CTRL3           0x138
 /* Reserved [31:26] */
 #define      FLD_AUD_DUAL_FLAG_POL    0x02000000
@@ -244,9 +244,9 @@
 #define      FLD_FLTRN_BIST_TST_DONE  0x00000008
 #define      FLD_VID_BIST_TST_DONE    0x00000007
 
-/*****************************************************************************/
-/* DirectIF registers definition have been moved to DIF_reg.h                */
-/*****************************************************************************/
+/* ***************************************************************************
+ * DirectIF registers definition have been moved to DIF_reg.h
+ *****************************************************************************/
 #define      MODE_CTRL                0x400
 #define      FLD_AFD_PAL60_DIS        0x20000000
 #define      FLD_AFD_FORCE_SECAM      0x10000000
@@ -745,8 +745,8 @@
 #define      FLD_VBI_SETUP_DIS        0x00100000
 #define      FLD_PASS_LINE_CTRL       0x000fffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      VCR_DET_CTRL             0x4c0
 #define      FLD_EN_FIELD_PHASE_DET   0x80000000
 #define      FLD_EN_HEAD_SW_DET       0x40000000
@@ -1037,8 +1037,8 @@
 #define      FLD_MUX2_SEL             0x0000000c
 #define      FLD_MUX1_SEL             0x00000003
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DPLL_CTRL1               0x864
 #define      DIG_PLL_CTL1             0x864
 
@@ -1047,8 +1047,8 @@
 #define      FLD_PLL_SHIFT_REG        0x00007000
 #define      FLD_PHASE_SHIFT          0x000007ff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DPLL_CTRL2               0x868
 #define      DIG_PLL_CTL2             0x868
 #define      FLD_PLL_UNLOCK_THR       0xff000000
@@ -1060,8 +1060,8 @@
 /* Reserved [1] */
 #define      FLD_PLL_PILOT_DET        0x00000001
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DPLL_CTRL3               0x86c
 #define      DIG_PLL_CTL3             0x86c
 #define      FLD_DISABLE_LOOP         0x01000000
@@ -1070,8 +1070,8 @@
 #define      FLD_A1_KI                0x0000ff00
 #define      FLD_A1_KD                0x000000ff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DPLL_CTRL4               0x870
 #define      DIG_PLL_CTL4             0x870
 #define      FLD_A2_DS1_SEL           0x000c0000
@@ -1079,8 +1079,8 @@
 #define      FLD_A2_KI                0x0000ff00
 #define      FLD_A2_KD                0x000000ff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DPLL_CTRL5               0x874
 #define      DIG_PLL_CTL5             0x874
 #define      FLD_TRK_DS1_SEL          0x000c0000
@@ -1093,15 +1093,15 @@
 #define      FLD_DEEMPH2_GAIN         0xFFFF0000
 #define      FLD_DEEMPH1_GAIN         0x0000FFFF
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_COEFF1            0x87c
 #define      DEEMPH_COEF1             0x87c
 #define      FLD_DEEMPH_B0            0xffff0000
 #define      FLD_DEEMPH_A0            0x0000ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_COEFF2            0x880
 #define      DEEMPH_COEF2             0x880
 #define      FLD_DEEMPH_B1            0xFFFF0000
@@ -1153,36 +1153,36 @@
 #define      FLD_FAWDETTHRSHLD2       0x000000f0
 #define      FLD_FAWDETTHRSHLD1       0x0000000f
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_GAIN              0x8a4
 #define      NICAM_DEEMPHGAIN         0x8a4
 /* Reserved [31:18] */
 #define      FLD_DEEMPHGAIN           0x0003ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_NUMER1            0x8a8
 #define      NICAM_DEEMPHNUMER1       0x8a8
 /* Reserved [31:18] */
 #define      FLD_DEEMPHNUMER1         0x0003ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_NUMER2            0x8ac
 #define      NICAM_DEEMPHNUMER2       0x8ac
 /* Reserved [31:18] */
 #define      FLD_DEEMPHNUMER2         0x0003ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_DENOM1            0x8b0
 #define      NICAM_DEEMPHDENOM1       0x8b0
 /* Reserved [31:18] */
 #define      FLD_DEEMPHDENOM1         0x0003ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      DEEMPH_DENOM2            0x8b4
 #define      NICAM_DEEMPHDENOM2       0x8b4
 /* Reserved [31:18] */
@@ -1421,16 +1421,16 @@
 #define      FLD_AC97_SHUTDOWN        0x00000001
 
 /* Cx231xx redefine */
-#define      QPSK_IAGC_CTL1		0x94c
-#define      QPSK_IAGC_CTL2		0x950
-#define      QPSK_FEPR_FREQ		0x954
-#define      QPSK_BTL_CTL1		0x958
-#define      QPSK_BTL_CTL2		0x95c
-#define      QPSK_CTL_CTL1		0x960
-#define      QPSK_CTL_CTL2		0x964
-#define      QPSK_MF_FAGC_CTL		0x968
-#define      QPSK_EQ_CTL		0x96c
-#define      QPSK_LOCK_CTL		0x970
+#define      QPSK_IAGC_CTL1   0x94c
+#define      QPSK_IAGC_CTL2   0x950
+#define      QPSK_FEPR_FREQ   0x954
+#define      QPSK_BTL_CTL1    0x958
+#define      QPSK_BTL_CTL2    0x95c
+#define      QPSK_CTL_CTL1    0x960
+#define      QPSK_CTL_CTL2    0x964
+#define      QPSK_MF_FAGC_CTL   0x968
+#define      QPSK_EQ_CTL    0x96c
+#define      QPSK_LOCK_CTL    0x970
 
 /*****************************************************************************/
 #define      FM1_DFT_CTL              0x9a8
@@ -1464,8 +1464,8 @@
 #define      FLD_FM2_DFT_TH_CMP_STAT  0x00040000
 #define      FLD_FM2_DFT              0x0003ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      AAGC_STATUS_REG          0x9b8
 #define      AAGC_STATUS              0x9b8
 /* Reserved [31:27] */
@@ -1493,8 +1493,8 @@
 #define      FLD_FM2_AFC              0xffff0000
 #define      FLD_FM1_AFC              0x0000ffff
 
-/*****************************************************************************/
-/* Cx231xx redefine */
+/* ***************************************************************************
+ * Cx231xx redefine*/
 #define      NEW_SPARE                0x9cc
 #define      NEW_SPARE_REG            0x9cc
 

@@ -60,9 +60,8 @@ struct stack_trace;
  *
  * Return - Number of stack bytes the instruction reserves or reclaims
  */
-static inline long get_frame_size(unsigned long instr)
-{
-	return abs((s16)(instr & 0xFFFF));
+static inline long get_frame_size(unsigned long instr) {
+  return abs((s16) (instr & 0xFFFF));
 }
 
 /**
@@ -74,41 +73,35 @@ static inline long get_frame_size(unsigned long instr)
  * Return - PC at which stack frame creation occurs
  *          NULL if this cannot be found, i.e. a leaf function
  */
-static unsigned long *find_frame_creation(unsigned long *pc)
-{
-	int i;
-
-	/* NOTE: Distance to search is arbitrary
-	 *	 250 works well for most things,
-	 *	 750 picks up things like tcp_recvmsg(),
-	 *	1000 needed for fat_fill_super()
-	 */
-	for (i = 0; i < 1000; i++, pc--) {
-		unsigned long instr;
-		s16 frame_size;
-
-		if (!kernel_text_address((unsigned long) pc))
-			return NULL;
-
-		instr = *pc;
-
-		/* addik r1, r1, foo ? */
-		if ((instr & 0xFFFF0000) != 0x30210000)
-			continue;	/* No */
-
-		frame_size = get_frame_size(instr);
-		if ((frame_size < 8) || (frame_size & 3)) {
-			pr_debug("    Invalid frame size %d at 0x%p\n",
-				 frame_size, pc);
-			return NULL;
-		}
-
-		pr_debug("    Found frame creation at 0x%p, size %d\n", pc,
-			 frame_size);
-		return pc;
-	}
-
-	return NULL;
+static unsigned long *find_frame_creation(unsigned long *pc) {
+  int i;
+  /* NOTE: Distance to search is arbitrary
+   *   250 works well for most things,
+   *   750 picks up things like tcp_recvmsg(),
+   *  1000 needed for fat_fill_super()
+   */
+  for (i = 0; i < 1000; i++, pc--) {
+    unsigned long instr;
+    s16 frame_size;
+    if (!kernel_text_address((unsigned long) pc)) {
+      return NULL;
+    }
+    instr = *pc;
+    /* addik r1, r1, foo ? */
+    if ((instr & 0xFFFF0000) != 0x30210000) {
+      continue; /* No */
+    }
+    frame_size = get_frame_size(instr);
+    if ((frame_size < 8) || (frame_size & 3)) {
+      pr_debug("    Invalid frame size %d at 0x%p\n",
+          frame_size, pc);
+      return NULL;
+    }
+    pr_debug("    Found frame creation at 0x%p, size %d\n", pc,
+        frame_size);
+    return pc;
+  }
+  return NULL;
 }
 
 /**
@@ -116,56 +109,52 @@ static unsigned long *find_frame_creation(unsigned long *pc)
  * @fp          : Frame (stack) pointer for current function
  * @pc          : Program counter within current function
  * @leaf_return : r15 value within current function. If the current function
- *		  is a leaf, this is the caller's return address.
+ *      is a leaf, this is the caller's return address.
  * @pprev_fp    : On exit, set to frame (stack) pointer for previous function
  * @pprev_pc    : On exit, set to current function caller's return address
  *
  * Return - 0 on success, -EINVAL if the previous frame cannot be found
  */
 static int lookup_prev_stack_frame(unsigned long fp, unsigned long pc,
-				   unsigned long leaf_return,
-				   unsigned long *pprev_fp,
-				   unsigned long *pprev_pc)
-{
-	unsigned long *prologue = NULL;
-
-	/* _switch_to is a special leaf function */
-	if (pc != (unsigned long) &_switch_to)
-		prologue = find_frame_creation((unsigned long *)pc);
-
-	if (prologue) {
-		long frame_size = get_frame_size(*prologue);
-
-		*pprev_fp = fp + frame_size;
-		*pprev_pc = *(unsigned long *)fp;
-	} else {
-		if (!leaf_return)
-			return -EINVAL;
-		*pprev_pc = leaf_return;
-		*pprev_fp = fp;
-	}
-
-	/* NOTE: don't check kernel_text_address here, to allow display
-	 *	 of userland return address
-	 */
-	return (!*pprev_pc || (*pprev_pc & 3)) ? -EINVAL : 0;
+    unsigned long leaf_return,
+    unsigned long *pprev_fp,
+    unsigned long *pprev_pc) {
+  unsigned long *prologue = NULL;
+  /* _switch_to is a special leaf function */
+  if (pc != (unsigned long) &_switch_to) {
+    prologue = find_frame_creation((unsigned long *) pc);
+  }
+  if (prologue) {
+    long frame_size = get_frame_size(*prologue);
+    *pprev_fp = fp + frame_size;
+    *pprev_pc = *(unsigned long *) fp;
+  } else {
+    if (!leaf_return) {
+      return -EINVAL;
+    }
+    *pprev_pc = leaf_return;
+    *pprev_fp = fp;
+  }
+  /* NOTE: don't check kernel_text_address here, to allow display
+   *   of userland return address
+   */
+  return (!*pprev_pc || (*pprev_pc & 3)) ? -EINVAL : 0;
 }
 
 static void microblaze_unwind_inner(struct task_struct *task,
-				    unsigned long pc, unsigned long fp,
-				    unsigned long leaf_return,
-				    struct stack_trace *trace,
-				    const char *loglvl);
+    unsigned long pc, unsigned long fp,
+    unsigned long leaf_return,
+    struct stack_trace *trace,
+    const char *loglvl);
 
 /**
  * unwind_trap - Unwind through a system trap, that stored previous state
- *		 on the stack.
+ *     on the stack.
  */
 static inline void unwind_trap(struct task_struct *task, unsigned long pc,
-				unsigned long fp, struct stack_trace *trace,
-				const char *loglvl)
-{
-	/* To be implemented */
+    unsigned long fp, struct stack_trace *trace,
+    const char *loglvl) {
+  /* To be implemented */
 }
 
 /**
@@ -174,136 +163,126 @@ static inline void unwind_trap(struct task_struct *task, unsigned long pc,
  * @pc    : Program counter from which we start unwinding
  * @fp    : Frame (stack) pointer from which we start unwinding
  * @leaf_return : Value of r15 at pc. If the function is a leaf, this is
- *				  the caller's return address.
+ *          the caller's return address.
  * @trace : Where to store stack backtrace (PC values).
- *	    NULL == print backtrace to kernel log
+ *      NULL == print backtrace to kernel log
  * @loglvl : Used for printk log level if (trace == NULL).
  */
 static void microblaze_unwind_inner(struct task_struct *task,
-			     unsigned long pc, unsigned long fp,
-			     unsigned long leaf_return,
-			     struct stack_trace *trace,
-			     const char *loglvl)
-{
-	int ofs = 0;
-
-	pr_debug("    Unwinding with PC=%p, FP=%p\n", (void *)pc, (void *)fp);
-	if (!pc || !fp || (pc & 3) || (fp & 3)) {
-		pr_debug("    Invalid state for unwind, aborting\n");
-		return;
-	}
-	for (; pc != 0;) {
-		unsigned long next_fp, next_pc = 0;
-		unsigned long return_to = pc +  2 * sizeof(unsigned long);
-		const struct trap_handler_info *handler =
-			&microblaze_trap_handlers;
-
-		/* Is previous function the HW exception handler? */
-		if ((return_to >= (unsigned long)&_hw_exception_handler)
-		    &&(return_to < (unsigned long)&ex_handler_unhandled)) {
-			/*
-			 * HW exception handler doesn't save all registers,
-			 * so we open-code a special case of unwind_trap()
-			 */
-			printk("%sHW EXCEPTION\n", loglvl);
-			return;
-		}
-
-		/* Is previous function a trap handler? */
-		for (; handler->start_addr; ++handler) {
-			if ((return_to >= handler->start_addr)
-			    && (return_to <= handler->end_addr)) {
-				if (!trace)
-					printk("%s%s\n", loglvl, handler->trap_name);
-				unwind_trap(task, pc, fp, trace, loglvl);
-				return;
-			}
-		}
-		pc -= ofs;
-
-		if (trace) {
+    unsigned long pc, unsigned long fp,
+    unsigned long leaf_return,
+    struct stack_trace *trace,
+    const char *loglvl) {
+  int ofs = 0;
+  pr_debug("    Unwinding with PC=%p, FP=%p\n", (void *) pc, (void *) fp);
+  if (!pc || !fp || (pc & 3) || (fp & 3)) {
+    pr_debug("    Invalid state for unwind, aborting\n");
+    return;
+  }
+  for (; pc != 0;) {
+    unsigned long next_fp, next_pc = 0;
+    unsigned long return_to = pc + 2 * sizeof(unsigned long);
+    const struct trap_handler_info *handler
+      = &microblaze_trap_handlers;
+    /* Is previous function the HW exception handler? */
+    if ((return_to >= (unsigned long) &_hw_exception_handler)
+        && (return_to < (unsigned long) &ex_handler_unhandled)) {
+      /*
+       * HW exception handler doesn't save all registers,
+       * so we open-code a special case of unwind_trap()
+       */
+      printk("%sHW EXCEPTION\n", loglvl);
+      return;
+    }
+    /* Is previous function a trap handler? */
+    for (; handler->start_addr; ++handler) {
+      if ((return_to >= handler->start_addr)
+          && (return_to <= handler->end_addr)) {
+        if (!trace) {
+          printk("%s%s\n", loglvl, handler->trap_name);
+        }
+        unwind_trap(task, pc, fp, trace, loglvl);
+        return;
+      }
+    }
+    pc -= ofs;
+    if (trace) {
 #ifdef CONFIG_STACKTRACE
-			if (trace->skip > 0)
-				trace->skip--;
-			else
-				trace->entries[trace->nr_entries++] = pc;
-
-			if (trace->nr_entries >= trace->max_entries)
-				break;
+      if (trace->skip > 0) {
+        trace->skip--;
+      } else {
+        trace->entries[trace->nr_entries++] = pc;
+      }
+      if (trace->nr_entries >= trace->max_entries) {
+        break;
+      }
 #endif
-		} else {
-			/* Have we reached userland? */
-			if (unlikely(pc == task_pt_regs(task)->pc)) {
-				printk("%s[<%p>] PID %lu [%s]\n",
-					loglvl, (void *) pc,
-					(unsigned long) task->pid,
-					task->comm);
-				break;
-			} else
-				print_ip_sym(loglvl, pc);
-		}
-
-		/* Stop when we reach anything not part of the kernel */
-		if (!kernel_text_address(pc))
-			break;
-
-		if (lookup_prev_stack_frame(fp, pc, leaf_return, &next_fp,
-					    &next_pc) == 0) {
-			ofs = sizeof(unsigned long);
-			pc = next_pc & ~3;
-			fp = next_fp;
-			leaf_return = 0;
-		} else {
-			pr_debug("    Failed to find previous stack frame\n");
-			break;
-		}
-
-		pr_debug("    Next PC=%p, next FP=%p\n",
-			 (void *)next_pc, (void *)next_fp);
-	}
+    } else {
+      /* Have we reached userland? */
+      if (unlikely(pc == task_pt_regs(task)->pc)) {
+        printk("%s[<%p>] PID %lu [%s]\n",
+            loglvl, (void *) pc,
+            (unsigned long) task->pid,
+            task->comm);
+        break;
+      } else {
+        print_ip_sym(loglvl, pc);
+      }
+    }
+    /* Stop when we reach anything not part of the kernel */
+    if (!kernel_text_address(pc)) {
+      break;
+    }
+    if (lookup_prev_stack_frame(fp, pc, leaf_return, &next_fp,
+        &next_pc) == 0) {
+      ofs = sizeof(unsigned long);
+      pc = next_pc & ~3;
+      fp = next_fp;
+      leaf_return = 0;
+    } else {
+      pr_debug("    Failed to find previous stack frame\n");
+      break;
+    }
+    pr_debug("    Next PC=%p, next FP=%p\n",
+        (void *) next_pc, (void *) next_fp);
+  }
 }
 
 /**
  * microblaze_unwind - Stack unwinder for Microblaze (external entry point)
  * @task  : Task whose stack we are to unwind (NULL == current)
  * @trace : Where to store stack backtrace (PC values).
- *	    NULL == print backtrace to kernel log
+ *      NULL == print backtrace to kernel log
  * @loglvl : Used for printk log level if (trace == NULL).
  */
 void microblaze_unwind(struct task_struct *task, struct stack_trace *trace,
-		       const char *loglvl)
-{
-	if (task) {
-		if (task == current) {
-			const struct pt_regs *regs = task_pt_regs(task);
-			microblaze_unwind_inner(task, regs->pc, regs->r1,
-						regs->r15, trace, loglvl);
-		} else {
-			struct thread_info *thread_info =
-				(struct thread_info *)(task->stack);
-			const struct cpu_context *cpu_context =
-				&thread_info->cpu_context;
-
-			microblaze_unwind_inner(task,
-						(unsigned long) &_switch_to,
-						cpu_context->r1,
-						cpu_context->r15,
-						trace, loglvl);
-		}
-	} else {
-		unsigned long pc, fp;
-
-		__asm__ __volatile__ ("or %0, r1, r0" : "=r" (fp));
-
-		__asm__ __volatile__ (
-			"brlid %0, 0f;"
-			"nop;"
-			"0:"
-			: "=r" (pc)
-		);
-
-		/* Since we are not a leaf function, use leaf_return = 0 */
-		microblaze_unwind_inner(current, pc, fp, 0, trace, loglvl);
-	}
+    const char *loglvl) {
+  if (task) {
+    if (task == current) {
+      const struct pt_regs *regs = task_pt_regs(task);
+      microblaze_unwind_inner(task, regs->pc, regs->r1,
+          regs->r15, trace, loglvl);
+    } else {
+      struct thread_info *thread_info
+        = (struct thread_info *) (task->stack);
+      const struct cpu_context *cpu_context
+        = &thread_info->cpu_context;
+      microblaze_unwind_inner(task,
+          (unsigned long) &_switch_to,
+          cpu_context->r1,
+          cpu_context->r15,
+          trace, loglvl);
+    }
+  } else {
+    unsigned long pc, fp;
+    __asm__ __volatile__ ("or %0, r1, r0" : "=r" (fp));
+    __asm__ __volatile__ (
+      "brlid %0, 0f;"
+      "nop;"
+      "0:"
+      : "=r" (pc)
+      );
+    /* Since we are not a leaf function, use leaf_return = 0 */
+    microblaze_unwind_inner(current, pc, fp, 0, trace, loglvl);
+  }
 }
-

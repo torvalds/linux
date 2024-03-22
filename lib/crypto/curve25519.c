@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights
+ * Reserved.
  *
  * This is an implementation of the Curve25519 ECDH algorithm, using either
  * a 32-bit implementation or a 64-bit implementation with 128-bit integers,
@@ -13,16 +14,15 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-static int __init curve25519_init(void)
-{
-	if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS) &&
-	    WARN_ON(!curve25519_selftest()))
-		return -ENODEV;
-	return 0;
+static int __init curve25519_init(void) {
+  if (!IS_ENABLED(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS)
+      && WARN_ON(!curve25519_selftest())) {
+    return -ENODEV;
+  }
+  return 0;
 }
 
-static void __exit curve25519_exit(void)
-{
+static void __exit curve25519_exit(void) {
 }
 
 module_init(curve25519_init);

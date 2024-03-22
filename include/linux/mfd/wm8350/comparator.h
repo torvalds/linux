@@ -136,29 +136,29 @@
 /*
  * Interrupts.
  */
-#define WM8350_IRQ_AUXADC_DATARDY		16
-#define WM8350_IRQ_AUXADC_DCOMP4		17
-#define WM8350_IRQ_AUXADC_DCOMP3		18
-#define WM8350_IRQ_AUXADC_DCOMP2		19
-#define WM8350_IRQ_AUXADC_DCOMP1		20
-#define WM8350_IRQ_SYS_HYST_COMP_FAIL		21
-#define WM8350_IRQ_SYS_CHIP_GT115		22
-#define WM8350_IRQ_SYS_CHIP_GT140		23
+#define WM8350_IRQ_AUXADC_DATARDY   16
+#define WM8350_IRQ_AUXADC_DCOMP4    17
+#define WM8350_IRQ_AUXADC_DCOMP3    18
+#define WM8350_IRQ_AUXADC_DCOMP2    19
+#define WM8350_IRQ_AUXADC_DCOMP1    20
+#define WM8350_IRQ_SYS_HYST_COMP_FAIL   21
+#define WM8350_IRQ_SYS_CHIP_GT115   22
+#define WM8350_IRQ_SYS_CHIP_GT140   23
 
 /*
  * USB/2, LINE & BATT = ((VRTC * 2) / 4095)) * 10e6 uV
  * Where VRTC = 2.7 V
  */
-#define WM8350_AUX_COEFF			1319
+#define WM8350_AUX_COEFF      1319
 
-#define WM8350_AUXADC_AUX1			0
-#define WM8350_AUXADC_AUX2			1
-#define WM8350_AUXADC_AUX3			2
-#define WM8350_AUXADC_AUX4			3
-#define WM8350_AUXADC_USB			4
-#define WM8350_AUXADC_LINE			5
-#define WM8350_AUXADC_BATT			6
-#define WM8350_AUXADC_TEMP			7
+#define WM8350_AUXADC_AUX1      0
+#define WM8350_AUXADC_AUX2      1
+#define WM8350_AUXADC_AUX3      2
+#define WM8350_AUXADC_AUX4      3
+#define WM8350_AUXADC_USB     4
+#define WM8350_AUXADC_LINE      5
+#define WM8350_AUXADC_BATT      6
+#define WM8350_AUXADC_TEMP      7
 
 struct wm8350;
 
@@ -166,6 +166,6 @@ struct wm8350;
  * AUX ADC Readback
  */
 int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale,
-		       int vref);
+    int vref);
 
 #endif

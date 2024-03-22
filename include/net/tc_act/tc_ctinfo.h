@@ -5,29 +5,29 @@
 #include <net/act_api.h>
 
 struct tcf_ctinfo_params {
-	struct rcu_head rcu;
-	struct net *net;
-	u32 dscpmask;
-	u32 dscpstatemask;
-	u32 cpmarkmask;
-	u16 zone;
-	u8 mode;
-	u8 dscpmaskshift;
+  struct rcu_head rcu;
+  struct net *net;
+  u32 dscpmask;
+  u32 dscpstatemask;
+  u32 cpmarkmask;
+  u16 zone;
+  u8 mode;
+  u8 dscpmaskshift;
 };
 
 struct tcf_ctinfo {
-	struct tc_action common;
-	struct tcf_ctinfo_params __rcu *params;
-	u64 stats_dscp_set;
-	u64 stats_dscp_error;
-	u64 stats_cpmark_set;
+  struct tc_action common;
+  struct tcf_ctinfo_params __rcu *params;
+  u64 stats_dscp_set;
+  u64 stats_dscp_error;
+  u64 stats_cpmark_set;
 };
 
 enum {
-	CTINFO_MODE_DSCP	= BIT(0),
-	CTINFO_MODE_CPMARK	= BIT(1)
+  CTINFO_MODE_DSCP = BIT(0),
+  CTINFO_MODE_CPMARK = BIT(1)
 };
 
-#define to_ctinfo(a) ((struct tcf_ctinfo *)a)
+#define to_ctinfo(a) ((struct tcf_ctinfo *) a)
 
 #endif /* __NET_TC_CTINFO_H */

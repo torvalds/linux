@@ -9,12 +9,12 @@
 
 #include <linux/types.h>
 
-#define VSC_TP_CMD_WRITE	0x01
-#define VSC_TP_CMD_READ		0x02
+#define VSC_TP_CMD_WRITE  0x01
+#define VSC_TP_CMD_READ   0x02
 
-#define VSC_TP_CMD_ACK		0x10
-#define VSC_TP_CMD_NACK		0x11
-#define VSC_TP_CMD_BUSY		0x12
+#define VSC_TP_CMD_ACK    0x10
+#define VSC_TP_CMD_NACK   0x11
+#define VSC_TP_CMD_BUSY   0x12
 
 struct vsc_tp;
 
@@ -29,13 +29,13 @@ struct vsc_tp;
 typedef void (*vsc_tp_event_cb_t)(void *context);
 
 int vsc_tp_rom_xfer(struct vsc_tp *tp, const void *obuf, void *ibuf,
-		    size_t len);
+    size_t len);
 
 int vsc_tp_xfer(struct vsc_tp *tp, u8 cmd, const void *obuf, size_t olen,
-		void *ibuf, size_t ilen);
+    void *ibuf, size_t ilen);
 
 int vsc_tp_register_event_cb(struct vsc_tp *tp, vsc_tp_event_cb_t event_cb,
-			     void *context);
+    void *context);
 
 void vsc_tp_intr_enable(struct vsc_tp *tp);
 void vsc_tp_intr_disable(struct vsc_tp *tp);

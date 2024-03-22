@@ -8,7 +8,7 @@
 #define __pragma_loop_unroll DO_PRAGMA_(clang loop unroll(enable))
 #else
 /* In GCC -funroll-loops, which is enabled with -O2, should have the
-   same impact than the loop-unroll-enable pragma above.  */
+ * same impact than the loop-unroll-enable pragma above.  */
 #define __pragma_loop_unroll
 #endif
 

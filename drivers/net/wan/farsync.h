@@ -37,7 +37,6 @@
 #define FST_NDEV_NAME           "sync"          /* For net interface */
 #define FST_DEV_NAME            "farsync"       /* For misc interfaces */
 
-
 /*      User version number
  *
  *      This version number is incremented with each official release of the
@@ -48,26 +47,23 @@
  */
 #define FST_USER_VERSION        "1.04"
 
-
 /*      Ioctl call command values
  */
-#define FSTWRITE        (SIOCDEVPRIVATE+10)
-#define FSTCPURESET     (SIOCDEVPRIVATE+11)
-#define FSTCPURELEASE   (SIOCDEVPRIVATE+12)
-#define FSTGETCONF      (SIOCDEVPRIVATE+13)
-#define FSTSETCONF      (SIOCDEVPRIVATE+14)
-
+#define FSTWRITE        (SIOCDEVPRIVATE + 10)
+#define FSTCPURESET     (SIOCDEVPRIVATE + 11)
+#define FSTCPURELEASE   (SIOCDEVPRIVATE + 12)
+#define FSTGETCONF      (SIOCDEVPRIVATE + 13)
+#define FSTSETCONF      (SIOCDEVPRIVATE + 14)
 
 /*      FSTWRITE
  *
  *      Used to write a block of data (firmware etc) before the card is running
  */
 struct fstioc_write {
-        unsigned int  size;
-        unsigned int  offset;
-	unsigned char data[];
+  unsigned int size;
+  unsigned int offset;
+  unsigned char data[];
 };
-
 
 /*      FSTCPURESET and FSTCPURELEASE
  *
@@ -92,48 +88,48 @@ struct fstioc_write {
  *      might be used to indicate a different (expanded) structure.
  */
 struct fstioc_info {
-        unsigned int   valid;           /* Bits of structure that are valid */
-        unsigned int   nports;          /* Number of serial ports */
-        unsigned int   type;            /* Type index of card */
-        unsigned int   state;           /* State of card */
-        unsigned int   index;           /* Index of port ioctl was issued on */
-        unsigned int   smcFirmwareVersion;
-        unsigned long  kernelVersion;   /* What Kernel version we are working with */
-        unsigned short lineInterface;   /* Physical interface type */
-        unsigned char  proto;           /* Line protocol */
-        unsigned char  internalClock;   /* 1 => internal clock, 0 => external */
-        unsigned int   lineSpeed;       /* Speed in bps */
-        unsigned int   v24IpSts;        /* V.24 control input status */
-        unsigned int   v24OpSts;        /* V.24 control output status */
-        unsigned short clockStatus;     /* lsb: 0=> present, 1=> absent */
-        unsigned short cableStatus;     /* lsb: 0=> present, 1=> absent */
-        unsigned short cardMode;        /* lsb: LED id mode */
-        unsigned short debug;           /* Debug flags */
-        unsigned char  transparentMode; /* Not used always 0 */
-        unsigned char  invertClock;     /* Invert clock feature for syncing */
-        unsigned char  startingSlot;    /* Time slot to use for start of tx */
-        unsigned char  clockSource;     /* External or internal */
-        unsigned char  framing;         /* E1, T1 or J1 */
-        unsigned char  structure;       /* unframed, double, crc4, f4, f12, */
-                                        /* f24 f72 */
-        unsigned char  interface;       /* rj48c or bnc */
-        unsigned char  coding;          /* hdb3 b8zs */
-        unsigned char  lineBuildOut;    /* 0, -7.5, -15, -22 */
-        unsigned char  equalizer;       /* short or lon haul settings */
-        unsigned char  loopMode;        /* various loopbacks */
-        unsigned char  range;           /* cable lengths */
-        unsigned char  txBufferMode;    /* tx elastic buffer depth */
-        unsigned char  rxBufferMode;    /* rx elastic buffer depth */
-        unsigned char  losThreshold;    /* Attenuation on LOS signal */
-        unsigned char  idleCode;        /* Value to send as idle timeslot */
-        unsigned int   receiveBufferDelay; /* delay thro rx buffer timeslots */
-        unsigned int   framingErrorCount; /* framing errors */
-        unsigned int   codeViolationCount; /* code violations */
-        unsigned int   crcErrorCount;   /* CRC errors */
-        int            lineAttenuation; /* in dB*/
-        unsigned short lossOfSignal;
-        unsigned short receiveRemoteAlarm;
-        unsigned short alarmIndicationSignal;
+  unsigned int valid;           /* Bits of structure that are valid */
+  unsigned int nports;          /* Number of serial ports */
+  unsigned int type;            /* Type index of card */
+  unsigned int state;           /* State of card */
+  unsigned int index;           /* Index of port ioctl was issued on */
+  unsigned int smcFirmwareVersion;
+  unsigned long kernelVersion;   /* What Kernel version we are working with */
+  unsigned short lineInterface;   /* Physical interface type */
+  unsigned char proto;           /* Line protocol */
+  unsigned char internalClock;   /* 1 => internal clock, 0 => external */
+  unsigned int lineSpeed;       /* Speed in bps */
+  unsigned int v24IpSts;        /* V.24 control input status */
+  unsigned int v24OpSts;        /* V.24 control output status */
+  unsigned short clockStatus;     /* lsb: 0=> present, 1=> absent */
+  unsigned short cableStatus;     /* lsb: 0=> present, 1=> absent */
+  unsigned short cardMode;        /* lsb: LED id mode */
+  unsigned short debug;           /* Debug flags */
+  unsigned char transparentMode; /* Not used always 0 */
+  unsigned char invertClock;     /* Invert clock feature for syncing */
+  unsigned char startingSlot;    /* Time slot to use for start of tx */
+  unsigned char clockSource;     /* External or internal */
+  unsigned char framing;         /* E1, T1 or J1 */
+  unsigned char structure;       /* unframed, double, crc4, f4, f12,
+                                  * f24 f72*/
+  unsigned char interface;       /* rj48c or bnc */
+  unsigned char coding;          /* hdb3 b8zs */
+  unsigned char lineBuildOut;    /* 0, -7.5, -15, -22 */
+  unsigned char equalizer;       /* short or lon haul settings */
+  unsigned char loopMode;        /* various loopbacks */
+  unsigned char range;           /* cable lengths */
+  unsigned char txBufferMode;    /* tx elastic buffer depth */
+  unsigned char rxBufferMode;    /* rx elastic buffer depth */
+  unsigned char losThreshold;    /* Attenuation on LOS signal */
+  unsigned char idleCode;        /* Value to send as idle timeslot */
+  unsigned int receiveBufferDelay; /* delay thro rx buffer timeslots */
+  unsigned int framingErrorCount; /* framing errors */
+  unsigned int codeViolationCount; /* code violations */
+  unsigned int crcErrorCount;   /* CRC errors */
+  int lineAttenuation; /* in dB*/
+  unsigned short lossOfSignal;
+  unsigned short receiveRemoteAlarm;
+  unsigned short alarmIndicationSignal;
 };
 
 /* "valid" bitmask */
@@ -222,7 +218,7 @@ struct fstioc_info {
 /* "cardMode" bitmask */
 #define CARD_MODE_IDENTIFY      0x0001
 
-/* 
+/*
  * Constants for T1/E1 configuration
  */
 
@@ -344,4 +340,3 @@ extern int fst_debug_mask;              /* Bit mask of actions to debug, bits
                                          * one of these then I've been an ass
                                          */
 #endif  /* FST_DEBUG */
-

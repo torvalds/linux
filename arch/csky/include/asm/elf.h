@@ -43,20 +43,20 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) (((x)->e_machine == ELF_ARCH) || \
-			   ((x)->e_machine == EM_CSKY_OLD))
+#define elf_check_arch(x) (((x)->e_machine == ELF_ARCH)    \
+  || ((x)->e_machine == EM_CSKY_OLD))
 
 /*
  * These are used to set parameters in the core dumps.
  */
-#define ELF_EXEC_PAGESIZE		4096
-#define ELF_CLASS			ELFCLASS32
-#define ELF_PLAT_INIT(_r, load_addr)	{ _r->a0 = 0; }
+#define ELF_EXEC_PAGESIZE   4096
+#define ELF_CLASS     ELFCLASS32
+#define ELF_PLAT_INIT(_r, load_addr)  { _r->a0 = 0; }
 
 #ifdef __cskyBE__
-#define ELF_DATA	ELFDATA2MSB
+#define ELF_DATA  ELFDATA2MSB
 #else
-#define ELF_DATA	ELFDATA2LSB
+#define ELF_DATA  ELFDATA2LSB
 #endif
 
 /*
@@ -65,7 +65,7 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
  * the loader.  We need to make sure that it is out of the way of the program
  * that it will "exec", and that there is sufficient room for the brk.
  */
-#define ELF_ET_DYN_BASE	0x0UL
+#define ELF_ET_DYN_BASE 0x0UL
 #include <abi/elf.h>
 
 /* Similar, but for a thread other than current. */
@@ -73,18 +73,18 @@ struct task_struct;
 extern int dump_task_regs(struct task_struct *tsk, elf_gregset_t *elf_regs);
 #define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 
-#define ELF_HWCAP	(0)
+#define ELF_HWCAP (0)
 
 /*
  * This yields a string that ld.so will use to load implementation specific
  * libraries for optimization. This is more specific in intent than poking
  * at uname or /proc/cpuinfo.
  */
-#define ELF_PLATFORM		(NULL)
-#define SET_PERSONALITY(ex)	set_personality(PER_LINUX)
+#define ELF_PLATFORM    (NULL)
+#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
 
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
-				       int uses_interp);
+    int uses_interp);
 #endif /* __ASM_CSKY_ELF_H */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/* 
+/*
  * CRC32C
  *@Article{castagnoli-crc,
  * author =       { Guy Castagnoli and Stefan Braeuer and Martin Herrman},
@@ -35,34 +35,28 @@
 
 static struct crypto_shash *tfm;
 
-u32 crc32c(u32 crc, const void *address, unsigned int length)
-{
-	SHASH_DESC_ON_STACK(shash, tfm);
-	u32 ret, *ctx = (u32 *)shash_desc_ctx(shash);
-	int err;
-
-	shash->tfm = tfm;
-	*ctx = crc;
-
-	err = crypto_shash_update(shash, address, length);
-	BUG_ON(err);
-
-	ret = *ctx;
-	barrier_data(ctx);
-	return ret;
+u32 crc32c(u32 crc, const void *address, unsigned int length) {
+  SHASH_DESC_ON_STACK(shash, tfm);
+  u32 ret, *ctx = (u32 *) shash_desc_ctx(shash);
+  int err;
+  shash->tfm = tfm;
+  *ctx = crc;
+  err = crypto_shash_update(shash, address, length);
+  BUG_ON(err);
+  ret = *ctx;
+  barrier_data(ctx);
+  return ret;
 }
 
 EXPORT_SYMBOL(crc32c);
 
-static int __init libcrc32c_mod_init(void)
-{
-	tfm = crypto_alloc_shash("crc32c", 0, 0);
-	return PTR_ERR_OR_ZERO(tfm);
+static int __init libcrc32c_mod_init(void) {
+  tfm = crypto_alloc_shash("crc32c", 0, 0);
+  return PTR_ERR_OR_ZERO(tfm);
 }
 
-static void __exit libcrc32c_mod_fini(void)
-{
-	crypto_free_shash(tfm);
+static void __exit libcrc32c_mod_fini(void) {
+  crypto_free_shash(tfm);
 }
 
 module_init(libcrc32c_mod_init);

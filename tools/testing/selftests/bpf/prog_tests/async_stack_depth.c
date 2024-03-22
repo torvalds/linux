@@ -3,7 +3,6 @@
 
 #include "async_stack_depth.skel.h"
 
-void test_async_stack_depth(void)
-{
-	RUN_TESTS(async_stack_depth);
+void test_async_stack_depth(void) {
+  RUN_TESTS(async_stack_depth);
 }

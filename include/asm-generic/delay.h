@@ -17,29 +17,29 @@ extern void __delay(unsigned long loops);
  */
 
 /* 0x10c7 is 2**32 / 1000000 (rounded up) */
-#define udelay(n)							\
-	({								\
-		if (__builtin_constant_p(n)) {				\
-			if ((n) / 20000 >= 1)				\
-				 __bad_udelay();			\
-			else						\
-				__const_udelay((n) * 0x10c7ul);		\
-		} else {						\
-			__udelay(n);					\
-		}							\
-	})
+#define udelay(n)             \
+  ({                \
+    if (__builtin_constant_p(n)) {        \
+      if ((n) / 20000 >= 1)       \
+      __bad_udelay();      \
+      else            \
+      __const_udelay((n) * 0x10c7ul);   \
+    } else {            \
+      __udelay(n);          \
+    }             \
+  })
 
 /* 0x5 is 2**32 / 1000000000 (rounded up) */
-#define ndelay(n)							\
-	({								\
-		if (__builtin_constant_p(n)) {				\
-			if ((n) / 20000 >= 1)				\
-				__bad_ndelay();				\
-			else						\
-				__const_udelay((n) * 5ul);		\
-		} else {						\
-			__ndelay(n);					\
-		}							\
-	})
+#define ndelay(n)             \
+  ({                \
+    if (__builtin_constant_p(n)) {        \
+      if ((n) / 20000 >= 1)       \
+      __bad_ndelay();       \
+      else            \
+      __const_udelay((n) * 5ul);    \
+    } else {            \
+      __ndelay(n);          \
+    }             \
+  })
 
 #endif /* __ASM_GENERIC_DELAY_H */

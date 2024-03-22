@@ -14,9 +14,9 @@ int lifebook_init(struct psmouse *psmouse);
 #ifdef CONFIG_MOUSE_PS2_LIFEBOOK
 void lifebook_module_init(void);
 #else
-static inline void lifebook_module_init(void)
-{
+static inline void lifebook_module_init(void) {
 }
+
 #endif
 
 #endif

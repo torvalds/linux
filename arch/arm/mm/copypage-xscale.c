@@ -20,8 +20,8 @@
 
 #include "mm.h"
 
-#define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | \
-				  L_PTE_MT_MINICACHE)
+#define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG   \
+    | L_PTE_MT_MINICACHE)
 
 static DEFINE_RAW_SPINLOCK(minicache_lock);
 
@@ -33,15 +33,14 @@ static DEFINE_RAW_SPINLOCK(minicache_lock);
  * Dcache aliasing issue.  The writes will be forwarded to the write buffer,
  * and merged as appropriate.
  */
-static void mc_copy_user_page(void *from, void *to)
-{
-	int tmp;
-
-	/*
-	 * Strangely enough, best performance is achieved
-	 * when prefetching destination as well.  (NP)
-	 */
-	asm volatile ("\
+static void mc_copy_user_page(void *from, void *to) {
+  int tmp;
+  /*
+   * Strangely enough, best performance is achieved
+   * when prefetching destination as well.  (NP)
+   */
+  asm volatile (
+    "\
 .arch xscale					\n\
 	pld	[%0, #0]			\n\
 	pld	[%0, #32]			\n\
@@ -75,40 +74,32 @@ static void mc_copy_user_page(void *from, void *to)
 	subs	%2, %2, #1			\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
 	bgt	1b				\n\
-	beq	2b				"
-	: "+&r" (from), "+&r" (to), "=&r" (tmp)
-	: "2" (PAGE_SIZE / 64 - 1)
-	: "r2", "r3", "r4", "r5", "ip");
+	beq	2b				" : "+&r" (from), "+&r" (to), "=&r" (tmp)
+    : "2" (PAGE_SIZE / 64 - 1)
+    : "r2", "r3", "r4", "r5", "ip");
 }
 
 void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma)
-{
-	struct folio *src = page_folio(from);
-	void *kto = kmap_atomic(to);
-
-	if (!test_and_set_bit(PG_dcache_clean, &src->flags))
-		__flush_dcache_folio(folio_flush_mapping(src), src);
-
-	raw_spin_lock(&minicache_lock);
-
-	set_top_pte(COPYPAGE_MINICACHE, mk_pte(from, minicache_pgprot));
-
-	mc_copy_user_page((void *)COPYPAGE_MINICACHE, kto);
-
-	raw_spin_unlock(&minicache_lock);
-
-	kunmap_atomic(kto);
+    unsigned long vaddr, struct vm_area_struct *vma) {
+  struct folio *src = page_folio(from);
+  void *kto = kmap_atomic(to);
+  if (!test_and_set_bit(PG_dcache_clean, &src->flags)) {
+    __flush_dcache_folio(folio_flush_mapping(src), src);
+  }
+  raw_spin_lock(&minicache_lock);
+  set_top_pte(COPYPAGE_MINICACHE, mk_pte(from, minicache_pgprot));
+  mc_copy_user_page((void *) COPYPAGE_MINICACHE, kto);
+  raw_spin_unlock(&minicache_lock);
+  kunmap_atomic(kto);
 }
 
 /*
  * XScale optimised clear_user_page
  */
-void
-xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
-{
-	void *ptr, *kaddr = kmap_atomic(page);
-	asm volatile("\
+void xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr) {
+  void *ptr, *kaddr = kmap_atomic(page);
+  asm volatile (
+    "\
 .arch xscale					\n\
 	mov	r1, %2				\n\
 	mov	r2, #0				\n\
@@ -121,14 +112,13 @@ xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 	mcr	p15, 0, ip, c7, c10, 1		@ clean D line\n\
 	subs	r1, r1, #1			\n\
 	mcr	p15, 0, ip, c7, c6, 1		@ invalidate D line\n\
-	bne	1b"
-	: "=r" (ptr)
-	: "0" (kaddr), "I" (PAGE_SIZE / 32)
-	: "r1", "r2", "r3", "ip");
-	kunmap_atomic(kaddr);
+	bne	1b" : "=r" (ptr)
+    : "0" (kaddr), "I" (PAGE_SIZE / 32)
+    : "r1", "r2", "r3", "ip");
+  kunmap_atomic(kaddr);
 }
 
 struct cpu_user_fns xscale_mc_user_fns __initdata = {
-	.cpu_clear_user_highpage = xscale_mc_clear_user_highpage,
-	.cpu_copy_user_highpage	= xscale_mc_copy_user_highpage,
+  .cpu_clear_user_highpage = xscale_mc_clear_user_highpage,
+  .cpu_copy_user_highpage = xscale_mc_copy_user_highpage,
 };

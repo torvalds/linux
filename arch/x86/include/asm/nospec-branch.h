@@ -27,11 +27,11 @@
  * so the tracking covers 12 nested calls.
  *
  *  Call
- *  0: 0x8000000000000000	0x0000000000000000
- *  1: 0xfc00000000000000	0xf000000000000000
+ *  0: 0x8000000000000000 0x0000000000000000
+ *  1: 0xfc00000000000000 0xf000000000000000
  * ...
- * 11: 0xfffffffffffffff8	0xfffffffffffffc00
- * 12: 0xffffffffffffffff	0xffffffffffffffe0
+ * 11: 0xfffffffffffffff8 0xfffffffffffffc00
+ * 12: 0xffffffffffffffff 0xffffffffffffffe0
  *
  * After a return buffer fill the depth is credited 12 calls before the
  * next stuffing has to take place.
@@ -51,49 +51,49 @@
  * is considered that it obfuscates the problem enough to make exploitation
  * extremely difficult.
  */
-#define RET_DEPTH_SHIFT			5
-#define RSB_RET_STUFF_LOOPS		16
-#define RET_DEPTH_INIT			0x8000000000000000ULL
-#define RET_DEPTH_INIT_FROM_CALL	0xfc00000000000000ULL
-#define RET_DEPTH_CREDIT		0xffffffffffffffffULL
+#define RET_DEPTH_SHIFT     5
+#define RSB_RET_STUFF_LOOPS   16
+#define RET_DEPTH_INIT      0x8000000000000000ULL
+#define RET_DEPTH_INIT_FROM_CALL  0xfc00000000000000ULL
+#define RET_DEPTH_CREDIT    0xffffffffffffffffULL
 
 #ifdef CONFIG_CALL_THUNKS_DEBUG
-# define CALL_THUNKS_DEBUG_INC_CALLS				\
-	incq	PER_CPU_VAR(__x86_call_count);
-# define CALL_THUNKS_DEBUG_INC_RETS				\
-	incq	PER_CPU_VAR(__x86_ret_count);
-# define CALL_THUNKS_DEBUG_INC_STUFFS				\
-	incq	PER_CPU_VAR(__x86_stuffs_count);
-# define CALL_THUNKS_DEBUG_INC_CTXSW				\
-	incq	PER_CPU_VAR(__x86_ctxsw_count);
+#define CALL_THUNKS_DEBUG_INC_CALLS        \
+  incq PER_CPU_VAR(__x86_call_count);
+#define CALL_THUNKS_DEBUG_INC_RETS       \
+  incq PER_CPU_VAR(__x86_ret_count);
+#define CALL_THUNKS_DEBUG_INC_STUFFS       \
+  incq PER_CPU_VAR(__x86_stuffs_count);
+#define CALL_THUNKS_DEBUG_INC_CTXSW        \
+  incq PER_CPU_VAR(__x86_ctxsw_count);
 #else
-# define CALL_THUNKS_DEBUG_INC_CALLS
-# define CALL_THUNKS_DEBUG_INC_RETS
-# define CALL_THUNKS_DEBUG_INC_STUFFS
-# define CALL_THUNKS_DEBUG_INC_CTXSW
+#define CALL_THUNKS_DEBUG_INC_CALLS
+#define CALL_THUNKS_DEBUG_INC_RETS
+#define CALL_THUNKS_DEBUG_INC_STUFFS
+#define CALL_THUNKS_DEBUG_INC_CTXSW
 #endif
 
 #if defined(CONFIG_MITIGATION_CALL_DEPTH_TRACKING) && !defined(COMPILE_OFFSETS)
 
 #include <asm/asm-offsets.h>
 
-#define CREDIT_CALL_DEPTH					\
-	movq	$-1, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+#define CREDIT_CALL_DEPTH         \
+  movq $ - 1, PER_CPU_VAR(pcpu_hot + X86_call_depth);
 
-#define RESET_CALL_DEPTH					\
-	xor	%eax, %eax;					\
-	bts	$63, %rax;					\
-	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);
+#define RESET_CALL_DEPTH          \
+  xor % eax, % eax;         \
+  bts $63, % rax;          \
+  movq % rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);
 
-#define RESET_CALL_DEPTH_FROM_CALL				\
-	movb	$0xfc, %al;					\
-	shl	$56, %rax;					\
-	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);	\
-	CALL_THUNKS_DEBUG_INC_CALLS
+#define RESET_CALL_DEPTH_FROM_CALL        \
+  movb $0xfc, % al;         \
+  shl $56, % rax;          \
+  movq % rax, PER_CPU_VAR(pcpu_hot + X86_call_depth); \
+  CALL_THUNKS_DEBUG_INC_CALLS
 
-#define INCREMENT_CALL_DEPTH					\
-	sarq	$5, PER_CPU_VAR(pcpu_hot + X86_call_depth);	\
-	CALL_THUNKS_DEBUG_INC_CALLS
+#define INCREMENT_CALL_DEPTH          \
+  sarq $5, PER_CPU_VAR(pcpu_hot + X86_call_depth); \
+  CALL_THUNKS_DEBUG_INC_CALLS
 
 #else
 #define CREDIT_CALL_DEPTH
@@ -119,17 +119,17 @@
  * from C via asm(".include <asm/nospec-branch.h>") but let's not go there.
  */
 
-#define RETPOLINE_THUNK_SIZE	32
-#define RSB_CLEAR_LOOPS		32	/* To forcibly overwrite all entries */
+#define RETPOLINE_THUNK_SIZE  32
+#define RSB_CLEAR_LOOPS   32  /* To forcibly overwrite all entries */
 
 /*
  * Common helper for __FILL_RETURN_BUFFER and __FILL_ONE_RETURN.
  */
-#define __FILL_RETURN_SLOT			\
-	ANNOTATE_INTRA_FUNCTION_CALL;		\
-	call	772f;				\
-	int3;					\
-772:
+#define __FILL_RETURN_SLOT      \
+  ANNOTATE_INTRA_FUNCTION_CALL;   \
+  call  772f;       \
+  int3;         \
+  772 :
 
 /*
  * Stuff the entire RSB.
@@ -139,28 +139,28 @@
  * trap should their return address end up getting used, in a loop.
  */
 #ifdef CONFIG_X86_64
-#define __FILL_RETURN_BUFFER(reg, nr)			\
-	mov	$(nr/2), reg;				\
-771:							\
-	__FILL_RETURN_SLOT				\
-	__FILL_RETURN_SLOT				\
-	add	$(BITS_PER_LONG/8) * 2, %_ASM_SP;	\
-	dec	reg;					\
-	jnz	771b;					\
-	/* barrier for jnz misprediction */		\
-	lfence;						\
-	CREDIT_CALL_DEPTH				\
-	CALL_THUNKS_DEBUG_INC_CTXSW
+#define __FILL_RETURN_BUFFER(reg, nr)     \
+  mov $(nr / 2), reg;       \
+  771 :              \
+  __FILL_RETURN_SLOT        \
+  __FILL_RETURN_SLOT        \
+  add $(BITS_PER_LONG / 8) * 2, % _ASM_SP; \
+  dec reg;          \
+  jnz 771b;         \
+  /* barrier for jnz misprediction */   \
+  lfence;           \
+  CREDIT_CALL_DEPTH       \
+      CALL_THUNKS_DEBUG_INC_CTXSW
 #else
 /*
  * i386 doesn't unconditionally have LFENCE, as such it can't
  * do a loop.
  */
-#define __FILL_RETURN_BUFFER(reg, nr)			\
-	.rept nr;					\
-	__FILL_RETURN_SLOT;				\
-	.endr;						\
-	add	$(BITS_PER_LONG/8) * nr, %_ASM_SP;
+#define __FILL_RETURN_BUFFER(reg, nr)     \
+  .rept nr;         \
+  __FILL_RETURN_SLOT;       \
+  .endr;            \
+  add $(BITS_PER_LONG / 8) * nr, % _ASM_SP;
 #endif
 
 /*
@@ -172,10 +172,10 @@
  * On PBRSB-vulnerable CPUs, it is not safe for a RET to be executed
  * before this point.
  */
-#define __FILL_ONE_RETURN				\
-	__FILL_RETURN_SLOT				\
-	add	$(BITS_PER_LONG/8), %_ASM_SP;		\
-	lfence;
+#define __FILL_ONE_RETURN       \
+  __FILL_RETURN_SLOT        \
+  add $(BITS_PER_LONG / 8), % _ASM_SP;   \
+  lfence;
 
 #ifdef __ASSEMBLY__
 
@@ -185,10 +185,10 @@
  * builds.
  */
 .macro ANNOTATE_RETPOLINE_SAFE
-.Lhere_\@:
-	.pushsection .discard.retpoline_safe
-	.long .Lhere_\@
-	.popsection
+.Lhere_ \ @:
+.pushsection.discard.retpoline_safe
+.long.Lhere_ \ @
+.popsection
 .endm
 
 /*
@@ -202,10 +202,10 @@
  * eventually turn into its own annotation.
  */
 .macro VALIDATE_UNRET_END
-#if defined(CONFIG_NOINSTR_VALIDATION) && \
-	(defined(CONFIG_MITIGATION_UNRET_ENTRY) || defined(CONFIG_MITIGATION_SRSO))
-	ANNOTATE_RETPOLINE_SAFE
-	nop
+#if defined(CONFIG_NOINSTR_VALIDATION)    \
+  && (defined(CONFIG_MITIGATION_UNRET_ENTRY) || defined(CONFIG_MITIGATION_SRSO))
+ANNOTATE_RETPOLINE_SAFE
+nop
 #endif
 .endm
 
@@ -214,12 +214,13 @@
  * to the retpoline thunk with a CS prefix when the register requires
  * a RAX prefix byte to encode. Also see apply_retpolines().
  */
-.macro __CS_PREFIX reg:req
-	.irp rs,r8,r9,r10,r11,r12,r13,r14,r15
-	.ifc \reg,\rs
-	.byte 0x2e
-	.endif
-	.endr
+.macro __CS_PREFIX reg:
+req
+.irp rs, r8, r9, r10, r11, r12, r13, r14, r15
+.ifc \ reg, \ rs
+.byte 0x2e
+.endif
+.endr
 .endm
 
 /*
@@ -231,41 +232,48 @@
  * indirect calls, take care when using. The target of these should be an ENDBR
  * instruction irrespective of kCFI.
  */
-.macro JMP_NOSPEC reg:req
+.macro JMP_NOSPEC reg:
+req
 #ifdef CONFIG_MITIGATION_RETPOLINE
-	__CS_PREFIX \reg
-	jmp	__x86_indirect_thunk_\reg
+    __CS_PREFIX \ reg
+jmp __x86_indirect_thunk_ \ reg
 #else
-	jmp	*%\reg
-	int3
+jmp * % \ reg
+    int3
 #endif
 .endm
 
-.macro CALL_NOSPEC reg:req
+.macro CALL_NOSPEC reg:
+req
 #ifdef CONFIG_MITIGATION_RETPOLINE
-	__CS_PREFIX \reg
-	call	__x86_indirect_thunk_\reg
+    __CS_PREFIX \ reg
+call __x86_indirect_thunk_ \ reg
 #else
-	call	*%\reg
+call * % \ reg
 #endif
 .endm
 
- /*
-  * A simpler FILL_RETURN_BUFFER macro. Don't make people use the CPP
-  * monstrosity above, manually.
-  */
-.macro FILL_RETURN_BUFFER reg:req nr:req ftr:req ftr2=ALT_NOT(X86_FEATURE_ALWAYS)
-	ALTERNATIVE_2 "jmp .Lskip_rsb_\@", \
-		__stringify(__FILL_RETURN_BUFFER(\reg,\nr)), \ftr, \
-		__stringify(nop;nop;__FILL_ONE_RETURN), \ftr2
+/*
+ * A simpler FILL_RETURN_BUFFER macro. Don't make people use the CPP
+ * monstrosity above, manually.
+ */
+.macro FILL_RETURN_BUFFER reg:
+req nr:
+req ftr:
+req ftr2 = ALT_NOT(X86_FEATURE_ALWAYS)
+    ALTERNATIVE_2 "jmp .Lskip_rsb_\@", \
+  __stringify(__FILL_RETURN_BUFFER(\ reg, \ nr)), \ ftr, \
+  __stringify(nop;
+    nop;
+    __FILL_ONE_RETURN), \ ftr2
 
-.Lskip_rsb_\@:
+.Lskip_rsb_ \ @:
 .endm
 
 #if defined(CONFIG_MITIGATION_UNRET_ENTRY) || defined(CONFIG_MITIGATION_SRSO)
-#define CALL_UNTRAIN_RET	"call entry_untrain_ret"
+#define CALL_UNTRAIN_RET  "call entry_untrain_ret"
 #else
-#define CALL_UNTRAIN_RET	""
+#define CALL_UNTRAIN_RET  ""
 #endif
 
 /*
@@ -281,28 +289,27 @@
  */
 .macro __UNTRAIN_RET ibpb_feature, call_depth_insns
 #if defined(CONFIG_MITIGATION_RETHUNK) || defined(CONFIG_MITIGATION_IBPB_ENTRY)
-	VALIDATE_UNRET_END
-	ALTERNATIVE_3 "",						\
-		      CALL_UNTRAIN_RET, X86_FEATURE_UNRET,		\
-		      "call entry_ibpb", \ibpb_feature,			\
-		     __stringify(\call_depth_insns), X86_FEATURE_CALL_DEPTH
+VALIDATE_UNRET_END
+ALTERNATIVE_3 "",           \
+  CALL_UNTRAIN_RET, X86_FEATURE_UNRET,    \
+  "call entry_ibpb", \ ibpb_feature,     \
+  __stringify(\ call_depth_insns), X86_FEATURE_CALL_DEPTH
 #endif
 .endm
 
 #define UNTRAIN_RET \
-	__UNTRAIN_RET X86_FEATURE_ENTRY_IBPB, __stringify(RESET_CALL_DEPTH)
+  __UNTRAIN_RET X86_FEATURE_ENTRY_IBPB, __stringify(RESET_CALL_DEPTH)
 
 #define UNTRAIN_RET_VM \
-	__UNTRAIN_RET X86_FEATURE_IBPB_ON_VMEXIT, __stringify(RESET_CALL_DEPTH)
+  __UNTRAIN_RET X86_FEATURE_IBPB_ON_VMEXIT, __stringify(RESET_CALL_DEPTH)
 
 #define UNTRAIN_RET_FROM_CALL \
-	__UNTRAIN_RET X86_FEATURE_ENTRY_IBPB, __stringify(RESET_CALL_DEPTH_FROM_CALL)
-
+  __UNTRAIN_RET X86_FEATURE_ENTRY_IBPB, __stringify(RESET_CALL_DEPTH_FROM_CALL)
 
 .macro CALL_DEPTH_ACCOUNT
 #ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
-	ALTERNATIVE "",							\
-		    __stringify(INCREMENT_CALL_DEPTH), X86_FEATURE_CALL_DEPTH
+ALTERNATIVE "",             \
+  __stringify(INCREMENT_CALL_DEPTH), X86_FEATURE_CALL_DEPTH
 #endif
 .endm
 
@@ -314,16 +321,17 @@
  * Note: Only the memory operand variant of VERW clears the CPU buffers.
  */
 .macro CLEAR_CPU_BUFFERS
-	ALTERNATIVE "", __stringify(verw _ASM_RIP(mds_verw_sel)), X86_FEATURE_CLEAR_CPU_BUF
+ALTERNATIVE "", __stringify(verw _ASM_RIP(mds_verw_sel)),
+X86_FEATURE_CLEAR_CPU_BUF
 .endm
 
 #else /* __ASSEMBLY__ */
 
-#define ANNOTATE_RETPOLINE_SAFE					\
-	"999:\n\t"						\
-	".pushsection .discard.retpoline_safe\n\t"		\
-	".long 999b\n\t"					\
-	".popsection\n\t"
+#define ANNOTATE_RETPOLINE_SAFE         \
+  "999:\n\t"            \
+  ".pushsection .discard.retpoline_safe\n\t"    \
+  ".long 999b\n\t"          \
+  ".popsection\n\t"
 
 typedef u8 retpoline_thunk_t[RETPOLINE_THUNK_SIZE];
 extern retpoline_thunk_t __x86_indirect_thunk_array[];
@@ -333,21 +341,29 @@ extern retpoline_thunk_t __x86_indirect_jump_thunk_array[];
 #ifdef CONFIG_MITIGATION_RETHUNK
 extern void __x86_return_thunk(void);
 #else
-static inline void __x86_return_thunk(void) {}
+static inline void __x86_return_thunk(void) {
+}
+
 #endif
 
 #ifdef CONFIG_MITIGATION_UNRET_ENTRY
 extern void retbleed_return_thunk(void);
 #else
-static inline void retbleed_return_thunk(void) {}
+static inline void retbleed_return_thunk(void) {
+}
+
 #endif
 
 #ifdef CONFIG_MITIGATION_SRSO
 extern void srso_return_thunk(void);
 extern void srso_alias_return_thunk(void);
 #else
-static inline void srso_return_thunk(void) {}
-static inline void srso_alias_return_thunk(void) {}
+static inline void srso_return_thunk(void) {
+}
+
+static inline void srso_alias_return_thunk(void) {
+}
+
 #endif
 
 extern void retbleed_return_thunk(void);
@@ -364,10 +380,10 @@ extern void __warn_thunk(void);
 #ifdef CONFIG_MITIGATION_CALL_DEPTH_TRACKING
 extern void call_depth_return_thunk(void);
 
-#define CALL_DEPTH_ACCOUNT					\
-	ALTERNATIVE("",						\
-		    __stringify(INCREMENT_CALL_DEPTH),		\
-		    X86_FEATURE_CALL_DEPTH)
+#define CALL_DEPTH_ACCOUNT          \
+  ALTERNATIVE("",           \
+    __stringify(INCREMENT_CALL_DEPTH),    \
+    X86_FEATURE_CALL_DEPTH)
 
 #ifdef CONFIG_CALL_THUNKS_DEBUG
 DECLARE_PER_CPU(u64, __x86_call_count);
@@ -377,7 +393,9 @@ DECLARE_PER_CPU(u64, __x86_ctxsw_count);
 #endif
 #else /* !CONFIG_MITIGATION_CALL_DEPTH_TRACKING */
 
-static inline void call_depth_return_thunk(void) {}
+static inline void call_depth_return_thunk(void) {
+}
+
 #define CALL_DEPTH_ACCOUNT ""
 
 #endif /* CONFIG_MITIGATION_CALL_DEPTH_TRACKING */
@@ -385,17 +403,17 @@ static inline void call_depth_return_thunk(void) {}
 #ifdef CONFIG_MITIGATION_RETPOLINE
 
 #define GEN(reg) \
-	extern retpoline_thunk_t __x86_indirect_thunk_ ## reg;
+  extern retpoline_thunk_t __x86_indirect_thunk_ ## reg;
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
-#define GEN(reg)						\
-	extern retpoline_thunk_t __x86_indirect_call_thunk_ ## reg;
+#define GEN(reg)            \
+  extern retpoline_thunk_t __x86_indirect_call_thunk_ ## reg;
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
-#define GEN(reg)						\
-	extern retpoline_thunk_t __x86_indirect_jump_thunk_ ## reg;
+#define GEN(reg)            \
+  extern retpoline_thunk_t __x86_indirect_jump_thunk_ ## reg;
 #include <asm/GEN-for-each-reg.h>
 #undef GEN
 
@@ -405,18 +423,18 @@ static inline void call_depth_return_thunk(void) {}
  * Inline asm uses the %V modifier which is only in newer GCC
  * which is ensured when CONFIG_MITIGATION_RETPOLINE is defined.
  */
-# define CALL_NOSPEC						\
-	ALTERNATIVE_2(						\
-	ANNOTATE_RETPOLINE_SAFE					\
-	"call *%[thunk_target]\n",				\
-	"call __x86_indirect_thunk_%V[thunk_target]\n",		\
-	X86_FEATURE_RETPOLINE,					\
-	"lfence;\n"						\
-	ANNOTATE_RETPOLINE_SAFE					\
-	"call *%[thunk_target]\n",				\
-	X86_FEATURE_RETPOLINE_LFENCE)
+#define CALL_NOSPEC            \
+  ALTERNATIVE_2(            \
+    ANNOTATE_RETPOLINE_SAFE         \
+    "call *%[thunk_target]\n",        \
+    "call __x86_indirect_thunk_%V[thunk_target]\n",   \
+    X86_FEATURE_RETPOLINE,          \
+    "lfence;\n"           \
+    ANNOTATE_RETPOLINE_SAFE         \
+    "call *%[thunk_target]\n",        \
+    X86_FEATURE_RETPOLINE_LFENCE)
 
-# define THUNK_TARGET(addr) [thunk_target] "r" (addr)
+#define THUNK_TARGET(addr) [thunk_target] "r" (addr)
 
 #else /* CONFIG_X86_32 */
 /*
@@ -424,79 +442,77 @@ static inline void call_depth_return_thunk(void) {}
  * otherwise we'll run out of registers. We don't care about CET
  * here, anyway.
  */
-# define CALL_NOSPEC						\
-	ALTERNATIVE_2(						\
-	ANNOTATE_RETPOLINE_SAFE					\
-	"call *%[thunk_target]\n",				\
-	"       jmp    904f;\n"					\
-	"       .align 16\n"					\
-	"901:	call   903f;\n"					\
-	"902:	pause;\n"					\
-	"    	lfence;\n"					\
-	"       jmp    902b;\n"					\
-	"       .align 16\n"					\
-	"903:	lea    4(%%esp), %%esp;\n"			\
-	"       pushl  %[thunk_target];\n"			\
-	"       ret;\n"						\
-	"       .align 16\n"					\
-	"904:	call   901b;\n",				\
-	X86_FEATURE_RETPOLINE,					\
-	"lfence;\n"						\
-	ANNOTATE_RETPOLINE_SAFE					\
-	"call *%[thunk_target]\n",				\
-	X86_FEATURE_RETPOLINE_LFENCE)
+#define CALL_NOSPEC            \
+  ALTERNATIVE_2(            \
+    ANNOTATE_RETPOLINE_SAFE         \
+    "call *%[thunk_target]\n",        \
+    "       jmp    904f;\n"         \
+    "       .align 16\n"          \
+    "901:	call   903f;\n"         \
+    "902:	pause;\n"         \
+    "    	lfence;\n"          \
+    "       jmp    902b;\n"         \
+    "       .align 16\n"          \
+    "903:	lea    4(%%esp), %%esp;\n"      \
+    "       pushl  %[thunk_target];\n"      \
+    "       ret;\n"           \
+    "       .align 16\n"          \
+    "904:	call   901b;\n",        \
+    X86_FEATURE_RETPOLINE,          \
+    "lfence;\n"           \
+    ANNOTATE_RETPOLINE_SAFE         \
+    "call *%[thunk_target]\n",        \
+    X86_FEATURE_RETPOLINE_LFENCE)
 
-# define THUNK_TARGET(addr) [thunk_target] "rm" (addr)
+#define THUNK_TARGET(addr) [thunk_target] "rm" (addr)
 #endif
 #else /* No retpoline for C / inline asm */
-# define CALL_NOSPEC "call *%[thunk_target]\n"
-# define THUNK_TARGET(addr) [thunk_target] "rm" (addr)
+#define CALL_NOSPEC "call *%[thunk_target]\n"
+#define THUNK_TARGET(addr) [thunk_target] "rm" (addr)
 #endif
 
 /* The Spectre V2 mitigation variants */
 enum spectre_v2_mitigation {
-	SPECTRE_V2_NONE,
-	SPECTRE_V2_RETPOLINE,
-	SPECTRE_V2_LFENCE,
-	SPECTRE_V2_EIBRS,
-	SPECTRE_V2_EIBRS_RETPOLINE,
-	SPECTRE_V2_EIBRS_LFENCE,
-	SPECTRE_V2_IBRS,
+  SPECTRE_V2_NONE,
+  SPECTRE_V2_RETPOLINE,
+  SPECTRE_V2_LFENCE,
+  SPECTRE_V2_EIBRS,
+  SPECTRE_V2_EIBRS_RETPOLINE,
+  SPECTRE_V2_EIBRS_LFENCE,
+  SPECTRE_V2_IBRS,
 };
 
 /* The indirect branch speculation control variants */
 enum spectre_v2_user_mitigation {
-	SPECTRE_V2_USER_NONE,
-	SPECTRE_V2_USER_STRICT,
-	SPECTRE_V2_USER_STRICT_PREFERRED,
-	SPECTRE_V2_USER_PRCTL,
-	SPECTRE_V2_USER_SECCOMP,
+  SPECTRE_V2_USER_NONE,
+  SPECTRE_V2_USER_STRICT,
+  SPECTRE_V2_USER_STRICT_PREFERRED,
+  SPECTRE_V2_USER_PRCTL,
+  SPECTRE_V2_USER_SECCOMP,
 };
 
 /* The Speculative Store Bypass disable variants */
 enum ssb_mitigation {
-	SPEC_STORE_BYPASS_NONE,
-	SPEC_STORE_BYPASS_DISABLE,
-	SPEC_STORE_BYPASS_PRCTL,
-	SPEC_STORE_BYPASS_SECCOMP,
+  SPEC_STORE_BYPASS_NONE,
+  SPEC_STORE_BYPASS_DISABLE,
+  SPEC_STORE_BYPASS_PRCTL,
+  SPEC_STORE_BYPASS_SECCOMP,
 };
 
 static __always_inline
-void alternative_msr_write(unsigned int msr, u64 val, unsigned int feature)
-{
-	asm volatile(ALTERNATIVE("", "wrmsr", %c[feature])
-		: : "c" (msr),
-		    "a" ((u32)val),
-		    "d" ((u32)(val >> 32)),
-		    [feature] "i" (feature)
-		: "memory");
+void alternative_msr_write(unsigned int msr, u64 val, unsigned int feature) {
+  asm volatile (ALTERNATIVE("", "wrmsr", % c[feature])
+  : : "c" (msr),
+  "a" ((u32) val),
+  "d" ((u32) (val >> 32)),
+  [feature] "i" (feature)
+  : "memory");
 }
 
 extern u64 x86_pred_cmd;
 
-static inline void indirect_branch_prediction_barrier(void)
-{
-	alternative_msr_write(MSR_IA32_PRED_CMD, x86_pred_cmd, X86_FEATURE_USE_IBPB);
+static inline void indirect_branch_prediction_barrier(void) {
+  alternative_msr_write(MSR_IA32_PRED_CMD, x86_pred_cmd, X86_FEATURE_USE_IBPB);
 }
 
 /* The Intel SPEC CTRL MSR base value cache */
@@ -511,23 +527,23 @@ extern u64 spec_ctrl_current(void);
  *
  * (Implemented as CPP macros due to header hell.)
  */
-#define firmware_restrict_branch_speculation_start()			\
-do {									\
-	preempt_disable();						\
-	alternative_msr_write(MSR_IA32_SPEC_CTRL,			\
-			      spec_ctrl_current() | SPEC_CTRL_IBRS,	\
-			      X86_FEATURE_USE_IBRS_FW);			\
-	alternative_msr_write(MSR_IA32_PRED_CMD, PRED_CMD_IBPB,		\
-			      X86_FEATURE_USE_IBPB_FW);			\
-} while (0)
+#define firmware_restrict_branch_speculation_start()      \
+  do {                  \
+    preempt_disable();            \
+    alternative_msr_write(MSR_IA32_SPEC_CTRL,     \
+    spec_ctrl_current() | SPEC_CTRL_IBRS, \
+    X86_FEATURE_USE_IBRS_FW);     \
+    alternative_msr_write(MSR_IA32_PRED_CMD, PRED_CMD_IBPB,   \
+    X86_FEATURE_USE_IBPB_FW);     \
+  } while (0)
 
-#define firmware_restrict_branch_speculation_end()			\
-do {									\
-	alternative_msr_write(MSR_IA32_SPEC_CTRL,			\
-			      spec_ctrl_current(),			\
-			      X86_FEATURE_USE_IBRS_FW);			\
-	preempt_enable();						\
-} while (0)
+#define firmware_restrict_branch_speculation_end()      \
+  do {                  \
+    alternative_msr_write(MSR_IA32_SPEC_CTRL,     \
+    spec_ctrl_current(),      \
+    X86_FEATURE_USE_IBRS_FW);     \
+    preempt_enable();           \
+  } while (0)
 
 DECLARE_STATIC_KEY_FALSE(switch_to_cond_stibp);
 DECLARE_STATIC_KEY_FALSE(switch_mm_cond_ibpb);
@@ -550,20 +566,18 @@ extern u16 mds_verw_sel;
  * combination with microcode which triggers a CPU buffer flush when the
  * instruction is executed.
  */
-static __always_inline void mds_clear_cpu_buffers(void)
-{
-	static const u16 ds = __KERNEL_DS;
-
-	/*
-	 * Has to be the memory-operand variant because only that
-	 * guarantees the CPU buffer flush functionality according to
-	 * documentation. The register-operand variant does not.
-	 * Works with any segment selector, but a valid writable
-	 * data segment is the fastest variant.
-	 *
-	 * "cc" clobber is required because VERW modifies ZF.
-	 */
-	asm volatile("verw %[ds]" : : [ds] "m" (ds) : "cc");
+static __always_inline void mds_clear_cpu_buffers(void) {
+  static const u16 ds = __KERNEL_DS;
+  /*
+   * Has to be the memory-operand variant because only that
+   * guarantees the CPU buffer flush functionality according to
+   * documentation. The register-operand variant does not.
+   * Works with any segment selector, but a valid writable
+   * data segment is the fastest variant.
+   *
+   * "cc" clobber is required because VERW modifies ZF.
+   */
+  asm volatile ("verw %[ds]" : :[ds] "m" (ds) : "cc");
 }
 
 /**
@@ -571,10 +585,10 @@ static __always_inline void mds_clear_cpu_buffers(void)
  *
  * Clear CPU buffers if the corresponding static key is enabled
  */
-static __always_inline void mds_idle_clear_cpu_buffers(void)
-{
-	if (static_branch_likely(&mds_idle_clear))
-		mds_clear_cpu_buffers();
+static __always_inline void mds_idle_clear_cpu_buffers(void) {
+  if (static_branch_likely(&mds_idle_clear)) {
+    mds_clear_cpu_buffers();
+  }
 }
 
 #endif /* __ASSEMBLY__ */

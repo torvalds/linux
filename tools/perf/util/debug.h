@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* For debugging general purposes */
+/* SPDX-License-Identifier: GPL-2.0
+ * For debugging general purposes*/
 #ifndef __PERF_DEBUG_H
 #define __PERF_DEBUG_H
 
@@ -20,41 +20,43 @@ extern int debug_data_convert;
 #endif
 
 #define pr_err(fmt, ...) \
-	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+  eprintf(0, verbose, pr_fmt(fmt), ## __VA_ARGS__)
 #define pr_warning(fmt, ...) \
-	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_warning_once(fmt, ...) ({		\
-	static int __warned;			\
-	if (unlikely(!__warned)) {		\
-		pr_warning(fmt, ##__VA_ARGS__); \
-		__warned = 1;			\
-	}					\
-})
+  eprintf(0, verbose, pr_fmt(fmt), ## __VA_ARGS__)
+#define pr_warning_once(fmt, ...) ({    \
+    static int __warned;      \
+    if (unlikely(!__warned)) {    \
+      pr_warning(fmt, ## __VA_ARGS__); \
+      __warned = 1;     \
+    }         \
+  })
 #define pr_info(fmt, ...) \
-	eprintf(0, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+  eprintf(0, verbose, pr_fmt(fmt), ## __VA_ARGS__)
 #define pr_debug(fmt, ...) \
-	eprintf(1, verbose, pr_fmt(fmt), ##__VA_ARGS__)
+  eprintf(1, verbose, pr_fmt(fmt), ## __VA_ARGS__)
 #define pr_debugN(n, fmt, ...) \
-	eprintf(n, verbose, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_debug3(fmt, ...) pr_debugN(3, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_debug4(fmt, ...) pr_debugN(4, pr_fmt(fmt), ##__VA_ARGS__)
+  eprintf(n, verbose, pr_fmt(fmt), ## __VA_ARGS__)
+#define pr_debug2(fmt, ...) pr_debugN(2, pr_fmt(fmt), ## __VA_ARGS__)
+#define pr_debug3(fmt, ...) pr_debugN(3, pr_fmt(fmt), ## __VA_ARGS__)
+#define pr_debug4(fmt, ...) pr_debugN(4, pr_fmt(fmt), ## __VA_ARGS__)
 
 /* Special macro to print perf_event_open arguments/return value. */
-#define pr_debug2_peo(fmt, ...) {				\
-	if (debug_peo_args)						\
-		pr_debugN(0, pr_fmt(fmt), ##__VA_ARGS__);	\
-	else							\
-		pr_debugN(2, pr_fmt(fmt), ##__VA_ARGS__);	\
+#define pr_debug2_peo(fmt, ...) {       \
+    if (debug_peo_args)           \
+    pr_debugN(0, pr_fmt(fmt), ## __VA_ARGS__); \
+    else              \
+    pr_debugN(2, pr_fmt(fmt), ## __VA_ARGS__); \
 }
 
 #define pr_time_N(n, var, t, fmt, ...) \
-	eprintf_time(n, var, t, fmt, ##__VA_ARGS__)
+  eprintf_time(n, var, t, fmt, ## __VA_ARGS__)
 
-#define pr_oe_time(t, fmt, ...)  pr_time_N(1, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_oe_time2(t, fmt, ...) pr_time_N(2, debug_ordered_events, t, pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_oe_time(t, fmt, ...)  pr_time_N(1, debug_ordered_events, t, \
+    pr_fmt(fmt), ## __VA_ARGS__)
+#define pr_oe_time2(t, fmt, ...) pr_time_N(2, debug_ordered_events, t, \
+    pr_fmt(fmt), ## __VA_ARGS__)
 
-#define STRERR_BUFSIZE	128	/* For the buffer size of str_error_r */
+#define STRERR_BUFSIZE  128 /* For the buffer size of str_error_r */
 
 union perf_event;
 
@@ -63,18 +65,19 @@ void trace_event(union perf_event *event);
 
 int ui__error(const char *format, ...) __printf(1, 2);
 int ui__warning(const char *format, ...) __printf(1, 2);
-#define ui__warning_once(format, ...) ({		\
-	static int __warned;				\
-	if (unlikely(!__warned)) {			\
-		ui__warning(format, ##__VA_ARGS__);	\
-		__warned = 1;				\
-	}						\
-})
+#define ui__warning_once(format, ...) ({    \
+    static int __warned;        \
+    if (unlikely(!__warned)) {      \
+      ui__warning(format, ## __VA_ARGS__); \
+      __warned = 1;       \
+    }           \
+  })
 
 void pr_stat(const char *fmt, ...);
 
 int eprintf(int level, int var, const char *fmt, ...) __printf(3, 4);
-int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __printf(4, 5);
+int eprintf_time(int level, int var, u64 t, const char *fmt, ...) __printf(4,
+    5);
 int veprintf(int level, int var, const char *fmt, va_list args);
 
 int perf_debug_option(const char *str);
@@ -87,4 +90,4 @@ int perf_quiet_option(void);
 void dump_stack(void);
 void sighandler_dump_stack(int sig);
 
-#endif	/* __PERF_DEBUG_H */
+#endif  /* __PERF_DEBUG_H */

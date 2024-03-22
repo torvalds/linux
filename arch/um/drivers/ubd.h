@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  * Copyright (C) 2001 RidgeRun, Inc (glonnon@ridgerun.com)
  */
@@ -17,4 +17,3 @@ extern int ubd_write_poll(int timeout);
 #define UBD_REQ_BUFFER_SIZE 64
 
 #endif
-

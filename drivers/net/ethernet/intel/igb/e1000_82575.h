@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2007 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2007 - 2018 Intel Corporation.*/
 
 #ifndef _E1000_82575_H_
 #define _E1000_82575_H_
@@ -9,14 +9,14 @@ void igb_power_up_serdes_link_82575(struct e1000_hw *hw);
 void igb_power_down_phy_copper_82575(struct e1000_hw *hw);
 void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
 s32 igb_read_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
-		      u8 *data);
+    u8 *data);
 s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
-		       u8 data);
+    u8 data);
 
-#define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12) | \
-				     (ID_LED_DEF1_DEF2 <<  8) | \
-				     (ID_LED_DEF1_DEF2 <<  4) | \
-				     (ID_LED_OFF1_ON2))
+#define ID_LED_DEFAULT_82575_SERDES ((ID_LED_DEF1_DEF2 << 12)   \
+  | (ID_LED_DEF1_DEF2 << 8)   \
+  | (ID_LED_DEF1_DEF2 << 4)   \
+  | (ID_LED_OFF1_ON2))
 
 #define E1000_RAR_ENTRIES_82575        16
 #define E1000_RAR_ENTRIES_82576        24
@@ -35,7 +35,6 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
 #define E1000_SRRCTL_DROP_EN                            0x80000000
 #define E1000_SRRCTL_TIMESTAMP                          0x40000000
 
-
 #define E1000_MRQC_ENABLE_RSS_MQ            0x00000002
 #define E1000_MRQC_ENABLE_VMDQ              0x00000003
 #define E1000_MRQC_RSS_FIELD_IPV4_UDP       0x00400000
@@ -44,16 +43,16 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
 #define E1000_MRQC_RSS_FIELD_IPV6_UDP_EX    0x01000000
 
 #define E1000_EICR_TX_QUEUE ( \
-	E1000_EICR_TX_QUEUE0 |    \
-	E1000_EICR_TX_QUEUE1 |    \
-	E1000_EICR_TX_QUEUE2 |    \
-	E1000_EICR_TX_QUEUE3)
+    E1000_EICR_TX_QUEUE0      \
+    | E1000_EICR_TX_QUEUE1      \
+    | E1000_EICR_TX_QUEUE2      \
+    | E1000_EICR_TX_QUEUE3)
 
 #define E1000_EICR_RX_QUEUE ( \
-	E1000_EICR_RX_QUEUE0 |    \
-	E1000_EICR_RX_QUEUE1 |    \
-	E1000_EICR_RX_QUEUE2 |    \
-	E1000_EICR_RX_QUEUE3)
+    E1000_EICR_RX_QUEUE0      \
+    | E1000_EICR_RX_QUEUE1      \
+    | E1000_EICR_RX_QUEUE2      \
+    | E1000_EICR_RX_QUEUE3)
 
 /* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 #define E1000_IMIREXT_SIZE_BP     0x00001000  /* Packet size bypass */
@@ -61,30 +60,30 @@ s32 igb_write_i2c_byte(struct e1000_hw *hw, u8 byte_offset, u8 dev_addr,
 
 /* Receive Descriptor - Advanced */
 union e1000_adv_rx_desc {
-	struct {
-		__le64 pkt_addr;             /* Packet buffer address */
-		__le64 hdr_addr;             /* Header buffer address */
-	} read;
-	struct {
-		struct {
-			struct {
-				__le16 pkt_info;   /* RSS type, Packet type */
-				__le16 hdr_info;   /* Split Head, buf len */
-			} lo_dword;
-			union {
-				__le32 rss;          /* RSS Hash */
-				struct {
-					__le16 ip_id;    /* IP id */
-					__le16 csum;     /* Packet Checksum */
-				} csum_ip;
-			} hi_dword;
-		} lower;
-		struct {
-			__le32 status_error;     /* ext status/error */
-			__le16 length;           /* Packet length */
-			__le16 vlan;             /* VLAN tag */
-		} upper;
-	} wb;  /* writeback */
+  struct {
+    __le64 pkt_addr;             /* Packet buffer address */
+    __le64 hdr_addr;             /* Header buffer address */
+  } read;
+  struct {
+    struct {
+      struct {
+        __le16 pkt_info;   /* RSS type, Packet type */
+        __le16 hdr_info;   /* Split Head, buf len */
+      } lo_dword;
+      union {
+        __le32 rss;          /* RSS Hash */
+        struct {
+          __le16 ip_id;    /* IP id */
+          __le16 csum;     /* Packet Checksum */
+        } csum_ip;
+      } hi_dword;
+    } lower;
+    struct {
+      __le32 status_error;     /* ext status/error */
+      __le16 length;           /* Packet length */
+      __le16 vlan;             /* VLAN tag */
+    } upper;
+  } wb;  /* writeback */
 };
 
 #define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
@@ -94,16 +93,16 @@ union e1000_adv_rx_desc {
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
-	struct {
-		__le64 buffer_addr;    /* Address of descriptor's data buf */
-		__le32 cmd_type_len;
-		__le32 olinfo_status;
-	} read;
-	struct {
-		__le64 rsvd;       /* Reserved */
-		__le32 nxtseq_seed;
-		__le32 status;
-	} wb;
+  struct {
+    __le64 buffer_addr;    /* Address of descriptor's data buf */
+    __le32 cmd_type_len;
+    __le32 olinfo_status;
+  } read;
+  struct {
+    __le64 rsvd;       /* Reserved */
+    __le32 nxtseq_seed;
+    __le32 status;
+  } wb;
 };
 
 /* Adv Transmit Descriptor Config Masks */
@@ -120,10 +119,10 @@ union e1000_adv_tx_desc {
 
 /* Context descriptors */
 struct e1000_adv_tx_context_desc {
-	__le32 vlan_macip_lens;
-	__le32 seqnum_seed;
-	__le32 type_tucmd_mlhl;
-	__le32 mss_l4len_idx;
+  __le32 vlan_macip_lens;
+  __le32 seqnum_seed;
+  __le32 type_tucmd_mlhl;
+  __le32 mss_l4len_idx;
 };
 
 #define E1000_ADVTXD_MACLEN_SHIFT    9  /* Adv ctxt desc mac len shift */
@@ -134,8 +133,8 @@ struct e1000_adv_tx_context_desc {
 /* IPSec Encrypt Enable for ESP */
 #define E1000_ADVTXD_L4LEN_SHIFT     8  /* Adv ctxt L4LEN shift */
 #define E1000_ADVTXD_MSS_SHIFT      16  /* Adv ctxt MSS shift */
-/* Adv ctxt IPSec SA IDX mask */
-/* Adv ctxt IPSec ESP len mask */
+/* Adv ctxt IPSec SA IDX mask
+ * Adv ctxt IPSec ESP len mask*/
 
 /* Additional Transmit Descriptor Control definitions */
 #define E1000_TXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Tx Queue */
@@ -238,7 +237,7 @@ struct e1000_adv_tx_context_desc {
 #define E1000_DTXCTL_MDP_EN     0x0020
 #define E1000_DTXCTL_SPOOF_INT  0x0040
 
-#define E1000_EEPROM_PCS_AUTONEG_DISABLE_BIT	BIT(14)
+#define E1000_EEPROM_PCS_AUTONEG_DISABLE_BIT  BIT(14)
 
 #define ALL_QUEUES   0xFFFF
 
@@ -253,13 +252,13 @@ s32 igb_set_eee_i350(struct e1000_hw *, bool adv1G, bool adv100M);
 s32 igb_set_eee_i354(struct e1000_hw *, bool adv1G, bool adv100M);
 s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status);
 
-#define E1000_I2C_THERMAL_SENSOR_ADDR	0xF8
-#define E1000_EMC_INTERNAL_DATA		0x00
-#define E1000_EMC_INTERNAL_THERM_LIMIT	0x20
-#define E1000_EMC_DIODE1_DATA		0x01
-#define E1000_EMC_DIODE1_THERM_LIMIT	0x19
-#define E1000_EMC_DIODE2_DATA		0x23
-#define E1000_EMC_DIODE2_THERM_LIMIT	0x1A
-#define E1000_EMC_DIODE3_DATA		0x2A
-#define E1000_EMC_DIODE3_THERM_LIMIT	0x30
+#define E1000_I2C_THERMAL_SENSOR_ADDR 0xF8
+#define E1000_EMC_INTERNAL_DATA   0x00
+#define E1000_EMC_INTERNAL_THERM_LIMIT  0x20
+#define E1000_EMC_DIODE1_DATA   0x01
+#define E1000_EMC_DIODE1_THERM_LIMIT  0x19
+#define E1000_EMC_DIODE2_DATA   0x23
+#define E1000_EMC_DIODE2_THERM_LIMIT  0x1A
+#define E1000_EMC_DIODE3_DATA   0x2A
+#define E1000_EMC_DIODE3_THERM_LIMIT  0x30
 #endif

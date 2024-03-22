@@ -8,8 +8,8 @@
 struct regs_dump;
 
 struct sample_reg {
-	const char *name;
-	uint64_t mask;
+  const char *name;
+  uint64_t mask;
 };
 
 #define SMPL_REG_MASK(b) (1ULL << (b))
@@ -19,8 +19,8 @@ struct sample_reg {
 #define SMPL_REG_END { .name = NULL }
 
 enum {
-	SDT_ARG_VALID = 0,
-	SDT_ARG_SKIP,
+  SDT_ARG_VALID = 0,
+  SDT_ARG_SKIP,
 };
 
 int arch_sdt_arg_parse_op(char *old_op, char **new_op);
@@ -60,9 +60,8 @@ const char *__perf_reg_name_x86(int id);
 uint64_t __perf_reg_ip_x86(void);
 uint64_t __perf_reg_sp_x86(void);
 
-static inline uint64_t DWARF_MINIMAL_REGS(const char *arch)
-{
-	return (1ULL << perf_arch_reg_ip(arch)) | (1ULL << perf_arch_reg_sp(arch));
+static inline uint64_t DWARF_MINIMAL_REGS(const char *arch) {
+  return (1ULL << perf_arch_reg_ip(arch)) | (1ULL << perf_arch_reg_sp(arch));
 }
 
 #endif /* __PERF_REGS_H */

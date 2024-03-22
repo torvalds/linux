@@ -7,9 +7,9 @@
 #include "bpf_experimental.h"
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARENA);
-	__uint(map_flags, BPF_F_MMAPABLE);
-	__uint(max_entries, 100); /* number of pages */
+  __uint(type, BPF_MAP_TYPE_ARENA);
+  __uint(map_flags, BPF_F_MMAPABLE);
+  __uint(max_entries, 100); /* number of pages */
 } arena SEC(".maps");
 
 #include "bpf_arena_htab.h"
@@ -20,29 +20,27 @@ bool skip = false;
 int zero = 0;
 
 SEC("syscall")
-int arena_htab_llvm(void *ctx)
-{
+int arena_htab_llvm(void *ctx) {
 #if defined(__BPF_FEATURE_ARENA_CAST) || defined(BPF_ARENA_FORCE_ASM)
-	struct htab __arena *htab;
-	__u64 i;
-
-	htab = bpf_alloc(sizeof(*htab));
-	cast_kern(htab);
-	htab_init(htab);
-
-	/* first run. No old elems in the table */
-	for (i = zero; i < 1000; i++)
-		htab_update_elem(htab, i, i);
-
-	/* should replace all elems with new ones */
-	for (i = zero; i < 1000; i++)
-		htab_update_elem(htab, i, i);
-	cast_user(htab);
-	htab_for_user = htab;
+  struct htab __arena *htab;
+  __u64 i;
+  htab = bpf_alloc(sizeof(*htab));
+  cast_kern(htab);
+  htab_init(htab);
+  /* first run. No old elems in the table */
+  for (i = zero; i < 1000; i++) {
+    htab_update_elem(htab, i, i);
+  }
+  /* should replace all elems with new ones */
+  for (i = zero; i < 1000; i++) {
+    htab_update_elem(htab, i, i);
+  }
+  cast_user(htab);
+  htab_for_user = htab;
 #else
-	skip = true;
+  skip = true;
 #endif
-	return 0;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

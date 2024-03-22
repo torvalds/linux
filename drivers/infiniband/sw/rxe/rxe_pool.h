@@ -8,40 +8,40 @@
 #define RXE_POOL_H
 
 enum rxe_elem_type {
-	RXE_TYPE_UC,
-	RXE_TYPE_PD,
-	RXE_TYPE_AH,
-	RXE_TYPE_SRQ,
-	RXE_TYPE_QP,
-	RXE_TYPE_CQ,
-	RXE_TYPE_MR,
-	RXE_TYPE_MW,
-	RXE_NUM_TYPES,		/* keep me last */
+  RXE_TYPE_UC,
+  RXE_TYPE_PD,
+  RXE_TYPE_AH,
+  RXE_TYPE_SRQ,
+  RXE_TYPE_QP,
+  RXE_TYPE_CQ,
+  RXE_TYPE_MR,
+  RXE_TYPE_MW,
+  RXE_NUM_TYPES,    /* keep me last */
 };
 
 struct rxe_pool_elem {
-	struct rxe_pool		*pool;
-	void			*obj;
-	struct kref		ref_cnt;
-	struct list_head	list;
-	struct completion	complete;
-	u32			index;
+  struct rxe_pool *pool;
+  void *obj;
+  struct kref ref_cnt;
+  struct list_head list;
+  struct completion complete;
+  u32 index;
 };
 
 struct rxe_pool {
-	struct rxe_dev		*rxe;
-	const char		*name;
-	void			(*cleanup)(struct rxe_pool_elem *elem);
-	enum rxe_elem_type	type;
+  struct rxe_dev *rxe;
+  const char *name;
+  void (*cleanup)(struct rxe_pool_elem *elem);
+  enum rxe_elem_type type;
 
-	unsigned int		max_elem;
-	atomic_t		num_elem;
-	size_t			elem_size;
-	size_t			elem_offset;
+  unsigned int max_elem;
+  atomic_t num_elem;
+  size_t elem_size;
+  size_t elem_offset;
 
-	struct xarray		xa;
-	struct xa_limit		limit;
-	u32			next;
+  struct xarray xa;
+  struct xa_limit limit;
+  u32 next;
 };
 
 /* initialize a pool of objects with given limit on
@@ -49,17 +49,17 @@ struct rxe_pool {
  * pool elements will be allocated out of a slab cache
  */
 void rxe_pool_init(struct rxe_dev *rxe, struct rxe_pool *pool,
-		  enum rxe_elem_type type);
+    enum rxe_elem_type type);
 
 /* free resources from object pool */
 void rxe_pool_cleanup(struct rxe_pool *pool);
 
 /* connect already allocated object to pool */
 int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem,
-				bool sleepable);
+    bool sleepable);
 #define rxe_add_to_pool(pool, obj) __rxe_add_to_pool(pool, &(obj)->elem, true)
 #define rxe_add_to_pool_ah(pool, obj, sleepable) __rxe_add_to_pool(pool, \
-				&(obj)->elem, sleepable)
+    &(obj)->elem, sleepable)
 
 /* lookup an indexed object from index. takes a reference on object */
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index);

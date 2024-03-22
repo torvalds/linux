@@ -5,10 +5,10 @@
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 
-#define MAX_MATRIX_KEY_ROWS	(8)
-#define MAX_MATRIX_KEY_COLS	(8)
-#define MATRIX_ROW_SHIFT	(3)
-#define MAX_DIRECT_KEY_NUM	(8)
+#define MAX_MATRIX_KEY_ROWS (8)
+#define MAX_MATRIX_KEY_COLS (8)
+#define MATRIX_ROW_SHIFT  (3)
+#define MAX_DIRECT_KEY_NUM  (8)
 
 /* pxa3xx keypad platform specific parameters
  *
@@ -35,37 +35,36 @@
  * reading the MI/DI bits in the KPC register.
  */
 struct pxa27x_keypad_platform_data {
+  /* code map for the matrix keys */
+  const struct matrix_keymap_data *matrix_keymap_data;
+  unsigned int matrix_key_rows;
+  unsigned int matrix_key_cols;
 
-	/* code map for the matrix keys */
-	const struct matrix_keymap_data *matrix_keymap_data;
-	unsigned int	matrix_key_rows;
-	unsigned int	matrix_key_cols;
+  /* direct keys */
+  int direct_key_num;
+  unsigned int direct_key_map[MAX_DIRECT_KEY_NUM];
+  /* the key output may be low active */
+  int direct_key_low_active;
+  /* give board a chance to choose the start direct key */
+  unsigned int direct_key_mask;
 
-	/* direct keys */
-	int		direct_key_num;
-	unsigned int	direct_key_map[MAX_DIRECT_KEY_NUM];
-	/* the key output may be low active */
-	int		direct_key_low_active;
-	/* give board a chance to choose the start direct key */
-	unsigned int	direct_key_mask;
+  /* rotary encoders 0 */
+  int enable_rotary0;
+  int rotary0_rel_code;
+  int rotary0_up_key;
+  int rotary0_down_key;
 
-	/* rotary encoders 0 */
-	int		enable_rotary0;
-	int		rotary0_rel_code;
-	int		rotary0_up_key;
-	int		rotary0_down_key;
+  /* rotary encoders 1 */
+  int enable_rotary1;
+  int rotary1_rel_code;
+  int rotary1_up_key;
+  int rotary1_down_key;
 
-	/* rotary encoders 1 */
-	int		enable_rotary1;
-	int		rotary1_rel_code;
-	int		rotary1_up_key;
-	int		rotary1_down_key;
+  /* key debounce interval */
+  unsigned int debounce_interval;
 
-	/* key debounce interval */
-	unsigned int	debounce_interval;
-
-	/* clear wakeup event requirement for pxa168 */
-	void		(*clear_wakeup_event)(void);
+  /* clear wakeup event requirement for pxa168 */
+  void (*clear_wakeup_event)(void);
 };
 
 extern void pxa_set_keypad_info(struct pxa27x_keypad_platform_data *info);

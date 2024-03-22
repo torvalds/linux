@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
- *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- ******************************************************************************/
+*
+* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+*
+******************************************************************************/
 #ifndef __SDIO_HAL_H__
 #define __SDIO_HAL_H__
-
 
 extern u8 sd_hal_bus_init(struct adapter *padapter);
 extern u8 sd_hal_bus_deinit(struct adapter *padapter);

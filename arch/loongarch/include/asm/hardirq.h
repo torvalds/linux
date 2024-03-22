@@ -12,11 +12,11 @@
 extern void ack_bad_irq(unsigned int irq);
 #define ack_bad_irq ack_bad_irq
 
-#define NR_IPI	2
+#define NR_IPI  2
 
 typedef struct {
-	unsigned int ipi_irqs[NR_IPI];
-	unsigned int __softirq_pending;
+  unsigned int ipi_irqs[NR_IPI];
+  unsigned int __softirq_pending;
 } ____cacheline_aligned irq_cpustat_t;
 
 DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);

@@ -13,5 +13,5 @@
 
 int verify_sha256_digest(void);
 
-#endif	/* __ASSEMBLY__ */
+#endif  /* __ASSEMBLY__ */
 #endif /* _S390_PURGATORY_H_ */

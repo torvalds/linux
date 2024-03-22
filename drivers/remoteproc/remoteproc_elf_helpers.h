@@ -20,39 +20,37 @@
  *
  * Return: elf class of the firmware
  */
-static inline u8 fw_elf_get_class(const struct firmware *fw)
-{
-	struct elf32_hdr *ehdr = (struct elf32_hdr *)fw->data;
-
-	return ehdr->e_ident[EI_CLASS];
+static inline u8 fw_elf_get_class(const struct firmware *fw) {
+  struct elf32_hdr *ehdr = (struct elf32_hdr *) fw->data;
+  return ehdr->e_ident[EI_CLASS];
 }
 
-static inline void elf_hdr_init_ident(struct elf32_hdr *hdr, u8 class)
-{
-	memcpy(hdr->e_ident, ELFMAG, SELFMAG);
-	hdr->e_ident[EI_CLASS] = class;
-	hdr->e_ident[EI_DATA] = ELFDATA2LSB;
-	hdr->e_ident[EI_VERSION] = EV_CURRENT;
-	hdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
+static inline void elf_hdr_init_ident(struct elf32_hdr *hdr, u8 class) {
+  memcpy(hdr->e_ident, ELFMAG, SELFMAG);
+  hdr->e_ident[EI_CLASS] = class;
+  hdr->e_ident[EI_DATA] = ELFDATA2LSB;
+  hdr->e_ident[EI_VERSION] = EV_CURRENT;
+  hdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
 }
 
 /* Generate getter and setter for a specific elf struct/field */
 #define ELF_GEN_FIELD_GET_SET(__s, __field, __type) \
-static inline __type elf_##__s##_get_##__field(u8 class, const void *arg) \
-{ \
-	if (class == ELFCLASS32) \
-		return (__type) ((const struct elf32_##__s *) arg)->__field; \
-	else \
-		return (__type) ((const struct elf64_##__s *) arg)->__field; \
-} \
-static inline void elf_##__s##_set_##__field(u8 class, void *arg, \
-					     __type value) \
-{ \
-	if (class == ELFCLASS32) \
-		((struct elf32_##__s *) arg)->__field = (__type) value; \
-	else \
-		((struct elf64_##__s *) arg)->__field = (__type) value; \
-}
+  static inline __type elf_ ## __s ## _get_ ## __field(u8 class, \
+    const void *arg) \
+  { \
+    if (class == ELFCLASS32) \
+    return (__type) ((const struct elf32_ ## __s *) arg)->__field; \
+    else \
+    return (__type) ((const struct elf64_ ## __s *) arg)->__field; \
+  } \
+  static inline void elf_ ## __s ## _set_ ## __field(u8 class, void *arg, \
+    __type value) \
+  { \
+    if (class == ELFCLASS32) \
+    ((struct elf32_ ## __s *) arg)->__field = (__type) value; \
+    else \
+    ((struct elf64_ ## __s *) arg)->__field = (__type) value; \
+  }
 
 ELF_GEN_FIELD_GET_SET(hdr, e_entry, u64)
 ELF_GEN_FIELD_GET_SET(hdr, e_phnum, u16)
@@ -85,38 +83,37 @@ ELF_GEN_FIELD_GET_SET(shdr, sh_name, u32)
 ELF_GEN_FIELD_GET_SET(shdr, sh_addr, u64)
 
 #define ELF_STRUCT_SIZE(__s) \
-static inline unsigned long elf_size_of_##__s(u8 class) \
-{ \
-	if (class == ELFCLASS32)\
-		return sizeof(struct elf32_##__s); \
-	else \
-		return sizeof(struct elf64_##__s); \
-}
+  static inline unsigned long elf_size_of_ ## __s(u8 class) \
+  { \
+    if (class == ELFCLASS32) \
+    return sizeof(struct elf32_ ## __s); \
+    else \
+    return sizeof(struct elf64_ ## __s); \
+  }
 
 ELF_STRUCT_SIZE(shdr)
 ELF_STRUCT_SIZE(phdr)
 ELF_STRUCT_SIZE(hdr)
 
-static inline unsigned int elf_strtbl_add(const char *name, void *ehdr, u8 class, size_t *index)
-{
-	u16 shstrndx = elf_hdr_get_e_shstrndx(class, ehdr);
-	void *shdr;
-	char *strtab;
-	size_t idx, ret;
-
-	shdr = ehdr + elf_size_of_hdr(class) + shstrndx * elf_size_of_shdr(class);
-	strtab = ehdr + elf_shdr_get_sh_offset(class, shdr);
-	idx = index ? *index : 0;
-	if (!strtab || !name)
-		return 0;
-
-	ret = idx;
-	strcpy((strtab + idx), name);
-	idx += strlen(name) + 1;
-	if (index)
-		*index = idx;
-
-	return ret;
+static inline unsigned int elf_strtbl_add(const char *name, void *ehdr,
+    u8 class, size_t *index) {
+  u16 shstrndx = elf_hdr_get_e_shstrndx(class, ehdr);
+  void *shdr;
+  char *strtab;
+  size_t idx, ret;
+  shdr = ehdr + elf_size_of_hdr(class) + shstrndx * elf_size_of_shdr(class);
+  strtab = ehdr + elf_shdr_get_sh_offset(class, shdr);
+  idx = index ? *index : 0;
+  if (!strtab || !name) {
+    return 0;
+  }
+  ret = idx;
+  strcpy((strtab + idx), name);
+  idx += strlen(name) + 1;
+  if (index) {
+    *index = idx;
+  }
+  return ret;
 }
 
 #endif /* REMOTEPROC_ELF_LOADER_H */

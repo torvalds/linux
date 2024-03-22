@@ -16,16 +16,16 @@
 
 /* Xen machine address */
 typedef struct xmaddr {
-	phys_addr_t maddr;
+  phys_addr_t maddr;
 } xmaddr_t;
 
 /* Xen pseudo-physical address */
 typedef struct xpaddr {
-	phys_addr_t paddr;
+  phys_addr_t paddr;
 } xpaddr_t;
 
-#define XMADDR(x)	((xmaddr_t) { .maddr = (x) })
-#define XPADDR(x)	((xpaddr_t) { .paddr = (x) })
+#define XMADDR(x) ((xmaddr_t) { .maddr = (x) })
+#define XPADDR(x) ((xpaddr_t) { .paddr = (x) })
 
 #define INVALID_P2M_ENTRY      (~0UL)
 
@@ -44,73 +44,66 @@ unsigned long __pfn_to_mfn(unsigned long pfn);
 extern struct rb_root phys_to_mach;
 
 /* Pseudo-physical <-> Guest conversion */
-static inline unsigned long pfn_to_gfn(unsigned long pfn)
-{
-	return pfn;
+static inline unsigned long pfn_to_gfn(unsigned long pfn) {
+  return pfn;
 }
 
-static inline unsigned long gfn_to_pfn(unsigned long gfn)
-{
-	return gfn;
+static inline unsigned long gfn_to_pfn(unsigned long gfn) {
+  return gfn;
 }
 
 /* Pseudo-physical <-> BUS conversion */
-static inline unsigned long pfn_to_bfn(unsigned long pfn)
-{
-	unsigned long mfn;
-
-	if (phys_to_mach.rb_node != NULL) {
-		mfn = __pfn_to_mfn(pfn);
-		if (mfn != INVALID_P2M_ENTRY)
-			return mfn;
-	}
-
-	return pfn;
+static inline unsigned long pfn_to_bfn(unsigned long pfn) {
+  unsigned long mfn;
+  if (phys_to_mach.rb_node != NULL) {
+    mfn = __pfn_to_mfn(pfn);
+    if (mfn != INVALID_P2M_ENTRY) {
+      return mfn;
+    }
+  }
+  return pfn;
 }
 
-static inline unsigned long bfn_to_pfn(unsigned long bfn)
-{
-	return bfn;
+static inline unsigned long bfn_to_pfn(unsigned long bfn) {
+  return bfn;
 }
 
-#define bfn_to_local_pfn(bfn)	bfn_to_pfn(bfn)
+#define bfn_to_local_pfn(bfn) bfn_to_pfn(bfn)
 
 /* VIRT <-> GUEST conversion */
 #define virt_to_gfn(v)                                                         \
-	({                                                                     \
-		WARN_ON_ONCE(!virt_addr_valid(v));                              \
-		pfn_to_gfn(virt_to_phys(v) >> XEN_PAGE_SHIFT);                 \
-	})
-#define gfn_to_virt(m)		(__va(gfn_to_pfn(m) << XEN_PAGE_SHIFT))
+  ({                                                                     \
+    WARN_ON_ONCE(!virt_addr_valid(v));                              \
+    pfn_to_gfn(virt_to_phys(v) >> XEN_PAGE_SHIFT);                 \
+  })
+#define gfn_to_virt(m)    (__va(gfn_to_pfn(m) << XEN_PAGE_SHIFT))
 
-#define percpu_to_gfn(v)	\
-	(pfn_to_gfn(per_cpu_ptr_to_phys(v) >> XEN_PAGE_SHIFT))
+#define percpu_to_gfn(v)  \
+  (pfn_to_gfn(per_cpu_ptr_to_phys(v) >> XEN_PAGE_SHIFT))
 
 /* Only used in PV code. But ARM guests are always HVM. */
-static inline xmaddr_t arbitrary_virt_to_machine(void *vaddr)
-{
-	BUG();
+static inline xmaddr_t arbitrary_virt_to_machine(void *vaddr) {
+  BUG();
 }
 
 extern int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
-				   struct gnttab_map_grant_ref *kmap_ops,
-				   struct page **pages, unsigned int count);
+    struct gnttab_map_grant_ref *kmap_ops,
+    struct page **pages, unsigned int count);
 
 extern int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
-				     struct gnttab_unmap_grant_ref *kunmap_ops,
-				     struct page **pages, unsigned int count);
+    struct gnttab_unmap_grant_ref *kunmap_ops,
+    struct page **pages, unsigned int count);
 
 bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 bool __set_phys_to_machine_multi(unsigned long pfn, unsigned long mfn,
-		unsigned long nr_pages);
+    unsigned long nr_pages);
 
-static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
-{
-	return __set_phys_to_machine(pfn, mfn);
+static inline bool set_phys_to_machine(unsigned long pfn, unsigned long mfn) {
+  return __set_phys_to_machine(pfn, mfn);
 }
 
 bool xen_arch_need_swiotlb(struct device *dev,
-			   phys_addr_t phys,
-			   dma_addr_t dev_addr);
+    phys_addr_t phys,
+    dma_addr_t dev_addr);
 
 #endif /* _ASM_ARM_XEN_PAGE_H */

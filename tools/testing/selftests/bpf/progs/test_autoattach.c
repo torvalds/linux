@@ -8,16 +8,13 @@ bool prog1_called = false;
 bool prog2_called = false;
 
 SEC("raw_tp/sys_enter")
-int prog1(const void *ctx)
-{
-	prog1_called = true;
-	return 0;
+int prog1(const void *ctx) {
+  prog1_called = true;
+  return 0;
 }
 
 SEC("raw_tp/sys_exit")
-int prog2(const void *ctx)
-{
-	prog2_called = true;
-	return 0;
+int prog2(const void *ctx) {
+  prog2_called = true;
+  return 0;
 }
-

@@ -16,7 +16,7 @@
 
 /**
  * linear_range_values_in_range - return the amount of values in a range
- * @r:		pointer to linear range where values are counted
+ * @r:    pointer to linear range where values are counted
  *
  * Compute the amount of values in range pointed by @r. Note, values can
  * be all equal - range with selectors 0,...,2 with step 0 still contains
@@ -24,18 +24,19 @@
  *
  * Return: the amount of values in range pointed by @r
  */
-unsigned int linear_range_values_in_range(const struct linear_range *r)
-{
-	if (!r)
-		return 0;
-	return r->max_sel - r->min_sel + 1;
+unsigned int linear_range_values_in_range(const struct linear_range *r) {
+  if (!r) {
+    return 0;
+  }
+  return r->max_sel - r->min_sel + 1;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_values_in_range);
 
 /**
  * linear_range_values_in_range_array - return the amount of values in ranges
- * @r:		pointer to array of linear ranges where values are counted
- * @ranges:	amount of ranges we include in computation.
+ * @r:    pointer to array of linear ranges where values are counted
+ * @ranges: amount of ranges we include in computation.
  *
  * Compute the amount of values in ranges pointed by @r. Note, values can
  * be all equal - range with selectors 0,...,2 with step 0 still contains
@@ -44,40 +45,38 @@ EXPORT_SYMBOL_GPL(linear_range_values_in_range);
  * Return: the amount of values in first @ranges ranges pointed by @r
  */
 unsigned int linear_range_values_in_range_array(const struct linear_range *r,
-						int ranges)
-{
-	int i, values_in_range = 0;
-
-	for (i = 0; i < ranges; i++) {
-		int values;
-
-		values = linear_range_values_in_range(&r[i]);
-		if (!values)
-			return values;
-
-		values_in_range += values;
-	}
-	return values_in_range;
+    int ranges) {
+  int i, values_in_range = 0;
+  for (i = 0; i < ranges; i++) {
+    int values;
+    values = linear_range_values_in_range(&r[i]);
+    if (!values) {
+      return values;
+    }
+    values_in_range += values;
+  }
+  return values_in_range;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_values_in_range_array);
 
 /**
  * linear_range_get_max_value - return the largest value in a range
- * @r:		pointer to linear range where value is looked from
+ * @r:    pointer to linear range where value is looked from
  *
  * Return: the largest value in the given range
  */
-unsigned int linear_range_get_max_value(const struct linear_range *r)
-{
-	return r->min + (r->max_sel - r->min_sel) * r->step;
+unsigned int linear_range_get_max_value(const struct linear_range *r) {
+  return r->min + (r->max_sel - r->min_sel) * r->step;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_max_value);
 
 /**
  * linear_range_get_value - fetch a value from given range
- * @r:		pointer to linear range where value is looked from
- * @selector:	selector for which the value is searched
- * @val:	address where found value is updated
+ * @r:    pointer to linear range where value is looked from
+ * @selector: selector for which the value is searched
+ * @val:  address where found value is updated
  *
  * Search given ranges for value which matches given selector.
  *
@@ -85,23 +84,22 @@ EXPORT_SYMBOL_GPL(linear_range_get_max_value);
  * ranges.
  */
 int linear_range_get_value(const struct linear_range *r, unsigned int selector,
-			   unsigned int *val)
-{
-	if (r->min_sel > selector || r->max_sel < selector)
-		return -EINVAL;
-
-	*val = r->min + (selector - r->min_sel) * r->step;
-
-	return 0;
+    unsigned int *val) {
+  if (r->min_sel > selector || r->max_sel < selector) {
+    return -EINVAL;
+  }
+  *val = r->min + (selector - r->min_sel) * r->step;
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_value);
 
 /**
  * linear_range_get_value_array - fetch a value from array of ranges
- * @r:		pointer to array of linear ranges where value is looked from
- * @ranges:	amount of ranges in an array
- * @selector:	selector for which the value is searched
- * @val:	address where found value is updated
+ * @r:    pointer to array of linear ranges where value is looked from
+ * @ranges: amount of ranges in an array
+ * @selector: selector for which the value is searched
+ * @val:  address where found value is updated
  *
  * Search through an array of ranges for value which matches given selector.
  *
@@ -109,24 +107,24 @@ EXPORT_SYMBOL_GPL(linear_range_get_value);
  * ranges.
  */
 int linear_range_get_value_array(const struct linear_range *r, int ranges,
-				 unsigned int selector, unsigned int *val)
-{
-	int i;
-
-	for (i = 0; i < ranges; i++)
-		if (r[i].min_sel <= selector && r[i].max_sel >= selector)
-			return linear_range_get_value(&r[i], selector, val);
-
-	return -EINVAL;
+    unsigned int selector, unsigned int *val) {
+  int i;
+  for (i = 0; i < ranges; i++) {
+    if (r[i].min_sel <= selector && r[i].max_sel >= selector) {
+      return linear_range_get_value(&r[i], selector, val);
+    }
+  }
+  return -EINVAL;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_value_array);
 
 /**
  * linear_range_get_selector_low - return linear range selector for value
- * @r:		pointer to linear range where selector is looked from
- * @val:	value for which the selector is searched
- * @selector:	address where found selector value is updated
- * @found:	flag to indicate that given value was in the range
+ * @r:    pointer to linear range where selector is looked from
+ * @val:  value for which the selector is searched
+ * @selector: address where found selector value is updated
+ * @found:  flag to indicate that given value was in the range
  *
  * Return selector for which range value is closest match for given
  * input value. Value is matching if it is equal or smaller than given
@@ -136,37 +134,34 @@ EXPORT_SYMBOL_GPL(linear_range_get_value_array);
  * value smaller or equal to given value
  */
 int linear_range_get_selector_low(const struct linear_range *r,
-				  unsigned int val, unsigned int *selector,
-				  bool *found)
-{
-	*found = false;
-
-	if (r->min > val)
-		return -EINVAL;
-
-	if (linear_range_get_max_value(r) < val) {
-		*selector = r->max_sel;
-		return 0;
-	}
-
-	*found = true;
-
-	if (r->step == 0)
-		*selector = r->min_sel;
-	else
-		*selector = (val - r->min) / r->step + r->min_sel;
-
-	return 0;
+    unsigned int val, unsigned int *selector,
+    bool *found) {
+  *found = false;
+  if (r->min > val) {
+    return -EINVAL;
+  }
+  if (linear_range_get_max_value(r) < val) {
+    *selector = r->max_sel;
+    return 0;
+  }
+  *found = true;
+  if (r->step == 0) {
+    *selector = r->min_sel;
+  } else {
+    *selector = (val - r->min) / r->step + r->min_sel;
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_selector_low);
 
 /**
  * linear_range_get_selector_low_array - return linear range selector for value
- * @r:		pointer to array of linear ranges where selector is looked from
- * @ranges:	amount of ranges to scan from array
- * @val:	value for which the selector is searched
- * @selector:	address where found selector value is updated
- * @found:	flag to indicate that given value was in the range
+ * @r:    pointer to array of linear ranges where selector is looked from
+ * @ranges: amount of ranges to scan from array
+ * @val:  value for which the selector is searched
+ * @selector: address where found selector value is updated
+ * @found:  flag to indicate that given value was in the range
  *
  * Scan array of ranges for selector for which range value matches given
  * input value. Value is matching if it is equal or smaller than given
@@ -180,34 +175,32 @@ EXPORT_SYMBOL_GPL(linear_range_get_selector_low);
  * range with a value smaller or equal to given value
  */
 int linear_range_get_selector_low_array(const struct linear_range *r,
-					int ranges, unsigned int val,
-					unsigned int *selector, bool *found)
-{
-	int i;
-	int ret = -EINVAL;
-
-	for (i = 0; i < ranges; i++) {
-		int tmpret;
-
-		tmpret = linear_range_get_selector_low(&r[i], val, selector,
-						       found);
-		if (!tmpret)
-			ret = 0;
-
-		if (*found)
-			break;
-	}
-
-	return ret;
+    int ranges, unsigned int val,
+    unsigned int *selector, bool *found) {
+  int i;
+  int ret = -EINVAL;
+  for (i = 0; i < ranges; i++) {
+    int tmpret;
+    tmpret = linear_range_get_selector_low(&r[i], val, selector,
+        found);
+    if (!tmpret) {
+      ret = 0;
+    }
+    if (*found) {
+      break;
+    }
+  }
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_selector_low_array);
 
 /**
  * linear_range_get_selector_high - return linear range selector for value
- * @r:		pointer to linear range where selector is looked from
- * @val:	value for which the selector is searched
- * @selector:	address where found selector value is updated
- * @found:	flag to indicate that given value was in the range
+ * @r:    pointer to linear range where selector is looked from
+ * @val:  value for which the selector is searched
+ * @selector: address where found selector value is updated
+ * @found:  flag to indicate that given value was in the range
  *
  * Return selector for which range value is closest match for given
  * input value. Value is matching if it is equal or higher than given
@@ -217,35 +210,32 @@ EXPORT_SYMBOL_GPL(linear_range_get_selector_low_array);
  * value greater or equal to given value
  */
 int linear_range_get_selector_high(const struct linear_range *r,
-				   unsigned int val, unsigned int *selector,
-				   bool *found)
-{
-	*found = false;
-
-	if (linear_range_get_max_value(r) < val)
-		return -EINVAL;
-
-	if (r->min > val) {
-		*selector = r->min_sel;
-		return 0;
-	}
-
-	*found = true;
-
-	if (r->step == 0)
-		*selector = r->max_sel;
-	else
-		*selector = DIV_ROUND_UP(val - r->min, r->step) + r->min_sel;
-
-	return 0;
+    unsigned int val, unsigned int *selector,
+    bool *found) {
+  *found = false;
+  if (linear_range_get_max_value(r) < val) {
+    return -EINVAL;
+  }
+  if (r->min > val) {
+    *selector = r->min_sel;
+    return 0;
+  }
+  *found = true;
+  if (r->step == 0) {
+    *selector = r->max_sel;
+  } else {
+    *selector = DIV_ROUND_UP(val - r->min, r->step) + r->min_sel;
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_selector_high);
 
 /**
  * linear_range_get_selector_within - return linear range selector for value
- * @r:		pointer to linear range where selector is looked from
- * @val:	value for which the selector is searched
- * @selector:	address where found selector value is updated
+ * @r:    pointer to linear range where selector is looked from
+ * @val:  value for which the selector is searched
+ * @selector: address where found selector value is updated
  *
  * Return selector for which range value is closest match for given
  * input value. Value is matching if it is equal or lower than given
@@ -253,23 +243,22 @@ EXPORT_SYMBOL_GPL(linear_range_get_selector_high);
  * maximum value.
  */
 void linear_range_get_selector_within(const struct linear_range *r,
-				      unsigned int val, unsigned int *selector)
-{
-	if (r->min > val) {
-		*selector = r->min_sel;
-		return;
-	}
-
-	if (linear_range_get_max_value(r) < val) {
-		*selector = r->max_sel;
-		return;
-	}
-
-	if (r->step == 0)
-		*selector = r->min_sel;
-	else
-		*selector = (val - r->min) / r->step + r->min_sel;
+    unsigned int val, unsigned int *selector) {
+  if (r->min > val) {
+    *selector = r->min_sel;
+    return;
+  }
+  if (linear_range_get_max_value(r) < val) {
+    *selector = r->max_sel;
+    return;
+  }
+  if (r->step == 0) {
+    *selector = r->min_sel;
+  } else {
+    *selector = (val - r->min) / r->step + r->min_sel;
+  }
 }
+
 EXPORT_SYMBOL_GPL(linear_range_get_selector_within);
 
 MODULE_DESCRIPTION("linear-ranges helper");

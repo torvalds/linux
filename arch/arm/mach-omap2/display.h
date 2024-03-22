@@ -11,8 +11,8 @@
 #include <linux/kernel.h>
 
 struct omap_dss_dispc_dev_attr {
-	u8	manager_count;
-	bool	has_framedonetv_irq;
+  u8 manager_count;
+  bool has_framedonetv_irq;
 };
 
 int omap_init_vrfb(void);

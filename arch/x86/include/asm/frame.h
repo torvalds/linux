@@ -14,12 +14,12 @@
 #ifdef __ASSEMBLY__
 
 .macro FRAME_BEGIN
-	push %_ASM_BP
-	_ASM_MOV %_ASM_SP, %_ASM_BP
+push % _ASM_BP
+_ASM_MOV % _ASM_SP, % _ASM_BP
 .endm
 
 .macro FRAME_END
-	pop %_ASM_BP
+pop % _ASM_BP
 .endm
 
 #ifdef CONFIG_X86_64
@@ -32,8 +32,8 @@
  * NOTE: This macro must be used *after* PUSH_AND_CLEAR_REGS because it corrupts
  * the original rbp.
  */
-.macro ENCODE_FRAME_POINTER ptregs_offset=0
-	leaq 1+\ptregs_offset(%rsp), %rbp
+.macro ENCODE_FRAME_POINTER ptregs_offset = 0
+    leaq 1 + \ ptregs_offset(% rsp), % rbp
 .endm
 #else /* !CONFIG_X86_64 */
 /*
@@ -46,38 +46,36 @@
  * original ebp.
  */
 .macro ENCODE_FRAME_POINTER
-	mov %esp, %ebp
-	andl $0x7fffffff, %ebp
+mov % esp, % ebp
+andl $0x7fffffff, % ebp
 .endm
 #endif /* CONFIG_X86_64 */
 
 #else /* !__ASSEMBLY__ */
 
-#define FRAME_BEGIN				\
-	"push %" _ASM_BP "\n"			\
-	_ASM_MOV "%" _ASM_SP ", %" _ASM_BP "\n"
+#define FRAME_BEGIN       \
+  "push %" _ASM_BP "\n"     \
+  _ASM_MOV "%" _ASM_SP ", %" _ASM_BP "\n"
 
 #define FRAME_END "pop %" _ASM_BP "\n"
 
 #ifdef CONFIG_X86_64
 
-#define ENCODE_FRAME_POINTER			\
-	"lea 1(%rsp), %rbp\n\t"
+#define ENCODE_FRAME_POINTER      \
+  "lea 1(%rsp), %rbp\n\t"
 
-static inline unsigned long encode_frame_pointer(struct pt_regs *regs)
-{
-	return (unsigned long)regs + 1;
+static inline unsigned long encode_frame_pointer(struct pt_regs *regs) {
+  return (unsigned long) regs + 1;
 }
 
 #else /* !CONFIG_X86_64 */
 
-#define ENCODE_FRAME_POINTER			\
-	"movl %esp, %ebp\n\t"			\
-	"andl $0x7fffffff, %ebp\n\t"
+#define ENCODE_FRAME_POINTER      \
+  "movl %esp, %ebp\n\t"     \
+  "andl $0x7fffffff, %ebp\n\t"
 
-static inline unsigned long encode_frame_pointer(struct pt_regs *regs)
-{
-	return (unsigned long)regs & 0x7fffffff;
+static inline unsigned long encode_frame_pointer(struct pt_regs *regs) {
+  return (unsigned long) regs & 0x7fffffff;
 }
 
 #endif /* CONFIG_X86_64 */
@@ -90,16 +88,15 @@ static inline unsigned long encode_frame_pointer(struct pt_regs *regs)
 
 #ifdef __ASSEMBLY__
 
-.macro ENCODE_FRAME_POINTER ptregs_offset=0
-.endm
+.macro ENCODE_FRAME_POINTER ptregs_offset = 0
+    .endm
 
 #else /* !__ASSEMBLY */
 
 #define ENCODE_FRAME_POINTER
 
-static inline unsigned long encode_frame_pointer(struct pt_regs *regs)
-{
-	return 0;
+static inline unsigned long encode_frame_pointer(struct pt_regs *regs) {
+  return 0;
 }
 
 #endif

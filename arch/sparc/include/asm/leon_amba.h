@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
-*Copyright (C) 2004 Konrad Eisele (eiselekd@web.de,konrad@gaisler.com), Gaisler Research
-*Copyright (C) 2004 Stefan Holst (mail@s-holst.de), Uni-Stuttgart
-*Copyright (C) 2009 Daniel Hellstrom (daniel@gaisler.com),Konrad Eisele (konrad@gaisler.com) Aeroflex Gaisler AB
-*/
+ * Copyright (C) 2004 Konrad Eisele (eiselekd@web.de,konrad@gaisler.com),
+ * Gaisler Research
+ * Copyright (C) 2004 Stefan Holst (mail@s-holst.de), Uni-Stuttgart
+ * Copyright (C) 2009 Daniel Hellstrom (daniel@gaisler.com),Konrad Eisele
+ *(konrad@gaisler.com) Aeroflex Gaisler AB
+ */
 
 #ifndef LEON_AMBA_H_INCLUDE
 #define LEON_AMBA_H_INCLUDE
@@ -11,8 +13,8 @@
 #ifndef __ASSEMBLY__
 
 struct amba_prom_registers {
-	unsigned int phys_addr;	/* The physical address of this register */
-	unsigned int reg_size;	/* How many bytes does this register take up? */
+  unsigned int phys_addr; /* The physical address of this register */
+  unsigned int reg_size;  /* How many bytes does this register take up? */
 };
 
 #endif
@@ -21,27 +23,27 @@ struct amba_prom_registers {
  *  The following defines the bits in the LEON UART Status Registers.
  */
 
-#define LEON_REG_UART_STATUS_DR   0x00000001	/* Data Ready */
-#define LEON_REG_UART_STATUS_TSE  0x00000002	/* TX Send Register Empty */
-#define LEON_REG_UART_STATUS_THE  0x00000004	/* TX Hold Register Empty */
-#define LEON_REG_UART_STATUS_BR   0x00000008	/* Break Error */
-#define LEON_REG_UART_STATUS_OE   0x00000010	/* RX Overrun Error */
-#define LEON_REG_UART_STATUS_PE   0x00000020	/* RX Parity Error */
-#define LEON_REG_UART_STATUS_FE   0x00000040	/* RX Framing Error */
-#define LEON_REG_UART_STATUS_ERR  0x00000078	/* Error Mask */
+#define LEON_REG_UART_STATUS_DR   0x00000001  /* Data Ready */
+#define LEON_REG_UART_STATUS_TSE  0x00000002  /* TX Send Register Empty */
+#define LEON_REG_UART_STATUS_THE  0x00000004  /* TX Hold Register Empty */
+#define LEON_REG_UART_STATUS_BR   0x00000008  /* Break Error */
+#define LEON_REG_UART_STATUS_OE   0x00000010  /* RX Overrun Error */
+#define LEON_REG_UART_STATUS_PE   0x00000020  /* RX Parity Error */
+#define LEON_REG_UART_STATUS_FE   0x00000040  /* RX Framing Error */
+#define LEON_REG_UART_STATUS_ERR  0x00000078  /* Error Mask */
 
 /*
  *  The following defines the bits in the LEON UART Ctrl Registers.
  */
 
-#define LEON_REG_UART_CTRL_RE     0x00000001	/* Receiver enable */
-#define LEON_REG_UART_CTRL_TE     0x00000002	/* Transmitter enable */
-#define LEON_REG_UART_CTRL_RI     0x00000004	/* Receiver interrupt enable */
-#define LEON_REG_UART_CTRL_TI     0x00000008	/* Transmitter irq */
-#define LEON_REG_UART_CTRL_PS     0x00000010	/* Parity select */
-#define LEON_REG_UART_CTRL_PE     0x00000020	/* Parity enable */
-#define LEON_REG_UART_CTRL_FL     0x00000040	/* Flow control enable */
-#define LEON_REG_UART_CTRL_LB     0x00000080	/* Loop Back enable */
+#define LEON_REG_UART_CTRL_RE     0x00000001  /* Receiver enable */
+#define LEON_REG_UART_CTRL_TE     0x00000002  /* Transmitter enable */
+#define LEON_REG_UART_CTRL_RI     0x00000004  /* Receiver interrupt enable */
+#define LEON_REG_UART_CTRL_TI     0x00000008  /* Transmitter irq */
+#define LEON_REG_UART_CTRL_PS     0x00000010  /* Parity select */
+#define LEON_REG_UART_CTRL_PE     0x00000020  /* Parity enable */
+#define LEON_REG_UART_CTRL_FL     0x00000040  /* Flow control enable */
+#define LEON_REG_UART_CTRL_LB     0x00000080  /* Loop Back enable */
 
 #define LEON3_GPTIMER_EN 1
 #define LEON3_GPTIMER_RL 2
@@ -53,31 +55,31 @@ struct amba_prom_registers {
 #define LEON23_REG_TIMER_CONTROL_EN    0x00000001 /* 1 = enable counting */
 /* 0 = hold scalar and counter */
 #define LEON23_REG_TIMER_CONTROL_RL    0x00000002 /* 1 = reload at 0 */
-						  /* 0 = stop at 0 */
+/* 0 = stop at 0 */
 #define LEON23_REG_TIMER_CONTROL_LD    0x00000004 /* 1 = load counter */
-						  /* 0 = no function */
+/* 0 = no function */
 #define LEON23_REG_TIMER_CONTROL_IQ    0x00000008 /* 1 = irq enable */
-						  /* 0 = no function */
+/* 0 = no function */
 
 /*
  *  The following defines the bits in the LEON PS/2 Status Registers.
  */
 
-#define LEON_REG_PS2_STATUS_DR   0x00000001	/* Data Ready */
-#define LEON_REG_PS2_STATUS_PE   0x00000002	/* Parity error */
-#define LEON_REG_PS2_STATUS_FE   0x00000004	/* Framing error */
-#define LEON_REG_PS2_STATUS_KI   0x00000008	/* Keyboard inhibit */
-#define LEON_REG_PS2_STATUS_RF   0x00000010	/* RX buffer full */
-#define LEON_REG_PS2_STATUS_TF   0x00000020	/* TX buffer full */
+#define LEON_REG_PS2_STATUS_DR   0x00000001 /* Data Ready */
+#define LEON_REG_PS2_STATUS_PE   0x00000002 /* Parity error */
+#define LEON_REG_PS2_STATUS_FE   0x00000004 /* Framing error */
+#define LEON_REG_PS2_STATUS_KI   0x00000008 /* Keyboard inhibit */
+#define LEON_REG_PS2_STATUS_RF   0x00000010 /* RX buffer full */
+#define LEON_REG_PS2_STATUS_TF   0x00000020 /* TX buffer full */
 
 /*
  *  The following defines the bits in the LEON PS/2 Ctrl Registers.
  */
 
-#define LEON_REG_PS2_CTRL_RE 0x00000001	/* Receiver enable */
-#define LEON_REG_PS2_CTRL_TE 0x00000002	/* Transmitter enable */
-#define LEON_REG_PS2_CTRL_RI 0x00000004	/* Keyboard receive irq  */
-#define LEON_REG_PS2_CTRL_TI 0x00000008	/* Keyboard transmit irq */
+#define LEON_REG_PS2_CTRL_RE 0x00000001 /* Receiver enable */
+#define LEON_REG_PS2_CTRL_TE 0x00000002 /* Transmitter enable */
+#define LEON_REG_PS2_CTRL_RI 0x00000004 /* Keyboard receive irq  */
+#define LEON_REG_PS2_CTRL_TI 0x00000008 /* Keyboard transmit irq */
 
 #define LEON3_IRQMPSTATUS_CPUNR     28
 #define LEON3_IRQMPSTATUS_BROADCAST 27
@@ -87,53 +89,54 @@ struct amba_prom_registers {
 #define GPTIMER_CONFIG_NTIMERS(a)        ((a) & (0x7))
 #define LEON3_GPTIMER_CTRL_PENDING       0x10
 #define LEON3_GPTIMER_CONFIG_NRTIMERS(c) ((c)->config & 0x7)
-#define LEON3_GPTIMER_CTRL_ISPENDING(r)  (((r)&LEON3_GPTIMER_CTRL_PENDING) ? 1 : 0)
+#define LEON3_GPTIMER_CTRL_ISPENDING(r)  (((r) \
+  & LEON3_GPTIMER_CTRL_PENDING) ? 1 : 0)
 
 #ifndef __ASSEMBLY__
 
 struct leon3_irqctrl_regs_map {
-	u32 ilevel;
-	u32 ipend;
-	u32 iforce;
-	u32 iclear;
-	u32 mpstatus;
-	u32 mpbroadcast;
-	u32 notused02;
-	u32 notused03;
-	u32 ampctrl;
-	u32 icsel[2];
-	u32 notused13;
-	u32 notused20;
-	u32 notused21;
-	u32 notused22;
-	u32 notused23;
-	u32 mask[16];
-	u32 force[16];
-	/* Extended IRQ registers */
-	u32 intid[16];	/* 0xc0 */
-	u32 unused[(0x1000-0x100)/4];
+  u32 ilevel;
+  u32 ipend;
+  u32 iforce;
+  u32 iclear;
+  u32 mpstatus;
+  u32 mpbroadcast;
+  u32 notused02;
+  u32 notused03;
+  u32 ampctrl;
+  u32 icsel[2];
+  u32 notused13;
+  u32 notused20;
+  u32 notused21;
+  u32 notused22;
+  u32 notused23;
+  u32 mask[16];
+  u32 force[16];
+  /* Extended IRQ registers */
+  u32 intid[16];  /* 0xc0 */
+  u32 unused[(0x1000 - 0x100) / 4];
 };
 
 struct leon3_apbuart_regs_map {
-	u32 data;
-	u32 status;
-	u32 ctrl;
-	u32 scaler;
+  u32 data;
+  u32 status;
+  u32 ctrl;
+  u32 scaler;
 };
 
 struct leon3_gptimerelem_regs_map {
-	u32 val;
-	u32 rld;
-	u32 ctrl;
-	u32 unused;
+  u32 val;
+  u32 rld;
+  u32 ctrl;
+  u32 unused;
 };
 
 struct leon3_gptimer_regs_map {
-	u32 scalar;
-	u32 scalar_reload;
-	u32 config;
-	u32 unused;
-	struct leon3_gptimerelem_regs_map e[8];
+  u32 scalar;
+  u32 scalar_reload;
+  u32 config;
+  u32 unused;
+  struct leon3_gptimerelem_regs_map e[8];
 };
 
 /*
@@ -144,37 +147,41 @@ struct leon3_gptimer_regs_map {
 #define AMBA_MAXAPB_DEVS_PERBUS 16
 
 struct amba_device_table {
-	int devnr;		   /* number of devices on AHB or APB bus */
-	unsigned int *addr[16];    /* addresses to the devices configuration tables */
-	unsigned int allocbits[1]; /* 0=unallocated, 1=allocated driver */
+  int devnr;       /* number of devices on AHB or APB bus */
+  unsigned int *addr[16];    /* addresses to the devices configuration tables */
+  unsigned int allocbits[1]; /* 0=unallocated, 1=allocated driver */
 };
 
 struct amba_apbslv_device_table {
-	int devnr;		                  /* number of devices on AHB or APB bus */
-	unsigned int *addr[AMBA_MAXAPB_DEVS];     /* addresses to the devices configuration tables */
-	unsigned int apbmst[AMBA_MAXAPB_DEVS];    /* apb master if a entry is a apb slave */
-	unsigned int apbmstidx[AMBA_MAXAPB_DEVS]; /* apb master idx if a entry is a apb slave */
-	unsigned int allocbits[4];                /* 0=unallocated, 1=allocated driver */
+  int devnr;                      /* number of devices on AHB or APB bus */
+  unsigned int *addr[AMBA_MAXAPB_DEVS];     /* addresses to the devices
+                                             * configuration tables */
+  unsigned int apbmst[AMBA_MAXAPB_DEVS];    /* apb master if a entry is a apb
+                                             * slave */
+  unsigned int apbmstidx[AMBA_MAXAPB_DEVS]; /* apb master idx if a entry is a
+                                             * apb slave */
+  unsigned int allocbits[4];                /* 0=unallocated, 1=allocated driver
+                                             * */
 };
 
 struct amba_confarea_type {
-	struct amba_confarea_type *next;/* next bus in chain */
-	struct amba_device_table ahbmst;
-	struct amba_device_table ahbslv;
-	struct amba_apbslv_device_table apbslv;
-	unsigned int apbmst;
+  struct amba_confarea_type *next; /* next bus in chain */
+  struct amba_device_table ahbmst;
+  struct amba_device_table ahbslv;
+  struct amba_apbslv_device_table apbslv;
+  unsigned int apbmst;
 };
 
 /* collect apb slaves */
 struct amba_apb_device {
-	unsigned int start, irq, bus_id;
-	struct amba_confarea_type *bus;
+  unsigned int start, irq, bus_id;
+  struct amba_confarea_type *bus;
 };
 
 /* collect ahb slaves */
 struct amba_ahb_device {
-	unsigned int start[4], irq, bus_id;
-	struct amba_confarea_type *bus;
+  unsigned int start[4], irq, bus_id;
+  struct amba_confarea_type *bus;
 };
 
 struct device_node;
@@ -251,9 +258,9 @@ extern unsigned int sparc_leon_eirq;
 #define GAISLER_GRSYSMON 0x066
 #define GAISLER_GRACECTRL 0x067
 
-#define GAISLER_L2TIME   0xffd	/* internal device: leon2 timer */
-#define GAISLER_L2C      0xffe	/* internal device: leon2compat */
-#define GAISLER_PLUGPLAY 0xfff	/* internal device: plug & play configarea */
+#define GAISLER_L2TIME   0xffd  /* internal device: leon2 timer */
+#define GAISLER_L2C      0xffe  /* internal device: leon2compat */
+#define GAISLER_PLUGPLAY 0xfff  /* internal device: plug & play configarea */
 
 /* Chip IDs */
 #define AEROFLEX_UT699    0x0699

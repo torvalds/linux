@@ -14,11 +14,11 @@ int dax_pmem_compat_test(void);
  * dummy routine for nfit_test to validate it is linking to the properly
  * mocked module and not the standard one from the base tree.
  */
-#define nfit_test_watermark(x)				\
-int x##_test(void)					\
-{							\
-	pr_debug("%s for nfit_test\n", KBUILD_MODNAME);	\
-	return 0;					\
-}							\
-EXPORT_SYMBOL(x##_test)
+#define nfit_test_watermark(x)        \
+  int x ## _test(void)          \
+  {             \
+    pr_debug("%s for nfit_test\n", KBUILD_MODNAME); \
+    return 0;         \
+  }             \
+  EXPORT_SYMBOL(x ## _test)
 #endif /* _TEST_NVDIMM_WATERMARK_H_ */

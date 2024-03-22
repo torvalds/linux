@@ -15,14 +15,14 @@
 /*
  * Size of the crypto key returned on the negotiate SMB in bytes
  */
-#define CIFS_CRYPTO_KEY_SIZE	(8)
-#define CIFS_KEY_SIZE	(40)
+#define CIFS_CRYPTO_KEY_SIZE  (8)
+#define CIFS_KEY_SIZE (40)
 
 /*
  * Size of encrypted user password in bytes
  */
-#define CIFS_ENCPWD_SIZE	(16)
-#define CIFS_CPHTXT_SIZE	(16)
+#define CIFS_ENCPWD_SIZE  (16)
+#define CIFS_CPHTXT_SIZE  (16)
 
 /* Message Types */
 #define NtLmNegotiate     cpu_to_le32(1)
@@ -58,112 +58,112 @@
 #define NTLMSSP_NEGOTIATE_TARGET_INFO 0x800000
 /* #define reserved4                 0x1000000 */
 #define NTLMSSP_NEGOTIATE_VERSION    0x2000000 /* we do not set */
-/* #define reserved3                 0x4000000 */
-/* #define reserved2                 0x8000000 */
-/* #define reserved1                0x10000000 */
+/* #define reserved3                 0x4000000
+ * #define reserved2                 0x8000000
+ * #define reserved1                0x10000000*/
 #define NTLMSSP_NEGOTIATE_128       0x20000000
 #define NTLMSSP_NEGOTIATE_KEY_XCH   0x40000000
 #define NTLMSSP_NEGOTIATE_56        0x80000000
 
 /* Define AV Pair Field IDs */
 enum av_field_type {
-	NTLMSSP_AV_EOL = 0,
-	NTLMSSP_AV_NB_COMPUTER_NAME,
-	NTLMSSP_AV_NB_DOMAIN_NAME,
-	NTLMSSP_AV_DNS_COMPUTER_NAME,
-	NTLMSSP_AV_DNS_DOMAIN_NAME,
-	NTLMSSP_AV_DNS_TREE_NAME,
-	NTLMSSP_AV_FLAGS,
-	NTLMSSP_AV_TIMESTAMP,
-	NTLMSSP_AV_RESTRICTION,
-	NTLMSSP_AV_TARGET_NAME,
-	NTLMSSP_AV_CHANNEL_BINDINGS
+  NTLMSSP_AV_EOL = 0,
+  NTLMSSP_AV_NB_COMPUTER_NAME,
+  NTLMSSP_AV_NB_DOMAIN_NAME,
+  NTLMSSP_AV_DNS_COMPUTER_NAME,
+  NTLMSSP_AV_DNS_DOMAIN_NAME,
+  NTLMSSP_AV_DNS_TREE_NAME,
+  NTLMSSP_AV_FLAGS,
+  NTLMSSP_AV_TIMESTAMP,
+  NTLMSSP_AV_RESTRICTION,
+  NTLMSSP_AV_TARGET_NAME,
+  NTLMSSP_AV_CHANNEL_BINDINGS
 };
 
-/* Although typedefs are not commonly used for structure definitions */
-/* in the Linux kernel, in this particular case they are useful      */
-/* to more closely match the standards document for NTLMSSP from     */
-/* OpenGroup and to make the code more closely match the standard in */
-/* appearance */
+/* Although typedefs are not commonly used for structure definitions
+ * in the Linux kernel, in this particular case they are useful
+ * to more closely match the standards document for NTLMSSP from
+ * OpenGroup and to make the code more closely match the standard in
+ * appearance*/
 
 struct security_buffer {
-	__le16 Length;
-	__le16 MaximumLength;
-	__le32 BufferOffset;	/* offset to buffer */
+  __le16 Length;
+  __le16 MaximumLength;
+  __le32 BufferOffset;  /* offset to buffer */
 } __packed;
 
 struct target_info {
-	__le16 Type;
-	__le16 Length;
-	__u8 Content[];
+  __le16 Type;
+  __le16 Length;
+  __u8 Content[];
 } __packed;
 
 struct negotiate_message {
-	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
-	__le32 MessageType;     /* NtLmNegotiate = 1 */
-	__le32 NegotiateFlags;
-	struct security_buffer DomainName;	/* RFC 1001 style and ASCII */
-	struct security_buffer WorkstationName;	/* RFC 1001 and ASCII */
-	/*
-	 * struct security_buffer for version info not present since we
-	 * do not set the version is present flag
-	 */
-	char DomainString[];
-	/* followed by WorkstationString */
+  __u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
+  __le32 MessageType;     /* NtLmNegotiate = 1 */
+  __le32 NegotiateFlags;
+  struct security_buffer DomainName;  /* RFC 1001 style and ASCII */
+  struct security_buffer WorkstationName; /* RFC 1001 and ASCII */
+  /*
+   * struct security_buffer for version info not present since we
+   * do not set the version is present flag
+   */
+  char DomainString[];
+  /* followed by WorkstationString */
 } __packed;
 
 struct challenge_message {
-	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
-	__le32 MessageType;   /* NtLmChallenge = 2 */
-	struct security_buffer TargetName;
-	__le32 NegotiateFlags;
-	__u8 Challenge[CIFS_CRYPTO_KEY_SIZE];
-	__u8 Reserved[8];
-	struct security_buffer TargetInfoArray;
-	/*
-	 * struct security_buffer for version info not present since we
-	 * do not set the version is present flag
-	 */
+  __u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
+  __le32 MessageType;   /* NtLmChallenge = 2 */
+  struct security_buffer TargetName;
+  __le32 NegotiateFlags;
+  __u8 Challenge[CIFS_CRYPTO_KEY_SIZE];
+  __u8 Reserved[8];
+  struct security_buffer TargetInfoArray;
+  /*
+   * struct security_buffer for version info not present since we
+   * do not set the version is present flag
+   */
 } __packed;
 
 struct authenticate_message {
-	__u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
-	__le32 MessageType;  /* NtLmsAuthenticate = 3 */
-	struct security_buffer LmChallengeResponse;
-	struct security_buffer NtChallengeResponse;
-	struct security_buffer DomainName;
-	struct security_buffer UserName;
-	struct security_buffer WorkstationName;
-	struct security_buffer SessionKey;
-	__le32 NegotiateFlags;
-	/*
-	 * struct security_buffer for version info not present since we
-	 * do not set the version is present flag
-	 */
-	char UserString[];
+  __u8 Signature[sizeof(NTLMSSP_SIGNATURE)];
+  __le32 MessageType;  /* NtLmsAuthenticate = 3 */
+  struct security_buffer LmChallengeResponse;
+  struct security_buffer NtChallengeResponse;
+  struct security_buffer DomainName;
+  struct security_buffer UserName;
+  struct security_buffer WorkstationName;
+  struct security_buffer SessionKey;
+  __le32 NegotiateFlags;
+  /*
+   * struct security_buffer for version info not present since we
+   * do not set the version is present flag
+   */
+  char UserString[];
 } __packed;
 
 struct ntlmv2_resp {
-	char ntlmv2_hash[CIFS_ENCPWD_SIZE];
-	__le32 blob_signature;
-	__u32  reserved;
-	__le64  time;
-	__u64  client_chal; /* random */
-	__u32  reserved2;
-	/* array of name entries could follow ending in minimum 4 byte struct */
+  char ntlmv2_hash[CIFS_ENCPWD_SIZE];
+  __le32 blob_signature;
+  __u32 reserved;
+  __le64 time;
+  __u64 client_chal; /* random */
+  __u32 reserved2;
+  /* array of name entries could follow ending in minimum 4 byte struct */
 } __packed;
 
 /* per smb session structure/fields */
 struct ntlmssp_auth {
-	/* whether session key is per smb session */
-	bool		sesskey_per_smbsess;
-	/* sent by client in type 1 ntlmsssp exchange */
-	__u32		client_flags;
-	/* sent by server in type 2 ntlmssp exchange */
-	__u32		conn_flags;
-	/* sent to server */
-	unsigned char	ciphertext[CIFS_CPHTXT_SIZE];
-	/* used by ntlmssp */
-	char		cryptkey[CIFS_CRYPTO_KEY_SIZE];
+  /* whether session key is per smb session */
+  bool sesskey_per_smbsess;
+  /* sent by client in type 1 ntlmsssp exchange */
+  __u32 client_flags;
+  /* sent by server in type 2 ntlmssp exchange */
+  __u32 conn_flags;
+  /* sent to server */
+  unsigned char ciphertext[CIFS_CPHTXT_SIZE];
+  /* used by ntlmssp */
+  char cryptkey[CIFS_CRYPTO_KEY_SIZE];
 };
 #endif /* __KSMBD_NTLMSSP_H */

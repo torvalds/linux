@@ -15,8 +15,8 @@
  * callback.
  */
 struct eeh_event {
-	struct list_head	list;	/* to form event queue	*/
-	struct eeh_pe		*pe;	/* EEH PE		*/
+  struct list_head list; /* to form event queue */
+  struct eeh_pe *pe;  /* EEH PE   */
 };
 
 int eeh_event_init(void);

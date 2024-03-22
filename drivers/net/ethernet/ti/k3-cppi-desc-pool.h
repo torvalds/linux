@@ -13,16 +13,16 @@
 struct k3_cppi_desc_pool;
 
 void k3_cppi_desc_pool_destroy(struct k3_cppi_desc_pool *pool);
-struct k3_cppi_desc_pool *
-k3_cppi_desc_pool_create_name(struct device *dev, size_t size,
-			      size_t desc_size,
-			      const char *name);
+struct k3_cppi_desc_pool *k3_cppi_desc_pool_create_name(struct device *dev,
+    size_t size,
+    size_t desc_size,
+    const char *name);
 #define k3_cppi_desc_pool_create(dev, size, desc_size) \
-		k3_cppi_desc_pool_create_name(dev, size, desc_size, NULL)
-dma_addr_t
-k3_cppi_desc_pool_virt2dma(struct k3_cppi_desc_pool *pool, void *addr);
-void *
-k3_cppi_desc_pool_dma2virt(struct k3_cppi_desc_pool *pool, dma_addr_t dma);
+  k3_cppi_desc_pool_create_name(dev, size, desc_size, NULL)
+dma_addr_t k3_cppi_desc_pool_virt2dma(struct k3_cppi_desc_pool *pool,
+    void *addr);
+void *k3_cppi_desc_pool_dma2virt(struct k3_cppi_desc_pool *pool,
+    dma_addr_t dma);
 void *k3_cppi_desc_pool_alloc(struct k3_cppi_desc_pool *pool);
 void k3_cppi_desc_pool_free(struct k3_cppi_desc_pool *pool, void *addr);
 size_t k3_cppi_desc_pool_avail(struct k3_cppi_desc_pool *pool);

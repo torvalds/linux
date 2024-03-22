@@ -19,13 +19,11 @@
  * Stub function for OMAP2 so that common files
  * continue to build when custom builds are used
  */
-int __weak omap_secure_ram_reserve_memblock(void)
-{
-	return 0;
+int __weak omap_secure_ram_reserve_memblock(void) {
+  return 0;
 }
 
-void __init omap_reserve(void)
-{
-	omap_secure_ram_reserve_memblock();
-	omap_barrier_reserve_memblock();
+void __init omap_reserve(void) {
+  omap_secure_ram_reserve_memblock();
+  omap_barrier_reserve_memblock();
 }

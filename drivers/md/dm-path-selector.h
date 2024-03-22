@@ -10,8 +10,8 @@
  * Path-Selector registration.
  */
 
-#ifndef	DM_PATH_SELECTOR_H
-#define	DM_PATH_SELECTOR_H
+#ifndef DM_PATH_SELECTOR_H
+#define DM_PATH_SELECTOR_H
 
 #include <linux/device-mapper.h>
 
@@ -23,8 +23,8 @@
  */
 struct path_selector_type;
 struct path_selector {
-	struct path_selector_type *type;
-	void *context;
+  struct path_selector_type *type;
+  void *context;
 };
 
 /*
@@ -38,58 +38,58 @@ struct path_selector {
  * This has no effect for request-based mpath, since it already uses a
  * higher precision timer by default.
  */
-#define DM_PS_USE_HR_TIMER		0x00000001
-#define dm_ps_use_hr_timer(type)	((type)->features & DM_PS_USE_HR_TIMER)
+#define DM_PS_USE_HR_TIMER    0x00000001
+#define dm_ps_use_hr_timer(type)  ((type)->features & DM_PS_USE_HR_TIMER)
 
 /* Information about a path selector type */
 struct path_selector_type {
-	char *name;
-	struct module *module;
+  char *name;
+  struct module *module;
 
-	unsigned int features;
-	unsigned int table_args;
-	unsigned int info_args;
+  unsigned int features;
+  unsigned int table_args;
+  unsigned int info_args;
 
-	/*
-	 * Constructs a path selector object, takes custom arguments
-	 */
-	int (*create)(struct path_selector *ps, unsigned int argc, char **argv);
-	void (*destroy)(struct path_selector *ps);
+  /*
+   * Constructs a path selector object, takes custom arguments
+   */
+  int (*create)(struct path_selector *ps, unsigned int argc, char **argv);
+  void (*destroy)(struct path_selector *ps);
 
-	/*
-	 * Add an opaque path object, along with some selector specific
-	 * path args (eg, path priority).
-	 */
-	int (*add_path)(struct path_selector *ps, struct dm_path *path,
-			int argc, char **argv, char **error);
+  /*
+   * Add an opaque path object, along with some selector specific
+   * path args (eg, path priority).
+   */
+  int (*add_path)(struct path_selector *ps, struct dm_path *path,
+      int argc, char **argv, char **error);
 
-	/*
-	 * Chooses a path for this io, if no paths are available then
-	 * NULL will be returned.
-	 */
-	struct dm_path *(*select_path)(struct path_selector *ps, size_t nr_bytes);
+  /*
+   * Chooses a path for this io, if no paths are available then
+   * NULL will be returned.
+   */
+  struct dm_path *(*select_path)(struct path_selector *ps, size_t nr_bytes);
 
-	/*
-	 * Notify the selector that a path has failed.
-	 */
-	void (*fail_path)(struct path_selector *ps, struct dm_path *p);
+  /*
+   * Notify the selector that a path has failed.
+   */
+  void (*fail_path)(struct path_selector *ps, struct dm_path *p);
 
-	/*
-	 * Ask selector to reinstate a path.
-	 */
-	int (*reinstate_path)(struct path_selector *ps, struct dm_path *p);
+  /*
+   * Ask selector to reinstate a path.
+   */
+  int (*reinstate_path)(struct path_selector *ps, struct dm_path *p);
 
-	/*
-	 * Table content based on parameters added in ps_add_path_fn
-	 * or path selector status
-	 */
-	int (*status)(struct path_selector *ps, struct dm_path *path,
-		      status_type_t type, char *result, unsigned int maxlen);
+  /*
+   * Table content based on parameters added in ps_add_path_fn
+   * or path selector status
+   */
+  int (*status)(struct path_selector *ps, struct dm_path *path,
+      status_type_t type, char *result, unsigned int maxlen);
 
-	int (*start_io)(struct path_selector *ps, struct dm_path *path,
-			size_t nr_bytes);
-	int (*end_io)(struct path_selector *ps, struct dm_path *path,
-		      size_t nr_bytes, u64 start_time);
+  int (*start_io)(struct path_selector *ps, struct dm_path *path,
+      size_t nr_bytes);
+  int (*end_io)(struct path_selector *ps, struct dm_path *path,
+      size_t nr_bytes, u64 start_time);
 };
 
 /* Register a path selector */

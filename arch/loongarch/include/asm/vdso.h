@@ -27,11 +27,11 @@
  * populated at runtime.
  */
 struct loongarch_vdso_info {
-	void *vdso;
-	unsigned long size;
-	unsigned long offset_sigreturn;
-	struct vm_special_mapping code_mapping;
-	struct vm_special_mapping data_mapping;
+  void *vdso;
+  unsigned long size;
+  unsigned long offset_sigreturn;
+  struct vm_special_mapping code_mapping;
+  struct vm_special_mapping data_mapping;
 };
 
 extern struct loongarch_vdso_info vdso_info;

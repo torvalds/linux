@@ -13,9 +13,8 @@
 #define SET_ERRNO(v) do { errno = (v); } while (0)
 int errno __attribute__((weak));
 #else
-#define SET_ERRNO(v) do { } while (0)
+#define SET_ERRNO(v) do {} while (0)
 #endif
-
 
 /* errno codes all ensure that they will not conflict with a valid pointer
  * because they all correspond to the highest addressable memory page.

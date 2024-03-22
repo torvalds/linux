@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+ * */
 /*
  * Copyright(c) 2003-2015 Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
@@ -26,25 +27,25 @@
  *
  */
 #define IOCTL_MEI_CONNECT_CLIENT \
-	_IOWR('H' , 0x01, struct mei_connect_client_data)
+  _IOWR('H', 0x01, struct mei_connect_client_data)
 
 /*
  * Intel MEI client information struct
  */
 struct mei_client {
-	__u32 max_msg_length;
-	__u8 protocol_version;
-	__u8 reserved[3];
+  __u32 max_msg_length;
+  __u8 protocol_version;
+  __u8 reserved[3];
 };
 
 /*
  * IOCTL Connect Client Data structure
  */
 struct mei_connect_client_data {
-	union {
-		uuid_le in_client_uuid;
-		struct mei_client out_client_properties;
-	};
+  union {
+    uuid_le in_client_uuid;
+    struct mei_client out_client_properties;
+  };
 };
 
 /**
@@ -74,9 +75,9 @@ struct mei_connect_client_data {
  * @reserved: reserved for future use
  */
 struct mei_connect_client_vtag {
-	uuid_le in_client_uuid;
-	__u8 vtag;
-	__u8 reserved[3];
+  uuid_le in_client_uuid;
+  __u8 vtag;
+  __u8 reserved[3];
 };
 
 /**
@@ -86,10 +87,10 @@ struct mei_connect_client_vtag {
  * @out_client_properties: output client data
  */
 struct mei_connect_client_data_vtag {
-	union {
-		struct mei_connect_client_vtag connect;
-		struct mei_client out_client_properties;
-	};
+  union {
+    struct mei_connect_client_vtag connect;
+    struct mei_client out_client_properties;
+  };
 };
 
 /**
@@ -113,6 +114,6 @@ struct mei_connect_client_data_vtag {
  * will respond with -EOPNOTSUPP.
  */
 #define IOCTL_MEI_CONNECT_CLIENT_VTAG \
-	_IOWR('H', 0x04, struct mei_connect_client_data_vtag)
+  _IOWR('H', 0x04, struct mei_connect_client_data_vtag)
 
 #endif /* _LINUX_MEI_H  */

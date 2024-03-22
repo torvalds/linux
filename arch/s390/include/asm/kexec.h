@@ -26,9 +26,9 @@
 /* Maximum address we can reach in physical address mode */
 #define KEXEC_DESTINATION_MEMORY_LIMIT (-1UL)
 
-/* Maximum address we can use for the control pages */
-/* Not more than 2GB */
-#define KEXEC_CONTROL_MEMORY_LIMIT (1UL<<31)
+/* Maximum address we can use for the control pages
+ * Not more than 2GB*/
+#define KEXEC_CONTROL_MEMORY_LIMIT (1UL << 31)
 
 /* Allocate control page with GFP_DMA */
 #define KEXEC_CONTROL_MEMORY_GFP (GFP_DMA | __GFP_NORETRY)
@@ -50,36 +50,37 @@
 
 /* Provide a dummy definition to avoid build failures. */
 static inline void crash_setup_regs(struct pt_regs *newregs,
-					struct pt_regs *oldregs) { }
+    struct pt_regs *oldregs) {
+}
 
 struct kimage;
 struct s390_load_data {
-	/* Pointer to the kernel buffer. Used to register cmdline etc.. */
-	void *kernel_buf;
+  /* Pointer to the kernel buffer. Used to register cmdline etc.. */
+  void *kernel_buf;
 
-	/* Load address of the kernel_buf. */
-	unsigned long kernel_mem;
+  /* Load address of the kernel_buf. */
+  unsigned long kernel_mem;
 
-	/* Parmarea in the kernel buffer. */
-	struct parmarea *parm;
+  /* Parmarea in the kernel buffer. */
+  struct parmarea *parm;
 
-	/* Total size of loaded segments in memory. Used as an offset. */
-	size_t memsz;
+  /* Total size of loaded segments in memory. Used as an offset. */
+  size_t memsz;
 
-	struct ipl_report *report;
+  struct ipl_report *report;
 };
 
 int s390_verify_sig(const char *kernel, unsigned long kernel_len);
 void *kexec_file_add_components(struct kimage *image,
-				int (*add_kernel)(struct kimage *image,
-						  struct s390_load_data *data));
+    int (*add_kernel)(struct kimage *image,
+    struct s390_load_data *data));
 int arch_kexec_do_relocs(int r_type, void *loc, unsigned long val,
-			 unsigned long addr);
+    unsigned long addr);
 
 #define ARCH_HAS_KIMAGE_ARCH
 
 struct kimage_arch {
-	void *ipl_buf;
+  void *ipl_buf;
 };
 
 extern const struct kexec_file_ops s390_kexec_image_ops;
@@ -99,9 +100,9 @@ void arch_kexec_unprotect_crashkres(void);
 #ifdef CONFIG_KEXEC_FILE
 struct purgatory_info;
 int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
-				     Elf_Shdr *section,
-				     const Elf_Shdr *relsec,
-				     const Elf_Shdr *symtab);
+    Elf_Shdr *section,
+    const Elf_Shdr *relsec,
+    const Elf_Shdr *symtab);
 #define arch_kexec_apply_relocations_add arch_kexec_apply_relocations_add
 
 int arch_kimage_file_post_load_cleanup(struct kimage *image);

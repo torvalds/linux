@@ -45,43 +45,43 @@
  */
 
 struct uc_css_header {
-	u32 module_type;
-	/*
-	 * header_size includes all non-uCode bits, including css_header, rsa
-	 * key, modulus key and exponent data.
-	 */
-	u32 header_size_dw;
-	u32 header_version;
-	u32 module_id;
-	u32 module_vendor;
-	u32 date;
-#define CSS_DATE_DAY			(0xFF << 0)
-#define CSS_DATE_MONTH			(0xFF << 8)
-#define CSS_DATE_YEAR			(0xFFFF << 16)
-	u32 size_dw; /* uCode plus header_size_dw */
-	u32 key_size_dw;
-	u32 modulus_size_dw;
-	u32 exponent_size_dw;
-	u32 time;
-#define CSS_TIME_HOUR			(0xFF << 0)
-#define CSS_DATE_MIN			(0xFF << 8)
-#define CSS_DATE_SEC			(0xFFFF << 16)
-	char username[8];
-	char buildnumber[12];
-	u32 sw_version;
-#define CSS_SW_VERSION_UC_MAJOR		(0xFF << 16)
-#define CSS_SW_VERSION_UC_MINOR		(0xFF << 8)
-#define CSS_SW_VERSION_UC_PATCH		(0xFF << 0)
-	union {
-		u32 submission_version; /* only applies to GuC */
-		u32 reserved2;
-	};
-	u32 reserved0[12];
-	union {
-		u32 private_data_size; /* only applies to GuC */
-		u32 reserved1;
-	};
-	u32 header_info;
+  u32 module_type;
+  /*
+   * header_size includes all non-uCode bits, including css_header, rsa
+   * key, modulus key and exponent data.
+   */
+  u32 header_size_dw;
+  u32 header_version;
+  u32 module_id;
+  u32 module_vendor;
+  u32 date;
+#define CSS_DATE_DAY      (0xFF << 0)
+#define CSS_DATE_MONTH      (0xFF << 8)
+#define CSS_DATE_YEAR     (0xFFFF << 16)
+  u32 size_dw; /* uCode plus header_size_dw */
+  u32 key_size_dw;
+  u32 modulus_size_dw;
+  u32 exponent_size_dw;
+  u32 time;
+#define CSS_TIME_HOUR     (0xFF << 0)
+#define CSS_DATE_MIN      (0xFF << 8)
+#define CSS_DATE_SEC      (0xFFFF << 16)
+  char username[8];
+  char buildnumber[12];
+  u32 sw_version;
+#define CSS_SW_VERSION_UC_MAJOR   (0xFF << 16)
+#define CSS_SW_VERSION_UC_MINOR   (0xFF << 8)
+#define CSS_SW_VERSION_UC_PATCH   (0xFF << 0)
+  union {
+    u32 submission_version; /* only applies to GuC */
+    u32 reserved2;
+  };
+  u32 reserved0[12];
+  union {
+    u32 private_data_size; /* only applies to GuC */
+    u32 reserved1;
+  };
+  u32 header_info;
 } __packed;
 static_assert(sizeof(struct uc_css_header) == 128);
 
@@ -109,37 +109,37 @@ static_assert(sizeof(struct uc_css_header) == 128);
  *
  * The GSC-based HuC firmware layout looks like this::
  *
- *	+================================================+
- *	|  CPD Header                                    |
- *	+================================================+
- *	|  CPD entries[]                                 |
- *	|      entry1                                    |
- *	|      ...                                       |
- *	|      entryX                                    |
- *	|          "HUCP.man"                            |
- *	|           ...                                  |
- *	|           offset  >----------------------------|------o
- *	|      ...                                       |      |
- *	|      entryY                                    |      |
- *	|          "huc_fw"                              |      |
- *	|           ...                                  |      |
- *	|           offset  >----------------------------|----------o
- *	+================================================+      |   |
- *	                                                        |   |
- *	+================================================+      |   |
- *	|  Manifest Header                               |<-----o   |
- *	|      ...                                       |          |
- *	|      FW version                                |          |
- *	|      ...                                       |          |
- *	+================================================+          |
- *	                                                            |
- *	+================================================+          |
- *	|  FW binary                                     |<---------o
- *	|      CSS (MTL+ only)                           |
- *	|      uCode                                     |
- *	|      RSA Key (MTL+ only)                       |
- *	|      ...                                       |
- *	+================================================+
+ *  +================================================+
+ *  |  CPD Header                                    |
+ *  +================================================+
+ *  |  CPD entries[]                                 |
+ *  |      entry1                                    |
+ *  |      ...                                       |
+ *  |      entryX                                    |
+ *  |          "HUCP.man"                            |
+ *  |           ...                                  |
+ *  |           offset  >----------------------------|------o
+ *  |      ...                                       |      |
+ *  |      entryY                                    |      |
+ *  |          "huc_fw"                              |      |
+ *  |           ...                                  |      |
+ *  |           offset  >----------------------------|----------o
+ *  +================================================+      |   |
+ *                                                          |   |
+ *  +================================================+      |   |
+ *  |  Manifest Header                               |<-----o   |
+ *  |      ...                                       |          |
+ *  |      FW version                                |          |
+ *  |      ...                                       |          |
+ *  +================================================+          |
+ *                                                              |
+ *  +================================================+          |
+ *  |  FW binary                                     |<---------o
+ *  |      CSS (MTL+ only)                           |
+ *  |      uCode                                     |
+ *  |      RSA Key (MTL+ only)                       |
+ *  |      ...                                       |
+ *  +================================================+
  *
  * The GSC binary starts instead with a layout header, which contains the
  * locations of the various partitions of the binary. The one we're interested
@@ -152,170 +152,170 @@ static_assert(sizeof(struct uc_css_header) == 128);
  * it.
  * The GSC firmware header layout looks like this::
  *
- *	+================================================+
- *	|  Layout Pointers                               |
- *	|      ...                                       |
- *	|      Boot1 offset  >---------------------------|------o
- *	|      ...                                       |      |
- *	+================================================+      |
- *	                                                        |
- *	+================================================+      |
- *	|  BPDT header                                   |<-----o
- *	+================================================+
- *	|  BPDT entries[]                                |
- *	|      entry1                                    |
- *	|      ...                                       |
- *	|      entryX                                    |
- *	|          type == GSC_RBE                       |
- *	|          offset  >-----------------------------|------o
- *	|      ...                                       |      |
- *	+================================================+      |
- *	                                                        |
- *	+================================================+      |
- *	|  CPD Header                                    |<-----o
- *	+================================================+
- *	|  CPD entries[]                                 |
- *	|      entry1                                    |
- *	|      ...                                       |
- *	|      entryX                                    |
- *	|          "RBEP.man"                            |
- *	|           ...                                  |
- *	|           offset  >----------------------------|------o
- *	|      ...                                       |      |
- *	+================================================+      |
- *	                                                        |
- *	+================================================+      |
- *	| Manifest Header                                |<-----o
- *	|  ...                                           |
- *	|  FW version                                    |
- *	|  ...                                           |
- *	|  Security version                              |
- *	|  ...                                           |
- *	+================================================+
+ *  +================================================+
+ *  |  Layout Pointers                               |
+ *  |      ...                                       |
+ *  |      Boot1 offset  >---------------------------|------o
+ *  |      ...                                       |      |
+ *  +================================================+      |
+ *                                                          |
+ *  +================================================+      |
+ *  |  BPDT header                                   |<-----o
+ *  +================================================+
+ *  |  BPDT entries[]                                |
+ *  |      entry1                                    |
+ *  |      ...                                       |
+ *  |      entryX                                    |
+ *  |          type == GSC_RBE                       |
+ *  |          offset  >-----------------------------|------o
+ *  |      ...                                       |      |
+ *  +================================================+      |
+ *                                                          |
+ *  +================================================+      |
+ *  |  CPD Header                                    |<-----o
+ *  +================================================+
+ *  |  CPD entries[]                                 |
+ *  |      entry1                                    |
+ *  |      ...                                       |
+ *  |      entryX                                    |
+ *  |          "RBEP.man"                            |
+ *  |           ...                                  |
+ *  |           offset  >----------------------------|------o
+ *  |      ...                                       |      |
+ *  +================================================+      |
+ *                                                          |
+ *  +================================================+      |
+ *  | Manifest Header                                |<-----o
+ *  |  ...                                           |
+ *  |  FW version                                    |
+ *  |  ...                                           |
+ *  |  Security version                              |
+ *  |  ...                                           |
+ *  +================================================+
  */
 
 struct gsc_version {
-	u16 major;
-	u16 minor;
-	u16 hotfix;
-	u16 build;
+  u16 major;
+  u16 minor;
+  u16 hotfix;
+  u16 build;
 } __packed;
 
 struct gsc_partition {
-	u32 offset;
-	u32 size;
+  u32 offset;
+  u32 size;
 } __packed;
 
 struct gsc_layout_pointers {
-	u8 rom_bypass_vector[16];
+  u8 rom_bypass_vector[16];
 
-	/* size of this header section, not including ROM bypass vector */
-	u16 size;
+  /* size of this header section, not including ROM bypass vector */
+  u16 size;
 
-	/*
-	 * bit0: Backup copy of layout pointers exists
-	 * bits1-15: reserved
-	 */
-	u8 flags;
+  /*
+   * bit0: Backup copy of layout pointers exists
+   * bits1-15: reserved
+   */
+  u8 flags;
 
-	u8 reserved;
+  u8 reserved;
 
-	u32 crc32;
+  u32 crc32;
 
-	struct gsc_partition datap;
-	struct gsc_partition boot1;
-	struct gsc_partition boot2;
-	struct gsc_partition boot3;
-	struct gsc_partition boot4;
-	struct gsc_partition boot5;
-	struct gsc_partition temp_pages;
+  struct gsc_partition datap;
+  struct gsc_partition boot1;
+  struct gsc_partition boot2;
+  struct gsc_partition boot3;
+  struct gsc_partition boot4;
+  struct gsc_partition boot5;
+  struct gsc_partition temp_pages;
 } __packed;
 
 /* Boot partition structures */
 struct gsc_bpdt_header {
-	u32 signature;
+  u32 signature;
 #define GSC_BPDT_HEADER_SIGNATURE 0x000055AA
 
-	u16 descriptor_count; /* num of entries after the header */
+  u16 descriptor_count; /* num of entries after the header */
 
-	u8 version;
-	u8 configuration;
+  u8 version;
+  u8 configuration;
 
-	u32 crc32;
+  u32 crc32;
 
-	u32 build_version;
-	struct gsc_version tool_version;
+  u32 build_version;
+  struct gsc_version tool_version;
 } __packed;
 
 struct gsc_bpdt_entry {
-	/*
-	 * Bits 0-15: BPDT entry type
-	 * Bits 16-17: reserved
-	 * Bit 18: code sub-partition
-	 * Bits 19-31: reserved
-	 */
-	u32 type;
+  /*
+   * Bits 0-15: BPDT entry type
+   * Bits 16-17: reserved
+   * Bit 18: code sub-partition
+   * Bits 19-31: reserved
+   */
+  u32 type;
 #define GSC_BPDT_ENTRY_TYPE_MASK GENMASK(15, 0)
 #define GSC_BPDT_ENTRY_TYPE_GSC_RBE 0x1
 
-	u32 sub_partition_offset; /* from the base of the BPDT header */
-	u32 sub_partition_size;
+  u32 sub_partition_offset; /* from the base of the BPDT header */
+  u32 sub_partition_size;
 } __packed;
 
 /* Code partition directory (CPD) structures */
 struct gsc_cpd_header_v2 {
-	u32 header_marker;
+  u32 header_marker;
 #define GSC_CPD_HEADER_MARKER 0x44504324
 
-	u32 num_of_entries;
-	u8 header_version;
-	u8 entry_version;
-	u8 header_length; /* in bytes */
-	u8 flags;
-	u32 partition_name;
-	u32 crc32;
+  u32 num_of_entries;
+  u8 header_version;
+  u8 entry_version;
+  u8 header_length; /* in bytes */
+  u8 flags;
+  u32 partition_name;
+  u32 crc32;
 } __packed;
 
 struct gsc_cpd_entry {
-	u8 name[12];
+  u8 name[12];
 
-	/*
-	 * Bits 0-24: offset from the beginning of the code partition
-	 * Bit 25: huffman compressed
-	 * Bits 26-31: reserved
-	 */
-	u32 offset;
+  /*
+   * Bits 0-24: offset from the beginning of the code partition
+   * Bit 25: huffman compressed
+   * Bits 26-31: reserved
+   */
+  u32 offset;
 #define GSC_CPD_ENTRY_OFFSET_MASK GENMASK(24, 0)
 #define GSC_CPD_ENTRY_HUFFMAN_COMP BIT(25)
 
-	/*
-	 * Module/Item length, in bytes. For Huffman-compressed modules, this
-	 * refers to the uncompressed size. For software-compressed modules,
-	 * this refers to the compressed size.
-	 */
-	u32 length;
+  /*
+   * Module/Item length, in bytes. For Huffman-compressed modules, this
+   * refers to the uncompressed size. For software-compressed modules,
+   * this refers to the compressed size.
+   */
+  u32 length;
 
-	u8 reserved[4];
+  u8 reserved[4];
 } __packed;
 
 struct gsc_manifest_header {
-	u32 header_type; /* 0x4 for manifest type */
-	u32 header_length; /* in dwords */
-	u32 header_version;
-	u32 flags;
-	u32 vendor;
-	u32 date;
-	u32 size; /* In dwords, size of entire manifest (header + extensions) */
-	u32 header_id;
-	u32 internal_data;
-	struct gsc_version fw_version;
-	u32 security_version;
-	struct gsc_version meu_kit_version;
-	u32 meu_manifest_version;
-	u8 general_data[4];
-	u8 reserved3[56];
-	u32 modulus_size; /* in dwords */
-	u32 exponent_size; /* in dwords */
+  u32 header_type; /* 0x4 for manifest type */
+  u32 header_length; /* in dwords */
+  u32 header_version;
+  u32 flags;
+  u32 vendor;
+  u32 date;
+  u32 size; /* In dwords, size of entire manifest (header + extensions) */
+  u32 header_id;
+  u32 internal_data;
+  struct gsc_version fw_version;
+  u32 security_version;
+  struct gsc_version meu_kit_version;
+  u32 meu_manifest_version;
+  u8 general_data[4];
+  u8 reserved3[56];
+  u32 modulus_size; /* in dwords */
+  u32 exponent_size; /* in dwords */
 } __packed;
 
 #endif

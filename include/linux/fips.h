@@ -11,7 +11,8 @@ void fips_fail_notify(void);
 #else
 #define fips_enabled 0
 
-static inline void fips_fail_notify(void) {}
+static inline void fips_fail_notify(void) {
+}
 
 #endif
 

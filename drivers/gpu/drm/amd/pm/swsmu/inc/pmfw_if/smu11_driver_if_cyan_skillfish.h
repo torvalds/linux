@@ -29,51 +29,53 @@
 #define MP1_DRIVER_IF_VERSION 0x8
 
 #define TABLE_BIOS_IF            0 // Called by BIOS
-#define TABLE_WATERMARKS         1 // Called by Driver; defined here, but not used, for backward compatible
+#define TABLE_WATERMARKS         1 // Called by Driver; defined here, but not
+                                   // used, for backward compatible
 #define TABLE_PMSTATUSLOG        3 // Called by Tools for Agm logging
-#define TABLE_DPMCLOCKS          4 // Called by Driver; defined here, but not used, for backward compatible
-#define TABLE_MOMENTARY_PM       5 // Called by Tools; defined here, but not used, for backward compatible
+#define TABLE_DPMCLOCKS          4 // Called by Driver; defined here, but not
+                                   // used, for backward compatible
+#define TABLE_MOMENTARY_PM       5 // Called by Tools; defined here, but not
+                                   // used, for backward compatible
 #define TABLE_SMU_METRICS        6 // Called by Driver
 #define TABLE_COUNT              7
 
 typedef struct SmuMetricsTable_t {
-	//CPU status
-	uint16_t CoreFrequency[6];              //[MHz]
-	uint32_t CorePower[6];                  //[mW]
-	uint16_t CoreTemperature[6];            //[centi-Celsius]
-	uint16_t L3Frequency[2];                //[MHz]
-	uint16_t L3Temperature[2];              //[centi-Celsius]
-	uint16_t C0Residency[6];                //Percentage
+  //CPU status
+  uint16_t CoreFrequency[6];              //[MHz]
+  uint32_t CorePower[6];                  //[mW]
+  uint16_t CoreTemperature[6];            //[centi-Celsius]
+  uint16_t L3Frequency[2];                //[MHz]
+  uint16_t L3Temperature[2];              //[centi-Celsius]
+  uint16_t C0Residency[6];                //Percentage
 
-	// GFX status
-	uint16_t GfxclkFrequency;               //[MHz]
-	uint16_t GfxTemperature;                //[centi-Celsius]
+  // GFX status
+  uint16_t GfxclkFrequency;               //[MHz]
+  uint16_t GfxTemperature;                //[centi-Celsius]
 
-	// SOC IP info
-	uint16_t SocclkFrequency;               //[MHz]
-	uint16_t VclkFrequency;                 //[MHz]
-	uint16_t DclkFrequency;                 //[MHz]
-	uint16_t MemclkFrequency;               //[MHz]
+  // SOC IP info
+  uint16_t SocclkFrequency;               //[MHz]
+  uint16_t VclkFrequency;                 //[MHz]
+  uint16_t DclkFrequency;                 //[MHz]
+  uint16_t MemclkFrequency;               //[MHz]
 
-	// power, VF info for CPU/GFX telemetry rails, and then socket power total
-	uint32_t Voltage[2];                    //[mV] indices: VDDCR_VDD, VDDCR_GFX
-	uint32_t Current[2];                    //[mA] indices: VDDCR_VDD, VDDCR_GFX
-	uint32_t Power[2];                      //[mW] indices: VDDCR_VDD, VDDCR_GFX
-	uint32_t CurrentSocketPower;            //[mW]
+  // power, VF info for CPU/GFX telemetry rails, and then socket power total
+  uint32_t Voltage[2];                    //[mV] indices: VDDCR_VDD, VDDCR_GFX
+  uint32_t Current[2];                    //[mA] indices: VDDCR_VDD, VDDCR_GFX
+  uint32_t Power[2];                      //[mW] indices: VDDCR_VDD, VDDCR_GFX
+  uint32_t CurrentSocketPower;            //[mW]
 
-	uint16_t SocTemperature;                //[centi-Celsius]
-	uint16_t EdgeTemperature;
-	uint16_t ThrottlerStatus;
-	uint16_t Spare;
-
+  uint16_t SocTemperature;                //[centi-Celsius]
+  uint16_t EdgeTemperature;
+  uint16_t ThrottlerStatus;
+  uint16_t Spare;
 } SmuMetricsTable_t;
 
 typedef struct SmuMetrics_t {
-	SmuMetricsTable_t Current;
-	SmuMetricsTable_t Average;
-	uint32_t SampleStartTime;
-	uint32_t SampleStopTime;
-	uint32_t Accnt;
+  SmuMetricsTable_t Current;
+  SmuMetricsTable_t Average;
+  uint32_t SampleStartTime;
+  uint32_t SampleStopTime;
+  uint32_t Accnt;
 } SmuMetrics_t;
 
 #endif

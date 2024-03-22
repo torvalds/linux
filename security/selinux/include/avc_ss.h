@@ -14,8 +14,8 @@ int avc_ss_reset(u32 seqno);
 
 /* Class/perm mapping support */
 struct security_class_mapping {
-	const char *name;
-	const char *perms[sizeof(u32) * 8 + 1];
+  const char *name;
+  const char *perms[sizeof(u32) * 8 + 1];
 };
 
 extern const struct security_class_mapping secclass_map[];

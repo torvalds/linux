@@ -11,14 +11,14 @@ void mtk_ethdr_stop(struct device *dev);
 int mtk_ethdr_clk_enable(struct device *dev);
 void mtk_ethdr_clk_disable(struct device *dev);
 void mtk_ethdr_config(struct device *dev, unsigned int w,
-		      unsigned int h, unsigned int vrefresh,
-		      unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
+    unsigned int h, unsigned int vrefresh,
+    unsigned int bpc, struct cmdq_pkt *cmdq_pkt);
 void mtk_ethdr_layer_config(struct device *dev, unsigned int idx,
-			    struct mtk_plane_state *state,
-			    struct cmdq_pkt *cmdq_pkt);
+    struct mtk_plane_state *state,
+    struct cmdq_pkt *cmdq_pkt);
 void mtk_ethdr_register_vblank_cb(struct device *dev,
-				  void (*vblank_cb)(void *),
-				  void *vblank_cb_data);
+    void (*vblank_cb)(void *),
+    void *vblank_cb_data);
 void mtk_ethdr_unregister_vblank_cb(struct device *dev);
 void mtk_ethdr_enable_vblank(struct device *dev);
 void mtk_ethdr_disable_vblank(struct device *dev);

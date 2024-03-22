@@ -33,10 +33,10 @@
  * @pid_filter: Set PID to PID filter.
  */
 struct af9013_platform_data {
-	/*
-	 * 20480000, 25000000, 28000000, 28800000
-	 */
-	u32 clk;
+  /*
+   * 20480000, 25000000, 28000000, 28800000
+   */
+  u32 clk;
 #define AF9013_TUNER_MXL5003D      3 /* MaxLinear */
 #define AF9013_TUNER_MXL5005D     13 /* MaxLinear */
 #define AF9013_TUNER_MXL5005R     30 /* MaxLinear */
@@ -50,29 +50,29 @@ struct af9013_platform_data {
 #define AF9013_TUNER_QT1010A     162 /* Quantek */
 #define AF9013_TUNER_MXL5007T    177 /* MaxLinear */
 #define AF9013_TUNER_TDA18218    179 /* NXP */
-	u8 tuner;
-	u32 if_frequency;
+  u8 tuner;
+  u32 if_frequency;
 #define AF9013_TS_MODE_USB       0
 #define AF9013_TS_MODE_PARALLEL  1
 #define AF9013_TS_MODE_SERIAL    2
-	u8 ts_mode;
-	u8 ts_output_pin;
-	bool spec_inv;
-	u8 api_version[4];
+  u8 ts_mode;
+  u8 ts_output_pin;
+  bool spec_inv;
+  u8 api_version[4];
 #define AF9013_GPIO_ON (1 << 0)
 #define AF9013_GPIO_EN (1 << 1)
 #define AF9013_GPIO_O  (1 << 2)
 #define AF9013_GPIO_I  (1 << 3)
-#define AF9013_GPIO_LO (AF9013_GPIO_ON|AF9013_GPIO_EN)
-#define AF9013_GPIO_HI (AF9013_GPIO_ON|AF9013_GPIO_EN|AF9013_GPIO_O)
-#define AF9013_GPIO_TUNER_ON  (AF9013_GPIO_ON|AF9013_GPIO_EN)
-#define AF9013_GPIO_TUNER_OFF (AF9013_GPIO_ON|AF9013_GPIO_EN|AF9013_GPIO_O)
-	u8 gpio[4];
+#define AF9013_GPIO_LO (AF9013_GPIO_ON | AF9013_GPIO_EN)
+#define AF9013_GPIO_HI (AF9013_GPIO_ON | AF9013_GPIO_EN | AF9013_GPIO_O)
+#define AF9013_GPIO_TUNER_ON  (AF9013_GPIO_ON | AF9013_GPIO_EN)
+#define AF9013_GPIO_TUNER_OFF (AF9013_GPIO_ON | AF9013_GPIO_EN | AF9013_GPIO_O)
+  u8 gpio[4];
 
-	struct dvb_frontend* (*get_dvb_frontend)(struct i2c_client *);
-	struct i2c_adapter* (*get_i2c_adapter)(struct i2c_client *);
-	int (*pid_filter_ctrl)(struct dvb_frontend *, int);
-	int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
+  struct dvb_frontend *(*get_dvb_frontend)(struct i2c_client *);
+  struct i2c_adapter *(*get_i2c_adapter)(struct i2c_client *);
+  int (*pid_filter_ctrl)(struct dvb_frontend *, int);
+  int (*pid_filter)(struct dvb_frontend *, u8, u16, int);
 };
 
 /*

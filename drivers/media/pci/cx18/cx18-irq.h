@@ -6,10 +6,10 @@
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
  */
 
-#define HW2_I2C1_INT			(1 << 22)
-#define HW2_I2C2_INT			(1 << 23)
-#define HW2_INT_CLR_STATUS		0xc730c4
-#define HW2_INT_MASK5_PCI		0xc730e4
+#define HW2_I2C1_INT      (1 << 22)
+#define HW2_I2C2_INT      (1 << 23)
+#define HW2_INT_CLR_STATUS    0xc730c4
+#define HW2_INT_MASK5_PCI   0xc730e4
 #define SW1_INT_SET                     0xc73100
 #define SW1_INT_STATUS                  0xc73104
 #define SW1_INT_ENABLE_PCI              0xc7311c

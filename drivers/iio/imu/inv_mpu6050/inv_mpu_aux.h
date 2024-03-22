@@ -11,9 +11,9 @@
 int inv_mpu_aux_init(const struct inv_mpu6050_state *st);
 
 int inv_mpu_aux_read(const struct inv_mpu6050_state *st, uint8_t addr,
-		     uint8_t reg, uint8_t *val, size_t size);
+    uint8_t reg, uint8_t *val, size_t size);
 
 int inv_mpu_aux_write(const struct inv_mpu6050_state *st, uint8_t addr,
-		      uint8_t reg, uint8_t val);
+    uint8_t reg, uint8_t val);
 
-#endif		/* INV_MPU_AUX_H_ */
+#endif    /* INV_MPU_AUX_H_ */

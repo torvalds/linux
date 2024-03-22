@@ -14,11 +14,10 @@
 #include <linux/ptrace.h>
 #include <asm/debug-monitors.h>
 
-#ifndef	__ASSEMBLY__
+#ifndef __ASSEMBLY__
 
-static inline void arch_kgdb_breakpoint(void)
-{
-	asm ("brk %0" : : "I" (KGDB_COMPILED_DBG_BRK_IMM));
+static inline void arch_kgdb_breakpoint(void) {
+  asm ("brk %0" : : "I" (KGDB_COMPILED_DBG_BRK_IMM));
 }
 
 extern void kgdb_handle_bus_error(void);
@@ -72,22 +71,22 @@ extern int kgdb_fault_expected;
  * protocol descriptions at runtime).
  */
 
-#define _GP_REGS		33
-#define _FP_REGS		32
-#define _EXTRA_REGS		3
+#define _GP_REGS    33
+#define _FP_REGS    32
+#define _EXTRA_REGS   3
 /*
  * general purpose registers size in bytes.
  * pstate is only 4 bytes. subtract 4 bytes
  */
-#define GP_REG_BYTES		(_GP_REGS * 8)
-#define DBG_MAX_REG_NUM		(_GP_REGS + _FP_REGS + _EXTRA_REGS)
+#define GP_REG_BYTES    (_GP_REGS * 8)
+#define DBG_MAX_REG_NUM   (_GP_REGS + _FP_REGS + _EXTRA_REGS)
 
 /*
  * Size of I/O buffer for gdb packet.
  * considering to hold all register contents, size is set
  */
 
-#define BUFMAX			2048
+#define BUFMAX      2048
 
 /*
  * Number of bytes required for gdb_regs buffer.
@@ -96,7 +95,7 @@ extern int kgdb_fault_expected;
  * "'g' packet reply is too long"
  */
 
-#define NUMREGBYTES	((_GP_REGS * 8) + (_FP_REGS * 16) + \
-			(_EXTRA_REGS * 4))
+#define NUMREGBYTES ((_GP_REGS * 8) + (_FP_REGS * 16)   \
+  + (_EXTRA_REGS * 4))
 
 #endif /* __ASM_KGDB_H */

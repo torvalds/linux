@@ -6,7 +6,8 @@
  * Copyright (C) 2015-2018 Ondrej Ille <ondrej.ille@gmail.com> FEE CTU
  * Copyright (C) 2018-2021 Ondrej Ille <ondrej.ille@gmail.com> self-funded
  * Copyright (C) 2018-2019 Martin Jerabek <martin.jerabek01@gmail.com> FEE CTU
- * Copyright (C) 2018-2021 Pavel Pisa <pisa@cmp.felk.cvut.cz> FEE CTU/self-funded
+ * Copyright (C) 2018-2021 Pavel Pisa <pisa@cmp.felk.cvut.cz> FEE
+ * CTU/self-funded
  *
  * Project advisors:
  *     Jiri Novak <jnovak@fel.cvut.cz>
@@ -26,13 +27,13 @@
 
 /* CAN_Frame_format memory map */
 enum ctu_can_fd_can_frame_format {
-	CTUCANFD_FRAME_FORMAT_W       = 0x0,
-	CTUCANFD_IDENTIFIER_W         = 0x4,
-	CTUCANFD_TIMESTAMP_L_W        = 0x8,
-	CTUCANFD_TIMESTAMP_U_W        = 0xc,
-	CTUCANFD_DATA_1_4_W          = 0x10,
-	CTUCANFD_DATA_5_8_W          = 0x14,
-	CTUCANFD_DATA_61_64_W        = 0x4c,
+  CTUCANFD_FRAME_FORMAT_W = 0x0,
+  CTUCANFD_IDENTIFIER_W = 0x4,
+  CTUCANFD_TIMESTAMP_L_W = 0x8,
+  CTUCANFD_TIMESTAMP_U_W = 0xc,
+  CTUCANFD_DATA_1_4_W = 0x10,
+  CTUCANFD_DATA_5_8_W = 0x14,
+  CTUCANFD_DATA_61_64_W = 0x4c,
 };
 
 /* CAN_FD_Frame_format memory region */

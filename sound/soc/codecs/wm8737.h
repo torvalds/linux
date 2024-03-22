@@ -255,14 +255,22 @@
 #define WM8737_VMIDSEL_MASK                     0x000C  /* VMIDSEL - [3:2] */
 #define WM8737_VMIDSEL_SHIFT                         2  /* VMIDSEL - [3:2] */
 #define WM8737_VMIDSEL_WIDTH                         2  /* VMIDSEL - [3:2] */
-#define WM8737_LINPUT1_DC_BIAS_ENABLE           0x0002  /* LINPUT1 DC BIAS ENABLE */
-#define WM8737_LINPUT1_DC_BIAS_ENABLE_MASK      0x0002  /* LINPUT1 DC BIAS ENABLE */
-#define WM8737_LINPUT1_DC_BIAS_ENABLE_SHIFT          1  /* LINPUT1 DC BIAS ENABLE */
-#define WM8737_LINPUT1_DC_BIAS_ENABLE_WIDTH          1  /* LINPUT1 DC BIAS ENABLE */
-#define WM8737_RINPUT1_DC_BIAS_ENABLE           0x0001  /* RINPUT1 DC BIAS ENABLE */
-#define WM8737_RINPUT1_DC_BIAS_ENABLE_MASK      0x0001  /* RINPUT1 DC BIAS ENABLE */
-#define WM8737_RINPUT1_DC_BIAS_ENABLE_SHIFT          0  /* RINPUT1 DC BIAS ENABLE */
-#define WM8737_RINPUT1_DC_BIAS_ENABLE_WIDTH          1  /* RINPUT1 DC BIAS ENABLE */
+#define WM8737_LINPUT1_DC_BIAS_ENABLE           0x0002  /* LINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_LINPUT1_DC_BIAS_ENABLE_MASK      0x0002  /* LINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_LINPUT1_DC_BIAS_ENABLE_SHIFT          1  /* LINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_LINPUT1_DC_BIAS_ENABLE_WIDTH          1  /* LINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_RINPUT1_DC_BIAS_ENABLE           0x0001  /* RINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_RINPUT1_DC_BIAS_ENABLE_MASK      0x0001  /* RINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_RINPUT1_DC_BIAS_ENABLE_SHIFT          0  /* RINPUT1 DC BIAS
+                                                         * ENABLE */
+#define WM8737_RINPUT1_DC_BIAS_ENABLE_WIDTH          1  /* RINPUT1 DC BIAS
+                                                         * ENABLE */
 
 /*
  * R11 (0x0B) - Noise Gate

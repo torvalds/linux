@@ -5,8 +5,8 @@
 #include <linux/types.h>
 
 struct xt_cpu_info {
-	__u32	cpu;
-	__u32	invert;
+  __u32 cpu;
+  __u32 invert;
 };
 
 #endif /*_XT_CPU_H*/

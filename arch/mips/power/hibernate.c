@@ -4,9 +4,8 @@
 
 extern int restore_image(void);
 
-int swsusp_arch_resume(void)
-{
-	/* Avoid TLB mismatch during and after kernel resume */
-	local_flush_tlb_all();
-	return restore_image();
+int swsusp_arch_resume(void) {
+  /* Avoid TLB mismatch during and after kernel resume */
+  local_flush_tlb_all();
+  return restore_image();
 }

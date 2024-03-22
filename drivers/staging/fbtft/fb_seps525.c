@@ -24,9 +24,9 @@
 
 #include "fbtft.h"
 
-#define DRVNAME		"fb_seps525"
-#define WIDTH		160
-#define HEIGHT		128
+#define DRVNAME   "fb_seps525"
+#define WIDTH   160
+#define HEIGHT    128
 
 #define SEPS525_INDEX 0x00
 #define SEPS525_STATUS_RD 0x01
@@ -86,119 +86,104 @@
 #define SEPS525_SS_SCR2_SY2 0x4A
 
 /* SEPS525_DISPLAYMODE_SET */
-#define MODE_SWAP_BGR	BIT(7)
-#define MODE_SM		BIT(6)
-#define MODE_RD		BIT(5)
-#define MODE_CD		BIT(4)
+#define MODE_SWAP_BGR BIT(7)
+#define MODE_SM   BIT(6)
+#define MODE_RD   BIT(5)
+#define MODE_CD   BIT(4)
 
-#define seps525_use_window	0 /* FBTFT doesn't really use it today */
+#define seps525_use_window  0 /* FBTFT doesn't really use it today */
 
 /* Init sequence taken from: Arduino Library for the Adafruit 2.2" display */
-static int init_display(struct fbtft_par *par)
-{
-	par->fbtftops.reset(par);
-
-	usleep_range(1000, 5000);
-
-	/* Disable Oscillator Power Down */
-	write_reg(par, SEPS525_REDUCE_CURRENT, 0x03);
-	usleep_range(1000, 5000);
-	/* Set Normal Driving Current */
-	write_reg(par, SEPS525_REDUCE_CURRENT, 0x00);
-	usleep_range(1000, 5000);
-
-	write_reg(par, SEPS525_SCREEN_SAVER_CONTEROL, 0x00);
-	/* Set EXPORT1 Pin at Internal Clock */
-	write_reg(par, SEPS525_OSC_CTL, 0x01);
-	/* Set Clock as 120 Frames/Sec */
-	write_reg(par, SEPS525_CLOCK_DIV, 0x90);
-	/* Set Reference Voltage Controlled by External Resister */
-	write_reg(par, SEPS525_IREF, 0x01);
-
-	/* precharge time R G B */
-	write_reg(par, SEPS525_PRECHARGE_TIME_R, 0x04);
-	write_reg(par, SEPS525_PRECHARGE_TIME_G, 0x05);
-	write_reg(par, SEPS525_PRECHARGE_TIME_B, 0x05);
-
-	/* precharge current R G B (uA) */
-	write_reg(par, SEPS525_PRECHARGE_CURRENT_R, 0x9D);
-	write_reg(par, SEPS525_PRECHARGE_CURRENT_G, 0x8C);
-	write_reg(par, SEPS525_PRECHARGE_CURRENT_B, 0x57);
-
-	/* driving current R G B (uA) */
-	write_reg(par, SEPS525_DRIVING_CURRENT_R, 0x56);
-	write_reg(par, SEPS525_DRIVING_CURRENT_G, 0x4D);
-	write_reg(par, SEPS525_DRIVING_CURRENT_B, 0x46);
-	/* Set Color Sequence */
-	write_reg(par, SEPS525_DISPLAYMODE_SET, 0xA0);
-	write_reg(par, SEPS525_RGBIF, 0x01); /* Set MCU Interface Mode */
-	/* Set Memory Write Mode */
-	write_reg(par, SEPS525_MEMORY_WRITEMODE, 0x66);
-	write_reg(par, SEPS525_DUTY, 0x7F); /* 1/128 Duty (0x0F~0x7F) */
-	/* Set Mapping RAM Display Start Line (0x00~0x7F) */
-	write_reg(par, SEPS525_DSL, 0x00);
-	write_reg(par, SEPS525_DISP_ONOFF, 0x01); /* Display On (0x00/0x01) */
-	/* Set All Internal Register Value as Normal Mode */
-	write_reg(par, SEPS525_SOFT_RST, 0x00);
-	/* Set RGB Interface Polarity as Active Low */
-	write_reg(par, SEPS525_RGB_POL, 0x00);
-
-	write_reg(par, SEPS525_DDRAM_DATA_ACCESS_PORT);
-
-	return 0;
+static int init_display(struct fbtft_par *par) {
+  par->fbtftops.reset(par);
+  usleep_range(1000, 5000);
+  /* Disable Oscillator Power Down */
+  write_reg(par, SEPS525_REDUCE_CURRENT, 0x03);
+  usleep_range(1000, 5000);
+  /* Set Normal Driving Current */
+  write_reg(par, SEPS525_REDUCE_CURRENT, 0x00);
+  usleep_range(1000, 5000);
+  write_reg(par, SEPS525_SCREEN_SAVER_CONTEROL, 0x00);
+  /* Set EXPORT1 Pin at Internal Clock */
+  write_reg(par, SEPS525_OSC_CTL, 0x01);
+  /* Set Clock as 120 Frames/Sec */
+  write_reg(par, SEPS525_CLOCK_DIV, 0x90);
+  /* Set Reference Voltage Controlled by External Resister */
+  write_reg(par, SEPS525_IREF, 0x01);
+  /* precharge time R G B */
+  write_reg(par, SEPS525_PRECHARGE_TIME_R, 0x04);
+  write_reg(par, SEPS525_PRECHARGE_TIME_G, 0x05);
+  write_reg(par, SEPS525_PRECHARGE_TIME_B, 0x05);
+  /* precharge current R G B (uA) */
+  write_reg(par, SEPS525_PRECHARGE_CURRENT_R, 0x9D);
+  write_reg(par, SEPS525_PRECHARGE_CURRENT_G, 0x8C);
+  write_reg(par, SEPS525_PRECHARGE_CURRENT_B, 0x57);
+  /* driving current R G B (uA) */
+  write_reg(par, SEPS525_DRIVING_CURRENT_R, 0x56);
+  write_reg(par, SEPS525_DRIVING_CURRENT_G, 0x4D);
+  write_reg(par, SEPS525_DRIVING_CURRENT_B, 0x46);
+  /* Set Color Sequence */
+  write_reg(par, SEPS525_DISPLAYMODE_SET, 0xA0);
+  write_reg(par, SEPS525_RGBIF, 0x01); /* Set MCU Interface Mode */
+  /* Set Memory Write Mode */
+  write_reg(par, SEPS525_MEMORY_WRITEMODE, 0x66);
+  write_reg(par, SEPS525_DUTY, 0x7F); /* 1/128 Duty (0x0F~0x7F) */
+  /* Set Mapping RAM Display Start Line (0x00~0x7F) */
+  write_reg(par, SEPS525_DSL, 0x00);
+  write_reg(par, SEPS525_DISP_ONOFF, 0x01); /* Display On (0x00/0x01) */
+  /* Set All Internal Register Value as Normal Mode */
+  write_reg(par, SEPS525_SOFT_RST, 0x00);
+  /* Set RGB Interface Polarity as Active Low */
+  write_reg(par, SEPS525_RGB_POL, 0x00);
+  write_reg(par, SEPS525_DDRAM_DATA_ACCESS_PORT);
+  return 0;
 }
 
-static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
-{
-	if (seps525_use_window) {
-		/* Set Window Xs,Ys Xe,Ye*/
-		write_reg(par, SEPS525_MX1_ADDR, xs);
-		write_reg(par, SEPS525_MX2_ADDR, xe);
-		write_reg(par, SEPS525_MY1_ADDR, ys);
-		write_reg(par, SEPS525_MY2_ADDR, ye);
-	}
-	/* start position X,Y */
-	write_reg(par, SEPS525_MEMORY_ACCESS_POINTER_X, xs);
-	write_reg(par, SEPS525_MEMORY_ACCESS_POINTER_Y, ys);
-
-	write_reg(par, SEPS525_DDRAM_DATA_ACCESS_PORT);
+static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe,
+    int ye) {
+  if (seps525_use_window) {
+    /* Set Window Xs,Ys Xe,Ye*/
+    write_reg(par, SEPS525_MX1_ADDR, xs);
+    write_reg(par, SEPS525_MX2_ADDR, xe);
+    write_reg(par, SEPS525_MY1_ADDR, ys);
+    write_reg(par, SEPS525_MY2_ADDR, ye);
+  }
+  /* start position X,Y */
+  write_reg(par, SEPS525_MEMORY_ACCESS_POINTER_X, xs);
+  write_reg(par, SEPS525_MEMORY_ACCESS_POINTER_Y, ys);
+  write_reg(par, SEPS525_DDRAM_DATA_ACCESS_PORT);
 }
 
-static int set_var(struct fbtft_par *par)
-{
-	u8 val;
-
-	switch (par->info->var.rotate) {
-	case 0:
-		val = 0;
-		break;
-	case 180:
-		val = MODE_RD | MODE_CD;
-		break;
-	case 90:
-	case 270:
-
-	default:
-		return -EINVAL;
-	}
-	/* Memory Access Control  */
-	write_reg(par, SEPS525_DISPLAYMODE_SET, val |
-		       (par->bgr ? MODE_SWAP_BGR : 0));
-
-	write_reg(par, SEPS525_DDRAM_DATA_ACCESS_PORT);
-
-	return 0;
+static int set_var(struct fbtft_par *par) {
+  u8 val;
+  switch (par->info->var.rotate) {
+    case 0:
+      val = 0;
+      break;
+    case 180:
+      val = MODE_RD | MODE_CD;
+      break;
+    case 90:
+    case 270:
+    default:
+      return -EINVAL;
+  }
+  /* Memory Access Control  */
+  write_reg(par, SEPS525_DISPLAYMODE_SET, val
+      | (par->bgr ? MODE_SWAP_BGR : 0));
+  write_reg(par, SEPS525_DDRAM_DATA_ACCESS_PORT);
+  return 0;
 }
 
 static struct fbtft_display display = {
-	.regwidth = 8,
-	.width = WIDTH,
-	.height = HEIGHT,
-	.fbtftops = {
-		.init_display = init_display,
-		.set_addr_win = set_addr_win,
-		.set_var = set_var,
-	},
+  .regwidth = 8,
+  .width = WIDTH,
+  .height = HEIGHT,
+  .fbtftops = {
+    .init_display = init_display,
+    .set_addr_win = set_addr_win,
+    .set_var = set_var,
+  },
 };
 
 FBTFT_REGISTER_DRIVER(DRVNAME, "syncoam,seps525", &display);

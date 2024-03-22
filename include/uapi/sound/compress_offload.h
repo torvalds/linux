@@ -3,8 +3,8 @@
  *  compress_offload.h - compress offload header definations
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
- *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+ *  Authors:  Vinod Koul <vinod.koul@linux.intel.com>
+ *    Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  */
 #ifndef __COMPRESS_OFFLOAD_H
 #define __COMPRESS_OFFLOAD_H
@@ -13,7 +13,6 @@
 #include <sound/asound.h>
 #include <sound/compress_params.h>
 
-
 #define SNDRV_COMPRESS_VERSION SNDRV_PROTOCOL_VERSION(0, 2, 0)
 /**
  * struct snd_compressed_buffer - compressed buffer
@@ -21,8 +20,8 @@
  * @fragments: number of such fragments
  */
 struct snd_compressed_buffer {
-	__u32 fragment_size;
-	__u32 fragments;
+  __u32 fragment_size;
+  __u32 fragments;
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -32,9 +31,9 @@ struct snd_compressed_buffer {
  * @no_wake_mode: dont wake on fragment elapsed
  */
 struct snd_compr_params {
-	struct snd_compressed_buffer buffer;
-	struct snd_codec codec;
-	__u8 no_wake_mode;
+  struct snd_compressed_buffer buffer;
+  struct snd_codec codec;
+  __u8 no_wake_mode;
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -42,18 +41,18 @@ struct snd_compr_params {
  * @byte_offset: Byte offset in ring buffer to DSP
  * @copied_total: Total number of bytes copied from/to ring buffer to/by DSP
  * @pcm_frames: Frames decoded or encoded by DSP. This field will evolve by
- *	large steps and should only be used to monitor encoding/decoding
- *	progress. It shall not be used for timing estimates.
+ *  large steps and should only be used to monitor encoding/decoding
+ *  progress. It shall not be used for timing estimates.
  * @pcm_io_frames: Frames rendered or received by DSP into a mixer or an audio
  * output/input. This field should be used for A/V sync or time estimates.
  * @sampling_rate: sampling rate of audio
  */
 struct snd_compr_tstamp {
-	__u32 byte_offset;
-	__u32 copied_total;
-	__u32 pcm_frames;
-	__u32 pcm_io_frames;
-	__u32 sampling_rate;
+  __u32 byte_offset;
+  __u32 copied_total;
+  __u32 pcm_frames;
+  __u32 pcm_io_frames;
+  __u32 sampling_rate;
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -62,13 +61,13 @@ struct snd_compr_tstamp {
  * @tstamp: timestamp information
  */
 struct snd_compr_avail {
-	__u64 avail;
-	struct snd_compr_tstamp tstamp;
+  __u64 avail;
+  struct snd_compr_tstamp tstamp;
 } __attribute__((packed, aligned(4)));
 
 enum snd_compr_direction {
-	SND_COMPRESS_PLAYBACK = 0,
-	SND_COMPRESS_CAPTURE
+  SND_COMPRESS_PLAYBACK = 0,
+  SND_COMPRESS_CAPTURE
 };
 
 /**
@@ -83,14 +82,14 @@ enum snd_compr_direction {
  * @reserved: reserved field
  */
 struct snd_compr_caps {
-	__u32 num_codecs;
-	__u32 direction;
-	__u32 min_fragment_size;
-	__u32 max_fragment_size;
-	__u32 min_fragments;
-	__u32 max_fragments;
-	__u32 codecs[MAX_NUM_CODECS];
-	__u32 reserved[11];
+  __u32 num_codecs;
+  __u32 direction;
+  __u32 min_fragment_size;
+  __u32 max_fragment_size;
+  __u32 min_fragments;
+  __u32 max_fragments;
+  __u32 codecs[MAX_NUM_CODECS];
+  __u32 reserved[11];
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -100,9 +99,9 @@ struct snd_compr_caps {
  * @descriptor: array of codec capability descriptor
  */
 struct snd_compr_codec_caps {
-	__u32 codec;
-	__u32 num_descriptors;
-	struct snd_codec_desc descriptor[MAX_NUM_CODEC_DESCRIPTORS];
+  __u32 codec;
+  __u32 num_descriptors;
+  struct snd_codec_desc descriptor[MAX_NUM_CODEC_DESCRIPTORS];
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -113,8 +112,8 @@ struct snd_compr_codec_caps {
  * beginning of the track
  */
 enum sndrv_compress_encoder {
-	SNDRV_COMPRESS_ENCODER_PADDING = 1,
-	SNDRV_COMPRESS_ENCODER_DELAY = 2,
+  SNDRV_COMPRESS_ENCODER_PADDING = 1,
+  SNDRV_COMPRESS_ENCODER_DELAY = 2,
 };
 
 /**
@@ -123,8 +122,8 @@ enum sndrv_compress_encoder {
  * @value: key value
  */
 struct snd_compr_metadata {
-	 __u32 key;
-	 __u32 value[8];
+  __u32 key;
+  __u32 value[8];
 } __attribute__((packed, aligned(4)));
 
 /*
@@ -145,25 +144,25 @@ struct snd_compr_metadata {
  * SNDRV_COMPRESS_DRAIN: Play till end of buffers and stop after that
  * SNDRV_COMPRESS_IOCTL_VERSION: Query the API version
  */
-#define SNDRV_COMPRESS_IOCTL_VERSION	_IOR('C', 0x00, int)
-#define SNDRV_COMPRESS_GET_CAPS		_IOWR('C', 0x10, struct snd_compr_caps)
-#define SNDRV_COMPRESS_GET_CODEC_CAPS	_IOWR('C', 0x11,\
-						struct snd_compr_codec_caps)
-#define SNDRV_COMPRESS_SET_PARAMS	_IOW('C', 0x12, struct snd_compr_params)
-#define SNDRV_COMPRESS_GET_PARAMS	_IOR('C', 0x13, struct snd_codec)
-#define SNDRV_COMPRESS_SET_METADATA	_IOW('C', 0x14,\
-						 struct snd_compr_metadata)
-#define SNDRV_COMPRESS_GET_METADATA	_IOWR('C', 0x15,\
-						 struct snd_compr_metadata)
-#define SNDRV_COMPRESS_TSTAMP		_IOR('C', 0x20, struct snd_compr_tstamp)
-#define SNDRV_COMPRESS_AVAIL		_IOR('C', 0x21, struct snd_compr_avail)
-#define SNDRV_COMPRESS_PAUSE		_IO('C', 0x30)
-#define SNDRV_COMPRESS_RESUME		_IO('C', 0x31)
-#define SNDRV_COMPRESS_START		_IO('C', 0x32)
-#define SNDRV_COMPRESS_STOP		_IO('C', 0x33)
-#define SNDRV_COMPRESS_DRAIN		_IO('C', 0x34)
-#define SNDRV_COMPRESS_NEXT_TRACK	_IO('C', 0x35)
-#define SNDRV_COMPRESS_PARTIAL_DRAIN	_IO('C', 0x36)
+#define SNDRV_COMPRESS_IOCTL_VERSION  _IOR('C', 0x00, int)
+#define SNDRV_COMPRESS_GET_CAPS   _IOWR('C', 0x10, struct snd_compr_caps)
+#define SNDRV_COMPRESS_GET_CODEC_CAPS _IOWR('C', 0x11, \
+    struct snd_compr_codec_caps)
+#define SNDRV_COMPRESS_SET_PARAMS _IOW('C', 0x12, struct snd_compr_params)
+#define SNDRV_COMPRESS_GET_PARAMS _IOR('C', 0x13, struct snd_codec)
+#define SNDRV_COMPRESS_SET_METADATA _IOW('C', 0x14, \
+    struct snd_compr_metadata)
+#define SNDRV_COMPRESS_GET_METADATA _IOWR('C', 0x15, \
+    struct snd_compr_metadata)
+#define SNDRV_COMPRESS_TSTAMP   _IOR('C', 0x20, struct snd_compr_tstamp)
+#define SNDRV_COMPRESS_AVAIL    _IOR('C', 0x21, struct snd_compr_avail)
+#define SNDRV_COMPRESS_PAUSE    _IO('C', 0x30)
+#define SNDRV_COMPRESS_RESUME   _IO('C', 0x31)
+#define SNDRV_COMPRESS_START    _IO('C', 0x32)
+#define SNDRV_COMPRESS_STOP   _IO('C', 0x33)
+#define SNDRV_COMPRESS_DRAIN    _IO('C', 0x34)
+#define SNDRV_COMPRESS_NEXT_TRACK _IO('C', 0x35)
+#define SNDRV_COMPRESS_PARTIAL_DRAIN  _IO('C', 0x36)
 /*
  * TODO
  * 1. add mmap support

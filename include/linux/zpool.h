@@ -26,11 +26,11 @@ struct zpool;
  * If in doubt, use ZPOOL_MM_DEFAULT which is read-write.
  */
 enum zpool_mapmode {
-	ZPOOL_MM_RW, /* normal read-write mapping */
-	ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
-	ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
+  ZPOOL_MM_RW, /* normal read-write mapping */
+  ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
+  ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
 
-	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
+  ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
 };
 
 bool zpool_has_pool(char *type);
@@ -44,54 +44,53 @@ void zpool_destroy_pool(struct zpool *pool);
 bool zpool_malloc_support_movable(struct zpool *pool);
 
 int zpool_malloc(struct zpool *pool, size_t size, gfp_t gfp,
-			unsigned long *handle);
+    unsigned long *handle);
 
 void zpool_free(struct zpool *pool, unsigned long handle);
 
 void *zpool_map_handle(struct zpool *pool, unsigned long handle,
-			enum zpool_mapmode mm);
+    enum zpool_mapmode mm);
 
 void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
 
 u64 zpool_get_total_size(struct zpool *pool);
 
-
 /**
  * struct zpool_driver - driver implementation for zpool
- * @type:	name of the driver.
- * @list:	entry in the list of zpool drivers.
- * @create:	create a new pool.
- * @destroy:	destroy a pool.
- * @malloc:	allocate mem from a pool.
- * @free:	free mem from a pool.
+ * @type: name of the driver.
+ * @list: entry in the list of zpool drivers.
+ * @create: create a new pool.
+ * @destroy:  destroy a pool.
+ * @malloc: allocate mem from a pool.
+ * @free: free mem from a pool.
  * @sleep_mapped: whether zpool driver can sleep during map.
- * @map:	map a handle.
- * @unmap:	unmap a handle.
- * @total_size:	get total size of a pool.
+ * @map:  map a handle.
+ * @unmap:  unmap a handle.
+ * @total_size: get total size of a pool.
  *
  * This is created by a zpool implementation and registered
  * with zpool.
  */
 struct zpool_driver {
-	char *type;
-	struct module *owner;
-	atomic_t refcount;
-	struct list_head list;
+  char *type;
+  struct module *owner;
+  atomic_t refcount;
+  struct list_head list;
 
-	void *(*create)(const char *name, gfp_t gfp);
-	void (*destroy)(void *pool);
+  void *(*create)(const char *name, gfp_t gfp);
+  void (*destroy)(void *pool);
 
-	bool malloc_support_movable;
-	int (*malloc)(void *pool, size_t size, gfp_t gfp,
-				unsigned long *handle);
-	void (*free)(void *pool, unsigned long handle);
+  bool malloc_support_movable;
+  int (*malloc)(void *pool, size_t size, gfp_t gfp,
+      unsigned long *handle);
+  void (*free)(void *pool, unsigned long handle);
 
-	bool sleep_mapped;
-	void *(*map)(void *pool, unsigned long handle,
-				enum zpool_mapmode mm);
-	void (*unmap)(void *pool, unsigned long handle);
+  bool sleep_mapped;
+  void *(*map)(void *pool, unsigned long handle,
+      enum zpool_mapmode mm);
+  void (*unmap)(void *pool, unsigned long handle);
 
-	u64 (*total_size)(void *pool);
+  u64 (*total_size)(void *pool);
 };
 
 void zpool_register_driver(struct zpool_driver *driver);

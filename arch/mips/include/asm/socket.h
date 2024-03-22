@@ -11,7 +11,6 @@
 
 #include <uapi/asm/socket.h>
 
-
 /** sock_type - Socket types
  *
  * Please notice that for binary compat reasons MIPS has to
@@ -24,16 +23,16 @@
  * @SOCK_RDM - reliably-delivered message
  * @SOCK_SEQPACKET - sequential packet socket
  * @SOCK_PACKET - linux specific way of getting packets at the dev level.
- *		  For writing rarp and other similar things on the user level.
+ *      For writing rarp and other similar things on the user level.
  */
 enum sock_type {
-	SOCK_DGRAM	= 1,
-	SOCK_STREAM	= 2,
-	SOCK_RAW	= 3,
-	SOCK_RDM	= 4,
-	SOCK_SEQPACKET	= 5,
-	SOCK_DCCP	= 6,
-	SOCK_PACKET	= 10,
+  SOCK_DGRAM = 1,
+  SOCK_STREAM = 2,
+  SOCK_RAW = 3,
+  SOCK_RDM = 4,
+  SOCK_SEQPACKET = 5,
+  SOCK_DCCP = 6,
+  SOCK_PACKET = 10,
 };
 
 #define SOCK_MAX (SOCK_PACKET + 1)
@@ -42,8 +41,8 @@ enum sock_type {
 #define SOCK_TYPE_MASK 0xf
 
 /* Flags for socket, socketpair, paccept */
-#define SOCK_CLOEXEC	O_CLOEXEC
-#define SOCK_NONBLOCK	O_NONBLOCK
+#define SOCK_CLOEXEC  O_CLOEXEC
+#define SOCK_NONBLOCK O_NONBLOCK
 
 #define ARCH_HAS_SOCKET_TYPES 1
 

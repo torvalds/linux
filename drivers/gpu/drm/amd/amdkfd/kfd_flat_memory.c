@@ -73,10 +73,10 @@
  * There are three fundamental address modes of operation for a given VMID
  * (process) on the GPU:
  *
- *	HSA64 – 64b pointers and the default address space is ATC
- *	HSA32 – 32b pointers and the default address space is ATC
- *	GPUVM – 64b pointers and the default address space is GPUVM (driver
- *		model mode)
+ *  HSA64 – 64b pointers and the default address space is ATC
+ *  HSA32 – 32b pointers and the default address space is ATC
+ *  GPUVM – 64b pointers and the default address space is GPUVM (driver
+ *    model mode)
  *
  *
  * HSA64 - ATC/IOMMU 64b
@@ -93,7 +93,7 @@
  * spaces into a unified pointer space.  The method we take for 64b mode is
  * to map the full 40b GPUVM address space into the hole of the 64b address
  * space.
-
+ *
  * The GPUVM_Base/GPUVM_Limit defines the aperture in the 64b space where we
  * direct requests to be translated via GPUVM page tables instead of the
  * IOMMU path.
@@ -140,11 +140,11 @@
  * hardware sends a 48b address along w/ an ATC bit, to the memory controller
  * on the memory request interfaces.
  *
- *	<client>_MC_rdreq_atc   // read request ATC bit
+ *  <client>_MC_rdreq_atc   // read request ATC bit
  *
- *		0 : <client>_MC_rdreq_addr is a GPUVM VA
+ *    0 : <client>_MC_rdreq_addr is a GPUVM VA
  *
- *		1 : <client>_MC_rdreq_addr is a ATC VA
+ *    1 : <client>_MC_rdreq_addr is a ATC VA
  *
  *
  * “Spare” aperture (APE1)
@@ -167,9 +167,9 @@
  * In all cases (for SUA and DUA apertures discussed later), aperture base
  * and limit definitions are 64KB aligned.
  *
- *	<ape>_Base[63:0] = { <ape>_Base_register[63:16], 0x0000 }
+ *  <ape>_Base[63:0] = { <ape>_Base_register[63:16], 0x0000 }
  *
- *	<ape>_Limit[63:0] = { <ape>_Limit_register[63:16], 0xFFFF }
+ *  <ape>_Limit[63:0] = { <ape>_Limit_register[63:16], 0xFFFF }
  *
  * The base and limit are considered inclusive to an aperture so being
  * inside an aperture means (address >= Base) AND (address <= Limit).
@@ -278,21 +278,21 @@
  */
 
 #define MAKE_GPUVM_APP_BASE_VI(gpu_num) \
-	(((uint64_t)(gpu_num) << 61) + 0x1000000000000L)
+  (((uint64_t) (gpu_num) << 61) + 0x1000000000000L)
 
 #define MAKE_GPUVM_APP_LIMIT(base, size) \
-	(((uint64_t)(base) & 0xFFFFFF0000000000UL) + (size) - 1)
+  (((uint64_t) (base) & 0xFFFFFF0000000000UL) + (size) - 1)
 
 #define MAKE_SCRATCH_APP_BASE_VI() \
-	(((uint64_t)(0x1UL) << 61) + 0x100000000L)
+  (((uint64_t) (0x1UL) << 61) + 0x100000000L)
 
 #define MAKE_SCRATCH_APP_LIMIT(base) \
-	(((uint64_t)base & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
+  (((uint64_t) base & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
 #define MAKE_LDS_APP_BASE_VI() \
-	(((uint64_t)(0x1UL) << 61) + 0x0)
+  (((uint64_t) (0x1UL) << 61) + 0x0)
 #define MAKE_LDS_APP_LIMIT(base) \
-	(((uint64_t)(base) & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
+  (((uint64_t) (base) & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
 /* On GFXv9 the LDS and scratch apertures are programmed independently
  * using the high 16 bits of the 64-bit virtual address. They must be
@@ -303,130 +303,116 @@
  *
  * A GPUVM aperture is not applicable on GFXv9.
  */
-#define MAKE_LDS_APP_BASE_V9() ((uint64_t)(0x1UL) << 48)
-#define MAKE_SCRATCH_APP_BASE_V9() ((uint64_t)(0x2UL) << 48)
+#define MAKE_LDS_APP_BASE_V9() ((uint64_t) (0x1UL) << 48)
+#define MAKE_SCRATCH_APP_BASE_V9() ((uint64_t) (0x2UL) << 48)
 
 /* User mode manages most of the SVM aperture address space. The low
  * 16MB are reserved for kernel use (CWSR trap handler and kernel IB
  * for now).
  */
-#define SVM_USER_BASE (u64)(KFD_CWSR_TBA_TMA_SIZE + 2*PAGE_SIZE)
+#define SVM_USER_BASE (u64) (KFD_CWSR_TBA_TMA_SIZE + 2 * PAGE_SIZE)
 #define SVM_CWSR_BASE (SVM_USER_BASE - KFD_CWSR_TBA_TMA_SIZE)
 #define SVM_IB_BASE   (SVM_CWSR_BASE - PAGE_SIZE)
 
-static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
-{
-	/*
-	 * node id couldn't be 0 - the three MSB bits of
-	 * aperture shouldn't be 0
-	 */
-	pdd->lds_base = MAKE_LDS_APP_BASE_VI();
-	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
-
-	/* dGPUs: SVM aperture starting at 0
-	 * with small reserved space for kernel.
-	 * Set them to CANONICAL addresses.
-	 */
-	pdd->gpuvm_base = max(SVM_USER_BASE, AMDGPU_VA_RESERVED_BOTTOM);
-	pdd->gpuvm_limit =
-		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
-
-	/* dGPUs: the reserved space for kernel
-	 * before SVM
-	 */
-	pdd->qpd.cwsr_base = SVM_CWSR_BASE;
-	pdd->qpd.ib_base = SVM_IB_BASE;
-
-	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_VI();
-	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
+static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id) {
+  /*
+   * node id couldn't be 0 - the three MSB bits of
+   * aperture shouldn't be 0
+   */
+  pdd->lds_base = MAKE_LDS_APP_BASE_VI();
+  pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
+  /* dGPUs: SVM aperture starting at 0
+   * with small reserved space for kernel.
+   * Set them to CANONICAL addresses.
+   */
+  pdd->gpuvm_base = max(SVM_USER_BASE, AMDGPU_VA_RESERVED_BOTTOM);
+  pdd->gpuvm_limit
+    = pdd->dev->kfd->shared_resources.gpuvm_size - 1;
+  /* dGPUs: the reserved space for kernel
+   * before SVM
+   */
+  pdd->qpd.cwsr_base = SVM_CWSR_BASE;
+  pdd->qpd.ib_base = SVM_IB_BASE;
+  pdd->scratch_base = MAKE_SCRATCH_APP_BASE_VI();
+  pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
 }
 
-static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
-{
-	pdd->lds_base = MAKE_LDS_APP_BASE_V9();
-	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
-
-	pdd->gpuvm_base = AMDGPU_VA_RESERVED_BOTTOM;
-	pdd->gpuvm_limit =
-		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
-
-	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
-	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
-
-	/*
-	 * Place TBA/TMA on opposite side of VM hole to prevent
-	 * stray faults from triggering SVM on these pages.
-	 */
-	pdd->qpd.cwsr_base = AMDGPU_VA_RESERVED_TRAP_START(pdd->dev->adev);
+static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id) {
+  pdd->lds_base = MAKE_LDS_APP_BASE_V9();
+  pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
+  pdd->gpuvm_base = AMDGPU_VA_RESERVED_BOTTOM;
+  pdd->gpuvm_limit
+    = pdd->dev->kfd->shared_resources.gpuvm_size - 1;
+  pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
+  pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
+  /*
+   * Place TBA/TMA on opposite side of VM hole to prevent
+   * stray faults from triggering SVM on these pages.
+   */
+  pdd->qpd.cwsr_base = AMDGPU_VA_RESERVED_TRAP_START(pdd->dev->adev);
 }
 
-int kfd_init_apertures(struct kfd_process *process)
-{
-	uint8_t id  = 0;
-	struct kfd_node *dev;
-	struct kfd_process_device *pdd;
-
-	/*Iterating over all devices*/
-	while (kfd_topology_enum_kfd_devices(id, &dev) == 0) {
-		if (!dev || kfd_devcgroup_check_permission(dev)) {
-			/* Skip non GPU devices and devices to which the
-			 * current process have no access to. Access can be
-			 * limited by placing the process in a specific
-			 * cgroup hierarchy
-			 */
-			id++;
-			continue;
-		}
-
-		pdd = kfd_create_process_device_data(dev, process);
-		if (!pdd) {
-			pr_err("Failed to create process device data\n");
-			return -ENOMEM;
-		}
-		/*
-		 * For 64 bit process apertures will be statically reserved in
-		 * the x86_64 non canonical process address space
-		 * amdkfd doesn't currently support apertures for 32 bit process
-		 */
-		if (process->is_32bit_user_mode) {
-			pdd->lds_base = pdd->lds_limit = 0;
-			pdd->gpuvm_base = pdd->gpuvm_limit = 0;
-			pdd->scratch_base = pdd->scratch_limit = 0;
-		} else {
-			switch (dev->adev->asic_type) {
-			case CHIP_KAVERI:
-			case CHIP_HAWAII:
-			case CHIP_CARRIZO:
-			case CHIP_TONGA:
-			case CHIP_FIJI:
-			case CHIP_POLARIS10:
-			case CHIP_POLARIS11:
-			case CHIP_POLARIS12:
-			case CHIP_VEGAM:
-				kfd_init_apertures_vi(pdd, id);
-				break;
-			default:
-				if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1))
-					kfd_init_apertures_v9(pdd, id);
-				else {
-					WARN(1, "Unexpected ASIC family %u",
-					     dev->adev->asic_type);
-					return -EINVAL;
-				}
-			}
-		}
-
-		dev_dbg(kfd_device, "node id %u\n", id);
-		dev_dbg(kfd_device, "gpu id %u\n", pdd->dev->id);
-		dev_dbg(kfd_device, "lds_base %llX\n", pdd->lds_base);
-		dev_dbg(kfd_device, "lds_limit %llX\n", pdd->lds_limit);
-		dev_dbg(kfd_device, "gpuvm_base %llX\n", pdd->gpuvm_base);
-		dev_dbg(kfd_device, "gpuvm_limit %llX\n", pdd->gpuvm_limit);
-		dev_dbg(kfd_device, "scratch_base %llX\n", pdd->scratch_base);
-		dev_dbg(kfd_device, "scratch_limit %llX\n", pdd->scratch_limit);
-
-		id++;
-	}
-
-	return 0;
+int kfd_init_apertures(struct kfd_process *process) {
+  uint8_t id = 0;
+  struct kfd_node *dev;
+  struct kfd_process_device *pdd;
+  /*Iterating over all devices*/
+  while (kfd_topology_enum_kfd_devices(id, &dev) == 0) {
+    if (!dev || kfd_devcgroup_check_permission(dev)) {
+      /* Skip non GPU devices and devices to which the
+       * current process have no access to. Access can be
+       * limited by placing the process in a specific
+       * cgroup hierarchy
+       */
+      id++;
+      continue;
+    }
+    pdd = kfd_create_process_device_data(dev, process);
+    if (!pdd) {
+      pr_err("Failed to create process device data\n");
+      return -ENOMEM;
+    }
+    /*
+     * For 64 bit process apertures will be statically reserved in
+     * the x86_64 non canonical process address space
+     * amdkfd doesn't currently support apertures for 32 bit process
+     */
+    if (process->is_32bit_user_mode) {
+      pdd->lds_base = pdd->lds_limit = 0;
+      pdd->gpuvm_base = pdd->gpuvm_limit = 0;
+      pdd->scratch_base = pdd->scratch_limit = 0;
+    } else {
+      switch (dev->adev->asic_type) {
+        case CHIP_KAVERI:
+        case CHIP_HAWAII:
+        case CHIP_CARRIZO:
+        case CHIP_TONGA:
+        case CHIP_FIJI:
+        case CHIP_POLARIS10:
+        case CHIP_POLARIS11:
+        case CHIP_POLARIS12:
+        case CHIP_VEGAM:
+          kfd_init_apertures_vi(pdd, id);
+          break;
+        default:
+          if (KFD_GC_VERSION(dev) >= IP_VERSION(9, 0, 1)) {
+            kfd_init_apertures_v9(pdd, id);
+          } else {
+            WARN(1, "Unexpected ASIC family %u",
+                dev->adev->asic_type);
+            return -EINVAL;
+          }
+      }
+    }
+    dev_dbg(kfd_device, "node id %u\n", id);
+    dev_dbg(kfd_device, "gpu id %u\n", pdd->dev->id);
+    dev_dbg(kfd_device, "lds_base %llX\n", pdd->lds_base);
+    dev_dbg(kfd_device, "lds_limit %llX\n", pdd->lds_limit);
+    dev_dbg(kfd_device, "gpuvm_base %llX\n", pdd->gpuvm_base);
+    dev_dbg(kfd_device, "gpuvm_limit %llX\n", pdd->gpuvm_limit);
+    dev_dbg(kfd_device, "scratch_base %llX\n", pdd->scratch_base);
+    dev_dbg(kfd_device, "scratch_limit %llX\n", pdd->scratch_limit);
+    id++;
+  }
+  return 0;
 }

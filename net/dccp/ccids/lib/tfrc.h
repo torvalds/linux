@@ -18,37 +18,33 @@
 
 #ifdef CONFIG_IP_DCCP_TFRC_DEBUG
 extern bool tfrc_debug;
-#define tfrc_pr_debug(format, a...)	DCCP_PR_DEBUG(tfrc_debug, format, ##a)
+#define tfrc_pr_debug(format, a ...) DCCP_PR_DEBUG(tfrc_debug, format, ## a)
 #else
-#define tfrc_pr_debug(format, a...)
+#define tfrc_pr_debug(format, a ...)
 #endif
 
 /* integer-arithmetic divisions of type (a * 1000000)/b */
-static inline u64 scaled_div(u64 a, u64 b)
-{
-	BUG_ON(b == 0);
-	return div64_u64(a * 1000000, b);
+static inline u64 scaled_div(u64 a, u64 b) {
+  BUG_ON(b == 0);
+  return div64_u64(a * 1000000, b);
 }
 
-static inline u32 scaled_div32(u64 a, u64 b)
-{
-	u64 result = scaled_div(a, b);
-
-	if (result > UINT_MAX) {
-		DCCP_CRIT("Overflow: %llu/%llu > UINT_MAX",
-			  (unsigned long long)a, (unsigned long long)b);
-		return UINT_MAX;
-	}
-	return result;
+static inline u32 scaled_div32(u64 a, u64 b) {
+  u64 result = scaled_div(a, b);
+  if (result > UINT_MAX) {
+    DCCP_CRIT("Overflow: %llu/%llu > UINT_MAX",
+        (unsigned long long) a, (unsigned long long) b);
+    return UINT_MAX;
+  }
+  return result;
 }
 
 /**
  * tfrc_ewma  -  Exponentially weighted moving average
  * @weight: Weight to be used as damping factor, in units of 1/10
  */
-static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight)
-{
-	return avg ? (weight * avg + (10 - weight) * newval) / 10 : newval;
+static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight) {
+  return avg ? (weight * avg + (10 - weight) * newval) / 10 : newval;
 }
 
 u32 tfrc_calc_x(u16 s, u32 R, u32 p);

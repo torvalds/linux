@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright(c) 2022 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright(c) 2022 Intel Corporation.*/
 
 #ifndef _IFS_H_
 #define _IFS_H_
@@ -72,11 +72,13 @@
  * to migrate those applications to other cores before running a core test.
  * It may also be necessary to redirect interrupts to other CPUs.
  *
- * In all cases reading the corresponding test's STATUS MSR provides details on what
+ * In all cases reading the corresponding test's STATUS MSR provides details on
+ *what
  * happened. The driver makes the value of this MSR visible to applications
  * via the "details" file (see below). Interrupted tests may be restarted.
  *
- * The IFS driver provides sysfs interfaces via /sys/devices/virtual/misc/intel_ifs_<n>/
+ * The IFS driver provides sysfs interfaces via
+ */sys/devices/virtual/misc/intel_ifs_<n>/
  * to control execution:
  *
  * Test a specific core::
@@ -130,140 +132,141 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
-#define MSR_ARRAY_BIST				0x00000105
-#define MSR_COPY_SCAN_HASHES			0x000002c2
-#define MSR_SCAN_HASHES_STATUS			0x000002c3
-#define MSR_AUTHENTICATE_AND_COPY_CHUNK		0x000002c4
-#define MSR_CHUNKS_AUTHENTICATION_STATUS	0x000002c5
-#define MSR_ACTIVATE_SCAN			0x000002c6
-#define MSR_SCAN_STATUS				0x000002c7
-#define MSR_ARRAY_TRIGGER			0x000002d6
-#define MSR_ARRAY_STATUS			0x000002d7
-#define MSR_SAF_CTRL				0x000004f0
+#define MSR_ARRAY_BIST        0x00000105
+#define MSR_COPY_SCAN_HASHES      0x000002c2
+#define MSR_SCAN_HASHES_STATUS      0x000002c3
+#define MSR_AUTHENTICATE_AND_COPY_CHUNK   0x000002c4
+#define MSR_CHUNKS_AUTHENTICATION_STATUS  0x000002c5
+#define MSR_ACTIVATE_SCAN     0x000002c6
+#define MSR_SCAN_STATUS       0x000002c7
+#define MSR_ARRAY_TRIGGER     0x000002d6
+#define MSR_ARRAY_STATUS      0x000002d7
+#define MSR_SAF_CTRL        0x000004f0
 
-#define SCAN_NOT_TESTED				0
-#define SCAN_TEST_PASS				1
-#define SCAN_TEST_FAIL				2
+#define SCAN_NOT_TESTED       0
+#define SCAN_TEST_PASS        1
+#define SCAN_TEST_FAIL        2
 
-#define IFS_TYPE_SAF			0
-#define IFS_TYPE_ARRAY_BIST		1
+#define IFS_TYPE_SAF      0
+#define IFS_TYPE_ARRAY_BIST   1
 
-#define ARRAY_GEN0			0
-#define ARRAY_GEN1			1
+#define ARRAY_GEN0      0
+#define ARRAY_GEN1      1
 
 /* MSR_SCAN_HASHES_STATUS bit fields */
 union ifs_scan_hashes_status {
-	u64	data;
-	struct {
-		u32	chunk_size	:16;
-		u32	num_chunks	:8;
-		u32	rsvd1		:8;
-		u32	error_code	:8;
-		u32	rsvd2		:11;
-		u32	max_core_limit	:12;
-		u32	valid		:1;
-	};
+  u64 data;
+  struct {
+    u32 chunk_size  : 16;
+    u32 num_chunks  : 8;
+    u32 rsvd1   : 8;
+    u32 error_code  : 8;
+    u32 rsvd2   : 11;
+    u32 max_core_limit  : 12;
+    u32 valid   : 1;
+  };
 };
 
 union ifs_scan_hashes_status_gen2 {
-	u64	data;
-	struct {
-		u16	chunk_size;
-		u16	num_chunks;
-		u32	error_code		:8;
-		u32	chunks_in_stride	:9;
-		u32	rsvd			:2;
-		u32	max_core_limit		:12;
-		u32	valid			:1;
-	};
+  u64 data;
+  struct {
+    u16 chunk_size;
+    u16 num_chunks;
+    u32 error_code    : 8;
+    u32 chunks_in_stride  : 9;
+    u32 rsvd      : 2;
+    u32 max_core_limit    : 12;
+    u32 valid     : 1;
+  };
 };
 
 /* MSR_CHUNKS_AUTH_STATUS bit fields */
 union ifs_chunks_auth_status {
-	u64	data;
-	struct {
-		u32	valid_chunks	:8;
-		u32	total_chunks	:8;
-		u32	rsvd1		:16;
-		u32	error_code	:8;
-		u32	rsvd2		:24;
-	};
+  u64 data;
+  struct {
+    u32 valid_chunks  : 8;
+    u32 total_chunks  : 8;
+    u32 rsvd1   : 16;
+    u32 error_code  : 8;
+    u32 rsvd2   : 24;
+  };
 };
 
 union ifs_chunks_auth_status_gen2 {
-	u64	data;
-	struct {
-		u16	valid_chunks;
-		u16	total_chunks;
-		u32	error_code	:8;
-		u32	rsvd2		:24;
-	};
+  u64 data;
+  struct {
+    u16 valid_chunks;
+    u16 total_chunks;
+    u32 error_code  : 8;
+    u32 rsvd2   : 24;
+  };
 };
 
 /* MSR_ACTIVATE_SCAN bit fields */
 union ifs_scan {
-	u64	data;
-	struct {
-		union {
-			struct {
-				u8	start;
-				u8	stop;
-				u16	rsvd;
-			} gen0;
-			struct {
-				u16	start;
-				u16	stop;
-			} gen2;
-		};
-		u32	delay	:31;
-		u32	sigmce	:1;
-	};
+  u64 data;
+  struct {
+    union {
+      struct {
+        u8 start;
+        u8 stop;
+        u16 rsvd;
+      } gen0;
+      struct {
+        u16 start;
+        u16 stop;
+      } gen2;
+    };
+    u32 delay : 31;
+    u32 sigmce  : 1;
+  };
 };
 
 /* MSR_SCAN_STATUS bit fields */
 union ifs_status {
-	u64	data;
-	struct {
-		union {
-			struct {
-				u8	chunk_num;
-				u8	chunk_stop_index;
-				u16	rsvd1;
-			} gen0;
-			struct {
-				u16	chunk_num;
-				u16	chunk_stop_index;
-			} gen2;
-		};
-		u32	error_code		:8;
-		u32	rsvd2			:22;
-		u32	control_error		:1;
-		u32	signature_error		:1;
-	};
+  u64 data;
+  struct {
+    union {
+      struct {
+        u8 chunk_num;
+        u8 chunk_stop_index;
+        u16 rsvd1;
+      } gen0;
+      struct {
+        u16 chunk_num;
+        u16 chunk_stop_index;
+      } gen2;
+    };
+    u32 error_code    : 8;
+    u32 rsvd2     : 22;
+    u32 control_error   : 1;
+    u32 signature_error   : 1;
+  };
 };
 
 /* MSR_ARRAY_BIST bit fields */
 union ifs_array {
-	u64	data;
-	struct {
-		u32	array_bitmask;
-		u16	array_bank;
-		u16	rsvd			:15;
-		u16	ctrl_result		:1;
-	};
+  u64 data;
+  struct {
+    u32 array_bitmask;
+    u16 array_bank;
+    u16 rsvd      : 15;
+    u16 ctrl_result   : 1;
+  };
 };
 
 /*
  * Driver populated error-codes
  * 0xFD: Test timed out before completing all the chunks.
- * 0xFE: not all scan chunks were executed. Maximum forward progress retries exceeded.
+ * 0xFE: not all scan chunks were executed. Maximum forward progress retries
+ *exceeded.
  */
-#define IFS_SW_TIMEOUT				0xFD
-#define IFS_SW_PARTIAL_COMPLETION		0xFE
+#define IFS_SW_TIMEOUT        0xFD
+#define IFS_SW_PARTIAL_COMPLETION   0xFE
 
 struct ifs_test_caps {
-	int	integrity_cap_bit;
-	int	test_num;
+  int integrity_cap_bit;
+  int test_num;
 };
 
 /**
@@ -280,43 +283,40 @@ struct ifs_test_caps {
  * @array_gen: test generation of array test
  */
 struct ifs_data {
-	int	loaded_version;
-	bool	loaded;
-	bool	loading_error;
-	int	valid_chunks;
-	int	status;
-	u64	scan_details;
-	u32	cur_batch;
-	u32	generation;
-	u32	chunk_size;
-	u32	array_gen;
+  int loaded_version;
+  bool loaded;
+  bool loading_error;
+  int valid_chunks;
+  int status;
+  u64 scan_details;
+  u32 cur_batch;
+  u32 generation;
+  u32 chunk_size;
+  u32 array_gen;
 };
 
 struct ifs_work {
-	struct work_struct w;
-	struct device *dev;
+  struct work_struct w;
+  struct device *dev;
 };
 
 struct ifs_device {
-	const struct ifs_test_caps *test_caps;
-	struct ifs_data rw_data;
-	struct miscdevice misc;
+  const struct ifs_test_caps *test_caps;
+  struct ifs_data rw_data;
+  struct miscdevice misc;
 };
 
-static inline struct ifs_data *ifs_get_data(struct device *dev)
-{
-	struct miscdevice *m = dev_get_drvdata(dev);
-	struct ifs_device *d = container_of(m, struct ifs_device, misc);
-
-	return &d->rw_data;
+static inline struct ifs_data *ifs_get_data(struct device *dev) {
+  struct miscdevice *m = dev_get_drvdata(dev);
+  struct ifs_device *d = container_of(m, struct ifs_device, misc);
+  return &d->rw_data;
 }
 
 static inline const struct ifs_test_caps *ifs_get_test_caps(struct device *dev)
 {
-	struct miscdevice *m = dev_get_drvdata(dev);
-	struct ifs_device *d = container_of(m, struct ifs_device, misc);
-
-	return d->test_caps;
+  struct miscdevice *m = dev_get_drvdata(dev);
+  struct ifs_device *d = container_of(m, struct ifs_device, misc);
+  return d->test_caps;
 }
 
 extern bool *ifs_pkg_auth;

@@ -15,9 +15,13 @@ typedef int (kiocb_cancel_fn)(struct kiocb *);
 extern void exit_aio(struct mm_struct *mm);
 void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
 #else
-static inline void exit_aio(struct mm_struct *mm) { }
+static inline void exit_aio(struct mm_struct *mm) {
+}
+
 static inline void kiocb_set_cancel_fn(struct kiocb *req,
-				       kiocb_cancel_fn *cancel) { }
+    kiocb_cancel_fn *cancel) {
+}
+
 #endif /* CONFIG_AIO */
 
 #endif /* __LINUX__AIO_H */

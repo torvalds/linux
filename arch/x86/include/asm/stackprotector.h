@@ -47,37 +47,33 @@
  * with a function call which gets tail-call optimized as that would
  * lead to checking a modified canary value.
  */
-static __always_inline void boot_init_stack_canary(void)
-{
-	unsigned long canary = get_random_canary();
-
+static __always_inline void boot_init_stack_canary(void) {
+  unsigned long canary = get_random_canary();
 #ifdef CONFIG_X86_64
-	BUILD_BUG_ON(offsetof(struct fixed_percpu_data, stack_canary) != 40);
+  BUILD_BUG_ON(offsetof(struct fixed_percpu_data, stack_canary) != 40);
 #endif
-
-	current->stack_canary = canary;
+  current->stack_canary = canary;
 #ifdef CONFIG_X86_64
-	this_cpu_write(fixed_percpu_data.stack_canary, canary);
+  this_cpu_write(fixed_percpu_data.stack_canary, canary);
 #else
-	this_cpu_write(__stack_chk_guard, canary);
+  this_cpu_write(__stack_chk_guard, canary);
 #endif
 }
 
-static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
-{
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle) {
 #ifdef CONFIG_X86_64
-	per_cpu(fixed_percpu_data.stack_canary, cpu) = idle->stack_canary;
+  per_cpu(fixed_percpu_data.stack_canary, cpu) = idle->stack_canary;
 #else
-	per_cpu(__stack_chk_guard, cpu) = idle->stack_canary;
+  per_cpu(__stack_chk_guard, cpu) = idle->stack_canary;
 #endif
 }
 
-#else	/* STACKPROTECTOR */
+#else /* STACKPROTECTOR */
 
 /* dummy boot_init_stack_canary() is defined in linux/stackprotector.h */
 
-static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle)
-{ }
+static inline void cpu_init_stack_canary(int cpu, struct task_struct *idle) {
+}
 
-#endif	/* STACKPROTECTOR */
-#endif	/* _ASM_STACKPROTECTOR_H */
+#endif  /* STACKPROTECTOR */
+#endif  /* _ASM_STACKPROTECTOR_H */

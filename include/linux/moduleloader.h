@@ -18,15 +18,15 @@ bool module_elf_check_arch(Elf_Ehdr *hdr);
 
 /* Adjust arch-specific sections.  Return 0 on success.  */
 int module_frob_arch_sections(Elf_Ehdr *hdr,
-			      Elf_Shdr *sechdrs,
-			      char *secstrings,
-			      struct module *mod);
+    Elf_Shdr *sechdrs,
+    char *secstrings,
+    struct module *mod);
 
 /* Additional bytes needed by arch in front of individual sections */
 unsigned int arch_mod_section_prepend(struct module *mod, unsigned int section);
 
 /* Allocator used for allocating struct module, core sections and init
-   sections.  Returns NULL on failure. */
+ * sections.  Returns NULL on failure. */
 void *module_alloc(unsigned long size);
 
 /* Free memory returned from module_alloc. */
@@ -53,21 +53,21 @@ bool module_init_layout_section(const char *sname);
  */
 #ifdef CONFIG_MODULES_USE_ELF_REL
 int apply_relocate(Elf_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *mod);
+    const char *strtab,
+    unsigned int symindex,
+    unsigned int relsec,
+    struct module *mod);
 #else
 static inline int apply_relocate(Elf_Shdr *sechdrs,
-				 const char *strtab,
-				 unsigned int symindex,
-				 unsigned int relsec,
-				 struct module *me)
-{
-	printk(KERN_ERR "module %s: REL relocation unsupported\n",
-	       module_name(me));
-	return -ENOEXEC;
+    const char *strtab,
+    unsigned int symindex,
+    unsigned int relsec,
+    struct module *me) {
+  printk(KERN_ERR "module %s: REL relocation unsupported\n",
+      module_name(me));
+  return -ENOEXEC;
 }
+
 #endif
 
 /*
@@ -76,10 +76,10 @@ static inline int apply_relocate(Elf_Shdr *sechdrs,
  */
 #ifdef CONFIG_MODULES_USE_ELF_RELA
 int apply_relocate_add(Elf_Shdr *sechdrs,
-		       const char *strtab,
-		       unsigned int symindex,
-		       unsigned int relsec,
-		       struct module *mod);
+    const char *strtab,
+    unsigned int symindex,
+    unsigned int relsec,
+    struct module *mod);
 #ifdef CONFIG_LIVEPATCH
 /*
  * Some architectures (namely x86_64 and ppc64) perform sanity checks when
@@ -92,35 +92,35 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
  * that might trigger arch-specific sanity checks on a future module reload.
  */
 void clear_relocate_add(Elf_Shdr *sechdrs,
-		   const char *strtab,
-		   unsigned int symindex,
-		   unsigned int relsec,
-		   struct module *me);
+    const char *strtab,
+    unsigned int symindex,
+    unsigned int relsec,
+    struct module *me);
 #endif
 #else
 static inline int apply_relocate_add(Elf_Shdr *sechdrs,
-				     const char *strtab,
-				     unsigned int symindex,
-				     unsigned int relsec,
-				     struct module *me)
-{
-	printk(KERN_ERR "module %s: REL relocation unsupported\n",
-	       module_name(me));
-	return -ENOEXEC;
+    const char *strtab,
+    unsigned int symindex,
+    unsigned int relsec,
+    struct module *me) {
+  printk(KERN_ERR "module %s: REL relocation unsupported\n",
+      module_name(me));
+  return -ENOEXEC;
 }
+
 #endif
 
 /* Any final processing of module before access.  Return -error or 0. */
 int module_finalize(const Elf_Ehdr *hdr,
-		    const Elf_Shdr *sechdrs,
-		    struct module *mod);
+    const Elf_Shdr *sechdrs,
+    struct module *mod);
 
 #ifdef CONFIG_MODULES
 void flush_module_init_free_work(void);
 #else
-static inline void flush_module_init_free_work(void)
-{
+static inline void flush_module_init_free_work(void) {
 }
+
 #endif
 
 /* Any cleanup needed when module leaves. */
@@ -129,8 +129,8 @@ void module_arch_cleanup(struct module *mod);
 /* Any cleanup before freeing mod->module_init */
 void module_arch_freeing_init(struct module *mod);
 
-#if (defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)) && \
-		!defined(CONFIG_KASAN_VMALLOC)
+#if (defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS))    \
+  && !defined(CONFIG_KASAN_VMALLOC)
 #include <linux/kasan.h>
 #define MODULE_ALIGN (PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
 #else

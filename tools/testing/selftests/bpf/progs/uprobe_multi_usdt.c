@@ -9,8 +9,7 @@ char _license[] SEC("license") = "GPL";
 int count;
 
 SEC("usdt")
-int usdt0(struct pt_regs *ctx)
-{
-	count++;
-	return 0;
+int usdt0(struct pt_regs *ctx) {
+  count++;
+  return 0;
 }

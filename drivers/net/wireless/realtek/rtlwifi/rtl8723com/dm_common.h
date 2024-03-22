@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2009-2014  Realtek Corporation.*/
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #ifndef __DM_COMMON_H__
 #define __DM_COMMON_H__

@@ -34,48 +34,46 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
  * Effective and physical address definitions, to aid with sign
  * extension.
  */
-#define NEFF		32
-#define	NEFF_SIGN	(1LL << (NEFF - 1))
-#define	NEFF_MASK	(-1LL << NEFF)
+#define NEFF    32
+#define NEFF_SIGN (1LL << (NEFF - 1))
+#define NEFF_MASK (-1LL << NEFF)
 
-static inline unsigned long long neff_sign_extend(unsigned long val)
-{
-	unsigned long long extended = val;
-	return (extended & NEFF_SIGN) ? (extended | NEFF_MASK) : extended;
+static inline unsigned long long neff_sign_extend(unsigned long val) {
+  unsigned long long extended = val;
+  return (extended & NEFF_SIGN) ? (extended | NEFF_MASK) : extended;
 }
 
 #ifdef CONFIG_29BIT
-#define NPHYS		29
+#define NPHYS   29
 #else
-#define NPHYS		32
+#define NPHYS   32
 #endif
 
-#define	NPHYS_SIGN	(1LL << (NPHYS - 1))
-#define	NPHYS_MASK	(-1LL << NPHYS)
+#define NPHYS_SIGN  (1LL << (NPHYS - 1))
+#define NPHYS_MASK  (-1LL << NPHYS)
 
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
+#define PGDIR_SIZE  (1UL << PGDIR_SHIFT)
+#define PGDIR_MASK  (~(PGDIR_SIZE - 1))
 
 /* Entries per level */
-#define PTRS_PER_PTE	(PAGE_SIZE / (1 << PTE_MAGNITUDE))
+#define PTRS_PER_PTE  (PAGE_SIZE / (1 << PTE_MAGNITUDE))
 
-#define PHYS_ADDR_MASK29		0x1fffffff
-#define PHYS_ADDR_MASK32		0xffffffff
+#define PHYS_ADDR_MASK29    0x1fffffff
+#define PHYS_ADDR_MASK32    0xffffffff
 
-static inline unsigned long phys_addr_mask(void)
-{
-	/* Is the MMU in 29bit mode? */
-	if (__in_29bit_mode())
-		return PHYS_ADDR_MASK29;
-
-	return PHYS_ADDR_MASK32;
+static inline unsigned long phys_addr_mask(void) {
+  /* Is the MMU in 29bit mode? */
+  if (__in_29bit_mode()) {
+    return PHYS_ADDR_MASK29;
+  }
+  return PHYS_ADDR_MASK32;
 }
 
-#define PTE_PHYS_MASK		(phys_addr_mask() & PAGE_MASK)
-#define PTE_FLAGS_MASK		(~(PTE_PHYS_MASK) << PAGE_SHIFT)
+#define PTE_PHYS_MASK   (phys_addr_mask() & PAGE_MASK)
+#define PTE_FLAGS_MASK    (~(PTE_PHYS_MASK) << PAGE_SHIFT)
 
-#define VMALLOC_START	(P3SEG)
-#define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
+#define VMALLOC_START (P3SEG)
+#define VMALLOC_END (FIXADDR_START - 2 * PAGE_SIZE)
 
 #include <asm/pgtable_32.h>
 
@@ -88,60 +86,59 @@ static inline unsigned long phys_addr_mask(void)
  * not only supporting separate execute, read, and write bits, but having
  * completely separate permission bits for user and kernel space.
  */
-	 /*xwr*/
+/*xwr*/
 
 typedef pte_t *pte_addr_t;
 
-#define pte_pfn(x)		((unsigned long)(((x).pte_low >> PAGE_SHIFT)))
+#define pte_pfn(x)    ((unsigned long) (((x).pte_low >> PAGE_SHIFT)))
 
 struct vm_area_struct;
 struct mm_struct;
 
 extern void __update_cache(struct vm_area_struct *vma,
-			   unsigned long address, pte_t pte);
+    unsigned long address, pte_t pte);
 extern void __update_tlb(struct vm_area_struct *vma,
-			 unsigned long address, pte_t pte);
+    unsigned long address, pte_t pte);
 
 static inline void update_mmu_cache_range(struct vm_fault *vmf,
-		struct vm_area_struct *vma, unsigned long address,
-		pte_t *ptep, unsigned int nr)
-{
-	pte_t pte = *ptep;
-	__update_cache(vma, address, pte);
-	__update_tlb(vma, address, pte);
+    struct vm_area_struct *vma, unsigned long address,
+    pte_t *ptep, unsigned int nr) {
+  pte_t pte = *ptep;
+  __update_cache(vma, address, pte);
+  __update_tlb(vma, address, pte);
 }
+
 #define update_mmu_cache(vma, addr, ptep) \
-	update_mmu_cache_range(NULL, vma, addr, ptep, 1)
+  update_mmu_cache_range(NULL, vma, addr, ptep, 1)
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 extern void page_table_range_init(unsigned long start, unsigned long end,
-				  pgd_t *pgd);
+    pgd_t *pgd);
 
-static inline bool __pte_access_permitted(pte_t pte, u64 prot)
-{
-	return (pte_val(pte) & (prot | _PAGE_SPECIAL)) == prot;
+static inline bool __pte_access_permitted(pte_t pte, u64 prot) {
+  return (pte_val(pte) & (prot | _PAGE_SPECIAL)) == prot;
 }
 
 #ifdef CONFIG_X2TLB
-static inline bool pte_access_permitted(pte_t pte, bool write)
-{
-	u64 prot = _PAGE_PRESENT;
-
-	prot |= _PAGE_EXT(_PAGE_EXT_KERN_READ | _PAGE_EXT_USER_READ);
-	if (write)
-		prot |= _PAGE_EXT(_PAGE_EXT_KERN_WRITE | _PAGE_EXT_USER_WRITE);
-	return __pte_access_permitted(pte, prot);
+static inline bool pte_access_permitted(pte_t pte, bool write) {
+  u64 prot = _PAGE_PRESENT;
+  prot |= _PAGE_EXT(_PAGE_EXT_KERN_READ | _PAGE_EXT_USER_READ);
+  if (write) {
+    prot |= _PAGE_EXT(_PAGE_EXT_KERN_WRITE | _PAGE_EXT_USER_WRITE);
+  }
+  return __pte_access_permitted(pte, prot);
 }
+
 #else
-static inline bool pte_access_permitted(pte_t pte, bool write)
-{
-	u64 prot = _PAGE_PRESENT | _PAGE_USER;
-
-	if (write)
-		prot |= _PAGE_RW;
-	return __pte_access_permitted(pte, prot);
+static inline bool pte_access_permitted(pte_t pte, bool write) {
+  u64 prot = _PAGE_PRESENT | _PAGE_USER;
+  if (write) {
+    prot |= _PAGE_RW;
+  }
+  return __pte_access_permitted(pte, prot);
 }
+
 #endif
 
 #define pte_access_permitted pte_access_permitted

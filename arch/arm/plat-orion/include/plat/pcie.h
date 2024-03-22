@@ -22,13 +22,12 @@ void orion_pcie_set_local_bus_nr(void __iomem *base, int nr);
 void orion_pcie_reset(void __iomem *base);
 void orion_pcie_setup(void __iomem *base);
 int orion_pcie_rd_conf(void __iomem *base, struct pci_bus *bus,
-		       u32 devfn, int where, int size, u32 *val);
+    u32 devfn, int where, int size, u32 *val);
 int orion_pcie_rd_conf_tlp(void __iomem *base, struct pci_bus *bus,
-			   u32 devfn, int where, int size, u32 *val);
+    u32 devfn, int where, int size, u32 *val);
 int orion_pcie_rd_conf_wa(void __iomem *wa_base, struct pci_bus *bus,
-			  u32 devfn, int where, int size, u32 *val);
+    u32 devfn, int where, int size, u32 *val);
 int orion_pcie_wr_conf(void __iomem *base, struct pci_bus *bus,
-		       u32 devfn, int where, int size, u32 val);
-
+    u32 devfn, int where, int size, u32 val);
 
 #endif

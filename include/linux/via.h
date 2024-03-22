@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Miscellaneous definitions for VIA chipsets
-   Currently used only by drivers/parport/parport_pc.c */
+ * Currently used only by drivers/parport/parport_pc.c */
 
 /* Values for SuperIO function select configuration register */
 #define VIA_FUNCTION_PARPORT_SPP     0x00
 #define VIA_FUNCTION_PARPORT_ECP     0x01
 #define VIA_FUNCTION_PARPORT_EPP     0x02
 #define VIA_FUNCTION_PARPORT_DISABLE 0x03
-#define VIA_FUNCTION_PROBE           0xFF /* Special magic value to be used in code, not to be written into chip */
+#define VIA_FUNCTION_PROBE           0xFF /* Special magic value to be used in
+                                           * code, not to be written into chip
+                                           * */
 
 /* Bits for parallel port mode configuration register */
 #define VIA_PARPORT_ECPEPP 0X20

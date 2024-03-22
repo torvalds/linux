@@ -18,15 +18,15 @@
 #include "psp-dev.h"
 
 struct psp_platform_access_device {
-	struct device *dev;
-	struct psp_device *psp;
+  struct device *dev;
+  struct psp_device *psp;
 
-	struct platform_access_vdata *vdata;
+  struct platform_access_vdata *vdata;
 
-	struct mutex mailbox_mutex;
-	struct mutex doorbell_mutex;
+  struct mutex mailbox_mutex;
+  struct mutex doorbell_mutex;
 
-	void *platform_access_data;
+  void *platform_access_data;
 };
 
 void platform_access_dev_destroy(struct psp_device *psp);

@@ -13,14 +13,14 @@
 struct dpu_hw_mixer;
 
 struct dpu_hw_mixer_cfg {
-	u32 out_width;
-	u32 out_height;
-	bool right_mixer;
-	int flags;
+  u32 out_width;
+  u32 out_height;
+  bool right_mixer;
+  int flags;
 };
 
 struct dpu_hw_color3_cfg {
-	u8 keep_fg[DPU_STAGE_MAX];
+  u8 keep_fg[DPU_STAGE_MAX];
 };
 
 /**
@@ -29,58 +29,58 @@ struct dpu_hw_color3_cfg {
  *  Assumption is these functions will be called after clocks are enabled
  */
 struct dpu_hw_lm_ops {
-	/*
-	 * Sets up mixer output width and height
-	 * and border color if enabled
-	 */
-	void (*setup_mixer_out)(struct dpu_hw_mixer *ctx,
-		struct dpu_hw_mixer_cfg *cfg);
+  /*
+   * Sets up mixer output width and height
+   * and border color if enabled
+   */
+  void (*setup_mixer_out)(struct dpu_hw_mixer *ctx,
+      struct dpu_hw_mixer_cfg *cfg);
 
-	/*
-	 * Alpha blending configuration
-	 * for the specified stage
-	 */
-	void (*setup_blend_config)(struct dpu_hw_mixer *ctx, uint32_t stage,
-		uint32_t fg_alpha, uint32_t bg_alpha, uint32_t blend_op);
+  /*
+   * Alpha blending configuration
+   * for the specified stage
+   */
+  void (*setup_blend_config)(struct dpu_hw_mixer *ctx, uint32_t stage,
+      uint32_t fg_alpha, uint32_t bg_alpha, uint32_t blend_op);
 
-	/*
-	 * Alpha color component selection from either fg or bg
-	 */
-	void (*setup_alpha_out)(struct dpu_hw_mixer *ctx, uint32_t mixer_op);
+  /*
+   * Alpha color component selection from either fg or bg
+   */
+  void (*setup_alpha_out)(struct dpu_hw_mixer *ctx, uint32_t mixer_op);
 
-	/**
-	 * setup_border_color : enable/disable border color
-	 */
-	void (*setup_border_color)(struct dpu_hw_mixer *ctx,
-		struct dpu_mdss_color *color,
-		u8 border_en);
+  /**
+   * setup_border_color : enable/disable border color
+   */
+  void (*setup_border_color)(struct dpu_hw_mixer *ctx,
+      struct dpu_mdss_color *color,
+      u8 border_en);
 
-	/**
-	 * setup_misr: Enable/disable MISR
-	 */
-	void (*setup_misr)(struct dpu_hw_mixer *ctx);
+  /**
+   * setup_misr: Enable/disable MISR
+   */
+  void (*setup_misr)(struct dpu_hw_mixer *ctx);
 
-	/**
-	 * collect_misr: Read MISR signature
-	 */
-	int (*collect_misr)(struct dpu_hw_mixer *ctx, u32 *misr_value);
+  /**
+   * collect_misr: Read MISR signature
+   */
+  int (*collect_misr)(struct dpu_hw_mixer *ctx, u32 *misr_value);
 };
 
 struct dpu_hw_mixer {
-	struct dpu_hw_blk base;
-	struct dpu_hw_blk_reg_map hw;
+  struct dpu_hw_blk base;
+  struct dpu_hw_blk_reg_map hw;
 
-	/* lm */
-	enum dpu_lm  idx;
-	const struct dpu_lm_cfg   *cap;
-	const struct dpu_mdp_cfg  *mdp;
-	const struct dpu_ctl_cfg  *ctl;
+  /* lm */
+  enum dpu_lm idx;
+  const struct dpu_lm_cfg *cap;
+  const struct dpu_mdp_cfg *mdp;
+  const struct dpu_ctl_cfg *ctl;
 
-	/* ops */
-	struct dpu_hw_lm_ops ops;
+  /* ops */
+  struct dpu_hw_lm_ops ops;
 
-	/* store mixer info specific to display */
-	struct dpu_hw_mixer_cfg cfg;
+  /* store mixer info specific to display */
+  struct dpu_hw_mixer_cfg cfg;
 };
 
 /**
@@ -88,9 +88,8 @@ struct dpu_hw_mixer {
  * @hw: Pointer to base hardware block
  * return: Pointer to hardware block container
  */
-static inline struct dpu_hw_mixer *to_dpu_hw_mixer(struct dpu_hw_blk *hw)
-{
-	return container_of(hw, struct dpu_hw_mixer, base);
+static inline struct dpu_hw_mixer *to_dpu_hw_mixer(struct dpu_hw_blk *hw) {
+  return container_of(hw, struct dpu_hw_mixer, base);
 }
 
 /**
@@ -101,7 +100,7 @@ static inline struct dpu_hw_mixer *to_dpu_hw_mixer(struct dpu_hw_blk *hw)
  * @addr: mapped register io address of MDP
  */
 struct dpu_hw_mixer *dpu_hw_lm_init(struct drm_device *dev,
-				    const struct dpu_lm_cfg *cfg,
-				    void __iomem *addr);
+    const struct dpu_lm_cfg *cfg,
+    void __iomem *addr);
 
 #endif /*_DPU_HW_LM_H */

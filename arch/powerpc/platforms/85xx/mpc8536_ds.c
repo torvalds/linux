@@ -27,40 +27,36 @@
 
 #include "mpc85xx.h"
 
-static void __init mpc8536_ds_pic_init(void)
-{
-	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
-			0, 256, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
-	mpic_init(mpic);
+static void __init mpc8536_ds_pic_init(void) {
+  struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
+      0, 256, " OpenPIC  ");
+  BUG_ON(mpic == NULL);
+  mpic_init(mpic);
 }
 
 /*
  * Setup the architecture
  */
-static void __init mpc8536_ds_setup_arch(void)
-{
-	if (ppc_md.progress)
-		ppc_md.progress("mpc8536_ds_setup_arch()", 0);
-
-	fsl_pci_assign_primary();
-
-	swiotlb_detect_4g();
-
-	printk("MPC8536 DS board from Freescale Semiconductor\n");
+static void __init mpc8536_ds_setup_arch(void) {
+  if (ppc_md.progress) {
+    ppc_md.progress("mpc8536_ds_setup_arch()", 0);
+  }
+  fsl_pci_assign_primary();
+  swiotlb_detect_4g();
+  printk("MPC8536 DS board from Freescale Semiconductor\n");
 }
 
 machine_arch_initcall(mpc8536_ds, mpc85xx_common_publish_devices);
 
 define_machine(mpc8536_ds) {
-	.name			= "MPC8536 DS",
-	.compatible		= "fsl,mpc8536ds",
-	.setup_arch		= mpc8536_ds_setup_arch,
-	.init_IRQ		= mpc8536_ds_pic_init,
+  .name = "MPC8536 DS",
+  .compatible = "fsl,mpc8536ds",
+  .setup_arch = mpc8536_ds_setup_arch,
+  .init_IRQ = mpc8536_ds_pic_init,
 #ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
+  .pcibios_fixup_bus = fsl_pcibios_fixup_bus,
+  .pcibios_fixup_phb = fsl_pcibios_fixup_phb,
 #endif
-	.get_irq		= mpic_get_irq,
-	.progress		= udbg_progress,
+  .get_irq = mpic_get_irq,
+  .progress = udbg_progress,
 };

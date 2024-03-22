@@ -4,8 +4,8 @@
 
 #include <linux/dmaengine.h>
 
-#define MXS_DMA_CTRL_WAIT4END	BIT(31)
-#define MXS_DMA_CTRL_WAIT4RDY	BIT(30)
+#define MXS_DMA_CTRL_WAIT4END BIT(31)
+#define MXS_DMA_CTRL_WAIT4RDY BIT(30)
 
 /*
  * The mxs dmaengine can do PIO transfers. We pass a pointer to the PIO words
@@ -14,11 +14,10 @@
  * the error prone casting we have this wrapper function
  */
 static inline struct dma_async_tx_descriptor *mxs_dmaengine_prep_pio(
-        struct dma_chan *chan, u32 *pio, unsigned int npio,
-        enum dma_transfer_direction dir, unsigned long flags)
-{
-	return dmaengine_prep_slave_sg(chan, (struct scatterlist *)pio, npio,
-				       dir, flags);
+    struct dma_chan *chan, u32 *pio, unsigned int npio,
+    enum dma_transfer_direction dir, unsigned long flags) {
+  return dmaengine_prep_slave_sg(chan, (struct scatterlist *) pio, npio,
+      dir, flags);
 }
 
 #endif /* _MXS_DMA_H_ */

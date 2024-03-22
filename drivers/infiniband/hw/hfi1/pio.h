@@ -9,8 +9,8 @@
 #define SC_KERNEL 0
 #define SC_VL15   1
 #define SC_ACK    2
-#define SC_USER   3	/* must be the last one: it may take all left */
-#define SC_MAX    4	/* count of send context types */
+#define SC_USER   3 /* must be the last one: it may take all left */
+#define SC_MAX    4 /* count of send context types */
 
 /* invalid send context index */
 #define INVALID_SCI 0xff
@@ -19,79 +19,79 @@
 typedef void (*pio_release_cb)(void *arg, int code);
 
 /* PIO release codes - in bits, as there could more than one that apply */
-#define PRC_OK		0	/* no known error */
-#define PRC_STATUS_ERR	0x01	/* credit return due to status error */
-#define PRC_PBC		0x02	/* credit return due to PBC */
-#define PRC_THRESHOLD	0x04	/* credit return due to threshold */
-#define PRC_FILL_ERR	0x08	/* credit return due fill error */
-#define PRC_FORCE	0x10	/* credit return due credit force */
-#define PRC_SC_DISABLE	0x20	/* clean-up after a context disable */
+#define PRC_OK    0 /* no known error */
+#define PRC_STATUS_ERR  0x01  /* credit return due to status error */
+#define PRC_PBC   0x02  /* credit return due to PBC */
+#define PRC_THRESHOLD 0x04  /* credit return due to threshold */
+#define PRC_FILL_ERR  0x08  /* credit return due fill error */
+#define PRC_FORCE 0x10  /* credit return due credit force */
+#define PRC_SC_DISABLE  0x20  /* clean-up after a context disable */
 
 /* byte helper */
 union mix {
-	u64 val64;
-	u32 val32[2];
-	u8  val8[8];
+  u64 val64;
+  u32 val32[2];
+  u8 val8[8];
 };
 
 /* an allocated PIO buffer */
 struct pio_buf {
-	struct send_context *sc;/* back pointer to owning send context */
-	pio_release_cb cb;	/* called when the buffer is released */
-	void *arg;		/* argument for cb */
-	void __iomem *start;	/* buffer start address */
-	void __iomem *end;	/* context end address */
-	unsigned long sent_at;	/* buffer is sent when <= free */
-	union mix carry;	/* pending unwritten bytes */
-	u16 qw_written;		/* QW written so far */
-	u8 carry_bytes;	/* number of valid bytes in carry */
+  struct send_context *sc; /* back pointer to owning send context */
+  pio_release_cb cb;  /* called when the buffer is released */
+  void *arg;    /* argument for cb */
+  void __iomem *start;  /* buffer start address */
+  void __iomem *end;  /* context end address */
+  unsigned long sent_at;  /* buffer is sent when <= free */
+  union mix carry;  /* pending unwritten bytes */
+  u16 qw_written;   /* QW written so far */
+  u8 carry_bytes; /* number of valid bytes in carry */
 };
 
 /* cache line aligned pio buffer array */
 union pio_shadow_ring {
-	struct pio_buf pbuf;
+  struct pio_buf pbuf;
 } ____cacheline_aligned;
 
 /* per-NUMA send context */
 struct send_context {
-	/* read-only after init */
-	struct hfi1_devdata *dd;		/* device */
-	union pio_shadow_ring *sr;	/* shadow ring */
-	void __iomem *base_addr;	/* start of PIO memory */
-	u32 __percpu *buffers_allocated;/* count of buffers allocated */
-	u32 size;			/* context size, in bytes */
+  /* read-only after init */
+  struct hfi1_devdata *dd;    /* device */
+  union pio_shadow_ring *sr;  /* shadow ring */
+  void __iomem *base_addr;  /* start of PIO memory */
+  u32 __percpu *buffers_allocated; /* count of buffers allocated */
+  u32 size;     /* context size, in bytes */
 
-	int node;			/* context home node */
-	u32 sr_size;			/* size of the shadow ring */
-	u16 flags;			/* flags */
-	u8  type;			/* context type */
-	u8  sw_index;			/* software index number */
-	u8  hw_context;			/* hardware context number */
-	u8  group;			/* credit return group */
+  int node;     /* context home node */
+  u32 sr_size;      /* size of the shadow ring */
+  u16 flags;      /* flags */
+  u8 type;     /* context type */
+  u8 sw_index;     /* software index number */
+  u8 hw_context;     /* hardware context number */
+  u8 group;      /* credit return group */
 
-	/* allocator fields */
-	spinlock_t alloc_lock ____cacheline_aligned_in_smp;
-	u32 sr_head;			/* shadow ring head */
-	unsigned long fill;		/* official alloc count */
-	unsigned long alloc_free;	/* copy of free (less cache thrash) */
-	u32 fill_wrap;			/* tracks fill within ring */
-	u32 credits;			/* number of blocks in context */
-	/* adding a new field here would make it part of this cacheline */
+  /* allocator fields */
+  spinlock_t alloc_lock ____cacheline_aligned_in_smp;
+  u32 sr_head;      /* shadow ring head */
+  unsigned long fill;   /* official alloc count */
+  unsigned long alloc_free; /* copy of free (less cache thrash) */
+  u32 fill_wrap;      /* tracks fill within ring */
+  u32 credits;      /* number of blocks in context */
+  /* adding a new field here would make it part of this cacheline */
 
-	/* releaser fields */
-	spinlock_t release_lock ____cacheline_aligned_in_smp;
-	u32 sr_tail;			/* shadow ring tail */
-	unsigned long free;		/* official free count */
-	volatile __le64 *hw_free;	/* HW free counter */
-	/* list for PIO waiters */
-	struct list_head piowait  ____cacheline_aligned_in_smp;
-	seqlock_t waitlock;
+  /* releaser fields */
+  spinlock_t release_lock ____cacheline_aligned_in_smp;
+  u32 sr_tail;      /* shadow ring tail */
+  unsigned long free;   /* official free count */
+  volatile __le64 *hw_free; /* HW free counter */
+  /* list for PIO waiters */
+  struct list_head piowait ____cacheline_aligned_in_smp;
+  seqlock_t waitlock;
 
-	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
-	u32 credit_intr_count;		/* count of credit intr users */
-	u64 credit_ctrl;		/* cache for credit control */
-	wait_queue_head_t halt_wait;    /* wait until kernel sees interrupt */
-	struct work_struct halt_work;	/* halted context work queue entry */
+  spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
+  u32 credit_intr_count;    /* count of credit intr users */
+  u64 credit_ctrl;    /* cache for credit control */
+  wait_queue_head_t halt_wait;    /* wait until kernel sees interrupt */
+  struct work_struct halt_work; /* halted context work queue entry */
 };
 
 /* send context flags */
@@ -102,28 +102,28 @@ struct send_context {
 #define SCF_LINK_DOWN 0x10
 
 struct send_context_info {
-	struct send_context *sc;	/* allocated working context */
-	u16 allocated;			/* has this been allocated? */
-	u16 type;			/* context type */
-	u16 base;			/* base in PIO array */
-	u16 credits;			/* size in PIO array */
+  struct send_context *sc;  /* allocated working context */
+  u16 allocated;      /* has this been allocated? */
+  u16 type;     /* context type */
+  u16 base;     /* base in PIO array */
+  u16 credits;      /* size in PIO array */
 };
 
 /* DMA credit return, index is always (context & 0x7) */
 struct credit_return {
-	volatile __le64 cr[8];
+  volatile __le64 cr[8];
 };
 
 /* NUMA indexed credit return array */
 struct credit_return_base {
-	struct credit_return *va;
-	dma_addr_t dma;
+  struct credit_return *va;
+  dma_addr_t dma;
 };
 
 /* send context configuration sizes (one per type) */
 struct sc_config_sizes {
-	short int size;
-	short int count;
+  short int size;
+  short int count;
 };
 
 /*
@@ -200,8 +200,8 @@ struct sc_config_sizes {
  * kscs
  */
 struct pio_map_elem {
-	u32 mask;
-	struct send_context *ksc[];
+  u32 mask;
+  struct send_context *ksc[];
 };
 
 /*
@@ -217,20 +217,20 @@ struct pio_map_elem {
  * array of kscs for that vl.
  */
 struct pio_vl_map {
-	struct rcu_head list;
-	u32 mask;
-	u8 actual_vls;
-	u8 vls;
-	struct pio_map_elem *map[];
+  struct rcu_head list;
+  u32 mask;
+  u8 actual_vls;
+  u8 vls;
+  struct pio_map_elem *map[];
 };
 
 int pio_map_init(struct hfi1_devdata *dd, u8 port, u8 num_vls,
-		 u8 *vl_scontexts);
+    u8 *vl_scontexts);
 void free_pio_map(struct hfi1_devdata *dd);
 struct send_context *pio_select_send_context_vl(struct hfi1_devdata *dd,
-						u32 selector, u8 vl);
+    u32 selector, u8 vl);
 struct send_context *pio_select_send_context_sc(struct hfi1_devdata *dd,
-						u32 selector, u8 sc5);
+    u32 selector, u8 sc5);
 
 /* send context functions */
 int init_credit_return(struct hfi1_devdata *dd);
@@ -239,7 +239,7 @@ int init_sc_pools_and_sizes(struct hfi1_devdata *dd);
 int init_send_contexts(struct hfi1_devdata *dd);
 int init_pervl_scs(struct hfi1_devdata *dd);
 struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
-			      uint hdrqentsize, int numa);
+    uint hdrqentsize, int numa);
 void sc_free(struct send_context *sc);
 int sc_enable(struct send_context *sc);
 void sc_disable(struct send_context *sc);
@@ -249,7 +249,7 @@ void sc_flush(struct send_context *sc);
 void sc_drop(struct send_context *sc);
 void sc_stop(struct send_context *sc, int bit);
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
-				pio_release_cb cb, void *arg);
+    pio_release_cb cb, void *arg);
 void sc_release_update(struct send_context *sc);
 void sc_group_release_update(struct hfi1_devdata *dd, u32 hw_context);
 void sc_add_credit_return_intr(struct send_context *sc);
@@ -281,13 +281,13 @@ void pio_send_control(struct hfi1_devdata *dd, int op);
 
 /* PIO copy routines */
 void pio_copy(struct hfi1_devdata *dd, struct pio_buf *pbuf, u64 pbc,
-	      const void *from, size_t count);
+    const void *from, size_t count);
 void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
-			const void *from, size_t nbytes);
+    const void *from, size_t nbytes);
 void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes);
 void seg_pio_copy_end(struct pio_buf *pbuf);
 
 void seqfile_dump_sci(struct seq_file *s, u32 i,
-		      struct send_context_info *sci);
+    struct send_context_info *sci);
 
 #endif /* _PIO_H */

@@ -23,9 +23,9 @@
 /* Enumerate the TPG IDs.
  */
 enum ia_css_tpg_id {
-	IA_CSS_TPG_ID0,
-	IA_CSS_TPG_ID1,
-	IA_CSS_TPG_ID2
+  IA_CSS_TPG_ID0,
+  IA_CSS_TPG_ID1,
+  IA_CSS_TPG_ID2
 };
 
 /**
@@ -39,10 +39,10 @@ enum ia_css_tpg_id {
 /* Enumerate the TPG modes.
  */
 enum ia_css_tpg_mode {
-	IA_CSS_TPG_MODE_RAMP,
-	IA_CSS_TPG_MODE_CHECKERBOARD,
-	IA_CSS_TPG_MODE_FRAME_BASED_COLOR,
-	IA_CSS_TPG_MODE_MONO
+  IA_CSS_TPG_MODE_RAMP,
+  IA_CSS_TPG_MODE_CHECKERBOARD,
+  IA_CSS_TPG_MODE_FRAME_BASED_COLOR,
+  IA_CSS_TPG_MODE_MONO
 };
 
 /* @brief Configure the test pattern generator.
@@ -54,26 +54,26 @@ enum ia_css_tpg_mode {
  *
  * This interface is deprecated, it is not portable -> move to input system API
  *
-@code
-unsigned int test_pattern_value(unsigned int x, unsigned int y)
-{
- unsigned int x_val, y_val;
- if (x_delta > 0) (x_val = (x << x_delta) & x_mask;
- else (x_val = (x >> -x_delta) & x_mask;
- if (y_delta > 0) (y_val = (y << y_delta) & y_mask;
- else (y_val = (y >> -y_delta) & x_mask;
- return (x_val + y_val) & xy_mask;
-}
-@endcode
+ * @code
+ * unsigned int test_pattern_value(unsigned int x, unsigned int y)
+ * {
+ * unsigned int x_val, y_val;
+ * if (x_delta > 0) (x_val = (x << x_delta) & x_mask;
+ * else (x_val = (x >> -x_delta) & x_mask;
+ * if (y_delta > 0) (y_val = (y << y_delta) & y_mask;
+ * else (y_val = (y >> -y_delta) & x_mask;
+ * return (x_val + y_val) & xy_mask;
+ * }
+ * @endcode
  */
 struct ia_css_tpg_config {
-	enum ia_css_tpg_id   id;
-	enum ia_css_tpg_mode mode;
-	unsigned int         x_mask;
-	int                  x_delta;
-	unsigned int         y_mask;
-	int                  y_delta;
-	unsigned int         xy_mask;
+  enum ia_css_tpg_id id;
+  enum ia_css_tpg_mode mode;
+  unsigned int x_mask;
+  int x_delta;
+  unsigned int y_mask;
+  int y_delta;
+  unsigned int xy_mask;
 };
 
 #endif /* __IA_CSS_TPG_H */

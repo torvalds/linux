@@ -88,7 +88,9 @@
 #define SO_VM_SOCKETS_CONNECT_TIMEOUT SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD
 #else
 #define SO_VM_SOCKETS_CONNECT_TIMEOUT \
-	(sizeof(time_t) == sizeof(__kernel_long_t) ? SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD : SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW)
+  (sizeof(time_t) \
+  == sizeof(__kernel_long_t) ? SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD   \
+  : SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW)
 #endif
 #endif
 
@@ -176,20 +178,20 @@
  */
 
 struct sockaddr_vm {
-	__kernel_sa_family_t svm_family;
-	unsigned short svm_reserved1;
-	unsigned int svm_port;
-	unsigned int svm_cid;
-	__u8 svm_flags;
-	unsigned char svm_zero[sizeof(struct sockaddr) -
-			       sizeof(sa_family_t) -
-			       sizeof(unsigned short) -
-			       sizeof(unsigned int) -
-			       sizeof(unsigned int) -
-			       sizeof(__u8)];
+  __kernel_sa_family_t svm_family;
+  unsigned short svm_reserved1;
+  unsigned int svm_port;
+  unsigned int svm_cid;
+  __u8 svm_flags;
+  unsigned char svm_zero[sizeof(struct sockaddr)
+      - sizeof(sa_family_t)
+      - sizeof(unsigned short)
+      - sizeof(unsigned int)
+      - sizeof(unsigned int)
+      - sizeof(__u8)];
 };
 
-#define IOCTL_VM_SOCKETS_GET_LOCAL_CID		_IO(7, 0xb9)
+#define IOCTL_VM_SOCKETS_GET_LOCAL_CID    _IO(7, 0xb9)
 
 /* MSG_ZEROCOPY notifications are encoded in the standard error format,
  * sock_extended_err. See Documentation/networking/msg_zerocopy.rst in
@@ -200,12 +202,12 @@ struct sockaddr_vm {
  * when MSG_ZEROCOPY flag is used on transmissions.
  */
 
-#define SOL_VSOCK	287
+#define SOL_VSOCK 287
 
 /* 'cmsg_type' field value of 'struct cmsghdr' for notification parsing
  * when MSG_ZEROCOPY flag is used on transmissions.
  */
 
-#define VSOCK_RECVERR	1
+#define VSOCK_RECVERR 1
 
 #endif /* _UAPI_VM_SOCKETS_H */

@@ -4,8 +4,8 @@
 #include "../wifi.h"
 #include <linux/module.h>
 
-
 MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.Finger@lwfinger.net>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Realtek RTL8723AE/RTL8723BE 802.11n PCI wireless common routines");
+MODULE_DESCRIPTION(
+    "Realtek RTL8723AE/RTL8723BE 802.11n PCI wireless common routines");

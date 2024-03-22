@@ -167,134 +167,134 @@
 
 #define M98095_0FF_REV_ID                   0xFF
 
-#define M98095_REG_CNT                      (0xFF+1)
+#define M98095_REG_CNT                      (0xFF + 1)
 #define M98095_REG_MAX_CACHED               0X97
 
 /* MAX98095 Registers Bit Fields */
 
 /* M98095_007_JACK_AUTO_STS */
-	#define M98095_MIC_IN			(1<<3)
-	#define M98095_LO_IN			(1<<5)
-	#define M98095_HP_IN			(1<<6)
-	#define M98095_DDONE			(1<<7)
+#define M98095_MIC_IN     (1 << 3)
+#define M98095_LO_IN      (1 << 5)
+#define M98095_HP_IN      (1 << 6)
+#define M98095_DDONE      (1 << 7)
 
 /* M98095_00F_HOST_CFG */
-	#define M98095_SEG                      (1<<0)
-	#define M98095_XTEN                     (1<<1)
-	#define M98095_MDLLEN                   (1<<2)
+#define M98095_SEG                      (1 << 0)
+#define M98095_XTEN                     (1 << 1)
+#define M98095_MDLLEN                   (1 << 2)
 
 /* M98095_013_JACK_INT_EN */
-	#define M98095_IMIC_IN			(1<<3)
-	#define M98095_ILO_IN			(1<<5)
-	#define M98095_IHP_IN			(1<<6)
-	#define M98095_IDDONE			(1<<7)
+#define M98095_IMIC_IN      (1 << 3)
+#define M98095_ILO_IN     (1 << 5)
+#define M98095_IHP_IN     (1 << 6)
+#define M98095_IDDONE     (1 << 7)
 
 /* M98095_027_DAI1_CLKMODE, M98095_031_DAI2_CLKMODE, M98095_03B_DAI3_CLKMODE */
-	#define M98095_CLKMODE_MASK             0xFF
+#define M98095_CLKMODE_MASK             0xFF
 
 /* M98095_02A_DAI1_FORMAT, M98095_034_DAI2_FORMAT, M98095_03E_DAI3_FORMAT */
-	#define M98095_DAI_MAS                  (1<<7)
-	#define M98095_DAI_WCI                  (1<<6)
-	#define M98095_DAI_BCI                  (1<<5)
-	#define M98095_DAI_DLY                  (1<<4)
-	#define M98095_DAI_TDM                  (1<<2)
-	#define M98095_DAI_FSW                  (1<<1)
-	#define M98095_DAI_WS                   (1<<0)
+#define M98095_DAI_MAS                  (1 << 7)
+#define M98095_DAI_WCI                  (1 << 6)
+#define M98095_DAI_BCI                  (1 << 5)
+#define M98095_DAI_DLY                  (1 << 4)
+#define M98095_DAI_TDM                  (1 << 2)
+#define M98095_DAI_FSW                  (1 << 1)
+#define M98095_DAI_WS                   (1 << 0)
 
 /* M98095_02B_DAI1_CLOCK, M98095_035_DAI2_CLOCK, M98095_03F_DAI3_CLOCK */
-	#define M98095_DAI_BSEL64               (1<<0)
-	#define M98095_DAI_DOSR_DIV2            (0<<5)
-	#define M98095_DAI_DOSR_DIV4            (1<<5)
+#define M98095_DAI_BSEL64               (1 << 0)
+#define M98095_DAI_DOSR_DIV2            (0 << 5)
+#define M98095_DAI_DOSR_DIV4            (1 << 5)
 
 /* M98095_02C_DAI1_IOCFG, M98095_036_DAI2_IOCFG, M98095_040_DAI3_IOCFG */
-	#define M98095_S1NORMAL                 (1<<6)
-	#define M98095_S2NORMAL                 (2<<6)
-	#define M98095_S3NORMAL                 (3<<6)
-	#define M98095_SDATA                    (3<<0)
+#define M98095_S1NORMAL                 (1 << 6)
+#define M98095_S2NORMAL                 (2 << 6)
+#define M98095_S3NORMAL                 (3 << 6)
+#define M98095_SDATA                    (3 << 0)
 
 /* M98095_02E_DAI1_FILTERS, M98095_038_DAI2_FILTERS, M98095_042_DAI3_FILTERS */
-	#define M98095_DAI_DHF                  (1<<3)
+#define M98095_DAI_DHF                  (1 << 3)
 
 /* M98095_045_DSP_CFG */
-	#define M98095_DSPNORMAL                (5<<4)
+#define M98095_DSPNORMAL                (5 << 4)
 
 /* M98095_048_MIX_DAC_LR */
-	#define M98095_DAI1L_TO_DACR            (1<<7)
-	#define M98095_DAI1R_TO_DACR            (1<<6)
-	#define M98095_DAI2M_TO_DACR            (1<<5)
-	#define M98095_DAI1L_TO_DACL            (1<<3)
-	#define M98095_DAI1R_TO_DACL            (1<<2)
-	#define M98095_DAI2M_TO_DACL            (1<<1)
-	#define M98095_DAI3M_TO_DACL            (1<<0)
+#define M98095_DAI1L_TO_DACR            (1 << 7)
+#define M98095_DAI1R_TO_DACR            (1 << 6)
+#define M98095_DAI2M_TO_DACR            (1 << 5)
+#define M98095_DAI1L_TO_DACL            (1 << 3)
+#define M98095_DAI1R_TO_DACL            (1 << 2)
+#define M98095_DAI2M_TO_DACL            (1 << 1)
+#define M98095_DAI3M_TO_DACL            (1 << 0)
 
 /* M98095_049_MIX_DAC_M */
-	#define M98095_DAI1L_TO_DACM            (1<<3)
-	#define M98095_DAI1R_TO_DACM            (1<<2)
-	#define M98095_DAI2M_TO_DACM            (1<<1)
-	#define M98095_DAI3M_TO_DACM            (1<<0)
+#define M98095_DAI1L_TO_DACM            (1 << 3)
+#define M98095_DAI1R_TO_DACM            (1 << 2)
+#define M98095_DAI2M_TO_DACM            (1 << 1)
+#define M98095_DAI3M_TO_DACM            (1 << 0)
 
 /* M98095_04E_MIX_HP_CFG */
-	#define M98095_HPNORMAL                 (3<<4)
+#define M98095_HPNORMAL                 (3 << 4)
 
 /* M98095_05F_LVL_MIC1, M98095_060_LVL_MIC2 */
-	#define M98095_MICPRE_MASK              (3<<5)
-	#define M98095_MICPRE_SHIFT             5
+#define M98095_MICPRE_MASK              (3 << 5)
+#define M98095_MICPRE_SHIFT             5
 
 /* M98095_064_LVL_HP_L, M98095_065_LVL_HP_R */
-	#define M98095_HP_MUTE                  (1<<7)
+#define M98095_HP_MUTE                  (1 << 7)
 
 /* M98095_066_LVL_RCV */
-	#define M98095_REC_MUTE                 (1<<7)
+#define M98095_REC_MUTE                 (1 << 7)
 
 /* M98095_067_LVL_SPK_L, M98095_068_LVL_SPK_R */
-	#define M98095_SP_MUTE                  (1<<7)
+#define M98095_SP_MUTE                  (1 << 7)
 
 /* M98095_087_CFG_MIC */
-	#define M98095_MICSEL_MASK              (3<<0)
-	#define M98095_DIGMIC_L                 (1<<2)
-	#define M98095_DIGMIC_R                 (1<<3)
-	#define M98095_DIGMIC2L                 (1<<4)
-	#define M98095_DIGMIC2R                 (1<<5)
+#define M98095_MICSEL_MASK              (3 << 0)
+#define M98095_DIGMIC_L                 (1 << 2)
+#define M98095_DIGMIC_R                 (1 << 3)
+#define M98095_DIGMIC2L                 (1 << 4)
+#define M98095_DIGMIC2R                 (1 << 5)
 
 /* M98095_088_CFG_LEVEL */
-	#define M98095_VSEN                     (1<<6)
-	#define M98095_ZDEN                     (1<<5)
-	#define M98095_BQ2EN                    (1<<3)
-	#define M98095_BQ1EN                    (1<<2)
-	#define M98095_EQ2EN                    (1<<1)
-	#define M98095_EQ1EN                    (1<<0)
+#define M98095_VSEN                     (1 << 6)
+#define M98095_ZDEN                     (1 << 5)
+#define M98095_BQ2EN                    (1 << 3)
+#define M98095_BQ1EN                    (1 << 2)
+#define M98095_EQ2EN                    (1 << 1)
+#define M98095_EQ1EN                    (1 << 0)
 
 /* M98095_089_JACK_DET_AUTO */
-	#define M98095_PIN5EN			(1<<2)
-	#define M98095_JDEN			(1<<7)
+#define M98095_PIN5EN     (1 << 2)
+#define M98095_JDEN     (1 << 7)
 
 /* M98095_090_PWR_EN_IN */
-	#define M98095_INEN                     (1<<7)
-	#define M98095_MB2EN                    (1<<3)
-	#define M98095_MB1EN                    (1<<2)
-	#define M98095_MBEN                     (3<<2)
-	#define M98095_ADREN                    (1<<1)
-	#define M98095_ADLEN                    (1<<0)
+#define M98095_INEN                     (1 << 7)
+#define M98095_MB2EN                    (1 << 3)
+#define M98095_MB1EN                    (1 << 2)
+#define M98095_MBEN                     (3 << 2)
+#define M98095_ADREN                    (1 << 1)
+#define M98095_ADLEN                    (1 << 0)
 
 /* M98095_091_PWR_EN_OUT */
-	#define M98095_HPLEN                    (1<<7)
-	#define M98095_HPREN                    (1<<6)
-	#define M98095_SPLEN                    (1<<5)
-	#define M98095_SPREN                    (1<<4)
-	#define M98095_RECEN                    (1<<3)
-	#define M98095_DALEN                    (1<<1)
-	#define M98095_DAREN                    (1<<0)
+#define M98095_HPLEN                    (1 << 7)
+#define M98095_HPREN                    (1 << 6)
+#define M98095_SPLEN                    (1 << 5)
+#define M98095_SPREN                    (1 << 4)
+#define M98095_RECEN                    (1 << 3)
+#define M98095_DALEN                    (1 << 1)
+#define M98095_DAREN                    (1 << 0)
 
 /* M98095_092_PWR_EN_OUT */
-	#define M98095_SPK_FIXEDSPECTRUM        (0<<4)
-	#define M98095_SPK_SPREADSPECTRUM       (1<<4)
+#define M98095_SPK_FIXEDSPECTRUM        (0 << 4)
+#define M98095_SPK_SPREADSPECTRUM       (1 << 4)
 
 /* M98095_097_PWR_SYS */
-	#define M98095_SHDNRUN                  (1<<7)
-	#define M98095_PERFMODE                 (1<<3)
-	#define M98095_HPPLYBACK                (1<<2)
-	#define M98095_PWRSV8K                  (1<<1)
-	#define M98095_PWRSV                    (1<<0)
+#define M98095_SHDNRUN                  (1 << 7)
+#define M98095_PERFMODE                 (1 << 3)
+#define M98095_HPPLYBACK                (1 << 2)
+#define M98095_PWRSV8K                  (1 << 1)
+#define M98095_PWRSV                    (1 << 0)
 
 #define M98095_COEFS_PER_BAND            5
 
@@ -310,9 +310,9 @@
 #define M98095_17E_DAI2_BQ_BASE             0x7E
 
 /* Default Delay used in Slew Rate Calculation for Jack detection */
-#define M98095_DEFAULT_SLEW_DELAY		0x18
+#define M98095_DEFAULT_SLEW_DELAY   0x18
 
 extern int max98095_jack_detect(struct snd_soc_component *component,
-	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack);
+    struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack);
 
 #endif

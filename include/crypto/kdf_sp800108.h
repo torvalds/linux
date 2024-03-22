@@ -15,13 +15,13 @@
  * as well as SP800-56A section 5.8.1 (Single-step KDF).
  *
  * @kmd Keyed message digest whose key was set with crypto_kdf108_setkey or
- *	unkeyed message digest
+ *  unkeyed message digest
  * @info optional context and application specific information - this may be
- *	 NULL
+ *   NULL
  * @info_vec number of optional context/application specific information entries
  * @dst destination buffer that the caller already allocated
  * @dlen length of the destination buffer - the KDF derives that amount of
- *	 bytes.
+ *   bytes.
  *
  * To comply with SP800-108, the caller must provide Label || 0x00 || Context
  * in the info parameter.
@@ -29,14 +29,14 @@
  * @return 0 on success, < 0 on error
  */
 int crypto_kdf108_ctr_generate(struct crypto_shash *kmd,
-			       const struct kvec *info, unsigned int info_nvec,
-			       u8 *dst, unsigned int dlen);
+    const struct kvec *info, unsigned int info_nvec,
+    u8 *dst, unsigned int dlen);
 
 /**
  * Counter KDF setkey operation
  *
  * @kmd Keyed message digest allocated by the caller. The key should not have
- *	been set.
+ *  been set.
  * @key Seed key to be used to initialize the keyed message digest context.
  * @keylen This length of the key buffer.
  * @ikm The SP800-108 KDF does not support IKM - this parameter must be NULL
@@ -55,7 +55,7 @@ int crypto_kdf108_ctr_generate(struct crypto_shash *kmd,
  * @return 0 on success, < 0 on error
  */
 int crypto_kdf108_setkey(struct crypto_shash *kmd,
-			 const u8 *key, size_t keylen,
-			 const u8 *ikm, size_t ikmlen);
+    const u8 *key, size_t keylen,
+    const u8 *ikm, size_t ikmlen);
 
 #endif /* _CRYPTO_KDF108_H */

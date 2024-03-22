@@ -50,16 +50,16 @@ extern void fpundefinstr(void);
 void mmioset(void *, unsigned int, size_t);
 void mmiocpy(void *, const void *, size_t);
 
-	/* platform dependent support */
+/* platform dependent support */
 EXPORT_SYMBOL(arm_delay_ops);
 
-	/* networking */
+/* networking */
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_from_user);
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
 EXPORT_SYMBOL(__csum_ipv6_magic);
 
-	/* io */
+/* io */
 #ifndef __raw_readsb
 EXPORT_SYMBOL(__raw_readsb);
 #endif
@@ -79,7 +79,7 @@ EXPORT_SYMBOL(__raw_writesw);
 EXPORT_SYMBOL(__raw_writesl);
 #endif
 
-	/* string / mem functions */
+/* string / mem functions */
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(memset);
@@ -117,7 +117,7 @@ EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
 #endif
 
-	/* gcc lib functions */
+/* gcc lib functions */
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__divsi3);
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(__aeabi_uidivmod);
 EXPORT_SYMBOL(__aeabi_ulcmp);
 #endif
 
-	/* bitops */
+/* bitops */
 EXPORT_SYMBOL(_set_bit);
 EXPORT_SYMBOL(_test_and_set_bit);
 EXPORT_SYMBOL(_clear_bit);

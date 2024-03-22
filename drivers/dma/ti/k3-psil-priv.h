@@ -9,17 +9,17 @@
 #include <linux/dma/k3-psil.h>
 
 struct psil_ep {
-	u32 thread_id;
-	struct psil_endpoint_config ep_config;
+  u32 thread_id;
+  struct psil_endpoint_config ep_config;
 };
 
 /**
  * struct psil_ep_map - PSI-L thread ID configuration maps
- * @name:	Name of the map, set it to the name of the SoC
- * @src:	Array of source PSI-L thread configurations
- * @src_count:	Number of entries in the src array
- * @dst:	Array of destination PSI-L thread configurations
- * @dst_count:	Number of entries in the dst array
+ * @name: Name of the map, set it to the name of the SoC
+ * @src:  Array of source PSI-L thread configurations
+ * @src_count:  Number of entries in the src array
+ * @dst:  Array of destination PSI-L thread configurations
+ * @dst_count:  Number of entries in the dst array
  *
  * In case of symmetric configuration for a matching src/dst thread (for example
  * 0x4400 and 0xc400) only the src configuration can be present. If no dst
@@ -27,11 +27,11 @@ struct psil_ep {
  * the symmetric match.
  */
 struct psil_ep_map {
-	char *name;
-	struct psil_ep	*src;
-	int src_count;
-	struct psil_ep	*dst;
-	int dst_count;
+  char *name;
+  struct psil_ep *src;
+  int src_count;
+  struct psil_ep *dst;
+  int dst_count;
 };
 
 struct psil_endpoint_config *psil_get_ep_config(u32 thread_id);

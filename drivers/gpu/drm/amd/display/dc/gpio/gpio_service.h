@@ -30,32 +30,32 @@ struct hw_translate;
 struct hw_factory;
 
 struct gpio_service {
-	struct dc_context *ctx;
-	struct hw_translate translate;
-	struct hw_factory factory;
-	/*
-	 * @brief
-	 * Business storage.
-	 * one byte For each member of 'enum gpio_id'
-	 */
-	char *busyness[GPIO_ID_COUNT];
+  struct dc_context *ctx;
+  struct hw_translate translate;
+  struct hw_factory factory;
+  /*
+   * @brief
+   * Business storage.
+   * one byte For each member of 'enum gpio_id'
+   */
+  char *busyness[GPIO_ID_COUNT];
 };
 
 enum gpio_result dal_gpio_service_open(
-	struct gpio *gpio);
+  struct gpio *gpio);
 
 void dal_gpio_service_close(
-	struct gpio_service *service,
-	struct hw_gpio_pin **ptr);
+  struct gpio_service *service,
+  struct hw_gpio_pin **ptr);
 
 enum gpio_result dal_gpio_service_lock(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en);
+  struct gpio_service *service,
+  enum gpio_id id,
+  uint32_t en);
 
 enum gpio_result dal_gpio_service_unlock(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en);
+  struct gpio_service *service,
+  enum gpio_id id,
+  uint32_t en);
 
 #endif

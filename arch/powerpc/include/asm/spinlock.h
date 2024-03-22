@@ -11,10 +11,12 @@
 #endif
 
 /* See include/linux/spinlock.h */
-#define smp_mb__after_spinlock()	smp_mb()
+#define smp_mb__after_spinlock()  smp_mb()
 
 #ifndef CONFIG_PPC_QUEUED_SPINLOCKS
-static inline void pv_spinlocks_init(void) { }
+static inline void pv_spinlocks_init(void) {
+}
+
 #endif
 
 #endif /* __KERNEL__ */

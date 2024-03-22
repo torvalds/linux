@@ -28,22 +28,19 @@
  *
  * Return: 0 on success, negative error code on failure.
  */
-int intel_region_ttm_device_init(struct drm_i915_private *dev_priv)
-{
-	struct drm_device *drm = &dev_priv->drm;
-
-	return ttm_device_init(&dev_priv->bdev, i915_ttm_driver(),
-			       drm->dev, drm->anon_inode->i_mapping,
-			       drm->vma_offset_manager, false, false);
+int intel_region_ttm_device_init(struct drm_i915_private *dev_priv) {
+  struct drm_device *drm = &dev_priv->drm;
+  return ttm_device_init(&dev_priv->bdev, i915_ttm_driver(),
+      drm->dev, drm->anon_inode->i_mapping,
+      drm->vma_offset_manager, false, false);
 }
 
 /**
  * intel_region_ttm_device_fini - Finalize a TTM device
  * @dev_priv: Pointer to an i915 device private structure.
  */
-void intel_region_ttm_device_fini(struct drm_i915_private *dev_priv)
-{
-	ttm_device_fini(&dev_priv->bdev);
+void intel_region_ttm_device_fini(struct drm_i915_private *dev_priv) {
+  ttm_device_fini(&dev_priv->bdev);
 }
 
 /*
@@ -51,21 +48,17 @@ void intel_region_ttm_device_fini(struct drm_i915_private *dev_priv)
  * driver-private types for now, reserving TTM_PL_VRAM for stolen
  * memory and TTM_PL_TT for GGTT use if decided to implement this.
  */
-int intel_region_to_ttm_type(const struct intel_memory_region *mem)
-{
-	int type;
-
-	GEM_BUG_ON(mem->type != INTEL_MEMORY_LOCAL &&
-		   mem->type != INTEL_MEMORY_MOCK &&
-		   mem->type != INTEL_MEMORY_SYSTEM);
-
-	if (mem->type == INTEL_MEMORY_SYSTEM)
-		return TTM_PL_SYSTEM;
-
-	type = mem->instance + TTM_PL_PRIV;
-	GEM_BUG_ON(type >= TTM_NUM_MEM_TYPES);
-
-	return type;
+int intel_region_to_ttm_type(const struct intel_memory_region *mem) {
+  int type;
+  GEM_BUG_ON(mem->type != INTEL_MEMORY_LOCAL
+      && mem->type != INTEL_MEMORY_MOCK
+      && mem->type != INTEL_MEMORY_SYSTEM);
+  if (mem->type == INTEL_MEMORY_SYSTEM) {
+    return TTM_PL_SYSTEM;
+  }
+  type = mem->instance + TTM_PL_PRIV;
+  GEM_BUG_ON(type >= TTM_NUM_MEM_TYPES);
+  return type;
 }
 
 /**
@@ -79,22 +72,19 @@ int intel_region_to_ttm_type(const struct intel_memory_region *mem)
  *
  * Return: 0 on success, negative error code on failure.
  */
-int intel_region_ttm_init(struct intel_memory_region *mem)
-{
-	struct ttm_device *bdev = &mem->i915->bdev;
-	int mem_type = intel_region_to_ttm_type(mem);
-	int ret;
-
-	ret = i915_ttm_buddy_man_init(bdev, mem_type, false,
-				      resource_size(&mem->region),
-				      resource_size(&mem->io),
-				      mem->min_page_size, PAGE_SIZE);
-	if (ret)
-		return ret;
-
-	mem->region_private = ttm_manager_type(bdev, mem_type);
-
-	return 0;
+int intel_region_ttm_init(struct intel_memory_region *mem) {
+  struct ttm_device *bdev = &mem->i915->bdev;
+  int mem_type = intel_region_to_ttm_type(mem);
+  int ret;
+  ret = i915_ttm_buddy_man_init(bdev, mem_type, false,
+      resource_size(&mem->region),
+      resource_size(&mem->io),
+      mem->min_page_size, PAGE_SIZE);
+  if (ret) {
+    return ret;
+  }
+  mem->region_private = ttm_manager_type(bdev, mem_type);
+  return 0;
 }
 
 /**
@@ -105,45 +95,41 @@ int intel_region_ttm_init(struct intel_memory_region *mem)
  * memory region, and if it was registered with the TTM device,
  * removes that registration.
  */
-int intel_region_ttm_fini(struct intel_memory_region *mem)
-{
-	struct ttm_resource_manager *man = mem->region_private;
-	int ret = -EBUSY;
-	int count;
-
-	/*
-	 * Put the region's move fences. This releases requests that
-	 * may hold on to contexts and vms that may hold on to buffer
-	 * objects placed in this region.
-	 */
-	if (man)
-		ttm_resource_manager_cleanup(man);
-
-	/* Flush objects from region. */
-	for (count = 0; count < 10; ++count) {
-		i915_gem_flush_free_objects(mem->i915);
-
-		mutex_lock(&mem->objects.lock);
-		if (list_empty(&mem->objects.list))
-			ret = 0;
-		mutex_unlock(&mem->objects.lock);
-		if (!ret)
-			break;
-
-		msleep(20);
-		drain_workqueue(mem->i915->bdev.wq);
-	}
-
-	/* If we leaked objects, Don't free the region causing use after free */
-	if (ret || !man)
-		return ret;
-
-	ret = i915_ttm_buddy_man_fini(&mem->i915->bdev,
-				      intel_region_to_ttm_type(mem));
-	GEM_WARN_ON(ret);
-	mem->region_private = NULL;
-
-	return ret;
+int intel_region_ttm_fini(struct intel_memory_region *mem) {
+  struct ttm_resource_manager *man = mem->region_private;
+  int ret = -EBUSY;
+  int count;
+  /*
+   * Put the region's move fences. This releases requests that
+   * may hold on to contexts and vms that may hold on to buffer
+   * objects placed in this region.
+   */
+  if (man) {
+    ttm_resource_manager_cleanup(man);
+  }
+  /* Flush objects from region. */
+  for (count = 0; count < 10; ++count) {
+    i915_gem_flush_free_objects(mem->i915);
+    mutex_lock(&mem->objects.lock);
+    if (list_empty(&mem->objects.list)) {
+      ret = 0;
+    }
+    mutex_unlock(&mem->objects.lock);
+    if (!ret) {
+      break;
+    }
+    msleep(20);
+    drain_workqueue(mem->i915->bdev.wq);
+  }
+  /* If we leaked objects, Don't free the region causing use after free */
+  if (ret || !man) {
+    return ret;
+  }
+  ret = i915_ttm_buddy_man_fini(&mem->i915->bdev,
+      intel_region_to_ttm_type(mem));
+  GEM_WARN_ON(ret);
+  mem->region_private = NULL;
+  return ret;
 }
 
 /**
@@ -159,22 +145,20 @@ int intel_region_ttm_fini(struct intel_memory_region *mem)
  *
  * Return: A malloced sg_table on success, an error pointer on failure.
  */
-struct i915_refct_sgt *
-intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
-				  struct ttm_resource *res,
-				  u32 page_alignment)
-{
-	if (mem->is_range_manager) {
-		struct ttm_range_mgr_node *range_node =
-			to_ttm_range_mgr_node(res);
-
-		return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
-					      mem->region.start,
-					      page_alignment);
-	} else {
-		return i915_rsgt_from_buddy_resource(res, mem->region.start,
-						     page_alignment);
-	}
+struct i915_refct_sgt *intel_region_ttm_resource_to_rsgt(
+    struct intel_memory_region *mem,
+    struct ttm_resource *res,
+    u32 page_alignment) {
+  if (mem->is_range_manager) {
+    struct ttm_range_mgr_node *range_node
+      = to_ttm_range_mgr_node(res);
+    return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
+        mem->region.start,
+        page_alignment);
+  } else {
+    return i915_rsgt_from_buddy_resource(res, mem->region.start,
+        page_alignment);
+  }
 }
 
 #ifdef CONFIG_DRM_I915_SELFTEST
@@ -194,73 +178,71 @@ intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
  *
  * Return: A valid pointer on success, an error pointer on failure.
  */
-struct ttm_resource *
-intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
-				resource_size_t offset,
-				resource_size_t size,
-				unsigned int flags)
-{
-	struct ttm_resource_manager *man = mem->region_private;
-	struct ttm_place place = {};
-	struct ttm_buffer_object mock_bo = {};
-	struct ttm_resource *res;
-	int ret;
-
-	if (flags & I915_BO_ALLOC_CONTIGUOUS)
-		place.flags |= TTM_PL_FLAG_CONTIGUOUS;
-	if (offset != I915_BO_INVALID_OFFSET) {
-		if (WARN_ON(overflows_type(offset >> PAGE_SHIFT, place.fpfn))) {
-			ret = -E2BIG;
-			goto out;
-		}
-		place.fpfn = offset >> PAGE_SHIFT;
-		if (WARN_ON(overflows_type(place.fpfn + (size >> PAGE_SHIFT), place.lpfn))) {
-			ret = -E2BIG;
-			goto out;
-		}
-		place.lpfn = place.fpfn + (size >> PAGE_SHIFT);
-	} else if (resource_size(&mem->io) && resource_size(&mem->io) < mem->total) {
-		if (flags & I915_BO_ALLOC_GPU_ONLY) {
-			place.flags |= TTM_PL_FLAG_TOPDOWN;
-		} else {
-			place.fpfn = 0;
-			if (WARN_ON(overflows_type(resource_size(&mem->io) >> PAGE_SHIFT, place.lpfn))) {
-				ret = -E2BIG;
-				goto out;
-			}
-			place.lpfn = resource_size(&mem->io) >> PAGE_SHIFT;
-		}
-	}
-
-	mock_bo.base.size = size;
-	mock_bo.bdev = &mem->i915->bdev;
-
-	ret = man->func->alloc(man, &mock_bo, &place, &res);
-
+struct ttm_resource *intel_region_ttm_resource_alloc(
+    struct intel_memory_region *mem,
+    resource_size_t offset,
+    resource_size_t size,
+    unsigned int flags) {
+  struct ttm_resource_manager *man = mem->region_private;
+  struct ttm_place place = {};
+  struct ttm_buffer_object mock_bo = {};
+  struct ttm_resource *res;
+  int ret;
+  if (flags & I915_BO_ALLOC_CONTIGUOUS) {
+    place.flags |= TTM_PL_FLAG_CONTIGUOUS;
+  }
+  if (offset != I915_BO_INVALID_OFFSET) {
+    if (WARN_ON(overflows_type(offset >> PAGE_SHIFT, place.fpfn))) {
+      ret = -E2BIG;
+      goto out;
+    }
+    place.fpfn = offset >> PAGE_SHIFT;
+    if (WARN_ON(overflows_type(place.fpfn + (size >> PAGE_SHIFT),
+        place.lpfn))) {
+      ret = -E2BIG;
+      goto out;
+    }
+    place.lpfn = place.fpfn + (size >> PAGE_SHIFT);
+  } else if (resource_size(&mem->io) && resource_size(&mem->io) < mem->total) {
+    if (flags & I915_BO_ALLOC_GPU_ONLY) {
+      place.flags |= TTM_PL_FLAG_TOPDOWN;
+    } else {
+      place.fpfn = 0;
+      if (WARN_ON(overflows_type(resource_size(&mem->io) >> PAGE_SHIFT,
+          place.lpfn))) {
+        ret = -E2BIG;
+        goto out;
+      }
+      place.lpfn = resource_size(&mem->io) >> PAGE_SHIFT;
+    }
+  }
+  mock_bo.base.size = size;
+  mock_bo.bdev = &mem->i915->bdev;
+  ret = man->func->alloc(man, &mock_bo, &place, &res);
 out:
-	if (ret == -ENOSPC)
-		ret = -ENXIO;
-	if (!ret)
-		res->bo = NULL; /* Rather blow up, then some uaf */
-	return ret ? ERR_PTR(ret) : res;
+  if (ret == -ENOSPC) {
+    ret = -ENXIO;
+  }
+  if (!ret) {
+    res->bo = NULL; /* Rather blow up, then some uaf */
+  }
+  return ret ? ERR_PTR(ret) : res;
 }
 
 #endif
 
 /**
- * intel_region_ttm_resource_free - Free a resource allocated from a resource manager
+ * intel_region_ttm_resource_free - Free a resource allocated from a resource
+ *manager
  * @mem: The region the resource was allocated from.
  * @res: The opaque resource representing an allocation.
  */
 void intel_region_ttm_resource_free(struct intel_memory_region *mem,
-				    struct ttm_resource *res)
-{
-	struct ttm_resource_manager *man = mem->region_private;
-	struct ttm_buffer_object mock_bo = {};
-
-	mock_bo.base.size = res->size;
-	mock_bo.bdev = &mem->i915->bdev;
-	res->bo = &mock_bo;
-
-	man->func->free(man, res);
+    struct ttm_resource *res) {
+  struct ttm_resource_manager *man = mem->region_private;
+  struct ttm_buffer_object mock_bo = {};
+  mock_bo.base.size = res->size;
+  mock_bo.bdev = &mem->i915->bdev;
+  res->bo = &mock_bo;
+  man->func->free(man, res);
 }

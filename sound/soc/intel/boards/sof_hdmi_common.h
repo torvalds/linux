@@ -8,7 +8,7 @@
 
 #include <sound/soc.h>
 
-#define IDISP_CODEC_MASK	0x4
+#define IDISP_CODEC_MASK  0x4
 
 /*
  * sof_hdmi_private: data for Intel HDMI dai link (idisp) initialization
@@ -17,8 +17,8 @@
  * @idisp_codec: true to indicate idisp codec is present
  */
 struct sof_hdmi_private {
-	struct snd_soc_component *hdmi_comp;
-	bool idisp_codec;
+  struct snd_soc_component *hdmi_comp;
+  bool idisp_codec;
 };
 
 #endif /* __SOF_HDMI_COMMON_H */

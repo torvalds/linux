@@ -12,8 +12,8 @@
 #define OCTEP_32BYTE_INSTR  32
 #define OCTEP_64BYTE_INSTR  64
 
-/* Tx Queue: maximum descriptors per ring */
-/* This needs to be a power of 2 */
+/* Tx Queue: maximum descriptors per ring
+ * This needs to be a power of 2*/
 #define OCTEP_IQ_MAX_DESCRIPTORS    1024
 /* Minimum input (Tx) requests to be enqueued to ring doorbell */
 #define OCTEP_DB_MIN                8
@@ -92,161 +92,161 @@
 
 /* Hardware Tx Queue configuration. */
 struct octep_iq_config {
-	/* Size of the Input queue (number of commands) */
-	u16 num_descs;
+  /* Size of the Input queue (number of commands) */
+  u16 num_descs;
 
-	/* Command size - 32 or 64 bytes */
-	u16 instr_type;
+  /* Command size - 32 or 64 bytes */
+  u16 instr_type;
 
-	/* Minimum number of commands pending to be posted to Octeon before driver
-	 * hits the Input queue doorbell.
-	 */
-	u16 db_min;
+  /* Minimum number of commands pending to be posted to Octeon before driver
+   * hits the Input queue doorbell.
+   */
+  u16 db_min;
 
-	/* Trigger the IQ interrupt when processed cmd count reaches
-	 * this level.
-	 */
-	u32 intr_threshold;
+  /* Trigger the IQ interrupt when processed cmd count reaches
+   * this level.
+   */
+  u32 intr_threshold;
 };
 
 /* Hardware Rx Queue configuration. */
 struct octep_oq_config {
-	/* Size of Output queue (number of descriptors) */
-	u16 num_descs;
+  /* Size of Output queue (number of descriptors) */
+  u16 num_descs;
 
-	/* Size of buffer in this Output queue. */
-	u16 buf_size;
+  /* Size of buffer in this Output queue. */
+  u16 buf_size;
 
-	/* The number of buffers that were consumed during packet processing
-	 * by the driver on this Output queue before the driver attempts to
-	 * replenish the descriptor ring with new buffers.
-	 */
-	u16 refill_threshold;
+  /* The number of buffers that were consumed during packet processing
+   * by the driver on this Output queue before the driver attempts to
+   * replenish the descriptor ring with new buffers.
+   */
+  u16 refill_threshold;
 
-	/* Interrupt Coalescing (Packet Count). Octeon will interrupt the host
-	 * only if it sent as many packets as specified by this field.
-	 * The driver usually does not use packet count interrupt coalescing.
-	 */
-	u32 oq_intr_pkt;
+  /* Interrupt Coalescing (Packet Count). Octeon will interrupt the host
+   * only if it sent as many packets as specified by this field.
+   * The driver usually does not use packet count interrupt coalescing.
+   */
+  u32 oq_intr_pkt;
 
-	/* Interrupt Coalescing (Time Interval). Octeon will interrupt the host
-	 * if at least one packet was sent in the time interval specified by
-	 * this field. The driver uses time interval interrupt coalescing by
-	 * default. The time is specified in microseconds.
-	 */
-	u32 oq_intr_time;
+  /* Interrupt Coalescing (Time Interval). Octeon will interrupt the host
+   * if at least one packet was sent in the time interval specified by
+   * this field. The driver uses time interval interrupt coalescing by
+   * default. The time is specified in microseconds.
+   */
+  u32 oq_intr_time;
 
-	/* Water mark for backpressure.
-	 * Output queue sends backpressure signal to source when
-	 * free buffer count falls below wmark.
-	 */
-	u32 wmark;
+  /* Water mark for backpressure.
+   * Output queue sends backpressure signal to source when
+   * free buffer count falls below wmark.
+   */
+  u32 wmark;
 };
 
 /* Tx/Rx configuration */
 struct octep_pf_ring_config {
-	/* Max number of IOQs */
-	u16 max_io_rings;
+  /* Max number of IOQs */
+  u16 max_io_rings;
 
-	/* Number of active IOQs */
-	u16 active_io_rings;
+  /* Number of active IOQs */
+  u16 active_io_rings;
 
-	/* Starting IOQ number: this changes based on which PEM is used */
-	u16 srn;
+  /* Starting IOQ number: this changes based on which PEM is used */
+  u16 srn;
 };
 
 /* Octeon Hardware SRIOV config */
 struct octep_sriov_config {
-	/* Max number of VF devices supported */
-	u16 max_vfs;
+  /* Max number of VF devices supported */
+  u16 max_vfs;
 
-	/* Number of VF devices enabled   */
-	u16 active_vfs;
+  /* Number of VF devices enabled   */
+  u16 active_vfs;
 
-	/* Max number of rings assigned to VF  */
-	u8 max_rings_per_vf;
+  /* Max number of rings assigned to VF  */
+  u8 max_rings_per_vf;
 
-	/* Number of rings enabled per VF */
-	u8 active_rings_per_vf;
+  /* Number of rings enabled per VF */
+  u8 active_rings_per_vf;
 
-	/* starting ring number of VF's: ring-0 of VF-0 of the PF */
-	u16 vf_srn;
+  /* starting ring number of VF's: ring-0 of VF-0 of the PF */
+  u16 vf_srn;
 };
 
 /* Octeon MSI-x config. */
 struct octep_msix_config {
-	/* Number of IOQ interrupts */
-	u16 ioq_msix;
+  /* Number of IOQ interrupts */
+  u16 ioq_msix;
 
-	/* Number of Non IOQ interrupts */
-	u16 non_ioq_msix;
+  /* Number of Non IOQ interrupts */
+  u16 non_ioq_msix;
 
-	/* Names of Non IOQ interrupts */
-	char **non_ioq_msix_names;
+  /* Names of Non IOQ interrupts */
+  char **non_ioq_msix_names;
 };
 
 struct octep_ctrl_mbox_config {
-	/* Barmem address for control mbox */
-	void __iomem *barmem_addr;
+  /* Barmem address for control mbox */
+  void __iomem *barmem_addr;
 };
 
 /* Info from firmware */
 struct octep_fw_info {
-	/* interface pkind */
-	u8 pkind;
+  /* interface pkind */
+  u8 pkind;
 
-	/* front size data */
-	u8 fsz;
+  /* front size data */
+  u8 fsz;
 
-	/* heartbeat interval in milliseconds */
-	u16 hb_interval;
+  /* heartbeat interval in milliseconds */
+  u16 hb_interval;
 
-	/* heartbeat miss count */
-	u16 hb_miss_count;
+  /* heartbeat miss count */
+  u16 hb_miss_count;
 
-	/* reserved */
-	u16 reserved1;
+  /* reserved */
+  u16 reserved1;
 
-	/* supported rx offloads OCTEP_ETH_RX_OFFLOAD_* */
-	u16 rx_ol_flags;
+  /* supported rx offloads OCTEP_ETH_RX_OFFLOAD_* */
+  u16 rx_ol_flags;
 
-	/* supported tx offloads OCTEP_ETH_TX_OFFLOAD_* */
-	u16 tx_ol_flags;
+  /* supported tx offloads OCTEP_ETH_TX_OFFLOAD_* */
+  u16 tx_ol_flags;
 
-	/* reserved */
-	u32 reserved_offloads;
+  /* reserved */
+  u32 reserved_offloads;
 
-	/* extra offload flags */
-	u64 ext_ol_flags;
+  /* extra offload flags */
+  u64 ext_ol_flags;
 
-	/* supported features */
-	u64 features[2];
+  /* supported features */
+  u64 features[2];
 
-	/* reserved */
-	u64 reserved2[3];
+  /* reserved */
+  u64 reserved2[3];
 };
 
 /* Data Structure to hold configuration limits and active config */
 struct octep_config {
-	/* Input Queue attributes. */
-	struct octep_iq_config iq;
+  /* Input Queue attributes. */
+  struct octep_iq_config iq;
 
-	/* Output Queue attributes. */
-	struct octep_oq_config oq;
+  /* Output Queue attributes. */
+  struct octep_oq_config oq;
 
-	/* NIC Port Configuration */
-	struct octep_pf_ring_config pf_ring_cfg;
+  /* NIC Port Configuration */
+  struct octep_pf_ring_config pf_ring_cfg;
 
-	/* SRIOV configuration of the PF */
-	struct octep_sriov_config sriov_cfg;
+  /* SRIOV configuration of the PF */
+  struct octep_sriov_config sriov_cfg;
 
-	/* MSI-X interrupt config */
-	struct octep_msix_config msix_cfg;
+  /* MSI-X interrupt config */
+  struct octep_msix_config msix_cfg;
 
-	/* ctrl mbox config */
-	struct octep_ctrl_mbox_config ctrl_mbox_cfg;
+  /* ctrl mbox config */
+  struct octep_ctrl_mbox_config ctrl_mbox_cfg;
 
-	/* fw info */
-	struct octep_fw_info fw_info;
+  /* fw info */
+  struct octep_fw_info fw_info;
 };
 #endif /* _OCTEP_CONFIG_H_ */

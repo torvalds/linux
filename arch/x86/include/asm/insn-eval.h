@@ -26,20 +26,20 @@ unsigned long insn_get_seg_base(struct pt_regs *regs, int seg_reg_idx);
 int insn_get_code_seg_params(struct pt_regs *regs);
 int insn_get_effective_ip(struct pt_regs *regs, unsigned long *ip);
 int insn_fetch_from_user(struct pt_regs *regs,
-			 unsigned char buf[MAX_INSN_SIZE]);
+    unsigned char buf[MAX_INSN_SIZE]);
 int insn_fetch_from_user_inatomic(struct pt_regs *regs,
-				  unsigned char buf[MAX_INSN_SIZE]);
+    unsigned char buf[MAX_INSN_SIZE]);
 bool insn_decode_from_regs(struct insn *insn, struct pt_regs *regs,
-			   unsigned char buf[MAX_INSN_SIZE], int buf_size);
+    unsigned char buf[MAX_INSN_SIZE], int buf_size);
 
 enum insn_mmio_type {
-	INSN_MMIO_DECODE_FAILED,
-	INSN_MMIO_WRITE,
-	INSN_MMIO_WRITE_IMM,
-	INSN_MMIO_READ,
-	INSN_MMIO_READ_ZERO_EXTEND,
-	INSN_MMIO_READ_SIGN_EXTEND,
-	INSN_MMIO_MOVS,
+  INSN_MMIO_DECODE_FAILED,
+  INSN_MMIO_WRITE,
+  INSN_MMIO_WRITE_IMM,
+  INSN_MMIO_READ,
+  INSN_MMIO_READ_ZERO_EXTEND,
+  INSN_MMIO_READ_SIGN_EXTEND,
+  INSN_MMIO_MOVS,
 };
 
 enum insn_mmio_type insn_decode_mmio(struct insn *insn, int *bytes);

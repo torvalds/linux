@@ -5,9 +5,9 @@
 #include <linux/rcupdate.h>
 
 struct item {
-	struct rcu_head	rcu_head;
-	unsigned long index;
-	unsigned int order;
+  struct rcu_head rcu_head;
+  unsigned long index;
+  unsigned int order;
 };
 
 struct item *item_create(unsigned long index, unsigned int order);
@@ -21,14 +21,14 @@ struct item *item_lookup(struct radix_tree_root *root, unsigned long index);
 void item_check_present(struct radix_tree_root *root, unsigned long index);
 void item_check_absent(struct radix_tree_root *root, unsigned long index);
 void item_gang_check_present(struct radix_tree_root *root,
-			unsigned long start, unsigned long nr,
-			int chunk, int hop);
+    unsigned long start, unsigned long nr,
+    int chunk, int hop);
 void item_full_scan(struct radix_tree_root *root, unsigned long start,
-			unsigned long nr, int chunk);
+    unsigned long nr, int chunk);
 void item_kill_tree(struct radix_tree_root *root);
 
 int tag_tagged_items(struct xarray *, unsigned long start, unsigned long end,
-		unsigned batch, xa_mark_t iftag, xa_mark_t thentag);
+    unsigned batch, xa_mark_t iftag, xa_mark_t thentag);
 
 void xarray_tests(void);
 void tag_check(void);
@@ -39,10 +39,10 @@ void benchmark(void);
 void idr_checks(void);
 void ida_tests(void);
 
-struct item *
-item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
-struct item *
-item_tag_clear(struct radix_tree_root *root, unsigned long index, int tag);
+struct item *item_tag_set(struct radix_tree_root *root, unsigned long index,
+    int tag);
+struct item *item_tag_clear(struct radix_tree_root *root, unsigned long index,
+    int tag);
 int item_tag_get(struct radix_tree_root *root, unsigned long index, int tag);
 void tree_verify_min_height(struct radix_tree_root *root, int maxindex);
 void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag);

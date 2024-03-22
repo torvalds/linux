@@ -8,11 +8,9 @@
 int count = 0;
 
 SEC("fexit/subprog_tail")
-int BPF_PROG(fexit, struct sk_buff *skb)
-{
-	count++;
-
-	return 0;
+int BPF_PROG(fexit, struct sk_buff *skb) {
+  count++;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

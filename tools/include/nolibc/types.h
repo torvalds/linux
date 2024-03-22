@@ -15,7 +15,6 @@
 #include <linux/wait.h>
 #include <linux/resource.h>
 
-
 /* Only the generic macros and types may be defined here. The arch-specific
  * ones such as the O_RDONLY and related macros used by fcntl() and open()
  * must not be defined here.
@@ -87,7 +86,7 @@
 
 /* flags for mmap */
 #ifndef MAP_FAILED
-#define MAP_FAILED ((void *)-1)
+#define MAP_FAILED ((void *) -1)
 #endif
 
 /* whence values for lseek() */
@@ -115,46 +114,46 @@
 #define EXIT_FAILURE 1
 
 #define FD_SETIDXMASK (8 * sizeof(unsigned long))
-#define FD_SETBITMASK (8 * sizeof(unsigned long)-1)
+#define FD_SETBITMASK (8 * sizeof(unsigned long) - 1)
 
 /* for select() */
 typedef struct {
-	unsigned long fds[(FD_SETSIZE + FD_SETBITMASK) / FD_SETIDXMASK];
+  unsigned long fds[(FD_SETSIZE + FD_SETBITMASK) / FD_SETIDXMASK];
 } fd_set;
 
-#define FD_CLR(fd, set) do {						\
-		fd_set *__set = (set);					\
-		int __fd = (fd);					\
-		if (__fd >= 0)						\
-			__set->fds[__fd / FD_SETIDXMASK] &=		\
-				~(1U << (__fd & FX_SETBITMASK));	\
-	} while (0)
+#define FD_CLR(fd, set) do {            \
+    fd_set *__set = (set);          \
+    int __fd = (fd);          \
+    if (__fd >= 0)            \
+    __set->fds[__fd / FD_SETIDXMASK]      \
+      &= ~(1U << (__fd & FX_SETBITMASK));  \
+} while (0)
 
-#define FD_SET(fd, set) do {						\
-		fd_set *__set = (set);					\
-		int __fd = (fd);					\
-		if (__fd >= 0)						\
-			__set->fds[__fd / FD_SETIDXMASK] |=		\
-				1 << (__fd & FD_SETBITMASK);		\
-	} while (0)
+#define FD_SET(fd, set) do {            \
+    fd_set *__set = (set);          \
+    int __fd = (fd);          \
+    if (__fd >= 0)            \
+    __set->fds[__fd / FD_SETIDXMASK]      \
+      |= 1 << (__fd & FD_SETBITMASK);    \
+} while (0)
 
-#define FD_ISSET(fd, set) ({						\
-			fd_set *__set = (set);				\
-			int __fd = (fd);				\
-		int __r = 0;						\
-		if (__fd >= 0)						\
-			__r = !!(__set->fds[__fd / FD_SETIDXMASK] &	\
-1U << (__fd & FD_SET_BITMASK));						\
-		__r;							\
-	})
+#define FD_ISSET(fd, set) ({            \
+    fd_set *__set = (set);        \
+    int __fd = (fd);        \
+    int __r = 0;            \
+    if (__fd >= 0)            \
+    __r = !!(__set->fds[__fd / FD_SETIDXMASK]   \
+    & 1U << (__fd & FD_SET_BITMASK));           \
+    __r;              \
+  })
 
-#define FD_ZERO(set) do {						\
-		fd_set *__set = (set);					\
-		int __idx;						\
-		int __size = (FD_SETSIZE+FD_SETBITMASK) / FD_SETIDXMASK;\
-		for (__idx = 0; __idx < __size; __idx++)		\
-			__set->fds[__idx] = 0;				\
-	} while (0)
+#define FD_ZERO(set) do {           \
+    fd_set *__set = (set);          \
+    int __idx;            \
+    int __size = (FD_SETSIZE + FD_SETBITMASK) / FD_SETIDXMASK; \
+    for (__idx = 0; __idx < __size; __idx++)    \
+    __set->fds[__idx] = 0;        \
+} while (0)
 
 /* for poll() */
 #define POLLIN          0x0001
@@ -165,53 +164,64 @@ typedef struct {
 #define POLLNVAL        0x0020
 
 struct pollfd {
-	int fd;
-	short int events;
-	short int revents;
+  int fd;
+  short int events;
+  short int revents;
 };
 
 /* for getdents64() */
 struct linux_dirent64 {
-	uint64_t       d_ino;
-	int64_t        d_off;
-	unsigned short d_reclen;
-	unsigned char  d_type;
-	char           d_name[];
+  uint64_t d_ino;
+  int64_t d_off;
+  unsigned short d_reclen;
+  unsigned char d_type;
+  char d_name[];
 };
 
 /* The format of the struct as returned by the libc to the application, which
- * significantly differs from the format returned by the stat() syscall flavours.
+ * significantly differs from the format returned by the stat() syscall
+ * flavours.
  */
 struct stat {
-	dev_t     st_dev;     /* ID of device containing file */
-	ino_t     st_ino;     /* inode number */
-	mode_t    st_mode;    /* protection */
-	nlink_t   st_nlink;   /* number of hard links */
-	uid_t     st_uid;     /* user ID of owner */
-	gid_t     st_gid;     /* group ID of owner */
-	dev_t     st_rdev;    /* device ID (if special file) */
-	off_t     st_size;    /* total size, in bytes */
-	blksize_t st_blksize; /* blocksize for file system I/O */
-	blkcnt_t  st_blocks;  /* number of 512B blocks allocated */
-	union { time_t st_atime; struct timespec st_atim; }; /* time of last access */
-	union { time_t st_mtime; struct timespec st_mtim; }; /* time of last modification */
-	union { time_t st_ctime; struct timespec st_ctim; }; /* time of last status change */
+  dev_t st_dev;     /* ID of device containing file */
+  ino_t st_ino;     /* inode number */
+  mode_t st_mode;    /* protection */
+  nlink_t st_nlink;   /* number of hard links */
+  uid_t st_uid;     /* user ID of owner */
+  gid_t st_gid;     /* group ID of owner */
+  dev_t st_rdev;    /* device ID (if special file) */
+  off_t st_size;    /* total size, in bytes */
+  blksize_t st_blksize; /* blocksize for file system I/O */
+  blkcnt_t st_blocks;  /* number of 512B blocks allocated */
+  union {
+    time_t st_atime;
+    struct timespec st_atim;
+  }; /* time of last access */
+  union {
+    time_t st_mtime;
+    struct timespec st_mtim;
+  }; /* time of last modification */
+  union {
+    time_t st_ctime;
+    struct timespec st_ctim;
+  }; /* time of last status change */
 };
 
 /* WARNING, it only deals with the 4096 first majors and 256 first minors */
-#define makedev(major, minor) ((dev_t)((((major) & 0xfff) << 8) | ((minor) & 0xff)))
-#define major(dev) ((unsigned int)(((dev) >> 8) & 0xfff))
-#define minor(dev) ((unsigned int)(((dev) & 0xff))
+#define makedev(major, \
+      minor) ((dev_t) ((((major) & 0xfff) << 8) | ((minor) & 0xff)))
+#define major(dev) ((unsigned int) (((dev) >> 8) & 0xfff))
+#define minor(dev) ((unsigned int) (((dev) & 0xff))
 
 #ifndef offsetof
-#define offsetof(TYPE, FIELD) ((size_t) &((TYPE *)0)->FIELD)
+#define offsetof(TYPE, FIELD) ((size_t) &((TYPE *) 0)->FIELD)
 #endif
 
 #ifndef container_of
-#define container_of(PTR, TYPE, FIELD) ({			\
-	__typeof__(((TYPE *)0)->FIELD) *__FIELD_PTR = (PTR);	\
-	(TYPE *)((char *) __FIELD_PTR - offsetof(TYPE, FIELD));	\
-})
+#define container_of(PTR, TYPE, FIELD) ({     \
+    __typeof__(((TYPE *) 0)->FIELD) * __FIELD_PTR = (PTR);  \
+    (TYPE *) ((char *) __FIELD_PTR - offsetof(TYPE, FIELD)); \
+  })
 #endif
 
 /* make sure to include all global symbols */

@@ -10,6 +10,6 @@ struct intel_engine_cs;
 struct i915_vma;
 
 int gen7_setup_clear_gpr_bb(struct intel_engine_cs * const engine,
-			    struct i915_vma * const vma);
+    struct i915_vma * const vma);
 
 #endif /* __GEN7_RENDERCLEAR_H__ */

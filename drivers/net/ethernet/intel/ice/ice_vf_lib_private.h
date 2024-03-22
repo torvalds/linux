@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2018-2021, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2018-2021, Intel Corporation.*/
 
 #ifndef _ICE_VF_LIB_PRIVATE_H_
 #define _ICE_VF_LIB_PRIVATE_H_
@@ -20,7 +20,8 @@
  */
 
 #ifndef CONFIG_PCI_IOV
-#warning "Only include ice_vf_lib_private.h in CONFIG_PCI_IOV virtualization files"
+#warning \
+  "Only include ice_vf_lib_private.h in CONFIG_PCI_IOV virtualization files"
 #endif
 
 int ice_vf_reconfig_vsi(struct ice_vf *vf);

@@ -8,13 +8,13 @@
 #include <linux/overflow.h>
 
 #ifdef COMPAT_NEED_REALLOCARRAY
-static inline void *reallocarray(void *ptr, size_t nmemb, size_t size)
-{
-	size_t bytes;
-
-	if (unlikely(check_mul_overflow(nmemb, size, &bytes)))
-		return NULL;
-	return realloc(ptr, bytes);
+static inline void *reallocarray(void *ptr, size_t nmemb, size_t size) {
+  size_t bytes;
+  if (unlikely(check_mul_overflow(nmemb, size, &bytes))) {
+    return NULL;
+  }
+  return realloc(ptr, bytes);
 }
+
 #endif
 #endif

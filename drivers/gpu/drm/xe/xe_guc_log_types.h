@@ -14,10 +14,10 @@ struct xe_bo;
  * struct xe_guc_log - GuC log
  */
 struct xe_guc_log {
-	/** @level: GuC log level */
-	u32 level;
-	/** @bo: XE BO for GuC log */
-	struct xe_bo *bo;
+  /** @level: GuC log level */
+  u32 level;
+  /** @bo: XE BO for GuC log */
+  struct xe_bo *bo;
 };
 
 #endif

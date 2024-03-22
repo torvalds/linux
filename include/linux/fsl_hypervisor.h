@@ -41,7 +41,6 @@
 
 #include <uapi/linux/fsl_hypervisor.h>
 
-
 /**
  * fsl_hv_event_register() - register a callback for failover events
  * @nb: pointer to caller-supplied notifier_block structure

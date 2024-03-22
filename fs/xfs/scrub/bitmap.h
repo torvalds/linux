@@ -9,7 +9,7 @@
 /* u64 bitmap */
 
 struct xbitmap64 {
-	struct rb_root_cached	xb_root;
+  struct rb_root_cached xb_root;
 };
 
 void xbitmap64_init(struct xbitmap64 *bitmap);
@@ -29,7 +29,7 @@ uint64_t xbitmap64_hweight(struct xbitmap64 *bitmap);
  */
 typedef int (*xbitmap64_walk_fn)(uint64_t start, uint64_t len, void *priv);
 int xbitmap64_walk(struct xbitmap64 *bitmap, xbitmap64_walk_fn fn,
-		void *priv);
+    void *priv);
 
 bool xbitmap64_empty(struct xbitmap64 *bitmap);
 bool xbitmap64_test(struct xbitmap64 *bitmap, uint64_t start, uint64_t *len);
@@ -37,7 +37,7 @@ bool xbitmap64_test(struct xbitmap64 *bitmap, uint64_t start, uint64_t *len);
 /* u32 bitmap */
 
 struct xbitmap32 {
-	struct rb_root_cached	xb_root;
+  struct rb_root_cached xb_root;
 };
 
 void xbitmap32_init(struct xbitmap32 *bitmap);
@@ -57,11 +57,11 @@ uint32_t xbitmap32_hweight(struct xbitmap32 *bitmap);
  */
 typedef int (*xbitmap32_walk_fn)(uint32_t start, uint32_t len, void *priv);
 int xbitmap32_walk(struct xbitmap32 *bitmap, xbitmap32_walk_fn fn,
-		void *priv);
+    void *priv);
 
 bool xbitmap32_empty(struct xbitmap32 *bitmap);
 bool xbitmap32_test(struct xbitmap32 *bitmap, uint32_t start, uint32_t *len);
 
 uint32_t xbitmap32_count_set_regions(struct xbitmap32 *bitmap);
 
-#endif	/* __XFS_SCRUB_BITMAP_H__ */
+#endif  /* __XFS_SCRUB_BITMAP_H__ */

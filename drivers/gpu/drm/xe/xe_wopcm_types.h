@@ -12,15 +12,15 @@
  * struct xe_wopcm - Overall WOPCM info and WOPCM regions.
  */
 struct xe_wopcm {
-	/** @size: Size of overall WOPCM */
-	u32 size;
-	/** @guc: GuC WOPCM Region info */
-	struct {
-		/** @guc.base: GuC WOPCM base which is offset from WOPCM base */
-		u32 base;
-		/** @guc.size: Size of the GuC WOPCM region */
-		u32 size;
-	} guc;
+  /** @size: Size of overall WOPCM */
+  u32 size;
+  /** @guc: GuC WOPCM Region info */
+  struct {
+    /** @guc.base: GuC WOPCM base which is offset from WOPCM base */
+    u32 base;
+    /** @guc.size: Size of the GuC WOPCM region */
+    u32 size;
+  } guc;
 };
 
 #endif

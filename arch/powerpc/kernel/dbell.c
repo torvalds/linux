@@ -21,27 +21,28 @@
 
 DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
+  struct pt_regs *old_regs = set_irq_regs(regs);
 
-	trace_doorbell_entry(regs);
+  trace_doorbell_entry(regs);
 
-	ppc_msgsync();
+  ppc_msgsync();
 
-	if (should_hard_irq_enable(regs))
-		do_hard_irq_enable();
+  if (should_hard_irq_enable(regs)) {
+    do_hard_irq_enable();
+  }
 
-	kvmppc_clear_host_ipi(smp_processor_id());
-	__this_cpu_inc(irq_stat.doorbell_irqs);
+  kvmppc_clear_host_ipi(smp_processor_id());
+  __this_cpu_inc(irq_stat.doorbell_irqs);
 
-	smp_ipi_demux_relaxed(); /* already performed the barrier */
+  smp_ipi_demux_relaxed(); /* already performed the barrier */
 
-	trace_doorbell_exit(regs);
+  trace_doorbell_exit(regs);
 
-	set_irq_regs(old_regs);
+  set_irq_regs(old_regs);
 }
 #else /* CONFIG_SMP */
 DEFINE_INTERRUPT_HANDLER_ASYNC(doorbell_exception)
 {
-	printk(KERN_WARNING "Received doorbell on non-smp system\n");
+  printk(KERN_WARNING "Received doorbell on non-smp system\n");
 }
 #endif /* CONFIG_SMP */

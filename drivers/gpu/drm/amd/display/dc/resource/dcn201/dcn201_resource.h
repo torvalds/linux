@@ -1,5 +1,5 @@
 /*
-* Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -33,18 +33,18 @@
 #define RRDPCS_PHY_DP_TX_PSTATE_HOLD_OFF    0x00000002
 #define RRDPCS_PHY_DP_TX_PSTATE_POWER_DOWN  0x00000003
 
-#define TO_DCN201_RES_POOL(pool)\
-	container_of(pool, struct dcn201_resource_pool, base)
+#define TO_DCN201_RES_POOL(pool) \
+  container_of(pool, struct dcn201_resource_pool, base)
 
 struct dc;
 struct resource_pool;
 struct _vcs_dpi_display_pipe_params_st;
 
 struct dcn201_resource_pool {
-	struct resource_pool base;
+  struct resource_pool base;
 };
 struct resource_pool *dcn201_create_resource_pool(
-		const struct dc_init_data *init_data,
-		struct dc *dc);
+  const struct dc_init_data *init_data,
+  struct dc *dc);
 
 #endif /* __DC_RESOURCE_DCN201_H__ */

@@ -11,8 +11,8 @@ struct drm_pending_vblank_event;
 struct logicvc_drm;
 
 struct logicvc_crtc {
-	struct drm_crtc drm_crtc;
-	struct drm_pending_vblank_event *event;
+  struct drm_crtc drm_crtc;
+  struct drm_pending_vblank_event *event;
 };
 
 void logicvc_crtc_vblank_handler(struct logicvc_drm *logicvc);

@@ -15,10 +15,10 @@ DEFINE_VVAR(struct vdso_data, _vdso_data);
  * Update the vDSO data page to keep in sync with kernel timekeeping.
  */
 static __always_inline
-struct vdso_data *__x86_get_k_vdso_data(void)
-{
-	return _vdso_data;
+struct vdso_data *__x86_get_k_vdso_data(void) {
+  return _vdso_data;
 }
+
 #define __arch_get_k_vdso_data __x86_get_k_vdso_data
 
 /* The asm-generic header needs to be included after the definitions above */

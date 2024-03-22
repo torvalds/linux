@@ -68,50 +68,42 @@
 #define PIDFD_SKIP 3
 #define PIDFD_XFAIL 4
 
-static inline int wait_for_pid(pid_t pid)
-{
-	int status, ret;
-
+static inline int wait_for_pid(pid_t pid) {
+  int status, ret;
 again:
-	ret = waitpid(pid, &status, 0);
-	if (ret == -1) {
-		if (errno == EINTR)
-			goto again;
-
-		ksft_print_msg("waitpid returned -1, errno=%d\n", errno);
-		return -1;
-	}
-
-	if (!WIFEXITED(status)) {
-		ksft_print_msg(
-		       "waitpid !WIFEXITED, WIFSIGNALED=%d, WTERMSIG=%d\n",
-		       WIFSIGNALED(status), WTERMSIG(status));
-		return -1;
-	}
-
-	ret = WEXITSTATUS(status);
-	return ret;
+  ret = waitpid(pid, &status, 0);
+  if (ret == -1) {
+    if (errno == EINTR) {
+      goto again;
+    }
+    ksft_print_msg("waitpid returned -1, errno=%d\n", errno);
+    return -1;
+  }
+  if (!WIFEXITED(status)) {
+    ksft_print_msg(
+        "waitpid !WIFEXITED, WIFSIGNALED=%d, WTERMSIG=%d\n",
+        WIFSIGNALED(status), WTERMSIG(status));
+    return -1;
+  }
+  ret = WEXITSTATUS(status);
+  return ret;
 }
 
-static inline int sys_pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(__NR_pidfd_open, pid, flags);
+static inline int sys_pidfd_open(pid_t pid, unsigned int flags) {
+  return syscall(__NR_pidfd_open, pid, flags);
 }
 
 static inline int sys_pidfd_send_signal(int pidfd, int sig, siginfo_t *info,
-					unsigned int flags)
-{
-	return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
+    unsigned int flags) {
+  return syscall(__NR_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
-static inline int sys_pidfd_getfd(int pidfd, int fd, int flags)
-{
-	return syscall(__NR_pidfd_getfd, pidfd, fd, flags);
+static inline int sys_pidfd_getfd(int pidfd, int fd, int flags) {
+  return syscall(__NR_pidfd_getfd, pidfd, fd, flags);
 }
 
-static inline int sys_memfd_create(const char *name, unsigned int flags)
-{
-	return syscall(__NR_memfd_create, name, flags);
+static inline int sys_memfd_create(const char *name, unsigned int flags) {
+  return syscall(__NR_memfd_create, name, flags);
 }
 
 #endif /* __PIDFD_H */

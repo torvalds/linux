@@ -31,39 +31,52 @@
 #define PPSMC_Result_CmdRejectedPrereq     0xFD
 #define PPSMC_Result_CmdRejectedBusy       0xFC
 
-
 // Message Definitions:
 #define PPSMC_MSG_TestMessage               1
 #define PPSMC_MSG_GetSmuVersion             2
 #define PPSMC_MSG_EnableGfxOff              3  ///< Enable GFXOFF
 #define PPSMC_MSG_DisableGfxOff             4  ///< Disable GFXOFF
 #define PPSMC_MSG_PowerDownVcn              5  ///< Power down VCN
-#define PPSMC_MSG_PowerUpVcn                6  ///< Power up VCN; VCN is power gated by default
+#define PPSMC_MSG_PowerUpVcn                6  ///< Power up VCN; VCN is power
+                                               // gated by default
 #define PPSMC_MSG_SetHardMinVcn             7  ///< For wireless display
-#define PPSMC_MSG_SetSoftMinGfxclk          8  ///< Set SoftMin for GFXCLK, argument is frequency in MHz
+#define PPSMC_MSG_SetSoftMinGfxclk          8  ///< Set SoftMin for GFXCLK,
+                                               // argument is frequency in MHz
 #define PPSMC_MSG_Spare0                    9  ///< Spare
 #define PPSMC_MSG_GfxDeviceDriverReset      10 ///< Request GFX mode 2 reset
-#define PPSMC_MSG_SetDriverDramAddrHigh     11 ///< Set high 32 bits of DRAM address for Driver table transfer
-#define PPSMC_MSG_SetDriverDramAddrLow      12 ///< Set low 32 bits of DRAM address for Driver table transfer
-#define PPSMC_MSG_TransferTableSmu2Dram     13 ///< Transfer driver interface table from PMFW SRAM to DRAM
-#define PPSMC_MSG_TransferTableDram2Smu     14 ///< Transfer driver interface table from DRAM to PMFW SRAM
+#define PPSMC_MSG_SetDriverDramAddrHigh     11 ///< Set high 32 bits of DRAM
+                                               // address for Driver table
+                                               // transfer
+#define PPSMC_MSG_SetDriverDramAddrLow      12 ///< Set low 32 bits of DRAM
+                                               // address for Driver table
+                                               // transfer
+#define PPSMC_MSG_TransferTableSmu2Dram     13 ///< Transfer driver interface
+                                               // table from PMFW SRAM to DRAM
+#define PPSMC_MSG_TransferTableDram2Smu     14 ///< Transfer driver interface
+                                               // table from DRAM to PMFW SRAM
 #define PPSMC_MSG_GetGfxclkFrequency        15 ///< Get GFX clock frequency
 #define PPSMC_MSG_GetEnabledSmuFeatures     16 ///< Get enabled features in PMFW
-#define PPSMC_MSG_SetSoftMaxVcn             17 ///< Set soft max for VCN clocks (VCLK and DCLK)
+#define PPSMC_MSG_SetSoftMaxVcn             17 ///< Set soft max for VCN clocks
+                                               // (VCLK and DCLK)
 #define PPSMC_MSG_PowerDownJpeg             18 ///< Power down Jpeg
-#define PPSMC_MSG_PowerUpJpeg               19 ///< Power up Jpeg; VCN is power gated by default
+#define PPSMC_MSG_PowerUpJpeg               19 ///< Power up Jpeg; VCN is power
+                                               // gated by default
 #define PPSMC_MSG_SetSoftMaxGfxClk          20
 #define PPSMC_MSG_SetHardMinGfxClk          21 ///< Set hard min for GFX CLK
-#define PPSMC_MSG_AllowGfxOff               22 ///< Inform PMFW of allowing GFXOFF entry
-#define PPSMC_MSG_DisallowGfxOff            23 ///< Inform PMFW of disallowing GFXOFF entry
-#define PPSMC_MSG_SetSoftMinVcn             24 ///< Set soft min for VCN clocks (VCLK and DCLK)
+#define PPSMC_MSG_AllowGfxOff               22 ///< Inform PMFW of allowing
+                                               // GFXOFF entry
+#define PPSMC_MSG_DisallowGfxOff            23 ///< Inform PMFW of disallowing
+                                               // GFXOFF entry
+#define PPSMC_MSG_SetSoftMinVcn             24 ///< Set soft min for VCN clocks
+                                               // (VCLK and DCLK)
 #define PPSMC_MSG_GetDriverIfVersion        25 ///< Get PMFW_DRIVER_IF version
-#define PPSMC_MSG_PrepareMp1ForUnload        26 ///< Prepare PMFW for GFX driver unload
+#define PPSMC_MSG_PrepareMp1ForUnload        26 ///< Prepare PMFW for GFX driver
+                                                // unload
 #define PPSMC_Message_Count                 27
 
 /** @enum Mode_Reset_e
-* Mode reset type, argument for PPSMC_MSG_GfxDeviceDriverReset
-*/
+ * Mode reset type, argument for PPSMC_MSG_GfxDeviceDriverReset
+ */
 typedef enum {
   MODE1_RESET = 1,  ///< Mode reset type 1
   MODE2_RESET = 2   ///< Mode reset type 2
@@ -71,4 +84,3 @@ typedef enum {
 /** @}*/
 
 #endif
-

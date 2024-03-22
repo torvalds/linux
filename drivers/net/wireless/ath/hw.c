@@ -20,8 +20,8 @@
 #include "ath.h"
 #include "reg.h"
 
-#define REG_READ			(common->ops->read)
-#define REG_WRITE(_ah, _reg, _val)	(common->ops->write)(_ah, _val, _reg)
+#define REG_READ      (common->ops->read)
+#define REG_WRITE(_ah, _reg, _val)  (common->ops->write)(_ah, _val, _reg)
 
 /**
  * ath_hw_setbssidmask - filter out bssids we listen
@@ -115,21 +115,18 @@
  * IFRAME-05:  1101 --> allowed but its not for us!!!
  *
  */
-void ath_hw_setbssidmask(struct ath_common *common)
-{
-	void *ah = common->ah;
-	u32 id1;
-
-	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
-	id1 = REG_READ(ah, AR_STA_ID1) & ~AR_STA_ID1_SADH_MASK;
-	id1 |= get_unaligned_le16(common->macaddr + 4);
-	REG_WRITE(ah, AR_STA_ID1, id1);
-
-	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(common->bssidmask));
-	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(common->bssidmask + 4));
+void ath_hw_setbssidmask(struct ath_common *common) {
+  void *ah = common->ah;
+  u32 id1;
+  REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(common->macaddr));
+  id1 = REG_READ(ah, AR_STA_ID1) & ~AR_STA_ID1_SADH_MASK;
+  id1 |= get_unaligned_le16(common->macaddr + 4);
+  REG_WRITE(ah, AR_STA_ID1, id1);
+  REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(common->bssidmask));
+  REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(common->bssidmask + 4));
 }
-EXPORT_SYMBOL(ath_hw_setbssidmask);
 
+EXPORT_SYMBOL(ath_hw_setbssidmask);
 
 /**
  * ath_hw_cycle_counters_update - common function to update cycle counters
@@ -139,52 +136,43 @@ EXPORT_SYMBOL(ath_hw_setbssidmask);
  * This function is used to update all cycle counters in one place.
  * It has to be called while holding common->cc_lock!
  */
-void ath_hw_cycle_counters_update(struct ath_common *common)
-{
-	u32 cycles, busy, rx, tx;
-	void *ah = common->ah;
-
-	/* freeze */
-	REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
-
-	/* read */
-	cycles = REG_READ(ah, AR_CCCNT);
-	busy = REG_READ(ah, AR_RCCNT);
-	rx = REG_READ(ah, AR_RFCNT);
-	tx = REG_READ(ah, AR_TFCNT);
-
-	/* clear */
-	REG_WRITE(ah, AR_CCCNT, 0);
-	REG_WRITE(ah, AR_RFCNT, 0);
-	REG_WRITE(ah, AR_RCCNT, 0);
-	REG_WRITE(ah, AR_TFCNT, 0);
-
-	/* unfreeze */
-	REG_WRITE(ah, AR_MIBC, 0);
-
-	/* update all cycle counters here */
-	common->cc_ani.cycles += cycles;
-	common->cc_ani.rx_busy += busy;
-	common->cc_ani.rx_frame += rx;
-	common->cc_ani.tx_frame += tx;
-
-	common->cc_survey.cycles += cycles;
-	common->cc_survey.rx_busy += busy;
-	common->cc_survey.rx_frame += rx;
-	common->cc_survey.tx_frame += tx;
+void ath_hw_cycle_counters_update(struct ath_common *common) {
+  u32 cycles, busy, rx, tx;
+  void *ah = common->ah;
+  /* freeze */
+  REG_WRITE(ah, AR_MIBC, AR_MIBC_FMC);
+  /* read */
+  cycles = REG_READ(ah, AR_CCCNT);
+  busy = REG_READ(ah, AR_RCCNT);
+  rx = REG_READ(ah, AR_RFCNT);
+  tx = REG_READ(ah, AR_TFCNT);
+  /* clear */
+  REG_WRITE(ah, AR_CCCNT, 0);
+  REG_WRITE(ah, AR_RFCNT, 0);
+  REG_WRITE(ah, AR_RCCNT, 0);
+  REG_WRITE(ah, AR_TFCNT, 0);
+  /* unfreeze */
+  REG_WRITE(ah, AR_MIBC, 0);
+  /* update all cycle counters here */
+  common->cc_ani.cycles += cycles;
+  common->cc_ani.rx_busy += busy;
+  common->cc_ani.rx_frame += rx;
+  common->cc_ani.tx_frame += tx;
+  common->cc_survey.cycles += cycles;
+  common->cc_survey.rx_busy += busy;
+  common->cc_survey.rx_frame += rx;
+  common->cc_survey.tx_frame += tx;
 }
+
 EXPORT_SYMBOL(ath_hw_cycle_counters_update);
 
-int32_t ath_hw_get_listen_time(struct ath_common *common)
-{
-	struct ath_cycle_counters *cc = &common->cc_ani;
-	int32_t listen_time;
-
-	listen_time = (cc->cycles - cc->rx_frame - cc->tx_frame) /
-		      (common->clockrate * 1000);
-
-	memset(cc, 0, sizeof(*cc));
-
-	return listen_time;
+int32_t ath_hw_get_listen_time(struct ath_common *common) {
+  struct ath_cycle_counters *cc = &common->cc_ani;
+  int32_t listen_time;
+  listen_time = (cc->cycles - cc->rx_frame - cc->tx_frame)
+      / (common->clockrate * 1000);
+  memset(cc, 0, sizeof(*cc));
+  return listen_time;
 }
+
 EXPORT_SYMBOL(ath_hw_get_listen_time);

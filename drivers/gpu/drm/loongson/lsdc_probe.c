@@ -29,28 +29,24 @@
  * We can achieve fine-grained control with the information about the host.
  */
 
-unsigned int loongson_cpu_get_prid(u8 *imp, u8 *rev)
-{
-	unsigned int prid = 0;
-
+unsigned int loongson_cpu_get_prid(u8 *imp, u8 *rev) {
+  unsigned int prid = 0;
 #if defined(__loongarch__)
-	__asm__ volatile("cpucfg %0, %1\n\t"
-			: "=&r"(prid)
-			: "r"(LOONGARCH_CPUCFG_PRID_REG)
-			);
+  __asm__ volatile ("cpucfg %0, %1\n\t"
+  : "=&r" (prid)
+  : "r" (LOONGARCH_CPUCFG_PRID_REG)
+  );
 #endif
-
 #if defined(__mips__)
-	__asm__ volatile("mfc0\t%0, $15\n\t"
-			: "=r" (prid)
-			);
+  __asm__ volatile ("mfc0\t%0, $15\n\t"
+  : "=r" (prid)
+  );
 #endif
-
-	if (imp)
-		*imp = (prid & LOONGSON_CPU_IMP_MASK) >> LOONGSON_CPU_IMP_SHIFT;
-
-	if (rev)
-		*rev = prid & LOONGSON_CPU_REV_MASK;
-
-	return prid;
+  if (imp) {
+    *imp = (prid & LOONGSON_CPU_IMP_MASK) >> LOONGSON_CPU_IMP_SHIFT;
+  }
+  if (rev) {
+    *rev = prid & LOONGSON_CPU_REV_MASK;
+  }
+  return prid;
 }

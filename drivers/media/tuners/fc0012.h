@@ -12,41 +12,41 @@
 #include "fc001x-common.h"
 
 struct fc0012_config {
-	/*
-	 * I2C address
-	 */
-	u8 i2c_address;
+  /*
+   * I2C address
+   */
+  u8 i2c_address;
 
-	/*
-	 * clock
-	 */
-	enum fc001x_xtal_freq xtal_freq;
+  /*
+   * clock
+   */
+  enum fc001x_xtal_freq xtal_freq;
 
-	bool dual_master;
+  bool dual_master;
 
-	/*
-	 * RF loop-through
-	 */
-	bool loop_through;
+  /*
+   * RF loop-through
+   */
+  bool loop_through;
 
-	/*
-	 * clock output
-	 */
-	bool clock_out;
+  /*
+   * clock output
+   */
+  bool clock_out;
 };
 
 #if IS_REACHABLE(CONFIG_MEDIA_TUNER_FC0012)
 extern struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
-					struct i2c_adapter *i2c,
-					const struct fc0012_config *cfg);
+    struct i2c_adapter *i2c,
+    const struct fc0012_config *cfg);
 #else
 static inline struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
-					struct i2c_adapter *i2c,
-					const struct fc0012_config *cfg)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
+    struct i2c_adapter *i2c,
+    const struct fc0012_config *cfg) {
+  pr_warn("%s: driver disabled by Kconfig\n", __func__);
+  return NULL;
 }
+
 #endif
 
 #endif

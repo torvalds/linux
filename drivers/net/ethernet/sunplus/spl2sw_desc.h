@@ -12,8 +12,8 @@ void spl2sw_rx_descs_clean(struct spl2sw_common *comm);
 void spl2sw_descs_clean(struct spl2sw_common *comm);
 void spl2sw_descs_free(struct spl2sw_common *comm);
 void spl2sw_tx_descs_init(struct spl2sw_common *comm);
-int  spl2sw_rx_descs_init(struct spl2sw_common *comm);
-int  spl2sw_descs_alloc(struct spl2sw_common *comm);
-int  spl2sw_descs_init(struct spl2sw_common *comm);
+int spl2sw_rx_descs_init(struct spl2sw_common *comm);
+int spl2sw_descs_alloc(struct spl2sw_common *comm);
+int spl2sw_descs_init(struct spl2sw_common *comm);
 
 #endif

@@ -24,13 +24,11 @@ EXPORT_TRACEPOINT_SYMBOL(iwlwifi_dev_ucode_wrap_event);
 #include "iwl-devtrace.h"
 #endif /* __CHECKER__ */
 
-void __trace_iwlwifi_dev_rx(struct iwl_trans *trans, void *pkt, size_t len)
-{
-	size_t hdr_offset = 0, trace_len;
-
-	trace_len = iwl_rx_trace_len(trans, pkt, len, &hdr_offset);
-	trace_iwlwifi_dev_rx(trans->dev, pkt, len, trace_len, hdr_offset);
-
-	if (trace_len < len)
-		trace_iwlwifi_dev_rx_data(trans->dev, pkt, len, trace_len);
+void __trace_iwlwifi_dev_rx(struct iwl_trans *trans, void *pkt, size_t len) {
+  size_t hdr_offset = 0, trace_len;
+  trace_len = iwl_rx_trace_len(trans, pkt, len, &hdr_offset);
+  trace_iwlwifi_dev_rx(trans->dev, pkt, len, trace_len, hdr_offset);
+  if (trace_len < len) {
+    trace_iwlwifi_dev_rx_data(trans->dev, pkt, len, trace_len);
+  }
 }

@@ -18,17 +18,16 @@
 struct xe_bo;
 
 struct i915_vma {
-	struct xe_bo *bo, *dpt;
-	struct drm_mm_node node;
+  struct xe_bo *bo, *dpt;
+  struct drm_mm_node node;
 };
 
-#define i915_ggtt_clear_scanout(bo) do { } while (0)
+#define i915_ggtt_clear_scanout(bo) do {} while (0)
 
-#define i915_vma_fence_id(vma) -1
+#define i915_vma_fence_id(vma) - 1
 
-static inline u32 i915_ggtt_offset(const struct i915_vma *vma)
-{
-	return vma->node.start;
+static inline u32 i915_ggtt_offset(const struct i915_vma *vma) {
+  return vma->node.start;
 }
 
 #endif

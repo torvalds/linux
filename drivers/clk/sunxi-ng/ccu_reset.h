@@ -10,22 +10,21 @@
 #include <linux/spinlock.h>
 
 struct ccu_reset_map {
-	u16	reg;
-	u32	bit;
+  u16 reg;
+  u32 bit;
 };
-
 
 struct ccu_reset {
-	void __iomem			*base;
-	struct ccu_reset_map		*reset_map;
-	spinlock_t			*lock;
+  void __iomem *base;
+  struct ccu_reset_map *reset_map;
+  spinlock_t *lock;
 
-	struct reset_controller_dev	rcdev;
+  struct reset_controller_dev rcdev;
 };
 
-static inline struct ccu_reset *rcdev_to_ccu_reset(struct reset_controller_dev *rcdev)
-{
-	return container_of(rcdev, struct ccu_reset, rcdev);
+static inline struct ccu_reset *rcdev_to_ccu_reset(
+    struct reset_controller_dev *rcdev) {
+  return container_of(rcdev, struct ccu_reset, rcdev);
 }
 
 extern const struct reset_control_ops ccu_reset_ops;

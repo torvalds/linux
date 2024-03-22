@@ -18,10 +18,10 @@ extern struct linux_romvec *romvec;
 
 /* Enumeration to describe the prom major version we have detected. */
 enum prom_major_version {
-	PROM_V0,      /* Original sun4c V0 prom */
-	PROM_V2,      /* sun4c and early sun4m V2 prom */
-	PROM_V3,      /* sun4m and later, up to sun4d/sun4e machines V3 */
-	PROM_P1275,   /* IEEE compliant ISA based Sun PROM, only sun4u */
+  PROM_V0,      /* Original sun4c V0 prom */
+  PROM_V2,      /* sun4c and early sun4m V2 prom */
+  PROM_V3,      /* sun4m and later, up to sun4d/sun4e machines V3 */
+  PROM_P1275,   /* IEEE compliant ISA based Sun PROM, only sun4u */
 };
 
 extern enum prom_major_version prom_vers;
@@ -58,7 +58,8 @@ extern char *prom_getbootargs(void);
  *
  * Another note, these are only available on V2 or higher proms!
  */
-extern char *prom_mapio(char *virt_hint, int io_space, unsigned int phys_addr, unsigned int num_bytes);
+extern char *prom_mapio(char *virt_hint, int io_space, unsigned int phys_addr,
+    unsigned int num_bytes);
 extern void prom_unmapio(char *virt_addr, unsigned int num_bytes);
 
 /* Device operations. */
@@ -78,7 +79,7 @@ extern int prom_devclose(int device_handle);
  * descriptor.
  */
 extern void prom_seek(int device_handle, unsigned int seek_hival,
-		      unsigned int seek_lowval);
+    unsigned int seek_lowval);
 
 /* Machine memory configuration routine. */
 
@@ -156,10 +157,10 @@ __printf(1, 2) void prom_printf(char *fmt, ...);
 /* Query for input device type */
 
 enum prom_input_device {
-	PROMDEV_IKBD,			/* input from keyboard */
-	PROMDEV_ITTYA,			/* input from ttya */
-	PROMDEV_ITTYB,			/* input from ttyb */
-	PROMDEV_I_UNK,
+  PROMDEV_IKBD,     /* input from keyboard */
+  PROMDEV_ITTYA,      /* input from ttya */
+  PROMDEV_ITTYB,      /* input from ttyb */
+  PROMDEV_I_UNK,
 };
 
 extern enum prom_input_device prom_query_input_device(void);
@@ -167,10 +168,10 @@ extern enum prom_input_device prom_query_input_device(void);
 /* Query for output device type */
 
 enum prom_output_device {
-	PROMDEV_OSCREEN,		/* to screen */
-	PROMDEV_OTTYA,			/* to ttya */
-	PROMDEV_OTTYB,			/* to ttyb */
-	PROMDEV_O_UNK,
+  PROMDEV_OSCREEN,    /* to screen */
+  PROMDEV_OTTYA,      /* to ttya */
+  PROMDEV_OTTYB,      /* to ttyb */
+  PROMDEV_O_UNK,
 };
 
 extern enum prom_output_device prom_query_output_device(void);
@@ -180,8 +181,9 @@ extern enum prom_output_device prom_query_output_device(void);
 /* Start the CPU with the given device tree node, context table, and context
  * at the passed program counter.
  */
-extern int prom_startcpu(int cpunode, struct linux_prom_registers *context_table,
-			 int context, char *program_counter);
+extern int prom_startcpu(int cpunode,
+    struct linux_prom_registers *context_table,
+    int context, char *program_counter);
 
 /* Stop the CPU with the passed device tree node. */
 extern int prom_stopcpu(int cpunode);
@@ -208,7 +210,7 @@ extern void prom_free(char *virt_addr, unsigned int size);
  * virtual address.
  */
 extern void prom_putsegment(int context, unsigned long virt_addr,
-			    int physical_segment);
+    int physical_segment);
 
 /* PROM device tree traversal functions... */
 
@@ -229,7 +231,7 @@ extern int prom_getproplen(int thisnode, char *property);
  * the number of bytes the prom put into your buffer or -1 on error.
  */
 extern int prom_getproperty(int thisnode, char *property,
-			    char *prop_buffer, int propbuf_size);
+    char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
 extern int prom_getint(int node, char *property);
@@ -268,7 +270,7 @@ extern int prom_node_has_property(int node, char *property);
  * Returns the number of bytes of your value that the prom took.
  */
 extern int prom_setprop(int node, char *prop_name, char *prop_value,
-			int value_size);
+    int value_size);
 
 extern int prom_pathtoinode(char *path);
 extern int prom_inst2pkg(int);
@@ -277,18 +279,19 @@ extern int prom_inst2pkg(int);
 
 /* Adjust reg values with the passed ranges. */
 extern void prom_adjust_regs(struct linux_prom_registers *regp, int nregs,
-			     struct linux_prom_ranges *rangep, int nranges);
+    struct linux_prom_ranges *rangep, int nranges);
 
 /* Adjust child ranges with the passed parent ranges. */
 extern void prom_adjust_ranges(struct linux_prom_ranges *cranges, int ncranges,
-			       struct linux_prom_ranges *pranges, int npranges);
+    struct linux_prom_ranges *pranges, int npranges);
 
 /* Apply promlib probed OBIO ranges to registers. */
-extern void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nregs);
+extern void prom_apply_obio_ranges(struct linux_prom_registers *obioregs,
+    int nregs);
 
-/* Apply ranges of any prom node (and optionally parent node as well) to registers. */
+/* Apply ranges of any prom node (and optionally parent node as well) to
+ * registers. */
 extern void prom_apply_generic_ranges(int node, int parent,
-				      struct linux_prom_registers *sbusregs, int nregs);
-
+    struct linux_prom_registers *sbusregs, int nregs);
 
 #endif /* !(__SPARC_OPLIB_H) */

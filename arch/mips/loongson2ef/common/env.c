@@ -21,33 +21,29 @@
 u32 cpu_clock_freq;
 EXPORT_SYMBOL(cpu_clock_freq);
 
-void __init prom_init_env(void)
-{
-	/* pmon passes arguments in 32bit pointers */
-	unsigned int processor_id;
-
-	cpu_clock_freq = fw_getenvl("cpuclock");
-	memsize = fw_getenvl("memsize");
-	highmemsize = fw_getenvl("highmemsize");
-
-	if (memsize == 0)
-		memsize = 256;
-
-	pr_info("memsize=%u, highmemsize=%u\n", memsize, highmemsize);
-
-	if (cpu_clock_freq == 0) {
-		processor_id = (&current_cpu_data)->processor_id;
-		switch (processor_id & PRID_REV_MASK) {
-		case PRID_REV_LOONGSON2E:
-			cpu_clock_freq = 533080000;
-			break;
-		case PRID_REV_LOONGSON2F:
-			cpu_clock_freq = 797000000;
-			break;
-		default:
-			cpu_clock_freq = 100000000;
-			break;
-		}
-	}
-	pr_info("CpuClock = %u\n", cpu_clock_freq);
+void __init prom_init_env(void) {
+  /* pmon passes arguments in 32bit pointers */
+  unsigned int processor_id;
+  cpu_clock_freq = fw_getenvl("cpuclock");
+  memsize = fw_getenvl("memsize");
+  highmemsize = fw_getenvl("highmemsize");
+  if (memsize == 0) {
+    memsize = 256;
+  }
+  pr_info("memsize=%u, highmemsize=%u\n", memsize, highmemsize);
+  if (cpu_clock_freq == 0) {
+    processor_id = (&current_cpu_data)->processor_id;
+    switch (processor_id & PRID_REV_MASK) {
+      case PRID_REV_LOONGSON2E:
+        cpu_clock_freq = 533080000;
+        break;
+      case PRID_REV_LOONGSON2F:
+        cpu_clock_freq = 797000000;
+        break;
+      default:
+        cpu_clock_freq = 100000000;
+        break;
+    }
+  }
+  pr_info("CpuClock = %u\n", cpu_clock_freq);
 }

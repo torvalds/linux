@@ -19,45 +19,43 @@ struct hyperv_pci_block_ops hvpci_block_ops;
 EXPORT_SYMBOL_GPL(hvpci_block_ops);
 
 int hyperv_read_cfg_blk(struct pci_dev *dev, void *buf, unsigned int buf_len,
-			unsigned int block_id, unsigned int *bytes_returned)
-{
-	if (!hvpci_block_ops.read_block)
-		return -EOPNOTSUPP;
-
-	return hvpci_block_ops.read_block(dev, buf, buf_len, block_id,
-					  bytes_returned);
+    unsigned int block_id, unsigned int *bytes_returned) {
+  if (!hvpci_block_ops.read_block) {
+    return -EOPNOTSUPP;
+  }
+  return hvpci_block_ops.read_block(dev, buf, buf_len, block_id,
+      bytes_returned);
 }
+
 EXPORT_SYMBOL_GPL(hyperv_read_cfg_blk);
 
 int hyperv_write_cfg_blk(struct pci_dev *dev, void *buf, unsigned int len,
-			 unsigned int block_id)
-{
-	if (!hvpci_block_ops.write_block)
-		return -EOPNOTSUPP;
-
-	return hvpci_block_ops.write_block(dev, buf, len, block_id);
+    unsigned int block_id) {
+  if (!hvpci_block_ops.write_block) {
+    return -EOPNOTSUPP;
+  }
+  return hvpci_block_ops.write_block(dev, buf, len, block_id);
 }
+
 EXPORT_SYMBOL_GPL(hyperv_write_cfg_blk);
 
 int hyperv_reg_block_invalidate(struct pci_dev *dev, void *context,
-				void (*block_invalidate)(void *context,
-							 u64 block_mask))
-{
-	if (!hvpci_block_ops.reg_blk_invalidate)
-		return -EOPNOTSUPP;
-
-	return hvpci_block_ops.reg_blk_invalidate(dev, context,
-						  block_invalidate);
+    void (*block_invalidate)(void *context,
+    u64 block_mask)) {
+  if (!hvpci_block_ops.reg_blk_invalidate) {
+    return -EOPNOTSUPP;
+  }
+  return hvpci_block_ops.reg_blk_invalidate(dev, context,
+      block_invalidate);
 }
+
 EXPORT_SYMBOL_GPL(hyperv_reg_block_invalidate);
 
-static void __exit exit_hv_pci_intf(void)
-{
+static void __exit exit_hv_pci_intf(void) {
 }
 
-static int __init init_hv_pci_intf(void)
-{
-	return 0;
+static int __init init_hv_pci_intf(void) {
+  return 0;
 }
 
 module_init(init_hv_pci_intf);

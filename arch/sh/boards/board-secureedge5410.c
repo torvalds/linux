@@ -27,28 +27,25 @@ unsigned short secureedge5410_ioport;
 /*
  * EraseConfig handling functions
  */
-static irqreturn_t eraseconfig_interrupt(int irq, void *dev_id)
-{
-	printk("SnapGear: erase switch interrupt!\n");
-
-	return IRQ_HANDLED;
+static irqreturn_t eraseconfig_interrupt(int irq, void *dev_id) {
+  printk("SnapGear: erase switch interrupt!\n");
+  return IRQ_HANDLED;
 }
 
-static int __init eraseconfig_init(void)
-{
-	unsigned int irq = evt2irq(0x240);
-
-	printk("SnapGear: EraseConfig init\n");
-
-	/* Setup "EraseConfig" switch on external IRQ 0 */
-	if (request_irq(irq, eraseconfig_interrupt, 0, "Erase Config", NULL))
-		printk("SnapGear: failed to register IRQ%d for Reset witch\n",
-				irq);
-	else
-		printk("SnapGear: registered EraseConfig switch on IRQ%d\n",
-				irq);
-	return 0;
+static int __init eraseconfig_init(void) {
+  unsigned int irq = evt2irq(0x240);
+  printk("SnapGear: EraseConfig init\n");
+  /* Setup "EraseConfig" switch on external IRQ 0 */
+  if (request_irq(irq, eraseconfig_interrupt, 0, "Erase Config", NULL)) {
+    printk("SnapGear: failed to register IRQ%d for Reset witch\n",
+        irq);
+  } else {
+    printk("SnapGear: registered EraseConfig switch on IRQ%d\n",
+        irq);
+  }
+  return 0;
 }
+
 device_initcall(eraseconfig_init);
 
 /*
@@ -59,17 +56,16 @@ device_initcall(eraseconfig_init);
  * IRL2 = eth1
  * IRL3 = crypto
  */
-static void __init init_snapgear_IRQ(void)
-{
-	printk("Setup SnapGear IRQ/IPR ...\n");
-	/* enable individual interrupt mode for externals */
-	plat_irq_setup_pins(IRQ_MODE_IRQ);
+static void __init init_snapgear_IRQ(void) {
+  printk("Setup SnapGear IRQ/IPR ...\n");
+  /* enable individual interrupt mode for externals */
+  plat_irq_setup_pins(IRQ_MODE_IRQ);
 }
 
 /*
  * The Machine Vector
  */
 static struct sh_machine_vector mv_snapgear __initmv = {
-	.mv_name		= "SnapGear SecureEdge5410",
-	.mv_init_irq		= init_snapgear_IRQ,
+  .mv_name = "SnapGear SecureEdge5410",
+  .mv_init_irq = init_snapgear_IRQ,
 };

@@ -14,9 +14,9 @@
  * @WMI_BRIGHTNESS_METHOD_SOURCE: Get/Set EC Brightness Source
  */
 enum wmi_brightness_method {
-	WMI_BRIGHTNESS_METHOD_LEVEL = 1,
-	WMI_BRIGHTNESS_METHOD_SOURCE = 2,
-	WMI_BRIGHTNESS_METHOD_MAX
+  WMI_BRIGHTNESS_METHOD_LEVEL = 1,
+  WMI_BRIGHTNESS_METHOD_SOURCE = 2,
+  WMI_BRIGHTNESS_METHOD_MAX
 };
 
 /**
@@ -28,10 +28,10 @@ enum wmi_brightness_method {
  *                                      %WMI_BRIGHTNESS_METHOD_LEVEL.
  */
 enum wmi_brightness_mode {
-	WMI_BRIGHTNESS_MODE_GET = 0,
-	WMI_BRIGHTNESS_MODE_SET = 1,
-	WMI_BRIGHTNESS_MODE_GET_MAX_LEVEL = 2,
-	WMI_BRIGHTNESS_MODE_MAX
+  WMI_BRIGHTNESS_MODE_GET = 0,
+  WMI_BRIGHTNESS_MODE_SET = 1,
+  WMI_BRIGHTNESS_MODE_GET_MAX_LEVEL = 2,
+  WMI_BRIGHTNESS_MODE_MAX
 };
 
 /**
@@ -43,10 +43,10 @@ enum wmi_brightness_mode {
  *                             DisplayPort AUX channel.
  */
 enum wmi_brightness_source {
-	WMI_BRIGHTNESS_SOURCE_GPU = 1,
-	WMI_BRIGHTNESS_SOURCE_EC = 2,
-	WMI_BRIGHTNESS_SOURCE_AUX = 3,
-	WMI_BRIGHTNESS_SOURCE_MAX
+  WMI_BRIGHTNESS_SOURCE_GPU = 1,
+  WMI_BRIGHTNESS_SOURCE_EC = 2,
+  WMI_BRIGHTNESS_SOURCE_AUX = 3,
+  WMI_BRIGHTNESS_SOURCE_MAX
 };
 
 /**
@@ -67,10 +67,10 @@ enum wmi_brightness_source {
  * an &enum wmi_brightness_source value with %WMI_BRIGHTNESS_METHOD_SOURCE.
  */
 struct wmi_brightness_args {
-	u32 mode;
-	u32 val;
-	u32 ret;
-	u32 ignored[3];
+  u32 mode;
+  u32 val;
+  u32 ret;
+  u32 ignored[3];
 };
 
 #endif

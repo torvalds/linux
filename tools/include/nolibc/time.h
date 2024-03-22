@@ -13,16 +13,14 @@
 #include "sys.h"
 
 static __attribute__((unused))
-time_t time(time_t *tptr)
-{
-	struct timeval tv;
-
-	/* note, cannot fail here */
-	sys_gettimeofday(&tv, NULL);
-
-	if (tptr)
-		*tptr = tv.tv_sec;
-	return tv.tv_sec;
+time_t time(time_t *tptr) {
+  struct timeval tv;
+  /* note, cannot fail here */
+  sys_gettimeofday(&tv, NULL);
+  if (tptr) {
+    *tptr = tv.tv_sec;
+  }
+  return tv.tv_sec;
 }
 
 /* make sure to include all global symbols */

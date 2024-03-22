@@ -2,8 +2,8 @@
 #ifndef _INTEL_THERMAL_INTERRUPT_H
 #define _INTEL_THERMAL_INTERRUPT_H
 
-#define CORE_LEVEL	0
-#define PACKAGE_LEVEL	1
+#define CORE_LEVEL  0
+#define PACKAGE_LEVEL 1
 
 /* Interrupt Handler for package thermal thresholds */
 extern int (*platform_thermal_package_notify)(__u64 msr_val);

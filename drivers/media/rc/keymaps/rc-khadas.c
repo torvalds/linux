@@ -10,41 +10,39 @@
 #include <linux/module.h>
 
 static struct rc_map_table khadas[] = {
-	{ 0x14, KEY_POWER },
+  { 0x14, KEY_POWER },
 
-	{ 0x03, KEY_UP },
-	{ 0x02, KEY_DOWN },
-	{ 0x0e, KEY_LEFT },
-	{ 0x1a, KEY_RIGHT },
-	{ 0x07, KEY_OK },
+  { 0x03, KEY_UP },
+  { 0x02, KEY_DOWN },
+  { 0x0e, KEY_LEFT },
+  { 0x1a, KEY_RIGHT },
+  { 0x07, KEY_OK },
 
-	{ 0x01, KEY_BACK },
-	{ 0x5b, KEY_MUTE }, // mouse
-	{ 0x13, KEY_MENU },
+  { 0x01, KEY_BACK },
+  { 0x5b, KEY_MUTE }, // mouse
+  { 0x13, KEY_MENU },
 
-	{ 0x58, KEY_VOLUMEDOWN },
-	{ 0x0b, KEY_VOLUMEUP },
+  { 0x58, KEY_VOLUMEDOWN },
+  { 0x0b, KEY_VOLUMEUP },
 
-	{ 0x48, KEY_HOME },
+  { 0x48, KEY_HOME },
 };
 
 static struct rc_map_list khadas_map = {
-	.map = {
-		.scan     = khadas,
-		.size     = ARRAY_SIZE(khadas),
-		.rc_proto = RC_PROTO_NEC,
-		.name     = RC_MAP_KHADAS,
-	}
+  .map = {
+    .scan = khadas,
+    .size = ARRAY_SIZE(khadas),
+    .rc_proto = RC_PROTO_NEC,
+    .name = RC_MAP_KHADAS,
+  }
 };
 
-static int __init init_rc_map_khadas(void)
-{
-	return rc_map_register(&khadas_map);
+static int __init init_rc_map_khadas(void) {
+  return rc_map_register(&khadas_map);
 }
 
-static void __exit exit_rc_map_khadas(void)
-{
-	rc_map_unregister(&khadas_map);
+static void __exit exit_rc_map_khadas(void) {
+  rc_map_unregister(&khadas_map);
 }
 
 module_init(init_rc_map_khadas)

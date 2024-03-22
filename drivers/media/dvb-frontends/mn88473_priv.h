@@ -18,12 +18,12 @@
 #define MN88473_FIRMWARE "dvb-demod-mn88473-01.fw"
 
 struct mn88473_dev {
-	struct i2c_client *client[3];
-	struct regmap *regmap[3];
-	struct dvb_frontend frontend;
-	u16 i2c_wr_max;
-	bool active;
-	u32 clk;
+  struct i2c_client *client[3];
+  struct regmap *regmap[3];
+  struct dvb_frontend frontend;
+  u16 i2c_wr_max;
+  bool active;
+  u32 clk;
 };
 
 #endif

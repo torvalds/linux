@@ -17,8 +17,8 @@
 #define __IA_CSS_SDIS_COMMON_TYPES_H
 
 /* @file
-* CSS-API header file for DVS statistics parameters.
-*/
+ * CSS-API header file for DVS statistics parameters.
+ */
 
 #include <type_support.h>
 
@@ -26,8 +26,8 @@
  */
 
 struct ia_css_dvs_grid_dim {
-	u32 width;		/** Width of DVS grid table in cells */
-	u32 height;	/** Height of DVS grid table in cells */
+  u32 width;    /** Width of DVS grid table in cells */
+  u32 height; /** Height of DVS grid table in cells */
 };
 
 /* DVS statistics dimensions in number of cells for
@@ -35,11 +35,11 @@ struct ia_css_dvs_grid_dim {
  */
 
 struct ia_css_sdis_info {
-	struct {
-		struct ia_css_dvs_grid_dim dim; /* Dimensions */
-		struct ia_css_dvs_grid_dim pad; /* Padded dimensions */
-	} grid, coef, proj;
-	u32 deci_factor_log2;
+  struct {
+    struct ia_css_dvs_grid_dim dim; /* Dimensions */
+    struct ia_css_dvs_grid_dim pad; /* Padded dimensions */
+  } grid, coef, proj;
+  u32 deci_factor_log2;
 };
 
 /* DVS statistics grid
@@ -50,171 +50,171 @@ struct ia_css_sdis_info {
  *  ISP2: SDVS2 is used.
  */
 struct ia_css_dvs_grid_res {
-	u32 width;		/** Width of DVS grid table.
-					(= Horizontal number of grid cells
-					in table, which cells have effective
-					statistics.)
-					For DVS1, this is equal to
-					 the number of vertical statistics. */
-	u32 aligned_width; /** Stride of each grid line.
-					(= Horizontal number of grid cells
-					in table, which means
-					the allocated width.) */
-	u32 height;	/** Height of DVS grid table.
-					(= Vertical number of grid cells
-					in table, which cells have effective
-					statistics.)
-					For DVS1, This is equal to
-					the number of horizontal statistics. */
-	u32 aligned_height;/** Stride of each grid column.
-					(= Vertical number of grid cells
-					in table, which means
-					the allocated height.) */
+  u32 width;    /** Width of DVS grid table.
+                 * (= Horizontal number of grid cells
+                 * in table, which cells have effective
+                 * statistics.)
+                 * For DVS1, this is equal to
+                 * the number of vertical statistics. */
+  u32 aligned_width; /** Stride of each grid line.
+                      * (= Horizontal number of grid cells
+                      * in table, which means
+                      * the allocated width.) */
+  u32 height; /** Height of DVS grid table.
+               * (= Vertical number of grid cells
+               * in table, which cells have effective
+               * statistics.)
+               * For DVS1, This is equal to
+               * the number of horizontal statistics. */
+  u32 aligned_height; /** Stride of each grid column.
+                       * (= Vertical number of grid cells
+                       * in table, which means
+                       * the allocated height.) */
 };
 
 /* TODO: use ia_css_dvs_grid_res in here.
  * However, that implies driver I/F changes
  */
 struct ia_css_dvs_grid_info {
-	u32 enable;        /** DVS statistics enabled.
-					0:disabled, 1:enabled */
-	u32 width;		/** Width of DVS grid table.
-					(= Horizontal number of grid cells
-					in table, which cells have effective
-					statistics.)
-					For DVS1, this is equal to
-					 the number of vertical statistics. */
-	u32 aligned_width; /** Stride of each grid line.
-					(= Horizontal number of grid cells
-					in table, which means
-					the allocated width.) */
-	u32 height;	/** Height of DVS grid table.
-					(= Vertical number of grid cells
-					in table, which cells have effective
-					statistics.)
-					For DVS1, This is equal to
-					the number of horizontal statistics. */
-	u32 aligned_height;/** Stride of each grid column.
-					(= Vertical number of grid cells
-					in table, which means
-					the allocated height.) */
-	u32 bqs_per_grid_cell; /** Grid cell size in BQ(Bayer Quad) unit.
-					(1BQ means {Gr,R,B,Gb}(2x2 pixels).)
-					For DVS1, valid value is 64.
-					For DVS2, valid value is only 64,
-					currently. */
-	u32 num_hor_coefs;	/** Number of horizontal coefficients. */
-	u32 num_ver_coefs;	/** Number of vertical coefficients. */
+  u32 enable;        /** DVS statistics enabled.
+                      * 0:disabled, 1:enabled */
+  u32 width;    /** Width of DVS grid table.
+                 * (= Horizontal number of grid cells
+                 * in table, which cells have effective
+                 * statistics.)
+                 * For DVS1, this is equal to
+                 * the number of vertical statistics. */
+  u32 aligned_width; /** Stride of each grid line.
+                      * (= Horizontal number of grid cells
+                      * in table, which means
+                      * the allocated width.) */
+  u32 height; /** Height of DVS grid table.
+               * (= Vertical number of grid cells
+               * in table, which cells have effective
+               * statistics.)
+               * For DVS1, This is equal to
+               * the number of horizontal statistics. */
+  u32 aligned_height; /** Stride of each grid column.
+                       * (= Vertical number of grid cells
+                       * in table, which means
+                       * the allocated height.) */
+  u32 bqs_per_grid_cell; /** Grid cell size in BQ(Bayer Quad) unit.
+                          * (1BQ means {Gr,R,B,Gb}(2x2 pixels).)
+                          * For DVS1, valid value is 64.
+                          * For DVS2, valid value is only 64,
+                          * currently. */
+  u32 num_hor_coefs;  /** Number of horizontal coefficients. */
+  u32 num_ver_coefs;  /** Number of vertical coefficients. */
 };
 
 /* Number of DVS statistics levels
  */
-#define IA_CSS_DVS_STAT_NUM_OF_LEVELS	3
+#define IA_CSS_DVS_STAT_NUM_OF_LEVELS 3
 
 /* DVS statistics generated by accelerator global configuration
  */
 struct dvs_stat_public_dvs_global_cfg {
-	unsigned char kappa;
-	/** DVS statistics global configuration - kappa */
-	unsigned char match_shift;
-	/** DVS statistics global configuration - match_shift */
-	unsigned char ybin_mode;
-	/** DVS statistics global configuration - y binning mode */
+  unsigned char kappa;
+  /** DVS statistics global configuration - kappa */
+  unsigned char match_shift;
+  /** DVS statistics global configuration - match_shift */
+  unsigned char ybin_mode;
+  /** DVS statistics global configuration - y binning mode */
 };
 
 /* DVS statistics generated by accelerator level grid
  *  configuration
  */
 struct dvs_stat_public_dvs_level_grid_cfg {
-	unsigned char grid_width;
-	/** DVS statistics grid width */
-	unsigned char grid_height;
-	/** DVS statistics grid height */
-	unsigned char block_width;
-	/** DVS statistics block width */
-	unsigned char block_height;
-	/** DVS statistics block  height */
+  unsigned char grid_width;
+  /** DVS statistics grid width */
+  unsigned char grid_height;
+  /** DVS statistics grid height */
+  unsigned char block_width;
+  /** DVS statistics block width */
+  unsigned char block_height;
+  /** DVS statistics block  height */
 };
 
 /* DVS statistics generated by accelerator level grid start
  *  configuration
  */
 struct dvs_stat_public_dvs_level_grid_start {
-	unsigned short x_start;
-	/** DVS statistics level x start */
-	unsigned short y_start;
-	/** DVS statistics level y start */
-	unsigned char enable;
-	/** DVS statistics level enable */
+  unsigned short x_start;
+  /** DVS statistics level x start */
+  unsigned short y_start;
+  /** DVS statistics level y start */
+  unsigned char enable;
+  /** DVS statistics level enable */
 };
 
 /* DVS statistics generated by accelerator level grid end
  *  configuration
  */
 struct dvs_stat_public_dvs_level_grid_end {
-	unsigned short x_end;
-	/** DVS statistics level x end */
-	unsigned short y_end;
-	/** DVS statistics level y end */
+  unsigned short x_end;
+  /** DVS statistics level x end */
+  unsigned short y_end;
+  /** DVS statistics level y end */
 };
 
 /* DVS statistics generated by accelerator Feature Extraction
  *  Region Of Interest (FE-ROI) configuration
  */
 struct dvs_stat_public_dvs_level_fe_roi_cfg {
-	unsigned char x_start;
-	/** DVS statistics fe-roi level x start */
-	unsigned char y_start;
-	/** DVS statistics fe-roi level y start */
-	unsigned char x_end;
-	/** DVS statistics fe-roi level x end */
-	unsigned char y_end;
-	/** DVS statistics fe-roi level y end */
+  unsigned char x_start;
+  /** DVS statistics fe-roi level x start */
+  unsigned char y_start;
+  /** DVS statistics fe-roi level y start */
+  unsigned char x_end;
+  /** DVS statistics fe-roi level x end */
+  unsigned char y_end;
+  /** DVS statistics fe-roi level y end */
 };
 
 /* DVS statistics generated by accelerator public configuration
  */
 struct dvs_stat_public_dvs_grd_cfg {
-	struct dvs_stat_public_dvs_level_grid_cfg    grd_cfg;
-	/** DVS statistics level grid configuration */
-	struct dvs_stat_public_dvs_level_grid_start  grd_start;
-	/** DVS statistics level grid start configuration */
-	struct dvs_stat_public_dvs_level_grid_end    grd_end;
-	/** DVS statistics level grid end configuration */
+  struct dvs_stat_public_dvs_level_grid_cfg grd_cfg;
+  /** DVS statistics level grid configuration */
+  struct dvs_stat_public_dvs_level_grid_start grd_start;
+  /** DVS statistics level grid start configuration */
+  struct dvs_stat_public_dvs_level_grid_end grd_end;
+  /** DVS statistics level grid end configuration */
 };
 
 /* DVS statistics grid generated by accelerator
  */
 struct ia_css_dvs_stat_grid_info {
-	struct dvs_stat_public_dvs_global_cfg       dvs_gbl_cfg;
-	/** DVS statistics global configuration (kappa, match, binning) */
-	struct dvs_stat_public_dvs_grd_cfg       grd_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
-	/** DVS statistics grid configuration (blocks and grids) */
-	struct dvs_stat_public_dvs_level_fe_roi_cfg
-		fe_roi_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
-	/** DVS statistics FE ROI (region of interest) configuration */
+  struct dvs_stat_public_dvs_global_cfg dvs_gbl_cfg;
+  /** DVS statistics global configuration (kappa, match, binning) */
+  struct dvs_stat_public_dvs_grd_cfg grd_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
+  /** DVS statistics grid configuration (blocks and grids) */
+  struct dvs_stat_public_dvs_level_fe_roi_cfg
+      fe_roi_cfg[IA_CSS_DVS_STAT_NUM_OF_LEVELS];
+  /** DVS statistics FE ROI (region of interest) configuration */
 };
 
 /* DVS statistics generated by accelerator default grid info
  */
 #define DEFAULT_DVS_GRID_INFO { \
-	.dvs_stat_grid_info = { \
-		.fe_roi_cfg = { \
-			[1] = { \
-			    .x_start = 4 \
-			} \
-		} \
-	} \
+    .dvs_stat_grid_info = { \
+      .fe_roi_cfg = { \
+        [1] = { \
+          .x_start = 4 \
+        } \
+      } \
+    } \
 }
 
 /* Union that holds all types of DVS statistics grid info in
  *  CSS format
  * */
 union ia_css_dvs_grid_u {
-	struct ia_css_dvs_stat_grid_info dvs_stat_grid_info;
-	/** DVS statistics produced by accelerator grid info */
-	struct ia_css_dvs_grid_info dvs_grid_info;
-	/** DVS (DVS1/DVS2) grid info */
+  struct ia_css_dvs_stat_grid_info dvs_stat_grid_info;
+  /** DVS statistics produced by accelerator grid info */
+  struct ia_css_dvs_grid_info dvs_grid_info;
+  /** DVS (DVS1/DVS2) grid info */
 };
 
 #endif /* __IA_CSS_SDIS_COMMON_TYPES_H */

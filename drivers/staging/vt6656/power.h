@@ -14,7 +14,7 @@
 #ifndef __POWER_H__
 #define __POWER_H__
 
-#define C_PWBT	1000 /* micro sec. power up before TBTT */
+#define C_PWBT  1000 /* micro sec. power up before TBTT */
 
 int vnt_disable_power_saving(struct vnt_private *priv);
 void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval);

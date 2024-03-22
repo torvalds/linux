@@ -12,9 +12,8 @@
 #include <linux/i2c.h>
 
 extern int wm8903_mic_detect(struct snd_soc_component *component,
-			     struct snd_soc_jack *jack,
-			     int det, int shrt);
-
+    struct snd_soc_jack *jack,
+    int det, int shrt);
 
 /*
  * Register values.
@@ -71,14 +70,14 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_ANALOGUE_SPK_OUTPUT_CONTROL_0    0x41
 #define WM8903_DC_SERVO_0                       0x43
 #define WM8903_DC_SERVO_2                       0x45
-#define WM8903_DC_SERVO_4			0x47
-#define WM8903_DC_SERVO_5			0x48
-#define WM8903_DC_SERVO_6			0x49
-#define WM8903_DC_SERVO_7			0x4A
-#define WM8903_DC_SERVO_READBACK_1		0x51
-#define WM8903_DC_SERVO_READBACK_2		0x52
-#define WM8903_DC_SERVO_READBACK_3		0x53
-#define WM8903_DC_SERVO_READBACK_4		0x54
+#define WM8903_DC_SERVO_4     0x47
+#define WM8903_DC_SERVO_5     0x48
+#define WM8903_DC_SERVO_6     0x49
+#define WM8903_DC_SERVO_7     0x4A
+#define WM8903_DC_SERVO_READBACK_1    0x51
+#define WM8903_DC_SERVO_READBACK_2    0x52
+#define WM8903_DC_SERVO_READBACK_3    0x53
+#define WM8903_DC_SERVO_READBACK_4    0x54
 #define WM8903_ANALOGUE_HP_0                    0x5A
 #define WM8903_ANALOGUE_LINEOUT_0               0x5E
 #define WM8903_CHARGE_PUMP_0                    0x62
@@ -111,9 +110,12 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R0 (0x00) - SW Reset and ID
  */
-#define WM8903_SW_RESET_DEV_ID1_MASK            0xFFFF  /* SW_RESET_DEV_ID1 - [15:0] */
-#define WM8903_SW_RESET_DEV_ID1_SHIFT                0  /* SW_RESET_DEV_ID1 - [15:0] */
-#define WM8903_SW_RESET_DEV_ID1_WIDTH               16  /* SW_RESET_DEV_ID1 - [15:0] */
+#define WM8903_SW_RESET_DEV_ID1_MASK            0xFFFF  /* SW_RESET_DEV_ID1 -
+                                                         * [15:0] */
+#define WM8903_SW_RESET_DEV_ID1_SHIFT                0  /* SW_RESET_DEV_ID1 -
+                                                         * [15:0] */
+#define WM8903_SW_RESET_DEV_ID1_WIDTH               16  /* SW_RESET_DEV_ID1 -
+                                                         * [15:0] */
 
 /*
  * R1 (0x01) - Revision Number
@@ -174,12 +176,18 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R8 (0x08) - Analogue DAC 0
  */
-#define WM8903_DACBIAS_SEL_MASK                 0x0018  /* DACBIAS_SEL - [4:3] */
-#define WM8903_DACBIAS_SEL_SHIFT                     3  /* DACBIAS_SEL - [4:3] */
-#define WM8903_DACBIAS_SEL_WIDTH                     2  /* DACBIAS_SEL - [4:3] */
-#define WM8903_DACVMID_BIAS_SEL_MASK            0x0006  /* DACVMID_BIAS_SEL - [2:1] */
-#define WM8903_DACVMID_BIAS_SEL_SHIFT                1  /* DACVMID_BIAS_SEL - [2:1] */
-#define WM8903_DACVMID_BIAS_SEL_WIDTH                2  /* DACVMID_BIAS_SEL - [2:1] */
+#define WM8903_DACBIAS_SEL_MASK                 0x0018  /* DACBIAS_SEL - [4:3]
+                                                         * */
+#define WM8903_DACBIAS_SEL_SHIFT                     3  /* DACBIAS_SEL - [4:3]
+                                                         * */
+#define WM8903_DACBIAS_SEL_WIDTH                     2  /* DACBIAS_SEL - [4:3]
+                                                         * */
+#define WM8903_DACVMID_BIAS_SEL_MASK            0x0006  /* DACVMID_BIAS_SEL -
+                                                         * [2:1] */
+#define WM8903_DACVMID_BIAS_SEL_SHIFT                1  /* DACVMID_BIAS_SEL -
+                                                         * [2:1] */
+#define WM8903_DACVMID_BIAS_SEL_WIDTH                2  /* DACVMID_BIAS_SEL -
+                                                         * [2:1] */
 
 /*
  * R10 (0x0A) - Analogue ADC 0
@@ -292,15 +300,24 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R21 (0x15) - Clock Rates 1
  */
-#define WM8903_CLK_SYS_RATE_MASK                0x3C00  /* CLK_SYS_RATE - [13:10] */
-#define WM8903_CLK_SYS_RATE_SHIFT                   10  /* CLK_SYS_RATE - [13:10] */
-#define WM8903_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [13:10] */
-#define WM8903_CLK_SYS_MODE_MASK                0x0300  /* CLK_SYS_MODE - [9:8] */
-#define WM8903_CLK_SYS_MODE_SHIFT                    8  /* CLK_SYS_MODE - [9:8] */
-#define WM8903_CLK_SYS_MODE_WIDTH                    2  /* CLK_SYS_MODE - [9:8] */
-#define WM8903_SAMPLE_RATE_MASK                 0x000F  /* SAMPLE_RATE - [3:0] */
-#define WM8903_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [3:0] */
-#define WM8903_SAMPLE_RATE_WIDTH                     4  /* SAMPLE_RATE - [3:0] */
+#define WM8903_CLK_SYS_RATE_MASK                0x3C00  /* CLK_SYS_RATE -
+                                                         * [13:10] */
+#define WM8903_CLK_SYS_RATE_SHIFT                   10  /* CLK_SYS_RATE -
+                                                         * [13:10] */
+#define WM8903_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE -
+                                                         * [13:10] */
+#define WM8903_CLK_SYS_MODE_MASK                0x0300  /* CLK_SYS_MODE - [9:8]
+                                                         * */
+#define WM8903_CLK_SYS_MODE_SHIFT                    8  /* CLK_SYS_MODE - [9:8]
+                                                         * */
+#define WM8903_CLK_SYS_MODE_WIDTH                    2  /* CLK_SYS_MODE - [9:8]
+                                                         * */
+#define WM8903_SAMPLE_RATE_MASK                 0x000F  /* SAMPLE_RATE - [3:0]
+                                                         * */
+#define WM8903_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [3:0]
+                                                         * */
+#define WM8903_SAMPLE_RATE_WIDTH                     4  /* SAMPLE_RATE - [3:0]
+                                                         * */
 
 /*
  * R22 (0x16) - Clock Rates 2
@@ -421,9 +438,12 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R27 (0x1B) - Audio Interface 3
  */
-#define WM8903_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0] */
-#define WM8903_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0] */
-#define WM8903_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0] */
+#define WM8903_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM8903_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM8903_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0]
+                                                         * */
 
 /*
  * R30 (0x1E) - DAC Digital Volume Left
@@ -450,18 +470,30 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R32 (0x20) - DAC Digital 0
  */
-#define WM8903_ADCL_DAC_SVOL_MASK               0x0F00  /* ADCL_DAC_SVOL - [11:8] */
-#define WM8903_ADCL_DAC_SVOL_SHIFT                   8  /* ADCL_DAC_SVOL - [11:8] */
-#define WM8903_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [11:8] */
-#define WM8903_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8903_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8903_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8903_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2] */
-#define WM8903_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8903_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8903_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0] */
-#define WM8903_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0] */
-#define WM8903_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0] */
+#define WM8903_ADCL_DAC_SVOL_MASK               0x0F00  /* ADCL_DAC_SVOL -
+                                                         * [11:8] */
+#define WM8903_ADCL_DAC_SVOL_SHIFT                   8  /* ADCL_DAC_SVOL -
+                                                         * [11:8] */
+#define WM8903_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL -
+                                                         * [11:8] */
+#define WM8903_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8903_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8903_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8903_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8903_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8903_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8903_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8903_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8903_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0]
+                                                         * */
 
 /*
  * R33 (0x21) - DAC Digital 1
@@ -515,9 +547,12 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R38 (0x26) - ADC Digital 0
  */
-#define WM8903_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5] */
-#define WM8903_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5] */
-#define WM8903_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5] */
+#define WM8903_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8903_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8903_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5]
+                                                         * */
 #define WM8903_ADC_HPF_ENA                      0x0010  /* ADC_HPF_ENA */
 #define WM8903_ADC_HPF_ENA_MASK                 0x0010  /* ADC_HPF_ENA */
 #define WM8903_ADC_HPF_ENA_SHIFT                     4  /* ADC_HPF_ENA */
@@ -538,18 +573,30 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_DIGMIC_MODE_SEL_MASK             0x0100  /* DIGMIC_MODE_SEL */
 #define WM8903_DIGMIC_MODE_SEL_SHIFT                 8  /* DIGMIC_MODE_SEL */
 #define WM8903_DIGMIC_MODE_SEL_WIDTH                 1  /* DIGMIC_MODE_SEL */
-#define WM8903_DIGMIC_CLK_SEL_L_MASK            0x00C0  /* DIGMIC_CLK_SEL_L - [7:6] */
-#define WM8903_DIGMIC_CLK_SEL_L_SHIFT                6  /* DIGMIC_CLK_SEL_L - [7:6] */
-#define WM8903_DIGMIC_CLK_SEL_L_WIDTH                2  /* DIGMIC_CLK_SEL_L - [7:6] */
-#define WM8903_DIGMIC_CLK_SEL_R_MASK            0x0030  /* DIGMIC_CLK_SEL_R - [5:4] */
-#define WM8903_DIGMIC_CLK_SEL_R_SHIFT                4  /* DIGMIC_CLK_SEL_R - [5:4] */
-#define WM8903_DIGMIC_CLK_SEL_R_WIDTH                2  /* DIGMIC_CLK_SEL_R - [5:4] */
-#define WM8903_DIGMIC_CLK_SEL_RT_MASK           0x000C  /* DIGMIC_CLK_SEL_RT - [3:2] */
-#define WM8903_DIGMIC_CLK_SEL_RT_SHIFT               2  /* DIGMIC_CLK_SEL_RT - [3:2] */
-#define WM8903_DIGMIC_CLK_SEL_RT_WIDTH               2  /* DIGMIC_CLK_SEL_RT - [3:2] */
-#define WM8903_DIGMIC_CLK_SEL_MASK              0x0003  /* DIGMIC_CLK_SEL - [1:0] */
-#define WM8903_DIGMIC_CLK_SEL_SHIFT                  0  /* DIGMIC_CLK_SEL - [1:0] */
-#define WM8903_DIGMIC_CLK_SEL_WIDTH                  2  /* DIGMIC_CLK_SEL - [1:0] */
+#define WM8903_DIGMIC_CLK_SEL_L_MASK            0x00C0  /* DIGMIC_CLK_SEL_L -
+                                                         * [7:6] */
+#define WM8903_DIGMIC_CLK_SEL_L_SHIFT                6  /* DIGMIC_CLK_SEL_L -
+                                                         * [7:6] */
+#define WM8903_DIGMIC_CLK_SEL_L_WIDTH                2  /* DIGMIC_CLK_SEL_L -
+                                                         * [7:6] */
+#define WM8903_DIGMIC_CLK_SEL_R_MASK            0x0030  /* DIGMIC_CLK_SEL_R -
+                                                         * [5:4] */
+#define WM8903_DIGMIC_CLK_SEL_R_SHIFT                4  /* DIGMIC_CLK_SEL_R -
+                                                         * [5:4] */
+#define WM8903_DIGMIC_CLK_SEL_R_WIDTH                2  /* DIGMIC_CLK_SEL_R -
+                                                         * [5:4] */
+#define WM8903_DIGMIC_CLK_SEL_RT_MASK           0x000C  /* DIGMIC_CLK_SEL_RT -
+                                                         * [3:2] */
+#define WM8903_DIGMIC_CLK_SEL_RT_SHIFT               2  /* DIGMIC_CLK_SEL_RT -
+                                                         * [3:2] */
+#define WM8903_DIGMIC_CLK_SEL_RT_WIDTH               2  /* DIGMIC_CLK_SEL_RT -
+                                                         * [3:2] */
+#define WM8903_DIGMIC_CLK_SEL_MASK              0x0003  /* DIGMIC_CLK_SEL -
+                                                         * [1:0] */
+#define WM8903_DIGMIC_CLK_SEL_SHIFT                  0  /* DIGMIC_CLK_SEL -
+                                                         * [1:0] */
+#define WM8903_DIGMIC_CLK_SEL_WIDTH                  2  /* DIGMIC_CLK_SEL -
+                                                         * [1:0] */
 
 /*
  * R40 (0x28) - DRC 0
@@ -558,12 +605,18 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_DRC_ENA_MASK                     0x8000  /* DRC_ENA */
 #define WM8903_DRC_ENA_SHIFT                        15  /* DRC_ENA */
 #define WM8903_DRC_ENA_WIDTH                         1  /* DRC_ENA */
-#define WM8903_DRC_THRESH_HYST_MASK             0x1800  /* DRC_THRESH_HYST - [12:11] */
-#define WM8903_DRC_THRESH_HYST_SHIFT                11  /* DRC_THRESH_HYST - [12:11] */
-#define WM8903_DRC_THRESH_HYST_WIDTH                 2  /* DRC_THRESH_HYST - [12:11] */
-#define WM8903_DRC_STARTUP_GAIN_MASK            0x07C0  /* DRC_STARTUP_GAIN - [10:6] */
-#define WM8903_DRC_STARTUP_GAIN_SHIFT                6  /* DRC_STARTUP_GAIN - [10:6] */
-#define WM8903_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN - [10:6] */
+#define WM8903_DRC_THRESH_HYST_MASK             0x1800  /* DRC_THRESH_HYST -
+                                                         * [12:11] */
+#define WM8903_DRC_THRESH_HYST_SHIFT                11  /* DRC_THRESH_HYST -
+                                                         * [12:11] */
+#define WM8903_DRC_THRESH_HYST_WIDTH                 2  /* DRC_THRESH_HYST -
+                                                         * [12:11] */
+#define WM8903_DRC_STARTUP_GAIN_MASK            0x07C0  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
+#define WM8903_DRC_STARTUP_GAIN_SHIFT                6  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
+#define WM8903_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
 #define WM8903_DRC_FF_DELAY                     0x0020  /* DRC_FF_DELAY */
 #define WM8903_DRC_FF_DELAY_MASK                0x0020  /* DRC_FF_DELAY */
 #define WM8903_DRC_FF_DELAY_SHIFT                    5  /* DRC_FF_DELAY */
@@ -588,44 +641,74 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 /*
  * R41 (0x29) - DRC 1
  */
-#define WM8903_DRC_ATTACK_RATE_MASK             0xF000  /* DRC_ATTACK_RATE - [15:12] */
-#define WM8903_DRC_ATTACK_RATE_SHIFT                12  /* DRC_ATTACK_RATE - [15:12] */
-#define WM8903_DRC_ATTACK_RATE_WIDTH                 4  /* DRC_ATTACK_RATE - [15:12] */
-#define WM8903_DRC_DECAY_RATE_MASK              0x0F00  /* DRC_DECAY_RATE - [11:8] */
-#define WM8903_DRC_DECAY_RATE_SHIFT                  8  /* DRC_DECAY_RATE - [11:8] */
-#define WM8903_DRC_DECAY_RATE_WIDTH                  4  /* DRC_DECAY_RATE - [11:8] */
-#define WM8903_DRC_THRESH_QR_MASK               0x00C0  /* DRC_THRESH_QR - [7:6] */
-#define WM8903_DRC_THRESH_QR_SHIFT                   6  /* DRC_THRESH_QR - [7:6] */
-#define WM8903_DRC_THRESH_QR_WIDTH                   2  /* DRC_THRESH_QR - [7:6] */
-#define WM8903_DRC_RATE_QR_MASK                 0x0030  /* DRC_RATE_QR - [5:4] */
-#define WM8903_DRC_RATE_QR_SHIFT                     4  /* DRC_RATE_QR - [5:4] */
-#define WM8903_DRC_RATE_QR_WIDTH                     2  /* DRC_RATE_QR - [5:4] */
-#define WM8903_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2] */
-#define WM8903_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2] */
-#define WM8903_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2] */
-#define WM8903_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0] */
-#define WM8903_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0] */
-#define WM8903_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0] */
+#define WM8903_DRC_ATTACK_RATE_MASK             0xF000  /* DRC_ATTACK_RATE -
+                                                         * [15:12] */
+#define WM8903_DRC_ATTACK_RATE_SHIFT                12  /* DRC_ATTACK_RATE -
+                                                         * [15:12] */
+#define WM8903_DRC_ATTACK_RATE_WIDTH                 4  /* DRC_ATTACK_RATE -
+                                                         * [15:12] */
+#define WM8903_DRC_DECAY_RATE_MASK              0x0F00  /* DRC_DECAY_RATE -
+                                                         * [11:8] */
+#define WM8903_DRC_DECAY_RATE_SHIFT                  8  /* DRC_DECAY_RATE -
+                                                         * [11:8] */
+#define WM8903_DRC_DECAY_RATE_WIDTH                  4  /* DRC_DECAY_RATE -
+                                                         * [11:8] */
+#define WM8903_DRC_THRESH_QR_MASK               0x00C0  /* DRC_THRESH_QR - [7:6]
+                                                         * */
+#define WM8903_DRC_THRESH_QR_SHIFT                   6  /* DRC_THRESH_QR - [7:6]
+                                                         * */
+#define WM8903_DRC_THRESH_QR_WIDTH                   2  /* DRC_THRESH_QR - [7:6]
+                                                         * */
+#define WM8903_DRC_RATE_QR_MASK                 0x0030  /* DRC_RATE_QR - [5:4]
+                                                         * */
+#define WM8903_DRC_RATE_QR_SHIFT                     4  /* DRC_RATE_QR - [5:4]
+                                                         * */
+#define WM8903_DRC_RATE_QR_WIDTH                     2  /* DRC_RATE_QR - [5:4]
+                                                         * */
+#define WM8903_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8903_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8903_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8903_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8903_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8903_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0]
+                                                         * */
 
 /*
  * R42 (0x2A) - DRC 2
  */
-#define WM8903_DRC_R0_SLOPE_COMP_MASK           0x0038  /* DRC_R0_SLOPE_COMP - [5:3] */
-#define WM8903_DRC_R0_SLOPE_COMP_SHIFT               3  /* DRC_R0_SLOPE_COMP - [5:3] */
-#define WM8903_DRC_R0_SLOPE_COMP_WIDTH               3  /* DRC_R0_SLOPE_COMP - [5:3] */
-#define WM8903_DRC_R1_SLOPE_COMP_MASK           0x0007  /* DRC_R1_SLOPE_COMP - [2:0] */
-#define WM8903_DRC_R1_SLOPE_COMP_SHIFT               0  /* DRC_R1_SLOPE_COMP - [2:0] */
-#define WM8903_DRC_R1_SLOPE_COMP_WIDTH               3  /* DRC_R1_SLOPE_COMP - [2:0] */
+#define WM8903_DRC_R0_SLOPE_COMP_MASK           0x0038  /* DRC_R0_SLOPE_COMP -
+                                                         * [5:3] */
+#define WM8903_DRC_R0_SLOPE_COMP_SHIFT               3  /* DRC_R0_SLOPE_COMP -
+                                                         * [5:3] */
+#define WM8903_DRC_R0_SLOPE_COMP_WIDTH               3  /* DRC_R0_SLOPE_COMP -
+                                                         * [5:3] */
+#define WM8903_DRC_R1_SLOPE_COMP_MASK           0x0007  /* DRC_R1_SLOPE_COMP -
+                                                         * [2:0] */
+#define WM8903_DRC_R1_SLOPE_COMP_SHIFT               0  /* DRC_R1_SLOPE_COMP -
+                                                         * [2:0] */
+#define WM8903_DRC_R1_SLOPE_COMP_WIDTH               3  /* DRC_R1_SLOPE_COMP -
+                                                         * [2:0] */
 
 /*
  * R43 (0x2B) - DRC 3
  */
-#define WM8903_DRC_THRESH_COMP_MASK             0x07E0  /* DRC_THRESH_COMP - [10:5] */
-#define WM8903_DRC_THRESH_COMP_SHIFT                 5  /* DRC_THRESH_COMP - [10:5] */
-#define WM8903_DRC_THRESH_COMP_WIDTH                 6  /* DRC_THRESH_COMP - [10:5] */
-#define WM8903_DRC_AMP_COMP_MASK                0x001F  /* DRC_AMP_COMP - [4:0] */
-#define WM8903_DRC_AMP_COMP_SHIFT                    0  /* DRC_AMP_COMP - [4:0] */
-#define WM8903_DRC_AMP_COMP_WIDTH                    5  /* DRC_AMP_COMP - [4:0] */
+#define WM8903_DRC_THRESH_COMP_MASK             0x07E0  /* DRC_THRESH_COMP -
+                                                         * [10:5] */
+#define WM8903_DRC_THRESH_COMP_SHIFT                 5  /* DRC_THRESH_COMP -
+                                                         * [10:5] */
+#define WM8903_DRC_THRESH_COMP_WIDTH                 6  /* DRC_THRESH_COMP -
+                                                         * [10:5] */
+#define WM8903_DRC_AMP_COMP_MASK                0x001F  /* DRC_AMP_COMP - [4:0]
+                                                         * */
+#define WM8903_DRC_AMP_COMP_SHIFT                    0  /* DRC_AMP_COMP - [4:0]
+                                                         * */
+#define WM8903_DRC_AMP_COMP_WIDTH                    5  /* DRC_AMP_COMP - [4:0]
+                                                         * */
 
 /*
  * R44 (0x2C) - Analogue Left Input 0
@@ -754,14 +837,22 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_DACR_MIXSPKL_VOL_MASK            0x0004  /* DACR_MIXSPKL_VOL */
 #define WM8903_DACR_MIXSPKL_VOL_SHIFT                2  /* DACR_MIXSPKL_VOL */
 #define WM8903_DACR_MIXSPKL_VOL_WIDTH                1  /* DACR_MIXSPKL_VOL */
-#define WM8903_BYPASSL_MIXSPKL_VOL              0x0002  /* BYPASSL_MIXSPKL_VOL */
-#define WM8903_BYPASSL_MIXSPKL_VOL_MASK         0x0002  /* BYPASSL_MIXSPKL_VOL */
-#define WM8903_BYPASSL_MIXSPKL_VOL_SHIFT             1  /* BYPASSL_MIXSPKL_VOL */
-#define WM8903_BYPASSL_MIXSPKL_VOL_WIDTH             1  /* BYPASSL_MIXSPKL_VOL */
-#define WM8903_BYPASSR_MIXSPKL_VOL              0x0001  /* BYPASSR_MIXSPKL_VOL */
-#define WM8903_BYPASSR_MIXSPKL_VOL_MASK         0x0001  /* BYPASSR_MIXSPKL_VOL */
-#define WM8903_BYPASSR_MIXSPKL_VOL_SHIFT             0  /* BYPASSR_MIXSPKL_VOL */
-#define WM8903_BYPASSR_MIXSPKL_VOL_WIDTH             1  /* BYPASSR_MIXSPKL_VOL */
+#define WM8903_BYPASSL_MIXSPKL_VOL              0x0002  /* BYPASSL_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSL_MIXSPKL_VOL_MASK         0x0002  /* BYPASSL_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSL_MIXSPKL_VOL_SHIFT             1  /* BYPASSL_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSL_MIXSPKL_VOL_WIDTH             1  /* BYPASSL_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKL_VOL              0x0001  /* BYPASSR_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKL_VOL_MASK         0x0001  /* BYPASSR_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKL_VOL_SHIFT             0  /* BYPASSR_MIXSPKL_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKL_VOL_WIDTH             1  /* BYPASSR_MIXSPKL_VOL
+                                                         * */
 
 /*
  * R54 (0x36) - Analogue Spk Mix Right 0
@@ -794,14 +885,22 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_DACR_MIXSPKR_VOL_MASK            0x0004  /* DACR_MIXSPKR_VOL */
 #define WM8903_DACR_MIXSPKR_VOL_SHIFT                2  /* DACR_MIXSPKR_VOL */
 #define WM8903_DACR_MIXSPKR_VOL_WIDTH                1  /* DACR_MIXSPKR_VOL */
-#define WM8903_BYPASSL_MIXSPKR_VOL              0x0002  /* BYPASSL_MIXSPKR_VOL */
-#define WM8903_BYPASSL_MIXSPKR_VOL_MASK         0x0002  /* BYPASSL_MIXSPKR_VOL */
-#define WM8903_BYPASSL_MIXSPKR_VOL_SHIFT             1  /* BYPASSL_MIXSPKR_VOL */
-#define WM8903_BYPASSL_MIXSPKR_VOL_WIDTH             1  /* BYPASSL_MIXSPKR_VOL */
-#define WM8903_BYPASSR_MIXSPKR_VOL              0x0001  /* BYPASSR_MIXSPKR_VOL */
-#define WM8903_BYPASSR_MIXSPKR_VOL_MASK         0x0001  /* BYPASSR_MIXSPKR_VOL */
-#define WM8903_BYPASSR_MIXSPKR_VOL_SHIFT             0  /* BYPASSR_MIXSPKR_VOL */
-#define WM8903_BYPASSR_MIXSPKR_VOL_WIDTH             1  /* BYPASSR_MIXSPKR_VOL */
+#define WM8903_BYPASSL_MIXSPKR_VOL              0x0002  /* BYPASSL_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSL_MIXSPKR_VOL_MASK         0x0002  /* BYPASSL_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSL_MIXSPKR_VOL_SHIFT             1  /* BYPASSL_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSL_MIXSPKR_VOL_WIDTH             1  /* BYPASSL_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKR_VOL              0x0001  /* BYPASSR_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKR_VOL_MASK         0x0001  /* BYPASSR_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKR_VOL_SHIFT             0  /* BYPASSR_MIXSPKR_VOL
+                                                         * */
+#define WM8903_BYPASSR_MIXSPKR_VOL_WIDTH             1  /* BYPASSR_MIXSPKR_VOL
+                                                         * */
 
 /*
  * R57 (0x39) - Analogue OUT1 Left
@@ -856,9 +955,12 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_LINEOUTLZC_MASK                  0x0040  /* LINEOUTLZC */
 #define WM8903_LINEOUTLZC_SHIFT                      6  /* LINEOUTLZC */
 #define WM8903_LINEOUTLZC_WIDTH                      1  /* LINEOUTLZC */
-#define WM8903_LINEOUTL_VOL_MASK                0x003F  /* LINEOUTL_VOL - [5:0] */
-#define WM8903_LINEOUTL_VOL_SHIFT                    0  /* LINEOUTL_VOL - [5:0] */
-#define WM8903_LINEOUTL_VOL_WIDTH                    6  /* LINEOUTL_VOL - [5:0] */
+#define WM8903_LINEOUTL_VOL_MASK                0x003F  /* LINEOUTL_VOL - [5:0]
+                                                         * */
+#define WM8903_LINEOUTL_VOL_SHIFT                    0  /* LINEOUTL_VOL - [5:0]
+                                                         * */
+#define WM8903_LINEOUTL_VOL_WIDTH                    6  /* LINEOUTL_VOL - [5:0]
+                                                         * */
 
 /*
  * R60 (0x3C) - Analogue OUT2 Right
@@ -875,9 +977,12 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_LINEOUTRZC_MASK                  0x0040  /* LINEOUTRZC */
 #define WM8903_LINEOUTRZC_SHIFT                      6  /* LINEOUTRZC */
 #define WM8903_LINEOUTRZC_WIDTH                      1  /* LINEOUTRZC */
-#define WM8903_LINEOUTR_VOL_MASK                0x003F  /* LINEOUTR_VOL - [5:0] */
-#define WM8903_LINEOUTR_VOL_SHIFT                    0  /* LINEOUTR_VOL - [5:0] */
-#define WM8903_LINEOUTR_VOL_WIDTH                    6  /* LINEOUTR_VOL - [5:0] */
+#define WM8903_LINEOUTR_VOL_MASK                0x003F  /* LINEOUTR_VOL - [5:0]
+                                                         * */
+#define WM8903_LINEOUTR_VOL_SHIFT                    0  /* LINEOUTR_VOL - [5:0]
+                                                         * */
+#define WM8903_LINEOUTR_VOL_WIDTH                    6  /* LINEOUTR_VOL - [5:0]
+                                                         * */
 
 /*
  * R62 (0x3E) - Analogue OUT3 Left
@@ -1046,19 +1151,28 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_WSEQ_ENA_MASK                    0x0100  /* WSEQ_ENA */
 #define WM8903_WSEQ_ENA_SHIFT                        8  /* WSEQ_ENA */
 #define WM8903_WSEQ_ENA_WIDTH                        1  /* WSEQ_ENA */
-#define WM8903_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8903_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8903_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX - [4:0] */
+#define WM8903_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8903_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8903_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
 
 /*
  * R109 (0x6D) - Write Sequencer 1
  */
-#define WM8903_WSEQ_DATA_WIDTH_MASK             0x7000  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8903_WSEQ_DATA_WIDTH_SHIFT                12  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8903_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8903_WSEQ_DATA_START_MASK             0x0F00  /* WSEQ_DATA_START - [11:8] */
-#define WM8903_WSEQ_DATA_START_SHIFT                 8  /* WSEQ_DATA_START - [11:8] */
-#define WM8903_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START - [11:8] */
+#define WM8903_WSEQ_DATA_WIDTH_MASK             0x7000  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8903_WSEQ_DATA_WIDTH_SHIFT                12  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8903_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8903_WSEQ_DATA_START_MASK             0x0F00  /* WSEQ_DATA_START -
+                                                         * [11:8] */
+#define WM8903_WSEQ_DATA_START_SHIFT                 8  /* WSEQ_DATA_START -
+                                                         * [11:8] */
+#define WM8903_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START -
+                                                         * [11:8] */
 #define WM8903_WSEQ_ADDR_MASK                   0x00FF  /* WSEQ_ADDR - [7:0] */
 #define WM8903_WSEQ_ADDR_SHIFT                       0  /* WSEQ_ADDR - [7:0] */
 #define WM8903_WSEQ_ADDR_WIDTH                       8  /* WSEQ_ADDR - [7:0] */
@@ -1070,9 +1184,12 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_WSEQ_EOS_MASK                    0x4000  /* WSEQ_EOS */
 #define WM8903_WSEQ_EOS_SHIFT                       14  /* WSEQ_EOS */
 #define WM8903_WSEQ_EOS_WIDTH                        1  /* WSEQ_EOS */
-#define WM8903_WSEQ_DELAY_MASK                  0x0F00  /* WSEQ_DELAY - [11:8] */
-#define WM8903_WSEQ_DELAY_SHIFT                      8  /* WSEQ_DELAY - [11:8] */
-#define WM8903_WSEQ_DELAY_WIDTH                      4  /* WSEQ_DELAY - [11:8] */
+#define WM8903_WSEQ_DELAY_MASK                  0x0F00  /* WSEQ_DELAY - [11:8]
+                                                         * */
+#define WM8903_WSEQ_DELAY_SHIFT                      8  /* WSEQ_DELAY - [11:8]
+                                                         * */
+#define WM8903_WSEQ_DELAY_WIDTH                      4  /* WSEQ_DELAY - [11:8]
+                                                         * */
 #define WM8903_WSEQ_DATA_MASK                   0x00FF  /* WSEQ_DATA - [7:0] */
 #define WM8903_WSEQ_DATA_SHIFT                       0  /* WSEQ_DATA - [7:0] */
 #define WM8903_WSEQ_DATA_WIDTH                       8  /* WSEQ_DATA - [7:0] */
@@ -1088,16 +1205,22 @@ extern int wm8903_mic_detect(struct snd_soc_component *component,
 #define WM8903_WSEQ_START_MASK                  0x0100  /* WSEQ_START */
 #define WM8903_WSEQ_START_SHIFT                      8  /* WSEQ_START */
 #define WM8903_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM8903_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX - [5:0] */
-#define WM8903_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [5:0] */
-#define WM8903_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX - [5:0] */
+#define WM8903_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8903_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8903_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
 
 /*
  * R112 (0x70) - Write Sequencer 4
  */
-#define WM8903_WSEQ_CURRENT_INDEX_MASK          0x03F0  /* WSEQ_CURRENT_INDEX - [9:4] */
-#define WM8903_WSEQ_CURRENT_INDEX_SHIFT              4  /* WSEQ_CURRENT_INDEX - [9:4] */
-#define WM8903_WSEQ_CURRENT_INDEX_WIDTH              6  /* WSEQ_CURRENT_INDEX - [9:4] */
+#define WM8903_WSEQ_CURRENT_INDEX_MASK          0x03F0  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:4] */
+#define WM8903_WSEQ_CURRENT_INDEX_SHIFT              4  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:4] */
+#define WM8903_WSEQ_CURRENT_INDEX_WIDTH              6  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:4] */
 #define WM8903_WSEQ_BUSY                        0x0001  /* WSEQ_BUSY */
 #define WM8903_WSEQ_BUSY_MASK                   0x0001  /* WSEQ_BUSY */
 #define WM8903_WSEQ_BUSY_SHIFT                       0  /* WSEQ_BUSY */

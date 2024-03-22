@@ -9,21 +9,20 @@
 struct pvr2_ctrl;
 
 enum pvr2_ctl_type {
-	pvr2_ctl_int = 0,
-	pvr2_ctl_enum = 1,
-	pvr2_ctl_bitmask = 2,
-	pvr2_ctl_bool = 3,
+  pvr2_ctl_int = 0,
+  pvr2_ctl_enum = 1,
+  pvr2_ctl_bitmask = 2,
+  pvr2_ctl_bool = 3,
 };
 
-
 /* Set the given control. */
-int pvr2_ctrl_set_value(struct pvr2_ctrl *,int val);
+int pvr2_ctrl_set_value(struct pvr2_ctrl *, int val);
 
 /* Set/clear specific bits of the given control. */
-int pvr2_ctrl_set_mask_value(struct pvr2_ctrl *,int mask,int val);
+int pvr2_ctrl_set_mask_value(struct pvr2_ctrl *, int mask, int val);
 
 /* Get the current value of the given control. */
-int pvr2_ctrl_get_value(struct pvr2_ctrl *,int *valptr);
+int pvr2_ctrl_get_value(struct pvr2_ctrl *, int *valptr);
 
 /* Retrieve control's type */
 enum pvr2_ctl_type pvr2_ctrl_get_type(struct pvr2_ctrl *);
@@ -50,14 +49,14 @@ const char *pvr2_ctrl_get_name(struct pvr2_ctrl *);
 const char *pvr2_ctrl_get_desc(struct pvr2_ctrl *);
 
 /* Retrieve a control enumeration or bit mask value */
-int pvr2_ctrl_get_valname(struct pvr2_ctrl *,int,char *,unsigned int,
-			  unsigned int *);
+int pvr2_ctrl_get_valname(struct pvr2_ctrl *, int, char *, unsigned int,
+    unsigned int *);
 
 /* Return true if control is writable */
 int pvr2_ctrl_is_writable(struct pvr2_ctrl *);
 
 /* Return V4L flags value for control (or zero if there is no v4l control
-   actually under this control) */
+ * actually under this control) */
 unsigned int pvr2_ctrl_get_v4lflags(struct pvr2_ctrl *);
 
 /* Return V4L ID for this control or zero if none */
@@ -68,31 +67,31 @@ int pvr2_ctrl_has_custom_symbols(struct pvr2_ctrl *);
 
 /* Convert a given mask/val to a custom symbolic value */
 int pvr2_ctrl_custom_value_to_sym(struct pvr2_ctrl *,
-				  int mask,int val,
-				  char *buf,unsigned int maxlen,
-				  unsigned int *len);
+    int mask, int val,
+    char *buf, unsigned int maxlen,
+    unsigned int *len);
 
 /* Convert a symbolic value to a mask/value pair */
 int pvr2_ctrl_custom_sym_to_value(struct pvr2_ctrl *,
-				  const char *buf,unsigned int len,
-				  int *maskptr,int *valptr);
+    const char *buf, unsigned int len,
+    int *maskptr, int *valptr);
 
 /* Convert a given mask/val to a symbolic value */
 int pvr2_ctrl_value_to_sym(struct pvr2_ctrl *,
-			   int mask,int val,
-			   char *buf,unsigned int maxlen,
-			   unsigned int *len);
+    int mask, int val,
+    char *buf, unsigned int maxlen,
+    unsigned int *len);
 
 /* Convert a symbolic value to a mask/value pair */
 int pvr2_ctrl_sym_to_value(struct pvr2_ctrl *,
-			   const char *buf,unsigned int len,
-			   int *maskptr,int *valptr);
+    const char *buf, unsigned int len,
+    int *maskptr, int *valptr);
 
 /* Convert a given mask/val to a symbolic value - must already be
-   inside of critical region. */
+ * inside of critical region. */
 int pvr2_ctrl_value_to_sym_internal(struct pvr2_ctrl *,
-			   int mask,int val,
-			   char *buf,unsigned int maxlen,
-			   unsigned int *len);
+    int mask, int val,
+    char *buf, unsigned int maxlen,
+    unsigned int *len);
 
 #endif /* __PVRUSB2_CTRL_H */

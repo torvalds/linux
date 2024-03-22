@@ -19,9 +19,9 @@
  * @core_clk_rate: core clock rate request
  */
 struct dpu_core_perf_params {
-	u64 max_per_pipe_ib;
-	u64 bw_ctl;
-	u64 core_clk_rate;
+  u64 max_per_pipe_ib;
+  u64 bw_ctl;
+  u64 core_clk_rate;
 };
 
 /**
@@ -29,7 +29,7 @@ struct dpu_core_perf_params {
  * @mode: performance mode
  */
 struct dpu_core_perf_tune {
-	u32 mode;
+  u32 mode;
 };
 
 /**
@@ -44,14 +44,14 @@ struct dpu_core_perf_tune {
  * @fix_core_ab_vote: fixed core ab vote in bps used in mode 2
  */
 struct dpu_core_perf {
-	const struct dpu_perf_cfg *perf_cfg;
-	u64 core_clk_rate;
-	u64 max_core_clk_rate;
-	struct dpu_core_perf_tune perf_tune;
-	u32 enable_bw_release;
-	u64 fix_core_clk_rate;
-	u64 fix_core_ib_vote;
-	u64 fix_core_ab_vote;
+  const struct dpu_perf_cfg *perf_cfg;
+  u64 core_clk_rate;
+  u64 max_core_clk_rate;
+  struct dpu_core_perf_tune perf_tune;
+  u32 enable_bw_release;
+  u64 fix_core_clk_rate;
+  u64 fix_core_ib_vote;
+  u64 fix_core_ab_vote;
 };
 
 /**
@@ -61,7 +61,7 @@ struct dpu_core_perf {
  * return: zero if success, or error code otherwise
  */
 int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state);
+    struct drm_crtc_state *state);
 
 /**
  * dpu_core_perf_crtc_update - update performance of the given crtc
@@ -70,7 +70,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
  * return: zero if success, or error code otherwise
  */
 int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
-			      int params_changed);
+    int params_changed);
 
 /**
  * dpu_core_perf_crtc_release_bw - release bandwidth of the given crtc
@@ -85,8 +85,8 @@ void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc);
  * @max_core_clk_rate: Maximum core clock rate
  */
 int dpu_core_perf_init(struct dpu_core_perf *perf,
-		const struct dpu_perf_cfg *perf_cfg,
-		unsigned long max_core_clk_rate);
+    const struct dpu_perf_cfg *perf_cfg,
+    unsigned long max_core_clk_rate);
 
 struct dpu_kms;
 

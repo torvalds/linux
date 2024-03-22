@@ -9,13 +9,13 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_TI_SDMA_PCM)
 int sdma_pcm_platform_register(struct device *dev,
-			       char *txdmachan, char *rxdmachan);
+    char *txdmachan, char *rxdmachan);
 #else
 static inline int sdma_pcm_platform_register(struct device *dev,
-					     char *txdmachan, char *rxdmachan)
-{
-	return -ENODEV;
+    char *txdmachan, char *rxdmachan) {
+  return -ENODEV;
 }
+
 #endif /* CONFIG_SND_SOC_TI_SDMA_PCM */
 
 #endif /* __SDMA_PCM_H__ */

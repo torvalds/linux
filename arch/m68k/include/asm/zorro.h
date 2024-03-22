@@ -13,31 +13,28 @@
 #define z_writew raw_outw
 #define z_writel raw_outl
 
-#define z_memset_io(a,b,c)	memset((void *)(a),(b),(c))
-#define z_memcpy_fromio(a,b,c)	memcpy((a),(void *)(b),(c))
-#define z_memcpy_toio(a,b,c)	memcpy((void *)(a),(b),(c))
+#define z_memset_io(a, b, c)  memset((void *) (a), (b), (c))
+#define z_memcpy_fromio(a, b, c)  memcpy((a), (void *) (b), (c))
+#define z_memcpy_toio(a, b, c)  memcpy((void *) (a), (b), (c))
 
 static inline void __iomem *z_remap_nocache_ser(unsigned long physaddr,
-					unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
+    unsigned long size) {
+  return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
 }
 
 static inline void __iomem *z_remap_nocache_nonser(unsigned long physaddr,
-					   unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_NOCACHE_NONSER);
+    unsigned long size) {
+  return __ioremap(physaddr, size, IOMAP_NOCACHE_NONSER);
 }
 
 static inline void __iomem *z_remap_writethrough(unsigned long physaddr,
-					 unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
+    unsigned long size) {
+  return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
 }
+
 static inline void __iomem *z_remap_fullcache(unsigned long physaddr,
-				      unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
+    unsigned long size) {
+  return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
 }
 
 #define z_unmap iounmap

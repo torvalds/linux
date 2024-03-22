@@ -8,25 +8,24 @@
 #define GDB_SIZEOF_REG sizeof(unsigned long)
 
 #define DBG_MAX_REG_NUM (36)
-#define NUMREGBYTES ((DBG_MAX_REG_NUM) * GDB_SIZEOF_REG)
+#define NUMREGBYTES ((DBG_MAX_REG_NUM) *GDB_SIZEOF_REG)
 #define CACHE_FLUSH_IS_SAFE     1
 #define BUFMAX                  2048
 #ifdef CONFIG_RISCV_ISA_C
-#define BREAK_INSTR_SIZE	2
+#define BREAK_INSTR_SIZE  2
 #else
-#define BREAK_INSTR_SIZE	4
+#define BREAK_INSTR_SIZE  4
 #endif
 
-#ifndef	__ASSEMBLY__
+#ifndef __ASSEMBLY__
 
 extern unsigned long kgdb_compiled_break;
 
-static inline void arch_kgdb_breakpoint(void)
-{
-	asm(".global kgdb_compiled_break\n"
-	    ".option norvc\n"
-	    "kgdb_compiled_break: ebreak\n"
-	    ".option rvc\n");
+static inline void arch_kgdb_breakpoint(void) {
+  asm (".global kgdb_compiled_break\n"
+  ".option norvc\n"
+  "kgdb_compiled_break: ebreak\n"
+  ".option rvc\n");
 }
 
 #endif /* !__ASSEMBLY__ */

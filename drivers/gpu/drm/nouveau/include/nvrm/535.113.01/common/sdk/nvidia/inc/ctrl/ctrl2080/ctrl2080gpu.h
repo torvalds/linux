@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080gpu_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080gpu_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2006-2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2006-2023 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -33,13 +35,13 @@
 #define NV2080_CTRL_GPU_SET_POWER_STATE_GPU_LEVEL_3            (0x00000003U)
 
 typedef struct NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY {
-    NV_DECLARE_ALIGNED(NvU64 gpuPhysAddr, 8);
-    NV_DECLARE_ALIGNED(NvU64 gpuVirtAddr, 8);
-    NV_DECLARE_ALIGNED(NvU64 size, 8);
-    NvU32 physAttr;
-    NvU16 bufferId;
-    NvU8  bInitialize;
-    NvU8  bNonmapped;
+  NV_DECLARE_ALIGNED(NvU64 gpuPhysAddr, 8);
+  NV_DECLARE_ALIGNED(NvU64 gpuVirtAddr, 8);
+  NV_DECLARE_ALIGNED(NvU64 size, 8);
+  NvU32 physAttr;
+  NvU16 bufferId;
+  NvU8 bInitialize;
+  NvU8 bNonmapped;
 } NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY;
 
 #define NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_MAIN                         0U
@@ -58,43 +60,48 @@ typedef struct NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY {
 
 #define NV2080_CTRL_GPU_PROMOTE_CONTEXT_MAX_ENTRIES                        16U
 
-#define NV2080_CTRL_CMD_GPU_PROMOTE_CTX                                    (0x2080012bU) /* finn: Evaluated from "(FINN_NV20_SUBDEVICE_0_GPU_INTERFACE_ID << 8) | NV2080_CTRL_GPU_PROMOTE_CTX_PARAMS_MESSAGE_ID" */
+#define NV2080_CTRL_CMD_GPU_PROMOTE_CTX                                    ( \
+    0x2080012bU) /* finn: Evaluated from
+                  * "(FINN_NV20_SUBDEVICE_0_GPU_INTERFACE_ID << 8) |
+                  * NV2080_CTRL_GPU_PROMOTE_CTX_PARAMS_MESSAGE_ID" */
 
 typedef struct NV2080_CTRL_GPU_PROMOTE_CTX_PARAMS {
-    NvU32    engineType;
-    NvHandle hClient;
-    NvU32    ChID;
-    NvHandle hChanClient;
-    NvHandle hObject;
-    NvHandle hVirtMemory;
-    NV_DECLARE_ALIGNED(NvU64 virtAddress, 8);
-    NV_DECLARE_ALIGNED(NvU64 size, 8);
-    NvU32    entryCount;
-    // C form: NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY promoteEntry[NV2080_CTRL_GPU_PROMOTE_CONTEXT_MAX_ENTRIES];
-    NV_DECLARE_ALIGNED(NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY promoteEntry[NV2080_CTRL_GPU_PROMOTE_CONTEXT_MAX_ENTRIES], 8);
+  NvU32 engineType;
+  NvHandle hClient;
+  NvU32 ChID;
+  NvHandle hChanClient;
+  NvHandle hObject;
+  NvHandle hVirtMemory;
+  NV_DECLARE_ALIGNED(NvU64 virtAddress, 8);
+  NV_DECLARE_ALIGNED(NvU64 size, 8);
+  NvU32 entryCount;
+  // C form: NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY
+  // promoteEntry[NV2080_CTRL_GPU_PROMOTE_CONTEXT_MAX_ENTRIES];
+  NV_DECLARE_ALIGNED(NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ENTRY promoteEntry[
+        NV2080_CTRL_GPU_PROMOTE_CONTEXT_MAX_ENTRIES], 8);
 } NV2080_CTRL_GPU_PROMOTE_CTX_PARAMS;
 
 typedef struct NV2080_CTRL_GPU_GET_FERMI_GPC_INFO_PARAMS {
-    NvU32 gpcMask;
+  NvU32 gpcMask;
 } NV2080_CTRL_GPU_GET_FERMI_GPC_INFO_PARAMS;
 
 typedef struct NV2080_CTRL_GPU_GET_FERMI_TPC_INFO_PARAMS {
-    NvU32 gpcId;
-    NvU32 tpcMask;
+  NvU32 gpcId;
+  NvU32 tpcMask;
 } NV2080_CTRL_GPU_GET_FERMI_TPC_INFO_PARAMS;
 
 typedef struct NV2080_CTRL_GPU_GET_FERMI_ZCULL_INFO_PARAMS {
-    NvU32 gpcId;
-    NvU32 zcullMask;
+  NvU32 gpcId;
+  NvU32 zcullMask;
 } NV2080_CTRL_GPU_GET_FERMI_ZCULL_INFO_PARAMS;
 
 #define NV2080_GPU_MAX_GID_LENGTH             (0x000000100ULL)
 
 typedef struct NV2080_CTRL_GPU_GET_GID_INFO_PARAMS {
-    NvU32 index;
-    NvU32 flags;
-    NvU32 length;
-    NvU8  data[NV2080_GPU_MAX_GID_LENGTH];
+  NvU32 index;
+  NvU32 flags;
+  NvU32 length;
+  NvU8 data[NV2080_GPU_MAX_GID_LENGTH];
 } NV2080_CTRL_GPU_GET_GID_INFO_PARAMS;
 
 #endif

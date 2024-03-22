@@ -5,72 +5,72 @@
 #include <stdbool.h>
 
 enum {
-	TEST_OK   =  0,
-	TEST_FAIL = -1,
-	TEST_SKIP = -2,
+  TEST_OK = 0,
+  TEST_FAIL = -1,
+  TEST_SKIP = -2,
 };
 
-#define TEST_ASSERT_VAL(text, cond)					 \
-do {									 \
-	if (!(cond)) {							 \
-		pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
-		return TEST_FAIL;					 \
-	}								 \
-} while (0)
+#define TEST_ASSERT_VAL(text, cond)          \
+  do {                   \
+    if (!(cond)) {               \
+      pr_debug("FAILED %s:%d %s\n", __FILE__, __LINE__, text); \
+      return TEST_FAIL;          \
+    }                \
+  } while (0)
 
-#define TEST_ASSERT_EQUAL(text, val, expected)				 \
-do {									 \
-	if (val != expected) {						 \
-		pr_debug("FAILED %s:%d %s (%d != %d)\n",		 \
-			 __FILE__, __LINE__, text, val, expected);	 \
-		return TEST_FAIL;						 \
-	}								 \
-} while (0)
+#define TEST_ASSERT_EQUAL(text, val, expected)         \
+  do {                   \
+    if (val != expected) {             \
+      pr_debug("FAILED %s:%d %s (%d != %d)\n",     \
+    __FILE__, __LINE__, text, val, expected);   \
+      return TEST_FAIL;            \
+    }                \
+  } while (0)
 
 struct test_suite;
 
 typedef int (*test_fnptr)(struct test_suite *, int);
 
 struct test_case {
-	const char *name;
-	const char *desc;
-	const char *skip_reason;
-	test_fnptr run_case;
+  const char *name;
+  const char *desc;
+  const char *skip_reason;
+  test_fnptr run_case;
 };
 
 struct test_suite {
-	const char *desc;
-	struct test_case *test_cases;
-	void *priv;
+  const char *desc;
+  struct test_case *test_cases;
+  void *priv;
 };
 
 #define DECLARE_SUITE(name) \
-	extern struct test_suite suite__##name;
+  extern struct test_suite suite__ ## name;
 
-#define TEST_CASE(description, _name)			\
-	{						\
-		.name = #_name,				\
-		.desc = description,			\
-		.run_case = test__##_name,		\
-	}
+#define TEST_CASE(description, _name)     \
+  {           \
+    .name = #_name,       \
+    .desc = description,      \
+    .run_case = test__ ## _name,    \
+  }
 
-#define TEST_CASE_REASON(description, _name, _reason)	\
-	{						\
-		.name = #_name,				\
-		.desc = description,			\
-		.run_case = test__##_name,		\
-		.skip_reason = _reason,			\
-	}
+#define TEST_CASE_REASON(description, _name, _reason) \
+  {           \
+    .name = #_name,       \
+    .desc = description,      \
+    .run_case = test__ ## _name,    \
+    .skip_reason = _reason,     \
+  }
 
-#define DEFINE_SUITE(description, _name)		\
-	struct test_case tests__##_name[] = {           \
-		TEST_CASE(description, _name),		\
-		{	.name = NULL, }			\
-	};						\
-	struct test_suite suite__##_name = {		\
-		.desc = description,			\
-		.test_cases = tests__##_name,		\
-	}
+#define DEFINE_SUITE(description, _name)    \
+  struct test_case tests__ ## _name[] = {           \
+    TEST_CASE(description, _name),    \
+    { .name = NULL, }     \
+  };            \
+  struct test_suite suite__ ## _name = {    \
+    .desc = description,      \
+    .test_cases = tests__ ## _name,   \
+  }
 
 /* Tests */
 DECLARE_SUITE(vmlinux_matches_kallsyms);
@@ -162,7 +162,8 @@ DECLARE_SUITE(util);
  * Just disable the test for these architectures until these issues are
  * resolved.
  */
-#if defined(__powerpc__) || defined(__s390x__) || defined(__arm__) || defined(__aarch64__)
+#if defined(__powerpc__) || defined(__s390x__) || defined(__arm__) \
+  || defined(__aarch64__)
 #define BP_SIGNAL_IS_SUPPORTED 0
 #else
 #define BP_SIGNAL_IS_SUPPORTED 1
@@ -172,7 +173,7 @@ DECLARE_SUITE(util);
 struct thread;
 struct perf_sample;
 int test__arch_unwind_sample(struct perf_sample *sample,
-			     struct thread *thread);
+    struct thread *thread);
 #endif
 
 #if defined(__arm__)
@@ -185,18 +186,18 @@ DECLARE_SUITE(vectors_page);
 typedef int (*workload_fnptr)(int argc, const char **argv);
 
 struct test_workload {
-	const char	*name;
-	workload_fnptr	func;
+  const char *name;
+  workload_fnptr func;
 };
 
 #define DECLARE_WORKLOAD(work) \
-	extern struct test_workload workload__##work
+  extern struct test_workload workload__ ## work
 
 #define DEFINE_WORKLOAD(work) \
-struct test_workload workload__##work = {	\
-	.name = #work,				\
-	.func = work,				\
-}
+  struct test_workload workload__ ## work = { \
+    .name = #work,        \
+    .func = work,       \
+  }
 
 /* The list of test workloads */
 DECLARE_WORKLOAD(noploop);

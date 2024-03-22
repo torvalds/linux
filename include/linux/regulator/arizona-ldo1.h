@@ -11,8 +11,8 @@
 struct regulator_init_data;
 
 struct arizona_ldo1_pdata {
-	/** Regulator configuration for LDO1 */
-	const struct regulator_init_data *init_data;
+  /** Regulator configuration for LDO1 */
+  const struct regulator_init_data *init_data;
 };
 
 #endif

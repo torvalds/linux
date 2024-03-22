@@ -4,8 +4,8 @@
 
 #include <asm/barrier.h>
 
-#define mmiowb()	wmb()
+#define mmiowb()  wmb()
 
 #include <asm-generic/mmiowb.h>
 
-#endif	/* _ASM_MMIOWB_H */
+#endif  /* _ASM_MMIOWB_H */

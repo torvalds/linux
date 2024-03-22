@@ -2,7 +2,7 @@
 /*
  * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
-
+ *
  */
 
 #ifndef __SHARE_H__
@@ -84,9 +84,9 @@
 #define SR4B    0x4B
 #define SR4C    0x4C
 #define SR52    0x52
-#define SR57	0x57
-#define SR58	0x58
-#define SR59	0x59
+#define SR57  0x57
+#define SR58  0x58
+#define SR59  0x59
 #define SR5D    0x5D
 #define SR5E    0x5E
 #define SR65    0x65
@@ -240,9 +240,9 @@
 #define CRD4    0xD4
 
 /* LUT Table*/
-#define LUT_DATA             0x3C9	/* DACDATA */
-#define LUT_INDEX_READ       0x3C7	/* DACRX */
-#define LUT_INDEX_WRITE      0x3C8	/* DACWX */
+#define LUT_DATA             0x3C9  /* DACDATA */
+#define LUT_INDEX_READ       0x3C7  /* DACRX */
+#define LUT_INDEX_WRITE      0x3C8  /* DACWX */
 #define DACMASK              0x3C6
 
 /* Definition Device */
@@ -292,27 +292,27 @@
 #define V_SYNC_END_SHADOW_INDEX     19
 
 /* LCD display method
-*/
+ */
 #define     LCD_EXPANDSION              0x00
 #define     LCD_CENTERING               0x01
 
 /* LCD mode
-*/
+ */
 #define     LCD_OPENLDI               0x00
 #define     LCD_SPWG                  0x01
 
 struct crt_mode_table {
-	int refresh_rate;
-	int h_sync_polarity;
-	int v_sync_polarity;
-	struct via_display_timing crtc;
+  int refresh_rate;
+  int h_sync_polarity;
+  int v_sync_polarity;
+  struct via_display_timing crtc;
 };
 
 struct io_reg {
-	int port;
-	u8 index;
-	u8 mask;
-	u8 value;
+  int port;
+  u8 index;
+  u8 mask;
+  u8 value;
 };
 
 #endif /* __SHARE_H__ */

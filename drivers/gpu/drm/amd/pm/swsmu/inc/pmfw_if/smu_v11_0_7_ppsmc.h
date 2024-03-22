@@ -88,14 +88,14 @@
 #define PPSMC_MSG_AllowGfxOff                    0x28
 #define PPSMC_MSG_DisallowGfxOff                 0x29
 #define PPSMC_MSG_PowerUpVcn                     0x2A
-#define PPSMC_MSG_PowerDownVcn	                 0x2B
+#define PPSMC_MSG_PowerDownVcn                   0x2B
 #define PPSMC_MSG_PowerUpJpeg                    0x2C
-#define PPSMC_MSG_PowerDownJpeg	                 0x2D
+#define PPSMC_MSG_PowerDownJpeg                  0x2D
 
 //Resets
 #define PPSMC_MSG_PrepareMp1ForUnload            0x2E
 
-//DramLog Set DramLog SetDramSize 
+//DramLog Set DramLog SetDramSize
 #define PPSMC_MSG_DramLogSetDramSize             0x2F
 
 #define PPSMC_MSG_Mode1Reset                     0x30

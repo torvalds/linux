@@ -3,7 +3,7 @@
  *
  *  Copyright (c) 2002, 2003 The Regents of the University of
  *  Michigan.  All rights reserved.
-> *
+ * > *
  *  Marius Aamodt Eriksen <marius@umich.edu>
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -43,13 +43,13 @@
 int nfsd_idmap_init(struct net *);
 void nfsd_idmap_shutdown(struct net *);
 #else
-static inline int nfsd_idmap_init(struct net *net)
-{
-	return 0;
+static inline int nfsd_idmap_init(struct net *net) {
+  return 0;
 }
-static inline void nfsd_idmap_shutdown(struct net *net)
-{
+
+static inline void nfsd_idmap_shutdown(struct net *net) {
 }
+
 #endif
 
 __be32 nfsd_map_name_to_uid(struct svc_rqst *, const char *, size_t, kuid_t *);

@@ -19,7 +19,8 @@
 /*
  * A metadata device larger than 16GB triggers a warning.
  */
-#define DM_CLONE_METADATA_MAX_SECTORS_WARNING (16 * (1024 * 1024 * 1024 >> SECTOR_SHIFT))
+#define DM_CLONE_METADATA_MAX_SECTORS_WARNING (16 \
+  * (1024 * 1024 * 1024 >> SECTOR_SHIFT))
 
 #define SPACE_MAP_ROOT_SIZE 128
 
@@ -34,7 +35,8 @@ struct dm_clone_metadata;
  *
  * This function doesn't block, so it's safe to call it from interrupt context.
  */
-int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd, unsigned long region_nr);
+int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd,
+    unsigned long region_nr);
 
 /*
  * Set status of all regions in the provided range to hydrated, if not already
@@ -44,12 +46,14 @@ int dm_clone_set_region_hydrated(struct dm_clone_metadata *cmd, unsigned long re
  * @start: Starting region number
  * @nr_regions: Number of regions in the range
  *
- * This function doesn't block, but since it uses spin_lock_irq()/spin_unlock_irq()
- * it's NOT safe to call it from any context where interrupts are disabled, e.g.,
+ * This function doesn't block, but since it uses
+ * spin_lock_irq()/spin_unlock_irq()
+ * it's NOT safe to call it from any context where interrupts are disabled,
+ * e.g.,
  * from interrupt context.
  */
 int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
-			    unsigned long nr_regions);
+    unsigned long nr_regions);
 
 /*
  * Read existing or create fresh metadata.
@@ -65,8 +69,8 @@ int dm_clone_cond_set_range(struct dm_clone_metadata *cmd, unsigned long start,
  * validates the metadata stored in @bdev.
  */
 struct dm_clone_metadata *dm_clone_metadata_open(struct block_device *bdev,
-						 sector_t target_size,
-						 sector_t region_size);
+    sector_t target_size,
+    sector_t region_size);
 
 /*
  * Free the resources related to metadata management.
@@ -145,13 +149,14 @@ bool dm_clone_is_hydration_done(struct dm_clone_metadata *cmd);
 /*
  * Returns true if region @region_nr is hydrated.
  */
-bool dm_clone_is_region_hydrated(struct dm_clone_metadata *cmd, unsigned long region_nr);
+bool dm_clone_is_region_hydrated(struct dm_clone_metadata *cmd,
+    unsigned long region_nr);
 
 /*
  * Returns true if all the regions in the range are hydrated.
  */
 bool dm_clone_is_range_hydrated(struct dm_clone_metadata *cmd,
-				unsigned long start, unsigned long nr_regions);
+    unsigned long start, unsigned long nr_regions);
 
 /*
  * Returns the number of hydrated regions.
@@ -161,17 +166,20 @@ unsigned int dm_clone_nr_of_hydrated_regions(struct dm_clone_metadata *cmd);
 /*
  * Returns the first unhydrated region with region_nr >= @start
  */
-unsigned long dm_clone_find_next_unhydrated_region(struct dm_clone_metadata *cmd,
-						   unsigned long start);
+unsigned long dm_clone_find_next_unhydrated_region(
+  struct dm_clone_metadata *cmd,
+  unsigned long start);
 
 /*
  * Get the number of free metadata blocks.
  */
-int dm_clone_get_free_metadata_block_count(struct dm_clone_metadata *cmd, dm_block_t *result);
+int dm_clone_get_free_metadata_block_count(struct dm_clone_metadata *cmd,
+    dm_block_t *result);
 
 /*
  * Get the total number of metadata blocks.
  */
-int dm_clone_get_metadata_dev_size(struct dm_clone_metadata *cmd, dm_block_t *result);
+int dm_clone_get_metadata_dev_size(struct dm_clone_metadata *cmd,
+    dm_block_t *result);
 
 #endif /* DM_CLONE_METADATA_H */

@@ -12,30 +12,30 @@
 #include "rnbd-clt.h"
 #include "rnbd-srv.h"
 
-#define rnbd_clt_log(fn, dev, fmt, ...) (				\
-		fn("<%s@%s> " fmt, (dev)->pathname,			\
-		(dev)->sess->sessname,					\
-		   ##__VA_ARGS__))
-#define rnbd_srv_log(fn, dev, fmt, ...) (				\
-			fn("<%s@%s>: " fmt, (dev)->pathname,		\
-			   (dev)->sess->sessname, ##__VA_ARGS__))
+#define rnbd_clt_log(fn, dev, fmt, ...) (       \
+    fn("<%s@%s> " fmt, (dev)->pathname,     \
+    (dev)->sess->sessname,          \
+    ## __VA_ARGS__))
+#define rnbd_srv_log(fn, dev, fmt, ...) (       \
+    fn("<%s@%s>: " fmt, (dev)->pathname,    \
+    (dev)->sess->sessname, ## __VA_ARGS__))
 
-#define rnbd_clt_err(dev, fmt, ...)	\
-	rnbd_clt_log(pr_err, dev, fmt, ##__VA_ARGS__)
-#define rnbd_clt_err_rl(dev, fmt, ...)	\
-	rnbd_clt_log(pr_err_ratelimited, dev, fmt, ##__VA_ARGS__)
+#define rnbd_clt_err(dev, fmt, ...) \
+  rnbd_clt_log(pr_err, dev, fmt, ## __VA_ARGS__)
+#define rnbd_clt_err_rl(dev, fmt, ...)  \
+  rnbd_clt_log(pr_err_ratelimited, dev, fmt, ## __VA_ARGS__)
 #define rnbd_clt_info(dev, fmt, ...) \
-	rnbd_clt_log(pr_info, dev, fmt, ##__VA_ARGS__)
+  rnbd_clt_log(pr_info, dev, fmt, ## __VA_ARGS__)
 #define rnbd_clt_info_rl(dev, fmt, ...) \
-	rnbd_clt_log(pr_info_ratelimited, dev, fmt, ##__VA_ARGS__)
+  rnbd_clt_log(pr_info_ratelimited, dev, fmt, ## __VA_ARGS__)
 
-#define rnbd_srv_err(dev, fmt, ...)	\
-	rnbd_srv_log(pr_err, dev, fmt, ##__VA_ARGS__)
-#define rnbd_srv_err_rl(dev, fmt, ...)	\
-	rnbd_srv_log(pr_err_ratelimited, dev, fmt, ##__VA_ARGS__)
+#define rnbd_srv_err(dev, fmt, ...) \
+  rnbd_srv_log(pr_err, dev, fmt, ## __VA_ARGS__)
+#define rnbd_srv_err_rl(dev, fmt, ...)  \
+  rnbd_srv_log(pr_err_ratelimited, dev, fmt, ## __VA_ARGS__)
 #define rnbd_srv_info(dev, fmt, ...) \
-	rnbd_srv_log(pr_info, dev, fmt, ##__VA_ARGS__)
+  rnbd_srv_log(pr_info, dev, fmt, ## __VA_ARGS__)
 #define rnbd_srv_info_rl(dev, fmt, ...) \
-	rnbd_srv_log(pr_info_ratelimited, dev, fmt, ##__VA_ARGS__)
+  rnbd_srv_log(pr_info_ratelimited, dev, fmt, ## __VA_ARGS__)
 
 #endif /* RNBD_LOG_H */

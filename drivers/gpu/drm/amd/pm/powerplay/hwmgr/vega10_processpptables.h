@@ -27,14 +27,14 @@
 #include "hwmgr.h"
 
 enum Vega10_I2CLineID {
-	Vega10_I2CLineID_DDC1 = 0x90,
-	Vega10_I2CLineID_DDC2 = 0x91,
-	Vega10_I2CLineID_DDC3 = 0x92,
-	Vega10_I2CLineID_DDC4 = 0x93,
-	Vega10_I2CLineID_DDC5 = 0x94,
-	Vega10_I2CLineID_DDC6 = 0x95,
-	Vega10_I2CLineID_SCLSDA = 0x96,
-	Vega10_I2CLineID_DDCVGA = 0x97
+  Vega10_I2CLineID_DDC1 = 0x90,
+  Vega10_I2CLineID_DDC2 = 0x91,
+  Vega10_I2CLineID_DDC3 = 0x92,
+  Vega10_I2CLineID_DDC4 = 0x93,
+  Vega10_I2CLineID_DDC5 = 0x94,
+  Vega10_I2CLineID_DDC6 = 0x95,
+  Vega10_I2CLineID_SCLSDA = 0x96,
+  Vega10_I2CLineID_DDCVGA = 0x97
 };
 
 #define Vega10_I2C_DDC1DATA          0
@@ -56,8 +56,10 @@ enum Vega10_I2CLineID {
 
 extern const struct pp_table_func vega10_pptable_funcs;
 extern int vega10_get_number_of_powerplay_table_entries(struct pp_hwmgr *hwmgr);
-extern int vega10_get_powerplay_table_entry(struct pp_hwmgr *hwmgr, uint32_t entry_index,
-		struct pp_power_state *power_state, int (*call_back_func)(struct pp_hwmgr *, void *,
-				struct pp_power_state *, void *, uint32_t));
+extern int vega10_get_powerplay_table_entry(struct pp_hwmgr *hwmgr,
+    uint32_t entry_index,
+    struct pp_power_state *power_state, int (*call_back_func)(struct pp_hwmgr *,
+    void *,
+    struct pp_power_state *, void *, uint32_t));
 extern int vega10_baco_set_cap(struct pp_hwmgr *hwmgr);
 #endif

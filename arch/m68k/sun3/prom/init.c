@@ -27,10 +27,7 @@ struct linux_nodeops *prom_nodeops;
  * It gets passed the pointer to the PROM vector.
  */
 
-void __init prom_init(struct linux_romvec *rp)
-{
-	romvec = rp;
-
-	/* Initialization successful. */
-	return;
+void __init prom_init(struct linux_romvec *rp) {
+  romvec = rp;
+  /* Initialization successful. */
 }

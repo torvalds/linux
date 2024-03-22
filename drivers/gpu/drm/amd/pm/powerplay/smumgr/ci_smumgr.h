@@ -33,44 +33,44 @@
 #include "ppatomctrl.h"
 
 struct ci_pt_defaults {
-	u8 svi_load_line_en;
-	u8 svi_load_line_vddc;
-	u8 tdc_vddc_throttle_release_limit_perc;
-	u8 tdc_mawt;
-	u8 tdc_waterfall_ctl;
-	u8 dte_ambient_temp_base;
-	u32 display_cac;
-	u32 bapm_temp_gradient;
-	u16 bapmti_r[SMU7_DTE_ITERATIONS * SMU7_DTE_SOURCES * SMU7_DTE_SINKS];
-	u16 bapmti_rc[SMU7_DTE_ITERATIONS * SMU7_DTE_SOURCES * SMU7_DTE_SINKS];
+  u8 svi_load_line_en;
+  u8 svi_load_line_vddc;
+  u8 tdc_vddc_throttle_release_limit_perc;
+  u8 tdc_mawt;
+  u8 tdc_waterfall_ctl;
+  u8 dte_ambient_temp_base;
+  u32 display_cac;
+  u32 bapm_temp_gradient;
+  u16 bapmti_r[SMU7_DTE_ITERATIONS * SMU7_DTE_SOURCES * SMU7_DTE_SINKS];
+  u16 bapmti_rc[SMU7_DTE_ITERATIONS * SMU7_DTE_SOURCES * SMU7_DTE_SINKS];
 };
 
 struct ci_mc_reg_entry {
-	uint32_t mclk_max;
-	uint32_t mc_data[SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE];
+  uint32_t mclk_max;
+  uint32_t mc_data[SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE];
 };
 
 struct ci_mc_reg_table {
-	uint8_t   last;
-	uint8_t   num_entries;
-	uint16_t  validflag;
-	struct ci_mc_reg_entry    mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
-	SMU7_Discrete_MCRegisterAddress mc_reg_address[SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE];
+  uint8_t last;
+  uint8_t num_entries;
+  uint16_t validflag;
+  struct ci_mc_reg_entry mc_reg_table_entry[MAX_AC_TIMING_ENTRIES];
+  SMU7_Discrete_MCRegisterAddress mc_reg_address[
+    SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE];
 };
 
 struct ci_smumgr {
-	uint32_t                             soft_regs_start;
-	uint32_t                             dpm_table_start;
-	uint32_t                             mc_reg_table_start;
-	uint32_t                             fan_table_start;
-	uint32_t                             arb_table_start;
-	uint32_t                             ulv_setting_starts;
-	struct SMU7_Discrete_DpmTable       smc_state_table;
-	struct SMU7_Discrete_PmFuses  power_tune_table;
-	const struct ci_pt_defaults  *power_tune_defaults;
-	SMU7_Discrete_MCRegisters      mc_regs;
-	struct ci_mc_reg_table mc_reg_table;
+  uint32_t soft_regs_start;
+  uint32_t dpm_table_start;
+  uint32_t mc_reg_table_start;
+  uint32_t fan_table_start;
+  uint32_t arb_table_start;
+  uint32_t ulv_setting_starts;
+  struct SMU7_Discrete_DpmTable smc_state_table;
+  struct SMU7_Discrete_PmFuses power_tune_table;
+  const struct ci_pt_defaults *power_tune_defaults;
+  SMU7_Discrete_MCRegisters mc_regs;
+  struct ci_mc_reg_table mc_reg_table;
 };
 
 #endif
-

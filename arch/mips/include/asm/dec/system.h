@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- *	include/asm-mips/dec/system.h
+ *  include/asm-mips/dec/system.h
  *
- *	Generic DECstation/DECsystem bits.
+ *  Generic DECstation/DECsystem bits.
  *
- *	Copyright (C) 2005, 2006  Maciej W. Rozycki
+ *  Copyright (C) 2005, 2006  Maciej W. Rozycki
  */
 #ifndef __ASM_DEC_SYSTEM_H
 #define __ASM_DEC_SYSTEM_H

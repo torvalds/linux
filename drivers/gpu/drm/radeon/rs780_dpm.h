@@ -24,37 +24,37 @@
 #define __RS780_DPM_H__
 
 enum rs780_vddc_level {
-	RS780_VDDC_LEVEL_UNKNOWN = 0,
-	RS780_VDDC_LEVEL_LOW = 1,
-	RS780_VDDC_LEVEL_HIGH = 2,
+  RS780_VDDC_LEVEL_UNKNOWN = 0,
+  RS780_VDDC_LEVEL_LOW = 1,
+  RS780_VDDC_LEVEL_HIGH = 2,
 };
 
 struct igp_power_info {
-	/* flags */
-	bool invert_pwm_required;
-	bool pwm_voltage_control;
-	bool voltage_control;
-	bool gfx_clock_gating;
-	/* stored values */
-	u32 system_config;
-	u32 bootup_uma_clk;
-	u16 max_voltage;
-	u16 min_voltage;
-	u16 boot_voltage;
-	u16 inter_voltage_low;
-	u16 inter_voltage_high;
-	u16 num_of_cycles_in_period;
-	/* variable */
-	int crtc_id;
-	int refresh_rate;
+  /* flags */
+  bool invert_pwm_required;
+  bool pwm_voltage_control;
+  bool voltage_control;
+  bool gfx_clock_gating;
+  /* stored values */
+  u32 system_config;
+  u32 bootup_uma_clk;
+  u16 max_voltage;
+  u16 min_voltage;
+  u16 boot_voltage;
+  u16 inter_voltage_low;
+  u16 inter_voltage_high;
+  u16 num_of_cycles_in_period;
+  /* variable */
+  int crtc_id;
+  int refresh_rate;
 };
 
 struct igp_ps {
-	enum rs780_vddc_level min_voltage;
-	enum rs780_vddc_level max_voltage;
-	u32 sclk_low;
-	u32 sclk_high;
-	u32 flags;
+  enum rs780_vddc_level min_voltage;
+  enum rs780_vddc_level max_voltage;
+  u32 sclk_low;
+  u32 sclk_high;
+  u32 flags;
 };
 
 #define RS780_CGFTV_DFLT                 0x0303000f

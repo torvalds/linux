@@ -14,19 +14,19 @@
 
 enum bcm47xx_bus_type {
 #ifdef CONFIG_BCM47XX_SSB
-	BCM47XX_BUS_TYPE_SSB,
+  BCM47XX_BUS_TYPE_SSB,
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
-	BCM47XX_BUS_TYPE_BCMA,
+  BCM47XX_BUS_TYPE_BCMA,
 #endif
 };
 
 union bcm47xx_bus {
 #ifdef CONFIG_BCM47XX_SSB
-	struct ssb_bus ssb;
+  struct ssb_bus ssb;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
-	struct bcma_soc bcma;
+  struct bcma_soc bcma;
 #endif
 };
 

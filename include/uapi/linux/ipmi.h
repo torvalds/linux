@@ -49,11 +49,11 @@
  */
 #define IPMI_MAX_ADDR_SIZE 32
 struct ipmi_addr {
-	 /* Try to take these from the "Channel Medium Type" table
-	    in section 6.5 of the IPMI 1.5 manual. */
-	int   addr_type;
-	short channel;
-	char  data[IPMI_MAX_ADDR_SIZE];
+  /* Try to take these from the "Channel Medium Type" table
+   * in section 6.5 of the IPMI 1.5 manual. */
+  int addr_type;
+  short channel;
+  char data[IPMI_MAX_ADDR_SIZE];
 };
 
 /*
@@ -61,23 +61,23 @@ struct ipmi_addr {
  * The channel is the BMC's channel number for the channel (usually
  * 0), or IPMC_BMC_CHANNEL if communicating directly with the BMC.
  */
-#define IPMI_SYSTEM_INTERFACE_ADDR_TYPE	0x0c
+#define IPMI_SYSTEM_INTERFACE_ADDR_TYPE 0x0c
 struct ipmi_system_interface_addr {
-	int           addr_type;
-	short         channel;
-	unsigned char lun;
+  int addr_type;
+  short channel;
+  unsigned char lun;
 };
 
 /* An IPMB Address. */
-#define IPMI_IPMB_ADDR_TYPE		0x01
+#define IPMI_IPMB_ADDR_TYPE   0x01
 /* Used for broadcast get device id as described in section 17.9 of the
-   IPMI 1.5 manual. */
-#define IPMI_IPMB_BROADCAST_ADDR_TYPE	0x41
+ * IPMI 1.5 manual. */
+#define IPMI_IPMB_BROADCAST_ADDR_TYPE 0x41
 struct ipmi_ipmb_addr {
-	int           addr_type;
-	short         channel;
-	unsigned char slave_addr;
-	unsigned char lun;
+  int addr_type;
+  short channel;
+  unsigned char slave_addr;
+  unsigned char lun;
 };
 
 /*
@@ -85,13 +85,13 @@ struct ipmi_ipmb_addr {
  * through a MC.  This is for systems that sit right on an IPMB so
  * they can receive commands and respond to them.
  */
-#define IPMI_IPMB_DIRECT_ADDR_TYPE	0x81
+#define IPMI_IPMB_DIRECT_ADDR_TYPE  0x81
 struct ipmi_ipmb_direct_addr {
-	int           addr_type;
-	short         channel;
-	unsigned char slave_addr;
-	unsigned char rs_lun;
-	unsigned char rq_lun;
+  int addr_type;
+  short channel;
+  unsigned char slave_addr;
+  unsigned char rs_lun;
+  unsigned char rq_lun;
 };
 
 /*
@@ -111,17 +111,16 @@ struct ipmi_ipmb_direct_addr {
  * local_SWID is always our SWID.  Note that having our SWID in the
  * message is a little weird, but this is required.
  */
-#define IPMI_LAN_ADDR_TYPE		0x04
+#define IPMI_LAN_ADDR_TYPE    0x04
 struct ipmi_lan_addr {
-	int           addr_type;
-	short         channel;
-	unsigned char privilege;
-	unsigned char session_handle;
-	unsigned char remote_SWID;
-	unsigned char local_SWID;
-	unsigned char lun;
+  int addr_type;
+  short channel;
+  unsigned char privilege;
+  unsigned char session_handle;
+  unsigned char remote_SWID;
+  unsigned char local_SWID;
+  unsigned char lun;
 };
-
 
 /*
  * Channel for talking directly with the BMC.  When using this
@@ -138,7 +137,6 @@ struct ipmi_lan_addr {
  */
 #define IPMI_CHAN_ALL     (~0)
 
-
 /*
  * A raw IPMI message without any addressing.  This covers both
  * commands and responses.  The completion code is always the first
@@ -146,26 +144,25 @@ struct ipmi_lan_addr {
  * out).
  */
 struct ipmi_msg {
-	unsigned char  netfn;
-	unsigned char  cmd;
-	unsigned short data_len;
-	unsigned char  __user *data;
+  unsigned char netfn;
+  unsigned char cmd;
+  unsigned short data_len;
+  unsigned char __user *data;
 };
 
 struct kernel_ipmi_msg {
-	unsigned char  netfn;
-	unsigned char  cmd;
-	unsigned short data_len;
-	unsigned char  *data;
+  unsigned char netfn;
+  unsigned char cmd;
+  unsigned short data_len;
+  unsigned char *data;
 };
 
 /*
  * Various defines that are useful for IPMI applications.
  */
-#define IPMI_INVALID_CMD_COMPLETION_CODE	0xC1
-#define IPMI_TIMEOUT_COMPLETION_CODE		0xC3
-#define IPMI_UNKNOWN_ERR_COMPLETION_CODE	0xff
-
+#define IPMI_INVALID_CMD_COMPLETION_CODE  0xC1
+#define IPMI_TIMEOUT_COMPLETION_CODE    0xC3
+#define IPMI_UNKNOWN_ERR_COMPLETION_CODE  0xff
 
 /*
  * Receive types for messages coming from the receive interface.  This
@@ -176,20 +173,19 @@ struct kernel_ipmi_msg {
  * it allows you to get the message results when you send a response
  * message.
  */
-#define IPMI_RESPONSE_RECV_TYPE		1 /* A response to a command */
-#define IPMI_ASYNC_EVENT_RECV_TYPE	2 /* Something from the event queue */
-#define IPMI_CMD_RECV_TYPE		3 /* A command from somewhere else */
-#define IPMI_RESPONSE_RESPONSE_TYPE	4 /* The response for
-					      a sent response, giving any
-					      error status for sending the
-					      response.  When you send a
-					      response message, this will
-					      be returned. */
-#define IPMI_OEM_RECV_TYPE		5 /* The response for OEM Channels */
+#define IPMI_RESPONSE_RECV_TYPE   1 /* A response to a command */
+#define IPMI_ASYNC_EVENT_RECV_TYPE  2 /* Something from the event queue */
+#define IPMI_CMD_RECV_TYPE    3 /* A command from somewhere else */
+#define IPMI_RESPONSE_RESPONSE_TYPE 4 /* The response for
+                                       * a sent response, giving any
+                                       * error status for sending the
+                                       * response.  When you send a
+                                       * response message, this will
+                                       * be returned. */
+#define IPMI_OEM_RECV_TYPE    5 /* The response for OEM Channels */
 
 /* Note that async events and received commands do not have a completion
-   code as the first byte of the incoming data, unlike a response. */
-
+ * code as the first byte of the incoming data, unlike a response. */
 
 /*
  * Modes for ipmi_set_maint_mode() and the userland IOCTL.  The AUTO
@@ -197,11 +193,9 @@ struct kernel_ipmi_msg {
  * commands.  Hard setting it on and off will override automatic
  * operation.
  */
-#define IPMI_MAINTENANCE_MODE_AUTO	0
-#define IPMI_MAINTENANCE_MODE_OFF	1
-#define IPMI_MAINTENANCE_MODE_ON	2
-
-
+#define IPMI_MAINTENANCE_MODE_AUTO  0
+#define IPMI_MAINTENANCE_MODE_OFF 1
+#define IPMI_MAINTENANCE_MODE_ON  2
 
 /*
  * The userland interface
@@ -238,23 +232,21 @@ struct kernel_ipmi_msg {
  * commands, and pass those up to the proper user.
  */
 
-
 /* The magic IOCTL value for this interface. */
 #define IPMI_IOC_MAGIC 'i'
 
-
 /* Messages sent to the interface are this format. */
 struct ipmi_req {
-	unsigned char __user *addr; /* Address to send the message to. */
-	unsigned int  addr_len;
+  unsigned char __user *addr; /* Address to send the message to. */
+  unsigned int addr_len;
 
-	long    msgid; /* The sequence number for the message.  This
-			  exact value will be reported back in the
-			  response to this request if it is a command.
-			  If it is a response, this will be used as
-			  the sequence value for the response.  */
+  long msgid; /* The sequence number for the message.  This
+               * exact value will be reported back in the
+               * response to this request if it is a command.
+               * If it is a response, this will be used as
+               * the sequence value for the response.  */
 
-	struct ipmi_msg msg;
+  struct ipmi_msg msg;
 };
 /*
  * Send a message to the interfaces.  error values are:
@@ -264,18 +256,18 @@ struct ipmi_req {
  *   - EMSGSIZE - The message to was too large.
  *   - ENOMEM - Buffers could not be allocated for the command.
  */
-#define IPMICTL_SEND_COMMAND		_IOR(IPMI_IOC_MAGIC, 13,	\
-					     struct ipmi_req)
+#define IPMICTL_SEND_COMMAND    _IOR(IPMI_IOC_MAGIC, 13,  \
+    struct ipmi_req)
 
 /* Messages sent to the interface with timing parameters are this
-   format. */
+ * format. */
 struct ipmi_req_settime {
-	struct ipmi_req req;
+  struct ipmi_req req;
 
-	/* See ipmi_request_settime() above for details on these
-	   values. */
-	int          retries;
-	unsigned int retry_time_ms;
+  /* See ipmi_request_settime() above for details on these
+   * values. */
+  int retries;
+  unsigned int retry_time_ms;
 };
 /*
  * Send a message to the interfaces with timing parameters.  error values
@@ -286,35 +278,35 @@ struct ipmi_req_settime {
  *   - EMSGSIZE - The message to was too large.
  *   - ENOMEM - Buffers could not be allocated for the command.
  */
-#define IPMICTL_SEND_COMMAND_SETTIME	_IOR(IPMI_IOC_MAGIC, 21,	\
-					     struct ipmi_req_settime)
+#define IPMICTL_SEND_COMMAND_SETTIME  _IOR(IPMI_IOC_MAGIC, 21,  \
+    struct ipmi_req_settime)
 
 /* Messages received from the interface are this format. */
 struct ipmi_recv {
-	int     recv_type; /* Is this a command, response or an
-			      asyncronous event. */
+  int recv_type; /* Is this a command, response or an
+                  * asyncronous event. */
 
-	unsigned char __user *addr;    /* Address the message was from is put
-				   here.  The caller must supply the
-				   memory. */
-	unsigned int  addr_len; /* The size of the address buffer.
-				   The caller supplies the full buffer
-				   length, this value is updated to
-				   the actual message length when the
-				   message is received. */
+  unsigned char __user *addr;    /* Address the message was from is put
+                                  * here.  The caller must supply the
+                                  * memory. */
+  unsigned int addr_len; /* The size of the address buffer.
+                          * The caller supplies the full buffer
+                          * length, this value is updated to
+                          * the actual message length when the
+                          * message is received. */
 
-	long    msgid; /* The sequence number specified in the request
-			  if this is a response.  If this is a command,
-			  this will be the sequence number from the
-			  command. */
+  long msgid; /* The sequence number specified in the request
+               * if this is a response.  If this is a command,
+               * this will be the sequence number from the
+               * command. */
 
-	struct ipmi_msg msg; /* The data field must point to a buffer.
-				The data_size field must be set to the
-				size of the message buffer.  The
-				caller supplies the full buffer
-				length, this value is updated to the
-				actual message length when the message
-				is received. */
+  struct ipmi_msg msg; /* The data field must point to a buffer.
+                        * The data_size field must be set to the
+                        * size of the message buffer.  The
+                        * caller supplies the full buffer
+                        * length, this value is updated to the
+                        * actual message length when the message
+                        * is received. */
 };
 
 /*
@@ -324,21 +316,21 @@ struct ipmi_recv {
  *  - EINVAL - The address supplied was not valid.
  *  - EMSGSIZE - The message to was too large to fit into the message buffer,
  *               the message will be left in the buffer. */
-#define IPMICTL_RECEIVE_MSG		_IOWR(IPMI_IOC_MAGIC, 12,	\
-					      struct ipmi_recv)
+#define IPMICTL_RECEIVE_MSG   _IOWR(IPMI_IOC_MAGIC, 12, \
+    struct ipmi_recv)
 
 /*
  * Like RECEIVE_MSG, but if the message won't fit in the buffer, it
  * will truncate the contents instead of leaving the data in the
  * buffer.
  */
-#define IPMICTL_RECEIVE_MSG_TRUNC	_IOWR(IPMI_IOC_MAGIC, 11,	\
-					      struct ipmi_recv)
+#define IPMICTL_RECEIVE_MSG_TRUNC _IOWR(IPMI_IOC_MAGIC, 11, \
+    struct ipmi_recv)
 
 /* Register to get commands from other entities on this interface. */
 struct ipmi_cmdspec {
-	unsigned char netfn;
-	unsigned char cmd;
+  unsigned char netfn;
+  unsigned char cmd;
 };
 
 /*
@@ -347,15 +339,15 @@ struct ipmi_cmdspec {
  *   - EBUSY - The netfn/cmd supplied was already in use.
  *   - ENOMEM - could not allocate memory for the entry.
  */
-#define IPMICTL_REGISTER_FOR_CMD	_IOR(IPMI_IOC_MAGIC, 14,	\
-					     struct ipmi_cmdspec)
+#define IPMICTL_REGISTER_FOR_CMD  _IOR(IPMI_IOC_MAGIC, 14,  \
+    struct ipmi_cmdspec)
 /*
  * Unregister a registered command.  error values:
  *  - EFAULT - an address supplied was invalid.
  *  - ENOENT - The netfn/cmd was not found registered for this user.
  */
-#define IPMICTL_UNREGISTER_FOR_CMD	_IOR(IPMI_IOC_MAGIC, 15,	\
-					     struct ipmi_cmdspec)
+#define IPMICTL_UNREGISTER_FOR_CMD  _IOR(IPMI_IOC_MAGIC, 15,  \
+    struct ipmi_cmdspec)
 
 /*
  * Register to get commands from other entities on specific channels.
@@ -365,9 +357,9 @@ struct ipmi_cmdspec {
  * It may be IPMI_CHAN_ALL for all channels.
  */
 struct ipmi_cmdspec_chans {
-	unsigned int netfn;
-	unsigned int cmd;
-	unsigned int chans;
+  unsigned int netfn;
+  unsigned int cmd;
+  unsigned int chans;
 };
 
 /*
@@ -376,15 +368,15 @@ struct ipmi_cmdspec_chans {
  *   - EBUSY - One of the netfn/cmd/chans supplied was already in use.
  *   - ENOMEM - could not allocate memory for the entry.
  */
-#define IPMICTL_REGISTER_FOR_CMD_CHANS	_IOR(IPMI_IOC_MAGIC, 28,	\
-					     struct ipmi_cmdspec_chans)
+#define IPMICTL_REGISTER_FOR_CMD_CHANS  _IOR(IPMI_IOC_MAGIC, 28,  \
+    struct ipmi_cmdspec_chans)
 /*
  * Unregister some netfn/cmd/chans.  error values:
  *  - EFAULT - an address supplied was invalid.
  *  - ENOENT - None of the netfn/cmd/chans were found registered for this user.
  */
-#define IPMICTL_UNREGISTER_FOR_CMD_CHANS _IOR(IPMI_IOC_MAGIC, 29,	\
-					     struct ipmi_cmdspec_chans)
+#define IPMICTL_UNREGISTER_FOR_CMD_CHANS _IOR(IPMI_IOC_MAGIC, 29, \
+    struct ipmi_cmdspec_chans)
 
 /*
  * Set whether this interface receives events.  Note that the first
@@ -392,7 +384,7 @@ struct ipmi_cmdspec_chans {
  * interface.  error values:
  *  - EFAULT - an address supplied was invalid.
  */
-#define IPMICTL_SET_GETS_EVENTS_CMD	_IOR(IPMI_IOC_MAGIC, 16, int)
+#define IPMICTL_SET_GETS_EVENTS_CMD _IOR(IPMI_IOC_MAGIC, 16, int)
 
 /*
  * Set and get the slave address and LUN that we will use for our
@@ -403,41 +395,41 @@ struct ipmi_cmdspec_chans {
  * it for everyone else.  You should probably leave the LUN alone.
  */
 struct ipmi_channel_lun_address_set {
-	unsigned short channel;
-	unsigned char  value;
+  unsigned short channel;
+  unsigned char value;
 };
 #define IPMICTL_SET_MY_CHANNEL_ADDRESS_CMD \
-	_IOR(IPMI_IOC_MAGIC, 24, struct ipmi_channel_lun_address_set)
+  _IOR(IPMI_IOC_MAGIC, 24, struct ipmi_channel_lun_address_set)
 #define IPMICTL_GET_MY_CHANNEL_ADDRESS_CMD \
-	_IOR(IPMI_IOC_MAGIC, 25, struct ipmi_channel_lun_address_set)
+  _IOR(IPMI_IOC_MAGIC, 25, struct ipmi_channel_lun_address_set)
 #define IPMICTL_SET_MY_CHANNEL_LUN_CMD \
-	_IOR(IPMI_IOC_MAGIC, 26, struct ipmi_channel_lun_address_set)
+  _IOR(IPMI_IOC_MAGIC, 26, struct ipmi_channel_lun_address_set)
 #define IPMICTL_GET_MY_CHANNEL_LUN_CMD \
-	_IOR(IPMI_IOC_MAGIC, 27, struct ipmi_channel_lun_address_set)
+  _IOR(IPMI_IOC_MAGIC, 27, struct ipmi_channel_lun_address_set)
 /* Legacy interfaces, these only set IPMB 0. */
-#define IPMICTL_SET_MY_ADDRESS_CMD	_IOR(IPMI_IOC_MAGIC, 17, unsigned int)
-#define IPMICTL_GET_MY_ADDRESS_CMD	_IOR(IPMI_IOC_MAGIC, 18, unsigned int)
-#define IPMICTL_SET_MY_LUN_CMD		_IOR(IPMI_IOC_MAGIC, 19, unsigned int)
-#define IPMICTL_GET_MY_LUN_CMD		_IOR(IPMI_IOC_MAGIC, 20, unsigned int)
+#define IPMICTL_SET_MY_ADDRESS_CMD  _IOR(IPMI_IOC_MAGIC, 17, unsigned int)
+#define IPMICTL_GET_MY_ADDRESS_CMD  _IOR(IPMI_IOC_MAGIC, 18, unsigned int)
+#define IPMICTL_SET_MY_LUN_CMD    _IOR(IPMI_IOC_MAGIC, 19, unsigned int)
+#define IPMICTL_GET_MY_LUN_CMD    _IOR(IPMI_IOC_MAGIC, 20, unsigned int)
 
 /*
  * Get/set the default timing values for an interface.  You shouldn't
  * generally mess with these.
  */
 struct ipmi_timing_parms {
-	int          retries;
-	unsigned int retry_time_ms;
+  int retries;
+  unsigned int retry_time_ms;
 };
-#define IPMICTL_SET_TIMING_PARMS_CMD	_IOR(IPMI_IOC_MAGIC, 22, \
-					     struct ipmi_timing_parms)
-#define IPMICTL_GET_TIMING_PARMS_CMD	_IOR(IPMI_IOC_MAGIC, 23, \
-					     struct ipmi_timing_parms)
+#define IPMICTL_SET_TIMING_PARMS_CMD  _IOR(IPMI_IOC_MAGIC, 22, \
+    struct ipmi_timing_parms)
+#define IPMICTL_GET_TIMING_PARMS_CMD  _IOR(IPMI_IOC_MAGIC, 23, \
+    struct ipmi_timing_parms)
 
 /*
  * Set the maintenance mode.  See ipmi_set_maintenance_mode() above
  * for a description of what this does.
  */
-#define IPMICTL_GET_MAINTENANCE_MODE_CMD	_IOR(IPMI_IOC_MAGIC, 30, int)
-#define IPMICTL_SET_MAINTENANCE_MODE_CMD	_IOW(IPMI_IOC_MAGIC, 31, int)
+#define IPMICTL_GET_MAINTENANCE_MODE_CMD  _IOR(IPMI_IOC_MAGIC, 30, int)
+#define IPMICTL_SET_MAINTENANCE_MODE_CMD  _IOW(IPMI_IOC_MAGIC, 31, int)
 
 #endif /* _UAPI__LINUX_IPMI_H */

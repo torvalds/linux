@@ -15,9 +15,9 @@
 #include <linux/types.h>
 
 /*****************************************************************************
- ** TEE Param
- ******************************************************************************/
-#define TEE_MAX_PARAMS		4
+** TEE Param
+******************************************************************************/
+#define TEE_MAX_PARAMS    4
 
 /**
  * struct memref - memory reference structure
@@ -26,27 +26,27 @@
  * @size:      data size in bytes
  */
 struct memref {
-	u32 buf_id;
-	u32 offset;
-	u32 size;
+  u32 buf_id;
+  u32 offset;
+  u32 size;
 };
 
 struct value {
-	u32 a;
-	u32 b;
+  u32 a;
+  u32 b;
 };
 
 /*
  * Parameters passed to open_session or invoke_command
  */
 union tee_op_param {
-	struct memref mref;
-	struct value val;
+  struct memref mref;
+  struct value val;
 };
 
 struct tee_operation {
-	u32 param_types;
-	union tee_op_param params[TEE_MAX_PARAMS];
+  u32 param_types;
+  union tee_op_param params[TEE_MAX_PARAMS];
 };
 
 /* Must be same as in GP TEE specification */
@@ -61,11 +61,11 @@ struct tee_operation {
 
 #define TEE_PARAM_TYPE_GET(t, i)        (((t) >> ((i) * 4)) & 0xF)
 #define TEE_PARAM_TYPES(t0, t1, t2, t3) \
-	((t0) | ((t1) << 4) | ((t2) << 8) | ((t3) << 12))
+  ((t0) | ((t1) << 4) | ((t2) << 8) | ((t3) << 12))
 
 /*****************************************************************************
- ** TEE Commands
- *****************************************************************************/
+** TEE Commands
+*****************************************************************************/
 
 /*
  * The shared memory between rich world and secure world may be physically
@@ -80,9 +80,9 @@ struct tee_operation {
  * @size:     [in] size in bytes (must be multiple of 4KB)
  */
 struct tee_sg_desc {
-	u32 low_addr;
-	u32 hi_addr;
-	u32 size;
+  u32 low_addr;
+  u32 hi_addr;
+  u32 size;
 };
 
 /**
@@ -93,9 +93,9 @@ struct tee_sg_desc {
  */
 #define TEE_MAX_SG_DESC 64
 struct tee_sg_list {
-	u32 count;
-	u32 size;
-	struct tee_sg_desc buf[TEE_MAX_SG_DESC];
+  u32 count;
+  u32 size;
+  struct tee_sg_desc buf[TEE_MAX_SG_DESC];
 };
 
 /**
@@ -104,8 +104,8 @@ struct tee_sg_list {
  * @sg_list:   [in] list describing memory to be mapped
  */
 struct tee_cmd_map_shared_mem {
-	u32 buf_id;
-	struct tee_sg_list sg_list;
+  u32 buf_id;
+  struct tee_sg_list sg_list;
 };
 
 /**
@@ -113,7 +113,7 @@ struct tee_cmd_map_shared_mem {
  * @buf_id:    [in] buffer ID of memory to be unmapped
  */
 struct tee_cmd_unmap_shared_mem {
-	u32 buf_id;
+  u32 buf_id;
 };
 
 /**
@@ -125,11 +125,11 @@ struct tee_cmd_unmap_shared_mem {
  * @return_origin:  [out] origin of return code after TEE processing
  */
 struct tee_cmd_load_ta {
-	u32 low_addr;
-	u32 hi_addr;
-	u32 size;
-	u32 ta_handle;
-	u32 return_origin;
+  u32 low_addr;
+  u32 hi_addr;
+  u32 size;
+  u32 ta_handle;
+  u32 return_origin;
 };
 
 /**
@@ -137,7 +137,7 @@ struct tee_cmd_load_ta {
  * @ta_handle:    [in] handle of the loaded TA to be unloaded
  */
 struct tee_cmd_unload_ta {
-	u32 ta_handle;
+  u32 ta_handle;
 };
 
 /**
@@ -148,10 +148,10 @@ struct tee_cmd_unload_ta {
  * @return_origin:  [out] origin of return code after TEE processing
  */
 struct tee_cmd_open_session {
-	u32 ta_handle;
-	u32 session_info;
-	struct tee_operation op;
-	u32 return_origin;
+  u32 ta_handle;
+  u32 session_info;
+  struct tee_operation op;
+  u32 return_origin;
 };
 
 /**
@@ -161,8 +161,8 @@ struct tee_cmd_open_session {
  * @session_info:   [in] pointer to TA allocated session data
  */
 struct tee_cmd_close_session {
-	u32 ta_handle;
-	u32 session_info;
+  u32 ta_handle;
+  u32 session_info;
 };
 
 /**
@@ -175,11 +175,11 @@ struct tee_cmd_close_session {
  * @return_origin: [out] origin of return code after TEE processing
  */
 struct tee_cmd_invoke_cmd {
-	u32 ta_handle;
-	u32 cmd_id;
-	u32 session_info;
-	struct tee_operation op;
-	u32 return_origin;
+  u32 ta_handle;
+  u32 cmd_id;
+  u32 session_info;
+  struct tee_operation op;
+  u32 return_origin;
 };
 
 #endif /*AMDTEE_IF_H*/

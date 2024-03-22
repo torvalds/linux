@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: MIT */
-/* Copyright (C) 2006-2017 Oracle Corporation */
+/* SPDX-License-Identifier: MIT
+ * Copyright (C) 2006-2017 Oracle Corporation*/
 
 #ifndef __HGSMI_CH_SETUP_H__
 #define __HGSMI_CH_SETUP_H__
@@ -12,8 +12,8 @@
 #define HGSMI_CC_HOST_FLAGS_LOCATION 0
 
 struct hgsmi_buffer_location {
-	u32 buf_location;
-	u32 buf_len;
+  u32 buf_location;
+  u32 buf_len;
 } __packed;
 
 /* HGSMI setup and configuration data structures. */
@@ -25,8 +25,8 @@ struct hgsmi_buffer_location {
 #define HGSMIHOSTFLAGS_CURSOR_CAPABILITIES 0x40u
 
 struct hgsmi_host_flags {
-	u32 host_flags;
-	u32 reserved[3];
+  u32 host_flags;
+  u32 reserved[3];
 } __packed;
 
 #endif

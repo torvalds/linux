@@ -7,52 +7,52 @@
 #define __HARMONY_H__
 
 struct harmony_buffer {
-        unsigned long addr;
-        int buf;
-        int count;
-        int size;
-        int coherent;
+  unsigned long addr;
+  int buf;
+  int count;
+  int size;
+  int coherent;
 };
 
 struct snd_harmony {
-        int irq;
+  int irq;
 
-        unsigned long hpa; /* hard physical address */
-        void __iomem *iobase; /* remapped io address */
+  unsigned long hpa; /* hard physical address */
+  void __iomem *iobase; /* remapped io address */
 
-        struct parisc_device *dev;
+  struct parisc_device *dev;
 
-        struct {
-                u32 gain;
-                u32 rate;
-                u32 format;
-                u32 stereo;
-		int playing;
-		int capturing;
-        } st;
+  struct {
+    u32 gain;
+    u32 rate;
+    u32 format;
+    u32 stereo;
+    int playing;
+    int capturing;
+  } st;
 
-        struct snd_dma_device dma; /* playback/capture */
-        struct harmony_buffer pbuf;
-	struct harmony_buffer cbuf;
+  struct snd_dma_device dma; /* playback/capture */
+  struct harmony_buffer pbuf;
+  struct harmony_buffer cbuf;
 
-        struct snd_dma_buffer gdma; /* graveyard */
-        struct snd_dma_buffer sdma; /* silence */
+  struct snd_dma_buffer gdma; /* graveyard */
+  struct snd_dma_buffer sdma; /* silence */
 
-        struct {
-                unsigned long play_intr;
-	        unsigned long rec_intr;
-                unsigned long graveyard_intr;
-                unsigned long silence_intr;
-        } stats;
+  struct {
+    unsigned long play_intr;
+    unsigned long rec_intr;
+    unsigned long graveyard_intr;
+    unsigned long silence_intr;
+  } stats;
 
-        struct snd_pcm *pcm;
-        struct snd_card *card;
-        struct snd_pcm_substream *psubs;
-	struct snd_pcm_substream *csubs;
-        struct snd_info_entry *proc;
+  struct snd_pcm *pcm;
+  struct snd_card *card;
+  struct snd_pcm_substream *psubs;
+  struct snd_pcm_substream *csubs;
+  struct snd_info_entry *proc;
 
-        spinlock_t lock;
-        spinlock_t mixer_lock;
+  spinlock_t lock;
+  spinlock_t mixer_lock;
 };
 
 #define MAX_PCM_DEVICES     1
@@ -68,9 +68,9 @@ struct snd_harmony {
 #define PLAYBACK_BUFS    MAX_BUFS
 #define RECORD_BUFS      MAX_BUFS
 #define GRAVEYARD_BUFS   1
-#define GRAVEYARD_BUFSZ  (GRAVEYARD_BUFS*BUF_SIZE)
+#define GRAVEYARD_BUFSZ  (GRAVEYARD_BUFS * BUF_SIZE)
 #define SILENCE_BUFS     1
-#define SILENCE_BUFSZ    (SILENCE_BUFS*BUF_SIZE)
+#define SILENCE_BUFSZ    (SILENCE_BUFS * BUF_SIZE)
 
 #define HARMONY_ID       0x000
 #define HARMONY_RESET    0x004

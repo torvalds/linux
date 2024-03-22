@@ -20,10 +20,10 @@
 
 /* OB2 (Optical Black) */
 struct sh_css_isp_ob2_params {
-	s32 blacklevel_gr;
-	s32 blacklevel_r;
-	s32 blacklevel_b;
-	s32 blacklevel_gb;
+  s32 blacklevel_gr;
+  s32 blacklevel_r;
+  s32 blacklevel_b;
+  s32 blacklevel_gb;
 };
 
 #endif /* __IA_CSS_OB2_PARAM_H */

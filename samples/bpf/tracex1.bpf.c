@@ -17,30 +17,25 @@
  * In such case this bpf+kprobe example will no longer be meaningful
  */
 SEC("kprobe.multi/__netif_receive_skb_core*")
-int bpf_prog1(struct pt_regs *ctx)
-{
-	/* attaches to kprobe __netif_receive_skb_core,
-	 * looks for packets on loobpack device and prints them
-	 * (wildcard is used for avoiding symbol mismatch due to optimization)
-	 */
-	char devname[IFNAMSIZ];
-	struct net_device *dev;
-	struct sk_buff *skb;
-	int len;
-
-	bpf_core_read(&skb, sizeof(skb), (void *)PT_REGS_PARM1(ctx));
-	dev = BPF_CORE_READ(skb, dev);
-	len = BPF_CORE_READ(skb, len);
-
-	BPF_CORE_READ_STR_INTO(&devname, dev, name);
-
-	if (devname[0] == 'l' && devname[1] == 'o') {
-		char fmt[] = "skb %p len %d\n";
-		/* using bpf_trace_printk() for DEBUG ONLY */
-		bpf_trace_printk(fmt, sizeof(fmt), skb, len);
-	}
-
-	return 0;
+int bpf_prog1(struct pt_regs *ctx) {
+  /* attaches to kprobe __netif_receive_skb_core,
+   * looks for packets on loobpack device and prints them
+   * (wildcard is used for avoiding symbol mismatch due to optimization)
+   */
+  char devname[IFNAMSIZ];
+  struct net_device *dev;
+  struct sk_buff *skb;
+  int len;
+  bpf_core_read(&skb, sizeof(skb), (void *) PT_REGS_PARM1(ctx));
+  dev = BPF_CORE_READ(skb, dev);
+  len = BPF_CORE_READ(skb, len);
+  BPF_CORE_READ_STR_INTO(&devname, dev, name);
+  if (devname[0] == 'l' && devname[1] == 'o') {
+    char fmt[] = "skb %p len %d\n";
+    /* using bpf_trace_printk() for DEBUG ONLY */
+    bpf_trace_printk(fmt, sizeof(fmt), skb, len);
+  }
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

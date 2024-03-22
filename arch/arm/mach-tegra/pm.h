@@ -4,15 +4,15 @@
  * Copyright (c) 2010-2012 NVIDIA Corporation. All rights reserved.
  *
  * Author:
- *	Colin Cross <ccross@google.com>
+ *  Colin Cross <ccross@google.com>
  */
 
 #ifndef _MACH_TEGRA_PM_H_
 #define _MACH_TEGRA_PM_H_
 
 struct tegra_lp1_iram {
-	void	*start_addr;
-	void	*end_addr;
+  void *start_addr;
+  void *end_addr;
 };
 
 extern struct tegra_lp1_iram tegra_lp1_iram;

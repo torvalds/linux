@@ -4,11 +4,11 @@
 #include <asm/page.h>
 
 static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
-					  unsigned long vm_start, unsigned long vm_end,
-					  unsigned long offset)
-{
-	return pgprot_noncached(prot);
+    unsigned long vm_start, unsigned long vm_end,
+    unsigned long offset) {
+  return pgprot_noncached(prot);
 }
+
 #define pgprot_framebuffer pgprot_framebuffer
 
 /*
@@ -20,16 +20,16 @@ static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
  *       then be removed.
  */
 #ifdef CONFIG_64BIT
-static inline u64 fb_readq(const volatile void __iomem *addr)
-{
-	return __raw_readq(addr);
+static inline u64 fb_readq(const volatile void __iomem *addr) {
+  return __raw_readq(addr);
 }
+
 #define fb_readq fb_readq
 
-static inline void fb_writeq(u64 b, volatile void __iomem *addr)
-{
-	__raw_writeq(b, addr);
+static inline void fb_writeq(u64 b, volatile void __iomem *addr) {
+  __raw_writeq(b, addr);
 }
+
 #define fb_writeq fb_writeq
 #endif
 

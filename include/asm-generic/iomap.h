@@ -79,13 +79,19 @@ extern void iowrite64be_hi_lo(u64 val, void __iomem *addr);
  * memory across multiple ports, use "memcpy_toio()"
  * and friends.
  */
-extern void ioread8_rep(const void __iomem *port, void *buf, unsigned long count);
-extern void ioread16_rep(const void __iomem *port, void *buf, unsigned long count);
-extern void ioread32_rep(const void __iomem *port, void *buf, unsigned long count);
+extern void ioread8_rep(const void __iomem *port, void *buf,
+    unsigned long count);
+extern void ioread16_rep(const void __iomem *port, void *buf,
+    unsigned long count);
+extern void ioread32_rep(const void __iomem *port, void *buf,
+    unsigned long count);
 
-extern void iowrite8_rep(void __iomem *port, const void *buf, unsigned long count);
-extern void iowrite16_rep(void __iomem *port, const void *buf, unsigned long count);
-extern void iowrite32_rep(void __iomem *port, const void *buf, unsigned long count);
+extern void iowrite8_rep(void __iomem *port, const void *buf,
+    unsigned long count);
+extern void iowrite16_rep(void __iomem *port, const void *buf,
+    unsigned long count);
+extern void iowrite32_rep(void __iomem *port, const void *buf,
+    unsigned long count);
 
 #ifdef CONFIG_HAS_IOPORT_MAP
 /* Create a virtual mapping cookie for an IO port range */
@@ -104,10 +110,10 @@ extern void ioport_unmap(void __iomem *);
 #ifndef ioremap_np
 /* See the comment in asm-generic/io.h about ioremap_np(). */
 #define ioremap_np ioremap_np
-static inline void __iomem *ioremap_np(phys_addr_t offset, size_t size)
-{
-	return NULL;
+static inline void __iomem *ioremap_np(phys_addr_t offset, size_t size) {
+  return NULL;
 }
+
 #endif
 
 #include <asm-generic/pci_iomap.h>

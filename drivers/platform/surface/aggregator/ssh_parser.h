@@ -22,9 +22,9 @@
  * @cap: Maximum capacity of the buffer.
  */
 struct sshp_buf {
-	u8    *ptr;
-	size_t len;
-	size_t cap;
+  u8 *ptr;
+  size_t len;
+  size_t cap;
 };
 
 /**
@@ -36,11 +36,10 @@ struct sshp_buf {
  * Initializes the buffer with the given memory as backing and set its used
  * length to zero.
  */
-static inline void sshp_buf_init(struct sshp_buf *buf, u8 *ptr, size_t cap)
-{
-	buf->ptr = ptr;
-	buf->len = 0;
-	buf->cap = cap;
+static inline void sshp_buf_init(struct sshp_buf *buf, u8 *ptr, size_t cap) {
+  buf->ptr = ptr;
+  buf->len = 0;
+  buf->cap = cap;
 }
 
 /**
@@ -54,16 +53,15 @@ static inline void sshp_buf_init(struct sshp_buf *buf, u8 *ptr, size_t cap)
  *
  * Return: Returns zero on success and %-ENOMEM if allocation failed.
  */
-static inline int sshp_buf_alloc(struct sshp_buf *buf, size_t cap, gfp_t flags)
-{
-	u8 *ptr;
-
-	ptr = kzalloc(cap, flags);
-	if (!ptr)
-		return -ENOMEM;
-
-	sshp_buf_init(buf, ptr, cap);
-	return 0;
+static inline int sshp_buf_alloc(struct sshp_buf *buf, size_t cap,
+    gfp_t flags) {
+  u8 *ptr;
+  ptr = kzalloc(cap, flags);
+  if (!ptr) {
+    return -ENOMEM;
+  }
+  sshp_buf_init(buf, ptr, cap);
+  return 0;
 }
 
 /**
@@ -74,12 +72,11 @@ static inline int sshp_buf_alloc(struct sshp_buf *buf, size_t cap, gfp_t flags)
  * resetting its pointer to %NULL and length and capacity to zero. Intended to
  * free a buffer previously allocated with sshp_buf_alloc().
  */
-static inline void sshp_buf_free(struct sshp_buf *buf)
-{
-	kfree(buf->ptr);
-	buf->ptr = NULL;
-	buf->len = 0;
-	buf->cap = 0;
+static inline void sshp_buf_free(struct sshp_buf *buf) {
+  kfree(buf->ptr);
+  buf->ptr = NULL;
+  buf->len = 0;
+  buf->cap = 0;
 }
 
 /**
@@ -90,10 +87,9 @@ static inline void sshp_buf_free(struct sshp_buf *buf)
  * Drops the first @n bytes from the buffer. Re-aligns any remaining data to
  * the beginning of the buffer.
  */
-static inline void sshp_buf_drop(struct sshp_buf *buf, size_t n)
-{
-	memmove(buf->ptr, buf->ptr + n, buf->len - n);
-	buf->len -= n;
+static inline void sshp_buf_drop(struct sshp_buf *buf, size_t n) {
+  memmove(buf->ptr, buf->ptr + n, buf->len - n);
+  buf->len -= n;
 }
 
 /**
@@ -109,14 +105,11 @@ static inline void sshp_buf_drop(struct sshp_buf *buf, size_t n)
  * Return: Returns the number of bytes transferred.
  */
 static inline size_t sshp_buf_read_from_fifo(struct sshp_buf *buf,
-					     struct kfifo *fifo)
-{
-	size_t n;
-
-	n =  kfifo_out(fifo, buf->ptr + buf->len, buf->cap - buf->len);
-	buf->len += n;
-
-	return n;
+    struct kfifo *fifo) {
+  size_t n;
+  n = kfifo_out(fifo, buf->ptr + buf->len, buf->cap - buf->len);
+  buf->len += n;
+  return n;
 }
 
 /**
@@ -135,20 +128,19 @@ static inline size_t sshp_buf_read_from_fifo(struct sshp_buf *buf,
  * be guaranteed by the caller.
  */
 static inline void sshp_buf_span_from(struct sshp_buf *buf, size_t offset,
-				      struct ssam_span *span)
-{
-	span->ptr = buf->ptr + offset;
-	span->len = buf->len - offset;
+    struct ssam_span *span) {
+  span->ptr = buf->ptr + offset;
+  span->len = buf->len - offset;
 }
 
 bool sshp_find_syn(const struct ssam_span *src, struct ssam_span *rem);
 
 int sshp_parse_frame(const struct device *dev, const struct ssam_span *source,
-		     struct ssh_frame **frame, struct ssam_span *payload,
-		     size_t maxlen);
+    struct ssh_frame **frame, struct ssam_span *payload,
+    size_t maxlen);
 
 int sshp_parse_command(const struct device *dev, const struct ssam_span *source,
-		       struct ssh_command **command,
-		       struct ssam_span *command_data);
+    struct ssh_command **command,
+    struct ssam_span *command_data);
 
 #endif /* _SURFACE_AGGREGATOR_SSH_PARSER_h */

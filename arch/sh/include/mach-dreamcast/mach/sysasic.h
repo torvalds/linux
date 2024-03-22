@@ -15,17 +15,17 @@
 #include <asm/irq.h>
 
 /* Hardware events -
-
-   Each of these events correspond to a bit within the Event Mask Registers/
-   Event Status Registers.  Because of the virtual IRQ numbering scheme, a
-   base offset must be used when calculating the virtual IRQ that each event
-   takes.
-*/
+ *
+ * Each of these events correspond to a bit within the Event Mask Registers/
+ * Event Status Registers.  Because of the virtual IRQ numbering scheme, a
+ * base offset must be used when calculating the virtual IRQ that each event
+ * takes.
+ */
 
 #define HW_EVENT_IRQ_BASE  (48 + 16)
 
 /* IRQ 13 */
-#define HW_EVENT_VSYNC     (HW_EVENT_IRQ_BASE +  5) /* VSync */
+#define HW_EVENT_VSYNC     (HW_EVENT_IRQ_BASE + 5) /* VSync */
 #define HW_EVENT_MAPLE_DMA (HW_EVENT_IRQ_BASE + 12) /* Maple DMA complete */
 #define HW_EVENT_GDROM_DMA (HW_EVENT_IRQ_BASE + 14) /* GD-ROM DMA complete */
 #define HW_EVENT_G2_DMA    (HW_EVENT_IRQ_BASE + 15) /* G2 DMA complete */
@@ -43,4 +43,3 @@ extern int systemasic_irq_demux(int);
 extern void systemasic_irq_init(void);
 
 #endif /* __ASM_SH_DREAMCAST_SYSASIC_H */
-

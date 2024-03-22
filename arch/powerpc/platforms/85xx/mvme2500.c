@@ -6,9 +6,9 @@
  *
  * Based on earlier code by:
  *
- *	Xianghua Xiao (x.xiao@freescale.com)
- *	Tom Armistead (tom.armistead@emerson.com)
- *	Copyright 2012 Emerson
+ *  Xianghua Xiao (x.xiao@freescale.com)
+ *  Tom Armistead (tom.armistead@emerson.com)
+ *  Copyright 2012 Emerson
  *
  * Author Alessio Igor Bogani <alessio.bogani@elettra.eu>
  */
@@ -21,37 +21,36 @@
 
 #include "mpc85xx.h"
 
-static void __init mvme2500_pic_init(void)
-{
-	struct mpic *mpic = mpic_alloc(NULL, 0,
-		  MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU,
-		0, 256, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
-	mpic_init(mpic);
+static void __init mvme2500_pic_init(void) {
+  struct mpic *mpic = mpic_alloc(NULL, 0,
+      MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU,
+      0, 256, " OpenPIC  ");
+  BUG_ON(mpic == NULL);
+  mpic_init(mpic);
 }
 
 /*
  * Setup the architecture
  */
-static void __init mvme2500_setup_arch(void)
-{
-	if (ppc_md.progress)
-		ppc_md.progress("mvme2500_setup_arch()", 0);
-	fsl_pci_assign_primary();
-	pr_info("MVME2500 board from Artesyn\n");
+static void __init mvme2500_setup_arch(void) {
+  if (ppc_md.progress) {
+    ppc_md.progress("mvme2500_setup_arch()", 0);
+  }
+  fsl_pci_assign_primary();
+  pr_info("MVME2500 board from Artesyn\n");
 }
 
 machine_arch_initcall(mvme2500, mpc85xx_common_publish_devices);
 
 define_machine(mvme2500) {
-	.name			= "MVME2500",
-	.compatible		= "artesyn,MVME2500",
-	.setup_arch		= mvme2500_setup_arch,
-	.init_IRQ		= mvme2500_pic_init,
+  .name = "MVME2500",
+  .compatible = "artesyn,MVME2500",
+  .setup_arch = mvme2500_setup_arch,
+  .init_IRQ = mvme2500_pic_init,
 #ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
+  .pcibios_fixup_bus = fsl_pcibios_fixup_bus,
+  .pcibios_fixup_phb = fsl_pcibios_fixup_phb,
 #endif
-	.get_irq		= mpic_get_irq,
-	.progress		= udbg_progress,
+  .get_irq = mpic_get_irq,
+  .progress = udbg_progress,
 };

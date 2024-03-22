@@ -22,6 +22,6 @@
 #else
 #endif
 #define SET_PERSONALITY(ex) \
-	set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
+  set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
 #endif /* __uClinux__ */
 #endif /* _ASM_MICROBLAZE_ELF_H */

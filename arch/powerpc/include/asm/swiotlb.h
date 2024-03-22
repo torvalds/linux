@@ -14,7 +14,9 @@ extern unsigned int ppc_swiotlb_flags;
 #ifdef CONFIG_SWIOTLB
 void swiotlb_detect_4g(void);
 #else
-static inline void swiotlb_detect_4g(void) {}
+static inline void swiotlb_detect_4g(void) {
+}
+
 #endif
 
 #endif /* __ASM_SWIOTLB_H */

@@ -19,7 +19,7 @@ extern unsigned long return_address(unsigned level);
 
 #ifdef CONFIG_FUNCTION_TRACER
 
-#define MCOUNT_ADDR ((unsigned long)(_mcount))
+#define MCOUNT_ADDR ((unsigned long) (_mcount))
 #define MCOUNT_INSN_SIZE 3
 
 #ifndef __ASSEMBLY__

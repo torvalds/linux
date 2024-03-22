@@ -45,7 +45,6 @@
 
 #include <mm/mmu_decl.h>
 
-
 #ifdef CONFIG_PPC_BOOK3S_64
 /*
  * partition table and process table for ISA 3.0
@@ -98,65 +97,66 @@ EXPORT_SYMBOL(__pte_frag_size_shift);
 
 #ifndef __PAGETABLE_PUD_FOLDED
 /* 4 level page table */
-struct page *p4d_page(p4d_t p4d)
-{
-	if (p4d_leaf(p4d)) {
-		if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP))
-			VM_WARN_ON(!p4d_huge(p4d));
-		return pte_page(p4d_pte(p4d));
-	}
-	return virt_to_page(p4d_pgtable(p4d));
+struct page *p4d_page(p4d_t p4d) {
+  if (p4d_leaf(p4d)) {
+    if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP)) {
+      VM_WARN_ON(!p4d_huge(p4d));
+    }
+    return pte_page(p4d_pte(p4d));
+  }
+  return virt_to_page(p4d_pgtable(p4d));
 }
+
 #endif
 
-struct page *pud_page(pud_t pud)
-{
-	if (pud_leaf(pud)) {
-		if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP))
-			VM_WARN_ON(!pud_huge(pud));
-		return pte_page(pud_pte(pud));
-	}
-	return virt_to_page(pud_pgtable(pud));
+struct page *pud_page(pud_t pud) {
+  if (pud_leaf(pud)) {
+    if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP)) {
+      VM_WARN_ON(!pud_huge(pud));
+    }
+    return pte_page(pud_pte(pud));
+  }
+  return virt_to_page(pud_pgtable(pud));
 }
 
 /*
  * For hugepage we have pfn in the pmd, we use PTE_RPN_SHIFT bits for flags
  * For PTE page, we have a PTE_FRAG_SIZE (4K) aligned virtual address.
  */
-struct page *pmd_page(pmd_t pmd)
-{
-	if (pmd_leaf(pmd)) {
-		/*
-		 * vmalloc_to_page may be called on any vmap address (not only
-		 * vmalloc), and it uses pmd_page() etc., when huge vmap is
-		 * enabled so these checks can't be used.
-		 */
-		if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP))
-			VM_WARN_ON(!(pmd_leaf(pmd) || pmd_huge(pmd)));
-		return pte_page(pmd_pte(pmd));
-	}
-	return virt_to_page(pmd_page_vaddr(pmd));
+struct page *pmd_page(pmd_t pmd) {
+  if (pmd_leaf(pmd)) {
+    /*
+     * vmalloc_to_page may be called on any vmap address (not only
+     * vmalloc), and it uses pmd_page() etc., when huge vmap is
+     * enabled so these checks can't be used.
+     */
+    if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP)) {
+      VM_WARN_ON(!(pmd_leaf(pmd) || pmd_huge(pmd)));
+    }
+    return pte_page(pmd_pte(pmd));
+  }
+  return virt_to_page(pmd_page_vaddr(pmd));
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
-void mark_rodata_ro(void)
-{
-	if (!mmu_has_feature(MMU_FTR_KERNEL_RO)) {
-		pr_warn("Warning: Unable to mark rodata read only on this CPU.\n");
-		return;
-	}
-
-	if (radix_enabled())
-		radix__mark_rodata_ro();
-	else
-		hash__mark_rodata_ro();
+void mark_rodata_ro(void) {
+  if (!mmu_has_feature(MMU_FTR_KERNEL_RO)) {
+    pr_warn("Warning: Unable to mark rodata read only on this CPU.\n");
+    return;
+  }
+  if (radix_enabled()) {
+    radix__mark_rodata_ro();
+  } else {
+    hash__mark_rodata_ro();
+  }
 }
 
-void mark_initmem_nx(void)
-{
-	if (radix_enabled())
-		radix__mark_initmem_nx();
-	else
-		hash__mark_initmem_nx();
+void mark_initmem_nx(void) {
+  if (radix_enabled()) {
+    radix__mark_initmem_nx();
+  } else {
+    hash__mark_initmem_nx();
+  }
 }
+
 #endif

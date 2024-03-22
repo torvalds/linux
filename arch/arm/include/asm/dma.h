@@ -6,12 +6,12 @@
  * This is the maximum virtual address which can be DMA'd from.
  */
 #ifndef CONFIG_ZONE_DMA
-#define MAX_DMA_ADDRESS	0xffffffffUL
+#define MAX_DMA_ADDRESS 0xffffffffUL
 #else
-#define MAX_DMA_ADDRESS	({ \
-	extern phys_addr_t arm_dma_zone_size; \
-	arm_dma_zone_size && arm_dma_zone_size < (0x100000000ULL - PAGE_OFFSET) ? \
-		(PAGE_OFFSET + arm_dma_zone_size) : 0xffffffffUL; })
+#define MAX_DMA_ADDRESS ({ \
+    extern phys_addr_t arm_dma_zone_size; \
+    arm_dma_zone_size && arm_dma_zone_size < (0x100000000ULL - PAGE_OFFSET)   \
+    ? (PAGE_OFFSET + arm_dma_zone_size) : 0xffffffffUL; })
 
 extern phys_addr_t arm_dma_limit;
 #define ARCH_LOW_ADDRESS_LIMIT arm_dma_limit
@@ -30,25 +30,23 @@ extern phys_addr_t arm_dma_limit;
 /*
  * The DMA modes reflect the settings for the ISA DMA controller
  */
-#define DMA_MODE_MASK	 0xcc
+#define DMA_MODE_MASK  0xcc
 
-#define DMA_MODE_READ	 0x44
-#define DMA_MODE_WRITE	 0x48
+#define DMA_MODE_READ  0x44
+#define DMA_MODE_WRITE   0x48
 #define DMA_MODE_CASCADE 0xc0
-#define DMA_AUTOINIT	 0x10
+#define DMA_AUTOINIT   0x10
 
-extern raw_spinlock_t  dma_spin_lock;
+extern raw_spinlock_t dma_spin_lock;
 
-static inline unsigned long claim_dma_lock(void)
-{
-	unsigned long flags;
-	raw_spin_lock_irqsave(&dma_spin_lock, flags);
-	return flags;
+static inline unsigned long claim_dma_lock(void) {
+  unsigned long flags;
+  raw_spin_lock_irqsave(&dma_spin_lock, flags);
+  return flags;
 }
 
-static inline void release_dma_lock(unsigned long flags)
-{
-	raw_spin_unlock_irqrestore(&dma_spin_lock, flags);
+static inline void release_dma_lock(unsigned long flags) {
+  raw_spin_unlock_irqrestore(&dma_spin_lock, flags);
 }
 
 /* Clear the 'DMA Pointer Flip Flop'.
@@ -67,7 +65,7 @@ extern void set_dma_page(unsigned int chan, char pagenr);
  *
  * Some architectures may need to do allocate an interrupt
  */
-extern int  request_dma(unsigned int chan, const char * device_id);
+extern int request_dma(unsigned int chan, const char *device_id);
 
 /* Free a DMA channel
  *
@@ -108,8 +106,8 @@ extern void set_dma_sg(unsigned int chan, struct scatterlist *sg, int nr_sg);
  * DMA address immediately, but defer it to the enable_dma().
  */
 extern void __set_dma_addr(unsigned int chan, void *addr);
-#define set_dma_addr(chan, addr)				\
-	__set_dma_addr(chan, (void *)isa_bus_to_virt(addr))
+#define set_dma_addr(chan, addr)        \
+  __set_dma_addr(chan, (void *) isa_bus_to_virt(addr))
 
 /* Set the DMA byte count for this channel
  *
@@ -138,10 +136,10 @@ extern void set_dma_speed(unsigned int chan, int cycle_ns);
  * If called before the channel has been used, it may return 1.
  * Otherwise, it returns the number of _bytes_ left to transfer.
  */
-extern int  get_dma_residue(unsigned int chan);
+extern int get_dma_residue(unsigned int chan);
 
 #ifndef NO_DMA
-#define NO_DMA	255
+#define NO_DMA  255
 #endif
 
 #endif /* CONFIG_ISA_DMA_API */

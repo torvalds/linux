@@ -18,27 +18,26 @@
 struct vsp1_device;
 struct vsp1_rwpf;
 
-#define BRX_PAD_SINK(n)				(n)
+#define BRX_PAD_SINK(n)       (n)
 
 struct vsp1_brx {
-	struct vsp1_entity entity;
-	unsigned int base;
+  struct vsp1_entity entity;
+  unsigned int base;
 
-	struct v4l2_ctrl_handler ctrls;
+  struct v4l2_ctrl_handler ctrls;
 
-	struct {
-		struct vsp1_rwpf *rpf;
-	} inputs[VSP1_MAX_RPF];
+  struct {
+    struct vsp1_rwpf *rpf;
+  } inputs[VSP1_MAX_RPF];
 
-	u32 bgcolor;
+  u32 bgcolor;
 };
 
-static inline struct vsp1_brx *to_brx(struct v4l2_subdev *subdev)
-{
-	return container_of(subdev, struct vsp1_brx, entity.subdev);
+static inline struct vsp1_brx *to_brx(struct v4l2_subdev *subdev) {
+  return container_of(subdev, struct vsp1_brx, entity.subdev);
 }
 
 struct vsp1_brx *vsp1_brx_create(struct vsp1_device *vsp1,
-				 enum vsp1_entity_type type);
+    enum vsp1_entity_type type);
 
 #endif /* __VSP1_BRX_H__ */

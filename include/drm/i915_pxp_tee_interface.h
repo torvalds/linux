@@ -17,19 +17,18 @@ struct scatterlist;
  * @receive: receives data from PXP
  */
 struct i915_pxp_component_ops {
-	/**
-	 * @owner: owner of the module provding the ops
-	 */
-	struct module *owner;
+  /**
+   * @owner: owner of the module provding the ops
+   */
+  struct module *owner;
 
-	int (*send)(struct device *dev, const void *message, size_t size,
-		    unsigned long timeout_ms);
-	int (*recv)(struct device *dev, void *buffer, size_t size,
-		    unsigned long timeout_ms);
-	ssize_t (*gsc_command)(struct device *dev, u8 client_id, u32 fence_id,
-			       struct scatterlist *sg_in, size_t total_in_len,
-			       struct scatterlist *sg_out);
-
+  int (*send)(struct device *dev, const void *message, size_t size,
+      unsigned long timeout_ms);
+  int (*recv)(struct device *dev, void *buffer, size_t size,
+      unsigned long timeout_ms);
+  ssize_t (*gsc_command)(struct device *dev, u8 client_id, u32 fence_id,
+      struct scatterlist *sg_in, size_t total_in_len,
+      struct scatterlist *sg_out);
 };
 
 /**
@@ -39,11 +38,11 @@ struct i915_pxp_component_ops {
  * @pxp_ops: Ops implemented by TEE driver, used by i915 driver.
  */
 struct i915_pxp_component {
-	struct device *tee_dev;
-	const struct i915_pxp_component_ops *ops;
+  struct device *tee_dev;
+  const struct i915_pxp_component_ops *ops;
 
-	/* To protect the above members. */
-	struct mutex mutex;
+  /* To protect the above members. */
+  struct mutex mutex;
 };
 
 #endif /* _I915_TEE_PXP_INTERFACE_H_ */

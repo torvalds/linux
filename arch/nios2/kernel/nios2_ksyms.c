@@ -28,7 +28,7 @@ EXPORT_SYMBOL(flush_icache_range);
  * compiler...  (prototypes are not correct though, but that
  * doesn't really matter since they're not versioned).
  */
-#define DECLARE_EXPORT(name)	extern void name(void); EXPORT_SYMBOL(name)
+#define DECLARE_EXPORT(name)  extern void name(void); EXPORT_SYMBOL(name)
 
 DECLARE_EXPORT(__gcc_bcmp);
 DECLARE_EXPORT(__divsi3);

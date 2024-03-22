@@ -6,13 +6,13 @@
 #include <linux/suspend.h>
 
 struct pxa_cpu_pm_fns {
-	int	save_count;
-	void	(*save)(unsigned long *);
-	void	(*restore)(unsigned long *);
-	int	(*valid)(suspend_state_t state);
-	void	(*enter)(suspend_state_t state);
-	int	(*prepare)(void);
-	void	(*finish)(void);
+  int save_count;
+  void (*save)(unsigned long *);
+  void (*restore)(unsigned long *);
+  int (*valid)(suspend_state_t state);
+  void (*enter)(suspend_state_t state);
+  int (*prepare)(void);
+  void (*finish)(void);
 };
 
 extern struct pxa_cpu_pm_fns *pxa_cpu_pm_fns;

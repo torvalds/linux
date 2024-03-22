@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2017 - 2019 Pensando Systems, Inc */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2017 - 2019 Pensando Systems, Inc*/
 
 #ifndef _IONIC_TXRX_H_
 #define _IONIC_TXRX_H_
@@ -16,5 +16,6 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 
 bool ionic_rx_service(struct ionic_cq *cq);
 
-int ionic_xdp_xmit(struct net_device *netdev, int n, struct xdp_frame **xdp, u32 flags);
+int ionic_xdp_xmit(struct net_device *netdev, int n, struct xdp_frame **xdp,
+    u32 flags);
 #endif /* _IONIC_TXRX_H_ */

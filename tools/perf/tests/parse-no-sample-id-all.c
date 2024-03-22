@@ -10,50 +10,43 @@
 #include "debug.h"
 #include "util/sample.h"
 
-static int process_event(struct evlist **pevlist, union perf_event *event)
-{
-	struct perf_sample sample;
-
-	if (event->header.type == PERF_RECORD_HEADER_ATTR) {
-		if (perf_event__process_attr(NULL, event, pevlist)) {
-			pr_debug("perf_event__process_attr failed\n");
-			return -1;
-		}
-		return 0;
-	}
-
-	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
-		return -1;
-
-	if (!*pevlist)
-		return -1;
-
-	if (evlist__parse_sample(*pevlist, event, &sample)) {
-		pr_debug("evlist__parse_sample failed\n");
-		return -1;
-	}
-
-	return 0;
+static int process_event(struct evlist **pevlist, union perf_event *event) {
+  struct perf_sample sample;
+  if (event->header.type == PERF_RECORD_HEADER_ATTR) {
+    if (perf_event__process_attr(NULL, event, pevlist)) {
+      pr_debug("perf_event__process_attr failed\n");
+      return -1;
+    }
+    return 0;
+  }
+  if (event->header.type >= PERF_RECORD_USER_TYPE_START) {
+    return -1;
+  }
+  if (!*pevlist) {
+    return -1;
+  }
+  if (evlist__parse_sample(*pevlist, event, &sample)) {
+    pr_debug("evlist__parse_sample failed\n");
+    return -1;
+  }
+  return 0;
 }
 
-static int process_events(union perf_event **events, size_t count)
-{
-	struct evlist *evlist = NULL;
-	int err = 0;
-	size_t i;
-
-	for (i = 0; i < count && !err; i++)
-		err = process_event(&evlist, events[i]);
-
-	evlist__delete(evlist);
-
-	return err;
+static int process_events(union perf_event **events, size_t count) {
+  struct evlist *evlist = NULL;
+  int err = 0;
+  size_t i;
+  for (i = 0; i < count && !err; i++) {
+    err = process_event(&evlist, events[i]);
+  }
+  evlist__delete(evlist);
+  return err;
 }
 
 struct test_attr_event {
-	struct perf_event_header header;
-	struct perf_event_attr	 attr;
-	u64 id;
+  struct perf_event_header header;
+  struct perf_event_attr attr;
+  u64 id;
 };
 
 /**
@@ -69,41 +62,38 @@ struct test_attr_event {
  * Return: %0 on success, %-1 if the test fails.
  */
 static int test__parse_no_sample_id_all(struct test_suite *test __maybe_unused,
-					int subtest __maybe_unused)
-{
-	int err;
-
-	struct test_attr_event event1 = {
-		.header = {
-			.type = PERF_RECORD_HEADER_ATTR,
-			.size = sizeof(struct test_attr_event),
-		},
-		.id = 1,
-	};
-	struct test_attr_event event2 = {
-		.header = {
-			.type = PERF_RECORD_HEADER_ATTR,
-			.size = sizeof(struct test_attr_event),
-		},
-		.id = 2,
-	};
-	struct perf_record_mmap event3 = {
-		.header = {
-			.type = PERF_RECORD_MMAP,
-			.size = sizeof(struct perf_record_mmap),
-		},
-	};
-	union perf_event *events[] = {
-		(union perf_event *)&event1,
-		(union perf_event *)&event2,
-		(union perf_event *)&event3,
-	};
-
-	err = process_events(events, ARRAY_SIZE(events));
-	if (err)
-		return -1;
-
-	return 0;
+    int subtest __maybe_unused) {
+  int err;
+  struct test_attr_event event1 = {
+    .header = {
+      .type = PERF_RECORD_HEADER_ATTR,
+      .size = sizeof(struct test_attr_event),
+    },
+    .id = 1,
+  };
+  struct test_attr_event event2 = {
+    .header = {
+      .type = PERF_RECORD_HEADER_ATTR,
+      .size = sizeof(struct test_attr_event),
+    },
+    .id = 2,
+  };
+  struct perf_record_mmap event3 = {
+    .header = {
+      .type = PERF_RECORD_MMAP,
+      .size = sizeof(struct perf_record_mmap),
+    },
+  };
+  union perf_event *events[] = {
+    (union perf_event *) &event1,
+    (union perf_event *) &event2,
+    (union perf_event *) &event3,
+  };
+  err = process_events(events, ARRAY_SIZE(events));
+  if (err) {
+    return -1;
+  }
+  return 0;
 }
 
 DEFINE_SUITE("Parse with no sample_id_all bit set", parse_no_sample_id_all);

@@ -13,24 +13,24 @@
 #include <generated/machtypes.h>
 
 struct sh_machine_vector {
-	void (*mv_setup)(char **cmdline_p);
-	const char *mv_name;
+  void (*mv_setup)(char **cmdline_p);
+  const char *mv_name;
 
-	int (*mv_irq_demux)(int irq);
-	void (*mv_init_irq)(void);
+  int (*mv_irq_demux)(int irq);
+  void (*mv_init_irq)(void);
 
-	int (*mv_clk_init)(void);
-	int (*mv_mode_pins)(void);
+  int (*mv_clk_init)(void);
+  int (*mv_mode_pins)(void);
 
-	void (*mv_mem_init)(void);
-	void (*mv_mem_reserve)(void);
+  void (*mv_mem_init)(void);
+  void (*mv_mem_reserve)(void);
 };
 
 extern struct sh_machine_vector sh_mv;
 
-#define get_system_type()	sh_mv.mv_name
+#define get_system_type() sh_mv.mv_name
 
 #define __initmv \
-	__used __section(".machvec.init")
+  __used __section(".machvec.init")
 
 #endif /* _ASM_SH_MACHVEC_H */

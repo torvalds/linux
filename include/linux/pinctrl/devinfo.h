@@ -34,43 +34,39 @@ struct pinctrl;
  * @idle_state: the state at idle (runtime suspend) time, if found
  */
 struct dev_pin_info {
-	struct pinctrl *p;
-	struct pinctrl_state *default_state;
-	struct pinctrl_state *init_state;
+  struct pinctrl *p;
+  struct pinctrl_state *default_state;
+  struct pinctrl_state *init_state;
 #ifdef CONFIG_PM
-	struct pinctrl_state *sleep_state;
-	struct pinctrl_state *idle_state;
+  struct pinctrl_state *sleep_state;
+  struct pinctrl_state *idle_state;
 #endif
 };
 
 extern int pinctrl_bind_pins(struct device *dev);
 extern int pinctrl_init_done(struct device *dev);
 
-static inline struct pinctrl *dev_pinctrl(struct device *dev)
-{
-	if (!dev->pins)
-		return NULL;
-
-	return dev->pins->p;
+static inline struct pinctrl *dev_pinctrl(struct device *dev) {
+  if (!dev->pins) {
+    return NULL;
+  }
+  return dev->pins->p;
 }
 
 #else
 
 /* Stubs if we're not using pinctrl */
 
-static inline int pinctrl_bind_pins(struct device *dev)
-{
-	return 0;
+static inline int pinctrl_bind_pins(struct device *dev) {
+  return 0;
 }
 
-static inline int pinctrl_init_done(struct device *dev)
-{
-	return 0;
+static inline int pinctrl_init_done(struct device *dev) {
+  return 0;
 }
 
-static inline struct pinctrl *dev_pinctrl(struct device *dev)
-{
-	return NULL;
+static inline struct pinctrl *dev_pinctrl(struct device *dev) {
+  return NULL;
 }
 
 #endif /* CONFIG_PINCTRL */

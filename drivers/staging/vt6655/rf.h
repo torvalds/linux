@@ -47,9 +47,13 @@
 #define ZONE_MKK                6
 #define ZONE_ISRAEL             7
 
-/* [20050104] CB_MAXIM2829_CHANNEL_5G_HIGH, CB_UW2452_CHANNEL_5G_HIGH: 40==>41 */
-#define CB_MAXIM2829_CHANNEL_5G_HIGH    41 /* Index41: channel = 100, Tf = 5500MHz, set the (A3:A0=0101) D6=1 */
-#define CB_UW2452_CHANNEL_5G_HIGH       41 /* [20041210] Index41: channel = 100, Tf = 5500MHz, change VCO2->VCO3 */
+/* [20050104] CB_MAXIM2829_CHANNEL_5G_HIGH, CB_UW2452_CHANNEL_5G_HIGH: 40==>41
+ * */
+#define CB_MAXIM2829_CHANNEL_5G_HIGH    41 /* Index41: channel = 100, Tf =
+                                            * 5500MHz, set the (A3:A0=0101) D6=1
+                                            * */
+#define CB_UW2452_CHANNEL_5G_HIGH       41 /* [20041210] Index41: channel = 100,
+                                            * Tf = 5500MHz, change VCO2->VCO3 */
 
 /*---------------------  Export Classes  ----------------------------*/
 
@@ -58,18 +62,21 @@
 /*---------------------  Export Functions  --------------------------*/
 
 bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData);
-bool RFbSelectChannel(struct vnt_private *priv, unsigned char rf_type, u16 byChannel);
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char rf_type,
+    u16 byChannel);
 bool RFbInit(struct vnt_private *priv);
-bool rf_write_wake_prog_syn(struct vnt_private *priv, unsigned char rf_type, u16 channel);
+bool rf_write_wake_prog_syn(struct vnt_private *priv, unsigned char rf_type,
+    u16 channel);
 bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH);
 bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
-		    unsigned int rate);
+    unsigned int rate);
 
 void RFvRSSITodBm(struct vnt_private *priv, unsigned char byCurrRSSI,
-		  long *pldBm);
+    long *pldBm);
 
 /* {{ RobertYu: 20050104 */
-bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv, u16 byOldChannel, u16 byNewChannel);
+bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv,
+    u16 byOldChannel, u16 byNewChannel);
 /* }} RobertYu */
 
 #endif /* __RF_H__ */

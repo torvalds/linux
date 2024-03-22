@@ -21,54 +21,45 @@
 extern void *sys_call_table[];
 
 static inline long syscall_get_nr(struct task_struct *task,
-				  struct pt_regs *regs)
-{
-	return regs->regs[11];
+    struct pt_regs *regs) {
+  return regs->regs[11];
 }
 
 static inline void syscall_rollback(struct task_struct *task,
-				    struct pt_regs *regs)
-{
-        regs->regs[4] = regs->orig_a0;
+    struct pt_regs *regs) {
+  regs->regs[4] = regs->orig_a0;
 }
 
 static inline long syscall_get_error(struct task_struct *task,
-				     struct pt_regs *regs)
-{
-	unsigned long error = regs->regs[4];
-
-	return IS_ERR_VALUE(error) ? error : 0;
+    struct pt_regs *regs) {
+  unsigned long error = regs->regs[4];
+  return IS_ERR_VALUE(error) ? error : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
-					    struct pt_regs *regs)
-{
-	return regs->regs[4];
+    struct pt_regs *regs) {
+  return regs->regs[4];
 }
 
 static inline void syscall_set_return_value(struct task_struct *task,
-					    struct pt_regs *regs,
-					    int error, long val)
-{
-	regs->regs[4] = (long) error ? error : val;
+    struct pt_regs *regs,
+    int error, long val) {
+  regs->regs[4] = (long) error ? error : val;
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned long *args)
-{
-	args[0] = regs->orig_a0;
-	memcpy(&args[1], &regs->regs[5], 5 * sizeof(long));
+    struct pt_regs *regs,
+    unsigned long *args) {
+  args[0] = regs->orig_a0;
+  memcpy(&args[1], &regs->regs[5], 5 * sizeof(long));
 }
 
-static inline int syscall_get_arch(struct task_struct *task)
-{
-	return AUDIT_ARCH_LOONGARCH64;
+static inline int syscall_get_arch(struct task_struct *task) {
+  return AUDIT_ARCH_LOONGARCH64;
 }
 
-static inline bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs)
-{
-	return false;
+static inline bool arch_syscall_is_vdso_sigreturn(struct pt_regs *regs) {
+  return false;
 }
 
-#endif	/* __ASM_LOONGARCH_SYSCALL_H */
+#endif  /* __ASM_LOONGARCH_SYSCALL_H */

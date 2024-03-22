@@ -25,32 +25,30 @@
 
 extern void riscv_crash_save_regs(struct pt_regs *newregs);
 
-static inline void
-crash_setup_regs(struct pt_regs *newregs,
-		 struct pt_regs *oldregs)
-{
-	if (oldregs)
-		memcpy(newregs, oldregs, sizeof(struct pt_regs));
-	else
-		riscv_crash_save_regs(newregs);
+static inline void crash_setup_regs(struct pt_regs *newregs,
+    struct pt_regs *oldregs) {
+  if (oldregs) {
+    memcpy(newregs, oldregs, sizeof(struct pt_regs));
+  } else {
+    riscv_crash_save_regs(newregs);
+  }
 }
-
 
 #define ARCH_HAS_KIMAGE_ARCH
 
 struct kimage_arch {
-	void *fdt; /* For CONFIG_KEXEC_FILE */
-	unsigned long fdt_addr;
+  void *fdt; /* For CONFIG_KEXEC_FILE */
+  unsigned long fdt_addr;
 };
 
 extern const unsigned char riscv_kexec_relocate[];
 extern const unsigned int riscv_kexec_relocate_size;
 
 typedef void (*riscv_kexec_method)(unsigned long first_ind_entry,
-				   unsigned long jump_addr,
-				   unsigned long fdt_addr,
-				   unsigned long hartid,
-				   unsigned long va_pa_off);
+    unsigned long jump_addr,
+    unsigned long fdt_addr,
+    unsigned long hartid,
+    unsigned long va_pa_off);
 
 extern riscv_kexec_method riscv_kexec_norelocate;
 
@@ -59,9 +57,9 @@ extern const struct kexec_file_ops elf_kexec_ops;
 
 struct purgatory_info;
 int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
-				     Elf_Shdr *section,
-				     const Elf_Shdr *relsec,
-				     const Elf_Shdr *symtab);
+    Elf_Shdr *section,
+    const Elf_Shdr *relsec,
+    const Elf_Shdr *symtab);
 #define arch_kexec_apply_relocations_add arch_kexec_apply_relocations_add
 
 struct kimage;

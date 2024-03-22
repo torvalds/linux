@@ -10,23 +10,23 @@
 #include <linux/types.h>
 
 enum {
-	CRYPTO_AUTHENC_KEYA_UNSPEC,
-	CRYPTO_AUTHENC_KEYA_PARAM,
+  CRYPTO_AUTHENC_KEYA_UNSPEC,
+  CRYPTO_AUTHENC_KEYA_PARAM,
 };
 
 struct crypto_authenc_key_param {
-	__be32 enckeylen;
+  __be32 enckeylen;
 };
 
 struct crypto_authenc_keys {
-	const u8 *authkey;
-	const u8 *enckey;
+  const u8 *authkey;
+  const u8 *enckey;
 
-	unsigned int authkeylen;
-	unsigned int enckeylen;
+  unsigned int authkeylen;
+  unsigned int enckeylen;
 };
 
 int crypto_authenc_extractkeys(struct crypto_authenc_keys *keys, const u8 *key,
-			       unsigned int keylen);
+    unsigned int keylen);
 
-#endif	/* _CRYPTO_AUTHENC_H */
+#endif  /* _CRYPTO_AUTHENC_H */

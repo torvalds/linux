@@ -37,32 +37,32 @@ struct posix_clock_context;
  * @poll:           Optional character device poll method
  */
 struct posix_clock_operations {
-	struct module *owner;
+  struct module *owner;
 
-	int  (*clock_adjtime)(struct posix_clock *pc, struct __kernel_timex *tx);
+  int (*clock_adjtime)(struct posix_clock *pc, struct __kernel_timex *tx);
 
-	int  (*clock_gettime)(struct posix_clock *pc, struct timespec64 *ts);
+  int (*clock_gettime)(struct posix_clock *pc, struct timespec64 *ts);
 
-	int  (*clock_getres) (struct posix_clock *pc, struct timespec64 *ts);
+  int (*clock_getres)(struct posix_clock *pc, struct timespec64 *ts);
 
-	int  (*clock_settime)(struct posix_clock *pc,
-			      const struct timespec64 *ts);
+  int (*clock_settime)(struct posix_clock *pc,
+      const struct timespec64 *ts);
 
-	/*
-	 * Optional character device methods:
-	 */
-	long (*ioctl)(struct posix_clock_context *pccontext, unsigned int cmd,
-		      unsigned long arg);
+  /*
+   * Optional character device methods:
+   */
+  long (*ioctl)(struct posix_clock_context *pccontext, unsigned int cmd,
+      unsigned long arg);
 
-	int (*open)(struct posix_clock_context *pccontext, fmode_t f_mode);
+  int (*open)(struct posix_clock_context *pccontext, fmode_t f_mode);
 
-	__poll_t (*poll)(struct posix_clock_context *pccontext, struct file *file,
-			 poll_table *wait);
+  __poll_t (*poll)(struct posix_clock_context *pccontext, struct file *file,
+      poll_table *wait);
 
-	int (*release)(struct posix_clock_context *pccontext);
+  int (*release)(struct posix_clock_context *pccontext);
 
-	ssize_t (*read)(struct posix_clock_context *pccontext, uint flags,
-			char __user *buf, size_t cnt);
+  ssize_t (*read)(struct posix_clock_context *pccontext, uint flags,
+      char __user *buf, size_t cnt);
 };
 
 /**
@@ -84,11 +84,11 @@ struct posix_clock_operations {
  * a release function for this private structure.
  */
 struct posix_clock {
-	struct posix_clock_operations ops;
-	struct cdev cdev;
-	struct device *dev;
-	struct rw_semaphore rwsem;
-	bool zombie;
+  struct posix_clock_operations ops;
+  struct cdev cdev;
+  struct device *dev;
+  struct rw_semaphore rwsem;
+  bool zombie;
 };
 
 /**
@@ -105,8 +105,8 @@ struct posix_clock {
  * operations.
  */
 struct posix_clock_context {
-	struct posix_clock *clk;
-	void *private_clkdata;
+  struct posix_clock *clk;
+  void *private_clkdata;
 };
 
 /**

@@ -15,7 +15,7 @@
  */
 
 struct exception_table_entry {
-        unsigned int insn, fixup;
+  unsigned int insn, fixup;
 };
 
 #endif

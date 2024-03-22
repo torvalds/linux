@@ -6,13 +6,11 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("iter/task")
-int dump_task(struct bpf_iter__task *ctx)
-{
-	struct seq_file *seq = ctx->meta->seq;
-	struct task_struct *task = ctx->task;
-	int tgid;
-
-	tgid = task->tgid;
-	bpf_seq_write(seq, &tgid, sizeof(tgid));
-	return 0;
+int dump_task(struct bpf_iter__task *ctx) {
+  struct seq_file *seq = ctx->meta->seq;
+  struct task_struct *task = ctx->task;
+  int tgid;
+  tgid = task->tgid;
+  bpf_seq_write(seq, &tgid, sizeof(tgid));
+  return 0;
 }

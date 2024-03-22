@@ -13,41 +13,36 @@
 #include <asm/ptrace.h>
 
 typedef long (*syscall_fn)(unsigned long, unsigned long,
-	unsigned long, unsigned long,
-	unsigned long, unsigned long);
+    unsigned long, unsigned long,
+    unsigned long, unsigned long);
 
 #include <asm-generic/syscalls.h>
 
 extern void *sys_call_table[];
 
 static inline long syscall_get_nr(struct task_struct *task,
-				  struct pt_regs *regs)
-{
-	return regs->r06;
+    struct pt_regs *regs) {
+  return regs->r06;
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,
-					 struct pt_regs *regs,
-					 unsigned long *args)
-{
-	memcpy(args, &(&regs->r00)[0], 6 * sizeof(args[0]));
+    struct pt_regs *regs,
+    unsigned long *args) {
+  memcpy(args, &(&regs->r00)[0], 6 * sizeof(args[0]));
 }
 
 static inline long syscall_get_error(struct task_struct *task,
-				     struct pt_regs *regs)
-{
-	return IS_ERR_VALUE(regs->r00) ? regs->r00 : 0;
+    struct pt_regs *regs) {
+  return IS_ERR_VALUE(regs->r00) ? regs->r00 : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
-					    struct pt_regs *regs)
-{
-	return regs->r00;
+    struct pt_regs *regs) {
+  return regs->r00;
 }
 
-static inline int syscall_get_arch(struct task_struct *task)
-{
-	return AUDIT_ARCH_HEXAGON;
+static inline int syscall_get_arch(struct task_struct *task) {
+  return AUDIT_ARCH_HEXAGON;
 }
 
 #endif

@@ -14,16 +14,16 @@
 #undef selftest
 
 struct subtest {
-	int (*func)(void *data);
-	const char *name;
+  int (*func)(void *data);
+  const char *name;
 };
 
 int __subtests(const char *caller,
-	       const struct subtest *st,
-	       int count,
-	       void *data);
+    const struct subtest *st,
+    int count,
+    void *data);
 #define subtests(T, data) \
-	__subtests(__func__, T, ARRAY_SIZE(T), data)
+  __subtests(__func__, T, ARRAY_SIZE(T), data)
 
 #define SUBTEST(x) { x, #x }
 

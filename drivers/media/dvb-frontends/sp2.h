@@ -16,28 +16,28 @@
  * 0x41 (port 1)
  */
 struct sp2_config {
-	/* dvb_adapter to attach the ci to */
-	struct dvb_adapter *dvb_adap;
+  /* dvb_adapter to attach the ci to */
+  struct dvb_adapter *dvb_adap;
 
-	/* function ci_control handles the device specific ci ops */
-	void *ci_control;
+  /* function ci_control handles the device specific ci ops */
+  void *ci_control;
 
-	/* priv is passed back to function ci_control */
-	void *priv;
+  /* priv is passed back to function ci_control */
+  void *priv;
 };
 
 extern int sp2_ci_read_attribute_mem(struct dvb_ca_en50221 *en50221,
-					int slot, int addr);
+    int slot, int addr);
 extern int sp2_ci_write_attribute_mem(struct dvb_ca_en50221 *en50221,
-					int slot, int addr, u8 data);
+    int slot, int addr, u8 data);
 extern int sp2_ci_read_cam_control(struct dvb_ca_en50221 *en50221,
-					int slot, u8 addr);
+    int slot, u8 addr);
 extern int sp2_ci_write_cam_control(struct dvb_ca_en50221 *en50221,
-					int slot, u8 addr, u8 data);
+    int slot, u8 addr, u8 data);
 extern int sp2_ci_slot_reset(struct dvb_ca_en50221 *en50221, int slot);
 extern int sp2_ci_slot_shutdown(struct dvb_ca_en50221 *en50221, int slot);
 extern int sp2_ci_slot_ts_enable(struct dvb_ca_en50221 *en50221, int slot);
 extern int sp2_ci_poll_slot_status(struct dvb_ca_en50221 *en50221,
-					int slot, int open);
+    int slot, int open);
 
 #endif

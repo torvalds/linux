@@ -107,15 +107,15 @@
  * @work: schedule alarm work
  */
 struct imxdi_dev {
-	struct platform_device *pdev;
-	struct rtc_device *rtc;
-	void __iomem *ioaddr;
-	struct clk *clk;
-	u32 dsr;
-	spinlock_t irq_lock;
-	wait_queue_head_t write_wait;
-	struct mutex write_mutex;
-	struct work_struct work;
+  struct platform_device *pdev;
+  struct rtc_device *rtc;
+  void __iomem *ioaddr;
+  struct clk *clk;
+  u32 dsr;
+  spinlock_t irq_lock;
+  wait_queue_head_t write_wait;
+  struct mutex write_mutex;
+  struct work_struct work;
 };
 
 /* Some background:
@@ -169,297 +169,268 @@ struct imxdi_dev {
  * setting up the unit.
  */
 static void di_write_busy_wait(const struct imxdi_dev *imxdi, u32 val,
-			       unsigned reg)
-{
-	/* do the register write */
-	writel(val, imxdi->ioaddr + reg);
-
-	/*
-	 * now it takes four 32,768 kHz clock cycles to take
-	 * the change into effect = 122 us
-	 */
-	usleep_range(130, 200);
+    unsigned reg) {
+  /* do the register write */
+  writel(val, imxdi->ioaddr + reg);
+  /*
+   * now it takes four 32,768 kHz clock cycles to take
+   * the change into effect = 122 us
+   */
+  usleep_range(130, 200);
 }
 
-static void di_report_tamper_info(struct imxdi_dev *imxdi,  u32 dsr)
-{
-	u32 dtcr;
-
-	dtcr = readl(imxdi->ioaddr + DTCR);
-
-	dev_emerg(&imxdi->pdev->dev, "DryIce tamper event detected\n");
-	/* the following flags force a transition into the "FAILURE STATE" */
-	if (dsr & DSR_VTD)
-		dev_emerg(&imxdi->pdev->dev, "%sVoltage Tamper Event\n",
-			  dtcr & DTCR_VTE ? "" : "Spurious ");
-
-	if (dsr & DSR_CTD)
-		dev_emerg(&imxdi->pdev->dev, "%s32768 Hz Clock Tamper Event\n",
-			  dtcr & DTCR_CTE ? "" : "Spurious ");
-
-	if (dsr & DSR_TTD)
-		dev_emerg(&imxdi->pdev->dev, "%sTemperature Tamper Event\n",
-			  dtcr & DTCR_TTE ? "" : "Spurious ");
-
-	if (dsr & DSR_SAD)
-		dev_emerg(&imxdi->pdev->dev,
-			  "%sSecure Controller Alarm Event\n",
-			  dtcr & DTCR_SAIE ? "" : "Spurious ");
-
-	if (dsr & DSR_EBD)
-		dev_emerg(&imxdi->pdev->dev, "%sExternal Boot Tamper Event\n",
-			  dtcr & DTCR_EBE ? "" : "Spurious ");
-
-	if (dsr & DSR_ETAD)
-		dev_emerg(&imxdi->pdev->dev, "%sExternal Tamper A Event\n",
-			  dtcr & DTCR_ETAE ? "" : "Spurious ");
-
-	if (dsr & DSR_ETBD)
-		dev_emerg(&imxdi->pdev->dev, "%sExternal Tamper B Event\n",
-			  dtcr & DTCR_ETBE ? "" : "Spurious ");
-
-	if (dsr & DSR_WTD)
-		dev_emerg(&imxdi->pdev->dev, "%sWire-mesh Tamper Event\n",
-			  dtcr & DTCR_WTE ? "" : "Spurious ");
-
-	if (dsr & DSR_MCO)
-		dev_emerg(&imxdi->pdev->dev,
-			  "%sMonotonic-counter Overflow Event\n",
-			  dtcr & DTCR_MOE ? "" : "Spurious ");
-
-	if (dsr & DSR_TCO)
-		dev_emerg(&imxdi->pdev->dev, "%sTimer-counter Overflow Event\n",
-			  dtcr & DTCR_TOE ? "" : "Spurious ");
+static void di_report_tamper_info(struct imxdi_dev *imxdi, u32 dsr) {
+  u32 dtcr;
+  dtcr = readl(imxdi->ioaddr + DTCR);
+  dev_emerg(&imxdi->pdev->dev, "DryIce tamper event detected\n");
+  /* the following flags force a transition into the "FAILURE STATE" */
+  if (dsr & DSR_VTD) {
+    dev_emerg(&imxdi->pdev->dev, "%sVoltage Tamper Event\n",
+        dtcr & DTCR_VTE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_CTD) {
+    dev_emerg(&imxdi->pdev->dev, "%s32768 Hz Clock Tamper Event\n",
+        dtcr & DTCR_CTE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_TTD) {
+    dev_emerg(&imxdi->pdev->dev, "%sTemperature Tamper Event\n",
+        dtcr & DTCR_TTE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_SAD) {
+    dev_emerg(&imxdi->pdev->dev,
+        "%sSecure Controller Alarm Event\n",
+        dtcr & DTCR_SAIE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_EBD) {
+    dev_emerg(&imxdi->pdev->dev, "%sExternal Boot Tamper Event\n",
+        dtcr & DTCR_EBE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_ETAD) {
+    dev_emerg(&imxdi->pdev->dev, "%sExternal Tamper A Event\n",
+        dtcr & DTCR_ETAE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_ETBD) {
+    dev_emerg(&imxdi->pdev->dev, "%sExternal Tamper B Event\n",
+        dtcr & DTCR_ETBE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_WTD) {
+    dev_emerg(&imxdi->pdev->dev, "%sWire-mesh Tamper Event\n",
+        dtcr & DTCR_WTE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_MCO) {
+    dev_emerg(&imxdi->pdev->dev,
+        "%sMonotonic-counter Overflow Event\n",
+        dtcr & DTCR_MOE ? "" : "Spurious ");
+  }
+  if (dsr & DSR_TCO) {
+    dev_emerg(&imxdi->pdev->dev, "%sTimer-counter Overflow Event\n",
+        dtcr & DTCR_TOE ? "" : "Spurious ");
+  }
 }
 
 static void di_what_is_to_be_done(struct imxdi_dev *imxdi,
-				  const char *power_supply)
-{
-	dev_emerg(&imxdi->pdev->dev, "Please cycle the %s power supply in order to get the DryIce/RTC unit working again\n",
-		  power_supply);
+    const char *power_supply) {
+  dev_emerg(&imxdi->pdev->dev,
+      "Please cycle the %s power supply in order to get the DryIce/RTC unit working again\n",
+      power_supply);
 }
 
-static int di_handle_failure_state(struct imxdi_dev *imxdi, u32 dsr)
-{
-	u32 dcr;
-
-	dev_dbg(&imxdi->pdev->dev, "DSR register reports: %08X\n", dsr);
-
-	/* report the cause */
-	di_report_tamper_info(imxdi, dsr);
-
-	dcr = readl(imxdi->ioaddr + DCR);
-
-	if (dcr & DCR_FSHL) {
-		/* we are out of luck */
-		di_what_is_to_be_done(imxdi, "battery");
-		return -ENODEV;
-	}
-	/*
-	 * with the next SYSTEM POR we will transit from the "FAILURE STATE"
-	 * into the "NON-VALID STATE" + "FAILURE STATE"
-	 */
-	di_what_is_to_be_done(imxdi, "main");
-
-	return -ENODEV;
+static int di_handle_failure_state(struct imxdi_dev *imxdi, u32 dsr) {
+  u32 dcr;
+  dev_dbg(&imxdi->pdev->dev, "DSR register reports: %08X\n", dsr);
+  /* report the cause */
+  di_report_tamper_info(imxdi, dsr);
+  dcr = readl(imxdi->ioaddr + DCR);
+  if (dcr & DCR_FSHL) {
+    /* we are out of luck */
+    di_what_is_to_be_done(imxdi, "battery");
+    return -ENODEV;
+  }
+  /*
+   * with the next SYSTEM POR we will transit from the "FAILURE STATE"
+   * into the "NON-VALID STATE" + "FAILURE STATE"
+   */
+  di_what_is_to_be_done(imxdi, "main");
+  return -ENODEV;
 }
 
-static int di_handle_valid_state(struct imxdi_dev *imxdi, u32 dsr)
-{
-	/* initialize alarm */
-	di_write_busy_wait(imxdi, DCAMR_UNSET, DCAMR);
-	di_write_busy_wait(imxdi, 0, DCALR);
-
-	/* clear alarm flag */
-	if (dsr & DSR_CAF)
-		di_write_busy_wait(imxdi, DSR_CAF, DSR);
-
-	return 0;
+static int di_handle_valid_state(struct imxdi_dev *imxdi, u32 dsr) {
+  /* initialize alarm */
+  di_write_busy_wait(imxdi, DCAMR_UNSET, DCAMR);
+  di_write_busy_wait(imxdi, 0, DCALR);
+  /* clear alarm flag */
+  if (dsr & DSR_CAF) {
+    di_write_busy_wait(imxdi, DSR_CAF, DSR);
+  }
+  return 0;
 }
 
-static int di_handle_invalid_state(struct imxdi_dev *imxdi, u32 dsr)
-{
-	u32 dcr, sec;
-
-	/*
-	 * lets disable all sources which can force the DryIce unit into
-	 * the "FAILURE STATE" for now
-	 */
-	di_write_busy_wait(imxdi, 0x00000000, DTCR);
-	/* and lets protect them at runtime from any change */
-	di_write_busy_wait(imxdi, DCR_TDCSL, DCR);
-
-	sec = readl(imxdi->ioaddr + DTCMR);
-	if (sec != 0)
-		dev_warn(&imxdi->pdev->dev,
-			 "The security violation has happened at %u seconds\n",
-			 sec);
-	/*
-	 * the timer cannot be set/modified if
-	 * - the TCHL or TCSL bit is set in DCR
-	 */
-	dcr = readl(imxdi->ioaddr + DCR);
-	if (!(dcr & DCR_TCE)) {
-		if (dcr & DCR_TCHL) {
-			/* we are out of luck */
-			di_what_is_to_be_done(imxdi, "battery");
-			return -ENODEV;
-		}
-		if (dcr & DCR_TCSL) {
-			di_what_is_to_be_done(imxdi, "main");
-			return -ENODEV;
-		}
-	}
-	/*
-	 * - the timer counter stops/is stopped if
-	 *   - its overflow flag is set (TCO in DSR)
-	 *      -> clear overflow bit to make it count again
-	 *   - NVF is set in DSR
-	 *      -> clear non-valid bit to make it count again
-	 *   - its TCE (DCR) is cleared
-	 *      -> set TCE to make it count
-	 *   - it was never set before
-	 *      -> write a time into it (required again if the NVF was set)
-	 */
-	/* state handled */
-	di_write_busy_wait(imxdi, DSR_NVF, DSR);
-	/* clear overflow flag */
-	di_write_busy_wait(imxdi, DSR_TCO, DSR);
-	/* enable the counter */
-	di_write_busy_wait(imxdi, dcr | DCR_TCE, DCR);
-	/* set and trigger it to make it count */
-	di_write_busy_wait(imxdi, sec, DTCMR);
-
-	/* now prepare for the valid state */
-	return di_handle_valid_state(imxdi, __raw_readl(imxdi->ioaddr + DSR));
+static int di_handle_invalid_state(struct imxdi_dev *imxdi, u32 dsr) {
+  u32 dcr, sec;
+  /*
+   * lets disable all sources which can force the DryIce unit into
+   * the "FAILURE STATE" for now
+   */
+  di_write_busy_wait(imxdi, 0x00000000, DTCR);
+  /* and lets protect them at runtime from any change */
+  di_write_busy_wait(imxdi, DCR_TDCSL, DCR);
+  sec = readl(imxdi->ioaddr + DTCMR);
+  if (sec != 0) {
+    dev_warn(&imxdi->pdev->dev,
+        "The security violation has happened at %u seconds\n",
+        sec);
+  }
+  /*
+   * the timer cannot be set/modified if
+   * - the TCHL or TCSL bit is set in DCR
+   */
+  dcr = readl(imxdi->ioaddr + DCR);
+  if (!(dcr & DCR_TCE)) {
+    if (dcr & DCR_TCHL) {
+      /* we are out of luck */
+      di_what_is_to_be_done(imxdi, "battery");
+      return -ENODEV;
+    }
+    if (dcr & DCR_TCSL) {
+      di_what_is_to_be_done(imxdi, "main");
+      return -ENODEV;
+    }
+  }
+  /*
+   * - the timer counter stops/is stopped if
+   *   - its overflow flag is set (TCO in DSR)
+   *      -> clear overflow bit to make it count again
+   *   - NVF is set in DSR
+   *      -> clear non-valid bit to make it count again
+   *   - its TCE (DCR) is cleared
+   *      -> set TCE to make it count
+   *   - it was never set before
+   *      -> write a time into it (required again if the NVF was set)
+   */
+  /* state handled */
+  di_write_busy_wait(imxdi, DSR_NVF, DSR);
+  /* clear overflow flag */
+  di_write_busy_wait(imxdi, DSR_TCO, DSR);
+  /* enable the counter */
+  di_write_busy_wait(imxdi, dcr | DCR_TCE, DCR);
+  /* set and trigger it to make it count */
+  di_write_busy_wait(imxdi, sec, DTCMR);
+  /* now prepare for the valid state */
+  return di_handle_valid_state(imxdi, __raw_readl(imxdi->ioaddr + DSR));
 }
 
-static int di_handle_invalid_and_failure_state(struct imxdi_dev *imxdi, u32 dsr)
-{
-	u32 dcr;
-
-	/*
-	 * now we must first remove the tamper sources in order to get the
-	 * device out of the "FAILURE STATE"
-	 * To disable any of the following sources we need to modify the DTCR
-	 */
-	if (dsr & (DSR_WTD | DSR_ETBD | DSR_ETAD | DSR_EBD | DSR_SAD |
-			DSR_TTD | DSR_CTD | DSR_VTD | DSR_MCO | DSR_TCO)) {
-		dcr = __raw_readl(imxdi->ioaddr + DCR);
-		if (dcr & DCR_TDCHL) {
-			/*
-			 * the tamper register is locked. We cannot disable the
-			 * tamper detection. The TDCHL can only be reset by a
-			 * DRYICE POR, but we cannot force a DRYICE POR in
-			 * software because we are still in "FAILURE STATE".
-			 * We need a DRYICE POR via battery power cycling....
-			 */
-			/*
-			 * out of luck!
-			 * we cannot disable them without a DRYICE POR
-			 */
-			di_what_is_to_be_done(imxdi, "battery");
-			return -ENODEV;
-		}
-		if (dcr & DCR_TDCSL) {
-			/* a soft lock can be removed by a SYSTEM POR */
-			di_what_is_to_be_done(imxdi, "main");
-			return -ENODEV;
-		}
-	}
-
-	/* disable all sources */
-	di_write_busy_wait(imxdi, 0x00000000, DTCR);
-
-	/* clear the status bits now */
-	di_write_busy_wait(imxdi, dsr & (DSR_WTD | DSR_ETBD | DSR_ETAD |
-			DSR_EBD | DSR_SAD | DSR_TTD | DSR_CTD | DSR_VTD |
-			DSR_MCO | DSR_TCO), DSR);
-
-	dsr = readl(imxdi->ioaddr + DSR);
-	if ((dsr & ~(DSR_NVF | DSR_SVF | DSR_WBF | DSR_WNF |
-			DSR_WCF | DSR_WEF)) != 0)
-		dev_warn(&imxdi->pdev->dev,
-			 "There are still some sources of pain in DSR: %08x!\n",
-			 dsr & ~(DSR_NVF | DSR_SVF | DSR_WBF | DSR_WNF |
-				 DSR_WCF | DSR_WEF));
-
-	/*
-	 * now we are trying to clear the "Security-violation flag" to
-	 * get the DryIce out of this state
-	 */
-	di_write_busy_wait(imxdi, DSR_SVF, DSR);
-
-	/* success? */
-	dsr = readl(imxdi->ioaddr + DSR);
-	if (dsr & DSR_SVF) {
-		dev_crit(&imxdi->pdev->dev,
-			 "Cannot clear the security violation flag. We are ending up in an endless loop!\n");
-		/* last resort */
-		di_what_is_to_be_done(imxdi, "battery");
-		return -ENODEV;
-	}
-
-	/*
-	 * now we have left the "FAILURE STATE" and ending up in the
-	 * "NON-VALID STATE" time to recover everything
-	 */
-	return di_handle_invalid_state(imxdi, dsr);
+static int di_handle_invalid_and_failure_state(struct imxdi_dev *imxdi,
+    u32 dsr) {
+  u32 dcr;
+  /*
+   * now we must first remove the tamper sources in order to get the
+   * device out of the "FAILURE STATE"
+   * To disable any of the following sources we need to modify the DTCR
+   */
+  if (dsr & (DSR_WTD | DSR_ETBD | DSR_ETAD | DSR_EBD | DSR_SAD
+      | DSR_TTD | DSR_CTD | DSR_VTD | DSR_MCO | DSR_TCO)) {
+    dcr = __raw_readl(imxdi->ioaddr + DCR);
+    if (dcr & DCR_TDCHL) {
+      /*
+       * the tamper register is locked. We cannot disable the
+       * tamper detection. The TDCHL can only be reset by a
+       * DRYICE POR, but we cannot force a DRYICE POR in
+       * software because we are still in "FAILURE STATE".
+       * We need a DRYICE POR via battery power cycling....
+       */
+      /*
+       * out of luck!
+       * we cannot disable them without a DRYICE POR
+       */
+      di_what_is_to_be_done(imxdi, "battery");
+      return -ENODEV;
+    }
+    if (dcr & DCR_TDCSL) {
+      /* a soft lock can be removed by a SYSTEM POR */
+      di_what_is_to_be_done(imxdi, "main");
+      return -ENODEV;
+    }
+  }
+  /* disable all sources */
+  di_write_busy_wait(imxdi, 0x00000000, DTCR);
+  /* clear the status bits now */
+  di_write_busy_wait(imxdi, dsr & (DSR_WTD | DSR_ETBD | DSR_ETAD
+      | DSR_EBD | DSR_SAD | DSR_TTD | DSR_CTD | DSR_VTD
+      | DSR_MCO | DSR_TCO), DSR);
+  dsr = readl(imxdi->ioaddr + DSR);
+  if ((dsr & ~(DSR_NVF | DSR_SVF | DSR_WBF | DSR_WNF
+      | DSR_WCF | DSR_WEF)) != 0) {
+    dev_warn(&imxdi->pdev->dev,
+        "There are still some sources of pain in DSR: %08x!\n",
+        dsr & ~(DSR_NVF | DSR_SVF | DSR_WBF | DSR_WNF
+        | DSR_WCF | DSR_WEF));
+  }
+  /*
+   * now we are trying to clear the "Security-violation flag" to
+   * get the DryIce out of this state
+   */
+  di_write_busy_wait(imxdi, DSR_SVF, DSR);
+  /* success? */
+  dsr = readl(imxdi->ioaddr + DSR);
+  if (dsr & DSR_SVF) {
+    dev_crit(&imxdi->pdev->dev,
+        "Cannot clear the security violation flag. We are ending up in an endless loop!\n");
+    /* last resort */
+    di_what_is_to_be_done(imxdi, "battery");
+    return -ENODEV;
+  }
+  /*
+   * now we have left the "FAILURE STATE" and ending up in the
+   * "NON-VALID STATE" time to recover everything
+   */
+  return di_handle_invalid_state(imxdi, dsr);
 }
 
-static int di_handle_state(struct imxdi_dev *imxdi)
-{
-	int rc;
-	u32 dsr;
-
-	dsr = readl(imxdi->ioaddr + DSR);
-
-	switch (dsr & (DSR_NVF | DSR_SVF)) {
-	case DSR_NVF:
-		dev_warn(&imxdi->pdev->dev, "Invalid stated unit detected\n");
-		rc = di_handle_invalid_state(imxdi, dsr);
-		break;
-	case DSR_SVF:
-		dev_warn(&imxdi->pdev->dev, "Failure stated unit detected\n");
-		rc = di_handle_failure_state(imxdi, dsr);
-		break;
-	case DSR_NVF | DSR_SVF:
-		dev_warn(&imxdi->pdev->dev,
-			 "Failure+Invalid stated unit detected\n");
-		rc = di_handle_invalid_and_failure_state(imxdi, dsr);
-		break;
-	default:
-		dev_notice(&imxdi->pdev->dev, "Unlocked unit detected\n");
-		rc = di_handle_valid_state(imxdi, dsr);
-	}
-
-	return rc;
+static int di_handle_state(struct imxdi_dev *imxdi) {
+  int rc;
+  u32 dsr;
+  dsr = readl(imxdi->ioaddr + DSR);
+  switch (dsr & (DSR_NVF | DSR_SVF)) {
+    case DSR_NVF:
+      dev_warn(&imxdi->pdev->dev, "Invalid stated unit detected\n");
+      rc = di_handle_invalid_state(imxdi, dsr);
+      break;
+    case DSR_SVF:
+      dev_warn(&imxdi->pdev->dev, "Failure stated unit detected\n");
+      rc = di_handle_failure_state(imxdi, dsr);
+      break;
+    case DSR_NVF | DSR_SVF:
+      dev_warn(&imxdi->pdev->dev,
+          "Failure+Invalid stated unit detected\n");
+      rc = di_handle_invalid_and_failure_state(imxdi, dsr);
+      break;
+    default:
+      dev_notice(&imxdi->pdev->dev, "Unlocked unit detected\n");
+      rc = di_handle_valid_state(imxdi, dsr);
+  }
+  return rc;
 }
 
 /*
  * enable a dryice interrupt
  */
-static void di_int_enable(struct imxdi_dev *imxdi, u32 intr)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&imxdi->irq_lock, flags);
-	writel(readl(imxdi->ioaddr + DIER) | intr,
-	       imxdi->ioaddr + DIER);
-	spin_unlock_irqrestore(&imxdi->irq_lock, flags);
+static void di_int_enable(struct imxdi_dev *imxdi, u32 intr) {
+  unsigned long flags;
+  spin_lock_irqsave(&imxdi->irq_lock, flags);
+  writel(readl(imxdi->ioaddr + DIER) | intr,
+      imxdi->ioaddr + DIER);
+  spin_unlock_irqrestore(&imxdi->irq_lock, flags);
 }
 
 /*
  * disable a dryice interrupt
  */
-static void di_int_disable(struct imxdi_dev *imxdi, u32 intr)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&imxdi->irq_lock, flags);
-	writel(readl(imxdi->ioaddr + DIER) & ~intr,
-	       imxdi->ioaddr + DIER);
-	spin_unlock_irqrestore(&imxdi->irq_lock, flags);
+static void di_int_disable(struct imxdi_dev *imxdi, u32 intr) {
+  unsigned long flags;
+  spin_lock_irqsave(&imxdi->irq_lock, flags);
+  writel(readl(imxdi->ioaddr + DIER) & ~intr,
+      imxdi->ioaddr + DIER);
+  spin_unlock_irqrestore(&imxdi->irq_lock, flags);
 }
 
 /*
@@ -469,23 +440,20 @@ static void di_int_disable(struct imxdi_dev *imxdi, u32 intr)
  * normal operation.  Clearing the flag requires another write, so the root
  * cause of the problem may need to be fixed before the flag can be cleared.
  */
-static void clear_write_error(struct imxdi_dev *imxdi)
-{
-	int cnt;
-
-	dev_warn(&imxdi->pdev->dev, "WARNING: Register write error!\n");
-
-	/* clear the write error flag */
-	writel(DSR_WEF, imxdi->ioaddr + DSR);
-
-	/* wait for it to take effect */
-	for (cnt = 0; cnt < 1000; cnt++) {
-		if ((readl(imxdi->ioaddr + DSR) & DSR_WEF) == 0)
-			return;
-		udelay(10);
-	}
-	dev_err(&imxdi->pdev->dev,
-			"ERROR: Cannot clear write-error flag!\n");
+static void clear_write_error(struct imxdi_dev *imxdi) {
+  int cnt;
+  dev_warn(&imxdi->pdev->dev, "WARNING: Register write error!\n");
+  /* clear the write error flag */
+  writel(DSR_WEF, imxdi->ioaddr + DSR);
+  /* wait for it to take effect */
+  for (cnt = 0; cnt < 1000; cnt++) {
+    if ((readl(imxdi->ioaddr + DSR) & DSR_WEF) == 0) {
+      return;
+    }
+    udelay(10);
+  }
+  dev_err(&imxdi->pdev->dev,
+      "ERROR: Cannot clear write-error flag!\n");
 }
 
 /*
@@ -494,357 +462,300 @@ static void clear_write_error(struct imxdi_dev *imxdi)
  * This function uses interrupts to determine when the
  * write has completed.
  */
-static int di_write_wait(struct imxdi_dev *imxdi, u32 val, int reg)
-{
-	int ret;
-	int rc = 0;
-
-	/* serialize register writes */
-	mutex_lock(&imxdi->write_mutex);
-
-	/* enable the write-complete interrupt */
-	di_int_enable(imxdi, DIER_WCIE);
-
-	imxdi->dsr = 0;
-
-	/* do the register write */
-	writel(val, imxdi->ioaddr + reg);
-
-	/* wait for the write to finish */
-	ret = wait_event_interruptible_timeout(imxdi->write_wait,
-			imxdi->dsr & (DSR_WCF | DSR_WEF), msecs_to_jiffies(1));
-	if (ret < 0) {
-		rc = ret;
-		goto out;
-	} else if (ret == 0) {
-		dev_warn(&imxdi->pdev->dev,
-				"Write-wait timeout "
-				"val = 0x%08x reg = 0x%08x\n", val, reg);
-	}
-
-	/* check for write error */
-	if (imxdi->dsr & DSR_WEF) {
-		clear_write_error(imxdi);
-		rc = -EIO;
-	}
-
+static int di_write_wait(struct imxdi_dev *imxdi, u32 val, int reg) {
+  int ret;
+  int rc = 0;
+  /* serialize register writes */
+  mutex_lock(&imxdi->write_mutex);
+  /* enable the write-complete interrupt */
+  di_int_enable(imxdi, DIER_WCIE);
+  imxdi->dsr = 0;
+  /* do the register write */
+  writel(val, imxdi->ioaddr + reg);
+  /* wait for the write to finish */
+  ret = wait_event_interruptible_timeout(imxdi->write_wait,
+      imxdi->dsr & (DSR_WCF | DSR_WEF), msecs_to_jiffies(1));
+  if (ret < 0) {
+    rc = ret;
+    goto out;
+  } else if (ret == 0) {
+    dev_warn(&imxdi->pdev->dev,
+        "Write-wait timeout "
+        "val = 0x%08x reg = 0x%08x\n", val, reg);
+  }
+  /* check for write error */
+  if (imxdi->dsr & DSR_WEF) {
+    clear_write_error(imxdi);
+    rc = -EIO;
+  }
 out:
-	mutex_unlock(&imxdi->write_mutex);
-
-	return rc;
+  mutex_unlock(&imxdi->write_mutex);
+  return rc;
 }
 
 /*
  * read the seconds portion of the current time from the dryice time counter
  */
-static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-	unsigned long now;
-
-	now = readl(imxdi->ioaddr + DTCMR);
-	rtc_time64_to_tm(now, tm);
-
-	return 0;
+static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm) {
+  struct imxdi_dev *imxdi = dev_get_drvdata(dev);
+  unsigned long now;
+  now = readl(imxdi->ioaddr + DTCMR);
+  rtc_time64_to_tm(now, tm);
+  return 0;
 }
 
 /*
  * set the seconds portion of dryice time counter and clear the
  * fractional part.
  */
-static int dryice_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-	u32 dcr, dsr;
-	int rc;
-
-	dcr = readl(imxdi->ioaddr + DCR);
-	dsr = readl(imxdi->ioaddr + DSR);
-
-	if (!(dcr & DCR_TCE) || (dsr & DSR_SVF)) {
-		if (dcr & DCR_TCHL) {
-			/* we are even more out of luck */
-			di_what_is_to_be_done(imxdi, "battery");
-			return -EPERM;
-		}
-		if ((dcr & DCR_TCSL) || (dsr & DSR_SVF)) {
-			/* we are out of luck for now */
-			di_what_is_to_be_done(imxdi, "main");
-			return -EPERM;
-		}
-	}
-
-	/* zero the fractional part first */
-	rc = di_write_wait(imxdi, 0, DTCLR);
-	if (rc != 0)
-		return rc;
-
-	rc = di_write_wait(imxdi, rtc_tm_to_time64(tm), DTCMR);
-	if (rc != 0)
-		return rc;
-
-	return di_write_wait(imxdi, readl(imxdi->ioaddr + DCR) | DCR_TCE, DCR);
+static int dryice_rtc_set_time(struct device *dev, struct rtc_time *tm) {
+  struct imxdi_dev *imxdi = dev_get_drvdata(dev);
+  u32 dcr, dsr;
+  int rc;
+  dcr = readl(imxdi->ioaddr + DCR);
+  dsr = readl(imxdi->ioaddr + DSR);
+  if (!(dcr & DCR_TCE) || (dsr & DSR_SVF)) {
+    if (dcr & DCR_TCHL) {
+      /* we are even more out of luck */
+      di_what_is_to_be_done(imxdi, "battery");
+      return -EPERM;
+    }
+    if ((dcr & DCR_TCSL) || (dsr & DSR_SVF)) {
+      /* we are out of luck for now */
+      di_what_is_to_be_done(imxdi, "main");
+      return -EPERM;
+    }
+  }
+  /* zero the fractional part first */
+  rc = di_write_wait(imxdi, 0, DTCLR);
+  if (rc != 0) {
+    return rc;
+  }
+  rc = di_write_wait(imxdi, rtc_tm_to_time64(tm), DTCMR);
+  if (rc != 0) {
+    return rc;
+  }
+  return di_write_wait(imxdi, readl(imxdi->ioaddr + DCR) | DCR_TCE, DCR);
 }
 
 static int dryice_rtc_alarm_irq_enable(struct device *dev,
-		unsigned int enabled)
-{
-	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-
-	if (enabled)
-		di_int_enable(imxdi, DIER_CAIE);
-	else
-		di_int_disable(imxdi, DIER_CAIE);
-
-	return 0;
+    unsigned int enabled) {
+  struct imxdi_dev *imxdi = dev_get_drvdata(dev);
+  if (enabled) {
+    di_int_enable(imxdi, DIER_CAIE);
+  } else {
+    di_int_disable(imxdi, DIER_CAIE);
+  }
+  return 0;
 }
 
 /*
  * read the seconds portion of the alarm register.
  * the fractional part of the alarm register is always zero.
  */
-static int dryice_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
-{
-	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-	u32 dcamr;
-
-	dcamr = readl(imxdi->ioaddr + DCAMR);
-	rtc_time64_to_tm(dcamr, &alarm->time);
-
-	/* alarm is enabled if the interrupt is enabled */
-	alarm->enabled = (readl(imxdi->ioaddr + DIER) & DIER_CAIE) != 0;
-
-	/* don't allow the DSR read to mess up DSR_WCF */
-	mutex_lock(&imxdi->write_mutex);
-
-	/* alarm is pending if the alarm flag is set */
-	alarm->pending = (readl(imxdi->ioaddr + DSR) & DSR_CAF) != 0;
-
-	mutex_unlock(&imxdi->write_mutex);
-
-	return 0;
+static int dryice_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm) {
+  struct imxdi_dev *imxdi = dev_get_drvdata(dev);
+  u32 dcamr;
+  dcamr = readl(imxdi->ioaddr + DCAMR);
+  rtc_time64_to_tm(dcamr, &alarm->time);
+  /* alarm is enabled if the interrupt is enabled */
+  alarm->enabled = (readl(imxdi->ioaddr + DIER) & DIER_CAIE) != 0;
+  /* don't allow the DSR read to mess up DSR_WCF */
+  mutex_lock(&imxdi->write_mutex);
+  /* alarm is pending if the alarm flag is set */
+  alarm->pending = (readl(imxdi->ioaddr + DSR) & DSR_CAF) != 0;
+  mutex_unlock(&imxdi->write_mutex);
+  return 0;
 }
 
 /*
  * set the seconds portion of dryice alarm register
  */
-static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
-{
-	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-	int rc;
-
-	/* write the new alarm time */
-	rc = di_write_wait(imxdi, rtc_tm_to_time64(&alarm->time), DCAMR);
-	if (rc)
-		return rc;
-
-	if (alarm->enabled)
-		di_int_enable(imxdi, DIER_CAIE);  /* enable alarm intr */
-	else
-		di_int_disable(imxdi, DIER_CAIE); /* disable alarm intr */
-
-	return 0;
+static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm) {
+  struct imxdi_dev *imxdi = dev_get_drvdata(dev);
+  int rc;
+  /* write the new alarm time */
+  rc = di_write_wait(imxdi, rtc_tm_to_time64(&alarm->time), DCAMR);
+  if (rc) {
+    return rc;
+  }
+  if (alarm->enabled) {
+    di_int_enable(imxdi, DIER_CAIE);  /* enable alarm intr */
+  } else {
+    di_int_disable(imxdi, DIER_CAIE); /* disable alarm intr */
+  }
+  return 0;
 }
 
 static const struct rtc_class_ops dryice_rtc_ops = {
-	.read_time		= dryice_rtc_read_time,
-	.set_time		= dryice_rtc_set_time,
-	.alarm_irq_enable	= dryice_rtc_alarm_irq_enable,
-	.read_alarm		= dryice_rtc_read_alarm,
-	.set_alarm		= dryice_rtc_set_alarm,
+  .read_time = dryice_rtc_read_time,
+  .set_time = dryice_rtc_set_time,
+  .alarm_irq_enable = dryice_rtc_alarm_irq_enable,
+  .read_alarm = dryice_rtc_read_alarm,
+  .set_alarm = dryice_rtc_set_alarm,
 };
 
 /*
  * interrupt handler for dryice "normal" and security violation interrupt
  */
-static irqreturn_t dryice_irq(int irq, void *dev_id)
-{
-	struct imxdi_dev *imxdi = dev_id;
-	u32 dsr, dier;
-	irqreturn_t rc = IRQ_NONE;
-
-	dier = readl(imxdi->ioaddr + DIER);
-	dsr = readl(imxdi->ioaddr + DSR);
-
-	/* handle the security violation event */
-	if (dier & DIER_SVIE) {
-		if (dsr & DSR_SVF) {
-			/*
-			 * Disable the interrupt when this kind of event has
-			 * happened.
-			 * There cannot be more than one event of this type,
-			 * because it needs a complex state change
-			 * including a main power cycle to get again out of
-			 * this state.
-			 */
-			di_int_disable(imxdi, DIER_SVIE);
-			/* report the violation */
-			di_report_tamper_info(imxdi, dsr);
-			rc = IRQ_HANDLED;
-		}
-	}
-
-	/* handle write complete and write error cases */
-	if (dier & DIER_WCIE) {
-		/*If the write wait queue is empty then there is no pending
-		  operations. It means the interrupt is for DryIce -Security.
-		  IRQ must be returned as none.*/
-		if (list_empty_careful(&imxdi->write_wait.head))
-			return rc;
-
-		/* DSR_WCF clears itself on DSR read */
-		if (dsr & (DSR_WCF | DSR_WEF)) {
-			/* mask the interrupt */
-			di_int_disable(imxdi, DIER_WCIE);
-
-			/* save the dsr value for the wait queue */
-			imxdi->dsr |= dsr;
-
-			wake_up_interruptible(&imxdi->write_wait);
-			rc = IRQ_HANDLED;
-		}
-	}
-
-	/* handle the alarm case */
-	if (dier & DIER_CAIE) {
-		/* DSR_WCF clears itself on DSR read */
-		if (dsr & DSR_CAF) {
-			/* mask the interrupt */
-			di_int_disable(imxdi, DIER_CAIE);
-
-			/* finish alarm in user context */
-			schedule_work(&imxdi->work);
-			rc = IRQ_HANDLED;
-		}
-	}
-	return rc;
+static irqreturn_t dryice_irq(int irq, void *dev_id) {
+  struct imxdi_dev *imxdi = dev_id;
+  u32 dsr, dier;
+  irqreturn_t rc = IRQ_NONE;
+  dier = readl(imxdi->ioaddr + DIER);
+  dsr = readl(imxdi->ioaddr + DSR);
+  /* handle the security violation event */
+  if (dier & DIER_SVIE) {
+    if (dsr & DSR_SVF) {
+      /*
+       * Disable the interrupt when this kind of event has
+       * happened.
+       * There cannot be more than one event of this type,
+       * because it needs a complex state change
+       * including a main power cycle to get again out of
+       * this state.
+       */
+      di_int_disable(imxdi, DIER_SVIE);
+      /* report the violation */
+      di_report_tamper_info(imxdi, dsr);
+      rc = IRQ_HANDLED;
+    }
+  }
+  /* handle write complete and write error cases */
+  if (dier & DIER_WCIE) {
+    /*If the write wait queue is empty then there is no pending
+     * operations. It means the interrupt is for DryIce -Security.
+     * IRQ must be returned as none.*/
+    if (list_empty_careful(&imxdi->write_wait.head)) {
+      return rc;
+    }
+    /* DSR_WCF clears itself on DSR read */
+    if (dsr & (DSR_WCF | DSR_WEF)) {
+      /* mask the interrupt */
+      di_int_disable(imxdi, DIER_WCIE);
+      /* save the dsr value for the wait queue */
+      imxdi->dsr |= dsr;
+      wake_up_interruptible(&imxdi->write_wait);
+      rc = IRQ_HANDLED;
+    }
+  }
+  /* handle the alarm case */
+  if (dier & DIER_CAIE) {
+    /* DSR_WCF clears itself on DSR read */
+    if (dsr & DSR_CAF) {
+      /* mask the interrupt */
+      di_int_disable(imxdi, DIER_CAIE);
+      /* finish alarm in user context */
+      schedule_work(&imxdi->work);
+      rc = IRQ_HANDLED;
+    }
+  }
+  return rc;
 }
 
 /*
  * post the alarm event from user context so it can sleep
  * on the write completion.
  */
-static void dryice_work(struct work_struct *work)
-{
-	struct imxdi_dev *imxdi = container_of(work,
-			struct imxdi_dev, work);
-
-	/* dismiss the interrupt (ignore error) */
-	di_write_wait(imxdi, DSR_CAF, DSR);
-
-	/* pass the alarm event to the rtc framework. */
-	rtc_update_irq(imxdi->rtc, 1, RTC_AF | RTC_IRQF);
+static void dryice_work(struct work_struct *work) {
+  struct imxdi_dev *imxdi = container_of(work,
+      struct imxdi_dev, work);
+  /* dismiss the interrupt (ignore error) */
+  di_write_wait(imxdi, DSR_CAF, DSR);
+  /* pass the alarm event to the rtc framework. */
+  rtc_update_irq(imxdi->rtc, 1, RTC_AF | RTC_IRQF);
 }
 
 /*
  * probe for dryice rtc device
  */
-static int __init dryice_rtc_probe(struct platform_device *pdev)
-{
-	struct imxdi_dev *imxdi;
-	int norm_irq, sec_irq;
-	int rc;
-
-	imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
-	if (!imxdi)
-		return -ENOMEM;
-
-	imxdi->pdev = pdev;
-
-	imxdi->ioaddr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(imxdi->ioaddr))
-		return PTR_ERR(imxdi->ioaddr);
-
-	spin_lock_init(&imxdi->irq_lock);
-
-	norm_irq = platform_get_irq(pdev, 0);
-	if (norm_irq < 0)
-		return norm_irq;
-
-	/* the 2nd irq is the security violation irq
-	 * make this optional, don't break the device tree ABI
-	 */
-	sec_irq = platform_get_irq(pdev, 1);
-	if (sec_irq <= 0)
-		sec_irq = IRQ_NOTCONNECTED;
-
-	init_waitqueue_head(&imxdi->write_wait);
-
-	INIT_WORK(&imxdi->work, dryice_work);
-
-	mutex_init(&imxdi->write_mutex);
-
-	imxdi->rtc = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(imxdi->rtc))
-		return PTR_ERR(imxdi->rtc);
-
-	imxdi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(imxdi->clk))
-		return PTR_ERR(imxdi->clk);
-	rc = clk_prepare_enable(imxdi->clk);
-	if (rc)
-		return rc;
-
-	/*
-	 * Initialize dryice hardware
-	 */
-
-	/* mask all interrupts */
-	writel(0, imxdi->ioaddr + DIER);
-
-	rc = di_handle_state(imxdi);
-	if (rc != 0)
-		goto err;
-
-	rc = devm_request_irq(&pdev->dev, norm_irq, dryice_irq,
-			      IRQF_SHARED, pdev->name, imxdi);
-	if (rc) {
-		dev_warn(&pdev->dev, "interrupt not available.\n");
-		goto err;
-	}
-
-	rc = devm_request_irq(&pdev->dev, sec_irq, dryice_irq,
-			      IRQF_SHARED, pdev->name, imxdi);
-	if (rc) {
-		dev_warn(&pdev->dev, "security violation interrupt not available.\n");
-		/* this is not an error, see above */
-	}
-
-	platform_set_drvdata(pdev, imxdi);
-
-	device_init_wakeup(&pdev->dev, true);
-	dev_pm_set_wake_irq(&pdev->dev, norm_irq);
-
-	imxdi->rtc->ops = &dryice_rtc_ops;
-	imxdi->rtc->range_max = U32_MAX;
-
-	rc = devm_rtc_register_device(imxdi->rtc);
-	if (rc)
-		goto err;
-
-	return 0;
-
+static int __init dryice_rtc_probe(struct platform_device *pdev) {
+  struct imxdi_dev *imxdi;
+  int norm_irq, sec_irq;
+  int rc;
+  imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
+  if (!imxdi) {
+    return -ENOMEM;
+  }
+  imxdi->pdev = pdev;
+  imxdi->ioaddr = devm_platform_ioremap_resource(pdev, 0);
+  if (IS_ERR(imxdi->ioaddr)) {
+    return PTR_ERR(imxdi->ioaddr);
+  }
+  spin_lock_init(&imxdi->irq_lock);
+  norm_irq = platform_get_irq(pdev, 0);
+  if (norm_irq < 0) {
+    return norm_irq;
+  }
+  /* the 2nd irq is the security violation irq
+   * make this optional, don't break the device tree ABI
+   */
+  sec_irq = platform_get_irq(pdev, 1);
+  if (sec_irq <= 0) {
+    sec_irq = IRQ_NOTCONNECTED;
+  }
+  init_waitqueue_head(&imxdi->write_wait);
+  INIT_WORK(&imxdi->work, dryice_work);
+  mutex_init(&imxdi->write_mutex);
+  imxdi->rtc = devm_rtc_allocate_device(&pdev->dev);
+  if (IS_ERR(imxdi->rtc)) {
+    return PTR_ERR(imxdi->rtc);
+  }
+  imxdi->clk = devm_clk_get(&pdev->dev, NULL);
+  if (IS_ERR(imxdi->clk)) {
+    return PTR_ERR(imxdi->clk);
+  }
+  rc = clk_prepare_enable(imxdi->clk);
+  if (rc) {
+    return rc;
+  }
+  /*
+   * Initialize dryice hardware
+   */
+  /* mask all interrupts */
+  writel(0, imxdi->ioaddr + DIER);
+  rc = di_handle_state(imxdi);
+  if (rc != 0) {
+    goto err;
+  }
+  rc = devm_request_irq(&pdev->dev, norm_irq, dryice_irq,
+      IRQF_SHARED, pdev->name, imxdi);
+  if (rc) {
+    dev_warn(&pdev->dev, "interrupt not available.\n");
+    goto err;
+  }
+  rc = devm_request_irq(&pdev->dev, sec_irq, dryice_irq,
+      IRQF_SHARED, pdev->name, imxdi);
+  if (rc) {
+    dev_warn(&pdev->dev, "security violation interrupt not available.\n");
+    /* this is not an error, see above */
+  }
+  platform_set_drvdata(pdev, imxdi);
+  device_init_wakeup(&pdev->dev, true);
+  dev_pm_set_wake_irq(&pdev->dev, norm_irq);
+  imxdi->rtc->ops = &dryice_rtc_ops;
+  imxdi->rtc->range_max = U32_MAX;
+  rc = devm_rtc_register_device(imxdi->rtc);
+  if (rc) {
+    goto err;
+  }
+  return 0;
 err:
-	clk_disable_unprepare(imxdi->clk);
-
-	return rc;
+  clk_disable_unprepare(imxdi->clk);
+  return rc;
 }
 
-static void __exit dryice_rtc_remove(struct platform_device *pdev)
-{
-	struct imxdi_dev *imxdi = platform_get_drvdata(pdev);
-
-	flush_work(&imxdi->work);
-
-	/* mask all interrupts */
-	writel(0, imxdi->ioaddr + DIER);
-
-	clk_disable_unprepare(imxdi->clk);
+static void __exit dryice_rtc_remove(struct platform_device *pdev) {
+  struct imxdi_dev *imxdi = platform_get_drvdata(pdev);
+  flush_work(&imxdi->work);
+  /* mask all interrupts */
+  writel(0, imxdi->ioaddr + DIER);
+  clk_disable_unprepare(imxdi->clk);
 }
 
 static const struct of_device_id dryice_dt_ids[] = {
-	{ .compatible = "fsl,imx25-rtc" },
-	{ /* sentinel */ }
+  { .compatible = "fsl,imx25-rtc" },
+  { /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, dryice_dt_ids);
@@ -856,11 +767,11 @@ MODULE_DEVICE_TABLE(of, dryice_dt_ids);
  * triggering a section mismatch warning.
  */
 static struct platform_driver dryice_rtc_driver __refdata = {
-	.driver = {
-		   .name = "imxdi_rtc",
-		   .of_match_table = dryice_dt_ids,
-		   },
-	.remove_new = __exit_p(dryice_rtc_remove),
+  .driver = {
+    .name = "imxdi_rtc",
+    .of_match_table = dryice_dt_ids,
+  },
+  .remove_new = __exit_p(dryice_rtc_remove),
 };
 
 module_platform_driver_probe(dryice_rtc_driver, dryice_rtc_probe);

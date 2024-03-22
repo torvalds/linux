@@ -21,24 +21,26 @@
  */
 TEST(regression_enomem)
 {
-	pid_t pid;
+  pid_t pid;
 
-	if (geteuid())
-		EXPECT_EQ(0, unshare(CLONE_NEWUSER));
+  if (geteuid()) {
+    EXPECT_EQ(0, unshare(CLONE_NEWUSER));
+  }
 
-	EXPECT_EQ(0, unshare(CLONE_NEWPID));
+  EXPECT_EQ(0, unshare(CLONE_NEWPID));
 
-	pid = fork();
-	ASSERT_GE(pid, 0);
+  pid = fork();
+  ASSERT_GE(pid, 0);
 
-	if (pid == 0)
-		exit(EXIT_SUCCESS);
+  if (pid == 0) {
+    exit(EXIT_SUCCESS);
+  }
 
-	EXPECT_EQ(0, wait_for_pid(pid));
+  EXPECT_EQ(0, wait_for_pid(pid));
 
-	pid = fork();
-	ASSERT_LT(pid, 0);
-	ASSERT_EQ(errno, ENOMEM);
+  pid = fork();
+  ASSERT_LT(pid, 0);
+  ASSERT_EQ(errno, ENOMEM);
 }
 
 TEST_HARNESS_MAIN

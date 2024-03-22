@@ -30,29 +30,29 @@
 #include "dcn20/dcn20_dsc.h"
 
 #define DSC_REG_LIST_SH_MASK_DCN35(mask_sh)  \
-	DSC_REG_LIST_SH_MASK_DCN20(mask_sh), \
-		DSC_SF(DSC_TOP0_DSC_TOP_CONTROL, DSC_FGCG_REP_DIS, mask_sh)
+  DSC_REG_LIST_SH_MASK_DCN20(mask_sh), \
+  DSC_SF(DSC_TOP0_DSC_TOP_CONTROL, DSC_FGCG_REP_DIS, mask_sh)
 
 #define DSC_FIELD_LIST_DCN35(type)          \
-	struct {                            \
-		DSC_FIELD_LIST_DCN20(type); \
-		type DSC_FGCG_REP_DIS;      \
-	}
+  struct {                            \
+    DSC_FIELD_LIST_DCN20(type); \
+    type DSC_FGCG_REP_DIS;      \
+  }
 
 struct dcn35_dsc_shift {
-	DSC_FIELD_LIST_DCN35(uint8_t);
+  DSC_FIELD_LIST_DCN35(uint8_t);
 };
 
 struct dcn35_dsc_mask {
-	DSC_FIELD_LIST_DCN35(uint32_t);
+  DSC_FIELD_LIST_DCN35(uint32_t);
 };
 
 void dsc35_construct(struct dcn20_dsc *dsc,
-		struct dc_context *ctx,
-		int inst,
-		const struct dcn20_dsc_registers *dsc_regs,
-		const struct dcn35_dsc_shift *dsc_shift,
-		const struct dcn35_dsc_mask *dsc_mask);
+    struct dc_context *ctx,
+    int inst,
+    const struct dcn20_dsc_registers *dsc_regs,
+    const struct dcn35_dsc_shift *dsc_shift,
+    const struct dcn35_dsc_mask *dsc_mask);
 
 void dsc35_set_fgcg(struct dcn20_dsc *dsc20, bool enable);
 

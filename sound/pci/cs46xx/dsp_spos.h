@@ -26,23 +26,23 @@
 #define WIDE_LADD_INSTR_MASK  0x0380
 
 /* this instruction types
-   needs to be reallocated when load
-   code into DSP */
+ * needs to be reallocated when load
+ * code into DSP */
 enum wide_opcode {
-	WIDE_FOR_BEGIN_LOOP = 0x20,
-	WIDE_FOR_BEGIN_LOOP2,
+  WIDE_FOR_BEGIN_LOOP = 0x20,
+  WIDE_FOR_BEGIN_LOOP2,
 
-	WIDE_COND_GOTO_ADDR = 0x30,
-	WIDE_COND_GOTO_CALL,
+  WIDE_COND_GOTO_ADDR = 0x30,
+  WIDE_COND_GOTO_CALL,
 
-	WIDE_TBEQ_COND_GOTO_ADDR = 0x70,
-	WIDE_TBEQ_COND_CALL_ADDR,
-	WIDE_TBEQ_NCOND_GOTO_ADDR,
-	WIDE_TBEQ_NCOND_CALL_ADDR,
-	WIDE_TBEQ_COND_GOTO1_ADDR,
-	WIDE_TBEQ_COND_CALL1_ADDR,
-	WIDE_TBEQ_NCOND_GOTOI_ADDR,
-	WIDE_TBEQ_NCOND_CALL1_ADDR,
+  WIDE_TBEQ_COND_GOTO_ADDR = 0x70,
+  WIDE_TBEQ_COND_CALL_ADDR,
+  WIDE_TBEQ_NCOND_GOTO_ADDR,
+  WIDE_TBEQ_NCOND_CALL_ADDR,
+  WIDE_TBEQ_COND_GOTO1_ADDR,
+  WIDE_TBEQ_COND_CALL1_ADDR,
+  WIDE_TBEQ_NCOND_GOTOI_ADDR,
+  WIDE_TBEQ_NCOND_CALL1_ADDR,
 };
 
 /* SAMPLE segment */
@@ -119,8 +119,6 @@ enum wide_opcode {
 /* conf */
 #define UseASER1Input 1
 
-
-
 /*
  * The following defines are for the flags in the rsConfig01/23 registers of
  * the SP.
@@ -158,7 +156,6 @@ enum wide_opcode {
 #define FG_INTERVAL_TIMER_PERIOD                0x0051
 #define BG_INTERVAL_TIMER_PERIOD                0x0100
 
-
 /* Only SP accessible registers */
 #define SP_ASER_COUNTDOWN 0x8040
 #define SP_SPDOUT_FIFO    0x0108
@@ -171,46 +168,41 @@ enum wide_opcode {
 #define SP_SPDOUT_CONTROL 0x804D
 #define SP_SPDOUT_CSUV    0x808E
 
-static inline u8 _wrap_all_bits (u8 val)
-{
-	u8 wrapped;
-	
-	/* wrap all 8 bits */
-	wrapped = 
-		((val & 0x1 ) << 7) |
-		((val & 0x2 ) << 5) |
-		((val & 0x4 ) << 3) |
-		((val & 0x8 ) << 1) |
-		((val & 0x10) >> 1) |
-		((val & 0x20) >> 3) |
-		((val & 0x40) >> 5) |
-		((val & 0x80) >> 7);
-
-	return wrapped;
+static inline u8 _wrap_all_bits(u8 val) {
+  u8 wrapped;
+  /* wrap all 8 bits */
+  wrapped
+    = ((val & 0x1) << 7)
+      | ((val & 0x2) << 5)
+      | ((val & 0x4) << 3)
+      | ((val & 0x8) << 1)
+      | ((val & 0x10) >> 1)
+      | ((val & 0x20) >> 3)
+      | ((val & 0x40) >> 5)
+      | ((val & 0x80) >> 7);
+  return wrapped;
 }
 
-static inline void cs46xx_dsp_spos_update_scb (struct snd_cs46xx * chip,
-					       struct dsp_scb_descriptor * scb) 
-{
-	/* update nextSCB and subListPtr in SCB */
-	snd_cs46xx_poke(chip,
-			(scb->address + SCBsubListPtr) << 2,
-			(scb->sub_list_ptr->address << 0x10) |
-			(scb->next_scb_ptr->address));	
-	scb->updated = 1;
+static inline void cs46xx_dsp_spos_update_scb(struct snd_cs46xx *chip,
+    struct dsp_scb_descriptor *scb) {
+  /* update nextSCB and subListPtr in SCB */
+  snd_cs46xx_poke(chip,
+      (scb->address + SCBsubListPtr) << 2,
+        (scb->sub_list_ptr->address << 0x10)
+        | (scb->next_scb_ptr->address));
+  scb->updated = 1;
 }
 
-static inline void cs46xx_dsp_scb_set_volume (struct snd_cs46xx * chip,
-					      struct dsp_scb_descriptor * scb,
-					      u16 left, u16 right)
-{
-	unsigned int val = ((0xffff - left) << 16 | (0xffff - right));
-
-	snd_cs46xx_poke(chip, (scb->address + SCBVolumeCtrl) << 2, val);
-	snd_cs46xx_poke(chip, (scb->address + SCBVolumeCtrl + 1) << 2, val);
-	scb->volume_set = 1;
-	scb->volume[0] = left;
-	scb->volume[1] = right;
+static inline void cs46xx_dsp_scb_set_volume(struct snd_cs46xx *chip,
+    struct dsp_scb_descriptor *scb,
+    u16 left, u16 right) {
+  unsigned int val = ((0xffff - left) << 16 | (0xffff - right));
+  snd_cs46xx_poke(chip, (scb->address + SCBVolumeCtrl) << 2, val);
+  snd_cs46xx_poke(chip, (scb->address + SCBVolumeCtrl + 1) << 2, val);
+  scb->volume_set = 1;
+  scb->volume[0] = left;
+  scb->volume[1] = right;
 }
+
 #endif /* __DSP_SPOS_H__ */
 #endif /* CONFIG_SND_CS46XX_NEW_DSP  */

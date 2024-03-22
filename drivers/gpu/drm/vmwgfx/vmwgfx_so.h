@@ -1,47 +1,47 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
- * Copyright 2014-2015 VMware, Inc., Palo Alto, CA., USA
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
- *
- **************************************************************************/
+* Copyright 2014-2015 VMware, Inc., Palo Alto, CA., USA
+*
+* Permission is hereby granted, free of charge, to any person obtaining a
+* copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sub license, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice (including the
+* next paragraph) shall be included in all copies or substantial portions
+* of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
+* THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
+* DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+* OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+* USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+**************************************************************************/
 #ifndef VMW_SO_H
 #define VMW_SO_H
 
 enum vmw_view_type {
-	vmw_view_sr,
-	vmw_view_rt,
-	vmw_view_ds,
-	vmw_view_ua,
-	vmw_view_max,
+  vmw_view_sr,
+  vmw_view_rt,
+  vmw_view_ds,
+  vmw_view_ua,
+  vmw_view_max,
 };
 
 enum vmw_so_type {
-	vmw_so_el,
-	vmw_so_bs,
-	vmw_so_ds,
-	vmw_so_rs,
-	vmw_so_ss,
-	vmw_so_so,
-	vmw_so_max,
+  vmw_so_el,
+  vmw_so_bs,
+  vmw_so_ds,
+  vmw_so_rs,
+  vmw_so_ss,
+  vmw_so_so,
+  vmw_so_max,
 };
 
 /**
@@ -59,11 +59,11 @@ enum vmw_so_type {
  * vmw_so_build_asserts() function.
  */
 union vmw_view_destroy {
-	struct SVGA3dCmdDXDestroyRenderTargetView rtv;
-	struct SVGA3dCmdDXDestroyShaderResourceView srv;
-	struct SVGA3dCmdDXDestroyDepthStencilView dsv;
-	struct SVGA3dCmdDXDestroyUAView uav;
-	u32 view_id;
+  struct SVGA3dCmdDXDestroyRenderTargetView rtv;
+  struct SVGA3dCmdDXDestroyShaderResourceView srv;
+  struct SVGA3dCmdDXDestroyDepthStencilView dsv;
+  struct SVGA3dCmdDXDestroyUAView uav;
+  u32 view_id;
 };
 
 /* Map enum vmw_view_type to view destroy command ids*/
@@ -85,21 +85,19 @@ extern const SVGACOTableType vmw_so_cotables[];
  * The validity of the simplified calculation is verified in the
  * vmw_so_build_asserts() function.
  */
-static inline enum vmw_view_type vmw_view_cmd_to_type(u32 id)
-{
-	u32 tmp = (id - SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW) / 2;
-
-	if (id == SVGA_3D_CMD_DX_DEFINE_UA_VIEW ||
-	    id == SVGA_3D_CMD_DX_DESTROY_UA_VIEW)
-		return vmw_view_ua;
-
-	if (id == SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW_V2)
-		return vmw_view_ds;
-
-	if (tmp > (u32)vmw_view_ds)
-		return vmw_view_max;
-
-	return (enum vmw_view_type) tmp;
+static inline enum vmw_view_type vmw_view_cmd_to_type(u32 id) {
+  u32 tmp = (id - SVGA_3D_CMD_DX_DEFINE_SHADERRESOURCE_VIEW) / 2;
+  if (id == SVGA_3D_CMD_DX_DEFINE_UA_VIEW
+      || id == SVGA_3D_CMD_DX_DESTROY_UA_VIEW) {
+    return vmw_view_ua;
+  }
+  if (id == SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW_V2) {
+    return vmw_view_ds;
+  }
+  if (tmp > (u32) vmw_view_ds) {
+    return vmw_view_max;
+  }
+  return (enum vmw_view_type) tmp;
 }
 
 /*
@@ -113,60 +111,59 @@ static inline enum vmw_view_type vmw_view_cmd_to_type(u32 id)
  * return vmw_so_max. We should perhaps optimize this function using
  * a similar strategy as vmw_view_cmd_to_type().
  */
-static inline enum vmw_so_type vmw_so_cmd_to_type(u32 id)
-{
-	switch (id) {
-	case SVGA_3D_CMD_DX_DEFINE_ELEMENTLAYOUT:
-	case SVGA_3D_CMD_DX_DESTROY_ELEMENTLAYOUT:
-		return vmw_so_el;
-	case SVGA_3D_CMD_DX_DEFINE_BLEND_STATE:
-	case SVGA_3D_CMD_DX_DESTROY_BLEND_STATE:
-		return vmw_so_bs;
-	case SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_STATE:
-	case SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_STATE:
-		return vmw_so_ds;
-	case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE:
-	case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE_V2:
-	case SVGA_3D_CMD_DX_DESTROY_RASTERIZER_STATE:
-		return vmw_so_rs;
-	case SVGA_3D_CMD_DX_DEFINE_SAMPLER_STATE:
-	case SVGA_3D_CMD_DX_DESTROY_SAMPLER_STATE:
-		return vmw_so_ss;
-	case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT:
-	case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT_WITH_MOB:
-	case SVGA_3D_CMD_DX_DESTROY_STREAMOUTPUT:
-		return vmw_so_so;
-	default:
-		break;
-	}
-	return vmw_so_max;
+static inline enum vmw_so_type vmw_so_cmd_to_type(u32 id) {
+  switch (id) {
+    case SVGA_3D_CMD_DX_DEFINE_ELEMENTLAYOUT:
+    case SVGA_3D_CMD_DX_DESTROY_ELEMENTLAYOUT:
+      return vmw_so_el;
+    case SVGA_3D_CMD_DX_DEFINE_BLEND_STATE:
+    case SVGA_3D_CMD_DX_DESTROY_BLEND_STATE:
+      return vmw_so_bs;
+    case SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_STATE:
+    case SVGA_3D_CMD_DX_DESTROY_DEPTHSTENCIL_STATE:
+      return vmw_so_ds;
+    case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE:
+    case SVGA_3D_CMD_DX_DEFINE_RASTERIZER_STATE_V2:
+    case SVGA_3D_CMD_DX_DESTROY_RASTERIZER_STATE:
+      return vmw_so_rs;
+    case SVGA_3D_CMD_DX_DEFINE_SAMPLER_STATE:
+    case SVGA_3D_CMD_DX_DESTROY_SAMPLER_STATE:
+      return vmw_so_ss;
+    case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT:
+    case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT_WITH_MOB:
+    case SVGA_3D_CMD_DX_DESTROY_STREAMOUTPUT:
+      return vmw_so_so;
+    default:
+      break;
+  }
+  return vmw_so_max;
 }
 
 /*
  * View management - vmwgfx_so.c
  */
 extern int vmw_view_add(struct vmw_cmdbuf_res_manager *man,
-			struct vmw_resource *ctx,
-			struct vmw_resource *srf,
-			enum vmw_view_type view_type,
-			u32 user_key,
-			const void *cmd,
-			size_t cmd_size,
-			struct list_head *list);
+    struct vmw_resource *ctx,
+    struct vmw_resource *srf,
+    enum vmw_view_type view_type,
+    u32 user_key,
+    const void *cmd,
+    size_t cmd_size,
+    struct list_head *list);
 
 extern int vmw_view_remove(struct vmw_cmdbuf_res_manager *man,
-			   u32 user_key, enum vmw_view_type view_type,
-			   struct list_head *list,
-			   struct vmw_resource **res_p);
+    u32 user_key, enum vmw_view_type view_type,
+    struct list_head *list,
+    struct vmw_resource **res_p);
 
 extern void vmw_view_surface_list_destroy(struct vmw_private *dev_priv,
-					  struct list_head *view_list);
+    struct list_head *view_list);
 extern void vmw_view_cotable_list_destroy(struct vmw_private *dev_priv,
-					  struct list_head *list,
-					  bool readback);
+    struct list_head *list,
+    bool readback);
 extern struct vmw_resource *vmw_view_srf(struct vmw_resource *res);
 extern struct vmw_resource *vmw_view_lookup(struct vmw_cmdbuf_res_manager *man,
-					    enum vmw_view_type view_type,
-					    u32 user_key);
+    enum vmw_view_type view_type,
+    u32 user_key);
 extern u32 vmw_view_dirtying(struct vmw_resource *res);
 #endif

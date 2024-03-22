@@ -25,16 +25,22 @@
 #define WM831X_REF_LP_MASK                      0x1000  /* REF_LP */
 #define WM831X_REF_LP_SHIFT                         12  /* REF_LP */
 #define WM831X_REF_LP_WIDTH                          1  /* REF_LP */
-#define WM831X_PWRSTATE_DLY_MASK                0x0C00  /* PWRSTATE_DLY - [11:10] */
-#define WM831X_PWRSTATE_DLY_SHIFT                   10  /* PWRSTATE_DLY - [11:10] */
-#define WM831X_PWRSTATE_DLY_WIDTH                    2  /* PWRSTATE_DLY - [11:10] */
+#define WM831X_PWRSTATE_DLY_MASK                0x0C00  /* PWRSTATE_DLY -
+                                                         * [11:10] */
+#define WM831X_PWRSTATE_DLY_SHIFT                   10  /* PWRSTATE_DLY -
+                                                         * [11:10] */
+#define WM831X_PWRSTATE_DLY_WIDTH                    2  /* PWRSTATE_DLY -
+                                                         * [11:10] */
 #define WM831X_SWRST_DLY                        0x0200  /* SWRST_DLY */
 #define WM831X_SWRST_DLY_MASK                   0x0200  /* SWRST_DLY */
 #define WM831X_SWRST_DLY_SHIFT                       9  /* SWRST_DLY */
 #define WM831X_SWRST_DLY_WIDTH                       1  /* SWRST_DLY */
-#define WM831X_USB100MA_STARTUP_MASK            0x0030  /* USB100MA_STARTUP - [5:4] */
-#define WM831X_USB100MA_STARTUP_SHIFT                4  /* USB100MA_STARTUP - [5:4] */
-#define WM831X_USB100MA_STARTUP_WIDTH                2  /* USB100MA_STARTUP - [5:4] */
+#define WM831X_USB100MA_STARTUP_MASK            0x0030  /* USB100MA_STARTUP -
+                                                         * [5:4] */
+#define WM831X_USB100MA_STARTUP_SHIFT                4  /* USB100MA_STARTUP -
+                                                         * [5:4] */
+#define WM831X_USB100MA_STARTUP_WIDTH                2  /* USB100MA_STARTUP -
+                                                         * [5:4] */
 #define WM831X_USB_CURR_STS                     0x0008  /* USB_CURR_STS */
 #define WM831X_USB_CURR_STS_MASK                0x0008  /* USB_CURR_STS */
 #define WM831X_USB_CURR_STS_SHIFT                    3  /* USB_CURR_STS */
@@ -77,9 +83,12 @@
 #define WM831X_CHG_FRC_MASK                     0x4000  /* CHG_FRC */
 #define WM831X_CHG_FRC_SHIFT                        14  /* CHG_FRC */
 #define WM831X_CHG_FRC_WIDTH                         1  /* CHG_FRC */
-#define WM831X_CHG_ITERM_MASK                   0x1C00  /* CHG_ITERM - [12:10] */
-#define WM831X_CHG_ITERM_SHIFT                      10  /* CHG_ITERM - [12:10] */
-#define WM831X_CHG_ITERM_WIDTH                       3  /* CHG_ITERM - [12:10] */
+#define WM831X_CHG_ITERM_MASK                   0x1C00  /* CHG_ITERM - [12:10]
+                                                         * */
+#define WM831X_CHG_ITERM_SHIFT                      10  /* CHG_ITERM - [12:10]
+                                                         * */
+#define WM831X_CHG_ITERM_WIDTH                       3  /* CHG_ITERM - [12:10]
+                                                         * */
 #define WM831X_CHG_FAST                         0x0020  /* CHG_FAST */
 #define WM831X_CHG_FAST_MASK                    0x0020  /* CHG_FAST */
 #define WM831X_CHG_FAST_SHIFT                        5  /* CHG_FAST */
@@ -103,15 +112,21 @@
 #define WM831X_CHG_TIME_MASK                    0x0F00  /* CHG_TIME - [11:8] */
 #define WM831X_CHG_TIME_SHIFT                        8  /* CHG_TIME - [11:8] */
 #define WM831X_CHG_TIME_WIDTH                        4  /* CHG_TIME - [11:8] */
-#define WM831X_CHG_TRKL_ILIM_MASK               0x00C0  /* CHG_TRKL_ILIM - [7:6] */
-#define WM831X_CHG_TRKL_ILIM_SHIFT                   6  /* CHG_TRKL_ILIM - [7:6] */
-#define WM831X_CHG_TRKL_ILIM_WIDTH                   2  /* CHG_TRKL_ILIM - [7:6] */
+#define WM831X_CHG_TRKL_ILIM_MASK               0x00C0  /* CHG_TRKL_ILIM - [7:6]
+                                                         * */
+#define WM831X_CHG_TRKL_ILIM_SHIFT                   6  /* CHG_TRKL_ILIM - [7:6]
+                                                         * */
+#define WM831X_CHG_TRKL_ILIM_WIDTH                   2  /* CHG_TRKL_ILIM - [7:6]
+                                                         * */
 #define WM831X_CHG_VSEL_MASK                    0x0030  /* CHG_VSEL - [5:4] */
 #define WM831X_CHG_VSEL_SHIFT                        4  /* CHG_VSEL - [5:4] */
 #define WM831X_CHG_VSEL_WIDTH                        2  /* CHG_VSEL - [5:4] */
-#define WM831X_CHG_FAST_ILIM_MASK               0x000F  /* CHG_FAST_ILIM - [3:0] */
-#define WM831X_CHG_FAST_ILIM_SHIFT                   0  /* CHG_FAST_ILIM - [3:0] */
-#define WM831X_CHG_FAST_ILIM_WIDTH                   4  /* CHG_FAST_ILIM - [3:0] */
+#define WM831X_CHG_FAST_ILIM_MASK               0x000F  /* CHG_FAST_ILIM - [3:0]
+                                                         * */
+#define WM831X_CHG_FAST_ILIM_SHIFT                   0  /* CHG_FAST_ILIM - [3:0]
+                                                         * */
+#define WM831X_CHG_FAST_ILIM_WIDTH                   4  /* CHG_FAST_ILIM - [3:0]
+                                                         * */
 
 /*
  * R16458 (0x404A) - Charger Status
@@ -120,9 +135,12 @@
 #define WM831X_BATT_OV_STS_MASK                 0x8000  /* BATT_OV_STS */
 #define WM831X_BATT_OV_STS_SHIFT                    15  /* BATT_OV_STS */
 #define WM831X_BATT_OV_STS_WIDTH                     1  /* BATT_OV_STS */
-#define WM831X_CHG_STATE_MASK                   0x7000  /* CHG_STATE - [14:12] */
-#define WM831X_CHG_STATE_SHIFT                      12  /* CHG_STATE - [14:12] */
-#define WM831X_CHG_STATE_WIDTH                       3  /* CHG_STATE - [14:12] */
+#define WM831X_CHG_STATE_MASK                   0x7000  /* CHG_STATE - [14:12]
+                                                         * */
+#define WM831X_CHG_STATE_SHIFT                      12  /* CHG_STATE - [14:12]
+                                                         * */
+#define WM831X_CHG_STATE_WIDTH                       3  /* CHG_STATE - [14:12]
+                                                         * */
 #define WM831X_BATT_HOT_STS                     0x0800  /* BATT_HOT_STS */
 #define WM831X_BATT_HOT_STS_MASK                0x0800  /* BATT_HOT_STS */
 #define WM831X_BATT_HOT_STS_SHIFT                   11  /* BATT_HOT_STS */
@@ -139,9 +157,12 @@
 #define WM831X_CHG_ACTIVE_MASK                  0x0100  /* CHG_ACTIVE */
 #define WM831X_CHG_ACTIVE_SHIFT                      8  /* CHG_ACTIVE */
 #define WM831X_CHG_ACTIVE_WIDTH                      1  /* CHG_ACTIVE */
-#define WM831X_CHG_TIME_ELAPSED_MASK            0x00FF  /* CHG_TIME_ELAPSED - [7:0] */
-#define WM831X_CHG_TIME_ELAPSED_SHIFT                0  /* CHG_TIME_ELAPSED - [7:0] */
-#define WM831X_CHG_TIME_ELAPSED_WIDTH                8  /* CHG_TIME_ELAPSED - [7:0] */
+#define WM831X_CHG_TIME_ELAPSED_MASK            0x00FF  /* CHG_TIME_ELAPSED -
+                                                         * [7:0] */
+#define WM831X_CHG_TIME_ELAPSED_SHIFT                0  /* CHG_TIME_ELAPSED -
+                                                         * [7:0] */
+#define WM831X_CHG_TIME_ELAPSED_WIDTH                8  /* CHG_TIME_ELAPSED -
+                                                         * [7:0] */
 
 #define WM831X_CHG_STATE_OFF         (0 << WM831X_CHG_STATE_SHIFT)
 #define WM831X_CHG_STATE_TRICKLE     (1 << WM831X_CHG_STATE_SHIFT)
@@ -177,8 +198,11 @@
 #define WM831X_BKUP_CHG_VLIM_MASK               0x0010  /* BKUP_CHG_VLIM */
 #define WM831X_BKUP_CHG_VLIM_SHIFT                   4  /* BKUP_CHG_VLIM */
 #define WM831X_BKUP_CHG_VLIM_WIDTH                   1  /* BKUP_CHG_VLIM */
-#define WM831X_BKUP_CHG_ILIM_MASK               0x0003  /* BKUP_CHG_ILIM - [1:0] */
-#define WM831X_BKUP_CHG_ILIM_SHIFT                   0  /* BKUP_CHG_ILIM - [1:0] */
-#define WM831X_BKUP_CHG_ILIM_WIDTH                   2  /* BKUP_CHG_ILIM - [1:0] */
+#define WM831X_BKUP_CHG_ILIM_MASK               0x0003  /* BKUP_CHG_ILIM - [1:0]
+                                                         * */
+#define WM831X_BKUP_CHG_ILIM_SHIFT                   0  /* BKUP_CHG_ILIM - [1:0]
+                                                         * */
+#define WM831X_BKUP_CHG_ILIM_WIDTH                   2  /* BKUP_CHG_ILIM - [1:0]
+                                                         * */
 
 #endif

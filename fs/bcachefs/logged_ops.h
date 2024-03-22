@@ -4,13 +4,13 @@
 
 #include "bkey.h"
 
-#define BCH_LOGGED_OPS()			\
-	x(truncate)				\
-	x(finsert)
+#define BCH_LOGGED_OPS()      \
+  x(truncate)       \
+  x(finsert)
 
-static inline int bch2_logged_op_update(struct btree_trans *trans, struct bkey_i *op)
-{
-	return bch2_btree_insert_nonextent(trans, BTREE_ID_logged_ops, op, 0);
+static inline int bch2_logged_op_update(struct btree_trans *trans,
+    struct bkey_i *op) {
+  return bch2_btree_insert_nonextent(trans, BTREE_ID_logged_ops, op, 0);
 }
 
 int bch2_resume_logged_ops(struct bch_fs *);

@@ -10,21 +10,19 @@
 #include <linux/serial_bcm63xx.h>
 #include <asm/setup.h>
 
-static void wait_xfered(void)
-{
-	unsigned int val;
-
-	/* wait for any previous char to be transmitted */
-	do {
-		val = bcm_uart0_readl(UART_IR_REG);
-		if (val & UART_IR_STAT(UART_IR_TXEMPTY))
-			break;
-	} while (1);
+static void wait_xfered(void) {
+  unsigned int val;
+  /* wait for any previous char to be transmitted */
+  do {
+    val = bcm_uart0_readl(UART_IR_REG);
+    if (val & UART_IR_STAT(UART_IR_TXEMPTY)) {
+      break;
+    }
+  } while (1);
 }
 
-void prom_putchar(char c)
-{
-	wait_xfered();
-	bcm_uart0_writel(c, UART_FIFO_REG);
-	wait_xfered();
+void prom_putchar(char c) {
+  wait_xfered();
+  bcm_uart0_writel(c, UART_FIFO_REG);
+  wait_xfered();
 }

@@ -4,7 +4,8 @@
  * Copyright (C) Laurence Culhane <loz@holmes.demon.co.uk>
  * Copyright (C) Fred N. van Kempen <waltje@uwalt.nl.mugnet.org>
  * Copyright (C) Oliver Hartkopp <socketcan@hartkopp.net>
- * Copyright (C) 2022 Amarula Solutions, Dario Binacchi <dario.binacchi@amarulasolutions.com>
+ * Copyright (C) 2022 Amarula Solutions, Dario Binacchi
+ *<dario.binacchi@amarulasolutions.com>
  *
  */
 

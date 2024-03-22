@@ -23,37 +23,37 @@
 /* Tokens used in kernel drivers, any of these
  * should be filtered from userspace access
  */
-#define BRIGHTNESS_TOKEN	0x007d
-#define KBD_LED_AC_TOKEN	0x0451
-#define KBD_LED_OFF_TOKEN	0x01E1
-#define KBD_LED_ON_TOKEN	0x01E2
-#define KBD_LED_AUTO_TOKEN	0x01E3
-#define KBD_LED_AUTO_25_TOKEN	0x02EA
-#define KBD_LED_AUTO_50_TOKEN	0x02EB
-#define KBD_LED_AUTO_75_TOKEN	0x02EC
-#define KBD_LED_AUTO_100_TOKEN	0x02F6
-#define GLOBAL_MIC_MUTE_ENABLE	0x0364
-#define GLOBAL_MIC_MUTE_DISABLE	0x0365
-#define GLOBAL_MUTE_ENABLE	0x058C
-#define GLOBAL_MUTE_DISABLE	0x058D
+#define BRIGHTNESS_TOKEN  0x007d
+#define KBD_LED_AC_TOKEN  0x0451
+#define KBD_LED_OFF_TOKEN 0x01E1
+#define KBD_LED_ON_TOKEN  0x01E2
+#define KBD_LED_AUTO_TOKEN  0x01E3
+#define KBD_LED_AUTO_25_TOKEN 0x02EA
+#define KBD_LED_AUTO_50_TOKEN 0x02EB
+#define KBD_LED_AUTO_75_TOKEN 0x02EC
+#define KBD_LED_AUTO_100_TOKEN  0x02F6
+#define GLOBAL_MIC_MUTE_ENABLE  0x0364
+#define GLOBAL_MIC_MUTE_DISABLE 0x0365
+#define GLOBAL_MUTE_ENABLE  0x058C
+#define GLOBAL_MUTE_DISABLE 0x058D
 
 struct notifier_block;
 
 struct calling_interface_token {
-	u16 tokenID;
-	u16 location;
-	union {
-		u16 value;
-		u16 stringlength;
-	};
+  u16 tokenID;
+  u16 location;
+  union {
+    u16 value;
+    u16 stringlength;
+  };
 };
 
 struct calling_interface_structure {
-	struct dmi_header header;
-	u16 cmdIOAddress;
-	u8 cmdIOCode;
-	u32 supportedCmds;
-	struct calling_interface_token tokens[];
+  struct dmi_header header;
+  u16 cmdIOAddress;
+  u8 cmdIOCode;
+  u32 supportedCmds;
+  struct calling_interface_token tokens[];
 } __packed;
 
 int dell_smbios_register_device(struct device *d, void *call_fn);
@@ -61,13 +61,13 @@ void dell_smbios_unregister_device(struct device *d);
 
 int dell_smbios_error(int value);
 int dell_smbios_call_filter(struct device *d,
-	struct calling_interface_buffer *buffer);
+    struct calling_interface_buffer *buffer);
 int dell_smbios_call(struct calling_interface_buffer *buffer);
 
 struct calling_interface_token *dell_smbios_find_token(int tokenid);
 
 enum dell_laptop_notifier_actions {
-	DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED,
+  DELL_LAPTOP_KBD_BACKLIGHT_BRIGHTNESS_CHANGED,
 };
 
 int dell_laptop_register_notifier(struct notifier_block *nb);
@@ -79,24 +79,26 @@ void dell_laptop_call_notifier(unsigned long action, void *data);
 int init_dell_smbios_wmi(void);
 void exit_dell_smbios_wmi(void);
 #else /* CONFIG_DELL_SMBIOS_WMI */
-static inline int init_dell_smbios_wmi(void)
-{
-	return -ENODEV;
+static inline int init_dell_smbios_wmi(void) {
+  return -ENODEV;
 }
-static inline void exit_dell_smbios_wmi(void)
-{}
+
+static inline void exit_dell_smbios_wmi(void) {
+}
+
 #endif /* CONFIG_DELL_SMBIOS_WMI */
 
 #ifdef CONFIG_DELL_SMBIOS_SMM
 int init_dell_smbios_smm(void);
 void exit_dell_smbios_smm(void);
 #else /* CONFIG_DELL_SMBIOS_SMM */
-static inline int init_dell_smbios_smm(void)
-{
-	return -ENODEV;
+static inline int init_dell_smbios_smm(void) {
+  return -ENODEV;
 }
-static inline void exit_dell_smbios_smm(void)
-{}
+
+static inline void exit_dell_smbios_smm(void) {
+}
+
 #endif /* CONFIG_DELL_SMBIOS_SMM */
 
 #endif /* _DELL_SMBIOS_H_ */

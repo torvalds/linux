@@ -11,10 +11,10 @@
 #include <linux/linkage.h>
 #include <linux/types.h>
 
-#define SOC_EARLY_INIT_DECLARE(name, compat, fn)			\
-	static const struct of_device_id __soc_early_init__##name	\
-		__used __section("__soc_early_init_table")		\
-		 = { .compatible = compat, .data = fn  }
+#define SOC_EARLY_INIT_DECLARE(name, compat, fn)      \
+  static const struct of_device_id __soc_early_init__ ## name \
+  __used __section("__soc_early_init_table")    \
+    = { .compatible = compat, .data = fn  }
 
 void soc_early_init(void);
 

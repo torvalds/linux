@@ -32,10 +32,10 @@ void qed_init_iro_array(struct qed_dev *cdev);
  * Return: _qed_status_t
  */
 int qed_init_run(struct qed_hwfn *p_hwfn,
-		 struct qed_ptt *p_ptt,
-		 int phase,
-		 int phase_id,
-		 int modes);
+    struct qed_ptt *p_ptt,
+    int phase,
+    int phase_id,
+    int modes);
 
 /**
  * qed_init_alloc(): Allocate RT array, Store 'values' ptrs.
@@ -65,22 +65,22 @@ void qed_init_free(struct qed_hwfn *p_hwfn);
  * Return: Void.
  */
 void qed_init_store_rt_reg(struct qed_hwfn *p_hwfn,
-			   u32 rt_offset,
-			   u32 val);
+    u32 rt_offset,
+    u32 val);
 
-#define STORE_RT_REG(hwfn, offset, val)	\
-	qed_init_store_rt_reg(hwfn, offset, val)
+#define STORE_RT_REG(hwfn, offset, val) \
+  qed_init_store_rt_reg(hwfn, offset, val)
 
 #define OVERWRITE_RT_REG(hwfn, offset, val) \
-	qed_init_store_rt_reg(hwfn, offset, val)
+  qed_init_store_rt_reg(hwfn, offset, val)
 
 void qed_init_store_rt_agg(struct qed_hwfn *p_hwfn,
-			   u32 rt_offset,
-			   u32 *val,
-			   size_t size);
+    u32 rt_offset,
+    u32 *val,
+    size_t size);
 
 #define STORE_RT_REG_AGG(hwfn, offset, val) \
-	qed_init_store_rt_agg(hwfn, offset, (u32 *)&(val), sizeof(val))
+  qed_init_store_rt_agg(hwfn, offset, (u32 *) &(val), sizeof(val))
 
 /**
  * qed_gtt_init(): Initialize GTT global windows and set admin window

@@ -17,9 +17,9 @@
 #define __PLATFORM_SUPPORT_H_INCLUDED__
 
 /**
-* @file
-* Platform specific includes and functionality.
-*/
+ * @file
+ * Platform specific includes and functionality.
+ */
 
 #include <linux/delay.h>
 #include <linux/kernel.h>

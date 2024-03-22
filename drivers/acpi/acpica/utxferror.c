@@ -17,7 +17,7 @@ ACPI_MODULE_NAME("utxferror")
  * This module is used for the in-kernel ACPICA as well as the ACPICA
  * tools/applications.
  */
-#ifndef ACPI_NO_ERROR_MESSAGES	/* Entire module */
+#ifndef ACPI_NO_ERROR_MESSAGES  /* Entire module */
 /*******************************************************************************
  *
  * FUNCTION:    acpi_error
@@ -31,20 +31,17 @@ ACPI_MODULE_NAME("utxferror")
  * DESCRIPTION: Print "ACPI Error" message with module/line/version info
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_error(const char *module_name, u32 line_number, const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_ERROR);
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	ACPI_MSG_SUFFIX;
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_error(const char *module_name,
+    u32 line_number, const char *format,
+    ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  acpi_os_printf(ACPI_MSG_ERROR);
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  ACPI_MSG_SUFFIX;
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_error)
@@ -64,30 +61,22 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *              info as well as decoded acpi_status.
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_exception(const char *module_name,
-	       u32 line_number, acpi_status status, const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-
-	/* For AE_OK, just print the message */
-
-	if (ACPI_SUCCESS(status)) {
-		acpi_os_printf(ACPI_MSG_ERROR);
-
-	} else {
-		acpi_os_printf(ACPI_MSG_ERROR "%s, ",
-			       acpi_format_exception(status));
-	}
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	ACPI_MSG_SUFFIX;
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_exception(const char *module_name,
+    u32 line_number, acpi_status status, const char *format, ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  /* For AE_OK, just print the message */
+  if (ACPI_SUCCESS(status)) {
+    acpi_os_printf(ACPI_MSG_ERROR);
+  } else {
+    acpi_os_printf(ACPI_MSG_ERROR "%s, ",
+        acpi_format_exception(status));
+  }
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  ACPI_MSG_SUFFIX;
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_exception)
@@ -105,20 +94,17 @@ ACPI_EXPORT_SYMBOL(acpi_exception)
  * DESCRIPTION: Print "ACPI Warning" message with module/line/version info
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_warning(const char *module_name, u32 line_number, const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_WARNING);
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	ACPI_MSG_SUFFIX;
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_warning(const char *module_name,
+    u32 line_number, const char *format,
+    ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  acpi_os_printf(ACPI_MSG_WARNING);
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  ACPI_MSG_SUFFIX;
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_warning)
@@ -135,19 +121,15 @@ ACPI_EXPORT_SYMBOL(acpi_warning)
  *              module/line/version info in order to keep the message simple.
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE acpi_info(const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_INFO);
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	acpi_os_printf("\n");
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_info(const char *format, ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  acpi_os_printf(ACPI_MSG_INFO);
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  acpi_os_printf("\n");
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_info)
@@ -166,21 +148,16 @@ ACPI_EXPORT_SYMBOL(acpi_info)
  *              info
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_bios_error(const char *module_name,
-		u32 line_number, const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	ACPI_MSG_SUFFIX;
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_bios_error(const char *module_name,
+    u32 line_number, const char *format, ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  acpi_os_printf(ACPI_MSG_BIOS_ERROR);
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  ACPI_MSG_SUFFIX;
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_bios_error)
@@ -200,31 +177,23 @@ ACPI_EXPORT_SYMBOL(acpi_bios_error)
  *              info as well as decoded acpi_status.
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_bios_exception(const char *module_name,
-		    u32 line_number,
-		    acpi_status status, const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-
-	/* For AE_OK, just print the message */
-
-	if (ACPI_SUCCESS(status)) {
-		acpi_os_printf(ACPI_MSG_BIOS_ERROR);
-
-	} else {
-		acpi_os_printf(ACPI_MSG_BIOS_ERROR "%s, ",
-			       acpi_format_exception(status));
-	}
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	ACPI_MSG_SUFFIX;
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_bios_exception(const char *module_name,
+    u32 line_number,
+    acpi_status status, const char *format, ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  /* For AE_OK, just print the message */
+  if (ACPI_SUCCESS(status)) {
+    acpi_os_printf(ACPI_MSG_BIOS_ERROR);
+  } else {
+    acpi_os_printf(ACPI_MSG_BIOS_ERROR "%s, ",
+        acpi_format_exception(status));
+  }
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  ACPI_MSG_SUFFIX;
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_bios_exception)
@@ -243,22 +212,17 @@ ACPI_EXPORT_SYMBOL(acpi_bios_exception)
  *              info
  *
  ******************************************************************************/
-void ACPI_INTERNAL_VAR_XFACE
-acpi_bios_warning(const char *module_name,
-		  u32 line_number, const char *format, ...)
-{
-	va_list arg_list;
-
-	ACPI_MSG_REDIRECT_BEGIN;
-	acpi_os_printf(ACPI_MSG_BIOS_WARNING);
-
-	va_start(arg_list, format);
-	acpi_os_vprintf(format, arg_list);
-	ACPI_MSG_SUFFIX;
-	va_end(arg_list);
-
-	ACPI_MSG_REDIRECT_END;
+void ACPI_INTERNAL_VAR_XFACE acpi_bios_warning(const char *module_name,
+    u32 line_number, const char *format, ...) {
+  va_list arg_list;
+  ACPI_MSG_REDIRECT_BEGIN;
+  acpi_os_printf(ACPI_MSG_BIOS_WARNING);
+  va_start(arg_list, format);
+  acpi_os_vprintf(format, arg_list);
+  ACPI_MSG_SUFFIX;
+  va_end(arg_list);
+  ACPI_MSG_REDIRECT_END;
 }
 
 ACPI_EXPORT_SYMBOL(acpi_bios_warning)
-#endif				/* ACPI_NO_ERROR_MESSAGES */
+#endif        /* ACPI_NO_ERROR_MESSAGES */

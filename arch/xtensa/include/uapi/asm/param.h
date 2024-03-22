@@ -13,19 +13,19 @@
 #define _UAPI_XTENSA_PARAM_H
 
 #ifndef __KERNEL__
-# define HZ		100
+#define HZ   100
 #endif
 
-#define EXEC_PAGESIZE	4096
+#define EXEC_PAGESIZE 4096
 
 #ifndef NGROUPS
-#define NGROUPS		32
+#define NGROUPS   32
 #endif
 
 #ifndef NOGROUP
-#define NOGROUP		(-1)
+#define NOGROUP   (-1)
 #endif
 
-#define MAXHOSTNAMELEN	64	/* max length of hostname */
+#define MAXHOSTNAMELEN  64  /* max length of hostname */
 
 #endif /* _UAPI_XTENSA_PARAM_H */

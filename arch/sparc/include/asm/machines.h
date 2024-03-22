@@ -9,8 +9,8 @@
 #define _SPARC_MACHINES_H
 
 struct Sun_Machine_Models {
-	char *name;
-	unsigned char id_machtype;
+  char *name;
+  unsigned char id_machtype;
 };
 
 /* The machine type in the idprom area looks like this:
@@ -44,8 +44,8 @@ struct Sun_Machine_Models {
 #define SM_4M_SS50    0x02    /* Sun4m SparcStation 10                  */
 #define SM_4M_SS40    0x03    /* Sun4m SparcStation 5                   */
 
-/* Sun4d machines -- N/A */
-/* Sun4e machines -- N/A */
-/* Sun4u machines -- N/A */
+/* Sun4d machines -- N/A
+ * Sun4e machines -- N/A
+ * Sun4u machines -- N/A*/
 
 #endif /* !(_SPARC_MACHINES_H) */

@@ -17,13 +17,13 @@ void __iomem *pxa_smemc_get_mdrefr(void);
 #ifdef CONFIG_PXA25x
 extern unsigned pxa25x_get_clk_frequency_khz(int);
 #else
-#define pxa25x_get_clk_frequency_khz(x)		(0)
+#define pxa25x_get_clk_frequency_khz(x)   (0)
 #endif
 
 #ifdef CONFIG_PXA27x
 extern unsigned pxa27x_get_clk_frequency_khz(int);
 #else
-#define pxa27x_get_clk_frequency_khz(x)		(0)
+#define pxa27x_get_clk_frequency_khz(x)   (0)
 #endif
 
 #endif

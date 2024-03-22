@@ -18,9 +18,16 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt);
 /* Stubs for non-x86 platforms */
 #else
 
-static inline void intel_ggtt_gmch_flush(void) { }
-static inline int intel_ggtt_gmch_enable_hw(struct drm_i915_private *i915) { return -ENODEV; }
-static inline int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt) { return -ENODEV; }
+static inline void intel_ggtt_gmch_flush(void) {
+}
+
+static inline int intel_ggtt_gmch_enable_hw(struct drm_i915_private *i915) {
+  return -ENODEV;
+}
+
+static inline int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt) {
+  return -ENODEV;
+}
 
 #endif
 

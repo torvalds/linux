@@ -19,17 +19,15 @@ void lcd_disp_at_pos(char *str, unsigned char pos);
 void lcd_shiftleft(void);
 void lcd_shiftright(void);
 #else
-static inline void lcd_disp_at_pos(char *str, unsigned char pos)
-{
+static inline void lcd_disp_at_pos(char *str, unsigned char pos) {
 }
 
-static inline void lcd_shiftleft(void)
-{
+static inline void lcd_shiftleft(void) {
 }
 
-static inline void lcd_shiftright(void)
-{
+static inline void lcd_shiftright(void) {
 }
+
 #endif
 
 #endif

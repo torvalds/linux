@@ -31,68 +31,57 @@
 
 #include <nvhw/class/cl906f.h>
 
-static int
-nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
-{
-	struct nvif_push *push = chan->chan.push;
-	int ret = PUSH_WAIT(push, 6);
-	if (ret == 0) {
-		PUSH_MTHD(push, NV906F, SEMAPHOREA,
-			  NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
-
-					SEMAPHOREB, lower_32_bits(virtual),
-					SEMAPHOREC, sequence,
-
-					SEMAPHORED,
-			  NVDEF(NV906F, SEMAPHORED, OPERATION, RELEASE) |
-			  NVDEF(NV906F, SEMAPHORED, RELEASE_WFI, EN) |
-			  NVDEF(NV906F, SEMAPHORED, RELEASE_SIZE, 16BYTE),
-
-					NON_STALL_INTERRUPT, 0);
-		PUSH_KICK(push);
-	}
-	return ret;
+static int nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual,
+    u32 sequence) {
+  struct nvif_push *push = chan->chan.push;
+  int ret = PUSH_WAIT(push, 6);
+  if (ret == 0) {
+    PUSH_MTHD(push, NV906F, SEMAPHOREA,
+        NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+        SEMAPHOREB, lower_32_bits(virtual),
+        SEMAPHOREC, sequence,
+        SEMAPHORED,
+        NVDEF(NV906F, SEMAPHORED, OPERATION, RELEASE)
+        | NVDEF(NV906F, SEMAPHORED, RELEASE_WFI, EN)
+        | NVDEF(NV906F, SEMAPHORED, RELEASE_SIZE, 16BYTE),
+        NON_STALL_INTERRUPT, 0);
+    PUSH_KICK(push);
+  }
+  return ret;
 }
 
-static int
-nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
-{
-	struct nvif_push *push = chan->chan.push;
-	int ret = PUSH_WAIT(push, 5);
-	if (ret == 0) {
-		PUSH_MTHD(push, NV906F, SEMAPHOREA,
-			  NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
-
-					SEMAPHOREB, lower_32_bits(virtual),
-					SEMAPHOREC, sequence,
-
-					SEMAPHORED,
-			  NVDEF(NV906F, SEMAPHORED, OPERATION, ACQ_GEQ) |
-			  NVDEF(NV906F, SEMAPHORED, ACQUIRE_SWITCH, ENABLED));
-		PUSH_KICK(push);
-	}
-	return ret;
+static int nvc0_fence_sync32(struct nouveau_channel *chan, u64 virtual,
+    u32 sequence) {
+  struct nvif_push *push = chan->chan.push;
+  int ret = PUSH_WAIT(push, 5);
+  if (ret == 0) {
+    PUSH_MTHD(push, NV906F, SEMAPHOREA,
+        NVVAL(NV906F, SEMAPHOREA, OFFSET_UPPER, upper_32_bits(virtual)),
+        SEMAPHOREB, lower_32_bits(virtual),
+        SEMAPHOREC, sequence,
+        SEMAPHORED,
+        NVDEF(NV906F, SEMAPHORED, OPERATION, ACQ_GEQ)
+        | NVDEF(NV906F, SEMAPHORED, ACQUIRE_SWITCH, ENABLED));
+    PUSH_KICK(push);
+  }
+  return ret;
 }
 
-static int
-nvc0_fence_context_new(struct nouveau_channel *chan)
-{
-	int ret = nv84_fence_context_new(chan);
-	if (ret == 0) {
-		struct nv84_fence_chan *fctx = chan->fence;
-		fctx->base.emit32 = nvc0_fence_emit32;
-		fctx->base.sync32 = nvc0_fence_sync32;
-	}
-	return ret;
+static int nvc0_fence_context_new(struct nouveau_channel *chan) {
+  int ret = nv84_fence_context_new(chan);
+  if (ret == 0) {
+    struct nv84_fence_chan *fctx = chan->fence;
+    fctx->base.emit32 = nvc0_fence_emit32;
+    fctx->base.sync32 = nvc0_fence_sync32;
+  }
+  return ret;
 }
 
-int
-nvc0_fence_create(struct nouveau_drm *drm)
-{
-	int ret = nv84_fence_create(drm);
-	if (ret == 0) {
-		struct nv84_fence_priv *priv = drm->fence;
-		priv->base.context_new = nvc0_fence_context_new;
-	}
-	return ret;
+int nvc0_fence_create(struct nouveau_drm *drm) {
+  int ret = nv84_fence_create(drm);
+  if (ret == 0) {
+    struct nv84_fence_priv *priv = drm->fence;
+    priv->base.context_new = nvc0_fence_context_new;
+  }
+  return ret;
 }

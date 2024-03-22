@@ -2,7 +2,7 @@
 #ifndef __ASM_ARM_IRQ_H
 #define __ASM_ARM_IRQ_H
 
-#define NR_IRQS_LEGACY	16
+#define NR_IRQS_LEGACY  16
 
 #ifndef CONFIG_SPARSE_IRQ
 #include <mach/irqs.h>
@@ -11,7 +11,7 @@
 #endif
 
 #ifndef irq_canonicalize
-#define irq_canonicalize(i)	(i)
+#define irq_canonicalize(i) (i)
 #endif
 
 /*
@@ -19,7 +19,7 @@
  * capability
  */
 #ifndef NO_IRQ
-#define NO_IRQ	((unsigned int)(-1))
+#define NO_IRQ  ((unsigned int) (-1))
 #endif
 
 #ifndef __ASSEMBLY__
@@ -32,16 +32,14 @@ void handle_IRQ(unsigned int, struct pt_regs *);
 #include <linux/cpumask.h>
 
 extern void arch_trigger_cpumask_backtrace(const cpumask_t *mask,
-					   int exclude_cpu);
+    int exclude_cpu);
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 #endif
 
-static inline int nr_legacy_irqs(void)
-{
-	return NR_IRQS_LEGACY;
+static inline int nr_legacy_irqs(void) {
+  return NR_IRQS_LEGACY;
 }
 
 #endif
 
 #endif
-

@@ -18,25 +18,25 @@
  * @CCU_SYS_SATA_CLK: CCU SATA internal clock
  * @CCU_SYS_XGMAC_CLK: CCU XGMAC internal clock
  */
-#define CCU_SYS_SATA_CLK		-1
-#define CCU_SYS_XGMAC_CLK		-2
+#define CCU_SYS_SATA_CLK    -1
+#define CCU_SYS_XGMAC_CLK   -2
 
 /*
  * CCU Divider private flags
  * @CCU_DIV_BASIC: Basic divider clock required by the kernel as early as
- *		   possible.
+ *       possible.
  * @CCU_DIV_SKIP_ONE: Due to some reason divider can't be set to 1.
- *		      It can be 0 though, which is functionally the same.
+ *          It can be 0 though, which is functionally the same.
  * @CCU_DIV_SKIP_ONE_TO_THREE: For some reason divider can't be within [1,3].
- *			       It can be either 0 or greater than 3.
+ *             It can be either 0 or greater than 3.
  * @CCU_DIV_LOCK_SHIFTED: Find lock-bit at non-standard position.
  * @CCU_DIV_RESET_DOMAIN: There is a clock domain reset handle.
  */
-#define CCU_DIV_BASIC			BIT(0)
-#define CCU_DIV_SKIP_ONE		BIT(1)
-#define CCU_DIV_SKIP_ONE_TO_THREE	BIT(2)
-#define CCU_DIV_LOCK_SHIFTED		BIT(3)
-#define CCU_DIV_RESET_DOMAIN		BIT(4)
+#define CCU_DIV_BASIC     BIT(0)
+#define CCU_DIV_SKIP_ONE    BIT(1)
+#define CCU_DIV_SKIP_ONE_TO_THREE BIT(2)
+#define CCU_DIV_LOCK_SHIFTED    BIT(3)
+#define CCU_DIV_RESET_DOMAIN    BIT(4)
 
 /*
  * enum ccu_div_type - CCU Divider types
@@ -46,10 +46,10 @@
  * @CCU_DIV_FIXED: Ungateable clock with fixed divider.
  */
 enum ccu_div_type {
-	CCU_DIV_VAR,
-	CCU_DIV_GATE,
-	CCU_DIV_BUF,
-	CCU_DIV_FIXED
+  CCU_DIV_VAR,
+  CCU_DIV_GATE,
+  CCU_DIV_BUF,
+  CCU_DIV_FIXED
 };
 
 /*
@@ -67,19 +67,19 @@ enum ccu_div_type {
  * @features: CCU Divider private features.
  */
 struct ccu_div_init_data {
-	unsigned int id;
-	const char *name;
-	const char *parent_name;
-	unsigned int base;
-	struct regmap *sys_regs;
-	struct device_node *np;
-	enum ccu_div_type type;
-	union {
-		unsigned int width;
-		unsigned int divider;
-	};
-	unsigned long flags;
-	unsigned long features;
+  unsigned int id;
+  const char *name;
+  const char *parent_name;
+  unsigned int base;
+  struct regmap *sys_regs;
+  struct device_node *np;
+  enum ccu_div_type type;
+  union {
+    unsigned int width;
+    unsigned int divider;
+  };
+  unsigned long flags;
+  unsigned long features;
 };
 
 /*
@@ -95,23 +95,22 @@ struct ccu_div_init_data {
  * @features: CCU Divider private features.
  */
 struct ccu_div {
-	struct clk_hw hw;
-	unsigned int id;
-	unsigned int reg_ctl;
-	struct regmap *sys_regs;
-	spinlock_t lock;
-	union {
-		u32 mask;
-		unsigned int divider;
-	};
-	unsigned long flags;
-	unsigned long features;
+  struct clk_hw hw;
+  unsigned int id;
+  unsigned int reg_ctl;
+  struct regmap *sys_regs;
+  spinlock_t lock;
+  union {
+    u32 mask;
+    unsigned int divider;
+  };
+  unsigned long flags;
+  unsigned long features;
 };
 #define to_ccu_div(_hw) container_of(_hw, struct ccu_div, hw)
 
-static inline struct clk_hw *ccu_div_get_clk_hw(struct ccu_div *div)
-{
-	return div ? &div->hw : NULL;
+static inline struct clk_hw *ccu_div_get_clk_hw(struct ccu_div *div) {
+  return div ? &div->hw : NULL;
 }
 
 struct ccu_div *ccu_div_hw_register(const struct ccu_div_init_data *init);

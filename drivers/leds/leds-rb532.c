@@ -17,42 +17,39 @@
 #include <asm/mach-rc32434/rb.h>
 
 static void rb532_led_set(struct led_classdev *cdev,
-			  enum led_brightness brightness)
-{
-	if (brightness)
-		set_latch_u5(LO_ULED, 0);
-	else
-		set_latch_u5(0, LO_ULED);
+    enum led_brightness brightness) {
+  if (brightness) {
+    set_latch_u5(LO_ULED, 0);
+  } else {
+    set_latch_u5(0, LO_ULED);
+  }
 }
 
-static enum led_brightness rb532_led_get(struct led_classdev *cdev)
-{
-	return (get_latch_u5() & LO_ULED) ? LED_FULL : LED_OFF;
+static enum led_brightness rb532_led_get(struct led_classdev *cdev) {
+  return (get_latch_u5() & LO_ULED) ? LED_FULL : LED_OFF;
 }
 
 static struct led_classdev rb532_uled = {
-	.name = "uled",
-	.brightness_set = rb532_led_set,
-	.brightness_get = rb532_led_get,
-	.default_trigger = "nand-disk",
+  .name = "uled",
+  .brightness_set = rb532_led_set,
+  .brightness_get = rb532_led_get,
+  .default_trigger = "nand-disk",
 };
 
-static int rb532_led_probe(struct platform_device *pdev)
-{
-	return led_classdev_register(&pdev->dev, &rb532_uled);
+static int rb532_led_probe(struct platform_device *pdev) {
+  return led_classdev_register(&pdev->dev, &rb532_uled);
 }
 
-static void rb532_led_remove(struct platform_device *pdev)
-{
-	led_classdev_unregister(&rb532_uled);
+static void rb532_led_remove(struct platform_device *pdev) {
+  led_classdev_unregister(&rb532_uled);
 }
 
 static struct platform_driver rb532_led_driver = {
-	.probe = rb532_led_probe,
-	.remove_new = rb532_led_remove,
-	.driver = {
-		.name = "rb532-led",
-	},
+  .probe = rb532_led_probe,
+  .remove_new = rb532_led_remove,
+  .driver = {
+    .name = "rb532-led",
+  },
 };
 
 module_platform_driver(rb532_led_driver);

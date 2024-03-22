@@ -9,8 +9,8 @@
 #include <asm/processor.h>
 
 #ifndef RTC_PORT
-#define RTC_PORT(x)	(0x70 + (x))
-#define RTC_ALWAYS_BCD	1	/* RTC operates in binary mode */
+#define RTC_PORT(x) (0x70 + (x))
+#define RTC_ALWAYS_BCD  1 /* RTC operates in binary mode */
 #endif
 
 #if defined(CONFIG_X86_32)
@@ -38,50 +38,47 @@ extern volatile unsigned long cmos_lock;
  * disabled, etc.
  */
 
-static inline void lock_cmos(unsigned char reg)
-{
-	unsigned long new;
-	new = ((smp_processor_id() + 1) << 8) | reg;
-	for (;;) {
-		if (cmos_lock) {
-			cpu_relax();
-			continue;
-		}
-		if (__cmpxchg(&cmos_lock, 0, new, sizeof(cmos_lock)) == 0)
-			return;
-	}
+static inline void lock_cmos(unsigned char reg) {
+  unsigned long new;
+  new = ((smp_processor_id() + 1) << 8) | reg;
+  for (;;) {
+    if (cmos_lock) {
+      cpu_relax();
+      continue;
+    }
+    if (__cmpxchg(&cmos_lock, 0, new, sizeof(cmos_lock)) == 0) {
+      return;
+    }
+  }
 }
 
-static inline void unlock_cmos(void)
-{
-	cmos_lock = 0;
+static inline void unlock_cmos(void) {
+  cmos_lock = 0;
 }
 
-static inline int do_i_have_lock_cmos(void)
-{
-	return (cmos_lock >> 8) == (smp_processor_id() + 1);
+static inline int do_i_have_lock_cmos(void) {
+  return (cmos_lock >> 8) == (smp_processor_id() + 1);
 }
 
-static inline unsigned char current_lock_cmos_reg(void)
-{
-	return cmos_lock & 0xff;
+static inline unsigned char current_lock_cmos_reg(void) {
+  return cmos_lock & 0xff;
 }
 
-#define lock_cmos_prefix(reg)			\
-	do {					\
-		unsigned long cmos_flags;	\
-		local_irq_save(cmos_flags);	\
-		lock_cmos(reg)
+#define lock_cmos_prefix(reg)     \
+  do {          \
+    unsigned long cmos_flags; \
+    local_irq_save(cmos_flags); \
+    lock_cmos(reg)
 
-#define lock_cmos_suffix(reg)			\
-	unlock_cmos();				\
-	local_irq_restore(cmos_flags);		\
-	} while (0)
+#define lock_cmos_suffix(reg)     \
+  unlock_cmos();        \
+  local_irq_restore(cmos_flags);    \
+}while (0)
 #else
 #define lock_cmos_prefix(reg) do {} while (0)
 #define lock_cmos_suffix(reg) do {} while (0)
-#define lock_cmos(reg) do { } while (0)
-#define unlock_cmos() do { } while (0)
+#define lock_cmos(reg) do {} while (0)
+#define unlock_cmos() do {} while (0)
 #define do_i_have_lock_cmos() 0
 #define current_lock_cmos_reg() 0
 #endif

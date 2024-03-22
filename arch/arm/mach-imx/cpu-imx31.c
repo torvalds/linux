@@ -16,52 +16,48 @@
 static int mx31_cpu_rev = -1;
 
 static struct {
-	u8 srev;
-	const char *name;
-	unsigned int rev;
+  u8 srev;
+  const char *name;
+  unsigned int rev;
 } mx31_cpu_type[] = {
-	{ .srev = 0x00, .name = "i.MX31(L)", .rev = IMX_CHIP_REVISION_1_0 },
-	{ .srev = 0x10, .name = "i.MX31",    .rev = IMX_CHIP_REVISION_1_1 },
-	{ .srev = 0x11, .name = "i.MX31L",   .rev = IMX_CHIP_REVISION_1_1 },
-	{ .srev = 0x12, .name = "i.MX31",    .rev = IMX_CHIP_REVISION_1_1 },
-	{ .srev = 0x13, .name = "i.MX31L",   .rev = IMX_CHIP_REVISION_1_1 },
-	{ .srev = 0x14, .name = "i.MX31",    .rev = IMX_CHIP_REVISION_1_2 },
-	{ .srev = 0x15, .name = "i.MX31L",   .rev = IMX_CHIP_REVISION_1_2 },
-	{ .srev = 0x28, .name = "i.MX31",    .rev = IMX_CHIP_REVISION_2_0 },
-	{ .srev = 0x29, .name = "i.MX31L",   .rev = IMX_CHIP_REVISION_2_0 },
+  { .srev = 0x00, .name = "i.MX31(L)", .rev = IMX_CHIP_REVISION_1_0 },
+  { .srev = 0x10, .name = "i.MX31", .rev = IMX_CHIP_REVISION_1_1 },
+  { .srev = 0x11, .name = "i.MX31L", .rev = IMX_CHIP_REVISION_1_1 },
+  { .srev = 0x12, .name = "i.MX31", .rev = IMX_CHIP_REVISION_1_1 },
+  { .srev = 0x13, .name = "i.MX31L", .rev = IMX_CHIP_REVISION_1_1 },
+  { .srev = 0x14, .name = "i.MX31", .rev = IMX_CHIP_REVISION_1_2 },
+  { .srev = 0x15, .name = "i.MX31L", .rev = IMX_CHIP_REVISION_1_2 },
+  { .srev = 0x28, .name = "i.MX31", .rev = IMX_CHIP_REVISION_2_0 },
+  { .srev = 0x29, .name = "i.MX31L", .rev = IMX_CHIP_REVISION_2_0 },
 };
 
-static int mx31_read_cpu_rev(void)
-{
-	void __iomem *iim_base;
-	struct device_node *np;
-	u32 i, srev;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-iim");
-	iim_base = of_iomap(np, 0);
-	of_node_put(np);
-	BUG_ON(!iim_base);
-
-	/* read SREV register from IIM module */
-	srev = imx_readl(iim_base + MXC_IIMSREV);
-	srev &= 0xff;
-
-	for (i = 0; i < ARRAY_SIZE(mx31_cpu_type); i++)
-		if (srev == mx31_cpu_type[i].srev) {
-			imx_print_silicon_rev(mx31_cpu_type[i].name,
-						mx31_cpu_type[i].rev);
-			return mx31_cpu_type[i].rev;
-		}
-
-	imx_print_silicon_rev("i.MX31", IMX_CHIP_REVISION_UNKNOWN);
-	return IMX_CHIP_REVISION_UNKNOWN;
+static int mx31_read_cpu_rev(void) {
+  void __iomem *iim_base;
+  struct device_node *np;
+  u32 i, srev;
+  np = of_find_compatible_node(NULL, NULL, "fsl,imx31-iim");
+  iim_base = of_iomap(np, 0);
+  of_node_put(np);
+  BUG_ON(!iim_base);
+  /* read SREV register from IIM module */
+  srev = imx_readl(iim_base + MXC_IIMSREV);
+  srev &= 0xff;
+  for (i = 0; i < ARRAY_SIZE(mx31_cpu_type); i++) {
+    if (srev == mx31_cpu_type[i].srev) {
+      imx_print_silicon_rev(mx31_cpu_type[i].name,
+          mx31_cpu_type[i].rev);
+      return mx31_cpu_type[i].rev;
+    }
+  }
+  imx_print_silicon_rev("i.MX31", IMX_CHIP_REVISION_UNKNOWN);
+  return IMX_CHIP_REVISION_UNKNOWN;
 }
 
-int mx31_revision(void)
-{
-	if (mx31_cpu_rev == -1)
-		mx31_cpu_rev = mx31_read_cpu_rev();
-
-	return mx31_cpu_rev;
+int mx31_revision(void) {
+  if (mx31_cpu_rev == -1) {
+    mx31_cpu_rev = mx31_read_cpu_rev();
+  }
+  return mx31_cpu_rev;
 }
+
 EXPORT_SYMBOL(mx31_revision);

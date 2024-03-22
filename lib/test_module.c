@@ -14,18 +14,15 @@
 #include <linux/module.h>
 #include <linux/printk.h>
 
-static int __init test_module_init(void)
-{
-	pr_warn("Hello, world\n");
-
-	return 0;
+static int __init test_module_init(void) {
+  pr_warn("Hello, world\n");
+  return 0;
 }
 
 module_init(test_module_init);
 
-static void __exit test_module_exit(void)
-{
-	pr_warn("Goodbye\n");
+static void __exit test_module_exit(void) {
+  pr_warn("Goodbye\n");
 }
 
 module_exit(test_module_exit);

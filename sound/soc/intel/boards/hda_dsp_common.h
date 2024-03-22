@@ -17,13 +17,13 @@
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 int hda_dsp_hdmi_build_controls(struct snd_soc_card *card,
-				struct snd_soc_component *comp);
+    struct snd_soc_component *comp);
 #else
 static inline int hda_dsp_hdmi_build_controls(struct snd_soc_card *card,
-					      struct snd_soc_component *comp)
-{
-	return -EINVAL;
+    struct snd_soc_component *comp) {
+  return -EINVAL;
 }
+
 #endif
 
 #endif /* __HDA_DSP_COMMON_H */

@@ -32,20 +32,20 @@
  *   data[(iova / page_size) / 64] & (1ULL << (iova % 64))
  */
 struct iova_bitmap_map {
-	/* base IOVA representing bit 0 of the first page */
-	unsigned long iova;
+  /* base IOVA representing bit 0 of the first page */
+  unsigned long iova;
 
-	/* page size order that each bit granules to */
-	unsigned long pgshift;
+  /* page size order that each bit granules to */
+  unsigned long pgshift;
 
-	/* page offset of the first user page pinned */
-	unsigned long pgoff;
+  /* page offset of the first user page pinned */
+  unsigned long pgoff;
 
-	/* number of pages pinned */
-	unsigned long npages;
+  /* number of pages pinned */
+  unsigned long npages;
 
-	/* pinned pages representing the bitmap data */
-	struct page **pages;
+  /* pinned pages representing the bitmap data */
+  struct page **pages;
 };
 
 /*
@@ -96,26 +96,26 @@ struct iova_bitmap_map {
  * bitmap.
  */
 struct iova_bitmap {
-	/* IOVA range representing the currently mapped bitmap data */
-	struct iova_bitmap_map mapped;
+  /* IOVA range representing the currently mapped bitmap data */
+  struct iova_bitmap_map mapped;
 
-	/* userspace address of the bitmap */
-	u8 __user *bitmap;
+  /* userspace address of the bitmap */
+  u8 __user *bitmap;
 
-	/* u64 index that @mapped points to */
-	unsigned long mapped_base_index;
+  /* u64 index that @mapped points to */
+  unsigned long mapped_base_index;
 
-	/* how many u64 can we walk in total */
-	unsigned long mapped_total_index;
+  /* how many u64 can we walk in total */
+  unsigned long mapped_total_index;
 
-	/* base IOVA of the whole bitmap */
-	unsigned long iova;
+  /* base IOVA of the whole bitmap */
+  unsigned long iova;
 
-	/* length of the IOVA range for the whole bitmap */
-	size_t length;
+  /* length of the IOVA range for the whole bitmap */
+  size_t length;
 
-	/* length of the IOVA range set ahead the pinned pages */
-	unsigned long set_ahead_length;
+  /* length of the IOVA range set ahead the pinned pages */
+  unsigned long set_ahead_length;
 };
 
 /*
@@ -128,32 +128,26 @@ struct iova_bitmap {
  * The user API iova_bitmap_set() always uses a regular absolute IOVAs.
  */
 static unsigned long iova_bitmap_offset_to_index(struct iova_bitmap *bitmap,
-						 unsigned long iova)
-{
-	unsigned long pgsize = 1 << bitmap->mapped.pgshift;
-
-	return iova / (BITS_PER_TYPE(*bitmap->bitmap) * pgsize);
+    unsigned long iova) {
+  unsigned long pgsize = 1 << bitmap->mapped.pgshift;
+  return iova / (BITS_PER_TYPE(*bitmap->bitmap) * pgsize);
 }
 
 /*
  * Converts a bitmap index to a *relative* IOVA.
  */
 static unsigned long iova_bitmap_index_to_offset(struct iova_bitmap *bitmap,
-						 unsigned long index)
-{
-	unsigned long pgshift = bitmap->mapped.pgshift;
-
-	return (index * BITS_PER_TYPE(*bitmap->bitmap)) << pgshift;
+    unsigned long index) {
+  unsigned long pgshift = bitmap->mapped.pgshift;
+  return (index * BITS_PER_TYPE(*bitmap->bitmap)) << pgshift;
 }
 
 /*
  * Returns the base IOVA of the mapped range.
  */
-static unsigned long iova_bitmap_mapped_iova(struct iova_bitmap *bitmap)
-{
-	unsigned long skip = bitmap->mapped_base_index;
-
-	return bitmap->iova + iova_bitmap_index_to_offset(bitmap, skip);
+static unsigned long iova_bitmap_mapped_iova(struct iova_bitmap *bitmap) {
+  unsigned long skip = bitmap->mapped_base_index;
+  return bitmap->iova + iova_bitmap_index_to_offset(bitmap, skip);
 }
 
 /*
@@ -161,52 +155,46 @@ static unsigned long iova_bitmap_mapped_iova(struct iova_bitmap *bitmap)
  * This is internal to IOVA bitmap and called when advancing the
  * index (@mapped_base_index) or allocating the bitmap.
  */
-static int iova_bitmap_get(struct iova_bitmap *bitmap)
-{
-	struct iova_bitmap_map *mapped = &bitmap->mapped;
-	unsigned long npages;
-	u8 __user *addr;
-	long ret;
-
-	/*
-	 * @mapped_base_index is the index of the currently mapped u64 words
-	 * that we have access. Anything before @mapped_base_index is not
-	 * mapped. The range @mapped_base_index .. @mapped_total_index-1 is
-	 * mapped but capped at a maximum number of pages.
-	 */
-	npages = DIV_ROUND_UP((bitmap->mapped_total_index -
-			       bitmap->mapped_base_index) *
-			       sizeof(*bitmap->bitmap), PAGE_SIZE);
-
-	/*
-	 * Bitmap address to be pinned is calculated via pointer arithmetic
-	 * with bitmap u64 word index.
-	 */
-	addr = bitmap->bitmap + bitmap->mapped_base_index;
-
-	/*
-	 * We always cap at max number of 'struct page' a base page can fit.
-	 * This is, for example, on x86 means 2M of bitmap data max.
-	 */
-	npages = min(npages + !!offset_in_page(addr),
-		     PAGE_SIZE / sizeof(struct page *));
-
-	ret = pin_user_pages_fast((unsigned long)addr, npages,
-				  FOLL_WRITE, mapped->pages);
-	if (ret <= 0)
-		return -EFAULT;
-
-	mapped->npages = (unsigned long)ret;
-	/* Base IOVA where @pages point to i.e. bit 0 of the first page */
-	mapped->iova = iova_bitmap_mapped_iova(bitmap);
-
-	/*
-	 * offset of the page where pinned pages bit 0 is located.
-	 * This handles the case where the bitmap is not PAGE_SIZE
-	 * aligned.
-	 */
-	mapped->pgoff = offset_in_page(addr);
-	return 0;
+static int iova_bitmap_get(struct iova_bitmap *bitmap) {
+  struct iova_bitmap_map *mapped = &bitmap->mapped;
+  unsigned long npages;
+  u8 __user *addr;
+  long ret;
+  /*
+   * @mapped_base_index is the index of the currently mapped u64 words
+   * that we have access. Anything before @mapped_base_index is not
+   * mapped. The range @mapped_base_index .. @mapped_total_index-1 is
+   * mapped but capped at a maximum number of pages.
+   */
+  npages = DIV_ROUND_UP((bitmap->mapped_total_index
+      - bitmap->mapped_base_index)
+      * sizeof(*bitmap->bitmap), PAGE_SIZE);
+  /*
+   * Bitmap address to be pinned is calculated via pointer arithmetic
+   * with bitmap u64 word index.
+   */
+  addr = bitmap->bitmap + bitmap->mapped_base_index;
+  /*
+   * We always cap at max number of 'struct page' a base page can fit.
+   * This is, for example, on x86 means 2M of bitmap data max.
+   */
+  npages = min(npages + !!offset_in_page(addr),
+      PAGE_SIZE / sizeof(struct page *));
+  ret = pin_user_pages_fast((unsigned long) addr, npages,
+      FOLL_WRITE, mapped->pages);
+  if (ret <= 0) {
+    return -EFAULT;
+  }
+  mapped->npages = (unsigned long) ret;
+  /* Base IOVA where @pages point to i.e. bit 0 of the first page */
+  mapped->iova = iova_bitmap_mapped_iova(bitmap);
+  /*
+   * offset of the page where pinned pages bit 0 is located.
+   * This handles the case where the bitmap is not PAGE_SIZE
+   * aligned.
+   */
+  mapped->pgoff = offset_in_page(addr);
+  return 0;
 }
 
 /*
@@ -214,14 +202,12 @@ static int iova_bitmap_get(struct iova_bitmap *bitmap)
  * (un)pinning is abstracted from API user and it's done when advancing
  * the index or freeing the bitmap.
  */
-static void iova_bitmap_put(struct iova_bitmap *bitmap)
-{
-	struct iova_bitmap_map *mapped = &bitmap->mapped;
-
-	if (mapped->npages) {
-		unpin_user_pages(mapped->pages, mapped->npages);
-		mapped->npages = 0;
-	}
+static void iova_bitmap_put(struct iova_bitmap *bitmap) {
+  struct iova_bitmap_map *mapped = &bitmap->mapped;
+  if (mapped->npages) {
+    unpin_user_pages(mapped->pages, mapped->npages);
+    mapped->npages = 0;
+  }
 }
 
 /**
@@ -239,39 +225,37 @@ static void iova_bitmap_put(struct iova_bitmap *bitmap)
  * or ERR_PTR() on error.
  */
 struct iova_bitmap *iova_bitmap_alloc(unsigned long iova, size_t length,
-				      unsigned long page_size, u64 __user *data)
-{
-	struct iova_bitmap_map *mapped;
-	struct iova_bitmap *bitmap;
-	int rc;
-
-	bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
-	if (!bitmap)
-		return ERR_PTR(-ENOMEM);
-
-	mapped = &bitmap->mapped;
-	mapped->pgshift = __ffs(page_size);
-	bitmap->bitmap = (u8 __user *)data;
-	bitmap->mapped_total_index =
-		iova_bitmap_offset_to_index(bitmap, length - 1) + 1;
-	bitmap->iova = iova;
-	bitmap->length = length;
-	mapped->iova = iova;
-	mapped->pages = (struct page **)__get_free_page(GFP_KERNEL);
-	if (!mapped->pages) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-	rc = iova_bitmap_get(bitmap);
-	if (rc)
-		goto err;
-	return bitmap;
-
+    unsigned long page_size, u64 __user *data) {
+  struct iova_bitmap_map *mapped;
+  struct iova_bitmap *bitmap;
+  int rc;
+  bitmap = kzalloc(sizeof(*bitmap), GFP_KERNEL);
+  if (!bitmap) {
+    return ERR_PTR(-ENOMEM);
+  }
+  mapped = &bitmap->mapped;
+  mapped->pgshift = __ffs(page_size);
+  bitmap->bitmap = (u8 __user *) data;
+  bitmap->mapped_total_index
+    = iova_bitmap_offset_to_index(bitmap, length - 1) + 1;
+  bitmap->iova = iova;
+  bitmap->length = length;
+  mapped->iova = iova;
+  mapped->pages = (struct page **) __get_free_page(GFP_KERNEL);
+  if (!mapped->pages) {
+    rc = -ENOMEM;
+    goto err;
+  }
+  rc = iova_bitmap_get(bitmap);
+  if (rc) {
+    goto err;
+  }
+  return bitmap;
 err:
-	iova_bitmap_free(bitmap);
-	return ERR_PTR(rc);
+  iova_bitmap_free(bitmap);
+  return ERR_PTR(rc);
 }
+
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_alloc, IOMMUFD);
 
 /**
@@ -281,94 +265,78 @@ EXPORT_SYMBOL_NS_GPL(iova_bitmap_alloc, IOMMUFD);
  * It unpins and releases pages array memory and clears any leftover
  * state.
  */
-void iova_bitmap_free(struct iova_bitmap *bitmap)
-{
-	struct iova_bitmap_map *mapped = &bitmap->mapped;
-
-	iova_bitmap_put(bitmap);
-
-	if (mapped->pages) {
-		free_page((unsigned long)mapped->pages);
-		mapped->pages = NULL;
-	}
-
-	kfree(bitmap);
+void iova_bitmap_free(struct iova_bitmap *bitmap) {
+  struct iova_bitmap_map *mapped = &bitmap->mapped;
+  iova_bitmap_put(bitmap);
+  if (mapped->pages) {
+    free_page((unsigned long) mapped->pages);
+    mapped->pages = NULL;
+  }
+  kfree(bitmap);
 }
+
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_free, IOMMUFD);
 
 /*
  * Returns the remaining bitmap indexes from mapped_total_index to process for
  * the currently pinned bitmap pages.
  */
-static unsigned long iova_bitmap_mapped_remaining(struct iova_bitmap *bitmap)
-{
-	unsigned long remaining, bytes;
-
-	bytes = (bitmap->mapped.npages << PAGE_SHIFT) - bitmap->mapped.pgoff;
-
-	remaining = bitmap->mapped_total_index - bitmap->mapped_base_index;
-	remaining = min_t(unsigned long, remaining,
-			  DIV_ROUND_UP(bytes, sizeof(*bitmap->bitmap)));
-
-	return remaining;
+static unsigned long iova_bitmap_mapped_remaining(struct iova_bitmap *bitmap) {
+  unsigned long remaining, bytes;
+  bytes = (bitmap->mapped.npages << PAGE_SHIFT) - bitmap->mapped.pgoff;
+  remaining = bitmap->mapped_total_index - bitmap->mapped_base_index;
+  remaining = min_t(unsigned long, remaining,
+      DIV_ROUND_UP(bytes, sizeof(*bitmap->bitmap)));
+  return remaining;
 }
 
 /*
  * Returns the length of the mapped IOVA range.
  */
-static unsigned long iova_bitmap_mapped_length(struct iova_bitmap *bitmap)
-{
-	unsigned long max_iova = bitmap->iova + bitmap->length - 1;
-	unsigned long iova = iova_bitmap_mapped_iova(bitmap);
-	unsigned long remaining;
-
-	/*
-	 * iova_bitmap_mapped_remaining() returns a number of indexes which
-	 * when converted to IOVA gives us a max length that the bitmap
-	 * pinned data can cover. Afterwards, that is capped to
-	 * only cover the IOVA range in @bitmap::iova .. @bitmap::length.
-	 */
-	remaining = iova_bitmap_index_to_offset(bitmap,
-			iova_bitmap_mapped_remaining(bitmap));
-
-	if (iova + remaining - 1 > max_iova)
-		remaining -= ((iova + remaining - 1) - max_iova);
-
-	return remaining;
+static unsigned long iova_bitmap_mapped_length(struct iova_bitmap *bitmap) {
+  unsigned long max_iova = bitmap->iova + bitmap->length - 1;
+  unsigned long iova = iova_bitmap_mapped_iova(bitmap);
+  unsigned long remaining;
+  /*
+   * iova_bitmap_mapped_remaining() returns a number of indexes which
+   * when converted to IOVA gives us a max length that the bitmap
+   * pinned data can cover. Afterwards, that is capped to
+   * only cover the IOVA range in @bitmap::iova .. @bitmap::length.
+   */
+  remaining = iova_bitmap_index_to_offset(bitmap,
+      iova_bitmap_mapped_remaining(bitmap));
+  if (iova + remaining - 1 > max_iova) {
+    remaining -= ((iova + remaining - 1) - max_iova);
+  }
+  return remaining;
 }
 
 /*
  * Returns true if there's not more data to iterate.
  */
-static bool iova_bitmap_done(struct iova_bitmap *bitmap)
-{
-	return bitmap->mapped_base_index >= bitmap->mapped_total_index;
+static bool iova_bitmap_done(struct iova_bitmap *bitmap) {
+  return bitmap->mapped_base_index >= bitmap->mapped_total_index;
 }
 
 static int iova_bitmap_set_ahead(struct iova_bitmap *bitmap,
-				 size_t set_ahead_length)
-{
-	int ret = 0;
-
-	while (set_ahead_length > 0 && !iova_bitmap_done(bitmap)) {
-		unsigned long length = iova_bitmap_mapped_length(bitmap);
-		unsigned long iova = iova_bitmap_mapped_iova(bitmap);
-
-		ret = iova_bitmap_get(bitmap);
-		if (ret)
-			break;
-
-		length = min(length, set_ahead_length);
-		iova_bitmap_set(bitmap, iova, length);
-
-		set_ahead_length -= length;
-		bitmap->mapped_base_index +=
-			iova_bitmap_offset_to_index(bitmap, length - 1) + 1;
-		iova_bitmap_put(bitmap);
-	}
-
-	bitmap->set_ahead_length = 0;
-	return ret;
+    size_t set_ahead_length) {
+  int ret = 0;
+  while (set_ahead_length > 0 && !iova_bitmap_done(bitmap)) {
+    unsigned long length = iova_bitmap_mapped_length(bitmap);
+    unsigned long iova = iova_bitmap_mapped_iova(bitmap);
+    ret = iova_bitmap_get(bitmap);
+    if (ret) {
+      break;
+    }
+    length = min(length, set_ahead_length);
+    iova_bitmap_set(bitmap, iova, length);
+    set_ahead_length -= length;
+    bitmap->mapped_base_index
+      += iova_bitmap_offset_to_index(bitmap, length - 1) + 1;
+    iova_bitmap_put(bitmap);
+  }
+  bitmap->set_ahead_length = 0;
+  return ret;
 }
 
 /*
@@ -376,28 +344,24 @@ static int iova_bitmap_set_ahead(struct iova_bitmap *bitmap,
  * pages and pins the next set of bitmap pages.
  * Returns 0 on success or otherwise errno.
  */
-static int iova_bitmap_advance(struct iova_bitmap *bitmap)
-{
-	unsigned long iova = iova_bitmap_mapped_length(bitmap) - 1;
-	unsigned long count = iova_bitmap_offset_to_index(bitmap, iova) + 1;
-
-	bitmap->mapped_base_index += count;
-
-	iova_bitmap_put(bitmap);
-	if (iova_bitmap_done(bitmap))
-		return 0;
-
-	/* Iterate, set and skip any bits requested for next iteration */
-	if (bitmap->set_ahead_length) {
-		int ret;
-
-		ret = iova_bitmap_set_ahead(bitmap, bitmap->set_ahead_length);
-		if (ret)
-			return ret;
-	}
-
-	/* When advancing the index we pin the next set of bitmap pages */
-	return iova_bitmap_get(bitmap);
+static int iova_bitmap_advance(struct iova_bitmap *bitmap) {
+  unsigned long iova = iova_bitmap_mapped_length(bitmap) - 1;
+  unsigned long count = iova_bitmap_offset_to_index(bitmap, iova) + 1;
+  bitmap->mapped_base_index += count;
+  iova_bitmap_put(bitmap);
+  if (iova_bitmap_done(bitmap)) {
+    return 0;
+  }
+  /* Iterate, set and skip any bits requested for next iteration */
+  if (bitmap->set_ahead_length) {
+    int ret;
+    ret = iova_bitmap_set_ahead(bitmap, bitmap->set_ahead_length);
+    if (ret) {
+      return ret;
+    }
+  }
+  /* When advancing the index we pin the next set of bitmap pages */
+  return iova_bitmap_get(bitmap);
 }
 
 /**
@@ -414,20 +378,19 @@ static int iova_bitmap_advance(struct iova_bitmap *bitmap)
  * iteration or when the callback returns an error.
  */
 int iova_bitmap_for_each(struct iova_bitmap *bitmap, void *opaque,
-			 iova_bitmap_fn_t fn)
-{
-	int ret = 0;
-
-	for (; !iova_bitmap_done(bitmap) && !ret;
-	     ret = iova_bitmap_advance(bitmap)) {
-		ret = fn(bitmap, iova_bitmap_mapped_iova(bitmap),
-			 iova_bitmap_mapped_length(bitmap), opaque);
-		if (ret)
-			break;
-	}
-
-	return ret;
+    iova_bitmap_fn_t fn) {
+  int ret = 0;
+  for (; !iova_bitmap_done(bitmap) && !ret;
+      ret = iova_bitmap_advance(bitmap)) {
+    ret = fn(bitmap, iova_bitmap_mapped_iova(bitmap),
+        iova_bitmap_mapped_length(bitmap), opaque);
+    if (ret) {
+      break;
+    }
+  }
+  return ret;
 }
+
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_for_each, IOMMUFD);
 
 /**
@@ -441,34 +404,31 @@ EXPORT_SYMBOL_NS_GPL(iova_bitmap_for_each, IOMMUFD);
  *
  */
 void iova_bitmap_set(struct iova_bitmap *bitmap,
-		     unsigned long iova, size_t length)
-{
-	struct iova_bitmap_map *mapped = &bitmap->mapped;
-	unsigned long cur_bit = ((iova - mapped->iova) >>
-			mapped->pgshift) + mapped->pgoff * BITS_PER_BYTE;
-	unsigned long last_bit = (((iova + length - 1) - mapped->iova) >>
-			mapped->pgshift) + mapped->pgoff * BITS_PER_BYTE;
-	unsigned long last_page_idx = mapped->npages - 1;
-
-	do {
-		unsigned int page_idx = cur_bit / BITS_PER_PAGE;
-		unsigned int offset = cur_bit % BITS_PER_PAGE;
-		unsigned int nbits = min(BITS_PER_PAGE - offset,
-					 last_bit - cur_bit + 1);
-		void *kaddr;
-
-		if (unlikely(page_idx > last_page_idx))
-			break;
-
-		kaddr = kmap_local_page(mapped->pages[page_idx]);
-		bitmap_set(kaddr, offset, nbits);
-		kunmap_local(kaddr);
-		cur_bit += nbits;
-	} while (cur_bit <= last_bit);
-
-	if (unlikely(cur_bit <= last_bit)) {
-		bitmap->set_ahead_length =
-			((last_bit - cur_bit + 1) << bitmap->mapped.pgshift);
-	}
+    unsigned long iova, size_t length) {
+  struct iova_bitmap_map *mapped = &bitmap->mapped;
+  unsigned long cur_bit = ((iova - mapped->iova) >>
+      mapped->pgshift) + mapped->pgoff * BITS_PER_BYTE;
+  unsigned long last_bit = (((iova + length - 1) - mapped->iova) >>
+      mapped->pgshift) + mapped->pgoff * BITS_PER_BYTE;
+  unsigned long last_page_idx = mapped->npages - 1;
+  do {
+    unsigned int page_idx = cur_bit / BITS_PER_PAGE;
+    unsigned int offset = cur_bit % BITS_PER_PAGE;
+    unsigned int nbits = min(BITS_PER_PAGE - offset,
+        last_bit - cur_bit + 1);
+    void *kaddr;
+    if (unlikely(page_idx > last_page_idx)) {
+      break;
+    }
+    kaddr = kmap_local_page(mapped->pages[page_idx]);
+    bitmap_set(kaddr, offset, nbits);
+    kunmap_local(kaddr);
+    cur_bit += nbits;
+  } while (cur_bit <= last_bit);
+  if (unlikely(cur_bit <= last_bit)) {
+    bitmap->set_ahead_length
+      = ((last_bit - cur_bit + 1) << bitmap->mapped.pgshift);
+  }
 }
+
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_set, IOMMUFD);

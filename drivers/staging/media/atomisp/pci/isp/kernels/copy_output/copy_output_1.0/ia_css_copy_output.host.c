@@ -21,25 +21,20 @@
 #include "isp.h"
 
 static const struct ia_css_copy_output_configuration default_config = {
-	.enable = false,
+  .enable = false,
 };
 
-void
-ia_css_copy_output_config(
-    struct sh_css_isp_copy_output_isp_config      *to,
+void ia_css_copy_output_config(
+    struct sh_css_isp_copy_output_isp_config *to,
     const struct ia_css_copy_output_configuration *from,
-    unsigned int size)
-{
-	(void)size;
-	to->enable = from->enable;
+    unsigned int size) {
+  (void) size;
+  to->enable = from->enable;
 }
 
 int ia_css_copy_output_configure(const struct ia_css_binary *binary,
-				 bool enable)
-{
-	struct ia_css_copy_output_configuration config = default_config;
-
-	config.enable = enable;
-
-	return ia_css_configure_copy_output(binary, &config);
+    bool enable) {
+  struct ia_css_copy_output_configuration config = default_config;
+  config.enable = enable;
+  return ia_css_configure_copy_output(binary, &config);
 }

@@ -7,72 +7,68 @@
 #define __XFS_SCRUB_ISCAN_H__
 
 struct xchk_iscan {
-	struct xfs_scrub	*sc;
+  struct xfs_scrub *sc;
 
-	/* Lock to protect the scan cursor. */
-	struct mutex		lock;
+  /* Lock to protect the scan cursor. */
+  struct mutex lock;
 
-	/*
-	 * This is the first inode in the inumber address space that we
-	 * examined.  When the scan wraps around back to here, the scan is
-	 * finished.
-	 */
-	xfs_ino_t		scan_start_ino;
+  /*
+   * This is the first inode in the inumber address space that we
+   * examined.  When the scan wraps around back to here, the scan is
+   * finished.
+   */
+  xfs_ino_t scan_start_ino;
 
-	/* This is the inode that will be examined next. */
-	xfs_ino_t		cursor_ino;
+  /* This is the inode that will be examined next. */
+  xfs_ino_t cursor_ino;
 
-	/* If nonzero and non-NULL, skip this inode when scanning. */
-	xfs_ino_t		skip_ino;
+  /* If nonzero and non-NULL, skip this inode when scanning. */
+  xfs_ino_t skip_ino;
 
-	/*
-	 * This is the last inode that we've successfully scanned, either
-	 * because the caller scanned it, or we moved the cursor past an empty
-	 * part of the inode address space.  Scan callers should only use the
-	 * xchk_iscan_visit function to modify this.
-	 */
-	xfs_ino_t		__visited_ino;
+  /*
+   * This is the last inode that we've successfully scanned, either
+   * because the caller scanned it, or we moved the cursor past an empty
+   * part of the inode address space.  Scan callers should only use the
+   * xchk_iscan_visit function to modify this.
+   */
+  xfs_ino_t __visited_ino;
 
-	/* Operational state of the livescan. */
-	unsigned long		__opstate;
+  /* Operational state of the livescan. */
+  unsigned long __opstate;
 
-	/* Give up on iterating @cursor_ino if we can't iget it by this time. */
-	unsigned long		__iget_deadline;
+  /* Give up on iterating @cursor_ino if we can't iget it by this time. */
+  unsigned long __iget_deadline;
 
-	/* Amount of time (in ms) that we will try to iget an inode. */
-	unsigned int		iget_timeout;
+  /* Amount of time (in ms) that we will try to iget an inode. */
+  unsigned int iget_timeout;
 
-	/* Wait this many ms to retry an iget. */
-	unsigned int		iget_retry_delay;
+  /* Wait this many ms to retry an iget. */
+  unsigned int iget_retry_delay;
 
-	/*
-	 * The scan grabs batches of inodes and stashes them here before
-	 * handing them out with _iter.  Unallocated inodes are set in the
-	 * mask so that all updates to that inode are selected for live
-	 * update propagation.
-	 */
-	xfs_ino_t		__batch_ino;
-	xfs_inofree_t		__skipped_inomask;
-	struct xfs_inode	*__inodes[XFS_INODES_PER_CHUNK];
+  /*
+   * The scan grabs batches of inodes and stashes them here before
+   * handing them out with _iter.  Unallocated inodes are set in the
+   * mask so that all updates to that inode are selected for live
+   * update propagation.
+   */
+  xfs_ino_t __batch_ino;
+  xfs_inofree_t __skipped_inomask;
+  struct xfs_inode *__inodes[XFS_INODES_PER_CHUNK];
 };
 
 /* Set if the scan has been aborted due to some event in the fs. */
-#define XCHK_ISCAN_OPSTATE_ABORTED	(1)
+#define XCHK_ISCAN_OPSTATE_ABORTED  (1)
 
-static inline bool
-xchk_iscan_aborted(const struct xchk_iscan *iscan)
-{
-	return test_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
+static inline bool xchk_iscan_aborted(const struct xchk_iscan *iscan) {
+  return test_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
 }
 
-static inline void
-xchk_iscan_abort(struct xchk_iscan *iscan)
-{
-	set_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
+static inline void xchk_iscan_abort(struct xchk_iscan *iscan) {
+  set_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
 }
 
 void xchk_iscan_start(struct xfs_scrub *sc, unsigned int iget_timeout,
-		unsigned int iget_retry_delay, struct xchk_iscan *iscan);
+    unsigned int iget_retry_delay, struct xchk_iscan *iscan);
 void xchk_iscan_teardown(struct xchk_iscan *iscan);
 
 int xchk_iscan_iter(struct xchk_iscan *iscan, struct xfs_inode **ipp);

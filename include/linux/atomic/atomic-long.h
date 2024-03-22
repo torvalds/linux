@@ -11,14 +11,14 @@
 
 #ifdef CONFIG_64BIT
 typedef atomic64_t atomic_long_t;
-#define ATOMIC_LONG_INIT(i)		ATOMIC64_INIT(i)
-#define atomic_long_cond_read_acquire	atomic64_cond_read_acquire
-#define atomic_long_cond_read_relaxed	atomic64_cond_read_relaxed
+#define ATOMIC_LONG_INIT(i)   ATOMIC64_INIT(i)
+#define atomic_long_cond_read_acquire atomic64_cond_read_acquire
+#define atomic_long_cond_read_relaxed atomic64_cond_read_relaxed
 #else
 typedef atomic_t atomic_long_t;
-#define ATOMIC_LONG_INIT(i)		ATOMIC_INIT(i)
-#define atomic_long_cond_read_acquire	atomic_cond_read_acquire
-#define atomic_long_cond_read_relaxed	atomic_cond_read_relaxed
+#define ATOMIC_LONG_INIT(i)   ATOMIC_INIT(i)
+#define atomic_long_cond_read_acquire atomic_cond_read_acquire
+#define atomic_long_cond_read_relaxed atomic_cond_read_relaxed
 #endif
 
 /**
@@ -31,13 +31,11 @@ typedef atomic_t atomic_long_t;
  *
  * Return: The value loaded from @v.
  */
-static __always_inline long
-raw_atomic_long_read(const atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_read(const atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_read(v);
+  return raw_atomic64_read(v);
 #else
-	return raw_atomic_read(v);
+  return raw_atomic_read(v);
 #endif
 }
 
@@ -51,13 +49,12 @@ raw_atomic_long_read(const atomic_long_t *v)
  *
  * Return: The value loaded from @v.
  */
-static __always_inline long
-raw_atomic_long_read_acquire(const atomic_long_t *v)
+static __always_inline long raw_atomic_long_read_acquire(const atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_read_acquire(v);
+  return raw_atomic64_read_acquire(v);
 #else
-	return raw_atomic_read_acquire(v);
+  return raw_atomic_read_acquire(v);
 #endif
 }
 
@@ -72,13 +69,11 @@ raw_atomic_long_read_acquire(const atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_set(atomic_long_t *v, long i)
-{
+static __always_inline void raw_atomic_long_set(atomic_long_t *v, long i) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_set(v, i);
+  raw_atomic64_set(v, i);
 #else
-	raw_atomic_set(v, i);
+  raw_atomic_set(v, i);
 #endif
 }
 
@@ -93,13 +88,12 @@ raw_atomic_long_set(atomic_long_t *v, long i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_set_release(atomic_long_t *v, long i)
-{
+static __always_inline void raw_atomic_long_set_release(atomic_long_t *v,
+    long i) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_set_release(v, i);
+  raw_atomic64_set_release(v, i);
 #else
-	raw_atomic_set_release(v, i);
+  raw_atomic_set_release(v, i);
 #endif
 }
 
@@ -114,13 +108,11 @@ raw_atomic_long_set_release(atomic_long_t *v, long i)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_add(long i, atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_add(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_add(i, v);
+  raw_atomic64_add(i, v);
 #else
-	raw_atomic_add(i, v);
+  raw_atomic_add(i, v);
 #endif
 }
 
@@ -135,13 +127,12 @@ raw_atomic_long_add(long i, atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_add_return(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_add_return(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_return(i, v);
+  return raw_atomic64_add_return(i, v);
 #else
-	return raw_atomic_add_return(i, v);
+  return raw_atomic_add_return(i, v);
 #endif
 }
 
@@ -152,17 +143,17 @@ raw_atomic_long_add_return(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_add_return_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_add_return_acquire()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_add_return_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_return_acquire(i, v);
+  return raw_atomic64_add_return_acquire(i, v);
 #else
-	return raw_atomic_add_return_acquire(i, v);
+  return raw_atomic_add_return_acquire(i, v);
 #endif
 }
 
@@ -173,17 +164,17 @@ raw_atomic_long_add_return_acquire(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_add_return_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_add_return_release()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_add_return_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_add_return_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_return_release(i, v);
+  return raw_atomic64_add_return_release(i, v);
 #else
-	return raw_atomic_add_return_release(i, v);
+  return raw_atomic_add_return_release(i, v);
 #endif
 }
 
@@ -194,17 +185,17 @@ raw_atomic_long_add_return_release(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_add_return_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_add_return_relaxed()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_add_return_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_return_relaxed(i, v);
+  return raw_atomic64_add_return_relaxed(i, v);
 #else
-	return raw_atomic_add_return_relaxed(i, v);
+  return raw_atomic_add_return_relaxed(i, v);
 #endif
 }
 
@@ -219,13 +210,12 @@ raw_atomic_long_add_return_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_add(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_add(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_add(i, v);
+  return raw_atomic64_fetch_add(i, v);
 #else
-	return raw_atomic_fetch_add(i, v);
+  return raw_atomic_fetch_add(i, v);
 #endif
 }
 
@@ -236,17 +226,17 @@ raw_atomic_long_fetch_add(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_add_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_add_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_add_acquire(i, v);
+  return raw_atomic64_fetch_add_acquire(i, v);
 #else
-	return raw_atomic_fetch_add_acquire(i, v);
+  return raw_atomic_fetch_add_acquire(i, v);
 #endif
 }
 
@@ -257,17 +247,17 @@ raw_atomic_long_fetch_add_acquire(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_add_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_add_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_add_release(i, v);
+  return raw_atomic64_fetch_add_release(i, v);
 #else
-	return raw_atomic_fetch_add_release(i, v);
+  return raw_atomic_fetch_add_release(i, v);
 #endif
 }
 
@@ -278,17 +268,17 @@ raw_atomic_long_fetch_add_release(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v + @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_add_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_add_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_add_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_add_relaxed(i, v);
+  return raw_atomic64_fetch_add_relaxed(i, v);
 #else
-	return raw_atomic_fetch_add_relaxed(i, v);
+  return raw_atomic_fetch_add_relaxed(i, v);
 #endif
 }
 
@@ -303,13 +293,11 @@ raw_atomic_long_fetch_add_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_sub(long i, atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_sub(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_sub(i, v);
+  raw_atomic64_sub(i, v);
 #else
-	raw_atomic_sub(i, v);
+  raw_atomic_sub(i, v);
 #endif
 }
 
@@ -324,13 +312,12 @@ raw_atomic_long_sub(long i, atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_sub_return(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_sub_return(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_sub_return(i, v);
+  return raw_atomic64_sub_return(i, v);
 #else
-	return raw_atomic_sub_return(i, v);
+  return raw_atomic_sub_return(i, v);
 #endif
 }
 
@@ -341,17 +328,17 @@ raw_atomic_long_sub_return(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_sub_return_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_sub_return_acquire()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_sub_return_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_sub_return_acquire(i, v);
+  return raw_atomic64_sub_return_acquire(i, v);
 #else
-	return raw_atomic_sub_return_acquire(i, v);
+  return raw_atomic_sub_return_acquire(i, v);
 #endif
 }
 
@@ -362,17 +349,17 @@ raw_atomic_long_sub_return_acquire(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_sub_return_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_sub_return_release()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_sub_return_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_sub_return_release(i, v);
+  return raw_atomic64_sub_return_release(i, v);
 #else
-	return raw_atomic_sub_return_release(i, v);
+  return raw_atomic_sub_return_release(i, v);
 #endif
 }
 
@@ -383,17 +370,17 @@ raw_atomic_long_sub_return_release(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_sub_return_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_sub_return_relaxed()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_sub_return_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_sub_return_relaxed(i, v);
+  return raw_atomic64_sub_return_relaxed(i, v);
 #else
-	return raw_atomic_sub_return_relaxed(i, v);
+  return raw_atomic_sub_return_relaxed(i, v);
 #endif
 }
 
@@ -408,13 +395,12 @@ raw_atomic_long_sub_return_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_sub(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_sub(i, v);
+  return raw_atomic64_fetch_sub(i, v);
 #else
-	return raw_atomic_fetch_sub(i, v);
+  return raw_atomic_fetch_sub(i, v);
 #endif
 }
 
@@ -425,17 +411,17 @@ raw_atomic_long_fetch_sub(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_sub_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_sub_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_sub_acquire(i, v);
+  return raw_atomic64_fetch_sub_acquire(i, v);
 #else
-	return raw_atomic_fetch_sub_acquire(i, v);
+  return raw_atomic_fetch_sub_acquire(i, v);
 #endif
 }
 
@@ -446,17 +432,17 @@ raw_atomic_long_fetch_sub_acquire(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_sub_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_sub_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_sub_release(i, v);
+  return raw_atomic64_fetch_sub_release(i, v);
 #else
-	return raw_atomic_fetch_sub_release(i, v);
+  return raw_atomic_fetch_sub_release(i, v);
 #endif
 }
 
@@ -467,17 +453,17 @@ raw_atomic_long_fetch_sub_release(long i, atomic_long_t *v)
  *
  * Atomically updates @v to (@v - @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_sub_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_sub_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_sub_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_sub_relaxed(i, v);
+  return raw_atomic64_fetch_sub_relaxed(i, v);
 #else
-	return raw_atomic_fetch_sub_relaxed(i, v);
+  return raw_atomic_fetch_sub_relaxed(i, v);
 #endif
 }
 
@@ -491,13 +477,11 @@ raw_atomic_long_fetch_sub_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_inc(atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_inc(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_inc(v);
+  raw_atomic64_inc(v);
 #else
-	raw_atomic_inc(v);
+  raw_atomic_inc(v);
 #endif
 }
 
@@ -511,13 +495,11 @@ raw_atomic_long_inc(atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_inc_return(atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_inc_return(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_return(v);
+  return raw_atomic64_inc_return(v);
 #else
-	return raw_atomic_inc_return(v);
+  return raw_atomic_inc_return(v);
 #endif
 }
 
@@ -527,17 +509,17 @@ raw_atomic_long_inc_return(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_inc_return_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_inc_return_acquire()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_inc_return_acquire(atomic_long_t *v)
+static __always_inline long raw_atomic_long_inc_return_acquire(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_return_acquire(v);
+  return raw_atomic64_inc_return_acquire(v);
 #else
-	return raw_atomic_inc_return_acquire(v);
+  return raw_atomic_inc_return_acquire(v);
 #endif
 }
 
@@ -547,17 +529,17 @@ raw_atomic_long_inc_return_acquire(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_inc_return_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_inc_return_release()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_inc_return_release(atomic_long_t *v)
+static __always_inline long raw_atomic_long_inc_return_release(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_return_release(v);
+  return raw_atomic64_inc_return_release(v);
 #else
-	return raw_atomic_inc_return_release(v);
+  return raw_atomic_inc_return_release(v);
 #endif
 }
 
@@ -567,17 +549,17 @@ raw_atomic_long_inc_return_release(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_inc_return_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_inc_return_relaxed()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
+static __always_inline long raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_return_relaxed(v);
+  return raw_atomic64_inc_return_relaxed(v);
 #else
-	return raw_atomic_inc_return_relaxed(v);
+  return raw_atomic_inc_return_relaxed(v);
 #endif
 }
 
@@ -591,13 +573,11 @@ raw_atomic_long_inc_return_relaxed(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_inc(atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_inc(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_inc(v);
+  return raw_atomic64_fetch_inc(v);
 #else
-	return raw_atomic_fetch_inc(v);
+  return raw_atomic_fetch_inc(v);
 #endif
 }
 
@@ -607,17 +587,17 @@ raw_atomic_long_fetch_inc(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_inc_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
+static __always_inline long raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_inc_acquire(v);
+  return raw_atomic64_fetch_inc_acquire(v);
 #else
-	return raw_atomic_fetch_inc_acquire(v);
+  return raw_atomic_fetch_inc_acquire(v);
 #endif
 }
 
@@ -627,17 +607,17 @@ raw_atomic_long_fetch_inc_acquire(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_inc_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_inc_release(atomic_long_t *v)
+static __always_inline long raw_atomic_long_fetch_inc_release(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_inc_release(v);
+  return raw_atomic64_fetch_inc_release(v);
 #else
-	return raw_atomic_fetch_inc_release(v);
+  return raw_atomic_fetch_inc_release(v);
 #endif
 }
 
@@ -647,17 +627,17 @@ raw_atomic_long_fetch_inc_release(atomic_long_t *v)
  *
  * Atomically updates @v to (@v + 1) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_inc_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_inc_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
+static __always_inline long raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_inc_relaxed(v);
+  return raw_atomic64_fetch_inc_relaxed(v);
 #else
-	return raw_atomic_fetch_inc_relaxed(v);
+  return raw_atomic_fetch_inc_relaxed(v);
 #endif
 }
 
@@ -671,13 +651,11 @@ raw_atomic_long_fetch_inc_relaxed(atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_dec(atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_dec(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_dec(v);
+  raw_atomic64_dec(v);
 #else
-	raw_atomic_dec(v);
+  raw_atomic_dec(v);
 #endif
 }
 
@@ -691,13 +669,11 @@ raw_atomic_long_dec(atomic_long_t *v)
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_dec_return(atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_dec_return(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_return(v);
+  return raw_atomic64_dec_return(v);
 #else
-	return raw_atomic_dec_return(v);
+  return raw_atomic_dec_return(v);
 #endif
 }
 
@@ -707,17 +683,17 @@ raw_atomic_long_dec_return(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_dec_return_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_dec_return_acquire()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_dec_return_acquire(atomic_long_t *v)
+static __always_inline long raw_atomic_long_dec_return_acquire(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_return_acquire(v);
+  return raw_atomic64_dec_return_acquire(v);
 #else
-	return raw_atomic_dec_return_acquire(v);
+  return raw_atomic_dec_return_acquire(v);
 #endif
 }
 
@@ -727,17 +703,17 @@ raw_atomic_long_dec_return_acquire(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_dec_return_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_dec_return_release()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_dec_return_release(atomic_long_t *v)
+static __always_inline long raw_atomic_long_dec_return_release(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_return_release(v);
+  return raw_atomic64_dec_return_release(v);
 #else
-	return raw_atomic_dec_return_release(v);
+  return raw_atomic_dec_return_release(v);
 #endif
 }
 
@@ -747,17 +723,17 @@ raw_atomic_long_dec_return_release(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_dec_return_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_dec_return_relaxed()
+ * elsewhere.
  *
  * Return: The updated value of @v.
  */
-static __always_inline long
-raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
+static __always_inline long raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_return_relaxed(v);
+  return raw_atomic64_dec_return_relaxed(v);
 #else
-	return raw_atomic_dec_return_relaxed(v);
+  return raw_atomic_dec_return_relaxed(v);
 #endif
 }
 
@@ -771,13 +747,11 @@ raw_atomic_long_dec_return_relaxed(atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_dec(atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_dec(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_dec(v);
+  return raw_atomic64_fetch_dec(v);
 #else
-	return raw_atomic_fetch_dec(v);
+  return raw_atomic_fetch_dec(v);
 #endif
 }
 
@@ -787,17 +761,17 @@ raw_atomic_long_fetch_dec(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_dec_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
+static __always_inline long raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_dec_acquire(v);
+  return raw_atomic64_fetch_dec_acquire(v);
 #else
-	return raw_atomic_fetch_dec_acquire(v);
+  return raw_atomic_fetch_dec_acquire(v);
 #endif
 }
 
@@ -807,17 +781,17 @@ raw_atomic_long_fetch_dec_acquire(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_dec_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_dec_release(atomic_long_t *v)
+static __always_inline long raw_atomic_long_fetch_dec_release(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_dec_release(v);
+  return raw_atomic64_fetch_dec_release(v);
 #else
-	return raw_atomic_fetch_dec_release(v);
+  return raw_atomic_fetch_dec_release(v);
 #endif
 }
 
@@ -827,17 +801,17 @@ raw_atomic_long_fetch_dec_release(atomic_long_t *v)
  *
  * Atomically updates @v to (@v - 1) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_dec_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_dec_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
+static __always_inline long raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
 {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_dec_relaxed(v);
+  return raw_atomic64_fetch_dec_relaxed(v);
 #else
-	return raw_atomic_fetch_dec_relaxed(v);
+  return raw_atomic_fetch_dec_relaxed(v);
 #endif
 }
 
@@ -852,13 +826,11 @@ raw_atomic_long_fetch_dec_relaxed(atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_and(long i, atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_and(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_and(i, v);
+  raw_atomic64_and(i, v);
 #else
-	raw_atomic_and(i, v);
+  raw_atomic_and(i, v);
 #endif
 }
 
@@ -873,76 +845,78 @@ raw_atomic_long_and(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_and(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_and(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_and(i, v);
+  return raw_atomic64_fetch_and(i, v);
 #else
-	return raw_atomic_fetch_and(i, v);
+  return raw_atomic_fetch_and(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_and_acquire() - atomic bitwise AND with acquire ordering
+ * raw_atomic_long_fetch_and_acquire() - atomic bitwise AND with acquire
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_and_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_and_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_and_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_and_acquire(i, v);
+  return raw_atomic64_fetch_and_acquire(i, v);
 #else
-	return raw_atomic_fetch_and_acquire(i, v);
+  return raw_atomic_fetch_and_acquire(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_and_release() - atomic bitwise AND with release ordering
+ * raw_atomic_long_fetch_and_release() - atomic bitwise AND with release
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_and_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_and_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_and_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_and_release(i, v);
+  return raw_atomic64_fetch_and_release(i, v);
 #else
-	return raw_atomic_fetch_and_release(i, v);
+  return raw_atomic_fetch_and_release(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_and_relaxed() - atomic bitwise AND with relaxed ordering
+ * raw_atomic_long_fetch_and_relaxed() - atomic bitwise AND with relaxed
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_and_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_and_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_and_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_and_relaxed(i, v);
+  return raw_atomic64_fetch_and_relaxed(i, v);
 #else
-	return raw_atomic_fetch_and_relaxed(i, v);
+  return raw_atomic_fetch_and_relaxed(i, v);
 #endif
 }
 
@@ -957,13 +931,11 @@ raw_atomic_long_fetch_and_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_andnot(long i, atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_andnot(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_andnot(i, v);
+  raw_atomic64_andnot(i, v);
 #else
-	raw_atomic_andnot(i, v);
+  raw_atomic_andnot(i, v);
 #endif
 }
 
@@ -978,76 +950,78 @@ raw_atomic_long_andnot(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_andnot(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_andnot(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_andnot(i, v);
+  return raw_atomic64_fetch_andnot(i, v);
 #else
-	return raw_atomic_fetch_andnot(i, v);
+  return raw_atomic_fetch_andnot(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire ordering
+ * raw_atomic_long_fetch_andnot_acquire() - atomic bitwise AND NOT with acquire
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & ~@i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_andnot_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_andnot_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_andnot_acquire(i, v);
+  return raw_atomic64_fetch_andnot_acquire(i, v);
 #else
-	return raw_atomic_fetch_andnot_acquire(i, v);
+  return raw_atomic_fetch_andnot_acquire(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_andnot_release() - atomic bitwise AND NOT with release ordering
+ * raw_atomic_long_fetch_andnot_release() - atomic bitwise AND NOT with release
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & ~@i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_andnot_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_andnot_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_andnot_release(i, v);
+  return raw_atomic64_fetch_andnot_release(i, v);
 #else
-	return raw_atomic_fetch_andnot_release(i, v);
+  return raw_atomic_fetch_andnot_release(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed ordering
+ * raw_atomic_long_fetch_andnot_relaxed() - atomic bitwise AND NOT with relaxed
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v & ~@i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_andnot_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_andnot_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_andnot_relaxed(i, v);
+  return raw_atomic64_fetch_andnot_relaxed(i, v);
 #else
-	return raw_atomic_fetch_andnot_relaxed(i, v);
+  return raw_atomic_fetch_andnot_relaxed(i, v);
 #endif
 }
 
@@ -1062,13 +1036,11 @@ raw_atomic_long_fetch_andnot_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_or(long i, atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_or(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_or(i, v);
+  raw_atomic64_or(i, v);
 #else
-	raw_atomic_or(i, v);
+  raw_atomic_or(i, v);
 #endif
 }
 
@@ -1083,13 +1055,11 @@ raw_atomic_long_or(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_or(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_or(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_or(i, v);
+  return raw_atomic64_fetch_or(i, v);
 #else
-	return raw_atomic_fetch_or(i, v);
+  return raw_atomic_fetch_or(i, v);
 #endif
 }
 
@@ -1104,13 +1074,12 @@ raw_atomic_long_fetch_or(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_or_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_or_acquire(i, v);
+  return raw_atomic64_fetch_or_acquire(i, v);
 #else
-	return raw_atomic_fetch_or_acquire(i, v);
+  return raw_atomic_fetch_or_acquire(i, v);
 #endif
 }
 
@@ -1125,13 +1094,12 @@ raw_atomic_long_fetch_or_acquire(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_or_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_or_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_or_release(i, v);
+  return raw_atomic64_fetch_or_release(i, v);
 #else
-	return raw_atomic_fetch_or_release(i, v);
+  return raw_atomic_fetch_or_release(i, v);
 #endif
 }
 
@@ -1146,13 +1114,12 @@ raw_atomic_long_fetch_or_release(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_or_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_or_relaxed(i, v);
+  return raw_atomic64_fetch_or_relaxed(i, v);
 #else
-	return raw_atomic_fetch_or_relaxed(i, v);
+  return raw_atomic_fetch_or_relaxed(i, v);
 #endif
 }
 
@@ -1167,13 +1134,11 @@ raw_atomic_long_fetch_or_relaxed(long i, atomic_long_t *v)
  *
  * Return: Nothing.
  */
-static __always_inline void
-raw_atomic_long_xor(long i, atomic_long_t *v)
-{
+static __always_inline void raw_atomic_long_xor(long i, atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	raw_atomic64_xor(i, v);
+  raw_atomic64_xor(i, v);
 #else
-	raw_atomic_xor(i, v);
+  raw_atomic_xor(i, v);
 #endif
 }
 
@@ -1188,76 +1153,78 @@ raw_atomic_long_xor(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_xor(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_xor(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_xor(i, v);
+  return raw_atomic64_fetch_xor(i, v);
 #else
-	return raw_atomic_fetch_xor(i, v);
+  return raw_atomic_fetch_xor(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_xor_acquire() - atomic bitwise XOR with acquire ordering
+ * raw_atomic_long_fetch_xor_acquire() - atomic bitwise XOR with acquire
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v ^ @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_xor_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor_acquire()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_xor_acquire(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_xor_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_xor_acquire(i, v);
+  return raw_atomic64_fetch_xor_acquire(i, v);
 #else
-	return raw_atomic_fetch_xor_acquire(i, v);
+  return raw_atomic_fetch_xor_acquire(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_xor_release() - atomic bitwise XOR with release ordering
+ * raw_atomic_long_fetch_xor_release() - atomic bitwise XOR with release
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v ^ @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_xor_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor_release()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_xor_release(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_xor_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_xor_release(i, v);
+  return raw_atomic64_fetch_xor_release(i, v);
 #else
-	return raw_atomic_fetch_xor_release(i, v);
+  return raw_atomic_fetch_xor_release(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_xor_relaxed() - atomic bitwise XOR with relaxed ordering
+ * raw_atomic_long_fetch_xor_relaxed() - atomic bitwise XOR with relaxed
+ * ordering
  * @i: long value
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v ^ @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_fetch_xor_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_fetch_xor_relaxed()
+ * elsewhere.
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_fetch_xor_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_xor_relaxed(i, v);
+  return raw_atomic64_fetch_xor_relaxed(i, v);
 #else
-	return raw_atomic_fetch_xor_relaxed(i, v);
+  return raw_atomic_fetch_xor_relaxed(i, v);
 #endif
 }
 
@@ -1272,13 +1239,11 @@ raw_atomic_long_fetch_xor_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_xchg(atomic_long_t *v, long new)
-{
+static __always_inline long raw_atomic_long_xchg(atomic_long_t *v, long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg(v, new);
+  return raw_atomic64_xchg(v, new);
 #else
-	return raw_atomic_xchg(v, new);
+  return raw_atomic_xchg(v, new);
 #endif
 }
 
@@ -1293,13 +1258,12 @@ raw_atomic_long_xchg(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_xchg_acquire(atomic_long_t *v, long new)
-{
+static __always_inline long raw_atomic_long_xchg_acquire(atomic_long_t *v,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg_acquire(v, new);
+  return raw_atomic64_xchg_acquire(v, new);
 #else
-	return raw_atomic_xchg_acquire(v, new);
+  return raw_atomic_xchg_acquire(v, new);
 #endif
 }
 
@@ -1314,13 +1278,12 @@ raw_atomic_long_xchg_acquire(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_xchg_release(atomic_long_t *v, long new)
-{
+static __always_inline long raw_atomic_long_xchg_release(atomic_long_t *v,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg_release(v, new);
+  return raw_atomic64_xchg_release(v, new);
 #else
-	return raw_atomic_xchg_release(v, new);
+  return raw_atomic_xchg_release(v, new);
 #endif
 }
 
@@ -1335,13 +1298,12 @@ raw_atomic_long_xchg_release(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_xchg_relaxed(atomic_long_t *v, long new)
-{
+static __always_inline long raw_atomic_long_xchg_relaxed(atomic_long_t *v,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_xchg_relaxed(v, new);
+  return raw_atomic64_xchg_relaxed(v, new);
 #else
-	return raw_atomic_xchg_relaxed(v, new);
+  return raw_atomic_xchg_relaxed(v, new);
 #endif
 }
 
@@ -1358,18 +1320,18 @@ raw_atomic_long_xchg_relaxed(atomic_long_t *v, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
-{
+static __always_inline long raw_atomic_long_cmpxchg(atomic_long_t *v, long old,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_cmpxchg(v, old, new);
+  return raw_atomic64_cmpxchg(v, old, new);
 #else
-	return raw_atomic_cmpxchg(v, old, new);
+  return raw_atomic_cmpxchg(v, old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * raw_atomic_long_cmpxchg_acquire() - atomic compare and exchange with acquire
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: long value to compare with
  * @new: long value to assign
@@ -1381,18 +1343,19 @@ raw_atomic_long_cmpxchg(atomic_long_t *v, long old, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
-{
+static __always_inline long raw_atomic_long_cmpxchg_acquire(atomic_long_t *v,
+    long old,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_cmpxchg_acquire(v, old, new);
+  return raw_atomic64_cmpxchg_acquire(v, old, new);
 #else
-	return raw_atomic_cmpxchg_acquire(v, old, new);
+  return raw_atomic_cmpxchg_acquire(v, old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_cmpxchg_release() - atomic compare and exchange with release ordering
+ * raw_atomic_long_cmpxchg_release() - atomic compare and exchange with release
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: long value to compare with
  * @new: long value to assign
@@ -1404,18 +1367,19 @@ raw_atomic_long_cmpxchg_acquire(atomic_long_t *v, long old, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
-{
+static __always_inline long raw_atomic_long_cmpxchg_release(atomic_long_t *v,
+    long old,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_cmpxchg_release(v, old, new);
+  return raw_atomic64_cmpxchg_release(v, old, new);
 #else
-	return raw_atomic_cmpxchg_release(v, old, new);
+  return raw_atomic_cmpxchg_release(v, old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * raw_atomic_long_cmpxchg_relaxed() - atomic compare and exchange with relaxed
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: long value to compare with
  * @new: long value to assign
@@ -1427,18 +1391,19 @@ raw_atomic_long_cmpxchg_release(atomic_long_t *v, long old, long new)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
-{
+static __always_inline long raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v,
+    long old,
+    long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_cmpxchg_relaxed(v, old, new);
+  return raw_atomic64_cmpxchg_relaxed(v, old, new);
 #else
-	return raw_atomic_cmpxchg_relaxed(v, old, new);
+  return raw_atomic_cmpxchg_relaxed(v, old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_try_cmpxchg() - atomic compare and exchange with full ordering
+ * raw_atomic_long_try_cmpxchg() - atomic compare and exchange with full
+ * ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -1451,18 +1416,18 @@ raw_atomic_long_cmpxchg_relaxed(atomic_long_t *v, long old, long new)
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
-{
+static __always_inline bool raw_atomic_long_try_cmpxchg(atomic_long_t *v,
+    long *old, long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_try_cmpxchg(v, (s64 *)old, new);
+  return raw_atomic64_try_cmpxchg(v, (s64 *) old, new);
 #else
-	return raw_atomic_try_cmpxchg(v, (int *)old, new);
+  return raw_atomic_try_cmpxchg(v, (int *) old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_try_cmpxchg_acquire() - atomic compare and exchange with acquire ordering
+ * raw_atomic_long_try_cmpxchg_acquire() - atomic compare and exchange with
+ * acquire ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -1471,22 +1436,23 @@ raw_atomic_long_try_cmpxchg(atomic_long_t *v, long *old, long new)
  * Otherwise, @v is not modified, @old is updated to the current value of @v,
  * and relaxed ordering is provided.
  *
- * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_acquire()
+ * elsewhere.
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
-{
+static __always_inline bool raw_atomic_long_try_cmpxchg_acquire(
+    atomic_long_t *v, long *old, long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_try_cmpxchg_acquire(v, (s64 *)old, new);
+  return raw_atomic64_try_cmpxchg_acquire(v, (s64 *) old, new);
 #else
-	return raw_atomic_try_cmpxchg_acquire(v, (int *)old, new);
+  return raw_atomic_try_cmpxchg_acquire(v, (int *) old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_try_cmpxchg_release() - atomic compare and exchange with release ordering
+ * raw_atomic_long_try_cmpxchg_release() - atomic compare and exchange with
+ * release ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -1495,22 +1461,23 @@ raw_atomic_long_try_cmpxchg_acquire(atomic_long_t *v, long *old, long new)
  * Otherwise, @v is not modified, @old is updated to the current value of @v,
  * and relaxed ordering is provided.
  *
- * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_release()
+ * elsewhere.
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
-{
+static __always_inline bool raw_atomic_long_try_cmpxchg_release(
+    atomic_long_t *v, long *old, long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_try_cmpxchg_release(v, (s64 *)old, new);
+  return raw_atomic64_try_cmpxchg_release(v, (s64 *) old, new);
 #else
-	return raw_atomic_try_cmpxchg_release(v, (int *)old, new);
+  return raw_atomic_try_cmpxchg_release(v, (int *) old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_try_cmpxchg_relaxed() - atomic compare and exchange with relaxed ordering
+ * raw_atomic_long_try_cmpxchg_relaxed() - atomic compare and exchange with
+ * relaxed ordering
  * @v: pointer to atomic_long_t
  * @old: pointer to long value to compare with
  * @new: long value to assign
@@ -1519,22 +1486,23 @@ raw_atomic_long_try_cmpxchg_release(atomic_long_t *v, long *old, long new)
  * Otherwise, @v is not modified, @old is updated to the current value of @v,
  * and relaxed ordering is provided.
  *
- * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_try_cmpxchg_relaxed()
+ * elsewhere.
  *
  * Return: @true if the exchange occured, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
-{
+static __always_inline bool raw_atomic_long_try_cmpxchg_relaxed(
+    atomic_long_t *v, long *old, long new) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_try_cmpxchg_relaxed(v, (s64 *)old, new);
+  return raw_atomic64_try_cmpxchg_relaxed(v, (s64 *) old, new);
 #else
-	return raw_atomic_try_cmpxchg_relaxed(v, (int *)old, new);
+  return raw_atomic_try_cmpxchg_relaxed(v, (int *) old, new);
 #endif
 }
 
 /**
- * raw_atomic_long_sub_and_test() - atomic subtract and test if zero with full ordering
+ * raw_atomic_long_sub_and_test() - atomic subtract and test if zero with full
+ * ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
@@ -1544,18 +1512,18 @@ raw_atomic_long_try_cmpxchg_relaxed(atomic_long_t *v, long *old, long new)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_sub_and_test(long i, atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_sub_and_test(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_sub_and_test(i, v);
+  return raw_atomic64_sub_and_test(i, v);
 #else
-	return raw_atomic_sub_and_test(i, v);
+  return raw_atomic_sub_and_test(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_dec_and_test() - atomic decrement and test if zero with full ordering
+ * raw_atomic_long_dec_and_test() - atomic decrement and test if zero with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v - 1) with full ordering.
@@ -1564,18 +1532,17 @@ raw_atomic_long_sub_and_test(long i, atomic_long_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_dec_and_test(atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_dec_and_test(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_and_test(v);
+  return raw_atomic64_dec_and_test(v);
 #else
-	return raw_atomic_dec_and_test(v);
+  return raw_atomic_dec_and_test(v);
 #endif
 }
 
 /**
- * raw_atomic_long_inc_and_test() - atomic increment and test if zero with full ordering
+ * raw_atomic_long_inc_and_test() - atomic increment and test if zero with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + 1) with full ordering.
@@ -1584,18 +1551,17 @@ raw_atomic_long_dec_and_test(atomic_long_t *v)
  *
  * Return: @true if the resulting value of @v is zero, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_inc_and_test(atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_inc_and_test(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_and_test(v);
+  return raw_atomic64_inc_and_test(v);
 #else
-	return raw_atomic_inc_and_test(v);
+  return raw_atomic_inc_and_test(v);
 #endif
 }
 
 /**
- * raw_atomic_long_add_negative() - atomic add and test if negative with full ordering
+ * raw_atomic_long_add_negative() - atomic add and test if negative with full
+ * ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
@@ -1605,81 +1571,84 @@ raw_atomic_long_inc_and_test(atomic_long_t *v)
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_add_negative(long i, atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_add_negative(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_negative(i, v);
+  return raw_atomic64_add_negative(i, v);
 #else
-	return raw_atomic_add_negative(i, v);
+  return raw_atomic_add_negative(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_add_negative_acquire() - atomic add and test if negative with acquire ordering
+ * raw_atomic_long_add_negative_acquire() - atomic add and test if negative with
+ * acquire ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + @i) with acquire ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_add_negative_acquire() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_add_negative_acquire()
+ * elsewhere.
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_add_negative_acquire(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_negative_acquire(i, v);
+  return raw_atomic64_add_negative_acquire(i, v);
 #else
-	return raw_atomic_add_negative_acquire(i, v);
+  return raw_atomic_add_negative_acquire(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_add_negative_release() - atomic add and test if negative with release ordering
+ * raw_atomic_long_add_negative_release() - atomic add and test if negative with
+ * release ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + @i) with release ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_add_negative_release() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_add_negative_release()
+ * elsewhere.
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_add_negative_release(long i, atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_add_negative_release(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_negative_release(i, v);
+  return raw_atomic64_add_negative_release(i, v);
 #else
-	return raw_atomic_add_negative_release(i, v);
+  return raw_atomic_add_negative_release(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_add_negative_relaxed() - atomic add and test if negative with relaxed ordering
+ * raw_atomic_long_add_negative_relaxed() - atomic add and test if negative with
+ * relaxed ordering
  * @i: long value to add
  * @v: pointer to atomic_long_t
  *
  * Atomically updates @v to (@v + @i) with relaxed ordering.
  *
- * Safe to use in noinstr code; prefer atomic_long_add_negative_relaxed() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_add_negative_relaxed()
+ * elsewhere.
  *
  * Return: @true if the resulting value of @v is negative, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_add_negative_relaxed(long i,
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_negative_relaxed(i, v);
+  return raw_atomic64_add_negative_relaxed(i, v);
 #else
-	return raw_atomic_add_negative_relaxed(i, v);
+  return raw_atomic_add_negative_relaxed(i, v);
 #endif
 }
 
 /**
- * raw_atomic_long_fetch_add_unless() - atomic add unless value with full ordering
+ * raw_atomic_long_fetch_add_unless() - atomic add unless value with full
+ * ordering
  * @v: pointer to atomic_long_t
  * @a: long value to add
  * @u: long value to compare with
@@ -1691,13 +1660,12 @@ raw_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
  *
  * Return: The original value of @v.
  */
-static __always_inline long
-raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
-{
+static __always_inline long raw_atomic_long_fetch_add_unless(atomic_long_t *v,
+    long a, long u) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_fetch_add_unless(v, a, u);
+  return raw_atomic64_fetch_add_unless(v, a, u);
 #else
-	return raw_atomic_fetch_add_unless(v, a, u);
+  return raw_atomic_fetch_add_unless(v, a, u);
 #endif
 }
 
@@ -1714,18 +1682,18 @@ raw_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_add_unless(atomic_long_t *v, long a, long u)
-{
+static __always_inline bool raw_atomic_long_add_unless(atomic_long_t *v, long a,
+    long u) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_add_unless(v, a, u);
+  return raw_atomic64_add_unless(v, a, u);
 #else
-	return raw_atomic_add_unless(v, a, u);
+  return raw_atomic_add_unless(v, a, u);
 #endif
 }
 
 /**
- * raw_atomic_long_inc_not_zero() - atomic increment unless zero with full ordering
+ * raw_atomic_long_inc_not_zero() - atomic increment unless zero with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v != 0), atomically updates @v to (@v + 1) with full ordering.
@@ -1735,60 +1703,61 @@ raw_atomic_long_add_unless(atomic_long_t *v, long a, long u)
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_inc_not_zero(atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_inc_not_zero(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_not_zero(v);
+  return raw_atomic64_inc_not_zero(v);
 #else
-	return raw_atomic_inc_not_zero(v);
+  return raw_atomic_inc_not_zero(v);
 #endif
 }
 
 /**
- * raw_atomic_long_inc_unless_negative() - atomic increment unless negative with full ordering
+ * raw_atomic_long_inc_unless_negative() - atomic increment unless negative with
+ * full ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v >= 0), atomically updates @v to (@v + 1) with full ordering.
  * Otherwise, @v is not modified and relaxed ordering is provided.
  *
- * Safe to use in noinstr code; prefer atomic_long_inc_unless_negative() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_inc_unless_negative()
+ * elsewhere.
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_inc_unless_negative(atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_inc_unless_negative(
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_inc_unless_negative(v);
+  return raw_atomic64_inc_unless_negative(v);
 #else
-	return raw_atomic_inc_unless_negative(v);
+  return raw_atomic_inc_unless_negative(v);
 #endif
 }
 
 /**
- * raw_atomic_long_dec_unless_positive() - atomic decrement unless positive with full ordering
+ * raw_atomic_long_dec_unless_positive() - atomic decrement unless positive with
+ * full ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v <= 0), atomically updates @v to (@v - 1) with full ordering.
  * Otherwise, @v is not modified and relaxed ordering is provided.
  *
- * Safe to use in noinstr code; prefer atomic_long_dec_unless_positive() elsewhere.
+ * Safe to use in noinstr code; prefer atomic_long_dec_unless_positive()
+ * elsewhere.
  *
  * Return: @true if @v was updated, @false otherwise.
  */
-static __always_inline bool
-raw_atomic_long_dec_unless_positive(atomic_long_t *v)
-{
+static __always_inline bool raw_atomic_long_dec_unless_positive(
+    atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_unless_positive(v);
+  return raw_atomic64_dec_unless_positive(v);
 #else
-	return raw_atomic_dec_unless_positive(v);
+  return raw_atomic_dec_unless_positive(v);
 #endif
 }
 
 /**
- * raw_atomic_long_dec_if_positive() - atomic decrement if positive with full ordering
+ * raw_atomic_long_dec_if_positive() - atomic decrement if positive with full
+ * ordering
  * @v: pointer to atomic_long_t
  *
  * If (@v > 0), atomically updates @v to (@v - 1) with full ordering.
@@ -1798,13 +1767,11 @@ raw_atomic_long_dec_unless_positive(atomic_long_t *v)
  *
  * Return: The old value of (@v - 1), regardless of whether @v was updated.
  */
-static __always_inline long
-raw_atomic_long_dec_if_positive(atomic_long_t *v)
-{
+static __always_inline long raw_atomic_long_dec_if_positive(atomic_long_t *v) {
 #ifdef CONFIG_64BIT
-	return raw_atomic64_dec_if_positive(v);
+  return raw_atomic64_dec_if_positive(v);
 #else
-	return raw_atomic_dec_if_positive(v);
+  return raw_atomic_dec_if_positive(v);
 #endif
 }
 

@@ -12,14 +12,10 @@
 #include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 
-LONG
-ArcRead(ULONG FileID, VOID *Buffer, ULONG N, ULONG *Count)
-{
-	return ARC_CALL4(read, FileID, Buffer, N, Count);
+LONG ArcRead(ULONG FileID, VOID *Buffer, ULONG N, ULONG *Count) {
+  return ARC_CALL4(read, FileID, Buffer, N, Count);
 }
 
-LONG
-ArcWrite(ULONG FileID, PVOID Buffer, ULONG N, PULONG Count)
-{
-	return ARC_CALL4(write, FileID, Buffer, N, Count);
+LONG ArcWrite(ULONG FileID, PVOID Buffer, ULONG N, PULONG Count) {
+  return ARC_CALL4(write, FileID, Buffer, N, Count);
 }

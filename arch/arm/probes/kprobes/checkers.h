@@ -22,17 +22,17 @@ extern probes_check_t checker_stack_use_imm_xxx;
 extern probes_check_t checker_stack_use_stmdx;
 
 enum {
-	STACK_USE_NONE,
-	STACK_USE_UNKNOWN,
+  STACK_USE_NONE,
+  STACK_USE_UNKNOWN,
 #ifdef CONFIG_THUMB2_KERNEL
-	STACK_USE_FIXED_0XX,
-	STACK_USE_T32STRD,
+  STACK_USE_FIXED_0XX,
+  STACK_USE_T32STRD,
 #else
-	STACK_USE_FIXED_X0X,
+  STACK_USE_FIXED_X0X,
 #endif
-	STACK_USE_FIXED_XXX,
-	STACK_USE_STMDX,
-	NUM_STACK_USE_TYPES
+  STACK_USE_FIXED_XXX,
+  STACK_USE_STMDX,
+  NUM_STACK_USE_TYPES
 };
 
 extern const union decode_action stack_check_actions[];

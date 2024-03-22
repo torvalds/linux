@@ -40,23 +40,23 @@
  * have a macro to filter it out at compile-time.
  */
 struct powerdomain gfx_omap2_pwrdm = {
-	.name		  = "gfx_pwrdm",
-	.prcm_offs	  = GFX_MOD,
-	.pwrsts		  = PWRSTS_OFF_RET_ON,
-	.pwrsts_logic_ret = PWRSTS_RET,
-	.banks		  = 1,
-	.pwrsts_mem_ret	  = {
-		[0] = PWRSTS_RET, /* MEMRETSTATE */
-	},
-	.pwrsts_mem_on	  = {
-		[0] = PWRSTS_ON,  /* MEMONSTATE */
-	},
-	.voltdm		  = { .name = "core" },
+  .name = "gfx_pwrdm",
+  .prcm_offs = GFX_MOD,
+  .pwrsts = PWRSTS_OFF_RET_ON,
+  .pwrsts_logic_ret = PWRSTS_RET,
+  .banks = 1,
+  .pwrsts_mem_ret = {
+    [0] = PWRSTS_RET, /* MEMRETSTATE */
+  },
+  .pwrsts_mem_on = {
+    [0] = PWRSTS_ON,  /* MEMONSTATE */
+  },
+  .voltdm = { .name = "core" },
 };
 
 struct powerdomain wkup_omap2_pwrdm = {
-	.name		= "wkup_pwrdm",
-	.prcm_offs	= WKUP_MOD,
-	.pwrsts		= PWRSTS_ON,
-	.voltdm		= { .name = "wakeup" },
+  .name = "wkup_pwrdm",
+  .prcm_offs = WKUP_MOD,
+  .pwrsts = PWRSTS_ON,
+  .voltdm = { .name = "wakeup" },
 };

@@ -19,7 +19,6 @@
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
 #ifndef _ASM_PARISC_IOCTL_H
 #define _ASM_PARISC_IOCTL_H
 
@@ -36,9 +35,9 @@
 /*
  * Direction bits.
  */
-#define _IOC_NONE	0U
-#define _IOC_WRITE	2U
-#define _IOC_READ	1U
+#define _IOC_NONE 0U
+#define _IOC_WRITE  2U
+#define _IOC_READ 1U
 
 #include <asm-generic/ioctl.h>
 

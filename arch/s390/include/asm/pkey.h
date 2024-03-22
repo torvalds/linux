@@ -23,6 +23,6 @@
  * @return 0 on success, negative errno value on failure
  */
 int pkey_keyblob2pkey(const u8 *key, u32 keylen,
-		      u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+    u8 *protkey, u32 *protkeylen, u32 *protkeytype);
 
 #endif /* _KAPI_PKEY_H */

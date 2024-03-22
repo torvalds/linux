@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2020 ARM Limited */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2020 ARM Limited*/
 
 #ifndef _HELPER_H_
 #define _HELPER_H_
@@ -9,11 +9,11 @@
 #define NKEYS 5
 
 struct signatures {
-	size_t keyia;
-	size_t keyib;
-	size_t keyda;
-	size_t keydb;
-	size_t keyg;
+  size_t keyia;
+  size_t keyib;
+  size_t keyda;
+  size_t keydb;
+  size_t keyg;
 };
 
 void pac_corruptor(void);

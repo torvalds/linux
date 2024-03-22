@@ -18,21 +18,21 @@
 
 /* Timer test cmdline parameters */
 struct test_args {
-	uint32_t nr_vcpus;
-	uint32_t nr_iter;
-	uint32_t timer_period_ms;
-	uint32_t migration_freq_ms;
-	uint32_t timer_err_margin_us;
-	/* Members of struct kvm_arm_counter_offset */
-	uint64_t counter_offset;
-	uint64_t reserved;
+  uint32_t nr_vcpus;
+  uint32_t nr_iter;
+  uint32_t timer_period_ms;
+  uint32_t migration_freq_ms;
+  uint32_t timer_err_margin_us;
+  /* Members of struct kvm_arm_counter_offset */
+  uint64_t counter_offset;
+  uint64_t reserved;
 };
 
 /* Shared variables between host and guest */
 struct test_vcpu_shared_data {
-	uint32_t nr_iter;
-	int guest_stage;
-	uint64_t xcnt;
+  uint32_t nr_iter;
+  int guest_stage;
+  uint64_t xcnt;
 };
 
 extern struct test_args test_args;

@@ -68,20 +68,20 @@
 
 /* -------- Hybird Controller System Control register -------- */
 #define MUX_MODE_CTRL         (SYSTEM_CONTROL_REG_BASE + 0x00)
-	#define rbPaMSMask        0x07
-	#define rbPaMSDtvNoGpio   0x00 /*[2:0], DTV Simple mode */
-	#define rbPaMSDtv4bitGpio 0x01 /*[2:0], DTV TS2 Serial mode)*/
-	#define rbPaMSDtv7bitGpio 0x02 /*[2:0], DTV TS0 Serial mode*/
-	#define rbPaMS8bitGpio    0x03 /*[2:0], GPIO mode selected;(8bit GPIO)*/
-	#define rbPaMSAtv         0x04 /*[2:0], 3'b1xx: ATV mode select*/
-	#define rbPbMSMask        0x38
-	#define rbPbMSDtvNoGpio   0x00 /*[5:3], DTV Simple mode */
-	#define rbPbMSDtv4bitGpio 0x08 /*[5:3], DTV TS2 Serial mode*/
-	#define rbPbMSDtv7bitGpio 0x10 /*[5:3], DTV TS0 Serial mode*/
-	#define rbPbMS8bitGpio    0x18 /*[5:3], GPIO mode selected;(8bit GPIO)*/
-	#define rbPbMSAtv         0x20 /*[5:3], 3'b1xx: ATV mode select*/
-	#define rbPaAESEN         0x40 /*[6], port A AES enable bit*/
-	#define rbPbAESEN         0x80 /*[7], port B AES enable bit*/
+#define rbPaMSMask        0x07
+#define rbPaMSDtvNoGpio   0x00 /*[2:0], DTV Simple mode */
+#define rbPaMSDtv4bitGpio 0x01 /*[2:0], DTV TS2 Serial mode)*/
+#define rbPaMSDtv7bitGpio 0x02 /*[2:0], DTV TS0 Serial mode*/
+#define rbPaMS8bitGpio    0x03 /*[2:0], GPIO mode selected;(8bit GPIO)*/
+#define rbPaMSAtv         0x04 /*[2:0], 3'b1xx: ATV mode select*/
+#define rbPbMSMask        0x38
+#define rbPbMSDtvNoGpio   0x00 /*[5:3], DTV Simple mode */
+#define rbPbMSDtv4bitGpio 0x08 /*[5:3], DTV TS2 Serial mode*/
+#define rbPbMSDtv7bitGpio 0x10 /*[5:3], DTV TS0 Serial mode*/
+#define rbPbMS8bitGpio    0x18 /*[5:3], GPIO mode selected;(8bit GPIO)*/
+#define rbPbMSAtv         0x20 /*[5:3], 3'b1xx: ATV mode select*/
+#define rbPaAESEN         0x40 /*[6], port A AES enable bit*/
+#define rbPbAESEN         0x80 /*[7], port B AES enable bit*/
 
 #define INTERNAL_RST                (SYSTEM_CONTROL_REG_BASE + 0x04)
 #define PERIPHERAL_CTRL             (SYSTEM_CONTROL_REG_BASE + 0x08)
@@ -124,14 +124,14 @@
 #define I2C_B_FS_EN                      (I2C_B_CONTROL_REG_BASE + 0x14)
 #define I2C_B_FIFO_DATA                  (I2C_B_CONTROL_REG_BASE + 0x20)
 
-#define VIDEO_CTRL_STATUS_A	(ATV_PORTA_CONTROL_REG_BASE + 0x04)
+#define VIDEO_CTRL_STATUS_A (ATV_PORTA_CONTROL_REG_BASE + 0x04)
 
 /* -------- Digital TV control register, Port A -------- */
-#define MPEG2_CTRL_A		(DTV_PORTA_CONTROL_REG_BASE + 0x00)
-#define SERIAL_IN_ADDR_A	(DTV_PORTA_CONTROL_REG_BASE + 0x4C)
-#define VLD_CNT_ADDR_A		(DTV_PORTA_CONTROL_REG_BASE + 0x60)
-#define ERR_CNT_ADDR_A		(DTV_PORTA_CONTROL_REG_BASE + 0x64)
-#define BRD_CNT_ADDR_A		(DTV_PORTA_CONTROL_REG_BASE + 0x68)
+#define MPEG2_CTRL_A    (DTV_PORTA_CONTROL_REG_BASE + 0x00)
+#define SERIAL_IN_ADDR_A  (DTV_PORTA_CONTROL_REG_BASE + 0x4C)
+#define VLD_CNT_ADDR_A    (DTV_PORTA_CONTROL_REG_BASE + 0x60)
+#define ERR_CNT_ADDR_A    (DTV_PORTA_CONTROL_REG_BASE + 0x64)
+#define BRD_CNT_ADDR_A    (DTV_PORTA_CONTROL_REG_BASE + 0x68)
 
 /* -------- DMA Control Register, Port A  -------- */
 #define DMA_PORTA_CHAN0_ADDR_LOW        (DMA_PORTA_CONTROL_REG_BASE + 0x00)
@@ -146,15 +146,15 @@
 #define VIDEO_CTRL_STATUS_B             (ATV_PORTB_CONTROL_REG_BASE + 0x04)
 
 /* -------- Digital TV control register, Port B -------- */
-#define MPEG2_CTRL_B		(DTV_PORTB_CONTROL_REG_BASE + 0x00)
-#define SERIAL_IN_ADDR_B	(DTV_PORTB_CONTROL_REG_BASE + 0x4C)
-#define VLD_CNT_ADDR_B		(DTV_PORTB_CONTROL_REG_BASE + 0x60)
-#define ERR_CNT_ADDR_B		(DTV_PORTB_CONTROL_REG_BASE + 0x64)
-#define BRD_CNT_ADDR_B		(DTV_PORTB_CONTROL_REG_BASE + 0x68)
+#define MPEG2_CTRL_B    (DTV_PORTB_CONTROL_REG_BASE + 0x00)
+#define SERIAL_IN_ADDR_B  (DTV_PORTB_CONTROL_REG_BASE + 0x4C)
+#define VLD_CNT_ADDR_B    (DTV_PORTB_CONTROL_REG_BASE + 0x60)
+#define ERR_CNT_ADDR_B    (DTV_PORTB_CONTROL_REG_BASE + 0x64)
+#define BRD_CNT_ADDR_B    (DTV_PORTB_CONTROL_REG_BASE + 0x68)
 
 /* -------- AES control register, Port B -------- */
-#define AES_CTRL_B		(AES_PORTB_CONTROL_REG_BASE + 0x00)
-#define AES_KEY_BASE_B	(AES_PORTB_CONTROL_REG_BASE + 0x04)
+#define AES_CTRL_B    (AES_PORTB_CONTROL_REG_BASE + 0x00)
+#define AES_KEY_BASE_B  (AES_PORTB_CONTROL_REG_BASE + 0x04)
 
 /* -------- DMA Control Register, Port B  -------- */
 #define DMA_PORTB_CHAN0_ADDR_LOW        (DMA_PORTB_CONTROL_REG_BASE + 0x00)
@@ -197,9 +197,9 @@
 #define SW_I2C_MSK_DAT_IN       0x40
 #define SW_I2C_MSK_CLK_IN       0x80
 
-#define SMI_VID		0x1ADE
-#define SMI_PID		0x3038
-#define SMI_TS_DMA_BUF_SIZE	(1024 * 188)
+#define SMI_VID   0x1ADE
+#define SMI_PID   0x3038
+#define SMI_TS_DMA_BUF_SIZE (1024 * 188)
 
 struct smi_cfg_info {
 #define SMI_DVBSKY_S952         0
@@ -207,96 +207,96 @@ struct smi_cfg_info {
 #define SMI_DVBSKY_T9580        2
 #define SMI_DVBSKY_T982         3
 #define SMI_TECHNOTREND_S2_4200 4
-	int type;
-	char *name;
+  int type;
+  char *name;
 #define SMI_TS_NULL             0
 #define SMI_TS_DMA_SINGLE       1
 #define SMI_TS_DMA_BOTH         3
-/* SMI_TS_NULL: not use;
- * SMI_TS_DMA_SINGLE: use DMA 0 only;
- * SMI_TS_DMA_BOTH:use DMA 0 and 1.*/
-	int ts_0;
-	int ts_1;
+  /* SMI_TS_NULL: not use;
+   * SMI_TS_DMA_SINGLE: use DMA 0 only;
+   * SMI_TS_DMA_BOTH:use DMA 0 and 1.*/
+  int ts_0;
+  int ts_1;
 #define DVBSKY_FE_NULL          0
 #define DVBSKY_FE_M88RS6000     1
 #define DVBSKY_FE_M88DS3103     2
 #define DVBSKY_FE_SIT2          3
-	int fe_0;
-	int fe_1;
-	char *rc_map;
+  int fe_0;
+  int fe_1;
+  char *rc_map;
 };
 
 struct smi_rc {
-	struct smi_dev *dev;
-	struct rc_dev *rc_dev;
-	char input_phys[64];
-	char device_name[64];
-	u8 irData[256];
+  struct smi_dev *dev;
+  struct rc_dev *rc_dev;
+  char input_phys[64];
+  char device_name[64];
+  u8 irData[256];
 
-	int users;
+  int users;
 };
 
 struct smi_port {
-	struct smi_dev *dev;
-	int idx;
-	int enable;
-	int fe_type;
-	/* regs */
-	u32 DMA_CHAN0_ADDR_LOW;
-	u32 DMA_CHAN0_ADDR_HI;
-	u32 DMA_CHAN0_TRANS_STATE;
-	u32 DMA_CHAN0_CONTROL;
-	u32 DMA_CHAN1_ADDR_LOW;
-	u32 DMA_CHAN1_ADDR_HI;
-	u32 DMA_CHAN1_TRANS_STATE;
-	u32 DMA_CHAN1_CONTROL;
-	u32 DMA_MANAGEMENT;
-	/* dma */
-	dma_addr_t dma_addr[2];
-	u8 *cpu_addr[2];
-	u32 _dmaInterruptCH0;
-	u32 _dmaInterruptCH1;
-	u32 _int_status;
-	struct tasklet_struct tasklet;
-	/* dvb */
-	struct dmx_frontend hw_frontend;
-	struct dmx_frontend mem_frontend;
-	struct dmxdev dmxdev;
-	struct dvb_adapter dvb_adapter;
-	struct dvb_demux demux;
-	struct dvb_net dvbnet;
-	int users;
-	struct dvb_frontend *fe;
-	/* frontend i2c module */
-	struct i2c_client *i2c_client_demod;
-	struct i2c_client *i2c_client_tuner;
+  struct smi_dev *dev;
+  int idx;
+  int enable;
+  int fe_type;
+  /* regs */
+  u32 DMA_CHAN0_ADDR_LOW;
+  u32 DMA_CHAN0_ADDR_HI;
+  u32 DMA_CHAN0_TRANS_STATE;
+  u32 DMA_CHAN0_CONTROL;
+  u32 DMA_CHAN1_ADDR_LOW;
+  u32 DMA_CHAN1_ADDR_HI;
+  u32 DMA_CHAN1_TRANS_STATE;
+  u32 DMA_CHAN1_CONTROL;
+  u32 DMA_MANAGEMENT;
+  /* dma */
+  dma_addr_t dma_addr[2];
+  u8 *cpu_addr[2];
+  u32 _dmaInterruptCH0;
+  u32 _dmaInterruptCH1;
+  u32 _int_status;
+  struct tasklet_struct tasklet;
+  /* dvb */
+  struct dmx_frontend hw_frontend;
+  struct dmx_frontend mem_frontend;
+  struct dmxdev dmxdev;
+  struct dvb_adapter dvb_adapter;
+  struct dvb_demux demux;
+  struct dvb_net dvbnet;
+  int users;
+  struct dvb_frontend *fe;
+  /* frontend i2c module */
+  struct i2c_client *i2c_client_demod;
+  struct i2c_client *i2c_client_tuner;
 };
 
 struct smi_dev {
-	int nr;
-	struct smi_cfg_info *info;
+  int nr;
+  struct smi_cfg_info *info;
 
-	/* pcie */
-	struct pci_dev *pci_dev;
-	u32 __iomem *lmmio;
+  /* pcie */
+  struct pci_dev *pci_dev;
+  u32 __iomem *lmmio;
 
-	/* ts port */
-	struct smi_port ts_port[2];
+  /* ts port */
+  struct smi_port ts_port[2];
 
-	/* i2c */
-	struct i2c_adapter i2c_bus[2];
-	struct i2c_algo_bit_data i2c_bit[2];
+  /* i2c */
+  struct i2c_adapter i2c_bus[2];
+  struct i2c_algo_bit_data i2c_bit[2];
 
-	/* ir */
-	struct smi_rc ir;
+  /* ir */
+  struct smi_rc ir;
 };
 
-#define smi_read(reg)             readl(dev->lmmio + ((reg)>>2))
-#define smi_write(reg, value)     writel((value), dev->lmmio + ((reg)>>2))
+#define smi_read(reg)             readl(dev->lmmio + ((reg) >> 2))
+#define smi_write(reg, value)     writel((value), dev->lmmio + ((reg) >> 2))
 
 #define smi_andor(reg, mask, value) \
-	writel((readl(dev->lmmio+((reg)>>2)) & ~(mask)) |\
-	((value) & (mask)), dev->lmmio+((reg)>>2))
+  writel((readl(dev->lmmio + ((reg) >> 2)) & ~(mask))  \
+    | ((value) & (mask)), dev->lmmio + ((reg) >> 2))
 
 #define smi_set(reg, bit)          smi_andor((reg), (bit), (bit))
 #define smi_clear(reg, bit)        smi_andor((reg), (bit), 0)

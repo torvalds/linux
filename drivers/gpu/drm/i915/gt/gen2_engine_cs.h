@@ -19,14 +19,14 @@ u32 *gen3_emit_breadcrumb(struct i915_request *rq, u32 *cs);
 u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs);
 
 int i830_emit_bb_start(struct i915_request *rq,
-		       u64 offset, u32 len,
-		       unsigned int dispatch_flags);
+    u64 offset, u32 len,
+    unsigned int dispatch_flags);
 int gen3_emit_bb_start(struct i915_request *rq,
-		       u64 offset, u32 len,
-		       unsigned int dispatch_flags);
+    u64 offset, u32 len,
+    unsigned int dispatch_flags);
 int gen4_emit_bb_start(struct i915_request *rq,
-		       u64 offset, u32 length,
-		       unsigned int dispatch_flags);
+    u64 offset, u32 length,
+    unsigned int dispatch_flags);
 
 void gen2_irq_enable(struct intel_engine_cs *engine);
 void gen2_irq_disable(struct intel_engine_cs *engine);

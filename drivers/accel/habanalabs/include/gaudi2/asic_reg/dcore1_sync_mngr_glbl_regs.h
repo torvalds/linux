@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_DCORE1_SYNC_MNGR_GLBL_REGS_H_
 #define ASIC_REG_DCORE1_SYNC_MNGR_GLBL_REGS_H_

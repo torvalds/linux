@@ -23,13 +23,12 @@
  * @palloc_cache: persistent object allocator cache of ifile
  */
 struct nilfs_ifile_info {
-	struct nilfs_mdt_info mi;
-	struct nilfs_palloc_cache palloc_cache;
+  struct nilfs_mdt_info mi;
+  struct nilfs_palloc_cache palloc_cache;
 };
 
-static inline struct nilfs_ifile_info *NILFS_IFILE_I(struct inode *ifile)
-{
-	return (struct nilfs_ifile_info *)NILFS_MDT(ifile);
+static inline struct nilfs_ifile_info *NILFS_IFILE_I(struct inode *ifile) {
+  return (struct nilfs_ifile_info *) NILFS_MDT(ifile);
 }
 
 /**
@@ -51,34 +50,32 @@ static inline struct nilfs_ifile_info *NILFS_IFILE_I(struct inode *ifile)
  * %-ENOSPC - No inode left.
  */
 int nilfs_ifile_create_inode(struct inode *ifile, ino_t *out_ino,
-			     struct buffer_head **out_bh)
-{
-	struct nilfs_palloc_req req;
-	int ret;
-
-	req.pr_entry_nr = 0;  /*
-			       * 0 says find free inode from beginning
-			       * of a group. dull code!!
-			       */
-	req.pr_entry_bh = NULL;
-
-	ret = nilfs_palloc_prepare_alloc_entry(ifile, &req);
-	if (!ret) {
-		ret = nilfs_palloc_get_entry_block(ifile, req.pr_entry_nr, 1,
-						   &req.pr_entry_bh);
-		if (ret < 0)
-			nilfs_palloc_abort_alloc_entry(ifile, &req);
-	}
-	if (ret < 0) {
-		brelse(req.pr_entry_bh);
-		return ret;
-	}
-	nilfs_palloc_commit_alloc_entry(ifile, &req);
-	mark_buffer_dirty(req.pr_entry_bh);
-	nilfs_mdt_mark_dirty(ifile);
-	*out_ino = (ino_t)req.pr_entry_nr;
-	*out_bh = req.pr_entry_bh;
-	return 0;
+    struct buffer_head **out_bh) {
+  struct nilfs_palloc_req req;
+  int ret;
+  req.pr_entry_nr = 0;  /*
+                         * 0 says find free inode from beginning
+                         * of a group. dull code!!
+                         */
+  req.pr_entry_bh = NULL;
+  ret = nilfs_palloc_prepare_alloc_entry(ifile, &req);
+  if (!ret) {
+    ret = nilfs_palloc_get_entry_block(ifile, req.pr_entry_nr, 1,
+        &req.pr_entry_bh);
+    if (ret < 0) {
+      nilfs_palloc_abort_alloc_entry(ifile, &req);
+    }
+  }
+  if (ret < 0) {
+    brelse(req.pr_entry_bh);
+    return ret;
+  }
+  nilfs_palloc_commit_alloc_entry(ifile, &req);
+  mark_buffer_dirty(req.pr_entry_bh);
+  nilfs_mdt_mark_dirty(ifile);
+  *out_ino = (ino_t) req.pr_entry_nr;
+  *out_bh = req.pr_entry_bh;
+  return 0;
 }
 
 /**
@@ -95,57 +92,50 @@ int nilfs_ifile_create_inode(struct inode *ifile, ino_t *out_ino,
  *
  * %-ENOENT - The inode number @ino have not been allocated.
  */
-int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino)
-{
-	struct nilfs_palloc_req req = {
-		.pr_entry_nr = ino, .pr_entry_bh = NULL
-	};
-	struct nilfs_inode *raw_inode;
-	void *kaddr;
-	int ret;
-
-	ret = nilfs_palloc_prepare_free_entry(ifile, &req);
-	if (!ret) {
-		ret = nilfs_palloc_get_entry_block(ifile, req.pr_entry_nr, 0,
-						   &req.pr_entry_bh);
-		if (ret < 0)
-			nilfs_palloc_abort_free_entry(ifile, &req);
-	}
-	if (ret < 0) {
-		brelse(req.pr_entry_bh);
-		return ret;
-	}
-
-	kaddr = kmap_local_page(req.pr_entry_bh->b_page);
-	raw_inode = nilfs_palloc_block_get_entry(ifile, req.pr_entry_nr,
-						 req.pr_entry_bh, kaddr);
-	raw_inode->i_flags = 0;
-	kunmap_local(kaddr);
-
-	mark_buffer_dirty(req.pr_entry_bh);
-	brelse(req.pr_entry_bh);
-
-	nilfs_palloc_commit_free_entry(ifile, &req);
-
-	return 0;
+int nilfs_ifile_delete_inode(struct inode *ifile, ino_t ino) {
+  struct nilfs_palloc_req req = {
+    .pr_entry_nr = ino, .pr_entry_bh = NULL
+  };
+  struct nilfs_inode *raw_inode;
+  void *kaddr;
+  int ret;
+  ret = nilfs_palloc_prepare_free_entry(ifile, &req);
+  if (!ret) {
+    ret = nilfs_palloc_get_entry_block(ifile, req.pr_entry_nr, 0,
+        &req.pr_entry_bh);
+    if (ret < 0) {
+      nilfs_palloc_abort_free_entry(ifile, &req);
+    }
+  }
+  if (ret < 0) {
+    brelse(req.pr_entry_bh);
+    return ret;
+  }
+  kaddr = kmap_local_page(req.pr_entry_bh->b_page);
+  raw_inode = nilfs_palloc_block_get_entry(ifile, req.pr_entry_nr,
+      req.pr_entry_bh, kaddr);
+  raw_inode->i_flags = 0;
+  kunmap_local(kaddr);
+  mark_buffer_dirty(req.pr_entry_bh);
+  brelse(req.pr_entry_bh);
+  nilfs_palloc_commit_free_entry(ifile, &req);
+  return 0;
 }
 
 int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
-				struct buffer_head **out_bh)
-{
-	struct super_block *sb = ifile->i_sb;
-	int err;
-
-	if (unlikely(!NILFS_VALID_INODE(sb, ino))) {
-		nilfs_error(sb, "bad inode number: %lu", (unsigned long)ino);
-		return -EINVAL;
-	}
-
-	err = nilfs_palloc_get_entry_block(ifile, ino, 0, out_bh);
-	if (unlikely(err))
-		nilfs_warn(sb, "error %d reading inode: ino=%lu",
-			   err, (unsigned long)ino);
-	return err;
+    struct buffer_head **out_bh) {
+  struct super_block *sb = ifile->i_sb;
+  int err;
+  if (unlikely(!NILFS_VALID_INODE(sb, ino))) {
+    nilfs_error(sb, "bad inode number: %lu", (unsigned long) ino);
+    return -EINVAL;
+  }
+  err = nilfs_palloc_get_entry_block(ifile, ino, 0, out_bh);
+  if (unlikely(err)) {
+    nilfs_warn(sb, "error %d reading inode: ino=%lu",
+        err, (unsigned long) ino);
+  }
+  return err;
 }
 
 /**
@@ -155,19 +145,17 @@ int nilfs_ifile_get_inode_block(struct inode *ifile, ino_t ino,
  * @nfreeinodes: free inodes count [out]
  */
 int nilfs_ifile_count_free_inodes(struct inode *ifile,
-				    u64 *nmaxinodes, u64 *nfreeinodes)
-{
-	u64 nused;
-	int err;
-
-	*nmaxinodes = 0;
-	*nfreeinodes = 0;
-
-	nused = atomic64_read(&NILFS_I(ifile)->i_root->inodes_count);
-	err = nilfs_palloc_count_max_entries(ifile, nused, nmaxinodes);
-	if (likely(!err))
-		*nfreeinodes = *nmaxinodes - nused;
-	return err;
+    u64 *nmaxinodes, u64 *nfreeinodes) {
+  u64 nused;
+  int err;
+  *nmaxinodes = 0;
+  *nfreeinodes = 0;
+  nused = atomic64_read(&NILFS_I(ifile)->i_root->inodes_count);
+  err = nilfs_palloc_count_max_entries(ifile, nused, nmaxinodes);
+  if (likely(!err)) {
+    *nfreeinodes = *nmaxinodes - nused;
+  }
+  return err;
 }
 
 /**
@@ -178,43 +166,41 @@ int nilfs_ifile_count_free_inodes(struct inode *ifile,
  * @inode_size: size of an inode
  *
  * Return: 0 on success, or the following negative error code on failure.
- * * %-EINVAL	- Invalid checkpoint.
- * * %-ENOMEM	- Insufficient memory available.
- * * %-EIO	- I/O error (including metadata corruption).
+ * * %-EINVAL - Invalid checkpoint.
+ * * %-ENOMEM - Insufficient memory available.
+ * * %-EIO  - I/O error (including metadata corruption).
  */
 int nilfs_ifile_read(struct super_block *sb, struct nilfs_root *root,
-		     __u64 cno, size_t inode_size)
-{
-	struct the_nilfs *nilfs;
-	struct inode *ifile;
-	int err;
-
-	ifile = nilfs_iget_locked(sb, root, NILFS_IFILE_INO);
-	if (unlikely(!ifile))
-		return -ENOMEM;
-	if (!(ifile->i_state & I_NEW))
-		goto out;
-
-	err = nilfs_mdt_init(ifile, NILFS_MDT_GFP,
-			     sizeof(struct nilfs_ifile_info));
-	if (err)
-		goto failed;
-
-	err = nilfs_palloc_init_blockgroup(ifile, inode_size);
-	if (err)
-		goto failed;
-
-	nilfs_palloc_setup_cache(ifile, &NILFS_IFILE_I(ifile)->palloc_cache);
-
-	nilfs = sb->s_fs_info;
-	err = nilfs_cpfile_read_checkpoint(nilfs->ns_cpfile, cno, root, ifile);
-	if (err)
-		goto failed;
-
-	unlock_new_inode(ifile);
- out:
-	return 0;
- failed:
-	iget_failed(ifile);
-	return err;
+    __u64 cno, size_t inode_size) {
+  struct the_nilfs *nilfs;
+  struct inode *ifile;
+  int err;
+  ifile = nilfs_iget_locked(sb, root, NILFS_IFILE_INO);
+  if (unlikely(!ifile)) {
+    return -ENOMEM;
+  }
+  if (!(ifile->i_state & I_NEW)) {
+    goto out;
+  }
+  err = nilfs_mdt_init(ifile, NILFS_MDT_GFP,
+      sizeof(struct nilfs_ifile_info));
+  if (err) {
+    goto failed;
+  }
+  err = nilfs_palloc_init_blockgroup(ifile, inode_size);
+  if (err) {
+    goto failed;
+  }
+  nilfs_palloc_setup_cache(ifile, &NILFS_IFILE_I(ifile)->palloc_cache);
+  nilfs = sb->s_fs_info;
+  err = nilfs_cpfile_read_checkpoint(nilfs->ns_cpfile, cno, root, ifile);
+  if (err) {
+    goto failed;
+  }
+  unlock_new_inode(ifile);
+out:
+  return 0;
+failed:
+  iget_failed(ifile);
+  return err;
 }

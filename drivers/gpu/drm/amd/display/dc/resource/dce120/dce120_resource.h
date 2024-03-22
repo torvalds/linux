@@ -1,5 +1,5 @@
 /*
-* Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -32,8 +32,7 @@ struct dc;
 struct resource_pool;
 
 struct resource_pool *dce120_create_resource_pool(
-	uint8_t num_virtual_links,
-	struct dc *dc);
+  uint8_t num_virtual_links,
+  struct dc *dc);
 
 #endif /* __DC_RESOURCE_DCE120_H__ */
-

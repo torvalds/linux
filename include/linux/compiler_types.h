@@ -17,71 +17,76 @@
  * Skipped when running bindgen due to a libclang issue;
  * see https://github.com/rust-lang/rust-bindgen/issues/2244.
  */
-#if defined(CONFIG_DEBUG_INFO_BTF) && defined(CONFIG_PAHOLE_HAS_BTF_TAG) && \
-	__has_attribute(btf_type_tag) && !defined(__BINDGEN__)
-# define BTF_TYPE_TAG(value) __attribute__((btf_type_tag(#value)))
+#if defined(CONFIG_DEBUG_INFO_BTF) && defined(CONFIG_PAHOLE_HAS_BTF_TAG)    \
+  && __has_attribute(btf_type_tag) && !defined(__BINDGEN__)
+#define BTF_TYPE_TAG(value) __attribute__((btf_type_tag(#value)))
 #else
-# define BTF_TYPE_TAG(value) /* nothing */
+#define BTF_TYPE_TAG(value) /* nothing */
 #endif
 
 /* sparse defines __CHECKER__; see Documentation/dev-tools/sparse.rst */
 #ifdef __CHECKER__
 /* address spaces */
-# define __kernel	__attribute__((address_space(0)))
-# define __user		__attribute__((noderef, address_space(__user)))
-# define __iomem	__attribute__((noderef, address_space(__iomem)))
-# define __percpu	__attribute__((noderef, address_space(__percpu)))
-# define __rcu		__attribute__((noderef, address_space(__rcu)))
-static inline void __chk_user_ptr(const volatile void __user *ptr) { }
-static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
+#define __kernel __attribute__((address_space(0)))
+#define __user   __attribute__((noderef, address_space(__user)))
+#define __iomem  __attribute__((noderef, address_space(__iomem)))
+#define __percpu __attribute__((noderef, address_space(__percpu)))
+#define __rcu    __attribute__((noderef, address_space(__rcu)))
+static inline void __chk_user_ptr(const volatile void __user *ptr) {
+}
+
+static inline void __chk_io_ptr(const volatile void __iomem *ptr) {
+}
+
 /* context/locking */
-# define __must_hold(x)	__attribute__((context(x,1,1)))
-# define __acquires(x)	__attribute__((context(x,0,1)))
-# define __cond_acquires(x) __attribute__((context(x,0,-1)))
-# define __releases(x)	__attribute__((context(x,1,0)))
-# define __acquire(x)	__context__(x,1)
-# define __release(x)	__context__(x,-1)
-# define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
+#define __must_hold(x) __attribute__((context(x, 1, 1)))
+#define __acquires(x)  __attribute__((context(x, 0, 1)))
+#define __cond_acquires(x) __attribute__((context(x, 0, -1)))
+#define __releases(x)  __attribute__((context(x, 1, 0)))
+#define __acquire(x) __context__(x, 1)
+#define __release(x) __context__(x, -1)
+#define __cond_lock(x, c) ((c) ? ({ __acquire(x); 1; }) : 0)
 /* other */
-# define __force	__attribute__((force))
-# define __nocast	__attribute__((nocast))
-# define __safe		__attribute__((safe))
-# define __private	__attribute__((noderef))
-# define ACCESS_PRIVATE(p, member) (*((typeof((p)->member) __force *) &(p)->member))
+#define __force  __attribute__((force))
+#define __nocast __attribute__((nocast))
+#define __safe   __attribute__((safe))
+#define __private  __attribute__((noderef))
+#define ACCESS_PRIVATE(p, \
+      member) (*((typeof((p)->member) __force *) & (p)->member))
 #else /* __CHECKER__ */
 /* address spaces */
-# define __kernel
-# ifdef STRUCTLEAK_PLUGIN
-#  define __user	__attribute__((user))
-# else
-#  define __user	BTF_TYPE_TAG(user)
-# endif
-# define __iomem
-# define __percpu	BTF_TYPE_TAG(percpu)
-# define __rcu		BTF_TYPE_TAG(rcu)
+#define __kernel
+#ifdef STRUCTLEAK_PLUGIN
+#define __user  __attribute__((user))
+#else
+#define __user  BTF_TYPE_TAG(user)
+#endif
+#define __iomem
+#define __percpu BTF_TYPE_TAG(percpu)
+#define __rcu    BTF_TYPE_TAG(rcu)
 
-# define __chk_user_ptr(x)	(void)0
-# define __chk_io_ptr(x)	(void)0
+#define __chk_user_ptr(x)  (void) 0
+#define __chk_io_ptr(x)  (void) 0
 /* context/locking */
-# define __must_hold(x)
-# define __acquires(x)
-# define __cond_acquires(x)
-# define __releases(x)
-# define __acquire(x)	(void)0
-# define __release(x)	(void)0
-# define __cond_lock(x,c) (c)
+#define __must_hold(x)
+#define __acquires(x)
+#define __cond_acquires(x)
+#define __releases(x)
+#define __acquire(x) (void) 0
+#define __release(x) (void) 0
+#define __cond_lock(x, c) (c)
 /* other */
-# define __force
-# define __nocast
-# define __safe
-# define __private
-# define ACCESS_PRIVATE(p, member) ((p)->member)
-# define __builtin_warning(x, y...) (1)
+#define __force
+#define __nocast
+#define __safe
+#define __private
+#define ACCESS_PRIVATE(p, member) ((p)->member)
+#define __builtin_warning(x, y ...) (1)
 #endif /* __CHECKER__ */
 
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
-#define ___PASTE(a,b) a##b
-#define __PASTE(a,b) ___PASTE(a,b)
+#define ___PASTE(a, b) a ## b
+#define __PASTE(a, b) ___PASTE(a, b)
 
 #ifdef __KERNEL__
 
@@ -89,14 +94,16 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 #include <linux/compiler_attributes.h>
 
 #if CONFIG_FUNCTION_ALIGNMENT > 0
-#define __function_aligned		__aligned(CONFIG_FUNCTION_ALIGNMENT)
+#define __function_aligned    __aligned(CONFIG_FUNCTION_ALIGNMENT)
 #else
 #define __function_aligned
 #endif
 
 /*
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-cold-function-attribute
- *   gcc: https://gcc.gnu.org/onlinedocs/gcc/Label-Attributes.html#index-cold-label-attribute
+ *   gcc:
+ * https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html#index-cold-function-attribute
+ *   gcc:
+ * https://gcc.gnu.org/onlinedocs/gcc/Label-Attributes.html#index-cold-label-attribute
  *
  * When -falign-functions=N is in use, we must avoid the cold attribute as
  * GCC drops the alignment for cold functions. Worse, GCC can implicitly mark
@@ -109,8 +116,9 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
  *   https://lore.kernel.org/lkml/Y77%2FqVgvaJidFpYt@FVFF77S0Q05N
  *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88345#c9
  */
-#if defined(CONFIG_CC_HAS_SANE_FUNCTION_ALIGNMENT) || (CONFIG_FUNCTION_ALIGNMENT == 0)
-#define __cold				__attribute__((__cold__))
+#if defined(CONFIG_CC_HAS_SANE_FUNCTION_ALIGNMENT) \
+  || (CONFIG_FUNCTION_ALIGNMENT == 0)
+#define __cold        __attribute__((__cold__))
 #else
 #define __cold
 #endif
@@ -137,10 +145,11 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
  *
  * clang: https://clang.llvm.org/docs/AttributeReference.html#preserve-most
  */
-#if __has_attribute(__preserve_most__) && (defined(CONFIG_X86_64) || defined(CONFIG_ARM64))
-# define __preserve_most notrace __attribute__((__preserve_most__))
+#if __has_attribute(__preserve_most__) && (defined(CONFIG_X86_64) \
+  || defined(CONFIG_ARM64))
+#define __preserve_most notrace __attribute__((__preserve_most__))
 #else
-# define __preserve_most
+#define __preserve_most
 #endif
 
 /* Compiler specific macros. */
@@ -166,33 +175,33 @@ static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 #endif
 
 struct ftrace_branch_data {
-	const char *func;
-	const char *file;
-	unsigned line;
-	union {
-		struct {
-			unsigned long correct;
-			unsigned long incorrect;
-		};
-		struct {
-			unsigned long miss;
-			unsigned long hit;
-		};
-		unsigned long miss_hit[2];
-	};
+  const char *func;
+  const char *file;
+  unsigned line;
+  union {
+    struct {
+      unsigned long correct;
+      unsigned long incorrect;
+    };
+    struct {
+      unsigned long miss;
+      unsigned long hit;
+    };
+    unsigned long miss_hit[2];
+  };
 };
 
 struct ftrace_likely_data {
-	struct ftrace_branch_data	data;
-	unsigned long			constant;
+  struct ftrace_branch_data data;
+  unsigned long constant;
 };
 
 #if defined(CC_USING_HOTPATCH)
-#define notrace			__attribute__((hotpatch(0, 0)))
+#define notrace     __attribute__((hotpatch(0, 0)))
 #elif defined(CC_USING_PATCHABLE_FUNCTION_ENTRY)
-#define notrace			__attribute__((patchable_function_entry(0, 0)))
+#define notrace     __attribute__((patchable_function_entry(0, 0)))
 #else
-#define notrace			__attribute__((__no_instrument_function__))
+#define notrace     __attribute__((__no_instrument_function__))
 #endif
 
 /*
@@ -201,7 +210,7 @@ struct ftrace_likely_data {
  * stack and frame pointer being set up and there is no chance to
  * restore the lr register to the value before mcount was called.
  */
-#define __naked			__attribute__((__naked__)) notrace
+#define __naked     __attribute__((__naked__)) notrace
 
 /*
  * Prefer gnu_inline, so that extern inline functions do not emit an
@@ -228,7 +237,8 @@ struct ftrace_likely_data {
  * GCC does not warn about unused static inline functions for -Wunused-function.
  * Suppress the warning in clang as well by using __maybe_unused, but enable it
  * for W=1 build. This will allow clang to find unused functions. Remove the
- * __inline_maybe_unused entirely after fixing most of -Wunused-function warnings.
+ * __inline_maybe_unused entirely after fixing most of -Wunused-function
+ * warnings.
  */
 #ifdef KBUILD_EXTRA_WARN1
 #define __inline_maybe_unused
@@ -256,10 +266,10 @@ struct ftrace_likely_data {
  *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
  * '__maybe_unused' allows us to avoid defined-but-not-used warnings.
  */
-# define __no_kasan_or_inline __no_sanitize_address notrace __maybe_unused
-# define __no_sanitize_or_inline __no_kasan_or_inline
+#define __no_kasan_or_inline __no_sanitize_address notrace __maybe_unused
+#define __no_sanitize_or_inline __no_kasan_or_inline
 #else
-# define __no_kasan_or_inline __always_inline
+#define __no_kasan_or_inline __always_inline
 #endif
 
 #ifdef __SANITIZE_THREAD__
@@ -272,10 +282,10 @@ struct ftrace_likely_data {
  * Therefore we add __disable_sanitizer_instrumentation where available to
  * disable all instrumentation. See Kconfig.kcsan where this is mandatory.
  */
-# define __no_kcsan __no_sanitize_thread __disable_sanitizer_instrumentation
-# define __no_sanitize_or_inline __no_kcsan notrace __maybe_unused
+#define __no_kcsan __no_sanitize_thread __disable_sanitizer_instrumentation
+#define __no_sanitize_or_inline __no_kcsan notrace __maybe_unused
 #else
-# define __no_kcsan
+#define __no_kcsan
 #endif
 
 #ifndef __no_sanitize_or_inline
@@ -284,16 +294,16 @@ struct ftrace_likely_data {
 
 /* Do not trap wrapping arithmetic within an annotated function. */
 #ifdef CONFIG_UBSAN_SIGNED_WRAP
-# define __signed_wrap __attribute__((no_sanitize("signed-integer-overflow")))
+#define __signed_wrap __attribute__((no_sanitize("signed-integer-overflow")))
 #else
-# define __signed_wrap
+#define __signed_wrap
 #endif
 
 /* Section for code which can't be instrumented at all */
-#define __noinstr_section(section)					\
-	noinline notrace __attribute((__section__(section)))		\
-	__no_kcsan __no_sanitize_address __no_profile __no_sanitize_coverage \
-	__no_sanitize_memory __signed_wrap
+#define __noinstr_section(section)          \
+  noinline notrace __attribute((__section__(section)))    \
+  __no_kcsan __no_sanitize_address __no_profile __no_sanitize_coverage \
+  __no_sanitize_memory __signed_wrap
 
 #define noinstr __noinstr_section(".noinstr.text")
 
@@ -319,28 +329,28 @@ struct ftrace_likely_data {
  * For example, some of them are for compiler specific plugins.
  */
 #ifndef __latent_entropy
-# define __latent_entropy
+#define __latent_entropy
 #endif
 
 #if defined(RANDSTRUCT) && !defined(__CHECKER__)
-# define __randomize_layout __designated_init __attribute__((randomize_layout))
-# define __no_randomize_layout __attribute__((no_randomize_layout))
+#define __randomize_layout __designated_init __attribute__((randomize_layout))
+#define __no_randomize_layout __attribute__((no_randomize_layout))
 /* This anon struct can add padding, so only enable it under randstruct. */
-# define randomized_struct_fields_start	struct {
-# define randomized_struct_fields_end	} __randomize_layout;
+#define randomized_struct_fields_start struct {
+#define randomized_struct_fields_end } __randomize_layout;
 #else
-# define __randomize_layout __designated_init
-# define __no_randomize_layout
-# define randomized_struct_fields_start
-# define randomized_struct_fields_end
+#define __randomize_layout __designated_init
+#define __no_randomize_layout
+#define randomized_struct_fields_start
+#define randomized_struct_fields_end
 #endif
 
 #ifndef __noscs
-# define __noscs
+#define __noscs
 #endif
 
 #ifndef __nocfi
-# define __nocfi
+#define __nocfi
 #endif
 
 /*
@@ -350,11 +360,11 @@ struct ftrace_likely_data {
  * For these, use __realloc_size().
  */
 #ifdef __alloc_size__
-# define __alloc_size(x, ...)	__alloc_size__(x, ## __VA_ARGS__) __malloc
-# define __realloc_size(x, ...)	__alloc_size__(x, ## __VA_ARGS__)
+#define __alloc_size(x, ...) __alloc_size__(x, ## __VA_ARGS__) __malloc
+#define __realloc_size(x, ...) __alloc_size__(x, ## __VA_ARGS__)
 #else
-# define __alloc_size(x, ...)	__malloc
-# define __realloc_size(x, ...)
+#define __alloc_size(x, ...) __malloc
+#define __realloc_size(x, ...)
 #endif
 
 /*
@@ -362,11 +372,11 @@ struct ftrace_likely_data {
  * mechanism to find it. (For cases where sizeof() cannot be used.)
  */
 #if __has_builtin(__builtin_dynamic_object_size)
-#define __struct_size(p)	__builtin_dynamic_object_size(p, 0)
-#define __member_size(p)	__builtin_dynamic_object_size(p, 1)
+#define __struct_size(p)  __builtin_dynamic_object_size(p, 0)
+#define __member_size(p)  __builtin_dynamic_object_size(p, 1)
 #else
-#define __struct_size(p)	__builtin_object_size(p, 0)
-#define __member_size(p)	__builtin_object_size(p, 1)
+#define __struct_size(p)  __builtin_object_size(p, 0)
+#define __member_size(p)  __builtin_object_size(p, 1)
 #endif
 
 /*
@@ -377,7 +387,7 @@ struct ftrace_likely_data {
  * We do it here by hand, because it doesn't hurt.
  */
 #ifndef asm_goto_output
-#define asm_goto_output(x...) asm volatile goto(x)
+#define asm_goto_output(x ...) asm volatile goto (x)
 #endif
 
 #ifdef CONFIG_CC_HAS_ASM_INLINE
@@ -391,50 +401,53 @@ struct ftrace_likely_data {
 
 /*
  * __unqual_scalar_typeof(x) - Declare an unqualified scalar type, leaving
- *			       non-scalar types unchanged.
+ *             non-scalar types unchanged.
  */
 /*
  * Prefer C11 _Generic for better compile-times and simpler code. Note: 'char'
  * is not type-compatible with 'signed char', and we define a separate case.
  */
-#define __scalar_type_to_expr_cases(type)				\
-		unsigned type:	(unsigned type)0,			\
-		signed type:	(signed type)0
+#define __scalar_type_to_expr_cases(type)       \
+  unsigned type: \
+  (unsigned type) 0,     \
+  signed type: \
+  (signed type) 0
 
-#define __unqual_scalar_typeof(x) typeof(				\
-		_Generic((x),						\
-			 char:	(char)0,				\
-			 __scalar_type_to_expr_cases(char),		\
-			 __scalar_type_to_expr_cases(short),		\
-			 __scalar_type_to_expr_cases(int),		\
-			 __scalar_type_to_expr_cases(long),		\
-			 __scalar_type_to_expr_cases(long long),	\
-			 default: (x)))
+#define __unqual_scalar_typeof(x) typeof(       \
+    _Generic((x),           \
+    char :  (char) 0,        \
+    __scalar_type_to_expr_cases(char),   \
+    __scalar_type_to_expr_cases(short),    \
+    __scalar_type_to_expr_cases(int),    \
+    __scalar_type_to_expr_cases(long),   \
+    __scalar_type_to_expr_cases(long long),  \
+    default: \
+      (x)))
 
 /* Is this type a native word size -- useful for atomic operations */
 #define __native_word(t) \
-	(sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short) || \
-	 sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
+  (sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short)    \
+  || sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 
 #ifdef __OPTIMIZE__
-# define __compiletime_assert(condition, msg, prefix, suffix)		\
-	do {								\
-		/*							\
-		 * __noreturn is needed to give the compiler enough	\
-		 * information to avoid certain possibly-uninitialized	\
-		 * warnings (regardless of the build failing).		\
-		 */							\
-		__noreturn extern void prefix ## suffix(void)		\
-			__compiletime_error(msg);			\
-		if (!(condition))					\
-			prefix ## suffix();				\
-	} while (0)
+#define __compiletime_assert(condition, msg, prefix, suffix)   \
+  do {                \
+    /* \
+     * __noreturn is needed to give the compiler enough \
+     * information to avoid certain possibly-uninitialized \
+     * warnings (regardless of the build failing). \
+     */             \
+    __noreturn extern void prefix ## suffix(void)   \
+    __compiletime_error(msg);     \
+    if (!(condition))         \
+    prefix ## suffix();       \
+  } while (0)
 #else
-# define __compiletime_assert(condition, msg, prefix, suffix) do { } while (0)
+#define __compiletime_assert(condition, msg, prefix, suffix) do {} while (0)
 #endif
 
 #define _compiletime_assert(condition, msg, prefix, suffix) \
-	__compiletime_assert(condition, msg, prefix, suffix)
+  __compiletime_assert(condition, msg, prefix, suffix)
 
 /**
  * compiletime_assert - break build and emit msg if condition is false
@@ -446,11 +459,11 @@ struct ftrace_likely_data {
  * compiler has support to do so.
  */
 #define compiletime_assert(condition, msg) \
-	_compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
+  _compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
 
-#define compiletime_assert_atomic_type(t)				\
-	compiletime_assert(__native_word(t),				\
-		"Need native word sized stores/loads for atomicity.")
+#define compiletime_assert_atomic_type(t)       \
+  compiletime_assert(__native_word(t),        \
+    "Need native word sized stores/loads for atomicity.")
 
 /* Helpers for emitting diagnostics in pragmas. */
 #ifndef __diag
@@ -461,15 +474,15 @@ struct ftrace_likely_data {
 #define __diag_GCC(version, severity, string)
 #endif
 
-#define __diag_push()	__diag(push)
-#define __diag_pop()	__diag(pop)
+#define __diag_push() __diag(push)
+#define __diag_pop()  __diag(pop)
 
 #define __diag_ignore(compiler, version, option, comment) \
-	__diag_ ## compiler(version, ignore, option)
+  __diag_ ## compiler(version, ignore, option)
 #define __diag_warn(compiler, version, option, comment) \
-	__diag_ ## compiler(version, warn, option)
+  __diag_ ## compiler(version, warn, option)
 #define __diag_error(compiler, version, option, comment) \
-	__diag_ ## compiler(version, error, option)
+  __diag_ ## compiler(version, error, option)
 
 #ifndef __diag_ignore_all
 #define __diag_ignore_all(option, comment)

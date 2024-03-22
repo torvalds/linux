@@ -5,8 +5,7 @@
 #include <linux/gfp.h>
 
 inline void kmsan_handle_dma(struct page *page, size_t offset, size_t size,
-			     enum dma_data_direction dir)
-{
+    enum dma_data_direction dir) {
 }
 
 #endif /* _LINUX_KMSAN_H */

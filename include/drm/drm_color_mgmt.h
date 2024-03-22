@@ -40,25 +40,26 @@ struct drm_plane;
  * hardware, following OpenGL int<->float conversion rules
  * (see eg. OpenGL 4.6 specification - 2.3.5 Fixed-Point Data Conversions).
  */
-static inline u32 drm_color_lut_extract(u32 user_input, int bit_precision)
-{
-	if (bit_precision > 16)
-		return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(user_input, (1 << bit_precision) - 1),
-					     (1 << 16) - 1);
-	else
-		return DIV_ROUND_CLOSEST(user_input * ((1 << bit_precision) - 1),
-					 (1 << 16) - 1);
+static inline u32 drm_color_lut_extract(u32 user_input, int bit_precision) {
+  if (bit_precision > 16) {
+    return DIV_ROUND_CLOSEST_ULL(mul_u32_u32(user_input,
+        (1 << bit_precision) - 1),
+        (1 << 16) - 1);
+  } else {
+    return DIV_ROUND_CLOSEST(user_input * ((1 << bit_precision) - 1),
+        (1 << 16) - 1);
+  }
 }
 
 u64 drm_color_ctm_s31_32_to_qm_n(u64 user_input, u32 m, u32 n);
 
 void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
-				uint degamma_lut_size,
-				bool has_ctm,
-				uint gamma_lut_size);
+    uint degamma_lut_size,
+    bool has_ctm,
+    uint gamma_lut_size);
 
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
-				 int gamma_size);
+    int gamma_size);
 
 /**
  * drm_color_lut_size - calculate the number of entries in the LUT
@@ -67,29 +68,28 @@ int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
  * Returns:
  * The number of entries in the color LUT stored in @blob.
  */
-static inline int drm_color_lut_size(const struct drm_property_blob *blob)
-{
-	return blob->length / sizeof(struct drm_color_lut);
+static inline int drm_color_lut_size(const struct drm_property_blob *blob) {
+  return blob->length / sizeof(struct drm_color_lut);
 }
 
 enum drm_color_encoding {
-	DRM_COLOR_YCBCR_BT601,
-	DRM_COLOR_YCBCR_BT709,
-	DRM_COLOR_YCBCR_BT2020,
-	DRM_COLOR_ENCODING_MAX,
+  DRM_COLOR_YCBCR_BT601,
+  DRM_COLOR_YCBCR_BT709,
+  DRM_COLOR_YCBCR_BT2020,
+  DRM_COLOR_ENCODING_MAX,
 };
 
 enum drm_color_range {
-	DRM_COLOR_YCBCR_LIMITED_RANGE,
-	DRM_COLOR_YCBCR_FULL_RANGE,
-	DRM_COLOR_RANGE_MAX,
+  DRM_COLOR_YCBCR_LIMITED_RANGE,
+  DRM_COLOR_YCBCR_FULL_RANGE,
+  DRM_COLOR_RANGE_MAX,
 };
 
 int drm_plane_create_color_properties(struct drm_plane *plane,
-				      u32 supported_encodings,
-				      u32 supported_ranges,
-				      enum drm_color_encoding default_encoding,
-				      enum drm_color_range default_range);
+    u32 supported_encodings,
+    u32 supported_ranges,
+    enum drm_color_encoding default_encoding,
+    enum drm_color_range default_range);
 
 /**
  * enum drm_color_lut_tests - hw-specific LUT tests to perform
@@ -98,23 +98,23 @@ int drm_plane_create_color_properties(struct drm_plane *plane,
  * determine which tests to apply to a userspace-provided LUT.
  */
 enum drm_color_lut_tests {
-	/**
-	 * @DRM_COLOR_LUT_EQUAL_CHANNELS:
-	 *
-	 * Checks whether the entries of a LUT all have equal values for the
-	 * red, green, and blue channels.  Intended for hardware that only
-	 * accepts a single value per LUT entry and assumes that value applies
-	 * to all three color components.
-	 */
-	DRM_COLOR_LUT_EQUAL_CHANNELS = BIT(0),
+  /**
+   * @DRM_COLOR_LUT_EQUAL_CHANNELS:
+   *
+   * Checks whether the entries of a LUT all have equal values for the
+   * red, green, and blue channels.  Intended for hardware that only
+   * accepts a single value per LUT entry and assumes that value applies
+   * to all three color components.
+   */
+  DRM_COLOR_LUT_EQUAL_CHANNELS = BIT(0),
 
-	/**
-	 * @DRM_COLOR_LUT_NON_DECREASING:
-	 *
-	 * Checks whether the entries of a LUT are always flat or increasing
-	 * (never decreasing).
-	 */
-	DRM_COLOR_LUT_NON_DECREASING = BIT(1),
+  /**
+   * @DRM_COLOR_LUT_NON_DECREASING:
+   *
+   * Checks whether the entries of a LUT are always flat or increasing
+   * (never decreasing).
+   */
+  DRM_COLOR_LUT_NON_DECREASING = BIT(1),
 };
 
 int drm_color_lut_check(const struct drm_property_blob *lut, u32 tests);

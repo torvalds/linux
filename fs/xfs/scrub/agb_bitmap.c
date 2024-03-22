@@ -49,35 +49,29 @@
  */
 
 /* Mark a btree block to the agblock bitmap. */
-STATIC int
-xagb_bitmap_visit_btblock(
-	struct xfs_btree_cur	*cur,
-	int			level,
-	void			*priv)
-{
-	struct xagb_bitmap	*bitmap = priv;
-	struct xfs_buf		*bp;
-	xfs_fsblock_t		fsbno;
-	xfs_agblock_t		agbno;
-
-	xfs_btree_get_block(cur, level, &bp);
-	if (!bp)
-		return 0;
-
-	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
-	agbno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
-
-	return xagb_bitmap_set(bitmap, agbno, 1);
+STATIC int xagb_bitmap_visit_btblock(
+    struct xfs_btree_cur *cur,
+    int level,
+    void *priv) {
+  struct xagb_bitmap *bitmap = priv;
+  struct xfs_buf *bp;
+  xfs_fsblock_t fsbno;
+  xfs_agblock_t agbno;
+  xfs_btree_get_block(cur, level, &bp);
+  if (!bp) {
+    return 0;
+  }
+  fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
+  agbno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
+  return xagb_bitmap_set(bitmap, agbno, 1);
 }
 
 /* Mark all (per-AG) btree blocks in the agblock bitmap. */
-int
-xagb_bitmap_set_btblocks(
-	struct xagb_bitmap	*bitmap,
-	struct xfs_btree_cur	*cur)
-{
-	return xfs_btree_visit_blocks(cur, xagb_bitmap_visit_btblock,
-			XFS_BTREE_VISIT_ALL, bitmap);
+int xagb_bitmap_set_btblocks(
+    struct xagb_bitmap *bitmap,
+    struct xfs_btree_cur *cur) {
+  return xfs_btree_visit_blocks(cur, xagb_bitmap_visit_btblock,
+      XFS_BTREE_VISIT_ALL, bitmap);
 }
 
 /*
@@ -85,19 +79,16 @@ xagb_bitmap_set_btblocks(
  * engaged in a btree walk should call this function to capture the list of
  * blocks going from the leaf towards the root.
  */
-int
-xagb_bitmap_set_btcur_path(
-	struct xagb_bitmap	*bitmap,
-	struct xfs_btree_cur	*cur)
-{
-	int			i;
-	int			error;
-
-	for (i = 0; i < cur->bc_nlevels && cur->bc_levels[i].ptr == 1; i++) {
-		error = xagb_bitmap_visit_btblock(cur, i, bitmap);
-		if (error)
-			return error;
-	}
-
-	return 0;
+int xagb_bitmap_set_btcur_path(
+    struct xagb_bitmap *bitmap,
+    struct xfs_btree_cur *cur) {
+  int i;
+  int error;
+  for (i = 0; i < cur->bc_nlevels && cur->bc_levels[i].ptr == 1; i++) {
+    error = xagb_bitmap_visit_btblock(cur, i, bitmap);
+    if (error) {
+      return error;
+    }
+  }
+  return 0;
 }

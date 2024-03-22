@@ -16,8 +16,7 @@ extern unsigned int vdso_total_pages;
 
 #else /* CONFIG_VDSO */
 
-static inline void arm_install_vdso(struct mm_struct *mm, unsigned long addr)
-{
+static inline void arm_install_vdso(struct mm_struct *mm, unsigned long addr) {
 }
 
 #define vdso_total_pages 0

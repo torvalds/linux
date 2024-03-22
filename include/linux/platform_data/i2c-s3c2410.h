@@ -1,38 +1,38 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2004-2009 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
+ *  Ben Dooks <ben@simtec.co.uk>
  *
  * S3C - I2C Controller platform_device info
-*/
+ */
 
 #ifndef __I2C_S3C2410_H
 #define __I2C_S3C2410_H __FILE__
 
-#define S3C_IICFLG_FILTER	(1<<0)	/* enable s3c2440 filter */
+#define S3C_IICFLG_FILTER (1 << 0)  /* enable s3c2440 filter */
 
 struct platform_device;
 
 /**
- *	struct s3c2410_platform_i2c - Platform data for s3c I2C.
- *	@bus_num: The bus number to use (if possible).
- *	@flags: Any flags for the I2C bus (E.g. S3C_IICFLK_FILTER).
- *	@slave_addr: The I2C address for the slave device (if enabled).
- *	@frequency: The desired frequency in Hz of the bus.  This is
+ *  struct s3c2410_platform_i2c - Platform data for s3c I2C.
+ *  @bus_num: The bus number to use (if possible).
+ *  @flags: Any flags for the I2C bus (E.g. S3C_IICFLK_FILTER).
+ *  @slave_addr: The I2C address for the slave device (if enabled).
+ *  @frequency: The desired frequency in Hz of the bus.  This is
  *                  guaranteed to not be exceeded.  If the caller does
  *                  not care, use zero and the driver will select a
  *                  useful default.
- *	@sda_delay: The delay (in ns) applied to SDA edges.
- *	@cfg_gpio: A callback to configure the pins for I2C operation.
+ *  @sda_delay: The delay (in ns) applied to SDA edges.
+ *  @cfg_gpio: A callback to configure the pins for I2C operation.
  */
 struct s3c2410_platform_i2c {
-	int		bus_num;
-	unsigned int	flags;
-	unsigned int	slave_addr;
-	unsigned long	frequency;
-	unsigned int	sda_delay;
+  int bus_num;
+  unsigned int flags;
+  unsigned int slave_addr;
+  unsigned long frequency;
+  unsigned int sda_delay;
 
-	void	(*cfg_gpio)(struct platform_device *dev);
+  void (*cfg_gpio)(struct platform_device *dev);
 };
 
 /**

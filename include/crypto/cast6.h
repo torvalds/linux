@@ -11,8 +11,8 @@
 #define CAST6_MAX_KEY_SIZE 32
 
 struct cast6_ctx {
-	u32 Km[12][4];
-	u8 Kr[12][4];
+  u32 Km[12][4];
+  u8 Kr[12][4];
 };
 
 int __cast6_setkey(struct cast6_ctx *ctx, const u8 *key, unsigned int keylen);

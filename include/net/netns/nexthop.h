@@ -10,11 +10,11 @@
 #include <linux/rbtree.h>
 
 struct netns_nexthop {
-	struct rb_root		rb_root;	/* tree of nexthops by id */
-	struct hlist_head	*devhash;	/* nexthops by device */
+  struct rb_root rb_root;  /* tree of nexthops by id */
+  struct hlist_head *devhash; /* nexthops by device */
 
-	unsigned int		seq;		/* protected by rtnl_mutex */
-	u32			last_id_allocated;
-	struct blocking_notifier_head notifier_chain;
+  unsigned int seq;    /* protected by rtnl_mutex */
+  u32 last_id_allocated;
+  struct blocking_notifier_head notifier_chain;
 };
 #endif

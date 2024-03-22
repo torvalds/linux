@@ -23,7 +23,8 @@
 #ifndef __AMD_PCIE_H__
 #define __AMD_PCIE_H__
 
-/* Following flags shows PCIe link speed supported in driver which are decided by chipset and ASIC */
+/* Following flags shows PCIe link speed supported in driver which are decided
+ * by chipset and ASIC */
 #define CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1        0x00010000
 #define CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2        0x00020000
 #define CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3        0x00040000
@@ -43,12 +44,13 @@
 
 /* gen: chipset 1/2, asic 1/2/3 */
 #define AMDGPU_DEFAULT_PCIE_GEN_MASK (CAIL_PCIE_LINK_SPEED_SUPPORT_GEN1 \
-				      | CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 \
-				      | CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1 \
-				      | CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2 \
-				      | CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN3)
+  | CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2 \
+  | CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1 \
+  | CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2 \
+  | CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN3)
 
-/* Following flags shows PCIe lane width switch supported in driver which are decided by chipset and ASIC */
+/* Following flags shows PCIe lane width switch supported in driver which are
+ * decided by chipset and ASIC */
 #define CAIL_PCIE_LINK_WIDTH_SUPPORT_X1          0x00010000
 #define CAIL_PCIE_LINK_WIDTH_SUPPORT_X2          0x00020000
 #define CAIL_PCIE_LINK_WIDTH_SUPPORT_X4          0x00040000
@@ -60,9 +62,9 @@
 
 /* 1/2/4/8/16 lanes */
 #define AMDGPU_DEFAULT_PCIE_MLW_MASK (CAIL_PCIE_LINK_WIDTH_SUPPORT_X1 \
-				      | CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 \
-				      | CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 \
-				      | CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 \
-				      | CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
+  | CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 \
+  | CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 \
+  | CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 \
+  | CAIL_PCIE_LINK_WIDTH_SUPPORT_X16)
 
 #endif

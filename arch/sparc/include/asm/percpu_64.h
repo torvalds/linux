@@ -5,7 +5,7 @@
 #include <linux/compiler.h>
 
 #ifndef BUILD_VDSO
-register unsigned long __local_per_cpu_offset asm("g5");
+register unsigned long __local_per_cpu_offset asm ("g5");
 #endif
 
 #ifdef CONFIG_SMP
@@ -13,14 +13,14 @@ register unsigned long __local_per_cpu_offset asm("g5");
 #include <asm/trap_block.h>
 
 #define __per_cpu_offset(__cpu) \
-	(trap_block[(__cpu)].__per_cpu_base)
+  (trap_block[(__cpu)].__per_cpu_base)
 #define per_cpu_offset(x) (__per_cpu_offset(x))
 
 #define __my_cpu_offset __local_per_cpu_offset
 
 #else /* ! SMP */
 
-#endif	/* SMP */
+#endif  /* SMP */
 
 #include <asm-generic/percpu.h>
 

@@ -71,36 +71,34 @@ enum ATOM_VEGA12_PPCLOCK_ID {
 };
 typedef enum ATOM_VEGA12_PPCLOCK_ID ATOM_VEGA12_PPCLOCK_ID;
 
-
 typedef struct _ATOM_VEGA12_POWERPLAYTABLE {
-      struct atom_common_table_header sHeader;
-      UCHAR  ucTableRevision;
-      USHORT usTableSize;
-      ULONG  ulGoldenPPID;
-      ULONG  ulGoldenRevision;
-      USHORT usFormatID;
+  struct atom_common_table_header sHeader;
+  UCHAR ucTableRevision;
+  USHORT usTableSize;
+  ULONG ulGoldenPPID;
+  ULONG ulGoldenRevision;
+  USHORT usFormatID;
 
-      ULONG  ulPlatformCaps;
+  ULONG ulPlatformCaps;
 
-      UCHAR  ucThermalControllerType;
+  UCHAR ucThermalControllerType;
 
-      USHORT usSmallPowerLimit1;
-      USHORT usSmallPowerLimit2;
-      USHORT usBoostPowerLimit;
-      USHORT usODTurboPowerLimit;
-      USHORT usODPowerSavePowerLimit;
-      USHORT usSoftwareShutdownTemp;
+  USHORT usSmallPowerLimit1;
+  USHORT usSmallPowerLimit2;
+  USHORT usBoostPowerLimit;
+  USHORT usODTurboPowerLimit;
+  USHORT usODPowerSavePowerLimit;
+  USHORT usSoftwareShutdownTemp;
 
-      ULONG PowerSavingClockMax[ATOM_VEGA12_PPCLOCK_COUNT];
-      ULONG PowerSavingClockMin[ATOM_VEGA12_PPCLOCK_COUNT];
+  ULONG PowerSavingClockMax[ATOM_VEGA12_PPCLOCK_COUNT];
+  ULONG PowerSavingClockMin[ATOM_VEGA12_PPCLOCK_COUNT];
 
-      ULONG ODSettingsMax[ATOM_VEGA12_ODSETTING_COUNT];
-      ULONG ODSettingsMin[ATOM_VEGA12_ODSETTING_COUNT];
+  ULONG ODSettingsMax[ATOM_VEGA12_ODSETTING_COUNT];
+  ULONG ODSettingsMin[ATOM_VEGA12_ODSETTING_COUNT];
 
-      USHORT usReserve[5];
+  USHORT usReserve[5];
 
-      PPTable_t smcPPTable;
-
+  PPTable_t smcPPTable;
 } ATOM_Vega12_POWERPLAYTABLE;
 
 #pragma pack(pop)

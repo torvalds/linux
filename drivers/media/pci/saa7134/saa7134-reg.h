@@ -9,16 +9,16 @@
  * PCI ID's
  */
 #ifndef PCI_DEVICE_ID_PHILIPS_SAA7130
-# define PCI_DEVICE_ID_PHILIPS_SAA7130 0x7130
+#define PCI_DEVICE_ID_PHILIPS_SAA7130 0x7130
 #endif
 #ifndef PCI_DEVICE_ID_PHILIPS_SAA7133
-# define PCI_DEVICE_ID_PHILIPS_SAA7133 0x7133
+#define PCI_DEVICE_ID_PHILIPS_SAA7133 0x7133
 #endif
 #ifndef PCI_DEVICE_ID_PHILIPS_SAA7134
-# define PCI_DEVICE_ID_PHILIPS_SAA7134 0x7134
+#define PCI_DEVICE_ID_PHILIPS_SAA7134 0x7134
 #endif
 #ifndef PCI_DEVICE_ID_PHILIPS_SAA7135
-# define PCI_DEVICE_ID_PHILIPS_SAA7135 0x7135
+#define PCI_DEVICE_ID_PHILIPS_SAA7135 0x7135
 #endif
 
 /* ------------------------------------------------------------------ */
@@ -27,55 +27,55 @@
  */
 
 /* DMA channels, n = 0 ... 6 */
-#define SAA7134_RS_BA1(n)			((0x200 >> 2) + 4*n)
-#define SAA7134_RS_BA2(n)			((0x204 >> 2) + 4*n)
-#define SAA7134_RS_PITCH(n)			((0x208 >> 2) + 4*n)
-#define SAA7134_RS_CONTROL(n)			((0x20c >> 2) + 4*n)
-#define   SAA7134_RS_CONTROL_WSWAP		(0x01 << 25)
-#define   SAA7134_RS_CONTROL_BSWAP		(0x01 << 24)
-#define   SAA7134_RS_CONTROL_BURST_2		(0x01 << 21)
-#define   SAA7134_RS_CONTROL_BURST_4		(0x02 << 21)
-#define   SAA7134_RS_CONTROL_BURST_8		(0x03 << 21)
-#define   SAA7134_RS_CONTROL_BURST_16		(0x04 << 21)
-#define   SAA7134_RS_CONTROL_BURST_32		(0x05 << 21)
-#define   SAA7134_RS_CONTROL_BURST_64		(0x06 << 21)
-#define   SAA7134_RS_CONTROL_BURST_MAX		(0x07 << 21)
-#define   SAA7134_RS_CONTROL_ME			(0x01 << 20)
+#define SAA7134_RS_BA1(n)     ((0x200 >> 2) + 4 * n)
+#define SAA7134_RS_BA2(n)     ((0x204 >> 2) + 4 * n)
+#define SAA7134_RS_PITCH(n)     ((0x208 >> 2) + 4 * n)
+#define SAA7134_RS_CONTROL(n)     ((0x20c >> 2) + 4 * n)
+#define   SAA7134_RS_CONTROL_WSWAP    (0x01 << 25)
+#define   SAA7134_RS_CONTROL_BSWAP    (0x01 << 24)
+#define   SAA7134_RS_CONTROL_BURST_2    (0x01 << 21)
+#define   SAA7134_RS_CONTROL_BURST_4    (0x02 << 21)
+#define   SAA7134_RS_CONTROL_BURST_8    (0x03 << 21)
+#define   SAA7134_RS_CONTROL_BURST_16   (0x04 << 21)
+#define   SAA7134_RS_CONTROL_BURST_32   (0x05 << 21)
+#define   SAA7134_RS_CONTROL_BURST_64   (0x06 << 21)
+#define   SAA7134_RS_CONTROL_BURST_MAX    (0x07 << 21)
+#define   SAA7134_RS_CONTROL_ME     (0x01 << 20)
 #define SAA7134_FIFO_SIZE                       (0x2a0 >> 2)
 #define SAA7134_THRESHOULD                      (0x2a4 >> 2)
 
-#define SAA7133_NUM_SAMPLES			(0x588 >> 2)
-#define SAA7133_AUDIO_CHANNEL			(0x58c >> 2)
-#define SAA7133_AUDIO_FORMAT			(0x58f >> 2)
-#define SAA7133_DIGITAL_OUTPUT_SEL1		(0x46c >> 2)
-#define SAA7133_DIGITAL_OUTPUT_SEL2		(0x470 >> 2)
-#define SAA7133_DIGITAL_INPUT_XBAR1		(0x464 >> 2)
+#define SAA7133_NUM_SAMPLES     (0x588 >> 2)
+#define SAA7133_AUDIO_CHANNEL     (0x58c >> 2)
+#define SAA7133_AUDIO_FORMAT      (0x58f >> 2)
+#define SAA7133_DIGITAL_OUTPUT_SEL1   (0x46c >> 2)
+#define SAA7133_DIGITAL_OUTPUT_SEL2   (0x470 >> 2)
+#define SAA7133_DIGITAL_INPUT_XBAR1   (0x464 >> 2)
 #define SAA7133_ANALOG_IO_SELECT                (0x594 >> 2)
 
 /* main control */
 #define SAA7134_MAIN_CTRL                       (0x2a8 >> 2)
-#define   SAA7134_MAIN_CTRL_VPLLE		(1 << 15)
-#define   SAA7134_MAIN_CTRL_APLLE		(1 << 14)
-#define   SAA7134_MAIN_CTRL_EXOSC		(1 << 13)
-#define   SAA7134_MAIN_CTRL_EVFE1		(1 << 12)
-#define   SAA7134_MAIN_CTRL_EVFE2		(1 << 11)
-#define   SAA7134_MAIN_CTRL_ESFE		(1 << 10)
-#define   SAA7134_MAIN_CTRL_EBADC		(1 << 9)
-#define   SAA7134_MAIN_CTRL_EBDAC		(1 << 8)
-#define   SAA7134_MAIN_CTRL_TE6			(1 << 6)
-#define   SAA7134_MAIN_CTRL_TE5			(1 << 5)
-#define   SAA7134_MAIN_CTRL_TE4			(1 << 4)
-#define   SAA7134_MAIN_CTRL_TE3			(1 << 3)
-#define   SAA7134_MAIN_CTRL_TE2			(1 << 2)
-#define   SAA7134_MAIN_CTRL_TE1			(1 << 1)
-#define   SAA7134_MAIN_CTRL_TE0			(1 << 0)
+#define   SAA7134_MAIN_CTRL_VPLLE   (1 << 15)
+#define   SAA7134_MAIN_CTRL_APLLE   (1 << 14)
+#define   SAA7134_MAIN_CTRL_EXOSC   (1 << 13)
+#define   SAA7134_MAIN_CTRL_EVFE1   (1 << 12)
+#define   SAA7134_MAIN_CTRL_EVFE2   (1 << 11)
+#define   SAA7134_MAIN_CTRL_ESFE    (1 << 10)
+#define   SAA7134_MAIN_CTRL_EBADC   (1 << 9)
+#define   SAA7134_MAIN_CTRL_EBDAC   (1 << 8)
+#define   SAA7134_MAIN_CTRL_TE6     (1 << 6)
+#define   SAA7134_MAIN_CTRL_TE5     (1 << 5)
+#define   SAA7134_MAIN_CTRL_TE4     (1 << 4)
+#define   SAA7134_MAIN_CTRL_TE3     (1 << 3)
+#define   SAA7134_MAIN_CTRL_TE2     (1 << 2)
+#define   SAA7134_MAIN_CTRL_TE1     (1 << 1)
+#define   SAA7134_MAIN_CTRL_TE0     (1 << 0)
 
 /* DMA status */
 #define SAA7134_DMA_STATUS                      (0x2ac >> 2)
 
 /* audio / video status */
-#define SAA7134_AV_STATUS			(0x2c0 >> 2)
-#define   SAA7134_AV_STATUS_STEREO		(1 << 17)
+#define SAA7134_AV_STATUS     (0x2c0 >> 2)
+#define   SAA7134_AV_STATUS_STEREO    (1 << 17)
 #define   SAA7134_AV_STATUS_DUAL                (1 << 16)
 #define   SAA7134_AV_STATUS_PILOT               (1 << 15)
 #define   SAA7134_AV_STATUS_SMB                 (1 << 14)
@@ -101,36 +101,36 @@
 #define   SAA7134_IRQ1_INTE_RA2_0               (1 << 16)
 #define   SAA7134_IRQ1_INTE_RA1_3               (1 << 11)
 #define   SAA7134_IRQ1_INTE_RA1_2               (1 << 10)
-#define   SAA7134_IRQ1_INTE_RA1_1               (1 <<  9)
-#define   SAA7134_IRQ1_INTE_RA1_0               (1 <<  8)
-#define   SAA7134_IRQ1_INTE_RA0_7               (1 <<  7)
-#define   SAA7134_IRQ1_INTE_RA0_6               (1 <<  6)
-#define   SAA7134_IRQ1_INTE_RA0_5               (1 <<  5)
-#define   SAA7134_IRQ1_INTE_RA0_4               (1 <<  4)
-#define   SAA7134_IRQ1_INTE_RA0_3               (1 <<  3)
-#define   SAA7134_IRQ1_INTE_RA0_2               (1 <<  2)
-#define   SAA7134_IRQ1_INTE_RA0_1               (1 <<  1)
-#define   SAA7134_IRQ1_INTE_RA0_0               (1 <<  0)
+#define   SAA7134_IRQ1_INTE_RA1_1               (1 << 9)
+#define   SAA7134_IRQ1_INTE_RA1_0               (1 << 8)
+#define   SAA7134_IRQ1_INTE_RA0_7               (1 << 7)
+#define   SAA7134_IRQ1_INTE_RA0_6               (1 << 6)
+#define   SAA7134_IRQ1_INTE_RA0_5               (1 << 5)
+#define   SAA7134_IRQ1_INTE_RA0_4               (1 << 4)
+#define   SAA7134_IRQ1_INTE_RA0_3               (1 << 3)
+#define   SAA7134_IRQ1_INTE_RA0_2               (1 << 2)
+#define   SAA7134_IRQ1_INTE_RA0_1               (1 << 1)
+#define   SAA7134_IRQ1_INTE_RA0_0               (1 << 0)
 
 #define SAA7134_IRQ2                            (0x2c8 >> 2)
-#define   SAA7134_IRQ2_INTE_GPIO23_N             (1 << 17)	/* negative edge */
-#define   SAA7134_IRQ2_INTE_GPIO23_P             (1 << 16)	/* positive edge */
-#define   SAA7134_IRQ2_INTE_GPIO22_N             (1 << 15)	/* negative edge */
-#define   SAA7134_IRQ2_INTE_GPIO22_P             (1 << 14)	/* positive edge */
-#define   SAA7134_IRQ2_INTE_GPIO18_N             (1 << 13)	/* negative edge */
-#define   SAA7134_IRQ2_INTE_GPIO18_P             (1 << 12)	/* positive edge */
-#define   SAA7134_IRQ2_INTE_GPIO16_N             (1 << 11)	/* negative edge */
-#define   SAA7134_IRQ2_INTE_GPIO16_P             (1 << 10)	/* positive edge */
-#define   SAA7134_IRQ2_INTE_SC2                 (1 <<  9)
-#define   SAA7134_IRQ2_INTE_SC1                 (1 <<  8)
-#define   SAA7134_IRQ2_INTE_SC0                 (1 <<  7)
-#define   SAA7134_IRQ2_INTE_DEC4                (1 <<  6)
-#define   SAA7134_IRQ2_INTE_DEC3                (1 <<  5)
-#define   SAA7134_IRQ2_INTE_DEC2                (1 <<  4)
-#define   SAA7134_IRQ2_INTE_DEC1                (1 <<  3)
-#define   SAA7134_IRQ2_INTE_DEC0                (1 <<  2)
-#define   SAA7134_IRQ2_INTE_PE                  (1 <<  1)
-#define   SAA7134_IRQ2_INTE_AR                  (1 <<  0)
+#define   SAA7134_IRQ2_INTE_GPIO23_N             (1 << 17)  /* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO23_P             (1 << 16)  /* positive edge */
+#define   SAA7134_IRQ2_INTE_GPIO22_N             (1 << 15)  /* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO22_P             (1 << 14)  /* positive edge */
+#define   SAA7134_IRQ2_INTE_GPIO18_N             (1 << 13)  /* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO18_P             (1 << 12)  /* positive edge */
+#define   SAA7134_IRQ2_INTE_GPIO16_N             (1 << 11)  /* negative edge */
+#define   SAA7134_IRQ2_INTE_GPIO16_P             (1 << 10)  /* positive edge */
+#define   SAA7134_IRQ2_INTE_SC2                 (1 << 9)
+#define   SAA7134_IRQ2_INTE_SC1                 (1 << 8)
+#define   SAA7134_IRQ2_INTE_SC0                 (1 << 7)
+#define   SAA7134_IRQ2_INTE_DEC4                (1 << 6)
+#define   SAA7134_IRQ2_INTE_DEC3                (1 << 5)
+#define   SAA7134_IRQ2_INTE_DEC2                (1 << 4)
+#define   SAA7134_IRQ2_INTE_DEC1                (1 << 3)
+#define   SAA7134_IRQ2_INTE_DEC0                (1 << 2)
+#define   SAA7134_IRQ2_INTE_PE                  (1 << 1)
+#define   SAA7134_IRQ2_INTE_AR                  (1 << 0)
 
 #define SAA7134_IRQ_REPORT                      (0x2cc >> 2)
 #define   SAA7134_IRQ_REPORT_GPIO23             (1 << 17)
@@ -141,18 +141,17 @@
 #define   SAA7134_IRQ_REPORT_CONF_ERR           (1 << 12)
 #define   SAA7134_IRQ_REPORT_TRIG_ERR           (1 << 11)
 #define   SAA7134_IRQ_REPORT_MMC                (1 << 10)
-#define   SAA7134_IRQ_REPORT_FIDT               (1 <<  9)
-#define   SAA7134_IRQ_REPORT_INTL               (1 <<  8)
-#define   SAA7134_IRQ_REPORT_RDCAP              (1 <<  7)
-#define   SAA7134_IRQ_REPORT_PWR_ON             (1 <<  6)
-#define   SAA7134_IRQ_REPORT_PE                 (1 <<  5)
-#define   SAA7134_IRQ_REPORT_AR                 (1 <<  4)
-#define   SAA7134_IRQ_REPORT_DONE_RA3           (1 <<  3)
-#define   SAA7134_IRQ_REPORT_DONE_RA2           (1 <<  2)
-#define   SAA7134_IRQ_REPORT_DONE_RA1           (1 <<  1)
-#define   SAA7134_IRQ_REPORT_DONE_RA0           (1 <<  0)
+#define   SAA7134_IRQ_REPORT_FIDT               (1 << 9)
+#define   SAA7134_IRQ_REPORT_INTL               (1 << 8)
+#define   SAA7134_IRQ_REPORT_RDCAP              (1 << 7)
+#define   SAA7134_IRQ_REPORT_PWR_ON             (1 << 6)
+#define   SAA7134_IRQ_REPORT_PE                 (1 << 5)
+#define   SAA7134_IRQ_REPORT_AR                 (1 << 4)
+#define   SAA7134_IRQ_REPORT_DONE_RA3           (1 << 3)
+#define   SAA7134_IRQ_REPORT_DONE_RA2           (1 << 2)
+#define   SAA7134_IRQ_REPORT_DONE_RA1           (1 << 1)
+#define   SAA7134_IRQ_REPORT_DONE_RA0           (1 << 0)
 #define SAA7134_IRQ_STATUS                      (0x2d0 >> 2)
-
 
 /* ------------------------------------------------------------------ */
 /*
@@ -201,63 +200,63 @@
 #define SAA7134_START_GREEN                     0x00c
 #define SAA7134_START_BLUE                      0x00d
 #define SAA7134_START_RED                       0x00e
-#define SAA7134_GREEN_PATH(x)                   (0x010 +x)
-#define SAA7134_BLUE_PATH(x)                    (0x020 +x)
-#define SAA7134_RED_PATH(x)                     (0x030 +x)
+#define SAA7134_GREEN_PATH(x)                   (0x010 + x)
+#define SAA7134_BLUE_PATH(x)                    (0x020 + x)
+#define SAA7134_RED_PATH(x)                     (0x030 + x)
 
 #define TASK_A                                  0x040
 #define TASK_B                                  0x080
-#define SAA7134_TASK_CONDITIONS(t)              (0x000 +t)
-#define SAA7134_FIELD_HANDLING(t)               (0x001 +t)
-#define SAA7134_DATA_PATH(t)                    (0x002 +t)
-#define SAA7134_VBI_H_START1(t)                 (0x004 +t)
-#define SAA7134_VBI_H_START2(t)                 (0x005 +t)
-#define SAA7134_VBI_H_STOP1(t)                  (0x006 +t)
-#define SAA7134_VBI_H_STOP2(t)                  (0x007 +t)
-#define SAA7134_VBI_V_START1(t)                 (0x008 +t)
-#define SAA7134_VBI_V_START2(t)                 (0x009 +t)
-#define SAA7134_VBI_V_STOP1(t)                  (0x00a +t)
-#define SAA7134_VBI_V_STOP2(t)                  (0x00b +t)
-#define SAA7134_VBI_H_LEN1(t)                   (0x00c +t)
-#define SAA7134_VBI_H_LEN2(t)                   (0x00d +t)
-#define SAA7134_VBI_V_LEN1(t)                   (0x00e +t)
-#define SAA7134_VBI_V_LEN2(t)                   (0x00f +t)
+#define SAA7134_TASK_CONDITIONS(t)              (0x000 + t)
+#define SAA7134_FIELD_HANDLING(t)               (0x001 + t)
+#define SAA7134_DATA_PATH(t)                    (0x002 + t)
+#define SAA7134_VBI_H_START1(t)                 (0x004 + t)
+#define SAA7134_VBI_H_START2(t)                 (0x005 + t)
+#define SAA7134_VBI_H_STOP1(t)                  (0x006 + t)
+#define SAA7134_VBI_H_STOP2(t)                  (0x007 + t)
+#define SAA7134_VBI_V_START1(t)                 (0x008 + t)
+#define SAA7134_VBI_V_START2(t)                 (0x009 + t)
+#define SAA7134_VBI_V_STOP1(t)                  (0x00a + t)
+#define SAA7134_VBI_V_STOP2(t)                  (0x00b + t)
+#define SAA7134_VBI_H_LEN1(t)                   (0x00c + t)
+#define SAA7134_VBI_H_LEN2(t)                   (0x00d + t)
+#define SAA7134_VBI_V_LEN1(t)                   (0x00e + t)
+#define SAA7134_VBI_V_LEN2(t)                   (0x00f + t)
 
-#define SAA7134_VIDEO_H_START1(t)               (0x014 +t)
-#define SAA7134_VIDEO_H_START2(t)               (0x015 +t)
-#define SAA7134_VIDEO_H_STOP1(t)                (0x016 +t)
-#define SAA7134_VIDEO_H_STOP2(t)                (0x017 +t)
-#define SAA7134_VIDEO_V_START1(t)               (0x018 +t)
-#define SAA7134_VIDEO_V_START2(t)               (0x019 +t)
-#define SAA7134_VIDEO_V_STOP1(t)                (0x01a +t)
-#define SAA7134_VIDEO_V_STOP2(t)                (0x01b +t)
-#define SAA7134_VIDEO_PIXELS1(t)                (0x01c +t)
-#define SAA7134_VIDEO_PIXELS2(t)                (0x01d +t)
-#define SAA7134_VIDEO_LINES1(t)                 (0x01e +t)
-#define SAA7134_VIDEO_LINES2(t)                 (0x01f +t)
+#define SAA7134_VIDEO_H_START1(t)               (0x014 + t)
+#define SAA7134_VIDEO_H_START2(t)               (0x015 + t)
+#define SAA7134_VIDEO_H_STOP1(t)                (0x016 + t)
+#define SAA7134_VIDEO_H_STOP2(t)                (0x017 + t)
+#define SAA7134_VIDEO_V_START1(t)               (0x018 + t)
+#define SAA7134_VIDEO_V_START2(t)               (0x019 + t)
+#define SAA7134_VIDEO_V_STOP1(t)                (0x01a + t)
+#define SAA7134_VIDEO_V_STOP2(t)                (0x01b + t)
+#define SAA7134_VIDEO_PIXELS1(t)                (0x01c + t)
+#define SAA7134_VIDEO_PIXELS2(t)                (0x01d + t)
+#define SAA7134_VIDEO_LINES1(t)                 (0x01e + t)
+#define SAA7134_VIDEO_LINES2(t)                 (0x01f + t)
 
-#define SAA7134_H_PRESCALE(t)                   (0x020 +t)
-#define SAA7134_ACC_LENGTH(t)                   (0x021 +t)
-#define SAA7134_LEVEL_CTRL(t)                   (0x022 +t)
-#define SAA7134_FIR_PREFILTER_CTRL(t)           (0x023 +t)
-#define SAA7134_LUMA_BRIGHT(t)                  (0x024 +t)
-#define SAA7134_LUMA_CONTRAST(t)                (0x025 +t)
-#define SAA7134_CHROMA_SATURATION(t)            (0x026 +t)
-#define SAA7134_VBI_H_SCALE_INC1(t)             (0x028 +t)
-#define SAA7134_VBI_H_SCALE_INC2(t)             (0x029 +t)
-#define SAA7134_VBI_PHASE_OFFSET_LUMA(t)        (0x02a +t)
-#define SAA7134_VBI_PHASE_OFFSET_CHROMA(t)      (0x02b +t)
-#define SAA7134_H_SCALE_INC1(t)                 (0x02c +t)
-#define SAA7134_H_SCALE_INC2(t)                 (0x02d +t)
-#define SAA7134_H_PHASE_OFF_LUMA(t)             (0x02e +t)
-#define SAA7134_H_PHASE_OFF_CHROMA(t)           (0x02f +t)
-#define SAA7134_V_SCALE_RATIO1(t)               (0x030 +t)
-#define SAA7134_V_SCALE_RATIO2(t)               (0x031 +t)
-#define SAA7134_V_FILTER(t)                     (0x032 +t)
-#define SAA7134_V_PHASE_OFFSET0(t)              (0x034 +t)
-#define SAA7134_V_PHASE_OFFSET1(t)              (0x035 +t)
-#define SAA7134_V_PHASE_OFFSET2(t)              (0x036 +t)
-#define SAA7134_V_PHASE_OFFSET3(t)              (0x037 +t)
+#define SAA7134_H_PRESCALE(t)                   (0x020 + t)
+#define SAA7134_ACC_LENGTH(t)                   (0x021 + t)
+#define SAA7134_LEVEL_CTRL(t)                   (0x022 + t)
+#define SAA7134_FIR_PREFILTER_CTRL(t)           (0x023 + t)
+#define SAA7134_LUMA_BRIGHT(t)                  (0x024 + t)
+#define SAA7134_LUMA_CONTRAST(t)                (0x025 + t)
+#define SAA7134_CHROMA_SATURATION(t)            (0x026 + t)
+#define SAA7134_VBI_H_SCALE_INC1(t)             (0x028 + t)
+#define SAA7134_VBI_H_SCALE_INC2(t)             (0x029 + t)
+#define SAA7134_VBI_PHASE_OFFSET_LUMA(t)        (0x02a + t)
+#define SAA7134_VBI_PHASE_OFFSET_CHROMA(t)      (0x02b + t)
+#define SAA7134_H_SCALE_INC1(t)                 (0x02c + t)
+#define SAA7134_H_SCALE_INC2(t)                 (0x02d + t)
+#define SAA7134_H_PHASE_OFF_LUMA(t)             (0x02e + t)
+#define SAA7134_H_PHASE_OFF_CHROMA(t)           (0x02f + t)
+#define SAA7134_V_SCALE_RATIO1(t)               (0x030 + t)
+#define SAA7134_V_SCALE_RATIO2(t)               (0x031 + t)
+#define SAA7134_V_FILTER(t)                     (0x032 + t)
+#define SAA7134_V_PHASE_OFFSET0(t)              (0x034 + t)
+#define SAA7134_V_PHASE_OFFSET1(t)              (0x035 + t)
+#define SAA7134_V_PHASE_OFFSET2(t)              (0x036 + t)
+#define SAA7134_V_PHASE_OFFSET3(t)              (0x037 + t)
 
 /* clipping & dma */
 #define SAA7134_OFMT_VIDEO_A                    0x300
@@ -371,7 +370,7 @@
 #define SAA7135_DSP_RWSTATE_RDB                 (1 << 1)
 #define SAA7135_DSP_RWSTATE_WRR                 (1 << 0)
 
-#define SAA7135_DSP_RWCLEAR			0x586
-#define SAA7135_DSP_RWCLEAR_RERR		    1
+#define SAA7135_DSP_RWCLEAR     0x586
+#define SAA7135_DSP_RWCLEAR_RERR        1
 
 #define SAA7133_I2S_AUDIO_CONTROL               0x591

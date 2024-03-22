@@ -21,11 +21,11 @@ void *virtsnd_ctl_msg_request(struct virtio_snd_msg *msg);
 void *virtsnd_ctl_msg_response(struct virtio_snd_msg *msg);
 
 struct virtio_snd_msg *virtsnd_ctl_msg_alloc(size_t request_size,
-					     size_t response_size, gfp_t gfp);
+    size_t response_size, gfp_t gfp);
 
 int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
-			 struct scatterlist *out_sgs,
-			 struct scatterlist *in_sgs, bool nowait);
+    struct scatterlist *out_sgs,
+    struct scatterlist *in_sgs, bool nowait);
 
 /**
  * virtsnd_ctl_msg_send_sync() - Simplified sending of synchronous message.
@@ -47,9 +47,8 @@ int virtsnd_ctl_msg_send(struct virtio_snd *snd, struct virtio_snd_msg *msg,
  * appropriate -errno value.
  */
 static inline int virtsnd_ctl_msg_send_sync(struct virtio_snd *snd,
-					    struct virtio_snd_msg *msg)
-{
-	return virtsnd_ctl_msg_send(snd, msg, NULL, NULL, false);
+    struct virtio_snd_msg *msg) {
+  return virtsnd_ctl_msg_send(snd, msg, NULL, NULL, false);
 }
 
 /**
@@ -61,9 +60,8 @@ static inline int virtsnd_ctl_msg_send_sync(struct virtio_snd *snd,
  * Return: 0 on success, -errno on failure.
  */
 static inline int virtsnd_ctl_msg_send_async(struct virtio_snd *snd,
-					     struct virtio_snd_msg *msg)
-{
-	return virtsnd_ctl_msg_send(snd, msg, NULL, NULL, true);
+    struct virtio_snd_msg *msg) {
+  return virtsnd_ctl_msg_send(snd, msg, NULL, NULL, true);
 }
 
 void virtsnd_ctl_msg_cancel_all(struct virtio_snd *snd);
@@ -71,7 +69,7 @@ void virtsnd_ctl_msg_cancel_all(struct virtio_snd *snd);
 void virtsnd_ctl_msg_complete(struct virtio_snd_msg *msg);
 
 int virtsnd_ctl_query_info(struct virtio_snd *snd, int command, int start_id,
-			   int count, size_t size, void *info);
+    int count, size_t size, void *info);
 
 void virtsnd_ctl_notify_cb(struct virtqueue *vqueue);
 

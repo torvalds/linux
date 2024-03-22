@@ -20,10 +20,10 @@
 
 /* CONVERSION */
 struct sh_css_isp_conversion_params {
-	u32 en;
-	u32 dummy0;
-	u32 dummy1;
-	u32 dummy2;
+  u32 en;
+  u32 dummy0;
+  u32 dummy1;
+  u32 dummy2;
 };
 
 #endif /* __IA_CSS_CONVERSION_PARAM_H */

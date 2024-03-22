@@ -20,12 +20,12 @@
 #include <asm/ptrace.h>
 
 #define STACK_TOP       TASK_SIZE
-#define STACK_TOP_MAX	STACK_TOP
+#define STACK_TOP_MAX STACK_TOP
 /* Kernel and user SR register setting */
 #define KERNEL_SR (SPR_SR_DME | SPR_SR_IME | SPR_SR_ICE \
-		   | SPR_SR_DCE | SPR_SR_SM)
+  | SPR_SR_DCE | SPR_SR_SM)
 #define USER_SR   (SPR_SR_DME | SPR_SR_IME | SPR_SR_ICE \
-		   | SPR_SR_DCE | SPR_SR_IEE | SPR_SR_TEE)
+  | SPR_SR_DCE | SPR_SR_IEE | SPR_SR_TEE)
 
 /*
  * User space process size. This is hardcoded into a few places,
@@ -54,7 +54,8 @@ struct thread_struct {
  * user->kernel transition registers are reached by this (i.e. not regs
  * for running signal handler)
  */
-#define user_regs(thread_info)  (((struct pt_regs *)((unsigned long)(thread_info) + THREAD_SIZE - STACK_FRAME_OVERHEAD)) - 1)
+#define user_regs(thread_info)  (((struct pt_regs *) ((unsigned long) ( \
+    thread_info) + THREAD_SIZE - STACK_FRAME_OVERHEAD)) - 1)
 
 /*
  * Dito but for the currently running task
@@ -64,12 +65,10 @@ struct thread_struct {
 
 #define INIT_SP         (sizeof(init_stack) + (unsigned long) &init_stack)
 
-#define INIT_THREAD  { }
-
+#define INIT_THREAD  {}
 
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
-
 
 void start_thread(struct pt_regs *regs, unsigned long nip, unsigned long sp);
 unsigned long __get_wchan(struct task_struct *p);

@@ -8,28 +8,28 @@ enum nvkm_acr_lsf_id;
 struct nvkm_acr_lsfw;
 
 struct nvkm_pmu_func {
-	const struct nvkm_falcon_func *flcn;
+  const struct nvkm_falcon_func *flcn;
 
-	struct {
-		u32 *data;
-		u32  size;
-	} code;
+  struct {
+    u32 *data;
+    u32 size;
+  } code;
 
-	struct {
-		u32 *data;
-		u32  size;
-	} data;
+  struct {
+    u32 *data;
+    u32 size;
+  } data;
 
-	bool (*enabled)(struct nvkm_pmu *);
-	void (*reset)(struct nvkm_pmu *);
-	int (*init)(struct nvkm_pmu *);
-	void (*fini)(struct nvkm_pmu *);
-	void (*intr)(struct nvkm_pmu *);
-	int (*send)(struct nvkm_pmu *, u32 reply[2], u32 process,
-		    u32 message, u32 data0, u32 data1);
-	void (*recv)(struct nvkm_pmu *);
-	int (*initmsg)(struct nvkm_pmu *);
-	void (*pgob)(struct nvkm_pmu *, bool);
+  bool (*enabled)(struct nvkm_pmu *);
+  void (*reset)(struct nvkm_pmu *);
+  int (*init)(struct nvkm_pmu *);
+  void (*fini)(struct nvkm_pmu *);
+  void (*intr)(struct nvkm_pmu *);
+  int (*send)(struct nvkm_pmu *, u32 reply[2], u32 process,
+      u32 message, u32 data0, u32 data1);
+  void (*recv)(struct nvkm_pmu *);
+  int (*initmsg)(struct nvkm_pmu *);
+  void (*pgob)(struct nvkm_pmu *, bool);
 };
 
 extern const struct nvkm_falcon_func gt215_pmu_flcn;
@@ -54,18 +54,20 @@ void gm20b_pmu_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
 int gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 
 struct nvkm_pmu_fwif {
-	int version;
-	int (*load)(struct nvkm_pmu *, int ver, const struct nvkm_pmu_fwif *);
-	const struct nvkm_pmu_func *func;
-	const struct nvkm_acr_lsf_func *acr;
+  int version;
+  int (*load)(struct nvkm_pmu *, int ver, const struct nvkm_pmu_fwif *);
+  const struct nvkm_pmu_func *func;
+  const struct nvkm_acr_lsf_func *acr;
 };
 
 int gf100_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm200_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm20b_pmu_load(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 
-int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_pmu *);
-int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_pmu **);
+int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_pmu *);
+int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_pmu **);
 #endif

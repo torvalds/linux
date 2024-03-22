@@ -23,16 +23,16 @@
  * @reg_size: register size in bytes
  */
 struct i2c_mux_reg_platform_data {
-	int parent;
-	int base_nr;
-	const unsigned int *values;
-	int n_values;
-	bool little_endian;
-	bool write_only;
-	u32 idle;
-	bool idle_in_use;
-	void __iomem *reg;
-	resource_size_t reg_size;
+  int parent;
+  int base_nr;
+  const unsigned int *values;
+  int n_values;
+  bool little_endian;
+  bool write_only;
+  u32 idle;
+  bool idle_in_use;
+  void __iomem *reg;
+  resource_size_t reg_size;
 };
 
-#endif	/* __LINUX_PLATFORM_DATA_I2C_MUX_REG_H */
+#endif  /* __LINUX_PLATFORM_DATA_I2C_MUX_REG_H */

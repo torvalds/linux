@@ -15,135 +15,132 @@
  * this function is *offs = val.
  */
 static void asd_write_byte(struct asd_ha_struct *asd_ha,
-			   unsigned long offs, u8 val)
-{
-	if (unlikely(asd_ha->iospace))
-		outb(val,
-		     (unsigned long)asd_ha->io_handle[0].addr + (offs & 0xFF));
-	else
-		writeb(val, asd_ha->io_handle[0].addr + offs);
-	wmb();
+    unsigned long offs, u8 val) {
+  if (unlikely(asd_ha->iospace)) {
+    outb(val,
+        (unsigned long) asd_ha->io_handle[0].addr + (offs & 0xFF));
+  } else {
+    writeb(val, asd_ha->io_handle[0].addr + offs);
+  }
+  wmb();
 }
 
 static void asd_write_word(struct asd_ha_struct *asd_ha,
-			   unsigned long offs, u16 val)
-{
-	if (unlikely(asd_ha->iospace))
-		outw(val,
-		     (unsigned long)asd_ha->io_handle[0].addr + (offs & 0xFF));
-	else
-		writew(val, asd_ha->io_handle[0].addr + offs);
-	wmb();
+    unsigned long offs, u16 val) {
+  if (unlikely(asd_ha->iospace)) {
+    outw(val,
+        (unsigned long) asd_ha->io_handle[0].addr + (offs & 0xFF));
+  } else {
+    writew(val, asd_ha->io_handle[0].addr + offs);
+  }
+  wmb();
 }
 
 static void asd_write_dword(struct asd_ha_struct *asd_ha,
-			    unsigned long offs, u32 val)
-{
-	if (unlikely(asd_ha->iospace))
-		outl(val,
-		     (unsigned long)asd_ha->io_handle[0].addr + (offs & 0xFF));
-	else
-		writel(val, asd_ha->io_handle[0].addr + offs);
-	wmb();
+    unsigned long offs, u32 val) {
+  if (unlikely(asd_ha->iospace)) {
+    outl(val,
+        (unsigned long) asd_ha->io_handle[0].addr + (offs & 0xFF));
+  } else {
+    writel(val, asd_ha->io_handle[0].addr + offs);
+  }
+  wmb();
 }
 
 /* Reading from device address space.
  */
-static u8 asd_read_byte(struct asd_ha_struct *asd_ha, unsigned long offs)
-{
-	u8 val;
-	if (unlikely(asd_ha->iospace))
-		val = inb((unsigned long) asd_ha->io_handle[0].addr
-			  + (offs & 0xFF));
-	else
-		val = readb(asd_ha->io_handle[0].addr + offs);
-	rmb();
-	return val;
+static u8 asd_read_byte(struct asd_ha_struct *asd_ha, unsigned long offs) {
+  u8 val;
+  if (unlikely(asd_ha->iospace)) {
+    val = inb((unsigned long) asd_ha->io_handle[0].addr
+        + (offs & 0xFF));
+  } else {
+    val = readb(asd_ha->io_handle[0].addr + offs);
+  }
+  rmb();
+  return val;
 }
 
 static u16 asd_read_word(struct asd_ha_struct *asd_ha,
-			 unsigned long offs)
-{
-	u16 val;
-	if (unlikely(asd_ha->iospace))
-		val = inw((unsigned long)asd_ha->io_handle[0].addr
-			  + (offs & 0xFF));
-	else
-		val = readw(asd_ha->io_handle[0].addr + offs);
-	rmb();
-	return val;
+    unsigned long offs) {
+  u16 val;
+  if (unlikely(asd_ha->iospace)) {
+    val = inw((unsigned long) asd_ha->io_handle[0].addr
+        + (offs & 0xFF));
+  } else {
+    val = readw(asd_ha->io_handle[0].addr + offs);
+  }
+  rmb();
+  return val;
 }
 
 static u32 asd_read_dword(struct asd_ha_struct *asd_ha,
-			  unsigned long offs)
-{
-	u32 val;
-	if (unlikely(asd_ha->iospace))
-		val = inl((unsigned long) asd_ha->io_handle[0].addr
-			  + (offs & 0xFF));
-	else
-		val = readl(asd_ha->io_handle[0].addr + offs);
-	rmb();
-	return val;
+    unsigned long offs) {
+  u32 val;
+  if (unlikely(asd_ha->iospace)) {
+    val = inl((unsigned long) asd_ha->io_handle[0].addr
+        + (offs & 0xFF));
+  } else {
+    val = readl(asd_ha->io_handle[0].addr + offs);
+  }
+  rmb();
+  return val;
 }
 
-static inline u32 asd_mem_offs_swa(void)
-{
-	return 0;
+static inline u32 asd_mem_offs_swa(void) {
+  return 0;
 }
 
-static inline u32 asd_mem_offs_swc(void)
-{
-	return asd_mem_offs_swa() + MBAR0_SWA_SIZE;
+static inline u32 asd_mem_offs_swc(void) {
+  return asd_mem_offs_swa() + MBAR0_SWA_SIZE;
 }
 
-static inline u32 asd_mem_offs_swb(void)
-{
-	return asd_mem_offs_swc() + MBAR0_SWC_SIZE + 0x20;
+static inline u32 asd_mem_offs_swb(void) {
+  return asd_mem_offs_swc() + MBAR0_SWC_SIZE + 0x20;
 }
 
 /* We know that the register wanted is in the range
  * of the sliding window.
  */
-#define ASD_READ_SW(ww, type, ord)					\
-static type asd_read_##ww##_##ord(struct asd_ha_struct *asd_ha,		\
-				   u32 reg)				\
-{									\
-	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];	\
-	u32 map_offs = (reg - io_handle->ww##_base) + asd_mem_offs_##ww();\
-	return asd_read_##ord(asd_ha, (unsigned long)map_offs);	\
-}
+#define ASD_READ_SW(ww, type, ord)          \
+  static type asd_read_ ## ww ## _ ## ord(struct asd_ha_struct *asd_ha,   \
+    u32 reg)       \
+  {                 \
+    struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0]; \
+    u32 map_offs = (reg - io_handle->ww ## _base) + asd_mem_offs_ ## ww(); \
+    return asd_read_ ## ord(asd_ha, (unsigned long) map_offs); \
+  }
 
-#define ASD_WRITE_SW(ww, type, ord)					\
-static void asd_write_##ww##_##ord(struct asd_ha_struct *asd_ha,	\
-				    u32 reg, type val)			\
-{									\
-	struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];	\
-	u32 map_offs = (reg - io_handle->ww##_base) + asd_mem_offs_##ww();\
-	asd_write_##ord(asd_ha, (unsigned long)map_offs, val);		\
-}
+#define ASD_WRITE_SW(ww, type, ord)         \
+  static void asd_write_ ## ww ## _ ## ord(struct asd_ha_struct *asd_ha,  \
+    u32 reg, type val)      \
+  {                 \
+    struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0]; \
+    u32 map_offs = (reg - io_handle->ww ## _base) + asd_mem_offs_ ## ww(); \
+    asd_write_ ## ord(asd_ha, (unsigned long) map_offs, val);    \
+  }
 
-ASD_READ_SW(swa, u8,  byte);
+ASD_READ_SW(swa, u8, byte);
 ASD_READ_SW(swa, u16, word);
 ASD_READ_SW(swa, u32, dword);
 
-ASD_READ_SW(swb, u8,  byte);
+ASD_READ_SW(swb, u8, byte);
 ASD_READ_SW(swb, u16, word);
 ASD_READ_SW(swb, u32, dword);
 
-ASD_READ_SW(swc, u8,  byte);
+ASD_READ_SW(swc, u8, byte);
 ASD_READ_SW(swc, u16, word);
 ASD_READ_SW(swc, u32, dword);
 
-ASD_WRITE_SW(swa, u8,  byte);
+ASD_WRITE_SW(swa, u8, byte);
 ASD_WRITE_SW(swa, u16, word);
 ASD_WRITE_SW(swa, u32, dword);
 
-ASD_WRITE_SW(swb, u8,  byte);
+ASD_WRITE_SW(swb, u8, byte);
 ASD_WRITE_SW(swb, u16, word);
 ASD_WRITE_SW(swb, u32, dword);
 
-ASD_WRITE_SW(swc, u8,  byte);
+ASD_WRITE_SW(swc, u8, byte);
 ASD_WRITE_SW(swc, u16, word);
 ASD_WRITE_SW(swc, u32, dword);
 
@@ -167,112 +164,110 @@ ASD_WRITE_SW(swc, u32, dword);
  * @asd_ha: pointer to host adapter structure
  * @reg: register desired to be within range of the new window
  */
-static void asd_move_swb(struct asd_ha_struct *asd_ha, u32 reg)
-{
-	u32 base = reg & ~(MBAR0_SWB_SIZE-1);
-	pci_write_config_dword(asd_ha->pcidev, PCI_CONF_MBAR0_SWB, base);
-	asd_ha->io_handle[0].swb_base = base;
+static void asd_move_swb(struct asd_ha_struct *asd_ha, u32 reg) {
+  u32 base = reg & ~(MBAR0_SWB_SIZE - 1);
+  pci_write_config_dword(asd_ha->pcidev, PCI_CONF_MBAR0_SWB, base);
+  asd_ha->io_handle[0].swb_base = base;
 }
 
-static void __asd_write_reg_byte(struct asd_ha_struct *asd_ha, u32 reg, u8 val)
-{
-	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0];
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
-	if (io_handle->swa_base <= reg
-	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)
-		asd_write_swa_byte (asd_ha, reg,val);
-	else if (io_handle->swb_base <= reg
-		 && reg < io_handle->swb_base + MBAR0_SWB_SIZE)
-		asd_write_swb_byte (asd_ha, reg, val);
-	else if (io_handle->swc_base <= reg
-		 && reg < io_handle->swc_base + MBAR0_SWC_SIZE)
-		asd_write_swc_byte (asd_ha, reg, val);
-	else {
-		/* Ok, we have to move SWB */
-		asd_move_swb(asd_ha, reg);
-		asd_write_swb_byte (asd_ha, reg, val);
-	}
+static void __asd_write_reg_byte(struct asd_ha_struct *asd_ha, u32 reg,
+    u8 val) {
+  struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];
+  BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
+  if (io_handle->swa_base <= reg
+      && reg < io_handle->swa_base + MBAR0_SWA_SIZE) {
+    asd_write_swa_byte(asd_ha, reg, val);
+  } else if (io_handle->swb_base <= reg
+      && reg < io_handle->swb_base + MBAR0_SWB_SIZE) {
+    asd_write_swb_byte(asd_ha, reg, val);
+  } else if (io_handle->swc_base <= reg
+      && reg < io_handle->swc_base + MBAR0_SWC_SIZE) {
+    asd_write_swc_byte(asd_ha, reg, val);
+  } else {
+    /* Ok, we have to move SWB */
+    asd_move_swb(asd_ha, reg);
+    asd_write_swb_byte(asd_ha, reg, val);
+  }
 }
 
 #define ASD_WRITE_REG(type, ord)                                  \
-void asd_write_reg_##ord (struct asd_ha_struct *asd_ha, u32 reg, type val)\
-{                                                                 \
-	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0]; \
-	unsigned long flags;                                      \
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
-	spin_lock_irqsave(&asd_ha->iolock, flags);                \
-	if (io_handle->swa_base <= reg                            \
-	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)        \
-		asd_write_swa_##ord (asd_ha, reg,val);            \
-	else if (io_handle->swb_base <= reg                       \
-		 && reg < io_handle->swb_base + MBAR0_SWB_SIZE)   \
-		asd_write_swb_##ord (asd_ha, reg, val);           \
-	else if (io_handle->swc_base <= reg                       \
-		 && reg < io_handle->swc_base + MBAR0_SWC_SIZE)   \
-		asd_write_swc_##ord (asd_ha, reg, val);           \
-	else {                                                    \
-		/* Ok, we have to move SWB */                     \
-		asd_move_swb(asd_ha, reg);                        \
-		asd_write_swb_##ord (asd_ha, reg, val);           \
-	}                                                         \
-	spin_unlock_irqrestore(&asd_ha->iolock, flags);           \
-}
+  void asd_write_reg_ ## ord(struct asd_ha_struct *asd_ha, u32 reg, type val) \
+  {                                                                 \
+    struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0]; \
+    unsigned long flags;                                      \
+    BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
+    spin_lock_irqsave(&asd_ha->iolock, flags);                \
+    if (io_handle->swa_base <= reg                            \
+        && reg < io_handle->swa_base + MBAR0_SWA_SIZE)        \
+    asd_write_swa_ ## ord(asd_ha, reg, val);            \
+    else if (io_handle->swb_base <= reg                       \
+        && reg < io_handle->swb_base + MBAR0_SWB_SIZE)   \
+    asd_write_swb_ ## ord(asd_ha, reg, val);           \
+    else if (io_handle->swc_base <= reg                       \
+        && reg < io_handle->swc_base + MBAR0_SWC_SIZE)   \
+    asd_write_swc_ ## ord(asd_ha, reg, val);           \
+    else {                                                    \
+      /* Ok, we have to move SWB */                     \
+      asd_move_swb(asd_ha, reg);                        \
+      asd_write_swb_ ## ord(asd_ha, reg, val);           \
+    }                                                         \
+    spin_unlock_irqrestore(&asd_ha->iolock, flags);           \
+  }
 
 ASD_WRITE_REG(u8, byte);
-ASD_WRITE_REG(u16,word);
-ASD_WRITE_REG(u32,dword);
+ASD_WRITE_REG(u16, word);
+ASD_WRITE_REG(u32, dword);
 
-static u8 __asd_read_reg_byte(struct asd_ha_struct *asd_ha, u32 reg)
-{
-	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0];
-	u8 val;
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
-	if (io_handle->swa_base <= reg
-	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)
-		val = asd_read_swa_byte (asd_ha, reg);
-	else if (io_handle->swb_base <= reg
-		 && reg < io_handle->swb_base + MBAR0_SWB_SIZE)
-		val = asd_read_swb_byte (asd_ha, reg);
-	else if (io_handle->swc_base <= reg
-		 && reg < io_handle->swc_base + MBAR0_SWC_SIZE)
-		val = asd_read_swc_byte (asd_ha, reg);
-	else {
-		/* Ok, we have to move SWB */
-		asd_move_swb(asd_ha, reg);
-		val = asd_read_swb_byte (asd_ha, reg);
-	}
-	return val;
+static u8 __asd_read_reg_byte(struct asd_ha_struct *asd_ha, u32 reg) {
+  struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0];
+  u8 val;
+  BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);
+  if (io_handle->swa_base <= reg
+      && reg < io_handle->swa_base + MBAR0_SWA_SIZE) {
+    val = asd_read_swa_byte(asd_ha, reg);
+  } else if (io_handle->swb_base <= reg
+      && reg < io_handle->swb_base + MBAR0_SWB_SIZE) {
+    val = asd_read_swb_byte(asd_ha, reg);
+  } else if (io_handle->swc_base <= reg
+      && reg < io_handle->swc_base + MBAR0_SWC_SIZE) {
+    val = asd_read_swc_byte(asd_ha, reg);
+  } else {
+    /* Ok, we have to move SWB */
+    asd_move_swb(asd_ha, reg);
+    val = asd_read_swb_byte(asd_ha, reg);
+  }
+  return val;
 }
 
 #define ASD_READ_REG(type, ord)                                   \
-type asd_read_reg_##ord (struct asd_ha_struct *asd_ha, u32 reg)   \
-{                                                                 \
-	struct asd_ha_addrspace *io_handle=&asd_ha->io_handle[0]; \
-	type val;                                                 \
-	unsigned long flags;                                      \
-	BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
-	spin_lock_irqsave(&asd_ha->iolock, flags);                \
-	if (io_handle->swa_base <= reg                            \
-	    && reg < io_handle->swa_base + MBAR0_SWA_SIZE)        \
-		val = asd_read_swa_##ord (asd_ha, reg);           \
-	else if (io_handle->swb_base <= reg                       \
-		 && reg < io_handle->swb_base + MBAR0_SWB_SIZE)   \
-		val = asd_read_swb_##ord (asd_ha, reg);           \
-	else if (io_handle->swc_base <= reg                       \
-		 && reg < io_handle->swc_base + MBAR0_SWC_SIZE)   \
-		val = asd_read_swc_##ord (asd_ha, reg);           \
-	else {                                                    \
-		/* Ok, we have to move SWB */                     \
-		asd_move_swb(asd_ha, reg);                        \
-		val = asd_read_swb_##ord (asd_ha, reg);           \
-	}                                                         \
-	spin_unlock_irqrestore(&asd_ha->iolock, flags);           \
-	return val;                                               \
-}
+  type asd_read_reg_ ## ord(struct asd_ha_struct *asd_ha, u32 reg)   \
+  {                                                                 \
+    struct asd_ha_addrspace *io_handle = &asd_ha->io_handle[0]; \
+    type val;                                                 \
+    unsigned long flags;                                      \
+    BUG_ON(reg >= 0xC0000000 || reg < ALL_BASE_ADDR);         \
+    spin_lock_irqsave(&asd_ha->iolock, flags);                \
+    if (io_handle->swa_base <= reg                            \
+        && reg < io_handle->swa_base + MBAR0_SWA_SIZE)        \
+    val = asd_read_swa_ ## ord(asd_ha, reg);           \
+    else if (io_handle->swb_base <= reg                       \
+        && reg < io_handle->swb_base + MBAR0_SWB_SIZE)   \
+    val = asd_read_swb_ ## ord(asd_ha, reg);           \
+    else if (io_handle->swc_base <= reg                       \
+        && reg < io_handle->swc_base + MBAR0_SWC_SIZE)   \
+    val = asd_read_swc_ ## ord(asd_ha, reg);           \
+    else {                                                    \
+      /* Ok, we have to move SWB */                     \
+      asd_move_swb(asd_ha, reg);                        \
+      val = asd_read_swb_ ## ord(asd_ha, reg);           \
+    }                                                         \
+    spin_unlock_irqrestore(&asd_ha->iolock, flags);           \
+    return val;                                               \
+  }
 
 ASD_READ_REG(u8, byte);
-ASD_READ_REG(u16,word);
-ASD_READ_REG(u32,dword);
+ASD_READ_REG(u16, word);
+ASD_READ_REG(u32, dword);
 
 /**
  * asd_read_reg_string -- read a string of bytes from io space memory
@@ -282,15 +277,14 @@ ASD_READ_REG(u32,dword);
  * @count: number of bytes to read
  */
 void asd_read_reg_string(struct asd_ha_struct *asd_ha, void *dst,
-			 u32 offs, int count)
-{
-	u8 *p = dst;
-	unsigned long flags;
-
-	spin_lock_irqsave(&asd_ha->iolock, flags);
-	for ( ; count > 0; count--, offs++, p++)
-		*p = __asd_read_reg_byte(asd_ha, offs);
-	spin_unlock_irqrestore(&asd_ha->iolock, flags);
+    u32 offs, int count) {
+  u8 *p = dst;
+  unsigned long flags;
+  spin_lock_irqsave(&asd_ha->iolock, flags);
+  for ( ; count > 0; count--, offs++, p++) {
+    *p = __asd_read_reg_byte(asd_ha, offs);
+  }
+  spin_unlock_irqrestore(&asd_ha->iolock, flags);
 }
 
 /**
@@ -301,13 +295,12 @@ void asd_read_reg_string(struct asd_ha_struct *asd_ha, void *dst,
  * @count: number of bytes to write
  */
 void asd_write_reg_string(struct asd_ha_struct *asd_ha, void *src,
-			  u32 offs, int count)
-{
-	u8 *p = src;
-	unsigned long flags;
-
-	spin_lock_irqsave(&asd_ha->iolock, flags);
-	for ( ; count > 0; count--, offs++, p++)
-		__asd_write_reg_byte(asd_ha, offs, *p);
-	spin_unlock_irqrestore(&asd_ha->iolock, flags);
+    u32 offs, int count) {
+  u8 *p = src;
+  unsigned long flags;
+  spin_lock_irqsave(&asd_ha->iolock, flags);
+  for ( ; count > 0; count--, offs++, p++) {
+    __asd_write_reg_byte(asd_ha, offs, *p);
+  }
+  spin_unlock_irqrestore(&asd_ha->iolock, flags);
 }

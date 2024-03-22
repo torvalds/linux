@@ -8,8 +8,8 @@
 #define _LINUX_INPUT_ZFORCE_TS_H
 
 struct zforce_ts_platdata {
-	unsigned int x_max;
-	unsigned int y_max;
+  unsigned int x_max;
+  unsigned int y_max;
 };
 
 #endif /* _LINUX_INPUT_ZFORCE_TS_H */

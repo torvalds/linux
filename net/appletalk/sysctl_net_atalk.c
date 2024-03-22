@@ -12,48 +12,48 @@
 #include <linux/atalk.h>
 
 static struct ctl_table atalk_table[] = {
-	{
-		.procname	= "aarp-expiry-time",
-		.data		= &sysctl_aarp_expiry_time,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "aarp-tick-time",
-		.data		= &sysctl_aarp_tick_time,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "aarp-retransmit-limit",
-		.data		= &sysctl_aarp_retransmit_limit,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "aarp-resolve-time",
-		.data		= &sysctl_aarp_resolve_time,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ },
+  {
+    .procname = "aarp-expiry-time",
+    .data = &sysctl_aarp_expiry_time,
+    .maxlen = sizeof(int),
+    .mode = 0644,
+    .proc_handler = proc_dointvec_jiffies,
+  },
+  {
+    .procname = "aarp-tick-time",
+    .data = &sysctl_aarp_tick_time,
+    .maxlen = sizeof(int),
+    .mode = 0644,
+    .proc_handler = proc_dointvec_jiffies,
+  },
+  {
+    .procname = "aarp-retransmit-limit",
+    .data = &sysctl_aarp_retransmit_limit,
+    .maxlen = sizeof(int),
+    .mode = 0644,
+    .proc_handler = proc_dointvec,
+  },
+  {
+    .procname = "aarp-resolve-time",
+    .data = &sysctl_aarp_resolve_time,
+    .maxlen = sizeof(int),
+    .mode = 0644,
+    .proc_handler = proc_dointvec_jiffies,
+  },
+  {},
 };
 
 static struct ctl_table_header *atalk_table_header;
 
-int __init atalk_register_sysctl(void)
-{
-	atalk_table_header = register_net_sysctl(&init_net, "net/appletalk", atalk_table);
-	if (!atalk_table_header)
-		return -ENOMEM;
-	return 0;
+int __init atalk_register_sysctl(void) {
+  atalk_table_header = register_net_sysctl(&init_net, "net/appletalk",
+      atalk_table);
+  if (!atalk_table_header) {
+    return -ENOMEM;
+  }
+  return 0;
 }
 
-void atalk_unregister_sysctl(void)
-{
-	unregister_net_sysctl_table(atalk_table_header);
+void atalk_unregister_sysctl(void) {
+  unregister_net_sysctl_table(atalk_table_header);
 }

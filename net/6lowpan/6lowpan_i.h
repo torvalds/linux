@@ -8,9 +8,8 @@
 
 /* caller need to be sure it's dev->type is ARPHRD_6LOWPAN */
 static inline bool lowpan_is_ll(const struct net_device *dev,
-				enum lowpan_lltypes lltype)
-{
-	return lowpan_dev(dev)->lltype == lltype;
+    enum lowpan_lltypes lltype) {
+  return lowpan_dev(dev)->lltype == lltype;
 }
 
 extern const struct ndisc_ops lowpan_ndisc_ops;
@@ -24,11 +23,18 @@ void lowpan_dev_debugfs_exit(struct net_device *dev);
 void __init lowpan_debugfs_init(void);
 void lowpan_debugfs_exit(void);
 #else
-static inline void lowpan_dev_debugfs_init(struct net_device *dev) { }
-static inline void lowpan_dev_debugfs_exit(struct net_device *dev) { }
+static inline void lowpan_dev_debugfs_init(struct net_device *dev) {
+}
 
-static inline void __init lowpan_debugfs_init(void) { }
-static inline void lowpan_debugfs_exit(void) { }
+static inline void lowpan_dev_debugfs_exit(struct net_device *dev) {
+}
+
+static inline void __init lowpan_debugfs_init(void) {
+}
+
+static inline void lowpan_debugfs_exit(void) {
+}
+
 #endif /* CONFIG_6LOWPAN_DEBUGFS */
 
 #endif /* __6LOWPAN_I_H */

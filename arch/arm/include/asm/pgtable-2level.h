@@ -67,43 +67,43 @@
  * until either the TLB entry is evicted under pressure, or a context
  * switch which changes the user space mapping occurs.
  */
-#define PTRS_PER_PTE		512
-#define PTRS_PER_PMD		1
-#define PTRS_PER_PGD		2048
+#define PTRS_PER_PTE    512
+#define PTRS_PER_PMD    1
+#define PTRS_PER_PGD    2048
 
-#define PTE_HWTABLE_PTRS	(PTRS_PER_PTE)
-#define PTE_HWTABLE_OFF		(PTE_HWTABLE_PTRS * sizeof(pte_t))
-#define PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(u32))
+#define PTE_HWTABLE_PTRS  (PTRS_PER_PTE)
+#define PTE_HWTABLE_OFF   (PTE_HWTABLE_PTRS * sizeof(pte_t))
+#define PTE_HWTABLE_SIZE  (PTRS_PER_PTE * sizeof(u32))
 
-#define MAX_POSSIBLE_PHYSMEM_BITS	32
+#define MAX_POSSIBLE_PHYSMEM_BITS 32
 
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map
  * PGDIR_SHIFT determines what a third-level page table entry can map
  */
-#define PMD_SHIFT		21
-#define PGDIR_SHIFT		21
+#define PMD_SHIFT   21
+#define PGDIR_SHIFT   21
 
-#define PMD_SIZE		(1UL << PMD_SHIFT)
-#define PMD_MASK		(~(PMD_SIZE-1))
-#define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK		(~(PGDIR_SIZE-1))
+#define PMD_SIZE    (1UL << PMD_SHIFT)
+#define PMD_MASK    (~(PMD_SIZE - 1))
+#define PGDIR_SIZE    (1UL << PGDIR_SHIFT)
+#define PGDIR_MASK    (~(PGDIR_SIZE - 1))
 
 /*
  * section address mask and size definitions.
  */
-#define SECTION_SHIFT		20
-#define SECTION_SIZE		(1UL << SECTION_SHIFT)
-#define SECTION_MASK		(~(SECTION_SIZE-1))
+#define SECTION_SHIFT   20
+#define SECTION_SIZE    (1UL << SECTION_SHIFT)
+#define SECTION_MASK    (~(SECTION_SIZE - 1))
 
 /*
  * ARMv6 supersection address mask and size definitions.
  */
-#define SUPERSECTION_SHIFT	24
-#define SUPERSECTION_SIZE	(1UL << SUPERSECTION_SHIFT)
-#define SUPERSECTION_MASK	(~(SUPERSECTION_SIZE-1))
+#define SUPERSECTION_SHIFT  24
+#define SUPERSECTION_SIZE (1UL << SUPERSECTION_SHIFT)
+#define SUPERSECTION_MASK (~(SUPERSECTION_SIZE - 1))
 
-#define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
+#define USER_PTRS_PER_PGD (TASK_SIZE / PGDIR_SIZE)
 
 /*
  * "Linux" PTE definitions.
@@ -116,18 +116,19 @@
  * The PTE table pointer refers to the hardware entries; the "Linux"
  * entries are stored 1024 bytes below.
  */
-#define L_PTE_VALID		(_AT(pteval_t, 1) << 0)		/* Valid */
-#define L_PTE_PRESENT		(_AT(pteval_t, 1) << 0)
-#define L_PTE_YOUNG		(_AT(pteval_t, 1) << 1)
-#define L_PTE_DIRTY		(_AT(pteval_t, 1) << 6)
-#define L_PTE_RDONLY		(_AT(pteval_t, 1) << 7)
-#define L_PTE_USER		(_AT(pteval_t, 1) << 8)
-#define L_PTE_XN		(_AT(pteval_t, 1) << 9)
-#define L_PTE_SHARED		(_AT(pteval_t, 1) << 10)	/* shared(v6), coherent(xsc3) */
-#define L_PTE_NONE		(_AT(pteval_t, 1) << 11)
+#define L_PTE_VALID   (_AT(pteval_t, 1) << 0)   /* Valid */
+#define L_PTE_PRESENT   (_AT(pteval_t, 1) << 0)
+#define L_PTE_YOUNG   (_AT(pteval_t, 1) << 1)
+#define L_PTE_DIRTY   (_AT(pteval_t, 1) << 6)
+#define L_PTE_RDONLY    (_AT(pteval_t, 1) << 7)
+#define L_PTE_USER    (_AT(pteval_t, 1) << 8)
+#define L_PTE_XN    (_AT(pteval_t, 1) << 9)
+#define L_PTE_SHARED    (_AT(pteval_t, 1) << 10)  /* shared(v6), coherent(xsc3)
+                                                   * */
+#define L_PTE_NONE    (_AT(pteval_t, 1) << 11)
 
 /* We borrow bit 7 to store the exclusive marker in swap PTEs. */
-#define L_PTE_SWP_EXCLUSIVE	L_PTE_RDONLY
+#define L_PTE_SWP_EXCLUSIVE L_PTE_RDONLY
 
 /*
  * These are the memory types, defined to be compatible with
@@ -135,18 +136,18 @@
  * ARMv6+ without TEX remapping, they are a table index.
  * ARMv6+ with TEX remapping, they correspond to n/a,TEX(0),C,B
  *
- * MT type		Pre-ARMv6	ARMv6+ type / cacheable status
- * UNCACHED		Uncached	Strongly ordered
- * BUFFERABLE		Bufferable	Normal memory / non-cacheable
- * WRITETHROUGH		Writethrough	Normal memory / write through
- * WRITEBACK		Writeback	Normal memory / write back, read alloc
- * MINICACHE		Minicache	N/A
- * WRITEALLOC		Writeback	Normal memory / write back, write alloc
- * DEV_SHARED		Uncached	Device memory (shared)
- * DEV_NONSHARED	Uncached	Device memory (non-shared)
- * DEV_WC		Bufferable	Normal memory / non-cacheable
- * DEV_CACHED		Writeback	Normal memory / write back, read alloc
- * VECTORS		Variable	Normal memory / variable
+ * MT type    Pre-ARMv6 ARMv6+ type / cacheable status
+ * UNCACHED   Uncached  Strongly ordered
+ * BUFFERABLE   Bufferable  Normal memory / non-cacheable
+ * WRITETHROUGH   Writethrough  Normal memory / write through
+ * WRITEBACK    Writeback Normal memory / write back, read alloc
+ * MINICACHE    Minicache N/A
+ * WRITEALLOC   Writeback Normal memory / write back, write alloc
+ * DEV_SHARED   Uncached  Device memory (shared)
+ * DEV_NONSHARED  Uncached  Device memory (non-shared)
+ * DEV_WC   Bufferable  Normal memory / non-cacheable
+ * DEV_CACHED   Writeback Normal memory / write back, read alloc
+ * VECTORS    Variable  Normal memory / variable
  *
  * All normal memory mappings have the following properties:
  * - reads can be repeated with no side effects
@@ -162,18 +163,19 @@
  * - number, order and size of accesses are maintained
  * - unaligned accesses are "unpredictable"
  */
-#define L_PTE_MT_UNCACHED	(_AT(pteval_t, 0x00) << 2)	/* 0000 */
-#define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 0x01) << 2)	/* 0001 */
-#define L_PTE_MT_WRITETHROUGH	(_AT(pteval_t, 0x02) << 2)	/* 0010 */
-#define L_PTE_MT_WRITEBACK	(_AT(pteval_t, 0x03) << 2)	/* 0011 */
-#define L_PTE_MT_MINICACHE	(_AT(pteval_t, 0x06) << 2)	/* 0110 (sa1100, xscale) */
-#define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 0x07) << 2)	/* 0111 */
-#define L_PTE_MT_DEV_SHARED	(_AT(pteval_t, 0x04) << 2)	/* 0100 */
-#define L_PTE_MT_DEV_NONSHARED	(_AT(pteval_t, 0x0c) << 2)	/* 1100 */
-#define L_PTE_MT_DEV_WC		(_AT(pteval_t, 0x09) << 2)	/* 1001 */
-#define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 0x0b) << 2)	/* 1011 */
-#define L_PTE_MT_VECTORS	(_AT(pteval_t, 0x0f) << 2)	/* 1111 */
-#define L_PTE_MT_MASK		(_AT(pteval_t, 0x0f) << 2)
+#define L_PTE_MT_UNCACHED (_AT(pteval_t, 0x00) << 2)  /* 0000 */
+#define L_PTE_MT_BUFFERABLE (_AT(pteval_t, 0x01) << 2)  /* 0001 */
+#define L_PTE_MT_WRITETHROUGH (_AT(pteval_t, 0x02) << 2)  /* 0010 */
+#define L_PTE_MT_WRITEBACK  (_AT(pteval_t, 0x03) << 2)  /* 0011 */
+#define L_PTE_MT_MINICACHE  (_AT(pteval_t, 0x06) << 2)  /* 0110 (sa1100, xscale)
+                                                         * */
+#define L_PTE_MT_WRITEALLOC (_AT(pteval_t, 0x07) << 2)  /* 0111 */
+#define L_PTE_MT_DEV_SHARED (_AT(pteval_t, 0x04) << 2)  /* 0100 */
+#define L_PTE_MT_DEV_NONSHARED  (_AT(pteval_t, 0x0c) << 2)  /* 1100 */
+#define L_PTE_MT_DEV_WC   (_AT(pteval_t, 0x09) << 2)  /* 1001 */
+#define L_PTE_MT_DEV_CACHED (_AT(pteval_t, 0x0b) << 2)  /* 1011 */
+#define L_PTE_MT_VECTORS  (_AT(pteval_t, 0x0f) << 2)  /* 1111 */
+#define L_PTE_MT_MASK   (_AT(pteval_t, 0x0f) << 2)
 
 #ifndef __ASSEMBLY__
 
@@ -182,66 +184,61 @@
  * the pud: the pud entry is never bad, always exists, and can't be set or
  * cleared.
  */
-static inline int pud_none(pud_t pud)
-{
-	return 0;
+static inline int pud_none(pud_t pud) {
+  return 0;
 }
 
-static inline int pud_bad(pud_t pud)
-{
-	return 0;
+static inline int pud_bad(pud_t pud) {
+  return 0;
 }
 
-static inline int pud_present(pud_t pud)
-{
-	return 1;
+static inline int pud_present(pud_t pud) {
+  return 1;
 }
 
-static inline void pud_clear(pud_t *pudp)
-{
+static inline void pud_clear(pud_t *pudp) {
 }
 
-static inline void set_pud(pud_t *pudp, pud_t pud)
-{
+static inline void set_pud(pud_t *pudp, pud_t pud) {
 }
 
-static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
-{
-	return (pmd_t *)pud;
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr) {
+  return (pmd_t *) pud;
 }
+
 #define pmd_offset pmd_offset
 
-#define pmd_pfn(pmd)		(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
+#define pmd_pfn(pmd)    (__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
 
-#define pmd_leaf(pmd)		(pmd_val(pmd) & 2)
-#define pmd_bad(pmd)		(pmd_val(pmd) & 2)
-#define pmd_present(pmd)	(pmd_val(pmd))
+#define pmd_leaf(pmd)   (pmd_val(pmd) & 2)
+#define pmd_bad(pmd)    (pmd_val(pmd) & 2)
+#define pmd_present(pmd)  (pmd_val(pmd))
 
-#define copy_pmd(pmdpd,pmdps)		\
-	do {				\
-		pmdpd[0] = pmdps[0];	\
-		pmdpd[1] = pmdps[1];	\
-		flush_pmd_entry(pmdpd);	\
-	} while (0)
+#define copy_pmd(pmdpd, pmdps)   \
+  do {        \
+    pmdpd[0] = pmdps[0];  \
+    pmdpd[1] = pmdps[1];  \
+    flush_pmd_entry(pmdpd); \
+  } while (0)
 
-#define pmd_clear(pmdp)			\
-	do {				\
-		pmdp[0] = __pmd(0);	\
-		pmdp[1] = __pmd(0);	\
-		clean_pmd_entry(pmdp);	\
-	} while (0)
+#define pmd_clear(pmdp)     \
+  do {        \
+    pmdp[0] = __pmd(0); \
+    pmdp[1] = __pmd(0); \
+    clean_pmd_entry(pmdp);  \
+  } while (0)
 
 /* we don't need complex calculations here as the pmd is folded into the pgd */
-#define pmd_addr_end(addr,end) (end)
+#define pmd_addr_end(addr, end) (end)
 
-#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+#define set_pte_ext(ptep, pte, ext) cpu_set_pte_ext(ptep, pte, ext)
 
 /*
  * We don't have huge page support for short descriptors, for the moment
  * define empty stubs for use by pin_page_for_write.
  */
-#define pmd_hugewillfault(pmd)	(0)
-#define pmd_thp_or_huge(pmd)	(0)
+#define pmd_hugewillfault(pmd)  (0)
+#define pmd_thp_or_huge(pmd)  (0)
 
 #endif /* __ASSEMBLY__ */
 

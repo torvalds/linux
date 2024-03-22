@@ -25,49 +25,53 @@
  * compatibility because this enum is exported to user space.
  */
 #define CXL_CMDS                                                          \
-	___C(INVALID, "Invalid Command"),                                 \
-	___C(IDENTIFY, "Identify Command"),                               \
-	___C(RAW, "Raw device command"),                                  \
-	___C(GET_SUPPORTED_LOGS, "Get Supported Logs"),                   \
-	___C(GET_FW_INFO, "Get FW Info"),                                 \
-	___C(GET_PARTITION_INFO, "Get Partition Information"),            \
-	___C(GET_LSA, "Get Label Storage Area"),                          \
-	___C(GET_HEALTH_INFO, "Get Health Info"),                         \
-	___C(GET_LOG, "Get Log"),                                         \
-	___C(SET_PARTITION_INFO, "Set Partition Information"),            \
-	___C(SET_LSA, "Set Label Storage Area"),                          \
-	___C(GET_ALERT_CONFIG, "Get Alert Configuration"),                \
-	___C(SET_ALERT_CONFIG, "Set Alert Configuration"),                \
-	___C(GET_SHUTDOWN_STATE, "Get Shutdown State"),                   \
-	___C(SET_SHUTDOWN_STATE, "Set Shutdown State"),                   \
-	___DEPRECATED(GET_POISON, "Get Poison List"),                     \
-	___DEPRECATED(INJECT_POISON, "Inject Poison"),                    \
-	___DEPRECATED(CLEAR_POISON, "Clear Poison"),                      \
-	___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
-	___DEPRECATED(SCAN_MEDIA, "Scan Media"),                          \
-	___DEPRECATED(GET_SCAN_MEDIA, "Get Scan Media Results"),          \
-	___C(GET_TIMESTAMP, "Get Timestamp"),                             \
-	___C(MAX, "invalid / last command")
+  ___C(INVALID, "Invalid Command"),                                 \
+  ___C(IDENTIFY, "Identify Command"),                               \
+  ___C(RAW, "Raw device command"),                                  \
+  ___C(GET_SUPPORTED_LOGS, "Get Supported Logs"),                   \
+  ___C(GET_FW_INFO, "Get FW Info"),                                 \
+  ___C(GET_PARTITION_INFO, "Get Partition Information"),            \
+  ___C(GET_LSA, "Get Label Storage Area"),                          \
+  ___C(GET_HEALTH_INFO, "Get Health Info"),                         \
+  ___C(GET_LOG, "Get Log"),                                         \
+  ___C(SET_PARTITION_INFO, "Set Partition Information"),            \
+  ___C(SET_LSA, "Set Label Storage Area"),                          \
+  ___C(GET_ALERT_CONFIG, "Get Alert Configuration"),                \
+  ___C(SET_ALERT_CONFIG, "Set Alert Configuration"),                \
+  ___C(GET_SHUTDOWN_STATE, "Get Shutdown State"),                   \
+  ___C(SET_SHUTDOWN_STATE, "Set Shutdown State"),                   \
+  ___DEPRECATED(GET_POISON, "Get Poison List"),                     \
+  ___DEPRECATED(INJECT_POISON, "Inject Poison"),                    \
+  ___DEPRECATED(CLEAR_POISON, "Clear Poison"),                      \
+  ___C(GET_SCAN_MEDIA_CAPS, "Get Scan Media Capabilities"),         \
+  ___DEPRECATED(SCAN_MEDIA, "Scan Media"),                          \
+  ___DEPRECATED(GET_SCAN_MEDIA, "Get Scan Media Results"),          \
+  ___C(GET_TIMESTAMP, "Get Timestamp"),                             \
+  ___C(MAX, "invalid / last command")
 
-#define ___C(a, b) CXL_MEM_COMMAND_ID_##a
-#define ___DEPRECATED(a, b) CXL_MEM_DEPRECATED_ID_##a
-enum { CXL_CMDS };
+#define ___C(a, b) CXL_MEM_COMMAND_ID_ ## a
+#define ___DEPRECATED(a, b) CXL_MEM_DEPRECATED_ID_ ## a
+enum {
+  CXL_CMDS
+};
 
 #undef ___C
 #undef ___DEPRECATED
 #define ___C(a, b) { b }
 #define ___DEPRECATED(a, b) { "Deprecated " b }
 static const struct {
-	const char *name;
-} cxl_command_names[] __attribute__((__unused__)) = { CXL_CMDS };
+  const char *name;
+} cxl_command_names[] __attribute__((__unused__)) = {
+  CXL_CMDS
+};
 
 /*
  * Here's how this actually breaks out:
  * cxl_command_names[] = {
- *	[CXL_MEM_COMMAND_ID_INVALID] = { "Invalid Command" },
- *	[CXL_MEM_COMMAND_ID_IDENTIFY] = { "Identify Command" },
- *	...
- *	[CXL_MEM_COMMAND_ID_MAX] = { "invalid / last command" },
+ *  [CXL_MEM_COMMAND_ID_INVALID] = { "Invalid Command" },
+ *  [CXL_MEM_COMMAND_ID_IDENTIFY] = { "Identify Command" },
+ *  ...
+ *  [CXL_MEM_COMMAND_ID_MAX] = { "invalid / last command" },
  * };
  */
 
@@ -77,18 +81,20 @@ static const struct {
 #define ___DEPRECATED(a, b) (1)
 
 static const __u8 cxl_deprecated_commands[]
-	__attribute__((__unused__)) = { CXL_CMDS };
+__attribute__((__unused__)) = {
+  CXL_CMDS
+};
 
 /*
  * Here's how this actually breaks out:
  * cxl_deprecated_commands[] = {
- *	[CXL_MEM_COMMAND_ID_INVALID] = 0,
- *	[CXL_MEM_COMMAND_ID_IDENTIFY] = 0,
- *	...
- *	[CXL_MEM_DEPRECATED_ID_GET_POISON] = 1,
- *	[CXL_MEM_DEPRECATED_ID_INJECT_POISON] = 1,
- *	[CXL_MEM_DEPRECATED_ID_CLEAR_POISON] = 1,
- *	...
+ *  [CXL_MEM_COMMAND_ID_INVALID] = 0,
+ *  [CXL_MEM_COMMAND_ID_IDENTIFY] = 0,
+ *  ...
+ *  [CXL_MEM_DEPRECATED_ID_GET_POISON] = 1,
+ *  [CXL_MEM_DEPRECATED_ID_INJECT_POISON] = 1,
+ *  [CXL_MEM_DEPRECATED_ID_CLEAR_POISON] = 1,
+ *  ...
  * };
  */
 
@@ -128,22 +134,22 @@ static const __u8 cxl_deprecated_commands[]
  * See struct cxl_mem_query_commands.
  */
 struct cxl_command_info {
-	__u32 id;
+  __u32 id;
 
-	__u32 flags;
-#define CXL_MEM_COMMAND_FLAG_MASK		GENMASK(1, 0)
-#define CXL_MEM_COMMAND_FLAG_ENABLED		BIT(0)
-#define CXL_MEM_COMMAND_FLAG_EXCLUSIVE		BIT(1)
+  __u32 flags;
+#define CXL_MEM_COMMAND_FLAG_MASK   GENMASK(1, 0)
+#define CXL_MEM_COMMAND_FLAG_ENABLED    BIT(0)
+#define CXL_MEM_COMMAND_FLAG_EXCLUSIVE    BIT(1)
 
-	__u32 size_in;
-	__u32 size_out;
+  __u32 size_in;
+  __u32 size_out;
 };
 
 /**
  * struct cxl_mem_query_commands - Query supported commands.
  * @n_commands: In/out parameter. When @n_commands is > 0, the driver will
- *		return min(num_support_commands, n_commands). When @n_commands
- *		is 0, driver will return the number of total supported commands.
+ *    return min(num_support_commands, n_commands). When @n_commands
+ *    is 0, driver will return the number of total supported commands.
  * @rsvd: Reserved for future use.
  * @commands: Output array of supported commands. This array must be allocated
  *            by userspace to be at least min(num_support_commands, @n_commands)
@@ -161,24 +167,24 @@ struct cxl_command_info {
  *  See struct cxl_command_info.
  */
 struct cxl_mem_query_commands {
-	/*
-	 * Input: Number of commands to return (space allocated by user)
-	 * Output: Number of commands supported by the driver/hardware
-	 *
-	 * If n_commands is 0, kernel will only return number of commands and
-	 * not try to populate commands[], thus allowing userspace to know how
-	 * much space to allocate
-	 */
-	__u32 n_commands;
-	__u32 rsvd;
+  /*
+   * Input: Number of commands to return (space allocated by user)
+   * Output: Number of commands supported by the driver/hardware
+   *
+   * If n_commands is 0, kernel will only return number of commands and
+   * not try to populate commands[], thus allowing userspace to know how
+   * much space to allocate
+   */
+  __u32 n_commands;
+  __u32 rsvd;
 
-	struct cxl_command_info __user commands[]; /* out: supported commands */
+  struct cxl_command_info __user commands[]; /* out: supported commands */
 };
 
 /**
  * struct cxl_send_command - Send a command to a memory device.
  * @id: The command to send to the memory device. This must be one of the
- *	commands returned by the query command.
+ *  commands returned by the query command.
  * @flags: Flags for the command (input).
  * @raw: Special fields for raw commands
  * @raw.opcode: Opcode passed to hardware when using the RAW command.
@@ -191,9 +197,9 @@ struct cxl_mem_query_commands {
  * @in.payload: Pointer to memory for payload input, payload is little endian.
  * @out: Parameters associated with output payload.
  * @out.size: Size of the payload received from the device (input/output). This
- *	      field is filled in by userspace to let the driver know how much
- *	      space was allocated for output. It is populated by the driver to
- *	      let userspace know how large the output payload actually was.
+ *        field is filled in by userspace to let the driver know how much
+ *        space was allocated for output. It is populated by the driver to
+ *        let userspace know how large the output payload actually was.
  * @out.rsvd: Must be zero.
  * @out.payload: Pointer to memory for payload output, payload is little endian.
  *
@@ -203,28 +209,28 @@ struct cxl_mem_query_commands {
  * buffers for size_out which can be variable length in certain situations.
  */
 struct cxl_send_command {
-	__u32 id;
-	__u32 flags;
-	union {
-		struct {
-			__u16 opcode;
-			__u16 rsvd;
-		} raw;
-		__u32 rsvd;
-	};
-	__u32 retval;
+  __u32 id;
+  __u32 flags;
+  union {
+    struct {
+      __u16 opcode;
+      __u16 rsvd;
+    } raw;
+    __u32 rsvd;
+  };
+  __u32 retval;
 
-	struct {
-		__u32 size;
-		__u32 rsvd;
-		__u64 payload;
-	} in;
+  struct {
+    __u32 size;
+    __u32 rsvd;
+    __u64 payload;
+  } in;
 
-	struct {
-		__u32 size;
-		__u32 rsvd;
-		__u64 payload;
-	} out;
+  struct {
+    __u32 size;
+    __u32 rsvd;
+    __u64 payload;
+  } out;
 };
 
 #endif

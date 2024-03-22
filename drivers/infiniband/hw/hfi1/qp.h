@@ -46,28 +46,25 @@ extern const struct rvt_operation_params hfi1_post_parms[];
  * Send if not busy or waiting for I/O and either
  * a RC response is pending or we can process send work requests.
  */
-static inline int hfi1_send_ok(struct rvt_qp *qp)
-{
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	return !(qp->s_flags & (RVT_S_BUSY | HFI1_S_ANY_WAIT_IO)) &&
-		(verbs_txreq_queued(iowait_get_ib_work(&priv->s_iowait)) ||
-		(qp->s_flags & RVT_S_RESP_PENDING) ||
-		 !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
+static inline int hfi1_send_ok(struct rvt_qp *qp) {
+  struct hfi1_qp_priv *priv = qp->priv;
+  return !(qp->s_flags & (RVT_S_BUSY | HFI1_S_ANY_WAIT_IO))
+    && (verbs_txreq_queued(iowait_get_ib_work(&priv->s_iowait))
+    || (qp->s_flags & RVT_S_RESP_PENDING)
+    || !(qp->s_flags & RVT_S_ANY_WAIT_SEND));
 }
 
 /*
  * free_ahg - clear ahg from QP
  */
-static inline void clear_ahg(struct rvt_qp *qp)
-{
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	priv->s_ahg->ahgcount = 0;
-	qp->s_flags &= ~(HFI1_S_AHG_VALID | HFI1_S_AHG_CLEAR);
-	if (priv->s_sde && qp->s_ahgidx >= 0)
-		sdma_ahg_free(priv->s_sde, qp->s_ahgidx);
-	qp->s_ahgidx = -1;
+static inline void clear_ahg(struct rvt_qp *qp) {
+  struct hfi1_qp_priv *priv = qp->priv;
+  priv->s_ahg->ahgcount = 0;
+  qp->s_flags &= ~(HFI1_S_AHG_VALID | HFI1_S_AHG_CLEAR);
+  if (priv->s_sde && qp->s_ahgidx >= 0) {
+    sdma_ahg_free(priv->s_sde, qp->s_ahgidx);
+  }
+  qp->s_ahgidx = -1;
 }
 
 /**
@@ -95,7 +92,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 unsigned free_all_qps(struct rvt_dev_info *rdi);
 void notify_qp_reset(struct rvt_qp *qp);
 int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		       struct ib_qp_attr *attr);
+    struct ib_qp_attr *attr);
 void flush_qp_waiters(struct rvt_qp *qp);
 void notify_error_qp(struct rvt_qp *qp);
 void stop_send_queue(struct rvt_qp *qp);

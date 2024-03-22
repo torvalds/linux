@@ -13,19 +13,19 @@
  * enter or exit states requiring CM or CPC assistance in unison.
  */
 #if defined(CONFIG_CPU_MIPSR6)
-# define coupled_coherence cpu_has_vp
+#define coupled_coherence cpu_has_vp
 #elif defined(CONFIG_MIPS_MT)
-# define coupled_coherence cpu_has_mipsmt
+#define coupled_coherence cpu_has_mipsmt
 #else
-# define coupled_coherence 0
+#define coupled_coherence 0
 #endif
 
 /* Enumeration of possible PM states */
 enum cps_pm_state {
-	CPS_PM_NC_WAIT,		/* MIPS wait instruction, non-coherent */
-	CPS_PM_CLOCK_GATED,	/* Core clock gated */
-	CPS_PM_POWER_GATED,	/* Core power gated */
-	CPS_PM_STATE_COUNT,
+  CPS_PM_NC_WAIT,   /* MIPS wait instruction, non-coherent */
+  CPS_PM_CLOCK_GATED, /* Core clock gated */
+  CPS_PM_POWER_GATED, /* Core power gated */
+  CPS_PM_STATE_COUNT,
 };
 
 /**

@@ -5,4 +5,4 @@
  * used for a.out files, which are not supported on new architectures.
  */
 
-#endif	/* __ASM_GENERIC_USER_H */
+#endif  /* __ASM_GENERIC_USER_H */

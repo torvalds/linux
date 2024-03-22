@@ -23,22 +23,22 @@
 #define __ASM_BARRIER "bcr 15,0\n"
 #endif
 
-#define mb() do {  asm volatile(__ASM_BARRIER : : : "memory"); } while (0)
+#define mb() do {  asm volatile (__ASM_BARRIER : : : "memory"); } while (0)
 
-#define rmb()				mb()
-#define wmb()				mb()
+#define rmb()       mb()
+#define wmb()       mb()
 
-#define smp_store_release(p, v)			\
-do {						\
-	barrier();				\
-	WRITE_ONCE(*p, v);			\
-} while (0)
+#define smp_store_release(p, v)     \
+  do {            \
+    barrier();        \
+    WRITE_ONCE(*p, v);      \
+  } while (0)
 
-#define smp_load_acquire(p)			\
-({						\
-	typeof(*p) ___p1 = READ_ONCE(*p);	\
-	barrier();				\
-	___p1;					\
-})
+#define smp_load_acquire(p)     \
+  ({            \
+    typeof(*p) ___p1 = READ_ONCE(*p); \
+    barrier();        \
+    ___p1;          \
+  })
 
 #endif /* __TOOLS_LIB_ASM_BARRIER_H */

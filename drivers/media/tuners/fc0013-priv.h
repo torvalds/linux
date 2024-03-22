@@ -11,20 +11,20 @@
 #define LOG_PREFIX "fc0013"
 
 #undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
+#define err(f, arg ...)  printk(KERN_ERR LOG_PREFIX ": " f "\n", ## arg)
 #undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
+#define info(f, arg ...) printk(KERN_INFO LOG_PREFIX ": " f "\n", ## arg)
 #undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
+#define warn(f, arg ...) printk(KERN_WARNING LOG_PREFIX ": " f "\n", ## arg)
 
 struct fc0013_priv {
-	struct i2c_adapter *i2c;
-	u8 addr;
-	u8 dual_master;
-	u8 xtal_freq;
+  struct i2c_adapter *i2c;
+  u8 addr;
+  u8 dual_master;
+  u8 xtal_freq;
 
-	u32 frequency;
-	u32 bandwidth;
+  u32 frequency;
+  u32 bandwidth;
 };
 
 #endif

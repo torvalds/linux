@@ -11,9 +11,9 @@
 
 #include <asm/kvm_host.h>
 
-#define cpu_reg(ctxt, r)	(ctxt)->regs.regs[r]
-#define DECLARE_REG(type, name, ctxt, reg)	\
-				type name = (type)cpu_reg(ctxt, (reg))
+#define cpu_reg(ctxt, r)  (ctxt)->regs.regs[r]
+#define DECLARE_REG(type, name, ctxt, reg)  \
+  type name = (type) cpu_reg(ctxt, (reg))
 
 void __pkvm_vcpu_init_traps(struct kvm_vcpu *vcpu);
 

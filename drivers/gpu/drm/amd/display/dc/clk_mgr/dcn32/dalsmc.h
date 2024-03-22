@@ -67,8 +67,8 @@
 #define CHECK_HARD_MIN_CLK_UCLK                   0x20
 
 typedef enum {
-	FCLK_SWITCH_DISALLOW,
-	FCLK_SWITCH_ALLOW,
+  FCLK_SWITCH_DISALLOW,
+  FCLK_SWITCH_ALLOW,
 } FclkSwitchAllow_e;
 
 #endif

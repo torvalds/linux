@@ -26,13 +26,13 @@
  * populated at runtime.
  */
 struct mips_vdso_image {
-	void *data;
-	unsigned long size;
+  void *data;
+  unsigned long size;
 
-	unsigned long off_sigreturn;
-	unsigned long off_rt_sigreturn;
+  unsigned long off_sigreturn;
+  unsigned long off_rt_sigreturn;
 
-	struct vm_special_mapping mapping;
+  struct vm_special_mapping mapping;
 };
 
 /*

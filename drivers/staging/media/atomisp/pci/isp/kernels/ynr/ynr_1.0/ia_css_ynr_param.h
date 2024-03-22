@@ -20,31 +20,31 @@
 
 /* YNR (Y Noise Reduction) */
 struct sh_css_isp_ynr_params {
-	s32 threshold;
-	s32 gain_all;
-	s32 gain_dir;
-	s32 threshold_cb;
-	s32 threshold_cr;
+  s32 threshold;
+  s32 gain_all;
+  s32 gain_dir;
+  s32 threshold_cb;
+  s32 threshold_cr;
 };
 
 /* YEE (Y Edge Enhancement) */
 struct sh_css_isp_yee_params {
-	s32 dirthreshold_s;
-	s32 dirthreshold_g;
-	s32 dirthreshold_width_log2;
-	s32 dirthreshold_width;
-	s32 detailgain;
-	s32 coring_s;
-	s32 coring_g;
-	s32 scale_plus_s;
-	s32 scale_plus_g;
-	s32 scale_minus_s;
-	s32 scale_minus_g;
-	s32 clip_plus_s;
-	s32 clip_plus_g;
-	s32 clip_minus_s;
-	s32 clip_minus_g;
-	s32 Yclip;
+  s32 dirthreshold_s;
+  s32 dirthreshold_g;
+  s32 dirthreshold_width_log2;
+  s32 dirthreshold_width;
+  s32 detailgain;
+  s32 coring_s;
+  s32 coring_g;
+  s32 scale_plus_s;
+  s32 scale_plus_g;
+  s32 scale_minus_s;
+  s32 scale_minus_g;
+  s32 clip_plus_s;
+  s32 clip_plus_g;
+  s32 clip_minus_s;
+  s32 clip_minus_g;
+  s32 Yclip;
 };
 
 #endif /* __IA_CSS_YNR_PARAM_H */

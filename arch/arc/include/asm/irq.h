@@ -12,13 +12,13 @@
  * configurations of boards.
  * This doesnt affect ARCompact, but we change it to same value
  */
-#define NR_IRQS		512
+#define NR_IRQS   512
 
 /* Platform Independent IRQs */
 #ifdef CONFIG_ISA_ARCV2
-#define IPI_IRQ		19
-#define SOFTIRQ_IRQ	21
-#define FIRST_EXT_IRQ	24
+#define IPI_IRQ   19
+#define SOFTIRQ_IRQ 21
+#define FIRST_EXT_IRQ 24
 #endif
 
 #include <linux/interrupt.h>

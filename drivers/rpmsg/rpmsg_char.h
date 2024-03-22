@@ -16,29 +16,30 @@
  * This function create a new rpmsg char endpoint device to instantiate a new
  * endpoint based on chinfo information.
  */
-int rpmsg_chrdev_eptdev_create(struct rpmsg_device *rpdev, struct device *parent,
-			       struct rpmsg_channel_info chinfo);
+int rpmsg_chrdev_eptdev_create(struct rpmsg_device *rpdev,
+    struct device *parent,
+    struct rpmsg_channel_info chinfo);
 
 /**
  * rpmsg_chrdev_eptdev_destroy() - destroy created char device endpoint.
  * @data: private data associated to the endpoint device
  *
- * This function destroys a rpmsg char endpoint device created by the RPMSG_DESTROY_EPT_IOCTL
+ * This function destroys a rpmsg char endpoint device created by the
+ * RPMSG_DESTROY_EPT_IOCTL
  * control.
  */
 int rpmsg_chrdev_eptdev_destroy(struct device *dev, void *data);
 
 #else  /*IS_ENABLED(CONFIG_RPMSG_CHAR) */
 
-static inline int rpmsg_chrdev_eptdev_create(struct rpmsg_device *rpdev, struct device *parent,
-					     struct rpmsg_channel_info chinfo)
-{
-	return -ENXIO;
+static inline int rpmsg_chrdev_eptdev_create(struct rpmsg_device *rpdev,
+    struct device *parent,
+    struct rpmsg_channel_info chinfo) {
+  return -ENXIO;
 }
 
-static inline int rpmsg_chrdev_eptdev_destroy(struct device *dev, void *data)
-{
-	return -ENXIO;
+static inline int rpmsg_chrdev_eptdev_destroy(struct device *dev, void *data) {
+  return -ENXIO;
 }
 
 #endif /*IS_ENABLED(CONFIG_RPMSG_CHAR) */

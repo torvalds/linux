@@ -22,8 +22,8 @@
 
 #define CXUSB_VIDEO_PKT_SIZE 3030
 #define CXUSB_VIDEO_MAX_FRAME_PKTS 346
-#define CXUSB_VIDEO_MAX_FRAME_SIZE (CXUSB_VIDEO_MAX_FRAME_PKTS * \
-					CXUSB_VIDEO_PKT_SIZE)
+#define CXUSB_VIDEO_MAX_FRAME_SIZE (CXUSB_VIDEO_MAX_FRAME_PKTS   \
+  * CXUSB_VIDEO_PKT_SIZE)
 
 /* usb commands - some of it are guesses, don't have a reference yet */
 #define CMD_BLUEBIRD_GPIO_RW 0x05
@@ -49,7 +49,7 @@
 #define CMD_ANALOG        0x50
 #define CMD_DIGITAL       0x51
 
-#define CXUSB_BT656_PREAMBLE ((const u8 *)"\xff\x00\x00")
+#define CXUSB_BT656_PREAMBLE ((const u8 *) "\xff\x00\x00")
 
 #define CXUSB_BT656_FIELD_MASK BIT(6)
 #define CXUSB_BT656_FIELD_1 0
@@ -67,93 +67,93 @@
 #define MAX_XFER_SIZE  80
 
 struct cxusb_state {
-	u8 gpio_write_state[3];
-	bool gpio_write_refresh[3];
-	struct i2c_client *i2c_client_demod;
-	struct i2c_client *i2c_client_tuner;
+  u8 gpio_write_state[3];
+  bool gpio_write_refresh[3];
+  struct i2c_client *i2c_client_demod;
+  struct i2c_client *i2c_client_tuner;
 
-	unsigned char data[MAX_XFER_SIZE];
+  unsigned char data[MAX_XFER_SIZE];
 
-	struct mutex stream_mutex;
-	u8 last_lock;
-	int (*fe_read_status)(struct dvb_frontend *fe,
-			      enum fe_status *status);
+  struct mutex stream_mutex;
+  u8 last_lock;
+  int (*fe_read_status)(struct dvb_frontend *fe,
+      enum fe_status *status);
 };
 
 enum cxusb_open_type {
-	CXUSB_OPEN_INIT,
-	CXUSB_OPEN_NONE,
-	CXUSB_OPEN_ANALOG,
-	CXUSB_OPEN_DIGITAL
+  CXUSB_OPEN_INIT,
+  CXUSB_OPEN_NONE,
+  CXUSB_OPEN_ANALOG,
+  CXUSB_OPEN_DIGITAL
 };
 
 struct cxusb_medion_auxbuf {
-	u8 *buf;
-	unsigned int len;
-	unsigned int paylen;
+  u8 *buf;
+  unsigned int len;
+  unsigned int paylen;
 };
 
 enum cxusb_bt656_mode {
-	NEW_FRAME, FIRST_FIELD, SECOND_FIELD
+  NEW_FRAME, FIRST_FIELD, SECOND_FIELD
 };
 
 enum cxusb_bt656_fmode {
-	START_SEARCH, LINE_SAMPLES, VBI_SAMPLES
+  START_SEARCH, LINE_SAMPLES, VBI_SAMPLES
 };
 
 struct cxusb_bt656_params {
-	enum cxusb_bt656_mode mode;
-	enum cxusb_bt656_fmode fmode;
-	unsigned int pos;
-	unsigned int line;
-	unsigned int linesamples;
-	u8 *buf;
+  enum cxusb_bt656_mode mode;
+  enum cxusb_bt656_fmode fmode;
+  unsigned int pos;
+  unsigned int line;
+  unsigned int linesamples;
+  u8 *buf;
 };
 
 struct cxusb_medion_dev {
-	/* has to be the first one */
-	struct cxusb_state state;
+  /* has to be the first one */
+  struct cxusb_state state;
 
-	struct dvb_usb_device *dvbdev;
+  struct dvb_usb_device *dvbdev;
 
-	enum cxusb_open_type open_type;
-	unsigned int open_ctr;
-	struct mutex open_lock;
+  enum cxusb_open_type open_type;
+  unsigned int open_ctr;
+  struct mutex open_lock;
 
 #ifdef CONFIG_DVB_USB_CXUSB_ANALOG
-	struct v4l2_device v4l2dev;
-	struct v4l2_subdev *cx25840;
-	struct v4l2_subdev *tuner;
-	struct v4l2_subdev *tda9887;
-	struct video_device *videodev, *radiodev;
-	struct mutex dev_lock;
+  struct v4l2_device v4l2dev;
+  struct v4l2_subdev *cx25840;
+  struct v4l2_subdev *tuner;
+  struct v4l2_subdev *tda9887;
+  struct video_device *videodev, *radiodev;
+  struct mutex dev_lock;
 
-	struct vb2_queue videoqueue;
-	u32 input;
-	bool stop_streaming;
-	u32 width, height;
-	u32 field_order;
-	struct cxusb_medion_auxbuf auxbuf;
-	v4l2_std_id norm;
+  struct vb2_queue videoqueue;
+  u32 input;
+  bool stop_streaming;
+  u32 width, height;
+  u32 field_order;
+  struct cxusb_medion_auxbuf auxbuf;
+  v4l2_std_id norm;
 
-	struct urb *streamurbs[CXUSB_VIDEO_URBS];
-	unsigned long urbcomplete;
-	struct work_struct urbwork;
-	unsigned int nexturb;
+  struct urb *streamurbs[CXUSB_VIDEO_URBS];
+  unsigned long urbcomplete;
+  struct work_struct urbwork;
+  unsigned int nexturb;
 
-	struct cxusb_bt656_params bt656;
-	struct cxusb_medion_vbuffer *vbuf;
-	__u32 vbuf_sequence;
+  struct cxusb_bt656_params bt656;
+  struct cxusb_medion_vbuffer *vbuf;
+  __u32 vbuf_sequence;
 
-	struct list_head buflist;
+  struct list_head buflist;
 
-	struct completion v4l2_release;
+  struct completion v4l2_release;
 #endif
 };
 
 struct cxusb_medion_vbuffer {
-	struct vb2_v4l2_buffer vb2;
-	struct list_head list;
+  struct vb2_v4l2_buffer vb2;
+  struct list_head list;
 };
 
 /* defines for "debug" module parameter */
@@ -167,38 +167,37 @@ struct cxusb_medion_vbuffer {
 
 extern int dvb_usb_cxusb_debug;
 
-#define cxusb_vprintk(dvbdev, lvl, ...) do {				\
-		struct cxusb_medion_dev *_cxdev = (dvbdev)->priv;	\
-		if (dvb_usb_cxusb_debug & CXUSB_DBG_##lvl)		\
-			v4l2_printk(KERN_DEBUG,			\
-				    &_cxdev->v4l2dev, __VA_ARGS__);	\
-	} while (0)
+#define cxusb_vprintk(dvbdev, lvl, ...) do {        \
+    struct cxusb_medion_dev *_cxdev = (dvbdev)->priv; \
+    if (dvb_usb_cxusb_debug & CXUSB_DBG_ ## lvl)    \
+    v4l2_printk(KERN_DEBUG,     \
+    &_cxdev->v4l2dev, __VA_ARGS__); \
+} while (0)
 
 int cxusb_ctrl_msg(struct dvb_usb_device *d,
-		   u8 cmd, const u8 *wbuf, int wlen, u8 *rbuf, int rlen);
+    u8 cmd, const u8 *wbuf, int wlen, u8 *rbuf, int rlen);
 
 #ifdef CONFIG_DVB_USB_CXUSB_ANALOG
 int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev);
 int cxusb_medion_register_analog(struct dvb_usb_device *dvbdev);
 void cxusb_medion_unregister_analog(struct dvb_usb_device *dvbdev);
 #else
-static inline int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
-{
-	return -EINVAL;
+static inline int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev) {
+  return -EINVAL;
 }
 
-static inline int cxusb_medion_register_analog(struct dvb_usb_device *dvbdev)
-{
-	return 0;
+static inline int cxusb_medion_register_analog(struct dvb_usb_device *dvbdev) {
+  return 0;
 }
 
 static inline void cxusb_medion_unregister_analog(struct dvb_usb_device *dvbdev)
 {
 }
+
 #endif
 
 int cxusb_medion_get(struct dvb_usb_device *dvbdev,
-		     enum cxusb_open_type open_type);
+    enum cxusb_open_type open_type);
 void cxusb_medion_put(struct dvb_usb_device *dvbdev);
 
 #endif

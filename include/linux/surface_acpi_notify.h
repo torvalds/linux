@@ -24,12 +24,12 @@
  * @payload:  Pointer to the event's payload data.
  */
 struct san_dgpu_event {
-	u8 category;
-	u8 target;
-	u8 command;
-	u8 instance;
-	u16 length;
-	u8 *payload;
+  u8 category;
+  u8 target;
+  u8 command;
+  u8 instance;
+  u16 length;
+  u8 *payload;
 };
 
 int san_client_link(struct device *client);

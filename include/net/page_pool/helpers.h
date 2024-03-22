@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
  * page_pool/helpers.h
- *	Author:	Jesper Dangaard Brouer <netoptimizer@brouer.com>
- *	Copyright (C) 2016 Red Hat, Inc.
+ *  Author: Jesper Dangaard Brouer <netoptimizer@brouer.com>
+ *  Copyright (C) 2016 Red Hat, Inc.
  */
 
 /**
@@ -61,35 +61,31 @@ u8 *page_pool_ethtool_stats_get_strings(u8 *data);
 u64 *page_pool_ethtool_stats_get(u64 *data, void *stats);
 
 bool page_pool_get_stats(const struct page_pool *pool,
-			 struct page_pool_stats *stats);
+    struct page_pool_stats *stats);
 #else
-static inline int page_pool_ethtool_stats_get_count(void)
-{
-	return 0;
+static inline int page_pool_ethtool_stats_get_count(void) {
+  return 0;
 }
 
-static inline u8 *page_pool_ethtool_stats_get_strings(u8 *data)
-{
-	return data;
+static inline u8 *page_pool_ethtool_stats_get_strings(u8 *data) {
+  return data;
 }
 
-static inline u64 *page_pool_ethtool_stats_get(u64 *data, void *stats)
-{
-	return data;
+static inline u64 *page_pool_ethtool_stats_get(u64 *data, void *stats) {
+  return data;
 }
+
 #endif
 
 /**
  * page_pool_dev_alloc_pages() - allocate a page.
- * @pool:	pool from which to allocate
+ * @pool: pool from which to allocate
  *
  * Get a page from the page allocator or page_pool caches.
  */
-static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
-{
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
-
-	return page_pool_alloc_pages(pool, gfp);
+static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool) {
+  gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+  return page_pool_alloc_pages(pool, gfp);
 }
 
 /**
@@ -104,41 +100,35 @@ static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
  * Return allocated page fragment, otherwise return NULL.
  */
 static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
-						    unsigned int *offset,
-						    unsigned int size)
-{
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
-
-	return page_pool_alloc_frag(pool, offset, size, gfp);
+    unsigned int *offset,
+    unsigned int size) {
+  gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+  return page_pool_alloc_frag(pool, offset, size, gfp);
 }
 
 static inline struct page *page_pool_alloc(struct page_pool *pool,
-					   unsigned int *offset,
-					   unsigned int *size, gfp_t gfp)
-{
-	unsigned int max_size = PAGE_SIZE << pool->p.order;
-	struct page *page;
-
-	if ((*size << 1) > max_size) {
-		*size = max_size;
-		*offset = 0;
-		return page_pool_alloc_pages(pool, gfp);
-	}
-
-	page = page_pool_alloc_frag(pool, offset, *size, gfp);
-	if (unlikely(!page))
-		return NULL;
-
-	/* There is very likely not enough space for another fragment, so append
-	 * the remaining size to the current fragment to avoid truesize
-	 * underestimate problem.
-	 */
-	if (pool->frag_offset + *size > max_size) {
-		*size = max_size - *offset;
-		pool->frag_offset = max_size;
-	}
-
-	return page;
+    unsigned int *offset,
+    unsigned int *size, gfp_t gfp) {
+  unsigned int max_size = PAGE_SIZE << pool->p.order;
+  struct page *page;
+  if ((*size << 1) > max_size) {
+    *size = max_size;
+    *offset = 0;
+    return page_pool_alloc_pages(pool, gfp);
+  }
+  page = page_pool_alloc_frag(pool, offset, *size, gfp);
+  if (unlikely(!page)) {
+    return NULL;
+  }
+  /* There is very likely not enough space for another fragment, so append
+   * the remaining size to the current fragment to avoid truesize
+   * underestimate problem.
+   */
+  if (pool->frag_offset + *size > max_size) {
+    *size = max_size - *offset;
+    pool->frag_offset = max_size;
+  }
+  return page;
 }
 
 /**
@@ -155,31 +145,27 @@ static inline struct page *page_pool_alloc(struct page_pool *pool,
  * Return allocated page or page fragment, otherwise return NULL.
  */
 static inline struct page *page_pool_dev_alloc(struct page_pool *pool,
-					       unsigned int *offset,
-					       unsigned int *size)
-{
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
-
-	return page_pool_alloc(pool, offset, size, gfp);
+    unsigned int *offset,
+    unsigned int *size) {
+  gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+  return page_pool_alloc(pool, offset, size, gfp);
 }
 
 static inline void *page_pool_alloc_va(struct page_pool *pool,
-				       unsigned int *size, gfp_t gfp)
-{
-	unsigned int offset;
-	struct page *page;
-
-	/* Mask off __GFP_HIGHMEM to ensure we can use page_address() */
-	page = page_pool_alloc(pool, &offset, size, gfp & ~__GFP_HIGHMEM);
-	if (unlikely(!page))
-		return NULL;
-
-	return page_address(page) + offset;
+    unsigned int *size, gfp_t gfp) {
+  unsigned int offset;
+  struct page *page;
+  /* Mask off __GFP_HIGHMEM to ensure we can use page_address() */
+  page = page_pool_alloc(pool, &offset, size, gfp & ~__GFP_HIGHMEM);
+  if (unlikely(!page)) {
+    return NULL;
+  }
+  return page_address(page) + offset;
 }
 
 /**
  * page_pool_dev_alloc_va() - allocate a page or a page fragment and return its
- *			      va.
+ *            va.
  * @pool: pool from which to allocate
  * @size: in as the requested size, out as the allocated size
  *
@@ -190,30 +176,27 @@ static inline void *page_pool_alloc_va(struct page_pool *pool,
  * Return the va for the allocated page or page fragment, otherwise return NULL.
  */
 static inline void *page_pool_dev_alloc_va(struct page_pool *pool,
-					   unsigned int *size)
-{
-	gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
-
-	return page_pool_alloc_va(pool, size, gfp);
+    unsigned int *size) {
+  gfp_t gfp = (GFP_ATOMIC | __GFP_NOWARN);
+  return page_pool_alloc_va(pool, size, gfp);
 }
 
 /**
  * page_pool_get_dma_dir() - Retrieve the stored DMA direction.
- * @pool:	pool from which page was allocated
+ * @pool: pool from which page was allocated
  *
  * Get the stored dma direction. A driver might decide to store this locally
  * and avoid the extra cache line from page_pool to determine the direction.
  */
 static
-inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool)
-{
-	return pool->p.dma_dir;
+inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool) {
+  return pool->p.dma_dir;
 }
 
 /**
  * page_pool_fragment_page() - split a fresh page into fragments
- * @page:	page to split
- * @nr:		references to set
+ * @page: page to split
+ * @nr:   references to set
  *
  * pp_ref_count represents the number of outstanding references to the page,
  * which will be freed using page_pool APIs (rather than page allocator APIs
@@ -228,70 +211,63 @@ inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool)
  * return the unused ones with a single atomic dec(), instead of performing
  * multiple atomic inc() operations.
  */
-static inline void page_pool_fragment_page(struct page *page, long nr)
-{
-	atomic_long_set(&page->pp_ref_count, nr);
+static inline void page_pool_fragment_page(struct page *page, long nr) {
+  atomic_long_set(&page->pp_ref_count, nr);
 }
 
-static inline long page_pool_unref_page(struct page *page, long nr)
-{
-	long ret;
-
-	/* If nr == pp_ref_count then we have cleared all remaining
-	 * references to the page:
-	 * 1. 'n == 1': no need to actually overwrite it.
-	 * 2. 'n != 1': overwrite it with one, which is the rare case
-	 *              for pp_ref_count draining.
-	 *
-	 * The main advantage to doing this is that not only we avoid a atomic
-	 * update, as an atomic_read is generally a much cheaper operation than
-	 * an atomic update, especially when dealing with a page that may be
-	 * referenced by only 2 or 3 users; but also unify the pp_ref_count
-	 * handling by ensuring all pages have partitioned into only 1 piece
-	 * initially, and only overwrite it when the page is partitioned into
-	 * more than one piece.
-	 */
-	if (atomic_long_read(&page->pp_ref_count) == nr) {
-		/* As we have ensured nr is always one for constant case using
-		 * the BUILD_BUG_ON(), only need to handle the non-constant case
-		 * here for pp_ref_count draining, which is a rare case.
-		 */
-		BUILD_BUG_ON(__builtin_constant_p(nr) && nr != 1);
-		if (!__builtin_constant_p(nr))
-			atomic_long_set(&page->pp_ref_count, 1);
-
-		return 0;
-	}
-
-	ret = atomic_long_sub_return(nr, &page->pp_ref_count);
-	WARN_ON(ret < 0);
-
-	/* We are the last user here too, reset pp_ref_count back to 1 to
-	 * ensure all pages have been partitioned into 1 piece initially,
-	 * this should be the rare case when the last two fragment users call
-	 * page_pool_unref_page() currently.
-	 */
-	if (unlikely(!ret))
-		atomic_long_set(&page->pp_ref_count, 1);
-
-	return ret;
+static inline long page_pool_unref_page(struct page *page, long nr) {
+  long ret;
+  /* If nr == pp_ref_count then we have cleared all remaining
+   * references to the page:
+   * 1. 'n == 1': no need to actually overwrite it.
+   * 2. 'n != 1': overwrite it with one, which is the rare case
+   *              for pp_ref_count draining.
+   *
+   * The main advantage to doing this is that not only we avoid a atomic
+   * update, as an atomic_read is generally a much cheaper operation than
+   * an atomic update, especially when dealing with a page that may be
+   * referenced by only 2 or 3 users; but also unify the pp_ref_count
+   * handling by ensuring all pages have partitioned into only 1 piece
+   * initially, and only overwrite it when the page is partitioned into
+   * more than one piece.
+   */
+  if (atomic_long_read(&page->pp_ref_count) == nr) {
+    /* As we have ensured nr is always one for constant case using
+     * the BUILD_BUG_ON(), only need to handle the non-constant case
+     * here for pp_ref_count draining, which is a rare case.
+     */
+    BUILD_BUG_ON(__builtin_constant_p(nr) && nr != 1);
+    if (!__builtin_constant_p(nr)) {
+      atomic_long_set(&page->pp_ref_count, 1);
+    }
+    return 0;
+  }
+  ret = atomic_long_sub_return(nr, &page->pp_ref_count);
+  WARN_ON(ret < 0);
+  /* We are the last user here too, reset pp_ref_count back to 1 to
+   * ensure all pages have been partitioned into 1 piece initially,
+   * this should be the rare case when the last two fragment users call
+   * page_pool_unref_page() currently.
+   */
+  if (unlikely(!ret)) {
+    atomic_long_set(&page->pp_ref_count, 1);
+  }
+  return ret;
 }
 
-static inline void page_pool_ref_page(struct page *page)
-{
-	atomic_long_inc(&page->pp_ref_count);
+static inline void page_pool_ref_page(struct page *page) {
+  atomic_long_inc(&page->pp_ref_count);
 }
 
-static inline bool page_pool_is_last_ref(struct page *page)
-{
-	/* If page_pool_unref_page() returns 0, we were the last user */
-	return page_pool_unref_page(page, 1) == 0;
+static inline bool page_pool_is_last_ref(struct page *page) {
+  /* If page_pool_unref_page() returns 0, we were the last user */
+  return page_pool_unref_page(page, 1) == 0;
 }
 
 /**
  * page_pool_put_page() - release a reference to a page pool page
- * @pool:	pool from which page was allocated
- * @page:	page to release a reference on
+ * @pool: pool from which page was allocated
+ * @page: page to release a reference on
  * @dma_sync_size: how much of the page may have been touched by the device
  * @allow_direct: released by the consumer, allow lockless caching
  *
@@ -302,52 +278,49 @@ static inline bool page_pool_is_last_ref(struct page *page)
  * using dma_sync_single_range_for_device().
  */
 static inline void page_pool_put_page(struct page_pool *pool,
-				      struct page *page,
-				      unsigned int dma_sync_size,
-				      bool allow_direct)
-{
-	/* When page_pool isn't compiled-in, net/core/xdp.c doesn't
-	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
-	 */
+    struct page *page,
+    unsigned int dma_sync_size,
+    bool allow_direct) {
+  /* When page_pool isn't compiled-in, net/core/xdp.c doesn't
+   * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
+   */
 #ifdef CONFIG_PAGE_POOL
-	if (!page_pool_is_last_ref(page))
-		return;
-
-	page_pool_put_unrefed_page(pool, page, dma_sync_size, allow_direct);
+  if (!page_pool_is_last_ref(page)) {
+    return;
+  }
+  page_pool_put_unrefed_page(pool, page, dma_sync_size, allow_direct);
 #endif
 }
 
 /**
  * page_pool_put_full_page() - release a reference on a page pool page
- * @pool:	pool from which page was allocated
- * @page:	page to release a reference on
+ * @pool: pool from which page was allocated
+ * @page: page to release a reference on
  * @allow_direct: released by the consumer, allow lockless caching
  *
  * Similar to page_pool_put_page(), but will DMA sync the entire memory area
  * as configured in &page_pool_params.max_len.
  */
 static inline void page_pool_put_full_page(struct page_pool *pool,
-					   struct page *page, bool allow_direct)
-{
-	page_pool_put_page(pool, page, -1, allow_direct);
+    struct page *page, bool allow_direct) {
+  page_pool_put_page(pool, page, -1, allow_direct);
 }
 
 /**
  * page_pool_recycle_direct() - release a reference on a page pool page
- * @pool:	pool from which page was allocated
- * @page:	page to release a reference on
+ * @pool: pool from which page was allocated
+ * @page: page to release a reference on
  *
  * Similar to page_pool_put_full_page() but caller must guarantee safe context
  * (e.g NAPI), since it will recycle the page directly into the pool fast cache.
  */
 static inline void page_pool_recycle_direct(struct page_pool *pool,
-					    struct page *page)
-{
-	page_pool_put_full_page(pool, page, true);
+    struct page *page) {
+  page_pool_put_full_page(pool, page, true);
 }
 
-#define PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA	\
-		(sizeof(dma_addr_t) > sizeof(unsigned long))
+#define PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA \
+  (sizeof(dma_addr_t) > sizeof(unsigned long))
 
 /**
  * page_pool_free_va() - free a va into the page_pool
@@ -358,52 +331,45 @@ static inline void page_pool_recycle_direct(struct page_pool *pool,
  * Free a va allocated from page_pool_allo_va().
  */
 static inline void page_pool_free_va(struct page_pool *pool, void *va,
-				     bool allow_direct)
-{
-	page_pool_put_page(pool, virt_to_head_page(va), -1, allow_direct);
+    bool allow_direct) {
+  page_pool_put_page(pool, virt_to_head_page(va), -1, allow_direct);
 }
 
 /**
  * page_pool_get_dma_addr() - Retrieve the stored DMA address.
- * @page:	page allocated from a page pool
+ * @page: page allocated from a page pool
  *
  * Fetch the DMA address of the page. The page pool to which the page belongs
  * must had been created with PP_FLAG_DMA_MAP.
  */
-static inline dma_addr_t page_pool_get_dma_addr(struct page *page)
-{
-	dma_addr_t ret = page->dma_addr;
-
-	if (PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA)
-		ret <<= PAGE_SHIFT;
-
-	return ret;
+static inline dma_addr_t page_pool_get_dma_addr(struct page *page) {
+  dma_addr_t ret = page->dma_addr;
+  if (PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA) {
+    ret <<= PAGE_SHIFT;
+  }
+  return ret;
 }
 
-static inline bool page_pool_set_dma_addr(struct page *page, dma_addr_t addr)
-{
-	if (PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA) {
-		page->dma_addr = addr >> PAGE_SHIFT;
-
-		/* We assume page alignment to shave off bottom bits,
-		 * if this "compression" doesn't work we need to drop.
-		 */
-		return addr != (dma_addr_t)page->dma_addr << PAGE_SHIFT;
-	}
-
-	page->dma_addr = addr;
-	return false;
+static inline bool page_pool_set_dma_addr(struct page *page, dma_addr_t addr) {
+  if (PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA) {
+    page->dma_addr = addr >> PAGE_SHIFT;
+    /* We assume page alignment to shave off bottom bits,
+     * if this "compression" doesn't work we need to drop.
+     */
+    return addr != (dma_addr_t) page->dma_addr << PAGE_SHIFT;
+  }
+  page->dma_addr = addr;
+  return false;
 }
 
-static inline bool page_pool_put(struct page_pool *pool)
-{
-	return refcount_dec_and_test(&pool->user_cnt);
+static inline bool page_pool_put(struct page_pool *pool) {
+  return refcount_dec_and_test(&pool->user_cnt);
 }
 
-static inline void page_pool_nid_changed(struct page_pool *pool, int new_nid)
-{
-	if (unlikely(pool->p.nid != new_nid))
-		page_pool_update_nid(pool, new_nid);
+static inline void page_pool_nid_changed(struct page_pool *pool, int new_nid) {
+  if (unlikely(pool->p.nid != new_nid)) {
+    page_pool_update_nid(pool, new_nid);
+  }
 }
 
 #endif /* _NET_PAGE_POOL_HELPERS_H */

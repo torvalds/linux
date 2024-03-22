@@ -15,65 +15,65 @@
 
 /*
  * TRACE_CUSTOM_EVENT() is just like TRACE_EVENT(). The first parameter
- * is the event name of an existing event where the TRACE_EVENT has been included
+ * is the event name of an existing event where the TRACE_EVENT has been
+ * included
  * in the C file before including this file.
  */
 TRACE_CUSTOM_EVENT(sched_switch,
 
-	/*
-	 * The TP_PROTO() and TP_ARGS must match the trace event
-	 * that the custom event is using.
-	 */
-	TP_PROTO(bool preempt,
-		 struct task_struct *prev,
-		 struct task_struct *next,
-		 unsigned int prev_state),
+    /*
+     * The TP_PROTO() and TP_ARGS must match the trace event
+     * that the custom event is using.
+     */
+    TP_PROTO(bool preempt,
+    struct task_struct *prev,
+    struct task_struct *next,
+    unsigned int prev_state),
 
-	TP_ARGS(preempt, prev, next, prev_state),
+    TP_ARGS(preempt, prev, next, prev_state),
 
-	/*
-	 * The next fields are where the customization happens.
-	 * The TP_STRUCT__entry() defines what will be recorded
-	 * in the ring buffer when the custom event triggers.
-	 *
-	 * The rest is just like the TRACE_EVENT() macro except that
-	 * it uses the custom entry.
-	 */
-	TP_STRUCT__entry(
-		__field(	unsigned short,		prev_prio	)
-		__field(	unsigned short,		next_prio	)
-		__field(	pid_t,	next_pid			)
-	),
+    /*
+     * The next fields are where the customization happens.
+     * The TP_STRUCT__entry() defines what will be recorded
+     * in the ring buffer when the custom event triggers.
+     *
+     * The rest is just like the TRACE_EVENT() macro except that
+     * it uses the custom entry.
+     */
+    TP_STRUCT__entry(
+    __field(unsigned short, prev_prio)
+    __field(unsigned short, next_prio)
+    __field(pid_t, next_pid)
+    ),
 
-	TP_fast_assign(
-		__entry->prev_prio	= prev->prio;
-		__entry->next_pid	= next->pid;
-		__entry->next_prio	= next->prio;
-	),
+    TP_fast_assign(
+    __entry->prev_prio = prev->prio;
+    __entry->next_pid = next->pid;
+    __entry->next_prio = next->prio;
+    ),
 
-	TP_printk("prev_prio=%d next_pid=%d next_prio=%d",
-		  __entry->prev_prio, __entry->next_pid, __entry->next_prio)
-)
-
+    TP_printk("prev_prio=%d next_pid=%d next_prio=%d",
+    __entry->prev_prio, __entry->next_pid, __entry->next_prio)
+    )
 
 TRACE_CUSTOM_EVENT(sched_waking,
 
-	TP_PROTO(struct task_struct *p),
+    TP_PROTO(struct task_struct *p),
 
-	TP_ARGS(p),
+    TP_ARGS(p),
 
-	TP_STRUCT__entry(
-		__field(	pid_t,			pid	)
-		__field(	unsigned short,		prio	)
-	),
+    TP_STRUCT__entry(
+    __field(pid_t, pid)
+    __field(unsigned short, prio)
+    ),
 
-	TP_fast_assign(
-		__entry->pid	= p->pid;
-		__entry->prio	= p->prio;
-	),
+    TP_fast_assign(
+    __entry->pid = p->pid;
+    __entry->prio = p->prio;
+    ),
 
-	TP_printk("pid=%d prio=%d", __entry->pid, __entry->prio)
-)
+    TP_printk("pid=%d prio=%d", __entry->pid, __entry->prio)
+    )
 #endif
 /*
  * Just like the headers that create TRACE_EVENTs, the below must

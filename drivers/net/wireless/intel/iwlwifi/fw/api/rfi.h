@@ -17,9 +17,9 @@
  * @bands: the corresponding bands
  */
 struct iwl_rfi_lut_entry {
-	__le16 freq;
-	u8 channels[IWL_RFI_LUT_ENTRY_CHANNELS_NUM];
-	u8 bands[IWL_RFI_LUT_ENTRY_CHANNELS_NUM];
+  __le16 freq;
+  u8 channels[IWL_RFI_LUT_ENTRY_CHANNELS_NUM];
+  u8 bands[IWL_RFI_LUT_ENTRY_CHANNELS_NUM];
 } __packed;
 
 /**
@@ -30,9 +30,9 @@ struct iwl_rfi_lut_entry {
  * @reserved: (reserved/padding)
  */
 struct iwl_rfi_config_cmd {
-	struct iwl_rfi_lut_entry table[IWL_RFI_LUT_SIZE];
-	u8 oem;
-	u8 reserved[3];
+  struct iwl_rfi_lut_entry table[IWL_RFI_LUT_SIZE];
+  u8 oem;
+  u8 reserved[3];
 } __packed; /* RFI_CONFIG_CMD_API_S_VER_1 */
 
 /**
@@ -42,9 +42,9 @@ struct iwl_rfi_config_cmd {
  * @RFI_FREQ_TABLE_DISABLED: the feature is disabled in FW
  */
 enum iwl_rfi_freq_table_status {
-	RFI_FREQ_TABLE_OK,
-	RFI_FREQ_TABLE_DVFS_NOT_READY,
-	RFI_FREQ_TABLE_DISABLED,
+  RFI_FREQ_TABLE_OK,
+  RFI_FREQ_TABLE_DVFS_NOT_READY,
+  RFI_FREQ_TABLE_DISABLED,
 };
 
 /**
@@ -54,8 +54,8 @@ enum iwl_rfi_freq_table_status {
  * @status: see &iwl_rfi_freq_table_status
  */
 struct iwl_rfi_freq_table_resp_cmd {
-	struct iwl_rfi_lut_entry table[IWL_RFI_LUT_INSTALLED_SIZE];
-	__le32 status;
+  struct iwl_rfi_lut_entry table[IWL_RFI_LUT_INSTALLED_SIZE];
+  __le32 status;
 } __packed; /* RFI_CONFIG_CMD_API_S_VER_1 */
 
 /**
@@ -64,6 +64,6 @@ struct iwl_rfi_freq_table_resp_cmd {
  * @reason: used only for a log message
  */
 struct iwl_rfi_deactivate_notif {
-	__le32 reason;
+  __le32 reason;
 } __packed; /* RFI_DEACTIVATE_NTF_S_VER_1 */
 #endif /* __iwl_fw_api_rfi_h__ */

@@ -35,32 +35,30 @@
 #ifndef __LINUX_SCTP_H__
 #define __LINUX_SCTP_H__
 
-#include <linux/in.h>		/* We need in_addr.  */
-#include <linux/in6.h>		/* We need in6_addr.  */
+#include <linux/in.h>   /* We need in_addr.  */
+#include <linux/in6.h>    /* We need in6_addr.  */
 #include <linux/skbuff.h>
 
 #include <uapi/linux/sctp.h>
 
 /* Section 3.1.  SCTP Common Header Format */
 struct sctphdr {
-	__be16 source;
-	__be16 dest;
-	__be32 vtag;
-	__le32 checksum;
+  __be16 source;
+  __be16 dest;
+  __be32 vtag;
+  __le32 checksum;
 };
 
-static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb)
-{
-	return (struct sctphdr *)skb_transport_header(skb);
+static inline struct sctphdr *sctp_hdr(const struct sk_buff *skb) {
+  return (struct sctphdr *) skb_transport_header(skb);
 }
 
 /* Section 3.2.  Chunk Field Descriptions. */
 struct sctp_chunkhdr {
-	__u8 type;
-	__u8 flags;
-	__be16 length;
+  __u8 type;
+  __u8 flags;
+  __be16 length;
 };
-
 
 /* Section 3.2.  Chunk Type Values.
  * [Chunk Type] identifies the type of information contained in the Chunk
@@ -68,39 +66,38 @@ struct sctp_chunkhdr {
  * reserved for future use as an extension field.
  */
 enum sctp_cid {
-	SCTP_CID_DATA			= 0,
-        SCTP_CID_INIT			= 1,
-        SCTP_CID_INIT_ACK		= 2,
-        SCTP_CID_SACK			= 3,
-        SCTP_CID_HEARTBEAT		= 4,
-        SCTP_CID_HEARTBEAT_ACK		= 5,
-        SCTP_CID_ABORT			= 6,
-        SCTP_CID_SHUTDOWN		= 7,
-        SCTP_CID_SHUTDOWN_ACK		= 8,
-        SCTP_CID_ERROR			= 9,
-        SCTP_CID_COOKIE_ECHO		= 10,
-        SCTP_CID_COOKIE_ACK	        = 11,
-        SCTP_CID_ECN_ECNE		= 12,
-        SCTP_CID_ECN_CWR		= 13,
-        SCTP_CID_SHUTDOWN_COMPLETE	= 14,
+  SCTP_CID_DATA = 0,
+  SCTP_CID_INIT = 1,
+  SCTP_CID_INIT_ACK = 2,
+  SCTP_CID_SACK = 3,
+  SCTP_CID_HEARTBEAT = 4,
+  SCTP_CID_HEARTBEAT_ACK = 5,
+  SCTP_CID_ABORT = 6,
+  SCTP_CID_SHUTDOWN = 7,
+  SCTP_CID_SHUTDOWN_ACK = 8,
+  SCTP_CID_ERROR = 9,
+  SCTP_CID_COOKIE_ECHO = 10,
+  SCTP_CID_COOKIE_ACK = 11,
+  SCTP_CID_ECN_ECNE = 12,
+  SCTP_CID_ECN_CWR = 13,
+  SCTP_CID_SHUTDOWN_COMPLETE = 14,
 
-	/* AUTH Extension Section 4.1 */
-	SCTP_CID_AUTH			= 0x0F,
+  /* AUTH Extension Section 4.1 */
+  SCTP_CID_AUTH = 0x0F,
 
-	/* sctp ndata 5.1. I-DATA */
-	SCTP_CID_I_DATA			= 0x40,
+  /* sctp ndata 5.1. I-DATA */
+  SCTP_CID_I_DATA = 0x40,
 
-	/* PR-SCTP Sec 3.2 */
-	SCTP_CID_FWD_TSN		= 0xC0,
+  /* PR-SCTP Sec 3.2 */
+  SCTP_CID_FWD_TSN = 0xC0,
 
-	/* Use hex, as defined in ADDIP sec. 3.1 */
-	SCTP_CID_ASCONF			= 0xC1,
-	SCTP_CID_I_FWD_TSN		= 0xC2,
-	SCTP_CID_ASCONF_ACK		= 0x80,
-	SCTP_CID_RECONF			= 0x82,
-	SCTP_CID_PAD			= 0x84,
+  /* Use hex, as defined in ADDIP sec. 3.1 */
+  SCTP_CID_ASCONF = 0xC1,
+  SCTP_CID_I_FWD_TSN = 0xC2,
+  SCTP_CID_ASCONF_ACK = 0x80,
+  SCTP_CID_RECONF = 0x82,
+  SCTP_CID_PAD = 0x84,
 }; /* enum */
-
 
 /* Section 3.2
  *  Chunk Types are encoded such that the highest-order two bits specify
@@ -108,13 +105,15 @@ enum sctp_cid {
  *  recognize the Chunk Type.
  */
 enum {
-	SCTP_CID_ACTION_DISCARD     = 0x00,
-	SCTP_CID_ACTION_DISCARD_ERR = 0x40,
-	SCTP_CID_ACTION_SKIP        = 0x80,
-	SCTP_CID_ACTION_SKIP_ERR    = 0xc0,
+  SCTP_CID_ACTION_DISCARD = 0x00,
+  SCTP_CID_ACTION_DISCARD_ERR = 0x40,
+  SCTP_CID_ACTION_SKIP = 0x80,
+  SCTP_CID_ACTION_SKIP_ERR = 0xc0,
 };
 
-enum { SCTP_CID_ACTION_MASK = 0xc0, };
+enum {
+  SCTP_CID_ACTION_MASK = 0xc0,
+};
 
 /* This flag is used in Chunk Flags for ABORT and SHUTDOWN COMPLETE.
  *
@@ -122,7 +121,9 @@ enum { SCTP_CID_ACTION_MASK = 0xc0, };
  *    The T bit is set to 0 if the sender had a TCB that it destroyed.
  *    If the sender did not have a TCB it should set this bit to 1.
  */
-enum { SCTP_CHUNK_FLAG_T = 0x01 };
+enum {
+  SCTP_CHUNK_FLAG_T = 0x01
+};
 
 /*
  *  Set the T bit
@@ -153,52 +154,50 @@ enum { SCTP_CHUNK_FLAG_T = 0x01 };
  */
 
 struct sctp_paramhdr {
-	__be16 type;
-	__be16 length;
+  __be16 type;
+  __be16 length;
 };
 
 enum sctp_param {
+  /* RFC 2960 Section 3.3.5 */
+  SCTP_PARAM_HEARTBEAT_INFO = cpu_to_be16(1),
+  /* RFC 2960 Section 3.3.2.1 */
+  SCTP_PARAM_IPV4_ADDRESS = cpu_to_be16(5),
+  SCTP_PARAM_IPV6_ADDRESS = cpu_to_be16(6),
+  SCTP_PARAM_STATE_COOKIE = cpu_to_be16(7),
+  SCTP_PARAM_UNRECOGNIZED_PARAMETERS = cpu_to_be16(8),
+  SCTP_PARAM_COOKIE_PRESERVATIVE = cpu_to_be16(9),
+  SCTP_PARAM_HOST_NAME_ADDRESS = cpu_to_be16(11),
+  SCTP_PARAM_SUPPORTED_ADDRESS_TYPES = cpu_to_be16(12),
+  SCTP_PARAM_ECN_CAPABLE = cpu_to_be16(0x8000),
 
-	/* RFC 2960 Section 3.3.5 */
-	SCTP_PARAM_HEARTBEAT_INFO		= cpu_to_be16(1),
-	/* RFC 2960 Section 3.3.2.1 */
-	SCTP_PARAM_IPV4_ADDRESS			= cpu_to_be16(5),
-	SCTP_PARAM_IPV6_ADDRESS			= cpu_to_be16(6),
-	SCTP_PARAM_STATE_COOKIE			= cpu_to_be16(7),
-	SCTP_PARAM_UNRECOGNIZED_PARAMETERS	= cpu_to_be16(8),
-	SCTP_PARAM_COOKIE_PRESERVATIVE		= cpu_to_be16(9),
-	SCTP_PARAM_HOST_NAME_ADDRESS		= cpu_to_be16(11),
-	SCTP_PARAM_SUPPORTED_ADDRESS_TYPES	= cpu_to_be16(12),
-	SCTP_PARAM_ECN_CAPABLE			= cpu_to_be16(0x8000),
+  /* AUTH Extension Section 3 */
+  SCTP_PARAM_RANDOM = cpu_to_be16(0x8002),
+  SCTP_PARAM_CHUNKS = cpu_to_be16(0x8003),
+  SCTP_PARAM_HMAC_ALGO = cpu_to_be16(0x8004),
 
-	/* AUTH Extension Section 3 */
-	SCTP_PARAM_RANDOM			= cpu_to_be16(0x8002),
-	SCTP_PARAM_CHUNKS			= cpu_to_be16(0x8003),
-	SCTP_PARAM_HMAC_ALGO			= cpu_to_be16(0x8004),
+  /* Add-IP: Supported Extensions, Section 4.2 */
+  SCTP_PARAM_SUPPORTED_EXT = cpu_to_be16(0x8008),
 
-	/* Add-IP: Supported Extensions, Section 4.2 */
-	SCTP_PARAM_SUPPORTED_EXT	= cpu_to_be16(0x8008),
+  /* PR-SCTP Sec 3.1 */
+  SCTP_PARAM_FWD_TSN_SUPPORT = cpu_to_be16(0xc000),
 
-	/* PR-SCTP Sec 3.1 */
-	SCTP_PARAM_FWD_TSN_SUPPORT	= cpu_to_be16(0xc000),
+  /* Add-IP Extension. Section 3.2 */
+  SCTP_PARAM_ADD_IP = cpu_to_be16(0xc001),
+  SCTP_PARAM_DEL_IP = cpu_to_be16(0xc002),
+  SCTP_PARAM_ERR_CAUSE = cpu_to_be16(0xc003),
+  SCTP_PARAM_SET_PRIMARY = cpu_to_be16(0xc004),
+  SCTP_PARAM_SUCCESS_REPORT = cpu_to_be16(0xc005),
+  SCTP_PARAM_ADAPTATION_LAYER_IND = cpu_to_be16(0xc006),
 
-	/* Add-IP Extension. Section 3.2 */
-	SCTP_PARAM_ADD_IP		= cpu_to_be16(0xc001),
-	SCTP_PARAM_DEL_IP		= cpu_to_be16(0xc002),
-	SCTP_PARAM_ERR_CAUSE		= cpu_to_be16(0xc003),
-	SCTP_PARAM_SET_PRIMARY		= cpu_to_be16(0xc004),
-	SCTP_PARAM_SUCCESS_REPORT	= cpu_to_be16(0xc005),
-	SCTP_PARAM_ADAPTATION_LAYER_IND = cpu_to_be16(0xc006),
-
-	/* RE-CONFIG. Section 4 */
-	SCTP_PARAM_RESET_OUT_REQUEST		= cpu_to_be16(0x000d),
-	SCTP_PARAM_RESET_IN_REQUEST		= cpu_to_be16(0x000e),
-	SCTP_PARAM_RESET_TSN_REQUEST		= cpu_to_be16(0x000f),
-	SCTP_PARAM_RESET_RESPONSE		= cpu_to_be16(0x0010),
-	SCTP_PARAM_RESET_ADD_OUT_STREAMS	= cpu_to_be16(0x0011),
-	SCTP_PARAM_RESET_ADD_IN_STREAMS		= cpu_to_be16(0x0012),
+  /* RE-CONFIG. Section 4 */
+  SCTP_PARAM_RESET_OUT_REQUEST = cpu_to_be16(0x000d),
+  SCTP_PARAM_RESET_IN_REQUEST = cpu_to_be16(0x000e),
+  SCTP_PARAM_RESET_TSN_REQUEST = cpu_to_be16(0x000f),
+  SCTP_PARAM_RESET_RESPONSE = cpu_to_be16(0x0010),
+  SCTP_PARAM_RESET_ADD_OUT_STREAMS = cpu_to_be16(0x0011),
+  SCTP_PARAM_RESET_ADD_IN_STREAMS = cpu_to_be16(0x0012),
 }; /* enum */
-
 
 /* RFC 2960 Section 3.2.1
  *  The Parameter Types are encoded such that the highest-order two bits
@@ -207,57 +206,60 @@ enum sctp_param {
  *
  */
 enum {
-	SCTP_PARAM_ACTION_DISCARD     = cpu_to_be16(0x0000),
-	SCTP_PARAM_ACTION_DISCARD_ERR = cpu_to_be16(0x4000),
-	SCTP_PARAM_ACTION_SKIP        = cpu_to_be16(0x8000),
-	SCTP_PARAM_ACTION_SKIP_ERR    = cpu_to_be16(0xc000),
+  SCTP_PARAM_ACTION_DISCARD = cpu_to_be16(0x0000),
+  SCTP_PARAM_ACTION_DISCARD_ERR = cpu_to_be16(0x4000),
+  SCTP_PARAM_ACTION_SKIP = cpu_to_be16(0x8000),
+  SCTP_PARAM_ACTION_SKIP_ERR = cpu_to_be16(0xc000),
 };
 
-enum { SCTP_PARAM_ACTION_MASK = cpu_to_be16(0xc000), };
+enum {
+  SCTP_PARAM_ACTION_MASK = cpu_to_be16(0xc000),
+};
 
 /* RFC 2960 Section 3.3.1 Payload Data (DATA) (0) */
 
 struct sctp_datahdr {
-	__be32 tsn;
-	__be16 stream;
-	__be16 ssn;
-	__u32 ppid;
-	/* __u8  payload[]; */
+  __be32 tsn;
+  __be16 stream;
+  __be16 ssn;
+  __u32 ppid;
+  /* __u8  payload[]; */
 };
 
 struct sctp_data_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_datahdr data_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_datahdr data_hdr;
 };
 
 struct sctp_idatahdr {
-	__be32 tsn;
-	__be16 stream;
-	__be16 reserved;
-	__be32 mid;
-	union {
-		__u32 ppid;
-		__be32 fsn;
-	};
-	__u8 payload[0];
+  __be32 tsn;
+  __be16 stream;
+  __be16 reserved;
+  __be32 mid;
+  union {
+    __u32 ppid;
+    __be32 fsn;
+  };
+  __u8 payload[0];
 };
 
 struct sctp_idata_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_idatahdr data_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_idatahdr data_hdr;
 };
 
 /* DATA Chuck Specific Flags */
 enum {
-	SCTP_DATA_MIDDLE_FRAG	= 0x00,
-	SCTP_DATA_LAST_FRAG	= 0x01,
-	SCTP_DATA_FIRST_FRAG	= 0x02,
-	SCTP_DATA_NOT_FRAG	= 0x03,
-	SCTP_DATA_UNORDERED	= 0x04,
-	SCTP_DATA_SACK_IMM	= 0x08,
+  SCTP_DATA_MIDDLE_FRAG = 0x00,
+  SCTP_DATA_LAST_FRAG = 0x01,
+  SCTP_DATA_FIRST_FRAG = 0x02,
+  SCTP_DATA_NOT_FRAG = 0x03,
+  SCTP_DATA_UNORDERED = 0x04,
+  SCTP_DATA_SACK_IMM = 0x08,
 };
-enum { SCTP_DATA_FRAG_MASK = 0x03, };
-
+enum {
+  SCTP_DATA_FRAG_MASK = 0x03,
+};
 
 /* RFC 2960 Section 3.3.2 Initiation (INIT) (1)
  *
@@ -265,78 +267,77 @@ enum { SCTP_DATA_FRAG_MASK = 0x03, };
  *  endpoints.
  */
 struct sctp_inithdr {
-	__be32 init_tag;
-	__be32 a_rwnd;
-	__be16 num_outbound_streams;
-	__be16 num_inbound_streams;
-	__be32 initial_tsn;
-	/* __u8  params[]; */
+  __be32 init_tag;
+  __be32 a_rwnd;
+  __be16 num_outbound_streams;
+  __be16 num_inbound_streams;
+  __be32 initial_tsn;
+  /* __u8  params[]; */
 };
 
 struct sctp_init_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_inithdr init_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_inithdr init_hdr;
 };
-
 
 /* Section 3.3.2.1. IPv4 Address Parameter (5) */
 struct sctp_ipv4addr_param {
-	struct sctp_paramhdr param_hdr;
-	struct in_addr addr;
+  struct sctp_paramhdr param_hdr;
+  struct in_addr addr;
 };
 
 /* Section 3.3.2.1. IPv6 Address Parameter (6) */
 struct sctp_ipv6addr_param {
-	struct sctp_paramhdr param_hdr;
-	struct in6_addr addr;
+  struct sctp_paramhdr param_hdr;
+  struct in6_addr addr;
 };
 
 /* Section 3.3.2.1 Cookie Preservative (9) */
 struct sctp_cookie_preserve_param {
-	struct sctp_paramhdr param_hdr;
-	__be32 lifespan_increment;
+  struct sctp_paramhdr param_hdr;
+  __be32 lifespan_increment;
 };
 
 /* Section 3.3.2.1 Host Name Address (11) */
 struct sctp_hostname_param {
-	struct sctp_paramhdr param_hdr;
-	uint8_t hostname[];
+  struct sctp_paramhdr param_hdr;
+  uint8_t hostname[];
 };
 
 /* Section 3.3.2.1 Supported Address Types (12) */
 struct sctp_supported_addrs_param {
-	struct sctp_paramhdr param_hdr;
-	__be16 types[];
+  struct sctp_paramhdr param_hdr;
+  __be16 types[];
 };
 
 /* ADDIP Section 3.2.6 Adaptation Layer Indication */
 struct sctp_adaptation_ind_param {
-	struct sctp_paramhdr param_hdr;
-	__be32 adaptation_ind;
+  struct sctp_paramhdr param_hdr;
+  __be32 adaptation_ind;
 };
 
 /* ADDIP Section 4.2.7 Supported Extensions Parameter */
 struct sctp_supported_ext_param {
-	struct sctp_paramhdr param_hdr;
-	__u8 chunks[];
+  struct sctp_paramhdr param_hdr;
+  __u8 chunks[];
 };
 
 /* AUTH Section 3.1 Random */
 struct sctp_random_param {
-	struct sctp_paramhdr param_hdr;
-	__u8 random_val[];
+  struct sctp_paramhdr param_hdr;
+  __u8 random_val[];
 };
 
 /* AUTH Section 3.2 Chunk List */
 struct sctp_chunks_param {
-	struct sctp_paramhdr param_hdr;
-	__u8 chunks[];
+  struct sctp_paramhdr param_hdr;
+  __u8 chunks[];
 };
 
 /* AUTH Section 3.3 HMAC Algorithm */
 struct sctp_hmac_algo_param {
-	struct sctp_paramhdr param_hdr;
-	__be16 hmac_ids[];
+  struct sctp_paramhdr param_hdr;
+  __be16 hmac_ids[];
 };
 
 /* RFC 2960.  Section 3.3.3 Initiation Acknowledgement (INIT ACK) (2):
@@ -344,23 +345,21 @@ struct sctp_hmac_algo_param {
  *   association.
  */
 struct sctp_initack_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_inithdr init_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_inithdr init_hdr;
 };
 
 /* Section 3.3.3.1 State Cookie (7) */
 struct sctp_cookie_param {
-	struct sctp_paramhdr p;
-	__u8 body[];
+  struct sctp_paramhdr p;
+  __u8 body[];
 };
 
 /* Section 3.3.3.1 Unrecognized Parameters (8) */
 struct sctp_unrecognized_param {
-	struct sctp_paramhdr param_hdr;
-	struct sctp_paramhdr unrecognized;
+  struct sctp_paramhdr param_hdr;
+  struct sctp_paramhdr unrecognized;
 };
-
-
 
 /*
  * 3.3.4 Selective Acknowledgement (SACK) (3):
@@ -371,28 +370,27 @@ struct sctp_unrecognized_param {
  */
 
 struct sctp_gap_ack_block {
-	__be16 start;
-	__be16 end;
+  __be16 start;
+  __be16 end;
 };
 
 union sctp_sack_variable {
-	struct sctp_gap_ack_block gab;
-	__be32 dup;
+  struct sctp_gap_ack_block gab;
+  __be32 dup;
 };
 
 struct sctp_sackhdr {
-	__be32 cum_tsn_ack;
-	__be32 a_rwnd;
-	__be16 num_gap_ack_blocks;
-	__be16 num_dup_tsns;
-	/* union sctp_sack_variable variable[]; */
+  __be32 cum_tsn_ack;
+  __be32 a_rwnd;
+  __be16 num_gap_ack_blocks;
+  __be16 num_dup_tsns;
+  /* union sctp_sack_variable variable[]; */
 };
 
 struct sctp_sack_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_sackhdr sack_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_sackhdr sack_hdr;
 };
-
 
 /* RFC 2960.  Section 3.3.5 Heartbeat Request (HEARTBEAT) (4):
  *
@@ -402,53 +400,50 @@ struct sctp_sack_chunk {
  */
 
 struct sctp_heartbeathdr {
-	struct sctp_paramhdr info;
+  struct sctp_paramhdr info;
 };
 
 struct sctp_heartbeat_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_heartbeathdr hb_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_heartbeathdr hb_hdr;
 };
-
 
 /* PAD chunk could be bundled with heartbeat chunk to probe pmtu */
 struct sctp_pad_chunk {
-	struct sctp_chunkhdr uh;
+  struct sctp_chunkhdr uh;
 };
-
 
 /* For the abort and shutdown ACK we must carry the init tag in the
  * common header. Just the common header is all that is needed with a
  * chunk descriptor.
  */
 struct sctp_abort_chunk {
-	struct sctp_chunkhdr uh;
+  struct sctp_chunkhdr uh;
 };
-
 
 /* For the graceful shutdown we must carry the tag (in common header)
  * and the highest consecutive acking value.
  */
 struct sctp_shutdownhdr {
-	__be32 cum_tsn_ack;
+  __be32 cum_tsn_ack;
 };
 
 struct sctp_shutdown_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_shutdownhdr shutdown_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_shutdownhdr shutdown_hdr;
 };
 
 /* RFC 2960.  Section 3.3.10 Operation Error (ERROR) (9) */
 
 struct sctp_errhdr {
-	__be16 cause;
-	__be16 length;
-	/* __u8  variable[]; */
+  __be16 cause;
+  __be16 length;
+  /* __u8  variable[]; */
 };
 
 struct sctp_operr_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_errhdr err_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_errhdr err_hdr;
 };
 
 /* RFC 2960 3.3.10 - Operation Error
@@ -471,83 +466,79 @@ struct sctp_operr_chunk {
  *     10              Cookie Received While Shutting Down
  */
 enum sctp_error {
+  SCTP_ERROR_NO_ERROR = cpu_to_be16(0x00),
+  SCTP_ERROR_INV_STRM = cpu_to_be16(0x01),
+  SCTP_ERROR_MISS_PARAM = cpu_to_be16(0x02),
+  SCTP_ERROR_STALE_COOKIE = cpu_to_be16(0x03),
+  SCTP_ERROR_NO_RESOURCE = cpu_to_be16(0x04),
+  SCTP_ERROR_DNS_FAILED = cpu_to_be16(0x05),
+  SCTP_ERROR_UNKNOWN_CHUNK = cpu_to_be16(0x06),
+  SCTP_ERROR_INV_PARAM = cpu_to_be16(0x07),
+  SCTP_ERROR_UNKNOWN_PARAM = cpu_to_be16(0x08),
+  SCTP_ERROR_NO_DATA = cpu_to_be16(0x09),
+  SCTP_ERROR_COOKIE_IN_SHUTDOWN = cpu_to_be16(0x0a),
 
-	SCTP_ERROR_NO_ERROR	   = cpu_to_be16(0x00),
-	SCTP_ERROR_INV_STRM	   = cpu_to_be16(0x01),
-	SCTP_ERROR_MISS_PARAM 	   = cpu_to_be16(0x02),
-	SCTP_ERROR_STALE_COOKIE	   = cpu_to_be16(0x03),
-	SCTP_ERROR_NO_RESOURCE 	   = cpu_to_be16(0x04),
-	SCTP_ERROR_DNS_FAILED      = cpu_to_be16(0x05),
-	SCTP_ERROR_UNKNOWN_CHUNK   = cpu_to_be16(0x06),
-	SCTP_ERROR_INV_PARAM       = cpu_to_be16(0x07),
-	SCTP_ERROR_UNKNOWN_PARAM   = cpu_to_be16(0x08),
-	SCTP_ERROR_NO_DATA         = cpu_to_be16(0x09),
-	SCTP_ERROR_COOKIE_IN_SHUTDOWN = cpu_to_be16(0x0a),
+  /* SCTP Implementation Guide:
+   *  11  Restart of an association with new addresses
+   *  12  User Initiated Abort
+   *  13  Protocol Violation
+   *  14  Restart of an Association with New Encapsulation Port
+   */
 
+  SCTP_ERROR_RESTART = cpu_to_be16(0x0b),
+  SCTP_ERROR_USER_ABORT = cpu_to_be16(0x0c),
+  SCTP_ERROR_PROTO_VIOLATION = cpu_to_be16(0x0d),
+  SCTP_ERROR_NEW_ENCAP_PORT = cpu_to_be16(0x0e),
 
-	/* SCTP Implementation Guide:
-	 *  11  Restart of an association with new addresses
-	 *  12  User Initiated Abort
-	 *  13  Protocol Violation
-	 *  14  Restart of an Association with New Encapsulation Port
-	 */
+  /* ADDIP Section 3.3  New Error Causes
+   *
+   * Four new Error Causes are added to the SCTP Operational Errors,
+   * primarily for use in the ASCONF-ACK chunk.
+   *
+   * Value          Cause Code
+   * ---------      ----------------
+   * 0x00A0          Request to Delete Last Remaining IP Address.
+   * 0x00A1          Operation Refused Due to Resource Shortage.
+   * 0x00A2          Request to Delete Source IP Address.
+   * 0x00A3          Association Aborted due to illegal ASCONF-ACK
+   * 0x00A4          Request refused - no authorization.
+   */
+  SCTP_ERROR_DEL_LAST_IP = cpu_to_be16(0x00A0),
+  SCTP_ERROR_RSRC_LOW = cpu_to_be16(0x00A1),
+  SCTP_ERROR_DEL_SRC_IP = cpu_to_be16(0x00A2),
+  SCTP_ERROR_ASCONF_ACK = cpu_to_be16(0x00A3),
+  SCTP_ERROR_REQ_REFUSED = cpu_to_be16(0x00A4),
 
-	SCTP_ERROR_RESTART         = cpu_to_be16(0x0b),
-	SCTP_ERROR_USER_ABORT      = cpu_to_be16(0x0c),
-	SCTP_ERROR_PROTO_VIOLATION = cpu_to_be16(0x0d),
-	SCTP_ERROR_NEW_ENCAP_PORT  = cpu_to_be16(0x0e),
-
-	/* ADDIP Section 3.3  New Error Causes
-	 *
-	 * Four new Error Causes are added to the SCTP Operational Errors,
-	 * primarily for use in the ASCONF-ACK chunk.
-	 *
-	 * Value          Cause Code
-	 * ---------      ----------------
-	 * 0x00A0          Request to Delete Last Remaining IP Address.
-	 * 0x00A1          Operation Refused Due to Resource Shortage.
-	 * 0x00A2          Request to Delete Source IP Address.
-	 * 0x00A3          Association Aborted due to illegal ASCONF-ACK
-	 * 0x00A4          Request refused - no authorization.
-	 */
-	SCTP_ERROR_DEL_LAST_IP	= cpu_to_be16(0x00A0),
-	SCTP_ERROR_RSRC_LOW	= cpu_to_be16(0x00A1),
-	SCTP_ERROR_DEL_SRC_IP	= cpu_to_be16(0x00A2),
-	SCTP_ERROR_ASCONF_ACK   = cpu_to_be16(0x00A3),
-	SCTP_ERROR_REQ_REFUSED	= cpu_to_be16(0x00A4),
-
-	/* AUTH Section 4.  New Error Cause
-	 *
-	 * This section defines a new error cause that will be sent if an AUTH
-	 * chunk is received with an unsupported HMAC identifier.
-	 * illustrates the new error cause.
-	 *
-	 * Cause Code      Error Cause Name
-	 * --------------------------------------------------------------
-	 * 0x0105          Unsupported HMAC Identifier
-	 */
-	 SCTP_ERROR_UNSUP_HMAC	= cpu_to_be16(0x0105)
+  /* AUTH Section 4.  New Error Cause
+   *
+   * This section defines a new error cause that will be sent if an AUTH
+   * chunk is received with an unsupported HMAC identifier.
+   * illustrates the new error cause.
+   *
+   * Cause Code      Error Cause Name
+   * --------------------------------------------------------------
+   * 0x0105          Unsupported HMAC Identifier
+   */
+  SCTP_ERROR_UNSUP_HMAC = cpu_to_be16(0x0105)
 };
-
-
 
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.
  *   Explicit Congestion Notification Echo (ECNE) (12)
  */
 struct sctp_ecnehdr {
-	__be32 lowest_tsn;
+  __be32 lowest_tsn;
 };
 
 struct sctp_ecne_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_ecnehdr ence_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_ecnehdr ence_hdr;
 };
 
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.
  *   Congestion Window Reduced (CWR) (13)
  */
 struct sctp_cwrhdr {
-	__be32 lowest_tsn;
+  __be32 lowest_tsn;
 };
 
 /* PR-SCTP
@@ -597,82 +588,82 @@ struct sctp_cwrhdr {
  *       chunks this field MUST be filled in.
  */
 struct sctp_fwdtsn_skip {
-	__be16 stream;
-	__be16 ssn;
+  __be16 stream;
+  __be16 ssn;
 };
 
 struct sctp_fwdtsn_hdr {
-	__be32 new_cum_tsn;
-	/* struct sctp_fwdtsn_skip skip[]; */
+  __be32 new_cum_tsn;
+  /* struct sctp_fwdtsn_skip skip[]; */
 };
 
 struct sctp_fwdtsn_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_fwdtsn_hdr fwdtsn_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_fwdtsn_hdr fwdtsn_hdr;
 };
 
 struct sctp_ifwdtsn_skip {
-	__be16 stream;
-	__u8 reserved;
-	__u8 flags;
-	__be32 mid;
+  __be16 stream;
+  __u8 reserved;
+  __u8 flags;
+  __be32 mid;
 };
 
 struct sctp_ifwdtsn_hdr {
-	__be32 new_cum_tsn;
-	/* struct sctp_ifwdtsn_skip skip[]; */
+  __be32 new_cum_tsn;
+  /* struct sctp_ifwdtsn_skip skip[]; */
 };
 
 struct sctp_ifwdtsn_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_ifwdtsn_hdr fwdtsn_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_ifwdtsn_hdr fwdtsn_hdr;
 };
 
 /* ADDIP
  * Section 3.1.1 Address Configuration Change Chunk (ASCONF)
  *
- * 	Serial Number: 32 bits (unsigned integer)
- *	This value represents a Serial Number for the ASCONF Chunk. The
- *	valid range of Serial Number is from 0 to 2^32-1.
- *	Serial Numbers wrap back to 0 after reaching 2^32 -1.
+ *  Serial Number: 32 bits (unsigned integer)
+ *  This value represents a Serial Number for the ASCONF Chunk. The
+ *  valid range of Serial Number is from 0 to 2^32-1.
+ *  Serial Numbers wrap back to 0 after reaching 2^32 -1.
  *
- *	Address Parameter: 8 or 20 bytes (depending on type)
- *	The address is an address of the sender of the ASCONF chunk,
- *	the address MUST be considered part of the association by the
- *	peer endpoint. This field may be used by the receiver of the 
- *	ASCONF to help in finding the association. This parameter MUST
- *	be present in every ASCONF message i.e. it is a mandatory TLV
- *	parameter.
+ *  Address Parameter: 8 or 20 bytes (depending on type)
+ *  The address is an address of the sender of the ASCONF chunk,
+ *  the address MUST be considered part of the association by the
+ *  peer endpoint. This field may be used by the receiver of the
+ *  ASCONF to help in finding the association. This parameter MUST
+ *  be present in every ASCONF message i.e. it is a mandatory TLV
+ *  parameter.
  *
- *	ASCONF Parameter: TLV format
- *	Each Address configuration change is represented by a TLV
- *	parameter as defined in Section 3.2. One or more requests may
- *	be present in an ASCONF Chunk.
+ *  ASCONF Parameter: TLV format
+ *  Each Address configuration change is represented by a TLV
+ *  parameter as defined in Section 3.2. One or more requests may
+ *  be present in an ASCONF Chunk.
  *
  * Section 3.1.2 Address Configuration Acknowledgement Chunk (ASCONF-ACK)
- * 
- *	Serial Number: 32 bits (unsigned integer)
- *	This value represents the Serial Number for the received ASCONF
- *	Chunk that is acknowledged by this chunk. This value is copied
- *	from the received ASCONF Chunk. 
  *
- *	ASCONF Parameter Response: TLV format
- *	The ASCONF Parameter Response is used in the ASCONF-ACK to
- *	report status of ASCONF processing.
+ *  Serial Number: 32 bits (unsigned integer)
+ *  This value represents the Serial Number for the received ASCONF
+ *  Chunk that is acknowledged by this chunk. This value is copied
+ *  from the received ASCONF Chunk.
+ *
+ *  ASCONF Parameter Response: TLV format
+ *  The ASCONF Parameter Response is used in the ASCONF-ACK to
+ *  report status of ASCONF processing.
  */
 struct sctp_addip_param {
-	struct sctp_paramhdr param_hdr;
-	__be32 crr_id;
+  struct sctp_paramhdr param_hdr;
+  __be32 crr_id;
 };
 
 struct sctp_addiphdr {
-	__be32	serial;
-	/* __u8	params[]; */
+  __be32 serial;
+  /* __u8 params[]; */
 };
 
 struct sctp_addip_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_addiphdr addip_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_addiphdr addip_hdr;
 };
 
 /* AUTH
@@ -693,113 +684,113 @@ struct sctp_addip_chunk {
  *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  *   Type: 1 byte (unsigned integer)
- *   	This value MUST be set to 0x0F for  all AUTH-chunks.
+ *    This value MUST be set to 0x0F for  all AUTH-chunks.
  *
  *   Flags: 1 byte (unsigned integer)
- *	Set to zero on transmit and ignored on receipt.
+ *  Set to zero on transmit and ignored on receipt.
  *
  *   Length: 2 bytes (unsigned integer)
- *   	This value holds the length of the HMAC in bytes plus 8.
+ *    This value holds the length of the HMAC in bytes plus 8.
  *
  *  Shared Key Identifier: 2 bytes (unsigned integer)
- *	This value describes which endpoint pair shared key is used.
+ *  This value describes which endpoint pair shared key is used.
  *
  *   HMAC Identifier: 2 bytes (unsigned integer)
- *   	This value describes which message digest is being used.  Table 2
- *	shows the currently defined values.
+ *    This value describes which message digest is being used.  Table 2
+ *  shows the currently defined values.
  *
  *    The following Table 2 shows the currently defined values for HMAC
  *       identifiers.
  *
- *	 +-----------------+--------------------------+
- *	 | HMAC Identifier | Message Digest Algorithm |
- *	 +-----------------+--------------------------+
- *	 | 0               | Reserved                 |
- *	 | 1               | SHA-1 defined in [8]     |
- *	 | 2               | Reserved                 |
- *	 | 3               | SHA-256 defined in [8]   |
- *	 +-----------------+--------------------------+
+ *   +-----------------+--------------------------+
+ *   | HMAC Identifier | Message Digest Algorithm |
+ *   +-----------------+--------------------------+
+ *   | 0               | Reserved                 |
+ *   | 1               | SHA-1 defined in [8]     |
+ *   | 2               | Reserved                 |
+ *   | 3               | SHA-256 defined in [8]   |
+ *   +-----------------+--------------------------+
  *
  *
  *   HMAC: n bytes (unsigned integer) This hold the result of the HMAC
  *      calculation.
  */
 struct sctp_authhdr {
-	__be16 shkey_id;
-	__be16 hmac_id;
-	/* __u8   hmac[]; */
+  __be16 shkey_id;
+  __be16 hmac_id;
+  /* __u8   hmac[]; */
 };
 
 struct sctp_auth_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_authhdr auth_hdr;
+  struct sctp_chunkhdr chunk_hdr;
+  struct sctp_authhdr auth_hdr;
 };
 
 struct sctp_infox {
-	struct sctp_info *sctpinfo;
-	struct sctp_association *asoc;
+  struct sctp_info *sctpinfo;
+  struct sctp_association *asoc;
 };
 
 struct sctp_reconf_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	/* __u8 params[]; */
+  struct sctp_chunkhdr chunk_hdr;
+  /* __u8 params[]; */
 };
 
 struct sctp_strreset_outreq {
-	struct sctp_paramhdr param_hdr;
-	__be32 request_seq;
-	__be32 response_seq;
-	__be32 send_reset_at_tsn;
-	__be16 list_of_streams[];
+  struct sctp_paramhdr param_hdr;
+  __be32 request_seq;
+  __be32 response_seq;
+  __be32 send_reset_at_tsn;
+  __be16 list_of_streams[];
 };
 
 struct sctp_strreset_inreq {
-	struct sctp_paramhdr param_hdr;
-	__be32 request_seq;
-	__be16 list_of_streams[];
+  struct sctp_paramhdr param_hdr;
+  __be32 request_seq;
+  __be16 list_of_streams[];
 };
 
 struct sctp_strreset_tsnreq {
-	struct sctp_paramhdr param_hdr;
-	__be32 request_seq;
+  struct sctp_paramhdr param_hdr;
+  __be32 request_seq;
 };
 
 struct sctp_strreset_addstrm {
-	struct sctp_paramhdr param_hdr;
-	__be32 request_seq;
-	__be16 number_of_streams;
-	__be16 reserved;
+  struct sctp_paramhdr param_hdr;
+  __be32 request_seq;
+  __be16 number_of_streams;
+  __be16 reserved;
 };
 
 enum {
-	SCTP_STRRESET_NOTHING_TO_DO	= 0x00,
-	SCTP_STRRESET_PERFORMED		= 0x01,
-	SCTP_STRRESET_DENIED		= 0x02,
-	SCTP_STRRESET_ERR_WRONG_SSN	= 0x03,
-	SCTP_STRRESET_ERR_IN_PROGRESS	= 0x04,
-	SCTP_STRRESET_ERR_BAD_SEQNO	= 0x05,
-	SCTP_STRRESET_IN_PROGRESS	= 0x06,
+  SCTP_STRRESET_NOTHING_TO_DO = 0x00,
+  SCTP_STRRESET_PERFORMED = 0x01,
+  SCTP_STRRESET_DENIED = 0x02,
+  SCTP_STRRESET_ERR_WRONG_SSN = 0x03,
+  SCTP_STRRESET_ERR_IN_PROGRESS = 0x04,
+  SCTP_STRRESET_ERR_BAD_SEQNO = 0x05,
+  SCTP_STRRESET_IN_PROGRESS = 0x06,
 };
 
 struct sctp_strreset_resp {
-	struct sctp_paramhdr param_hdr;
-	__be32 response_seq;
-	__be32 result;
+  struct sctp_paramhdr param_hdr;
+  __be32 response_seq;
+  __be32 result;
 };
 
 struct sctp_strreset_resptsn {
-	struct sctp_paramhdr param_hdr;
-	__be32 response_seq;
-	__be32 result;
-	__be32 senders_next_tsn;
-	__be32 receivers_next_tsn;
+  struct sctp_paramhdr param_hdr;
+  __be32 response_seq;
+  __be32 result;
+  __be32 senders_next_tsn;
+  __be32 receivers_next_tsn;
 };
 
 enum {
-	SCTP_DSCP_SET_MASK = 0x1,
-	SCTP_DSCP_VAL_MASK = 0xfc,
-	SCTP_FLOWLABEL_SET_MASK = 0x100000,
-	SCTP_FLOWLABEL_VAL_MASK = 0xfffff
+  SCTP_DSCP_SET_MASK = 0x1,
+  SCTP_DSCP_VAL_MASK = 0xfc,
+  SCTP_FLOWLABEL_SET_MASK = 0x100000,
+  SCTP_FLOWLABEL_VAL_MASK = 0xfffff
 };
 
 /* UDP Encapsulation
@@ -816,13 +807,13 @@ enum {
  * +-------------------------------+-------------------------------+
  */
 struct sctp_new_encap_port_hdr {
-	__be16 cur_port;
-	__be16 new_port;
+  __be16 cur_port;
+  __be16 new_port;
 };
 
 /* Round an int up to the next multiple of 4.  */
-#define SCTP_PAD4(s) (((s)+3)&~3)
+#define SCTP_PAD4(s) (((s) + 3) & ~3)
 /* Truncate to the previous multiple of 4.  */
-#define SCTP_TRUNC4(s) ((s)&~3)
+#define SCTP_TRUNC4(s) ((s) & ~3)
 
 #endif /* __LINUX_SCTP_H__ */

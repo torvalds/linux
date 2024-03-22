@@ -26,12 +26,12 @@ struct dm_buffer;
 /*
  * Create a buffered IO cache on a given device
  */
-struct dm_bufio_client *
-dm_bufio_client_create(struct block_device *bdev, unsigned int block_size,
-		       unsigned int reserved_buffers, unsigned int aux_size,
-		       void (*alloc_callback)(struct dm_buffer *),
-		       void (*write_callback)(struct dm_buffer *),
-		       unsigned int flags);
+struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev,
+    unsigned int block_size,
+    unsigned int reserved_buffers, unsigned int aux_size,
+    void (*alloc_callback)(struct dm_buffer *),
+    void (*write_callback)(struct dm_buffer *),
+    unsigned int flags);
 
 /*
  * Release a buffered IO cache.
@@ -62,24 +62,24 @@ void dm_bufio_set_sector_offset(struct dm_bufio_client *c, sector_t start);
  * it dirty.
  */
 void *dm_bufio_read(struct dm_bufio_client *c, sector_t block,
-		    struct dm_buffer **bp);
+    struct dm_buffer **bp);
 
 void *dm_bufio_read_with_ioprio(struct dm_bufio_client *c, sector_t block,
-				struct dm_buffer **bp, unsigned short ioprio);
+    struct dm_buffer **bp, unsigned short ioprio);
 
 /*
  * Like dm_bufio_read, but return buffer from cache, don't read
  * it. If the buffer is not in the cache, return NULL.
  */
 void *dm_bufio_get(struct dm_bufio_client *c, sector_t block,
-		   struct dm_buffer **bp);
+    struct dm_buffer **bp);
 
 /*
  * Like dm_bufio_read, but don't read anything from the disk.  It is
  * expected that the caller initializes the buffer and marks it dirty.
  */
 void *dm_bufio_new(struct dm_bufio_client *c, sector_t block,
-		   struct dm_buffer **bp);
+    struct dm_buffer **bp);
 
 /*
  * Prefetch the specified blocks to the cache.
@@ -87,11 +87,11 @@ void *dm_bufio_new(struct dm_bufio_client *c, sector_t block,
  * I/O to finish.
  */
 void dm_bufio_prefetch(struct dm_bufio_client *c,
-		       sector_t block, unsigned int n_blocks);
+    sector_t block, unsigned int n_blocks);
 
 void dm_bufio_prefetch_with_ioprio(struct dm_bufio_client *c,
-				sector_t block, unsigned int n_blocks,
-				unsigned short ioprio);
+    sector_t block, unsigned int n_blocks,
+    unsigned short ioprio);
 
 /*
  * Release a reference obtained with dm_bufio_{read,get,new}. The data
@@ -116,7 +116,7 @@ void dm_bufio_mark_buffer_dirty(struct dm_buffer *b);
  * write the specified part of the buffer or it may write a larger superset.
  */
 void dm_bufio_mark_partial_buffer_dirty(struct dm_buffer *b,
-					unsigned int start, unsigned int end);
+    unsigned int start, unsigned int end);
 
 /*
  * Initiate writing of dirty buffers, without waiting for completion.
@@ -137,7 +137,8 @@ int dm_bufio_issue_flush(struct dm_bufio_client *c);
 /*
  * Send a discard request to the underlying device.
  */
-int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t count);
+int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block,
+    sector_t count);
 
 /*
  * Free the given buffer.
@@ -151,7 +152,8 @@ void dm_bufio_forget(struct dm_bufio_client *c, sector_t block);
  * This is just a hint, if the buffer is in use or dirty, this function
  * does nothing.
  */
-void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t n_blocks);
+void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block,
+    sector_t n_blocks);
 
 /*
  * Set the minimum number of buffers before cleanup happens.

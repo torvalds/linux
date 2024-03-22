@@ -23,7 +23,7 @@
  * Register values.
  */
 #define WM8904_SW_RESET_AND_ID                  0x00
-#define WM8904_REVISION				0x01
+#define WM8904_REVISION       0x01
 #define WM8904_BIAS_CONTROL_0                   0x04
 #define WM8904_VMID_CONTROL_0                   0x05
 #define WM8904_MIC_BIAS_CONTROL_0               0x06
@@ -121,7 +121,7 @@
 #define WM8904_EQ23                             0x9C
 #define WM8904_EQ24                             0x9D
 #define WM8904_CONTROL_INTERFACE_TEST_1         0xA1
-#define WM8904_ADC_TEST_0			0xC6
+#define WM8904_ADC_TEST_0     0xC6
 #define WM8904_ANALOGUE_OUTPUT_BIAS_0           0xCC
 #define WM8904_FLL_NCO_TEST_0                   0xF7
 #define WM8904_FLL_NCO_TEST_1                   0xF8
@@ -136,16 +136,19 @@
 /*
  * R0 (0x00) - SW Reset and ID
  */
-#define WM8904_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 - [15:0] */
-#define WM8904_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 - [15:0] */
-#define WM8904_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 - [15:0] */
+#define WM8904_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
+#define WM8904_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
+#define WM8904_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
 
 /*
  * R1 (0x01) - Revision
  */
-#define WM8904_REVISION_MASK              	0x000F  /* REVISION - [3:0] */
-#define WM8904_REVISION_SHIFT             	     0  /* REVISION - [3:0] */
-#define WM8904_REVISION_WIDTH             	    16  /* REVISION - [3:0] */
+#define WM8904_REVISION_MASK                0x000F  /* REVISION - [3:0] */
+#define WM8904_REVISION_SHIFT                    0  /* REVISION - [3:0] */
+#define WM8904_REVISION_WIDTH                   16  /* REVISION - [3:0] */
 
 /*
  * R4 (0x04) - Bias Control 0
@@ -184,28 +187,55 @@
 /*
  * R8 (0x08) - Analogue DAC 0
  */
-#define WM8904_DAC_BIAS_SEL_MASK                0x0018  /* DAC_BIAS_SEL - [4:3] */
-#define WM8904_DAC_BIAS_SEL_SHIFT                    3  /* DAC_BIAS_SEL - [4:3] */
-#define WM8904_DAC_BIAS_SEL_WIDTH                    2  /* DAC_BIAS_SEL - [4:3] */
-#define WM8904_DAC_VMID_BIAS_SEL_MASK           0x0006  /* DAC_VMID_BIAS_SEL - [2:1] */
-#define WM8904_DAC_VMID_BIAS_SEL_SHIFT               1  /* DAC_VMID_BIAS_SEL - [2:1] */
-#define WM8904_DAC_VMID_BIAS_SEL_WIDTH               2  /* DAC_VMID_BIAS_SEL - [2:1] */
+#define WM8904_DAC_BIAS_SEL_MASK                0x0018  /* DAC_BIAS_SEL - [4:3]
+                                                         * */
+#define WM8904_DAC_BIAS_SEL_SHIFT                    3  /* DAC_BIAS_SEL - [4:3]
+                                                         * */
+#define WM8904_DAC_BIAS_SEL_WIDTH                    2  /* DAC_BIAS_SEL - [4:3]
+                                                         * */
+#define WM8904_DAC_VMID_BIAS_SEL_MASK           0x0006  /* DAC_VMID_BIAS_SEL -
+                                                         * [2:1] */
+#define WM8904_DAC_VMID_BIAS_SEL_SHIFT               1  /* DAC_VMID_BIAS_SEL -
+                                                         * [2:1] */
+#define WM8904_DAC_VMID_BIAS_SEL_WIDTH               2  /* DAC_VMID_BIAS_SEL -
+                                                         * [2:1] */
 
 /*
  * R9 (0x09) - mic Filter Control
  */
-#define WM8904_MIC_DET_SET_THRESHOLD_MASK       0xF000  /* MIC_DET_SET_THRESHOLD - [15:12] */
-#define WM8904_MIC_DET_SET_THRESHOLD_SHIFT          12  /* MIC_DET_SET_THRESHOLD - [15:12] */
-#define WM8904_MIC_DET_SET_THRESHOLD_WIDTH           4  /* MIC_DET_SET_THRESHOLD - [15:12] */
-#define WM8904_MIC_DET_RESET_THRESHOLD_MASK     0x0F00  /* MIC_DET_RESET_THRESHOLD - [11:8] */
-#define WM8904_MIC_DET_RESET_THRESHOLD_SHIFT         8  /* MIC_DET_RESET_THRESHOLD - [11:8] */
-#define WM8904_MIC_DET_RESET_THRESHOLD_WIDTH         4  /* MIC_DET_RESET_THRESHOLD - [11:8] */
-#define WM8904_MIC_SHORT_SET_THRESHOLD_MASK     0x00F0  /* MIC_SHORT_SET_THRESHOLD - [7:4] */
-#define WM8904_MIC_SHORT_SET_THRESHOLD_SHIFT         4  /* MIC_SHORT_SET_THRESHOLD - [7:4] */
-#define WM8904_MIC_SHORT_SET_THRESHOLD_WIDTH         4  /* MIC_SHORT_SET_THRESHOLD - [7:4] */
-#define WM8904_MIC_SHORT_RESET_THRESHOLD_MASK   0x000F  /* MIC_SHORT_RESET_THRESHOLD - [3:0] */
-#define WM8904_MIC_SHORT_RESET_THRESHOLD_SHIFT       0  /* MIC_SHORT_RESET_THRESHOLD - [3:0] */
-#define WM8904_MIC_SHORT_RESET_THRESHOLD_WIDTH       4  /* MIC_SHORT_RESET_THRESHOLD - [3:0] */
+#define WM8904_MIC_DET_SET_THRESHOLD_MASK       0xF000  /* MIC_DET_SET_THRESHOLD
+                                                         * - [15:12] */
+#define WM8904_MIC_DET_SET_THRESHOLD_SHIFT          12  /* MIC_DET_SET_THRESHOLD
+                                                         * - [15:12] */
+#define WM8904_MIC_DET_SET_THRESHOLD_WIDTH           4  /* MIC_DET_SET_THRESHOLD
+                                                         * - [15:12] */
+#define WM8904_MIC_DET_RESET_THRESHOLD_MASK     0x0F00  /*
+                                                         * MIC_DET_RESET_THRESHOLD
+                                                         * - [11:8] */
+#define WM8904_MIC_DET_RESET_THRESHOLD_SHIFT         8  /*
+                                                         * MIC_DET_RESET_THRESHOLD
+                                                         * - [11:8] */
+#define WM8904_MIC_DET_RESET_THRESHOLD_WIDTH         4  /*
+                                                         * MIC_DET_RESET_THRESHOLD
+                                                         * - [11:8] */
+#define WM8904_MIC_SHORT_SET_THRESHOLD_MASK     0x00F0  /*
+                                                         * MIC_SHORT_SET_THRESHOLD
+                                                         * - [7:4] */
+#define WM8904_MIC_SHORT_SET_THRESHOLD_SHIFT         4  /*
+                                                         * MIC_SHORT_SET_THRESHOLD
+                                                         * - [7:4] */
+#define WM8904_MIC_SHORT_SET_THRESHOLD_WIDTH         4  /*
+                                                         * MIC_SHORT_SET_THRESHOLD
+                                                         * - [7:4] */
+#define WM8904_MIC_SHORT_RESET_THRESHOLD_MASK   0x000F  /*
+                                                         * MIC_SHORT_RESET_THRESHOLD
+                                                         * - [3:0] */
+#define WM8904_MIC_SHORT_RESET_THRESHOLD_SHIFT       0  /*
+                                                         * MIC_SHORT_RESET_THRESHOLD
+                                                         * - [3:0] */
+#define WM8904_MIC_SHORT_RESET_THRESHOLD_WIDTH       4  /*
+                                                         * MIC_SHORT_RESET_THRESHOLD
+                                                         * - [3:0] */
 
 /*
  * R10 (0x0A) - Analogue ADC 0
@@ -294,12 +324,18 @@
 /*
  * R21 (0x15) - Clock Rates 1
  */
-#define WM8904_CLK_SYS_RATE_MASK                0x3C00  /* CLK_SYS_RATE - [13:10] */
-#define WM8904_CLK_SYS_RATE_SHIFT                   10  /* CLK_SYS_RATE - [13:10] */
-#define WM8904_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [13:10] */
-#define WM8904_SAMPLE_RATE_MASK                 0x0007  /* SAMPLE_RATE - [2:0] */
-#define WM8904_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [2:0] */
-#define WM8904_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [2:0] */
+#define WM8904_CLK_SYS_RATE_MASK                0x3C00  /* CLK_SYS_RATE -
+                                                         * [13:10] */
+#define WM8904_CLK_SYS_RATE_SHIFT                   10  /* CLK_SYS_RATE -
+                                                         * [13:10] */
+#define WM8904_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE -
+                                                         * [13:10] */
+#define WM8904_SAMPLE_RATE_MASK                 0x0007  /* SAMPLE_RATE - [2:0]
+                                                         * */
+#define WM8904_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [2:0]
+                                                         * */
+#define WM8904_SAMPLE_RATE_WIDTH                     3  /* SAMPLE_RATE - [2:0]
+                                                         * */
 
 /*
  * R22 (0x16) - Clock Rates 2
@@ -443,9 +479,12 @@
 #define WM8904_LRCLK_DIR_MASK                   0x0800  /* LRCLK_DIR */
 #define WM8904_LRCLK_DIR_SHIFT                      11  /* LRCLK_DIR */
 #define WM8904_LRCLK_DIR_WIDTH                       1  /* LRCLK_DIR */
-#define WM8904_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0] */
-#define WM8904_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0] */
-#define WM8904_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0] */
+#define WM8904_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM8904_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM8904_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0]
+                                                         * */
 
 /*
  * R30 (0x1E) - DAC Digital Volume Left
@@ -472,18 +511,30 @@
 /*
  * R32 (0x20) - DAC Digital 0
  */
-#define WM8904_ADCL_DAC_SVOL_MASK               0x0F00  /* ADCL_DAC_SVOL - [11:8] */
-#define WM8904_ADCL_DAC_SVOL_SHIFT                   8  /* ADCL_DAC_SVOL - [11:8] */
-#define WM8904_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL - [11:8] */
-#define WM8904_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8904_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8904_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4] */
-#define WM8904_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2] */
-#define WM8904_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8904_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2] */
-#define WM8904_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0] */
-#define WM8904_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0] */
-#define WM8904_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0] */
+#define WM8904_ADCL_DAC_SVOL_MASK               0x0F00  /* ADCL_DAC_SVOL -
+                                                         * [11:8] */
+#define WM8904_ADCL_DAC_SVOL_SHIFT                   8  /* ADCL_DAC_SVOL -
+                                                         * [11:8] */
+#define WM8904_ADCL_DAC_SVOL_WIDTH                   4  /* ADCL_DAC_SVOL -
+                                                         * [11:8] */
+#define WM8904_ADCR_DAC_SVOL_MASK               0x00F0  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8904_ADCR_DAC_SVOL_SHIFT                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8904_ADCR_DAC_SVOL_WIDTH                   4  /* ADCR_DAC_SVOL - [7:4]
+                                                         * */
+#define WM8904_ADC_TO_DACL_MASK                 0x000C  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8904_ADC_TO_DACL_SHIFT                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8904_ADC_TO_DACL_WIDTH                     2  /* ADC_TO_DACL - [3:2]
+                                                         * */
+#define WM8904_ADC_TO_DACR_MASK                 0x0003  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8904_ADC_TO_DACR_SHIFT                     0  /* ADC_TO_DACR - [1:0]
+                                                         * */
+#define WM8904_ADC_TO_DACR_WIDTH                     2  /* ADC_TO_DACR - [1:0]
+                                                         * */
 
 /*
  * R33 (0x21) - DAC Digital 1
@@ -541,9 +592,12 @@
 /*
  * R38 (0x26) - ADC Digital 0
  */
-#define WM8904_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5] */
-#define WM8904_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5] */
-#define WM8904_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5] */
+#define WM8904_ADC_HPF_CUT_MASK                 0x0060  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8904_ADC_HPF_CUT_SHIFT                     5  /* ADC_HPF_CUT - [6:5]
+                                                         * */
+#define WM8904_ADC_HPF_CUT_WIDTH                     2  /* ADC_HPF_CUT - [6:5]
+                                                         * */
 #define WM8904_ADC_HPF                          0x0010  /* ADC_HPF */
 #define WM8904_ADC_HPF_MASK                     0x0010  /* ADC_HPF */
 #define WM8904_ADC_HPF_SHIFT                         4  /* ADC_HPF */
@@ -580,12 +634,18 @@
 #define WM8904_DRC_DAC_PATH_MASK                0x4000  /* DRC_DAC_PATH */
 #define WM8904_DRC_DAC_PATH_SHIFT                   14  /* DRC_DAC_PATH */
 #define WM8904_DRC_DAC_PATH_WIDTH                    1  /* DRC_DAC_PATH */
-#define WM8904_DRC_GS_HYST_LVL_MASK             0x1800  /* DRC_GS_HYST_LVL - [12:11] */
-#define WM8904_DRC_GS_HYST_LVL_SHIFT                11  /* DRC_GS_HYST_LVL - [12:11] */
-#define WM8904_DRC_GS_HYST_LVL_WIDTH                 2  /* DRC_GS_HYST_LVL - [12:11] */
-#define WM8904_DRC_STARTUP_GAIN_MASK            0x07C0  /* DRC_STARTUP_GAIN - [10:6] */
-#define WM8904_DRC_STARTUP_GAIN_SHIFT                6  /* DRC_STARTUP_GAIN - [10:6] */
-#define WM8904_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN - [10:6] */
+#define WM8904_DRC_GS_HYST_LVL_MASK             0x1800  /* DRC_GS_HYST_LVL -
+                                                         * [12:11] */
+#define WM8904_DRC_GS_HYST_LVL_SHIFT                11  /* DRC_GS_HYST_LVL -
+                                                         * [12:11] */
+#define WM8904_DRC_GS_HYST_LVL_WIDTH                 2  /* DRC_GS_HYST_LVL -
+                                                         * [12:11] */
+#define WM8904_DRC_STARTUP_GAIN_MASK            0x07C0  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
+#define WM8904_DRC_STARTUP_GAIN_SHIFT                6  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
+#define WM8904_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
 #define WM8904_DRC_FF_DELAY                     0x0020  /* DRC_FF_DELAY */
 #define WM8904_DRC_FF_DELAY_MASK                0x0020  /* DRC_FF_DELAY */
 #define WM8904_DRC_FF_DELAY_SHIFT                    5  /* DRC_FF_DELAY */
@@ -622,32 +682,50 @@
 #define WM8904_DRC_QR_DCY_MASK                  0x0030  /* DRC_QR_DCY - [5:4] */
 #define WM8904_DRC_QR_DCY_SHIFT                      4  /* DRC_QR_DCY - [5:4] */
 #define WM8904_DRC_QR_DCY_WIDTH                      2  /* DRC_QR_DCY - [5:4] */
-#define WM8904_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2] */
-#define WM8904_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2] */
-#define WM8904_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2] */
-#define WM8904_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0] */
-#define WM8904_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0] */
-#define WM8904_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0] */
+#define WM8904_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8904_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8904_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM8904_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8904_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM8904_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0]
+                                                         * */
 
 /*
  * R42 (0x2A) - DRC 2
  */
-#define WM8904_DRC_HI_COMP_MASK                 0x0038  /* DRC_HI_COMP - [5:3] */
-#define WM8904_DRC_HI_COMP_SHIFT                     3  /* DRC_HI_COMP - [5:3] */
-#define WM8904_DRC_HI_COMP_WIDTH                     3  /* DRC_HI_COMP - [5:3] */
-#define WM8904_DRC_LO_COMP_MASK                 0x0007  /* DRC_LO_COMP - [2:0] */
-#define WM8904_DRC_LO_COMP_SHIFT                     0  /* DRC_LO_COMP - [2:0] */
-#define WM8904_DRC_LO_COMP_WIDTH                     3  /* DRC_LO_COMP - [2:0] */
+#define WM8904_DRC_HI_COMP_MASK                 0x0038  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM8904_DRC_HI_COMP_SHIFT                     3  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM8904_DRC_HI_COMP_WIDTH                     3  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM8904_DRC_LO_COMP_MASK                 0x0007  /* DRC_LO_COMP - [2:0]
+                                                         * */
+#define WM8904_DRC_LO_COMP_SHIFT                     0  /* DRC_LO_COMP - [2:0]
+                                                         * */
+#define WM8904_DRC_LO_COMP_WIDTH                     3  /* DRC_LO_COMP - [2:0]
+                                                         * */
 
 /*
  * R43 (0x2B) - DRC 3
  */
-#define WM8904_DRC_KNEE_IP_MASK                 0x07E0  /* DRC_KNEE_IP - [10:5] */
-#define WM8904_DRC_KNEE_IP_SHIFT                     5  /* DRC_KNEE_IP - [10:5] */
-#define WM8904_DRC_KNEE_IP_WIDTH                     6  /* DRC_KNEE_IP - [10:5] */
-#define WM8904_DRC_KNEE_OP_MASK                 0x001F  /* DRC_KNEE_OP - [4:0] */
-#define WM8904_DRC_KNEE_OP_SHIFT                     0  /* DRC_KNEE_OP - [4:0] */
-#define WM8904_DRC_KNEE_OP_WIDTH                     5  /* DRC_KNEE_OP - [4:0] */
+#define WM8904_DRC_KNEE_IP_MASK                 0x07E0  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM8904_DRC_KNEE_IP_SHIFT                     5  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM8904_DRC_KNEE_IP_WIDTH                     6  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM8904_DRC_KNEE_OP_MASK                 0x001F  /* DRC_KNEE_OP - [4:0]
+                                                         * */
+#define WM8904_DRC_KNEE_OP_SHIFT                     0  /* DRC_KNEE_OP - [4:0]
+                                                         * */
+#define WM8904_DRC_KNEE_OP_WIDTH                     5  /* DRC_KNEE_OP - [4:0]
+                                                         * */
 
 /*
  * R44 (0x2C) - Analogue Left Input 0
@@ -758,9 +836,12 @@
 #define WM8904_LINEOUTLZC_MASK                  0x0040  /* LINEOUTLZC */
 #define WM8904_LINEOUTLZC_SHIFT                      6  /* LINEOUTLZC */
 #define WM8904_LINEOUTLZC_WIDTH                      1  /* LINEOUTLZC */
-#define WM8904_LINEOUTL_VOL_MASK                0x003F  /* LINEOUTL_VOL - [5:0] */
-#define WM8904_LINEOUTL_VOL_SHIFT                    0  /* LINEOUTL_VOL - [5:0] */
-#define WM8904_LINEOUTL_VOL_WIDTH                    6  /* LINEOUTL_VOL - [5:0] */
+#define WM8904_LINEOUTL_VOL_MASK                0x003F  /* LINEOUTL_VOL - [5:0]
+                                                         * */
+#define WM8904_LINEOUTL_VOL_SHIFT                    0  /* LINEOUTL_VOL - [5:0]
+                                                         * */
+#define WM8904_LINEOUTL_VOL_WIDTH                    6  /* LINEOUTL_VOL - [5:0]
+                                                         * */
 
 /*
  * R60 (0x3C) - Analogue OUT2 Right
@@ -777,9 +858,12 @@
 #define WM8904_LINEOUTRZC_MASK                  0x0040  /* LINEOUTRZC */
 #define WM8904_LINEOUTRZC_SHIFT                      6  /* LINEOUTRZC */
 #define WM8904_LINEOUTRZC_WIDTH                      1  /* LINEOUTRZC */
-#define WM8904_LINEOUTR_VOL_MASK                0x003F  /* LINEOUTR_VOL - [5:0] */
-#define WM8904_LINEOUTR_VOL_SHIFT                    0  /* LINEOUTR_VOL - [5:0] */
-#define WM8904_LINEOUTR_VOL_WIDTH                    6  /* LINEOUTR_VOL - [5:0] */
+#define WM8904_LINEOUTR_VOL_MASK                0x003F  /* LINEOUTR_VOL - [5:0]
+                                                         * */
+#define WM8904_LINEOUTR_VOL_SHIFT                    0  /* LINEOUTR_VOL - [5:0]
+                                                         * */
+#define WM8904_LINEOUTR_VOL_WIDTH                    6  /* LINEOUTR_VOL - [5:0]
+                                                         * */
 
 /*
  * R61 (0x3D) - Analogue OUT12 ZC
@@ -892,67 +976,100 @@
 /*
  * R69 (0x45) - DC Servo 2
  */
-#define WM8904_DCS_TIMER_PERIOD_23_MASK         0x0F00  /* DCS_TIMER_PERIOD_23 - [11:8] */
-#define WM8904_DCS_TIMER_PERIOD_23_SHIFT             8  /* DCS_TIMER_PERIOD_23 - [11:8] */
-#define WM8904_DCS_TIMER_PERIOD_23_WIDTH             4  /* DCS_TIMER_PERIOD_23 - [11:8] */
-#define WM8904_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 - [3:0] */
-#define WM8904_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 - [3:0] */
-#define WM8904_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 - [3:0] */
+#define WM8904_DCS_TIMER_PERIOD_23_MASK         0x0F00  /* DCS_TIMER_PERIOD_23 -
+                                                         * [11:8] */
+#define WM8904_DCS_TIMER_PERIOD_23_SHIFT             8  /* DCS_TIMER_PERIOD_23 -
+                                                         * [11:8] */
+#define WM8904_DCS_TIMER_PERIOD_23_WIDTH             4  /* DCS_TIMER_PERIOD_23 -
+                                                         * [11:8] */
+#define WM8904_DCS_TIMER_PERIOD_01_MASK         0x000F  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
+#define WM8904_DCS_TIMER_PERIOD_01_SHIFT             0  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
+#define WM8904_DCS_TIMER_PERIOD_01_WIDTH             4  /* DCS_TIMER_PERIOD_01 -
+                                                         * [3:0] */
 
 /*
  * R71 (0x47) - DC Servo 4
  */
-#define WM8904_DCS_SERIES_NO_23_MASK            0x007F  /* DCS_SERIES_NO_23 - [6:0] */
-#define WM8904_DCS_SERIES_NO_23_SHIFT                0  /* DCS_SERIES_NO_23 - [6:0] */
-#define WM8904_DCS_SERIES_NO_23_WIDTH                7  /* DCS_SERIES_NO_23 - [6:0] */
+#define WM8904_DCS_SERIES_NO_23_MASK            0x007F  /* DCS_SERIES_NO_23 -
+                                                         * [6:0] */
+#define WM8904_DCS_SERIES_NO_23_SHIFT                0  /* DCS_SERIES_NO_23 -
+                                                         * [6:0] */
+#define WM8904_DCS_SERIES_NO_23_WIDTH                7  /* DCS_SERIES_NO_23 -
+                                                         * [6:0] */
 
 /*
  * R72 (0x48) - DC Servo 5
  */
-#define WM8904_DCS_SERIES_NO_01_MASK            0x007F  /* DCS_SERIES_NO_01 - [6:0] */
-#define WM8904_DCS_SERIES_NO_01_SHIFT                0  /* DCS_SERIES_NO_01 - [6:0] */
-#define WM8904_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 - [6:0] */
+#define WM8904_DCS_SERIES_NO_01_MASK            0x007F  /* DCS_SERIES_NO_01 -
+                                                         * [6:0] */
+#define WM8904_DCS_SERIES_NO_01_SHIFT                0  /* DCS_SERIES_NO_01 -
+                                                         * [6:0] */
+#define WM8904_DCS_SERIES_NO_01_WIDTH                7  /* DCS_SERIES_NO_01 -
+                                                         * [6:0] */
 
 /*
  * R73 (0x49) - DC Servo 6
  */
-#define WM8904_DCS_DAC_WR_VAL_3_MASK            0x00FF  /* DCS_DAC_WR_VAL_3 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_3_SHIFT                0  /* DCS_DAC_WR_VAL_3 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_3_WIDTH                8  /* DCS_DAC_WR_VAL_3 - [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_3_MASK            0x00FF  /* DCS_DAC_WR_VAL_3 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_3_SHIFT                0  /* DCS_DAC_WR_VAL_3 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_3_WIDTH                8  /* DCS_DAC_WR_VAL_3 -
+                                                         * [7:0] */
 
 /*
  * R74 (0x4A) - DC Servo 7
  */
-#define WM8904_DCS_DAC_WR_VAL_2_MASK            0x00FF  /* DCS_DAC_WR_VAL_2 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_2_SHIFT                0  /* DCS_DAC_WR_VAL_2 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_2_WIDTH                8  /* DCS_DAC_WR_VAL_2 - [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_2_MASK            0x00FF  /* DCS_DAC_WR_VAL_2 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_2_SHIFT                0  /* DCS_DAC_WR_VAL_2 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_2_WIDTH                8  /* DCS_DAC_WR_VAL_2 -
+                                                         * [7:0] */
 
 /*
  * R75 (0x4B) - DC Servo 8
  */
-#define WM8904_DCS_DAC_WR_VAL_1_MASK            0x00FF  /* DCS_DAC_WR_VAL_1 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_1_SHIFT                0  /* DCS_DAC_WR_VAL_1 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_1_WIDTH                8  /* DCS_DAC_WR_VAL_1 - [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_1_MASK            0x00FF  /* DCS_DAC_WR_VAL_1 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_1_SHIFT                0  /* DCS_DAC_WR_VAL_1 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_1_WIDTH                8  /* DCS_DAC_WR_VAL_1 -
+                                                         * [7:0] */
 
 /*
  * R76 (0x4C) - DC Servo 9
  */
-#define WM8904_DCS_DAC_WR_VAL_0_MASK            0x00FF  /* DCS_DAC_WR_VAL_0 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_0_SHIFT                0  /* DCS_DAC_WR_VAL_0 - [7:0] */
-#define WM8904_DCS_DAC_WR_VAL_0_WIDTH                8  /* DCS_DAC_WR_VAL_0 - [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_0_MASK            0x00FF  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_0_SHIFT                0  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
+#define WM8904_DCS_DAC_WR_VAL_0_WIDTH                8  /* DCS_DAC_WR_VAL_0 -
+                                                         * [7:0] */
 
 /*
  * R77 (0x4D) - DC Servo Readback 0
  */
-#define WM8904_DCS_CAL_COMPLETE_MASK            0x0F00  /* DCS_CAL_COMPLETE - [11:8] */
-#define WM8904_DCS_CAL_COMPLETE_SHIFT                8  /* DCS_CAL_COMPLETE - [11:8] */
-#define WM8904_DCS_CAL_COMPLETE_WIDTH                4  /* DCS_CAL_COMPLETE - [11:8] */
-#define WM8904_DCS_DAC_WR_COMPLETE_MASK         0x00F0  /* DCS_DAC_WR_COMPLETE - [7:4] */
-#define WM8904_DCS_DAC_WR_COMPLETE_SHIFT             4  /* DCS_DAC_WR_COMPLETE - [7:4] */
-#define WM8904_DCS_DAC_WR_COMPLETE_WIDTH             4  /* DCS_DAC_WR_COMPLETE - [7:4] */
-#define WM8904_DCS_STARTUP_COMPLETE_MASK        0x000F  /* DCS_STARTUP_COMPLETE - [3:0] */
-#define WM8904_DCS_STARTUP_COMPLETE_SHIFT            0  /* DCS_STARTUP_COMPLETE - [3:0] */
-#define WM8904_DCS_STARTUP_COMPLETE_WIDTH            4  /* DCS_STARTUP_COMPLETE - [3:0] */
+#define WM8904_DCS_CAL_COMPLETE_MASK            0x0F00  /* DCS_CAL_COMPLETE -
+                                                         * [11:8] */
+#define WM8904_DCS_CAL_COMPLETE_SHIFT                8  /* DCS_CAL_COMPLETE -
+                                                         * [11:8] */
+#define WM8904_DCS_CAL_COMPLETE_WIDTH                4  /* DCS_CAL_COMPLETE -
+                                                         * [11:8] */
+#define WM8904_DCS_DAC_WR_COMPLETE_MASK         0x00F0  /* DCS_DAC_WR_COMPLETE -
+                                                         * [7:4] */
+#define WM8904_DCS_DAC_WR_COMPLETE_SHIFT             4  /* DCS_DAC_WR_COMPLETE -
+                                                         * [7:4] */
+#define WM8904_DCS_DAC_WR_COMPLETE_WIDTH             4  /* DCS_DAC_WR_COMPLETE -
+                                                         * [7:4] */
+#define WM8904_DCS_STARTUP_COMPLETE_MASK        0x000F  /* DCS_STARTUP_COMPLETE
+                                                         * - [3:0] */
+#define WM8904_DCS_STARTUP_COMPLETE_SHIFT            0  /* DCS_STARTUP_COMPLETE
+                                                         * - [3:0] */
+#define WM8904_DCS_STARTUP_COMPLETE_WIDTH            4  /* DCS_STARTUP_COMPLETE
+                                                         * - [3:0] */
 
 /*
  * R90 (0x5A) - Analogue HP 0
@@ -1049,19 +1166,28 @@
 #define WM8904_WSEQ_ENA_MASK                    0x0100  /* WSEQ_ENA */
 #define WM8904_WSEQ_ENA_SHIFT                        8  /* WSEQ_ENA */
 #define WM8904_WSEQ_ENA_WIDTH                        1  /* WSEQ_ENA */
-#define WM8904_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8904_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX - [4:0] */
-#define WM8904_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX - [4:0] */
+#define WM8904_WSEQ_WRITE_INDEX_MASK            0x001F  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8904_WSEQ_WRITE_INDEX_SHIFT                0  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
+#define WM8904_WSEQ_WRITE_INDEX_WIDTH                5  /* WSEQ_WRITE_INDEX -
+                                                         * [4:0] */
 
 /*
  * R109 (0x6D) - Write Sequencer 1
  */
-#define WM8904_WSEQ_DATA_WIDTH_MASK             0x7000  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8904_WSEQ_DATA_WIDTH_SHIFT                12  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8904_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH - [14:12] */
-#define WM8904_WSEQ_DATA_START_MASK             0x0F00  /* WSEQ_DATA_START - [11:8] */
-#define WM8904_WSEQ_DATA_START_SHIFT                 8  /* WSEQ_DATA_START - [11:8] */
-#define WM8904_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START - [11:8] */
+#define WM8904_WSEQ_DATA_WIDTH_MASK             0x7000  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8904_WSEQ_DATA_WIDTH_SHIFT                12  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8904_WSEQ_DATA_WIDTH_WIDTH                 3  /* WSEQ_DATA_WIDTH -
+                                                         * [14:12] */
+#define WM8904_WSEQ_DATA_START_MASK             0x0F00  /* WSEQ_DATA_START -
+                                                         * [11:8] */
+#define WM8904_WSEQ_DATA_START_SHIFT                 8  /* WSEQ_DATA_START -
+                                                         * [11:8] */
+#define WM8904_WSEQ_DATA_START_WIDTH                 4  /* WSEQ_DATA_START -
+                                                         * [11:8] */
 #define WM8904_WSEQ_ADDR_MASK                   0x00FF  /* WSEQ_ADDR - [7:0] */
 #define WM8904_WSEQ_ADDR_SHIFT                       0  /* WSEQ_ADDR - [7:0] */
 #define WM8904_WSEQ_ADDR_WIDTH                       8  /* WSEQ_ADDR - [7:0] */
@@ -1073,9 +1199,12 @@
 #define WM8904_WSEQ_EOS_MASK                    0x4000  /* WSEQ_EOS */
 #define WM8904_WSEQ_EOS_SHIFT                       14  /* WSEQ_EOS */
 #define WM8904_WSEQ_EOS_WIDTH                        1  /* WSEQ_EOS */
-#define WM8904_WSEQ_DELAY_MASK                  0x0F00  /* WSEQ_DELAY - [11:8] */
-#define WM8904_WSEQ_DELAY_SHIFT                      8  /* WSEQ_DELAY - [11:8] */
-#define WM8904_WSEQ_DELAY_WIDTH                      4  /* WSEQ_DELAY - [11:8] */
+#define WM8904_WSEQ_DELAY_MASK                  0x0F00  /* WSEQ_DELAY - [11:8]
+                                                         * */
+#define WM8904_WSEQ_DELAY_SHIFT                      8  /* WSEQ_DELAY - [11:8]
+                                                         * */
+#define WM8904_WSEQ_DELAY_WIDTH                      4  /* WSEQ_DELAY - [11:8]
+                                                         * */
 #define WM8904_WSEQ_DATA_MASK                   0x00FF  /* WSEQ_DATA - [7:0] */
 #define WM8904_WSEQ_DATA_SHIFT                       0  /* WSEQ_DATA - [7:0] */
 #define WM8904_WSEQ_DATA_WIDTH                       8  /* WSEQ_DATA - [7:0] */
@@ -1091,16 +1220,22 @@
 #define WM8904_WSEQ_START_MASK                  0x0100  /* WSEQ_START */
 #define WM8904_WSEQ_START_SHIFT                      8  /* WSEQ_START */
 #define WM8904_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM8904_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX - [5:0] */
-#define WM8904_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [5:0] */
-#define WM8904_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX - [5:0] */
+#define WM8904_WSEQ_START_INDEX_MASK            0x003F  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8904_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
+#define WM8904_WSEQ_START_INDEX_WIDTH                6  /* WSEQ_START_INDEX -
+                                                         * [5:0] */
 
 /*
  * R112 (0x70) - Write Sequencer 4
  */
-#define WM8904_WSEQ_CURRENT_INDEX_MASK          0x03F0  /* WSEQ_CURRENT_INDEX - [9:4] */
-#define WM8904_WSEQ_CURRENT_INDEX_SHIFT              4  /* WSEQ_CURRENT_INDEX - [9:4] */
-#define WM8904_WSEQ_CURRENT_INDEX_WIDTH              6  /* WSEQ_CURRENT_INDEX - [9:4] */
+#define WM8904_WSEQ_CURRENT_INDEX_MASK          0x03F0  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:4] */
+#define WM8904_WSEQ_CURRENT_INDEX_SHIFT              4  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:4] */
+#define WM8904_WSEQ_CURRENT_INDEX_WIDTH              6  /* WSEQ_CURRENT_INDEX -
+                                                         * [9:4] */
 #define WM8904_WSEQ_BUSY                        0x0001  /* WSEQ_BUSY */
 #define WM8904_WSEQ_BUSY_MASK                   0x0001  /* WSEQ_BUSY */
 #define WM8904_WSEQ_BUSY_SHIFT                       0  /* WSEQ_BUSY */
@@ -1125,12 +1260,18 @@
 /*
  * R117 (0x75) - FLL Control 2
  */
-#define WM8904_FLL_OUTDIV_MASK                  0x3F00  /* FLL_OUTDIV - [13:8] */
-#define WM8904_FLL_OUTDIV_SHIFT                      8  /* FLL_OUTDIV - [13:8] */
-#define WM8904_FLL_OUTDIV_WIDTH                      6  /* FLL_OUTDIV - [13:8] */
-#define WM8904_FLL_CTRL_RATE_MASK               0x0070  /* FLL_CTRL_RATE - [6:4] */
-#define WM8904_FLL_CTRL_RATE_SHIFT                   4  /* FLL_CTRL_RATE - [6:4] */
-#define WM8904_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [6:4] */
+#define WM8904_FLL_OUTDIV_MASK                  0x3F00  /* FLL_OUTDIV - [13:8]
+                                                         * */
+#define WM8904_FLL_OUTDIV_SHIFT                      8  /* FLL_OUTDIV - [13:8]
+                                                         * */
+#define WM8904_FLL_OUTDIV_WIDTH                      6  /* FLL_OUTDIV - [13:8]
+                                                         * */
+#define WM8904_FLL_CTRL_RATE_MASK               0x0070  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
+#define WM8904_FLL_CTRL_RATE_SHIFT                   4  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
+#define WM8904_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
 #define WM8904_FLL_FRATIO_MASK                  0x0007  /* FLL_FRATIO - [2:0] */
 #define WM8904_FLL_FRATIO_SHIFT                      0  /* FLL_FRATIO - [2:0] */
 #define WM8904_FLL_FRATIO_WIDTH                      3  /* FLL_FRATIO - [2:0] */
@@ -1155,12 +1296,18 @@
 /*
  * R120 (0x78) - FLL Control 5
  */
-#define WM8904_FLL_CLK_REF_DIV_MASK             0x0018  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM8904_FLL_CLK_REF_DIV_SHIFT                 3  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM8904_FLL_CLK_REF_DIV_WIDTH                 2  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM8904_FLL_CLK_REF_SRC_MASK             0x0003  /* FLL_CLK_REF_SRC - [1:0] */
-#define WM8904_FLL_CLK_REF_SRC_SHIFT                 0  /* FLL_CLK_REF_SRC - [1:0] */
-#define WM8904_FLL_CLK_REF_SRC_WIDTH                 2  /* FLL_CLK_REF_SRC - [1:0] */
+#define WM8904_FLL_CLK_REF_DIV_MASK             0x0018  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM8904_FLL_CLK_REF_DIV_SHIFT                 3  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM8904_FLL_CLK_REF_DIV_WIDTH                 2  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM8904_FLL_CLK_REF_SRC_MASK             0x0003  /* FLL_CLK_REF_SRC -
+                                                         * [1:0] */
+#define WM8904_FLL_CLK_REF_SRC_SHIFT                 0  /* FLL_CLK_REF_SRC -
+                                                         * [1:0] */
+#define WM8904_FLL_CLK_REF_SRC_WIDTH                 2  /* FLL_CLK_REF_SRC -
+                                                         * [1:0] */
 
 /*
  * R126 (0x7E) - Digital Pulls
@@ -1558,9 +1705,12 @@
 /*
  * R198 (0xC6) - ADC Test 0
  */
-#define WM8904_ADC_128_OSR_TST_MODE             0x0004  /* ADC_128_OSR_TST_MODE */
-#define WM8904_ADC_128_OSR_TST_MODE_SHIFT            2  /* ADC_128_OSR_TST_MODE */
-#define WM8904_ADC_128_OSR_TST_MODE_WIDTH            1  /* ADC_128_OSR_TST_MODE */
+#define WM8904_ADC_128_OSR_TST_MODE             0x0004  /* ADC_128_OSR_TST_MODE
+                                                         * */
+#define WM8904_ADC_128_OSR_TST_MODE_SHIFT            2  /* ADC_128_OSR_TST_MODE
+                                                         * */
+#define WM8904_ADC_128_OSR_TST_MODE_WIDTH            1  /* ADC_128_OSR_TST_MODE
+                                                         * */
 #define WM8904_ADC_BIASX1P5                     0x0001  /* ADC_BIASX1P5 */
 #define WM8904_ADC_BIASX1P5_SHIFT                    0  /* ADC_BIASX1P5 */
 #define WM8904_ADC_BIASX1P5_WIDTH                    1  /* ADC_BIASX1P5 */
@@ -1583,8 +1733,11 @@
 /*
  * R248 (0xF8) - FLL NCO Test 1
  */
-#define WM8904_FLL_FRC_NCO_VAL_MASK             0x003F  /* FLL_FRC_NCO_VAL - [5:0] */
-#define WM8904_FLL_FRC_NCO_VAL_SHIFT                 0  /* FLL_FRC_NCO_VAL - [5:0] */
-#define WM8904_FLL_FRC_NCO_VAL_WIDTH                 6  /* FLL_FRC_NCO_VAL - [5:0] */
+#define WM8904_FLL_FRC_NCO_VAL_MASK             0x003F  /* FLL_FRC_NCO_VAL -
+                                                         * [5:0] */
+#define WM8904_FLL_FRC_NCO_VAL_SHIFT                 0  /* FLL_FRC_NCO_VAL -
+                                                         * [5:0] */
+#define WM8904_FLL_FRC_NCO_VAL_WIDTH                 6  /* FLL_FRC_NCO_VAL -
+                                                         * [5:0] */
 
 #endif

@@ -1,52 +1,52 @@
 // SPDX-License-Identifier: MIT
-// This is a stripped-down version of the smu13_driver_if.h file for the relevant DAL interfaces.
+// This is a stripped-down version of the smu13_driver_if.h file for the
+// relevant DAL interfaces.
 
 #define SMU13_DRIVER_IF_VERSION  0x18
 
 //Only Clks that have DPM descriptors are listed here
 typedef enum {
-	PPCLK_GFXCLK = 0,
-	PPCLK_SOCCLK,
-	PPCLK_UCLK,
-	PPCLK_FCLK,
-	PPCLK_DCLK_0,
-	PPCLK_VCLK_0,
-	PPCLK_DCLK_1,
-	PPCLK_VCLK_1,
-	PPCLK_DISPCLK,
-	PPCLK_DPPCLK,
-	PPCLK_DPREFCLK,
-	PPCLK_DCFCLK,
-	PPCLK_DTBCLK,
-	PPCLK_COUNT,
+  PPCLK_GFXCLK = 0,
+  PPCLK_SOCCLK,
+  PPCLK_UCLK,
+  PPCLK_FCLK,
+  PPCLK_DCLK_0,
+  PPCLK_VCLK_0,
+  PPCLK_DCLK_1,
+  PPCLK_VCLK_1,
+  PPCLK_DISPCLK,
+  PPCLK_DPPCLK,
+  PPCLK_DPREFCLK,
+  PPCLK_DCFCLK,
+  PPCLK_DTBCLK,
+  PPCLK_COUNT,
 } PPCLK_e;
 
 typedef struct {
-	uint8_t  WmSetting;
-	uint8_t  Flags;
-	uint8_t  Padding[2];
-
+  uint8_t WmSetting;
+  uint8_t Flags;
+  uint8_t Padding[2];
 } WatermarkRowGeneric_t;
 
 #define NUM_WM_RANGES 4
 
 typedef enum {
-	WATERMARKS_CLOCK_RANGE = 0,
-	WATERMARKS_DUMMY_PSTATE,
-	WATERMARKS_MALL,
-	WATERMARKS_COUNT,
+  WATERMARKS_CLOCK_RANGE = 0,
+  WATERMARKS_DUMMY_PSTATE,
+  WATERMARKS_MALL,
+  WATERMARKS_COUNT,
 } WATERMARKS_FLAGS_e;
 
 typedef struct {
-	// Watermarks
-	WatermarkRowGeneric_t WatermarkRow[NUM_WM_RANGES];
+  // Watermarks
+  WatermarkRowGeneric_t WatermarkRow[NUM_WM_RANGES];
 } Watermarks_t;
 
 typedef struct {
-	Watermarks_t Watermarks;
-	uint32_t  Spare[16];
+  Watermarks_t Watermarks;
+  uint32_t Spare[16];
 
-	uint32_t     MmHubPadding[8]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } WatermarksExternal_t;
 
 // Table types

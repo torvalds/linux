@@ -20,55 +20,78 @@
 
 #include "local.h"
 
-static void noop_send_IPI(int cpu, int vector) { }
-static void noop_send_IPI_mask(const struct cpumask *cpumask, int vector) { }
-static void noop_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector) { }
-static void noop_send_IPI_allbutself(int vector) { }
-static void noop_send_IPI_all(int vector) { }
-static void noop_send_IPI_self(int vector) { }
-static void noop_apic_icr_write(u32 low, u32 id) { }
-static int noop_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip) { return -1; }
-static u64 noop_apic_icr_read(void) { return 0; }
-static u32 noop_get_apic_id(u32 apicid) { return 0; }
-static void noop_apic_eoi(void) { }
-
-static u32 noop_apic_read(u32 reg)
-{
-	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !apic_is_disabled);
-	return 0;
+static void noop_send_IPI(int cpu, int vector) {
 }
 
-static void noop_apic_write(u32 reg, u32 val)
-{
-	WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !apic_is_disabled);
+static void noop_send_IPI_mask(const struct cpumask *cpumask, int vector) {
+}
+
+static void noop_send_IPI_mask_allbutself(const struct cpumask *cpumask,
+    int vector) {
+}
+
+static void noop_send_IPI_allbutself(int vector) {
+}
+
+static void noop_send_IPI_all(int vector) {
+}
+
+static void noop_send_IPI_self(int vector) {
+}
+
+static void noop_apic_icr_write(u32 low, u32 id) {
+}
+
+static int noop_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip) {
+  return -1;
+}
+
+static u64 noop_apic_icr_read(void) {
+  return 0;
+}
+
+static u32 noop_get_apic_id(u32 apicid) {
+  return 0;
+}
+
+static void noop_apic_eoi(void) {
+}
+
+static u32 noop_apic_read(u32 reg) {
+  WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !apic_is_disabled);
+  return 0;
+}
+
+static void noop_apic_write(u32 reg, u32 val) {
+  WARN_ON_ONCE(boot_cpu_has(X86_FEATURE_APIC) && !apic_is_disabled);
 }
 
 struct apic apic_noop __ro_after_init = {
-	.name				= "noop",
+  .name = "noop",
 
-	.dest_mode_logical		= true,
+  .dest_mode_logical = true,
 
-	.disable_esr			= 0,
+  .disable_esr = 0,
 
-	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
+  .cpu_present_to_apicid = default_cpu_present_to_apicid,
 
-	.max_apic_id			= 0xFE,
-	.get_apic_id			= noop_get_apic_id,
+  .max_apic_id = 0xFE,
+  .get_apic_id = noop_get_apic_id,
 
-	.calc_dest_apicid		= apic_flat_calc_apicid,
+  .calc_dest_apicid = apic_flat_calc_apicid,
 
-	.send_IPI			= noop_send_IPI,
-	.send_IPI_mask			= noop_send_IPI_mask,
-	.send_IPI_mask_allbutself	= noop_send_IPI_mask_allbutself,
-	.send_IPI_allbutself		= noop_send_IPI_allbutself,
-	.send_IPI_all			= noop_send_IPI_all,
-	.send_IPI_self			= noop_send_IPI_self,
+  .send_IPI = noop_send_IPI,
+  .send_IPI_mask = noop_send_IPI_mask,
+  .send_IPI_mask_allbutself = noop_send_IPI_mask_allbutself,
+  .send_IPI_allbutself = noop_send_IPI_allbutself,
+  .send_IPI_all = noop_send_IPI_all,
+  .send_IPI_self = noop_send_IPI_self,
 
-	.wakeup_secondary_cpu		= noop_wakeup_secondary_cpu,
+  .wakeup_secondary_cpu = noop_wakeup_secondary_cpu,
 
-	.read				= noop_apic_read,
-	.write				= noop_apic_write,
-	.eoi				= noop_apic_eoi,
-	.icr_read			= noop_apic_icr_read,
-	.icr_write			= noop_apic_icr_write,
+  .read = noop_apic_read,
+  .write = noop_apic_write,
+  .eoi = noop_apic_eoi,
+  .icr_read = noop_apic_icr_read,
+  .icr_write = noop_apic_icr_write,
 };

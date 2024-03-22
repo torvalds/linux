@@ -19,30 +19,28 @@ int of_get_ethdev_address(struct device_node *np, struct net_device *dev);
 extern struct net_device *of_find_net_device_by_node(struct device_node *np);
 #else
 static inline int of_get_phy_mode(struct device_node *np,
-				  phy_interface_t *interface)
-{
-	return -ENODEV;
+    phy_interface_t *interface) {
+  return -ENODEV;
 }
 
-static inline int of_get_mac_address(struct device_node *np, u8 *mac)
-{
-	return -ENODEV;
+static inline int of_get_mac_address(struct device_node *np, u8 *mac) {
+  return -ENODEV;
 }
 
-static inline int of_get_mac_address_nvmem(struct device_node *np, u8 *mac)
-{
-	return -ENODEV;
+static inline int of_get_mac_address_nvmem(struct device_node *np, u8 *mac) {
+  return -ENODEV;
 }
 
-static inline int of_get_ethdev_address(struct device_node *np, struct net_device *dev)
-{
-	return -ENODEV;
+static inline int of_get_ethdev_address(struct device_node *np,
+    struct net_device *dev) {
+  return -ENODEV;
 }
 
-static inline struct net_device *of_find_net_device_by_node(struct device_node *np)
-{
-	return NULL;
+static inline struct net_device *of_find_net_device_by_node(
+    struct device_node *np) {
+  return NULL;
 }
+
 #endif
 
 #endif /* __LINUX_OF_NET_H */

@@ -3,15 +3,15 @@
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *
  * Common Clock Framework support for all PLL's in Samsung platforms
-*/
+ */
 
 #ifndef __SAMSUNG_CLK_CPU_H
 #define __SAMSUNG_CLK_CPU_H
 
 /* The CPU clock registers have DIV1 configuration register */
-#define CLK_CPU_HAS_DIV1		BIT(0)
+#define CLK_CPU_HAS_DIV1    BIT(0)
 /* When ALT parent is active, debug clocks need safe divider values */
-#define CLK_CPU_NEEDS_DEBUG_ALT_DIV	BIT(1)
+#define CLK_CPU_NEEDS_DEBUG_ALT_DIV BIT(1)
 
 /**
  * enum exynos_cpuclk_layout - CPU clock registers layout compatibility
@@ -21,10 +21,10 @@
  * @CPUCLK_LAYOUT_E850_CL1: Exynos850 cluster 1 compatible layout
  */
 enum exynos_cpuclk_layout {
-	CPUCLK_LAYOUT_E4210,
-	CPUCLK_LAYOUT_E5433,
-	CPUCLK_LAYOUT_E850_CL0,
-	CPUCLK_LAYOUT_E850_CL1,
+  CPUCLK_LAYOUT_E4210,
+  CPUCLK_LAYOUT_E5433,
+  CPUCLK_LAYOUT_E850_CL0,
+  CPUCLK_LAYOUT_E850_CL1,
 };
 
 /**
@@ -40,9 +40,9 @@ enum exynos_cpuclk_layout {
  * value is not used.
  */
 struct exynos_cpuclk_cfg_data {
-	unsigned long	prate;
-	unsigned long	div0;
-	unsigned long	div1;
+  unsigned long prate;
+  unsigned long div0;
+  unsigned long div1;
 };
 
 #endif /* __SAMSUNG_CLK_CPU_H */

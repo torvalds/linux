@@ -8,11 +8,11 @@
 #ifndef __ASSEMBLY__
 
 union register_pair {
-	unsigned __int128 pair;
-	struct {
-		unsigned long even;
-		unsigned long odd;
-	};
+  unsigned __int128 pair;
+  struct {
+    unsigned long even;
+    unsigned long odd;
+  };
 };
 
 #endif /* __ASSEMBLY__ */

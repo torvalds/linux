@@ -13,10 +13,10 @@ u64 dummy_steal_clock(int cpu);
 
 DECLARE_STATIC_CALL(pv_steal_clock, dummy_steal_clock);
 
-static inline u64 paravirt_steal_clock(int cpu)
-{
-	return static_call(pv_steal_clock)(cpu);
+static inline u64 paravirt_steal_clock(int cpu) {
+  return static_call(pv_steal_clock) (cpu);
 }
+
 #endif
 
 #endif

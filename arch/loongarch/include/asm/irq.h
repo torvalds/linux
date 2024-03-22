@@ -8,8 +8,8 @@
 #include <linux/irqdomain.h>
 #include <linux/irqreturn.h>
 
-#define IRQ_STACK_SIZE			THREAD_SIZE
-#define IRQ_STACK_START			(IRQ_STACK_SIZE - 16)
+#define IRQ_STACK_SIZE      THREAD_SIZE
+#define IRQ_STACK_START     (IRQ_STACK_SIZE - 16)
 
 DECLARE_PER_CPU(unsigned long, irq_stack);
 
@@ -27,12 +27,10 @@ DECLARE_PER_CPU(unsigned long, irq_stack);
  * from exception entry can be found.
  */
 
-static inline bool on_irq_stack(int cpu, unsigned long sp)
-{
-	unsigned long low = per_cpu(irq_stack, cpu);
-	unsigned long high = low + IRQ_STACK_SIZE;
-
-	return (low <= sp && sp <= high);
+static inline bool on_irq_stack(int cpu, unsigned long sp) {
+  unsigned long low = per_cpu(irq_stack, cpu);
+  unsigned long high = low + IRQ_STACK_SIZE;
+  return low <= sp && sp <= high;
 }
 
 void spurious_interrupt(void);
@@ -40,46 +38,47 @@ void spurious_interrupt(void);
 #define NR_IRQS_LEGACY 16
 
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
-void arch_trigger_cpumask_backtrace(const struct cpumask *mask, int exclude_cpu);
+void arch_trigger_cpumask_backtrace(const struct cpumask *mask,
+    int exclude_cpu);
 
 #define MAX_IO_PICS 2
-#define NR_IRQS	(64 + (256 * MAX_IO_PICS))
+#define NR_IRQS (64 + (256 * MAX_IO_PICS))
 
 struct acpi_vector_group {
-	int node;
-	int pci_segment;
-	struct irq_domain *parent;
+  int node;
+  int pci_segment;
+  struct irq_domain *parent;
 };
 extern struct acpi_vector_group pch_group[MAX_IO_PICS];
 extern struct acpi_vector_group msi_group[MAX_IO_PICS];
 
-#define CORES_PER_EIO_NODE	4
+#define CORES_PER_EIO_NODE  4
 
-#define LOONGSON_CPU_UART0_VEC		10 /* CPU UART0 */
-#define LOONGSON_CPU_THSENS_VEC		14 /* CPU Thsens */
-#define LOONGSON_CPU_HT0_VEC		16 /* CPU HT0 irq vector base number */
-#define LOONGSON_CPU_HT1_VEC		24 /* CPU HT1 irq vector base number */
+#define LOONGSON_CPU_UART0_VEC    10 /* CPU UART0 */
+#define LOONGSON_CPU_THSENS_VEC   14 /* CPU Thsens */
+#define LOONGSON_CPU_HT0_VEC    16 /* CPU HT0 irq vector base number */
+#define LOONGSON_CPU_HT1_VEC    24 /* CPU HT1 irq vector base number */
 
 /* IRQ number definitions */
-#define LOONGSON_LPC_IRQ_BASE		0
-#define LOONGSON_LPC_LAST_IRQ		(LOONGSON_LPC_IRQ_BASE + 15)
+#define LOONGSON_LPC_IRQ_BASE   0
+#define LOONGSON_LPC_LAST_IRQ   (LOONGSON_LPC_IRQ_BASE + 15)
 
-#define LOONGSON_CPU_IRQ_BASE		16
-#define LOONGSON_CPU_LAST_IRQ		(LOONGSON_CPU_IRQ_BASE + 14)
+#define LOONGSON_CPU_IRQ_BASE   16
+#define LOONGSON_CPU_LAST_IRQ   (LOONGSON_CPU_IRQ_BASE + 14)
 
-#define LOONGSON_PCH_IRQ_BASE		64
-#define LOONGSON_PCH_ACPI_IRQ		(LOONGSON_PCH_IRQ_BASE + 47)
-#define LOONGSON_PCH_LAST_IRQ		(LOONGSON_PCH_IRQ_BASE + 64 - 1)
+#define LOONGSON_PCH_IRQ_BASE   64
+#define LOONGSON_PCH_ACPI_IRQ   (LOONGSON_PCH_IRQ_BASE + 47)
+#define LOONGSON_PCH_LAST_IRQ   (LOONGSON_PCH_IRQ_BASE + 64 - 1)
 
-#define LOONGSON_MSI_IRQ_BASE		(LOONGSON_PCH_IRQ_BASE + 64)
-#define LOONGSON_MSI_LAST_IRQ		(LOONGSON_PCH_IRQ_BASE + 256 - 1)
+#define LOONGSON_MSI_IRQ_BASE   (LOONGSON_PCH_IRQ_BASE + 64)
+#define LOONGSON_MSI_LAST_IRQ   (LOONGSON_PCH_IRQ_BASE + 256 - 1)
 
-#define GSI_MIN_LPC_IRQ		LOONGSON_LPC_IRQ_BASE
-#define GSI_MAX_LPC_IRQ		(LOONGSON_LPC_IRQ_BASE + 16 - 1)
-#define GSI_MIN_CPU_IRQ		LOONGSON_CPU_IRQ_BASE
-#define GSI_MAX_CPU_IRQ		(LOONGSON_CPU_IRQ_BASE + 48 - 1)
-#define GSI_MIN_PCH_IRQ		LOONGSON_PCH_IRQ_BASE
-#define GSI_MAX_PCH_IRQ		(LOONGSON_PCH_IRQ_BASE + 256 - 1)
+#define GSI_MIN_LPC_IRQ   LOONGSON_LPC_IRQ_BASE
+#define GSI_MAX_LPC_IRQ   (LOONGSON_LPC_IRQ_BASE + 16 - 1)
+#define GSI_MIN_CPU_IRQ   LOONGSON_CPU_IRQ_BASE
+#define GSI_MAX_CPU_IRQ   (LOONGSON_CPU_IRQ_BASE + 48 - 1)
+#define GSI_MIN_PCH_IRQ   LOONGSON_PCH_IRQ_BASE
+#define GSI_MAX_PCH_IRQ   (LOONGSON_PCH_IRQ_BASE + 256 - 1)
 
 struct acpi_madt_lio_pic;
 struct acpi_madt_eio_pic;
@@ -89,18 +88,18 @@ struct acpi_madt_msi_pic;
 struct acpi_madt_lpc_pic;
 
 int liointc_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_lio_pic *acpi_liointc);
+    struct acpi_madt_lio_pic *acpi_liointc);
 int eiointc_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_eio_pic *acpi_eiointc);
+    struct acpi_madt_eio_pic *acpi_eiointc);
 
 int htvec_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_ht_pic *acpi_htvec);
+    struct acpi_madt_ht_pic *acpi_htvec);
 int pch_lpc_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_lpc_pic *acpi_pchlpc);
+    struct acpi_madt_lpc_pic *acpi_pchlpc);
 int pch_msi_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_msi_pic *acpi_pchmsi);
+    struct acpi_madt_msi_pic *acpi_pchmsi);
 int pch_pic_acpi_init(struct irq_domain *parent,
-					struct acpi_madt_bio_pic *acpi_pchpic);
+    struct acpi_madt_bio_pic *acpi_pchpic);
 int find_pch_pic(u32 gsi);
 struct fwnode_handle *get_pch_msi_handle(int pci_segment);
 

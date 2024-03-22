@@ -38,12 +38,12 @@
  * @last_tone: Tone currently being played
  */
 struct vidtv_s302m_ctx {
-	struct vidtv_encoder *enc;
-	u32 frame_index;
-	u32 au_count;
-	int last_duration;
-	unsigned int note_offset;
-	enum musical_notes last_tone;
+  struct vidtv_encoder *enc;
+  u32 frame_index;
+  u32 au_count;
+  int last_duration;
+  unsigned int note_offset;
+  enum musical_notes last_tone;
 };
 
 /*
@@ -52,26 +52,27 @@ struct vidtv_s302m_ctx {
  * See SMPTE 302M 2007 table 1.
  */
 struct vidtv_smpte_s302m_es {
-	/*
-	 *
-	 * audio_packet_size:16;
-	 * num_channels:2;
-	 * channel_identification:8;
-	 * bits_per_sample:2; // 0x0 for 16bits
-	 * zero:4;
-	 */
-	__be32 bitfield;
+  /*
+   *
+   * audio_packet_size:16;
+   * num_channels:2;
+   * channel_identification:8;
+   * bits_per_sample:2; // 0x0 for 16bits
+   * zero:4;
+   */
+  __be32 bitfield;
 } __packed;
 
 struct vidtv_s302m_frame_16 {
-	u8 data[5];
+  u8 data[5];
 } __packed;
 
 /**
  * struct vidtv_s302m_encoder_init_args - Args for the s302m encoder.
  *
  * @name: A name to identify this particular instance
- * @src_buf: The source buffer, encoder will default to a sine wave if this is NULL.
+ * @src_buf: The source buffer, encoder will default to a sine wave if this is
+ *NULL.
  * @src_buf_sz: The size of the source buffer.
  * @es_pid: The MPEG Elementary Stream PID to use.
  * @sync: Attempt to synchronize audio with this video encoder, if not NULL.
@@ -79,14 +80,14 @@ struct vidtv_s302m_frame_16 {
  * @head: Add to this chain
  */
 struct vidtv_s302m_encoder_init_args {
-	char *name;
-	void *src_buf;
-	u32 src_buf_sz;
-	u16 es_pid;
-	struct vidtv_encoder *sync;
-	void (*last_sample_cb)(u32 sample_no);
+  char *name;
+  void *src_buf;
+  u32 src_buf_sz;
+  u16 es_pid;
+  struct vidtv_encoder *sync;
+  void (*last_sample_cb)(u32 sample_no);
 
-	struct vidtv_encoder *head;
+  struct vidtv_encoder *head;
 };
 
 struct vidtv_encoder

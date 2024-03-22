@@ -3,8 +3,8 @@
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
  */
-#ifndef	__XFS_BMAP_ITEM_H__
-#define	__XFS_BMAP_ITEM_H__
+#ifndef __XFS_BMAP_ITEM_H__
+#define __XFS_BMAP_ITEM_H__
 
 /*
  * There are (currently) two pairs of bmap btree redo item types: map & unmap.
@@ -30,7 +30,7 @@ struct kmem_cache;
 /*
  * Max number of extents in fast allocation path.
  */
-#define	XFS_BUI_MAX_FAST_EXTENTS	1
+#define XFS_BUI_MAX_FAST_EXTENTS  1
 
 /*
  * This is the "bmap update intent" log item.  It is used to log the fact that
@@ -41,18 +41,16 @@ struct kmem_cache;
  * comments about that structure (in xfs_extfree_item.h) for more details.
  */
 struct xfs_bui_log_item {
-	struct xfs_log_item		bui_item;
-	atomic_t			bui_refcount;
-	atomic_t			bui_next_extent;
-	struct xfs_bui_log_format	bui_format;
+  struct xfs_log_item bui_item;
+  atomic_t bui_refcount;
+  atomic_t bui_next_extent;
+  struct xfs_bui_log_format bui_format;
 };
 
-static inline size_t
-xfs_bui_log_item_sizeof(
-	unsigned int		nr)
-{
-	return offsetof(struct xfs_bui_log_item, bui_format) +
-			xfs_bui_log_format_sizeof(nr);
+static inline size_t xfs_bui_log_item_sizeof(
+    unsigned int nr) {
+  return offsetof(struct xfs_bui_log_item, bui_format)
+    + xfs_bui_log_format_sizeof(nr);
 }
 
 /*
@@ -60,16 +58,16 @@ xfs_bui_log_item_sizeof(
  * some bmbt updates mentioned in an earlier bui item have been performed.
  */
 struct xfs_bud_log_item {
-	struct xfs_log_item		bud_item;
-	struct xfs_bui_log_item		*bud_buip;
-	struct xfs_bud_log_format	bud_format;
+  struct xfs_log_item bud_item;
+  struct xfs_bui_log_item *bud_buip;
+  struct xfs_bud_log_format bud_format;
 };
 
-extern struct kmem_cache	*xfs_bui_cache;
-extern struct kmem_cache	*xfs_bud_cache;
+extern struct kmem_cache *xfs_bui_cache;
+extern struct kmem_cache *xfs_bud_cache;
 
 struct xfs_bmap_intent;
 
 void xfs_bmap_defer_add(struct xfs_trans *tp, struct xfs_bmap_intent *bi);
 
-#endif	/* __XFS_BMAP_ITEM_H__ */
+#endif  /* __XFS_BMAP_ITEM_H__ */

@@ -13,16 +13,16 @@
 #include <linux/interconnect-provider.h>
 #include <linux/platform_device.h>
 
-#define RPM_BUS_MASTER_REQ	0x73616d62
-#define RPM_BUS_SLAVE_REQ	0x766c7362
+#define RPM_BUS_MASTER_REQ  0x73616d62
+#define RPM_BUS_SLAVE_REQ 0x766c7362
 
 #define to_qcom_provider(_provider) \
-	container_of(_provider, struct qcom_icc_provider, provider)
+  container_of(_provider, struct qcom_icc_provider, provider)
 
 enum qcom_icc_type {
-	QCOM_ICC_NOC,
-	QCOM_ICC_BIMC,
-	QCOM_ICC_QNOC,
+  QCOM_ICC_NOC,
+  QCOM_ICC_BIMC,
+  QCOM_ICC_QNOC,
 };
 
 /**
@@ -30,11 +30,11 @@ enum qcom_icc_type {
  * @resource_type: RPM resource type of the clock resource
  * @clock_id: index of the clock resource of a specific resource type
  * @branch: whether the resource represents a branch clock
-*/
+ */
 struct rpm_clk_resource {
-	u32 resource_type;
-	u32 clock_id;
-	bool branch;
+  u32 resource_type;
+  u32 clock_id;
+  bool branch;
 };
 
 /**
@@ -44,8 +44,10 @@ struct rpm_clk_resource {
  * @type: the ICC provider type
  * @regmap: regmap for QoS registers read/write access
  * @qos_offset: offset to QoS registers
- * @ab_coeff: a percentage-based coefficient for compensating the AB calculations
- * @ib_coeff: an inverse-percentage-based coefficient for compensating the IB calculations
+ * @ab_coeff: a percentage-based coefficient for compensating the AB
+ *calculations
+ * @ib_coeff: an inverse-percentage-based coefficient for compensating the IB
+ *calculations
  * @bus_clk_rate: bus clock rate in Hz
  * @bus_clk_desc: a pointer to a rpm_clk_resource description of bus clocks
  * @bus_clk: a pointer to a HLOS-owned bus clock
@@ -54,19 +56,19 @@ struct rpm_clk_resource {
  * @is_on: whether the bus is powered on
  */
 struct qcom_icc_provider {
-	struct icc_provider provider;
-	int num_intf_clks;
-	enum qcom_icc_type type;
-	struct regmap *regmap;
-	unsigned int qos_offset;
-	u16 ab_coeff;
-	u16 ib_coeff;
-	u32 bus_clk_rate[QCOM_SMD_RPM_STATE_NUM];
-	const struct rpm_clk_resource *bus_clk_desc;
-	struct clk *bus_clk;
-	struct clk_bulk_data *intf_clks;
-	bool keep_alive;
-	bool is_on;
+  struct icc_provider provider;
+  int num_intf_clks;
+  enum qcom_icc_type type;
+  struct regmap *regmap;
+  unsigned int qos_offset;
+  u16 ab_coeff;
+  u16 ib_coeff;
+  u32 bus_clk_rate[QCOM_SMD_RPM_STATE_NUM];
+  const struct rpm_clk_resource *bus_clk_desc;
+  struct clk *bus_clk;
+  struct clk_bulk_data *intf_clks;
+  bool keep_alive;
+  bool is_on;
 };
 
 /**
@@ -80,13 +82,13 @@ struct qcom_icc_provider {
  * @urg_fwd_en: enable urgent forwarding
  */
 struct qcom_icc_qos {
-	u32 areq_prio;
-	u32 prio_level;
-	bool limit_commands;
-	bool ap_owned;
-	int qos_mode;
-	int qos_port;
-	bool urg_fwd_en;
+  u32 areq_prio;
+  u32 prio_level;
+  bool limit_commands;
+  bool ap_owned;
+  int qos_mode;
+  int qos_port;
+  bool urg_fwd_en;
 };
 
 /**
@@ -100,50 +102,52 @@ struct qcom_icc_qos {
  * @bus_clk_desc: a pointer to a rpm_clk_resource description of bus clocks
  * @sum_avg: current sum aggregate value of all avg bw requests
  * @max_peak: current max aggregate value of all peak bw requests
- * @mas_rpm_id:	RPM id for devices that are bus masters
- * @slv_rpm_id:	RPM id for devices that are bus slaves
+ * @mas_rpm_id: RPM id for devices that are bus masters
+ * @slv_rpm_id: RPM id for devices that are bus slaves
  * @qos: NoC QoS setting parameters
- * @ab_coeff: a percentage-based coefficient for compensating the AB calculations
- * @ib_coeff: an inverse-percentage-based coefficient for compensating the IB calculations
+ * @ab_coeff: a percentage-based coefficient for compensating the AB
+ *calculations
+ * @ib_coeff: an inverse-percentage-based coefficient for compensating the IB
+ *calculations
  * @bus_clk_rate: a pointer to an array containing bus clock rates in Hz
  */
 struct qcom_icc_node {
-	unsigned char *name;
-	u16 id;
-	const u16 *links;
-	u16 num_links;
-	u16 channels;
-	u16 buswidth;
-	const struct rpm_clk_resource *bus_clk_desc;
-	u64 sum_avg[QCOM_SMD_RPM_STATE_NUM];
-	u64 max_peak[QCOM_SMD_RPM_STATE_NUM];
-	int mas_rpm_id;
-	int slv_rpm_id;
-	struct qcom_icc_qos qos;
-	u16 ab_coeff;
-	u16 ib_coeff;
-	u32 bus_clk_rate[QCOM_SMD_RPM_STATE_NUM];
+  unsigned char *name;
+  u16 id;
+  const u16 *links;
+  u16 num_links;
+  u16 channels;
+  u16 buswidth;
+  const struct rpm_clk_resource *bus_clk_desc;
+  u64 sum_avg[QCOM_SMD_RPM_STATE_NUM];
+  u64 max_peak[QCOM_SMD_RPM_STATE_NUM];
+  int mas_rpm_id;
+  int slv_rpm_id;
+  struct qcom_icc_qos qos;
+  u16 ab_coeff;
+  u16 ib_coeff;
+  u32 bus_clk_rate[QCOM_SMD_RPM_STATE_NUM];
 };
 
 struct qcom_icc_desc {
-	struct qcom_icc_node * const *nodes;
-	size_t num_nodes;
-	const struct rpm_clk_resource *bus_clk_desc;
-	const char * const *intf_clocks;
-	size_t num_intf_clocks;
-	bool keep_alive;
-	enum qcom_icc_type type;
-	const struct regmap_config *regmap_cfg;
-	unsigned int qos_offset;
-	u16 ab_coeff;
-	u16 ib_coeff;
+  struct qcom_icc_node * const *nodes;
+  size_t num_nodes;
+  const struct rpm_clk_resource *bus_clk_desc;
+  const char * const *intf_clocks;
+  size_t num_intf_clocks;
+  bool keep_alive;
+  enum qcom_icc_type type;
+  const struct regmap_config *regmap_cfg;
+  unsigned int qos_offset;
+  u16 ab_coeff;
+  u16 ib_coeff;
 };
 
 /* Valid for all bus types */
 enum qos_mode {
-	NOC_QOS_MODE_INVALID = 0,
-	NOC_QOS_MODE_FIXED,
-	NOC_QOS_MODE_BYPASS,
+  NOC_QOS_MODE_INVALID = 0,
+  NOC_QOS_MODE_FIXED,
+  NOC_QOS_MODE_BYPASS,
 };
 
 extern const struct rpm_clk_resource aggre1_clk;
@@ -165,6 +169,7 @@ void qnoc_remove(struct platform_device *pdev);
 
 bool qcom_icc_rpm_smd_available(void);
 int qcom_icc_rpm_smd_send(int ctx, int rsc_type, int id, u32 val);
-int qcom_icc_rpm_set_bus_rate(const struct rpm_clk_resource *clk, int ctx, u32 rate);
+int qcom_icc_rpm_set_bus_rate(const struct rpm_clk_resource *clk, int ctx,
+    u32 rate);
 
 #endif

@@ -24,11 +24,10 @@
  * if we eventually end up using our copied page.
  *
  */
-static void xsc3_mc_copy_user_page(void *kto, const void *kfrom)
-{
-	int tmp;
-
-	asm volatile ("\
+static void xsc3_mc_copy_user_page(void *kto, const void *kfrom) {
+  int tmp;
+  asm volatile (
+    "\
 .arch xscale					\n\
 	pld	[%1, #0]			\n\
 	pld	[%1, #32]			\n\
@@ -55,32 +54,29 @@ static void xsc3_mc_copy_user_page(void *kto, const void *kfrom)
 	strd	r2, r3, [%0], #8		\n\
 	strd	r4, r5, [%0], #8		\n\
 	bgt	1b				\n\
-	beq	2b				"
-	: "+&r" (kto), "+&r" (kfrom), "=&r" (tmp)
-	: "2" (PAGE_SIZE / 64 - 1)
-	: "r2", "r3", "r4", "r5");
+	beq	2b				" : "+&r" (kto), "+&r" (kfrom), "=&r" (tmp)
+    : "2" (PAGE_SIZE / 64 - 1)
+    : "r2", "r3", "r4", "r5");
 }
 
 void xsc3_mc_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma)
-{
-	void *kto, *kfrom;
-
-	kto = kmap_atomic(to);
-	kfrom = kmap_atomic(from);
-	flush_cache_page(vma, vaddr, page_to_pfn(from));
-	xsc3_mc_copy_user_page(kto, kfrom);
-	kunmap_atomic(kfrom);
-	kunmap_atomic(kto);
+    unsigned long vaddr, struct vm_area_struct *vma) {
+  void *kto, *kfrom;
+  kto = kmap_atomic(to);
+  kfrom = kmap_atomic(from);
+  flush_cache_page(vma, vaddr, page_to_pfn(from));
+  xsc3_mc_copy_user_page(kto, kfrom);
+  kunmap_atomic(kfrom);
+  kunmap_atomic(kto);
 }
 
 /*
  * XScale optimised clear_user_page
  */
-void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
-{
-	void *ptr, *kaddr = kmap_atomic(page);
-	asm volatile ("\
+void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr) {
+  void *ptr, *kaddr = kmap_atomic(page);
+  asm volatile (
+    "\
 .arch xscale					\n\
 	mov	r1, %2				\n\
 	mov	r2, #0				\n\
@@ -91,14 +87,13 @@ void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 	strd	r2, r3, [%0], #8		\n\
 	strd	r2, r3, [%0], #8		\n\
 	subs	r1, r1, #1			\n\
-	bne	1b"
-	: "=r" (ptr)
-	: "0" (kaddr), "I" (PAGE_SIZE / 32)
-	: "r1", "r2", "r3");
-	kunmap_atomic(kaddr);
+	bne	1b" : "=r" (ptr)
+    : "0" (kaddr), "I" (PAGE_SIZE / 32)
+    : "r1", "r2", "r3");
+  kunmap_atomic(kaddr);
 }
 
 struct cpu_user_fns xsc3_mc_user_fns __initdata = {
-	.cpu_clear_user_highpage = xsc3_mc_clear_user_highpage,
-	.cpu_copy_user_highpage	= xsc3_mc_copy_user_highpage,
+  .cpu_clear_user_highpage = xsc3_mc_clear_user_highpage,
+  .cpu_copy_user_highpage = xsc3_mc_copy_user_highpage,
 };

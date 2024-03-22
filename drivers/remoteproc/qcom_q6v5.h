@@ -13,38 +13,38 @@ struct qcom_smem_state;
 struct qcom_sysmon;
 
 struct qcom_q6v5 {
-	struct device *dev;
-	struct rproc *rproc;
+  struct device *dev;
+  struct rproc *rproc;
 
-	struct qcom_smem_state *state;
-	struct qmp *qmp;
+  struct qcom_smem_state *state;
+  struct qmp *qmp;
 
-	struct icc_path *path;
+  struct icc_path *path;
 
-	unsigned stop_bit;
+  unsigned stop_bit;
 
-	int wdog_irq;
-	int fatal_irq;
-	int ready_irq;
-	int handover_irq;
-	int stop_irq;
+  int wdog_irq;
+  int fatal_irq;
+  int ready_irq;
+  int handover_irq;
+  int stop_irq;
 
-	bool handover_issued;
+  bool handover_issued;
 
-	struct completion start_done;
-	struct completion stop_done;
+  struct completion start_done;
+  struct completion stop_done;
 
-	int crash_reason;
+  int crash_reason;
 
-	bool running;
+  bool running;
 
-	const char *load_state;
-	void (*handover)(struct qcom_q6v5 *q6v5);
+  const char *load_state;
+  void (*handover)(struct qcom_q6v5 *q6v5);
 };
 
 int qcom_q6v5_init(struct qcom_q6v5 *q6v5, struct platform_device *pdev,
-		   struct rproc *rproc, int crash_reason, const char *load_state,
-		   void (*handover)(struct qcom_q6v5 *q6v5));
+    struct rproc *rproc, int crash_reason, const char *load_state,
+    void (*handover)(struct qcom_q6v5 *q6v5));
 void qcom_q6v5_deinit(struct qcom_q6v5 *q6v5);
 
 int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5);

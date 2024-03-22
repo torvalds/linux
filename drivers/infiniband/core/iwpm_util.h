@@ -13,13 +13,13 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials
+ *    provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -49,10 +49,9 @@
 #include <rdma/iw_portmap.h>
 #include <rdma/rdma_netlink.h>
 
-
-#define IWPM_NL_RETRANS		3
-#define IWPM_NL_TIMEOUT		(10*HZ)
-#define IWPM_MAPINFO_SKB_COUNT	20
+#define IWPM_NL_RETRANS   3
+#define IWPM_NL_TIMEOUT   (10 * HZ)
+#define IWPM_MAPINFO_SKB_COUNT  20
 
 #define IWPM_PID_UNDEFINED     -1
 #define IWPM_PID_UNAVAILABLE   -2
@@ -62,35 +61,35 @@
 #define IWPM_REG_INCOMPL        0x04
 
 struct iwpm_nlmsg_request {
-	struct list_head    inprocess_list;
-	__u32               nlmsg_seq;
-	void                *req_buffer;
-	u8	            nl_client;
-	u8                  request_done;
-	u16                 err_code;
-	struct semaphore    sem;
-	struct kref         kref;
+  struct list_head inprocess_list;
+  __u32 nlmsg_seq;
+  void *req_buffer;
+  u8 nl_client;
+  u8 request_done;
+  u16 err_code;
+  struct semaphore sem;
+  struct kref kref;
 };
 
 struct iwpm_mapping_info {
-	struct hlist_node hlist_node;
-	struct sockaddr_storage local_sockaddr;
-	struct sockaddr_storage mapped_sockaddr;
-	u8     nl_client;
-	u32    map_flags;
+  struct hlist_node hlist_node;
+  struct sockaddr_storage local_sockaddr;
+  struct sockaddr_storage mapped_sockaddr;
+  u8 nl_client;
+  u32 map_flags;
 };
 
 struct iwpm_remote_info {
-	struct hlist_node hlist_node;
-	struct sockaddr_storage remote_sockaddr;
-	struct sockaddr_storage mapped_loc_sockaddr;
-	struct sockaddr_storage mapped_rem_sockaddr;
-	u8     nl_client;
+  struct hlist_node hlist_node;
+  struct sockaddr_storage remote_sockaddr;
+  struct sockaddr_storage mapped_loc_sockaddr;
+  struct sockaddr_storage mapped_rem_sockaddr;
+  u8 nl_client;
 };
 
 struct iwpm_admin_data {
-	atomic_t nlmsg_seq;
-	u32      reg_list[RDMA_NL_NUM_CLIENTS];
+  atomic_t nlmsg_seq;
+  u32 reg_list[RDMA_NL_NUM_CLIENTS];
 };
 
 /**
@@ -103,7 +102,7 @@ struct iwpm_admin_data {
  * otherwise returns NULL
  */
 struct iwpm_nlmsg_request *iwpm_get_nlmsg_request(__u32 nlmsg_seq,
-						u8 nl_client, gfp_t gfp);
+    u8 nl_client, gfp_t gfp);
 
 /**
  * iwpm_free_nlmsg_request - Deallocate netlink message request
@@ -131,7 +130,7 @@ int iwpm_wait_complete_req(struct iwpm_nlmsg_request *nlmsg_request);
 
 /**
  * iwpm_get_nlmsg_seq - Get the sequence number for a netlink
- *			message to send to the port mapper
+ *      message to send to the port mapper
  *
  * Returns the sequence number for the netlink message.
  */
@@ -146,7 +145,7 @@ void iwpm_add_remote_info(struct iwpm_remote_info *reminfo);
 
 /**
  * iwpm_check_registration - Check if the client registration
- *			      matches the given one
+ *            matches the given one
  * @nl_client: The index of the netlink client
  * @reg: The given registration type to compare with
  *
@@ -183,7 +182,7 @@ int iwpm_send_mapinfo(u8 nl_client, int iwpm_pid);
 
 /**
  * iwpm_mapinfo_available - Check if any mapping info records is available
- *		            in the hash table
+ *                in the hash table
  *
  * Returns 1 if mapping information is available, otherwise returns 0
  */
@@ -198,7 +197,7 @@ int iwpm_mapinfo_available(void);
  * otherwise returns 1
  */
 int iwpm_compare_sockaddr(struct sockaddr_storage *a_sockaddr,
-			struct sockaddr_storage *b_sockaddr);
+    struct sockaddr_storage *b_sockaddr);
 
 /**
  * iwpm_validate_nlmsg_attr - Check for NULL netlink attributes
@@ -208,14 +207,14 @@ int iwpm_compare_sockaddr(struct sockaddr_storage *a_sockaddr,
  * Returns error if any of the nla_count attributes is NULL
  */
 static inline int iwpm_validate_nlmsg_attr(struct nlattr *nltb[],
-					   int nla_count)
-{
-	int i;
-	for (i = 1; i < nla_count; i++) {
-		if (!nltb[i])
-			return -EINVAL;
-	}
-	return 0;
+    int nla_count) {
+  int i;
+  for (i = 1; i < nla_count; i++) {
+    if (!nltb[i]) {
+      return -EINVAL;
+    }
+  }
+  return 0;
 }
 
 /**
@@ -228,7 +227,7 @@ static inline int iwpm_validate_nlmsg_attr(struct nlattr *nltb[],
  * is insufficient to store the message header and payload
  */
 struct sk_buff *iwpm_create_nlmsg(u32 nl_op, struct nlmsghdr **nlh,
-					int nl_client);
+    int nl_client);
 
 /**
  * iwpm_parse_nlmsg - Validate and parse the received netlink message
@@ -241,8 +240,8 @@ struct sk_buff *iwpm_create_nlmsg(u32 nl_op, struct nlmsghdr **nlh,
  * Returns 0 on success or a negative error code
  */
 int iwpm_parse_nlmsg(struct netlink_callback *cb, int policy_max,
-				const struct nla_policy *nlmsg_policy,
-				struct nlattr *nltb[], const char *msg_type);
+    const struct nla_policy *nlmsg_policy,
+    struct nlattr *nltb[], const char *msg_type);
 
 /**
  * iwpm_print_sockaddr - Print IPv4/IPv6 address and TCP port

@@ -31,18 +31,19 @@
 
 /**
  * struct rtas_ibm_get_vpd_params - Parameters (in and out) for ibm,get-vpd.
- * @loc_code:  In: Caller-provided location code buffer. Must be RTAS-addressable.
+ * @loc_code:  In: Caller-provided location code buffer. Must be
+ * RTAS-addressable.
  * @work_area: In: Caller-provided work area buffer for results.
  * @sequence:  In: Sequence number. Out: Next sequence number.
  * @written:   Out: Bytes written by ibm,get-vpd to @work_area.
  * @status:    Out: RTAS call status.
  */
 struct rtas_ibm_get_vpd_params {
-	const struct papr_location_code *loc_code;
-	struct rtas_work_area *work_area;
-	u32 sequence;
-	u32 written;
-	s32 status;
+  const struct papr_location_code *loc_code;
+  struct rtas_work_area *work_area;
+  u32 sequence;
+  u32 written;
+  s32 status;
 };
 
 /**
@@ -65,57 +66,53 @@ struct rtas_ibm_get_vpd_params {
  * Context: May sleep.
  * Return: -ve on error, 0 otherwise.
  */
-static int rtas_ibm_get_vpd(struct rtas_ibm_get_vpd_params *params)
-{
-	const struct papr_location_code *loc_code = params->loc_code;
-	struct rtas_work_area *work_area = params->work_area;
-	u32 rets[2];
-	s32 fwrc;
-	int ret;
-
-	lockdep_assert_held(&rtas_ibm_get_vpd_lock);
-
-	do {
-		fwrc = rtas_call(rtas_function_token(RTAS_FN_IBM_GET_VPD), 4, 3,
-				 rets,
-				 __pa(loc_code),
-				 rtas_work_area_phys(work_area),
-				 rtas_work_area_size(work_area),
-				 params->sequence);
-	} while (rtas_busy_delay(fwrc));
-
-	switch (fwrc) {
-	case RTAS_HARDWARE_ERROR:
-		ret = -EIO;
-		break;
-	case RTAS_INVALID_PARAMETER:
-		ret = -EINVAL;
-		break;
-	case RTAS_IBM_GET_VPD_START_OVER:
-		ret = -EAGAIN;
-		break;
-	case RTAS_IBM_GET_VPD_MORE_DATA:
-		params->sequence = rets[0];
-		fallthrough;
-	case RTAS_IBM_GET_VPD_COMPLETE:
-		params->written = rets[1];
-		/*
-		 * Kernel or firmware bug, do not continue.
-		 */
-		if (WARN(params->written > rtas_work_area_size(work_area),
-			 "possible write beyond end of work area"))
-			ret = -EFAULT;
-		else
-			ret = 0;
-		break;
-	default:
-		ret = -EIO;
-		pr_err_ratelimited("unexpected ibm,get-vpd status %d\n", fwrc);
-		break;
-	}
-
-	params->status = fwrc;
-	return ret;
+static int rtas_ibm_get_vpd(struct rtas_ibm_get_vpd_params *params) {
+  const struct papr_location_code *loc_code = params->loc_code;
+  struct rtas_work_area *work_area = params->work_area;
+  u32 rets[2];
+  s32 fwrc;
+  int ret;
+  lockdep_assert_held(&rtas_ibm_get_vpd_lock);
+  do {
+    fwrc = rtas_call(rtas_function_token(RTAS_FN_IBM_GET_VPD), 4, 3,
+        rets,
+        __pa(loc_code),
+        rtas_work_area_phys(work_area),
+        rtas_work_area_size(work_area),
+        params->sequence);
+  } while (rtas_busy_delay(fwrc));
+  switch (fwrc) {
+    case RTAS_HARDWARE_ERROR:
+      ret = -EIO;
+      break;
+    case RTAS_INVALID_PARAMETER:
+      ret = -EINVAL;
+      break;
+    case RTAS_IBM_GET_VPD_START_OVER:
+      ret = -EAGAIN;
+      break;
+    case RTAS_IBM_GET_VPD_MORE_DATA:
+      params->sequence = rets[0];
+      fallthrough;
+    case RTAS_IBM_GET_VPD_COMPLETE:
+      params->written = rets[1];
+      /*
+       * Kernel or firmware bug, do not continue.
+       */
+      if (WARN(params->written > rtas_work_area_size(work_area),
+          "possible write beyond end of work area")) {
+        ret = -EFAULT;
+      } else {
+        ret = 0;
+      }
+      break;
+    default:
+      ret = -EIO;
+      pr_err_ratelimited("unexpected ibm,get-vpd status %d\n", fwrc);
+      break;
+  }
+  params->status = fwrc;
+  return ret;
 }
 
 /*
@@ -123,21 +120,19 @@ static int rtas_ibm_get_vpd(struct rtas_ibm_get_vpd_params *params)
  * an immutable buffer to be attached to a file descriptor.
  */
 struct vpd_blob {
-	const char *data;
-	size_t len;
+  const char *data;
+  size_t len;
 };
 
-static bool vpd_blob_has_data(const struct vpd_blob *blob)
-{
-	return blob->data && blob->len;
+static bool vpd_blob_has_data(const struct vpd_blob *blob) {
+  return blob->data && blob->len;
 }
 
-static void vpd_blob_free(const struct vpd_blob *blob)
-{
-	if (blob) {
-		kvfree(blob->data);
-		kfree(blob);
-	}
+static void vpd_blob_free(const struct vpd_blob *blob) {
+  if (blob) {
+    kvfree(blob->data);
+    kfree(blob);
+  }
 }
 
 /**
@@ -149,24 +144,22 @@ static void vpd_blob_free(const struct vpd_blob *blob)
  * Context: May sleep.
  * Return: -ENOMEM on allocation failure, 0 otherwise.
  */
-static int vpd_blob_extend(struct vpd_blob *blob, const char *data, size_t len)
-{
-	const size_t new_len = blob->len + len;
-	const size_t old_len = blob->len;
-	const char *old_ptr = blob->data;
-	char *new_ptr;
-
-	new_ptr = old_ptr ?
-		kvrealloc(old_ptr, old_len, new_len, GFP_KERNEL_ACCOUNT) :
-		kvmalloc(len, GFP_KERNEL_ACCOUNT);
-
-	if (!new_ptr)
-		return -ENOMEM;
-
-	memcpy(&new_ptr[old_len], data, len);
-	blob->data = new_ptr;
-	blob->len = new_len;
-	return 0;
+static int vpd_blob_extend(struct vpd_blob *blob, const char *data,
+    size_t len) {
+  const size_t new_len = blob->len + len;
+  const size_t old_len = blob->len;
+  const char *old_ptr = blob->data;
+  char *new_ptr;
+  new_ptr = old_ptr
+      ? kvrealloc(old_ptr, old_len, new_len, GFP_KERNEL_ACCOUNT)
+      : kvmalloc(len, GFP_KERNEL_ACCOUNT);
+  if (!new_ptr) {
+    return -ENOMEM;
+  }
+  memcpy(&new_ptr[old_len], data, len);
+  blob->data = new_ptr;
+  blob->len = new_len;
+  return 0;
 }
 
 /**
@@ -182,28 +175,27 @@ static int vpd_blob_extend(struct vpd_blob *blob, const char *data, size_t len)
  * Context: May sleep.
  * Return: A completely populated &struct vpd_blob, or NULL on error.
  */
-static const struct vpd_blob *
-vpd_blob_generate(const char * (*generator)(void *, size_t *), void *arg)
-{
-	struct vpd_blob *blob;
-	const char *buf;
-	size_t len;
-	int err = 0;
-
-	blob  = kzalloc(sizeof(*blob), GFP_KERNEL_ACCOUNT);
-	if (!blob)
-		return NULL;
-
-	while (err == 0 && (buf = generator(arg, &len)))
-		err = vpd_blob_extend(blob, buf, len);
-
-	if (err != 0 || !vpd_blob_has_data(blob))
-		goto free_blob;
-
-	return blob;
+static const struct vpd_blob *vpd_blob_generate(const char *(*generator)(void *,
+    size_t *),
+    void *arg) {
+  struct vpd_blob *blob;
+  const char *buf;
+  size_t len;
+  int err = 0;
+  blob = kzalloc(sizeof(*blob), GFP_KERNEL_ACCOUNT);
+  if (!blob) {
+    return NULL;
+  }
+  while (err == 0 && (buf = generator(arg, &len))) {
+    err = vpd_blob_extend(blob, buf, len);
+  }
+  if (err != 0 || !vpd_blob_has_data(blob)) {
+    goto free_blob;
+  }
+  return blob;
 free_blob:
-	vpd_blob_free(blob);
-	return NULL;
+  vpd_blob_free(blob);
+  return NULL;
 }
 
 /*
@@ -220,8 +212,8 @@ free_blob:
  * @params: Parameter block to pass to rtas_ibm_get_vpd().
  */
 struct vpd_sequence {
-	int error;
-	struct rtas_ibm_get_vpd_params params;
+  int error;
+  struct rtas_ibm_get_vpd_params params;
 };
 
 /**
@@ -236,30 +228,28 @@ struct vpd_sequence {
  * Context: May sleep.
  */
 static void vpd_sequence_begin(struct vpd_sequence *seq,
-			       const struct papr_location_code *loc_code)
-{
-	/*
-	 * Use a static data structure for the location code passed to
-	 * RTAS to ensure it's in the RMA and avoid a separate work
-	 * area allocation. Guarded by the function lock.
-	 */
-	static struct papr_location_code static_loc_code;
-
-	/*
-	 * We could allocate the work area before acquiring the
-	 * function lock, but that would allow concurrent requests to
-	 * exhaust the limited work area pool for no benefit. So
-	 * allocate the work area under the lock.
-	 */
-	mutex_lock(&rtas_ibm_get_vpd_lock);
-	static_loc_code = *loc_code;
-	*seq = (struct vpd_sequence) {
-		.params = {
-			.work_area = rtas_work_area_alloc(SZ_4K),
-			.loc_code = &static_loc_code,
-			.sequence = 1,
-		},
-	};
+    const struct papr_location_code *loc_code) {
+  /*
+   * Use a static data structure for the location code passed to
+   * RTAS to ensure it's in the RMA and avoid a separate work
+   * area allocation. Guarded by the function lock.
+   */
+  static struct papr_location_code static_loc_code;
+  /*
+   * We could allocate the work area before acquiring the
+   * function lock, but that would allow concurrent requests to
+   * exhaust the limited work area pool for no benefit. So
+   * allocate the work area under the lock.
+   */
+  mutex_lock(&rtas_ibm_get_vpd_lock);
+  static_loc_code = *loc_code;
+  *seq = (struct vpd_sequence) {
+    .params = {
+      .work_area = rtas_work_area_alloc(SZ_4K),
+      .loc_code = &static_loc_code,
+      .sequence = 1,
+    },
+  };
 }
 
 /**
@@ -268,10 +258,9 @@ static void vpd_sequence_begin(struct vpd_sequence *seq,
  *
  * Releases resources obtained by vpd_sequence_begin().
  */
-static void vpd_sequence_end(struct vpd_sequence *seq)
-{
-	rtas_work_area_free(seq->params.work_area);
-	mutex_unlock(&rtas_ibm_get_vpd_lock);
+static void vpd_sequence_end(struct vpd_sequence *seq) {
+  rtas_work_area_free(seq->params.work_area);
+  mutex_unlock(&rtas_ibm_get_vpd_lock);
 }
 
 /**
@@ -286,54 +275,51 @@ static void vpd_sequence_end(struct vpd_sequence *seq)
  * Return: True if the sequence has encountered an error or if all VPD for
  *         this sequence has been retrieved. False otherwise.
  */
-static bool vpd_sequence_should_stop(const struct vpd_sequence *seq)
-{
-	bool done;
-
-	if (seq->error)
-		return true;
-
-	switch (seq->params.status) {
-	case 0:
-		if (seq->params.written == 0)
-			done = false; /* Initial state. */
-		else
-			done = true; /* All data consumed. */
-		break;
-	case 1:
-		done = false; /* More data available. */
-		break;
-	default:
-		done = true; /* Error encountered. */
-		break;
-	}
-
-	return done;
+static bool vpd_sequence_should_stop(const struct vpd_sequence *seq) {
+  bool done;
+  if (seq->error) {
+    return true;
+  }
+  switch (seq->params.status) {
+    case 0:
+      if (seq->params.written == 0) {
+        done = false; /* Initial state. */
+      } else {
+        done = true; /* All data consumed. */
+      }
+      break;
+    case 1:
+      done = false; /* More data available. */
+      break;
+    default:
+      done = true; /* Error encountered. */
+      break;
+  }
+  return done;
 }
 
-static int vpd_sequence_set_err(struct vpd_sequence *seq, int err)
-{
-	/* Preserve the first error recorded. */
-	if (seq->error == 0)
-		seq->error = err;
-
-	return seq->error;
+static int vpd_sequence_set_err(struct vpd_sequence *seq, int err) {
+  /* Preserve the first error recorded. */
+  if (seq->error == 0) {
+    seq->error = err;
+  }
+  return seq->error;
 }
 
 /*
  * Generator function to be passed to vpd_blob_generate().
  */
-static const char *vpd_sequence_fill_work_area(void *arg, size_t *len)
-{
-	struct vpd_sequence *seq = arg;
-	struct rtas_ibm_get_vpd_params *p = &seq->params;
-
-	if (vpd_sequence_should_stop(seq))
-		return NULL;
-	if (vpd_sequence_set_err(seq, rtas_ibm_get_vpd(p)))
-		return NULL;
-	*len = p->written;
-	return rtas_work_area_raw_buf(p->work_area);
+static const char *vpd_sequence_fill_work_area(void *arg, size_t *len) {
+  struct vpd_sequence *seq = arg;
+  struct rtas_ibm_get_vpd_params *p = &seq->params;
+  if (vpd_sequence_should_stop(seq)) {
+    return NULL;
+  }
+  if (vpd_sequence_set_err(seq, rtas_ibm_get_vpd(p))) {
+    return NULL;
+  }
+  *len = p->written;
+  return rtas_work_area_raw_buf(p->work_area);
 }
 
 /*
@@ -353,23 +339,21 @@ static const char *vpd_sequence_fill_work_area(void *arg, size_t *len)
  * Return: A populated &struct vpd_blob on success. Encoded error
  * pointer otherwise.
  */
-static const struct vpd_blob *papr_vpd_run_sequence(const struct papr_location_code *loc_code)
-{
-	const struct vpd_blob *blob;
-	struct vpd_sequence seq;
-
-	vpd_sequence_begin(&seq, loc_code);
-	blob = vpd_blob_generate(vpd_sequence_fill_work_area, &seq);
-	if (!blob)
-		vpd_sequence_set_err(&seq, -ENOMEM);
-	vpd_sequence_end(&seq);
-
-	if (seq.error) {
-		vpd_blob_free(blob);
-		return ERR_PTR(seq.error);
-	}
-
-	return blob;
+static const struct vpd_blob *papr_vpd_run_sequence(
+    const struct papr_location_code *loc_code) {
+  const struct vpd_blob *blob;
+  struct vpd_sequence seq;
+  vpd_sequence_begin(&seq, loc_code);
+  blob = vpd_blob_generate(vpd_sequence_fill_work_area, &seq);
+  if (!blob) {
+    vpd_sequence_set_err(&seq, -ENOMEM);
+  }
+  vpd_sequence_end(&seq);
+  if (seq.error) {
+    vpd_blob_free(blob);
+    return ERR_PTR(seq.error);
+  }
+  return blob;
 }
 
 /**
@@ -384,64 +368,56 @@ static const struct vpd_blob *papr_vpd_run_sequence(const struct papr_location_c
  * Return: A fully populated VPD blob when successful. Encoded error
  * pointer otherwise.
  */
-static const struct vpd_blob *papr_vpd_retrieve(const struct papr_location_code *loc_code)
-{
-	const struct vpd_blob *blob;
-
-	/*
-	 * EAGAIN means the sequence errored with a -4 (VPD changed)
-	 * status from ibm,get-vpd, and we should attempt a new
-	 * sequence. PAPR+ v2.13 R1–7.3.20–5 indicates that this
-	 * should be a transient condition, not something that happens
-	 * continuously. But we'll stop trying on a fatal signal.
-	 */
-	do {
-		blob = papr_vpd_run_sequence(loc_code);
-		if (!IS_ERR(blob)) /* Success. */
-			break;
-		if (PTR_ERR(blob) != -EAGAIN) /* Hard error. */
-			break;
-		pr_info_ratelimited("VPD changed during retrieval, retrying\n");
-		cond_resched();
-	} while (!fatal_signal_pending(current));
-
-	return blob;
+static const struct vpd_blob *papr_vpd_retrieve(
+    const struct papr_location_code *loc_code) {
+  const struct vpd_blob *blob;
+  /*
+   * EAGAIN means the sequence errored with a -4 (VPD changed)
+   * status from ibm,get-vpd, and we should attempt a new
+   * sequence. PAPR+ v2.13 R1–7.3.20–5 indicates that this
+   * should be a transient condition, not something that happens
+   * continuously. But we'll stop trying on a fatal signal.
+   */
+  do {
+    blob = papr_vpd_run_sequence(loc_code);
+    if (!IS_ERR(blob)) { /* Success. */
+      break;
+    }
+    if (PTR_ERR(blob) != -EAGAIN) { /* Hard error. */
+      break;
+    }
+    pr_info_ratelimited("VPD changed during retrieval, retrying\n");
+    cond_resched();
+  } while (!fatal_signal_pending(current));
+  return blob;
 }
 
-static ssize_t papr_vpd_handle_read(struct file *file, char __user *buf, size_t size, loff_t *off)
-{
-	const struct vpd_blob *blob = file->private_data;
-
-	/* bug: we should not instantiate a handle without any data attached. */
-	if (!vpd_blob_has_data(blob)) {
-		pr_err_once("handle without data\n");
-		return -EIO;
-	}
-
-	return simple_read_from_buffer(buf, size, off, blob->data, blob->len);
+static ssize_t papr_vpd_handle_read(struct file *file, char __user *buf,
+    size_t size, loff_t *off) {
+  const struct vpd_blob *blob = file->private_data;
+  /* bug: we should not instantiate a handle without any data attached. */
+  if (!vpd_blob_has_data(blob)) {
+    pr_err_once("handle without data\n");
+    return -EIO;
+  }
+  return simple_read_from_buffer(buf, size, off, blob->data, blob->len);
 }
 
-static int papr_vpd_handle_release(struct inode *inode, struct file *file)
-{
-	const struct vpd_blob *blob = file->private_data;
-
-	vpd_blob_free(blob);
-
-	return 0;
+static int papr_vpd_handle_release(struct inode *inode, struct file *file) {
+  const struct vpd_blob *blob = file->private_data;
+  vpd_blob_free(blob);
+  return 0;
 }
 
-static loff_t papr_vpd_handle_seek(struct file *file, loff_t off, int whence)
-{
-	const struct vpd_blob *blob = file->private_data;
-
-	return fixed_size_llseek(file, off, whence, blob->len);
+static loff_t papr_vpd_handle_seek(struct file *file, loff_t off, int whence) {
+  const struct vpd_blob *blob = file->private_data;
+  return fixed_size_llseek(file, off, whence, blob->len);
 }
-
 
 static const struct file_operations papr_vpd_handle_ops = {
-	.read = papr_vpd_handle_read,
-	.llseek = papr_vpd_handle_seek,
-	.release = papr_vpd_handle_release,
+  .read = papr_vpd_handle_read,
+  .llseek = papr_vpd_handle_seek,
+  .release = papr_vpd_handle_release,
 };
 
 /**
@@ -461,81 +437,76 @@ static const struct file_operations papr_vpd_handle_ops = {
  *
  * Return: The installed fd number if successful, -ve errno otherwise.
  */
-static long papr_vpd_create_handle(struct papr_location_code __user *ulc)
-{
-	struct papr_location_code klc;
-	const struct vpd_blob *blob;
-	struct file *file;
-	long err;
-	int fd;
-
-	if (copy_from_user(&klc, ulc, sizeof(klc)))
-		return -EFAULT;
-
-	if (!string_is_terminated(klc.str, ARRAY_SIZE(klc.str)))
-		return -EINVAL;
-
-	blob = papr_vpd_retrieve(&klc);
-	if (IS_ERR(blob))
-		return PTR_ERR(blob);
-
-	fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
-	if (fd < 0) {
-		err = fd;
-		goto free_blob;
-	}
-
-	file = anon_inode_getfile("[papr-vpd]", &papr_vpd_handle_ops,
-				  (void *)blob, O_RDONLY);
-	if (IS_ERR(file)) {
-		err = PTR_ERR(file);
-		goto put_fd;
-	}
-
-	file->f_mode |= FMODE_LSEEK | FMODE_PREAD;
-	fd_install(fd, file);
-	return fd;
+static long papr_vpd_create_handle(struct papr_location_code __user *ulc) {
+  struct papr_location_code klc;
+  const struct vpd_blob *blob;
+  struct file *file;
+  long err;
+  int fd;
+  if (copy_from_user(&klc, ulc, sizeof(klc))) {
+    return -EFAULT;
+  }
+  if (!string_is_terminated(klc.str, ARRAY_SIZE(klc.str))) {
+    return -EINVAL;
+  }
+  blob = papr_vpd_retrieve(&klc);
+  if (IS_ERR(blob)) {
+    return PTR_ERR(blob);
+  }
+  fd = get_unused_fd_flags(O_RDONLY | O_CLOEXEC);
+  if (fd < 0) {
+    err = fd;
+    goto free_blob;
+  }
+  file = anon_inode_getfile("[papr-vpd]", &papr_vpd_handle_ops,
+      (void *) blob, O_RDONLY);
+  if (IS_ERR(file)) {
+    err = PTR_ERR(file);
+    goto put_fd;
+  }
+  file->f_mode |= FMODE_LSEEK | FMODE_PREAD;
+  fd_install(fd, file);
+  return fd;
 put_fd:
-	put_unused_fd(fd);
+  put_unused_fd(fd);
 free_blob:
-	vpd_blob_free(blob);
-	return err;
+  vpd_blob_free(blob);
+  return err;
 }
 
 /*
  * Top-level ioctl handler for /dev/papr-vpd.
  */
-static long papr_vpd_dev_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
-{
-	void __user *argp = (__force void __user *)arg;
-	long ret;
-
-	switch (ioctl) {
-	case PAPR_VPD_IOC_CREATE_HANDLE:
-		ret = papr_vpd_create_handle(argp);
-		break;
-	default:
-		ret = -ENOIOCTLCMD;
-		break;
-	}
-	return ret;
+static long papr_vpd_dev_ioctl(struct file *filp, unsigned int ioctl,
+    unsigned long arg) {
+  void __user *argp = (__force void __user *)arg;
+  long ret;
+  switch (ioctl) {
+    case PAPR_VPD_IOC_CREATE_HANDLE:
+      ret = papr_vpd_create_handle(argp);
+      break;
+    default:
+      ret = -ENOIOCTLCMD;
+      break;
+  }
+  return ret;
 }
 
 static const struct file_operations papr_vpd_ops = {
-	.unlocked_ioctl = papr_vpd_dev_ioctl,
+  .unlocked_ioctl = papr_vpd_dev_ioctl,
 };
 
 static struct miscdevice papr_vpd_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "papr-vpd",
-	.fops = &papr_vpd_ops,
+  .minor = MISC_DYNAMIC_MINOR,
+  .name = "papr-vpd",
+  .fops = &papr_vpd_ops,
 };
 
-static __init int papr_vpd_init(void)
-{
-	if (!rtas_function_implemented(RTAS_FN_IBM_GET_VPD))
-		return -ENODEV;
-
-	return misc_register(&papr_vpd_dev);
+static __init int papr_vpd_init(void) {
+  if (!rtas_function_implemented(RTAS_FN_IBM_GET_VPD)) {
+    return -ENODEV;
+  }
+  return misc_register(&papr_vpd_dev);
 }
+
 machine_device_initcall(pseries, papr_vpd_init);

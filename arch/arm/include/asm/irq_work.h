@@ -4,9 +4,8 @@
 
 #include <asm/smp_plat.h>
 
-static inline bool arch_irq_work_has_interrupt(void)
-{
-	return is_smp();
+static inline bool arch_irq_work_has_interrupt(void) {
+  return is_smp();
 }
 
 #endif /* _ASM_ARM_IRQ_WORK_H */

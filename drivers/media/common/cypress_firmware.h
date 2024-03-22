@@ -17,11 +17,11 @@
 
 /* commonly used firmware download types and function */
 struct hexline {
-	u8 len;
-	u32 addr;
-	u8 type;
-	u8 data[255];
-	u8 chk;
+  u8 len;
+  u32 addr;
+  u8 type;
+  u8 data[255];
+  u8 chk;
 };
 
 int cypress_load_firmware(struct usb_device *, const struct firmware *, int);

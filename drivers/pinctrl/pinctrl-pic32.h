@@ -9,18 +9,18 @@
 #define PINCTRL_PINCTRL_PIC32_H
 
 /* PORT Registers */
-#define ANSEL_REG	0x00
-#define TRIS_REG	0x10
-#define PORT_REG	0x20
-#define LAT_REG		0x30
-#define ODCU_REG	0x40
-#define CNPU_REG	0x50
-#define CNPD_REG	0x60
-#define CNCON_REG	0x70
-#define CNEN_REG	0x80
-#define CNSTAT_REG	0x90
-#define CNNE_REG	0xA0
-#define CNF_REG		0xB0
+#define ANSEL_REG 0x00
+#define TRIS_REG  0x10
+#define PORT_REG  0x20
+#define LAT_REG   0x30
+#define ODCU_REG  0x40
+#define CNPU_REG  0x50
+#define CNPD_REG  0x60
+#define CNCON_REG 0x70
+#define CNEN_REG  0x80
+#define CNSTAT_REG  0x90
+#define CNNE_REG  0xA0
+#define CNF_REG   0xB0
 
 /* Input PPS Registers */
 #define INT1R 0x04

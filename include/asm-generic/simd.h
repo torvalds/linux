@@ -9,7 +9,6 @@
  * As architectures typically don't preserve the SIMD register file when
  * taking an interrupt, !in_interrupt() should be a reasonable default.
  */
-static __must_check inline bool may_use_simd(void)
-{
-	return !in_interrupt();
+static __must_check inline bool may_use_simd(void) {
+  return !in_interrupt();
 }

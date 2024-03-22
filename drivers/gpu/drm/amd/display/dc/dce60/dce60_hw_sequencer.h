@@ -34,4 +34,3 @@ struct dc;
 void dce60_hw_sequencer_construct(struct dc *dc);
 
 #endif /* __DC_HWSS_DCE60_H__ */
-

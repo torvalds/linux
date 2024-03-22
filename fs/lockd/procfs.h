@@ -11,17 +11,13 @@
 int lockd_create_procfs(void);
 void lockd_remove_procfs(void);
 #else
-static inline int
-lockd_create_procfs(void)
-{
-	return 0;
+static inline int lockd_create_procfs(void) {
+  return 0;
 }
 
-static inline void
-lockd_remove_procfs(void)
-{
-	return;
+static inline void lockd_remove_procfs(void) {
 }
+
 #endif /* IS_ENABLED(CONFIG_PROC_FS) */
 
 #endif /* _LOCKD_PROCFS_H */

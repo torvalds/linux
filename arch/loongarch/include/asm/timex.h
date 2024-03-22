@@ -16,9 +16,8 @@ typedef unsigned long cycles_t;
 
 #define get_cycles get_cycles
 
-static inline cycles_t get_cycles(void)
-{
-	return drdtime();
+static inline cycles_t get_cycles(void) {
+  return drdtime();
 }
 
 #endif /* __KERNEL__ */

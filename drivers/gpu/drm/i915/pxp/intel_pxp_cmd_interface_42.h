@@ -17,27 +17,27 @@
 
 /* PXP-Input-Packet: Init Session (Arb-Session) */
 struct pxp42_create_arb_in {
-	struct pxp_cmd_header header;
-	u32 protection_mode;
+  struct pxp_cmd_header header;
+  u32 protection_mode;
 #define PXP42_ARB_SESSION_MODE_HEAVY 0x2
-	u32 session_id;
+  u32 session_id;
 } __packed;
 
 /* PXP-Output-Packet: Init Session */
 struct pxp42_create_arb_out {
-	struct pxp_cmd_header header;
+  struct pxp_cmd_header header;
 } __packed;
 
 /* PXP-Input-Packet: Invalidate Stream Key */
 struct pxp42_inv_stream_key_in {
-	struct pxp_cmd_header header;
-	u32 rsvd[3];
+  struct pxp_cmd_header header;
+  u32 rsvd[3];
 } __packed;
 
 /* PXP-Output-Packet: Invalidate Stream Key */
 struct pxp42_inv_stream_key_out {
-	struct pxp_cmd_header header;
-	u32 rsvd;
+  struct pxp_cmd_header header;
+  u32 rsvd;
 } __packed;
 
 #endif /* __INTEL_PXP_FW_INTERFACE_42_H__ */

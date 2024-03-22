@@ -106,7 +106,8 @@ typedef struct SMU14_Firmware_Footer SMU14_Firmware_Footer;
 // PSP3.0 Header Definition
 typedef struct {
   uint32_t ImageVersion;
-  uint32_t ImageVersion2; // This is repeated because DW0 cannot be written in SRAM due to HW bug.
+  uint32_t ImageVersion2; // This is repeated because DW0 cannot be written in
+                          // SRAM due to HW bug.
   uint32_t Padding0[3];
   uint32_t SizeFWSigned;
   uint32_t Padding1[25];
@@ -133,12 +134,12 @@ typedef struct {
   uint32_t DstateFun            : 4;
   uint32_t DstateDev            : 4;
   // MP1_EXT_SCRATCH2
-  uint32_t P2JobHandler         :24;
+  uint32_t P2JobHandler         : 24;
   uint32_t RsmuPmiP2PendingCnt  : 8;
   // MP1_EXT_SCRATCH3
-  uint32_t PostCode             :32;
+  uint32_t PostCode             : 32;
   // MP1_EXT_SCRATCH4
-  uint32_t MsgPortBusy          :24;
+  uint32_t MsgPortBusy          : 24;
   uint32_t RsmuPmiP1Pending     : 1;
   uint32_t DfCstateExitPending  : 1;
   uint32_t Ccx0Pc6ExitPending   : 1;
@@ -146,11 +147,10 @@ typedef struct {
   uint32_t WarmResetPending     : 1;
   uint32_t spare1               : 3;
   // MP1_EXT_SCRATCH5
-  uint32_t IdleMask             :32;
+  uint32_t IdleMask             : 32;
   // MP1_EXT_SCRATCH6 = RTOS threads' status
   // MP1_EXT_SCRATCH7 = RTOS Current Job
 } FwStatus_t;
-
 
 #pragma pack(pop)
 

@@ -12,4 +12,4 @@ struct omap_hwmod;
 
 int omap_i2c_reset(struct omap_hwmod *oh);
 
-#endif	/* __MACH_OMAP2_I2C_H */
+#endif  /* __MACH_OMAP2_I2C_H */

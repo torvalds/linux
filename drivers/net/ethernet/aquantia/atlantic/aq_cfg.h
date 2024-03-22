@@ -19,9 +19,9 @@
 
 #define AQ_CFG_FORCE_LEGACY_INT 0U
 
-#define AQ_CFG_INTERRUPT_MODERATION_OFF		0
-#define AQ_CFG_INTERRUPT_MODERATION_ON		1
-#define AQ_CFG_INTERRUPT_MODERATION_AUTO	0xFFFFU
+#define AQ_CFG_INTERRUPT_MODERATION_OFF   0
+#define AQ_CFG_INTERRUPT_MODERATION_ON    1
+#define AQ_CFG_INTERRUPT_MODERATION_AUTO  0xFFFFU
 
 #define AQ_CFG_INTERRUPT_MODERATION_USEC_MAX (0x1FF * 2)
 
@@ -57,7 +57,7 @@
 #define AQ_CFG_PCI_FUNC_PORTS       2U
 
 #define AQ_CFG_SERVICE_TIMER_INTERVAL    (1 * HZ)
-#define AQ_CFG_POLLING_TIMER_INTERVAL   ((unsigned int)(2 * HZ))
+#define AQ_CFG_POLLING_TIMER_INTERVAL   ((unsigned int) (2 * HZ))
 
 #define AQ_CFG_SKB_FRAGS_MAX   32U
 
@@ -72,7 +72,7 @@
 /* Default WOL modes used on initialization */
 #define AQ_CFG_WOL_MODES WAKE_MAGIC
 
-#define AQ_CFG_SPEED_MSK  0xFFFFU	/* 0xFFFFU==auto_neg */
+#define AQ_CFG_SPEED_MSK  0xFFFFU /* 0xFFFFU==auto_neg */
 
 #define AQ_CFG_IS_AUTONEG_DEF       1U
 #define AQ_CFG_MTU_DEF              1514U
@@ -80,7 +80,8 @@
 #define AQ_CFG_LOCK_TRYS   100U
 
 #define AQ_CFG_DRV_AUTHOR      "Marvell"
-#define AQ_CFG_DRV_DESC        "Marvell (Aquantia) Corporation(R) Network Driver"
+#define AQ_CFG_DRV_DESC        \
+  "Marvell (Aquantia) Corporation(R) Network Driver"
 #define AQ_CFG_DRV_NAME        "atlantic"
 
 #endif /* AQ_CFG_H */

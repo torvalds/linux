@@ -14,7 +14,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
 
-#define ENGINE_NAME_LEN	30
+#define ENGINE_NAME_LEN 30
 
 struct device;
 
@@ -45,30 +45,29 @@ struct device;
  * @cur_req: the current request which is on processing
  */
 struct crypto_engine {
-	char			name[ENGINE_NAME_LEN];
-	bool			idling;
-	bool			busy;
-	bool			running;
+  char name[ENGINE_NAME_LEN];
+  bool idling;
+  bool busy;
+  bool running;
 
-	bool			retry_support;
+  bool retry_support;
 
-	struct list_head	list;
-	spinlock_t		queue_lock;
-	struct crypto_queue	queue;
-	struct device		*dev;
+  struct list_head list;
+  spinlock_t queue_lock;
+  struct crypto_queue queue;
+  struct device *dev;
 
-	bool			rt;
+  bool rt;
 
-	int (*prepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
-	int (*do_batch_requests)(struct crypto_engine *engine);
+  int (*prepare_crypt_hardware)(struct crypto_engine *engine);
+  int (*unprepare_crypt_hardware)(struct crypto_engine *engine);
+  int (*do_batch_requests)(struct crypto_engine *engine);
 
+  struct kthread_worker *kworker;
+  struct kthread_work pump_requests;
 
-	struct kthread_worker           *kworker;
-	struct kthread_work             pump_requests;
-
-	void				*priv_data;
-	struct crypto_async_request	*cur_req;
+  void *priv_data;
+  struct crypto_async_request *cur_req;
 };
 
 #endif

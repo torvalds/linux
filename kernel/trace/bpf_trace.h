@@ -10,20 +10,20 @@
 
 TRACE_EVENT(bpf_trace_printk,
 
-	TP_PROTO(const char *bpf_string),
+    TP_PROTO(const char *bpf_string),
 
-	TP_ARGS(bpf_string),
+    TP_ARGS(bpf_string),
 
-	TP_STRUCT__entry(
-		__string(bpf_string, bpf_string)
-	),
+    TP_STRUCT__entry(
+    __string(bpf_string, bpf_string)
+    ),
 
-	TP_fast_assign(
-		__assign_str(bpf_string, bpf_string);
-	),
+    TP_fast_assign(
+    __assign_str(bpf_string, bpf_string);
+    ),
 
-	TP_printk("%s", __get_str(bpf_string))
-);
+    TP_printk("%s", __get_str(bpf_string))
+    );
 
 #endif /* _TRACE_BPF_TRACE_H */
 

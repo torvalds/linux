@@ -10,20 +10,19 @@
 #include "voltage.h"
 
 static struct voltagedomain omap2_voltdm_core = {
-	.name = "core",
+  .name = "core",
 };
 
 static struct voltagedomain omap2_voltdm_wkup = {
-	.name = "wakeup",
+  .name = "wakeup",
 };
 
 static struct voltagedomain *voltagedomains_omap2[] __initdata = {
-	&omap2_voltdm_core,
-	&omap2_voltdm_wkup,
-	NULL,
+  &omap2_voltdm_core,
+  &omap2_voltdm_wkup,
+  NULL,
 };
 
-void __init omap2xxx_voltagedomains_init(void)
-{
-	voltdm_init(voltagedomains_omap2);
+void __init omap2xxx_voltagedomains_init(void) {
+  voltdm_init(voltagedomains_omap2);
 }

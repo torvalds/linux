@@ -16,29 +16,29 @@
  * code.
  */
 #ifndef __CFI_TYPE
-#define __CFI_TYPE(name)				\
-	.4byte __kcfi_typeid_##name
+#define __CFI_TYPE(name)        \
+  .4byte __kcfi_typeid_ ## name
 #endif
 
-#define SYM_TYPED_ENTRY(name, linkage, align...)	\
-	linkage(name) ASM_NL				\
-	align ASM_NL					\
-	__CFI_TYPE(name) ASM_NL				\
-	name:
+#define SYM_TYPED_ENTRY(name, linkage, align ...)  \
+  linkage(name) ASM_NL        \
+  align ASM_NL          \
+  __CFI_TYPE(name) ASM_NL       \
+  name :
 
-#define SYM_TYPED_START(name, linkage, align...)	\
-	SYM_TYPED_ENTRY(name, linkage, align)
+#define SYM_TYPED_START(name, linkage, align ...)  \
+  SYM_TYPED_ENTRY(name, linkage, align)
 
 #else /* CONFIG_CFI_CLANG */
 
-#define SYM_TYPED_START(name, linkage, align...)	\
-	SYM_START(name, linkage, align)
+#define SYM_TYPED_START(name, linkage, align ...)  \
+  SYM_START(name, linkage, align)
 
 #endif /* CONFIG_CFI_CLANG */
 
 #ifndef SYM_TYPED_FUNC_START
-#define SYM_TYPED_FUNC_START(name) 			\
-	SYM_TYPED_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
+#define SYM_TYPED_FUNC_START(name)      \
+  SYM_TYPED_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)
 #endif
 
 #endif /* __ASSEMBLY__ */

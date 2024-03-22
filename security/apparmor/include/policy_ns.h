@@ -18,7 +18,6 @@
 #include "label.h"
 #include "policy.h"
 
-
 /* struct aa_ns_acct - accounting of profiles in namespace
  * @max_size: maximum space allowed for all profiles in namespace
  * @max_count: maximum number of profiles that can be in this namespace
@@ -26,10 +25,10 @@
  * @count: current count of profiles (includes null profiles)
  */
 struct aa_ns_acct {
-	int max_size;
-	int max_count;
-	int size;
-	int count;
+  int max_size;
+  int max_count;
+  int size;
+  int count;
 };
 
 /* struct aa_ns - namespace for a set of profiles
@@ -56,22 +55,22 @@ struct aa_ns_acct {
  * Namespace names must be unique and can not contain the characters :/\0
  */
 struct aa_ns {
-	struct aa_policy base;
-	struct aa_ns *parent;
-	struct mutex lock;
-	struct aa_ns_acct acct;
-	struct aa_profile *unconfined;
-	struct list_head sub_ns;
-	atomic_t uniq_null;
-	long uniq_id;
-	int level;
-	long revision;
-	wait_queue_head_t wait;
+  struct aa_policy base;
+  struct aa_ns *parent;
+  struct mutex lock;
+  struct aa_ns_acct acct;
+  struct aa_profile *unconfined;
+  struct list_head sub_ns;
+  atomic_t uniq_null;
+  long uniq_id;
+  int level;
+  long revision;
+  wait_queue_head_t wait;
 
-	struct aa_labelset labels;
-	struct list_head rawdata_list;
+  struct aa_labelset labels;
+  struct list_head rawdata_list;
 
-	struct dentry *dents[AAFS_NS_SIZEOF];
+  struct dentry *dents[AAFS_NS_SIZEOF];
 };
 
 extern struct aa_label *kernel_t;
@@ -90,14 +89,13 @@ void aa_free_root_ns(void);
 struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n);
 struct aa_ns *aa_lookupn_ns(struct aa_ns *view, const char *name, size_t n);
 struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
-				     struct dentry *dir);
+    struct dentry *dir);
 struct aa_ns *aa_prepare_ns(struct aa_ns *root, const char *name);
 void __aa_remove_ns(struct aa_ns *ns);
 
-static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)
-{
-	return rcu_dereference_protected(p->parent,
-					 mutex_is_locked(&p->ns->lock));
+static inline struct aa_profile *aa_deref_parent(struct aa_profile *p) {
+  return rcu_dereference_protected(p->parent,
+      mutex_is_locked(&p->ns->lock));
 }
 
 /**
@@ -107,12 +105,11 @@ static inline struct aa_profile *aa_deref_parent(struct aa_profile *p)
  * Returns: pointer to @ns, if @ns is NULL returns NULL
  * Requires: @ns must be held with valid refcount when called
  */
-static inline struct aa_ns *aa_get_ns(struct aa_ns *ns)
-{
-	if (ns)
-		aa_get_profile(ns->unconfined);
-
-	return ns;
+static inline struct aa_ns *aa_get_ns(struct aa_ns *ns) {
+  if (ns) {
+    aa_get_profile(ns->unconfined);
+  }
+  return ns;
 }
 
 /**
@@ -121,10 +118,10 @@ static inline struct aa_ns *aa_get_ns(struct aa_ns *ns)
  *
  * Decrement reference count of @ns and if no longer in use free it
  */
-static inline void aa_put_ns(struct aa_ns *ns)
-{
-	if (ns)
-		aa_put_profile(ns->unconfined);
+static inline void aa_put_ns(struct aa_ns *ns) {
+  if (ns) {
+    aa_put_profile(ns->unconfined);
+  }
 }
 
 /**
@@ -137,15 +134,13 @@ static inline void aa_put_ns(struct aa_ns *ns)
  * Requires: rcu_read_lock be held
  */
 static inline struct aa_ns *__aa_findn_ns(struct list_head *head,
-					  const char *name, size_t n)
-{
-	return (struct aa_ns *)__policy_strn_find(head, name, n);
+    const char *name, size_t n) {
+  return (struct aa_ns *) __policy_strn_find(head, name, n);
 }
 
 static inline struct aa_ns *__aa_find_ns(struct list_head *head,
-					 const char *name)
-{
-	return __aa_findn_ns(head, name, strlen(name));
+    const char *name) {
+  return __aa_findn_ns(head, name, strlen(name));
 }
 
 #endif /* AA_NAMESPACE_H */

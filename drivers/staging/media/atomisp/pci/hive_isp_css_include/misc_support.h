@@ -18,10 +18,11 @@
 
 /* suppress compiler warnings on unused variables */
 #ifndef NOT_USED
-#define NOT_USED(a) ((void)(a))
+#define NOT_USED(a) ((void) (a))
 #endif
 
 /* Calculate the  total bytes for pow(2) byte alignment */
-#define tot_bytes_for_pow2_align(pow2, cur_bytes)	((cur_bytes + (pow2 - 1)) & ~(pow2 - 1))
+#define tot_bytes_for_pow2_align(pow2, \
+      cur_bytes) ((cur_bytes + (pow2 - 1)) & ~(pow2 - 1))
 
 #endif /* __MISC_SUPPORT_H_INCLUDED__ */

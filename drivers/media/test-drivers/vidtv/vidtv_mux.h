@@ -27,7 +27,8 @@
  * struct vidtv_mux_timing - Timing related information
  *
  * This is used to decide when PCR or PSI packets should be sent. This will also
- * provide storage for the clock, which is used to compute the value for the PCR.
+ * provide storage for the clock, which is used to compute the value for the
+ *PCR.
  *
  * @start_jiffies: The value of 'jiffies' when we started the mux thread.
  * @current_jiffies: The value of 'jiffies' for the current iteration.
@@ -38,14 +39,14 @@
  * @si_period_usecs: How often we should send PSI packets.
  */
 struct vidtv_mux_timing {
-	u64 start_jiffies;
-	u64 current_jiffies;
-	u64 past_jiffies;
+  u64 start_jiffies;
+  u64 current_jiffies;
+  u64 past_jiffies;
 
-	u64 clk;
+  u64 clk;
 
-	u64 pcr_period_usecs;
-	u64 si_period_usecs;
+  u64 pcr_period_usecs;
+  u64 si_period_usecs;
 };
 
 /**
@@ -57,18 +58,19 @@ struct vidtv_mux_timing {
  * vidtv_channel and then periodically sends the TS packets for them>
  *
  * @pat: The PAT in use by the muxer.
- * @pmt_secs: The PMT sections in use by the muxer. One for each program in the PAT.
+ * @pmt_secs: The PMT sections in use by the muxer. One for each program in the
+ *PAT.
  * @sdt: The SDT in use by the muxer.
  * @nit: The NIT in use by the muxer.
  * @eit: the EIT in use by the muxer.
  */
 struct vidtv_mux_si {
-	/* the SI tables */
-	struct vidtv_psi_table_pat *pat;
-	struct vidtv_psi_table_pmt **pmt_secs; /* the PMT sections */
-	struct vidtv_psi_table_sdt *sdt;
-	struct vidtv_psi_table_nit *nit;
-	struct vidtv_psi_table_eit *eit;
+  /* the SI tables */
+  struct vidtv_psi_table_pat *pat;
+  struct vidtv_psi_table_pmt **pmt_secs; /* the PMT sections */
+  struct vidtv_psi_table_sdt *sdt;
+  struct vidtv_psi_table_nit *nit;
+  struct vidtv_psi_table_eit *eit;
 };
 
 /**
@@ -80,13 +82,14 @@ struct vidtv_mux_si {
  * @h: This is embedded in a hash table, mapping pid -> vidtv_mux_pid_ctx
  */
 struct vidtv_mux_pid_ctx {
-	u16 pid;
-	u8 cc; /* continuity counter */
-	struct hlist_node h;
+  u16 pid;
+  u8 cc; /* continuity counter */
+  struct hlist_node h;
 };
 
 /**
- * struct vidtv_mux - A muxer abstraction loosely based in libavcodec/mpegtsenc.c
+ * struct vidtv_mux - A muxer abstraction loosely based in
+ *libavcodec/mpegtsenc.c
  * @fe: The frontend structure allocated by the muxer.
  * @dev: pointer to struct device.
  * @timing: Keeps track of timing related information.
@@ -111,35 +114,35 @@ struct vidtv_mux_pid_ctx {
  * @priv: Private data.
  */
 struct vidtv_mux {
-	struct dvb_frontend *fe;
-	struct device *dev;
+  struct dvb_frontend *fe;
+  struct device *dev;
 
-	struct vidtv_mux_timing timing;
+  struct vidtv_mux_timing timing;
 
-	u32 mux_rate_kbytes_sec;
+  u32 mux_rate_kbytes_sec;
 
-	DECLARE_HASHTABLE(pid_ctx, 3);
+  DECLARE_HASHTABLE(pid_ctx, 3);
 
-	void (*on_new_packets_available_cb)(void *priv, u8 *buf, u32 npackets);
+  void (*on_new_packets_available_cb)(void *priv, u8 *buf, u32 npackets);
 
-	u8 *mux_buf;
-	u32 mux_buf_sz;
-	u32 mux_buf_offset;
+  u8 *mux_buf;
+  u32 mux_buf_sz;
+  u32 mux_buf_offset;
 
-	struct vidtv_channel  *channels;
+  struct vidtv_channel *channels;
 
-	struct vidtv_mux_si si;
-	u64 num_streamed_pcr;
-	u64 num_streamed_si;
+  struct vidtv_mux_si si;
+  u64 num_streamed_pcr;
+  u64 num_streamed_si;
 
-	struct work_struct mpeg_thread;
-	bool streaming;
+  struct work_struct mpeg_thread;
+  bool streaming;
 
-	u16 pcr_pid;
-	u16 transport_stream_id;
-	u16 network_id;
-	char *network_name;
-	void *priv;
+  u16 pcr_pid;
+  u16 transport_stream_id;
+  u16 network_id;
+  char *network_name;
+  void *priv;
 };
 
 /**
@@ -158,22 +161,22 @@ struct vidtv_mux {
  * @priv: Private data.
  */
 struct vidtv_mux_init_args {
-	u32 mux_rate_kbytes_sec;
-	void (*on_new_packets_available_cb)(void *priv, u8 *buf, u32 npackets);
-	u32 mux_buf_sz;
-	u64 pcr_period_usecs;
-	u64 si_period_usecs;
-	u16 pcr_pid;
-	u16 transport_stream_id;
-	struct vidtv_channel *channels;
-	u16 network_id;
-	char *network_name;
-	void *priv;
+  u32 mux_rate_kbytes_sec;
+  void (*on_new_packets_available_cb)(void *priv, u8 *buf, u32 npackets);
+  u32 mux_buf_sz;
+  u64 pcr_period_usecs;
+  u64 si_period_usecs;
+  u16 pcr_pid;
+  u16 transport_stream_id;
+  struct vidtv_channel *channels;
+  u16 network_id;
+  char *network_name;
+  void *priv;
 };
 
 struct vidtv_mux *vidtv_mux_init(struct dvb_frontend *fe,
-				 struct device *dev,
-				 struct vidtv_mux_init_args *args);
+    struct device *dev,
+    struct vidtv_mux_init_args *args);
 void vidtv_mux_destroy(struct vidtv_mux *m);
 
 void vidtv_mux_start_thread(struct vidtv_mux *m);

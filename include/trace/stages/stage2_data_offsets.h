@@ -24,7 +24,7 @@
 #define __array(type, item, len)
 
 #undef __dynamic_array
-#define __dynamic_array(type, item, len)	u32 item; const void *item##_ptr_;
+#define __dynamic_array(type, item, len)  u32 item; const void *item ## _ptr_;
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item, -1)
@@ -45,7 +45,8 @@
 #define __sockaddr(field, len) __dynamic_array(u8, field, len)
 
 #undef __rel_dynamic_array
-#define __rel_dynamic_array(type, item, len)	u32 item; const void *item##_ptr_;
+#define __rel_dynamic_array(type, item, len)  u32 item; \
+  const void *item ## _ptr_;
 
 #undef __rel_string
 #define __rel_string(item, src) __rel_dynamic_array(char, item, -1)
@@ -54,7 +55,8 @@
 #define __rel_string_len(item, src, len) __rel_dynamic_array(char, item, -1)
 
 #undef __rel_bitmask
-#define __rel_bitmask(item, nr_bits) __rel_dynamic_array(unsigned long, item, -1)
+#define __rel_bitmask(item, nr_bits) __rel_dynamic_array(unsigned long, item, \
+    -1)
 
 #undef __rel_cpumask
 #define __rel_cpumask(item) __rel_dynamic_array(unsigned long, item, -1)

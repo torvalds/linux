@@ -91,51 +91,51 @@
 #define AFE_DAI_CUR 0x137c
 
 /* AFE_DAIBT_CON0 (0x001c) */
-#define AFE_DAIBT_CON0_DAIBT_EN		(0x1 << 0)
-#define AFE_DAIBT_CON0_BT_FUNC_EN	(0x1 << 1)
-#define AFE_DAIBT_CON0_BT_FUNC_RDY	(0x1 << 3)
-#define AFE_DAIBT_CON0_BT_WIDE_MODE_EN	(0x1 << 9)
-#define AFE_DAIBT_CON0_MRG_USE		(0x1 << 12)
+#define AFE_DAIBT_CON0_DAIBT_EN   (0x1 << 0)
+#define AFE_DAIBT_CON0_BT_FUNC_EN (0x1 << 1)
+#define AFE_DAIBT_CON0_BT_FUNC_RDY  (0x1 << 3)
+#define AFE_DAIBT_CON0_BT_WIDE_MODE_EN  (0x1 << 9)
+#define AFE_DAIBT_CON0_MRG_USE    (0x1 << 12)
 
 /* PWR1_ASM_CON1 (0x0108) */
-#define PWR1_ASM_CON1_INIT_VAL		(0x492)
+#define PWR1_ASM_CON1_INIT_VAL    (0x492)
 
 /* AFE_MRGIF_CON (0x003c) */
-#define AFE_MRGIF_CON_MRG_EN		(0x1 << 0)
-#define AFE_MRGIF_CON_MRG_I2S_EN	(0x1 << 16)
-#define AFE_MRGIF_CON_I2S_MODE_MASK	(0xf << 20)
-#define AFE_MRGIF_CON_I2S_MODE_32K	(0x4 << 20)
+#define AFE_MRGIF_CON_MRG_EN    (0x1 << 0)
+#define AFE_MRGIF_CON_MRG_I2S_EN  (0x1 << 16)
+#define AFE_MRGIF_CON_I2S_MODE_MASK (0xf << 20)
+#define AFE_MRGIF_CON_I2S_MODE_32K  (0x4 << 20)
 
 /* ASYS_TOP_CON (0x0600) */
-#define ASYS_TOP_CON_ASYS_TIMING_ON		(0x3 << 0)
+#define ASYS_TOP_CON_ASYS_TIMING_ON   (0x3 << 0)
 
 /* PWR2_ASM_CON1 (0x1070) */
-#define PWR2_ASM_CON1_INIT_VAL		(0x492492)
+#define PWR2_ASM_CON1_INIT_VAL    (0x492492)
 
 /* AFE_DAC_CON0 (0x1200) */
-#define AFE_DAC_CON0_AFE_ON		(0x1 << 0)
+#define AFE_DAC_CON0_AFE_ON   (0x1 << 0)
 
 /* AFE_MEMIF_PBUF_SIZE (0x1238) */
-#define AFE_MEMIF_PBUF_SIZE_DLM_MASK		(0x1 << 29)
-#define AFE_MEMIF_PBUF_SIZE_PAIR_INTERLEAVE	(0x0 << 29)
-#define AFE_MEMIF_PBUF_SIZE_FULL_INTERLEAVE	(0x1 << 29)
-#define DLMCH_BIT_WIDTH_MASK			(0x1 << 28)
-#define AFE_MEMIF_PBUF_SIZE_DLM_CH_MASK		(0xf << 24)
-#define AFE_MEMIF_PBUF_SIZE_DLM_CH(x)		((x) << 24)
-#define AFE_MEMIF_PBUF_SIZE_DLM_BYTE_MASK	(0x3 << 12)
-#define AFE_MEMIF_PBUF_SIZE_DLM_32BYTES		(0x1 << 12)
+#define AFE_MEMIF_PBUF_SIZE_DLM_MASK    (0x1 << 29)
+#define AFE_MEMIF_PBUF_SIZE_PAIR_INTERLEAVE (0x0 << 29)
+#define AFE_MEMIF_PBUF_SIZE_FULL_INTERLEAVE (0x1 << 29)
+#define DLMCH_BIT_WIDTH_MASK      (0x1 << 28)
+#define AFE_MEMIF_PBUF_SIZE_DLM_CH_MASK   (0xf << 24)
+#define AFE_MEMIF_PBUF_SIZE_DLM_CH(x)   ((x) << 24)
+#define AFE_MEMIF_PBUF_SIZE_DLM_BYTE_MASK (0x3 << 12)
+#define AFE_MEMIF_PBUF_SIZE_DLM_32BYTES   (0x1 << 12)
 
 /* I2S in/out register bit control */
-#define ASYS_I2S_CON_FS			(0x1f << 8)
-#define ASYS_I2S_CON_FS_SET(x)		((x) << 8)
-#define ASYS_I2S_CON_RESET		(0x1 << 30)
-#define ASYS_I2S_CON_I2S_EN		(0x1 << 0)
-#define ASYS_I2S_CON_ONE_HEART_MODE	(0x1 << 16)
-#define ASYS_I2S_CON_I2S_COUPLE_MODE	(0x1 << 17)
+#define ASYS_I2S_CON_FS     (0x1f << 8)
+#define ASYS_I2S_CON_FS_SET(x)    ((x) << 8)
+#define ASYS_I2S_CON_RESET    (0x1 << 30)
+#define ASYS_I2S_CON_I2S_EN   (0x1 << 0)
+#define ASYS_I2S_CON_ONE_HEART_MODE (0x1 << 16)
+#define ASYS_I2S_CON_I2S_COUPLE_MODE  (0x1 << 17)
 /* 0:EIAJ 1:I2S */
-#define ASYS_I2S_CON_I2S_MODE		(0x1 << 3)
-#define ASYS_I2S_CON_WIDE_MODE		(0x1 << 1)
-#define ASYS_I2S_CON_WIDE_MODE_SET(x)	((x) << 1)
-#define ASYS_I2S_IN_PHASE_FIX		(0x1 << 31)
+#define ASYS_I2S_CON_I2S_MODE   (0x1 << 3)
+#define ASYS_I2S_CON_WIDE_MODE    (0x1 << 1)
+#define ASYS_I2S_CON_WIDE_MODE_SET(x) ((x) << 1)
+#define ASYS_I2S_IN_PHASE_FIX   (0x1 << 31)
 
 #endif

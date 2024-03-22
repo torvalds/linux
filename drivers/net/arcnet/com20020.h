@@ -38,95 +38,94 @@ extern const struct net_device_ops com20020_netdev_ops;
 #define PLX_PCI_MAX_CARDS 2
 
 struct ledoffsets {
-	int green;
-	int red;
+  int green;
+  int red;
 };
 
 struct com20020_pci_channel_map {
-	u32 bar;
-	u32 offset;
-	u32 size;               /* 0x00 - auto, e.g. length of entire bar */
+  u32 bar;
+  u32 offset;
+  u32 size;               /* 0x00 - auto, e.g. length of entire bar */
 };
 
 struct com20020_pci_card_info {
-	const char *name;
-	int devcount;
+  const char *name;
+  int devcount;
 
-	struct com20020_pci_channel_map chan_map_tbl[PLX_PCI_MAX_CARDS];
-	struct com20020_pci_channel_map misc_map;
+  struct com20020_pci_channel_map chan_map_tbl[PLX_PCI_MAX_CARDS];
+  struct com20020_pci_channel_map misc_map;
 
-	struct ledoffsets leds[PLX_PCI_MAX_CARDS];
-	int rotary;
+  struct ledoffsets leds[PLX_PCI_MAX_CARDS];
+  int rotary;
 
-	unsigned int flags;
+  unsigned int flags;
 };
 
 struct com20020_priv {
-	struct com20020_pci_card_info *ci;
-	struct list_head list_dev;
-	resource_size_t misc;
+  struct com20020_pci_card_info *ci;
+  struct list_head list_dev;
+  resource_size_t misc;
 };
 
 struct com20020_dev {
-	struct list_head list;
-	struct net_device *dev;
+  struct list_head list;
+  struct net_device *dev;
 
-	struct led_classdev tx_led;
-	struct led_classdev recon_led;
+  struct led_classdev tx_led;
+  struct led_classdev recon_led;
 
-	struct com20020_priv *pci_priv;
-	int index;
+  struct com20020_priv *pci_priv;
+  int index;
 };
 
-#define COM20020_REG_W_INTMASK	0	/* writable */
-#define COM20020_REG_R_STATUS	0	/* readable */
-#define COM20020_REG_W_COMMAND	1	/* standard arcnet commands */
-#define COM20020_REG_R_DIAGSTAT	1	/* diagnostic status */
-#define COM20020_REG_W_ADDR_HI	2	/* control for IO-mapped memory */
-#define COM20020_REG_W_ADDR_LO	3
-#define COM20020_REG_RW_MEMDATA	4	/* data port for IO-mapped memory */
-#define COM20020_REG_W_SUBADR	5	/* the extended port _XREG refers to */
-#define COM20020_REG_W_CONFIG	6	/* configuration */
-#define COM20020_REG_W_XREG	7	/* extra
-					 * (indexed by _CONFIG or _SUBADDR)
-					 */
+#define COM20020_REG_W_INTMASK  0 /* writable */
+#define COM20020_REG_R_STATUS 0 /* readable */
+#define COM20020_REG_W_COMMAND  1 /* standard arcnet commands */
+#define COM20020_REG_R_DIAGSTAT 1 /* diagnostic status */
+#define COM20020_REG_W_ADDR_HI  2 /* control for IO-mapped memory */
+#define COM20020_REG_W_ADDR_LO  3
+#define COM20020_REG_RW_MEMDATA 4 /* data port for IO-mapped memory */
+#define COM20020_REG_W_SUBADR 5 /* the extended port _XREG refers to */
+#define COM20020_REG_W_CONFIG 6 /* configuration */
+#define COM20020_REG_W_XREG 7 /* extra
+                               * (indexed by _CONFIG or _SUBADDR)
+                               */
 
 /* in the ADDR_HI register */
-#define RDDATAflag	0x80	/* next access is a read (not a write) */
+#define RDDATAflag  0x80  /* next access is a read (not a write) */
 
 /* in the DIAGSTAT register */
-#define NEWNXTIDflag	0x02	/* ID to which token is passed has changed */
+#define NEWNXTIDflag  0x02  /* ID to which token is passed has changed */
 
 /* in the CONFIG register */
-#define RESETcfg	0x80	/* put card in reset state */
-#define TXENcfg		0x20	/* enable TX */
-#define XTOcfg(x)	((x) << 3)	/* extended timeout */
+#define RESETcfg  0x80  /* put card in reset state */
+#define TXENcfg   0x20  /* enable TX */
+#define XTOcfg(x) ((x) << 3)  /* extended timeout */
 
 /* in SETUP register */
-#define PROMISCset	0x10	/* enable RCV_ALL */
-#define P1MODE		0x80    /* enable P1-MODE for Backplane */
-#define SLOWARB		0x01    /* enable Slow Arbitration for >=5Mbps */
+#define PROMISCset  0x10  /* enable RCV_ALL */
+#define P1MODE    0x80    /* enable P1-MODE for Backplane */
+#define SLOWARB   0x01    /* enable Slow Arbitration for >=5Mbps */
 
 /* COM2002x */
-#define SUB_TENTATIVE	0	/* tentative node ID */
-#define SUB_NODE	1	/* node ID */
-#define SUB_SETUP1	2	/* various options */
-#define SUB_TEST	3	/* test/diag register */
+#define SUB_TENTATIVE 0 /* tentative node ID */
+#define SUB_NODE  1 /* node ID */
+#define SUB_SETUP1  2 /* various options */
+#define SUB_TEST  3 /* test/diag register */
 
 /* COM20022 only */
-#define SUB_SETUP2	4	/* sundry options */
-#define SUB_BUSCTL	5	/* bus control options */
-#define SUB_DMACOUNT	6	/* DMA count options */
+#define SUB_SETUP2  4 /* sundry options */
+#define SUB_BUSCTL  5 /* bus control options */
+#define SUB_DMACOUNT  6 /* DMA count options */
 
 static inline void com20020_set_subaddress(struct arcnet_local *lp,
-					   int ioaddr, int val)
-{
-	if (val < 4) {
-		lp->config = (lp->config & ~0x03) | val;
-		arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
-	} else {
-		arcnet_outb(val, ioaddr, COM20020_REG_W_SUBADR);
-	}
+    int ioaddr, int val) {
+  if (val < 4) {
+    lp->config = (lp->config & ~0x03) | val;
+    arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
+  } else {
+    arcnet_outb(val, ioaddr, COM20020_REG_W_SUBADR);
+  }
 }
 
 #endif /* __COM20020_H */

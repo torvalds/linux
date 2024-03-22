@@ -12,11 +12,11 @@
 #include <linux/soundwire/sdw.h>
 
 struct snd_soc_acpi_package_context {
-	char *name;           /* package name */
-	int length;           /* number of elements */
-	struct acpi_buffer *format;
-	struct acpi_buffer *state;
-	bool data_valid;
+  char *name;           /* package name */
+  int length;           /* number of elements */
+  struct acpi_buffer *format;
+  struct acpi_buffer *state;
+  bool data_valid;
 };
 
 /* codec name is used in DAIs is i2c-<HID>:00 with HID being 8 chars */
@@ -24,35 +24,32 @@ struct snd_soc_acpi_package_context {
 
 #if IS_ENABLED(CONFIG_ACPI)
 /* acpi match */
-struct snd_soc_acpi_mach *
-snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines);
+struct snd_soc_acpi_mach *snd_soc_acpi_find_machine(
+  struct snd_soc_acpi_mach *machines);
 
 bool snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
-				    struct snd_soc_acpi_package_context *ctx);
+    struct snd_soc_acpi_package_context *ctx);
 
 /* check all codecs */
 struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg);
 
 #else
 /* acpi match */
-static inline struct snd_soc_acpi_mach *
-snd_soc_acpi_find_machine(struct snd_soc_acpi_mach *machines)
-{
-	return NULL;
+static inline struct snd_soc_acpi_mach *snd_soc_acpi_find_machine(
+    struct snd_soc_acpi_mach *machines) {
+  return NULL;
 }
 
-static inline bool
-snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
-				   struct snd_soc_acpi_package_context *ctx)
-{
-	return false;
+static inline bool snd_soc_acpi_find_package_from_hid(const u8 hid[ACPI_ID_LEN],
+    struct snd_soc_acpi_package_context *ctx) {
+  return false;
 }
 
 /* check all codecs */
-static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
-{
-	return NULL;
+static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg) {
+  return NULL;
 }
+
 #endif
 
 /**
@@ -71,22 +68,22 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * @subsystem_vendor: optional PCI SSID vendor value
  * @subsystem_device: optional PCI SSID device value
  * @subsystem_id_set: true if a value has been written to
- *		      subsystem_vendor and subsystem_device.
+ *          subsystem_vendor and subsystem_device.
  */
 struct snd_soc_acpi_mach_params {
-	u32 acpi_ipc_irq_index;
-	const char *platform;
-	u32 codec_mask;
-	u32 dmic_num;
-	bool common_hdmi_codec_drv;
-	u32 link_mask;
-	const struct snd_soc_acpi_link_adr *links;
-	u32 i2s_link_mask;
-	u32 num_dai_drivers;
-	struct snd_soc_dai_driver *dai_drivers;
-	unsigned short subsystem_vendor;
-	unsigned short subsystem_device;
-	bool subsystem_id_set;
+  u32 acpi_ipc_irq_index;
+  const char *platform;
+  u32 codec_mask;
+  u32 dmic_num;
+  bool common_hdmi_codec_drv;
+  u32 link_mask;
+  const struct snd_soc_acpi_link_adr *links;
+  u32 i2s_link_mask;
+  u32 num_dai_drivers;
+  struct snd_soc_dai_driver *dai_drivers;
+  unsigned short subsystem_vendor;
+  unsigned short subsystem_device;
+  bool subsystem_id_set;
 };
 
 /**
@@ -97,10 +94,10 @@ struct snd_soc_acpi_mach_params {
  * @group_id: platform-unique group identifier (only when @aggregrated is 1)
  */
 struct snd_soc_acpi_endpoint {
-	u8 num;
-	u8 aggregated;
-	u8 group_position;
-	u8 group_id;
+  u8 num;
+  u8 aggregated;
+  u8 group_position;
+  u8 group_id;
 };
 
 /**
@@ -111,10 +108,10 @@ struct snd_soc_acpi_endpoint {
  * @name_prefix: string used for codec controls
  */
 struct snd_soc_acpi_adr_device {
-	const u64 adr;
-	const u8 num_endpoints;
-	const struct snd_soc_acpi_endpoint *endpoints;
-	const char *name_prefix;
+  const u64 adr;
+  const u8 num_endpoints;
+  const struct snd_soc_acpi_endpoint *endpoints;
+  const char *name_prefix;
 };
 
 /**
@@ -128,9 +125,9 @@ struct snd_soc_acpi_adr_device {
  */
 
 struct snd_soc_acpi_link_adr {
-	const u32 mask;
-	const u32 num_adr;
-	const struct snd_soc_acpi_adr_device *adr_d;
+  const u32 mask;
+  const u32 num_adr;
+  const struct snd_soc_acpi_adr_device *adr_d;
 };
 
 /*
@@ -140,13 +137,15 @@ struct snd_soc_acpi_link_adr {
 #define SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER BIT(0)
 
 /*
- * when more than one SSP is reported in the link mask, use the most significant.
+ * when more than one SSP is reported in the link mask, use the most
+ * significant.
  * This choice was found to be valid on platforms with ES8336 codecs.
  */
 #define SND_SOC_ACPI_TPLG_INTEL_SSP_MSB BIT(1)
 
 /*
- * when set the topology uses the -dmic<N>ch suffix, where N is determined based on
+ * when set the topology uses the -dmic<N>ch suffix, where N is determined based
+ * on
  * BIOS or DMI information
  */
 #define SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER BIT(2)
@@ -178,21 +177,21 @@ struct snd_soc_acpi_link_adr {
  */
 /* Descriptor for SST ASoC machine driver */
 struct snd_soc_acpi_mach {
-	u8 id[ACPI_ID_LEN];
-	const char *uid;
-	const struct snd_soc_acpi_codecs *comp_ids;
-	const u32 link_mask;
-	const struct snd_soc_acpi_link_adr *links;
-	const char *drv_name;
-	const char *fw_filename;
-	const char *tplg_filename;
-	const char *board;
-	struct snd_soc_acpi_mach * (*machine_quirk)(void *arg);
-	const void *quirk_data;
-	void *pdata;
-	struct snd_soc_acpi_mach_params mach_params;
-	const char *sof_tplg_filename;
-	const u32 tplg_quirk_mask;
+  u8 id[ACPI_ID_LEN];
+  const char *uid;
+  const struct snd_soc_acpi_codecs *comp_ids;
+  const u32 link_mask;
+  const struct snd_soc_acpi_link_adr *links;
+  const char *drv_name;
+  const char *fw_filename;
+  const char *tplg_filename;
+  const char *board;
+  struct snd_soc_acpi_mach *(*machine_quirk)(void *arg);
+  const void *quirk_data;
+  void *pdata;
+  struct snd_soc_acpi_mach_params mach_params;
+  const char *sof_tplg_filename;
+  const u32 tplg_quirk_mask;
 };
 
 #define SND_SOC_ACPI_MAX_CODECS 3
@@ -207,19 +206,19 @@ struct snd_soc_acpi_mach {
  *
  */
 struct snd_soc_acpi_codecs {
-	int num_codecs;
-	u8 codecs[SND_SOC_ACPI_MAX_CODECS][ACPI_ID_LEN];
+  int num_codecs;
+  u8 codecs[SND_SOC_ACPI_MAX_CODECS][ACPI_ID_LEN];
 };
 
-static inline bool snd_soc_acpi_sof_parent(struct device *dev)
-{
-	return dev->parent && dev->parent->driver && dev->parent->driver->name &&
-		!strncmp(dev->parent->driver->name, "sof-audio-acpi", strlen("sof-audio-acpi"));
+static inline bool snd_soc_acpi_sof_parent(struct device *dev) {
+  return dev->parent && dev->parent->driver && dev->parent->driver->name
+    && !strncmp(dev->parent->driver->name, "sof-audio-acpi",
+      strlen("sof-audio-acpi"));
 }
 
 bool snd_soc_acpi_sdw_link_slaves_found(struct device *dev,
-					const struct snd_soc_acpi_link_adr *link,
-					struct sdw_extended_slave_id *ids,
-					int num_slaves);
+    const struct snd_soc_acpi_link_adr *link,
+    struct sdw_extended_slave_id *ids,
+    int num_slaves);
 
 #endif

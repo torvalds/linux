@@ -7,7 +7,7 @@ struct hid_field;
 struct hid_usage;
 
 void vivaldi_feature_mapping(struct hid_device *hdev,
-			     struct hid_field *field, struct hid_usage *usage);
+    struct hid_field *field, struct hid_usage *usage);
 
 extern const struct attribute_group *vivaldi_attribute_groups[];
 

@@ -7,13 +7,13 @@
  *
  * Written by Thayne Harbaugh
  * Based on work by Dan Hollis <goemon at anime dot net> and others.
- *	http://www.anime.net/~goemon/linux-ecc/
+ *  http://www.anime.net/~goemon/linux-ecc/
  *
  * NMI handling support added by
  *     Dave Peterson <dsp@llnl.gov> <dave_peterson@pobox.com>
  *
  * Refactored for multi-source files:
- *	Doug Thompson <norsk5@xmission.com>
+ *  Doug Thompson <norsk5@xmission.com>
  *
  * Please look at Documentation/driver-api/edac.rst for more info about
  * EDAC core structs and functions.
@@ -38,27 +38,27 @@
 #include <linux/edac.h>
 
 #if PAGE_SHIFT < 20
-#define PAGES_TO_MiB(pages)	((pages) >> (20 - PAGE_SHIFT))
-#define MiB_TO_PAGES(mb)	((mb) << (20 - PAGE_SHIFT))
-#else				/* PAGE_SHIFT > 20 */
-#define PAGES_TO_MiB(pages)	((pages) << (PAGE_SHIFT - 20))
-#define MiB_TO_PAGES(mb)	((mb) >> (PAGE_SHIFT - 20))
+#define PAGES_TO_MiB(pages) ((pages) >> (20 - PAGE_SHIFT))
+#define MiB_TO_PAGES(mb)  ((mb) << (20 - PAGE_SHIFT))
+#else       /* PAGE_SHIFT > 20 */
+#define PAGES_TO_MiB(pages) ((pages) << (PAGE_SHIFT - 20))
+#define MiB_TO_PAGES(mb)  ((mb) >> (PAGE_SHIFT - 20))
 #endif
 
-#define edac_printk(level, prefix, fmt, arg...) \
-	printk(level "EDAC " prefix ": " fmt, ##arg)
+#define edac_printk(level, prefix, fmt, arg ...) \
+  printk(level "EDAC " prefix ": " fmt, ## arg)
 
-#define edac_mc_printk(mci, level, fmt, arg...) \
-	printk(level "EDAC MC%d: " fmt, mci->mc_idx, ##arg)
+#define edac_mc_printk(mci, level, fmt, arg ...) \
+  printk(level "EDAC MC%d: " fmt, mci->mc_idx, ## arg)
 
-#define edac_mc_chipset_printk(mci, level, prefix, fmt, arg...) \
-	printk(level "EDAC " prefix " MC%d: " fmt, mci->mc_idx, ##arg)
+#define edac_mc_chipset_printk(mci, level, prefix, fmt, arg ...) \
+  printk(level "EDAC " prefix " MC%d: " fmt, mci->mc_idx, ## arg)
 
-#define edac_device_printk(ctl, level, fmt, arg...) \
-	printk(level "EDAC DEVICE%d: " fmt, ctl->dev_idx, ##arg)
+#define edac_device_printk(ctl, level, fmt, arg ...) \
+  printk(level "EDAC DEVICE%d: " fmt, ctl->dev_idx, ## arg)
 
-#define edac_pci_printk(ctl, level, fmt, arg...) \
-	printk(level "EDAC PCI%d: " fmt, ctl->pci_idx, ##arg)
+#define edac_pci_printk(ctl, level, fmt, arg ...) \
+  printk(level "EDAC PCI%d: " fmt, ctl->pci_idx, ## arg)
 
 /* prefixes for edac_printk() and edac_mc_printk() */
 #define EDAC_MC "MC"
@@ -70,26 +70,26 @@ extern const char * const edac_mem_types[];
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
 
-#define edac_dbg(level, fmt, ...)					\
-do {									\
-	if (level <= edac_debug_level)					\
-		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
-			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
-} while (0)
+#define edac_dbg(level, fmt, ...)         \
+  do {                  \
+    if (level <= edac_debug_level)          \
+    edac_printk(KERN_DEBUG, EDAC_DEBUG,     \
+    "%s: " fmt, __func__, ## __VA_ARGS__); \
+  } while (0)
 
-#else				/* !CONFIG_EDAC_DEBUG */
+#else       /* !CONFIG_EDAC_DEBUG */
 
-#define edac_dbg(level, fmt, ...)					\
-do {									\
-	if (0)								\
-		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
-			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
-} while (0)
+#define edac_dbg(level, fmt, ...)         \
+  do {                  \
+    if (0)                \
+    edac_printk(KERN_DEBUG, EDAC_DEBUG,     \
+    "%s: " fmt, __func__, ## __VA_ARGS__); \
+  } while (0)
 
-#endif				/* !CONFIG_EDAC_DEBUG */
+#endif        /* !CONFIG_EDAC_DEBUG */
 
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
-	PCI_DEVICE_ID_ ## vend ## _ ## dev
+  PCI_DEVICE_ID_ ## vend ## _ ## dev
 
 #define edac_dev_name(dev) (dev)->dev_name
 
@@ -98,10 +98,10 @@ do {									\
 /**
  * edac_mc_alloc() - Allocate and partially fill a struct &mem_ctl_info.
  *
- * @mc_num:		Memory controller number
- * @n_layers:		Number of MC hierarchy layers
- * @layers:		Describes each layer as seen by the Memory Controller
- * @sz_pvt:		size of private storage needed
+ * @mc_num:   Memory controller number
+ * @n_layers:   Number of MC hierarchy layers
+ * @layers:   Describes each layer as seen by the Memory Controller
+ * @sz_pvt:   size of private storage needed
  *
  *
  * Everything is kmalloc'ed as one big chunk - more efficient.
@@ -119,35 +119,35 @@ do {									\
  *   on such scenarios, as grouping the multiple ranks require drivers change.
  *
  * Returns:
- *	On success, return a pointer to struct mem_ctl_info pointer;
- *	%NULL otherwise
+ *  On success, return a pointer to struct mem_ctl_info pointer;
+ *  %NULL otherwise
  */
 struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
-				   unsigned int n_layers,
-				   struct edac_mc_layer *layers,
-				   unsigned int sz_pvt);
+    unsigned int n_layers,
+    struct edac_mc_layer *layers,
+    unsigned int sz_pvt);
 
 /**
  * edac_get_owner - Return the owner's mod_name of EDAC MC
  *
  * Returns:
- *	Pointer to mod_name string when EDAC MC is owned. NULL otherwise.
+ *  Pointer to mod_name string when EDAC MC is owned. NULL otherwise.
  */
 extern const char *edac_get_owner(void);
 
 /*
  * edac_mc_add_mc_with_groups() - Insert the @mci structure into the mci
- *	global list and create sysfs entries associated with @mci structure.
+ *  global list and create sysfs entries associated with @mci structure.
  *
  * @mci: pointer to the mci structure to be added to the list
  * @groups: optional attribute groups for the driver-specific sysfs entries
  *
  * Returns:
- *	0 on Success, or an error code on failure
+ *  0 on Success, or an error code on failure
  */
 extern int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
-				      const struct attribute_group **groups);
-#define edac_mc_add_mc(mci)	edac_mc_add_mc_with_groups(mci, NULL)
+    const struct attribute_group **groups);
+#define edac_mc_add_mc(mci) edac_mc_add_mc_with_groups(mci, NULL)
 
 /**
  * edac_mc_free() -  Frees a previously allocated @mci structure
@@ -160,8 +160,8 @@ extern void edac_mc_free(struct mem_ctl_info *mci);
  * edac_has_mcs() - Check if any MCs have been allocated.
  *
  * Returns:
- *	True if MC instances have been registered successfully.
- *	False otherwise.
+ *  True if MC instances have been registered successfully.
+ *  False otherwise.
  */
 extern bool edac_has_mcs(void);
 
@@ -177,7 +177,7 @@ extern struct mem_ctl_info *edac_mc_find(int idx);
 
 /**
  * find_mci_by_dev() - Scan list of controllers looking for the one that
- *	manages the @dev device.
+ *  manages the @dev device.
  *
  * @dev: pointer to a struct device related with the MCI
  *
@@ -188,7 +188,7 @@ extern struct mem_ctl_info *find_mci_by_dev(struct device *dev);
 
 /**
  * edac_mc_del_mc() - Remove sysfs entries for mci structure associated with
- *	@dev and remove mci structure from global list.
+ *  @dev and remove mci structure from global list.
  *
  * @dev: Pointer to struct &device representing mci structure to remove.
  *
@@ -198,7 +198,7 @@ extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
 
 /**
  * edac_mc_find_csrow_by_page() - Ancillary routine to identify what csrow
- *	contains a memory page.
+ *  contains a memory page.
  *
  * @mci: pointer to a struct mem_ctl_info structure
  * @page: memory page to find
@@ -206,13 +206,13 @@ extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
  * Returns: on success, returns the csrow. -1 if not found.
  */
 extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
-				      unsigned long page);
+    unsigned long page);
 
 /**
  * edac_raw_mc_handle_error() - Reports a memory event to userspace without
- *	doing anything to discover the error location.
+ *  doing anything to discover the error location.
  *
- * @e:			error description
+ * @e:      error description
  *
  * This raw function is used internally by edac_mc_handle_error(). It should
  * only be called directly when the hardware error come directly from BIOS,
@@ -223,36 +223,36 @@ void edac_raw_mc_handle_error(struct edac_raw_error_desc *e);
 /**
  * edac_mc_handle_error() - Reports a memory event to userspace.
  *
- * @type:		severity of the error (CE/UE/Fatal)
- * @mci:		a struct mem_ctl_info pointer
- * @error_count:	Number of errors of the same type
- * @page_frame_number:	mem page where the error occurred
- * @offset_in_page:	offset of the error inside the page
- * @syndrome:		ECC syndrome
- * @top_layer:		Memory layer[0] position
- * @mid_layer:		Memory layer[1] position
- * @low_layer:		Memory layer[2] position
- * @msg:		Message meaningful to the end users that
- *			explains the event
- * @other_detail:	Technical details about the event that
- *			may help hardware manufacturers and
- *			EDAC developers to analyse the event
+ * @type:   severity of the error (CE/UE/Fatal)
+ * @mci:    a struct mem_ctl_info pointer
+ * @error_count:  Number of errors of the same type
+ * @page_frame_number:  mem page where the error occurred
+ * @offset_in_page: offset of the error inside the page
+ * @syndrome:   ECC syndrome
+ * @top_layer:    Memory layer[0] position
+ * @mid_layer:    Memory layer[1] position
+ * @low_layer:    Memory layer[2] position
+ * @msg:    Message meaningful to the end users that
+ *      explains the event
+ * @other_detail: Technical details about the event that
+ *      may help hardware manufacturers and
+ *      EDAC developers to analyse the event
  */
 void edac_mc_handle_error(const enum hw_event_mc_err_type type,
-			  struct mem_ctl_info *mci,
-			  const u16 error_count,
-			  const unsigned long page_frame_number,
-			  const unsigned long offset_in_page,
-			  const unsigned long syndrome,
-			  const int top_layer,
-			  const int mid_layer,
-			  const int low_layer,
-			  const char *msg,
-			  const char *other_detail);
+    struct mem_ctl_info *mci,
+    const u16 error_count,
+    const unsigned long page_frame_number,
+    const unsigned long offset_in_page,
+    const unsigned long syndrome,
+    const int top_layer,
+    const int mid_layer,
+    const int low_layer,
+    const char *msg,
+    const char *other_detail);
 
 /*
  * edac misc APIs
  */
 extern char *edac_op_state_to_string(int op_state);
 
-#endif				/* _EDAC_MC_H_ */
+#endif        /* _EDAC_MC_H_ */

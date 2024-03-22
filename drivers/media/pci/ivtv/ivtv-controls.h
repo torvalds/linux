@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-    ioctl control functions
-    Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
-    Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
-
+ *  ioctl control functions
+ *  Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
+ *  Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *
  */
 
 #ifndef IVTV_CONTROLS_H

@@ -21,7 +21,7 @@
 #define SND_US16X08_KCMAX(x) (((x)->private_value >> 0) & 0xff)
 /* set macro for kcontrol private_value */
 #define SND_US16X08_KCSET(bias, step, min, max)  \
-	(((bias) << 24) | ((step) << 16) | ((min) << 8) | (max))
+  (((bias) << 24) | ((step) << 16) | ((min) << 8) | (max))
 
 /* the URB request/type to control Tascam mixers */
 #define SND_US16X08_URB_REQUEST 0x1D
@@ -78,42 +78,42 @@
 #define SND_US16X08_ID_ROUTE 0x00
 
 /* Compressor Ids */
-#define SND_US16X08_ID_COMP_BASE	0x32
-#define SND_US16X08_ID_COMP_THRESHOLD	SND_US16X08_ID_COMP_BASE
-#define SND_US16X08_ID_COMP_RATIO	(SND_US16X08_ID_COMP_BASE + 1)
-#define SND_US16X08_ID_COMP_ATTACK	(SND_US16X08_ID_COMP_BASE + 2)
-#define SND_US16X08_ID_COMP_RELEASE	(SND_US16X08_ID_COMP_BASE + 3)
-#define SND_US16X08_ID_COMP_GAIN	(SND_US16X08_ID_COMP_BASE + 4)
-#define SND_US16X08_ID_COMP_SWITCH	(SND_US16X08_ID_COMP_BASE + 5)
-#define SND_US16X08_ID_COMP_COUNT	6
+#define SND_US16X08_ID_COMP_BASE  0x32
+#define SND_US16X08_ID_COMP_THRESHOLD SND_US16X08_ID_COMP_BASE
+#define SND_US16X08_ID_COMP_RATIO (SND_US16X08_ID_COMP_BASE + 1)
+#define SND_US16X08_ID_COMP_ATTACK  (SND_US16X08_ID_COMP_BASE + 2)
+#define SND_US16X08_ID_COMP_RELEASE (SND_US16X08_ID_COMP_BASE + 3)
+#define SND_US16X08_ID_COMP_GAIN  (SND_US16X08_ID_COMP_BASE + 4)
+#define SND_US16X08_ID_COMP_SWITCH  (SND_US16X08_ID_COMP_BASE + 5)
+#define SND_US16X08_ID_COMP_COUNT 6
 
 #define COMP_STORE_IDX(x) ((x) - SND_US16X08_ID_COMP_BASE)
 
 struct snd_us16x08_eq_store {
-	u8 val[SND_US16X08_ID_EQ_BAND_COUNT][SND_US16X08_ID_EQ_PARAM_COUNT]
-		[SND_US16X08_MAX_CHANNELS];
+  u8 val[SND_US16X08_ID_EQ_BAND_COUNT][SND_US16X08_ID_EQ_PARAM_COUNT]
+  [SND_US16X08_MAX_CHANNELS];
 };
 
 struct snd_us16x08_comp_store {
-	u8 val[SND_US16X08_ID_COMP_COUNT][SND_US16X08_MAX_CHANNELS];
+  u8 val[SND_US16X08_ID_COMP_COUNT][SND_US16X08_MAX_CHANNELS];
 };
 
 struct snd_us16x08_meter_store {
-	int meter_level[SND_US16X08_MAX_CHANNELS];
-	int master_level[2]; /* level of meter for master output */
-	int comp_index; /* round trip channel selector */
-	int comp_active_index; /* channel select from user space mixer */
-	int comp_level[16]; /* compressor reduction level */
-	struct snd_us16x08_comp_store *comp_store;
+  int meter_level[SND_US16X08_MAX_CHANNELS];
+  int master_level[2]; /* level of meter for master output */
+  int comp_index; /* round trip channel selector */
+  int comp_active_index; /* channel select from user space mixer */
+  int comp_level[16]; /* compressor reduction level */
+  struct snd_us16x08_comp_store *comp_store;
 };
 
 struct snd_us16x08_control_params {
-	const struct snd_kcontrol_new *kcontrol_new;
-	int control_id;
-	int type;
-	int num_channels;
-	const char *name;
-	int default_val;
+  const struct snd_kcontrol_new *kcontrol_new;
+  int control_id;
+  int type;
+  int num_channels;
+  const char *name;
+  int default_val;
 };
 
 #define snd_us16x08_switch_info snd_ctl_boolean_mono_info

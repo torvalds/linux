@@ -19,159 +19,138 @@
 #include "clk-mpll.h"
 
 #define SDM_DEN 16384
-#define N2_MIN	4
-#define N2_MAX	511
+#define N2_MIN  4
+#define N2_MAX  511
 
-static inline struct meson_clk_mpll_data *
-meson_clk_mpll_data(struct clk_regmap *clk)
-{
-	return (struct meson_clk_mpll_data *)clk->data;
+static inline struct meson_clk_mpll_data *meson_clk_mpll_data(
+    struct clk_regmap *clk) {
+  return (struct meson_clk_mpll_data *) clk->data;
 }
 
 static long rate_from_params(unsigned long parent_rate,
-			     unsigned int sdm,
-			     unsigned int n2)
-{
-	unsigned long divisor = (SDM_DEN * n2) + sdm;
-
-	if (n2 < N2_MIN)
-		return -EINVAL;
-
-	return DIV_ROUND_UP_ULL((u64)parent_rate * SDM_DEN, divisor);
+    unsigned int sdm,
+    unsigned int n2) {
+  unsigned long divisor = (SDM_DEN * n2) + sdm;
+  if (n2 < N2_MIN) {
+    return -EINVAL;
+  }
+  return DIV_ROUND_UP_ULL((u64) parent_rate * SDM_DEN, divisor);
 }
 
 static void params_from_rate(unsigned long requested_rate,
-			     unsigned long parent_rate,
-			     unsigned int *sdm,
-			     unsigned int *n2,
-			     u8 flags)
-{
-	uint64_t div = parent_rate;
-	uint64_t frac = do_div(div, requested_rate);
-
-	frac *= SDM_DEN;
-
-	if (flags & CLK_MESON_MPLL_ROUND_CLOSEST)
-		*sdm = DIV_ROUND_CLOSEST_ULL(frac, requested_rate);
-	else
-		*sdm = DIV_ROUND_UP_ULL(frac, requested_rate);
-
-	if (*sdm == SDM_DEN) {
-		*sdm = 0;
-		div += 1;
-	}
-
-	if (div < N2_MIN) {
-		*n2 = N2_MIN;
-		*sdm = 0;
-	} else if (div > N2_MAX) {
-		*n2 = N2_MAX;
-		*sdm = SDM_DEN - 1;
-	} else {
-		*n2 = div;
-	}
+    unsigned long parent_rate,
+    unsigned int *sdm,
+    unsigned int *n2,
+    u8 flags) {
+  uint64_t div = parent_rate;
+  uint64_t frac = do_div(div, requested_rate);
+  frac *= SDM_DEN;
+  if (flags & CLK_MESON_MPLL_ROUND_CLOSEST) {
+    *sdm = DIV_ROUND_CLOSEST_ULL(frac, requested_rate);
+  } else {
+    *sdm = DIV_ROUND_UP_ULL(frac, requested_rate);
+  }
+  if (*sdm == SDM_DEN) {
+    *sdm = 0;
+    div += 1;
+  }
+  if (div < N2_MIN) {
+    *n2 = N2_MIN;
+    *sdm = 0;
+  } else if (div > N2_MAX) {
+    *n2 = N2_MAX;
+    *sdm = SDM_DEN - 1;
+  } else {
+    *n2 = div;
+  }
 }
 
 static unsigned long mpll_recalc_rate(struct clk_hw *hw,
-		unsigned long parent_rate)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
-	unsigned int sdm, n2;
-	long rate;
-
-	sdm = meson_parm_read(clk->map, &mpll->sdm);
-	n2 = meson_parm_read(clk->map, &mpll->n2);
-
-	rate = rate_from_params(parent_rate, sdm, n2);
-	return rate < 0 ? 0 : rate;
+    unsigned long parent_rate) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+  unsigned int sdm, n2;
+  long rate;
+  sdm = meson_parm_read(clk->map, &mpll->sdm);
+  n2 = meson_parm_read(clk->map, &mpll->n2);
+  rate = rate_from_params(parent_rate, sdm, n2);
+  return rate < 0 ? 0 : rate;
 }
 
-static int mpll_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
-	unsigned int sdm, n2;
-	long rate;
-
-	params_from_rate(req->rate, req->best_parent_rate, &sdm, &n2,
-			 mpll->flags);
-
-	rate = rate_from_params(req->best_parent_rate, sdm, n2);
-	if (rate < 0)
-		return rate;
-
-	req->rate = rate;
-	return 0;
+static int mpll_determine_rate(struct clk_hw *hw,
+    struct clk_rate_request *req) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+  unsigned int sdm, n2;
+  long rate;
+  params_from_rate(req->rate, req->best_parent_rate, &sdm, &n2,
+      mpll->flags);
+  rate = rate_from_params(req->best_parent_rate, sdm, n2);
+  if (rate < 0) {
+    return rate;
+  }
+  req->rate = rate;
+  return 0;
 }
 
 static int mpll_set_rate(struct clk_hw *hw,
-			 unsigned long rate,
-			 unsigned long parent_rate)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
-	unsigned int sdm, n2;
-	unsigned long flags = 0;
-
-	params_from_rate(rate, parent_rate, &sdm, &n2, mpll->flags);
-
-	if (mpll->lock)
-		spin_lock_irqsave(mpll->lock, flags);
-	else
-		__acquire(mpll->lock);
-
-	/* Set the fractional part */
-	meson_parm_write(clk->map, &mpll->sdm, sdm);
-
-	/* Set the integer divider part */
-	meson_parm_write(clk->map, &mpll->n2, n2);
-
-	if (mpll->lock)
-		spin_unlock_irqrestore(mpll->lock, flags);
-	else
-		__release(mpll->lock);
-
-	return 0;
+    unsigned long rate,
+    unsigned long parent_rate) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+  unsigned int sdm, n2;
+  unsigned long flags = 0;
+  params_from_rate(rate, parent_rate, &sdm, &n2, mpll->flags);
+  if (mpll->lock) {
+    spin_lock_irqsave(mpll->lock, flags);
+  } else {
+    __acquire(mpll->lock);
+  }
+  /* Set the fractional part */
+  meson_parm_write(clk->map, &mpll->sdm, sdm);
+  /* Set the integer divider part */
+  meson_parm_write(clk->map, &mpll->n2, n2);
+  if (mpll->lock) {
+    spin_unlock_irqrestore(mpll->lock, flags);
+  } else {
+    __release(mpll->lock);
+  }
+  return 0;
 }
 
-static int mpll_init(struct clk_hw *hw)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
-
-	if (mpll->init_count)
-		regmap_multi_reg_write(clk->map, mpll->init_regs,
-				       mpll->init_count);
-
-	/* Enable the fractional part */
-	meson_parm_write(clk->map, &mpll->sdm_en, 1);
-
-	/* Set spread spectrum if possible */
-	if (MESON_PARM_APPLICABLE(&mpll->ssen)) {
-		unsigned int ss =
-			mpll->flags & CLK_MESON_MPLL_SPREAD_SPECTRUM ? 1 : 0;
-		meson_parm_write(clk->map, &mpll->ssen, ss);
-	}
-
-	/* Set the magic misc bit if required */
-	if (MESON_PARM_APPLICABLE(&mpll->misc))
-		meson_parm_write(clk->map, &mpll->misc, 1);
-
-	return 0;
+static int mpll_init(struct clk_hw *hw) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_mpll_data *mpll = meson_clk_mpll_data(clk);
+  if (mpll->init_count) {
+    regmap_multi_reg_write(clk->map, mpll->init_regs,
+        mpll->init_count);
+  }
+  /* Enable the fractional part */
+  meson_parm_write(clk->map, &mpll->sdm_en, 1);
+  /* Set spread spectrum if possible */
+  if (MESON_PARM_APPLICABLE(&mpll->ssen)) {
+    unsigned int ss
+      = mpll->flags & CLK_MESON_MPLL_SPREAD_SPECTRUM ? 1 : 0;
+    meson_parm_write(clk->map, &mpll->ssen, ss);
+  }
+  /* Set the magic misc bit if required */
+  if (MESON_PARM_APPLICABLE(&mpll->misc)) {
+    meson_parm_write(clk->map, &mpll->misc, 1);
+  }
+  return 0;
 }
 
 const struct clk_ops meson_clk_mpll_ro_ops = {
-	.recalc_rate	= mpll_recalc_rate,
-	.determine_rate	= mpll_determine_rate,
+  .recalc_rate = mpll_recalc_rate,
+  .determine_rate = mpll_determine_rate,
 };
 EXPORT_SYMBOL_GPL(meson_clk_mpll_ro_ops);
 
 const struct clk_ops meson_clk_mpll_ops = {
-	.recalc_rate	= mpll_recalc_rate,
-	.determine_rate	= mpll_determine_rate,
-	.set_rate	= mpll_set_rate,
-	.init		= mpll_init,
+  .recalc_rate = mpll_recalc_rate,
+  .determine_rate = mpll_determine_rate,
+  .set_rate = mpll_set_rate,
+  .init = mpll_init,
 };
 EXPORT_SYMBOL_GPL(meson_clk_mpll_ops);
 

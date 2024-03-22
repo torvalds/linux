@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #define PDMA_FILTER_PARAM(_prio, _requestor) (&(struct pxad_param) { \
-	.prio = PXAD_PRIO_##_prio, .drcmr = _requestor })
+    .prio = PXAD_PRIO_ ## _prio, .drcmr = _requestor })
 struct mmp_dma_platdata;
 
 extern struct platform_device pxa_device_pmu;

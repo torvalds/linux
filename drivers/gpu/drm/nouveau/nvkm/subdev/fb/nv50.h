@@ -5,16 +5,17 @@
 #include "priv.h"
 
 struct nv50_fb {
-	const struct nv50_fb_func *func;
-	struct nvkm_fb base;
+  const struct nv50_fb_func *func;
+  struct nvkm_fb base;
 };
 
 struct nv50_fb_func {
-	int (*ram_new)(struct nvkm_fb *, struct nvkm_ram **);
-	u32 (*tags)(struct nvkm_fb *);
-	u32 trap;
+  int (*ram_new)(struct nvkm_fb *, struct nvkm_ram **);
+  u32 (*tags)(struct nvkm_fb *);
+  u32 trap;
 };
 
-int nv50_fb_new_(const struct nv50_fb_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		 struct nvkm_fb **pfb);
+int nv50_fb_new_(const struct nv50_fb_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_fb **pfb);
 #endif

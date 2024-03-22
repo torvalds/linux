@@ -16,38 +16,38 @@
 struct scsi_cmnd;
 
 enum scsi_timeouts {
-	SCSI_DEFAULT_EH_TIMEOUT		= 10 * HZ,
+  SCSI_DEFAULT_EH_TIMEOUT = 10 * HZ,
 };
 
 /*
  * DIX-capable adapters effectively support infinite chaining for the
  * protection information scatterlist
  */
-#define SCSI_MAX_PROT_SG_SEGMENTS	0xFFFF
+#define SCSI_MAX_PROT_SG_SEGMENTS 0xFFFF
 
 /*
  * Special value for scanning to specify scanning or rescanning of all
  * possible channels, (target) ids, or luns on a given shost.
  */
-#define SCAN_WILD_CARD	~0
+#define SCAN_WILD_CARD  ~0
 
 /*
  * standard mode-select header prepended to all mode-select commands
  */
 
 struct ccs_modesel_head {
-	__u8 _r1;			/* reserved */
-	__u8 medium;		/* device-specific medium type */
-	__u8 _r2;			/* reserved */
-	__u8 block_desc_length;	/* block descriptor length */
-	__u8 density;		/* device-specific density code */
-	__u8 number_blocks_hi;	/* number of blocks in this block desc */
-	__u8 number_blocks_med;
-	__u8 number_blocks_lo;
-	__u8 _r3;
-	__u8 block_length_hi;	/* block length for blocks in this desc */
-	__u8 block_length_med;
-	__u8 block_length_lo;
+  __u8 _r1;     /* reserved */
+  __u8 medium;    /* device-specific medium type */
+  __u8 _r2;     /* reserved */
+  __u8 block_desc_length; /* block descriptor length */
+  __u8 density;   /* device-specific density code */
+  __u8 number_blocks_hi;  /* number of blocks in this block desc */
+  __u8 number_blocks_med;
+  __u8 number_blocks_lo;
+  __u8 _r3;
+  __u8 block_length_hi; /* block length for blocks in this desc */
+  __u8 block_length_med;
+  __u8 block_length_lo;
 };
 
 /*
@@ -58,9 +58,8 @@ struct ccs_modesel_head {
 #define SCSI_W_LUN_ACCESS_CONTROL (SCSI_W_LUN_BASE + 2)
 #define SCSI_W_LUN_TARGET_LOG_PAGE (SCSI_W_LUN_BASE + 3)
 
-static inline int scsi_is_wlun(u64 lun)
-{
-	return (lun & 0xff00) == SCSI_W_LUN_BASE;
+static inline int scsi_is_wlun(u64 lun) {
+  return (lun & 0xff00) == SCSI_W_LUN_BASE;
 }
 
 /**
@@ -71,12 +70,12 @@ static inline int scsi_is_wlun(u64 lun)
  *
  * This returns true if the status code is SAM_STAT_CHECK_CONDITION.
  */
-static inline int scsi_status_is_check_condition(int status)
-{
-	if (status < 0)
-		return false;
-	status &= 0xfe;
-	return status == SAM_STAT_CHECK_CONDITION;
+static inline int scsi_status_is_check_condition(int status) {
+  if (status < 0) {
+    return false;
+  }
+  status &= 0xfe;
+  return status == SAM_STAT_CHECK_CONDITION;
 }
 
 /*
@@ -93,15 +92,15 @@ static inline int scsi_status_is_check_condition(int status)
  * Internal return values.
  */
 enum scsi_disposition {
-	NEEDS_RETRY		= 0x2001,
-	SUCCESS			= 0x2002,
-	FAILED			= 0x2003,
-	QUEUED			= 0x2004,
-	SOFT_ERROR		= 0x2005,
-	ADD_TO_MLQUEUE		= 0x2006,
-	TIMEOUT_ERROR		= 0x2007,
-	SCSI_RETURN_NOT_HANDLED	= 0x2008,
-	FAST_IO_FAIL		= 0x2009,
+  NEEDS_RETRY = 0x2001,
+  SUCCESS = 0x2002,
+  FAILED = 0x2003,
+  QUEUED = 0x2004,
+  SOFT_ERROR = 0x2005,
+  ADD_TO_MLQUEUE = 0x2006,
+  TIMEOUT_ERROR = 0x2007,
+  SCSI_RETURN_NOT_HANDLED = 0x2008,
+  FAST_IO_FAIL = 0x2009,
 };
 
 /*
@@ -130,18 +129,17 @@ enum scsi_disposition {
 
 /*
  * default timeouts
-*/
-#define FORMAT_UNIT_TIMEOUT		(2 * 60 * 60 * HZ)
-#define START_STOP_TIMEOUT		(60 * HZ)
-#define MOVE_MEDIUM_TIMEOUT		(5 * 60 * HZ)
-#define READ_ELEMENT_STATUS_TIMEOUT	(5 * 60 * HZ)
-#define READ_DEFECT_DATA_TIMEOUT	(60 * HZ )
-
+ */
+#define FORMAT_UNIT_TIMEOUT   (2 * 60 * 60 * HZ)
+#define START_STOP_TIMEOUT    (60 * HZ)
+#define MOVE_MEDIUM_TIMEOUT   (5 * 60 * HZ)
+#define READ_ELEMENT_STATUS_TIMEOUT (5 * 60 * HZ)
+#define READ_DEFECT_DATA_TIMEOUT  (60 * HZ)
 
 #define IDENTIFY_BASE       0x80
-#define IDENTIFY(can_disconnect, lun)   (IDENTIFY_BASE |\
-		     ((can_disconnect) ?  0x40 : 0) |\
-		     ((lun) & 0x07))
+#define IDENTIFY(can_disconnect, lun)   (IDENTIFY_BASE  \
+  | ((can_disconnect) ? 0x40 : 0)  \
+  | ((lun) & 0x07))
 
 /*
  *  struct scsi_device::scsi_level values. For SCSI devices other than those
@@ -157,9 +155,9 @@ enum scsi_disposition {
 #define SCSI_3          4        /* SPC */
 #define SCSI_SPC_2      5
 #define SCSI_SPC_3      6
-#define SCSI_SPC_4	7
-#define SCSI_SPC_5	8
-#define SCSI_SPC_6	14
+#define SCSI_SPC_4  7
+#define SCSI_SPC_5  8
+#define SCSI_SPC_6  14
 
 /*
  * INQ PERIPHERAL QUALIFIERS
@@ -168,7 +166,6 @@ enum scsi_disposition {
 #define SCSI_INQ_PQ_NOT_CON     0x01
 #define SCSI_INQ_PQ_NOT_CAP     0x03
 
-
 /*
  * Here are some scsi specific ioctl commands which are sometimes useful.
  *
@@ -176,18 +173,18 @@ enum scsi_disposition {
  */
 
 /* Used to obtain PUN and LUN info.  Conflicts with CDROMAUDIOBUFSIZ */
-#define SCSI_IOCTL_GET_IDLUN		0x5382
+#define SCSI_IOCTL_GET_IDLUN    0x5382
 
 /* 0x5383 and 0x5384 were used for SCSI_IOCTL_TAGGED_{ENABLE,DISABLE} */
 
 /* Used to obtain the host number of a device. */
-#define SCSI_IOCTL_PROBE_HOST		0x5385
+#define SCSI_IOCTL_PROBE_HOST   0x5385
 
 /* Used to obtain the bus number for a device */
-#define SCSI_IOCTL_GET_BUS_NUMBER	0x5386
+#define SCSI_IOCTL_GET_BUS_NUMBER 0x5386
 
 /* Used to obtain the PCI location of a device */
-#define SCSI_IOCTL_GET_PCI		0x5387
+#define SCSI_IOCTL_GET_PCI    0x5387
 
 /** scsi_status_is_good - check the status return.
  *
@@ -197,27 +194,26 @@ enum scsi_disposition {
  * This returns true for known good conditions that may be treated as
  * command completed normally
  */
-static inline bool scsi_status_is_good(int status)
-{
-	if (status < 0)
-		return false;
-
-	if (host_byte(status) == DID_NO_CONNECT)
-		return false;
-
-	/*
-	 * FIXME: bit0 is listed as reserved in SCSI-2, but is
-	 * significant in SCSI-3.  For now, we follow the SCSI-2
-	 * behaviour and ignore reserved bits.
-	 */
-	status &= 0xfe;
-	return ((status == SAM_STAT_GOOD) ||
-		(status == SAM_STAT_CONDITION_MET) ||
-		/* Next two "intermediate" statuses are obsolete in SAM-4 */
-		(status == SAM_STAT_INTERMEDIATE) ||
-		(status == SAM_STAT_INTERMEDIATE_CONDITION_MET) ||
-		/* FIXME: this is obsolete in SAM-3 */
-		(status == SAM_STAT_COMMAND_TERMINATED));
+static inline bool scsi_status_is_good(int status) {
+  if (status < 0) {
+    return false;
+  }
+  if (host_byte(status) == DID_NO_CONNECT) {
+    return false;
+  }
+  /*
+   * FIXME: bit0 is listed as reserved in SCSI-2, but is
+   * significant in SCSI-3.  For now, we follow the SCSI-2
+   * behaviour and ignore reserved bits.
+   */
+  status &= 0xfe;
+  return (status == SAM_STAT_GOOD)
+    || (status == SAM_STAT_CONDITION_MET)
+    || /* Next two "intermediate" statuses are obsolete in SAM-4 */
+    (status == SAM_STAT_INTERMEDIATE)
+    || (status == SAM_STAT_INTERMEDIATE_CONDITION_MET)
+    || /* FIXME: this is obsolete in SAM-3 */
+    (status == SAM_STAT_COMMAND_TERMINATED);
 }
 
 #endif /* _SCSI_SCSI_H */

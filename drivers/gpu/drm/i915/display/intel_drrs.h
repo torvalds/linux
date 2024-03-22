@@ -20,9 +20,9 @@ bool intel_drrs_is_active(struct intel_crtc *crtc);
 void intel_drrs_activate(const struct intel_crtc_state *crtc_state);
 void intel_drrs_deactivate(const struct intel_crtc_state *crtc_state);
 void intel_drrs_invalidate(struct drm_i915_private *dev_priv,
-			   unsigned int frontbuffer_bits);
+    unsigned int frontbuffer_bits);
 void intel_drrs_flush(struct drm_i915_private *dev_priv,
-		      unsigned int frontbuffer_bits);
+    unsigned int frontbuffer_bits);
 void intel_drrs_crtc_init(struct intel_crtc *crtc);
 void intel_drrs_crtc_debugfs_add(struct intel_crtc *crtc);
 void intel_drrs_connector_debugfs_add(struct intel_connector *connector);

@@ -12,10 +12,10 @@
 #include <linux/types.h>
 
 /* Message flags for using the mailbox() interface */
-#define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does not respond */
+#define WILCO_EC_FLAG_NO_RESPONSE BIT(0) /* EC does not respond */
 
 /* Normal commands have a maximum 32 bytes of data */
-#define EC_MAILBOX_DATA_SIZE		32
+#define EC_MAILBOX_DATA_SIZE    32
 
 struct device;
 struct resource;
@@ -37,17 +37,17 @@ struct platform_device;
  * @telem_pdev: The child platform_device used by the telemetry sub-driver.
  */
 struct wilco_ec_device {
-	struct device *dev;
-	struct mutex mailbox_lock;
-	struct resource *io_command;
-	struct resource *io_data;
-	struct resource *io_packet;
-	void *data_buffer;
-	size_t data_size;
-	struct platform_device *debugfs_pdev;
-	struct platform_device *rtc_pdev;
-	struct platform_device *charger_pdev;
-	struct platform_device *telem_pdev;
+  struct device *dev;
+  struct mutex mailbox_lock;
+  struct resource *io_command;
+  struct resource *io_data;
+  struct resource *io_packet;
+  void *data_buffer;
+  size_t data_size;
+  struct platform_device *debugfs_pdev;
+  struct platform_device *rtc_pdev;
+  struct platform_device *charger_pdev;
+  struct platform_device *telem_pdev;
 };
 
 /**
@@ -60,12 +60,12 @@ struct wilco_ec_device {
  * @data_size: Length of following data.
  */
 struct wilco_ec_request {
-	u8 struct_version;
-	u8 checksum;
-	u16 mailbox_id;
-	u8 mailbox_version;
-	u8 reserved;
-	u16 data_size;
+  u8 struct_version;
+  u8 checksum;
+  u16 mailbox_id;
+  u8 mailbox_version;
+  u8 reserved;
+  u16 data_size;
 } __packed;
 
 /**
@@ -78,12 +78,12 @@ struct wilco_ec_request {
  * @data: Response data buffer.  Max size is %EC_MAILBOX_DATA_SIZE_EXTENDED.
  */
 struct wilco_ec_response {
-	u8 struct_version;
-	u8 checksum;
-	u16 result;
-	u16 data_size;
-	u8 reserved[2];
-	u8 data[];
+  u8 struct_version;
+  u8 checksum;
+  u16 result;
+  u16 data_size;
+  u8 reserved[2];
+  u8 data[];
 } __packed;
 
 /**
@@ -93,9 +93,9 @@ struct wilco_ec_response {
  * @WILCO_EC_MSG_TELEMETRY: Request telemetry data from the EC.
  */
 enum wilco_ec_msg_type {
-	WILCO_EC_MSG_LEGACY = 0x00f0,
-	WILCO_EC_MSG_PROPERTY = 0x00f2,
-	WILCO_EC_MSG_TELEMETRY = 0x00f5,
+  WILCO_EC_MSG_LEGACY = 0x00f0,
+  WILCO_EC_MSG_PROPERTY = 0x00f2,
+  WILCO_EC_MSG_TELEMETRY = 0x00f5,
 };
 
 /**
@@ -109,12 +109,12 @@ enum wilco_ec_msg_type {
  *                 response_size bytes and allocated by caller.
  */
 struct wilco_ec_message {
-	enum wilco_ec_msg_type type;
-	u8 flags;
-	size_t request_size;
-	void *request_data;
-	size_t response_size;
-	void *response_data;
+  enum wilco_ec_msg_type type;
+  u8 flags;
+  size_t request_size;
+  void *request_data;
+  size_t response_size;
+  void *response_data;
 };
 
 /**
@@ -148,7 +148,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
  * complex binary data.
  */
 
-#define WILCO_EC_PROPERTY_MAX_SIZE	4
+#define WILCO_EC_PROPERTY_MAX_SIZE  4
 
 /**
  * struct ec_property_set_msg - Message to get or set a property.
@@ -157,9 +157,9 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
  * @data: Actual property data.
  */
 struct wilco_ec_property_msg {
-	u32 property_id;
-	int length;
-	u8 data[WILCO_EC_PROPERTY_MAX_SIZE];
+  u32 property_id;
+  int length;
+  u8 data[WILCO_EC_PROPERTY_MAX_SIZE];
 };
 
 /**
@@ -173,7 +173,7 @@ struct wilco_ec_property_msg {
  * Return: 0 on success, negative error code on failure.
  */
 int wilco_ec_get_property(struct wilco_ec_device *ec,
-			  struct wilco_ec_property_msg *prop_msg);
+    struct wilco_ec_property_msg *prop_msg);
 
 /**
  * wilco_ec_set_property() - Store a property on the EC.
@@ -186,7 +186,7 @@ int wilco_ec_get_property(struct wilco_ec_device *ec,
  * Return: 0 on success, negative error code on failure.
  */
 int wilco_ec_set_property(struct wilco_ec_device *ec,
-			  struct wilco_ec_property_msg *prop_msg);
+    struct wilco_ec_property_msg *prop_msg);
 
 /**
  * wilco_ec_get_byte_property() - Retrieve a byte-size property from the EC.
@@ -197,7 +197,7 @@ int wilco_ec_set_property(struct wilco_ec_device *ec,
  * Return: 0 on success, negative error code on failure.
  */
 int wilco_ec_get_byte_property(struct wilco_ec_device *ec, u32 property_id,
-			       u8 *val);
+    u8 *val);
 
 /**
  * wilco_ec_get_byte_property() - Store a byte-size property on the EC.
@@ -208,7 +208,7 @@ int wilco_ec_get_byte_property(struct wilco_ec_device *ec, u32 property_id,
  * Return: 0 on success, negative error code on failure.
  */
 int wilco_ec_set_byte_property(struct wilco_ec_device *ec, u32 property_id,
-			       u8 val);
+    u8 val);
 
 /**
  * wilco_ec_add_sysfs() - Create sysfs entries

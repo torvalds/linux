@@ -15,65 +15,61 @@
 #ifdef CONFIG_EVM
 extern int evm_set_key(void *key, size_t keylen);
 extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
-					     const char *xattr_name,
-					     void *xattr_value,
-					     size_t xattr_value_len);
+    const char *xattr_name,
+    void *xattr_value,
+    size_t xattr_value_len);
 int evm_inode_init_security(struct inode *inode, struct inode *dir,
-			    const struct qstr *qstr, struct xattr *xattrs,
-			    int *xattr_count);
+    const struct qstr *qstr, struct xattr *xattrs,
+    int *xattr_count);
 extern bool evm_revalidate_status(const char *xattr_name);
 extern int evm_protected_xattr_if_enabled(const char *req_xattr_name);
 extern int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
-				     int buffer_size, char type,
-				     bool canonical_fmt);
+    int buffer_size, char type,
+    bool canonical_fmt);
 #ifdef CONFIG_FS_POSIX_ACL
 extern int posix_xattr_acl(const char *xattrname);
 #else
-static inline int posix_xattr_acl(const char *xattrname)
-{
-	return 0;
+static inline int posix_xattr_acl(const char *xattrname) {
+  return 0;
 }
+
 #endif
 #else
 
-static inline int evm_set_key(void *key, size_t keylen)
-{
-	return -EOPNOTSUPP;
+static inline int evm_set_key(void *key, size_t keylen) {
+  return -EOPNOTSUPP;
 }
 
 #ifdef CONFIG_INTEGRITY
 static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
-						    const char *xattr_name,
-						    void *xattr_value,
-						    size_t xattr_value_len)
-{
-	return INTEGRITY_UNKNOWN;
+    const char *xattr_name,
+    void *xattr_value,
+    size_t xattr_value_len) {
+  return INTEGRITY_UNKNOWN;
 }
+
 #endif
 
-static inline int evm_inode_init_security(struct inode *inode, struct inode *dir,
-					  const struct qstr *qstr,
-					  struct xattr *xattrs,
-					  int *xattr_count)
-{
-	return 0;
+static inline int evm_inode_init_security(struct inode *inode,
+    struct inode *dir,
+    const struct qstr *qstr,
+    struct xattr *xattrs,
+    int *xattr_count) {
+  return 0;
 }
 
-static inline bool evm_revalidate_status(const char *xattr_name)
-{
-	return false;
+static inline bool evm_revalidate_status(const char *xattr_name) {
+  return false;
 }
 
-static inline int evm_protected_xattr_if_enabled(const char *req_xattr_name)
-{
-	return false;
+static inline int evm_protected_xattr_if_enabled(const char *req_xattr_name) {
+  return false;
 }
 
 static inline int evm_read_protected_xattrs(struct dentry *dentry, u8 *buffer,
-					    int buffer_size, char type,
-					    bool canonical_fmt)
-{
-	return -EOPNOTSUPP;
+    int buffer_size, char type,
+    bool canonical_fmt) {
+  return -EOPNOTSUPP;
 }
 
 #endif /* CONFIG_EVM */

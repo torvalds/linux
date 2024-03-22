@@ -5,7 +5,7 @@
  *  S390 version
  *    Copyright IBM Corp. 1999
  *    Author(s): Martin Peschke <mpeschke@de.ibm.com>
- *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
+ *     Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
 #ifndef __SCLP_TTY_H__
@@ -15,4 +15,4 @@
 
 extern struct tty_driver *sclp_tty_driver;
 
-#endif	/* __SCLP_TTY_H__ */
+#endif  /* __SCLP_TTY_H__ */

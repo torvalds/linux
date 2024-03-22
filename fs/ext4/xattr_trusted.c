@@ -13,35 +13,29 @@
 #include "ext4.h"
 #include "xattr.h"
 
-static bool
-ext4_xattr_trusted_list(struct dentry *dentry)
-{
-	return capable(CAP_SYS_ADMIN);
+static bool ext4_xattr_trusted_list(struct dentry *dentry) {
+  return capable(CAP_SYS_ADMIN);
 }
 
-static int
-ext4_xattr_trusted_get(const struct xattr_handler *handler,
-		       struct dentry *unused, struct inode *inode,
-		       const char *name, void *buffer, size_t size)
-{
-	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_TRUSTED,
-			      name, buffer, size);
+static int ext4_xattr_trusted_get(const struct xattr_handler *handler,
+    struct dentry *unused, struct inode *inode,
+    const char *name, void *buffer, size_t size) {
+  return ext4_xattr_get(inode, EXT4_XATTR_INDEX_TRUSTED,
+      name, buffer, size);
 }
 
-static int
-ext4_xattr_trusted_set(const struct xattr_handler *handler,
-		       struct mnt_idmap *idmap,
-		       struct dentry *unused, struct inode *inode,
-		       const char *name, const void *value,
-		       size_t size, int flags)
-{
-	return ext4_xattr_set(inode, EXT4_XATTR_INDEX_TRUSTED,
-			      name, value, size, flags);
+static int ext4_xattr_trusted_set(const struct xattr_handler *handler,
+    struct mnt_idmap *idmap,
+    struct dentry *unused, struct inode *inode,
+    const char *name, const void *value,
+    size_t size, int flags) {
+  return ext4_xattr_set(inode, EXT4_XATTR_INDEX_TRUSTED,
+      name, value, size, flags);
 }
 
 const struct xattr_handler ext4_xattr_trusted_handler = {
-	.prefix	= XATTR_TRUSTED_PREFIX,
-	.list	= ext4_xattr_trusted_list,
-	.get	= ext4_xattr_trusted_get,
-	.set	= ext4_xattr_trusted_set,
+  .prefix = XATTR_TRUSTED_PREFIX,
+  .list = ext4_xattr_trusted_list,
+  .get = ext4_xattr_trusted_get,
+  .set = ext4_xattr_trusted_set,
 };

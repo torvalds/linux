@@ -34,34 +34,34 @@ struct vsp1_rwpf;
  * @alpha: has an alpha channel
  */
 struct vsp1_format_info {
-	u32 fourcc;
-	unsigned int mbus;
-	unsigned int hwfmt;
-	unsigned int swap;
-	unsigned int planes;
-	unsigned int bpp[3];
-	bool swap_yc;
-	bool swap_uv;
-	unsigned int hsub;
-	unsigned int vsub;
-	bool alpha;
+  u32 fourcc;
+  unsigned int mbus;
+  unsigned int hwfmt;
+  unsigned int swap;
+  unsigned int planes;
+  unsigned int bpp[3];
+  bool swap_yc;
+  bool swap_uv;
+  unsigned int hsub;
+  unsigned int vsub;
+  bool alpha;
 };
 
 enum vsp1_pipeline_state {
-	VSP1_PIPELINE_STOPPED,
-	VSP1_PIPELINE_RUNNING,
-	VSP1_PIPELINE_STOPPING,
+  VSP1_PIPELINE_STOPPED,
+  VSP1_PIPELINE_RUNNING,
+  VSP1_PIPELINE_STOPPING,
 };
 
 /*
  * struct vsp1_partition_window - Partition window coordinates
  * @left: horizontal coordinate of the partition start in pixels relative to the
- *	  left edge of the image
+ *    left edge of the image
  * @width: partition width in pixels
  */
 struct vsp1_partition_window {
-	unsigned int left;
-	unsigned int width;
+  unsigned int left;
+  unsigned int width;
 };
 
 /*
@@ -73,11 +73,11 @@ struct vsp1_partition_window {
  * @wpf: The WPF partition window configuration
  */
 struct vsp1_partition {
-	struct vsp1_partition_window rpf;
-	struct vsp1_partition_window uds_sink;
-	struct vsp1_partition_window uds_source;
-	struct vsp1_partition_window sru;
-	struct vsp1_partition_window wpf;
+  struct vsp1_partition_window rpf;
+  struct vsp1_partition_window uds_sink;
+  struct vsp1_partition_window uds_source;
+  struct vsp1_partition_window sru;
+  struct vsp1_partition_window wpf;
 };
 
 /*
@@ -110,46 +110,46 @@ struct vsp1_partition {
  * @part_table: The pre-calculated partitions used by the pipeline
  */
 struct vsp1_pipeline {
-	struct media_pipeline pipe;
+  struct media_pipeline pipe;
 
-	spinlock_t irqlock;
-	enum vsp1_pipeline_state state;
-	wait_queue_head_t wq;
+  spinlock_t irqlock;
+  enum vsp1_pipeline_state state;
+  wait_queue_head_t wq;
 
-	void (*frame_end)(struct vsp1_pipeline *pipe, unsigned int completion);
+  void (*frame_end)(struct vsp1_pipeline *pipe, unsigned int completion);
 
-	struct mutex lock;
-	struct kref kref;
-	unsigned int stream_count;
-	unsigned int buffers_ready;
-	unsigned int sequence;
+  struct mutex lock;
+  struct kref kref;
+  unsigned int stream_count;
+  unsigned int buffers_ready;
+  unsigned int sequence;
 
-	unsigned int num_inputs;
-	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
-	struct vsp1_rwpf *output;
-	struct vsp1_entity *brx;
-	struct vsp1_entity *hgo;
-	struct vsp1_entity *hgt;
-	struct vsp1_entity *lif;
-	struct vsp1_entity *uds;
-	struct vsp1_entity *uds_input;
+  unsigned int num_inputs;
+  struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
+  struct vsp1_rwpf *output;
+  struct vsp1_entity *brx;
+  struct vsp1_entity *hgo;
+  struct vsp1_entity *hgt;
+  struct vsp1_entity *lif;
+  struct vsp1_entity *uds;
+  struct vsp1_entity *uds_input;
 
-	/*
-	 * The order of this list must be identical to the order of the entities
-	 * in the pipeline, as it is assumed by the partition algorithm that we
-	 * can walk this list in sequence.
-	 */
-	struct list_head entities;
+  /*
+   * The order of this list must be identical to the order of the entities
+   * in the pipeline, as it is assumed by the partition algorithm that we
+   * can walk this list in sequence.
+   */
+  struct list_head entities;
 
-	struct vsp1_dl_body *stream_config;
-	bool configured;
-	bool interlaced;
+  struct vsp1_dl_body *stream_config;
+  bool configured;
+  bool interlaced;
 
-	unsigned int partitions;
-	struct vsp1_partition *partition;
-	struct vsp1_partition *part_table;
+  unsigned int partitions;
+  struct vsp1_partition *partition;
+  struct vsp1_partition *part_table;
 
-	u32 underrun_count;
+  u32 underrun_count;
 };
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);
@@ -163,15 +163,15 @@ bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
 
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
-				   struct vsp1_dl_body *dlb,
-				   unsigned int alpha);
+    struct vsp1_dl_body *dlb,
+    unsigned int alpha);
 
 void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
-				       struct vsp1_partition *partition,
-				       unsigned int index,
-				       struct vsp1_partition_window *window);
+    struct vsp1_partition *partition,
+    unsigned int index,
+    struct vsp1_partition_window *window);
 
 const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
-						    u32 fourcc);
+    u32 fourcc);
 
 #endif /* __VSP1_PIPE_H__ */

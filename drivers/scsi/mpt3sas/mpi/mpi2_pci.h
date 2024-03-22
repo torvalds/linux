@@ -25,17 +25,16 @@
  *                     NVME Encapsulated Request.
  * 07-22-18  02.00.03  Updted flags field for NVME Encapsulated req
  * 12-17-18  02.00.04  Added MPI26_PCIE_DEVINFO_SCSI
- *			Shortten some defines to be compatible with DOS
+ *      Shortten some defines to be compatible with DOS
  * --------------------------------------------------------------------------
  */
 
 #ifndef MPI2_PCI_H
 #define MPI2_PCI_H
 
-
 /*
- *Values for the PCIe DeviceInfo field used in PCIe Device Status Change Event
- *data and PCIe Configuration pages.
+ * Values for the PCIe DeviceInfo field used in PCIe Device Status Change Event
+ * data and PCIe Configuration pages.
  */
 #define MPI26_PCIE_DEVINFO_DIRECT_ATTACH        (0x00000010)
 
@@ -51,24 +50,23 @@
 
 /*NVME Encapsulated Request Message */
 typedef struct _MPI26_NVME_ENCAPSULATED_REQUEST {
-	U16	DevHandle;                      /*0x00 */
-	U8	ChainOffset;                    /*0x02 */
-	U8	Function;                       /*0x03 */
-	U16	EncapsulatedCommandLength;      /*0x04 */
-	U8	Reserved1;                      /*0x06 */
-	U8	MsgFlags;                       /*0x07 */
-	U8	VP_ID;                          /*0x08 */
-	U8	VF_ID;                          /*0x09 */
-	U16	Reserved2;                      /*0x0A */
-	U32	Reserved3;                      /*0x0C */
-	U64	ErrorResponseBaseAddress;       /*0x10 */
-	U16	ErrorResponseAllocationLength;  /*0x18 */
-	U16	Flags;                          /*0x1A */
-	U32	DataLength;                     /*0x1C */
-	U8	NVMe_Command[4];                /*0x20 */
-
+  U16 DevHandle;                      /*0x00 */
+  U8 ChainOffset;                    /*0x02 */
+  U8 Function;                       /*0x03 */
+  U16 EncapsulatedCommandLength;      /*0x04 */
+  U8 Reserved1;                      /*0x06 */
+  U8 MsgFlags;                       /*0x07 */
+  U8 VP_ID;                          /*0x08 */
+  U8 VF_ID;                          /*0x09 */
+  U16 Reserved2;                      /*0x0A */
+  U32 Reserved3;                      /*0x0C */
+  U64 ErrorResponseBaseAddress;       /*0x10 */
+  U16 ErrorResponseAllocationLength;  /*0x18 */
+  U16 Flags;                          /*0x1A */
+  U32 DataLength;                     /*0x1C */
+  U8 NVMe_Command[4];                /*0x20 */
 } MPI26_NVME_ENCAPSULATED_REQUEST, *PTR_MPI26_NVME_ENCAPSULATED_REQUEST,
-	Mpi26NVMeEncapsulatedRequest_t, *pMpi26NVMeEncapsulatedRequest_t;
+Mpi26NVMeEncapsulatedRequest_t, *pMpi26NVMeEncapsulatedRequest_t;
 
 /*defines for the Flags field */
 #define MPI26_NVME_FLAGS_FORCE_ADMIN_ERR_RESP       (0x0020)
@@ -87,27 +85,25 @@ typedef struct _MPI26_NVME_ENCAPSULATED_REQUEST {
 #define MPI26_NVME_FLAGS_READ                       (0x0002)
 #define MPI26_NVME_FLAGS_BIDIRECTIONAL              (0x0003)
 
-
 /*NVMe Encapuslated Reply Message */
 typedef struct _MPI26_NVME_ENCAPSULATED_ERROR_REPLY {
-	U16	DevHandle;                      /*0x00 */
-	U8	MsgLength;                      /*0x02 */
-	U8	Function;                       /*0x03 */
-	U16	EncapsulatedCommandLength;      /*0x04 */
-	U8	Reserved1;                      /*0x06 */
-	U8	MsgFlags;                       /*0x07 */
-	U8	VP_ID;                          /*0x08 */
-	U8	VF_ID;                          /*0x09 */
-	U16	Reserved2;                      /*0x0A */
-	U16	Reserved3;                      /*0x0C */
-	U16	IOCStatus;                      /*0x0E */
-	U32	IOCLogInfo;                     /*0x10 */
-	U16	ErrorResponseCount;             /*0x14 */
-	U16	Reserved4;                      /*0x16 */
+  U16 DevHandle;                      /*0x00 */
+  U8 MsgLength;                      /*0x02 */
+  U8 Function;                       /*0x03 */
+  U16 EncapsulatedCommandLength;      /*0x04 */
+  U8 Reserved1;                      /*0x06 */
+  U8 MsgFlags;                       /*0x07 */
+  U8 VP_ID;                          /*0x08 */
+  U8 VF_ID;                          /*0x09 */
+  U16 Reserved2;                      /*0x0A */
+  U16 Reserved3;                      /*0x0C */
+  U16 IOCStatus;                      /*0x0E */
+  U32 IOCLogInfo;                     /*0x10 */
+  U16 ErrorResponseCount;             /*0x14 */
+  U16 Reserved4;                      /*0x16 */
 } MPI26_NVME_ENCAPSULATED_ERROR_REPLY,
-	*PTR_MPI26_NVME_ENCAPSULATED_ERROR_REPLY,
-	Mpi26NVMeEncapsulatedErrorReply_t,
-	*pMpi26NVMeEncapsulatedErrorReply_t;
-
+*PTR_MPI26_NVME_ENCAPSULATED_ERROR_REPLY,
+Mpi26NVMeEncapsulatedErrorReply_t,
+*pMpi26NVMeEncapsulatedErrorReply_t;
 
 #endif

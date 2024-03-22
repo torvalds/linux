@@ -20,23 +20,23 @@
 #define XT_IDLETIMER_ALARM 0x01
 
 struct idletimer_tg_info {
-	__u32 timeout;
+  __u32 timeout;
 
-	char label[MAX_IDLETIMER_LABEL_SIZE];
+  char label[MAX_IDLETIMER_LABEL_SIZE];
 
-	/* for kernel module internal use only */
-	struct idletimer_tg *timer __attribute__((aligned(8)));
+  /* for kernel module internal use only */
+  struct idletimer_tg *timer __attribute__((aligned(8)));
 };
 
 struct idletimer_tg_info_v1 {
-	__u32 timeout;
+  __u32 timeout;
 
-	char label[MAX_IDLETIMER_LABEL_SIZE];
+  char label[MAX_IDLETIMER_LABEL_SIZE];
 
-	__u8 send_nl_msg;   /* unused: for compatibility with Android */
-	__u8 timer_type;
+  __u8 send_nl_msg;   /* unused: for compatibility with Android */
+  __u8 timer_type;
 
-	/* for kernel module internal use only */
-	struct idletimer_tg *timer __attribute__((aligned(8)));
+  /* for kernel module internal use only */
+  struct idletimer_tg *timer __attribute__((aligned(8)));
 };
 #endif

@@ -25,12 +25,11 @@
 #include <linux/scatterlist.h>
 #include <crypto/ecdh.h>
 
-static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
-{
-	int i;
-
-	for (i = 0; i < ndigits; i++)
-		out[i] = __swab64(in[ndigits - 1 - i]);
+static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits) {
+  int i;
+  for (i = 0; i < ndigits; i++) {
+    out[i] = __swab64(in[ndigits - 1 - i]);
+  }
 }
 
 /* compute_ecdh_secret() - function assumes that the private key was
@@ -42,49 +41,43 @@ static inline void swap_digits(u64 *in, u64 *out, unsigned int ndigits)
  * Return: zero on success; error code in case of error.
  */
 int compute_ecdh_secret(struct crypto_kpp *tfm, const u8 public_key[64],
-			u8 secret[32])
-{
-	DECLARE_CRYPTO_WAIT(result);
-	struct kpp_request *req;
-	u8 *tmp;
-	struct scatterlist src, dst;
-	int err;
-
-	tmp = kmalloc(64, GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-
-	req = kpp_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		err = -ENOMEM;
-		goto free_tmp;
-	}
-
-	swap_digits((u64 *)public_key, (u64 *)tmp, 4); /* x */
-	swap_digits((u64 *)&public_key[32], (u64 *)&tmp[32], 4); /* y */
-
-	sg_init_one(&src, tmp, 64);
-	sg_init_one(&dst, secret, 32);
-	kpp_request_set_input(req, &src, 64);
-	kpp_request_set_output(req, &dst, 32);
-	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				 crypto_req_done, &result);
-	err = crypto_kpp_compute_shared_secret(req);
-	err = crypto_wait_req(err, &result);
-	if (err < 0) {
-		pr_err("alg: ecdh: compute shared secret failed. err %d\n",
-		       err);
-		goto free_all;
-	}
-
-	swap_digits((u64 *)secret, (u64 *)tmp, 4);
-	memcpy(secret, tmp, 32);
-
+    u8 secret[32]) {
+  DECLARE_CRYPTO_WAIT(result);
+  struct kpp_request *req;
+  u8 *tmp;
+  struct scatterlist src, dst;
+  int err;
+  tmp = kmalloc(64, GFP_KERNEL);
+  if (!tmp) {
+    return -ENOMEM;
+  }
+  req = kpp_request_alloc(tfm, GFP_KERNEL);
+  if (!req) {
+    err = -ENOMEM;
+    goto free_tmp;
+  }
+  swap_digits((u64 *) public_key, (u64 *) tmp, 4); /* x */
+  swap_digits((u64 *) &public_key[32], (u64 *) &tmp[32], 4); /* y */
+  sg_init_one(&src, tmp, 64);
+  sg_init_one(&dst, secret, 32);
+  kpp_request_set_input(req, &src, 64);
+  kpp_request_set_output(req, &dst, 32);
+  kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+      crypto_req_done, &result);
+  err = crypto_kpp_compute_shared_secret(req);
+  err = crypto_wait_req(err, &result);
+  if (err < 0) {
+    pr_err("alg: ecdh: compute shared secret failed. err %d\n",
+        err);
+    goto free_all;
+  }
+  swap_digits((u64 *) secret, (u64 *) tmp, 4);
+  memcpy(secret, tmp, 32);
 free_all:
-	kpp_request_free(req);
+  kpp_request_free(req);
 free_tmp:
-	kfree_sensitive(tmp);
-	return err;
+  kfree_sensitive(tmp);
+  return err;
 }
 
 /* set_ecdh_privkey() - set or generate ecc private key.
@@ -98,40 +91,39 @@ free_tmp:
  *
  * Return: zero on success; error code in case of error.
  */
-int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32])
-{
-	u8 *buf, *tmp = NULL;
-	unsigned int buf_len;
-	int err;
-	struct ecdh p = {0};
-
-	if (private_key) {
-		tmp = kmalloc(32, GFP_KERNEL);
-		if (!tmp)
-			return -ENOMEM;
-		swap_digits((u64 *)private_key, (u64 *)tmp, 4);
-		p.key = tmp;
-		p.key_size = 32;
-	}
-
-	buf_len = crypto_ecdh_key_len(&p);
-	buf = kmalloc(buf_len, GFP_KERNEL);
-	if (!buf) {
-		err = -ENOMEM;
-		goto free_tmp;
-	}
-
-	err = crypto_ecdh_encode_key(buf, buf_len, &p);
-	if (err)
-		goto free_all;
-
-	err = crypto_kpp_set_secret(tfm, buf, buf_len);
-	/* fall through */
+int set_ecdh_privkey(struct crypto_kpp *tfm, const u8 private_key[32]) {
+  u8 *buf, *tmp = NULL;
+  unsigned int buf_len;
+  int err;
+  struct ecdh p = {
+    0
+  };
+  if (private_key) {
+    tmp = kmalloc(32, GFP_KERNEL);
+    if (!tmp) {
+      return -ENOMEM;
+    }
+    swap_digits((u64 *) private_key, (u64 *) tmp, 4);
+    p.key = tmp;
+    p.key_size = 32;
+  }
+  buf_len = crypto_ecdh_key_len(&p);
+  buf = kmalloc(buf_len, GFP_KERNEL);
+  if (!buf) {
+    err = -ENOMEM;
+    goto free_tmp;
+  }
+  err = crypto_ecdh_encode_key(buf, buf_len, &p);
+  if (err) {
+    goto free_all;
+  }
+  err = crypto_kpp_set_secret(tfm, buf, buf_len);
+  /* fall through */
 free_all:
-	kfree_sensitive(buf);
+  kfree_sensitive(buf);
 free_tmp:
-	kfree_sensitive(tmp);
-	return err;
+  kfree_sensitive(tmp);
+  return err;
 }
 
 /* generate_ecdh_public_key() - function assumes that the private key was
@@ -142,46 +134,41 @@ free_tmp:
  *
  * Return: zero on success; error code in case of error.
  */
-int generate_ecdh_public_key(struct crypto_kpp *tfm, u8 public_key[64])
-{
-	DECLARE_CRYPTO_WAIT(result);
-	struct kpp_request *req;
-	u8 *tmp;
-	struct scatterlist dst;
-	int err;
-
-	tmp = kmalloc(64, GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-
-	req = kpp_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		err = -ENOMEM;
-		goto free_tmp;
-	}
-
-	sg_init_one(&dst, tmp, 64);
-	kpp_request_set_input(req, NULL, 0);
-	kpp_request_set_output(req, &dst, 64);
-	kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				 crypto_req_done, &result);
-
-	err = crypto_kpp_generate_public_key(req);
-	err = crypto_wait_req(err, &result);
-	if (err < 0)
-		goto free_all;
-
-	/* The public key is handed back in little endian as expected by
-	 * the Security Manager Protocol.
-	 */
-	swap_digits((u64 *)tmp, (u64 *)public_key, 4); /* x */
-	swap_digits((u64 *)&tmp[32], (u64 *)&public_key[32], 4); /* y */
-
+int generate_ecdh_public_key(struct crypto_kpp *tfm, u8 public_key[64]) {
+  DECLARE_CRYPTO_WAIT(result);
+  struct kpp_request *req;
+  u8 *tmp;
+  struct scatterlist dst;
+  int err;
+  tmp = kmalloc(64, GFP_KERNEL);
+  if (!tmp) {
+    return -ENOMEM;
+  }
+  req = kpp_request_alloc(tfm, GFP_KERNEL);
+  if (!req) {
+    err = -ENOMEM;
+    goto free_tmp;
+  }
+  sg_init_one(&dst, tmp, 64);
+  kpp_request_set_input(req, NULL, 0);
+  kpp_request_set_output(req, &dst, 64);
+  kpp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+      crypto_req_done, &result);
+  err = crypto_kpp_generate_public_key(req);
+  err = crypto_wait_req(err, &result);
+  if (err < 0) {
+    goto free_all;
+  }
+  /* The public key is handed back in little endian as expected by
+   * the Security Manager Protocol.
+   */
+  swap_digits((u64 *) tmp, (u64 *) public_key, 4); /* x */
+  swap_digits((u64 *) &tmp[32], (u64 *) &public_key[32], 4); /* y */
 free_all:
-	kpp_request_free(req);
+  kpp_request_free(req);
 free_tmp:
-	kfree(tmp);
-	return err;
+  kfree(tmp);
+  return err;
 }
 
 /* generate_ecdh_keys() - generate ecc key pair.
@@ -191,13 +178,11 @@ free_tmp:
  *
  * Return: zero on success; error code in case of error.
  */
-int generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64])
-{
-	int err;
-
-	err = set_ecdh_privkey(tfm, NULL);
-	if (err)
-		return err;
-
-	return generate_ecdh_public_key(tfm, public_key);
+int generate_ecdh_keys(struct crypto_kpp *tfm, u8 public_key[64]) {
+  int err;
+  err = set_ecdh_privkey(tfm, NULL);
+  if (err) {
+    return err;
+  }
+  return generate_ecdh_public_key(tfm, public_key);
 }

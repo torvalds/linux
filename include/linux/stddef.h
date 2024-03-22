@@ -5,15 +5,15 @@
 #include <uapi/linux/stddef.h>
 
 #undef NULL
-#define NULL ((void *)0)
+#define NULL ((void *) 0)
 
 enum {
-	false	= 0,
-	true	= 1
+  false = 0,
+  true = 1
 };
 
 #undef offsetof
-#define offsetof(TYPE, MEMBER)	__builtin_offsetof(TYPE, MEMBER)
+#define offsetof(TYPE, MEMBER)  __builtin_offsetof(TYPE, MEMBER)
 
 /**
  * sizeof_field() - Report the size of a struct field in bytes
@@ -21,7 +21,7 @@ enum {
  * @TYPE: The structure containing the field of interest
  * @MEMBER: The field to return the size of
  */
-#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
+#define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *) 0)->MEMBER))
 
 /**
  * offsetofend() - Report the offset of a struct field within the struct
@@ -30,7 +30,7 @@ enum {
  * @MEMBER: The member within the structure to get the end offset of
  */
 #define offsetofend(TYPE, MEMBER) \
-	(offsetof(TYPE, MEMBER)	+ sizeof_field(TYPE, MEMBER))
+  (offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
 
 /**
  * struct_group() - Wrap a set of declarations in a mirrored struct
@@ -44,8 +44,8 @@ enum {
  * used to reason about the start, end, and size of the group of
  * struct members.
  */
-#define struct_group(NAME, MEMBERS...)	\
-	__struct_group(/* no tag */, NAME, /* no attrs */, MEMBERS)
+#define struct_group(NAME, MEMBERS ...)  \
+  __struct_group( /* no tag */, NAME, /* no attrs */, MEMBERS)
 
 /**
  * struct_group_attr() - Create a struct_group() with trailing attributes
@@ -60,8 +60,8 @@ enum {
  * used to reason about the start, end, and size of the group of
  * struct members. Includes structure attributes argument.
  */
-#define struct_group_attr(NAME, ATTRS, MEMBERS...) \
-	__struct_group(/* no tag */, NAME, ATTRS, MEMBERS)
+#define struct_group_attr(NAME, ATTRS, MEMBERS ...) \
+  __struct_group( /* no tag */, NAME, ATTRS, MEMBERS)
 
 /**
  * struct_group_tagged() - Create a struct_group with a reusable tag
@@ -77,8 +77,8 @@ enum {
  * struct members. Includes struct tag argument for the named copy,
  * so the specified layout can be reused later.
  */
-#define struct_group_tagged(TAG, NAME, MEMBERS...) \
-	__struct_group(TAG, NAME, /* no attrs */, MEMBERS)
+#define struct_group_tagged(TAG, NAME, MEMBERS ...) \
+  __struct_group(TAG, NAME, /* no attrs */, MEMBERS)
 
 /**
  * DECLARE_FLEX_ARRAY() - Declare a flexible array usable in a union
@@ -91,6 +91,6 @@ enum {
  * named member, but that member can be empty.
  */
 #define DECLARE_FLEX_ARRAY(TYPE, NAME) \
-	__DECLARE_FLEX_ARRAY(TYPE, NAME)
+  __DECLARE_FLEX_ARRAY(TYPE, NAME)
 
 #endif

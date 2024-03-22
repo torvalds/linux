@@ -28,4 +28,4 @@ s16 qm_norm32(s32 op);
 
 void qm_log10(s32 N, s16 qN, s16 *log10N, s16 *qLog10N);
 
-#endif				/* #ifndef _BRCM_QMATH_H_ */
+#endif        /* #ifndef _BRCM_QMATH_H_ */

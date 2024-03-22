@@ -12,9 +12,9 @@
 #include <linux/notifier.h>
 
 struct pm_clk_notifier_block {
-	struct notifier_block nb;
-	struct dev_pm_domain *pm_domain;
-	char *con_ids[];
+  struct notifier_block nb;
+  struct dev_pm_domain *pm_domain;
+  char *con_ids[];
 };
 
 struct clk;
@@ -23,17 +23,16 @@ struct clk;
 extern int pm_clk_runtime_suspend(struct device *dev);
 extern int pm_clk_runtime_resume(struct device *dev);
 #define USE_PM_CLK_RUNTIME_OPS \
-	.runtime_suspend = pm_clk_runtime_suspend, \
-	.runtime_resume = pm_clk_runtime_resume,
+  .runtime_suspend = pm_clk_runtime_suspend, \
+  .runtime_resume = pm_clk_runtime_resume,
 #else
 #define USE_PM_CLK_RUNTIME_OPS
 #endif
 
 #ifdef CONFIG_PM_CLK
-static inline bool pm_clk_no_clocks(struct device *dev)
-{
-	return dev && dev->power.subsys_data
-		&& list_empty(&dev->power.subsys_data->clock_list);
+static inline bool pm_clk_no_clocks(struct device *dev) {
+  return dev && dev->power.subsys_data
+    && list_empty(&dev->power.subsys_data->clock_list);
 }
 
 extern void pm_clk_init(struct device *dev);
@@ -49,55 +48,54 @@ extern int pm_clk_suspend(struct device *dev);
 extern int pm_clk_resume(struct device *dev);
 extern int devm_pm_clk_create(struct device *dev);
 #else
-static inline bool pm_clk_no_clocks(struct device *dev)
-{
-	return true;
-}
-static inline void pm_clk_init(struct device *dev)
-{
-}
-static inline int pm_clk_create(struct device *dev)
-{
-	return -EINVAL;
-}
-static inline void pm_clk_destroy(struct device *dev)
-{
-}
-static inline int pm_clk_add(struct device *dev, const char *con_id)
-{
-	return -EINVAL;
+static inline bool pm_clk_no_clocks(struct device *dev) {
+  return true;
 }
 
-static inline int pm_clk_add_clk(struct device *dev, struct clk *clk)
-{
-	return -EINVAL;
+static inline void pm_clk_init(struct device *dev) {
 }
-static inline int of_pm_clk_add_clks(struct device *dev)
-{
-	return -EINVAL;
+
+static inline int pm_clk_create(struct device *dev) {
+  return -EINVAL;
 }
-static inline void pm_clk_remove(struct device *dev, const char *con_id)
-{
+
+static inline void pm_clk_destroy(struct device *dev) {
 }
-#define pm_clk_suspend	NULL
-#define pm_clk_resume	NULL
-static inline void pm_clk_remove_clk(struct device *dev, struct clk *clk)
-{
+
+static inline int pm_clk_add(struct device *dev, const char *con_id) {
+  return -EINVAL;
 }
-static inline int devm_pm_clk_create(struct device *dev)
-{
-	return -EINVAL;
+
+static inline int pm_clk_add_clk(struct device *dev, struct clk *clk) {
+  return -EINVAL;
 }
+
+static inline int of_pm_clk_add_clks(struct device *dev) {
+  return -EINVAL;
+}
+
+static inline void pm_clk_remove(struct device *dev, const char *con_id) {
+}
+
+#define pm_clk_suspend  NULL
+#define pm_clk_resume NULL
+static inline void pm_clk_remove_clk(struct device *dev, struct clk *clk) {
+}
+
+static inline int devm_pm_clk_create(struct device *dev) {
+  return -EINVAL;
+}
+
 #endif
 
 #ifdef CONFIG_HAVE_CLK
 extern void pm_clk_add_notifier(const struct bus_type *bus,
-					struct pm_clk_notifier_block *clknb);
+    struct pm_clk_notifier_block *clknb);
 #else
 static inline void pm_clk_add_notifier(const struct bus_type *bus,
-					struct pm_clk_notifier_block *clknb)
-{
+    struct pm_clk_notifier_block *clknb) {
 }
+
 #endif
 
 #endif

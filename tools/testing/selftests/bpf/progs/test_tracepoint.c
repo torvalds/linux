@@ -6,20 +6,19 @@
 
 /* taken from /sys/kernel/tracing/events/sched/sched_switch/format */
 struct sched_switch_args {
-	unsigned long long pad;
-	char prev_comm[TASK_COMM_LEN];
-	int prev_pid;
-	int prev_prio;
-	long long prev_state;
-	char next_comm[TASK_COMM_LEN];
-	int next_pid;
-	int next_prio;
+  unsigned long long pad;
+  char prev_comm[TASK_COMM_LEN];
+  int prev_pid;
+  int prev_prio;
+  long long prev_state;
+  char next_comm[TASK_COMM_LEN];
+  int next_pid;
+  int next_prio;
 };
 
 SEC("tracepoint/sched/sched_switch")
-int oncpu(struct sched_switch_args *ctx)
-{
-	return 0;
+int oncpu(struct sched_switch_args *ctx) {
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

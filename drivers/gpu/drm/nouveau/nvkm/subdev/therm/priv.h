@@ -30,26 +30,28 @@
 #include <subdev/bios/gpio.h>
 #include <subdev/bios/perf.h>
 
-int nvkm_therm_new_(const struct nvkm_therm_func *, struct nvkm_device *, enum nvkm_subdev_type,
-		    int, struct nvkm_therm **);
-void nvkm_therm_ctor(struct nvkm_therm *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		     const struct nvkm_therm_func *);
+int nvkm_therm_new_(const struct nvkm_therm_func *, struct nvkm_device *,
+    enum nvkm_subdev_type,
+    int, struct nvkm_therm **);
+void nvkm_therm_ctor(struct nvkm_therm *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    const struct nvkm_therm_func *);
 
 struct nvkm_fan {
-	struct nvkm_therm *parent;
-	const char *type;
+  struct nvkm_therm *parent;
+  const char *type;
 
-	struct nvbios_therm_fan bios;
-	struct nvbios_perf_fan perf;
+  struct nvbios_therm_fan bios;
+  struct nvbios_perf_fan perf;
 
-	struct nvkm_alarm alarm;
-	spinlock_t lock;
-	int percent;
+  struct nvkm_alarm alarm;
+  spinlock_t lock;
+  int percent;
 
-	int (*get)(struct nvkm_therm *);
-	int (*set)(struct nvkm_therm *, int percent);
+  int (*get)(struct nvkm_therm *);
+  int (*set)(struct nvkm_therm *, int percent);
 
-	struct dcb_gpio_func tach;
+  struct dcb_gpio_func tach;
 };
 
 int nvkm_therm_fan_mode(struct nvkm_therm *, int mode);
@@ -68,56 +70,56 @@ int nvkm_therm_fan_set(struct nvkm_therm *, bool now, int percent);
 int nvkm_therm_fan_user_get(struct nvkm_therm *);
 int nvkm_therm_fan_user_set(struct nvkm_therm *, int percent);
 
-int  nvkm_therm_sensor_init(struct nvkm_therm *);
-int  nvkm_therm_sensor_fini(struct nvkm_therm *, bool suspend);
+int nvkm_therm_sensor_init(struct nvkm_therm *);
+int nvkm_therm_sensor_fini(struct nvkm_therm *, bool suspend);
 void nvkm_therm_sensor_preinit(struct nvkm_therm *);
 void nvkm_therm_sensor_set_threshold_state(struct nvkm_therm *,
-					   enum nvkm_therm_thrs,
-					   enum nvkm_therm_thrs_state);
-enum nvkm_therm_thrs_state
-nvkm_therm_sensor_get_threshold_state(struct nvkm_therm *,
-				      enum nvkm_therm_thrs);
+    enum nvkm_therm_thrs,
+    enum nvkm_therm_thrs_state);
+enum nvkm_therm_thrs_state nvkm_therm_sensor_get_threshold_state(
+  struct nvkm_therm *,
+  enum nvkm_therm_thrs);
 void nvkm_therm_sensor_event(struct nvkm_therm *, enum nvkm_therm_thrs,
-			     enum nvkm_therm_thrs_direction);
+    enum nvkm_therm_thrs_direction);
 void nvkm_therm_program_alarms_polling(struct nvkm_therm *);
 
 struct nvkm_therm_func {
-	void (*init)(struct nvkm_therm *);
-	void (*fini)(struct nvkm_therm *);
-	void (*intr)(struct nvkm_therm *);
+  void (*init)(struct nvkm_therm *);
+  void (*fini)(struct nvkm_therm *);
+  void (*intr)(struct nvkm_therm *);
 
-	int (*pwm_ctrl)(struct nvkm_therm *, int line, bool);
-	int (*pwm_get)(struct nvkm_therm *, int line, u32 *, u32 *);
-	int (*pwm_set)(struct nvkm_therm *, int line, u32, u32);
-	int (*pwm_clock)(struct nvkm_therm *, int line);
+  int (*pwm_ctrl)(struct nvkm_therm *, int line, bool);
+  int (*pwm_get)(struct nvkm_therm *, int line, u32 *, u32 *);
+  int (*pwm_set)(struct nvkm_therm *, int line, u32, u32);
+  int (*pwm_clock)(struct nvkm_therm *, int line);
 
-	int (*temp_get)(struct nvkm_therm *);
+  int (*temp_get)(struct nvkm_therm *);
 
-	int (*fan_sense)(struct nvkm_therm *);
+  int (*fan_sense)(struct nvkm_therm *);
 
-	void (*program_alarms)(struct nvkm_therm *);
+  void (*program_alarms)(struct nvkm_therm *);
 
-	void (*clkgate_init)(struct nvkm_therm *,
-			     const struct nvkm_therm_clkgate_pack *);
-	void (*clkgate_enable)(struct nvkm_therm *);
-	void (*clkgate_fini)(struct nvkm_therm *, bool);
+  void (*clkgate_init)(struct nvkm_therm *,
+      const struct nvkm_therm_clkgate_pack *);
+  void (*clkgate_enable)(struct nvkm_therm *);
+  void (*clkgate_fini)(struct nvkm_therm *, bool);
 };
 
 void nv40_therm_intr(struct nvkm_therm *);
 
-int  nv50_fan_pwm_ctrl(struct nvkm_therm *, int, bool);
-int  nv50_fan_pwm_get(struct nvkm_therm *, int, u32 *, u32 *);
-int  nv50_fan_pwm_set(struct nvkm_therm *, int, u32, u32);
-int  nv50_fan_pwm_clock(struct nvkm_therm *, int);
+int nv50_fan_pwm_ctrl(struct nvkm_therm *, int, bool);
+int nv50_fan_pwm_get(struct nvkm_therm *, int, u32 *, u32 *);
+int nv50_fan_pwm_set(struct nvkm_therm *, int, u32, u32);
+int nv50_fan_pwm_clock(struct nvkm_therm *, int);
 
-int  g84_temp_get(struct nvkm_therm *);
+int g84_temp_get(struct nvkm_therm *);
 void g84_sensor_setup(struct nvkm_therm *);
 void g84_therm_fini(struct nvkm_therm *);
 
 int gt215_therm_fan_sense(struct nvkm_therm *);
 
 void gf100_clkgate_init(struct nvkm_therm *,
-			const struct nvkm_therm_clkgate_pack *);
+    const struct nvkm_therm_clkgate_pack *);
 
 void g84_therm_init(struct nvkm_therm *);
 

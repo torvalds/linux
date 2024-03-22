@@ -32,19 +32,24 @@
 struct dml2_context;
 
 /*
- * dml2_map_dc_pipes - Creates a pipe linkage in dc_state based on current display config.
+ * dml2_map_dc_pipes - Creates a pipe linkage in dc_state based on current
+ *display config.
  * @ctx: Input dml2 context
  * @state: Current dc_state to be updated.
  * @disp_cfg: Current display config.
  * @mapping: Pipe mapping logic structure to keep a track of pipes to be used.
  *
- * Based on ODM and DPPPersurface outputs calculated by the DML for the current display
+ * Based on ODM and DPPPersurface outputs calculated by the DML for the current
+ *display
  * config, create a pipe linkage in dc_state which is then used by DC core.
  * Make this function generic to be used by multiple DML versions.
  *
  * Return: True if pipe mapping and linking is successful, false otherwise.
  */
 
-bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const struct dml_display_cfg_st *disp_cfg, struct dml2_dml_to_dc_pipe_mapping *mapping, const struct dc_state *existing_state);
+bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state,
+    const struct dml_display_cfg_st *disp_cfg,
+    struct dml2_dml_to_dc_pipe_mapping *mapping,
+    const struct dc_state *existing_state);
 
 #endif

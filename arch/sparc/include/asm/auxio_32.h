@@ -51,13 +51,13 @@ unsigned char get_auxio(void); /* .../asm/floppy.h */
  * on - AUXIO_LTE_ON or AUXIO_LTE_OFF
  */
 #define auxio_set_lte(on) \
-do { \
-	if(on) { \
-		set_auxio(AUXIO_LINK_TEST, 0); \
-	} else { \
-		set_auxio(0, AUXIO_LINK_TEST); \
-	} \
-} while (0)
+  do { \
+    if (on) { \
+      set_auxio(AUXIO_LINK_TEST, 0); \
+    } else { \
+      set_auxio(0, AUXIO_LINK_TEST); \
+    } \
+  } while (0)
 
 #define AUXIO_LED_ON    1
 #define AUXIO_LED_OFF   0
@@ -67,23 +67,21 @@ do { \
  * on - AUXIO_LED_ON or AUXIO_LED_OFF
  */
 #define auxio_set_led(on) \
-do { \
-	if(on) { \
-		set_auxio(AUXIO_LED, 0); \
-	} else { \
-		set_auxio(0, AUXIO_LED); \
-	} \
-} while (0)
+  do { \
+    if (on) { \
+      set_auxio(AUXIO_LED, 0); \
+    } else { \
+      set_auxio(0, AUXIO_LED); \
+    } \
+  } while (0)
 
 #endif /* !(__ASSEMBLY__) */
-
 
 /* AUXIO2 (Power Off Control) */
 extern volatile u8 __iomem *auxio_power_register;
 
-#define	AUXIO_POWER_DETECT_FAILURE	32
-#define	AUXIO_POWER_CLEAR_FAILURE	2
-#define	AUXIO_POWER_OFF			1
-
+#define AUXIO_POWER_DETECT_FAILURE  32
+#define AUXIO_POWER_CLEAR_FAILURE 2
+#define AUXIO_POWER_OFF     1
 
 #endif /* !(_SPARC_AUXIO_H) */

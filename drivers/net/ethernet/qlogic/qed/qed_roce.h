@@ -13,7 +13,9 @@
 void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 #else
 static inline void qed_roce_dpm_dcbx(struct qed_hwfn *p_hwfn,
-				     struct qed_ptt *p_ptt) {}
+    struct qed_ptt *p_ptt) {
+}
+
 #endif
 
 int qed_roce_setup(struct qed_hwfn *p_hwfn);
@@ -23,12 +25,12 @@ int qed_roce_alloc_cid(struct qed_hwfn *p_hwfn, u16 *cid);
 int qed_roce_destroy_qp(struct qed_hwfn *p_hwfn, struct qed_rdma_qp *qp);
 
 int qed_roce_query_qp(struct qed_hwfn *p_hwfn,
-		      struct qed_rdma_qp *qp,
-		      struct qed_rdma_query_qp_out_params *out_params);
+    struct qed_rdma_qp *qp,
+    struct qed_rdma_query_qp_out_params *out_params);
 
 int qed_roce_modify_qp(struct qed_hwfn *p_hwfn,
-		       struct qed_rdma_qp *qp,
-		       enum qed_roce_qp_state prev_state,
-		       struct qed_rdma_modify_qp_in_params *params);
+    struct qed_rdma_qp *qp,
+    enum qed_roce_qp_state prev_state,
+    struct qed_rdma_modify_qp_in_params *params);
 
 #endif

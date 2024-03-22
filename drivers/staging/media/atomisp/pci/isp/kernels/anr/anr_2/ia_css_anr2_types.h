@@ -17,8 +17,8 @@
 #define __IA_CSS_ANR2_TYPES_H
 
 /* @file
-* CSS-API header file for Advanced Noise Reduction kernel v2
-*/
+ * CSS-API header file for Advanced Noise Reduction kernel v2
+ */
 
 #include "type_support.h"
 
@@ -26,7 +26,7 @@
 
 /* Advanced Noise Reduction (ANR) thresholds */
 struct ia_css_anr_thres {
-	s16 data[13 * 64];
+  s16 data[13 * 64];
 };
 
 #endif /* __IA_CSS_ANR2_TYPES_H */

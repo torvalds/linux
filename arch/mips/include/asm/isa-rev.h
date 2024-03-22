@@ -20,5 +20,4 @@
 #define MIPS_ISA_REV 0
 #endif
 
-
 #endif /* __MIPS_ASM_ISA_REV_H__ */

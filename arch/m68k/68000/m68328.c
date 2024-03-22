@@ -32,32 +32,29 @@
 
 /***************************************************************************/
 
-static void m68328_reset(void)
-{
+static void m68328_reset(void) {
   local_irq_disable();
   asm volatile ("moveal #0x10c00000, %a0;\n\t"
-		"moveb #0, 0xFFFFF300;\n\t"
-		"moveal 0(%a0), %sp;\n\t"
-		"moveal 4(%a0), %a0;\n\t"
-		"jmp (%a0);");
+  "moveb #0, 0xFFFFF300;\n\t"
+  "moveal 0(%a0), %sp;\n\t"
+  "moveal 4(%a0), %a0;\n\t"
+  "jmp (%a0);");
 }
 
 /***************************************************************************/
 
-void __init config_BSP(char *command, int len)
-{
-	mach_sched_init = hw_timer_init;
-	mach_hwclk = m68328_hwclk;
-	mach_reset = m68328_reset;
-
+void __init config_BSP(char *command, int len) {
+  mach_sched_init = hw_timer_init;
+  mach_hwclk = m68328_hwclk;
+  mach_reset = m68328_reset;
 #if   defined(CONFIG_PILOT) && defined(CONFIG_M68328)
-	mach_sched_init = NULL;
+  mach_sched_init = NULL;
 #elif defined(CONFIG_UCSIMM)
-	init_ucsimm(command, len);
+  init_ucsimm(command, len);
 #elif defined(CONFIG_UCDIMM)
-	init_ucsimm(command, len);
+  init_ucsimm(command, len);
 #elif defined(CONFIG_DRAGEN2)
-	init_dragen2(command, len);
+  init_dragen2(command, len);
 #endif
 }
 

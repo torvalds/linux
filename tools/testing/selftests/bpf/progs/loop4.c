@@ -8,13 +8,13 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("socket")
-int combinations(volatile struct __sk_buff* skb)
-{
-	int ret = 0, i;
-
-	__pragma_loop_no_unroll
-	for (i = 0; i < 20; i++)
-		if (skb->len)
-			ret |= 1 << i;
-	return ret;
+int combinations(volatile struct __sk_buff *skb) {
+  int ret = 0, i;
+  __pragma_loop_no_unroll
+  for (i = 0; i < 20; i++) {
+    if (skb->len) {
+      ret |= 1 << i;
+    }
+  }
+  return ret;
 }

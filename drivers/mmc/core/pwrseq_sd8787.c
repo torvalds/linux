@@ -25,108 +25,93 @@
 #include "pwrseq.h"
 
 struct mmc_pwrseq_sd8787 {
-	struct mmc_pwrseq pwrseq;
-	struct gpio_desc *reset_gpio;
-	struct gpio_desc *pwrdn_gpio;
+  struct mmc_pwrseq pwrseq;
+  struct gpio_desc *reset_gpio;
+  struct gpio_desc *pwrdn_gpio;
 };
 
 #define to_pwrseq_sd8787(p) container_of(p, struct mmc_pwrseq_sd8787, pwrseq)
 
-static void mmc_pwrseq_sd8787_pre_power_on(struct mmc_host *host)
-{
-	struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
-
-	gpiod_set_value_cansleep(pwrseq->reset_gpio, 1);
-
-	msleep(300);
-	gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 1);
+static void mmc_pwrseq_sd8787_pre_power_on(struct mmc_host *host) {
+  struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
+  gpiod_set_value_cansleep(pwrseq->reset_gpio, 1);
+  msleep(300);
+  gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 1);
 }
 
-static void mmc_pwrseq_sd8787_power_off(struct mmc_host *host)
-{
-	struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
-
-	gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 0);
-	gpiod_set_value_cansleep(pwrseq->reset_gpio, 0);
+static void mmc_pwrseq_sd8787_power_off(struct mmc_host *host) {
+  struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
+  gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 0);
+  gpiod_set_value_cansleep(pwrseq->reset_gpio, 0);
 }
 
-static void mmc_pwrseq_wilc1000_pre_power_on(struct mmc_host *host)
-{
-	struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
-
-	/* The pwrdn_gpio is really CHIP_EN, reset_gpio is RESETN */
-	gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 1);
-	msleep(5);
-	gpiod_set_value_cansleep(pwrseq->reset_gpio, 1);
+static void mmc_pwrseq_wilc1000_pre_power_on(struct mmc_host *host) {
+  struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
+  /* The pwrdn_gpio is really CHIP_EN, reset_gpio is RESETN */
+  gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 1);
+  msleep(5);
+  gpiod_set_value_cansleep(pwrseq->reset_gpio, 1);
 }
 
-static void mmc_pwrseq_wilc1000_power_off(struct mmc_host *host)
-{
-	struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
-
-	gpiod_set_value_cansleep(pwrseq->reset_gpio, 0);
-	gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 0);
+static void mmc_pwrseq_wilc1000_power_off(struct mmc_host *host) {
+  struct mmc_pwrseq_sd8787 *pwrseq = to_pwrseq_sd8787(host->pwrseq);
+  gpiod_set_value_cansleep(pwrseq->reset_gpio, 0);
+  gpiod_set_value_cansleep(pwrseq->pwrdn_gpio, 0);
 }
 
 static const struct mmc_pwrseq_ops mmc_pwrseq_sd8787_ops = {
-	.pre_power_on = mmc_pwrseq_sd8787_pre_power_on,
-	.power_off = mmc_pwrseq_sd8787_power_off,
+  .pre_power_on = mmc_pwrseq_sd8787_pre_power_on,
+  .power_off = mmc_pwrseq_sd8787_power_off,
 };
 
 static const struct mmc_pwrseq_ops mmc_pwrseq_wilc1000_ops = {
-	.pre_power_on = mmc_pwrseq_wilc1000_pre_power_on,
-	.power_off = mmc_pwrseq_wilc1000_power_off,
+  .pre_power_on = mmc_pwrseq_wilc1000_pre_power_on,
+  .power_off = mmc_pwrseq_wilc1000_power_off,
 };
 
 static const struct of_device_id mmc_pwrseq_sd8787_of_match[] = {
-	{ .compatible = "mmc-pwrseq-sd8787", .data = &mmc_pwrseq_sd8787_ops },
-	{ .compatible = "mmc-pwrseq-wilc1000", .data = &mmc_pwrseq_wilc1000_ops },
-	{/* sentinel */},
+  { .compatible = "mmc-pwrseq-sd8787", .data = &mmc_pwrseq_sd8787_ops },
+  { .compatible = "mmc-pwrseq-wilc1000", .data = &mmc_pwrseq_wilc1000_ops },
+  { /* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, mmc_pwrseq_sd8787_of_match);
 
-static int mmc_pwrseq_sd8787_probe(struct platform_device *pdev)
-{
-	struct mmc_pwrseq_sd8787 *pwrseq;
-	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-
-	pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
-	if (!pwrseq)
-		return -ENOMEM;
-
-	match = of_match_node(mmc_pwrseq_sd8787_of_match, pdev->dev.of_node);
-
-	pwrseq->pwrdn_gpio = devm_gpiod_get(dev, "powerdown", GPIOD_OUT_LOW);
-	if (IS_ERR(pwrseq->pwrdn_gpio))
-		return PTR_ERR(pwrseq->pwrdn_gpio);
-
-	pwrseq->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(pwrseq->reset_gpio))
-		return PTR_ERR(pwrseq->reset_gpio);
-
-	pwrseq->pwrseq.dev = dev;
-	pwrseq->pwrseq.ops = match->data;
-	pwrseq->pwrseq.owner = THIS_MODULE;
-	platform_set_drvdata(pdev, pwrseq);
-
-	return mmc_pwrseq_register(&pwrseq->pwrseq);
+static int mmc_pwrseq_sd8787_probe(struct platform_device *pdev) {
+  struct mmc_pwrseq_sd8787 *pwrseq;
+  struct device *dev = &pdev->dev;
+  const struct of_device_id *match;
+  pwrseq = devm_kzalloc(dev, sizeof(*pwrseq), GFP_KERNEL);
+  if (!pwrseq) {
+    return -ENOMEM;
+  }
+  match = of_match_node(mmc_pwrseq_sd8787_of_match, pdev->dev.of_node);
+  pwrseq->pwrdn_gpio = devm_gpiod_get(dev, "powerdown", GPIOD_OUT_LOW);
+  if (IS_ERR(pwrseq->pwrdn_gpio)) {
+    return PTR_ERR(pwrseq->pwrdn_gpio);
+  }
+  pwrseq->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+  if (IS_ERR(pwrseq->reset_gpio)) {
+    return PTR_ERR(pwrseq->reset_gpio);
+  }
+  pwrseq->pwrseq.dev = dev;
+  pwrseq->pwrseq.ops = match->data;
+  pwrseq->pwrseq.owner = THIS_MODULE;
+  platform_set_drvdata(pdev, pwrseq);
+  return mmc_pwrseq_register(&pwrseq->pwrseq);
 }
 
-static void mmc_pwrseq_sd8787_remove(struct platform_device *pdev)
-{
-	struct mmc_pwrseq_sd8787 *pwrseq = platform_get_drvdata(pdev);
-
-	mmc_pwrseq_unregister(&pwrseq->pwrseq);
+static void mmc_pwrseq_sd8787_remove(struct platform_device *pdev) {
+  struct mmc_pwrseq_sd8787 *pwrseq = platform_get_drvdata(pdev);
+  mmc_pwrseq_unregister(&pwrseq->pwrseq);
 }
 
 static struct platform_driver mmc_pwrseq_sd8787_driver = {
-	.probe = mmc_pwrseq_sd8787_probe,
-	.remove_new = mmc_pwrseq_sd8787_remove,
-	.driver = {
-		.name = "pwrseq_sd8787",
-		.of_match_table = mmc_pwrseq_sd8787_of_match,
-	},
+  .probe = mmc_pwrseq_sd8787_probe,
+  .remove_new = mmc_pwrseq_sd8787_remove,
+  .driver = {
+    .name = "pwrseq_sd8787",
+    .of_match_table = mmc_pwrseq_sd8787_of_match,
+  },
 };
 
 module_platform_driver(mmc_pwrseq_sd8787_driver);

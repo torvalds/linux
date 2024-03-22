@@ -44,17 +44,17 @@
  *    scanning out.
  */
 struct mdp5_smp_state {
-	/* global state of what blocks are in use: */
-	mdp5_smp_state_t state;
+  /* global state of what blocks are in use: */
+  mdp5_smp_state_t state;
 
-	/* per client state of what blocks they are using: */
-	mdp5_smp_state_t client_state[MAX_CLIENTS];
+  /* per client state of what blocks they are using: */
+  mdp5_smp_state_t client_state[MAX_CLIENTS];
 
-	/* assigned pipes (hw updated at _prepare_commit()): */
-	unsigned long assigned;
+  /* assigned pipes (hw updated at _prepare_commit()): */
+  unsigned long assigned;
 
-	/* released pipes (hw updated at _complete_commit()): */
-	unsigned long released;
+  /* released pipes (hw updated at _complete_commit()): */
+  unsigned long released;
 };
 
 struct mdp5_kms;
@@ -67,22 +67,24 @@ struct mdp5_smp;
  */
 
 struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms,
-		const struct mdp5_smp_block *cfg);
+    const struct mdp5_smp_block *cfg);
 
 struct mdp5_global_state;
 void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p,
-		   struct mdp5_global_state *global_state);
+    struct mdp5_global_state *global_state);
 
 uint32_t mdp5_smp_calculate(struct mdp5_smp *smp,
-		const struct mdp_format *format,
-		u32 width, bool hdecim);
+    const struct mdp_format *format,
+    u32 width, bool hdecim);
 
 int mdp5_smp_assign(struct mdp5_smp *smp, struct mdp5_smp_state *state,
-		enum mdp5_pipe pipe, uint32_t blkcfg);
+    enum mdp5_pipe pipe, uint32_t blkcfg);
 void mdp5_smp_release(struct mdp5_smp *smp, struct mdp5_smp_state *state,
-		enum mdp5_pipe pipe);
+    enum mdp5_pipe pipe);
 
-void mdp5_smp_prepare_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state);
-void mdp5_smp_complete_commit(struct mdp5_smp *smp, struct mdp5_smp_state *state);
+void mdp5_smp_prepare_commit(struct mdp5_smp *smp,
+    struct mdp5_smp_state *state);
+void mdp5_smp_complete_commit(struct mdp5_smp *smp,
+    struct mdp5_smp_state *state);
 
 #endif /* __MDP5_SMP_H__ */

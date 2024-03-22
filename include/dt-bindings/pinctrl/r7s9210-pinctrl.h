@@ -6,7 +6,7 @@
 #ifndef __DT_BINDINGS_PINCTRL_RENESAS_RZA2_H
 #define __DT_BINDINGS_PINCTRL_RENESAS_RZA2_H
 
-#define RZA2_PINS_PER_PORT	8
+#define RZA2_PINS_PER_PORT  8
 
 /* Port names as labeled in the Hardware Manual */
 #define PORT0 0
@@ -31,17 +31,17 @@
 #define PORTJ 18
 #define PORTK 19
 #define PORTL 20
-#define PORTM 21	/* Pins PM_0/1 are labeled JP_0/1 in HW manual */
+#define PORTM 21  /* Pins PM_0/1 are labeled JP_0/1 in HW manual */
 
 /*
  * Create the pin index from its bank and position numbers and store in
  * the upper 16 bits the alternate function identifier
  */
-#define RZA2_PINMUX(b, p, f)	((b) * RZA2_PINS_PER_PORT + (p) | (f << 16))
+#define RZA2_PINMUX(b, p, f)  ((b) * RZA2_PINS_PER_PORT + (p) | (f << 16))
 
 /*
  * Convert a port and pin label to its global pin index
  */
-#define RZA2_PIN(port, pin)	((port) * RZA2_PINS_PER_PORT + (pin))
+#define RZA2_PIN(port, pin) ((port) * RZA2_PINS_PER_PORT + (pin))
 
 #endif /* __DT_BINDINGS_PINCTRL_RENESAS_RZA2_H */

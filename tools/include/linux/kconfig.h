@@ -11,13 +11,13 @@
  * The use of "&&" / "||" is limited in certain expressions.
  * The following enable to calculate "and" / "or" with macro expansion only.
  */
-#define __and(x, y)			___and(x, y)
-#define ___and(x, y)			____and(__ARG_PLACEHOLDER_##x, y)
-#define ____and(arg1_or_junk, y)	__take_second_arg(arg1_or_junk y, 0)
+#define __and(x, y)     ___and(x, y)
+#define ___and(x, y)      ____and(__ARG_PLACEHOLDER_ ## x, y)
+#define ____and(arg1_or_junk, y)  __take_second_arg(arg1_or_junk y, 0)
 
-#define __or(x, y)			___or(x, y)
-#define ___or(x, y)			____or(__ARG_PLACEHOLDER_##x, y)
-#define ____or(arg1_or_junk, y)		__take_second_arg(arg1_or_junk 1, y)
+#define __or(x, y)      ___or(x, y)
+#define ___or(x, y)     ____or(__ARG_PLACEHOLDER_ ## x, y)
+#define ____or(arg1_or_junk, y)   __take_second_arg(arg1_or_junk 1, y)
 
 /*
  * Helper macros to use CONFIG_ options in C/CPP expressions. Note that
@@ -32,9 +32,9 @@
  * When CONFIG_BOOGER is not defined, we generate a (... 1, 0) pair, and when
  * the last step cherry picks the 2nd arg, we get a zero.
  */
-#define __is_defined(x)			___is_defined(x)
-#define ___is_defined(val)		____is_defined(__ARG_PLACEHOLDER_##val)
-#define ____is_defined(arg1_or_junk)	__take_second_arg(arg1_or_junk 1, 0)
+#define __is_defined(x)     ___is_defined(x)
+#define ___is_defined(val)    ____is_defined(__ARG_PLACEHOLDER_ ## val)
+#define ____is_defined(arg1_or_junk)  __take_second_arg(arg1_or_junk 1, 0)
 
 /*
  * IS_BUILTIN(CONFIG_FOO) evaluates to 1 if CONFIG_FOO is set to 'y', 0
@@ -47,7 +47,7 @@
  * IS_MODULE(CONFIG_FOO) evaluates to 1 if CONFIG_FOO is set to 'm', 0
  * otherwise.
  */
-#define IS_MODULE(option) __is_defined(option##_MODULE)
+#define IS_MODULE(option) __is_defined(option ## _MODULE)
 
 /*
  * IS_REACHABLE(CONFIG_FOO) evaluates to 1 if the currently compiled
@@ -56,7 +56,7 @@
  * built-in code when CONFIG_FOO is set to 'm'.
  */
 #define IS_REACHABLE(option) __or(IS_BUILTIN(option), \
-				__and(IS_MODULE(option), __is_defined(MODULE)))
+    __and(IS_MODULE(option), __is_defined(MODULE)))
 
 /*
  * IS_ENABLED(CONFIG_FOO) evaluates to 1 if CONFIG_FOO is set to 'y' or 'm',

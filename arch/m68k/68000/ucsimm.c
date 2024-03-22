@@ -13,7 +13,6 @@
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
 
-
 #include "m68328.h"
 
 static int errno;
@@ -22,16 +21,15 @@ static _bsc0(char *, getserialnum)
 static _bsc1(unsigned char *, gethwaddr, int, a)
 static _bsc1(char *, getbenv, char *, a)
 
-void __init init_ucsimm(char *command, int size)
-{
-	char *p;
-
-	pr_info("uCsimm/uCdimm serial string [%s]\n", getserialnum());
-	p = gethwaddr(0);
-	pr_info("uCsimm/uCdimm hwaddr %pM\n", p);
-	p = getbenv("APPEND");
-	if (p)
-		strcpy(p, command);
-	else
-		command[0] = 0;
+void __init init_ucsimm(char *command, int size) {
+  char *p;
+  pr_info("uCsimm/uCdimm serial string [%s]\n", getserialnum());
+  p = gethwaddr(0);
+  pr_info("uCsimm/uCdimm hwaddr %pM\n", p);
+  p = getbenv("APPEND");
+  if (p) {
+    strcpy(p, command);
+  } else {
+    command[0] = 0;
+  }
 }

@@ -23,73 +23,67 @@
  */
 
 struct trigger {
-	volatile enum {
-		TRIGGER_ERROR		= -2,
-		TRIGGER_OFF		= -1,
-		TRIGGER_ON		= 0,
-		TRIGGER_READY		= 1,
-		TRIGGER_HIT		= 2,
-	} state;
-	const char *name;
+  volatile enum {
+    TRIGGER_ERROR = -2,
+    TRIGGER_OFF = -1,
+    TRIGGER_ON = 0,
+    TRIGGER_READY = 1,
+    TRIGGER_HIT = 2,
+  } state;
+  const char *name;
 };
 
 #define TRIGGER_WARN_ONCE(t, exp) \
-	WARN_ONCE(t->state != exp, "trigger '%s' state transist error: %d in %s()\n", \
-		  t->name, t->state, __func__)
+  WARN_ONCE(t->state != exp, "trigger '%s' state transist error: %d in %s()\n", \
+    t->name, t->state, __func__)
 
-static inline bool trigger_is_available(struct trigger *t)
-{
-	return t->state >= 0;
+static inline bool trigger_is_available(struct trigger *t) {
+  return t->state >= 0;
 }
 
-static inline bool trigger_is_error(struct trigger *t)
-{
-	return t->state <= TRIGGER_ERROR;
+static inline bool trigger_is_error(struct trigger *t) {
+  return t->state <= TRIGGER_ERROR;
 }
 
-static inline void trigger_on(struct trigger *t)
-{
-	TRIGGER_WARN_ONCE(t, TRIGGER_OFF);
-	t->state = TRIGGER_ON;
+static inline void trigger_on(struct trigger *t) {
+  TRIGGER_WARN_ONCE(t, TRIGGER_OFF);
+  t->state = TRIGGER_ON;
 }
 
-static inline void trigger_ready(struct trigger *t)
-{
-	if (!trigger_is_available(t))
-		return;
-	t->state = TRIGGER_READY;
+static inline void trigger_ready(struct trigger *t) {
+  if (!trigger_is_available(t)) {
+    return;
+  }
+  t->state = TRIGGER_READY;
 }
 
-static inline void trigger_hit(struct trigger *t)
-{
-	if (!trigger_is_available(t))
-		return;
-	TRIGGER_WARN_ONCE(t, TRIGGER_READY);
-	t->state = TRIGGER_HIT;
+static inline void trigger_hit(struct trigger *t) {
+  if (!trigger_is_available(t)) {
+    return;
+  }
+  TRIGGER_WARN_ONCE(t, TRIGGER_READY);
+  t->state = TRIGGER_HIT;
 }
 
-static inline void trigger_off(struct trigger *t)
-{
-	if (!trigger_is_available(t))
-		return;
-	t->state = TRIGGER_OFF;
+static inline void trigger_off(struct trigger *t) {
+  if (!trigger_is_available(t)) {
+    return;
+  }
+  t->state = TRIGGER_OFF;
 }
 
-static inline void trigger_error(struct trigger *t)
-{
-	t->state = TRIGGER_ERROR;
+static inline void trigger_error(struct trigger *t) {
+  t->state = TRIGGER_ERROR;
 }
 
-static inline bool trigger_is_ready(struct trigger *t)
-{
-	return t->state == TRIGGER_READY;
+static inline bool trigger_is_ready(struct trigger *t) {
+  return t->state == TRIGGER_READY;
 }
 
-static inline bool trigger_is_hit(struct trigger *t)
-{
-	return t->state == TRIGGER_HIT;
+static inline bool trigger_is_hit(struct trigger *t) {
+  return t->state == TRIGGER_HIT;
 }
 
 #define DEFINE_TRIGGER(n) \
-struct trigger n = {.state = TRIGGER_OFF, .name = #n}
+  struct trigger n = {.state = TRIGGER_OFF, .name = #n}
 #endif

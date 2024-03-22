@@ -3,7 +3,7 @@
 #ifndef __LINUX_PLATFORM_DATA_EMC2305__
 #define __LINUX_PLATFORM_DATA_EMC2305__
 
-#define EMC2305_PWM_MAX	5
+#define EMC2305_PWM_MAX 5
 
 /**
  * struct emc2305_platform_data - EMC2305 driver platform data
@@ -13,10 +13,10 @@
  * @pwm_min: array of minimum PWM per channel;
  */
 struct emc2305_platform_data {
-	u8 max_state;
-	u8 pwm_num;
-	bool pwm_separate;
-	u8 pwm_min[EMC2305_PWM_MAX];
+  u8 max_state;
+  u8 pwm_num;
+  bool pwm_separate;
+  u8 pwm_min[EMC2305_PWM_MAX];
 };
 
 #endif

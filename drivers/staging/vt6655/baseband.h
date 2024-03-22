@@ -45,17 +45,17 @@
 #define TOP_RATE_1M         0x00100000
 
 unsigned int bb_get_frame_time(unsigned char preamble_type,
-			       unsigned char by_pkt_type,
-			       unsigned int cb_frame_length,
-			       unsigned short w_rate);
+    unsigned char by_pkt_type,
+    unsigned int cb_frame_length,
+    unsigned short w_rate);
 
 void vnt_get_phy_field(struct vnt_private *priv, u32 frame_length,
-		       u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy);
+    u16 tx_rate, u8 pkt_type, struct vnt_phy_field *phy);
 
 bool bb_read_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
-		      unsigned char *pby_data);
+    unsigned char *pby_data);
 bool bb_write_embedded(struct vnt_private *priv, unsigned char by_bb_addr,
-		       unsigned char by_data);
+    unsigned char by_data);
 
 void bb_set_short_slot_time(struct vnt_private *priv);
 void bb_set_vga_gain_offset(struct vnt_private *priv, unsigned char by_data);
@@ -64,9 +64,9 @@ void bb_set_vga_gain_offset(struct vnt_private *priv, unsigned char by_data);
 bool bb_vt3253_init(struct vnt_private *priv);
 void bb_software_reset(struct vnt_private *priv);
 void bb_set_tx_antenna_mode(struct vnt_private *priv,
-			    unsigned char by_antenna_mode);
+    unsigned char by_antenna_mode);
 void bb_set_rx_antenna_mode(struct vnt_private *priv,
-			    unsigned char by_antenna_mode);
+    unsigned char by_antenna_mode);
 void bb_set_deep_sleep(struct vnt_private *priv, unsigned char by_local_id);
 
 #endif /* __BASEBAND_H__ */

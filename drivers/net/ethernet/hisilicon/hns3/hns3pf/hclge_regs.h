@@ -10,8 +10,8 @@ struct hnae3_handle;
 struct hclge_dev;
 
 int hclge_query_bd_num_cmd_send(struct hclge_dev *hdev,
-				struct hclge_desc *desc);
+    struct hclge_desc *desc);
 int hclge_get_regs_len(struct hnae3_handle *handle);
 void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
-		    void *data);
+    void *data);
 #endif

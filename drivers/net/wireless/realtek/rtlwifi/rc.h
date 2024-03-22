@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2009-2012  Realtek Corporation.*/
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL_RC_H__
 #define __RTL_RC_H__
@@ -17,7 +17,7 @@
 #define AC_MODE_MCS9_RIX 9
 
 struct rtl_rate_priv {
-	u8 ht_cap;
+  u8 ht_cap;
 };
 
 int rtl_rate_control_register(void);

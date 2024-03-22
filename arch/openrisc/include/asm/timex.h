@@ -19,10 +19,10 @@
 #include <asm/spr.h>
 #include <asm/spr_defs.h>
 
-static inline cycles_t get_cycles(void)
-{
-	return mfspr(SPR_TTCR);
+static inline cycles_t get_cycles(void) {
+  return mfspr(SPR_TTCR);
 }
+
 #define get_cycles get_cycles
 
 /* This isn't really used any more */

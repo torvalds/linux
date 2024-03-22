@@ -39,7 +39,7 @@
 
 #include "i2c.h"
 
-#define OMAP_INTC_START		NR_IRQS
+#define OMAP_INTC_START   NR_IRQS
 
 extern int (*omap_pm_soc_init)(void);
 int omap_pm_nop_init(void);
@@ -47,59 +47,58 @@ int omap_pm_nop_init(void);
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 int omap3_pm_init(void);
 #else
-static inline int omap3_pm_init(void)
-{
-	return 0;
+static inline int omap3_pm_init(void) {
+  return 0;
 }
+
 #endif
 
-#if defined(CONFIG_PM) && (defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || defined(CONFIG_SOC_DRA7XX))
+#if defined(CONFIG_PM) && (defined(CONFIG_ARCH_OMAP4) \
+  || defined(CONFIG_SOC_OMAP5) || defined(CONFIG_SOC_DRA7XX))
 int omap4_pm_init(void);
 int omap4_pm_init_early(void);
 #else
-static inline int omap4_pm_init(void)
-{
-	return 0;
+static inline int omap4_pm_init(void) {
+  return 0;
 }
 
-static inline int omap4_pm_init_early(void)
-{
-	return 0;
+static inline int omap4_pm_init_early(void) {
+  return 0;
 }
+
 #endif
 
-#if defined(CONFIG_PM) && (defined(CONFIG_SOC_AM33XX) || \
-	defined(CONFIG_SOC_AM43XX))
+#if defined(CONFIG_PM) && (defined(CONFIG_SOC_AM33XX)    \
+  || defined(CONFIG_SOC_AM43XX))
 int amx3_common_pm_init(void);
 #else
-static inline int amx3_common_pm_init(void)
-{
-	return 0;
+static inline int amx3_common_pm_init(void) {
+  return 0;
 }
+
 #endif
 
 #ifdef CONFIG_CACHE_L2X0
 int omap_l2_cache_init(void);
-#define OMAP_L2C_AUX_CTRL	(L2C_AUX_CTRL_SHARED_OVERRIDE | \
-				 L310_AUX_CTRL_DATA_PREFETCH | \
-				 L310_AUX_CTRL_INSTR_PREFETCH)
+#define OMAP_L2C_AUX_CTRL (L2C_AUX_CTRL_SHARED_OVERRIDE   \
+  | L310_AUX_CTRL_DATA_PREFETCH   \
+  | L310_AUX_CTRL_INSTR_PREFETCH)
 void omap4_l2c310_write_sec(unsigned long val, unsigned reg);
 #else
-static inline int omap_l2_cache_init(void)
-{
-	return 0;
+static inline int omap_l2_cache_init(void) {
+  return 0;
 }
 
-#define OMAP_L2C_AUX_CTRL	0
-#define omap4_l2c310_write_sec	NULL
+#define OMAP_L2C_AUX_CTRL 0
+#define omap4_l2c310_write_sec  NULL
 #endif
 
 #ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
 extern void omap5_realtime_timer_init(void);
 #else
-static inline void omap5_realtime_timer_init(void)
-{
+static inline void omap5_realtime_timer_init(void) {
 }
+
 #endif
 
 void omap2420_init_early(void);
@@ -125,59 +124,59 @@ void dra7xx_init_late(void);
 #ifdef CONFIG_SOC_BUS
 void omap_soc_device_init(void);
 #else
-static inline void omap_soc_device_init(void)
-{
+static inline void omap_soc_device_init(void) {
 }
+
 #endif
 
 #if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
 void omap2xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap2xxx_restart(enum reboot_mode mode, const char *cmd)
-{
+static inline void omap2xxx_restart(enum reboot_mode mode, const char *cmd) {
 }
+
 #endif
 
 #ifdef CONFIG_SOC_AM33XX
 void am33xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void am33xx_restart(enum reboot_mode mode, const char *cmd)
-{
+static inline void am33xx_restart(enum reboot_mode mode, const char *cmd) {
 }
+
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
 void omap3xxx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd)
-{
+static inline void omap3xxx_restart(enum reboot_mode mode, const char *cmd) {
 }
+
 #endif
 
 #ifdef CONFIG_SOC_TI81XX
 void ti81xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void ti81xx_restart(enum reboot_mode mode, const char *cmd)
-{
+static inline void ti81xx_restart(enum reboot_mode mode, const char *cmd) {
 }
+
 #endif
 
-#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5) || \
-	defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)    \
+  || defined(CONFIG_SOC_DRA7XX) || defined(CONFIG_SOC_AM43XX)
 void omap44xx_restart(enum reboot_mode mode, const char *cmd);
 #else
-static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd)
-{
+static inline void omap44xx_restart(enum reboot_mode mode, const char *cmd) {
 }
+
 #endif
 
 #ifdef CONFIG_OMAP_INTERCONNECT_BARRIER
 void omap_barrier_reserve_memblock(void);
 void omap_barriers_init(void);
 #else
-static inline void omap_barrier_reserve_memblock(void)
-{
+static inline void omap_barrier_reserve_memblock(void) {
 }
+
 #endif
 
 /* This gets called from mach-omap2/io.c, do not call this */
@@ -203,14 +202,14 @@ void __init ti81xx_map_io(void);
  * calling code.  After running, if @index == @timeout, then the loop has
  * timed out.
  */
-#define omap_test_timeout(cond, timeout, index)			\
-({								\
-	for (index = 0; index < timeout; index++) {		\
-		if (cond)					\
-			break;					\
-		udelay(1);					\
-	}							\
-})
+#define omap_test_timeout(cond, timeout, index)     \
+  ({                \
+    for (index = 0; index < timeout; index++) {   \
+      if (cond)         \
+      break;          \
+      udelay(1);          \
+    }             \
+  })
 
 void omap_gic_of_init(void);
 
@@ -223,10 +222,10 @@ struct device_node;
 #ifdef CONFIG_SMP
 extern void __iomem *omap4_get_scu_base(void);
 #else
-static inline void __iomem *omap4_get_scu_base(void)
-{
-	return NULL;
+static inline void __iomem *omap4_get_scu_base(void) {
+  return NULL;
 }
+
 #endif
 
 extern void gic_dist_disable(void);
@@ -257,26 +256,24 @@ extern u32 omap4_get_cpu1_ns_pa_addr(void);
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)
 extern int omap4_mpuss_init(void);
 extern int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state,
-				bool rcuidle);
+    bool rcuidle);
 extern int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state);
 #else
 static inline int omap4_enter_lowpower(unsigned int cpu,
-					unsigned int power_state,
-					bool rcuidle)
-{
-	cpu_do_idle();
-	return 0;
+    unsigned int power_state,
+    bool rcuidle) {
+  cpu_do_idle();
+  return 0;
 }
 
-static inline int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
-{
-	cpu_do_idle();
-	return 0;
+static inline int omap4_hotplug_cpu(unsigned int cpu,
+    unsigned int power_state) {
+  cpu_do_idle();
+  return 0;
 }
 
-static inline int omap4_mpuss_init(void)
-{
-	return 0;
+static inline int omap4_mpuss_init(void) {
+  return 0;
 }
 
 #endif
@@ -287,33 +284,31 @@ void omap4460_secondary_startup(void);
 int omap4_finish_suspend(unsigned long cpu_state);
 void omap4_cpu_resume(void);
 #else
-static inline void omap4_secondary_startup(void)
-{
+static inline void omap4_secondary_startup(void) {
 }
 
-static inline void omap4460_secondary_startup(void)
-{
+static inline void omap4460_secondary_startup(void) {
 }
-static inline int omap4_finish_suspend(unsigned long cpu_state)
-{
-	return 0;
+
+static inline int omap4_finish_suspend(unsigned long cpu_state) {
+  return 0;
 }
-static inline void omap4_cpu_resume(void)
-{
+
+static inline void omap4_cpu_resume(void) {
 }
+
 #endif
 
 #if defined(CONFIG_SOC_OMAP5) || defined(CONFIG_SOC_DRA7XX)
 void omap5_secondary_startup(void);
 void omap5_secondary_hyp_startup(void);
 #else
-static inline void omap5_secondary_startup(void)
-{
+static inline void omap5_secondary_startup(void) {
 }
 
-static inline void omap5_secondary_hyp_startup(void)
-{
+static inline void omap5_secondary_hyp_startup(void) {
 }
+
 #endif
 
 struct omap_system_dma_plat_info;
@@ -325,7 +320,7 @@ extern struct omap_system_dma_plat_info dma_plat_info;
 
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
-				      struct omap_sdrc_params *sdrc_cs1);
+    struct omap_sdrc_params *sdrc_cs1);
 extern void omap_reserve(void);
 
 struct omap_hwmod;
@@ -336,13 +331,13 @@ int omap_clk_init(void);
 
 #if IS_ENABLED(CONFIG_OMAP_IOMMU)
 int omap_iommu_set_pwrdm_constraint(struct platform_device *pdev, bool request,
-				    u8 *pwrst);
+    u8 *pwrst);
 #else
 static inline int omap_iommu_set_pwrdm_constraint(struct platform_device *pdev,
-						  bool request, u8 *pwrst)
-{
-	return 0;
+    bool request, u8 *pwrst) {
+  return 0;
 }
+
 #endif
 
 #endif /* __ASSEMBLER__ */

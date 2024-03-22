@@ -17,14 +17,14 @@
 #define MN88472_FIRMWARE "dvb-demod-mn88472-02.fw"
 
 struct mn88472_dev {
-	struct i2c_client *client[3];
-	struct regmap *regmap[3];
-	struct dvb_frontend fe;
-	u16 i2c_write_max;
-	unsigned int clk;
-	unsigned int active:1;
-	unsigned int ts_mode:1;
-	unsigned int ts_clk:1;
+  struct i2c_client *client[3];
+  struct regmap *regmap[3];
+  struct dvb_frontend fe;
+  u16 i2c_write_max;
+  unsigned int clk;
+  unsigned int active : 1;
+  unsigned int ts_mode : 1;
+  unsigned int ts_clk : 1;
 };
 
 #endif

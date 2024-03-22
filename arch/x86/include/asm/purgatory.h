@@ -6,6 +6,6 @@
 #include <linux/purgatory.h>
 
 extern void purgatory(void);
-#endif	/* __ASSEMBLY__ */
+#endif  /* __ASSEMBLY__ */
 
 #endif /* _ASM_PURGATORY_H */

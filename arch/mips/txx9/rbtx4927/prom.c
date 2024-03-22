@@ -2,7 +2,7 @@
  * rbtx4927 specific prom routines
  *
  * Author: MontaVista Software, Inc.
- *	   source@mvista.com
+ *     source@mvista.com
  *
  * Copyright 2001-2002 MontaVista Software Inc.
  *
@@ -35,8 +35,7 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/rbtx4927.h>
 
-void __init rbtx4927_prom_init(void)
-{
-	memblock_add(0, tx4927_get_mem_size());
-	txx9_sio_putchar_init(TX4927_SIO_REG(0) & 0xfffffffffULL);
+void __init rbtx4927_prom_init(void) {
+  memblock_add(0, tx4927_get_mem_size());
+  txx9_sio_putchar_init(TX4927_SIO_REG(0) & 0xfffffffffULL);
 }

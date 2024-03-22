@@ -26,16 +26,15 @@
 #include <linux/device.h>
 #include <linux/workqueue.h>
 
-static inline void devm_delayed_work_drop(void *res)
-{
-	cancel_delayed_work_sync(res);
+static inline void devm_delayed_work_drop(void *res) {
+  cancel_delayed_work_sync(res);
 }
 
 /**
  * devm_delayed_work_autocancel - Resource-managed delayed work allocation
- * @dev:	Device which lifetime work is bound to
- * @w:		Work item to be queued
- * @worker:	Worker function
+ * @dev:  Device which lifetime work is bound to
+ * @w:    Work item to be queued
+ * @worker: Worker function
  *
  * Initialize delayed work which is automatically cancelled when driver is
  * detached. A few drivers need delayed work which must be cancelled before
@@ -44,23 +43,21 @@ static inline void devm_delayed_work_drop(void *res)
  * cancelleation when driver is detached.
  */
 static inline int devm_delayed_work_autocancel(struct device *dev,
-					       struct delayed_work *w,
-					       work_func_t worker)
-{
-	INIT_DELAYED_WORK(w, worker);
-	return devm_add_action(dev, devm_delayed_work_drop, w);
+    struct delayed_work *w,
+    work_func_t worker) {
+  INIT_DELAYED_WORK(w, worker);
+  return devm_add_action(dev, devm_delayed_work_drop, w);
 }
 
-static inline void devm_work_drop(void *res)
-{
-	cancel_work_sync(res);
+static inline void devm_work_drop(void *res) {
+  cancel_work_sync(res);
 }
 
 /**
  * devm_work_autocancel - Resource-managed work allocation
- * @dev:	Device which lifetime work is bound to
- * @w:		Work to be added (and automatically cancelled)
- * @worker:	Worker function
+ * @dev:  Device which lifetime work is bound to
+ * @w:    Work to be added (and automatically cancelled)
+ * @worker: Worker function
  *
  * Initialize work which is automatically cancelled when driver is detached.
  * A few drivers need to queue work which must be cancelled before driver
@@ -69,11 +66,10 @@ static inline void devm_work_drop(void *res)
  * cancelleation when driver is detached.
  */
 static inline int devm_work_autocancel(struct device *dev,
-				       struct work_struct *w,
-				       work_func_t worker)
-{
-	INIT_WORK(w, worker);
-	return devm_add_action(dev, devm_work_drop, w);
+    struct work_struct *w,
+    work_func_t worker) {
+  INIT_WORK(w, worker);
+  return devm_add_action(dev, devm_work_drop, w);
 }
 
 #endif

@@ -14,9 +14,9 @@ struct i2c_atr;
  * @bc_rate: back-channel clock rate
  */
 struct ds90ub9xx_platform_data {
-	u32 port;
-	struct i2c_atr *atr;
-	unsigned long bc_rate;
+  u32 port;
+  struct i2c_atr *atr;
+  unsigned long bc_rate;
 };
 
 #endif /* __MEDIA_I2C_DS90UB9XX_H__ */

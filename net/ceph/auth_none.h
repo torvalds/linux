@@ -13,13 +13,13 @@
  */
 
 struct ceph_none_authorizer {
-	struct ceph_authorizer base;
-	char buf[128];
-	int buf_len;
+  struct ceph_authorizer base;
+  char buf[128];
+  int buf_len;
 };
 
 struct ceph_auth_none_info {
-	bool starting;
+  bool starting;
 };
 
 int ceph_auth_none_init(struct ceph_auth_client *ac);

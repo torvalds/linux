@@ -14,8 +14,8 @@
 /*
  * Nuvoton NAU8318
  */
-#define NAU8318_CODEC_DAI	"nau8315-hifi"
-#define NAU8318_DEV0_NAME	"i2c-" NAU8318_ACPI_HID ":00"
+#define NAU8318_CODEC_DAI "nau8315-hifi"
+#define NAU8318_DEV0_NAME "i2c-" NAU8318_ACPI_HID ":00"
 
 void nau8318_set_dai_link(struct snd_soc_dai_link *link);
 

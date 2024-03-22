@@ -15,20 +15,19 @@
 #define __ASM_ARC_UDELAY_H
 
 #include <asm-generic/types.h>
-#include <asm/param.h>		/* HZ */
+#include <asm/param.h>    /* HZ */
 
 extern unsigned long loops_per_jiffy;
 
-static inline void __delay(unsigned long loops)
-{
-	__asm__ __volatile__(
-	"	mov lp_count, %0	\n"
-	"	lp  1f			\n"
-	"	nop			\n"
-	"1:				\n"
-	:
-        : "r"(loops)
-        : "lp_count");
+static inline void __delay(unsigned long loops) {
+  __asm__ __volatile__ (
+    "	mov lp_count, %0	\n"
+    "	lp  1f			\n"
+    "	nop			\n"
+    "1:				\n"
+    :
+    : "r" (loops)
+    : "lp_count");
 }
 
 extern void __bad_udelay(void);
@@ -51,19 +50,16 @@ extern void __bad_udelay(void);
  *   64-bit precision (if CPU doesn't support it - gcc can emaulate it)
  */
 
-static inline void __udelay(unsigned long usecs)
-{
-	unsigned long loops;
-
-	/* (u64) cast ensures 64 bit MPY - real or emulated
-	 * HZ * 4295 is pre-evaluated by gcc - hence only 2 mpy ops
-	 */
-	loops = ((u64) usecs * 4295 * HZ * loops_per_jiffy) >> 32;
-
-	__delay(loops);
+static inline void __udelay(unsigned long usecs) {
+  unsigned long loops;
+  /* (u64) cast ensures 64 bit MPY - real or emulated
+   * HZ * 4295 is pre-evaluated by gcc - hence only 2 mpy ops
+   */
+  loops = ((u64) usecs * 4295 * HZ * loops_per_jiffy) >> 32;
+  __delay(loops);
 }
 
 #define udelay(n) (__builtin_constant_p(n) ? ((n) > 20000 ? __bad_udelay() \
-				: __udelay(n)) : __udelay(n))
+  : __udelay(n)) : __udelay(n))
 
 #endif /* __ASM_ARC_UDELAY_H */

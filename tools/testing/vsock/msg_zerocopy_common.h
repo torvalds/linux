@@ -5,11 +5,11 @@
 #include <stdbool.h>
 
 #ifndef SOL_VSOCK
-#define SOL_VSOCK	287
+#define SOL_VSOCK 287
 #endif
 
 #ifndef VSOCK_RECVERR
-#define VSOCK_RECVERR	1
+#define VSOCK_RECVERR 1
 #endif
 
 void enable_so_zerocopy(int fd);

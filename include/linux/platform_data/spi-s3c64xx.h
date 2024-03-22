@@ -2,7 +2,7 @@
 
 /*
  * Copyright (C) 2009 Samsung Electronics Ltd.
- *	Jaswinder Singh <jassi.brar@samsung.com>
+ *  Jaswinder Singh <jassi.brar@samsung.com>
  */
 
 #ifndef __SPI_S3C64XX_H
@@ -22,7 +22,7 @@ struct platform_device;
  * spi_board_info.controller_data point to it.
  */
 struct s3c64xx_spi_csinfo {
-	u8 fb_delay;
+  u8 fb_delay;
 };
 
 /**
@@ -33,16 +33,16 @@ struct s3c64xx_spi_csinfo {
  * @cfg_gpio: Configure pins for this SPI controller.
  */
 struct s3c64xx_spi_info {
-	int src_clk_nr;
-	int num_cs;
-	bool no_cs;
-	bool polling;
-	int (*cfg_gpio)(void);
+  int src_clk_nr;
+  int num_cs;
+  bool no_cs;
+  bool polling;
+  int (*cfg_gpio)(void);
 };
 
 /**
  * s3c64xx_spi_set_platdata - SPI Controller configure callback by the board
- *				initialization code.
+ *        initialization code.
  * @src_clk_nr: Clock the SPI controller is to use to generate SPI clocks.
  * @num_cs: Number of elements in the 'cs' array.
  *

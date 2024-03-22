@@ -14,19 +14,17 @@
 
 #include "generic.h"
 
-static void __init at91rm9200_dt_device_init(void)
-{
-	of_platform_default_populate(NULL, NULL, NULL);
-
-	at91rm9200_pm_init();
+static void __init at91rm9200_dt_device_init(void) {
+  of_platform_default_populate(NULL, NULL, NULL);
+  at91rm9200_pm_init();
 }
 
-static const char *const at91rm9200_dt_board_compat[] __initconst = {
-	"atmel,at91rm9200",
-	NULL
+static const char * const at91rm9200_dt_board_compat[] __initconst = {
+  "atmel,at91rm9200",
+  NULL
 };
 
 DT_MACHINE_START(at91rm9200_dt, "Atmel AT91RM9200")
-	.init_machine	= at91rm9200_dt_device_init,
-	.dt_compat	= at91rm9200_dt_board_compat,
+.init_machine = at91rm9200_dt_device_init,
+.dt_compat = at91rm9200_dt_board_compat,
 MACHINE_END

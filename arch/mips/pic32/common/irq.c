@@ -7,7 +7,6 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
-void __init arch_init_irq(void)
-{
-	irqchip_init();
+void __init arch_init_irq(void) {
+  irqchip_init();
 }

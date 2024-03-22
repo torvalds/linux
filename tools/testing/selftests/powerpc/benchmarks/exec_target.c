@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
-void _start(void)
-{
-	syscall(SYS_exit, 0);
+void _start(void) {
+  syscall(SYS_exit, 0);
 }

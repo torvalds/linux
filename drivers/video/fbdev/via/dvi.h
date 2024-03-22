@@ -2,7 +2,7 @@
 /*
  * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
-
+ *
  */
 
 #ifndef __DVI_H__
@@ -16,8 +16,8 @@
 #define     GET_DVI_SIZE_BY_VGA_BIOS        0x02
 #define     GET_DVI_SZIE_BY_HW_STRAPPING    0x03
 
-/* Definition DVI Panel ID*/
-/* Resolution: 640x480,   Channel: single, Dithering: Enable */
+/* Definition DVI Panel ID
+ * Resolution: 640x480,   Channel: single, Dithering: Enable*/
 #define     DVI_PANEL_ID0_640X480       0x00
 /* Resolution: 800x600,   Channel: single, Dithering: Enable */
 #define     DVI_PANEL_ID1_800x600       0x01
@@ -44,8 +44,8 @@ void viafb_dvi_disable(void);
 void viafb_dvi_enable(void);
 bool viafb_tmds_trasmitter_identify(void);
 void viafb_init_dvi_size(struct tmds_chip_information *tmds_chip,
-	struct tmds_setting_information *tmds_setting);
+    struct tmds_setting_information *tmds_setting);
 void viafb_dvi_set_mode(const struct fb_var_screeninfo *var,
-	u16 cxres, u16 cyres, int iga);
+    u16 cxres, u16 cyres, int iga);
 
 #endif /* __DVI_H__ */

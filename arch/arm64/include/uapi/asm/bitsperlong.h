@@ -21,4 +21,4 @@
 
 #include <asm-generic/bitsperlong.h>
 
-#endif	/* __ASM_BITSPERLONG_H */
+#endif  /* __ASM_BITSPERLONG_H */

@@ -11,16 +11,14 @@
 
 #include <linux/iommu.h>
 
-static inline bool exynos_is_iommu_available(struct device *dev)
-{
-	return dev_iommu_priv_get(dev) != NULL;
+static inline bool exynos_is_iommu_available(struct device *dev) {
+  return dev_iommu_priv_get(dev) != NULL;
 }
 
 #else
 
-static inline bool exynos_is_iommu_available(struct device *dev)
-{
-	return false;
+static inline bool exynos_is_iommu_available(struct device *dev) {
+  return false;
 }
 
 #endif

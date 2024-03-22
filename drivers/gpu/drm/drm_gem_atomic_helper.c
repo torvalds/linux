@@ -31,12 +31,12 @@
  *
  * .. code-block:: c
  *
- *	#include <drm/drm_gem_atomic_helper.h>
+ *  #include <drm/drm_gem_atomic_helper.h>
  *
- *	struct drm_plane_helper_funcs driver_plane_helper_funcs = {
- *		...,
- *		. prepare_fb = drm_gem_plane_helper_prepare_fb,
- *	};
+ *  struct drm_plane_helper_funcs driver_plane_helper_funcs = {
+ *    ...,
+ *    . prepare_fb = drm_gem_plane_helper_prepare_fb,
+ *  };
  *
  * A driver using a shadow buffer copies the content of the shadow buffers
  * into the HW's framebuffer memory during an atomic update. This requires
@@ -55,17 +55,17 @@
  *
  * .. code-block:: c
  *
- *	#include <drm/drm_gem_atomic_helper.h>
+ *  #include <drm/drm_gem_atomic_helper.h>
  *
- *	struct drm_plane_funcs driver_plane_funcs = {
- *		...,
- *		DRM_GEM_SHADOW_PLANE_FUNCS,
- *	};
+ *  struct drm_plane_funcs driver_plane_funcs = {
+ *    ...,
+ *    DRM_GEM_SHADOW_PLANE_FUNCS,
+ *  };
  *
- *	struct drm_plane_helper_funcs driver_plane_helper_funcs = {
- *		...,
- *		DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
- *	};
+ *  struct drm_plane_helper_funcs driver_plane_helper_funcs = {
+ *    ...,
+ *    DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+ *  };
  *
  * In the driver's atomic-update function, shadow-buffer mappings are available
  * from the plane state. Use to_drm_shadow_plane_state() to upcast from
@@ -73,15 +73,15 @@
  *
  * .. code-block:: c
  *
- *	void driver_plane_atomic_update(struct drm_plane *plane,
- *					struct drm_plane_state *old_plane_state)
- *	{
- *		struct drm_plane_state *plane_state = plane->state;
- *		struct drm_shadow_plane_state *shadow_plane_state =
- *			to_drm_shadow_plane_state(plane_state);
+ *  void driver_plane_atomic_update(struct drm_plane *plane,
+ *          struct drm_plane_state *old_plane_state)
+ *  {
+ *    struct drm_plane_state *plane_state = plane->state;
+ *    struct drm_shadow_plane_state *shadow_plane_state =
+ *      to_drm_shadow_plane_state(plane_state);
  *
- *		// access shadow buffer via shadow_plane_state->map
- *	}
+ *    // access shadow buffer via shadow_plane_state->map
+ *  }
  *
  * A mapping address for each of the framebuffer's buffer object is stored in
  * struct &drm_shadow_plane_state.map. The mappings are valid while the state
@@ -94,20 +94,20 @@
  *
  * .. code-block:: c
  *
- *	struct drm_simple_display_pipe_funcs driver_pipe_funcs = {
- *		...,
- *		DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
- *	};
+ *  struct drm_simple_display_pipe_funcs driver_pipe_funcs = {
+ *    ...,
+ *    DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
+ *  };
  *
- *	void driver_pipe_enable(struct drm_simple_display_pipe *pipe,
- *				struct drm_crtc_state *crtc_state,
- *				struct drm_plane_state *plane_state)
- *	{
- *		struct drm_shadow_plane_state *shadow_plane_state =
- *			to_drm_shadow_plane_state(plane_state);
+ *  void driver_pipe_enable(struct drm_simple_display_pipe *pipe,
+ *        struct drm_crtc_state *crtc_state,
+ *        struct drm_plane_state *plane_state)
+ *  {
+ *    struct drm_shadow_plane_state *shadow_plane_state =
+ *      to_drm_shadow_plane_state(plane_state);
  *
- *		// access shadow buffer via shadow_plane_state->map
- *	}
+ *    // access shadow buffer via shadow_plane_state->map
+ *  }
  */
 
 /*
@@ -133,68 +133,59 @@
  * &drm_plane_helper_funcs.prepare_fb if no callback is provided.
  */
 int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane,
-				    struct drm_plane_state *state)
-{
-	struct dma_fence *fence = dma_fence_get(state->fence);
-	enum dma_resv_usage usage;
-	size_t i;
-	int ret;
-
-	if (!state->fb)
-		return 0;
-
-	/*
-	 * Only add the kernel fences here if there is already a fence set via
-	 * explicit fencing interfaces on the atomic ioctl.
-	 *
-	 * This way explicit fencing can be used to overrule implicit fencing,
-	 * which is important to make explicit fencing use-cases work: One
-	 * example is using one buffer for 2 screens with different refresh
-	 * rates. Implicit fencing will clamp rendering to the refresh rate of
-	 * the slower screen, whereas explicit fence allows 2 independent
-	 * render and display loops on a single buffer. If a driver allows
-	 * obeys both implicit and explicit fences for plane updates, then it
-	 * will break all the benefits of explicit fencing.
-	 */
-	usage = fence ? DMA_RESV_USAGE_KERNEL : DMA_RESV_USAGE_WRITE;
-
-	for (i = 0; i < state->fb->format->num_planes; ++i) {
-		struct drm_gem_object *obj = drm_gem_fb_get_obj(state->fb, i);
-		struct dma_fence *new;
-
-		if (!obj) {
-			ret = -EINVAL;
-			goto error;
-		}
-
-		ret = dma_resv_get_singleton(obj->resv, usage, &new);
-		if (ret)
-			goto error;
-
-		if (new && fence) {
-			struct dma_fence_chain *chain = dma_fence_chain_alloc();
-
-			if (!chain) {
-				ret = -ENOMEM;
-				goto error;
-			}
-
-			dma_fence_chain_init(chain, fence, new, 1);
-			fence = &chain->base;
-
-		} else if (new) {
-			fence = new;
-		}
-	}
-
-	dma_fence_put(state->fence);
-	state->fence = fence;
-	return 0;
-
+    struct drm_plane_state *state) {
+  struct dma_fence *fence = dma_fence_get(state->fence);
+  enum dma_resv_usage usage;
+  size_t i;
+  int ret;
+  if (!state->fb) {
+    return 0;
+  }
+  /*
+   * Only add the kernel fences here if there is already a fence set via
+   * explicit fencing interfaces on the atomic ioctl.
+   *
+   * This way explicit fencing can be used to overrule implicit fencing,
+   * which is important to make explicit fencing use-cases work: One
+   * example is using one buffer for 2 screens with different refresh
+   * rates. Implicit fencing will clamp rendering to the refresh rate of
+   * the slower screen, whereas explicit fence allows 2 independent
+   * render and display loops on a single buffer. If a driver allows
+   * obeys both implicit and explicit fences for plane updates, then it
+   * will break all the benefits of explicit fencing.
+   */
+  usage = fence ? DMA_RESV_USAGE_KERNEL : DMA_RESV_USAGE_WRITE;
+  for (i = 0; i < state->fb->format->num_planes; ++i) {
+    struct drm_gem_object *obj = drm_gem_fb_get_obj(state->fb, i);
+    struct dma_fence *new;
+    if (!obj) {
+      ret = -EINVAL;
+      goto error;
+    }
+    ret = dma_resv_get_singleton(obj->resv, usage, &new);
+    if (ret) {
+      goto error;
+    }
+    if (new && fence) {
+      struct dma_fence_chain *chain = dma_fence_chain_alloc();
+      if (!chain) {
+        ret = -ENOMEM;
+        goto error;
+      }
+      dma_fence_chain_init(chain, fence, new, 1);
+      fence = &chain->base;
+    } else if (new) {
+      fence = new;
+    }
+  }
+  dma_fence_put(state->fence);
+  state->fence = fence;
+  return 0;
 error:
-	dma_fence_put(fence);
-	return ret;
+  dma_fence_put(fence);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(drm_gem_plane_helper_prepare_fb);
 
 /*
@@ -202,31 +193,32 @@ EXPORT_SYMBOL_GPL(drm_gem_plane_helper_prepare_fb);
  */
 
 /**
- * __drm_gem_duplicate_shadow_plane_state - duplicates shadow-buffered plane state
+ * __drm_gem_duplicate_shadow_plane_state - duplicates shadow-buffered plane
+ *state
  * @plane: the plane
  * @new_shadow_plane_state: the new shadow-buffered plane state
  *
- * This function duplicates shadow-buffered plane state. This is helpful for drivers
+ * This function duplicates shadow-buffered plane state. This is helpful for
+ *drivers
  * that subclass struct drm_shadow_plane_state.
  *
  * The function does not duplicate existing mappings of the shadow buffers.
  * Mappings are maintained during the atomic commit by the plane's prepare_fb
- * and cleanup_fb helpers. See drm_gem_prepare_shadow_fb() and drm_gem_cleanup_shadow_fb()
+ * and cleanup_fb helpers. See drm_gem_prepare_shadow_fb() and
+ *drm_gem_cleanup_shadow_fb()
  * for corresponding helpers.
  */
-void
-__drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane,
-				       struct drm_shadow_plane_state *new_shadow_plane_state)
-{
-	struct drm_plane_state *plane_state = plane->state;
-	struct drm_shadow_plane_state *shadow_plane_state =
-		to_drm_shadow_plane_state(plane_state);
-
-	__drm_atomic_helper_plane_duplicate_state(plane, &new_shadow_plane_state->base);
-
-	drm_format_conv_state_copy(&shadow_plane_state->fmtcnv_state,
-				   &new_shadow_plane_state->fmtcnv_state);
+void __drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane,
+    struct drm_shadow_plane_state *new_shadow_plane_state) {
+  struct drm_plane_state *plane_state = plane->state;
+  struct drm_shadow_plane_state *shadow_plane_state
+    = to_drm_shadow_plane_state(plane_state);
+  __drm_atomic_helper_plane_duplicate_state(plane,
+      &new_shadow_plane_state->base);
+  drm_format_conv_state_copy(&shadow_plane_state->fmtcnv_state,
+      &new_shadow_plane_state->fmtcnv_state);
 }
+
 EXPORT_SYMBOL(__drm_gem_duplicate_shadow_plane_state);
 
 /**
@@ -240,28 +232,28 @@ EXPORT_SYMBOL(__drm_gem_duplicate_shadow_plane_state);
  *
  * The function does not duplicate existing mappings of the shadow buffers.
  * Mappings are maintained during the atomic commit by the plane's prepare_fb
- * and cleanup_fb helpers. See drm_gem_prepare_shadow_fb() and drm_gem_cleanup_shadow_fb()
+ * and cleanup_fb helpers. See drm_gem_prepare_shadow_fb() and
+ *drm_gem_cleanup_shadow_fb()
  * for corresponding helpers.
  *
  * Returns:
  * A pointer to a new plane state on success, or NULL otherwise.
  */
-struct drm_plane_state *
-drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane)
-{
-	struct drm_plane_state *plane_state = plane->state;
-	struct drm_shadow_plane_state *new_shadow_plane_state;
-
-	if (!plane_state)
-		return NULL;
-
-	new_shadow_plane_state = kzalloc(sizeof(*new_shadow_plane_state), GFP_KERNEL);
-	if (!new_shadow_plane_state)
-		return NULL;
-	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
-
-	return &new_shadow_plane_state->base;
+struct drm_plane_state *drm_gem_duplicate_shadow_plane_state(
+    struct drm_plane *plane) {
+  struct drm_plane_state *plane_state = plane->state;
+  struct drm_shadow_plane_state *new_shadow_plane_state;
+  if (!plane_state) {
+    return NULL;
+  }
+  new_shadow_plane_state = kzalloc(sizeof(*new_shadow_plane_state), GFP_KERNEL);
+  if (!new_shadow_plane_state) {
+    return NULL;
+  }
+  __drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+  return &new_shadow_plane_state->base;
 }
+
 EXPORT_SYMBOL(drm_gem_duplicate_shadow_plane_state);
 
 /**
@@ -271,11 +263,12 @@ EXPORT_SYMBOL(drm_gem_duplicate_shadow_plane_state);
  * This function cleans up shadow-buffered plane state. Helpful for drivers that
  * subclass struct drm_shadow_plane_state.
  */
-void __drm_gem_destroy_shadow_plane_state(struct drm_shadow_plane_state *shadow_plane_state)
-{
-	drm_format_conv_state_release(&shadow_plane_state->fmtcnv_state);
-	__drm_atomic_helper_plane_destroy_state(&shadow_plane_state->base);
+void __drm_gem_destroy_shadow_plane_state(
+    struct drm_shadow_plane_state *shadow_plane_state) {
+  drm_format_conv_state_release(&shadow_plane_state->fmtcnv_state);
+  __drm_atomic_helper_plane_destroy_state(&shadow_plane_state->base);
 }
+
 EXPORT_SYMBOL(__drm_gem_destroy_shadow_plane_state);
 
 /**
@@ -288,14 +281,13 @@ EXPORT_SYMBOL(__drm_gem_destroy_shadow_plane_state);
  * have been released already.
  */
 void drm_gem_destroy_shadow_plane_state(struct drm_plane *plane,
-					struct drm_plane_state *plane_state)
-{
-	struct drm_shadow_plane_state *shadow_plane_state =
-		to_drm_shadow_plane_state(plane_state);
-
-	__drm_gem_destroy_shadow_plane_state(shadow_plane_state);
-	kfree(shadow_plane_state);
+    struct drm_plane_state *plane_state) {
+  struct drm_shadow_plane_state *shadow_plane_state
+    = to_drm_shadow_plane_state(plane_state);
+  __drm_gem_destroy_shadow_plane_state(shadow_plane_state);
+  kfree(shadow_plane_state);
 }
+
 EXPORT_SYMBOL(drm_gem_destroy_shadow_plane_state);
 
 /**
@@ -307,11 +299,11 @@ EXPORT_SYMBOL(drm_gem_destroy_shadow_plane_state);
  * for drivers that subclass struct drm_shadow_plane_state.
  */
 void __drm_gem_reset_shadow_plane(struct drm_plane *plane,
-				  struct drm_shadow_plane_state *shadow_plane_state)
-{
-	__drm_atomic_helper_plane_reset(plane, &shadow_plane_state->base);
-	drm_format_conv_state_init(&shadow_plane_state->fmtcnv_state);
+    struct drm_shadow_plane_state *shadow_plane_state) {
+  __drm_atomic_helper_plane_reset(plane, &shadow_plane_state->base);
+  drm_format_conv_state_init(&shadow_plane_state->fmtcnv_state);
 }
+
 EXPORT_SYMBOL(__drm_gem_reset_shadow_plane);
 
 /**
@@ -323,20 +315,19 @@ EXPORT_SYMBOL(__drm_gem_reset_shadow_plane);
  * of type struct drm_shadow_plane and it allocates the new state of
  * this type.
  */
-void drm_gem_reset_shadow_plane(struct drm_plane *plane)
-{
-	struct drm_shadow_plane_state *shadow_plane_state;
-
-	if (plane->state) {
-		drm_gem_destroy_shadow_plane_state(plane, plane->state);
-		plane->state = NULL; /* must be set to NULL here */
-	}
-
-	shadow_plane_state = kzalloc(sizeof(*shadow_plane_state), GFP_KERNEL);
-	if (!shadow_plane_state)
-		return;
-	__drm_gem_reset_shadow_plane(plane, shadow_plane_state);
+void drm_gem_reset_shadow_plane(struct drm_plane *plane) {
+  struct drm_shadow_plane_state *shadow_plane_state;
+  if (plane->state) {
+    drm_gem_destroy_shadow_plane_state(plane, plane->state);
+    plane->state = NULL; /* must be set to NULL here */
+  }
+  shadow_plane_state = kzalloc(sizeof(*shadow_plane_state), GFP_KERNEL);
+  if (!shadow_plane_state) {
+    return;
+  }
+  __drm_gem_reset_shadow_plane(plane, shadow_plane_state);
 }
+
 EXPORT_SYMBOL(drm_gem_reset_shadow_plane);
 
 /**
@@ -354,16 +345,17 @@ EXPORT_SYMBOL(drm_gem_reset_shadow_plane);
  * Returns:
  * 0 on success, or a negative errno code otherwise.
  */
-int drm_gem_begin_shadow_fb_access(struct drm_plane *plane, struct drm_plane_state *plane_state)
-{
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-
-	if (!fb)
-		return 0;
-
-	return drm_gem_fb_vmap(fb, shadow_plane_state->map, shadow_plane_state->data);
+int drm_gem_begin_shadow_fb_access(struct drm_plane *plane,
+    struct drm_plane_state *plane_state) {
+  struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(
+      plane_state);
+  struct drm_framebuffer *fb = plane_state->fb;
+  if (!fb) {
+    return 0;
+  }
+  return drm_gem_fb_vmap(fb, shadow_plane_state->map, shadow_plane_state->data);
 }
+
 EXPORT_SYMBOL(drm_gem_begin_shadow_fb_access);
 
 /**
@@ -376,20 +368,22 @@ EXPORT_SYMBOL(drm_gem_begin_shadow_fb_access);
  *
  * See drm_gem_begin_shadow_fb_access() for more information.
  */
-void drm_gem_end_shadow_fb_access(struct drm_plane *plane, struct drm_plane_state *plane_state)
-{
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-
-	if (!fb)
-		return;
-
-	drm_gem_fb_vunmap(fb, shadow_plane_state->map);
+void drm_gem_end_shadow_fb_access(struct drm_plane *plane,
+    struct drm_plane_state *plane_state) {
+  struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(
+      plane_state);
+  struct drm_framebuffer *fb = plane_state->fb;
+  if (!fb) {
+    return;
+  }
+  drm_gem_fb_vunmap(fb, shadow_plane_state->map);
 }
+
 EXPORT_SYMBOL(drm_gem_end_shadow_fb_access);
 
 /**
- * drm_gem_simple_kms_begin_shadow_fb_access - prepares shadow framebuffers for CPU access
+ * drm_gem_simple_kms_begin_shadow_fb_access - prepares shadow framebuffers for
+ *CPU access
  * @pipe: the simple display pipe
  * @plane_state: the plane state of type struct drm_shadow_plane_state
  *
@@ -401,15 +395,17 @@ EXPORT_SYMBOL(drm_gem_end_shadow_fb_access);
  * Returns:
  * 0 on success, or a negative errno code otherwise.
  */
-int drm_gem_simple_kms_begin_shadow_fb_access(struct drm_simple_display_pipe *pipe,
-					      struct drm_plane_state *plane_state)
-{
-	return drm_gem_begin_shadow_fb_access(&pipe->plane, plane_state);
+int drm_gem_simple_kms_begin_shadow_fb_access(
+    struct drm_simple_display_pipe *pipe,
+    struct drm_plane_state *plane_state) {
+  return drm_gem_begin_shadow_fb_access(&pipe->plane, plane_state);
 }
+
 EXPORT_SYMBOL(drm_gem_simple_kms_begin_shadow_fb_access);
 
 /**
- * drm_gem_simple_kms_end_shadow_fb_access - releases shadow framebuffers from CPU access
+ * drm_gem_simple_kms_end_shadow_fb_access - releases shadow framebuffers from
+ *CPU access
  * @pipe: the simple display pipe
  * @plane_state: the plane state of type struct drm_shadow_plane_state
  *
@@ -419,11 +415,12 @@ EXPORT_SYMBOL(drm_gem_simple_kms_begin_shadow_fb_access);
  *
  * See drm_gem_simple_kms_begin_shadow_fb_access().
  */
-void drm_gem_simple_kms_end_shadow_fb_access(struct drm_simple_display_pipe *pipe,
-					     struct drm_plane_state *plane_state)
-{
-	drm_gem_end_shadow_fb_access(&pipe->plane, plane_state);
+void drm_gem_simple_kms_end_shadow_fb_access(
+    struct drm_simple_display_pipe *pipe,
+    struct drm_plane_state *plane_state) {
+  drm_gem_end_shadow_fb_access(&pipe->plane, plane_state);
 }
+
 EXPORT_SYMBOL(drm_gem_simple_kms_end_shadow_fb_access);
 
 /**
@@ -435,31 +432,37 @@ EXPORT_SYMBOL(drm_gem_simple_kms_end_shadow_fb_access);
  */
 void drm_gem_simple_kms_reset_shadow_plane(struct drm_simple_display_pipe *pipe)
 {
-	drm_gem_reset_shadow_plane(&pipe->plane);
+  drm_gem_reset_shadow_plane(&pipe->plane);
 }
+
 EXPORT_SYMBOL(drm_gem_simple_kms_reset_shadow_plane);
 
 /**
- * drm_gem_simple_kms_duplicate_shadow_plane_state - duplicates shadow-buffered plane state
+ * drm_gem_simple_kms_duplicate_shadow_plane_state - duplicates shadow-buffered
+ *plane state
  * @pipe: the simple display pipe
  *
- * This function implements struct drm_simple_display_funcs.duplicate_plane_state
- * for shadow-buffered planes. It does not duplicate existing mappings of the shadow
- * buffers. Mappings are maintained during the atomic commit by the plane's prepare_fb
+ * This function implements struct
+ *drm_simple_display_funcs.duplicate_plane_state
+ * for shadow-buffered planes. It does not duplicate existing mappings of the
+ *shadow
+ * buffers. Mappings are maintained during the atomic commit by the plane's
+ *prepare_fb
  * and cleanup_fb helpers.
  *
  * Returns:
  * A pointer to a new plane state on success, or NULL otherwise.
  */
-struct drm_plane_state *
-drm_gem_simple_kms_duplicate_shadow_plane_state(struct drm_simple_display_pipe *pipe)
-{
-	return drm_gem_duplicate_shadow_plane_state(&pipe->plane);
+struct drm_plane_state *drm_gem_simple_kms_duplicate_shadow_plane_state(
+    struct drm_simple_display_pipe *pipe) {
+  return drm_gem_duplicate_shadow_plane_state(&pipe->plane);
 }
+
 EXPORT_SYMBOL(drm_gem_simple_kms_duplicate_shadow_plane_state);
 
 /**
- * drm_gem_simple_kms_destroy_shadow_plane_state - resets shadow-buffered plane state
+ * drm_gem_simple_kms_destroy_shadow_plane_state - resets shadow-buffered plane
+ *state
  * @pipe: the simple display pipe
  * @plane_state: the plane state of type struct drm_shadow_plane_state
  *
@@ -467,9 +470,10 @@ EXPORT_SYMBOL(drm_gem_simple_kms_duplicate_shadow_plane_state);
  * for shadow-buffered planes. It expects that mappings of shadow buffers
  * have been released already.
  */
-void drm_gem_simple_kms_destroy_shadow_plane_state(struct drm_simple_display_pipe *pipe,
-						   struct drm_plane_state *plane_state)
-{
-	drm_gem_destroy_shadow_plane_state(&pipe->plane, plane_state);
+void drm_gem_simple_kms_destroy_shadow_plane_state(
+    struct drm_simple_display_pipe *pipe,
+    struct drm_plane_state *plane_state) {
+  drm_gem_destroy_shadow_plane_state(&pipe->plane, plane_state);
 }
+
 EXPORT_SYMBOL(drm_gem_simple_kms_destroy_shadow_plane_state);

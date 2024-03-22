@@ -17,8 +17,8 @@
  * before the signal handler was invoked.
  */
 struct sigcontext {
-	struct user_regs_struct regs;
-	struct user_regs_arcv2 v2abi;
+  struct user_regs_struct regs;
+  struct user_regs_arcv2 v2abi;
 };
 
 #endif /* _ASM_ARC_SIGCONTEXT_H */

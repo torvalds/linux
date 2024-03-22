@@ -85,8 +85,8 @@
  */
 
 /* register address for bitfield rpf_rss_red1_data[4:0] */
-#define HW_ATL2_RPF_RSS_REDIR_ADR(TC, INDEX) (0x00006200 + \
-					(0x100 * !!((TC) > 3)) + (INDEX) * 4)
+#define HW_ATL2_RPF_RSS_REDIR_ADR(TC, INDEX) (0x00006200   \
+  + (0x100 * !!((TC) > 3)) + (INDEX) * 4)
 /* bitmask for bitfield rpf_rss_red1_data[4:0] */
 #define HW_ATL2_RPF_RSS_REDIR_MSK(TC)  (0x00000001F << (5 * ((TC) % 4)))
 /* lower bit position of bitfield rpf_rss_red1_data[4:0] */
@@ -123,10 +123,10 @@
 
 /* Register address for bitfield rx_q{Q}_tc_map[2:0] */
 #define HW_ATL2_RX_Q_TC_MAP_ADR(queue) \
-	(((queue) < 32) ? 0x00005900 + ((queue) / 8) * 4 : 0)
+  (((queue) < 32) ? 0x00005900 + ((queue) / 8) * 4 : 0)
 /* Lower bit position of bitfield rx_q{Q}_tc_map[2:0] */
 #define HW_ATL2_RX_Q_TC_MAP_SHIFT(queue) \
-	(((queue) < 32) ? ((queue) * 4) % 32 : 0)
+  (((queue) < 32) ? ((queue) * 4) % 32 : 0)
 /* Width of bitfield rx_q{Q}_tc_map[2:0] */
 #define HW_ATL2_RX_Q_TC_MAP_WIDTH 3
 /* Default value of bitfield rx_q{Q}_tc_map[2:0] */
@@ -176,10 +176,10 @@
 
 /* register address for bitfield tx_q_tc_map{q} */
 #define HW_ATL2_TX_Q_TC_MAP_ADR(queue) \
-	(((queue) < 32) ? 0x0000799C + ((queue) / 4) * 4 : 0)
+  (((queue) < 32) ? 0x0000799C + ((queue) / 4) * 4 : 0)
 /* lower bit position of bitfield tx_q_tc_map{q} */
 #define HW_ATL2_TX_Q_TC_MAP_SHIFT(queue) \
-	(((queue) < 32) ? ((queue) * 8) % 32 : 0)
+  (((queue) < 32) ? ((queue) * 8) % 32 : 0)
 /* width of bitfield tx_q_tc_map{q} */
 #define HW_ATL2_TX_Q_TC_MAP_WIDTH 3
 /* default value of bitfield tx_q_tc_map{q} */
@@ -270,10 +270,10 @@
 /* FPGA VER register */
 #define HW_ATL2_FPGA_VER_ADR 0x000000f4
 #define HW_ATL2_FPGA_VER_U32(mj, mi, bl, rv) \
-	((((mj) & 0xff) << 24) | \
-	 (((mi) & 0xff) << 16) | \
-	 (((bl) & 0xff) << 8) | \
-	 (((rv) & 0xff) << 0))
+  ((((mj) & 0xff) << 24)   \
+  | (((mi) & 0xff) << 16)   \
+  | (((bl) & 0xff) << 8)   \
+  | (((rv) & 0xff) << 0))
 
 /* ahb_mem_addr{f}[31:0] Bitfield Definitions
  * Preprocessor definitions for the bitfield "ahb_mem_addr{f}[31:0]".
@@ -283,7 +283,7 @@
 
 /* Register address for bitfield ahb_mem_addr{f}[31:0] */
 #define HW_ATL2_RPF_ACT_RSLVR_REQ_TAG_ADR(filter) \
-	(0x00014000u + (filter) * 0x10)
+  (0x00014000u + (filter) * 0x10)
 /* Bitmask for bitfield ahb_mem_addr{f}[31:0] */
 #define HW_ATL2_RPF_ACT_RSLVR_REQ_TAG_MSK 0xFFFFFFFFu
 /* Inverted bitmask for bitfield ahb_mem_addr{f}[31:0] */
@@ -297,7 +297,7 @@
 
 /* Register address for bitfield ahb_mem_addr{f}[31:0] */
 #define HW_ATL2_RPF_ACT_RSLVR_TAG_MASK_ADR(filter) \
-	(0x00014004u + (filter) * 0x10)
+  (0x00014004u + (filter) * 0x10)
 /* Bitmask for bitfield ahb_mem_addr{f}[31:0] */
 #define HW_ATL2_RPF_ACT_RSLVR_TAG_MASK_MSK 0xFFFFFFFFu
 /* Inverted bitmask for bitfield ahb_mem_addr{f}[31:0] */
@@ -311,7 +311,7 @@
 
 /* Register address for bitfield ahb_mem_addr{f}[31:0] */
 #define HW_ATL2_RPF_ACT_RSLVR_ACTN_ADR(filter) \
-	(0x00014008u + (filter) * 0x10)
+  (0x00014008u + (filter) * 0x10)
 /* Bitmask for bitfield ahb_mem_addr{f}[31:0] */
 #define HW_ATL2_RPF_ACT_RSLVR_ACTN_MSK 0x000007FFu
 /* Inverted bitmask for bitfield ahb_mem_addr{f}[31:0] */

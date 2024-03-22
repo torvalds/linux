@@ -17,49 +17,41 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_length");
 MODULE_ALIAS("ip6t_length");
 
-static bool
-length_mt(const struct sk_buff *skb, struct xt_action_param *par)
-{
-	const struct xt_length_info *info = par->matchinfo;
-	u32 pktlen = skb_ip_totlen(skb);
-
-	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
+static bool length_mt(const struct sk_buff *skb, struct xt_action_param *par) {
+  const struct xt_length_info *info = par->matchinfo;
+  u32 pktlen = skb_ip_totlen(skb);
+  return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }
 
-static bool
-length_mt6(const struct sk_buff *skb, struct xt_action_param *par)
-{
-	const struct xt_length_info *info = par->matchinfo;
-	u32 pktlen = skb->len;
-
-	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
+static bool length_mt6(const struct sk_buff *skb, struct xt_action_param *par) {
+  const struct xt_length_info *info = par->matchinfo;
+  u32 pktlen = skb->len;
+  return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }
 
 static struct xt_match length_mt_reg[] __read_mostly = {
-	{
-		.name		= "length",
-		.family		= NFPROTO_IPV4,
-		.match		= length_mt,
-		.matchsize	= sizeof(struct xt_length_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "length",
-		.family		= NFPROTO_IPV6,
-		.match		= length_mt6,
-		.matchsize	= sizeof(struct xt_length_info),
-		.me		= THIS_MODULE,
-	},
+  {
+    .name = "length",
+    .family = NFPROTO_IPV4,
+    .match = length_mt,
+    .matchsize = sizeof(struct xt_length_info),
+    .me = THIS_MODULE,
+  },
+  {
+    .name = "length",
+    .family = NFPROTO_IPV6,
+    .match = length_mt6,
+    .matchsize = sizeof(struct xt_length_info),
+    .me = THIS_MODULE,
+  },
 };
 
-static int __init length_mt_init(void)
-{
-	return xt_register_matches(length_mt_reg, ARRAY_SIZE(length_mt_reg));
+static int __init length_mt_init(void) {
+  return xt_register_matches(length_mt_reg, ARRAY_SIZE(length_mt_reg));
 }
 
-static void __exit length_mt_exit(void)
-{
-	xt_unregister_matches(length_mt_reg, ARRAY_SIZE(length_mt_reg));
+static void __exit length_mt_exit(void) {
+  xt_unregister_matches(length_mt_reg, ARRAY_SIZE(length_mt_reg));
 }
 
 module_init(length_mt_init);

@@ -11,21 +11,21 @@
 #define IFE_DECODE 0
 
 struct tc_ife {
-	tc_gen;
-	__u16 flags;
+  tc_gen;
+  __u16 flags;
 };
 
 /*XXX: We need to encode the total number of bytes consumed */
 enum {
-	TCA_IFE_UNSPEC,
-	TCA_IFE_PARMS,
-	TCA_IFE_TM,
-	TCA_IFE_DMAC,
-	TCA_IFE_SMAC,
-	TCA_IFE_TYPE,
-	TCA_IFE_METALST,
-	TCA_IFE_PAD,
-	__TCA_IFE_MAX
+  TCA_IFE_UNSPEC,
+  TCA_IFE_PARMS,
+  TCA_IFE_TM,
+  TCA_IFE_DMAC,
+  TCA_IFE_SMAC,
+  TCA_IFE_TYPE,
+  TCA_IFE_METALST,
+  TCA_IFE_PAD,
+  __TCA_IFE_MAX
 };
 #define TCA_IFE_MAX (__TCA_IFE_MAX - 1)
 

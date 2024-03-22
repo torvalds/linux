@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <asm/fpsimd.h>
 
-#define cpu_has_neon()		system_supports_fpsimd()
+#define cpu_has_neon()    system_supports_fpsimd()
 
 void kernel_neon_begin(void);
 void kernel_neon_end(void);

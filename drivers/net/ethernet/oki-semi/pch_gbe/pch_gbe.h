@@ -24,72 +24,72 @@
 
 /**
  * pch_gbe_regs_mac_adr - Structure holding values of mac address registers
- * @high	Denotes the 1st to 4th byte from the initial of MAC address
- * @low		Denotes the 5th to 6th byte from the initial of MAC address
+ * @high  Denotes the 1st to 4th byte from the initial of MAC address
+ * @low   Denotes the 5th to 6th byte from the initial of MAC address
  */
 struct pch_gbe_regs_mac_adr {
-	u32 high;
-	u32 low;
+  u32 high;
+  u32 low;
 };
 /**
  * pch_udc_regs - Structure holding values of MAC registers
  */
 struct pch_gbe_regs {
-	u32 INT_ST;
-	u32 INT_EN;
-	u32 MODE;
-	u32 RESET;
-	u32 TCPIP_ACC;
-	u32 EX_LIST;
-	u32 INT_ST_HOLD;
-	u32 PHY_INT_CTRL;
-	u32 MAC_RX_EN;
-	u32 RX_FCTRL;
-	u32 PAUSE_REQ;
-	u32 RX_MODE;
-	u32 TX_MODE;
-	u32 RX_FIFO_ST;
-	u32 TX_FIFO_ST;
-	u32 TX_FID;
-	u32 TX_RESULT;
-	u32 PAUSE_PKT1;
-	u32 PAUSE_PKT2;
-	u32 PAUSE_PKT3;
-	u32 PAUSE_PKT4;
-	u32 PAUSE_PKT5;
-	u32 reserve[2];
-	struct pch_gbe_regs_mac_adr mac_adr[16];
-	u32 ADDR_MASK;
-	u32 MIIM;
-	u32 MAC_ADDR_LOAD;
-	u32 RGMII_ST;
-	u32 RGMII_CTRL;
-	u32 reserve3[3];
-	u32 DMA_CTRL;
-	u32 reserve4[3];
-	u32 RX_DSC_BASE;
-	u32 RX_DSC_SIZE;
-	u32 RX_DSC_HW_P;
-	u32 RX_DSC_HW_P_HLD;
-	u32 RX_DSC_SW_P;
-	u32 reserve5[3];
-	u32 TX_DSC_BASE;
-	u32 TX_DSC_SIZE;
-	u32 TX_DSC_HW_P;
-	u32 TX_DSC_HW_P_HLD;
-	u32 TX_DSC_SW_P;
-	u32 reserve6[3];
-	u32 RX_DMA_ST;
-	u32 TX_DMA_ST;
-	u32 reserve7[2];
-	u32 WOL_ST;
-	u32 WOL_CTRL;
-	u32 WOL_ADDR_MASK;
+  u32 INT_ST;
+  u32 INT_EN;
+  u32 MODE;
+  u32 RESET;
+  u32 TCPIP_ACC;
+  u32 EX_LIST;
+  u32 INT_ST_HOLD;
+  u32 PHY_INT_CTRL;
+  u32 MAC_RX_EN;
+  u32 RX_FCTRL;
+  u32 PAUSE_REQ;
+  u32 RX_MODE;
+  u32 TX_MODE;
+  u32 RX_FIFO_ST;
+  u32 TX_FIFO_ST;
+  u32 TX_FID;
+  u32 TX_RESULT;
+  u32 PAUSE_PKT1;
+  u32 PAUSE_PKT2;
+  u32 PAUSE_PKT3;
+  u32 PAUSE_PKT4;
+  u32 PAUSE_PKT5;
+  u32 reserve[2];
+  struct pch_gbe_regs_mac_adr mac_adr[16];
+  u32 ADDR_MASK;
+  u32 MIIM;
+  u32 MAC_ADDR_LOAD;
+  u32 RGMII_ST;
+  u32 RGMII_CTRL;
+  u32 reserve3[3];
+  u32 DMA_CTRL;
+  u32 reserve4[3];
+  u32 RX_DSC_BASE;
+  u32 RX_DSC_SIZE;
+  u32 RX_DSC_HW_P;
+  u32 RX_DSC_HW_P_HLD;
+  u32 RX_DSC_SW_P;
+  u32 reserve5[3];
+  u32 TX_DSC_BASE;
+  u32 TX_DSC_SIZE;
+  u32 TX_DSC_HW_P;
+  u32 TX_DSC_HW_P_HLD;
+  u32 TX_DSC_SW_P;
+  u32 reserve6[3];
+  u32 RX_DMA_ST;
+  u32 TX_DMA_ST;
+  u32 reserve7[2];
+  u32 WOL_ST;
+  u32 WOL_CTRL;
+  u32 WOL_ADDR_MASK;
 };
 
-/* Interrupt Status */
-/* Interrupt Status Hold */
-/* Interrupt Enable */
+/* Interrupt Status
+ * Interrupt Status Hold
+ * Interrupt Enable*/
 #define PCH_GBE_INT_RX_DMA_CMPLT  0x00000001 /* Receive DMA Transfer Complete */
 #define PCH_GBE_INT_RX_VALID      0x00000002 /* MAC Normal Receive Complete */
 #define PCH_GBE_INT_RX_FRAME_ERR  0x00000004 /* Receive frame error */
@@ -290,8 +290,6 @@ struct pch_gbe_regs {
 /* Wake On LAN Address Mask */
 #define PCH_GBE_WLA_BUSY        0x80000000
 
-
-
 /* TX/RX descriptor defines */
 #define PCH_GBE_MAX_TXD                     4096
 #define PCH_GBE_DEFAULT_TXD                  256
@@ -305,54 +303,54 @@ struct pch_gbe_regs {
 #define PCH_GBE_RX_DESC_MULTIPLE               8
 
 /* Read/Write operation is done through MII Management IF */
-#define PCH_GBE_HAL_MIIM_READ          ((u32)0x00000000)
-#define PCH_GBE_HAL_MIIM_WRITE         ((u32)0x04000000)
+#define PCH_GBE_HAL_MIIM_READ          ((u32) 0x00000000)
+#define PCH_GBE_HAL_MIIM_WRITE         ((u32) 0x04000000)
 
 /* flow control values */
-#define PCH_GBE_FC_NONE			0
-#define PCH_GBE_FC_RX_PAUSE		1
-#define PCH_GBE_FC_TX_PAUSE		2
-#define PCH_GBE_FC_FULL			3
-#define PCH_GBE_FC_DEFAULT		PCH_GBE_FC_FULL
+#define PCH_GBE_FC_NONE     0
+#define PCH_GBE_FC_RX_PAUSE   1
+#define PCH_GBE_FC_TX_PAUSE   2
+#define PCH_GBE_FC_FULL     3
+#define PCH_GBE_FC_DEFAULT    PCH_GBE_FC_FULL
 
 /**
  * struct pch_gbe_mac_info - MAC information
- * @addr[6]:		Store the MAC address
- * @fc:			Mode of flow control
- * @fc_autoneg:		Auto negotiation enable for flow control setting
- * @tx_fc_enable:	Enable flag of Transmit flow control
- * @max_frame_size:	Max transmit frame size
- * @min_frame_size:	Min transmit frame size
- * @autoneg:		Auto negotiation enable
- * @link_speed:		Link speed
- * @link_duplex:	Link duplex
+ * @addr[6]:    Store the MAC address
+ * @fc:     Mode of flow control
+ * @fc_autoneg:   Auto negotiation enable for flow control setting
+ * @tx_fc_enable: Enable flag of Transmit flow control
+ * @max_frame_size: Max transmit frame size
+ * @min_frame_size: Min transmit frame size
+ * @autoneg:    Auto negotiation enable
+ * @link_speed:   Link speed
+ * @link_duplex:  Link duplex
  */
 struct pch_gbe_mac_info {
-	u8 addr[6];
-	u8 fc;
-	u8 fc_autoneg;
-	u8 tx_fc_enable;
-	u32 max_frame_size;
-	u32 min_frame_size;
-	u8 autoneg;
-	u16 link_speed;
-	u16 link_duplex;
+  u8 addr[6];
+  u8 fc;
+  u8 fc_autoneg;
+  u8 tx_fc_enable;
+  u32 max_frame_size;
+  u32 min_frame_size;
+  u8 autoneg;
+  u16 link_speed;
+  u16 link_duplex;
 };
 
 /**
  * struct pch_gbe_phy_info - PHY information
- * @addr:		PHY address
- * @id:			PHY's identifier
- * @revision:		PHY's revision
- * @reset_delay_us:	HW reset delay time[us]
- * @autoneg_advertised:	Autoneg advertised
+ * @addr:   PHY address
+ * @id:     PHY's identifier
+ * @revision:   PHY's revision
+ * @reset_delay_us: HW reset delay time[us]
+ * @autoneg_advertised: Autoneg advertised
  */
 struct pch_gbe_phy_info {
-	u32 addr;
-	u32 id;
-	u32 revision;
-	u32 reset_delay_us;
-	u16 autoneg_advertised;
+  u32 addr;
+  u32 id;
+  u32 revision;
+  u32 reset_delay_us;
+  u16 autoneg_advertised;
 };
 
 /*!
@@ -361,240 +359,239 @@ struct pch_gbe_phy_info {
  * @brief   Hardware information
  */
 struct pch_gbe_hw {
-	void *back;
+  void *back;
 
-	struct pch_gbe_regs  __iomem *reg;
-	spinlock_t miim_lock;
+  struct pch_gbe_regs __iomem *reg;
+  spinlock_t miim_lock;
 
-	struct pch_gbe_mac_info mac;
-	struct pch_gbe_phy_info phy;
+  struct pch_gbe_mac_info mac;
+  struct pch_gbe_phy_info phy;
 };
 
 /**
  * struct pch_gbe_rx_desc - Receive Descriptor
- * @buffer_addr:	RX Frame Buffer Address
- * @tcp_ip_status:	TCP/IP Accelerator Status
- * @rx_words_eob:	RX word count and Byte position
- * @gbec_status:	GMAC Status
- * @dma_status:		DMA Status
- * @reserved1:		Reserved
- * @reserved2:		Reserved
+ * @buffer_addr:  RX Frame Buffer Address
+ * @tcp_ip_status:  TCP/IP Accelerator Status
+ * @rx_words_eob: RX word count and Byte position
+ * @gbec_status:  GMAC Status
+ * @dma_status:   DMA Status
+ * @reserved1:    Reserved
+ * @reserved2:    Reserved
  */
 struct pch_gbe_rx_desc {
-	u32 buffer_addr;
-	u32 tcp_ip_status;
-	u16 rx_words_eob;
-	u16 gbec_status;
-	u8 dma_status;
-	u8 reserved1;
-	u16 reserved2;
+  u32 buffer_addr;
+  u32 tcp_ip_status;
+  u16 rx_words_eob;
+  u16 gbec_status;
+  u8 dma_status;
+  u8 reserved1;
+  u16 reserved2;
 };
 
 /**
  * struct pch_gbe_tx_desc - Transmit Descriptor
- * @buffer_addr:	TX Frame Buffer Address
- * @length:		Data buffer length
- * @reserved1:		Reserved
- * @tx_words_eob:	TX word count and Byte position
- * @tx_frame_ctrl:	TX Frame Control
- * @dma_status:		DMA Status
- * @reserved2:		Reserved
- * @gbec_status:	GMAC Status
+ * @buffer_addr:  TX Frame Buffer Address
+ * @length:   Data buffer length
+ * @reserved1:    Reserved
+ * @tx_words_eob: TX word count and Byte position
+ * @tx_frame_ctrl:  TX Frame Control
+ * @dma_status:   DMA Status
+ * @reserved2:    Reserved
+ * @gbec_status:  GMAC Status
  */
 struct pch_gbe_tx_desc {
-	u32 buffer_addr;
-	u16 length;
-	u16 reserved1;
-	u16 tx_words_eob;
-	u16 tx_frame_ctrl;
-	u8 dma_status;
-	u8 reserved2;
-	u16 gbec_status;
+  u32 buffer_addr;
+  u16 length;
+  u16 reserved1;
+  u16 tx_words_eob;
+  u16 tx_frame_ctrl;
+  u8 dma_status;
+  u8 reserved2;
+  u16 gbec_status;
 };
-
 
 /**
  * struct pch_gbe_buffer - Buffer information
- * @skb:	pointer to a socket buffer
- * @dma:	DMA address
- * @time_stamp:	time stamp
- * @length:	data size
+ * @skb:  pointer to a socket buffer
+ * @dma:  DMA address
+ * @time_stamp: time stamp
+ * @length: data size
  */
 struct pch_gbe_buffer {
-	struct sk_buff *skb;
-	dma_addr_t dma;
-	unsigned char *rx_buffer;
-	unsigned long time_stamp;
-	u16 length;
-	bool mapped;
+  struct sk_buff *skb;
+  dma_addr_t dma;
+  unsigned char *rx_buffer;
+  unsigned long time_stamp;
+  u16 length;
+  bool mapped;
 };
 
 /**
  * struct pch_gbe_tx_ring - tx ring information
- * @desc:	pointer to the descriptor ring memory
- * @dma:	physical address of the descriptor ring
- * @size:	length of descriptor ring in bytes
- * @count:	number of descriptors in the ring
- * @next_to_use:	next descriptor to associate a buffer with
- * @next_to_clean:	next descriptor to check for DD status bit
- * @buffer_info:	array of buffer information structs
+ * @desc: pointer to the descriptor ring memory
+ * @dma:  physical address of the descriptor ring
+ * @size: length of descriptor ring in bytes
+ * @count:  number of descriptors in the ring
+ * @next_to_use:  next descriptor to associate a buffer with
+ * @next_to_clean:  next descriptor to check for DD status bit
+ * @buffer_info:  array of buffer information structs
  */
 struct pch_gbe_tx_ring {
-	struct pch_gbe_tx_desc *desc;
-	dma_addr_t dma;
-	unsigned int size;
-	unsigned int count;
-	unsigned int next_to_use;
-	unsigned int next_to_clean;
-	struct pch_gbe_buffer *buffer_info;
+  struct pch_gbe_tx_desc *desc;
+  dma_addr_t dma;
+  unsigned int size;
+  unsigned int count;
+  unsigned int next_to_use;
+  unsigned int next_to_clean;
+  struct pch_gbe_buffer *buffer_info;
 };
 
 /**
  * struct pch_gbe_rx_ring - rx ring information
- * @desc:	pointer to the descriptor ring memory
- * @dma:	physical address of the descriptor ring
- * @size:	length of descriptor ring in bytes
- * @count:	number of descriptors in the ring
- * @next_to_use:	next descriptor to associate a buffer with
- * @next_to_clean:	next descriptor to check for DD status bit
- * @buffer_info:	array of buffer information structs
+ * @desc: pointer to the descriptor ring memory
+ * @dma:  physical address of the descriptor ring
+ * @size: length of descriptor ring in bytes
+ * @count:  number of descriptors in the ring
+ * @next_to_use:  next descriptor to associate a buffer with
+ * @next_to_clean:  next descriptor to check for DD status bit
+ * @buffer_info:  array of buffer information structs
  */
 struct pch_gbe_rx_ring {
-	struct pch_gbe_rx_desc *desc;
-	dma_addr_t dma;
-	unsigned char *rx_buff_pool;
-	dma_addr_t rx_buff_pool_logic;
-	unsigned int rx_buff_pool_size;
-	unsigned int size;
-	unsigned int count;
-	unsigned int next_to_use;
-	unsigned int next_to_clean;
-	struct pch_gbe_buffer *buffer_info;
+  struct pch_gbe_rx_desc *desc;
+  dma_addr_t dma;
+  unsigned char *rx_buff_pool;
+  dma_addr_t rx_buff_pool_logic;
+  unsigned int rx_buff_pool_size;
+  unsigned int size;
+  unsigned int count;
+  unsigned int next_to_use;
+  unsigned int next_to_clean;
+  struct pch_gbe_buffer *buffer_info;
 };
 
 /**
  * struct pch_gbe_hw_stats - Statistics counters collected by the MAC
- * @rx_packets:		    total packets received
- * @tx_packets:		    total packets transmitted
- * @rx_bytes:		    total bytes received
- * @tx_bytes:		    total bytes transmitted
- * @rx_errors:		    bad packets received
- * @tx_errors:		    packet transmit problems
- * @rx_dropped:		    no space in Linux buffers
- * @tx_dropped:		    no space available in Linux
- * @multicast:		    multicast packets received
- * @collisions:		    collisions
- * @rx_crc_errors:	    received packet with crc error
- * @rx_frame_errors:	    received frame alignment error
+ * @rx_packets:       total packets received
+ * @tx_packets:       total packets transmitted
+ * @rx_bytes:       total bytes received
+ * @tx_bytes:       total bytes transmitted
+ * @rx_errors:        bad packets received
+ * @tx_errors:        packet transmit problems
+ * @rx_dropped:       no space in Linux buffers
+ * @tx_dropped:       no space available in Linux
+ * @multicast:        multicast packets received
+ * @collisions:       collisions
+ * @rx_crc_errors:      received packet with crc error
+ * @rx_frame_errors:      received frame alignment error
  * @rx_alloc_buff_failed:   allocate failure of a receive buffer
- * @tx_length_errors:	    transmit length error
- * @tx_aborted_errors:	    transmit aborted error
- * @tx_carrier_errors:	    transmit carrier error
- * @tx_timeout_count:	    Number of transmit timeout
- * @tx_restart_count:	    Number of transmit restert
- * @intr_rx_dsc_empty_count:	Interrupt count of receive descriptor empty
- * @intr_rx_frame_err_count:	Interrupt count of receive frame error
- * @intr_rx_fifo_err_count:	Interrupt count of receive FIFO error
- * @intr_rx_dma_err_count:	Interrupt count of receive DMA error
- * @intr_tx_fifo_err_count:	Interrupt count of transmit FIFO error
- * @intr_tx_dma_err_count:	Interrupt count of transmit DMA error
- * @intr_tcpip_err_count:	Interrupt count of TCP/IP Accelerator
+ * @tx_length_errors:     transmit length error
+ * @tx_aborted_errors:      transmit aborted error
+ * @tx_carrier_errors:      transmit carrier error
+ * @tx_timeout_count:     Number of transmit timeout
+ * @tx_restart_count:     Number of transmit restert
+ * @intr_rx_dsc_empty_count:  Interrupt count of receive descriptor empty
+ * @intr_rx_frame_err_count:  Interrupt count of receive frame error
+ * @intr_rx_fifo_err_count: Interrupt count of receive FIFO error
+ * @intr_rx_dma_err_count:  Interrupt count of receive DMA error
+ * @intr_tx_fifo_err_count: Interrupt count of transmit FIFO error
+ * @intr_tx_dma_err_count:  Interrupt count of transmit DMA error
+ * @intr_tcpip_err_count: Interrupt count of TCP/IP Accelerator
  */
 struct pch_gbe_hw_stats {
-	u32 rx_packets;
-	u32 tx_packets;
-	u32 rx_bytes;
-	u32 tx_bytes;
-	u32 rx_errors;
-	u32 tx_errors;
-	u32 rx_dropped;
-	u32 tx_dropped;
-	u32 multicast;
-	u32 collisions;
-	u32 rx_crc_errors;
-	u32 rx_frame_errors;
-	u32 rx_alloc_buff_failed;
-	u32 tx_length_errors;
-	u32 tx_aborted_errors;
-	u32 tx_carrier_errors;
-	u32 tx_timeout_count;
-	u32 tx_restart_count;
-	u32 intr_rx_dsc_empty_count;
-	u32 intr_rx_frame_err_count;
-	u32 intr_rx_fifo_err_count;
-	u32 intr_rx_dma_err_count;
-	u32 intr_tx_fifo_err_count;
-	u32 intr_tx_dma_err_count;
-	u32 intr_tcpip_err_count;
+  u32 rx_packets;
+  u32 tx_packets;
+  u32 rx_bytes;
+  u32 tx_bytes;
+  u32 rx_errors;
+  u32 tx_errors;
+  u32 rx_dropped;
+  u32 tx_dropped;
+  u32 multicast;
+  u32 collisions;
+  u32 rx_crc_errors;
+  u32 rx_frame_errors;
+  u32 rx_alloc_buff_failed;
+  u32 tx_length_errors;
+  u32 tx_aborted_errors;
+  u32 tx_carrier_errors;
+  u32 tx_timeout_count;
+  u32 tx_restart_count;
+  u32 intr_rx_dsc_empty_count;
+  u32 intr_rx_frame_err_count;
+  u32 intr_rx_fifo_err_count;
+  u32 intr_rx_dma_err_count;
+  u32 intr_tx_fifo_err_count;
+  u32 intr_tx_dma_err_count;
+  u32 intr_tcpip_err_count;
 };
 
 /**
  * struct pch_gbe_privdata - PCI Device ID driver data
- * @phy_tx_clk_delay:		Bool, configure the PHY TX delay in software
- * @phy_disable_hibernate:	Bool, disable PHY hibernation
- * @platform_init:		Platform initialization callback, called from
- *				probe, prior to PHY initialization.
+ * @phy_tx_clk_delay:   Bool, configure the PHY TX delay in software
+ * @phy_disable_hibernate:  Bool, disable PHY hibernation
+ * @platform_init:    Platform initialization callback, called from
+ *        probe, prior to PHY initialization.
  */
 struct pch_gbe_privdata {
-	bool phy_tx_clk_delay;
-	bool phy_disable_hibernate;
-	int (*platform_init)(struct pci_dev *pdev);
+  bool phy_tx_clk_delay;
+  bool phy_disable_hibernate;
+  int (*platform_init)(struct pci_dev *pdev);
 };
 
 /**
  * struct pch_gbe_adapter - board specific private data structure
- * @stats_lock:	Spinlock structure for status
- * @ethtool_lock:	Spinlock structure for ethtool
- * @irq_sem:		Semaphore for interrupt
- * @netdev:		Pointer of network device structure
- * @pdev:		Pointer of pci device structure
- * @polling_netdev:	Pointer of polling network device structure
- * @napi:		NAPI structure
- * @hw:			Pointer of hardware structure
- * @stats:		Hardware status
- * @reset_task:		Reset task
- * @mii:		MII information structure
- * @watchdog_timer:	Watchdog timer list
- * @wake_up_evt:	Wake up event
- * @config_space:	Configuration space
- * @msg_enable:		Driver message level
- * @led_status:		LED status
- * @tx_ring:		Pointer of Tx descriptor ring structure
- * @rx_ring:		Pointer of Rx descriptor ring structure
- * @rx_buffer_len:	Receive buffer length
- * @tx_queue_len:	Transmit queue length
- * @pch_gbe_privdata:	PCI Device ID driver_data
+ * @stats_lock: Spinlock structure for status
+ * @ethtool_lock: Spinlock structure for ethtool
+ * @irq_sem:    Semaphore for interrupt
+ * @netdev:   Pointer of network device structure
+ * @pdev:   Pointer of pci device structure
+ * @polling_netdev: Pointer of polling network device structure
+ * @napi:   NAPI structure
+ * @hw:     Pointer of hardware structure
+ * @stats:    Hardware status
+ * @reset_task:   Reset task
+ * @mii:    MII information structure
+ * @watchdog_timer: Watchdog timer list
+ * @wake_up_evt:  Wake up event
+ * @config_space: Configuration space
+ * @msg_enable:   Driver message level
+ * @led_status:   LED status
+ * @tx_ring:    Pointer of Tx descriptor ring structure
+ * @rx_ring:    Pointer of Rx descriptor ring structure
+ * @rx_buffer_len:  Receive buffer length
+ * @tx_queue_len: Transmit queue length
+ * @pch_gbe_privdata: PCI Device ID driver_data
  */
 
 struct pch_gbe_adapter {
-	spinlock_t stats_lock;
-	spinlock_t ethtool_lock;
-	atomic_t irq_sem;
-	struct net_device *netdev;
-	struct pci_dev *pdev;
-	int irq;
-	struct net_device *polling_netdev;
-	struct napi_struct napi;
-	struct pch_gbe_hw hw;
-	struct pch_gbe_hw_stats stats;
-	struct work_struct reset_task;
-	struct mii_if_info mii;
-	struct timer_list watchdog_timer;
-	u32 wake_up_evt;
-	u32 *config_space;
-	unsigned long led_status;
-	struct pch_gbe_tx_ring *tx_ring;
-	struct pch_gbe_rx_ring *rx_ring;
-	unsigned long rx_buffer_len;
-	unsigned long tx_queue_len;
-	bool rx_stop_flag;
-	int hwts_tx_en;
-	int hwts_rx_en;
-	struct pci_dev *ptp_pdev;
-	struct pch_gbe_privdata *pdata;
+  spinlock_t stats_lock;
+  spinlock_t ethtool_lock;
+  atomic_t irq_sem;
+  struct net_device *netdev;
+  struct pci_dev *pdev;
+  int irq;
+  struct net_device *polling_netdev;
+  struct napi_struct napi;
+  struct pch_gbe_hw hw;
+  struct pch_gbe_hw_stats stats;
+  struct work_struct reset_task;
+  struct mii_if_info mii;
+  struct timer_list watchdog_timer;
+  u32 wake_up_evt;
+  u32 *config_space;
+  unsigned long led_status;
+  struct pch_gbe_tx_ring *tx_ring;
+  struct pch_gbe_rx_ring *rx_ring;
+  unsigned long rx_buffer_len;
+  unsigned long tx_queue_len;
+  bool rx_stop_flag;
+  int hwts_tx_en;
+  int hwts_rx_en;
+  struct pci_dev *ptp_pdev;
+  struct pch_gbe_privdata *pdata;
 };
 
-#define pch_gbe_hw_to_adapter(hw)	container_of(hw, struct pch_gbe_adapter, hw)
+#define pch_gbe_hw_to_adapter(hw) container_of(hw, struct pch_gbe_adapter, hw)
 
 /* pch_gbe_main.c */
 int pch_gbe_up(struct pch_gbe_adapter *adapter);
@@ -602,13 +599,13 @@ void pch_gbe_down(struct pch_gbe_adapter *adapter);
 void pch_gbe_reinit_locked(struct pch_gbe_adapter *adapter);
 void pch_gbe_reset(struct pch_gbe_adapter *adapter);
 int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
-			       struct pch_gbe_tx_ring *txdr);
+    struct pch_gbe_tx_ring *txdr);
 int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
-			       struct pch_gbe_rx_ring *rxdr);
+    struct pch_gbe_rx_ring *rxdr);
 void pch_gbe_free_tx_resources(struct pch_gbe_adapter *adapter,
-			       struct pch_gbe_tx_ring *tx_ring);
+    struct pch_gbe_tx_ring *tx_ring);
 void pch_gbe_free_rx_resources(struct pch_gbe_adapter *adapter,
-			       struct pch_gbe_rx_ring *rx_ring);
+    struct pch_gbe_rx_ring *rx_ring);
 void pch_gbe_update_stats(struct pch_gbe_adapter *adapter);
 
 /* pch_gbe_param.c */
@@ -620,5 +617,5 @@ void pch_gbe_set_ethtool_ops(struct net_device *netdev);
 /* pch_gbe_mac.c */
 s32 pch_gbe_mac_force_mac_fc(struct pch_gbe_hw *hw);
 u16 pch_gbe_mac_ctrl_miim(struct pch_gbe_hw *hw, u32 addr, u32 dir, u32 reg,
-			  u16 data);
+    u16 data);
 #endif /* _PCH_GBE_H_ */

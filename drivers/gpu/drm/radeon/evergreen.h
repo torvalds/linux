@@ -32,8 +32,10 @@ struct radeon_device;
 
 bool evergreen_is_display_hung(struct radeon_device *rdev);
 void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
-void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
-void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
+void evergreen_mc_stop(struct radeon_device *rdev,
+    struct evergreen_mc_save *save);
+void evergreen_mc_resume(struct radeon_device *rdev,
+    struct evergreen_mc_save *save);
 int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
 void evergreen_mc_program(struct radeon_device *rdev);
 void evergreen_irq_suspend(struct radeon_device *rdev);
@@ -49,4 +51,4 @@ u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev);
 int evergreen_rlc_resume(struct radeon_device *rdev);
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
-#endif				/* __RADEON_EVERGREEN_H__ */
+#endif        /* __RADEON_EVERGREEN_H__ */

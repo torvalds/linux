@@ -26,17 +26,88 @@
 #ifndef __IRQSRCS_NBIF_7_4_H__
 #define __IRQSRCS_NBIF_7_4_H__
 
-#define NBIF_7_4__SRCID__CHIP_ERR_INT_EVENT            0x5E        // Error generated
-#define NBIF_7_4__SRCID__DOORBELL_INTERRUPT            0x5F        // Interrupt for doorbell event during VDDGFX off
-#define NBIF_7_4__SRCID__RAS_CONTROLLER_INTERRUPT      0x60        // Interrupt for ras_intr_valid from RAS controller
-#define NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT      0x61        // Interrupt for SDP ErrEvent received from ATHUB
-#define NBIF_7_4__SRCID__PF_VF_MSGBUF_VALID            0x87        // Valid message in PF->VF mailbox message buffer (The interrupt is sent on behalf of PF)
-#define NBIF_7_4__SRCID__PF_VF_MSGBUF_ACK              0x88        // Acknowledge message in PF->VF mailbox message buffer (The interrupt is sent on behalf of VF)
-#define NBIF_7_4__SRCID__VF_PF_MSGBUF_VALID            0x89        // Valid message in VF->PF mailbox message buffer (The interrupt is sent on behalf of VF)
-#define NBIF_7_4__SRCID__VF_PF_MSGBUF_ACK              0x8A        // Acknowledge message in VF->PF mailbox message buffer (The interrupt is sent on behalf of PF)
+#define NBIF_7_4__SRCID__CHIP_ERR_INT_EVENT            0x5E        // Error
+                                                                   // generated
+#define NBIF_7_4__SRCID__DOORBELL_INTERRUPT            0x5F        // Interrupt
+                                                                   // for
+                                                                   // doorbell
+                                                                   // event
+                                                                   // during
+                                                                   // VDDGFX off
+#define NBIF_7_4__SRCID__RAS_CONTROLLER_INTERRUPT      0x60        // Interrupt
+                                                                   // for
+                                                                   // ras_intr_valid
+                                                                   // from RAS
+                                                                   // controller
+#define NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT      0x61        // Interrupt
+                                                                   // for SDP
+                                                                   // ErrEvent
+                                                                   // received
+                                                                   // from ATHUB
+#define NBIF_7_4__SRCID__PF_VF_MSGBUF_VALID            0x87        // Valid
+                                                                   // message in
+                                                                   // PF->VF
+                                                                   // mailbox
+                                                                   // message
+                                                                   // buffer
+                                                                   // (The
+                                                                   // interrupt
+                                                                   // is sent on
+                                                                   // behalf of
+                                                                   // PF)
+#define NBIF_7_4__SRCID__PF_VF_MSGBUF_ACK              0x88        // Acknowledge
+                                                                   // message in
+                                                                   // PF->VF
+                                                                   // mailbox
+                                                                   // message
+                                                                   // buffer
+                                                                   // (The
+                                                                   // interrupt
+                                                                   // is sent on
+                                                                   // behalf of
+                                                                   // VF)
+#define NBIF_7_4__SRCID__VF_PF_MSGBUF_VALID            0x89        // Valid
+                                                                   // message in
+                                                                   // VF->PF
+                                                                   // mailbox
+                                                                   // message
+                                                                   // buffer
+                                                                   // (The
+                                                                   // interrupt
+                                                                   // is sent on
+                                                                   // behalf of
+                                                                   // VF)
+#define NBIF_7_4__SRCID__VF_PF_MSGBUF_ACK              0x8A        // Acknowledge
+                                                                   // message in
+                                                                   // VF->PF
+                                                                   // mailbox
+                                                                   // message
+                                                                   // buffer
+                                                                   // (The
+                                                                   // interrupt
+                                                                   // is sent on
+                                                                   // behalf of
+                                                                   // PF)
 #define NBIF_7_4__SRCID__CHIP_DPA_INT_EVENT            0xA0        // BIF_CHIP_DPA_INT_EVENT
 #define NBIF_7_4__SRCID__CHIP_SLOT_POWER_CHG_INT_EVENT 0xA1        // BIF_CHIP_SLOT_POWER_CHG_INT_EVENT
-#define NBIF_7_4__SRCID__ATOMIC_UR_OPCODE              0xCE        // BIF receives unsupported atomic opcode from MC
-#define NBIF_7_4__SRCID__ATOMIC_REQESTEREN_LOW         0xCF        // BIF receive atomic request from MC while AtomicOp Requester is not enabled in PCIE config space
+#define NBIF_7_4__SRCID__ATOMIC_UR_OPCODE              0xCE        // BIF
+                                                                   // receives
+                                                                   // unsupported
+                                                                   // atomic
+                                                                   // opcode
+                                                                   // from MC
+#define NBIF_7_4__SRCID__ATOMIC_REQESTEREN_LOW         0xCF        // BIF
+                                                                   // receive
+                                                                   // atomic
+                                                                   // request
+                                                                   // from MC
+                                                                   // while
+                                                                   // AtomicOp
+                                                                   // Requester
+                                                                   // is not
+                                                                   // enabled in
+                                                                   // PCIE
+                                                                   // config
+                                                                   // space
 
 #endif // __IRQSRCS_NBIF_7_4_H__

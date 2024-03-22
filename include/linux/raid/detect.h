@@ -5,7 +5,7 @@ void md_autodetect_dev(dev_t dev);
 #ifdef CONFIG_BLK_DEV_MD
 void md_run_setup(void);
 #else
-static inline void md_run_setup(void)
-{
+static inline void md_run_setup(void) {
 }
+
 #endif

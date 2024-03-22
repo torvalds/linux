@@ -23,38 +23,35 @@
  */
 #include "ram.h"
 
-u32
-gf108_ram_probe_fbp_amount(const struct nvkm_ram_func *func, u32 fbpao,
-			   struct nvkm_device *device, int fbp, int *pltcs)
-{
-	u32 fbpt  = nvkm_rd32(device, 0x022438);
-	u32 fbpat = nvkm_rd32(device, 0x02243c);
-	u32 fbpas = fbpat / fbpt;
-	u32 fbpa  = fbp * fbpas;
-	u32 size  = 0;
-	while (fbpas--) {
-		if (!(fbpao & BIT(fbpa)))
-			size += func->probe_fbpa_amount(device, fbpa);
-		fbpa++;
-	}
-	*pltcs = 1;
-	return size;
+u32 gf108_ram_probe_fbp_amount(const struct nvkm_ram_func *func, u32 fbpao,
+    struct nvkm_device *device, int fbp, int *pltcs) {
+  u32 fbpt = nvkm_rd32(device, 0x022438);
+  u32 fbpat = nvkm_rd32(device, 0x02243c);
+  u32 fbpas = fbpat / fbpt;
+  u32 fbpa = fbp * fbpas;
+  u32 size = 0;
+  while (fbpas--) {
+    if (!(fbpao & BIT(fbpa))) {
+      size += func->probe_fbpa_amount(device, fbpa);
+    }
+    fbpa++;
+  }
+  *pltcs = 1;
+  return size;
 }
 
 static const struct nvkm_ram_func
-gf108_ram = {
-	.upper = 0x0200000000ULL,
-	.probe_fbp = gf100_ram_probe_fbp,
-	.probe_fbp_amount = gf108_ram_probe_fbp_amount,
-	.probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
-	.init = gf100_ram_init,
-	.calc = gf100_ram_calc,
-	.prog = gf100_ram_prog,
-	.tidy = gf100_ram_tidy,
+    gf108_ram = {
+  .upper = 0x0200000000ULL,
+  .probe_fbp = gf100_ram_probe_fbp,
+  .probe_fbp_amount = gf108_ram_probe_fbp_amount,
+  .probe_fbpa_amount = gf100_ram_probe_fbpa_amount,
+  .init = gf100_ram_init,
+  .calc = gf100_ram_calc,
+  .prog = gf100_ram_prog,
+  .tidy = gf100_ram_tidy,
 };
 
-int
-gf108_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram)
-{
-	return gf100_ram_new_(&gf108_ram, fb, pram);
+int gf108_ram_new(struct nvkm_fb *fb, struct nvkm_ram **pram) {
+  return gf100_ram_new_(&gf108_ram, fb, pram);
 }

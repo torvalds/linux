@@ -8,8 +8,8 @@
 #include "control.h"
 #include "prm3xxx.h"
 
-#define TI81XX_PRM_DEVICE_RSTCTRL	0x00a0
-#define TI81XX_GLOBAL_RST_COLD		BIT(1)
+#define TI81XX_PRM_DEVICE_RSTCTRL 0x00a0
+#define TI81XX_GLOBAL_RST_COLD    BIT(1)
 
 /**
  * ti81xx_restart - trigger a software restart of the SoC
@@ -22,10 +22,9 @@
  * NOTE: Warm reset does not seem to work, may require resetting
  * clocks to bypass mode.
  */
-void ti81xx_restart(enum reboot_mode mode, const char *cmd)
-{
-	omap2_prm_set_mod_reg_bits(TI81XX_GLOBAL_RST_COLD, 0,
-				   TI81XX_PRM_DEVICE_RSTCTRL);
-	while (1)
-		;
+void ti81xx_restart(enum reboot_mode mode, const char *cmd) {
+  omap2_prm_set_mod_reg_bits(TI81XX_GLOBAL_RST_COLD, 0,
+      TI81XX_PRM_DEVICE_RSTCTRL);
+  while (1) {
+  }
 }

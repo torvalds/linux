@@ -11,8 +11,8 @@
 
 /* VSEL ID */
 enum {
-	FAN53555_VSEL_ID_0 = 0,
-	FAN53555_VSEL_ID_1,
+  FAN53555_VSEL_ID_0 = 0,
+  FAN53555_VSEL_ID_1,
 };
 
 /* Transition slew rate limiting from a low to high voltage.
@@ -37,21 +37,21 @@ enum {
  * -----------------------
  */
 enum {
-	FAN53555_SLEW_RATE_64MV = 0,
-	FAN53555_SLEW_RATE_32MV,
-	FAN53555_SLEW_RATE_16MV,
-	FAN53555_SLEW_RATE_8MV,
-	FAN53555_SLEW_RATE_4MV,
-	FAN53555_SLEW_RATE_2MV,
-	FAN53555_SLEW_RATE_1MV,
-	FAN53555_SLEW_RATE_0_5MV,
+  FAN53555_SLEW_RATE_64MV = 0,
+  FAN53555_SLEW_RATE_32MV,
+  FAN53555_SLEW_RATE_16MV,
+  FAN53555_SLEW_RATE_8MV,
+  FAN53555_SLEW_RATE_4MV,
+  FAN53555_SLEW_RATE_2MV,
+  FAN53555_SLEW_RATE_1MV,
+  FAN53555_SLEW_RATE_0_5MV,
 };
 
 struct fan53555_platform_data {
-	struct regulator_init_data *regulator;
-	unsigned int slew_rate;
-	/* Sleep VSEL ID */
-	unsigned int sleep_vsel_id;
+  struct regulator_init_data *regulator;
+  unsigned int slew_rate;
+  /* Sleep VSEL ID */
+  unsigned int sleep_vsel_id;
 };
 
 #endif /* __FAN53555_H__ */

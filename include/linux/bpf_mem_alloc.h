@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2022 Meta Platforms, Inc. and affiliates. */
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright (c) 2022 Meta Platforms, Inc. and affiliates.*/
 #ifndef _BPF_MEM_ALLOC_H
 #define _BPF_MEM_ALLOC_H
 #include <linux/compiler_types.h>
@@ -9,11 +9,11 @@ struct bpf_mem_cache;
 struct bpf_mem_caches;
 
 struct bpf_mem_alloc {
-	struct bpf_mem_caches __percpu *caches;
-	struct bpf_mem_cache __percpu *cache;
-	struct obj_cgroup *objcg;
-	bool percpu;
-	struct work_struct work;
+  struct bpf_mem_caches __percpu *caches;
+  struct bpf_mem_cache __percpu *cache;
+  struct obj_cgroup *objcg;
+  bool percpu;
+  struct work_struct work;
 };
 
 /* 'size != 0' is for bpf_mem_alloc which manages fixed-size objects.
@@ -28,7 +28,8 @@ struct bpf_mem_alloc {
  */
 int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu);
 /* Initialize a non-fix-size percpu memory allocator */
-int bpf_mem_alloc_percpu_init(struct bpf_mem_alloc *ma, struct obj_cgroup *objcg);
+int bpf_mem_alloc_percpu_init(struct bpf_mem_alloc *ma,
+    struct obj_cgroup *objcg);
 /* The percpu allocation with a specific unit size. */
 int bpf_mem_alloc_percpu_unit_init(struct bpf_mem_alloc *ma, int size);
 void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma);

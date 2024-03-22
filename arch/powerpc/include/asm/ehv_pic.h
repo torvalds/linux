@@ -14,7 +14,7 @@
 
 #define NR_EHV_PIC_INTS 1024
 
-#define EHV_PIC_INFO(name) EHV_PIC_##name
+#define EHV_PIC_INFO(name) EHV_PIC_ ## name
 
 #define EHV_PIC_VECPRI_POLARITY_NEGATIVE 0
 #define EHV_PIC_VECPRI_POLARITY_POSITIVE 1
@@ -24,14 +24,14 @@
 #define EHV_PIC_VECPRI_SENSE_MASK 0x2
 
 struct ehv_pic {
-	/* The remapper for this EHV_PIC */
-	struct irq_domain	*irqhost;
+  /* The remapper for this EHV_PIC */
+  struct irq_domain *irqhost;
 
-	/* The "linux" controller struct */
-	struct irq_chip	hc_irq;
+  /* The "linux" controller struct */
+  struct irq_chip hc_irq;
 
-	/* core int flag */
-	int coreint_flag;
+  /* core int flag */
+  int coreint_flag;
 };
 
 void ehv_pic_init(void);

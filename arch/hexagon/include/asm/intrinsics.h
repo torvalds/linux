@@ -6,8 +6,8 @@
 #ifndef _ASM_HEXAGON_INTRINSICS_H
 #define _ASM_HEXAGON_INTRINSICS_H
 
-#define HEXAGON_P_vrmpyhacc_PP	__builtin_HEXAGON_M2_vrmac_s0
-#define HEXAGON_P_vrmpyh_PP	__builtin_HEXAGON_M2_vrmpy_s0
-#define HEXAGON_R_cl0_R		__builtin_HEXAGON_S2_cl0
+#define HEXAGON_P_vrmpyhacc_PP  __builtin_HEXAGON_M2_vrmac_s0
+#define HEXAGON_P_vrmpyh_PP __builtin_HEXAGON_M2_vrmpy_s0
+#define HEXAGON_R_cl0_R   __builtin_HEXAGON_S2_cl0
 
 #endif

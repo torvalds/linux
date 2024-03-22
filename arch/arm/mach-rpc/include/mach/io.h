@@ -5,7 +5,7 @@
  *  Copyright (C) 1997 Russell King
  *
  * Modifications:
- *  06-Dec-1997	RMK	Created.
+ *  06-Dec-1997 RMK Created.
  */
 #ifndef __ASM_ARM_ARCH_IO_H
 #define __ASM_ARM_ARCH_IO_H
@@ -23,6 +23,6 @@
  * These peripherals are found in an area of MMIO which looks very much
  * like an ISA bus, but with registers at the low byte of each word.
  */
-#define __io(a)		(PCIO_BASE + ((a) << 2))
+#define __io(a)   (PCIO_BASE + ((a) << 2))
 
 #endif

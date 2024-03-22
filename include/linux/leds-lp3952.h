@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *	LED driver for TI lp3952 controller
+ *  LED driver for TI lp3952 controller
  *
- *	Copyright (C) 2016, DAQRI, LLC.
- *	Author: Tony Makkiel <tony.makkiel@daqri.com>
+ *  Copyright (C) 2016, DAQRI, LLC.
+ *  Author: Tony Makkiel <tony.makkiel@daqri.com>
  */
 
 #ifndef LEDS_LP3952_H_
@@ -37,85 +37,85 @@
 
 /* Transition Time in ms */
 enum lp3952_tt {
-	TT0,
-	TT55,
-	TT110,
-	TT221,
-	TT422,
-	TT885,
-	TT1770,
-	TT3539
+  TT0,
+  TT55,
+  TT110,
+  TT221,
+  TT422,
+  TT885,
+  TT1770,
+  TT3539
 };
 
 /* Command Execution Time in ms */
 enum lp3952_cet {
-	CET197,
-	CET393,
-	CET590,
-	CET786,
-	CET1180,
-	CET1376,
-	CET1573,
-	CET1769,
-	CET1966,
-	CET2163,
-	CET2359,
-	CET2556,
-	CET2763,
-	CET2949,
-	CET3146
+  CET197,
+  CET393,
+  CET590,
+  CET786,
+  CET1180,
+  CET1376,
+  CET1573,
+  CET1769,
+  CET1966,
+  CET2163,
+  CET2359,
+  CET2556,
+  CET2763,
+  CET2949,
+  CET3146
 };
 
 /* Max Current in % */
 enum lp3952_colour_I_log_0 {
-	I0,
-	I7,
-	I14,
-	I21,
-	I32,
-	I46,
-	I71,
-	I100
+  I0,
+  I7,
+  I14,
+  I21,
+  I32,
+  I46,
+  I71,
+  I100
 };
 
 enum lp3952_leds {
-	LP3952_BLUE_2,
-	LP3952_GREEN_2,
-	LP3952_RED_2,
-	LP3952_BLUE_1,
-	LP3952_GREEN_1,
-	LP3952_RED_1,
-	LP3952_LED_ALL
+  LP3952_BLUE_2,
+  LP3952_GREEN_2,
+  LP3952_RED_2,
+  LP3952_BLUE_1,
+  LP3952_GREEN_1,
+  LP3952_RED_1,
+  LP3952_LED_ALL
 };
 
 struct lp3952_ctrl_hdl {
-	struct led_classdev cdev;
-	char name[LP3952_LABEL_MAX_LEN];
-	enum lp3952_leds channel;
-	void *priv;
+  struct led_classdev cdev;
+  char name[LP3952_LABEL_MAX_LEN];
+  enum lp3952_leds channel;
+  void *priv;
 };
 
 struct ptrn_gen_cmd {
-	union {
-		struct {
-			u16 tt:3;
-			u16 b:3;
-			u16 cet:4;
-			u16 g:3;
-			u16 r:3;
-		};
-		struct {
-			u8 lsb;
-			u8 msb;
-		} bytes;
-	};
+  union {
+    struct {
+      u16 tt : 3;
+      u16 b : 3;
+      u16 cet : 4;
+      u16 g : 3;
+      u16 r : 3;
+    };
+    struct {
+      u8 lsb;
+      u8 msb;
+    } bytes;
+  };
 } __packed;
 
 struct lp3952_led_array {
-	struct regmap *regmap;
-	struct i2c_client *client;
-	struct gpio_desc *enable_gpio;
-	struct lp3952_ctrl_hdl leds[LP3952_LED_ALL];
+  struct regmap *regmap;
+  struct i2c_client *client;
+  struct gpio_desc *enable_gpio;
+  struct lp3952_ctrl_hdl leds[LP3952_LED_ALL];
 };
 
 #endif /* LEDS_LP3952_H_ */

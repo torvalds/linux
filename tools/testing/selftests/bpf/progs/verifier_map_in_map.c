@@ -6,24 +6,24 @@
 #include "bpf_misc.h"
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
-	__uint(max_entries, 1);
-	__type(key, int);
-	__type(value, int);
-	__array(values, struct {
-		__uint(type, BPF_MAP_TYPE_ARRAY);
-		__uint(max_entries, 1);
-		__type(key, int);
-		__type(value, int);
-	});
+  __uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+  __uint(max_entries, 1);
+  __type(key, int);
+  __type(value, int);
+  __array(values, struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, int);
+    __type(value, int);
+  });
 } map_in_map SEC(".maps");
 
 SEC("socket")
 __description("map in map access")
 __success __success_unpriv __retval(0)
-__naked void map_in_map_access(void)
-{
-	asm volatile ("					\
+__naked void map_in_map_access(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u32*)(r10 - 4) = r1;				\
 	r2 = r10;					\
@@ -39,19 +39,19 @@ __naked void map_in_map_access(void)
 	call %[bpf_map_lookup_elem];			\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_in_map)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_in_map)
+    : __clobber_all);
 }
 
 SEC("xdp")
 __description("map in map state pruning")
 __success __msg("processed 26 insns")
 __log_level(2) __retval(0) __flag(BPF_F_TEST_STATE_FREQ)
-__naked void map_in_map_state_pruning(void)
-{
-	asm volatile ("					\
+__naked void map_in_map_state_pruning(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u32*)(r10 - 4) = r1;				\
 	r6 = r10;					\
@@ -77,19 +77,19 @@ l2_%=:	r2 = r6;					\
 	exit;						\
 l1_%=:	r0 = *(u32*)(r0 + 0);				\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_in_map)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_in_map)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("invalid inner map pointer")
 __failure __msg("R1 pointer arithmetic on map_ptr prohibited")
 __failure_unpriv
-__naked void invalid_inner_map_pointer(void)
-{
-	asm volatile ("					\
+__naked void invalid_inner_map_pointer(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u32*)(r10 - 4) = r1;				\
 	r2 = r10;					\
@@ -106,19 +106,19 @@ __naked void invalid_inner_map_pointer(void)
 	call %[bpf_map_lookup_elem];			\
 l0_%=:	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_in_map)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_in_map)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("forgot null checking on the inner map pointer")
 __failure __msg("R1 type=map_value_or_null expected=map_ptr")
 __failure_unpriv
-__naked void on_the_inner_map_pointer(void)
-{
-	asm volatile ("					\
+__naked void on_the_inner_map_pointer(void) {
+  asm volatile (
+    "					\
 	r1 = 0;						\
 	*(u32*)(r10 - 4) = r1;				\
 	r2 = r10;					\
@@ -133,10 +133,10 @@ __naked void on_the_inner_map_pointer(void)
 	call %[bpf_map_lookup_elem];			\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_in_map)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_in_map)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

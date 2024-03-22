@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #undef LOCK
-#define LOCK		RL
+#define LOCK    RL
 
 #undef UNLOCK
-#define UNLOCK		RU
+#define UNLOCK    RU
 
 #undef RLOCK
-#define RLOCK		RL
+#define RLOCK   RL
 
 #undef WLOCK
-#define WLOCK		WL
+#define WLOCK   WL
 
 #undef INIT
-#define INIT		RWI
+#define INIT    RWI

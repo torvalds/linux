@@ -14,11 +14,11 @@ struct bch_fs *bch2_dev_to_fs(dev_t);
 struct bch_fs *bch2_uuid_to_fs(__uuid_t);
 
 bool bch2_dev_state_allowed(struct bch_fs *, struct bch_dev *,
-			   enum bch_member_state, int);
+    enum bch_member_state, int);
 int __bch2_dev_set_state(struct bch_fs *, struct bch_dev *,
-			enum bch_member_state, int);
+    enum bch_member_state, int);
 int bch2_dev_set_state(struct bch_fs *, struct bch_dev *,
-		      enum bch_member_state, int);
+    enum bch_member_state, int);
 
 int bch2_dev_fail(struct bch_dev *, int);
 int bch2_dev_remove(struct bch_fs *, struct bch_dev *, int);
@@ -37,11 +37,11 @@ int bch2_fs_read_write_early(struct bch_fs *);
 /*
  * Only for use in the recovery/fsck path:
  */
-static inline void bch2_fs_lazy_rw(struct bch_fs *c)
-{
-	if (!test_bit(BCH_FS_rw, &c->flags) &&
-	    !test_bit(BCH_FS_was_rw, &c->flags))
-		bch2_fs_read_write_early(c);
+static inline void bch2_fs_lazy_rw(struct bch_fs *c) {
+  if (!test_bit(BCH_FS_rw, &c->flags)
+      && !test_bit(BCH_FS_was_rw, &c->flags)) {
+    bch2_fs_read_write_early(c);
+  }
 }
 
 void __bch2_fs_stop(struct bch_fs *);

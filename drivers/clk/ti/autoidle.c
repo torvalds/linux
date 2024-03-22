@@ -17,14 +17,14 @@
 #include "clock.h"
 
 struct clk_ti_autoidle {
-	struct clk_omap_reg	reg;
-	u8			shift;
-	u8			flags;
-	const char		*name;
-	struct list_head	node;
+  struct clk_omap_reg reg;
+  u8 shift;
+  u8 flags;
+  const char *name;
+  struct list_head node;
 };
 
-#define AUTOIDLE_LOW		0x1
+#define AUTOIDLE_LOW    0x1
 
 static LIST_HEAD(autoidle_clks);
 
@@ -36,34 +36,30 @@ static LIST_HEAD(autoidle_clks);
  */
 static DEFINE_SPINLOCK(autoidle_spinlock);
 
-static int _omap2_clk_deny_idle(struct clk_hw_omap *clk)
-{
-	if (clk->ops && clk->ops->deny_idle) {
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&autoidle_spinlock, irqflags);
-		clk->autoidle_count++;
-		if (clk->autoidle_count == 1)
-			clk->ops->deny_idle(clk);
-
-		spin_unlock_irqrestore(&autoidle_spinlock, irqflags);
-	}
-	return 0;
+static int _omap2_clk_deny_idle(struct clk_hw_omap *clk) {
+  if (clk->ops && clk->ops->deny_idle) {
+    unsigned long irqflags;
+    spin_lock_irqsave(&autoidle_spinlock, irqflags);
+    clk->autoidle_count++;
+    if (clk->autoidle_count == 1) {
+      clk->ops->deny_idle(clk);
+    }
+    spin_unlock_irqrestore(&autoidle_spinlock, irqflags);
+  }
+  return 0;
 }
 
-static int _omap2_clk_allow_idle(struct clk_hw_omap *clk)
-{
-	if (clk->ops && clk->ops->allow_idle) {
-		unsigned long irqflags;
-
-		spin_lock_irqsave(&autoidle_spinlock, irqflags);
-		clk->autoidle_count--;
-		if (clk->autoidle_count == 0)
-			clk->ops->allow_idle(clk);
-
-		spin_unlock_irqrestore(&autoidle_spinlock, irqflags);
-	}
-	return 0;
+static int _omap2_clk_allow_idle(struct clk_hw_omap *clk) {
+  if (clk->ops && clk->ops->allow_idle) {
+    unsigned long irqflags;
+    spin_lock_irqsave(&autoidle_spinlock, irqflags);
+    clk->autoidle_count--;
+    if (clk->autoidle_count == 0) {
+      clk->ops->allow_idle(clk);
+    }
+    spin_unlock_irqrestore(&autoidle_spinlock, irqflags);
+  }
+  return 0;
 }
 
 /**
@@ -72,22 +68,17 @@ static int _omap2_clk_allow_idle(struct clk_hw_omap *clk)
  *
  * Disable autoidle on an OMAP clock.
  */
-int omap2_clk_deny_idle(struct clk *clk)
-{
-	struct clk_hw *hw;
-
-	if (!clk)
-		return -EINVAL;
-
-	hw = __clk_get_hw(clk);
-
-	if (omap2_clk_is_hw_omap(hw)) {
-		struct clk_hw_omap *c = to_clk_hw_omap(hw);
-
-		return _omap2_clk_deny_idle(c);
-	}
-
-	return -EINVAL;
+int omap2_clk_deny_idle(struct clk *clk) {
+  struct clk_hw *hw;
+  if (!clk) {
+    return -EINVAL;
+  }
+  hw = __clk_get_hw(clk);
+  if (omap2_clk_is_hw_omap(hw)) {
+    struct clk_hw_omap *c = to_clk_hw_omap(hw);
+    return _omap2_clk_deny_idle(c);
+  }
+  return -EINVAL;
 }
 
 /**
@@ -96,50 +87,39 @@ int omap2_clk_deny_idle(struct clk *clk)
  *
  * Enable autoidle on an OMAP clock.
  */
-int omap2_clk_allow_idle(struct clk *clk)
-{
-	struct clk_hw *hw;
-
-	if (!clk)
-		return -EINVAL;
-
-	hw = __clk_get_hw(clk);
-
-	if (omap2_clk_is_hw_omap(hw)) {
-		struct clk_hw_omap *c = to_clk_hw_omap(hw);
-
-		return _omap2_clk_allow_idle(c);
-	}
-
-	return -EINVAL;
+int omap2_clk_allow_idle(struct clk *clk) {
+  struct clk_hw *hw;
+  if (!clk) {
+    return -EINVAL;
+  }
+  hw = __clk_get_hw(clk);
+  if (omap2_clk_is_hw_omap(hw)) {
+    struct clk_hw_omap *c = to_clk_hw_omap(hw);
+    return _omap2_clk_allow_idle(c);
+  }
+  return -EINVAL;
 }
 
-static void _allow_autoidle(struct clk_ti_autoidle *clk)
-{
-	u32 val;
-
-	val = ti_clk_ll_ops->clk_readl(&clk->reg);
-
-	if (clk->flags & AUTOIDLE_LOW)
-		val &= ~(1 << clk->shift);
-	else
-		val |= (1 << clk->shift);
-
-	ti_clk_ll_ops->clk_writel(val, &clk->reg);
+static void _allow_autoidle(struct clk_ti_autoidle *clk) {
+  u32 val;
+  val = ti_clk_ll_ops->clk_readl(&clk->reg);
+  if (clk->flags & AUTOIDLE_LOW) {
+    val &= ~(1 << clk->shift);
+  } else {
+    val |= (1 << clk->shift);
+  }
+  ti_clk_ll_ops->clk_writel(val, &clk->reg);
 }
 
-static void _deny_autoidle(struct clk_ti_autoidle *clk)
-{
-	u32 val;
-
-	val = ti_clk_ll_ops->clk_readl(&clk->reg);
-
-	if (clk->flags & AUTOIDLE_LOW)
-		val |= (1 << clk->shift);
-	else
-		val &= ~(1 << clk->shift);
-
-	ti_clk_ll_ops->clk_writel(val, &clk->reg);
+static void _deny_autoidle(struct clk_ti_autoidle *clk) {
+  u32 val;
+  val = ti_clk_ll_ops->clk_readl(&clk->reg);
+  if (clk->flags & AUTOIDLE_LOW) {
+    val |= (1 << clk->shift);
+  } else {
+    val &= ~(1 << clk->shift);
+  }
+  ti_clk_ll_ops->clk_writel(val, &clk->reg);
 }
 
 /**
@@ -148,12 +128,10 @@ static void _deny_autoidle(struct clk_ti_autoidle *clk)
  * Enables hardware autoidle for all registered DT clocks, which have
  * the feature.
  */
-static void _clk_generic_allow_autoidle_all(void)
-{
-	struct clk_ti_autoidle *c;
-
-	list_for_each_entry(c, &autoidle_clks, node)
-		_allow_autoidle(c);
+static void _clk_generic_allow_autoidle_all(void) {
+  struct clk_ti_autoidle *c;
+  list_for_each_entry(c, &autoidle_clks, node)
+  _allow_autoidle(c);
 }
 
 /**
@@ -162,12 +140,10 @@ static void _clk_generic_allow_autoidle_all(void)
  * Disables hardware autoidle for all registered DT clocks, which have
  * the feature.
  */
-static void _clk_generic_deny_autoidle_all(void)
-{
-	struct clk_ti_autoidle *c;
-
-	list_for_each_entry(c, &autoidle_clks, node)
-		_deny_autoidle(c);
+static void _clk_generic_deny_autoidle_all(void) {
+  struct clk_ti_autoidle *c;
+  list_for_each_entry(c, &autoidle_clks, node)
+  _deny_autoidle(c);
 }
 
 /**
@@ -181,35 +157,30 @@ static void _clk_generic_deny_autoidle_all(void)
  * to the autoidle list for later processing. Returns 0 on success,
  * negative error value on failure.
  */
-int __init of_ti_clk_autoidle_setup(struct device_node *node)
-{
-	u32 shift;
-	struct clk_ti_autoidle *clk;
-	int ret;
-
-	/* Check if this clock has autoidle support or not */
-	if (of_property_read_u32(node, "ti,autoidle-shift", &shift))
-		return 0;
-
-	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
-
-	if (!clk)
-		return -ENOMEM;
-
-	clk->shift = shift;
-	clk->name = ti_dt_clk_name(node);
-	ret = ti_clk_get_reg_addr(node, 0, &clk->reg);
-	if (ret) {
-		kfree(clk);
-		return ret;
-	}
-
-	if (of_property_read_bool(node, "ti,invert-autoidle-bit"))
-		clk->flags |= AUTOIDLE_LOW;
-
-	list_add(&clk->node, &autoidle_clks);
-
-	return 0;
+int __init of_ti_clk_autoidle_setup(struct device_node *node) {
+  u32 shift;
+  struct clk_ti_autoidle *clk;
+  int ret;
+  /* Check if this clock has autoidle support or not */
+  if (of_property_read_u32(node, "ti,autoidle-shift", &shift)) {
+    return 0;
+  }
+  clk = kzalloc(sizeof(*clk), GFP_KERNEL);
+  if (!clk) {
+    return -ENOMEM;
+  }
+  clk->shift = shift;
+  clk->name = ti_dt_clk_name(node);
+  ret = ti_clk_get_reg_addr(node, 0, &clk->reg);
+  if (ret) {
+    kfree(clk);
+    return ret;
+  }
+  if (of_property_read_bool(node, "ti,invert-autoidle-bit")) {
+    clk->flags |= AUTOIDLE_LOW;
+  }
+  list_add(&clk->node, &autoidle_clks);
+  return 0;
 }
 
 /**
@@ -221,17 +192,14 @@ int __init of_ti_clk_autoidle_setup(struct device_node *node)
  * to be temporary until support for this is added to the common clock
  * code.  Returns 0.
  */
-int omap2_clk_enable_autoidle_all(void)
-{
-	int ret;
-
-	ret = omap2_clk_for_each(_omap2_clk_allow_idle);
-	if (ret)
-		return ret;
-
-	_clk_generic_allow_autoidle_all();
-
-	return 0;
+int omap2_clk_enable_autoidle_all(void) {
+  int ret;
+  ret = omap2_clk_for_each(_omap2_clk_allow_idle);
+  if (ret) {
+    return ret;
+  }
+  _clk_generic_allow_autoidle_all();
+  return 0;
 }
 
 /**
@@ -243,15 +211,12 @@ int omap2_clk_enable_autoidle_all(void)
  * to be temporary until support for this is added to the common clock
  * code.  Returns 0.
  */
-int omap2_clk_disable_autoidle_all(void)
-{
-	int ret;
-
-	ret = omap2_clk_for_each(_omap2_clk_deny_idle);
-	if (ret)
-		return ret;
-
-	_clk_generic_deny_autoidle_all();
-
-	return 0;
+int omap2_clk_disable_autoidle_all(void) {
+  int ret;
+  ret = omap2_clk_for_each(_omap2_clk_deny_idle);
+  if (ret) {
+    return ret;
+  }
+  _clk_generic_deny_autoidle_all();
+  return 0;
 }

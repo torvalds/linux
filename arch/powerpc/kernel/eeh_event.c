@@ -36,37 +36,34 @@ static LIST_HEAD(eeh_eventlist);
  * of the interrupt handler, and re-dispatch them for processing
  * at a later time in a normal context.
  */
-static int eeh_event_handler(void * dummy)
-{
-	unsigned long flags;
-	struct eeh_event *event;
-
-	while (!kthread_should_stop()) {
-		if (wait_for_completion_interruptible(&eeh_eventlist_event))
-			break;
-
-		/* Fetch EEH event from the queue */
-		spin_lock_irqsave(&eeh_eventlist_lock, flags);
-		event = NULL;
-		if (!list_empty(&eeh_eventlist)) {
-			event = list_entry(eeh_eventlist.next,
-					   struct eeh_event, list);
-			list_del(&event->list);
-		}
-		spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
-		if (!event)
-			continue;
-
-		/* We might have event without binding PE */
-		if (event->pe)
-			eeh_handle_normal_event(event->pe);
-		else
-			eeh_handle_special_event();
-
-		kfree(event);
-	}
-
-	return 0;
+static int eeh_event_handler(void *dummy) {
+  unsigned long flags;
+  struct eeh_event *event;
+  while (!kthread_should_stop()) {
+    if (wait_for_completion_interruptible(&eeh_eventlist_event)) {
+      break;
+    }
+    /* Fetch EEH event from the queue */
+    spin_lock_irqsave(&eeh_eventlist_lock, flags);
+    event = NULL;
+    if (!list_empty(&eeh_eventlist)) {
+      event = list_entry(eeh_eventlist.next,
+          struct eeh_event, list);
+      list_del(&event->list);
+    }
+    spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+    if (!event) {
+      continue;
+    }
+    /* We might have event without binding PE */
+    if (event->pe) {
+      eeh_handle_normal_event(event->pe);
+    } else {
+      eeh_handle_special_event();
+    }
+    kfree(event);
+  }
+  return 0;
 }
 
 /**
@@ -75,20 +72,17 @@ static int eeh_event_handler(void * dummy)
  * This routine is called to start the kernel thread for processing
  * EEH event.
  */
-int eeh_event_init(void)
-{
-	struct task_struct *t;
-	int ret = 0;
-
-	t = kthread_run(eeh_event_handler, NULL, "eehd");
-	if (IS_ERR(t)) {
-		ret = PTR_ERR(t);
-		pr_err("%s: Failed to start EEH daemon (%d)\n",
-			__func__, ret);
-		return ret;
-	}
-
-	return 0;
+int eeh_event_init(void) {
+  struct task_struct *t;
+  int ret = 0;
+  t = kthread_run(eeh_event_handler, NULL, "eehd");
+  if (IS_ERR(t)) {
+    ret = PTR_ERR(t);
+    pr_err("%s: Failed to start EEH daemon (%d)\n",
+        __func__, ret);
+    return ret;
+  }
+  return 0;
 }
 
 /**
@@ -99,59 +93,50 @@ int eeh_event_init(void)
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int __eeh_send_failure_event(struct eeh_pe *pe)
-{
-	unsigned long flags;
-	struct eeh_event *event;
-
-	event = kzalloc(sizeof(*event), GFP_ATOMIC);
-	if (!event) {
-		pr_err("EEH: out of memory, event not handled\n");
-		return -ENOMEM;
-	}
-	event->pe = pe;
-
-	/*
-	 * Mark the PE as recovering before inserting it in the queue.
-	 * This prevents the PE from being free()ed by a hotplug driver
-	 * while the PE is sitting in the event queue.
-	 */
-	if (pe) {
+int __eeh_send_failure_event(struct eeh_pe *pe) {
+  unsigned long flags;
+  struct eeh_event *event;
+  event = kzalloc(sizeof(*event), GFP_ATOMIC);
+  if (!event) {
+    pr_err("EEH: out of memory, event not handled\n");
+    return -ENOMEM;
+  }
+  event->pe = pe;
+  /*
+   * Mark the PE as recovering before inserting it in the queue.
+   * This prevents the PE from being free()ed by a hotplug driver
+   * while the PE is sitting in the event queue.
+   */
+  if (pe) {
 #ifdef CONFIG_STACKTRACE
-		/*
-		 * Save the current stack trace so we can dump it from the
-		 * event handler thread.
-		 */
-		pe->trace_entries = stack_trace_save(pe->stack_trace,
-					 ARRAY_SIZE(pe->stack_trace), 0);
+    /*
+     * Save the current stack trace so we can dump it from the
+     * event handler thread.
+     */
+    pe->trace_entries = stack_trace_save(pe->stack_trace,
+        ARRAY_SIZE(pe->stack_trace), 0);
 #endif /* CONFIG_STACKTRACE */
-
-		eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
-	}
-
-	/* We may or may not be called in an interrupt context */
-	spin_lock_irqsave(&eeh_eventlist_lock, flags);
-	list_add(&event->list, &eeh_eventlist);
-	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
-
-	/* For EEH deamon to knick in */
-	complete(&eeh_eventlist_event);
-
-	return 0;
+    eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+  }
+  /* We may or may not be called in an interrupt context */
+  spin_lock_irqsave(&eeh_eventlist_lock, flags);
+  list_add(&event->list, &eeh_eventlist);
+  spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+  /* For EEH deamon to knick in */
+  complete(&eeh_eventlist_event);
+  return 0;
 }
 
-int eeh_send_failure_event(struct eeh_pe *pe)
-{
-	/*
-	 * If we've manually suppressed recovery events via debugfs
-	 * then just drop it on the floor.
-	 */
-	if (eeh_debugfs_no_recover) {
-		pr_err("EEH: Event dropped due to no_recover setting\n");
-		return 0;
-	}
-
-	return __eeh_send_failure_event(pe);
+int eeh_send_failure_event(struct eeh_pe *pe) {
+  /*
+   * If we've manually suppressed recovery events via debugfs
+   * then just drop it on the floor.
+   */
+  if (eeh_debugfs_no_recover) {
+    pr_err("EEH: Event dropped due to no_recover setting\n");
+    return 0;
+  }
+  return __eeh_send_failure_event(pe);
 }
 
 /**
@@ -164,38 +149,36 @@ int eeh_send_failure_event(struct eeh_pe *pe)
  * coming events are totally duplicated and unnecessary, thus
  * they should be removed.
  */
-void eeh_remove_event(struct eeh_pe *pe, bool force)
-{
-	unsigned long flags;
-	struct eeh_event *event, *tmp;
-
-	/*
-	 * If we have NULL PE passed in, we have dead IOC
-	 * or we're sure we can report all existing errors
-	 * by the caller.
-	 *
-	 * With "force", the event with associated PE that
-	 * have been isolated, the event won't be removed
-	 * to avoid event lost.
-	 */
-	spin_lock_irqsave(&eeh_eventlist_lock, flags);
-	list_for_each_entry_safe(event, tmp, &eeh_eventlist, list) {
-		if (!force && event->pe &&
-		    (event->pe->state & EEH_PE_ISOLATED))
-			continue;
-
-		if (!pe) {
-			list_del(&event->list);
-			kfree(event);
-		} else if (pe->type & EEH_PE_PHB) {
-			if (event->pe && event->pe->phb == pe->phb) {
-				list_del(&event->list);
-				kfree(event);
-			}
-		} else if (event->pe == pe) {
-			list_del(&event->list);
-			kfree(event);
-		}
-	}
-	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
+void eeh_remove_event(struct eeh_pe *pe, bool force) {
+  unsigned long flags;
+  struct eeh_event *event, *tmp;
+  /*
+   * If we have NULL PE passed in, we have dead IOC
+   * or we're sure we can report all existing errors
+   * by the caller.
+   *
+   * With "force", the event with associated PE that
+   * have been isolated, the event won't be removed
+   * to avoid event lost.
+   */
+  spin_lock_irqsave(&eeh_eventlist_lock, flags);
+  list_for_each_entry_safe(event, tmp, &eeh_eventlist, list) {
+    if (!force && event->pe
+        && (event->pe->state & EEH_PE_ISOLATED)) {
+      continue;
+    }
+    if (!pe) {
+      list_del(&event->list);
+      kfree(event);
+    } else if (pe->type & EEH_PE_PHB) {
+      if (event->pe && event->pe->phb == pe->phb) {
+        list_del(&event->list);
+        kfree(event);
+      }
+    } else if (event->pe == pe) {
+      list_del(&event->list);
+      kfree(event);
+    }
+  }
+  spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
 }

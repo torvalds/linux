@@ -13,36 +13,33 @@
 
 #include "wm8804.h"
 
-static int wm8804_spi_probe(struct spi_device *spi)
-{
-	struct regmap *regmap;
-
-	regmap = devm_regmap_init_spi(spi, &wm8804_regmap_config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
-
-	return wm8804_probe(&spi->dev, regmap);
+static int wm8804_spi_probe(struct spi_device *spi) {
+  struct regmap *regmap;
+  regmap = devm_regmap_init_spi(spi, &wm8804_regmap_config);
+  if (IS_ERR(regmap)) {
+    return PTR_ERR(regmap);
+  }
+  return wm8804_probe(&spi->dev, regmap);
 }
 
-static void wm8804_spi_remove(struct spi_device *spi)
-{
-	wm8804_remove(&spi->dev);
+static void wm8804_spi_remove(struct spi_device *spi) {
+  wm8804_remove(&spi->dev);
 }
 
 static const struct of_device_id wm8804_of_match[] = {
-	{ .compatible = "wlf,wm8804", },
-	{ }
+  { .compatible = "wlf,wm8804", },
+  {}
 };
 MODULE_DEVICE_TABLE(of, wm8804_of_match);
 
 static struct spi_driver wm8804_spi_driver = {
-	.driver = {
-		.name = "wm8804",
-		.pm = &wm8804_pm,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_spi_probe,
-	.remove = wm8804_spi_remove
+  .driver = {
+    .name = "wm8804",
+    .pm = &wm8804_pm,
+    .of_match_table = wm8804_of_match,
+  },
+  .probe = wm8804_spi_probe,
+  .remove = wm8804_spi_remove
 };
 
 module_spi_driver(wm8804_spi_driver);

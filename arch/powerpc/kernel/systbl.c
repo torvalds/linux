@@ -7,7 +7,7 @@
  * and Paul Mackerras.
  *
  * Adapted for iSeries by Mike Corrigan (mikejc@us.ibm.com)
- * PPC64 updates by Dave Engebretsen (engebret@us.ibm.com) 
+ * PPC64 updates by Dave Engebretsen (engebret@us.ibm.com)
  */
 
 #include <linux/syscalls.h>
@@ -39,7 +39,7 @@ const syscall_fn sys_call_table[] = {
 
 #ifdef CONFIG_COMPAT
 #undef __SYSCALL_WITH_COMPAT
-#define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, compat)
+#define __SYSCALL_WITH_COMPAT(nr, native, compat) __SYSCALL(nr, compat)
 const syscall_fn compat_sys_call_table[] = {
 #include <asm/syscall_table_32.h>
 };

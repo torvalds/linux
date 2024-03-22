@@ -114,31 +114,31 @@
 #define SCHEDOP_pin_override 7
 
 struct sched_shutdown {
-    unsigned int reason; /* SHUTDOWN_* => shutdown reason */
+  unsigned int reason; /* SHUTDOWN_* => shutdown reason */
 };
 DEFINE_GUEST_HANDLE_STRUCT(sched_shutdown);
 
 struct sched_poll {
-    GUEST_HANDLE(evtchn_port_t) ports;
-    unsigned int nr_ports;
-    uint64_t timeout;
+  GUEST_HANDLE(evtchn_port_t) ports;
+  unsigned int nr_ports;
+  uint64_t timeout;
 };
 DEFINE_GUEST_HANDLE_STRUCT(sched_poll);
 
 struct sched_remote_shutdown {
-    domid_t domain_id;         /* Remote domain ID */
-    unsigned int reason;       /* SHUTDOWN_* => shutdown reason */
+  domid_t domain_id;         /* Remote domain ID */
+  unsigned int reason;       /* SHUTDOWN_* => shutdown reason */
 };
 DEFINE_GUEST_HANDLE_STRUCT(sched_remote_shutdown);
 
 struct sched_watchdog {
-    uint32_t id;                /* watchdog ID */
-    uint32_t timeout;           /* timeout */
+  uint32_t id;                /* watchdog ID */
+  uint32_t timeout;           /* timeout */
 };
 DEFINE_GUEST_HANDLE_STRUCT(sched_watchdog);
 
 struct sched_pin_override {
-    int32_t pcpu;
+  int32_t pcpu;
 };
 DEFINE_GUEST_HANDLE_STRUCT(sched_pin_override);
 

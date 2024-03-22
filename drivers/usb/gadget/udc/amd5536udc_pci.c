@@ -29,7 +29,7 @@
  */
 
 /* Driver strings */
-#define UDC_MOD_DESCRIPTION		"AMD 5536 UDC - USB Device Controller"
+#define UDC_MOD_DESCRIPTION   "AMD 5536 UDC - USB Device Controller"
 
 /* system */
 #include <linux/device.h>
@@ -52,162 +52,140 @@ static struct udc *udc;
 static const char name[] = "amd5536udc-pci";
 
 /* Reset all pci context */
-static void udc_pci_remove(struct pci_dev *pdev)
-{
-	struct udc		*dev;
-
-	dev = pci_get_drvdata(pdev);
-
-	usb_del_gadget_udc(&udc->gadget);
-	/* gadget driver must not be registered */
-	if (WARN_ON(dev->driver))
-		return;
-
-	/* dma pool cleanup */
-	free_dma_pools(dev);
-
-	/* reset controller */
-	writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
-	free_irq(pdev->irq, dev);
-	iounmap(dev->virt_addr);
-	release_mem_region(pci_resource_start(pdev, 0),
-			   pci_resource_len(pdev, 0));
-	pci_disable_device(pdev);
-
-	udc_remove(dev);
+static void udc_pci_remove(struct pci_dev *pdev) {
+  struct udc *dev;
+  dev = pci_get_drvdata(pdev);
+  usb_del_gadget_udc(&udc->gadget);
+  /* gadget driver must not be registered */
+  if (WARN_ON(dev->driver)) {
+    return;
+  }
+  /* dma pool cleanup */
+  free_dma_pools(dev);
+  /* reset controller */
+  writel(AMD_BIT(UDC_DEVCFG_SOFTRESET), &dev->regs->cfg);
+  free_irq(pdev->irq, dev);
+  iounmap(dev->virt_addr);
+  release_mem_region(pci_resource_start(pdev, 0),
+      pci_resource_len(pdev, 0));
+  pci_disable_device(pdev);
+  udc_remove(dev);
 }
 
 /* Called by pci bus driver to init pci context */
 static int udc_pci_probe(
-	struct pci_dev *pdev,
-	const struct pci_device_id *id
-)
-{
-	struct udc		*dev;
-	unsigned long		resource;
-	unsigned long		len;
-	int			retval = 0;
-
-	/* one udc only */
-	if (udc) {
-		dev_dbg(&pdev->dev, "already probed\n");
-		return -EBUSY;
-	}
-
-	/* init */
-	dev = kzalloc(sizeof(struct udc), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
-
-	/* pci setup */
-	if (pci_enable_device(pdev) < 0) {
-		retval = -ENODEV;
-		goto err_pcidev;
-	}
-
-	/* PCI resource allocation */
-	resource = pci_resource_start(pdev, 0);
-	len = pci_resource_len(pdev, 0);
-
-	if (!request_mem_region(resource, len, name)) {
-		dev_dbg(&pdev->dev, "pci device used already\n");
-		retval = -EBUSY;
-		goto err_memreg;
-	}
-
-	dev->virt_addr = ioremap(resource, len);
-	if (!dev->virt_addr) {
-		dev_dbg(&pdev->dev, "start address cannot be mapped\n");
-		retval = -EFAULT;
-		goto err_ioremap;
-	}
-
-	if (!pdev->irq) {
-		dev_err(&pdev->dev, "irq not set\n");
-		retval = -ENODEV;
-		goto err_irq;
-	}
-
-	spin_lock_init(&dev->lock);
-	/* udc csr registers base */
-	dev->csr = dev->virt_addr + UDC_CSR_ADDR;
-	/* dev registers base */
-	dev->regs = dev->virt_addr + UDC_DEVCFG_ADDR;
-	/* ep registers base */
-	dev->ep_regs = dev->virt_addr + UDC_EPREGS_ADDR;
-	/* fifo's base */
-	dev->rxfifo = (u32 __iomem *)(dev->virt_addr + UDC_RXFIFO_ADDR);
-	dev->txfifo = (u32 __iomem *)(dev->virt_addr + UDC_TXFIFO_ADDR);
-
-	if (request_irq(pdev->irq, udc_irq, IRQF_SHARED, name, dev) != 0) {
-		dev_dbg(&pdev->dev, "request_irq(%d) fail\n", pdev->irq);
-		retval = -EBUSY;
-		goto err_irq;
-	}
-
-	pci_set_drvdata(pdev, dev);
-
-	/* chip revision for Hs AMD5536 */
-	dev->chiprev = pdev->revision;
-
-	pci_set_master(pdev);
-	pci_try_set_mwi(pdev);
-
-	dev->phys_addr = resource;
-	dev->irq = pdev->irq;
-	dev->pdev = pdev;
-	dev->dev = &pdev->dev;
-
-	/* init dma pools */
-	if (use_dma) {
-		retval = init_dma_pools(dev);
-		if (retval != 0)
-			goto err_dma;
-	}
-
-	/* general probing */
-	if (udc_probe(dev)) {
-		retval = -ENODEV;
-		goto err_probe;
-	}
-
-	udc = dev;
-
-	return 0;
-
+    struct pci_dev *pdev,
+    const struct pci_device_id *id) {
+  struct udc *dev;
+  unsigned long resource;
+  unsigned long len;
+  int retval = 0;
+  /* one udc only */
+  if (udc) {
+    dev_dbg(&pdev->dev, "already probed\n");
+    return -EBUSY;
+  }
+  /* init */
+  dev = kzalloc(sizeof(struct udc), GFP_KERNEL);
+  if (!dev) {
+    return -ENOMEM;
+  }
+  /* pci setup */
+  if (pci_enable_device(pdev) < 0) {
+    retval = -ENODEV;
+    goto err_pcidev;
+  }
+  /* PCI resource allocation */
+  resource = pci_resource_start(pdev, 0);
+  len = pci_resource_len(pdev, 0);
+  if (!request_mem_region(resource, len, name)) {
+    dev_dbg(&pdev->dev, "pci device used already\n");
+    retval = -EBUSY;
+    goto err_memreg;
+  }
+  dev->virt_addr = ioremap(resource, len);
+  if (!dev->virt_addr) {
+    dev_dbg(&pdev->dev, "start address cannot be mapped\n");
+    retval = -EFAULT;
+    goto err_ioremap;
+  }
+  if (!pdev->irq) {
+    dev_err(&pdev->dev, "irq not set\n");
+    retval = -ENODEV;
+    goto err_irq;
+  }
+  spin_lock_init(&dev->lock);
+  /* udc csr registers base */
+  dev->csr = dev->virt_addr + UDC_CSR_ADDR;
+  /* dev registers base */
+  dev->regs = dev->virt_addr + UDC_DEVCFG_ADDR;
+  /* ep registers base */
+  dev->ep_regs = dev->virt_addr + UDC_EPREGS_ADDR;
+  /* fifo's base */
+  dev->rxfifo = (u32 __iomem *) (dev->virt_addr + UDC_RXFIFO_ADDR);
+  dev->txfifo = (u32 __iomem *) (dev->virt_addr + UDC_TXFIFO_ADDR);
+  if (request_irq(pdev->irq, udc_irq, IRQF_SHARED, name, dev) != 0) {
+    dev_dbg(&pdev->dev, "request_irq(%d) fail\n", pdev->irq);
+    retval = -EBUSY;
+    goto err_irq;
+  }
+  pci_set_drvdata(pdev, dev);
+  /* chip revision for Hs AMD5536 */
+  dev->chiprev = pdev->revision;
+  pci_set_master(pdev);
+  pci_try_set_mwi(pdev);
+  dev->phys_addr = resource;
+  dev->irq = pdev->irq;
+  dev->pdev = pdev;
+  dev->dev = &pdev->dev;
+  /* init dma pools */
+  if (use_dma) {
+    retval = init_dma_pools(dev);
+    if (retval != 0) {
+      goto err_dma;
+    }
+  }
+  /* general probing */
+  if (udc_probe(dev)) {
+    retval = -ENODEV;
+    goto err_probe;
+  }
+  udc = dev;
+  return 0;
 err_probe:
-	if (use_dma)
-		free_dma_pools(dev);
+  if (use_dma) {
+    free_dma_pools(dev);
+  }
 err_dma:
-	free_irq(pdev->irq, dev);
+  free_irq(pdev->irq, dev);
 err_irq:
-	iounmap(dev->virt_addr);
+  iounmap(dev->virt_addr);
 err_ioremap:
-	release_mem_region(resource, len);
+  release_mem_region(resource, len);
 err_memreg:
-	pci_disable_device(pdev);
+  pci_disable_device(pdev);
 err_pcidev:
-	kfree(dev);
-	return retval;
+  kfree(dev);
+  return retval;
 }
 
 /* PCI device parameters */
 static const struct pci_device_id pci_id[] = {
-	{
-		PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
-		.class =	PCI_CLASS_SERIAL_USB_DEVICE,
-		.class_mask =	0xffffffff,
-	},
-	{},
+  {
+    PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x2096),
+    .class = PCI_CLASS_SERIAL_USB_DEVICE,
+    .class_mask = 0xffffffff,
+  },
+  {},
 };
 MODULE_DEVICE_TABLE(pci, pci_id);
 
 /* PCI functions */
 static struct pci_driver udc_pci_driver = {
-	.name =		name,
-	.id_table =	pci_id,
-	.probe =	udc_pci_probe,
-	.remove =	udc_pci_remove,
+  .name = name,
+  .id_table = pci_id,
+  .probe = udc_pci_probe,
+  .remove = udc_pci_remove,
 };
 module_pci_driver(udc_pci_driver);
 

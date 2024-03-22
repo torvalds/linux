@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2009-2014  Realtek Corporation.*/
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #ifndef __RTL8723BE_TABLE__H_
 #define __RTL8723BE_TABLE__H_

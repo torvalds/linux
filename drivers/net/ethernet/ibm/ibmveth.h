@@ -5,10 +5,10 @@
  * Copyright (C) IBM Corporation, 2003, 2010
  *
  * Authors: Dave Larson <larson1@us.ibm.com>
- *	    Santiago Leon <santil@linux.vnet.ibm.com>
- *	    Brian King <brking@linux.vnet.ibm.com>
- *	    Robert Jennings <rcj@linux.vnet.ibm.com>
- *	    Anton Blanchard <anton@au.ibm.com>
+ *      Santiago Leon <santil@linux.vnet.ibm.com>
+ *      Brian King <brking@linux.vnet.ibm.com>
+ *      Robert Jennings <rcj@linux.vnet.ibm.com>
+ *      Anton Blanchard <anton@au.ibm.com>
  */
 
 #ifndef _IBMVETH_H
@@ -20,21 +20,23 @@
 #define IbmVethMcastFilterModifyBit        0x40000UL
 #define IbmVethMcastFilterEnableBit        0x10000UL
 
-#define IbmVethMcastEnableRecv       (IbmVethMcastReceptionModifyBit | IbmVethMcastReceptionEnableBit)
+#define IbmVethMcastEnableRecv       (IbmVethMcastReceptionModifyBit \
+  | IbmVethMcastReceptionEnableBit)
 #define IbmVethMcastDisableRecv      (IbmVethMcastReceptionModifyBit)
-#define IbmVethMcastEnableFiltering  (IbmVethMcastFilterModifyBit | IbmVethMcastFilterEnableBit)
+#define IbmVethMcastEnableFiltering  (IbmVethMcastFilterModifyBit \
+  | IbmVethMcastFilterEnableBit)
 #define IbmVethMcastDisableFiltering (IbmVethMcastFilterModifyBit)
 #define IbmVethMcastAddFilter        0x1UL
 #define IbmVethMcastRemoveFilter     0x2UL
 #define IbmVethMcastClearFilterTable 0x3UL
 
-#define IBMVETH_ILLAN_LRG_SR_ENABLED	0x0000000000010000UL
-#define IBMVETH_ILLAN_LRG_SND_SUPPORT	0x0000000000008000UL
-#define IBMVETH_ILLAN_PADDED_PKT_CSUM	0x0000000000002000UL
-#define IBMVETH_ILLAN_TRUNK_PRI_MASK	0x0000000000000F00UL
-#define IBMVETH_ILLAN_IPV6_TCP_CSUM		0x0000000000000004UL
-#define IBMVETH_ILLAN_IPV4_TCP_CSUM		0x0000000000000002UL
-#define IBMVETH_ILLAN_ACTIVE_TRUNK		0x0000000000000001UL
+#define IBMVETH_ILLAN_LRG_SR_ENABLED  0x0000000000010000UL
+#define IBMVETH_ILLAN_LRG_SND_SUPPORT 0x0000000000008000UL
+#define IBMVETH_ILLAN_PADDED_PKT_CSUM 0x0000000000002000UL
+#define IBMVETH_ILLAN_TRUNK_PRI_MASK  0x0000000000000F00UL
+#define IBMVETH_ILLAN_IPV6_TCP_CSUM   0x0000000000000004UL
+#define IBMVETH_ILLAN_IPV4_TCP_CSUM   0x0000000000000002UL
+#define IBMVETH_ILLAN_ACTIVE_TRUNK    0x0000000000000001UL
 
 /* hcall macros */
 #define h_register_logical_lan(ua, buflst, rxq, fltlst, mac) \
@@ -50,38 +52,31 @@
  * the other 5 as unused (0)
  */
 static inline long h_send_logical_lan(unsigned long unit_address,
-		unsigned long desc, unsigned long corellator_in,
-		unsigned long *corellator_out, unsigned long mss,
-		unsigned long large_send_support)
-{
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
-
-	if (large_send_support)
-		rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address,
-				  desc, 0, 0, 0, 0, 0, corellator_in, mss);
-	else
-		rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address,
-				  desc, 0, 0, 0, 0, 0, corellator_in);
-
-	*corellator_out = retbuf[0];
-
-	return rc;
+    unsigned long desc, unsigned long corellator_in,
+    unsigned long *corellator_out, unsigned long mss,
+    unsigned long large_send_support) {
+  long rc;
+  unsigned long retbuf[PLPAR_HCALL9_BUFSIZE];
+  if (large_send_support) {
+    rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address,
+        desc, 0, 0, 0, 0, 0, corellator_in, mss);
+  } else {
+    rc = plpar_hcall9(H_SEND_LOGICAL_LAN, retbuf, unit_address,
+        desc, 0, 0, 0, 0, 0, corellator_in);
+  }
+  *corellator_out = retbuf[0];
+  return rc;
 }
 
 static inline long h_illan_attributes(unsigned long unit_address,
-				      unsigned long reset_mask, unsigned long set_mask,
-				      unsigned long *ret_attributes)
-{
-	long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
-
-	rc = plpar_hcall(H_ILLAN_ATTRIBUTES, retbuf, unit_address,
-			 reset_mask, set_mask);
-
-	*ret_attributes = retbuf[0];
-
-	return rc;
+    unsigned long reset_mask, unsigned long set_mask,
+    unsigned long *ret_attributes) {
+  long rc;
+  unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+  rc = plpar_hcall(H_ILLAN_ATTRIBUTES, retbuf, unit_address,
+      reset_mask, set_mask);
+  *ret_attributes = retbuf[0];
+  return rc;
 }
 
 #define h_multicast_ctrl(ua, cmd, mac) \
@@ -102,72 +97,80 @@ static inline long h_illan_attributes(unsigned long unit_address,
 #define IBMVETH_MAX_QUEUES 16U
 #define IBMVETH_DEFAULT_QUEUES 8U
 
-static int pool_size[] = { 512, 1024 * 2, 1024 * 16, 1024 * 32, 1024 * 64 };
-static int pool_count[] = { 256, 512, 256, 256, 256 };
-static int pool_count_cmo[] = { 256, 512, 256, 256, 64 };
-static int pool_active[] = { 1, 1, 0, 0, 1};
+static int pool_size[] = {
+  512, 1024 * 2, 1024 * 16, 1024 * 32, 1024 * 64
+};
+static int pool_count[] = {
+  256, 512, 256, 256, 256
+};
+static int pool_count_cmo[] = {
+  256, 512, 256, 256, 64
+};
+static int pool_active[] = {
+  1, 1, 0, 0, 1
+};
 
-#define IBM_VETH_INVALID_MAP ((u16)0xffff)
+#define IBM_VETH_INVALID_MAP ((u16) 0xffff)
 
 struct ibmveth_buff_pool {
-    u32 size;
-    u32 index;
-    u32 buff_size;
-    u32 threshold;
-    atomic_t available;
-    u32 consumer_index;
-    u32 producer_index;
-    u16 *free_map;
-    dma_addr_t *dma_addr;
-    struct sk_buff **skbuff;
-    int active;
-    struct kobject kobj;
+  u32 size;
+  u32 index;
+  u32 buff_size;
+  u32 threshold;
+  atomic_t available;
+  u32 consumer_index;
+  u32 producer_index;
+  u16 *free_map;
+  dma_addr_t *dma_addr;
+  struct sk_buff **skbuff;
+  int active;
+  struct kobject kobj;
 };
 
 struct ibmveth_rx_q {
-    u64        index;
-    u64        num_slots;
-    u64        toggle;
-    dma_addr_t queue_dma;
-    u32        queue_len;
-    struct ibmveth_rx_q_entry *queue_addr;
+  u64 index;
+  u64 num_slots;
+  u64 toggle;
+  dma_addr_t queue_dma;
+  u32 queue_len;
+  struct ibmveth_rx_q_entry *queue_addr;
 };
 
 struct ibmveth_adapter {
-    struct vio_dev *vdev;
-    struct net_device *netdev;
-    struct napi_struct napi;
-    unsigned int mcastFilterSize;
-    void * buffer_list_addr;
-    void * filter_list_addr;
-    void *tx_ltb_ptr[IBMVETH_MAX_QUEUES];
-    unsigned int tx_ltb_size;
-    dma_addr_t tx_ltb_dma[IBMVETH_MAX_QUEUES];
-    dma_addr_t buffer_list_dma;
-    dma_addr_t filter_list_dma;
-    struct ibmveth_buff_pool rx_buff_pool[IBMVETH_NUM_BUFF_POOLS];
-    struct ibmveth_rx_q rx_queue;
-    int rx_csum;
-    int large_send;
-    bool is_active_trunk;
+  struct vio_dev *vdev;
+  struct net_device *netdev;
+  struct napi_struct napi;
+  unsigned int mcastFilterSize;
+  void *buffer_list_addr;
+  void *filter_list_addr;
+  void *tx_ltb_ptr[IBMVETH_MAX_QUEUES];
+  unsigned int tx_ltb_size;
+  dma_addr_t tx_ltb_dma[IBMVETH_MAX_QUEUES];
+  dma_addr_t buffer_list_dma;
+  dma_addr_t filter_list_dma;
+  struct ibmveth_buff_pool rx_buff_pool[IBMVETH_NUM_BUFF_POOLS];
+  struct ibmveth_rx_q rx_queue;
+  int rx_csum;
+  int large_send;
+  bool is_active_trunk;
 
-    u64 fw_ipv6_csum_support;
-    u64 fw_ipv4_csum_support;
-    u64 fw_large_send_support;
-    /* adapter specific stats */
-    u64 replenish_task_cycles;
-    u64 replenish_no_mem;
-    u64 replenish_add_buff_failure;
-    u64 replenish_add_buff_success;
-    u64 rx_invalid_buffer;
-    u64 rx_no_buffer;
-    u64 tx_map_failed;
-    u64 tx_send_failed;
-    u64 tx_large_packets;
-    u64 rx_large_packets;
-    /* Ethtool settings */
-	u8 duplex;
-	u32 speed;
+  u64 fw_ipv6_csum_support;
+  u64 fw_ipv4_csum_support;
+  u64 fw_large_send_support;
+  /* adapter specific stats */
+  u64 replenish_task_cycles;
+  u64 replenish_no_mem;
+  u64 replenish_add_buff_failure;
+  u64 replenish_add_buff_success;
+  u64 rx_invalid_buffer;
+  u64 rx_no_buffer;
+  u64 tx_map_failed;
+  u64 tx_send_failed;
+  u64 tx_large_packets;
+  u64 rx_large_packets;
+  /* Ethtool settings */
+  u8 duplex;
+  u32 speed;
 };
 
 /*
@@ -179,38 +182,38 @@ struct ibmveth_adapter {
  */
 struct ibmveth_buf_desc_fields {
 #ifdef __BIG_ENDIAN
-	u32 flags_len;
-	u32 address;
+  u32 flags_len;
+  u32 address;
 #else
-	u32 address;
-	u32 flags_len;
+  u32 address;
+  u32 flags_len;
 #endif
-#define IBMVETH_BUF_VALID	0x80000000
-#define IBMVETH_BUF_TOGGLE	0x40000000
+#define IBMVETH_BUF_VALID 0x80000000
+#define IBMVETH_BUF_TOGGLE  0x40000000
 #define IBMVETH_BUF_LRG_SND     0x04000000
-#define IBMVETH_BUF_NO_CSUM	0x02000000
-#define IBMVETH_BUF_CSUM_GOOD	0x01000000
-#define IBMVETH_BUF_LEN_MASK	0x00FFFFFF
+#define IBMVETH_BUF_NO_CSUM 0x02000000
+#define IBMVETH_BUF_CSUM_GOOD 0x01000000
+#define IBMVETH_BUF_LEN_MASK  0x00FFFFFF
 };
 
 union ibmveth_buf_desc {
-    u64 desc;
-    struct ibmveth_buf_desc_fields fields;
+  u64 desc;
+  struct ibmveth_buf_desc_fields fields;
 };
 
 struct ibmveth_rx_q_entry {
-	__be32 flags_off;
-#define IBMVETH_RXQ_TOGGLE		0x80000000
-#define IBMVETH_RXQ_TOGGLE_SHIFT	31
-#define IBMVETH_RXQ_VALID		0x40000000
-#define IBMVETH_RXQ_LRG_PKT		0x04000000
-#define IBMVETH_RXQ_NO_CSUM		0x02000000
-#define IBMVETH_RXQ_CSUM_GOOD		0x01000000
-#define IBMVETH_RXQ_OFF_MASK		0x0000FFFF
+  __be32 flags_off;
+#define IBMVETH_RXQ_TOGGLE    0x80000000
+#define IBMVETH_RXQ_TOGGLE_SHIFT  31
+#define IBMVETH_RXQ_VALID   0x40000000
+#define IBMVETH_RXQ_LRG_PKT   0x04000000
+#define IBMVETH_RXQ_NO_CSUM   0x02000000
+#define IBMVETH_RXQ_CSUM_GOOD   0x01000000
+#define IBMVETH_RXQ_OFF_MASK    0x0000FFFF
 
-	__be32 length;
-	/* correlator is only used by the OS, no need to byte swap */
-	u64 correlator;
+  __be32 length;
+  /* correlator is only used by the OS, no need to byte swap */
+  u64 correlator;
 };
 
 #endif /* _IBMVETH_H */

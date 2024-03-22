@@ -22,29 +22,29 @@
  * struct thread_info
  */
 struct thread_struct {
-	unsigned long callee_reg;	/* pointer to callee regs */
-	unsigned long fault_address;	/* dbls as brkpt holder as well */
+  unsigned long callee_reg; /* pointer to callee regs */
+  unsigned long fault_address;  /* dbls as brkpt holder as well */
 #ifdef CONFIG_ARC_DSP_SAVE_RESTORE_REGS
-	struct dsp_callee_regs dsp;
+  struct dsp_callee_regs dsp;
 #endif
 #ifdef CONFIG_ARC_FPU_SAVE_RESTORE
-	struct arc_fpu fpu;
+  struct arc_fpu fpu;
 #endif
 };
 
-#define INIT_THREAD  { }
+#define INIT_THREAD  {}
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
 #define task_pt_regs(p) \
-	((struct pt_regs *)(THREAD_SIZE + (void *)task_stack_page(p)) - 1)
+  ((struct pt_regs *) (THREAD_SIZE + (void *) task_stack_page(p)) - 1)
 
 /*
  * A lot of busy-wait loops in SMP are based off of non-volatile data otherwise
  * get optimised away by gcc
  */
-#define cpu_relax()		barrier()
+#define cpu_relax()   barrier()
 
 #define KSTK_EIP(tsk)   (task_pt_regs(tsk)->ret)
 #define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
@@ -53,16 +53,16 @@ struct task_struct;
  * Where about of Task's sp, fp, blink when it was last seen in kernel mode.
  * Look in process.c for details of kernel stack layout
  */
-#define TSK_K_ESP(tsk)		(task_thread_info(tsk)->ksp)
+#define TSK_K_ESP(tsk)    (task_thread_info(tsk)->ksp)
 
-#define TSK_K_REG(tsk, off)	(*((unsigned long *)(TSK_K_ESP(tsk) + \
-					sizeof(struct callee_regs) + off)))
+#define TSK_K_REG(tsk, off) (*((unsigned long *) (TSK_K_ESP(tsk)   \
+  + sizeof(struct callee_regs) + off)))
 
-#define TSK_K_BLINK(tsk)	TSK_K_REG(tsk, 4)
-#define TSK_K_FP(tsk)		TSK_K_REG(tsk, 0)
+#define TSK_K_BLINK(tsk)  TSK_K_REG(tsk, 4)
+#define TSK_K_FP(tsk)   TSK_K_REG(tsk, 0)
 
-extern void start_thread(struct pt_regs * regs, unsigned long pc,
-			 unsigned long usp);
+extern void start_thread(struct pt_regs *regs, unsigned long pc,
+    unsigned long usp);
 
 extern unsigned int __get_wchan(struct task_struct *p);
 
@@ -72,24 +72,25 @@ extern unsigned int __get_wchan(struct task_struct *p);
  * Default System Memory Map on ARC
  *
  * ---------------------------- (lower 2G, Translated) -------------------------
- * 0x0000_0000		0x5FFF_FFFF	(user vaddr: TASK_SIZE)
- * 0x6000_0000		0x6FFF_FFFF	(reserved gutter between U/K)
- * 0x7000_0000		0x7FFF_FFFF	(kvaddr: vmalloc/modules/pkmap..)
+ * 0x0000_0000    0x5FFF_FFFF (user vaddr: TASK_SIZE)
+ * 0x6000_0000    0x6FFF_FFFF (reserved gutter between U/K)
+ * 0x7000_0000    0x7FFF_FFFF (kvaddr: vmalloc/modules/pkmap..)
  *
  * PAGE_OFFSET ---------------- (Upper 2G, Untranslated) -----------------------
- * 0x8000_0000		0xBFFF_FFFF	(kernel direct mapped)
- * 0xC000_0000		0xFFFF_FFFF	(peripheral uncached space)
+ * 0x8000_0000    0xBFFF_FFFF (kernel direct mapped)
+ * 0xC000_0000    0xFFFF_FFFF (peripheral uncached space)
  * -----------------------------------------------------------------------------
  */
 
-#define TASK_SIZE	0x60000000
+#define TASK_SIZE 0x60000000
 
-#define VMALLOC_START	(PAGE_OFFSET - (CONFIG_ARC_KVADDR_SIZE << 20))
+#define VMALLOC_START (PAGE_OFFSET - (CONFIG_ARC_KVADDR_SIZE << 20))
 
-/* 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter (see asm/highmem.h) */
-#define VMALLOC_SIZE	((CONFIG_ARC_KVADDR_SIZE << 20) - PMD_SIZE * 4)
+/* 1 PGDIR_SIZE each for fixmap/pkmap, 2 PGDIR_SIZE gutter (see asm/highmem.h)
+ * */
+#define VMALLOC_SIZE  ((CONFIG_ARC_KVADDR_SIZE << 20) - PMD_SIZE * 4)
 
-#define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
+#define VMALLOC_END (VMALLOC_START + VMALLOC_SIZE)
 
 #define USER_KERNEL_GUTTER    (VMALLOC_START - TASK_SIZE)
 

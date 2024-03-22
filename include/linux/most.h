@@ -18,42 +18,42 @@ struct interface_private;
  * Interface type
  */
 enum most_interface_type {
-	ITYPE_LOOPBACK = 1,
-	ITYPE_I2C,
-	ITYPE_I2S,
-	ITYPE_TSI,
-	ITYPE_HBI,
-	ITYPE_MEDIALB_DIM,
-	ITYPE_MEDIALB_DIM2,
-	ITYPE_USB,
-	ITYPE_PCIE
+  ITYPE_LOOPBACK = 1,
+  ITYPE_I2C,
+  ITYPE_I2S,
+  ITYPE_TSI,
+  ITYPE_HBI,
+  ITYPE_MEDIALB_DIM,
+  ITYPE_MEDIALB_DIM2,
+  ITYPE_USB,
+  ITYPE_PCIE
 };
 
 /**
  * Channel direction.
  */
 enum most_channel_direction {
-	MOST_CH_RX = 1 << 0,
-	MOST_CH_TX = 1 << 1,
+  MOST_CH_RX = 1 << 0,
+  MOST_CH_TX = 1 << 1,
 };
 
 /**
  * Channel data type.
  */
 enum most_channel_data_type {
-	MOST_CH_CONTROL = 1 << 0,
-	MOST_CH_ASYNC = 1 << 1,
-	MOST_CH_ISOC = 1 << 2,
-	MOST_CH_SYNC = 1 << 5,
+  MOST_CH_CONTROL = 1 << 0,
+  MOST_CH_ASYNC = 1 << 1,
+  MOST_CH_ISOC = 1 << 2,
+  MOST_CH_SYNC = 1 << 5,
 };
 
 enum most_status_flags {
-	/* MBO was processed successfully (data was send or received )*/
-	MBO_SUCCESS = 0,
-	/* The MBO contains wrong or missing information.  */
-	MBO_E_INVAL,
-	/* MBO was completed as HDM Channel will be closed */
-	MBO_E_CLOSE,
+  /* MBO was processed successfully (data was send or received )*/
+  MBO_SUCCESS = 0,
+  /* The MBO contains wrong or missing information.  */
+  MBO_E_INVAL,
+  /* MBO was completed as HDM Channel will be closed */
+  MBO_E_CLOSE,
 };
 
 /**
@@ -83,23 +83,23 @@ enum most_status_flags {
  * The Core creates read only sysfs attribute files in
  * /sys/devices/most/mdev#/<channel>/ with the
  * following attributes:
- *	-available_directions
- *	-available_datatypes
- *	-number_of_packet_buffers
- *	-number_of_stream_buffers
- *	-size_of_packet_buffer
- *	-size_of_stream_buffer
+ *  -available_directions
+ *  -available_datatypes
+ *  -number_of_packet_buffers
+ *  -number_of_stream_buffers
+ *  -size_of_packet_buffer
+ *  -size_of_stream_buffer
  * where content of each file is a string with all supported properties of this
  * very channel attribute.
  */
 struct most_channel_capability {
-	u16 direction;
-	u16 data_type;
-	u16 num_buffers_packet;
-	u16 buffer_size_packet;
-	u16 num_buffers_streaming;
-	u16 buffer_size_streaming;
-	const char *name_suffix;
+  u16 direction;
+  u16 data_type;
+  u16 num_buffers_packet;
+  u16 buffer_size_packet;
+  u16 num_buffers_streaming;
+  u16 buffer_size_streaming;
+  const char *name_suffix;
 };
 
 /**
@@ -114,21 +114,21 @@ struct most_channel_capability {
  * May be set by HDM in a configure callback if needed.
  * @subbuffer_size: size of a subbuffer
  * @packets_per_xact: number of MOST frames that are packet inside one USB
- *		      packet. This is USB specific
+ *          packet. This is USB specific
  *
  * Describes the configuration for a MOST channel. This information is
  * provided from the MostCore to a HDM (like the Medusa PCIe Interface) as a
  * parameter of the "configure" function call.
  */
 struct most_channel_config {
-	enum most_channel_direction direction;
-	enum most_channel_data_type data_type;
-	u16 num_buffers;
-	u16 buffer_size;
-	u16 extra_len;
-	u16 subbuffer_size;
-	u16 packets_per_xact;
-	u16 dbr_size;
+  enum most_channel_direction direction;
+  enum most_channel_data_type data_type;
+  u16 num_buffers;
+  u16 buffer_size;
+  u16 extra_len;
+  u16 subbuffer_size;
+  u16 packets_per_xact;
+  u16 dbr_size;
 };
 
 /*
@@ -136,8 +136,8 @@ struct most_channel_config {
  * @context: context for core completion handler
  * @priv: private data for HDM
  *
- *	public: documented fields that are used for the communications
- *	between MostCore and HDMs
+ *  public: documented fields that are used for the communications
+ *  between MostCore and HDMs
  *
  * @list: list head for use by the mbo's current owner
  * @ifp: (in) associated interface instance
@@ -165,7 +165,7 @@ struct most_channel_config {
  * as "public") while the MBO is owned by an HDM. The ownership starts with
  * the call of enqueue() and ends with the call of its complete() routine.
  *
- *					II.
+ *          II.
  * Every HDM attached to the core driver _must_ ensure that it returns any MBO
  * it owns (due to a previous call to enqueue() by the core driver) before it
  * de-registers an interface or gets unloaded from the kernel. If this direction
@@ -174,18 +174,18 @@ struct most_channel_config {
  *
  */
 struct mbo {
-	void *context;
-	void *priv;
-	struct list_head list;
-	struct most_interface *ifp;
-	int *num_buffers_ptr;
-	u16 hdm_channel_id;
-	void *virt_address;
-	dma_addr_t bus_address;
-	u16 buffer_length;
-	u16 processed_length;
-	enum most_status_flags status;
-	void (*complete)(struct mbo *mbo);
+  void *context;
+  void *priv;
+  struct list_head list;
+  struct most_interface *ifp;
+  int *num_buffers_ptr;
+  u16 hdm_channel_id;
+  void *virt_address;
+  dma_addr_t bus_address;
+  u16 buffer_length;
+  u16 processed_length;
+  enum most_status_flags status;
+  void (*complete)(struct mbo *mbo);
 };
 
 /**
@@ -229,26 +229,26 @@ struct mbo {
  * @priv Private field used by mostcore to store context information.
  */
 struct most_interface {
-	struct device *dev;
-	struct device *driver_dev;
-	struct module *mod;
-	enum most_interface_type interface;
-	const char *description;
-	unsigned int num_channels;
-	struct most_channel_capability *channel_vector;
-	void *(*dma_alloc)(struct mbo *mbo, u32 size);
-	void (*dma_free)(struct mbo *mbo, u32 size);
-	int (*configure)(struct most_interface *iface, int channel_idx,
-			 struct most_channel_config *channel_config);
-	int (*enqueue)(struct most_interface *iface, int channel_idx,
-		       struct mbo *mbo);
-	int (*poison_channel)(struct most_interface *iface, int channel_idx);
-	void (*request_netinfo)(struct most_interface *iface, int channel_idx,
-				void (*on_netinfo)(struct most_interface *iface,
-						   unsigned char link_stat,
-						   unsigned char *mac_addr));
-	void *priv;
-	struct interface_private *p;
+  struct device *dev;
+  struct device *driver_dev;
+  struct module *mod;
+  enum most_interface_type interface;
+  const char *description;
+  unsigned int num_channels;
+  struct most_channel_capability *channel_vector;
+  void *(*dma_alloc)(struct mbo *mbo, u32 size);
+  void (*dma_free)(struct mbo *mbo, u32 size);
+  int (*configure)(struct most_interface *iface, int channel_idx,
+      struct most_channel_config *channel_config);
+  int (*enqueue)(struct most_interface *iface, int channel_idx,
+      struct mbo *mbo);
+  int (*poison_channel)(struct most_interface *iface, int channel_idx);
+  void (*request_netinfo)(struct most_interface *iface, int channel_idx,
+      void (*on_netinfo)(struct most_interface *iface,
+      unsigned char link_stat,
+      unsigned char *mac_addr));
+  void *priv;
+  struct interface_private *p;
 };
 
 /**
@@ -261,17 +261,17 @@ struct most_interface {
  * @tx_completion: completion handler for transmitted packets
  */
 struct most_component {
-	struct list_head list;
-	const char *name;
-	struct module *mod;
-	int (*probe_channel)(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *cfg, char *name,
-			     char *param);
-	int (*disconnect_channel)(struct most_interface *iface,
-				  int channel_idx);
-	int (*rx_completion)(struct mbo *mbo);
-	int (*tx_completion)(struct most_interface *iface, int channel_idx);
-	int (*cfg_complete)(void);
+  struct list_head list;
+  const char *name;
+  struct module *mod;
+  int (*probe_channel)(struct most_interface *iface, int channel_idx,
+      struct most_channel_config *cfg, char *name,
+      char *param);
+  int (*disconnect_channel)(struct most_interface *iface,
+      int channel_idx);
+  int (*rx_completion)(struct mbo *mbo);
+  int (*tx_completion)(struct most_interface *iface, int channel_idx);
+  int (*cfg_complete)(void);
 };
 
 /**
@@ -311,19 +311,19 @@ void most_resume_enqueue(struct most_interface *iface, int channel_idx);
 int most_register_component(struct most_component *comp);
 int most_deregister_component(struct most_component *comp);
 struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
-			 struct most_component *comp);
+    struct most_component *comp);
 void most_put_mbo(struct mbo *mbo);
 int channel_has_mbo(struct most_interface *iface, int channel_idx,
-		    struct most_component *comp);
+    struct most_component *comp);
 int most_start_channel(struct most_interface *iface, int channel_idx,
-		       struct most_component *comp);
+    struct most_component *comp);
 int most_stop_channel(struct most_interface *iface, int channel_idx,
-		      struct most_component *comp);
+    struct most_component *comp);
 int __init configfs_init(void);
 int most_register_configfs_subsys(struct most_component *comp);
 void most_deregister_configfs_subsys(struct most_component *comp);
 int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
-		  char *comp_param);
+    char *comp_param);
 int most_remove_link(char *mdev, char *mdev_ch, char *comp_name);
 int most_set_cfg_buffer_size(char *mdev, char *mdev_ch, u16 val);
 int most_set_cfg_subbuffer_size(char *mdev, char *mdev_ch, u16 val);

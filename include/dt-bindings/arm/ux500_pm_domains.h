@@ -7,9 +7,9 @@
 #ifndef _DT_BINDINGS_ARM_UX500_PM_DOMAINS_H
 #define _DT_BINDINGS_ARM_UX500_PM_DOMAINS_H
 
-#define DOMAIN_VAPE		0
+#define DOMAIN_VAPE   0
 
 /* Number of PM domains. */
-#define NR_DOMAINS		(DOMAIN_VAPE + 1)
+#define NR_DOMAINS    (DOMAIN_VAPE + 1)
 
 #endif

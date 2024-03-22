@@ -11,18 +11,19 @@
 #endif
 
 struct qnx4_sb_info {
-	unsigned int		Version;	/* may be useful */
-	struct qnx4_inode_entry	*BitMap;	/* useful */
+  unsigned int Version;  /* may be useful */
+  struct qnx4_inode_entry *BitMap;  /* useful */
 };
 
 struct qnx4_inode_info {
-	struct qnx4_inode_entry raw;
-	loff_t mmu_private;
-	struct inode vfs_inode;
+  struct qnx4_inode_entry raw;
+  loff_t mmu_private;
+  struct inode vfs_inode;
 };
 
 extern struct inode *qnx4_iget(struct super_block *, unsigned long);
-extern struct dentry *qnx4_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
+extern struct dentry *qnx4_lookup(struct inode *dir, struct dentry *dentry,
+    unsigned int flags);
 extern unsigned long qnx4_count_free_blocks(struct super_block *sb);
 extern unsigned long qnx4_block_map(struct inode *inode, long iblock);
 
@@ -30,19 +31,16 @@ extern const struct inode_operations qnx4_dir_inode_operations;
 extern const struct file_operations qnx4_dir_operations;
 extern int qnx4_is_free(struct super_block *sb, long block);
 
-static inline struct qnx4_sb_info *qnx4_sb(struct super_block *sb)
-{
-	return sb->s_fs_info;
+static inline struct qnx4_sb_info *qnx4_sb(struct super_block *sb) {
+  return sb->s_fs_info;
 }
 
-static inline struct qnx4_inode_info *qnx4_i(struct inode *inode)
-{
-	return container_of(inode, struct qnx4_inode_info, vfs_inode);
+static inline struct qnx4_inode_info *qnx4_i(struct inode *inode) {
+  return container_of(inode, struct qnx4_inode_info, vfs_inode);
 }
 
-static inline struct qnx4_inode_entry *qnx4_raw_inode(struct inode *inode)
-{
-	return &qnx4_i(inode)->raw;
+static inline struct qnx4_inode_entry *qnx4_raw_inode(struct inode *inode) {
+  return &qnx4_i(inode)->raw;
 }
 
 /*
@@ -73,34 +71,33 @@ static inline struct qnx4_inode_entry *qnx4_raw_inode(struct inode *inode)
  * that can get confused.
  */
 union qnx4_directory_entry {
-	struct {
-		const char de_name[48];
-		u8 de_pad[15];
-		u8 de_status;
-	};
-	struct qnx4_inode_entry inode;
-	struct qnx4_link_info link;
+  struct {
+    const char de_name[48];
+    u8 de_pad[15];
+    u8 de_status;
+  };
+  struct qnx4_inode_entry inode;
+  struct qnx4_link_info link;
 };
 
 static inline const char *get_entry_fname(union qnx4_directory_entry *de,
-					  int *size)
-{
-	/* Make sure the status byte is in the same place for all structs. */
-	BUILD_BUG_ON(offsetof(struct qnx4_inode_entry, di_status) !=
-			offsetof(struct qnx4_link_info, dl_status));
-	BUILD_BUG_ON(offsetof(struct qnx4_inode_entry, di_status) !=
-			offsetof(union qnx4_directory_entry, de_status));
-
-	if (!de->de_name[0])
-		return NULL;
-	if (!(de->de_status & (QNX4_FILE_USED|QNX4_FILE_LINK)))
-		return NULL;
-	if (!(de->de_status & QNX4_FILE_LINK))
-		*size = sizeof(de->inode.di_fname);
-	else
-		*size = sizeof(de->link.dl_fname);
-
-	*size = strnlen(de->de_name, *size);
-
-	return de->de_name;
+    int *size) {
+  /* Make sure the status byte is in the same place for all structs. */
+  BUILD_BUG_ON(offsetof(struct qnx4_inode_entry, di_status)
+      != offsetof(struct qnx4_link_info, dl_status));
+  BUILD_BUG_ON(offsetof(struct qnx4_inode_entry, di_status)
+      != offsetof(union qnx4_directory_entry, de_status));
+  if (!de->de_name[0]) {
+    return NULL;
+  }
+  if (!(de->de_status & (QNX4_FILE_USED | QNX4_FILE_LINK))) {
+    return NULL;
+  }
+  if (!(de->de_status & QNX4_FILE_LINK)) {
+    *size = sizeof(de->inode.di_fname);
+  } else {
+    *size = sizeof(de->link.dl_fname);
+  }
+  *size = strnlen(de->de_name, *size);
+  return de->de_name;
 }

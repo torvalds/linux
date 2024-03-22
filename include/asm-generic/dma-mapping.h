@@ -2,9 +2,8 @@
 #ifndef _ASM_GENERIC_DMA_MAPPING_H
 #define _ASM_GENERIC_DMA_MAPPING_H
 
-static inline const struct dma_map_ops *get_arch_dma_ops(void)
-{
-	return NULL;
+static inline const struct dma_map_ops *get_arch_dma_ops(void) {
+  return NULL;
 }
 
 #endif /* _ASM_GENERIC_DMA_MAPPING_H */

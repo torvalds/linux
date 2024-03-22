@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-#include <linux/of.h>	/* linux/of.h gets to determine #include ordering */
+#include <linux/of.h> /* linux/of.h gets to determine #include ordering */
 #ifndef _SPARC_PROM_H
 #define _SPARC_PROM_H
 #ifdef __KERNEL__
@@ -21,23 +21,24 @@
 #include <linux/irqdomain.h>
 #include <linux/spinlock.h>
 
-#define of_compat_cmp(s1, s2, l)	strncmp((s1), (s2), (l))
-#define of_prop_cmp(s1, s2)		strcasecmp((s1), (s2))
-#define of_node_cmp(s1, s2)		strcmp((s1), (s2))
+#define of_compat_cmp(s1, s2, l)  strncmp((s1), (s2), (l))
+#define of_prop_cmp(s1, s2)   strcasecmp((s1), (s2))
+#define of_node_cmp(s1, s2)   strcmp((s1), (s2))
 
 extern raw_spinlock_t devtree_lock;
 
 struct of_irq_controller {
-	unsigned int	(*irq_build)(struct device_node *, unsigned int, void *);
-	void		*data;
+  unsigned int (*irq_build)(struct device_node *, unsigned int, void *);
+  void *data;
 };
 
 struct device_node *of_find_node_by_cpuid(int cpuid);
-int of_set_property(struct device_node *node, const char *name, void *val, int len);
+int of_set_property(struct device_node *node, const char *name, void *val,
+    int len);
 extern struct mutex of_set_property_mutex;
 int of_getintprop_default(struct device_node *np,
-			  const char *name,
-				 int def);
+    const char *name,
+    int def);
 int of_find_in_proplist(const char *list, const char *match, int len);
 
 void prom_build_devicetree(void);
@@ -45,7 +46,8 @@ void of_populate_present_mask(void);
 void of_fill_in_cpu_data(void);
 
 struct resource;
-void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
+void __iomem *of_ioremap(struct resource *res, unsigned long offset,
+    unsigned long size, char *name);
 void of_iounmap(struct resource *res, void __iomem *base, unsigned long size);
 
 extern struct device_node *of_console_device;

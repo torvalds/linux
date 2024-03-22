@@ -9,33 +9,33 @@
 
 /* address translation table */
 struct imx_rproc_att {
-	u32 da;	/* device address (From Cortex M4 view)*/
-	u32 sa;	/* system bus address */
-	u32 size; /* size of reg range */
-	int flags;
+  u32 da; /* device address (From Cortex M4 view)*/
+  u32 sa; /* system bus address */
+  u32 size; /* size of reg range */
+  int flags;
 };
 
 /* Remote core start/stop method */
 enum imx_rproc_method {
-	IMX_RPROC_NONE,
-	/* Through syscon regmap */
-	IMX_RPROC_MMIO,
-	/* Through ARM SMCCC */
-	IMX_RPROC_SMC,
-	/* Through System Control Unit API */
-	IMX_RPROC_SCU_API,
+  IMX_RPROC_NONE,
+  /* Through syscon regmap */
+  IMX_RPROC_MMIO,
+  /* Through ARM SMCCC */
+  IMX_RPROC_SMC,
+  /* Through System Control Unit API */
+  IMX_RPROC_SCU_API,
 };
 
 struct imx_rproc_dcfg {
-	u32				src_reg;
-	u32				src_mask;
-	u32				src_start;
-	u32				src_stop;
-	u32				gpr_reg;
-	u32				gpr_wait;
-	const struct imx_rproc_att	*att;
-	size_t				att_size;
-	enum imx_rproc_method		method;
+  u32 src_reg;
+  u32 src_mask;
+  u32 src_start;
+  u32 src_stop;
+  u32 gpr_reg;
+  u32 gpr_wait;
+  const struct imx_rproc_att *att;
+  size_t att_size;
+  enum imx_rproc_method method;
 };
 
 #endif /* _IMX_RPROC_H */

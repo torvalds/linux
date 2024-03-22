@@ -19,8 +19,6 @@
 #include <type_support.h>
 #include <system_local.h>
 
-
 #include "isys_irq_public.h"
 
-
-#endif	/* __IA_CSS_ISYS_IRQ_H__ */
+#endif  /* __IA_CSS_ISYS_IRQ_H__ */

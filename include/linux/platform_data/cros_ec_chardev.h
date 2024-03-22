@@ -25,9 +25,9 @@
  *         read or negative on error.
  */
 struct cros_ec_readmem {
-	uint32_t offset;
-	uint32_t bytes;
-	uint8_t buffer[EC_MEMMAP_SIZE];
+  uint32_t offset;
+  uint32_t bytes;
+  uint8_t buffer[EC_MEMMAP_SIZE];
 };
 
 #define CROS_EC_DEV_IOC       0xEC

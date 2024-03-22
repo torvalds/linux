@@ -13,13 +13,13 @@
 #include <linux/ioctl.h>
 
 struct clp_req {
-	unsigned int c : 1;
-	unsigned int r : 1;
-	unsigned int lps : 6;
-	unsigned int cmd : 8;
-	unsigned int : 16;
-	unsigned int reserved;
-	__u64 data_p;
+  unsigned int c : 1;
+  unsigned int r : 1;
+  unsigned int lps : 6;
+  unsigned int cmd : 8;
+  unsigned int : 16;
+  unsigned int reserved;
+  __u64 data_p;
 };
 
 #define CLP_IOCTL_MAGIC 'c'

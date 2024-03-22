@@ -16,4 +16,3 @@ EXPORT_SYMBOL_GPL(kvmppc_hv_entry_trampoline);
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 EXPORT_SYMBOL_GPL(kvmppc_entry_trampoline);
 #endif
-

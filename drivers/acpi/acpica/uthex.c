@@ -15,8 +15,8 @@ ACPI_MODULE_NAME("uthex")
 
 /* Hex to ASCII conversion table */
 static const char acpi_gbl_hex_to_ascii[] = {
-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
-	    'E', 'F'
+  '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
+  'E', 'F'
 };
 
 /*******************************************************************************
@@ -33,12 +33,10 @@ static const char acpi_gbl_hex_to_ascii[] = {
  *
  ******************************************************************************/
 
-char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
-{
-	u64 index;
-
-	acpi_ut_short_shift_right(integer, position, &index);
-	return (acpi_gbl_hex_to_ascii[index & 0xF]);
+char acpi_ut_hex_to_ascii_char(u64 integer, u32 position) {
+  u64 index;
+  acpi_ut_short_shift_right(integer, position, &index);
+  return acpi_gbl_hex_to_ascii[index & 0xF];
 }
 
 /*******************************************************************************
@@ -55,21 +53,16 @@ char acpi_ut_hex_to_ascii_char(u64 integer, u32 position)
  *
  ******************************************************************************/
 
-acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte)
-{
-
-	/* Both ASCII characters must be valid hex digits */
-
-	if (!isxdigit((int)two_ascii_chars[0]) ||
-	    !isxdigit((int)two_ascii_chars[1])) {
-		return (AE_BAD_HEX_CONSTANT);
-	}
-
-	*return_byte =
-	    acpi_ut_ascii_char_to_hex(two_ascii_chars[1]) |
-	    (acpi_ut_ascii_char_to_hex(two_ascii_chars[0]) << 4);
-
-	return (AE_OK);
+acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte) {
+  /* Both ASCII characters must be valid hex digits */
+  if (!isxdigit((int) two_ascii_chars[0])
+      || !isxdigit((int) two_ascii_chars[1])) {
+    return AE_BAD_HEX_CONSTANT;
+  }
+  *return_byte
+    = acpi_ut_ascii_char_to_hex(two_ascii_chars[1])
+      | (acpi_ut_ascii_char_to_hex(two_ascii_chars[0]) << 4);
+  return AE_OK;
 }
 
 /*******************************************************************************
@@ -85,22 +78,15 @@ acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte)
  *
  ******************************************************************************/
 
-u8 acpi_ut_ascii_char_to_hex(int hex_char)
-{
-
-	/* Values 0-9 */
-
-	if (hex_char <= '9') {
-		return ((u8)(hex_char - '0'));
-	}
-
-	/* Upper case A-F */
-
-	if (hex_char <= 'F') {
-		return ((u8)(hex_char - 0x37));
-	}
-
-	/* Lower case a-f */
-
-	return ((u8)(hex_char - 0x57));
+u8 acpi_ut_ascii_char_to_hex(int hex_char) {
+  /* Values 0-9 */
+  if (hex_char <= '9') {
+    return (u8) (hex_char - '0');
+  }
+  /* Upper case A-F */
+  if (hex_char <= 'F') {
+    return (u8) (hex_char - 0x37);
+  }
+  /* Lower case a-f */
+  return (u8) (hex_char - 0x57);
 }

@@ -5,13 +5,13 @@
  * Copyright IBM Corporation, 2008
  *
  * Author: Dipankar Sarma <dipankar@in.ibm.com>
- *	   Paul E. McKenney <paulmck@linux.ibm.com> Hierarchical algorithm
+ *     Paul E. McKenney <paulmck@linux.ibm.com> Hierarchical algorithm
  *
  * Based on the original work by Paul McKenney <paulmck@linux.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- *	Documentation/RCU
+ *  Documentation/RCU
  */
 
 #ifndef __LINUX_RCUTREE_H
@@ -28,9 +28,8 @@ void rcu_request_urgent_qs_task(struct task_struct *t);
  * wrapper around rcu_note_context_switch(), which allows TINY_RCU
  * to save a few bytes. The caller must have disabled interrupts.
  */
-static inline void rcu_virt_note_context_switch(void)
-{
-	rcu_note_context_switch(false);
+static inline void rcu_virt_note_context_switch(void) {
+  rcu_note_context_switch(false);
 }
 
 void synchronize_rcu_expedited(void);
@@ -42,8 +41,8 @@ void kfree_rcu_scheduler_running(void);
 bool rcu_gp_might_be_stalled(void);
 
 struct rcu_gp_oldstate {
-	unsigned long rgos_norm;
-	unsigned long rgos_exp;
+  unsigned long rgos_norm;
+  unsigned long rgos_exp;
 };
 
 // Maximum number of rcu_gp_oldstate values corresponding to
@@ -68,10 +67,11 @@ struct rcu_gp_oldstate {
  * in the other field.  After all, the @rcu_gp_oldstate structure is opaque
  * so how did such a situation come to pass in the first place?
  */
-static inline bool same_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp1,
-						   struct rcu_gp_oldstate *rgosp2)
-{
-	return rgosp1->rgos_norm == rgosp2->rgos_norm && rgosp1->rgos_exp == rgosp2->rgos_exp;
+static inline bool same_state_synchronize_rcu_full(
+    struct rcu_gp_oldstate *rgosp1,
+    struct rcu_gp_oldstate *rgosp2) {
+  return rgosp1->rgos_norm == rgosp2->rgos_norm
+    && rgosp1->rgos_exp == rgosp2->rgos_exp;
 }
 
 unsigned long start_poll_synchronize_rcu_expedited(void);
@@ -90,7 +90,9 @@ void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 #ifdef CONFIG_PROVE_RCU
 void rcu_irq_exit_check_preempt(void);
 #else
-static inline void rcu_irq_exit_check_preempt(void) { }
+static inline void rcu_irq_exit_check_preempt(void) {
+}
+
 #endif
 
 struct task_struct;

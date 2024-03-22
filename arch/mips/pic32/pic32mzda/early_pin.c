@@ -62,77 +62,73 @@
 #define REFCLKI3R 0x14F0
 #define REFCLKI4R 0x14F4
 
-static const struct
-{
-	int function;
-	int reg;
+static const struct {
+  int function;
+  int reg;
 } input_pin_reg[] = {
-	{ IN_FUNC_INT3, INT3R },
-	{ IN_FUNC_T2CK, T2CKR },
-	{ IN_FUNC_T6CK, T6CKR },
-	{ IN_FUNC_IC3, IC3R  },
-	{ IN_FUNC_IC7, IC7R },
-	{ IN_FUNC_U1RX, U1RXR },
-	{ IN_FUNC_U2CTS, U2CTSR },
-	{ IN_FUNC_U5RX, U5RXR },
-	{ IN_FUNC_U6CTS, U6CTSR },
-	{ IN_FUNC_SDI1, SDI1R },
-	{ IN_FUNC_SDI3, SDI3R },
-	{ IN_FUNC_SDI5, SDI5R },
-	{ IN_FUNC_SS6, SS6R },
-	{ IN_FUNC_REFCLKI1, REFCLKI1R },
-	{ IN_FUNC_INT4, INT4R },
-	{ IN_FUNC_T5CK, T5CKR },
-	{ IN_FUNC_T7CK, T7CKR },
-	{ IN_FUNC_IC4, IC4R },
-	{ IN_FUNC_IC8, IC8R },
-	{ IN_FUNC_U3RX, U3RXR },
-	{ IN_FUNC_U4CTS, U4CTSR },
-	{ IN_FUNC_SDI2, SDI2R },
-	{ IN_FUNC_SDI4, SDI4R },
-	{ IN_FUNC_C1RX, C1RXR },
-	{ IN_FUNC_REFCLKI4, REFCLKI4R },
-	{ IN_FUNC_INT2, INT2R },
-	{ IN_FUNC_T3CK, T3CKR },
-	{ IN_FUNC_T8CK, T8CKR },
-	{ IN_FUNC_IC2, IC2R },
-	{ IN_FUNC_IC5, IC5R },
-	{ IN_FUNC_IC9, IC9R },
-	{ IN_FUNC_U1CTS, U1CTSR },
-	{ IN_FUNC_U2RX, U2RXR },
-	{ IN_FUNC_U5CTS, U5CTSR },
-	{ IN_FUNC_SS1, SS1R },
-	{ IN_FUNC_SS3, SS3R },
-	{ IN_FUNC_SS4, SS4R },
-	{ IN_FUNC_SS5, SS5R },
-	{ IN_FUNC_C2RX, C2RXR },
-	{ IN_FUNC_INT1, INT1R },
-	{ IN_FUNC_T4CK, T4CKR },
-	{ IN_FUNC_T9CK, T9CKR },
-	{ IN_FUNC_IC1, IC1R },
-	{ IN_FUNC_IC6, IC6R },
-	{ IN_FUNC_U3CTS, U3CTSR },
-	{ IN_FUNC_U4RX, U4RXR },
-	{ IN_FUNC_U6RX, U6RXR },
-	{ IN_FUNC_SS2, SS2R },
-	{ IN_FUNC_SDI6, SDI6R },
-	{ IN_FUNC_OCFA, OCFAR },
-	{ IN_FUNC_REFCLKI3, REFCLKI3R },
+  { IN_FUNC_INT3, INT3R },
+  { IN_FUNC_T2CK, T2CKR },
+  { IN_FUNC_T6CK, T6CKR },
+  { IN_FUNC_IC3, IC3R  },
+  { IN_FUNC_IC7, IC7R },
+  { IN_FUNC_U1RX, U1RXR },
+  { IN_FUNC_U2CTS, U2CTSR },
+  { IN_FUNC_U5RX, U5RXR },
+  { IN_FUNC_U6CTS, U6CTSR },
+  { IN_FUNC_SDI1, SDI1R },
+  { IN_FUNC_SDI3, SDI3R },
+  { IN_FUNC_SDI5, SDI5R },
+  { IN_FUNC_SS6, SS6R },
+  { IN_FUNC_REFCLKI1, REFCLKI1R },
+  { IN_FUNC_INT4, INT4R },
+  { IN_FUNC_T5CK, T5CKR },
+  { IN_FUNC_T7CK, T7CKR },
+  { IN_FUNC_IC4, IC4R },
+  { IN_FUNC_IC8, IC8R },
+  { IN_FUNC_U3RX, U3RXR },
+  { IN_FUNC_U4CTS, U4CTSR },
+  { IN_FUNC_SDI2, SDI2R },
+  { IN_FUNC_SDI4, SDI4R },
+  { IN_FUNC_C1RX, C1RXR },
+  { IN_FUNC_REFCLKI4, REFCLKI4R },
+  { IN_FUNC_INT2, INT2R },
+  { IN_FUNC_T3CK, T3CKR },
+  { IN_FUNC_T8CK, T8CKR },
+  { IN_FUNC_IC2, IC2R },
+  { IN_FUNC_IC5, IC5R },
+  { IN_FUNC_IC9, IC9R },
+  { IN_FUNC_U1CTS, U1CTSR },
+  { IN_FUNC_U2RX, U2RXR },
+  { IN_FUNC_U5CTS, U5CTSR },
+  { IN_FUNC_SS1, SS1R },
+  { IN_FUNC_SS3, SS3R },
+  { IN_FUNC_SS4, SS4R },
+  { IN_FUNC_SS5, SS5R },
+  { IN_FUNC_C2RX, C2RXR },
+  { IN_FUNC_INT1, INT1R },
+  { IN_FUNC_T4CK, T4CKR },
+  { IN_FUNC_T9CK, T9CKR },
+  { IN_FUNC_IC1, IC1R },
+  { IN_FUNC_IC6, IC6R },
+  { IN_FUNC_U3CTS, U3CTSR },
+  { IN_FUNC_U4RX, U4RXR },
+  { IN_FUNC_U6RX, U6RXR },
+  { IN_FUNC_SS2, SS2R },
+  { IN_FUNC_SDI6, SDI6R },
+  { IN_FUNC_OCFA, OCFAR },
+  { IN_FUNC_REFCLKI3, REFCLKI3R },
 };
 
-void pic32_pps_input(int function, int pin)
-{
-	void __iomem *pps_base = ioremap(PPS_BASE, 0xF4);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(input_pin_reg); i++) {
-		if (input_pin_reg[i].function == function) {
-			__raw_writel(pin, pps_base + input_pin_reg[i].reg);
-			return;
-		}
-	}
-
-	iounmap(pps_base);
+void pic32_pps_input(int function, int pin) {
+  void __iomem *pps_base = ioremap(PPS_BASE, 0xF4);
+  int i;
+  for (i = 0; i < ARRAY_SIZE(input_pin_reg); i++) {
+    if (input_pin_reg[i].function == function) {
+      __raw_writel(pin, pps_base + input_pin_reg[i].reg);
+      return;
+    }
+  }
+  iounmap(pps_base);
 }
 
 /* Output PPS Registers */
@@ -190,78 +186,74 @@ void pic32_pps_input(int function, int pin)
 #define RPG8R 0x16A0
 #define RPG9R 0x16A4
 
-static const struct
-{
-	int pin;
-	int reg;
+static const struct {
+  int pin;
+  int reg;
 } output_pin_reg[] = {
-	{ OUT_RPD2, RPD2R },
-	{ OUT_RPG8, RPG8R },
-	{ OUT_RPF4, RPF4R },
-	{ OUT_RPD10, RPD10R },
-	{ OUT_RPF1, RPF1R },
-	{ OUT_RPB9, RPB9R },
-	{ OUT_RPB10, RPB10R },
-	{ OUT_RPC14, RPC14R },
-	{ OUT_RPB5, RPB5R },
-	{ OUT_RPC1, RPC1R },
-	{ OUT_RPD14, RPD14R },
-	{ OUT_RPG1, RPG1R },
-	{ OUT_RPA14, RPA14R },
-	{ OUT_RPD6, RPD6R },
-	{ OUT_RPD3, RPD3R },
-	{ OUT_RPG7, RPG7R },
-	{ OUT_RPF5, RPF5R },
-	{ OUT_RPD11, RPD11R },
-	{ OUT_RPF0, RPF0R },
-	{ OUT_RPB1, RPB1R },
-	{ OUT_RPE5, RPE5R },
-	{ OUT_RPC13, RPC13R },
-	{ OUT_RPB3, RPB3R },
-	{ OUT_RPC4, RPC4R },
-	{ OUT_RPD15, RPD15R },
-	{ OUT_RPG0, RPG0R },
-	{ OUT_RPA15, RPA15R },
-	{ OUT_RPD7, RPD7R },
-	{ OUT_RPD9, RPD9R },
-	{ OUT_RPG6, RPG6R },
-	{ OUT_RPB8, RPB8R },
-	{ OUT_RPB15, RPB15R },
-	{ OUT_RPD4, RPD4R },
-	{ OUT_RPB0, RPB0R },
-	{ OUT_RPE3, RPE3R },
-	{ OUT_RPB7, RPB7R },
-	{ OUT_RPF12, RPF12R },
-	{ OUT_RPD12, RPD12R },
-	{ OUT_RPF8, RPF8R },
-	{ OUT_RPC3, RPC3R },
-	{ OUT_RPE9, RPE9R },
-	{ OUT_RPD1, RPD1R },
-	{ OUT_RPG9, RPG9R },
-	{ OUT_RPB14, RPB14R },
-	{ OUT_RPD0, RPD0R },
-	{ OUT_RPB6, RPB6R },
-	{ OUT_RPD5, RPD5R },
-	{ OUT_RPB2, RPB2R },
-	{ OUT_RPF3, RPF3R },
-	{ OUT_RPF13, RPF13R },
-	{ OUT_RPC2, RPC2R },
-	{ OUT_RPE8, RPE8R },
-	{ OUT_RPF2, RPF2R },
+  { OUT_RPD2, RPD2R },
+  { OUT_RPG8, RPG8R },
+  { OUT_RPF4, RPF4R },
+  { OUT_RPD10, RPD10R },
+  { OUT_RPF1, RPF1R },
+  { OUT_RPB9, RPB9R },
+  { OUT_RPB10, RPB10R },
+  { OUT_RPC14, RPC14R },
+  { OUT_RPB5, RPB5R },
+  { OUT_RPC1, RPC1R },
+  { OUT_RPD14, RPD14R },
+  { OUT_RPG1, RPG1R },
+  { OUT_RPA14, RPA14R },
+  { OUT_RPD6, RPD6R },
+  { OUT_RPD3, RPD3R },
+  { OUT_RPG7, RPG7R },
+  { OUT_RPF5, RPF5R },
+  { OUT_RPD11, RPD11R },
+  { OUT_RPF0, RPF0R },
+  { OUT_RPB1, RPB1R },
+  { OUT_RPE5, RPE5R },
+  { OUT_RPC13, RPC13R },
+  { OUT_RPB3, RPB3R },
+  { OUT_RPC4, RPC4R },
+  { OUT_RPD15, RPD15R },
+  { OUT_RPG0, RPG0R },
+  { OUT_RPA15, RPA15R },
+  { OUT_RPD7, RPD7R },
+  { OUT_RPD9, RPD9R },
+  { OUT_RPG6, RPG6R },
+  { OUT_RPB8, RPB8R },
+  { OUT_RPB15, RPB15R },
+  { OUT_RPD4, RPD4R },
+  { OUT_RPB0, RPB0R },
+  { OUT_RPE3, RPE3R },
+  { OUT_RPB7, RPB7R },
+  { OUT_RPF12, RPF12R },
+  { OUT_RPD12, RPD12R },
+  { OUT_RPF8, RPF8R },
+  { OUT_RPC3, RPC3R },
+  { OUT_RPE9, RPE9R },
+  { OUT_RPD1, RPD1R },
+  { OUT_RPG9, RPG9R },
+  { OUT_RPB14, RPB14R },
+  { OUT_RPD0, RPD0R },
+  { OUT_RPB6, RPB6R },
+  { OUT_RPD5, RPD5R },
+  { OUT_RPB2, RPB2R },
+  { OUT_RPF3, RPF3R },
+  { OUT_RPF13, RPF13R },
+  { OUT_RPC2, RPC2R },
+  { OUT_RPE8, RPE8R },
+  { OUT_RPF2, RPF2R },
 };
 
-void pic32_pps_output(int function, int pin)
-{
-	void __iomem *pps_base = ioremap(PPS_BASE, 0x170);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(output_pin_reg); i++) {
-		if (output_pin_reg[i].pin == pin) {
-			__raw_writel(function,
-				pps_base + output_pin_reg[i].reg);
-			return;
-		}
-	}
-
-	iounmap(pps_base);
+void pic32_pps_output(int function, int pin) {
+  void __iomem *pps_base = ioremap(PPS_BASE, 0x170);
+  int i;
+  for (i = 0; i < ARRAY_SIZE(output_pin_reg); i++) {
+    if (output_pin_reg[i].pin == pin) {
+      __raw_writel(function,
+          pps_base + output_pin_reg[i].reg);
+      return;
+    }
+  }
+  iounmap(pps_base);
 }

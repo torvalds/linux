@@ -111,14 +111,13 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
  * drivers/gpu should ever call dma_fence_wait() in such contexts.
  */
 
-static const char *dma_fence_stub_get_name(struct dma_fence *fence)
-{
-        return "stub";
+static const char *dma_fence_stub_get_name(struct dma_fence *fence) {
+  return "stub";
 }
 
 static const struct dma_fence_ops dma_fence_stub_ops = {
-	.get_driver_name = dma_fence_stub_get_name,
-	.get_timeline_name = dma_fence_stub_get_name,
+  .get_driver_name = dma_fence_stub_get_name,
+  .get_timeline_name = dma_fence_stub_get_name,
 };
 
 /**
@@ -128,24 +127,21 @@ static const struct dma_fence_ops dma_fence_stub_ops = {
  * timestamp corresponds to the first time after boot this
  * function is called.
  */
-struct dma_fence *dma_fence_get_stub(void)
-{
-	spin_lock(&dma_fence_stub_lock);
-	if (!dma_fence_stub.ops) {
-		dma_fence_init(&dma_fence_stub,
-			       &dma_fence_stub_ops,
-			       &dma_fence_stub_lock,
-			       0, 0);
-
-		set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			&dma_fence_stub.flags);
-
-		dma_fence_signal_locked(&dma_fence_stub);
-	}
-	spin_unlock(&dma_fence_stub_lock);
-
-	return dma_fence_get(&dma_fence_stub);
+struct dma_fence *dma_fence_get_stub(void) {
+  spin_lock(&dma_fence_stub_lock);
+  if (!dma_fence_stub.ops) {
+    dma_fence_init(&dma_fence_stub,
+        &dma_fence_stub_ops,
+        &dma_fence_stub_lock,
+        0, 0);
+    set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+        &dma_fence_stub.flags);
+    dma_fence_signal_locked(&dma_fence_stub);
+  }
+  spin_unlock(&dma_fence_stub_lock);
+  return dma_fence_get(&dma_fence_stub);
 }
+
 EXPORT_SYMBOL(dma_fence_get_stub);
 
 /**
@@ -154,26 +150,22 @@ EXPORT_SYMBOL(dma_fence_get_stub);
  *
  * Return a newly allocated and signaled stub fence.
  */
-struct dma_fence *dma_fence_allocate_private_stub(ktime_t timestamp)
-{
-	struct dma_fence *fence;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (fence == NULL)
-		return NULL;
-
-	dma_fence_init(fence,
-		       &dma_fence_stub_ops,
-		       &dma_fence_stub_lock,
-		       0, 0);
-
-	set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-		&fence->flags);
-
-	dma_fence_signal_timestamp(fence, timestamp);
-
-	return fence;
+struct dma_fence *dma_fence_allocate_private_stub(ktime_t timestamp) {
+  struct dma_fence *fence;
+  fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+  if (fence == NULL) {
+    return NULL;
+  }
+  dma_fence_init(fence,
+      &dma_fence_stub_ops,
+      &dma_fence_stub_lock,
+      0, 0);
+  set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+      &fence->flags);
+  dma_fence_signal_timestamp(fence, timestamp);
+  return fence;
 }
+
 EXPORT_SYMBOL(dma_fence_allocate_private_stub);
 
 /**
@@ -184,11 +176,11 @@ EXPORT_SYMBOL(dma_fence_allocate_private_stub);
  * allocated.  The fence context is used for setting &dma_fence.context to a
  * unique number by passing the context to dma_fence_init().
  */
-u64 dma_fence_context_alloc(unsigned num)
-{
-	WARN_ON(!num);
-	return atomic64_fetch_add(num, &dma_fence_context_counter);
+u64 dma_fence_context_alloc(unsigned num) {
+  WARN_ON(!num);
+  return atomic64_fetch_add(num, &dma_fence_context_counter);
 }
+
 EXPORT_SYMBOL(dma_fence_context_alloc);
 
 /**
@@ -254,7 +246,8 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  *
  * * All code necessary to complete a &dma_fence must be annotated, from the
  *   point where a fence is accessible to other threads, to the point where
- *   dma_fence_signal() is called. Un-annotated code can contain deadlock issues,
+ *   dma_fence_signal() is called. Un-annotated code can contain deadlock
+ * issues,
  *   and due to the very strict rules and many corner cases it is infeasible to
  *   catch these just with review or normal stress testing.
  *
@@ -282,7 +275,7 @@ EXPORT_SYMBOL(dma_fence_context_alloc);
  */
 #ifdef CONFIG_LOCKDEP
 static struct lockdep_map dma_fence_lockdep_map = {
-	.name = "dma_fence_map"
+  .name = "dma_fence_map"
 };
 
 /**
@@ -299,21 +292,20 @@ static struct lockdep_map dma_fence_lockdep_map = {
  * Opaque cookie needed by the implementation, which needs to be passed to
  * dma_fence_end_signalling().
  */
-bool dma_fence_begin_signalling(void)
-{
-	/* explicitly nesting ... */
-	if (lock_is_held_type(&dma_fence_lockdep_map, 1))
-		return true;
-
-	/* rely on might_sleep check for soft/hardirq locks */
-	if (in_atomic())
-		return true;
-
-	/* ... and non-recursive readlock */
-	lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _RET_IP_);
-
-	return false;
+bool dma_fence_begin_signalling(void) {
+  /* explicitly nesting ... */
+  if (lock_is_held_type(&dma_fence_lockdep_map, 1)) {
+    return true;
+  }
+  /* rely on might_sleep check for soft/hardirq locks */
+  if (in_atomic()) {
+    return true;
+  }
+  /* ... and non-recursive readlock */
+  lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _RET_IP_);
+  return false;
 }
+
 EXPORT_SYMBOL(dma_fence_begin_signalling);
 
 /**
@@ -322,29 +314,29 @@ EXPORT_SYMBOL(dma_fence_begin_signalling);
  *
  * Closes a critical section annotation opened by dma_fence_begin_signalling().
  */
-void dma_fence_end_signalling(bool cookie)
-{
-	if (cookie)
-		return;
-
-	lock_release(&dma_fence_lockdep_map, _RET_IP_);
+void dma_fence_end_signalling(bool cookie) {
+  if (cookie) {
+    return;
+  }
+  lock_release(&dma_fence_lockdep_map, _RET_IP_);
 }
+
 EXPORT_SYMBOL(dma_fence_end_signalling);
 
-void __dma_fence_might_wait(void)
-{
-	bool tmp;
-
-	tmp = lock_is_held_type(&dma_fence_lockdep_map, 1);
-	if (tmp)
-		lock_release(&dma_fence_lockdep_map, _THIS_IP_);
-	lock_map_acquire(&dma_fence_lockdep_map);
-	lock_map_release(&dma_fence_lockdep_map);
-	if (tmp)
-		lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _THIS_IP_);
+void __dma_fence_might_wait(void) {
+  bool tmp;
+  tmp = lock_is_held_type(&dma_fence_lockdep_map, 1);
+  if (tmp) {
+    lock_release(&dma_fence_lockdep_map, _THIS_IP_);
+  }
+  lock_map_acquire(&dma_fence_lockdep_map);
+  lock_map_release(&dma_fence_lockdep_map);
+  if (tmp) {
+    lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _THIS_IP_);
+  }
 }
-#endif
 
+#endif
 
 /**
  * dma_fence_signal_timestamp_locked - signal completion of a fence
@@ -365,31 +357,26 @@ void __dma_fence_might_wait(void)
  * signalled already.
  */
 int dma_fence_signal_timestamp_locked(struct dma_fence *fence,
-				      ktime_t timestamp)
-{
-	struct dma_fence_cb *cur, *tmp;
-	struct list_head cb_list;
-
-	lockdep_assert_held(fence->lock);
-
-	if (unlikely(test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-				      &fence->flags)))
-		return -EINVAL;
-
-	/* Stash the cb_list before replacing it with the timestamp */
-	list_replace(&fence->cb_list, &cb_list);
-
-	fence->timestamp = timestamp;
-	set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
-	trace_dma_fence_signaled(fence);
-
-	list_for_each_entry_safe(cur, tmp, &cb_list, node) {
-		INIT_LIST_HEAD(&cur->node);
-		cur->func(fence, cur);
-	}
-
-	return 0;
+    ktime_t timestamp) {
+  struct dma_fence_cb *cur, *tmp;
+  struct list_head cb_list;
+  lockdep_assert_held(fence->lock);
+  if (unlikely(test_and_set_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+      &fence->flags))) {
+    return -EINVAL;
+  }
+  /* Stash the cb_list before replacing it with the timestamp */
+  list_replace(&fence->cb_list, &cb_list);
+  fence->timestamp = timestamp;
+  set_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags);
+  trace_dma_fence_signaled(fence);
+  list_for_each_entry_safe(cur, tmp, &cb_list, node) {
+    INIT_LIST_HEAD(&cur->node);
+    cur->func(fence, cur);
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL(dma_fence_signal_timestamp_locked);
 
 /**
@@ -407,20 +394,18 @@ EXPORT_SYMBOL(dma_fence_signal_timestamp_locked);
  * Returns 0 on success and a negative error value when @fence has been
  * signalled already.
  */
-int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp)
-{
-	unsigned long flags;
-	int ret;
-
-	if (!fence)
-		return -EINVAL;
-
-	spin_lock_irqsave(fence->lock, flags);
-	ret = dma_fence_signal_timestamp_locked(fence, timestamp);
-	spin_unlock_irqrestore(fence->lock, flags);
-
-	return ret;
+int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp) {
+  unsigned long flags;
+  int ret;
+  if (!fence) {
+    return -EINVAL;
+  }
+  spin_lock_irqsave(fence->lock, flags);
+  ret = dma_fence_signal_timestamp_locked(fence, timestamp);
+  spin_unlock_irqrestore(fence->lock, flags);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_signal_timestamp);
 
 /**
@@ -439,10 +424,10 @@ EXPORT_SYMBOL(dma_fence_signal_timestamp);
  * Returns 0 on success and a negative error value when @fence has been
  * signalled already.
  */
-int dma_fence_signal_locked(struct dma_fence *fence)
-{
-	return dma_fence_signal_timestamp_locked(fence, ktime_get());
+int dma_fence_signal_locked(struct dma_fence *fence) {
+  return dma_fence_signal_timestamp_locked(fence, ktime_get());
 }
+
 EXPORT_SYMBOL(dma_fence_signal_locked);
 
 /**
@@ -458,25 +443,21 @@ EXPORT_SYMBOL(dma_fence_signal_locked);
  * Returns 0 on success and a negative error value when @fence has been
  * signalled already.
  */
-int dma_fence_signal(struct dma_fence *fence)
-{
-	unsigned long flags;
-	int ret;
-	bool tmp;
-
-	if (!fence)
-		return -EINVAL;
-
-	tmp = dma_fence_begin_signalling();
-
-	spin_lock_irqsave(fence->lock, flags);
-	ret = dma_fence_signal_timestamp_locked(fence, ktime_get());
-	spin_unlock_irqrestore(fence->lock, flags);
-
-	dma_fence_end_signalling(tmp);
-
-	return ret;
+int dma_fence_signal(struct dma_fence *fence) {
+  unsigned long flags;
+  int ret;
+  bool tmp;
+  if (!fence) {
+    return -EINVAL;
+  }
+  tmp = dma_fence_begin_signalling();
+  spin_lock_irqsave(fence->lock, flags);
+  ret = dma_fence_signal_timestamp_locked(fence, ktime_get());
+  spin_unlock_irqrestore(fence->lock, flags);
+  dma_fence_end_signalling(tmp);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_signal);
 
 /**
@@ -497,28 +478,25 @@ EXPORT_SYMBOL(dma_fence_signal);
  *
  * See also dma_fence_wait() and dma_fence_wait_any_timeout().
  */
-signed long
-dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
-{
-	signed long ret;
-
-	if (WARN_ON(timeout < 0))
-		return -EINVAL;
-
-	might_sleep();
-
-	__dma_fence_might_wait();
-
-	dma_fence_enable_sw_signaling(fence);
-
-	trace_dma_fence_wait_start(fence);
-	if (fence->ops->wait)
-		ret = fence->ops->wait(fence, intr, timeout);
-	else
-		ret = dma_fence_default_wait(fence, intr, timeout);
-	trace_dma_fence_wait_end(fence);
-	return ret;
+signed long dma_fence_wait_timeout(struct dma_fence *fence, bool intr,
+    signed long timeout) {
+  signed long ret;
+  if (WARN_ON(timeout < 0)) {
+    return -EINVAL;
+  }
+  might_sleep();
+  __dma_fence_might_wait();
+  dma_fence_enable_sw_signaling(fence);
+  trace_dma_fence_wait_start(fence);
+  if (fence->ops->wait) {
+    ret = fence->ops->wait(fence, intr, timeout);
+  } else {
+    ret = dma_fence_default_wait(fence, intr, timeout);
+  }
+  trace_dma_fence_wait_end(fence);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_wait_timeout);
 
 /**
@@ -528,39 +506,36 @@ EXPORT_SYMBOL(dma_fence_wait_timeout);
  * This is the default release functions for &dma_fence. Drivers shouldn't call
  * this directly, but instead call dma_fence_put().
  */
-void dma_fence_release(struct kref *kref)
-{
-	struct dma_fence *fence =
-		container_of(kref, struct dma_fence, refcount);
-
-	trace_dma_fence_destroy(fence);
-
-	if (WARN(!list_empty(&fence->cb_list) &&
-		 !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags),
-		 "Fence %s:%s:%llx:%llx released with pending signals!\n",
-		 fence->ops->get_driver_name(fence),
-		 fence->ops->get_timeline_name(fence),
-		 fence->context, fence->seqno)) {
-		unsigned long flags;
-
-		/*
-		 * Failed to signal before release, likely a refcounting issue.
-		 *
-		 * This should never happen, but if it does make sure that we
-		 * don't leave chains dangling. We set the error flag first
-		 * so that the callbacks know this signal is due to an error.
-		 */
-		spin_lock_irqsave(fence->lock, flags);
-		fence->error = -EDEADLK;
-		dma_fence_signal_locked(fence);
-		spin_unlock_irqrestore(fence->lock, flags);
-	}
-
-	if (fence->ops->release)
-		fence->ops->release(fence);
-	else
-		dma_fence_free(fence);
+void dma_fence_release(struct kref *kref) {
+  struct dma_fence *fence
+    = container_of(kref, struct dma_fence, refcount);
+  trace_dma_fence_destroy(fence);
+  if (WARN(!list_empty(&fence->cb_list)
+      && !test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags),
+      "Fence %s:%s:%llx:%llx released with pending signals!\n",
+      fence->ops->get_driver_name(fence),
+      fence->ops->get_timeline_name(fence),
+      fence->context, fence->seqno)) {
+    unsigned long flags;
+    /*
+     * Failed to signal before release, likely a refcounting issue.
+     *
+     * This should never happen, but if it does make sure that we
+     * don't leave chains dangling. We set the error flag first
+     * so that the callbacks know this signal is due to an error.
+     */
+    spin_lock_irqsave(fence->lock, flags);
+    fence->error = -EDEADLK;
+    dma_fence_signal_locked(fence);
+    spin_unlock_irqrestore(fence->lock, flags);
+  }
+  if (fence->ops->release) {
+    fence->ops->release(fence);
+  } else {
+    dma_fence_free(fence);
+  }
 }
+
 EXPORT_SYMBOL(dma_fence_release);
 
 /**
@@ -570,34 +545,28 @@ EXPORT_SYMBOL(dma_fence_release);
  * This is the default implementation for &dma_fence_ops.release. It calls
  * kfree_rcu() on @fence.
  */
-void dma_fence_free(struct dma_fence *fence)
-{
-	kfree_rcu(fence, rcu);
+void dma_fence_free(struct dma_fence *fence) {
+  kfree_rcu(fence, rcu);
 }
+
 EXPORT_SYMBOL(dma_fence_free);
 
-static bool __dma_fence_enable_signaling(struct dma_fence *fence)
-{
-	bool was_set;
-
-	lockdep_assert_held(fence->lock);
-
-	was_set = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-				   &fence->flags);
-
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return false;
-
-	if (!was_set && fence->ops->enable_signaling) {
-		trace_dma_fence_enable_signal(fence);
-
-		if (!fence->ops->enable_signaling(fence)) {
-			dma_fence_signal_locked(fence);
-			return false;
-		}
-	}
-
-	return true;
+static bool __dma_fence_enable_signaling(struct dma_fence *fence) {
+  bool was_set;
+  lockdep_assert_held(fence->lock);
+  was_set = test_and_set_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+      &fence->flags);
+  if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+    return false;
+  }
+  if (!was_set && fence->ops->enable_signaling) {
+    trace_dma_fence_enable_signal(fence);
+    if (!fence->ops->enable_signaling(fence)) {
+      dma_fence_signal_locked(fence);
+      return false;
+    }
+  }
+  return true;
 }
 
 /**
@@ -608,14 +577,13 @@ static bool __dma_fence_enable_signaling(struct dma_fence *fence)
  * complete as soon as possible. This calls &dma_fence_ops.enable_signaling
  * internally.
  */
-void dma_fence_enable_sw_signaling(struct dma_fence *fence)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(fence->lock, flags);
-	__dma_fence_enable_signaling(fence);
-	spin_unlock_irqrestore(fence->lock, flags);
+void dma_fence_enable_sw_signaling(struct dma_fence *fence) {
+  unsigned long flags;
+  spin_lock_irqsave(fence->lock, flags);
+  __dma_fence_enable_signaling(fence);
+  spin_unlock_irqrestore(fence->lock, flags);
 }
+
 EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
 
 /**
@@ -641,33 +609,28 @@ EXPORT_SYMBOL(dma_fence_enable_sw_signaling);
  * and -EINVAL in case of error.
  */
 int dma_fence_add_callback(struct dma_fence *fence, struct dma_fence_cb *cb,
-			   dma_fence_func_t func)
-{
-	unsigned long flags;
-	int ret = 0;
-
-	if (WARN_ON(!fence || !func))
-		return -EINVAL;
-
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-		INIT_LIST_HEAD(&cb->node);
-		return -ENOENT;
-	}
-
-	spin_lock_irqsave(fence->lock, flags);
-
-	if (__dma_fence_enable_signaling(fence)) {
-		cb->func = func;
-		list_add_tail(&cb->node, &fence->cb_list);
-	} else {
-		INIT_LIST_HEAD(&cb->node);
-		ret = -ENOENT;
-	}
-
-	spin_unlock_irqrestore(fence->lock, flags);
-
-	return ret;
+    dma_fence_func_t func) {
+  unsigned long flags;
+  int ret = 0;
+  if (WARN_ON(!fence || !func)) {
+    return -EINVAL;
+  }
+  if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+    INIT_LIST_HEAD(&cb->node);
+    return -ENOENT;
+  }
+  spin_lock_irqsave(fence->lock, flags);
+  if (__dma_fence_enable_signaling(fence)) {
+    cb->func = func;
+    list_add_tail(&cb->node, &fence->cb_list);
+  } else {
+    INIT_LIST_HEAD(&cb->node);
+    ret = -ENOENT;
+  }
+  spin_unlock_irqrestore(fence->lock, flags);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_add_callback);
 
 /**
@@ -682,17 +645,15 @@ EXPORT_SYMBOL(dma_fence_add_callback);
  * been signaled without an error condition, or a negative error code
  * if the fence has been completed in err.
  */
-int dma_fence_get_status(struct dma_fence *fence)
-{
-	unsigned long flags;
-	int status;
-
-	spin_lock_irqsave(fence->lock, flags);
-	status = dma_fence_get_status_locked(fence);
-	spin_unlock_irqrestore(fence->lock, flags);
-
-	return status;
+int dma_fence_get_status(struct dma_fence *fence) {
+  unsigned long flags;
+  int status;
+  spin_lock_irqsave(fence->lock, flags);
+  status = dma_fence_get_status_locked(fence);
+  spin_unlock_irqrestore(fence->lock, flags);
+  return status;
 }
+
 EXPORT_SYMBOL(dma_fence_get_status);
 
 /**
@@ -713,36 +674,31 @@ EXPORT_SYMBOL(dma_fence_get_status);
  * Behaviour is undefined if @cb has not been added to @fence using
  * dma_fence_add_callback() beforehand.
  */
-bool
-dma_fence_remove_callback(struct dma_fence *fence, struct dma_fence_cb *cb)
-{
-	unsigned long flags;
-	bool ret;
-
-	spin_lock_irqsave(fence->lock, flags);
-
-	ret = !list_empty(&cb->node);
-	if (ret)
-		list_del_init(&cb->node);
-
-	spin_unlock_irqrestore(fence->lock, flags);
-
-	return ret;
+bool dma_fence_remove_callback(struct dma_fence *fence,
+    struct dma_fence_cb *cb) {
+  unsigned long flags;
+  bool ret;
+  spin_lock_irqsave(fence->lock, flags);
+  ret = !list_empty(&cb->node);
+  if (ret) {
+    list_del_init(&cb->node);
+  }
+  spin_unlock_irqrestore(fence->lock, flags);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_remove_callback);
 
 struct default_wait_cb {
-	struct dma_fence_cb base;
-	struct task_struct *task;
+  struct dma_fence_cb base;
+  struct task_struct *task;
 };
 
-static void
-dma_fence_default_wait_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
-{
-	struct default_wait_cb *wait =
-		container_of(cb, struct default_wait_cb, base);
-
-	wake_up_state(wait->task, TASK_NORMAL);
+static void dma_fence_default_wait_cb(struct dma_fence *fence,
+    struct dma_fence_cb *cb) {
+  struct default_wait_cb *wait
+    = container_of(cb, struct default_wait_cb, base);
+  wake_up_state(wait->task, TASK_NORMAL);
 }
 
 /**
@@ -757,71 +713,64 @@ dma_fence_default_wait_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
  * returned if the fence is already signaled for consistency with other
  * functions taking a jiffies timeout.
  */
-signed long
-dma_fence_default_wait(struct dma_fence *fence, bool intr, signed long timeout)
-{
-	struct default_wait_cb cb;
-	unsigned long flags;
-	signed long ret = timeout ? timeout : 1;
-
-	spin_lock_irqsave(fence->lock, flags);
-
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		goto out;
-
-	if (intr && signal_pending(current)) {
-		ret = -ERESTARTSYS;
-		goto out;
-	}
-
-	if (!timeout) {
-		ret = 0;
-		goto out;
-	}
-
-	cb.base.func = dma_fence_default_wait_cb;
-	cb.task = current;
-	list_add(&cb.base.node, &fence->cb_list);
-
-	while (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) && ret > 0) {
-		if (intr)
-			__set_current_state(TASK_INTERRUPTIBLE);
-		else
-			__set_current_state(TASK_UNINTERRUPTIBLE);
-		spin_unlock_irqrestore(fence->lock, flags);
-
-		ret = schedule_timeout(ret);
-
-		spin_lock_irqsave(fence->lock, flags);
-		if (ret > 0 && intr && signal_pending(current))
-			ret = -ERESTARTSYS;
-	}
-
-	if (!list_empty(&cb.base.node))
-		list_del(&cb.base.node);
-	__set_current_state(TASK_RUNNING);
-
+signed long dma_fence_default_wait(struct dma_fence *fence, bool intr,
+    signed long timeout) {
+  struct default_wait_cb cb;
+  unsigned long flags;
+  signed long ret = timeout ? timeout : 1;
+  spin_lock_irqsave(fence->lock, flags);
+  if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+    goto out;
+  }
+  if (intr && signal_pending(current)) {
+    ret = -ERESTARTSYS;
+    goto out;
+  }
+  if (!timeout) {
+    ret = 0;
+    goto out;
+  }
+  cb.base.func = dma_fence_default_wait_cb;
+  cb.task = current;
+  list_add(&cb.base.node, &fence->cb_list);
+  while (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) && ret > 0) {
+    if (intr) {
+      __set_current_state(TASK_INTERRUPTIBLE);
+    } else {
+      __set_current_state(TASK_UNINTERRUPTIBLE);
+    }
+    spin_unlock_irqrestore(fence->lock, flags);
+    ret = schedule_timeout(ret);
+    spin_lock_irqsave(fence->lock, flags);
+    if (ret > 0 && intr && signal_pending(current)) {
+      ret = -ERESTARTSYS;
+    }
+  }
+  if (!list_empty(&cb.base.node)) {
+    list_del(&cb.base.node);
+  }
+  __set_current_state(TASK_RUNNING);
 out:
-	spin_unlock_irqrestore(fence->lock, flags);
-	return ret;
+  spin_unlock_irqrestore(fence->lock, flags);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_default_wait);
 
-static bool
-dma_fence_test_signaled_any(struct dma_fence **fences, uint32_t count,
-			    uint32_t *idx)
-{
-	int i;
-
-	for (i = 0; i < count; ++i) {
-		struct dma_fence *fence = fences[i];
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-			if (idx)
-				*idx = i;
-			return true;
-		}
-	}
-	return false;
+static bool dma_fence_test_signaled_any(struct dma_fence **fences,
+    uint32_t count,
+    uint32_t *idx) {
+  int i;
+  for (i = 0; i < count; ++i) {
+    struct dma_fence *fence = fences[i];
+    if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+      if (idx) {
+        *idx = i;
+      }
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -832,7 +781,7 @@ dma_fence_test_signaled_any(struct dma_fence **fences, uint32_t count,
  * @intr: if true, do an interruptible wait
  * @timeout: timeout value in jiffies, or MAX_SCHEDULE_TIMEOUT
  * @idx: used to store the first signaled fence index, meaningful only on
- *	positive return
+ *  positive return
  *
  * Returns -EINVAL on custom fence wait implementation, -ERESTARTSYS if
  * interrupted, 0 if the wait timed out, or the remaining timeout in jiffies
@@ -844,73 +793,67 @@ dma_fence_test_signaled_any(struct dma_fence **fences, uint32_t count,
  *
  * See also dma_fence_wait() and dma_fence_wait_timeout().
  */
-signed long
-dma_fence_wait_any_timeout(struct dma_fence **fences, uint32_t count,
-			   bool intr, signed long timeout, uint32_t *idx)
-{
-	struct default_wait_cb *cb;
-	signed long ret = timeout;
-	unsigned i;
-
-	if (WARN_ON(!fences || !count || timeout < 0))
-		return -EINVAL;
-
-	if (timeout == 0) {
-		for (i = 0; i < count; ++i)
-			if (dma_fence_is_signaled(fences[i])) {
-				if (idx)
-					*idx = i;
-				return 1;
-			}
-
-		return 0;
-	}
-
-	cb = kcalloc(count, sizeof(struct default_wait_cb), GFP_KERNEL);
-	if (cb == NULL) {
-		ret = -ENOMEM;
-		goto err_free_cb;
-	}
-
-	for (i = 0; i < count; ++i) {
-		struct dma_fence *fence = fences[i];
-
-		cb[i].task = current;
-		if (dma_fence_add_callback(fence, &cb[i].base,
-					   dma_fence_default_wait_cb)) {
-			/* This fence is already signaled */
-			if (idx)
-				*idx = i;
-			goto fence_rm_cb;
-		}
-	}
-
-	while (ret > 0) {
-		if (intr)
-			set_current_state(TASK_INTERRUPTIBLE);
-		else
-			set_current_state(TASK_UNINTERRUPTIBLE);
-
-		if (dma_fence_test_signaled_any(fences, count, idx))
-			break;
-
-		ret = schedule_timeout(ret);
-
-		if (ret > 0 && intr && signal_pending(current))
-			ret = -ERESTARTSYS;
-	}
-
-	__set_current_state(TASK_RUNNING);
-
+signed long dma_fence_wait_any_timeout(struct dma_fence **fences,
+    uint32_t count,
+    bool intr, signed long timeout, uint32_t *idx) {
+  struct default_wait_cb *cb;
+  signed long ret = timeout;
+  unsigned i;
+  if (WARN_ON(!fences || !count || timeout < 0)) {
+    return -EINVAL;
+  }
+  if (timeout == 0) {
+    for (i = 0; i < count; ++i) {
+      if (dma_fence_is_signaled(fences[i])) {
+        if (idx) {
+          *idx = i;
+        }
+        return 1;
+      }
+    }
+    return 0;
+  }
+  cb = kcalloc(count, sizeof(struct default_wait_cb), GFP_KERNEL);
+  if (cb == NULL) {
+    ret = -ENOMEM;
+    goto err_free_cb;
+  }
+  for (i = 0; i < count; ++i) {
+    struct dma_fence *fence = fences[i];
+    cb[i].task = current;
+    if (dma_fence_add_callback(fence, &cb[i].base,
+        dma_fence_default_wait_cb)) {
+      /* This fence is already signaled */
+      if (idx) {
+        *idx = i;
+      }
+      goto fence_rm_cb;
+    }
+  }
+  while (ret > 0) {
+    if (intr) {
+      set_current_state(TASK_INTERRUPTIBLE);
+    } else {
+      set_current_state(TASK_UNINTERRUPTIBLE);
+    }
+    if (dma_fence_test_signaled_any(fences, count, idx)) {
+      break;
+    }
+    ret = schedule_timeout(ret);
+    if (ret > 0 && intr && signal_pending(current)) {
+      ret = -ERESTARTSYS;
+    }
+  }
+  __set_current_state(TASK_RUNNING);
 fence_rm_cb:
-	while (i-- > 0)
-		dma_fence_remove_callback(fences[i], &cb[i].base);
-
+  while (i-- > 0) {
+    dma_fence_remove_callback(fences[i], &cb[i].base);
+  }
 err_free_cb:
-	kfree(cb);
-
-	return ret;
+  kfree(cb);
+  return ret;
 }
+
 EXPORT_SYMBOL(dma_fence_wait_any_timeout);
 
 /**
@@ -934,7 +877,8 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  *   the GPU's devfreq to reduce frequency, when in fact the opposite is what is
  *   needed.
  *
- * To this end, deadline hint(s) can be set on a &dma_fence via &dma_fence_set_deadline
+ * To this end, deadline hint(s) can be set on a &dma_fence via
+ *&dma_fence_set_deadline
  * (or indirectly via userspace facing ioctls like &sync_set_deadline).
  * The deadline hint provides a way for the waiting driver, or userspace, to
  * convey an appropriate sense of urgency to the signaling driver.
@@ -966,11 +910,12 @@ EXPORT_SYMBOL(dma_fence_wait_any_timeout);
  * if a periodic vblank deadline is approaching but the fence is not
  * yet signaled..
  */
-void dma_fence_set_deadline(struct dma_fence *fence, ktime_t deadline)
-{
-	if (fence->ops->set_deadline && !dma_fence_is_signaled(fence))
-		fence->ops->set_deadline(fence, deadline);
+void dma_fence_set_deadline(struct dma_fence *fence, ktime_t deadline) {
+  if (fence->ops->set_deadline && !dma_fence_is_signaled(fence)) {
+    fence->ops->set_deadline(fence, deadline);
+  }
 }
+
 EXPORT_SYMBOL(dma_fence_set_deadline);
 
 /**
@@ -980,13 +925,13 @@ EXPORT_SYMBOL(dma_fence_set_deadline);
  *
  * Dump a textual description of the fence and it's state into the seq_file.
  */
-void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq)
-{
-	seq_printf(seq, "%s %s seq %llu %ssignalled\n",
-		   fence->ops->get_driver_name(fence),
-		   fence->ops->get_timeline_name(fence), fence->seqno,
-		   dma_fence_is_signaled(fence) ? "" : "un");
+void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq) {
+  seq_printf(seq, "%s %s seq %llu %ssignalled\n",
+      fence->ops->get_driver_name(fence),
+      fence->ops->get_timeline_name(fence), fence->seqno,
+      dma_fence_is_signaled(fence) ? "" : "un");
 }
+
 EXPORT_SYMBOL(dma_fence_describe);
 
 /**
@@ -1004,22 +949,19 @@ EXPORT_SYMBOL(dma_fence_describe);
  * context and seqno are used for easy comparison between fences, allowing
  * to check which fence is later by simply using dma_fence_later().
  */
-void
-dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-	       spinlock_t *lock, u64 context, u64 seqno)
-{
-	BUG_ON(!lock);
-	BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
-
-	kref_init(&fence->refcount);
-	fence->ops = ops;
-	INIT_LIST_HEAD(&fence->cb_list);
-	fence->lock = lock;
-	fence->context = context;
-	fence->seqno = seqno;
-	fence->flags = 0UL;
-	fence->error = 0;
-
-	trace_dma_fence_init(fence);
+void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
+    spinlock_t *lock, u64 context, u64 seqno) {
+  BUG_ON(!lock);
+  BUG_ON(!ops || !ops->get_driver_name || !ops->get_timeline_name);
+  kref_init(&fence->refcount);
+  fence->ops = ops;
+  INIT_LIST_HEAD(&fence->cb_list);
+  fence->lock = lock;
+  fence->context = context;
+  fence->seqno = seqno;
+  fence->flags = 0UL;
+  fence->error = 0;
+  trace_dma_fence_init(fence);
 }
+
 EXPORT_SYMBOL(dma_fence_init);

@@ -28,41 +28,41 @@
 #ifndef __R100D_H__
 #define __R100D_H__
 
-#define CP_PACKET0			0x00000000
-#define		PACKET0_BASE_INDEX_SHIFT	0
-#define		PACKET0_BASE_INDEX_MASK		(0x1ffff << 0)
-#define		PACKET0_COUNT_SHIFT		16
-#define		PACKET0_COUNT_MASK		(0x3fff << 16)
-#define CP_PACKET1			0x40000000
-#define CP_PACKET2			0x80000000
-#define		PACKET2_PAD_SHIFT		0
-#define		PACKET2_PAD_MASK		(0x3fffffff << 0)
-#define CP_PACKET3			0xC0000000
-#define		PACKET3_IT_OPCODE_SHIFT		8
-#define		PACKET3_IT_OPCODE_MASK		(0xff << 8)
-#define		PACKET3_COUNT_SHIFT		16
-#define		PACKET3_COUNT_MASK		(0x3fff << 16)
+#define CP_PACKET0      0x00000000
+#define   PACKET0_BASE_INDEX_SHIFT  0
+#define   PACKET0_BASE_INDEX_MASK   (0x1ffff << 0)
+#define   PACKET0_COUNT_SHIFT   16
+#define   PACKET0_COUNT_MASK    (0x3fff << 16)
+#define CP_PACKET1      0x40000000
+#define CP_PACKET2      0x80000000
+#define   PACKET2_PAD_SHIFT   0
+#define   PACKET2_PAD_MASK    (0x3fffffff << 0)
+#define CP_PACKET3      0xC0000000
+#define   PACKET3_IT_OPCODE_SHIFT   8
+#define   PACKET3_IT_OPCODE_MASK    (0xff << 8)
+#define   PACKET3_COUNT_SHIFT   16
+#define   PACKET3_COUNT_MASK    (0x3fff << 16)
 /* PACKET3 op code */
-#define		PACKET3_NOP			0x10
-#define		PACKET3_3D_DRAW_VBUF		0x28
-#define		PACKET3_3D_DRAW_IMMD		0x29
-#define		PACKET3_3D_DRAW_INDX		0x2A
-#define		PACKET3_3D_LOAD_VBPNTR		0x2F
-#define		PACKET3_3D_CLEAR_ZMASK		0x32
-#define		PACKET3_INDX_BUFFER		0x33
-#define		PACKET3_3D_DRAW_VBUF_2		0x34
-#define		PACKET3_3D_DRAW_IMMD_2		0x35
-#define		PACKET3_3D_DRAW_INDX_2		0x36
-#define		PACKET3_3D_CLEAR_HIZ		0x37
-#define		PACKET3_BITBLT_MULTI		0x9B
+#define   PACKET3_NOP     0x10
+#define   PACKET3_3D_DRAW_VBUF    0x28
+#define   PACKET3_3D_DRAW_IMMD    0x29
+#define   PACKET3_3D_DRAW_INDX    0x2A
+#define   PACKET3_3D_LOAD_VBPNTR    0x2F
+#define   PACKET3_3D_CLEAR_ZMASK    0x32
+#define   PACKET3_INDX_BUFFER   0x33
+#define   PACKET3_3D_DRAW_VBUF_2    0x34
+#define   PACKET3_3D_DRAW_IMMD_2    0x35
+#define   PACKET3_3D_DRAW_INDX_2    0x36
+#define   PACKET3_3D_CLEAR_HIZ    0x37
+#define   PACKET3_BITBLT_MULTI    0x9B
 
-#define PACKET0(reg, n)	(CP_PACKET0 |					\
-			 REG_SET(PACKET0_BASE_INDEX, (reg) >> 2) |	\
-			 REG_SET(PACKET0_COUNT, (n)))
-#define PACKET2(v)	(CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
-#define PACKET3(op, n)	(CP_PACKET3 |					\
-			 REG_SET(PACKET3_IT_OPCODE, (op)) |		\
-			 REG_SET(PACKET3_COUNT, (n)))
+#define PACKET0(reg, n) (CP_PACKET0           \
+  | REG_SET(PACKET0_BASE_INDEX, (reg) >> 2)    \
+  | REG_SET(PACKET0_COUNT, (n)))
+#define PACKET2(v)  (CP_PACKET2 | REG_SET(PACKET2_PAD, (v)))
+#define PACKET3(op, n)  (CP_PACKET3           \
+  | REG_SET(PACKET3_IT_OPCODE, (op))     \
+  | REG_SET(PACKET3_COUNT, (n)))
 
 /* Registers */
 #define R_0000F0_RBBM_SOFT_RESET                     0x0000F0
@@ -780,7 +780,6 @@
 #define   S_000E40_GUI_ACTIVE(x)                       (((x) & 0x1) << 31)
 #define   G_000E40_GUI_ACTIVE(x)                       (((x) >> 31) & 0x1)
 #define   C_000E40_GUI_ACTIVE                          0x7FFFFFFF
-
 
 #define R_00000D_SCLK_CNTL                           0x00000D
 #define   S_00000D_SCLK_SRC_SEL(x)                     (((x) & 0x7) << 0)

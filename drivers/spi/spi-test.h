@@ -16,13 +16,13 @@
 /* the "dummy" start addresses used in spi_test
  * these addresses get translated at a later stage
  */
-#define RX_START	BIT(30)
-#define TX_START	BIT(31)
-#define RX(off)		((void *)(RX_START + off))
-#define TX(off)		((void *)(TX_START + off))
+#define RX_START  BIT(30)
+#define TX_START  BIT(31)
+#define RX(off)   ((void *) (RX_START + off))
+#define TX(off)   ((void *) (TX_START + off))
 
 /* some special defines for offsets */
-#define SPI_TEST_MAX_SIZE_HALF	BIT(29)
+#define SPI_TEST_MAX_SIZE_HALF  BIT(29)
 
 /* detection pattern for unfinished reads...
  * - 0x00 or 0xff could be valid levels for tx_buf = NULL,
@@ -70,59 +70,59 @@
  */
 
 struct spi_test {
-	char description[64];
-	struct spi_message msg;
-	struct spi_transfer transfers[SPI_TEST_MAX_TRANSFERS];
-	unsigned int transfer_count;
-	int (*run_test)(struct spi_device *spi, struct spi_test *test,
-			void *tx, void *rx);
-	int (*execute_msg)(struct spi_device *spi, struct spi_test *test,
-			   void *tx, void *rx);
-	int expected_return;
-	/* iterate over all values, terminated by a -1 */
-	int iterate_len[SPI_TEST_MAX_ITERATE];
-	int iterate_tx_align;
-	int iterate_rx_align;
-	u32 iterate_transfer_mask;
-	/* the tx-fill operation */
-	u32 fill_option;
-#define FILL_MEMSET_8	0	/* just memset with 8 bit */
-#define FILL_MEMSET_16	1	/* just memset with 16 bit */
-#define FILL_MEMSET_24	2	/* just memset with 24 bit */
-#define FILL_MEMSET_32	3	/* just memset with 32 bit */
-#define FILL_COUNT_8	4	/* fill with a 8 byte counter */
-#define FILL_COUNT_16	5	/* fill with a 16 bit counter */
-#define FILL_COUNT_24	6	/* fill with a 24 bit counter */
-#define FILL_COUNT_32	7	/* fill with a 32 bit counter */
-#define FILL_TRANSFER_BYTE_8  8	/* fill with the transfer byte - 8 bit */
-#define FILL_TRANSFER_BYTE_16 9	/* fill with the transfer byte - 16 bit */
+  char description[64];
+  struct spi_message msg;
+  struct spi_transfer transfers[SPI_TEST_MAX_TRANSFERS];
+  unsigned int transfer_count;
+  int (*run_test)(struct spi_device *spi, struct spi_test *test,
+      void *tx, void *rx);
+  int (*execute_msg)(struct spi_device *spi, struct spi_test *test,
+      void *tx, void *rx);
+  int expected_return;
+  /* iterate over all values, terminated by a -1 */
+  int iterate_len[SPI_TEST_MAX_ITERATE];
+  int iterate_tx_align;
+  int iterate_rx_align;
+  u32 iterate_transfer_mask;
+  /* the tx-fill operation */
+  u32 fill_option;
+#define FILL_MEMSET_8 0 /* just memset with 8 bit */
+#define FILL_MEMSET_16  1 /* just memset with 16 bit */
+#define FILL_MEMSET_24  2 /* just memset with 24 bit */
+#define FILL_MEMSET_32  3 /* just memset with 32 bit */
+#define FILL_COUNT_8  4 /* fill with a 8 byte counter */
+#define FILL_COUNT_16 5 /* fill with a 16 bit counter */
+#define FILL_COUNT_24 6 /* fill with a 24 bit counter */
+#define FILL_COUNT_32 7 /* fill with a 32 bit counter */
+#define FILL_TRANSFER_BYTE_8  8 /* fill with the transfer byte - 8 bit */
+#define FILL_TRANSFER_BYTE_16 9 /* fill with the transfer byte - 16 bit */
 #define FILL_TRANSFER_BYTE_24 10 /* fill with the transfer byte - 24 bit */
 #define FILL_TRANSFER_BYTE_32 11 /* fill with the transfer byte - 32 bit */
 #define FILL_TRANSFER_NUM     16 /* fill with the transfer number */
-	u32 fill_pattern;
-	unsigned long long elapsed_time;
+  u32 fill_pattern;
+  unsigned long long elapsed_time;
 };
 
 /* default implementation for @spi_test.run_test */
 int spi_test_run_test(struct spi_device *spi,
-		      const struct spi_test *test,
-		      void *tx, void *rx);
+    const struct spi_test *test,
+    void *tx, void *rx);
 
 /* default implementation for @spi_test.execute_msg */
 int spi_test_execute_msg(struct spi_device *spi,
-			 struct spi_test *test,
-			 void *tx, void *rx);
+    struct spi_test *test,
+    void *tx, void *rx);
 
 /* function to execute a set of tests */
 int spi_test_run_tests(struct spi_device *spi,
-		       struct spi_test *tests);
+    struct spi_test *tests);
 
 #define ITERATE_LEN_LIST 0, 1, 2, 3, 7, 11, 16, 31, 32, 64, 97, 128, 251, 256, \
-		1021, 1024, 1031, 4093, PAGE_SIZE, 4099, 65536, 65537
+  1021, 1024, 1031, 4093, PAGE_SIZE, 4099, 65536, 65537
 /* some of the default @spi_transfer.len to test, terminated by a -1 */
 #define ITERATE_LEN ITERATE_LEN_LIST, -1
 #define ITERATE_MAX_LEN ITERATE_LEN_LIST, (SPI_TEST_MAX_SIZE - 1), \
-		SPI_TEST_MAX_SIZE, -1
+  SPI_TEST_MAX_SIZE, -1
 
 /* the default alignment to test */
 #define ITERATE_ALIGN sizeof(int)

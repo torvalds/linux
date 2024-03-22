@@ -52,26 +52,26 @@
 
 /* for TX: a skb must have a headroom of at least TX_HEADER_LEN bytes */
 #define TX_HEADER_LEN \
-	(sizeof(struct fw_ofld_tx_data_wr) + sizeof(struct sge_opaque_hdr))
+  (sizeof(struct fw_ofld_tx_data_wr) + sizeof(struct sge_opaque_hdr))
 #define TX_TLSHDR_LEN \
-	(sizeof(struct fw_tlstx_data_wr) + sizeof(struct cpl_tx_tls_sfo) + \
-	 sizeof(struct sge_opaque_hdr))
+  (sizeof(struct fw_tlstx_data_wr) + sizeof(struct cpl_tx_tls_sfo)   \
+  + sizeof(struct sge_opaque_hdr))
 #define TXDATA_SKB_LEN 128
 
 enum {
-	CPL_TX_TLS_SFO_TYPE_CCS,
-	CPL_TX_TLS_SFO_TYPE_ALERT,
-	CPL_TX_TLS_SFO_TYPE_HANDSHAKE,
-	CPL_TX_TLS_SFO_TYPE_DATA,
-	CPL_TX_TLS_SFO_TYPE_HEARTBEAT,
+  CPL_TX_TLS_SFO_TYPE_CCS,
+  CPL_TX_TLS_SFO_TYPE_ALERT,
+  CPL_TX_TLS_SFO_TYPE_HANDSHAKE,
+  CPL_TX_TLS_SFO_TYPE_DATA,
+  CPL_TX_TLS_SFO_TYPE_HEARTBEAT,
 };
 
 enum {
-	TLS_HDR_TYPE_CCS = 20,
-	TLS_HDR_TYPE_ALERT,
-	TLS_HDR_TYPE_HANDSHAKE,
-	TLS_HDR_TYPE_RECORD,
-	TLS_HDR_TYPE_HEARTBEAT,
+  TLS_HDR_TYPE_CCS = 20,
+  TLS_HDR_TYPE_ALERT,
+  TLS_HDR_TYPE_HANDSHAKE,
+  TLS_HDR_TYPE_RECORD,
+  TLS_HDR_TYPE_HEARTBEAT,
 };
 
 typedef void (*defer_handler_t)(struct chtls_dev *dev, struct sk_buff *skb);
@@ -79,13 +79,13 @@ extern struct request_sock_ops chtls_rsk_ops;
 extern struct request_sock_ops chtls_rsk_opsv6;
 
 struct deferred_skb_cb {
-	defer_handler_t handler;
-	struct chtls_dev *dev;
+  defer_handler_t handler;
+  struct chtls_dev *dev;
 };
 
-#define DEFERRED_SKB_CB(skb) ((struct deferred_skb_cb *)(skb)->cb)
+#define DEFERRED_SKB_CB(skb) ((struct deferred_skb_cb *) (skb)->cb)
 #define failover_flowc_wr_len offsetof(struct fw_flowc_wr, mnemval[3])
-#define WR_SKB_CB(skb) ((struct wr_skb_cb *)(skb)->cb)
+#define WR_SKB_CB(skb) ((struct wr_skb_cb *) (skb)->cb)
 #define ACCEPT_QUEUE(sk) (&inet_csk(sk)->icsk_accept_queue.rskq_accept_head)
 
 #define SND_WSCALE(tp) ((tp)->rx_opt.snd_wscale)
@@ -102,118 +102,105 @@ struct deferred_skb_cb {
 #define skb_ulp_tls_iv_imm(skb)      (ULP_SKB_CB(skb)->ulp.tls.iv)
 
 void chtls_defer_reply(struct sk_buff *skb, struct chtls_dev *dev,
-		       defer_handler_t handler);
+    defer_handler_t handler);
 
 /*
  * Returns true if the socket is in one of the supplied states.
  */
 static inline unsigned int sk_in_state(const struct sock *sk,
-				       unsigned int states)
-{
-	return states & (1 << sk->sk_state);
+    unsigned int states) {
+  return states & (1 << sk->sk_state);
 }
 
-static void chtls_rsk_destructor(struct request_sock *req)
-{
-	/* do nothing */
+static void chtls_rsk_destructor(struct request_sock *req) {
+  /* do nothing */
 }
 
 static inline void chtls_init_rsk_ops(struct proto *chtls_tcp_prot,
-				      struct request_sock_ops *chtls_tcp_ops,
-				      struct proto *tcp_prot, int family)
-{
-	memset(chtls_tcp_ops, 0, sizeof(*chtls_tcp_ops));
-	chtls_tcp_ops->family = family;
-	chtls_tcp_ops->obj_size = sizeof(struct tcp_request_sock);
-	chtls_tcp_ops->destructor = chtls_rsk_destructor;
-	chtls_tcp_ops->slab = tcp_prot->rsk_prot->slab;
-	chtls_tcp_prot->rsk_prot = chtls_tcp_ops;
+    struct request_sock_ops *chtls_tcp_ops,
+    struct proto *tcp_prot, int family) {
+  memset(chtls_tcp_ops, 0, sizeof(*chtls_tcp_ops));
+  chtls_tcp_ops->family = family;
+  chtls_tcp_ops->obj_size = sizeof(struct tcp_request_sock);
+  chtls_tcp_ops->destructor = chtls_rsk_destructor;
+  chtls_tcp_ops->slab = tcp_prot->rsk_prot->slab;
+  chtls_tcp_prot->rsk_prot = chtls_tcp_ops;
 }
 
-static inline void chtls_reqsk_free(struct request_sock *req)
-{
-	if (req->rsk_listener)
-		sock_put(req->rsk_listener);
-	kmem_cache_free(req->rsk_ops->slab, req);
+static inline void chtls_reqsk_free(struct request_sock *req) {
+  if (req->rsk_listener) {
+    sock_put(req->rsk_listener);
+  }
+  kmem_cache_free(req->rsk_ops->slab, req);
 }
 
 #define DECLARE_TASK_FUNC(task, task_param) \
-		static void task(struct work_struct *task_param)
+  static void task(struct work_struct *task_param)
 
-static inline void sk_wakeup_sleepers(struct sock *sk, bool interruptable)
-{
-	struct socket_wq *wq;
-
-	rcu_read_lock();
-	wq = rcu_dereference(sk->sk_wq);
-	if (skwq_has_sleeper(wq)) {
-		if (interruptable)
-			wake_up_interruptible(sk_sleep(sk));
-		else
-			wake_up_all(sk_sleep(sk));
-	}
-	rcu_read_unlock();
+static inline void sk_wakeup_sleepers(struct sock *sk, bool interruptable) {
+  struct socket_wq *wq;
+  rcu_read_lock();
+  wq = rcu_dereference(sk->sk_wq);
+  if (skwq_has_sleeper(wq)) {
+    if (interruptable) {
+      wake_up_interruptible(sk_sleep(sk));
+    } else {
+      wake_up_all(sk_sleep(sk));
+    }
+  }
+  rcu_read_unlock();
 }
 
 static inline void chtls_set_req_port(struct request_sock *oreq,
-				      __be16 source, __be16 dest)
-{
-	inet_rsk(oreq)->ir_rmt_port = source;
-	inet_rsk(oreq)->ir_num = ntohs(dest);
+    __be16 source, __be16 dest) {
+  inet_rsk(oreq)->ir_rmt_port = source;
+  inet_rsk(oreq)->ir_num = ntohs(dest);
 }
 
 static inline void chtls_set_req_addr(struct request_sock *oreq,
-				      __be32 local_ip, __be32 peer_ip)
-{
-	inet_rsk(oreq)->ir_loc_addr = local_ip;
-	inet_rsk(oreq)->ir_rmt_addr = peer_ip;
+    __be32 local_ip, __be32 peer_ip) {
+  inet_rsk(oreq)->ir_loc_addr = local_ip;
+  inet_rsk(oreq)->ir_rmt_addr = peer_ip;
 }
 
-static inline void chtls_free_skb(struct sock *sk, struct sk_buff *skb)
-{
-	skb_dst_set(skb, NULL);
-	__skb_unlink(skb, &sk->sk_receive_queue);
-	__kfree_skb(skb);
+static inline void chtls_free_skb(struct sock *sk, struct sk_buff *skb) {
+  skb_dst_set(skb, NULL);
+  __skb_unlink(skb, &sk->sk_receive_queue);
+  __kfree_skb(skb);
 }
 
-static inline void chtls_kfree_skb(struct sock *sk, struct sk_buff *skb)
-{
-	skb_dst_set(skb, NULL);
-	__skb_unlink(skb, &sk->sk_receive_queue);
-	kfree_skb(skb);
+static inline void chtls_kfree_skb(struct sock *sk, struct sk_buff *skb) {
+  skb_dst_set(skb, NULL);
+  __skb_unlink(skb, &sk->sk_receive_queue);
+  kfree_skb(skb);
 }
 
-static inline void chtls_reset_wr_list(struct chtls_sock *csk)
-{
-	csk->wr_skb_head = NULL;
-	csk->wr_skb_tail = NULL;
+static inline void chtls_reset_wr_list(struct chtls_sock *csk) {
+  csk->wr_skb_head = NULL;
+  csk->wr_skb_tail = NULL;
 }
 
-static inline void enqueue_wr(struct chtls_sock *csk, struct sk_buff *skb)
-{
-	WR_SKB_CB(skb)->next_wr = NULL;
-
-	skb_get(skb);
-
-	if (!csk->wr_skb_head)
-		csk->wr_skb_head = skb;
-	else
-		WR_SKB_CB(csk->wr_skb_tail)->next_wr = skb;
-	csk->wr_skb_tail = skb;
+static inline void enqueue_wr(struct chtls_sock *csk, struct sk_buff *skb) {
+  WR_SKB_CB(skb)->next_wr = NULL;
+  skb_get(skb);
+  if (!csk->wr_skb_head) {
+    csk->wr_skb_head = skb;
+  } else {
+    WR_SKB_CB(csk->wr_skb_tail)->next_wr = skb;
+  }
+  csk->wr_skb_tail = skb;
 }
 
-static inline struct sk_buff *dequeue_wr(struct sock *sk)
-{
-	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
-	struct sk_buff *skb = NULL;
-
-	skb = csk->wr_skb_head;
-
-	if (likely(skb)) {
-	 /* Don't bother clearing the tail */
-		csk->wr_skb_head = WR_SKB_CB(skb)->next_wr;
-		WR_SKB_CB(skb)->next_wr = NULL;
-	}
-	return skb;
+static inline struct sk_buff *dequeue_wr(struct sock *sk) {
+  struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
+  struct sk_buff *skb = NULL;
+  skb = csk->wr_skb_head;
+  if (likely(skb)) {
+    /* Don't bother clearing the tail */
+    csk->wr_skb_head = WR_SKB_CB(skb)->next_wr;
+    WR_SKB_CB(skb)->next_wr = NULL;
+  }
+  return skb;
 }
+
 #endif

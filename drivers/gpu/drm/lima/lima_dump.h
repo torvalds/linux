@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2020 Qiang Yu <yuq825@gmail.com> */
+/* SPDX-License-Identifier: GPL-2.0 OR MIT
+ * Copyright 2020 Qiang Yu <yuq825@gmail.com>*/
 
 #ifndef __LIMA_DUMP_H__
 #define __LIMA_DUMP_H__
@@ -29,12 +29,12 @@
 #define LIMA_DUMP_MAGIC 0x414d494c
 
 struct lima_dump_head {
-	__u32 magic;
-	__u16 version_major;
-	__u16 version_minor;
-	__u32 num_tasks;
-	__u32 size;
-	__u32 reserved[4];
+  __u32 magic;
+  __u16 version_major;
+  __u16 version_minor;
+  __u32 num_tasks;
+  __u32 size;
+  __u32 reserved[4];
 };
 
 #define LIMA_DUMP_TASK_GP   0
@@ -42,10 +42,10 @@ struct lima_dump_head {
 #define LIMA_DUMP_TASK_NUM  2
 
 struct lima_dump_task {
-	__u32 id;
-	__u32 size;
-	__u32 num_chunks;
-	__u32 reserved;
+  __u32 id;
+  __u32 size;
+  __u32 num_chunks;
+  __u32 reserved;
 };
 
 #define LIMA_DUMP_CHUNK_FRAME         0
@@ -55,23 +55,23 @@ struct lima_dump_task {
 #define LIMA_DUMP_CHUNK_NUM           4
 
 struct lima_dump_chunk {
-	__u32 id;
-	__u32 size;
-	__u32 reserved[2];
+  __u32 id;
+  __u32 size;
+  __u32 reserved[2];
 };
 
 struct lima_dump_chunk_buffer {
-	__u32 id;
-	__u32 size;
-	__u32 va;
-	__u32 reserved;
+  __u32 id;
+  __u32 size;
+  __u32 va;
+  __u32 reserved;
 };
 
 struct lima_dump_chunk_pid {
-	__u32 id;
-	__u32 size;
-	__u32 pid;
-	__u32 reserved;
+  __u32 id;
+  __u32 size;
+  __u32 pid;
+  __u32 reserved;
 };
 
 #endif

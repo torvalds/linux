@@ -16,14 +16,14 @@
  * and eliminates the need for absolute relocations that require runtime
  * processing on relocatable kernels.
  */
-#define __KSYM_ALIGN		".balign 4"
-#define __KSYM_REF(sym)		".long " #sym "- ."
+#define __KSYM_ALIGN    ".balign 4"
+#define __KSYM_REF(sym)   ".long " #sym "- ."
 #elif defined(CONFIG_64BIT)
-#define __KSYM_ALIGN		".balign 8"
-#define __KSYM_REF(sym)		".quad " #sym
+#define __KSYM_ALIGN    ".balign 8"
+#define __KSYM_REF(sym)   ".quad " #sym
 #else
-#define __KSYM_ALIGN		".balign 4"
-#define __KSYM_REF(sym)		".long " #sym
+#define __KSYM_ALIGN    ".balign 4"
+#define __KSYM_REF(sym)   ".long " #sym
 #endif
 
 /*
@@ -37,36 +37,36 @@
  * section flag requires it. Use '%progbits' instead of '@progbits' since the
  * former apparently works on all arches according to the binutils source.
  */
-#define __KSYMTAB(name, sym, sec, ns)						\
-	asm("	.section \"__ksymtab_strings\",\"aMS\",%progbits,1"	"\n"	\
-	    "__kstrtab_" #name ":"					"\n"	\
-	    "	.asciz \"" #name "\""					"\n"	\
-	    "__kstrtabns_" #name ":"					"\n"	\
-	    "	.asciz \"" ns "\""					"\n"	\
-	    "	.previous"						"\n"	\
-	    "	.section \"___ksymtab" sec "+" #name "\", \"a\""	"\n"	\
-		__KSYM_ALIGN						"\n"	\
-	    "__ksymtab_" #name ":"					"\n"	\
-		__KSYM_REF(sym)						"\n"	\
-		__KSYM_REF(__kstrtab_ ##name)				"\n"	\
-		__KSYM_REF(__kstrtabns_ ##name)				"\n"	\
-	    "	.previous"						"\n"	\
-	)
+#define __KSYMTAB(name, sym, sec, ns)           \
+  asm ("	.section \"__ksymtab_strings\",\"aMS\",%progbits,1""\n"  \
+  "__kstrtab_" #name ":"          "\n"  \
+  "	.asciz \"" #name "\""         "\n"  \
+  "__kstrtabns_" #name ":"          "\n"  \
+  "	.asciz \"" ns "\""          "\n"  \
+  "	.previous"            "\n"  \
+  "	.section \"___ksymtab" sec "+" #name "\", \"a\""  "\n"  \
+  __KSYM_ALIGN            "\n"  \
+  "__ksymtab_" #name ":"          "\n"  \
+  __KSYM_REF(sym)           "\n"  \
+  __KSYM_REF(__kstrtab_ ## name)       "\n"  \
+  __KSYM_REF(__kstrtabns_ ## name)       "\n"  \
+  "	.previous"            "\n"  \
+  )
 
 #if defined(CONFIG_PARISC) && defined(CONFIG_64BIT)
-#define KSYM_FUNC(name)		P%name
+#define KSYM_FUNC(name)   P % name
 #else
-#define KSYM_FUNC(name)		name
+#define KSYM_FUNC(name)   name
 #endif
 
-#define KSYMTAB_FUNC(name, sec, ns)	__KSYMTAB(name, KSYM_FUNC(name), sec, ns)
-#define KSYMTAB_DATA(name, sec, ns)	__KSYMTAB(name, name, sec, ns)
+#define KSYMTAB_FUNC(name, sec, ns) __KSYMTAB(name, KSYM_FUNC(name), sec, ns)
+#define KSYMTAB_DATA(name, sec, ns) __KSYMTAB(name, name, sec, ns)
 
 #define SYMBOL_CRC(sym, crc, sec)   \
-	asm(".section \"___kcrctab" sec "+" #sym "\",\"a\""	"\n" \
-	    ".balign 4"						"\n" \
-	    "__crc_" #sym ":"					"\n" \
-	    ".long " #crc					"\n" \
-	    ".previous"						"\n")
+  asm (".section \"___kcrctab" sec "+" #sym "\",\"a\"" "\n" \
+  ".balign 4"           "\n" \
+  "__crc_" #sym ":"         "\n" \
+  ".long " #crc         "\n" \
+  ".previous"           "\n")
 
 #endif /* __LINUX_EXPORT_INTERNAL_H__ */

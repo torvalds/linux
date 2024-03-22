@@ -28,16 +28,16 @@
 
 /* Parameters structure for HYPERVISOR_xenpmu_op call */
 struct xen_pmu_params {
-	/* IN/OUT parameters */
-	struct {
-		uint32_t maj;
-		uint32_t min;
-	} version;
-	uint64_t val;
+  /* IN/OUT parameters */
+  struct {
+    uint32_t maj;
+    uint32_t min;
+  } version;
+  uint64_t val;
 
-	/* IN parameters */
-	uint32_t vcpu;
-	uint32_t pad;
+  /* IN parameters */
+  uint32_t vcpu;
+  uint32_t pad;
 };
 
 /* PMU modes:
@@ -49,9 +49,9 @@ struct xen_pmu_params {
  *                      everyone: itself, the hypervisor and the guests.
  */
 #define XENPMU_MODE_OFF           0
-#define XENPMU_MODE_SELF          (1<<0)
-#define XENPMU_MODE_HV            (1<<1)
-#define XENPMU_MODE_ALL           (1<<2)
+#define XENPMU_MODE_SELF          (1 << 0)
+#define XENPMU_MODE_HV            (1 << 1)
+#define XENPMU_MODE_ALL           (1 << 2)
 
 /*
  * PMU features:
@@ -69,27 +69,27 @@ struct xen_pmu_params {
  * by both the hypervisor and the guest (see arch-$arch/pmu.h).
  */
 struct xen_pmu_data {
-	/* Interrupted VCPU */
-	uint32_t vcpu_id;
+  /* Interrupted VCPU */
+  uint32_t vcpu_id;
 
-	/*
-	 * Physical processor on which the interrupt occurred. On non-privileged
-	 * guests set to vcpu_id;
-	 */
-	uint32_t pcpu_id;
+  /*
+   * Physical processor on which the interrupt occurred. On non-privileged
+   * guests set to vcpu_id;
+   */
+  uint32_t pcpu_id;
 
-	/*
-	 * Domain that was interrupted. On non-privileged guests set to
-	 * DOMID_SELF.
-	 * On privileged guests can be DOMID_SELF, DOMID_XEN, or, when in
-	 * XENPMU_MODE_ALL mode, domain ID of another domain.
-	 */
-	domid_t  domain_id;
+  /*
+   * Domain that was interrupted. On non-privileged guests set to
+   * DOMID_SELF.
+   * On privileged guests can be DOMID_SELF, DOMID_XEN, or, when in
+   * XENPMU_MODE_ALL mode, domain ID of another domain.
+   */
+  domid_t domain_id;
 
-	uint8_t pad[6];
+  uint8_t pad[6];
 
-	/* Architecture-specific information */
-	struct xen_pmu_arch pmu;
+  /* Architecture-specific information */
+  struct xen_pmu_arch pmu;
 };
 
 #endif /* __XEN_PUBLIC_XENPMU_H__ */

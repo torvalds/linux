@@ -19,5 +19,5 @@
 
 #include <asm/sigcontext.h>
 
-#endif	/* __ASSEMBLY__ */
-#endif	/* _XTENSA_SIGNAL_H */
+#endif  /* __ASSEMBLY__ */
+#endif  /* _XTENSA_SIGNAL_H */

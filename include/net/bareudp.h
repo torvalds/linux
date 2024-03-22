@@ -7,10 +7,9 @@
 #include <linux/types.h>
 #include <net/rtnetlink.h>
 
-static inline bool netif_is_bareudp(const struct net_device *dev)
-{
-	return dev->rtnl_link_ops &&
-	       !strcmp(dev->rtnl_link_ops->kind, "bareudp");
+static inline bool netif_is_bareudp(const struct net_device *dev) {
+  return dev->rtnl_link_ops
+    && !strcmp(dev->rtnl_link_ops->kind, "bareudp");
 }
 
 #endif

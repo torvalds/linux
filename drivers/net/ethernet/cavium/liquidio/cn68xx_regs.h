@@ -30,7 +30,7 @@
 #define    CN68XX_SLI_IQ_PORT0_PKIND             0x0800
 
 #define    CN68XX_SLI_IQ_PORT_PKIND(iq)           \
-	(CN68XX_SLI_IQ_PORT0_PKIND + ((iq) * CN6XXX_IQ_OFFSET))
+  (CN68XX_SLI_IQ_PORT0_PKIND + ((iq) * CN6XXX_IQ_OFFSET))
 
 /*############################ OUTPUT QUEUE #########################*/
 

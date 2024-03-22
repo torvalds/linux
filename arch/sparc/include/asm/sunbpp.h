@@ -8,18 +8,18 @@
 
 struct bpp_regs {
   /* DMA registers */
-  __volatile__ __u32 p_csr;		/* DMA Control/Status Register */
-  __volatile__ __u32 p_addr;		/* Address Register */
-  __volatile__ __u32 p_bcnt;		/* Byte Count Register */
-  __volatile__ __u32 p_tst_csr;		/* Test Control/Status (DMA2 only) */
+  __volatile__ __u32 p_csr;   /* DMA Control/Status Register */
+  __volatile__ __u32 p_addr;    /* Address Register */
+  __volatile__ __u32 p_bcnt;    /* Byte Count Register */
+  __volatile__ __u32 p_tst_csr;   /* Test Control/Status (DMA2 only) */
   /* Parallel Port registers */
-  __volatile__ __u16 p_hcr;		/* Hardware Configuration Register */
-  __volatile__ __u16 p_ocr;		/* Operation Configuration Register */
-  __volatile__ __u8 p_dr;		/* Parallel Data Register */
-  __volatile__ __u8 p_tcr;		/* Transfer Control Register */
-  __volatile__ __u8 p_or;		/* Output Register */
-  __volatile__ __u8 p_ir;		/* Input Register */
-  __volatile__ __u16 p_icr;		/* Interrupt Control Register */
+  __volatile__ __u16 p_hcr;   /* Hardware Configuration Register */
+  __volatile__ __u16 p_ocr;   /* Operation Configuration Register */
+  __volatile__ __u8 p_dr;   /* Parallel Data Register */
+  __volatile__ __u8 p_tcr;    /* Transfer Control Register */
+  __volatile__ __u8 p_or;   /* Output Register */
+  __volatile__ __u8 p_ir;   /* Input Register */
+  __volatile__ __u16 p_icr;   /* Interrupt Control Register */
 };
 
 /* P_HCR. Time is in increments of SBus clock. */
@@ -36,10 +36,12 @@ struct bpp_regs {
 #define P_OCR_EN_DIAG   0x0400
 #define P_OCR_BUSY_OP   0x0200      /* Busy operation */
 #define P_OCR_ACK_OP    0x0100      /* Ack operation */
-#define P_OCR_SRST      0x0080      /* Reset state machines. Not selfcleaning. */
+#define P_OCR_SRST      0x0080      /* Reset state machines. Not selfcleaning.
+                                     * */
 #define P_OCR_IDLE      0x0008      /* PP data transfer state machine is idle */
 #define P_OCR_V_ILCK    0x0002      /* Versatec faded. Zebra only. */
-#define P_OCR_EN_VER    0x0001      /* Enable Versatec (0 - enable). Zebra only. */
+#define P_OCR_EN_VER    0x0001      /* Enable Versatec (0 - enable). Zebra only.
+                                     * */
 
 /* P_TCR */
 #define P_TCR_DIR       0x08

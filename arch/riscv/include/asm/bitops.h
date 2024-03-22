@@ -26,58 +26,54 @@
 #include <asm/hwcap.h>
 
 #if (BITS_PER_LONG == 64)
-#define CTZW	"ctzw "
-#define CLZW	"clzw "
+#define CTZW  "ctzw "
+#define CLZW  "clzw "
 #elif (BITS_PER_LONG == 32)
-#define CTZW	"ctz "
-#define CLZW	"clz "
+#define CTZW  "ctz "
+#define CLZW  "clz "
 #else
 #error "Unexpected BITS_PER_LONG"
 #endif
 
-static __always_inline unsigned long variable__ffs(unsigned long word)
-{
-	int num;
-
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
-				      RISCV_ISA_EXT_ZBB, 1)
-			  : : : : legacy);
-
-	asm volatile (".option push\n"
-		      ".option arch,+zbb\n"
-		      "ctz %0, %1\n"
-		      ".option pop\n"
-		      : "=r" (word) : "r" (word) :);
-
-	return word;
-
+static __always_inline unsigned long variable__ffs(unsigned long word) {
+  int num;
+  asm goto (ALTERNATIVE("j %l[legacy]", "nop", 0,
+      RISCV_ISA_EXT_ZBB, 1)
+    : : : : legacy);
+  asm volatile (".option push\n"
+  ".option arch,+zbb\n"
+  "ctz %0, %1\n"
+  ".option pop\n"
+  : "=r" (word) : "r" (word) :);
+  return word;
 legacy:
-	num = 0;
+  num = 0;
 #if BITS_PER_LONG == 64
-	if ((word & 0xffffffff) == 0) {
-		num += 32;
-		word >>= 32;
-	}
+  if ((word & 0xffffffff) == 0) {
+    num += 32;
+    word >>= 32;
+  }
 #endif
-	if ((word & 0xffff) == 0) {
-		num += 16;
-		word >>= 16;
-	}
-	if ((word & 0xff) == 0) {
-		num += 8;
-		word >>= 8;
-	}
-	if ((word & 0xf) == 0) {
-		num += 4;
-		word >>= 4;
-	}
-	if ((word & 0x3) == 0) {
-		num += 2;
-		word >>= 2;
-	}
-	if ((word & 0x1) == 0)
-		num += 1;
-	return num;
+  if ((word & 0xffff) == 0) {
+    num += 16;
+    word >>= 16;
+  }
+  if ((word & 0xff) == 0) {
+    num += 8;
+    word >>= 8;
+  }
+  if ((word & 0xf) == 0) {
+    num += 4;
+    word >>= 4;
+  }
+  if ((word & 0x3) == 0) {
+    num += 2;
+    word >>= 2;
+  }
+  if ((word & 0x1) == 0) {
+    num += 1;
+  }
+  return num;
 }
 
 /**
@@ -86,54 +82,50 @@ legacy:
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-#define __ffs(word)				\
-	(__builtin_constant_p(word) ?		\
-	 (unsigned long)__builtin_ctzl(word) :	\
-	 variable__ffs(word))
+#define __ffs(word)       \
+  (__builtin_constant_p(word)     \
+  ? (unsigned long) __builtin_ctzl(word)    \
+  : variable__ffs(word))
 
-static __always_inline unsigned long variable__fls(unsigned long word)
-{
-	int num;
-
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
-				      RISCV_ISA_EXT_ZBB, 1)
-			  : : : : legacy);
-
-	asm volatile (".option push\n"
-		      ".option arch,+zbb\n"
-		      "clz %0, %1\n"
-		      ".option pop\n"
-		      : "=r" (word) : "r" (word) :);
-
-	return BITS_PER_LONG - 1 - word;
-
+static __always_inline unsigned long variable__fls(unsigned long word) {
+  int num;
+  asm goto (ALTERNATIVE("j %l[legacy]", "nop", 0,
+      RISCV_ISA_EXT_ZBB, 1)
+    : : : : legacy);
+  asm volatile (".option push\n"
+  ".option arch,+zbb\n"
+  "clz %0, %1\n"
+  ".option pop\n"
+  : "=r" (word) : "r" (word) :);
+  return BITS_PER_LONG - 1 - word;
 legacy:
-	num = BITS_PER_LONG - 1;
+  num = BITS_PER_LONG - 1;
 #if BITS_PER_LONG == 64
-	if (!(word & (~0ul << 32))) {
-		num -= 32;
-		word <<= 32;
-	}
+  if (!(word & (~0ul << 32))) {
+    num -= 32;
+    word <<= 32;
+  }
 #endif
-	if (!(word & (~0ul << (BITS_PER_LONG - 16)))) {
-		num -= 16;
-		word <<= 16;
-	}
-	if (!(word & (~0ul << (BITS_PER_LONG - 8)))) {
-		num -= 8;
-		word <<= 8;
-	}
-	if (!(word & (~0ul << (BITS_PER_LONG - 4)))) {
-		num -= 4;
-		word <<= 4;
-	}
-	if (!(word & (~0ul << (BITS_PER_LONG - 2)))) {
-		num -= 2;
-		word <<= 2;
-	}
-	if (!(word & (~0ul << (BITS_PER_LONG - 1))))
-		num -= 1;
-	return num;
+  if (!(word & (~0ul << (BITS_PER_LONG - 16)))) {
+    num -= 16;
+    word <<= 16;
+  }
+  if (!(word & (~0ul << (BITS_PER_LONG - 8)))) {
+    num -= 8;
+    word <<= 8;
+  }
+  if (!(word & (~0ul << (BITS_PER_LONG - 4)))) {
+    num -= 4;
+    word <<= 4;
+  }
+  if (!(word & (~0ul << (BITS_PER_LONG - 2)))) {
+    num -= 2;
+    word <<= 2;
+  }
+  if (!(word & (~0ul << (BITS_PER_LONG - 1)))) {
+    num -= 1;
+  }
+  return num;
 }
 
 /**
@@ -142,53 +134,48 @@ legacy:
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-#define __fls(word)							\
-	(__builtin_constant_p(word) ?					\
-	 (unsigned long)(BITS_PER_LONG - 1 - __builtin_clzl(word)) :	\
-	 variable__fls(word))
+#define __fls(word)             \
+  (__builtin_constant_p(word)           \
+  ? (unsigned long) (BITS_PER_LONG - 1 - __builtin_clzl(word))    \
+  : variable__fls(word))
 
-static __always_inline int variable_ffs(int x)
-{
-	int r;
-
-	if (!x)
-		return 0;
-
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
-				      RISCV_ISA_EXT_ZBB, 1)
-			  : : : : legacy);
-
-	asm volatile (".option push\n"
-		      ".option arch,+zbb\n"
-		      CTZW "%0, %1\n"
-		      ".option pop\n"
-		      : "=r" (r) : "r" (x) :);
-
-	return r + 1;
-
+static __always_inline int variable_ffs(int x) {
+  int r;
+  if (!x) {
+    return 0;
+  }
+  asm goto (ALTERNATIVE("j %l[legacy]", "nop", 0,
+      RISCV_ISA_EXT_ZBB, 1)
+    : : : : legacy);
+  asm volatile (".option push\n"
+  ".option arch,+zbb\n"
+  CTZW "%0, %1\n"
+  ".option pop\n"
+  : "=r" (r) : "r" (x) :);
+  return r + 1;
 legacy:
-	r = 1;
-	if (!(x & 0xffff)) {
-		x >>= 16;
-		r += 16;
-	}
-	if (!(x & 0xff)) {
-		x >>= 8;
-		r += 8;
-	}
-	if (!(x & 0xf)) {
-		x >>= 4;
-		r += 4;
-	}
-	if (!(x & 3)) {
-		x >>= 2;
-		r += 2;
-	}
-	if (!(x & 1)) {
-		x >>= 1;
-		r += 1;
-	}
-	return r;
+  r = 1;
+  if (!(x & 0xffff)) {
+    x >>= 16;
+    r += 16;
+  }
+  if (!(x & 0xff)) {
+    x >>= 8;
+    r += 8;
+  }
+  if (!(x & 0xf)) {
+    x >>= 4;
+    r += 4;
+  }
+  if (!(x & 3)) {
+    x >>= 2;
+    r += 2;
+  }
+  if (!(x & 1)) {
+    x >>= 1;
+    r += 1;
+  }
+  return r;
 }
 
 /**
@@ -202,48 +189,43 @@ legacy:
  */
 #define ffs(x) (__builtin_constant_p(x) ? __builtin_ffs(x) : variable_ffs(x))
 
-static __always_inline int variable_fls(unsigned int x)
-{
-	int r;
-
-	if (!x)
-		return 0;
-
-	asm goto(ALTERNATIVE("j %l[legacy]", "nop", 0,
-				      RISCV_ISA_EXT_ZBB, 1)
-			  : : : : legacy);
-
-	asm volatile (".option push\n"
-		      ".option arch,+zbb\n"
-		      CLZW "%0, %1\n"
-		      ".option pop\n"
-		      : "=r" (r) : "r" (x) :);
-
-	return 32 - r;
-
+static __always_inline int variable_fls(unsigned int x) {
+  int r;
+  if (!x) {
+    return 0;
+  }
+  asm goto (ALTERNATIVE("j %l[legacy]", "nop", 0,
+      RISCV_ISA_EXT_ZBB, 1)
+    : : : : legacy);
+  asm volatile (".option push\n"
+  ".option arch,+zbb\n"
+  CLZW "%0, %1\n"
+  ".option pop\n"
+  : "=r" (r) : "r" (x) :);
+  return 32 - r;
 legacy:
-	r = 32;
-	if (!(x & 0xffff0000u)) {
-		x <<= 16;
-		r -= 16;
-	}
-	if (!(x & 0xff000000u)) {
-		x <<= 8;
-		r -= 8;
-	}
-	if (!(x & 0xf0000000u)) {
-		x <<= 4;
-		r -= 4;
-	}
-	if (!(x & 0xc0000000u)) {
-		x <<= 2;
-		r -= 2;
-	}
-	if (!(x & 0x80000000u)) {
-		x <<= 1;
-		r -= 1;
-	}
-	return r;
+  r = 32;
+  if (!(x & 0xffff0000u)) {
+    x <<= 16;
+    r -= 16;
+  }
+  if (!(x & 0xff000000u)) {
+    x <<= 8;
+    r -= 8;
+  }
+  if (!(x & 0xf0000000u)) {
+    x <<= 4;
+    r -= 4;
+  }
+  if (!(x & 0xc0000000u)) {
+    x <<= 2;
+    r -= 2;
+  }
+  if (!(x & 0x80000000u)) {
+    x <<= 1;
+    r -= 1;
+  }
+  return r;
 }
 
 /**
@@ -256,14 +238,14 @@ legacy:
  * fls(value) returns 0 if value is 0 or the position of the last set bit if
  * value is nonzero. The last (most significant) bit is at position 32.
  */
-#define fls(x)							\
-({								\
-	typeof(x) x_ = (x);					\
-	__builtin_constant_p(x_) ?				\
-	 (int)((x_ != 0) ? (32 - __builtin_clz(x_)) : 0)	\
-	 :							\
-	 variable_fls(x_);					\
-})
+#define fls(x)              \
+  ({                \
+    typeof(x) x_ = (x);         \
+    __builtin_constant_p(x_)          \
+    ? (int) ((x_ != 0) ? (32 - __builtin_clz(x_)) : 0)  \
+    :              \
+    variable_fls(x_);          \
+  })
 
 #endif /* !defined(CONFIG_RISCV_ISA_ZBB) || defined(NO_ALTERNATIVE) */
 
@@ -276,40 +258,40 @@ legacy:
 #include <asm-generic/bitops/const_hweight.h>
 
 #if (BITS_PER_LONG == 64)
-#define __AMO(op)	"amo" #op ".d"
+#define __AMO(op) "amo" #op ".d"
 #elif (BITS_PER_LONG == 32)
-#define __AMO(op)	"amo" #op ".w"
+#define __AMO(op) "amo" #op ".w"
 #else
 #error "Unexpected BITS_PER_LONG"
 #endif
 
-#define __test_and_op_bit_ord(op, mod, nr, addr, ord)		\
-({								\
-	unsigned long __res, __mask;				\
-	__mask = BIT_MASK(nr);					\
-	__asm__ __volatile__ (					\
-		__AMO(op) #ord " %0, %2, %1"			\
-		: "=r" (__res), "+A" (addr[BIT_WORD(nr)])	\
-		: "r" (mod(__mask))				\
-		: "memory");					\
-	((__res & __mask) != 0);				\
-})
+#define __test_and_op_bit_ord(op, mod, nr, addr, ord)   \
+  ({                \
+    unsigned long __res, __mask;        \
+    __mask = BIT_MASK(nr);          \
+    __asm__ __volatile__ (          \
+      __AMO(op) #ord " %0, %2, %1"      \
+      : "=r" (__res), "+A" (addr[BIT_WORD(nr)]) \
+      : "r" (mod(__mask))       \
+      : "memory");          \
+    ((__res & __mask) != 0);        \
+  })
 
-#define __op_bit_ord(op, mod, nr, addr, ord)			\
-	__asm__ __volatile__ (					\
-		__AMO(op) #ord " zero, %1, %0"			\
-		: "+A" (addr[BIT_WORD(nr)])			\
-		: "r" (mod(BIT_MASK(nr)))			\
-		: "memory");
+#define __op_bit_ord(op, mod, nr, addr, ord)      \
+  __asm__ __volatile__ (          \
+    __AMO(op) #ord " zero, %1, %0"      \
+    : "+A" (addr[BIT_WORD(nr)])     \
+    : "r" (mod(BIT_MASK(nr)))     \
+    : "memory");
 
-#define __test_and_op_bit(op, mod, nr, addr) 			\
-	__test_and_op_bit_ord(op, mod, nr, addr, .aqrl)
-#define __op_bit(op, mod, nr, addr)				\
-	__op_bit_ord(op, mod, nr, addr, )
+#define __test_and_op_bit(op, mod, nr, addr)      \
+  __test_and_op_bit_ord(op, mod, nr, addr, .aqrl)
+#define __op_bit(op, mod, nr, addr)       \
+  __op_bit_ord(op, mod, nr, addr, )
 
 /* Bitmask modifiers */
-#define __NOP(x)	(x)
-#define __NOT(x)	(~(x))
+#define __NOP(x)  (x)
+#define __NOT(x)  (~(x))
 
 /**
  * test_and_set_bit - Set a bit and return its old value
@@ -318,9 +300,8 @@ legacy:
  *
  * This operation may be reordered on other architectures than x86.
  */
-static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
-{
-	return __test_and_op_bit(or, __NOP, nr, addr);
+static inline int test_and_set_bit(int nr, volatile unsigned long *addr) {
+  return __test_and_op_bit(or, __NOP, nr, addr);
 }
 
 /**
@@ -330,9 +311,8 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
  *
  * This operation can be reordered on other architectures other than x86.
  */
-static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
-{
-	return __test_and_op_bit(and, __NOT, nr, addr);
+static inline int test_and_clear_bit(int nr, volatile unsigned long *addr) {
+  return __test_and_op_bit(and, __NOT, nr, addr);
 }
 
 /**
@@ -343,9 +323,8 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
-{
-	return __test_and_op_bit(xor, __NOP, nr, addr);
+static inline int test_and_change_bit(int nr, volatile unsigned long *addr) {
+  return __test_and_op_bit(xor, __NOP, nr, addr);
 }
 
 /**
@@ -360,9 +339,8 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void set_bit(int nr, volatile unsigned long *addr)
-{
-	__op_bit(or, __NOP, nr, addr);
+static inline void set_bit(int nr, volatile unsigned long *addr) {
+  __op_bit(or, __NOP, nr, addr);
 }
 
 /**
@@ -374,9 +352,8 @@ static inline void set_bit(int nr, volatile unsigned long *addr)
  * on non x86 architectures, so if you are writing portable code,
  * make sure not to rely on its reordering guarantees.
  */
-static inline void clear_bit(int nr, volatile unsigned long *addr)
-{
-	__op_bit(and, __NOT, nr, addr);
+static inline void clear_bit(int nr, volatile unsigned long *addr) {
+  __op_bit(and, __NOT, nr, addr);
 }
 
 /**
@@ -388,9 +365,8 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void change_bit(int nr, volatile unsigned long *addr)
-{
-	__op_bit(xor, __NOP, nr, addr);
+static inline void change_bit(int nr, volatile unsigned long *addr) {
+  __op_bit(xor, __NOP, nr, addr);
 }
 
 /**
@@ -402,9 +378,8 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
  * It can be used to implement bit locks.
  */
 static inline int test_and_set_bit_lock(
-	unsigned long nr, volatile unsigned long *addr)
-{
-	return __test_and_op_bit_ord(or, __NOP, nr, addr, .aq);
+    unsigned long nr, volatile unsigned long *addr) {
+  return __test_and_op_bit_ord(or, __NOP, nr, addr, .aq);
 }
 
 /**
@@ -415,9 +390,8 @@ static inline int test_and_set_bit_lock(
  * This operation is atomic and provides release barrier semantics.
  */
 static inline void clear_bit_unlock(
-	unsigned long nr, volatile unsigned long *addr)
-{
-	__op_bit_ord(and, __NOT, nr, addr, .rl);
+    unsigned long nr, volatile unsigned long *addr) {
+  __op_bit_ord(and, __NOT, nr, addr, .rl);
 }
 
 /**
@@ -436,21 +410,19 @@ static inline void clear_bit_unlock(
  * provide release semantics anyway.
  */
 static inline void __clear_bit_unlock(
-	unsigned long nr, volatile unsigned long *addr)
-{
-	clear_bit_unlock(nr, addr);
+    unsigned long nr, volatile unsigned long *addr) {
+  clear_bit_unlock(nr, addr);
 }
 
 static inline bool xor_unlock_is_negative_byte(unsigned long mask,
-		volatile unsigned long *addr)
-{
-	unsigned long res;
-	__asm__ __volatile__ (
-		__AMO(xor) ".rl %0, %2, %1"
-		: "=r" (res), "+A" (*addr)
-		: "r" (__NOP(mask))
-		: "memory");
-	return (res & BIT(7)) != 0;
+    volatile unsigned long *addr) {
+  unsigned long res;
+  __asm__ __volatile__ (
+    __AMO(xor) ".rl %0, %2, %1"
+    : "=r" (res), "+A" (*addr)
+    : "r" (__NOP(mask))
+    : "memory");
+  return (res & BIT(7)) != 0;
 }
 
 #undef __test_and_op_bit

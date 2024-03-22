@@ -11,6 +11,6 @@ struct nft_offload_ctx;
 struct nft_flow_rule;
 
 int nft_fwd_dup_netdev_offload(struct nft_offload_ctx *ctx,
-			       struct nft_flow_rule *flow,
-			       enum flow_action_id id, int oif);
+    struct nft_flow_rule *flow,
+    enum flow_action_id id, int oif);
 #endif

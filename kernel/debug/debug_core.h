@@ -17,16 +17,16 @@
 
 /* kernel debug core data structures */
 struct kgdb_state {
-	int			ex_vector;
-	int			signo;
-	int			err_code;
-	int			cpu;
-	int			pass_exception;
-	unsigned long		thr_query;
-	unsigned long		threadid;
-	long			kgdb_usethreadid;
-	struct pt_regs		*linux_regs;
-	atomic_t		*send_ready;
+  int ex_vector;
+  int signo;
+  int err_code;
+  int cpu;
+  int pass_exception;
+  unsigned long thr_query;
+  unsigned long threadid;
+  long kgdb_usethreadid;
+  struct pt_regs *linux_regs;
+  atomic_t *send_ready;
 };
 
 /* Exception state values */
@@ -36,13 +36,13 @@ struct kgdb_state {
 #define DCPU_WANT_BT     0x8 /* Slave cpu should backtrace then clear flag */
 
 struct debuggerinfo_struct {
-	void			*debuggerinfo;
-	struct task_struct	*task;
-	int			exception_state;
-	int			ret_state;
-	int			irq_depth;
-	int			enter_kgdb;
-	bool			rounding_up;
+  void *debuggerinfo;
+  struct task_struct *task;
+  int exception_state;
+  int ret_state;
+  int irq_depth;
+  int enter_kgdb;
+  bool rounding_up;
 };
 
 extern struct debuggerinfo_struct kgdb_info[];
@@ -78,10 +78,10 @@ extern int kdb_common_init_state(struct kgdb_state *ks);
 extern int kdb_common_deinit_state(void);
 extern void kdb_dump_stack_on_cpu(int cpu);
 #else /* ! CONFIG_KGDB_KDB */
-static inline int kdb_stub(struct kgdb_state *ks)
-{
-	return DBG_PASS_EVENT;
+static inline int kdb_stub(struct kgdb_state *ks) {
+  return DBG_PASS_EVENT;
 }
+
 #endif /* CONFIG_KGDB_KDB */
 
 #endif /* _DEBUG_CORE_H_ */

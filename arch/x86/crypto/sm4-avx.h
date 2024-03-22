@@ -12,9 +12,9 @@ int sm4_avx_ecb_decrypt(struct skcipher_request *req);
 
 int sm4_cbc_encrypt(struct skcipher_request *req);
 int sm4_avx_cbc_decrypt(struct skcipher_request *req,
-			unsigned int bsize, sm4_crypt_func func);
+    unsigned int bsize, sm4_crypt_func func);
 
 int sm4_avx_ctr_crypt(struct skcipher_request *req,
-			unsigned int bsize, sm4_crypt_func func);
+    unsigned int bsize, sm4_crypt_func func);
 
 #endif

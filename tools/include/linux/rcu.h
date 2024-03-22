@@ -4,22 +4,19 @@
 
 int rcu_scheduler_active;
 
-static inline int rcu_lockdep_current_cpu_online(void)
-{
-	return 1;
+static inline int rcu_lockdep_current_cpu_online(void) {
+  return 1;
 }
 
-static inline int rcu_is_cpu_idle(void)
-{
-	return 1;
+static inline int rcu_is_cpu_idle(void) {
+  return 1;
 }
 
-static inline bool rcu_is_watching(void)
-{
-	return false;
+static inline bool rcu_is_watching(void) {
+  return false;
 }
 
-#define rcu_assign_pointer(p, v)	do { (p) = (v); } while (0)
-#define RCU_INIT_POINTER(p, v)	do { (p) = (v); } while (0)
+#define rcu_assign_pointer(p, v)  do { (p) = (v); } while (0)
+#define RCU_INIT_POINTER(p, v)  do { (p) = (v); } while (0)
 
 #endif

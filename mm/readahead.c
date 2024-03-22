@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2002, Linus Torvalds
  *
- * 09Apr2002	Andrew Morton
- *		Initial version.
+ * 09Apr2002  Andrew Morton
+ *    Initial version.
  */
 
 /**
@@ -135,57 +135,54 @@
  * Initialise a struct file's readahead state.  Assumes that the caller has
  * memset *ra to zero.
  */
-void
-file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping)
-{
-	ra->ra_pages = inode_to_bdi(mapping->host)->ra_pages;
-	ra->prev_pos = -1;
+void file_ra_state_init(struct file_ra_state *ra,
+    struct address_space *mapping) {
+  ra->ra_pages = inode_to_bdi(mapping->host)->ra_pages;
+  ra->prev_pos = -1;
 }
+
 EXPORT_SYMBOL_GPL(file_ra_state_init);
 
-static void read_pages(struct readahead_control *rac)
-{
-	const struct address_space_operations *aops = rac->mapping->a_ops;
-	struct folio *folio;
-	struct blk_plug plug;
-
-	if (!readahead_count(rac))
-		return;
-
-	if (unlikely(rac->_workingset))
-		psi_memstall_enter(&rac->_pflags);
-	blk_start_plug(&plug);
-
-	if (aops->readahead) {
-		aops->readahead(rac);
-		/*
-		 * Clean up the remaining folios.  The sizes in ->ra
-		 * may be used to size the next readahead, so make sure
-		 * they accurately reflect what happened.
-		 */
-		while ((folio = readahead_folio(rac)) != NULL) {
-			unsigned long nr = folio_nr_pages(folio);
-
-			folio_get(folio);
-			rac->ra->size -= nr;
-			if (rac->ra->async_size >= nr) {
-				rac->ra->async_size -= nr;
-				filemap_remove_folio(folio);
-			}
-			folio_unlock(folio);
-			folio_put(folio);
-		}
-	} else {
-		while ((folio = readahead_folio(rac)) != NULL)
-			aops->read_folio(rac->file, folio);
-	}
-
-	blk_finish_plug(&plug);
-	if (unlikely(rac->_workingset))
-		psi_memstall_leave(&rac->_pflags);
-	rac->_workingset = false;
-
-	BUG_ON(readahead_count(rac));
+static void read_pages(struct readahead_control *rac) {
+  const struct address_space_operations *aops = rac->mapping->a_ops;
+  struct folio *folio;
+  struct blk_plug plug;
+  if (!readahead_count(rac)) {
+    return;
+  }
+  if (unlikely(rac->_workingset)) {
+    psi_memstall_enter(&rac->_pflags);
+  }
+  blk_start_plug(&plug);
+  if (aops->readahead) {
+    aops->readahead(rac);
+    /*
+     * Clean up the remaining folios.  The sizes in ->ra
+     * may be used to size the next readahead, so make sure
+     * they accurately reflect what happened.
+     */
+    while ((folio = readahead_folio(rac)) != NULL) {
+      unsigned long nr = folio_nr_pages(folio);
+      folio_get(folio);
+      rac->ra->size -= nr;
+      if (rac->ra->async_size >= nr) {
+        rac->ra->async_size -= nr;
+        filemap_remove_folio(folio);
+      }
+      folio_unlock(folio);
+      folio_put(folio);
+    }
+  } else {
+    while ((folio = readahead_folio(rac)) != NULL) {
+      aops->read_folio(rac->file, folio);
+    }
+  }
+  blk_finish_plug(&plug);
+  if (unlikely(rac->_workingset)) {
+    psi_memstall_leave(&rac->_pflags);
+  }
+  rac->_workingset = false;
+  BUG_ON(readahead_count(rac));
 }
 
 /**
@@ -203,73 +200,70 @@ static void read_pages(struct readahead_control *rac)
  * May sleep, but will not reenter filesystem to reclaim memory.
  */
 void page_cache_ra_unbounded(struct readahead_control *ractl,
-		unsigned long nr_to_read, unsigned long lookahead_size)
-{
-	struct address_space *mapping = ractl->mapping;
-	unsigned long index = readahead_index(ractl);
-	gfp_t gfp_mask = readahead_gfp_mask(mapping);
-	unsigned long i;
-
-	/*
-	 * Partway through the readahead operation, we will have added
-	 * locked pages to the page cache, but will not yet have submitted
-	 * them for I/O.  Adding another page may need to allocate memory,
-	 * which can trigger memory reclaim.  Telling the VM we're in
-	 * the middle of a filesystem operation will cause it to not
-	 * touch file-backed pages, preventing a deadlock.  Most (all?)
-	 * filesystems already specify __GFP_NOFS in their mapping's
-	 * gfp_mask, but let's be explicit here.
-	 */
-	unsigned int nofs = memalloc_nofs_save();
-
-	filemap_invalidate_lock_shared(mapping);
-	/*
-	 * Preallocate as many pages as we will need.
-	 */
-	for (i = 0; i < nr_to_read; i++) {
-		struct folio *folio = xa_load(&mapping->i_pages, index + i);
-
-		if (folio && !xa_is_value(folio)) {
-			/*
-			 * Page already present?  Kick off the current batch
-			 * of contiguous pages before continuing with the
-			 * next batch.  This page may be the one we would
-			 * have intended to mark as Readahead, but we don't
-			 * have a stable reference to this page, and it's
-			 * not worth getting one just for that.
-			 */
-			read_pages(ractl);
-			ractl->_index++;
-			i = ractl->_index + ractl->_nr_pages - index - 1;
-			continue;
-		}
-
-		folio = filemap_alloc_folio(gfp_mask, 0);
-		if (!folio)
-			break;
-		if (filemap_add_folio(mapping, folio, index + i,
-					gfp_mask) < 0) {
-			folio_put(folio);
-			read_pages(ractl);
-			ractl->_index++;
-			i = ractl->_index + ractl->_nr_pages - index - 1;
-			continue;
-		}
-		if (i == nr_to_read - lookahead_size)
-			folio_set_readahead(folio);
-		ractl->_workingset |= folio_test_workingset(folio);
-		ractl->_nr_pages++;
-	}
-
-	/*
-	 * Now start the IO.  We ignore I/O errors - if the folio is not
-	 * uptodate then the caller will launch read_folio again, and
-	 * will then handle the error.
-	 */
-	read_pages(ractl);
-	filemap_invalidate_unlock_shared(mapping);
-	memalloc_nofs_restore(nofs);
+    unsigned long nr_to_read, unsigned long lookahead_size) {
+  struct address_space *mapping = ractl->mapping;
+  unsigned long index = readahead_index(ractl);
+  gfp_t gfp_mask = readahead_gfp_mask(mapping);
+  unsigned long i;
+  /*
+   * Partway through the readahead operation, we will have added
+   * locked pages to the page cache, but will not yet have submitted
+   * them for I/O.  Adding another page may need to allocate memory,
+   * which can trigger memory reclaim.  Telling the VM we're in
+   * the middle of a filesystem operation will cause it to not
+   * touch file-backed pages, preventing a deadlock.  Most (all?)
+   * filesystems already specify __GFP_NOFS in their mapping's
+   * gfp_mask, but let's be explicit here.
+   */
+  unsigned int nofs = memalloc_nofs_save();
+  filemap_invalidate_lock_shared(mapping);
+  /*
+   * Preallocate as many pages as we will need.
+   */
+  for (i = 0; i < nr_to_read; i++) {
+    struct folio *folio = xa_load(&mapping->i_pages, index + i);
+    if (folio && !xa_is_value(folio)) {
+      /*
+       * Page already present?  Kick off the current batch
+       * of contiguous pages before continuing with the
+       * next batch.  This page may be the one we would
+       * have intended to mark as Readahead, but we don't
+       * have a stable reference to this page, and it's
+       * not worth getting one just for that.
+       */
+      read_pages(ractl);
+      ractl->_index++;
+      i = ractl->_index + ractl->_nr_pages - index - 1;
+      continue;
+    }
+    folio = filemap_alloc_folio(gfp_mask, 0);
+    if (!folio) {
+      break;
+    }
+    if (filemap_add_folio(mapping, folio, index + i,
+        gfp_mask) < 0) {
+      folio_put(folio);
+      read_pages(ractl);
+      ractl->_index++;
+      i = ractl->_index + ractl->_nr_pages - index - 1;
+      continue;
+    }
+    if (i == nr_to_read - lookahead_size) {
+      folio_set_readahead(folio);
+    }
+    ractl->_workingset |= folio_test_workingset(folio);
+    ractl->_nr_pages++;
+  }
+  /*
+   * Now start the IO.  We ignore I/O errors - if the folio is not
+   * uptodate then the caller will launch read_folio again, and
+   * will then handle the error.
+   */
+  read_pages(ractl);
+  filemap_invalidate_unlock_shared(mapping);
+  memalloc_nofs_restore(nofs);
 }
+
 EXPORT_SYMBOL_GPL(page_cache_ra_unbounded);
 
 /*
@@ -279,24 +273,23 @@ EXPORT_SYMBOL_GPL(page_cache_ra_unbounded);
  * We really don't want to intermingle reads and writes like that.
  */
 static void do_page_cache_ra(struct readahead_control *ractl,
-		unsigned long nr_to_read, unsigned long lookahead_size)
-{
-	struct inode *inode = ractl->mapping->host;
-	unsigned long index = readahead_index(ractl);
-	loff_t isize = i_size_read(inode);
-	pgoff_t end_index;	/* The last page we want to read */
-
-	if (isize == 0)
-		return;
-
-	end_index = (isize - 1) >> PAGE_SHIFT;
-	if (index > end_index)
-		return;
-	/* Don't read past the page containing the last byte of the file */
-	if (nr_to_read > end_index - index)
-		nr_to_read = end_index - index + 1;
-
-	page_cache_ra_unbounded(ractl, nr_to_read, lookahead_size);
+    unsigned long nr_to_read, unsigned long lookahead_size) {
+  struct inode *inode = ractl->mapping->host;
+  unsigned long index = readahead_index(ractl);
+  loff_t isize = i_size_read(inode);
+  pgoff_t end_index;  /* The last page we want to read */
+  if (isize == 0) {
+    return;
+  }
+  end_index = (isize - 1) >> PAGE_SHIFT;
+  if (index > end_index) {
+    return;
+  }
+  /* Don't read past the page containing the last byte of the file */
+  if (nr_to_read > end_index - index) {
+    nr_to_read = end_index - index + 1;
+  }
+  page_cache_ra_unbounded(ractl, nr_to_read, lookahead_size);
 }
 
 /*
@@ -304,34 +297,31 @@ static void do_page_cache_ra(struct readahead_control *ractl,
  * memory at once.
  */
 void force_page_cache_ra(struct readahead_control *ractl,
-		unsigned long nr_to_read)
-{
-	struct address_space *mapping = ractl->mapping;
-	struct file_ra_state *ra = ractl->ra;
-	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
-	unsigned long max_pages, index;
-
-	if (unlikely(!mapping->a_ops->read_folio && !mapping->a_ops->readahead))
-		return;
-
-	/*
-	 * If the request exceeds the readahead window, allow the read to
-	 * be up to the optimal hardware IO size
-	 */
-	index = readahead_index(ractl);
-	max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
-	nr_to_read = min_t(unsigned long, nr_to_read, max_pages);
-	while (nr_to_read) {
-		unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_SIZE;
-
-		if (this_chunk > nr_to_read)
-			this_chunk = nr_to_read;
-		ractl->_index = index;
-		do_page_cache_ra(ractl, this_chunk, 0);
-
-		index += this_chunk;
-		nr_to_read -= this_chunk;
-	}
+    unsigned long nr_to_read) {
+  struct address_space *mapping = ractl->mapping;
+  struct file_ra_state *ra = ractl->ra;
+  struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+  unsigned long max_pages, index;
+  if (unlikely(!mapping->a_ops->read_folio && !mapping->a_ops->readahead)) {
+    return;
+  }
+  /*
+   * If the request exceeds the readahead window, allow the read to
+   * be up to the optimal hardware IO size
+   */
+  index = readahead_index(ractl);
+  max_pages = max_t(unsigned long, bdi->io_pages, ra->ra_pages);
+  nr_to_read = min_t(unsigned long, nr_to_read, max_pages);
+  while (nr_to_read) {
+    unsigned long this_chunk = (2 * 1024 * 1024) / PAGE_SIZE;
+    if (this_chunk > nr_to_read) {
+      this_chunk = nr_to_read;
+    }
+    ractl->_index = index;
+    do_page_cache_ra(ractl, this_chunk, 0);
+    index += this_chunk;
+    nr_to_read -= this_chunk;
+  }
 }
 
 /*
@@ -340,18 +330,16 @@ void force_page_cache_ra(struct readahead_control *ractl,
  * for 128k (32 page) max ra
  * 1-2 page = 16k, 3-4 page 32k, 5-8 page = 64k, > 8 page = 128k initial
  */
-static unsigned long get_init_ra_size(unsigned long size, unsigned long max)
-{
-	unsigned long newsize = roundup_pow_of_two(size);
-
-	if (newsize <= max / 32)
-		newsize = newsize * 4;
-	else if (newsize <= max / 4)
-		newsize = newsize * 2;
-	else
-		newsize = max;
-
-	return newsize;
+static unsigned long get_init_ra_size(unsigned long size, unsigned long max) {
+  unsigned long newsize = roundup_pow_of_two(size);
+  if (newsize <= max / 32) {
+    newsize = newsize * 4;
+  } else if (newsize <= max / 4) {
+    newsize = newsize * 2;
+  } else {
+    newsize = max;
+  }
+  return newsize;
 }
 
 /*
@@ -359,15 +347,15 @@ static unsigned long get_init_ra_size(unsigned long size, unsigned long max)
  *  return it as the new window size.
  */
 static unsigned long get_next_ra_size(struct file_ra_state *ra,
-				      unsigned long max)
-{
-	unsigned long cur = ra->size;
-
-	if (cur < max / 16)
-		return 4 * cur;
-	if (cur <= max / 2)
-		return 2 * cur;
-	return max;
+    unsigned long max) {
+  unsigned long cur = ra->size;
+  if (cur < max / 16) {
+    return 4 * cur;
+  }
+  if (cur <= max / 2) {
+    return 2 * cur;
+  }
+  return max;
 }
 
 /*
@@ -412,341 +400,316 @@ static unsigned long get_next_ra_size(struct file_ra_state *ra,
 /*
  * Count contiguously cached pages from @index-1 to @index-@max,
  * this count is a conservative estimation of
- * 	- length of the sequential read sequence, or
- * 	- thrashing threshold in memory tight systems
+ *  - length of the sequential read sequence, or
+ *  - thrashing threshold in memory tight systems
  */
 static pgoff_t count_history_pages(struct address_space *mapping,
-				   pgoff_t index, unsigned long max)
-{
-	pgoff_t head;
-
-	rcu_read_lock();
-	head = page_cache_prev_miss(mapping, index - 1, max);
-	rcu_read_unlock();
-
-	return index - 1 - head;
+    pgoff_t index, unsigned long max) {
+  pgoff_t head;
+  rcu_read_lock();
+  head = page_cache_prev_miss(mapping, index - 1, max);
+  rcu_read_unlock();
+  return index - 1 - head;
 }
 
 /*
  * page cache context based readahead
  */
 static int try_context_readahead(struct address_space *mapping,
-				 struct file_ra_state *ra,
-				 pgoff_t index,
-				 unsigned long req_size,
-				 unsigned long max)
-{
-	pgoff_t size;
-
-	size = count_history_pages(mapping, index, max);
-
-	/*
-	 * not enough history pages:
-	 * it could be a random read
-	 */
-	if (size <= req_size)
-		return 0;
-
-	/*
-	 * starts from beginning of file:
-	 * it is a strong indication of long-run stream (or whole-file-read)
-	 */
-	if (size >= index)
-		size *= 2;
-
-	ra->start = index;
-	ra->size = min(size + req_size, max);
-	ra->async_size = 1;
-
-	return 1;
+    struct file_ra_state *ra,
+    pgoff_t index,
+    unsigned long req_size,
+    unsigned long max) {
+  pgoff_t size;
+  size = count_history_pages(mapping, index, max);
+  /*
+   * not enough history pages:
+   * it could be a random read
+   */
+  if (size <= req_size) {
+    return 0;
+  }
+  /*
+   * starts from beginning of file:
+   * it is a strong indication of long-run stream (or whole-file-read)
+   */
+  if (size >= index) {
+    size *= 2;
+  }
+  ra->start = index;
+  ra->size = min(size + req_size, max);
+  ra->async_size = 1;
+  return 1;
 }
 
 static inline int ra_alloc_folio(struct readahead_control *ractl, pgoff_t index,
-		pgoff_t mark, unsigned int order, gfp_t gfp)
-{
-	int err;
-	struct folio *folio = filemap_alloc_folio(gfp, order);
-
-	if (!folio)
-		return -ENOMEM;
-	mark = round_down(mark, 1UL << order);
-	if (index == mark)
-		folio_set_readahead(folio);
-	err = filemap_add_folio(ractl->mapping, folio, index, gfp);
-	if (err) {
-		folio_put(folio);
-		return err;
-	}
-
-	ractl->_nr_pages += 1UL << order;
-	ractl->_workingset |= folio_test_workingset(folio);
-	return 0;
+    pgoff_t mark, unsigned int order, gfp_t gfp) {
+  int err;
+  struct folio *folio = filemap_alloc_folio(gfp, order);
+  if (!folio) {
+    return -ENOMEM;
+  }
+  mark = round_down(mark, 1UL << order);
+  if (index == mark) {
+    folio_set_readahead(folio);
+  }
+  err = filemap_add_folio(ractl->mapping, folio, index, gfp);
+  if (err) {
+    folio_put(folio);
+    return err;
+  }
+  ractl->_nr_pages += 1UL << order;
+  ractl->_workingset |= folio_test_workingset(folio);
+  return 0;
 }
 
 void page_cache_ra_order(struct readahead_control *ractl,
-		struct file_ra_state *ra, unsigned int new_order)
-{
-	struct address_space *mapping = ractl->mapping;
-	pgoff_t index = readahead_index(ractl);
-	pgoff_t limit = (i_size_read(mapping->host) - 1) >> PAGE_SHIFT;
-	pgoff_t mark = index + ra->size - ra->async_size;
-	int err = 0;
-	gfp_t gfp = readahead_gfp_mask(mapping);
-
-	if (!mapping_large_folio_support(mapping) || ra->size < 4)
-		goto fallback;
-
-	limit = min(limit, index + ra->size - 1);
-
-	if (new_order < MAX_PAGECACHE_ORDER) {
-		new_order += 2;
-		new_order = min_t(unsigned int, MAX_PAGECACHE_ORDER, new_order);
-		new_order = min_t(unsigned int, new_order, ilog2(ra->size));
-	}
-
-	filemap_invalidate_lock_shared(mapping);
-	while (index <= limit) {
-		unsigned int order = new_order;
-
-		/* Align with smaller pages if needed */
-		if (index & ((1UL << order) - 1))
-			order = __ffs(index);
-		/* Don't allocate pages past EOF */
-		while (index + (1UL << order) - 1 > limit)
-			order--;
-		err = ra_alloc_folio(ractl, index, mark, order, gfp);
-		if (err)
-			break;
-		index += 1UL << order;
-	}
-
-	if (index > limit) {
-		ra->size += index - limit - 1;
-		ra->async_size += index - limit - 1;
-	}
-
-	read_pages(ractl);
-	filemap_invalidate_unlock_shared(mapping);
-
-	/*
-	 * If there were already pages in the page cache, then we may have
-	 * left some gaps.  Let the regular readahead code take care of this
-	 * situation.
-	 */
-	if (!err)
-		return;
+    struct file_ra_state *ra, unsigned int new_order) {
+  struct address_space *mapping = ractl->mapping;
+  pgoff_t index = readahead_index(ractl);
+  pgoff_t limit = (i_size_read(mapping->host) - 1) >> PAGE_SHIFT;
+  pgoff_t mark = index + ra->size - ra->async_size;
+  int err = 0;
+  gfp_t gfp = readahead_gfp_mask(mapping);
+  if (!mapping_large_folio_support(mapping) || ra->size < 4) {
+    goto fallback;
+  }
+  limit = min(limit, index + ra->size - 1);
+  if (new_order < MAX_PAGECACHE_ORDER) {
+    new_order += 2;
+    new_order = min_t(unsigned int, MAX_PAGECACHE_ORDER, new_order);
+    new_order = min_t(unsigned int, new_order, ilog2(ra->size));
+  }
+  filemap_invalidate_lock_shared(mapping);
+  while (index <= limit) {
+    unsigned int order = new_order;
+    /* Align with smaller pages if needed */
+    if (index & ((1UL << order) - 1)) {
+      order = __ffs(index);
+    }
+    /* Don't allocate pages past EOF */
+    while (index + (1UL << order) - 1 > limit) {
+      order--;
+    }
+    err = ra_alloc_folio(ractl, index, mark, order, gfp);
+    if (err) {
+      break;
+    }
+    index += 1UL << order;
+  }
+  if (index > limit) {
+    ra->size += index - limit - 1;
+    ra->async_size += index - limit - 1;
+  }
+  read_pages(ractl);
+  filemap_invalidate_unlock_shared(mapping);
+  /*
+   * If there were already pages in the page cache, then we may have
+   * left some gaps.  Let the regular readahead code take care of this
+   * situation.
+   */
+  if (!err) {
+    return;
+  }
 fallback:
-	do_page_cache_ra(ractl, ra->size, ra->async_size);
+  do_page_cache_ra(ractl, ra->size, ra->async_size);
 }
 
 /*
  * A minimal readahead algorithm for trivial sequential/random reads.
  */
 static void ondemand_readahead(struct readahead_control *ractl,
-		struct folio *folio, unsigned long req_size)
-{
-	struct backing_dev_info *bdi = inode_to_bdi(ractl->mapping->host);
-	struct file_ra_state *ra = ractl->ra;
-	unsigned long max_pages = ra->ra_pages;
-	unsigned long add_pages;
-	pgoff_t index = readahead_index(ractl);
-	pgoff_t expected, prev_index;
-	unsigned int order = folio ? folio_order(folio) : 0;
-
-	/*
-	 * If the request exceeds the readahead window, allow the read to
-	 * be up to the optimal hardware IO size
-	 */
-	if (req_size > max_pages && bdi->io_pages > max_pages)
-		max_pages = min(req_size, bdi->io_pages);
-
-	/*
-	 * start of file
-	 */
-	if (!index)
-		goto initial_readahead;
-
-	/*
-	 * It's the expected callback index, assume sequential access.
-	 * Ramp up sizes, and push forward the readahead window.
-	 */
-	expected = round_down(ra->start + ra->size - ra->async_size,
-			1UL << order);
-	if (index == expected || index == (ra->start + ra->size)) {
-		ra->start += ra->size;
-		ra->size = get_next_ra_size(ra, max_pages);
-		ra->async_size = ra->size;
-		goto readit;
-	}
-
-	/*
-	 * Hit a marked folio without valid readahead state.
-	 * E.g. interleaved reads.
-	 * Query the pagecache for async_size, which normally equals to
-	 * readahead size. Ramp it up and use it as the new readahead size.
-	 */
-	if (folio) {
-		pgoff_t start;
-
-		rcu_read_lock();
-		start = page_cache_next_miss(ractl->mapping, index + 1,
-				max_pages);
-		rcu_read_unlock();
-
-		if (!start || start - index > max_pages)
-			return;
-
-		ra->start = start;
-		ra->size = start - index;	/* old async_size */
-		ra->size += req_size;
-		ra->size = get_next_ra_size(ra, max_pages);
-		ra->async_size = ra->size;
-		goto readit;
-	}
-
-	/*
-	 * oversize read
-	 */
-	if (req_size > max_pages)
-		goto initial_readahead;
-
-	/*
-	 * sequential cache miss
-	 * trivial case: (index - prev_index) == 1
-	 * unaligned reads: (index - prev_index) == 0
-	 */
-	prev_index = (unsigned long long)ra->prev_pos >> PAGE_SHIFT;
-	if (index - prev_index <= 1UL)
-		goto initial_readahead;
-
-	/*
-	 * Query the page cache and look for the traces(cached history pages)
-	 * that a sequential stream would leave behind.
-	 */
-	if (try_context_readahead(ractl->mapping, ra, index, req_size,
-			max_pages))
-		goto readit;
-
-	/*
-	 * standalone, small random read
-	 * Read as is, and do not pollute the readahead state.
-	 */
-	do_page_cache_ra(ractl, req_size, 0);
-	return;
-
+    struct folio *folio, unsigned long req_size) {
+  struct backing_dev_info *bdi = inode_to_bdi(ractl->mapping->host);
+  struct file_ra_state *ra = ractl->ra;
+  unsigned long max_pages = ra->ra_pages;
+  unsigned long add_pages;
+  pgoff_t index = readahead_index(ractl);
+  pgoff_t expected, prev_index;
+  unsigned int order = folio ? folio_order(folio) : 0;
+  /*
+   * If the request exceeds the readahead window, allow the read to
+   * be up to the optimal hardware IO size
+   */
+  if (req_size > max_pages && bdi->io_pages > max_pages) {
+    max_pages = min(req_size, bdi->io_pages);
+  }
+  /*
+   * start of file
+   */
+  if (!index) {
+    goto initial_readahead;
+  }
+  /*
+   * It's the expected callback index, assume sequential access.
+   * Ramp up sizes, and push forward the readahead window.
+   */
+  expected = round_down(ra->start + ra->size - ra->async_size,
+      1UL << order);
+  if (index == expected || index == (ra->start + ra->size)) {
+    ra->start += ra->size;
+    ra->size = get_next_ra_size(ra, max_pages);
+    ra->async_size = ra->size;
+    goto readit;
+  }
+  /*
+   * Hit a marked folio without valid readahead state.
+   * E.g. interleaved reads.
+   * Query the pagecache for async_size, which normally equals to
+   * readahead size. Ramp it up and use it as the new readahead size.
+   */
+  if (folio) {
+    pgoff_t start;
+    rcu_read_lock();
+    start = page_cache_next_miss(ractl->mapping, index + 1,
+        max_pages);
+    rcu_read_unlock();
+    if (!start || start - index > max_pages) {
+      return;
+    }
+    ra->start = start;
+    ra->size = start - index; /* old async_size */
+    ra->size += req_size;
+    ra->size = get_next_ra_size(ra, max_pages);
+    ra->async_size = ra->size;
+    goto readit;
+  }
+  /*
+   * oversize read
+   */
+  if (req_size > max_pages) {
+    goto initial_readahead;
+  }
+  /*
+   * sequential cache miss
+   * trivial case: (index - prev_index) == 1
+   * unaligned reads: (index - prev_index) == 0
+   */
+  prev_index = (unsigned long long) ra->prev_pos >> PAGE_SHIFT;
+  if (index - prev_index <= 1UL) {
+    goto initial_readahead;
+  }
+  /*
+   * Query the page cache and look for the traces(cached history pages)
+   * that a sequential stream would leave behind.
+   */
+  if (try_context_readahead(ractl->mapping, ra, index, req_size,
+      max_pages)) {
+    goto readit;
+  }
+  /*
+   * standalone, small random read
+   * Read as is, and do not pollute the readahead state.
+   */
+  do_page_cache_ra(ractl, req_size, 0);
+  return;
 initial_readahead:
-	ra->start = index;
-	ra->size = get_init_ra_size(req_size, max_pages);
-	ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
-
+  ra->start = index;
+  ra->size = get_init_ra_size(req_size, max_pages);
+  ra->async_size = ra->size > req_size ? ra->size - req_size : ra->size;
 readit:
-	/*
-	 * Will this read hit the readahead marker made by itself?
-	 * If so, trigger the readahead marker hit now, and merge
-	 * the resulted next readahead window into the current one.
-	 * Take care of maximum IO pages as above.
-	 */
-	if (index == ra->start && ra->size == ra->async_size) {
-		add_pages = get_next_ra_size(ra, max_pages);
-		if (ra->size + add_pages <= max_pages) {
-			ra->async_size = add_pages;
-			ra->size += add_pages;
-		} else {
-			ra->size = max_pages;
-			ra->async_size = max_pages >> 1;
-		}
-	}
-
-	ractl->_index = ra->start;
-	page_cache_ra_order(ractl, ra, order);
+  /*
+   * Will this read hit the readahead marker made by itself?
+   * If so, trigger the readahead marker hit now, and merge
+   * the resulted next readahead window into the current one.
+   * Take care of maximum IO pages as above.
+   */
+  if (index == ra->start && ra->size == ra->async_size) {
+    add_pages = get_next_ra_size(ra, max_pages);
+    if (ra->size + add_pages <= max_pages) {
+      ra->async_size = add_pages;
+      ra->size += add_pages;
+    } else {
+      ra->size = max_pages;
+      ra->async_size = max_pages >> 1;
+    }
+  }
+  ractl->_index = ra->start;
+  page_cache_ra_order(ractl, ra, order);
 }
 
 void page_cache_sync_ra(struct readahead_control *ractl,
-		unsigned long req_count)
-{
-	bool do_forced_ra = ractl->file && (ractl->file->f_mode & FMODE_RANDOM);
-
-	/*
-	 * Even if readahead is disabled, issue this request as readahead
-	 * as we'll need it to satisfy the requested range. The forced
-	 * readahead will do the right thing and limit the read to just the
-	 * requested range, which we'll set to 1 page for this case.
-	 */
-	if (!ractl->ra->ra_pages || blk_cgroup_congested()) {
-		if (!ractl->file)
-			return;
-		req_count = 1;
-		do_forced_ra = true;
-	}
-
-	/* be dumb */
-	if (do_forced_ra) {
-		force_page_cache_ra(ractl, req_count);
-		return;
-	}
-
-	ondemand_readahead(ractl, NULL, req_count);
+    unsigned long req_count) {
+  bool do_forced_ra = ractl->file && (ractl->file->f_mode & FMODE_RANDOM);
+  /*
+   * Even if readahead is disabled, issue this request as readahead
+   * as we'll need it to satisfy the requested range. The forced
+   * readahead will do the right thing and limit the read to just the
+   * requested range, which we'll set to 1 page for this case.
+   */
+  if (!ractl->ra->ra_pages || blk_cgroup_congested()) {
+    if (!ractl->file) {
+      return;
+    }
+    req_count = 1;
+    do_forced_ra = true;
+  }
+  /* be dumb */
+  if (do_forced_ra) {
+    force_page_cache_ra(ractl, req_count);
+    return;
+  }
+  ondemand_readahead(ractl, NULL, req_count);
 }
+
 EXPORT_SYMBOL_GPL(page_cache_sync_ra);
 
 void page_cache_async_ra(struct readahead_control *ractl,
-		struct folio *folio, unsigned long req_count)
-{
-	/* no readahead */
-	if (!ractl->ra->ra_pages)
-		return;
-
-	/*
-	 * Same bit is used for PG_readahead and PG_reclaim.
-	 */
-	if (folio_test_writeback(folio))
-		return;
-
-	folio_clear_readahead(folio);
-
-	if (blk_cgroup_congested())
-		return;
-
-	ondemand_readahead(ractl, folio, req_count);
+    struct folio *folio, unsigned long req_count) {
+  /* no readahead */
+  if (!ractl->ra->ra_pages) {
+    return;
+  }
+  /*
+   * Same bit is used for PG_readahead and PG_reclaim.
+   */
+  if (folio_test_writeback(folio)) {
+    return;
+  }
+  folio_clear_readahead(folio);
+  if (blk_cgroup_congested()) {
+    return;
+  }
+  ondemand_readahead(ractl, folio, req_count);
 }
+
 EXPORT_SYMBOL_GPL(page_cache_async_ra);
 
-ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
-{
-	ssize_t ret;
-	struct fd f;
-
-	ret = -EBADF;
-	f = fdget(fd);
-	if (!f.file || !(f.file->f_mode & FMODE_READ))
-		goto out;
-
-	/*
-	 * The readahead() syscall is intended to run only on files
-	 * that can execute readahead. If readahead is not possible
-	 * on this file, then we must return -EINVAL.
-	 */
-	ret = -EINVAL;
-	if (!f.file->f_mapping || !f.file->f_mapping->a_ops ||
-	    (!S_ISREG(file_inode(f.file)->i_mode) &&
-	    !S_ISBLK(file_inode(f.file)->i_mode)))
-		goto out;
-
-	ret = vfs_fadvise(f.file, offset, count, POSIX_FADV_WILLNEED);
+ssize_t ksys_readahead(int fd, loff_t offset, size_t count) {
+  ssize_t ret;
+  struct fd f;
+  ret = -EBADF;
+  f = fdget(fd);
+  if (!f.file || !(f.file->f_mode & FMODE_READ)) {
+    goto out;
+  }
+  /*
+   * The readahead() syscall is intended to run only on files
+   * that can execute readahead. If readahead is not possible
+   * on this file, then we must return -EINVAL.
+   */
+  ret = -EINVAL;
+  if (!f.file->f_mapping || !f.file->f_mapping->a_ops
+      || (!S_ISREG(file_inode(f.file)->i_mode)
+      && !S_ISBLK(file_inode(f.file)->i_mode))) {
+    goto out;
+  }
+  ret = vfs_fadvise(f.file, offset, count, POSIX_FADV_WILLNEED);
 out:
-	fdput(f);
-	return ret;
+  fdput(f);
+  return ret;
 }
 
 SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
 {
-	return ksys_readahead(fd, offset, count);
+  return ksys_readahead(fd, offset, count);
 }
 
 #if defined(CONFIG_COMPAT) && defined(__ARCH_WANT_COMPAT_READAHEAD)
-COMPAT_SYSCALL_DEFINE4(readahead, int, fd, compat_arg_u64_dual(offset), size_t, count)
+COMPAT_SYSCALL_DEFINE4(readahead, int, fd, compat_arg_u64_dual(
+    offset), size_t, count)
 {
-	return ksys_readahead(fd, compat_arg_u64_glue(offset), count);
+  return ksys_readahead(fd, compat_arg_u64_glue(offset), count);
 }
 #endif
 
@@ -769,67 +732,63 @@ COMPAT_SYSCALL_DEFINE4(readahead, int, fd, compat_arg_u64_dual(offset), size_t, 
  * different expansion than was requested.
  */
 void readahead_expand(struct readahead_control *ractl,
-		      loff_t new_start, size_t new_len)
-{
-	struct address_space *mapping = ractl->mapping;
-	struct file_ra_state *ra = ractl->ra;
-	pgoff_t new_index, new_nr_pages;
-	gfp_t gfp_mask = readahead_gfp_mask(mapping);
-
-	new_index = new_start / PAGE_SIZE;
-
-	/* Expand the leading edge downwards */
-	while (ractl->_index > new_index) {
-		unsigned long index = ractl->_index - 1;
-		struct folio *folio = xa_load(&mapping->i_pages, index);
-
-		if (folio && !xa_is_value(folio))
-			return; /* Folio apparently present */
-
-		folio = filemap_alloc_folio(gfp_mask, 0);
-		if (!folio)
-			return;
-		if (filemap_add_folio(mapping, folio, index, gfp_mask) < 0) {
-			folio_put(folio);
-			return;
-		}
-		if (unlikely(folio_test_workingset(folio)) &&
-				!ractl->_workingset) {
-			ractl->_workingset = true;
-			psi_memstall_enter(&ractl->_pflags);
-		}
-		ractl->_nr_pages++;
-		ractl->_index = folio->index;
-	}
-
-	new_len += new_start - readahead_pos(ractl);
-	new_nr_pages = DIV_ROUND_UP(new_len, PAGE_SIZE);
-
-	/* Expand the trailing edge upwards */
-	while (ractl->_nr_pages < new_nr_pages) {
-		unsigned long index = ractl->_index + ractl->_nr_pages;
-		struct folio *folio = xa_load(&mapping->i_pages, index);
-
-		if (folio && !xa_is_value(folio))
-			return; /* Folio apparently present */
-
-		folio = filemap_alloc_folio(gfp_mask, 0);
-		if (!folio)
-			return;
-		if (filemap_add_folio(mapping, folio, index, gfp_mask) < 0) {
-			folio_put(folio);
-			return;
-		}
-		if (unlikely(folio_test_workingset(folio)) &&
-				!ractl->_workingset) {
-			ractl->_workingset = true;
-			psi_memstall_enter(&ractl->_pflags);
-		}
-		ractl->_nr_pages++;
-		if (ra) {
-			ra->size++;
-			ra->async_size++;
-		}
-	}
+    loff_t new_start, size_t new_len) {
+  struct address_space *mapping = ractl->mapping;
+  struct file_ra_state *ra = ractl->ra;
+  pgoff_t new_index, new_nr_pages;
+  gfp_t gfp_mask = readahead_gfp_mask(mapping);
+  new_index = new_start / PAGE_SIZE;
+  /* Expand the leading edge downwards */
+  while (ractl->_index > new_index) {
+    unsigned long index = ractl->_index - 1;
+    struct folio *folio = xa_load(&mapping->i_pages, index);
+    if (folio && !xa_is_value(folio)) {
+      return; /* Folio apparently present */
+    }
+    folio = filemap_alloc_folio(gfp_mask, 0);
+    if (!folio) {
+      return;
+    }
+    if (filemap_add_folio(mapping, folio, index, gfp_mask) < 0) {
+      folio_put(folio);
+      return;
+    }
+    if (unlikely(folio_test_workingset(folio))
+        && !ractl->_workingset) {
+      ractl->_workingset = true;
+      psi_memstall_enter(&ractl->_pflags);
+    }
+    ractl->_nr_pages++;
+    ractl->_index = folio->index;
+  }
+  new_len += new_start - readahead_pos(ractl);
+  new_nr_pages = DIV_ROUND_UP(new_len, PAGE_SIZE);
+  /* Expand the trailing edge upwards */
+  while (ractl->_nr_pages < new_nr_pages) {
+    unsigned long index = ractl->_index + ractl->_nr_pages;
+    struct folio *folio = xa_load(&mapping->i_pages, index);
+    if (folio && !xa_is_value(folio)) {
+      return; /* Folio apparently present */
+    }
+    folio = filemap_alloc_folio(gfp_mask, 0);
+    if (!folio) {
+      return;
+    }
+    if (filemap_add_folio(mapping, folio, index, gfp_mask) < 0) {
+      folio_put(folio);
+      return;
+    }
+    if (unlikely(folio_test_workingset(folio))
+        && !ractl->_workingset) {
+      ractl->_workingset = true;
+      psi_memstall_enter(&ractl->_pflags);
+    }
+    ractl->_nr_pages++;
+    if (ra) {
+      ra->size++;
+      ra->async_size++;
+    }
+  }
 }
+
 EXPORT_SYMBOL(readahead_expand);

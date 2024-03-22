@@ -12,15 +12,15 @@
 #include <linux/types.h>
 
 enum {
-	LUA_SIZE_CONTROL = 8,
+  LUA_SIZE_CONTROL = 8,
 };
 
 enum lua_commands {
-	LUA_COMMAND_CONTROL = 3,
+  LUA_COMMAND_CONTROL = 3,
 };
 
 struct lua_device {
-	struct mutex lua_lock;
+  struct mutex lua_lock;
 };
 
 #endif

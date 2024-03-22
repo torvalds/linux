@@ -12,9 +12,8 @@ extern struct vdso_data *vdso_data;
 /*
  * Update the vDSO data page to keep in sync with kernel timekeeping.
  */
-static __always_inline struct vdso_data *__riscv_get_k_vdso_data(void)
-{
-	return vdso_data;
+static __always_inline struct vdso_data *__riscv_get_k_vdso_data(void) {
+  return vdso_data;
 }
 
 #define __arch_get_k_vdso_data __riscv_get_k_vdso_data

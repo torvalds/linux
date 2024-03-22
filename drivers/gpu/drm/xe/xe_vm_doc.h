@@ -18,7 +18,8 @@
  * Scratch page
  * ------------
  *
- * If the VM is created with the flag, DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE, set the
+ * If the VM is created with the flag, DRM_XE_VM_CREATE_FLAG_SCRATCH_PAGE, set
+ *the
  * entire page table structure defaults pointing to blank page allocated by the
  * VM. Invalid memory access rather than fault just read / write to this page.
  *
@@ -32,9 +33,9 @@
  * Operations
  * ----------
  *
- * DRM_XE_VM_BIND_OP_MAP		- Create mapping for a BO
- * DRM_XE_VM_BIND_OP_UNMAP		- Destroy mapping for a BO / userptr
- * DRM_XE_VM_BIND_OP_MAP_USERPTR	- Create mapping for userptr
+ * DRM_XE_VM_BIND_OP_MAP    - Create mapping for a BO
+ * DRM_XE_VM_BIND_OP_UNMAP    - Destroy mapping for a BO / userptr
+ * DRM_XE_VM_BIND_OP_MAP_USERPTR  - Create mapping for userptr
  *
  * Implementation details
  * ~~~~~~~~~~~~~~~~~~~~~~
@@ -53,19 +54,19 @@
  *
  * .. code-block::
  *
- *	bind BO0 0x0-0x1000
- *	alloc page level 3a, program PTE[0] to BO0 phys address (CPU)
- *	alloc page level 2, program PDE[0] page level 3a phys address (CPU)
- *	alloc page level 1, program PDE[0] page level 2 phys address (CPU)
- *	update root PDE[0] to page level 1 phys address (GPU)
+ *  bind BO0 0x0-0x1000
+ *  alloc page level 3a, program PTE[0] to BO0 phys address (CPU)
+ *  alloc page level 2, program PDE[0] page level 3a phys address (CPU)
+ *  alloc page level 1, program PDE[0] page level 2 phys address (CPU)
+ *  update root PDE[0] to page level 1 phys address (GPU)
  *
- *	bind BO1 0x201000-0x202000
- *	alloc page level 3b, program PTE[1] to BO1 phys address (CPU)
- *	update page level 2 PDE[1] to page level 3b phys address (GPU)
+ *  bind BO1 0x201000-0x202000
+ *  alloc page level 3b, program PTE[1] to BO1 phys address (CPU)
+ *  update page level 2 PDE[1] to page level 3b phys address (GPU)
  *
- *	bind BO2 0x1ff000-0x201000
- *	update page level 3a PTE[511] to BO2 phys addres (GPU)
- *	update page level 3b PTE[0] to BO2 phys addres + 0x1000 (GPU)
+ *  bind BO2 0x1ff000-0x201000
+ *  update page level 3a PTE[511] to BO2 phys addres (GPU)
+ *  update page level 3b PTE[0] to BO2 phys addres + 0x1000 (GPU)
  *
  * GPU bypass
  * ~~~~~~~~~~
@@ -113,7 +114,8 @@
  * VM uses to report errors to. The ufence wait interface can be used to wait on
  * a VM going into an error state. Once an error is reported the VM's async
  * worker is paused. While the VM's async worker is paused sync,
- * DRM_XE_VM_BIND_OP_UNMAP operations are allowed (this can free memory). Once the
+ * DRM_XE_VM_BIND_OP_UNMAP operations are allowed (this can free memory). Once
+ *the
  * uses believe the error state is fixed, the async worker can be resumed via
  * XE_VM_BIND_OP_RESTART operation. When VM async bind work is restarted, the
  * first operation processed is the operation that caused the original error.
@@ -143,7 +145,8 @@
  * The uAPI allows multiple binds operations to be passed in via a user array,
  * of struct drm_xe_vm_bind_op, in a single VM bind IOCTL. This interface
  * matches the VK sparse binding API. The implementation is rather simple, parse
- * the array into a list of operations, pass the in fences to the first operation,
+ * the array into a list of operations, pass the in fences to the first
+ *operation,
  * and pass the out fences to the last operation. The ordered nature of a bind
  * engine makes this possible.
  *
@@ -154,18 +157,18 @@
  *
  * .. code-block::
  *
- *	0x0000-0x2000 and 0x3000-0x5000 have mappings
- *	Munmap 0x1000-0x4000, results in mappings 0x0000-0x1000 and 0x4000-0x5000
+ *  0x0000-0x2000 and 0x3000-0x5000 have mappings
+ *  Munmap 0x1000-0x4000, results in mappings 0x0000-0x1000 and 0x4000-0x5000
  *
  * To support this semantic in the above example we decompose the above example
  * into 4 operations:
  *
  * .. code-block::
  *
- *	unbind 0x0000-0x2000
- *	unbind 0x3000-0x5000
- *	rebind 0x0000-0x1000
- *	rebind 0x4000-0x5000
+ *  unbind 0x0000-0x2000
+ *  unbind 0x3000-0x5000
+ *  rebind 0x0000-0x1000
+ *  rebind 0x4000-0x5000
  *
  * Why not just do a partial unbind of 0x1000-0x2000 and 0x3000-0x4000? This
  * falls apart when using large pages at the edges and the unbind forces us to
@@ -199,7 +202,8 @@
  * User pointer
  * ============
  *
- * User pointers are user allocated memory (malloc'd, mmap'd, etc..) for which the
+ * User pointers are user allocated memory (malloc'd, mmap'd, etc..) for which
+ *the
  * user wants to create a GPU mapping. Typically in other DRM drivers a dummy BO
  * was created and then a binding was created. We bypass creating a dummy BO in
  * XE and simply create a binding directly from the userptr.
@@ -261,24 +265,24 @@
  *
  * .. code-block::
  *
- *	<----------------------------------------------------------------------|
- *	Check if VM is closed, if so bail out                                  |
- *	Lock VM global lock in read mode                                       |
- *	Pin userptrs (also finds userptr invalidated since last rebind worker) |
- *	Lock VM dma-resv and external BOs dma-resv                             |
- *	Validate BOs that have been evicted                                    |
- *	Wait on and allocate new preempt fences for every engine using the VM  |
- *	Rebind invalidated userptrs + evicted BOs                              |
- *	Wait on last rebind fence                                              |
- *	Wait VM's DMA_RESV_USAGE_KERNEL dma-resv slot                          |
- *	Install preeempt fences and issue resume for every engine using the VM |
- *	Check if any userptrs invalidated since pin                            |
- *		Squash resume for all engines                                  |
- *		Unlock all                                                     |
- *		Wait all VM's dma-resv slots                                   |
- *		Retry ----------------------------------------------------------
- *	Release all engines waiting to resume
- *	Unlock all
+ *  <----------------------------------------------------------------------|
+ *  Check if VM is closed, if so bail out                                  |
+ *  Lock VM global lock in read mode                                       |
+ *  Pin userptrs (also finds userptr invalidated since last rebind worker) |
+ *  Lock VM dma-resv and external BOs dma-resv                             |
+ *  Validate BOs that have been evicted                                    |
+ *  Wait on and allocate new preempt fences for every engine using the VM  |
+ *  Rebind invalidated userptrs + evicted BOs                              |
+ *  Wait on last rebind fence                                              |
+ *  Wait VM's DMA_RESV_USAGE_KERNEL dma-resv slot                          |
+ *  Install preeempt fences and issue resume for every engine using the VM |
+ *  Check if any userptrs invalidated since pin                            |
+ *    Squash resume for all engines                                  |
+ *    Unlock all                                                     |
+ *    Wait all VM's dma-resv slots                                   |
+ *    Retry ----------------------------------------------------------
+ *  Release all engines waiting to resume
+ *  Unlock all
  *
  * Timeslicing
  * -----------
@@ -322,7 +326,8 @@
  *
  * By default, on a faulting VM binds just allocate the VMA and the actual
  * updating of the page tables is defered to the page fault handler. This
- * behavior can be overridden by setting the flag DRM_XE_VM_BIND_FLAG_IMMEDIATE in
+ * behavior can be overridden by setting the flag DRM_XE_VM_BIND_FLAG_IMMEDIATE
+ *in
  * the VM bind which will then do the bind immediately.
  *
  * Page fault handler
@@ -353,23 +358,23 @@
  *
  * .. code-block::
  *
- *	Lookup VM from ASID in page fault G2H
- *	Lock VM global lock in read mode
- *	Lookup VMA from address in page fault G2H
- *	Check if VMA is valid, if not bail
- *	Check if VMA's BO has backing store, if not allocate
- *	<----------------------------------------------------------------------|
- *	If userptr, pin pages                                                  |
- *	Lock VM & BO dma-resv locks                                            |
- *	If atomic fault, migrate to VRAM, else validate BO location            |
- *	Issue rebind                                                           |
- *	Wait on rebind to complete                                             |
- *	Check if userptr invalidated since pin                                 |
- *		Drop VM & BO dma-resv locks                                    |
- *		Retry ----------------------------------------------------------
- *	Unlock all
- *	Issue blocking TLB invalidation                                        |
- *	Send page fault response to GuC
+ *  Lookup VM from ASID in page fault G2H
+ *  Lock VM global lock in read mode
+ *  Lookup VMA from address in page fault G2H
+ *  Check if VMA is valid, if not bail
+ *  Check if VMA's BO has backing store, if not allocate
+ *  <----------------------------------------------------------------------|
+ *  If userptr, pin pages                                                  |
+ *  Lock VM & BO dma-resv locks                                            |
+ *  If atomic fault, migrate to VRAM, else validate BO location            |
+ *  Issue rebind                                                           |
+ *  Wait on rebind to complete                                             |
+ *  Check if userptr invalidated since pin                                 |
+ *    Drop VM & BO dma-resv locks                                    |
+ *    Retry ----------------------------------------------------------
+ *  Unlock all
+ *  Issue blocking TLB invalidation                                        |
+ *  Send page fault response to GuC
  *
  * Access counters
  * ---------------
@@ -388,13 +393,13 @@
  *
  * .. code-block::
  *
- *	Lookup VM from ASID in access counter G2H
- *	Lock VM global lock in read mode
- *	Lookup VMA from address in access counter G2H
- *	If userptr, bail nothing to do
- *	Lock VM & BO dma-resv locks
- *	Issue migration to VRAM
- *	Unlock all
+ *  Lookup VM from ASID in access counter G2H
+ *  Lock VM global lock in read mode
+ *  Lookup VMA from address in access counter G2H
+ *  If userptr, bail nothing to do
+ *  Lock VM & BO dma-resv locks
+ *  Issue migration to VRAM
+ *  Unlock all
  *
  * Notice no rebind is issued in the access counter handler as the rebind will
  * be issued on next page fault.
@@ -426,7 +431,8 @@
  *
  * VM global lock (vm->lock) - rw semaphore lock. Outer most lock which protects
  * the list of userptrs mapped in the VM, the list of engines using this VM, and
- * the array of external BOs mapped in the VM. When adding or removing any of the
+ * the array of external BOs mapped in the VM. When adding or removing any of
+ *the
  * aforemented state from the VM should acquire this lock in write mode. The VM
  * bind path also acquires this lock in write while the exec / compute mode
  * rebind worker acquire this lock in read mode.
@@ -529,7 +535,8 @@
  * 2. New jobs from non-compute mode execs are blocked behind any existing jobs
  * from kernel ops and rebinds
  *
- * 3. New jobs from kernel ops are blocked behind all preempt fences signaling in
+ * 3. New jobs from kernel ops are blocked behind all preempt fences signaling
+ *in
  * compute mode
  *
  * 4. Compute mode engine resumes are blocked behind any existing jobs from

@@ -6,7 +6,7 @@
  *
  * NOTE!!! See:
  *
- *	Documentation/filesystems/caching/netfs-api.rst
+ *  Documentation/filesystems/caching/netfs-api.rst
  *
  * for a description of the network filesystem interface declared here.
  */
@@ -24,7 +24,8 @@
 #define fscache_volume_valid(volume) (volume)
 #define fscache_cookie_valid(cookie) (cookie)
 #define fscache_resources_valid(cres) ((cres)->cache_priv)
-#define fscache_cookie_enabled(cookie) (cookie && !test_bit(FSCACHE_COOKIE_DISABLED, &cookie->flags))
+#define fscache_cookie_enabled(cookie) (cookie \
+  && !test_bit(FSCACHE_COOKIE_DISABLED, &cookie->flags))
 #else
 #define __fscache_available (0)
 #define fscache_available() (0)
@@ -36,33 +37,36 @@
 
 struct fscache_cookie;
 
-#define FSCACHE_ADV_SINGLE_CHUNK	0x01 /* The object is a single chunk of data */
-#define FSCACHE_ADV_WRITE_CACHE		0x00 /* Do cache if written to locally */
-#define FSCACHE_ADV_WRITE_NOCACHE	0x02 /* Don't cache if written to locally */
-#define FSCACHE_ADV_WANT_CACHE_SIZE	0x04 /* Retrieve cache size at runtime */
+#define FSCACHE_ADV_SINGLE_CHUNK  0x01 /* The object is a single chunk of data
+                                        * */
+#define FSCACHE_ADV_WRITE_CACHE   0x00 /* Do cache if written to locally */
+#define FSCACHE_ADV_WRITE_NOCACHE 0x02 /* Don't cache if written to locally */
+#define FSCACHE_ADV_WANT_CACHE_SIZE 0x04 /* Retrieve cache size at runtime */
 
-#define FSCACHE_INVAL_DIO_WRITE		0x01 /* Invalidate due to DIO write */
+#define FSCACHE_INVAL_DIO_WRITE   0x01 /* Invalidate due to DIO write */
 
 enum fscache_want_state {
-	FSCACHE_WANT_PARAMS,
-	FSCACHE_WANT_WRITE,
-	FSCACHE_WANT_READ,
+  FSCACHE_WANT_PARAMS,
+  FSCACHE_WANT_WRITE,
+  FSCACHE_WANT_READ,
 };
 
 /*
  * Data object state.
  */
 enum fscache_cookie_state {
-	FSCACHE_COOKIE_STATE_QUIESCENT,		/* The cookie is uncached */
-	FSCACHE_COOKIE_STATE_LOOKING_UP,	/* The cache object is being looked up */
-	FSCACHE_COOKIE_STATE_CREATING,		/* The cache object is being created */
-	FSCACHE_COOKIE_STATE_ACTIVE,		/* The cache is active, readable and writable */
-	FSCACHE_COOKIE_STATE_INVALIDATING,	/* The cache is being invalidated */
-	FSCACHE_COOKIE_STATE_FAILED,		/* The cache failed, withdraw to clear */
-	FSCACHE_COOKIE_STATE_LRU_DISCARDING,	/* The cookie is being discarded by the LRU */
-	FSCACHE_COOKIE_STATE_WITHDRAWING,	/* The cookie is being withdrawn */
-	FSCACHE_COOKIE_STATE_RELINQUISHING,	/* The cookie is being relinquished */
-	FSCACHE_COOKIE_STATE_DROPPED,		/* The cookie has been dropped */
+  FSCACHE_COOKIE_STATE_QUIESCENT,   /* The cookie is uncached */
+  FSCACHE_COOKIE_STATE_LOOKING_UP,  /* The cache object is being looked up */
+  FSCACHE_COOKIE_STATE_CREATING,    /* The cache object is being created */
+  FSCACHE_COOKIE_STATE_ACTIVE,    /* The cache is active, readable and writable
+                                   * */
+  FSCACHE_COOKIE_STATE_INVALIDATING,  /* The cache is being invalidated */
+  FSCACHE_COOKIE_STATE_FAILED,    /* The cache failed, withdraw to clear */
+  FSCACHE_COOKIE_STATE_LRU_DISCARDING,  /* The cookie is being discarded by the
+                                         * LRU */
+  FSCACHE_COOKIE_STATE_WITHDRAWING, /* The cookie is being withdrawn */
+  FSCACHE_COOKIE_STATE_RELINQUISHING, /* The cookie is being relinquished */
+  FSCACHE_COOKIE_STATE_DROPPED,   /* The cookie has been dropped */
 #define FSCACHE_COOKIE_STATE__NR (FSCACHE_COOKIE_STATE_DROPPED + 1)
 } __attribute__((mode(byte)));
 
@@ -70,26 +74,27 @@ enum fscache_cookie_state {
  * Volume representation cookie.
  */
 struct fscache_volume {
-	refcount_t			ref;
-	atomic_t			n_cookies;	/* Number of data cookies in volume */
-	atomic_t			n_accesses;	/* Number of cache accesses in progress */
-	unsigned int			debug_id;
-	unsigned int			key_hash;	/* Hash of key string */
-	u8				*key;		/* Volume ID, eg. "afs@example.com@1234" */
-	struct list_head		proc_link;	/* Link in /proc/fs/fscache/volumes */
-	struct hlist_bl_node		hash_link;	/* Link in hash table */
-	struct work_struct		work;
-	struct fscache_cache		*cache;		/* The cache in which this resides */
-	void				*cache_priv;	/* Cache private data */
-	spinlock_t			lock;
-	unsigned long			flags;
-#define FSCACHE_VOLUME_RELINQUISHED	0	/* Volume is being cleaned up */
-#define FSCACHE_VOLUME_INVALIDATE	1	/* Volume was invalidated */
-#define FSCACHE_VOLUME_COLLIDED_WITH	2	/* Volume was collided with */
-#define FSCACHE_VOLUME_ACQUIRE_PENDING	3	/* Volume is waiting to complete acquisition */
-#define FSCACHE_VOLUME_CREATING		4	/* Volume is being created on disk */
-	u8				coherency_len;	/* Length of the coherency data */
-	u8				coherency[];	/* Coherency data */
+  refcount_t ref;
+  atomic_t n_cookies;  /* Number of data cookies in volume */
+  atomic_t n_accesses; /* Number of cache accesses in progress */
+  unsigned int debug_id;
+  unsigned int key_hash; /* Hash of key string */
+  u8 *key;   /* Volume ID, eg. "afs@example.com@1234" */
+  struct list_head proc_link;  /* Link in /proc/fs/fscache/volumes */
+  struct hlist_bl_node hash_link;  /* Link in hash table */
+  struct work_struct work;
+  struct fscache_cache *cache;   /* The cache in which this resides */
+  void *cache_priv;  /* Cache private data */
+  spinlock_t lock;
+  unsigned long flags;
+#define FSCACHE_VOLUME_RELINQUISHED 0 /* Volume is being cleaned up */
+#define FSCACHE_VOLUME_INVALIDATE 1 /* Volume was invalidated */
+#define FSCACHE_VOLUME_COLLIDED_WITH  2 /* Volume was collided with */
+#define FSCACHE_VOLUME_ACQUIRE_PENDING  3 /* Volume is waiting to complete
+                                           * acquisition */
+#define FSCACHE_VOLUME_CREATING   4 /* Volume is being created on disk */
+  u8 coherency_len;  /* Length of the coherency data */
+  u8 coherency[];  /* Coherency data */
 };
 
 /*
@@ -100,51 +105,60 @@ struct fscache_volume {
  * - indices are created on disk just-in-time
  */
 struct fscache_cookie {
-	refcount_t			ref;
-	atomic_t			n_active;	/* number of active users of cookie */
-	atomic_t			n_accesses;	/* Number of cache accesses in progress */
-	unsigned int			debug_id;
-	unsigned int			inval_counter;	/* Number of invalidations made */
-	spinlock_t			lock;
-	struct fscache_volume		*volume;	/* Parent volume of this file. */
-	void				*cache_priv;	/* Cache-side representation */
-	struct hlist_bl_node		hash_link;	/* Link in hash table */
-	struct list_head		proc_link;	/* Link in proc list */
-	struct list_head		commit_link;	/* Link in commit queue */
-	struct work_struct		work;		/* Commit/relinq/withdraw work */
-	loff_t				object_size;	/* Size of the netfs object */
-	unsigned long			unused_at;	/* Time at which unused (jiffies) */
-	unsigned long			flags;
-#define FSCACHE_COOKIE_RELINQUISHED	0		/* T if cookie has been relinquished */
-#define FSCACHE_COOKIE_RETIRED		1		/* T if this cookie has retired on relinq */
-#define FSCACHE_COOKIE_IS_CACHING	2		/* T if this cookie is cached */
-#define FSCACHE_COOKIE_NO_DATA_TO_READ	3		/* T if this cookie has nothing to read */
-#define FSCACHE_COOKIE_NEEDS_UPDATE	4		/* T if attrs have been updated */
-#define FSCACHE_COOKIE_HAS_BEEN_CACHED	5		/* T if cookie needs withdraw-on-relinq */
-#define FSCACHE_COOKIE_DISABLED		6		/* T if cookie has been disabled */
-#define FSCACHE_COOKIE_LOCAL_WRITE	7		/* T if cookie has been modified locally */
-#define FSCACHE_COOKIE_NO_ACCESS_WAKE	8		/* T if no wake when n_accesses goes 0 */
-#define FSCACHE_COOKIE_DO_RELINQUISH	9		/* T if this cookie needs relinquishment */
-#define FSCACHE_COOKIE_DO_WITHDRAW	10		/* T if this cookie needs withdrawing */
-#define FSCACHE_COOKIE_DO_LRU_DISCARD	11		/* T if this cookie needs LRU discard */
-#define FSCACHE_COOKIE_DO_PREP_TO_WRITE	12		/* T if cookie needs write preparation */
-#define FSCACHE_COOKIE_HAVE_DATA	13		/* T if this cookie has data stored */
-#define FSCACHE_COOKIE_IS_HASHED	14		/* T if this cookie is hashed */
-#define FSCACHE_COOKIE_DO_INVALIDATE	15		/* T if cookie needs invalidation */
+  refcount_t ref;
+  atomic_t n_active; /* number of active users of cookie */
+  atomic_t n_accesses; /* Number of cache accesses in progress */
+  unsigned int debug_id;
+  unsigned int inval_counter;  /* Number of invalidations made */
+  spinlock_t lock;
+  struct fscache_volume *volume;  /* Parent volume of this file. */
+  void *cache_priv;  /* Cache-side representation */
+  struct hlist_bl_node hash_link;  /* Link in hash table */
+  struct list_head proc_link;  /* Link in proc list */
+  struct list_head commit_link;  /* Link in commit queue */
+  struct work_struct work;   /* Commit/relinq/withdraw work */
+  loff_t object_size;  /* Size of the netfs object */
+  unsigned long unused_at;  /* Time at which unused (jiffies) */
+  unsigned long flags;
+#define FSCACHE_COOKIE_RELINQUISHED 0   /* T if cookie has been relinquished */
+#define FSCACHE_COOKIE_RETIRED    1   /* T if this cookie has retired on relinq
+                                       * */
+#define FSCACHE_COOKIE_IS_CACHING 2   /* T if this cookie is cached */
+#define FSCACHE_COOKIE_NO_DATA_TO_READ  3   /* T if this cookie has nothing to
+                                             * read */
+#define FSCACHE_COOKIE_NEEDS_UPDATE 4   /* T if attrs have been updated */
+#define FSCACHE_COOKIE_HAS_BEEN_CACHED  5   /* T if cookie needs
+                                             * withdraw-on-relinq */
+#define FSCACHE_COOKIE_DISABLED   6   /* T if cookie has been disabled */
+#define FSCACHE_COOKIE_LOCAL_WRITE  7   /* T if cookie has been modified locally
+                                         * */
+#define FSCACHE_COOKIE_NO_ACCESS_WAKE 8   /* T if no wake when n_accesses goes 0
+                                           * */
+#define FSCACHE_COOKIE_DO_RELINQUISH  9   /* T if this cookie needs
+                                           * relinquishment */
+#define FSCACHE_COOKIE_DO_WITHDRAW  10    /* T if this cookie needs withdrawing
+                                           * */
+#define FSCACHE_COOKIE_DO_LRU_DISCARD 11    /* T if this cookie needs LRU
+                                             * discard */
+#define FSCACHE_COOKIE_DO_PREP_TO_WRITE 12    /* T if cookie needs write
+                                               * preparation */
+#define FSCACHE_COOKIE_HAVE_DATA  13    /* T if this cookie has data stored */
+#define FSCACHE_COOKIE_IS_HASHED  14    /* T if this cookie is hashed */
+#define FSCACHE_COOKIE_DO_INVALIDATE  15    /* T if cookie needs invalidation */
 
-	enum fscache_cookie_state	state;
-	u8				advice;		/* FSCACHE_ADV_* */
-	u8				key_len;	/* Length of index key */
-	u8				aux_len;	/* Length of auxiliary data */
-	u32				key_hash;	/* Hash of volume, key, len */
-	union {
-		void			*key;		/* Index key */
-		u8			inline_key[16];	/* - If the key is short enough */
-	};
-	union {
-		void			*aux;		/* Auxiliary data */
-		u8			inline_aux[8];	/* - If the aux data is short enough */
-	};
+  enum fscache_cookie_state state;
+  u8 advice;   /* FSCACHE_ADV_* */
+  u8 key_len;  /* Length of index key */
+  u8 aux_len;  /* Length of auxiliary data */
+  u32 key_hash; /* Hash of volume, key, len */
+  union {
+    void *key;   /* Index key */
+    u8 inline_key[16]; /* - If the key is short enough */
+  };
+  union {
+    void *aux;   /* Auxiliary data */
+    u8 inline_aux[8];  /* - If the aux data is short enough */
+  };
 };
 
 /*
@@ -154,27 +168,34 @@ struct fscache_cookie {
  * - these are undefined symbols when FS-Cache is not configured and the
  *   optimiser takes care of not using them
  */
-extern struct fscache_volume *__fscache_acquire_volume(const char *, const char *,
-						       const void *, size_t);
-extern void __fscache_relinquish_volume(struct fscache_volume *, const void *, bool);
+extern struct fscache_volume *__fscache_acquire_volume(const char *,
+    const char *,
+    const void *, size_t);
+extern void __fscache_relinquish_volume(struct fscache_volume *, const void *,
+    bool);
 
 extern struct fscache_cookie *__fscache_acquire_cookie(
-	struct fscache_volume *,
-	u8,
-	const void *, size_t,
-	const void *, size_t,
-	loff_t);
+  struct fscache_volume *,
+  u8,
+  const void *, size_t,
+  const void *, size_t,
+  loff_t);
 extern void __fscache_use_cookie(struct fscache_cookie *, bool);
-extern void __fscache_unuse_cookie(struct fscache_cookie *, const void *, const loff_t *);
+extern void __fscache_unuse_cookie(struct fscache_cookie *, const void *,
+    const loff_t *);
 extern void __fscache_relinquish_cookie(struct fscache_cookie *, bool);
 extern void __fscache_resize_cookie(struct fscache_cookie *, loff_t);
-extern void __fscache_invalidate(struct fscache_cookie *, const void *, loff_t, unsigned int);
-extern int __fscache_begin_read_operation(struct netfs_cache_resources *, struct fscache_cookie *);
-extern int __fscache_begin_write_operation(struct netfs_cache_resources *, struct fscache_cookie *);
+extern void __fscache_invalidate(struct fscache_cookie *, const void *, loff_t,
+    unsigned int);
+extern int __fscache_begin_read_operation(struct netfs_cache_resources *,
+    struct fscache_cookie *);
+extern int __fscache_begin_write_operation(struct netfs_cache_resources *,
+    struct fscache_cookie *);
 
-extern void __fscache_write_to_cache(struct fscache_cookie *, struct address_space *,
-				     loff_t, size_t, loff_t, netfs_io_terminated_t, void *,
-				     bool);
+extern void __fscache_write_to_cache(struct fscache_cookie *,
+    struct address_space *,
+    loff_t, size_t, loff_t, netfs_io_terminated_t, void *,
+    bool);
 extern void __fscache_clear_page_bits(struct address_space *, loff_t, size_t);
 
 /**
@@ -195,14 +216,14 @@ extern void __fscache_clear_page_bits(struct address_space *, loff_t, size_t);
  */
 static inline
 struct fscache_volume *fscache_acquire_volume(const char *volume_key,
-					      const char *cache_name,
-					      const void *coherency_data,
-					      size_t coherency_len)
-{
-	if (!fscache_available())
-		return NULL;
-	return __fscache_acquire_volume(volume_key, cache_name,
-					coherency_data, coherency_len);
+    const char *cache_name,
+    const void *coherency_data,
+    size_t coherency_len) {
+  if (!fscache_available()) {
+    return NULL;
+  }
+  return __fscache_acquire_volume(volume_key, cache_name,
+      coherency_data, coherency_len);
 }
 
 /**
@@ -217,11 +238,11 @@ struct fscache_volume *fscache_acquire_volume(const char *volume_key,
  */
 static inline
 void fscache_relinquish_volume(struct fscache_volume *volume,
-			       const void *coherency_data,
-			       bool invalidate)
-{
-	if (fscache_volume_valid(volume))
-		__fscache_relinquish_volume(volume, coherency_data, invalidate);
+    const void *coherency_data,
+    bool invalidate) {
+  if (fscache_volume_valid(volume)) {
+    __fscache_relinquish_volume(volume, coherency_data, invalidate);
+  }
 }
 
 /**
@@ -241,19 +262,19 @@ void fscache_relinquish_volume(struct fscache_volume *volume,
  */
 static inline
 struct fscache_cookie *fscache_acquire_cookie(struct fscache_volume *volume,
-					      u8 advice,
-					      const void *index_key,
-					      size_t index_key_len,
-					      const void *aux_data,
-					      size_t aux_data_len,
-					      loff_t object_size)
-{
-	if (!fscache_volume_valid(volume))
-		return NULL;
-	return __fscache_acquire_cookie(volume, advice,
-					index_key, index_key_len,
-					aux_data, aux_data_len,
-					object_size);
+    u8 advice,
+    const void *index_key,
+    size_t index_key_len,
+    const void *aux_data,
+    size_t aux_data_len,
+    loff_t object_size) {
+  if (!fscache_volume_valid(volume)) {
+    return NULL;
+  }
+  return __fscache_acquire_cookie(volume, advice,
+      index_key, index_key_len,
+      aux_data, aux_data_len,
+      object_size);
 }
 
 /**
@@ -266,10 +287,10 @@ struct fscache_cookie *fscache_acquire_cookie(struct fscache_volume *volume,
  * the cache can apply the policy that has been set to handle this case.
  */
 static inline void fscache_use_cookie(struct fscache_cookie *cookie,
-				      bool will_modify)
-{
-	if (fscache_cookie_valid(cookie))
-		__fscache_use_cookie(cookie, will_modify);
+    bool will_modify) {
+  if (fscache_cookie_valid(cookie)) {
+    __fscache_use_cookie(cookie, will_modify);
+  }
 }
 
 /**
@@ -282,11 +303,11 @@ static inline void fscache_use_cookie(struct fscache_cookie *cookie,
  * reaches zero then the cookie relinquishment will be permitted to proceed.
  */
 static inline void fscache_unuse_cookie(struct fscache_cookie *cookie,
-					const void *aux_data,
-					const loff_t *object_size)
-{
-	if (fscache_cookie_valid(cookie))
-		__fscache_unuse_cookie(cookie, aux_data, object_size);
+    const void *aux_data,
+    const loff_t *object_size) {
+  if (fscache_cookie_valid(cookie)) {
+    __fscache_unuse_cookie(cookie, aux_data, object_size);
+  }
 }
 
 /**
@@ -302,21 +323,21 @@ static inline void fscache_unuse_cookie(struct fscache_cookie *cookie,
  * description.
  */
 static inline
-void fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire)
-{
-	if (fscache_cookie_valid(cookie))
-		__fscache_relinquish_cookie(cookie, retire);
+void fscache_relinquish_cookie(struct fscache_cookie *cookie, bool retire) {
+  if (fscache_cookie_valid(cookie)) {
+    __fscache_relinquish_cookie(cookie, retire);
+  }
 }
 
 /*
  * Find the auxiliary data on a cookie.
  */
-static inline void *fscache_get_aux(struct fscache_cookie *cookie)
-{
-	if (cookie->aux_len <= sizeof(cookie->inline_aux))
-		return cookie->inline_aux;
-	else
-		return cookie->aux;
+static inline void *fscache_get_aux(struct fscache_cookie *cookie) {
+  if (cookie->aux_len <= sizeof(cookie->inline_aux)) {
+    return cookie->inline_aux;
+  } else {
+    return cookie->aux;
+  }
 }
 
 /*
@@ -324,14 +345,14 @@ static inline void *fscache_get_aux(struct fscache_cookie *cookie)
  */
 static inline
 void fscache_update_aux(struct fscache_cookie *cookie,
-			const void *aux_data, const loff_t *object_size)
-{
-	void *p = fscache_get_aux(cookie);
-
-	if (aux_data && p)
-		memcpy(p, aux_data, cookie->aux_len);
-	if (object_size)
-		cookie->object_size = *object_size;
+    const void *aux_data, const loff_t *object_size) {
+  void *p = fscache_get_aux(cookie);
+  if (aux_data && p) {
+    memcpy(p, aux_data, cookie->aux_len);
+  }
+  if (object_size) {
+    cookie->object_size = *object_size;
+  }
 }
 
 #ifdef CONFIG_FSCACHE_STATS
@@ -339,15 +360,15 @@ extern atomic_t fscache_n_updates;
 #endif
 
 static inline
-void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
-			     const loff_t *object_size)
-{
+void __fscache_update_cookie(struct fscache_cookie *cookie,
+    const void *aux_data,
+    const loff_t *object_size) {
 #ifdef CONFIG_FSCACHE_STATS
-	atomic_inc(&fscache_n_updates);
+  atomic_inc(&fscache_n_updates);
 #endif
-	fscache_update_aux(cookie, aux_data, object_size);
-	smp_wmb();
-	set_bit(FSCACHE_COOKIE_NEEDS_UPDATE, &cookie->flags);
+  fscache_update_aux(cookie, aux_data, object_size);
+  smp_wmb();
+  set_bit(FSCACHE_COOKIE_NEEDS_UPDATE, &cookie->flags);
 }
 
 /**
@@ -366,10 +387,10 @@ void __fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data
  */
 static inline
 void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
-			   const loff_t *object_size)
-{
-	if (fscache_cookie_enabled(cookie))
-		__fscache_update_cookie(cookie, aux_data, object_size);
+    const loff_t *object_size) {
+  if (fscache_cookie_enabled(cookie)) {
+    __fscache_update_cookie(cookie, aux_data, object_size);
+  }
 }
 
 /**
@@ -383,10 +404,10 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
  * description.
  */
 static inline
-void fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
-{
-	if (fscache_cookie_enabled(cookie))
-		__fscache_resize_cookie(cookie, new_size);
+void fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size) {
+  if (fscache_cookie_enabled(cookie)) {
+    __fscache_resize_cookie(cookie, new_size);
+  }
 }
 
 /**
@@ -410,10 +431,10 @@ void fscache_resize_cookie(struct fscache_cookie *cookie, loff_t new_size)
  */
 static inline
 void fscache_invalidate(struct fscache_cookie *cookie,
-			const void *aux_data, loff_t size, unsigned int flags)
-{
-	if (fscache_cookie_enabled(cookie))
-		__fscache_invalidate(cookie, aux_data, size, flags);
+    const void *aux_data, loff_t size, unsigned int flags) {
+  if (fscache_cookie_enabled(cookie)) {
+    __fscache_invalidate(cookie, aux_data, size, flags);
+  }
 }
 
 /**
@@ -423,9 +444,9 @@ void fscache_invalidate(struct fscache_cookie *cookie,
  * Returns a pointer to the operations table if usable or NULL if not.
  */
 static inline
-const struct netfs_cache_ops *fscache_operation_valid(const struct netfs_cache_resources *cres)
-{
-	return fscache_resources_valid(cres) ? cres->ops : NULL;
+const struct netfs_cache_ops *fscache_operation_valid(
+    const struct netfs_cache_resources *cres) {
+  return fscache_resources_valid(cres) ? cres->ops : NULL;
 }
 
 /**
@@ -442,17 +463,17 @@ const struct netfs_cache_ops *fscache_operation_valid(const struct netfs_cache_r
  * be detected by the caller.
  *
  * Returns:
- * * 0		- Success
- * * -ENOBUFS	- No caching available
+ * * 0    - Success
+ * * -ENOBUFS - No caching available
  * * Other error code from the cache, such as -ENOMEM.
  */
 static inline
 int fscache_begin_read_operation(struct netfs_cache_resources *cres,
-				 struct fscache_cookie *cookie)
-{
-	if (fscache_cookie_enabled(cookie))
-		return __fscache_begin_read_operation(cres, cookie);
-	return -ENOBUFS;
+    struct fscache_cookie *cookie) {
+  if (fscache_cookie_enabled(cookie)) {
+    return __fscache_begin_read_operation(cres, cookie);
+  }
+  return -ENOBUFS;
 }
 
 /**
@@ -461,12 +482,11 @@ int fscache_begin_read_operation(struct netfs_cache_resources *cres,
  *
  * Clean up the resources at the end of the read request.
  */
-static inline void fscache_end_operation(struct netfs_cache_resources *cres)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-
-	if (ops)
-		ops->end_operation(cres);
+static inline void fscache_end_operation(struct netfs_cache_resources *cres) {
+  const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+  if (ops) {
+    ops->end_operation(cres);
+  }
 }
 
 /**
@@ -493,24 +513,23 @@ static inline void fscache_end_operation(struct netfs_cache_resources *cres)
  * @read_hole indicates how a partially populated region in the cache should be
  * handled.  It can be one of a number of settings:
  *
- *	NETFS_READ_HOLE_IGNORE - Just try to read (may return a short read).
+ *  NETFS_READ_HOLE_IGNORE - Just try to read (may return a short read).
  *
- *	NETFS_READ_HOLE_CLEAR - Seek for data, clearing the part of the buffer
- *				skipped over, then do as for IGNORE.
+ *  NETFS_READ_HOLE_CLEAR - Seek for data, clearing the part of the buffer
+ *        skipped over, then do as for IGNORE.
  *
- *	NETFS_READ_HOLE_FAIL - Give ENODATA if we encounter a hole.
+ *  NETFS_READ_HOLE_FAIL - Give ENODATA if we encounter a hole.
  */
 static inline
 int fscache_read(struct netfs_cache_resources *cres,
-		 loff_t start_pos,
-		 struct iov_iter *iter,
-		 enum netfs_read_from_hole read_hole,
-		 netfs_io_terminated_t term_func,
-		 void *term_func_priv)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-	return ops->read(cres, start_pos, iter, read_hole,
-			 term_func, term_func_priv);
+    loff_t start_pos,
+    struct iov_iter *iter,
+    enum netfs_read_from_hole read_hole,
+    netfs_io_terminated_t term_func,
+    void *term_func_priv) {
+  const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+  return ops->read(cres, start_pos, iter, read_hole,
+      term_func, term_func_priv);
 }
 
 /**
@@ -527,17 +546,17 @@ int fscache_read(struct netfs_cache_resources *cres,
  * be detected by the caller.
  *
  * Returns:
- * * 0		- Success
- * * -ENOBUFS	- No caching available
+ * * 0    - Success
+ * * -ENOBUFS - No caching available
  * * Other error code from the cache, such as -ENOMEM.
  */
 static inline
 int fscache_begin_write_operation(struct netfs_cache_resources *cres,
-				  struct fscache_cookie *cookie)
-{
-	if (fscache_cookie_enabled(cookie))
-		return __fscache_begin_write_operation(cres, cookie);
-	return -ENOBUFS;
+    struct fscache_cookie *cookie) {
+  if (fscache_cookie_enabled(cookie)) {
+    return __fscache_begin_write_operation(cres, cookie);
+  }
+  return -ENOBUFS;
 }
 
 /**
@@ -561,13 +580,12 @@ int fscache_begin_write_operation(struct netfs_cache_resources *cres,
  */
 static inline
 int fscache_write(struct netfs_cache_resources *cres,
-		  loff_t start_pos,
-		  struct iov_iter *iter,
-		  netfs_io_terminated_t term_func,
-		  void *term_func_priv)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-	return ops->write(cres, start_pos, iter, term_func, term_func_priv);
+    loff_t start_pos,
+    struct iov_iter *iter,
+    netfs_io_terminated_t term_func,
+    void *term_func_priv) {
+  const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
+  return ops->write(cres, start_pos, iter, term_func, term_func_priv);
 }
 
 /**
@@ -581,11 +599,11 @@ int fscache_write(struct netfs_cache_resources *cres,
  * waiting.
  */
 static inline void fscache_clear_page_bits(struct address_space *mapping,
-					   loff_t start, size_t len,
-					   bool caching)
-{
-	if (caching)
-		__fscache_clear_page_bits(mapping, start, len);
+    loff_t start, size_t len,
+    bool caching) {
+  if (caching) {
+    __fscache_clear_page_bits(mapping, start, len);
+  }
 }
 
 /**
@@ -612,18 +630,17 @@ static inline void fscache_clear_page_bits(struct address_space *mapping,
  * this point, so the netfs must retain its own pin on the mapping.
  */
 static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
-					  struct address_space *mapping,
-					  loff_t start, size_t len, loff_t i_size,
-					  netfs_io_terminated_t term_func,
-					  void *term_func_priv,
-					  bool caching)
-{
-	if (caching)
-		__fscache_write_to_cache(cookie, mapping, start, len, i_size,
-					 term_func, term_func_priv, caching);
-	else if (term_func)
-		term_func(term_func_priv, -ENOBUFS, false);
-
+    struct address_space *mapping,
+    loff_t start, size_t len, loff_t i_size,
+    netfs_io_terminated_t term_func,
+    void *term_func_priv,
+    bool caching) {
+  if (caching) {
+    __fscache_write_to_cache(cookie, mapping, start, len, i_size,
+        term_func, term_func_priv, caching);
+  } else if (term_func) {
+    term_func(term_func_priv, -ENOBUFS, false);
+  }
 }
 
 /**
@@ -634,17 +651,17 @@ static inline void fscache_write_to_cache(struct fscache_cookie *cookie,
  * means that future reads will need to look in the cache to see if it's there.
  */
 static inline
-void fscache_note_page_release(struct fscache_cookie *cookie)
-{
-	/* If we've written data to the cache (HAVE_DATA) and there wasn't any
-	 * data in the cache when we started (NO_DATA_TO_READ), it may no
-	 * longer be true that we can skip reading from the cache - so clear
-	 * the flag that causes reads to be skipped.
-	 */
-	if (cookie &&
-	    test_bit(FSCACHE_COOKIE_HAVE_DATA, &cookie->flags) &&
-	    test_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags))
-		clear_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+void fscache_note_page_release(struct fscache_cookie *cookie) {
+  /* If we've written data to the cache (HAVE_DATA) and there wasn't any
+   * data in the cache when we started (NO_DATA_TO_READ), it may no
+   * longer be true that we can skip reading from the cache - so clear
+   * the flag that causes reads to be skipped.
+   */
+  if (cookie
+      && test_bit(FSCACHE_COOKIE_HAVE_DATA, &cookie->flags)
+      && test_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags)) {
+    clear_bit(FSCACHE_COOKIE_NO_DATA_TO_READ, &cookie->flags);
+  }
 }
 
 #endif /* _LINUX_FSCACHE_H */

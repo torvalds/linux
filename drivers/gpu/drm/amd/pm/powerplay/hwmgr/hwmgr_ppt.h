@@ -29,88 +29,100 @@
 #include "atom-types.h"
 
 struct phm_ppt_v1_clock_voltage_dependency_record {
-	uint32_t clk;
-	uint8_t  vddInd;
-	uint8_t  vddciInd;
-	uint8_t  mvddInd;
-	uint16_t vdd_offset;
-	uint16_t vddc;
-	uint16_t vddgfx;
-	uint16_t vddci;
-	uint16_t mvdd;
-	uint8_t  phases;
-	uint8_t  cks_enable;
-	uint8_t  cks_voffset;
-	uint32_t sclk_offset;
+  uint32_t clk;
+  uint8_t vddInd;
+  uint8_t vddciInd;
+  uint8_t mvddInd;
+  uint16_t vdd_offset;
+  uint16_t vddc;
+  uint16_t vddgfx;
+  uint16_t vddci;
+  uint16_t mvdd;
+  uint8_t phases;
+  uint8_t cks_enable;
+  uint8_t cks_voffset;
+  uint32_t sclk_offset;
 };
 
-typedef struct phm_ppt_v1_clock_voltage_dependency_record phm_ppt_v1_clock_voltage_dependency_record;
+typedef struct phm_ppt_v1_clock_voltage_dependency_record
+    phm_ppt_v1_clock_voltage_dependency_record;
 
 struct phm_ppt_v1_clock_voltage_dependency_table {
-	uint32_t count;                                            /* Number of entries. */
-	phm_ppt_v1_clock_voltage_dependency_record entries[];	   /* Dynamically allocate count entries. */
+  uint32_t count;                                            /* Number of
+                                                              * entries. */
+  phm_ppt_v1_clock_voltage_dependency_record entries[];    /* Dynamically
+                                                            * allocate count
+                                                            * entries. */
 };
 
-typedef struct phm_ppt_v1_clock_voltage_dependency_table phm_ppt_v1_clock_voltage_dependency_table;
-
+typedef struct phm_ppt_v1_clock_voltage_dependency_table
+    phm_ppt_v1_clock_voltage_dependency_table;
 
 /* Multimedia Clock Voltage Dependency records and table */
 struct phm_ppt_v1_mm_clock_voltage_dependency_record {
-	uint32_t  dclk;                                              /* UVD D-clock */
-	uint32_t  vclk;                                              /* UVD V-clock */
-	uint32_t  eclk;                                              /* VCE clock */
-	uint32_t  aclk;                                              /* ACP clock */
-	uint32_t  samclock;                                          /* SAMU clock */
-	uint8_t	vddcInd;
-	uint16_t vddgfx_offset;
-	uint16_t vddc;
-	uint16_t vddgfx;
-	uint8_t phases;
+  uint32_t dclk;                                              /* UVD D-clock */
+  uint32_t vclk;                                              /* UVD V-clock */
+  uint32_t eclk;                                              /* VCE clock */
+  uint32_t aclk;                                              /* ACP clock */
+  uint32_t samclock;                                          /* SAMU clock */
+  uint8_t vddcInd;
+  uint16_t vddgfx_offset;
+  uint16_t vddc;
+  uint16_t vddgfx;
+  uint8_t phases;
 };
-typedef struct phm_ppt_v1_mm_clock_voltage_dependency_record phm_ppt_v1_mm_clock_voltage_dependency_record;
+typedef struct phm_ppt_v1_mm_clock_voltage_dependency_record
+    phm_ppt_v1_mm_clock_voltage_dependency_record;
 
 struct phm_ppt_v1_mm_clock_voltage_dependency_table {
-	uint32_t count;													/* Number of entries. */
-	phm_ppt_v1_mm_clock_voltage_dependency_record entries[];		/* Dynamically allocate count entries. */
+  uint32_t count;                         /* Number of entries. */
+  phm_ppt_v1_mm_clock_voltage_dependency_record entries[];    /* Dynamically
+                                                               * allocate count
+                                                               * entries. */
 };
-typedef struct phm_ppt_v1_mm_clock_voltage_dependency_table phm_ppt_v1_mm_clock_voltage_dependency_table;
+typedef struct phm_ppt_v1_mm_clock_voltage_dependency_table
+    phm_ppt_v1_mm_clock_voltage_dependency_table;
 
 struct phm_ppt_v1_voltage_lookup_record {
-	uint16_t us_calculated;
-	uint16_t us_vdd;												/* Base voltage */
-	uint16_t us_cac_low;
-	uint16_t us_cac_mid;
-	uint16_t us_cac_high;
+  uint16_t us_calculated;
+  uint16_t us_vdd;                        /* Base voltage */
+  uint16_t us_cac_low;
+  uint16_t us_cac_mid;
+  uint16_t us_cac_high;
 };
 typedef struct phm_ppt_v1_voltage_lookup_record phm_ppt_v1_voltage_lookup_record;
 
 struct phm_ppt_v1_voltage_lookup_table {
-	uint32_t count;
-	phm_ppt_v1_voltage_lookup_record entries[];    /* Dynamically allocate count entries. */
+  uint32_t count;
+  phm_ppt_v1_voltage_lookup_record entries[];    /* Dynamically allocate count
+                                                  * entries. */
 };
 typedef struct phm_ppt_v1_voltage_lookup_table phm_ppt_v1_voltage_lookup_table;
 
 /* PCIE records and Table */
 
 struct phm_ppt_v1_pcie_record {
-	uint8_t gen_speed;
-	uint8_t lane_width;
-	uint16_t usreserved;
-	uint16_t reserved;
-	uint32_t pcie_sclk;
+  uint8_t gen_speed;
+  uint8_t lane_width;
+  uint16_t usreserved;
+  uint16_t reserved;
+  uint32_t pcie_sclk;
 };
 typedef struct phm_ppt_v1_pcie_record phm_ppt_v1_pcie_record;
 
 struct phm_ppt_v1_pcie_table {
-	uint32_t count;                                            /* Number of entries. */
-	phm_ppt_v1_pcie_record entries[];			   /* Dynamically allocate count entries. */
+  uint32_t count;                                            /* Number of
+                                                              * entries. */
+  phm_ppt_v1_pcie_record entries[];        /* Dynamically allocate count
+                                            * entries. */
 };
 typedef struct phm_ppt_v1_pcie_table phm_ppt_v1_pcie_table;
 
 struct phm_ppt_v1_gpio_table {
-	uint8_t vrhot_triggered_sclk_dpm_index;           /* SCLK DPM level index to switch to when VRHot is triggered */
+  uint8_t vrhot_triggered_sclk_dpm_index;           /* SCLK DPM level index to
+                                                     * switch to when VRHot is
+                                                     * triggered */
 };
 typedef struct phm_ppt_v1_gpio_table phm_ppt_v1_gpio_table;
 
 #endif
-

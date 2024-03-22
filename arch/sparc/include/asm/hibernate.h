@@ -9,16 +9,16 @@
 #define ___SPARC_HIBERNATE_H
 
 struct saved_context {
-	unsigned long fp;
-	unsigned long cwp;
-	unsigned long wstate;
+  unsigned long fp;
+  unsigned long cwp;
+  unsigned long wstate;
 
-	unsigned long tick;
-	unsigned long pstate;
+  unsigned long tick;
+  unsigned long pstate;
 
-	unsigned long g4;
-	unsigned long g5;
-	unsigned long g6;
+  unsigned long g4;
+  unsigned long g5;
+  unsigned long g6;
 };
 
 #endif

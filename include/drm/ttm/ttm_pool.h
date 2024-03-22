@@ -47,14 +47,14 @@ struct ttm_operation_ctx;
  * @pages: the list of pages in the pool
  */
 struct ttm_pool_type {
-	struct ttm_pool *pool;
-	unsigned int order;
-	enum ttm_caching caching;
+  struct ttm_pool *pool;
+  unsigned int order;
+  enum ttm_caching caching;
 
-	struct list_head shrinker_list;
+  struct list_head shrinker_list;
 
-	spinlock_t lock;
-	struct list_head pages;
+  spinlock_t lock;
+  struct list_head pages;
 };
 
 /**
@@ -67,23 +67,23 @@ struct ttm_pool_type {
  * @caching: pools for each caching/order
  */
 struct ttm_pool {
-	struct device *dev;
-	int nid;
+  struct device *dev;
+  int nid;
 
-	bool use_dma_alloc;
-	bool use_dma32;
+  bool use_dma_alloc;
+  bool use_dma32;
 
-	struct {
-		struct ttm_pool_type orders[NR_PAGE_ORDERS];
-	} caching[TTM_NUM_CACHING_TYPES];
+  struct {
+    struct ttm_pool_type orders[NR_PAGE_ORDERS];
+  } caching[TTM_NUM_CACHING_TYPES];
 };
 
 int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
-		   struct ttm_operation_ctx *ctx);
+    struct ttm_operation_ctx *ctx);
 void ttm_pool_free(struct ttm_pool *pool, struct ttm_tt *tt);
 
 void ttm_pool_init(struct ttm_pool *pool, struct device *dev,
-		   int nid, bool use_dma_alloc, bool use_dma32);
+    int nid, bool use_dma_alloc, bool use_dma32);
 void ttm_pool_fini(struct ttm_pool *pool);
 
 int ttm_pool_debugfs(struct ttm_pool *pool, struct seq_file *m);

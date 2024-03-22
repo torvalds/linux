@@ -11,10 +11,10 @@
 #include <linux/string.h>
 
 void blake2s_compress_generic(struct blake2s_state *state, const u8 *block,
-			      size_t nblocks, const u32 inc);
+    size_t nblocks, const u32 inc);
 
 void blake2s_compress(struct blake2s_state *state, const u8 *block,
-		      size_t nblocks, const u32 inc);
+    size_t nblocks, const u32 inc);
 
 bool blake2s_selftest(void);
 

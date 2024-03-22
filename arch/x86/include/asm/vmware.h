@@ -29,29 +29,29 @@
 #define VMWARE_HYPERVISOR_OUT  BIT(1)
 
 /* The low bandwidth call. The low word of edx is presumed clear. */
-#define VMWARE_HYPERCALL						\
-	ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT) ", %%dx; " \
-		      "inl (%%dx), %%eax",				\
-		      "vmcall", X86_FEATURE_VMCALL,			\
-		      "vmmcall", X86_FEATURE_VMW_VMMCALL)
+#define VMWARE_HYPERCALL            \
+  ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT) ", %%dx; " \
+    "inl (%%dx), %%eax",        \
+    "vmcall", X86_FEATURE_VMCALL,     \
+    "vmmcall", X86_FEATURE_VMW_VMMCALL)
 
 /*
  * The high bandwidth out call. The low word of edx is presumed to have the
  * HB and OUT bits set.
  */
-#define VMWARE_HYPERCALL_HB_OUT						\
-	ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT_HB) ", %%dx; " \
-		      "rep outsb",					\
-		      "vmcall", X86_FEATURE_VMCALL,			\
-		      "vmmcall", X86_FEATURE_VMW_VMMCALL)
+#define VMWARE_HYPERCALL_HB_OUT           \
+  ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT_HB) ", %%dx; " \
+    "rep outsb",          \
+    "vmcall", X86_FEATURE_VMCALL,     \
+    "vmmcall", X86_FEATURE_VMW_VMMCALL)
 
 /*
  * The high bandwidth in call. The low word of edx is presumed to have the
  * HB bit set.
  */
-#define VMWARE_HYPERCALL_HB_IN						\
-	ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT_HB) ", %%dx; " \
-		      "rep insb",					\
-		      "vmcall", X86_FEATURE_VMCALL,			\
-		      "vmmcall", X86_FEATURE_VMW_VMMCALL)
+#define VMWARE_HYPERCALL_HB_IN            \
+  ALTERNATIVE_2("movw $" __stringify(VMWARE_HYPERVISOR_PORT_HB) ", %%dx; " \
+    "rep insb",         \
+    "vmcall", X86_FEATURE_VMCALL,     \
+    "vmmcall", X86_FEATURE_VMW_VMMCALL)
 #endif

@@ -9,43 +9,43 @@
 struct module;
 
 struct tcf_ife_params {
-	u8 eth_dst[ETH_ALEN];
-	u8 eth_src[ETH_ALEN];
-	u16 eth_type;
-	u16 flags;
+  u8 eth_dst[ETH_ALEN];
+  u8 eth_src[ETH_ALEN];
+  u16 eth_type;
+  u16 flags;
 
-	struct rcu_head rcu;
+  struct rcu_head rcu;
 };
 
 struct tcf_ife_info {
-	struct tc_action common;
-	struct tcf_ife_params __rcu *params;
-	/* list of metaids allowed */
-	struct list_head metalist;
+  struct tc_action common;
+  struct tcf_ife_params __rcu *params;
+  /* list of metaids allowed */
+  struct list_head metalist;
 };
-#define to_ife(a) ((struct tcf_ife_info *)a)
+#define to_ife(a) ((struct tcf_ife_info *) a)
 
 struct tcf_meta_info {
-	const struct tcf_meta_ops *ops;
-	void *metaval;
-	u16 metaid;
-	struct list_head metalist;
+  const struct tcf_meta_ops *ops;
+  void *metaval;
+  u16 metaid;
+  struct list_head metalist;
 };
 
 struct tcf_meta_ops {
-	u16 metaid; /*Maintainer provided ID */
-	u16 metatype; /*netlink attribute type (look at net/netlink.h) */
-	const char *name;
-	const char *synopsis;
-	struct list_head list;
-	int	(*check_presence)(struct sk_buff *, struct tcf_meta_info *);
-	int	(*encode)(struct sk_buff *, void *, struct tcf_meta_info *);
-	int	(*decode)(struct sk_buff *, void *, u16 len);
-	int	(*get)(struct sk_buff *skb, struct tcf_meta_info *mi);
-	int	(*alloc)(struct tcf_meta_info *, void *, gfp_t);
-	void	(*release)(struct tcf_meta_info *);
-	int	(*validate)(void *val, int len);
-	struct module	*owner;
+  u16 metaid; /*Maintainer provided ID */
+  u16 metatype; /*netlink attribute type (look at net/netlink.h) */
+  const char *name;
+  const char *synopsis;
+  struct list_head list;
+  int (*check_presence)(struct sk_buff *, struct tcf_meta_info *);
+  int (*encode)(struct sk_buff *, void *, struct tcf_meta_info *);
+  int (*decode)(struct sk_buff *, void *, u16 len);
+  int (*get)(struct sk_buff *skb, struct tcf_meta_info *mi);
+  int (*alloc)(struct tcf_meta_info *, void *, gfp_t);
+  void (*release)(struct tcf_meta_info *);
+  int (*validate)(void *val, int len);
+  struct module *owner;
 };
 
 #define MODULE_ALIAS_IFE_META(metan)   MODULE_ALIAS("ife-meta-" metan)

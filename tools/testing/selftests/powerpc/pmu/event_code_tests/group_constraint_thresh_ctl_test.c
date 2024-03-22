@@ -28,37 +28,29 @@
  * All events in the group should match thresh ctl bits otherwise
  * event_open for the group will fail.
  */
-static int group_constraint_thresh_ctl(void)
-{
-	struct event event, leader;
-
-	/* Check for platform support for the test */
-	SKIP_IF(platform_check_for_tests());
-
-	/* Init the events for the group contraint thresh control test */
-	event_init(&leader, EventCode_1);
-	FAIL_IF(event_open(&leader));
-
-	event_init(&event, EventCode_2);
-
-	/* Expected to fail as sibling and leader event request different thresh_ctl bits */
-	FAIL_IF(!event_open_with_group(&event, leader.fd));
-
-	event_close(&event);
-
-	/* Init the event for the group contraint thresh control test */
-	event_init(&event, EventCode_3);
-
-	 /* Expected to succeed as sibling and leader event request same thresh_ctl bits */
-	FAIL_IF(event_open_with_group(&event, leader.fd));
-
-	event_close(&leader);
-	event_close(&event);
-
-	return 0;
+static int group_constraint_thresh_ctl(void) {
+  struct event event, leader;
+  /* Check for platform support for the test */
+  SKIP_IF(platform_check_for_tests());
+  /* Init the events for the group contraint thresh control test */
+  event_init(&leader, EventCode_1);
+  FAIL_IF(event_open(&leader));
+  event_init(&event, EventCode_2);
+  /* Expected to fail as sibling and leader event request different thresh_ctl
+   * bits */
+  FAIL_IF(!event_open_with_group(&event, leader.fd));
+  event_close(&event);
+  /* Init the event for the group contraint thresh control test */
+  event_init(&event, EventCode_3);
+  /* Expected to succeed as sibling and leader event request same thresh_ctl
+   * bits */
+  FAIL_IF(event_open_with_group(&event, leader.fd));
+  event_close(&leader);
+  event_close(&event);
+  return 0;
 }
 
-int main(void)
-{
-	return test_harness(group_constraint_thresh_ctl, "group_constraint_thresh_ctl");
+int main(void) {
+  return test_harness(group_constraint_thresh_ctl,
+      "group_constraint_thresh_ctl");
 }

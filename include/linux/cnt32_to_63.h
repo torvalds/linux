@@ -2,9 +2,9 @@
 /*
  *  Extend a 32-bit counter to 63 bits
  *
- *  Author:	Nicolas Pitre
- *  Created:	December 3, 2006
- *  Copyright:	MontaVista Software, Inc.
+ *  Author: Nicolas Pitre
+ *  Created:  December 3, 2006
+ *  Copyright:  MontaVista Software, Inc.
  */
 
 #ifndef __LINUX_CNT32_TO_63_H__
@@ -16,16 +16,15 @@
 
 /* this is used only to give gcc a clue about good code generation */
 union cnt32_to_63 {
-	struct {
+  struct {
 #if defined(__LITTLE_ENDIAN)
-		u32 lo, hi;
+    u32 lo, hi;
 #elif defined(__BIG_ENDIAN)
-		u32 hi, lo;
+    u32 hi, lo;
 #endif
-	};
-	u64 val;
+  };
+  u64 val;
 };
-
 
 /**
  * cnt32_to_63 - Expand a 32-bit counter to a 63-bit counter
@@ -73,14 +72,14 @@ union cnt32_to_63 {
  *
  * For example, this is wrong:
  *
- *	u32 partial = get_hw_count();
- *	u64 full = cnt32_to_63(partial);
- *	return full;
+ *  u32 partial = get_hw_count();
+ *  u64 full = cnt32_to_63(partial);
+ *  return full;
  *
  * This is fine:
  *
- *	u64 full = cnt32_to_63(get_hw_count());
- *	return full;
+ *  u64 full = cnt32_to_63(get_hw_count());
+ *  return full;
  *
  * Note that the top bit (bit 63) in the returned value should be considered
  * as garbage.  It is not cleared here because callers are likely to use a
@@ -90,15 +89,15 @@ union cnt32_to_63 {
  * bit explicitly.
  */
 #define cnt32_to_63(cnt_lo) \
-({ \
-	static u32 __m_cnt_hi; \
-	union cnt32_to_63 __x; \
-	__x.hi = __m_cnt_hi; \
- 	smp_rmb(); \
-	__x.lo = (cnt_lo); \
-	if (unlikely((s32)(__x.hi ^ __x.lo) < 0)) \
-		__m_cnt_hi = __x.hi = (__x.hi ^ 0x80000000) + (__x.hi >> 31); \
-	__x.val; \
-})
+  ({ \
+    static u32 __m_cnt_hi; \
+    union cnt32_to_63 __x; \
+    __x.hi = __m_cnt_hi; \
+    smp_rmb(); \
+    __x.lo = (cnt_lo); \
+    if (unlikely((s32) (__x.hi ^ __x.lo) < 0)) \
+    __m_cnt_hi = __x.hi = (__x.hi ^ 0x80000000) +(__x.hi >> 31); \
+    __x.val; \
+  })
 
 #endif

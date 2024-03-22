@@ -15,14 +15,14 @@
  * struct xe_uc - XE micro controllers
  */
 struct xe_uc {
-	/** @guc: Graphics micro controller */
-	struct xe_guc guc;
-	/** @huc: HuC */
-	struct xe_huc huc;
-	/** @gsc: Graphics Security Controller */
-	struct xe_gsc gsc;
-	/** @wopcm: WOPCM */
-	struct xe_wopcm wopcm;
+  /** @guc: Graphics micro controller */
+  struct xe_guc guc;
+  /** @huc: HuC */
+  struct xe_huc huc;
+  /** @gsc: Graphics Security Controller */
+  struct xe_gsc gsc;
+  /** @wopcm: WOPCM */
+  struct xe_wopcm wopcm;
 };
 
 #endif

@@ -8,7 +8,8 @@
 
 #include <linux/interconnect-provider.h>
 
-struct icc_node_data *qcom_icc_xlate_extended(const struct of_phandle_args *spec,
-					      void *data);
+struct icc_node_data *qcom_icc_xlate_extended(
+  const struct of_phandle_args *spec,
+  void *data);
 
 #endif

@@ -22,12 +22,12 @@
  * @align: Default alignment for the managed range.
  */
 struct drm_suballoc_manager {
-	wait_queue_head_t wq;
-	struct list_head *hole;
-	struct list_head olist;
-	struct list_head flist[DRM_SUBALLOC_MAX_QUEUES];
-	size_t size;
-	size_t align;
+  wait_queue_head_t wq;
+  struct list_head *hole;
+  struct list_head olist;
+  struct list_head flist[DRM_SUBALLOC_MAX_QUEUES];
+  size_t size;
+  size_t align;
 };
 
 /**
@@ -40,22 +40,22 @@ struct drm_suballoc_manager {
  * @dma_fence: The fence protecting the allocation.
  */
 struct drm_suballoc {
-	struct list_head olist;
-	struct list_head flist;
-	struct drm_suballoc_manager *manager;
-	size_t soffset;
-	size_t eoffset;
-	struct dma_fence *fence;
+  struct list_head olist;
+  struct list_head flist;
+  struct drm_suballoc_manager *manager;
+  size_t soffset;
+  size_t eoffset;
+  struct dma_fence *fence;
 };
 
 void drm_suballoc_manager_init(struct drm_suballoc_manager *sa_manager,
-			       size_t size, size_t align);
+    size_t size, size_t align);
 
 void drm_suballoc_manager_fini(struct drm_suballoc_manager *sa_manager);
 
-struct drm_suballoc *
-drm_suballoc_new(struct drm_suballoc_manager *sa_manager, size_t size,
-		 gfp_t gfp, bool intr, size_t align);
+struct drm_suballoc *drm_suballoc_new(struct drm_suballoc_manager *sa_manager,
+    size_t size,
+    gfp_t gfp, bool intr, size_t align);
 
 void drm_suballoc_free(struct drm_suballoc *sa, struct dma_fence *fence);
 
@@ -65,9 +65,8 @@ void drm_suballoc_free(struct drm_suballoc *sa, struct dma_fence *fence);
  *
  * Return: The start of the allocated range.
  */
-static inline size_t drm_suballoc_soffset(struct drm_suballoc *sa)
-{
-	return sa->soffset;
+static inline size_t drm_suballoc_soffset(struct drm_suballoc *sa) {
+  return sa->soffset;
 }
 
 /**
@@ -76,9 +75,8 @@ static inline size_t drm_suballoc_soffset(struct drm_suballoc *sa)
  *
  * Return: The end of the allocated range + 1.
  */
-static inline size_t drm_suballoc_eoffset(struct drm_suballoc *sa)
-{
-	return sa->eoffset;
+static inline size_t drm_suballoc_eoffset(struct drm_suballoc *sa) {
+  return sa->eoffset;
 }
 
 /**
@@ -87,21 +85,20 @@ static inline size_t drm_suballoc_eoffset(struct drm_suballoc *sa)
  *
  * Return: The size of the allocated range.
  */
-static inline size_t drm_suballoc_size(struct drm_suballoc *sa)
-{
-	return sa->eoffset - sa->soffset;
+static inline size_t drm_suballoc_size(struct drm_suballoc *sa) {
+  return sa->eoffset - sa->soffset;
 }
 
 #ifdef CONFIG_DEBUG_FS
 void drm_suballoc_dump_debug_info(struct drm_suballoc_manager *sa_manager,
-				  struct drm_printer *p,
-				  unsigned long long suballoc_base);
+    struct drm_printer *p,
+    unsigned long long suballoc_base);
 #else
-static inline void
-drm_suballoc_dump_debug_info(struct drm_suballoc_manager *sa_manager,
-			     struct drm_printer *p,
-			     unsigned long long suballoc_base)
-{ }
+static inline void drm_suballoc_dump_debug_info(
+    struct drm_suballoc_manager *sa_manager,
+    struct drm_printer *p,
+    unsigned long long suballoc_base) {
+}
 
 #endif
 

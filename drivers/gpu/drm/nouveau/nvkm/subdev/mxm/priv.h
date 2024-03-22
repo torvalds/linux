@@ -7,10 +7,11 @@
 #define MXM_SANITISE_DCB 0x00000001
 
 struct nvkm_mxm {
-	struct nvkm_subdev subdev;
-	u32 action;
-	u8 *mxms;
+  struct nvkm_subdev subdev;
+  u32 action;
+  u8 *mxms;
 };
 
-int nvkm_mxm_new_(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_mxm **);
+int nvkm_mxm_new_(struct nvkm_device *, enum nvkm_subdev_type, int,
+    struct nvkm_mxm **);
 #endif

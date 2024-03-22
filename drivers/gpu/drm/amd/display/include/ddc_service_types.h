@@ -44,91 +44,91 @@
 #define DP_DEVICE_ID_BA4159 0xBA4159
 #define DP_FORCE_PSRSU_CAPABILITY 0x40F
 
-#define DP_SINK_PSR_ACTIVE_VTOTAL		0x373
-#define DP_SINK_PSR_ACTIVE_VTOTAL_CONTROL_MODE	0x375
-#define DP_SOURCE_PSR_ACTIVE_VTOTAL		0x376
+#define DP_SINK_PSR_ACTIVE_VTOTAL   0x373
+#define DP_SINK_PSR_ACTIVE_VTOTAL_CONTROL_MODE  0x375
+#define DP_SOURCE_PSR_ACTIVE_VTOTAL   0x376
 
 enum ddc_result {
-	DDC_RESULT_UNKNOWN = 0,
-	DDC_RESULT_SUCESSFULL,
-	DDC_RESULT_FAILED_CHANNEL_BUSY,
-	DDC_RESULT_FAILED_TIMEOUT,
-	DDC_RESULT_FAILED_PROTOCOL_ERROR,
-	DDC_RESULT_FAILED_NACK,
-	DDC_RESULT_FAILED_INCOMPLETE,
-	DDC_RESULT_FAILED_OPERATION,
-	DDC_RESULT_FAILED_INVALID_OPERATION,
-	DDC_RESULT_FAILED_BUFFER_OVERFLOW,
-	DDC_RESULT_FAILED_HPD_DISCON
+  DDC_RESULT_UNKNOWN = 0,
+  DDC_RESULT_SUCESSFULL,
+  DDC_RESULT_FAILED_CHANNEL_BUSY,
+  DDC_RESULT_FAILED_TIMEOUT,
+  DDC_RESULT_FAILED_PROTOCOL_ERROR,
+  DDC_RESULT_FAILED_NACK,
+  DDC_RESULT_FAILED_INCOMPLETE,
+  DDC_RESULT_FAILED_OPERATION,
+  DDC_RESULT_FAILED_INVALID_OPERATION,
+  DDC_RESULT_FAILED_BUFFER_OVERFLOW,
+  DDC_RESULT_FAILED_HPD_DISCON
 };
 
 enum ddc_service_type {
-	DDC_SERVICE_TYPE_CONNECTOR,
-	DDC_SERVICE_TYPE_DISPLAY_PORT_MST,
+  DDC_SERVICE_TYPE_CONNECTOR,
+  DDC_SERVICE_TYPE_DISPLAY_PORT_MST,
 };
 
 /**
  * display sink capability
  */
 struct display_sink_capability {
-	/* dongle type (DP converter, CV smart dongle) */
-	enum display_dongle_type dongle_type;
-	bool is_dongle_type_one;
+  /* dongle type (DP converter, CV smart dongle) */
+  enum display_dongle_type dongle_type;
+  bool is_dongle_type_one;
 
-	/**********************************************************
-	 capabilities going INTO SINK DEVICE (stream capabilities)
-	 **********************************************************/
-	/* Dongle's downstream count. */
-	uint32_t downstrm_sink_count;
-	/* Is dongle's downstream count info field (downstrm_sink_count)
-	 * valid. */
-	bool downstrm_sink_count_valid;
+  /**********************************************************
+  *  capabilities going INTO SINK DEVICE (stream capabilities)
+  **********************************************************/
+  /* Dongle's downstream count. */
+  uint32_t downstrm_sink_count;
+  /* Is dongle's downstream count info field (downstrm_sink_count)
+   * valid. */
+  bool downstrm_sink_count_valid;
 
-	/* Maximum additional audio delay in microsecond (us) */
-	uint32_t additional_audio_delay;
-	/* Audio latency value in microsecond (us) */
-	uint32_t audio_latency;
-	/* Interlace video latency value in microsecond (us) */
-	uint32_t video_latency_interlace;
-	/* Progressive video latency value in microsecond (us) */
-	uint32_t video_latency_progressive;
-	/* Dongle caps: Maximum pixel clock supported over dongle for HDMI */
-	uint32_t max_hdmi_pixel_clock;
-	/* Dongle caps: Maximum deep color supported over dongle for HDMI */
-	enum dc_color_depth max_hdmi_deep_color;
+  /* Maximum additional audio delay in microsecond (us) */
+  uint32_t additional_audio_delay;
+  /* Audio latency value in microsecond (us) */
+  uint32_t audio_latency;
+  /* Interlace video latency value in microsecond (us) */
+  uint32_t video_latency_interlace;
+  /* Progressive video latency value in microsecond (us) */
+  uint32_t video_latency_progressive;
+  /* Dongle caps: Maximum pixel clock supported over dongle for HDMI */
+  uint32_t max_hdmi_pixel_clock;
+  /* Dongle caps: Maximum deep color supported over dongle for HDMI */
+  enum dc_color_depth max_hdmi_deep_color;
 
-	/************************************************************
-	 capabilities going OUT OF SOURCE DEVICE (link capabilities)
-	 ************************************************************/
-	/* support for Spread Spectrum(SS) */
-	bool ss_supported;
-	/* DP link settings (laneCount, linkRate, Spread) */
-	uint32_t dp_link_lane_count;
-	uint32_t dp_link_rate;
-	uint32_t dp_link_spead;
+  /************************************************************
+  *  capabilities going OUT OF SOURCE DEVICE (link capabilities)
+  ************************************************************/
+  /* support for Spread Spectrum(SS) */
+  bool ss_supported;
+  /* DP link settings (laneCount, linkRate, Spread) */
+  uint32_t dp_link_lane_count;
+  uint32_t dp_link_rate;
+  uint32_t dp_link_spead;
 
-	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
-	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
-	bool is_dp_hdmi_s3d_converter;
-	/* to check if we have queried the display capability
-	 * for eDP panel already. */
-	bool is_edp_sink_cap_valid;
+  /* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
+   * indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
+  bool is_dp_hdmi_s3d_converter;
+  /* to check if we have queried the display capability
+   * for eDP panel already. */
+  bool is_edp_sink_cap_valid;
 
-	enum ddc_transaction_type transaction_type;
-	enum signal_type signal;
+  enum ddc_transaction_type transaction_type;
+  enum signal_type signal;
 };
 
 struct av_sync_data {
-	uint8_t av_granularity;/* DPCD 00023h */
-	uint8_t aud_dec_lat1;/* DPCD 00024h */
-	uint8_t aud_dec_lat2;/* DPCD 00025h */
-	uint8_t aud_pp_lat1;/* DPCD 00026h */
-	uint8_t aud_pp_lat2;/* DPCD 00027h */
-	uint8_t vid_inter_lat;/* DPCD 00028h */
-	uint8_t vid_prog_lat;/* DPCD 00029h */
-	uint8_t aud_del_ins1;/* DPCD 0002Bh */
-	uint8_t aud_del_ins2;/* DPCD 0002Ch */
-	uint8_t aud_del_ins3;/* DPCD 0002Dh */
+  uint8_t av_granularity; /* DPCD 00023h */
+  uint8_t aud_dec_lat1; /* DPCD 00024h */
+  uint8_t aud_dec_lat2; /* DPCD 00025h */
+  uint8_t aud_pp_lat1; /* DPCD 00026h */
+  uint8_t aud_pp_lat2; /* DPCD 00027h */
+  uint8_t vid_inter_lat; /* DPCD 00028h */
+  uint8_t vid_prog_lat; /* DPCD 00029h */
+  uint8_t aud_del_ins1; /* DPCD 0002Bh */
+  uint8_t aud_del_ins2; /* DPCD 0002Ch */
+  uint8_t aud_del_ins3; /* DPCD 0002Dh */
 };
 
 #endif /* __DAL_DDC_SERVICE_TYPES_H__ */

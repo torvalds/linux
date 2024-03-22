@@ -18,8 +18,8 @@
  *
  */
 
-#ifndef	__ATOMISP_FOPS_H__
-#define	__ATOMISP_FOPS_H__
+#ifndef __ATOMISP_FOPS_H__
+#define __ATOMISP_FOPS_H__
 #include "atomisp_subdev.h"
 
 /*

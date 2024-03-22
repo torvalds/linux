@@ -30,23 +30,28 @@
 #include "hw_shared.h"
 
 struct pg_cntl {
-	struct dc_context *ctx;
-	const struct pg_cntl_funcs *funcs;
-	bool pg_pipe_res_enable[PG_HW_PIPE_RESOURCES_NUM_ELEMENT][MAX_PIPES];
-	bool pg_res_enable[PG_HW_RESOURCES_NUM_ELEMENT];
+  struct dc_context *ctx;
+  const struct pg_cntl_funcs *funcs;
+  bool pg_pipe_res_enable[PG_HW_PIPE_RESOURCES_NUM_ELEMENT][MAX_PIPES];
+  bool pg_res_enable[PG_HW_RESOURCES_NUM_ELEMENT];
 };
 
 struct pg_cntl_funcs {
-	void (*dsc_pg_control)(struct pg_cntl *pg_cntl, unsigned int dsc_inst, bool power_on);
-	void (*hubp_dpp_pg_control)(struct pg_cntl *pg_cntl, unsigned int hubp_dpp_inst, bool power_on);
-	void (*hpo_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
-	void (*io_clk_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
-	void (*plane_otg_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
-	void (*mpcc_pg_control)(struct pg_cntl *pg_cntl, unsigned int mpcc_inst, bool power_on);
-	void (*opp_pg_control)(struct pg_cntl *pg_cntl, unsigned int opp_inst, bool power_on);
-	void (*optc_pg_control)(struct pg_cntl *pg_cntl, unsigned int optc_inst, bool power_on);
-	void (*dwb_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
-	void (*init_pg_status)(struct pg_cntl *pg_cntl);
+  void (*dsc_pg_control)(struct pg_cntl *pg_cntl, unsigned int dsc_inst,
+      bool power_on);
+  void (*hubp_dpp_pg_control)(struct pg_cntl *pg_cntl,
+      unsigned int hubp_dpp_inst, bool power_on);
+  void (*hpo_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
+  void (*io_clk_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
+  void (*plane_otg_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
+  void (*mpcc_pg_control)(struct pg_cntl *pg_cntl, unsigned int mpcc_inst,
+      bool power_on);
+  void (*opp_pg_control)(struct pg_cntl *pg_cntl, unsigned int opp_inst,
+      bool power_on);
+  void (*optc_pg_control)(struct pg_cntl *pg_cntl, unsigned int optc_inst,
+      bool power_on);
+  void (*dwb_pg_control)(struct pg_cntl *pg_cntl, bool power_on);
+  void (*init_pg_status)(struct pg_cntl *pg_cntl);
 };
 
 #endif //__DC_PG_CNTL_H__

@@ -10,6 +10,6 @@ struct drm_device;
 struct drm_file;
 
 int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
+    struct drm_file *file_priv);
 
 #endif /* __INTEL_SPRITE_UAPI_H__ */

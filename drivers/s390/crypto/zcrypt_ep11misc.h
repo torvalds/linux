@@ -28,26 +28,24 @@
 
 /* inside view of an EP11 secure key blob */
 struct ep11keyblob {
-	union {
-		u8 session[32];
-		/* only used for PKEY_TYPE_EP11: */
-		struct ep11kblob_header head;
-	};
-	u8  wkvp[16];  /* wrapping key verification pattern */
-	u64 attr;      /* boolean key attributes */
-	u64 mode;      /* mode bits */
-	u16 version;   /* 0x1234, EP11_STRUCT_MAGIC */
-	u8  iv[14];
-	u8  encrypted_key_data[144];
-	u8  mac[32];
+  union {
+    u8 session[32];
+    /* only used for PKEY_TYPE_EP11: */
+    struct ep11kblob_header head;
+  };
+  u8 wkvp[16];  /* wrapping key verification pattern */
+  u64 attr;      /* boolean key attributes */
+  u64 mode;      /* mode bits */
+  u16 version;   /* 0x1234, EP11_STRUCT_MAGIC */
+  u8 iv[14];
+  u8 encrypted_key_data[144];
+  u8 mac[32];
 } __packed;
 
 /* check ep11 key magic to find out if this is an ep11 key blob */
-static inline bool is_ep11_keyblob(const u8 *key)
-{
-	struct ep11keyblob *kb = (struct ep11keyblob *)key;
-
-	return (kb->version == EP11_STRUCT_MAGIC);
+static inline bool is_ep11_keyblob(const u8 *key) {
+  struct ep11keyblob *kb = (struct ep11keyblob *) key;
+  return kb->version == EP11_STRUCT_MAGIC;
 }
 
 /*
@@ -63,7 +61,7 @@ const u8 *ep11_kb_wkvp(const u8 *kblob, size_t kbloblen);
  * Returns 0 on success or errno value on failure.
  */
 int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
-				const u8 *key, size_t keylen, int checkcpacfexp);
+    const u8 *key, size_t keylen, int checkcpacfexp);
 
 /*
  * Simple check if the key blob is a valid EP11 ECC key blob with header.
@@ -72,7 +70,7 @@ int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
  * Returns 0 on success or errno value on failure.
  */
 int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
-				const u8 *key, size_t keylen, int checkcpacfexp);
+    const u8 *key, size_t keylen, int checkcpacfexp);
 
 /*
  * Simple check if the key blob is a valid EP11 AES key blob with
@@ -82,23 +80,23 @@ int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
  * Returns 0 on success or errno value on failure.
  */
 int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
-		       const u8 *key, size_t keylen, int checkcpacfexp);
+    const u8 *key, size_t keylen, int checkcpacfexp);
 
 /* EP11 card info struct */
 struct ep11_card_info {
-	u32  API_ord_nr;    /* API ordinal number */
-	u16  FW_version;    /* Firmware major and minor version */
-	char serial[16];    /* serial number string (16 ascii, no 0x00 !) */
-	u64  op_mode;	    /* card operational mode(s) */
+  u32 API_ord_nr;    /* API ordinal number */
+  u16 FW_version;    /* Firmware major and minor version */
+  char serial[16];    /* serial number string (16 ascii, no 0x00 !) */
+  u64 op_mode;     /* card operational mode(s) */
 };
 
 /* EP11 domain info struct */
 struct ep11_domain_info {
-	char cur_wk_state;  /* '0' invalid, '1' valid */
-	char new_wk_state;  /* '0' empty, '1' uncommitted, '2' committed */
-	u8   cur_wkvp[32];  /* current wrapping key verification pattern */
-	u8   new_wkvp[32];  /* new wrapping key verification pattern */
-	u64  op_mode;	    /* domain operational mode(s) */
+  char cur_wk_state;  /* '0' invalid, '1' valid */
+  char new_wk_state;  /* '0' empty, '1' uncommitted, '2' committed */
+  u8 cur_wkvp[32];  /* current wrapping key verification pattern */
+  u8 new_wkvp[32];  /* new wrapping key verification pattern */
+  u64 op_mode;     /* domain operational mode(s) */
 };
 
 /*
@@ -115,14 +113,14 @@ int ep11_get_domain_info(u16 card, u16 domain, struct ep11_domain_info *info);
  * Generate (random) EP11 AES secure key.
  */
 int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
-		   u8 *keybuf, size_t *keybufsize, u32 keybufver);
+    u8 *keybuf, size_t *keybufsize, u32 keybufver);
 
 /*
  * Generate EP11 AES secure key with given clear key value.
  */
 int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize,
-		     u32 keytype);
+    const u8 *clrkey, u8 *keybuf, size_t *keybufsize,
+    u32 keytype);
 
 /*
  * Build a list of ep11 apqns meeting the following constrains:
@@ -144,13 +142,13 @@ int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
  * -ENODEV is returned.
  */
 int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
-		   int minhwtype, int minapi, const u8 *wkvp);
+    int minhwtype, int minapi, const u8 *wkvp);
 
 /*
  * Derive proteced key from EP11 key blob (AES and ECC keys).
  */
 int ep11_kblob2protkey(u16 card, u16 dom, const u8 *key, size_t keylen,
-		       u8 *protkey, u32 *protkeylen, u32 *protkeytype);
+    u8 *protkey, u32 *protkeylen, u32 *protkeytype);
 
 void zcrypt_ep11misc_exit(void);
 

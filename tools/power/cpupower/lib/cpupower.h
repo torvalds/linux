@@ -3,22 +3,22 @@
 #define __CPUPOWER_CPUPOWER_H__
 
 struct cpupower_topology {
-	/* Amount of CPU cores, packages and threads per core in the system */
-	unsigned int cores;
-	unsigned int pkgs;
-	unsigned int threads; /* per core */
+  /* Amount of CPU cores, packages and threads per core in the system */
+  unsigned int cores;
+  unsigned int pkgs;
+  unsigned int threads; /* per core */
 
-	/* Array gets mallocated with cores entries, holding per core info */
-	struct cpuid_core_info *core_info;
+  /* Array gets mallocated with cores entries, holding per core info */
+  struct cpuid_core_info *core_info;
 };
 
 struct cpuid_core_info {
-	int pkg;
-	int core;
-	int cpu;
+  int pkg;
+  int core;
+  int cpu;
 
-	/* flags */
-	unsigned int is_online:1;
+  /* flags */
+  unsigned int is_online : 1;
 };
 
 #ifdef __cplusplus

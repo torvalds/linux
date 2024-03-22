@@ -5,6 +5,6 @@
 #include <linux/skbuff.h>
 
 void nf_dup_ipv6(struct net *net, struct sk_buff *skb, unsigned int hooknum,
-		 const struct in6_addr *gw, int oif);
+    const struct in6_addr *gw, int oif);
 
 #endif /* _NF_DUP_IPV6_H_ */

@@ -18,21 +18,21 @@
  * These undefined instructions must be unique and
  * reserved solely for kprobes' use.
  */
-#define KPROBE_ARM_BREAKPOINT_INSTRUCTION	0x07f001f8
-#define KPROBE_THUMB16_BREAKPOINT_INSTRUCTION	0xde18
-#define KPROBE_THUMB32_BREAKPOINT_INSTRUCTION	0xf7f0a018
+#define KPROBE_ARM_BREAKPOINT_INSTRUCTION 0x07f001f8
+#define KPROBE_THUMB16_BREAKPOINT_INSTRUCTION 0xde18
+#define KPROBE_THUMB32_BREAKPOINT_INSTRUCTION 0xf7f0a018
 
 extern void kprobes_remove_breakpoint(void *addr, unsigned int insn);
 
-enum probes_insn __kprobes
-kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_probes_insn *asi,
-		const struct decode_header *h);
+enum probes_insn __kprobes kprobe_decode_ldmstm(kprobe_opcode_t insn,
+    struct arch_probes_insn *asi,
+    const struct decode_header *h);
 
 typedef enum probes_insn (kprobe_decode_insn_t)(probes_opcode_t,
-						struct arch_probes_insn *,
-						bool,
-						const union decode_action *,
-						const struct decode_checker *[]);
+    struct arch_probes_insn *,
+    bool,
+    const union decode_action *,
+    const struct decode_checker *[]);
 
 #ifdef CONFIG_THUMB2_KERNEL
 

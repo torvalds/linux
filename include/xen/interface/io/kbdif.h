@@ -160,46 +160,46 @@
  * EVENT CODES.
  */
 
-#define XENKBD_TYPE_MOTION		1
-#define XENKBD_TYPE_RESERVED		2
-#define XENKBD_TYPE_KEY			3
-#define XENKBD_TYPE_POS			4
-#define XENKBD_TYPE_MTOUCH		5
+#define XENKBD_TYPE_MOTION    1
+#define XENKBD_TYPE_RESERVED    2
+#define XENKBD_TYPE_KEY     3
+#define XENKBD_TYPE_POS     4
+#define XENKBD_TYPE_MTOUCH    5
 
 /* Multi-touch event sub-codes */
 
-#define XENKBD_MT_EV_DOWN		0
-#define XENKBD_MT_EV_UP			1
-#define XENKBD_MT_EV_MOTION		2
-#define XENKBD_MT_EV_SYN		3
-#define XENKBD_MT_EV_SHAPE		4
-#define XENKBD_MT_EV_ORIENT		5
+#define XENKBD_MT_EV_DOWN   0
+#define XENKBD_MT_EV_UP     1
+#define XENKBD_MT_EV_MOTION   2
+#define XENKBD_MT_EV_SYN    3
+#define XENKBD_MT_EV_SHAPE    4
+#define XENKBD_MT_EV_ORIENT   5
 
 /*
  * CONSTANTS, XENSTORE FIELD AND PATH NAME STRINGS, HELPERS.
  */
 
-#define XENKBD_DRIVER_NAME		"vkbd"
+#define XENKBD_DRIVER_NAME    "vkbd"
 
-#define XENKBD_FIELD_FEAT_DSBL_KEYBRD	"feature-disable-keyboard"
-#define XENKBD_FIELD_FEAT_DSBL_POINTER	"feature-disable-pointer"
-#define XENKBD_FIELD_FEAT_ABS_POINTER	"feature-abs-pointer"
-#define XENKBD_FIELD_FEAT_RAW_POINTER	"feature-raw-pointer"
-#define XENKBD_FIELD_FEAT_MTOUCH	"feature-multi-touch"
-#define XENKBD_FIELD_REQ_ABS_POINTER	"request-abs-pointer"
-#define XENKBD_FIELD_REQ_RAW_POINTER	"request-raw-pointer"
-#define XENKBD_FIELD_REQ_MTOUCH		"request-multi-touch"
-#define XENKBD_FIELD_RING_GREF		"page-gref"
-#define XENKBD_FIELD_EVT_CHANNEL	"event-channel"
-#define XENKBD_FIELD_WIDTH		"width"
-#define XENKBD_FIELD_HEIGHT		"height"
-#define XENKBD_FIELD_MT_WIDTH		"multi-touch-width"
-#define XENKBD_FIELD_MT_HEIGHT		"multi-touch-height"
-#define XENKBD_FIELD_MT_NUM_CONTACTS	"multi-touch-num-contacts"
-#define XENKBD_FIELD_UNIQUE_ID		"unique-id"
+#define XENKBD_FIELD_FEAT_DSBL_KEYBRD "feature-disable-keyboard"
+#define XENKBD_FIELD_FEAT_DSBL_POINTER  "feature-disable-pointer"
+#define XENKBD_FIELD_FEAT_ABS_POINTER "feature-abs-pointer"
+#define XENKBD_FIELD_FEAT_RAW_POINTER "feature-raw-pointer"
+#define XENKBD_FIELD_FEAT_MTOUCH  "feature-multi-touch"
+#define XENKBD_FIELD_REQ_ABS_POINTER  "request-abs-pointer"
+#define XENKBD_FIELD_REQ_RAW_POINTER  "request-raw-pointer"
+#define XENKBD_FIELD_REQ_MTOUCH   "request-multi-touch"
+#define XENKBD_FIELD_RING_GREF    "page-gref"
+#define XENKBD_FIELD_EVT_CHANNEL  "event-channel"
+#define XENKBD_FIELD_WIDTH    "width"
+#define XENKBD_FIELD_HEIGHT   "height"
+#define XENKBD_FIELD_MT_WIDTH   "multi-touch-width"
+#define XENKBD_FIELD_MT_HEIGHT    "multi-touch-height"
+#define XENKBD_FIELD_MT_NUM_CONTACTS  "multi-touch-num-contacts"
+#define XENKBD_FIELD_UNIQUE_ID    "unique-id"
 
 /* OBSOLETE, not recommended for use */
-#define XENKBD_FIELD_RING_REF		"page-ref"
+#define XENKBD_FIELD_RING_REF   "page-ref"
 
 /*
  *****************************************************************************
@@ -251,10 +251,10 @@
  */
 
 struct xenkbd_motion {
-	uint8_t type;
-	int32_t rel_x;
-	int32_t rel_y;
-	int32_t rel_z;
+  uint8_t type;
+  int32_t rel_x;
+  int32_t rel_y;
+  int32_t rel_z;
 };
 
 /*
@@ -277,9 +277,9 @@ struct xenkbd_motion {
  */
 
 struct xenkbd_key {
-	uint8_t type;
-	uint8_t pressed;
-	uint32_t keycode;
+  uint8_t type;
+  uint8_t pressed;
+  uint32_t keycode;
 };
 
 /*
@@ -307,10 +307,10 @@ struct xenkbd_key {
  */
 
 struct xenkbd_position {
-	uint8_t type;
-	int32_t abs_x;
-	int32_t abs_y;
-	int32_t rel_z;
+  uint8_t type;
+  int32_t abs_x;
+  int32_t abs_y;
+  int32_t rel_z;
 };
 
 /*
@@ -460,32 +460,32 @@ struct xenkbd_position {
  */
 
 struct xenkbd_mtouch {
-	uint8_t type;			/* XENKBD_TYPE_MTOUCH */
-	uint8_t event_type;		/* XENKBD_MT_EV_??? */
-	uint8_t contact_id;
-	uint8_t reserved[5];		/* reserved for the future use */
-	union {
-		struct {
-			int32_t abs_x;	/* absolute X position, pixels */
-			int32_t abs_y;	/* absolute Y position, pixels */
-		} pos;
-		struct {
-			uint32_t major;	/* length of the major axis, pixels */
-			uint32_t minor;	/* length of the minor axis, pixels */
-		} shape;
-		int16_t orientation;	/* clockwise angle of the major axis */
-	} u;
+  uint8_t type;     /* XENKBD_TYPE_MTOUCH */
+  uint8_t event_type;   /* XENKBD_MT_EV_??? */
+  uint8_t contact_id;
+  uint8_t reserved[5];    /* reserved for the future use */
+  union {
+    struct {
+      int32_t abs_x;  /* absolute X position, pixels */
+      int32_t abs_y;  /* absolute Y position, pixels */
+    } pos;
+    struct {
+      uint32_t major; /* length of the major axis, pixels */
+      uint32_t minor; /* length of the minor axis, pixels */
+    } shape;
+    int16_t orientation;  /* clockwise angle of the major axis */
+  } u;
 };
 
 #define XENKBD_IN_EVENT_SIZE 40
 
 union xenkbd_in_event {
-	uint8_t type;
-	struct xenkbd_motion motion;
-	struct xenkbd_key key;
-	struct xenkbd_position pos;
-	struct xenkbd_mtouch mtouch;
-	char pad[XENKBD_IN_EVENT_SIZE];
+  uint8_t type;
+  struct xenkbd_motion motion;
+  struct xenkbd_key key;
+  struct xenkbd_position pos;
+  struct xenkbd_mtouch mtouch;
+  char pad[XENKBD_IN_EVENT_SIZE];
 };
 
 /*
@@ -496,7 +496,7 @@ union xenkbd_in_event {
  * Out events may be sent only when requested by backend, and receipt
  * of an unknown out event is an error.
  * No out events currently defined.
-
+ *
  * All event packets have the same length (40 octets)
  * All event packets have common header:
  *          0         octet
@@ -509,8 +509,8 @@ union xenkbd_in_event {
 #define XENKBD_OUT_EVENT_SIZE 40
 
 union xenkbd_out_event {
-	uint8_t type;
-	char pad[XENKBD_OUT_EVENT_SIZE];
+  uint8_t type;
+  char pad[XENKBD_OUT_EVENT_SIZE];
 };
 
 /*
@@ -523,21 +523,21 @@ union xenkbd_out_event {
 #define XENKBD_IN_RING_LEN (XENKBD_IN_RING_SIZE / XENKBD_IN_EVENT_SIZE)
 #define XENKBD_IN_RING_OFFS 1024
 #define XENKBD_IN_RING(page) \
-	((union xenkbd_in_event *)((char *)(page) + XENKBD_IN_RING_OFFS))
+  ((union xenkbd_in_event *) ((char *) (page) + XENKBD_IN_RING_OFFS))
 #define XENKBD_IN_RING_REF(page, idx) \
-	(XENKBD_IN_RING((page))[(idx) % XENKBD_IN_RING_LEN])
+  (XENKBD_IN_RING((page))[(idx) % XENKBD_IN_RING_LEN])
 
 #define XENKBD_OUT_RING_SIZE 1024
 #define XENKBD_OUT_RING_LEN (XENKBD_OUT_RING_SIZE / XENKBD_OUT_EVENT_SIZE)
 #define XENKBD_OUT_RING_OFFS (XENKBD_IN_RING_OFFS + XENKBD_IN_RING_SIZE)
 #define XENKBD_OUT_RING(page) \
-	((union xenkbd_out_event *)((char *)(page) + XENKBD_OUT_RING_OFFS))
+  ((union xenkbd_out_event *) ((char *) (page) + XENKBD_OUT_RING_OFFS))
 #define XENKBD_OUT_RING_REF(page, idx) \
-	(XENKBD_OUT_RING((page))[(idx) % XENKBD_OUT_RING_LEN])
+  (XENKBD_OUT_RING((page))[(idx) % XENKBD_OUT_RING_LEN])
 
 struct xenkbd_page {
-	uint32_t in_cons, in_prod;
-	uint32_t out_cons, out_prod;
+  uint32_t in_cons, in_prod;
+  uint32_t out_cons, out_prod;
 };
 
 #endif /* __XEN_PUBLIC_IO_KBDIF_H__ */

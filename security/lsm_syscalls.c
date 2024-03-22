@@ -24,21 +24,26 @@
  * Returns the LSM attribute value associated with @name, or 0 if
  * there is no mapping.
  */
-u64 lsm_name_to_attr(const char *name)
-{
-	if (!strcmp(name, "current"))
-		return LSM_ATTR_CURRENT;
-	if (!strcmp(name, "exec"))
-		return LSM_ATTR_EXEC;
-	if (!strcmp(name, "fscreate"))
-		return LSM_ATTR_FSCREATE;
-	if (!strcmp(name, "keycreate"))
-		return LSM_ATTR_KEYCREATE;
-	if (!strcmp(name, "prev"))
-		return LSM_ATTR_PREV;
-	if (!strcmp(name, "sockcreate"))
-		return LSM_ATTR_SOCKCREATE;
-	return LSM_ATTR_UNDEF;
+u64 lsm_name_to_attr(const char *name) {
+  if (!strcmp(name, "current")) {
+    return LSM_ATTR_CURRENT;
+  }
+  if (!strcmp(name, "exec")) {
+    return LSM_ATTR_EXEC;
+  }
+  if (!strcmp(name, "fscreate")) {
+    return LSM_ATTR_FSCREATE;
+  }
+  if (!strcmp(name, "keycreate")) {
+    return LSM_ATTR_KEYCREATE;
+  }
+  if (!strcmp(name, "prev")) {
+    return LSM_ATTR_PREV;
+  }
+  if (!strcmp(name, "sockcreate")) {
+    return LSM_ATTR_SOCKCREATE;
+  }
+  return LSM_ATTR_UNDEF;
 }
 
 /**
@@ -53,9 +58,9 @@ u64 lsm_name_to_attr(const char *name)
  * value indicating the reason for the error is returned.
  */
 SYSCALL_DEFINE4(lsm_set_self_attr, unsigned int, attr, struct lsm_ctx __user *,
-		ctx, u32, size, u32, flags)
+    ctx, u32, size, u32, flags)
 {
-	return security_setselfattr(attr, ctx, size, flags);
+  return security_setselfattr(attr, ctx, size, flags);
 }
 
 /**
@@ -75,9 +80,9 @@ SYSCALL_DEFINE4(lsm_set_self_attr, unsigned int, attr, struct lsm_ctx __user *,
  * a negative value indicating the error is returned.
  */
 SYSCALL_DEFINE4(lsm_get_self_attr, unsigned int, attr, struct lsm_ctx __user *,
-		ctx, u32 __user *, size, u32, flags)
+    ctx, u32 __user *, size, u32, flags)
 {
-	return security_getselfattr(attr, ctx, size, flags);
+  return security_getselfattr(attr, ctx, size, flags);
 }
 
 /**
@@ -94,27 +99,33 @@ SYSCALL_DEFINE4(lsm_get_self_attr, unsigned int, attr, struct lsm_ctx __user *,
  * error is returned.
  */
 SYSCALL_DEFINE3(lsm_list_modules, u64 __user *, ids, u32 __user *, size,
-		u32, flags)
+    u32, flags)
 {
-	u32 total_size = lsm_active_cnt * sizeof(*ids);
-	u32 usize;
-	int i;
+  u32 total_size = lsm_active_cnt * sizeof(*ids);
+  u32 usize;
+  int i;
 
-	if (flags)
-		return -EINVAL;
+  if (flags) {
+    return -EINVAL;
+  }
 
-	if (get_user(usize, size))
-		return -EFAULT;
+  if (get_user(usize, size)) {
+    return -EFAULT;
+  }
 
-	if (put_user(total_size, size) != 0)
-		return -EFAULT;
+  if (put_user(total_size, size) != 0) {
+    return -EFAULT;
+  }
 
-	if (usize < total_size)
-		return -E2BIG;
+  if (usize < total_size) {
+    return -E2BIG;
+  }
 
-	for (i = 0; i < lsm_active_cnt; i++)
-		if (put_user(lsm_idlist[i]->id, ids++))
-			return -EFAULT;
+  for (i = 0; i < lsm_active_cnt; i++) {
+    if (put_user(lsm_idlist[i]->id, ids++)) {
+      return -EFAULT;
+    }
+  }
 
-	return lsm_active_cnt;
+  return lsm_active_cnt;
 }

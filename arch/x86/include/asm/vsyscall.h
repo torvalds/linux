@@ -15,23 +15,24 @@ extern void set_vsyscall_pgtable_user_bits(pgd_t *root);
  * Returns true if handled.
  */
 extern bool emulate_vsyscall(unsigned long error_code,
-			     struct pt_regs *regs, unsigned long address);
+    struct pt_regs *regs, unsigned long address);
 #else
-static inline void map_vsyscall(void) {}
-static inline bool emulate_vsyscall(unsigned long error_code,
-				    struct pt_regs *regs, unsigned long address)
-{
-	return false;
+static inline void map_vsyscall(void) {
 }
+
+static inline bool emulate_vsyscall(unsigned long error_code,
+    struct pt_regs *regs, unsigned long address) {
+  return false;
+}
+
 #endif
 
 /*
  * The (legacy) vsyscall page is the long page in the kernel portion
  * of the address space that has user-accessible permissions.
  */
-static inline bool is_vsyscall_vaddr(unsigned long vaddr)
-{
-	return unlikely((vaddr & PAGE_MASK) == VSYSCALL_ADDR);
+static inline bool is_vsyscall_vaddr(unsigned long vaddr) {
+  return unlikely((vaddr & PAGE_MASK) == VSYSCALL_ADDR);
 }
 
 #endif /* _ASM_X86_VSYSCALL_H */

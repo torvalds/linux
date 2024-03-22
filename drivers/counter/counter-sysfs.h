@@ -8,6 +8,6 @@
 
 #include <linux/counter.h>
 
-int counter_sysfs_add(struct counter_device *const counter);
+int counter_sysfs_add(struct counter_device * const counter);
 
 #endif /* _COUNTER_SYSFS_H_ */

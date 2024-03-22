@@ -26,28 +26,26 @@ extern unsigned long tb_ticks_per_sec;
 extern struct clock_event_device decrementer_clockevent;
 extern u64 decrementer_max;
 
-
 extern void generic_calibrate_decr(void);
 
 /* Some sane defaults: 125 MHz timebase, 1GHz processor */
 extern unsigned long ppc_proc_freq;
-#define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
+#define DEFAULT_PROC_FREQ (DEFAULT_TB_FREQ * 8)
 extern unsigned long ppc_tb_freq;
-#define DEFAULT_TB_FREQ		125000000UL
+#define DEFAULT_TB_FREQ   125000000UL
 
 extern bool tb_invalid;
 
 struct div_result {
-	u64 result_high;
-	u64 result_low;
+  u64 result_high;
+  u64 result_low;
 };
 
-static inline u64 get_vtb(void)
-{
-	if (cpu_has_feature(CPU_FTR_ARCH_207S))
-		return mfspr(SPRN_VTB);
-
-	return 0;
+static inline u64 get_vtb(void) {
+  if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+    return mfspr(SPRN_VTB);
+  }
+  return 0;
 }
 
 /* Accessor functions for the decrementer register.
@@ -56,12 +54,11 @@ static inline u64 get_vtb(void)
  * in auto-reload mode.  The problem is PIT stops counting when it
  * hits zero.  If it would wrap, we could use it just like a decrementer.
  */
-static inline u64 get_dec(void)
-{
-	if (IS_ENABLED(CONFIG_40x))
-		return mfspr(SPRN_PIT);
-
-	return mfspr(SPRN_DEC);
+static inline u64 get_dec(void) {
+  if (IS_ENABLED(CONFIG_40x)) {
+    return mfspr(SPRN_PIT);
+  }
+  return mfspr(SPRN_DEC);
 }
 
 /*
@@ -69,42 +66,40 @@ static inline u64 get_dec(void)
  * in when the decrementer generates its interrupt: on the 1 to 0
  * transition for Book E/4xx, but on the 0 to -1 transition for others.
  */
-static inline void set_dec(u64 val)
-{
-	if (IS_ENABLED(CONFIG_40x))
-		mtspr(SPRN_PIT, (u32)val);
-	else if (IS_ENABLED(CONFIG_BOOKE))
-		mtspr(SPRN_DEC, val);
-	else
-		mtspr(SPRN_DEC, val - 1);
+static inline void set_dec(u64 val) {
+  if (IS_ENABLED(CONFIG_40x)) {
+    mtspr(SPRN_PIT, (u32) val);
+  } else if (IS_ENABLED(CONFIG_BOOKE)) {
+    mtspr(SPRN_DEC, val);
+  } else {
+    mtspr(SPRN_DEC, val - 1);
+  }
 }
 
-static inline unsigned long tb_ticks_since(unsigned long tstamp)
-{
-	return mftb() - tstamp;
+static inline unsigned long tb_ticks_since(unsigned long tstamp) {
+  return mftb() - tstamp;
 }
 
-#define mulhwu(x,y) \
-({unsigned z; asm ("mulhwu %0,%1,%2" : "=r" (z) : "r" (x), "r" (y)); z;})
+#define mulhwu(x, y) \
+  ({unsigned z; asm ("mulhwu %0,%1,%2" : "=r" (z) : "r" (x), "r" (y)); z;})
 
 #ifdef CONFIG_PPC64
-#define mulhdu(x,y) \
-({unsigned long z; asm ("mulhdu %0,%1,%2" : "=r" (z) : "r" (x), "r" (y)); z;})
+#define mulhdu(x, y) \
+  ({unsigned long z; asm ("mulhdu %0,%1,%2" : "=r" (z) : "r" (x), "r" (y)); z;})
 #else
 extern u64 mulhdu(u64, u64);
 #endif
 
 extern void div128_by_32(u64 dividend_high, u64 dividend_low,
-			 unsigned divisor, struct div_result *dr);
+    unsigned divisor, struct div_result *dr);
 
 extern void secondary_cpu_time_init(void);
 extern void __init time_init(void);
 
 DECLARE_PER_CPU(u64, decrementers_next_tb);
 
-static inline u64 timer_get_next_tb(void)
-{
-	return __this_cpu_read(decrementers_next_tb);
+static inline u64 timer_get_next_tb(void) {
+  return __this_cpu_read(decrementers_next_tb);
 }
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE

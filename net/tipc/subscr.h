@@ -61,25 +61,25 @@ struct tipc_conn;
  * @lock: serialize up/down and timer events
  */
 struct tipc_subscription {
-	struct tipc_subscr s;
-	struct tipc_event evt;
-	struct kref kref;
-	struct net *net;
-	struct timer_list timer;
-	struct list_head service_list;
-	struct list_head sub_list;
-	int conid;
-	bool inactive;
-	spinlock_t lock;
+  struct tipc_subscr s;
+  struct tipc_event evt;
+  struct kref kref;
+  struct net *net;
+  struct timer_list timer;
+  struct list_head service_list;
+  struct list_head sub_list;
+  int conid;
+  bool inactive;
+  spinlock_t lock;
 };
 
 struct tipc_subscription *tipc_sub_subscribe(struct net *net,
-					     struct tipc_subscr *s,
-					     int conid);
+    struct tipc_subscr *s,
+    int conid);
 void tipc_sub_unsubscribe(struct tipc_subscription *sub);
 void tipc_sub_report_overlap(struct tipc_subscription *sub,
-			     struct publication *p,
-			     u32 event, bool must);
+    struct publication *p,
+    u32 event, bool must);
 
 int __net_init tipc_topsrv_init_net(struct net *net);
 void __net_exit tipc_topsrv_exit_net(struct net *net);
@@ -91,32 +91,32 @@ void tipc_sub_get(struct tipc_subscription *subscription);
 
 /* tipc_sub_read - return field_ of struct sub_ in host endian format
  */
-#define tipc_sub_read(sub_, field_)					\
-	({								\
-		struct tipc_subscr *sub__ = sub_;			\
-		u32 val__ = (sub__)->field_;				\
-		int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);	\
-		(swap_ ? swab32(val__) : val__);			\
-	})
+#define tipc_sub_read(sub_, field_)         \
+  ({                \
+    struct tipc_subscr *sub__ = sub_;     \
+    u32 val__ = (sub__)->field_;        \
+    int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);  \
+    (swap_ ? swab32(val__) : val__);      \
+  })
 
 /* tipc_sub_write - write val_ to field_ of struct sub_ in user endian format
  */
-#define tipc_sub_write(sub_, field_, val_)				\
-	({								\
-		struct tipc_subscr *sub__ = sub_;			\
-		u32 val__ = val_;					\
-		int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);	\
-		(sub__)->field_ = swap_ ? swab32(val__) : val__;	\
-	})
+#define tipc_sub_write(sub_, field_, val_)        \
+  ({                \
+    struct tipc_subscr *sub__ = sub_;     \
+    u32 val__ = val_;         \
+    int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);  \
+    (sub__)->field_ = swap_ ? swab32(val__) : val__;  \
+  })
 
 /* tipc_evt_write - write val_ to field_ of struct evt_ in user endian format
  */
-#define tipc_evt_write(evt_, field_, val_)				\
-	({								\
-		struct tipc_event *evt__ = evt_;			\
-		u32 val__ = val_;					\
-		int swap_ = !((evt__)->s.filter & (TIPC_FILTER_MASK));	\
-		(evt__)->field_ = swap_ ? swab32(val__) : val__;	\
-	})
+#define tipc_evt_write(evt_, field_, val_)        \
+  ({                \
+    struct tipc_event *evt__ = evt_;      \
+    u32 val__ = val_;         \
+    int swap_ = !((evt__)->s.filter & (TIPC_FILTER_MASK));  \
+    (evt__)->field_ = swap_ ? swab32(val__) : val__;  \
+  })
 
 #endif

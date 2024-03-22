@@ -14,17 +14,17 @@
 #include <linux/module.h>
 
 int xillybus_init_chrdev(struct device *dev,
-			 const struct file_operations *fops,
-			 struct module *owner,
-			 void *private_data,
-			 unsigned char *idt, unsigned int len,
-			 int num_nodes,
-			 const char *prefix, bool enumerate);
+    const struct file_operations *fops,
+    struct module *owner,
+    void *private_data,
+    unsigned char *idt, unsigned int len,
+    int num_nodes,
+    const char *prefix, bool enumerate);
 
 void xillybus_cleanup_chrdev(void *private_data,
-			     struct device *dev);
+    struct device *dev);
 
 int xillybus_find_inode(struct inode *inode,
-			void **private_data, int *index);
+    void **private_data, int *index);
 
 #endif /* __XILLYBUS_CLASS_H */

@@ -5,10 +5,10 @@
 #include <linux/if_ether.h>
 
 struct stp_proto {
-	unsigned char	group_address[ETH_ALEN];
-	void		(*rcv)(const struct stp_proto *, struct sk_buff *,
-			       struct net_device *);
-	void		*data;
+  unsigned char group_address[ETH_ALEN];
+  void (*rcv)(const struct stp_proto *, struct sk_buff *,
+      struct net_device *);
+  void *data;
 };
 
 int stp_proto_register(const struct stp_proto *proto);

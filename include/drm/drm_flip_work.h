@@ -60,19 +60,19 @@ typedef void (*drm_flip_func_t)(struct drm_flip_work *work, void *val);
  * @lock: lock to access queued and commited lists
  */
 struct drm_flip_work {
-	const char *name;
-	drm_flip_func_t func;
-	struct work_struct worker;
-	struct list_head queued;
-	struct list_head commited;
-	spinlock_t lock;
+  const char *name;
+  drm_flip_func_t func;
+  struct work_struct worker;
+  struct list_head queued;
+  struct list_head commited;
+  spinlock_t lock;
 };
 
 void drm_flip_work_queue(struct drm_flip_work *work, void *val);
 void drm_flip_work_commit(struct drm_flip_work *work,
-		struct workqueue_struct *wq);
+    struct workqueue_struct *wq);
 void drm_flip_work_init(struct drm_flip_work *work,
-		const char *name, drm_flip_func_t func);
+    const char *name, drm_flip_func_t func);
 void drm_flip_work_cleanup(struct drm_flip_work *work);
 
 #endif  /* DRM_FLIP_WORK_H */

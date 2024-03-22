@@ -11,8 +11,7 @@ char _license[] SEC("license") = "GPL";
 __u64 count = 0;
 
 SEC("raw_tracepoint/sys_enter")
-int test_enable_stats(void *ctx)
-{
-	__sync_fetch_and_add(&count, 1);
-	return 0;
+int test_enable_stats(void *ctx) {
+  __sync_fetch_and_add(&count, 1);
+  return 0;
 }

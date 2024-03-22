@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/** @file */
+/* SPDX-License-Identifier: GPL-2.0
+** @file*/
 
 #ifndef _MACH_T186_CLK_T186_H
 #define _MACH_T186_CLK_T186_H
@@ -373,11 +373,14 @@
 #define TEGRA186_CLK_PCIERX3 9
 /** @brief output of gate CLK_ENB_PCIERX4*/
 #define TEGRA186_CLK_PCIERX4 10
-/** @brief output branch of PLL_C for ISP, controlled by gate CLK_ENB_PLLC_OUT_ISP */
+/** @brief output branch of PLL_C for ISP, controlled by gate
+ * CLK_ENB_PLLC_OUT_ISP */
 #define TEGRA186_CLK_PLLC_OUT_ISP 11
-/** @brief output branch of PLL_C for VI, controlled by gate CLK_ENB_PLLC_OUT_VE */
+/** @brief output branch of PLL_C for VI, controlled by gate CLK_ENB_PLLC_OUT_VE
+ * */
 #define TEGRA186_CLK_PLLC_OUT_VE 12
-/** @brief output branch of PLL_C for AON domain, controlled by gate CLK_ENB_PLLC_OUT_AON */
+/** @brief output branch of PLL_C for AON domain, controlled by gate
+ * CLK_ENB_PLLC_OUT_AON */
 #define TEGRA186_CLK_PLLC_OUT_AON 13
 /** @brief output of gate CLK_ENB_SOR_SAFE */
 #define TEGRA186_CLK_SOR_SAFE 39
@@ -422,7 +425,8 @@
  * throughput and memory controller power.
  */
 #define TEGRA186_CLK_EMC 58
-/* @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH4 */
+/* @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH4
+ * */
 #define TEGRA186_CLK_EXTPERIPH4 73
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SPI4 */
 #define TEGRA186_CLK_SPI4 74
@@ -450,15 +454,19 @@
 #define TEGRA186_CLK_AHUB 87
 /** output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_HDA2CODEC_2X */
 #define TEGRA186_CLK_HDA2CODEC_2X 88
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH1 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH1
+ * */
 #define TEGRA186_CLK_EXTPERIPH1 89
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH2 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH2
+ * */
 #define TEGRA186_CLK_EXTPERIPH2 90
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH3 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_EXTPERIPH3
+ * */
 #define TEGRA186_CLK_EXTPERIPH3 91
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C_SLOW */
 #define TEGRA186_CLK_I2C_SLOW 92
-/** @brief output of the SOR1_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_SOR1 */
+/** @brief output of the SOR1_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_SOR1
+ * */
 #define TEGRA186_CLK_SOR1 93
 /** @brief output of gate CLK_ENB_CEC */
 #define TEGRA186_CLK_CEC 94
@@ -466,7 +474,8 @@
 #define TEGRA186_CLK_DPAUX1 95
 /** @brief output of gate CLK_ENB_DPAUX */
 #define TEGRA186_CLK_DPAUX 96
-/** @brief output of the SOR0_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_SOR0 */
+/** @brief output of the SOR0_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_SOR0
+ * */
 #define TEGRA186_CLK_SOR0 97
 /** @brief output of gate CLK_ENB_HDA2HDMICODEC */
 #define TEGRA186_CLK_HDA2HDMICODEC 98
@@ -494,7 +503,8 @@
 #define TEGRA186_CLK_PLLREFE_PLL_REF 109
 /** @brief output of gate CLK_ENB_PLLC4_OUT */
 #define TEGRA186_CLK_PLLC4_OUT 110
-/** @brief output of mux xusb_core_clk_switch on page 67 of T186_Clocks_IAS.doc */
+/** @brief output of mux xusb_core_clk_switch on page 67 of T186_Clocks_IAS.doc
+ * */
 #define TEGRA186_CLK_XUSB 111
 /** controls xusb_dev_ce signal on page 66 and 67 of T186_Clocks_IAS.doc */
 #define TEGRA186_CLK_XUSB_DEV 112
@@ -520,11 +530,13 @@
 #define TEGRA186_CLK_AUD_MCLK 124
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C6 */
 #define TEGRA186_CLK_I2C6 125
-/**output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_UART_FST_MIPI_CAL */
+/**output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_UART_FST_MIPI_CAL
+ * */
 #define TEGRA186_CLK_UART_FST_MIPI_CAL 126
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_VIC */
 #define TEGRA186_CLK_VIC 127
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SDMMC_LEGACY_TM */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_SDMMC_LEGACY_TM */
 #define TEGRA186_CLK_SDMMC_LEGACY_TM 128
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVDEC */
 #define TEGRA186_CLK_NVDEC 129
@@ -532,7 +544,8 @@
 #define TEGRA186_CLK_NVJPG 130
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVENC */
 #define TEGRA186_CLK_NVENC 131
-/** @brief output of the QSPI_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_QSPI */
+/** @brief output of the QSPI_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_QSPI
+ * */
 #define TEGRA186_CLK_QSPI 132
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_VI_I2C */
 #define TEGRA186_CLK_VI_I2C 133
@@ -548,11 +561,13 @@
 #define TEGRA186_CLK_ADSP 138
 /** @brief output of gate CLK_ENB_ADSPNEON */
 #define TEGRA186_CLK_ADSPNEON 139
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_L0_RX_LS_SYMB */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_L0_RX_LS_SYMB */
 #define TEGRA186_CLK_MPHY_L0_RX_SYMB 140
 /** @brief output of gate CLK_ENB_MPHY_L0_RX_LS_BIT */
 #define TEGRA186_CLK_MPHY_L0_RX_LS_BIT 141
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_L0_TX_LS_SYMB */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_L0_TX_LS_SYMB */
 #define TEGRA186_CLK_MPHY_L0_TX_SYMB 142
 /** @brief output of gate CLK_ENB_MPHY_L0_TX_LS_3XBIT */
 #define TEGRA186_CLK_MPHY_L0_TX_LS_3XBIT 143
@@ -562,9 +577,11 @@
 #define TEGRA186_CLK_MPHY_L1_RX_ANA 145
 /** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_IOBIST */
 #define TEGRA186_CLK_MPHY_IOBIST 146
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_TX_1MHZ_REF */
+/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_TX_1MHZ_REF
+ * */
 #define TEGRA186_CLK_MPHY_TX_1MHZ_REF 147
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_CORE_PLL_FIXED */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_MPHY_CORE_PLL_FIXED */
 #define TEGRA186_CLK_MPHY_CORE_PLL_FIXED 148
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AXI_CBB */
 #define TEGRA186_CLK_AXI_CBB 149
@@ -578,17 +595,22 @@
 #define TEGRA186_CLK_DSPK2 153
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C6 */
 #define TEGRA186_CLK_I2S6 154
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_P0 */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_P0 */
 #define TEGRA186_CLK_NVDISPLAY_P0 155
-/** @brief output of the NVDISPLAY_DISP_CLK_SRC mux in CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_DISP */
+/** @brief output of the NVDISPLAY_DISP_CLK_SRC mux in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_DISP */
 #define TEGRA186_CLK_NVDISPLAY_DISP 156
 /** @brief output of gate CLK_ENB_NVDISPLAY_DSC */
 #define TEGRA186_CLK_NVDISPLAY_DSC 157
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAYHUB */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAYHUB */
 #define TEGRA186_CLK_NVDISPLAYHUB 158
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_P1 */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_P1 */
 #define TEGRA186_CLK_NVDISPLAY_P1 159
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_P2 */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_P2 */
 #define TEGRA186_CLK_NVDISPLAY_P2 160
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_TACH */
 #define TEGRA186_CLK_TACH 166
@@ -596,9 +618,11 @@
 #define TEGRA186_CLK_EQOS_AXI 167
 /** @brief output of gate CLK_ENB_EQOS_RX */
 #define TEGRA186_CLK_EQOS_RX 168
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_UFSHC_CG_SYS */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_UFSHC_CG_SYS */
 #define TEGRA186_CLK_UFSHC 178
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_UFSDEV_REF */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_UFSDEV_REF
+ * */
 #define TEGRA186_CLK_UFSDEV_REF 179
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_NVCSI */
 #define TEGRA186_CLK_NVCSI 180
@@ -634,13 +658,15 @@
 #define TEGRA186_CLK_UARTF 195
 /** @deprecated */
 #define TEGRA186_CLK_DBGAPB 196
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_BPMP_CPU_NIC */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_BPMP_CPU_NIC */
 #define TEGRA186_CLK_BPMP_CPU_NIC 197
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_BPMP_APB */
 #define TEGRA186_CLK_BPMP_APB 199
 /** @brief output of mux controlled by TEGRA186_CLK_SOC_ACTMON */
 #define TEGRA186_CLK_ACTMON 201
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AON_CPU_NIC */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AON_CPU_NIC
+ * */
 #define TEGRA186_CLK_AON_CPU_NIC 208
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_CAN1 */
 #define TEGRA186_CLK_CAN1 210
@@ -656,7 +682,8 @@
 #define TEGRA186_CLK_UARTC 215
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_UARTG */
 #define TEGRA186_CLK_UARTG 216
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AON_UART_FST_MIPI_CAL */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_AON_UART_FST_MIPI_CAL */
 #define TEGRA186_CLK_AON_UART_FST_MIPI_CAL 217
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C2 */
 #define TEGRA186_CLK_I2C2 218
@@ -664,21 +691,26 @@
 #define TEGRA186_CLK_I2C8 219
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_I2C10 */
 #define TEGRA186_CLK_I2C10 220
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AON_I2C_SLOW */
+/** @brief output of mux controlled by
+ * CLK_RST_CONTROLLER_CLK_SOURCE_AON_I2C_SLOW */
 #define TEGRA186_CLK_AON_I2C_SLOW 221
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SPI2 */
 #define TEGRA186_CLK_SPI2 222
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_DMIC5 */
 #define TEGRA186_CLK_DMIC5 223
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AON_TOUCH */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_AON_TOUCH
+ * */
 #define TEGRA186_CLK_AON_TOUCH 224
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_PWM4 */
 #define TEGRA186_CLK_PWM4 225
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_TSC. This clock object is read only and is used for all timers in the system. */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_TSC. This
+ * clock object is read only and is used for all timers in the system. */
 #define TEGRA186_CLK_TSC 226
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_MSS_ENCRYPT */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_MSS_ENCRYPT
+ * */
 #define TEGRA186_CLK_MSS_ENCRYPT 227
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SCE_CPU_NIC */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SCE_CPU_NIC
+ * */
 #define TEGRA186_CLK_SCE_CPU_NIC 228
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SCE_APB */
 #define TEGRA186_CLK_SCE_APB 230
@@ -690,11 +722,14 @@
 #define TEGRA186_CLK_DSID 233
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_DSID_LP */
 #define TEGRA186_CLK_DSID_LP 234
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_PEX_SATA_USB_RX_BYP */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_PEX_SATA_USB_RX_BYP */
 #define TEGRA186_CLK_PEX_SATA_USB_RX_BYP 236
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SPDIF_OUT */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_CLK_SOURCE_SPDIF_OUT
+ * */
 #define TEGRA186_CLK_SPDIF_OUT 238
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_EQOS_PTP_REF_CLK_0 */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_EQOS_PTP_REF_CLK_0 */
 #define TEGRA186_CLK_EQOS_PTP_REF 239
 /** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_EQOS_TX_CLK */
 #define TEGRA186_CLK_EQOS_TX 240
@@ -702,9 +737,11 @@
 #define TEGRA186_CLK_USB2_HSIC_TRK 241
 /** @brief output of mux xusb_ss_clk_switch on page 66 of T186_Clocks_IAS.doc */
 #define TEGRA186_CLK_XUSB_CORE_SS 242
-/** @brief output of mux xusb_core_dev_clk_switch on page 67 of T186_Clocks_IAS.doc */
+/** @brief output of mux xusb_core_dev_clk_switch on page 67 of
+ * T186_Clocks_IAS.doc */
 #define TEGRA186_CLK_XUSB_CORE_DEV 243
-/** @brief output of mux xusb_core_falcon_clk_switch on page 67 of T186_Clocks_IAS.doc */
+/** @brief output of mux xusb_core_falcon_clk_switch on page 67 of
+ * T186_Clocks_IAS.doc */
 #define TEGRA186_CLK_XUSB_FALCON 244
 /** @brief output of mux xusb_fs_clk_switch on page 66 of T186_Clocks_IAS.doc */
 #define TEGRA186_CLK_XUSB_FS 245
@@ -722,26 +759,34 @@
 #define TEGRA186_CLK_SYNC_I2S5 251
 /** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_I2S6 */
 #define TEGRA186_CLK_SYNC_I2S6 252
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DSPK1 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DSPK1
+ * */
 #define TEGRA186_CLK_SYNC_DSPK1 253
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DSPK2 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DSPK2
+ * */
 #define TEGRA186_CLK_SYNC_DSPK2 254
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC1 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC1
+ * */
 #define TEGRA186_CLK_SYNC_DMIC1 255
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC2 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC2
+ * */
 #define TEGRA186_CLK_SYNC_DMIC2 256
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC3 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC3
+ * */
 #define TEGRA186_CLK_SYNC_DMIC3 257
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC4 */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_DMIC4
+ * */
 #define TEGRA186_CLK_SYNC_DMIC4 259
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_SPDIF */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_AUDIO_SYNC_CLK_SPDIF
+ * */
 #define TEGRA186_CLK_SYNC_SPDIF 260
 /** @brief output of gate CLK_ENB_PLLREFE_OUT */
 #define TEGRA186_CLK_PLLREFE_OUT_GATED 261
-/** @brief output of the divider PLLREFE_DIVP in CLK_RST_CONTROLLER_PLLREFE_BASE. PLLREFE has 2 outputs:
-  *      * VCO/pdiv defined by this clock object
-  *      * VCO/2 defined by TEGRA186_CLK_PLLREFE_OUT
-  */
+/** @brief output of the divider PLLREFE_DIVP in
+ * CLK_RST_CONTROLLER_PLLREFE_BASE. PLLREFE has 2 outputs:
+ *      * VCO/pdiv defined by this clock object
+ *      * VCO/2 defined by TEGRA186_CLK_PLLREFE_OUT
+ */
 #define TEGRA186_CLK_PLLREFE_OUT1 262
 #define TEGRA186_CLK_PLLD_OUT1 267
 /** @brief output of the divider PLLP_DIVP in CLK_RST_CONTROLLER_PLLP_BASE */
@@ -750,23 +795,33 @@
 #define TEGRA186_CLK_PLLP_OUT5 270
 /** PLL controlled by CLK_RST_CONTROLLER_PLLA_BASE for use by audio clocks */
 #define TEGRA186_CLK_PLLA 271
-/** @brief output of mux controlled by CLK_RST_CONTROLLER_ACLK_BURST_POLICY divided by the divider controlled by ACLK_CLK_DIVISOR in CLK_RST_CONTROLLER_SUPER_ACLK_DIVIDER */
+/** @brief output of mux controlled by CLK_RST_CONTROLLER_ACLK_BURST_POLICY
+ * divided by the divider controlled by ACLK_CLK_DIVISOR in
+ * CLK_RST_CONTROLLER_SUPER_ACLK_DIVIDER */
 #define TEGRA186_CLK_ACLK 273
 /** fixed 48MHz clock divided down from TEGRA186_CLK_PLL_U */
 #define TEGRA186_CLK_PLL_U_48M 274
 /** fixed 480MHz clock divided down from TEGRA186_CLK_PLL_U */
 #define TEGRA186_CLK_PLL_U_480M 275
-/** @brief output of the divider PLLC4_DIVP in CLK_RST_CONTROLLER_PLLC4_BASE. Output frequency is TEGRA186_CLK_PLLC4_VCO/PLLC4_DIVP */
+/** @brief output of the divider PLLC4_DIVP in CLK_RST_CONTROLLER_PLLC4_BASE.
+ * Output frequency is TEGRA186_CLK_PLLC4_VCO/PLLC4_DIVP */
 #define TEGRA186_CLK_PLLC4_OUT0 276
-/** fixed /3 divider. Output frequency of this clock is TEGRA186_CLK_PLLC4_VCO/3 */
+/** fixed /3 divider. Output frequency of this clock is TEGRA186_CLK_PLLC4_VCO/3
+ * */
 #define TEGRA186_CLK_PLLC4_OUT1 277
-/** fixed /5 divider. Output frequency of this clock is TEGRA186_CLK_PLLC4_VCO/5 */
+/** fixed /5 divider. Output frequency of this clock is TEGRA186_CLK_PLLC4_VCO/5
+ * */
 #define TEGRA186_CLK_PLLC4_OUT2 278
-/** @brief output of mux controlled by PLLC4_CLK_SEL in CLK_RST_CONTROLLER_PLLC4_MISC1 */
+/** @brief output of mux controlled by PLLC4_CLK_SEL in
+ * CLK_RST_CONTROLLER_PLLC4_MISC1 */
 #define TEGRA186_CLK_PLLC4_OUT_MUX 279
-/** @brief output of divider NVDISPLAY_DISP_CLK_DIVISOR in CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_DISP when DFLLDISP_DIV is selected in NVDISPLAY_DISP_CLK_SRC */
+/** @brief output of divider NVDISPLAY_DISP_CLK_DIVISOR in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_DISP when DFLLDISP_DIV is selected in
+ * NVDISPLAY_DISP_CLK_SRC */
 #define TEGRA186_CLK_DFLLDISP_DIV 284
-/** @brief output of divider NVDISPLAY_DISP_CLK_DIVISOR in CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_DISP when PLLDISPHUB_DIV is selected in NVDISPLAY_DISP_CLK_SRC */
+/** @brief output of divider NVDISPLAY_DISP_CLK_DIVISOR in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_NVDISPLAY_DISP when PLLDISPHUB_DIV is selected
+ * in NVDISPLAY_DISP_CLK_SRC */
 #define TEGRA186_CLK_PLLDISPHUB_DIV 285
 /** fixed /8 divider which is used as the input for TEGRA186_CLK_SOR_SAFE */
 #define TEGRA186_CLK_PLLP_DIV8 286
@@ -776,7 +831,8 @@
 #define TEGRA186_CLK_PLL_A_OUT1 288
 /** @deprecated */
 #define TEGRA186_CLK_GPC2CLK 289
-/** A fake clock which must be enabled during KFUSE read operations to ensure adequate VDD_CORE voltage. */
+/** A fake clock which must be enabled during KFUSE read operations to ensure
+ * adequate VDD_CORE voltage. */
 #define TEGRA186_CLK_KFUSE 293
 /**
  * @brief controls the PLLE hardware sequencer.
@@ -790,29 +846,38 @@
 #define TEGRA186_CLK_PLLE_PWRSEQ 294
 /** fixed 60MHz clock divided down from, TEGRA186_CLK_PLL_U */
 #define TEGRA186_CLK_PLLREFE_REF 295
-/** @brief output of mux controlled by SOR0_CLK_SEL0 and SOR0_CLK_SEL1 in CLK_RST_CONTROLLER_CLK_SOURCE_SOR0 */
+/** @brief output of mux controlled by SOR0_CLK_SEL0 and SOR0_CLK_SEL1 in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_SOR0 */
 #define TEGRA186_CLK_SOR0_OUT 296
-/** @brief output of mux controlled by SOR1_CLK_SEL0 and SOR1_CLK_SEL1 in CLK_RST_CONTROLLER_CLK_SOURCE_SOR1 */
+/** @brief output of mux controlled by SOR1_CLK_SEL0 and SOR1_CLK_SEL1 in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_SOR1 */
 #define TEGRA186_CLK_SOR1_OUT 297
-/** @brief fixed /5 divider.  Output frequency of this clock is TEGRA186_CLK_PLLREFE_OUT1/5. Used as input for TEGRA186_CLK_EQOS_AXI */
+/** @brief fixed /5 divider.  Output frequency of this clock is
+ * TEGRA186_CLK_PLLREFE_OUT1/5. Used as input for TEGRA186_CLK_EQOS_AXI */
 #define TEGRA186_CLK_PLLREFE_OUT1_DIV5 298
 /** @brief controls the UTMIP_PLL (aka PLLU) hardware sqeuencer */
 #define TEGRA186_CLK_UTMIP_PLL_PWRSEQ 301
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_PEX_USB_PAD_PLL0_MGMT */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_PEX_USB_PAD_PLL0_MGMT */
 #define TEGRA186_CLK_PEX_USB_PAD0_MGMT 302
-/** @brief output of the divider CLK_RST_CONTROLLER_CLK_SOURCE_PEX_USB_PAD_PLL1_MGMT */
+/** @brief output of the divider
+ * CLK_RST_CONTROLLER_CLK_SOURCE_PEX_USB_PAD_PLL1_MGMT */
 #define TEGRA186_CLK_PEX_USB_PAD1_MGMT 303
 /** @brief controls the UPHY_PLL0 hardware sqeuencer */
 #define TEGRA186_CLK_UPHY_PLL0_PWRSEQ 304
 /** @brief controls the UPHY_PLL1 hardware sqeuencer */
 #define TEGRA186_CLK_UPHY_PLL1_PWRSEQ 305
-/** @brief control for PLLREFE_IDDQ in CLK_RST_CONTROLLER_PLLREFE_MISC so the bypass output even be used when the PLL is disabled */
+/** @brief control for PLLREFE_IDDQ in CLK_RST_CONTROLLER_PLLREFE_MISC so the
+ * bypass output even be used when the PLL is disabled */
 #define TEGRA186_CLK_PLLREFE_PLLE_PASSTHROUGH 306
-/** @brief output of the mux controlled by PLLREFE_SEL_CLKIN_PEX in CLK_RST_CONTROLLER_PLLREFE_MISC */
+/** @brief output of the mux controlled by PLLREFE_SEL_CLKIN_PEX in
+ * CLK_RST_CONTROLLER_PLLREFE_MISC */
 #define TEGRA186_CLK_PLLREFE_PEX 307
-/** @brief control for PLLREFE_IDDQ in CLK_RST_CONTROLLER_PLLREFE_MISC to turn on the PLL when enabled */
+/** @brief control for PLLREFE_IDDQ in CLK_RST_CONTROLLER_PLLREFE_MISC to turn
+ * on the PLL when enabled */
 #define TEGRA186_CLK_PLLREFE_IDDQ 308
-/** @brief output of the divider QSPI_CLK_DIV2_SEL in CLK_RST_CONTROLLER_CLK_SOURCE_QSPI */
+/** @brief output of the divider QSPI_CLK_DIV2_SEL in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_QSPI */
 #define TEGRA186_CLK_QSPI_OUT 309
 /**
  * @brief GPC2CLK-div-2
@@ -834,7 +899,8 @@
 #define TEGRA186_CLK_PLL_P TEGRA186_CLK_PLLP
 /** @brief PLL controlled by CLK_RST_CONTROLLER_PLLD_BASE for use by DSI */
 #define TEGRA186_CLK_PLLD 518
-/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLD2_BASE for use by HDMI or DP */
+/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLD2_BASE for use by HDMI or DP
+ * */
 #define TEGRA186_CLK_PLLD2 519
 /**
  * @brief PLL controlled by CLK_RST_CONTROLLER_PLLREFE_BASE.
@@ -847,21 +913,25 @@
 #define TEGRA186_CLK_PLLC2 521
 /** @brief PLL controlled by CLK_RST_CONTROLLER_PLLC3_BASE */
 #define TEGRA186_CLK_PLLC3 522
-/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLDP_BASE for use as the DP link clock */
+/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLDP_BASE for use as the DP
+ * link clock */
 #define TEGRA186_CLK_PLLDP 523
 /** @brief PLL controlled by CLK_RST_CONTROLLER_PLLC4_BASE */
 #define TEGRA186_CLK_PLLC4_VCO 524
-/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLA1_BASE for use by audio clocks */
+/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLA1_BASE for use by audio
+ * clocks */
 #define TEGRA186_CLK_PLLA1 525
 /** @brief PLL controlled by CLK_RST_CONTROLLER_PLLNVCSI_BASE */
 #define TEGRA186_CLK_PLLNVCSI 526
 /** @brief PLL controlled by CLK_RST_CONTROLLER_PLLDISPHUB_BASE */
 #define TEGRA186_CLK_PLLDISPHUB 527
-/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLD3_BASE for use by HDMI or DP */
+/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLD3_BASE for use by HDMI or DP
+ * */
 #define TEGRA186_CLK_PLLD3 528
 /** @brief PLL controlled by CLK_RST_CONTROLLER_PLLBPMPCAM_BASE */
 #define TEGRA186_CLK_PLLBPMPCAM 531
-/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLAON_BASE for use by IP blocks in the AON domain */
+/** @brief PLL controlled by CLK_RST_CONTROLLER_PLLAON_BASE for use by IP blocks
+ * in the AON domain */
 #define TEGRA186_CLK_PLLAON 532
 /** Fixed frequency 960MHz PLL for USB and EAVB */
 #define TEGRA186_CLK_PLLU 533
@@ -911,9 +981,11 @@
 #define TEGRA186_CLK_EQOS_RX_INPUT 613
 /** @brief clock recovered from DTV input */
 #define TEGRA186_CLK_DTV_INPUT 614
-/** @brief SOR0 brick output which feeds into SOR0_CLK_SEL mux in CLK_RST_CONTROLLER_CLK_SOURCE_SOR0*/
+/** @brief SOR0 brick output which feeds into SOR0_CLK_SEL mux in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_SOR0*/
 #define TEGRA186_CLK_SOR0_PAD_CLKOUT 615
-/** @brief SOR1 brick output which feeds into SOR1_CLK_SEL mux in CLK_RST_CONTROLLER_CLK_SOURCE_SOR1*/
+/** @brief SOR1 brick output which feeds into SOR1_CLK_SEL mux in
+ * CLK_RST_CONTROLLER_CLK_SOURCE_SOR1*/
 #define TEGRA186_CLK_SOR1_PAD_CLKOUT 616
 /** @brief clock recovered from I2S1 input */
 #define TEGRA186_CLK_I2S1_SYNC_INPUT 617

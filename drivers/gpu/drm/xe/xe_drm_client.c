@@ -25,21 +25,18 @@
  *
  * Return: pointer to client struct or NULL if can't allocate
  */
-struct xe_drm_client *xe_drm_client_alloc(void)
-{
-	struct xe_drm_client *client;
-
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (!client)
-		return NULL;
-
-	kref_init(&client->kref);
-
+struct xe_drm_client *xe_drm_client_alloc(void) {
+  struct xe_drm_client *client;
+  client = kzalloc(sizeof(*client), GFP_KERNEL);
+  if (!client) {
+    return NULL;
+  }
+  kref_init(&client->kref);
 #ifdef CONFIG_PROC_FS
-	spin_lock_init(&client->bos_lock);
-	INIT_LIST_HEAD(&client->bos_list);
+  spin_lock_init(&client->bos_lock);
+  INIT_LIST_HEAD(&client->bos_list);
 #endif
-	return client;
+  return client;
 }
 
 /**
@@ -51,12 +48,10 @@ struct xe_drm_client *xe_drm_client_alloc(void)
  *
  * Return: void
  */
-void __xe_drm_client_free(struct kref *kref)
-{
-	struct xe_drm_client *client =
-		container_of(kref, typeof(*client), kref);
-
-	kfree(client);
+void __xe_drm_client_free(struct kref *kref) {
+  struct xe_drm_client *client
+    = container_of(kref, typeof(*client), kref);
+  kfree(client);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -71,15 +66,13 @@ void __xe_drm_client_free(struct kref *kref)
  * Return: void
  */
 void xe_drm_client_add_bo(struct xe_drm_client *client,
-			  struct xe_bo *bo)
-{
-	XE_WARN_ON(bo->client);
-	XE_WARN_ON(!list_empty(&bo->client_link));
-
-	spin_lock(&client->bos_lock);
-	bo->client = xe_drm_client_get(client);
-	list_add_tail_rcu(&bo->client_link, &client->bos_list);
-	spin_unlock(&client->bos_lock);
+    struct xe_bo *bo) {
+  XE_WARN_ON(bo->client);
+  XE_WARN_ON(!list_empty(&bo->client_link));
+  spin_lock(&client->bos_lock);
+  bo->client = xe_drm_client_get(client);
+  list_add_tail_rcu(&bo->client_link, &client->bos_list);
+  spin_unlock(&client->bos_lock);
 }
 
 /**
@@ -91,92 +84,81 @@ void xe_drm_client_add_bo(struct xe_drm_client *client,
  *
  * Return: void
  */
-void xe_drm_client_remove_bo(struct xe_bo *bo)
-{
-	struct xe_drm_client *client = bo->client;
-
-	spin_lock(&client->bos_lock);
-	list_del_rcu(&bo->client_link);
-	spin_unlock(&client->bos_lock);
-
-	xe_drm_client_put(client);
+void xe_drm_client_remove_bo(struct xe_bo *bo) {
+  struct xe_drm_client *client = bo->client;
+  spin_lock(&client->bos_lock);
+  list_del_rcu(&bo->client_link);
+  spin_unlock(&client->bos_lock);
+  xe_drm_client_put(client);
 }
 
 static void bo_meminfo(struct xe_bo *bo,
-		       struct drm_memory_stats stats[TTM_NUM_MEM_TYPES])
-{
-	u64 sz = bo->size;
-	u32 mem_type;
-
-	if (bo->placement.placement)
-		mem_type = bo->placement.placement->mem_type;
-	else
-		mem_type = XE_PL_TT;
-
-	if (drm_gem_object_is_shared_for_memory_stats(&bo->ttm.base))
-		stats[mem_type].shared += sz;
-	else
-		stats[mem_type].private += sz;
-
-	if (xe_bo_has_pages(bo)) {
-		stats[mem_type].resident += sz;
-
-		if (!dma_resv_test_signaled(bo->ttm.base.resv,
-					    DMA_RESV_USAGE_BOOKKEEP))
-			stats[mem_type].active += sz;
-		else if (mem_type == XE_PL_SYSTEM)
-			stats[mem_type].purgeable += sz;
-	}
+    struct drm_memory_stats stats[TTM_NUM_MEM_TYPES]) {
+  u64 sz = bo->size;
+  u32 mem_type;
+  if (bo->placement.placement) {
+    mem_type = bo->placement.placement->mem_type;
+  } else {
+    mem_type = XE_PL_TT;
+  }
+  if (drm_gem_object_is_shared_for_memory_stats(&bo->ttm.base)) {
+    stats[mem_type].shared += sz;
+  } else {
+    stats[mem_type].private += sz;
+  }
+  if (xe_bo_has_pages(bo)) {
+    stats[mem_type].resident += sz;
+    if (!dma_resv_test_signaled(bo->ttm.base.resv,
+        DMA_RESV_USAGE_BOOKKEEP)) {
+      stats[mem_type].active += sz;
+    } else if (mem_type == XE_PL_SYSTEM) {
+      stats[mem_type].purgeable += sz;
+    }
+  }
 }
 
-static void show_meminfo(struct drm_printer *p, struct drm_file *file)
-{
-	struct drm_memory_stats stats[TTM_NUM_MEM_TYPES] = {};
-	struct xe_file *xef = file->driver_priv;
-	struct ttm_device *bdev = &xef->xe->ttm;
-	struct ttm_resource_manager *man;
-	struct xe_drm_client *client;
-	struct drm_gem_object *obj;
-	struct xe_bo *bo;
-	unsigned int id;
-	u32 mem_type;
-
-	client = xef->client;
-
-	/* Public objects. */
-	spin_lock(&file->table_lock);
-	idr_for_each_entry(&file->object_idr, obj, id) {
-		struct xe_bo *bo = gem_to_xe_bo(obj);
-
-		bo_meminfo(bo, stats);
-	}
-	spin_unlock(&file->table_lock);
-
-	/* Internal objects. */
-	spin_lock(&client->bos_lock);
-	list_for_each_entry_rcu(bo, &client->bos_list, client_link) {
-		if (!bo || !kref_get_unless_zero(&bo->ttm.base.refcount))
-			continue;
-		bo_meminfo(bo, stats);
-		xe_bo_put(bo);
-	}
-	spin_unlock(&client->bos_lock);
-
-	for (mem_type = XE_PL_SYSTEM; mem_type < TTM_NUM_MEM_TYPES; ++mem_type) {
-		if (!xe_mem_type_to_name[mem_type])
-			continue;
-
-		man = ttm_manager_type(bdev, mem_type);
-
-		if (man) {
-			drm_print_memory_stats(p,
-					       &stats[mem_type],
-					       DRM_GEM_OBJECT_RESIDENT |
-					       (mem_type != XE_PL_SYSTEM ? 0 :
-					       DRM_GEM_OBJECT_PURGEABLE),
-					       xe_mem_type_to_name[mem_type]);
-		}
-	}
+static void show_meminfo(struct drm_printer *p, struct drm_file *file) {
+  struct drm_memory_stats stats[TTM_NUM_MEM_TYPES] = {};
+  struct xe_file *xef = file->driver_priv;
+  struct ttm_device *bdev = &xef->xe->ttm;
+  struct ttm_resource_manager *man;
+  struct xe_drm_client *client;
+  struct drm_gem_object *obj;
+  struct xe_bo *bo;
+  unsigned int id;
+  u32 mem_type;
+  client = xef->client;
+  /* Public objects. */
+  spin_lock(&file->table_lock);
+  idr_for_each_entry(&file->object_idr, obj, id) {
+    struct xe_bo *bo = gem_to_xe_bo(obj);
+    bo_meminfo(bo, stats);
+  }
+  spin_unlock(&file->table_lock);
+  /* Internal objects. */
+  spin_lock(&client->bos_lock);
+  list_for_each_entry_rcu(bo, &client->bos_list, client_link) {
+    if (!bo || !kref_get_unless_zero(&bo->ttm.base.refcount)) {
+      continue;
+    }
+    bo_meminfo(bo, stats);
+    xe_bo_put(bo);
+  }
+  spin_unlock(&client->bos_lock);
+  for (mem_type = XE_PL_SYSTEM; mem_type < TTM_NUM_MEM_TYPES; ++mem_type) {
+    if (!xe_mem_type_to_name[mem_type]) {
+      continue;
+    }
+    man = ttm_manager_type(bdev, mem_type);
+    if (man) {
+      drm_print_memory_stats(p,
+          &stats[mem_type],
+          DRM_GEM_OBJECT_RESIDENT
+          | (mem_type != XE_PL_SYSTEM ? 0
+          : DRM_GEM_OBJECT_PURGEABLE),
+          xe_mem_type_to_name[mem_type]);
+    }
+  }
 }
 
 /**
@@ -189,8 +171,8 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
  *
  * Return: void
  */
-void xe_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file)
-{
-	show_meminfo(p, file);
+void xe_drm_client_fdinfo(struct drm_printer *p, struct drm_file *file) {
+  show_meminfo(p, file);
 }
+
 #endif

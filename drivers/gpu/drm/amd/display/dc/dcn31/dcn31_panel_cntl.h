@@ -30,11 +30,11 @@
 #include "dce/dce_panel_cntl.h"
 
 struct dcn31_panel_cntl {
-	struct panel_cntl base;
+  struct panel_cntl base;
 };
 
 void dcn31_panel_cntl_construct(
-	struct dcn31_panel_cntl *dcn31_panel_cntl,
-	const struct panel_cntl_init_data *init_data);
+  struct dcn31_panel_cntl *dcn31_panel_cntl,
+  const struct panel_cntl_init_data *init_data);
 
 #endif /* __DC_PANEL_CNTL__DCN31_H__ */

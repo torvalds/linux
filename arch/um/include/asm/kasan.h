@@ -14,7 +14,7 @@
 #define KASAN_HOST_USER_SPACE_END_ADDR 0x00007fffffffffffUL
 /* KASAN_SHADOW_SIZE is the size of total address space divided by 8 */
 #define KASAN_SHADOW_SIZE ((KASAN_HOST_USER_SPACE_END_ADDR + 1) >> \
-			KASAN_SHADOW_SCALE_SHIFT)
+  KASAN_SHADOW_SCALE_SHIFT)
 #else
 #error "KASAN_SHADOW_SIZE is not defined for this sub-architecture"
 #endif /* CONFIG_X86_64 */
@@ -31,7 +31,9 @@ extern int kasan_um_is_ready;
 #define kasan_arch_is_ready() (kasan_um_is_ready)
 #endif
 #else
-static inline void kasan_init(void) { }
+static inline void kasan_init(void) {
+}
+
 #endif /* CONFIG_KASAN */
 
 #endif /* __ASM_UM_KASAN_H */

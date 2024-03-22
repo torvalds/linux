@@ -14,7 +14,7 @@
 #include <linux/i8253.h>
 #include <linux/timex.h>
 
-#define PCSP_SOUND_VERSION 0x400	/* read 4.00 */
+#define PCSP_SOUND_VERSION 0x400  /* read 4.00 */
 #define PCSP_DEBUG 0
 
 /* default timer freq for PC-Speaker: 18643 Hz */
@@ -35,41 +35,41 @@
 #define PCSP_INDEX_INC() (1 << (PCSP_MAX_TREBLE - chip->treble))
 #define PCSP_CALC_RATE(i) (PIT_TICK_RATE / CALC_DIV(i))
 #define PCSP_RATE() PCSP_CALC_RATE(chip->treble)
-#define PCSP_MIN_RATE__1 MAX_DIV/PIT_TICK_RATE
-#define PCSP_MAX_RATE__1 MIN_DIV/PIT_TICK_RATE
+#define PCSP_MIN_RATE__1 MAX_DIV / PIT_TICK_RATE
+#define PCSP_MAX_RATE__1 MIN_DIV / PIT_TICK_RATE
 #define PCSP_MAX_PERIOD_NS (1000000000ULL * PCSP_MIN_RATE__1)
 #define PCSP_MIN_PERIOD_NS (1000000000ULL * PCSP_MAX_RATE__1)
 #define PCSP_CALC_NS(div) ({ \
-	u64 __val = 1000000000ULL * (div); \
-	do_div(__val, PIT_TICK_RATE); \
-	__val; \
-})
+    u64 __val = 1000000000ULL * (div); \
+    do_div(__val, PIT_TICK_RATE); \
+    __val; \
+  })
 #define PCSP_PERIOD_NS() PCSP_CALC_NS(CUR_DIV())
 
-#define PCSP_MAX_PERIOD_SIZE	(64*1024)
-#define PCSP_MAX_PERIODS	512
-#define PCSP_BUFFER_SIZE	(128*1024)
+#define PCSP_MAX_PERIOD_SIZE  (64 * 1024)
+#define PCSP_MAX_PERIODS  512
+#define PCSP_BUFFER_SIZE  (128 * 1024)
 
 struct snd_pcsp {
-	struct snd_card *card;
-	struct snd_pcm *pcm;
-	struct input_dev *input_dev;
-	struct hrtimer timer;
-	unsigned short port, irq, dma;
-	spinlock_t substream_lock;
-	struct snd_pcm_substream *playback_substream;
-	unsigned int fmt_size;
-	unsigned int is_signed;
-	size_t playback_ptr;
-	size_t period_ptr;
-	atomic_t timer_active;
-	int thalf;
-	u64 ns_rem;
-	unsigned char val61;
-	int enable;
-	int max_treble;
-	int treble;
-	int pcspkr;
+  struct snd_card *card;
+  struct snd_pcm *pcm;
+  struct input_dev *input_dev;
+  struct hrtimer timer;
+  unsigned short port, irq, dma;
+  spinlock_t substream_lock;
+  struct snd_pcm_substream *playback_substream;
+  unsigned int fmt_size;
+  unsigned int is_signed;
+  size_t playback_ptr;
+  size_t period_ptr;
+  atomic_t timer_active;
+  int thalf;
+  u64 ns_rem;
+  unsigned char val61;
+  int enable;
+  int max_treble;
+  int treble;
+  int pcspkr;
 };
 
 extern struct snd_pcsp pcsp_chip;

@@ -8,42 +8,45 @@ struct nvkm_head;
 struct nvkm_outp;
 struct dcb_output;
 
-int r535_disp_new(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		  struct nvkm_disp **);
+int r535_disp_new(const struct nvkm_disp_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_disp **);
 
-int nvkm_disp_ctor(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_disp *);
-int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_disp **);
+int nvkm_disp_ctor(const struct nvkm_disp_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_disp *);
+int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_disp **);
 void nvkm_disp_vblank(struct nvkm_disp *, int head);
 
 struct nvkm_disp_func {
-	void (*dtor)(struct nvkm_disp *);
-	int (*oneinit)(struct nvkm_disp *);
-	int (*init)(struct nvkm_disp *);
-	void (*fini)(struct nvkm_disp *, bool suspend);
-	void (*intr)(struct nvkm_disp *);
-	void (*intr_error)(struct nvkm_disp *, int chid);
+  void (*dtor)(struct nvkm_disp *);
+  int (*oneinit)(struct nvkm_disp *);
+  int (*init)(struct nvkm_disp *);
+  void (*fini)(struct nvkm_disp *, bool suspend);
+  void (*intr)(struct nvkm_disp *);
+  void (*intr_error)(struct nvkm_disp *, int chid);
 
-	void (*super)(struct work_struct *);
+  void (*super)(struct work_struct *);
 
-	const struct nvkm_event_func *uevent;
+  const struct nvkm_event_func *uevent;
 
-	struct {
-		int (*cnt)(struct nvkm_disp *, unsigned long *mask);
-		int (*new)(struct nvkm_disp *, int id);
-	} wndw, head, dac, sor, pior;
+  struct {
+    int (*cnt)(struct nvkm_disp *, unsigned long *mask);
+    int (*new)(struct nvkm_disp *, int id);
+  } wndw, head, dac, sor, pior;
 
-	u16 ramht_size;
+  u16 ramht_size;
 
-	struct nvkm_sclass root;
+  struct nvkm_sclass root;
 
-	struct nvkm_disp_user {
-		struct nvkm_sclass base;
-		int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
-			    struct nvkm_object **);
-		const struct nvkm_disp_chan_user *chan;
-	} user[];
+  struct nvkm_disp_user {
+    struct nvkm_sclass base;
+    int (*ctor)(const struct nvkm_oclass *, void *argv, u32 argc,
+        struct nvkm_object **);
+    const struct nvkm_disp_chan_user *chan;
+  } user[];
 };
 
 int nv50_disp_oneinit(struct nvkm_disp *);
@@ -69,7 +72,8 @@ void gv100_disp_fini(struct nvkm_disp *, bool suspend);
 void gv100_disp_intr(struct nvkm_disp *);
 void gv100_disp_super(struct work_struct *);
 int gv100_disp_wndw_cnt(struct nvkm_disp *, unsigned long *);
-int gv100_disp_caps_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+int gv100_disp_caps_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
 
 int tu102_disp_init(struct nvkm_disp *);
 
@@ -83,8 +87,12 @@ void nv50_disp_chan_uevent_send(struct nvkm_disp *, int);
 extern const struct nvkm_event_func gf119_disp_chan_uevent;
 extern const struct nvkm_event_func gv100_disp_chan_uevent;
 
-int nvkm_udisp_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_uconn_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_uoutp_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_uhead_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+int nvkm_udisp_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
+int nvkm_uconn_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
+int nvkm_uoutp_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
+int nvkm_uhead_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
 #endif

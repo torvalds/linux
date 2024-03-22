@@ -26,12 +26,12 @@
  */
 
 struct apple_rtkit_shmem {
-	void *buffer;
-	void __iomem *iomem;
-	size_t size;
-	dma_addr_t iova;
-	bool is_mapped;
-	void *private;
+  void *buffer;
+  void __iomem *iomem;
+  size_t size;
+  dma_addr_t iova;
+  bool is_mapped;
+  void * private;
 };
 
 /*
@@ -56,11 +56,11 @@ struct apple_rtkit_shmem {
  *                 context.
  */
 struct apple_rtkit_ops {
-	void (*crashed)(void *cookie);
-	void (*recv_message)(void *cookie, u8 endpoint, u64 message);
-	bool (*recv_message_early)(void *cookie, u8 endpoint, u64 message);
-	int (*shmem_setup)(void *cookie, struct apple_rtkit_shmem *bfr);
-	void (*shmem_destroy)(void *cookie, struct apple_rtkit_shmem *bfr);
+  void (*crashed)(void *cookie);
+  void (*recv_message)(void *cookie, u8 endpoint, u64 message);
+  bool (*recv_message_early)(void *cookie, u8 endpoint, u64 message);
+  int (*shmem_setup)(void *cookie, struct apple_rtkit_shmem *bfr);
+  void (*shmem_destroy)(void *cookie, struct apple_rtkit_shmem *bfr);
 };
 
 struct apple_rtkit;
@@ -76,8 +76,8 @@ struct apple_rtkit;
  * @ops:         pointer to rtkit_ops to be used for this co-processor
  */
 struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
-					  const char *mbox_name, int mbox_idx,
-					  const struct apple_rtkit_ops *ops);
+    const char *mbox_name, int mbox_idx,
+    const struct apple_rtkit_ops *ops);
 
 /*
  * Non-devm version of devm_apple_rtkit_init. Must be freed with
@@ -90,8 +90,8 @@ struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
  * @ops:         pointer to rtkit_ops to be used for this co-processor
  */
 struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
-					  const char *mbox_name, int mbox_idx,
-					  const struct apple_rtkit_ops *ops);
+    const char *mbox_name, int mbox_idx,
+    const struct apple_rtkit_ops *ops);
 
 /*
  * Free an instance of apple_rtkit.
@@ -158,7 +158,7 @@ int apple_rtkit_start_ep(struct apple_rtkit *rtk, u8 endpoint);
  *                  context.
  */
 int apple_rtkit_send_message(struct apple_rtkit *rtk, u8 ep, u64 message,
-			     struct completion *completion, bool atomic);
+    struct completion *completion, bool atomic);
 
 /*
  * Process incoming messages in atomic context.

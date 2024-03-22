@@ -11,7 +11,7 @@
 struct notifier_block;
 
 enum dcbevent_notif_type {
-	DCB_APP_EVENT = 1,
+  DCB_APP_EVENT = 1,
 };
 
 #ifdef CONFIG_DCB
@@ -19,21 +19,18 @@ int register_dcbevent_notifier(struct notifier_block *nb);
 int unregister_dcbevent_notifier(struct notifier_block *nb);
 int call_dcbevent_notifiers(unsigned long val, void *v);
 #else
-static inline int
-register_dcbevent_notifier(struct notifier_block *nb)
-{
-	return 0;
+static inline int register_dcbevent_notifier(struct notifier_block *nb) {
+  return 0;
 }
 
-static inline int unregister_dcbevent_notifier(struct notifier_block *nb)
-{
-	return 0;
+static inline int unregister_dcbevent_notifier(struct notifier_block *nb) {
+  return 0;
 }
 
-static inline int call_dcbevent_notifiers(unsigned long val, void *v)
-{
-	return 0;
+static inline int call_dcbevent_notifiers(unsigned long val, void *v) {
+  return 0;
 }
+
 #endif /* CONFIG_DCB */
 
 #endif

@@ -17,22 +17,23 @@
  */
 
 #ifdef CONFIG_64BIT
-# ifdef system_has_cmpxchg128
-# define system_has_freelist_aba()	system_has_cmpxchg128()
-# define try_cmpxchg_freelist		try_cmpxchg128
-# endif
-#define this_cpu_try_cmpxchg_freelist	this_cpu_try_cmpxchg128
+#ifdef system_has_cmpxchg128
+#define system_has_freelist_aba()  system_has_cmpxchg128()
+#define try_cmpxchg_freelist   try_cmpxchg128
+#endif
+#define this_cpu_try_cmpxchg_freelist this_cpu_try_cmpxchg128
 typedef u128 freelist_full_t;
 #else /* CONFIG_64BIT */
-# ifdef system_has_cmpxchg64
-# define system_has_freelist_aba()	system_has_cmpxchg64()
-# define try_cmpxchg_freelist		try_cmpxchg64
-# endif
-#define this_cpu_try_cmpxchg_freelist	this_cpu_try_cmpxchg64
+#ifdef system_has_cmpxchg64
+#define system_has_freelist_aba()  system_has_cmpxchg64()
+#define try_cmpxchg_freelist   try_cmpxchg64
+#endif
+#define this_cpu_try_cmpxchg_freelist this_cpu_try_cmpxchg64
 typedef u64 freelist_full_t;
 #endif /* CONFIG_64BIT */
 
-#if defined(system_has_freelist_aba) && !defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+#if defined(system_has_freelist_aba) \
+  && !defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
 #undef system_has_freelist_aba
 #endif
 
@@ -41,61 +42,61 @@ typedef u64 freelist_full_t;
  * problems with cmpxchg of just a pointer.
  */
 typedef union {
-	struct {
-		void *freelist;
-		unsigned long counter;
-	};
-	freelist_full_t full;
+  struct {
+    void *freelist;
+    unsigned long counter;
+  };
+  freelist_full_t full;
 } freelist_aba_t;
 
 /* Reuses the bits in struct page */
 struct slab {
-	unsigned long __page_flags;
+  unsigned long __page_flags;
 
-	struct kmem_cache *slab_cache;
-	union {
-		struct {
-			union {
-				struct list_head slab_list;
+  struct kmem_cache *slab_cache;
+  union {
+    struct {
+      union {
+        struct list_head slab_list;
 #ifdef CONFIG_SLUB_CPU_PARTIAL
-				struct {
-					struct slab *next;
-					int slabs;	/* Nr of slabs left */
-				};
+        struct {
+          struct slab *next;
+          int slabs;  /* Nr of slabs left */
+        };
 #endif
-			};
-			/* Double-word boundary */
-			union {
-				struct {
-					void *freelist;		/* first free object */
-					union {
-						unsigned long counters;
-						struct {
-							unsigned inuse:16;
-							unsigned objects:15;
-							unsigned frozen:1;
-						};
-					};
-				};
+      };
+      /* Double-word boundary */
+      union {
+        struct {
+          void *freelist;   /* first free object */
+          union {
+            unsigned long counters;
+            struct {
+              unsigned inuse : 16;
+              unsigned objects : 15;
+              unsigned frozen : 1;
+            };
+          };
+        };
 #ifdef system_has_freelist_aba
-				freelist_aba_t freelist_counter;
+        freelist_aba_t freelist_counter;
 #endif
-			};
-		};
-		struct rcu_head rcu_head;
-	};
-	unsigned int __unused;
+      };
+    };
+    struct rcu_head rcu_head;
+  };
+  unsigned int __unused;
 
-	atomic_t __page_refcount;
+  atomic_t __page_refcount;
 #ifdef CONFIG_MEMCG
-	unsigned long memcg_data;
+  unsigned long memcg_data;
 #endif
 };
 
-#define SLAB_MATCH(pg, sl)						\
-	static_assert(offsetof(struct page, pg) == offsetof(struct slab, sl))
+#define SLAB_MATCH(pg, sl)            \
+  static_assert(offsetof(struct page, pg) == offsetof(struct slab, sl))
 SLAB_MATCH(flags, __page_flags);
-SLAB_MATCH(compound_head, slab_cache);	/* Ensure bit 0 is clear */
+SLAB_MATCH(compound_head, slab_cache);  /* Ensure bit 0 is clear */
 SLAB_MATCH(_refcount, __page_refcount);
 #ifdef CONFIG_MEMCG
 SLAB_MATCH(memcg_data, memcg_data);
@@ -103,7 +104,8 @@ SLAB_MATCH(memcg_data, memcg_data);
 #undef SLAB_MATCH
 static_assert(sizeof(struct slab) <= sizeof(struct page));
 #if defined(system_has_freelist_aba)
-static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)));
+static_assert(IS_ALIGNED(offsetof(struct slab,
+    freelist), sizeof(freelist_aba_t)));
 #endif
 
 /**
@@ -115,9 +117,9 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  *
  * Return: The slab which contains this folio.
  */
-#define folio_slab(folio)	(_Generic((folio),			\
-	const struct folio *:	(const struct slab *)(folio),		\
-	struct folio *:		(struct slab *)(folio)))
+#define folio_slab(folio) (_Generic((folio),      \
+    const struct folio *: (const struct slab *) (folio),   \
+    struct folio *:   (struct slab *) (folio)))
 
 /**
  * slab_folio - The folio allocated for a slab
@@ -130,9 +132,9 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  * helper function instead of casting yourself, as the implementation may change
  * in the future.
  */
-#define slab_folio(s)		(_Generic((s),				\
-	const struct slab *:	(const struct folio *)s,		\
-	struct slab *:		(struct folio *)s))
+#define slab_folio(s)   (_Generic((s),        \
+    const struct slab *:  (const struct folio *) s,    \
+    struct slab *:    (struct folio *) s))
 
 /**
  * page_slab - Converts from first struct page to slab.
@@ -146,9 +148,9 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  *
  * Return: The slab which contains this page
  */
-#define page_slab(p)		(_Generic((p),				\
-	const struct page *:	(const struct slab *)(p),		\
-	struct page *:		(struct slab *)(p)))
+#define page_slab(p)    (_Generic((p),        \
+    const struct page *:  (const struct slab *) (p),   \
+    struct page *:    (struct slab *) (p)))
 
 /**
  * slab_page - The first struct page allocated for a slab
@@ -164,76 +166,65 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
  * If network-based swap is enabled, sl*b must keep track of whether pages
  * were allocated from pfmemalloc reserves.
  */
-static inline bool slab_test_pfmemalloc(const struct slab *slab)
-{
-	return folio_test_active((struct folio *)slab_folio(slab));
+static inline bool slab_test_pfmemalloc(const struct slab *slab) {
+  return folio_test_active((struct folio *) slab_folio(slab));
 }
 
-static inline void slab_set_pfmemalloc(struct slab *slab)
-{
-	folio_set_active(slab_folio(slab));
+static inline void slab_set_pfmemalloc(struct slab *slab) {
+  folio_set_active(slab_folio(slab));
 }
 
-static inline void slab_clear_pfmemalloc(struct slab *slab)
-{
-	folio_clear_active(slab_folio(slab));
+static inline void slab_clear_pfmemalloc(struct slab *slab) {
+  folio_clear_active(slab_folio(slab));
 }
 
-static inline void __slab_clear_pfmemalloc(struct slab *slab)
-{
-	__folio_clear_active(slab_folio(slab));
+static inline void __slab_clear_pfmemalloc(struct slab *slab) {
+  __folio_clear_active(slab_folio(slab));
 }
 
-static inline void *slab_address(const struct slab *slab)
-{
-	return folio_address(slab_folio(slab));
+static inline void *slab_address(const struct slab *slab) {
+  return folio_address(slab_folio(slab));
 }
 
-static inline int slab_nid(const struct slab *slab)
-{
-	return folio_nid(slab_folio(slab));
+static inline int slab_nid(const struct slab *slab) {
+  return folio_nid(slab_folio(slab));
 }
 
-static inline pg_data_t *slab_pgdat(const struct slab *slab)
-{
-	return folio_pgdat(slab_folio(slab));
+static inline pg_data_t *slab_pgdat(const struct slab *slab) {
+  return folio_pgdat(slab_folio(slab));
 }
 
-static inline struct slab *virt_to_slab(const void *addr)
-{
-	struct folio *folio = virt_to_folio(addr);
-
-	if (!folio_test_slab(folio))
-		return NULL;
-
-	return folio_slab(folio);
+static inline struct slab *virt_to_slab(const void *addr) {
+  struct folio *folio = virt_to_folio(addr);
+  if (!folio_test_slab(folio)) {
+    return NULL;
+  }
+  return folio_slab(folio);
 }
 
-static inline int slab_order(const struct slab *slab)
-{
-	return folio_order((struct folio *)slab_folio(slab));
+static inline int slab_order(const struct slab *slab) {
+  return folio_order((struct folio *) slab_folio(slab));
 }
 
-static inline size_t slab_size(const struct slab *slab)
-{
-	return PAGE_SIZE << slab_order(slab);
+static inline size_t slab_size(const struct slab *slab) {
+  return PAGE_SIZE << slab_order(slab);
 }
 
 #ifdef CONFIG_SLUB_CPU_PARTIAL
-#define slub_percpu_partial(c)			((c)->partial)
+#define slub_percpu_partial(c)      ((c)->partial)
 
-#define slub_set_percpu_partial(c, p)		\
-({						\
-	slub_percpu_partial(c) = (p)->next;	\
-})
+#define slub_set_percpu_partial(c, p)   \
+  ({            \
+    slub_percpu_partial(c) = (p)->next; \
+  })
 
-#define slub_percpu_partial_read_once(c)	READ_ONCE(slub_percpu_partial(c))
+#define slub_percpu_partial_read_once(c)  READ_ONCE(slub_percpu_partial(c))
 #else
-#define slub_percpu_partial(c)			NULL
+#define slub_percpu_partial(c)      NULL
 
 #define slub_set_percpu_partial(c, p)
 
-#define slub_percpu_partial_read_once(c)	NULL
+#define slub_percpu_partial_read_once(c)  NULL
 #endif // CONFIG_SLUB_CPU_PARTIAL
 
 /*
@@ -242,7 +233,7 @@ static inline size_t slab_size(const struct slab *slab)
  * given order would contain.
  */
 struct kmem_cache_order_objects {
-	unsigned int x;
+  unsigned int x;
 };
 
 /*
@@ -250,61 +241,61 @@ struct kmem_cache_order_objects {
  */
 struct kmem_cache {
 #ifndef CONFIG_SLUB_TINY
-	struct kmem_cache_cpu __percpu *cpu_slab;
+  struct kmem_cache_cpu __percpu *cpu_slab;
 #endif
-	/* Used for retrieving partial slabs, etc. */
-	slab_flags_t flags;
-	unsigned long min_partial;
-	unsigned int size;		/* Object size including metadata */
-	unsigned int object_size;	/* Object size without metadata */
-	struct reciprocal_value reciprocal_size;
-	unsigned int offset;		/* Free pointer offset */
+  /* Used for retrieving partial slabs, etc. */
+  slab_flags_t flags;
+  unsigned long min_partial;
+  unsigned int size;    /* Object size including metadata */
+  unsigned int object_size; /* Object size without metadata */
+  struct reciprocal_value reciprocal_size;
+  unsigned int offset;    /* Free pointer offset */
 #ifdef CONFIG_SLUB_CPU_PARTIAL
-	/* Number of per cpu partial objects to keep around */
-	unsigned int cpu_partial;
-	/* Number of per cpu partial slabs to keep around */
-	unsigned int cpu_partial_slabs;
+  /* Number of per cpu partial objects to keep around */
+  unsigned int cpu_partial;
+  /* Number of per cpu partial slabs to keep around */
+  unsigned int cpu_partial_slabs;
 #endif
-	struct kmem_cache_order_objects oo;
+  struct kmem_cache_order_objects oo;
 
-	/* Allocation and freeing of slabs */
-	struct kmem_cache_order_objects min;
-	gfp_t allocflags;		/* gfp flags to use on each alloc */
-	int refcount;			/* Refcount for slab cache destroy */
-	void (*ctor)(void *object);	/* Object constructor */
-	unsigned int inuse;		/* Offset to metadata */
-	unsigned int align;		/* Alignment */
-	unsigned int red_left_pad;	/* Left redzone padding size */
-	const char *name;		/* Name (only for display!) */
-	struct list_head list;		/* List of slab caches */
+  /* Allocation and freeing of slabs */
+  struct kmem_cache_order_objects min;
+  gfp_t allocflags;   /* gfp flags to use on each alloc */
+  int refcount;     /* Refcount for slab cache destroy */
+  void (*ctor)(void *object); /* Object constructor */
+  unsigned int inuse;   /* Offset to metadata */
+  unsigned int align;   /* Alignment */
+  unsigned int red_left_pad;  /* Left redzone padding size */
+  const char *name;   /* Name (only for display!) */
+  struct list_head list;    /* List of slab caches */
 #ifdef CONFIG_SYSFS
-	struct kobject kobj;		/* For sysfs */
+  struct kobject kobj;    /* For sysfs */
 #endif
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
-	unsigned long random;
+  unsigned long random;
 #endif
 
 #ifdef CONFIG_NUMA
-	/*
-	 * Defragmentation by allocating from a remote node.
-	 */
-	unsigned int remote_node_defrag_ratio;
+  /*
+   * Defragmentation by allocating from a remote node.
+   */
+  unsigned int remote_node_defrag_ratio;
 #endif
 
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
-	unsigned int *random_seq;
+  unsigned int *random_seq;
 #endif
 
 #ifdef CONFIG_KASAN_GENERIC
-	struct kasan_cache kasan_info;
+  struct kasan_cache kasan_info;
 #endif
 
 #ifdef CONFIG_HARDENED_USERCOPY
-	unsigned int useroffset;	/* Usercopy region offset */
-	unsigned int usersize;		/* Usercopy region size */
+  unsigned int useroffset;  /* Usercopy region offset */
+  unsigned int usersize;    /* Usercopy region size */
 #endif
 
-	struct kmem_cache_node *node[MAX_NUMNODES];
+  struct kmem_cache_node *node[MAX_NUMNODES];
 };
 
 #if defined(CONFIG_SYSFS) && !defined(CONFIG_SLUB_TINY)
@@ -312,44 +303,44 @@ struct kmem_cache {
 void sysfs_slab_unlink(struct kmem_cache *s);
 void sysfs_slab_release(struct kmem_cache *s);
 #else
-static inline void sysfs_slab_unlink(struct kmem_cache *s) { }
-static inline void sysfs_slab_release(struct kmem_cache *s) { }
+static inline void sysfs_slab_unlink(struct kmem_cache *s) {
+}
+
+static inline void sysfs_slab_release(struct kmem_cache *s) {
+}
+
 #endif
 
 void *fixup_red_left(struct kmem_cache *s, void *p);
 
 static inline void *nearest_obj(struct kmem_cache *cache,
-				const struct slab *slab, void *x)
-{
-	void *object = x - (x - slab_address(slab)) % cache->size;
-	void *last_object = slab_address(slab) +
-		(slab->objects - 1) * cache->size;
-	void *result = (unlikely(object > last_object)) ? last_object : object;
-
-	result = fixup_red_left(cache, result);
-	return result;
+    const struct slab *slab, void *x) {
+  void *object = x - (x - slab_address(slab)) % cache->size;
+  void *last_object = slab_address(slab)
+      + (slab->objects - 1) * cache->size;
+  void *result = (unlikely(object > last_object)) ? last_object : object;
+  result = fixup_red_left(cache, result);
+  return result;
 }
 
 /* Determine object index from a given position */
 static inline unsigned int __obj_to_index(const struct kmem_cache *cache,
-					  void *addr, void *obj)
-{
-	return reciprocal_divide(kasan_reset_tag(obj) - addr,
-				 cache->reciprocal_size);
+    void *addr, void *obj) {
+  return reciprocal_divide(kasan_reset_tag(obj) - addr,
+      cache->reciprocal_size);
 }
 
 static inline unsigned int obj_to_index(const struct kmem_cache *cache,
-					const struct slab *slab, void *obj)
-{
-	if (is_kfence_address(obj))
-		return 0;
-	return __obj_to_index(cache, slab_address(slab), obj);
+    const struct slab *slab, void *obj) {
+  if (is_kfence_address(obj)) {
+    return 0;
+  }
+  return __obj_to_index(cache, slab_address(slab), obj);
 }
 
 static inline int objs_per_slab(const struct kmem_cache *cache,
-				const struct slab *slab)
-{
-	return slab->objects;
+    const struct slab *slab) {
+  return slab->objects;
 }
 
 /*
@@ -361,10 +352,10 @@ static inline int objs_per_slab(const struct kmem_cache *cache,
  * allocated from slab caches themselves.
  */
 enum slab_state {
-	DOWN,			/* No slab functionality yet */
-	PARTIAL,		/* SLUB: kmem_cache_node available */
-	UP,			/* Slab caches usable but not all extras yet */
-	FULL			/* Everything is working */
+  DOWN,     /* No slab functionality yet */
+  PARTIAL,    /* SLUB: kmem_cache_node available */
+  UP,     /* Slab caches usable but not all extras yet */
+  FULL      /* Everything is working */
 };
 
 extern enum slab_state slab_state;
@@ -380,8 +371,8 @@ extern struct kmem_cache *kmem_cache;
 
 /* A table of kmalloc cache names and sizes */
 extern const struct kmalloc_info_struct {
-	const char *name[NR_KMALLOC_TYPES];
-	unsigned int size;
+  const char *name[NR_KMALLOC_TYPES];
+  unsigned int size;
 } kmalloc_info[];
 
 /* Kmalloc array related functions */
@@ -390,9 +381,8 @@ void create_kmalloc_caches(void);
 
 extern u8 kmalloc_size_index[24];
 
-static inline unsigned int size_index_elem(unsigned int bytes)
-{
-	return (bytes - 1) / 8;
+static inline unsigned int size_index_elem(unsigned int bytes) {
+  return (bytes - 1) / 8;
 }
 
 /*
@@ -402,17 +392,15 @@ static inline unsigned int size_index_elem(unsigned int bytes)
  * This assumes size is larger than zero and not larger than
  * KMALLOC_MAX_CACHE_SIZE and the caller must check that.
  */
-static inline struct kmem_cache *
-kmalloc_slab(size_t size, gfp_t flags, unsigned long caller)
-{
-	unsigned int index;
-
-	if (size <= 192)
-		index = kmalloc_size_index[size_index_elem(size)];
-	else
-		index = fls(size - 1);
-
-	return kmalloc_caches[kmalloc_type(flags, caller)][index];
+static inline struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags,
+    unsigned long caller) {
+  unsigned int index;
+  if (size <= 192) {
+    index = kmalloc_size_index[size_index_elem(size)];
+  } else {
+    index = fls(size - 1);
+  }
+  return kmalloc_caches[kmalloc_type(flags, caller)][index];
 }
 
 gfp_t kmalloc_fix_flags(gfp_t flags);
@@ -422,56 +410,56 @@ int __kmem_cache_create(struct kmem_cache *, slab_flags_t flags);
 
 void __init kmem_cache_init(void);
 extern void create_boot_cache(struct kmem_cache *, const char *name,
-			unsigned int size, slab_flags_t flags,
-			unsigned int useroffset, unsigned int usersize);
+    unsigned int size, slab_flags_t flags,
+    unsigned int useroffset, unsigned int usersize);
 
 int slab_unmergeable(struct kmem_cache *s);
 struct kmem_cache *find_mergeable(unsigned size, unsigned align,
-		slab_flags_t flags, const char *name, void (*ctor)(void *));
-struct kmem_cache *
-__kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
-		   slab_flags_t flags, void (*ctor)(void *));
+    slab_flags_t flags, const char *name, void (*ctor)(void *));
+struct kmem_cache *__kmem_cache_alias(const char *name, unsigned int size,
+    unsigned int align,
+    slab_flags_t flags, void (*ctor)(void *));
 
 slab_flags_t kmem_cache_flags(slab_flags_t flags, const char *name);
 
-static inline bool is_kmalloc_cache(struct kmem_cache *s)
-{
-	return (s->flags & SLAB_KMALLOC);
+static inline bool is_kmalloc_cache(struct kmem_cache *s) {
+  return s->flags & SLAB_KMALLOC;
 }
 
 /* Legal flag mask for kmem_cache_create(), for various configurations */
-#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
-			 SLAB_CACHE_DMA32 | SLAB_PANIC | \
-			 SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
+#define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA   \
+  | SLAB_CACHE_DMA32 | SLAB_PANIC   \
+  | SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS)
 
 #ifdef CONFIG_SLUB_DEBUG
-#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-			  SLAB_TRACE | SLAB_CONSISTENCY_CHECKS)
+#define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER   \
+  | SLAB_TRACE | SLAB_CONSISTENCY_CHECKS)
 #else
 #define SLAB_DEBUG_FLAGS (0)
 #endif
 
-#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
-			  SLAB_TEMPORARY | SLAB_ACCOUNT | \
-			  SLAB_NO_USER_FLAGS | SLAB_KMALLOC | SLAB_NO_MERGE)
+#define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT   \
+  | SLAB_TEMPORARY | SLAB_ACCOUNT   \
+  | SLAB_NO_USER_FLAGS | SLAB_KMALLOC | SLAB_NO_MERGE)
 
 /* Common flags available with current configuration */
-#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
+#define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS \
+  | SLAB_CACHE_FLAGS)
 
 /* Common flags permitted for kmem_cache_create */
-#define SLAB_FLAGS_PERMITTED (SLAB_CORE_FLAGS | \
-			      SLAB_RED_ZONE | \
-			      SLAB_POISON | \
-			      SLAB_STORE_USER | \
-			      SLAB_TRACE | \
-			      SLAB_CONSISTENCY_CHECKS | \
-			      SLAB_NOLEAKTRACE | \
-			      SLAB_RECLAIM_ACCOUNT | \
-			      SLAB_TEMPORARY | \
-			      SLAB_ACCOUNT | \
-			      SLAB_KMALLOC | \
-			      SLAB_NO_MERGE | \
-			      SLAB_NO_USER_FLAGS)
+#define SLAB_FLAGS_PERMITTED (SLAB_CORE_FLAGS   \
+  | SLAB_RED_ZONE   \
+  | SLAB_POISON   \
+  | SLAB_STORE_USER   \
+  | SLAB_TRACE   \
+  | SLAB_CONSISTENCY_CHECKS   \
+  | SLAB_NOLEAKTRACE   \
+  | SLAB_RECLAIM_ACCOUNT   \
+  | SLAB_TEMPORARY   \
+  | SLAB_ACCOUNT   \
+  | SLAB_KMALLOC   \
+  | SLAB_NO_MERGE   \
+  | SLAB_NO_USER_FLAGS)
 
 bool __kmem_cache_empty(struct kmem_cache *);
 int __kmem_cache_shutdown(struct kmem_cache *);
@@ -483,22 +471,22 @@ struct seq_file;
 struct file;
 
 struct slabinfo {
-	unsigned long active_objs;
-	unsigned long num_objs;
-	unsigned long active_slabs;
-	unsigned long num_slabs;
-	unsigned long shared_avail;
-	unsigned int limit;
-	unsigned int batchcount;
-	unsigned int shared;
-	unsigned int objects_per_slab;
-	unsigned int cache_order;
+  unsigned long active_objs;
+  unsigned long num_objs;
+  unsigned long active_slabs;
+  unsigned long num_slabs;
+  unsigned long shared_avail;
+  unsigned int limit;
+  unsigned int batchcount;
+  unsigned int shared;
+  unsigned int objects_per_slab;
+  unsigned int cache_order;
 };
 
 void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
 void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
 ssize_t slabinfo_write(struct file *file, const char __user *buffer,
-		       size_t count, loff_t *ppos);
+    size_t count, loff_t *ppos);
 
 #ifdef CONFIG_SLUB_DEBUG
 #ifdef CONFIG_SLUB_DEBUG_ON
@@ -508,18 +496,18 @@ DECLARE_STATIC_KEY_FALSE(slub_debug_enabled);
 #endif
 extern void print_tracking(struct kmem_cache *s, void *object);
 long validate_slab_cache(struct kmem_cache *s);
-static inline bool __slub_debug_enabled(void)
-{
-	return static_branch_unlikely(&slub_debug_enabled);
+static inline bool __slub_debug_enabled(void) {
+  return static_branch_unlikely(&slub_debug_enabled);
 }
+
 #else
-static inline void print_tracking(struct kmem_cache *s, void *object)
-{
+static inline void print_tracking(struct kmem_cache *s, void *object) {
 }
-static inline bool __slub_debug_enabled(void)
-{
-	return false;
+
+static inline bool __slub_debug_enabled(void) {
+  return false;
 }
+
 #endif
 
 /*
@@ -527,13 +515,15 @@ static inline bool __slub_debug_enabled(void)
  * cache. Use only for flags parsed by setup_slub_debug() as it also enables
  * the static key.
  */
-static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t flags)
-{
-	if (IS_ENABLED(CONFIG_SLUB_DEBUG))
-		VM_WARN_ON_ONCE(!(flags & SLAB_DEBUG_FLAGS));
-	if (__slub_debug_enabled())
-		return s->flags & flags;
-	return false;
+static inline bool kmem_cache_debug_flags(struct kmem_cache *s,
+    slab_flags_t flags) {
+  if (IS_ENABLED(CONFIG_SLUB_DEBUG)) {
+    VM_WARN_ON_ONCE(!(flags & SLAB_DEBUG_FLAGS));
+  }
+  if (__slub_debug_enabled()) {
+    return s->flags & flags;
+  }
+  return false;
 }
 
 #ifdef CONFIG_MEMCG_KMEM
@@ -544,130 +534,134 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
  * Returns a pointer to the object cgroups vector associated with the slab,
  * or NULL if no such vector has been associated yet.
  */
-static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
-{
-	unsigned long memcg_data = READ_ONCE(slab->memcg_data);
-
-	VM_BUG_ON_PAGE(memcg_data && !(memcg_data & MEMCG_DATA_OBJCGS),
-							slab_page(slab));
-	VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_KMEM, slab_page(slab));
-
-	return (struct obj_cgroup **)(memcg_data & ~MEMCG_DATA_FLAGS_MASK);
+static inline struct obj_cgroup **slab_objcgs(struct slab *slab) {
+  unsigned long memcg_data = READ_ONCE(slab->memcg_data);
+  VM_BUG_ON_PAGE(memcg_data && !(memcg_data & MEMCG_DATA_OBJCGS),
+      slab_page(slab));
+  VM_BUG_ON_PAGE(memcg_data & MEMCG_DATA_KMEM, slab_page(slab));
+  return (struct obj_cgroup **) (memcg_data & ~MEMCG_DATA_FLAGS_MASK);
 }
 
 int memcg_alloc_slab_cgroups(struct slab *slab, struct kmem_cache *s,
-				 gfp_t gfp, bool new_slab);
+    gfp_t gfp, bool new_slab);
 void mod_objcg_state(struct obj_cgroup *objcg, struct pglist_data *pgdat,
-		     enum node_stat_item idx, int nr);
+    enum node_stat_item idx, int nr);
 #else /* CONFIG_MEMCG_KMEM */
-static inline struct obj_cgroup **slab_objcgs(struct slab *slab)
-{
-	return NULL;
+static inline struct obj_cgroup **slab_objcgs(struct slab *slab) {
+  return NULL;
 }
 
 static inline int memcg_alloc_slab_cgroups(struct slab *slab,
-					       struct kmem_cache *s, gfp_t gfp,
-					       bool new_slab)
-{
-	return 0;
+    struct kmem_cache *s, gfp_t gfp,
+    bool new_slab) {
+  return 0;
 }
+
 #endif /* CONFIG_MEMCG_KMEM */
 
 size_t __ksize(const void *objp);
 
-static inline size_t slab_ksize(const struct kmem_cache *s)
-{
+static inline size_t slab_ksize(const struct kmem_cache *s) {
 #ifdef CONFIG_SLUB_DEBUG
-	/*
-	 * Debugging requires use of the padding between object
-	 * and whatever may come after it.
-	 */
-	if (s->flags & (SLAB_RED_ZONE | SLAB_POISON))
-		return s->object_size;
+  /*
+   * Debugging requires use of the padding between object
+   * and whatever may come after it.
+   */
+  if (s->flags & (SLAB_RED_ZONE | SLAB_POISON)) {
+    return s->object_size;
+  }
 #endif
-	if (s->flags & SLAB_KASAN)
-		return s->object_size;
-	/*
-	 * If we have the need to store the freelist pointer
-	 * back there or track user information then we can
-	 * only use the space before that information.
-	 */
-	if (s->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_STORE_USER))
-		return s->inuse;
-	/*
-	 * Else we can use all the padding etc for the allocation
-	 */
-	return s->size;
+  if (s->flags & SLAB_KASAN) {
+    return s->object_size;
+  }
+  /*
+   * If we have the need to store the freelist pointer
+   * back there or track user information then we can
+   * only use the space before that information.
+   */
+  if (s->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_STORE_USER)) {
+    return s->inuse;
+  }
+  /*
+   * Else we can use all the padding etc for the allocation
+   */
+  return s->size;
 }
 
 #ifdef CONFIG_SLUB_DEBUG
 void dump_unreclaimable_slab(void);
 #else
-static inline void dump_unreclaimable_slab(void)
-{
+static inline void dump_unreclaimable_slab(void) {
 }
+
 #endif
 
 void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr);
 
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
 int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
-			gfp_t gfp);
+    gfp_t gfp);
 void cache_random_seq_destroy(struct kmem_cache *cachep);
 #else
 static inline int cache_random_seq_create(struct kmem_cache *cachep,
-					unsigned int count, gfp_t gfp)
-{
-	return 0;
+    unsigned int count, gfp_t gfp) {
+  return 0;
 }
-static inline void cache_random_seq_destroy(struct kmem_cache *cachep) { }
+
+static inline void cache_random_seq_destroy(struct kmem_cache *cachep) {
+}
+
 #endif /* CONFIG_SLAB_FREELIST_RANDOM */
 
-static inline bool slab_want_init_on_alloc(gfp_t flags, struct kmem_cache *c)
-{
-	if (static_branch_maybe(CONFIG_INIT_ON_ALLOC_DEFAULT_ON,
-				&init_on_alloc)) {
-		if (c->ctor)
-			return false;
-		if (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON))
-			return flags & __GFP_ZERO;
-		return true;
-	}
-	return flags & __GFP_ZERO;
+static inline bool slab_want_init_on_alloc(gfp_t flags, struct kmem_cache *c) {
+  if (static_branch_maybe(CONFIG_INIT_ON_ALLOC_DEFAULT_ON,
+      &init_on_alloc)) {
+    if (c->ctor) {
+      return false;
+    }
+    if (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)) {
+      return flags & __GFP_ZERO;
+    }
+    return true;
+  }
+  return flags & __GFP_ZERO;
 }
 
-static inline bool slab_want_init_on_free(struct kmem_cache *c)
-{
-	if (static_branch_maybe(CONFIG_INIT_ON_FREE_DEFAULT_ON,
-				&init_on_free))
-		return !(c->ctor ||
-			 (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)));
-	return false;
+static inline bool slab_want_init_on_free(struct kmem_cache *c) {
+  if (static_branch_maybe(CONFIG_INIT_ON_FREE_DEFAULT_ON,
+      &init_on_free)) {
+    return !(c->ctor
+      || (c->flags & (SLAB_TYPESAFE_BY_RCU | SLAB_POISON)));
+  }
+  return false;
 }
 
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_SLUB_DEBUG)
 void debugfs_slab_release(struct kmem_cache *);
 #else
-static inline void debugfs_slab_release(struct kmem_cache *s) { }
+static inline void debugfs_slab_release(struct kmem_cache *s) {
+}
+
 #endif
 
 #ifdef CONFIG_PRINTK
 #define KS_ADDRS_COUNT 16
 struct kmem_obj_info {
-	void *kp_ptr;
-	struct slab *kp_slab;
-	void *kp_objp;
-	unsigned long kp_data_offset;
-	struct kmem_cache *kp_slab_cache;
-	void *kp_ret;
-	void *kp_stack[KS_ADDRS_COUNT];
-	void *kp_free_stack[KS_ADDRS_COUNT];
+  void *kp_ptr;
+  struct slab *kp_slab;
+  void *kp_objp;
+  unsigned long kp_data_offset;
+  struct kmem_cache *kp_slab_cache;
+  void *kp_ret;
+  void *kp_stack[KS_ADDRS_COUNT];
+  void *kp_free_stack[KS_ADDRS_COUNT];
 };
-void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
+void __kmem_obj_info(struct kmem_obj_info *kpp, void *object,
+    struct slab *slab);
 #endif
 
 void __check_heap_object(const void *ptr, unsigned long n,
-			 const struct slab *slab, bool to_user);
+    const struct slab *slab, bool to_user);
 
 #ifdef CONFIG_SLUB_DEBUG
 void skip_orig_size_check(struct kmem_cache *s, const void *object);

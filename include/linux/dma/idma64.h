@@ -9,6 +9,6 @@
 #define __LINUX_DMA_IDMA64_H__
 
 /* Platform driver name */
-#define LPSS_IDMA64_DRIVER_NAME		"idma64"
+#define LPSS_IDMA64_DRIVER_NAME   "idma64"
 
 #endif /* __LINUX_DMA_IDMA64_H__ */

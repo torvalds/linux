@@ -29,25 +29,24 @@
 #include "include/fixed31_32.h"
 
 uint16_t fixed_point_to_int_frac(
-	struct fixed31_32 arg,
-	uint8_t integer_bits,
-	uint8_t fractional_bits);
+  struct fixed31_32 arg,
+  uint8_t integer_bits,
+  uint8_t fractional_bits);
 
 void convert_float_matrix(
-	uint16_t *matrix,
-	struct fixed31_32 *flt,
-	uint32_t buffer_size);
+  uint16_t *matrix,
+  struct fixed31_32 *flt,
+  uint32_t buffer_size);
 
 void reduce_fraction(uint32_t num, uint32_t den,
-		uint32_t *out_num, uint32_t *out_den);
+    uint32_t *out_num, uint32_t *out_den);
 
 void convert_hw_matrix(struct fixed31_32 *matrix,
-		       uint16_t *reg,
-		       uint32_t buffer_size);
+    uint16_t *reg,
+    uint32_t buffer_size);
 
-static inline unsigned int log_2(unsigned int num)
-{
-	return ilog2(num);
+static inline unsigned int log_2(unsigned int num) {
+  return ilog2(num);
 }
 
 #endif

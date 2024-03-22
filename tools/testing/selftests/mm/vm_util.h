@@ -17,18 +17,18 @@
 extern unsigned int __page_size;
 extern unsigned int __page_shift;
 
-static inline unsigned int psize(void)
-{
-	if (!__page_size)
-		__page_size = sysconf(_SC_PAGESIZE);
-	return __page_size;
+static inline unsigned int psize(void) {
+  if (!__page_size) {
+    __page_size = sysconf(_SC_PAGESIZE);
+  }
+  return __page_size;
 }
 
-static inline unsigned int pshift(void)
-{
-	if (!__page_shift)
-		__page_shift = (ffsl(psize()) - 1);
-	return __page_shift;
+static inline unsigned int pshift(void) {
+  if (!__page_shift) {
+    __page_shift = (ffsl(psize()) - 1);
+  }
+  return __page_shift;
 }
 
 uint64_t pagemap_get_entry(int fd, char *start);
@@ -47,10 +47,10 @@ unsigned long default_huge_page_size(void);
 int detect_hugetlb_page_sizes(size_t sizes[], int max);
 
 int uffd_register(int uffd, void *addr, uint64_t len,
-		  bool miss, bool wp, bool minor);
+    bool miss, bool wp, bool minor);
 int uffd_unregister(int uffd, void *addr, uint64_t len);
 int uffd_register_with_ioctls(int uffd, void *addr, uint64_t len,
-			      bool miss, bool wp, bool minor, uint64_t *ioctls);
+    bool miss, bool wp, bool minor, uint64_t *ioctls);
 unsigned long get_free_hugepages(void);
 
 /*
@@ -59,5 +59,5 @@ unsigned long get_free_hugepages(void);
 #define HPAGE_SHIFT 21
 #define HPAGE_SIZE (1 << HPAGE_SHIFT)
 
-#define PAGEMAP_PRESENT(ent)	(((ent) & (1ull << 63)) != 0)
-#define PAGEMAP_PFN(ent)	((ent) & ((1ull << 55) - 1))
+#define PAGEMAP_PRESENT(ent)  (((ent) & (1ull << 63)) != 0)
+#define PAGEMAP_PFN(ent)  ((ent) & ((1ull << 55) - 1))

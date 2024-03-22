@@ -19,7 +19,7 @@
  * @cs - Chip-select number.
  */
 struct aemif_abus_data {
-	u32 cs;
+  u32 cs;
 };
 
 /**
@@ -34,12 +34,12 @@ struct aemif_abus_data {
  * @num_sub_devices: Number of subdevices.
  */
 struct aemif_platform_data {
-	struct of_dev_auxdata *dev_lookup;
-	u32 cs_offset;
-	struct aemif_abus_data *abus_data;
-	size_t num_abus_data;
-	struct platform_device *sub_devices;
-	size_t num_sub_devices;
+  struct of_dev_auxdata *dev_lookup;
+  u32 cs_offset;
+  struct aemif_abus_data *abus_data;
+  size_t num_abus_data;
+  struct platform_device *sub_devices;
+  size_t num_sub_devices;
 };
 
 #endif /* __TI_DAVINCI_AEMIF_DATA_H__ */

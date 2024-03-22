@@ -8,11 +8,11 @@
 #include <linux/notifier.h>
 
 enum die_val {
-	DIE_OOPS = 1,
-	DIE_RI,
-	DIE_FP,
-	DIE_SIMD,
-	DIE_TRAP,
+  DIE_OOPS = 1,
+  DIE_RI,
+  DIE_FP,
+  DIE_SIMD,
+  DIE_TRAP,
 };
 
 #endif /* _ASM_LOONGARCH_KDEBUG_H */

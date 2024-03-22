@@ -35,11 +35,12 @@
  * the DFS detector for pattern detection.
  */
 void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
-			      struct ath_rx_status *rs, u64 mactime);
+    struct ath_rx_status *rs, u64 mactime);
 #else
-static inline void
-ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
-			 struct ath_rx_status *rs, u64 mactime) { }
+static inline void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
+    struct ath_rx_status *rs, u64 mactime) {
+}
+
 #endif
 
 #endif /* ATH9K_DFS_H */

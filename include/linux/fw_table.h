@@ -12,42 +12,42 @@
 union acpi_subtable_headers;
 
 typedef int (*acpi_tbl_entry_handler)(union acpi_subtable_headers *header,
-				      const unsigned long end);
+    const unsigned long end);
 
 typedef int (*acpi_tbl_entry_handler_arg)(union acpi_subtable_headers *header,
-					  void *arg, const unsigned long end);
+    void *arg, const unsigned long end);
 
 struct acpi_subtable_proc {
-	int id;
-	acpi_tbl_entry_handler handler;
-	acpi_tbl_entry_handler_arg handler_arg;
-	void *arg;
-	int count;
+  int id;
+  acpi_tbl_entry_handler handler;
+  acpi_tbl_entry_handler_arg handler_arg;
+  void *arg;
+  int count;
 };
 
 union fw_table_header {
-	struct acpi_table_header acpi;
-	struct acpi_table_cdat cdat;
+  struct acpi_table_header acpi;
+  struct acpi_table_cdat cdat;
 };
 
 union acpi_subtable_headers {
-	struct acpi_subtable_header common;
-	struct acpi_hmat_structure hmat;
-	struct acpi_prmt_module_header prmt;
-	struct acpi_cedt_header cedt;
-	struct acpi_cdat_header cdat;
+  struct acpi_subtable_header common;
+  struct acpi_hmat_structure hmat;
+  struct acpi_prmt_module_header prmt;
+  struct acpi_cedt_header cedt;
+  struct acpi_cdat_header cdat;
 };
 
 int acpi_parse_entries_array(char *id, unsigned long table_size,
-			     union fw_table_header *table_header,
-			     unsigned long max_length,
-			     struct acpi_subtable_proc *proc,
-			     int proc_num, unsigned int max_entries);
+    union fw_table_header *table_header,
+    unsigned long max_length,
+    struct acpi_subtable_proc *proc,
+    int proc_num, unsigned int max_entries);
 
 int cdat_table_parse(enum acpi_cdat_type type,
-		     acpi_tbl_entry_handler_arg handler_arg, void *arg,
-		     struct acpi_table_cdat *table_header,
-		     unsigned long length);
+    acpi_tbl_entry_handler_arg handler_arg, void *arg,
+    struct acpi_table_cdat *table_header,
+    unsigned long length);
 
 /* CXL is the only non-ACPI consumer of the FIRMWARE_TABLE library */
 #if IS_ENABLED(CONFIG_ACPI) && !IS_ENABLED(CONFIG_CXL_BUS)

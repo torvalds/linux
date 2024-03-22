@@ -5,8 +5,8 @@
  * Author: Dvorkin Dmitry <dvorkin@tibbo.com>
  */
 
-#ifndef	__DT_BINDINGS_PINCTRL_SPPCTL_SP7021_H__
-#define	__DT_BINDINGS_PINCTRL_SPPCTL_SP7021_H__
+#ifndef __DT_BINDINGS_PINCTRL_SPPCTL_SP7021_H__
+#define __DT_BINDINGS_PINCTRL_SPPCTL_SP7021_H__
 
 #include <dt-bindings/pinctrl/sppctl.h>
 

@@ -22,14 +22,14 @@ struct device;
 struct tng_gpio_context;
 
 /* Elkhart Lake specific wake registers */
-#define GWMR_EHL	0x100	/* Wake mask */
-#define GWSR_EHL	0x118	/* Wake source */
-#define GSIR_EHL	0x130	/* Secure input */
+#define GWMR_EHL  0x100 /* Wake mask */
+#define GWSR_EHL  0x118 /* Wake source */
+#define GSIR_EHL  0x130 /* Secure input */
 
 /* Merrifield specific wake registers */
-#define GWMR_MRFLD	0x400	/* Wake mask */
-#define GWSR_MRFLD	0x418	/* Wake source */
-#define GSIR_MRFLD	0xc00	/* Secure input */
+#define GWMR_MRFLD  0x400 /* Wake mask */
+#define GWSR_MRFLD  0x418 /* Wake source */
+#define GSIR_MRFLD  0xc00 /* Secure input */
 
 /**
  * struct tng_wake_regs - Platform specific wake registers
@@ -38,9 +38,9 @@ struct tng_gpio_context;
  * @gsir: Secure input
  */
 struct tng_wake_regs {
-	u32 gwmr;
-	u32 gwsr;
-	u32 gsir;
+  u32 gwmr;
+  u32 gwsr;
+  u32 gsir;
 };
 
 /**
@@ -50,17 +50,17 @@ struct tng_wake_regs {
  * @npins: Number of pins in this range
  */
 struct tng_gpio_pinrange {
-	unsigned int gpio_base;
-	unsigned int pin_base;
-	unsigned int npins;
+  unsigned int gpio_base;
+  unsigned int pin_base;
+  unsigned int npins;
 };
 
-#define GPIO_PINRANGE(gstart, gend, pstart)		\
-(struct tng_gpio_pinrange) {				\
-		.gpio_base = (gstart),			\
-		.pin_base = (pstart),			\
-		.npins = (gend) - (gstart) + 1,		\
-	}
+#define GPIO_PINRANGE(gstart, gend, pstart)   \
+  (struct tng_gpio_pinrange) {        \
+    .gpio_base = (gstart),      \
+    .pin_base = (pstart),     \
+    .npins = (gend) - (gstart) + 1,   \
+  }
 
 /**
  * struct tng_gpio_pin_info - Platform specific pinout information
@@ -69,9 +69,9 @@ struct tng_gpio_pinrange {
  * @name: Respective pinctrl device name
  */
 struct tng_gpio_pin_info {
-	const struct tng_gpio_pinrange *pin_ranges;
-	unsigned int nranges;
-	const char *name;
+  const struct tng_gpio_pinrange *pin_ranges;
+  unsigned int nranges;
+  const char *name;
 };
 
 /**
@@ -81,9 +81,9 @@ struct tng_gpio_pin_info {
  * @first: First IRQ to start numbering with
  */
 struct tng_gpio_info {
-	int base;
-	u16 ngpio;
-	unsigned int first;
+  int base;
+  u16 ngpio;
+  unsigned int first;
 };
 
 /**
@@ -99,15 +99,15 @@ struct tng_gpio_info {
  * @info: Platform specific GPIO and IRQ information
  */
 struct tng_gpio {
-	struct gpio_chip chip;
-	void __iomem *reg_base;
-	int irq;
-	raw_spinlock_t lock;
-	struct device *dev;
-	struct tng_gpio_context *ctx;
-	struct tng_wake_regs wake_regs;
-	struct tng_gpio_pin_info pin_info;
-	struct tng_gpio_info info;
+  struct gpio_chip chip;
+  void __iomem *reg_base;
+  int irq;
+  raw_spinlock_t lock;
+  struct device *dev;
+  struct tng_gpio_context *ctx;
+  struct tng_wake_regs wake_regs;
+  struct tng_gpio_pin_info pin_info;
+  struct tng_gpio_info info;
 };
 
 int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio);

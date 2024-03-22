@@ -118,75 +118,75 @@ struct btrfs_inode;
  * To minimize the chance of collision with new persisted status flags, these
  * count backwards from the MSB.
  */
-#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1ULL << 63)
-#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1ULL << 62)
+#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN   (1ULL << 63)
+#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING   (1ULL << 62)
 
 /*
  * Record a dirty extent, and info qgroup to update quota on it
  * TODO: Use kmem cache to alloc it.
  */
 struct btrfs_qgroup_extent_record {
-	struct rb_node node;
-	u64 bytenr;
-	u64 num_bytes;
+  struct rb_node node;
+  u64 bytenr;
+  u64 num_bytes;
 
-	/*
-	 * For qgroup reserved data space freeing.
-	 *
-	 * @data_rsv_refroot and @data_rsv will be recorded after
-	 * BTRFS_ADD_DELAYED_EXTENT is called.
-	 * And will be used to free reserved qgroup space at
-	 * transaction commit time.
-	 */
-	u32 data_rsv;		/* reserved data space needs to be freed */
-	u64 data_rsv_refroot;	/* which root the reserved data belongs to */
-	struct ulist *old_roots;
+  /*
+   * For qgroup reserved data space freeing.
+   *
+   * @data_rsv_refroot and @data_rsv will be recorded after
+   * BTRFS_ADD_DELAYED_EXTENT is called.
+   * And will be used to free reserved qgroup space at
+   * transaction commit time.
+   */
+  u32 data_rsv;   /* reserved data space needs to be freed */
+  u64 data_rsv_refroot; /* which root the reserved data belongs to */
+  struct ulist *old_roots;
 };
 
 struct btrfs_qgroup_swapped_block {
-	struct rb_node node;
+  struct rb_node node;
 
-	int level;
-	bool trace_leaf;
+  int level;
+  bool trace_leaf;
 
-	/* bytenr/generation of the tree block in subvolume tree after swap */
-	u64 subvol_bytenr;
-	u64 subvol_generation;
+  /* bytenr/generation of the tree block in subvolume tree after swap */
+  u64 subvol_bytenr;
+  u64 subvol_generation;
 
-	/* bytenr/generation of the tree block in reloc tree after swap */
-	u64 reloc_bytenr;
-	u64 reloc_generation;
+  /* bytenr/generation of the tree block in reloc tree after swap */
+  u64 reloc_bytenr;
+  u64 reloc_generation;
 
-	u64 last_snapshot;
-	struct btrfs_key first_key;
+  u64 last_snapshot;
+  struct btrfs_key first_key;
 };
 
 /*
  * Qgroup reservation types:
  *
  * DATA:
- *	space reserved for data
+ *  space reserved for data
  *
  * META_PERTRANS:
- * 	Space reserved for metadata (per-transaction)
- * 	Due to the fact that qgroup data is only updated at transaction commit
- * 	time, reserved space for metadata must be kept until transaction
- * 	commits.
- * 	Any metadata reserved that are used in btrfs_start_transaction() should
- * 	be of this type.
+ *  Space reserved for metadata (per-transaction)
+ *  Due to the fact that qgroup data is only updated at transaction commit
+ *  time, reserved space for metadata must be kept until transaction
+ *  commits.
+ *  Any metadata reserved that are used in btrfs_start_transaction() should
+ *  be of this type.
  *
  * META_PREALLOC:
- *	There are cases where metadata space is reserved before starting
- *	transaction, and then btrfs_join_transaction() to get a trans handle.
- *	Any metadata reserved for such usage should be of this type.
- *	And after join_transaction() part (or all) of such reservation should
- *	be converted into META_PERTRANS.
+ *  There are cases where metadata space is reserved before starting
+ *  transaction, and then btrfs_join_transaction() to get a trans handle.
+ *  Any metadata reserved for such usage should be of this type.
+ *  And after join_transaction() part (or all) of such reservation should
+ *  be converted into META_PERTRANS.
  */
 enum btrfs_qgroup_rsv_type {
-	BTRFS_QGROUP_RSV_DATA,
-	BTRFS_QGROUP_RSV_META_PERTRANS,
-	BTRFS_QGROUP_RSV_META_PREALLOC,
-	BTRFS_QGROUP_RSV_LAST,
+  BTRFS_QGROUP_RSV_DATA,
+  BTRFS_QGROUP_RSV_META_PERTRANS,
+  BTRFS_QGROUP_RSV_META_PREALLOC,
+  BTRFS_QGROUP_RSV_LAST,
 };
 
 /*
@@ -200,217 +200,215 @@ enum btrfs_qgroup_rsv_type {
  * Current metadata reservation behavior is not suitable for such case.
  */
 struct btrfs_qgroup_rsv {
-	u64 values[BTRFS_QGROUP_RSV_LAST];
+  u64 values[BTRFS_QGROUP_RSV_LAST];
 };
 
 /*
  * one struct for each qgroup, organized in fs_info->qgroup_tree.
  */
 struct btrfs_qgroup {
-	u64 qgroupid;
+  u64 qgroupid;
 
-	/*
-	 * state
-	 */
-	u64 rfer;	/* referenced */
-	u64 rfer_cmpr;	/* referenced compressed */
-	u64 excl;	/* exclusive */
-	u64 excl_cmpr;	/* exclusive compressed */
+  /*
+   * state
+   */
+  u64 rfer; /* referenced */
+  u64 rfer_cmpr;  /* referenced compressed */
+  u64 excl; /* exclusive */
+  u64 excl_cmpr;  /* exclusive compressed */
 
-	/*
-	 * limits
-	 */
-	u64 lim_flags;	/* which limits are set */
-	u64 max_rfer;
-	u64 max_excl;
-	u64 rsv_rfer;
-	u64 rsv_excl;
+  /*
+   * limits
+   */
+  u64 lim_flags;  /* which limits are set */
+  u64 max_rfer;
+  u64 max_excl;
+  u64 rsv_rfer;
+  u64 rsv_excl;
 
-	/*
-	 * reservation tracking
-	 */
-	struct btrfs_qgroup_rsv rsv;
+  /*
+   * reservation tracking
+   */
+  struct btrfs_qgroup_rsv rsv;
 
-	/*
-	 * lists
-	 */
-	struct list_head groups;  /* groups this group is member of */
-	struct list_head members; /* groups that are members of this group */
-	struct list_head dirty;   /* dirty groups */
+  /*
+   * lists
+   */
+  struct list_head groups;  /* groups this group is member of */
+  struct list_head members; /* groups that are members of this group */
+  struct list_head dirty;   /* dirty groups */
 
-	/*
-	 * For qgroup iteration usage.
-	 *
-	 * The iteration list should always be empty until qgroup_iterator_add()
-	 * is called.  And should be reset to empty after the iteration is
-	 * finished.
-	 */
-	struct list_head iterator;
+  /*
+   * For qgroup iteration usage.
+   *
+   * The iteration list should always be empty until qgroup_iterator_add()
+   * is called.  And should be reset to empty after the iteration is
+   * finished.
+   */
+  struct list_head iterator;
 
-	/*
-	 * For nested iterator usage.
-	 *
-	 * Here we support at most one level of nested iterator calls like:
-	 *
-	 *	LIST_HEAD(all_qgroups);
-	 *	{
-	 *		LIST_HEAD(local_qgroups);
-	 *		qgroup_iterator_add(local_qgroups, qg);
-	 *		qgroup_iterator_nested_add(all_qgroups, qg);
-	 *		do_some_work(local_qgroups);
-	 *		qgroup_iterator_clean(local_qgroups);
-	 *	}
-	 *	do_some_work(all_qgroups);
-	 *	qgroup_iterator_nested_clean(all_qgroups);
-	 */
-	struct list_head nested_iterator;
-	struct rb_node node;	  /* tree of qgroups */
+  /*
+   * For nested iterator usage.
+   *
+   * Here we support at most one level of nested iterator calls like:
+   *
+   *  LIST_HEAD(all_qgroups);
+   *  {
+   *    LIST_HEAD(local_qgroups);
+   *    qgroup_iterator_add(local_qgroups, qg);
+   *    qgroup_iterator_nested_add(all_qgroups, qg);
+   *    do_some_work(local_qgroups);
+   *    qgroup_iterator_clean(local_qgroups);
+   *  }
+   *  do_some_work(all_qgroups);
+   *  qgroup_iterator_nested_clean(all_qgroups);
+   */
+  struct list_head nested_iterator;
+  struct rb_node node;    /* tree of qgroups */
 
-	/*
-	 * temp variables for accounting operations
-	 * Refer to qgroup_shared_accounting() for details.
-	 */
-	u64 old_refcnt;
-	u64 new_refcnt;
+  /*
+   * temp variables for accounting operations
+   * Refer to qgroup_shared_accounting() for details.
+   */
+  u64 old_refcnt;
+  u64 new_refcnt;
 
-	/*
-	 * Sysfs kobjectid
-	 */
-	struct kobject kobj;
+  /*
+   * Sysfs kobjectid
+   */
+  struct kobject kobj;
 };
 
 struct btrfs_squota_delta {
-	/* The fstree root this delta counts against. */
-	u64 root;
-	/* The number of bytes in the extent being counted. */
-	u64 num_bytes;
-	/* The generation the extent was created in. */
-	u64 generation;
-	/* Whether we are using or freeing the extent. */
-	bool is_inc;
-	/* Whether the extent is data or metadata. */
-	bool is_data;
+  /* The fstree root this delta counts against. */
+  u64 root;
+  /* The number of bytes in the extent being counted. */
+  u64 num_bytes;
+  /* The generation the extent was created in. */
+  u64 generation;
+  /* Whether we are using or freeing the extent. */
+  bool is_inc;
+  /* Whether the extent is data or metadata. */
+  bool is_data;
 };
 
-static inline u64 btrfs_qgroup_subvolid(u64 qgroupid)
-{
-	return (qgroupid & ((1ULL << BTRFS_QGROUP_LEVEL_SHIFT) - 1));
+static inline u64 btrfs_qgroup_subvolid(u64 qgroupid) {
+  return qgroupid & ((1ULL << BTRFS_QGROUP_LEVEL_SHIFT) - 1);
 }
 
 /*
  * For qgroup event trace points only
  */
 enum {
-	ENUM_BIT(QGROUP_RESERVE),
-	ENUM_BIT(QGROUP_RELEASE),
-	ENUM_BIT(QGROUP_FREE),
+  ENUM_BIT(QGROUP_RESERVE),
+  ENUM_BIT(QGROUP_RELEASE),
+  ENUM_BIT(QGROUP_FREE),
 };
 
 enum btrfs_qgroup_mode {
-	BTRFS_QGROUP_MODE_DISABLED,
-	BTRFS_QGROUP_MODE_FULL,
-	BTRFS_QGROUP_MODE_SIMPLE
+  BTRFS_QGROUP_MODE_DISABLED,
+  BTRFS_QGROUP_MODE_FULL,
+  BTRFS_QGROUP_MODE_SIMPLE
 };
 
 enum btrfs_qgroup_mode btrfs_qgroup_mode(struct btrfs_fs_info *fs_info);
 bool btrfs_qgroup_enabled(struct btrfs_fs_info *fs_info);
 bool btrfs_qgroup_full_accounting(struct btrfs_fs_info *fs_info);
 int btrfs_quota_enable(struct btrfs_fs_info *fs_info,
-		       struct btrfs_ioctl_quota_ctl_args *quota_ctl_args);
+    struct btrfs_ioctl_quota_ctl_args *quota_ctl_args);
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info,
-				     bool interruptible);
-int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src, u64 dst);
+    bool interruptible);
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
+    u64 dst);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
-			      u64 dst);
+    u64 dst);
 int btrfs_create_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
 int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
 int btrfs_limit_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid,
-		       struct btrfs_qgroup_limit *limit);
+    struct btrfs_qgroup_limit *limit);
 int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
 
 int btrfs_qgroup_trace_extent_nolock(
-		struct btrfs_fs_info *fs_info,
-		struct btrfs_delayed_ref_root *delayed_refs,
-		struct btrfs_qgroup_extent_record *record);
+  struct btrfs_fs_info *fs_info,
+  struct btrfs_delayed_ref_root *delayed_refs,
+  struct btrfs_qgroup_extent_record *record);
 int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
-				   struct btrfs_qgroup_extent_record *qrecord);
+    struct btrfs_qgroup_extent_record *qrecord);
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
-			      u64 num_bytes);
+    u64 num_bytes);
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
-				  struct extent_buffer *eb);
+    struct extent_buffer *eb);
 int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
-			       struct extent_buffer *root_eb,
-			       u64 root_gen, int root_level);
+    struct extent_buffer *root_eb,
+    u64 root_gen, int root_level);
 int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
-				u64 num_bytes, struct ulist *old_roots,
-				struct ulist *new_roots);
+    u64 num_bytes, struct ulist *old_roots,
+    struct ulist *new_roots);
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
 int btrfs_run_qgroups(struct btrfs_trans_handle *trans);
 int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
-			       struct btrfs_qgroup_inherit *inherit,
-			       size_t size);
+    struct btrfs_qgroup_inherit *inherit,
+    size_t size);
 int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
-			 u64 objectid, u64 inode_rootid,
-			 struct btrfs_qgroup_inherit *inherit);
+    u64 objectid, u64 inode_rootid,
+    struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
-			       u64 ref_root, u64 num_bytes,
-			       enum btrfs_qgroup_rsv_type type);
+    u64 ref_root, u64 num_bytes,
+    enum btrfs_qgroup_rsv_type type);
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
-			       u64 rfer, u64 excl);
+    u64 rfer, u64 excl);
 #endif
 
 /* New io_tree based accurate qgroup reserve API */
 int btrfs_qgroup_reserve_data(struct btrfs_inode *inode,
-			struct extent_changeset **reserved, u64 start, u64 len);
-int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len, u64 *released);
+    struct extent_changeset **reserved, u64 start, u64 len);
+int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len,
+    u64 *released);
 int btrfs_qgroup_free_data(struct btrfs_inode *inode,
-			   struct extent_changeset *reserved, u64 start,
-			   u64 len, u64 *freed);
+    struct extent_changeset *reserved, u64 start,
+    u64 len, u64 *freed);
 int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-			      enum btrfs_qgroup_rsv_type type, bool enforce);
+    enum btrfs_qgroup_rsv_type type, bool enforce);
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-				enum btrfs_qgroup_rsv_type type, bool enforce,
-				bool noflush);
+    enum btrfs_qgroup_rsv_type type, bool enforce,
+    bool noflush);
 /* Reserve metadata space for pertrans and prealloc type */
 static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
-				int num_bytes, bool enforce)
-{
-	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-					   BTRFS_QGROUP_RSV_META_PERTRANS,
-					   enforce, false);
+    int num_bytes, bool enforce) {
+  return __btrfs_qgroup_reserve_meta(root, num_bytes,
+      BTRFS_QGROUP_RSV_META_PERTRANS,
+      enforce, false);
 }
+
 static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
-						     int num_bytes, bool enforce,
-						     bool noflush)
-{
-	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-					   BTRFS_QGROUP_RSV_META_PREALLOC,
-					   enforce, noflush);
+    int num_bytes, bool enforce,
+    bool noflush) {
+  return __btrfs_qgroup_reserve_meta(root, num_bytes,
+      BTRFS_QGROUP_RSV_META_PREALLOC,
+      enforce, noflush);
 }
 
 void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,
-			     enum btrfs_qgroup_rsv_type type);
+    enum btrfs_qgroup_rsv_type type);
 
 /* Free per-transaction meta reservation for error handling */
 static inline void btrfs_qgroup_free_meta_pertrans(struct btrfs_root *root,
-						   int num_bytes)
-{
-	__btrfs_qgroup_free_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PERTRANS);
+    int num_bytes) {
+  __btrfs_qgroup_free_meta(root, num_bytes,
+      BTRFS_QGROUP_RSV_META_PERTRANS);
 }
 
 /* Pre-allocated meta reservation can be freed at need */
 static inline void btrfs_qgroup_free_meta_prealloc(struct btrfs_root *root,
-						   int num_bytes)
-{
-	__btrfs_qgroup_free_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PREALLOC);
+    int num_bytes) {
+  __btrfs_qgroup_free_meta(root, num_bytes,
+      BTRFS_QGROUP_RSV_META_PREALLOC);
 }
 
 void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
@@ -419,21 +417,22 @@ void btrfs_qgroup_check_reserved_leak(struct btrfs_inode *inode);
 
 /* btrfs_qgroup_swapped_blocks related functions */
 void btrfs_qgroup_init_swapped_blocks(
-	struct btrfs_qgroup_swapped_blocks *swapped_blocks);
+  struct btrfs_qgroup_swapped_blocks *swapped_blocks);
 
 void btrfs_qgroup_clean_swapped_blocks(struct btrfs_root *root);
 int btrfs_qgroup_add_swapped_blocks(struct btrfs_trans_handle *trans,
-		struct btrfs_root *subvol_root,
-		struct btrfs_block_group *bg,
-		struct extent_buffer *subvol_parent, int subvol_slot,
-		struct extent_buffer *reloc_parent, int reloc_slot,
-		u64 last_snapshot);
+    struct btrfs_root *subvol_root,
+    struct btrfs_block_group *bg,
+    struct extent_buffer *subvol_parent, int subvol_slot,
+    struct extent_buffer *reloc_parent, int reloc_slot,
+    u64 last_snapshot);
 int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
-		struct btrfs_root *root, struct extent_buffer *eb);
+    struct btrfs_root *root, struct extent_buffer *eb);
 void btrfs_qgroup_destroy_extent_records(struct btrfs_transaction *trans);
 bool btrfs_check_quota_leak(struct btrfs_fs_info *fs_info);
-void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root, u64 rsv_bytes);
+void btrfs_free_squota_rsv(struct btrfs_fs_info *fs_info, u64 root,
+    u64 rsv_bytes);
 int btrfs_record_squota_delta(struct btrfs_fs_info *fs_info,
-			      struct btrfs_squota_delta *delta);
+    struct btrfs_squota_delta *delta);
 
 #endif

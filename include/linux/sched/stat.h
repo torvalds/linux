@@ -22,9 +22,8 @@ extern bool single_task_running(void);
 extern unsigned int nr_iowait(void);
 extern unsigned int nr_iowait_cpu(int cpu);
 
-static inline int sched_info_on(void)
-{
-	return IS_ENABLED(CONFIG_SCHED_INFO);
+static inline int sched_info_on(void) {
+  return IS_ENABLED(CONFIG_SCHED_INFO);
 }
 
 #ifdef CONFIG_SCHEDSTATS

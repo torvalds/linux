@@ -24,9 +24,9 @@ extern void flush_cache_all(void);
 extern void flush_cache_mm(struct mm_struct *mm);
 extern void flush_cache_dup_mm(struct mm_struct *mm);
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-	unsigned long end);
+    unsigned long end);
 extern void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
-	unsigned long pfn);
+    unsigned long pfn);
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 void flush_dcache_page(struct page *page);
 void flush_dcache_folio(struct folio *folio);
@@ -34,28 +34,28 @@ void flush_dcache_folio(struct folio *folio);
 
 extern void flush_icache_range(unsigned long start, unsigned long end);
 void flush_icache_pages(struct vm_area_struct *vma, struct page *page,
-		unsigned int nr);
+    unsigned int nr);
 #define flush_icache_pages flush_icache_pages
 
-#define flush_cache_vmap(start, end)		flush_dcache_range(start, end)
-#define flush_cache_vmap_early(start, end)	do { } while (0)
-#define flush_cache_vunmap(start, end)		flush_dcache_range(start, end)
+#define flush_cache_vmap(start, end)    flush_dcache_range(start, end)
+#define flush_cache_vmap_early(start, end)  do {} while (0)
+#define flush_cache_vunmap(start, end)    flush_dcache_range(start, end)
 
 extern void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
-				unsigned long user_vaddr,
-				void *dst, void *src, int len);
+    unsigned long user_vaddr,
+    void *dst, void *src, int len);
 extern void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
-				unsigned long user_vaddr,
-				void *dst, void *src, int len);
+    unsigned long user_vaddr,
+    void *dst, void *src, int len);
 
 extern void flush_dcache_range(unsigned long start, unsigned long end);
 extern void invalidate_dcache_range(unsigned long start, unsigned long end);
 
-#define flush_dcache_mmap_lock(mapping)		xa_lock_irq(&mapping->i_pages)
-#define flush_dcache_mmap_unlock(mapping)	xa_unlock_irq(&mapping->i_pages)
-#define flush_dcache_mmap_lock_irqsave(mapping, flags)		\
-		xa_lock_irqsave(&mapping->i_pages, flags)
-#define flush_dcache_mmap_unlock_irqrestore(mapping, flags)	\
-		xa_unlock_irqrestore(&mapping->i_pages, flags)
+#define flush_dcache_mmap_lock(mapping)   xa_lock_irq(&mapping->i_pages)
+#define flush_dcache_mmap_unlock(mapping) xa_unlock_irq(&mapping->i_pages)
+#define flush_dcache_mmap_lock_irqsave(mapping, flags)    \
+  xa_lock_irqsave(&mapping->i_pages, flags)
+#define flush_dcache_mmap_unlock_irqrestore(mapping, flags) \
+  xa_unlock_irqrestore(&mapping->i_pages, flags)
 
 #endif /* _ASM_NIOS2_CACHEFLUSH_H */

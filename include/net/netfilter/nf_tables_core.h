@@ -30,52 +30,52 @@ int nf_tables_core_module_init(void);
 void nf_tables_core_module_exit(void);
 
 struct nft_bitwise_fast_expr {
-	u32			mask;
-	u32			xor;
-	u8			sreg;
-	u8			dreg;
+  u32 mask;
+  u32 xor;
+  u8 sreg;
+  u8 dreg;
 };
 
 struct nft_cmp_fast_expr {
-	u32			data;
-	u32			mask;
-	u8			sreg;
-	u8			len;
-	bool			inv;
+  u32 data;
+  u32 mask;
+  u8 sreg;
+  u8 len;
+  bool inv;
 };
 
 struct nft_cmp16_fast_expr {
-	struct nft_data		data;
-	struct nft_data		mask;
-	u8			sreg;
-	u8			len;
-	bool			inv;
+  struct nft_data data;
+  struct nft_data mask;
+  u8 sreg;
+  u8 len;
+  bool inv;
 };
 
 struct nft_immediate_expr {
-	struct nft_data		data;
-	u8			dreg;
-	u8			dlen;
+  struct nft_data data;
+  u8 dreg;
+  u8 dlen;
 };
 
 extern const struct nft_expr_ops nft_cmp_fast_ops;
 extern const struct nft_expr_ops nft_cmp16_fast_ops;
 
 struct nft_ct {
-	enum nft_ct_keys	key:8;
-	enum ip_conntrack_dir	dir:8;
-	u8			len;
-	union {
-		u8		dreg;
-		u8		sreg;
-	};
+  enum nft_ct_keys key : 8;
+  enum ip_conntrack_dir dir : 8;
+  u8 len;
+  union {
+    u8 dreg;
+    u8 sreg;
+  };
 };
 
 struct nft_payload {
-	enum nft_payload_bases	base:8;
-	u8			offset;
-	u8			len;
-	u8			dreg;
+  enum nft_payload_bases base : 8;
+  u8 offset;
+  u8 len;
+  u8 dreg;
 };
 
 extern const struct nft_expr_ops nft_payload_fast_ops;
@@ -95,33 +95,33 @@ extern const struct nft_set_type nft_set_pipapo_avx2_type;
 
 #ifdef CONFIG_MITIGATION_RETPOLINE
 bool nft_rhash_lookup(const struct net *net, const struct nft_set *set,
-		      const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 bool nft_rbtree_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 bool nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 bool nft_hash_lookup_fast(const struct net *net,
-			  const struct nft_set *set,
-			  const u32 *key, const struct nft_set_ext **ext);
+    const struct nft_set *set,
+    const u32 *key, const struct nft_set_ext **ext);
 bool nft_hash_lookup(const struct net *net, const struct nft_set *set,
-		     const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 bool nft_set_do_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 #else
-static inline bool
-nft_set_do_lookup(const struct net *net, const struct nft_set *set,
-		  const u32 *key, const struct nft_set_ext **ext)
-{
-	return set->ops->lookup(net, set, key, ext);
+static inline bool nft_set_do_lookup(const struct net *net,
+    const struct nft_set *set,
+    const u32 *key, const struct nft_set_ext **ext) {
+  return set->ops->lookup(net, set, key, ext);
 }
+
 #endif
 
 /* called from nft_pipapo_avx2.c */
 bool nft_pipapo_lookup(const struct net *net, const struct nft_set *set,
-		       const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 /* called from nft_set_pipapo.c */
 bool nft_pipapo_avx2_lookup(const struct net *net, const struct nft_set *set,
-			    const u32 *key, const struct nft_set_ext **ext);
+    const u32 *key, const struct nft_set_ext **ext);
 
 void nft_counter_init_seqcount(void);
 
@@ -129,55 +129,55 @@ struct nft_expr;
 struct nft_regs;
 struct nft_pktinfo;
 void nft_meta_get_eval(const struct nft_expr *expr,
-		       struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_cmp_eval(const struct nft_expr *expr,
-		  struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_lookup_eval(const struct nft_expr *expr,
-		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_payload_eval(const struct nft_expr *expr,
-		      struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_immediate_eval(const struct nft_expr *expr,
-			struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_bitwise_eval(const struct nft_expr *expr,
-		      struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_range_eval(const struct nft_expr *expr,
-		    struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_byteorder_eval(const struct nft_expr *expr,
-			struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_dynset_eval(const struct nft_expr *expr,
-		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_rt_get_eval(const struct nft_expr *expr,
-		     struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 void nft_counter_eval(const struct nft_expr *expr, struct nft_regs *regs,
-                      const struct nft_pktinfo *pkt);
+    const struct nft_pktinfo *pkt);
 void nft_ct_get_fast_eval(const struct nft_expr *expr,
-			  struct nft_regs *regs, const struct nft_pktinfo *pkt);
+    struct nft_regs *regs, const struct nft_pktinfo *pkt);
 
 enum {
-	NFT_PAYLOAD_CTX_INNER_TUN	= (1 << 0),
-	NFT_PAYLOAD_CTX_INNER_LL	= (1 << 1),
-	NFT_PAYLOAD_CTX_INNER_NH	= (1 << 2),
-	NFT_PAYLOAD_CTX_INNER_TH	= (1 << 3),
+  NFT_PAYLOAD_CTX_INNER_TUN = (1 << 0),
+  NFT_PAYLOAD_CTX_INNER_LL = (1 << 1),
+  NFT_PAYLOAD_CTX_INNER_NH = (1 << 2),
+  NFT_PAYLOAD_CTX_INNER_TH = (1 << 3),
 };
 
 struct nft_inner_tun_ctx {
-	u16	type;
-	u16	inner_tunoff;
-	u16	inner_lloff;
-	u16	inner_nhoff;
-	u16	inner_thoff;
-	__be16	llproto;
-	u8	l4proto;
-	u8      flags;
+  u16 type;
+  u16 inner_tunoff;
+  u16 inner_lloff;
+  u16 inner_nhoff;
+  u16 inner_thoff;
+  __be16 llproto;
+  u8 l4proto;
+  u8 flags;
 };
 
 int nft_payload_inner_offset(const struct nft_pktinfo *pkt);
 void nft_payload_inner_eval(const struct nft_expr *expr, struct nft_regs *regs,
-			    const struct nft_pktinfo *pkt,
-			    struct nft_inner_tun_ctx *ctx);
+    const struct nft_pktinfo *pkt,
+    struct nft_inner_tun_ctx *ctx);
 
 void nft_objref_eval(const struct nft_expr *expr, struct nft_regs *regs,
-		     const struct nft_pktinfo *pkt);
+    const struct nft_pktinfo *pkt);
 void nft_objref_map_eval(const struct nft_expr *expr, struct nft_regs *regs,
-			 const struct nft_pktinfo *pkt);
+    const struct nft_pktinfo *pkt);
 #endif /* _NET_NF_TABLES_CORE_H */

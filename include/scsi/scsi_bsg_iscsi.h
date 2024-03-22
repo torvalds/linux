@@ -21,7 +21,6 @@
 /* Default BSG request timeout (in seconds) */
 #define ISCSI_DEFAULT_BSG_TIMEOUT      (10 * HZ)
 
-
 /*
  * Request Message Codes supported by the iSCSI Transport
  */
@@ -32,7 +31,6 @@
 
 /* iscsi host Message Codes */
 #define ISCSI_BSG_HST_VENDOR           (ISCSI_BSG_HST_MASK | 0x000000FF)
-
 
 /*
  * iSCSI Host Messages
@@ -45,52 +43,49 @@
  *   formatting requirements specified in scsi_netlink.h
  */
 struct iscsi_bsg_host_vendor {
-	/*
-	 * Identifies the vendor that the message is formatted for. This
-	 * should be the recipient of the message.
-	 */
-	uint64_t vendor_id;
+  /*
+   * Identifies the vendor that the message is formatted for. This
+   * should be the recipient of the message.
+   */
+  uint64_t vendor_id;
 
-	/* start of vendor command area */
-	uint32_t vendor_cmd[];
+  /* start of vendor command area */
+  uint32_t vendor_cmd[];
 };
 
 /* Response:
  */
 struct iscsi_bsg_host_vendor_reply {
-	/* start of vendor response area */
-	uint32_t vendor_rsp[0];
+  /* start of vendor response area */
+  uint32_t vendor_rsp[0];
 };
-
 
 /* request (CDB) structure of the sg_io_v4 */
 struct iscsi_bsg_request {
-	uint32_t msgcode;
-	union {
-		struct iscsi_bsg_host_vendor    h_vendor;
-	} rqst_data;
+  uint32_t msgcode;
+  union {
+    struct iscsi_bsg_host_vendor h_vendor;
+  } rqst_data;
 } __attribute__((packed));
-
 
 /* response (request sense data) structure of the sg_io_v4 */
 struct iscsi_bsg_reply {
-	/*
-	 * The completion result. Result exists in two forms:
-	 * if negative, it is an -Exxx system errno value. There will
-	 * be no further reply information supplied.
-	 * else, it's the 4-byte scsi error result, with driver, host,
-	 * msg and status fields. The per-msgcode reply structure
-	 * will contain valid data.
-	 */
-	uint32_t result;
+  /*
+   * The completion result. Result exists in two forms:
+   * if negative, it is an -Exxx system errno value. There will
+   * be no further reply information supplied.
+   * else, it's the 4-byte scsi error result, with driver, host,
+   * msg and status fields. The per-msgcode reply structure
+   * will contain valid data.
+   */
+  uint32_t result;
 
-	/* If there was reply_payload, how much was received ? */
-	uint32_t reply_payload_rcv_len;
+  /* If there was reply_payload, how much was received ? */
+  uint32_t reply_payload_rcv_len;
 
-	union {
-		struct iscsi_bsg_host_vendor_reply      vendor_reply;
-	} reply_data;
+  union {
+    struct iscsi_bsg_host_vendor_reply vendor_reply;
+  } reply_data;
 };
-
 
 #endif /* SCSI_BSG_ISCSI_H */

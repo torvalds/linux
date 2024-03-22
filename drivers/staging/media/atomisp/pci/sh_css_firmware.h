@@ -23,12 +23,12 @@
 
 /* This is for the firmware loaded from user space */
 struct  sh_css_fw_bi_file_h {
-	char version[64];		/* branch tag + week day + time */
-	int binary_nr;			/* Number of binaries */
-	unsigned int h_size;		/* sizeof(struct sh_css_fw_bi_file_h) */
+  char version[64];   /* branch tag + week day + time */
+  int binary_nr;      /* Number of binaries */
+  unsigned int h_size;    /* sizeof(struct sh_css_fw_bi_file_h) */
 };
 
-extern struct ia_css_fw_info     sh_css_sp_fw;
+extern struct ia_css_fw_info sh_css_sp_fw;
 extern struct ia_css_blob_descr *sh_css_blob_info;
 extern unsigned int sh_css_num_binaries;
 
@@ -36,19 +36,16 @@ char
 *sh_css_get_fw_version(void);
 
 struct device;
-bool
-sh_css_check_firmware_version(struct device *dev, const char *fw_data);
+bool sh_css_check_firmware_version(struct device *dev, const char *fw_data);
 
-int
-sh_css_load_firmware(struct device *dev, const char *fw_data,
-		     unsigned int fw_size);
+int sh_css_load_firmware(struct device *dev, const char *fw_data,
+    unsigned int fw_size);
 
 void sh_css_unload_firmware(void);
 
 ia_css_ptr sh_css_load_blob(const unsigned char *blob, unsigned int size);
 
-int
-sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
-		      struct ia_css_blob_descr *bd, unsigned int i);
+int sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
+    struct ia_css_blob_descr *bd, unsigned int i);
 
 #endif /* _SH_CSS_FIRMWARE_H_ */

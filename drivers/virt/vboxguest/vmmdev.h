@@ -18,28 +18,28 @@
 
 /** Layout of VMMDEV RAM region that contains information for guest. */
 struct vmmdev_memory {
-	/** The size of this structure. */
-	u32 size;
-	/** The structure version. (VMMDEV_MEMORY_VERSION) */
-	u32 version;
+  /** The size of this structure. */
+  u32 size;
+  /** The structure version. (VMMDEV_MEMORY_VERSION) */
+  u32 version;
 
-	union {
-		struct {
-			/** Flag telling that VMMDev has events pending. */
-			u8 have_events;
-			/** Explicit padding, MBZ. */
-			u8 padding[3];
-		} V1_04;
+  union {
+    struct {
+      /** Flag telling that VMMDev has events pending. */
+      u8 have_events;
+      /** Explicit padding, MBZ. */
+      u8 padding[3];
+    } V1_04;
 
-		struct {
-			/** Pending events flags, set by host. */
-			u32 host_events;
-			/** Mask of events the guest wants, set by guest. */
-			u32 guest_event_mask;
-		} V1_03;
-	} V;
+    struct {
+      /** Pending events flags, set by host. */
+      u32 host_events;
+      /** Mask of events the guest wants, set by guest. */
+      u32 guest_event_mask;
+    } V1_03;
+  } V;
 
-	/* struct vbva_memory, not used */
+  /* struct vbva_memory, not used */
 };
 VMMDEV_ASSERT_SIZE(vmmdev_memory, 8 + 8);
 
@@ -88,18 +88,18 @@ VMMDEV_ASSERT_SIZE(vmmdev_memory, 8 + 8);
 
 /** struct vmmdev_request_header - Generic VMMDev request header. */
 struct vmmdev_request_header {
-	/** IN: Size of the structure in bytes (including body). */
-	u32 size;
-	/** IN: Version of the structure.  */
-	u32 version;
-	/** IN: Type of the request. */
-	enum vmmdev_request_type request_type;
-	/** OUT: Return code. */
-	s32 rc;
-	/** Reserved field no.1. MBZ. */
-	u32 reserved1;
-	/** IN: Requestor information (VMMDEV_REQUESTOR_*) */
-	u32 requestor;
+  /** IN: Size of the structure in bytes (including body). */
+  u32 size;
+  /** IN: Version of the structure.  */
+  u32 version;
+  /** IN: Type of the request. */
+  enum vmmdev_request_type request_type;
+  /** OUT: Return code. */
+  s32 rc;
+  /** Reserved field no.1. MBZ. */
+  u32 reserved1;
+  /** IN: Requestor information (VMMDEV_REQUESTOR_*) */
+  u32 requestor;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_request_header, 24);
 
@@ -109,14 +109,14 @@ VMMDEV_ASSERT_SIZE(vmmdev_request_header, 24);
  * Used by VMMDEVREQ_GET_MOUSE_STATUS and VMMDEVREQ_SET_MOUSE_STATUS.
  */
 struct vmmdev_mouse_status {
-	/** header */
-	struct vmmdev_request_header header;
-	/** Mouse feature mask. See VMMDEV_MOUSE_*. */
-	u32 mouse_features;
-	/** Mouse x position. */
-	s32 pointer_pos_x;
-	/** Mouse y position. */
-	s32 pointer_pos_y;
+  /** header */
+  struct vmmdev_request_header header;
+  /** Mouse feature mask. See VMMDEV_MOUSE_*. */
+  u32 mouse_features;
+  /** Mouse x position. */
+  s32 pointer_pos_x;
+  /** Mouse y position. */
+  s32 pointer_pos_y;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_mouse_status, 24 + 12);
 
@@ -162,18 +162,18 @@ VMMDEV_ASSERT_SIZE(vmmdev_mouse_status, 24 + 12);
  * VBG uses this to detect the precense of new features in the interface.
  */
 struct vmmdev_host_version {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** Major version. */
-	u16 major;
-	/** Minor version. */
-	u16 minor;
-	/** Build number. */
-	u32 build;
-	/** SVN revision. */
-	u32 revision;
-	/** Feature mask. */
-	u32 features;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** Major version. */
+  u16 major;
+  /** Minor version. */
+  u16 minor;
+  /** Build number. */
+  u32 build;
+  /** SVN revision. */
+  u32 revision;
+  /** Feature mask. */
+  u32 features;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_host_version, 24 + 16);
 
@@ -185,12 +185,12 @@ VMMDEV_ASSERT_SIZE(vmmdev_host_version, 24 + 16);
  * VMMDEVREQ_SET_GUEST_CAPABILITIES and VMMDEVREQ_CTL_GUEST_FILTER_MASK.
  */
 struct vmmdev_mask {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** Mask of bits to be set. */
-	u32 or_mask;
-	/** Mask of bits to be cleared. */
-	u32 not_mask;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** Mask of bits to be set. */
+  u32 or_mask;
+  /** Mask of bits to be cleared. */
+  u32 not_mask;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
 
@@ -211,115 +211,115 @@ VMMDEV_ASSERT_SIZE(vmmdev_mask, 24 + 8);
 
 /** struct vmmdev_hypervisorinfo - Hypervisor info structure. */
 struct vmmdev_hypervisorinfo {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/**
-	 * Guest virtual address of proposed hypervisor start.
-	 * Not used by VMMDEVREQ_GET_HYPERVISOR_INFO.
-	 */
-	u32 hypervisor_start;
-	/** Hypervisor size in bytes. */
-	u32 hypervisor_size;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /**
+   * Guest virtual address of proposed hypervisor start.
+   * Not used by VMMDEVREQ_GET_HYPERVISOR_INFO.
+   */
+  u32 hypervisor_start;
+  /** Hypervisor size in bytes. */
+  u32 hypervisor_size;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_hypervisorinfo, 24 + 8);
 
 /** struct vmmdev_events - Pending events structure. */
 struct vmmdev_events {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** OUT: Pending event mask. */
-	u32 events;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** OUT: Pending event mask. */
+  u32 events;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_events, 24 + 4);
 
-#define VMMDEV_OSTYPE_LINUX26		0x53000
-#define VMMDEV_OSTYPE_X64		BIT(8)
+#define VMMDEV_OSTYPE_LINUX26   0x53000
+#define VMMDEV_OSTYPE_X64   BIT(8)
 
 /** struct vmmdev_guestinfo - Guest information report. */
 struct vmmdev_guest_info {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/**
-	 * The VMMDev interface version expected by additions.
-	 * *Deprecated*, do not use anymore! Will be removed.
-	 */
-	u32 interface_version;
-	/** Guest OS type. */
-	u32 os_type;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /**
+   * The VMMDev interface version expected by additions.
+   * *Deprecated*, do not use anymore! Will be removed.
+   */
+  u32 interface_version;
+  /** Guest OS type. */
+  u32 os_type;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_info, 24 + 8);
 
-#define VMMDEV_GUEST_INFO2_ADDITIONS_FEATURES_REQUESTOR_INFO	BIT(0)
+#define VMMDEV_GUEST_INFO2_ADDITIONS_FEATURES_REQUESTOR_INFO  BIT(0)
 
 /** struct vmmdev_guestinfo2 - Guest information report, version 2. */
 struct vmmdev_guest_info2 {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** Major version. */
-	u16 additions_major;
-	/** Minor version. */
-	u16 additions_minor;
-	/** Build number. */
-	u32 additions_build;
-	/** SVN revision. */
-	u32 additions_revision;
-	/** Feature mask. */
-	u32 additions_features;
-	/**
-	 * The intentional meaning of this field was:
-	 * Some additional information, for example 'Beta 1' or something like
-	 * that.
-	 *
-	 * The way it was implemented was implemented: VBG_VERSION_STRING.
-	 *
-	 * This means the first three members are duplicated in this field (if
-	 * the guest build config is sane). So, the user must check this and
-	 * chop it off before usage. There is, because of the Main code's blind
-	 * trust in the field's content, no way back.
-	 */
-	char name[128];
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** Major version. */
+  u16 additions_major;
+  /** Minor version. */
+  u16 additions_minor;
+  /** Build number. */
+  u32 additions_build;
+  /** SVN revision. */
+  u32 additions_revision;
+  /** Feature mask. */
+  u32 additions_features;
+  /**
+   * The intentional meaning of this field was:
+   * Some additional information, for example 'Beta 1' or something like
+   * that.
+   *
+   * The way it was implemented was implemented: VBG_VERSION_STRING.
+   *
+   * This means the first three members are duplicated in this field (if
+   * the guest build config is sane). So, the user must check this and
+   * chop it off before usage. There is, because of the Main code's blind
+   * trust in the field's content, no way back.
+   */
+  char name[128];
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_info2, 24 + 144);
 
 enum vmmdev_guest_facility_type {
-	VBOXGUEST_FACILITY_TYPE_UNKNOWN          = 0,
-	VBOXGUEST_FACILITY_TYPE_VBOXGUEST_DRIVER = 20,
-	/* VBoxGINA / VBoxCredProv / pam_vbox. */
-	VBOXGUEST_FACILITY_TYPE_AUTO_LOGON       = 90,
-	VBOXGUEST_FACILITY_TYPE_VBOX_SERVICE     = 100,
-	/* VBoxTray (Windows), VBoxClient (Linux, Unix). */
-	VBOXGUEST_FACILITY_TYPE_VBOX_TRAY_CLIENT = 101,
-	VBOXGUEST_FACILITY_TYPE_SEAMLESS         = 1000,
-	VBOXGUEST_FACILITY_TYPE_GRAPHICS         = 1100,
-	VBOXGUEST_FACILITY_TYPE_ALL              = 0x7ffffffe,
-	/* Ensure the enum is a 32 bit data-type */
-	VBOXGUEST_FACILITY_TYPE_SIZEHACK         = 0x7fffffff
+  VBOXGUEST_FACILITY_TYPE_UNKNOWN = 0,
+  VBOXGUEST_FACILITY_TYPE_VBOXGUEST_DRIVER = 20,
+  /* VBoxGINA / VBoxCredProv / pam_vbox. */
+  VBOXGUEST_FACILITY_TYPE_AUTO_LOGON = 90,
+  VBOXGUEST_FACILITY_TYPE_VBOX_SERVICE = 100,
+  /* VBoxTray (Windows), VBoxClient (Linux, Unix). */
+  VBOXGUEST_FACILITY_TYPE_VBOX_TRAY_CLIENT = 101,
+  VBOXGUEST_FACILITY_TYPE_SEAMLESS = 1000,
+  VBOXGUEST_FACILITY_TYPE_GRAPHICS = 1100,
+  VBOXGUEST_FACILITY_TYPE_ALL = 0x7ffffffe,
+  /* Ensure the enum is a 32 bit data-type */
+  VBOXGUEST_FACILITY_TYPE_SIZEHACK = 0x7fffffff
 };
 
 enum vmmdev_guest_facility_status {
-	VBOXGUEST_FACILITY_STATUS_INACTIVE    = 0,
-	VBOXGUEST_FACILITY_STATUS_PAUSED      = 1,
-	VBOXGUEST_FACILITY_STATUS_PRE_INIT    = 20,
-	VBOXGUEST_FACILITY_STATUS_INIT        = 30,
-	VBOXGUEST_FACILITY_STATUS_ACTIVE      = 50,
-	VBOXGUEST_FACILITY_STATUS_TERMINATING = 100,
-	VBOXGUEST_FACILITY_STATUS_TERMINATED  = 101,
-	VBOXGUEST_FACILITY_STATUS_FAILED      = 800,
-	VBOXGUEST_FACILITY_STATUS_UNKNOWN     = 999,
-	/* Ensure the enum is a 32 bit data-type */
-	VBOXGUEST_FACILITY_STATUS_SIZEHACK    = 0x7fffffff
+  VBOXGUEST_FACILITY_STATUS_INACTIVE = 0,
+  VBOXGUEST_FACILITY_STATUS_PAUSED = 1,
+  VBOXGUEST_FACILITY_STATUS_PRE_INIT = 20,
+  VBOXGUEST_FACILITY_STATUS_INIT = 30,
+  VBOXGUEST_FACILITY_STATUS_ACTIVE = 50,
+  VBOXGUEST_FACILITY_STATUS_TERMINATING = 100,
+  VBOXGUEST_FACILITY_STATUS_TERMINATED = 101,
+  VBOXGUEST_FACILITY_STATUS_FAILED = 800,
+  VBOXGUEST_FACILITY_STATUS_UNKNOWN = 999,
+  /* Ensure the enum is a 32 bit data-type */
+  VBOXGUEST_FACILITY_STATUS_SIZEHACK = 0x7fffffff
 };
 
 /** struct vmmdev_guest_status - Guest Additions status structure. */
 struct vmmdev_guest_status {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** Facility the status is indicated for. */
-	enum vmmdev_guest_facility_type facility;
-	/** Current guest status. */
-	enum vmmdev_guest_facility_status status;
-	/** Flags, not used at the moment. */
-	u32 flags;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** Facility the status is indicated for. */
+  enum vmmdev_guest_facility_type facility;
+  /** Current guest status. */
+  enum vmmdev_guest_facility_status status;
+  /** Flags, not used at the moment. */
+  u32 flags;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_guest_status, 24 + 12);
 
@@ -328,52 +328,52 @@ VMMDEV_ASSERT_SIZE(vmmdev_guest_status, 24 + 12);
 
 /** struct vmmdev_memballoon_info - Memory-balloon info structure. */
 struct vmmdev_memballoon_info {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** Balloon size in megabytes. */
-	u32 balloon_chunks;
-	/** Guest ram size in megabytes. */
-	u32 phys_mem_chunks;
-	/**
-	 * Setting this to VMMDEV_EVENT_BALLOON_CHANGE_REQUEST indicates that
-	 * the request is a response to that event.
-	 * (Don't confuse this with VMMDEVREQ_ACKNOWLEDGE_EVENTS.)
-	 */
-	u32 event_ack;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** Balloon size in megabytes. */
+  u32 balloon_chunks;
+  /** Guest ram size in megabytes. */
+  u32 phys_mem_chunks;
+  /**
+   * Setting this to VMMDEV_EVENT_BALLOON_CHANGE_REQUEST indicates that
+   * the request is a response to that event.
+   * (Don't confuse this with VMMDEVREQ_ACKNOWLEDGE_EVENTS.)
+   */
+  u32 event_ack;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_memballoon_info, 24 + 12);
 
 /** struct vmmdev_memballoon_change - Change the size of the balloon. */
 struct vmmdev_memballoon_change {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** The number of pages in the array. */
-	u32 pages;
-	/** true = inflate, false = deflate.  */
-	u32 inflate;
-	/** Physical address (u64) of each page. */
-	u64 phys_page[VMMDEV_MEMORY_BALLOON_CHUNK_PAGES];
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** The number of pages in the array. */
+  u32 pages;
+  /** true = inflate, false = deflate.  */
+  u32 inflate;
+  /** Physical address (u64) of each page. */
+  u64 phys_page[VMMDEV_MEMORY_BALLOON_CHUNK_PAGES];
 };
 
 /** struct vmmdev_write_core_dump - Write Core Dump request data. */
 struct vmmdev_write_core_dump {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** Flags (reserved, MBZ). */
-	u32 flags;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** Flags (reserved, MBZ). */
+  u32 flags;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_write_core_dump, 24 + 4);
 
 /** struct vmmdev_heartbeat - Heart beat check state structure. */
 struct vmmdev_heartbeat {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** OUT: Guest heartbeat interval in nanosec. */
-	u64 interval_ns;
-	/** Heartbeat check flag. */
-	u8 enabled;
-	/** Explicit padding, MBZ. */
-	u8 padding[3];
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** OUT: Guest heartbeat interval in nanosec. */
+  u64 interval_ns;
+  /** Heartbeat check flag. */
+  u8 enabled;
+  /** Explicit padding, MBZ. */
+  u8 padding[3];
 } __packed;
 VMMDEV_ASSERT_SIZE(vmmdev_heartbeat, 24 + 12);
 
@@ -382,37 +382,37 @@ VMMDEV_ASSERT_SIZE(vmmdev_heartbeat, 24 + 12);
 
 /** struct vmmdev_hgcmreq_header - vmmdev HGCM requests header. */
 struct vmmdev_hgcmreq_header {
-	/** Request header. */
-	struct vmmdev_request_header header;
+  /** Request header. */
+  struct vmmdev_request_header header;
 
-	/** HGCM flags. */
-	u32 flags;
+  /** HGCM flags. */
+  u32 flags;
 
-	/** Result code. */
-	s32 result;
+  /** Result code. */
+  s32 result;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_hgcmreq_header, 24 + 8);
 
 /** struct vmmdev_hgcm_connect - HGCM connect request structure. */
 struct vmmdev_hgcm_connect {
-	/** HGCM request header. */
-	struct vmmdev_hgcmreq_header header;
+  /** HGCM request header. */
+  struct vmmdev_hgcmreq_header header;
 
-	/** IN: Description of service to connect to. */
-	struct vmmdev_hgcm_service_location loc;
+  /** IN: Description of service to connect to. */
+  struct vmmdev_hgcm_service_location loc;
 
-	/** OUT: Client identifier assigned by local instance of HGCM. */
-	u32 client_id;
+  /** OUT: Client identifier assigned by local instance of HGCM. */
+  u32 client_id;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_hgcm_connect, 32 + 132 + 4);
 
 /** struct vmmdev_hgcm_disconnect - HGCM disconnect request structure. */
 struct vmmdev_hgcm_disconnect {
-	/** HGCM request header. */
-	struct vmmdev_hgcmreq_header header;
+  /** HGCM request header. */
+  struct vmmdev_hgcmreq_header header;
 
-	/** IN: Client identifier. */
-	u32 client_id;
+  /** IN: Client identifier. */
+  u32 client_id;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_hgcm_disconnect, 32 + 4);
 
@@ -420,16 +420,16 @@ VMMDEV_ASSERT_SIZE(vmmdev_hgcm_disconnect, 32 + 4);
 
 /** struct vmmdev_hgcm_call - HGCM call request structure. */
 struct vmmdev_hgcm_call {
-	/* request header */
-	struct vmmdev_hgcmreq_header header;
+  /* request header */
+  struct vmmdev_hgcmreq_header header;
 
-	/** IN: Client identifier. */
-	u32 client_id;
-	/** IN: Service function number. */
-	u32 function;
-	/** IN: Number of parameters. */
-	u32 parm_count;
-	/** Parameters follow in form: HGCMFunctionParameter32|64 parms[X]; */
+  /** IN: Client identifier. */
+  u32 client_id;
+  /** IN: Service function number. */
+  u32 function;
+  /** IN: Number of parameters. */
+  u32 parm_count;
+  /** Parameters follow in form: HGCMFunctionParameter32|64 parms[X]; */
 };
 VMMDEV_ASSERT_SIZE(vmmdev_hgcm_call, 32 + 12);
 
@@ -443,10 +443,10 @@ VMMDEV_ASSERT_SIZE(vmmdev_hgcm_call, 32 + 12);
  * VERR_INVALID_PARAMETER if the address is invalid valid.
  */
 struct vmmdev_hgcm_cancel2 {
-	/** Header. */
-	struct vmmdev_request_header header;
-	/** The physical address of the request to cancel. */
-	u32 phys_req_to_cancel;
+  /** Header. */
+  struct vmmdev_request_header header;
+  /** The physical address of the request to cancel. */
+  u32 phys_req_to_cancel;
 };
 VMMDEV_ASSERT_SIZE(vmmdev_hgcm_cancel2, 24 + 4);
 

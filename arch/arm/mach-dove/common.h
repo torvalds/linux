@@ -28,7 +28,9 @@ void dove_sata_init(struct mv_sata_platform_data *sata_data);
 #ifdef CONFIG_PCI
 void dove_pcie_init(int init_port0, int init_port1);
 #else
-static inline void dove_pcie_init(int init_port0, int init_port1) { }
+static inline void dove_pcie_init(int init_port0, int init_port1) {
+}
+
 #endif
 void dove_ehci0_init(void);
 void dove_ehci1_init(void);

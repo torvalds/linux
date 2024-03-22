@@ -5,8 +5,8 @@
 #include <linux/const.h>
 
 #define PAGE_SHIFT   CONFIG_PAGE_SHIFT
-#define PAGE_SIZE    (_AC(1,UL) << PAGE_SHIFT)
-#define PAGE_MASK    (~(PAGE_SIZE-1))
+#define PAGE_SIZE    (_AC(1, UL) << PAGE_SHIFT)
+#define PAGE_MASK    (~(PAGE_SIZE - 1))
 
 /* Flushing for D-cache alias handling is only needed if
  * the page size is smaller than 16K.
@@ -15,21 +15,21 @@
 #define DCACHE_ALIASING_POSSIBLE
 #endif
 
-#define HPAGE_SHIFT		23
-#define REAL_HPAGE_SHIFT	22
-#define HPAGE_16GB_SHIFT	34
-#define HPAGE_2GB_SHIFT		31
-#define HPAGE_256MB_SHIFT	28
-#define HPAGE_64K_SHIFT		16
-#define REAL_HPAGE_SIZE		(_AC(1,UL) << REAL_HPAGE_SHIFT)
+#define HPAGE_SHIFT   23
+#define REAL_HPAGE_SHIFT  22
+#define HPAGE_16GB_SHIFT  34
+#define HPAGE_2GB_SHIFT   31
+#define HPAGE_256MB_SHIFT 28
+#define HPAGE_64K_SHIFT   16
+#define REAL_HPAGE_SIZE   (_AC(1, UL) << REAL_HPAGE_SHIFT)
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-#define HPAGE_SIZE		(_AC(1,UL) << HPAGE_SHIFT)
-#define HPAGE_MASK		(~(HPAGE_SIZE - 1UL))
-#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#define HPAGE_SIZE    (_AC(1, UL) << HPAGE_SHIFT)
+#define HPAGE_MASK    (~(HPAGE_SIZE - 1UL))
+#define HUGETLB_PAGE_ORDER  (HPAGE_SHIFT - PAGE_SHIFT)
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-#define REAL_HPAGE_PER_HPAGE	(_AC(1,UL) << (HPAGE_SHIFT - REAL_HPAGE_SHIFT))
-#define HUGE_MAX_HSTATE		5
+#define REAL_HPAGE_PER_HPAGE  (_AC(1, UL) << (HPAGE_SHIFT - REAL_HPAGE_SHIFT))
+#define HUGE_MAX_HSTATE   5
 #endif
 
 #ifndef __ASSEMBLY__
@@ -42,15 +42,16 @@ void hugetlb_setup(struct pt_regs *regs);
 #define WANT_PAGE_VIRTUAL
 
 void _clear_page(void *page);
-#define clear_page(X)	_clear_page((void *)(X))
+#define clear_page(X) _clear_page((void *) (X))
 struct page;
 void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
-#define copy_page(X,Y)	memcpy((void *)(X), (void *)(Y), PAGE_SIZE)
-void copy_user_page(void *to, void *from, unsigned long vaddr, struct page *topage);
+#define copy_page(X, Y)  memcpy((void *) (X), (void *) (Y), PAGE_SIZE)
+void copy_user_page(void *to, void *from, unsigned long vaddr,
+    struct page *topage);
 #define __HAVE_ARCH_COPY_USER_HIGHPAGE
 struct vm_area_struct;
 void copy_user_highpage(struct page *to, struct page *from,
-			unsigned long vaddr, struct vm_area_struct *vma);
+    unsigned long vaddr, struct vm_area_struct *vma);
 #define __HAVE_ARCH_COPY_HIGHPAGE
 void copy_highpage(struct page *to, struct page *from);
 
@@ -65,26 +66,38 @@ void copy_highpage(struct page *to, struct page *from);
 
 #ifdef STRICT_MM_TYPECHECKS
 /* These are used to make use of C type-checking.. */
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long iopte; } iopte_t;
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pud; } pud_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct {
+  unsigned long pte;
+} pte_t;
+typedef struct {
+  unsigned long iopte;
+} iopte_t;
+typedef struct {
+  unsigned long pmd;
+} pmd_t;
+typedef struct {
+  unsigned long pud;
+} pud_t;
+typedef struct {
+  unsigned long pgd;
+} pgd_t;
+typedef struct {
+  unsigned long pgprot;
+} pgprot_t;
 
-#define pte_val(x)	((x).pte)
-#define iopte_val(x)	((x).iopte)
+#define pte_val(x)  ((x).pte)
+#define iopte_val(x)  ((x).iopte)
 #define pmd_val(x)      ((x).pmd)
 #define pud_val(x)      ((x).pud)
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
+#define pgd_val(x)  ((x).pgd)
+#define pgprot_val(x) ((x).pgprot)
 
-#define __pte(x)	((pte_t) { (x) } )
-#define __iopte(x)	((iopte_t) { (x) } )
-#define __pmd(x)        ((pmd_t) { (x) } )
-#define __pud(x)        ((pud_t) { (x) } )
-#define __pgd(x)	((pgd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
+#define __pte(x)  ((pte_t) { (x) })
+#define __iopte(x)  ((iopte_t) { (x) })
+#define __pmd(x)        ((pmd_t) { (x) })
+#define __pud(x)        ((pud_t) { (x) })
+#define __pgd(x)  ((pgd_t) { (x) })
+#define __pgprot(x) ((pgprot_t) { (x) })
 
 #else
 /* .. while these make it easier on the compiler */
@@ -95,19 +108,19 @@ typedef unsigned long pud_t;
 typedef unsigned long pgd_t;
 typedef unsigned long pgprot_t;
 
-#define pte_val(x)	(x)
-#define iopte_val(x)	(x)
+#define pte_val(x)  (x)
+#define iopte_val(x)  (x)
 #define pmd_val(x)      (x)
 #define pud_val(x)      (x)
-#define pgd_val(x)	(x)
-#define pgprot_val(x)	(x)
+#define pgd_val(x)  (x)
+#define pgprot_val(x) (x)
 
-#define __pte(x)	(x)
-#define __iopte(x)	(x)
+#define __pte(x)  (x)
+#define __iopte(x)  (x)
 #define __pmd(x)        (x)
 #define __pud(x)        (x)
-#define __pgd(x)	(x)
-#define __pgprot(x)	(x)
+#define __pgd(x)  (x)
+#define __pgprot(x) (x)
 
 #endif /* (STRICT_MM_TYPECHECKS) */
 
@@ -122,9 +135,9 @@ extern unsigned long sparc64_va_hole_bottom;
 #define VA_EXCLUDE_START (sparc64_va_hole_bottom - (1UL << 32UL))
 #define VA_EXCLUDE_END   (sparc64_va_hole_top + (1UL << 32UL))
 
-#define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_32BIT) ? \
-				 _AC(0x0000000070000000,UL) : \
-				 VA_EXCLUDE_END)
+#define TASK_UNMAPPED_BASE  (test_thread_flag(TIF_32BIT)   \
+  ? _AC(0x0000000070000000, UL)   \
+  : VA_EXCLUDE_END)
 
 #include <asm-generic/memory_model.h>
 
@@ -136,21 +149,21 @@ extern unsigned long PAGE_OFFSET;
  * largest value we can support is whatever "KPGD_SHIFT + KPTE_BITS"
  * evaluates to.
  */
-#define MAX_PHYS_ADDRESS_BITS	53
+#define MAX_PHYS_ADDRESS_BITS 53
 
-#define ILOG2_4MB		22
-#define ILOG2_256MB		28
+#define ILOG2_4MB   22
+#define ILOG2_256MB   28
 
 #ifndef __ASSEMBLY__
 
-#define __pa(x)			((unsigned long)(x) - PAGE_OFFSET)
-#define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
+#define __pa(x)     ((unsigned long) (x) - PAGE_OFFSET)
+#define __va(x)     ((void *) ((unsigned long) (x) + PAGE_OFFSET))
 
-#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
+#define pfn_to_kaddr(pfn) __va((pfn) << PAGE_SHIFT)
 
-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr)>>PAGE_SHIFT)
+#define virt_to_page(kaddr) pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 
-#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#define virt_addr_valid(kaddr)  pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define virt_to_phys __pa
 #define phys_to_virt __va

@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Nokia Corporation
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *	     Sakari Ailus <sakari.ailus@iki.fi>
+ *       Sakari Ailus <sakari.ailus@iki.fi>
  */
 
 #ifndef __LINUX_V4L2_SUBDEV_H
@@ -23,8 +23,8 @@
  * @V4L2_SUBDEV_FORMAT_ACTIVE: active format, applied to the device
  */
 enum v4l2_subdev_format_whence {
-	V4L2_SUBDEV_FORMAT_TRY = 0,
-	V4L2_SUBDEV_FORMAT_ACTIVE = 1,
+  V4L2_SUBDEV_FORMAT_TRY = 0,
+  V4L2_SUBDEV_FORMAT_ACTIVE = 1,
 };
 
 /**
@@ -36,11 +36,11 @@ enum v4l2_subdev_format_whence {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_format {
-	__u32 which;
-	__u32 pad;
-	struct v4l2_mbus_framefmt format;
-	__u32 stream;
-	__u32 reserved[7];
+  __u32 which;
+  __u32 pad;
+  struct v4l2_mbus_framefmt format;
+  __u32 stream;
+  __u32 reserved[7];
 };
 
 /**
@@ -52,18 +52,18 @@ struct v4l2_subdev_format {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_crop {
-	__u32 which;
-	__u32 pad;
-	struct v4l2_rect rect;
-	__u32 stream;
-	__u32 reserved[7];
+  __u32 which;
+  __u32 pad;
+  struct v4l2_rect rect;
+  __u32 stream;
+  __u32 reserved[7];
 };
 
-#define V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE	0x00000001
-#define V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC	0x00000002
-#define V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC	0x00000004
-#define V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC
-#define V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION	0x00000008
+#define V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE  0x00000001
+#define V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC 0x00000002
+#define V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC 0x00000004
+#define V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC
+#define V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION  0x00000008
 
 /**
  * struct v4l2_subdev_mbus_code_enum - Media bus format enumeration
@@ -76,13 +76,13 @@ struct v4l2_subdev_crop {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_mbus_code_enum {
-	__u32 pad;
-	__u32 index;
-	__u32 code;
-	__u32 which;
-	__u32 flags;
-	__u32 stream;
-	__u32 reserved[6];
+  __u32 pad;
+  __u32 index;
+  __u32 code;
+  __u32 which;
+  __u32 flags;
+  __u32 stream;
+  __u32 reserved[6];
 };
 
 /**
@@ -99,16 +99,16 @@ struct v4l2_subdev_mbus_code_enum {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_frame_size_enum {
-	__u32 index;
-	__u32 pad;
-	__u32 code;
-	__u32 min_width;
-	__u32 max_width;
-	__u32 min_height;
-	__u32 max_height;
-	__u32 which;
-	__u32 stream;
-	__u32 reserved[7];
+  __u32 index;
+  __u32 pad;
+  __u32 code;
+  __u32 min_width;
+  __u32 max_width;
+  __u32 min_height;
+  __u32 max_height;
+  __u32 which;
+  __u32 stream;
+  __u32 reserved[7];
 };
 
 /**
@@ -120,11 +120,11 @@ struct v4l2_subdev_frame_size_enum {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_frame_interval {
-	__u32 pad;
-	struct v4l2_fract interval;
-	__u32 stream;
-	__u32 which;
-	__u32 reserved[7];
+  __u32 pad;
+  struct v4l2_fract interval;
+  __u32 stream;
+  __u32 which;
+  __u32 reserved[7];
 };
 
 /**
@@ -140,15 +140,15 @@ struct v4l2_subdev_frame_interval {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_frame_interval_enum {
-	__u32 index;
-	__u32 pad;
-	__u32 code;
-	__u32 width;
-	__u32 height;
-	struct v4l2_fract interval;
-	__u32 which;
-	__u32 stream;
-	__u32 reserved[7];
+  __u32 index;
+  __u32 pad;
+  __u32 code;
+  __u32 width;
+  __u32 height;
+  struct v4l2_fract interval;
+  __u32 which;
+  __u32 stream;
+  __u32 reserved[7];
 };
 
 /**
@@ -157,7 +157,7 @@ struct v4l2_subdev_frame_interval_enum {
  * @which: either V4L2_SUBDEV_FORMAT_ACTIVE or V4L2_SUBDEV_FORMAT_TRY
  * @pad: pad number, as reported by the media API
  * @target: Selection target, used to choose one of possible rectangles,
- *	    defined in v4l2-common.h; V4L2_SEL_TGT_* .
+ *      defined in v4l2-common.h; V4L2_SEL_TGT_* .
  * @flags: constraint flags, defined in v4l2-common.h; V4L2_SEL_FLAG_*.
  * @r: coordinates of the selection window
  * @stream: stream number, defined in subdev routing
@@ -168,13 +168,13 @@ struct v4l2_subdev_frame_interval_enum {
  * an application and a driver.
  */
 struct v4l2_subdev_selection {
-	__u32 which;
-	__u32 pad;
-	__u32 target;
-	__u32 flags;
-	struct v4l2_rect r;
-	__u32 stream;
-	__u32 reserved[7];
+  __u32 which;
+  __u32 pad;
+  __u32 target;
+  __u32 flags;
+  struct v4l2_rect r;
+  __u32 stream;
+  __u32 reserved[7];
 };
 
 /**
@@ -184,22 +184,22 @@ struct v4l2_subdev_selection {
  * @reserved: for future use, set to zero for now
  */
 struct v4l2_subdev_capability {
-	__u32 version;
-	__u32 capabilities;
-	__u32 reserved[14];
+  __u32 version;
+  __u32 capabilities;
+  __u32 reserved[14];
 };
 
 /* The v4l2 sub-device video device node is registered in read-only mode. */
-#define V4L2_SUBDEV_CAP_RO_SUBDEV		0x00000001
+#define V4L2_SUBDEV_CAP_RO_SUBDEV   0x00000001
 
 /* The v4l2 sub-device supports routing and multiplexed streams. */
-#define V4L2_SUBDEV_CAP_STREAMS			0x00000002
+#define V4L2_SUBDEV_CAP_STREAMS     0x00000002
 
 /*
  * Is the route active? An active route will start when streaming is enabled
  * on a video node.
  */
-#define V4L2_SUBDEV_ROUTE_FL_ACTIVE		(1U << 0)
+#define V4L2_SUBDEV_ROUTE_FL_ACTIVE   (1U << 0)
 
 /**
  * struct v4l2_subdev_route - A route inside a subdev
@@ -212,12 +212,12 @@ struct v4l2_subdev_capability {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_route {
-	__u32 sink_pad;
-	__u32 sink_stream;
-	__u32 source_pad;
-	__u32 source_stream;
-	__u32 flags;
-	__u32 reserved[5];
+  __u32 sink_pad;
+  __u32 sink_stream;
+  __u32 source_pad;
+  __u32 source_stream;
+  __u32 flags;
+  __u32 reserved[5];
 };
 
 /**
@@ -229,10 +229,10 @@ struct v4l2_subdev_route {
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_routing {
-	__u32 which;
-	__u32 num_routes;
-	__u64 routes;
-	__u32 reserved[6];
+  __u32 which;
+  __u32 num_routes;
+  __u64 routes;
+  __u32 reserved[6];
 };
 
 /*
@@ -241,56 +241,65 @@ struct v4l2_subdev_routing {
  * set (which is the default), the 'stream' fields will be forced to 0 by the
  * kernel.
  */
-#define V4L2_SUBDEV_CLIENT_CAP_STREAMS			(1ULL << 0)
+#define V4L2_SUBDEV_CLIENT_CAP_STREAMS      (1ULL << 0)
 
 /*
  * The client is aware of the struct v4l2_subdev_frame_interval which field. If
  * this is not set (which is the default), the which field is forced to
  * V4L2_SUBDEV_FORMAT_ACTIVE by the kernel.
  */
-#define V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH	(1ULL << 1)
+#define V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH  (1ULL << 1)
 
 /**
  * struct v4l2_subdev_client_capability - Capabilities of the client accessing
- *					  the subdev
+ *            the subdev
  *
  * @capabilities: A bitmask of V4L2_SUBDEV_CLIENT_CAP_* flags.
  */
 struct v4l2_subdev_client_capability {
-	__u64 capabilities;
+  __u64 capabilities;
 };
 
 /* Backwards compatibility define --- to be removed */
 #define v4l2_subdev_edid v4l2_edid
 
-#define VIDIOC_SUBDEV_QUERYCAP			_IOR('V',  0, struct v4l2_subdev_capability)
-#define VIDIOC_SUBDEV_G_FMT			_IOWR('V',  4, struct v4l2_subdev_format)
-#define VIDIOC_SUBDEV_S_FMT			_IOWR('V',  5, struct v4l2_subdev_format)
-#define VIDIOC_SUBDEV_G_FRAME_INTERVAL		_IOWR('V', 21, struct v4l2_subdev_frame_interval)
-#define VIDIOC_SUBDEV_S_FRAME_INTERVAL		_IOWR('V', 22, struct v4l2_subdev_frame_interval)
-#define VIDIOC_SUBDEV_ENUM_MBUS_CODE		_IOWR('V',  2, struct v4l2_subdev_mbus_code_enum)
-#define VIDIOC_SUBDEV_ENUM_FRAME_SIZE		_IOWR('V', 74, struct v4l2_subdev_frame_size_enum)
-#define VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL	_IOWR('V', 75, struct v4l2_subdev_frame_interval_enum)
-#define VIDIOC_SUBDEV_G_CROP			_IOWR('V', 59, struct v4l2_subdev_crop)
-#define VIDIOC_SUBDEV_S_CROP			_IOWR('V', 60, struct v4l2_subdev_crop)
-#define VIDIOC_SUBDEV_G_SELECTION		_IOWR('V', 61, struct v4l2_subdev_selection)
-#define VIDIOC_SUBDEV_S_SELECTION		_IOWR('V', 62, struct v4l2_subdev_selection)
-#define VIDIOC_SUBDEV_G_ROUTING			_IOWR('V', 38, struct v4l2_subdev_routing)
-#define VIDIOC_SUBDEV_S_ROUTING			_IOWR('V', 39, struct v4l2_subdev_routing)
-#define VIDIOC_SUBDEV_G_CLIENT_CAP		_IOR('V',  101, struct v4l2_subdev_client_capability)
-#define VIDIOC_SUBDEV_S_CLIENT_CAP		_IOWR('V',  102, struct v4l2_subdev_client_capability)
+#define VIDIOC_SUBDEV_QUERYCAP      _IOR('V', 0, struct v4l2_subdev_capability)
+#define VIDIOC_SUBDEV_G_FMT     _IOWR('V', 4, struct v4l2_subdev_format)
+#define VIDIOC_SUBDEV_S_FMT     _IOWR('V', 5, struct v4l2_subdev_format)
+#define VIDIOC_SUBDEV_G_FRAME_INTERVAL    _IOWR('V', 21, \
+    struct v4l2_subdev_frame_interval)
+#define VIDIOC_SUBDEV_S_FRAME_INTERVAL    _IOWR('V', 22, \
+    struct v4l2_subdev_frame_interval)
+#define VIDIOC_SUBDEV_ENUM_MBUS_CODE    _IOWR('V', 2, \
+    struct v4l2_subdev_mbus_code_enum)
+#define VIDIOC_SUBDEV_ENUM_FRAME_SIZE   _IOWR('V', 74, \
+    struct v4l2_subdev_frame_size_enum)
+#define VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL _IOWR('V', 75, \
+    struct v4l2_subdev_frame_interval_enum)
+#define VIDIOC_SUBDEV_G_CROP      _IOWR('V', 59, struct v4l2_subdev_crop)
+#define VIDIOC_SUBDEV_S_CROP      _IOWR('V', 60, struct v4l2_subdev_crop)
+#define VIDIOC_SUBDEV_G_SELECTION   _IOWR('V', 61, struct v4l2_subdev_selection)
+#define VIDIOC_SUBDEV_S_SELECTION   _IOWR('V', 62, struct v4l2_subdev_selection)
+#define VIDIOC_SUBDEV_G_ROUTING     _IOWR('V', 38, struct v4l2_subdev_routing)
+#define VIDIOC_SUBDEV_S_ROUTING     _IOWR('V', 39, struct v4l2_subdev_routing)
+#define VIDIOC_SUBDEV_G_CLIENT_CAP    _IOR('V', 101, \
+    struct v4l2_subdev_client_capability)
+#define VIDIOC_SUBDEV_S_CLIENT_CAP    _IOWR('V', 102, \
+    struct v4l2_subdev_client_capability)
 
 /* The following ioctls are identical to the ioctls in videodev2.h */
-#define VIDIOC_SUBDEV_G_STD			_IOR('V', 23, v4l2_std_id)
-#define VIDIOC_SUBDEV_S_STD			_IOW('V', 24, v4l2_std_id)
-#define VIDIOC_SUBDEV_ENUMSTD			_IOWR('V', 25, struct v4l2_standard)
-#define VIDIOC_SUBDEV_G_EDID			_IOWR('V', 40, struct v4l2_edid)
-#define VIDIOC_SUBDEV_S_EDID			_IOWR('V', 41, struct v4l2_edid)
-#define VIDIOC_SUBDEV_QUERYSTD			_IOR('V', 63, v4l2_std_id)
-#define VIDIOC_SUBDEV_S_DV_TIMINGS		_IOWR('V', 87, struct v4l2_dv_timings)
-#define VIDIOC_SUBDEV_G_DV_TIMINGS		_IOWR('V', 88, struct v4l2_dv_timings)
-#define VIDIOC_SUBDEV_ENUM_DV_TIMINGS		_IOWR('V', 98, struct v4l2_enum_dv_timings)
-#define VIDIOC_SUBDEV_QUERY_DV_TIMINGS		_IOR('V', 99, struct v4l2_dv_timings)
-#define VIDIOC_SUBDEV_DV_TIMINGS_CAP		_IOWR('V', 100, struct v4l2_dv_timings_cap)
+#define VIDIOC_SUBDEV_G_STD     _IOR('V', 23, v4l2_std_id)
+#define VIDIOC_SUBDEV_S_STD     _IOW('V', 24, v4l2_std_id)
+#define VIDIOC_SUBDEV_ENUMSTD     _IOWR('V', 25, struct v4l2_standard)
+#define VIDIOC_SUBDEV_G_EDID      _IOWR('V', 40, struct v4l2_edid)
+#define VIDIOC_SUBDEV_S_EDID      _IOWR('V', 41, struct v4l2_edid)
+#define VIDIOC_SUBDEV_QUERYSTD      _IOR('V', 63, v4l2_std_id)
+#define VIDIOC_SUBDEV_S_DV_TIMINGS    _IOWR('V', 87, struct v4l2_dv_timings)
+#define VIDIOC_SUBDEV_G_DV_TIMINGS    _IOWR('V', 88, struct v4l2_dv_timings)
+#define VIDIOC_SUBDEV_ENUM_DV_TIMINGS   _IOWR('V', 98, \
+    struct v4l2_enum_dv_timings)
+#define VIDIOC_SUBDEV_QUERY_DV_TIMINGS    _IOR('V', 99, struct v4l2_dv_timings)
+#define VIDIOC_SUBDEV_DV_TIMINGS_CAP    _IOWR('V', 100, \
+    struct v4l2_dv_timings_cap)
 
 #endif

@@ -63,137 +63,138 @@
 /* SS_CTL configuration values */
 
 /* PRNG generator mode - bit 15 */
-#define SS_PRNG_ONESHOT		(0 << 15)
-#define SS_PRNG_CONTINUE	(1 << 15)
+#define SS_PRNG_ONESHOT   (0 << 15)
+#define SS_PRNG_CONTINUE  (1 << 15)
 
 /* IV mode for hash */
-#define SS_IV_ARBITRARY		(1 << 14)
+#define SS_IV_ARBITRARY   (1 << 14)
 
 /* SS operation mode - bits 12-13 */
-#define SS_ECB			(0 << 12)
-#define SS_CBC			(1 << 12)
-#define SS_CTS			(3 << 12)
+#define SS_ECB      (0 << 12)
+#define SS_CBC      (1 << 12)
+#define SS_CTS      (3 << 12)
 
 /* Counter width for CNT mode - bits 10-11 */
-#define SS_CNT_16BITS		(0 << 10)
-#define SS_CNT_32BITS		(1 << 10)
-#define SS_CNT_64BITS		(2 << 10)
+#define SS_CNT_16BITS   (0 << 10)
+#define SS_CNT_32BITS   (1 << 10)
+#define SS_CNT_64BITS   (2 << 10)
 
 /* Key size for AES - bits 8-9 */
-#define SS_AES_128BITS		(0 << 8)
-#define SS_AES_192BITS		(1 << 8)
-#define SS_AES_256BITS		(2 << 8)
+#define SS_AES_128BITS    (0 << 8)
+#define SS_AES_192BITS    (1 << 8)
+#define SS_AES_256BITS    (2 << 8)
 
 /* Operation direction - bit 7 */
-#define SS_ENCRYPTION		(0 << 7)
-#define SS_DECRYPTION		(1 << 7)
+#define SS_ENCRYPTION   (0 << 7)
+#define SS_DECRYPTION   (1 << 7)
 
 /* SS Method - bits 4-6 */
-#define SS_OP_AES		(0 << 4)
-#define SS_OP_DES		(1 << 4)
-#define SS_OP_3DES		(2 << 4)
-#define SS_OP_SHA1		(3 << 4)
-#define SS_OP_MD5		(4 << 4)
-#define SS_OP_PRNG		(5 << 4)
+#define SS_OP_AES   (0 << 4)
+#define SS_OP_DES   (1 << 4)
+#define SS_OP_3DES    (2 << 4)
+#define SS_OP_SHA1    (3 << 4)
+#define SS_OP_MD5   (4 << 4)
+#define SS_OP_PRNG    (5 << 4)
 
 /* Data end bit - bit 2 */
-#define SS_DATA_END		(1 << 2)
+#define SS_DATA_END   (1 << 2)
 
 /* PRNG start bit - bit 1 */
-#define SS_PRNG_START		(1 << 1)
+#define SS_PRNG_START   (1 << 1)
 
 /* SS Enable bit - bit 0 */
-#define SS_DISABLED		(0 << 0)
-#define SS_ENABLED		(1 << 0)
+#define SS_DISABLED   (0 << 0)
+#define SS_ENABLED    (1 << 0)
 
-/* SS_FCSR configuration values */
-/* RX FIFO status - bit 30 */
-#define SS_RXFIFO_FREE		(1 << 30)
+/* SS_FCSR configuration values
+ * RX FIFO status - bit 30*/
+#define SS_RXFIFO_FREE    (1 << 30)
 
 /* RX FIFO empty spaces - bits 24-29 */
-#define SS_RXFIFO_SPACES(val)	(((val) >> 24) & 0x3f)
+#define SS_RXFIFO_SPACES(val) (((val) >> 24) & 0x3f)
 
 /* TX FIFO status - bit 22 */
-#define SS_TXFIFO_AVAILABLE	(1 << 22)
+#define SS_TXFIFO_AVAILABLE (1 << 22)
 
 /* TX FIFO available spaces - bits 16-21 */
-#define SS_TXFIFO_SPACES(val)	(((val) >> 16) & 0x3f)
+#define SS_TXFIFO_SPACES(val) (((val) >> 16) & 0x3f)
 
-#define SS_RX_MAX	32
-#define SS_RX_DEFAULT	SS_RX_MAX
-#define SS_TX_MAX	33
+#define SS_RX_MAX 32
+#define SS_RX_DEFAULT SS_RX_MAX
+#define SS_TX_MAX 33
 
-#define SS_RXFIFO_EMP_INT_PENDING	(1 << 10)
-#define SS_TXFIFO_AVA_INT_PENDING	(1 << 8)
-#define SS_RXFIFO_EMP_INT_ENABLE	(1 << 2)
-#define SS_TXFIFO_AVA_INT_ENABLE	(1 << 0)
+#define SS_RXFIFO_EMP_INT_PENDING (1 << 10)
+#define SS_TXFIFO_AVA_INT_PENDING (1 << 8)
+#define SS_RXFIFO_EMP_INT_ENABLE  (1 << 2)
+#define SS_TXFIFO_AVA_INT_ENABLE  (1 << 0)
 
 #define SS_SEED_LEN 192
 #define SS_DATA_LEN 160
 
 /*
  * struct ss_variant - Describe SS hardware variant
- * @sha1_in_be:		The SHA1 digest is given by SS in BE, and so need to be inverted.
+ * @sha1_in_be:   The SHA1 digest is given by SS in BE, and so need to be
+ *inverted.
  */
 struct ss_variant {
-	bool sha1_in_be;
+  bool sha1_in_be;
 };
 
 struct sun4i_ss_ctx {
-	const struct ss_variant *variant;
-	void __iomem *base;
-	int irq;
-	struct clk *busclk;
-	struct clk *ssclk;
-	struct reset_control *reset;
-	struct device *dev;
-	struct resource *res;
-	char buf[4 * SS_RX_MAX];/* buffer for linearize SG src */
-	char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
-	spinlock_t slock; /* control the use of the device */
+  const struct ss_variant *variant;
+  void __iomem *base;
+  int irq;
+  struct clk *busclk;
+  struct clk *ssclk;
+  struct reset_control *reset;
+  struct device *dev;
+  struct resource *res;
+  char buf[4 * SS_RX_MAX]; /* buffer for linearize SG src */
+  char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
+  spinlock_t slock; /* control the use of the device */
 #ifdef CONFIG_CRYPTO_DEV_SUN4I_SS_PRNG
-	u32 seed[SS_SEED_LEN / BITS_PER_LONG];
+  u32 seed[SS_SEED_LEN / BITS_PER_LONG];
 #endif
-	struct dentry *dbgfs_dir;
-	struct dentry *dbgfs_stats;
+  struct dentry *dbgfs_dir;
+  struct dentry *dbgfs_stats;
 };
 
 struct sun4i_ss_alg_template {
-	u32 type;
-	u32 mode;
-	union {
-		struct skcipher_alg crypto;
-		struct ahash_alg hash;
-		struct rng_alg rng;
-	} alg;
-	struct sun4i_ss_ctx *ss;
-	unsigned long stat_req;
-	unsigned long stat_fb;
-	unsigned long stat_bytes;
-	unsigned long stat_opti;
+  u32 type;
+  u32 mode;
+  union {
+    struct skcipher_alg crypto;
+    struct ahash_alg hash;
+    struct rng_alg rng;
+  } alg;
+  struct sun4i_ss_ctx *ss;
+  unsigned long stat_req;
+  unsigned long stat_fb;
+  unsigned long stat_bytes;
+  unsigned long stat_opti;
 };
 
 struct sun4i_tfm_ctx {
-	u32 key[AES_MAX_KEY_SIZE / 4];/* divided by sizeof(u32) */
-	u32 keylen;
-	u32 keymode;
-	struct sun4i_ss_ctx *ss;
-	struct crypto_skcipher *fallback_tfm;
+  u32 key[AES_MAX_KEY_SIZE / 4]; /* divided by sizeof(u32) */
+  u32 keylen;
+  u32 keymode;
+  struct sun4i_ss_ctx *ss;
+  struct crypto_skcipher *fallback_tfm;
 };
 
 struct sun4i_cipher_req_ctx {
-	u32 mode;
-	u8 backup_iv[AES_BLOCK_SIZE];
-	struct skcipher_request fallback_req;   // keep at the end
+  u32 mode;
+  u8 backup_iv[AES_BLOCK_SIZE];
+  struct skcipher_request fallback_req;   // keep at the end
 };
 
 struct sun4i_req_ctx {
-	u32 mode;
-	u64 byte_count; /* number of bytes "uploaded" to the device */
-	u32 hash[5]; /* for storing SS_IVx register */
-	char buf[64];
-	unsigned int len;
-	int flags;
+  u32 mode;
+  u64 byte_count; /* number of bytes "uploaded" to the device */
+  u32 hash[5]; /* for storing SS_IVx register */
+  char buf[64];
+  unsigned int len;
+  int flags;
 };
 
 int sun4i_hash_crainit(struct crypto_tfm *tfm);
@@ -226,11 +227,12 @@ int sun4i_ss_ecb_des3_decrypt(struct skcipher_request *areq);
 int sun4i_ss_cipher_init(struct crypto_tfm *tfm);
 void sun4i_ss_cipher_exit(struct crypto_tfm *tfm);
 int sun4i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
-			unsigned int keylen);
+    unsigned int keylen);
 int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
-			unsigned int keylen);
+    unsigned int keylen);
 int sun4i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
-			 unsigned int keylen);
+    unsigned int keylen);
 int sun4i_ss_prng_generate(struct crypto_rng *tfm, const u8 *src,
-			   unsigned int slen, u8 *dst, unsigned int dlen);
-int sun4i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed, unsigned int slen);
+    unsigned int slen, u8 *dst, unsigned int dlen);
+int sun4i_ss_prng_seed(struct crypto_rng *tfm, const u8 *seed,
+    unsigned int slen);

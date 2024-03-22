@@ -16,89 +16,89 @@ struct etnaviv_gem_submit;
 struct etnaviv_vram_mapping;
 
 struct etnaviv_chip_identity {
-	u32 model;
-	u32 revision;
-	u32 product_id;
-	u32 customer_id;
-	u32 eco_id;
+  u32 model;
+  u32 revision;
+  u32 product_id;
+  u32 customer_id;
+  u32 eco_id;
 
-	/* Supported feature fields. */
-	u32 features;
+  /* Supported feature fields. */
+  u32 features;
 
-	/* Supported minor feature fields. */
-	u32 minor_features0;
-	u32 minor_features1;
-	u32 minor_features2;
-	u32 minor_features3;
-	u32 minor_features4;
-	u32 minor_features5;
-	u32 minor_features6;
-	u32 minor_features7;
-	u32 minor_features8;
-	u32 minor_features9;
-	u32 minor_features10;
-	u32 minor_features11;
+  /* Supported minor feature fields. */
+  u32 minor_features0;
+  u32 minor_features1;
+  u32 minor_features2;
+  u32 minor_features3;
+  u32 minor_features4;
+  u32 minor_features5;
+  u32 minor_features6;
+  u32 minor_features7;
+  u32 minor_features8;
+  u32 minor_features9;
+  u32 minor_features10;
+  u32 minor_features11;
 
-	/* Number of streams supported. */
-	u32 stream_count;
+  /* Number of streams supported. */
+  u32 stream_count;
 
-	/* Total number of temporary registers per thread. */
-	u32 register_max;
+  /* Total number of temporary registers per thread. */
+  u32 register_max;
 
-	/* Maximum number of threads. */
-	u32 thread_count;
+  /* Maximum number of threads. */
+  u32 thread_count;
 
-	/* Number of shader cores. */
-	u32 shader_core_count;
+  /* Number of shader cores. */
+  u32 shader_core_count;
 
-	/* Number of Neural Network cores. */
-	u32 nn_core_count;
+  /* Number of Neural Network cores. */
+  u32 nn_core_count;
 
-	/* Number of MAD units per Neural Network core. */
-	u32 nn_mad_per_core;
+  /* Number of MAD units per Neural Network core. */
+  u32 nn_mad_per_core;
 
-	/* Number of Tensor Processing cores. */
-	u32 tp_core_count;
+  /* Number of Tensor Processing cores. */
+  u32 tp_core_count;
 
-	/* Size in bytes of the SRAM inside the NPU. */
-	u32 on_chip_sram_size;
+  /* Size in bytes of the SRAM inside the NPU. */
+  u32 on_chip_sram_size;
 
-	/* Size in bytes of the SRAM across the AXI bus. */
-	u32 axi_sram_size;
+  /* Size in bytes of the SRAM across the AXI bus. */
+  u32 axi_sram_size;
 
-	/* Size of the vertex cache. */
-	u32 vertex_cache_size;
+  /* Size of the vertex cache. */
+  u32 vertex_cache_size;
 
-	/* Number of entries in the vertex output buffer. */
-	u32 vertex_output_buffer_size;
+  /* Number of entries in the vertex output buffer. */
+  u32 vertex_output_buffer_size;
 
-	/* Number of pixel pipes. */
-	u32 pixel_pipes;
+  /* Number of pixel pipes. */
+  u32 pixel_pipes;
 
-	/* Number of instructions. */
-	u32 instruction_count;
+  /* Number of instructions. */
+  u32 instruction_count;
 
-	/* Number of constants. */
-	u32 num_constants;
+  /* Number of constants. */
+  u32 num_constants;
 
-	/* Buffer size */
-	u32 buffer_size;
+  /* Buffer size */
+  u32 buffer_size;
 
-	/* Number of varyings */
-	u8 varyings_count;
+  /* Number of varyings */
+  u8 varyings_count;
 };
 
 enum etnaviv_sec_mode {
-	ETNA_SEC_NONE = 0,
-	ETNA_SEC_KERNEL,
-	ETNA_SEC_TZ
+  ETNA_SEC_NONE = 0,
+  ETNA_SEC_KERNEL,
+  ETNA_SEC_TZ
 };
 
 struct etnaviv_event {
-	struct dma_fence *fence;
-	struct etnaviv_gem_submit *submit;
+  struct dma_fence *fence;
+  struct etnaviv_gem_submit *submit;
 
-	void (*sync_point)(struct etnaviv_gpu *gpu, struct etnaviv_event *event);
+  void (*sync_point)(struct etnaviv_gpu *gpu, struct etnaviv_event *event);
 };
 
 struct etnaviv_cmdbuf_suballoc;
@@ -108,101 +108,96 @@ struct clk;
 #define ETNA_NR_EVENTS 30
 
 enum etnaviv_gpu_state {
-	ETNA_GPU_STATE_UNKNOWN = 0,
-	ETNA_GPU_STATE_IDENTIFIED,
-	ETNA_GPU_STATE_RESET,
-	ETNA_GPU_STATE_INITIALIZED,
-	ETNA_GPU_STATE_RUNNING,
-	ETNA_GPU_STATE_FAULT,
+  ETNA_GPU_STATE_UNKNOWN = 0,
+  ETNA_GPU_STATE_IDENTIFIED,
+  ETNA_GPU_STATE_RESET,
+  ETNA_GPU_STATE_INITIALIZED,
+  ETNA_GPU_STATE_RUNNING,
+  ETNA_GPU_STATE_FAULT,
 };
 
 struct etnaviv_gpu {
-	struct drm_device *drm;
-	struct thermal_cooling_device *cooling;
-	struct device *dev;
-	struct mutex lock;
-	struct etnaviv_chip_identity identity;
-	enum etnaviv_sec_mode sec_mode;
-	struct workqueue_struct *wq;
-	struct mutex sched_lock;
-	struct drm_gpu_scheduler sched;
-	enum etnaviv_gpu_state state;
+  struct drm_device *drm;
+  struct thermal_cooling_device *cooling;
+  struct device *dev;
+  struct mutex lock;
+  struct etnaviv_chip_identity identity;
+  enum etnaviv_sec_mode sec_mode;
+  struct workqueue_struct *wq;
+  struct mutex sched_lock;
+  struct drm_gpu_scheduler sched;
+  enum etnaviv_gpu_state state;
 
-	/* 'ring'-buffer: */
-	struct etnaviv_cmdbuf buffer;
-	int exec_state;
+  /* 'ring'-buffer: */
+  struct etnaviv_cmdbuf buffer;
+  int exec_state;
 
-	/* event management: */
-	DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
-	struct etnaviv_event event[ETNA_NR_EVENTS];
-	struct completion event_free;
-	spinlock_t event_spinlock;
+  /* event management: */
+  DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
+  struct etnaviv_event event[ETNA_NR_EVENTS];
+  struct completion event_free;
+  spinlock_t event_spinlock;
 
-	u32 idle_mask;
+  u32 idle_mask;
 
-	/* Fencing support */
-	struct xarray user_fences;
-	u32 next_user_fence;
-	u32 next_fence;
-	u32 completed_fence;
-	wait_queue_head_t fence_event;
-	u64 fence_context;
-	spinlock_t fence_spinlock;
+  /* Fencing support */
+  struct xarray user_fences;
+  u32 next_user_fence;
+  u32 next_fence;
+  u32 completed_fence;
+  wait_queue_head_t fence_event;
+  u64 fence_context;
+  spinlock_t fence_spinlock;
 
-	/* worker for handling 'sync' points: */
-	struct work_struct sync_point_work;
-	int sync_point_event;
+  /* worker for handling 'sync' points: */
+  struct work_struct sync_point_work;
+  int sync_point_event;
 
-	/* hang detection */
-	u32 hangcheck_dma_addr;
-	u32 hangcheck_fence;
+  /* hang detection */
+  u32 hangcheck_dma_addr;
+  u32 hangcheck_fence;
 
-	void __iomem *mmio;
-	int irq;
+  void __iomem *mmio;
+  int irq;
 
-	struct etnaviv_iommu_context *mmu_context;
-	unsigned int flush_seq;
+  struct etnaviv_iommu_context *mmu_context;
+  unsigned int flush_seq;
 
-	/* Power Control: */
-	struct clk *clk_bus;
-	struct clk *clk_reg;
-	struct clk *clk_core;
-	struct clk *clk_shader;
+  /* Power Control: */
+  struct clk *clk_bus;
+  struct clk *clk_reg;
+  struct clk *clk_core;
+  struct clk *clk_shader;
 
-	unsigned int freq_scale;
-	unsigned int fe_waitcycles;
-	unsigned long base_rate_core;
-	unsigned long base_rate_shader;
+  unsigned int freq_scale;
+  unsigned int fe_waitcycles;
+  unsigned long base_rate_core;
+  unsigned long base_rate_shader;
 };
 
-static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data)
-{
-	writel(data, gpu->mmio + reg);
+static inline void gpu_write(struct etnaviv_gpu *gpu, u32 reg, u32 data) {
+  writel(data, gpu->mmio + reg);
 }
 
-static inline u32 gpu_read(struct etnaviv_gpu *gpu, u32 reg)
-{
-	return readl(gpu->mmio + reg);
+static inline u32 gpu_read(struct etnaviv_gpu *gpu, u32 reg) {
+  return readl(gpu->mmio + reg);
 }
 
-static inline u32 gpu_fix_power_address(struct etnaviv_gpu *gpu, u32 reg)
-{
-	/* Power registers in GC300 < 2.0 are offset by 0x100 */
-	if (gpu->identity.model == chipModel_GC300 &&
-	    gpu->identity.revision < 0x2000)
-		reg += 0x100;
-
-	return reg;
+static inline u32 gpu_fix_power_address(struct etnaviv_gpu *gpu, u32 reg) {
+  /* Power registers in GC300 < 2.0 are offset by 0x100 */
+  if (gpu->identity.model == chipModel_GC300
+      && gpu->identity.revision < 0x2000) {
+    reg += 0x100;
+  }
+  return reg;
 }
 
-static inline void gpu_write_power(struct etnaviv_gpu *gpu, u32 reg, u32 data)
-{
-	writel(data, gpu->mmio + gpu_fix_power_address(gpu, reg));
+static inline void gpu_write_power(struct etnaviv_gpu *gpu, u32 reg, u32 data) {
+  writel(data, gpu->mmio + gpu_fix_power_address(gpu, reg));
 }
 
-static inline u32 gpu_read_power(struct etnaviv_gpu *gpu, u32 reg)
-{
-	return readl(gpu->mmio + gpu_fix_power_address(gpu, reg));
+static inline u32 gpu_read_power(struct etnaviv_gpu *gpu, u32 reg) {
+  return readl(gpu->mmio + gpu_fix_power_address(gpu, reg));
 }
 
 int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value);
@@ -217,10 +212,10 @@ int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m);
 void etnaviv_gpu_recover_hang(struct etnaviv_gem_submit *submit);
 void etnaviv_gpu_retire(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
-	u32 fence, struct drm_etnaviv_timespec *timeout);
+    u32 fence, struct drm_etnaviv_timespec *timeout);
 int etnaviv_gpu_wait_obj_inactive(struct etnaviv_gpu *gpu,
-	struct etnaviv_gem_object *etnaviv_obj,
-	struct drm_etnaviv_timespec *timeout);
+    struct etnaviv_gem_object *etnaviv_obj,
+    struct drm_etnaviv_timespec *timeout);
 struct dma_fence *etnaviv_gpu_submit(struct etnaviv_gem_submit *submit);
 int etnaviv_gpu_pm_get_sync(struct etnaviv_gpu *gpu);
 void etnaviv_gpu_pm_put(struct etnaviv_gpu *gpu);

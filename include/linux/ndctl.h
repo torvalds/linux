@@ -16,7 +16,7 @@
 #include <uapi/linux/ndctl.h>
 
 enum {
-	ND_MIN_NAMESPACE_SIZE = PAGE_SIZE,
+  ND_MIN_NAMESPACE_SIZE = PAGE_SIZE,
 };
 
 #endif /* _LINUX_NDCTL_H */

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only) */
-/* Copyright(c) 2014 - 2020 Intel Corporation */
+/* SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+ * Copyright(c) 2014 - 2020 Intel Corporation*/
 #ifndef ADF_DH895x_HW_DATA_H_
 #define ADF_DH895x_HW_DATA_H_
 
@@ -23,10 +23,10 @@
 #define ADF_DH895XCC_ETR_MAX_BANKS 32
 
 /* Masks for VF2PF interrupts */
-#define ADF_DH895XCC_ERR_REG_VF2PF_L(vf_src)	(((vf_src) & 0x01FFFE00) >> 9)
-#define ADF_DH895XCC_ERR_MSK_VF2PF_L(vf_mask)	(((vf_mask) & 0xFFFF) << 9)
-#define ADF_DH895XCC_ERR_REG_VF2PF_U(vf_src)	(((vf_src) & 0x0000FFFF) << 16)
-#define ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask)	((vf_mask) >> 16)
+#define ADF_DH895XCC_ERR_REG_VF2PF_L(vf_src)  (((vf_src) & 0x01FFFE00) >> 9)
+#define ADF_DH895XCC_ERR_MSK_VF2PF_L(vf_mask) (((vf_mask) & 0xFFFF) << 9)
+#define ADF_DH895XCC_ERR_REG_VF2PF_U(vf_src)  (((vf_src) & 0x0000FFFF) << 16)
+#define ADF_DH895XCC_ERR_MSK_VF2PF_U(vf_mask) ((vf_mask) >> 16)
 
 /* AE to function mapping */
 #define ADF_DH895XCC_AE2FUNC_MAP_GRP_A_NUM_REGS 96

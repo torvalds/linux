@@ -29,23 +29,20 @@
  * Return: A pointer to the new &xe_device.
  */
 struct xe_device *xe_kunit_helper_alloc_xe_device(struct kunit *test,
-						  struct device *dev)
-{
-	struct xe_device *xe;
-
-	xe = drm_kunit_helper_alloc_drm_device(test, dev,
-					       struct xe_device,
-					       drm, DRIVER_GEM);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
-	return xe;
+    struct device *dev) {
+  struct xe_device *xe;
+  xe = drm_kunit_helper_alloc_drm_device(test, dev,
+      struct xe_device,
+      drm, DRIVER_GEM);
+  KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
+  return xe;
 }
+
 EXPORT_SYMBOL_IF_KUNIT(xe_kunit_helper_alloc_xe_device);
 
-static void kunit_action_restore_priv(void *priv)
-{
-	struct kunit *test = kunit_get_current_test();
-
-	test->priv = priv;
+static void kunit_action_restore_priv(void *priv) {
+  struct kunit *test = kunit_get_current_test();
+  test->priv = priv;
 }
 
 /**
@@ -66,25 +63,20 @@ static void kunit_action_restore_priv(void *priv)
  *
  * Return: Always 0.
  */
-int xe_kunit_helper_xe_device_test_init(struct kunit *test)
-{
-	struct xe_device *xe;
-	struct device *dev;
-	int err;
-
-	dev = drm_kunit_helper_alloc_device(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
-
-	xe = xe_kunit_helper_alloc_xe_device(test, dev);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
-
-	err = xe_pci_fake_device_init(xe);
-	KUNIT_ASSERT_EQ(test, err, 0);
-
-	err = kunit_add_action_or_reset(test, kunit_action_restore_priv, test->priv);
-	KUNIT_ASSERT_EQ(test, err, 0);
-
-	test->priv = xe;
-	return 0;
+int xe_kunit_helper_xe_device_test_init(struct kunit *test) {
+  struct xe_device *xe;
+  struct device *dev;
+  int err;
+  dev = drm_kunit_helper_alloc_device(test);
+  KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+  xe = xe_kunit_helper_alloc_xe_device(test, dev);
+  KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
+  err = xe_pci_fake_device_init(xe);
+  KUNIT_ASSERT_EQ(test, err, 0);
+  err = kunit_add_action_or_reset(test, kunit_action_restore_priv, test->priv);
+  KUNIT_ASSERT_EQ(test, err, 0);
+  test->priv = xe;
+  return 0;
 }
+
 EXPORT_SYMBOL_IF_KUNIT(xe_kunit_helper_xe_device_test_init);

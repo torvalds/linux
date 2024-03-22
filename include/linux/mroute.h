@@ -11,9 +11,8 @@
 #include <linux/sockptr.h>
 
 #ifdef CONFIG_IP_MROUTE
-static inline int ip_mroute_opt(int opt)
-{
-	return opt >= MRT_BASE && opt <= MRT_MAX;
+static inline int ip_mroute_opt(int opt) {
+  return opt >= MRT_BASE && opt <= MRT_MAX;
 }
 
 int ip_mroute_setsockopt(struct sock *, int, sockptr_t, unsigned int);
@@ -25,49 +24,43 @@ bool ipmr_rule_default(const struct fib_rule *rule);
 int ipmr_sk_ioctl(struct sock *sk, unsigned int cmd, void __user *arg);
 #else
 static inline int ip_mroute_setsockopt(struct sock *sock, int optname,
-				       sockptr_t optval, unsigned int optlen)
-{
-	return -ENOPROTOOPT;
+    sockptr_t optval, unsigned int optlen) {
+  return -ENOPROTOOPT;
 }
 
 static inline int ip_mroute_getsockopt(struct sock *sk, int optname,
-				       sockptr_t optval, sockptr_t optlen)
-{
-	return -ENOPROTOOPT;
+    sockptr_t optval, sockptr_t optlen) {
+  return -ENOPROTOOPT;
 }
 
-static inline int ipmr_ioctl(struct sock *sk, int cmd, void *arg)
-{
-	return -ENOIOCTLCMD;
+static inline int ipmr_ioctl(struct sock *sk, int cmd, void *arg) {
+  return -ENOIOCTLCMD;
 }
 
-static inline int ip_mr_init(void)
-{
-	return 0;
+static inline int ip_mr_init(void) {
+  return 0;
 }
 
-static inline int ip_mroute_opt(int opt)
-{
-	return 0;
+static inline int ip_mroute_opt(int opt) {
+  return 0;
 }
 
-static inline bool ipmr_rule_default(const struct fib_rule *rule)
-{
-	return true;
+static inline bool ipmr_rule_default(const struct fib_rule *rule) {
+  return true;
 }
 
 static inline int ipmr_sk_ioctl(struct sock *sk, unsigned int cmd,
-				void __user *arg)
-{
-	return 1;
+    void __user *arg) {
+  return 1;
 }
+
 #endif
 
 #define VIFF_STATIC 0x8000
 
 struct mfc_cache_cmp_arg {
-	__be32 mfc_mcastgrp;
-	__be32 mfc_origin;
+  __be32 mfc_mcastgrp;
+  __be32 mfc_origin;
 };
 
 /**
@@ -78,18 +71,18 @@ struct mfc_cache_cmp_arg {
  * @cmparg: used for rhashtable comparisons
  */
 struct mfc_cache {
-	struct mr_mfc _c;
-	union {
-		struct {
-			__be32 mfc_mcastgrp;
-			__be32 mfc_origin;
-		};
-		struct mfc_cache_cmp_arg cmparg;
-	};
+  struct mr_mfc _c;
+  union {
+    struct {
+      __be32 mfc_mcastgrp;
+      __be32 mfc_origin;
+    };
+    struct mfc_cache_cmp_arg cmparg;
+  };
 };
 
 struct rtmsg;
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
-		   __be32 saddr, __be32 daddr,
-		   struct rtmsg *rtm, u32 portid);
+    __be32 saddr, __be32 daddr,
+    struct rtmsg *rtm, u32 portid);
 #endif

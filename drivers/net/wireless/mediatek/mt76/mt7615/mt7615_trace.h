@@ -12,39 +12,39 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM mt7615
 
-#define MAXNAME		32
-#define DEV_ENTRY	__array(char, wiphy_name, 32)
-#define DEV_ASSIGN	strscpy(__entry->wiphy_name,	\
-				wiphy_name(mt76_hw(dev)->wiphy), MAXNAME)
-#define DEV_PR_FMT	"%s"
-#define DEV_PR_ARG	__entry->wiphy_name
+#define MAXNAME   32
+#define DEV_ENTRY __array(char, wiphy_name, 32)
+#define DEV_ASSIGN  strscpy(__entry->wiphy_name,  \
+    wiphy_name(mt76_hw(dev)->wiphy), MAXNAME)
+#define DEV_PR_FMT  "%s"
+#define DEV_PR_ARG  __entry->wiphy_name
 
-#define TOKEN_ENTRY	__field(u16, token)
-#define TOKEN_ASSIGN	__entry->token = token
-#define TOKEN_PR_FMT	" %d"
-#define TOKEN_PR_ARG	__entry->token
+#define TOKEN_ENTRY __field(u16, token)
+#define TOKEN_ASSIGN  __entry->token = token
+#define TOKEN_PR_FMT  " %d"
+#define TOKEN_PR_ARG  __entry->token
 
 DECLARE_EVENT_CLASS(dev_token,
-	TP_PROTO(struct mt7615_dev *dev, u16 token),
-	TP_ARGS(dev, token),
-	TP_STRUCT__entry(
-		DEV_ENTRY
-		TOKEN_ENTRY
-	),
-	TP_fast_assign(
-		DEV_ASSIGN;
-		TOKEN_ASSIGN;
-	),
-	TP_printk(
-		DEV_PR_FMT TOKEN_PR_FMT,
-		DEV_PR_ARG, TOKEN_PR_ARG
-	)
-);
+    TP_PROTO(struct mt7615_dev *dev, u16 token),
+    TP_ARGS(dev, token),
+    TP_STRUCT__entry(
+    DEV_ENTRY
+    TOKEN_ENTRY
+    ),
+    TP_fast_assign(
+    DEV_ASSIGN;
+    TOKEN_ASSIGN;
+    ),
+    TP_printk(
+    DEV_PR_FMT TOKEN_PR_FMT,
+    DEV_PR_ARG, TOKEN_PR_ARG
+    )
+    );
 
 DEFINE_EVENT(dev_token, mac_tx_free,
-	TP_PROTO(struct mt7615_dev *dev, u16 token),
-	TP_ARGS(dev, token)
-);
+    TP_PROTO(struct mt7615_dev *dev, u16 token),
+    TP_ARGS(dev, token)
+    );
 
 #endif
 

@@ -21,13 +21,13 @@
 #define MGB4_ERR_QUEUE_FULL    0xFFFFFFFB
 
 struct mgb4_frame_buffer {
-	struct vb2_v4l2_buffer vb;
-	struct list_head list;
+  struct vb2_v4l2_buffer vb;
+  struct list_head list;
 };
 
-static inline struct mgb4_frame_buffer *to_frame_buffer(struct vb2_v4l2_buffer *vbuf)
-{
-	return container_of(vbuf, struct mgb4_frame_buffer, vb);
+static inline struct mgb4_frame_buffer *to_frame_buffer(
+    struct vb2_v4l2_buffer *vbuf) {
+  return container_of(vbuf, struct mgb4_frame_buffer, vb);
 }
 
 #endif

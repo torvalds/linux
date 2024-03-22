@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2017 Advanced Micro Devices, Inc.
  *
@@ -32,4 +31,3 @@
 void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps);
 
 #endif
-

@@ -10,15 +10,12 @@ pid_t tgid = 0;
 
 SEC("struct_ops/test_maybe_null_struct_ptr")
 int BPF_PROG(test_maybe_null_struct_ptr, int dummy,
-	     struct task_struct *task)
-{
-	tgid = task->tgid;
-
-	return 0;
+    struct task_struct *task) {
+  tgid = task->tgid;
+  return 0;
 }
 
 SEC(".struct_ops.link")
 struct bpf_testmod_ops testmod_struct_ptr = {
-	.test_maybe_null = (void *)test_maybe_null_struct_ptr,
+  .test_maybe_null = (void *) test_maybe_null_struct_ptr,
 };
-

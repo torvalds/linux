@@ -33,19 +33,19 @@
  * SEGMENT |BUS   |DEV   |FN    |OFFSET
  */
 struct ioreq {
-	uint64_t addr;          /* physical address */
-	uint64_t data;          /* data (or paddr of data) */
-	uint32_t count;         /* for rep prefixes */
-	uint32_t size;          /* size in bytes */
-	uint32_t vp_eport;      /* evtchn for notifications to/from device model */
-	uint16_t _pad0;
-	uint8_t state:4;
-	uint8_t data_is_ptr:1;  /* if 1, data above is the guest paddr
-				 * of the real data to use. */
-	uint8_t dir:1;          /* 1=read, 0=write */
-	uint8_t df:1;
-	uint8_t _pad1:1;
-	uint8_t type;           /* I/O type */
+  uint64_t addr;          /* physical address */
+  uint64_t data;          /* data (or paddr of data) */
+  uint32_t count;         /* for rep prefixes */
+  uint32_t size;          /* size in bytes */
+  uint32_t vp_eport;      /* evtchn for notifications to/from device model */
+  uint16_t _pad0;
+  uint8_t state : 4;
+  uint8_t data_is_ptr : 1;  /* if 1, data above is the guest paddr
+                             * of the real data to use. */
+  uint8_t dir : 1;          /* 1=read, 0=write */
+  uint8_t df : 1;
+  uint8_t _pad1 : 1;
+  uint8_t type;           /* I/O type */
 };
 
 #endif /* __XEN_PUBLIC_HVM_IOREQ_H__ */

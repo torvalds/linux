@@ -26,13 +26,13 @@
 #include "omap_hwmod.h"
 
 /* omap_device._state values */
-#define OMAP_DEVICE_STATE_UNKNOWN	0
-#define OMAP_DEVICE_STATE_ENABLED	1
-#define OMAP_DEVICE_STATE_IDLE		2
-#define OMAP_DEVICE_STATE_SHUTDOWN	3
+#define OMAP_DEVICE_STATE_UNKNOWN 0
+#define OMAP_DEVICE_STATE_ENABLED 1
+#define OMAP_DEVICE_STATE_IDLE    2
+#define OMAP_DEVICE_STATE_SHUTDOWN  3
 
 /* omap_device.flags values */
-#define OMAP_DEVICE_SUSPENDED		BIT(0)
+#define OMAP_DEVICE_SUSPENDED   BIT(0)
 
 /**
  * struct omap_device - omap_device wrapper for platform_devices
@@ -50,12 +50,12 @@
  *
  */
 struct omap_device {
-	struct platform_device		*pdev;
-	struct omap_hwmod		**hwmods;
-	unsigned long			_driver_status;
-	u8				hwmods_cnt;
-	u8				_state;
-	u8                              flags;
+  struct platform_device *pdev;
+  struct omap_hwmod **hwmods;
+  unsigned long _driver_status;
+  u8 hwmods_cnt;
+  u8 _state;
+  u8 flags;
 };
 
 /* Device driver interface (call via platform_data fn ptrs) */
@@ -66,13 +66,13 @@ int omap_device_idle(struct platform_device *pdev);
 /* Other */
 
 int omap_device_assert_hardreset(struct platform_device *pdev,
-				 const char *name);
+    const char *name);
 int omap_device_deassert_hardreset(struct platform_device *pdev,
-				 const char *name);
+    const char *name);
 
 /* Get omap_device pointer from platform_device pointer */
-static inline struct omap_device *to_omap_device(struct platform_device *pdev)
-{
-	return pdev ? pdev->archdata.od : NULL;
+static inline struct omap_device *to_omap_device(struct platform_device *pdev) {
+  return pdev ? pdev->archdata.od : NULL;
 }
+
 #endif

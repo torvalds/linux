@@ -54,12 +54,11 @@
 #define IDMAP_STATUS_SUCCESS    0x08
 
 struct idmap_msg {
-	__u8  im_type;
-	__u8  im_conv;
-	char  im_name[IDMAP_NAMESZ];
-	__u32 im_id;
-	__u8  im_status;
+  __u8 im_type;
+  __u8 im_conv;
+  char im_name[IDMAP_NAMESZ];
+  __u32 im_id;
+  __u8 im_status;
 };
-
 
 #endif /* _UAPINFS_IDMAP_H */

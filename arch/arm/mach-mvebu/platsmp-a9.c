@@ -22,39 +22,35 @@
 extern void mvebu_cortex_a9_secondary_startup(void);
 
 static int mvebu_cortex_a9_boot_secondary(unsigned int cpu,
-						    struct task_struct *idle)
-{
-	int ret, hw_cpu;
-
-	pr_info("Booting CPU %d\n", cpu);
-
-	/*
-	 * Write the address of secondary startup into the system-wide
-	 * flags register. The boot monitor waits until it receives a
-	 * soft interrupt, and then the secondary CPU branches to this
-	 * address.
-	 */
-	hw_cpu = cpu_logical_map(cpu);
-	if (of_machine_is_compatible("marvell,armada375"))
-		mvebu_system_controller_set_cpu_boot_addr(mvebu_cortex_a9_secondary_startup);
-	else
-		mvebu_pmsu_set_cpu_boot_addr(hw_cpu, mvebu_cortex_a9_secondary_startup);
-	smp_wmb();
-
-	/*
-	 * Doing this before deasserting the CPUs is needed to wake up CPUs
-	 * in the offline state after using CPU hotplug.
-	 */
-	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
-
-	ret = mvebu_cpu_reset_deassert(hw_cpu);
-	if (ret) {
-		pr_err("Could not start the secondary CPU: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+    struct task_struct *idle) {
+  int ret, hw_cpu;
+  pr_info("Booting CPU %d\n", cpu);
+  /*
+   * Write the address of secondary startup into the system-wide
+   * flags register. The boot monitor waits until it receives a
+   * soft interrupt, and then the secondary CPU branches to this
+   * address.
+   */
+  hw_cpu = cpu_logical_map(cpu);
+  if (of_machine_is_compatible("marvell,armada375")) {
+    mvebu_system_controller_set_cpu_boot_addr(mvebu_cortex_a9_secondary_startup);
+  } else {
+    mvebu_pmsu_set_cpu_boot_addr(hw_cpu, mvebu_cortex_a9_secondary_startup);
+  }
+  smp_wmb();
+  /*
+   * Doing this before deasserting the CPUs is needed to wake up CPUs
+   * in the offline state after using CPU hotplug.
+   */
+  arch_send_wakeup_ipi_mask(cpumask_of(cpu));
+  ret = mvebu_cpu_reset_deassert(hw_cpu);
+  if (ret) {
+    pr_err("Could not start the secondary CPU: %d\n", ret);
+    return ret;
+  }
+  return 0;
 }
+
 /*
  * When a CPU is brought back online, either through CPU hotplug, or
  * because of the boot of a kexec'ed kernel, the PMSU configuration
@@ -63,19 +59,17 @@ static int mvebu_cortex_a9_boot_secondary(unsigned int cpu,
  * CPU from this state, which was entered by armada_38x_cpu_die()
  * below.
  */
-static void armada_38x_secondary_init(unsigned int cpu)
-{
-	mvebu_v7_pmsu_idle_exit();
+static void armada_38x_secondary_init(unsigned int cpu) {
+  mvebu_v7_pmsu_idle_exit();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void armada_38x_cpu_die(unsigned int cpu)
-{
-	/*
-	 * CPU hotplug is implemented by putting offline CPUs into the
-	 * deep idle sleep state.
-	 */
-	armada_38x_do_cpu_suspend(true);
+static void armada_38x_cpu_die(unsigned int cpu) {
+  /*
+   * CPU hotplug is implemented by putting offline CPUs into the
+   * deep idle sleep state.
+   */
+  armada_38x_do_cpu_suspend(true);
 }
 
 /*
@@ -84,28 +78,28 @@ static void armada_38x_cpu_die(unsigned int cpu)
  * anything, because CPUs going offline can enter the deep idle state
  * by themselves, without any help from a still alive CPU.
  */
-static int armada_38x_cpu_kill(unsigned int cpu)
-{
-	return 1;
+static int armada_38x_cpu_kill(unsigned int cpu) {
+  return 1;
 }
+
 #endif
 
 static const struct smp_operations mvebu_cortex_a9_smp_ops __initconst = {
-	.smp_boot_secondary	= mvebu_cortex_a9_boot_secondary,
+  .smp_boot_secondary = mvebu_cortex_a9_boot_secondary,
 };
 
 static const struct smp_operations armada_38x_smp_ops __initconst = {
-	.smp_boot_secondary	= mvebu_cortex_a9_boot_secondary,
-	.smp_secondary_init     = armada_38x_secondary_init,
+  .smp_boot_secondary = mvebu_cortex_a9_boot_secondary,
+  .smp_secondary_init = armada_38x_secondary_init,
 #ifdef CONFIG_HOTPLUG_CPU
-	.cpu_die		= armada_38x_cpu_die,
-	.cpu_kill               = armada_38x_cpu_kill,
+  .cpu_die = armada_38x_cpu_die,
+  .cpu_kill = armada_38x_cpu_kill,
 #endif
 };
 
 CPU_METHOD_OF_DECLARE(mvebu_armada_375_smp, "marvell,armada-375-smp",
-		      &mvebu_cortex_a9_smp_ops);
+    &mvebu_cortex_a9_smp_ops);
 CPU_METHOD_OF_DECLARE(mvebu_armada_380_smp, "marvell,armada-380-smp",
-		      &armada_38x_smp_ops);
+    &armada_38x_smp_ops);
 CPU_METHOD_OF_DECLARE(mvebu_armada_390_smp, "marvell,armada-390-smp",
-		      &armada_38x_smp_ops);
+    &armada_38x_smp_ops);

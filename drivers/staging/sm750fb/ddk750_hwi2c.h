@@ -8,5 +8,5 @@ void sm750_hw_i2c_close(void);
 
 unsigned char sm750_hw_i2c_read_reg(unsigned char addr, unsigned char reg);
 int sm750_hw_i2c_write_reg(unsigned char addr, unsigned char reg,
-			   unsigned char data);
+    unsigned char data);
 #endif

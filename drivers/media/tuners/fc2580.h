@@ -24,10 +24,10 @@
  * @get_v4l2_subdev: Get V4L2 subdev.
  */
 struct fc2580_platform_data {
-	u32 clk;
-	struct dvb_frontend *dvb_frontend;
+  u32 clk;
+  struct dvb_frontend *dvb_frontend;
 
-	struct v4l2_subdev* (*get_v4l2_subdev)(struct i2c_client *);
+  struct v4l2_subdev *(*get_v4l2_subdev)(struct i2c_client *);
 };
 
 #endif

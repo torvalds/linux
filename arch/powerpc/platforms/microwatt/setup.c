@@ -18,26 +18,24 @@
 
 #include "microwatt.h"
 
-static void __init microwatt_init_IRQ(void)
-{
-	xics_init();
+static void __init microwatt_init_IRQ(void) {
+  xics_init();
 }
 
-static int __init microwatt_populate(void)
-{
-	return of_platform_default_populate(NULL, NULL, NULL);
+static int __init microwatt_populate(void) {
+  return of_platform_default_populate(NULL, NULL, NULL);
 }
+
 machine_arch_initcall(microwatt, microwatt_populate);
 
-static void __init microwatt_setup_arch(void)
-{
-	microwatt_rng_init();
+static void __init microwatt_setup_arch(void) {
+  microwatt_rng_init();
 }
 
 define_machine(microwatt) {
-	.name			= "microwatt",
-	.compatible		= "microwatt-soc",
-	.init_IRQ		= microwatt_init_IRQ,
-	.setup_arch		= microwatt_setup_arch,
-	.progress		= udbg_progress,
+  .name = "microwatt",
+  .compatible = "microwatt-soc",
+  .init_IRQ = microwatt_init_IRQ,
+  .setup_arch = microwatt_setup_arch,
+  .progress = udbg_progress,
 };

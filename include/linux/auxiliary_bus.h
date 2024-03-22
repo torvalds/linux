@@ -105,25 +105,25 @@
  *
  *      ...
  *
- *	struct auxiliary_device *my_aux_dev = my_aux_dev_alloc(xxx);
+ *  struct auxiliary_device *my_aux_dev = my_aux_dev_alloc(xxx);
  *
- *	// Step 1:
- *	my_aux_dev->name = MY_DEVICE_NAME;
- *	my_aux_dev->id = my_unique_id_alloc(xxx);
- *	my_aux_dev->dev.release = my_aux_dev_release;
- *	my_aux_dev->dev.parent = my_dev;
+ *  // Step 1:
+ *  my_aux_dev->name = MY_DEVICE_NAME;
+ *  my_aux_dev->id = my_unique_id_alloc(xxx);
+ *  my_aux_dev->dev.release = my_aux_dev_release;
+ *  my_aux_dev->dev.parent = my_dev;
  *
- *	// Step 2:
- *	if (auxiliary_device_init(my_aux_dev))
- *		goto fail;
+ *  // Step 2:
+ *  if (auxiliary_device_init(my_aux_dev))
+ *    goto fail;
  *
- *	// Step 3:
- *	if (auxiliary_device_add(my_aux_dev)) {
- *		auxiliary_device_uninit(my_aux_dev);
- *		goto fail;
- *	}
+ *  // Step 3:
+ *  if (auxiliary_device_add(my_aux_dev)) {
+ *    auxiliary_device_uninit(my_aux_dev);
+ *    goto fail;
+ *  }
  *
- *	...
+ *  ...
  *
  *
  * Unregistering an auxiliary_device is a two-step process to mirror the
@@ -136,9 +136,9 @@
  *         auxiliary_device_uninit(my_dev->my_aux_dev);
  */
 struct auxiliary_device {
-	struct device dev;
-	const char *name;
-	u32 id;
+  struct device dev;
+  const char *name;
+  u32 id;
 };
 
 /**
@@ -164,7 +164,7 @@ struct auxiliary_device {
  * .. code-block:: c
  *
  *         static const struct auxiliary_device_id my_auxiliary_id_table[] = {
- *		   { .name = "foo_mod.foo_dev" },
+ *       { .name = "foo_mod.foo_dev" },
  *                 {},
  *         };
  *
@@ -178,54 +178,54 @@ struct auxiliary_device {
  *         };
  */
 struct auxiliary_driver {
-	int (*probe)(struct auxiliary_device *auxdev, const struct auxiliary_device_id *id);
-	void (*remove)(struct auxiliary_device *auxdev);
-	void (*shutdown)(struct auxiliary_device *auxdev);
-	int (*suspend)(struct auxiliary_device *auxdev, pm_message_t state);
-	int (*resume)(struct auxiliary_device *auxdev);
-	const char *name;
-	struct device_driver driver;
-	const struct auxiliary_device_id *id_table;
+  int (*probe)(struct auxiliary_device *auxdev,
+      const struct auxiliary_device_id *id);
+  void (*remove)(struct auxiliary_device *auxdev);
+  void (*shutdown)(struct auxiliary_device *auxdev);
+  int (*suspend)(struct auxiliary_device *auxdev, pm_message_t state);
+  int (*resume)(struct auxiliary_device *auxdev);
+  const char *name;
+  struct device_driver driver;
+  const struct auxiliary_device_id *id_table;
 };
 
-static inline void *auxiliary_get_drvdata(struct auxiliary_device *auxdev)
-{
-	return dev_get_drvdata(&auxdev->dev);
+static inline void *auxiliary_get_drvdata(struct auxiliary_device *auxdev) {
+  return dev_get_drvdata(&auxdev->dev);
 }
 
-static inline void auxiliary_set_drvdata(struct auxiliary_device *auxdev, void *data)
-{
-	dev_set_drvdata(&auxdev->dev, data);
+static inline void auxiliary_set_drvdata(struct auxiliary_device *auxdev,
+    void *data) {
+  dev_set_drvdata(&auxdev->dev, data);
 }
 
-static inline struct auxiliary_device *to_auxiliary_dev(struct device *dev)
-{
-	return container_of(dev, struct auxiliary_device, dev);
+static inline struct auxiliary_device *to_auxiliary_dev(struct device *dev) {
+  return container_of(dev, struct auxiliary_device, dev);
 }
 
-static inline struct auxiliary_driver *to_auxiliary_drv(struct device_driver *drv)
-{
-	return container_of(drv, struct auxiliary_driver, driver);
+static inline struct auxiliary_driver *to_auxiliary_drv(
+    struct device_driver *drv) {
+  return container_of(drv, struct auxiliary_driver, driver);
 }
 
 int auxiliary_device_init(struct auxiliary_device *auxdev);
-int __auxiliary_device_add(struct auxiliary_device *auxdev, const char *modname);
-#define auxiliary_device_add(auxdev) __auxiliary_device_add(auxdev, KBUILD_MODNAME)
+int __auxiliary_device_add(struct auxiliary_device *auxdev,
+    const char *modname);
+#define auxiliary_device_add(auxdev) __auxiliary_device_add(auxdev, \
+    KBUILD_MODNAME)
 
-static inline void auxiliary_device_uninit(struct auxiliary_device *auxdev)
-{
-	put_device(&auxdev->dev);
+static inline void auxiliary_device_uninit(struct auxiliary_device *auxdev) {
+  put_device(&auxdev->dev);
 }
 
-static inline void auxiliary_device_delete(struct auxiliary_device *auxdev)
-{
-	device_del(&auxdev->dev);
+static inline void auxiliary_device_delete(struct auxiliary_device *auxdev) {
+  device_del(&auxdev->dev);
 }
 
-int __auxiliary_driver_register(struct auxiliary_driver *auxdrv, struct module *owner,
-				const char *modname);
+int __auxiliary_driver_register(struct auxiliary_driver *auxdrv,
+    struct module *owner,
+    const char *modname);
 #define auxiliary_driver_register(auxdrv) \
-	__auxiliary_driver_register(auxdrv, THIS_MODULE, KBUILD_MODNAME)
+  __auxiliary_driver_register(auxdrv, THIS_MODULE, KBUILD_MODNAME)
 
 void auxiliary_driver_unregister(struct auxiliary_driver *auxdrv);
 
@@ -239,13 +239,14 @@ void auxiliary_driver_unregister(struct auxiliary_driver *auxdrv);
  *
  * .. code-block:: c
  *
- *	module_auxiliary_driver(my_drv);
+ *  module_auxiliary_driver(my_drv);
  */
 #define module_auxiliary_driver(__auxiliary_driver) \
-	module_driver(__auxiliary_driver, auxiliary_driver_register, auxiliary_driver_unregister)
+  module_driver(__auxiliary_driver, auxiliary_driver_register, \
+    auxiliary_driver_unregister)
 
 struct auxiliary_device *auxiliary_find_device(struct device *start,
-					       const void *data,
-					       int (*match)(struct device *dev, const void *data));
+    const void *data,
+    int (*match)(struct device *dev, const void *data));
 
 #endif /* _AUXILIARY_BUS_H_ */

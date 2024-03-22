@@ -21,10 +21,10 @@ void ibm405ep_fixup_clocks(unsigned int sys_clk);
 void ibm405ex_fixup_clocks(unsigned int sys_clk, unsigned int uart_clk);
 void ibm440gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk);
 void ibm440ep_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk,
-			   unsigned int tmr_clk);
+    unsigned int tmr_clk);
 void ibm440gx_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk,
-			   unsigned int tmr_clk);
+    unsigned int tmr_clk);
 void ibm440spe_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk,
-			    unsigned int tmr_clk);
+    unsigned int tmr_clk);
 
 #endif /* _POWERPC_BOOT_4XX_H_ */

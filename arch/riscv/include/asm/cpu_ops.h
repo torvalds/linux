@@ -13,18 +13,18 @@
 /**
  * struct cpu_operations - Callback operations for hotplugging CPUs.
  *
- * @cpu_start:		Boots a cpu into the kernel.
- * @cpu_stop:		Makes a cpu leave the kernel. Must not fail. Called from
- *			the cpu being stopped.
- * @cpu_is_stopped:	Ensures a cpu has left the kernel. Called from another
- *			cpu.
+ * @cpu_start:    Boots a cpu into the kernel.
+ * @cpu_stop:   Makes a cpu leave the kernel. Must not fail. Called from
+ *      the cpu being stopped.
+ * @cpu_is_stopped: Ensures a cpu has left the kernel. Called from another
+ *      cpu.
  */
 struct cpu_operations {
-	int		(*cpu_start)(unsigned int cpu,
-				     struct task_struct *tidle);
+  int (*cpu_start)(unsigned int cpu,
+      struct task_struct *tidle);
 #ifdef CONFIG_HOTPLUG_CPU
-	void		(*cpu_stop)(void);
-	int		(*cpu_is_stopped)(unsigned int cpu);
+  void (*cpu_stop)(void);
+  int (*cpu_is_stopped)(unsigned int cpu);
 #endif
 };
 

@@ -54,81 +54,81 @@
 #define MLXBF_GIGE_LLU_PLU_INTR_IDX     2
 
 struct mlxbf_gige_stats {
-	u64 hw_access_errors;
-	u64 tx_invalid_checksums;
-	u64 tx_small_frames;
-	u64 tx_index_errors;
-	u64 sw_config_errors;
-	u64 sw_access_errors;
-	u64 rx_truncate_errors;
-	u64 rx_mac_errors;
-	u64 rx_din_dropped_pkts;
-	u64 tx_fifo_full;
-	u64 rx_filter_passed_pkts;
-	u64 rx_filter_discard_pkts;
+  u64 hw_access_errors;
+  u64 tx_invalid_checksums;
+  u64 tx_small_frames;
+  u64 tx_index_errors;
+  u64 sw_config_errors;
+  u64 sw_access_errors;
+  u64 rx_truncate_errors;
+  u64 rx_mac_errors;
+  u64 rx_din_dropped_pkts;
+  u64 tx_fifo_full;
+  u64 rx_filter_passed_pkts;
+  u64 rx_filter_discard_pkts;
 };
 
 struct mlxbf_gige_reg_param {
-	u32 mask;
-	u32 shift;
+  u32 mask;
+  u32 shift;
 };
 
 struct mlxbf_gige_mdio_gw {
-	u32 gw_address;
-	u32 read_data_address;
-	struct mlxbf_gige_reg_param busy;
-	struct mlxbf_gige_reg_param write_data;
-	struct mlxbf_gige_reg_param read_data;
-	struct mlxbf_gige_reg_param devad;
-	struct mlxbf_gige_reg_param partad;
-	struct mlxbf_gige_reg_param opcode;
-	struct mlxbf_gige_reg_param st1;
+  u32 gw_address;
+  u32 read_data_address;
+  struct mlxbf_gige_reg_param busy;
+  struct mlxbf_gige_reg_param write_data;
+  struct mlxbf_gige_reg_param read_data;
+  struct mlxbf_gige_reg_param devad;
+  struct mlxbf_gige_reg_param partad;
+  struct mlxbf_gige_reg_param opcode;
+  struct mlxbf_gige_reg_param st1;
 };
 
 struct mlxbf_gige_link_cfg {
-	void (*set_phy_link_mode)(struct phy_device *phydev);
-	void (*adjust_link)(struct net_device *netdev);
-	phy_interface_t phy_mode;
+  void (*set_phy_link_mode)(struct phy_device *phydev);
+  void (*adjust_link)(struct net_device *netdev);
+  phy_interface_t phy_mode;
 };
 
 struct mlxbf_gige {
-	void __iomem *base;
-	void __iomem *llu_base;
-	void __iomem *plu_base;
-	struct device *dev;
-	struct net_device *netdev;
-	struct platform_device *pdev;
-	void __iomem *mdio_io;
-	void __iomem *clk_io;
-	struct mii_bus *mdiobus;
-	spinlock_t lock;      /* for packet processing indices */
-	u16 rx_q_entries;
-	u16 tx_q_entries;
-	u64 *tx_wqe_base;
-	dma_addr_t tx_wqe_base_dma;
-	u64 *tx_wqe_next;
-	u64 *tx_cc;
-	dma_addr_t tx_cc_dma;
-	dma_addr_t *rx_wqe_base;
-	dma_addr_t rx_wqe_base_dma;
-	u64 *rx_cqe_base;
-	dma_addr_t rx_cqe_base_dma;
-	u16 tx_pi;
-	u16 prev_tx_ci;
-	struct sk_buff *rx_skb[MLXBF_GIGE_MAX_RXQ_SZ];
-	struct sk_buff *tx_skb[MLXBF_GIGE_MAX_TXQ_SZ];
-	int error_irq;
-	int rx_irq;
-	int llu_plu_irq;
-	int phy_irq;
-	int hw_phy_irq;
-	bool promisc_enabled;
-	u8 valid_polarity;
-	struct napi_struct napi;
-	struct mlxbf_gige_stats stats;
-	u8 hw_version;
-	struct mlxbf_gige_mdio_gw *mdio_gw;
-	int prev_speed;
+  void __iomem *base;
+  void __iomem *llu_base;
+  void __iomem *plu_base;
+  struct device *dev;
+  struct net_device *netdev;
+  struct platform_device *pdev;
+  void __iomem *mdio_io;
+  void __iomem *clk_io;
+  struct mii_bus *mdiobus;
+  spinlock_t lock;      /* for packet processing indices */
+  u16 rx_q_entries;
+  u16 tx_q_entries;
+  u64 *tx_wqe_base;
+  dma_addr_t tx_wqe_base_dma;
+  u64 *tx_wqe_next;
+  u64 *tx_cc;
+  dma_addr_t tx_cc_dma;
+  dma_addr_t *rx_wqe_base;
+  dma_addr_t rx_wqe_base_dma;
+  u64 *rx_cqe_base;
+  dma_addr_t rx_cqe_base_dma;
+  u16 tx_pi;
+  u16 prev_tx_ci;
+  struct sk_buff *rx_skb[MLXBF_GIGE_MAX_RXQ_SZ];
+  struct sk_buff *tx_skb[MLXBF_GIGE_MAX_TXQ_SZ];
+  int error_irq;
+  int rx_irq;
+  int llu_plu_irq;
+  int phy_irq;
+  int hw_phy_irq;
+  bool promisc_enabled;
+  u8 valid_polarity;
+  struct napi_struct napi;
+  struct mlxbf_gige_stats stats;
+  u8 hw_version;
+  struct mlxbf_gige_mdio_gw *mdio_gw;
+  int prev_speed;
 };
 
 /* Rx Work Queue Element definitions */
@@ -154,31 +154,31 @@ struct mlxbf_gige {
 
 /* Macro to return packet length of specified TX WQE */
 #define MLXBF_GIGE_TX_WQE_PKT_LEN(tx_wqe_addr) \
-	(*((tx_wqe_addr) + 1) & MLXBF_GIGE_TX_WQE_PKT_LEN_MASK)
+  (*((tx_wqe_addr) + 1) & MLXBF_GIGE_TX_WQE_PKT_LEN_MASK)
 
 /* Tx Completion Count */
 #define MLXBF_GIGE_TX_CC_SZ                    8
 
 /* List of resources in ACPI table */
 enum mlxbf_gige_res {
-	MLXBF_GIGE_RES_MAC,
-	MLXBF_GIGE_RES_MDIO9,
-	MLXBF_GIGE_RES_GPIO0,
-	MLXBF_GIGE_RES_LLU,
-	MLXBF_GIGE_RES_PLU,
-	MLXBF_GIGE_RES_CLK
+  MLXBF_GIGE_RES_MAC,
+  MLXBF_GIGE_RES_MDIO9,
+  MLXBF_GIGE_RES_GPIO0,
+  MLXBF_GIGE_RES_LLU,
+  MLXBF_GIGE_RES_PLU,
+  MLXBF_GIGE_RES_CLK
 };
 
 /* Version of register data returned by mlxbf_gige_get_regs() */
 #define MLXBF_GIGE_REGS_VERSION 1
 
 int mlxbf_gige_mdio_probe(struct platform_device *pdev,
-			  struct mlxbf_gige *priv);
+    struct mlxbf_gige *priv);
 void mlxbf_gige_mdio_remove(struct mlxbf_gige *priv);
 void mlxbf_gige_set_mac_rx_filter(struct mlxbf_gige *priv,
-				  unsigned int index, u64 dmac);
+    unsigned int index, u64 dmac);
 void mlxbf_gige_get_mac_rx_filter(struct mlxbf_gige *priv,
-				  unsigned int index, u64 *dmac);
+    unsigned int index, u64 *dmac);
 void mlxbf_gige_enable_promisc(struct mlxbf_gige *priv);
 void mlxbf_gige_disable_promisc(struct mlxbf_gige *priv);
 int mlxbf_gige_rx_init(struct mlxbf_gige *priv);
@@ -187,11 +187,11 @@ int mlxbf_gige_tx_init(struct mlxbf_gige *priv);
 void mlxbf_gige_tx_deinit(struct mlxbf_gige *priv);
 bool mlxbf_gige_handle_tx_complete(struct mlxbf_gige *priv);
 netdev_tx_t mlxbf_gige_start_xmit(struct sk_buff *skb,
-				  struct net_device *netdev);
+    struct net_device *netdev);
 struct sk_buff *mlxbf_gige_alloc_skb(struct mlxbf_gige *priv,
-				     unsigned int map_len,
-				     dma_addr_t *buf_dma,
-				     enum dma_data_direction dir);
+    unsigned int map_len,
+    dma_addr_t *buf_dma,
+    enum dma_data_direction dir);
 int mlxbf_gige_request_irqs(struct mlxbf_gige *priv);
 void mlxbf_gige_free_irqs(struct mlxbf_gige *priv);
 int mlxbf_gige_poll(struct napi_struct *napi, int budget);

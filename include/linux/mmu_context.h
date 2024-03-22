@@ -7,11 +7,13 @@
 
 /* Architectures that care about IRQ state in switch_mm can override this. */
 #ifndef switch_mm_irqs_off
-# define switch_mm_irqs_off switch_mm
+#define switch_mm_irqs_off switch_mm
 #endif
 
 #ifndef leave_mm
-static inline void leave_mm(void) { }
+static inline void leave_mm(void) {
+}
+
 #endif
 
 /*
@@ -22,24 +24,25 @@ static inline void leave_mm(void) { }
  * By default, we assume a sane, homogeneous system.
  */
 #ifndef task_cpu_possible_mask
-# define task_cpu_possible_mask(p)	cpu_possible_mask
-# define task_cpu_possible(cpu, p)	true
+#define task_cpu_possible_mask(p)  cpu_possible_mask
+#define task_cpu_possible(cpu, p)  true
 #else
-# define task_cpu_possible(cpu, p)	cpumask_test_cpu((cpu), task_cpu_possible_mask(p))
+#define task_cpu_possible(cpu, p)  cpumask_test_cpu((cpu), task_cpu_possible_mask( \
+    p))
 #endif
 
 #ifndef mm_untag_mask
-static inline unsigned long mm_untag_mask(struct mm_struct *mm)
-{
-	return -1UL;
+static inline unsigned long mm_untag_mask(struct mm_struct *mm) {
+  return -1UL;
 }
+
 #endif
 
 #ifndef arch_pgtable_dma_compat
-static inline bool arch_pgtable_dma_compat(struct mm_struct *mm)
-{
-	return true;
+static inline bool arch_pgtable_dma_compat(struct mm_struct *mm) {
+  return true;
 }
+
 #endif
 
 #endif

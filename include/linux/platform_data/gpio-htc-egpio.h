@@ -19,11 +19,11 @@
  * @direction: bitfield, '0' = input, '1' = output,
  */
 struct htc_egpio_chip {
-	int           reg_start;
-	int           gpio_base;
-	int           num_gpios;
-	unsigned long direction;
-	unsigned long initial_values;
+  int reg_start;
+  int gpio_base;
+  int num_gpios;
+  unsigned long direction;
+  unsigned long initial_values;
 };
 
 /**
@@ -38,16 +38,16 @@ struct htc_egpio_chip {
  * @num_chips: number of egpio chip descriptors
  */
 struct htc_egpio_platform_data {
-	int                   bus_width;
-	int                   reg_width;
+  int bus_width;
+  int reg_width;
 
-	int                   irq_base;
-	int                   num_irqs;
-	int                   invert_acks;
-	int                   ack_register;
+  int irq_base;
+  int num_irqs;
+  int invert_acks;
+  int ack_register;
 
-	struct htc_egpio_chip *chip;
-	int                   num_chips;
+  struct htc_egpio_chip *chip;
+  int num_chips;
 };
 
 #endif

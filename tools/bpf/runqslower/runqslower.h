@@ -5,9 +5,9 @@
 #define TASK_COMM_LEN 16
 
 struct runq_event {
-	char task[TASK_COMM_LEN];
-	__u64 delta_us;
-	pid_t pid;
+  char task[TASK_COMM_LEN];
+  __u64 delta_us;
+  pid_t pid;
 };
 
 #endif /* __RUNQSLOWER_H */

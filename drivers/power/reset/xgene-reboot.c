@@ -21,63 +21,55 @@
 #include <linux/slab.h>
 
 struct xgene_reboot_context {
-	struct device *dev;
-	void __iomem *csr;
-	u32 mask;
+  struct device *dev;
+  void __iomem *csr;
+  u32 mask;
 };
 
-static int xgene_restart_handler(struct sys_off_data *data)
-{
-	struct xgene_reboot_context *ctx = data->cb_data;
-
-	/* Issue the reboot */
-	writel(ctx->mask, ctx->csr);
-
-	mdelay(1000);
-
-	dev_emerg(ctx->dev, "Unable to restart system\n");
-
-	return NOTIFY_DONE;
+static int xgene_restart_handler(struct sys_off_data *data) {
+  struct xgene_reboot_context *ctx = data->cb_data;
+  /* Issue the reboot */
+  writel(ctx->mask, ctx->csr);
+  mdelay(1000);
+  dev_emerg(ctx->dev, "Unable to restart system\n");
+  return NOTIFY_DONE;
 }
 
-static int xgene_reboot_probe(struct platform_device *pdev)
-{
-	struct xgene_reboot_context *ctx;
-	struct device *dev = &pdev->dev;
-	int err;
-
-	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
-	ctx->csr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(ctx->csr)) {
-		dev_err(dev, "can not map resource\n");
-		return PTR_ERR(ctx->csr);
-	}
-
-	if (of_property_read_u32(dev->of_node, "mask", &ctx->mask))
-		ctx->mask = 0xFFFFFFFF;
-
-	ctx->dev = dev;
-	err = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART, 128,
-					    xgene_restart_handler, ctx);
-	if (err)
-		dev_err(dev, "cannot register restart handler (err=%d)\n", err);
-
-	return err;
+static int xgene_reboot_probe(struct platform_device *pdev) {
+  struct xgene_reboot_context *ctx;
+  struct device *dev = &pdev->dev;
+  int err;
+  ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+  if (!ctx) {
+    return -ENOMEM;
+  }
+  ctx->csr = devm_platform_ioremap_resource(pdev, 0);
+  if (IS_ERR(ctx->csr)) {
+    dev_err(dev, "can not map resource\n");
+    return PTR_ERR(ctx->csr);
+  }
+  if (of_property_read_u32(dev->of_node, "mask", &ctx->mask)) {
+    ctx->mask = 0xFFFFFFFF;
+  }
+  ctx->dev = dev;
+  err = devm_register_sys_off_handler(dev, SYS_OFF_MODE_RESTART, 128,
+      xgene_restart_handler, ctx);
+  if (err) {
+    dev_err(dev, "cannot register restart handler (err=%d)\n", err);
+  }
+  return err;
 }
 
 static const struct of_device_id xgene_reboot_of_match[] = {
-	{ .compatible = "apm,xgene-reboot" },
-	{}
+  { .compatible = "apm,xgene-reboot" },
+  {}
 };
 
 static struct platform_driver xgene_reboot_driver = {
-	.probe = xgene_reboot_probe,
-	.driver = {
-		.name = "xgene-reboot",
-		.of_match_table = xgene_reboot_of_match,
-	},
+  .probe = xgene_reboot_probe,
+  .driver = {
+    .name = "xgene-reboot",
+    .of_match_table = xgene_reboot_of_match,
+  },
 };
 builtin_platform_driver(xgene_reboot_driver);

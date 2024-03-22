@@ -21,26 +21,25 @@
  * Return: Attached PCMCIA device if @dev->hw_dev is non-%NULL.
  * Return %NULL if @dev->hw_dev is %NULL.
  */
-struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev)
-{
-	return dev->hw_dev ? to_pcmcia_dev(dev->hw_dev) : NULL;
+struct pcmcia_device *comedi_to_pcmcia_dev(struct comedi_device *dev) {
+  return dev->hw_dev ? to_pcmcia_dev(dev->hw_dev) : NULL;
 }
+
 EXPORT_SYMBOL_GPL(comedi_to_pcmcia_dev);
 
 static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
-				    void *priv_data)
-{
-	if (link->config_index == 0)
-		return -EINVAL;
-
-	return pcmcia_request_io(link);
+    void *priv_data) {
+  if (link->config_index == 0) {
+    return -EINVAL;
+  }
+  return pcmcia_request_io(link);
 }
 
 /**
  * comedi_pcmcia_enable() - Request the regions and enable the PCMCIA device
  * @dev: COMEDI device.
  * @conf_check: Optional callback to check each configuration option of the
- *	PCMCIA device and request I/O regions.
+ *  PCMCIA device and request I/O regions.
  *
  * Assuming @dev->hw_dev is non-%NULL, it is assumed to be pointing to a a
  * &struct device embedded in a &struct pcmcia_device.  The comedi PCMCIA
@@ -62,30 +61,29 @@ static int comedi_pcmcia_conf_check(struct pcmcia_device *link,
  * to release requested resources.
  *
  * Return:
- *	0 on success,
- *	-%ENODEV id @dev->hw_dev is %NULL,
- *	a negative error number from pcmcia_loop_config() if it fails,
- *	or a negative error number from pcmcia_enable_device() if it fails.
+ *  0 on success,
+ *  -%ENODEV id @dev->hw_dev is %NULL,
+ *  a negative error number from pcmcia_loop_config() if it fails,
+ *  or a negative error number from pcmcia_enable_device() if it fails.
  */
 int comedi_pcmcia_enable(struct comedi_device *dev,
-			 int (*conf_check)(struct pcmcia_device *p_dev,
-					   void *priv_data))
-{
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-	int ret;
-
-	if (!link)
-		return -ENODEV;
-
-	if (!conf_check)
-		conf_check = comedi_pcmcia_conf_check;
-
-	ret = pcmcia_loop_config(link, conf_check, NULL);
-	if (ret)
-		return ret;
-
-	return pcmcia_enable_device(link);
+    int (*conf_check)(struct pcmcia_device *p_dev,
+    void *priv_data)) {
+  struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+  int ret;
+  if (!link) {
+    return -ENODEV;
+  }
+  if (!conf_check) {
+    conf_check = comedi_pcmcia_conf_check;
+  }
+  ret = pcmcia_loop_config(link, conf_check, NULL);
+  if (ret) {
+    return ret;
+  }
+  return pcmcia_enable_device(link);
 }
+
 EXPORT_SYMBOL_GPL(comedi_pcmcia_enable);
 
 /**
@@ -96,13 +94,13 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_enable);
  * a &struct device embedded in a &struct pcmcia_device.  Call
  * pcmcia_disable_device() to disable and clean up the PCMCIA device.
  */
-void comedi_pcmcia_disable(struct comedi_device *dev)
-{
-	struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
-
-	if (link)
-		pcmcia_disable_device(link);
+void comedi_pcmcia_disable(struct comedi_device *dev) {
+  struct pcmcia_device *link = comedi_to_pcmcia_dev(dev);
+  if (link) {
+    pcmcia_disable_device(link);
+  }
 }
+
 EXPORT_SYMBOL_GPL(comedi_pcmcia_disable);
 
 /**
@@ -119,10 +117,10 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_disable);
  * negative error number on failure).
  */
 int comedi_pcmcia_auto_config(struct pcmcia_device *link,
-			      struct comedi_driver *driver)
-{
-	return comedi_auto_config(&link->dev, driver, 0);
+    struct comedi_driver *driver) {
+  return comedi_auto_config(&link->dev, driver, 0);
 }
+
 EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_config);
 
 /**
@@ -139,10 +137,10 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_config);
  * %COMEDI_DEVCONFIG ioctl, in which case this attempt to unconfigure it
  * again should be ignored.
  */
-void comedi_pcmcia_auto_unconfig(struct pcmcia_device *link)
-{
-	comedi_auto_unconfig(&link->dev);
+void comedi_pcmcia_auto_unconfig(struct pcmcia_device *link) {
+  comedi_auto_unconfig(&link->dev);
 }
+
 EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_unconfig);
 
 /**
@@ -157,22 +155,20 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_auto_unconfig);
  * Return: 0 on success, or a negative error number on failure.
  */
 int comedi_pcmcia_driver_register(struct comedi_driver *comedi_driver,
-				  struct pcmcia_driver *pcmcia_driver)
-{
-	int ret;
-
-	ret = comedi_driver_register(comedi_driver);
-	if (ret < 0)
-		return ret;
-
-	ret = pcmcia_register_driver(pcmcia_driver);
-	if (ret < 0) {
-		comedi_driver_unregister(comedi_driver);
-		return ret;
-	}
-
-	return 0;
+    struct pcmcia_driver *pcmcia_driver) {
+  int ret;
+  ret = comedi_driver_register(comedi_driver);
+  if (ret < 0) {
+    return ret;
+  }
+  ret = pcmcia_register_driver(pcmcia_driver);
+  if (ret < 0) {
+    comedi_driver_unregister(comedi_driver);
+    return ret;
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_register);
 
 /**
@@ -185,22 +181,22 @@ EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_register);
  * it directly, use the module_comedi_pcmcia_driver() helper macro instead.
  */
 void comedi_pcmcia_driver_unregister(struct comedi_driver *comedi_driver,
-				     struct pcmcia_driver *pcmcia_driver)
-{
-	pcmcia_unregister_driver(pcmcia_driver);
-	comedi_driver_unregister(comedi_driver);
+    struct pcmcia_driver *pcmcia_driver) {
+  pcmcia_unregister_driver(pcmcia_driver);
+  comedi_driver_unregister(comedi_driver);
 }
+
 EXPORT_SYMBOL_GPL(comedi_pcmcia_driver_unregister);
 
-static int __init comedi_pcmcia_init(void)
-{
-	return 0;
+static int __init comedi_pcmcia_init(void) {
+  return 0;
 }
+
 module_init(comedi_pcmcia_init);
 
-static void __exit comedi_pcmcia_exit(void)
-{
+static void __exit comedi_pcmcia_exit(void) {
 }
+
 module_exit(comedi_pcmcia_exit);
 
 MODULE_AUTHOR("https://www.comedi.org");

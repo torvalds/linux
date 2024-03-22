@@ -10,7 +10,6 @@
 
 #include <asm/irq_cpu.h>
 
-void __init arch_init_irq(void)
-{
-	mips_cpu_irq_init();
+void __init arch_init_irq(void) {
+  mips_cpu_irq_init();
 }

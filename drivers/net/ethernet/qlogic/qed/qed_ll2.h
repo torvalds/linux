@@ -26,93 +26,93 @@
 #define QED_MAX_NUM_OF_LL2_CONNS_PF            (4)
 #define QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF   (3)
 
-#define QED_MAX_NUM_OF_CTX_LL2_CONNS_PF	\
-	(QED_MAX_NUM_OF_LL2_CONNS_PF - QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF)
+#define QED_MAX_NUM_OF_CTX_LL2_CONNS_PF \
+  (QED_MAX_NUM_OF_LL2_CONNS_PF - QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF)
 
 #define QED_LL2_LEGACY_CONN_BASE_PF     0
 #define QED_LL2_CTX_CONN_BASE_PF        QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF
 
 struct qed_ll2_rx_packet {
-	struct list_head list_entry;
-	struct core_rx_bd_with_buff_len *rxq_bd;
-	dma_addr_t rx_buf_addr;
-	u16 buf_length;
-	void *cookie;
-	u8 placement_offset;
-	u16 parse_flags;
-	u16 packet_length;
-	u16 vlan;
-	u32 opaque_data[2];
+  struct list_head list_entry;
+  struct core_rx_bd_with_buff_len *rxq_bd;
+  dma_addr_t rx_buf_addr;
+  u16 buf_length;
+  void *cookie;
+  u8 placement_offset;
+  u16 parse_flags;
+  u16 packet_length;
+  u16 vlan;
+  u32 opaque_data[2];
 };
 
 struct qed_ll2_tx_packet {
-	struct list_head list_entry;
-	u16 bd_used;
-	bool notify_fw;
-	void *cookie;
-	/* Flexible Array of bds_set determined by max_bds_per_packet */
-	struct {
-		struct core_tx_bd *txq_bd;
-		dma_addr_t tx_frag;
-		u16 frag_len;
-	} bds_set[];
+  struct list_head list_entry;
+  u16 bd_used;
+  bool notify_fw;
+  void *cookie;
+  /* Flexible Array of bds_set determined by max_bds_per_packet */
+  struct {
+    struct core_tx_bd *txq_bd;
+    dma_addr_t tx_frag;
+    u16 frag_len;
+  } bds_set[];
 };
 
 struct qed_ll2_rx_queue {
-	/* Lock protecting the Rx queue manipulation */
-	spinlock_t lock;
-	struct qed_chain rxq_chain;
-	struct qed_chain rcq_chain;
-	u8 rx_sb_index;
-	u8 ctx_based;
-	bool b_cb_registered;
-	__le16 *p_fw_cons;
-	struct list_head active_descq;
-	struct list_head free_descq;
-	struct list_head posting_descq;
-	struct qed_ll2_rx_packet *descq_array;
-	void __iomem *set_prod_addr;
-	struct core_pwm_prod_update_data db_data;
+  /* Lock protecting the Rx queue manipulation */
+  spinlock_t lock;
+  struct qed_chain rxq_chain;
+  struct qed_chain rcq_chain;
+  u8 rx_sb_index;
+  u8 ctx_based;
+  bool b_cb_registered;
+  __le16 *p_fw_cons;
+  struct list_head active_descq;
+  struct list_head free_descq;
+  struct list_head posting_descq;
+  struct qed_ll2_rx_packet *descq_array;
+  void __iomem *set_prod_addr;
+  struct core_pwm_prod_update_data db_data;
 };
 
 struct qed_ll2_tx_queue {
-	/* Lock protecting the Tx queue manipulation */
-	spinlock_t lock;
-	struct qed_chain txq_chain;
-	u8 tx_sb_index;
-	bool b_cb_registered;
-	__le16 *p_fw_cons;
-	struct list_head active_descq;
-	struct list_head free_descq;
-	struct list_head sending_descq;
-	u16 cur_completing_bd_idx;
-	void __iomem *doorbell_addr;
-	struct core_db_data db_msg;
-	u16 bds_idx;
-	u16 cur_send_frag_num;
-	u16 cur_completing_frag_num;
-	bool b_completing_packet;
-	void *descq_mem; /* memory for variable sized qed_ll2_tx_packet*/
-	struct qed_ll2_tx_packet *cur_send_packet;
-	struct qed_ll2_tx_packet cur_completing_packet;
+  /* Lock protecting the Tx queue manipulation */
+  spinlock_t lock;
+  struct qed_chain txq_chain;
+  u8 tx_sb_index;
+  bool b_cb_registered;
+  __le16 *p_fw_cons;
+  struct list_head active_descq;
+  struct list_head free_descq;
+  struct list_head sending_descq;
+  u16 cur_completing_bd_idx;
+  void __iomem *doorbell_addr;
+  struct core_db_data db_msg;
+  u16 bds_idx;
+  u16 cur_send_frag_num;
+  u16 cur_completing_frag_num;
+  bool b_completing_packet;
+  void *descq_mem; /* memory for variable sized qed_ll2_tx_packet*/
+  struct qed_ll2_tx_packet *cur_send_packet;
+  struct qed_ll2_tx_packet cur_completing_packet;
 };
 
 struct qed_ll2_info {
-	/* Lock protecting the state of LL2 */
-	struct mutex mutex;
+  /* Lock protecting the state of LL2 */
+  struct mutex mutex;
 
-	struct qed_ll2_acquire_data_inputs input;
-	u32 cid;
-	u8 my_id;
-	u8 queue_id;
-	u8 tx_stats_id;
-	bool b_active;
-	enum core_tx_dest tx_dest;
-	u8 tx_stats_en;
-	bool main_func_queue;
-	struct qed_ll2_cbs cbs;
-	struct qed_ll2_rx_queue rx_queue;
-	struct qed_ll2_tx_queue tx_queue;
+  struct qed_ll2_acquire_data_inputs input;
+  u32 cid;
+  u8 my_id;
+  u8 queue_id;
+  u8 tx_stats_id;
+  bool b_active;
+  enum core_tx_dest tx_dest;
+  u8 tx_stats_en;
+  bool main_func_queue;
+  struct qed_ll2_cbs cbs;
+  struct qed_ll2_rx_queue rx_queue;
+  struct qed_ll2_tx_queue tx_queue;
 };
 
 extern const struct qed_ll2_ops qed_ll2_ops_pass;
@@ -155,13 +155,13 @@ int qed_ll2_establish_connection(void *cxt, u8 connection_handle);
  * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_post_rx_buffer(void *cxt,
-			   u8 connection_handle,
-			   dma_addr_t addr,
-			   u16 buf_len, void *cookie, u8 notify_fw);
+    u8 connection_handle,
+    dma_addr_t addr,
+    u16 buf_len, void *cookie, u8 notify_fw);
 
 /**
  * qed_ll2_prepare_tx_packet(): Request for start Tx BD
- *				to prepare Tx packet submission to FW.
+ *        to prepare Tx packet submission to FW.
  *
  * @cxt: Pointer to the hw-function [opaque to some].
  * @connection_handle: Connection handle.
@@ -171,9 +171,9 @@ int qed_ll2_post_rx_buffer(void *cxt,
  * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_prepare_tx_packet(void *cxt,
-			      u8 connection_handle,
-			      struct qed_ll2_tx_pkt_info *pkt,
-			      bool notify_fw);
+    u8 connection_handle,
+    struct qed_ll2_tx_pkt_info *pkt,
+    bool notify_fw);
 
 /**
  * qed_ll2_release_connection(): Releases resources allocated for LL2
@@ -201,8 +201,8 @@ void qed_ll2_release_connection(void *cxt, u8 connection_handle);
  * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_set_fragment_of_tx_packet(void *cxt,
-				      u8 connection_handle,
-				      dma_addr_t addr, u16 nbytes);
+    u8 connection_handle,
+    dma_addr_t addr, u16 nbytes);
 
 /**
  * qed_ll2_terminate_connection(): Stops Tx/Rx queues
@@ -226,7 +226,7 @@ int qed_ll2_terminate_connection(void *cxt, u8 connection_handle);
  * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_get_stats(void *cxt,
-		      u8 connection_handle, struct qed_ll2_stats *p_stats);
+    u8 connection_handle, struct qed_ll2_stats *p_stats);
 
 /**
  * qed_ll2_alloc(): Allocates LL2 connections set.

@@ -10,37 +10,37 @@
 #include <linux/device.h>
 
 struct fsi_device {
-	struct device		dev;
-	u8			engine_type;
-	u8			version;
-	u8			unit;
-	struct fsi_slave	*slave;
-	uint32_t		addr;
-	uint32_t		size;
+  struct device dev;
+  u8 engine_type;
+  u8 version;
+  u8 unit;
+  struct fsi_slave *slave;
+  uint32_t addr;
+  uint32_t size;
 };
 
 extern int fsi_device_read(struct fsi_device *dev, uint32_t addr,
-		void *val, size_t size);
+    void *val, size_t size);
 extern int fsi_device_write(struct fsi_device *dev, uint32_t addr,
-		const void *val, size_t size);
+    const void *val, size_t size);
 extern int fsi_device_peek(struct fsi_device *dev, void *val);
 
 struct fsi_device_id {
-	u8	engine_type;
-	u8	version;
+  u8 engine_type;
+  u8 version;
 };
 
-#define FSI_VERSION_ANY		0
+#define FSI_VERSION_ANY   0
 
 #define FSI_DEVICE(t) \
-	.engine_type = (t), .version = FSI_VERSION_ANY,
+  .engine_type = (t), .version = FSI_VERSION_ANY,
 
 #define FSI_DEVICE_VERSIONED(t, v) \
-	.engine_type = (t), .version = (v),
+  .engine_type = (t), .version = (v),
 
 struct fsi_driver {
-	struct device_driver		drv;
-	const struct fsi_device_id	*id_table;
+  struct device_driver drv;
+  const struct fsi_device_id *id_table;
 };
 
 #define to_fsi_dev(devp) container_of(devp, struct fsi_device, dev)
@@ -55,31 +55,31 @@ extern void fsi_driver_unregister(struct fsi_driver *fsi_drv);
  * calling it replaces module_init() and module_exit()
  */
 #define module_fsi_driver(__fsi_driver) \
-		module_driver(__fsi_driver, fsi_driver_register, \
-				fsi_driver_unregister)
+  module_driver(__fsi_driver, fsi_driver_register, \
+    fsi_driver_unregister)
 
 /* direct slave API */
 extern int fsi_slave_claim_range(struct fsi_slave *slave,
-		uint32_t addr, uint32_t size);
+    uint32_t addr, uint32_t size);
 extern void fsi_slave_release_range(struct fsi_slave *slave,
-		uint32_t addr, uint32_t size);
+    uint32_t addr, uint32_t size);
 extern int fsi_slave_read(struct fsi_slave *slave, uint32_t addr,
-		void *val, size_t size);
+    void *val, size_t size);
 extern int fsi_slave_write(struct fsi_slave *slave, uint32_t addr,
-		const void *val, size_t size);
+    const void *val, size_t size);
 
 extern struct bus_type fsi_bus_type;
 extern const struct device_type fsi_cdev_type;
 
 enum fsi_dev_type {
-	fsi_dev_cfam,
-	fsi_dev_sbefifo,
-	fsi_dev_scom,
-	fsi_dev_occ
+  fsi_dev_cfam,
+  fsi_dev_sbefifo,
+  fsi_dev_scom,
+  fsi_dev_occ
 };
 
 extern int fsi_get_new_minor(struct fsi_device *fdev, enum fsi_dev_type type,
-			     dev_t *out_dev, int *out_index);
+    dev_t *out_dev, int *out_index);
 extern void fsi_free_minor(dev_t dev);
 
 #endif /* LINUX_FSI_H */

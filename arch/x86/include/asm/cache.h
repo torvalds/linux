@@ -5,8 +5,8 @@
 #include <linux/linkage.h>
 
 /* L1 cache line size */
-#define L1_CACHE_SHIFT	(CONFIG_X86_L1_CACHE_SHIFT)
-#define L1_CACHE_BYTES	(1 << L1_CACHE_SHIFT)
+#define L1_CACHE_SHIFT  (CONFIG_X86_L1_CACHE_SHIFT)
+#define L1_CACHE_BYTES  (1 << L1_CACHE_SHIFT)
 
 #define __read_mostly __section(".data..read_mostly")
 
@@ -15,9 +15,9 @@
 
 #ifdef CONFIG_X86_VSMP
 #ifdef CONFIG_SMP
-#define __cacheline_aligned_in_smp					\
-	__attribute__((__aligned__(INTERNODE_CACHE_BYTES)))		\
-	__page_aligned_data
+#define __cacheline_aligned_in_smp          \
+  __attribute__((__aligned__(INTERNODE_CACHE_BYTES)))   \
+  __page_aligned_data
 #endif
 #endif
 

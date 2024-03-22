@@ -15,7 +15,7 @@
  * @cfgchip: CFGCHIP syscon regmap
  */
 struct da8xx_usb_phy_platform_data {
-	struct regmap *cfgchip;
+  struct regmap *cfgchip;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_PHY_DA8XX_USB_H__ */

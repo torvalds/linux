@@ -18,16 +18,16 @@
  * A block size of 256 was chosen because it roughly doubles unwinder
  * performance while only adding ~5% to the ORC data footprint.
  */
-#define LOOKUP_BLOCK_ORDER	8
-#define LOOKUP_BLOCK_SIZE	(1 << LOOKUP_BLOCK_ORDER)
+#define LOOKUP_BLOCK_ORDER  8
+#define LOOKUP_BLOCK_SIZE (1 << LOOKUP_BLOCK_ORDER)
 
 #ifndef LINKER_SCRIPT
 
 extern unsigned int orc_lookup[];
 extern unsigned int orc_lookup_end[];
 
-#define LOOKUP_START_IP		(unsigned long)_stext
-#define LOOKUP_STOP_IP		(unsigned long)_etext
+#define LOOKUP_START_IP   (unsigned long) _stext
+#define LOOKUP_STOP_IP    (unsigned long) _etext
 
 #endif /* LINKER_SCRIPT */
 

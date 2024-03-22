@@ -11,10 +11,10 @@
 #include <media/dvb_frontend.h>
 
 struct m88rs6000t_config {
-	/*
-	 * pointer to DVB frontend
-	 */
-	struct dvb_frontend *fe;
+  /*
+   * pointer to DVB frontend
+   */
+  struct dvb_frontend *fe;
 };
 
 #endif

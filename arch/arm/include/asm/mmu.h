@@ -6,27 +6,27 @@
 
 typedef struct {
 #ifdef CONFIG_CPU_HAS_ASID
-	atomic64_t	id;
+  atomic64_t id;
 #else
-	int		switch_pending;
+  int switch_pending;
 #endif
-	atomic_t	vmalloc_seq;
-	unsigned long	sigpage;
+  atomic_t vmalloc_seq;
+  unsigned long sigpage;
 #ifdef CONFIG_VDSO
-	unsigned long	vdso;
+  unsigned long vdso;
 #endif
 #ifdef CONFIG_BINFMT_ELF_FDPIC
-	unsigned long	exec_fdpic_loadmap;
-	unsigned long	interp_fdpic_loadmap;
+  unsigned long exec_fdpic_loadmap;
+  unsigned long interp_fdpic_loadmap;
 #endif
 } mm_context_t;
 
 #ifdef CONFIG_CPU_HAS_ASID
-#define ASID_BITS	8
-#define ASID_MASK	((~0ULL) << ASID_BITS)
-#define ASID(mm)	((unsigned int)((mm)->context.id.counter & ~ASID_MASK))
+#define ASID_BITS 8
+#define ASID_MASK ((~0ULL) << ASID_BITS)
+#define ASID(mm)  ((unsigned int) ((mm)->context.id.counter & ~ASID_MASK))
 #else
-#define ASID(mm)	(0)
+#define ASID(mm)  (0)
 #endif
 
 #else
@@ -37,10 +37,10 @@ typedef struct {
  *  modified for 2.6 by Hyok S. Choi <hyok.choi@samsung.com>
  */
 typedef struct {
-	unsigned long	end_brk;
+  unsigned long end_brk;
 #ifdef CONFIG_BINFMT_ELF_FDPIC
-	unsigned long	exec_fdpic_loadmap;
-	unsigned long	interp_fdpic_loadmap;
+  unsigned long exec_fdpic_loadmap;
+  unsigned long interp_fdpic_loadmap;
 #endif
 } mm_context_t;
 

@@ -9,7 +9,7 @@
  * See the manufacturer's datasheet for more information on these modes.
  */
 
-#define MT6397_BUCK_MODE_AUTO		0
-#define MT6397_BUCK_MODE_FORCE_PWM	1
+#define MT6397_BUCK_MODE_AUTO   0
+#define MT6397_BUCK_MODE_FORCE_PWM  1
 
 #endif

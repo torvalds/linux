@@ -2,8 +2,8 @@
 /*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
+ *  http://armlinux.simtec.co.uk/
+ *  Ben Dooks <ben@simtec.co.uk>
  *
  * S3C Platform - GPIO pin configuration
  */
@@ -47,27 +47,28 @@ struct samsung_gpio_chip;
  * @sa s3c_gpio_getpull
  */
 struct samsung_gpio_cfg {
-	unsigned int	cfg_eint;
+  unsigned int cfg_eint;
 
-	samsung_gpio_pull_t	(*get_pull)(struct samsung_gpio_chip *chip, unsigned offs);
-	int		(*set_pull)(struct samsung_gpio_chip *chip, unsigned offs,
-				    samsung_gpio_pull_t pull);
+  samsung_gpio_pull_t (*get_pull)(struct samsung_gpio_chip *chip,
+      unsigned offs);
+  int (*set_pull)(struct samsung_gpio_chip *chip, unsigned offs,
+      samsung_gpio_pull_t pull);
 
-	unsigned (*get_config)(struct samsung_gpio_chip *chip, unsigned offs);
-	int	 (*set_config)(struct samsung_gpio_chip *chip, unsigned offs,
-			       unsigned config);
+  unsigned (*get_config)(struct samsung_gpio_chip *chip, unsigned offs);
+  int (*set_config)(struct samsung_gpio_chip *chip, unsigned offs,
+      unsigned config);
 };
 
-#define S3C_GPIO_SPECIAL_MARK	(0xfffffff0)
-#define S3C_GPIO_SPECIAL(x)	(S3C_GPIO_SPECIAL_MARK | (x))
+#define S3C_GPIO_SPECIAL_MARK (0xfffffff0)
+#define S3C_GPIO_SPECIAL(x) (S3C_GPIO_SPECIAL_MARK | (x))
 
 /* Defines for generic pin configurations */
-#define S3C_GPIO_INPUT	(S3C_GPIO_SPECIAL(0))
-#define S3C_GPIO_OUTPUT	(S3C_GPIO_SPECIAL(1))
-#define S3C_GPIO_SFN(x)	(S3C_GPIO_SPECIAL(x))
+#define S3C_GPIO_INPUT  (S3C_GPIO_SPECIAL(0))
+#define S3C_GPIO_OUTPUT (S3C_GPIO_SPECIAL(1))
+#define S3C_GPIO_SFN(x) (S3C_GPIO_SPECIAL(x))
 
 #define samsung_gpio_is_cfg_special(_cfg) \
-	(((_cfg) & S3C_GPIO_SPECIAL_MARK) == S3C_GPIO_SPECIAL_MARK)
+  (((_cfg) & S3C_GPIO_SPECIAL_MARK) == S3C_GPIO_SPECIAL_MARK)
 
 /**
  * s3c_gpio_cfgpin() - Change the GPIO function of a pin.
@@ -85,8 +86,8 @@ struct samsung_gpio_cfg {
  * If a bank of GPIOs all needs to be set to special-function 2, then
  * the following code will work:
  *
- *	for (gpio = start; gpio < end; gpio++)
- *		s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
+ *  for (gpio = start; gpio < end; gpio++)
+ *    s3c_gpio_cfgpin(gpio, S3C_GPIO_SFN(2));
  *
  * The @to parameter can also be a specific value already shifted to the
  * correct position in the control register, although these are discouraged
@@ -105,7 +106,7 @@ extern int s3c_gpio_cfgpin(unsigned int pin, unsigned int to);
  * @sa s3c_gpio_cfgpin.
  */
 extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
-				 unsigned int cfg);
+    unsigned int cfg);
 
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
@@ -114,9 +115,9 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
  * up or down settings, and it may be dependent on the chip that is being
  * used to whether the particular mode is available.
  */
-#define S3C_GPIO_PULL_NONE	((__force samsung_gpio_pull_t)0x00)
-#define S3C_GPIO_PULL_DOWN	((__force samsung_gpio_pull_t)0x01)
-#define S3C_GPIO_PULL_UP	((__force samsung_gpio_pull_t)0x02)
+#define S3C_GPIO_PULL_NONE  ((__force samsung_gpio_pull_t) 0x00)
+#define S3C_GPIO_PULL_DOWN  ((__force samsung_gpio_pull_t) 0x01)
+#define S3C_GPIO_PULL_UP  ((__force samsung_gpio_pull_t) 0x02)
 
 /**
  * s3c_gpio_setpull() - set the state of a gpio pin pull resistor
@@ -128,7 +129,7 @@ extern int s3c_gpio_cfgpin_range(unsigned int start, unsigned int nr,
  * code if the pin cannot support the requested pull setting.
  *
  * @pull is one of S3C_GPIO_PULL_NONE, S3C_GPIO_PULL_DOWN or S3C_GPIO_PULL_UP.
-*/
+ */
 extern int s3c_gpio_setpull(unsigned int pin, samsung_gpio_pull_t pull);
 
 /* configure `all` aspects of an gpio */
@@ -148,12 +149,11 @@ extern int s3c_gpio_setpull(unsigned int pin, samsung_gpio_pull_t pull);
  * @sa s3c_gpio_cfgpin_range
  */
 extern int s3c_gpio_cfgall_range(unsigned int start, unsigned int nr,
-				 unsigned int cfg, samsung_gpio_pull_t pull);
+    unsigned int cfg, samsung_gpio_pull_t pull);
 
 static inline int s3c_gpio_cfgrange_nopull(unsigned int pin, unsigned int size,
-					   unsigned int cfg)
-{
-	return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_NONE);
+    unsigned int cfg) {
+  return s3c_gpio_cfgall_range(pin, size, cfg, S3C_GPIO_PULL_NONE);
 }
 
 #endif /* __PLAT_GPIO_CFG_H */

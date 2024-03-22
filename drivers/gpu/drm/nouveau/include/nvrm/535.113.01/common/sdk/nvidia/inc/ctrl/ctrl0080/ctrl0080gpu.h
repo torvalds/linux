@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl0080_ctrl0080gpu_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl0080_ctrl0080gpu_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2004-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2004-2022 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,22 +29,22 @@
  */
 
 typedef struct NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS {
-    NvU32  totalVFs;
-    NvU32  firstVfOffset;
-    NvU32  vfFeatureMask;
-    NV_DECLARE_ALIGNED(NvU64 FirstVFBar0Address, 8);
-    NV_DECLARE_ALIGNED(NvU64 FirstVFBar1Address, 8);
-    NV_DECLARE_ALIGNED(NvU64 FirstVFBar2Address, 8);
-    NV_DECLARE_ALIGNED(NvU64 bar0Size, 8);
-    NV_DECLARE_ALIGNED(NvU64 bar1Size, 8);
-    NV_DECLARE_ALIGNED(NvU64 bar2Size, 8);
-    NvBool b64bitBar0;
-    NvBool b64bitBar1;
-    NvBool b64bitBar2;
-    NvBool bSriovEnabled;
-    NvBool bSriovHeavyEnabled;
-    NvBool bEmulateVFBar0TlbInvalidationRegister;
-    NvBool bClientRmAllocatedCtxBuffer;
+  NvU32 totalVFs;
+  NvU32 firstVfOffset;
+  NvU32 vfFeatureMask;
+  NV_DECLARE_ALIGNED(NvU64 FirstVFBar0Address, 8);
+  NV_DECLARE_ALIGNED(NvU64 FirstVFBar1Address, 8);
+  NV_DECLARE_ALIGNED(NvU64 FirstVFBar2Address, 8);
+  NV_DECLARE_ALIGNED(NvU64 bar0Size, 8);
+  NV_DECLARE_ALIGNED(NvU64 bar1Size, 8);
+  NV_DECLARE_ALIGNED(NvU64 bar2Size, 8);
+  NvBool b64bitBar0;
+  NvBool b64bitBar1;
+  NvBool b64bitBar2;
+  NvBool bSriovEnabled;
+  NvBool bSriovHeavyEnabled;
+  NvBool bEmulateVFBar0TlbInvalidationRegister;
+  NvBool bClientRmAllocatedCtxBuffer;
 } NV0080_CTRL_GPU_GET_SRIOV_CAPS_PARAMS;
 
 #endif

@@ -15,20 +15,17 @@
  * the returned value is 0.
  * It can be used to implement bit locks.
  */
-static __always_inline int
-arch_test_and_set_bit_lock(unsigned int nr, volatile unsigned long *p)
-{
-	long old;
-	unsigned long mask = BIT_MASK(nr);
-
-	p += BIT_WORD(nr);
-	if (READ_ONCE(*p) & mask)
-		return 1;
-
-	old = raw_atomic_long_fetch_or_acquire(mask, (atomic_long_t *)p);
-	return !!(old & mask);
+static __always_inline int arch_test_and_set_bit_lock(unsigned int nr,
+    volatile unsigned long *p) {
+  long old;
+  unsigned long mask = BIT_MASK(nr);
+  p += BIT_WORD(nr);
+  if (READ_ONCE(*p) & mask) {
+    return 1;
+  }
+  old = raw_atomic_long_fetch_or_acquire(mask, (atomic_long_t *) p);
+  return !!(old & mask);
 }
-
 
 /**
  * arch_clear_bit_unlock - Clear a bit in memory, for unlock
@@ -37,11 +34,10 @@ arch_test_and_set_bit_lock(unsigned int nr, volatile unsigned long *p)
  *
  * This operation is atomic and provides release barrier semantics.
  */
-static __always_inline void
-arch_clear_bit_unlock(unsigned int nr, volatile unsigned long *p)
-{
-	p += BIT_WORD(nr);
-	raw_atomic_long_fetch_andnot_release(BIT_MASK(nr), (atomic_long_t *)p);
+static __always_inline void arch_clear_bit_unlock(unsigned int nr,
+    volatile unsigned long *p) {
+  p += BIT_WORD(nr);
+  raw_atomic_long_fetch_andnot_release(BIT_MASK(nr), (atomic_long_t *) p);
 }
 
 /**
@@ -55,26 +51,23 @@ arch_clear_bit_unlock(unsigned int nr, volatile unsigned long *p)
  *
  * See for example x86's implementation.
  */
-static inline void
-arch___clear_bit_unlock(unsigned int nr, volatile unsigned long *p)
-{
-	unsigned long old;
-
-	p += BIT_WORD(nr);
-	old = READ_ONCE(*p);
-	old &= ~BIT_MASK(nr);
-	raw_atomic_long_set_release((atomic_long_t *)p, old);
+static inline void arch___clear_bit_unlock(unsigned int nr,
+    volatile unsigned long *p) {
+  unsigned long old;
+  p += BIT_WORD(nr);
+  old = READ_ONCE(*p);
+  old &= ~BIT_MASK(nr);
+  raw_atomic_long_set_release((atomic_long_t *) p, old);
 }
 
 #ifndef arch_xor_unlock_is_negative_byte
 static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
-		volatile unsigned long *p)
-{
-	long old;
-
-	old = raw_atomic_long_fetch_xor_release(mask, (atomic_long_t *)p);
-	return !!(old & BIT(7));
+    volatile unsigned long *p) {
+  long old;
+  old = raw_atomic_long_fetch_xor_release(mask, (atomic_long_t *) p);
+  return !!(old & BIT(7));
 }
+
 #endif
 
 #include <asm-generic/bitops/instrumented-lock.h>

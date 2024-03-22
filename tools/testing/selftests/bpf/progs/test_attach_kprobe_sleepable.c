@@ -14,10 +14,9 @@ int kprobe_res = 0;
  * and should thus be unattachable.
  */
 SEC("kprobe/" SYS_PREFIX "sys_nanosleep")
-int handle_kprobe_sleepable(struct pt_regs *ctx)
-{
-	kprobe_res = 1;
-	return 0;
+int handle_kprobe_sleepable(struct pt_regs *ctx) {
+  kprobe_res = 1;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

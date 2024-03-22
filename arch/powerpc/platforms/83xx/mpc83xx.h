@@ -74,10 +74,10 @@ extern void mpc83xx_ipic_init_IRQ(void);
 #ifdef CONFIG_PCI
 extern void mpc83xx_setup_pci(void);
 #else
-#define mpc83xx_setup_pci	NULL
+#define mpc83xx_setup_pci NULL
 #endif
 
 extern int mpc83xx_declare_of_platform_devices(void);
 extern void mpc83xx_setup_arch(void);
 
-#endif				/* __MPC83XX_H__ */
+#endif        /* __MPC83XX_H__ */

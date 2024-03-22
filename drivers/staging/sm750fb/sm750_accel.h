@@ -25,7 +25,7 @@
 #define DE_SOURCE_WRAP                                  BIT(31)
 #define DE_SOURCE_X_K1_SHIFT                            16
 #define DE_SOURCE_X_K1_MASK                             (0x3fff << 16)
-#define DE_SOURCE_X_K1_MONO_MASK			(0x1f << 16)
+#define DE_SOURCE_X_K1_MONO_MASK      (0x1f << 16)
 #define DE_SOURCE_Y_K2_MASK                             0xffff
 
 #define DE_DESTINATION                                  0x4
@@ -190,9 +190,9 @@ void sm750_hw_set2dformat(struct lynx_accel *accel, int fmt);
 void sm750_hw_de_init(struct lynx_accel *accel);
 
 int sm750_hw_fillrect(struct lynx_accel *accel,
-		      u32 base, u32 pitch, u32 Bpp,
-		      u32 x, u32 y, u32 width, u32 height,
-		      u32 color, u32 rop);
+    u32 base, u32 pitch, u32 Bpp,
+    u32 x, u32 y, u32 width, u32 height,
+    u32 color, u32 rop);
 
 /**
  * sm750_hm_copyarea
@@ -210,12 +210,12 @@ int sm750_hw_fillrect(struct lynx_accel *accel,
  * @rop2: ROP value
  */
 int sm750_hw_copyarea(struct lynx_accel *accel,
-		      unsigned int sBase, unsigned int sPitch,
-		      unsigned int sx, unsigned int sy,
-		      unsigned int dBase, unsigned int dPitch,
-		      unsigned int Bpp, unsigned int dx, unsigned int dy,
-		      unsigned int width, unsigned int height,
-		      unsigned int rop2);
+    unsigned int sBase, unsigned int sPitch,
+    unsigned int sx, unsigned int sy,
+    unsigned int dBase, unsigned int dPitch,
+    unsigned int Bpp, unsigned int dx, unsigned int dy,
+    unsigned int width, unsigned int height,
+    unsigned int rop2);
 
 /**
  * sm750_hw_imageblit
@@ -236,8 +236,8 @@ int sm750_hw_copyarea(struct lynx_accel *accel,
  * @rop2: ROP value
  */
 int sm750_hw_imageblit(struct lynx_accel *accel, const char *pSrcbuf,
-		       u32 srcDelta, u32 startBit, u32 dBase, u32 dPitch,
-		       u32 bytePerPixel, u32 dx, u32 dy, u32 width,
-		       u32 height, u32 fColor, u32 bColor, u32 rop2);
+    u32 srcDelta, u32 startBit, u32 dBase, u32 dPitch,
+    u32 bytePerPixel, u32 dx, u32 dy, u32 width,
+    u32 height, u32 fColor, u32 bColor, u32 rop2);
 
 #endif

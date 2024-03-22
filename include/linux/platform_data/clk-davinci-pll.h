@@ -15,7 +15,7 @@
  * @cfgchip: CFGCHIP syscon regmap
  */
 struct davinci_pll_platform_data {
-	struct regmap *cfgchip;
+  struct regmap *cfgchip;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_CLK_DAVINCI_PLL_H__ */

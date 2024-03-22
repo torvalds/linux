@@ -36,22 +36,22 @@
  * through on success).
  *
  * On Entry:
- * 	<aa>	register containing memory address
- * 	<as>	register containing memory size
- * 	<at>	temp register
- * 	<error>	label to branch to on error; implies fall-through
- * 		macro on success
+ *  <aa>  register containing memory address
+ *  <as>  register containing memory size
+ *  <at>  temp register
+ *  <error> label to branch to on error; implies fall-through
+ *    macro on success
  * On Exit:
- * 	<aa>	preserved
- * 	<as>	preserved
- * 	<at>	destroyed (actually, (TASK_SIZE + 1 - size))
+ *  <aa>  preserved
+ *  <as>  preserved
+ *  <at>  destroyed (actually, (TASK_SIZE + 1 - size))
  */
-	.macro	user_ok	aa, as, at, error
-	movi	\at, __XTENSA_UL_CONST(TASK_SIZE)
-	bgeu	\as, \at, \error
-	sub	\at, \at, \as
-	bgeu	\aa, \at, \error
-	.endm
+.macro user_ok aa, as, at, error
+movi  \ at, __XTENSA_UL_CONST(TASK_SIZE)
+bgeu  \ as, \ at, \ error
+sub \ at, \ at, \ as
+bgeu  \ aa, \ at, \ error
+.endm
 
 /*
  * access_ok determines whether a memory access is allowed.  See the
@@ -65,20 +65,20 @@
  * branch fall-through case on success.
  *
  * On Entry:
- * 	<aa>	register containing memory address
- * 	<as>	register containing memory size
- * 	<at>	temp register
- * 	<sp>
- * 	<error>	label to branch to on error; implies fall-through
- * 		macro on success
+ *  <aa>  register containing memory address
+ *  <as>  register containing memory size
+ *  <at>  temp register
+ *  <sp>
+ *  <error> label to branch to on error; implies fall-through
+ *    macro on success
  * On Exit:
- * 	<aa>	preserved
- * 	<as>	preserved
- * 	<at>	destroyed
+ *  <aa>  preserved
+ *  <as>  preserved
+ *  <at>  destroyed
  */
-	.macro	access_ok  aa, as, at, sp, error
-	user_ok    \aa, \as, \at, \error
-.Laccess_ok_\@:
-	.endm
+.macro access_ok aa, as, at, sp, error
+user_ok    \ aa, \ as, \ at, \ error
+.Laccess_ok_ \ @:
+.endm
 
-#endif	/* _XTENSA_ASM_UACCESS_H */
+#endif  /* _XTENSA_ASM_UACCESS_H */

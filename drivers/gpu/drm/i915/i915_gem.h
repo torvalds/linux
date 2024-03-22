@@ -39,12 +39,12 @@ struct i915_gem_ww_ctx;
 struct i915_gtt_view;
 struct i915_vma;
 
-#define I915_GEM_GPU_DOMAINS	       \
-	(I915_GEM_DOMAIN_RENDER |      \
-	 I915_GEM_DOMAIN_SAMPLER |     \
-	 I915_GEM_DOMAIN_COMMAND |     \
-	 I915_GEM_DOMAIN_INSTRUCTION | \
-	 I915_GEM_DOMAIN_VERTEX)
+#define I915_GEM_GPU_DOMAINS         \
+  (I915_GEM_DOMAIN_RENDER        \
+  | I915_GEM_DOMAIN_SAMPLER       \
+  | I915_GEM_DOMAIN_COMMAND       \
+  | I915_GEM_DOMAIN_INSTRUCTION   \
+  | I915_GEM_DOMAIN_VERTEX)
 
 void i915_gem_init_early(struct drm_i915_private *i915);
 void i915_gem_cleanup_early(struct drm_i915_private *i915);
@@ -52,19 +52,19 @@ void i915_gem_cleanup_early(struct drm_i915_private *i915);
 void i915_gem_drain_freed_objects(struct drm_i915_private *i915);
 void i915_gem_drain_workqueue(struct drm_i915_private *i915);
 
-struct i915_vma * __must_check
-i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
-			    struct i915_gem_ww_ctx *ww,
-			    const struct i915_gtt_view *view,
-			    u64 size, u64 alignment, u64 flags);
+struct i915_vma *__must_check i915_gem_object_ggtt_pin_ww(
+  struct drm_i915_gem_object *obj,
+  struct i915_gem_ww_ctx *ww,
+  const struct i915_gtt_view *view,
+  u64 size, u64 alignment, u64 flags);
 
-struct i915_vma * __must_check
-i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
-			 const struct i915_gtt_view *view,
-			 u64 size, u64 alignment, u64 flags);
+struct i915_vma *__must_check i915_gem_object_ggtt_pin(
+  struct drm_i915_gem_object *obj,
+  const struct i915_gtt_view *view,
+  u64 size, u64 alignment, u64 flags);
 
 int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
-			   unsigned long flags);
+    unsigned long flags);
 #define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
 #define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
 #define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
@@ -91,16 +91,16 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 #define __GEM_BUG(cond) BUG()
 #else
 #define __GEM_BUG(cond) \
-	WARN(1, "%s:%d GEM_BUG_ON(%s)\n", __func__, __LINE__, __stringify(cond))
+  WARN(1, "%s:%d GEM_BUG_ON(%s)\n", __func__, __LINE__, __stringify(cond))
 #endif
 
-#define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
-		GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
-			      __func__, __LINE__, __stringify(condition)); \
-		GEM_TRACE_DUMP(); \
-		__GEM_BUG(condition); \
-		} \
-	} while(0)
+#define GEM_BUG_ON(condition) do { if (unlikely((condition))) { \
+                                     GEM_TRACE_ERR("%s:%d GEM_BUG_ON(%s)\n", \
+    __func__, __LINE__, __stringify(condition)); \
+                                     GEM_TRACE_DUMP(); \
+                                     __GEM_BUG(condition); \
+                                   } \
+} while (0)
 #define GEM_WARN_ON(expr) WARN_ON(expr)
 
 #define GEM_DEBUG_WARN_ON(expr) GEM_WARN_ON(expr)
@@ -117,18 +117,18 @@ int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
-#define GEM_TRACE_ERR(...) do {						\
-	pr_err(__VA_ARGS__);						\
-	trace_printk(__VA_ARGS__);					\
+#define GEM_TRACE_ERR(...) do {           \
+    pr_err(__VA_ARGS__);            \
+    trace_printk(__VA_ARGS__);          \
 } while (0)
 #define GEM_TRACE_DUMP() \
-	do { ftrace_dump(DUMP_ALL); __add_taint_for_CI(TAINT_WARN); } while (0)
+  do { ftrace_dump(DUMP_ALL); __add_taint_for_CI(TAINT_WARN); } while (0)
 #define GEM_TRACE_DUMP_ON(expr) \
-	do { if (expr) GEM_TRACE_DUMP(); } while (0)
+  do { if (expr) GEM_TRACE_DUMP(); } while (0)
 #else
-#define GEM_TRACE(...) do { } while (0)
-#define GEM_TRACE_ERR(...) do { } while (0)
-#define GEM_TRACE_DUMP() do { } while (0)
+#define GEM_TRACE(...) do {} while (0)
+#define GEM_TRACE_ERR(...) do {} while (0)
+#define GEM_TRACE_DUMP() do {} while (0)
 #define GEM_TRACE_DUMP_ON(expr) BUILD_BUG_ON_INVALID(expr)
 #endif
 

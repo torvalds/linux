@@ -17,50 +17,48 @@
 
 #include "fxos8700.h"
 
-static int fxos8700_i2c_probe(struct i2c_client *client)
-{
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	struct regmap *regmap;
-	const char *name = NULL;
-
-	regmap = devm_regmap_init_i2c(client, &fxos8700_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&client->dev, "Failed to register i2c regmap %ld\n", PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
-
-	if (id)
-		name = id->name;
-
-	return fxos8700_core_probe(&client->dev, regmap, name, false);
+static int fxos8700_i2c_probe(struct i2c_client *client) {
+  const struct i2c_device_id *id = i2c_client_get_device_id(client);
+  struct regmap *regmap;
+  const char *name = NULL;
+  regmap = devm_regmap_init_i2c(client, &fxos8700_regmap_config);
+  if (IS_ERR(regmap)) {
+    dev_err(&client->dev, "Failed to register i2c regmap %ld\n",
+        PTR_ERR(regmap));
+    return PTR_ERR(regmap);
+  }
+  if (id) {
+    name = id->name;
+  }
+  return fxos8700_core_probe(&client->dev, regmap, name, false);
 }
 
 static const struct i2c_device_id fxos8700_i2c_id[] = {
-	{"fxos8700", 0},
-	{ }
+  {"fxos8700", 0},
+  {}
 };
 MODULE_DEVICE_TABLE(i2c, fxos8700_i2c_id);
 
 static const struct acpi_device_id fxos8700_acpi_match[] = {
-	{"FXOS8700", 0},
-	{ }
+  {"FXOS8700", 0},
+  {}
 };
 MODULE_DEVICE_TABLE(acpi, fxos8700_acpi_match);
 
 static const struct of_device_id fxos8700_of_match[] = {
-	{ .compatible = "nxp,fxos8700" },
-	{ }
+  { .compatible = "nxp,fxos8700" },
+  {}
 };
 MODULE_DEVICE_TABLE(of, fxos8700_of_match);
 
 static struct i2c_driver fxos8700_i2c_driver = {
-	.driver = {
-		.name                   = "fxos8700_i2c",
-		.acpi_match_table       = fxos8700_acpi_match,
-		.of_match_table         = fxos8700_of_match,
-	},
-	.probe          = fxos8700_i2c_probe,
-	.id_table       = fxos8700_i2c_id,
+  .driver = {
+    .name = "fxos8700_i2c",
+    .acpi_match_table = fxos8700_acpi_match,
+    .of_match_table = fxos8700_of_match,
+  },
+  .probe = fxos8700_i2c_probe,
+  .id_table = fxos8700_i2c_id,
 };
 module_i2c_driver(fxos8700_i2c_driver);
 

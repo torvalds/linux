@@ -16,68 +16,68 @@ struct ishtp_device;
 struct ishtp_cl;
 struct ishtp_fw_client;
 
-typedef __printf(2, 3) void (*ishtp_print_log)(struct ishtp_device *dev,
-					       const char *format, ...);
+typedef __printf (2, 3) void (*ishtp_print_log)(struct ishtp_device *dev,
+    const char *format, ...);
 
 /* Client state */
 enum cl_state {
-	ISHTP_CL_INITIALIZING = 0,
-	ISHTP_CL_CONNECTING,
-	ISHTP_CL_CONNECTED,
-	ISHTP_CL_DISCONNECTING,
-	ISHTP_CL_DISCONNECTED
+  ISHTP_CL_INITIALIZING = 0,
+  ISHTP_CL_CONNECTING,
+  ISHTP_CL_CONNECTED,
+  ISHTP_CL_DISCONNECTING,
+  ISHTP_CL_DISCONNECTED
 };
 
 /**
  * struct ishtp_cl_device - ISHTP device handle
- * @driver:	driver instance on a bus
- * @name:	Name of the device for probe
- * @probe:	driver callback for device probe
- * @remove:	driver callback on device removal
+ * @driver: driver instance on a bus
+ * @name: Name of the device for probe
+ * @probe:  driver callback for device probe
+ * @remove: driver callback on device removal
  *
  * Client drivers defines to get probed/removed for ISHTP client device.
  */
 struct ishtp_cl_driver {
-	struct device_driver driver;
-	const char *name;
-	const struct ishtp_device_id *id;
-	int (*probe)(struct ishtp_cl_device *dev);
-	void (*remove)(struct ishtp_cl_device *dev);
-	int (*reset)(struct ishtp_cl_device *dev);
-	const struct dev_pm_ops *pm;
+  struct device_driver driver;
+  const char *name;
+  const struct ishtp_device_id *id;
+  int (*probe)(struct ishtp_cl_device *dev);
+  void (*remove)(struct ishtp_cl_device *dev);
+  int (*reset)(struct ishtp_cl_device *dev);
+  const struct dev_pm_ops *pm;
 };
 
 /**
  * struct ishtp_msg_data - ISHTP message data struct
- * @size:	Size of data in the *data
- * @data:	Pointer to data
+ * @size: Size of data in the *data
+ * @data: Pointer to data
  */
 struct ishtp_msg_data {
-	uint32_t size;
-	unsigned char *data;
+  uint32_t size;
+  unsigned char *data;
 };
 
 /*
  * struct ishtp_cl_rb - request block structure
- * @list:	Link to list members
- * @cl:		ISHTP client instance
- * @buffer:	message header
- * @buf_idx:	Index into buffer
- * @read_time:	 unused at this time
+ * @list: Link to list members
+ * @cl:   ISHTP client instance
+ * @buffer: message header
+ * @buf_idx:  Index into buffer
+ * @read_time:   unused at this time
  */
 struct ishtp_cl_rb {
-	struct list_head list;
-	struct ishtp_cl *cl;
-	struct ishtp_msg_data buffer;
-	unsigned long buf_idx;
-	unsigned long read_time;
+  struct list_head list;
+  struct ishtp_cl *cl;
+  struct ishtp_msg_data buffer;
+  unsigned long buf_idx;
+  unsigned long read_time;
 };
 
 int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
-			     struct module *owner);
+    struct module *owner);
 void ishtp_cl_driver_unregister(struct ishtp_cl_driver *driver);
 int ishtp_register_event_cb(struct ishtp_cl_device *device,
-			    void (*read_cb)(struct ishtp_cl_device *));
+    void (*read_cb)(struct ishtp_cl_device *));
 
 /* Get the device * from ishtp device instance */
 struct device *ishtp_device(struct ishtp_cl_device *cl_device);
@@ -95,7 +95,7 @@ void ishtp_cl_unlink(struct ishtp_cl *cl);
 int ishtp_cl_disconnect(struct ishtp_cl *cl);
 int ishtp_cl_connect(struct ishtp_cl *cl);
 int ishtp_cl_establish_connection(struct ishtp_cl *cl, const guid_t *uuid,
-				  int tx_size, int rx_size, bool reset);
+    int tx_size, int rx_size, bool reset);
 void ishtp_cl_destroy_connection(struct ishtp_cl *cl, bool reset);
 int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length);
 int ishtp_cl_flush_queues(struct ishtp_cl *cl);
@@ -116,9 +116,9 @@ void ishtp_set_drvdata(struct ishtp_cl_device *cl_device, void *data);
 void *ishtp_get_drvdata(struct ishtp_cl_device *cl_device);
 struct ishtp_cl_device *ishtp_dev_to_cl_device(struct device *dev);
 int ishtp_register_event_cb(struct ishtp_cl_device *device,
-				void (*read_cb)(struct ishtp_cl_device *));
-struct	ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
-						const guid_t *uuid);
+    void (*read_cb)(struct ishtp_cl_device *));
+struct  ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
+    const guid_t *uuid);
 int ishtp_get_fw_client_id(struct ishtp_fw_client *fw_client);
 int ish_hw_reset(struct ishtp_device *dev);
 #endif /* _INTEL_ISH_CLIENT_IF_H_ */

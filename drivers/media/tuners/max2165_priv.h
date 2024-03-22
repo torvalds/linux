@@ -29,18 +29,18 @@
 #define REG_AUTOTUNE 0x12
 
 struct max2165_priv {
-	struct max2165_config *config;
-	struct i2c_adapter *i2c;
+  struct max2165_config *config;
+  struct i2c_adapter *i2c;
 
-	u32 frequency;
-	u32 bandwidth;
+  u32 frequency;
+  u32 bandwidth;
 
-	u8 tf_ntch_low_cfg;
-	u8 tf_ntch_hi_cfg;
-	u8 tf_balun_low_ref;
-	u8 tf_balun_hi_ref;
-	u8 bb_filter_7mhz_cfg;
-	u8 bb_filter_8mhz_cfg;
+  u8 tf_ntch_low_cfg;
+  u8 tf_ntch_hi_cfg;
+  u8 tf_balun_low_ref;
+  u8 tf_balun_hi_ref;
+  u8 bb_filter_7mhz_cfg;
+  u8 bb_filter_8mhz_cfg;
 };
 
 #endif

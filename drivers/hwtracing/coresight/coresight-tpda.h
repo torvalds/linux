@@ -6,19 +6,19 @@
 #ifndef _CORESIGHT_CORESIGHT_TPDA_H
 #define _CORESIGHT_CORESIGHT_TPDA_H
 
-#define TPDA_CR			(0x000)
-#define TPDA_Pn_CR(n)		(0x004 + (n * 4))
+#define TPDA_CR     (0x000)
+#define TPDA_Pn_CR(n)   (0x004 + (n * 4))
 /* Aggregator port enable bit */
-#define TPDA_Pn_CR_ENA		BIT(0)
+#define TPDA_Pn_CR_ENA    BIT(0)
 /* Aggregator port CMB data set element size bit */
-#define TPDA_Pn_CR_CMBSIZE		GENMASK(7, 6)
+#define TPDA_Pn_CR_CMBSIZE    GENMASK(7, 6)
 /* Aggregator port DSB data set element size bit */
-#define TPDA_Pn_CR_DSBSIZE		BIT(8)
+#define TPDA_Pn_CR_DSBSIZE    BIT(8)
 
-#define TPDA_MAX_INPORTS	32
+#define TPDA_MAX_INPORTS  32
 
 /* Bits 6 ~ 12 is for atid value */
-#define TPDA_CR_ATID		GENMASK(12, 6)
+#define TPDA_CR_ATID    GENMASK(12, 6)
 
 /**
  * struct tpda_drvdata - specifics associated to an TPDA component
@@ -31,13 +31,13 @@
  * @cmb_esize   Record the CMB element size.
  */
 struct tpda_drvdata {
-	void __iomem		*base;
-	struct device		*dev;
-	struct coresight_device	*csdev;
-	spinlock_t		spinlock;
-	u8			atid;
-	u32			dsb_esize;
-	u32			cmb_esize;
+  void __iomem *base;
+  struct device *dev;
+  struct coresight_device *csdev;
+  spinlock_t spinlock;
+  u8 atid;
+  u32 dsb_esize;
+  u32 cmb_esize;
 };
 
 #endif  /* _CORESIGHT_CORESIGHT_TPDA_H */

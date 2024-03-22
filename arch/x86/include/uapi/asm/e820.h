@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_X86_E820_H
 #define _UAPI_ASM_X86_E820_H
-#define E820MAP	0x2d0		/* our map */
-#define E820MAX	128		/* number of entries in E820MAP */
+#define E820MAP 0x2d0   /* our map */
+#define E820MAX 128   /* number of entries in E820MAP */
 
 /*
  * Legacy E820 BIOS limits us to 128 (E820MAX) nodes due to the
@@ -26,14 +26,14 @@
 #define E820_X_MAX E820MAX
 #endif
 
-#define E820NR	0x1e8		/* # entries in E820MAP */
+#define E820NR  0x1e8   /* # entries in E820MAP */
 
-#define E820_RAM	1
-#define E820_RESERVED	2
-#define E820_ACPI	3
-#define E820_NVS	4
-#define E820_UNUSABLE	5
-#define E820_PMEM	7
+#define E820_RAM  1
+#define E820_RESERVED 2
+#define E820_ACPI 3
+#define E820_NVS  4
+#define E820_UNUSABLE 5
+#define E820_PMEM 7
 
 /*
  * This is a non-standardized way to represent ADR or NVDIMM regions that
@@ -44,7 +44,7 @@
  *   but newer versions switched to 12 as 6 was assigned differently.  Some
  *   time they will learn... )
  */
-#define E820_PRAM	12
+#define E820_PRAM 12
 
 /*
  * reserved RAM used by kernel itself
@@ -57,26 +57,25 @@
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 struct e820entry {
-	__u64 addr;	/* start of memory segment */
-	__u64 size;	/* size of memory segment */
-	__u32 type;	/* type of memory segment */
+  __u64 addr; /* start of memory segment */
+  __u64 size; /* size of memory segment */
+  __u32 type; /* type of memory segment */
 } __attribute__((packed));
 
 struct e820map {
-	__u32 nr_map;
-	struct e820entry map[E820_X_MAX];
+  __u32 nr_map;
+  struct e820entry map[E820_X_MAX];
 };
 
-#define ISA_START_ADDRESS	0xa0000
-#define ISA_END_ADDRESS		0x100000
+#define ISA_START_ADDRESS 0xa0000
+#define ISA_END_ADDRESS   0x100000
 
-#define BIOS_BEGIN		0x000a0000
-#define BIOS_END		0x00100000
+#define BIOS_BEGIN    0x000a0000
+#define BIOS_END    0x00100000
 
-#define BIOS_ROM_BASE		0xffe00000
-#define BIOS_ROM_END		0xffffffff
+#define BIOS_ROM_BASE   0xffe00000
+#define BIOS_ROM_END    0xffffffff
 
 #endif /* __ASSEMBLY__ */
-
 
 #endif /* _UAPI_ASM_X86_E820_H */

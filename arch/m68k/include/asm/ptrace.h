@@ -15,13 +15,13 @@
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
 #define current_pt_regs() \
-	(struct pt_regs *)((char *)current_thread_info() + THREAD_SIZE) - 1
+  (struct pt_regs *) ((char *) current_thread_info() + THREAD_SIZE) - 1
 #define current_user_stack_pointer() rdusp()
 
-#define arch_has_single_step()	(1)
+#define arch_has_single_step()  (1)
 
 #ifdef CONFIG_MMU
-#define arch_has_block_step()	(1)
+#define arch_has_block_step() (1)
 #endif
 
 #endif /* __ASSEMBLY__ */

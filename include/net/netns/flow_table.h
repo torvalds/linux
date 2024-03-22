@@ -3,12 +3,12 @@
 #define __NETNS_FLOW_TABLE_H
 
 struct nf_flow_table_stat {
-	unsigned int count_wq_add;
-	unsigned int count_wq_del;
-	unsigned int count_wq_stats;
+  unsigned int count_wq_add;
+  unsigned int count_wq_del;
+  unsigned int count_wq_stats;
 };
 
 struct netns_ft {
-	struct nf_flow_table_stat __percpu *stat;
+  struct nf_flow_table_stat __percpu *stat;
 };
 #endif

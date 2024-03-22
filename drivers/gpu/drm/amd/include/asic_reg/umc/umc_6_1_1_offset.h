@@ -14,20 +14,29 @@
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
- * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN
+ * THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *WHETHER IN
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #ifndef _umc_6_1_1_OFFSET_HEADER
 #define _umc_6_1_1_OFFSET_HEADER
 
-#define mmUMCCH0_0_EccErrCntSel                                                                        0x0360
-#define mmUMCCH0_0_EccErrCntSel_BASE_IDX                                                               0
-#define mmUMCCH0_0_EccErrCnt                                                                           0x0361
-#define mmUMCCH0_0_EccErrCnt_BASE_IDX                                                                  0
-#define mmMCA_UMC_UMC0_MCUMC_STATUST0                                                                  0x03c2
-#define mmMCA_UMC_UMC0_MCUMC_STATUST0_BASE_IDX                                                         0
-#define mmMCA_UMC_UMC0_MCUMC_ADDRT0                                                                    0x03c4
-#define mmMCA_UMC_UMC0_MCUMC_ADDRT0_BASE_IDX                                                           0
+#define mmUMCCH0_0_EccErrCntSel                                                                        \
+  0x0360
+#define mmUMCCH0_0_EccErrCntSel_BASE_IDX                                                               \
+  0
+#define mmUMCCH0_0_EccErrCnt                                                                           \
+  0x0361
+#define mmUMCCH0_0_EccErrCnt_BASE_IDX                                                                  \
+  0
+#define mmMCA_UMC_UMC0_MCUMC_STATUST0                                                                  \
+  0x03c2
+#define mmMCA_UMC_UMC0_MCUMC_STATUST0_BASE_IDX                                                         \
+  0
+#define mmMCA_UMC_UMC0_MCUMC_ADDRT0                                                                    \
+  0x03c4
+#define mmMCA_UMC_UMC0_MCUMC_ADDRT0_BASE_IDX                                                           \
+  0
 
 #endif

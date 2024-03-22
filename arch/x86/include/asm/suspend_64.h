@@ -23,39 +23,39 @@
  * pointers that are aligned.
  */
 struct saved_context {
-	struct pt_regs regs;
+  struct pt_regs regs;
 
-	/*
-	 * User CS and SS are saved in current_pt_regs().  The rest of the
-	 * segment selectors need to be saved and restored here.
-	 */
-	u16 ds, es, fs, gs;
+  /*
+   * User CS and SS are saved in current_pt_regs().  The rest of the
+   * segment selectors need to be saved and restored here.
+   */
+  u16 ds, es, fs, gs;
 
-	/*
-	 * Usermode FSBASE and GSBASE may not match the fs and gs selectors,
-	 * so we save them separately.  We save the kernelmode GSBASE to
-	 * restore percpu access after resume.
-	 */
-	unsigned long kernelmode_gs_base, usermode_gs_base, fs_base;
+  /*
+   * Usermode FSBASE and GSBASE may not match the fs and gs selectors,
+   * so we save them separately.  We save the kernelmode GSBASE to
+   * restore percpu access after resume.
+   */
+  unsigned long kernelmode_gs_base, usermode_gs_base, fs_base;
 
-	unsigned long cr0, cr2, cr3, cr4;
-	u64 misc_enable;
-	struct saved_msrs saved_msrs;
-	unsigned long efer;
-	u16 gdt_pad; /* Unused */
-	struct desc_ptr gdt_desc;
-	u16 idt_pad;
-	struct desc_ptr idt;
-	u16 ldt;
-	u16 tss;
-	unsigned long tr;
-	unsigned long safety;
-	unsigned long return_address;
-	bool misc_enable_saved;
+  unsigned long cr0, cr2, cr3, cr4;
+  u64 misc_enable;
+  struct saved_msrs saved_msrs;
+  unsigned long efer;
+  u16 gdt_pad; /* Unused */
+  struct desc_ptr gdt_desc;
+  u16 idt_pad;
+  struct desc_ptr idt;
+  u16 ldt;
+  u16 tss;
+  unsigned long tr;
+  unsigned long safety;
+  unsigned long return_address;
+  bool misc_enable_saved;
 } __attribute__((packed));
 
-#define loaddebug(thread,register) \
-	set_debugreg((thread)->debugreg##register, register)
+#define loaddebug(thread, register) \
+  set_debugreg((thread)->debugreg ## register, register)
 
 /* routines for saving/restoring kernel state */
 extern char core_restore_code[];

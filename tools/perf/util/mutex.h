@@ -16,12 +16,14 @@
 #define HAVE_ATTRIBUTE(x) 0
 #endif
 
-#if HAVE_ATTRIBUTE(guarded_by) && HAVE_ATTRIBUTE(pt_guarded_by) && \
-	HAVE_ATTRIBUTE(lockable) && HAVE_ATTRIBUTE(exclusive_lock_function) && \
-	HAVE_ATTRIBUTE(exclusive_trylock_function) && HAVE_ATTRIBUTE(exclusive_locks_required) && \
-	HAVE_ATTRIBUTE(no_thread_safety_analysis)
+#if HAVE_ATTRIBUTE(guarded_by) && HAVE_ATTRIBUTE(pt_guarded_by)    \
+  && HAVE_ATTRIBUTE(lockable) && HAVE_ATTRIBUTE(exclusive_lock_function)    \
+  && HAVE_ATTRIBUTE(exclusive_trylock_function) \
+  && HAVE_ATTRIBUTE(exclusive_locks_required)    \
+  && HAVE_ATTRIBUTE(no_thread_safety_analysis)
 
-/* Documents if a shared field or global variable needs to be protected by a mutex. */
+/* Documents if a shared field or global variable needs to be protected by a
+ * mutex. */
 #define GUARDED_BY(x) __attribute__((guarded_by(x)))
 
 /*
@@ -33,8 +35,10 @@
 /* Documents if a type is a lockable type. */
 #define LOCKABLE __attribute__((lockable))
 
-/* Documents functions that acquire a lock in the body of a function, and do not release it. */
-#define EXCLUSIVE_LOCK_FUNCTION(...)  __attribute__((exclusive_lock_function(__VA_ARGS__)))
+/* Documents functions that acquire a lock in the body of a function, and do not
+ * release it. */
+#define EXCLUSIVE_LOCK_FUNCTION(...)  __attribute__((exclusive_lock_function( \
+    __VA_ARGS__)))
 
 /*
  * Documents functions that expect a lock to be held on entry to the function,
@@ -42,12 +46,14 @@
  */
 #define UNLOCK_FUNCTION(...) __attribute__((unlock_function(__VA_ARGS__)))
 
-/* Documents functions that try to acquire a lock, and return success or failure. */
+/* Documents functions that try to acquire a lock, and return success or
+ * failure. */
 #define EXCLUSIVE_TRYLOCK_FUNCTION(...) \
-	__attribute__((exclusive_trylock_function(__VA_ARGS__)))
+  __attribute__((exclusive_trylock_function(__VA_ARGS__)))
 
 /* Documents a function that expects a mutex to be held prior to entry. */
-#define EXCLUSIVE_LOCKS_REQUIRED(...) __attribute__((exclusive_locks_required(__VA_ARGS__)))
+#define EXCLUSIVE_LOCKS_REQUIRED(...) __attribute__((exclusive_locks_required( \
+    __VA_ARGS__)))
 
 /* Turns off thread safety checking within the body of a particular function. */
 #define NO_THREAD_SAFETY_ANALYSIS __attribute__((no_thread_safety_analysis))
@@ -70,12 +76,12 @@
  * usage, etc.
  */
 struct LOCKABLE mutex {
-	pthread_mutex_t lock;
+  pthread_mutex_t lock;
 };
 
 /* A wrapper around the condition variable implementation. */
 struct cond {
-	pthread_cond_t cond;
+  pthread_cond_t cond;
 };
 
 /* Default initialize the mtx struct. */
@@ -101,7 +107,8 @@ void cond_init(struct cond *cnd);
 void cond_init_pshared(struct cond *cnd);
 void cond_destroy(struct cond *cnd);
 
-void cond_wait(struct cond *cnd, struct mutex *mtx) EXCLUSIVE_LOCKS_REQUIRED(mtx);
+void cond_wait(struct cond *cnd,
+    struct mutex *mtx) EXCLUSIVE_LOCKS_REQUIRED(mtx);
 void cond_signal(struct cond *cnd);
 void cond_broadcast(struct cond *cnd);
 

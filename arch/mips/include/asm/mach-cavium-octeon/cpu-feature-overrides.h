@@ -14,49 +14,48 @@
 /*
  * Cavium Octeons are MIPS64v2 processors
  */
-#define cpu_dcache_line_size()	128
-#define cpu_icache_line_size()	128
+#define cpu_dcache_line_size()  128
+#define cpu_icache_line_size()  128
 
+#define cpu_has_4kex    1
+#define cpu_has_3k_cache  0
+#define cpu_has_4k_cache  0
+#define cpu_has_counter   1
+#define cpu_has_watch   1
+#define cpu_has_divec   1
+#define cpu_has_vce   0
+#define cpu_has_cache_cdex_p  0
+#define cpu_has_cache_cdex_s  0
+#define cpu_has_prefetch  1
 
-#define cpu_has_4kex		1
-#define cpu_has_3k_cache	0
-#define cpu_has_4k_cache	0
-#define cpu_has_counter		1
-#define cpu_has_watch		1
-#define cpu_has_divec		1
-#define cpu_has_vce		0
-#define cpu_has_cache_cdex_p	0
-#define cpu_has_cache_cdex_s	0
-#define cpu_has_prefetch	1
-
-#define cpu_has_llsc		1
+#define cpu_has_llsc    1
 /*
  * We Disable LL/SC on non SMP systems as it is faster to disable
  * interrupts for atomic access than a LL/SC.
  */
 #ifdef CONFIG_SMP
-# define kernel_uses_llsc	1
+#define kernel_uses_llsc 1
 #else
-# define kernel_uses_llsc	0
+#define kernel_uses_llsc 0
 #endif
-#define cpu_has_vtag_icache	1
-#define cpu_has_dc_aliases	0
-#define cpu_has_ic_fills_f_dc	0
-#define cpu_has_64bits		1
-#define cpu_has_octeon_cache	1
-#define cpu_has_mips32r1	1
-#define cpu_has_mips32r2	1
-#define cpu_has_mips64r1	1
-#define cpu_has_mips64r2	1
-#define cpu_has_dsp		0
-#define cpu_has_dsp2		0
-#define cpu_has_mipsmt		0
-#define cpu_has_vint		0
-#define cpu_has_veic		0
-#define cpu_hwrena_impl_bits	(MIPS_HWRENA_IMPL1 | MIPS_HWRENA_IMPL2)
+#define cpu_has_vtag_icache 1
+#define cpu_has_dc_aliases  0
+#define cpu_has_ic_fills_f_dc 0
+#define cpu_has_64bits    1
+#define cpu_has_octeon_cache  1
+#define cpu_has_mips32r1  1
+#define cpu_has_mips32r2  1
+#define cpu_has_mips64r1  1
+#define cpu_has_mips64r2  1
+#define cpu_has_dsp   0
+#define cpu_has_dsp2    0
+#define cpu_has_mipsmt    0
+#define cpu_has_vint    0
+#define cpu_has_veic    0
+#define cpu_hwrena_impl_bits  (MIPS_HWRENA_IMPL1 | MIPS_HWRENA_IMPL2)
 #define cpu_has_wsbh            1
 
-#define cpu_has_rixi		(cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
+#define cpu_has_rixi    (cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
 
 #define PREFETCH_STRIDE 128
 

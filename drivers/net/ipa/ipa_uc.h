@@ -11,26 +11,26 @@ enum ipa_irq_id;
 
 /**
  * ipa_uc_interrupt_handler() - Handler for microcontroller IPA interrupts
- * @ipa:	IPA pointer
- * @irq_id:	IPA interrupt ID
+ * @ipa:  IPA pointer
+ * @irq_id: IPA interrupt ID
  */
 void ipa_uc_interrupt_handler(struct ipa *ipa, enum ipa_irq_id irq_id);
 
 /**
  * ipa_uc_config() - Configure the IPA microcontroller subsystem
- * @ipa:	IPA pointer
+ * @ipa:  IPA pointer
  */
 void ipa_uc_config(struct ipa *ipa);
 
 /**
  * ipa_uc_deconfig() - Inverse of ipa_uc_config()
- * @ipa:	IPA pointer
+ * @ipa:  IPA pointer
  */
 void ipa_uc_deconfig(struct ipa *ipa);
 
 /**
  * ipa_uc_power() - Take a proxy power reference for the microcontroller
- * @ipa:	IPA pointer
+ * @ipa:  IPA pointer
  *
  * The first time the modem boots, it loads firmware for and starts the
  * IPA-resident microcontroller.  The microcontroller signals that it
@@ -44,7 +44,7 @@ void ipa_uc_power(struct ipa *ipa);
 
 /**
  * ipa_uc_panic_notifier()
- * @ipa:	IPA pointer
+ * @ipa:  IPA pointer
  *
  * Notifier function called when the system crashes, to inform the
  * microcontroller of the event.

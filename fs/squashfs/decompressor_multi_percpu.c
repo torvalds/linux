@@ -20,91 +20,80 @@
  */
 
 struct squashfs_stream {
-	void			*stream;
-	local_lock_t	lock;
+  void *stream;
+  local_lock_t lock;
 };
 
 static void *squashfs_decompressor_create(struct squashfs_sb_info *msblk,
-						void *comp_opts)
-{
-	struct squashfs_stream *stream;
-	struct squashfs_stream __percpu *percpu;
-	int err, cpu;
-
-	percpu = alloc_percpu(struct squashfs_stream);
-	if (percpu == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	for_each_possible_cpu(cpu) {
-		stream = per_cpu_ptr(percpu, cpu);
-		stream->stream = msblk->decompressor->init(msblk, comp_opts);
-		if (IS_ERR(stream->stream)) {
-			err = PTR_ERR(stream->stream);
-			goto out;
-		}
-		local_lock_init(&stream->lock);
-	}
-
-	kfree(comp_opts);
-	return (__force void *) percpu;
-
+    void *comp_opts) {
+  struct squashfs_stream *stream;
+  struct squashfs_stream __percpu *percpu;
+  int err, cpu;
+  percpu = alloc_percpu(struct squashfs_stream);
+  if (percpu == NULL) {
+    return ERR_PTR(-ENOMEM);
+  }
+  for_each_possible_cpu(cpu) {
+    stream = per_cpu_ptr(percpu, cpu);
+    stream->stream = msblk->decompressor->init(msblk, comp_opts);
+    if (IS_ERR(stream->stream)) {
+      err = PTR_ERR(stream->stream);
+      goto out;
+    }
+    local_lock_init(&stream->lock);
+  }
+  kfree(comp_opts);
+  return (__force void *) percpu;
 out:
-	for_each_possible_cpu(cpu) {
-		stream = per_cpu_ptr(percpu, cpu);
-		if (!IS_ERR_OR_NULL(stream->stream))
-			msblk->decompressor->free(stream->stream);
-	}
-	free_percpu(percpu);
-	return ERR_PTR(err);
+  for_each_possible_cpu(cpu) {
+    stream = per_cpu_ptr(percpu, cpu);
+    if (!IS_ERR_OR_NULL(stream->stream)) {
+      msblk->decompressor->free(stream->stream);
+    }
+  }
+  free_percpu(percpu);
+  return ERR_PTR(err);
 }
 
-static void squashfs_decompressor_destroy(struct squashfs_sb_info *msblk)
-{
-	struct squashfs_stream __percpu *percpu =
-			(struct squashfs_stream __percpu *) msblk->stream;
-	struct squashfs_stream *stream;
-	int cpu;
-
-	if (msblk->stream) {
-		for_each_possible_cpu(cpu) {
-			stream = per_cpu_ptr(percpu, cpu);
-			msblk->decompressor->free(stream->stream);
-		}
-		free_percpu(percpu);
-	}
+static void squashfs_decompressor_destroy(struct squashfs_sb_info *msblk) {
+  struct squashfs_stream __percpu *percpu
+    = (struct squashfs_stream __percpu *) msblk->stream;
+  struct squashfs_stream *stream;
+  int cpu;
+  if (msblk->stream) {
+    for_each_possible_cpu(cpu) {
+      stream = per_cpu_ptr(percpu, cpu);
+      msblk->decompressor->free(stream->stream);
+    }
+    free_percpu(percpu);
+  }
 }
 
 static int squashfs_decompress(struct squashfs_sb_info *msblk, struct bio *bio,
-	int offset, int length, struct squashfs_page_actor *output)
-{
-	struct squashfs_stream *stream;
-	struct squashfs_stream __percpu *percpu =
-			(struct squashfs_stream __percpu *) msblk->stream;
-	int res;
-
-	local_lock(&percpu->lock);
-	stream = this_cpu_ptr(percpu);
-
-	res = msblk->decompressor->decompress(msblk, stream->stream, bio,
-					      offset, length, output);
-
-	local_unlock(&percpu->lock);
-
-	if (res < 0)
-		ERROR("%s decompression failed, data probably corrupt\n",
-			msblk->decompressor->name);
-
-	return res;
+    int offset, int length, struct squashfs_page_actor *output) {
+  struct squashfs_stream *stream;
+  struct squashfs_stream __percpu *percpu
+    = (struct squashfs_stream __percpu *) msblk->stream;
+  int res;
+  local_lock(&percpu->lock);
+  stream = this_cpu_ptr(percpu);
+  res = msblk->decompressor->decompress(msblk, stream->stream, bio,
+      offset, length, output);
+  local_unlock(&percpu->lock);
+  if (res < 0) {
+    ERROR("%s decompression failed, data probably corrupt\n",
+        msblk->decompressor->name);
+  }
+  return res;
 }
 
-static int squashfs_max_decompressors(void)
-{
-	return num_possible_cpus();
+static int squashfs_max_decompressors(void) {
+  return num_possible_cpus();
 }
 
 const struct squashfs_decompressor_thread_ops squashfs_decompressor_percpu = {
-	.create = squashfs_decompressor_create,
-	.destroy = squashfs_decompressor_destroy,
-	.decompress = squashfs_decompress,
-	.max_decompressors = squashfs_max_decompressors,
+  .create = squashfs_decompressor_create,
+  .destroy = squashfs_decompressor_destroy,
+  .decompress = squashfs_decompress,
+  .max_decompressors = squashfs_max_decompressors,
 };

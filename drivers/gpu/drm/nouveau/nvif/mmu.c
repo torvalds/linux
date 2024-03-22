@@ -24,113 +24,122 @@
 #include <nvif/class.h>
 #include <nvif/if0008.h>
 
-void
-nvif_mmu_dtor(struct nvif_mmu *mmu)
-{
-	if (!nvif_object_constructed(&mmu->object))
-		return;
-
-	kfree(mmu->kind);
-	kfree(mmu->type);
-	kfree(mmu->heap);
-	nvif_object_dtor(&mmu->object);
+void nvif_mmu_dtor(struct nvif_mmu *mmu) {
+  if (!nvif_object_constructed(&mmu->object)) {
+    return;
+  }
+  kfree(mmu->kind);
+  kfree(mmu->type);
+  kfree(mmu->heap);
+  nvif_object_dtor(&mmu->object);
 }
 
-int
-nvif_mmu_ctor(struct nvif_object *parent, const char *name, s32 oclass,
-	      struct nvif_mmu *mmu)
-{
-	static const struct nvif_mclass mems[] = {
-		{ NVIF_CLASS_MEM_GF100, -1 },
-		{ NVIF_CLASS_MEM_NV50 , -1 },
-		{ NVIF_CLASS_MEM_NV04 , -1 },
-		{}
-	};
-	struct nvif_mmu_v0 args;
-	int ret, i;
-
-	args.version = 0;
-	mmu->heap = NULL;
-	mmu->type = NULL;
-	mmu->kind = NULL;
-
-	ret = nvif_object_ctor(parent, name ? name : "nvifMmu", 0, oclass,
-			       &args, sizeof(args), &mmu->object);
-	if (ret)
-		goto done;
-
-	mmu->dmabits = args.dmabits;
-	mmu->heap_nr = args.heap_nr;
-	mmu->type_nr = args.type_nr;
-	mmu->kind_nr = args.kind_nr;
-
-	ret = nvif_mclass(&mmu->object, mems);
-	if (ret < 0)
-		goto done;
-	mmu->mem = mems[ret].oclass;
-
-	mmu->heap = kmalloc_array(mmu->heap_nr, sizeof(*mmu->heap),
-				  GFP_KERNEL);
-	mmu->type = kmalloc_array(mmu->type_nr, sizeof(*mmu->type),
-				  GFP_KERNEL);
-	if (ret = -ENOMEM, !mmu->heap || !mmu->type)
-		goto done;
-
-	mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
-				  GFP_KERNEL);
-	if (!mmu->kind && mmu->kind_nr)
-		goto done;
-
-	for (i = 0; i < mmu->heap_nr; i++) {
-		struct nvif_mmu_heap_v0 args = { .index = i };
-
-		ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_HEAP,
-				       &args, sizeof(args));
-		if (ret)
-			goto done;
-
-		mmu->heap[i].size = args.size;
-	}
-
-	for (i = 0; i < mmu->type_nr; i++) {
-		struct nvif_mmu_type_v0 args = { .index = i };
-
-		ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_TYPE,
-				       &args, sizeof(args));
-		if (ret)
-			goto done;
-
-		mmu->type[i].type = 0;
-		if (args.vram) mmu->type[i].type |= NVIF_MEM_VRAM;
-		if (args.host) mmu->type[i].type |= NVIF_MEM_HOST;
-		if (args.comp) mmu->type[i].type |= NVIF_MEM_COMP;
-		if (args.disp) mmu->type[i].type |= NVIF_MEM_DISP;
-		if (args.kind    ) mmu->type[i].type |= NVIF_MEM_KIND;
-		if (args.mappable) mmu->type[i].type |= NVIF_MEM_MAPPABLE;
-		if (args.coherent) mmu->type[i].type |= NVIF_MEM_COHERENT;
-		if (args.uncached) mmu->type[i].type |= NVIF_MEM_UNCACHED;
-		mmu->type[i].heap = args.heap;
-	}
-
-	if (mmu->kind_nr) {
-		struct nvif_mmu_kind_v0 *kind;
-		size_t argc = struct_size(kind, data, mmu->kind_nr);
-
-		if (ret = -ENOMEM, !(kind = kmalloc(argc, GFP_KERNEL)))
-			goto done;
-		kind->version = 0;
-		kind->count = mmu->kind_nr;
-
-		ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_KIND,
-				       kind, argc);
-		if (ret == 0)
-			memcpy(mmu->kind, kind->data, kind->count);
-		mmu->kind_inv = kind->kind_inv;
-		kfree(kind);
-	}
-
+int nvif_mmu_ctor(struct nvif_object *parent, const char *name, s32 oclass,
+    struct nvif_mmu *mmu) {
+  static const struct nvif_mclass mems[] = {
+    { NVIF_CLASS_MEM_GF100, -1 },
+    { NVIF_CLASS_MEM_NV50, -1 },
+    { NVIF_CLASS_MEM_NV04, -1 },
+    {}
+  };
+  struct nvif_mmu_v0 args;
+  int ret, i;
+  args.version = 0;
+  mmu->heap = NULL;
+  mmu->type = NULL;
+  mmu->kind = NULL;
+  ret = nvif_object_ctor(parent, name ? name : "nvifMmu", 0, oclass,
+      &args, sizeof(args), &mmu->object);
+  if (ret) {
+    goto done;
+  }
+  mmu->dmabits = args.dmabits;
+  mmu->heap_nr = args.heap_nr;
+  mmu->type_nr = args.type_nr;
+  mmu->kind_nr = args.kind_nr;
+  ret = nvif_mclass(&mmu->object, mems);
+  if (ret < 0) {
+    goto done;
+  }
+  mmu->mem = mems[ret].oclass;
+  mmu->heap = kmalloc_array(mmu->heap_nr, sizeof(*mmu->heap),
+      GFP_KERNEL);
+  mmu->type = kmalloc_array(mmu->type_nr, sizeof(*mmu->type),
+      GFP_KERNEL);
+  if (ret = -ENOMEM, !mmu->heap || !mmu->type) {
+    goto done;
+  }
+  mmu->kind = kmalloc_array(mmu->kind_nr, sizeof(*mmu->kind),
+      GFP_KERNEL);
+  if (!mmu->kind && mmu->kind_nr) {
+    goto done;
+  }
+  for (i = 0; i < mmu->heap_nr; i++) {
+    struct nvif_mmu_heap_v0 args = {
+      .index = i
+    };
+    ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_HEAP,
+        &args, sizeof(args));
+    if (ret) {
+      goto done;
+    }
+    mmu->heap[i].size = args.size;
+  }
+  for (i = 0; i < mmu->type_nr; i++) {
+    struct nvif_mmu_type_v0 args = {
+      .index = i
+    };
+    ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_TYPE,
+        &args, sizeof(args));
+    if (ret) {
+      goto done;
+    }
+    mmu->type[i].type = 0;
+    if (args.vram) {
+      mmu->type[i].type |= NVIF_MEM_VRAM;
+    }
+    if (args.host) {
+      mmu->type[i].type |= NVIF_MEM_HOST;
+    }
+    if (args.comp) {
+      mmu->type[i].type |= NVIF_MEM_COMP;
+    }
+    if (args.disp) {
+      mmu->type[i].type |= NVIF_MEM_DISP;
+    }
+    if (args.kind) {
+      mmu->type[i].type |= NVIF_MEM_KIND;
+    }
+    if (args.mappable) {
+      mmu->type[i].type |= NVIF_MEM_MAPPABLE;
+    }
+    if (args.coherent) {
+      mmu->type[i].type |= NVIF_MEM_COHERENT;
+    }
+    if (args.uncached) {
+      mmu->type[i].type |= NVIF_MEM_UNCACHED;
+    }
+    mmu->type[i].heap = args.heap;
+  }
+  if (mmu->kind_nr) {
+    struct nvif_mmu_kind_v0 *kind;
+    size_t argc = struct_size(kind, data, mmu->kind_nr);
+    if (ret = -ENOMEM, !(kind = kmalloc(argc, GFP_KERNEL))) {
+      goto done;
+    }
+    kind->version = 0;
+    kind->count = mmu->kind_nr;
+    ret = nvif_object_mthd(&mmu->object, NVIF_MMU_V0_KIND,
+        kind, argc);
+    if (ret == 0) {
+      memcpy(mmu->kind, kind->data, kind->count);
+    }
+    mmu->kind_inv = kind->kind_inv;
+    kfree(kind);
+  }
 done:
-	if (ret)
-		nvif_mmu_dtor(mmu);
-	return ret;
+  if (ret) {
+    nvif_mmu_dtor(mmu);
+  }
+  return ret;
 }

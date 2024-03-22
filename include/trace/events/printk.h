@@ -8,29 +8,30 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(console,
-	TP_PROTO(const char *text, size_t len),
+    TP_PROTO(const char *text, size_t len),
 
-	TP_ARGS(text, len),
+    TP_ARGS(text, len),
 
-	TP_STRUCT__entry(
-		__dynamic_array(char, msg, len + 1)
-	),
+    TP_STRUCT__entry(
+    __dynamic_array(char, msg, len + 1)
+    ),
 
-	TP_fast_assign(
-		/*
-		 * Each trace entry is printed in a new line.
-		 * If the msg finishes with '\n', cut it off
-		 * to avoid blank lines in the trace.
-		 */
-		if ((len > 0) && (text[len-1] == '\n'))
-			len -= 1;
+    TP_fast_assign(
+    /*
+     * Each trace entry is printed in a new line.
+     * If the msg finishes with '\n', cut it off
+     * to avoid blank lines in the trace.
+     */
+    if ((len > 0) && (text[len - 1] == '\n')) {
+  len -= 1;
+}
 
-		memcpy(__get_str(msg), text, len);
-		__get_str(msg)[len] = 0;
-	),
+    memcpy(__get_str(msg), text, len);
+    __get_str(msg)[len] = 0;
+    ),
 
-	TP_printk("%s", __get_str(msg))
-);
+    TP_printk("%s", __get_str(msg))
+    );
 #endif /* _TRACE_PRINTK_H */
 
 /* This part must be outside protection */

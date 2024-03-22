@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for various devices which are apparently based on the same chipset
+ *  HID driver for various devices which are apparently based on the same
+ *chipset
  *  from certain vendor which produces chips that contain wrong LogicalMaximum
  *  value in their HID report descriptor. Currently supported devices are:
  *
@@ -23,31 +24,32 @@
 #include "hid-ids.h"
 
 static __u8 *ortek_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
-{
-	if (*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x01) {
-		hid_info(hdev, "Fixing up logical maximum in report descriptor (Ortek)\n");
-		rdesc[55] = 0x92;
-	} else if (*rsize >= 54 && rdesc[52] == 0x25 && rdesc[53] == 0x01) {
-		hid_info(hdev, "Fixing up logical maximum in report descriptor (Skycable)\n");
-		rdesc[53] = 0x65;
-	}
-	return rdesc;
+    unsigned int *rsize) {
+  if (*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x01) {
+    hid_info(hdev, "Fixing up logical maximum in report descriptor (Ortek)\n");
+    rdesc[55] = 0x92;
+  } else if (*rsize >= 54 && rdesc[52] == 0x25 && rdesc[53] == 0x01) {
+    hid_info(hdev,
+        "Fixing up logical maximum in report descriptor (Skycable)\n");
+    rdesc[53] = 0x65;
+  }
+  return rdesc;
 }
 
 static const struct hid_device_id ortek_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_PKB1700) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_WKB2000) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_IHOME_IMAC_A210S) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SKYCABLE, USB_DEVICE_ID_SKYCABLE_WIRELESS_PRESENTER) },
-	{ }
+  { HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_PKB1700) },
+  { HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_WKB2000) },
+  { HID_USB_DEVICE(USB_VENDOR_ID_ORTEK, USB_DEVICE_ID_ORTEK_IHOME_IMAC_A210S) },
+  { HID_USB_DEVICE(USB_VENDOR_ID_SKYCABLE,
+      USB_DEVICE_ID_SKYCABLE_WIRELESS_PRESENTER) },
+  {}
 };
 MODULE_DEVICE_TABLE(hid, ortek_devices);
 
 static struct hid_driver ortek_driver = {
-	.name = "ortek",
-	.id_table = ortek_devices,
-	.report_fixup = ortek_report_fixup
+  .name = "ortek",
+  .id_table = ortek_devices,
+  .report_fixup = ortek_report_fixup
 };
 module_hid_driver(ortek_driver);
 

@@ -8,10 +8,9 @@
 #endif
 #include "../../../util/debug.h"
 
-int LIBUNWIND__ARCH_REG_ID(int regnum)
-{
-	if (regnum < 0 || regnum >= PERF_REG_ARM64_EXTENDED_MAX)
-		return -EINVAL;
-
-	return regnum;
+int LIBUNWIND__ARCH_REG_ID(int regnum) {
+  if (regnum < 0 || regnum >= PERF_REG_ARM64_EXTENDED_MAX) {
+    return -EINVAL;
+  }
+  return regnum;
 }

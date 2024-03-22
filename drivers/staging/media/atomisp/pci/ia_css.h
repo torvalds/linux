@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Release Version: irci_stable_candrpv_0415_20150521_0458 */
+/* SPDX-License-Identifier: GPL-2.0
+ * Release Version: irci_stable_candrpv_0415_20150521_0458*/
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -50,9 +50,9 @@
 #include "ia_css_timer.h"
 
 /*
-   Please do not add code to this file. Public functionality is to be
-   exposed in a function/data type specific header file.
-   Please add to the appropriate header file or create a new one.
+ * Please do not add code to this file. Public functionality is to be
+ * exposed in a function/data type specific header file.
+ * Please add to the appropriate header file or create a new one.
  */
 
 #endif /* _IA_CSS_H_ */

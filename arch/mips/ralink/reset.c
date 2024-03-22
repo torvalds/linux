@@ -16,28 +16,24 @@
 #include <asm/mach-ralink/ralink_regs.h>
 
 /* Reset Control */
-#define SYSC_REG_RESET_CTRL	0x034
+#define SYSC_REG_RESET_CTRL 0x034
 
-#define RSTCTL_RESET_PCI	BIT(26)
-#define RSTCTL_RESET_SYSTEM	BIT(0)
+#define RSTCTL_RESET_PCI  BIT(26)
+#define RSTCTL_RESET_SYSTEM BIT(0)
 
-static void ralink_restart(char *command)
-{
-	if (IS_ENABLED(CONFIG_PCI)) {
-		rt_sysc_m32(0, RSTCTL_RESET_PCI, SYSC_REG_RESET_CTRL);
-		mdelay(50);
-	}
-
-	local_irq_disable();
-	rt_sysc_w32(RSTCTL_RESET_SYSTEM, SYSC_REG_RESET_CTRL);
-	unreachable();
+static void ralink_restart(char *command) {
+  if (IS_ENABLED(CONFIG_PCI)) {
+    rt_sysc_m32(0, RSTCTL_RESET_PCI, SYSC_REG_RESET_CTRL);
+    mdelay(50);
+  }
+  local_irq_disable();
+  rt_sysc_w32(RSTCTL_RESET_SYSTEM, SYSC_REG_RESET_CTRL);
+  unreachable();
 }
 
-static int __init mips_reboot_setup(void)
-{
-	_machine_restart = ralink_restart;
-
-	return 0;
+static int __init mips_reboot_setup(void) {
+  _machine_restart = ralink_restart;
+  return 0;
 }
 
 arch_initcall(mips_reboot_setup);

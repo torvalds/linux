@@ -7,19 +7,19 @@
 #ifndef __MACH_CORE_H
 #define __MACH_CORE_H
 
-#define SOCFPGA_RSTMGR_CTRL	0x04
-#define SOCFPGA_RSTMGR_MODMPURST	0x10
-#define SOCFPGA_RSTMGR_MODPERRST	0x14
-#define SOCFPGA_RSTMGR_BRGMODRST	0x1c
+#define SOCFPGA_RSTMGR_CTRL 0x04
+#define SOCFPGA_RSTMGR_MODMPURST  0x10
+#define SOCFPGA_RSTMGR_MODPERRST  0x14
+#define SOCFPGA_RSTMGR_BRGMODRST  0x1c
 
-#define SOCFPGA_A10_RSTMGR_CTRL		0xC
-#define SOCFPGA_A10_RSTMGR_MODMPURST	0x20
+#define SOCFPGA_A10_RSTMGR_CTRL   0xC
+#define SOCFPGA_A10_RSTMGR_MODMPURST  0x20
 
 /* System Manager bits */
-#define RSTMGR_CTRL_SWCOLDRSTREQ	0x1	/* Cold Reset */
-#define RSTMGR_CTRL_SWWARMRSTREQ	0x2	/* Warm Reset */
+#define RSTMGR_CTRL_SWCOLDRSTREQ  0x1 /* Cold Reset */
+#define RSTMGR_CTRL_SWWARMRSTREQ  0x2 /* Warm Reset */
 
-#define RSTMGR_MPUMODRST_CPU1		0x2     /* CPU1 Reset */
+#define RSTMGR_MPUMODRST_CPU1   0x2     /* CPU1 Reset */
 
 void socfpga_init_l2_ecc(void);
 void socfpga_init_ocram_ecc(void);

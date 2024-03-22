@@ -27,26 +27,24 @@
  */
 
 struct net_generic {
-	union {
-		struct {
-			unsigned int len;
-			struct rcu_head rcu;
-		} s;
+  union {
+    struct {
+      unsigned int len;
+      struct rcu_head rcu;
+    } s;
 
-		DECLARE_FLEX_ARRAY(void *, ptr);
-	};
+    DECLARE_FLEX_ARRAY(void *, ptr);
+  };
 };
 
-static inline void *net_generic(const struct net *net, unsigned int id)
-{
-	struct net_generic *ng;
-	void *ptr;
-
-	rcu_read_lock();
-	ng = rcu_dereference(net->gen);
-	ptr = ng->ptr[id];
-	rcu_read_unlock();
-
-	return ptr;
+static inline void *net_generic(const struct net *net, unsigned int id) {
+  struct net_generic *ng;
+  void *ptr;
+  rcu_read_lock();
+  ng = rcu_dereference(net->gen);
+  ptr = ng->ptr[id];
+  rcu_read_unlock();
+  return ptr;
 }
+
 #endif

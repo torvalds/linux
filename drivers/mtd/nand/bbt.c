@@ -3,11 +3,11 @@
  * Copyright (c) 2017 Free Electrons
  *
  * Authors:
- *	Boris Brezillon <boris.brezillon@free-electrons.com>
- *	Peter Pan <peterpandong@micron.com>
+ *  Boris Brezillon <boris.brezillon@free-electrons.com>
+ *  Peter Pan <peterpandong@micron.com>
  */
 
-#define pr_fmt(fmt)	"nand-bbt: " fmt
+#define pr_fmt(fmt) "nand-bbt: " fmt
 
 #include <linux/mtd/nand.h>
 #include <linux/slab.h>
@@ -20,17 +20,16 @@
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
-int nanddev_bbt_init(struct nand_device *nand)
-{
-	unsigned int bits_per_block = fls(NAND_BBT_BLOCK_NUM_STATUS);
-	unsigned int nblocks = nanddev_neraseblocks(nand);
-
-	nand->bbt.cache = bitmap_zalloc(nblocks * bits_per_block, GFP_KERNEL);
-	if (!nand->bbt.cache)
-		return -ENOMEM;
-
-	return 0;
+int nanddev_bbt_init(struct nand_device *nand) {
+  unsigned int bits_per_block = fls(NAND_BBT_BLOCK_NUM_STATUS);
+  unsigned int nblocks = nanddev_neraseblocks(nand);
+  nand->bbt.cache = bitmap_zalloc(nblocks * bits_per_block, GFP_KERNEL);
+  if (!nand->bbt.cache) {
+    return -ENOMEM;
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(nanddev_bbt_init);
 
 /**
@@ -39,10 +38,10 @@ EXPORT_SYMBOL_GPL(nanddev_bbt_init);
  *
  * Undoes what has been done in nanddev_bbt_init()
  */
-void nanddev_bbt_cleanup(struct nand_device *nand)
-{
-	bitmap_free(nand->bbt.cache);
+void nanddev_bbt_cleanup(struct nand_device *nand) {
+  bitmap_free(nand->bbt.cache);
 }
+
 EXPORT_SYMBOL_GPL(nanddev_bbt_cleanup);
 
 /**
@@ -54,10 +53,10 @@ EXPORT_SYMBOL_GPL(nanddev_bbt_cleanup);
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
-int nanddev_bbt_update(struct nand_device *nand)
-{
-	return 0;
+int nanddev_bbt_update(struct nand_device *nand) {
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(nanddev_bbt_update);
 
 /**
@@ -66,31 +65,30 @@ EXPORT_SYMBOL_GPL(nanddev_bbt_update);
  * @entry: the BBT entry
  *
  * Return: a positive number nand_bbt_block_status status or -%ERANGE if @entry
- *	   is bigger than the BBT size.
+ *     is bigger than the BBT size.
  */
 int nanddev_bbt_get_block_status(const struct nand_device *nand,
-				 unsigned int entry)
-{
-	unsigned int bits_per_block = fls(NAND_BBT_BLOCK_NUM_STATUS);
-	unsigned long *pos = nand->bbt.cache +
-			     ((entry * bits_per_block) / BITS_PER_LONG);
-	unsigned int offs = (entry * bits_per_block) % BITS_PER_LONG;
-	unsigned long status;
-
-	if (entry >= nanddev_neraseblocks(nand))
-		return -ERANGE;
-
-	status = pos[0] >> offs;
-	if (bits_per_block + offs > BITS_PER_LONG)
-		status |= pos[1] << (BITS_PER_LONG - offs);
-
-	return status & GENMASK(bits_per_block - 1, 0);
+    unsigned int entry) {
+  unsigned int bits_per_block = fls(NAND_BBT_BLOCK_NUM_STATUS);
+  unsigned long *pos = nand->bbt.cache
+      + ((entry * bits_per_block) / BITS_PER_LONG);
+  unsigned int offs = (entry * bits_per_block) % BITS_PER_LONG;
+  unsigned long status;
+  if (entry >= nanddev_neraseblocks(nand)) {
+    return -ERANGE;
+  }
+  status = pos[0] >> offs;
+  if (bits_per_block + offs > BITS_PER_LONG) {
+    status |= pos[1] << (BITS_PER_LONG - offs);
+  }
+  return status & GENMASK(bits_per_block - 1, 0);
 }
+
 EXPORT_SYMBOL_GPL(nanddev_bbt_get_block_status);
 
 /**
  * nanddev_bbt_set_block_status() - Update the status of an eraseblock in the
- *				    in-memory BBT
+ *            in-memory BBT
  * @nand: nand device
  * @entry: the BBT entry to update
  * @status: the new status
@@ -99,30 +97,26 @@ EXPORT_SYMBOL_GPL(nanddev_bbt_get_block_status);
  * the NAND you should call nanddev_bbt_update().
  *
  * Return: 0 in case of success or -%ERANGE if @entry is bigger than the BBT
- *	   size.
+ *     size.
  */
 int nanddev_bbt_set_block_status(struct nand_device *nand, unsigned int entry,
-				 enum nand_bbt_block_status status)
-{
-	unsigned int bits_per_block = fls(NAND_BBT_BLOCK_NUM_STATUS);
-	unsigned long *pos = nand->bbt.cache +
-			     ((entry * bits_per_block) / BITS_PER_LONG);
-	unsigned int offs = (entry * bits_per_block) % BITS_PER_LONG;
-	unsigned long val = status & GENMASK(bits_per_block - 1, 0);
-
-	if (entry >= nanddev_neraseblocks(nand))
-		return -ERANGE;
-
-	pos[0] &= ~GENMASK(offs + bits_per_block - 1, offs);
-	pos[0] |= val << offs;
-
-	if (bits_per_block + offs > BITS_PER_LONG) {
-		unsigned int rbits = bits_per_block + offs - BITS_PER_LONG;
-
-		pos[1] &= ~GENMASK(rbits - 1, 0);
-		pos[1] |= val >> (bits_per_block - rbits);
-	}
-
-	return 0;
+    enum nand_bbt_block_status status) {
+  unsigned int bits_per_block = fls(NAND_BBT_BLOCK_NUM_STATUS);
+  unsigned long *pos = nand->bbt.cache
+      + ((entry * bits_per_block) / BITS_PER_LONG);
+  unsigned int offs = (entry * bits_per_block) % BITS_PER_LONG;
+  unsigned long val = status & GENMASK(bits_per_block - 1, 0);
+  if (entry >= nanddev_neraseblocks(nand)) {
+    return -ERANGE;
+  }
+  pos[0] &= ~GENMASK(offs + bits_per_block - 1, offs);
+  pos[0] |= val << offs;
+  if (bits_per_block + offs > BITS_PER_LONG) {
+    unsigned int rbits = bits_per_block + offs - BITS_PER_LONG;
+    pos[1] &= ~GENMASK(rbits - 1, 0);
+    pos[1] |= val >> (bits_per_block - rbits);
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(nanddev_bbt_set_block_status);

@@ -27,14 +27,14 @@
 #include "hwmgr.h"
 
 struct vega10_temperature {
-	uint16_t edge_temp;
-	uint16_t hot_spot_temp;
-	uint16_t hbm_temp;
-	uint16_t vr_soc_temp;
-	uint16_t vr_mem_temp;
-	uint16_t liquid1_temp;
-	uint16_t liquid2_temp;
-	uint16_t plx_temp;
+  uint16_t edge_temp;
+  uint16_t hot_spot_temp;
+  uint16_t hbm_temp;
+  uint16_t vr_soc_temp;
+  uint16_t vr_mem_temp;
+  uint16_t liquid1_temp;
+  uint16_t liquid2_temp;
+  uint16_t plx_temp;
 };
 
 #define VEGA10_THERMAL_HIGH_ALERT_MASK         0x1
@@ -49,32 +49,29 @@ struct vega10_temperature {
 #define FDO_PWM_MODE_STATIC  1
 #define FDO_PWM_MODE_STATIC_RPM 5
 
-
 extern int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr);
 extern int vega10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_get_fan_speed_info(struct pp_hwmgr *hwmgr,
-		struct phm_fan_speed_info *fan_speed_info);
+    struct phm_fan_speed_info *fan_speed_info);
 extern int vega10_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
-		uint32_t *speed);
+    uint32_t *speed);
 extern int vega10_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_set_static_mode(struct pp_hwmgr *hwmgr,
-		uint32_t mode);
+    uint32_t mode);
 extern int vega10_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
-		uint32_t speed);
+    uint32_t speed);
 extern int vega10_fan_ctrl_reset_fan_speed_to_default(struct pp_hwmgr *hwmgr);
 extern int vega10_thermal_ctrl_uninitialize_thermal_controller(
-		struct pp_hwmgr *hwmgr);
+  struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr,
-		uint32_t speed);
+    uint32_t speed);
 extern int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr,
-		uint32_t *speed);
+    uint32_t *speed);
 extern int vega10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern int vega10_start_thermal_controller(struct pp_hwmgr *hwmgr,
-				struct PP_TemperatureRange *range);
+    struct PP_TemperatureRange *range);
 extern int vega10_enable_mgpu_fan_boost(struct pp_hwmgr *hwmgr);
 
-
 #endif
-

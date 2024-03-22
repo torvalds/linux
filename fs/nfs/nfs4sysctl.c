@@ -18,35 +18,34 @@ static const int nfs_set_port_max = 65535;
 static struct ctl_table_header *nfs4_callback_sysctl_table;
 
 static struct ctl_table nfs4_cb_sysctls[] = {
-	{
-		.procname = "nfs_callback_tcpport",
-		.data = &nfs_callback_set_tcpport,
-		.maxlen = sizeof(int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec_minmax,
-		.extra1 = (int *)&nfs_set_port_min,
-		.extra2 = (int *)&nfs_set_port_max,
-	},
-	{
-		.procname = "idmap_cache_timeout",
-		.data = &nfs_idmap_cache_timeout,
-		.maxlen = sizeof(int),
-		.mode = 0644,
-		.proc_handler = proc_dointvec,
-	},
+  {
+    .procname = "nfs_callback_tcpport",
+    .data = &nfs_callback_set_tcpport,
+    .maxlen = sizeof(int),
+    .mode = 0644,
+    .proc_handler = proc_dointvec_minmax,
+    .extra1 = (int *) &nfs_set_port_min,
+    .extra2 = (int *) &nfs_set_port_max,
+  },
+  {
+    .procname = "idmap_cache_timeout",
+    .data = &nfs_idmap_cache_timeout,
+    .maxlen = sizeof(int),
+    .mode = 0644,
+    .proc_handler = proc_dointvec,
+  },
 };
 
-int nfs4_register_sysctl(void)
-{
-	nfs4_callback_sysctl_table = register_sysctl("fs/nfs",
-						     nfs4_cb_sysctls);
-	if (nfs4_callback_sysctl_table == NULL)
-		return -ENOMEM;
-	return 0;
+int nfs4_register_sysctl(void) {
+  nfs4_callback_sysctl_table = register_sysctl("fs/nfs",
+      nfs4_cb_sysctls);
+  if (nfs4_callback_sysctl_table == NULL) {
+    return -ENOMEM;
+  }
+  return 0;
 }
 
-void nfs4_unregister_sysctl(void)
-{
-	unregister_sysctl_table(nfs4_callback_sysctl_table);
-	nfs4_callback_sysctl_table = NULL;
+void nfs4_unregister_sysctl(void) {
+  unregister_sysctl_table(nfs4_callback_sysctl_table);
+  nfs4_callback_sysctl_table = NULL;
 }

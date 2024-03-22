@@ -9,54 +9,46 @@
 #include "../glob.h"
 
 struct ksmbd_user {
-	unsigned short		flags;
+  unsigned short flags;
 
-	unsigned int		uid;
-	unsigned int		gid;
+  unsigned int uid;
+  unsigned int gid;
 
-	char			*name;
+  char *name;
 
-	size_t			passkey_sz;
-	char			*passkey;
+  size_t passkey_sz;
+  char *passkey;
 };
 
-static inline bool user_guest(struct ksmbd_user *user)
-{
-	return user->flags & KSMBD_USER_FLAG_GUEST_ACCOUNT;
+static inline bool user_guest(struct ksmbd_user *user) {
+  return user->flags & KSMBD_USER_FLAG_GUEST_ACCOUNT;
 }
 
-static inline void set_user_flag(struct ksmbd_user *user, int flag)
-{
-	user->flags |= flag;
+static inline void set_user_flag(struct ksmbd_user *user, int flag) {
+  user->flags |= flag;
 }
 
-static inline int test_user_flag(struct ksmbd_user *user, int flag)
-{
-	return user->flags & flag;
+static inline int test_user_flag(struct ksmbd_user *user, int flag) {
+  return user->flags & flag;
 }
 
-static inline void set_user_guest(struct ksmbd_user *user)
-{
+static inline void set_user_guest(struct ksmbd_user *user) {
 }
 
-static inline char *user_passkey(struct ksmbd_user *user)
-{
-	return user->passkey;
+static inline char *user_passkey(struct ksmbd_user *user) {
+  return user->passkey;
 }
 
-static inline char *user_name(struct ksmbd_user *user)
-{
-	return user->name;
+static inline char *user_name(struct ksmbd_user *user) {
+  return user->name;
 }
 
-static inline unsigned int user_uid(struct ksmbd_user *user)
-{
-	return user->uid;
+static inline unsigned int user_uid(struct ksmbd_user *user) {
+  return user->uid;
 }
 
-static inline unsigned int user_gid(struct ksmbd_user *user)
-{
-	return user->gid;
+static inline unsigned int user_gid(struct ksmbd_user *user) {
+  return user->gid;
 }
 
 struct ksmbd_user *ksmbd_login_user(const char *account);

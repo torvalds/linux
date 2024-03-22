@@ -13,9 +13,9 @@
 #define LOWER_8_BITS(data)      ((data) & 0xFF)
 
 struct hinic_sge {
-	u32             hi_addr;
-	u32             lo_addr;
-	u32             len;
+  u32 hi_addr;
+  u32 lo_addr;
+  u32 len;
 };
 
 void hinic_cpu_to_be32(void *data, int len);

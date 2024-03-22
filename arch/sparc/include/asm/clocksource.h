@@ -11,7 +11,7 @@
 #define VCLOCK_STICK  2  /* Use %stick. */
 
 struct arch_clocksource_data {
-	int vclock_mode;
+  int vclock_mode;
 };
 
 #endif /* _ASM_SPARC_CLOCKSOURCE_H */

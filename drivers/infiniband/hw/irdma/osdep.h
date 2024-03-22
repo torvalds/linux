@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2015 - 2021 Intel Corporation */
+/* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
+ * Copyright (c) 2015 - 2021 Intel Corporation*/
 #ifndef IRDMA_OSDEP_H
 #define IRDMA_OSDEP_H
 
@@ -9,21 +9,21 @@
 #include <crypto/hash.h>
 #include <rdma/ib_verbs.h>
 
-#define STATS_TIMER_DELAY	60000
+#define STATS_TIMER_DELAY 60000
 
 struct irdma_dma_info {
-	dma_addr_t *dmaaddrs;
+  dma_addr_t *dmaaddrs;
 };
 
 struct irdma_dma_mem {
-	void *va;
-	dma_addr_t pa;
-	u32 size;
+  void *va;
+  dma_addr_t pa;
+  u32 size;
 } __packed;
 
 struct irdma_virt_mem {
-	void *va;
-	u32 size;
+  void *va;
+  u32 size;
 } __packed;
 
 struct irdma_sc_vsi;
@@ -44,30 +44,30 @@ bool irdma_vf_clear_to_send(struct irdma_sc_dev *dev);
 void irdma_add_dev_ref(struct irdma_sc_dev *dev);
 void irdma_put_dev_ref(struct irdma_sc_dev *dev);
 int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
-			   u32 val);
+    u32 val);
 struct irdma_sc_qp *irdma_ieq_get_qp(struct irdma_sc_dev *dev,
-				     struct irdma_puda_buf *buf);
+    struct irdma_puda_buf *buf);
 void irdma_send_ieq_ack(struct irdma_sc_qp *qp);
 void irdma_ieq_update_tcpip_info(struct irdma_puda_buf *buf, u16 len,
-				 u32 seqnum);
+    u32 seqnum);
 void irdma_free_hash_desc(struct shash_desc *hash_desc);
 int irdma_init_hash_desc(struct shash_desc **hash_desc);
 int irdma_puda_get_tcpip_info(struct irdma_puda_cmpl_info *info,
-			      struct irdma_puda_buf *buf);
+    struct irdma_puda_buf *buf);
 int irdma_cqp_sds_cmd(struct irdma_sc_dev *dev,
-		      struct irdma_update_sds_info *info);
+    struct irdma_update_sds_info *info);
 int irdma_cqp_manage_hmc_fcn_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_hmc_fcn_info *hmcfcninfo,
-				 u16 *pmf_idx);
+    struct irdma_hmc_fcn_info *hmcfcninfo,
+    u16 *pmf_idx);
 int irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
-				struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
+    struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
 int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
+    struct irdma_dma_mem *val_mem, u8 hmc_fn_id);
 int irdma_alloc_query_fpm_buf(struct irdma_sc_dev *dev,
-			      struct irdma_dma_mem *mem);
+    struct irdma_dma_mem *mem);
 void *irdma_remove_cqp_head(struct irdma_sc_dev *dev);
 void irdma_term_modify_qp(struct irdma_sc_qp *qp, u8 next_state, u8 term,
-			  u8 term_len);
+    u8 term_len);
 void irdma_terminate_done(struct irdma_sc_qp *qp, int timeout_occurred);
 void irdma_terminate_start_timer(struct irdma_sc_qp *qp);
 void irdma_terminate_del_timer(struct irdma_sc_qp *qp);
@@ -77,6 +77,7 @@ void wr32(struct irdma_hw *hw, u32 reg, u32 val);
 u32 rd32(struct irdma_hw *hw, u32 reg);
 u64 rd64(struct irdma_hw *hw, u32 reg);
 int irdma_map_vm_page_list(struct irdma_hw *hw, void *va, dma_addr_t *pg_dma,
-			   u32 pg_cnt);
-void irdma_unmap_vm_page_list(struct irdma_hw *hw, dma_addr_t *pg_dma, u32 pg_cnt);
+    u32 pg_cnt);
+void irdma_unmap_vm_page_list(struct irdma_hw *hw, dma_addr_t *pg_dma,
+    u32 pg_cnt);
 #endif /* IRDMA_OSDEP_H */

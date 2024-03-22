@@ -8,13 +8,11 @@
 #define STR(s) #s
 #endif
 
-int main(void)
-{
+int main(void) {
 #if !defined(__UCLIBC__)
-	const char *version = gnu_get_libc_version();
+  const char *version = gnu_get_libc_version();
 #else
-	const char *version = XSTR(__GLIBC__) "." XSTR(__GLIBC_MINOR__);
+  const char *version = XSTR(__GLIBC__) "." XSTR(__GLIBC_MINOR__);
 #endif
-
-	return (long)version;
+  return (long) version;
 }

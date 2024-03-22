@@ -17,8 +17,8 @@
 #define __IA_CSS_S3A_TYPES_H
 
 /* @file
-* CSS-API header file for 3A statistics parameters.
-*/
+ * CSS-API header file for 3A statistics parameters.
+ */
 
 #include <ia_css_frac.h>
 
@@ -39,64 +39,65 @@
  */
 struct ia_css_3a_grid_info {
 #if defined(SYSTEM_css_skycam_c0_system)
-	u32 ae_enable;					/** ae enabled in binary,
-								   0:disabled, 1:enabled */
-	struct ae_public_config_grid_config
-		ae_grd_info;	/** see description in ae_public.h*/
+  u32 ae_enable;          /** ae enabled in binary,
+                           * 0:disabled, 1:enabled */
+  struct ae_public_config_grid_config
+      ae_grd_info;  /** see description in ae_public.h*/
 
-	u32 awb_enable;					/** awb enabled in binary,
-								   0:disabled, 1:enabled */
-	struct awb_public_config_grid_config
-		awb_grd_info;	/** see description in awb_public.h*/
+  u32 awb_enable;         /** awb enabled in binary,
+                           * 0:disabled, 1:enabled */
+  struct awb_public_config_grid_config
+      awb_grd_info; /** see description in awb_public.h*/
 
-	u32 af_enable;					/** af enabled in binary,
-								   0:disabled, 1:enabled */
-	struct af_public_grid_config		af_grd_info;	/** see description in af_public.h*/
+  u32 af_enable;          /** af enabled in binary,
+                           * 0:disabled, 1:enabled */
+  struct af_public_grid_config af_grd_info;  /** see description in
+                                              * af_public.h*/
 
-	u32 awb_fr_enable;					/** awb_fr enabled in binary,
-								   0:disabled, 1:enabled */
-	struct awb_fr_public_grid_config
-		awb_fr_grd_info;/** see description in awb_fr_public.h*/
+  u32 awb_fr_enable;          /** awb_fr enabled in binary,
+                               * 0:disabled, 1:enabled */
+  struct awb_fr_public_grid_config
+      awb_fr_grd_info; /** see description in awb_fr_public.h*/
 
-	u32 elem_bit_depth;    /** TODO:Taken from BYT  - need input from AIQ
-					if needed for SKC
-					Bit depth of element used
-					to calculate 3A statistics.
-					This is 13, which is the normalized
-					bayer bit depth in DSP. */
+  u32 elem_bit_depth;    /** TODO:Taken from BYT  - need input from AIQ
+                          * if needed for SKC
+                          * Bit depth of element used
+                          * to calculate 3A statistics.
+                          * This is 13, which is the normalized
+                          * bayer bit depth in DSP. */
 
 #else
-	u32 enable;            /** 3A statistics enabled.
-					0:disabled, 1:enabled */
-	u32 use_dmem;          /** DMEM or VMEM determines layout.
-					0:3A statistics are stored to VMEM,
-					1:3A statistics are stored to DMEM */
-	u32 has_histogram;     /** Statistics include histogram.
-					0:no histogram, 1:has histogram */
-	u32 width;		    /** Width of 3A grid table.
-					(= Horizontal number of grid cells
-					in table, which cells have effective
-					statistics.) */
-	u32 height;	    /** Height of 3A grid table.
-					(= Vertical number of grid cells
-					in table, which cells have effective
-					statistics.) */
-	u32 aligned_width;     /** Horizontal stride (for alloc).
-					(= Horizontal number of grid cells
-					in table, which means
-					the allocated width.) */
-	u32 aligned_height;    /** Vertical stride (for alloc).
-					(= Vertical number of grid cells
-					in table, which means
-					the allocated height.) */
-	u32 bqs_per_grid_cell; /** Grid cell size in BQ(Bayer Quad) unit.
-					(1BQ means {Gr,R,B,Gb}(2x2 pixels).)
-					Valid values are 8,16,32,64. */
-	u32 deci_factor_log2;  /** log2 of bqs_per_grid_cell. */
-	u32 elem_bit_depth;    /** Bit depth of element used
-					to calculate 3A statistics.
-					This is 13, which is the normalized
-					bayer bit depth in DSP. */
+  u32 enable;            /** 3A statistics enabled.
+                          * 0:disabled, 1:enabled */
+  u32 use_dmem;          /** DMEM or VMEM determines layout.
+                          * 0:3A statistics are stored to VMEM,
+                          * 1:3A statistics are stored to DMEM */
+  u32 has_histogram;     /** Statistics include histogram.
+                          * 0:no histogram, 1:has histogram */
+  u32 width;        /** Width of 3A grid table.
+                     * (= Horizontal number of grid cells
+                     * in table, which cells have effective
+                     * statistics.) */
+  u32 height;     /** Height of 3A grid table.
+                   * (= Vertical number of grid cells
+                   * in table, which cells have effective
+                   * statistics.) */
+  u32 aligned_width;     /** Horizontal stride (for alloc).
+                          * (= Horizontal number of grid cells
+                          * in table, which means
+                          * the allocated width.) */
+  u32 aligned_height;    /** Vertical stride (for alloc).
+                          * (= Vertical number of grid cells
+                          * in table, which means
+                          * the allocated height.) */
+  u32 bqs_per_grid_cell; /** Grid cell size in BQ(Bayer Quad) unit.
+                          * (1BQ means {Gr,R,B,Gb}(2x2 pixels).)
+                          * Valid values are 8,16,32,64. */
+  u32 deci_factor_log2;  /** log2 of bqs_per_grid_cell. */
+  u32 elem_bit_depth;    /** Bit depth of element used
+                          * to calculate 3A statistics.
+                          * This is 13, which is the normalized
+                          * bayer bit depth in DSP. */
 #endif
 };
 
@@ -123,35 +124,35 @@ struct ia_css_3a_grid_info {
  *  ISP2: S3A2 and SDVS2 are used.
  */
 struct ia_css_3a_config {
-	ia_css_u0_16 ae_y_coef_r;	/** Weight of R for Y.
-						u0.16, [0,65535],
-						default/ineffective 25559 */
-	ia_css_u0_16 ae_y_coef_g;	/** Weight of G for Y.
-						u0.16, [0,65535],
-						default/ineffective 32768 */
-	ia_css_u0_16 ae_y_coef_b;	/** Weight of B for Y.
-						u0.16, [0,65535],
-						default/ineffective 7209 */
-	ia_css_u0_16 awb_lg_high_raw;	/** AWB level gate high for raw.
-						u0.16, [0,65535],
-						default 65472(=1023*64),
-						ineffective 65535 */
-	ia_css_u0_16 awb_lg_low;	/** AWB level gate low.
-						u0.16, [0,65535],
-						default 64(=1*64),
-						ineffective 0 */
-	ia_css_u0_16 awb_lg_high;	/** AWB level gate high.
-						u0.16, [0,65535],
-						default 65535,
-						ineffective 65535 */
-	ia_css_s0_15 af_fir1_coef[7];	/** AF FIR coefficients of fir1.
-						s0.15, [-32768,32767],
-				default/ineffective
-				-6689,-12207,-32768,32767,12207,6689,0 */
-	ia_css_s0_15 af_fir2_coef[7];	/** AF FIR coefficients of fir2.
-						s0.15, [-32768,32767],
-				default/ineffective
-				2053,0,-18437,32767,-18437,2053,0 */
+  ia_css_u0_16 ae_y_coef_r; /** Weight of R for Y.
+                             * u0.16, [0,65535],
+                             * default/ineffective 25559 */
+  ia_css_u0_16 ae_y_coef_g; /** Weight of G for Y.
+                             * u0.16, [0,65535],
+                             * default/ineffective 32768 */
+  ia_css_u0_16 ae_y_coef_b; /** Weight of B for Y.
+                             * u0.16, [0,65535],
+                             * default/ineffective 7209 */
+  ia_css_u0_16 awb_lg_high_raw; /** AWB level gate high for raw.
+                                 * u0.16, [0,65535],
+                                 * default 65472(=1023*64),
+                                 * ineffective 65535 */
+  ia_css_u0_16 awb_lg_low;  /** AWB level gate low.
+                             * u0.16, [0,65535],
+                             * default 64(=1*64),
+                             * ineffective 0 */
+  ia_css_u0_16 awb_lg_high; /** AWB level gate high.
+                             * u0.16, [0,65535],
+                             * default 65535,
+                             * ineffective 65535 */
+  ia_css_s0_15 af_fir1_coef[7]; /** AF FIR coefficients of fir1.
+                                 * s0.15, [-32768,32767],
+                                 * default/ineffective
+                                 * -6689,-12207,-32768,32767,12207,6689,0 */
+  ia_css_s0_15 af_fir2_coef[7]; /** AF FIR coefficients of fir2.
+                                 * s0.15, [-32768,32767],
+                                 * default/ineffective
+                                 * 2053,0,-18437,32767,-18437,2053,0 */
 };
 
 /* 3A statistics. This structure describes the data stored
@@ -165,41 +166,42 @@ struct ia_css_3a_config {
  *  ISP2: S3A2 is used.
  */
 struct ia_css_3a_output {
-	s32 ae_y;    /** Sum of Y in a statistics window, for AE.
-				(u19.13) */
-	s32 awb_cnt; /** Number of effective pixels
-				in a statistics window.
-				Pixels passed by the AWB level gate check are
-				judged as "effective". (u32) */
-	s32 awb_gr;  /** Sum of Gr in a statistics window, for AWB.
-				All Gr pixels (not only for effective pixels)
-				are summed. (u19.13) */
-	s32 awb_r;   /** Sum of R in a statistics window, for AWB.
-				All R pixels (not only for effective pixels)
-				are summed. (u19.13) */
-	s32 awb_b;   /** Sum of B in a statistics window, for AWB.
-				All B pixels (not only for effective pixels)
-				are summed. (u19.13) */
-	s32 awb_gb;  /** Sum of Gb in a statistics window, for AWB.
-				All Gb pixels (not only for effective pixels)
-				are summed. (u19.13) */
-	s32 af_hpf1; /** Sum of |Y| following high pass filter af_fir1
-				within a statistics window, for AF. (u19.13) */
-	s32 af_hpf2; /** Sum of |Y| following high pass filter af_fir2
-				within a statistics window, for AF. (u19.13) */
+  s32 ae_y;    /** Sum of Y in a statistics window, for AE.
+                * (u19.13) */
+  s32 awb_cnt; /** Number of effective pixels
+                * in a statistics window.
+                * Pixels passed by the AWB level gate check are
+                * judged as "effective". (u32) */
+  s32 awb_gr;  /** Sum of Gr in a statistics window, for AWB.
+                * All Gr pixels (not only for effective pixels)
+                * are summed. (u19.13) */
+  s32 awb_r;   /** Sum of R in a statistics window, for AWB.
+                * All R pixels (not only for effective pixels)
+                * are summed. (u19.13) */
+  s32 awb_b;   /** Sum of B in a statistics window, for AWB.
+                * All B pixels (not only for effective pixels)
+                * are summed. (u19.13) */
+  s32 awb_gb;  /** Sum of Gb in a statistics window, for AWB.
+                * All Gb pixels (not only for effective pixels)
+                * are summed. (u19.13) */
+  s32 af_hpf1; /** Sum of |Y| following high pass filter af_fir1
+                * within a statistics window, for AF. (u19.13) */
+  s32 af_hpf2; /** Sum of |Y| following high pass filter af_fir2
+                * within a statistics window, for AF. (u19.13) */
 };
 
 /* 3A Statistics. This structure describes the statistics that are generated
  *  using the provided configuration (ia_css_3a_config).
  */
 struct ia_css_3a_statistics {
-	struct ia_css_3a_grid_info
-		grid;	/** grid info contains the dimensions of the 3A grid */
-	struct ia_css_3a_output
-		*data;	/** the pointer to 3a_output[grid.width * grid.height]
-						     containing the 3A statistics */
-	struct ia_css_3a_rgby_output *rgby_data;/** the pointer to 3a_rgby_output[256]
-						     containing the histogram */
+  struct ia_css_3a_grid_info
+      grid; /** grid info contains the dimensions of the 3A grid */
+  struct ia_css_3a_output
+  *data;    /** the pointer to 3a_output[grid.width * grid.height]
+             *   containing the 3A statistics */
+  struct ia_css_3a_rgby_output *rgby_data; /** the pointer to
+                                            * 3a_rgby_output[256]
+                                            * containing the histogram */
 };
 
 /* Histogram (Statistics for AE).
@@ -207,16 +209,16 @@ struct ia_css_3a_statistics {
  *  4 histograms(r,g,b,y),
  *  256 bins for each histogram, unsigned 24bit value for each bin.
  *    struct ia_css_3a_rgby_output data[256];
-
+ *
  *  ISP block: HIST2
  * (ISP1: HIST2 is not used.)
  *  ISP2: HIST2 is used.
  */
 struct ia_css_3a_rgby_output {
-	u32 r;	/** Number of R of one bin of the histogram R. (u24) */
-	u32 g;	/** Number of G of one bin of the histogram G. (u24) */
-	u32 b;	/** Number of B of one bin of the histogram B. (u24) */
-	u32 y;	/** Number of Y of one bin of the histogram Y. (u24) */
+  u32 r;  /** Number of R of one bin of the histogram R. (u24) */
+  u32 g;  /** Number of G of one bin of the histogram G. (u24) */
+  u32 b;  /** Number of B of one bin of the histogram B. (u24) */
+  u32 y;  /** Number of Y of one bin of the histogram Y. (u24) */
 };
 
 #endif /* __IA_CSS_S3A_TYPES_H */

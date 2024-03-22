@@ -8,18 +8,18 @@
 #include <linux/local_lock.h>
 
 struct zcomp_strm {
-	/* The members ->buffer and ->tfm are protected by ->lock. */
-	local_lock_t lock;
-	/* compression/decompression buffer */
-	void *buffer;
-	struct crypto_comp *tfm;
+  /* The members ->buffer and ->tfm are protected by ->lock. */
+  local_lock_t lock;
+  /* compression/decompression buffer */
+  void *buffer;
+  struct crypto_comp *tfm;
 };
 
 /* dynamic per-device compression frontend */
 struct zcomp {
-	struct zcomp_strm __percpu *stream;
-	const char *name;
-	struct hlist_node node;
+  struct zcomp_strm __percpu *stream;
+  const char *name;
+  struct hlist_node node;
 };
 
 int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node);
@@ -34,9 +34,9 @@ struct zcomp_strm *zcomp_stream_get(struct zcomp *comp);
 void zcomp_stream_put(struct zcomp *comp);
 
 int zcomp_compress(struct zcomp_strm *zstrm,
-		const void *src, unsigned int *dst_len);
+    const void *src, unsigned int *dst_len);
 
 int zcomp_decompress(struct zcomp_strm *zstrm,
-		const void *src, unsigned int src_len, void *dst);
+    const void *src, unsigned int src_len, void *dst);
 
 #endif /* _ZCOMP_H_ */

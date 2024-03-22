@@ -10,24 +10,24 @@
 #define __SOUND_ADAU1373_H__
 
 enum adau1373_micbias_voltage {
-	ADAU1373_MICBIAS_2_9V = 0,
-	ADAU1373_MICBIAS_2_2V = 1,
-	ADAU1373_MICBIAS_2_6V = 2,
-	ADAU1373_MICBIAS_1_8V = 3,
+  ADAU1373_MICBIAS_2_9V = 0,
+  ADAU1373_MICBIAS_2_2V = 1,
+  ADAU1373_MICBIAS_2_6V = 2,
+  ADAU1373_MICBIAS_1_8V = 3,
 };
 
 #define ADAU1373_DRC_SIZE 13
 
 struct adau1373_platform_data {
-	bool input_differential[4];
-	bool lineout_differential;
-	bool lineout_ground_sense;
+  bool input_differential[4];
+  bool lineout_differential;
+  bool lineout_ground_sense;
 
-	unsigned int num_drc;
-	uint8_t drc_setting[3][ADAU1373_DRC_SIZE];
+  unsigned int num_drc;
+  uint8_t drc_setting[3][ADAU1373_DRC_SIZE];
 
-	enum adau1373_micbias_voltage micbias1;
-	enum adau1373_micbias_voltage micbias2;
+  enum adau1373_micbias_voltage micbias1;
+  enum adau1373_micbias_voltage micbias2;
 };
 
 #endif

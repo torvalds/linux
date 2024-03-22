@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 //
 // Copyright (C) 2013 Samsung Electronics Co., Ltd.
-//	Tomasz Figa <t.figa@samsung.com>
+//  Tomasz Figa <t.figa@samsung.com>
 // Copyright (C) 2008 Openmoko, Inc.
 // Copyright (C) 2004-2008 Simtec Electronics
-//	Ben Dooks <ben@simtec.co.uk>
-//	http://armlinux.simtec.co.uk/
+//  Ben Dooks <ben@simtec.co.uk>
+//  http://armlinux.simtec.co.uk/
 //
 // Samsung common power management helper functions.
 
@@ -24,12 +24,11 @@
  * Run through the list of registers given, saving their contents in the
  * array for later restoration when we wakeup.
  */
-void s3c_pm_do_save(struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		ptr->val = readl_relaxed(ptr->reg);
-		S3C_PMDBG("saved %p value %08lx\n", ptr->reg, ptr->val);
-	}
+void s3c_pm_do_save(struct sleep_save *ptr, int count) {
+  for (; count > 0; count--, ptr++) {
+    ptr->val = readl_relaxed(ptr->reg);
+    S3C_PMDBG("saved %p value %08lx\n", ptr->reg, ptr->val);
+  }
 }
 
 /**
@@ -41,16 +40,14 @@ void s3c_pm_do_save(struct sleep_save *ptr, int count)
  *
  * Note, we do not use S3C_PMDBG() in here, as the system may not have
  * restore the UARTs state yet
-*/
+ */
 
-void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++) {
-		pr_debug("restore %p (restore %08lx, was %08x)\n",
-				ptr->reg, ptr->val, readl_relaxed(ptr->reg));
-
-		writel_relaxed(ptr->val, ptr->reg);
-	}
+void s3c_pm_do_restore(const struct sleep_save *ptr, int count) {
+  for (; count > 0; count--, ptr++) {
+    pr_debug("restore %p (restore %08lx, was %08x)\n",
+        ptr->reg, ptr->val, readl_relaxed(ptr->reg));
+    writel_relaxed(ptr->val, ptr->reg);
+  }
 }
 
 /**
@@ -64,10 +61,10 @@ void s3c_pm_do_restore(const struct sleep_save *ptr, int count)
  *
  * WARNING: Do not put any debug in here that may effect memory or use
  * peripherals, as things may be changing!
-*/
+ */
 
-void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count)
-{
-	for (; count > 0; count--, ptr++)
-		writel_relaxed(ptr->val, ptr->reg);
+void s3c_pm_do_restore_core(const struct sleep_save *ptr, int count) {
+  for (; count > 0; count--, ptr++) {
+    writel_relaxed(ptr->val, ptr->reg);
+  }
 }

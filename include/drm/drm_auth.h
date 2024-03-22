@@ -45,88 +45,88 @@ struct drm_file;
  * nodes, hence there can only be one per device, not one per drm_minor.
  */
 struct drm_master {
-	struct kref refcount;
-	struct drm_device *dev;
-	/**
-	 * @unique: Unique identifier: e.g. busid. Protected by
-	 * &drm_device.master_mutex.
-	 */
-	char *unique;
-	/**
-	 * @unique_len: Length of unique field. Protected by
-	 * &drm_device.master_mutex.
-	 */
-	int unique_len;
-	/**
-	 * @magic_map: Map of used authentication tokens. Protected by
-	 * &drm_device.master_mutex.
-	 */
-	struct idr magic_map;
-	void *driver_priv;
+  struct kref refcount;
+  struct drm_device *dev;
+  /**
+   * @unique: Unique identifier: e.g. busid. Protected by
+   * &drm_device.master_mutex.
+   */
+  char *unique;
+  /**
+   * @unique_len: Length of unique field. Protected by
+   * &drm_device.master_mutex.
+   */
+  int unique_len;
+  /**
+   * @magic_map: Map of used authentication tokens. Protected by
+   * &drm_device.master_mutex.
+   */
+  struct idr magic_map;
+  void *driver_priv;
 
-	/**
-	 * @lessor:
-	 *
-	 * Lease grantor, only set if this &struct drm_master represents a
-	 * lessee holding a lease of objects from @lessor. Full owners of the
-	 * device have this set to NULL.
-	 *
-	 * The lessor does not change once it's set in drm_lease_create(), and
-	 * each lessee holds a reference to its lessor that it releases upon
-	 * being destroyed in drm_lease_destroy().
-	 *
-	 * See also the :ref:`section on display resource leasing
-	 * <drm_leasing>`.
-	 */
-	struct drm_master *lessor;
+  /**
+   * @lessor:
+   *
+   * Lease grantor, only set if this &struct drm_master represents a
+   * lessee holding a lease of objects from @lessor. Full owners of the
+   * device have this set to NULL.
+   *
+   * The lessor does not change once it's set in drm_lease_create(), and
+   * each lessee holds a reference to its lessor that it releases upon
+   * being destroyed in drm_lease_destroy().
+   *
+   * See also the :ref:`section on display resource leasing
+   * <drm_leasing>`.
+   */
+  struct drm_master *lessor;
 
-	/**
-	 * @lessee_id:
-	 *
-	 * ID for lessees. Owners (i.e. @lessor is NULL) always have ID 0.
-	 * Protected by &drm_device.mode_config's &drm_mode_config.idr_mutex.
-	 */
-	int	lessee_id;
+  /**
+   * @lessee_id:
+   *
+   * ID for lessees. Owners (i.e. @lessor is NULL) always have ID 0.
+   * Protected by &drm_device.mode_config's &drm_mode_config.idr_mutex.
+   */
+  int lessee_id;
 
-	/**
-	 * @lessee_list:
-	 *
-	 * List entry of lessees of @lessor, where they are linked to @lessees.
-	 * Not used for owners. Protected by &drm_device.mode_config's
-	 * &drm_mode_config.idr_mutex.
-	 */
-	struct list_head lessee_list;
+  /**
+   * @lessee_list:
+   *
+   * List entry of lessees of @lessor, where they are linked to @lessees.
+   * Not used for owners. Protected by &drm_device.mode_config's
+   * &drm_mode_config.idr_mutex.
+   */
+  struct list_head lessee_list;
 
-	/**
-	 * @lessees:
-	 *
-	 * List of drm_masters leasing from this one. Protected by
-	 * &drm_device.mode_config's &drm_mode_config.idr_mutex.
-	 *
-	 * This list is empty if no leases have been granted, or if all lessees
-	 * have been destroyed. Since lessors are referenced by all their
-	 * lessees, this master cannot be destroyed unless the list is empty.
-	 */
-	struct list_head lessees;
+  /**
+   * @lessees:
+   *
+   * List of drm_masters leasing from this one. Protected by
+   * &drm_device.mode_config's &drm_mode_config.idr_mutex.
+   *
+   * This list is empty if no leases have been granted, or if all lessees
+   * have been destroyed. Since lessors are referenced by all their
+   * lessees, this master cannot be destroyed unless the list is empty.
+   */
+  struct list_head lessees;
 
-	/**
-	 * @leases:
-	 *
-	 * Objects leased to this drm_master. Protected by
-	 * &drm_device.mode_config's &drm_mode_config.idr_mutex.
-	 *
-	 * Objects are leased all together in drm_lease_create(), and are
-	 * removed all together when the lease is revoked.
-	 */
-	struct idr leases;
+  /**
+   * @leases:
+   *
+   * Objects leased to this drm_master. Protected by
+   * &drm_device.mode_config's &drm_mode_config.idr_mutex.
+   *
+   * Objects are leased all together in drm_lease_create(), and are
+   * removed all together when the lease is revoked.
+   */
+  struct idr leases;
 
-	/**
-	 * @lessee_idr:
-	 *
-	 * All lessees under this owner (only used where @lessor is NULL).
-	 * Protected by &drm_device.mode_config's &drm_mode_config.idr_mutex.
-	 */
-	struct idr lessee_idr;
+  /**
+   * @lessee_idr:
+   *
+   * All lessees under this owner (only used where @lessor is NULL).
+   * Protected by &drm_device.mode_config's &drm_mode_config.idr_mutex.
+   */
+  struct idr lessee_idr;
 };
 
 struct drm_master *drm_master_get(struct drm_master *master);

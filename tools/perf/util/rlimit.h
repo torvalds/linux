@@ -3,9 +3,9 @@
 #define __PERF_RLIMIT_H_
 
 enum rlimit_action {
-	NO_CHANGE,
-	SET_TO_MAX,
-	INCREASED_MAX
+  NO_CHANGE,
+  SET_TO_MAX,
+  INCREASED_MAX
 };
 
 void rlimit__bump_memlock(void);

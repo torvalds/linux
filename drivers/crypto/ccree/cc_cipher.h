@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2012-2019 ARM Limited (or its affiliates).*/
 
 /* \file cc_cipher.h
  * ARM CryptoCell Cipher Crypto API
@@ -14,14 +14,14 @@
 #include "cc_buffer_mgr.h"
 
 struct cipher_req_ctx {
-	struct async_gen_req_ctx gen_ctx;
-	enum cc_req_dma_buf_type dma_buf_type;
-	u32 in_nents;
-	u32 in_mlli_nents;
-	u32 out_nents;
-	u32 out_mlli_nents;
-	u8 *iv;
-	struct mlli_params mlli_params;
+  struct async_gen_req_ctx gen_ctx;
+  enum cc_req_dma_buf_type dma_buf_type;
+  u32 in_nents;
+  u32 in_mlli_nents;
+  u32 out_nents;
+  u32 out_mlli_nents;
+  u8 *iv;
+  struct mlli_params mlli_params;
 };
 
 int cc_cipher_alloc(struct cc_drvdata *drvdata);
@@ -29,9 +29,9 @@ int cc_cipher_alloc(struct cc_drvdata *drvdata);
 int cc_cipher_free(struct cc_drvdata *drvdata);
 
 struct cc_hkey_info {
-	u16 keylen;
-	u8 hw_key1;
-	u8 hw_key2;
+  u16 keylen;
+  u8 hw_key1;
+  u8 hw_key2;
 } __packed;
 
 #define CC_HW_KEY_SIZE sizeof(struct cc_hkey_info)

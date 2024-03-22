@@ -42,11 +42,11 @@ extern void smp_icache_page_inv(struct page *page);
  * Synchronizes caches. Whenever a cpu writes executable code to memory, this
  * should be called to make sure the processor sees the newly written code.
  */
-static inline void sync_icache_dcache(struct page *page)
-{
-	if (!IS_ENABLED(CONFIG_DCACHE_WRITETHROUGH))
-		dcache_page_flush(page);
-	icache_page_inv(page);
+static inline void sync_icache_dcache(struct page *page) {
+  if (!IS_ENABLED(CONFIG_DCACHE_WRITETHROUGH)) {
+    dcache_page_flush(page);
+  }
+  icache_page_inv(page);
 }
 
 /*
@@ -56,23 +56,22 @@ static inline void sync_icache_dcache(struct page *page)
  */
 #define PG_dc_clean                  PG_arch_1
 
-static inline void flush_dcache_folio(struct folio *folio)
-{
-	clear_bit(PG_dc_clean, &folio->flags);
+static inline void flush_dcache_folio(struct folio *folio) {
+  clear_bit(PG_dc_clean, &folio->flags);
 }
+
 #define flush_dcache_folio flush_dcache_folio
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
-static inline void flush_dcache_page(struct page *page)
-{
-	flush_dcache_folio(page_folio(page));
+static inline void flush_dcache_page(struct page *page) {
+  flush_dcache_folio(page_folio(page));
 }
 
-#define flush_icache_user_page(vma, page, addr, len)	\
-do {							\
-	if (vma->vm_flags & VM_EXEC)			\
-		sync_icache_dcache(page);		\
-} while (0)
+#define flush_icache_user_page(vma, page, addr, len)  \
+  do {              \
+    if (vma->vm_flags & VM_EXEC)      \
+    sync_icache_dcache(page);   \
+  } while (0)
 
 #include <asm-generic/cacheflush.h>
 

@@ -18,7 +18,7 @@
 #include <linux/spinlock.h>
 
 struct fsl_lbc_bank {
-	__be32 br;             /**< Base Register  */
+  __be32 br;             /**< Base Register  */
 #define BR_BA           0xFFFF8000
 #define BR_BA_SHIFT             15
 #define BR_PS           0x00001800
@@ -43,9 +43,9 @@ struct fsl_lbc_bank {
 #define BR_MS_UPMC      0x000000C0  /* UPMC */
 #define BR_V            0x00000001
 #define BR_V_SHIFT               0
-#define BR_RES          ~(BR_BA|BR_PS|BR_DECC|BR_WP|BR_MSEL|BR_V)
+#define BR_RES          ~(BR_BA | BR_PS | BR_DECC | BR_WP | BR_MSEL | BR_V)
 
-	__be32 or;             /**< Base Register  */
+  __be32 or;             /**< Base Register  */
 #define OR0 0x5004
 #define OR1 0x500C
 #define OR2 0x5014
@@ -83,34 +83,34 @@ struct fsl_lbc_bank {
 #define OR_FCM_EHTR             0x00000002
 #define OR_FCM_EHTR_SHIFT                1
 
-#define OR_GPCM_AM		0xFFFF8000
-#define OR_GPCM_AM_SHIFT		15
+#define OR_GPCM_AM    0xFFFF8000
+#define OR_GPCM_AM_SHIFT    15
 };
 
 struct fsl_lbc_regs {
-	struct fsl_lbc_bank bank[12];
-	u8 res0[0x8];
-	__be32 mar;             /**< UPM Address Register */
-	u8 res1[0x4];
-	__be32 mamr;            /**< UPMA Mode Register */
-#define MxMR_OP_NO	(0 << 28) /**< normal operation */
-#define MxMR_OP_WA	(1 << 28) /**< write array */
-#define MxMR_OP_RA	(2 << 28) /**< read array */
-#define MxMR_OP_RP	(3 << 28) /**< run pattern */
-#define MxMR_MAD	0x3f      /**< machine address */
-	__be32 mbmr;            /**< UPMB Mode Register */
-	__be32 mcmr;            /**< UPMC Mode Register */
-	u8 res2[0x8];
-	__be32 mrtpr;           /**< Memory Refresh Timer Prescaler Register */
-	__be32 mdr;             /**< UPM Data Register */
-	u8 res3[0x4];
-	__be32 lsor;            /**< Special Operation Initiation Register */
-	__be32 lsdmr;           /**< SDRAM Mode Register */
-	u8 res4[0x8];
-	__be32 lurt;            /**< UPM Refresh Timer */
-	__be32 lsrt;            /**< SDRAM Refresh Timer */
-	u8 res5[0x8];
-	__be32 ltesr;           /**< Transfer Error Status Register */
+  struct fsl_lbc_bank bank[12];
+  u8 res0[0x8];
+  __be32 mar;             /**< UPM Address Register */
+  u8 res1[0x4];
+  __be32 mamr;            /**< UPMA Mode Register */
+#define MxMR_OP_NO  (0 << 28) /**< normal operation */
+#define MxMR_OP_WA  (1 << 28) /**< write array */
+#define MxMR_OP_RA  (2 << 28) /**< read array */
+#define MxMR_OP_RP  (3 << 28) /**< run pattern */
+#define MxMR_MAD  0x3f      /**< machine address */
+  __be32 mbmr;            /**< UPMB Mode Register */
+  __be32 mcmr;            /**< UPMC Mode Register */
+  u8 res2[0x8];
+  __be32 mrtpr;           /**< Memory Refresh Timer Prescaler Register */
+  __be32 mdr;             /**< UPM Data Register */
+  u8 res3[0x4];
+  __be32 lsor;            /**< Special Operation Initiation Register */
+  __be32 lsdmr;           /**< SDRAM Mode Register */
+  u8 res4[0x8];
+  __be32 lurt;            /**< UPM Refresh Timer */
+  __be32 lsrt;            /**< SDRAM Refresh Timer */
+  u8 res5[0x8];
+  __be32 ltesr;           /**< Transfer Error Status Register */
 #define LTESR_BM   0x80000000
 #define LTESR_FCT  0x40000000
 #define LTESR_PAR  0x20000000
@@ -122,20 +122,20 @@ struct fsl_lbc_regs {
 #define LTESR_CC   0x00000001
 #define LTESR_NAND_MASK (LTESR_FCT | LTESR_PAR | LTESR_CC)
 #define LTESR_MASK      (LTESR_BM | LTESR_FCT | LTESR_PAR | LTESR_WP \
-			 | LTESR_ATMW | LTESR_ATMR | LTESR_CS | LTESR_UPM \
-			 | LTESR_CC)
-#define LTESR_CLEAR	0xFFFFFFFF
-#define LTECCR_CLEAR	0xFFFFFFFF
-#define LTESR_STATUS	LTESR_MASK
-#define LTEIR_ENABLE	LTESR_MASK
-#define LTEDR_ENABLE	0x00000000
-	__be32 ltedr;           /**< Transfer Error Disable Register */
-	__be32 lteir;           /**< Transfer Error Interrupt Register */
-	__be32 lteatr;          /**< Transfer Error Attributes Register */
-	__be32 ltear;           /**< Transfer Error Address Register */
-	__be32 lteccr;          /**< Transfer Error ECC Register */
-	u8 res6[0x8];
-	__be32 lbcr;            /**< Configuration Register */
+  | LTESR_ATMW | LTESR_ATMR | LTESR_CS | LTESR_UPM \
+  | LTESR_CC)
+#define LTESR_CLEAR 0xFFFFFFFF
+#define LTECCR_CLEAR  0xFFFFFFFF
+#define LTESR_STATUS  LTESR_MASK
+#define LTEIR_ENABLE  LTESR_MASK
+#define LTEDR_ENABLE  0x00000000
+  __be32 ltedr;           /**< Transfer Error Disable Register */
+  __be32 lteir;           /**< Transfer Error Interrupt Register */
+  __be32 lteatr;          /**< Transfer Error Attributes Register */
+  __be32 ltear;           /**< Transfer Error Address Register */
+  __be32 lteccr;          /**< Transfer Error ECC Register */
+  u8 res6[0x8];
+  __be32 lbcr;            /**< Configuration Register */
 #define LBCR_LDIS  0x80000000
 #define LBCR_LDIS_SHIFT    31
 #define LBCR_BCTLC 0x00C00000
@@ -150,7 +150,7 @@ struct fsl_lbc_regs {
 #define LBCR_BMTPS 0x0000000F
 #define LBCR_BMTPS_SHIFT    0
 #define LBCR_INIT  0x00040000
-	__be32 lcrr;            /**< Clock Ratio Register */
+  __be32 lcrr;            /**< Clock Ratio Register */
 #define LCRR_DBYP    0x80000000
 #define LCRR_DBYP_SHIFT      31
 #define LCRR_BUFCMDC 0x30000000
@@ -161,8 +161,8 @@ struct fsl_lbc_regs {
 #define LCRR_EADC_SHIFT      16
 #define LCRR_CLKDIV  0x0000000F
 #define LCRR_CLKDIV_SHIFT     0
-	u8 res7[0x8];
-	__be32 fmr;             /**< Flash Mode Register */
+  u8 res7[0x8];
+  __be32 fmr;             /**< Flash Mode Register */
 #define FMR_CWTO     0x0000F000
 #define FMR_CWTO_SHIFT       12
 #define FMR_BOOT     0x00000800
@@ -171,7 +171,7 @@ struct fsl_lbc_regs {
 #define FMR_AL_SHIFT          4
 #define FMR_OP       0x00000003
 #define FMR_OP_SHIFT          0
-	__be32 fir;             /**< Flash Instruction Register */
+  __be32 fir;             /**< Flash Instruction Register */
 #define FIR_OP0      0xF0000000
 #define FIR_OP0_SHIFT        28
 #define FIR_OP1      0x0F000000
@@ -188,7 +188,7 @@ struct fsl_lbc_regs {
 #define FIR_OP6_SHIFT         4
 #define FIR_OP7      0x0000000F
 #define FIR_OP7_SHIFT         0
-#define FIR_OP_NOP   0x0	/* No operation and end of sequence */
+#define FIR_OP_NOP   0x0  /* No operation and end of sequence */
 #define FIR_OP_CA    0x1        /* Issue current column address */
 #define FIR_OP_PA    0x2        /* Issue current block+page address */
 #define FIR_OP_UA    0x3        /* Issue user defined address */
@@ -204,7 +204,7 @@ struct fsl_lbc_regs {
 #define FIR_OP_CW1   0xD        /* Wait then issue FCR[CMD1] */
 #define FIR_OP_RBW   0xE        /* Wait then read FBCR bytes */
 #define FIR_OP_RSW   0xE        /* Wait then read 1 or 2 bytes */
-	__be32 fcr;             /**< Flash Command Register */
+  __be32 fcr;             /**< Flash Command Register */
 #define FCR_CMD0     0xFF000000
 #define FCR_CMD0_SHIFT       24
 #define FCR_CMD1     0x00FF0000
@@ -213,9 +213,9 @@ struct fsl_lbc_regs {
 #define FCR_CMD2_SHIFT        8
 #define FCR_CMD3     0x000000FF
 #define FCR_CMD3_SHIFT        0
-	__be32 fbar;            /**< Flash Block Address Register */
+  __be32 fbar;            /**< Flash Block Address Register */
 #define FBAR_BLK     0x00FFFFFF
-	__be32 fpar;            /**< Flash Page Address Register */
+  __be32 fpar;            /**< Flash Page Address Register */
 #define FPAR_SP_PI   0x00007C00
 #define FPAR_SP_PI_SHIFT     10
 #define FPAR_SP_MS   0x00000200
@@ -226,7 +226,7 @@ struct fsl_lbc_regs {
 #define FPAR_LP_MS   0x00000800
 #define FPAR_LP_CI   0x000007FF
 #define FPAR_LP_CI_SHIFT      0
-	__be32 fbcr;            /**< Flash Byte Count Register */
+  __be32 fbcr;            /**< Flash Byte Count Register */
 #define FBCR_BC      0x00000FFF
 };
 
@@ -234,8 +234,8 @@ struct fsl_lbc_regs {
  * FSL UPM routines
  */
 struct fsl_upm {
-	__be32 __iomem *mxmr;
-	int width;
+  __be32 __iomem *mxmr;
+  int width;
 };
 
 extern u32 fsl_lbc_addr(phys_addr_t addr_base);
@@ -244,53 +244,51 @@ extern int fsl_upm_find(phys_addr_t addr_base, struct fsl_upm *upm);
 
 /**
  * fsl_upm_start_pattern - start UPM patterns execution
- * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
- * @pat_offset:	UPM pattern offset for the command to be executed
+ * @upm:  pointer to the fsl_upm structure obtained via fsl_upm_find
+ * @pat_offset: UPM pattern offset for the command to be executed
  *
  * This routine programmes UPM so the next memory access that hits an UPM
  * will trigger pattern execution, starting at pat_offset.
  */
-static inline void fsl_upm_start_pattern(struct fsl_upm *upm, u8 pat_offset)
-{
-	clrsetbits_be32(upm->mxmr, MxMR_MAD, MxMR_OP_RP | pat_offset);
+static inline void fsl_upm_start_pattern(struct fsl_upm *upm, u8 pat_offset) {
+  clrsetbits_be32(upm->mxmr, MxMR_MAD, MxMR_OP_RP | pat_offset);
 }
 
 /**
  * fsl_upm_end_pattern - end UPM patterns execution
- * @upm:	pointer to the fsl_upm structure obtained via fsl_upm_find
+ * @upm:  pointer to the fsl_upm structure obtained via fsl_upm_find
  *
  * This routine reverts UPM to normal operation mode.
  */
-static inline void fsl_upm_end_pattern(struct fsl_upm *upm)
-{
-	clrbits32(upm->mxmr, MxMR_OP_RP);
-
-	while (in_be32(upm->mxmr) & MxMR_OP_RP)
-		cpu_relax();
+static inline void fsl_upm_end_pattern(struct fsl_upm *upm) {
+  clrbits32(upm->mxmr, MxMR_OP_RP);
+  while (in_be32(upm->mxmr) & MxMR_OP_RP) {
+    cpu_relax();
+  }
 }
 
 /* overview of the fsl lbc controller */
 
 struct fsl_lbc_ctrl {
-	/* device info */
-	struct device			*dev;
-	struct fsl_lbc_regs __iomem	*regs;
-	int				irq[2];
-	wait_queue_head_t		irq_wait;
-	spinlock_t			lock;
-	void				*nand;
+  /* device info */
+  struct device *dev;
+  struct fsl_lbc_regs __iomem *regs;
+  int irq[2];
+  wait_queue_head_t irq_wait;
+  spinlock_t lock;
+  void *nand;
 
-	/* status read from LTESR by irq handler */
-	unsigned int			irq_status;
+  /* status read from LTESR by irq handler */
+  unsigned int irq_status;
 
 #ifdef CONFIG_SUSPEND
-	/* save regs when system go to deep-sleep */
-	struct fsl_lbc_regs		*saved_regs;
+  /* save regs when system go to deep-sleep */
+  struct fsl_lbc_regs *saved_regs;
 #endif
 };
 
 extern int fsl_upm_run_pattern(struct fsl_upm *upm, void __iomem *io_base,
-			       u32 mar);
+    u32 mar);
 extern struct fsl_lbc_ctrl *fsl_lbc_ctrl_dev;
 
 #endif /* __ASM_FSL_LBC_H */

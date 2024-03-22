@@ -50,7 +50,7 @@
 #define UBIFS_RO_COMPAT_VERSION 0
 
 /* Minimum logical eraseblock size in bytes */
-#define UBIFS_MIN_LEB_SZ (15*1024)
+#define UBIFS_MIN_LEB_SZ (15 * 1024)
 
 /* Initial CRC32 value used when calculating CRC checksums */
 #define UBIFS_CRC32_INIT 0xFFFFFFFFU
@@ -141,12 +141,12 @@
  * UBIFS_LPT_NOT_A_NODE: all ones (15 for 4 bits) is never a valid node type
  */
 enum {
-	UBIFS_LPT_PNODE,
-	UBIFS_LPT_NNODE,
-	UBIFS_LPT_LTAB,
-	UBIFS_LPT_LSAVE,
-	UBIFS_LPT_NODE_CNT,
-	UBIFS_LPT_NOT_A_NODE = (1 << UBIFS_LPT_TYPE_BITS) - 1,
+  UBIFS_LPT_PNODE,
+  UBIFS_LPT_NNODE,
+  UBIFS_LPT_LTAB,
+  UBIFS_LPT_LSAVE,
+  UBIFS_LPT_NODE_CNT,
+  UBIFS_LPT_NOT_A_NODE = (1 << UBIFS_LPT_TYPE_BITS) - 1,
 };
 
 /*
@@ -162,14 +162,14 @@ enum {
  * UBIFS_ITYPES_CNT: count of supported file types
  */
 enum {
-	UBIFS_ITYPE_REG,
-	UBIFS_ITYPE_DIR,
-	UBIFS_ITYPE_LNK,
-	UBIFS_ITYPE_BLK,
-	UBIFS_ITYPE_CHR,
-	UBIFS_ITYPE_FIFO,
-	UBIFS_ITYPE_SOCK,
-	UBIFS_ITYPES_CNT,
+  UBIFS_ITYPE_REG,
+  UBIFS_ITYPE_DIR,
+  UBIFS_ITYPE_LNK,
+  UBIFS_ITYPE_BLK,
+  UBIFS_ITYPE_CHR,
+  UBIFS_ITYPE_FIFO,
+  UBIFS_ITYPE_SOCK,
+  UBIFS_ITYPES_CNT,
 };
 
 /*
@@ -179,8 +179,8 @@ enum {
  * UBIFS_KEY_HASH_TEST: test hash which just returns first 4 bytes of the name
  */
 enum {
-	UBIFS_KEY_HASH_R5,
-	UBIFS_KEY_HASH_TEST,
+  UBIFS_KEY_HASH_R5,
+  UBIFS_KEY_HASH_TEST,
 };
 
 /*
@@ -189,7 +189,7 @@ enum {
  * UBIFS_SIMPLE_KEY_FMT: simple key format
  */
 enum {
-	UBIFS_SIMPLE_KEY_FMT,
+  UBIFS_SIMPLE_KEY_FMT,
 };
 
 /*
@@ -211,11 +211,11 @@ enum {
  * UBIFS_KEY_TYPES_CNT: number of supported key types
  */
 enum {
-	UBIFS_INO_KEY,
-	UBIFS_DATA_KEY,
-	UBIFS_DENT_KEY,
-	UBIFS_XENT_KEY,
-	UBIFS_KEY_TYPES_CNT,
+  UBIFS_INO_KEY,
+  UBIFS_DATA_KEY,
+  UBIFS_DENT_KEY,
+  UBIFS_XENT_KEY,
+  UBIFS_KEY_TYPES_CNT,
 };
 
 /* Count of LEBs reserved for the superblock area */
@@ -257,9 +257,9 @@ enum {
 #define UBIFS_MIN_MAIN_LEBS (UBIFS_MIN_BUD_LEBS + 6)
 
 /* Minimum number of logical eraseblocks */
-#define UBIFS_MIN_LEB_CNT (UBIFS_SB_LEBS + UBIFS_MST_LEBS + \
-			   UBIFS_MIN_LOG_LEBS + UBIFS_MIN_LPT_LEBS + \
-			   UBIFS_MIN_ORPH_LEBS + UBIFS_MIN_MAIN_LEBS)
+#define UBIFS_MIN_LEB_CNT (UBIFS_SB_LEBS + UBIFS_MST_LEBS   \
+  + UBIFS_MIN_LOG_LEBS + UBIFS_MIN_LPT_LEBS   \
+  + UBIFS_MIN_ORPH_LEBS + UBIFS_MIN_MAIN_LEBS)
 
 /* Node sizes (N.B. these are guaranteed to be multiples of 8) */
 #define UBIFS_CH_SZ        sizeof(struct ubifs_ch)
@@ -304,7 +304,7 @@ enum {
 #define UBIFS_XATTR_NAME_ENCRYPTION_CONTEXT "c"
 
 /* Type field in ubifs_sig_node */
-#define UBIFS_SIGNATURE_TYPE_PKCS7	1
+#define UBIFS_SIGNATURE_TYPE_PKCS7  1
 
 /*
  * On-flash inode flags.
@@ -322,13 +322,13 @@ enum {
  * have to be the same.
  */
 enum {
-	UBIFS_COMPR_FL     = 0x01,
-	UBIFS_SYNC_FL      = 0x02,
-	UBIFS_IMMUTABLE_FL = 0x04,
-	UBIFS_APPEND_FL    = 0x08,
-	UBIFS_DIRSYNC_FL   = 0x10,
-	UBIFS_XATTR_FL     = 0x20,
-	UBIFS_CRYPT_FL     = 0x40,
+  UBIFS_COMPR_FL = 0x01,
+  UBIFS_SYNC_FL = 0x02,
+  UBIFS_IMMUTABLE_FL = 0x04,
+  UBIFS_APPEND_FL = 0x08,
+  UBIFS_DIRSYNC_FL = 0x10,
+  UBIFS_XATTR_FL = 0x20,
+  UBIFS_CRYPT_FL = 0x40,
 };
 
 /* Inode flag bits used by UBIFS */
@@ -344,11 +344,11 @@ enum {
  * UBIFS_COMPR_TYPES_CNT: count of supported compression types
  */
 enum {
-	UBIFS_COMPR_NONE,
-	UBIFS_COMPR_LZO,
-	UBIFS_COMPR_ZLIB,
-	UBIFS_COMPR_ZSTD,
-	UBIFS_COMPR_TYPES_CNT,
+  UBIFS_COMPR_NONE,
+  UBIFS_COMPR_LZO,
+  UBIFS_COMPR_ZLIB,
+  UBIFS_COMPR_ZSTD,
+  UBIFS_COMPR_TYPES_CNT,
 };
 
 /*
@@ -375,21 +375,21 @@ enum {
  * corresponding key type constants.
  */
 enum {
-	UBIFS_INO_NODE,
-	UBIFS_DATA_NODE,
-	UBIFS_DENT_NODE,
-	UBIFS_XENT_NODE,
-	UBIFS_TRUN_NODE,
-	UBIFS_PAD_NODE,
-	UBIFS_SB_NODE,
-	UBIFS_MST_NODE,
-	UBIFS_REF_NODE,
-	UBIFS_IDX_NODE,
-	UBIFS_CS_NODE,
-	UBIFS_ORPH_NODE,
-	UBIFS_AUTH_NODE,
-	UBIFS_SIG_NODE,
-	UBIFS_NODE_TYPES_CNT,
+  UBIFS_INO_NODE,
+  UBIFS_DATA_NODE,
+  UBIFS_DENT_NODE,
+  UBIFS_XENT_NODE,
+  UBIFS_TRUN_NODE,
+  UBIFS_PAD_NODE,
+  UBIFS_SB_NODE,
+  UBIFS_MST_NODE,
+  UBIFS_REF_NODE,
+  UBIFS_IDX_NODE,
+  UBIFS_CS_NODE,
+  UBIFS_ORPH_NODE,
+  UBIFS_AUTH_NODE,
+  UBIFS_SIG_NODE,
+  UBIFS_NODE_TYPES_CNT,
 };
 
 /*
@@ -400,9 +400,9 @@ enum {
  * UBIFS_MST_RCVRY: written by recovery
  */
 enum {
-	UBIFS_MST_DIRTY = 1,
-	UBIFS_MST_NO_ORPHS = 2,
-	UBIFS_MST_RCVRY = 4,
+  UBIFS_MST_DIRTY = 1,
+  UBIFS_MST_NO_ORPHS = 2,
+  UBIFS_MST_RCVRY = 4,
 };
 
 /*
@@ -413,9 +413,9 @@ enum {
  * UBIFS_LAST_OF_NODE_GROUP: this node is the last in a group
  */
 enum {
-	UBIFS_NO_NODE_GROUP = 0,
-	UBIFS_IN_NODE_GROUP,
-	UBIFS_LAST_OF_NODE_GROUP,
+  UBIFS_NO_NODE_GROUP = 0,
+  UBIFS_IN_NODE_GROUP,
+  UBIFS_LAST_OF_NODE_GROUP,
 };
 
 /*
@@ -424,21 +424,21 @@ enum {
  * UBIFS_FLG_BIGLPT: if "big" LPT model is used if set
  * UBIFS_FLG_SPACE_FIXUP: first-mount "fixup" of free space within LEBs needed
  * UBIFS_FLG_DOUBLE_HASH: store a 32bit cookie in directory entry nodes to
- *			  support 64bit cookies for lookups by hash
+ *        support 64bit cookies for lookups by hash
  * UBIFS_FLG_ENCRYPTION: this filesystem contains encrypted files
  * UBIFS_FLG_AUTHENTICATION: this filesystem contains hashes for authentication
  */
 enum {
-	UBIFS_FLG_BIGLPT = 0x02,
-	UBIFS_FLG_SPACE_FIXUP = 0x04,
-	UBIFS_FLG_DOUBLE_HASH = 0x08,
-	UBIFS_FLG_ENCRYPTION = 0x10,
-	UBIFS_FLG_AUTHENTICATION = 0x20,
+  UBIFS_FLG_BIGLPT = 0x02,
+  UBIFS_FLG_SPACE_FIXUP = 0x04,
+  UBIFS_FLG_DOUBLE_HASH = 0x08,
+  UBIFS_FLG_ENCRYPTION = 0x10,
+  UBIFS_FLG_AUTHENTICATION = 0x20,
 };
 
-#define UBIFS_FLG_MASK (UBIFS_FLG_BIGLPT | UBIFS_FLG_SPACE_FIXUP | \
-		UBIFS_FLG_DOUBLE_HASH | UBIFS_FLG_ENCRYPTION | \
-		UBIFS_FLG_AUTHENTICATION)
+#define UBIFS_FLG_MASK (UBIFS_FLG_BIGLPT | UBIFS_FLG_SPACE_FIXUP   \
+  | UBIFS_FLG_DOUBLE_HASH | UBIFS_FLG_ENCRYPTION   \
+  | UBIFS_FLG_AUTHENTICATION)
 
 /**
  * struct ubifs_ch - common header node.
@@ -454,13 +454,13 @@ enum {
  * key always goes next.
  */
 struct ubifs_ch {
-	__le32 magic;
-	__le32 crc;
-	__le64 sqnum;
-	__le32 len;
-	__u8 node_type;
-	__u8 group_type;
-	__u8 padding[2];
+  __le32 magic;
+  __le32 crc;
+  __le64 sqnum;
+  __le32 len;
+  __u8 node_type;
+  __u8 group_type;
+  __u8 padding[2];
 } __packed;
 
 /**
@@ -473,8 +473,8 @@ struct ubifs_ch {
  * uses standard Linux "new" and "huge" device node encodings.
  */
 union ubifs_dev_desc {
-	__le32 new;
-	__le64 huge;
+  __le32 new;
+  __le64 huge;
 } __packed;
 
 /**
@@ -513,29 +513,29 @@ union ubifs_dev_desc {
  * the padding fields.
  */
 struct ubifs_ino_node {
-	struct ubifs_ch ch;
-	__u8 key[UBIFS_MAX_KEY_LEN];
-	__le64 creat_sqnum;
-	__le64 size;
-	__le64 atime_sec;
-	__le64 ctime_sec;
-	__le64 mtime_sec;
-	__le32 atime_nsec;
-	__le32 ctime_nsec;
-	__le32 mtime_nsec;
-	__le32 nlink;
-	__le32 uid;
-	__le32 gid;
-	__le32 mode;
-	__le32 flags;
-	__le32 data_len;
-	__le32 xattr_cnt;
-	__le32 xattr_size;
-	__u8 padding1[4]; /* Watch 'zero_ino_node_unused()' if changing! */
-	__le32 xattr_names;
-	__le16 compr_type;
-	__u8 padding2[26]; /* Watch 'zero_ino_node_unused()' if changing! */
-	__u8 data[];
+  struct ubifs_ch ch;
+  __u8 key[UBIFS_MAX_KEY_LEN];
+  __le64 creat_sqnum;
+  __le64 size;
+  __le64 atime_sec;
+  __le64 ctime_sec;
+  __le64 mtime_sec;
+  __le32 atime_nsec;
+  __le32 ctime_nsec;
+  __le32 mtime_nsec;
+  __le32 nlink;
+  __le32 uid;
+  __le32 gid;
+  __le32 mode;
+  __le32 flags;
+  __le32 data_len;
+  __le32 xattr_cnt;
+  __le32 xattr_size;
+  __u8 padding1[4]; /* Watch 'zero_ino_node_unused()' if changing! */
+  __le32 xattr_names;
+  __le16 compr_type;
+  __u8 padding2[26]; /* Watch 'zero_ino_node_unused()' if changing! */
+  __u8 data[];
 } __packed;
 
 /**
@@ -554,14 +554,14 @@ struct ubifs_ino_node {
  * changing the padding fields.
  */
 struct ubifs_dent_node {
-	struct ubifs_ch ch;
-	__u8 key[UBIFS_MAX_KEY_LEN];
-	__le64 inum;
-	__u8 padding1;
-	__u8 type;
-	__le16 nlen;
-	__le32 cookie;
-	__u8 name[];
+  struct ubifs_ch ch;
+  __u8 key[UBIFS_MAX_KEY_LEN];
+  __le64 inum;
+  __u8 padding1;
+  __u8 type;
+  __le16 nlen;
+  __le32 cookie;
+  __u8 name[];
 } __packed;
 
 /**
@@ -575,12 +575,12 @@ struct ubifs_dent_node {
  *
  */
 struct ubifs_data_node {
-	struct ubifs_ch ch;
-	__u8 key[UBIFS_MAX_KEY_LEN];
-	__le32 size;
-	__le16 compr_type;
-	__le16 compr_size;
-	__u8 data[];
+  struct ubifs_ch ch;
+  __u8 key[UBIFS_MAX_KEY_LEN];
+  __le32 size;
+  __le16 compr_type;
+  __le16 compr_size;
+  __u8 data[];
 } __packed;
 
 /**
@@ -596,11 +596,11 @@ struct ubifs_data_node {
  * padding fields.
  */
 struct ubifs_trun_node {
-	struct ubifs_ch ch;
-	__le32 inum;
-	__u8 padding[12]; /* Watch 'zero_trun_node_unused()' if changing! */
-	__le64 old_size;
-	__le64 new_size;
+  struct ubifs_ch ch;
+  __le32 inum;
+  __u8 padding[12]; /* Watch 'zero_trun_node_unused()' if changing! */
+  __le64 old_size;
+  __le64 new_size;
 } __packed;
 
 /**
@@ -610,8 +610,8 @@ struct ubifs_trun_node {
  * @padding: reserved for future, zeroes
  */
 struct ubifs_pad_node {
-	struct ubifs_ch ch;
-	__le32 pad_len;
+  struct ubifs_ch ch;
+  __le32 pad_len;
 } __packed;
 
 /**
@@ -650,36 +650,36 @@ struct ubifs_pad_node {
  *            master node does not contain a hmac
  */
 struct ubifs_sb_node {
-	struct ubifs_ch ch;
-	__u8 padding[2];
-	__u8 key_hash;
-	__u8 key_fmt;
-	__le32 flags;
-	__le32 min_io_size;
-	__le32 leb_size;
-	__le32 leb_cnt;
-	__le32 max_leb_cnt;
-	__le64 max_bud_bytes;
-	__le32 log_lebs;
-	__le32 lpt_lebs;
-	__le32 orph_lebs;
-	__le32 jhead_cnt;
-	__le32 fanout;
-	__le32 lsave_cnt;
-	__le32 fmt_version;
-	__le16 default_compr;
-	__u8 padding1[2];
-	__le32 rp_uid;
-	__le32 rp_gid;
-	__le64 rp_size;
-	__le32 time_gran;
-	__u8 uuid[16];
-	__le32 ro_compat_version;
-	__u8 hmac[UBIFS_MAX_HMAC_LEN];
-	__u8 hmac_wkm[UBIFS_MAX_HMAC_LEN];
-	__le16 hash_algo;
-	__u8 hash_mst[UBIFS_MAX_HASH_LEN];
-	__u8 padding2[3774];
+  struct ubifs_ch ch;
+  __u8 padding[2];
+  __u8 key_hash;
+  __u8 key_fmt;
+  __le32 flags;
+  __le32 min_io_size;
+  __le32 leb_size;
+  __le32 leb_cnt;
+  __le32 max_leb_cnt;
+  __le64 max_bud_bytes;
+  __le32 log_lebs;
+  __le32 lpt_lebs;
+  __le32 orph_lebs;
+  __le32 jhead_cnt;
+  __le32 fanout;
+  __le32 lsave_cnt;
+  __le32 fmt_version;
+  __le16 default_compr;
+  __u8 padding1[2];
+  __le32 rp_uid;
+  __le32 rp_gid;
+  __le64 rp_size;
+  __le32 time_gran;
+  __u8 uuid[16];
+  __le32 ro_compat_version;
+  __u8 hmac[UBIFS_MAX_HMAC_LEN];
+  __u8 hmac_wkm[UBIFS_MAX_HMAC_LEN];
+  __le16 hash_algo;
+  __u8 hash_mst[UBIFS_MAX_HASH_LEN];
+  __u8 padding2[3774];
 } __packed;
 
 /**
@@ -720,39 +720,39 @@ struct ubifs_sb_node {
  * @padding: reserved for future, zeroes
  */
 struct ubifs_mst_node {
-	struct ubifs_ch ch;
-	__le64 highest_inum;
-	__le64 cmt_no;
-	__le32 flags;
-	__le32 log_lnum;
-	__le32 root_lnum;
-	__le32 root_offs;
-	__le32 root_len;
-	__le32 gc_lnum;
-	__le32 ihead_lnum;
-	__le32 ihead_offs;
-	__le64 index_size;
-	__le64 total_free;
-	__le64 total_dirty;
-	__le64 total_used;
-	__le64 total_dead;
-	__le64 total_dark;
-	__le32 lpt_lnum;
-	__le32 lpt_offs;
-	__le32 nhead_lnum;
-	__le32 nhead_offs;
-	__le32 ltab_lnum;
-	__le32 ltab_offs;
-	__le32 lsave_lnum;
-	__le32 lsave_offs;
-	__le32 lscan_lnum;
-	__le32 empty_lebs;
-	__le32 idx_lebs;
-	__le32 leb_cnt;
-	__u8 hash_root_idx[UBIFS_MAX_HASH_LEN];
-	__u8 hash_lpt[UBIFS_MAX_HASH_LEN];
-	__u8 hmac[UBIFS_MAX_HMAC_LEN];
-	__u8 padding[152];
+  struct ubifs_ch ch;
+  __le64 highest_inum;
+  __le64 cmt_no;
+  __le32 flags;
+  __le32 log_lnum;
+  __le32 root_lnum;
+  __le32 root_offs;
+  __le32 root_len;
+  __le32 gc_lnum;
+  __le32 ihead_lnum;
+  __le32 ihead_offs;
+  __le64 index_size;
+  __le64 total_free;
+  __le64 total_dirty;
+  __le64 total_used;
+  __le64 total_dead;
+  __le64 total_dark;
+  __le32 lpt_lnum;
+  __le32 lpt_offs;
+  __le32 nhead_lnum;
+  __le32 nhead_offs;
+  __le32 ltab_lnum;
+  __le32 ltab_offs;
+  __le32 lsave_lnum;
+  __le32 lsave_offs;
+  __le32 lscan_lnum;
+  __le32 empty_lebs;
+  __le32 idx_lebs;
+  __le32 leb_cnt;
+  __u8 hash_root_idx[UBIFS_MAX_HASH_LEN];
+  __u8 hash_lpt[UBIFS_MAX_HASH_LEN];
+  __u8 hmac[UBIFS_MAX_HMAC_LEN];
+  __u8 padding[152];
 } __packed;
 
 /**
@@ -764,11 +764,11 @@ struct ubifs_mst_node {
  * @padding: reserved for future, zeroes
  */
 struct ubifs_ref_node {
-	struct ubifs_ch ch;
-	__le32 lnum;
-	__le32 offs;
-	__le32 jhead;
-	__u8 padding[28];
+  struct ubifs_ch ch;
+  __le32 lnum;
+  __le32 offs;
+  __le32 jhead;
+  __u8 padding[28];
 } __packed;
 
 /**
@@ -777,8 +777,8 @@ struct ubifs_ref_node {
  * @hmac: The HMAC
  */
 struct ubifs_auth_node {
-	struct ubifs_ch ch;
-	__u8 hmac[];
+  struct ubifs_ch ch;
+  __u8 hmac[];
 } __packed;
 
 /**
@@ -791,11 +791,11 @@ struct ubifs_auth_node {
  * @sig: The signature data
  */
 struct ubifs_sig_node {
-	struct ubifs_ch ch;
-	__le32 type;
-	__le32 len;
-	__u8 padding[32];
-	__u8 sig[];
+  struct ubifs_ch ch;
+  __le32 type;
+  __le32 len;
+  __u8 padding[32];
+  __u8 sig[];
 } __packed;
 
 /**
@@ -810,10 +810,10 @@ struct ubifs_sig_node {
  * dynamically sized element already.
  */
 struct ubifs_branch {
-	__le32 lnum;
-	__le32 offs;
-	__le32 len;
-	__u8 key[];
+  __le32 lnum;
+  __le32 offs;
+  __le32 len;
+  __u8 key[];
 } __packed;
 
 /**
@@ -824,10 +824,10 @@ struct ubifs_branch {
  * @branches: LEB number / offset / length / key branches
  */
 struct ubifs_idx_node {
-	struct ubifs_ch ch;
-	__le16 child_cnt;
-	__le16 level;
-	__u8 branches[];
+  struct ubifs_ch ch;
+  __le16 child_cnt;
+  __le16 level;
+  __u8 branches[];
 } __packed;
 
 /**
@@ -836,8 +836,8 @@ struct ubifs_idx_node {
  * @cmt_no: commit number
  */
 struct ubifs_cs_node {
-	struct ubifs_ch ch;
-	__le64 cmt_no;
+  struct ubifs_ch ch;
+  __le64 cmt_no;
 } __packed;
 
 /**
@@ -847,9 +847,9 @@ struct ubifs_cs_node {
  * @inos: inode numbers of orphans
  */
 struct ubifs_orph_node {
-	struct ubifs_ch ch;
-	__le64 cmt_no;
-	__le64 inos[];
+  struct ubifs_ch ch;
+  __le64 cmt_no;
+  __le64 inos[];
 } __packed;
 
 #endif /* __UBIFS_MEDIA_H__ */

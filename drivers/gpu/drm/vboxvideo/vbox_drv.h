@@ -38,90 +38,90 @@
 
 #define VBOX_MAX_SCREENS  32
 
-#define GUEST_HEAP_OFFSET(vbox) ((vbox)->full_vram_size - \
-				 VBVA_ADAPTER_INFORMATION_SIZE)
+#define GUEST_HEAP_OFFSET(vbox) ((vbox)->full_vram_size   \
+  - VBVA_ADAPTER_INFORMATION_SIZE)
 #define GUEST_HEAP_SIZE   VBVA_ADAPTER_INFORMATION_SIZE
-#define GUEST_HEAP_USABLE_SIZE (VBVA_ADAPTER_INFORMATION_SIZE - \
-				sizeof(struct hgsmi_host_flags))
+#define GUEST_HEAP_USABLE_SIZE (VBVA_ADAPTER_INFORMATION_SIZE   \
+  - sizeof(struct hgsmi_host_flags))
 #define HOST_FLAGS_OFFSET GUEST_HEAP_USABLE_SIZE
 
 struct vbox_private {
-	/* Must be first; or we must define our own release callback */
-	struct drm_device ddev;
+  /* Must be first; or we must define our own release callback */
+  struct drm_device ddev;
 
-	u8 __iomem *guest_heap;
-	u8 __iomem *vbva_buffers;
-	struct gen_pool *guest_pool;
-	struct vbva_buf_ctx *vbva_info;
-	bool any_pitch;
-	u32 num_crtcs;
-	/* Amount of available VRAM, including space used for buffers. */
-	u32 full_vram_size;
-	/* Amount of available VRAM, not including space used for buffers. */
-	u32 available_vram_size;
-	/* Array of structures for receiving mode hints. */
-	struct vbva_modehint *last_mode_hints;
+  u8 __iomem *guest_heap;
+  u8 __iomem *vbva_buffers;
+  struct gen_pool *guest_pool;
+  struct vbva_buf_ctx *vbva_info;
+  bool any_pitch;
+  u32 num_crtcs;
+  /* Amount of available VRAM, including space used for buffers. */
+  u32 full_vram_size;
+  /* Amount of available VRAM, not including space used for buffers. */
+  u32 available_vram_size;
+  /* Array of structures for receiving mode hints. */
+  struct vbva_modehint *last_mode_hints;
 
-	int fb_mtrr;
+  int fb_mtrr;
 
-	struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
-	struct work_struct hotplug_work;
-	u32 input_mapping_width;
-	u32 input_mapping_height;
-	/*
-	 * Is user-space using an X.Org-style layout of one large frame-buffer
-	 * encompassing all screen ones or is the fbdev console active?
-	 */
-	bool single_framebuffer;
-	u8 cursor_data[CURSOR_DATA_SIZE];
+  struct mutex hw_mutex; /* protects modeset and accel/vbva accesses */
+  struct work_struct hotplug_work;
+  u32 input_mapping_width;
+  u32 input_mapping_height;
+  /*
+   * Is user-space using an X.Org-style layout of one large frame-buffer
+   * encompassing all screen ones or is the fbdev console active?
+   */
+  bool single_framebuffer;
+  u8 cursor_data[CURSOR_DATA_SIZE];
 };
 
 #undef CURSOR_PIXEL_COUNT
 #undef CURSOR_DATA_SIZE
 
 struct vbox_connector {
-	struct drm_connector base;
-	char name[32];
-	struct vbox_crtc *vbox_crtc;
-	struct {
-		u32 width;
-		u32 height;
-		bool disconnected;
-	} mode_hint;
+  struct drm_connector base;
+  char name[32];
+  struct vbox_crtc *vbox_crtc;
+  struct {
+    u32 width;
+    u32 height;
+    bool disconnected;
+  } mode_hint;
 };
 
 struct vbox_crtc {
-	struct drm_crtc base;
-	bool disconnected;
-	unsigned int crtc_id;
-	u32 fb_offset;
-	bool cursor_enabled;
-	u32 x_hint;
-	u32 y_hint;
-	/*
-	 * When setting a mode we not only pass the mode to the hypervisor,
-	 * but also information on how to map / translate input coordinates
-	 * for the emulated USB tablet.  This input-mapping may change when
-	 * the mode on *another* crtc changes.
-	 *
-	 * This means that sometimes we must do a modeset on other crtc-s then
-	 * the one being changed to update the input-mapping. Including crtc-s
-	 * which may be disabled inside the guest (shown as a black window
-	 * on the host unless closed by the user).
-	 *
-	 * With atomic modesetting the mode-info of disabled crtcs gets zeroed
-	 * yet we need it when updating the input-map to avoid resizing the
-	 * window as a side effect of a mode_set on another crtc. Therefor we
-	 * cache the info of the last mode below.
-	 */
-	u32 width;
-	u32 height;
-	u32 x;
-	u32 y;
+  struct drm_crtc base;
+  bool disconnected;
+  unsigned int crtc_id;
+  u32 fb_offset;
+  bool cursor_enabled;
+  u32 x_hint;
+  u32 y_hint;
+  /*
+   * When setting a mode we not only pass the mode to the hypervisor,
+   * but also information on how to map / translate input coordinates
+   * for the emulated USB tablet.  This input-mapping may change when
+   * the mode on *another* crtc changes.
+   *
+   * This means that sometimes we must do a modeset on other crtc-s then
+   * the one being changed to update the input-mapping. Including crtc-s
+   * which may be disabled inside the guest (shown as a black window
+   * on the host unless closed by the user).
+   *
+   * With atomic modesetting the mode-info of disabled crtcs gets zeroed
+   * yet we need it when updating the input-map to avoid resizing the
+   * window as a side effect of a mode_set on another crtc. Therefor we
+   * cache the info of the last mode below.
+   */
+  u32 width;
+  u32 height;
+  u32 x;
+  u32 y;
 };
 
 struct vbox_encoder {
-	struct drm_encoder base;
+  struct drm_encoder base;
 };
 
 #define to_vbox_crtc(x) container_of(x, struct vbox_crtc, base)
@@ -147,14 +147,13 @@ void vbox_report_hotplug(struct vbox_private *vbox);
 
 /* vbox_hgsmi.c */
 void *hgsmi_buffer_alloc(struct gen_pool *guest_pool, size_t size,
-			 u8 channel, u16 channel_info);
+    u8 channel, u16 channel_info);
 void hgsmi_buffer_free(struct gen_pool *guest_pool, void *buf);
 int hgsmi_buffer_submit(struct gen_pool *guest_pool, void *buf);
 
-static inline void vbox_write_ioport(u16 index, u16 data)
-{
-	outw(index, VBE_DISPI_IOPORT_INDEX);
-	outw(data, VBE_DISPI_IOPORT_DATA);
+static inline void vbox_write_ioport(u16 index, u16 data) {
+  outw(index, VBE_DISPI_IOPORT_INDEX);
+  outw(data, VBE_DISPI_IOPORT_DATA);
 }
 
 #endif

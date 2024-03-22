@@ -11,8 +11,8 @@
 struct drm_i915_private;
 struct intel_engine_cs;
 
-struct intel_engine_cs *
-intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance);
+struct intel_engine_cs *intel_engine_lookup_user(struct drm_i915_private *i915,
+    u8 class, u8 instance);
 
 unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915);
 

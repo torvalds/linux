@@ -19,7 +19,7 @@
 #error No CFI endianness defined
 #endif
 
-#define cfi_default(s) ((s)?:CFI_DEFAULT_ENDIAN)
+#define cfi_default(s) ((s) ? : CFI_DEFAULT_ENDIAN)
 #define cfi_be(s) (cfi_default(s) == CFI_BIG_ENDIAN)
 #define cfi_le(s) (cfi_default(s) == CFI_LITTLE_ENDIAN)
 #define cfi_host(s) (cfi_default(s) == CFI_HOST_ENDIAN)
@@ -33,7 +33,9 @@
 #define cfi32_to_cpu(map, x) _cfi_to_cpu(32, (map)->swap, (x))
 #define cfi64_to_cpu(map, x) _cfi_to_cpu(64, (map)->swap, (x))
 
-#define _cpu_to_cfi(w, s, x) (cfi_host(s)?(x):_swap_to_cfi(w, s, x))
-#define _cfi_to_cpu(w, s, x) (cfi_host(s)?(x):_swap_to_cpu(w, s, x))
-#define _swap_to_cfi(w, s, x) (cfi_be(s)?cpu_to_be##w(x):cpu_to_le##w(x))
-#define _swap_to_cpu(w, s, x) (cfi_be(s)?be##w##_to_cpu(x):le##w##_to_cpu(x))
+#define _cpu_to_cfi(w, s, x) (cfi_host(s) ? (x) : _swap_to_cfi(w, s, x))
+#define _cfi_to_cpu(w, s, x) (cfi_host(s) ? (x) : _swap_to_cpu(w, s, x))
+#define _swap_to_cfi(w, s, \
+      x) (cfi_be(s) ? cpu_to_be ## w(x) : cpu_to_le ## w(x))
+#define _swap_to_cpu(w, s, \
+      x) (cfi_be(s) ? be ## w ## _to_cpu(x) : le ## w ## _to_cpu(x))

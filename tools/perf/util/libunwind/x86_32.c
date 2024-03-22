@@ -38,4 +38,4 @@
 #include "util/unwind-libunwind-local.c"
 
 struct unwind_libunwind_ops *
-x86_32_unwind_libunwind_ops = &_unwind_libunwind_ops;
+    x86_32_unwind_libunwind_ops = &_unwind_libunwind_ops;

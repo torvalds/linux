@@ -14,44 +14,44 @@
 extern void __iomem *mx3_ccm_base;
 
 /* Register addresses */
-#define MXC_CCM_CCMR		0x00
-#define MXC_CCM_PDR0		0x04
-#define MXC_CCM_PDR1		0x08
-#define MX35_CCM_PDR2		0x0C
-#define MXC_CCM_RCSR		0x0C
-#define MX35_CCM_PDR3		0x10
-#define MXC_CCM_MPCTL		0x10
-#define MX35_CCM_PDR4		0x14
-#define MXC_CCM_UPCTL		0x14
-#define MX35_CCM_RCSR		0x18
-#define MXC_CCM_SRPCTL		0x18
-#define MX35_CCM_MPCTL		0x1C
-#define MXC_CCM_COSR		0x1C
-#define MX35_CCM_PPCTL		0x20
-#define MXC_CCM_CGR0		0x20
-#define MX35_CCM_ACMR		0x24
-#define MXC_CCM_CGR1		0x24
-#define MX35_CCM_COSR		0x28
-#define MXC_CCM_CGR2		0x28
-#define MX35_CCM_CGR0		0x2C
-#define MXC_CCM_WIMR		0x2C
-#define MX35_CCM_CGR1		0x30
-#define MXC_CCM_LDC		0x30
-#define MX35_CCM_CGR2		0x34
-#define MXC_CCM_DCVR0		0x34
-#define MX35_CCM_CGR3		0x38
-#define MXC_CCM_DCVR1		0x38
-#define MXC_CCM_DCVR2		0x3C
-#define MXC_CCM_DCVR3		0x40
-#define MXC_CCM_LTR0		0x44
-#define MXC_CCM_LTR1		0x48
-#define MXC_CCM_LTR2		0x4C
-#define MXC_CCM_LTR3		0x50
-#define MXC_CCM_LTBR0		0x54
-#define MXC_CCM_LTBR1		0x58
-#define MXC_CCM_PMCR0		0x5C
-#define MXC_CCM_PMCR1		0x60
-#define MXC_CCM_PDR2		0x64
+#define MXC_CCM_CCMR    0x00
+#define MXC_CCM_PDR0    0x04
+#define MXC_CCM_PDR1    0x08
+#define MX35_CCM_PDR2   0x0C
+#define MXC_CCM_RCSR    0x0C
+#define MX35_CCM_PDR3   0x10
+#define MXC_CCM_MPCTL   0x10
+#define MX35_CCM_PDR4   0x14
+#define MXC_CCM_UPCTL   0x14
+#define MX35_CCM_RCSR   0x18
+#define MXC_CCM_SRPCTL    0x18
+#define MX35_CCM_MPCTL    0x1C
+#define MXC_CCM_COSR    0x1C
+#define MX35_CCM_PPCTL    0x20
+#define MXC_CCM_CGR0    0x20
+#define MX35_CCM_ACMR   0x24
+#define MXC_CCM_CGR1    0x24
+#define MX35_CCM_COSR   0x28
+#define MXC_CCM_CGR2    0x28
+#define MX35_CCM_CGR0   0x2C
+#define MXC_CCM_WIMR    0x2C
+#define MX35_CCM_CGR1   0x30
+#define MXC_CCM_LDC   0x30
+#define MX35_CCM_CGR2   0x34
+#define MXC_CCM_DCVR0   0x34
+#define MX35_CCM_CGR3   0x38
+#define MXC_CCM_DCVR1   0x38
+#define MXC_CCM_DCVR2   0x3C
+#define MXC_CCM_DCVR3   0x40
+#define MXC_CCM_LTR0    0x44
+#define MXC_CCM_LTR1    0x48
+#define MXC_CCM_LTR2    0x4C
+#define MXC_CCM_LTR3    0x50
+#define MXC_CCM_LTBR0   0x54
+#define MXC_CCM_LTBR1   0x58
+#define MXC_CCM_PMCR0   0x5C
+#define MXC_CCM_PMCR1   0x60
+#define MXC_CCM_PDR2    0x64
 
 /* Register bit definitions */
 #define MXC_CCM_CCMR_WBEN                       (1 << 27)
@@ -63,7 +63,7 @@ extern void __iomem *mx3_ccm_base;
 #define MXC_CCM_CCMR_SSI2S_MASK                 (0x3 << 21)
 #define MXC_CCM_CCMR_LPM_OFFSET                 14
 #define MXC_CCM_CCMR_LPM_MASK                   (0x3 << 14)
-#define MXC_CCM_CCMR_LPM_WAIT_MX35		(0x1 << 14)
+#define MXC_CCM_CCMR_LPM_WAIT_MX35    (0x1 << 14)
 #define MXC_CCM_CCMR_FIRS_OFFSET                11
 #define MXC_CCM_CCMR_FIRS_MASK                  (0x3 << 11)
 #define MXC_CCM_CCMR_UPE                        (1 << 9)
@@ -109,7 +109,7 @@ extern void __iomem *mx3_ccm_base;
 #define MXC_CCM_PDR1_SSI1_PODF_MASK             0x3F
 
 /* Bit definitions for RCSR */
-#define MXC_CCM_RCSR_NF16B			0x80000000
+#define MXC_CCM_RCSR_NF16B      0x80000000
 
 /*
  * LTR0 register offsets
@@ -140,7 +140,7 @@ extern void __iomem *mx3_ccm_base;
  */
 #define MXC_CCM_LTR2_WSW_OFFSET(x)              (11 + (x) * 3)
 #define MXC_CCM_LTR2_WSW_MASK(x)                (0x7 << \
-					MXC_CCM_LTR2_WSW_OFFSET((x)))
+    MXC_CCM_LTR2_WSW_OFFSET((x)))
 #define MXC_CCM_LTR2_EMAC_OFFSET                0
 #define MXC_CCM_LTR2_EMAC_MASK                  0x1FF
 
@@ -149,7 +149,7 @@ extern void __iomem *mx3_ccm_base;
  */
 #define MXC_CCM_LTR3_WSW_OFFSET(x)              (5 + (x) * 3)
 #define MXC_CCM_LTR3_WSW_MASK(x)                (0x7 << \
-					MXC_CCM_LTR3_WSW_OFFSET((x)))
+    MXC_CCM_LTR3_WSW_OFFSET((x)))
 
 #define MXC_CCM_PMCR0_DFSUP1                    0x80000000
 #define MXC_CCM_PMCR0_DFSUP1_SPLL               (0 << 31)
@@ -159,10 +159,10 @@ extern void __iomem *mx3_ccm_base;
 #define MXC_CCM_PMCR0_DFSUP0_PDR                (1 << 30)
 #define MXC_CCM_PMCR0_DFSUP_MASK                (0x3 << 30)
 
-#define DVSUP_TURBO				0
-#define DVSUP_HIGH				1
-#define DVSUP_MEDIUM				2
-#define DVSUP_LOW				3
+#define DVSUP_TURBO       0
+#define DVSUP_HIGH        1
+#define DVSUP_MEDIUM        2
+#define DVSUP_LOW       3
 #define MXC_CCM_PMCR0_DVSUP_TURBO               (DVSUP_TURBO << 28)
 #define MXC_CCM_PMCR0_DVSUP_HIGH                (DVSUP_HIGH << 28)
 #define MXC_CCM_PMCR0_DVSUP_MEDIUM              (DVSUP_MEDIUM << 28)
@@ -245,4 +245,4 @@ extern void __iomem *mx3_ccm_base;
 #define MXC_CCM_PMCR0_DFSUP0_OFFSET 30
 #define MXC_CCM_PMCR0_DFSUP1_OFFSET 31
 
-#endif				/* __ARCH_ARM_MACH_MX3_CRM_REGS_H__ */
+#endif        /* __ARCH_ARM_MACH_MX3_CRM_REGS_H__ */

@@ -18,32 +18,32 @@
  * updating the accessed and modified bits in the page table tree.
  */
 
-#define _PAGE_PRESENT	0x001	/* software: pte contains a translation */
-#define _PAGE_HASHPTE	0x002	/* hash_page has made an HPTE for this pte */
-#define _PAGE_READ	0x004	/* software: read access allowed */
-#define _PAGE_GUARDED	0x008	/* G: prohibit speculative access */
-#define _PAGE_COHERENT	0x010	/* M: enforce memory coherence (SMP systems) */
-#define _PAGE_NO_CACHE	0x020	/* I: cache inhibit */
-#define _PAGE_WRITETHRU	0x040	/* W: cache write-through */
-#define _PAGE_DIRTY	0x080	/* C: page changed */
-#define _PAGE_ACCESSED	0x100	/* R: page referenced */
-#define _PAGE_EXEC	0x200	/* software: exec allowed */
-#define _PAGE_WRITE	0x400	/* software: user write access allowed */
-#define _PAGE_SPECIAL	0x800	/* software: Special page */
+#define _PAGE_PRESENT 0x001 /* software: pte contains a translation */
+#define _PAGE_HASHPTE 0x002 /* hash_page has made an HPTE for this pte */
+#define _PAGE_READ  0x004 /* software: read access allowed */
+#define _PAGE_GUARDED 0x008 /* G: prohibit speculative access */
+#define _PAGE_COHERENT  0x010 /* M: enforce memory coherence (SMP systems) */
+#define _PAGE_NO_CACHE  0x020 /* I: cache inhibit */
+#define _PAGE_WRITETHRU 0x040 /* W: cache write-through */
+#define _PAGE_DIRTY 0x080 /* C: page changed */
+#define _PAGE_ACCESSED  0x100 /* R: page referenced */
+#define _PAGE_EXEC  0x200 /* software: exec allowed */
+#define _PAGE_WRITE 0x400 /* software: user write access allowed */
+#define _PAGE_SPECIAL 0x800 /* software: Special page */
 
 #ifdef CONFIG_PTE_64BIT
 /* We never clear the high word of the pte */
-#define _PTE_NONE_MASK	(0xffffffff00000000ULL | _PAGE_HASHPTE)
+#define _PTE_NONE_MASK  (0xffffffff00000000ULL | _PAGE_HASHPTE)
 #else
-#define _PTE_NONE_MASK	_PAGE_HASHPTE
+#define _PTE_NONE_MASK  _PAGE_HASHPTE
 #endif
 
-#define _PMD_PRESENT	0
+#define _PMD_PRESENT  0
 #define _PMD_PRESENT_MASK (PAGE_MASK)
-#define _PMD_BAD	(~PAGE_MASK)
+#define _PMD_BAD  (~PAGE_MASK)
 
 /* We borrow the _PAGE_READ bit to store the exclusive marker in swap PTEs. */
-#define _PAGE_SWP_EXCLUSIVE	_PAGE_READ
+#define _PAGE_SWP_EXCLUSIVE _PAGE_READ
 
 /* And here we include common definitions */
 
@@ -54,17 +54,17 @@
  * as _PAGE_SHIFT here (ie, naturally aligned).
  * Platform who don't just pre-define the value so we don't override it here.
  */
-#define PTE_RPN_SHIFT	(PAGE_SHIFT)
+#define PTE_RPN_SHIFT (PAGE_SHIFT)
 
 /*
  * The mask covered by the RPN must be a ULL on 32-bit platforms with
  * 64-bit PTEs.
  */
 #ifdef CONFIG_PTE_64BIT
-#define PTE_RPN_MASK	(~((1ULL << PTE_RPN_SHIFT) - 1))
+#define PTE_RPN_MASK  (~((1ULL << PTE_RPN_SHIFT) - 1))
 #define MAX_POSSIBLE_PHYSMEM_BITS 36
 #else
-#define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
+#define PTE_RPN_MASK  (~((1UL << PTE_RPN_SHIFT) - 1))
 #define MAX_POSSIBLE_PHYSMEM_BITS 32
 #endif
 
@@ -72,8 +72,8 @@
  * _PAGE_CHG_MASK masks of bits that are to be preserved across
  * pgprot changes.
  */
-#define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HASHPTE | _PAGE_DIRTY | \
-			 _PAGE_ACCESSED | _PAGE_SPECIAL)
+#define _PAGE_CHG_MASK  (PTE_RPN_MASK | _PAGE_HASHPTE | _PAGE_DIRTY   \
+  | _PAGE_ACCESSED | _PAGE_SPECIAL)
 
 /*
  * We define 2 sets of base prot bits, one for basic pages (ie,
@@ -81,39 +81,41 @@
  * pages. We always set _PAGE_COHERENT when SMP is enabled or
  * the processor might need it for DMA coherency.
  */
-#define _PAGE_BASE_NC	(_PAGE_PRESENT | _PAGE_ACCESSED)
-#define _PAGE_BASE	(_PAGE_BASE_NC | _PAGE_COHERENT)
+#define _PAGE_BASE_NC (_PAGE_PRESENT | _PAGE_ACCESSED)
+#define _PAGE_BASE  (_PAGE_BASE_NC | _PAGE_COHERENT)
 
 #include <asm/pgtable-masks.h>
 
 /* Permission masks used for kernel mappings */
-#define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
-#define PAGE_KERNEL_NC	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE)
-#define PAGE_KERNEL_NCG	__pgprot(_PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE | _PAGE_GUARDED)
-#define PAGE_KERNEL_X	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RWX)
-#define PAGE_KERNEL_RO	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
-#define PAGE_KERNEL_ROX	__pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
+#define PAGE_KERNEL __pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
+#define PAGE_KERNEL_NC  __pgprot( \
+    _PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE)
+#define PAGE_KERNEL_NCG __pgprot( \
+    _PAGE_BASE_NC | _PAGE_KERNEL_RW | _PAGE_NO_CACHE | _PAGE_GUARDED)
+#define PAGE_KERNEL_X __pgprot(_PAGE_BASE | _PAGE_KERNEL_RWX)
+#define PAGE_KERNEL_RO  __pgprot(_PAGE_BASE | _PAGE_KERNEL_RO)
+#define PAGE_KERNEL_ROX __pgprot(_PAGE_BASE | _PAGE_KERNEL_ROX)
 
-#define PTE_INDEX_SIZE	PTE_SHIFT
-#define PMD_INDEX_SIZE	0
-#define PUD_INDEX_SIZE	0
-#define PGD_INDEX_SIZE	(32 - PGDIR_SHIFT)
+#define PTE_INDEX_SIZE  PTE_SHIFT
+#define PMD_INDEX_SIZE  0
+#define PUD_INDEX_SIZE  0
+#define PGD_INDEX_SIZE  (32 - PGDIR_SHIFT)
 
-#define PMD_CACHE_INDEX	PMD_INDEX_SIZE
-#define PUD_CACHE_INDEX	PUD_INDEX_SIZE
+#define PMD_CACHE_INDEX PMD_INDEX_SIZE
+#define PUD_CACHE_INDEX PUD_INDEX_SIZE
 
 #ifndef __ASSEMBLY__
-#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_INDEX_SIZE)
-#define PMD_TABLE_SIZE	0
-#define PUD_TABLE_SIZE	0
-#define PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
+#define PTE_TABLE_SIZE  (sizeof(pte_t) << PTE_INDEX_SIZE)
+#define PMD_TABLE_SIZE  0
+#define PUD_TABLE_SIZE  0
+#define PGD_TABLE_SIZE  (sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 /* Bits to mask out from a PMD to get to the PTE page */
-#define PMD_MASKED_BITS		(PTE_TABLE_SIZE - 1)
-#endif	/* __ASSEMBLY__ */
+#define PMD_MASKED_BITS   (PTE_TABLE_SIZE - 1)
+#endif  /* __ASSEMBLY__ */
 
-#define PTRS_PER_PTE	(1 << PTE_INDEX_SIZE)
-#define PTRS_PER_PGD	(1 << PGD_INDEX_SIZE)
+#define PTRS_PER_PTE  (1 << PTE_INDEX_SIZE)
+#define PTRS_PER_PGD  (1 << PGD_INDEX_SIZE)
 
 /*
  * The normal case is that PTEs are 32-bits and we have a 1-page
@@ -126,11 +128,11 @@
  * -Matt
  */
 /* PGDIR_SHIFT determines what a top-level page table entry can map */
-#define PGDIR_SHIFT	(PAGE_SHIFT + PTE_INDEX_SIZE)
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
+#define PGDIR_SHIFT (PAGE_SHIFT + PTE_INDEX_SIZE)
+#define PGDIR_SIZE  (1UL << PGDIR_SHIFT)
+#define PGDIR_MASK  (~(PGDIR_SIZE - 1))
 
-#define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
+#define USER_PTRS_PER_PGD (TASK_SIZE / PGDIR_SIZE)
 
 #ifndef __ASSEMBLY__
 
@@ -145,12 +147,12 @@ void unmap_kernel_page(unsigned long va);
  * virtual space that goes below PKMAP and FIXMAP
  */
 
-#define FIXADDR_SIZE	0
+#define FIXADDR_SIZE  0
 #ifdef CONFIG_KASAN
 #include <asm/kasan.h>
-#define FIXADDR_TOP	(KASAN_SHADOW_START - PAGE_SIZE)
+#define FIXADDR_TOP (KASAN_SHADOW_START - PAGE_SIZE)
 #else
-#define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
+#define FIXADDR_TOP ((unsigned long) (-PAGE_SIZE))
 #endif
 
 /*
@@ -159,14 +161,14 @@ void unmap_kernel_page(unsigned long va);
  * and ioremap space
  */
 #ifdef CONFIG_HIGHMEM
-#define IOREMAP_TOP	PKMAP_BASE
+#define IOREMAP_TOP PKMAP_BASE
 #else
-#define IOREMAP_TOP	FIXADDR_START
+#define IOREMAP_TOP FIXADDR_START
 #endif
 
 /* PPC32 shares vmalloc area with ioremap */
-#define IOREMAP_START	VMALLOC_START
-#define IOREMAP_END	VMALLOC_END
+#define IOREMAP_START VMALLOC_START
+#define IOREMAP_END VMALLOC_END
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
@@ -187,62 +189,61 @@ void unmap_kernel_page(unsigned long va);
  */
 #define VMALLOC_OFFSET (0x1000000) /* 16M */
 
-#define VMALLOC_START ((((long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
+#define VMALLOC_START ((((long) high_memory + VMALLOC_OFFSET) \
+  & ~(VMALLOC_OFFSET - 1)))
 
 #ifdef CONFIG_KASAN_VMALLOC
-#define VMALLOC_END	ALIGN_DOWN(ioremap_bot, PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
+#define VMALLOC_END ALIGN_DOWN(ioremap_bot, \
+    PAGE_SIZE << KASAN_SHADOW_SCALE_SHIFT)
 #else
-#define VMALLOC_END	ioremap_bot
+#define VMALLOC_END ioremap_bot
 #endif
 
-#define MODULES_END	ALIGN_DOWN(PAGE_OFFSET, SZ_256M)
-#define MODULES_VADDR	(MODULES_END - SZ_256M)
+#define MODULES_END ALIGN_DOWN(PAGE_OFFSET, SZ_256M)
+#define MODULES_VADDR (MODULES_END - SZ_256M)
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/threads.h>
 
 /* Bits to mask out from a PGD to get to the PUD page */
-#define PGD_MASKED_BITS		0
+#define PGD_MASKED_BITS   0
 
 #define pgd_ERROR(e) \
-	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+  pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 /*
  * Bits in a linux-style PTE.  These match the bits in the
  * (hardware-defined) PowerPC PTE as closely as possible.
  */
 
 #define pte_clear(mm, addr, ptep) \
-	do { pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, 0, 0); } while (0)
+  do { pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, 0, 0); } while (0)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
-#define	pmd_bad(pmd)		(pmd_val(pmd) & _PMD_BAD)
-#define	pmd_present(pmd)	(pmd_val(pmd) & _PMD_PRESENT_MASK)
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	*pmdp = __pmd(0);
+#define pmd_none(pmd)   (!pmd_val(pmd))
+#define pmd_bad(pmd)    (pmd_val(pmd) & _PMD_BAD)
+#define pmd_present(pmd)  (pmd_val(pmd) & _PMD_PRESENT_MASK)
+static inline void pmd_clear(pmd_t *pmdp) {
+  *pmdp = __pmd(0);
 }
-
 
 /*
  * When flushing the tlb entry for a page, we also need to flush the hash
  * table entry.  flush_hash_pages is assembler (for speed) in hashtable.S.
  */
 extern int flush_hash_pages(unsigned context, unsigned long va,
-			    unsigned long pmdval, int count);
+    unsigned long pmdval, int count);
 
 /* Add an HPTE to the hash table */
 extern void add_hash_page(unsigned context, unsigned long va,
-			  unsigned long pmdval);
+    unsigned long pmdval);
 
 /* Flush an entry from the TLB/hash table */
-static inline void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned long addr)
-{
-	if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		unsigned long ptephys = __pa(ptep) & PAGE_MASK;
-
-		flush_hash_pages(mm->context.id, addr, ptephys, 1);
-	}
+static inline void flush_hash_entry(struct mm_struct *mm, pte_t *ptep,
+    unsigned long addr) {
+  if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
+    unsigned long ptephys = __pa(ptep) & PAGE_MASK;
+    flush_hash_pages(mm->context.id, addr, ptephys, 1);
+  }
 }
 
 /*
@@ -255,41 +256,37 @@ static inline void flush_hash_entry(struct mm_struct *mm, pte_t *ptep, unsigned 
  * when using atomic updates, only the low part of the PTE is
  * accessed atomically.
  */
-static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
-				     unsigned long clr, unsigned long set, int huge)
-{
-	pte_basic_t old;
-
-	if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
-		unsigned long tmp;
-
-		asm volatile(
+static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr,
+    pte_t *p,
+    unsigned long clr, unsigned long set, int huge) {
+  pte_basic_t old;
+  if (mmu_has_feature(MMU_FTR_HPTE_TABLE)) {
+    unsigned long tmp;
+    asm volatile (
 #ifndef CONFIG_PTE_64BIT
-	"1:	lwarx	%0, 0, %3\n"
-	"	andc	%1, %0, %4\n"
+      "1:	lwarx	%0, 0, %3\n"
+      "	andc	%1, %0, %4\n"
 #else
-	"1:	lwarx	%L0, 0, %3\n"
-	"	lwz	%0, -4(%3)\n"
-	"	andc	%1, %L0, %4\n"
+      "1:	lwarx	%L0, 0, %3\n"
+      "	lwz	%0, -4(%3)\n"
+      "	andc	%1, %L0, %4\n"
 #endif
-	"	or	%1, %1, %5\n"
-	"	stwcx.	%1, 0, %3\n"
-	"	bne-	1b"
-		: "=&r" (old), "=&r" (tmp), "=m" (*p)
+      "	or	%1, %1, %5\n"
+      "	stwcx.	%1, 0, %3\n"
+      "	bne-	1b"
+      : "=&r" (old), "=&r" (tmp), "=m" (*p)
 #ifndef CONFIG_PTE_64BIT
-		: "r" (p),
+      : "r" (p),
 #else
-		: "b" ((unsigned long)(p) + 4),
+      : "b" ((unsigned long) (p) + 4),
 #endif
-		  "r" (clr), "r" (set), "m" (*p)
-		: "cc" );
-	} else {
-		old = pte_val(*p);
-
-		*p = __pte((old & ~(pte_basic_t)clr) | set);
-	}
-
-	return old;
+      "r" (clr), "r" (set), "m" (*p)
+      : "cc");
+  } else {
+    old = pte_val(*p);
+    *p = __pte((old & ~(pte_basic_t) clr) | set);
+  }
+  return old;
 }
 
 /*
@@ -298,50 +295,45 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
  */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
-					      unsigned long addr, pte_t *ptep)
-{
-	unsigned long old;
-	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
-	if (old & _PAGE_HASHPTE)
-		flush_hash_entry(mm, ptep, addr);
-
-	return (old & _PAGE_ACCESSED) != 0;
+    unsigned long addr, pte_t *ptep) {
+  unsigned long old;
+  old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
+  if (old & _PAGE_HASHPTE) {
+    flush_hash_entry(mm, ptep, addr);
+  }
+  return (old & _PAGE_ACCESSED) != 0;
 }
+
 #define ptep_test_and_clear_young(__vma, __addr, __ptep) \
-	__ptep_test_and_clear_young((__vma)->vm_mm, __addr, __ptep)
+  __ptep_test_and_clear_young((__vma)->vm_mm, __addr, __ptep)
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
-				       pte_t *ptep)
-{
-	return __pte(pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, 0, 0));
+    pte_t *ptep) {
+  return __pte(pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, 0, 0));
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
-				      pte_t *ptep)
-{
-	pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
+    pte_t *ptep) {
+  pte_update(mm, addr, ptep, _PAGE_WRITE, 0, 0);
 }
 
 static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
-					   pte_t *ptep, pte_t entry,
-					   unsigned long address,
-					   int psize)
-{
-	unsigned long set = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
-
-	pte_update(vma->vm_mm, address, ptep, 0, set, 0);
-
-	flush_tlb_page(vma, address);
+    pte_t *ptep, pte_t entry,
+    unsigned long address,
+    int psize) {
+  unsigned long set = pte_val(entry)
+      & (_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
+  pte_update(vma->vm_mm, address, ptep, 0, set, 0);
+  flush_tlb_page(vma, address);
 }
 
 #define __HAVE_ARCH_PTE_SAME
-#define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)
+#define pte_same(A, B) (((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)
 
-#define pmd_pfn(pmd)		(pmd_val(pmd) >> PAGE_SHIFT)
-#define pmd_page(pmd)		pfn_to_page(pmd_pfn(pmd))
+#define pmd_pfn(pmd)    (pmd_val(pmd) >> PAGE_SHIFT)
+#define pmd_page(pmd)   pfn_to_page(pmd_pfn(pmd))
 
 /*
  * Encode/decode swap entries and swap PTEs. Swap PTEs are all PTEs that
@@ -358,62 +350,68 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
  *
  * For 64bit PTEs, the offset is extended by 32bit.
  */
-#define __swp_type(entry)		((entry).val & 0x1f)
-#define __swp_offset(entry)		((entry).val >> 5)
-#define __swp_entry(type, offset)	((swp_entry_t) { ((type) & 0x1f) | ((offset) << 5) })
-#define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
-#define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
+#define __swp_type(entry)   ((entry).val & 0x1f)
+#define __swp_offset(entry)   ((entry).val >> 5)
+#define __swp_entry(type, \
+      offset) ((swp_entry_t) { ((type) & 0x1f) | ((offset) << 5) })
+#define __pte_to_swp_entry(pte)   ((swp_entry_t) { pte_val(pte) >> 3 })
+#define __swp_entry_to_pte(x)   ((pte_t) { (x).val << 3 })
 
-static inline int pte_swp_exclusive(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
+static inline int pte_swp_exclusive(pte_t pte) {
+  return pte_val(pte) & _PAGE_SWP_EXCLUSIVE;
 }
 
-static inline pte_t pte_swp_mkexclusive(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_SWP_EXCLUSIVE);
+static inline pte_t pte_swp_mkexclusive(pte_t pte) {
+  return __pte(pte_val(pte) | _PAGE_SWP_EXCLUSIVE);
 }
 
-static inline pte_t pte_swp_clear_exclusive(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_SWP_EXCLUSIVE);
+static inline pte_t pte_swp_clear_exclusive(pte_t pte) {
+  return __pte(pte_val(pte) & ~_PAGE_SWP_EXCLUSIVE);
 }
 
 /* Generic accessors to PTE bits */
-static inline bool pte_read(pte_t pte)
-{
-	return !!(pte_val(pte) & _PAGE_READ);
+static inline bool pte_read(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_READ);
 }
 
-static inline bool pte_write(pte_t pte)
-{
-	return !!(pte_val(pte) & _PAGE_WRITE);
+static inline bool pte_write(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_WRITE);
 }
 
-static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY); }
-static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
-static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
-static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
-static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
-
-static inline int pte_present(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_PRESENT;
+static inline int pte_dirty(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_DIRTY);
 }
 
-static inline bool pte_hw_valid(pte_t pte)
-{
-	return pte_val(pte) & _PAGE_PRESENT;
+static inline int pte_young(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_ACCESSED);
 }
 
-static inline bool pte_hashpte(pte_t pte)
-{
-	return !!(pte_val(pte) & _PAGE_HASHPTE);
+static inline int pte_special(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_SPECIAL);
 }
 
-static inline bool pte_ci(pte_t pte)
-{
-	return !!(pte_val(pte) & _PAGE_NO_CACHE);
+static inline int pte_none(pte_t pte) {
+  return (pte_val(pte) & ~_PTE_NONE_MASK) == 0;
+}
+
+static inline bool pte_exec(pte_t pte) {
+  return pte_val(pte) & _PAGE_EXEC;
+}
+
+static inline int pte_present(pte_t pte) {
+  return pte_val(pte) & _PAGE_PRESENT;
+}
+
+static inline bool pte_hw_valid(pte_t pte) {
+  return pte_val(pte) & _PAGE_PRESENT;
+}
+
+static inline bool pte_hashpte(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_HASHPTE);
+}
+
+static inline bool pte_ci(pte_t pte) {
+  return !!(pte_val(pte) & _PAGE_NO_CACHE);
 }
 
 /*
@@ -421,19 +419,18 @@ static inline bool pte_ci(pte_t pte)
  * Hence no need for other accessors
  */
 #define pte_access_permitted pte_access_permitted
-static inline bool pte_access_permitted(pte_t pte, bool write)
-{
-	/*
-	 * A read-only access is controlled by _PAGE_READ bit.
-	 * We have _PAGE_READ set for WRITE
-	 */
-	if (!pte_present(pte) || !pte_read(pte))
-		return false;
-
-	if (write && !pte_write(pte))
-		return false;
-
-	return true;
+static inline bool pte_access_permitted(pte_t pte, bool write) {
+  /*
+   * A read-only access is controlled by _PAGE_READ bit.
+   * We have _PAGE_READ set for WRITE
+   */
+  if (!pte_present(pte) || !pte_read(pte)) {
+    return false;
+  }
+  if (write && !pte_write(pte)) {
+    return false;
+  }
+  return true;
 }
 
 /* Conversion functions: convert a page and protection to a page entry,
@@ -442,77 +439,62 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
  * Even if PTEs can be unsigned long long, a PFN is always an unsigned
  * long for now.
  */
-static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
-{
-	return __pte(((pte_basic_t)(pfn) << PTE_RPN_SHIFT) |
-		     pgprot_val(pgprot));
+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot) {
+  return __pte(((pte_basic_t) (pfn) << PTE_RPN_SHIFT)
+      | pgprot_val(pgprot));
 }
 
 /* Generic modifiers for PTE bits */
-static inline pte_t pte_wrprotect(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_WRITE);
+static inline pte_t pte_wrprotect(pte_t pte) {
+  return __pte(pte_val(pte) & ~_PAGE_WRITE);
 }
 
-static inline pte_t pte_exprotect(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_EXEC);
+static inline pte_t pte_exprotect(pte_t pte) {
+  return __pte(pte_val(pte) & ~_PAGE_EXEC);
 }
 
-static inline pte_t pte_mkclean(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
+static inline pte_t pte_mkclean(pte_t pte) {
+  return __pte(pte_val(pte) & ~_PAGE_DIRTY);
 }
 
-static inline pte_t pte_mkold(pte_t pte)
-{
-	return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
+static inline pte_t pte_mkold(pte_t pte) {
+  return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
 }
 
-static inline pte_t pte_mkexec(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_EXEC);
+static inline pte_t pte_mkexec(pte_t pte) {
+  return __pte(pte_val(pte) | _PAGE_EXEC);
 }
 
-static inline pte_t pte_mkpte(pte_t pte)
-{
-	return pte;
+static inline pte_t pte_mkpte(pte_t pte) {
+  return pte;
 }
 
-static inline pte_t pte_mkwrite_novma(pte_t pte)
-{
-	/*
-	 * write implies read, hence set both
-	 */
-	return __pte(pte_val(pte) | _PAGE_RW);
+static inline pte_t pte_mkwrite_novma(pte_t pte) {
+  /*
+   * write implies read, hence set both
+   */
+  return __pte(pte_val(pte) | _PAGE_RW);
 }
 
-static inline pte_t pte_mkdirty(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_DIRTY);
+static inline pte_t pte_mkdirty(pte_t pte) {
+  return __pte(pte_val(pte) | _PAGE_DIRTY);
 }
 
-static inline pte_t pte_mkyoung(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_ACCESSED);
+static inline pte_t pte_mkyoung(pte_t pte) {
+  return __pte(pte_val(pte) | _PAGE_ACCESSED);
 }
 
-static inline pte_t pte_mkspecial(pte_t pte)
-{
-	return __pte(pte_val(pte) | _PAGE_SPECIAL);
+static inline pte_t pte_mkspecial(pte_t pte) {
+  return __pte(pte_val(pte) | _PAGE_SPECIAL);
 }
 
-static inline pte_t pte_mkhuge(pte_t pte)
-{
-	return pte;
+static inline pte_t pte_mkhuge(pte_t pte) {
+  return pte;
 }
 
-static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
-{
-	return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot) {
+  return __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot));
 }
-
-
 
 /* This low level function performs the actual PTE insertion
  * Setting the PTE depends on the MMU type and other factors.
@@ -537,68 +519,61 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * the hash bits instead.
  */
 static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
-				pte_t *ptep, pte_t pte, int percpu)
-{
-	if ((!IS_ENABLED(CONFIG_SMP) && !IS_ENABLED(CONFIG_PTE_64BIT)) || percpu) {
-		*ptep = __pte((pte_val(*ptep) & _PAGE_HASHPTE) |
-			      (pte_val(pte) & ~_PAGE_HASHPTE));
-	} else if (IS_ENABLED(CONFIG_PTE_64BIT)) {
-		if (pte_val(*ptep) & _PAGE_HASHPTE)
-			flush_hash_entry(mm, ptep, addr);
-
-		asm volatile("stw%X0 %2,%0; eieio; stw%X1 %L2,%1" :
-			     "=m" (*ptep), "=m" (*((unsigned char *)ptep+4)) :
-			     "r" (pte) : "memory");
-	} else {
-		pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, pte_val(pte), 0);
-	}
+    pte_t *ptep, pte_t pte, int percpu) {
+  if ((!IS_ENABLED(CONFIG_SMP) && !IS_ENABLED(CONFIG_PTE_64BIT)) || percpu) {
+    *ptep = __pte((pte_val(*ptep) & _PAGE_HASHPTE)
+        | (pte_val(pte) & ~_PAGE_HASHPTE));
+  } else if (IS_ENABLED(CONFIG_PTE_64BIT)) {
+    if (pte_val(*ptep) & _PAGE_HASHPTE) {
+      flush_hash_entry(mm, ptep, addr);
+    }
+    asm volatile ("stw%X0 %2,%0; eieio; stw%X1 %L2,%1" :
+    "=m" (*ptep), "=m" (*((unsigned char *) ptep + 4)) :
+    "r" (pte) : "memory");
+  } else {
+    pte_update(mm, addr, ptep, ~_PAGE_HASHPTE, pte_val(pte), 0);
+  }
 }
 
 /*
  * Macro to mark a page protection value as "uncacheable".
  */
 
-#define _PAGE_CACHE_CTL	(_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE | \
-			 _PAGE_WRITETHRU)
+#define _PAGE_CACHE_CTL (_PAGE_COHERENT | _PAGE_GUARDED | _PAGE_NO_CACHE   \
+  | _PAGE_WRITETHRU)
 
 #define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
-{
-	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_NO_CACHE | _PAGE_GUARDED);
+static inline pgprot_t pgprot_noncached(pgprot_t prot) {
+  return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL)
+      | _PAGE_NO_CACHE | _PAGE_GUARDED);
 }
 
 #define pgprot_noncached_wc pgprot_noncached_wc
-static inline pgprot_t pgprot_noncached_wc(pgprot_t prot)
-{
-	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_NO_CACHE);
+static inline pgprot_t pgprot_noncached_wc(pgprot_t prot) {
+  return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL)
+      | _PAGE_NO_CACHE);
 }
 
 #define pgprot_cached pgprot_cached
-static inline pgprot_t pgprot_cached(pgprot_t prot)
-{
-	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_COHERENT);
+static inline pgprot_t pgprot_cached(pgprot_t prot) {
+  return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL)
+      | _PAGE_COHERENT);
 }
 
 #define pgprot_cached_wthru pgprot_cached_wthru
-static inline pgprot_t pgprot_cached_wthru(pgprot_t prot)
-{
-	return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) |
-			_PAGE_COHERENT | _PAGE_WRITETHRU);
+static inline pgprot_t pgprot_cached_wthru(pgprot_t prot) {
+  return __pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL)
+      | _PAGE_COHERENT | _PAGE_WRITETHRU);
 }
 
 #define pgprot_cached_noncoherent pgprot_cached_noncoherent
-static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot)
-{
-	return __pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL);
+static inline pgprot_t pgprot_cached_noncoherent(pgprot_t prot) {
+  return __pgprot(pgprot_val(prot) & ~_PAGE_CACHE_CTL);
 }
 
 #define pgprot_writecombine pgprot_writecombine
-static inline pgprot_t pgprot_writecombine(pgprot_t prot)
-{
-	return pgprot_noncached_wc(prot);
+static inline pgprot_t pgprot_writecombine(pgprot_t prot) {
+  return pgprot_noncached_wc(prot);
 }
 
 #endif /* !__ASSEMBLY__ */

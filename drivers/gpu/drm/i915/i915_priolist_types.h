@@ -13,15 +13,15 @@
 #include <uapi/drm/i915_drm.h>
 
 enum {
-	I915_PRIORITY_MIN = I915_CONTEXT_MIN_USER_PRIORITY - 1,
-	I915_PRIORITY_NORMAL = I915_CONTEXT_DEFAULT_PRIORITY,
-	I915_PRIORITY_MAX = I915_CONTEXT_MAX_USER_PRIORITY + 1,
+  I915_PRIORITY_MIN = I915_CONTEXT_MIN_USER_PRIORITY - 1,
+  I915_PRIORITY_NORMAL = I915_CONTEXT_DEFAULT_PRIORITY,
+  I915_PRIORITY_MAX = I915_CONTEXT_MAX_USER_PRIORITY + 1,
 
-	/* A preemptive pulse used to monitor the health of each engine */
-	I915_PRIORITY_HEARTBEAT,
+  /* A preemptive pulse used to monitor the health of each engine */
+  I915_PRIORITY_HEARTBEAT,
 
-	/* Interactive workload, scheduled for immediate pageflipping */
-	I915_PRIORITY_DISPLAY,
+  /* Interactive workload, scheduled for immediate pageflipping */
+  I915_PRIORITY_DISPLAY,
 };
 
 /* Smallest priority value that cannot be bumped. */
@@ -39,9 +39,9 @@ enum {
 #define I915_PRIORITY_BARRIER (I915_PRIORITY_UNPREEMPTABLE - 1)
 
 struct i915_priolist {
-	struct list_head requests;
-	struct rb_node node;
-	int priority;
+  struct list_head requests;
+  struct rb_node node;
+  int priority;
 };
 
 #endif /* _I915_PRIOLIST_TYPES_H_ */

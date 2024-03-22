@@ -5,21 +5,21 @@
 #include "include/acp_2_2_d.h"
 #include "include/acp_2_2_sh_mask.h"
 
-#define ACP_PAGE_SIZE_4K_ENABLE			0x02
+#define ACP_PAGE_SIZE_4K_ENABLE     0x02
 
-#define ACP_PLAYBACK_PTE_OFFSET			10
-#define ACP_CAPTURE_PTE_OFFSET			0
+#define ACP_PLAYBACK_PTE_OFFSET     10
+#define ACP_CAPTURE_PTE_OFFSET      0
 
 /* Playback and Capture Offset for Stoney */
-#define ACP_ST_PLAYBACK_PTE_OFFSET	0x04
-#define ACP_ST_CAPTURE_PTE_OFFSET	0x00
-#define ACP_ST_BT_PLAYBACK_PTE_OFFSET	0x08
-#define ACP_ST_BT_CAPTURE_PTE_OFFSET	0x0c
+#define ACP_ST_PLAYBACK_PTE_OFFSET  0x04
+#define ACP_ST_CAPTURE_PTE_OFFSET 0x00
+#define ACP_ST_BT_PLAYBACK_PTE_OFFSET 0x08
+#define ACP_ST_BT_CAPTURE_PTE_OFFSET  0x0c
 
-#define ACP_GARLIC_CNTL_DEFAULT			0x00000FB4
-#define ACP_ONION_CNTL_DEFAULT			0x00000FB4
+#define ACP_GARLIC_CNTL_DEFAULT     0x00000FB4
+#define ACP_ONION_CNTL_DEFAULT      0x00000FB4
 
-#define ACP_PHYSICAL_BASE			0x14000
+#define ACP_PHYSICAL_BASE     0x14000
 
 /*
  * In case of I2S SP controller instance, Stoney uses SRAM bank 1 for
@@ -29,22 +29,22 @@
  * 1, 2, 3, 4 will be used for playback & SRAM Banks 5, 6, 7, 8 will be used
  * for capture scenario.
  */
-#define ACP_SRAM_BANK_1_ADDRESS		0x4002000
-#define ACP_SRAM_BANK_2_ADDRESS		0x4004000
-#define ACP_SRAM_BANK_3_ADDRESS		0x4006000
-#define ACP_SRAM_BANK_4_ADDRESS		0x4008000
-#define ACP_SRAM_BANK_5_ADDRESS		0x400A000
+#define ACP_SRAM_BANK_1_ADDRESS   0x4002000
+#define ACP_SRAM_BANK_2_ADDRESS   0x4004000
+#define ACP_SRAM_BANK_3_ADDRESS   0x4006000
+#define ACP_SRAM_BANK_4_ADDRESS   0x4008000
+#define ACP_SRAM_BANK_5_ADDRESS   0x400A000
 
-#define ACP_DMA_RESET_TIME			10000
-#define ACP_CLOCK_EN_TIME_OUT_VALUE		0x000000FF
-#define ACP_SOFT_RESET_DONE_TIME_OUT_VALUE	0x000000FF
-#define ACP_DMA_COMPLETE_TIME_OUT_VALUE		0x000000FF
+#define ACP_DMA_RESET_TIME      10000
+#define ACP_CLOCK_EN_TIME_OUT_VALUE   0x000000FF
+#define ACP_SOFT_RESET_DONE_TIME_OUT_VALUE  0x000000FF
+#define ACP_DMA_COMPLETE_TIME_OUT_VALUE   0x000000FF
 
-#define ACP_SRAM_BASE_ADDRESS			0x4000000
-#define ACP_DAGB_GRP_SRAM_BASE_ADDRESS		0x4001000
-#define ACP_DAGB_GRP_SRBM_SRAM_BASE_OFFSET	0x1000
-#define ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS	0x00000000
-#define ACP_INTERNAL_APERTURE_WINDOW_4_ADDRESS	0x01800000
+#define ACP_SRAM_BASE_ADDRESS     0x4000000
+#define ACP_DAGB_GRP_SRAM_BASE_ADDRESS    0x4001000
+#define ACP_DAGB_GRP_SRBM_SRAM_BASE_OFFSET  0x1000
+#define ACP_INTERNAL_APERTURE_WINDOW_0_ADDRESS  0x00000000
+#define ACP_INTERNAL_APERTURE_WINDOW_4_ADDRESS  0x01800000
 
 #define TO_ACP_I2S_1   0x2
 #define TO_ACP_I2S_2   0x4
@@ -55,9 +55,9 @@
 
 #define I2S_SP_INSTANCE                 0x01
 #define I2S_BT_INSTANCE                 0x02
-#define I2S_MICSP_INSTANCE		0x03
-#define CAP_CHANNEL0			0x00
-#define CAP_CHANNEL1			0x01
+#define I2S_MICSP_INSTANCE    0x03
+#define CAP_CHANNEL0      0x00
+#define CAP_CHANNEL1      0x01
 
 #define ACP_TILE_ON_MASK                0x03
 #define ACP_TILE_OFF_MASK               0x02
@@ -122,49 +122,49 @@
 #define mmACP_I2S_16BIT_RESOLUTION_EN       0x5209
 #define ACP_I2S_MIC_16BIT_RESOLUTION_EN 0x01
 #define ACP_I2S_MICSP_16BIT_RESOLUTION_EN 0x01
-#define ACP_I2S_SP_16BIT_RESOLUTION_EN	0x02
-#define ACP_I2S_BT_16BIT_RESOLUTION_EN	0x04
-#define ACP_BT_UART_PAD_SELECT_MASK	0x1
+#define ACP_I2S_SP_16BIT_RESOLUTION_EN  0x02
+#define ACP_I2S_BT_16BIT_RESOLUTION_EN  0x04
+#define ACP_BT_UART_PAD_SELECT_MASK 0x1
 
 enum acp_dma_priority_level {
-	/* 0x0 Specifies the DMA channel is given normal priority */
-	ACP_DMA_PRIORITY_LEVEL_NORMAL = 0x0,
-	/* 0x1 Specifies the DMA channel is given high priority */
-	ACP_DMA_PRIORITY_LEVEL_HIGH = 0x1,
-	ACP_DMA_PRIORITY_LEVEL_FORCESIZE = 0xFF
+  /* 0x0 Specifies the DMA channel is given normal priority */
+  ACP_DMA_PRIORITY_LEVEL_NORMAL = 0x0,
+  /* 0x1 Specifies the DMA channel is given high priority */
+  ACP_DMA_PRIORITY_LEVEL_HIGH = 0x1,
+  ACP_DMA_PRIORITY_LEVEL_FORCESIZE = 0xFF
 };
 
 struct audio_substream_data {
-	dma_addr_t dma_addr;
-	unsigned int order;
-	u16 num_of_pages;
-	u16 i2s_instance;
-	u16 capture_channel;
-	u16 direction;
-	u16 ch1;
-	u16 ch2;
-	u16 destination;
-	u16 dma_dscr_idx_1;
-	u16 dma_dscr_idx_2;
-	u32 pte_offset;
-	u32 sram_bank;
-	u32 byte_cnt_high_reg_offset;
-	u32 byte_cnt_low_reg_offset;
-	u32 dma_curr_dscr;
-	uint64_t size;
-	u64 bytescount;
-	void __iomem *acp_mmio;
+  dma_addr_t dma_addr;
+  unsigned int order;
+  u16 num_of_pages;
+  u16 i2s_instance;
+  u16 capture_channel;
+  u16 direction;
+  u16 ch1;
+  u16 ch2;
+  u16 destination;
+  u16 dma_dscr_idx_1;
+  u16 dma_dscr_idx_2;
+  u32 pte_offset;
+  u32 sram_bank;
+  u32 byte_cnt_high_reg_offset;
+  u32 byte_cnt_low_reg_offset;
+  u32 dma_curr_dscr;
+  uint64_t size;
+  u64 bytescount;
+  void __iomem *acp_mmio;
 };
 
 struct audio_drv_data {
-	struct snd_pcm_substream *play_i2ssp_stream;
-	struct snd_pcm_substream *capture_i2ssp_stream;
-	struct snd_pcm_substream *play_i2sbt_stream;
-	struct snd_pcm_substream *capture_i2sbt_stream;
-	struct snd_pcm_substream *play_i2s_micsp_stream;
-	void __iomem *acp_mmio;
-	u32 asic_type;
-	snd_pcm_sframes_t delay;
+  struct snd_pcm_substream *play_i2ssp_stream;
+  struct snd_pcm_substream *capture_i2ssp_stream;
+  struct snd_pcm_substream *play_i2sbt_stream;
+  struct snd_pcm_substream *capture_i2sbt_stream;
+  struct snd_pcm_substream *play_i2s_micsp_stream;
+  void __iomem *acp_mmio;
+  u32 asic_type;
+  snd_pcm_sframes_t delay;
 };
 
 /*
@@ -172,50 +172,50 @@ struct audio_drv_data {
  * and dma driver
  */
 struct acp_platform_info {
-	u16 play_i2s_instance;
-	u16 cap_i2s_instance;
-	u16 capture_channel;
+  u16 play_i2s_instance;
+  u16 cap_i2s_instance;
+  u16 capture_channel;
 };
 
 union acp_dma_count {
-	struct {
-	u32 low;
-	u32 high;
-	} bcount;
-	u64 bytescount;
+  struct {
+    u32 low;
+    u32 high;
+  } bcount;
+  u64 bytescount;
 };
 
 enum {
-	ACP_TILE_P1 = 0,
-	ACP_TILE_P2,
-	ACP_TILE_DSP0,
-	ACP_TILE_DSP1,
-	ACP_TILE_DSP2,
+  ACP_TILE_P1 = 0,
+  ACP_TILE_P2,
+  ACP_TILE_DSP0,
+  ACP_TILE_DSP1,
+  ACP_TILE_DSP2,
 };
 
 enum {
-	ACP_DMA_ATTR_SHAREDMEM_TO_DAGB_ONION = 0x0,
-	ACP_DMA_ATTR_SHARED_MEM_TO_DAGB_GARLIC = 0x1,
-	ACP_DMA_ATTR_DAGB_ONION_TO_SHAREDMEM = 0x8,
-	ACP_DMA_ATTR_DAGB_GARLIC_TO_SHAREDMEM = 0x9,
-	ACP_DMA_ATTR_FORCE_SIZE = 0xF
+  ACP_DMA_ATTR_SHAREDMEM_TO_DAGB_ONION = 0x0,
+  ACP_DMA_ATTR_SHARED_MEM_TO_DAGB_GARLIC = 0x1,
+  ACP_DMA_ATTR_DAGB_ONION_TO_SHAREDMEM = 0x8,
+  ACP_DMA_ATTR_DAGB_GARLIC_TO_SHAREDMEM = 0x9,
+  ACP_DMA_ATTR_FORCE_SIZE = 0xF
 };
 
 typedef struct acp_dma_dscr_transfer {
-	/* Specifies the source memory location for the DMA data transfer. */
-	u32 src;
-	/*
-	 * Specifies the destination memory location to where the data will
-	 * be transferred.
-	 */
-	u32 dest;
-	/*
-	 * Specifies the number of bytes need to be transferred
-	 * from source to destination memory.Transfer direction & IOC enable
-	 */
-	u32 xfer_val;
-	/* Reserved for future use */
-	u32 reserved;
+  /* Specifies the source memory location for the DMA data transfer. */
+  u32 src;
+  /*
+   * Specifies the destination memory location to where the data will
+   * be transferred.
+   */
+  u32 dest;
+  /*
+   * Specifies the number of bytes need to be transferred
+   * from source to destination memory.Transfer direction & IOC enable
+   */
+  u32 xfer_val;
+  /* Reserved for future use */
+  u32 reserved;
 } acp_dma_dscr_transfer_t;
 
 extern bool acp_bt_uart_enable;

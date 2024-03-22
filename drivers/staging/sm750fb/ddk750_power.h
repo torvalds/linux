@@ -3,15 +3,15 @@
 #define DDK750_POWER_H__
 
 enum dpms {
-	crtDPMS_ON = 0x0,
-	crtDPMS_STANDBY = 0x1,
-	crtDPMS_SUSPEND = 0x2,
-	crtDPMS_OFF = 0x3,
+  crtDPMS_ON = 0x0,
+  crtDPMS_STANDBY = 0x1,
+  crtDPMS_SUSPEND = 0x2,
+  crtDPMS_OFF = 0x3,
 };
 
-#define set_DAC(off) {							\
-	poke32(MISC_CTRL,						\
-	       (peek32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF) | (off)); \
+#define set_DAC(off) {              \
+    poke32(MISC_CTRL,           \
+    (peek32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF) | (off)); \
 }
 
 void ddk750_set_dpms(enum dpms state);

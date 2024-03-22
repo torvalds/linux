@@ -14,16 +14,16 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef	_BRCM_DMA_H_
-#define	_BRCM_DMA_H_
+#ifndef _BRCM_DMA_H_
+#define _BRCM_DMA_H_
 
 #include <linux/delay.h>
 #include <linux/skbuff.h>
-#include "types.h"		/* forward structure declarations */
+#include "types.h"    /* forward structure declarations */
 
 /* map/unmap direction */
-#define	DMA_TX	1		/* TX direction for DMA */
-#define	DMA_RX	2		/* RX direction for DMA */
+#define DMA_TX  1   /* TX direction for DMA */
+#define DMA_RX  2   /* RX direction for DMA */
 
 /* DMA structure:
  *  support two DMA engines: 32 bits address or 64 bit addressing
@@ -33,30 +33,30 @@
 
 /* 32 bits addressing */
 
-struct dma32diag {	/* diag access */
-	u32 fifoaddr;	/* diag address */
-	u32 fifodatalow;	/* low 32bits of data */
-	u32 fifodatahigh;	/* high 32bits of data */
-	u32 pad;		/* reserved */
+struct dma32diag {  /* diag access */
+  u32 fifoaddr; /* diag address */
+  u32 fifodatalow;  /* low 32bits of data */
+  u32 fifodatahigh; /* high 32bits of data */
+  u32 pad;    /* reserved */
 };
 
 /* 64 bits addressing */
 
 /* dma registers per channel(xmt or rcv) */
 struct dma64regs {
-	u32 control;	/* enable, et al */
-	u32 ptr;	/* last descriptor posted to chip */
-	u32 addrlow;	/* desc ring base address low 32-bits (8K aligned) */
-	u32 addrhigh;	/* desc ring base address bits 63:32 (8K aligned) */
-	u32 status0;	/* current descriptor, xmt state */
-	u32 status1;	/* active descriptor, xmt error */
+  u32 control;  /* enable, et al */
+  u32 ptr;  /* last descriptor posted to chip */
+  u32 addrlow;  /* desc ring base address low 32-bits (8K aligned) */
+  u32 addrhigh; /* desc ring base address bits 63:32 (8K aligned) */
+  u32 status0;  /* current descriptor, xmt state */
+  u32 status1;  /* active descriptor, xmt error */
 };
 
 /* range param for dma_getnexttxp() and dma_txreclaim */
 enum txd_range {
-	DMA_RANGE_ALL = 1,
-	DMA_RANGE_TRANSMITTED,
-	DMA_RANGE_TRANSFERED
+  DMA_RANGE_ALL = 1,
+  DMA_RANGE_TRANSMITTED,
+  DMA_RANGE_TRANSFERED
 };
 
 /*
@@ -64,21 +64,21 @@ enum txd_range {
  */
 /* export structure */
 struct dma_pub {
-	uint txavail;		/* # free tx descriptors */
-	uint dmactrlflags;	/* dma control flags */
+  uint txavail;   /* # free tx descriptors */
+  uint dmactrlflags;  /* dma control flags */
 
-	/* rx error counters */
-	uint rxgiants;		/* rx giant frames */
-	uint rxnobuf;		/* rx out of dma descriptors */
-	/* tx error counters */
-	uint txnobuf;		/* tx out of dma descriptors */
+  /* rx error counters */
+  uint rxgiants;    /* rx giant frames */
+  uint rxnobuf;   /* rx out of dma descriptors */
+  /* tx error counters */
+  uint txnobuf;   /* tx out of dma descriptors */
 };
 
 extern struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
-				  uint txregbase, uint rxregbase,
-				  uint ntxd, uint nrxd,
-				  uint rxbufsize, int rxextheadroom,
-				  uint nrxpost, uint rxoffset);
+    uint txregbase, uint rxregbase,
+    uint ntxd, uint nrxd,
+    uint rxbufsize, int rxextheadroom,
+    uint nrxpost, uint rxoffset);
 
 void dma_rxinit(struct dma_pub *pub);
 int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list);
@@ -87,7 +87,7 @@ bool dma_rxreset(struct dma_pub *pub);
 bool dma_txreset(struct dma_pub *pub);
 void dma_txinit(struct dma_pub *pub);
 int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
-	       struct sk_buff *p0);
+    struct sk_buff *p0);
 void dma_txflush(struct dma_pub *pub);
 int dma_txpending(struct dma_pub *pub);
 void dma_kick_tx(struct dma_pub *pub);
@@ -102,7 +102,7 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range);
 void dma_counterreset(struct dma_pub *pub);
 
 void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
-		      (void *pkt, void *arg_a), void *arg_a);
+    (void *pkt, void *arg_a), void *arg_a);
 
 /*
  * DMA(Bug) on bcm47xx chips seems to declare that the packet is ready, but
@@ -110,16 +110,15 @@ void dma_walk_packets(struct dma_pub *dmah, void (*callback_fnc)
  * Workaround is to hold processor till DMA updates the length, and stay off
  * the bus to allow DMA update the length in buffer
  */
-static inline void dma_spin_for_len(uint len, struct sk_buff *head)
-{
+static inline void dma_spin_for_len(uint len, struct sk_buff *head) {
 #if defined(CONFIG_BCM47XX)
-	if (!len) {
-		while (!(len = *(u16 *) KSEG1ADDR(head->data)))
-			udelay(1);
-
-		*(u16 *) (head->data) = cpu_to_le16((u16) len);
-	}
-#endif				/* defined(CONFIG_BCM47XX) */
+  if (!len) {
+    while (!(len = *(u16 *) KSEG1ADDR(head->data))) {
+      udelay(1);
+    }
+    *(u16 *) (head->data) = cpu_to_le16((u16) len);
+  }
+#endif        /* defined(CONFIG_BCM47XX) */
 }
 
-#endif				/* _BRCM_DMA_H_ */
+#endif        /* _BRCM_DMA_H_ */

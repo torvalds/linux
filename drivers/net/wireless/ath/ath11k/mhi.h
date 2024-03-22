@@ -8,14 +8,14 @@
 
 #include "pci.h"
 
-#define PCIE_TXVECDB				0x360
-#define PCIE_TXVECSTATUS			0x368
-#define PCIE_RXVECDB				0x394
-#define PCIE_RXVECSTATUS			0x39C
+#define PCIE_TXVECDB        0x360
+#define PCIE_TXVECSTATUS      0x368
+#define PCIE_RXVECDB        0x394
+#define PCIE_RXVECSTATUS      0x39C
 
-#define MHISTATUS				0x48
-#define MHICTRL					0x38
-#define MHICTRL_RESET_MASK			0x2
+#define MHISTATUS       0x48
+#define MHICTRL         0x38
+#define MHICTRL_RESET_MASK      0x2
 
 int ath11k_mhi_start(struct ath11k_pci *ar_pci);
 void ath11k_mhi_stop(struct ath11k_pci *ar_pci);

@@ -86,12 +86,12 @@
  * calls:
  *
  *   a) FAIL_DUP_MOD_BECOMING: at the end of early_mod_check() before
- *	layout_and_allocate().
- *	- with module decompression: 2 virtual memory allocation calls
- *	- without module decompression: 1 virtual memory allocation calls
+ *  layout_and_allocate().
+ *  - with module decompression: 2 virtual memory allocation calls
+ *  - without module decompression: 1 virtual memory allocation calls
  *   b) FAIL_DUP_MOD_LOAD: after layout_and_allocate() on add_unformed_module()
- *   	- with module decompression 3 virtual memory allocation calls
- *   	- without module decompression 2 virtual memory allocation calls
+ *    - with module decompression 3 virtual memory allocation calls
+ *    - without module decompression 2 virtual memory allocation calls
  *
  * We should strive to get this list to be as small as possible. If this list
  * is not empty it is a reflection of possible work or optimizations possible
@@ -118,7 +118,8 @@ static LIST_HEAD(dup_failed_modules);
  *   * total_text_size: total bytes of the .text and .init.text ELF section
  *     sizes we've dealt with on this system
  *   * invalid_kread_bytes: bytes allocated and then freed on failures which
- *     happen due to the initial kernel_read_file_from_fd(). kernel_read_file_from_fd()
+ *     happen due to the initial kernel_read_file_from_fd().
+ *kernel_read_file_from_fd()
  *     uses vmalloc(). These should typically not happen unless your system is
  *     under memory pressure.
  *   * invalid_decompress_bytes: number of bytes allocated and freed due to
@@ -128,7 +129,8 @@ static LIST_HEAD(dup_failed_modules);
  *   * invalid_becoming_bytes: total number of bytes allocated and freed used
  *     to read the kernel module userspace wants us to read before we
  *     promote it to be processed to be added to our @modules linked list. These
- *     failures can happen if we had a check in between a successful kernel_read_file_from_fd()
+ *     failures can happen if we had a check in between a successful
+ *kernel_read_file_from_fd()
  *     call and right before we allocate the our private memory for the module
  *     which would be kept if the module is successfully loaded. The most common
  *     reason for this failure is when userspace is racing to load a module
@@ -173,11 +175,14 @@ static LIST_HEAD(dup_failed_modules);
  *     the size of the compressed module is also added to this counter.
  *
  *  * modcount: how many modules we've loaded in our kernel life time
- *  * failed_kreads: how many modules failed due to failed kernel_read_file_from_fd()
- *  * failed_decompress: how many failed module decompression attempts we've had.
+ *  * failed_kreads: how many modules failed due to failed
+ *kernel_read_file_from_fd()
+ *  * failed_decompress: how many failed module decompression attempts we've
+ *had.
  *    These really should not happen unless your compression / decompression
  *    might be broken.
- *  * failed_becoming: how many modules failed after we kernel_read_file_from_fd()
+ *  * failed_becoming: how many modules failed after we
+ *kernel_read_file_from_fd()
  *    it and before we allocate memory for it with layout_and_allocate(). This
  *    counter is never incremented if you manage to validate the module and
  *    call layout_and_allocate() for it.
@@ -205,60 +210,60 @@ atomic_t failed_decompress;
 static atomic_t failed_becoming;
 static atomic_t failed_load_modules;
 
-static const char *mod_fail_to_str(struct mod_fail_load *mod_fail)
-{
-	if (test_bit(FAIL_DUP_MOD_BECOMING, &mod_fail->dup_fail_mask) &&
-	    test_bit(FAIL_DUP_MOD_LOAD, &mod_fail->dup_fail_mask))
-		return "Becoming & Load";
-	if (test_bit(FAIL_DUP_MOD_BECOMING, &mod_fail->dup_fail_mask))
-		return "Becoming";
-	if (test_bit(FAIL_DUP_MOD_LOAD, &mod_fail->dup_fail_mask))
-		return "Load";
-	return "Bug-on-stats";
+static const char *mod_fail_to_str(struct mod_fail_load *mod_fail) {
+  if (test_bit(FAIL_DUP_MOD_BECOMING, &mod_fail->dup_fail_mask)
+      && test_bit(FAIL_DUP_MOD_LOAD, &mod_fail->dup_fail_mask)) {
+    return "Becoming & Load";
+  }
+  if (test_bit(FAIL_DUP_MOD_BECOMING, &mod_fail->dup_fail_mask)) {
+    return "Becoming";
+  }
+  if (test_bit(FAIL_DUP_MOD_LOAD, &mod_fail->dup_fail_mask)) {
+    return "Load";
+  }
+  return "Bug-on-stats";
 }
 
-void mod_stat_bump_invalid(struct load_info *info, int flags)
-{
-	atomic_long_add(info->len * 2, &invalid_mod_bytes);
-	atomic_inc(&failed_load_modules);
+void mod_stat_bump_invalid(struct load_info *info, int flags) {
+  atomic_long_add(info->len * 2, &invalid_mod_bytes);
+  atomic_inc(&failed_load_modules);
 #if defined(CONFIG_MODULE_DECOMPRESS)
-	if (flags & MODULE_INIT_COMPRESSED_FILE)
-		atomic_long_add(info->compressed_len, &invalid_mod_bytes);
+  if (flags & MODULE_INIT_COMPRESSED_FILE) {
+    atomic_long_add(info->compressed_len, &invalid_mod_bytes);
+  }
 #endif
 }
 
-void mod_stat_bump_becoming(struct load_info *info, int flags)
-{
-	atomic_inc(&failed_becoming);
-	atomic_long_add(info->len, &invalid_becoming_bytes);
+void mod_stat_bump_becoming(struct load_info *info, int flags) {
+  atomic_inc(&failed_becoming);
+  atomic_long_add(info->len, &invalid_becoming_bytes);
 #if defined(CONFIG_MODULE_DECOMPRESS)
-	if (flags & MODULE_INIT_COMPRESSED_FILE)
-		atomic_long_add(info->compressed_len, &invalid_becoming_bytes);
+  if (flags & MODULE_INIT_COMPRESSED_FILE) {
+    atomic_long_add(info->compressed_len, &invalid_becoming_bytes);
+  }
 #endif
 }
 
-int try_add_failed_module(const char *name, enum fail_dup_mod_reason reason)
-{
-	struct mod_fail_load *mod_fail;
-
-	list_for_each_entry_rcu(mod_fail, &dup_failed_modules, list,
-				lockdep_is_held(&module_mutex)) {
-		if (!strcmp(mod_fail->name, name)) {
-			atomic_long_inc(&mod_fail->count);
-			__set_bit(reason, &mod_fail->dup_fail_mask);
-			goto out;
-		}
-	}
-
-	mod_fail = kzalloc(sizeof(*mod_fail), GFP_KERNEL);
-	if (!mod_fail)
-		return -ENOMEM;
-	memcpy(mod_fail->name, name, strlen(name));
-	__set_bit(reason, &mod_fail->dup_fail_mask);
-	atomic_long_inc(&mod_fail->count);
-	list_add_rcu(&mod_fail->list, &dup_failed_modules);
+int try_add_failed_module(const char *name, enum fail_dup_mod_reason reason) {
+  struct mod_fail_load *mod_fail;
+  list_for_each_entry_rcu(mod_fail, &dup_failed_modules, list,
+      lockdep_is_held(&module_mutex)) {
+    if (!strcmp(mod_fail->name, name)) {
+      atomic_long_inc(&mod_fail->count);
+      __set_bit(reason, &mod_fail->dup_fail_mask);
+      goto out;
+    }
+  }
+  mod_fail = kzalloc(sizeof(*mod_fail), GFP_KERNEL);
+  if (!mod_fail) {
+    return -ENOMEM;
+  }
+  memcpy(mod_fail->name, name, strlen(name));
+  __set_bit(reason, &mod_fail->dup_fail_mask);
+  atomic_long_inc(&mod_fail->count);
+  list_add_rcu(&mod_fail->list, &dup_failed_modules);
 out:
-	return 0;
+  return 0;
 }
 
 /*
@@ -271,162 +276,158 @@ out:
 #define MAX_FAILED_MOD_PRINT 112
 #define MAX_BYTES_PER_MOD 64
 static ssize_t read_file_mod_stats(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	struct mod_fail_load *mod_fail;
-	unsigned int len, size, count_failed = 0;
-	char *buf;
-	int ret;
-	u32 live_mod_count, fkreads, fdecompress, fbecoming, floads;
-	unsigned long total_size, text_size, ikread_bytes, ibecoming_bytes,
-		idecompress_bytes, imod_bytes, total_virtual_lost;
-
-	live_mod_count = atomic_read(&modcount);
-	fkreads = atomic_read(&failed_kreads);
-	fdecompress = atomic_read(&failed_decompress);
-	fbecoming = atomic_read(&failed_becoming);
-	floads = atomic_read(&failed_load_modules);
-
-	total_size = atomic_long_read(&total_mod_size);
-	text_size = atomic_long_read(&total_text_size);
-	ikread_bytes = atomic_long_read(&invalid_kread_bytes);
-	idecompress_bytes = atomic_long_read(&invalid_decompress_bytes);
-	ibecoming_bytes = atomic_long_read(&invalid_becoming_bytes);
-	imod_bytes = atomic_long_read(&invalid_mod_bytes);
-
-	total_virtual_lost = ikread_bytes + idecompress_bytes + ibecoming_bytes + imod_bytes;
-
-	size = MAX_PREAMBLE + min((unsigned int)(floads + fbecoming),
-				  (unsigned int)MAX_FAILED_MOD_PRINT) * MAX_BYTES_PER_MOD;
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	/* The beginning of our debug preamble */
-	len = scnprintf(buf, size, "%25s\t%u\n", "Mods ever loaded", live_mod_count);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on kread", fkreads);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on decompress",
-			 fdecompress);
-	len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on becoming", fbecoming);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on load", floads);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Total module size", total_size);
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Total mod text size", text_size);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed kread bytes", ikread_bytes);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed decompress bytes",
-			 idecompress_bytes);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed becoming bytes", ibecoming_bytes);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed kmod bytes", imod_bytes);
-
-	len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Virtual mem wasted bytes", total_virtual_lost);
-
-	if (live_mod_count && total_size) {
-		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average mod size",
-				 DIV_ROUND_UP(total_size, live_mod_count));
-	}
-
-	if (live_mod_count && text_size) {
-		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average mod text size",
-				 DIV_ROUND_UP(text_size, live_mod_count));
-	}
-
-	/*
-	 * We use WARN_ON_ONCE() for the counters to ensure we always have parity
-	 * for keeping tabs on a type of failure with one type of byte counter.
-	 * The counters for imod_bytes does not increase for fkreads failures
-	 * for example, and so on.
-	 */
-
-	WARN_ON_ONCE(ikread_bytes && !fkreads);
-	if (fkreads && ikread_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Avg fail kread bytes",
-				 DIV_ROUND_UP(ikread_bytes, fkreads));
-	}
-
-	WARN_ON_ONCE(ibecoming_bytes && !fbecoming);
-	if (fbecoming && ibecoming_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Avg fail becoming bytes",
-				 DIV_ROUND_UP(ibecoming_bytes, fbecoming));
-	}
-
-	WARN_ON_ONCE(idecompress_bytes && !fdecompress);
-	if (fdecompress && idecompress_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Avg fail decomp bytes",
-				 DIV_ROUND_UP(idecompress_bytes, fdecompress));
-	}
-
-	WARN_ON_ONCE(imod_bytes && !floads);
-	if (floads && imod_bytes) {
-		len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average fail load bytes",
-				 DIV_ROUND_UP(imod_bytes, floads));
-	}
-
-	/* End of our debug preamble header. */
-
-	/* Catch when we've gone beyond our expected preamble */
-	WARN_ON_ONCE(len >= MAX_PREAMBLE);
-
-	if (list_empty(&dup_failed_modules))
-		goto out;
-
-	len += scnprintf(buf + len, size - len, "Duplicate failed modules:\n");
-	len += scnprintf(buf + len, size - len, "%25s\t%15s\t%25s\n",
-			 "Module-name", "How-many-times", "Reason");
-	mutex_lock(&module_mutex);
-
-
-	list_for_each_entry_rcu(mod_fail, &dup_failed_modules, list) {
-		if (WARN_ON_ONCE(++count_failed >= MAX_FAILED_MOD_PRINT))
-			goto out_unlock;
-		len += scnprintf(buf + len, size - len, "%25s\t%15lu\t%25s\n", mod_fail->name,
-				 atomic_long_read(&mod_fail->count), mod_fail_to_str(mod_fail));
-	}
+    size_t count, loff_t *ppos) {
+  struct mod_fail_load *mod_fail;
+  unsigned int len, size, count_failed = 0;
+  char *buf;
+  int ret;
+  u32 live_mod_count, fkreads, fdecompress, fbecoming, floads;
+  unsigned long total_size, text_size, ikread_bytes, ibecoming_bytes,
+      idecompress_bytes, imod_bytes, total_virtual_lost;
+  live_mod_count = atomic_read(&modcount);
+  fkreads = atomic_read(&failed_kreads);
+  fdecompress = atomic_read(&failed_decompress);
+  fbecoming = atomic_read(&failed_becoming);
+  floads = atomic_read(&failed_load_modules);
+  total_size = atomic_long_read(&total_mod_size);
+  text_size = atomic_long_read(&total_text_size);
+  ikread_bytes = atomic_long_read(&invalid_kread_bytes);
+  idecompress_bytes = atomic_long_read(&invalid_decompress_bytes);
+  ibecoming_bytes = atomic_long_read(&invalid_becoming_bytes);
+  imod_bytes = atomic_long_read(&invalid_mod_bytes);
+  total_virtual_lost = ikread_bytes + idecompress_bytes + ibecoming_bytes
+      + imod_bytes;
+  size = MAX_PREAMBLE + min((unsigned int) (floads + fbecoming),
+      (unsigned int) MAX_FAILED_MOD_PRINT) * MAX_BYTES_PER_MOD;
+  buf = kzalloc(size, GFP_KERNEL);
+  if (buf == NULL) {
+    return -ENOMEM;
+  }
+  /* The beginning of our debug preamble */
+  len = scnprintf(buf, size, "%25s\t%u\n", "Mods ever loaded", live_mod_count);
+  len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on kread",
+      fkreads);
+  len += scnprintf(buf + len, size - len, "%25s\t%u\n",
+      "Mods failed on decompress",
+      fdecompress);
+  len += scnprintf(buf + len, size - len, "%25s\t%u\n",
+      "Mods failed on becoming", fbecoming);
+  len += scnprintf(buf + len, size - len, "%25s\t%u\n", "Mods failed on load",
+      floads);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Total module size",
+      total_size);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Total mod text size",
+      text_size);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed kread bytes",
+      ikread_bytes);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+      "Failed decompress bytes",
+      idecompress_bytes);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+      "Failed becoming bytes", ibecoming_bytes);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Failed kmod bytes",
+      imod_bytes);
+  len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+      "Virtual mem wasted bytes", total_virtual_lost);
+  if (live_mod_count && total_size) {
+    len += scnprintf(buf + len, size - len, "%25s\t%lu\n", "Average mod size",
+        DIV_ROUND_UP(total_size, live_mod_count));
+  }
+  if (live_mod_count && text_size) {
+    len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+        "Average mod text size",
+        DIV_ROUND_UP(text_size, live_mod_count));
+  }
+  /*
+   * We use WARN_ON_ONCE() for the counters to ensure we always have parity
+   * for keeping tabs on a type of failure with one type of byte counter.
+   * The counters for imod_bytes does not increase for fkreads failures
+   * for example, and so on.
+   */
+  WARN_ON_ONCE(ikread_bytes && !fkreads);
+  if (fkreads && ikread_bytes) {
+    len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+        "Avg fail kread bytes",
+        DIV_ROUND_UP(ikread_bytes, fkreads));
+  }
+  WARN_ON_ONCE(ibecoming_bytes && !fbecoming);
+  if (fbecoming && ibecoming_bytes) {
+    len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+        "Avg fail becoming bytes",
+        DIV_ROUND_UP(ibecoming_bytes, fbecoming));
+  }
+  WARN_ON_ONCE(idecompress_bytes && !fdecompress);
+  if (fdecompress && idecompress_bytes) {
+    len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+        "Avg fail decomp bytes",
+        DIV_ROUND_UP(idecompress_bytes, fdecompress));
+  }
+  WARN_ON_ONCE(imod_bytes && !floads);
+  if (floads && imod_bytes) {
+    len += scnprintf(buf + len, size - len, "%25s\t%lu\n",
+        "Average fail load bytes",
+        DIV_ROUND_UP(imod_bytes, floads));
+  }
+  /* End of our debug preamble header.
+   * Catch when we've gone beyond our expected preamble*/
+  WARN_ON_ONCE(len >= MAX_PREAMBLE);
+  if (list_empty(&dup_failed_modules)) {
+    goto out;
+  }
+  len += scnprintf(buf + len, size - len, "Duplicate failed modules:\n");
+  len += scnprintf(buf + len, size - len, "%25s\t%15s\t%25s\n",
+      "Module-name", "How-many-times", "Reason");
+  mutex_lock(&module_mutex);
+  list_for_each_entry_rcu(mod_fail, &dup_failed_modules, list) {
+    if (WARN_ON_ONCE(++count_failed >= MAX_FAILED_MOD_PRINT)) {
+      goto out_unlock;
+    }
+    len += scnprintf(buf + len, size - len, "%25s\t%15lu\t%25s\n",
+        mod_fail->name,
+        atomic_long_read(&mod_fail->count), mod_fail_to_str(mod_fail));
+  }
 out_unlock:
-	mutex_unlock(&module_mutex);
+  mutex_unlock(&module_mutex);
 out:
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-	return ret;
+  ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+  kfree(buf);
+  return ret;
 }
+
 #undef MAX_PREAMBLE
 #undef MAX_FAILED_MOD_PRINT
 #undef MAX_BYTES_PER_MOD
 
 static const struct file_operations fops_mod_stats = {
-	.read = read_file_mod_stats,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
+  .read = read_file_mod_stats,
+  .open = simple_open,
+  .owner = THIS_MODULE,
+  .llseek = default_llseek,
 };
 
-#define mod_debug_add_ulong(name) debugfs_create_ulong(#name, 0400, mod_debugfs_root, (unsigned long *) &name.counter)
-#define mod_debug_add_atomic(name) debugfs_create_atomic_t(#name, 0400, mod_debugfs_root, &name)
-static int __init module_stats_init(void)
-{
-	mod_debug_add_ulong(total_mod_size);
-	mod_debug_add_ulong(total_text_size);
-	mod_debug_add_ulong(invalid_kread_bytes);
-	mod_debug_add_ulong(invalid_decompress_bytes);
-	mod_debug_add_ulong(invalid_becoming_bytes);
-	mod_debug_add_ulong(invalid_mod_bytes);
-
-	mod_debug_add_atomic(modcount);
-	mod_debug_add_atomic(failed_kreads);
-	mod_debug_add_atomic(failed_decompress);
-	mod_debug_add_atomic(failed_becoming);
-	mod_debug_add_atomic(failed_load_modules);
-
-	debugfs_create_file("stats", 0400, mod_debugfs_root, mod_debugfs_root, &fops_mod_stats);
-
-	return 0;
+#define mod_debug_add_ulong(name) debugfs_create_ulong(#name, 0400, \
+    mod_debugfs_root, \
+    (unsigned long *) &name.counter)
+#define mod_debug_add_atomic(name) debugfs_create_atomic_t(#name, 0400, \
+    mod_debugfs_root, \
+    &name)
+static int __init module_stats_init(void) {
+  mod_debug_add_ulong(total_mod_size);
+  mod_debug_add_ulong(total_text_size);
+  mod_debug_add_ulong(invalid_kread_bytes);
+  mod_debug_add_ulong(invalid_decompress_bytes);
+  mod_debug_add_ulong(invalid_becoming_bytes);
+  mod_debug_add_ulong(invalid_mod_bytes);
+  mod_debug_add_atomic(modcount);
+  mod_debug_add_atomic(failed_kreads);
+  mod_debug_add_atomic(failed_decompress);
+  mod_debug_add_atomic(failed_becoming);
+  mod_debug_add_atomic(failed_load_modules);
+  debugfs_create_file("stats", 0400, mod_debugfs_root, mod_debugfs_root,
+      &fops_mod_stats);
+  return 0;
 }
+
 #undef mod_debug_add_ulong
 #undef mod_debug_add_atomic
 module_init(module_stats_init);

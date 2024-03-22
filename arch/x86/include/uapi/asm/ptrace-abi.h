@@ -79,13 +79,13 @@
 #define PTRACE_SET_THREAD_AREA    26
 
 #ifdef __x86_64__
-# define PTRACE_ARCH_PRCTL	  30
+#define PTRACE_ARCH_PRCTL    30
 #endif
 
-#define PTRACE_SYSEMU		  31
+#define PTRACE_SYSEMU     31
 #define PTRACE_SYSEMU_SINGLESTEP  32
 
-#define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
+#define PTRACE_SINGLEBLOCK  33  /* resume execution until next branch */
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>

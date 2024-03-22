@@ -31,9 +31,9 @@
 
 /* DCE8.0 implementation inherits from DCE11.0 */
 void dce80_timing_generator_construct(
-	struct dce110_timing_generator *tg,
-	struct dc_context *ctx,
-	uint32_t instance,
-	const struct dce110_timing_generator_offsets *offsets);
+  struct dce110_timing_generator *tg,
+  struct dc_context *ctx,
+  uint32_t instance,
+  const struct dce110_timing_generator_offsets *offsets);
 
 #endif /* __DC_TIMING_GENERATOR_DCE80_H__ */

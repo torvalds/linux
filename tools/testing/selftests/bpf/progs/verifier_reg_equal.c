@@ -7,9 +7,9 @@
 SEC("socket")
 __description("check w reg equal if r reg upper32 bits 0")
 __success
-__naked void subreg_equality_1(void)
-{
-	asm volatile ("					\
+__naked void subreg_equality_1(void) {
+  asm volatile (
+    "					\
 	call %[bpf_ktime_get_ns];			\
 	*(u64 *)(r10 - 8) = r0;				\
 	r2 = *(u32 *)(r10 - 8);				\
@@ -25,17 +25,17 @@ l0_%=:	if r3 < 9 goto l1_%=;				\
 	/* r1 read is illegal at this point */		\
 	r0 -= r1;					\
 l1_%=:	exit;						\
-"	:
-	: __imm(bpf_ktime_get_ns)
-	: __clobber_all);
+" :
+    : __imm(bpf_ktime_get_ns)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("check w reg not equal if r reg upper32 bits not 0")
 __failure __msg("R1 !read_ok")
-__naked void subreg_equality_2(void)
-{
-	asm volatile ("					\
+__naked void subreg_equality_2(void) {
+  asm volatile (
+    "					\
 	call %[bpf_ktime_get_ns];			\
 	r2 = r0;					\
 	/* Upper 4-bytes of r2 may not be 0, thus insn	\
@@ -50,9 +50,9 @@ l0_%=:	if r3 < 9 goto l1_%=;				\
 	/* r1 read is illegal at this point */		\
 	r0 -= r1;					\
 l1_%=:	exit;						\
-"	:
-	: __imm(bpf_ktime_get_ns)
-	: __clobber_all);
+" :
+    : __imm(bpf_ktime_get_ns)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

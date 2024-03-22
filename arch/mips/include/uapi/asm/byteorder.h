@@ -14,7 +14,7 @@
 #elif defined(__MIPSEL__)
 #include <linux/byteorder/little_endian.h>
 #else
-# error "MIPS, but neither __MIPSEB__, nor __MIPSEL__???"
+#error "MIPS, but neither __MIPSEB__, nor __MIPSEL__???"
 #endif
 
 #endif /* _ASM_BYTEORDER_H */

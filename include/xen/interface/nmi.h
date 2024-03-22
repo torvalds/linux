@@ -16,13 +16,13 @@
  * NMI reason codes:
  * Currently these are x86-specific, stored in arch_shared_info.nmi_reason.
  */
- /* I/O-check error reported via ISA port 0x61, bit 6. */
+/* I/O-check error reported via ISA port 0x61, bit 6. */
 #define _XEN_NMIREASON_io_error     0
 #define XEN_NMIREASON_io_error      (1UL << _XEN_NMIREASON_io_error)
- /* PCI SERR reported via ISA port 0x61, bit 7. */
+/* PCI SERR reported via ISA port 0x61, bit 7. */
 #define _XEN_NMIREASON_pci_serr     1
 #define XEN_NMIREASON_pci_serr      (1UL << _XEN_NMIREASON_pci_serr)
- /* Unknown hardware-generated NMI. */
+/* Unknown hardware-generated NMI. */
 #define _XEN_NMIREASON_unknown      2
 #define XEN_NMIREASON_unknown       (1UL << _XEN_NMIREASON_unknown)
 
@@ -38,8 +38,8 @@
  */
 #define XENNMI_register_callback   0
 struct xennmi_callback {
-    unsigned long handler_address;
-    unsigned long pad;
+  unsigned long handler_address;
+  unsigned long pad;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xennmi_callback);
 

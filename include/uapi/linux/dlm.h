@@ -55,22 +55,21 @@ typedef void dlm_lockspace_t;
  * -ETIMEDOUT if the lock request was canceled due to a timeout
  */
 
-#define DLM_SBF_DEMOTED		0x01
-#define DLM_SBF_VALNOTVALID	0x02
-#define DLM_SBF_ALTMODE		0x04
+#define DLM_SBF_DEMOTED   0x01
+#define DLM_SBF_VALNOTVALID 0x02
+#define DLM_SBF_ALTMODE   0x04
 
 struct dlm_lksb {
-	int 	 sb_status;
-	__u32	 sb_lkid;
-	char 	 sb_flags;
-	char *	 sb_lvbptr;
+  int sb_status;
+  __u32 sb_lkid;
+  char sb_flags;
+  char *sb_lvbptr;
 };
 
 /* dlm_new_lockspace() flags */
 
 /* DLM_LSFL_TIMEWARN is deprecated and reserved. DO NOT USE! */
-#define DLM_LSFL_TIMEWARN	0x00000002
-#define DLM_LSFL_NEWEXCL     	0x00000008
-
+#define DLM_LSFL_TIMEWARN 0x00000002
+#define DLM_LSFL_NEWEXCL      0x00000008
 
 #endif /* _UAPI__DLM_DOT_H__ */

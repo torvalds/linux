@@ -37,8 +37,8 @@
  * @UBI_VID_STATIC: static volume
  */
 enum {
-	UBI_VID_DYNAMIC = 1,
-	UBI_VID_STATIC  = 2
+  UBI_VID_DYNAMIC = 1,
+  UBI_VID_STATIC = 2
 };
 
 /*
@@ -46,10 +46,10 @@ enum {
  *
  * @UBI_VTBL_AUTORESIZE_FLG: auto-resize this volume
  * @UBI_VTBL_SKIP_CRC_CHECK_FLG: skip the CRC check done on a static volume at
- *				 open time. Should only be set on volumes that
- *				 are used by upper layers doing this kind of
- *				 check. Main use-case for this flag is
- *				 boot-time reduction
+ *         open time. Should only be set on volumes that
+ *         are used by upper layers doing this kind of
+ *         check. Main use-case for this flag is
+ *         boot-time reduction
  *
  * %UBI_VTBL_AUTORESIZE_FLG flag can be set only for one volume in the volume
  * table. UBI automatically re-sizes the volume which has this flag and makes
@@ -80,8 +80,8 @@ enum {
  * means that the pool of reserved physical eraseblocks will always be present.
  */
 enum {
-	UBI_VTBL_AUTORESIZE_FLG = 0x01,
-	UBI_VTBL_SKIP_CRC_CHECK_FLG = 0x02,
+  UBI_VTBL_AUTORESIZE_FLG = 0x01,
+  UBI_VTBL_SKIP_CRC_CHECK_FLG = 0x02,
 };
 
 /*
@@ -96,10 +96,10 @@ enum {
  * @UBI_COMPAT_REJECT: reject this UBI image
  */
 enum {
-	UBI_COMPAT_DELETE   = 1,
-	UBI_COMPAT_RO       = 2,
-	UBI_COMPAT_PRESERVE = 4,
-	UBI_COMPAT_REJECT   = 5
+  UBI_COMPAT_DELETE = 1,
+  UBI_COMPAT_RO = 2,
+  UBI_COMPAT_PRESERVE = 4,
+  UBI_COMPAT_REJECT = 5
 };
 
 /* Sizes of UBI headers */
@@ -107,7 +107,7 @@ enum {
 #define UBI_VID_HDR_SIZE sizeof(struct ubi_vid_hdr)
 
 /* Sizes of UBI headers without the ending CRC */
-#define UBI_EC_HDR_SIZE_CRC  (UBI_EC_HDR_SIZE  - sizeof(__be32))
+#define UBI_EC_HDR_SIZE_CRC  (UBI_EC_HDR_SIZE - sizeof(__be32))
 #define UBI_VID_HDR_SIZE_CRC (UBI_VID_HDR_SIZE - sizeof(__be32))
 
 /**
@@ -145,15 +145,15 @@ enum {
  * complete, UBI will detect the error when attaching the media.
  */
 struct ubi_ec_hdr {
-	__be32  magic;
-	__u8    version;
-	__u8    padding1[3];
-	__be64  ec; /* Warning: the current limit is 31-bit anyway! */
-	__be32  vid_hdr_offset;
-	__be32  data_offset;
-	__be32  image_seq;
-	__u8    padding2[32];
-	__be32  hdr_crc;
+  __be32 magic;
+  __u8 version;
+  __u8 padding1[3];
+  __be64 ec; /* Warning: the current limit is 31-bit anyway! */
+  __be32 vid_hdr_offset;
+  __be32 data_offset;
+  __be32 image_seq;
+  __u8 padding2[32];
+  __be32 hdr_crc;
 } __packed;
 
 /**
@@ -266,22 +266,22 @@ struct ubi_ec_hdr {
  * software (say, cramfs) on top of the UBI volume.
  */
 struct ubi_vid_hdr {
-	__be32  magic;
-	__u8    version;
-	__u8    vol_type;
-	__u8    copy_flag;
-	__u8    compat;
-	__be32  vol_id;
-	__be32  lnum;
-	__u8    padding1[4];
-	__be32  data_size;
-	__be32  used_ebs;
-	__be32  data_pad;
-	__be32  data_crc;
-	__u8    padding2[4];
-	__be64  sqnum;
-	__u8    padding3[12];
-	__be32  hdr_crc;
+  __be32 magic;
+  __u8 version;
+  __u8 vol_type;
+  __u8 copy_flag;
+  __u8 compat;
+  __be32 vol_id;
+  __be32 lnum;
+  __u8 padding1[4];
+  __be32 data_size;
+  __be32 used_ebs;
+  __be32 data_pad;
+  __be32 data_crc;
+  __u8 padding2[4];
+  __be64 sqnum;
+  __u8 padding3[12];
+  __be32 hdr_crc;
 } __packed;
 
 /* Internal UBI volumes count */
@@ -353,45 +353,45 @@ struct ubi_vid_hdr {
  * Empty records contain all zeroes and the CRC checksum of those zeroes.
  */
 struct ubi_vtbl_record {
-	__be32  reserved_pebs;
-	__be32  alignment;
-	__be32  data_pad;
-	__u8    vol_type;
-	__u8    upd_marker;
-	__be16  name_len;
-	__u8    name[UBI_VOL_NAME_MAX+1];
-	__u8    flags;
-	__u8    padding[23];
-	__be32  crc;
+  __be32 reserved_pebs;
+  __be32 alignment;
+  __be32 data_pad;
+  __u8 vol_type;
+  __u8 upd_marker;
+  __be16 name_len;
+  __u8 name[UBI_VOL_NAME_MAX + 1];
+  __u8 flags;
+  __u8 padding[23];
+  __be32 crc;
 } __packed;
 
 /* UBI fastmap on-flash data structures */
 
-#define UBI_FM_SB_VOLUME_ID	(UBI_LAYOUT_VOLUME_ID + 1)
-#define UBI_FM_DATA_VOLUME_ID	(UBI_LAYOUT_VOLUME_ID + 2)
+#define UBI_FM_SB_VOLUME_ID (UBI_LAYOUT_VOLUME_ID + 1)
+#define UBI_FM_DATA_VOLUME_ID (UBI_LAYOUT_VOLUME_ID + 2)
 
 /* fastmap on-flash data structure format version */
-#define UBI_FM_FMT_VERSION	1
+#define UBI_FM_FMT_VERSION  1
 
-#define UBI_FM_SB_MAGIC		0x7B11D69F
-#define UBI_FM_HDR_MAGIC	0xD4B82EF7
-#define UBI_FM_VHDR_MAGIC	0xFA370ED1
-#define UBI_FM_POOL_MAGIC	0x67AF4D08
-#define UBI_FM_EBA_MAGIC	0xf0c040a8
+#define UBI_FM_SB_MAGIC   0x7B11D69F
+#define UBI_FM_HDR_MAGIC  0xD4B82EF7
+#define UBI_FM_VHDR_MAGIC 0xFA370ED1
+#define UBI_FM_POOL_MAGIC 0x67AF4D08
+#define UBI_FM_EBA_MAGIC  0xf0c040a8
 
 /* A fastmap super block can be located between PEB 0 and
  * UBI_FM_MAX_START */
-#define UBI_FM_MAX_START	64
+#define UBI_FM_MAX_START  64
 
 /* A fastmap can use up to UBI_FM_MAX_BLOCKS PEBs */
-#define UBI_FM_MAX_BLOCKS	32
+#define UBI_FM_MAX_BLOCKS 32
 
 /* 5% of the total number of PEBs have to be scanned while attaching
  * from a fastmap.
  * But the size of this pool is limited to be between UBI_FM_MIN_POOL_SIZE and
  * UBI_FM_MAX_POOL_SIZE */
-#define UBI_FM_MIN_POOL_SIZE	8
-#define UBI_FM_MAX_POOL_SIZE	256
+#define UBI_FM_MIN_POOL_SIZE  8
+#define UBI_FM_MAX_POOL_SIZE  256
 
 /**
  * struct ubi_fm_sb - UBI fastmap super block
@@ -405,15 +405,15 @@ struct ubi_vtbl_record {
  *
  */
 struct ubi_fm_sb {
-	__be32 magic;
-	__u8 version;
-	__u8 padding1[3];
-	__be32 data_crc;
-	__be32 used_blocks;
-	__be32 block_loc[UBI_FM_MAX_BLOCKS];
-	__be32 block_ec[UBI_FM_MAX_BLOCKS];
-	__be64 sqnum;
-	__u8 padding2[32];
+  __be32 magic;
+  __u8 version;
+  __u8 padding1[3];
+  __be32 data_crc;
+  __be32 used_blocks;
+  __be32 block_loc[UBI_FM_MAX_BLOCKS];
+  __be32 block_ec[UBI_FM_MAX_BLOCKS];
+  __be64 sqnum;
+  __u8 padding2[32];
 } __packed;
 
 /**
@@ -427,14 +427,14 @@ struct ubi_fm_sb {
  * @vol_count: number of UBI volumes known by this fastmap
  */
 struct ubi_fm_hdr {
-	__be32 magic;
-	__be32 free_peb_count;
-	__be32 used_peb_count;
-	__be32 scrub_peb_count;
-	__be32 bad_peb_count;
-	__be32 erase_peb_count;
-	__be32 vol_count;
-	__u8 padding[4];
+  __be32 magic;
+  __be32 free_peb_count;
+  __be32 used_peb_count;
+  __be32 scrub_peb_count;
+  __be32 bad_peb_count;
+  __be32 erase_peb_count;
+  __be32 vol_count;
+  __u8 padding[4];
 } __packed;
 
 /* struct ubi_fm_hdr is followed by two struct ubi_fm_scan_pool */
@@ -447,11 +447,11 @@ struct ubi_fm_hdr {
  * @pebs: an array containing the location of all PEBs in this pool
  */
 struct ubi_fm_scan_pool {
-	__be32 magic;
-	__be16 size;
-	__be16 max_size;
-	__be32 pebs[UBI_FM_MAX_POOL_SIZE];
-	__be32 padding[4];
+  __be32 magic;
+  __be16 size;
+  __be16 max_size;
+  __be32 pebs[UBI_FM_MAX_POOL_SIZE];
+  __be32 padding[4];
 } __packed;
 
 /* ubi_fm_scan_pool is followed by nfree+nused struct ubi_fm_ec records */
@@ -462,8 +462,8 @@ struct ubi_fm_scan_pool {
  * @ec: ec of this PEB
  */
 struct ubi_fm_ec {
-	__be32 pnum;
-	__be32 ec;
+  __be32 pnum;
+  __be32 ec;
 } __packed;
 
 /**
@@ -477,14 +477,14 @@ struct ubi_fm_ec {
  * @last_eb_bytes: number of bytes used in the last LEB
  */
 struct ubi_fm_volhdr {
-	__be32 magic;
-	__be32 vol_id;
-	__u8 vol_type;
-	__u8 padding1[3];
-	__be32 data_pad;
-	__be32 used_ebs;
-	__be32 last_eb_bytes;
-	__u8 padding2[8];
+  __be32 magic;
+  __be32 vol_id;
+  __u8 vol_type;
+  __u8 padding1[3];
+  __be32 data_pad;
+  __be32 used_ebs;
+  __be32 last_eb_bytes;
+  __u8 padding2[8];
 } __packed;
 
 /* struct ubi_fm_volhdr is followed by one struct ubi_fm_eba records */
@@ -496,8 +496,8 @@ struct ubi_fm_volhdr {
  * @pnum: PEB number of LEB (LEB is the index)
  */
 struct ubi_fm_eba {
-	__be32 magic;
-	__be32 reserved_pebs;
-	__be32 pnum[];
+  __be32 magic;
+  __be32 reserved_pebs;
+  __be32 pnum[];
 } __packed;
 #endif /* !__UBI_MEDIA_H__ */

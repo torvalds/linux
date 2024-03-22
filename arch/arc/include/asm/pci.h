@@ -12,7 +12,7 @@
 #define PCIBIOS_MIN_IO 0x100
 #define PCIBIOS_MIN_MEM 0x100000
 
-#define pcibios_assign_all_busses()	1
+#define pcibios_assign_all_busses() 1
 
 #endif /* __KERNEL__ */
 

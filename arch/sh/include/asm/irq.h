@@ -11,7 +11,7 @@
  * case that can happen with IRQ auto-distribution when multiple CPUs
  * are woken up and signalled in parallel.
  */
-#define NO_IRQ_IGNORE		((unsigned int)-1)
+#define NO_IRQ_IGNORE   ((unsigned int) -1)
 
 /*
  * Simple Mask Register Support
@@ -24,12 +24,11 @@ extern unsigned short *irq_mask_register;
  */
 void make_imask_irq(unsigned int irq);
 
-static inline int generic_irq_demux(int irq)
-{
-	return irq;
+static inline int generic_irq_demux(int irq) {
+  return irq;
 }
 
-#define irq_demux(irq)		sh_mv.mv_irq_demux(irq)
+#define irq_demux(irq)    sh_mv.mv_irq_demux(irq)
 
 void init_IRQ(void);
 void migrate_irqs(void);
@@ -40,16 +39,16 @@ asmlinkage int do_IRQ(unsigned int irq, struct pt_regs *regs);
 extern void irq_ctx_init(int cpu);
 extern void irq_ctx_exit(int cpu);
 #else
-# define irq_ctx_init(cpu) do { } while (0)
-# define irq_ctx_exit(cpu) do { } while (0)
+#define irq_ctx_init(cpu) do {} while (0)
+#define irq_ctx_exit(cpu) do {} while (0)
 #endif
 
 #ifdef CONFIG_INTC_BALANCING
 extern unsigned int irq_lookup(unsigned int irq);
 extern void irq_finish(unsigned int irq);
 #else
-#define irq_lookup(irq)		(irq)
-#define irq_finish(irq)		do { } while (0)
+#define irq_lookup(irq)   (irq)
+#define irq_finish(irq)   do {} while (0)
 #endif
 
 #include <asm-generic/irq.h>

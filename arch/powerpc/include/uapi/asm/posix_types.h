@@ -9,10 +9,10 @@
  */
 
 #ifdef __powerpc64__
-typedef unsigned long	__kernel_old_dev_t;
+typedef unsigned long __kernel_old_dev_t;
 #define __kernel_old_dev_t __kernel_old_dev_t
 #else
-typedef short		__kernel_ipc_pid_t;
+typedef short __kernel_ipc_pid_t;
 #define __kernel_ipc_pid_t __kernel_ipc_pid_t
 #endif
 

@@ -3,24 +3,24 @@
 #define __LCD_MIPID_H
 
 enum mipid_test_num {
-	MIPID_TEST_RGB_LINES,
+  MIPID_TEST_RGB_LINES,
 };
 
 enum mipid_test_result {
-	MIPID_TEST_SUCCESS,
-	MIPID_TEST_INVALID,
-	MIPID_TEST_FAILED,
+  MIPID_TEST_SUCCESS,
+  MIPID_TEST_INVALID,
+  MIPID_TEST_FAILED,
 };
 
 #ifdef __KERNEL__
 
 struct mipid_platform_data {
-	int	data_lines;
+  int data_lines;
 
-	void	(*set_bklight_level)(struct mipid_platform_data *pdata,
-				     int level);
-	int	(*get_bklight_level)(struct mipid_platform_data *pdata);
-	int	(*get_bklight_max)(struct mipid_platform_data *pdata);
+  void (*set_bklight_level)(struct mipid_platform_data *pdata,
+      int level);
+  int (*get_bklight_level)(struct mipid_platform_data *pdata);
+  int (*get_bklight_max)(struct mipid_platform_data *pdata);
 };
 
 #endif

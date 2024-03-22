@@ -25,21 +25,21 @@
 #include <asm/ipcbuf.h>
 
 struct semid64_ds {
-	struct ipc64_perm sem_perm;		/* permissions .. see ipc.h */
+  struct ipc64_perm sem_perm;   /* permissions .. see ipc.h */
 #ifdef __XTENSA_EL__
-	unsigned long	sem_otime;		/* last semop time */
-	unsigned long	sem_otime_high;
-	unsigned long	sem_ctime;		/* last change time */
-	unsigned long	sem_ctime_high;
+  unsigned long sem_otime;    /* last semop time */
+  unsigned long sem_otime_high;
+  unsigned long sem_ctime;    /* last change time */
+  unsigned long sem_ctime_high;
 #else
-	unsigned long	sem_otime_high;
-	unsigned long	sem_otime;		/* last semop time */
-	unsigned long	sem_ctime_high;
-	unsigned long	sem_ctime;		/* last change time */
+  unsigned long sem_otime_high;
+  unsigned long sem_otime;    /* last semop time */
+  unsigned long sem_ctime_high;
+  unsigned long sem_ctime;    /* last change time */
 #endif
-	unsigned long	sem_nsems;		/* no. of semaphores in array */
-	unsigned long	__unused3;
-	unsigned long	__unused4;
+  unsigned long sem_nsems;    /* no. of semaphores in array */
+  unsigned long __unused3;
+  unsigned long __unused4;
 };
 
 #endif /* __ASM_XTENSA_SEMBUF_H */

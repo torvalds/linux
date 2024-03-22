@@ -27,21 +27,21 @@
 /*
  * Suspend feature flags
  */
-#define DM_SUSPEND_LOCKFS_FLAG		(1 << 0)
-#define DM_SUSPEND_NOFLUSH_FLAG		(1 << 1)
+#define DM_SUSPEND_LOCKFS_FLAG    (1 << 0)
+#define DM_SUSPEND_NOFLUSH_FLAG   (1 << 1)
 
 /*
  * Status feature flags
  */
-#define DM_STATUS_NOFLUSH_FLAG		(1 << 0)
+#define DM_STATUS_NOFLUSH_FLAG    (1 << 0)
 
 /*
  * List of devices that a metadevice uses and should open/close.
  */
 struct dm_dev_internal {
-	struct list_head list;
-	refcount_t count;
-	struct dm_dev *dm_dev;
+  struct list_head list;
+  refcount_t count;
+  struct dm_dev *dm_dev;
 };
 
 struct dm_table;
@@ -55,13 +55,13 @@ struct dm_io;
  *---------------------------------------------------------------
  */
 void dm_table_event_callback(struct dm_table *t,
-			     void (*fn)(void *), void *context);
+    void (*fn)(void *), void *context);
 struct dm_target *dm_table_find_target(struct dm_table *t, sector_t sector);
 bool dm_table_has_no_data_devices(struct dm_table *table);
 int dm_calculate_queue_limits(struct dm_table *table,
-			      struct queue_limits *limits);
+    struct queue_limits *limits);
 int dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
-			      struct queue_limits *limits);
+    struct queue_limits *limits);
 struct list_head *dm_table_get_devices(struct dm_table *t);
 void dm_table_presuspend_targets(struct dm_table *t);
 void dm_table_presuspend_undo_targets(struct dm_table *t);
@@ -96,7 +96,8 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t);
  * To check whether the target type is a hybrid (capable of being
  * either request-based or bio-based).
  */
-#define dm_target_hybrid(t) (dm_target_bio_based(t) && dm_target_request_based(t))
+#define dm_target_hybrid(t) (dm_target_bio_based(t) && dm_target_request_based( \
+    t))
 
 /*
  * Zoned targets related functions.
@@ -106,20 +107,22 @@ void dm_zone_endio(struct dm_io *io, struct bio *clone);
 #ifdef CONFIG_BLK_DEV_ZONED
 void dm_cleanup_zoned_dev(struct mapped_device *md);
 int dm_blk_report_zones(struct gendisk *disk, sector_t sector,
-			unsigned int nr_zones, report_zones_cb cb, void *data);
+    unsigned int nr_zones, report_zones_cb cb, void *data);
 bool dm_is_zone_write(struct mapped_device *md, struct bio *bio);
 int dm_zone_map_bio(struct dm_target_io *io);
 #else
-static inline void dm_cleanup_zoned_dev(struct mapped_device *md) {}
-#define dm_blk_report_zones	NULL
-static inline bool dm_is_zone_write(struct mapped_device *md, struct bio *bio)
-{
-	return false;
+static inline void dm_cleanup_zoned_dev(struct mapped_device *md) {
 }
-static inline int dm_zone_map_bio(struct dm_target_io *tio)
-{
-	return DM_MAPIO_KILL;
+
+#define dm_blk_report_zones NULL
+static inline bool dm_is_zone_write(struct mapped_device *md, struct bio *bio) {
+  return false;
 }
+
+static inline int dm_zone_map_bio(struct dm_target_io *tio) {
+  return DM_MAPIO_KILL;
+}
+
 #endif
 
 /*
@@ -132,7 +135,7 @@ void dm_target_exit(void);
 struct target_type *dm_get_target_type(const char *name);
 void dm_put_target_type(struct target_type *tt);
 int dm_target_iterate(void (*iter_func)(struct target_type *tt,
-					void *param), void *param);
+    void *param), void *param);
 
 int dm_split_args(int *argc, char ***argvp, char *input);
 
@@ -202,15 +205,16 @@ void dm_stripe_exit(void);
 void dm_destroy(struct mapped_device *md);
 void dm_destroy_immediate(struct mapped_device *md);
 int dm_open_count(struct mapped_device *md);
-int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred, bool only_deferred);
+int dm_lock_for_deletion(struct mapped_device *md, bool mark_deferred,
+    bool only_deferred);
 int dm_cancel_deferred_remove(struct mapped_device *md);
 int dm_request_based(struct mapped_device *md);
 int dm_get_table_device(struct mapped_device *md, dev_t dev, blk_mode_t mode,
-			struct dm_dev **result);
+    struct dm_dev **result);
 void dm_put_table_device(struct mapped_device *md, struct dm_dev *d);
 
 int dm_kobject_uevent(struct mapped_device *md, enum kobject_action action,
-		      unsigned int cookie, bool need_resize_uevent);
+    unsigned int cookie, bool need_resize_uevent);
 
 int dm_io_init(void);
 void dm_io_exit(void);
@@ -230,23 +234,19 @@ unsigned int dm_get_reserved_bio_based_ios(void);
 
 #define DM_HASH_LOCKS_MAX 64
 
-static inline unsigned int dm_num_hash_locks(void)
-{
-	unsigned int num_locks = roundup_pow_of_two(num_online_cpus()) << 1;
-
-	return min_t(unsigned int, num_locks, DM_HASH_LOCKS_MAX);
+static inline unsigned int dm_num_hash_locks(void) {
+  unsigned int num_locks = roundup_pow_of_two(num_online_cpus()) << 1;
+  return min_t(unsigned int, num_locks, DM_HASH_LOCKS_MAX);
 }
 
 #define DM_HASH_LOCKS_MULT  4294967291ULL
 #define DM_HASH_LOCKS_SHIFT 6
 
 static inline unsigned int dm_hash_locks_index(sector_t block,
-					       unsigned int num_locks)
-{
-	sector_t h1 = (block * DM_HASH_LOCKS_MULT) >> DM_HASH_LOCKS_SHIFT;
-	sector_t h2 = h1 >> DM_HASH_LOCKS_SHIFT;
-
-	return (h1 ^ h2) & (num_locks - 1);
+    unsigned int num_locks) {
+  sector_t h1 = (block * DM_HASH_LOCKS_MULT) >> DM_HASH_LOCKS_SHIFT;
+  sector_t h2 = h1 >> DM_HASH_LOCKS_SHIFT;
+  return (h1 ^ h2) & (num_locks - 1);
 }
 
 #endif

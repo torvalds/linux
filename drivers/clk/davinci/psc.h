@@ -12,41 +12,41 @@
 #include <linux/types.h>
 
 /* PSC quirk flags */
-#define LPSC_ALWAYS_ENABLED	BIT(0) /* never disable this clock */
-#define LPSC_SET_RATE_PARENT	BIT(1) /* propagate set_rate to parent clock */
-#define LPSC_FORCE		BIT(2) /* requires MDCTL FORCE bit */
-#define LPSC_LOCAL_RESET	BIT(3) /* acts as reset provider */
+#define LPSC_ALWAYS_ENABLED BIT(0) /* never disable this clock */
+#define LPSC_SET_RATE_PARENT  BIT(1) /* propagate set_rate to parent clock */
+#define LPSC_FORCE    BIT(2) /* requires MDCTL FORCE bit */
+#define LPSC_LOCAL_RESET  BIT(3) /* acts as reset provider */
 
 struct davinci_lpsc_clkdev_info {
-	const char *con_id;
-	const char *dev_id;
+  const char *con_id;
+  const char *dev_id;
 };
 
-#define LPSC_CLKDEV(c, d) {	\
-	.con_id = (c),		\
-	.dev_id = (d)		\
+#define LPSC_CLKDEV(c, d) { \
+    .con_id = (c),    \
+    .dev_id = (d)   \
 }
 
 #define LPSC_CLKDEV1(n, c, d) \
-static const struct davinci_lpsc_clkdev_info n[] __initconst = {	\
-	LPSC_CLKDEV((c), (d)),						\
-	{ }								\
-}
+  static const struct davinci_lpsc_clkdev_info n[] __initconst = {  \
+    LPSC_CLKDEV((c), (d)),            \
+    {}               \
+  }
 
 #define LPSC_CLKDEV2(n, c1, d1, c2, d2) \
-static const struct davinci_lpsc_clkdev_info n[] __initconst = {	\
-	LPSC_CLKDEV((c1), (d1)),					\
-	LPSC_CLKDEV((c2), (d2)),					\
-	{ }								\
-}
+  static const struct davinci_lpsc_clkdev_info n[] __initconst = {  \
+    LPSC_CLKDEV((c1), (d1)),          \
+    LPSC_CLKDEV((c2), (d2)),          \
+    {}               \
+  }
 
 #define LPSC_CLKDEV3(n, c1, d1, c2, d2, c3, d3) \
-static const struct davinci_lpsc_clkdev_info n[] __initconst = {	\
-	LPSC_CLKDEV((c1), (d1)),					\
-	LPSC_CLKDEV((c2), (d2)),					\
-	LPSC_CLKDEV((c3), (d3)),					\
-	{ }								\
-}
+  static const struct davinci_lpsc_clkdev_info n[] __initconst = {  \
+    LPSC_CLKDEV((c1), (d1)),          \
+    LPSC_CLKDEV((c2), (d2)),          \
+    LPSC_CLKDEV((c3), (d3)),          \
+    {}               \
+  }
 
 /**
  * davinci_lpsc_clk_info - LPSC module-specific clock information
@@ -58,40 +58,40 @@ static const struct davinci_lpsc_clkdev_info n[] __initconst = {	\
  * @flags: bitmask of LPSC_* flags
  */
 struct davinci_lpsc_clk_info {
-	const char *name;
-	const char *parent;
-	const struct davinci_lpsc_clkdev_info *cdevs;
-	u32 md;
-	u32 pd;
-	unsigned long flags;
+  const char *name;
+  const char *parent;
+  const struct davinci_lpsc_clkdev_info *cdevs;
+  u32 md;
+  u32 pd;
+  unsigned long flags;
 };
 
-#define LPSC(m, d, n, p, c, f)	\
-{				\
-	.name	= #n,		\
-	.parent	= #p,		\
-	.cdevs	= (c),		\
-	.md	= (m),		\
-	.pd	= (d),		\
-	.flags	= (f),		\
-}
+#define LPSC(m, d, n, p, c, f)  \
+  {       \
+    .name = #n,   \
+    .parent = #p,   \
+    .cdevs = (c),    \
+    .md = (m),    \
+    .pd = (d),    \
+    .flags = (f),    \
+  }
 
 int davinci_psc_register_clocks(struct device *dev,
-				const struct davinci_lpsc_clk_info *info,
-				u8 num_clks,
-				void __iomem *base);
+    const struct davinci_lpsc_clk_info *info,
+    u8 num_clks,
+    void __iomem *base);
 
 int of_davinci_psc_clk_init(struct device *dev,
-			    const struct davinci_lpsc_clk_info *info,
-			    u8 num_clks,
-			    void __iomem *base);
+    const struct davinci_lpsc_clk_info *info,
+    u8 num_clks,
+    void __iomem *base);
 
 /* Device-specific data */
 
 struct davinci_psc_init_data {
-	struct clk_bulk_data *parent_clks;
-	int num_parent_clks;
-	int (*psc_init)(struct device *dev, void __iomem *base);
+  struct clk_bulk_data *parent_clks;
+  int num_parent_clks;
+  int (*psc_init)(struct device *dev, void __iomem *base);
 };
 
 #ifdef CONFIG_ARCH_DAVINCI_DA830

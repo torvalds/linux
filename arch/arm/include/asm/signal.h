@@ -5,19 +5,19 @@
 #include <uapi/asm/signal.h>
 
 /* Most things should be clean enough to redefine this at will, if care
-   is taken to make libc match.  */
+ * is taken to make libc match.  */
 
-#define _NSIG		64
-#define _NSIG_BPW	32
-#define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
+#define _NSIG   64
+#define _NSIG_BPW 32
+#define _NSIG_WORDS (_NSIG / _NSIG_BPW)
 
-typedef unsigned long old_sigset_t;		/* at least 32 bits */
+typedef unsigned long old_sigset_t;   /* at least 32 bits */
 
 typedef struct {
-	unsigned long sig[_NSIG_WORDS];
+  unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
-#define __ARCH_UAPI_SA_FLAGS	(SA_THIRTYTWO | SA_RESTORER)
+#define __ARCH_UAPI_SA_FLAGS  (SA_THIRTYTWO | SA_RESTORER)
 
 #define __ARCH_HAS_SA_RESTORER
 
@@ -25,6 +25,6 @@ typedef struct {
 
 void do_rseq_syscall(struct pt_regs *regs);
 int do_work_pending(struct pt_regs *regs, unsigned int thread_flags,
-		    int syscall);
+    int syscall);
 
 #endif

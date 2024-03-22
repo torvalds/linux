@@ -7,15 +7,15 @@
 #ifndef _LINUX_RV_H
 #define _LINUX_RV_H
 
-#define MAX_DA_NAME_LEN	24
+#define MAX_DA_NAME_LEN 24
 
 #ifdef CONFIG_RV
 /*
  * Deterministic automaton per-object variables.
  */
 struct da_monitor {
-	bool		monitoring;
-	unsigned int	curr_state;
+  bool monitoring;
+  unsigned int curr_state;
 };
 
 /*
@@ -24,33 +24,33 @@ struct da_monitor {
  * adding more or developing a dynamic method. So far, none of
  * these are justified.
  */
-#define RV_PER_TASK_MONITORS		1
-#define RV_PER_TASK_MONITOR_INIT	(RV_PER_TASK_MONITORS)
+#define RV_PER_TASK_MONITORS    1
+#define RV_PER_TASK_MONITOR_INIT  (RV_PER_TASK_MONITORS)
 
 /*
  * Futher monitor types are expected, so make this a union.
  */
 union rv_task_monitor {
-	struct da_monitor da_mon;
+  struct da_monitor da_mon;
 };
 
 #ifdef CONFIG_RV_REACTORS
 struct rv_reactor {
-	const char		*name;
-	const char		*description;
-	void			(*react)(char *msg);
+  const char *name;
+  const char *description;
+  void (*react)(char *msg);
 };
 #endif
 
 struct rv_monitor {
-	const char		*name;
-	const char		*description;
-	bool			enabled;
-	int			(*enable)(void);
-	void			(*disable)(void);
-	void			(*reset)(void);
+  const char *name;
+  const char *description;
+  bool enabled;
+  int (*enable)(void);
+  void (*disable)(void);
+  void (*reset)(void);
 #ifdef CONFIG_RV_REACTORS
-	void			(*react)(char *msg);
+  void (*react)(char *msg);
 #endif
 };
 

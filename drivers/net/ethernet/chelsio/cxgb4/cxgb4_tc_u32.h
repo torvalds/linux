@@ -37,11 +37,9 @@
 
 #include <net/pkt_cls.h>
 
-static inline bool can_tc_u32_offload(struct net_device *dev)
-{
-	struct adapter *adap = netdev2adap(dev);
-
-	return (dev->features & NETIF_F_HW_TC) && adap->tc_u32 ? true : false;
+static inline bool can_tc_u32_offload(struct net_device *dev) {
+  struct adapter *adap = netdev2adap(dev);
+  return (dev->features & NETIF_F_HW_TC) && adap->tc_u32 ? true : false;
 }
 
 int cxgb4_config_knode(struct net_device *dev, struct tc_cls_u32_offload *cls);

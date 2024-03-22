@@ -10,13 +10,13 @@
 
 #ifndef __ASSEMBLY__
 
-#define PS_S	0x80000000 /* Supervisor Mode */
+#define PS_S  0x80000000 /* Supervisor Mode */
 
-#define USR_BKPT	0x1464
+#define USR_BKPT  0x1464
 
 #define arch_has_single_step() (1)
 #define current_pt_regs() \
-({ (struct pt_regs *)((char *)current_thread_info() + THREAD_SIZE) - 1; })
+  ({ (struct pt_regs *) ((char *) current_thread_info() + THREAD_SIZE) - 1; })
 
 #define user_stack_pointer(regs) ((regs)->usp)
 
@@ -26,9 +26,8 @@
 #define trap_no(regs) ((regs->sr >> 16) & 0xff)
 
 static inline void instruction_pointer_set(struct pt_regs *regs,
-					   unsigned long val)
-{
-	regs->pc = val;
+    unsigned long val) {
+  regs->pc = val;
 }
 
 #if defined(__CSKYABIV2__)
@@ -37,46 +36,40 @@ static inline void instruction_pointer_set(struct pt_regs *regs,
 #define MAX_REG_OFFSET offsetof(struct pt_regs, regs[9])
 #endif
 
-static inline bool in_syscall(struct pt_regs const *regs)
-{
-	return ((regs->sr >> 16) & 0xff) == VEC_TRAP0;
+static inline bool in_syscall(struct pt_regs const *regs) {
+  return ((regs->sr >> 16) & 0xff) == VEC_TRAP0;
 }
 
-static inline void forget_syscall(struct pt_regs *regs)
-{
-	regs->sr &= ~(0xff << 16);
+static inline void forget_syscall(struct pt_regs *regs) {
+  regs->sr &= ~(0xff << 16);
 }
 
-static inline unsigned long regs_return_value(struct pt_regs *regs)
-{
-	return regs->a0;
+static inline unsigned long regs_return_value(struct pt_regs *regs) {
+  return regs->a0;
 }
 
 static inline void regs_set_return_value(struct pt_regs *regs,
-					 unsigned long val)
-{
-	regs->a0 = val;
+    unsigned long val) {
+  regs->a0 = val;
 }
 
 /* Valid only for Kernel mode traps. */
-static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
-{
-	return regs->usp;
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs) {
+  return regs->usp;
 }
 
-static inline unsigned long frame_pointer(struct pt_regs *regs)
-{
-	return regs->regs[4];
+static inline unsigned long frame_pointer(struct pt_regs *regs) {
+  return regs->regs[4];
 }
+
 static inline void frame_pointer_set(struct pt_regs *regs,
-				     unsigned long val)
-{
-	regs->regs[4] = val;
+    unsigned long val) {
+  regs->regs[4] = val;
 }
 
 extern int regs_query_register_offset(const char *name);
 extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
-						unsigned int n);
+    unsigned int n);
 
 /*
  * regs_get_register() - get register value from its offset
@@ -88,12 +81,11 @@ extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
  * If @offset is bigger than MAX_REG_OFFSET, this returns 0.
  */
 static inline unsigned long regs_get_register(struct pt_regs *regs,
-						unsigned int offset)
-{
-	if (unlikely(offset > MAX_REG_OFFSET))
-		return 0;
-
-	return *(unsigned long *)((unsigned long)regs + offset);
+    unsigned int offset) {
+  if (unlikely(offset > MAX_REG_OFFSET)) {
+    return 0;
+  }
+  return *(unsigned long *) ((unsigned long) regs + offset);
 }
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs);

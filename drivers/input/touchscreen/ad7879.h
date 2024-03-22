@@ -19,6 +19,6 @@ extern const struct attribute_group *ad7879_groups[];
 extern const struct dev_pm_ops ad7879_pm_ops;
 
 int ad7879_probe(struct device *dev, struct regmap *regmap,
-		 int irq, u16 bustype, u8 devid);
+    int irq, u16 bustype, u8 devid);
 
 #endif

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2019 ARM Limited */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2019 ARM Limited*/
 #ifndef __TESTCASES_H__
 #define __TESTCASES_H__
 
@@ -14,56 +14,56 @@
 /* Architecture specific sigframe definitions */
 #include <asm/sigcontext.h>
 
-#define FPSIMD_CTX	(1 << 0)
-#define SVE_CTX		(1 << 1)
-#define ZA_CTX		(1 << 2)
-#define EXTRA_CTX	(1 << 3)
-#define ZT_CTX		(1 << 4)
-#define FPMR_CTX	(1 << 5)
+#define FPSIMD_CTX  (1 << 0)
+#define SVE_CTX   (1 << 1)
+#define ZA_CTX    (1 << 2)
+#define EXTRA_CTX (1 << 3)
+#define ZT_CTX    (1 << 4)
+#define FPMR_CTX  (1 << 5)
 
-#define KSFT_BAD_MAGIC	0xdeadbeef
+#define KSFT_BAD_MAGIC  0xdeadbeef
 
 #define HDR_SZ \
-	sizeof(struct _aarch64_ctx)
+  sizeof(struct _aarch64_ctx)
 
 #define GET_SF_RESV_HEAD(sf) \
-	(struct _aarch64_ctx *)(&(sf).uc.uc_mcontext.__reserved)
+  (struct _aarch64_ctx *) (&(sf).uc.uc_mcontext.__reserved)
 
 #define GET_SF_RESV_SIZE(sf) \
-	sizeof((sf).uc.uc_mcontext.__reserved)
+  sizeof((sf).uc.uc_mcontext.__reserved)
 
 #define GET_BUF_RESV_HEAD(buf) \
-	(struct _aarch64_ctx *)(&(buf).uc.uc_mcontext.__reserved)
+  (struct _aarch64_ctx *) (&(buf).uc.uc_mcontext.__reserved)
 
 #define GET_BUF_RESV_SIZE(buf) \
-	(sizeof(buf) - sizeof(buf.uc) +	\
-	 sizeof((buf).uc.uc_mcontext.__reserved))
+  (sizeof(buf) - sizeof(buf.uc)   \
+  + sizeof((buf).uc.uc_mcontext.__reserved))
 
 #define GET_UCP_RESV_SIZE(ucp) \
-	sizeof((ucp)->uc_mcontext.__reserved)
+  sizeof((ucp)->uc_mcontext.__reserved)
 
-#define ASSERT_BAD_CONTEXT(uc) do {					\
-	char *err = NULL;						\
-	if (!validate_reserved((uc), GET_UCP_RESV_SIZE((uc)), &err)) {	\
-		if (err)						\
-			fprintf(stderr,					\
-				"Using badly built context - ERR: %s\n",\
-				err);					\
-	} else {							\
-		abort();						\
-	}								\
+#define ASSERT_BAD_CONTEXT(uc) do {         \
+    char *err = NULL;           \
+    if (!validate_reserved((uc), GET_UCP_RESV_SIZE((uc)), &err)) {  \
+      if (err)            \
+      fprintf(stderr,         \
+    "Using badly built context - ERR: %s\n", \
+    err);         \
+    } else {              \
+      abort();            \
+    }               \
 } while (0)
 
-#define ASSERT_GOOD_CONTEXT(uc) do {					 \
-	char *err = NULL;						 \
-	if (!validate_reserved((uc), GET_UCP_RESV_SIZE((uc)), &err)) {	 \
-		if (err)						 \
-			fprintf(stderr,					 \
-				"Detected BAD context - ERR: %s\n", err);\
-		abort();						 \
-	} else {							 \
-		fprintf(stderr, "uc context validated.\n");		 \
-	}								 \
+#define ASSERT_GOOD_CONTEXT(uc) do {           \
+    char *err = NULL;            \
+    if (!validate_reserved((uc), GET_UCP_RESV_SIZE((uc)), &err)) {   \
+      if (err)             \
+      fprintf(stderr,          \
+    "Detected BAD context - ERR: %s\n", err); \
+      abort();             \
+    } else {               \
+      fprintf(stderr, "uc context validated.\n");    \
+    }                \
 } while (0)
 
 /*
@@ -78,35 +78,32 @@
  * head->size accounts both for payload and header _aarch64_ctx size !
  */
 #define GET_RESV_NEXT_HEAD(h) \
-	(struct _aarch64_ctx *)((char *)(h) + (h)->size)
+  (struct _aarch64_ctx *) ((char *) (h) + (h)->size)
 
 struct fake_sigframe {
-	siginfo_t	info;
-	ucontext_t	uc;
+  siginfo_t info;
+  ucontext_t uc;
 };
-
 
 bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err);
 
 struct _aarch64_ctx *get_header(struct _aarch64_ctx *head, uint32_t magic,
-				size_t resv_sz, size_t *offset);
+    size_t resv_sz, size_t *offset);
 
 static inline struct _aarch64_ctx *get_terminator(struct _aarch64_ctx *head,
-						  size_t resv_sz,
-						  size_t *offset)
-{
-	return get_header(head, 0, resv_sz, offset);
+    size_t resv_sz,
+    size_t *offset) {
+  return get_header(head, 0, resv_sz, offset);
 }
 
-static inline void write_terminator_record(struct _aarch64_ctx *tail)
-{
-	if (tail) {
-		tail->magic = 0;
-		tail->size = 0;
-	}
+static inline void write_terminator_record(struct _aarch64_ctx *tail) {
+  if (tail) {
+    tail->magic = 0;
+    tail->size = 0;
+  }
 }
 
 struct _aarch64_ctx *get_starting_head(struct _aarch64_ctx *shead,
-				       size_t need_sz, size_t resv_sz,
-				       size_t *offset);
+    size_t need_sz, size_t resv_sz,
+    size_t *offset);
 #endif

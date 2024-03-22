@@ -10,61 +10,59 @@
 
 /* Check for btree operation errors. */
 bool xchk_btree_process_error(struct xfs_scrub *sc,
-		struct xfs_btree_cur *cur, int level, int *error);
+    struct xfs_btree_cur *cur, int level, int *error);
 
 /* Check for btree xref operation errors. */
 bool xchk_btree_xref_process_error(struct xfs_scrub *sc,
-		struct xfs_btree_cur *cur, int level, int *error);
+    struct xfs_btree_cur *cur, int level, int *error);
 
 /* Check for btree corruption. */
 void xchk_btree_set_corrupt(struct xfs_scrub *sc,
-		struct xfs_btree_cur *cur, int level);
+    struct xfs_btree_cur *cur, int level);
 void xchk_btree_set_preen(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
-		int level);
+    int level);
 
 /* Check for btree xref discrepancies. */
 void xchk_btree_xref_set_corrupt(struct xfs_scrub *sc,
-		struct xfs_btree_cur *cur, int level);
+    struct xfs_btree_cur *cur, int level);
 
 struct xchk_btree;
 typedef int (*xchk_btree_rec_fn)(
-	struct xchk_btree		*bs,
-	const union xfs_btree_rec	*rec);
+  struct xchk_btree *bs,
+  const union xfs_btree_rec *rec);
 
 struct xchk_btree_key {
-	union xfs_btree_key		key;
-	bool				valid;
+  union xfs_btree_key key;
+  bool valid;
 };
 
 struct xchk_btree {
-	/* caller-provided scrub state */
-	struct xfs_scrub		*sc;
-	struct xfs_btree_cur		*cur;
-	xchk_btree_rec_fn		scrub_rec;
-	const struct xfs_owner_info	*oinfo;
-	void				*private;
+  /* caller-provided scrub state */
+  struct xfs_scrub *sc;
+  struct xfs_btree_cur *cur;
+  xchk_btree_rec_fn scrub_rec;
+  const struct xfs_owner_info *oinfo;
+  void * private;
 
-	/* internal scrub state */
-	bool				lastrec_valid;
-	union xfs_btree_rec		lastrec;
-	struct list_head		to_check;
+  /* internal scrub state */
+  bool lastrec_valid;
+  union xfs_btree_rec lastrec;
+  struct list_head to_check;
 
-	/* this element must come last! */
-	struct xchk_btree_key		lastkey[];
+  /* this element must come last! */
+  struct xchk_btree_key lastkey[];
 };
 
 /*
  * Calculate the size of a xchk_btree structure.  There are nlevels-1 slots for
  * keys because we track leaf records separately in lastrec.
  */
-static inline size_t
-xchk_btree_sizeof(unsigned int nlevels)
-{
-	return struct_size_t(struct xchk_btree, lastkey, nlevels - 1);
+static inline size_t xchk_btree_sizeof(unsigned int nlevels) {
+  return struct_size_t(struct xchk_btree, lastkey, nlevels - 1);
 }
 
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
-		xchk_btree_rec_fn scrub_fn, const struct xfs_owner_info *oinfo,
-		void *private);
+    xchk_btree_rec_fn scrub_fn, const struct xfs_owner_info *oinfo,
+    void * private);
 
 #endif /* __XFS_SCRUB_BTREE_H__ */

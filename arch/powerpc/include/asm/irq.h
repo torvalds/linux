@@ -13,20 +13,18 @@
 #include <asm/types.h>
 #include <linux/atomic.h>
 
-
 extern atomic_t ppc_n_lost_interrupts;
 
 /* Total number of virq in the platform */
-#define NR_IRQS		CONFIG_NR_IRQS
+#define NR_IRQS   CONFIG_NR_IRQS
 
 /* Number of irqs reserved for a legacy isa controller */
-#define NR_IRQS_LEGACY		16
+#define NR_IRQS_LEGACY    16
 
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
-static __inline__ int irq_canonicalize(int irq)
-{
-	return irq;
+static __inline__ int irq_canonicalize(int irq) {
+  return irq;
 }
 
 extern int distribute_irqs;
@@ -55,7 +53,7 @@ int irq_choose_cpu(const struct cpumask *mask);
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_NMI_IPI)
 extern void arch_trigger_cpumask_backtrace(const cpumask_t *mask,
-					   int exclude_cpu);
+    int exclude_cpu);
 #define arch_trigger_cpumask_backtrace arch_trigger_cpumask_backtrace
 #endif
 

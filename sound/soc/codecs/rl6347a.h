@@ -13,16 +13,16 @@
 
 #define VERB_CMD(V, N, D) ((N << 20) | (V << 8) | D)
 
-#define RL6347A_VENDOR_REGISTERS	0x20
+#define RL6347A_VENDOR_REGISTERS  0x20
 
-#define RL6347A_COEF_INDEX\
-	VERB_CMD(AC_VERB_SET_COEF_INDEX, RL6347A_VENDOR_REGISTERS, 0)
-#define RL6347A_PROC_COEF\
-	VERB_CMD(AC_VERB_SET_PROC_COEF, RL6347A_VENDOR_REGISTERS, 0)
+#define RL6347A_COEF_INDEX \
+  VERB_CMD(AC_VERB_SET_COEF_INDEX, RL6347A_VENDOR_REGISTERS, 0)
+#define RL6347A_PROC_COEF \
+  VERB_CMD(AC_VERB_SET_PROC_COEF, RL6347A_VENDOR_REGISTERS, 0)
 
 struct rl6347a_priv {
-	struct reg_default *index_cache;
-	int index_cache_size;
+  struct reg_default *index_cache;
+  int index_cache_size;
 };
 
 int rl6347a_hw_write(void *context, unsigned int reg, unsigned int value);

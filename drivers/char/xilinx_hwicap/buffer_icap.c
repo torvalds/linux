@@ -1,34 +1,34 @@
 /*****************************************************************************
- *
- *     Author: Xilinx, Inc.
- *
- *     This program is free software; you can redistribute it and/or modify it
- *     under the terms of the GNU General Public License as published by the
- *     Free Software Foundation; either version 2 of the License, or (at your
- *     option) any later version.
- *
- *     XILINX IS PROVIDING THIS DESIGN, CODE, OR INFORMATION "AS IS"
- *     AS A COURTESY TO YOU, SOLELY FOR USE IN DEVELOPING PROGRAMS AND
- *     SOLUTIONS FOR XILINX DEVICES.  BY PROVIDING THIS DESIGN, CODE,
- *     OR INFORMATION AS ONE POSSIBLE IMPLEMENTATION OF THIS FEATURE,
- *     APPLICATION OR STANDARD, XILINX IS MAKING NO REPRESENTATION
- *     THAT THIS IMPLEMENTATION IS FREE FROM ANY CLAIMS OF INFRINGEMENT,
- *     AND YOU ARE RESPONSIBLE FOR OBTAINING ANY RIGHTS YOU MAY REQUIRE
- *     FOR YOUR IMPLEMENTATION.  XILINX EXPRESSLY DISCLAIMS ANY
- *     WARRANTY WHATSOEVER WITH RESPECT TO THE ADEQUACY OF THE
- *     IMPLEMENTATION, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OR
- *     REPRESENTATIONS THAT THIS IMPLEMENTATION IS FREE FROM CLAIMS OF
- *     INFRINGEMENT, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *     FOR A PARTICULAR PURPOSE.
- *
- *     (c) Copyright 2003-2008 Xilinx Inc.
- *     All rights reserved.
- *
- *     You should have received a copy of the GNU General Public License along
- *     with this program; if not, write to the Free Software Foundation, Inc.,
- *     675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *****************************************************************************/
+*
+*     Author: Xilinx, Inc.
+*
+*     This program is free software; you can redistribute it and/or modify it
+*     under the terms of the GNU General Public License as published by the
+*     Free Software Foundation; either version 2 of the License, or (at your
+*     option) any later version.
+*
+*     XILINX IS PROVIDING THIS DESIGN, CODE, OR INFORMATION "AS IS"
+*     AS A COURTESY TO YOU, SOLELY FOR USE IN DEVELOPING PROGRAMS AND
+*     SOLUTIONS FOR XILINX DEVICES.  BY PROVIDING THIS DESIGN, CODE,
+*     OR INFORMATION AS ONE POSSIBLE IMPLEMENTATION OF THIS FEATURE,
+*     APPLICATION OR STANDARD, XILINX IS MAKING NO REPRESENTATION
+*     THAT THIS IMPLEMENTATION IS FREE FROM ANY CLAIMS OF INFRINGEMENT,
+*     AND YOU ARE RESPONSIBLE FOR OBTAINING ANY RIGHTS YOU MAY REQUIRE
+*     FOR YOUR IMPLEMENTATION.  XILINX EXPRESSLY DISCLAIMS ANY
+*     WARRANTY WHATSOEVER WITH RESPECT TO THE ADEQUACY OF THE
+*     IMPLEMENTATION, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OR
+*     REPRESENTATIONS THAT THIS IMPLEMENTATION IS FREE FROM CLAIMS OF
+*     INFRINGEMENT, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+*     FOR A PARTICULAR PURPOSE.
+*
+*     (c) Copyright 2003-2008 Xilinx Inc.
+*     All rights reserved.
+*
+*     You should have received a copy of the GNU General Public License along
+*     with this program; if not, write to the Free Software Foundation, Inc.,
+*     675 Mass Ave, Cambridge, MA 02139, USA.
+*
+*****************************************************************************/
 
 #include "buffer_icap.h"
 
@@ -85,9 +85,8 @@
  * D1 - Always 1
  * D0 - Done bit
  **/
-u32 buffer_icap_get_status(struct hwicap_drvdata *drvdata)
-{
-	return in_be32(drvdata->base_address + XHI_STATUS_REG_OFFSET);
+u32 buffer_icap_get_status(struct hwicap_drvdata *drvdata) {
+  return in_be32(drvdata->base_address + XHI_STATUS_REG_OFFSET);
 }
 
 /**
@@ -99,9 +98,8 @@ u32 buffer_icap_get_status(struct hwicap_drvdata *drvdata)
  * be stored in this "storage buffer".
  **/
 static inline u32 buffer_icap_get_bram(void __iomem *base_address,
-		u32 offset)
-{
-	return in_be32(base_address + (offset << 2));
+    u32 offset) {
+  return in_be32(base_address + (offset << 2));
 }
 
 /**
@@ -112,10 +110,9 @@ static inline u32 buffer_icap_get_bram(void __iomem *base_address,
  * indicates whether the current configuration or readback operation
  * has completed.
  **/
-static inline bool buffer_icap_busy(void __iomem *base_address)
-{
-	u32 status = in_be32(base_address + XHI_STATUS_REG_OFFSET);
-	return (status & 1) == XHI_NOT_FINISHED;
+static inline bool buffer_icap_busy(void __iomem *base_address) {
+  u32 status = in_be32(base_address + XHI_STATUS_REG_OFFSET);
+  return (status & 1) == XHI_NOT_FINISHED;
 }
 
 /**
@@ -127,9 +124,8 @@ static inline bool buffer_icap_busy(void __iomem *base_address)
  * bram and the icap (or icap to bram).
  **/
 static inline void buffer_icap_set_size(void __iomem *base_address,
-		u32 data)
-{
-	out_be32(base_address + XHI_SIZE_REG_OFFSET, data);
+    u32 data) {
+  out_be32(base_address + XHI_SIZE_REG_OFFSET, data);
 }
 
 /**
@@ -141,9 +137,8 @@ static inline void buffer_icap_set_size(void __iomem *base_address,
  * data from during configuration or write data to during readback.
  **/
 static inline void buffer_icap_set_offset(void __iomem *base_address,
-		u32 data)
-{
-	out_be32(base_address + XHI_BRAM_OFFSET_REG_OFFSET, data);
+    u32 data) {
+  out_be32(base_address + XHI_BRAM_OFFSET_REG_OFFSET, data);
 }
 
 /**
@@ -157,9 +152,8 @@ static inline void buffer_icap_set_offset(void __iomem *base_address,
  * readback while writing a value of 0 initiates a configuration.
  **/
 static inline void buffer_icap_set_rnc(void __iomem *base_address,
-		u32 data)
-{
-	out_be32(base_address + XHI_RNC_REG_OFFSET, data);
+    u32 data) {
+  out_be32(base_address + XHI_RNC_REG_OFFSET, data);
 }
 
 /**
@@ -172,9 +166,8 @@ static inline void buffer_icap_set_rnc(void __iomem *base_address,
  * be stored in this "storage buffer".
  **/
 static inline void buffer_icap_set_bram(void __iomem *base_address,
-		u32 offset, u32 data)
-{
-	out_be32(base_address + (offset << 2), data);
+    u32 offset, u32 data) {
+  out_be32(base_address + (offset << 2), data);
 }
 
 /**
@@ -185,31 +178,27 @@ static inline void buffer_icap_set_bram(void __iomem *base_address,
  *           device (ICAP).
  **/
 static int buffer_icap_device_read(struct hwicap_drvdata *drvdata,
-		u32 offset, u32 count)
-{
-
-	s32 retries = 0;
-	void __iomem *base_address = drvdata->base_address;
-
-	if (buffer_icap_busy(base_address))
-		return -EBUSY;
-
-	if ((offset + count) > XHI_MAX_BUFFER_INTS)
-		return -EINVAL;
-
-	/* setSize count*4 to get bytes. */
-	buffer_icap_set_size(base_address, (count << 2));
-	buffer_icap_set_offset(base_address, offset);
-	buffer_icap_set_rnc(base_address, XHI_READBACK);
-
-	while (buffer_icap_busy(base_address)) {
-		retries++;
-		if (retries > XHI_MAX_RETRIES)
-			return -EBUSY;
-	}
-	return 0;
-
-};
+    u32 offset, u32 count) {
+  s32 retries = 0;
+  void __iomem *base_address = drvdata->base_address;
+  if (buffer_icap_busy(base_address)) {
+    return -EBUSY;
+  }
+  if ((offset + count) > XHI_MAX_BUFFER_INTS) {
+    return -EINVAL;
+  }
+  /* setSize count*4 to get bytes. */
+  buffer_icap_set_size(base_address, (count << 2));
+  buffer_icap_set_offset(base_address, offset);
+  buffer_icap_set_rnc(base_address, XHI_READBACK);
+  while (buffer_icap_busy(base_address)) {
+    retries++;
+    if (retries > XHI_MAX_RETRIES) {
+      return -EBUSY;
+    }
+  }
+  return 0;
+}
 
 /**
  * buffer_icap_device_write - Transfer bytes from ICAP to the storage buffer.
@@ -219,31 +208,27 @@ static int buffer_icap_device_read(struct hwicap_drvdata *drvdata,
  *           device (ICAP).
  **/
 static int buffer_icap_device_write(struct hwicap_drvdata *drvdata,
-		u32 offset, u32 count)
-{
-
-	s32 retries = 0;
-	void __iomem *base_address = drvdata->base_address;
-
-	if (buffer_icap_busy(base_address))
-		return -EBUSY;
-
-	if ((offset + count) > XHI_MAX_BUFFER_INTS)
-		return -EINVAL;
-
-	/* setSize count*4 to get bytes. */
-	buffer_icap_set_size(base_address, count << 2);
-	buffer_icap_set_offset(base_address, offset);
-	buffer_icap_set_rnc(base_address, XHI_CONFIGURE);
-
-	while (buffer_icap_busy(base_address)) {
-		retries++;
-		if (retries > XHI_MAX_RETRIES)
-			return -EBUSY;
-	}
-	return 0;
-
-};
+    u32 offset, u32 count) {
+  s32 retries = 0;
+  void __iomem *base_address = drvdata->base_address;
+  if (buffer_icap_busy(base_address)) {
+    return -EBUSY;
+  }
+  if ((offset + count) > XHI_MAX_BUFFER_INTS) {
+    return -EINVAL;
+  }
+  /* setSize count*4 to get bytes. */
+  buffer_icap_set_size(base_address, count << 2);
+  buffer_icap_set_offset(base_address, offset);
+  buffer_icap_set_rnc(base_address, XHI_CONFIGURE);
+  while (buffer_icap_busy(base_address)) {
+    retries++;
+    if (retries > XHI_MAX_RETRIES) {
+      return -EBUSY;
+    }
+  }
+  return 0;
+}
 
 /**
  * buffer_icap_reset - Reset the logic of the icap device.
@@ -253,9 +238,8 @@ static int buffer_icap_device_write(struct hwicap_drvdata *drvdata,
  * version of the core.  For the version of the core published in EDK,
  * this is a noop.
  **/
-void buffer_icap_reset(struct hwicap_drvdata *drvdata)
-{
-    out_be32(drvdata->base_address + XHI_STATUS_REG_OFFSET, 0xFEFE);
+void buffer_icap_reset(struct hwicap_drvdata *drvdata) {
+  out_be32(drvdata->base_address + XHI_STATUS_REG_OFFSET, 0xFEFE);
 }
 
 /**
@@ -265,55 +249,47 @@ void buffer_icap_reset(struct hwicap_drvdata *drvdata)
  * @size: the size of the partial bitstream in 32 bit words.
  **/
 int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
-			     u32 size)
-{
-	int status;
-	s32 buffer_count = 0;
-	bool dirty = false;
-	u32 i;
-	void __iomem *base_address = drvdata->base_address;
-
-	/* Loop through all the data */
-	for (i = 0, buffer_count = 0; i < size; i++) {
-
-		/* Copy data to bram */
-		buffer_icap_set_bram(base_address, buffer_count, data[i]);
-		dirty = true;
-
-		if (buffer_count < XHI_MAX_BUFFER_INTS - 1) {
-			buffer_count++;
-			continue;
-		}
-
-		/* Write data to ICAP */
-		status = buffer_icap_device_write(
-				drvdata,
-				XHI_BUFFER_START,
-				XHI_MAX_BUFFER_INTS);
-		if (status != 0) {
-			/* abort. */
-			buffer_icap_reset(drvdata);
-			return status;
-		}
-
-		buffer_count = 0;
-		dirty = false;
-	}
-
-	/* Write unwritten data to ICAP */
-	if (dirty) {
-		/* Write data to ICAP */
-		status = buffer_icap_device_write(drvdata, XHI_BUFFER_START,
-					     buffer_count);
-		if (status != 0) {
-			/* abort. */
-			buffer_icap_reset(drvdata);
-		}
-		return status;
-	}
-
-	return 0;
-};
+    u32 size) {
+  int status;
+  s32 buffer_count = 0;
+  bool dirty = false;
+  u32 i;
+  void __iomem *base_address = drvdata->base_address;
+  /* Loop through all the data */
+  for (i = 0, buffer_count = 0; i < size; i++) {
+    /* Copy data to bram */
+    buffer_icap_set_bram(base_address, buffer_count, data[i]);
+    dirty = true;
+    if (buffer_count < XHI_MAX_BUFFER_INTS - 1) {
+      buffer_count++;
+      continue;
+    }
+    /* Write data to ICAP */
+    status = buffer_icap_device_write(
+        drvdata,
+        XHI_BUFFER_START,
+        XHI_MAX_BUFFER_INTS);
+    if (status != 0) {
+      /* abort. */
+      buffer_icap_reset(drvdata);
+      return status;
+    }
+    buffer_count = 0;
+    dirty = false;
+  }
+  /* Write unwritten data to ICAP */
+  if (dirty) {
+    /* Write data to ICAP */
+    status = buffer_icap_device_write(drvdata, XHI_BUFFER_START,
+        buffer_count);
+    if (status != 0) {
+      /* abort. */
+      buffer_icap_reset(drvdata);
+    }
+    return status;
+  }
+  return 0;
+}
 
 /**
  * buffer_icap_get_configuration - Read configuration data from the device.
@@ -322,40 +298,34 @@ int buffer_icap_set_configuration(struct hwicap_drvdata *drvdata, u32 *data,
  * @size: the size of the partial bitstream in 32 bit words.
  **/
 int buffer_icap_get_configuration(struct hwicap_drvdata *drvdata, u32 *data,
-			     u32 size)
-{
-	int status;
-	s32 buffer_count = 0;
-	u32 i;
-	void __iomem *base_address = drvdata->base_address;
-
-	/* Loop through all the data */
-	for (i = 0, buffer_count = XHI_MAX_BUFFER_INTS; i < size; i++) {
-		if (buffer_count == XHI_MAX_BUFFER_INTS) {
-			u32 words_remaining = size - i;
-			u32 words_to_read =
-				words_remaining <
-				XHI_MAX_BUFFER_INTS ? words_remaining :
-				XHI_MAX_BUFFER_INTS;
-
-			/* Read data from ICAP */
-			status = buffer_icap_device_read(
-					drvdata,
-					XHI_BUFFER_START,
-					words_to_read);
-			if (status != 0) {
-				/* abort. */
-				buffer_icap_reset(drvdata);
-				return status;
-			}
-
-			buffer_count = 0;
-		}
-
-		/* Copy data from bram */
-		data[i] = buffer_icap_get_bram(base_address, buffer_count);
-		buffer_count++;
-	}
-
-	return 0;
-};
+    u32 size) {
+  int status;
+  s32 buffer_count = 0;
+  u32 i;
+  void __iomem *base_address = drvdata->base_address;
+  /* Loop through all the data */
+  for (i = 0, buffer_count = XHI_MAX_BUFFER_INTS; i < size; i++) {
+    if (buffer_count == XHI_MAX_BUFFER_INTS) {
+      u32 words_remaining = size - i;
+      u32 words_to_read
+        = words_remaining
+          < XHI_MAX_BUFFER_INTS ? words_remaining
+          : XHI_MAX_BUFFER_INTS;
+      /* Read data from ICAP */
+      status = buffer_icap_device_read(
+          drvdata,
+          XHI_BUFFER_START,
+          words_to_read);
+      if (status != 0) {
+        /* abort. */
+        buffer_icap_reset(drvdata);
+        return status;
+      }
+      buffer_count = 0;
+    }
+    /* Copy data from bram */
+    data[i] = buffer_icap_get_bram(base_address, buffer_count);
+    buffer_count++;
+  }
+  return 0;
+}

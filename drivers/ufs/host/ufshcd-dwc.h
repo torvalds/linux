@@ -13,13 +13,13 @@
 #include <ufs/ufshcd.h>
 
 struct ufshcd_dme_attr_val {
-	u32 attr_sel;
-	u32 mib_val;
-	u8 peer;
+  u32 attr_sel;
+  u32 mib_val;
+  u8 peer;
 };
 
 int ufshcd_dwc_link_startup_notify(struct ufs_hba *hba,
-					enum ufs_notify_change_status status);
+    enum ufs_notify_change_status status);
 int ufshcd_dwc_dme_set_attrs(struct ufs_hba *hba,
-				const struct ufshcd_dme_attr_val *v, int n);
+    const struct ufshcd_dme_attr_val *v, int n);
 #endif /* End of Header */

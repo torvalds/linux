@@ -16,4 +16,3 @@
 #define BUILD_VDSO32_64
 
 #endif
-

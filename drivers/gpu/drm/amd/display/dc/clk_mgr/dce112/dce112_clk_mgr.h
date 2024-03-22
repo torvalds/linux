@@ -26,10 +26,9 @@
 #ifndef DAL_DC_DCE_DCE112_CLK_MGR_H_
 #define DAL_DC_DCE_DCE112_CLK_MGR_H_
 
-
 void dce112_clk_mgr_construct(
-		struct dc_context *ctx,
-		struct clk_mgr_internal *clk_mgr);
+  struct dc_context *ctx,
+  struct clk_mgr_internal *clk_mgr);
 
 /* functions shared with other clk mgr */
 int dce112_set_clock(struct clk_mgr *clk_mgr_base, int requested_clk_khz);

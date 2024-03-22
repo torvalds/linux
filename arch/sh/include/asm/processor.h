@@ -14,42 +14,42 @@
  *  for parsing the subtype in get_cpu_subtype().
  */
 enum cpu_type {
-	/* SH-2 types */
-	CPU_SH7619, CPU_J2,
+  /* SH-2 types */
+  CPU_SH7619, CPU_J2,
 
-	/* SH-2A types */
-	CPU_SH7201, CPU_SH7203, CPU_SH7206, CPU_SH7263, CPU_SH7264, CPU_SH7269,
-	CPU_MXG,
+  /* SH-2A types */
+  CPU_SH7201, CPU_SH7203, CPU_SH7206, CPU_SH7263, CPU_SH7264, CPU_SH7269,
+  CPU_MXG,
 
-	/* SH-3 types */
-	CPU_SH7705, CPU_SH7706, CPU_SH7707,
-	CPU_SH7708, CPU_SH7708S, CPU_SH7708R,
-	CPU_SH7709, CPU_SH7709A, CPU_SH7710, CPU_SH7712,
-	CPU_SH7720, CPU_SH7721, CPU_SH7729,
+  /* SH-3 types */
+  CPU_SH7705, CPU_SH7706, CPU_SH7707,
+  CPU_SH7708, CPU_SH7708S, CPU_SH7708R,
+  CPU_SH7709, CPU_SH7709A, CPU_SH7710, CPU_SH7712,
+  CPU_SH7720, CPU_SH7721, CPU_SH7729,
 
-	/* SH-4 types */
-	CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
-	CPU_SH7760, CPU_SH4_202, CPU_SH4_501,
+  /* SH-4 types */
+  CPU_SH7750, CPU_SH7750S, CPU_SH7750R, CPU_SH7751, CPU_SH7751R,
+  CPU_SH7760, CPU_SH4_202, CPU_SH4_501,
 
-	/* SH-4A types */
-	CPU_SH7763, CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785, CPU_SH7786,
-	CPU_SH7723, CPU_SH7724, CPU_SH7757, CPU_SH7734, CPU_SHX3,
+  /* SH-4A types */
+  CPU_SH7763, CPU_SH7770, CPU_SH7780, CPU_SH7781, CPU_SH7785, CPU_SH7786,
+  CPU_SH7723, CPU_SH7724, CPU_SH7757, CPU_SH7734, CPU_SHX3,
 
-	/* SH4AL-DSP types */
-	CPU_SH7343, CPU_SH7722, CPU_SH7366, CPU_SH7372,
+  /* SH4AL-DSP types */
+  CPU_SH7343, CPU_SH7722, CPU_SH7366, CPU_SH7372,
 
-	/* Unknown subtype */
-	CPU_SH_NONE
+  /* Unknown subtype */
+  CPU_SH_NONE
 };
 
 enum cpu_family {
-	CPU_FAMILY_SH2,
-	CPU_FAMILY_SH2A,
-	CPU_FAMILY_SH3,
-	CPU_FAMILY_SH4,
-	CPU_FAMILY_SH4A,
-	CPU_FAMILY_SH4AL_DSP,
-	CPU_FAMILY_UNKNOWN,
+  CPU_FAMILY_SH2,
+  CPU_FAMILY_SH2A,
+  CPU_FAMILY_SH3,
+  CPU_FAMILY_SH4,
+  CPU_FAMILY_SH4A,
+  CPU_FAMILY_SH4AL_DSP,
+  CPU_FAMILY_UNKNOWN,
 };
 
 /*
@@ -58,32 +58,32 @@ enum cpu_family {
  * Defined for both I and D tlb, per-processor.
  */
 struct tlb_info {
-	unsigned long long next;
-	unsigned long long first;
-	unsigned long long last;
+  unsigned long long next;
+  unsigned long long first;
+  unsigned long long last;
 
-	unsigned int entries;
-	unsigned int step;
+  unsigned int entries;
+  unsigned int step;
 
-	unsigned long flags;
+  unsigned long flags;
 };
 
 struct sh_cpuinfo {
-	unsigned int type, family;
-	int cut_major, cut_minor;
-	unsigned long loops_per_jiffy;
-	unsigned long asid_cache;
+  unsigned int type, family;
+  int cut_major, cut_minor;
+  unsigned long loops_per_jiffy;
+  unsigned long asid_cache;
 
-	struct cache_info icache;	/* Primary I-cache */
-	struct cache_info dcache;	/* Primary D-cache */
-	struct cache_info scache;	/* Secondary cache */
+  struct cache_info icache; /* Primary I-cache */
+  struct cache_info dcache; /* Primary D-cache */
+  struct cache_info scache; /* Secondary cache */
 
-	/* TLB info */
-	struct tlb_info itlb;
-	struct tlb_info dtlb;
+  /* TLB info */
+  struct tlb_info itlb;
+  struct tlb_info dtlb;
 
-	unsigned int phys_bits;
-	unsigned long flags;
+  unsigned int phys_bits;
+  unsigned long flags;
 } __attribute__ ((aligned(L1_CACHE_BYTES)));
 
 extern struct sh_cpuinfo cpu_data[];
@@ -91,8 +91,8 @@ extern struct sh_cpuinfo cpu_data[];
 #define current_cpu_data cpu_data[smp_processor_id()]
 #define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
 
-#define cpu_sleep()	__asm__ __volatile__ ("sleep" : : : "memory")
-#define cpu_relax()	barrier()
+#define cpu_sleep() __asm__ __volatile__ ("sleep" : : : "memory")
+#define cpu_relax() barrier()
 
 void default_idle(void);
 void stop_this_cpu(void *);
@@ -115,8 +115,8 @@ extern struct kmem_cache *task_xstate_cachep;
 extern int get_unalign_ctl(struct task_struct *, unsigned long addr);
 extern int set_unalign_ctl(struct task_struct *, unsigned int val);
 
-#define GET_UNALIGN_CTL(tsk, addr)	get_unalign_ctl((tsk), (addr))
-#define SET_UNALIGN_CTL(tsk, val)	set_unalign_ctl((tsk), (val))
+#define GET_UNALIGN_CTL(tsk, addr)  get_unalign_ctl((tsk), (addr))
+#define SET_UNALIGN_CTL(tsk, val) set_unalign_ctl((tsk), (val))
 
 /* arch/sh/mm/init.c */
 extern unsigned int mem_init_done;
@@ -126,9 +126,9 @@ const char *get_cpu_subtype(struct sh_cpuinfo *c);
 extern const struct seq_operations cpuinfo_op;
 
 /* thread_struct flags */
-#define SH_THREAD_UAC_NOPRINT	(1 << 0)
-#define SH_THREAD_UAC_SIGBUS	(1 << 1)
-#define SH_THREAD_UAC_MASK	(SH_THREAD_UAC_NOPRINT | SH_THREAD_UAC_SIGBUS)
+#define SH_THREAD_UAC_NOPRINT (1 << 0)
+#define SH_THREAD_UAC_SIGBUS  (1 << 1)
+#define SH_THREAD_UAC_MASK  (SH_THREAD_UAC_NOPRINT | SH_THREAD_UAC_SIGBUS)
 
 /* processor boot mode configuration */
 #define MODE_PIN0 (1 << 0)
@@ -154,7 +154,7 @@ int test_mode_pin(int pin);
 #ifdef CONFIG_VSYSCALL
 int vsyscall_init(void);
 #else
-#define vsyscall_init() do { } while (0)
+#define vsyscall_init() do {} while (0)
 #endif
 
 /*
@@ -163,7 +163,7 @@ int vsyscall_init(void);
 #ifdef CONFIG_CPU_SH2A
 extern unsigned int instruction_size(unsigned int insn);
 #else
-#define instruction_size(insn)	(2)
+#define instruction_size(insn)  (2)
 #endif
 
 void select_idle_routine(void);

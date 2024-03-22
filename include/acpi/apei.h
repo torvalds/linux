@@ -10,17 +10,17 @@
 #include <linux/cper.h>
 #include <asm/ioctls.h>
 
-#define APEI_ERST_INVALID_RECORD_ID	0xffffffffffffffffULL
+#define APEI_ERST_INVALID_RECORD_ID 0xffffffffffffffffULL
 
-#define APEI_ERST_CLEAR_RECORD		_IOW('E', 1, u64)
-#define APEI_ERST_GET_RECORD_COUNT	_IOR('E', 2, u32)
+#define APEI_ERST_CLEAR_RECORD    _IOW('E', 1, u64)
+#define APEI_ERST_GET_RECORD_COUNT  _IOR('E', 2, u32)
 
 #ifdef __KERNEL__
 
 enum hest_status {
-	HEST_ENABLED,
-	HEST_DISABLED,
-	HEST_NOT_FOUND,
+  HEST_ENABLED,
+  HEST_DISABLED,
+  HEST_NOT_FOUND,
 };
 
 extern int hest_disable;
@@ -30,13 +30,17 @@ extern bool ghes_disable;
 void __init acpi_ghes_init(void);
 #else
 #define ghes_disable 1
-static inline void acpi_ghes_init(void) { }
+static inline void acpi_ghes_init(void) {
+}
+
 #endif
 
 #ifdef CONFIG_ACPI_APEI
 void __init acpi_hest_init(void);
 #else
-static inline void acpi_hest_init(void) { }
+static inline void acpi_hest_init(void) {
+}
+
 #endif
 
 int erst_write(const struct cper_record_header *record);
@@ -45,9 +49,9 @@ int erst_get_record_id_begin(int *pos);
 int erst_get_record_id_next(int *pos, u64 *record_id);
 void erst_get_record_id_end(void);
 ssize_t erst_read(u64 record_id, struct cper_record_header *record,
-		  size_t buflen);
+    size_t buflen);
 ssize_t erst_read_record(u64 record_id, struct cper_record_header *record,
-		size_t buflen, size_t recordlen, const guid_t *creatorid);
+    size_t buflen, size_t recordlen, const guid_t *creatorid);
 int erst_clear(u64 record_id);
 
 int arch_apei_enable_cmcff(struct acpi_hest_header *hest_hdr, void *data);

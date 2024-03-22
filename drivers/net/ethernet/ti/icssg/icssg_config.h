@@ -9,69 +9,69 @@
 #define __NET_TI_ICSSG_CONFIG_H
 
 struct icssg_buffer_pool_cfg {
-	__le32	addr;
-	__le32	len;
+  __le32 addr;
+  __le32 len;
 } __packed;
 
 struct icssg_flow_cfg {
-	__le16 rx_base_flow;
-	__le16 mgm_base_flow;
+  __le16 rx_base_flow;
+  __le16 mgm_base_flow;
 } __packed;
 
-#define PRUETH_PKT_TYPE_CMD	0x10
-#define PRUETH_NAV_PS_DATA_SIZE	16	/* Protocol specific data size */
-#define PRUETH_NAV_SW_DATA_SIZE	16	/* SW related data size */
-#define PRUETH_MAX_TX_DESC	512
-#define PRUETH_MAX_RX_DESC	512
-#define PRUETH_MAX_RX_FLOWS	1	/* excluding default flow */
-#define PRUETH_RX_FLOW_DATA	0
+#define PRUETH_PKT_TYPE_CMD 0x10
+#define PRUETH_NAV_PS_DATA_SIZE 16  /* Protocol specific data size */
+#define PRUETH_NAV_SW_DATA_SIZE 16  /* SW related data size */
+#define PRUETH_MAX_TX_DESC  512
+#define PRUETH_MAX_RX_DESC  512
+#define PRUETH_MAX_RX_FLOWS 1 /* excluding default flow */
+#define PRUETH_RX_FLOW_DATA 0
 
-#define PRUETH_EMAC_BUF_POOL_SIZE	SZ_8K
-#define PRUETH_EMAC_POOLS_PER_SLICE	24
-#define PRUETH_EMAC_BUF_POOL_START	8
-#define PRUETH_NUM_BUF_POOLS	8
-#define PRUETH_EMAC_RX_CTX_BUF_SIZE	SZ_16K	/* per slice */
-#define MSMC_RAM_SIZE	\
-	(2 * (PRUETH_EMAC_BUF_POOL_SIZE * PRUETH_NUM_BUF_POOLS + \
-	 PRUETH_EMAC_RX_CTX_BUF_SIZE * 2))
+#define PRUETH_EMAC_BUF_POOL_SIZE SZ_8K
+#define PRUETH_EMAC_POOLS_PER_SLICE 24
+#define PRUETH_EMAC_BUF_POOL_START  8
+#define PRUETH_NUM_BUF_POOLS  8
+#define PRUETH_EMAC_RX_CTX_BUF_SIZE SZ_16K  /* per slice */
+#define MSMC_RAM_SIZE \
+  (2 * (PRUETH_EMAC_BUF_POOL_SIZE * PRUETH_NUM_BUF_POOLS   \
+  + PRUETH_EMAC_RX_CTX_BUF_SIZE * 2))
 
 struct icssg_rxq_ctx {
-	__le32 start[3];
-	__le32 end;
+  __le32 start[3];
+  __le32 end;
 } __packed;
 
 /* Load time Fiwmware Configuration */
 
-#define ICSSG_FW_MGMT_CMD_HEADER	0x81
-#define ICSSG_FW_MGMT_FDB_CMD_TYPE	0x03
-#define ICSSG_FW_MGMT_CMD_TYPE		0x04
-#define ICSSG_FW_MGMT_PKT		0x80000000
+#define ICSSG_FW_MGMT_CMD_HEADER  0x81
+#define ICSSG_FW_MGMT_FDB_CMD_TYPE  0x03
+#define ICSSG_FW_MGMT_CMD_TYPE    0x04
+#define ICSSG_FW_MGMT_PKT   0x80000000
 
 struct icssg_r30_cmd {
-	u32 cmd[4];
+  u32 cmd[4];
 } __packed;
 
 enum icssg_port_state_cmd {
-	ICSSG_EMAC_PORT_DISABLE = 0,
-	ICSSG_EMAC_PORT_BLOCK,
-	ICSSG_EMAC_PORT_FORWARD,
-	ICSSG_EMAC_PORT_FORWARD_WO_LEARNING,
-	ICSSG_EMAC_PORT_ACCEPT_ALL,
-	ICSSG_EMAC_PORT_ACCEPT_TAGGED,
-	ICSSG_EMAC_PORT_ACCEPT_UNTAGGED_N_PRIO,
-	ICSSG_EMAC_PORT_TAS_TRIGGER,
-	ICSSG_EMAC_PORT_TAS_ENABLE,
-	ICSSG_EMAC_PORT_TAS_RESET,
-	ICSSG_EMAC_PORT_TAS_DISABLE,
-	ICSSG_EMAC_PORT_UC_FLOODING_ENABLE,
-	ICSSG_EMAC_PORT_UC_FLOODING_DISABLE,
-	ICSSG_EMAC_PORT_MC_FLOODING_ENABLE,
-	ICSSG_EMAC_PORT_MC_FLOODING_DISABLE,
-	ICSSG_EMAC_PORT_PREMPT_TX_ENABLE,
-	ICSSG_EMAC_PORT_PREMPT_TX_DISABLE,
-	ICSSG_EMAC_PORT_VLAN_AWARE_ENABLE,
-	ICSSG_EMAC_PORT_VLAN_AWARE_DISABLE,
-	ICSSG_EMAC_PORT_MAX_COMMANDS
+  ICSSG_EMAC_PORT_DISABLE = 0,
+  ICSSG_EMAC_PORT_BLOCK,
+  ICSSG_EMAC_PORT_FORWARD,
+  ICSSG_EMAC_PORT_FORWARD_WO_LEARNING,
+  ICSSG_EMAC_PORT_ACCEPT_ALL,
+  ICSSG_EMAC_PORT_ACCEPT_TAGGED,
+  ICSSG_EMAC_PORT_ACCEPT_UNTAGGED_N_PRIO,
+  ICSSG_EMAC_PORT_TAS_TRIGGER,
+  ICSSG_EMAC_PORT_TAS_ENABLE,
+  ICSSG_EMAC_PORT_TAS_RESET,
+  ICSSG_EMAC_PORT_TAS_DISABLE,
+  ICSSG_EMAC_PORT_UC_FLOODING_ENABLE,
+  ICSSG_EMAC_PORT_UC_FLOODING_DISABLE,
+  ICSSG_EMAC_PORT_MC_FLOODING_ENABLE,
+  ICSSG_EMAC_PORT_MC_FLOODING_DISABLE,
+  ICSSG_EMAC_PORT_PREMPT_TX_ENABLE,
+  ICSSG_EMAC_PORT_PREMPT_TX_DISABLE,
+  ICSSG_EMAC_PORT_VLAN_AWARE_ENABLE,
+  ICSSG_EMAC_PORT_VLAN_AWARE_DISABLE,
+  ICSSG_EMAC_PORT_MAX_COMMANDS
 };
 
 #define EMAC_NONE           0xffff0000
@@ -95,59 +95,59 @@ enum icssg_port_state_cmd {
 #define EMAC_ACCEPT_PRIOR   0xfffc0000
 
 /* Config area lies in DRAM */
-#define ICSSG_CONFIG_OFFSET	0x0
+#define ICSSG_CONFIG_OFFSET 0x0
 
 /* Config area lies in shared RAM */
 #define ICSSG_CONFIG_OFFSET_SLICE0   0
 #define ICSSG_CONFIG_OFFSET_SLICE1   0x8000
 
-#define ICSSG_NUM_NORMAL_PDS	64
-#define ICSSG_NUM_SPECIAL_PDS	16
+#define ICSSG_NUM_NORMAL_PDS  64
+#define ICSSG_NUM_SPECIAL_PDS 16
 
-#define ICSSG_NORMAL_PD_SIZE	8
-#define ICSSG_SPECIAL_PD_SIZE	20
+#define ICSSG_NORMAL_PD_SIZE  8
+#define ICSSG_SPECIAL_PD_SIZE 20
 
-#define ICSSG_FLAG_MASK		0xff00ffff
+#define ICSSG_FLAG_MASK   0xff00ffff
 
 struct icssg_setclock_desc {
-	u8 request;
-	u8 restore;
-	u8 acknowledgment;
-	u8 cmp_status;
-	u32 margin;
-	u32 cyclecounter0_set;
-	u32 cyclecounter1_set;
-	u32 iepcount_set;
-	u32 rsvd1;
-	u32 rsvd2;
-	u32 CMP0_current;
-	u32 iepcount_current;
-	u32 difference;
-	u32 cyclecounter0_new;
-	u32 cyclecounter1_new;
-	u32 CMP0_new;
+  u8 request;
+  u8 restore;
+  u8 acknowledgment;
+  u8 cmp_status;
+  u32 margin;
+  u32 cyclecounter0_set;
+  u32 cyclecounter1_set;
+  u32 iepcount_set;
+  u32 rsvd1;
+  u32 rsvd2;
+  u32 CMP0_current;
+  u32 iepcount_current;
+  u32 difference;
+  u32 cyclecounter0_new;
+  u32 cyclecounter1_new;
+  u32 CMP0_new;
 } __packed;
 
-#define ICSSG_CMD_POP_SLICE0	56
-#define ICSSG_CMD_POP_SLICE1	60
+#define ICSSG_CMD_POP_SLICE0  56
+#define ICSSG_CMD_POP_SLICE1  60
 
-#define ICSSG_CMD_PUSH_SLICE0	57
-#define ICSSG_CMD_PUSH_SLICE1	61
+#define ICSSG_CMD_PUSH_SLICE0 57
+#define ICSSG_CMD_PUSH_SLICE1 61
 
-#define ICSSG_RSP_POP_SLICE0	58
-#define ICSSG_RSP_POP_SLICE1	62
+#define ICSSG_RSP_POP_SLICE0  58
+#define ICSSG_RSP_POP_SLICE1  62
 
-#define ICSSG_RSP_PUSH_SLICE0	56
-#define ICSSG_RSP_PUSH_SLICE1	60
+#define ICSSG_RSP_PUSH_SLICE0 56
+#define ICSSG_RSP_PUSH_SLICE1 60
 
-#define ICSSG_TS_POP_SLICE0	59
-#define ICSSG_TS_POP_SLICE1	63
+#define ICSSG_TS_POP_SLICE0 59
+#define ICSSG_TS_POP_SLICE1 63
 
-#define ICSSG_TS_PUSH_SLICE0	40
-#define ICSSG_TS_PUSH_SLICE1	41
+#define ICSSG_TS_PUSH_SLICE0  40
+#define ICSSG_TS_PUSH_SLICE1  41
 
-/* FDB FID_C2 flag definitions */
-/* Indicates host port membership.*/
+/* FDB FID_C2 flag definitions
+ * Indicates host port membership.*/
 #define ICSSG_FDB_ENTRY_P0_MEMBERSHIP         BIT(0)
 /* Indicates that MAC ID is connected to physical port 1 */
 #define ICSSG_FDB_ENTRY_P1_MEMBERSHIP         BIT(1)
@@ -173,8 +173,8 @@ struct icssg_setclock_desc {
  * @fid: FDB index for this VID (there is 1-1 mapping b/w VID and FID)
  */
 struct prueth_vlan_tbl {
-	u8 fid_c1;
-	u8 fid;
+  u8 fid_c1;
+  u8 fid;
 } __packed;
 
 /**
@@ -184,17 +184,17 @@ struct prueth_vlan_tbl {
  * @fid_c2: FID_C2 entry for this MAC
  */
 struct prueth_fdb_slot {
-	u8 mac[ETH_ALEN];
-	u8 fid;
-	u8 fid_c2;
+  u8 mac[ETH_ALEN];
+  u8 fid;
+  u8 fid_c2;
 } __packed;
 
 enum icssg_ietfpe_verify_states {
-	ICSSG_IETFPE_STATE_UNKNOWN = 0,
-	ICSSG_IETFPE_STATE_INITIAL,
-	ICSSG_IETFPE_STATE_VERIFYING,
-	ICSSG_IETFPE_STATE_SUCCEEDED,
-	ICSSG_IETFPE_STATE_FAILED,
-	ICSSG_IETFPE_STATE_DISABLED
+  ICSSG_IETFPE_STATE_UNKNOWN = 0,
+  ICSSG_IETFPE_STATE_INITIAL,
+  ICSSG_IETFPE_STATE_VERIFYING,
+  ICSSG_IETFPE_STATE_SUCCEEDED,
+  ICSSG_IETFPE_STATE_FAILED,
+  ICSSG_IETFPE_STATE_DISABLED
 };
 #endif /* __NET_TI_ICSSG_CONFIG_H */

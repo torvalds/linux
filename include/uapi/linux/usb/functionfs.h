@@ -2,104 +2,102 @@
 #ifndef _UAPI__LINUX_FUNCTIONFS_H__
 #define _UAPI__LINUX_FUNCTIONFS_H__
 
-
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
 #include <linux/usb/ch9.h>
 
-
 enum {
-	FUNCTIONFS_DESCRIPTORS_MAGIC = 1,
-	FUNCTIONFS_STRINGS_MAGIC = 2,
-	FUNCTIONFS_DESCRIPTORS_MAGIC_V2 = 3,
+  FUNCTIONFS_DESCRIPTORS_MAGIC = 1,
+  FUNCTIONFS_STRINGS_MAGIC = 2,
+  FUNCTIONFS_DESCRIPTORS_MAGIC_V2 = 3,
 };
 
 enum functionfs_flags {
-	FUNCTIONFS_HAS_FS_DESC = 1,
-	FUNCTIONFS_HAS_HS_DESC = 2,
-	FUNCTIONFS_HAS_SS_DESC = 4,
-	FUNCTIONFS_HAS_MS_OS_DESC = 8,
-	FUNCTIONFS_VIRTUAL_ADDR = 16,
-	FUNCTIONFS_EVENTFD = 32,
-	FUNCTIONFS_ALL_CTRL_RECIP = 64,
-	FUNCTIONFS_CONFIG0_SETUP = 128,
+  FUNCTIONFS_HAS_FS_DESC = 1,
+  FUNCTIONFS_HAS_HS_DESC = 2,
+  FUNCTIONFS_HAS_SS_DESC = 4,
+  FUNCTIONFS_HAS_MS_OS_DESC = 8,
+  FUNCTIONFS_VIRTUAL_ADDR = 16,
+  FUNCTIONFS_EVENTFD = 32,
+  FUNCTIONFS_ALL_CTRL_RECIP = 64,
+  FUNCTIONFS_CONFIG0_SETUP = 128,
 };
 
 /* Descriptor of an non-audio endpoint */
 struct usb_endpoint_descriptor_no_audio {
-	__u8  bLength;
-	__u8  bDescriptorType;
+  __u8 bLength;
+  __u8 bDescriptorType;
 
-	__u8  bEndpointAddress;
-	__u8  bmAttributes;
-	__le16 wMaxPacketSize;
-	__u8  bInterval;
+  __u8 bEndpointAddress;
+  __u8 bmAttributes;
+  __le16 wMaxPacketSize;
+  __u8 bInterval;
 } __attribute__((packed));
 
 struct usb_functionfs_descs_head_v2 {
-	__le32 magic;
-	__le32 length;
-	__le32 flags;
-	/*
-	 * __le32 fs_count, hs_count, fs_count; must be included manually in
-	 * the structure taking flags into consideration.
-	 */
+  __le32 magic;
+  __le32 length;
+  __le32 flags;
+  /*
+   * __le32 fs_count, hs_count, fs_count; must be included manually in
+   * the structure taking flags into consideration.
+   */
 } __attribute__((packed));
 
 /* Legacy format, deprecated as of 3.14. */
 struct usb_functionfs_descs_head {
-	__le32 magic;
-	__le32 length;
-	__le32 fs_count;
-	__le32 hs_count;
+  __le32 magic;
+  __le32 length;
+  __le32 fs_count;
+  __le32 hs_count;
 } __attribute__((packed, deprecated));
 
 /* MS OS Descriptor header */
 struct usb_os_desc_header {
-	__u8	interface;
-	__le32	dwLength;
-	__le16	bcdVersion;
-	__le16	wIndex;
-	union {
-		struct {
-			__u8	bCount;
-			__u8	Reserved;
-		};
-		__le16	wCount;
-	};
+  __u8 interface;
+  __le32 dwLength;
+  __le16 bcdVersion;
+  __le16 wIndex;
+  union {
+    struct {
+      __u8 bCount;
+      __u8 Reserved;
+    };
+    __le16 wCount;
+  };
 } __attribute__((packed));
 
 struct usb_ext_compat_desc {
-	__u8	bFirstInterfaceNumber;
-	__u8	Reserved1;
-	__struct_group(/* no tag */, IDs, /* no attrs */,
-		__u8	CompatibleID[8];
-		__u8	SubCompatibleID[8];
-	);
-	__u8	Reserved2[6];
+  __u8 bFirstInterfaceNumber;
+  __u8 Reserved1;
+  __struct_group( /* no tag */, IDs, /* no attrs */,
+      __u8 CompatibleID[8];
+      __u8 SubCompatibleID[8];
+      );
+  __u8 Reserved2[6];
 };
 
 struct usb_ext_prop_desc {
-	__le32	dwSize;
-	__le32	dwPropertyDataType;
-	__le16	wPropertyNameLength;
+  __le32 dwSize;
+  __le32 dwPropertyDataType;
+  __le16 wPropertyNameLength;
 } __attribute__((packed));
 
 /* Flags for usb_ffs_dmabuf_transfer_req->flags (none for now) */
-#define USB_FFS_DMABUF_TRANSFER_MASK	0x0
+#define USB_FFS_DMABUF_TRANSFER_MASK  0x0
 
 /**
  * struct usb_ffs_dmabuf_transfer_req - Transfer request for a DMABUF object
- * @fd:		file descriptor of the DMABUF object
- * @flags:	one or more USB_FFS_DMABUF_TRANSFER_* flags
- * @length:	number of bytes used in this DMABUF for the data transfer.
- *		Should generally be set to the DMABUF's size.
+ * @fd:   file descriptor of the DMABUF object
+ * @flags:  one or more USB_FFS_DMABUF_TRANSFER_* flags
+ * @length: number of bytes used in this DMABUF for the data transfer.
+ *    Should generally be set to the DMABUF's size.
  */
 struct usb_ffs_dmabuf_transfer_req {
-	int fd;
-	__u32 flags;
-	__u64 length;
+  int fd;
+  __u32 flags;
+  __u64 length;
 } __attribute__((packed));
 
 #ifndef __KERNEL__
@@ -196,10 +194,10 @@ struct usb_ffs_dmabuf_transfer_req {
  */
 
 struct usb_functionfs_strings_head {
-	__le32 magic;
-	__le32 length;
-	__le32 str_count;
-	__le32 lang_count;
+  __le32 magic;
+  __le32 length;
+  __le32 str_count;
+  __le32 lang_count;
 } __attribute__((packed));
 
 /*
@@ -228,7 +226,6 @@ struct usb_functionfs_strings_head {
 
 #endif
 
-
 /*
  * Events are delivered on the ep0 file descriptor, when the user mode driver
  * reads from this file descriptor after writing the descriptors.  Don't
@@ -236,53 +233,52 @@ struct usb_functionfs_strings_head {
  */
 
 enum usb_functionfs_event_type {
-	FUNCTIONFS_BIND,
-	FUNCTIONFS_UNBIND,
+  FUNCTIONFS_BIND,
+  FUNCTIONFS_UNBIND,
 
-	FUNCTIONFS_ENABLE,
-	FUNCTIONFS_DISABLE,
+  FUNCTIONFS_ENABLE,
+  FUNCTIONFS_DISABLE,
 
-	FUNCTIONFS_SETUP,
+  FUNCTIONFS_SETUP,
 
-	FUNCTIONFS_SUSPEND,
-	FUNCTIONFS_RESUME
+  FUNCTIONFS_SUSPEND,
+  FUNCTIONFS_RESUME
 };
 
 /* NOTE:  this structure must stay the same size and layout on
  * both 32-bit and 64-bit kernels.
  */
 struct usb_functionfs_event {
-	union {
-		/* SETUP: packet; DATA phase i/o precedes next event
-		 *(setup.bmRequestType & USB_DIR_IN) flags direction */
-		struct usb_ctrlrequest	setup;
-	} __attribute__((packed)) u;
+  union {
+    /* SETUP: packet; DATA phase i/o precedes next event
+     *(setup.bmRequestType & USB_DIR_IN) flags direction */
+    struct usb_ctrlrequest setup;
+  } __attribute__((packed)) u;
 
-	/* enum usb_functionfs_event_type */
-	__u8				type;
-	__u8				_pad[3];
+  /* enum usb_functionfs_event_type */
+  __u8 type;
+  __u8 _pad[3];
 } __attribute__((packed));
 
-
-/* Endpoint ioctls */
-/* The same as in gadgetfs */
+/* Endpoint ioctls
+ * The same as in gadgetfs*/
 
 /* IN transfers may be reported to the gadget driver as complete
- *	when the fifo is loaded, before the host reads the data;
+ *  when the fifo is loaded, before the host reads the data;
  * OUT transfers may be reported to the host's "client" driver as
- *	complete when they're sitting in the FIFO unread.
+ *  complete when they're sitting in the FIFO unread.
  * THIS returns how many bytes are "unclaimed" in the endpoint fifo
  * (needed for precise fault handling, when the hardware allows it)
  */
-#define	FUNCTIONFS_FIFO_STATUS	_IO('g', 1)
+#define FUNCTIONFS_FIFO_STATUS  _IO('g', 1)
 
 /* discards any unclaimed data in the fifo. */
-#define	FUNCTIONFS_FIFO_FLUSH	_IO('g', 2)
+#define FUNCTIONFS_FIFO_FLUSH _IO('g', 2)
 
 /* resets endpoint halt+toggle; used to implement set_interface.
  * some hardware (like pxa2xx) can't support this.
  */
-#define	FUNCTIONFS_CLEAR_HALT	_IO('g', 3)
+#define FUNCTIONFS_CLEAR_HALT _IO('g', 3)
 
 /* Specific for functionfs */
 
@@ -291,28 +287,27 @@ struct usb_functionfs_event {
  * is no such interface returns -EDOM.  If function is not active
  * returns -ENODEV.
  */
-#define	FUNCTIONFS_INTERFACE_REVMAP	_IO('g', 128)
+#define FUNCTIONFS_INTERFACE_REVMAP _IO('g', 128)
 
 /*
  * Returns real bEndpointAddress of an endpoint. If endpoint shuts down
  * during the call, returns -ESHUTDOWN.
  */
-#define	FUNCTIONFS_ENDPOINT_REVMAP	_IO('g', 129)
+#define FUNCTIONFS_ENDPOINT_REVMAP  _IO('g', 129)
 
 /*
  * Returns endpoint descriptor. If endpoint shuts down during the call,
  * returns -ESHUTDOWN.
  */
-#define	FUNCTIONFS_ENDPOINT_DESC	_IOR('g', 130, \
-					     struct usb_endpoint_descriptor)
+#define FUNCTIONFS_ENDPOINT_DESC  _IOR('g', 130, \
+    struct usb_endpoint_descriptor)
 
 /*
  * Attach the DMABUF object, identified by its file descriptor, to the
  * data endpoint. Returns zero on success, and a negative errno value
  * on error.
  */
-#define FUNCTIONFS_DMABUF_ATTACH	_IOW('g', 131, int)
-
+#define FUNCTIONFS_DMABUF_ATTACH  _IOW('g', 131, int)
 
 /*
  * Detach the given DMABUF object, identified by its file descriptor,
@@ -320,7 +315,7 @@ struct usb_functionfs_event {
  * errno value on error. Note that closing the endpoint's file
  * descriptor will automatically detach all attached DMABUFs.
  */
-#define FUNCTIONFS_DMABUF_DETACH	_IOW('g', 132, int)
+#define FUNCTIONFS_DMABUF_DETACH  _IOW('g', 132, int)
 
 /*
  * Enqueue the previously attached DMABUF to the transfer queue.
@@ -330,7 +325,7 @@ struct usb_functionfs_event {
  * for now. Returns zero on success, and a negative errno value on
  * error.
  */
-#define FUNCTIONFS_DMABUF_TRANSFER	_IOW('g', 133, \
-					     struct usb_ffs_dmabuf_transfer_req)
+#define FUNCTIONFS_DMABUF_TRANSFER  _IOW('g', 133, \
+    struct usb_ffs_dmabuf_transfer_req)
 
 #endif /* _UAPI__LINUX_FUNCTIONFS_H__ */

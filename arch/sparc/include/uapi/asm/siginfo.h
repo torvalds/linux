@@ -10,7 +10,6 @@
 
 #include <asm-generic/siginfo.h>
 
-
-#define SI_NOINFO	32767		/* no information in siginfo_t */
+#define SI_NOINFO 32767   /* no information in siginfo_t */
 
 #endif /* _UAPI__SPARC_SIGINFO_H */

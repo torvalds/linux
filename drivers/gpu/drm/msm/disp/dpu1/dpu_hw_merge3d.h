@@ -18,21 +18,20 @@ struct dpu_hw_merge_3d;
  *  @setup_3d_mode : enable 3D merge
  */
 struct dpu_hw_merge_3d_ops {
-	void (*setup_3d_mode)(struct dpu_hw_merge_3d *merge_3d,
-			enum dpu_3d_blend_mode mode_3d);
-
+  void (*setup_3d_mode)(struct dpu_hw_merge_3d *merge_3d,
+      enum dpu_3d_blend_mode mode_3d);
 };
 
 struct dpu_hw_merge_3d {
-	struct dpu_hw_blk base;
-	struct dpu_hw_blk_reg_map hw;
+  struct dpu_hw_blk base;
+  struct dpu_hw_blk_reg_map hw;
 
-	/* merge_3d */
-	enum dpu_merge_3d idx;
-	const struct dpu_merge_3d_cfg *caps;
+  /* merge_3d */
+  enum dpu_merge_3d idx;
+  const struct dpu_merge_3d_cfg *caps;
 
-	/* ops */
-	struct dpu_hw_merge_3d_ops ops;
+  /* ops */
+  struct dpu_hw_merge_3d_ops ops;
 };
 
 /**
@@ -42,7 +41,7 @@ struct dpu_hw_merge_3d {
  */
 static inline struct dpu_hw_merge_3d *to_dpu_hw_merge_3d(struct dpu_hw_blk *hw)
 {
-	return container_of(hw, struct dpu_hw_merge_3d, base);
+  return container_of(hw, struct dpu_hw_merge_3d, base);
 }
 
 /**
@@ -54,7 +53,7 @@ static inline struct dpu_hw_merge_3d *to_dpu_hw_merge_3d(struct dpu_hw_blk *hw)
  * Return: Error code or allocated dpu_hw_merge_3d context
  */
 struct dpu_hw_merge_3d *dpu_hw_merge_3d_init(struct drm_device *dev,
-					     const struct dpu_merge_3d_cfg *cfg,
-					     void __iomem *addr);
+    const struct dpu_merge_3d_cfg *cfg,
+    void __iomem *addr);
 
 #endif /*_DPU_HW_MERGE3D_H */

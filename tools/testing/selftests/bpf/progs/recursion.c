@@ -8,36 +8,33 @@
 char _license[] SEC("license") = "GPL";
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, int);
-	__type(value, long);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, int);
+  __type(value, long);
 } hash1 SEC(".maps");
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, int);
-	__type(value, long);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, int);
+  __type(value, long);
 } hash2 SEC(".maps");
 
 int pass1 = 0;
 int pass2 = 0;
 
 SEC("fentry/htab_map_delete_elem")
-int BPF_PROG(on_delete, struct bpf_map *map)
-{
-	int key = 0;
-
-	if (map == (void *)&hash1) {
-		pass1++;
-		return 0;
-	}
-	if (map == (void *)&hash2) {
-		pass2++;
-		bpf_map_delete_elem(&hash2, &key);
-		return 0;
-	}
-
-	return 0;
+int BPF_PROG(on_delete, struct bpf_map *map) {
+  int key = 0;
+  if (map == (void *) &hash1) {
+    pass1++;
+    return 0;
+  }
+  if (map == (void *) &hash2) {
+    pass2++;
+    bpf_map_delete_elem(&hash2, &key);
+    return 0;
+  }
+  return 0;
 }

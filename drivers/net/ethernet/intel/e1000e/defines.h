@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 1999 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 1999 - 2018 Intel Corporation.*/
 
 #ifndef _E1000_DEFINES_H_
 #define _E1000_DEFINES_H_
@@ -8,13 +8,13 @@
 #define REQ_TX_DESCRIPTOR_MULTIPLE  8
 #define REQ_RX_DESCRIPTOR_MULTIPLE  8
 
-/* Definitions for power management and wakeup registers */
-/* Wake Up Control */
-#define E1000_WUC_APME		0x00000001	/* APM Enable */
-#define E1000_WUC_PME_EN	0x00000002	/* PME Enable */
-#define E1000_WUC_PME_STATUS	0x00000004	/* PME Status */
-#define E1000_WUC_APMPME	0x00000008	/* Assert PME on APM Wakeup */
-#define E1000_WUC_PHY_WAKE	0x00000100	/* if PHY supports wakeup */
+/* Definitions for power management and wakeup registers
+ * Wake Up Control*/
+#define E1000_WUC_APME    0x00000001  /* APM Enable */
+#define E1000_WUC_PME_EN  0x00000002  /* PME Enable */
+#define E1000_WUC_PME_STATUS  0x00000004  /* PME Status */
+#define E1000_WUC_APMPME  0x00000008  /* Assert PME on APM Wakeup */
+#define E1000_WUC_PHY_WAKE  0x00000100  /* if PHY supports wakeup */
 
 /* Wake Up Filter Control */
 #define E1000_WUFC_LNKC 0x00000001 /* Link Status Change Wakeup Enable */
@@ -43,7 +43,7 @@
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
 #define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000 /* Driver loaded bit for FW */
-#define E1000_CTRL_EXT_IAME		0x08000000 /* Int ACK Auto-mask */
+#define E1000_CTRL_EXT_IAME   0x08000000 /* Int ACK Auto-mask */
 #define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
 #define E1000_CTRL_EXT_LSECCK         0x00001000
 #define E1000_CTRL_EXT_PHYPDEN        0x00100000
@@ -64,7 +64,7 @@
 #define E1000_RXD_ERR_RXE       0x80    /* Rx Data Error */
 #define E1000_RXD_SPC_VLAN_MASK 0x0FFF  /* VLAN ID is in lower 12 bits */
 
-#define E1000_RXDEXT_STATERR_TST   0x00000100	/* Time Stamp taken */
+#define E1000_RXDEXT_STATERR_TST   0x00000100 /* Time Stamp taken */
 #define E1000_RXDEXT_STATERR_CE    0x01000000
 #define E1000_RXDEXT_STATERR_SE    0x02000000
 #define E1000_RXDEXT_STATERR_SEQ   0x04000000
@@ -73,19 +73,19 @@
 
 /* mask to determine if packets should be dropped due to frame errors */
 #define E1000_RXD_ERR_FRAME_ERR_MASK ( \
-	E1000_RXD_ERR_CE  |		\
-	E1000_RXD_ERR_SE  |		\
-	E1000_RXD_ERR_SEQ |		\
-	E1000_RXD_ERR_CXE |		\
-	E1000_RXD_ERR_RXE)
+    E1000_RXD_ERR_CE      \
+    | E1000_RXD_ERR_SE      \
+    | E1000_RXD_ERR_SEQ     \
+    | E1000_RXD_ERR_CXE     \
+    | E1000_RXD_ERR_RXE)
 
 /* Same mask, but for extended and packet split descriptors */
 #define E1000_RXDEXT_ERR_FRAME_ERR_MASK ( \
-	E1000_RXDEXT_STATERR_CE  |	\
-	E1000_RXDEXT_STATERR_SE  |	\
-	E1000_RXDEXT_STATERR_SEQ |	\
-	E1000_RXDEXT_STATERR_CXE |	\
-	E1000_RXDEXT_STATERR_RXE)
+    E1000_RXDEXT_STATERR_CE     \
+    | E1000_RXDEXT_STATERR_SE     \
+    | E1000_RXDEXT_STATERR_SEQ    \
+    | E1000_RXDEXT_STATERR_CXE    \
+    | E1000_RXDEXT_STATERR_RXE)
 
 #define E1000_MRQC_RSS_FIELD_MASK              0xFFFF0000
 #define E1000_MRQC_RSS_FIELD_IPV4_TCP          0x00010000
@@ -203,9 +203,9 @@
 #define E1000_CTRL_VME      0x40000000  /* IEEE VLAN mode enable */
 #define E1000_CTRL_PHY_RST  0x80000000  /* PHY Reset */
 
-#define E1000_PCS_LCTL_FORCE_FCTRL	0x80
+#define E1000_PCS_LCTL_FORCE_FCTRL  0x80
 
-#define E1000_PCS_LSTS_AN_COMPLETE	0x10000
+#define E1000_PCS_LSTS_AN_COMPLETE  0x10000
 
 /* Device Status */
 #define E1000_STATUS_FD         0x00000001      /* Full duplex.0=half,1=full */
@@ -220,10 +220,10 @@
 #define E1000_STATUS_SPEED_1000 0x00000080      /* Speed 1000Mb/s */
 #define E1000_STATUS_LAN_INIT_DONE 0x00000200   /* Lan Init Completion by NVM */
 #define E1000_STATUS_PHYRA      0x00000400      /* PHY Reset Asserted */
-#define E1000_STATUS_GIO_MASTER_ENABLE	0x00080000	/* Master Req status */
+#define E1000_STATUS_GIO_MASTER_ENABLE  0x00080000  /* Master Req status */
 
 /* PCIm function state */
-#define E1000_STATUS_PCIM_STATE	0x40000000
+#define E1000_STATUS_PCIM_STATE 0x40000000
 
 #define HALF_DUPLEX 1
 #define FULL_DUPLEX 2
@@ -236,15 +236,15 @@
 #define ADVERTISE_1000_FULL               0x0020
 
 /* 1000/H is not supported, nor spec-compliant. */
-#define E1000_ALL_SPEED_DUPLEX	( \
-	ADVERTISE_10_HALF | ADVERTISE_10_FULL | ADVERTISE_100_HALF | \
-	ADVERTISE_100_FULL | ADVERTISE_1000_FULL)
-#define E1000_ALL_NOT_GIG	( \
-	ADVERTISE_10_HALF | ADVERTISE_10_FULL | ADVERTISE_100_HALF | \
-	ADVERTISE_100_FULL)
-#define E1000_ALL_100_SPEED	(ADVERTISE_100_HALF | ADVERTISE_100_FULL)
-#define E1000_ALL_10_SPEED	(ADVERTISE_10_HALF | ADVERTISE_10_FULL)
-#define E1000_ALL_HALF_DUPLEX	(ADVERTISE_10_HALF | ADVERTISE_100_HALF)
+#define E1000_ALL_SPEED_DUPLEX  ( \
+    ADVERTISE_10_HALF | ADVERTISE_10_FULL | ADVERTISE_100_HALF   \
+    | ADVERTISE_100_FULL | ADVERTISE_1000_FULL)
+#define E1000_ALL_NOT_GIG ( \
+    ADVERTISE_10_HALF | ADVERTISE_10_FULL | ADVERTISE_100_HALF   \
+    | ADVERTISE_100_FULL)
+#define E1000_ALL_100_SPEED (ADVERTISE_100_HALF | ADVERTISE_100_FULL)
+#define E1000_ALL_10_SPEED  (ADVERTISE_10_HALF | ADVERTISE_10_FULL)
+#define E1000_ALL_HALF_DUPLEX (ADVERTISE_10_HALF | ADVERTISE_100_HALF)
 
 #define AUTONEG_ADVERTISE_SPEED_DEFAULT   E1000_ALL_SPEED_DUPLEX
 
@@ -282,7 +282,7 @@
 #define E1000_TXD_CMD_IP     0x02000000 /* IP packet */
 #define E1000_TXD_CMD_TSE    0x04000000 /* TCP Seg enable */
 #define E1000_TXD_STAT_TC    0x00000004 /* Tx Underrun */
-#define E1000_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
+#define E1000_TXD_EXTCMD_TSTAMP 0x00000010 /* IEEE1588 Timestamp packet */
 
 /* Transmit Control */
 #define E1000_TCTL_EN     0x00000002    /* enable Tx */
@@ -294,7 +294,7 @@
 
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
-#define E1000_SCTL_ENABLE_SERDES_LOOPBACK	0x0410
+#define E1000_SCTL_ENABLE_SERDES_LOOPBACK 0x0410
 
 /* Receive Checksum Control */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
@@ -328,7 +328,7 @@
 #define E1000_TIPG_IPGR2_SHIFT  20
 
 #define MAX_JUMBO_FRAME_SIZE    0x3F00
-#define E1000_TX_PTR_GAP		0x1F
+#define E1000_TX_PTR_GAP    0x1F
 
 /* Extended Configuration Control and Size */
 #define E1000_EXTCNF_CTRL_MDIO_SW_OWNERSHIP      0x00000020
@@ -349,21 +349,21 @@
 #define E1000_KABGTXD_BGSQLBIAS           0x00050000
 
 /* Low Power IDLE Control */
-#define E1000_LPIC_LPIET_SHIFT		24	/* Low Power Idle Entry Time */
+#define E1000_LPIC_LPIET_SHIFT    24  /* Low Power Idle Entry Time */
 
 /* PBA constants */
 #define E1000_PBA_8K  0x0008    /* 8KB */
 #define E1000_PBA_16K 0x0010    /* 16KB */
 
-#define E1000_PBA_RXA_MASK	0xFFFF
+#define E1000_PBA_RXA_MASK  0xFFFF
 
 #define E1000_PBS_16K E1000_PBA_16K
 
 /* Uncorrectable/correctable ECC Error counts and enable bits */
-#define E1000_PBECCSTS_CORR_ERR_CNT_MASK	0x000000FF
-#define E1000_PBECCSTS_UNCORR_ERR_CNT_MASK	0x0000FF00
-#define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
-#define E1000_PBECCSTS_ECC_ENABLE		0x00010000
+#define E1000_PBECCSTS_CORR_ERR_CNT_MASK  0x000000FF
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_MASK  0x0000FF00
+#define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT 8
+#define E1000_PBECCSTS_ECC_ENABLE   0x00010000
 
 #define IFS_MAX       80
 #define IFS_MIN       40
@@ -391,7 +391,7 @@
 #define E1000_ICR_MNG           0x00040000 /* Manageability Event Detected */
 #define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
 /* If this bit asserted, the driver should claim the interrupt */
-#define E1000_ICR_INT_ASSERTED	0x80000000
+#define E1000_ICR_INT_ASSERTED  0x80000000
 #define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
 #define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
@@ -414,21 +414,21 @@
  *   o LSC    = Link Status Change
  */
 #define IMS_ENABLE_MASK ( \
-	E1000_IMS_RXT0   |    \
-	E1000_IMS_TXDW   |    \
-	E1000_IMS_RXDMT0 |    \
-	E1000_IMS_RXSEQ  |    \
-	E1000_IMS_LSC)
+    E1000_IMS_RXT0        \
+    | E1000_IMS_TXDW        \
+    | E1000_IMS_RXDMT0      \
+    | E1000_IMS_RXSEQ       \
+    | E1000_IMS_LSC)
 
 /* These are all of the events related to the OTHER interrupt.
  */
 #define IMS_OTHER_MASK ( \
-	E1000_IMS_LSC  | \
-	E1000_IMS_RXO  | \
-	E1000_IMS_MDAC | \
-	E1000_IMS_SRPD | \
-	E1000_IMS_ACK  | \
-	E1000_IMS_MNG)
+    E1000_IMS_LSC    \
+    | E1000_IMS_RXO    \
+    | E1000_IMS_MDAC   \
+    | E1000_IMS_SRPD   \
+    | E1000_IMS_ACK    \
+    | E1000_IMS_MNG)
 
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -534,31 +534,31 @@
 #define E1000_RXCW_SYNCH      0x40000000        /* Receive config synch */
 
 /* HH Time Sync */
-#define E1000_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK	0x0000F000 /* max delay */
-#define E1000_TSYNCTXCTL_SYNC_COMP		0x40000000 /* sync complete */
-#define E1000_TSYNCTXCTL_START_SYNC		0x80000000 /* initiate sync */
+#define E1000_TSYNCTXCTL_MAX_ALLOWED_DLY_MASK 0x0000F000 /* max delay */
+#define E1000_TSYNCTXCTL_SYNC_COMP    0x40000000 /* sync complete */
+#define E1000_TSYNCTXCTL_START_SYNC   0x80000000 /* initiate sync */
 
-#define E1000_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
-#define E1000_TSYNCTXCTL_ENABLED	0x00000010 /* enable Tx timestamping */
+#define E1000_TSYNCTXCTL_VALID    0x00000001 /* Tx timestamp valid */
+#define E1000_TSYNCTXCTL_ENABLED  0x00000010 /* enable Tx timestamping */
 
-#define E1000_TSYNCRXCTL_VALID		0x00000001 /* Rx timestamp valid */
-#define E1000_TSYNCRXCTL_TYPE_MASK	0x0000000E /* Rx type mask */
-#define E1000_TSYNCRXCTL_TYPE_L2_V2	0x00
-#define E1000_TSYNCRXCTL_TYPE_L4_V1	0x02
-#define E1000_TSYNCRXCTL_TYPE_L2_L4_V2	0x04
-#define E1000_TSYNCRXCTL_TYPE_ALL	0x08
-#define E1000_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
-#define E1000_TSYNCRXCTL_ENABLED	0x00000010 /* enable Rx timestamping */
-#define E1000_TSYNCRXCTL_SYSCFI		0x00000020 /* Sys clock frequency */
+#define E1000_TSYNCRXCTL_VALID    0x00000001 /* Rx timestamp valid */
+#define E1000_TSYNCRXCTL_TYPE_MASK  0x0000000E /* Rx type mask */
+#define E1000_TSYNCRXCTL_TYPE_L2_V2 0x00
+#define E1000_TSYNCRXCTL_TYPE_L4_V1 0x02
+#define E1000_TSYNCRXCTL_TYPE_L2_L4_V2  0x04
+#define E1000_TSYNCRXCTL_TYPE_ALL 0x08
+#define E1000_TSYNCRXCTL_TYPE_EVENT_V2  0x0A
+#define E1000_TSYNCRXCTL_ENABLED  0x00000010 /* enable Rx timestamping */
+#define E1000_TSYNCRXCTL_SYSCFI   0x00000020 /* Sys clock frequency */
 
-#define E1000_RXMTRL_PTP_V1_SYNC_MESSAGE	0x00000000
-#define E1000_RXMTRL_PTP_V1_DELAY_REQ_MESSAGE	0x00010000
+#define E1000_RXMTRL_PTP_V1_SYNC_MESSAGE  0x00000000
+#define E1000_RXMTRL_PTP_V1_DELAY_REQ_MESSAGE 0x00010000
 
-#define E1000_RXMTRL_PTP_V2_SYNC_MESSAGE	0x00000000
-#define E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE	0x01000000
+#define E1000_RXMTRL_PTP_V2_SYNC_MESSAGE  0x00000000
+#define E1000_RXMTRL_PTP_V2_DELAY_REQ_MESSAGE 0x01000000
 
-#define E1000_TIMINCA_INCPERIOD_SHIFT	24
-#define E1000_TIMINCA_INCVALUE_MASK	0x00FFFFFF
+#define E1000_TIMINCA_INCPERIOD_SHIFT 24
+#define E1000_TIMINCA_INCVALUE_MASK 0x00FFFFFF
 
 /* PCI Express Control */
 #define E1000_GCR_RXD_NO_SNOOP          0x00000001
@@ -568,12 +568,12 @@
 #define E1000_GCR_TXDSCW_NO_SNOOP       0x00000010
 #define E1000_GCR_TXDSCR_NO_SNOOP       0x00000020
 
-#define PCIE_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP         | \
-			   E1000_GCR_RXDSCW_NO_SNOOP      | \
-			   E1000_GCR_RXDSCR_NO_SNOOP      | \
-			   E1000_GCR_TXD_NO_SNOOP         | \
-			   E1000_GCR_TXDSCW_NO_SNOOP      | \
-			   E1000_GCR_TXDSCR_NO_SNOOP)
+#define PCIE_NO_SNOOP_ALL (E1000_GCR_RXD_NO_SNOOP           \
+  | E1000_GCR_RXDSCW_NO_SNOOP        \
+  | E1000_GCR_RXDSCR_NO_SNOOP        \
+  | E1000_GCR_TXD_NO_SNOOP           \
+  | E1000_GCR_TXDSCW_NO_SNOOP        \
+  | E1000_GCR_TXDSCR_NO_SNOOP)
 
 /* NVM Control */
 #define E1000_EECD_SK        0x00000001 /* NVM Clock */
@@ -595,20 +595,20 @@
 #define E1000_EECD_SEC1VAL   0x00400000 /* Sector One Valid */
 #define E1000_EECD_SEC1VAL_VALID_MASK (E1000_EECD_AUTO_RD | E1000_EECD_PRES)
 
-#define E1000_NVM_RW_REG_DATA	16	/* Offset to data in NVM r/w regs */
-#define E1000_NVM_RW_REG_DONE	2	/* Offset to READ/WRITE done bit */
-#define E1000_NVM_RW_REG_START	1	/* Start operation */
-#define E1000_NVM_RW_ADDR_SHIFT	2	/* Shift to the address bits */
-#define E1000_NVM_POLL_WRITE	1	/* Flag for polling write complete */
-#define E1000_NVM_POLL_READ	0	/* Flag for polling read complete */
-#define E1000_FLASH_UPDATES	2000
+#define E1000_NVM_RW_REG_DATA 16  /* Offset to data in NVM r/w regs */
+#define E1000_NVM_RW_REG_DONE 2 /* Offset to READ/WRITE done bit */
+#define E1000_NVM_RW_REG_START  1 /* Start operation */
+#define E1000_NVM_RW_ADDR_SHIFT 2 /* Shift to the address bits */
+#define E1000_NVM_POLL_WRITE  1 /* Flag for polling write complete */
+#define E1000_NVM_POLL_READ 0 /* Flag for polling read complete */
+#define E1000_FLASH_UPDATES 2000
 
 /* NVM Word Offsets */
 #define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004
 #define NVM_FUTURE_INIT_WORD1      0x0019
 #define NVM_COMPAT_VALID_CSUM      0x0001
-#define NVM_FUTURE_INIT_WORD1_VALID_CSUM	0x0040
+#define NVM_FUTURE_INIT_WORD1_VALID_CSUM  0x0040
 
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
@@ -658,10 +658,10 @@
 /* Word definitions for ID LED Settings */
 #define ID_LED_RESERVED_0000 0x0000
 #define ID_LED_RESERVED_FFFF 0xFFFF
-#define ID_LED_DEFAULT       ((ID_LED_OFF1_ON2  << 12) | \
-			      (ID_LED_OFF1_OFF2 <<  8) | \
-			      (ID_LED_DEF1_DEF2 <<  4) | \
-			      (ID_LED_DEF1_DEF2))
+#define ID_LED_DEFAULT       ((ID_LED_OFF1_ON2 << 12)   \
+  | (ID_LED_OFF1_OFF2 << 8)   \
+  | (ID_LED_DEF1_DEF2 << 4)   \
+  | (ID_LED_DEF1_DEF2))
 #define ID_LED_DEF1_DEF2     0x1
 #define ID_LED_DEF1_ON2      0x2
 #define ID_LED_DEF1_OFF2     0x3
@@ -717,7 +717,7 @@
 /* M88E1000 PHY Specific Control Register */
 #define M88E1000_PSCR_POLARITY_REVERSAL 0x0002 /* 1=Polarity Reversal enabled */
 #define M88E1000_PSCR_MDI_MANUAL_MODE  0x0000  /* MDI Crossover Mode bits 6:5 */
-					       /* Manual MDI configuration */
+/* Manual MDI configuration */
 #define M88E1000_PSCR_MDIX_MANUAL_MODE 0x0020  /* Manual MDIX configuration */
 /* 1000BASE-T: Auto crossover, 100BASE-TX/10BASE-T: MDI Mode */
 #define M88E1000_PSCR_AUTO_X_1000T     0x0040
@@ -764,37 +764,37 @@
  */
 #define GG82563_PAGE_SHIFT        5
 #define GG82563_REG(page, reg)    \
-	(((page) << GG82563_PAGE_SHIFT) | ((reg) & MAX_PHY_REG_ADDRESS))
+  (((page) << GG82563_PAGE_SHIFT) | ((reg) & MAX_PHY_REG_ADDRESS))
 #define GG82563_MIN_ALT_REG       30
 
 /* GG82563 Specific Registers */
 #define GG82563_PHY_SPEC_CTRL           \
-	GG82563_REG(0, 16) /* PHY Specific Control */
+  GG82563_REG(0, 16) /* PHY Specific Control */
 #define GG82563_PHY_PAGE_SELECT         \
-	GG82563_REG(0, 22) /* Page Select */
+  GG82563_REG(0, 22) /* Page Select */
 #define GG82563_PHY_SPEC_CTRL_2         \
-	GG82563_REG(0, 26) /* PHY Specific Control 2 */
+  GG82563_REG(0, 26) /* PHY Specific Control 2 */
 #define GG82563_PHY_PAGE_SELECT_ALT     \
-	GG82563_REG(0, 29) /* Alternate Page Select */
+  GG82563_REG(0, 29) /* Alternate Page Select */
 
 #define GG82563_PHY_MAC_SPEC_CTRL       \
-	GG82563_REG(2, 21) /* MAC Specific Control Register */
+  GG82563_REG(2, 21) /* MAC Specific Control Register */
 
 #define GG82563_PHY_DSP_DISTANCE    \
-	GG82563_REG(5, 26) /* DSP Distance */
+  GG82563_REG(5, 26) /* DSP Distance */
 
 /* Page 193 - Port Control Registers */
 #define GG82563_PHY_KMRN_MODE_CTRL   \
-	GG82563_REG(193, 16) /* Kumeran Mode Control */
+  GG82563_REG(193, 16) /* Kumeran Mode Control */
 #define GG82563_PHY_PWR_MGMT_CTRL       \
-	GG82563_REG(193, 20) /* Power Management Control */
+  GG82563_REG(193, 20) /* Power Management Control */
 
 /* Page 194 - KMRN Registers */
 #define GG82563_PHY_INBAND_CTRL         \
-	GG82563_REG(194, 18) /* Inband Control */
+  GG82563_REG(194, 18) /* Inband Control */
 
 /* MDI Control */
-#define E1000_MDIC_REG_MASK	0x001F0000
+#define E1000_MDIC_REG_MASK 0x001F0000
 #define E1000_MDIC_REG_SHIFT 16
 #define E1000_MDIC_PHY_SHIFT 21
 #define E1000_MDIC_OP_WRITE  0x04000000

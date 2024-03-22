@@ -32,91 +32,90 @@
 #include <linux/mutex.h>
 
 struct virtio_pci_vq_info {
-	/* the actual virtqueue */
-	struct virtqueue *vq;
+  /* the actual virtqueue */
+  struct virtqueue *vq;
 
-	/* the list node for the virtqueues list */
-	struct list_head node;
+  /* the list node for the virtqueues list */
+  struct list_head node;
 
-	/* MSI-X vector (or none) */
-	unsigned int msix_vector;
+  /* MSI-X vector (or none) */
+  unsigned int msix_vector;
 };
 
 struct virtio_pci_admin_vq {
-	/* Virtqueue info associated with this admin queue. */
-	struct virtio_pci_vq_info info;
-	/* serializing admin commands execution and virtqueue deletion */
-	struct mutex cmd_lock;
-	u64 supported_cmds;
-	/* Name of the admin queue: avq.$vq_index. */
-	char name[10];
-	u16 vq_index;
+  /* Virtqueue info associated with this admin queue. */
+  struct virtio_pci_vq_info info;
+  /* serializing admin commands execution and virtqueue deletion */
+  struct mutex cmd_lock;
+  u64 supported_cmds;
+  /* Name of the admin queue: avq.$vq_index. */
+  char name[10];
+  u16 vq_index;
 };
 
 /* Our device structure */
 struct virtio_pci_device {
-	struct virtio_device vdev;
-	struct pci_dev *pci_dev;
-	union {
-		struct virtio_pci_legacy_device ldev;
-		struct virtio_pci_modern_device mdev;
-	};
-	bool is_legacy;
+  struct virtio_device vdev;
+  struct pci_dev *pci_dev;
+  union {
+    struct virtio_pci_legacy_device ldev;
+    struct virtio_pci_modern_device mdev;
+  };
+  bool is_legacy;
 
-	/* Where to read and clear interrupt */
-	u8 __iomem *isr;
+  /* Where to read and clear interrupt */
+  u8 __iomem *isr;
 
-	/* a list of queues so we can dispatch IRQs */
-	spinlock_t lock;
-	struct list_head virtqueues;
+  /* a list of queues so we can dispatch IRQs */
+  spinlock_t lock;
+  struct list_head virtqueues;
 
-	/* Array of all virtqueues reported in the
-	 * PCI common config num_queues field
-	 */
-	struct virtio_pci_vq_info **vqs;
+  /* Array of all virtqueues reported in the
+   * PCI common config num_queues field
+   */
+  struct virtio_pci_vq_info **vqs;
 
-	struct virtio_pci_admin_vq admin_vq;
+  struct virtio_pci_admin_vq admin_vq;
 
-	/* MSI-X support */
-	int msix_enabled;
-	int intx_enabled;
-	cpumask_var_t *msix_affinity_masks;
-	/* Name strings for interrupts. This size should be enough,
-	 * and I'm too lazy to allocate each name separately. */
-	char (*msix_names)[256];
-	/* Number of available vectors */
-	unsigned int msix_vectors;
-	/* Vectors allocated, excluding per-vq vectors if any */
-	unsigned int msix_used_vectors;
+  /* MSI-X support */
+  int msix_enabled;
+  int intx_enabled;
+  cpumask_var_t *msix_affinity_masks;
+  /* Name strings for interrupts. This size should be enough,
+   * and I'm too lazy to allocate each name separately. */
+  char (*msix_names)[256];
+  /* Number of available vectors */
+  unsigned int msix_vectors;
+  /* Vectors allocated, excluding per-vq vectors if any */
+  unsigned int msix_used_vectors;
 
-	/* Whether we have vector per vq */
-	bool per_vq_vectors;
+  /* Whether we have vector per vq */
+  bool per_vq_vectors;
 
-	struct virtqueue *(*setup_vq)(struct virtio_pci_device *vp_dev,
-				      struct virtio_pci_vq_info *info,
-				      unsigned int idx,
-				      void (*callback)(struct virtqueue *vq),
-				      const char *name,
-				      bool ctx,
-				      u16 msix_vec);
-	void (*del_vq)(struct virtio_pci_vq_info *info);
+  struct virtqueue *(*setup_vq)(struct virtio_pci_device *vp_dev,
+      struct virtio_pci_vq_info *info,
+      unsigned int idx,
+      void (*callback)(struct virtqueue *vq),
+      const char *name,
+      bool ctx,
+      u16 msix_vec);
+  void (*del_vq)(struct virtio_pci_vq_info *info);
 
-	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
-	bool (*is_avq)(struct virtio_device *vdev, unsigned int index);
+  u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
+  bool (*is_avq)(struct virtio_device *vdev, unsigned int index);
 };
 
 /* Constants for MSI-X */
 /* Use first vector for configuration changes, second and the rest for
  * virtqueues Thus, we need at least 2 vectors for MSI. */
 enum {
-	VP_MSIX_CONFIG_VECTOR = 0,
-	VP_MSIX_VQ_VECTOR = 1,
+  VP_MSIX_CONFIG_VECTOR = 0,
+  VP_MSIX_VQ_VECTOR = 1,
 };
 
 /* Convert a generic virtio device to our structure */
-static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev)
-{
-	return container_of(vdev, struct virtio_pci_device, vdev);
+static struct virtio_pci_device *to_vp_device(struct virtio_device *vdev) {
+  return container_of(vdev, struct virtio_pci_device, vdev);
 }
 
 /* wait for pending irq handlers */
@@ -127,9 +126,9 @@ bool vp_notify(struct virtqueue *vq);
 void vp_del_vqs(struct virtio_device *vdev);
 /* the config->find_vqs() implementation */
 int vp_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
-		struct virtqueue *vqs[], vq_callback_t *callbacks[],
-		const char * const names[], const bool *ctx,
-		struct irq_affinity *desc);
+    struct virtqueue *vqs[], vq_callback_t *callbacks[],
+    const char * const names[], const bool *ctx,
+    struct irq_affinity *desc);
 const char *vp_bus_name(struct virtio_device *vdev);
 
 /* Setup the affinity for a virtqueue:
@@ -145,13 +144,13 @@ const struct cpumask *vp_get_vq_affinity(struct virtio_device *vdev, int index);
 int virtio_pci_legacy_probe(struct virtio_pci_device *);
 void virtio_pci_legacy_remove(struct virtio_pci_device *);
 #else
-static inline int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev)
-{
-	return -ENODEV;
+static inline int virtio_pci_legacy_probe(struct virtio_pci_device *vp_dev) {
+  return -ENODEV;
 }
-static inline void virtio_pci_legacy_remove(struct virtio_pci_device *vp_dev)
-{
+
+static inline void virtio_pci_legacy_remove(struct virtio_pci_device *vp_dev) {
 }
+
 #endif
 int virtio_pci_modern_probe(struct virtio_pci_device *);
 void virtio_pci_modern_remove(struct virtio_pci_device *);
@@ -159,11 +158,11 @@ void virtio_pci_modern_remove(struct virtio_pci_device *);
 struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev);
 
 #define VIRTIO_LEGACY_ADMIN_CMD_BITMAP \
-	(BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_WRITE) | \
-	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_READ) | \
-	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_WRITE) | \
-	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_READ) | \
-	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_NOTIFY_INFO))
+  (BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_WRITE)   \
+  | BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_READ)   \
+  | BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_WRITE)   \
+  | BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_READ)   \
+  | BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_NOTIFY_INFO))
 
 /* Unlike modern drivers which support hardware virtio devices, legacy drivers
  * assume software-based devices: e.g. they don't use proper memory barriers
@@ -177,6 +176,6 @@ struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev);
 #endif
 
 int vp_modern_admin_cmd_exec(struct virtio_device *vdev,
-			     struct virtio_admin_cmd *cmd);
+    struct virtio_admin_cmd *cmd);
 
 #endif

@@ -14,15 +14,15 @@
  */
 
 #ifndef _ASM_SYSCALL_H
-#define _ASM_SYSCALL_H	1
+#define _ASM_SYSCALL_H  1
 
 struct task_struct;
 struct pt_regs;
 
 /**
  * syscall_get_nr - find what system call a task is executing
- * @task:	task of interest, must be blocked
- * @regs:	task_pt_regs() of @task
+ * @task: task of interest, must be blocked
+ * @regs: task_pt_regs() of @task
  *
  * If @task is executing a system call or is at system call
  * tracing about to attempt one, returns the system call number.
@@ -39,8 +39,8 @@ int syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
 
 /**
  * syscall_rollback - roll back registers after an aborted system call
- * @task:	task of interest, must be in system call exit tracing
- * @regs:	task_pt_regs() of @task
+ * @task: task of interest, must be in system call exit tracing
+ * @regs: task_pt_regs() of @task
  *
  * It's only valid to call this when @task is stopped for system
  * call exit tracing (due to %SYSCALL_WORK_SYSCALL_TRACE or
@@ -57,8 +57,8 @@ void syscall_rollback(struct task_struct *task, struct pt_regs *regs);
 
 /**
  * syscall_get_error - check result of traced system call
- * @task:	task of interest, must be blocked
- * @regs:	task_pt_regs() of @task
+ * @task: task of interest, must be blocked
+ * @regs: task_pt_regs() of @task
  *
  * Returns 0 if the system call succeeded, or -ERRORCODE if it failed.
  *
@@ -70,8 +70,8 @@ long syscall_get_error(struct task_struct *task, struct pt_regs *regs);
 
 /**
  * syscall_get_return_value - get the return value of a traced system call
- * @task:	task of interest, must be blocked
- * @regs:	task_pt_regs() of @task
+ * @task: task of interest, must be blocked
+ * @regs: task_pt_regs() of @task
  *
  * Returns the return value of the successful system call.
  * This value is meaningless if syscall_get_error() returned nonzero.
@@ -84,10 +84,10 @@ long syscall_get_return_value(struct task_struct *task, struct pt_regs *regs);
 
 /**
  * syscall_set_return_value - change the return value of a traced system call
- * @task:	task of interest, must be blocked
- * @regs:	task_pt_regs() of @task
- * @error:	negative error code, or zero to indicate success
- * @val:	user return value if @error is zero
+ * @task: task of interest, must be blocked
+ * @regs: task_pt_regs() of @task
+ * @error:  negative error code, or zero to indicate success
+ * @val:  user return value if @error is zero
  *
  * This changes the results of the system call that user mode will see.
  * If @error is zero, the user sees a successful system call with a
@@ -99,27 +99,27 @@ long syscall_get_return_value(struct task_struct *task, struct pt_regs *regs);
  * %SYSCALL_WORK_SYSCALL_AUDIT.
  */
 void syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
-			      int error, long val);
+    int error, long val);
 
 /**
  * syscall_get_arguments - extract system call parameter values
- * @task:	task of interest, must be blocked
- * @regs:	task_pt_regs() of @task
- * @args:	array filled with argument values
+ * @task: task of interest, must be blocked
+ * @regs: task_pt_regs() of @task
+ * @args: array filled with argument values
  *
  * Fetches 6 arguments to the system call.  First argument is stored in
-*  @args[0], and so on.
+ *  @args[0], and so on.
  *
  * It's only valid to call this when @task is stopped for tracing on
  * entry to a system call, due to %SYSCALL_WORK_SYSCALL_TRACE or
  * %SYSCALL_WORK_SYSCALL_AUDIT.
  */
 void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
-			   unsigned long *args);
+    unsigned long *args);
 
 /**
  * syscall_get_arch - return the AUDIT_ARCH for the current system call
- * @task:	task of interest, must be blocked
+ * @task: task of interest, must be blocked
  *
  * Returns the AUDIT_ARCH_* based on the system call convention in use.
  *
@@ -131,4 +131,4 @@ void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
  * provide an implementation of this.
  */
 int syscall_get_arch(struct task_struct *task);
-#endif	/* _ASM_SYSCALL_H */
+#endif  /* _ASM_SYSCALL_H */

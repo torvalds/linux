@@ -20,83 +20,84 @@
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/firmware/cirrus/wmfw.h>
 
-#define CS35L41_MAX_ACCEPTABLE_SPI_SPEED_HZ	1000000
+#define CS35L41_MAX_ACCEPTABLE_SPI_SPEED_HZ 1000000
 
 struct cs35l41_amp_cal_data {
-	u32 calTarget[2];
-	u32 calTime[2];
-	s8 calAmbient;
-	u8 calStatus;
-	u16 calR;
+  u32 calTarget[2];
+  u32 calTime[2];
+  s8 calAmbient;
+  u8 calStatus;
+  u16 calR;
 } __packed;
 
 struct cs35l41_amp_efi_data {
-	u32 size;
-	u32 count;
-	struct cs35l41_amp_cal_data data[];
+  u32 size;
+  u32 count;
+  struct cs35l41_amp_cal_data data[];
 } __packed;
 
 enum cs35l41_hda_spk_pos {
-	CS35L41_LEFT,
-	CS35L41_RIGHT,
+  CS35L41_LEFT,
+  CS35L41_RIGHT,
 };
 
 enum cs35l41_hda_gpio_function {
-	CS35L41_NOT_USED,
-	CS35l41_VSPK_SWITCH,
-	CS35L41_INTERRUPT,
-	CS35l41_SYNC,
+  CS35L41_NOT_USED,
+  CS35l41_VSPK_SWITCH,
+  CS35L41_INTERRUPT,
+  CS35l41_SYNC,
 };
 
 enum control_bus {
-	I2C,
-	SPI
+  I2C,
+  SPI
 };
 
 struct cs35l41_hda {
-	struct device *dev;
-	struct regmap *regmap;
-	struct gpio_desc *reset_gpio;
-	struct gpio_desc *cs_gpio;
-	struct cs35l41_hw_cfg hw_cfg;
-	struct hda_codec *codec;
+  struct device *dev;
+  struct regmap *regmap;
+  struct gpio_desc *reset_gpio;
+  struct gpio_desc *cs_gpio;
+  struct cs35l41_hw_cfg hw_cfg;
+  struct hda_codec *codec;
 
-	int irq;
-	int index;
-	int channel_index;
-	unsigned volatile long irq_errors;
-	const char *amp_name;
-	const char *acpi_subsystem_id;
-	int firmware_type;
-	int speaker_id;
-	struct mutex fw_mutex;
-	struct work_struct fw_load_work;
+  int irq;
+  int index;
+  int channel_index;
+  unsigned volatile long irq_errors;
+  const char *amp_name;
+  const char *acpi_subsystem_id;
+  int firmware_type;
+  int speaker_id;
+  struct mutex fw_mutex;
+  struct work_struct fw_load_work;
 
-	struct regmap_irq_chip_data *irq_data;
-	bool firmware_running;
-	bool request_fw_load;
-	bool fw_request_ongoing;
-	bool halo_initialized;
-	bool playback_started;
-	struct cs_dsp cs_dsp;
-	struct acpi_device *dacpi;
-	bool mute_override;
-	enum control_bus control_bus;
-	bool bypass_fw;
-
+  struct regmap_irq_chip_data *irq_data;
+  bool firmware_running;
+  bool request_fw_load;
+  bool fw_request_ongoing;
+  bool halo_initialized;
+  bool playback_started;
+  struct cs_dsp cs_dsp;
+  struct acpi_device *dacpi;
+  bool mute_override;
+  enum control_bus control_bus;
+  bool bypass_fw;
 };
 
 enum halo_state {
-	HALO_STATE_CODE_INIT_DOWNLOAD = 0,
-	HALO_STATE_CODE_START,
-	HALO_STATE_CODE_RUN
+  HALO_STATE_CODE_INIT_DOWNLOAD = 0,
+  HALO_STATE_CODE_START,
+  HALO_STATE_CODE_RUN
 };
 
 extern const struct dev_pm_ops cs35l41_hda_pm_ops;
 
-int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
-		      struct regmap *regmap, enum control_bus control_bus);
+int cs35l41_hda_probe(struct device *dev, const char *device_name, int id,
+    int irq,
+    struct regmap *regmap, enum control_bus control_bus);
 void cs35l41_hda_remove(struct device *dev);
-int cs35l41_get_speaker_id(struct device *dev, int amp_index, int num_amps, int fixed_gpio_id);
+int cs35l41_get_speaker_id(struct device *dev, int amp_index, int num_amps,
+    int fixed_gpio_id);
 
 #endif /*__CS35L41_HDA_H__*/

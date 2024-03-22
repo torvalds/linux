@@ -5,11 +5,12 @@
 
 volatile __u64 test_get_constant = 0;
 SEC("freplace/get_constant")
-int security_new_get_constant(long val)
-{
-	if (val != 123)
-		return 0;
-	test_get_constant = 1;
-	return test_get_constant; /* original get_constant() returns val - 122 */
+int security_new_get_constant(long val) {
+  if (val != 123) {
+    return 0;
+  }
+  test_get_constant = 1;
+  return test_get_constant; /* original get_constant() returns val - 122 */
 }
+
 char _license[] SEC("license") = "GPL";

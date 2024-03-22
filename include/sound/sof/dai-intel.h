@@ -11,25 +11,25 @@
 
 #include <sound/sof/header.h>
 
- /* ssc1: TINTE */
-#define SOF_DAI_INTEL_SSP_QUIRK_TINTE		(1 << 0)
- /* ssc1: PINTE */
-#define SOF_DAI_INTEL_SSP_QUIRK_PINTE		(1 << 1)
- /* ssc2: SMTATF */
-#define SOF_DAI_INTEL_SSP_QUIRK_SMTATF		(1 << 2)
- /* ssc2: MMRATF */
-#define SOF_DAI_INTEL_SSP_QUIRK_MMRATF		(1 << 3)
- /* ssc2: PSPSTWFDFD */
-#define SOF_DAI_INTEL_SSP_QUIRK_PSPSTWFDFD	(1 << 4)
- /* ssc2: PSPSRWFDFD */
-#define SOF_DAI_INTEL_SSP_QUIRK_PSPSRWFDFD	(1 << 5)
+/* ssc1: TINTE */
+#define SOF_DAI_INTEL_SSP_QUIRK_TINTE   (1 << 0)
+/* ssc1: PINTE */
+#define SOF_DAI_INTEL_SSP_QUIRK_PINTE   (1 << 1)
+/* ssc2: SMTATF */
+#define SOF_DAI_INTEL_SSP_QUIRK_SMTATF    (1 << 2)
+/* ssc2: MMRATF */
+#define SOF_DAI_INTEL_SSP_QUIRK_MMRATF    (1 << 3)
+/* ssc2: PSPSTWFDFD */
+#define SOF_DAI_INTEL_SSP_QUIRK_PSPSTWFDFD  (1 << 4)
+/* ssc2: PSPSRWFDFD */
+#define SOF_DAI_INTEL_SSP_QUIRK_PSPSRWFDFD  (1 << 5)
 /* ssc1: LBM */
-#define SOF_DAI_INTEL_SSP_QUIRK_LBM		(1 << 6)
+#define SOF_DAI_INTEL_SSP_QUIRK_LBM   (1 << 6)
 
- /* here is the possibility to define others aux macros */
+/* here is the possibility to define others aux macros */
 
-#define SOF_DAI_INTEL_SSP_FRAME_PULSE_WIDTH_MAX		38
-#define SOF_DAI_INTEL_SSP_SLOT_PADDING_MAX		31
+#define SOF_DAI_INTEL_SSP_FRAME_PULSE_WIDTH_MAX   38
+#define SOF_DAI_INTEL_SSP_SLOT_PADDING_MAX    31
 
 /* SSP clocks control settings
  *
@@ -37,76 +37,76 @@
  */
 
 /* mclk 0 disable */
-#define SOF_DAI_INTEL_SSP_MCLK_0_DISABLE		BIT(0)
+#define SOF_DAI_INTEL_SSP_MCLK_0_DISABLE    BIT(0)
 /* mclk 1 disable */
-#define SOF_DAI_INTEL_SSP_MCLK_1_DISABLE		BIT(1)
+#define SOF_DAI_INTEL_SSP_MCLK_1_DISABLE    BIT(1)
 /* mclk keep active */
-#define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_KA		BIT(2)
+#define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_KA   BIT(2)
 /* bclk keep active */
-#define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_KA		BIT(3)
+#define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_KA   BIT(3)
 /* fs keep active */
-#define SOF_DAI_INTEL_SSP_CLKCTRL_FS_KA			BIT(4)
+#define SOF_DAI_INTEL_SSP_CLKCTRL_FS_KA     BIT(4)
 /* bclk idle */
-#define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_IDLE_HIGH	BIT(5)
+#define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_IDLE_HIGH  BIT(5)
 /* mclk early start */
 #define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_ES               BIT(6)
 /* bclk early start */
 #define SOF_DAI_INTEL_SSP_CLKCTRL_BCLK_ES               BIT(7)
 /* mclk always on */
-#define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_AON		BIT(8)
+#define SOF_DAI_INTEL_SSP_CLKCTRL_MCLK_AON    BIT(8)
 
 /* DMIC max. four controllers for eight microphone channels */
-#define SOF_DAI_INTEL_DMIC_NUM_CTRL			4
+#define SOF_DAI_INTEL_DMIC_NUM_CTRL     4
 
 /* SSP Configuration Request - SOF_IPC_DAI_SSP_CONFIG */
 struct sof_ipc_dai_ssp_params {
-	struct sof_ipc_hdr hdr;
-	uint16_t reserved1;
-	uint16_t mclk_id;
+  struct sof_ipc_hdr hdr;
+  uint16_t reserved1;
+  uint16_t mclk_id;
 
-	uint32_t mclk_rate;	/* mclk frequency in Hz */
-	uint32_t fsync_rate;	/* fsync frequency in Hz */
-	uint32_t bclk_rate;	/* bclk frequency in Hz */
+  uint32_t mclk_rate; /* mclk frequency in Hz */
+  uint32_t fsync_rate;  /* fsync frequency in Hz */
+  uint32_t bclk_rate; /* bclk frequency in Hz */
 
-	/* TDM */
-	uint32_t tdm_slots;
-	uint32_t rx_slots;
-	uint32_t tx_slots;
+  /* TDM */
+  uint32_t tdm_slots;
+  uint32_t rx_slots;
+  uint32_t tx_slots;
 
-	/* data */
-	uint32_t sample_valid_bits;
-	uint16_t tdm_slot_width;
-	uint16_t reserved2;	/* alignment */
+  /* data */
+  uint32_t sample_valid_bits;
+  uint16_t tdm_slot_width;
+  uint16_t reserved2; /* alignment */
 
-	/* MCLK */
-	uint32_t mclk_direction;
+  /* MCLK */
+  uint32_t mclk_direction;
 
-	uint16_t frame_pulse_width;
-	uint16_t tdm_per_slot_padding_flag;
-	uint32_t clks_control;
-	uint32_t quirks;
-	uint32_t bclk_delay;	/* guaranteed time (ms) for which BCLK
-				 * will be driven, before sending data
-				 */
+  uint16_t frame_pulse_width;
+  uint16_t tdm_per_slot_padding_flag;
+  uint32_t clks_control;
+  uint32_t quirks;
+  uint32_t bclk_delay;  /* guaranteed time (ms) for which BCLK
+                         * will be driven, before sending data
+                         */
 } __packed;
 
 /* HDA Configuration Request - SOF_IPC_DAI_HDA_CONFIG */
 struct sof_ipc_dai_hda_params {
-	struct sof_ipc_hdr hdr;
-	uint32_t link_dma_ch;
-	uint32_t rate;
-	uint32_t channels;
+  struct sof_ipc_hdr hdr;
+  uint32_t link_dma_ch;
+  uint32_t rate;
+  uint32_t channels;
 } __packed;
 
 /* ALH Configuration Request - SOF_IPC_DAI_ALH_CONFIG */
 struct sof_ipc_dai_alh_params {
-	struct sof_ipc_hdr hdr;
-	uint32_t stream_id;
-	uint32_t rate;
-	uint32_t channels;
+  struct sof_ipc_hdr hdr;
+  uint32_t stream_id;
+  uint32_t rate;
+  uint32_t channels;
 
-	/* reserved for future use */
-	uint32_t reserved[13];
+  /* reserved for future use */
+  uint32_t reserved[13];
 } __packed;
 
 /* DMIC Configuration Request - SOF_IPC_DAI_DMIC_CONFIG */
@@ -129,19 +129,19 @@ struct sof_ipc_dai_alh_params {
  * data integrity problems.
  */
 struct sof_ipc_dai_dmic_pdm_ctrl {
-	struct sof_ipc_hdr hdr;
-	uint16_t id;		/**< PDM controller ID */
+  struct sof_ipc_hdr hdr;
+  uint16_t id;    /**< PDM controller ID */
 
-	uint16_t enable_mic_a;	/**< Use A (left) channel mic (0 or 1)*/
-	uint16_t enable_mic_b;	/**< Use B (right) channel mic (0 or 1)*/
+  uint16_t enable_mic_a;  /**< Use A (left) channel mic (0 or 1)*/
+  uint16_t enable_mic_b;  /**< Use B (right) channel mic (0 or 1)*/
 
-	uint16_t polarity_mic_a; /**< Optionally invert mic A signal (0 or 1) */
-	uint16_t polarity_mic_b; /**< Optionally invert mic B signal (0 or 1) */
+  uint16_t polarity_mic_a; /**< Optionally invert mic A signal (0 or 1) */
+  uint16_t polarity_mic_b; /**< Optionally invert mic B signal (0 or 1) */
 
-	uint16_t clk_edge;	/**< Optionally swap data clock edge (0 or 1) */
-	uint16_t skew;		/**< Adjust PDM data sampling vs. clock (0..15) */
+  uint16_t clk_edge;  /**< Optionally swap data clock edge (0 or 1) */
+  uint16_t skew;    /**< Adjust PDM data sampling vs. clock (0..15) */
 
-	uint16_t reserved[3];	/**< Make sure the total size is 4 bytes aligned */
+  uint16_t reserved[3]; /**< Make sure the total size is 4 bytes aligned */
 } __packed;
 
 /* This struct contains the global settings for all 2ch PDM controllers. The
@@ -174,32 +174,32 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * treated as an error.
  */
 struct sof_ipc_dai_dmic_params {
-	struct sof_ipc_hdr hdr;
-	uint32_t driver_ipc_version;	/**< Version (1..N) */
+  struct sof_ipc_hdr hdr;
+  uint32_t driver_ipc_version;  /**< Version (1..N) */
 
-	uint32_t pdmclk_min;	/**< Minimum microphone clock in Hz (100000..N) */
-	uint32_t pdmclk_max;	/**< Maximum microphone clock in Hz (min...N) */
+  uint32_t pdmclk_min;  /**< Minimum microphone clock in Hz (100000..N) */
+  uint32_t pdmclk_max;  /**< Maximum microphone clock in Hz (min...N) */
 
-	uint32_t fifo_fs;	/**< FIFO sample rate in Hz (8000..96000) */
-	uint32_t reserved_1;	/**< Reserved */
-	uint16_t fifo_bits;	/**< FIFO word length (16 or 32) */
-	uint16_t fifo_bits_b;	/**< Deprecated since firmware ABI 3.0.1 */
+  uint32_t fifo_fs; /**< FIFO sample rate in Hz (8000..96000) */
+  uint32_t reserved_1;  /**< Reserved */
+  uint16_t fifo_bits; /**< FIFO word length (16 or 32) */
+  uint16_t fifo_bits_b; /**< Deprecated since firmware ABI 3.0.1 */
 
-	uint16_t duty_min;	/**< Min. mic clock duty cycle in % (20..80) */
-	uint16_t duty_max;	/**< Max. mic clock duty cycle in % (min..80) */
+  uint16_t duty_min;  /**< Min. mic clock duty cycle in % (20..80) */
+  uint16_t duty_max;  /**< Max. mic clock duty cycle in % (min..80) */
 
-	uint32_t num_pdm_active; /**< Number of active pdm controllers. */
-				 /**< Range is 1..SOF_DAI_INTEL_DMIC_NUM_CTRL */
+  uint32_t num_pdm_active; /**< Number of active pdm controllers. */
+  /**< Range is 1..SOF_DAI_INTEL_DMIC_NUM_CTRL */
 
-	uint32_t wake_up_time;      /**< Time from clock start to data (us) */
-	uint32_t min_clock_on_time; /**< Min. time that clk is kept on (us) */
-	uint32_t unmute_ramp_time;  /**< Length of logarithmic gain ramp (ms) */
+  uint32_t wake_up_time;      /**< Time from clock start to data (us) */
+  uint32_t min_clock_on_time; /**< Min. time that clk is kept on (us) */
+  uint32_t unmute_ramp_time;  /**< Length of logarithmic gain ramp (ms) */
 
-	/* reserved for future use */
-	uint32_t reserved[5];
+  /* reserved for future use */
+  uint32_t reserved[5];
 
-	/**< PDM controllers configuration */
-	struct sof_ipc_dai_dmic_pdm_ctrl pdm[SOF_DAI_INTEL_DMIC_NUM_CTRL];
+  /**< PDM controllers configuration */
+  struct sof_ipc_dai_dmic_pdm_ctrl pdm[SOF_DAI_INTEL_DMIC_NUM_CTRL];
 } __packed;
 
 #endif

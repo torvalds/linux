@@ -14,16 +14,16 @@
  */
 
 struct baycom_debug_data {
-	unsigned long debug1;
-	unsigned long debug2;
-	long debug3;
+  unsigned long debug1;
+  unsigned long debug2;
+  long debug3;
 };
 
 struct baycom_ioctl {
-	int cmd;
-	union {
-		struct baycom_debug_data dbg;
-	} data;
+  int cmd;
+  union {
+    struct baycom_debug_data dbg;
+  } data;
 };
 
 /* -------------------------------------------------------------------- */

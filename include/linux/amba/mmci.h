@@ -17,8 +17,8 @@
  * be called to determine whether a card is present in the MMC slot or not
  */
 struct mmci_platform_data {
-	unsigned int ocr_mask;
-	unsigned int (*status)(struct device *);
+  unsigned int ocr_mask;
+  unsigned int (*status)(struct device *);
 };
 
 #endif

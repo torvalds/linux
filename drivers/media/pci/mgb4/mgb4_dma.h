@@ -13,6 +13,6 @@ int mgb4_dma_channel_init(struct mgb4_dev *mgbdev);
 void mgb4_dma_channel_free(struct mgb4_dev *mgbdev);
 
 int mgb4_dma_transfer(struct mgb4_dev *mgbdev, u32 channel, bool write,
-		      u64 paddr, struct sg_table *sgt);
+    u64 paddr, struct sg_table *sgt);
 
 #endif

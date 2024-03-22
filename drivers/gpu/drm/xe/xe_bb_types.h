@@ -11,10 +11,10 @@
 struct drm_suballoc;
 
 struct xe_bb {
-	struct drm_suballoc *bo;
+  struct drm_suballoc *bo;
 
-	u32 *cs;
-	u32 len; /* in dwords */
+  u32 *cs;
+  u32 len; /* in dwords */
 };
 
 #endif

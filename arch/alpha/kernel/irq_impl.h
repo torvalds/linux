@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *	linux/arch/alpha/kernel/irq_impl.h
+ *  linux/arch/alpha/kernel/irq_impl.h
  *
- *	Copyright (C) 1995 Linus Torvalds
- *	Copyright (C) 1998, 2000 Richard Henderson
+ *  Copyright (C) 1995 Linus Torvalds
+ *  Copyright (C) 1998, 2000 Richard Henderson
  *
  * This file contains declarations and inline functions for interfacing
  * with the IRQ handling routines in irq.c.
@@ -12,7 +12,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/profile.h>
-
 
 #define RTC_IRQ    8
 
@@ -23,7 +22,7 @@ extern void pyxis_device_interrupt(unsigned long);
 
 extern void init_srm_irqs(long, unsigned long);
 extern void init_pyxis_irqs(unsigned long);
-extern void init_rtc_irq(irq_handler_t  handler);
+extern void init_rtc_irq(irq_handler_t handler);
 
 extern void common_init_isa_dma(void);
 

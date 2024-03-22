@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2018, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2018, Intel Corporation.*/
 
 #ifndef _ICE_LIB_H_
 #define _ICE_LIB_H_
@@ -8,8 +8,8 @@
 #include "ice_vlan.h"
 
 /* Flags used for VSI configuration and rebuild */
-#define ICE_VSI_FLAG_INIT	BIT(0)
-#define ICE_VSI_FLAG_NO_INIT	0
+#define ICE_VSI_FLAG_INIT BIT(0)
+#define ICE_VSI_FLAG_NO_INIT  0
 
 /**
  * struct ice_vsi_cfg_params - VSI configuration parameters
@@ -22,11 +22,11 @@
  * Parameter structure used when configuring a new VSI.
  */
 struct ice_vsi_cfg_params {
-	struct ice_port_info *pi;
-	struct ice_channel *ch;
-	struct ice_vf *vf;
-	enum ice_vsi_type type;
-	u32 flags;
+  struct ice_port_info *pi;
+  struct ice_channel *ch;
+  struct ice_vf *vf;
+  enum ice_vsi_type type;
+  u32 flags;
 };
 
 /**
@@ -36,16 +36,13 @@ struct ice_vsi_cfg_params {
  * Fill a parameter structure for reconfiguring a VSI with its current
  * parameters, such as during a rebuild operation.
  */
-static inline struct ice_vsi_cfg_params ice_vsi_to_params(struct ice_vsi *vsi)
-{
-	struct ice_vsi_cfg_params params = {};
-
-	params.pi = vsi->port_info;
-	params.ch = vsi->ch;
-	params.vf = vsi->vf;
-	params.type = vsi->type;
-
-	return params;
+static inline struct ice_vsi_cfg_params ice_vsi_to_params(struct ice_vsi *vsi) {
+  struct ice_vsi_cfg_params params = {};
+  params.pi = vsi->port_info;
+  params.ch = vsi->ch;
+  params.vf = vsi->vf;
+  params.type = vsi->type;
+  return params;
 }
 
 const char *ice_vsi_type_str(enum ice_vsi_type vsi_type);
@@ -60,9 +57,9 @@ int ice_vsi_start_all_rx_rings(struct ice_vsi *vsi);
 
 int ice_vsi_stop_all_rx_rings(struct ice_vsi *vsi);
 
-int
-ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
-			  u16 rel_vmvf_num);
+int ice_vsi_stop_lan_tx_rings(struct ice_vsi *vsi,
+    enum ice_disq_rst_src rst_src,
+    u16 rel_vmvf_num);
 
 int ice_vsi_stop_xdp_tx_rings(struct ice_vsi *vsi);
 
@@ -78,12 +75,11 @@ int ice_vsi_cfg_rss_lut_key(struct ice_vsi *vsi);
 
 void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
 
-struct ice_vsi *
-ice_vsi_setup(struct ice_pf *pf, struct ice_vsi_cfg_params *params);
+struct ice_vsi *ice_vsi_setup(struct ice_pf *pf,
+    struct ice_vsi_cfg_params *params);
 
-void
-ice_queue_set_napi(struct ice_vsi *vsi, unsigned int queue_index,
-		   enum netdev_queue_type type, struct napi_struct *napi);
+void ice_queue_set_napi(struct ice_vsi *vsi, unsigned int queue_index,
+    enum netdev_queue_type type, struct napi_struct *napi);
 
 void __ice_q_vector_set_napi_queues(struct ice_q_vector *q_vector, bool locked);
 
@@ -106,9 +102,8 @@ int ice_vsi_cfg(struct ice_vsi *vsi, struct ice_vsi_cfg_params *params);
 bool ice_is_reset_in_progress(unsigned long *state);
 int ice_wait_for_reset(struct ice_pf *pf, unsigned long timeout);
 
-void
-ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio,
-			bool ena_ts);
+void ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio,
+    bool ena_ts);
 
 void ice_vsi_free_irq(struct ice_vsi *vsi);
 
@@ -140,8 +135,8 @@ int ice_set_min_bw_limit(struct ice_vsi *vsi, u64 min_tx_rate);
 int ice_set_max_bw_limit(struct ice_vsi *vsi, u64 max_tx_rate);
 int ice_get_link_speed_kbps(struct ice_vsi *vsi);
 int ice_get_link_speed_mbps(struct ice_vsi *vsi);
-int
-ice_vsi_update_security(struct ice_vsi *vsi, void (*fill)(struct ice_vsi_ctx *));
+int ice_vsi_update_security(struct ice_vsi *vsi, void (*fill)(
+    struct ice_vsi_ctx *));
 
 void ice_vsi_ctx_set_antispoof(struct ice_vsi_ctx *ctx);
 

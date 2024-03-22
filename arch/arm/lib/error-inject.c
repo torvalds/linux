@@ -3,8 +3,8 @@
 #include <linux/error-injection.h>
 #include <linux/kprobes.h>
 
-void override_function_with_return(struct pt_regs *regs)
-{
-	instruction_pointer_set(regs, regs->ARM_lr);
+void override_function_with_return(struct pt_regs *regs) {
+  instruction_pointer_set(regs, regs->ARM_lr);
 }
+
 NOKPROBE_SYMBOL(override_function_with_return);

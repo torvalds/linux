@@ -16,22 +16,20 @@
 #include <asm/io.h>
 #include <asm/jazz.h>
 
-#define RTC_PORT(x)	(0x70 + (x))
-#define RTC_IRQ		8
+#define RTC_PORT(x) (0x70 + (x))
+#define RTC_IRQ   8
 
-static inline unsigned char CMOS_READ(unsigned long addr)
-{
-	outb_p(addr, RTC_PORT(0));
-	return *(volatile char *)JAZZ_RTC_BASE;
+static inline unsigned char CMOS_READ(unsigned long addr) {
+  outb_p(addr, RTC_PORT(0));
+  return *(volatile char *) JAZZ_RTC_BASE;
 }
 
-static inline void CMOS_WRITE(unsigned char data, unsigned long addr)
-{
-	outb_p(addr, RTC_PORT(0));
-	*(volatile char *)JAZZ_RTC_BASE = data;
+static inline void CMOS_WRITE(unsigned char data, unsigned long addr) {
+  outb_p(addr, RTC_PORT(0));
+  *(volatile char *) JAZZ_RTC_BASE = data;
 }
 
-#define RTC_ALWAYS_BCD	0
+#define RTC_ALWAYS_BCD  0
 
 #define mc146818_decode_year(year) ((year) + 1980)
 

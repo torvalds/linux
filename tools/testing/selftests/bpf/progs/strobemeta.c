@@ -7,4 +7,3 @@
 #define STROBE_MAX_MAP_ENTRIES 20
 /* full unroll by llvm #undef NO_UNROLL */
 #include "strobemeta.h"
-

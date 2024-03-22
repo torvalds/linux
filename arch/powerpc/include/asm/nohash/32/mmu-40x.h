@@ -17,18 +17,18 @@
  * instructions.
  */
 
-#define	TLB_LO          1
-#define	TLB_HI          0
+#define TLB_LO          1
+#define TLB_HI          0
 
-#define	TLB_DATA        TLB_LO
-#define	TLB_TAG         TLB_HI
+#define TLB_DATA        TLB_LO
+#define TLB_TAG         TLB_HI
 
 /* Tag portion */
 
 #define TLB_EPN_MASK    0xFFFFFC00      /* Effective Page Number */
 #define TLB_PAGESZ_MASK 0x00000380
 #define TLB_PAGESZ(x)   (((x) & 0x7) << 7)
-#define   PAGESZ_1K		0
+#define   PAGESZ_1K   0
 #define   PAGESZ_4K             1
 #define   PAGESZ_16K            2
 #define   PAGESZ_64K            3
@@ -55,14 +55,14 @@
 #ifndef __ASSEMBLY__
 
 typedef struct {
-	unsigned int	id;
-	unsigned int	active;
-	void __user	*vdso;
+  unsigned int id;
+  unsigned int active;
+  void __user *vdso;
 } mm_context_t;
 
 #endif /* !__ASSEMBLY__ */
 
-#define mmu_virtual_psize	MMU_PAGE_4K
-#define mmu_linear_psize	MMU_PAGE_256M
+#define mmu_virtual_psize MMU_PAGE_4K
+#define mmu_linear_psize  MMU_PAGE_256M
 
 #endif /* _ASM_POWERPC_MMU_40X_H_ */

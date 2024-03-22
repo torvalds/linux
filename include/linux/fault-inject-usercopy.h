@@ -15,7 +15,9 @@ bool should_fail_usercopy(void);
 
 #else
 
-static inline bool should_fail_usercopy(void) { return false; }
+static inline bool should_fail_usercopy(void) {
+  return false;
+}
 
 #endif /* CONFIG_FAULT_INJECTION_USERCOPY */
 

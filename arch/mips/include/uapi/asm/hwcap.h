@@ -3,10 +3,10 @@
 #define _UAPI_ASM_HWCAP_H
 
 /* HWCAP flags */
-#define HWCAP_MIPS_R6		(1 << 0)
-#define HWCAP_MIPS_MSA		(1 << 1)
-#define HWCAP_MIPS_CRC32	(1 << 2)
-#define HWCAP_MIPS_MIPS16	(1 << 3)
+#define HWCAP_MIPS_R6   (1 << 0)
+#define HWCAP_MIPS_MSA    (1 << 1)
+#define HWCAP_MIPS_CRC32  (1 << 2)
+#define HWCAP_MIPS_MIPS16 (1 << 3)
 #define HWCAP_MIPS_MDMX     (1 << 4)
 #define HWCAP_MIPS_MIPS3D   (1 << 5)
 #define HWCAP_MIPS_SMARTMIPS (1 << 6)

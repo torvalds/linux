@@ -32,35 +32,35 @@ struct regulator;
  * BYPASS:   Regulator can be put into bypass mode
  */
 
-#define REGULATOR_CHANGE_VOLTAGE	0x1
-#define REGULATOR_CHANGE_CURRENT	0x2
-#define REGULATOR_CHANGE_MODE		0x4
-#define REGULATOR_CHANGE_STATUS		0x8
-#define REGULATOR_CHANGE_DRMS		0x10
-#define REGULATOR_CHANGE_BYPASS		0x20
+#define REGULATOR_CHANGE_VOLTAGE  0x1
+#define REGULATOR_CHANGE_CURRENT  0x2
+#define REGULATOR_CHANGE_MODE   0x4
+#define REGULATOR_CHANGE_STATUS   0x8
+#define REGULATOR_CHANGE_DRMS   0x10
+#define REGULATOR_CHANGE_BYPASS   0x20
 
 /*
  * operations in suspend mode
  * DO_NOTHING_IN_SUSPEND - the default value
- * DISABLE_IN_SUSPEND	- turn off regulator in suspend states
- * ENABLE_IN_SUSPEND	- keep regulator on in suspend states
+ * DISABLE_IN_SUSPEND - turn off regulator in suspend states
+ * ENABLE_IN_SUSPEND  - keep regulator on in suspend states
  */
-#define DO_NOTHING_IN_SUSPEND	0
-#define DISABLE_IN_SUSPEND	1
-#define ENABLE_IN_SUSPEND	2
+#define DO_NOTHING_IN_SUSPEND 0
+#define DISABLE_IN_SUSPEND  1
+#define ENABLE_IN_SUSPEND 2
 
 /*
  * Default time window (in milliseconds) following a critical under-voltage
  * event during which less critical actions can be safely carried out by the
  * system.
  */
-#define REGULATOR_DEF_UV_LESS_CRITICAL_WINDOW_MS	10
+#define REGULATOR_DEF_UV_LESS_CRITICAL_WINDOW_MS  10
 
 /* Regulator active discharge flags */
 enum regulator_active_discharge {
-	REGULATOR_ACTIVE_DISCHARGE_DEFAULT,
-	REGULATOR_ACTIVE_DISCHARGE_DISABLE,
-	REGULATOR_ACTIVE_DISCHARGE_ENABLE,
+  REGULATOR_ACTIVE_DISCHARGE_DEFAULT,
+  REGULATOR_ACTIVE_DISCHARGE_DISABLE,
+  REGULATOR_ACTIVE_DISCHARGE_ENABLE,
 };
 
 /**
@@ -71,31 +71,31 @@ enum regulator_active_discharge {
  * configuration to be applied.
  *
  * @uV: Default operating voltage during suspend, it can be adjusted
- *	among <min_uV, max_uV>.
+ *  among <min_uV, max_uV>.
  * @min_uV: Minimum suspend voltage may be set.
  * @max_uV: Maximum suspend voltage may be set.
  * @mode: Operating mode during suspend.
  * @enabled: operations during suspend.
- *	     - DO_NOTHING_IN_SUSPEND
- *	     - DISABLE_IN_SUSPEND
- *	     - ENABLE_IN_SUSPEND
+ *       - DO_NOTHING_IN_SUSPEND
+ *       - DISABLE_IN_SUSPEND
+ *       - ENABLE_IN_SUSPEND
  * @changeable: Is this state can be switched between enabled/disabled,
  */
 struct regulator_state {
-	int uV;
-	int min_uV;
-	int max_uV;
-	unsigned int mode;
-	int enabled;
-	bool changeable;
+  int uV;
+  int min_uV;
+  int max_uV;
+  unsigned int mode;
+  int enabled;
+  bool changeable;
 };
 
 #define REGULATOR_NOTIF_LIMIT_DISABLE -1
 #define REGULATOR_NOTIF_LIMIT_ENABLE -2
 struct notification_limit {
-	int prot;
-	int err;
-	int warn;
+  int prot;
+  int err;
+  int warn;
 };
 
 /**
@@ -115,10 +115,10 @@ struct notification_limit {
  * @ilim_uA: Maximum input current.
  * @system_load: Load that isn't captured by any consumer requests.
  *
- * @over_curr_limits:		Limits for acting on over current.
- * @over_voltage_limits:	Limits for acting on over voltage.
- * @under_voltage_limits:	Limits for acting on under voltage.
- * @temp_limits:		Limits for acting on over temperature.
+ * @over_curr_limits:   Limits for acting on over current.
+ * @over_voltage_limits:  Limits for acting on over voltage.
+ * @under_voltage_limits: Limits for acting on under voltage.
+ * @temp_limits:    Limits for acting on over temperature.
  *
  * @max_spread: Max possible spread between coupled regulators
  * @max_uV_step: Max possible step change in voltage
@@ -153,14 +153,14 @@ struct notification_limit {
  * @initial_mode: Mode to set at startup.
  * @ramp_delay: Time to settle down after voltage change (unit: uV/us)
  * @settling_time: Time to settle down after voltage change when voltage
- *		   change is non-linear (unit: microseconds).
+ *       change is non-linear (unit: microseconds).
  * @settling_time_up: Time to settle down after voltage increase when voltage
- *		      change is non-linear (unit: microseconds).
+ *          change is non-linear (unit: microseconds).
  * @settling_time_down : Time to settle down after voltage decrease when
- *			 voltage change is non-linear (unit: microseconds).
+ *       voltage change is non-linear (unit: microseconds).
  * @active_discharge: Enable/disable active discharge. The enum
- *		      regulator_active_discharge values are used for
- *		      initialisation.
+ *          regulator_active_discharge values are used for
+ *          initialisation.
  * @enable_time: Turn-on time of the rails (unit: microseconds)
  * @uv_less_critical_window_ms: Specifies the time window (in milliseconds)
  *                              following a critical under-voltage (UV) event
@@ -171,72 +171,71 @@ struct notification_limit {
  *                              HW damage).
  */
 struct regulation_constraints {
+  const char *name;
 
-	const char *name;
+  /* voltage output range (inclusive) - for voltage control */
+  int min_uV;
+  int max_uV;
 
-	/* voltage output range (inclusive) - for voltage control */
-	int min_uV;
-	int max_uV;
+  int uV_offset;
 
-	int uV_offset;
+  /* current output range (inclusive) - for current control */
+  int min_uA;
+  int max_uA;
+  int ilim_uA;
 
-	/* current output range (inclusive) - for current control */
-	int min_uA;
-	int max_uA;
-	int ilim_uA;
+  int system_load;
 
-	int system_load;
+  /* used for coupled regulators */
+  u32 *max_spread;
 
-	/* used for coupled regulators */
-	u32 *max_spread;
+  /* used for changing voltage in steps */
+  int max_uV_step;
 
-	/* used for changing voltage in steps */
-	int max_uV_step;
+  /* valid regulator operating modes for this machine */
+  unsigned int valid_modes_mask;
 
-	/* valid regulator operating modes for this machine */
-	unsigned int valid_modes_mask;
+  /* valid operations for regulator on this machine */
+  unsigned int valid_ops_mask;
 
-	/* valid operations for regulator on this machine */
-	unsigned int valid_ops_mask;
+  /* regulator input voltage - only if supply is another regulator */
+  int input_uV;
 
-	/* regulator input voltage - only if supply is another regulator */
-	int input_uV;
+  /* regulator suspend states for global PMIC STANDBY/HIBERNATE */
+  struct regulator_state state_disk;
+  struct regulator_state state_mem;
+  struct regulator_state state_standby;
+  struct notification_limit over_curr_limits;
+  struct notification_limit over_voltage_limits;
+  struct notification_limit under_voltage_limits;
+  struct notification_limit temp_limits;
+  suspend_state_t initial_state; /* suspend state to set at init */
 
-	/* regulator suspend states for global PMIC STANDBY/HIBERNATE */
-	struct regulator_state state_disk;
-	struct regulator_state state_mem;
-	struct regulator_state state_standby;
-	struct notification_limit over_curr_limits;
-	struct notification_limit over_voltage_limits;
-	struct notification_limit under_voltage_limits;
-	struct notification_limit temp_limits;
-	suspend_state_t initial_state; /* suspend state to set at init */
+  /* mode to set on startup */
+  unsigned int initial_mode;
 
-	/* mode to set on startup */
-	unsigned int initial_mode;
+  unsigned int ramp_delay;
+  unsigned int settling_time;
+  unsigned int settling_time_up;
+  unsigned int settling_time_down;
+  unsigned int enable_time;
+  unsigned int uv_less_critical_window_ms;
 
-	unsigned int ramp_delay;
-	unsigned int settling_time;
-	unsigned int settling_time_up;
-	unsigned int settling_time_down;
-	unsigned int enable_time;
-	unsigned int uv_less_critical_window_ms;
+  unsigned int active_discharge;
 
-	unsigned int active_discharge;
-
-	/* constraint flags */
-	unsigned always_on:1;	/* regulator never off when system is on */
-	unsigned boot_on:1;	/* bootloader/firmware enabled regulator */
-	unsigned apply_uV:1;	/* apply uV constraint if min == max */
-	unsigned ramp_disable:1; /* disable ramp delay */
-	unsigned soft_start:1;	/* ramp voltage slowly */
-	unsigned pull_down:1;	/* pull down resistor when regulator off */
-	unsigned system_critical:1;	/* critical to system stability */
-	unsigned over_current_protection:1; /* auto disable on over current */
-	unsigned over_current_detection:1; /* notify on over current */
-	unsigned over_voltage_detection:1; /* notify on over voltage */
-	unsigned under_voltage_detection:1; /* notify on under voltage */
-	unsigned over_temp_detection:1; /* notify on over temperature */
+  /* constraint flags */
+  unsigned always_on : 1; /* regulator never off when system is on */
+  unsigned boot_on : 1; /* bootloader/firmware enabled regulator */
+  unsigned apply_uV : 1;  /* apply uV constraint if min == max */
+  unsigned ramp_disable : 1; /* disable ramp delay */
+  unsigned soft_start : 1;  /* ramp voltage slowly */
+  unsigned pull_down : 1; /* pull down resistor when regulator off */
+  unsigned system_critical : 1; /* critical to system stability */
+  unsigned over_current_protection : 1; /* auto disable on over current */
+  unsigned over_current_detection : 1; /* notify on over current */
+  unsigned over_voltage_detection : 1; /* notify on over voltage */
+  unsigned under_voltage_detection : 1; /* notify on under voltage */
+  unsigned over_temp_detection : 1; /* notify on over temperature */
 };
 
 /**
@@ -249,16 +248,16 @@ struct regulation_constraints {
  * @supply: Name for the supply.
  */
 struct regulator_consumer_supply {
-	const char *dev_name;   /* dev_name() for consumer */
-	const char *supply;	/* consumer supply - e.g. "vcc" */
+  const char *dev_name;   /* dev_name() for consumer */
+  const char *supply; /* consumer supply - e.g. "vcc" */
 };
 
 /* Initialize struct regulator_consumer_supply */
-#define REGULATOR_SUPPLY(_name, _dev_name)			\
-{								\
-	.supply		= _name,				\
-	.dev_name	= _dev_name,				\
-}
+#define REGULATOR_SUPPLY(_name, _dev_name)      \
+  {               \
+    .supply = _name,        \
+    .dev_name = _dev_name,        \
+  }
 
 /**
  * struct regulator_init_data - regulator platform initialisation data.
@@ -278,33 +277,32 @@ struct regulator_consumer_supply {
  * @driver_data: Data passed to regulator_init.
  */
 struct regulator_init_data {
-	const char *supply_regulator;        /* or NULL for system supply */
+  const char *supply_regulator;        /* or NULL for system supply */
 
-	struct regulation_constraints constraints;
+  struct regulation_constraints constraints;
 
-	int num_consumer_supplies;
-	struct regulator_consumer_supply *consumer_supplies;
+  int num_consumer_supplies;
+  struct regulator_consumer_supply *consumer_supplies;
 
-	/* optional regulator machine specific init */
-	int (*regulator_init)(void *driver_data);
-	void *driver_data;	/* core does not touch this */
+  /* optional regulator machine specific init */
+  int (*regulator_init)(void *driver_data);
+  void *driver_data;  /* core does not touch this */
 };
 
 #ifdef CONFIG_REGULATOR
 void regulator_has_full_constraints(void);
 #else
-static inline void regulator_has_full_constraints(void)
-{
+static inline void regulator_has_full_constraints(void) {
 }
+
 #endif
 
-static inline int regulator_suspend_prepare(suspend_state_t state)
-{
-	return 0;
+static inline int regulator_suspend_prepare(suspend_state_t state) {
+  return 0;
 }
-static inline int regulator_suspend_finish(void)
-{
-	return 0;
+
+static inline int regulator_suspend_finish(void) {
+  return 0;
 }
 
 #endif

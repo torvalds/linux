@@ -7,61 +7,60 @@
 
 #include "fw/regulatory.h"
 
-#define IWL_UEFI_OEM_PNVM_NAME		L"UefiCnvWlanOemSignedPnvm"
-#define IWL_UEFI_REDUCED_POWER_NAME	L"UefiCnvWlanReducedPower"
-#define IWL_UEFI_SGOM_NAME		L"UefiCnvWlanSarGeoOffsetMapping"
-#define IWL_UEFI_STEP_NAME		L"UefiCnvCommonSTEP"
-#define IWL_UEFI_UATS_NAME		L"CnvUefiWlanUATS"
-#define IWL_UEFI_WRDS_NAME		L"UefiCnvWlanWRDS"
-#define IWL_UEFI_EWRD_NAME		L"UefiCnvWlanEWRD"
-#define IWL_UEFI_WGDS_NAME		L"UefiCnvWlanWGDS"
-#define IWL_UEFI_PPAG_NAME		L"UefiCnvWlanPPAG"
-#define IWL_UEFI_WTAS_NAME		L"UefiCnvWlanWTAS"
-#define IWL_UEFI_SPLC_NAME		L"UefiCnvWlanSPLC"
-#define IWL_UEFI_WRDD_NAME		L"UefiCnvWlanWRDD"
-#define IWL_UEFI_ECKV_NAME		L"UefiCnvWlanECKV"
-#define IWL_UEFI_DSM_NAME		L"UefiCnvWlanGeneralCfg"
+#define IWL_UEFI_OEM_PNVM_NAME    L"UefiCnvWlanOemSignedPnvm"
+#define IWL_UEFI_REDUCED_POWER_NAME L"UefiCnvWlanReducedPower"
+#define IWL_UEFI_SGOM_NAME    L"UefiCnvWlanSarGeoOffsetMapping"
+#define IWL_UEFI_STEP_NAME    L"UefiCnvCommonSTEP"
+#define IWL_UEFI_UATS_NAME    L"CnvUefiWlanUATS"
+#define IWL_UEFI_WRDS_NAME    L"UefiCnvWlanWRDS"
+#define IWL_UEFI_EWRD_NAME    L"UefiCnvWlanEWRD"
+#define IWL_UEFI_WGDS_NAME    L"UefiCnvWlanWGDS"
+#define IWL_UEFI_PPAG_NAME    L"UefiCnvWlanPPAG"
+#define IWL_UEFI_WTAS_NAME    L"UefiCnvWlanWTAS"
+#define IWL_UEFI_SPLC_NAME    L"UefiCnvWlanSPLC"
+#define IWL_UEFI_WRDD_NAME    L"UefiCnvWlanWRDD"
+#define IWL_UEFI_ECKV_NAME    L"UefiCnvWlanECKV"
+#define IWL_UEFI_DSM_NAME   L"UefiCnvWlanGeneralCfg"
 
+#define IWL_SGOM_MAP_SIZE   339
+#define IWL_UATS_MAP_SIZE   339
 
-#define IWL_SGOM_MAP_SIZE		339
-#define IWL_UATS_MAP_SIZE		339
-
-#define IWL_UEFI_WRDS_REVISION		2
-#define IWL_UEFI_EWRD_REVISION		2
-#define IWL_UEFI_WGDS_REVISION		3
-#define IWL_UEFI_MIN_PPAG_REV		1
-#define IWL_UEFI_MAX_PPAG_REV		3
-#define IWL_UEFI_WTAS_REVISION		1
-#define IWL_UEFI_SPLC_REVISION		0
-#define IWL_UEFI_WRDD_REVISION		0
-#define IWL_UEFI_ECKV_REVISION		0
-#define IWL_UEFI_DSM_REVISION		4
+#define IWL_UEFI_WRDS_REVISION    2
+#define IWL_UEFI_EWRD_REVISION    2
+#define IWL_UEFI_WGDS_REVISION    3
+#define IWL_UEFI_MIN_PPAG_REV   1
+#define IWL_UEFI_MAX_PPAG_REV   3
+#define IWL_UEFI_WTAS_REVISION    1
+#define IWL_UEFI_SPLC_REVISION    0
+#define IWL_UEFI_WRDD_REVISION    0
+#define IWL_UEFI_ECKV_REVISION    0
+#define IWL_UEFI_DSM_REVISION   4
 
 struct pnvm_sku_package {
-	u8 rev;
-	u32 total_size;
-	u8 n_skus;
-	u32 reserved[2];
-	u8 data[];
+  u8 rev;
+  u32 total_size;
+  u8 n_skus;
+  u32 reserved[2];
+  u8 data[];
 } __packed;
 
 struct uefi_cnv_wlan_sgom_data {
-	u8 revision;
-	u8 offset_map[IWL_SGOM_MAP_SIZE - 1];
+  u8 revision;
+  u8 offset_map[IWL_SGOM_MAP_SIZE - 1];
 } __packed;
 
 struct uefi_cnv_wlan_uats_data {
-	u8 revision;
-	u8 offset_map[IWL_UATS_MAP_SIZE - 1];
+  u8 revision;
+  u8 offset_map[IWL_UATS_MAP_SIZE - 1];
 } __packed;
 
 struct uefi_cnv_common_step_data {
-	u8 revision;
-	u8 step_mode;
-	u8 cnvi_eq_channel;
-	u8 cnvr_eq_channel;
-	u8 radio1;
-	u8 radio2;
+  u8 revision;
+  u8 step_mode;
+  u8 cnvi_eq_channel;
+  u8 cnvr_eq_channel;
+  u8 radio1;
+  u8 radio2;
 } __packed;
 
 /*
@@ -70,7 +69,7 @@ struct uefi_cnv_common_step_data {
  * @chains: a per-chain table of SAR values
  */
 struct uefi_sar_profile {
-	struct iwl_sar_profile_chain chains[BIOS_SAR_MAX_CHAINS_PER_PROFILE];
+  struct iwl_sar_profile_chain chains[BIOS_SAR_MAX_CHAINS_PER_PROFILE];
 } __packed;
 
 /*
@@ -81,9 +80,9 @@ struct uefi_sar_profile {
  * @sar_profile: sar profile #1
  */
 struct uefi_cnv_var_wrds {
-	u8 revision;
-	u32 mode;
-	struct uefi_sar_profile sar_profile;
+  u8 revision;
+  u32 mode;
+  struct uefi_sar_profile sar_profile;
 } __packed;
 
 /*
@@ -94,23 +93,23 @@ struct uefi_cnv_var_wrds {
  * @sar_profiles: the additional SAR profiles (#2-#4)
  */
 struct uefi_cnv_var_ewrd {
-	u8 revision;
-	u32 mode;
-	u32 num_profiles;
-	struct uefi_sar_profile sar_profiles[BIOS_SAR_MAX_PROFILE_NUM - 1];
+  u8 revision;
+  u32 mode;
+  u32 num_profiles;
+  struct uefi_sar_profile sar_profiles[BIOS_SAR_MAX_PROFILE_NUM - 1];
 } __packed;
 
 /*
  * struct uefi_cnv_var_wgds - WGDS table as defined in UEFI
  * @revision: the revision of the table
  * @num_profiles: the number of geo profiles we have in the table.
- *	The first 3 are mandatory, and can have up to 8.
+ *  The first 3 are mandatory, and can have up to 8.
  * @geo_profiles: a per-profile table of the offsets to add to SAR values.
  */
 struct uefi_cnv_var_wgds {
-	u8 revision;
-	u8 num_profiles;
-	struct iwl_geo_profile geo_profiles[BIOS_GEO_MAX_PROFILE_NUM];
+  u8 revision;
+  u8 num_profiles;
+  struct iwl_geo_profile geo_profiles[BIOS_GEO_MAX_PROFILE_NUM];
 } __packed;
 
 /*
@@ -120,9 +119,9 @@ struct uefi_cnv_var_wgds {
  * @ppag_chains: the PPAG values per chain and band
  */
 struct uefi_cnv_var_ppag {
-	u8 revision;
-	u32 ppag_modes;
-	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
+  u8 revision;
+  u32 ppag_modes;
+  struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 } __packed;
 
 /* struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
@@ -132,10 +131,10 @@ struct uefi_cnv_var_ppag {
  * @black_list: a list of countries that are not allowed to use the TAS feature
  */
 struct uefi_cnv_var_wtas {
-	u8 revision;
-	u32 tas_selection;
-	u8 black_list_size;
-	u16 black_list[IWL_WTAS_BLACK_LIST_MAX];
+  u8 revision;
+  u32 tas_selection;
+  u8 black_list_size;
+  u16 black_list[IWL_WTAS_BLACK_LIST_MAX];
 } __packed;
 
 /* struct uefi_cnv_var_splc - SPLC tabled as defined in UEFI
@@ -143,8 +142,8 @@ struct uefi_cnv_var_wtas {
  * @default_pwr_limit: The default maximum power per device
  */
 struct uefi_cnv_var_splc {
-	u8 revision;
-	u32 default_pwr_limit;
+  u8 revision;
+  u32 default_pwr_limit;
 } __packed;
 
 #define UEFI_MCC_CHINA 0x434e
@@ -154,8 +153,8 @@ struct uefi_cnv_var_splc {
  * @mcc: country identifier as defined in ISO/IEC 3166-1 Alpha 2 code
  */
 struct uefi_cnv_var_wrdd {
-	u8 revision;
-	u32 mcc;
+  u8 revision;
+  u32 mcc;
 } __packed;
 
 /* struct uefi_cnv_var_eckv - ECKV table as defined in UEFI
@@ -163,8 +162,8 @@ struct uefi_cnv_var_wrdd {
  * @ext_clock_valid: indicates if external 32KHz clock is valid
  */
 struct uefi_cnv_var_eckv {
-	u8 revision;
-	u32 ext_clock_valid;
+  u8 revision;
+  u32 ext_clock_valid;
 } __packed;
 
 #define UEFI_MAX_DSM_FUNCS 32
@@ -174,8 +173,8 @@ struct uefi_cnv_var_eckv {
  * @functions: payload of the different DSM functions
  */
 struct uefi_cnv_var_general_cfg {
-	u8 revision;
-	u32 functions[UEFI_MAX_DSM_FUNCS];
+  u8 revision;
+  u32 functions[UEFI_MAX_DSM_FUNCS];
 } __packed;
 
 /*
@@ -187,116 +186,103 @@ struct uefi_cnv_var_general_cfg {
 void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len);
 u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len);
 int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
-				const u8 *data, size_t len,
-				struct iwl_pnvm_image *pnvm_data);
+    const u8 *data, size_t len,
+    struct iwl_pnvm_image *pnvm_data);
 void iwl_uefi_get_step_table(struct iwl_trans *trans);
 int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
-				 u32 tlv_len, struct iwl_pnvm_image *pnvm_data);
+    u32 tlv_len, struct iwl_pnvm_image *pnvm_data);
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
-			   struct iwl_tas_data *data);
+    struct iwl_tas_data *data);
 int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
-			   u64 *dflt_pwr_limit);
+    u64 *dflt_pwr_limit);
 int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk);
 int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
-		     u32 *value);
-void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt);
+    u32 *value);
+void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
+    struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_uats_table(struct iwl_trans *trans,
-			    struct iwl_fw_runtime *fwrt);
+    struct iwl_fw_runtime *fwrt);
 #else /* CONFIG_EFI */
-static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
-{
-	return ERR_PTR(-EOPNOTSUPP);
+static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len) {
+  return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline int
-iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
-			    const u8 *data, size_t len,
-			    struct iwl_pnvm_image *pnvm_data)
-{
-	return -EOPNOTSUPP;
+static inline int iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
+    const u8 *data, size_t len,
+    struct iwl_pnvm_image *pnvm_data) {
+  return -EOPNOTSUPP;
 }
 
-static inline u8 *
-iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
-{
-	return ERR_PTR(-EOPNOTSUPP);
+static inline u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans,
+    size_t *len) {
+  return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline void iwl_uefi_get_step_table(struct iwl_trans *trans)
-{
+static inline void iwl_uefi_get_step_table(struct iwl_trans *trans) {
 }
 
-static inline int
-iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
-			     u32 tlv_len, struct iwl_pnvm_image *pnvm_data)
-{
-	return 0;
+static inline int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans,
+    const u8 *data,
+    u32 tlv_len, struct iwl_pnvm_image *pnvm_data) {
+  return 0;
 }
 
-static inline int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
-{
-	return -ENOENT;
+static inline int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt) {
+  return -ENOENT;
 }
 
-static inline int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
-{
-	return -ENOENT;
+static inline int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt) {
+  return -ENOENT;
 }
 
-static inline int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
-{
-	return -ENOENT;
+static inline int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt) {
+  return -ENOENT;
 }
 
-static inline int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
-{
-	return -ENOENT;
+static inline int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt) {
+  return -ENOENT;
 }
 
 static inline int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
-					 struct iwl_tas_data *data)
-{
-	return -ENOENT;
+    struct iwl_tas_data *data) {
+  return -ENOENT;
 }
 
 static inline int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
-					 u64 *dflt_pwr_limit)
-{
-	*dflt_pwr_limit = 0;
-	return 0;
+    u64 *dflt_pwr_limit) {
+  *dflt_pwr_limit = 0;
+  return 0;
 }
 
-static inline int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
-{
-	return -ENOENT;
+static inline int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc) {
+  return -ENOENT;
 }
 
-static inline int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
-{
-	return -ENOENT;
+static inline int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt,
+    u32 *extl_clk) {
+  return -ENOENT;
 }
 
 static inline int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt,
-				   enum iwl_dsm_funcs func, u32 *value)
-{
-	return -ENOENT;
+    enum iwl_dsm_funcs func, u32 *value) {
+  return -ENOENT;
 }
 
 static inline
-void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt)
-{
+void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
+    struct iwl_fw_runtime *fwrt) {
 }
 
 static inline
 int iwl_uefi_get_uats_table(struct iwl_trans *trans,
-			    struct iwl_fw_runtime *fwrt)
-{
-	return 0;
+    struct iwl_fw_runtime *fwrt) {
+  return 0;
 }
+
 #endif /* CONFIG_EFI */
 #endif /* __iwl_fw_uefi__ */

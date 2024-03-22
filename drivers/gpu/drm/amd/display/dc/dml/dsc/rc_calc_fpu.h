@@ -34,57 +34,57 @@
 typedef int qp_set[QP_SET_SIZE];
 
 struct rc_params {
-	int      rc_quant_incr_limit0;
-	int      rc_quant_incr_limit1;
-	int      initial_fullness_offset;
-	int      initial_xmit_delay;
-	int      first_line_bpg_offset;
-	int      second_line_bpg_offset;
-	int      flatness_min_qp;
-	int      flatness_max_qp;
-	int      flatness_det_thresh;
-	qp_set   qp_min;
-	qp_set   qp_max;
-	qp_set   ofs;
-	int      rc_model_size;
-	int      rc_edge_factor;
-	int      rc_tgt_offset_hi;
-	int      rc_tgt_offset_lo;
-	int      rc_buf_thresh[QP_SET_SIZE - 1];
+  int rc_quant_incr_limit0;
+  int rc_quant_incr_limit1;
+  int initial_fullness_offset;
+  int initial_xmit_delay;
+  int first_line_bpg_offset;
+  int second_line_bpg_offset;
+  int flatness_min_qp;
+  int flatness_max_qp;
+  int flatness_det_thresh;
+  qp_set qp_min;
+  qp_set qp_max;
+  qp_set ofs;
+  int rc_model_size;
+  int rc_edge_factor;
+  int rc_tgt_offset_hi;
+  int rc_tgt_offset_lo;
+  int rc_buf_thresh[QP_SET_SIZE - 1];
 };
 
 enum colour_mode {
-	CM_RGB,   /* 444 RGB */
-	CM_444,   /* 444 YUV or simple 422 */
-	CM_422,   /* native 422 */
-	CM_420    /* native 420 */
+  CM_RGB,   /* 444 RGB */
+  CM_444,   /* 444 YUV or simple 422 */
+  CM_422,   /* native 422 */
+  CM_420    /* native 420 */
 };
 
 enum bits_per_comp {
-	BPC_8  =  8,
-	BPC_10 = 10,
-	BPC_12 = 12
+  BPC_8 = 8,
+  BPC_10 = 10,
+  BPC_12 = 12
 };
 
 enum max_min {
-	DAL_MM_MIN = 0,
-	DAL_MM_MAX = 1
+  DAL_MM_MIN = 0,
+  DAL_MM_MAX = 1
 };
 
 struct qp_entry {
-	float         bpp;
-	const qp_set  qps;
+  float bpp;
+  const qp_set qps;
 };
 
 typedef struct qp_entry qp_table[];
 
 void _do_calc_rc_params(struct rc_params *rc,
-		enum colour_mode cm,
-		enum bits_per_comp bpc,
-		u16 drm_bpp,
-		bool is_navite_422_or_420,
-		int slice_width,
-		int slice_height,
-		int minor_version);
+    enum colour_mode cm,
+    enum bits_per_comp bpc,
+    u16 drm_bpp,
+    bool is_navite_422_or_420,
+    int slice_width,
+    int slice_height,
+    int minor_version);
 
 #endif

@@ -9,7 +9,7 @@
  * See the manufacturer's datasheet for more information on these modes.
  */
 
-#define RT5190A_OPMODE_AUTO	0
-#define RT5190A_OPMODE_FPWM	1
+#define RT5190A_OPMODE_AUTO 0
+#define RT5190A_OPMODE_FPWM 1
 
 #endif

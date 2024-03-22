@@ -5,82 +5,82 @@
  */
 
 struct bdisp_node {
-	/* 0 - General */
-	u32 nip;
-	u32 cic;
-	u32 ins;
-	u32 ack;
-	/* 1 - Target */
-	u32 tba;
-	u32 tty;
-	u32 txy;
-	u32 tsz;
-	/* 2 - Color Fill */
-	u32 s1cf;
-	u32 s2cf;
-	/* 3 - Source 1 */
-	u32 s1ba;
-	u32 s1ty;
-	u32 s1xy;
-	u32 s1sz_tsz;
-	/* 4 - Source 2 */
-	u32 s2ba;
-	u32 s2ty;
-	u32 s2xy;
-	u32 s2sz;
-	/* 5 - Source 3 */
-	u32 s3ba;
-	u32 s3ty;
-	u32 s3xy;
-	u32 s3sz;
-	/* 6 - Clipping */
-	u32 cwo;
-	u32 cws;
-	/* 7 - CLUT */
-	u32 cco;
-	u32 cml;
-	/* 8 - Filter & Mask */
-	u32 fctl;
-	u32 pmk;
-	/* 9 - Chroma Filter */
-	u32 rsf;
-	u32 rzi;
-	u32 hfp;
-	u32 vfp;
-	/* 10 - Luma Filter */
-	u32 y_rsf;
-	u32 y_rzi;
-	u32 y_hfp;
-	u32 y_vfp;
-	/* 11 - Flicker */
-	u32 ff0;
-	u32 ff1;
-	u32 ff2;
-	u32 ff3;
-	/* 12 - Color Key */
-	u32 key1;
-	u32 key2;
-	/* 14 - Static Address & User */
-	u32 sar;
-	u32 usr;
-	/* 15 - Input Versatile Matrix */
-	u32 ivmx0;
-	u32 ivmx1;
-	u32 ivmx2;
-	u32 ivmx3;
-	/* 16 - Output Versatile Matrix */
-	u32 ovmx0;
-	u32 ovmx1;
-	u32 ovmx2;
-	u32 ovmx3;
-	/* 17 - Pace */
-	u32 pace;
-	/* 18 - VC1R & DEI */
-	u32 vc1r;
-	u32 dei;
-	/* 19 - Gradient Fill */
-	u32 hgf;
-	u32 vgf;
+  /* 0 - General */
+  u32 nip;
+  u32 cic;
+  u32 ins;
+  u32 ack;
+  /* 1 - Target */
+  u32 tba;
+  u32 tty;
+  u32 txy;
+  u32 tsz;
+  /* 2 - Color Fill */
+  u32 s1cf;
+  u32 s2cf;
+  /* 3 - Source 1 */
+  u32 s1ba;
+  u32 s1ty;
+  u32 s1xy;
+  u32 s1sz_tsz;
+  /* 4 - Source 2 */
+  u32 s2ba;
+  u32 s2ty;
+  u32 s2xy;
+  u32 s2sz;
+  /* 5 - Source 3 */
+  u32 s3ba;
+  u32 s3ty;
+  u32 s3xy;
+  u32 s3sz;
+  /* 6 - Clipping */
+  u32 cwo;
+  u32 cws;
+  /* 7 - CLUT */
+  u32 cco;
+  u32 cml;
+  /* 8 - Filter & Mask */
+  u32 fctl;
+  u32 pmk;
+  /* 9 - Chroma Filter */
+  u32 rsf;
+  u32 rzi;
+  u32 hfp;
+  u32 vfp;
+  /* 10 - Luma Filter */
+  u32 y_rsf;
+  u32 y_rzi;
+  u32 y_hfp;
+  u32 y_vfp;
+  /* 11 - Flicker */
+  u32 ff0;
+  u32 ff1;
+  u32 ff2;
+  u32 ff3;
+  /* 12 - Color Key */
+  u32 key1;
+  u32 key2;
+  /* 14 - Static Address & User */
+  u32 sar;
+  u32 usr;
+  /* 15 - Input Versatile Matrix */
+  u32 ivmx0;
+  u32 ivmx1;
+  u32 ivmx2;
+  u32 ivmx3;
+  /* 16 - Output Versatile Matrix */
+  u32 ovmx0;
+  u32 ovmx1;
+  u32 ovmx2;
+  u32 ovmx3;
+  /* 17 - Pace */
+  u32 pace;
+  /* 18 - VC1R & DEI */
+  u32 vc1r;
+  u32 dei;
+  /* 19 - Gradient Fill */
+  u32 hgf;
+  u32 vgf;
 };
 
 /* HW registers : static */

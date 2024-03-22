@@ -10,8 +10,8 @@
 #include <crypto/algapi.h>
 #include <crypto/sig.h>
 
-static inline void *crypto_sig_ctx(struct crypto_sig *tfm)
-{
-	return crypto_tfm_ctx(&tfm->base);
+static inline void *crypto_sig_ctx(struct crypto_sig *tfm) {
+  return crypto_tfm_ctx(&tfm->base);
 }
+
 #endif

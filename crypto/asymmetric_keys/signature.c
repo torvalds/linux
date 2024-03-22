@@ -20,18 +20,18 @@
 /*
  * Destroy a public key signature.
  */
-void public_key_signature_free(struct public_key_signature *sig)
-{
-	int i;
-
-	if (sig) {
-		for (i = 0; i < ARRAY_SIZE(sig->auth_ids); i++)
-			kfree(sig->auth_ids[i]);
-		kfree(sig->s);
-		kfree(sig->digest);
-		kfree(sig);
-	}
+void public_key_signature_free(struct public_key_signature *sig) {
+  int i;
+  if (sig) {
+    for (i = 0; i < ARRAY_SIZE(sig->auth_ids); i++) {
+      kfree(sig->auth_ids[i]);
+    }
+    kfree(sig->s);
+    kfree(sig->digest);
+    kfree(sig);
+  }
 }
+
 EXPORT_SYMBOL_GPL(public_key_signature_free);
 
 /**
@@ -40,28 +40,27 @@ EXPORT_SYMBOL_GPL(public_key_signature_free);
  * @info: Where to put the information.
  */
 int query_asymmetric_key(const struct kernel_pkey_params *params,
-			 struct kernel_pkey_query *info)
-{
-	const struct asymmetric_key_subtype *subtype;
-	struct key *key = params->key;
-	int ret;
-
-	pr_devel("==>%s()\n", __func__);
-
-	if (key->type != &key_type_asymmetric)
-		return -EINVAL;
-	subtype = asymmetric_key_subtype(key);
-	if (!subtype ||
-	    !key->payload.data[0])
-		return -EINVAL;
-	if (!subtype->query)
-		return -ENOTSUPP;
-
-	ret = subtype->query(params, info);
-
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
+    struct kernel_pkey_query *info) {
+  const struct asymmetric_key_subtype *subtype;
+  struct key *key = params->key;
+  int ret;
+  pr_devel("==>%s()\n", __func__);
+  if (key->type != &key_type_asymmetric) {
+    return -EINVAL;
+  }
+  subtype = asymmetric_key_subtype(key);
+  if (!subtype
+      || !key->payload.data[0]) {
+    return -EINVAL;
+  }
+  if (!subtype->query) {
+    return -ENOTSUPP;
+  }
+  ret = subtype->query(params, info);
+  pr_devel("<==%s() = %d\n", __func__, ret);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(query_asymmetric_key);
 
 /**
@@ -78,11 +77,11 @@ EXPORT_SYMBOL_GPL(query_asymmetric_key);
  * error.
  */
 int encrypt_blob(struct kernel_pkey_params *params,
-		 const void *data, void *enc)
-{
-	params->op = kernel_pkey_encrypt;
-	return asymmetric_key_eds_op(params, data, enc);
+    const void *data, void *enc) {
+  params->op = kernel_pkey_encrypt;
+  return asymmetric_key_eds_op(params, data, enc);
 }
+
 EXPORT_SYMBOL_GPL(encrypt_blob);
 
 /**
@@ -99,11 +98,11 @@ EXPORT_SYMBOL_GPL(encrypt_blob);
  * error.
  */
 int decrypt_blob(struct kernel_pkey_params *params,
-		 const void *enc, void *data)
-{
-	params->op = kernel_pkey_decrypt;
-	return asymmetric_key_eds_op(params, enc, data);
+    const void *enc, void *data) {
+  params->op = kernel_pkey_decrypt;
+  return asymmetric_key_eds_op(params, enc, data);
 }
+
 EXPORT_SYMBOL_GPL(decrypt_blob);
 
 /**
@@ -120,40 +119,40 @@ EXPORT_SYMBOL_GPL(decrypt_blob);
  * Returns the length of the data placed in the signature buffer or an error.
  */
 int create_signature(struct kernel_pkey_params *params,
-		     const void *data, void *enc)
-{
-	params->op = kernel_pkey_sign;
-	return asymmetric_key_eds_op(params, data, enc);
+    const void *data, void *enc) {
+  params->op = kernel_pkey_sign;
+  return asymmetric_key_eds_op(params, data, enc);
 }
+
 EXPORT_SYMBOL_GPL(create_signature);
 
 /**
- * verify_signature - Initiate the use of an asymmetric key to verify a signature
+ * verify_signature - Initiate the use of an asymmetric key to verify a
+ *signature
  * @key: The asymmetric key to verify against
  * @sig: The signature to check
  *
  * Returns 0 if successful or else an error.
  */
 int verify_signature(const struct key *key,
-		     const struct public_key_signature *sig)
-{
-	const struct asymmetric_key_subtype *subtype;
-	int ret;
-
-	pr_devel("==>%s()\n", __func__);
-
-	if (key->type != &key_type_asymmetric)
-		return -EINVAL;
-	subtype = asymmetric_key_subtype(key);
-	if (!subtype ||
-	    !key->payload.data[0])
-		return -EINVAL;
-	if (!subtype->verify_signature)
-		return -ENOTSUPP;
-
-	ret = subtype->verify_signature(key, sig);
-
-	pr_devel("<==%s() = %d\n", __func__, ret);
-	return ret;
+    const struct public_key_signature *sig) {
+  const struct asymmetric_key_subtype *subtype;
+  int ret;
+  pr_devel("==>%s()\n", __func__);
+  if (key->type != &key_type_asymmetric) {
+    return -EINVAL;
+  }
+  subtype = asymmetric_key_subtype(key);
+  if (!subtype
+      || !key->payload.data[0]) {
+    return -EINVAL;
+  }
+  if (!subtype->verify_signature) {
+    return -ENOTSUPP;
+  }
+  ret = subtype->verify_signature(key, sig);
+  pr_devel("<==%s() = %d\n", __func__, ret);
+  return ret;
 }
+
 EXPORT_SYMBOL_GPL(verify_signature);

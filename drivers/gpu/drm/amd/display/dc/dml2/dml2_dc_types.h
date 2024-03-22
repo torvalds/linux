@@ -24,10 +24,10 @@
  *
  */
 
-
 /*
  * Wrapper header for externally defined types from DC.  These types come from
- * dc headers when building DML2 as part of DC, but are defined here when building
+ * dc headers when building DML2 as part of DC, but are defined here when
+ *building
  * DML2 as a standalone library (such as for unit testing).
  */
 

@@ -56,10 +56,10 @@
 .macro DO_KVM intno srr1
 #ifdef CONFIG_KVM_BOOKE_HV
 BEGIN_FTR_SECTION
-	mtocrf	0x80, r11	/* check MSR[GS] without clobbering reg */
-	bf	3, 1975f
-	b	kvmppc_handler_\intno\()_\srr1
-1975:
+mtocrf  0x80, r11 /* check MSR[GS] without clobbering reg */
+bf  3, 1975f
+b kvmppc_handler_ \ intno \ ()_ \ srr1
+1975 :
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 #endif
 .endm

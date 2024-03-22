@@ -27,8 +27,8 @@
 #define PCI_DEVICE_ID_ARL   0xad1d
 #define PCI_DEVICE_ID_LNL   0x643e
 
-#define IVPU_HW_37XX	37
-#define IVPU_HW_40XX	40
+#define IVPU_HW_37XX  37
+#define IVPU_HW_40XX  40
 
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID   0
 /* SSID 1 is used by the VPU to represent reserved context */
@@ -46,54 +46,54 @@
 #define IVPU_PLATFORM_FPGA    3
 #define IVPU_PLATFORM_INVALID 8
 
-#define IVPU_DBG_REG	 BIT(0)
-#define IVPU_DBG_IRQ	 BIT(1)
-#define IVPU_DBG_MMU	 BIT(2)
-#define IVPU_DBG_FILE	 BIT(3)
-#define IVPU_DBG_MISC	 BIT(4)
+#define IVPU_DBG_REG   BIT(0)
+#define IVPU_DBG_IRQ   BIT(1)
+#define IVPU_DBG_MMU   BIT(2)
+#define IVPU_DBG_FILE  BIT(3)
+#define IVPU_DBG_MISC  BIT(4)
 #define IVPU_DBG_FW_BOOT BIT(5)
-#define IVPU_DBG_PM	 BIT(6)
-#define IVPU_DBG_IPC	 BIT(7)
-#define IVPU_DBG_BO	 BIT(8)
-#define IVPU_DBG_JOB	 BIT(9)
-#define IVPU_DBG_JSM	 BIT(10)
-#define IVPU_DBG_KREF	 BIT(11)
-#define IVPU_DBG_RPM	 BIT(12)
+#define IVPU_DBG_PM  BIT(6)
+#define IVPU_DBG_IPC   BIT(7)
+#define IVPU_DBG_BO  BIT(8)
+#define IVPU_DBG_JOB   BIT(9)
+#define IVPU_DBG_JSM   BIT(10)
+#define IVPU_DBG_KREF  BIT(11)
+#define IVPU_DBG_RPM   BIT(12)
 #define IVPU_DBG_MMU_MAP BIT(13)
 
 #define ivpu_err(vdev, fmt, ...) \
-	drm_err(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
+  drm_err(&(vdev)->drm, "%s(): " fmt, __func__, ## __VA_ARGS__)
 
 #define ivpu_err_ratelimited(vdev, fmt, ...) \
-	drm_err_ratelimited(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
+  drm_err_ratelimited(&(vdev)->drm, "%s(): " fmt, __func__, ## __VA_ARGS__)
 
 #define ivpu_warn(vdev, fmt, ...) \
-	drm_warn(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
+  drm_warn(&(vdev)->drm, "%s(): " fmt, __func__, ## __VA_ARGS__)
 
 #define ivpu_warn_ratelimited(vdev, fmt, ...) \
-	drm_err_ratelimited(&(vdev)->drm, "%s(): " fmt, __func__, ##__VA_ARGS__)
+  drm_err_ratelimited(&(vdev)->drm, "%s(): " fmt, __func__, ## __VA_ARGS__)
 
-#define ivpu_info(vdev, fmt, ...) drm_info(&(vdev)->drm, fmt, ##__VA_ARGS__)
+#define ivpu_info(vdev, fmt, ...) drm_info(&(vdev)->drm, fmt, ## __VA_ARGS__)
 
-#define ivpu_dbg(vdev, type, fmt, args...) do {                                \
-	if (unlikely(IVPU_DBG_##type & ivpu_dbg_mask))                         \
-		dev_dbg((vdev)->drm.dev, "[%s] " fmt, #type, ##args);          \
+#define ivpu_dbg(vdev, type, fmt, args ...) do {                                \
+    if (unlikely(IVPU_DBG_ ## type & ivpu_dbg_mask))                         \
+    dev_dbg((vdev)->drm.dev, "[%s] " fmt, #type, ## args);          \
 } while (0)
 
 #define IVPU_WA(wa_name) (vdev->wa.wa_name)
 
-#define IVPU_PRINT_WA(wa_name) do {					\
-	if (IVPU_WA(wa_name))						\
-		ivpu_dbg(vdev, MISC, "Using WA: " #wa_name "\n");	\
+#define IVPU_PRINT_WA(wa_name) do {         \
+    if (IVPU_WA(wa_name))           \
+    ivpu_dbg(vdev, MISC, "Using WA: " #wa_name "\n"); \
 } while (0)
 
 struct ivpu_wa_table {
-	bool punit_disabled;
-	bool clear_runtime_mem;
-	bool d3hot_after_power_off;
-	bool interrupt_clear_with_0;
-	bool disable_clock_relinquish;
-	bool disable_d0i3_msg;
+  bool punit_disabled;
+  bool clear_runtime_mem;
+  bool d3hot_after_power_off;
+  bool interrupt_clear_with_0;
+  bool disable_clock_relinquish;
+  bool disable_d0i3_msg;
 };
 
 struct ivpu_hw_info;
@@ -103,43 +103,43 @@ struct ivpu_ipc_info;
 struct ivpu_pm_info;
 
 struct ivpu_device {
-	struct drm_device drm;
-	void __iomem *regb;
-	void __iomem *regv;
-	u32 platform;
-	u32 irq;
+  struct drm_device drm;
+  void __iomem *regb;
+  void __iomem *regv;
+  u32 platform;
+  u32 irq;
 
-	struct ivpu_wa_table wa;
-	struct ivpu_hw_info *hw;
-	struct ivpu_mmu_info *mmu;
-	struct ivpu_fw_info *fw;
-	struct ivpu_ipc_info *ipc;
-	struct ivpu_pm_info *pm;
+  struct ivpu_wa_table wa;
+  struct ivpu_hw_info *hw;
+  struct ivpu_mmu_info *mmu;
+  struct ivpu_fw_info *fw;
+  struct ivpu_ipc_info *ipc;
+  struct ivpu_pm_info *pm;
 
-	struct ivpu_mmu_context gctx;
-	struct ivpu_mmu_context rctx;
-	struct mutex context_list_lock; /* Protects user context addition/removal */
-	struct xarray context_xa;
-	struct xa_limit context_xa_limit;
+  struct ivpu_mmu_context gctx;
+  struct ivpu_mmu_context rctx;
+  struct mutex context_list_lock; /* Protects user context addition/removal */
+  struct xarray context_xa;
+  struct xa_limit context_xa_limit;
 
-	struct xarray db_xa;
+  struct xarray db_xa;
 
-	struct mutex bo_list_lock; /* Protects bo_list */
-	struct list_head bo_list;
+  struct mutex bo_list_lock; /* Protects bo_list */
+  struct list_head bo_list;
 
-	struct xarray submitted_jobs_xa;
-	struct ivpu_ipc_consumer job_done_consumer;
+  struct xarray submitted_jobs_xa;
+  struct ivpu_ipc_consumer job_done_consumer;
 
-	atomic64_t unique_id_counter;
+  atomic64_t unique_id_counter;
 
-	struct {
-		int boot;
-		int jsm;
-		int tdr;
-		int reschedule_suspend;
-		int autosuspend;
-		int d0i3_entry_msg;
-	} timeout;
+  struct {
+    int boot;
+    int jsm;
+    int tdr;
+    int reschedule_suspend;
+    int autosuspend;
+    int d0i3_entry_msg;
+  } timeout;
 };
 
 /*
@@ -147,13 +147,13 @@ struct ivpu_device {
  * without blocking even if VPU is still processing some jobs.
  */
 struct ivpu_file_priv {
-	struct kref ref;
-	struct ivpu_device *vdev;
-	struct mutex lock; /* Protects cmdq */
-	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
-	struct ivpu_mmu_context ctx;
-	bool has_mmu_faults;
-	bool bound;
+  struct kref ref;
+  struct ivpu_device *vdev;
+  struct mutex lock; /* Protects cmdq */
+  struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
+  struct ivpu_mmu_context ctx;
+  bool has_mmu_faults;
+  bool bound;
 };
 
 extern int ivpu_dbg_mask;
@@ -175,61 +175,51 @@ int ivpu_boot(struct ivpu_device *vdev);
 int ivpu_shutdown(struct ivpu_device *vdev);
 void ivpu_prepare_for_reset(struct ivpu_device *vdev);
 
-static inline u8 ivpu_revision(struct ivpu_device *vdev)
-{
-	return to_pci_dev(vdev->drm.dev)->revision;
+static inline u8 ivpu_revision(struct ivpu_device *vdev) {
+  return to_pci_dev(vdev->drm.dev)->revision;
 }
 
-static inline u16 ivpu_device_id(struct ivpu_device *vdev)
-{
-	return to_pci_dev(vdev->drm.dev)->device;
+static inline u16 ivpu_device_id(struct ivpu_device *vdev) {
+  return to_pci_dev(vdev->drm.dev)->device;
 }
 
-static inline int ivpu_hw_gen(struct ivpu_device *vdev)
-{
-	switch (ivpu_device_id(vdev)) {
-	case PCI_DEVICE_ID_MTL:
-	case PCI_DEVICE_ID_ARL:
-		return IVPU_HW_37XX;
-	case PCI_DEVICE_ID_LNL:
-		return IVPU_HW_40XX;
-	default:
-		ivpu_err(vdev, "Unknown NPU device\n");
-		return 0;
-	}
+static inline int ivpu_hw_gen(struct ivpu_device *vdev) {
+  switch (ivpu_device_id(vdev)) {
+    case PCI_DEVICE_ID_MTL:
+    case PCI_DEVICE_ID_ARL:
+      return IVPU_HW_37XX;
+    case PCI_DEVICE_ID_LNL:
+      return IVPU_HW_40XX;
+    default:
+      ivpu_err(vdev, "Unknown NPU device\n");
+      return 0;
+  }
 }
 
-static inline struct ivpu_device *to_ivpu_device(struct drm_device *dev)
-{
-	return container_of(dev, struct ivpu_device, drm);
+static inline struct ivpu_device *to_ivpu_device(struct drm_device *dev) {
+  return container_of(dev, struct ivpu_device, drm);
 }
 
-static inline u32 ivpu_get_context_count(struct ivpu_device *vdev)
-{
-	struct xa_limit ctx_limit = vdev->context_xa_limit;
-
-	return (ctx_limit.max - ctx_limit.min + 1);
+static inline u32 ivpu_get_context_count(struct ivpu_device *vdev) {
+  struct xa_limit ctx_limit = vdev->context_xa_limit;
+  return ctx_limit.max - ctx_limit.min + 1;
 }
 
-static inline u32 ivpu_get_platform(struct ivpu_device *vdev)
-{
-	WARN_ON_ONCE(vdev->platform == IVPU_PLATFORM_INVALID);
-	return vdev->platform;
+static inline u32 ivpu_get_platform(struct ivpu_device *vdev) {
+  WARN_ON_ONCE(vdev->platform == IVPU_PLATFORM_INVALID);
+  return vdev->platform;
 }
 
-static inline bool ivpu_is_silicon(struct ivpu_device *vdev)
-{
-	return ivpu_get_platform(vdev) == IVPU_PLATFORM_SILICON;
+static inline bool ivpu_is_silicon(struct ivpu_device *vdev) {
+  return ivpu_get_platform(vdev) == IVPU_PLATFORM_SILICON;
 }
 
-static inline bool ivpu_is_simics(struct ivpu_device *vdev)
-{
-	return ivpu_get_platform(vdev) == IVPU_PLATFORM_SIMICS;
+static inline bool ivpu_is_simics(struct ivpu_device *vdev) {
+  return ivpu_get_platform(vdev) == IVPU_PLATFORM_SIMICS;
 }
 
-static inline bool ivpu_is_fpga(struct ivpu_device *vdev)
-{
-	return ivpu_get_platform(vdev) == IVPU_PLATFORM_FPGA;
+static inline bool ivpu_is_fpga(struct ivpu_device *vdev) {
+  return ivpu_get_platform(vdev) == IVPU_PLATFORM_FPGA;
 }
 
 #endif /* __IVPU_DRV_H__ */

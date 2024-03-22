@@ -5,11 +5,11 @@
 #include <xen/swiotlb-xen.h>
 #include <xen/xen-ops.h>
 
-static inline void xen_setup_dma_ops(struct device *dev)
-{
+static inline void xen_setup_dma_ops(struct device *dev) {
 #ifdef CONFIG_XEN
-	if (xen_swiotlb_detect())
-		dev->dma_ops = &xen_swiotlb_dma_ops;
+  if (xen_swiotlb_detect()) {
+    dev->dma_ops = &xen_swiotlb_dma_ops;
+  }
 #endif
 }
 

@@ -21,21 +21,20 @@
 extern unsigned long swiotlb_size_or_default(void);
 
 #ifdef CONFIG_X86_32
-# define CRASH_ADDR_LOW_MAX     SZ_512M
-# define CRASH_ADDR_HIGH_MAX    SZ_512M
+#define CRASH_ADDR_LOW_MAX     SZ_512M
+#define CRASH_ADDR_HIGH_MAX    SZ_512M
 #else
-# define CRASH_ADDR_LOW_MAX     SZ_4G
-# define CRASH_ADDR_HIGH_MAX    SZ_64T
+#define CRASH_ADDR_LOW_MAX     SZ_4G
+#define CRASH_ADDR_HIGH_MAX    SZ_64T
 #endif
 
-# define DEFAULT_CRASH_KERNEL_LOW_SIZE crash_low_size_default()
+#define DEFAULT_CRASH_KERNEL_LOW_SIZE crash_low_size_default()
 
-static inline unsigned long crash_low_size_default(void)
-{
+static inline unsigned long crash_low_size_default(void) {
 #ifdef CONFIG_X86_64
-	return max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
+  return max(swiotlb_size_or_default() + (8UL << 20), 256UL << 20);
 #else
-	return 0;
+  return 0;
 #endif
 }
 

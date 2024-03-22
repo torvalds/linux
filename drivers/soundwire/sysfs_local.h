@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright(c) 2015-2020 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright(c) 2015-2020 Intel Corporation.*/
 
 #ifndef __SDW_SYSFS_LOCAL_H
 #define __SDW_SYSFS_LOCAL_H

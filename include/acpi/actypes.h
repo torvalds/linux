@@ -27,10 +27,14 @@
  * working around problems that some 32-bit compilers have with 64-bit
  * constants.
  */
-#define ACPI_UINT8_MAX                  (u8) (~((u8)  0))	/* 0xFF               */
-#define ACPI_UINT16_MAX                 (u16)(~((u16) 0))	/* 0xFFFF             */
-#define ACPI_UINT32_MAX                 (u32)(~((u32) 0))	/* 0xFFFFFFFF         */
-#define ACPI_UINT64_MAX                 (u64)(~((u64) 0))	/* 0xFFFFFFFFFFFFFFFF */
+#define ACPI_UINT8_MAX                  (u8) (~((u8) 0)) /* 0xFF
+                                                          *               */
+#define ACPI_UINT16_MAX                 (u16) (~((u16) 0)) /* 0xFFFF
+                                                            *             */
+#define ACPI_UINT32_MAX                 (u32) (~((u32) 0)) /* 0xFFFFFFFF
+                                                            *         */
+#define ACPI_UINT64_MAX                 (u64) (~((u64) 0)) /* 0xFFFFFFFFFFFFFFFF
+                                                            * */
 #define ACPI_ASCII_MAX                  0x7F
 
 /*
@@ -95,7 +99,7 @@ typedef short s16;
 typedef COMPILER_DEPENDENT_UINT64 u64;
 typedef COMPILER_DEPENDENT_INT64 s64;
 
-#endif				/* ACPI_USE_SYSTEM_INTTYPES */
+#endif        /* ACPI_USE_SYSTEM_INTTYPES */
 
 /*
  * Value returned by acpi_os_get_thread_id. There is no standard "thread_id"
@@ -120,7 +124,7 @@ typedef COMPILER_DEPENDENT_INT64 s64;
 typedef unsigned int u32;
 typedef int s32;
 
-#endif				/* ACPI_USE_SYSTEM_INTTYPES */
+#endif        /* ACPI_USE_SYSTEM_INTTYPES */
 
 typedef s64 acpi_native_int;
 
@@ -131,8 +135,8 @@ typedef u64 acpi_physical_address;
 #define ACPI_MAX_PTR                    ACPI_UINT64_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT64_MAX
 
-#define ACPI_USE_NATIVE_DIVIDE	/* Has native 64-bit integer support */
-#define ACPI_USE_NATIVE_MATH64	/* Has native 64-bit integer support */
+#define ACPI_USE_NATIVE_DIVIDE  /* Has native 64-bit integer support */
+#define ACPI_USE_NATIVE_MATH64  /* Has native 64-bit integer support */
 
 /*
  * In the case of the Itanium Processor Family (IPF), the hardware does not
@@ -144,7 +148,7 @@ typedef u64 acpi_physical_address;
  * Note: EM64T and other X86-64 processors support misaligned transfers,
  * so there is no need to define this flag.
  */
-#if defined (__IA64__) || defined (__ia64__)
+#if defined(__IA64__) || defined(__ia64__)
 #define ACPI_MISALIGNMENT_NOT_SUPPORTED
 #endif
 
@@ -161,7 +165,7 @@ typedef u64 acpi_physical_address;
 typedef unsigned int u32;
 typedef int s32;
 
-#endif				/* ACPI_USE_SYSTEM_INTTYPES */
+#endif        /* ACPI_USE_SYSTEM_INTTYPES */
 
 typedef s32 acpi_native_int;
 
@@ -177,7 +181,7 @@ typedef u32 acpi_size;
 typedef u32 acpi_io_address;
 typedef u32 acpi_physical_address;
 
-#else				/* ACPI_32BIT_PHYSICAL_ADDRESS */
+#else       /* ACPI_32BIT_PHYSICAL_ADDRESS */
 
 /*
  * It is reported that, after some calculations, the physical addresses can
@@ -187,7 +191,7 @@ typedef u32 acpi_physical_address;
 typedef u64 acpi_io_address;
 typedef u64 acpi_physical_address;
 
-#endif				/* ACPI_32BIT_PHYSICAL_ADDRESS */
+#endif        /* ACPI_32BIT_PHYSICAL_ADDRESS */
 
 #define ACPI_MAX_PTR                    ACPI_UINT32_MAX
 #define ACPI_SIZE_MAX                   ACPI_UINT32_MAX
@@ -211,7 +215,7 @@ typedef u64 acpi_physical_address;
 /* Flags for acpi_os_acquire_lock/acpi_os_release_lock */
 
 #ifndef acpi_cpu_flags
-#define acpi_cpu_flags			acpi_size
+#define acpi_cpu_flags      acpi_size
 #endif
 
 /* Object returned from acpi_os_create_cache */
@@ -233,10 +237,13 @@ typedef u64 acpi_physical_address;
  * Map the OSL Mutex interfaces to binary semaphores.
  */
 #define acpi_mutex                      acpi_semaphore
-#define acpi_os_create_mutex(out_handle) acpi_os_create_semaphore (1, 1, out_handle)
-#define acpi_os_delete_mutex(handle)    (void) acpi_os_delete_semaphore (handle)
-#define acpi_os_acquire_mutex(handle,time) acpi_os_wait_semaphore (handle, 1, time)
-#define acpi_os_release_mutex(handle)   (void) acpi_os_signal_semaphore (handle, 1)
+#define acpi_os_create_mutex(out_handle) acpi_os_create_semaphore(1, 1, \
+    out_handle)
+#define acpi_os_delete_mutex(handle)    (void) acpi_os_delete_semaphore(handle)
+#define acpi_os_acquire_mutex(handle, time) acpi_os_wait_semaphore(handle, 1, \
+    time)
+#define acpi_os_release_mutex(handle)   (void) acpi_os_signal_semaphore(handle, \
+    1)
 #endif
 
 /* Configurable types for synchronization objects */
@@ -246,7 +253,7 @@ typedef u64 acpi_physical_address;
 #endif
 
 #ifndef acpi_raw_spinlock
-#define acpi_raw_spinlock		acpi_spinlock
+#define acpi_raw_spinlock   acpi_spinlock
 #endif
 
 #ifndef acpi_semaphore
@@ -329,30 +336,33 @@ typedef u64 acpi_physical_address;
 #define ACPI_FREE(a)
 #define ACPI_MEM_TRACKING(a)
 
-#else				/* ACPI_NO_MEM_ALLOCATIONS */
+#else       /* ACPI_NO_MEM_ALLOCATIONS */
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 /*
  * Memory allocation tracking (used by acpi_exec to detect memory leaks)
  */
 #define ACPI_MEM_PARAMETERS             _COMPONENT, _acpi_module_name, __LINE__
-#define ACPI_ALLOCATE(a)                acpi_ut_allocate_and_track ((acpi_size) (a), ACPI_MEM_PARAMETERS)
-#define ACPI_ALLOCATE_ZEROED(a)         acpi_ut_allocate_zeroed_and_track ((acpi_size) (a), ACPI_MEM_PARAMETERS)
-#define ACPI_FREE(a)                    acpi_ut_free_and_track (a, ACPI_MEM_PARAMETERS)
+#define ACPI_ALLOCATE(a)                acpi_ut_allocate_and_track((acpi_size) ( \
+      a), ACPI_MEM_PARAMETERS)
+#define ACPI_ALLOCATE_ZEROED(a)         acpi_ut_allocate_zeroed_and_track(( \
+      acpi_size) (a), ACPI_MEM_PARAMETERS)
+#define ACPI_FREE(a)                    acpi_ut_free_and_track(a, \
+    ACPI_MEM_PARAMETERS)
 #define ACPI_MEM_TRACKING(a)            a
 
 #else
 /*
  * Normal memory allocation directly via the OS services layer
  */
-#define ACPI_ALLOCATE(a)                acpi_os_allocate ((acpi_size) (a))
-#define ACPI_ALLOCATE_ZEROED(a)         acpi_os_allocate_zeroed ((acpi_size) (a))
-#define ACPI_FREE(a)                    acpi_os_free (a)
+#define ACPI_ALLOCATE(a)                acpi_os_allocate((acpi_size) (a))
+#define ACPI_ALLOCATE_ZEROED(a)         acpi_os_allocate_zeroed((acpi_size) (a))
+#define ACPI_FREE(a)                    acpi_os_free(a)
 #define ACPI_MEM_TRACKING(a)
 
-#endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
+#endif        /* ACPI_DBG_TRACK_ALLOCATIONS */
 
-#endif				/* ACPI_NO_MEM_ALLOCATIONS */
+#endif        /* ACPI_NO_MEM_ALLOCATIONS */
 
 /******************************************************************************
  *
@@ -375,8 +385,9 @@ typedef u64 acpi_physical_address;
 
 /* Names within the namespace are 4 bytes long */
 
-#define ACPI_NAMESEG_SIZE               4	/* Fixed by ACPI spec */
-#define ACPI_PATH_SEGMENT_LENGTH        5	/* 4 chars for name + 1 char for separator */
+#define ACPI_NAMESEG_SIZE               4 /* Fixed by ACPI spec */
+#define ACPI_PATH_SEGMENT_LENGTH        5 /* 4 chars for name + 1 char for
+                                           * separator */
 #define ACPI_PATH_SEPARATOR             '.'
 
 /* Sizes for ACPI table headers */
@@ -418,10 +429,10 @@ typedef u64 acpi_physical_address;
 /*
  * Miscellaneous types
  */
-typedef u32 acpi_status;	/* All ACPI Exceptions */
-typedef u32 acpi_name;		/* 4-byte ACPI name */
-typedef char *acpi_string;	/* Null terminated ASCII string */
-typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
+typedef u32 acpi_status;  /* All ACPI Exceptions */
+typedef u32 acpi_name;    /* 4-byte ACPI name */
+typedef char *acpi_string;  /* Null terminated ASCII string */
+typedef void *acpi_handle;  /* Actually a ptr to a NS Node */
 
 /* Time constants for timer calculations */
 
@@ -438,15 +449,16 @@ typedef void *acpi_handle;	/* Actually a ptr to a NS Node */
 #define ACPI_NSEC_PER_MSEC              1000000L
 #define ACPI_NSEC_PER_SEC               1000000000L
 
-#define ACPI_TIME_AFTER(a, b)           ((s64)((b) - (a)) < 0)
+#define ACPI_TIME_AFTER(a, b)           ((s64) ((b) - (a)) < 0)
 
 /* Owner IDs are used to track namespace nodes for selective deletion */
 
 typedef u16 acpi_owner_id;
-#define ACPI_OWNER_ID_MAX               0xFFF	/* 4095 possible owner IDs */
+#define ACPI_OWNER_ID_MAX               0xFFF /* 4095 possible owner IDs */
 
 #define ACPI_INTEGER_BIT_SIZE           64
-#define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
+#define ACPI_MAX_DECIMAL_DIGITS         20  /* 2^64 = 18,446,744,073,709,551,616
+                                             * */
 #define ACPI_MAX64_DECIMAL_DIGITS       20
 #define ACPI_MAX32_DECIMAL_DIGITS       10
 #define ACPI_MAX16_DECIMAL_DIGITS        5
@@ -455,8 +467,9 @@ typedef u16 acpi_owner_id;
 /*
  * Constants with special meanings
  */
-#define ACPI_ROOT_OBJECT                ((acpi_handle) ACPI_TO_POINTER (ACPI_MAX_PTR))
-#define ACPI_WAIT_FOREVER               0xFFFF	/* u16, as per ACPI spec */
+#define ACPI_ROOT_OBJECT                ((acpi_handle) ACPI_TO_POINTER( \
+    ACPI_MAX_PTR))
+#define ACPI_WAIT_FOREVER               0xFFFF  /* u16, as per ACPI spec */
 #define ACPI_DO_NOT_WAIT                0
 
 /*
@@ -480,17 +493,17 @@ typedef u64 acpi_integer;
 
 /* Data manipulation */
 
-#define ACPI_LOBYTE(integer)            ((u8)   (u16)(integer))
-#define ACPI_HIBYTE(integer)            ((u8) (((u16)(integer)) >> 8))
-#define ACPI_LOWORD(integer)            ((u16)  (u32)(integer))
-#define ACPI_HIWORD(integer)            ((u16)(((u32)(integer)) >> 16))
-#define ACPI_LODWORD(integer64)         ((u32)  (u64)(integer64))
-#define ACPI_HIDWORD(integer64)         ((u32)(((u64)(integer64)) >> 32))
+#define ACPI_LOBYTE(integer)            ((u8) (u16) (integer))
+#define ACPI_HIBYTE(integer)            ((u8) (((u16) (integer)) >> 8))
+#define ACPI_LOWORD(integer)            ((u16) (u32) (integer))
+#define ACPI_HIWORD(integer)            ((u16) (((u32) (integer)) >> 16))
+#define ACPI_LODWORD(integer64)         ((u32) (u64) (integer64))
+#define ACPI_HIDWORD(integer64)         ((u32) (((u64) (integer64)) >> 32))
 
-#define ACPI_SET_BIT(target,bit)        ((target) |= (bit))
-#define ACPI_CLEAR_BIT(target,bit)      ((target) &= ~(bit))
-#define ACPI_MIN(a,b)                   (((a)<(b))?(a):(b))
-#define ACPI_MAX(a,b)                   (((a)>(b))?(a):(b))
+#define ACPI_SET_BIT(target, bit)        ((target) |= (bit))
+#define ACPI_CLEAR_BIT(target, bit)      ((target) &= ~(bit))
+#define ACPI_MIN(a, b)                   (((a) < (b)) ? (a) : (b))
+#define ACPI_MAX(a, b)                   (((a) > (b)) ? (a) : (b))
 
 /* Size calculation */
 
@@ -500,43 +513,58 @@ typedef u64 acpi_integer;
 
 #define ACPI_CAST_PTR(t, p)             ((t *) (acpi_uintptr_t) (p))
 #define ACPI_CAST_INDIRECT_PTR(t, p)    ((t **) (acpi_uintptr_t) (p))
-#define ACPI_ADD_PTR(t, a, b)           ACPI_CAST_PTR (t, (ACPI_CAST_PTR (u8, (a)) + (acpi_size)(b)))
-#define ACPI_SUB_PTR(t, a, b)           ACPI_CAST_PTR (t, (ACPI_CAST_PTR (u8, (a)) - (acpi_size)(b)))
-#define ACPI_PTR_DIFF(a, b)             ((acpi_size) (ACPI_CAST_PTR (u8, (a)) - ACPI_CAST_PTR (u8, (b))))
+#define ACPI_ADD_PTR(t, a, b)           ACPI_CAST_PTR(t, \
+    (ACPI_CAST_PTR(u8, (a)) + (acpi_size) (b)))
+#define ACPI_SUB_PTR(t, a, b)           ACPI_CAST_PTR(t, \
+    (ACPI_CAST_PTR(u8, (a)) - (acpi_size) (b)))
+#define ACPI_PTR_DIFF(a, \
+      b)             ((acpi_size) (ACPI_CAST_PTR(u8, \
+    (a)) - ACPI_CAST_PTR(u8, (b))))
 
 /* Pointer/Integer type conversions */
 
-#define ACPI_TO_POINTER(i)              ACPI_CAST_PTR (void, (acpi_size) (i))
+#define ACPI_TO_POINTER(i)              ACPI_CAST_PTR(void, (acpi_size) (i))
 #ifndef ACPI_TO_INTEGER
-#define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p, (void *) 0)
+#define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF(p, (void *) 0)
 #endif
 #ifndef ACPI_OFFSET
-#define ACPI_OFFSET(d, f)               ACPI_PTR_DIFF (&(((d *) 0)->f), (void *) 0)
+#define ACPI_OFFSET(d, f)               ACPI_PTR_DIFF(&(((d *) 0)->f), \
+    (void *) 0)
 #endif
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)
 
 /* Optimizations for 4-character (32-bit) acpi_name manipulation */
 
 #ifndef ACPI_MISALIGNMENT_NOT_SUPPORTED
-#define ACPI_COMPARE_NAMESEG(a,b)       (*ACPI_CAST_PTR (u32, (a)) == *ACPI_CAST_PTR (u32, (b)))
-#define ACPI_COPY_NAMESEG(dest,src)     (*ACPI_CAST_PTR (u32, (dest)) = *ACPI_CAST_PTR (u32, (src)))
+#define ACPI_COMPARE_NAMESEG(a, \
+      b)       (*ACPI_CAST_PTR(u32, (a)) == *ACPI_CAST_PTR(u32, (b)))
+#define ACPI_COPY_NAMESEG(dest, \
+      src)     (*ACPI_CAST_PTR(u32, (dest)) = *ACPI_CAST_PTR(u32, (src)))
 #else
-#define ACPI_COMPARE_NAMESEG(a,b)       (!strncmp (ACPI_CAST_PTR (char, (a)), ACPI_CAST_PTR (char, (b)), ACPI_NAMESEG_SIZE))
-#define ACPI_COPY_NAMESEG(dest,src)     (strncpy (ACPI_CAST_PTR (char, (dest)), ACPI_CAST_PTR (char, (src)), ACPI_NAMESEG_SIZE))
+#define ACPI_COMPARE_NAMESEG(a, \
+      b)       (!strncmp(ACPI_CAST_PTR(char, (a)), ACPI_CAST_PTR(char, (b)), \
+    ACPI_NAMESEG_SIZE))
+#define ACPI_COPY_NAMESEG(dest, \
+      src)     (strncpy(ACPI_CAST_PTR(char, (dest)), ACPI_CAST_PTR(char, (src)), \
+    ACPI_NAMESEG_SIZE))
 #endif
 
 /* Support for the special RSDP signature (8 characters) */
 
-#define ACPI_VALIDATE_RSDP_SIG(a)       (!strncmp (ACPI_CAST_PTR (char, (a)), ACPI_SIG_RSDP, 8))
-#define ACPI_MAKE_RSDP_SIG(dest)        (memcpy (ACPI_CAST_PTR (char, (dest)), ACPI_SIG_RSDP, 8))
+#define ACPI_VALIDATE_RSDP_SIG(a)       (!strncmp(ACPI_CAST_PTR(char, (a)), \
+    ACPI_SIG_RSDP, 8))
+#define ACPI_MAKE_RSDP_SIG(dest)        (memcpy(ACPI_CAST_PTR(char, (dest)), \
+    ACPI_SIG_RSDP, 8))
 
 /* Support for OEMx signature (x can be any character) */
-#define ACPI_IS_OEM_SIG(a)        (!strncmp (ACPI_CAST_PTR (char, (a)), ACPI_OEM_NAME, 3) &&\
-	 strnlen (a, ACPI_NAMESEG_SIZE) == ACPI_NAMESEG_SIZE)
+#define ACPI_IS_OEM_SIG(a)        (!strncmp(ACPI_CAST_PTR(char, (a)), \
+    ACPI_OEM_NAME, 3)   \
+  && strnlen(a, ACPI_NAMESEG_SIZE) == ACPI_NAMESEG_SIZE)
 
 /*
  * Algorithm to obtain access bit or byte width.
- * Can be used with access_width of struct acpi_generic_address and access_size of
+ * Can be used with access_width of struct acpi_generic_address and access_size
+ * of
  * struct acpi_resource_generic_register.
  */
 #define ACPI_ACCESS_BIT_SHIFT           2
@@ -644,19 +672,27 @@ typedef u64 acpi_integer;
 typedef u32 acpi_object_type;
 
 #define ACPI_TYPE_ANY                   0x00
-#define ACPI_TYPE_INTEGER               0x01	/* Byte/Word/Dword/Zero/One/Ones */
+#define ACPI_TYPE_INTEGER               0x01  /* Byte/Word/Dword/Zero/One/Ones
+                                               * */
 #define ACPI_TYPE_STRING                0x02
 #define ACPI_TYPE_BUFFER                0x03
-#define ACPI_TYPE_PACKAGE               0x04	/* byte_const, multiple data_term/Constant/super_name */
+#define ACPI_TYPE_PACKAGE               0x04  /* byte_const, multiple
+                                               * data_term/Constant/super_name
+                                               * */
 #define ACPI_TYPE_FIELD_UNIT            0x05
-#define ACPI_TYPE_DEVICE                0x06	/* Name, multiple Node */
+#define ACPI_TYPE_DEVICE                0x06  /* Name, multiple Node */
 #define ACPI_TYPE_EVENT                 0x07
-#define ACPI_TYPE_METHOD                0x08	/* Name, byte_const, multiple Code */
+#define ACPI_TYPE_METHOD                0x08  /* Name, byte_const, multiple Code
+                                               * */
 #define ACPI_TYPE_MUTEX                 0x09
 #define ACPI_TYPE_REGION                0x0A
-#define ACPI_TYPE_POWER                 0x0B	/* Name,byte_const,word_const,multi Node */
-#define ACPI_TYPE_PROCESSOR             0x0C	/* Name,byte_const,Dword_const,byte_const,multi nm_o */
-#define ACPI_TYPE_THERMAL               0x0D	/* Name, multiple Node */
+#define ACPI_TYPE_POWER                 0x0B  /*
+                                               * Name,byte_const,word_const,multi
+                                               * Node */
+#define ACPI_TYPE_PROCESSOR             0x0C  /*
+                                               * Name,byte_const,Dword_const,byte_const,multi
+                                               * nm_o */
+#define ACPI_TYPE_THERMAL               0x0D  /* Name, multiple Node */
 #define ACPI_TYPE_BUFFER_FIELD          0x0E
 #define ACPI_TYPE_DDB_HANDLE            0x0F
 #define ACPI_TYPE_DEBUG_OBJECT          0x10
@@ -675,16 +711,19 @@ typedef u32 acpi_object_type;
 #define ACPI_TYPE_LOCAL_REGION_FIELD    0x11
 #define ACPI_TYPE_LOCAL_BANK_FIELD      0x12
 #define ACPI_TYPE_LOCAL_INDEX_FIELD     0x13
-#define ACPI_TYPE_LOCAL_REFERENCE       0x14	/* Arg#, Local#, Name, Debug, ref_of, Index */
+#define ACPI_TYPE_LOCAL_REFERENCE       0x14  /* Arg#, Local#, Name, Debug,
+                                               * ref_of, Index */
 #define ACPI_TYPE_LOCAL_ALIAS           0x15
 #define ACPI_TYPE_LOCAL_METHOD_ALIAS    0x16
 #define ACPI_TYPE_LOCAL_NOTIFY          0x17
 #define ACPI_TYPE_LOCAL_ADDRESS_HANDLER 0x18
 #define ACPI_TYPE_LOCAL_RESOURCE        0x19
 #define ACPI_TYPE_LOCAL_RESOURCE_FIELD  0x1A
-#define ACPI_TYPE_LOCAL_SCOPE           0x1B	/* 1 Name, multiple object_list Nodes */
+#define ACPI_TYPE_LOCAL_SCOPE           0x1B  /* 1 Name, multiple object_list
+                                               * Nodes */
 
-#define ACPI_TYPE_NS_NODE_MAX           0x1B	/* Last typecode used within a NS Node */
+#define ACPI_TYPE_NS_NODE_MAX           0x1B  /* Last typecode used within a NS
+                                               * Node */
 #define ACPI_TOTAL_TYPES                (ACPI_TYPE_NS_NODE_MAX + 1)
 
 /*
@@ -779,7 +818,8 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_DISPATCH_NOTIFY        (u8) 0x03
 #define ACPI_GPE_DISPATCH_RAW_HANDLER   (u8) 0x04
 #define ACPI_GPE_DISPATCH_MASK          (u8) 0x07
-#define ACPI_GPE_DISPATCH_TYPE(flags)   ((u8) ((flags) & ACPI_GPE_DISPATCH_MASK))
+#define ACPI_GPE_DISPATCH_TYPE(flags)   ((u8) ((flags) \
+  & ACPI_GPE_DISPATCH_MASK))
 
 #define ACPI_GPE_LEVEL_TRIGGERED        (u8) 0x08
 #define ACPI_GPE_EDGE_TRIGGERED         (u8) 0x00
@@ -799,15 +839,18 @@ typedef u32 acpi_event_status;
 
 #define ACPI_SYSTEM_NOTIFY              0x1
 #define ACPI_DEVICE_NOTIFY              0x2
-#define ACPI_ALL_NOTIFY                 (ACPI_SYSTEM_NOTIFY | ACPI_DEVICE_NOTIFY)
+#define ACPI_ALL_NOTIFY                 (ACPI_SYSTEM_NOTIFY \
+  | ACPI_DEVICE_NOTIFY)
 #define ACPI_MAX_NOTIFY_HANDLER_TYPE    0x3
 #define ACPI_NUM_NOTIFY_TYPES           2
 
 #define ACPI_MAX_SYS_NOTIFY             0x7F
 #define ACPI_MAX_DEVICE_SPECIFIC_NOTIFY 0xBF
 
-#define ACPI_SYSTEM_HANDLER_LIST        0	/* Used as index, must be SYSTEM_NOTIFY -1 */
-#define ACPI_DEVICE_HANDLER_LIST        1	/* Used as index, must be DEVICE_NOTIFY -1 */
+#define ACPI_SYSTEM_HANDLER_LIST        0 /* Used as index, must be
+                                           * SYSTEM_NOTIFY -1 */
+#define ACPI_DEVICE_HANDLER_LIST        1 /* Used as index, must be
+                                           * DEVICE_NOTIFY -1 */
 
 /* Address Space (Operation Region) Types */
 
@@ -836,7 +879,9 @@ typedef u8 acpi_adr_space_type;
  * interpreter simply creates an operation region with an address
  * space type of ACPI_ADR_SPACE_DATA_TABLE.
  */
-#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 0x7E	/* Internal to ACPICA only */
+#define ACPI_ADR_SPACE_DATA_TABLE       (acpi_adr_space_type) 0x7E  /* Internal
+                                                                     * to ACPICA
+                                                                     * only */
 #define ACPI_ADR_SPACE_FIXED_HARDWARE   (acpi_adr_space_type) 0x7F
 
 /* Values for _REG connection code */
@@ -906,56 +951,56 @@ typedef u8 acpi_adr_space_type;
  * element or an unresolved named reference.
  */
 union acpi_object {
-	acpi_object_type type;	/* See definition of acpi_ns_type for values */
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_INTEGER */
-		u64 value;	/* The actual number */
-	} integer;
+  acpi_object_type type;  /* See definition of acpi_ns_type for values */
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_INTEGER */
+    u64 value;  /* The actual number */
+  } integer;
 
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_STRING */
-		u32 length;	/* # of bytes in string, excluding trailing null */
-		char *pointer;	/* points to the string value */
-	} string;
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_STRING */
+    u32 length; /* # of bytes in string, excluding trailing null */
+    char *pointer;  /* points to the string value */
+  } string;
 
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_BUFFER */
-		u32 length;	/* # of bytes in buffer */
-		u8 *pointer;	/* points to the buffer */
-	} buffer;
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_BUFFER */
+    u32 length; /* # of bytes in buffer */
+    u8 *pointer;  /* points to the buffer */
+  } buffer;
 
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_PACKAGE */
-		u32 count;	/* # of elements in package */
-		union acpi_object *elements;	/* Pointer to an array of ACPI_OBJECTs */
-	} package;
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_PACKAGE */
+    u32 count;  /* # of elements in package */
+    union acpi_object *elements;  /* Pointer to an array of ACPI_OBJECTs */
+  } package;
 
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_LOCAL_REFERENCE */
-		acpi_object_type actual_type;	/* Type associated with the Handle */
-		acpi_handle handle;	/* object reference */
-	} reference;
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_LOCAL_REFERENCE */
+    acpi_object_type actual_type; /* Type associated with the Handle */
+    acpi_handle handle; /* object reference */
+  } reference;
 
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_PROCESSOR */
-		u32 proc_id;
-		acpi_io_address pblk_address;
-		u32 pblk_length;
-	} processor;
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_PROCESSOR */
+    u32 proc_id;
+    acpi_io_address pblk_address;
+    u32 pblk_length;
+  } processor;
 
-	struct {
-		acpi_object_type type;	/* ACPI_TYPE_POWER */
-		u32 system_level;
-		u32 resource_order;
-	} power_resource;
+  struct {
+    acpi_object_type type;  /* ACPI_TYPE_POWER */
+    u32 system_level;
+    u32 resource_order;
+  } power_resource;
 };
 
 /*
  * List of objects, used as a parameter list for control method evaluation
  */
 struct acpi_object_list {
-	u32 count;
-	union acpi_object *pointer;
+  u32 count;
+  union acpi_object *pointer;
 };
 
 /*
@@ -968,16 +1013,18 @@ struct acpi_object_list {
 #define ACPI_ALLOCATE_BUFFER        (acpi_size) (0)
 #define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (0)
 
-#else				/* ACPI_NO_MEM_ALLOCATIONS */
+#else       /* ACPI_NO_MEM_ALLOCATIONS */
 
-#define ACPI_ALLOCATE_BUFFER        (acpi_size) (-1)	/* Let ACPICA allocate buffer */
-#define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (-2)	/* For internal use only (enables tracking) */
+#define ACPI_ALLOCATE_BUFFER        (acpi_size) (-1)  /* Let ACPICA allocate
+                                                       * buffer */
+#define ACPI_ALLOCATE_LOCAL_BUFFER  (acpi_size) (-2)  /* For internal use only
+                                                       * (enables tracking) */
 
-#endif				/* ACPI_NO_MEM_ALLOCATIONS */
+#endif        /* ACPI_NO_MEM_ALLOCATIONS */
 
 struct acpi_buffer {
-	acpi_size length;	/* Length in bytes of the buffer */
-	void *pointer;		/* pointer to buffer */
+  acpi_size length; /* Length in bytes of the buffer */
+  void *pointer;    /* pointer to buffer */
 };
 
 /*
@@ -992,9 +1039,9 @@ struct acpi_buffer {
  * Predefined Namespace items
  */
 struct acpi_predefined_names {
-	const char *name;
-	u8 type;
-	char *val;
+  const char *name;
+  u8 type;
+  char *val;
 };
 
 /*
@@ -1009,75 +1056,76 @@ struct acpi_predefined_names {
  * System info returned by acpi_get_system_info()
  */
 struct acpi_system_info {
-	u32 acpi_ca_version;
-	u32 flags;
-	u32 timer_resolution;
-	u32 reserved1;
-	u32 reserved2;
-	u32 debug_level;
-	u32 debug_layer;
+  u32 acpi_ca_version;
+  u32 flags;
+  u32 timer_resolution;
+  u32 reserved1;
+  u32 reserved2;
+  u32 debug_level;
+  u32 debug_layer;
 };
 
 /*
  * System statistics returned by acpi_get_statistics()
  */
 struct acpi_statistics {
-	u32 sci_count;
-	u32 gpe_count;
-	u32 fixed_event_count[ACPI_NUM_FIXED_EVENTS];
-	u32 method_count;
+  u32 sci_count;
+  u32 gpe_count;
+  u32 fixed_event_count[ACPI_NUM_FIXED_EVENTS];
+  u32 method_count;
 };
 
 /*
  * Types specific to the OS service interfaces
  */
 typedef u32
- (ACPI_SYSTEM_XFACE * acpi_osd_handler) (void *context);
+(ACPI_SYSTEM_XFACE *acpi_osd_handler)(void *context);
 
 typedef void
- (ACPI_SYSTEM_XFACE * acpi_osd_exec_callback) (void *context);
+(ACPI_SYSTEM_XFACE *acpi_osd_exec_callback)(void *context);
 
 /*
  * Various handlers and callback procedures
  */
 typedef
-u32 (*acpi_sci_handler) (void *context);
+    u32 (*acpi_sci_handler)(void *context);
 
 typedef
-void (*acpi_gbl_event_handler) (u32 event_type,
-			       acpi_handle device,
-			       u32 event_number, void *context);
+    void (*acpi_gbl_event_handler)(u32 event_type,
+    acpi_handle device,
+    u32 event_number, void *context);
 
 #define ACPI_EVENT_TYPE_GPE         0
 #define ACPI_EVENT_TYPE_FIXED       1
 
 typedef
-u32(*acpi_event_handler) (void *context);
+    u32 (*acpi_event_handler)(void *context);
 
 typedef
-u32 (*acpi_gpe_handler) (acpi_handle gpe_device, u32 gpe_number, void *context);
+    u32 (*acpi_gpe_handler)(acpi_handle gpe_device, u32 gpe_number,
+    void *context);
 
 typedef
-void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
+    void (*acpi_notify_handler)(acpi_handle device, u32 value, void *context);
 
 typedef
-void (*acpi_object_handler) (acpi_handle object, void *data);
+    void (*acpi_object_handler)(acpi_handle object, void *data);
 
 typedef
-acpi_status (*acpi_init_handler) (acpi_handle object, u32 function);
+    acpi_status (*acpi_init_handler)(acpi_handle object, u32 function);
 
 #define ACPI_INIT_DEVICE_INI        1
 
 typedef
-acpi_status (*acpi_exception_handler) (acpi_status aml_status,
-				       acpi_name name,
-				       u16 opcode,
-				       u32 aml_offset, void *context);
+    acpi_status (*acpi_exception_handler)(acpi_status aml_status,
+    acpi_name name,
+    u16 opcode,
+    u32 aml_offset, void *context);
 
 /* Table Event handler (Load, load_table, etc.) and types */
 
 typedef
-acpi_status (*acpi_table_handler) (u32 event, void *table, void *context);
+    acpi_status (*acpi_table_handler)(u32 event, void *table, void *context);
 
 /* Table Event Types */
 
@@ -1090,54 +1138,54 @@ acpi_status (*acpi_table_handler) (u32 event, void *table, void *context);
 /* Address Spaces (For Operation Regions) */
 
 typedef
-acpi_status (*acpi_adr_space_handler) (u32 function,
-				       acpi_physical_address address,
-				       u32 bit_width,
-				       u64 *value,
-				       void *handler_context,
-				       void *region_context);
+    acpi_status (*acpi_adr_space_handler)(u32 function,
+    acpi_physical_address address,
+    u32 bit_width,
+    u64 *value,
+    void *handler_context,
+    void *region_context);
 
 #define ACPI_DEFAULT_HANDLER            NULL
 
 /* Special Context data for generic_serial_bus/general_purpose_io (ACPI 5.0) */
 
 struct acpi_connection_info {
-	u8 *connection;
-	u16 length;
-	u8 access_length;
+  u8 *connection;
+  u16 length;
+  u8 access_length;
 };
 
 /* Special Context data for PCC Opregion (ACPI 6.3) */
 
 struct acpi_pcc_info {
-	u8 subspace_id;
-	u16 length;
-	u8 *internal_buffer;
+  u8 subspace_id;
+  u16 length;
+  u8 *internal_buffer;
 };
 
 /* Special Context data for FFH Opregion (ACPI 6.5) */
 
 struct acpi_ffh_info {
-	u64 offset;
-	u64 length;
+  u64 offset;
+  u64 length;
 };
 
 typedef
-acpi_status (*acpi_adr_space_setup) (acpi_handle region_handle,
-				     u32 function,
-				     void *handler_context,
-				     void **region_context);
+    acpi_status (*acpi_adr_space_setup)(acpi_handle region_handle,
+    u32 function,
+    void *handler_context,
+    void **region_context);
 
 #define ACPI_REGION_ACTIVATE    0
 #define ACPI_REGION_DEACTIVATE  1
 
 typedef
-acpi_status (*acpi_walk_callback) (acpi_handle object,
-				   u32 nesting_level,
-				   void *context, void **return_value);
+    acpi_status (*acpi_walk_callback)(acpi_handle object,
+    u32 nesting_level,
+    void *context, void **return_value);
 
 typedef
-u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
+    u32 (*acpi_interface_handler)(acpi_string interface_name, u32 supported);
 
 /* Interrupt handler return values */
 
@@ -1150,7 +1198,7 @@ u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
 
 /* Length of 32-bit EISAID values when converted back to a string */
 
-#define ACPI_EISAID_STRING_SIZE         8	/* Includes null terminator */
+#define ACPI_EISAID_STRING_SIZE         8 /* Includes null terminator */
 
 /* Length of UUID (string) values */
 
@@ -1158,19 +1206,19 @@ u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
 
 /* Length of 3-byte PCI class code values when converted back to a string */
 
-#define ACPI_PCICLS_STRING_SIZE         7	/* Includes null terminator */
+#define ACPI_PCICLS_STRING_SIZE         7 /* Includes null terminator */
 
 /* Structures used for device/processor HID, UID, CID */
 
 struct acpi_pnp_device_id {
-	u32 length;		/* Length of string + null */
-	char *string;
+  u32 length;   /* Length of string + null */
+  char *string;
 };
 
 struct acpi_pnp_device_id_list {
-	u32 count;		/* Number of IDs in Ids array */
-	u32 list_size;		/* Size of list, including ID strings */
-	struct acpi_pnp_device_id ids[];	/* ID array */
+  u32 count;    /* Number of IDs in Ids array */
+  u32 list_size;    /* Size of list, including ID strings */
+  struct acpi_pnp_device_id ids[];  /* ID array */
 };
 
 /*
@@ -1178,19 +1226,20 @@ struct acpi_pnp_device_id_list {
  * Optimized for both 32-bit and 64-bit builds.
  */
 struct acpi_device_info {
-	u32 info_size;		/* Size of info, including ID strings */
-	u32 name;		/* ACPI object Name */
-	acpi_object_type type;	/* ACPI object Type */
-	u8 param_count;		/* If a method, required parameter count */
-	u16 valid;		/* Indicates which optional fields are valid */
-	u8 flags;		/* Miscellaneous info */
-	u8 highest_dstates[4];	/* _sx_d values: 0xFF indicates not valid */
-	u8 lowest_dstates[5];	/* _sx_w values: 0xFF indicates not valid */
-	u64 address;	/* _ADR value */
-	struct acpi_pnp_device_id hardware_id;	/* _HID value */
-	struct acpi_pnp_device_id unique_id;	/* _UID value */
-	struct acpi_pnp_device_id class_code;	/* _CLS value */
-	struct acpi_pnp_device_id_list compatible_id_list;	/* _CID list <must be last> */
+  u32 info_size;    /* Size of info, including ID strings */
+  u32 name;   /* ACPI object Name */
+  acpi_object_type type;  /* ACPI object Type */
+  u8 param_count;   /* If a method, required parameter count */
+  u16 valid;    /* Indicates which optional fields are valid */
+  u8 flags;   /* Miscellaneous info */
+  u8 highest_dstates[4];  /* _sx_d values: 0xFF indicates not valid */
+  u8 lowest_dstates[5]; /* _sx_w values: 0xFF indicates not valid */
+  u64 address;  /* _ADR value */
+  struct acpi_pnp_device_id hardware_id;  /* _HID value */
+  struct acpi_pnp_device_id unique_id;  /* _UID value */
+  struct acpi_pnp_device_id class_code; /* _CLS value */
+  struct acpi_pnp_device_id_list compatible_id_list;  /* _CID list <must be
+                                                       * last> */
 };
 
 /* Values for Flags field above (acpi_get_object_info) */
@@ -1213,66 +1262,66 @@ struct acpi_device_info {
 #define ACPI_STA_DEVICE_ENABLED         0x02
 #define ACPI_STA_DEVICE_UI              0x04
 #define ACPI_STA_DEVICE_FUNCTIONING     0x08
-#define ACPI_STA_DEVICE_OK              0x08	/* Synonym */
+#define ACPI_STA_DEVICE_OK              0x08  /* Synonym */
 #define ACPI_STA_BATTERY_PRESENT        0x10
 
 /* Context structs for address space handlers */
 
 struct acpi_pci_id {
-	u16 segment;
-	u16 bus;
-	u16 device;
-	u16 function;
+  u16 segment;
+  u16 bus;
+  u16 device;
+  u16 function;
 };
 
 struct acpi_mem_mapping {
-	acpi_physical_address physical_address;
-	u8 *logical_address;
-	acpi_size length;
-	struct acpi_mem_mapping *next_mm;
+  acpi_physical_address physical_address;
+  u8 *logical_address;
+  acpi_size length;
+  struct acpi_mem_mapping *next_mm;
 };
 
 struct acpi_mem_space_context {
-	u32 length;
-	acpi_physical_address address;
-	struct acpi_mem_mapping *cur_mm;
-	struct acpi_mem_mapping *first_mm;
+  u32 length;
+  acpi_physical_address address;
+  struct acpi_mem_mapping *cur_mm;
+  struct acpi_mem_mapping *first_mm;
 };
 
 struct acpi_data_table_mapping {
-	void *pointer;
+  void *pointer;
 };
 
 /*
  * struct acpi_memory_list is used only if the ACPICA local cache is enabled
  */
 struct acpi_memory_list {
-	const char *list_name;
-	void *list_head;
-	u16 object_size;
-	u16 max_depth;
-	u16 current_depth;
+  const char *list_name;
+  void *list_head;
+  u16 object_size;
+  u16 max_depth;
+  u16 current_depth;
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
 
-	/* Statistics for debug memory tracking only */
+  /* Statistics for debug memory tracking only */
 
-	u32 total_allocated;
-	u32 total_freed;
-	u32 max_occupied;
-	u32 total_size;
-	u32 current_total_size;
-	u32 requests;
-	u32 hits;
+  u32 total_allocated;
+  u32 total_freed;
+  u32 max_occupied;
+  u32 total_size;
+  u32 current_total_size;
+  u32 requests;
+  u32 hits;
 #endif
 };
 
 /* Definitions of trace event types */
 
 typedef enum {
-	ACPI_TRACE_AML_METHOD,
-	ACPI_TRACE_AML_OPCODE,
-	ACPI_TRACE_AML_REGION
+  ACPI_TRACE_AML_METHOD,
+  ACPI_TRACE_AML_OPCODE,
+  ACPI_TRACE_AML_REGION
 } acpi_trace_event_type;
 
 /* Definitions of _OSI support */
@@ -1282,12 +1331,18 @@ typedef enum {
 #define ACPI_ENABLE_INTERFACES              0x00
 #define ACPI_DISABLE_INTERFACES             0x04
 
-#define ACPI_DISABLE_ALL_VENDOR_STRINGS     (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS)
-#define ACPI_DISABLE_ALL_FEATURE_STRINGS    (ACPI_DISABLE_INTERFACES | ACPI_FEATURE_STRINGS)
-#define ACPI_DISABLE_ALL_STRINGS            (ACPI_DISABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
-#define ACPI_ENABLE_ALL_VENDOR_STRINGS      (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS)
-#define ACPI_ENABLE_ALL_FEATURE_STRINGS     (ACPI_ENABLE_INTERFACES | ACPI_FEATURE_STRINGS)
-#define ACPI_ENABLE_ALL_STRINGS             (ACPI_ENABLE_INTERFACES | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+#define ACPI_DISABLE_ALL_VENDOR_STRINGS     (ACPI_DISABLE_INTERFACES \
+  | ACPI_VENDOR_STRINGS)
+#define ACPI_DISABLE_ALL_FEATURE_STRINGS    (ACPI_DISABLE_INTERFACES \
+  | ACPI_FEATURE_STRINGS)
+#define ACPI_DISABLE_ALL_STRINGS            (ACPI_DISABLE_INTERFACES \
+  | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_VENDOR_STRINGS      (ACPI_ENABLE_INTERFACES \
+  | ACPI_VENDOR_STRINGS)
+#define ACPI_ENABLE_ALL_FEATURE_STRINGS     (ACPI_ENABLE_INTERFACES \
+  | ACPI_FEATURE_STRINGS)
+#define ACPI_ENABLE_ALL_STRINGS             (ACPI_ENABLE_INTERFACES \
+  | ACPI_VENDOR_STRINGS | ACPI_FEATURE_STRINGS)
 
 #define ACPI_OSI_WIN_2000               0x01
 #define ACPI_OSI_WIN_XP                 0x02
@@ -1319,11 +1374,11 @@ typedef enum {
 /* Definitions for explicit fallthrough */
 
 #ifndef ACPI_FALLTHROUGH
-#define ACPI_FALLTHROUGH do {} while(0)
+#define ACPI_FALLTHROUGH do {} while (0)
 #endif
 
 #ifndef ACPI_FLEX_ARRAY
 #define ACPI_FLEX_ARRAY(TYPE, NAME)     TYPE NAME[0]
 #endif
 
-#endif				/* __ACTYPES_H__ */
+#endif        /* __ACTYPES_H__ */

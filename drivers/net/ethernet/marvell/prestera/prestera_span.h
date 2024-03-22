@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2019-2020 Marvell International Ltd. All rights reserved. */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+ * Copyright (c) 2019-2020 Marvell International Ltd. All rights reserved.*/
 
 #ifndef _PRESTERA_SPAN_H_
 #define _PRESTERA_SPAN_H_
@@ -16,9 +16,9 @@ int prestera_span_init(struct prestera_switch *sw);
 void prestera_span_fini(struct prestera_switch *sw);
 
 int prestera_span_rule_add(struct prestera_flow_block_binding *binding,
-			   struct prestera_port *to_port,
-			   bool ingress);
+    struct prestera_port *to_port,
+    bool ingress);
 int prestera_span_rule_del(struct prestera_flow_block_binding *binding,
-			   bool ingress);
+    bool ingress);
 
 #endif /* _PRESTERA_SPAN_H_ */

@@ -49,46 +49,47 @@
  *
  * Below code shows how asserts could help in debug to catch unplanned use::
  *
- *	static void one_igfx(struct xe_device *xe)
- *	{
- *		xe_assert(xe, xe->info.is_dgfx == false);
- *		xe_assert(xe, xe->info.tile_count == 1);
- *	}
+ *  static void one_igfx(struct xe_device *xe)
+ *  {
+ *    xe_assert(xe, xe->info.is_dgfx == false);
+ *    xe_assert(xe, xe->info.tile_count == 1);
+ *  }
  *
- *	static void two_dgfx(struct xe_device *xe)
- *	{
- *		xe_assert(xe, xe->info.is_dgfx);
- *		xe_assert(xe, xe->info.tile_count == 2);
- *	}
+ *  static void two_dgfx(struct xe_device *xe)
+ *  {
+ *    xe_assert(xe, xe->info.is_dgfx);
+ *    xe_assert(xe, xe->info.tile_count == 2);
+ *  }
  *
- *	void foo(struct xe_device *xe)
- *	{
- *		if (xe->info.dgfx)
- *			return two_dgfx(xe);
- *		return one_igfx(xe);
- *	}
+ *  void foo(struct xe_device *xe)
+ *  {
+ *    if (xe->info.dgfx)
+ *      return two_dgfx(xe);
+ *    return one_igfx(xe);
+ *  }
  *
- *	void bar(struct xe_device *xe)
- *	{
- *		if (drm_WARN_ON(xe->drm, xe->info.tile_count > 2))
- *			return;
+ *  void bar(struct xe_device *xe)
+ *  {
+ *    if (drm_WARN_ON(xe->drm, xe->info.tile_count > 2))
+ *      return;
  *
- *		if (xe->info.tile_count == 2)
- *			return two_dgfx(xe);
- *		return one_igfx(xe);
- *	}
+ *    if (xe->info.tile_count == 2)
+ *      return two_dgfx(xe);
+ *    return one_igfx(xe);
+ *  }
  */
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
-#define __xe_assert_msg(xe, condition, msg, arg...) ({						\
-	(void)drm_WARN(&(xe)->drm, !(condition), "[" DRM_NAME "] Assertion `%s` failed!\n" msg,	\
-		       __stringify(condition), ## arg);						\
-})
+#define __xe_assert_msg(xe, condition, msg, arg ...) ({            \
+    (void) drm_WARN(&(xe)->drm, !(condition), \
+    "[" DRM_NAME "] Assertion `%s` failed!\n" msg, \
+    __stringify(condition), ## arg);           \
+  })
 #else
-#define __xe_assert_msg(xe, condition, msg, arg...) ({						\
-	typecheck(const struct xe_device *, xe);						\
-	BUILD_BUG_ON_INVALID(condition);							\
-})
+#define __xe_assert_msg(xe, condition, msg, arg ...) ({            \
+    typecheck(const struct xe_device *, xe);            \
+    BUILD_BUG_ON_INVALID(condition);              \
+  })
 #endif
 
 /**
@@ -106,24 +107,24 @@
  * See `Xe ASSERTs`_ for general usage guidelines.
  */
 #define xe_assert(xe, condition) xe_assert_msg((xe), condition, "")
-#define xe_assert_msg(xe, condition, msg, arg...) ({						\
-	const struct xe_device *__xe = (xe);							\
-	__xe_assert_msg(__xe, condition,							\
-			"platform: %d subplatform: %d\n"					\
-			"graphics: %s %u.%02u step %s\n"					\
-			"media: %s %u.%02u step %s\n"						\
-			msg,									\
-			__xe->info.platform, __xe->info.subplatform,				\
-			__xe->info.graphics_name,						\
-			__xe->info.graphics_verx100 / 100,					\
-			__xe->info.graphics_verx100 % 100,					\
-			xe_step_name(__xe->info.step.graphics),					\
-			__xe->info.media_name,							\
-			__xe->info.media_verx100 / 100,						\
-			__xe->info.media_verx100 % 100,						\
-			xe_step_name(__xe->info.step.media),					\
-			## arg);								\
-})
+#define xe_assert_msg(xe, condition, msg, arg ...) ({            \
+    const struct xe_device *__xe = (xe);              \
+    __xe_assert_msg(__xe, condition,              \
+    "platform: %d subplatform: %d\n"          \
+    "graphics: %s %u.%02u step %s\n"          \
+    "media: %s %u.%02u step %s\n"           \
+    msg,                  \
+    __xe->info.platform, __xe->info.subplatform,        \
+    __xe->info.graphics_name,           \
+    __xe->info.graphics_verx100 / 100,          \
+    __xe->info.graphics_verx100 % 100,          \
+    xe_step_name(__xe->info.step.graphics),         \
+    __xe->info.media_name,              \
+    __xe->info.media_verx100 / 100,           \
+    __xe->info.media_verx100 % 100,           \
+    xe_step_name(__xe->info.step.media),          \
+    ## arg);                \
+  })
 
 /**
  * xe_tile_assert - warn if condition is false when debugging.
@@ -140,14 +141,15 @@
  *
  * See `Xe ASSERTs`_ for general usage guidelines.
  */
-#define xe_tile_assert(tile, condition) xe_tile_assert_msg((tile), condition, "")
-#define xe_tile_assert_msg(tile, condition, msg, arg...) ({					\
-	const struct xe_tile *__tile = (tile);							\
-	char __buf[10] __maybe_unused;								\
-	xe_assert_msg(tile_to_xe(__tile), condition, "tile: %u VRAM %s\n" msg,			\
-		      __tile->id, ({ string_get_size(__tile->mem.vram.actual_physical_size, 1,	\
-				     STRING_UNITS_2, __buf, sizeof(__buf)); __buf; }), ## arg);	\
-})
+#define xe_tile_assert(tile, condition) xe_tile_assert_msg((tile), condition, \
+    "")
+#define xe_tile_assert_msg(tile, condition, msg, arg ...) ({         \
+    const struct xe_tile *__tile = (tile);              \
+    char __buf[10] __maybe_unused;                \
+    xe_assert_msg(tile_to_xe(__tile), condition, "tile: %u VRAM %s\n" msg,      \
+    __tile->id, ({ string_get_size(__tile->mem.vram.actual_physical_size, 1,  \
+    STRING_UNITS_2, __buf, sizeof(__buf)); __buf; }), ## arg); \
+  })
 
 /**
  * xe_gt_assert - warn if condition is false when debugging.
@@ -165,10 +167,10 @@
  * See `Xe ASSERTs`_ for general usage guidelines.
  */
 #define xe_gt_assert(gt, condition) xe_gt_assert_msg((gt), condition, "")
-#define xe_gt_assert_msg(gt, condition, msg, arg...) ({						\
-	const struct xe_gt *__gt = (gt);							\
-	xe_tile_assert_msg(gt_to_tile(__gt), condition, "GT: %u type %d\n" msg,			\
-			   __gt->info.id, __gt->info.type, ## arg);				\
-})
+#define xe_gt_assert_msg(gt, condition, msg, arg ...) ({           \
+    const struct xe_gt *__gt = (gt);              \
+    xe_tile_assert_msg(gt_to_tile(__gt), condition, "GT: %u type %d\n" msg,     \
+    __gt->info.id, __gt->info.type, ## arg);       \
+  })
 
 #endif

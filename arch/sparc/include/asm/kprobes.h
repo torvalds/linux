@@ -17,39 +17,39 @@ typedef u32 kprobe_opcode_t;
 
 #define kretprobe_blacklist_size 0
 
-#define arch_remove_kprobe(p)	do {} while (0)
+#define arch_remove_kprobe(p) do {} while (0)
 
-#define flush_insn_slot(p)		\
-do { 	flushi(&(p)->ainsn.insn[0]);	\
-	flushi(&(p)->ainsn.insn[1]);	\
-} while (0)
+#define flush_insn_slot(p)    \
+  do {  flushi(&(p)->ainsn.insn[0]);  \
+        flushi(&(p)->ainsn.insn[1]);  \
+  } while (0)
 
 void __kretprobe_trampoline(void);
 
 /* Architecture specific copy of original instruction*/
 struct arch_specific_insn {
-	/* copy of the original instruction */
-	kprobe_opcode_t insn[MAX_INSN_SIZE];
+  /* copy of the original instruction */
+  kprobe_opcode_t insn[MAX_INSN_SIZE];
 };
 
 struct prev_kprobe {
-	struct kprobe *kp;
-	unsigned long status;
-	unsigned long orig_tnpc;
-	unsigned long orig_tstate_pil;
+  struct kprobe *kp;
+  unsigned long status;
+  unsigned long orig_tnpc;
+  unsigned long orig_tstate_pil;
 };
 
 /* per-cpu kprobe control block */
 struct kprobe_ctlblk {
-	unsigned long kprobe_status;
-	unsigned long kprobe_orig_tnpc;
-	unsigned long kprobe_orig_tstate_pil;
-	struct prev_kprobe prev_kprobe;
+  unsigned long kprobe_status;
+  unsigned long kprobe_orig_tnpc;
+  unsigned long kprobe_orig_tstate_pil;
+  struct prev_kprobe prev_kprobe;
 };
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
-				      struct pt_regs *regs);
+    struct pt_regs *regs);
 
 #endif /* CONFIG_KPROBES */
 #endif /* _SPARC64_KPROBES_H */

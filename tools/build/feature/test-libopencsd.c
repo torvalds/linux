@@ -9,8 +9,7 @@
 #error "OpenCSD >= 1.2.1 is required"
 #endif
 
-int main(void)
-{
-	(void)ocsd_get_version();
-	return 0;
+int main(void) {
+  (void) ocsd_get_version();
+  return 0;
 }

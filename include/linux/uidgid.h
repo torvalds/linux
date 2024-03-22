@@ -23,25 +23,23 @@ struct uid_gid_map;
 #define KGIDT_INIT(value) (kgid_t){ value }
 
 #ifdef CONFIG_MULTIUSER
-static inline uid_t __kuid_val(kuid_t uid)
-{
-	return uid.val;
+static inline uid_t __kuid_val(kuid_t uid) {
+  return uid.val;
 }
 
-static inline gid_t __kgid_val(kgid_t gid)
-{
-	return gid.val;
+static inline gid_t __kgid_val(kgid_t gid) {
+  return gid.val;
 }
+
 #else
-static inline uid_t __kuid_val(kuid_t uid)
-{
-	return 0;
+static inline uid_t __kuid_val(kuid_t uid) {
+  return 0;
 }
 
-static inline gid_t __kgid_val(kgid_t gid)
-{
-	return 0;
+static inline gid_t __kgid_val(kgid_t gid) {
+  return 0;
 }
+
 #endif
 
 #define GLOBAL_ROOT_UID KUIDT_INIT(0)
@@ -50,64 +48,52 @@ static inline gid_t __kgid_val(kgid_t gid)
 #define INVALID_UID KUIDT_INIT(-1)
 #define INVALID_GID KGIDT_INIT(-1)
 
-static inline bool uid_eq(kuid_t left, kuid_t right)
-{
-	return __kuid_val(left) == __kuid_val(right);
+static inline bool uid_eq(kuid_t left, kuid_t right) {
+  return __kuid_val(left) == __kuid_val(right);
 }
 
-static inline bool gid_eq(kgid_t left, kgid_t right)
-{
-	return __kgid_val(left) == __kgid_val(right);
+static inline bool gid_eq(kgid_t left, kgid_t right) {
+  return __kgid_val(left) == __kgid_val(right);
 }
 
-static inline bool uid_gt(kuid_t left, kuid_t right)
-{
-	return __kuid_val(left) > __kuid_val(right);
+static inline bool uid_gt(kuid_t left, kuid_t right) {
+  return __kuid_val(left) > __kuid_val(right);
 }
 
-static inline bool gid_gt(kgid_t left, kgid_t right)
-{
-	return __kgid_val(left) > __kgid_val(right);
+static inline bool gid_gt(kgid_t left, kgid_t right) {
+  return __kgid_val(left) > __kgid_val(right);
 }
 
-static inline bool uid_gte(kuid_t left, kuid_t right)
-{
-	return __kuid_val(left) >= __kuid_val(right);
+static inline bool uid_gte(kuid_t left, kuid_t right) {
+  return __kuid_val(left) >= __kuid_val(right);
 }
 
-static inline bool gid_gte(kgid_t left, kgid_t right)
-{
-	return __kgid_val(left) >= __kgid_val(right);
+static inline bool gid_gte(kgid_t left, kgid_t right) {
+  return __kgid_val(left) >= __kgid_val(right);
 }
 
-static inline bool uid_lt(kuid_t left, kuid_t right)
-{
-	return __kuid_val(left) < __kuid_val(right);
+static inline bool uid_lt(kuid_t left, kuid_t right) {
+  return __kuid_val(left) < __kuid_val(right);
 }
 
-static inline bool gid_lt(kgid_t left, kgid_t right)
-{
-	return __kgid_val(left) < __kgid_val(right);
+static inline bool gid_lt(kgid_t left, kgid_t right) {
+  return __kgid_val(left) < __kgid_val(right);
 }
 
-static inline bool uid_lte(kuid_t left, kuid_t right)
-{
-	return __kuid_val(left) <= __kuid_val(right);
+static inline bool uid_lte(kuid_t left, kuid_t right) {
+  return __kuid_val(left) <= __kuid_val(right);
 }
 
-static inline bool gid_lte(kgid_t left, kgid_t right)
-{
-	return __kgid_val(left) <= __kgid_val(right);
+static inline bool gid_lte(kgid_t left, kgid_t right) {
+  return __kgid_val(left) <= __kgid_val(right);
 }
 
-static inline bool uid_valid(kuid_t uid)
-{
-	return __kuid_val(uid) != (uid_t) -1;
+static inline bool uid_valid(kuid_t uid) {
+  return __kuid_val(uid) != (uid_t) -1;
 }
 
-static inline bool gid_valid(kgid_t gid)
-{
-	return __kgid_val(gid) != (gid_t) -1;
+static inline bool gid_valid(kgid_t gid) {
+  return __kgid_val(gid) != (gid_t) -1;
 }
 
 #ifdef CONFIG_USER_NS
@@ -120,14 +106,12 @@ extern gid_t from_kgid(struct user_namespace *to, kgid_t gid);
 extern uid_t from_kuid_munged(struct user_namespace *to, kuid_t uid);
 extern gid_t from_kgid_munged(struct user_namespace *to, kgid_t gid);
 
-static inline bool kuid_has_mapping(struct user_namespace *ns, kuid_t uid)
-{
-	return from_kuid(ns, uid) != (uid_t) -1;
+static inline bool kuid_has_mapping(struct user_namespace *ns, kuid_t uid) {
+  return from_kuid(ns, uid) != (uid_t) -1;
 }
 
-static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid)
-{
-	return from_kgid(ns, gid) != (gid_t) -1;
+static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid) {
+  return from_kgid(ns, gid) != (gid_t) -1;
 }
 
 u32 map_id_down(struct uid_gid_map *map, u32 id);
@@ -135,61 +119,54 @@ u32 map_id_up(struct uid_gid_map *map, u32 id);
 
 #else
 
-static inline kuid_t make_kuid(struct user_namespace *from, uid_t uid)
-{
-	return KUIDT_INIT(uid);
+static inline kuid_t make_kuid(struct user_namespace *from, uid_t uid) {
+  return KUIDT_INIT(uid);
 }
 
-static inline kgid_t make_kgid(struct user_namespace *from, gid_t gid)
-{
-	return KGIDT_INIT(gid);
+static inline kgid_t make_kgid(struct user_namespace *from, gid_t gid) {
+  return KGIDT_INIT(gid);
 }
 
-static inline uid_t from_kuid(struct user_namespace *to, kuid_t kuid)
-{
-	return __kuid_val(kuid);
+static inline uid_t from_kuid(struct user_namespace *to, kuid_t kuid) {
+  return __kuid_val(kuid);
 }
 
-static inline gid_t from_kgid(struct user_namespace *to, kgid_t kgid)
-{
-	return __kgid_val(kgid);
+static inline gid_t from_kgid(struct user_namespace *to, kgid_t kgid) {
+  return __kgid_val(kgid);
 }
 
-static inline uid_t from_kuid_munged(struct user_namespace *to, kuid_t kuid)
-{
-	uid_t uid = from_kuid(to, kuid);
-	if (uid == (uid_t)-1)
-		uid = overflowuid;
-	return uid;
+static inline uid_t from_kuid_munged(struct user_namespace *to, kuid_t kuid) {
+  uid_t uid = from_kuid(to, kuid);
+  if (uid == (uid_t) -1) {
+    uid = overflowuid;
+  }
+  return uid;
 }
 
-static inline gid_t from_kgid_munged(struct user_namespace *to, kgid_t kgid)
-{
-	gid_t gid = from_kgid(to, kgid);
-	if (gid == (gid_t)-1)
-		gid = overflowgid;
-	return gid;
+static inline gid_t from_kgid_munged(struct user_namespace *to, kgid_t kgid) {
+  gid_t gid = from_kgid(to, kgid);
+  if (gid == (gid_t) -1) {
+    gid = overflowgid;
+  }
+  return gid;
 }
 
-static inline bool kuid_has_mapping(struct user_namespace *ns, kuid_t uid)
-{
-	return uid_valid(uid);
+static inline bool kuid_has_mapping(struct user_namespace *ns, kuid_t uid) {
+  return uid_valid(uid);
 }
 
-static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid)
-{
-	return gid_valid(gid);
+static inline bool kgid_has_mapping(struct user_namespace *ns, kgid_t gid) {
+  return gid_valid(gid);
 }
 
-static inline u32 map_id_down(struct uid_gid_map *map, u32 id)
-{
-	return id;
+static inline u32 map_id_down(struct uid_gid_map *map, u32 id) {
+  return id;
 }
 
-static inline u32 map_id_up(struct uid_gid_map *map, u32 id)
-{
-	return id;
+static inline u32 map_id_up(struct uid_gid_map *map, u32 id) {
+  return id;
 }
+
 #endif /* CONFIG_USER_NS */
 
 #endif /* _LINUX_UIDGID_H */

@@ -26,16 +26,16 @@
 
 /* util */
 #ifdef NXDBG
-#define NXPRT(X)	X
+#define NXPRT(X)  X
 #else
 #define NXPRT(X)
 #endif
 
 #ifdef NXTIMER
 #include <sys/platform/ppc.h>
-#define NX_CLK(X)	X
-#define nx_get_time()	__ppc_get_timebase()
-#define nx_get_freq()	__ppc_get_timebase_freq()
+#define NX_CLK(X) X
+#define nx_get_time() __ppc_get_timebase()
+#define nx_get_freq() __ppc_get_timebase_freq()
 #else
 #define NX_CLK(X)
 #define nx_get_time()  (-1)
@@ -72,8 +72,8 @@
  */
 
 union nx_qw_t {
-	uint32_t word[4];
-	uint64_t dword[2];
+  uint32_t word[4];
+  uint64_t dword[2];
 } __aligned(16);
 
 /*
@@ -84,247 +84,241 @@ union nx_qw_t {
  */
 
 struct nx_dde_t {
-	/* Data Descriptor Element, Section 6.4 */
-	union {
-		uint32_t dde_count;
-		/* When dde_count == 0 ddead is a pointer to a data buffer;
-		 * ddebc is the buffer length bytes.
-		 * When dde_count > 0 dde is an indirect dde; ddead is a
-		 * pointer to a contiguous list of direct ddes; ddebc is the
-		 * total length of all data pointed to by the list of direct
-		 * ddes. Note that only one level of indirection is permitted.
-		 * See Section 6.4 of the user manual for additional details.
-		 */
-	};
-	uint32_t ddebc; /* dde byte count */
-	uint64_t ddead; /* dde address */
+  /* Data Descriptor Element, Section 6.4 */
+  union {
+    uint32_t dde_count;
+    /* When dde_count == 0 ddead is a pointer to a data buffer;
+     * ddebc is the buffer length bytes.
+     * When dde_count > 0 dde is an indirect dde; ddead is a
+     * pointer to a contiguous list of direct ddes; ddebc is the
+     * total length of all data pointed to by the list of direct
+     * ddes. Note that only one level of indirection is permitted.
+     * See Section 6.4 of the user manual for additional details.
+     */
+  };
+  uint32_t ddebc; /* dde byte count */
+  uint64_t ddead; /* dde address */
 } __aligned(16);
 
 struct nx_csb_t {
-	/* Coprocessor Status Block, Section 6.6  */
-	union {
-		uint32_t csb_v;
-		/* Valid bit. v must be set to 0 by the program
-		 * before submitting the coprocessor command.
-		 * Software can poll for the v bit
-		 */
+  /* Coprocessor Status Block, Section 6.6  */
+  union {
+    uint32_t csb_v;
+    /* Valid bit. v must be set to 0 by the program
+     * before submitting the coprocessor command.
+     * Software can poll for the v bit
+     */
 
-		uint32_t csb_f;
-		/* 16B CSB size. Written to 0 by DMA when it writes the CPB */
+    uint32_t csb_f;
+    /* 16B CSB size. Written to 0 by DMA when it writes the CPB */
 
-		uint32_t csb_cs;
-		/* cs completion sequence; unused */
+    uint32_t csb_cs;
+    /* cs completion sequence; unused */
 
-		uint32_t csb_cc;
-		/* cc completion code; cc != 0 exception occurred */
+    uint32_t csb_cc;
+    /* cc completion code; cc != 0 exception occurred */
 
-		uint32_t csb_ce;
-		/* ce completion extension */
+    uint32_t csb_ce;
+    /* ce completion extension */
+  };
+  uint32_t tpbc;
+  /* target processed byte count TPBC */
 
-	};
-	uint32_t tpbc;
-	/* target processed byte count TPBC */
-
-	uint64_t fsaddr;
-	/* Section 6.12.1 CSB NonZero error summary.  FSA Failing storage
-	 * address.  Address where error occurred. When available, written
-	 * to A field of CSB
-	 */
+  uint64_t fsaddr;
+  /* Section 6.12.1 CSB NonZero error summary.  FSA Failing storage
+   * address.  Address where error occurred. When available, written
+   * to A field of CSB
+   */
 } __aligned(16);
 
 struct nx_ccb_t {
-	/* Coprocessor Completion Block, Section 6.7 */
+  /* Coprocessor Completion Block, Section 6.7 */
 
-	uint32_t reserved[3];
-	union {
-		/* When crb.c==0 (no ccb defined) it is reserved;
-		 * When crb.c==1 (ccb defined) it is cm
-		 */
+  uint32_t reserved[3];
+  union {
+    /* When crb.c==0 (no ccb defined) it is reserved;
+     * When crb.c==1 (ccb defined) it is cm
+     */
 
-		uint32_t ccb_cm;
-		/* Signal interrupt of crb.c==1 and cm==1 */
+    uint32_t ccb_cm;
+    /* Signal interrupt of crb.c==1 and cm==1 */
 
-		uint32_t word;
-		/* generic access to the 32bit word */
-	};
+    uint32_t word;
+    /* generic access to the 32bit word */
+  };
 } __aligned(16);
 
 struct vas_stamped_crb_t {
-	/*
-	 * CRB operand of the paste coprocessor instruction is stamped
-	 * in quadword 4 with the information shown here as its written
-	 * in to the receive FIFO of the coprocessor
-	 */
+  /*
+   * CRB operand of the paste coprocessor instruction is stamped
+   * in quadword 4 with the information shown here as its written
+   * in to the receive FIFO of the coprocessor
+   */
 
-	union {
-		uint32_t vas_buf_num;
-		/* Verification only vas buffer number which correlates to
-		 * the low order bits of the atag in the paste command
-		 */
+  union {
+    uint32_t vas_buf_num;
+    /* Verification only vas buffer number which correlates to
+     * the low order bits of the atag in the paste command
+     */
 
-		uint32_t send_wc_id;
-		/* Pointer to Send Window Context that provides for NX address
-		 * translation information, such as MSR and LPCR bits, job
-		 * completion interrupt RA, PSWID, and job utilization counter.
-		 */
-
-	};
-	union {
-		uint32_t recv_wc_id;
-		/* Pointer to Receive Window Context. NX uses this to return
-		 * credits to a Receive FIFO as entries are dequeued.
-		 */
-
-	};
-	uint32_t reserved2;
-	union {
-		uint32_t vas_invalid;
-		/* Invalid bit. If this bit is 1 the CRB is discarded by
-		 * NX upon fetching from the receive FIFO. If this bit is 0
-		 * the CRB is processed normally. The bit is stamped to 0
-		 * by VAS and may be written to 1 by hypervisor while
-		 * the CRB is in the receive FIFO (in memory).
-		 */
-
-	};
+    uint32_t send_wc_id;
+    /* Pointer to Send Window Context that provides for NX address
+     * translation information, such as MSR and LPCR bits, job
+     * completion interrupt RA, PSWID, and job utilization counter.
+     */
+  };
+  union {
+    uint32_t recv_wc_id;
+    /* Pointer to Receive Window Context. NX uses this to return
+     * credits to a Receive FIFO as entries are dequeued.
+     */
+  };
+  uint32_t reserved2;
+  union {
+    uint32_t vas_invalid;
+    /* Invalid bit. If this bit is 1 the CRB is discarded by
+     * NX upon fetching from the receive FIFO. If this bit is 0
+     * the CRB is processed normally. The bit is stamped to 0
+     * by VAS and may be written to 1 by hypervisor while
+     * the CRB is in the receive FIFO (in memory).
+     */
+  };
 };
 
 struct nx_stamped_fault_crb_t {
-	/*
-	 * A CRB that has a translation fault is stamped by NX in quadword 4
-	 * and pasted to the Fault Send Window in VAS.
-	 */
-	uint64_t fsa;
-	union {
-		uint32_t nxsf_t;
-		uint32_t nxsf_fs;
-	};
-	uint32_t pswid;
+  /*
+   * A CRB that has a translation fault is stamped by NX in quadword 4
+   * and pasted to the Fault Send Window in VAS.
+   */
+  uint64_t fsa;
+  union {
+    uint32_t nxsf_t;
+    uint32_t nxsf_fs;
+  };
+  uint32_t pswid;
 };
 
 union stamped_crb_t {
-	struct vas_stamped_crb_t      vas;
-	struct nx_stamped_fault_crb_t nx;
+  struct vas_stamped_crb_t vas;
+  struct nx_stamped_fault_crb_t nx;
 };
 
 struct nx_gzip_cpb_t {
-	/*
-	 * Coprocessor Parameter Block In/Out are used to pass metadata
-	 * to/from accelerator.  Tables 6.5 and 6.6 of the user manual.
-	 */
+  /*
+   * Coprocessor Parameter Block In/Out are used to pass metadata
+   * to/from accelerator.  Tables 6.5 and 6.6 of the user manual.
+   */
 
-	/* CPBInput */
+  /* CPBInput */
 
-	struct {
-		union {
-		union nx_qw_t qw0;
-			struct {
-				uint32_t in_adler;            /* bits 0:31  */
-				uint32_t in_crc;              /* bits 32:63 */
-				union {
-					uint32_t in_histlen;  /* bits 64:75 */
-					uint32_t in_subc;     /* bits 93:95 */
-				};
-				union {
-					/* bits 108:111 */
-					uint32_t in_sfbt;
-					/* bits 112:127 */
-					uint32_t in_rembytecnt;
-					/* bits 116:127 */
-					uint32_t in_dhtlen;
-				};
-			};
-		};
-		union {
-			union nx_qw_t  in_dht[DHTSZ];	/* qw[1:18]     */
-			char in_dht_char[DHT_MAXSZ];	/* byte access  */
-		};
-		union nx_qw_t  reserved[5];		/* qw[19:23]    */
-	};
+  struct {
+    union {
+      union nx_qw_t qw0;
+      struct {
+        uint32_t in_adler;            /* bits 0:31  */
+        uint32_t in_crc;              /* bits 32:63 */
+        union {
+          uint32_t in_histlen;  /* bits 64:75 */
+          uint32_t in_subc;     /* bits 93:95 */
+        };
+        union {
+          /* bits 108:111 */
+          uint32_t in_sfbt;
+          /* bits 112:127 */
+          uint32_t in_rembytecnt;
+          /* bits 116:127 */
+          uint32_t in_dhtlen;
+        };
+      };
+    };
+    union {
+      union nx_qw_t in_dht[DHTSZ]; /* qw[1:18]     */
+      char in_dht_char[DHT_MAXSZ];  /* byte access  */
+    };
+    union nx_qw_t reserved[5];   /* qw[19:23]    */
+  };
 
-	/* CPBOutput */
+  /* CPBOutput */
 
-	volatile struct {
-		union {
-			union nx_qw_t qw24;
-			struct {
-				uint32_t out_adler;    /* bits 0:31  qw[24] */
-				uint32_t out_crc;      /* bits 32:63 qw[24] */
-				union {
-					/* bits 77:79 qw[24] */
-					uint32_t out_tebc;
-					/* bits 80:95 qw[24] */
-					uint32_t out_subc;
-				};
-				union {
-					/* bits 108:111 qw[24] */
-					uint32_t out_sfbt;
-					/* bits 112:127 qw[24] */
-					uint32_t out_rembytecnt;
-					/* bits 116:127 qw[24] */
-					uint32_t out_dhtlen;
-				};
-			};
-		};
-		union {
-			union nx_qw_t  qw25[79];        /* qw[25:103] */
-			/* qw[25] compress no lzcounts or wrap */
-			uint32_t out_spbc_comp_wrap;
-			uint32_t out_spbc_wrap;         /* qw[25] wrap */
-			/* qw[25] compress no lzcounts */
-			uint32_t out_spbc_comp;
-			 /* 286 LL and 30 D symbol counts */
-			uint32_t out_lzcount[LLSZ+DSZ];
-			struct {
-				union nx_qw_t  out_dht[DHTSZ];  /* qw[25:42] */
-				/* qw[43] decompress */
-				uint32_t out_spbc_decomp;
-			};
-		};
-		/* qw[104] compress with lzcounts */
-		uint32_t out_spbc_comp_with_count;
-	};
+  volatile struct {
+    union {
+      union nx_qw_t qw24;
+      struct {
+        uint32_t out_adler;    /* bits 0:31  qw[24] */
+        uint32_t out_crc;      /* bits 32:63 qw[24] */
+        union {
+          /* bits 77:79 qw[24] */
+          uint32_t out_tebc;
+          /* bits 80:95 qw[24] */
+          uint32_t out_subc;
+        };
+        union {
+          /* bits 108:111 qw[24] */
+          uint32_t out_sfbt;
+          /* bits 112:127 qw[24] */
+          uint32_t out_rembytecnt;
+          /* bits 116:127 qw[24] */
+          uint32_t out_dhtlen;
+        };
+      };
+    };
+    union {
+      union nx_qw_t qw25[79];        /* qw[25:103] */
+      /* qw[25] compress no lzcounts or wrap */
+      uint32_t out_spbc_comp_wrap;
+      uint32_t out_spbc_wrap;         /* qw[25] wrap */
+      /* qw[25] compress no lzcounts */
+      uint32_t out_spbc_comp;
+      /* 286 LL and 30 D symbol counts */
+      uint32_t out_lzcount[LLSZ + DSZ];
+      struct {
+        union nx_qw_t out_dht[DHTSZ];  /* qw[25:42] */
+        /* qw[43] decompress */
+        uint32_t out_spbc_decomp;
+      };
+    };
+    /* qw[104] compress with lzcounts */
+    uint32_t out_spbc_comp_with_count;
+  };
 } __aligned(128);
 
 struct nx_gzip_crb_t {
-	union {                   /* byte[0:3]   */
-		uint32_t gzip_fc;     /* bits[24-31] */
-	};
-	uint32_t reserved1;       /* byte[4:7]   */
-	union {
-		uint64_t csb_address; /* byte[8:15]  */
-		struct {
-			uint32_t reserved2;
-			union {
-				uint32_t crb_c;
-				/* c==0 no ccb defined */
+  union {                   /* byte[0:3]   */
+    uint32_t gzip_fc;     /* bits[24-31] */
+  };
+  uint32_t reserved1;       /* byte[4:7]   */
+  union {
+    uint64_t csb_address; /* byte[8:15]  */
+    struct {
+      uint32_t reserved2;
+      union {
+        uint32_t crb_c;
+        /* c==0 no ccb defined */
 
-				uint32_t crb_at;
-				/* at==0 address type is ignored;
-				 * all addrs effective assumed.
-				 */
-
-			};
-		};
-	};
-	struct nx_dde_t source_dde;           /* byte[16:31] */
-	struct nx_dde_t target_dde;           /* byte[32:47] */
-	volatile struct nx_ccb_t ccb;         /* byte[48:63] */
-	volatile union {
-		/* byte[64:239] shift csb by 128 bytes out of the crb; csb was
-		 * in crb earlier; JReilly says csb written with partial inject
-		 */
-		union nx_qw_t reserved64[11];
-		union stamped_crb_t stamp;       /* byte[64:79] */
-	};
-	volatile struct nx_csb_t csb;
+        uint32_t crb_at;
+        /* at==0 address type is ignored;
+         * all addrs effective assumed.
+         */
+      };
+    };
+  };
+  struct nx_dde_t source_dde;           /* byte[16:31] */
+  struct nx_dde_t target_dde;           /* byte[32:47] */
+  volatile struct nx_ccb_t ccb;         /* byte[48:63] */
+  volatile union {
+    /* byte[64:239] shift csb by 128 bytes out of the crb; csb was
+     * in crb earlier; JReilly says csb written with partial inject
+     */
+    union nx_qw_t reserved64[11];
+    union stamped_crb_t stamp;       /* byte[64:79] */
+  };
+  volatile struct nx_csb_t csb;
 } __aligned(128);
 
 struct nx_gzip_crb_cpb_t {
-	struct nx_gzip_crb_t crb;
-	struct nx_gzip_cpb_t cpb;
+  struct nx_gzip_crb_t crb;
+  struct nx_gzip_cpb_t cpb;
 } __aligned(2048);
-
 
 /*
  * NX hardware convention has the msb bit on the left numbered 0.
@@ -332,7 +326,7 @@ struct nx_gzip_crb_cpb_t {
  * position of a field.  x of size_mask(x) is the field width in bits.
  */
 
-#define size_mask(x)          ((1U<<(x))-1)
+#define size_mask(x)          ((1U << (x)) - 1)
 
 /*
  * Offsets and Widths within the containing 32 bits of the various NX
@@ -425,34 +419,34 @@ struct nx_gzip_crb_cpb_t {
  * Use nn forms for the register fields shorter than 32 bits.
  */
 
-#define getnn(ST, REG)      ((be32toh(ST.REG) >> (31-REG##_offset)) \
-				 & REG##_mask)
-#define getpnn(ST, REG)     ((be32toh((ST)->REG) >> (31-REG##_offset)) \
-				 & REG##_mask)
+#define getnn(ST, REG)      ((be32toh(ST.REG) >> (31 - REG ## _offset)) \
+  & REG ## _mask)
+#define getpnn(ST, REG)     ((be32toh((ST)->REG) >> (31 - REG ## _offset)) \
+  & REG ## _mask)
 #define get32(ST, REG)      (be32toh(ST.REG))
 #define getp32(ST, REG)     (be32toh((ST)->REG))
 #define get64(ST, REG)      (be64toh(ST.REG))
 #define getp64(ST, REG)     (be64toh((ST)->REG))
 
-#define unget32(ST, REG)    (get32(ST, REG) & ~((REG##_mask) \
-				<< (31-REG##_offset)))
+#define unget32(ST, REG)    (get32(ST, REG) & ~((REG ## _mask) \
+    << (31 - REG ## _offset)))
 /* get 32bits less the REG field */
 
-#define ungetp32(ST, REG)   (getp32(ST, REG) & ~((REG##_mask) \
-				<< (31-REG##_offset)))
+#define ungetp32(ST, REG)   (getp32(ST, REG) & ~((REG ## _mask) \
+    << (31 - REG ## _offset)))
 /* get 32bits less the REG field */
 
-#define clear_regs(ST)      memset((void *)(&(ST)), 0, sizeof(ST))
+#define clear_regs(ST)      memset((void *) (&(ST)), 0, sizeof(ST))
 #define clear_dde(ST)       do { ST.dde_count = ST.ddebc = 0; ST.ddead = 0; \
-				} while (0)
+} while (0)
 #define clearp_dde(ST)      do { (ST)->dde_count = (ST)->ddebc = 0; \
-				 (ST)->ddead = 0; \
-				} while (0)
-#define clear_struct(ST)    memset((void *)(&(ST)), 0, sizeof(ST))
+                                 (ST)->ddead = 0; \
+} while (0)
+#define clear_struct(ST)    memset((void *) (&(ST)), 0, sizeof(ST))
 #define putnn(ST, REG, X)   (ST.REG = htobe32(unget32(ST, REG) | (((X) \
-				 & REG##_mask) << (31-REG##_offset))))
+    &REG ## _mask) << (31 - REG ## _offset))))
 #define putpnn(ST, REG, X)  ((ST)->REG = htobe32(ungetp32(ST, REG) \
-				| (((X) & REG##_mask) << (31-REG##_offset))))
+    | (((X) &REG ## _mask) << (31 - REG ## _offset))))
 
 #define put32(ST, REG, X)   (ST.REG = htobe32(X))
 #define putp32(ST, REG, X)  ((ST)->REG = htobe32(X))
@@ -464,23 +458,23 @@ struct nx_gzip_crb_cpb_t {
  * unused.  Section 6.6 Figure 6.7.
  */
 
-#define get_csb_ce(ST) ((uint32_t)getnn(ST, csb_ce))
+#define get_csb_ce(ST) ((uint32_t) getnn(ST, csb_ce))
 #define get_csb_ce_ms3b(ST) (get_csb_ce(ST) >> 5)
-#define put_csb_ce_ms3b(ST, X) putnn(ST, csb_ce, ((uint32_t)(X) << 5))
+#define put_csb_ce_ms3b(ST, X) putnn(ST, csb_ce, ((uint32_t) (X) << 5))
 
 #define CSB_CE_PARTIAL         0x4
 #define CSB_CE_TERMINATE       0x2
 #define CSB_CE_TPBC_VALID      0x1
 
-#define csb_ce_termination(X)         (!!((X) & CSB_CE_TERMINATE))
+#define csb_ce_termination(X)         (!!((X) &CSB_CE_TERMINATE))
 /* termination, output buffers may be modified, SPBC/TPBC invalid Fig.6-7 */
 
 #define csb_ce_check_completion(X)    (!csb_ce_termination(X))
 /* if not terminated then check full or partial completion */
 
-#define csb_ce_partial_completion(X)  (!!((X) & CSB_CE_PARTIAL))
+#define csb_ce_partial_completion(X)  (!!((X) &CSB_CE_PARTIAL))
 #define csb_ce_full_completion(X)     (!csb_ce_partial_completion(X))
-#define csb_ce_tpbc_valid(X)          (!!((X) & CSB_CE_TPBC_VALID))
+#define csb_ce_tpbc_valid(X)          (!!((X) &CSB_CE_TPBC_VALID))
 /* TPBC indicates successfully stored data count */
 
 #define csb_ce_default_err(X)         csb_ce_termination(X)
@@ -489,8 +483,8 @@ struct nx_gzip_crb_cpb_t {
 #define csb_ce_cc3_partial(X)         csb_ce_partial_completion(X)
 /* some CC=3 are partially completed, Table 6-8 */
 
-#define csb_ce_cc64(X)                ((X)&(CSB_CE_PARTIAL \
-					| CSB_CE_TERMINATE) == 0)
+#define csb_ce_cc64(X)                ((X) &(CSB_CE_PARTIAL \
+  | CSB_CE_TERMINATE) == 0)
 /* Compression: when TPBC>SPBC then CC=64 Table 6-8; target didn't
  * compress smaller than source.
  */
@@ -592,48 +586,46 @@ int nxu_run_sim_job(struct nx_gzip_crb_cpb_t *c, void *ctx);
 
 /* Deflate stream manipulation */
 
-#define set_final_bit(x)	(x |= (unsigned char)1)
-#define clr_final_bit(x)	(x &= ~(unsigned char)1)
+#define set_final_bit(x)  (x |= (unsigned char) 1)
+#define clr_final_bit(x)  (x &= ~(unsigned char) 1)
 
-#define append_empty_fh_blk(p, b) do { *(p) = (2 | (1&(b))); *((p)+1) = 0; \
-					} while (0)
+#define append_empty_fh_blk(p, b) do { *(p) = (2 | (1 & (b))); *((p) + 1) = 0; \
+} while (0)
 /* append 10 bits 0000001b 00...... ;
  * assumes appending starts on a byte boundary; b is the final bit.
  */
-
 
 #ifdef NX_842
 
 /* 842 Engine */
 
 struct nx_eft_crb_t {
-	union {                   /* byte[0:3]   */
-		uint32_t eft_fc;      /* bits[29-31] */
-	};
-	uint32_t reserved1;       /* byte[4:7]   */
-	union {
-		uint64_t csb_address; /* byte[8:15]  */
-		struct {
-			uint32_t reserved2;
-			union {
-				uint32_t crb_c;
-				/* c==0 no ccb defined */
+  union {                   /* byte[0:3]   */
+    uint32_t eft_fc;      /* bits[29-31] */
+  };
+  uint32_t reserved1;       /* byte[4:7]   */
+  union {
+    uint64_t csb_address; /* byte[8:15]  */
+    struct {
+      uint32_t reserved2;
+      union {
+        uint32_t crb_c;
+        /* c==0 no ccb defined */
 
-				uint32_t crb_at;
-				/* at==0 address type is ignored;
-				 * all addrs effective assumed.
-				 */
-
-			};
-		};
-	};
-	struct nx_dde_t source_dde;           /* byte[16:31] */
-	struct nx_dde_t target_dde;           /* byte[32:47] */
-	struct nx_ccb_t ccb;                  /* byte[48:63] */
-	union {
-		union nx_qw_t reserved64[3];     /* byte[64:96] */
-	};
-	struct nx_csb_t csb;
+        uint32_t crb_at;
+        /* at==0 address type is ignored;
+         * all addrs effective assumed.
+         */
+      };
+    };
+  };
+  struct nx_dde_t source_dde;           /* byte[16:31] */
+  struct nx_dde_t target_dde;           /* byte[32:47] */
+  struct nx_ccb_t ccb;                  /* byte[48:63] */
+  union {
+    union nx_qw_t reserved64[3];     /* byte[64:96] */
+  };
+  struct nx_csb_t csb;
 } __aligned(128);
 
 /* 842 CRB */

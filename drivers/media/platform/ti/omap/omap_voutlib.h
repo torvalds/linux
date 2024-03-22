@@ -13,27 +13,26 @@
 #define OMAP_VOUTLIB_H
 
 void omap_vout_default_crop(struct v4l2_pix_format *pix,
-		struct v4l2_framebuffer *fbuf, struct v4l2_rect *crop);
+    struct v4l2_framebuffer *fbuf, struct v4l2_rect *crop);
 
 int omap_vout_new_crop(struct v4l2_pix_format *pix,
-		struct v4l2_rect *crop, struct v4l2_window *win,
-		struct v4l2_framebuffer *fbuf,
-		const struct v4l2_rect *new_crop);
+    struct v4l2_rect *crop, struct v4l2_window *win,
+    struct v4l2_framebuffer *fbuf,
+    const struct v4l2_rect *new_crop);
 
 int omap_vout_try_window(struct v4l2_framebuffer *fbuf,
-		struct v4l2_window *new_win);
+    struct v4l2_window *new_win);
 
 int omap_vout_new_window(struct v4l2_rect *crop,
-		struct v4l2_window *win, struct v4l2_framebuffer *fbuf,
-		struct v4l2_window *new_win);
+    struct v4l2_window *win, struct v4l2_framebuffer *fbuf,
+    struct v4l2_window *new_win);
 
 void omap_vout_new_format(struct v4l2_pix_format *pix,
-		struct v4l2_framebuffer *fbuf, struct v4l2_rect *crop,
-		struct v4l2_window *win);
+    struct v4l2_framebuffer *fbuf, struct v4l2_rect *crop,
+    struct v4l2_window *win);
 unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr);
 void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size);
 
 bool omap_vout_dss_omap24xx(void);
 bool omap_vout_dss_omap34xx(void);
-#endif	/* #ifndef OMAP_VOUTLIB_H */
-
+#endif  /* #ifndef OMAP_VOUTLIB_H */

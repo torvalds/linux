@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
+/* SPDX-License-Identifier: GPL-2.0 OR MIT
+ * Copyright 2017-2019 Qiang Yu <yuq825@gmail.com>*/
 
 #ifndef __LIMA_VM_H__
 #define __LIMA_VM_H__
@@ -22,20 +22,20 @@
 struct lima_device;
 
 struct lima_vm_page {
-	u32 *cpu;
-	dma_addr_t dma;
+  u32 *cpu;
+  dma_addr_t dma;
 };
 
 struct lima_vm {
-	struct mutex lock;
-	struct kref refcount;
+  struct mutex lock;
+  struct kref refcount;
 
-	struct drm_mm mm;
+  struct drm_mm mm;
 
-	struct lima_device *dev;
+  struct lima_device *dev;
 
-	struct lima_vm_page pd;
-	struct lima_vm_page bts[LIMA_VM_NUM_BT];
+  struct lima_vm_page pd;
+  struct lima_vm_page bts[LIMA_VM_NUM_BT];
 };
 
 int lima_vm_bo_add(struct lima_vm *vm, struct lima_bo *bo, bool create);
@@ -46,16 +46,15 @@ u32 lima_vm_get_va(struct lima_vm *vm, struct lima_bo *bo);
 struct lima_vm *lima_vm_create(struct lima_device *dev);
 void lima_vm_release(struct kref *kref);
 
-static inline struct lima_vm *lima_vm_get(struct lima_vm *vm)
-{
-	kref_get(&vm->refcount);
-	return vm;
+static inline struct lima_vm *lima_vm_get(struct lima_vm *vm) {
+  kref_get(&vm->refcount);
+  return vm;
 }
 
-static inline void lima_vm_put(struct lima_vm *vm)
-{
-	if (vm)
-		kref_put(&vm->refcount, lima_vm_release);
+static inline void lima_vm_put(struct lima_vm *vm) {
+  if (vm) {
+    kref_put(&vm->refcount, lima_vm_release);
+  }
 }
 
 void lima_vm_print(struct lima_vm *vm);

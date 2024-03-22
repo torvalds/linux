@@ -13,10 +13,10 @@ int dsa_tag_8021q_register(struct dsa_switch *ds, __be16 proto);
 void dsa_tag_8021q_unregister(struct dsa_switch *ds);
 
 int dsa_tag_8021q_bridge_join(struct dsa_switch *ds, int port,
-			      struct dsa_bridge bridge);
+    struct dsa_bridge bridge);
 
 void dsa_tag_8021q_bridge_leave(struct dsa_switch *ds, int port,
-				struct dsa_bridge bridge);
+    struct dsa_bridge bridge);
 
 u16 dsa_tag_8021q_bridge_vid(unsigned int bridge_num);
 

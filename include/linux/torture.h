@@ -25,69 +25,76 @@
 
 /* Definitions for a non-string torture-test module parameter. */
 #define torture_param(type, name, init, msg) \
-	static type name = init; \
-	module_param(name, type, 0444); \
-	MODULE_PARM_DESC(name, msg);
+  static type name = init; \
+  module_param(name, type, 0444); \
+  MODULE_PARM_DESC(name, msg);
 
 #define TORTURE_FLAG "-torture:"
 #define TOROUT_STRING(s) \
-	pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s)
+  pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s)
 #define VERBOSE_TOROUT_STRING(s) \
-do {										\
-	if (verbose) {								\
-		verbose_torout_sleep();						\
-		pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s);		\
-	}									\
-} while (0)
+  do {                    \
+    if (verbose) {                \
+      verbose_torout_sleep();           \
+      pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s);   \
+    }                 \
+  } while (0)
 #define TOROUT_ERRSTRING(s) \
-	pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s)
+  pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s)
 void verbose_torout_sleep(void);
 
-#define torture_init_error(firsterr)						\
-({										\
-	int ___firsterr = (firsterr);						\
-										\
-	WARN_ONCE(!IS_MODULE(CONFIG_RCU_TORTURE_TEST) && ___firsterr < 0, "Torture-test initialization failed with error code %d\n", ___firsterr); \
-	___firsterr < 0;								\
-})
+#define torture_init_error(firsterr)            \
+  ({                    \
+    int ___firsterr = (firsterr);           \
+                    \
+    WARN_ONCE(!IS_MODULE(CONFIG_RCU_TORTURE_TEST) && ___firsterr < 0, \
+    "Torture-test initialization failed with error code %d\n", ___firsterr); \
+    ___firsterr < 0;                \
+  })
 
 /* Definitions for online/offline exerciser. */
 #ifdef CONFIG_HOTPLUG_CPU
 int torture_num_online_cpus(void);
 #else /* #ifdef CONFIG_HOTPLUG_CPU */
-static inline int torture_num_online_cpus(void) { return 1; }
+static inline int torture_num_online_cpus(void) {
+  return 1;
+}
+
 #endif /* #else #ifdef CONFIG_HOTPLUG_CPU */
 typedef void torture_ofl_func(void);
 bool torture_offline(int cpu, long *n_onl_attempts, long *n_onl_successes,
-		     unsigned long *sum_offl, int *min_onl, int *max_onl);
+    unsigned long *sum_offl, int *min_onl, int *max_onl);
 bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
-		    unsigned long *sum_onl, int *min_onl, int *max_onl);
+    unsigned long *sum_onl, int *min_onl, int *max_onl);
 int torture_onoff_init(long ooholdoff, long oointerval, torture_ofl_func *f);
 void torture_onoff_stats(void);
 bool torture_onoff_failures(void);
 
 /* Low-rider random number generator. */
 struct torture_random_state {
-	unsigned long trs_state;
-	long trs_count;
+  unsigned long trs_state;
+  long trs_count;
 };
 #define DEFINE_TORTURE_RANDOM(name) struct torture_random_state name = { 0, 0 }
 #define DEFINE_TORTURE_RANDOM_PERCPU(name) \
-	DEFINE_PER_CPU(struct torture_random_state, name)
+  DEFINE_PER_CPU(struct torture_random_state, name)
 unsigned long torture_random(struct torture_random_state *trsp);
-static inline void torture_random_init(struct torture_random_state *trsp)
-{
-	trsp->trs_state = 0;
-	trsp->trs_count = 0;
+static inline void torture_random_init(struct torture_random_state *trsp) {
+  trsp->trs_state = 0;
+  trsp->trs_count = 0;
 }
 
 /* Definitions for high-resolution-timer sleeps. */
-int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, const enum hrtimer_mode mode,
-			 struct torture_random_state *trsp);
-int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state *trsp);
-int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state *trsp);
+int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns,
+    const enum hrtimer_mode mode,
+    struct torture_random_state *trsp);
+int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns,
+    struct torture_random_state *trsp);
+int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us,
+    struct torture_random_state *trsp);
 int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp);
-int torture_hrtimeout_s(u32 baset_s, u32 fuzzt_ms, struct torture_random_state *trsp);
+int torture_hrtimeout_s(u32 baset_s, u32 fuzzt_ms,
+    struct torture_random_state *trsp);
 
 /* Task shuffler, which causes CPUs to occasionally go idle. */
 void torture_shuffle_task_register(struct task_struct *tp);
@@ -110,26 +117,28 @@ bool torture_must_stop(void);
 bool torture_must_stop_irq(void);
 void torture_kthread_stopping(char *title);
 int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
-			     char *f, struct task_struct **tp, void (*cbf)(struct task_struct *tp));
+    char *f, struct task_struct **tp, void (*cbf)(struct task_struct *tp));
 void _torture_stop_kthread(char *m, struct task_struct **tp);
 
 #define torture_create_kthread(n, arg, tp) \
-	_torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
-				"Failed to create " #n, &(tp), NULL)
+  _torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
+    "Failed to create " #n, &(tp), NULL)
 #define torture_create_kthread_cb(n, arg, tp, cbf) \
-	_torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
-				"Failed to create " #n, &(tp), cbf)
+  _torture_create_kthread(n, (arg), #n, "Creating " #n " task", \
+    "Failed to create " #n, &(tp), cbf)
 #define torture_stop_kthread(n, tp) \
-	_torture_stop_kthread("Stopping " #n " task", &(tp))
+  _torture_stop_kthread("Stopping " #n " task", &(tp))
 
 /* Scheduler-related definitions. */
 #ifdef CONFIG_PREEMPTION
 #define torture_preempt_schedule() __preempt_schedule()
 #else
-#define torture_preempt_schedule()	do { } while (0)
+#define torture_preempt_schedule()  do {} while (0)
 #endif
 
-#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) \
+  || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) \
+  || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
 long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
 #endif
 

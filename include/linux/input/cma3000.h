@@ -34,15 +34,15 @@
  */
 
 struct cma3000_platform_data {
-	int fuzz_x;
-	int fuzz_y;
-	int fuzz_z;
-	int g_range;
-	uint8_t mode;
-	uint8_t mdthr;
-	uint8_t mdfftmr;
-	uint8_t ffthr;
-	unsigned long irqflags;
+  int fuzz_x;
+  int fuzz_y;
+  int fuzz_z;
+  int g_range;
+  uint8_t mode;
+  uint8_t mdthr;
+  uint8_t mdfftmr;
+  uint8_t ffthr;
+  unsigned long irqflags;
 };
 
 #endif

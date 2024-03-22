@@ -53,11 +53,11 @@ struct drm_file;
  *   counting wrappers.
  */
 struct drm_mode_object {
-	uint32_t id;
-	uint32_t type;
-	struct drm_object_properties *properties;
-	struct kref refcount;
-	void (*free_cb)(struct kref *kref);
+  uint32_t id;
+  uint32_t type;
+  struct drm_object_properties *properties;
+  struct kref refcount;
+  void (*free_cb)(struct kref *kref);
 };
 
 #define DRM_OBJECT_MAX_PROPERTY 64
@@ -65,78 +65,78 @@ struct drm_mode_object {
  * struct drm_object_properties - property tracking for &drm_mode_object
  */
 struct drm_object_properties {
-	/**
-	 * @count: number of valid properties, must be less than or equal to
-	 * DRM_OBJECT_MAX_PROPERTY.
-	 */
+  /**
+   * @count: number of valid properties, must be less than or equal to
+   * DRM_OBJECT_MAX_PROPERTY.
+   */
 
-	int count;
-	/**
-	 * @properties: Array of pointers to &drm_property.
-	 *
-	 * NOTE: if we ever start dynamically destroying properties (ie.
-	 * not at drm_mode_config_cleanup() time), then we'd have to do
-	 * a better job of detaching property from mode objects to avoid
-	 * dangling property pointers:
-	 */
-	struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
+  int count;
+  /**
+   * @properties: Array of pointers to &drm_property.
+   *
+   * NOTE: if we ever start dynamically destroying properties (ie.
+   * not at drm_mode_config_cleanup() time), then we'd have to do
+   * a better job of detaching property from mode objects to avoid
+   * dangling property pointers:
+   */
+  struct drm_property *properties[DRM_OBJECT_MAX_PROPERTY];
 
-	/**
-	 * @values: Array to store the property values, matching @properties. Do
-	 * not read/write values directly, but use
-	 * drm_object_property_get_value() and drm_object_property_set_value().
-	 *
-	 * Note that atomic drivers do not store mutable properties in this
-	 * array, but only the decoded values in the corresponding state
-	 * structure. The decoding is done using the &drm_crtc.atomic_get_property and
-	 * &drm_crtc.atomic_set_property hooks for &struct drm_crtc. For
-	 * &struct drm_plane the hooks are &drm_plane_funcs.atomic_get_property and
-	 * &drm_plane_funcs.atomic_set_property. And for &struct drm_connector
-	 * the hooks are &drm_connector_funcs.atomic_get_property and
-	 * &drm_connector_funcs.atomic_set_property .
-	 *
-	 * Hence atomic drivers should not use drm_object_property_set_value()
-	 * and drm_object_property_get_value() on mutable objects, i.e. those
-	 * without the DRM_MODE_PROP_IMMUTABLE flag set.
-	 *
-	 * For atomic drivers the default value of properties is stored in this
-	 * array, so drm_object_property_get_default_value can be used to
-	 * retrieve it.
-	 */
-	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
+  /**
+   * @values: Array to store the property values, matching @properties. Do
+   * not read/write values directly, but use
+   * drm_object_property_get_value() and drm_object_property_set_value().
+   *
+   * Note that atomic drivers do not store mutable properties in this
+   * array, but only the decoded values in the corresponding state
+   * structure. The decoding is done using the &drm_crtc.atomic_get_property and
+   * &drm_crtc.atomic_set_property hooks for &struct drm_crtc. For
+   * &struct drm_plane the hooks are &drm_plane_funcs.atomic_get_property and
+   * &drm_plane_funcs.atomic_set_property. And for &struct drm_connector
+   * the hooks are &drm_connector_funcs.atomic_get_property and
+   * &drm_connector_funcs.atomic_set_property .
+   *
+   * Hence atomic drivers should not use drm_object_property_set_value()
+   * and drm_object_property_get_value() on mutable objects, i.e. those
+   * without the DRM_MODE_PROP_IMMUTABLE flag set.
+   *
+   * For atomic drivers the default value of properties is stored in this
+   * array, so drm_object_property_get_default_value can be used to
+   * retrieve it.
+   */
+  uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
 /* Avoid boilerplate.  I'm tired of typing. */
-#define DRM_ENUM_NAME_FN(fnname, list)				\
-	const char *fnname(int val)				\
-	{							\
-		int i;						\
-		for (i = 0; i < ARRAY_SIZE(list); i++) {	\
-			if (list[i].type == val)		\
-				return list[i].name;		\
-		}						\
-		return "(unknown)";				\
-	}
+#define DRM_ENUM_NAME_FN(fnname, list)        \
+  const char *fnname(int val)       \
+  {             \
+    int i;            \
+    for (i = 0; i < ARRAY_SIZE(list); i++) {  \
+      if (list[i].type == val)    \
+      return list[i].name;    \
+    }           \
+    return "(unknown)";       \
+  }
 
 struct drm_mode_object *drm_mode_object_find(struct drm_device *dev,
-					     struct drm_file *file_priv,
-					     uint32_t id, uint32_t type);
+    struct drm_file *file_priv,
+    uint32_t id, uint32_t type);
 void drm_mode_object_get(struct drm_mode_object *obj);
 void drm_mode_object_put(struct drm_mode_object *obj);
 
 int drm_object_property_set_value(struct drm_mode_object *obj,
-				  struct drm_property *property,
-				  uint64_t val);
+    struct drm_property *property,
+    uint64_t val);
 int drm_object_property_get_value(struct drm_mode_object *obj,
-				  struct drm_property *property,
-				  uint64_t *value);
+    struct drm_property *property,
+    uint64_t *value);
 int drm_object_property_get_default_value(struct drm_mode_object *obj,
-					  struct drm_property *property,
-					  uint64_t *val);
+    struct drm_property *property,
+    uint64_t *val);
 
 void drm_object_attach_property(struct drm_mode_object *obj,
-				struct drm_property *property,
-				uint64_t init_val);
+    struct drm_property *property,
+    uint64_t init_val);
 
 bool drm_mode_object_lease_required(uint32_t type);
 #endif

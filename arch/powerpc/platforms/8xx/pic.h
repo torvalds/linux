@@ -11,9 +11,8 @@ unsigned int mpc8xx_get_irq(void);
  * Some internal interrupt registers use an 8-bit mask for the interrupt
  * level instead of a number.
  */
-static inline uint mk_int_int_mask(uint mask)
-{
-	return (1 << (7 - (mask/2)));
+static inline uint mk_int_int_mask(uint mask) {
+  return 1 << (7 - (mask / 2));
 }
 
 #endif /* _PPC_KERNEL_PPC8xx_H */

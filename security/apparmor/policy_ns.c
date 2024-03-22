@@ -37,20 +37,19 @@ const char *aa_hidden_ns_name = "---";
  *
  * Returns: true if @view is visible from @curr else false
  */
-bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns)
-{
-	if (curr == view)
-		return true;
-
-	if (!subns)
-		return false;
-
-	for ( ; view; view = view->parent) {
-		if (view->parent == curr)
-			return true;
-	}
-
-	return false;
+bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns) {
+  if (curr == view) {
+    return true;
+  }
+  if (!subns) {
+    return false;
+  }
+  for ( ; view; view = view->parent) {
+    if (view->parent == curr) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -61,38 +60,33 @@ bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns)
  *
  * Returns: name of @view visible from @curr
  */
-const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view, bool subns)
-{
-	/* if view == curr then the namespace name isn't displayed */
-	if (curr == view)
-		return "";
-
-	if (aa_ns_visible(curr, view, subns)) {
-		/* at this point if a ns is visible it is in a view ns
-		 * thus the curr ns.hname is a prefix of its name.
-		 * Only output the virtualized portion of the name
-		 * Add + 2 to skip over // separating curr hname prefix
-		 * from the visible tail of the views hname
-		 */
-		return view->base.hname + strlen(curr->base.hname) + 2;
-	}
-
-	return aa_hidden_ns_name;
+const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view, bool subns) {
+  /* if view == curr then the namespace name isn't displayed */
+  if (curr == view) {
+    return "";
+  }
+  if (aa_ns_visible(curr, view, subns)) {
+    /* at this point if a ns is visible it is in a view ns
+     * thus the curr ns.hname is a prefix of its name.
+     * Only output the virtualized portion of the name
+     * Add + 2 to skip over // separating curr hname prefix
+     * from the visible tail of the views hname
+     */
+    return view->base.hname + strlen(curr->base.hname) + 2;
+  }
+  return aa_hidden_ns_name;
 }
 
-static struct aa_profile *alloc_unconfined(const char *name)
-{
-	struct aa_profile *profile;
-
-	profile = aa_alloc_null(NULL, name, GFP_KERNEL);
-	if (!profile)
-		return NULL;
-
-	profile->label.flags |= FLAG_IX_ON_NAME_ERROR |
-		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
-	profile->mode = APPARMOR_UNCONFINED;
-
-	return profile;
+static struct aa_profile *alloc_unconfined(const char *name) {
+  struct aa_profile *profile;
+  profile = aa_alloc_null(NULL, name, GFP_KERNEL);
+  if (!profile) {
+    return NULL;
+  }
+  profile->label.flags |= FLAG_IX_ON_NAME_ERROR
+      | FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
+  profile->mode = APPARMOR_UNCONFINED;
+  return profile;
 }
 
 /**
@@ -102,40 +96,35 @@ static struct aa_profile *alloc_unconfined(const char *name)
  *
  * Returns: refcounted namespace or NULL on failure.
  */
-static struct aa_ns *alloc_ns(const char *prefix, const char *name)
-{
-	struct aa_ns *ns;
-
-	ns = kzalloc(sizeof(*ns), GFP_KERNEL);
-	AA_DEBUG("%s(%p)\n", __func__, ns);
-	if (!ns)
-		return NULL;
-	if (!aa_policy_init(&ns->base, prefix, name, GFP_KERNEL))
-		goto fail_ns;
-
-	INIT_LIST_HEAD(&ns->sub_ns);
-	INIT_LIST_HEAD(&ns->rawdata_list);
-	mutex_init(&ns->lock);
-	init_waitqueue_head(&ns->wait);
-
-	/* released by aa_free_ns() */
-	ns->unconfined = alloc_unconfined("unconfined");
-	if (!ns->unconfined)
-		goto fail_unconfined;
-	/* ns and ns->unconfined share ns->unconfined refcount */
-	ns->unconfined->ns = ns;
-
-	atomic_set(&ns->uniq_null, 0);
-
-	aa_labelset_init(&ns->labels);
-
-	return ns;
-
+static struct aa_ns *alloc_ns(const char *prefix, const char *name) {
+  struct aa_ns *ns;
+  ns = kzalloc(sizeof(*ns), GFP_KERNEL);
+  AA_DEBUG("%s(%p)\n", __func__, ns);
+  if (!ns) {
+    return NULL;
+  }
+  if (!aa_policy_init(&ns->base, prefix, name, GFP_KERNEL)) {
+    goto fail_ns;
+  }
+  INIT_LIST_HEAD(&ns->sub_ns);
+  INIT_LIST_HEAD(&ns->rawdata_list);
+  mutex_init(&ns->lock);
+  init_waitqueue_head(&ns->wait);
+  /* released by aa_free_ns() */
+  ns->unconfined = alloc_unconfined("unconfined");
+  if (!ns->unconfined) {
+    goto fail_unconfined;
+  }
+  /* ns and ns->unconfined share ns->unconfined refcount */
+  ns->unconfined->ns = ns;
+  atomic_set(&ns->uniq_null, 0);
+  aa_labelset_init(&ns->labels);
+  return ns;
 fail_unconfined:
-	aa_policy_destroy(&ns->base);
+  aa_policy_destroy(&ns->base);
 fail_ns:
-	kfree_sensitive(ns);
-	return NULL;
+  kfree_sensitive(ns);
+  return NULL;
 }
 
 /**
@@ -145,18 +134,16 @@ fail_ns:
  * Requires: All references to the namespace must have been put, if the
  *           namespace was referenced by a profile confining a task,
  */
-void aa_free_ns(struct aa_ns *ns)
-{
-	if (!ns)
-		return;
-
-	aa_policy_destroy(&ns->base);
-	aa_labelset_destroy(&ns->labels);
-	aa_put_ns(ns->parent);
-
-	ns->unconfined->ns = NULL;
-	aa_free_profile(ns->unconfined);
-	kfree_sensitive(ns);
+void aa_free_ns(struct aa_ns *ns) {
+  if (!ns) {
+    return;
+  }
+  aa_policy_destroy(&ns->base);
+  aa_labelset_destroy(&ns->labels);
+  aa_put_ns(ns->parent);
+  ns->unconfined->ns = NULL;
+  aa_free_profile(ns->unconfined);
+  kfree_sensitive(ns);
 }
 
 /**
@@ -171,24 +158,22 @@ void aa_free_ns(struct aa_ns *ns)
  *
  * Do a relative name lookup, recursing through profile tree.
  */
-struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n)
-{
-	struct aa_ns *ns = view;
-	const char *split;
-
-	for (split = strnstr(hname, "//", n); split;
-	     split = strnstr(hname, "//", n)) {
-		ns = __aa_findn_ns(&ns->sub_ns, hname, split - hname);
-		if (!ns)
-			return NULL;
-
-		n -= split + 2 - hname;
-		hname = split + 2;
-	}
-
-	if (n)
-		return __aa_findn_ns(&ns->sub_ns, hname, n);
-	return NULL;
+struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n) {
+  struct aa_ns *ns = view;
+  const char *split;
+  for (split = strnstr(hname, "//", n); split;
+      split = strnstr(hname, "//", n)) {
+    ns = __aa_findn_ns(&ns->sub_ns, hname, split - hname);
+    if (!ns) {
+      return NULL;
+    }
+    n -= split + 2 - hname;
+    hname = split + 2;
+  }
+  if (n) {
+    return __aa_findn_ns(&ns->sub_ns, hname, n);
+  }
+  return NULL;
 }
 
 /**
@@ -202,47 +187,41 @@ struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n)
  *
  * refcount released by caller
  */
-struct aa_ns *aa_lookupn_ns(struct aa_ns *view, const char *name, size_t n)
-{
-	struct aa_ns *ns = NULL;
-
-	rcu_read_lock();
-	ns = aa_get_ns(__aa_lookupn_ns(view, name, n));
-	rcu_read_unlock();
-
-	return ns;
+struct aa_ns *aa_lookupn_ns(struct aa_ns *view, const char *name, size_t n) {
+  struct aa_ns *ns = NULL;
+  rcu_read_lock();
+  ns = aa_get_ns(__aa_lookupn_ns(view, name, n));
+  rcu_read_unlock();
+  return ns;
 }
 
 static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
-				    struct dentry *dir)
-{
-	struct aa_ns *ns;
-	int error;
-
-	AA_BUG(!parent);
-	AA_BUG(!name);
-	AA_BUG(!mutex_is_locked(&parent->lock));
-
-	ns = alloc_ns(parent->base.hname, name);
-	if (!ns)
-		return ERR_PTR(-ENOMEM);
-	ns->level = parent->level + 1;
-	mutex_lock_nested(&ns->lock, ns->level);
-	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);
-	if (error) {
-		AA_ERROR("Failed to create interface for ns %s\n",
-			 ns->base.name);
-		mutex_unlock(&ns->lock);
-		aa_free_ns(ns);
-		return ERR_PTR(error);
-	}
-	ns->parent = aa_get_ns(parent);
-	list_add_rcu(&ns->base.list, &parent->sub_ns);
-	/* add list ref */
-	aa_get_ns(ns);
-	mutex_unlock(&ns->lock);
-
-	return ns;
+    struct dentry *dir) {
+  struct aa_ns *ns;
+  int error;
+  AA_BUG(!parent);
+  AA_BUG(!name);
+  AA_BUG(!mutex_is_locked(&parent->lock));
+  ns = alloc_ns(parent->base.hname, name);
+  if (!ns) {
+    return ERR_PTR(-ENOMEM);
+  }
+  ns->level = parent->level + 1;
+  mutex_lock_nested(&ns->lock, ns->level);
+  error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);
+  if (error) {
+    AA_ERROR("Failed to create interface for ns %s\n",
+        ns->base.name);
+    mutex_unlock(&ns->lock);
+    aa_free_ns(ns);
+    return ERR_PTR(error);
+  }
+  ns->parent = aa_get_ns(parent);
+  list_add_rcu(&ns->base.list, &parent->sub_ns);
+  /* add list ref */
+  aa_get_ns(ns);
+  mutex_unlock(&ns->lock);
+  return ns;
 }
 
 /**
@@ -254,22 +233,19 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
  * Returns: the a refcounted ns that has been add or an ERR_PTR
  */
 struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
-				     struct dentry *dir)
-{
-	struct aa_ns *ns;
-
-	AA_BUG(!mutex_is_locked(&parent->lock));
-
-	/* try and find the specified ns */
-	/* released by caller */
-	ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
-	if (!ns)
-		ns = __aa_create_ns(parent, name, dir);
-	else
-		ns = ERR_PTR(-EEXIST);
-
-	/* return ref */
-	return ns;
+    struct dentry *dir) {
+  struct aa_ns *ns;
+  AA_BUG(!mutex_is_locked(&parent->lock));
+  /* try and find the specified ns
+   * released by caller*/
+  ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
+  if (!ns) {
+    ns = __aa_create_ns(parent, name, dir);
+  } else {
+    ns = ERR_PTR(-EEXIST);
+  }
+  /* return ref */
+  return ns;
 }
 
 /**
@@ -279,20 +255,18 @@ struct aa_ns *__aa_find_or_create_ns(struct aa_ns *parent, const char *name,
  *
  * Returns: refcounted namespace or PTR_ERR if failed to create one
  */
-struct aa_ns *aa_prepare_ns(struct aa_ns *parent, const char *name)
-{
-	struct aa_ns *ns;
-
-	mutex_lock_nested(&parent->lock, parent->level);
-	/* try and find the specified ns and if it doesn't exist create it */
-	/* released by caller */
-	ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
-	if (!ns)
-		ns = __aa_create_ns(parent, name, NULL);
-	mutex_unlock(&parent->lock);
-
-	/* return ref */
-	return ns;
+struct aa_ns *aa_prepare_ns(struct aa_ns *parent, const char *name) {
+  struct aa_ns *ns;
+  mutex_lock_nested(&parent->lock, parent->level);
+  /* try and find the specified ns and if it doesn't exist create it
+   * released by caller*/
+  ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
+  if (!ns) {
+    ns = __aa_create_ns(parent, name, NULL);
+  }
+  mutex_unlock(&parent->lock);
+  /* return ref */
+  return ns;
 }
 
 static void __ns_list_release(struct list_head *head);
@@ -301,28 +275,24 @@ static void __ns_list_release(struct list_head *head);
  * destroy_ns - remove everything contained by @ns
  * @ns: namespace to have it contents removed  (NOT NULL)
  */
-static void destroy_ns(struct aa_ns *ns)
-{
-	if (!ns)
-		return;
-
-	mutex_lock_nested(&ns->lock, ns->level);
-	/* release all profiles in this namespace */
-	__aa_profile_list_release(&ns->base.profiles);
-
-	/* release all sub namespaces */
-	__ns_list_release(&ns->sub_ns);
-
-	if (ns->parent) {
-		unsigned long flags;
-
-		write_lock_irqsave(&ns->labels.lock, flags);
-		__aa_proxy_redirect(ns_unconfined(ns),
-				    ns_unconfined(ns->parent));
-		write_unlock_irqrestore(&ns->labels.lock, flags);
-	}
-	__aafs_ns_rmdir(ns);
-	mutex_unlock(&ns->lock);
+static void destroy_ns(struct aa_ns *ns) {
+  if (!ns) {
+    return;
+  }
+  mutex_lock_nested(&ns->lock, ns->level);
+  /* release all profiles in this namespace */
+  __aa_profile_list_release(&ns->base.profiles);
+  /* release all sub namespaces */
+  __ns_list_release(&ns->sub_ns);
+  if (ns->parent) {
+    unsigned long flags;
+    write_lock_irqsave(&ns->labels.lock, flags);
+    __aa_proxy_redirect(ns_unconfined(ns),
+        ns_unconfined(ns->parent));
+    write_unlock_irqrestore(&ns->labels.lock, flags);
+  }
+  __aafs_ns_rmdir(ns);
+  mutex_unlock(&ns->lock);
 }
 
 /**
@@ -331,12 +301,11 @@ static void destroy_ns(struct aa_ns *ns)
  *
  * Requires: ns->parent->lock be held and ns removed from parent.
  */
-void __aa_remove_ns(struct aa_ns *ns)
-{
-	/* remove ns from namespace list */
-	list_del_rcu(&ns->base.list);
-	destroy_ns(ns);
-	aa_put_ns(ns);
+void __aa_remove_ns(struct aa_ns *ns) {
+  /* remove ns from namespace list */
+  list_del_rcu(&ns->base.list);
+  destroy_ns(ns);
+  aa_put_ns(ns);
 }
 
 /**
@@ -345,13 +314,10 @@ void __aa_remove_ns(struct aa_ns *ns)
  *
  * Requires: namespace lock be held
  */
-static void __ns_list_release(struct list_head *head)
-{
-	struct aa_ns *ns, *tmp;
-
-	list_for_each_entry_safe(ns, tmp, head, base.list)
-		__aa_remove_ns(ns);
-
+static void __ns_list_release(struct list_head *head) {
+  struct aa_ns *ns, *tmp;
+  list_for_each_entry_safe(ns, tmp, head, base.list)
+  __aa_remove_ns(ns);
 }
 
 /**
@@ -360,37 +326,31 @@ static void __ns_list_release(struct list_head *head)
  * Returns: %0 on success else error
  *
  */
-int __init aa_alloc_root_ns(void)
-{
-	struct aa_profile *kernel_p;
-
-	/* released by aa_free_root_ns - used as list ref*/
-	root_ns = alloc_ns(NULL, "root");
-	if (!root_ns)
-		return -ENOMEM;
-
-	kernel_p = alloc_unconfined("kernel_t");
-	if (!kernel_p) {
-		destroy_ns(root_ns);
-		aa_free_ns(root_ns);
-		return -ENOMEM;
-	}
-	kernel_t = &kernel_p->label;
-	root_ns->unconfined->ns = aa_get_ns(root_ns);
-
-	return 0;
+int __init aa_alloc_root_ns(void) {
+  struct aa_profile *kernel_p;
+  /* released by aa_free_root_ns - used as list ref*/
+  root_ns = alloc_ns(NULL, "root");
+  if (!root_ns) {
+    return -ENOMEM;
+  }
+  kernel_p = alloc_unconfined("kernel_t");
+  if (!kernel_p) {
+    destroy_ns(root_ns);
+    aa_free_ns(root_ns);
+    return -ENOMEM;
+  }
+  kernel_t = &kernel_p->label;
+  root_ns->unconfined->ns = aa_get_ns(root_ns);
+  return 0;
 }
 
- /**
-  * aa_free_root_ns - free the root profile namespace
-  */
-void __init aa_free_root_ns(void)
-{
-	 struct aa_ns *ns = root_ns;
-
-	 root_ns = NULL;
-
-	 aa_label_free(kernel_t);
-	 destroy_ns(ns);
-	 aa_put_ns(ns);
+/**
+ * aa_free_root_ns - free the root profile namespace
+ */
+void __init aa_free_root_ns(void) {
+  struct aa_ns *ns = root_ns;
+  root_ns = NULL;
+  aa_label_free(kernel_t);
+  destroy_ns(ns);
+  aa_put_ns(ns);
 }

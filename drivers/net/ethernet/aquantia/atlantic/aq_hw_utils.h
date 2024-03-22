@@ -17,8 +17,8 @@
 #include "aq_common.h"
 
 #ifndef HIDWORD
-#define LODWORD(_qw)    ((u32)(_qw))
-#define HIDWORD(_qw)    ((u32)(((_qw) >> 32) & 0xffffffff))
+#define LODWORD(_qw)    ((u32) (_qw))
+#define HIDWORD(_qw)    ((u32) (((_qw) >> 32) & 0xffffffff))
 #endif
 
 #define AQ_HW_SLEEP(_US_) mdelay(_US_)
@@ -29,7 +29,7 @@
 struct aq_hw_s;
 
 void aq_hw_write_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk,
-			 u32 shift, u32 val);
+    u32 shift, u32 val);
 u32 aq_hw_read_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk, u32 shift);
 u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg);
 void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value);

@@ -5,10 +5,10 @@
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 
-static inline void arch_clear_hugepage_flags(struct page *page)
-{
-	clear_bit(PG_dcache_clean, &page->flags);
+static inline void arch_clear_hugepage_flags(struct page *page) {
+  clear_bit(PG_dcache_clean, &page->flags);
 }
+
 #define arch_clear_hugepage_flags arch_clear_hugepage_flags
 
 #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
@@ -19,29 +19,29 @@ bool arch_hugetlb_migration_supported(struct hstate *h);
 #ifdef CONFIG_RISCV_ISA_SVNAPOT
 #define __HAVE_ARCH_HUGE_PTE_CLEAR
 void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
-		    pte_t *ptep, unsigned long sz);
+    pte_t *ptep, unsigned long sz);
 
 #define __HAVE_ARCH_HUGE_SET_HUGE_PTE_AT
 void set_huge_pte_at(struct mm_struct *mm,
-		     unsigned long addr, pte_t *ptep, pte_t pte,
-		     unsigned long sz);
+    unsigned long addr, pte_t *ptep, pte_t pte,
+    unsigned long sz);
 
 #define __HAVE_ARCH_HUGE_PTEP_GET_AND_CLEAR
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
-			      unsigned long addr, pte_t *ptep);
+    unsigned long addr, pte_t *ptep);
 
 #define __HAVE_ARCH_HUGE_PTEP_CLEAR_FLUSH
 pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
-			    unsigned long addr, pte_t *ptep);
+    unsigned long addr, pte_t *ptep);
 
 #define __HAVE_ARCH_HUGE_PTEP_SET_WRPROTECT
 void huge_ptep_set_wrprotect(struct mm_struct *mm,
-			     unsigned long addr, pte_t *ptep);
+    unsigned long addr, pte_t *ptep);
 
 #define __HAVE_ARCH_HUGE_PTEP_SET_ACCESS_FLAGS
 int huge_ptep_set_access_flags(struct vm_area_struct *vma,
-			       unsigned long addr, pte_t *ptep,
-			       pte_t pte, int dirty);
+    unsigned long addr, pte_t *ptep,
+    pte_t pte, int dirty);
 
 #define __HAVE_ARCH_HUGE_PTEP_GET
 pte_t huge_ptep_get(pte_t *ptep);

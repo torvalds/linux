@@ -24,7 +24,6 @@
 
 #include "ssh_request_layer.h"
 
-
 /* -- Safe counters. -------------------------------------------------------- */
 
 /**
@@ -32,7 +31,7 @@
  * @value: The current counter value.
  */
 struct ssh_seq_counter {
-	u8 value;
+  u8 value;
 };
 
 /**
@@ -40,9 +39,8 @@ struct ssh_seq_counter {
  * @value: The current counter value.
  */
 struct ssh_rqid_counter {
-	u16 value;
+  u16 value;
 };
-
 
 /* -- Event/notification system. -------------------------------------------- */
 
@@ -52,8 +50,8 @@ struct ssh_rqid_counter {
  * @head: List-head for notifier blocks registered under this head.
  */
 struct ssam_nf_head {
-	struct srcu_struct srcu;
-	struct list_head head;
+  struct srcu_struct srcu;
+  struct list_head head;
 };
 
 /**
@@ -66,11 +64,10 @@ struct ssam_nf_head {
  * @head:     The list of notifier heads for event/notification callbacks.
  */
 struct ssam_nf {
-	struct mutex lock;
-	struct rb_root refcount;
-	struct ssam_nf_head head[SSH_NUM_EVENTS];
+  struct mutex lock;
+  struct rb_root refcount;
+  struct ssam_nf_head head[SSH_NUM_EVENTS];
 };
-
 
 /* -- Event/async request completion system. -------------------------------- */
 
@@ -85,14 +82,14 @@ struct ssam_cplt;
  * @event:    Actual event data.
  */
 struct ssam_event_item {
-	struct list_head node;
-	u16 rqid;
+  struct list_head node;
+  u16 rqid;
 
-	struct {
-		void (*free)(struct ssam_event_item *event);
-	} ops;
+  struct {
+    void (*free)(struct ssam_event_item *event);
+  } ops;
 
-	struct ssam_event event;	/* must be last */
+  struct ssam_event event;  /* must be last */
 };
 
 /**
@@ -103,11 +100,11 @@ struct ssam_event_item {
  * @work: The &struct work_struct performing completion work for this queue.
  */
 struct ssam_event_queue {
-	struct ssam_cplt *cplt;
+  struct ssam_cplt *cplt;
 
-	spinlock_t lock;
-	struct list_head head;
-	struct work_struct work;
+  spinlock_t lock;
+  struct list_head head;
+  struct work_struct work;
 };
 
 /**
@@ -115,7 +112,7 @@ struct ssam_event_queue {
  * @queue: The array of queues, one queue per event ID.
  */
 struct ssam_event_target {
-	struct ssam_event_queue queue[SSH_NUM_EVENTS];
+  struct ssam_event_queue queue[SSH_NUM_EVENTS];
 };
 
 /**
@@ -129,37 +126,36 @@ struct ssam_event_target {
  * @event.notif:  Notifier callbacks and event activation reference counting.
  */
 struct ssam_cplt {
-	struct device *dev;
-	struct workqueue_struct *wq;
+  struct device *dev;
+  struct workqueue_struct *wq;
 
-	struct {
-		struct ssam_event_target target[SSH_NUM_TARGETS];
-		struct ssam_nf notif;
-	} event;
+  struct {
+    struct ssam_event_target target[SSH_NUM_TARGETS];
+    struct ssam_nf notif;
+  } event;
 };
-
 
 /* -- Main SSAM device structures. ------------------------------------------ */
 
 /**
  * enum ssam_controller_state - State values for &struct ssam_controller.
  * @SSAM_CONTROLLER_UNINITIALIZED:
- *	The controller has not been initialized yet or has been deinitialized.
+ *  The controller has not been initialized yet or has been deinitialized.
  * @SSAM_CONTROLLER_INITIALIZED:
- *	The controller is initialized, but has not been started yet.
+ *  The controller is initialized, but has not been started yet.
  * @SSAM_CONTROLLER_STARTED:
- *	The controller has been started and is ready to use.
+ *  The controller has been started and is ready to use.
  * @SSAM_CONTROLLER_STOPPED:
- *	The controller has been stopped.
+ *  The controller has been stopped.
  * @SSAM_CONTROLLER_SUSPENDED:
- *	The controller has been suspended.
+ *  The controller has been suspended.
  */
 enum ssam_controller_state {
-	SSAM_CONTROLLER_UNINITIALIZED,
-	SSAM_CONTROLLER_INITIALIZED,
-	SSAM_CONTROLLER_STARTED,
-	SSAM_CONTROLLER_STOPPED,
-	SSAM_CONTROLLER_SUSPENDED,
+  SSAM_CONTROLLER_UNINITIALIZED,
+  SSAM_CONTROLLER_INITIALIZED,
+  SSAM_CONTROLLER_STARTED,
+  SSAM_CONTROLLER_STOPPED,
+  SSAM_CONTROLLER_SUSPENDED,
 };
 
 /**
@@ -173,11 +169,11 @@ enum ssam_controller_state {
  * Controller and SSH device capabilities found in ACPI.
  */
 struct ssam_controller_caps {
-	u32 ssh_power_profile;
-	u32 ssh_buffer_size;
-	u32 screen_on_sleep_idle_timeout;
-	u32 screen_off_sleep_idle_timeout;
-	u32 d3_closes_handle:1;
+  u32 ssh_power_profile;
+  u32 ssh_buffer_size;
+  u32 screen_on_sleep_idle_timeout;
+  u32 screen_off_sleep_idle_timeout;
+  u32 d3_closes_handle : 1;
 };
 
 /**
@@ -196,34 +192,34 @@ struct ssam_controller_caps {
  * @caps: The controller device capabilities.
  */
 struct ssam_controller {
-	struct kref kref;
+  struct kref kref;
 
-	struct rw_semaphore lock;
-	enum ssam_controller_state state;
+  struct rw_semaphore lock;
+  enum ssam_controller_state state;
 
-	struct ssh_rtl rtl;
-	struct ssam_cplt cplt;
+  struct ssh_rtl rtl;
+  struct ssam_cplt cplt;
 
-	struct {
-		struct ssh_seq_counter seq;
-		struct ssh_rqid_counter rqid;
-	} counter;
+  struct {
+    struct ssh_seq_counter seq;
+    struct ssh_rqid_counter rqid;
+  } counter;
 
-	struct {
-		int num;
-		bool wakeup_enabled;
-	} irq;
+  struct {
+    int num;
+    bool wakeup_enabled;
+  } irq;
 
-	struct ssam_controller_caps caps;
+  struct ssam_controller_caps caps;
 };
 
 #define to_ssam_controller(ptr, member) \
-	container_of(ptr, struct ssam_controller, member)
+  container_of(ptr, struct ssam_controller, member)
 
-#define ssam_dbg(ctrl, fmt, ...)  rtl_dbg(&(ctrl)->rtl, fmt, ##__VA_ARGS__)
-#define ssam_info(ctrl, fmt, ...) rtl_info(&(ctrl)->rtl, fmt, ##__VA_ARGS__)
-#define ssam_warn(ctrl, fmt, ...) rtl_warn(&(ctrl)->rtl, fmt, ##__VA_ARGS__)
-#define ssam_err(ctrl, fmt, ...)  rtl_err(&(ctrl)->rtl, fmt, ##__VA_ARGS__)
+#define ssam_dbg(ctrl, fmt, ...)  rtl_dbg(&(ctrl)->rtl, fmt, ## __VA_ARGS__)
+#define ssam_info(ctrl, fmt, ...) rtl_info(&(ctrl)->rtl, fmt, ## __VA_ARGS__)
+#define ssam_warn(ctrl, fmt, ...) rtl_warn(&(ctrl)->rtl, fmt, ## __VA_ARGS__)
+#define ssam_err(ctrl, fmt, ...)  rtl_err(&(ctrl)->rtl, fmt, ## __VA_ARGS__)
 
 /**
  * ssam_controller_receive_buf() - Provide input-data to the controller.
@@ -239,9 +235,8 @@ struct ssam_controller {
  */
 static inline
 ssize_t ssam_controller_receive_buf(struct ssam_controller *ctrl, const u8 *buf,
-				    size_t n)
-{
-	return ssh_ptl_rx_rcvbuf(&ctrl->rtl.ptl, buf, n);
+    size_t n) {
+  return ssh_ptl_rx_rcvbuf(&ctrl->rtl.ptl, buf, n);
 }
 
 /**
@@ -249,9 +244,8 @@ ssize_t ssam_controller_receive_buf(struct ssam_controller *ctrl, const u8 *buf,
  * device has space available for data to be written.
  * @ctrl: The controller.
  */
-static inline void ssam_controller_write_wakeup(struct ssam_controller *ctrl)
-{
-	ssh_ptl_tx_wakeup_transfer(&ctrl->rtl.ptl);
+static inline void ssam_controller_write_wakeup(struct ssam_controller *ctrl) {
+  ssh_ptl_tx_wakeup_transfer(&ctrl->rtl.ptl);
 }
 
 int ssam_controller_init(struct ssam_controller *ctrl, struct serdev_device *s);

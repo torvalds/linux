@@ -14,8 +14,8 @@
  * TX_HIZ_UNUSED:   TX pin high-impedance during unused slots.
  * TX_HIZ_DISABLED: TX pin high-impedance when all channels disabled.
  */
-#define CS35L45_ASP_TX_HIZ_UNUSED	0x1
-#define CS35L45_ASP_TX_HIZ_DISABLED	0x2
+#define CS35L45_ASP_TX_HIZ_UNUSED 0x1
+#define CS35L45_ASP_TX_HIZ_DISABLED 0x2
 
 /*
  * Optional GPIOX Sub-nodes:
@@ -27,7 +27,8 @@
  *    0 = Output
  *    1 = Input (Default)
  *
- * - gpio-lvl : GPIO level. Valid only when 'gpio-ctrl' is 1 and 'gpio-dir' is 0.
+ * - gpio-lvl : GPIO level. Valid only when 'gpio-ctrl' is 1 and 'gpio-dir' is
+ * 0.
  *
  *    0 = Low (Default)
  *    1 = High
@@ -72,6 +73,6 @@
  *   1 = Pin acts as a GPIO, direction controlled by 'gpio-dir'
  *   2-7 = Reserved
  */
-#define CS35L45_NUM_GPIOS	0x3
+#define CS35L45_NUM_GPIOS 0x3
 
 #endif /* DT_CS35L45_H */

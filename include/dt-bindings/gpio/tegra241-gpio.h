@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2021, NVIDIA CORPORATION. All rights reserved.*/
 
 /*
  * This header provides constants for the nvidia,tegra241-gpio DT binding.
@@ -30,13 +30,13 @@
 #define TEGRA241_MAIN_GPIO_PORT_L 11
 
 #define TEGRA241_MAIN_GPIO(port, offset) \
-	((TEGRA241_MAIN_GPIO_PORT_##port * 8) + (offset))
+  ((TEGRA241_MAIN_GPIO_PORT_ ## port * 8) + (offset))
 
 /* GPIOs implemented by AON GPIO controller */
 #define TEGRA241_AON_GPIO_PORT_AA 0
 #define TEGRA241_AON_GPIO_PORT_BB 1
 
 #define TEGRA241_AON_GPIO(port, offset) \
-	((TEGRA241_AON_GPIO_PORT_##port * 8) + (offset))
+  ((TEGRA241_AON_GPIO_PORT_ ## port * 8) + (offset))
 
 #endif

@@ -7,7 +7,7 @@
 
 /* Helper struct for qsort, must be in sync with cpupower_topology.cpu_info */
 /* Be careful: Need to pass unsigned to the sort, so that offlined cores are
-   in the end, but double check for -1 for offlined cpus at other places */
+ * in the end, but double check for -1 for offlined cpus at other places */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,4 +18,3 @@
 #include <cpuidle.h>
 
 /* CPU topology/hierarchy parsing ******************/
-

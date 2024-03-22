@@ -12,13 +12,13 @@
 
 #include "prcm-common.h"
 
-# ifndef __ASSEMBLER__
+#ifndef __ASSEMBLER__
 extern struct omap_domain_base prm_base;
 extern u16 prm_features;
 extern enum reboot_mode prm_reboot_mode;
 int omap_prcm_init(void);
 int omap2_prcm_base_init(void);
-# endif
+#endif
 
 /*
  * prm_features flag values
@@ -26,20 +26,20 @@ int omap2_prcm_base_init(void);
  * PRM_HAS_IO_WAKEUP: has IO wakeup capability
  * PRM_HAS_VOLTAGE: has voltage domains
  */
-#define PRM_HAS_IO_WAKEUP	BIT(0)
-#define PRM_HAS_VOLTAGE		BIT(1)
+#define PRM_HAS_IO_WAKEUP BIT(0)
+#define PRM_HAS_VOLTAGE   BIT(1)
 
 /*
  * MAX_MODULE_SOFTRESET_WAIT: Maximum microseconds to wait for OMAP
  * module to softreset
  */
-#define MAX_MODULE_SOFTRESET_WAIT		10000
+#define MAX_MODULE_SOFTRESET_WAIT   10000
 
 /*
  * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
  * submodule to exit hardreset
  */
-#define MAX_MODULE_HARDRESET_WAIT		10000
+#define MAX_MODULE_HARDRESET_WAIT   10000
 
 /*
  * Register bitfields
@@ -51,11 +51,10 @@ int omap2_prcm_base_init(void);
  * 2430: PM_PWSTST_MDM
  *
  * 3430: PM_PWSTST_IVA2, PM_PWSTST_MPU, PM_PWSTST_CORE, PM_PWSTST_GFX,
- *	 PM_PWSTST_DSS, PM_PWSTST_CAM, PM_PWSTST_PER, PM_PWSTST_EMU,
- *	 PM_PWSTST_NEON
+ *   PM_PWSTST_DSS, PM_PWSTST_CAM, PM_PWSTST_PER, PM_PWSTST_EMU,
+ *   PM_PWSTST_NEON
  */
-#define OMAP_INTRANSITION_MASK				(1 << 20)
-
+#define OMAP_INTRANSITION_MASK        (1 << 20)
 
 /*
  * 24XX: PM_PWSTST_GFX, PM_PWSTST_DSP
@@ -63,11 +62,11 @@ int omap2_prcm_base_init(void);
  * 2430: PM_PWSTST_MDM
  *
  * 3430: PM_PWSTST_IVA2, PM_PWSTST_MPU, PM_PWSTST_CORE, PM_PWSTST_GFX,
- *	 PM_PWSTST_DSS, PM_PWSTST_CAM, PM_PWSTST_PER, PM_PWSTST_EMU,
- *	 PM_PWSTST_NEON
+ *   PM_PWSTST_DSS, PM_PWSTST_CAM, PM_PWSTST_PER, PM_PWSTST_EMU,
+ *   PM_PWSTST_NEON
  */
-#define OMAP_POWERSTATEST_SHIFT				0
-#define OMAP_POWERSTATEST_MASK				(0x3 << 0)
+#define OMAP_POWERSTATEST_SHIFT       0
+#define OMAP_POWERSTATEST_MASK        (0x3 << 0)
 
 /*
  * 24XX: PM_PWSTCTRL_MPU, PM_PWSTCTRL_CORE, PM_PWSTCTRL_GFX,
@@ -76,11 +75,11 @@ int omap2_prcm_base_init(void);
  * 2430: PM_PWSTCTRL_MDM shared bits
  *
  * 3430: PM_PWSTCTRL_IVA2, PM_PWSTCTRL_MPU, PM_PWSTCTRL_CORE,
- *	 PM_PWSTCTRL_GFX, PM_PWSTCTRL_DSS, PM_PWSTCTRL_CAM, PM_PWSTCTRL_PER,
- *	 PM_PWSTCTRL_NEON shared bits
+ *   PM_PWSTCTRL_GFX, PM_PWSTCTRL_DSS, PM_PWSTCTRL_CAM, PM_PWSTCTRL_PER,
+ *   PM_PWSTCTRL_NEON shared bits
  */
-#define OMAP_POWERSTATE_SHIFT				0
-#define OMAP_POWERSTATE_MASK				(0x3 << 0)
+#define OMAP_POWERSTATE_SHIFT       0
+#define OMAP_POWERSTATE_MASK        (0x3 << 0)
 
 /*
  * Standardized OMAP reset source bits
@@ -92,19 +91,19 @@ int omap2_prcm_base_init(void);
  * haven't been identified, or when the PRM code for the current SoC
  * doesn't know how to interpret the register.
  */
-#define OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT			0
-#define OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT			1
-#define OMAP_SECU_VIOL_RST_SRC_ID_SHIFT				2
-#define OMAP_MPU_WD_RST_SRC_ID_SHIFT				3
-#define OMAP_SECU_WD_RST_SRC_ID_SHIFT				4
-#define OMAP_EXTWARM_RST_SRC_ID_SHIFT				5
-#define OMAP_VDD_MPU_VM_RST_SRC_ID_SHIFT			6
-#define OMAP_VDD_IVA_VM_RST_SRC_ID_SHIFT			7
-#define OMAP_VDD_CORE_VM_RST_SRC_ID_SHIFT			8
-#define OMAP_ICEPICK_RST_SRC_ID_SHIFT				9
-#define OMAP_ICECRUSHER_RST_SRC_ID_SHIFT			10
-#define OMAP_C2C_RST_SRC_ID_SHIFT				11
-#define OMAP_UNKNOWN_RST_SRC_ID_SHIFT				12
+#define OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT     0
+#define OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT     1
+#define OMAP_SECU_VIOL_RST_SRC_ID_SHIFT       2
+#define OMAP_MPU_WD_RST_SRC_ID_SHIFT        3
+#define OMAP_SECU_WD_RST_SRC_ID_SHIFT       4
+#define OMAP_EXTWARM_RST_SRC_ID_SHIFT       5
+#define OMAP_VDD_MPU_VM_RST_SRC_ID_SHIFT      6
+#define OMAP_VDD_IVA_VM_RST_SRC_ID_SHIFT      7
+#define OMAP_VDD_CORE_VM_RST_SRC_ID_SHIFT     8
+#define OMAP_ICEPICK_RST_SRC_ID_SHIFT       9
+#define OMAP_ICECRUSHER_RST_SRC_ID_SHIFT      10
+#define OMAP_C2C_RST_SRC_ID_SHIFT       11
+#define OMAP_UNKNOWN_RST_SRC_ID_SHIFT       12
 
 #ifndef __ASSEMBLER__
 
@@ -116,8 +115,8 @@ int omap2_prcm_base_init(void);
  * The fields are signed because -1 is used as a terminator.
  */
 struct prm_reset_src_map {
-	s8 reg_shift;
-	s8 std_shift;
+  s8 reg_shift;
+  s8 std_shift;
 };
 
 /**
@@ -133,19 +132,19 @@ struct prm_reset_src_map {
  * deprecated.
  */
 struct prm_ll_data {
-	u32 (*read_reset_sources)(void);
-	bool (*was_any_context_lost_old)(u8 part, s16 inst, u16 idx);
-	void (*clear_context_loss_flags_old)(u8 part, s16 inst, u16 idx);
-	int (*late_init)(void);
-	int (*assert_hardreset)(u8 shift, u8 part, s16 prm_mod, u16 offset);
-	int (*deassert_hardreset)(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
-				  u16 offset, u16 st_offset);
-	int (*is_hardreset_asserted)(u8 shift, u8 part, s16 prm_mod,
-				     u16 offset);
-	void (*reset_system)(void);
-	int (*clear_mod_irqs)(s16 module, u8 regs, u32 wkst_mask);
-	u32 (*vp_check_txdone)(u8 vp_id);
-	void (*vp_clear_txdone)(u8 vp_id);
+  u32 (*read_reset_sources)(void);
+  bool (*was_any_context_lost_old)(u8 part, s16 inst, u16 idx);
+  void (*clear_context_loss_flags_old)(u8 part, s16 inst, u16 idx);
+  int (*late_init)(void);
+  int (*assert_hardreset)(u8 shift, u8 part, s16 prm_mod, u16 offset);
+  int (*deassert_hardreset)(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
+      u16 offset, u16 st_offset);
+  int (*is_hardreset_asserted)(u8 shift, u8 part, s16 prm_mod,
+      u16 offset);
+  void (*reset_system)(void);
+  int (*clear_mod_irqs)(s16 module, u8 regs, u32 wkst_mask);
+  u32 (*vp_check_txdone)(u8 vp_id);
+  void (*vp_clear_txdone)(u8 vp_id);
 };
 
 extern int prm_register(struct prm_ll_data *pld);
@@ -153,7 +152,7 @@ extern int prm_unregister(struct prm_ll_data *pld);
 
 int omap_prm_assert_hardreset(u8 shift, u8 part, s16 prm_mod, u16 offset);
 int omap_prm_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 prm_mod,
-				u16 offset, u16 st_offset);
+    u16 offset, u16 st_offset);
 int omap_prm_is_hardreset_asserted(u8 shift, u8 part, s16 prm_mod, u16 offset);
 extern bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx);
 extern void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx);
@@ -164,16 +163,15 @@ int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask);
 /*
  * Voltage Processor (VP) identifiers
  */
-#define OMAP3_VP_VDD_MPU_ID	0
-#define OMAP3_VP_VDD_CORE_ID	1
-#define OMAP4_VP_VDD_CORE_ID	0
-#define OMAP4_VP_VDD_IVA_ID	1
-#define OMAP4_VP_VDD_MPU_ID	2
+#define OMAP3_VP_VDD_MPU_ID 0
+#define OMAP3_VP_VDD_CORE_ID  1
+#define OMAP4_VP_VDD_CORE_ID  0
+#define OMAP4_VP_VDD_IVA_ID 1
+#define OMAP4_VP_VDD_MPU_ID 2
 
 u32 omap_prm_vp_check_txdone(u8 vp_id);
 void omap_prm_vp_clear_txdone(u8 vp_id);
 
 #endif
-
 
 #endif

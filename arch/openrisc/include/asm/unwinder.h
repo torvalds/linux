@@ -14,7 +14,7 @@
 #define __ASM_OPENRISC_UNWINDER_H
 
 void unwind_stack(void *data, unsigned long *stack,
-		  void (*trace)(void *data, unsigned long addr,
-				int reliable));
+    void (*trace)(void *data, unsigned long addr,
+    int reliable));
 
 #endif /* __ASM_OPENRISC_UNWINDER_H */

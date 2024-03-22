@@ -8,10 +8,10 @@ int map_to_cpu(unsigned int index);
 #define cpu_map_init() cpu_map_rebuild()
 #else
 #define cpu_map_init() do {} while (0)
-static inline int map_to_cpu(unsigned int index)
-{
-	return raw_smp_processor_id();
+static inline int map_to_cpu(unsigned int index) {
+  return raw_smp_processor_id();
 }
+
 #endif
 
 #endif

@@ -1,10 +1,12 @@
 #ifndef __src_nvidia_inc_kernel_gpu_gsp_gsp_init_args_h__
 #define __src_nvidia_inc_kernel_gpu_gsp_gsp_init_args_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2020-2022 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2020-2022 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,31 +29,29 @@
  */
 
 typedef struct {
-    RmPhysAddr sharedMemPhysAddr;
-    NvU32 pageTableEntryCount;
-    NvLength cmdQueueOffset;
-    NvLength statQueueOffset;
-    NvLength locklessCmdQueueOffset;
-    NvLength locklessStatQueueOffset;
+  RmPhysAddr sharedMemPhysAddr;
+  NvU32 pageTableEntryCount;
+  NvLength cmdQueueOffset;
+  NvLength statQueueOffset;
+  NvLength locklessCmdQueueOffset;
+  NvLength locklessStatQueueOffset;
 } MESSAGE_QUEUE_INIT_ARGUMENTS;
 
 typedef struct {
-    NvU32 oldLevel;
-    NvU32 flags;
-    NvBool bInPMTransition;
+  NvU32 oldLevel;
+  NvU32 flags;
+  NvBool bInPMTransition;
 } GSP_SR_INIT_ARGUMENTS;
 
-typedef struct
-{
-    MESSAGE_QUEUE_INIT_ARGUMENTS      messageQueueInitArguments;
-    GSP_SR_INIT_ARGUMENTS             srInitArguments;
-    NvU32                             gpuInstance;
+typedef struct {
+  MESSAGE_QUEUE_INIT_ARGUMENTS messageQueueInitArguments;
+  GSP_SR_INIT_ARGUMENTS srInitArguments;
+  NvU32 gpuInstance;
 
-    struct
-    {
-        NvU64                         pa;
-        NvU64                         size;
-    } profilerArgs;
+  struct {
+    NvU64 pa;
+    NvU64 size;
+  } profilerArgs;
 } GSP_ARGUMENTS_CACHED;
 
 #endif

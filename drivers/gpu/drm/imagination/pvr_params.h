@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT
+ * Copyright (c) 2023 Imagination Technologies Ltd.*/
 
 #ifndef PVR_PARAMS_H
 #define PVR_PARAMS_H
@@ -45,15 +45,15 @@
  *           should specify NULL for this argument.
  */
 #define PVR_DEVICE_PARAMS                                                    \
-	X(X32, fw_trace_mask, ROGUE_FWIF_LOG_TYPE_NONE,                      \
-	  "Enable FW trace for the specified groups. Specifying 0 disables " \
-	  "all FW tracing.",                                                 \
-	  RW, pvr_fw_trace_mask_update)
+  X(X32, fw_trace_mask, ROGUE_FWIF_LOG_TYPE_NONE,                      \
+    "Enable FW trace for the specified groups. Specifying 0 disables " \
+    "all FW tracing.",                                                 \
+    RW, pvr_fw_trace_mask_update)
 
 struct pvr_device_params {
 #define X(type_, name_, value_, desc_, ...) \
-	PVR_PARAM_TYPE_##type_##_C name_;
-	PVR_DEVICE_PARAMS
+  PVR_PARAM_TYPE_ ## type_ ## _C name_;
+  PVR_DEVICE_PARAMS
 #undef X
 };
 

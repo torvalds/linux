@@ -3,9 +3,11 @@
  *
  * Copyright (c) 2005-2006 Varma Electronics Oy
  * Copyright (c) 2009 Sascha Hauer, Pengutronix
- * Copyright (c) 2010-2017 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
+ * Copyright (c) 2010-2017 Pengutronix, Marc Kleine-Budde
+ *<kernel@pengutronix.de>
  * Copyright (c) 2014 David Jander, Protonic Holland
- * Copyright (C) 2022 Amarula Solutions, Dario Binacchi <dario.binacchi@amarulasolutions.com>
+ * Copyright (C) 2022 Amarula Solutions, Dario Binacchi
+ *<dario.binacchi@amarulasolutions.com>
  *
  * Based on code originally by Andrey Volkov <avolkov@varma-el.com>
  *
@@ -19,26 +21,39 @@
 /* FLEXCAN hardware feature flags
  *
  * Below is some version info we got:
- *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT IRQ Err Memory err RTR rece-   FD Mode     MB
- *                                Filter? connected?  Passive detection  ption in MB Supported?
- * MCF5441X FlexCAN2  ?               no       yes        no       no        no           no     16
- *    MX25  FlexCAN2  03.00.00.00     no        no        no       no        no           no     64
- *    MX28  FlexCAN2  03.00.04.00    yes       yes        no       no        no           no     64
- *    MX35  FlexCAN2  03.00.00.00     no        no        no       no        no           no     64
- *    MX53  FlexCAN2  03.00.00.00    yes        no        no       no        no           no     64
- *    MX6s  FlexCAN3  10.00.12.00    yes       yes        no       no       yes           no     64
- *    MX8QM FlexCAN3  03.00.23.00    yes       yes        no       no       yes          yes     64
- *    MX8MP FlexCAN3  03.00.17.01    yes       yes        no      yes       yes          yes     64
- *    VF610 FlexCAN3  ?               no       yes        no      yes       yes?          no     64
- *  LS1021A FlexCAN2  03.00.04.00     no       yes        no       no       yes           no     64
- *  LX2160A FlexCAN3  03.00.23.00     no       yes        no      yes       yes          yes     64
+ *    SOC   Version   IP-Version  Glitch- [TR]WRN_INT IRQ Err Memory err RTR
+ * rece-   FD Mode     MB
+ *                                Filter? connected?  Passive detection  ption
+ * in MB Supported?
+ * MCF5441X FlexCAN2  ?               no       yes        no       no        no
+ *          no     16
+ *    MX25  FlexCAN2  03.00.00.00     no        no        no       no        no
+ *          no     64
+ *    MX28  FlexCAN2  03.00.04.00    yes       yes        no       no        no
+ *          no     64
+ *    MX35  FlexCAN2  03.00.00.00     no        no        no       no        no
+ *          no     64
+ *    MX53  FlexCAN2  03.00.00.00    yes        no        no       no        no
+ *          no     64
+ *    MX6s  FlexCAN3  10.00.12.00    yes       yes        no       no       yes
+ *          no     64
+ *    MX8QM FlexCAN3  03.00.23.00    yes       yes        no       no       yes
+ *         yes     64
+ *    MX8MP FlexCAN3  03.00.17.01    yes       yes        no      yes       yes
+ *         yes     64
+ *    VF610 FlexCAN3  ?               no       yes        no      yes       yes?
+ *         no     64
+ *  LS1021A FlexCAN2  03.00.04.00     no       yes        no       no       yes
+ *          no     64
+ *  LX2160A FlexCAN3  03.00.23.00     no       yes        no      yes       yes
+ *         yes     64
  *
  * Some SOCs do not have the RX_WARN & TX_WARN interrupt line connected.
  */
 
 /* [TR]WRN_INT not connected */
 #define FLEXCAN_QUIRK_BROKEN_WERR_STATE BIT(1)
- /* Disable RX FIFO Global mask */
+/* Disable RX FIFO Global mask */
 #define FLEXCAN_QUIRK_DISABLE_RXFG BIT(2)
 /* Enable EACEN and RRS bit in ctrl2 */
 #define FLEXCAN_QUIRK_ENABLE_EACEN_RRS  BIT(3)
@@ -70,94 +85,83 @@
 #define FLEXCAN_QUIRK_SUPPORT_RX_FIFO BIT(16)
 
 struct flexcan_devtype_data {
-	u32 quirks;		/* quirks needed for different IP cores */
+  u32 quirks;   /* quirks needed for different IP cores */
 };
 
 struct flexcan_stop_mode {
-	struct regmap *gpr;
-	u8 req_gpr;
-	u8 req_bit;
+  struct regmap *gpr;
+  u8 req_gpr;
+  u8 req_bit;
 };
 
 struct flexcan_priv {
-	struct can_priv can;
-	struct can_rx_offload offload;
-	struct device *dev;
+  struct can_priv can;
+  struct can_rx_offload offload;
+  struct device *dev;
 
-	struct flexcan_regs __iomem *regs;
-	struct flexcan_mb __iomem *tx_mb;
-	struct flexcan_mb __iomem *tx_mb_reserved;
-	u8 tx_mb_idx;
-	u8 mb_count;
-	u8 mb_size;
-	u8 clk_src;	/* clock source of CAN Protocol Engine */
-	u8 scu_idx;
+  struct flexcan_regs __iomem *regs;
+  struct flexcan_mb __iomem *tx_mb;
+  struct flexcan_mb __iomem *tx_mb_reserved;
+  u8 tx_mb_idx;
+  u8 mb_count;
+  u8 mb_size;
+  u8 clk_src; /* clock source of CAN Protocol Engine */
+  u8 scu_idx;
 
-	u64 rx_mask;
-	u64 tx_mask;
-	u32 reg_ctrl_default;
+  u64 rx_mask;
+  u64 tx_mask;
+  u32 reg_ctrl_default;
 
-	struct clk *clk_ipg;
-	struct clk *clk_per;
-	struct flexcan_devtype_data devtype_data;
-	struct regulator *reg_xceiver;
-	struct flexcan_stop_mode stm;
+  struct clk *clk_ipg;
+  struct clk *clk_per;
+  struct flexcan_devtype_data devtype_data;
+  struct regulator *reg_xceiver;
+  struct flexcan_stop_mode stm;
 
-	int irq_boff;
-	int irq_err;
+  int irq_boff;
+  int irq_err;
 
-	/* IPC handle when setup stop mode by System Controller firmware(scfw) */
-	struct imx_sc_ipc *sc_ipc_handle;
+  /* IPC handle when setup stop mode by System Controller firmware(scfw) */
+  struct imx_sc_ipc *sc_ipc_handle;
 
-	/* Read and Write APIs */
-	u32 (*read)(void __iomem *addr);
-	void (*write)(u32 val, void __iomem *addr);
+  /* Read and Write APIs */
+  u32 (*read)(void __iomem *addr);
+  void (*write)(u32 val, void __iomem *addr);
 };
 
 extern const struct ethtool_ops flexcan_ethtool_ops;
 
-static inline bool
-flexcan_supports_rx_mailbox(const struct flexcan_priv *priv)
+static inline bool flexcan_supports_rx_mailbox(const struct flexcan_priv *priv)
 {
-	const u32 quirks = priv->devtype_data.quirks;
-
-	return quirks & FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX;
+  const u32 quirks = priv->devtype_data.quirks;
+  return quirks & FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX;
 }
 
-static inline bool
-flexcan_supports_rx_mailbox_rtr(const struct flexcan_priv *priv)
-{
-	const u32 quirks = priv->devtype_data.quirks;
-
-	return (quirks & (FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX |
-			  FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX_RTR)) ==
-		(FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX |
-		 FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX_RTR);
+static inline bool flexcan_supports_rx_mailbox_rtr(
+    const struct flexcan_priv *priv) {
+  const u32 quirks = priv->devtype_data.quirks;
+  return (quirks & (FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX
+    | FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX_RTR))
+    == (FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX
+    | FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX_RTR);
 }
 
-static inline bool
-flexcan_supports_rx_fifo(const struct flexcan_priv *priv)
-{
-	const u32 quirks = priv->devtype_data.quirks;
-
-	return quirks & FLEXCAN_QUIRK_SUPPORT_RX_FIFO;
+static inline bool flexcan_supports_rx_fifo(const struct flexcan_priv *priv) {
+  const u32 quirks = priv->devtype_data.quirks;
+  return quirks & FLEXCAN_QUIRK_SUPPORT_RX_FIFO;
 }
 
-static inline bool
-flexcan_active_rx_rtr(const struct flexcan_priv *priv)
-{
-	const u32 quirks = priv->devtype_data.quirks;
-
-	if (quirks & FLEXCAN_QUIRK_USE_RX_MAILBOX) {
-		if (quirks & FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX_RTR)
-			return true;
-	} else {
-		/*  RX-FIFO is always RTR capable */
-		return true;
-	}
-
-	return false;
+static inline bool flexcan_active_rx_rtr(const struct flexcan_priv *priv) {
+  const u32 quirks = priv->devtype_data.quirks;
+  if (quirks & FLEXCAN_QUIRK_USE_RX_MAILBOX) {
+    if (quirks & FLEXCAN_QUIRK_SUPPORT_RX_MAILBOX_RTR) {
+      return true;
+    }
+  } else {
+    /*  RX-FIFO is always RTR capable */
+    return true;
+  }
+  return false;
 }
-
 
 #endif /* _FLEXCAN_H */

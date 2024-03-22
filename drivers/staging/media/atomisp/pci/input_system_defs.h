@@ -51,7 +51,8 @@
 #define HIVE_ISYS_GPREG_SRST_CAPT_B_BIT           7
 #define HIVE_ISYS_GPREG_SRST_CAPT_C_BIT           8
 #define HIVE_ISYS_GPREG_SRST_ACQ_BIT              9
-/* For ISYS_CTRL 5bits are defined to allow soft-reset per sub-controller and top-ctrl */
+/* For ISYS_CTRL 5bits are defined to allow soft-reset per sub-controller and
+ * top-ctrl */
 #define HIVE_ISYS_GPREG_SRST_ISYS_CTRL_BIT        10  /*LSB for 5bit vector */
 #define HIVE_ISYS_GPREG_SRST_ISYS_CTRL_CAPT_A_BIT 10
 #define HIVE_ISYS_GPREG_SRST_ISYS_CTRL_CAPT_B_BIT 11
@@ -119,9 +120,12 @@
 #define HIVE_ISYS_DMA_CHANNEL                  0
 #define HIVE_ISYS_DMA_IBUF_DDR_CONN            0
 #define HIVE_ISYS_DMA_HEIGHT                   1
-#define HIVE_ISYS_DMA_ELEMS                    1 /* both master buses of same width */
-#define HIVE_ISYS_DMA_STRIDE                   0 /* no stride required as height is fixed to 1 */
+#define HIVE_ISYS_DMA_ELEMS                    1 /* both master buses of same
+                                                  * width */
+#define HIVE_ISYS_DMA_STRIDE                   0 /* no stride required as height
+                                                  * is fixed to 1 */
 #define HIVE_ISYS_DMA_CROP                     0 /* no cropping */
-#define HIVE_ISYS_DMA_EXTENSION                0 /* no extension as elem width is same on both side */
+#define HIVE_ISYS_DMA_EXTENSION                0 /* no extension as elem width
+                                                  * is same on both side */
 
 #endif /* _input_system_defs_h */

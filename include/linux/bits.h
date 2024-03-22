@@ -7,11 +7,11 @@
 #include <uapi/linux/bits.h>
 #include <asm/bitsperlong.h>
 
-#define BIT_MASK(nr)		(UL(1) << ((nr) % BITS_PER_LONG))
-#define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
-#define BIT_ULL_MASK(nr)	(ULL(1) << ((nr) % BITS_PER_LONG_LONG))
-#define BIT_ULL_WORD(nr)	((nr) / BITS_PER_LONG_LONG)
-#define BITS_PER_BYTE		8
+#define BIT_MASK(nr)    (UL(1) << ((nr) % BITS_PER_LONG))
+#define BIT_WORD(nr)    ((nr) / BITS_PER_LONG)
+#define BIT_ULL_MASK(nr)  (ULL(1) << ((nr) % BITS_PER_LONG_LONG))
+#define BIT_ULL_WORD(nr)  ((nr) / BITS_PER_LONG_LONG)
+#define BITS_PER_BYTE   8
 
 /*
  * Create a contiguous bitmask starting at bit position @l and ending at
@@ -21,8 +21,8 @@
 #if !defined(__ASSEMBLY__)
 #include <linux/build_bug.h>
 #define GENMASK_INPUT_CHECK(h, l) \
-	(BUILD_BUG_ON_ZERO(__builtin_choose_expr( \
-		__is_constexpr((l) > (h)), (l) > (h), 0)))
+  (BUILD_BUG_ON_ZERO(__builtin_choose_expr( \
+    __is_constexpr((l) > (h)), (l) > (h), 0)))
 #else
 /*
  * BUILD_BUG_ON_ZERO is not available in h files included from asm files,
@@ -32,8 +32,8 @@
 #endif
 
 #define GENMASK(h, l) \
-	(GENMASK_INPUT_CHECK(h, l) + __GENMASK(h, l))
+  (GENMASK_INPUT_CHECK(h, l) + __GENMASK(h, l))
 #define GENMASK_ULL(h, l) \
-	(GENMASK_INPUT_CHECK(h, l) + __GENMASK_ULL(h, l))
+  (GENMASK_INPUT_CHECK(h, l) + __GENMASK_ULL(h, l))
 
-#endif	/* __LINUX_BITS_H */
+#endif  /* __LINUX_BITS_H */

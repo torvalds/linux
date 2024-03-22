@@ -4,22 +4,22 @@
 #include <bpf/bpf_tracing.h>
 
 const volatile struct {
-	/* thread to activate trace programs for */
-	pid_t tgid;
-	/* return error from __init function */
-	int inject_error;
-	/* uffd monitored range start address */
-	void *fault_addr;
-} bpf_mod_race_config = { -1 };
+  /* thread to activate trace programs for */
+  pid_t tgid;
+  /* return error from __init function */
+  int inject_error;
+  /* uffd monitored range start address */
+  void *fault_addr;
+} bpf_mod_race_config = {
+  -1
+};
 
 int bpf_blocking = 0;
 int res_try_get_module = -1;
 
-static __always_inline bool check_thread_id(void)
-{
-	struct task_struct *task = bpf_get_current_task_btf();
-
-	return task->tgid == bpf_mod_race_config.tgid;
+static __always_inline bool check_thread_id(void) {
+  struct task_struct *task = bpf_get_current_task_btf();
+  return task->tgid == bpf_mod_race_config.tgid;
 }
 
 /* The trace of execution is something like this:
@@ -29,7 +29,7 @@ static __always_inline bool check_thread_id(void)
  *     prepare_coming_module()
  *       notifier_call(MODULE_STATE_COMING)
  *         btf_parse_module()
- *         btf_alloc_id()		// Visible to userspace at this point
+ *         btf_alloc_id()   // Visible to userspace at this point
  *         list_add(btf_mod->list, &btf_modules)
  *     do_init_module()
  *       freeinit = kmalloc()
@@ -68,33 +68,31 @@ static __always_inline bool check_thread_id(void)
  */
 
 SEC("fmod_ret.s/bpf_fentry_test1")
-int BPF_PROG(widen_race, int a, int ret)
-{
-	char dst;
-
-	if (!check_thread_id())
-		return 0;
-	/* Indicate that we will attempt to block */
-	bpf_blocking = 1;
-	bpf_copy_from_user(&dst, 1, bpf_mod_race_config.fault_addr);
-	return bpf_mod_race_config.inject_error;
+int BPF_PROG(widen_race, int a, int ret) {
+  char dst;
+  if (!check_thread_id()) {
+    return 0;
+  }
+  /* Indicate that we will attempt to block */
+  bpf_blocking = 1;
+  bpf_copy_from_user(&dst, 1, bpf_mod_race_config.fault_addr);
+  return bpf_mod_race_config.inject_error;
 }
 
 SEC("fexit/do_init_module")
-int BPF_PROG(fexit_init_module, struct module *mod, int ret)
-{
-	if (!check_thread_id())
-		return 0;
-	/* Indicate that we finished blocking */
-	bpf_blocking = 2;
-	return 0;
+int BPF_PROG(fexit_init_module, struct module *mod, int ret) {
+  if (!check_thread_id()) {
+    return 0;
+  }
+  /* Indicate that we finished blocking */
+  bpf_blocking = 2;
+  return 0;
 }
 
 SEC("fexit/btf_try_get_module")
-int BPF_PROG(fexit_module_get, const struct btf *btf, struct module *mod)
-{
-	res_try_get_module = !!mod;
-	return 0;
+int BPF_PROG(fexit_module_get, const struct btf *btf, struct module *mod) {
+  res_try_get_module = !!mod;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

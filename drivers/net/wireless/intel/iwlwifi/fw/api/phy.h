@@ -11,110 +11,110 @@
  * enum iwl_phy_ops_subcmd_ids - PHY group commands
  */
 enum iwl_phy_ops_subcmd_ids {
-	/**
-	 * @CMD_DTS_MEASUREMENT_TRIGGER_WIDE:
-	 * Uses either &struct iwl_dts_measurement_cmd or
-	 * &struct iwl_ext_dts_measurement_cmd
-	 */
-	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
+  /**
+   * @CMD_DTS_MEASUREMENT_TRIGGER_WIDE:
+   * Uses either &struct iwl_dts_measurement_cmd or
+   * &struct iwl_ext_dts_measurement_cmd
+   */
+  CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
 
-	/**
-	 * @CTDP_CONFIG_CMD: &struct iwl_mvm_ctdp_cmd
-	 */
-	CTDP_CONFIG_CMD = 0x03,
+  /**
+   * @CTDP_CONFIG_CMD: &struct iwl_mvm_ctdp_cmd
+   */
+  CTDP_CONFIG_CMD = 0x03,
 
-	/**
-	 * @TEMP_REPORTING_THRESHOLDS_CMD: &struct temp_report_ths_cmd
-	 */
-	TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
+  /**
+   * @TEMP_REPORTING_THRESHOLDS_CMD: &struct temp_report_ths_cmd
+   */
+  TEMP_REPORTING_THRESHOLDS_CMD = 0x04,
 
-	/**
-	 * @PER_CHAIN_LIMIT_OFFSET_CMD: &struct iwl_geo_tx_power_profiles_cmd_v1,
-	 * &struct iwl_geo_tx_power_profiles_cmd_v2,
-	 * &struct iwl_geo_tx_power_profiles_cmd_v3,
-	 * &struct iwl_geo_tx_power_profiles_cmd_v4 or
-	 * &struct iwl_geo_tx_power_profiles_cmd_v5
-	 */
-	PER_CHAIN_LIMIT_OFFSET_CMD = 0x05,
+  /**
+   * @PER_CHAIN_LIMIT_OFFSET_CMD: &struct iwl_geo_tx_power_profiles_cmd_v1,
+   * &struct iwl_geo_tx_power_profiles_cmd_v2,
+   * &struct iwl_geo_tx_power_profiles_cmd_v3,
+   * &struct iwl_geo_tx_power_profiles_cmd_v4 or
+   * &struct iwl_geo_tx_power_profiles_cmd_v5
+   */
+  PER_CHAIN_LIMIT_OFFSET_CMD = 0x05,
 
-	/**
-	 * @PER_PLATFORM_ANT_GAIN_CMD: &union iwl_ppag_table_cmd
-	 */
-	PER_PLATFORM_ANT_GAIN_CMD = 0x07,
+  /**
+   * @PER_PLATFORM_ANT_GAIN_CMD: &union iwl_ppag_table_cmd
+   */
+  PER_PLATFORM_ANT_GAIN_CMD = 0x07,
 
-	/**
-	 * @CT_KILL_NOTIFICATION: &struct ct_kill_notif
-	 */
-	CT_KILL_NOTIFICATION = 0xFE,
+  /**
+   * @CT_KILL_NOTIFICATION: &struct ct_kill_notif
+   */
+  CT_KILL_NOTIFICATION = 0xFE,
 
-	/**
-	 * @DTS_MEASUREMENT_NOTIF_WIDE:
-	 * &struct iwl_dts_measurement_notif_v1 or
-	 * &struct iwl_dts_measurement_notif_v2
-	 */
-	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
+  /**
+   * @DTS_MEASUREMENT_NOTIF_WIDE:
+   * &struct iwl_dts_measurement_notif_v1 or
+   * &struct iwl_dts_measurement_notif_v2
+   */
+  DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
 
 /* DTS measurements */
 
 enum iwl_dts_measurement_flags {
-	DTS_TRIGGER_CMD_FLAGS_TEMP	= BIT(0),
-	DTS_TRIGGER_CMD_FLAGS_VOLT	= BIT(1),
+  DTS_TRIGGER_CMD_FLAGS_TEMP = BIT(0),
+  DTS_TRIGGER_CMD_FLAGS_VOLT = BIT(1),
 };
 
 /**
  * struct iwl_dts_measurement_cmd - request DTS temp and/or voltage measurements
  *
  * @flags: indicates which measurements we want as specified in
- *	&enum iwl_dts_measurement_flags
+ *  &enum iwl_dts_measurement_flags
  */
 struct iwl_dts_measurement_cmd {
-	__le32 flags;
+  __le32 flags;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_CMD_S */
 
 /**
-* enum iwl_dts_control_measurement_mode - DTS measurement type
-* @DTS_AUTOMATIC: Automatic mode (full SW control). Provide temperature read
-*                 back (latest value. Not waiting for new value). Use automatic
-*                 SW DTS configuration.
-* @DTS_REQUEST_READ: Request DTS read. Configure DTS with manual settings,
-*                    trigger DTS reading and provide read back temperature read
-*                    when available.
-* @DTS_OVER_WRITE: over-write the DTS temperatures in the SW until next read
-* @DTS_DIRECT_WITHOUT_MEASURE: DTS returns its latest temperature result,
-*                              without measurement trigger.
-*/
+ * enum iwl_dts_control_measurement_mode - DTS measurement type
+ * @DTS_AUTOMATIC: Automatic mode (full SW control). Provide temperature read
+ *                 back (latest value. Not waiting for new value). Use automatic
+ *                 SW DTS configuration.
+ * @DTS_REQUEST_READ: Request DTS read. Configure DTS with manual settings,
+ *                    trigger DTS reading and provide read back temperature read
+ *                    when available.
+ * @DTS_OVER_WRITE: over-write the DTS temperatures in the SW until next read
+ * @DTS_DIRECT_WITHOUT_MEASURE: DTS returns its latest temperature result,
+ *                              without measurement trigger.
+ */
 enum iwl_dts_control_measurement_mode {
-	DTS_AUTOMATIC			= 0,
-	DTS_REQUEST_READ		= 1,
-	DTS_OVER_WRITE			= 2,
-	DTS_DIRECT_WITHOUT_MEASURE	= 3,
+  DTS_AUTOMATIC = 0,
+  DTS_REQUEST_READ = 1,
+  DTS_OVER_WRITE = 2,
+  DTS_DIRECT_WITHOUT_MEASURE = 3,
 };
 
 /**
-* enum iwl_dts_used - DTS to use or used for measurement in the DTS request
-* @DTS_USE_TOP: Top
-* @DTS_USE_CHAIN_A: chain A
-* @DTS_USE_CHAIN_B: chain B
-* @DTS_USE_CHAIN_C: chain C
-* @XTAL_TEMPERATURE: read temperature from xtal
-*/
+ * enum iwl_dts_used - DTS to use or used for measurement in the DTS request
+ * @DTS_USE_TOP: Top
+ * @DTS_USE_CHAIN_A: chain A
+ * @DTS_USE_CHAIN_B: chain B
+ * @DTS_USE_CHAIN_C: chain C
+ * @XTAL_TEMPERATURE: read temperature from xtal
+ */
 enum iwl_dts_used {
-	DTS_USE_TOP		= 0,
-	DTS_USE_CHAIN_A		= 1,
-	DTS_USE_CHAIN_B		= 2,
-	DTS_USE_CHAIN_C		= 3,
-	XTAL_TEMPERATURE	= 4,
+  DTS_USE_TOP = 0,
+  DTS_USE_CHAIN_A = 1,
+  DTS_USE_CHAIN_B = 2,
+  DTS_USE_CHAIN_C = 3,
+  XTAL_TEMPERATURE = 4,
 };
 
 /**
-* enum iwl_dts_bit_mode - bit-mode to use in DTS request read mode
-* @DTS_BIT6_MODE: bit 6 mode
-* @DTS_BIT8_MODE: bit 8 mode
-*/
+ * enum iwl_dts_bit_mode - bit-mode to use in DTS request read mode
+ * @DTS_BIT6_MODE: bit 6 mode
+ * @DTS_BIT8_MODE: bit 8 mode
+ */
 enum iwl_dts_bit_mode {
-	DTS_BIT6_MODE	= 0,
-	DTS_BIT8_MODE	= 1,
+  DTS_BIT6_MODE = 0,
+  DTS_BIT8_MODE = 1,
 };
 
 /**
@@ -127,12 +127,12 @@ enum iwl_dts_bit_mode {
  * @step_duration: step duration for the DTS
  */
 struct iwl_ext_dts_measurement_cmd {
-	__le32 control_mode;
-	__le32 temperature;
-	__le32 sensor;
-	__le32 avg_factor;
-	__le32 bit_mode;
-	__le32 step_duration;
+  __le32 control_mode;
+  __le32 temperature;
+  __le32 sensor;
+  __le32 avg_factor;
+  __le32 bit_mode;
+  __le32 step_duration;
 } __packed; /* XVT_FW_DTS_CONTROL_MEASUREMENT_REQUEST_API_S */
 
 /**
@@ -142,8 +142,8 @@ struct iwl_ext_dts_measurement_cmd {
  * @voltage: the measured voltage
  */
 struct iwl_dts_measurement_notif_v1 {
-	__le32 temp;
-	__le32 voltage;
+  __le32 temp;
+  __le32 voltage;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
 
 /**
@@ -154,9 +154,9 @@ struct iwl_dts_measurement_notif_v1 {
  * @threshold_idx: the trip index that was crossed
  */
 struct iwl_dts_measurement_notif_v2 {
-	__le32 temp;
-	__le32 voltage;
-	__le32 threshold_idx;
+  __le32 temp;
+  __le32 voltage;
+  __le32 threshold_idx;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
 
 /**
@@ -165,7 +165,7 @@ struct iwl_dts_measurement_notif_v2 {
  * @temp: the measured temperature
  */
 struct iwl_dts_measurement_resp {
-	__le32 temp;
+  __le32 temp;
 } __packed; /* CMD_DTS_MEASUREMENT_RSP_API_S_VER_1 */
 
 /**
@@ -174,32 +174,33 @@ struct iwl_dts_measurement_resp {
  *
  * @temperature: the current temperature in celsius
  * @dts: only in v2: DTS that trigger the CT Kill bitmap:
- *			bit 0: ToP master
- *			bit 1: PA chain A master
- *			bit 2: PA chain B master
- *			bit 3: ToP slave
- *			bit 4: PA chain A slave
- *			bit 5: PA chain B slave)
- *			bits 6,7: reserved (set to 0)
+ *      bit 0: ToP master
+ *      bit 1: PA chain A master
+ *      bit 2: PA chain B master
+ *      bit 3: ToP slave
+ *      bit 4: PA chain A slave
+ *      bit 5: PA chain B slave)
+ *      bits 6,7: reserved (set to 0)
  * @scheme: only for v2: scheme that trigger the CT Kill (0-SW, 1-HW)
  */
 struct ct_kill_notif {
-	__le16 temperature;
-	u8 dts;
-	u8 scheme;
-} __packed; /* CT_KILL_NOTIFICATION_API_S_VER_1, CT_KILL_NOTIFICATION_API_S_VER_2 */
+  __le16 temperature;
+  u8 dts;
+  u8 scheme;
+} __packed; /* CT_KILL_NOTIFICATION_API_S_VER_1,
+             * CT_KILL_NOTIFICATION_API_S_VER_2 */
 
 /**
-* enum ctdp_cmd_operation - CTDP command operations
-* @CTDP_CMD_OPERATION_START: update the current budget
-* @CTDP_CMD_OPERATION_STOP: stop ctdp
-* @CTDP_CMD_OPERATION_REPORT: get the average budget
-*/
+ * enum ctdp_cmd_operation - CTDP command operations
+ * @CTDP_CMD_OPERATION_START: update the current budget
+ * @CTDP_CMD_OPERATION_STOP: stop ctdp
+ * @CTDP_CMD_OPERATION_REPORT: get the average budget
+ */
 enum iwl_mvm_ctdp_cmd_operation {
-	CTDP_CMD_OPERATION_START	= 0x1,
-	CTDP_CMD_OPERATION_STOP		= 0x2,
-	CTDP_CMD_OPERATION_REPORT	= 0x4,
-};/* CTDP_CMD_OPERATION_TYPE_E */
+  CTDP_CMD_OPERATION_START = 0x1,
+  CTDP_CMD_OPERATION_STOP = 0x2,
+  CTDP_CMD_OPERATION_REPORT = 0x4,
+}; /* CTDP_CMD_OPERATION_TYPE_E */
 
 /**
  * struct iwl_mvm_ctdp_cmd - track and manage the FW power consumption budget
@@ -209,12 +210,12 @@ enum iwl_mvm_ctdp_cmd_operation {
  * @window_size: defined in API but not used
  */
 struct iwl_mvm_ctdp_cmd {
-	__le32 operation;
-	__le32 budget;
-	__le32 window_size;
+  __le32 operation;
+  __le32 budget;
+  __le32 window_size;
 } __packed;
 
-#define IWL_MAX_DTS_TRIPS	8
+#define IWL_MAX_DTS_TRIPS 8
 
 /**
  * struct temp_report_ths_cmd - set temperature thresholds
@@ -223,8 +224,8 @@ struct iwl_mvm_ctdp_cmd {
  * @thresholds: array with the thresholds to be configured
  */
 struct temp_report_ths_cmd {
-	__le32 num_temps;
-	__le16 thresholds[IWL_MAX_DTS_TRIPS];
+  __le32 num_temps;
+  __le16 thresholds[IWL_MAX_DTS_TRIPS];
 } __packed; /* GRP_PHY_TEMP_REPORTING_THRESHOLDS_CMD */
 
 #endif /* __iwl_fw_api_phy_h__ */

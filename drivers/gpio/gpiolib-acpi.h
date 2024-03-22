@@ -28,34 +28,37 @@ void acpi_gpiochip_request_interrupts(struct gpio_chip *chip);
 void acpi_gpiochip_free_interrupts(struct gpio_chip *chip);
 
 struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
-				 const char *con_id,
-				 unsigned int idx,
-				 enum gpiod_flags *dflags,
-				 unsigned long *lookupflags);
+    const char *con_id,
+    unsigned int idx,
+    enum gpiod_flags *dflags,
+    unsigned long *lookupflags);
 
 int acpi_gpio_count(const struct fwnode_handle *fwnode, const char *con_id);
 #else
-static inline void acpi_gpiochip_add(struct gpio_chip *chip) { }
-static inline void acpi_gpiochip_remove(struct gpio_chip *chip) { }
-
-static inline void
-acpi_gpiochip_request_interrupts(struct gpio_chip *chip) { }
-
-static inline void
-acpi_gpiochip_free_interrupts(struct gpio_chip *chip) { }
-
-static inline struct gpio_desc *
-acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id,
-	       unsigned int idx, enum gpiod_flags *dflags,
-	       unsigned long *lookupflags)
-{
-	return ERR_PTR(-ENOENT);
+static inline void acpi_gpiochip_add(struct gpio_chip *chip) {
 }
+
+static inline void acpi_gpiochip_remove(struct gpio_chip *chip) {
+}
+
+static inline void acpi_gpiochip_request_interrupts(struct gpio_chip *chip) {
+}
+
+static inline void acpi_gpiochip_free_interrupts(struct gpio_chip *chip) {
+}
+
+static inline struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
+    const char *con_id,
+    unsigned int idx, enum gpiod_flags *dflags,
+    unsigned long *lookupflags) {
+  return ERR_PTR(-ENOENT);
+}
+
 static inline int acpi_gpio_count(const struct fwnode_handle *fwnode,
-				  const char *con_id)
-{
-	return -ENODEV;
+    const char *con_id) {
+  return -ENODEV;
 }
+
 #endif
 
 #endif /* GPIOLIB_ACPI_H */

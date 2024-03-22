@@ -52,7 +52,6 @@
 #define VIT_COR_MASK           (0x82)
 #define VIT_COR_RESYNC         (0x80)
 
-
 /* 0x32 VIT_SYNC_STATUS */
 #define VIT_SYNC_STATUS        (0x32)
 #define VITINSYNC              (0x80)
@@ -75,10 +74,10 @@
 /* 0x3A VIT_BERTIME_0 */
 #define VIT_BERTIME_0      (0x3a)
 
-			     /* 0x38 OFDM_BERTimer *//* Use the alias registers */
+/* 0x38 OFDM_BERTimer *//* Use the alias registers */
 #define A_VIT_BER_TIMER_0      (0x1D)
 
-			     /* 0x3A VIT_BER_TIMER_0 *//* Use the alias registers */
+/* 0x3A VIT_BER_TIMER_0 *//* Use the alias registers */
 #define A_VIT_BER_0            (0x1B)
 
 /* 0x3B VIT_BER_1 */
@@ -113,16 +112,16 @@
 /* 0x44 OFDM_COR_MODEGUARD */
 #define OFDM_COR_MODEGUARD     (0x44)
 #define FORCEMODE              (0x08)
-#define FORCEMODE8K			   (0x04)
+#define FORCEMODE8K        (0x04)
 
 /* 0x45 OFDM_AGC_CTL */
 #define OFDM_AGC_CTL           (0x45)
-#define INITIAL_AGC_BW		   (0x08)
+#define INITIAL_AGC_BW       (0x08)
 #define AGCNEG                 (0x02)
-#define AGCLAST				   (0x10)
+#define AGCLAST          (0x10)
 
 /* 0x48 OFDM_AGC_TARGET */
-#define OFDM_AGC_TARGET		   (0x48)
+#define OFDM_AGC_TARGET      (0x48)
 #define OFDM_AGC_TARGET_DEFAULT (0x28)
 #define OFDM_AGC_TARGET_IMPULSE (0x38)
 
@@ -159,10 +158,10 @@
 #define SYR_TRACKING_DISABLE   (0x01)
 
 /* 0x52 OFDM_SYR_STAT */
-#define OFDM_SYR_STAT		   (0x52)
-#define GI14_2K_SYR_LOCK	   (0x13)
-#define GI14_8K_SYR_LOCK	   (0x17)
-#define GI14_SYR_LOCK		   (0x10)
+#define OFDM_SYR_STAT      (0x52)
+#define GI14_2K_SYR_LOCK     (0x13)
+#define GI14_8K_SYR_LOCK     (0x17)
+#define GI14_SYR_LOCK      (0x10)
 
 /* 0x55 OFDM_SYR_OFFSET_1 */
 #define OFDM_SYR_OFFSET_1      (0x55)
@@ -178,7 +177,7 @@
 /* 0x59 OFDM_PPM_CTL_1 */
 #define OFDM_PPM_CTL_1         (0x59)
 #define PPMMAX_MASK            (0x30)
-#define PPM256				   (0x30)
+#define PPM256           (0x30)
 
 /* 0x5B OFDM_TRL_NOMINALRATE_1 */
 #define OFDM_TRL_NOMINALRATE_1 (0x5B)

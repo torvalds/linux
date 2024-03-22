@@ -19,14 +19,14 @@
  * @BRCMF_FWS_FIFO_COUNT: number of fifos.
  */
 enum brcmf_fws_fifo {
-	BRCMF_FWS_FIFO_FIRST,
-	BRCMF_FWS_FIFO_AC_BK = BRCMF_FWS_FIFO_FIRST,
-	BRCMF_FWS_FIFO_AC_BE,
-	BRCMF_FWS_FIFO_AC_VI,
-	BRCMF_FWS_FIFO_AC_VO,
-	BRCMF_FWS_FIFO_BCMC,
-	BRCMF_FWS_FIFO_ATIM,
-	BRCMF_FWS_FIFO_COUNT
+  BRCMF_FWS_FIFO_FIRST,
+  BRCMF_FWS_FIFO_AC_BK = BRCMF_FWS_FIFO_FIRST,
+  BRCMF_FWS_FIFO_AC_BE,
+  BRCMF_FWS_FIFO_AC_VI,
+  BRCMF_FWS_FIFO_AC_VO,
+  BRCMF_FWS_FIFO_BCMC,
+  BRCMF_FWS_FIFO_ATIM,
+  BRCMF_FWS_FIFO_COUNT
 };
 
 struct brcmf_fws_info *brcmf_fws_attach(struct brcmf_pub *drvr);
@@ -41,7 +41,7 @@ void brcmf_fws_reset_interface(struct brcmf_if *ifp);
 void brcmf_fws_add_interface(struct brcmf_if *ifp);
 void brcmf_fws_del_interface(struct brcmf_if *ifp);
 void brcmf_fws_bustxcomplete(struct brcmf_fws_info *fws, struct sk_buff *skb,
-			     bool success);
+    bool success);
 void brcmf_fws_bus_blocked(struct brcmf_pub *drvr, bool flow_blocked);
 void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *skb);
 

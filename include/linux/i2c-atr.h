@@ -30,10 +30,10 @@ struct i2c_atr;
  * All these functions return 0 on success, a negative error code otherwise.
  */
 struct i2c_atr_ops {
-	int (*attach_client)(struct i2c_atr *atr, u32 chan_id,
-			     const struct i2c_client *client, u16 alias);
-	void (*detach_client)(struct i2c_atr *atr, u32 chan_id,
-			      const struct i2c_client *client);
+  int (*attach_client)(struct i2c_atr *atr, u32 chan_id,
+      const struct i2c_client *client, u16 alias);
+  void (*detach_client)(struct i2c_atr *atr, u32 chan_id,
+      const struct i2c_client *client);
 };
 
 /**
@@ -51,7 +51,7 @@ struct i2c_atr_ops {
  * Return: pointer to the new ATR helper object, or ERR_PTR
  */
 struct i2c_atr *i2c_atr_new(struct i2c_adapter *parent, struct device *dev,
-			    const struct i2c_atr_ops *ops, int max_adapters);
+    const struct i2c_atr_ops *ops, int max_adapters);
 
 /**
  * i2c_atr_delete - Delete an I2C ATR helper.
@@ -67,7 +67,8 @@ void i2c_atr_delete(struct i2c_atr *atr);
  * @atr:        The I2C ATR
  * @chan_id:    Index of the new adapter (0 .. max_adapters-1).  This value is
  *              passed to the callbacks in `struct i2c_atr_ops`.
- * @adapter_parent: The device used as the parent of the new i2c adapter, or NULL
+ * @adapter_parent: The device used as the parent of the new i2c adapter, or
+ * NULL
  *                  to use the i2c-atr device as the parent.
  * @bus_handle: The fwnode handle that points to the adapter's i2c
  *              peripherals, or NULL.
@@ -86,8 +87,8 @@ void i2c_atr_delete(struct i2c_atr *atr);
  * Return: 0 on success, a negative error code otherwise.
  */
 int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
-			struct device *adapter_parent,
-			struct fwnode_handle *bus_handle);
+    struct device *adapter_parent,
+    struct fwnode_handle *bus_handle);
 
 /**
  * i2c_atr_del_adapter - Remove a child ("downstream") I2C bus added by

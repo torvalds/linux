@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
-	<http://rt2x00.serialmonkey.com>
-
+ * Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+ * <http://rt2x00.serialmonkey.com>
+ *
  */
 
 /*
-	Module: rt2x00mmio
-	Abstract: Data structures for the rt2x00mmio module.
+ * Module: rt2x00mmio
+ * Abstract: Data structures for the rt2x00mmio module.
  */
 
 #ifndef RT2X00MMIO_H
@@ -19,31 +19,27 @@
  * Register access.
  */
 static inline u32 rt2x00mmio_register_read(struct rt2x00_dev *rt2x00dev,
-					   const unsigned int offset)
-{
-	return readl(rt2x00dev->csr.base + offset);
+    const unsigned int offset) {
+  return readl(rt2x00dev->csr.base + offset);
 }
 
 static inline void rt2x00mmio_register_multiread(struct rt2x00_dev *rt2x00dev,
-						 const unsigned int offset,
-						 void *value, const u32 length)
-{
-	memcpy_fromio(value, rt2x00dev->csr.base + offset, length);
+    const unsigned int offset,
+    void *value, const u32 length) {
+  memcpy_fromio(value, rt2x00dev->csr.base + offset, length);
 }
 
 static inline void rt2x00mmio_register_write(struct rt2x00_dev *rt2x00dev,
-					     const unsigned int offset,
-					     u32 value)
-{
-	writel(value, rt2x00dev->csr.base + offset);
+    const unsigned int offset,
+    u32 value) {
+  writel(value, rt2x00dev->csr.base + offset);
 }
 
 static inline void rt2x00mmio_register_multiwrite(struct rt2x00_dev *rt2x00dev,
-						  const unsigned int offset,
-						  const void *value,
-						  const u32 length)
-{
-	__iowrite32_copy(rt2x00dev->csr.base + offset, value, length >> 2);
+    const unsigned int offset,
+    const void *value,
+    const u32 length) {
+  __iowrite32_copy(rt2x00dev->csr.base + offset, value, length >> 2);
 }
 
 /**
@@ -60,9 +56,9 @@ static inline void rt2x00mmio_register_multiwrite(struct rt2x00_dev *rt2x00dev,
  * FALSE.
  */
 int rt2x00mmio_regbusy_read(struct rt2x00_dev *rt2x00dev,
-			    const unsigned int offset,
-			    const struct rt2x00_field32 field,
-			    u32 *reg);
+    const unsigned int offset,
+    const struct rt2x00_field32 field,
+    u32 *reg);
 
 /**
  * struct queue_entry_priv_mmio: Per entry PCI specific information
@@ -71,8 +67,8 @@ int rt2x00mmio_regbusy_read(struct rt2x00_dev *rt2x00dev,
  * @desc_dma: DMA pointer to &desc.
  */
 struct queue_entry_priv_mmio {
-	__le32 *desc;
-	dma_addr_t desc_dma;
+  __le32 *desc;
+  dma_addr_t desc_dma;
 };
 
 /**

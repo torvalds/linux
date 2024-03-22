@@ -77,76 +77,61 @@ ACPI_MODULE_NAME("utstrtoul64")
  *  acpi_exec   - Support for namespace overrides
  *
  ******************************************************************************/
-acpi_status acpi_ut_strtoul64(char *string, u64 *return_value)
-{
-	acpi_status status = AE_OK;
-	u8 original_bit_width;
-	u32 base = 10;		/* Default is decimal */
-
-	ACPI_FUNCTION_TRACE_STR(ut_strtoul64, string);
-
-	*return_value = 0;
-
-	/* A NULL return string returns a value of zero */
-
-	if (*string == 0) {
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	if (!acpi_ut_remove_whitespace(&string)) {
-		return_ACPI_STATUS(AE_OK);
-	}
-
-	/*
-	 * 1) Check for a hex constant. A "0x" prefix indicates base 16.
-	 */
-	if (acpi_ut_detect_hex_prefix(&string)) {
-		base = 16;
-	}
-
-	/*
-	 * 2) Check for an octal constant, defined to be a leading zero
-	 * followed by sequence of octal digits (0-7)
-	 */
-	else if (acpi_ut_detect_octal_prefix(&string)) {
-		base = 8;
-	}
-
-	if (!acpi_ut_remove_leading_zeros(&string)) {
-		return_ACPI_STATUS(AE_OK);	/* Return value 0 */
-	}
-
-	/*
-	 * Force a full 64-bit conversion. The caller (usually iASL) must
-	 * check for a 32-bit overflow later as necessary (If current mode
-	 * is 32-bit, meaning a 32-bit DSDT).
-	 */
-	original_bit_width = acpi_gbl_integer_bit_width;
-	acpi_gbl_integer_bit_width = 64;
-
-	/*
-	 * Perform the base 8, 10, or 16 conversion. A 64-bit numeric overflow
-	 * will return an exception (to allow iASL to flag the statement).
-	 */
-	switch (base) {
-	case 8:
-		status = acpi_ut_convert_octal_string(string, return_value);
-		break;
-
-	case 10:
-		status = acpi_ut_convert_decimal_string(string, return_value);
-		break;
-
-	case 16:
-	default:
-		status = acpi_ut_convert_hex_string(string, return_value);
-		break;
-	}
-
-	/* Only possible exception from above is a 64-bit overflow */
-
-	acpi_gbl_integer_bit_width = original_bit_width;
-	return_ACPI_STATUS(status);
+acpi_status acpi_ut_strtoul64(char *string, u64 *return_value) {
+  acpi_status status = AE_OK;
+  u8 original_bit_width;
+  u32 base = 10;    /* Default is decimal */
+  ACPI_FUNCTION_TRACE_STR(ut_strtoul64, string);
+  *return_value = 0;
+  /* A NULL return string returns a value of zero */
+  if (*string == 0) {
+    return_ACPI_STATUS(AE_OK);
+  }
+  if (!acpi_ut_remove_whitespace(&string)) {
+    return_ACPI_STATUS(AE_OK);
+  }
+  /*
+   * 1) Check for a hex constant. A "0x" prefix indicates base 16.
+   */
+  if (acpi_ut_detect_hex_prefix(&string)) {
+    base = 16;
+  }
+  /*
+   * 2) Check for an octal constant, defined to be a leading zero
+   * followed by sequence of octal digits (0-7)
+   */
+  else if (acpi_ut_detect_octal_prefix(&string)) {
+    base = 8;
+  }
+  if (!acpi_ut_remove_leading_zeros(&string)) {
+    return_ACPI_STATUS(AE_OK);  /* Return value 0 */
+  }
+  /*
+   * Force a full 64-bit conversion. The caller (usually iASL) must
+   * check for a 32-bit overflow later as necessary (If current mode
+   * is 32-bit, meaning a 32-bit DSDT).
+   */
+  original_bit_width = acpi_gbl_integer_bit_width;
+  acpi_gbl_integer_bit_width = 64;
+  /*
+   * Perform the base 8, 10, or 16 conversion. A 64-bit numeric overflow
+   * will return an exception (to allow iASL to flag the statement).
+   */
+  switch (base) {
+    case 8:
+      status = acpi_ut_convert_octal_string(string, return_value);
+      break;
+    case 10:
+      status = acpi_ut_convert_decimal_string(string, return_value);
+      break;
+    case 16:
+    default:
+      status = acpi_ut_convert_hex_string(string, return_value);
+      break;
+  }
+  /* Only possible exception from above is a 64-bit overflow */
+  acpi_gbl_integer_bit_width = original_bit_width;
+  return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -203,34 +188,28 @@ acpi_status acpi_ut_strtoul64(char *string, u64 *return_value)
  *
  ******************************************************************************/
 
-u64 acpi_ut_implicit_strtoul64(char *string)
-{
-	u64 converted_integer = 0;
-
-	ACPI_FUNCTION_TRACE_STR(ut_implicit_strtoul64, string);
-
-	if (!acpi_ut_remove_whitespace(&string)) {
-		return_VALUE(0);
-	}
-
-	/*
-	 * Per the ACPI specification, only hexadecimal is supported for
-	 * implicit conversions, and the "0x" prefix is "not allowed".
-	 * However, allow a "0x" prefix as an ACPI extension.
-	 */
-	acpi_ut_remove_hex_prefix(&string);
-
-	if (!acpi_ut_remove_leading_zeros(&string)) {
-		return_VALUE(0);
-	}
-
-	/*
-	 * Ignore overflow as per the ACPI specification. This is implemented by
-	 * ignoring the return status from the conversion function called below.
-	 * On overflow, the input string is simply truncated.
-	 */
-	acpi_ut_convert_hex_string(string, &converted_integer);
-	return_VALUE(converted_integer);
+u64 acpi_ut_implicit_strtoul64(char *string) {
+  u64 converted_integer = 0;
+  ACPI_FUNCTION_TRACE_STR(ut_implicit_strtoul64, string);
+  if (!acpi_ut_remove_whitespace(&string)) {
+    return_VALUE(0);
+  }
+  /*
+   * Per the ACPI specification, only hexadecimal is supported for
+   * implicit conversions, and the "0x" prefix is "not allowed".
+   * However, allow a "0x" prefix as an ACPI extension.
+   */
+  acpi_ut_remove_hex_prefix(&string);
+  if (!acpi_ut_remove_leading_zeros(&string)) {
+    return_VALUE(0);
+  }
+  /*
+   * Ignore overflow as per the ACPI specification. This is implemented by
+   * ignoring the return status from the conversion function called below.
+   * On overflow, the input string is simply truncated.
+   */
+  acpi_ut_convert_hex_string(string, &converted_integer);
+  return_VALUE(converted_integer);
 }
 
 /*******************************************************************************
@@ -284,44 +263,36 @@ u64 acpi_ut_implicit_strtoul64(char *string)
  *
  ******************************************************************************/
 
-u64 acpi_ut_explicit_strtoul64(char *string)
-{
-	u64 converted_integer = 0;
-	u32 base = 10;		/* Default is decimal */
-
-	ACPI_FUNCTION_TRACE_STR(ut_explicit_strtoul64, string);
-
-	if (!acpi_ut_remove_whitespace(&string)) {
-		return_VALUE(0);
-	}
-
-	/*
-	 * Only Hex and Decimal are supported, as per the ACPI specification.
-	 * A "0x" prefix indicates hex; otherwise decimal is assumed.
-	 */
-	if (acpi_ut_detect_hex_prefix(&string)) {
-		base = 16;
-	}
-
-	if (!acpi_ut_remove_leading_zeros(&string)) {
-		return_VALUE(0);
-	}
-
-	/*
-	 * Ignore overflow as per the ACPI specification. This is implemented by
-	 * ignoring the return status from the conversion functions called below.
-	 * On overflow, the input string is simply truncated.
-	 */
-	switch (base) {
-	case 10:
-	default:
-		acpi_ut_convert_decimal_string(string, &converted_integer);
-		break;
-
-	case 16:
-		acpi_ut_convert_hex_string(string, &converted_integer);
-		break;
-	}
-
-	return_VALUE(converted_integer);
+u64 acpi_ut_explicit_strtoul64(char *string) {
+  u64 converted_integer = 0;
+  u32 base = 10;    /* Default is decimal */
+  ACPI_FUNCTION_TRACE_STR(ut_explicit_strtoul64, string);
+  if (!acpi_ut_remove_whitespace(&string)) {
+    return_VALUE(0);
+  }
+  /*
+   * Only Hex and Decimal are supported, as per the ACPI specification.
+   * A "0x" prefix indicates hex; otherwise decimal is assumed.
+   */
+  if (acpi_ut_detect_hex_prefix(&string)) {
+    base = 16;
+  }
+  if (!acpi_ut_remove_leading_zeros(&string)) {
+    return_VALUE(0);
+  }
+  /*
+   * Ignore overflow as per the ACPI specification. This is implemented by
+   * ignoring the return status from the conversion functions called below.
+   * On overflow, the input string is simply truncated.
+   */
+  switch (base) {
+    case 10:
+    default:
+      acpi_ut_convert_decimal_string(string, &converted_integer);
+      break;
+    case 16:
+      acpi_ut_convert_hex_string(string, &converted_integer);
+      break;
+  }
+  return_VALUE(converted_integer);
 }

@@ -11,9 +11,8 @@
 #include <linux/sysrq.h>
 #include <linux/workqueue.h>
 
-extern unsigned int
-ctrlchar_handle(const unsigned char *buf, int len, struct tty_struct *tty);
-
+extern unsigned int ctrlchar_handle(const unsigned char *buf, int len,
+    struct tty_struct *tty);
 
 #define CTRLCHAR_NONE  (1 << 8)
 #define CTRLCHAR_CTRL  (2 << 8)
@@ -21,11 +20,10 @@ ctrlchar_handle(const unsigned char *buf, int len, struct tty_struct *tty);
 
 #define CTRLCHAR_MASK (~0xffu)
 
-
 #ifdef CONFIG_MAGIC_SYSRQ
 struct sysrq_work {
-	int key;
-	struct work_struct work;
+  int key;
+  struct work_struct work;
 };
 
 void schedule_sysrq_work(struct sysrq_work *sw);

@@ -4,14 +4,12 @@
 #include <assert.h>
 
 /* stub implementation: useful for measuring overhead */
-void alloc_ring(void)
-{
+void alloc_ring(void) {
 }
 
 /* guest side */
-int add_inbuf(unsigned len, void *buf, void *datap)
-{
-	return 0;
+int add_inbuf(unsigned len, void *buf, void *datap) {
+  return 0;
 }
 
 /*
@@ -20,53 +18,43 @@ int add_inbuf(unsigned len, void *buf, void *datap)
  * implies that add_inbuf succeed in the past, and that add_inbuf will succeed,
  * fake it accordingly.
  */
-void *get_buf(unsigned *lenp, void **bufp)
-{
-	return "Buffer";
+void *get_buf(unsigned *lenp, void **bufp) {
+  return "Buffer";
 }
 
-bool used_empty()
-{
-	return false;
+bool used_empty() {
+  return false;
 }
 
-void disable_call()
-{
-	assert(0);
+void disable_call() {
+  assert(0);
 }
 
-bool enable_call()
-{
-	assert(0);
+bool enable_call() {
+  assert(0);
 }
 
-void kick_available(void)
-{
-	assert(0);
+void kick_available(void) {
+  assert(0);
 }
 
 /* host side */
-void disable_kick()
-{
-	assert(0);
+void disable_kick() {
+  assert(0);
 }
 
-bool enable_kick()
-{
-	assert(0);
+bool enable_kick() {
+  assert(0);
 }
 
-bool avail_empty()
-{
-	return false;
+bool avail_empty() {
+  return false;
 }
 
-bool use_buf(unsigned *lenp, void **bufp)
-{
-	return true;
+bool use_buf(unsigned *lenp, void **bufp) {
+  return true;
 }
 
-void call_used(void)
-{
-	assert(0);
+void call_used(void) {
+  assert(0);
 }

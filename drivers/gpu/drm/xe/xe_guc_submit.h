@@ -23,16 +23,17 @@ int xe_guc_sched_done_handler(struct xe_guc *guc, u32 *msg, u32 len);
 int xe_guc_deregister_done_handler(struct xe_guc *guc, u32 *msg, u32 len);
 int xe_guc_exec_queue_reset_handler(struct xe_guc *guc, u32 *msg, u32 len);
 int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
-					       u32 len);
-int xe_guc_exec_queue_reset_failure_handler(struct xe_guc *guc, u32 *msg, u32 len);
+    u32 len);
+int xe_guc_exec_queue_reset_failure_handler(struct xe_guc *guc, u32 *msg,
+    u32 len);
 
-struct xe_guc_submit_exec_queue_snapshot *
-xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job);
-void
-xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snapshot,
-				 struct drm_printer *p);
-void
-xe_guc_exec_queue_snapshot_free(struct xe_guc_submit_exec_queue_snapshot *snapshot);
+struct xe_guc_submit_exec_queue_snapshot *xe_guc_exec_queue_snapshot_capture(
+  struct xe_sched_job *job);
+void xe_guc_exec_queue_snapshot_print(
+  struct xe_guc_submit_exec_queue_snapshot *snapshot,
+  struct drm_printer *p);
+void xe_guc_exec_queue_snapshot_free(
+  struct xe_guc_submit_exec_queue_snapshot *snapshot);
 void xe_guc_submit_print(struct xe_guc *guc, struct drm_printer *p);
 
 #endif

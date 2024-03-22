@@ -8,7 +8,8 @@
 
 #include "types.h"
 
-int vdo_dump(struct vdo *vdo, unsigned int argc, char *const *argv, const char *why);
+int vdo_dump(struct vdo *vdo, unsigned int argc, char * const *argv,
+    const char *why);
 
 void vdo_dump_all(struct vdo *vdo, const char *why);
 

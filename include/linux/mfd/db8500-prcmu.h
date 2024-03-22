@@ -17,7 +17,7 @@
  * Registers
  */
 #define DB8500_PRCM_LINE_VALUE 0x170
-#define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0	BIT(3)
+#define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0  BIT(3)
 
 #define DB8500_PRCM_DSI_SW_RESET 0x324
 #define DB8500_PRCM_DSI_SW_RESET_DSI0_SW_RESETN BIT(0)
@@ -33,8 +33,8 @@
  *
  */
 enum state {
-	OFF = 0x0,
-	ON  = 0x1,
+  OFF = 0x0,
+  ON = 0x1,
 };
 
 /**
@@ -42,9 +42,9 @@ enum state {
  *
  */
 enum ret_state {
-	OFFST = 0,
-	ONST  = 1,
-	RETST = 2
+  OFFST = 0,
+  ONST = 1,
+  RETST = 2
 };
 
 /**
@@ -56,11 +56,11 @@ enum ret_state {
  * @A9_EXTCLK:
  */
 enum clk_arm {
-	A9_OFF,
-	A9_BOOT,
-	A9_OPPT1,
-	A9_OPPT2,
-	A9_EXTCLK
+  A9_OFF,
+  A9_BOOT,
+  A9_OPPT1,
+  A9_OPPT2,
+  A9_EXTCLK
 };
 
 /**
@@ -70,9 +70,9 @@ enum clk_arm {
  * @GEN_OPPT1:
  */
 enum clk_gen {
-	GEN_OFF,
-	GEN_BOOT,
-	GEN_OPPT1,
+  GEN_OFF,
+  GEN_BOOT,
+  GEN_OPPT1,
 };
 
 /* some information between arm and xp70 */
@@ -84,8 +84,8 @@ enum clk_gen {
  *                 romcode. The xp70 will go into self-reset
  */
 enum romcode_write {
-	RDY_2_DS = 0x09,
-	RDY_2_XP70_RST = 0x10
+  RDY_2_DS = 0x09,
+  RDY_2_XP70_RST = 0x10
 };
 
 /**
@@ -104,13 +104,13 @@ enum romcode_write {
  *          waits for romcode acknowledgment to go to self-reset
  */
 enum romcode_read {
-	INIT = 0x00,
-	FS_2_DS = 0x0A,
-	END_DS = 0x0B,
-	DS_TO_FS = 0x0C,
-	END_FS = 0x0D,
-	SWR = 0x0E,
-	END_SWR = 0x0F
+  INIT = 0x00,
+  FS_2_DS = 0x0A,
+  END_DS = 0x0B,
+  DS_TO_FS = 0x0C,
+  END_FS = 0x0D,
+  SWR = 0x0E,
+  END_SWR = 0x0F
 };
 
 /**
@@ -124,13 +124,13 @@ enum romcode_read {
  * @AP_RESET: Current power state is apReset
  */
 enum ap_pwrst {
-	NO_PWRST = 0x00,
-	AP_BOOT = 0x01,
-	AP_EXECUTE = 0x02,
-	AP_DEEP_SLEEP = 0x03,
-	AP_SLEEP = 0x04,
-	AP_IDLE = 0x05,
-	AP_RESET = 0x06
+  NO_PWRST = 0x00,
+  AP_BOOT = 0x01,
+  AP_EXECUTE = 0x02,
+  AP_DEEP_SLEEP = 0x03,
+  AP_SLEEP = 0x04,
+  AP_IDLE = 0x05,
+  AP_RESET = 0x06
 };
 
 /**
@@ -144,16 +144,16 @@ enum ap_pwrst {
  * @APEXECUTE_TO_APIDLE: Power state transition from ApExecute to ApIdle
  */
 enum ap_pwrst_trans {
-	PRCMU_AP_NO_CHANGE		= 0x00,
-	APEXECUTE_TO_APSLEEP		= 0x01,
-	APIDLE_TO_APSLEEP		= 0x02, /* To be removed */
-	PRCMU_AP_SLEEP			= 0x01,
-	APBOOT_TO_APEXECUTE		= 0x03,
-	APEXECUTE_TO_APDEEPSLEEP	= 0x04, /* To be removed */
-	PRCMU_AP_DEEP_SLEEP		= 0x04,
-	APEXECUTE_TO_APIDLE		= 0x05, /* To be removed */
-	PRCMU_AP_IDLE			= 0x05,
-	PRCMU_AP_DEEP_IDLE		= 0x07,
+  PRCMU_AP_NO_CHANGE = 0x00,
+  APEXECUTE_TO_APSLEEP = 0x01,
+  APIDLE_TO_APSLEEP = 0x02, /* To be removed */
+  PRCMU_AP_SLEEP = 0x01,
+  APBOOT_TO_APEXECUTE = 0x03,
+  APEXECUTE_TO_APDEEPSLEEP = 0x04, /* To be removed */
+  PRCMU_AP_DEEP_SLEEP = 0x04,
+  APEXECUTE_TO_APIDLE = 0x05, /* To be removed */
+  PRCMU_AP_IDLE = 0x05,
+  PRCMU_AP_DEEP_IDLE = 0x07,
 };
 
 /**
@@ -168,10 +168,10 @@ enum ap_pwrst_trans {
  * regulator API.
  */
 enum hw_acc_state {
-	HW_NO_CHANGE = 0x00,
-	HW_OFF = 0x01,
-	HW_OFF_RAMRET = 0x02,
-	HW_ON = 0x04
+  HW_NO_CHANGE = 0x00,
+  HW_OFF = 0x01,
+  HW_OFF_RAMRET = 0x02,
+  HW_ON = 0x04
 };
 
 /**
@@ -202,54 +202,54 @@ enum hw_acc_state {
  * @INIT_STATUS: Status init
  */
 enum ap_pwrsttr_status {
-	BOOT_TO_EXECUTEOK = 0xFF,
-	DEEPSLEEPOK = 0xFE,
-	SLEEPOK = 0xFD,
-	IDLEOK = 0xFC,
-	SOFTRESETOK = 0xFB,
-	SOFTRESETGO = 0xFA,
-	BOOT_TO_EXECUTE = 0xF9,
-	EXECUTE_TO_DEEPSLEEP = 0xF8,
-	DEEPSLEEP_TO_EXECUTE = 0xF7,
-	DEEPSLEEP_TO_EXECUTEOK = 0xF6,
-	EXECUTE_TO_SLEEP = 0xF5,
-	SLEEP_TO_EXECUTE = 0xF4,
-	SLEEP_TO_EXECUTEOK = 0xF3,
-	EXECUTE_TO_IDLE = 0xF2,
-	IDLE_TO_EXECUTE = 0xF1,
-	IDLE_TO_EXECUTEOK = 0xF0,
-	RDYTODS_RETURNTOEXE    = 0xEF,
-	NORDYTODS_RETURNTOEXE  = 0xEE,
-	EXETOSLEEP_RETURNTOEXE = 0xED,
-	EXETOIDLE_RETURNTOEXE  = 0xEC,
-	INIT_STATUS = 0xEB,
+  BOOT_TO_EXECUTEOK = 0xFF,
+  DEEPSLEEPOK = 0xFE,
+  SLEEPOK = 0xFD,
+  IDLEOK = 0xFC,
+  SOFTRESETOK = 0xFB,
+  SOFTRESETGO = 0xFA,
+  BOOT_TO_EXECUTE = 0xF9,
+  EXECUTE_TO_DEEPSLEEP = 0xF8,
+  DEEPSLEEP_TO_EXECUTE = 0xF7,
+  DEEPSLEEP_TO_EXECUTEOK = 0xF6,
+  EXECUTE_TO_SLEEP = 0xF5,
+  SLEEP_TO_EXECUTE = 0xF4,
+  SLEEP_TO_EXECUTEOK = 0xF3,
+  EXECUTE_TO_IDLE = 0xF2,
+  IDLE_TO_EXECUTE = 0xF1,
+  IDLE_TO_EXECUTEOK = 0xF0,
+  RDYTODS_RETURNTOEXE = 0xEF,
+  NORDYTODS_RETURNTOEXE = 0xEE,
+  EXETOSLEEP_RETURNTOEXE = 0xED,
+  EXETOIDLE_RETURNTOEXE = 0xEC,
+  INIT_STATUS = 0xEB,
 
-	/*error messages */
-	INITERROR                     = 0x00,
-	PLLARMLOCKP_ER                = 0x01,
-	PLLDDRLOCKP_ER                = 0x02,
-	PLLSOCLOCKP_ER                = 0x03,
-	PLLSOCK1LOCKP_ER              = 0x04,
-	ARMWFI_ER                     = 0x05,
-	SYSCLKOK_ER                   = 0x06,
-	I2C_NACK_DATA_ER              = 0x07,
-	BOOT_ER                       = 0x08,
-	I2C_STATUS_ALWAYS_1           = 0x0A,
-	I2C_NACK_REG_ADDR_ER          = 0x0B,
-	I2C_NACK_DATA0123_ER          = 0x1B,
-	I2C_NACK_ADDR_ER              = 0x1F,
-	CURAPPWRSTISNOT_BOOT          = 0x20,
-	CURAPPWRSTISNOT_EXECUTE       = 0x21,
-	CURAPPWRSTISNOT_SLEEPMODE     = 0x22,
-	CURAPPWRSTISNOT_CORRECTFORIT10 = 0x23,
-	FIFO4500WUISNOT_WUPEVENT      = 0x24,
-	PLL32KLOCKP_ER                = 0x29,
-	DDRDEEPSLEEPOK_ER             = 0x2A,
-	ROMCODEREADY_ER               = 0x50,
-	WUPBEFOREDS                   = 0x51,
-	DDRCONFIG_ER                  = 0x52,
-	WUPBEFORESLEEP                = 0x53,
-	WUPBEFOREIDLE                 = 0x54
+  /*error messages */
+  INITERROR = 0x00,
+  PLLARMLOCKP_ER = 0x01,
+  PLLDDRLOCKP_ER = 0x02,
+  PLLSOCLOCKP_ER = 0x03,
+  PLLSOCK1LOCKP_ER = 0x04,
+  ARMWFI_ER = 0x05,
+  SYSCLKOK_ER = 0x06,
+  I2C_NACK_DATA_ER = 0x07,
+  BOOT_ER = 0x08,
+  I2C_STATUS_ALWAYS_1 = 0x0A,
+  I2C_NACK_REG_ADDR_ER = 0x0B,
+  I2C_NACK_DATA0123_ER = 0x1B,
+  I2C_NACK_ADDR_ER = 0x1F,
+  CURAPPWRSTISNOT_BOOT = 0x20,
+  CURAPPWRSTISNOT_EXECUTE = 0x21,
+  CURAPPWRSTISNOT_SLEEPMODE = 0x22,
+  CURAPPWRSTISNOT_CORRECTFORIT10 = 0x23,
+  FIFO4500WUISNOT_WUPEVENT = 0x24,
+  PLL32KLOCKP_ER = 0x29,
+  DDRDEEPSLEEPOK_ER = 0x2A,
+  ROMCODEREADY_ER = 0x50,
+  WUPBEFOREDS = 0x51,
+  DDRCONFIG_ER = 0x52,
+  WUPBEFORESLEEP = 0x53,
+  WUPBEFOREIDLE = 0x54
 };  /* earlier called as  mbox_2_arm_stat */
 
 /**
@@ -263,12 +263,12 @@ enum ap_pwrsttr_status {
  * @DVFS_INITSTATUS: Value init
  */
 enum dvfs_stat {
-	DVFS_GO = 0xFF,
-	DVFS_ARM100OPPOK = 0xFE,
-	DVFS_ARM50OPPOK = 0xFD,
-	DVFS_ARMEXTCLKOK = 0xFC,
-	DVFS_NOCHGTCLKOK = 0xFB,
-	DVFS_INITSTATUS = 0x00
+  DVFS_GO = 0xFF,
+  DVFS_ARM100OPPOK = 0xFE,
+  DVFS_ARM50OPPOK = 0xFD,
+  DVFS_ARMEXTCLKOK = 0xFC,
+  DVFS_NOCHGTCLKOK = 0xFB,
+  DVFS_INITSTATUS = 0x00
 };
 
 /**
@@ -277,8 +277,8 @@ enum dvfs_stat {
  * @SVA_MMDSP_INIT: Status init
  */
 enum sva_mmdsp_stat {
-	SVA_MMDSP_GO = 0xFF,
-	SVA_MMDSP_INIT = 0x00
+  SVA_MMDSP_GO = 0xFF,
+  SVA_MMDSP_INIT = 0x00
 };
 
 /**
@@ -287,8 +287,8 @@ enum sva_mmdsp_stat {
  * @SIA_MMDSP_INIT: Status init
  */
 enum sia_mmdsp_stat {
-	SIA_MMDSP_GO = 0xFF,
-	SIA_MMDSP_INIT = 0x00
+  SIA_MMDSP_GO = 0xFF,
+  SIA_MMDSP_INIT = 0x00
 };
 
 /**
@@ -349,62 +349,62 @@ enum sia_mmdsp_stat {
  *                    been correctly executed in the given time
  */
 enum mbox_to_arm_err {
-	INIT_ERR = 0x00,
-	PLLARMLOCKP_ERR = 0x01,
-	PLLDDRLOCKP_ERR = 0x02,
-	PLLSOC0LOCKP_ERR = 0x03,
-	PLLSOC1LOCKP_ERR = 0x04,
-	ARMWFI_ERR = 0x05,
-	SYSCLKOK_ERR = 0x06,
-	BOOT_ERR = 0x07,
-	ROMCODESAVECONTEXT = 0x08,
-	VARMHIGHSPEEDVALTO_ERR = 0x10,
-	VARMHIGHSPEEDACCESS_ERR = 0x11,
-	VARMLOWSPEEDVALTO_ERR = 0x12,
-	VARMLOWSPEEDACCESS_ERR = 0x13,
-	VARMRETENTIONVALTO_ERR = 0x14,
-	VARMRETENTIONACCESS_ERR = 0x15,
-	VAPEHIGHSPEEDVALTO_ERR = 0x16,
-	VSAFEHPVALTO_ERR = 0x17,
-	VMODSEL1VALTO_ERR = 0x18,
-	VMODSEL2VALTO_ERR = 0x19,
-	VARMOFFACCESS_ERR = 0x1A,
-	VAPEOFFACCESS_ERR = 0x1B,
-	VARMRETACCES_ERR = 0x1C,
-	CURAPPWRSTISNOTBOOT = 0x20,
-	CURAPPWRSTISNOTEXECUTE = 0x21,
-	CURAPPWRSTISNOTSLEEPMODE = 0x22,
-	CURAPPWRSTISNOTCORRECTDBG = 0x23,
-	ARMREGU1VALTO_ERR = 0x24,
-	ARMREGU2VALTO_ERR = 0x25,
-	VAPEREGUVALTO_ERR = 0x26,
-	VSMPS3REGUVALTO_ERR = 0x27,
-	VMODREGUVALTO_ERR = 0x28
+  INIT_ERR = 0x00,
+  PLLARMLOCKP_ERR = 0x01,
+  PLLDDRLOCKP_ERR = 0x02,
+  PLLSOC0LOCKP_ERR = 0x03,
+  PLLSOC1LOCKP_ERR = 0x04,
+  ARMWFI_ERR = 0x05,
+  SYSCLKOK_ERR = 0x06,
+  BOOT_ERR = 0x07,
+  ROMCODESAVECONTEXT = 0x08,
+  VARMHIGHSPEEDVALTO_ERR = 0x10,
+  VARMHIGHSPEEDACCESS_ERR = 0x11,
+  VARMLOWSPEEDVALTO_ERR = 0x12,
+  VARMLOWSPEEDACCESS_ERR = 0x13,
+  VARMRETENTIONVALTO_ERR = 0x14,
+  VARMRETENTIONACCESS_ERR = 0x15,
+  VAPEHIGHSPEEDVALTO_ERR = 0x16,
+  VSAFEHPVALTO_ERR = 0x17,
+  VMODSEL1VALTO_ERR = 0x18,
+  VMODSEL2VALTO_ERR = 0x19,
+  VARMOFFACCESS_ERR = 0x1A,
+  VAPEOFFACCESS_ERR = 0x1B,
+  VARMRETACCES_ERR = 0x1C,
+  CURAPPWRSTISNOTBOOT = 0x20,
+  CURAPPWRSTISNOTEXECUTE = 0x21,
+  CURAPPWRSTISNOTSLEEPMODE = 0x22,
+  CURAPPWRSTISNOTCORRECTDBG = 0x23,
+  ARMREGU1VALTO_ERR = 0x24,
+  ARMREGU2VALTO_ERR = 0x25,
+  VAPEREGUVALTO_ERR = 0x26,
+  VSMPS3REGUVALTO_ERR = 0x27,
+  VMODREGUVALTO_ERR = 0x28
 };
 
 enum hw_acc {
-	SVAMMDSP = 0,
-	SVAPIPE = 1,
-	SIAMMDSP = 2,
-	SIAPIPE = 3,
-	SGA = 4,
-	B2R2MCDE = 5,
-	ESRAM12 = 6,
-	ESRAM34 = 7,
+  SVAMMDSP = 0,
+  SVAPIPE = 1,
+  SIAMMDSP = 2,
+  SIAPIPE = 3,
+  SGA = 4,
+  B2R2MCDE = 5,
+  ESRAM12 = 6,
+  ESRAM34 = 7,
 };
 
 enum cs_pwrmgt {
-	PWRDNCS0  = 0,
-	WKUPCS0   = 1,
-	PWRDNCS1  = 2,
-	WKUPCS1   = 3
+  PWRDNCS0 = 0,
+  WKUPCS0 = 1,
+  PWRDNCS1 = 2,
+  WKUPCS1 = 3
 };
 
 /* Defs related to autonomous power management */
 
 /**
  * enum sia_sva_pwr_policy - Power policy
- * @NO_CHGT:	No change
+ * @NO_CHGT:  No change
  * @DSPOFF_HWPOFF:
  * @DSPOFFRAMRET_HWPOFF:
  * @DSPCLKOFF_HWPOFF:
@@ -412,11 +412,11 @@ enum cs_pwrmgt {
  *
  */
 enum sia_sva_pwr_policy {
-	NO_CHGT			= 0x0,
-	DSPOFF_HWPOFF		= 0x1,
-	DSPOFFRAMRET_HWPOFF	= 0x2,
-	DSPCLKOFF_HWPOFF	= 0x3,
-	DSPCLKOFF_HWPCLKOFF	= 0x4,
+  NO_CHGT = 0x0,
+  DSPOFF_HWPOFF = 0x1,
+  DSPOFFRAMRET_HWPOFF = 0x2,
+  DSPCLKOFF_HWPOFF = 0x3,
+  DSPCLKOFF_HWPCLKOFF = 0x4,
 };
 
 /**
@@ -426,8 +426,8 @@ enum sia_sva_pwr_policy {
  *
  */
 enum auto_enable {
-	AUTO_OFF	= 0x0,
-	AUTO_ON		= 0x1,
+  AUTO_OFF = 0x0,
+  AUTO_ON = 0x1,
 };
 
 /* End of file previously known as prcmu-fw-defs_v1.h */
@@ -443,12 +443,12 @@ enum auto_enable {
  *
  */
 enum prcmu_power_status {
-	PRCMU_SLEEP_OK			= 0xf3,
-	PRCMU_DEEP_SLEEP_OK		= 0xf6,
-	PRCMU_IDLE_OK			= 0xf0,
-	PRCMU_DEEPIDLE_OK		= 0xe3,
-	PRCMU_PRCMU2ARMPENDINGIT_ER	= 0x91,
-	PRCMU_ARMPENDINGIT_ER		= 0x93,
+  PRCMU_SLEEP_OK = 0xf3,
+  PRCMU_DEEP_SLEEP_OK = 0xf6,
+  PRCMU_IDLE_OK = 0xf0,
+  PRCMU_DEEPIDLE_OK = 0xe3,
+  PRCMU_PRCMU2ARMPENDINGIT_ER = 0x91,
+  PRCMU_ARMPENDINGIT_ER = 0x93,
 };
 
 /*
@@ -462,11 +462,11 @@ enum prcmu_power_status {
 #define PRCMU_AUTO_PM_POWER_ON_ABB_FIFO_IT BIT(1)
 
 enum prcmu_auto_pm_policy {
-	PRCMU_AUTO_PM_POLICY_NO_CHANGE,
-	PRCMU_AUTO_PM_POLICY_DSP_OFF_HWP_OFF,
-	PRCMU_AUTO_PM_POLICY_DSP_OFF_RAMRET_HWP_OFF,
-	PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_OFF,
-	PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_CLK_OFF,
+  PRCMU_AUTO_PM_POLICY_NO_CHANGE,
+  PRCMU_AUTO_PM_POLICY_DSP_OFF_HWP_OFF,
+  PRCMU_AUTO_PM_POLICY_DSP_OFF_RAMRET_HWP_OFF,
+  PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_OFF,
+  PRCMU_AUTO_PM_POLICY_DSP_CLK_OFF_HWP_CLK_OFF,
 };
 
 /**
@@ -479,12 +479,12 @@ enum prcmu_auto_pm_policy {
  * @sva_policy:         SVA power policy. (enum prcmu_auto_pm_policy)
  */
 struct prcmu_auto_pm_config {
-	u8 sia_auto_pm_enable;
-	u8 sia_power_on;
-	u8 sia_policy;
-	u8 sva_auto_pm_enable;
-	u8 sva_power_on;
-	u8 sva_policy;
+  u8 sia_auto_pm_enable;
+  u8 sia_power_on;
+  u8 sia_policy;
+  u8 sva_auto_pm_enable;
+  u8 sva_power_on;
+  u8 sva_policy;
 };
 
 #ifdef CONFIG_MFD_DB8500_PRCMU
@@ -497,7 +497,7 @@ bool prcmu_has_arm_maxopp(void);
 struct prcmu_fw_version *prcmu_get_fw_version(void);
 int prcmu_release_usb_wakeup_state(void);
 void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
-	struct prcmu_auto_pm_config *idle);
+    struct prcmu_auto_pm_config *idle);
 bool prcmu_is_auto_pm_enabled(void);
 
 int prcmu_config_clkout(u8 clkout, u8 source, u8 div);
@@ -543,205 +543,178 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
-static inline void db8500_prcmu_early_init(void) {}
-
-static inline int prcmu_set_rc_a2p(enum romcode_write code)
-{
-	return 0;
+static inline void db8500_prcmu_early_init(void) {
 }
 
-static inline enum romcode_read prcmu_get_rc_p2a(void)
-{
-	return INIT;
+static inline int prcmu_set_rc_a2p(enum romcode_write code) {
+  return 0;
 }
 
-static inline enum ap_pwrst prcmu_get_xp70_current_state(void)
-{
-	return AP_EXECUTE;
+static inline enum romcode_read prcmu_get_rc_p2a(void) {
+  return INIT;
 }
 
-static inline bool prcmu_has_arm_maxopp(void)
-{
-	return false;
+static inline enum ap_pwrst prcmu_get_xp70_current_state(void) {
+  return AP_EXECUTE;
 }
 
-static inline struct prcmu_fw_version *prcmu_get_fw_version(void)
-{
-	return NULL;
+static inline bool prcmu_has_arm_maxopp(void) {
+  return false;
 }
 
-static inline int db8500_prcmu_set_ape_opp(u8 opp)
-{
-	return 0;
+static inline struct prcmu_fw_version *prcmu_get_fw_version(void) {
+  return NULL;
 }
 
-static inline int db8500_prcmu_get_ape_opp(void)
-{
-	return APE_100_OPP;
+static inline int db8500_prcmu_set_ape_opp(u8 opp) {
+  return 0;
 }
 
-static inline int db8500_prcmu_request_ape_opp_100_voltage(bool enable)
-{
-	return 0;
+static inline int db8500_prcmu_get_ape_opp(void) {
+  return APE_100_OPP;
 }
 
-static inline int prcmu_release_usb_wakeup_state(void)
-{
-	return 0;
+static inline int db8500_prcmu_request_ape_opp_100_voltage(bool enable) {
+  return 0;
 }
 
-static inline int db8500_prcmu_get_ddr_opp(void)
-{
-	return DDR_100_OPP;
+static inline int prcmu_release_usb_wakeup_state(void) {
+  return 0;
+}
+
+static inline int db8500_prcmu_get_ddr_opp(void) {
+  return DDR_100_OPP;
 }
 
 static inline void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
-	struct prcmu_auto_pm_config *idle)
-{
+    struct prcmu_auto_pm_config *idle) {
 }
 
-static inline bool prcmu_is_auto_pm_enabled(void)
-{
-	return false;
+static inline bool prcmu_is_auto_pm_enabled(void) {
+  return false;
 }
 
-static inline int prcmu_config_clkout(u8 clkout, u8 source, u8 div)
-{
-	return 0;
+static inline int prcmu_config_clkout(u8 clkout, u8 source, u8 div) {
+  return 0;
 }
 
-static inline int prcmu_set_clock_divider(u8 clock, u8 divider)
-{
-	return 0;
+static inline int prcmu_set_clock_divider(u8 clock, u8 divider) {
+  return 0;
 }
 
-static inline int db8500_prcmu_config_hotdog(u8 threshold)
-{
-	return 0;
+static inline int db8500_prcmu_config_hotdog(u8 threshold) {
+  return 0;
 }
 
-static inline int db8500_prcmu_config_hotmon(u8 low, u8 high)
-{
-	return 0;
+static inline int db8500_prcmu_config_hotmon(u8 low, u8 high) {
+  return 0;
 }
 
-static inline int db8500_prcmu_start_temp_sense(u16 cycles32k)
-{
-	return 0;
+static inline int db8500_prcmu_start_temp_sense(u16 cycles32k) {
+  return 0;
 }
 
-static inline int db8500_prcmu_stop_temp_sense(void)
-{
-	return 0;
+static inline int db8500_prcmu_stop_temp_sense(void) {
+  return 0;
 }
 
-static inline int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
-{
-	return -ENOSYS;
+static inline int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size) {
+  return -ENOSYS;
 }
 
-static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
-{
-	return -ENOSYS;
+static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size) {
+  return -ENOSYS;
 }
 
-static inline int prcmu_ac_wake_req(void)
-{
-	return 0;
+static inline int prcmu_ac_wake_req(void) {
+  return 0;
 }
 
-static inline void prcmu_ac_sleep_req(void) {}
+static inline void prcmu_ac_sleep_req(void) {
+}
 
-static inline void db8500_prcmu_modem_reset(void) {}
+static inline void db8500_prcmu_modem_reset(void) {
+}
 
-static inline void db8500_prcmu_system_reset(u16 reset_code) {}
+static inline void db8500_prcmu_system_reset(u16 reset_code) {
+}
 
 static inline int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk,
-	bool keep_ap_pll)
-{
-	return 0;
+    bool keep_ap_pll) {
+  return 0;
 }
 
-static inline u8 db8500_prcmu_get_power_state_result(void)
-{
-	return 0;
+static inline u8 db8500_prcmu_get_power_state_result(void) {
+  return 0;
 }
 
-static inline void db8500_prcmu_enable_wakeups(u32 wakeups) {}
-
-static inline int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state)
-{
-	return 0;
+static inline void db8500_prcmu_enable_wakeups(u32 wakeups) {
 }
 
-static inline int db8500_prcmu_request_clock(u8 clock, bool enable)
-{
-	return 0;
+static inline int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state) {
+  return 0;
 }
 
-static inline int db8500_prcmu_config_esram0_deep_sleep(u8 state)
-{
-	return 0;
+static inline int db8500_prcmu_request_clock(u8 clock, bool enable) {
+  return 0;
 }
 
-static inline void db8500_prcmu_config_abb_event_readout(u32 abb_events) {}
-
-static inline void db8500_prcmu_get_abb_event_buffer(void __iomem **buf) {}
-
-static inline u16 db8500_prcmu_get_reset_code(void)
-{
-	return 0;
+static inline int db8500_prcmu_config_esram0_deep_sleep(u8 state) {
+  return 0;
 }
 
-static inline int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
-{
-	return 0;
+static inline void db8500_prcmu_config_abb_event_readout(u32 abb_events) {
 }
 
-static inline int db8500_prcmu_enable_a9wdog(u8 id)
-{
-	return 0;
+static inline void db8500_prcmu_get_abb_event_buffer(void __iomem **buf) {
 }
 
-static inline int db8500_prcmu_disable_a9wdog(u8 id)
-{
-	return 0;
+static inline u16 db8500_prcmu_get_reset_code(void) {
+  return 0;
 }
 
-static inline int db8500_prcmu_kick_a9wdog(u8 id)
-{
-	return 0;
+static inline int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off) {
+  return 0;
 }
 
-static inline int db8500_prcmu_load_a9wdog(u8 id, u32 val)
-{
-	return 0;
+static inline int db8500_prcmu_enable_a9wdog(u8 id) {
+  return 0;
 }
 
-static inline bool db8500_prcmu_is_ac_wake_requested(void)
-{
-	return false;
+static inline int db8500_prcmu_disable_a9wdog(u8 id) {
+  return 0;
 }
 
-static inline int db8500_prcmu_set_arm_opp(u8 opp)
-{
-	return 0;
+static inline int db8500_prcmu_kick_a9wdog(u8 id) {
+  return 0;
 }
 
-static inline int db8500_prcmu_get_arm_opp(void)
-{
-	return 0;
+static inline int db8500_prcmu_load_a9wdog(u8 id, u32 val) {
+  return 0;
 }
 
-static inline u32 db8500_prcmu_read(unsigned int reg)
-{
-	return 0;
+static inline bool db8500_prcmu_is_ac_wake_requested(void) {
+  return false;
 }
 
-static inline void db8500_prcmu_write(unsigned int reg, u32 value) {}
+static inline int db8500_prcmu_set_arm_opp(u8 opp) {
+  return 0;
+}
+
+static inline int db8500_prcmu_get_arm_opp(void) {
+  return 0;
+}
+
+static inline u32 db8500_prcmu_read(unsigned int reg) {
+  return 0;
+}
+
+static inline void db8500_prcmu_write(unsigned int reg, u32 value) {
+}
 
 static inline void db8500_prcmu_write_masked(unsigned int reg, u32 mask,
-	u32 value) {}
+    u32 value) {
+}
 
 #endif /* !CONFIG_MFD_DB8500_PRCMU */
 

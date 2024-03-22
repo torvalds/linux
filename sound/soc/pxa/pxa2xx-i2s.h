@@ -7,6 +7,6 @@
 #define _PXA2XX_I2S_H
 
 /* I2S clock */
-#define PXA2XX_I2S_SYSCLK		0
+#define PXA2XX_I2S_SYSCLK   0
 
 #endif

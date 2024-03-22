@@ -2,8 +2,8 @@
 #ifndef _SPEAKUP_SERIAL_H
 #define _SPEAKUP_SERIAL_H
 
-#include <linux/serial.h>	/* for rs_table, serial constants */
-#include <linux/serial_reg.h>	/* for more serial constants */
+#include <linux/serial.h> /* for rs_table, serial constants */
+#include <linux/serial_reg.h> /* for more serial constants */
 #include <linux/serial_core.h>
 
 #include "spk_priv.h"
@@ -13,11 +13,11 @@
  * and this whole broken driver.
  */
 struct old_serial_port {
-	unsigned int uart; /* unused */
-	unsigned int baud_base;
-	unsigned int port;
-	unsigned int irq;
-	upf_t flags; /* unused */
+  unsigned int uart; /* unused */
+  unsigned int baud_base;
+  unsigned int port;
+  unsigned int irq;
+  upf_t flags; /* unused */
 };
 
 /* countdown values for serial timeouts in us */
@@ -35,6 +35,6 @@ struct old_serial_port {
 #define SPK_TIMEOUT 100
 
 #define spk_serial_tx_busy() \
-	(!uart_lsr_tx_empty(inb(speakup_info.port_tts + UART_LSR)))
+  (!uart_lsr_tx_empty(inb(speakup_info.port_tts + UART_LSR)))
 
 #endif

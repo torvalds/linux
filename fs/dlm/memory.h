@@ -29,5 +29,4 @@ void dlm_free_msg(struct dlm_msg *msg);
 struct dlm_callback *dlm_allocate_cb(void);
 void dlm_free_cb(struct dlm_callback *cb);
 
-#endif		/* __MEMORY_DOT_H__ */
-
+#endif    /* __MEMORY_DOT_H__ */

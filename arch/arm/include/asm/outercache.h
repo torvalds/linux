@@ -14,19 +14,19 @@
 struct l2x0_regs;
 
 struct outer_cache_fns {
-	void (*inv_range)(unsigned long, unsigned long);
-	void (*clean_range)(unsigned long, unsigned long);
-	void (*flush_range)(unsigned long, unsigned long);
-	void (*flush_all)(void);
-	void (*disable)(void);
+  void (*inv_range)(unsigned long, unsigned long);
+  void (*clean_range)(unsigned long, unsigned long);
+  void (*flush_range)(unsigned long, unsigned long);
+  void (*flush_all)(void);
+  void (*disable)(void);
 #ifdef CONFIG_OUTER_CACHE_SYNC
-	void (*sync)(void);
+  void (*sync)(void);
 #endif
-	void (*resume)(void);
+  void (*resume)(void);
 
-	/* This is an ARM L2C thing */
-	void (*write_sec)(unsigned long, unsigned);
-	void (*configure)(const struct l2x0_regs *);
+  /* This is an ARM L2C thing */
+  void (*write_sec)(unsigned long, unsigned);
+  void (*configure)(const struct l2x0_regs *);
 };
 
 extern struct outer_cache_fns outer_cache;
@@ -37,10 +37,10 @@ extern struct outer_cache_fns outer_cache;
  * @start: starting physical address, inclusive
  * @end: end physical address, exclusive
  */
-static inline void outer_inv_range(phys_addr_t start, phys_addr_t end)
-{
-	if (outer_cache.inv_range)
-		outer_cache.inv_range(start, end);
+static inline void outer_inv_range(phys_addr_t start, phys_addr_t end) {
+  if (outer_cache.inv_range) {
+    outer_cache.inv_range(start, end);
+  }
 }
 
 /**
@@ -48,10 +48,10 @@ static inline void outer_inv_range(phys_addr_t start, phys_addr_t end)
  * @start: starting physical address, inclusive
  * @end: end physical address, exclusive
  */
-static inline void outer_clean_range(phys_addr_t start, phys_addr_t end)
-{
-	if (outer_cache.clean_range)
-		outer_cache.clean_range(start, end);
+static inline void outer_clean_range(phys_addr_t start, phys_addr_t end) {
+  if (outer_cache.clean_range) {
+    outer_cache.clean_range(start, end);
+  }
 }
 
 /**
@@ -59,10 +59,10 @@ static inline void outer_clean_range(phys_addr_t start, phys_addr_t end)
  * @start: starting physical address, inclusive
  * @end: end physical address, exclusive
  */
-static inline void outer_flush_range(phys_addr_t start, phys_addr_t end)
-{
-	if (outer_cache.flush_range)
-		outer_cache.flush_range(start, end);
+static inline void outer_flush_range(phys_addr_t start, phys_addr_t end) {
+  if (outer_cache.flush_range) {
+    outer_cache.flush_range(start, end);
+  }
 }
 
 /**
@@ -76,10 +76,10 @@ static inline void outer_flush_range(phys_addr_t start, phys_addr_t end)
  * needing to override the outer_cache.disable() method due to security.
  * (Some implementations perform this as a clean followed by an invalidate.)
  */
-static inline void outer_flush_all(void)
-{
-	if (outer_cache.flush_all)
-		outer_cache.flush_all();
+static inline void outer_flush_all(void) {
+  if (outer_cache.flush_all) {
+    outer_cache.flush_all();
+  }
 }
 
 /**
@@ -97,24 +97,32 @@ extern void outer_disable(void);
  * Restore any configuration that the cache had when previously enabled,
  * and re-enable the outer cache.
  */
-static inline void outer_resume(void)
-{
-	if (outer_cache.resume)
-		outer_cache.resume();
+static inline void outer_resume(void) {
+  if (outer_cache.resume) {
+    outer_cache.resume();
+  }
 }
 
 #else
 
-static inline void outer_inv_range(phys_addr_t start, phys_addr_t end)
-{ }
-static inline void outer_clean_range(phys_addr_t start, phys_addr_t end)
-{ }
-static inline void outer_flush_range(phys_addr_t start, phys_addr_t end)
-{ }
-static inline void outer_flush_all(void) { }
-static inline void outer_disable(void) { }
-static inline void outer_resume(void) { }
+static inline void outer_inv_range(phys_addr_t start, phys_addr_t end) {
+}
+
+static inline void outer_clean_range(phys_addr_t start, phys_addr_t end) {
+}
+
+static inline void outer_flush_range(phys_addr_t start, phys_addr_t end) {
+}
+
+static inline void outer_flush_all(void) {
+}
+
+static inline void outer_disable(void) {
+}
+
+static inline void outer_resume(void) {
+}
 
 #endif
 
-#endif	/* __ASM_OUTERCACHE_H */
+#endif  /* __ASM_OUTERCACHE_H */

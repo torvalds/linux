@@ -5,13 +5,11 @@
 #ifndef __ASSEMBLY__
 struct task_struct;
 
-static __always_inline struct task_struct *get_current(void)
-{
-	struct task_struct *ts;
-
-	/* do not use mfctl() macro as it is marked volatile */
-	asm( "mfctl %%cr30,%0" : "=r" (ts) );
-	return ts;
+static __always_inline struct task_struct *get_current(void) {
+  struct task_struct *ts;
+  /* do not use mfctl() macro as it is marked volatile */
+  asm ("mfctl %%cr30,%0" : "=r" (ts));
+  return ts;
 }
 
 #define current get_current()

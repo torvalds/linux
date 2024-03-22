@@ -37,26 +37,27 @@
 #define DCN_BASE__INST0_SEG4                       0x02403C00
 #define DCN_BASE__INST0_SEG5                       0
 
-#define BASE_INNER(seg) DCN_BASE__INST0_SEG##seg
+#define BASE_INNER(seg) DCN_BASE__INST0_SEG ## seg
 #define CTX dmub
 #define REGS dmub->regs_dcn31
-#define REG_OFFSET_EXP(reg_name) (BASE(reg##reg_name##_BASE_IDX) + reg##reg_name)
+#define REG_OFFSET_EXP(reg_name) (BASE(reg ## reg_name ## _BASE_IDX) \
+  + reg ## reg_name)
 
 /* Registers. */
 
 const struct dmub_srv_dcn31_regs dmub_srv_dcn315_regs = {
 #define DMUB_SR(reg) REG_OFFSET_EXP(reg),
-	{
-		DMUB_DCN31_REGS()
-		DMCUB_INTERNAL_REGS()
-	},
+  {
+    DMUB_DCN31_REGS()
+    DMCUB_INTERNAL_REGS()
+  },
 #undef DMUB_SR
 
 #define DMUB_SF(reg, field) FD_MASK(reg, field),
-	{ DMUB_DCN315_FIELDS() },
+  { DMUB_DCN315_FIELDS() },
 #undef DMUB_SF
 
 #define DMUB_SF(reg, field) FD_SHIFT(reg, field),
-	{ DMUB_DCN315_FIELDS() },
+  { DMUB_DCN315_FIELDS() },
 #undef DMUB_SF
 };

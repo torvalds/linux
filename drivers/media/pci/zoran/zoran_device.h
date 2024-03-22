@@ -18,7 +18,7 @@ void GPIO(struct zoran *zr, int bit, unsigned int value);
 /* codec (or actually: guest bus) access */
 int post_office_wait(struct zoran *zr);
 int post_office_write(struct zoran *zr, unsigned int guest, unsigned int reg,
-		      unsigned int value);
+    unsigned int value);
 int post_office_read(struct zoran *zr, unsigned int guest, unsigned int reg);
 
 void jpeg_codec_sleep(struct zoran *zr, int sleep);
@@ -48,9 +48,9 @@ extern const struct zoran_format zoran_formats[];
 extern int pass_through;
 
 /* i2c */
-#define decoder_call(zr, o, f, args...) \
-	v4l2_subdev_call((zr)->decoder, o, f, ##args)
-#define encoder_call(zr, o, f, args...) \
-	v4l2_subdev_call((zr)->encoder, o, f, ##args)
+#define decoder_call(zr, o, f, args ...) \
+  v4l2_subdev_call((zr)->decoder, o, f, ## args)
+#define encoder_call(zr, o, f, args ...) \
+  v4l2_subdev_call((zr)->encoder, o, f, ## args)
 
-#endif				/* __ZORAN_DEVICE_H__ */
+#endif        /* __ZORAN_DEVICE_H__ */

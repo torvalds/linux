@@ -13,7 +13,7 @@
 
 /* Arch code should override this to set the entry point from firmware... */
 #ifndef sdei_arch_get_entry_point
-#define sdei_arch_get_entry_point(conduit)	(0)
+#define sdei_arch_get_entry_point(conduit)  (0)
 #endif
 
 /*
@@ -39,7 +39,7 @@ int sdei_event_disable(u32 event_num);
 
 /* GHES register/unregister helpers */
 int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
-		       sdei_event_callback *critical_cb);
+    sdei_event_callback *critical_cb);
 int sdei_unregister_ghes(struct ghes *ghes);
 
 #ifdef CONFIG_ARM_SDE_INTERFACE
@@ -49,12 +49,21 @@ int sdei_unmask_local_cpu(void);
 void __init sdei_init(void);
 void sdei_handler_abort(void);
 #else
-static inline int sdei_mask_local_cpu(void) { return 0; }
-static inline int sdei_unmask_local_cpu(void) { return 0; }
-static inline void sdei_init(void) { }
-static inline void sdei_handler_abort(void) { }
-#endif /* CONFIG_ARM_SDE_INTERFACE */
+static inline int sdei_mask_local_cpu(void) {
+  return 0;
+}
 
+static inline int sdei_unmask_local_cpu(void) {
+  return 0;
+}
+
+static inline void sdei_init(void) {
+}
+
+static inline void sdei_handler_abort(void) {
+}
+
+#endif /* CONFIG_ARM_SDE_INTERFACE */
 
 /*
  * This struct represents an event that has been registered. The driver
@@ -67,18 +76,18 @@ static inline void sdei_handler_abort(void) { }
  * For CPU private events, this structure is per-cpu.
  */
 struct sdei_registered_event {
-	/* For use by arch code: */
-	struct pt_regs          interrupted_regs;
+  /* For use by arch code: */
+  struct pt_regs interrupted_regs;
 
-	sdei_event_callback	*callback;
-	void			*callback_arg;
-	u32			 event_num;
-	u8			 priority;
+  sdei_event_callback *callback;
+  void *callback_arg;
+  u32 event_num;
+  u8 priority;
 };
 
 /* The arch code entry point should then call this when an event arrives. */
 int notrace sdei_event_handler(struct pt_regs *regs,
-			       struct sdei_registered_event *arg);
+    struct sdei_registered_event *arg);
 
 /* arch code may use this to retrieve the extra registers. */
 int sdei_api_event_context(u32 query, u64 *result);

@@ -51,6 +51,6 @@
 
 #define WM8750_CACHE_REGNUM 0x2a
 
-#define WM8750_SYSCLK	0
+#define WM8750_SYSCLK 0
 
 #endif

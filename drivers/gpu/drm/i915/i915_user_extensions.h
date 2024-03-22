@@ -10,11 +10,11 @@
 struct i915_user_extension;
 
 typedef int (*i915_user_extension_fn)(struct i915_user_extension __user *ext,
-				      void *data);
+    void *data);
 
 int i915_user_extensions(struct i915_user_extension __user *ext,
-			 const i915_user_extension_fn *tbl,
-			 unsigned int count,
-			 void *data);
+    const i915_user_extension_fn *tbl,
+    unsigned int count,
+    void *data);
 
 #endif /* I915_USER_EXTENSIONS_H */

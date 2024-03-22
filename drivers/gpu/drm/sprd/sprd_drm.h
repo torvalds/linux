@@ -10,7 +10,7 @@
 #include <drm/drm_print.h>
 
 struct sprd_drm {
-	struct drm_device drm;
+  struct drm_device drm;
 };
 
 extern struct platform_driver sprd_dpu_driver;

@@ -12,90 +12,89 @@ struct net_device;
 struct phylink;
 
 enum {
-	MLO_PAUSE_NONE,
-	MLO_PAUSE_RX = BIT(0),
-	MLO_PAUSE_TX = BIT(1),
-	MLO_PAUSE_TXRX_MASK = MLO_PAUSE_TX | MLO_PAUSE_RX,
-	MLO_PAUSE_AN = BIT(2),
+  MLO_PAUSE_NONE,
+  MLO_PAUSE_RX = BIT(0),
+  MLO_PAUSE_TX = BIT(1),
+  MLO_PAUSE_TXRX_MASK = MLO_PAUSE_TX | MLO_PAUSE_RX,
+  MLO_PAUSE_AN = BIT(2),
 
-	MLO_AN_PHY = 0,	/* Conventional PHY */
-	MLO_AN_FIXED,	/* Fixed-link mode */
-	MLO_AN_INBAND,	/* In-band protocol */
+  MLO_AN_PHY = 0, /* Conventional PHY */
+  MLO_AN_FIXED, /* Fixed-link mode */
+  MLO_AN_INBAND,  /* In-band protocol */
 
-	/* PCS "negotiation" mode.
-	 *  PHYLINK_PCS_NEG_NONE - protocol has no inband capability
-	 *  PHYLINK_PCS_NEG_OUTBAND - some out of band or fixed link setting
-	 *  PHYLINK_PCS_NEG_INBAND_DISABLED - inband mode disabled, e.g.
-	 *				      1000base-X with autoneg off
-	 *  PHYLINK_PCS_NEG_INBAND_ENABLED - inband mode enabled
-	 * Additionally, this can be tested using bitmasks:
-	 *  PHYLINK_PCS_NEG_INBAND - inband mode selected
-	 *  PHYLINK_PCS_NEG_ENABLED - negotiation mode enabled
-	 */
-	PHYLINK_PCS_NEG_NONE = 0,
-	PHYLINK_PCS_NEG_ENABLED = BIT(4),
-	PHYLINK_PCS_NEG_OUTBAND = BIT(5),
-	PHYLINK_PCS_NEG_INBAND = BIT(6),
-	PHYLINK_PCS_NEG_INBAND_DISABLED = PHYLINK_PCS_NEG_INBAND,
-	PHYLINK_PCS_NEG_INBAND_ENABLED = PHYLINK_PCS_NEG_INBAND |
-					 PHYLINK_PCS_NEG_ENABLED,
+  /* PCS "negotiation" mode.
+   *  PHYLINK_PCS_NEG_NONE - protocol has no inband capability
+   *  PHYLINK_PCS_NEG_OUTBAND - some out of band or fixed link setting
+   *  PHYLINK_PCS_NEG_INBAND_DISABLED - inband mode disabled, e.g.
+   *              1000base-X with autoneg off
+   *  PHYLINK_PCS_NEG_INBAND_ENABLED - inband mode enabled
+   * Additionally, this can be tested using bitmasks:
+   *  PHYLINK_PCS_NEG_INBAND - inband mode selected
+   *  PHYLINK_PCS_NEG_ENABLED - negotiation mode enabled
+   */
+  PHYLINK_PCS_NEG_NONE = 0,
+  PHYLINK_PCS_NEG_ENABLED = BIT(4),
+  PHYLINK_PCS_NEG_OUTBAND = BIT(5),
+  PHYLINK_PCS_NEG_INBAND = BIT(6),
+  PHYLINK_PCS_NEG_INBAND_DISABLED = PHYLINK_PCS_NEG_INBAND,
+  PHYLINK_PCS_NEG_INBAND_ENABLED = PHYLINK_PCS_NEG_INBAND
+      | PHYLINK_PCS_NEG_ENABLED,
 
-	/* MAC_SYM_PAUSE and MAC_ASYM_PAUSE are used when configuring our
-	 * autonegotiation advertisement. They correspond to the PAUSE and
-	 * ASM_DIR bits defined by 802.3, respectively.
-	 *
-	 * The following table lists the values of tx_pause and rx_pause which
-	 * might be requested in mac_link_up. The exact values depend on either
-	 * the results of autonegotation (if MLO_PAUSE_AN is set) or user
-	 * configuration (if MLO_PAUSE_AN is not set).
-	 *
-	 * MAC_SYM_PAUSE MAC_ASYM_PAUSE MLO_PAUSE_AN tx_pause/rx_pause
-	 * ============= ============== ============ ==================
-	 *             0              0            0 0/0
-	 *             0              0            1 0/0
-	 *             0              1            0 0/0, 0/1, 1/0, 1/1
-	 *             0              1            1 0/0,      1/0
-	 *             1              0            0 0/0,           1/1
-	 *             1              0            1 0/0,           1/1
-	 *             1              1            0 0/0, 0/1, 1/0, 1/1
-	 *             1              1            1 0/0, 0/1,      1/1
-	 *
-	 * If you set MAC_ASYM_PAUSE, the user may request any combination of
-	 * tx_pause and rx_pause. You do not have to support these
-	 * combinations.
-	 *
-	 * However, you should support combinations of tx_pause and rx_pause
-	 * which might be the result of autonegotation. For example, don't set
-	 * MAC_SYM_PAUSE unless your device can support tx_pause and rx_pause
-	 * at the same time.
-	 */
-	MAC_SYM_PAUSE	= BIT(0),
-	MAC_ASYM_PAUSE	= BIT(1),
-	MAC_10HD	= BIT(2),
-	MAC_10FD	= BIT(3),
-	MAC_10		= MAC_10HD | MAC_10FD,
-	MAC_100HD	= BIT(4),
-	MAC_100FD	= BIT(5),
-	MAC_100		= MAC_100HD | MAC_100FD,
-	MAC_1000HD	= BIT(6),
-	MAC_1000FD	= BIT(7),
-	MAC_1000	= MAC_1000HD | MAC_1000FD,
-	MAC_2500FD	= BIT(8),
-	MAC_5000FD	= BIT(9),
-	MAC_10000FD	= BIT(10),
-	MAC_20000FD	= BIT(11),
-	MAC_25000FD	= BIT(12),
-	MAC_40000FD	= BIT(13),
-	MAC_50000FD	= BIT(14),
-	MAC_56000FD	= BIT(15),
-	MAC_100000FD	= BIT(16),
-	MAC_200000FD	= BIT(17),
-	MAC_400000FD	= BIT(18),
+  /* MAC_SYM_PAUSE and MAC_ASYM_PAUSE are used when configuring our
+   * autonegotiation advertisement. They correspond to the PAUSE and
+   * ASM_DIR bits defined by 802.3, respectively.
+   *
+   * The following table lists the values of tx_pause and rx_pause which
+   * might be requested in mac_link_up. The exact values depend on either
+   * the results of autonegotation (if MLO_PAUSE_AN is set) or user
+   * configuration (if MLO_PAUSE_AN is not set).
+   *
+   * MAC_SYM_PAUSE MAC_ASYM_PAUSE MLO_PAUSE_AN tx_pause/rx_pause
+   * ============= ============== ============ ==================
+   *             0              0            0 0/0
+   *             0              0            1 0/0
+   *             0              1            0 0/0, 0/1, 1/0, 1/1
+   *             0              1            1 0/0,      1/0
+   *             1              0            0 0/0,           1/1
+   *             1              0            1 0/0,           1/1
+   *             1              1            0 0/0, 0/1, 1/0, 1/1
+   *             1              1            1 0/0, 0/1,      1/1
+   *
+   * If you set MAC_ASYM_PAUSE, the user may request any combination of
+   * tx_pause and rx_pause. You do not have to support these
+   * combinations.
+   *
+   * However, you should support combinations of tx_pause and rx_pause
+   * which might be the result of autonegotation. For example, don't set
+   * MAC_SYM_PAUSE unless your device can support tx_pause and rx_pause
+   * at the same time.
+   */
+  MAC_SYM_PAUSE = BIT(0),
+  MAC_ASYM_PAUSE = BIT(1),
+  MAC_10HD = BIT(2),
+  MAC_10FD = BIT(3),
+  MAC_10 = MAC_10HD | MAC_10FD,
+  MAC_100HD = BIT(4),
+  MAC_100FD = BIT(5),
+  MAC_100 = MAC_100HD | MAC_100FD,
+  MAC_1000HD = BIT(6),
+  MAC_1000FD = BIT(7),
+  MAC_1000 = MAC_1000HD | MAC_1000FD,
+  MAC_2500FD = BIT(8),
+  MAC_5000FD = BIT(9),
+  MAC_10000FD = BIT(10),
+  MAC_20000FD = BIT(11),
+  MAC_25000FD = BIT(12),
+  MAC_40000FD = BIT(13),
+  MAC_50000FD = BIT(14),
+  MAC_56000FD = BIT(15),
+  MAC_100000FD = BIT(16),
+  MAC_200000FD = BIT(17),
+  MAC_400000FD = BIT(18),
 };
 
-static inline bool phylink_autoneg_inband(unsigned int mode)
-{
-	return mode == MLO_AN_INBAND;
+static inline bool phylink_autoneg_inband(unsigned int mode) {
+  return mode == MLO_AN_INBAND;
 }
 
 /**
@@ -115,20 +114,20 @@ static inline bool phylink_autoneg_inband(unsigned int mode)
  * @an_complete: true if autonegotiation has completed.
  */
 struct phylink_link_state {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
-	phy_interface_t interface;
-	int speed;
-	int duplex;
-	int pause;
-	int rate_matching;
-	unsigned int link:1;
-	unsigned int an_complete:1;
+  __ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+  __ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
+  phy_interface_t interface;
+  int speed;
+  int duplex;
+  int pause;
+  int rate_matching;
+  unsigned int link : 1;
+  unsigned int an_complete : 1;
 };
 
 enum phylink_op_type {
-	PHYLINK_NETDEV = 0,
-	PHYLINK_DEV,
+  PHYLINK_NETDEV = 0,
+  PHYLINK_DEV,
 };
 
 /**
@@ -136,25 +135,25 @@ enum phylink_op_type {
  * @dev: a pointer to a struct device associated with the MAC
  * @type: operation type of PHYLINK instance
  * @poll_fixed_state: if true, starts link_poll,
- *		      if MAC link is at %MLO_AN_FIXED mode.
+ *          if MAC link is at %MLO_AN_FIXED mode.
  * @mac_managed_pm: if true, indicate the MAC driver is responsible for PHY PM.
  * @ovr_an_inband: if true, override PCS to MLO_AN_INBAND
  * @get_fixed_state: callback to execute to determine the fixed link state,
- *		     if MAC link is at %MLO_AN_FIXED mode.
+ *         if MAC link is at %MLO_AN_FIXED mode.
  * @supported_interfaces: bitmap describing which PHY_INTERFACE_MODE_xxx
  *                        are supported by the MAC/PCS.
  * @mac_capabilities: MAC pause/speed/duplex capabilities.
  */
 struct phylink_config {
-	struct device *dev;
-	enum phylink_op_type type;
-	bool poll_fixed_state;
-	bool mac_managed_pm;
-	bool ovr_an_inband;
-	void (*get_fixed_state)(struct phylink_config *config,
-				struct phylink_link_state *state);
-	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
-	unsigned long mac_capabilities;
+  struct device *dev;
+  enum phylink_op_type type;
+  bool poll_fixed_state;
+  bool mac_managed_pm;
+  bool ovr_an_inband;
+  void (*get_fixed_state)(struct phylink_config *config,
+      struct phylink_link_state *state);
+  DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
+  unsigned long mac_capabilities;
 };
 
 void phylink_limit_mac_speed(struct phylink_config *config, u32 max_speed);
@@ -172,22 +171,22 @@ void phylink_limit_mac_speed(struct phylink_config *config, u32 max_speed);
  * The individual methods are described more fully below.
  */
 struct phylink_mac_ops {
-	unsigned long (*mac_get_caps)(struct phylink_config *config,
-				      phy_interface_t interface);
-	struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
-					      phy_interface_t interface);
-	int (*mac_prepare)(struct phylink_config *config, unsigned int mode,
-			   phy_interface_t iface);
-	void (*mac_config)(struct phylink_config *config, unsigned int mode,
-			   const struct phylink_link_state *state);
-	int (*mac_finish)(struct phylink_config *config, unsigned int mode,
-			  phy_interface_t iface);
-	void (*mac_link_down)(struct phylink_config *config, unsigned int mode,
-			      phy_interface_t interface);
-	void (*mac_link_up)(struct phylink_config *config,
-			    struct phy_device *phy, unsigned int mode,
-			    phy_interface_t interface, int speed, int duplex,
-			    bool tx_pause, bool rx_pause);
+  unsigned long (*mac_get_caps)(struct phylink_config *config,
+      phy_interface_t interface);
+  struct phylink_pcs *(*mac_select_pcs)(struct phylink_config *config,
+      phy_interface_t interface);
+  int (*mac_prepare)(struct phylink_config *config, unsigned int mode,
+      phy_interface_t iface);
+  void (*mac_config)(struct phylink_config *config, unsigned int mode,
+      const struct phylink_link_state *state);
+  int (*mac_finish)(struct phylink_config *config, unsigned int mode,
+      phy_interface_t iface);
+  void (*mac_link_down)(struct phylink_config *config, unsigned int mode,
+      phy_interface_t interface);
+  void (*mac_link_up)(struct phylink_config *config,
+      struct phy_device *phy, unsigned int mode,
+      phy_interface_t interface, int speed, int duplex,
+      bool tx_pause, bool rx_pause);
 };
 
 #if 0 /* For kernel-doc purposes only. */
@@ -202,7 +201,7 @@ struct phylink_mac_ops {
  * driver (e.g. not supporting half-duplex in certain interface modes.)
  */
 unsigned long mac_get_caps(struct phylink_config *config,
-			   phy_interface_t interface);
+    phy_interface_t interface);
 /**
  * mac_select_pcs: Select a PCS for the interface mode.
  * @config: a pointer to a &struct phylink_config.
@@ -217,7 +216,7 @@ unsigned long mac_get_caps(struct phylink_config *config,
  * set the PCS that will be used.
  */
 struct phylink_pcs *mac_select_pcs(struct phylink_config *config,
-				   phy_interface_t interface);
+    phy_interface_t interface);
 
 /**
  * mac_prepare() - prepare to change the PHY interface mode
@@ -242,7 +241,7 @@ struct phylink_pcs *mac_select_pcs(struct phylink_config *config,
  * reported to the kernel log.
  */
 int mac_prepare(struct phylink_config *config, unsigned int mode,
-		phy_interface_t iface);
+    phy_interface_t iface);
 
 /**
  * mac_config() - configure the MAC for the selected mode and state
@@ -318,7 +317,7 @@ int mac_prepare(struct phylink_config *config, unsigned int mode,
  * link up status.
  */
 void mac_config(struct phylink_config *config, unsigned int mode,
-		const struct phylink_link_state *state);
+    const struct phylink_link_state *state);
 
 /**
  * mac_finish() - finish a to change the PHY interface mode
@@ -335,7 +334,7 @@ void mac_config(struct phylink_config *config, unsigned int mode,
  * reported to the kernel log.
  */
 int mac_finish(struct phylink_config *config, unsigned int mode,
-		phy_interface_t iface);
+    phy_interface_t iface);
 
 /**
  * mac_link_down() - take the link down
@@ -349,7 +348,7 @@ int mac_finish(struct phylink_config *config, unsigned int mode,
  * selection must be done in mac_config().
  */
 void mac_link_down(struct phylink_config *config, unsigned int mode,
-		   phy_interface_t interface);
+    phy_interface_t interface);
 
 /**
  * mac_link_up() - allow the link to come up
@@ -380,8 +379,8 @@ void mac_link_down(struct phylink_config *config, unsigned int mode,
  * Interface type selection must be done in mac_config().
  */
 void mac_link_up(struct phylink_config *config, struct phy_device *phy,
-		 unsigned int mode, phy_interface_t interface,
-		 int speed, int duplex, bool tx_pause, bool rx_pause);
+    unsigned int mode, phy_interface_t interface,
+    int speed, int duplex, bool tx_pause, bool rx_pause);
 #endif
 
 struct phylink_pcs_ops;
@@ -400,10 +399,10 @@ struct phylink_pcs_ops;
  * the PCS driver.
  */
 struct phylink_pcs {
-	const struct phylink_pcs_ops *ops;
-	struct phylink *phylink;
-	bool neg_mode;
-	bool poll;
+  const struct phylink_pcs_ops *ops;
+  struct phylink *phylink;
+  bool neg_mode;
+  bool poll;
 };
 
 /**
@@ -420,23 +419,23 @@ struct phylink_pcs {
  *               (where necessary).
  */
 struct phylink_pcs_ops {
-	int (*pcs_validate)(struct phylink_pcs *pcs, unsigned long *supported,
-			    const struct phylink_link_state *state);
-	int (*pcs_enable)(struct phylink_pcs *pcs);
-	void (*pcs_disable)(struct phylink_pcs *pcs);
-	void (*pcs_pre_config)(struct phylink_pcs *pcs,
-			       phy_interface_t interface);
-	int (*pcs_post_config)(struct phylink_pcs *pcs,
-			       phy_interface_t interface);
-	void (*pcs_get_state)(struct phylink_pcs *pcs,
-			      struct phylink_link_state *state);
-	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int neg_mode,
-			  phy_interface_t interface,
-			  const unsigned long *advertising,
-			  bool permit_pause_to_mac);
-	void (*pcs_an_restart)(struct phylink_pcs *pcs);
-	void (*pcs_link_up)(struct phylink_pcs *pcs, unsigned int neg_mode,
-			    phy_interface_t interface, int speed, int duplex);
+  int (*pcs_validate)(struct phylink_pcs *pcs, unsigned long *supported,
+      const struct phylink_link_state *state);
+  int (*pcs_enable)(struct phylink_pcs *pcs);
+  void (*pcs_disable)(struct phylink_pcs *pcs);
+  void (*pcs_pre_config)(struct phylink_pcs *pcs,
+      phy_interface_t interface);
+  int (*pcs_post_config)(struct phylink_pcs *pcs,
+      phy_interface_t interface);
+  void (*pcs_get_state)(struct phylink_pcs *pcs,
+      struct phylink_link_state *state);
+  int (*pcs_config)(struct phylink_pcs *pcs, unsigned int neg_mode,
+      phy_interface_t interface,
+      const unsigned long *advertising,
+      bool permit_pause_to_mac);
+  void (*pcs_an_restart)(struct phylink_pcs *pcs);
+  void (*pcs_link_up)(struct phylink_pcs *pcs, unsigned int neg_mode,
+      phy_interface_t interface, int speed, int duplex);
 };
 
 #if 0 /* For kernel-doc purposes only. */
@@ -455,7 +454,7 @@ struct phylink_pcs_ops {
  * Returns non-zero positive if the link state can be supported.
  */
 int pcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
-		 const struct phylink_link_state *state);
+    const struct phylink_link_state *state);
 
 /**
  * pcs_enable() - enable the PCS.
@@ -482,7 +481,7 @@ void pcs_disable(struct phylink_pcs *pcs);
  * populated.
  */
 void pcs_get_state(struct phylink_pcs *pcs,
-		   struct phylink_link_state *state);
+    struct phylink_link_state *state);
 
 /**
  * pcs_config() - Configure the PCS mode and advertisement
@@ -511,8 +510,8 @@ void pcs_get_state(struct phylink_pcs *pcs,
  * against the PHYLINK_PCS_NEG_* definitions.
  */
 int pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
-	       phy_interface_t interface, const unsigned long *advertising,
-	       bool permit_pause_to_mac);
+    phy_interface_t interface, const unsigned long *advertising,
+    bool permit_pause_to_mac);
 
 /**
  * pcs_an_restart() - restart 802.3z BaseX autonegotiation
@@ -541,21 +540,21 @@ void pcs_an_restart(struct phylink_pcs *pcs);
  * against the PHYLINK_PCS_NEG_* definitions.
  */
 void pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
-		 phy_interface_t interface, int speed, int duplex);
+    phy_interface_t interface, int speed, int duplex);
 #endif
 
 struct phylink *phylink_create(struct phylink_config *,
-			       const struct fwnode_handle *,
-			       phy_interface_t,
-			       const struct phylink_mac_ops *);
+    const struct fwnode_handle *,
+    phy_interface_t,
+    const struct phylink_mac_ops *);
 void phylink_destroy(struct phylink *);
 bool phylink_expects_phy(struct phylink *pl);
 
 int phylink_connect_phy(struct phylink *, struct phy_device *);
 int phylink_of_phy_connect(struct phylink *, struct device_node *, u32 flags);
 int phylink_fwnode_phy_connect(struct phylink *pl,
-			       const struct fwnode_handle *fwnode,
-			       u32 flags);
+    const struct fwnode_handle *fwnode,
+    u32 flags);
 void phylink_disconnect_phy(struct phylink *);
 
 void phylink_mac_change(struct phylink *, bool up);
@@ -571,14 +570,14 @@ void phylink_ethtool_get_wol(struct phylink *, struct ethtool_wolinfo *);
 int phylink_ethtool_set_wol(struct phylink *, struct ethtool_wolinfo *);
 
 int phylink_ethtool_ksettings_get(struct phylink *,
-				  struct ethtool_link_ksettings *);
+    struct ethtool_link_ksettings *);
 int phylink_ethtool_ksettings_set(struct phylink *,
-				  const struct ethtool_link_ksettings *);
+    const struct ethtool_link_ksettings *);
 int phylink_ethtool_nway_reset(struct phylink *);
 void phylink_ethtool_get_pauseparam(struct phylink *,
-				    struct ethtool_pauseparam *);
+    struct ethtool_pauseparam *);
 int phylink_ethtool_set_pauseparam(struct phylink *,
-				   struct ethtool_pauseparam *);
+    struct ethtool_pauseparam *);
 int phylink_get_eee_err(struct phylink *);
 int phylink_init_eee(struct phylink *, bool);
 int phylink_ethtool_get_eee(struct phylink *link, struct ethtool_keee *eee);
@@ -588,13 +587,13 @@ int phylink_speed_down(struct phylink *pl, bool sync);
 int phylink_speed_up(struct phylink *pl);
 
 #define phylink_zero(bm) \
-	bitmap_zero(bm, __ETHTOOL_LINK_MODE_MASK_NBITS)
+  bitmap_zero(bm, __ETHTOOL_LINK_MODE_MASK_NBITS)
 #define __phylink_do_bit(op, bm, mode) \
-	op(ETHTOOL_LINK_MODE_ ## mode ## _BIT, bm)
+  op(ETHTOOL_LINK_MODE_ ## mode ## _BIT, bm)
 
-#define phylink_set(bm, mode)	__phylink_do_bit(__set_bit, bm, mode)
-#define phylink_clear(bm, mode)	__phylink_do_bit(__clear_bit, bm, mode)
-#define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
+#define phylink_set(bm, mode) __phylink_do_bit(__set_bit, bm, mode)
+#define phylink_clear(bm, mode) __phylink_do_bit(__clear_bit, bm, mode)
+#define phylink_test(bm, mode)  __phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
 
@@ -605,40 +604,37 @@ void phylink_set_port_modes(unsigned long *bits);
  * Return the PCS link timer setting in nanoseconds for the PHY @interface
  * mode, or -EINVAL if not appropriate.
  */
-static inline int phylink_get_link_timer_ns(phy_interface_t interface)
-{
-	switch (interface) {
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_QSGMII:
-	case PHY_INTERFACE_MODE_USXGMII:
-		return 1600000;
-
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_2500BASEX:
-		return 10000000;
-
-	default:
-		return -EINVAL;
-	}
+static inline int phylink_get_link_timer_ns(phy_interface_t interface) {
+  switch (interface) {
+    case PHY_INTERFACE_MODE_SGMII:
+    case PHY_INTERFACE_MODE_QSGMII:
+    case PHY_INTERFACE_MODE_USXGMII:
+      return 1600000;
+    case PHY_INTERFACE_MODE_1000BASEX:
+    case PHY_INTERFACE_MODE_2500BASEX:
+      return 10000000;
+    default:
+      return -EINVAL;
+  }
 }
 
 void phylink_mii_c22_pcs_decode_state(struct phylink_link_state *state,
-				      u16 bmsr, u16 lpa);
+    u16 bmsr, u16 lpa);
 void phylink_mii_c22_pcs_get_state(struct mdio_device *pcs,
-				   struct phylink_link_state *state);
+    struct phylink_link_state *state);
 int phylink_mii_c22_pcs_encode_advertisement(phy_interface_t interface,
-					     const unsigned long *advertising);
+    const unsigned long *advertising);
 int phylink_mii_c22_pcs_config(struct mdio_device *pcs,
-			       phy_interface_t interface,
-			       const unsigned long *advertising,
-			       unsigned int neg_mode);
+    phy_interface_t interface,
+    const unsigned long *advertising,
+    unsigned int neg_mode);
 void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs);
 
 void phylink_resolve_c73(struct phylink_link_state *state);
 
 void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
-				   struct phylink_link_state *state);
+    struct phylink_link_state *state);
 
 void phylink_decode_usxgmii_word(struct phylink_link_state *state,
-				 uint16_t lpa);
+    uint16_t lpa);
 #endif

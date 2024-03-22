@@ -33,7 +33,7 @@ ACPI_INIT_GLOBAL(u32, acpi_gbl_fadt_index, ACPI_INVALID_TABLE_INDEX);
 #if (!ACPI_REDUCED_HARDWARE)
 ACPI_GLOBAL(struct acpi_table_facs *, acpi_gbl_FACS);
 
-#endif				/* !ACPI_REDUCED_HARDWARE */
+#endif        /* !ACPI_REDUCED_HARDWARE */
 
 /* These addresses are calculated from the FADT Event Block addresses */
 
@@ -47,7 +47,7 @@ ACPI_GLOBAL(struct acpi_generic_address, acpi_gbl_xpm1b_enable);
 ACPI_GLOBAL(unsigned long, acpi_gbl_xgpe0_block_logical_address);
 ACPI_GLOBAL(unsigned long, acpi_gbl_xgpe1_block_logical_address);
 
-#endif				/* ACPI_GPE_USE_LOGICAL_ADDRESSES */
+#endif        /* ACPI_GPE_USE_LOGICAL_ADDRESSES */
 
 /*
  * Handle both ACPI 1.0 and ACPI 2.0+ Integer widths. The integer width is
@@ -88,8 +88,10 @@ ACPI_GLOBAL(u8, acpi_gbl_global_lock_pending);
  * Spinlocks are used for interfaces that can be possibly called at
  * interrupt level
  */
-ACPI_GLOBAL(acpi_spinlock, acpi_gbl_gpe_lock);	/* For GPE data structs and registers */
-ACPI_GLOBAL(acpi_raw_spinlock, acpi_gbl_hardware_lock);	/* For ACPI H/W except GPE registers */
+ACPI_GLOBAL(acpi_spinlock, acpi_gbl_gpe_lock);  /* For GPE data structs and
+                                                 * registers */
+ACPI_GLOBAL(acpi_raw_spinlock, acpi_gbl_hardware_lock); /* For ACPI H/W except
+                                                         * GPE registers */
 ACPI_GLOBAL(acpi_spinlock, acpi_gbl_reference_count_lock);
 
 /* Mutex for _OSI support */
@@ -153,7 +155,7 @@ ACPI_GLOBAL(u8, acpi_gbl_acpi_hardware_present);
 ACPI_GLOBAL(u8, acpi_gbl_events_initialized);
 ACPI_GLOBAL(struct acpi_interface_info *, acpi_gbl_supported_interfaces);
 ACPI_GLOBAL(struct acpi_address_range *,
-	    acpi_gbl_address_range_list[ACPI_ADDRESS_RANGE_MAX]);
+    acpi_gbl_address_range_list[ACPI_ADDRESS_RANGE_MAX]);
 
 /* Other miscellaneous, declared and initialized in utglobal */
 
@@ -241,14 +243,14 @@ ACPI_GLOBAL(u8, acpi_gbl_sleep_type_b_s0);
 ACPI_GLOBAL(u8, acpi_gbl_all_gpes_initialized);
 ACPI_GLOBAL(struct acpi_gpe_xrupt_info *, acpi_gbl_gpe_xrupt_list_head);
 ACPI_GLOBAL(struct acpi_gpe_block_info *,
-	    acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS]);
+    acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS]);
 ACPI_GLOBAL(acpi_gbl_event_handler, acpi_gbl_global_event_handler);
 ACPI_GLOBAL(void *, acpi_gbl_global_event_handler_context);
 ACPI_GLOBAL(struct acpi_fixed_event_handler,
-	    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS]);
+    acpi_gbl_fixed_event_handlers[ACPI_NUM_FIXED_EVENTS]);
 extern struct acpi_fixed_event_info
     acpi_gbl_fixed_event_info[ACPI_NUM_FIXED_EVENTS];
-#endif				/* !ACPI_REDUCED_HARDWARE */
+#endif        /* !ACPI_REDUCED_HARDWARE */
 
 /*****************************************************************************
  *
@@ -329,9 +331,9 @@ ACPI_GLOBAL(u16, acpi_gbl_obj_type_count_misc);
 ACPI_GLOBAL(u16, acpi_gbl_node_type_count_misc);
 ACPI_GLOBAL(u32, acpi_gbl_num_nodes);
 ACPI_GLOBAL(u32, acpi_gbl_num_objects);
-#endif				/* ACPI_DEBUGGER */
+#endif        /* ACPI_DEBUGGER */
 
-#if defined (ACPI_DISASSEMBLER) || defined (ACPI_ASL_COMPILER)
+#if defined(ACPI_DISASSEMBLER) || defined(ACPI_ASL_COMPILER)
 ACPI_GLOBAL(const char, *acpi_gbl_pld_panel_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_vertical_position_list[]);
 ACPI_GLOBAL(const char, *acpi_gbl_pld_horizontal_position_list[]);
@@ -359,24 +361,24 @@ ACPI_INIT_GLOBAL(char *, acpi_gbl_current_parent_filename, NULL);
 ACPI_INIT_GLOBAL(char *, acpi_gbl_current_include_filename, NULL);
 
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_head,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_def_blk_comment_list_tail,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_head,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_reg_comment_list_tail,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_head,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_inc_comment_list_tail,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_head,
-		 NULL);
+    NULL);
 ACPI_INIT_GLOBAL(struct acpi_comment_node, *acpi_gbl_end_blk_comment_list_tail,
-		 NULL);
+    NULL);
 
 ACPI_INIT_GLOBAL(struct acpi_comment_addr_node,
-		 *acpi_gbl_comment_addr_list_head, NULL);
+    *acpi_gbl_comment_addr_list_head, NULL);
 ACPI_INIT_GLOBAL(struct acpi_file_node, *acpi_gbl_file_tree_root, NULL);
 
 ACPI_GLOBAL(acpi_cache_t *, acpi_gbl_reg_comment_cache);
@@ -395,8 +397,8 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_debug_timeout, FALSE);
 
 /* Print buffer */
 
-ACPI_GLOBAL(acpi_spinlock, acpi_gbl_print_lock);	/* For print buffer */
+ACPI_GLOBAL(acpi_spinlock, acpi_gbl_print_lock);  /* For print buffer */
 ACPI_GLOBAL(char, acpi_gbl_print_buffer[1024]);
-#endif				/* ACPI_APPLICATION */
+#endif        /* ACPI_APPLICATION */
 
-#endif				/* __ACGLOBAL_H__ */
+#endif        /* __ACGLOBAL_H__ */

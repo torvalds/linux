@@ -9,51 +9,56 @@
 
 /** Identify where counts are aggregated, -1 implies not to aggregate. */
 struct aggr_cpu_id {
-	/** A value in the range 0 to number of threads. */
-	int thread_idx;
-	/** The numa node X as read from /sys/devices/system/node/nodeX. */
-	int node;
-	/**
-	 * The socket number as read from
-	 * /sys/devices/system/cpu/cpuX/topology/physical_package_id.
-	 */
-	int socket;
-	/** The die id as read from /sys/devices/system/cpu/cpuX/topology/die_id. */
-	int die;
-	/** The cluster id as read from /sys/devices/system/cpu/cpuX/topology/cluster_id */
-	int cluster;
-	/** The cache level as read from /sys/devices/system/cpu/cpuX/cache/indexY/level */
-	int cache_lvl;
-	/**
-	 * The cache instance ID, which is the first CPU in the
-	 * /sys/devices/system/cpu/cpuX/cache/indexY/shared_cpu_list
-	 */
-	int cache;
-	/** The core id as read from /sys/devices/system/cpu/cpuX/topology/core_id. */
-	int core;
-	/** CPU aggregation, note there is one CPU for each SMT thread. */
-	struct perf_cpu cpu;
+  /** A value in the range 0 to number of threads. */
+  int thread_idx;
+  /** The numa node X as read from /sys/devices/system/node/nodeX. */
+  int node;
+  /**
+   * The socket number as read from
+   * /sys/devices/system/cpu/cpuX/topology/physical_package_id.
+   */
+  int socket;
+  /** The die id as read from /sys/devices/system/cpu/cpuX/topology/die_id. */
+  int die;
+  /** The cluster id as read from
+   * /sys/devices/system/cpu/cpuX/topology/cluster_id */
+  int cluster;
+  /** The cache level as read from
+   * /sys/devices/system/cpu/cpuX/cache/indexY/level */
+  int cache_lvl;
+  /**
+   * The cache instance ID, which is the first CPU in the
+   * /sys/devices/system/cpu/cpuX/cache/indexY/shared_cpu_list
+   */
+  int cache;
+  /** The core id as read from /sys/devices/system/cpu/cpuX/topology/core_id. */
+  int core;
+  /** CPU aggregation, note there is one CPU for each SMT thread. */
+  struct perf_cpu cpu;
 };
 
-/** A collection of aggr_cpu_id values, the "built" version is sorted and uniqued. */
+/** A collection of aggr_cpu_id values, the "built" version is sorted and
+ * uniqued. */
 struct cpu_aggr_map {
-	refcount_t refcnt;
-	/** Number of valid entries. */
-	int nr;
-	/** The entries. */
-	struct aggr_cpu_id map[];
+  refcount_t refcnt;
+  /** Number of valid entries. */
+  int nr;
+  /** The entries. */
+  struct aggr_cpu_id map[];
 };
 
-#define cpu_aggr_map__for_each_idx(idx, aggr_map)				\
-	for ((idx) = 0; (idx) < aggr_map->nr; (idx)++)
+#define cpu_aggr_map__for_each_idx(idx, aggr_map)       \
+  for ((idx) = 0; (idx) < aggr_map->nr; (idx)++)
 
 struct perf_record_cpu_map_data;
 
-bool perf_record_cpu_map_data__test_bit(int i, const struct perf_record_cpu_map_data *data);
+bool perf_record_cpu_map_data__test_bit(int i,
+    const struct perf_record_cpu_map_data *data);
 
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr);
 
-struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *data);
+struct perf_cpu_map *cpu_map__new_data(
+  const struct perf_record_cpu_map_data *data);
 size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp);
@@ -66,11 +71,11 @@ struct perf_cpu cpu__max_cpu(void);
 struct perf_cpu cpu__max_present_cpu(void);
 
 /**
- * cpu_map__is_dummy - Events associated with a pid, rather than a CPU, use a single dummy map with an entry of -1.
+ * cpu_map__is_dummy - Events associated with a pid, rather than a CPU, use a
+ * single dummy map with an entry of -1.
  */
-static inline bool cpu_map__is_dummy(const struct perf_cpu_map *cpus)
-{
-	return perf_cpu_map__nr(cpus) == 1 && perf_cpu_map__cpu(cpus, 0).cpu == -1;
+static inline bool cpu_map__is_dummy(const struct perf_cpu_map *cpus) {
+  return perf_cpu_map__nr(cpus) == 1 && perf_cpu_map__cpu(cpus, 0).cpu == -1;
 }
 
 /**
@@ -105,7 +110,8 @@ int cpu__get_core_id(struct perf_cpu cpu);
  */
 struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr);
 
-typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(struct perf_cpu cpu, void *data);
+typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(struct perf_cpu cpu,
+    void *data);
 
 /**
  * cpu_aggr_map__new - Create a cpu_aggr_map with an aggr_cpu_id for each cpu in
@@ -113,13 +119,13 @@ typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(struct perf_cpu cpu, void *data)
  * passed to it. The cpu_aggr_map is sorted with duplicate values removed.
  */
 struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
-				       aggr_cpu_id_get_t get_id,
-				       void *data, bool needs_sort);
+    aggr_cpu_id_get_t get_id,
+    void *data, bool needs_sort);
 
-bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b);
+bool aggr_cpu_id__equal(const struct aggr_cpu_id *a,
+    const struct aggr_cpu_id *b);
 bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a);
 struct aggr_cpu_id aggr_cpu_id__empty(void);
-
 
 /**
  * aggr_cpu_id__socket - Create an aggr_cpu_id with the socket populated with

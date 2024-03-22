@@ -21,11 +21,11 @@
  *
  * Some usecase examples:
  *
- *	intlog2(8) will give 3 << 24 = 3 * 2^24
+ *  intlog2(8) will give 3 << 24 = 3 * 2^24
  *
- *	intlog2(9) will give 3 << 24 + ... = 3.16... * 2^24
+ *  intlog2(9) will give 3 << 24 + ... = 3.16... * 2^24
  *
- *	intlog2(1.5) = intlog2(3) - 2^24 = 0.584... * 2^24
+ *  intlog2(1.5) = intlog2(3) - 2^24 = 0.584... * 2^24
  *
  *
  * return: log2(value) * 2^24
@@ -43,7 +43,7 @@ extern unsigned int intlog2(u32 value);
  *
  * An usecase example:
  *
- *	intlog10(1000) will give 3 << 24 = 3 * 2^24
+ *  intlog10(1000) will give 3 << 24 = 3 * 2^24
  *
  *   due to the implementation intlog10(1000) might be not exactly 3 * 2^24
  *

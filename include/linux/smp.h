@@ -3,8 +3,8 @@
 #define __LINUX_SMP_H
 
 /*
- *	Generic SMP support
- *		Alan Cox. <alan@redhat.com>
+ *  Generic SMP support
+ *    Alan Cox. <alan@redhat.com>
  */
 
 #include <linux/errno.h>
@@ -21,22 +21,22 @@ typedef bool (*smp_cond_func_t)(int cpu, void *info);
  * structure shares (partial) layout with struct irq_work
  */
 struct __call_single_data {
-	struct __call_single_node node;
-	smp_call_func_t func;
-	void *info;
+  struct __call_single_node node;
+  smp_call_func_t func;
+  void *info;
 };
 
 #define CSD_INIT(_func, _info) \
-	(struct __call_single_data){ .func = (_func), .info = (_info), }
+  (struct __call_single_data){ .func = (_func), .info = (_info), }
 
 /* Use __aligned() to avoid to use 2 cache lines for 1 csd */
 typedef struct __call_single_data call_single_data_t
-	__aligned(sizeof(struct __call_single_data));
+    __aligned(sizeof(struct __call_single_data));
 
-#define INIT_CSD(_csd, _func, _info)		\
-do {						\
-	*(_csd) = CSD_INIT((_func), (_info));	\
-} while (0)
+#define INIT_CSD(_csd, _func, _info)    \
+  do {            \
+    *(_csd) = CSD_INIT((_func), (_info)); \
+  } while (0)
 
 /*
  * Enqueue a llist_node on the call_single_queue; be very careful, read
@@ -48,10 +48,10 @@ extern void __smp_call_single_queue(int cpu, struct llist_node *node);
 extern unsigned int total_cpus;
 
 int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
-			     int wait);
+    int wait);
 
 void on_each_cpu_cond_mask(smp_cond_func_t cond_func, smp_call_func_t func,
-			   void *info, bool wait, const struct cpumask *mask);
+    void *info, bool wait, const struct cpumask *mask);
 
 int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 
@@ -66,9 +66,8 @@ void crash_smp_send_stop(void);
 /*
  * Call a function on all processors
  */
-static inline void on_each_cpu(smp_call_func_t func, void *info, int wait)
-{
-	on_each_cpu_cond_mask(NULL, func, info, wait, cpu_online_mask);
+static inline void on_each_cpu(smp_call_func_t func, void *info, int wait) {
+  on_each_cpu_cond_mask(NULL, func, info, wait, cpu_online_mask);
 }
 
 /**
@@ -88,9 +87,8 @@ static inline void on_each_cpu(smp_call_func_t func, void *info, int wait)
  * early_boot_irqs_disabled is set.
  */
 static inline void on_each_cpu_mask(const struct cpumask *mask,
-				    smp_call_func_t func, void *info, bool wait)
-{
-	on_each_cpu_cond_mask(NULL, func, info, wait, mask);
+    smp_call_func_t func, void *info, bool wait) {
+  on_each_cpu_cond_mask(NULL, func, info, wait, mask);
 }
 
 /*
@@ -100,9 +98,8 @@ static inline void on_each_cpu_mask(const struct cpumask *mask,
  * set. Use local_irq_save/restore() instead of local_irq_disable/enable().
  */
 static inline void on_each_cpu_cond(smp_cond_func_t cond_func,
-				    smp_call_func_t func, void *info, bool wait)
-{
-	on_each_cpu_cond_mask(cond_func, func, info, wait, cpu_online_mask);
+    smp_call_func_t func, void *info, bool wait) {
+  on_each_cpu_cond_mask(cond_func, func, info, wait, cpu_online_mask);
 }
 
 /*
@@ -136,10 +133,10 @@ extern void arch_smp_send_reschedule(int cpu);
  * scheduler_ipi() is inline so can't be passed as callback reason, but the
  * callsite IP should be sufficient for root-causing IPIs sent from here.
  */
-#define smp_send_reschedule(cpu) ({		  \
-	trace_ipi_send_cpu(cpu, _RET_IP_, NULL);  \
-	arch_smp_send_reschedule(cpu);		  \
-})
+#define smp_send_reschedule(cpu) ({     \
+    trace_ipi_send_cpu(cpu, _RET_IP_, NULL);  \
+    arch_smp_send_reschedule(cpu);      \
+  })
 
 /*
  * Prepare machine for booting other CPUs.
@@ -161,10 +158,10 @@ extern void smp_cpus_done(unsigned int max_cpus);
  */
 void smp_call_function(smp_call_func_t func, void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
-			    smp_call_func_t func, void *info, bool wait);
+    smp_call_func_t func, void *info, bool wait);
 
 int smp_call_function_any(const struct cpumask *mask,
-			  smp_call_func_t func, void *info, int wait);
+    smp_call_func_t func, void *info, int wait);
 
 void kick_all_cpus_sync(void);
 void wake_up_all_idle_cpus(void);
@@ -175,7 +172,7 @@ void wake_up_all_idle_cpus(void);
 void __init call_function_init(void);
 void generic_smp_call_function_single_interrupt(void);
 #define generic_smp_call_function_interrupt \
-	generic_smp_call_function_single_interrupt
+  generic_smp_call_function_single_interrupt
 
 extern unsigned int setup_max_cpus;
 extern void __init setup_nr_cpu_ids(void);
@@ -183,52 +180,61 @@ extern void __init smp_init(void);
 
 extern int __boot_cpu_id;
 
-static inline int get_boot_cpu_id(void)
-{
-	return __boot_cpu_id;
+static inline int get_boot_cpu_id(void) {
+  return __boot_cpu_id;
 }
 
 #else /* !SMP */
 
-static inline void smp_send_stop(void) { }
+static inline void smp_send_stop(void) {
+}
 
 /*
- *	These macros fold the SMP functionality into a single CPU system
+ *  These macros fold the SMP functionality into a single CPU system
  */
-#define raw_smp_processor_id()			0
-static inline void up_smp_call_function(smp_call_func_t func, void *info)
-{
+#define raw_smp_processor_id()      0
+static inline void up_smp_call_function(smp_call_func_t func, void *info) {
 }
+
 #define smp_call_function(func, info, wait) \
-			(up_smp_call_function(func, info))
+  (up_smp_call_function(func, info))
 
-static inline void smp_send_reschedule(int cpu) { }
-#define smp_call_function_many(mask, func, info, wait) \
-			(up_smp_call_function(func, info))
-static inline void call_function_init(void) { }
-
-static inline int
-smp_call_function_any(const struct cpumask *mask, smp_call_func_t func,
-		      void *info, int wait)
-{
-	return smp_call_function_single(0, func, info, wait);
+static inline void smp_send_reschedule(int cpu) {
 }
 
-static inline void kick_all_cpus_sync(void) {  }
-static inline void wake_up_all_idle_cpus(void) {  }
+#define smp_call_function_many(mask, func, info, wait) \
+  (up_smp_call_function(func, info))
+static inline void call_function_init(void) {
+}
+
+static inline int smp_call_function_any(const struct cpumask *mask,
+    smp_call_func_t func,
+    void *info, int wait) {
+  return smp_call_function_single(0, func, info, wait);
+}
+
+static inline void kick_all_cpus_sync(void) {
+}
+
+static inline void wake_up_all_idle_cpus(void) {
+}
 
 #define setup_max_cpus 0
 
 #ifdef CONFIG_UP_LATE_INIT
 extern void __init up_late_init(void);
-static inline void smp_init(void) { up_late_init(); }
+static inline void smp_init(void) {
+  up_late_init();
+}
+
 #else
-static inline void smp_init(void) { }
+static inline void smp_init(void) {
+}
+
 #endif
 
-static inline int get_boot_cpu_id(void)
-{
-	return 0;
+static inline int get_boot_cpu_id(void) {
+  return 0;
 }
 
 #endif /* !SMP */
@@ -266,14 +272,14 @@ static inline int get_boot_cpu_id(void)
 #endif
 
 #ifdef CONFIG_DEBUG_PREEMPT
-  extern unsigned int debug_smp_processor_id(void);
-# define smp_processor_id() debug_smp_processor_id()
+extern unsigned int debug_smp_processor_id(void);
+#define smp_processor_id() debug_smp_processor_id()
 #else
-# define smp_processor_id() __smp_processor_id()
+#define smp_processor_id() __smp_processor_id()
 #endif
 
-#define get_cpu()		({ preempt_disable(); __smp_processor_id(); })
-#define put_cpu()		preempt_enable()
+#define get_cpu()   ({ preempt_disable(); __smp_processor_id(); })
+#define put_cpu()   preempt_enable()
 
 /*
  * Callback to arch code if there's nosmp or maxcpus=0 on the
@@ -287,7 +293,7 @@ extern void arch_thaw_secondary_cpus_end(void);
 void smp_setup_processor_id(void);
 
 int smp_call_on_cpu(unsigned int cpu, int (*func)(void *), void *par,
-		    bool phys);
+    bool phys);
 
 /* SMP core functions */
 int smpcfd_prepare_cpu(unsigned int cpu);

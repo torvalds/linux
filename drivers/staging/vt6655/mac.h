@@ -12,7 +12,8 @@
  * Revision History:
  *      07-01-2003 Bryan YC Fan:  Re-write codes to support VT3253 spec.
  *      08-25-2003 Kyle Hsu:      Porting MAC functions from sim53.
- *      09-03-2003 Bryan YC Fan:  Add vt6655_mac_dis_protect_md & vt6655_mac_en_protect_md
+ *      09-03-2003 Bryan YC Fan:  Add vt6655_mac_dis_protect_md &
+ * vt6655_mac_en_protect_md
  */
 
 #ifndef __MAC_H__
@@ -20,8 +21,8 @@
 
 #include "device.h"
 
-/*---------------------  Export Definitions -------------------------*/
-/* Registers in the MAC */
+/* ---------------------  Export Definitions -------------------------
+ * Registers in the MAC*/
 #define MAC_MAX_CONTEXT_SIZE_PAGE0  256
 #define MAC_MAX_CONTEXT_SIZE_PAGE1  128
 
@@ -506,20 +507,20 @@
 #define MISCFIFO_SYNDATASIZE    21
 
 /* enabled mask value of irq */
-#define IMR_MASK_VALUE     (IMR_SOFTTIMER1 |	\
-			    IMR_RXDMA1 |	\
-			    IMR_RXNOBUF |	\
-			    IMR_MIBNEARFULL |	\
-			    IMR_SOFTINT |	\
-			    IMR_FETALERR |	\
-			    IMR_WATCHDOG |	\
-			    IMR_SOFTTIMER |	\
-			    IMR_GPIO |		\
-			    IMR_TBTT |		\
-			    IMR_RXDMA0 |	\
-			    IMR_BNTX |		\
-			    IMR_AC0DMA |	\
-			    IMR_TXDMA0)
+#define IMR_MASK_VALUE     (IMR_SOFTTIMER1    \
+  | IMR_RXDMA1    \
+  | IMR_RXNOBUF   \
+  | IMR_MIBNEARFULL   \
+  | IMR_SOFTINT   \
+  | IMR_FETALERR    \
+  | IMR_WATCHDOG    \
+  | IMR_SOFTTIMER   \
+  | IMR_GPIO      \
+  | IMR_TBTT      \
+  | IMR_RXDMA0    \
+  | IMR_BNTX      \
+  | IMR_AC0DMA    \
+  | IMR_TXDMA0)
 
 /* max time out delay time */
 #define W_MAX_TIMEOUT       0xFFF0U
@@ -542,39 +543,50 @@
 #define VT6655_MAC_SELECT_PAGE1(iobase) iowrite8(1, iobase + MAC_REG_PAGE1SEL)
 
 #define MAKEWORD(lb, hb) \
-	((unsigned short)(((unsigned char)(lb)) | (((unsigned short)((unsigned char)(hb))) << 8)))
+  ((unsigned short) (((unsigned char) (lb)) \
+  | (((unsigned short) ((unsigned char) (hb))) << 8)))
 
-void vt6655_mac_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask);
-void vt6655_mac_word_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask);
-void vt6655_mac_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask);
-void vt6655_mac_word_reg_bits_off(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask);
+void vt6655_mac_reg_bits_on(void __iomem *iobase, const u8 reg_offset,
+    const u8 bit_mask);
+void vt6655_mac_word_reg_bits_on(void __iomem *iobase, const u8 reg_offset,
+    const u16 bit_mask);
+void vt6655_mac_reg_bits_off(void __iomem *iobase, const u8 reg_offset,
+    const u8 bit_mask);
+void vt6655_mac_word_reg_bits_off(void __iomem *iobase, const u8 reg_offset,
+    const u16 bit_mask);
 
-void vt6655_mac_set_short_retry_limit(struct vnt_private *priv, unsigned char retry_limit);
+void vt6655_mac_set_short_retry_limit(struct vnt_private *priv,
+    unsigned char retry_limit);
 
-void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
+void MACvSetLongRetryLimit(struct vnt_private *priv,
+    unsigned char byRetryLimit);
 
 bool MACbSoftwareReset(struct vnt_private *priv);
 bool MACbShutdown(struct vnt_private *priv);
 void MACvInitialize(struct vnt_private *priv);
-void vt6655_mac_set_curr_rx_0_desc_addr(struct vnt_private *priv, u32 curr_desc_addr);
-void vt6655_mac_set_curr_rx_1_desc_addr(struct vnt_private *priv, u32 curr_desc_addr);
-void vt6655_mac_set_curr_tx_desc_addr(int tx_type, struct vnt_private *priv, u32 curr_desc_addr);
+void vt6655_mac_set_curr_rx_0_desc_addr(struct vnt_private *priv,
+    u32 curr_desc_addr);
+void vt6655_mac_set_curr_rx_1_desc_addr(struct vnt_private *priv,
+    u32 curr_desc_addr);
+void vt6655_mac_set_curr_tx_desc_addr(int tx_type, struct vnt_private *priv,
+    u32 curr_desc_addr);
 void MACvSetCurrSyncDescAddrEx(struct vnt_private *priv,
-			       u32 curr_desc_addr);
+    u32 curr_desc_addr);
 void MACvSetCurrATIMDescAddrEx(struct vnt_private *priv,
-			       u32 curr_desc_addr);
+    u32 curr_desc_addr);
 void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay);
-void MACvOneShotTimer1MicroSec(struct vnt_private *priv, unsigned int uDelayTime);
+void MACvOneShotTimer1MicroSec(struct vnt_private *priv,
+    unsigned int uDelayTime);
 
 void MACvSetMISCFifo(struct vnt_private *priv, unsigned short wOffset,
-		     u32 dwData);
+    u32 dwData);
 
 bool MACbPSWakeup(struct vnt_private *priv);
 
 void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
-		     unsigned int uEntryIdx, unsigned int uKeyIdx,
-		     unsigned char *pbyAddr, u32 *pdwKey,
-		     unsigned char local_id);
+    unsigned int uEntryIdx, unsigned int uKeyIdx,
+    unsigned char *pbyAddr, u32 *pdwKey,
+    unsigned char local_id);
 void MACvDisableKeyEntry(struct vnt_private *priv, unsigned int uEntryIdx);
 
 #endif /* __MAC_H__ */

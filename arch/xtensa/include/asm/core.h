@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2019 Cadence Design Systems Inc. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2019 Cadence Design Systems Inc.*/
 
 #ifndef _ASM_XTENSA_CORE_H
 #define _ASM_XTENSA_CORE_H
@@ -51,15 +51,15 @@
 
 /* Xtensa ABI requires stack alignment to be at least 16 */
 #if XCHAL_DATA_WIDTH > 16
-#define XTENSA_STACK_ALIGNMENT	XCHAL_DATA_WIDTH
+#define XTENSA_STACK_ALIGNMENT  XCHAL_DATA_WIDTH
 #else
-#define XTENSA_STACK_ALIGNMENT	16
+#define XTENSA_STACK_ALIGNMENT  16
 #endif
 
 #ifndef XCHAL_HW_MIN_VERSION
 #if defined(XCHAL_HW_MIN_VERSION_MAJOR) && defined(XCHAL_HW_MIN_VERSION_MINOR)
-#define XCHAL_HW_MIN_VERSION (XCHAL_HW_MIN_VERSION_MAJOR * 100 + \
-			      XCHAL_HW_MIN_VERSION_MINOR)
+#define XCHAL_HW_MIN_VERSION (XCHAL_HW_MIN_VERSION_MAJOR * 100   \
+  + XCHAL_HW_MIN_VERSION_MINOR)
 #else
 #define XCHAL_HW_MIN_VERSION 0
 #endif

@@ -15,19 +15,18 @@
 
 #include <bpf/bpf_helpers.h>
 
-
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, u32); /* class; u32 required */
-	__type(value, u64); /* count of mads read */
-	__uint(max_entries, 256); /* Room for all Classes */
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __type(key, u32); /* class; u32 required */
+  __type(value, u64); /* count of mads read */
+  __uint(max_entries, 256); /* Room for all Classes */
 } read_count SEC(".maps");
 
 struct {
-	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__type(key, u32); /* class; u32 required */
-	__type(value, u64); /* count of mads written */
-	__uint(max_entries, 256); /* Room for all Classes */
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __type(key, u32); /* class; u32 required */
+  __type(value, u64); /* count of mads written */
+  __uint(max_entries, 256); /* Room for all Classes */
 } write_count SEC(".maps");
 
 #undef DEBUG
@@ -43,96 +42,86 @@ struct {
  * /sys/kernel/tracing/events/ib_umad/ib_umad_write/format
  */
 struct ib_umad_rw_args {
-	u64 pad;
-	u8 port_num;
-	u8 sl;
-	u8 path_bits;
-	u8 grh_present;
-	u32 id;
-	u32 status;
-	u32 timeout_ms;
-	u32 retires;
-	u32 length;
-	u32 qpn;
-	u32 qkey;
-	u8 gid_index;
-	u8 hop_limit;
-	u16 lid;
-	u16 attr_id;
-	u16 pkey_index;
-	u8 base_version;
-	u8 mgmt_class;
-	u8 class_version;
-	u8 method;
-	u32 flow_label;
-	u16 mad_status;
-	u16 class_specific;
-	u32 attr_mod;
-	u64 tid;
-	u8 gid[16];
-	u32 dev_index;
-	u8 traffic_class;
+  u64 pad;
+  u8 port_num;
+  u8 sl;
+  u8 path_bits;
+  u8 grh_present;
+  u32 id;
+  u32 status;
+  u32 timeout_ms;
+  u32 retires;
+  u32 length;
+  u32 qpn;
+  u32 qkey;
+  u8 gid_index;
+  u8 hop_limit;
+  u16 lid;
+  u16 attr_id;
+  u16 pkey_index;
+  u8 base_version;
+  u8 mgmt_class;
+  u8 class_version;
+  u8 method;
+  u32 flow_label;
+  u16 mad_status;
+  u16 class_specific;
+  u32 attr_mod;
+  u64 tid;
+  u8 gid[16];
+  u32 dev_index;
+  u8 traffic_class;
 };
 
 SEC("tracepoint/ib_umad/ib_umad_read_recv")
-int on_ib_umad_read_recv(struct ib_umad_rw_args *ctx)
-{
-	u64 zero = 0, *val;
-	u8 class = ctx->mgmt_class;
-
-	bpf_printk("ib_umad read recv : class 0x%x\n", class);
-
-	val = bpf_map_lookup_elem(&read_count, &class);
-	if (!val) {
-		bpf_map_update_elem(&read_count, &class, &zero, BPF_NOEXIST);
-		val = bpf_map_lookup_elem(&read_count, &class);
-		if (!val)
-			return 0;
-	}
-
-	(*val) += 1;
-
-	return 0;
+int on_ib_umad_read_recv(struct ib_umad_rw_args *ctx) {
+  u64 zero = 0, *val;
+  u8 class = ctx->mgmt_class;
+  bpf_printk("ib_umad read recv : class 0x%x\n", class);
+  val = bpf_map_lookup_elem(&read_count, &class);
+  if (!val) {
+    bpf_map_update_elem(&read_count, &class, &zero, BPF_NOEXIST);
+    val = bpf_map_lookup_elem(&read_count, &class);
+    if (!val) {
+      return 0;
+    }
+  }
+  (*val) += 1;
+  return 0;
 }
+
 SEC("tracepoint/ib_umad/ib_umad_read_send")
-int on_ib_umad_read_send(struct ib_umad_rw_args *ctx)
-{
-	u64 zero = 0, *val;
-	u8 class = ctx->mgmt_class;
-
-	bpf_printk("ib_umad read send : class 0x%x\n", class);
-
-	val = bpf_map_lookup_elem(&read_count, &class);
-	if (!val) {
-		bpf_map_update_elem(&read_count, &class, &zero, BPF_NOEXIST);
-		val = bpf_map_lookup_elem(&read_count, &class);
-		if (!val)
-			return 0;
-	}
-
-	(*val) += 1;
-
-	return 0;
+int on_ib_umad_read_send(struct ib_umad_rw_args *ctx) {
+  u64 zero = 0, *val;
+  u8 class = ctx->mgmt_class;
+  bpf_printk("ib_umad read send : class 0x%x\n", class);
+  val = bpf_map_lookup_elem(&read_count, &class);
+  if (!val) {
+    bpf_map_update_elem(&read_count, &class, &zero, BPF_NOEXIST);
+    val = bpf_map_lookup_elem(&read_count, &class);
+    if (!val) {
+      return 0;
+    }
+  }
+  (*val) += 1;
+  return 0;
 }
+
 SEC("tracepoint/ib_umad/ib_umad_write")
-int on_ib_umad_write(struct ib_umad_rw_args *ctx)
-{
-	u64 zero = 0, *val;
-	u8 class = ctx->mgmt_class;
-
-	bpf_printk("ib_umad write : class 0x%x\n", class);
-
-	val = bpf_map_lookup_elem(&write_count, &class);
-	if (!val) {
-		bpf_map_update_elem(&write_count, &class, &zero, BPF_NOEXIST);
-		val = bpf_map_lookup_elem(&write_count, &class);
-		if (!val)
-			return 0;
-	}
-
-	(*val) += 1;
-
-	return 0;
+int on_ib_umad_write(struct ib_umad_rw_args *ctx) {
+  u64 zero = 0, *val;
+  u8 class = ctx->mgmt_class;
+  bpf_printk("ib_umad write : class 0x%x\n", class);
+  val = bpf_map_lookup_elem(&write_count, &class);
+  if (!val) {
+    bpf_map_update_elem(&write_count, &class, &zero, BPF_NOEXIST);
+    val = bpf_map_lookup_elem(&write_count, &class);
+    if (!val) {
+      return 0;
+    }
+  }
+  (*val) += 1;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

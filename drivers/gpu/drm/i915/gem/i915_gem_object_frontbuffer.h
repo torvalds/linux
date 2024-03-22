@@ -13,24 +13,24 @@
 #include "i915_gem_object_types.h"
 
 void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
-					 enum fb_op_origin origin);
+    enum fb_op_origin origin);
 void __i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
-					      enum fb_op_origin origin);
+    enum fb_op_origin origin);
 
-static inline void
-i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
-				  enum fb_op_origin origin)
-{
-	if (unlikely(rcu_access_pointer(obj->frontbuffer)))
-		__i915_gem_object_flush_frontbuffer(obj, origin);
+static inline void i915_gem_object_flush_frontbuffer(
+    struct drm_i915_gem_object *obj,
+    enum fb_op_origin origin) {
+  if (unlikely(rcu_access_pointer(obj->frontbuffer))) {
+    __i915_gem_object_flush_frontbuffer(obj, origin);
+  }
 }
 
-static inline void
-i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
-				       enum fb_op_origin origin)
-{
-	if (unlikely(rcu_access_pointer(obj->frontbuffer)))
-		__i915_gem_object_invalidate_frontbuffer(obj, origin);
+static inline void i915_gem_object_invalidate_frontbuffer(
+    struct drm_i915_gem_object *obj,
+    enum fb_op_origin origin) {
+  if (unlikely(rcu_access_pointer(obj->frontbuffer))) {
+    __i915_gem_object_invalidate_frontbuffer(obj, origin);
+  }
 }
 
 /**
@@ -42,31 +42,28 @@ i915_gem_object_invalidate_frontbuffer(struct drm_i915_gem_object *obj,
  *
  * Return: pointer to object's frontbuffer is such exists or NULL
  */
-static inline struct intel_frontbuffer *
-i915_gem_object_get_frontbuffer(const struct drm_i915_gem_object *obj)
-{
-	struct intel_frontbuffer *front;
-
-	if (likely(!rcu_access_pointer(obj->frontbuffer)))
-		return NULL;
-
-	rcu_read_lock();
-	do {
-		front = rcu_dereference(obj->frontbuffer);
-		if (!front)
-			break;
-
-		if (unlikely(!kref_get_unless_zero(&front->ref)))
-			continue;
-
-		if (likely(front == rcu_access_pointer(obj->frontbuffer)))
-			break;
-
-		intel_frontbuffer_put(front);
-	} while (1);
-	rcu_read_unlock();
-
-	return front;
+static inline struct intel_frontbuffer *i915_gem_object_get_frontbuffer(
+    const struct drm_i915_gem_object *obj) {
+  struct intel_frontbuffer *front;
+  if (likely(!rcu_access_pointer(obj->frontbuffer))) {
+    return NULL;
+  }
+  rcu_read_lock();
+  do {
+    front = rcu_dereference(obj->frontbuffer);
+    if (!front) {
+      break;
+    }
+    if (unlikely(!kref_get_unless_zero(&front->ref))) {
+      continue;
+    }
+    if (likely(front == rcu_access_pointer(obj->frontbuffer))) {
+      break;
+    }
+    intel_frontbuffer_put(front);
+  } while (1);
+  rcu_read_unlock();
+  return front;
 }
 
 /**
@@ -81,24 +78,21 @@ i915_gem_object_get_frontbuffer(const struct drm_i915_gem_object *obj)
  *
  * Return: pointer to frontbuffer which was set.
  */
-static inline struct intel_frontbuffer *
-i915_gem_object_set_frontbuffer(struct drm_i915_gem_object *obj,
-				struct intel_frontbuffer *front)
-{
-	struct intel_frontbuffer *cur = front;
-
-	if (!front) {
-		RCU_INIT_POINTER(obj->frontbuffer, NULL);
-		drm_gem_object_put(intel_bo_to_drm_bo(obj));
-	} else if (rcu_access_pointer(obj->frontbuffer)) {
-		cur = rcu_dereference_protected(obj->frontbuffer, true);
-		kref_get(&cur->ref);
-	} else {
-		drm_gem_object_get(intel_bo_to_drm_bo(obj));
-		rcu_assign_pointer(obj->frontbuffer, front);
-	}
-
-	return cur;
+static inline struct intel_frontbuffer *i915_gem_object_set_frontbuffer(
+    struct drm_i915_gem_object *obj,
+    struct intel_frontbuffer *front) {
+  struct intel_frontbuffer *cur = front;
+  if (!front) {
+    RCU_INIT_POINTER(obj->frontbuffer, NULL);
+    drm_gem_object_put(intel_bo_to_drm_bo(obj));
+  } else if (rcu_access_pointer(obj->frontbuffer)) {
+    cur = rcu_dereference_protected(obj->frontbuffer, true);
+    kref_get(&cur->ref);
+  } else {
+    drm_gem_object_get(intel_bo_to_drm_bo(obj));
+    rcu_assign_pointer(obj->frontbuffer, front);
+  }
+  return cur;
 }
 
 #endif

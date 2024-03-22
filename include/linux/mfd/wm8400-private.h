@@ -16,10 +16,10 @@
 #define WM8400_REGISTER_COUNT 0x55
 
 struct wm8400 {
-	struct device *dev;
-	struct regmap *regmap;
+  struct device *dev;
+  struct regmap *regmap;
 
-	struct platform_device regulators[6];
+  struct platform_device regulators[6];
 };
 
 /*
@@ -110,9 +110,12 @@ struct wm8400 {
 /*
  * R0 (0x00) - Reset/ID
  */
-#define WM8400_SW_RESET_CHIP_ID_MASK            0xFFFF  /* SW_RESET/CHIP_ID - [15:0] */
-#define WM8400_SW_RESET_CHIP_ID_SHIFT                0  /* SW_RESET/CHIP_ID - [15:0] */
-#define WM8400_SW_RESET_CHIP_ID_WIDTH               16  /* SW_RESET/CHIP_ID - [15:0] */
+#define WM8400_SW_RESET_CHIP_ID_MASK            0xFFFF  /* SW_RESET/CHIP_ID -
+                                                         * [15:0] */
+#define WM8400_SW_RESET_CHIP_ID_SHIFT                0  /* SW_RESET/CHIP_ID -
+                                                         * [15:0] */
+#define WM8400_SW_RESET_CHIP_ID_WIDTH               16  /* SW_RESET/CHIP_ID -
+                                                         * [15:0] */
 
 /*
  * R1 (0x01) - ID
@@ -144,9 +147,12 @@ struct wm8400 {
 #define WM8400_FLL_LCK_MASK                     0x0100  /* FLL_LCK */
 #define WM8400_FLL_LCK_SHIFT                         8  /* FLL_LCK */
 #define WM8400_FLL_LCK_WIDTH                         1  /* FLL_LCK */
-#define WM8400_GPIO_STATUS_MASK                 0x00FF  /* GPIO_STATUS - [7:0] */
-#define WM8400_GPIO_STATUS_SHIFT                     0  /* GPIO_STATUS - [7:0] */
-#define WM8400_GPIO_STATUS_WIDTH                     8  /* GPIO_STATUS - [7:0] */
+#define WM8400_GPIO_STATUS_MASK                 0x00FF  /* GPIO_STATUS - [7:0]
+                                                         * */
+#define WM8400_GPIO_STATUS_SHIFT                     0  /* GPIO_STATUS - [7:0]
+                                                         * */
+#define WM8400_GPIO_STATUS_WIDTH                     8  /* GPIO_STATUS - [7:0]
+                                                         * */
 
 /*
  * R19 (0x13) - GPIO1 & GPIO2
@@ -510,9 +516,12 @@ struct wm8400 {
 #define WM8400_DC1_FRC_PWM_MASK                 0x2000  /* DC1_FRC_PWM */
 #define WM8400_DC1_FRC_PWM_SHIFT                    13  /* DC1_FRC_PWM */
 #define WM8400_DC1_FRC_PWM_WIDTH                     1  /* DC1_FRC_PWM */
-#define WM8400_DC1_STBY_LIM_MASK                0x0300  /* DC1_STBY_LIM - [9:8] */
-#define WM8400_DC1_STBY_LIM_SHIFT                    8  /* DC1_STBY_LIM - [9:8] */
-#define WM8400_DC1_STBY_LIM_WIDTH                    2  /* DC1_STBY_LIM - [9:8] */
+#define WM8400_DC1_STBY_LIM_MASK                0x0300  /* DC1_STBY_LIM - [9:8]
+                                                         * */
+#define WM8400_DC1_STBY_LIM_SHIFT                    8  /* DC1_STBY_LIM - [9:8]
+                                                         * */
+#define WM8400_DC1_STBY_LIM_WIDTH                    2  /* DC1_STBY_LIM - [9:8]
+                                                         * */
 #define WM8400_DC1_ACT_LIM                      0x0080  /* DC1_ACT_LIM */
 #define WM8400_DC1_ACT_LIM_MASK                 0x0080  /* DC1_ACT_LIM */
 #define WM8400_DC1_ACT_LIM_SHIFT                     7  /* DC1_ACT_LIM */
@@ -566,9 +575,12 @@ struct wm8400 {
 #define WM8400_DC2_FRC_PWM_MASK                 0x2000  /* DC2_FRC_PWM */
 #define WM8400_DC2_FRC_PWM_SHIFT                    13  /* DC2_FRC_PWM */
 #define WM8400_DC2_FRC_PWM_WIDTH                     1  /* DC2_FRC_PWM */
-#define WM8400_DC2_STBY_LIM_MASK                0x0300  /* DC2_STBY_LIM - [9:8] */
-#define WM8400_DC2_STBY_LIM_SHIFT                    8  /* DC2_STBY_LIM - [9:8] */
-#define WM8400_DC2_STBY_LIM_WIDTH                    2  /* DC2_STBY_LIM - [9:8] */
+#define WM8400_DC2_STBY_LIM_MASK                0x0300  /* DC2_STBY_LIM - [9:8]
+                                                         * */
+#define WM8400_DC2_STBY_LIM_SHIFT                    8  /* DC2_STBY_LIM - [9:8]
+                                                         * */
+#define WM8400_DC2_STBY_LIM_WIDTH                    2  /* DC2_STBY_LIM - [9:8]
+                                                         * */
 #define WM8400_DC2_ACT_LIM                      0x0080  /* DC2_ACT_LIM */
 #define WM8400_DC2_ACT_LIM_MASK                 0x0080  /* DC2_ACT_LIM */
 #define WM8400_DC2_ACT_LIM_SHIFT                     7  /* DC2_ACT_LIM */
@@ -727,10 +739,14 @@ struct wm8400 {
 #define WM8400_IM_JDR_CINT_MASK                 0x1000  /* IM_JDR_CINT */
 #define WM8400_IM_JDR_CINT_SHIFT                    12  /* IM_JDR_CINT */
 #define WM8400_IM_JDR_CINT_WIDTH                     1  /* IM_JDR_CINT */
-#define WM8400_IM_CODEC_SEQ_END_EINT            0x0800  /* IM_CODEC_SEQ_END_EINT */
-#define WM8400_IM_CODEC_SEQ_END_EINT_MASK       0x0800  /* IM_CODEC_SEQ_END_EINT */
-#define WM8400_IM_CODEC_SEQ_END_EINT_SHIFT          11  /* IM_CODEC_SEQ_END_EINT */
-#define WM8400_IM_CODEC_SEQ_END_EINT_WIDTH           1  /* IM_CODEC_SEQ_END_EINT */
+#define WM8400_IM_CODEC_SEQ_END_EINT            0x0800  /* IM_CODEC_SEQ_END_EINT
+                                                         * */
+#define WM8400_IM_CODEC_SEQ_END_EINT_MASK       0x0800  /* IM_CODEC_SEQ_END_EINT
+                                                         * */
+#define WM8400_IM_CODEC_SEQ_END_EINT_SHIFT          11  /* IM_CODEC_SEQ_END_EINT
+                                                         * */
+#define WM8400_IM_CODEC_SEQ_END_EINT_WIDTH           1  /* IM_CODEC_SEQ_END_EINT
+                                                         * */
 #define WM8400_IM_CDEL_TO_EINT                  0x0400  /* IM_CDEL_TO_EINT */
 #define WM8400_IM_CDEL_TO_EINT_MASK             0x0400  /* IM_CDEL_TO_EINT */
 #define WM8400_IM_CDEL_TO_EINT_SHIFT                10  /* IM_CDEL_TO_EINT */
@@ -903,11 +919,17 @@ struct wm8400 {
 #define WM8400_BG_LINE_COMP_MASK                0x8000  /* BG_LINE_COMP */
 #define WM8400_BG_LINE_COMP_SHIFT                   15  /* BG_LINE_COMP */
 #define WM8400_BG_LINE_COMP_WIDTH                    1  /* BG_LINE_COMP */
-#define WM8400_LINE_CMP_VTHI_MASK               0x00F0  /* LINE_CMP_VTHI - [7:4] */
-#define WM8400_LINE_CMP_VTHI_SHIFT                   4  /* LINE_CMP_VTHI - [7:4] */
-#define WM8400_LINE_CMP_VTHI_WIDTH                   4  /* LINE_CMP_VTHI - [7:4] */
-#define WM8400_LINE_CMP_VTHD_MASK               0x000F  /* LINE_CMP_VTHD - [3:0] */
-#define WM8400_LINE_CMP_VTHD_SHIFT                   0  /* LINE_CMP_VTHD - [3:0] */
-#define WM8400_LINE_CMP_VTHD_WIDTH                   4  /* LINE_CMP_VTHD - [3:0] */
+#define WM8400_LINE_CMP_VTHI_MASK               0x00F0  /* LINE_CMP_VTHI - [7:4]
+                                                         * */
+#define WM8400_LINE_CMP_VTHI_SHIFT                   4  /* LINE_CMP_VTHI - [7:4]
+                                                         * */
+#define WM8400_LINE_CMP_VTHI_WIDTH                   4  /* LINE_CMP_VTHI - [7:4]
+                                                         * */
+#define WM8400_LINE_CMP_VTHD_MASK               0x000F  /* LINE_CMP_VTHD - [3:0]
+                                                         * */
+#define WM8400_LINE_CMP_VTHD_SHIFT                   0  /* LINE_CMP_VTHD - [3:0]
+                                                         * */
+#define WM8400_LINE_CMP_VTHD_WIDTH                   4  /* LINE_CMP_VTHD - [3:0]
+                                                         * */
 
 #endif

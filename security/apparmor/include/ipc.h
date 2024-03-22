@@ -14,7 +14,7 @@
 #include <linux/sched.h>
 
 int aa_may_signal(const struct cred *subj_cred, struct aa_label *sender,
-		  const struct cred *target_cred, struct aa_label *target,
-		  int sig);
+    const struct cred *target_cred, struct aa_label *target,
+    int sig);
 
 #endif /* __AA_IPC_H */

@@ -17,21 +17,21 @@
  * form various common Sparc instructions.  Thus these macros...
  */
 
-#define SPARC_MOV_CONST_L3(const) (0xa6102000 | (const&0xfff))
+#define SPARC_MOV_CONST_L3(const) (0xa6102000 | (const & 0xfff))
 
 /* The following assumes that the branch lies before the place we
  * are branching to.  This is the case for a trap vector...
  * You have been warned.
  */
 #define SPARC_BRANCH(dest_addr, inst_addr) \
-          (0x10800000 | (((dest_addr-inst_addr)>>2)&0x3fffff))
+  (0x10800000 | (((dest_addr - inst_addr) >> 2) & 0x3fffff))
 
 #define SPARC_RD_PSR_L0  (0xa1480000)
 #define SPARC_RD_WIM_L3  (0xa7500000)
 #define SPARC_NOP (0x01000000)
 
-/* Various interesting trap levels. */
-/* First, hardware traps. */
+/* Various interesting trap levels.
+ * First, hardware traps.*/
 #define SP_TRAP_TFLT    0x1          /* Text fault */
 #define SP_TRAP_II      0x2          /* Illegal Instruction */
 #define SP_TRAP_PI      0x3          /* Privileged Instruction */
@@ -96,15 +96,15 @@
 #define SP_TRAP_KBPT1   0xfe         /* KADB/PROM Breakpoint one */
 #define SP_TRAP_KBPT2   0xff         /* KADB/PROM Breakpoint two */
 
-/* Handy Macros */
-/* Is this a trap we never expect to get? */
+/* Handy Macros
+ * Is this a trap we never expect to get?*/
 #define BAD_TRAP_P(level) \
-        ((level > SP_TRAP_WDOG && level < SP_TRAP_IRQ1) || \
-	 (level > SP_TRAP_IACC && level < SP_TRAP_CPDIS) || \
-	 (level > SP_TRAP_BADFL && level < SP_TRAP_CPEXP) || \
-	 (level > SP_TRAP_DMM && level < SP_TRAP_IMM) || \
-	 (level > SP_TRAP_IMM && level < SP_TRAP_SUNOS) || \
-	 (level > SP_TRAP_LINUX && level < SP_TRAP_KBPT1))
+  ((level > SP_TRAP_WDOG && level < SP_TRAP_IRQ1)    \
+  || (level > SP_TRAP_IACC && level < SP_TRAP_CPDIS)    \
+  || (level > SP_TRAP_BADFL && level < SP_TRAP_CPEXP)    \
+  || (level > SP_TRAP_DMM && level < SP_TRAP_IMM)    \
+  || (level > SP_TRAP_IMM && level < SP_TRAP_SUNOS)    \
+  || (level > SP_TRAP_LINUX && level < SP_TRAP_KBPT1))
 
 /* Is this a Hardware trap? */
 #define HW_TRAP_P(level) ((level > 0) && (level < SP_TRAP_SUNOS))
@@ -113,9 +113,9 @@
 #define SW_TRAP_P(level) ((level >= SP_TRAP_SUNOS) && (level <= SP_TRAP_KBPT2))
 
 /* Is this a system call for some OS we know about? */
-#define SCALL_TRAP_P(level) ((level == SP_TRAP_SUNOS) || \
-			     (level == SP_TRAP_SOLARIS) || \
-			     (level == SP_TRAP_NETBSD) || \
-			     (level == SP_TRAP_LINUX))
+#define SCALL_TRAP_P(level) ((level == SP_TRAP_SUNOS)    \
+  || (level == SP_TRAP_SOLARIS)    \
+  || (level == SP_TRAP_NETBSD)    \
+  || (level == SP_TRAP_LINUX))
 
 #endif /* _UAPI_SPARC_TRAPS_H */

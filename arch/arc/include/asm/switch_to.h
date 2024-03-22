@@ -14,13 +14,13 @@
 
 struct task_struct *__switch_to(struct task_struct *p, struct task_struct *n);
 
-#define switch_to(prev, next, last)	\
-do {					\
-	dsp_save_restore(prev, next);	\
-	fpu_save_restore(prev, next);	\
-	last = __switch_to(prev, next);\
-	mb();				\
-} while (0)
+#define switch_to(prev, next, last) \
+  do {          \
+    dsp_save_restore(prev, next); \
+    fpu_save_restore(prev, next); \
+    last = __switch_to(prev, next); \
+    mb();       \
+  } while (0)
 
 #endif
 

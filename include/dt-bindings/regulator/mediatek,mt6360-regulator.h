@@ -9,8 +9,8 @@
  * See the manufacturer's datasheet for more information on these modes.
  */
 
-#define MT6360_OPMODE_LP		2
-#define MT6360_OPMODE_ULP		3
-#define MT6360_OPMODE_NORMAL		0
+#define MT6360_OPMODE_LP    2
+#define MT6360_OPMODE_ULP   3
+#define MT6360_OPMODE_NORMAL    0
 
 #endif

@@ -7,35 +7,32 @@
 #include <linux/tc_act/tc_csum.h>
 
 struct tcf_csum_params {
-	u32 update_flags;
-	struct rcu_head rcu;
+  u32 update_flags;
+  struct rcu_head rcu;
 };
 
 struct tcf_csum {
-	struct tc_action common;
+  struct tc_action common;
 
-	struct tcf_csum_params __rcu *params;
+  struct tcf_csum_params __rcu *params;
 };
-#define to_tcf_csum(a) ((struct tcf_csum *)a)
+#define to_tcf_csum(a) ((struct tcf_csum *) a)
 
-static inline bool is_tcf_csum(const struct tc_action *a)
-{
+static inline bool is_tcf_csum(const struct tc_action *a) {
 #ifdef CONFIG_NET_CLS_ACT
-	if (a->ops && a->ops->id == TCA_ID_CSUM)
-		return true;
+  if (a->ops && a->ops->id == TCA_ID_CSUM) {
+    return true;
+  }
 #endif
-	return false;
+  return false;
 }
 
-static inline u32 tcf_csum_update_flags(const struct tc_action *a)
-{
-	u32 update_flags;
-
-	rcu_read_lock();
-	update_flags = rcu_dereference(to_tcf_csum(a)->params)->update_flags;
-	rcu_read_unlock();
-
-	return update_flags;
+static inline u32 tcf_csum_update_flags(const struct tc_action *a) {
+  u32 update_flags;
+  rcu_read_lock();
+  update_flags = rcu_dereference(to_tcf_csum(a)->params)->update_flags;
+  rcu_read_unlock();
+  return update_flags;
 }
 
 #endif /* __NET_TC_CSUM_H */

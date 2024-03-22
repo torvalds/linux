@@ -11,23 +11,23 @@
 #include <linux/io.h>
 
 enum {
-	NSINDEX_SIG_LEN = 16,
-	NSINDEX_ALIGN = 256,
-	NSINDEX_SEQ_MASK = 0x3,
-	NSLABEL_UUID_LEN = 16,
-	NSLABEL_NAME_LEN = 64,
-	NSLABEL_FLAG_ROLABEL = 0x1,  /* read-only label */
-	NSLABEL_FLAG_LOCAL = 0x2,    /* DIMM-local namespace */
-	NSLABEL_FLAG_BTT = 0x4,      /* namespace contains a BTT */
-	NSLABEL_FLAG_UPDATING = 0x8, /* label being updated */
-	BTT_ALIGN = 4096,            /* all btt structures */
-	BTTINFO_SIG_LEN = 16,
-	BTTINFO_UUID_LEN = 16,
-	BTTINFO_FLAG_ERROR = 0x1,    /* error state (read-only) */
-	BTTINFO_MAJOR_VERSION = 1,
-	ND_LABEL_MIN_SIZE = 256 * 4, /* see sizeof_namespace_index() */
-	ND_LABEL_ID_SIZE = 50,
-	ND_NSINDEX_INIT = 0x1,
+  NSINDEX_SIG_LEN = 16,
+  NSINDEX_ALIGN = 256,
+  NSINDEX_SEQ_MASK = 0x3,
+  NSLABEL_UUID_LEN = 16,
+  NSLABEL_NAME_LEN = 64,
+  NSLABEL_FLAG_ROLABEL = 0x1,  /* read-only label */
+  NSLABEL_FLAG_LOCAL = 0x2,    /* DIMM-local namespace */
+  NSLABEL_FLAG_BTT = 0x4,      /* namespace contains a BTT */
+  NSLABEL_FLAG_UPDATING = 0x8, /* label being updated */
+  BTT_ALIGN = 4096,            /* all btt structures */
+  BTTINFO_SIG_LEN = 16,
+  BTTINFO_UUID_LEN = 16,
+  BTTINFO_FLAG_ERROR = 0x1,    /* error state (read-only) */
+  BTTINFO_MAJOR_VERSION = 1,
+  ND_LABEL_MIN_SIZE = 256 * 4, /* see sizeof_namespace_index() */
+  ND_LABEL_ID_SIZE = 50,
+  ND_NSINDEX_INIT = 0x1,
 };
 
 /**
@@ -51,19 +51,19 @@ enum {
  * nlabel bits must be zero.
  */
 struct nd_namespace_index {
-	u8 sig[NSINDEX_SIG_LEN];
-	u8 flags[3];
-	u8 labelsize;
-	__le32 seq;
-	__le64 myoff;
-	__le64 mysize;
-	__le64 otheroff;
-	__le64 labeloff;
-	__le32 nslot;
-	__le16 major;
-	__le16 minor;
-	__le64 checksum;
-	u8 free[];
+  u8 sig[NSINDEX_SIG_LEN];
+  u8 flags[3];
+  u8 labelsize;
+  __le32 seq;
+  __le64 myoff;
+  __le64 mysize;
+  __le64 otheroff;
+  __le64 labeloff;
+  __le32 nslot;
+  __le16 major;
+  __le16 minor;
+  __le64 checksum;
+  u8 free[];
 };
 
 /**
@@ -83,19 +83,19 @@ struct nd_namespace_index {
  * @checksum: fletcher64 sum of this label
  */
 struct cxl_region_label {
-	u8 type[NSLABEL_UUID_LEN];
-	u8 uuid[NSLABEL_UUID_LEN];
-	__le32 flags;
-	__le16 nlabel;
-	__le16 position;
-	__le64 dpa;
-	__le64 rawsize;
-	__le64 hpa;
-	__le32 slot;
-	__le32 ig;
-	__le32 align;
-	u8 reserved[0xac];
-	__le64 checksum;
+  u8 type[NSLABEL_UUID_LEN];
+  u8 uuid[NSLABEL_UUID_LEN];
+  __le32 flags;
+  __le16 nlabel;
+  __le16 position;
+  __le64 dpa;
+  __le64 rawsize;
+  __le64 hpa;
+  __le32 slot;
+  __le32 ig;
+  __le32 align;
+  u8 reserved[0xac];
+  __le64 checksum;
 };
 
 /**
@@ -118,26 +118,26 @@ struct cxl_region_label {
  * @checksum: fletcher64 sum of this object
  */
 struct nvdimm_efi_label {
-	u8 uuid[NSLABEL_UUID_LEN];
-	u8 name[NSLABEL_NAME_LEN];
-	__le32 flags;
-	__le16 nlabel;
-	__le16 position;
-	__le64 isetcookie;
-	__le64 lbasize;
-	__le64 dpa;
-	__le64 rawsize;
-	__le32 slot;
-	/*
-	 * Accessing fields past this point should be gated by a
-	 * efi_namespace_label_has() check.
-	 */
-	u8 align;
-	u8 reserved[3];
-	guid_t type_guid;
-	guid_t abstraction_guid;
-	u8 reserved2[88];
-	__le64 checksum;
+  u8 uuid[NSLABEL_UUID_LEN];
+  u8 name[NSLABEL_NAME_LEN];
+  __le32 flags;
+  __le16 nlabel;
+  __le16 position;
+  __le64 isetcookie;
+  __le64 lbasize;
+  __le64 dpa;
+  __le64 rawsize;
+  __le32 slot;
+  /*
+   * Accessing fields past this point should be gated by a
+   * efi_namespace_label_has() check.
+   */
+  u8 align;
+  u8 reserved[3];
+  guid_t type_guid;
+  guid_t abstraction_guid;
+  u8 reserved2[88];
+  __le64 checksum;
 };
 
 /**
@@ -159,28 +159,28 @@ struct nvdimm_efi_label {
  * @checksum: fletcher64 sum of this label
  */
 struct nvdimm_cxl_label {
-	u8 type[NSLABEL_UUID_LEN];
-	u8 uuid[NSLABEL_UUID_LEN];
-	u8 name[NSLABEL_NAME_LEN];
-	__le32 flags;
-	__le16 nrange;
-	__le16 position;
-	__le64 dpa;
-	__le64 rawsize;
-	__le32 slot;
-	__le32 align;
-	u8 region_uuid[16];
-	u8 abstraction_uuid[16];
-	__le16 lbasize;
-	u8 reserved[0x56];
-	__le64 checksum;
+  u8 type[NSLABEL_UUID_LEN];
+  u8 uuid[NSLABEL_UUID_LEN];
+  u8 name[NSLABEL_NAME_LEN];
+  __le32 flags;
+  __le16 nrange;
+  __le16 position;
+  __le64 dpa;
+  __le64 rawsize;
+  __le32 slot;
+  __le32 align;
+  u8 region_uuid[16];
+  u8 abstraction_uuid[16];
+  __le16 lbasize;
+  u8 reserved[0x56];
+  __le64 checksum;
 };
 
 struct nd_namespace_label {
-	union {
-		struct nvdimm_cxl_label cxl;
-		struct nvdimm_efi_label efi;
-	};
+  union {
+    struct nvdimm_cxl_label cxl;
+    struct nvdimm_efi_label efi;
+  };
 };
 
 #define NVDIMM_BTT_GUID "8aed63a2-29a2-4c66-8b12-f05d15d3922a"
@@ -196,19 +196,18 @@ struct nd_namespace_label {
  * @id: "pmem-<namespace uuid>"
  */
 struct nd_label_id {
-	char id[ND_LABEL_ID_SIZE];
+  char id[ND_LABEL_ID_SIZE];
 };
 
 /*
  * If the 'best' index is invalid, so is the 'next' index.  Otherwise,
  * the next index is MOD(index+1, 2)
  */
-static inline int nd_label_next_nsindex(int index)
-{
-	if (index < 0)
-		return -1;
-
-	return (index + 1) % 2;
+static inline int nd_label_next_nsindex(int index) {
+  if (index < 0) {
+    return -1;
+  }
+  return (index + 1) % 2;
 }
 
 struct nvdimm_drvdata;
@@ -222,5 +221,5 @@ u32 nd_label_nfree(struct nvdimm_drvdata *ndd);
 struct nd_region;
 struct nd_namespace_pmem;
 int nd_pmem_namespace_label_update(struct nd_region *nd_region,
-		struct nd_namespace_pmem *nspm, resource_size_t size);
+    struct nd_namespace_pmem *nspm, resource_size_t size);
 #endif /* __LABEL_H__ */

@@ -32,149 +32,149 @@
 #define WMFW_CTL_TYPE_FWEVENT     0x1004 /* firmware event control */
 
 struct wmfw_header {
-	char magic[4];
-	__le32 len;
-	__le16 rev;
-	u8 core;
-	u8 ver;
+  char magic[4];
+  __le32 len;
+  __le16 rev;
+  u8 core;
+  u8 ver;
 } __packed;
 
 struct wmfw_footer {
-	__le64 timestamp;
-	__le32 checksum;
+  __le64 timestamp;
+  __le32 checksum;
 } __packed;
 
 struct wmfw_adsp1_sizes {
-	__le32 dm;
-	__le32 pm;
-	__le32 zm;
+  __le32 dm;
+  __le32 pm;
+  __le32 zm;
 } __packed;
 
 struct wmfw_adsp2_sizes {
-	__le32 xm;
-	__le32 ym;
-	__le32 pm;
-	__le32 zm;
+  __le32 xm;
+  __le32 ym;
+  __le32 pm;
+  __le32 zm;
 } __packed;
 
 struct wmfw_region {
-	union {
-		__be32 type;
-		__le32 offset;
-	};
-	__le32 len;
-	u8 data[];
+  union {
+    __be32 type;
+    __le32 offset;
+  };
+  __le32 len;
+  u8 data[];
 } __packed;
 
 struct wmfw_id_hdr {
-	__be32 core_id;
-	__be32 core_rev;
-	__be32 id;
-	__be32 ver;
+  __be32 core_id;
+  __be32 core_rev;
+  __be32 id;
+  __be32 ver;
 } __packed;
 
 struct wmfw_v3_id_hdr {
-	__be32 core_id;
-	__be32 block_rev;
-	__be32 vendor_id;
-	__be32 id;
-	__be32 ver;
+  __be32 core_id;
+  __be32 block_rev;
+  __be32 vendor_id;
+  __be32 id;
+  __be32 ver;
 } __packed;
 
 struct wmfw_adsp1_id_hdr {
-	struct wmfw_id_hdr fw;
-	__be32 zm;
-	__be32 dm;
-	__be32 n_algs;
+  struct wmfw_id_hdr fw;
+  __be32 zm;
+  __be32 dm;
+  __be32 n_algs;
 } __packed;
 
 struct wmfw_adsp2_id_hdr {
-	struct wmfw_id_hdr fw;
-	__be32 zm;
-	__be32 xm;
-	__be32 ym;
-	__be32 n_algs;
+  struct wmfw_id_hdr fw;
+  __be32 zm;
+  __be32 xm;
+  __be32 ym;
+  __be32 n_algs;
 } __packed;
 
 struct wmfw_halo_id_hdr {
-	struct wmfw_v3_id_hdr fw;
-	__be32 xm_base;
-	__be32 xm_size;
-	__be32 ym_base;
-	__be32 ym_size;
-	__be32 n_algs;
+  struct wmfw_v3_id_hdr fw;
+  __be32 xm_base;
+  __be32 xm_size;
+  __be32 ym_base;
+  __be32 ym_size;
+  __be32 n_algs;
 } __packed;
 
 struct wmfw_alg_hdr {
-	__be32 id;
-	__be32 ver;
+  __be32 id;
+  __be32 ver;
 } __packed;
 
 struct wmfw_adsp1_alg_hdr {
-	struct wmfw_alg_hdr alg;
-	__be32 zm;
-	__be32 dm;
+  struct wmfw_alg_hdr alg;
+  __be32 zm;
+  __be32 dm;
 } __packed;
 
 struct wmfw_adsp2_alg_hdr {
-	struct wmfw_alg_hdr alg;
-	__be32 zm;
-	__be32 xm;
-	__be32 ym;
+  struct wmfw_alg_hdr alg;
+  __be32 zm;
+  __be32 xm;
+  __be32 ym;
 } __packed;
 
 struct wmfw_halo_alg_hdr {
-	struct wmfw_alg_hdr alg;
-	__be32 xm_base;
-	__be32 xm_size;
-	__be32 ym_base;
-	__be32 ym_size;
+  struct wmfw_alg_hdr alg;
+  __be32 xm_base;
+  __be32 xm_size;
+  __be32 ym_base;
+  __be32 ym_size;
 } __packed;
 
 struct wmfw_adsp_alg_data {
-	__le32 id;
-	u8 name[WMFW_MAX_ALG_NAME];
-	u8 descr[WMFW_MAX_ALG_DESCR_NAME];
-	__le32 ncoeff;
-	u8 data[];
+  __le32 id;
+  u8 name[WMFW_MAX_ALG_NAME];
+  u8 descr[WMFW_MAX_ALG_DESCR_NAME];
+  __le32 ncoeff;
+  u8 data[];
 } __packed;
 
 struct wmfw_adsp_coeff_data {
-	struct {
-		__le16 offset;
-		__le16 type;
-		__le32 size;
-	} hdr;
-	u8 name[WMFW_MAX_COEFF_NAME];
-	u8 descr[WMFW_MAX_COEFF_DESCR_NAME];
-	__le16 ctl_type;
-	__le16 flags;
-	__le32 len;
-	u8 data[];
+  struct {
+    __le16 offset;
+    __le16 type;
+    __le32 size;
+  } hdr;
+  u8 name[WMFW_MAX_COEFF_NAME];
+  u8 descr[WMFW_MAX_COEFF_DESCR_NAME];
+  __le16 ctl_type;
+  __le16 flags;
+  __le32 len;
+  u8 data[];
 } __packed;
 
 struct wmfw_coeff_hdr {
-	u8 magic[4];
-	__le32 len;
-	union {
-		__be32 rev;
-		__le32 ver;
-	};
-	union {
-		__be32 core;
-		__le32 core_ver;
-	};
-	u8 data[];
+  u8 magic[4];
+  __le32 len;
+  union {
+    __be32 rev;
+    __le32 ver;
+  };
+  union {
+    __be32 core;
+    __le32 core_ver;
+  };
+  u8 data[];
 } __packed;
 
 struct wmfw_coeff_item {
-	__le16 offset;
-	__le16 type;
-	__le32 id;
-	__le32 ver;
-	__le32 sr;
-	__le32 len;
-	u8 data[];
+  __le16 offset;
+  __le16 type;
+  __le32 id;
+  __le32 ver;
+  __le32 sr;
+  __le32 len;
+  u8 data[];
 } __packed;
 
 #define WMFW_ADSP1 1

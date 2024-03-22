@@ -34,46 +34,43 @@ MODULE_LICENSE("GPL");
 struct kmem_cache *cachefiles_object_jar;
 
 static struct miscdevice cachefiles_dev = {
-	.minor	= MISC_DYNAMIC_MINOR,
-	.name	= "cachefiles",
-	.fops	= &cachefiles_daemon_fops,
+  .minor = MISC_DYNAMIC_MINOR,
+  .name = "cachefiles",
+  .fops = &cachefiles_daemon_fops,
 };
 
 /*
  * initialise the fs caching module
  */
-static int __init cachefiles_init(void)
-{
-	int ret;
-
-	ret = cachefiles_register_error_injection();
-	if (ret < 0)
-		goto error_einj;
-	ret = misc_register(&cachefiles_dev);
-	if (ret < 0)
-		goto error_dev;
-
-	/* create an object jar */
-	ret = -ENOMEM;
-	cachefiles_object_jar =
-		kmem_cache_create("cachefiles_object_jar",
-				  sizeof(struct cachefiles_object),
-				  0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!cachefiles_object_jar) {
-		pr_notice("Failed to allocate an object jar\n");
-		goto error_object_jar;
-	}
-
-	pr_info("Loaded\n");
-	return 0;
-
+static int __init cachefiles_init(void) {
+  int ret;
+  ret = cachefiles_register_error_injection();
+  if (ret < 0) {
+    goto error_einj;
+  }
+  ret = misc_register(&cachefiles_dev);
+  if (ret < 0) {
+    goto error_dev;
+  }
+  /* create an object jar */
+  ret = -ENOMEM;
+  cachefiles_object_jar
+    = kmem_cache_create("cachefiles_object_jar",
+      sizeof(struct cachefiles_object),
+      0, SLAB_HWCACHE_ALIGN, NULL);
+  if (!cachefiles_object_jar) {
+    pr_notice("Failed to allocate an object jar\n");
+    goto error_object_jar;
+  }
+  pr_info("Loaded\n");
+  return 0;
 error_object_jar:
-	misc_deregister(&cachefiles_dev);
+  misc_deregister(&cachefiles_dev);
 error_dev:
-	cachefiles_unregister_error_injection();
+  cachefiles_unregister_error_injection();
 error_einj:
-	pr_err("failed to register: %d\n", ret);
-	return ret;
+  pr_err("failed to register: %d\n", ret);
+  return ret;
 }
 
 fs_initcall(cachefiles_init);
@@ -81,13 +78,11 @@ fs_initcall(cachefiles_init);
 /*
  * clean up on module removal
  */
-static void __exit cachefiles_exit(void)
-{
-	pr_info("Unloading\n");
-
-	kmem_cache_destroy(cachefiles_object_jar);
-	misc_deregister(&cachefiles_dev);
-	cachefiles_unregister_error_injection();
+static void __exit cachefiles_exit(void) {
+  pr_info("Unloading\n");
+  kmem_cache_destroy(cachefiles_object_jar);
+  misc_deregister(&cachefiles_dev);
+  cachefiles_unregister_error_injection();
 }
 
 module_exit(cachefiles_exit);

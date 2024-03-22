@@ -19,11 +19,11 @@
 #include "qed_sp.h"
 
 struct qed_iscsi_info {
-	spinlock_t lock; /* Connection resources. */
-	struct list_head free_list;
-	u16 max_num_outstanding_tasks;
-	void *event_context;
-	iscsi_event_cb_t event_cb;
+  spinlock_t lock; /* Connection resources. */
+  struct list_head free_list;
+  u16 max_num_outstanding_tasks;
+  void *event_context;
+  iscsi_event_cb_t event_cb;
 };
 
 #if IS_ENABLED(CONFIG_QED_ISCSI)
@@ -45,22 +45,24 @@ void qed_iscsi_free(struct qed_hwfn *p_hwfn);
  * Return: Void.
  */
 void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
-				  struct qed_mcp_iscsi_stats *stats,
-				  bool is_atomic);
+    struct qed_mcp_iscsi_stats *stats,
+    bool is_atomic);
 #else /* IS_ENABLED(CONFIG_QED_ISCSI) */
-static inline int qed_iscsi_alloc(struct qed_hwfn *p_hwfn)
-{
-	return -EINVAL;
+static inline int qed_iscsi_alloc(struct qed_hwfn *p_hwfn) {
+  return -EINVAL;
 }
 
-static inline void qed_iscsi_setup(struct qed_hwfn *p_hwfn) {}
+static inline void qed_iscsi_setup(struct qed_hwfn *p_hwfn) {
+}
 
-static inline void qed_iscsi_free(struct qed_hwfn *p_hwfn) {}
+static inline void qed_iscsi_free(struct qed_hwfn *p_hwfn) {
+}
 
-static inline void
-qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
-			     struct qed_mcp_iscsi_stats *stats,
-			     bool is_atomic) {}
+static inline void qed_get_protocol_stats_iscsi(struct qed_dev *cdev,
+    struct qed_mcp_iscsi_stats *stats,
+    bool is_atomic) {
+}
+
 #endif /* IS_ENABLED(CONFIG_QED_ISCSI) */
 
 #endif

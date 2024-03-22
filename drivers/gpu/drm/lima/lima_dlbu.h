@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
-/* Copyright 2018-2019 Qiang Yu <yuq825@gmail.com> */
+/* SPDX-License-Identifier: GPL-2.0 OR MIT
+ * Copyright 2018-2019 Qiang Yu <yuq825@gmail.com>*/
 
 #ifndef __LIMA_DLBU_H__
 #define __LIMA_DLBU_H__

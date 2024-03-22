@@ -15,16 +15,16 @@
  */
 
 struct twl4030_madc_bat_calibration {
-	short voltage;	/* in mV - specify -1 for end of list */
-	short level;	/* in percent (0 .. 100%) */
+  short voltage;  /* in mV - specify -1 for end of list */
+  short level;  /* in percent (0 .. 100%) */
 };
 
 struct twl4030_madc_bat_platform_data {
-	unsigned int capacity;	/* total capacity in uAh */
-	struct twl4030_madc_bat_calibration *charging;
-	int charging_size;
-	struct twl4030_madc_bat_calibration *discharging;
-	int discharging_size;
+  unsigned int capacity;  /* total capacity in uAh */
+  struct twl4030_madc_bat_calibration *charging;
+  int charging_size;
+  struct twl4030_madc_bat_calibration *discharging;
+  int discharging_size;
 };
 
 #endif

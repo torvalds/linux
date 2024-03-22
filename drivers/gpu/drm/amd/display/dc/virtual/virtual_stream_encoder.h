@@ -29,11 +29,11 @@
 #include "stream_encoder.h"
 
 struct stream_encoder *virtual_stream_encoder_create(
-	struct dc_context *ctx, struct dc_bios *bp);
+  struct dc_context *ctx, struct dc_bios *bp);
 
 bool virtual_stream_encoder_construct(
-	struct stream_encoder *enc,
-	struct dc_context *ctx,
-	struct dc_bios *bp);
+  struct stream_encoder *enc,
+  struct dc_context *ctx,
+  struct dc_bios *bp);
 
 #endif /* __DC_VIRTUAL_STREAM_ENCODER_H__ */

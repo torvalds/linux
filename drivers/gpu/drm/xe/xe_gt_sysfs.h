@@ -10,10 +10,8 @@
 
 void xe_gt_sysfs_init(struct xe_gt *gt);
 
-static inline struct xe_gt *
-kobj_to_gt(struct kobject *kobj)
-{
-	return container_of(kobj, struct kobj_gt, base)->gt;
+static inline struct xe_gt *kobj_to_gt(struct kobject *kobj) {
+  return container_of(kobj, struct kobj_gt, base)->gt;
 }
 
 #endif /* _XE_GT_SYSFS_H_ */

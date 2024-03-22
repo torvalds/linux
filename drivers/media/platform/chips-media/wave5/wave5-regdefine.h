@@ -9,32 +9,32 @@
 #define __WAVE5_REGISTER_DEFINE_H__
 
 enum W5_VPU_COMMAND {
-	W5_INIT_VPU		= 0x0001,
-	W5_WAKEUP_VPU		= 0x0002,
-	W5_SLEEP_VPU		= 0x0004,
-	W5_CREATE_INSTANCE	= 0x0008,       /* queuing command */
-	W5_FLUSH_INSTANCE	= 0x0010,
-	W5_DESTROY_INSTANCE	= 0x0020,       /* queuing command */
-	W5_INIT_SEQ		= 0x0040,       /* queuing command */
-	W5_SET_FB		= 0x0080,
-	W5_DEC_ENC_PIC		= 0x0100,       /* queuing command */
-	W5_ENC_SET_PARAM	= 0x0200,	/* queuing command */
-	W5_QUERY		= 0x4000,
-	W5_UPDATE_BS		= 0x8000,
-	W5_MAX_VPU_COMD		= 0x10000,
+  W5_INIT_VPU = 0x0001,
+  W5_WAKEUP_VPU = 0x0002,
+  W5_SLEEP_VPU = 0x0004,
+  W5_CREATE_INSTANCE = 0x0008,       /* queuing command */
+  W5_FLUSH_INSTANCE = 0x0010,
+  W5_DESTROY_INSTANCE = 0x0020,       /* queuing command */
+  W5_INIT_SEQ = 0x0040,       /* queuing command */
+  W5_SET_FB = 0x0080,
+  W5_DEC_ENC_PIC = 0x0100,       /* queuing command */
+  W5_ENC_SET_PARAM = 0x0200, /* queuing command */
+  W5_QUERY = 0x4000,
+  W5_UPDATE_BS = 0x8000,
+  W5_MAX_VPU_COMD = 0x10000,
 };
 
 enum query_opt {
-	GET_VPU_INFO		= 0,
-	SET_WRITE_PROT		= 1,
-	GET_RESULT		= 2,
-	UPDATE_DISP_FLAG	= 3,
-	GET_BW_REPORT		= 4,
-	GET_BS_RD_PTR		= 5,		/* for decoder */
-	GET_BS_WR_PTR		= 6,		/* for encoder */
-	GET_SRC_BUF_FLAG	= 7,		/* for encoder */
-	SET_BS_RD_PTR		= 8,		/* for decoder */
-	GET_DEBUG_INFO		= 0x61,
+  GET_VPU_INFO = 0,
+  SET_WRITE_PROT = 1,
+  GET_RESULT = 2,
+  UPDATE_DISP_FLAG = 3,
+  GET_BW_REPORT = 4,
+  GET_BS_RD_PTR = 5,    /* for decoder */
+  GET_BS_WR_PTR = 6,    /* for encoder */
+  GET_SRC_BUF_FLAG = 7,    /* for encoder */
+  SET_BS_RD_PTR = 8,    /* for decoder */
+  GET_DEBUG_INFO = 0x61,
 };
 
 #define W5_REG_BASE                     0x00000000
@@ -54,10 +54,18 @@ enum query_opt {
 #define W5_VCPU_CUR_PC                 (W5_REG_BASE + 0x0004)
 #define W5_VCPU_CUR_LR                 (W5_REG_BASE + 0x0008)
 #define W5_VPU_PDBG_STEP_MASK_V        (W5_REG_BASE + 0x000C)
-#define W5_VPU_PDBG_CTRL               (W5_REG_BASE + 0x0010) /* v_cpu debugger ctrl register */
-#define W5_VPU_PDBG_IDX_REG            (W5_REG_BASE + 0x0014) /* v_cpu debugger index register */
-#define W5_VPU_PDBG_WDATA_REG          (W5_REG_BASE + 0x0018) /* v_cpu debugger write data reg */
-#define W5_VPU_PDBG_RDATA_REG          (W5_REG_BASE + 0x001C) /* v_cpu debugger read data reg */
+#define W5_VPU_PDBG_CTRL               (W5_REG_BASE + 0x0010) /* v_cpu debugger
+                                                               * ctrl register
+                                                               * */
+#define W5_VPU_PDBG_IDX_REG            (W5_REG_BASE + 0x0014) /* v_cpu debugger
+                                                               * index register
+                                                               * */
+#define W5_VPU_PDBG_WDATA_REG          (W5_REG_BASE + 0x0018) /* v_cpu debugger
+                                                               * write data reg
+                                                               * */
+#define W5_VPU_PDBG_RDATA_REG          (W5_REG_BASE + 0x001C) /* v_cpu debugger
+                                                               * read data reg
+                                                               * */
 
 #define W5_VPU_FIO_CTRL_ADDR           (W5_REG_BASE + 0x0020)
 #define W5_VPU_FIO_DATA                (W5_REG_BASE + 0x0024)
@@ -154,20 +162,20 @@ enum query_opt {
  */
 #define W5_VPU_RET_VPU_CONFIG1                  (W5_REG_BASE + 0x009C)
 
-#define W5_VPU_DBG_REG0							(W5_REG_BASE + 0x00f0)
-#define W5_VPU_DBG_REG1							(W5_REG_BASE + 0x00f4)
-#define W5_VPU_DBG_REG2							(W5_REG_BASE + 0x00f8)
-#define W5_VPU_DBG_REG3							(W5_REG_BASE + 0x00fc)
+#define W5_VPU_DBG_REG0             (W5_REG_BASE + 0x00f0)
+#define W5_VPU_DBG_REG1             (W5_REG_BASE + 0x00f4)
+#define W5_VPU_DBG_REG2             (W5_REG_BASE + 0x00f8)
+#define W5_VPU_DBG_REG3             (W5_REG_BASE + 0x00fc)
 
-/************************************************************************/
-/* PRODUCT INFORMATION                                                  */
-/************************************************************************/
+/* **********************************************************************
+ * PRODUCT INFORMATION
+ ************************************************************************/
 #define W5_PRODUCT_NAME                        (W5_REG_BASE + 0x1040)
 #define W5_PRODUCT_NUMBER                      (W5_REG_BASE + 0x1044)
 
-/************************************************************************/
-/* DECODER/ENCODER COMMON                                               */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER/ENCODER COMMON
+ ************************************************************************/
 #define W5_COMMAND                              (W5_REG_BASE + 0x0100)
 #define W5_COMMAND_OPTION                       (W5_REG_BASE + 0x0104)
 #define W5_QUERY_OPTION                         (W5_REG_BASE + 0x0104)
@@ -195,10 +203,10 @@ enum query_opt {
 /* set when SET_FB for en/decoder */
 #define W5_CMD_SET_FB_ADDR_TASK_BUF             (W5_REG_BASE + 0x01D4)
 #define W5_CMD_SET_FB_TASK_BUF_SIZE             (W5_REG_BASE + 0x01D8)
-/************************************************************************/
-/* INIT_VPU - COMMON                                                    */
-/************************************************************************/
-/* note: W5_ADDR_CODE_BASE should be aligned to 4KB */
+/* **********************************************************************
+ * INIT_VPU - COMMON
+ * **********************************************************************
+ * note: W5_ADDR_CODE_BASE should be aligned to 4KB*/
 #define W5_ADDR_CODE_BASE                       (W5_REG_BASE + 0x0110)
 #define W5_CODE_SIZE                            (W5_REG_BASE + 0x0114)
 #define W5_CODE_PARAM                           (W5_REG_BASE + 0x0118)
@@ -207,9 +215,9 @@ enum query_opt {
 #define W5_HW_OPTION                            (W5_REG_BASE + 0x012C)
 #define W5_SEC_AXI_PARAM                        (W5_REG_BASE + 0x0180)
 
-/************************************************************************/
-/* CREATE_INSTANCE - COMMON                                             */
-/************************************************************************/
+/* **********************************************************************
+ * CREATE_INSTANCE - COMMON
+ ************************************************************************/
 #define W5_ADDR_WORK_BASE                       (W5_REG_BASE + 0x0114)
 #define W5_WORK_SIZE                            (W5_REG_BASE + 0x0118)
 #define W5_CMD_DEC_BS_START_ADDR                (W5_REG_BASE + 0x011C)
@@ -221,14 +229,14 @@ enum query_opt {
 #define W5_CMD_NUM_CQ_DEPTH_M1                  (W5_REG_BASE + 0x013C)
 #define W5_CMD_ERR_CONCEAL                      (W5_REG_BASE + 0x0140)
 
-/************************************************************************/
-/* DECODER - INIT_SEQ                                                   */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - INIT_SEQ
+ ************************************************************************/
 #define W5_BS_RD_PTR                            (W5_REG_BASE + 0x0118)
 #define W5_BS_WR_PTR                            (W5_REG_BASE + 0x011C)
-/************************************************************************/
-/* SET_FRAME_BUF                                                        */
-/************************************************************************/
+/* **********************************************************************
+ * SET_FRAME_BUF
+ ************************************************************************/
 /* SET_FB_OPTION 0x00       REGISTER FRAMEBUFFERS
  * 0x01       UPDATE FRAMEBUFFER, just one framebuffer(linear, fbc and mvcol)
  */
@@ -318,14 +326,15 @@ enum query_opt {
 #define W5_ADDR_FBC_Y_OFFSET                    (W5_REG_BASE + 0x014C)
 #define W5_ADDR_FBC_C_OFFSET                    (W5_REG_BASE + 0x0150)
 
-/************************************************************************/
-/* DECODER - DEC_PIC                                                    */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - DEC_PIC
+ ************************************************************************/
 #define W5_CMD_DEC_VCORE_INFO                   (W5_REG_BASE + 0x0194)
 /* sequence change enable mask register
  * CMD_SEQ_CHANGE_ENABLE_FLAG [5]   profile_idc
  *                            [16]  pic_width/height_in_luma_sample
- *                            [19]  sps_max_dec_pic_buffering, max_num_reorder, max_latency_increase
+ *                            [19]  sps_max_dec_pic_buffering, max_num_reorder,
+ *max_latency_increase
  */
 #define W5_CMD_SEQ_CHANGE_ENABLE_FLAG           (W5_REG_BASE + 0x0128)
 #define W5_CMD_DEC_USER_MASK                    (W5_REG_BASE + 0x012C)
@@ -333,9 +342,9 @@ enum query_opt {
 #define W5_CMD_DEC_FORCE_FB_LATENCY_PLUS1       (W5_REG_BASE + 0x0134)
 #define W5_USE_SEC_AXI                          (W5_REG_BASE + 0x0150)
 
-/************************************************************************/
-/* DECODER - QUERY : GET_VPU_INFO                                       */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - QUERY : GET_VPU_INFO
+ ************************************************************************/
 #define W5_RET_FW_VERSION                       (W5_REG_BASE + 0x0118)
 #define W5_RET_PRODUCT_NAME                     (W5_REG_BASE + 0x011C)
 #define W5_RET_PRODUCT_VERSION                  (W5_REG_BASE + 0x0120)
@@ -348,9 +357,9 @@ enum query_opt {
 #define W5_RET_PRODUCT_ID                       (W5_REG_BASE + 0x013C)
 #define W5_RET_CUSTOMER_ID                      (W5_REG_BASE + 0x0140)
 
-/************************************************************************/
-/* DECODER - QUERY : GET_RESULT                                         */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - QUERY : GET_RESULT
+ ************************************************************************/
 #define W5_CMD_DEC_ADDR_REPORT_BASE         (W5_REG_BASE + 0x0114)
 #define W5_CMD_DEC_REPORT_SIZE              (W5_REG_BASE + 0x0118)
 #define W5_CMD_DEC_REPORT_PARAM             (W5_REG_BASE + 0x011C)
@@ -401,10 +410,10 @@ enum query_opt {
 
 /*
  * Decoded picture type:
- * reg_val & 0x7			=> picture type
- * (reg_val >> 4) & 0x3f		=> VCL NAL unit type
- * (reg_val >> 31) & 0x1		=> output_flag
- * 16 << ((reg_val >> 10) & 0x3)	=> ctu_size
+ * reg_val & 0x7      => picture type
+ * (reg_val >> 4) & 0x3f    => VCL NAL unit type
+ * (reg_val >> 31) & 0x1    => output_flag
+ * 16 << ((reg_val >> 10) & 0x3)  => ctu_size
  */
 #define W5_RET_DEC_PIC_TYPE                 (W5_REG_BASE + 0x0160)
 #define W5_RET_DEC_PIC_POC                  (W5_REG_BASE + 0x0164)
@@ -428,8 +437,8 @@ enum query_opt {
 /*
  * #define W5_RET_DEC_ERR_CTB_NUM              (W5_REG_BASE + 0x0180)
  * => Number of error CTUs
- * reg_val >> 16	=> erroneous CTUs in bitstream
- * reg_val & 0xffff	=> total CTUs in bitstream
+ * reg_val >> 16  => erroneous CTUs in bitstream
+ * reg_val & 0xffff => total CTUs in bitstream
  *
  * #define W5_RET_DEC_PIC_PARAM                (W5_REG_BASE + 0x01A0)
  * => Bitstream sequence/picture parameter information (AV1 only)
@@ -452,35 +461,35 @@ enum query_opt {
 #define W5_RET_DEC_ERR_INFO                 (W5_REG_BASE + 0x01D8)
 #define W5_RET_DEC_DECODING_SUCCESS         (W5_REG_BASE + 0x01DC)
 
-/************************************************************************/
-/* DECODER - FLUSH_INSTANCE                                             */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - FLUSH_INSTANCE
+ ************************************************************************/
 #define W5_CMD_FLUSH_INST_OPT               (W5_REG_BASE + 0x104)
 
-/************************************************************************/
-/* DECODER - QUERY : UPDATE_DISP_FLAG                                   */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - QUERY : UPDATE_DISP_FLAG
+ ************************************************************************/
 #define W5_CMD_DEC_SET_DISP_IDC             (W5_REG_BASE + 0x0118)
 #define W5_CMD_DEC_CLR_DISP_IDC             (W5_REG_BASE + 0x011C)
 
-/************************************************************************/
-/* DECODER - QUERY : SET_BS_RD_PTR                                      */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - QUERY : SET_BS_RD_PTR
+ ************************************************************************/
 #define W5_RET_QUERY_DEC_SET_BS_RD_PTR      (W5_REG_BASE + 0x011C)
 
-/************************************************************************/
-/* DECODER - QUERY : GET_BS_RD_PTR                                      */
-/************************************************************************/
+/* **********************************************************************
+ * DECODER - QUERY : GET_BS_RD_PTR
+ ************************************************************************/
 #define W5_RET_QUERY_DEC_BS_RD_PTR          (W5_REG_BASE + 0x011C)
 
-/************************************************************************/
-/* QUERY : GET_DEBUG_INFO                                               */
-/************************************************************************/
+/* **********************************************************************
+ * QUERY : GET_DEBUG_INFO
+ ************************************************************************/
 #define W5_RET_QUERY_DEBUG_PRI_REASON       (W5_REG_BASE + 0x114)
 
-/************************************************************************/
-/* GDI register for debugging                                           */
-/************************************************************************/
+/* **********************************************************************
+ * GDI register for debugging
+ ************************************************************************/
 #define W5_GDI_BASE                         0x8800
 #define W5_GDI_BUS_CTRL                     (W5_GDI_BASE + 0x0F0)
 #define W5_GDI_BUS_STATUS                   (W5_GDI_BASE + 0x0F4)
@@ -505,29 +514,29 @@ enum query_opt {
 #define W5_COMBINED_BACKBONE_BUS_CTRL       (W5_COMBINED_BACKBONE_BASE + 0x010)
 #define W5_COMBINED_BACKBONE_BUS_STATUS     (W5_COMBINED_BACKBONE_BASE + 0x014)
 
-/************************************************************************/
-/*                                                                      */
-/*               for  ENCODER                                           */
-/*                                                                      */
-/************************************************************************/
+/* **********************************************************************
+ *
+ *               for  ENCODER
+ *
+ ************************************************************************/
 #define W5_RET_STAGE3_INSTANCE_INFO             (W5_REG_BASE + 0x1F8)
-/************************************************************************/
-/* ENCODER - CREATE_INSTANCE                                            */
-/************************************************************************/
-/* 0x114 ~ 0x124 : defined above (CREATE_INSTANCE COMMON) */
+/* **********************************************************************
+ * ENCODER - CREATE_INSTANCE
+ * **********************************************************************
+ * 0x114 ~ 0x124 : defined above (CREATE_INSTANCE COMMON)*/
 #define W5_CMD_ENC_VCORE_INFO                   (W5_REG_BASE + 0x0194)
 #define W5_CMD_ENC_SRC_OPTIONS                  (W5_REG_BASE + 0x0128)
 
-/************************************************************************/
-/* ENCODER - SET_FB                                                     */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - SET_FB
+ ************************************************************************/
 #define W5_FBC_STRIDE                           (W5_REG_BASE + 0x128)
 #define W5_ADDR_SUB_SAMPLED_FB_BASE             (W5_REG_BASE + 0x12C)
 #define W5_SUB_SAMPLED_ONE_FB_SIZE              (W5_REG_BASE + 0x130)
 
-/************************************************************************/
-/* ENCODER - ENC_SET_PARAM (COMMON & CHANGE_PARAM)                      */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - ENC_SET_PARAM (COMMON & CHANGE_PARAM)
+ ************************************************************************/
 #define W5_CMD_ENC_SEQ_SET_PARAM_OPTION         (W5_REG_BASE + 0x104)
 #define W5_CMD_ENC_SEQ_SET_PARAM_ENABLE         (W5_REG_BASE + 0x118)
 #define W5_CMD_ENC_SEQ_SRC_SIZE                 (W5_REG_BASE + 0x11C)
@@ -574,9 +583,9 @@ enum query_opt {
 #define W5_CMD_ENC_SEQ_VUI_RBSP_ADDR            (W5_REG_BASE + 0x1B8)
 #define W5_CMD_ENC_SEQ_HRD_RBSP_ADDR            (W5_REG_BASE + 0x1BC)
 
-/************************************************************************/
-/* ENCODER - ENC_SET_PARAM (CUSTOM_GOP)                                 */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - ENC_SET_PARAM (CUSTOM_GOP)
+ ************************************************************************/
 #define W5_CMD_ENC_CUSTOM_GOP_PARAM             (W5_REG_BASE + 0x11C)
 #define W5_CMD_ENC_CUSTOM_GOP_PIC_PARAM_0       (W5_REG_BASE + 0x120)
 #define W5_CMD_ENC_CUSTOM_GOP_PIC_PARAM_1       (W5_REG_BASE + 0x124)
@@ -595,9 +604,9 @@ enum query_opt {
 #define W5_CMD_ENC_CUSTOM_GOP_PIC_PARAM_14      (W5_REG_BASE + 0x158)
 #define W5_CMD_ENC_CUSTOM_GOP_PIC_PARAM_15      (W5_REG_BASE + 0x15C)
 
-/************************************************************************/
-/* ENCODER - ENC_PIC                                                    */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - ENC_PIC
+ ************************************************************************/
 #define W5_CMD_ENC_BS_START_ADDR                (W5_REG_BASE + 0x118)
 #define W5_CMD_ENC_BS_SIZE                      (W5_REG_BASE + 0x11C)
 #define W5_CMD_ENC_PIC_USE_SEC_AXI              (W5_REG_BASE + 0x124)
@@ -627,9 +636,9 @@ enum query_opt {
 #define W5_CMD_ENC_PIC_SUFFIX_SEI_NAL_ADDR       (W5_REG_BASE + 0x188)
 #define W5_CMD_ENC_PIC_SUFFIX_SEI_INFO           (W5_REG_BASE + 0x18c)
 
-/************************************************************************/
-/* ENCODER - QUERY (GET_RESULT)                                         */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - QUERY (GET_RESULT)
+ ************************************************************************/
 #define W5_RET_ENC_NUM_REQUIRED_FB              (W5_REG_BASE + 0x11C)
 #define W5_RET_ENC_MIN_SRC_BUF_NUM              (W5_REG_BASE + 0x120)
 #define W5_RET_ENC_PIC_TYPE                     (W5_REG_BASE + 0x124)
@@ -697,16 +706,16 @@ enum query_opt {
 #define W5_RET_ENC_ERR_INFO                     (W5_REG_BASE + 0x1D8)
 #define W5_RET_ENC_ENCODING_SUCCESS             (W5_REG_BASE + 0x1DC)
 
-/************************************************************************/
-/* ENCODER - QUERY (GET_BS_WR_PTR)                                      */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - QUERY (GET_BS_WR_PTR)
+ ************************************************************************/
 #define W5_RET_ENC_RD_PTR                       (W5_REG_BASE + 0x114)
 #define W5_RET_ENC_WR_PTR                       (W5_REG_BASE + 0x118)
 #define W5_CMD_ENC_REASON_SEL                   (W5_REG_BASE + 0x11C)
 
-/************************************************************************/
-/* ENCODER - QUERY (GET_BW_REPORT)                                      */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - QUERY (GET_BW_REPORT)
+ ************************************************************************/
 #define RET_QUERY_BW_PRP_AXI_READ               (W5_REG_BASE + 0x118)
 #define RET_QUERY_BW_PRP_AXI_WRITE              (W5_REG_BASE + 0x11C)
 #define RET_QUERY_BW_FBD_Y_AXI_READ             (W5_REG_BASE + 0x120)
@@ -722,9 +731,9 @@ enum query_opt {
 #define RET_QUERY_BW_BWB_AXI_WRITE              (W5_REG_BASE + 0x148)
 #define W5_CMD_BW_OPTION                        (W5_REG_BASE + 0x14C)
 
-/************************************************************************/
-/* ENCODER - QUERY (GET_SRC_FLAG)                                       */
-/************************************************************************/
+/* **********************************************************************
+ * ENCODER - QUERY (GET_SRC_FLAG)
+ ************************************************************************/
 #define W5_RET_RELEASED_SRC_INSTANCE            (W5_REG_BASE + 0x1EC)
 
 #define W5_ENC_PIC_SUB_FRAME_SYNC_IF            (W5_REG_BASE + 0x0300)

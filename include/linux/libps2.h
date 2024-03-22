@@ -22,13 +22,13 @@ struct ps2dev;
  * @PS2_ERROR: do not process the byte, abort command in progress
  */
 enum ps2_disposition {
-	PS2_PROCESS,
-	PS2_IGNORE,
-	PS2_ERROR,
+  PS2_PROCESS,
+  PS2_IGNORE,
+  PS2_ERROR,
 };
 
 typedef enum ps2_disposition (*ps2_pre_receive_handler_t)(struct ps2dev *, u8,
-							  unsigned int);
+    unsigned int);
 typedef void (*ps2_receive_handler_t)(struct ps2dev *, u8);
 
 /**
@@ -46,21 +46,21 @@ typedef void (*ps2_receive_handler_t)(struct ps2dev *, u8);
  *   or mouse protocol
  */
 struct ps2dev {
-	struct serio *serio;
-	struct mutex cmd_mutex;
-	wait_queue_head_t wait;
-	unsigned long flags;
-	u8 cmdbuf[8];
-	u8 cmdcnt;
-	u8 nak;
+  struct serio *serio;
+  struct mutex cmd_mutex;
+  wait_queue_head_t wait;
+  unsigned long flags;
+  u8 cmdbuf[8];
+  u8 cmdcnt;
+  u8 nak;
 
-	ps2_pre_receive_handler_t pre_receive_handler;
-	ps2_receive_handler_t receive_handler;
+  ps2_pre_receive_handler_t pre_receive_handler;
+  ps2_receive_handler_t receive_handler;
 };
 
 void ps2_init(struct ps2dev *ps2dev, struct serio *serio,
-	      ps2_pre_receive_handler_t pre_receive_handler,
-	      ps2_receive_handler_t receive_handler);
+    ps2_pre_receive_handler_t pre_receive_handler,
+    ps2_receive_handler_t receive_handler);
 int ps2_sendbyte(struct ps2dev *ps2dev, u8 byte, unsigned int timeout);
 void ps2_drain(struct ps2dev *ps2dev, size_t maxbytes, unsigned int timeout);
 void ps2_begin_command(struct ps2dev *ps2dev);

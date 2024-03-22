@@ -17,14 +17,12 @@
  * NOTE: this must only be called from functions that never return,
  * and it must always be inlined.
  */
-static __always_inline void boot_init_stack_canary(void)
-{
-	unsigned long canary = get_random_canary();
-
-	current->stack_canary = canary;
+static __always_inline void boot_init_stack_canary(void) {
+  unsigned long canary = get_random_canary();
+  current->stack_canary = canary;
 #ifdef CONFIG_PPC64
-	get_paca()->canary = canary;
+  get_paca()->canary = canary;
 #endif
 }
 
-#endif	/* _ASM_STACKPROTECTOR_H */
+#endif  /* _ASM_STACKPROTECTOR_H */

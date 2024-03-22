@@ -24,12 +24,12 @@
 /*
  * Max value currently used:
  */
-#define TASK_SIZE_USER64		TASK_SIZE_4PB
-#define DEFAULT_MAP_WINDOW_USER64	TASK_SIZE_128TB
-#define TASK_CONTEXT_SIZE		TASK_SIZE_512TB
+#define TASK_SIZE_USER64    TASK_SIZE_4PB
+#define DEFAULT_MAP_WINDOW_USER64 TASK_SIZE_128TB
+#define TASK_CONTEXT_SIZE   TASK_SIZE_512TB
 #else
-#define TASK_SIZE_USER64		TASK_SIZE_64TB
-#define DEFAULT_MAP_WINDOW_USER64	TASK_SIZE_64TB
+#define TASK_SIZE_USER64    TASK_SIZE_64TB
+#define DEFAULT_MAP_WINDOW_USER64 TASK_SIZE_64TB
 
 /*
  * We don't need to allocate extended context ids for 4K page size, because we
@@ -53,18 +53,18 @@
  * This decides where the kernel will search for a free chunk of vm space during
  * mmap's.
  */
-#define TASK_UNMAPPED_BASE	\
-	((is_32bit_task()) ? TASK_UNMAPPED_BASE_USER32 : TASK_UNMAPPED_BASE_USER64)
+#define TASK_UNMAPPED_BASE  \
+  ((is_32bit_task()) ? TASK_UNMAPPED_BASE_USER32 : TASK_UNMAPPED_BASE_USER64)
 
 /*
  * Initial task size value for user applications. For book3s 64 we start
  * with 128TB and conditionally enable upto 512TB
  */
 #ifdef CONFIG_PPC_BOOK3S_64
-#define DEFAULT_MAP_WINDOW	\
-	((is_32bit_task()) ? TASK_SIZE_USER32 : DEFAULT_MAP_WINDOW_USER64)
+#define DEFAULT_MAP_WINDOW  \
+  ((is_32bit_task()) ? TASK_SIZE_USER32 : DEFAULT_MAP_WINDOW_USER64)
 #else
-#define DEFAULT_MAP_WINDOW	TASK_SIZE
+#define DEFAULT_MAP_WINDOW  TASK_SIZE
 #endif
 
 #define STACK_TOP_USER64 DEFAULT_MAP_WINDOW_USER64
@@ -73,11 +73,13 @@
 #define STACK_TOP (is_32bit_task() ? STACK_TOP_USER32 : STACK_TOP_USER64)
 
 #define arch_get_mmap_base(addr, base) \
-	(((addr) > DEFAULT_MAP_WINDOW) ? (base) + TASK_SIZE - DEFAULT_MAP_WINDOW : (base))
+  (((addr) \
+  > DEFAULT_MAP_WINDOW) ? (base) + TASK_SIZE - DEFAULT_MAP_WINDOW : (base))
 
 #define arch_get_mmap_end(addr, len, flags) \
-	(((addr) > DEFAULT_MAP_WINDOW) || \
-	 (((flags) & MAP_FIXED) && ((addr) + (len) > DEFAULT_MAP_WINDOW)) ? TASK_SIZE : \
-									    DEFAULT_MAP_WINDOW)
+  (((addr) > DEFAULT_MAP_WINDOW)    \
+  || (((flags) & MAP_FIXED) \
+  && ((addr) + (len) > DEFAULT_MAP_WINDOW)) ? TASK_SIZE   \
+  : DEFAULT_MAP_WINDOW)
 
 #endif /* _ASM_POWERPC_TASK_SIZE_64_H */

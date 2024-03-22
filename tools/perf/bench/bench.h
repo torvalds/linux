@@ -11,12 +11,12 @@ extern struct timeval bench__start, bench__end, bench__runtime;
  * 2.13. For compatibility with older versions of glibc, define these
  * tokens if they are not already defined.
  */
-# ifndef MADV_HUGEPAGE
-#  define MADV_HUGEPAGE		14
-# endif
-# ifndef MADV_NOHUGEPAGE
-#  define MADV_NOHUGEPAGE	15
-# endif
+#ifndef MADV_HUGEPAGE
+#define MADV_HUGEPAGE   14
+#endif
+#ifndef MADV_NOHUGEPAGE
+#define MADV_NOHUGEPAGE 15
+#endif
 
 int bench_numa(int argc, const char **argv);
 int bench_sched_messaging(int argc, const char **argv);
@@ -48,12 +48,12 @@ int bench_uprobe_empty(int argc, const char **argv);
 int bench_uprobe_trace_printk(int argc, const char **argv);
 int bench_pmu_scan(int argc, const char **argv);
 
-#define BENCH_FORMAT_DEFAULT_STR	"default"
-#define BENCH_FORMAT_DEFAULT		0
-#define BENCH_FORMAT_SIMPLE_STR		"simple"
-#define BENCH_FORMAT_SIMPLE		1
+#define BENCH_FORMAT_DEFAULT_STR  "default"
+#define BENCH_FORMAT_DEFAULT    0
+#define BENCH_FORMAT_SIMPLE_STR   "simple"
+#define BENCH_FORMAT_SIMPLE   1
 
-#define BENCH_FORMAT_UNKNOWN		-1
+#define BENCH_FORMAT_UNKNOWN    -1
 
 extern int bench_format;
 extern unsigned int bench_repeat;
@@ -61,12 +61,13 @@ extern unsigned int bench_repeat;
 #ifndef HAVE_PTHREAD_ATTR_SETAFFINITY_NP
 #include <pthread.h>
 #include <linux/compiler.h>
-static inline int pthread_attr_setaffinity_np(pthread_attr_t *attr __maybe_unused,
-					      size_t cpusetsize __maybe_unused,
-					      cpu_set_t *cpuset __maybe_unused)
-{
-	return 0;
+static inline int pthread_attr_setaffinity_np(
+    pthread_attr_t *attr __maybe_unused,
+    size_t cpusetsize __maybe_unused,
+    cpu_set_t *cpuset __maybe_unused) {
+  return 0;
 }
+
 #endif
 
 #endif

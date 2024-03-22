@@ -28,16 +28,15 @@
 #define PT_REGS_ORIG_SYSCALL(r) PT_REGS_AX(r)
 #define PT_REGS_SYSCALL_RET(r) PT_REGS_AX(r)
 
-#define PT_FIX_EXEC_STACK(sp) do ; while(0)
+#define PT_FIX_EXEC_STACK(sp) do; while (0)
 
 #define profile_pc(regs) PT_REGS_IP(regs)
 
 #define UPT_RESTART_SYSCALL(r) (UPT_IP(r) -= 2)
 #define PT_REGS_SET_SYSCALL_RETURN(r, res) (PT_REGS_AX(r) = (res))
 
-static inline long regs_return_value(struct pt_regs *regs)
-{
-	return PT_REGS_AX(regs);
+static inline long regs_return_value(struct pt_regs *regs) {
+  return PT_REGS_AX(regs);
 }
 
 /*
@@ -49,10 +48,10 @@ struct user_desc;
 #ifdef CONFIG_X86_32
 
 extern int ptrace_get_thread_area(struct task_struct *child, int idx,
-                                  struct user_desc __user *user_desc);
+    struct user_desc __user *user_desc);
 
 extern int ptrace_set_thread_area(struct task_struct *child, int idx,
-                                  struct user_desc __user *user_desc);
+    struct user_desc __user *user_desc);
 
 #else
 
@@ -68,19 +67,17 @@ extern int ptrace_set_thread_area(struct task_struct *child, int idx,
 #include <asm/errno.h>
 
 static inline int ptrace_get_thread_area(struct task_struct *child, int idx,
-                                         struct user_desc __user *user_desc)
-{
-        return -ENOSYS;
+    struct user_desc __user *user_desc) {
+  return -ENOSYS;
 }
 
 static inline int ptrace_set_thread_area(struct task_struct *child, int idx,
-                                         struct user_desc __user *user_desc)
-{
-        return -ENOSYS;
+    struct user_desc __user *user_desc) {
+  return -ENOSYS;
 }
 
 extern long arch_prctl(struct task_struct *task, int option,
-		       unsigned long __user *addr);
+    unsigned long __user *addr);
 
 #endif
 #define user_stack_pointer(regs) PT_REGS_SP(regs)

@@ -7,8 +7,8 @@
 #include <uapi/linux/kexec.h>
 
 struct kexec_sha_region {
-	unsigned long start;
-	unsigned long len;
+  unsigned long start;
+  unsigned long len;
 };
 
 /*

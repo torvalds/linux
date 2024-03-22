@@ -17,32 +17,32 @@
 #include "../common/mtk-base-afe.h"
 
 enum {
-	MT7986_MEMIF_DL1,
-	MT7986_MEMIF_VUL12,
-	MT7986_MEMIF_NUM,
-	MT7986_DAI_ETDM = MT7986_MEMIF_NUM,
-	MT7986_DAI_NUM,
+  MT7986_MEMIF_DL1,
+  MT7986_MEMIF_VUL12,
+  MT7986_MEMIF_NUM,
+  MT7986_DAI_ETDM = MT7986_MEMIF_NUM,
+  MT7986_DAI_NUM,
 };
 
 enum {
-	MT7986_IRQ_0,
-	MT7986_IRQ_1,
-	MT7986_IRQ_2,
-	MT7986_IRQ_NUM,
+  MT7986_IRQ_0,
+  MT7986_IRQ_1,
+  MT7986_IRQ_2,
+  MT7986_IRQ_NUM,
 };
 
 struct mt7986_afe_private {
-	struct clk_bulk_data *clks;
-	int num_clks;
+  struct clk_bulk_data *clks;
+  int num_clks;
 
-	int pm_runtime_bypass_reg_ctl;
+  int pm_runtime_bypass_reg_ctl;
 
-	/* dai */
-	void *dai_priv[MT7986_DAI_NUM];
+  /* dai */
+  void *dai_priv[MT7986_DAI_NUM];
 };
 
 unsigned int mt7986_afe_rate_transform(struct device *dev,
-				       unsigned int rate);
+    unsigned int rate);
 
 /* dai register */
 int mt7986_dai_etdm_register(struct mtk_base_afe *afe);

@@ -20,6 +20,6 @@
 
 #include <isp2400_support.h>
 
-#define HIVE_ISP_VMEM_MASK	((1U << ISP_VMEM_ELEMBITS) - 1)
+#define HIVE_ISP_VMEM_MASK  ((1U << ISP_VMEM_ELEMBITS) - 1)
 
 #endif /* __ISP_LOCAL_H_INCLUDED__ */

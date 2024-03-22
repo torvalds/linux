@@ -7,14 +7,15 @@
 
 #include <asm/debugreg.h>
 #include <asm/idtentry.h>
-#include <asm/siginfo.h>			/* TRAP_TRACE, ... */
+#include <asm/siginfo.h>      /* TRAP_TRACE, ... */
 #include <asm/trap_pf.h>
 
 #ifdef CONFIG_X86_64
 asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs);
 asmlinkage __visible notrace
 struct pt_regs *fixup_bad_iret(struct pt_regs *bad_regs);
-asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(struct pt_regs *eregs);
+asmlinkage __visible noinstr struct pt_regs *vc_switch_off_ist(
+  struct pt_regs *eregs);
 #endif
 
 extern int ibt_selftest(void);
@@ -25,14 +26,14 @@ extern int ibt_selftest_noendbr(void);
 void handle_invalid_op(struct pt_regs *regs);
 #endif
 
-static inline int get_si_code(unsigned long condition)
-{
-	if (condition & DR_STEP)
-		return TRAP_TRACE;
-	else if (condition & (DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3))
-		return TRAP_HWBKPT;
-	else
-		return TRAP_BRKPT;
+static inline int get_si_code(unsigned long condition) {
+  if (condition & DR_STEP) {
+    return TRAP_TRACE;
+  } else if (condition & (DR_TRAP0 | DR_TRAP1 | DR_TRAP2 | DR_TRAP3)) {
+    return TRAP_HWBKPT;
+  } else {
+    return TRAP_BRKPT;
+  }
 }
 
 extern int panic_on_unrecovered_nmi;
@@ -43,20 +44,20 @@ bool fault_in_kernel_space(unsigned long address);
 
 #ifdef CONFIG_VMAP_STACK
 void __noreturn handle_stack_overflow(struct pt_regs *regs,
-				      unsigned long fault_address,
-				      struct stack_info *info);
+    unsigned long fault_address,
+    struct stack_info *info);
 #endif
 
-static inline void cond_local_irq_enable(struct pt_regs *regs)
-{
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_enable();
+static inline void cond_local_irq_enable(struct pt_regs *regs) {
+  if (regs->flags & X86_EFLAGS_IF) {
+    local_irq_enable();
+  }
 }
 
-static inline void cond_local_irq_disable(struct pt_regs *regs)
-{
-	if (regs->flags & X86_EFLAGS_IF)
-		local_irq_disable();
+static inline void cond_local_irq_disable(struct pt_regs *regs) {
+  if (regs->flags & X86_EFLAGS_IF) {
+    local_irq_disable();
+  }
 }
 
 #endif /* _ASM_X86_TRAPS_H */

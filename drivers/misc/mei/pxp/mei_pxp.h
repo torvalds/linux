@@ -11,8 +11,7 @@
 
 /* me_pxp_status: Enumeration of all PXP Status Codes */
 enum me_pxp_status {
-	ME_PXP_STATUS_SUCCESS			= 0x0000,
-
+  ME_PXP_STATUS_SUCCESS = 0x0000,
 };
 
 #endif /* __MEI_PXP_H__ */

@@ -9,8 +9,8 @@
 #include <linux/types.h>
 
 struct k3_event_route_data {
-	void *priv;
-	int (*set_event)(void *priv, u32 event);
+  void *priv;
+  int (*set_event)(void *priv, u32 event);
 };
 
 #endif /* K3_EVENT_ROUTER_ */

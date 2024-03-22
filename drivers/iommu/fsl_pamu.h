@@ -13,10 +13,10 @@
 #include <asm/fsl_pamu_stash.h>
 
 /* Bit Field macros
- *	v = bit field variable; m = mask, m##_SHIFT = shift, x = value to load
+ *  v = bit field variable; m = mask, m##_SHIFT = shift, x = value to load
  */
-#define set_bf(v, m, x)		(v = ((v) & ~(m)) | (((x) << m##_SHIFT) & (m)))
-#define get_bf(v, m)		(((v) & (m)) >> m##_SHIFT)
+#define set_bf(v, m, x)   (v = ((v) & ~(m)) | (((x) << m ## _SHIFT) & (m)))
+#define get_bf(v, m)    (((v) & (m)) >> m ## _SHIFT)
 
 /* PAMU CCSR space */
 #define PAMU_PGC 0x00000000     /* Allows all peripheral accesses */
@@ -28,18 +28,18 @@
 #define PAMU_MMAP_REGS_BASE 0
 
 struct pamu_mmap_regs {
-	u32 ppbah;
-	u32 ppbal;
-	u32 pplah;
-	u32 pplal;
-	u32 spbah;
-	u32 spbal;
-	u32 splah;
-	u32 splal;
-	u32 obah;
-	u32 obal;
-	u32 olah;
-	u32 olal;
+  u32 ppbah;
+  u32 ppbal;
+  u32 pplah;
+  u32 pplal;
+  u32 spbah;
+  u32 spbal;
+  u32 splah;
+  u32 splal;
+  u32 obah;
+  u32 obal;
+  u32 olah;
+  u32 olal;
 };
 
 /* PAMU Error Registers */
@@ -55,8 +55,9 @@ struct pamu_mmap_regs {
 #define PAMU_AVS1_LAV   0x1c00
 #define PAMU_AVS1_GCV   0x2000
 #define PAMU_AVS1_PDV   0x4000
-#define PAMU_AV_MASK    (PAMU_AVS1_AV | PAMU_AVS1_OTV | PAMU_AVS1_APV | PAMU_AVS1_WAV \
-			 | PAMU_AVS1_LAV | PAMU_AVS1_GCV | PAMU_AVS1_PDV)
+#define PAMU_AV_MASK    (PAMU_AVS1_AV | PAMU_AVS1_OTV | PAMU_AVS1_APV \
+  | PAMU_AVS1_WAV \
+  | PAMU_AVS1_LAV | PAMU_AVS1_GCV | PAMU_AVS1_PDV)
 #define PAMU_AVS1_LIODN_SHIFT 16
 #define PAMU_LAV_LIODN_NOT_IN_PPAACT 0x400
 
@@ -214,114 +215,118 @@ struct pamu_mmap_regs {
  */
 #define PAACE_NUMBER_ENTRIES    0x500
 /* Hard coded value for the SPAACT size */
-#define SPAACE_NUMBER_ENTRIES	0x800
+#define SPAACE_NUMBER_ENTRIES 0x800
 
-#define	OME_NUMBER_ENTRIES      16
+#define OME_NUMBER_ENTRIES      16
 
 /* PAACE Bit Field Defines */
-#define PPAACE_AF_WBAL			0xfffff000
-#define PPAACE_AF_WBAL_SHIFT		12
-#define PPAACE_AF_WSE			0x00000fc0
-#define PPAACE_AF_WSE_SHIFT		6
-#define PPAACE_AF_MW			0x00000020
-#define PPAACE_AF_MW_SHIFT		5
+#define PPAACE_AF_WBAL      0xfffff000
+#define PPAACE_AF_WBAL_SHIFT    12
+#define PPAACE_AF_WSE     0x00000fc0
+#define PPAACE_AF_WSE_SHIFT   6
+#define PPAACE_AF_MW      0x00000020
+#define PPAACE_AF_MW_SHIFT    5
 
-#define SPAACE_AF_LIODN			0xffff0000
-#define SPAACE_AF_LIODN_SHIFT		16
+#define SPAACE_AF_LIODN     0xffff0000
+#define SPAACE_AF_LIODN_SHIFT   16
 
-#define PAACE_AF_AP			0x00000018
-#define PAACE_AF_AP_SHIFT		3
-#define PAACE_AF_DD			0x00000004
-#define PAACE_AF_DD_SHIFT		2
-#define PAACE_AF_PT			0x00000002
-#define PAACE_AF_PT_SHIFT		1
-#define PAACE_AF_V			0x00000001
-#define PAACE_AF_V_SHIFT		0
+#define PAACE_AF_AP     0x00000018
+#define PAACE_AF_AP_SHIFT   3
+#define PAACE_AF_DD     0x00000004
+#define PAACE_AF_DD_SHIFT   2
+#define PAACE_AF_PT     0x00000002
+#define PAACE_AF_PT_SHIFT   1
+#define PAACE_AF_V      0x00000001
+#define PAACE_AF_V_SHIFT    0
 
-#define PAACE_DA_HOST_CR		0x80
-#define PAACE_DA_HOST_CR_SHIFT		7
+#define PAACE_DA_HOST_CR    0x80
+#define PAACE_DA_HOST_CR_SHIFT    7
 
-#define PAACE_IA_CID			0x00FF0000
-#define PAACE_IA_CID_SHIFT		16
-#define PAACE_IA_WCE			0x000000F0
-#define PAACE_IA_WCE_SHIFT		4
-#define PAACE_IA_ATM			0x0000000C
-#define PAACE_IA_ATM_SHIFT		2
-#define PAACE_IA_OTM			0x00000003
-#define PAACE_IA_OTM_SHIFT		0
+#define PAACE_IA_CID      0x00FF0000
+#define PAACE_IA_CID_SHIFT    16
+#define PAACE_IA_WCE      0x000000F0
+#define PAACE_IA_WCE_SHIFT    4
+#define PAACE_IA_ATM      0x0000000C
+#define PAACE_IA_ATM_SHIFT    2
+#define PAACE_IA_OTM      0x00000003
+#define PAACE_IA_OTM_SHIFT    0
 
-#define PAACE_WIN_TWBAL			0xfffff000
-#define PAACE_WIN_TWBAL_SHIFT		12
-#define PAACE_WIN_SWSE			0x00000fc0
-#define PAACE_WIN_SWSE_SHIFT		6
+#define PAACE_WIN_TWBAL     0xfffff000
+#define PAACE_WIN_TWBAL_SHIFT   12
+#define PAACE_WIN_SWSE      0x00000fc0
+#define PAACE_WIN_SWSE_SHIFT    6
 
-/* PAMU Data Structures */
-/* primary / secondary paact structure */
+/* PAMU Data Structures
+ * primary / secondary paact structure*/
 struct paace {
-	/* PAACE Offset 0x00 */
-	u32 wbah;				/* only valid for Primary PAACE */
-	u32 addr_bitfields;		/* See P/S PAACE_AF_* */
+  /* PAACE Offset 0x00 */
+  u32 wbah;       /* only valid for Primary PAACE */
+  u32 addr_bitfields;   /* See P/S PAACE_AF_* */
 
-	/* PAACE Offset 0x08 */
-	/* Interpretation of first 32 bits dependent on DD above */
-	union {
-		struct {
-			/* Destination ID, see PAACE_DID_* defines */
-			u8 did;
-			/* Partition ID */
-			u8 pid;
-			/* Snoop ID */
-			u8 snpid;
-			/* coherency_required : 1 reserved : 7 */
-			u8 coherency_required; /* See PAACE_DA_* */
-		} to_host;
-		struct {
-			/* Destination ID, see PAACE_DID_* defines */
-			u8  did;
-			u8  reserved1;
-			u16 reserved2;
-		} to_io;
-	} domain_attr;
+  /* PAACE Offset 0x08
+   * Interpretation of first 32 bits dependent on DD above*/
+  union {
+    struct {
+      /* Destination ID, see PAACE_DID_* defines */
+      u8 did;
+      /* Partition ID */
+      u8 pid;
+      /* Snoop ID */
+      u8 snpid;
+      /* coherency_required : 1 reserved : 7 */
+      u8 coherency_required; /* See PAACE_DA_* */
+    } to_host;
+    struct {
+      /* Destination ID, see PAACE_DID_* defines */
+      u8 did;
+      u8 reserved1;
+      u16 reserved2;
+    } to_io;
+  } domain_attr;
 
-	/* Implementation attributes + window count + address & operation translation modes */
-	u32 impl_attr;			/* See PAACE_IA_* */
+  /* Implementation attributes + window count + address & operation translation
+   * modes */
+  u32 impl_attr;      /* See PAACE_IA_* */
 
-	/* PAACE Offset 0x10 */
-	/* Translated window base address */
-	u32 twbah;
-	u32 win_bitfields;			/* See PAACE_WIN_* */
+  /* PAACE Offset 0x10
+   * Translated window base address*/
+  u32 twbah;
+  u32 win_bitfields;      /* See PAACE_WIN_* */
 
-	/* PAACE Offset 0x18 */
-	/* first secondary paace entry */
-	u32 fspi;				/* only valid for Primary PAACE */
-	union {
-		struct {
-			u8 ioea;
-			u8 moea;
-			u8 ioeb;
-			u8 moeb;
-		} immed_ot;
-		struct {
-			u16 reserved;
-			u16 omi;
-		} index_ot;
-	} op_encode;
+  /* PAACE Offset 0x18
+   * first secondary paace entry*/
+  u32 fspi;       /* only valid for Primary PAACE */
+  union {
+    struct {
+      u8 ioea;
+      u8 moea;
+      u8 ioeb;
+      u8 moeb;
+    } immed_ot;
+    struct {
+      u16 reserved;
+      u16 omi;
+    } index_ot;
+  } op_encode;
 
-	/* PAACE Offsets 0x20-0x38 */
-	u32 reserved[8];			/* not currently implemented */
+  /* PAACE Offsets 0x20-0x38 */
+  u32 reserved[8];      /* not currently implemented */
 };
 
 /* OME : Operation mapping entry
  * MOE : Mapped Operation Encodings
- * The operation mapping table is table containing operation mapping entries (OME).
- * The index of a particular OME is programmed in the PAACE entry for translation
- * in bound I/O operations corresponding to an LIODN. The OMT is used for translation
+ * The operation mapping table is table containing operation mapping entries
+ *(OME).
+ * The index of a particular OME is programmed in the PAACE entry for
+ *translation
+ * in bound I/O operations corresponding to an LIODN. The OMT is used for
+ *translation
  * specifically in case of the indexed translation mode. Each OME contains a 128
  * byte mapped operation encoding (MOE), where each byte represents an MOE.
  */
 #define NUM_MOE 128
 struct ome {
-	u8 moe[NUM_MOE];
+  u8 moe[NUM_MOE];
 } __packed;
 
 #define PAACT_SIZE              (sizeof(struct paace) * PAACE_NUMBER_ENTRIES)
@@ -364,10 +369,13 @@ struct ome {
 #define EOE_RAI         0x0f    /* Read with Atomic increment */
 #define EOE_LDEC        0x10    /* Load external cache */
 #define EOE_LDECL       0x11    /* Load external cache with stash lock */
-#define EOE_LDECPE      0x12    /* Load external cache with preferred exclusive */
-#define EOE_LDECPEL     0x13    /* Load external cache with preferred exclusive and lock */
+#define EOE_LDECPE      0x12    /* Load external cache with preferred exclusive
+                                 * */
+#define EOE_LDECPEL     0x13    /* Load external cache with preferred exclusive
+                                 * and lock */
 #define EOE_LDECFE      0x14    /* Load external cache with forced exclusive */
-#define EOE_LDECFEL     0x15    /* Load external cache with forced exclusive and lock */
+#define EOE_LDECFEL     0x15    /* Load external cache with forced exclusive and
+                                 * lock */
 #define EOE_RSA         0x16    /* Read with stash allocate */
 #define EOE_RSAU        0x17    /* Read with stash allocate and unlock */
 #define EOE_READI       0x18    /* Read with invalidate */
@@ -387,6 +395,6 @@ int pamu_config_ppaace(int liodn, u32 omi, uint32_t stashid, int prot);
 
 u32 get_stash_id(u32 stash_dest_hint, u32 vcpu);
 void get_ome_index(u32 *omi_index, struct device *dev);
-int  pamu_update_paace_stash(int liodn, u32 value);
+int pamu_update_paace_stash(int liodn, u32 value);
 
 #endif  /* __FSL_PAMU_H */

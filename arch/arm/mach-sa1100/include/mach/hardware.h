@@ -13,9 +13,7 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-
-#define UNCACHEABLE_ADDR	0xfa050000	/* ICIP */
-
+#define UNCACHEABLE_ADDR  0xfa050000  /* ICIP */
 
 /*
  * SA1100 internal I/O mappings
@@ -28,26 +26,27 @@
  *      b0000000        fe000000
  */
 
-#define VIO_BASE        0xf8000000	/* virtual start of IO space */
-#define VIO_SHIFT       3		/* x = IO space shrink power */
-#define PIO_START       0x80000000	/* physical start of IO space */
+#define VIO_BASE        0xf8000000  /* virtual start of IO space */
+#define VIO_SHIFT       3   /* x = IO space shrink power */
+#define PIO_START       0x80000000  /* physical start of IO space */
 
-#define io_p2v( x )             \
-   IOMEM( (((x)&0x00ffffff) | (((x)&0x30000000)>>VIO_SHIFT)) + VIO_BASE )
-#define io_v2p( x )             \
-   ( (((x)&0x00ffffff) | (((x)&(0x30000000>>VIO_SHIFT))<<VIO_SHIFT)) + PIO_START )
+#define io_p2v(x)             \
+  IOMEM((((x) & 0x00ffffff) | (((x) & 0x30000000) >> VIO_SHIFT)) + VIO_BASE)
+#define io_v2p(x)             \
+  ((((x) & 0x00ffffff) \
+  | (((x) & (0x30000000 >> VIO_SHIFT)) << VIO_SHIFT)) + PIO_START)
 
-#define __MREG(x)	IOMEM(io_p2v(x))
+#define __MREG(x) IOMEM(io_p2v(x))
 
 #ifndef __ASSEMBLY__
 
-# define __REG(x)	(*((volatile unsigned long __iomem *)io_p2v(x)))
-# define __PREG(x)	(io_v2p((unsigned long)&(x)))
+#define __REG(x) (*((volatile unsigned long __iomem *) io_p2v(x)))
+#define __PREG(x)  (io_v2p((unsigned long) &(x)))
 
 #else
 
-# define __REG(x)	io_p2v(x)
-# define __PREG(x)	io_v2p(x)
+#define __REG(x) io_p2v(x)
+#define __PREG(x)  io_v2p(x)
 
 #endif
 

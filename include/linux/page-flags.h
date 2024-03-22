@@ -98,103 +98,104 @@
  * SPARSEMEM_EXTREME with !SPARSEMEM_VMEMMAP).
  */
 enum pageflags {
-	PG_locked,		/* Page is locked. Don't touch. */
-	PG_writeback,		/* Page is under writeback */
-	PG_referenced,
-	PG_uptodate,
-	PG_dirty,
-	PG_lru,
-	PG_head,		/* Must be in bit 6 */
-	PG_waiters,		/* Page has waiters, check its waitqueue. Must be bit #7 and in the same byte as "PG_locked" */
-	PG_active,
-	PG_workingset,
-	PG_error,
-	PG_slab,
-	PG_owner_priv_1,	/* Owner use. If pagecache, fs may use*/
-	PG_arch_1,
-	PG_reserved,
-	PG_private,		/* If pagecache, has fs-private data */
-	PG_private_2,		/* If pagecache, has fs aux data */
-	PG_mappedtodisk,	/* Has blocks allocated on-disk */
-	PG_reclaim,		/* To be reclaimed asap */
-	PG_swapbacked,		/* Page is backed by RAM/swap */
-	PG_unevictable,		/* Page is "unevictable"  */
+  PG_locked,    /* Page is locked. Don't touch. */
+  PG_writeback,   /* Page is under writeback */
+  PG_referenced,
+  PG_uptodate,
+  PG_dirty,
+  PG_lru,
+  PG_head,    /* Must be in bit 6 */
+  PG_waiters,   /* Page has waiters, check its waitqueue. Must be bit #7 and in
+                 * the same byte as "PG_locked" */
+  PG_active,
+  PG_workingset,
+  PG_error,
+  PG_slab,
+  PG_owner_priv_1,  /* Owner use. If pagecache, fs may use*/
+  PG_arch_1,
+  PG_reserved,
+  PG_private,   /* If pagecache, has fs-private data */
+  PG_private_2,   /* If pagecache, has fs aux data */
+  PG_mappedtodisk,  /* Has blocks allocated on-disk */
+  PG_reclaim,   /* To be reclaimed asap */
+  PG_swapbacked,    /* Page is backed by RAM/swap */
+  PG_unevictable,   /* Page is "unevictable"  */
 #ifdef CONFIG_MMU
-	PG_mlocked,		/* Page is vma mlocked */
+  PG_mlocked,   /* Page is vma mlocked */
 #endif
 #ifdef CONFIG_ARCH_USES_PG_UNCACHED
-	PG_uncached,		/* Page has been mapped as uncached */
+  PG_uncached,    /* Page has been mapped as uncached */
 #endif
 #ifdef CONFIG_MEMORY_FAILURE
-	PG_hwpoison,		/* hardware poisoned page. Don't touch */
+  PG_hwpoison,    /* hardware poisoned page. Don't touch */
 #endif
 #if defined(CONFIG_PAGE_IDLE_FLAG) && defined(CONFIG_64BIT)
-	PG_young,
-	PG_idle,
+  PG_young,
+  PG_idle,
 #endif
 #ifdef CONFIG_ARCH_USES_PG_ARCH_X
-	PG_arch_2,
-	PG_arch_3,
+  PG_arch_2,
+  PG_arch_3,
 #endif
-	__NR_PAGEFLAGS,
+  __NR_PAGEFLAGS,
 
-	PG_readahead = PG_reclaim,
+  PG_readahead = PG_reclaim,
 
-	/*
-	 * Depending on the way an anonymous folio can be mapped into a page
-	 * table (e.g., single PMD/PUD/CONT of the head page vs. PTE-mapped
-	 * THP), PG_anon_exclusive may be set only for the head page or for
-	 * tail pages of an anonymous folio. For now, we only expect it to be
-	 * set on tail pages for PTE-mapped THP.
-	 */
-	PG_anon_exclusive = PG_mappedtodisk,
+  /*
+   * Depending on the way an anonymous folio can be mapped into a page
+   * table (e.g., single PMD/PUD/CONT of the head page vs. PTE-mapped
+   * THP), PG_anon_exclusive may be set only for the head page or for
+   * tail pages of an anonymous folio. For now, we only expect it to be
+   * set on tail pages for PTE-mapped THP.
+   */
+  PG_anon_exclusive = PG_mappedtodisk,
 
-	/* Filesystems */
-	PG_checked = PG_owner_priv_1,
+  /* Filesystems */
+  PG_checked = PG_owner_priv_1,
 
-	/* SwapBacked */
-	PG_swapcache = PG_owner_priv_1,	/* Swap page: swp_entry_t in private */
+  /* SwapBacked */
+  PG_swapcache = PG_owner_priv_1, /* Swap page: swp_entry_t in private */
 
-	/* Two page bits are conscripted by FS-Cache to maintain local caching
-	 * state.  These bits are set on pages belonging to the netfs's inodes
-	 * when those inodes are being locally cached.
-	 */
-	PG_fscache = PG_private_2,	/* page backed by cache */
+  /* Two page bits are conscripted by FS-Cache to maintain local caching
+   * state.  These bits are set on pages belonging to the netfs's inodes
+   * when those inodes are being locally cached.
+   */
+  PG_fscache = PG_private_2,  /* page backed by cache */
 
-	/* XEN */
-	/* Pinned in Xen as a read-only pagetable page. */
-	PG_pinned = PG_owner_priv_1,
-	/* Pinned as part of domain save (see xen_mm_pin_all()). */
-	PG_savepinned = PG_dirty,
-	/* Has a grant mapping of another (foreign) domain's page. */
-	PG_foreign = PG_owner_priv_1,
-	/* Remapped by swiotlb-xen. */
-	PG_xen_remapped = PG_owner_priv_1,
+  /* XEN
+   * Pinned in Xen as a read-only pagetable page.*/
+  PG_pinned = PG_owner_priv_1,
+  /* Pinned as part of domain save (see xen_mm_pin_all()). */
+  PG_savepinned = PG_dirty,
+  /* Has a grant mapping of another (foreign) domain's page. */
+  PG_foreign = PG_owner_priv_1,
+  /* Remapped by swiotlb-xen. */
+  PG_xen_remapped = PG_owner_priv_1,
 
-	/* non-lru isolated movable page */
-	PG_isolated = PG_reclaim,
+  /* non-lru isolated movable page */
+  PG_isolated = PG_reclaim,
 
-	/* Only valid for buddy pages. Used to track pages that are reported */
-	PG_reported = PG_uptodate,
+  /* Only valid for buddy pages. Used to track pages that are reported */
+  PG_reported = PG_uptodate,
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-	/* For self-hosted memmap pages */
-	PG_vmemmap_self_hosted = PG_owner_priv_1,
+  /* For self-hosted memmap pages */
+  PG_vmemmap_self_hosted = PG_owner_priv_1,
 #endif
 
-	/*
-	 * Flags only valid for compound pages.  Stored in first tail page's
-	 * flags word.  Cannot use the first 8 flags or any flag marked as
-	 * PF_ANY.
-	 */
+  /*
+   * Flags only valid for compound pages.  Stored in first tail page's
+   * flags word.  Cannot use the first 8 flags or any flag marked as
+   * PF_ANY.
+   */
 
-	/* At least one page in this folio has the hwpoison flag set */
-	PG_has_hwpoisoned = PG_error,
-	PG_hugetlb = PG_active,
-	PG_large_rmappable = PG_workingset, /* anon or file-backed */
+  /* At least one page in this folio has the hwpoison flag set */
+  PG_has_hwpoisoned = PG_error,
+  PG_hugetlb = PG_active,
+  PG_large_rmappable = PG_workingset, /* anon or file-backed */
 };
 
-#define PAGEFLAGS_MASK		((1UL << NR_PAGEFLAGS) - 1)
+#define PAGEFLAGS_MASK    ((1UL << NR_PAGEFLAGS) - 1)
 
 #ifndef __GENERATING_BOUNDS_H
 
@@ -205,53 +206,52 @@ DECLARE_STATIC_KEY_FALSE(hugetlb_optimize_vmemmap_key);
  * Return the real head page struct iff the @page is a fake head page, otherwise
  * return the @page itself. See Documentation/mm/vmemmap_dedup.rst.
  */
-static __always_inline const struct page *page_fixed_fake_head(const struct page *page)
-{
-	if (!static_branch_unlikely(&hugetlb_optimize_vmemmap_key))
-		return page;
-
-	/*
-	 * Only addresses aligned with PAGE_SIZE of struct page may be fake head
-	 * struct page. The alignment check aims to avoid access the fields (
-	 * e.g. compound_head) of the @page[1]. It can avoid touch a (possibly)
-	 * cold cacheline in some cases.
-	 */
-	if (IS_ALIGNED((unsigned long)page, PAGE_SIZE) &&
-	    test_bit(PG_head, &page->flags)) {
-		/*
-		 * We can safely access the field of the @page[1] with PG_head
-		 * because the @page is a compound page composed with at least
-		 * two contiguous pages.
-		 */
-		unsigned long head = READ_ONCE(page[1].compound_head);
-
-		if (likely(head & 1))
-			return (const struct page *)(head - 1);
-	}
-	return page;
+static __always_inline const struct page *page_fixed_fake_head(
+    const struct page *page) {
+  if (!static_branch_unlikely(&hugetlb_optimize_vmemmap_key)) {
+    return page;
+  }
+  /*
+   * Only addresses aligned with PAGE_SIZE of struct page may be fake head
+   * struct page. The alignment check aims to avoid access the fields (
+   * e.g. compound_head) of the @page[1]. It can avoid touch a (possibly)
+   * cold cacheline in some cases.
+   */
+  if (IS_ALIGNED((unsigned long) page, PAGE_SIZE)
+      && test_bit(PG_head, &page->flags)) {
+    /*
+     * We can safely access the field of the @page[1] with PG_head
+     * because the @page is a compound page composed with at least
+     * two contiguous pages.
+     */
+    unsigned long head = READ_ONCE(page[1].compound_head);
+    if (likely(head & 1)) {
+      return (const struct page *) (head - 1);
+    }
+  }
+  return page;
 }
+
 #else
-static inline const struct page *page_fixed_fake_head(const struct page *page)
-{
-	return page;
+static inline const struct page *page_fixed_fake_head(const struct page *page) {
+  return page;
 }
+
 #endif
 
-static __always_inline int page_is_fake_head(const struct page *page)
-{
-	return page_fixed_fake_head(page) != page;
+static __always_inline int page_is_fake_head(const struct page *page) {
+  return page_fixed_fake_head(page) != page;
 }
 
-static inline unsigned long _compound_head(const struct page *page)
-{
-	unsigned long head = READ_ONCE(page->compound_head);
-
-	if (unlikely(head & 1))
-		return head - 1;
-	return (unsigned long)page_fixed_fake_head(page);
+static inline unsigned long _compound_head(const struct page *page) {
+  unsigned long head = READ_ONCE(page->compound_head);
+  if (unlikely(head & 1)) {
+    return head - 1;
+  }
+  return (unsigned long) page_fixed_fake_head(page);
 }
 
-#define compound_head(page)	((typeof(page))_compound_head(page))
+#define compound_head(page) ((typeof(page))_compound_head(page))
 
 /**
  * page_folio - Converts from page to folio.
@@ -266,9 +266,9 @@ static inline unsigned long _compound_head(const struct page *page)
  * a reference on the folio.
  * Return: The folio which contains this page.
  */
-#define page_folio(p)		(_Generic((p),				\
-	const struct page *:	(const struct folio *)_compound_head(p), \
-	struct page *:		(struct folio *)_compound_head(p)))
+#define page_folio(p)   (_Generic((p),        \
+    const struct page *:  (const struct folio *) _compound_head(p), \
+    struct page *:    (struct folio *) _compound_head(p)))
 
 /**
  * folio_page - Return a page from a folio.
@@ -279,50 +279,43 @@ static inline unsigned long _compound_head(const struct page *page)
  * check that the page number lies within @folio; the caller is presumed
  * to have a reference to the page.
  */
-#define folio_page(folio, n)	nth_page(&(folio)->page, n)
+#define folio_page(folio, n)  nth_page(&(folio)->page, n)
 
-static __always_inline int PageTail(const struct page *page)
-{
-	return READ_ONCE(page->compound_head) & 1 || page_is_fake_head(page);
+static __always_inline int PageTail(const struct page *page) {
+  return READ_ONCE(page->compound_head) & 1 || page_is_fake_head(page);
 }
 
-static __always_inline int PageCompound(const struct page *page)
-{
-	return test_bit(PG_head, &page->flags) ||
-	       READ_ONCE(page->compound_head) & 1;
+static __always_inline int PageCompound(const struct page *page) {
+  return test_bit(PG_head, &page->flags)
+    || READ_ONCE(page->compound_head) & 1;
 }
 
-#define	PAGE_POISON_PATTERN	-1l
-static inline int PagePoisoned(const struct page *page)
-{
-	return READ_ONCE(page->flags) == PAGE_POISON_PATTERN;
+#define PAGE_POISON_PATTERN -1l
+static inline int PagePoisoned(const struct page *page) {
+  return READ_ONCE(page->flags) == PAGE_POISON_PATTERN;
 }
 
 #ifdef CONFIG_DEBUG_VM
 void page_init_poison(struct page *page, size_t size);
 #else
-static inline void page_init_poison(struct page *page, size_t size)
-{
+static inline void page_init_poison(struct page *page, size_t size) {
 }
+
 #endif
 
 static const unsigned long *const_folio_flags(const struct folio *folio,
-		unsigned n)
-{
-	const struct page *page = &folio->page;
-
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	VM_BUG_ON_PGFLAGS(n > 0 && !test_bit(PG_head, &page->flags), page);
-	return &page[n].flags;
+    unsigned n) {
+  const struct page *page = &folio->page;
+  VM_BUG_ON_PGFLAGS(PageTail(page), page);
+  VM_BUG_ON_PGFLAGS(n > 0 && !test_bit(PG_head, &page->flags), page);
+  return &page[n].flags;
 }
 
-static unsigned long *folio_flags(struct folio *folio, unsigned n)
-{
-	struct page *page = &folio->page;
-
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	VM_BUG_ON_PGFLAGS(n > 0 && !test_bit(PG_head, &page->flags), page);
-	return &page[n].flags;
+static unsigned long *folio_flags(struct folio *folio, unsigned n) {
+  struct page *page = &folio->page;
+  VM_BUG_ON_PGFLAGS(PageTail(page), page);
+  VM_BUG_ON_PGFLAGS(n > 0 && !test_bit(PG_head, &page->flags), page);
+  return &page[n].flags;
 }
 
 /*
@@ -348,179 +341,181 @@ static unsigned long *folio_flags(struct folio *folio, unsigned n)
  * PF_SECOND:
  *     the page flag is stored in the first tail page.
  */
-#define PF_POISONED_CHECK(page) ({					\
-		VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);		\
-		page; })
-#define PF_ANY(page, enforce)	PF_POISONED_CHECK(page)
-#define PF_HEAD(page, enforce)	PF_POISONED_CHECK(compound_head(page))
-#define PF_NO_TAIL(page, enforce) ({					\
-		VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page);	\
-		PF_POISONED_CHECK(compound_head(page)); })
-#define PF_NO_COMPOUND(page, enforce) ({				\
-		VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page);	\
-		PF_POISONED_CHECK(page); })
-#define PF_SECOND(page, enforce) ({					\
-		VM_BUG_ON_PGFLAGS(!PageHead(page), page);		\
-		PF_POISONED_CHECK(&page[1]); })
+#define PF_POISONED_CHECK(page) ({          \
+    VM_BUG_ON_PGFLAGS(PagePoisoned(page), page);    \
+    page; })
+#define PF_ANY(page, enforce) PF_POISONED_CHECK(page)
+#define PF_HEAD(page, enforce)  PF_POISONED_CHECK(compound_head(page))
+#define PF_NO_TAIL(page, enforce) ({          \
+    VM_BUG_ON_PGFLAGS(enforce && PageTail(page), page); \
+    PF_POISONED_CHECK(compound_head(page)); })
+#define PF_NO_COMPOUND(page, enforce) ({        \
+    VM_BUG_ON_PGFLAGS(enforce && PageCompound(page), page); \
+    PF_POISONED_CHECK(page); })
+#define PF_SECOND(page, enforce) ({         \
+    VM_BUG_ON_PGFLAGS(!PageHead(page), page);   \
+    PF_POISONED_CHECK(&page[1]); })
 
 /* Which page is the flag stored in */
-#define FOLIO_PF_ANY		0
-#define FOLIO_PF_HEAD		0
-#define FOLIO_PF_NO_TAIL	0
-#define FOLIO_PF_NO_COMPOUND	0
-#define FOLIO_PF_SECOND		1
+#define FOLIO_PF_ANY    0
+#define FOLIO_PF_HEAD   0
+#define FOLIO_PF_NO_TAIL  0
+#define FOLIO_PF_NO_COMPOUND  0
+#define FOLIO_PF_SECOND   1
 
-#define FOLIO_HEAD_PAGE		0
-#define FOLIO_SECOND_PAGE	1
+#define FOLIO_HEAD_PAGE   0
+#define FOLIO_SECOND_PAGE 1
 
 /*
  * Macros to create function definitions for page flags
  */
-#define FOLIO_TEST_FLAG(name, page)					\
-static __always_inline bool folio_test_##name(const struct folio *folio) \
-{ return test_bit(PG_##name, const_folio_flags(folio, page)); }
+#define FOLIO_TEST_FLAG(name, page)         \
+  static __always_inline bool folio_test_ ## name(const struct folio *folio) \
+  { return test_bit(PG_ ## name, const_folio_flags(folio, page)); }
 
-#define FOLIO_SET_FLAG(name, page)					\
-static __always_inline void folio_set_##name(struct folio *folio)	\
-{ set_bit(PG_##name, folio_flags(folio, page)); }
+#define FOLIO_SET_FLAG(name, page)          \
+  static __always_inline void folio_set_ ## name(struct folio *folio) \
+  { set_bit(PG_ ## name, folio_flags(folio, page)); }
 
-#define FOLIO_CLEAR_FLAG(name, page)					\
-static __always_inline void folio_clear_##name(struct folio *folio)	\
-{ clear_bit(PG_##name, folio_flags(folio, page)); }
+#define FOLIO_CLEAR_FLAG(name, page)          \
+  static __always_inline void folio_clear_ ## name(struct folio *folio) \
+  { clear_bit(PG_ ## name, folio_flags(folio, page)); }
 
-#define __FOLIO_SET_FLAG(name, page)					\
-static __always_inline void __folio_set_##name(struct folio *folio)	\
-{ __set_bit(PG_##name, folio_flags(folio, page)); }
+#define __FOLIO_SET_FLAG(name, page)          \
+  static __always_inline void __folio_set_ ## name(struct folio *folio) \
+  { __set_bit(PG_ ## name, folio_flags(folio, page)); }
 
-#define __FOLIO_CLEAR_FLAG(name, page)					\
-static __always_inline void __folio_clear_##name(struct folio *folio)	\
-{ __clear_bit(PG_##name, folio_flags(folio, page)); }
+#define __FOLIO_CLEAR_FLAG(name, page)          \
+  static __always_inline void __folio_clear_ ## name(struct folio *folio) \
+  { __clear_bit(PG_ ## name, folio_flags(folio, page)); }
 
-#define FOLIO_TEST_SET_FLAG(name, page)					\
-static __always_inline bool folio_test_set_##name(struct folio *folio)	\
-{ return test_and_set_bit(PG_##name, folio_flags(folio, page)); }
+#define FOLIO_TEST_SET_FLAG(name, page)         \
+  static __always_inline bool folio_test_set_ ## name(struct folio *folio)  \
+  { return test_and_set_bit(PG_ ## name, folio_flags(folio, page)); }
 
-#define FOLIO_TEST_CLEAR_FLAG(name, page)				\
-static __always_inline bool folio_test_clear_##name(struct folio *folio) \
-{ return test_and_clear_bit(PG_##name, folio_flags(folio, page)); }
+#define FOLIO_TEST_CLEAR_FLAG(name, page)       \
+  static __always_inline bool folio_test_clear_ ## name(struct folio *folio) \
+  { return test_and_clear_bit(PG_ ## name, folio_flags(folio, page)); }
 
-#define FOLIO_FLAG(name, page)						\
-FOLIO_TEST_FLAG(name, page)						\
-FOLIO_SET_FLAG(name, page)						\
-FOLIO_CLEAR_FLAG(name, page)
+#define FOLIO_FLAG(name, page)            \
+  FOLIO_TEST_FLAG(name, page)           \
+  FOLIO_SET_FLAG(name, page)            \
+  FOLIO_CLEAR_FLAG(name, page)
 
-#define TESTPAGEFLAG(uname, lname, policy)				\
-FOLIO_TEST_FLAG(lname, FOLIO_##policy)					\
-static __always_inline int Page##uname(const struct page *page)		\
-{ return test_bit(PG_##lname, &policy(page, 0)->flags); }
+#define TESTPAGEFLAG(uname, lname, policy)        \
+  FOLIO_TEST_FLAG(lname, FOLIO_ ## policy)          \
+  static __always_inline int Page ## uname(const struct page *page)   \
+  { return test_bit(PG_ ## lname, &policy(page, 0)->flags); }
 
-#define SETPAGEFLAG(uname, lname, policy)				\
-FOLIO_SET_FLAG(lname, FOLIO_##policy)					\
-static __always_inline void SetPage##uname(struct page *page)		\
-{ set_bit(PG_##lname, &policy(page, 1)->flags); }
+#define SETPAGEFLAG(uname, lname, policy)       \
+  FOLIO_SET_FLAG(lname, FOLIO_ ## policy)         \
+  static __always_inline void SetPage ## uname(struct page *page)   \
+  { set_bit(PG_ ## lname, &policy(page, 1)->flags); }
 
-#define CLEARPAGEFLAG(uname, lname, policy)				\
-FOLIO_CLEAR_FLAG(lname, FOLIO_##policy)					\
-static __always_inline void ClearPage##uname(struct page *page)		\
-{ clear_bit(PG_##lname, &policy(page, 1)->flags); }
+#define CLEARPAGEFLAG(uname, lname, policy)       \
+  FOLIO_CLEAR_FLAG(lname, FOLIO_ ## policy)         \
+  static __always_inline void ClearPage ## uname(struct page *page)   \
+  { clear_bit(PG_ ## lname, &policy(page, 1)->flags); }
 
-#define __SETPAGEFLAG(uname, lname, policy)				\
-__FOLIO_SET_FLAG(lname, FOLIO_##policy)					\
-static __always_inline void __SetPage##uname(struct page *page)		\
-{ __set_bit(PG_##lname, &policy(page, 1)->flags); }
+#define __SETPAGEFLAG(uname, lname, policy)       \
+  __FOLIO_SET_FLAG(lname, FOLIO_ ## policy)         \
+  static __always_inline void __SetPage ## uname(struct page *page)   \
+  { __set_bit(PG_ ## lname, &policy(page, 1)->flags); }
 
-#define __CLEARPAGEFLAG(uname, lname, policy)				\
-__FOLIO_CLEAR_FLAG(lname, FOLIO_##policy)				\
-static __always_inline void __ClearPage##uname(struct page *page)	\
-{ __clear_bit(PG_##lname, &policy(page, 1)->flags); }
+#define __CLEARPAGEFLAG(uname, lname, policy)       \
+  __FOLIO_CLEAR_FLAG(lname, FOLIO_ ## policy)       \
+  static __always_inline void __ClearPage ## uname(struct page *page) \
+  { __clear_bit(PG_ ## lname, &policy(page, 1)->flags); }
 
-#define TESTSETFLAG(uname, lname, policy)				\
-FOLIO_TEST_SET_FLAG(lname, FOLIO_##policy)				\
-static __always_inline int TestSetPage##uname(struct page *page)	\
-{ return test_and_set_bit(PG_##lname, &policy(page, 1)->flags); }
+#define TESTSETFLAG(uname, lname, policy)       \
+  FOLIO_TEST_SET_FLAG(lname, FOLIO_ ## policy)        \
+  static __always_inline int TestSetPage ## uname(struct page *page)  \
+  { return test_and_set_bit(PG_ ## lname, &policy(page, 1)->flags); }
 
-#define TESTCLEARFLAG(uname, lname, policy)				\
-FOLIO_TEST_CLEAR_FLAG(lname, FOLIO_##policy)				\
-static __always_inline int TestClearPage##uname(struct page *page)	\
-{ return test_and_clear_bit(PG_##lname, &policy(page, 1)->flags); }
+#define TESTCLEARFLAG(uname, lname, policy)       \
+  FOLIO_TEST_CLEAR_FLAG(lname, FOLIO_ ## policy)        \
+  static __always_inline int TestClearPage ## uname(struct page *page)  \
+  { return test_and_clear_bit(PG_ ## lname, &policy(page, 1)->flags); }
 
-#define PAGEFLAG(uname, lname, policy)					\
-	TESTPAGEFLAG(uname, lname, policy)				\
-	SETPAGEFLAG(uname, lname, policy)				\
-	CLEARPAGEFLAG(uname, lname, policy)
+#define PAGEFLAG(uname, lname, policy)          \
+  TESTPAGEFLAG(uname, lname, policy)        \
+  SETPAGEFLAG(uname, lname, policy)       \
+  CLEARPAGEFLAG(uname, lname, policy)
 
-#define __PAGEFLAG(uname, lname, policy)				\
-	TESTPAGEFLAG(uname, lname, policy)				\
-	__SETPAGEFLAG(uname, lname, policy)				\
-	__CLEARPAGEFLAG(uname, lname, policy)
+#define __PAGEFLAG(uname, lname, policy)        \
+  TESTPAGEFLAG(uname, lname, policy)        \
+  __SETPAGEFLAG(uname, lname, policy)       \
+  __CLEARPAGEFLAG(uname, lname, policy)
 
-#define TESTSCFLAG(uname, lname, policy)				\
-	TESTSETFLAG(uname, lname, policy)				\
-	TESTCLEARFLAG(uname, lname, policy)
+#define TESTSCFLAG(uname, lname, policy)        \
+  TESTSETFLAG(uname, lname, policy)       \
+  TESTCLEARFLAG(uname, lname, policy)
 
-#define TESTPAGEFLAG_FALSE(uname, lname)				\
-static inline bool folio_test_##lname(const struct folio *folio) { return false; } \
-static inline int Page##uname(const struct page *page) { return 0; }
+#define TESTPAGEFLAG_FALSE(uname, lname)        \
+  static inline bool folio_test_ ## lname(const struct folio *folio) { return \
+                                                                         false; \
+  } \
+  static inline int Page ## uname(const struct page *page) { return 0; }
 
-#define SETPAGEFLAG_NOOP(uname, lname)					\
-static inline void folio_set_##lname(struct folio *folio) { }		\
-static inline void SetPage##uname(struct page *page) {  }
+#define SETPAGEFLAG_NOOP(uname, lname)          \
+  static inline void folio_set_ ## lname(struct folio *folio) {}   \
+  static inline void SetPage ## uname(struct page *page) {}
 
-#define CLEARPAGEFLAG_NOOP(uname, lname)				\
-static inline void folio_clear_##lname(struct folio *folio) { }		\
-static inline void ClearPage##uname(struct page *page) {  }
+#define CLEARPAGEFLAG_NOOP(uname, lname)        \
+  static inline void folio_clear_ ## lname(struct folio *folio) {}   \
+  static inline void ClearPage ## uname(struct page *page) {}
 
-#define __CLEARPAGEFLAG_NOOP(uname, lname)				\
-static inline void __folio_clear_##lname(struct folio *folio) { }	\
-static inline void __ClearPage##uname(struct page *page) {  }
+#define __CLEARPAGEFLAG_NOOP(uname, lname)        \
+  static inline void __folio_clear_ ## lname(struct folio *folio) {} \
+  static inline void __ClearPage ## uname(struct page *page) {}
 
-#define TESTSETFLAG_FALSE(uname, lname)					\
-static inline bool folio_test_set_##lname(struct folio *folio)		\
-{ return 0; }								\
-static inline int TestSetPage##uname(struct page *page) { return 0; }
+#define TESTSETFLAG_FALSE(uname, lname)         \
+  static inline bool folio_test_set_ ## lname(struct folio *folio)    \
+  { return 0; }               \
+  static inline int TestSetPage ## uname(struct page *page) { return 0; }
 
-#define TESTCLEARFLAG_FALSE(uname, lname)				\
-static inline bool folio_test_clear_##lname(struct folio *folio)	\
-{ return 0; }								\
-static inline int TestClearPage##uname(struct page *page) { return 0; }
+#define TESTCLEARFLAG_FALSE(uname, lname)       \
+  static inline bool folio_test_clear_ ## lname(struct folio *folio)  \
+  { return 0; }               \
+  static inline int TestClearPage ## uname(struct page *page) { return 0; }
 
-#define PAGEFLAG_FALSE(uname, lname) TESTPAGEFLAG_FALSE(uname, lname)	\
-	SETPAGEFLAG_NOOP(uname, lname) CLEARPAGEFLAG_NOOP(uname, lname)
+#define PAGEFLAG_FALSE(uname, lname) TESTPAGEFLAG_FALSE(uname, lname) \
+  SETPAGEFLAG_NOOP(uname, lname) CLEARPAGEFLAG_NOOP(uname, lname)
 
-#define TESTSCFLAG_FALSE(uname, lname)					\
-	TESTSETFLAG_FALSE(uname, lname) TESTCLEARFLAG_FALSE(uname, lname)
+#define TESTSCFLAG_FALSE(uname, lname)          \
+  TESTSETFLAG_FALSE(uname, lname) TESTCLEARFLAG_FALSE(uname, lname)
 
 __PAGEFLAG(Locked, locked, PF_NO_TAIL)
 FOLIO_FLAG(waiters, FOLIO_HEAD_PAGE)
 PAGEFLAG(Error, error, PF_NO_TAIL) TESTCLEARFLAG(Error, error, PF_NO_TAIL)
 PAGEFLAG(Referenced, referenced, PF_HEAD)
-	TESTCLEARFLAG(Referenced, referenced, PF_HEAD)
-	__SETPAGEFLAG(Referenced, referenced, PF_HEAD)
+TESTCLEARFLAG(Referenced, referenced, PF_HEAD)
+__SETPAGEFLAG(Referenced, referenced, PF_HEAD)
 PAGEFLAG(Dirty, dirty, PF_HEAD) TESTSCFLAG(Dirty, dirty, PF_HEAD)
-	__CLEARPAGEFLAG(Dirty, dirty, PF_HEAD)
+__CLEARPAGEFLAG(Dirty, dirty, PF_HEAD)
 PAGEFLAG(LRU, lru, PF_HEAD) __CLEARPAGEFLAG(LRU, lru, PF_HEAD)
-	TESTCLEARFLAG(LRU, lru, PF_HEAD)
+TESTCLEARFLAG(LRU, lru, PF_HEAD)
 PAGEFLAG(Active, active, PF_HEAD) __CLEARPAGEFLAG(Active, active, PF_HEAD)
-	TESTCLEARFLAG(Active, active, PF_HEAD)
+TESTCLEARFLAG(Active, active, PF_HEAD)
 PAGEFLAG(Workingset, workingset, PF_HEAD)
-	TESTCLEARFLAG(Workingset, workingset, PF_HEAD)
+TESTCLEARFLAG(Workingset, workingset, PF_HEAD)
 __PAGEFLAG(Slab, slab, PF_NO_TAIL)
-PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
+PAGEFLAG(Checked, checked, PF_NO_COMPOUND)     /* Used by some filesystems */
 
 /* Xen */
 PAGEFLAG(Pinned, pinned, PF_NO_COMPOUND)
-	TESTSCFLAG(Pinned, pinned, PF_NO_COMPOUND)
+TESTSCFLAG(Pinned, pinned, PF_NO_COMPOUND)
 PAGEFLAG(SavePinned, savepinned, PF_NO_COMPOUND);
 PAGEFLAG(Foreign, foreign, PF_NO_COMPOUND);
 PAGEFLAG(XenRemapped, xen_remapped, PF_NO_COMPOUND)
-	TESTCLEARFLAG(XenRemapped, xen_remapped, PF_NO_COMPOUND)
+TESTCLEARFLAG(XenRemapped, xen_remapped, PF_NO_COMPOUND)
 
 PAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
-	__CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
-	__SETPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
+__CLEARPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
+__SETPAGEFLAG(Reserved, reserved, PF_NO_COMPOUND)
 PAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
-	__CLEARPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
-	__SETPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
+__CLEARPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
+__SETPAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
 
 /*
  * Private page markings that may be used by the filesystem that owns the page
@@ -530,21 +525,21 @@ PAGEFLAG(SwapBacked, swapbacked, PF_NO_TAIL)
 PAGEFLAG(Private, private, PF_ANY)
 PAGEFLAG(Private2, private_2, PF_ANY) TESTSCFLAG(Private2, private_2, PF_ANY)
 PAGEFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
-	TESTCLEARFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
+TESTCLEARFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
 
 /*
  * Only test-and-set exist for PG_writeback.  The unconditional operators are
  * risky: they bypass page accounting.
  */
 TESTPAGEFLAG(Writeback, writeback, PF_NO_TAIL)
-	TESTSCFLAG(Writeback, writeback, PF_NO_TAIL)
+TESTSCFLAG(Writeback, writeback, PF_NO_TAIL)
 PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
 
 /* PG_readahead is only used for reads; PG_reclaim is only for writes */
 PAGEFLAG(Reclaim, reclaim, PF_NO_TAIL)
-	TESTCLEARFLAG(Reclaim, reclaim, PF_NO_TAIL)
+TESTCLEARFLAG(Reclaim, reclaim, PF_NO_TAIL)
 PAGEFLAG(Readahead, readahead, PF_NO_COMPOUND)
-	TESTCLEARFLAG(Readahead, readahead, PF_NO_COMPOUND)
+TESTCLEARFLAG(Readahead, readahead, PF_NO_COMPOUND)
 
 #ifdef CONFIG_HIGHMEM
 /*
@@ -552,21 +547,19 @@ PAGEFLAG(Readahead, readahead, PF_NO_COMPOUND)
  * available at this point.
  */
 #define PageHighMem(__p) is_highmem_idx(page_zonenum(__p))
-#define folio_test_highmem(__f)	is_highmem_idx(folio_zonenum(__f))
+#define folio_test_highmem(__f) is_highmem_idx(folio_zonenum(__f))
 #else
 PAGEFLAG_FALSE(HighMem, highmem)
 #endif
 
 #ifdef CONFIG_SWAP
-static __always_inline bool folio_test_swapcache(const struct folio *folio)
-{
-	return folio_test_swapbacked(folio) &&
-			test_bit(PG_swapcache, const_folio_flags(folio, 0));
+static __always_inline bool folio_test_swapcache(const struct folio *folio) {
+  return folio_test_swapbacked(folio)
+    && test_bit(PG_swapcache, const_folio_flags(folio, 0));
 }
 
-static __always_inline bool PageSwapCache(const struct page *page)
-{
-	return folio_test_swapcache(page_folio(page));
+static __always_inline bool PageSwapCache(const struct page *page) {
+  return folio_test_swapcache(page_folio(page));
 }
 
 SETPAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
@@ -576,16 +569,16 @@ PAGEFLAG_FALSE(SwapCache, swapcache)
 #endif
 
 PAGEFLAG(Unevictable, unevictable, PF_HEAD)
-	__CLEARPAGEFLAG(Unevictable, unevictable, PF_HEAD)
-	TESTCLEARFLAG(Unevictable, unevictable, PF_HEAD)
+__CLEARPAGEFLAG(Unevictable, unevictable, PF_HEAD)
+TESTCLEARFLAG(Unevictable, unevictable, PF_HEAD)
 
 #ifdef CONFIG_MMU
 PAGEFLAG(Mlocked, mlocked, PF_NO_TAIL)
-	__CLEARPAGEFLAG(Mlocked, mlocked, PF_NO_TAIL)
-	TESTSCFLAG(Mlocked, mlocked, PF_NO_TAIL)
+__CLEARPAGEFLAG(Mlocked, mlocked, PF_NO_TAIL)
+TESTSCFLAG(Mlocked, mlocked, PF_NO_TAIL)
 #else
 PAGEFLAG_FALSE(Mlocked, mlocked) __CLEARPAGEFLAG_NOOP(Mlocked, mlocked)
-	TESTSCFLAG_FALSE(Mlocked, mlocked)
+TESTSCFLAG_FALSE(Mlocked, mlocked)
 #endif
 
 #ifdef CONFIG_ARCH_USES_PG_UNCACHED
@@ -598,7 +591,7 @@ PAGEFLAG_FALSE(Uncached, uncached)
 PAGEFLAG(HWPoison, hwpoison, PF_ANY)
 TESTSCFLAG(HWPoison, hwpoison, PF_ANY)
 #define __PG_HWPOISON (1UL << PG_hwpoison)
-#define MAGIC_HWPOISON	0x48575053U	/* HWPS */
+#define MAGIC_HWPOISON  0x48575053U /* HWPS */
 extern void SetPageHWPoisonTakenOff(struct page *page);
 extern void ClearPageHWPoisonTakenOff(struct page *page);
 extern bool take_page_off_buddy(struct page *page);
@@ -652,47 +645,41 @@ PAGEFLAG_FALSE(VmemmapSelfHosted, vmemmap_self_hosted)
  * make sure that PageSlab(page) actually evaluates to false before calling
  * the following functions (e.g., PageAnon).  See mm/slab.h.
  */
-#define PAGE_MAPPING_ANON	0x1
-#define PAGE_MAPPING_MOVABLE	0x2
-#define PAGE_MAPPING_KSM	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
-#define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
+#define PAGE_MAPPING_ANON 0x1
+#define PAGE_MAPPING_MOVABLE  0x2
+#define PAGE_MAPPING_KSM  (PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
+#define PAGE_MAPPING_FLAGS  (PAGE_MAPPING_ANON | PAGE_MAPPING_MOVABLE)
 
 /*
  * Different with flags above, this flag is used only for fsdax mode.  It
  * indicates that this page->mapping is now under reflink case.
  */
-#define PAGE_MAPPING_DAX_SHARED	((void *)0x1)
+#define PAGE_MAPPING_DAX_SHARED ((void *) 0x1)
 
-static __always_inline bool folio_mapping_flags(const struct folio *folio)
-{
-	return ((unsigned long)folio->mapping & PAGE_MAPPING_FLAGS) != 0;
+static __always_inline bool folio_mapping_flags(const struct folio *folio) {
+  return ((unsigned long) folio->mapping & PAGE_MAPPING_FLAGS) != 0;
 }
 
-static __always_inline int PageMappingFlags(const struct page *page)
-{
-	return ((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) != 0;
+static __always_inline int PageMappingFlags(const struct page *page) {
+  return ((unsigned long) page->mapping & PAGE_MAPPING_FLAGS) != 0;
 }
 
-static __always_inline bool folio_test_anon(const struct folio *folio)
-{
-	return ((unsigned long)folio->mapping & PAGE_MAPPING_ANON) != 0;
+static __always_inline bool folio_test_anon(const struct folio *folio) {
+  return ((unsigned long) folio->mapping & PAGE_MAPPING_ANON) != 0;
 }
 
-static __always_inline bool PageAnon(const struct page *page)
-{
-	return folio_test_anon(page_folio(page));
+static __always_inline bool PageAnon(const struct page *page) {
+  return folio_test_anon(page_folio(page));
 }
 
-static __always_inline bool __folio_test_movable(const struct folio *folio)
-{
-	return ((unsigned long)folio->mapping & PAGE_MAPPING_FLAGS) ==
-			PAGE_MAPPING_MOVABLE;
+static __always_inline bool __folio_test_movable(const struct folio *folio) {
+  return ((unsigned long) folio->mapping & PAGE_MAPPING_FLAGS)
+    == PAGE_MAPPING_MOVABLE;
 }
 
-static __always_inline int __PageMovable(const struct page *page)
-{
-	return ((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) ==
-				PAGE_MAPPING_MOVABLE;
+static __always_inline int __PageMovable(const struct page *page) {
+  return ((unsigned long) page->mapping & PAGE_MAPPING_FLAGS)
+    == PAGE_MAPPING_MOVABLE;
 }
 
 #ifdef CONFIG_KSM
@@ -702,16 +689,15 @@ static __always_inline int __PageMovable(const struct page *page)
  * is found in VM_MERGEABLE vmas.  It's a PageAnon page, pointing not to any
  * anon_vma, but to that page's node of the stable tree.
  */
-static __always_inline bool folio_test_ksm(const struct folio *folio)
-{
-	return ((unsigned long)folio->mapping & PAGE_MAPPING_FLAGS) ==
-				PAGE_MAPPING_KSM;
+static __always_inline bool folio_test_ksm(const struct folio *folio) {
+  return ((unsigned long) folio->mapping & PAGE_MAPPING_FLAGS)
+    == PAGE_MAPPING_KSM;
 }
 
-static __always_inline bool PageKsm(const struct page *page)
-{
-	return folio_test_ksm(page_folio(page));
+static __always_inline bool PageKsm(const struct page *page) {
+  return folio_test_ksm(page_folio(page));
 }
+
 #else
 TESTPAGEFLAG_FALSE(Ksm, ksm)
 #endif
@@ -732,9 +718,8 @@ u64 stable_page_flags(struct page *page);
  * Return: Whether there are tasks waiting on the folio.
  */
 static inline bool folio_xor_flags_has_waiters(struct folio *folio,
-		unsigned long mask)
-{
-	return xor_unlock_is_negative_byte(mask, folio_flags(folio, 0));
+    unsigned long mask) {
+  return xor_unlock_is_negative_byte(mask, folio_flags(folio, 0));
 }
 
 /**
@@ -747,53 +732,47 @@ static inline bool folio_xor_flags_has_waiters(struct folio *folio,
  * some of the bytes in it may be; see the is_partially_uptodate()
  * address_space operation.
  */
-static inline bool folio_test_uptodate(const struct folio *folio)
-{
-	bool ret = test_bit(PG_uptodate, const_folio_flags(folio, 0));
-	/*
-	 * Must ensure that the data we read out of the folio is loaded
-	 * _after_ we've loaded folio->flags to check the uptodate bit.
-	 * We can skip the barrier if the folio is not uptodate, because
-	 * we wouldn't be reading anything from it.
-	 *
-	 * See folio_mark_uptodate() for the other side of the story.
-	 */
-	if (ret)
-		smp_rmb();
-
-	return ret;
+static inline bool folio_test_uptodate(const struct folio *folio) {
+  bool ret = test_bit(PG_uptodate, const_folio_flags(folio, 0));
+  /*
+   * Must ensure that the data we read out of the folio is loaded
+   * _after_ we've loaded folio->flags to check the uptodate bit.
+   * We can skip the barrier if the folio is not uptodate, because
+   * we wouldn't be reading anything from it.
+   *
+   * See folio_mark_uptodate() for the other side of the story.
+   */
+  if (ret) {
+    smp_rmb();
+  }
+  return ret;
 }
 
-static inline int PageUptodate(const struct page *page)
-{
-	return folio_test_uptodate(page_folio(page));
+static inline int PageUptodate(const struct page *page) {
+  return folio_test_uptodate(page_folio(page));
 }
 
-static __always_inline void __folio_mark_uptodate(struct folio *folio)
-{
-	smp_wmb();
-	__set_bit(PG_uptodate, folio_flags(folio, 0));
+static __always_inline void __folio_mark_uptodate(struct folio *folio) {
+  smp_wmb();
+  __set_bit(PG_uptodate, folio_flags(folio, 0));
 }
 
-static __always_inline void folio_mark_uptodate(struct folio *folio)
-{
-	/*
-	 * Memory barrier must be issued before setting the PG_uptodate bit,
-	 * so that all previous stores issued in order to bring the folio
-	 * uptodate are actually visible before folio_test_uptodate becomes true.
-	 */
-	smp_wmb();
-	set_bit(PG_uptodate, folio_flags(folio, 0));
+static __always_inline void folio_mark_uptodate(struct folio *folio) {
+  /*
+   * Memory barrier must be issued before setting the PG_uptodate bit,
+   * so that all previous stores issued in order to bring the folio
+   * uptodate are actually visible before folio_test_uptodate becomes true.
+   */
+  smp_wmb();
+  set_bit(PG_uptodate, folio_flags(folio, 0));
 }
 
-static __always_inline void __SetPageUptodate(struct page *page)
-{
-	__folio_mark_uptodate((struct folio *)page);
+static __always_inline void __SetPageUptodate(struct page *page) {
+  __folio_mark_uptodate((struct folio *) page);
 }
 
-static __always_inline void SetPageUptodate(struct page *page)
-{
-	folio_mark_uptodate((struct folio *)page);
+static __always_inline void SetPageUptodate(struct page *page) {
+  folio_mark_uptodate((struct folio *) page);
 }
 
 CLEARPAGEFLAG(Uptodate, uptodate, PF_NO_TAIL)
@@ -801,20 +780,18 @@ CLEARPAGEFLAG(Uptodate, uptodate, PF_NO_TAIL)
 void __folio_start_writeback(struct folio *folio, bool keep_write);
 void set_page_writeback(struct page *page);
 
-#define folio_start_writeback(folio)			\
-	__folio_start_writeback(folio, false)
-#define folio_start_writeback_keepwrite(folio)	\
-	__folio_start_writeback(folio, true)
+#define folio_start_writeback(folio)      \
+  __folio_start_writeback(folio, false)
+#define folio_start_writeback_keepwrite(folio)  \
+  __folio_start_writeback(folio, true)
 
-static __always_inline bool folio_test_head(const struct folio *folio)
-{
-	return test_bit(PG_head, const_folio_flags(folio, FOLIO_PF_ANY));
+static __always_inline bool folio_test_head(const struct folio *folio) {
+  return test_bit(PG_head, const_folio_flags(folio, FOLIO_PF_ANY));
 }
 
-static __always_inline int PageHead(const struct page *page)
-{
-	PF_POISONED_CHECK(page);
-	return test_bit(PG_head, &page->flags) && !page_is_fake_head(page);
+static __always_inline int PageHead(const struct page *page) {
+  PF_POISONED_CHECK(page);
+  return test_bit(PG_head, &page->flags) && !page_is_fake_head(page);
 }
 
 __SETPAGEFLAG(Head, head, PF_ANY)
@@ -827,27 +804,25 @@ CLEARPAGEFLAG(Head, head, PF_ANY)
  *
  * Return: True if the folio is larger than one page.
  */
-static inline bool folio_test_large(const struct folio *folio)
-{
-	return folio_test_head(folio);
+static inline bool folio_test_large(const struct folio *folio) {
+  return folio_test_head(folio);
 }
 
-static __always_inline void set_compound_head(struct page *page, struct page *head)
-{
-	WRITE_ONCE(page->compound_head, (unsigned long)head + 1);
+static __always_inline void set_compound_head(struct page *page,
+    struct page *head) {
+  WRITE_ONCE(page->compound_head, (unsigned long) head + 1);
 }
 
-static __always_inline void clear_compound_head(struct page *page)
-{
-	WRITE_ONCE(page->compound_head, 0);
+static __always_inline void clear_compound_head(struct page *page) {
+  WRITE_ONCE(page->compound_head, 0);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-static inline void ClearPageCompound(struct page *page)
-{
-	BUG_ON(!PageHead(page));
-	ClearPageHead(page);
+static inline void ClearPageCompound(struct page *page) {
+  BUG_ON(!PageHead(page));
+  ClearPageHead(page);
 }
+
 PAGEFLAG(LargeRmappable, large_rmappable, PF_SECOND)
 #else
 TESTPAGEFLAG_FALSE(LargeRmappable, large_rmappable)
@@ -869,11 +844,11 @@ CLEARPAGEFLAG(HugeTLB, hugetlb, PF_SECOND)
  * Return: True for hugetlbfs folios, false for anon folios or folios
  * belonging to other filesystems.
  */
-static inline bool folio_test_hugetlb(const struct folio *folio)
-{
-	return folio_test_large(folio) &&
-		test_bit(PG_hugetlb, const_folio_flags(folio, 1));
+static inline bool folio_test_hugetlb(const struct folio *folio) {
+  return folio_test_large(folio)
+    && test_bit(PG_hugetlb, const_folio_flags(folio, 1));
 }
+
 #else
 TESTPAGEFLAG_FALSE(Huge, hugetlb)
 #endif
@@ -887,10 +862,9 @@ TESTPAGEFLAG_FALSE(Huge, hugetlb)
  * hugetlbfs pages, but not normal pages. PageTransHuge() can only be
  * called only in the core VM paths where hugetlbfs pages can't exist.
  */
-static inline int PageTransHuge(const struct page *page)
-{
-	VM_BUG_ON_PAGE(PageTail(page), page);
-	return PageHead(page);
+static inline int PageTransHuge(const struct page *page) {
+  VM_BUG_ON_PAGE(PageTail(page), page);
+  return PageHead(page);
 }
 
 /*
@@ -898,9 +872,8 @@ static inline int PageTransHuge(const struct page *page)
  * and hugetlbfs pages, so it should only be called when it's known
  * that hugetlbfs pages aren't involved.
  */
-static inline int PageTransCompound(const struct page *page)
-{
-	return PageCompound(page);
+static inline int PageTransCompound(const struct page *page) {
+  return PageCompound(page);
 }
 
 /*
@@ -908,10 +881,10 @@ static inline int PageTransCompound(const struct page *page)
  * and hugetlbfs pages, so it should only be called when it's known
  * that hugetlbfs pages aren't involved.
  */
-static inline int PageTransTail(const struct page *page)
-{
-	return PageTail(page);
+static inline int PageTransTail(const struct page *page) {
+  return PageTail(page);
 }
+
 #else
 TESTPAGEFLAG_FALSE(TransHuge, transhuge)
 TESTPAGEFLAG_FALSE(TransCompound, transcompound)
@@ -927,10 +900,10 @@ TESTPAGEFLAG_FALSE(TransTail, transtail)
  * This flag is set by hwpoison handler.  Cleared by THP split or free page.
  */
 PAGEFLAG(HasHWPoisoned, has_hwpoisoned, PF_SECOND)
-	TESTSCFLAG(HasHWPoisoned, has_hwpoisoned, PF_SECOND)
+TESTSCFLAG(HasHWPoisoned, has_hwpoisoned, PF_SECOND)
 #else
 PAGEFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
-	TESTSCFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
+TESTSCFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
 #endif
 
 /*
@@ -938,11 +911,11 @@ PAGEFLAG_FALSE(HasHWPoisoned, has_hwpoisoned)
  * best effort only and inherently racy: there is no way to synchronize with
  * failing hardware.
  */
-static inline bool is_page_hwpoison(struct page *page)
-{
-	if (PageHWPoison(page))
-		return true;
-	return PageHuge(page) && PageHWPoison(compound_head(page));
+static inline bool is_page_hwpoison(struct page *page) {
+  if (PageHWPoison(page)) {
+    return true;
+  }
+  return PageHuge(page) && PageHWPoison(compound_head(page));
 }
 
 /*
@@ -954,58 +927,56 @@ static inline bool is_page_hwpoison(struct page *page)
  * mistaken for a page type value.
  */
 
-#define PAGE_TYPE_BASE	0xf0000000
-/* Reserve		0x0000007f to catch underflows of page_mapcount */
-#define PAGE_MAPCOUNT_RESERVE	-128
-#define PG_buddy	0x00000080
-#define PG_offline	0x00000100
-#define PG_table	0x00000200
-#define PG_guard	0x00000400
+#define PAGE_TYPE_BASE  0xf0000000
+/* Reserve    0x0000007f to catch underflows of page_mapcount */
+#define PAGE_MAPCOUNT_RESERVE -128
+#define PG_buddy  0x00000080
+#define PG_offline  0x00000100
+#define PG_table  0x00000200
+#define PG_guard  0x00000400
 
-#define PageType(page, flag)						\
-	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
-#define folio_test_type(folio, flag)					\
-	((folio->page.page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
+#define PageType(page, flag)            \
+  ((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
+#define folio_test_type(folio, flag)          \
+  ((folio->page.page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
 
-static inline int page_type_has_type(unsigned int page_type)
-{
-	return (int)page_type < PAGE_MAPCOUNT_RESERVE;
+static inline int page_type_has_type(unsigned int page_type) {
+  return (int) page_type < PAGE_MAPCOUNT_RESERVE;
 }
 
-static inline int page_has_type(const struct page *page)
-{
-	return page_type_has_type(page->page_type);
+static inline int page_has_type(const struct page *page) {
+  return page_type_has_type(page->page_type);
 }
 
-#define PAGE_TYPE_OPS(uname, lname, fname)				\
-static __always_inline int Page##uname(const struct page *page)		\
-{									\
-	return PageType(page, PG_##lname);				\
-}									\
-static __always_inline int folio_test_##fname(const struct folio *folio)\
-{									\
-	return folio_test_type(folio, PG_##lname);			\
-}									\
-static __always_inline void __SetPage##uname(struct page *page)		\
-{									\
-	VM_BUG_ON_PAGE(!PageType(page, 0), page);			\
-	page->page_type &= ~PG_##lname;					\
-}									\
-static __always_inline void __folio_set_##fname(struct folio *folio)	\
-{									\
-	VM_BUG_ON_FOLIO(!folio_test_type(folio, 0), folio);		\
-	folio->page.page_type &= ~PG_##lname;				\
-}									\
-static __always_inline void __ClearPage##uname(struct page *page)	\
-{									\
-	VM_BUG_ON_PAGE(!Page##uname(page), page);			\
-	page->page_type |= PG_##lname;					\
-}									\
-static __always_inline void __folio_clear_##fname(struct folio *folio)	\
-{									\
-	VM_BUG_ON_FOLIO(!folio_test_##fname(folio), folio);		\
-	folio->page.page_type |= PG_##lname;				\
-}									\
+#define PAGE_TYPE_OPS(uname, lname, fname)        \
+  static __always_inline int Page ## uname(const struct page *page)   \
+  {                 \
+    return PageType(page, PG_ ## lname);        \
+  }                 \
+  static __always_inline int folio_test_ ## fname(const struct folio *folio) \
+  {                 \
+    return folio_test_type(folio, PG_ ## lname);      \
+  }                 \
+  static __always_inline void __SetPage ## uname(struct page *page)   \
+  {                 \
+    VM_BUG_ON_PAGE(!PageType(page, 0), page);     \
+    page->page_type &= ~PG_ ## lname;         \
+  }                 \
+  static __always_inline void __folio_set_ ## fname(struct folio *folio)  \
+  {                 \
+    VM_BUG_ON_FOLIO(!folio_test_type(folio, 0), folio);   \
+    folio->page.page_type &= ~PG_ ## lname;       \
+  }                 \
+  static __always_inline void __ClearPage ## uname(struct page *page) \
+  {                 \
+    VM_BUG_ON_PAGE(!Page ## uname(page), page);     \
+    page->page_type |= PG_ ## lname;          \
+  }                 \
+  static __always_inline void __folio_clear_ ## fname(struct folio *folio)  \
+  {                 \
+    VM_BUG_ON_FOLIO(!folio_test_ ## fname(folio), folio);   \
+    folio->page.page_type |= PG_ ## lname;        \
+  }                 \
 
 /*
  * PageBuddy() indicates that the page is free and in the buddy system
@@ -1056,50 +1027,46 @@ extern bool is_free_buddy_page(struct page *page);
 
 PAGEFLAG(Isolated, isolated, PF_ANY);
 
-static __always_inline int PageAnonExclusive(const struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(!PageAnon(page), page);
-	VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
-	return test_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
+static __always_inline int PageAnonExclusive(const struct page *page) {
+  VM_BUG_ON_PGFLAGS(!PageAnon(page), page);
+  VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
+  return test_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
 }
 
-static __always_inline void SetPageAnonExclusive(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(!PageAnon(page) || PageKsm(page), page);
-	VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
-	set_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
+static __always_inline void SetPageAnonExclusive(struct page *page) {
+  VM_BUG_ON_PGFLAGS(!PageAnon(page) || PageKsm(page), page);
+  VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
+  set_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
 }
 
-static __always_inline void ClearPageAnonExclusive(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(!PageAnon(page) || PageKsm(page), page);
-	VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
-	clear_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
+static __always_inline void ClearPageAnonExclusive(struct page *page) {
+  VM_BUG_ON_PGFLAGS(!PageAnon(page) || PageKsm(page), page);
+  VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
+  clear_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
 }
 
-static __always_inline void __ClearPageAnonExclusive(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(!PageAnon(page), page);
-	VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
-	__clear_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
+static __always_inline void __ClearPageAnonExclusive(struct page *page) {
+  VM_BUG_ON_PGFLAGS(!PageAnon(page), page);
+  VM_BUG_ON_PGFLAGS(PageHuge(page) && !PageHead(page), page);
+  __clear_bit(PG_anon_exclusive, &PF_ANY(page, 1)->flags);
 }
 
 #ifdef CONFIG_MMU
-#define __PG_MLOCKED		(1UL << PG_mlocked)
+#define __PG_MLOCKED    (1UL << PG_mlocked)
 #else
-#define __PG_MLOCKED		0
+#define __PG_MLOCKED    0
 #endif
 
 /*
  * Flags checked when a page is freed.  Pages being freed should not have
  * these flags set.  If they are, there is a problem.
  */
-#define PAGE_FLAGS_CHECK_AT_FREE				\
-	(1UL << PG_lru		| 1UL << PG_locked	|	\
-	 1UL << PG_private	| 1UL << PG_private_2	|	\
-	 1UL << PG_writeback	| 1UL << PG_reserved	|	\
-	 1UL << PG_slab		| 1UL << PG_active 	|	\
-	 1UL << PG_unevictable	| __PG_MLOCKED | LRU_GEN_MASK)
+#define PAGE_FLAGS_CHECK_AT_FREE        \
+  (1UL << PG_lru | 1UL << PG_locked    \
+    | 1UL << PG_private | 1UL << PG_private_2   \
+    | 1UL << PG_writeback | 1UL << PG_reserved    \
+    | 1UL << PG_slab | 1UL << PG_active    \
+    | 1UL << PG_unevictable | __PG_MLOCKED | LRU_GEN_MASK)
 
 /*
  * Flags checked when a page is prepped for return by the page allocator.
@@ -1109,19 +1076,19 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
  * __PG_HWPOISON is exceptional because it needs to be kept beyond page's
  * alloc-free cycle to prevent from reusing the page.
  */
-#define PAGE_FLAGS_CHECK_AT_PREP	\
-	((PAGEFLAGS_MASK & ~__PG_HWPOISON) | LRU_GEN_MASK | LRU_REFS_MASK)
+#define PAGE_FLAGS_CHECK_AT_PREP  \
+  ((PAGEFLAGS_MASK & ~__PG_HWPOISON) | LRU_GEN_MASK | LRU_REFS_MASK)
 
 /*
  * Flags stored in the second page of a compound page.  They may overlap
  * the CHECK_AT_FREE flags above, so need to be cleared.
  */
-#define PAGE_FLAGS_SECOND						\
-	(0xffUL /* order */		| 1UL << PG_has_hwpoisoned |	\
-	 1UL << PG_hugetlb		| 1UL << PG_large_rmappable)
+#define PAGE_FLAGS_SECOND           \
+  (0xffUL /* order */ | 1UL << PG_has_hwpoisoned    \
+    | 1UL << PG_hugetlb | 1UL << PG_large_rmappable)
 
-#define PAGE_FLAGS_PRIVATE				\
-	(1UL << PG_private | 1UL << PG_private_2)
+#define PAGE_FLAGS_PRIVATE        \
+  (1UL << PG_private | 1UL << PG_private_2)
 /**
  * page_has_private - Determine if page has private stuff
  * @page: The page to be checked
@@ -1129,14 +1096,12 @@ static __always_inline void __ClearPageAnonExclusive(struct page *page)
  * Determine if a page has private stuff, indicating that release routines
  * should be invoked upon it.
  */
-static inline int page_has_private(const struct page *page)
-{
-	return !!(page->flags & PAGE_FLAGS_PRIVATE);
+static inline int page_has_private(const struct page *page) {
+  return !!(page->flags & PAGE_FLAGS_PRIVATE);
 }
 
-static inline bool folio_has_private(const struct folio *folio)
-{
-	return page_has_private(&folio->page);
+static inline bool folio_has_private(const struct folio *folio) {
+  return page_has_private(&folio->page);
 }
 
 #undef PF_ANY
@@ -1146,4 +1111,4 @@ static inline bool folio_has_private(const struct folio *folio)
 #undef PF_SECOND
 #endif /* !__GENERATING_BOUNDS_H */
 
-#endif	/* PAGE_FLAGS_H */
+#endif  /* PAGE_FLAGS_H */

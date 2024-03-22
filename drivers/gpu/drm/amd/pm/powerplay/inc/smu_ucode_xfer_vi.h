@@ -44,7 +44,7 @@
 #define UCODE_ID_IH_REG_RESTORE   11
 #define UCODE_ID_VBIOS            12
 #define UCODE_ID_MISC_METADATA    13
-#define UCODE_ID_SMU_SK		      14
+#define UCODE_ID_SMU_SK         14
 #define UCODE_ID_RLC_SCRATCH      32
 #define UCODE_ID_RLC_SRM_ARAM     33
 #define UCODE_ID_RLC_SRM_DRAM     34
@@ -70,32 +70,32 @@
 
 struct SMU_Entry {
 #ifndef __BIG_ENDIAN
-	uint16_t id;
-	uint16_t version;
-	uint32_t image_addr_high;
-	uint32_t image_addr_low;
-	uint32_t meta_data_addr_high;
-	uint32_t meta_data_addr_low;
-	uint32_t data_size_byte;
-	uint16_t flags;
-	uint16_t num_register_entries;
+  uint16_t id;
+  uint16_t version;
+  uint32_t image_addr_high;
+  uint32_t image_addr_low;
+  uint32_t meta_data_addr_high;
+  uint32_t meta_data_addr_low;
+  uint32_t data_size_byte;
+  uint16_t flags;
+  uint16_t num_register_entries;
 #else
-	uint16_t version;
-	uint16_t id;
-	uint32_t image_addr_high;
-	uint32_t image_addr_low;
-	uint32_t meta_data_addr_high;
-	uint32_t meta_data_addr_low;
-	uint32_t data_size_byte;
-	uint16_t num_register_entries;
-	uint16_t flags;
+  uint16_t version;
+  uint16_t id;
+  uint32_t image_addr_high;
+  uint32_t image_addr_low;
+  uint32_t meta_data_addr_high;
+  uint32_t meta_data_addr_low;
+  uint32_t data_size_byte;
+  uint16_t num_register_entries;
+  uint16_t flags;
 #endif
 };
 
 struct SMU_DRAMData_TOC {
-	uint32_t structure_version;
-	uint32_t num_entries;
-	struct SMU_Entry entry[SMU_MAX_ENTRIES];
+  uint32_t structure_version;
+  uint32_t num_entries;
+  struct SMU_Entry entry[SMU_MAX_ENTRIES];
 };
 
 #endif

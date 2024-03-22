@@ -10,11 +10,11 @@
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  *
- * 2002-Oct	Created by Vamsi Krishna S <vamsi_krishna@in.ibm.com> Kernel
- *		Probes initial implementation ( includes suggestions from
- *		Rusty Russell).
- * 2004-Nov	Modified for PPC64 by Ananth N Mavinakayanahalli
- *		<ananth@in.ibm.com>
+ * 2002-Oct Created by Vamsi Krishna S <vamsi_krishna@in.ibm.com> Kernel
+ *    Probes initial implementation ( includes suggestions from
+ *    Rusty Russell).
+ * 2004-Nov Modified for PPC64 by Ananth N Mavinakayanahalli
+ *    <ananth@in.ibm.com>
  */
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -43,12 +43,12 @@ extern kprobe_opcode_t optprobe_template_ret[];
 extern kprobe_opcode_t optprobe_template_end[];
 
 /* Fixed instruction size for powerpc */
-#define MAX_INSN_SIZE		2
-#define MAX_OPTIMIZED_LENGTH	sizeof(kprobe_opcode_t)	/* 4 bytes */
-#define MAX_OPTINSN_SIZE	(optprobe_template_end - optprobe_template_entry)
-#define RELATIVEJUMP_SIZE	sizeof(kprobe_opcode_t)	/* 4 bytes */
+#define MAX_INSN_SIZE   2
+#define MAX_OPTIMIZED_LENGTH  sizeof(kprobe_opcode_t) /* 4 bytes */
+#define MAX_OPTINSN_SIZE  (optprobe_template_end - optprobe_template_entry)
+#define RELATIVEJUMP_SIZE sizeof(kprobe_opcode_t) /* 4 bytes */
 
-#define flush_insn_slot(p)	do { } while (0)
+#define flush_insn_slot(p)  do {} while (0)
 #define kretprobe_blacklist_size 0
 
 void __kretprobe_trampoline(void);
@@ -56,40 +56,46 @@ extern void arch_remove_kprobe(struct kprobe *p);
 
 /* Architecture specific copy of original instruction */
 struct arch_specific_insn {
-	/* copy of original instruction */
-	kprobe_opcode_t *insn;
-	/*
-	 * Set in kprobes code, initially to 0. If the instruction can be
-	 * eumulated, this is set to 1, if not, to -1.
-	 */
-	int boostable;
+  /* copy of original instruction */
+  kprobe_opcode_t *insn;
+  /*
+   * Set in kprobes code, initially to 0. If the instruction can be
+   * eumulated, this is set to 1, if not, to -1.
+   */
+  int boostable;
 };
 
 struct prev_kprobe {
-	struct kprobe *kp;
-	unsigned long status;
-	unsigned long saved_msr;
+  struct kprobe *kp;
+  unsigned long status;
+  unsigned long saved_msr;
 };
 
 /* per-cpu kprobe control block */
 struct kprobe_ctlblk {
-	unsigned long kprobe_status;
-	unsigned long kprobe_saved_msr;
-	struct prev_kprobe prev_kprobe;
+  unsigned long kprobe_status;
+  unsigned long kprobe_saved_msr;
+  struct prev_kprobe prev_kprobe;
 };
 
 struct arch_optimized_insn {
-	kprobe_opcode_t copied_insn[1];
-	/* detour buffer */
-	kprobe_opcode_t *insn;
+  kprobe_opcode_t copied_insn[1];
+  /* detour buffer */
+  kprobe_opcode_t *insn;
 };
 
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_handler(struct pt_regs *regs);
 extern int kprobe_post_handler(struct pt_regs *regs);
 #else
-static inline int kprobe_handler(struct pt_regs *regs) { return 0; }
-static inline int kprobe_post_handler(struct pt_regs *regs) { return 0; }
+static inline int kprobe_handler(struct pt_regs *regs) {
+  return 0;
+}
+
+static inline int kprobe_post_handler(struct pt_regs *regs) {
+  return 0;
+}
+
 #endif /* CONFIG_KPROBES */
 #endif /* __KERNEL__ */
-#endif	/* _ASM_POWERPC_KPROBES_H */
+#endif  /* _ASM_POWERPC_KPROBES_H */

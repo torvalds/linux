@@ -106,68 +106,57 @@
 #define LCDC_CLK_RESET_REG                       0x70
 #define LCDC_CLK_MAIN_RESET                      BIT(3)
 
-
 /*
  * Helpers:
  */
 
-static inline void tilcdc_write(struct drm_device *dev, u32 reg, u32 data)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	iowrite32(data, priv->mmio + reg);
+static inline void tilcdc_write(struct drm_device *dev, u32 reg, u32 data) {
+  struct tilcdc_drm_private *priv = dev->dev_private;
+  iowrite32(data, priv->mmio + reg);
 }
 
-static inline void tilcdc_write64(struct drm_device *dev, u32 reg, u64 data)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	volatile void __iomem *addr = priv->mmio + reg;
-
+static inline void tilcdc_write64(struct drm_device *dev, u32 reg, u64 data) {
+  struct tilcdc_drm_private *priv = dev->dev_private;
+  volatile void __iomem *addr = priv->mmio + reg;
 #if defined(iowrite64) && !defined(iowrite64_is_nonatomic)
-	iowrite64(data, addr);
+  iowrite64(data, addr);
 #else
-	__iowmb();
-	/* This compiles to strd (=64-bit write) on ARM7 */
-	*(volatile u64 __force *)addr = __cpu_to_le64(data);
+  __iowmb();
+  /* This compiles to strd (=64-bit write) on ARM7 */
+  *(volatile u64 __force *) addr = __cpu_to_le64(data);
 #endif
 }
 
-static inline u32 tilcdc_read(struct drm_device *dev, u32 reg)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	return ioread32(priv->mmio + reg);
+static inline u32 tilcdc_read(struct drm_device *dev, u32 reg) {
+  struct tilcdc_drm_private *priv = dev->dev_private;
+  return ioread32(priv->mmio + reg);
 }
 
 static inline void tilcdc_write_mask(struct drm_device *dev, u32 reg,
-				     u32 val, u32 mask)
-{
-	tilcdc_write(dev, reg, (tilcdc_read(dev, reg) & ~mask) | (val & mask));
+    u32 val, u32 mask) {
+  tilcdc_write(dev, reg, (tilcdc_read(dev, reg) & ~mask) | (val & mask));
 }
 
-static inline void tilcdc_set(struct drm_device *dev, u32 reg, u32 mask)
-{
-	tilcdc_write(dev, reg, tilcdc_read(dev, reg) | mask);
+static inline void tilcdc_set(struct drm_device *dev, u32 reg, u32 mask) {
+  tilcdc_write(dev, reg, tilcdc_read(dev, reg) | mask);
 }
 
-static inline void tilcdc_clear(struct drm_device *dev, u32 reg, u32 mask)
-{
-	tilcdc_write(dev, reg, tilcdc_read(dev, reg) & ~mask);
+static inline void tilcdc_clear(struct drm_device *dev, u32 reg, u32 mask) {
+  tilcdc_write(dev, reg, tilcdc_read(dev, reg) & ~mask);
 }
 
 /* the register to read/clear irqstatus differs between v1 and v2 of the IP */
-static inline u32 tilcdc_irqstatus_reg(struct drm_device *dev)
-{
-	struct tilcdc_drm_private *priv = dev->dev_private;
-	return (priv->rev == 2) ? LCDC_MASKED_STAT_REG : LCDC_STAT_REG;
+static inline u32 tilcdc_irqstatus_reg(struct drm_device *dev) {
+  struct tilcdc_drm_private *priv = dev->dev_private;
+  return (priv->rev == 2) ? LCDC_MASKED_STAT_REG : LCDC_STAT_REG;
 }
 
-static inline u32 tilcdc_read_irqstatus(struct drm_device *dev)
-{
-	return tilcdc_read(dev, tilcdc_irqstatus_reg(dev));
+static inline u32 tilcdc_read_irqstatus(struct drm_device *dev) {
+  return tilcdc_read(dev, tilcdc_irqstatus_reg(dev));
 }
 
-static inline void tilcdc_clear_irqstatus(struct drm_device *dev, u32 mask)
-{
-	tilcdc_write(dev, tilcdc_irqstatus_reg(dev), mask);
+static inline void tilcdc_clear_irqstatus(struct drm_device *dev, u32 mask) {
+  tilcdc_write(dev, tilcdc_irqstatus_reg(dev), mask);
 }
 
 #endif /* __TILCDC_REGS_H__ */

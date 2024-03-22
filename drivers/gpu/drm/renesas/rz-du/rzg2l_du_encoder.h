@@ -16,17 +16,16 @@
 struct rzg2l_du_device;
 
 struct rzg2l_du_encoder {
-	struct drm_encoder base;
-	enum rzg2l_du_output output;
+  struct drm_encoder base;
+  enum rzg2l_du_output output;
 };
 
-static inline struct rzg2l_du_encoder *to_rzg2l_encoder(struct drm_encoder *e)
-{
-	return container_of(e, struct rzg2l_du_encoder, base);
+static inline struct rzg2l_du_encoder *to_rzg2l_encoder(struct drm_encoder *e) {
+  return container_of(e, struct rzg2l_du_encoder, base);
 }
 
 int rzg2l_du_encoder_init(struct rzg2l_du_device *rcdu,
-			  enum rzg2l_du_output output,
-			  struct device_node *enc_node);
+    enum rzg2l_du_output output,
+    struct device_node *enc_node);
 
 #endif /* __RZG2L_DU_ENCODER_H__ */

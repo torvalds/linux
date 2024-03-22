@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Release Version: irci_stable_candrpv_0415_20150521_0458 */
+/* SPDX-License-Identifier: GPL-2.0
+ * Release Version: irci_stable_candrpv_0415_20150521_0458*/
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -24,20 +24,21 @@
  * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_irradiance_params {
-	int test_irr;                                          /** Test parameter */
-	int match_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-							1];  /** Histogram matching shift parameter */
-	int match_mul[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						      1];    /** Histogram matching multiplication parameter */
-	int thr_low[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						    1];      /** Weight map soft threshold low bound parameter */
-	int thr_high[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						     1];     /** Weight map soft threshold high bound parameter */
-	int thr_coeff[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						      1];    /** Soft threshold linear function coefficien */
-	int thr_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES -
-						      1];    /** Soft threshold precision shift parameter */
-	int weight_bpp;                                        /** Weight map bits per pixel */
+  int test_irr;                                          /** Test parameter */
+  int match_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES
+      - 1];  /** Histogram matching shift parameter */
+  int match_mul[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES
+      - 1];    /** Histogram matching multiplication parameter */
+  int thr_low[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES
+      - 1];      /** Weight map soft threshold low bound parameter */
+  int thr_high[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES
+      - 1];     /** Weight map soft threshold high bound parameter */
+  int thr_coeff[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES
+      - 1];    /** Soft threshold linear function coefficien */
+  int thr_shift[IA_CSS_HDR_MAX_NUM_INPUT_FRAMES
+      - 1];    /** Soft threshold precision shift parameter */
+  int weight_bpp;                                        /** Weight map bits per
+                                                          * pixel */
 };
 
 /**
@@ -45,7 +46,7 @@ struct ia_css_hdr_irradiance_params {
  * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_deghost_params {
-	int test_deg; /** Test parameter */
+  int test_deg; /** Test parameter */
 };
 
 /**
@@ -53,7 +54,7 @@ struct ia_css_hdr_deghost_params {
  * \detail Currently HDR parameters are used only for testing purposes
  */
 struct ia_css_hdr_exclusion_params {
-	int test_excl; /** Test parameter */
+  int test_excl; /** Test parameter */
 };
 
 /**
@@ -62,9 +63,10 @@ struct ia_css_hdr_exclusion_params {
  * the CSS API. Currently, only test parameters are defined.
  */
 struct ia_css_hdr_config {
-	struct ia_css_hdr_irradiance_params irradiance; /** HDR irradiance parameters */
-	struct ia_css_hdr_deghost_params    deghost;    /** HDR deghosting parameters */
-	struct ia_css_hdr_exclusion_params  exclusion; /** HDR exclusion parameters */
+  struct ia_css_hdr_irradiance_params irradiance; /** HDR irradiance parameters
+                                                   * */
+  struct ia_css_hdr_deghost_params deghost;    /** HDR deghosting parameters */
+  struct ia_css_hdr_exclusion_params exclusion; /** HDR exclusion parameters */
 };
 
 #endif /* __IA_CSS_HDR_TYPES_H */

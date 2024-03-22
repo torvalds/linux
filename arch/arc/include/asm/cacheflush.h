@@ -35,35 +35,35 @@ void dma_cache_wback_inv(phys_addr_t start, unsigned long sz);
 void dma_cache_inv(phys_addr_t start, unsigned long sz);
 void dma_cache_wback(phys_addr_t start, unsigned long sz);
 
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
+#define flush_dcache_mmap_lock(mapping)   do {} while (0)
+#define flush_dcache_mmap_unlock(mapping) do {} while (0)
 
 /* TBD: optimize this */
-#define flush_cache_vmap(start, end)		flush_cache_all()
-#define flush_cache_vmap_early(start, end)	do { } while (0)
-#define flush_cache_vunmap(start, end)		flush_cache_all()
+#define flush_cache_vmap(start, end)    flush_cache_all()
+#define flush_cache_vmap_early(start, end)  do {} while (0)
+#define flush_cache_vunmap(start, end)    flush_cache_all()
 
-#define flush_cache_dup_mm(mm)			/* called on fork (VIVT only) */
+#define flush_cache_dup_mm(mm)      /* called on fork (VIVT only) */
 
-#define flush_cache_mm(mm)			/* called on munmap/exit */
+#define flush_cache_mm(mm)      /* called on munmap/exit */
 #define flush_cache_range(mm, u_vstart, u_vend)
-#define flush_cache_page(vma, u_vaddr, pfn)	/* PF handling/COW-break */
+#define flush_cache_page(vma, u_vaddr, pfn) /* PF handling/COW-break */
 
 /*
  * A new pagecache page has PG_arch_1 clear - thus dcache dirty by default
  * This works around some PIO based drivers which don't call flush_dcache_page
  * to record that they dirtied the dcache
  */
-#define PG_dc_clean	PG_arch_1
+#define PG_dc_clean PG_arch_1
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
-do {									\
-	memcpy(dst, src, len);						\
-	if (vma->vm_flags & VM_EXEC)					\
-		__sync_icache_dcache((unsigned long)(dst), vaddr, len);	\
-} while (0)
+#define copy_to_user_page(vma, page, vaddr, dst, src, len)    \
+  do {                  \
+    memcpy(dst, src, len);            \
+    if (vma->vm_flags & VM_EXEC)          \
+    __sync_icache_dcache((unsigned long) (dst), vaddr, len); \
+  } while (0)
 
-#define copy_from_user_page(vma, page, vaddr, dst, src, len)		\
-	memcpy(dst, src, len);						\
+#define copy_from_user_page(vma, page, vaddr, dst, src, len)    \
+  memcpy(dst, src, len);            \
 
 #endif

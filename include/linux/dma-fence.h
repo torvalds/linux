@@ -64,59 +64,60 @@ struct dma_fence_cb;
  * been completed, or never called at all.
  */
 struct dma_fence {
-	spinlock_t *lock;
-	const struct dma_fence_ops *ops;
-	/*
-	 * We clear the callback list on kref_put so that by the time we
-	 * release the fence it is unused. No one should be adding to the
-	 * cb_list that they don't themselves hold a reference for.
-	 *
-	 * The lifetime of the timestamp is similarly tied to both the
-	 * rcu freelist and the cb_list. The timestamp is only set upon
-	 * signaling while simultaneously notifying the cb_list. Ergo, we
-	 * only use either the cb_list of timestamp. Upon destruction,
-	 * neither are accessible, and so we can use the rcu. This means
-	 * that the cb_list is *only* valid until the signal bit is set,
-	 * and to read either you *must* hold a reference to the fence,
-	 * and not just the rcu_read_lock.
-	 *
-	 * Listed in chronological order.
-	 */
-	union {
-		struct list_head cb_list;
-		/* @cb_list replaced by @timestamp on dma_fence_signal() */
-		ktime_t timestamp;
-		/* @timestamp replaced by @rcu on dma_fence_release() */
-		struct rcu_head rcu;
-	};
-	u64 context;
-	u64 seqno;
-	unsigned long flags;
-	struct kref refcount;
-	int error;
+  spinlock_t *lock;
+  const struct dma_fence_ops *ops;
+  /*
+   * We clear the callback list on kref_put so that by the time we
+   * release the fence it is unused. No one should be adding to the
+   * cb_list that they don't themselves hold a reference for.
+   *
+   * The lifetime of the timestamp is similarly tied to both the
+   * rcu freelist and the cb_list. The timestamp is only set upon
+   * signaling while simultaneously notifying the cb_list. Ergo, we
+   * only use either the cb_list of timestamp. Upon destruction,
+   * neither are accessible, and so we can use the rcu. This means
+   * that the cb_list is *only* valid until the signal bit is set,
+   * and to read either you *must* hold a reference to the fence,
+   * and not just the rcu_read_lock.
+   *
+   * Listed in chronological order.
+   */
+  union {
+    struct list_head cb_list;
+    /* @cb_list replaced by @timestamp on dma_fence_signal() */
+    ktime_t timestamp;
+    /* @timestamp replaced by @rcu on dma_fence_release() */
+    struct rcu_head rcu;
+  };
+  u64 context;
+  u64 seqno;
+  unsigned long flags;
+  struct kref refcount;
+  int error;
 };
 
 enum dma_fence_flag_bits {
-	DMA_FENCE_FLAG_SIGNALED_BIT,
-	DMA_FENCE_FLAG_TIMESTAMP_BIT,
-	DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-	DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
+  DMA_FENCE_FLAG_SIGNALED_BIT,
+  DMA_FENCE_FLAG_TIMESTAMP_BIT,
+  DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+  DMA_FENCE_FLAG_USER_BITS, /* must always be last member */
 };
 
 typedef void (*dma_fence_func_t)(struct dma_fence *fence,
-				 struct dma_fence_cb *cb);
+    struct dma_fence_cb *cb);
 
 /**
  * struct dma_fence_cb - callback for dma_fence_add_callback()
- * @node: used by dma_fence_add_callback() to append this struct to fence::cb_list
+ * @node: used by dma_fence_add_callback() to append this struct to
+ * fence::cb_list
  * @func: dma_fence_func_t to call
  *
  * This struct will be initialized by dma_fence_add_callback(), additional
  * data can be passed along by embedding dma_fence_cb in another struct.
  */
 struct dma_fence_cb {
-	struct list_head node;
-	dma_fence_func_t func;
+  struct list_head node;
+  dma_fence_func_t func;
 };
 
 /**
@@ -124,164 +125,164 @@ struct dma_fence_cb {
  *
  */
 struct dma_fence_ops {
-	/**
-	 * @use_64bit_seqno:
-	 *
-	 * True if this dma_fence implementation uses 64bit seqno, false
-	 * otherwise.
-	 */
-	bool use_64bit_seqno;
+  /**
+   * @use_64bit_seqno:
+   *
+   * True if this dma_fence implementation uses 64bit seqno, false
+   * otherwise.
+   */
+  bool use_64bit_seqno;
 
-	/**
-	 * @get_driver_name:
-	 *
-	 * Returns the driver name. This is a callback to allow drivers to
-	 * compute the name at runtime, without having it to store permanently
-	 * for each fence, or build a cache of some sort.
-	 *
-	 * This callback is mandatory.
-	 */
-	const char * (*get_driver_name)(struct dma_fence *fence);
+  /**
+   * @get_driver_name:
+   *
+   * Returns the driver name. This is a callback to allow drivers to
+   * compute the name at runtime, without having it to store permanently
+   * for each fence, or build a cache of some sort.
+   *
+   * This callback is mandatory.
+   */
+  const char *(*get_driver_name)(struct dma_fence *fence);
 
-	/**
-	 * @get_timeline_name:
-	 *
-	 * Return the name of the context this fence belongs to. This is a
-	 * callback to allow drivers to compute the name at runtime, without
-	 * having it to store permanently for each fence, or build a cache of
-	 * some sort.
-	 *
-	 * This callback is mandatory.
-	 */
-	const char * (*get_timeline_name)(struct dma_fence *fence);
+  /**
+   * @get_timeline_name:
+   *
+   * Return the name of the context this fence belongs to. This is a
+   * callback to allow drivers to compute the name at runtime, without
+   * having it to store permanently for each fence, or build a cache of
+   * some sort.
+   *
+   * This callback is mandatory.
+   */
+  const char *(*get_timeline_name)(struct dma_fence *fence);
 
-	/**
-	 * @enable_signaling:
-	 *
-	 * Enable software signaling of fence.
-	 *
-	 * For fence implementations that have the capability for hw->hw
-	 * signaling, they can implement this op to enable the necessary
-	 * interrupts, or insert commands into cmdstream, etc, to avoid these
-	 * costly operations for the common case where only hw->hw
-	 * synchronization is required.  This is called in the first
-	 * dma_fence_wait() or dma_fence_add_callback() path to let the fence
-	 * implementation know that there is another driver waiting on the
-	 * signal (ie. hw->sw case).
-	 *
-	 * This function can be called from atomic context, but not
-	 * from irq context, so normal spinlocks can be used.
-	 *
-	 * A return value of false indicates the fence already passed,
-	 * or some failure occurred that made it impossible to enable
-	 * signaling. True indicates successful enabling.
-	 *
-	 * &dma_fence.error may be set in enable_signaling, but only when false
-	 * is returned.
-	 *
-	 * Since many implementations can call dma_fence_signal() even when before
-	 * @enable_signaling has been called there's a race window, where the
-	 * dma_fence_signal() might result in the final fence reference being
-	 * released and its memory freed. To avoid this, implementations of this
-	 * callback should grab their own reference using dma_fence_get(), to be
-	 * released when the fence is signalled (through e.g. the interrupt
-	 * handler).
-	 *
-	 * This callback is optional. If this callback is not present, then the
-	 * driver must always have signaling enabled.
-	 */
-	bool (*enable_signaling)(struct dma_fence *fence);
+  /**
+   * @enable_signaling:
+   *
+   * Enable software signaling of fence.
+   *
+   * For fence implementations that have the capability for hw->hw
+   * signaling, they can implement this op to enable the necessary
+   * interrupts, or insert commands into cmdstream, etc, to avoid these
+   * costly operations for the common case where only hw->hw
+   * synchronization is required.  This is called in the first
+   * dma_fence_wait() or dma_fence_add_callback() path to let the fence
+   * implementation know that there is another driver waiting on the
+   * signal (ie. hw->sw case).
+   *
+   * This function can be called from atomic context, but not
+   * from irq context, so normal spinlocks can be used.
+   *
+   * A return value of false indicates the fence already passed,
+   * or some failure occurred that made it impossible to enable
+   * signaling. True indicates successful enabling.
+   *
+   * &dma_fence.error may be set in enable_signaling, but only when false
+   * is returned.
+   *
+   * Since many implementations can call dma_fence_signal() even when before
+   * @enable_signaling has been called there's a race window, where the
+   * dma_fence_signal() might result in the final fence reference being
+   * released and its memory freed. To avoid this, implementations of this
+   * callback should grab their own reference using dma_fence_get(), to be
+   * released when the fence is signalled (through e.g. the interrupt
+   * handler).
+   *
+   * This callback is optional. If this callback is not present, then the
+   * driver must always have signaling enabled.
+   */
+  bool (*enable_signaling)(struct dma_fence *fence);
 
-	/**
-	 * @signaled:
-	 *
-	 * Peek whether the fence is signaled, as a fastpath optimization for
-	 * e.g. dma_fence_wait() or dma_fence_add_callback(). Note that this
-	 * callback does not need to make any guarantees beyond that a fence
-	 * once indicates as signalled must always return true from this
-	 * callback. This callback may return false even if the fence has
-	 * completed already, in this case information hasn't propogated throug
-	 * the system yet. See also dma_fence_is_signaled().
-	 *
-	 * May set &dma_fence.error if returning true.
-	 *
-	 * This callback is optional.
-	 */
-	bool (*signaled)(struct dma_fence *fence);
+  /**
+   * @signaled:
+   *
+   * Peek whether the fence is signaled, as a fastpath optimization for
+   * e.g. dma_fence_wait() or dma_fence_add_callback(). Note that this
+   * callback does not need to make any guarantees beyond that a fence
+   * once indicates as signalled must always return true from this
+   * callback. This callback may return false even if the fence has
+   * completed already, in this case information hasn't propogated throug
+   * the system yet. See also dma_fence_is_signaled().
+   *
+   * May set &dma_fence.error if returning true.
+   *
+   * This callback is optional.
+   */
+  bool (*signaled)(struct dma_fence *fence);
 
-	/**
-	 * @wait:
-	 *
-	 * Custom wait implementation, defaults to dma_fence_default_wait() if
-	 * not set.
-	 *
-	 * Deprecated and should not be used by new implementations. Only used
-	 * by existing implementations which need special handling for their
-	 * hardware reset procedure.
-	 *
-	 * Must return -ERESTARTSYS if the wait is intr = true and the wait was
-	 * interrupted, and remaining jiffies if fence has signaled, or 0 if wait
-	 * timed out. Can also return other error values on custom implementations,
-	 * which should be treated as if the fence is signaled. For example a hardware
-	 * lockup could be reported like that.
-	 */
-	signed long (*wait)(struct dma_fence *fence,
-			    bool intr, signed long timeout);
+  /**
+   * @wait:
+   *
+   * Custom wait implementation, defaults to dma_fence_default_wait() if
+   * not set.
+   *
+   * Deprecated and should not be used by new implementations. Only used
+   * by existing implementations which need special handling for their
+   * hardware reset procedure.
+   *
+   * Must return -ERESTARTSYS if the wait is intr = true and the wait was
+   * interrupted, and remaining jiffies if fence has signaled, or 0 if wait
+   * timed out. Can also return other error values on custom implementations,
+   * which should be treated as if the fence is signaled. For example a hardware
+   * lockup could be reported like that.
+   */
+  signed long (*wait)(struct dma_fence *fence,
+      bool intr, signed long timeout);
 
-	/**
-	 * @release:
-	 *
-	 * Called on destruction of fence to release additional resources.
-	 * Can be called from irq context.  This callback is optional. If it is
-	 * NULL, then dma_fence_free() is instead called as the default
-	 * implementation.
-	 */
-	void (*release)(struct dma_fence *fence);
+  /**
+   * @release:
+   *
+   * Called on destruction of fence to release additional resources.
+   * Can be called from irq context.  This callback is optional. If it is
+   * NULL, then dma_fence_free() is instead called as the default
+   * implementation.
+   */
+  void (*release)(struct dma_fence *fence);
 
-	/**
-	 * @fence_value_str:
-	 *
-	 * Callback to fill in free-form debug info specific to this fence, like
-	 * the sequence number.
-	 *
-	 * This callback is optional.
-	 */
-	void (*fence_value_str)(struct dma_fence *fence, char *str, int size);
+  /**
+   * @fence_value_str:
+   *
+   * Callback to fill in free-form debug info specific to this fence, like
+   * the sequence number.
+   *
+   * This callback is optional.
+   */
+  void (*fence_value_str)(struct dma_fence *fence, char *str, int size);
 
-	/**
-	 * @timeline_value_str:
-	 *
-	 * Fills in the current value of the timeline as a string, like the
-	 * sequence number. Note that the specific fence passed to this function
-	 * should not matter, drivers should only use it to look up the
-	 * corresponding timeline structures.
-	 */
-	void (*timeline_value_str)(struct dma_fence *fence,
-				   char *str, int size);
+  /**
+   * @timeline_value_str:
+   *
+   * Fills in the current value of the timeline as a string, like the
+   * sequence number. Note that the specific fence passed to this function
+   * should not matter, drivers should only use it to look up the
+   * corresponding timeline structures.
+   */
+  void (*timeline_value_str)(struct dma_fence *fence,
+      char *str, int size);
 
-	/**
-	 * @set_deadline:
-	 *
-	 * Callback to allow a fence waiter to inform the fence signaler of
-	 * an upcoming deadline, such as vblank, by which point the waiter
-	 * would prefer the fence to be signaled by.  This is intended to
-	 * give feedback to the fence signaler to aid in power management
-	 * decisions, such as boosting GPU frequency.
-	 *
-	 * This is called without &dma_fence.lock held, it can be called
-	 * multiple times and from any context.  Locking is up to the callee
-	 * if it has some state to manage.  If multiple deadlines are set,
-	 * the expectation is to track the soonest one.  If the deadline is
-	 * before the current time, it should be interpreted as an immediate
-	 * deadline.
-	 *
-	 * This callback is optional.
-	 */
-	void (*set_deadline)(struct dma_fence *fence, ktime_t deadline);
+  /**
+   * @set_deadline:
+   *
+   * Callback to allow a fence waiter to inform the fence signaler of
+   * an upcoming deadline, such as vblank, by which point the waiter
+   * would prefer the fence to be signaled by.  This is intended to
+   * give feedback to the fence signaler to aid in power management
+   * decisions, such as boosting GPU frequency.
+   *
+   * This is called without &dma_fence.lock held, it can be called
+   * multiple times and from any context.  Locking is up to the callee
+   * if it has some state to manage.  If multiple deadlines are set,
+   * the expectation is to track the soonest one.  If the deadline is
+   * before the current time, it should be interpreted as an immediate
+   * deadline.
+   *
+   * This callback is optional.
+   */
+  void (*set_deadline)(struct dma_fence *fence, ktime_t deadline);
 };
 
 void dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
-		    spinlock_t *lock, u64 context, u64 seqno);
+    spinlock_t *lock, u64 context, u64 seqno);
 
 void dma_fence_release(struct kref *kref);
 void dma_fence_free(struct dma_fence *fence);
@@ -291,10 +292,10 @@ void dma_fence_describe(struct dma_fence *fence, struct seq_file *seq);
  * dma_fence_put - decreases refcount of the fence
  * @fence: fence to reduce refcount of
  */
-static inline void dma_fence_put(struct dma_fence *fence)
-{
-	if (fence)
-		kref_put(&fence->refcount, dma_fence_release);
+static inline void dma_fence_put(struct dma_fence *fence) {
+  if (fence) {
+    kref_put(&fence->refcount, dma_fence_release);
+  }
 }
 
 /**
@@ -303,11 +304,11 @@ static inline void dma_fence_put(struct dma_fence *fence)
  *
  * Returns the same fence, with refcount increased by 1.
  */
-static inline struct dma_fence *dma_fence_get(struct dma_fence *fence)
-{
-	if (fence)
-		kref_get(&fence->refcount);
-	return fence;
+static inline struct dma_fence *dma_fence_get(struct dma_fence *fence) {
+  if (fence) {
+    kref_get(&fence->refcount);
+  }
+  return fence;
 }
 
 /**
@@ -317,12 +318,12 @@ static inline struct dma_fence *dma_fence_get(struct dma_fence *fence)
  *
  * Function returns NULL if no refcount could be obtained, or the fence.
  */
-static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
-{
-	if (kref_get_unless_zero(&fence->refcount))
-		return fence;
-	else
-		return NULL;
+static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence) {
+  if (kref_get_unless_zero(&fence->refcount)) {
+    return fence;
+  } else {
+    return NULL;
+  }
 }
 
 /**
@@ -341,38 +342,36 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  *
  * The caller is required to hold the RCU read lock.
  */
-static inline struct dma_fence *
-dma_fence_get_rcu_safe(struct dma_fence __rcu **fencep)
-{
-	do {
-		struct dma_fence *fence;
-
-		fence = rcu_dereference(*fencep);
-		if (!fence)
-			return NULL;
-
-		if (!dma_fence_get_rcu(fence))
-			continue;
-
-		/* The atomic_inc_not_zero() inside dma_fence_get_rcu()
-		 * provides a full memory barrier upon success (such as now).
-		 * This is paired with the write barrier from assigning
-		 * to the __rcu protected fence pointer so that if that
-		 * pointer still matches the current fence, we know we
-		 * have successfully acquire a reference to it. If it no
-		 * longer matches, we are holding a reference to some other
-		 * reallocated pointer. This is possible if the allocator
-		 * is using a freelist like SLAB_TYPESAFE_BY_RCU where the
-		 * fence remains valid for the RCU grace period, but it
-		 * may be reallocated. When using such allocators, we are
-		 * responsible for ensuring the reference we get is to
-		 * the right fence, as below.
-		 */
-		if (fence == rcu_access_pointer(*fencep))
-			return rcu_pointer_handoff(fence);
-
-		dma_fence_put(fence);
-	} while (1);
+static inline struct dma_fence *dma_fence_get_rcu_safe(
+    struct dma_fence __rcu **fencep) {
+  do {
+    struct dma_fence *fence;
+    fence = rcu_dereference(*fencep);
+    if (!fence) {
+      return NULL;
+    }
+    if (!dma_fence_get_rcu(fence)) {
+      continue;
+    }
+    /* The atomic_inc_not_zero() inside dma_fence_get_rcu()
+     * provides a full memory barrier upon success (such as now).
+     * This is paired with the write barrier from assigning
+     * to the __rcu protected fence pointer so that if that
+     * pointer still matches the current fence, we know we
+     * have successfully acquire a reference to it. If it no
+     * longer matches, we are holding a reference to some other
+     * reallocated pointer. This is possible if the allocator
+     * is using a freelist like SLAB_TYPESAFE_BY_RCU where the
+     * fence remains valid for the RCU grace period, but it
+     * may be reallocated. When using such allocators, we are
+     * responsible for ensuring the reference we get is to
+     * the right fence, as below.
+     */
+    if (fence == rcu_access_pointer(*fencep)) {
+      return rcu_pointer_handoff(fence);
+    }
+    dma_fence_put(fence);
+  } while (1);
 }
 
 #ifdef CONFIG_LOCKDEP
@@ -380,26 +379,30 @@ bool dma_fence_begin_signalling(void);
 void dma_fence_end_signalling(bool cookie);
 void __dma_fence_might_wait(void);
 #else
-static inline bool dma_fence_begin_signalling(void)
-{
-	return true;
+static inline bool dma_fence_begin_signalling(void) {
+  return true;
 }
-static inline void dma_fence_end_signalling(bool cookie) {}
-static inline void __dma_fence_might_wait(void) {}
+
+static inline void dma_fence_end_signalling(bool cookie) {
+}
+
+static inline void __dma_fence_might_wait(void) {
+}
+
 #endif
 
 int dma_fence_signal(struct dma_fence *fence);
 int dma_fence_signal_locked(struct dma_fence *fence);
 int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp);
 int dma_fence_signal_timestamp_locked(struct dma_fence *fence,
-				      ktime_t timestamp);
+    ktime_t timestamp);
 signed long dma_fence_default_wait(struct dma_fence *fence,
-				   bool intr, signed long timeout);
+    bool intr, signed long timeout);
 int dma_fence_add_callback(struct dma_fence *fence,
-			   struct dma_fence_cb *cb,
-			   dma_fence_func_t func);
+    struct dma_fence_cb *cb,
+    dma_fence_func_t func);
 bool dma_fence_remove_callback(struct dma_fence *fence,
-			       struct dma_fence_cb *cb);
+    struct dma_fence_cb *cb);
 void dma_fence_enable_sw_signaling(struct dma_fence *fence);
 
 /**
@@ -416,18 +419,15 @@ void dma_fence_enable_sw_signaling(struct dma_fence *fence);
  *
  * See also dma_fence_is_signaled().
  */
-static inline bool
-dma_fence_is_signaled_locked(struct dma_fence *fence)
-{
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return true;
-
-	if (fence->ops->signaled && fence->ops->signaled(fence)) {
-		dma_fence_signal_locked(fence);
-		return true;
-	}
-
-	return false;
+static inline bool dma_fence_is_signaled_locked(struct dma_fence *fence) {
+  if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+    return true;
+  }
+  if (fence->ops->signaled && fence->ops->signaled(fence)) {
+    dma_fence_signal_locked(fence);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -446,18 +446,15 @@ dma_fence_is_signaled_locked(struct dma_fence *fence)
  *
  * See also dma_fence_is_signaled_locked().
  */
-static inline bool
-dma_fence_is_signaled(struct dma_fence *fence)
-{
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
-		return true;
-
-	if (fence->ops->signaled && fence->ops->signaled(fence)) {
-		dma_fence_signal(fence);
-		return true;
-	}
-
-	return false;
+static inline bool dma_fence_is_signaled(struct dma_fence *fence) {
+  if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+    return true;
+  }
+  if (fence->ops->signaled && fence->ops->signaled(fence)) {
+    dma_fence_signal(fence);
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -470,16 +467,15 @@ dma_fence_is_signaled(struct dma_fence *fence)
  * from the same context, since a seqno is not common across contexts.
  */
 static inline bool __dma_fence_is_later(u64 f1, u64 f2,
-					const struct dma_fence_ops *ops)
-{
-	/* This is for backward compatibility with drivers which can only handle
-	 * 32bit sequence numbers. Use a 64bit compare when the driver says to
-	 * do so.
-	 */
-	if (ops->use_64bit_seqno)
-		return f1 > f2;
-
-	return (int)(lower_32_bits(f1) - lower_32_bits(f2)) > 0;
+    const struct dma_fence_ops *ops) {
+  /* This is for backward compatibility with drivers which can only handle
+   * 32bit sequence numbers. Use a 64bit compare when the driver says to
+   * do so.
+   */
+  if (ops->use_64bit_seqno) {
+    return f1 > f2;
+  }
+  return (int) (lower_32_bits(f1) - lower_32_bits(f2)) > 0;
 }
 
 /**
@@ -491,12 +487,11 @@ static inline bool __dma_fence_is_later(u64 f1, u64 f2,
  * from the same context, since a seqno is not re-used across contexts.
  */
 static inline bool dma_fence_is_later(struct dma_fence *f1,
-				      struct dma_fence *f2)
-{
-	if (WARN_ON(f1->context != f2->context))
-		return false;
-
-	return __dma_fence_is_later(f1->seqno, f2->seqno, f1->ops);
+    struct dma_fence *f2) {
+  if (WARN_ON(f1->context != f2->context)) {
+    return false;
+  }
+  return __dma_fence_is_later(f1->seqno, f2->seqno, f1->ops);
 }
 
 /**
@@ -509,35 +504,34 @@ static inline bool dma_fence_is_later(struct dma_fence *f1,
  * contexts.
  */
 static inline bool dma_fence_is_later_or_same(struct dma_fence *f1,
-					      struct dma_fence *f2)
-{
-	return f1 == f2 || dma_fence_is_later(f1, f2);
+    struct dma_fence *f2) {
+  return f1 == f2 || dma_fence_is_later(f1, f2);
 }
 
 /**
  * dma_fence_later - return the chronologically later fence
- * @f1:	the first fence from the same context
- * @f2:	the second fence from the same context
+ * @f1: the first fence from the same context
+ * @f2: the second fence from the same context
  *
  * Returns NULL if both fences are signaled, otherwise the fence that would be
  * signaled last. Both fences must be from the same context, since a seqno is
  * not re-used across contexts.
  */
 static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
-						struct dma_fence *f2)
-{
-	if (WARN_ON(f1->context != f2->context))
-		return NULL;
-
-	/*
-	 * Can't check just DMA_FENCE_FLAG_SIGNALED_BIT here, it may never
-	 * have been set if enable_signaling wasn't called, and enabling that
-	 * here is overkill.
-	 */
-	if (dma_fence_is_later(f1, f2))
-		return dma_fence_is_signaled(f1) ? NULL : f1;
-	else
-		return dma_fence_is_signaled(f2) ? NULL : f2;
+    struct dma_fence *f2) {
+  if (WARN_ON(f1->context != f2->context)) {
+    return NULL;
+  }
+  /*
+   * Can't check just DMA_FENCE_FLAG_SIGNALED_BIT here, it may never
+   * have been set if enable_signaling wasn't called, and enabling that
+   * here is overkill.
+   */
+  if (dma_fence_is_later(f1, f2)) {
+    return dma_fence_is_signaled(f1) ? NULL : f1;
+  } else {
+    return dma_fence_is_signaled(f2) ? NULL : f2;
+  }
 }
 
 /**
@@ -554,12 +548,12 @@ static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
  * been signaled without an error condition, or a negative error code
  * if the fence has been completed in err.
  */
-static inline int dma_fence_get_status_locked(struct dma_fence *fence)
-{
-	if (dma_fence_is_signaled_locked(fence))
-		return fence->error ?: 1;
-	else
-		return 0;
+static inline int dma_fence_get_status_locked(struct dma_fence *fence) {
+  if (dma_fence_is_signaled_locked(fence)) {
+    return fence->error ? : 1;
+  } else {
+    return 0;
+  }
 }
 
 int dma_fence_get_status(struct dma_fence *fence);
@@ -576,12 +570,10 @@ int dma_fence_get_status(struct dma_fence *fence);
  * helper exists to help catching erroneous setting of #dma_fence.error.
  */
 static inline void dma_fence_set_error(struct dma_fence *fence,
-				       int error)
-{
-	WARN_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
-	WARN_ON(error >= 0 || error < -MAX_ERRNO);
-
-	fence->error = error;
+    int error) {
+  WARN_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+  WARN_ON(error >= 0 || error < -MAX_ERRNO);
+  fence->error = error;
 }
 
 /**
@@ -592,23 +584,22 @@ static inline void dma_fence_set_error(struct dma_fence *fence,
  * but setting the timestamp can race with tasks waiting for the signaling. This
  * helper busy waits for the correct timestamp to appear.
  */
-static inline ktime_t dma_fence_timestamp(struct dma_fence *fence)
-{
-	if (WARN_ON(!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)))
-		return ktime_get();
-
-	while (!test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags))
-		cpu_relax();
-
-	return fence->timestamp;
+static inline ktime_t dma_fence_timestamp(struct dma_fence *fence) {
+  if (WARN_ON(!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))) {
+    return ktime_get();
+  }
+  while (!test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags)) {
+    cpu_relax();
+  }
+  return fence->timestamp;
 }
 
 signed long dma_fence_wait_timeout(struct dma_fence *,
-				   bool intr, signed long timeout);
+    bool intr, signed long timeout);
 signed long dma_fence_wait_any_timeout(struct dma_fence **fences,
-				       uint32_t count,
-				       bool intr, signed long timeout,
-				       uint32_t *idx);
+    uint32_t count,
+    bool intr, signed long timeout,
+    uint32_t *idx);
 
 /**
  * dma_fence_wait - sleep until the fence gets signaled
@@ -625,17 +616,14 @@ signed long dma_fence_wait_any_timeout(struct dma_fence **fences,
  *
  * See also dma_fence_wait_timeout() and dma_fence_wait_any_timeout().
  */
-static inline signed long dma_fence_wait(struct dma_fence *fence, bool intr)
-{
-	signed long ret;
-
-	/* Since dma_fence_wait_timeout cannot timeout with
-	 * MAX_SCHEDULE_TIMEOUT, only valid return values are
-	 * -ERESTARTSYS and MAX_SCHEDULE_TIMEOUT.
-	 */
-	ret = dma_fence_wait_timeout(fence, intr, MAX_SCHEDULE_TIMEOUT);
-
-	return ret < 0 ? ret : 0;
+static inline signed long dma_fence_wait(struct dma_fence *fence, bool intr) {
+  signed long ret;
+  /* Since dma_fence_wait_timeout cannot timeout with
+   * MAX_SCHEDULE_TIMEOUT, only valid return values are
+   * -ERESTARTSYS and MAX_SCHEDULE_TIMEOUT.
+   */
+  ret = dma_fence_wait_timeout(fence, intr, MAX_SCHEDULE_TIMEOUT);
+  return ret < 0 ? ret : 0;
 }
 
 void dma_fence_set_deadline(struct dma_fence *fence, ktime_t deadline);
@@ -653,9 +641,8 @@ extern const struct dma_fence_ops dma_fence_chain_ops;
  *
  * Return true if it is a dma_fence_array and false otherwise.
  */
-static inline bool dma_fence_is_array(struct dma_fence *fence)
-{
-	return fence->ops == &dma_fence_array_ops;
+static inline bool dma_fence_is_array(struct dma_fence *fence) {
+  return fence->ops == &dma_fence_array_ops;
 }
 
 /**
@@ -664,9 +651,8 @@ static inline bool dma_fence_is_array(struct dma_fence *fence)
  *
  * Return true if it is a dma_fence_chain and false otherwise.
  */
-static inline bool dma_fence_is_chain(struct dma_fence *fence)
-{
-	return fence->ops == &dma_fence_chain_ops;
+static inline bool dma_fence_is_chain(struct dma_fence *fence) {
+  return fence->ops == &dma_fence_chain_ops;
 }
 
 /**
@@ -677,9 +663,8 @@ static inline bool dma_fence_is_chain(struct dma_fence *fence)
  * This is important since we can't build up large fence structure or otherwise
  * we run into recursion during operation on those fences.
  */
-static inline bool dma_fence_is_container(struct dma_fence *fence)
-{
-	return dma_fence_is_array(fence) || dma_fence_is_chain(fence);
+static inline bool dma_fence_is_container(struct dma_fence *fence) {
+  return dma_fence_is_array(fence) || dma_fence_is_chain(fence);
 }
 
 #endif /* __LINUX_DMA_FENCE_H */

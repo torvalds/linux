@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *    http://www.samsung.com
  *
  * Copyright (c) 2004 Simtec Electronics
  * Ben Dooks <ben@simtec.co.uk>
@@ -15,8 +15,8 @@
 #include <linux/platform_device.h>
 
 struct s3c24xx_uart_resources {
-	struct resource		*resources;
-	unsigned long		 nr_resources;
+  struct resource *resources;
+  unsigned long nr_resources;
 };
 
 extern struct s3c24xx_uart_resources s3c2410_uart_resources[];
@@ -52,6 +52,6 @@ extern struct platform_device samsung_device_pwm;
  * platform data of the device.
  */
 extern void *s3c_set_platdata(void *pd, size_t pdsize,
-			      struct platform_device *pdev);
+    struct platform_device *pdev);
 
 #endif /* __PLAT_DEVS_H */

@@ -113,28 +113,26 @@ void debug_dominance_tree(enum cdi_direction dir, basic_block root);
 /* should come from c-tree.h if only it were installed for gcc 4.5... */
 #define C_TYPE_FIELDS_READONLY(TYPE) TREE_LANG_FLAG_1(TYPE)
 
-static inline tree build_const_char_string(int len, const char *str)
-{
-	tree cstr, elem, index, type;
-
-	cstr = build_string(len, str);
-	elem = build_type_variant(char_type_node, 1, 0);
-	index = build_index_type(size_int(len - 1));
-	type = build_array_type(elem, index);
-	TREE_TYPE(cstr) = type;
-	TREE_CONSTANT(cstr) = 1;
-	TREE_READONLY(cstr) = 1;
-	TREE_STATIC(cstr) = 1;
-	return cstr;
+static inline tree build_const_char_string(int len, const char *str) {
+  tree cstr, elem, index, type;
+  cstr = build_string(len, str);
+  elem = build_type_variant(char_type_node, 1, 0);
+  index = build_index_type(size_int(len - 1));
+  type = build_array_type(elem, index);
+  TREE_TYPE(cstr) = type;
+  TREE_CONSTANT(cstr) = 1;
+  TREE_READONLY(cstr) = 1;
+  TREE_STATIC(cstr) = 1;
+  return cstr;
 }
 
-#define PASS_INFO(NAME, REF, ID, POS)		\
-struct register_pass_info NAME##_pass_info = {	\
-	.pass = make_##NAME##_pass(),		\
-	.reference_pass_name = REF,		\
-	.ref_pass_instance_number = ID,		\
-	.pos_op = POS,				\
-}
+#define PASS_INFO(NAME, REF, ID, POS)   \
+  struct register_pass_info NAME ## _pass_info = {  \
+    .pass = make_ ## NAME ## _pass(),   \
+    .reference_pass_name = REF,   \
+    .ref_pass_instance_number = ID,   \
+    .pos_op = POS,        \
+  }
 
 #define add_referenced_var(var)
 #define mark_sym_for_renaming(var)
@@ -149,18 +147,17 @@ struct register_pass_info NAME##_pass_info = {	\
 #define cgraph_node_name(node) (node)->name()
 #define NODE_IMPLICIT_ALIAS(node) (node)->cpp_implicit_alias
 
-static inline opt_pass *get_pass_for_id(int id)
-{
-	return g->get_passes()->get_pass_for_id(id);
+static inline opt_pass *get_pass_for_id(int id) {
+  return g->get_passes()->get_pass_for_id(id);
 }
 
 #if BUILDING_GCC_VERSION < 6000
 /* gimple related */
-template <>
-template <>
-inline bool is_a_helper<const gassign *>::test(const_gimple gs)
+template
+< > template
+< > inline bool is_a_helper < const gassign * > ::test(const_gimple gs)
 {
-	return gs->code == GIMPLE_ASSIGN;
+  return gs->code == GIMPLE_ASSIGN;
 }
 #endif
 
@@ -171,9 +168,8 @@ inline bool is_a_helper<const gassign *>::test(const_gimple gs)
 
 #define INSN_DELETED_P(insn) (insn)->deleted()
 
-static inline const char *get_decl_section_name(const_tree decl)
-{
-	return DECL_SECTION_NAME(decl);
+static inline const char *get_decl_section_name(const_tree decl) {
+  return DECL_SECTION_NAME(decl);
 }
 
 /* symtab/cgraph related */
@@ -188,114 +184,111 @@ static inline const char *get_decl_section_name(const_tree decl)
 
 #if BUILDING_GCC_VERSION >= 8000
 #define cgraph_create_edge(caller, callee, call_stmt, count, freq) \
-	(caller)->create_edge((callee), (call_stmt), (count))
+  (caller)->create_edge((callee), (call_stmt), (count))
 
-#define cgraph_create_edge_including_clones(caller, callee,	\
-		old_call_stmt, call_stmt, count, freq, reason)	\
-	(caller)->create_edge_including_clones((callee),	\
-		(old_call_stmt), (call_stmt), (count), (reason))
+#define cgraph_create_edge_including_clones(caller, callee, \
+      old_call_stmt, call_stmt, count, freq, reason)  \
+  (caller)->create_edge_including_clones((callee),  \
+    (old_call_stmt), (call_stmt), (count), (reason))
 #else
 #define cgraph_create_edge(caller, callee, call_stmt, count, freq) \
-	(caller)->create_edge((callee), (call_stmt), (count), (freq))
+  (caller)->create_edge((callee), (call_stmt), (count), (freq))
 
-#define cgraph_create_edge_including_clones(caller, callee,	\
-		old_call_stmt, call_stmt, count, freq, reason)	\
-	(caller)->create_edge_including_clones((callee),	\
-		(old_call_stmt), (call_stmt), (count), (freq), (reason))
+#define cgraph_create_edge_including_clones(caller, callee, \
+      old_call_stmt, call_stmt, count, freq, reason)  \
+  (caller)->create_edge_including_clones((callee),  \
+    (old_call_stmt), (call_stmt), (count), (freq), (reason))
 #endif
 
 typedef struct cgraph_node *cgraph_node_ptr;
 typedef struct cgraph_edge *cgraph_edge_p;
 typedef struct varpool_node *varpool_node_ptr;
 
-static inline void change_decl_assembler_name(tree decl, tree name)
-{
-	symtab->change_decl_assembler_name(decl, name);
+static inline void change_decl_assembler_name(tree decl, tree name) {
+  symtab->change_decl_assembler_name(decl, name);
 }
 
-static inline void varpool_finalize_decl(tree decl)
-{
-	varpool_node::finalize_decl(decl);
+static inline void varpool_finalize_decl(tree decl) {
+  varpool_node::finalize_decl(decl);
 }
 
-static inline void varpool_add_new_variable(tree decl)
-{
-	varpool_node::add(decl);
+static inline void varpool_add_new_variable(tree decl) {
+  varpool_node::add(decl);
 }
 
-static inline unsigned int rebuild_cgraph_edges(void)
-{
-	return cgraph_edge::rebuild_edges();
+static inline unsigned int rebuild_cgraph_edges(void) {
+  return cgraph_edge::rebuild_edges();
 }
 
-static inline cgraph_node_ptr cgraph_function_node(cgraph_node_ptr node, enum availability *availability)
-{
-	return node->function_symbol(availability);
+static inline cgraph_node_ptr cgraph_function_node(cgraph_node_ptr node,
+    enum availability *availability) {
+  return node->function_symbol(availability);
 }
 
-static inline cgraph_node_ptr cgraph_function_or_thunk_node(cgraph_node_ptr node, enum availability *availability = NULL)
-{
-	return node->ultimate_alias_target(availability);
+static inline cgraph_node_ptr cgraph_function_or_thunk_node(
+    cgraph_node_ptr node, enum availability *availability = NULL) {
+  return node->ultimate_alias_target(availability);
 }
 
-static inline bool cgraph_only_called_directly_p(cgraph_node_ptr node)
-{
-	return node->only_called_directly_p();
+static inline bool cgraph_only_called_directly_p(cgraph_node_ptr node) {
+  return node->only_called_directly_p();
 }
 
-static inline enum availability cgraph_function_body_availability(cgraph_node_ptr node)
-{
-	return node->get_availability();
+static inline enum availability cgraph_function_body_availability(
+    cgraph_node_ptr node) {
+  return node->get_availability();
 }
 
-static inline cgraph_node_ptr cgraph_alias_target(cgraph_node_ptr node)
-{
-	return node->get_alias_target();
+static inline cgraph_node_ptr cgraph_alias_target(cgraph_node_ptr node) {
+  return node->get_alias_target();
 }
 
-static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(cgraph_node_ptr, void *), void *data, bool include_overwritable)
-{
-	return node->call_for_symbol_thunks_and_aliases(callback, data, include_overwritable);
+static inline bool cgraph_for_node_and_aliases(cgraph_node_ptr node, bool (*callback)(
+    cgraph_node_ptr,
+    void *), void *data,
+    bool include_overwritable) {
+  return node->call_for_symbol_thunks_and_aliases(callback, data,
+      include_overwritable);
 }
 
-static inline struct cgraph_node_hook_list *cgraph_add_function_insertion_hook(cgraph_node_hook hook, void *data)
-{
-	return symtab->add_cgraph_insertion_hook(hook, data);
+static inline struct cgraph_node_hook_list *cgraph_add_function_insertion_hook(
+    cgraph_node_hook hook, void *data) {
+  return symtab->add_cgraph_insertion_hook(hook, data);
 }
 
-static inline void cgraph_remove_function_insertion_hook(struct cgraph_node_hook_list *entry)
-{
-	symtab->remove_cgraph_insertion_hook(entry);
+static inline void cgraph_remove_function_insertion_hook(
+    struct cgraph_node_hook_list *entry) {
+  symtab->remove_cgraph_insertion_hook(entry);
 }
 
-static inline struct cgraph_node_hook_list *cgraph_add_node_removal_hook(cgraph_node_hook hook, void *data)
-{
-	return symtab->add_cgraph_removal_hook(hook, data);
+static inline struct cgraph_node_hook_list *cgraph_add_node_removal_hook(
+    cgraph_node_hook hook, void *data) {
+  return symtab->add_cgraph_removal_hook(hook, data);
 }
 
-static inline void cgraph_remove_node_removal_hook(struct cgraph_node_hook_list *entry)
-{
-	symtab->remove_cgraph_removal_hook(entry);
+static inline void cgraph_remove_node_removal_hook(
+    struct cgraph_node_hook_list *entry) {
+  symtab->remove_cgraph_removal_hook(entry);
 }
 
-static inline struct cgraph_2node_hook_list *cgraph_add_node_duplication_hook(cgraph_2node_hook hook, void *data)
-{
-	return symtab->add_cgraph_duplication_hook(hook, data);
+static inline struct cgraph_2node_hook_list *cgraph_add_node_duplication_hook(
+    cgraph_2node_hook hook, void *data) {
+  return symtab->add_cgraph_duplication_hook(hook, data);
 }
 
-static inline void cgraph_remove_node_duplication_hook(struct cgraph_2node_hook_list *entry)
-{
-	symtab->remove_cgraph_duplication_hook(entry);
+static inline void cgraph_remove_node_duplication_hook(
+    struct cgraph_2node_hook_list *entry) {
+  symtab->remove_cgraph_duplication_hook(entry);
 }
 
-static inline void cgraph_call_node_duplication_hooks(cgraph_node_ptr node, cgraph_node_ptr node2)
-{
-	symtab->call_cgraph_duplication_hooks(node, node2);
+static inline void cgraph_call_node_duplication_hooks(cgraph_node_ptr node,
+    cgraph_node_ptr node2) {
+  symtab->call_cgraph_duplication_hooks(node, node2);
 }
 
-static inline void cgraph_call_edge_duplication_hooks(cgraph_edge *cs1, cgraph_edge *cs2)
-{
-	symtab->call_edge_duplication_hooks(cs1, cs2);
+static inline void cgraph_call_edge_duplication_hooks(cgraph_edge *cs1,
+    cgraph_edge *cs2) {
+  symtab->call_edge_duplication_hooks(cs1, cs2);
 }
 
 #if BUILDING_GCC_VERSION >= 6000
@@ -308,106 +301,96 @@ typedef const gimple *const_gimple_ptr;
 #endif
 
 /* gimple related */
-static inline gimple gimple_build_assign_with_ops(enum tree_code subcode, tree lhs, tree op1, tree op2 MEM_STAT_DECL)
-{
-	return gimple_build_assign(lhs, subcode, op1, op2 PASS_MEM_STAT);
+static inline gimple gimple_build_assign_with_ops(enum tree_code subcode,
+    tree lhs, tree op1,
+    tree op2 MEM_STAT_DECL) {
+  return gimple_build_assign(lhs, subcode, op1, op2 PASS_MEM_STAT);
 }
 
 #if BUILDING_GCC_VERSION < 10000
-template <>
-template <>
-inline bool is_a_helper<const ggoto *>::test(const_gimple gs)
+template
+< > template
+< > inline bool is_a_helper < const ggoto * > ::test(const_gimple gs)
 {
-	return gs->code == GIMPLE_GOTO;
+  return gs->code == GIMPLE_GOTO;
 }
 
-template <>
-template <>
-inline bool is_a_helper<const greturn *>::test(const_gimple gs)
+template
+< > template
+< > inline bool is_a_helper < const greturn * > ::test(const_gimple gs)
 {
-	return gs->code == GIMPLE_RETURN;
+  return gs->code == GIMPLE_RETURN;
 }
 #endif
 
-static inline gasm *as_a_gasm(gimple stmt)
-{
-	return as_a<gasm *>(stmt);
+static inline gasm *as_a_gasm(gimple stmt) {
+  return as_a < gasm * > (stmt);
 }
 
-static inline const gasm *as_a_const_gasm(const_gimple stmt)
-{
-	return as_a<const gasm *>(stmt);
+static inline const gasm *as_a_const_gasm(const_gimple stmt) {
+  return as_a < const gasm * > (stmt);
 }
 
-static inline gassign *as_a_gassign(gimple stmt)
-{
-	return as_a<gassign *>(stmt);
+static inline gassign *as_a_gassign(gimple stmt) {
+  return as_a < gassign * > (stmt);
 }
 
-static inline const gassign *as_a_const_gassign(const_gimple stmt)
-{
-	return as_a<const gassign *>(stmt);
+static inline const gassign *as_a_const_gassign(const_gimple stmt) {
+  return as_a < const gassign * > (stmt);
 }
 
-static inline gcall *as_a_gcall(gimple stmt)
-{
-	return as_a<gcall *>(stmt);
+static inline gcall *as_a_gcall(gimple stmt) {
+  return as_a < gcall * > (stmt);
 }
 
-static inline const gcall *as_a_const_gcall(const_gimple stmt)
-{
-	return as_a<const gcall *>(stmt);
+static inline const gcall *as_a_const_gcall(const_gimple stmt) {
+  return as_a < const gcall * > (stmt);
 }
 
-static inline ggoto *as_a_ggoto(gimple stmt)
-{
-	return as_a<ggoto *>(stmt);
+static inline ggoto *as_a_ggoto(gimple stmt) {
+  return as_a < ggoto * > (stmt);
 }
 
-static inline const ggoto *as_a_const_ggoto(const_gimple stmt)
-{
-	return as_a<const ggoto *>(stmt);
+static inline const ggoto *as_a_const_ggoto(const_gimple stmt) {
+  return as_a < const ggoto * > (stmt);
 }
 
-static inline gphi *as_a_gphi(gimple stmt)
-{
-	return as_a<gphi *>(stmt);
+static inline gphi *as_a_gphi(gimple stmt) {
+  return as_a < gphi * > (stmt);
 }
 
-static inline const gphi *as_a_const_gphi(const_gimple stmt)
-{
-	return as_a<const gphi *>(stmt);
+static inline const gphi *as_a_const_gphi(const_gimple stmt) {
+  return as_a < const gphi * > (stmt);
 }
 
-static inline greturn *as_a_greturn(gimple stmt)
-{
-	return as_a<greturn *>(stmt);
+static inline greturn *as_a_greturn(gimple stmt) {
+  return as_a < greturn * > (stmt);
 }
 
-static inline const greturn *as_a_const_greturn(const_gimple stmt)
-{
-	return as_a<const greturn *>(stmt);
+static inline const greturn *as_a_const_greturn(const_gimple stmt) {
+  return as_a < const greturn * > (stmt);
 }
 
 /* IPA/LTO related */
-#define ipa_ref_list_referring_iterate(L, I, P)	\
-	(L)->referring.iterate((I), &(P))
-#define ipa_ref_list_reference_iterate(L, I, P)	\
-	(L)->reference.iterate((I), &(P))
+#define ipa_ref_list_referring_iterate(L, I, P) \
+  (L)->referring.iterate((I), &(P))
+#define ipa_ref_list_reference_iterate(L, I, P) \
+  (L)->reference.iterate((I), &(P))
 
-static inline cgraph_node_ptr ipa_ref_referring_node(struct ipa_ref *ref)
-{
-	return dyn_cast<cgraph_node_ptr>(ref->referring);
+static inline cgraph_node_ptr ipa_ref_referring_node(struct ipa_ref *ref) {
+  return dyn_cast < cgraph_node_ptr > (ref->referring);
 }
 
-static inline void ipa_remove_stmt_references(symtab_node *referring_node, gimple stmt)
-{
-	referring_node->remove_stmt_references(stmt);
+static inline void ipa_remove_stmt_references(symtab_node *referring_node,
+    gimple stmt) {
+  referring_node->remove_stmt_references(stmt);
 }
 
 #if BUILDING_GCC_VERSION < 6000
-#define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep, keep_aligning)	\
-	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, pvolatilep, keep_aligning)
+#define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, \
+      preversep, pvolatilep, keep_aligning) \
+  get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, \
+    pvolatilep, keep_aligning)
 #define gen_rtx_set(ARG0, ARG1) gen_rtx_SET(VOIDmode, (ARG0), (ARG1))
 #endif
 
@@ -416,32 +399,33 @@ static inline void ipa_remove_stmt_references(symtab_node *referring_node, gimpl
 #endif
 
 #ifdef __cplusplus
-static inline void debug_tree(const_tree t)
-{
-	debug_tree(CONST_CAST_TREE(t));
+static inline void debug_tree(const_tree t) {
+  debug_tree(CONST_CAST_TREE(t));
 }
 
-static inline void debug_gimple_stmt(const_gimple s)
-{
-	debug_gimple_stmt(CONST_CAST_GIMPLE(s));
+static inline void debug_gimple_stmt(const_gimple s) {
+  debug_gimple_stmt(CONST_CAST_GIMPLE(s));
 }
+
 #else
 #define debug_tree(t) debug_tree(CONST_CAST_TREE(t))
 #define debug_gimple_stmt(s) debug_gimple_stmt(CONST_CAST_GIMPLE(s))
 #endif
 
 #if BUILDING_GCC_VERSION >= 7000
-#define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep, keep_aligning)	\
-	get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, preversep, pvolatilep)
+#define get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, \
+      preversep, pvolatilep, keep_aligning) \
+  get_inner_reference(exp, pbitsize, pbitpos, poffset, pmode, punsignedp, \
+    preversep, pvolatilep)
 #endif
 
 #if BUILDING_GCC_VERSION < 7000
-#define SET_DECL_ALIGN(decl, align)	DECL_ALIGN(decl) = (align)
-#define SET_DECL_MODE(decl, mode)	DECL_MODE(decl) = (mode)
+#define SET_DECL_ALIGN(decl, align) DECL_ALIGN(decl) = (align)
+#define SET_DECL_MODE(decl, mode) DECL_MODE(decl) = (mode)
 #endif
 
 #if BUILDING_GCC_VERSION >= 14000
-#define last_stmt(x)			last_nondebug_stmt(x)
+#define last_stmt(x)      last_nondebug_stmt(x)
 #endif
 
 #endif

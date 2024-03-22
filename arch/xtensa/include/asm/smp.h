@@ -11,11 +11,11 @@
 
 #ifdef CONFIG_SMP
 
-#define raw_smp_processor_id()	(current_thread_info()->cpu)
-#define cpu_logical_map(cpu)	(cpu)
+#define raw_smp_processor_id()  (current_thread_info()->cpu)
+#define cpu_logical_map(cpu)  (cpu)
 
 struct start_info {
-	unsigned long stack;
+  unsigned long stack;
 };
 extern struct start_info start_info;
 
@@ -41,4 +41,4 @@ void cpu_restart(void);
 
 #endif /* CONFIG_SMP */
 
-#endif	/* _XTENSA_SMP_H */
+#endif  /* _XTENSA_SMP_H */

@@ -3,7 +3,7 @@
 #define LINUX_BCM47XX_PRIVATE_H_
 
 #ifndef pr_fmt
-#define pr_fmt(fmt)		"bcm47xx: " fmt
+#define pr_fmt(fmt)   "bcm47xx: " fmt
 #endif
 
 #include <linux/kernel.h>

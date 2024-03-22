@@ -12,7 +12,7 @@
 
 #include "linux-event-codes.h"
 
-#define MATRIX_KEY(row, col, code)	\
-	((((row) & 0xFF) << 24) | (((col) & 0xFF) << 16) | ((code) & 0xFFFF))
+#define MATRIX_KEY(row, col, code)  \
+  ((((row) & 0xFF) << 24) | (((col) & 0xFF) << 16) | ((code) & 0xFFFF))
 
 #endif /* _DT_BINDINGS_INPUT_INPUT_H */

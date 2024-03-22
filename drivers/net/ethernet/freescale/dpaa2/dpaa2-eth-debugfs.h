@@ -10,7 +10,7 @@
 struct dpaa2_eth_priv;
 
 struct dpaa2_debugfs {
-	struct dentry *dir;
+  struct dentry *dir;
 };
 
 #ifdef CONFIG_DEBUG_FS
@@ -19,10 +19,18 @@ void dpaa2_eth_dbg_exit(void);
 void dpaa2_dbg_add(struct dpaa2_eth_priv *priv);
 void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv);
 #else
-static inline void dpaa2_eth_dbg_init(void) {}
-static inline void dpaa2_eth_dbg_exit(void) {}
-static inline void dpaa2_dbg_add(struct dpaa2_eth_priv *priv) {}
-static inline void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv) {}
+static inline void dpaa2_eth_dbg_init(void) {
+}
+
+static inline void dpaa2_eth_dbg_exit(void) {
+}
+
+static inline void dpaa2_dbg_add(struct dpaa2_eth_priv *priv) {
+}
+
+static inline void dpaa2_dbg_remove(struct dpaa2_eth_priv *priv) {
+}
+
 #endif /* CONFIG_DEBUG_FS */
 
 #endif /* DPAA2_ETH_DEBUGFS_H */

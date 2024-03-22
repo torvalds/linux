@@ -16,59 +16,53 @@
 /*
  * PMIC IRQ
  */
-#define DA9055_IRQ_ALARM	0x01
-#define DA9055_IRQ_TICK		0x02
-#define DA9055_IRQ_NONKEY	0x00
-#define DA9055_IRQ_REGULATOR	0x0B
-#define DA9055_IRQ_HWMON	0x03
+#define DA9055_IRQ_ALARM  0x01
+#define DA9055_IRQ_TICK   0x02
+#define DA9055_IRQ_NONKEY 0x00
+#define DA9055_IRQ_REGULATOR  0x0B
+#define DA9055_IRQ_HWMON  0x03
 
 struct da9055_pdata;
 
 struct da9055 {
-	struct regmap *regmap;
-	struct regmap_irq_chip_data *irq_data;
-	struct device *dev;
-	struct i2c_client *i2c_client;
+  struct regmap *regmap;
+  struct regmap_irq_chip_data *irq_data;
+  struct device *dev;
+  struct i2c_client *i2c_client;
 
-	int irq_base;
-	int chip_irq;
+  int irq_base;
+  int chip_irq;
 };
 
 /* Device I/O */
-static inline int da9055_reg_read(struct da9055 *da9055, unsigned char reg)
-{
-	int val, ret;
-
-	ret = regmap_read(da9055->regmap, reg, &val);
-	if (ret < 0)
-		return ret;
-
-	return val;
+static inline int da9055_reg_read(struct da9055 *da9055, unsigned char reg) {
+  int val, ret;
+  ret = regmap_read(da9055->regmap, reg, &val);
+  if (ret < 0) {
+    return ret;
+  }
+  return val;
 }
 
 static inline int da9055_reg_write(struct da9055 *da9055, unsigned char reg,
-				    unsigned char val)
-{
-	return regmap_write(da9055->regmap, reg, val);
+    unsigned char val) {
+  return regmap_write(da9055->regmap, reg, val);
 }
 
 static inline int da9055_group_read(struct da9055 *da9055, unsigned char reg,
-				     unsigned reg_cnt, unsigned char *val)
-{
-	return regmap_bulk_read(da9055->regmap, reg, val, reg_cnt);
+    unsigned reg_cnt, unsigned char *val) {
+  return regmap_bulk_read(da9055->regmap, reg, val, reg_cnt);
 }
 
 static inline int da9055_group_write(struct da9055 *da9055, unsigned char reg,
-				      unsigned reg_cnt, unsigned char *val)
-{
-	return regmap_raw_write(da9055->regmap, reg, val, reg_cnt);
+    unsigned reg_cnt, unsigned char *val) {
+  return regmap_raw_write(da9055->regmap, reg, val, reg_cnt);
 }
 
 static inline int da9055_reg_update(struct da9055 *da9055, unsigned char reg,
-				     unsigned char bit_mask,
-				     unsigned char reg_val)
-{
-	return regmap_update_bits(da9055->regmap, reg, bit_mask, reg_val);
+    unsigned char bit_mask,
+    unsigned char reg_val) {
+  return regmap_update_bits(da9055->regmap, reg, bit_mask, reg_val);
 }
 
 /* Generic Device API */

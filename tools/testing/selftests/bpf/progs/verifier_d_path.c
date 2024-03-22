@@ -8,9 +8,9 @@
 SEC("fentry/dentry_open")
 __description("d_path accept")
 __success __retval(0)
-__naked void d_path_accept(void)
-{
-	asm volatile ("					\
+__naked void d_path_accept(void) {
+  asm volatile (
+    "					\
 	r1 = *(u32*)(r1 + 0);				\
 	r2 = r10;					\
 	r2 += -8;					\
@@ -20,17 +20,17 @@ __naked void d_path_accept(void)
 	call %[bpf_d_path];				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_d_path)
-	: __clobber_all);
+" :
+    : __imm(bpf_d_path)
+    : __clobber_all);
 }
 
 SEC("fentry/d_path")
 __description("d_path reject")
 __failure __msg("helper call is not allowed in probe")
-__naked void d_path_reject(void)
-{
-	asm volatile ("					\
+__naked void d_path_reject(void) {
+  asm volatile (
+    "					\
 	r1 = *(u32*)(r1 + 0);				\
 	r2 = r10;					\
 	r2 += -8;					\
@@ -40,9 +40,9 @@ __naked void d_path_reject(void)
 	call %[bpf_d_path];				\
 	r0 = 0;						\
 	exit;						\
-"	:
-	: __imm(bpf_d_path)
-	: __clobber_all);
+" :
+    : __imm(bpf_d_path)
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

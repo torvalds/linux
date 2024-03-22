@@ -7,11 +7,12 @@
 
 struct riscv_nonstd_cache_ops noncoherent_cache_ops __ro_after_init;
 
-void
-riscv_noncoherent_register_cache_ops(const struct riscv_nonstd_cache_ops *ops)
-{
-	if (!ops)
-		return;
-	noncoherent_cache_ops = *ops;
+void riscv_noncoherent_register_cache_ops(
+    const struct riscv_nonstd_cache_ops *ops) {
+  if (!ops) {
+    return;
+  }
+  noncoherent_cache_ops = *ops;
 }
+
 EXPORT_SYMBOL_GPL(riscv_noncoherent_register_cache_ops);

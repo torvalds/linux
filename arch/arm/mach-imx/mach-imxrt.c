@@ -8,12 +8,12 @@
 #include <asm/mach/arch.h>
 #include <asm/v7m.h>
 
-static const char *const imxrt_compat[] __initconst = {
-	"fsl,imxrt1050",
-	NULL
+static const char * const imxrt_compat[] __initconst = {
+  "fsl,imxrt1050",
+  NULL
 };
 
 DT_MACHINE_START(IMXRTDT, "IMXRT (Device Tree Support)")
-	.dt_compat = imxrt_compat,
-	.restart = armv7m_restart,
+.dt_compat = imxrt_compat,
+.restart = armv7m_restart,
 MACHINE_END

@@ -6,7 +6,6 @@
 
 #include <asm/kvm_hyp.h>
 
-void __kvm_timer_set_cntvoff(u64 cntvoff)
-{
-	write_sysreg(cntvoff, cntvoff_el2);
+void __kvm_timer_set_cntvoff(u64 cntvoff) {
+  write_sysreg(cntvoff, cntvoff_el2);
 }

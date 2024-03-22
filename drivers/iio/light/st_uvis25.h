@@ -10,7 +10,7 @@
 #ifndef ST_UVIS25_H
 #define ST_UVIS25_H
 
-#define ST_UVIS25_DEV_NAME		"uvis25"
+#define ST_UVIS25_DEV_NAME    "uvis25"
 
 #include <linux/iio/iio.h>
 
@@ -22,16 +22,16 @@
  * @irq: Device interrupt line (I2C or SPI).
  */
 struct st_uvis25_hw {
-	struct regmap *regmap;
+  struct regmap *regmap;
 
-	struct iio_trigger *trig;
-	bool enabled;
-	int irq;
-	/* Ensure timestamp is naturally aligned */
-	struct {
-		u8 chan;
-		s64 ts __aligned(8);
-	} scan;
+  struct iio_trigger *trig;
+  bool enabled;
+  int irq;
+  /* Ensure timestamp is naturally aligned */
+  struct {
+    u8 chan;
+    s64 ts __aligned(8);
+  } scan;
 };
 
 extern const struct dev_pm_ops st_uvis25_pm_ops;

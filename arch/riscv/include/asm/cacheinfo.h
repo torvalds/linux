@@ -9,8 +9,8 @@
 #include <linux/cacheinfo.h>
 
 struct riscv_cacheinfo_ops {
-	const struct attribute_group * (*get_priv_group)(struct cacheinfo
-							*this_leaf);
+  const struct attribute_group *(*get_priv_group)(struct cacheinfo
+      *this_leaf);
 };
 
 void riscv_set_cacheinfo_ops(struct riscv_cacheinfo_ops *ops);

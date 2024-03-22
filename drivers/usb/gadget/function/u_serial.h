@@ -12,11 +12,11 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/cdc.h>
 
-#define MAX_U_SERIAL_PORTS	8
+#define MAX_U_SERIAL_PORTS  8
 
 struct f_serial_opts {
-	struct usb_function_instance func_inst;
-	u8 port_num;
+  struct usb_function_instance func_inst;
+  u8 port_num;
 };
 
 /*
@@ -32,21 +32,21 @@ struct f_serial_opts {
  * REVISIT someday, allow multiplexing several TTYs over these endpoints.
  */
 struct gserial {
-	struct usb_function		func;
+  struct usb_function func;
 
-	/* port is managed by gserial_{connect,disconnect} */
-	struct gs_port			*ioport;
+  /* port is managed by gserial_{connect,disconnect} */
+  struct gs_port *ioport;
 
-	struct usb_ep			*in;
-	struct usb_ep			*out;
+  struct usb_ep *in;
+  struct usb_ep *out;
 
-	/* REVISIT avoid this CDC-ACM support harder ... */
-	struct usb_cdc_line_coding port_line_coding;	/* 9600-8-N-1 etc */
+  /* REVISIT avoid this CDC-ACM support harder ... */
+  struct usb_cdc_line_coding port_line_coding;  /* 9600-8-N-1 etc */
 
-	/* notification callbacks */
-	void (*connect)(struct gserial *p);
-	void (*disconnect)(struct gserial *p);
-	int (*send_break)(struct gserial *p, int duration);
+  /* notification callbacks */
+  void (*connect)(struct gserial *p);
+  void (*disconnect)(struct gserial *p);
+  int (*send_break)(struct gserial *p, int duration);
 };
 
 /* utilities to allocate/free request and buffer */
@@ -60,7 +60,8 @@ void gserial_free_line(unsigned char port_line);
 
 #ifdef CONFIG_U_SERIAL_CONSOLE
 
-ssize_t gserial_set_console(unsigned char port_num, const char *page, size_t count);
+ssize_t gserial_set_console(unsigned char port_num, const char *page,
+    size_t count);
 ssize_t gserial_get_console(unsigned char port_num, char *page);
 
 #endif /* CONFIG_U_SERIAL_CONSOLE */

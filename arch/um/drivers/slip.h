@@ -5,12 +5,12 @@
 #include "slip_common.h"
 
 struct slip_data {
-	void *dev;
-	char name[sizeof("slnnnnn\0")];
-	char *addr;
-	char *gate_addr;
-	int slave;
-	struct slip_proto slip;
+  void *dev;
+  char name[sizeof("slnnnnn\0")];
+  char *addr;
+  char *gate_addr;
+  int slave;
+  struct slip_proto slip;
 };
 
 extern const struct net_user_info slip_user_info;

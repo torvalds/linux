@@ -34,54 +34,47 @@
 #include "bios_parser_types_internal.h"
 
 uint8_t *bios_get_image(struct dc_bios *bp,
-	uint32_t offset,
-	uint32_t size)
-{
-	if (bp->bios && offset + size < bp->bios_size)
-		return bp->bios + offset;
-	else
-		return NULL;
+    uint32_t offset,
+    uint32_t size) {
+  if (bp->bios && offset + size < bp->bios_size) {
+    return bp->bios + offset;
+  } else {
+    return NULL;
+  }
 }
 
 #include "reg_helper.h"
 
 #define CTX \
-	bios->ctx
-#define REG(reg)\
-	(bios->regs->reg)
+  bios->ctx
+#define REG(reg) \
+  (bios->regs->reg)
 
 #undef FN
 #define FN(reg_name, field_name) \
-		ATOM_ ## field_name ## _SHIFT, ATOM_ ## field_name
+  ATOM_ ## field_name ## _SHIFT, ATOM_ ## field_name
 
 bool bios_is_accelerated_mode(
-	struct dc_bios *bios)
-{
-	uint32_t acc_mode;
-	REG_GET(BIOS_SCRATCH_6, S6_ACC_MODE, &acc_mode);
-	return (acc_mode == 1);
+    struct dc_bios *bios) {
+  uint32_t acc_mode;
+  REG_GET(BIOS_SCRATCH_6, S6_ACC_MODE, &acc_mode);
+  return acc_mode == 1;
 }
-
 
 void bios_set_scratch_acc_mode_change(
-	struct dc_bios *bios,
-	uint32_t state)
-{
-	REG_UPDATE(BIOS_SCRATCH_6, S6_ACC_MODE, state);
+    struct dc_bios *bios,
+    uint32_t state) {
+  REG_UPDATE(BIOS_SCRATCH_6, S6_ACC_MODE, state);
 }
 
-
 void bios_set_scratch_critical_state(
-	struct dc_bios *bios,
-	bool state)
-{
-	uint32_t critial_state = state ? 1 : 0;
-	REG_UPDATE(BIOS_SCRATCH_6, S6_CRITICAL_STATE, critial_state);
+    struct dc_bios *bios,
+    bool state) {
+  uint32_t critial_state = state ? 1 : 0;
+  REG_UPDATE(BIOS_SCRATCH_6, S6_CRITICAL_STATE, critial_state);
 }
 
 uint32_t bios_get_vga_enabled_displays(
-	struct dc_bios *bios)
-{
-	return REG_READ(BIOS_SCRATCH_3) & 0XFFFF;
+    struct dc_bios *bios) {
+  return REG_READ(BIOS_SCRATCH_3) & 0XFFFF;
 }
-

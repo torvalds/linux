@@ -15,49 +15,42 @@ bool kprobe1_called;
 bool xyz_called;
 
 SEC("abc")
-int abc1(void *ctx)
-{
-	abc1_called = true;
-	return 0;
+int abc1(void *ctx) {
+  abc1_called = true;
+  return 0;
 }
 
 SEC("abc/whatever")
-int abc2(void *ctx)
-{
-	abc2_called = true;
-	return 0;
+int abc2(void *ctx) {
+  abc2_called = true;
+  return 0;
 }
 
 SEC("custom")
-int custom1(void *ctx)
-{
-	custom1_called = true;
-	return 0;
+int custom1(void *ctx) {
+  custom1_called = true;
+  return 0;
 }
 
 SEC("custom/something")
-int custom2(void *ctx)
-{
-	custom2_called = true;
-	return 0;
+int custom2(void *ctx) {
+  custom2_called = true;
+  return 0;
 }
 
 SEC("kprobe")
-int kprobe1(void *ctx)
-{
-	kprobe1_called = true;
-	return 0;
+int kprobe1(void *ctx) {
+  kprobe1_called = true;
+  return 0;
 }
 
 SEC("xyz/blah")
-int xyz(void *ctx)
-{
-	int whatever;
-
-	/* use sleepable helper, custom handler should set sleepable flag */
-	bpf_copy_from_user(&whatever, sizeof(whatever), NULL);
-	xyz_called = true;
-	return 0;
+int xyz(void *ctx) {
+  int whatever;
+  /* use sleepable helper, custom handler should set sleepable flag */
+  bpf_copy_from_user(&whatever, sizeof(whatever), NULL);
+  xyz_called = true;
+  return 0;
 }
 
 char _license[] SEC("license") = "GPL";

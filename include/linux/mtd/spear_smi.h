@@ -17,15 +17,15 @@
 #include <linux/of.h>
 
 /* max possible slots for serial-nor flash chip in the SMI controller */
-#define MAX_NUM_FLASH_CHIP	4
+#define MAX_NUM_FLASH_CHIP  4
 
 /* macro to define partitions for flash devices */
-#define DEFINE_PARTS(n, of, s)		\
-{					\
-	.name = n,			\
-	.offset = of,			\
-	.size = s,			\
-}
+#define DEFINE_PARTS(n, of, s)    \
+  {         \
+    .name = n,      \
+    .offset = of,     \
+    .size = s,      \
+  }
 
 /**
  * struct spear_smi_flash_info - platform structure for passing flash
@@ -40,12 +40,12 @@
  */
 
 struct spear_smi_flash_info {
-	char *name;
-	unsigned long mem_base;
-	unsigned long size;
-	struct mtd_partition *partitions;
-	int nr_partitions;
-	u8 fast_mode;
+  char *name;
+  unsigned long mem_base;
+  unsigned long size;
+  struct mtd_partition *partitions;
+  int nr_partitions;
+  u8 fast_mode;
 };
 
 /**
@@ -56,10 +56,10 @@ struct spear_smi_flash_info {
  * board_flash_info: specific details of each flash present on board
  */
 struct spear_smi_plat_data {
-	unsigned long clk_rate;
-	int num_flashes;
-	struct spear_smi_flash_info *board_flash_info;
-	struct device_node *np[MAX_NUM_FLASH_CHIP];
+  unsigned long clk_rate;
+  int num_flashes;
+  struct spear_smi_flash_info *board_flash_info;
+  struct device_node *np[MAX_NUM_FLASH_CHIP];
 };
 
 #endif /* __MTD_SPEAR_SMI_H */

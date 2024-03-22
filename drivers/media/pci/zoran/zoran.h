@@ -32,26 +32,24 @@
 #define ZR_NORM_SECAM 2
 
 struct zr_buffer {
-	/* common v4l buffer stuff -- must be first */
-	struct vb2_v4l2_buffer          vbuf;
-	struct list_head                queue;
+  /* common v4l buffer stuff -- must be first */
+  struct vb2_v4l2_buffer vbuf;
+  struct list_head queue;
 };
 
-static inline struct zr_buffer *vb2_to_zr_buffer(struct vb2_buffer *vb)
-{
-	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-
-	return container_of(vbuf, struct zr_buffer, vbuf);
+static inline struct zr_buffer *vb2_to_zr_buffer(struct vb2_buffer *vb) {
+  struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+  return container_of(vbuf, struct zr_buffer, vbuf);
 }
 
-#define ZORAN_NAME    "ZORAN"	/* name of the device */
+#define ZORAN_NAME    "ZORAN" /* name of the device */
 
 #define ZR_DEVNAME(zr) ((zr)->name)
 
 #define   BUZ_MAX_WIDTH   (zr->timing->wa)
 #define   BUZ_MAX_HEIGHT  (zr->timing->ha)
-#define   BUZ_MIN_WIDTH    32	/* never display less than 32 pixels */
-#define   BUZ_MIN_HEIGHT   24	/* never display less than 24 rows */
+#define   BUZ_MIN_WIDTH    32 /* never display less than 32 pixels */
+#define   BUZ_MIN_HEIGHT   24 /* never display less than 24 rows */
 
 #define BUZ_NUM_STAT_COM    4
 #define BUZ_MASK_STAT_COM   3
@@ -61,69 +59,69 @@ static inline struct zr_buffer *vb2_to_zr_buffer(struct vb2_buffer *vb)
 #include "zr36057.h"
 
 enum card_type {
-	UNKNOWN = -1,
+  UNKNOWN = -1,
 
-	/* Pinnacle/Miro */
-	DC10_OLD,		/* DC30 like */
-	DC10_NEW,		/* DC10_PLUS like */
-	DC10_PLUS,
-	DC30,
-	DC30_PLUS,
+  /* Pinnacle/Miro */
+  DC10_OLD,   /* DC30 like */
+  DC10_NEW,   /* DC10_PLUS like */
+  DC10_PLUS,
+  DC30,
+  DC30_PLUS,
 
-	/* Linux Media Labs */
-	LML33,
-	LML33R10,
+  /* Linux Media Labs */
+  LML33,
+  LML33R10,
 
-	/* Iomega */
-	BUZ,
+  /* Iomega */
+  BUZ,
 
-	/* AverMedia */
-	AVS6EYES,
+  /* AverMedia */
+  AVS6EYES,
 
-	/* total number of cards */
-	NUM_CARDS
+  /* total number of cards */
+  NUM_CARDS
 };
 
 enum zoran_codec_mode {
-	BUZ_MODE_IDLE,		/* nothing going on */
-	BUZ_MODE_MOTION_COMPRESS,	/* grabbing frames */
-	BUZ_MODE_MOTION_DECOMPRESS,	/* playing frames */
-	BUZ_MODE_STILL_COMPRESS,	/* still frame conversion */
-	BUZ_MODE_STILL_DECOMPRESS	/* still frame conversion */
+  BUZ_MODE_IDLE,    /* nothing going on */
+  BUZ_MODE_MOTION_COMPRESS, /* grabbing frames */
+  BUZ_MODE_MOTION_DECOMPRESS, /* playing frames */
+  BUZ_MODE_STILL_COMPRESS,  /* still frame conversion */
+  BUZ_MODE_STILL_DECOMPRESS /* still frame conversion */
 };
 
 enum zoran_map_mode {
-	ZORAN_MAP_MODE_NONE,
-	ZORAN_MAP_MODE_RAW,
-	ZORAN_MAP_MODE_JPG_REC,
-	ZORAN_MAP_MODE_JPG_PLAY,
+  ZORAN_MAP_MODE_NONE,
+  ZORAN_MAP_MODE_RAW,
+  ZORAN_MAP_MODE_JPG_REC,
+  ZORAN_MAP_MODE_JPG_PLAY,
 };
 
 enum gpio_type {
-	ZR_GPIO_JPEG_SLEEP = 0,
-	ZR_GPIO_JPEG_RESET,
-	ZR_GPIO_JPEG_FRAME,
-	ZR_GPIO_VID_DIR,
-	ZR_GPIO_VID_EN,
-	ZR_GPIO_VID_RESET,
-	ZR_GPIO_CLK_SEL1,
-	ZR_GPIO_CLK_SEL2,
-	ZR_GPIO_MAX,
+  ZR_GPIO_JPEG_SLEEP = 0,
+  ZR_GPIO_JPEG_RESET,
+  ZR_GPIO_JPEG_FRAME,
+  ZR_GPIO_VID_DIR,
+  ZR_GPIO_VID_EN,
+  ZR_GPIO_VID_RESET,
+  ZR_GPIO_CLK_SEL1,
+  ZR_GPIO_CLK_SEL2,
+  ZR_GPIO_MAX,
 };
 
 enum gpcs_type {
-	GPCS_JPEG_RESET = 0,
-	GPCS_JPEG_START,
-	GPCS_MAX,
+  GPCS_JPEG_RESET = 0,
+  GPCS_JPEG_START,
+  GPCS_MAX,
 };
 
 struct zoran_format {
-	char *name;
-	__u32 fourcc;
-	int colorspace;
-	int depth;
-	__u32 flags;
-	__u32 vfespfr;
+  char *name;
+  __u32 fourcc;
+  int colorspace;
+  int depth;
+  __u32 flags;
+  __u32 vfespfr;
 };
 
 /* flags */
@@ -134,168 +132,173 @@ struct zoran_format {
 
 /* v4l-capture settings */
 struct zoran_v4l_settings {
-	int width, height, bytesperline;	/* capture size */
-	const struct zoran_format *format;	/* capture format */
+  int width, height, bytesperline;  /* capture size */
+  const struct zoran_format *format;  /* capture format */
 };
 
 /* jpg-capture/-playback settings */
 struct zoran_jpg_settings {
-	/* this bit is used to set everything to default */
-	int decimation;
-	/* capture decimation settings (tmp_dcm=1 means both fields) */
-	int hor_dcm, ver_dcm, tmp_dcm;
-	/* field-settings (odd_even=1 (+tmp_dcm=1) means top-field-first) */
-	int field_per_buff, odd_even;
-	/* crop settings (subframe capture) */
-	int img_x, img_y, img_width, img_height;
-	/* JPEG-specific capture settings */
-	struct v4l2_jpegcompression jpg_comp;
+  /* this bit is used to set everything to default */
+  int decimation;
+  /* capture decimation settings (tmp_dcm=1 means both fields) */
+  int hor_dcm, ver_dcm, tmp_dcm;
+  /* field-settings (odd_even=1 (+tmp_dcm=1) means top-field-first) */
+  int field_per_buff, odd_even;
+  /* crop settings (subframe capture) */
+  int img_x, img_y, img_width, img_height;
+  /* JPEG-specific capture settings */
+  struct v4l2_jpegcompression jpg_comp;
 };
 
 struct zoran;
 
 /* zoran_fh contains per-open() settings */
 struct zoran_fh {
-	struct v4l2_fh fh;
-	struct zoran *zr;
+  struct v4l2_fh fh;
+  struct zoran *zr;
 };
 
 struct card_info {
-	enum card_type type;
-	char name[32];
-	const char *i2c_decoder;	/* i2c decoder device */
-	const unsigned short *addrs_decoder;
-	const char *i2c_encoder;	/* i2c encoder device */
-	const unsigned short *addrs_encoder;
-	u16 video_vfe, video_codec;			/* videocodec types */
-	u16 audio_chip;					/* audio type */
+  enum card_type type;
+  char name[32];
+  const char *i2c_decoder;  /* i2c decoder device */
+  const unsigned short *addrs_decoder;
+  const char *i2c_encoder;  /* i2c encoder device */
+  const unsigned short *addrs_encoder;
+  u16 video_vfe, video_codec;     /* videocodec types */
+  u16 audio_chip;         /* audio type */
 
-	int inputs;		/* number of video inputs */
-	struct input {
-		int muxsel;
-		char name[32];
-	} input[BUZ_MAX_INPUT];
+  int inputs;   /* number of video inputs */
+  struct input {
+    int muxsel;
+    char name[32];
+  } input[BUZ_MAX_INPUT];
 
-	v4l2_std_id norms;
-	const struct tvnorm *tvn[3];	/* supported TV norms */
+  v4l2_std_id norms;
+  const struct tvnorm *tvn[3];  /* supported TV norms */
 
-	u32 jpeg_int;		/* JPEG interrupt */
-	u32 vsync_int;		/* VSYNC interrupt */
-	s8 gpio[ZR_GPIO_MAX];
-	u8 gpcs[GPCS_MAX];
+  u32 jpeg_int;   /* JPEG interrupt */
+  u32 vsync_int;    /* VSYNC interrupt */
+  s8 gpio[ZR_GPIO_MAX];
+  u8 gpcs[GPCS_MAX];
 
-	struct vfe_polarity vfe_pol;
-	u8 gpio_pol[ZR_GPIO_MAX];
+  struct vfe_polarity vfe_pol;
+  u8 gpio_pol[ZR_GPIO_MAX];
 
-	/* is the /GWS line connected? */
-	u8 gws_not_connected;
+  /* is the /GWS line connected? */
+  u8 gws_not_connected;
 
-	/* avs6eyes mux setting */
-	u8 input_mux;
+  /* avs6eyes mux setting */
+  u8 input_mux;
 
-	void (*init)(struct zoran *zr);
+  void (*init)(struct zoran *zr);
 };
 
 struct zoran {
-	struct v4l2_device v4l2_dev;
-	struct v4l2_ctrl_handler hdl;
-	struct video_device *video_dev;
-	struct vb2_queue vq;
+  struct v4l2_device v4l2_dev;
+  struct v4l2_ctrl_handler hdl;
+  struct video_device *video_dev;
+  struct vb2_queue vq;
 
-	struct i2c_adapter i2c_adapter;	/* */
-	struct i2c_algo_bit_data i2c_algo;	/* */
-	u32 i2cbr;
+  struct i2c_adapter i2c_adapter; /* */
+  struct i2c_algo_bit_data i2c_algo;  /* */
+  u32 i2cbr;
 
-	struct v4l2_subdev *decoder;	/* video decoder sub-device */
-	struct v4l2_subdev *encoder;	/* video encoder sub-device */
+  struct v4l2_subdev *decoder;  /* video decoder sub-device */
+  struct v4l2_subdev *encoder;  /* video encoder sub-device */
 
-	struct videocodec *codec;	/* video codec */
-	struct videocodec *vfe;	/* video front end */
+  struct videocodec *codec; /* video codec */
+  struct videocodec *vfe; /* video front end */
 
-	struct mutex lock;	/* file ops serialize lock */
+  struct mutex lock;  /* file ops serialize lock */
 
-	u8 initialized;		/* flag if zoran has been correctly initialized */
-	struct card_info card;
-	const struct tvnorm *timing;
+  u8 initialized;   /* flag if zoran has been correctly initialized */
+  struct card_info card;
+  const struct tvnorm *timing;
 
-	unsigned short id;	/* number of this device */
-	char name[40];		/* name of this device */
-	struct pci_dev *pci_dev;	/* PCI device */
-	unsigned char revision;	/* revision of zr36057 */
-	unsigned char __iomem *zr36057_mem;/* pointer to mapped IO memory */
+  unsigned short id;  /* number of this device */
+  char name[40];    /* name of this device */
+  struct pci_dev *pci_dev;  /* PCI device */
+  unsigned char revision; /* revision of zr36057 */
+  unsigned char __iomem *zr36057_mem; /* pointer to mapped IO memory */
 
-	spinlock_t spinlock;	/* Spinlock */
+  spinlock_t spinlock;  /* Spinlock */
 
-	/* Video for Linux parameters */
-	int input;	/* card's norm and input */
-	v4l2_std_id norm;
+  /* Video for Linux parameters */
+  int input;  /* card's norm and input */
+  v4l2_std_id norm;
 
-	/* Current buffer params */
-	unsigned int buffer_size;
+  /* Current buffer params */
+  unsigned int buffer_size;
 
-	struct zoran_v4l_settings v4l_settings;	/* structure with a lot of things to play with */
+  struct zoran_v4l_settings v4l_settings; /* structure with a lot of things to
+                                           * play with */
 
-	/* Buz MJPEG parameters */
-	enum zoran_codec_mode codec_mode;	/* status of codec */
-	struct zoran_jpg_settings jpg_settings;	/* structure with a lot of things to play with */
+  /* Buz MJPEG parameters */
+  enum zoran_codec_mode codec_mode; /* status of codec */
+  struct zoran_jpg_settings jpg_settings; /* structure with a lot of things to
+                                           * play with */
 
-	/* grab queue counts/indices, mask with BUZ_MASK_STAT_COM before using as index */
-	/* (dma_head - dma_tail) is number active in DMA, must be <= BUZ_NUM_STAT_COM */
-	/* (value & BUZ_MASK_STAT_COM) corresponds to index in stat_com table */
-	unsigned long jpg_que_head;	/* Index where to put next buffer which is queued */
-	unsigned long jpg_dma_head;	/* Index of next buffer which goes into stat_com */
-	unsigned long jpg_dma_tail;	/* Index of last buffer in stat_com */
-	unsigned long jpg_que_tail;	/* Index of last buffer in queue */
-	unsigned long jpg_seq_num;	/* count of frames since grab/play started */
-	unsigned long jpg_err_seq;	/* last seq_num before error */
-	unsigned long jpg_err_shift;
-	unsigned long jpg_queued_num;	/* count of frames queued since grab/play started */
-	unsigned long vbseq;
+  /* grab queue counts/indices, mask with BUZ_MASK_STAT_COM before using as
+   *index
+   * (dma_head - dma_tail) is number active in DMA, must be <= BUZ_NUM_STAT_COM
+   * (value & BUZ_MASK_STAT_COM) corresponds to index in stat_com table*/
+  unsigned long jpg_que_head; /* Index where to put next buffer which is queued
+                               * */
+  unsigned long jpg_dma_head; /* Index of next buffer which goes into stat_com
+                               * */
+  unsigned long jpg_dma_tail; /* Index of last buffer in stat_com */
+  unsigned long jpg_que_tail; /* Index of last buffer in queue */
+  unsigned long jpg_seq_num;  /* count of frames since grab/play started */
+  unsigned long jpg_err_seq;  /* last seq_num before error */
+  unsigned long jpg_err_shift;
+  unsigned long jpg_queued_num; /* count of frames queued since grab/play
+                                 * started */
+  unsigned long vbseq;
 
-	/* zr36057's code buffer table */
-	/* stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM */
-	__le32 *stat_com;
+  /* zr36057's code buffer table
+   * stat_com[i] is indexed by dma_head/tail & BUZ_MASK_STAT_COM*/
+  __le32 *stat_com;
 
-	/* Additional stuff for testing */
-	unsigned int ghost_int;
-	int intr_counter_GIRQ1;
-	int intr_counter_GIRQ0;
-	int intr_counter_cod_rep_irq;
-	int intr_counter_jpeg_rep_irq;
-	int field_counter;
-	int irq1_in;
-	int irq1_out;
-	int jpeg_in;
-	int jpeg_out;
-	int JPEG_0;
-	int JPEG_1;
-	int end_event_missed;
-	int jpeg_missed;
-	int jpeg_error;
-	int num_errors;
-	int jpeg_max_missed;
-	int jpeg_min_missed;
-	unsigned int prepared;
-	unsigned int queued;
+  /* Additional stuff for testing */
+  unsigned int ghost_int;
+  int intr_counter_GIRQ1;
+  int intr_counter_GIRQ0;
+  int intr_counter_cod_rep_irq;
+  int intr_counter_jpeg_rep_irq;
+  int field_counter;
+  int irq1_in;
+  int irq1_out;
+  int jpeg_in;
+  int jpeg_out;
+  int JPEG_0;
+  int JPEG_1;
+  int end_event_missed;
+  int jpeg_missed;
+  int jpeg_error;
+  int num_errors;
+  int jpeg_max_missed;
+  int jpeg_min_missed;
+  unsigned int prepared;
+  unsigned int queued;
 
-	u32 last_isr;
-	unsigned long frame_num;
-	int running;
-	int buf_in_reserve;
+  u32 last_isr;
+  unsigned long frame_num;
+  int running;
+  int buf_in_reserve;
 
-	dma_addr_t p_sc;
-	__le32 *stat_comb;
-	dma_addr_t p_scb;
-	enum zoran_map_mode map_mode;
-	struct list_head queued_bufs;
-	spinlock_t queued_bufs_lock; /* Protects queued_bufs */
-	struct zr_buffer *inuse[BUZ_NUM_STAT_COM * 2];
-	struct dentry *dbgfs_dir;
+  dma_addr_t p_sc;
+  __le32 *stat_comb;
+  dma_addr_t p_scb;
+  enum zoran_map_mode map_mode;
+  struct list_head queued_bufs;
+  spinlock_t queued_bufs_lock; /* Protects queued_bufs */
+  struct zr_buffer *inuse[BUZ_NUM_STAT_COM * 2];
+  struct dentry *dbgfs_dir;
 };
 
-static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
-{
-	return container_of(v4l2_dev, struct zoran, v4l2_dev);
+static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev) {
+  return container_of(v4l2_dev, struct zoran, v4l2_dev);
 }
 
 /*
@@ -314,14 +317,14 @@ static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
 /*
  * Debugging macros
  */
-#define zrdev_dbg(zr, format, args...) \
-	pci_dbg((zr)->pci_dev, format, ##args) \
+#define zrdev_dbg(zr, format, args ...) \
+  pci_dbg((zr)->pci_dev, format, ## args) \
 
-#define zrdev_err(zr, format, args...) \
-	pci_err((zr)->pci_dev, format, ##args) \
+#define zrdev_err(zr, format, args ...) \
+  pci_err((zr)->pci_dev, format, ## args) \
 
-#define zrdev_info(zr, format, args...) \
-	pci_info((zr)->pci_dev, format, ##args) \
+#define zrdev_info(zr, format, args ...) \
+  pci_info((zr)->pci_dev, format, ## args) \
 
 int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq, int dir);
 void zoran_queue_exit(struct zoran *zr);

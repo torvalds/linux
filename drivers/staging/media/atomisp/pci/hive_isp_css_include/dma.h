@@ -24,10 +24,11 @@
  * conditionally through Makefile path settings.
  *
  *  - .        system and cell agnostic interfaces, constants and identifiers
- *	- public:  system agnostic, cell specific interfaces
- *	- private: system dependent, cell specific interfaces & inline implementations
- *	- global:  system specific constants and identifiers
- *	- local:   system and cell specific constants and identifiers
+ *  - public:  system agnostic, cell specific interfaces
+ *  - private: system dependent, cell specific interfaces & inline
+ *implementations
+ *  - global:  system specific constants and identifiers
+ *  - local:   system and cell specific constants and identifiers
  *
  */
 

@@ -25,25 +25,25 @@
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 #define TASK_SIZE_OF(tsk)       ((tsk)->thread.task_size)
-#define TASK_SIZE	        TASK_SIZE_OF(current)
+#define TASK_SIZE         TASK_SIZE_OF(current)
 #define TASK_UNMAPPED_BASE      (current->thread.map_base)
 
-#define DEFAULT_TASK_SIZE32	(0xFFF00000UL)
-#define DEFAULT_MAP_BASE32	(0x40000000UL)
+#define DEFAULT_TASK_SIZE32 (0xFFF00000UL)
+#define DEFAULT_MAP_BASE32  (0x40000000UL)
 
 #ifdef CONFIG_64BIT
-#define DEFAULT_TASK_SIZE       (MAX_ADDRESS-0xf000000)
+#define DEFAULT_TASK_SIZE       (MAX_ADDRESS - 0xf000000)
 #define DEFAULT_MAP_BASE        (0x200000000UL)
 #else
-#define DEFAULT_TASK_SIZE	DEFAULT_TASK_SIZE32
-#define DEFAULT_MAP_BASE	DEFAULT_MAP_BASE32
+#define DEFAULT_TASK_SIZE DEFAULT_TASK_SIZE32
+#define DEFAULT_MAP_BASE  DEFAULT_MAP_BASE32
 #endif
 
 /* XXX: STACK_TOP actually should be STACK_BOTTOM for parisc.
  * prumpf */
 
-#define STACK_TOP	TASK_SIZE
-#define STACK_TOP_MAX	DEFAULT_TASK_SIZE
+#define STACK_TOP TASK_SIZE
+#define STACK_TOP_MAX DEFAULT_TASK_SIZE
 
 #ifndef __ASSEMBLY__
 
@@ -58,93 +58,92 @@ unsigned long calc_max_stack_size(unsigned long stack_max);
  * FIXME: some CPU rev info may be processor specific...
  */
 struct system_cpuinfo_parisc {
-	unsigned int	cpu_count;
-	unsigned int	cpu_hz;
-	unsigned int	hversion;
-	unsigned int	sversion;
-	enum cpu_type	cpu_type;
+  unsigned int cpu_count;
+  unsigned int cpu_hz;
+  unsigned int hversion;
+  unsigned int sversion;
+  enum cpu_type cpu_type;
 
-	struct {
-		struct pdc_model model;
-		unsigned long versions;
-		unsigned long cpuid;
-		unsigned long capabilities;
-		char   sys_model_name[81]; /* PDC-ROM returnes this model name */
-	} pdc;
+  struct {
+    struct pdc_model model;
+    unsigned long versions;
+    unsigned long cpuid;
+    unsigned long capabilities;
+    char sys_model_name[81]; /* PDC-ROM returnes this model name */
+  } pdc;
 
-	const char	*cpu_name;	/* e.g. "PA7300LC (PCX-L2)" */
-	const char	*family_name;	/* e.g. "1.1e" */
+  const char *cpu_name;  /* e.g. "PA7300LC (PCX-L2)" */
+  const char *family_name; /* e.g. "1.1e" */
 };
-
 
 /* Per CPU data structure - ie varies per CPU.  */
 struct cpuinfo_parisc {
-	unsigned long it_value;     /* Interval Timer at last timer Intr */
-	unsigned long irq_count;    /* number of IRQ's since boot */
-	unsigned long cpuid;        /* aka slot_number or set to NO_PROC_ID */
-	unsigned long hpa;          /* Host Physical address */
-	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
+  unsigned long it_value;     /* Interval Timer at last timer Intr */
+  unsigned long irq_count;    /* number of IRQ's since boot */
+  unsigned long cpuid;        /* aka slot_number or set to NO_PROC_ID */
+  unsigned long hpa;          /* Host Physical address */
+  unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
 #ifdef CONFIG_SMP
-	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
+  unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
 #endif
-	unsigned long bh_count;     /* number of times bh was invoked */
-	unsigned long fp_rev;
-	unsigned long fp_model;
-	unsigned long cpu_num;      /* CPU number from PAT firmware */
-	unsigned long cpu_loc;      /* CPU location from PAT firmware */
-	unsigned int state;
-	struct parisc_device *dev;
+  unsigned long bh_count;     /* number of times bh was invoked */
+  unsigned long fp_rev;
+  unsigned long fp_model;
+  unsigned long cpu_num;      /* CPU number from PAT firmware */
+  unsigned long cpu_loc;      /* CPU location from PAT firmware */
+  unsigned int state;
+  struct parisc_device *dev;
 };
 
 extern struct system_cpuinfo_parisc boot_cpu_data;
 DECLARE_PER_CPU(struct cpuinfo_parisc, cpu_data);
-extern int time_keeper_id;		/* CPU used for timekeeping */
+extern int time_keeper_id;    /* CPU used for timekeeping */
 
 #define CPU_HVERSION ((boot_cpu_data.hversion >> 4) & 0x0FFF)
 
 struct thread_struct {
-	struct pt_regs regs;
-	unsigned long  task_size;
-	unsigned long  map_base;
-	unsigned long  flags;
-}; 
+  struct pt_regs regs;
+  unsigned long task_size;
+  unsigned long map_base;
+  unsigned long flags;
+};
 
-#define task_pt_regs(tsk) ((struct pt_regs *)&((tsk)->thread.regs))
+#define task_pt_regs(tsk) ((struct pt_regs *) &((tsk)->thread.regs))
 
 /* Thread struct flags. */
-#define PARISC_UAC_NOPRINT	(1UL << 0)	/* see prctl and unaligned.c */
-#define PARISC_UAC_SIGBUS	(1UL << 1)
-#define PARISC_KERNEL_DEATH	(1UL << 31)	/* see die_if_kernel()... */
+#define PARISC_UAC_NOPRINT  (1UL << 0)  /* see prctl and unaligned.c */
+#define PARISC_UAC_SIGBUS (1UL << 1)
+#define PARISC_KERNEL_DEATH (1UL << 31) /* see die_if_kernel()... */
 
-#define PARISC_UAC_SHIFT	0
-#define PARISC_UAC_MASK		(PARISC_UAC_NOPRINT|PARISC_UAC_SIGBUS)
+#define PARISC_UAC_SHIFT  0
+#define PARISC_UAC_MASK   (PARISC_UAC_NOPRINT | PARISC_UAC_SIGBUS)
 
-#define SET_UNALIGN_CTL(task,value)                                       \
-        ({                                                                \
-        (task)->thread.flags = (((task)->thread.flags & ~PARISC_UAC_MASK) \
-                                | (((value) << PARISC_UAC_SHIFT) &        \
-                                   PARISC_UAC_MASK));                     \
-        0;                                                                \
-        })
+#define SET_UNALIGN_CTL(task, value)                                       \
+  ({                                                                \
+    (task)->thread.flags = (((task)->thread.flags & ~PARISC_UAC_MASK) \
+    | (((value) << PARISC_UAC_SHIFT)          \
+    & PARISC_UAC_MASK));                     \
+    0;                                                                \
+  })
 
-#define GET_UNALIGN_CTL(task,addr)                                        \
-        ({                                                                \
-        put_user(((task)->thread.flags & PARISC_UAC_MASK)                 \
-                 >> PARISC_UAC_SHIFT, (int __user *) (addr));             \
-        })
+#define GET_UNALIGN_CTL(task, addr)                                        \
+  ({                                                                \
+    put_user(((task)->thread.flags & PARISC_UAC_MASK)                 \
+    >> PARISC_UAC_SHIFT, (int __user *) (addr));             \
+  })
 
 #define INIT_THREAD { \
-	.regs = {	.gr	= { 0, }, \
-			.fr	= { 0, }, \
-			.sr	= { 0, }, \
-			.iasq	= { 0, }, \
-			.iaoq	= { 0, }, \
-			.cr27	= 0, \
-		}, \
-	.task_size	= DEFAULT_TASK_SIZE, \
-	.map_base	= DEFAULT_MAP_BASE, \
-	.flags		= 0 \
-	}
+    .regs = { .gr = { 0, }, \
+              .fr = { 0, }, \
+              .sr = { 0, }, \
+              .iasq = { 0, }, \
+              .iaoq = { 0, }, \
+              .cr27 = 0, \
+    }, \
+    .task_size = DEFAULT_TASK_SIZE, \
+    .map_base = DEFAULT_MAP_BASE, \
+    .flags = 0 \
+}
 
 struct task_struct;
 void show_trace(struct task_struct *task, unsigned long *stack);
@@ -179,50 +178,50 @@ typedef unsigned int elf_caddr_t;
  *  Our initial stack layout is rather different from everyone else's
  *  due to the unique PA-RISC ABI.  As far as I know it looks like
  *  this:
-
-   -----------------------------------  (user startup code creates this frame)
-   |         32 bytes of magic       |
-   |---------------------------------|
-   | 32 bytes argument/sp save area  |
-   |---------------------------------| (bprm->p)
-   |	    ELF auxiliary info	     |
-   |         (up to 28 words)        |
-   |---------------------------------|
-   |		   NULL		     |
-   |---------------------------------|
-   |	   Environment pointers	     |
-   |---------------------------------|
-   |		   NULL		     |
-   |---------------------------------|
-   |        Argument pointers        |
-   |---------------------------------| <- argv
-   |          argc (1 word)          |
-   |---------------------------------| <- bprm->exec (HACK!)
-   |         N bytes of slack        |
-   |---------------------------------|
-   |	filename passed to execve    |
-   |---------------------------------| (mm->env_end)
-   |           env strings           |
-   |---------------------------------| (mm->env_start, mm->arg_end)
-   |           arg strings           |
-   |---------------------------------|
-   | additional faked arg strings if |
-   | we're invoked via binfmt_script |
-   |---------------------------------| (mm->arg_start)
-   stack base is at TASK_SIZE - rlim_max.
-
-on downward growing arches, it looks like this:
-   stack base at TASK_SIZE
-   | filename passed to execve
-   | env strings
-   | arg strings
-   | faked arg strings
-   | slack
-   | ELF
-   | envps
-   | argvs
-   | argc
-
+ *
+ * -----------------------------------  (user startup code creates this frame)
+ |         32 bytes of magic       |
+ |---------------------------------|
+ | 32 bytes argument/sp save area  |
+ |---------------------------------| (bprm->p)
+ |      ELF auxiliary info       |
+ |         (up to 28 words)        |
+ |---------------------------------|
+ |       NULL        |
+ |---------------------------------|
+ |     Environment pointers      |
+ |---------------------------------|
+ |       NULL        |
+ |---------------------------------|
+ |        Argument pointers        |
+ |---------------------------------| <- argv
+ |          argc (1 word)          |
+ |---------------------------------| <- bprm->exec (HACK!)
+ |         N bytes of slack        |
+ |---------------------------------|
+ |  filename passed to execve    |
+ |---------------------------------| (mm->env_end)
+ |           env strings           |
+ |---------------------------------| (mm->env_start, mm->arg_end)
+ |           arg strings           |
+ |---------------------------------|
+ | additional faked arg strings if |
+ | we're invoked via binfmt_script |
+ |---------------------------------| (mm->arg_start)
+ | stack base is at TASK_SIZE - rlim_max.
+ |
+ | on downward growing arches, it looks like this:
+ | stack base at TASK_SIZE
+ | filename passed to execve
+ | env strings
+ | arg strings
+ | faked arg strings
+ | slack
+ | ELF
+ | envps
+ | argvs
+ | argc
+ |
  *  The pleasant part of this is that if we need to skip arguments we
  *  can just decrement argc and move argv, because the stack pointer
  *  is utterly unrelated to the location of the environment and
@@ -236,45 +235,45 @@ on downward growing arches, it looks like this:
  * it in here from the current->personality
  */
 
-#define USER_WIDE_MODE	(!is_32bit_task())
+#define USER_WIDE_MODE  (!is_32bit_task())
 
-#define start_thread(regs, new_pc, new_sp) do {		\
-	elf_addr_t *sp = (elf_addr_t *)new_sp;		\
-	__u32 spaceid = (__u32)current->mm->context.space_id;	\
-	elf_addr_t pc = (elf_addr_t)new_pc | 3;		\
-	elf_caddr_t *argv = (elf_caddr_t *)bprm->exec + 1;	\
-							\
-	regs->iasq[0] = spaceid;			\
-	regs->iasq[1] = spaceid;			\
-	regs->iaoq[0] = pc;				\
-	regs->iaoq[1] = pc + 4;                         \
-	regs->sr[2] = LINUX_GATEWAY_SPACE;              \
-	regs->sr[3] = 0xffff;				\
-	regs->sr[4] = spaceid;				\
-	regs->sr[5] = spaceid;				\
-	regs->sr[6] = spaceid;				\
-	regs->sr[7] = spaceid;				\
-	regs->gr[ 0] = USER_PSW | (USER_WIDE_MODE ? PSW_W : 0); \
-	regs->fr[ 0] = 0LL;                            	\
-	regs->fr[ 1] = 0LL;                            	\
-	regs->fr[ 2] = 0LL;                            	\
-	regs->fr[ 3] = 0LL;                            	\
-	regs->gr[30] = (((unsigned long)sp + 63) &~ 63) | (USER_WIDE_MODE ? 1 : 0); \
-	regs->gr[31] = pc;				\
-							\
-	get_user(regs->gr[25], (argv - 1));		\
-	regs->gr[24] = (long) argv;			\
-	regs->gr[23] = 0;				\
-} while(0)
+#define start_thread(regs, new_pc, new_sp) do {   \
+    elf_addr_t *sp = (elf_addr_t *) new_sp;    \
+    __u32 spaceid = (__u32) current->mm->context.space_id; \
+    elf_addr_t pc = (elf_addr_t) new_pc | 3;   \
+    elf_caddr_t *argv = (elf_caddr_t *) bprm->exec + 1;  \
+              \
+    regs->iasq[0] = spaceid;      \
+    regs->iasq[1] = spaceid;      \
+    regs->iaoq[0] = pc;       \
+    regs->iaoq[1] = pc + 4;                         \
+    regs->sr[2] = LINUX_GATEWAY_SPACE;              \
+    regs->sr[3] = 0xffff;       \
+    regs->sr[4] = spaceid;        \
+    regs->sr[5] = spaceid;        \
+    regs->sr[6] = spaceid;        \
+    regs->sr[7] = spaceid;        \
+    regs->gr[0] = USER_PSW | (USER_WIDE_MODE ? PSW_W : 0); \
+    regs->fr[0] = 0LL;                             \
+    regs->fr[1] = 0LL;                             \
+    regs->fr[2] = 0LL;                             \
+    regs->fr[3] = 0LL;                             \
+    regs->gr[30] = (((unsigned long) sp + 63) & ~63) | (USER_WIDE_MODE ? 1 : 0); \
+    regs->gr[31] = pc;        \
+              \
+    get_user(regs->gr[25], (argv - 1));   \
+    regs->gr[24] = (long) argv;     \
+    regs->gr[23] = 0;       \
+} while (0)
 
 struct mm_struct;
 
 extern unsigned long __get_wchan(struct task_struct *p);
 
-#define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])
-#define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
+#define KSTK_EIP(tsk) ((tsk)->thread.regs.iaoq[0])
+#define KSTK_ESP(tsk) ((tsk)->thread.regs.gr[30])
 
-#define cpu_relax()	barrier()
+#define cpu_relax() barrier()
 
 /*
  * parisc_requires_coherency() is used to identify the combined VIPT/PIPT
@@ -283,9 +282,9 @@ extern unsigned long __get_wchan(struct task_struct *p);
  */
 #ifdef CONFIG_PA8X00
 extern int _parisc_requires_coherency;
-#define parisc_requires_coherency()	_parisc_requires_coherency
+#define parisc_requires_coherency() _parisc_requires_coherency
 #else
-#define parisc_requires_coherency()	(0)
+#define parisc_requires_coherency() (0)
 #endif
 
 extern int running_on_qemu;
@@ -314,7 +313,7 @@ struct seq_file;
 extern void early_trap_init(void);
 extern void collect_boot_cpu_data(void);
 extern void btlb_init_per_cpu(void);
-extern int show_cpuinfo (struct seq_file *m, void *v);
+extern int show_cpuinfo(struct seq_file *m, void *v);
 
 /* driver code in driver/parisc */
 extern void processor_init(void);

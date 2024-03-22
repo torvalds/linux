@@ -71,8 +71,8 @@
 /* Provide some defines for the most common configs */
 #define ARIZONA_GP_DEFAULT             0xffffffff
 #define ARIZONA_GP_OUTPUT              (ARIZONA_GP_FN_GPIO)
-#define ARIZONA_GP_INPUT               (ARIZONA_GP_FN_GPIO | \
-					ARIZONA_GPN_DIR)
+#define ARIZONA_GP_INPUT               (ARIZONA_GP_FN_GPIO   \
+  | ARIZONA_GPN_DIR)
 
 #define ARIZONA_32KZ_MCLK1 1
 #define ARIZONA_32KZ_MCLK2 2

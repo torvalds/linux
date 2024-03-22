@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
-* Copyright (C) 2012 Invensense, Inc.
-*/
+ * Copyright (C) 2012 Invensense, Inc.
+ */
 
 #ifndef __INV_MPU6050_PLATFORM_H_
 #define __INV_MPU6050_PLATFORM_H_
 
 /**
  * struct inv_mpu6050_platform_data - Platform data for the mpu driver
- * @orientation:	Orientation matrix of the chip (deprecated in favor of
- *			mounting matrix retrieved from device-tree)
+ * @orientation:  Orientation matrix of the chip (deprecated in favor of
+ *      mounting matrix retrieved from device-tree)
  *
  * Contains platform specific information on how to configure the MPU6050 to
  * work on this platform.  The orientation matrices are 3x3 rotation matrices
@@ -20,7 +20,7 @@
  * Deprecated in favor of mounting matrix retrieved from device-tree.
  */
 struct inv_mpu6050_platform_data {
-	__s8 orientation[9];
+  __s8 orientation[9];
 };
 
 #endif

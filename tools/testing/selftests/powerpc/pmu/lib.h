@@ -13,11 +13,11 @@
 #include <unistd.h>
 
 union pipe {
-	struct {
-		int read_fd;
-		int write_fd;
-	};
-	int fds[2];
+  struct {
+    int read_fd;
+    int write_fd;
+  };
+  int fds[2];
 };
 
 extern int kill_child_and_wait(pid_t child_pid);
@@ -26,11 +26,11 @@ extern int sync_with_child(union pipe read_pipe, union pipe write_pipe);
 extern int wait_for_parent(union pipe read_pipe);
 extern int notify_parent(union pipe write_pipe);
 extern int notify_parent_of_error(union pipe write_pipe);
-extern pid_t eat_cpu(int (test_function)(void));
+extern pid_t eat_cpu(int(test_function) (void));
 extern bool require_paranoia_below(int level);
 
 struct addr_range {
-	uint64_t first, last;
+  uint64_t first, last;
 };
 
 extern struct addr_range libc, vdso;

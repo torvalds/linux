@@ -11,8 +11,8 @@
 
 #include <kmalloc.h>
 
-#define L1_CACHE_SHIFT		CONFIG_MIPS_L1_CACHE_SHIFT
-#define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
+#define L1_CACHE_SHIFT    CONFIG_MIPS_L1_CACHE_SHIFT
+#define L1_CACHE_BYTES    (1 << L1_CACHE_SHIFT)
 
 #define __read_mostly __section(".data..read_mostly")
 

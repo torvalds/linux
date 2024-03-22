@@ -11,10 +11,10 @@
 #include "parm.h"
 
 struct meson_sclk_div_data {
-	struct parm div;
-	struct parm hi;
-	unsigned int cached_div;
-	struct clk_duty cached_duty;
+  struct parm div;
+  struct parm hi;
+  unsigned int cached_div;
+  struct clk_duty cached_duty;
 };
 
 extern const struct clk_ops meson_sclk_div_ops;

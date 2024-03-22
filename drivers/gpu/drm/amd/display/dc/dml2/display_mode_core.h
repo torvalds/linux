@@ -32,53 +32,57 @@ struct display_mode_lib_st;
 
 dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib);
 void dml_core_mode_support_partial(struct display_mode_lib_st *mode_lib);
-void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struct dml_clk_cfg_st *clk_cfg);
+void dml_core_mode_programming(struct display_mode_lib_st *mode_lib,
+    const struct dml_clk_cfg_st *clk_cfg);
 
 void dml_core_get_row_heights(
-						dml_uint_t *dpte_row_height,
-						dml_uint_t *meta_row_height,
-						const struct display_mode_lib_st *mode_lib,
-						dml_bool_t is_plane1,
-						enum dml_source_format_class SourcePixelFormat,
-						enum dml_swizzle_mode SurfaceTiling,
-						enum dml_rotation_angle ScanDirection,
-						dml_uint_t pitch,
-						dml_uint_t GPUVMMinPageSizeKBytes);
+  dml_uint_t *dpte_row_height,
+  dml_uint_t *meta_row_height,
+  const struct display_mode_lib_st *mode_lib,
+  dml_bool_t is_plane1,
+  enum dml_source_format_class SourcePixelFormat,
+  enum dml_swizzle_mode SurfaceTiling,
+  enum dml_rotation_angle ScanDirection,
+  dml_uint_t pitch,
+  dml_uint_t GPUVMMinPageSizeKBytes);
 
 dml_float_t dml_get_return_bw_mbps_vm_only(
-									const struct soc_bounding_box_st *soc,
-									dml_bool_t use_ideal_dram_bw_strobe,
-									dml_bool_t HostVMEnable,
-									dml_float_t DCFCLK,
-									dml_float_t FabricClock,
-									dml_float_t DRAMSpeed);
+  const struct soc_bounding_box_st *soc,
+  dml_bool_t use_ideal_dram_bw_strobe,
+  dml_bool_t HostVMEnable,
+  dml_float_t DCFCLK,
+  dml_float_t FabricClock,
+  dml_float_t DRAMSpeed);
 
 dml_float_t dml_get_return_bw_mbps(
-							const struct soc_bounding_box_st *soc,
-							dml_bool_t use_ideal_dram_bw_strobe,
-							dml_bool_t HostVMEnable,
-							dml_float_t DCFCLK,
-							dml_float_t FabricClock,
-							dml_float_t DRAMSpeed);
+  const struct soc_bounding_box_st *soc,
+  dml_bool_t use_ideal_dram_bw_strobe,
+  dml_bool_t HostVMEnable,
+  dml_float_t DCFCLK,
+  dml_float_t FabricClock,
+  dml_float_t DRAMSpeed);
 
 dml_bool_t dml_mode_support(
-	struct display_mode_lib_st *mode_lib,
-	dml_uint_t state_idx,
-	const struct dml_display_cfg_st *display_cfg);
+  struct display_mode_lib_st *mode_lib,
+  dml_uint_t state_idx,
+  const struct dml_display_cfg_st *display_cfg);
 
 dml_bool_t dml_mode_programming(
-	struct display_mode_lib_st *mode_lib,
-	dml_uint_t state_idx,
-	const struct dml_display_cfg_st *display_cfg,
-	bool call_standalone);
+  struct display_mode_lib_st *mode_lib,
+  dml_uint_t state_idx,
+  const struct dml_display_cfg_st *display_cfg,
+  bool call_standalone);
 
 dml_uint_t dml_mode_support_ex(
-	struct dml_mode_support_ex_params_st *in_out_params);
+  struct dml_mode_support_ex_params_st *in_out_params);
 
-dml_bool_t dml_get_is_phantom_pipe(struct display_mode_lib_st *mode_lib, dml_uint_t pipe_idx);
+dml_bool_t dml_get_is_phantom_pipe(struct display_mode_lib_st *mode_lib,
+    dml_uint_t pipe_idx);
 
-#define dml_get_per_surface_var_decl(variable, type) type dml_get_##variable(struct display_mode_lib_st *mode_lib, dml_uint_t surface_idx)
-#define dml_get_var_decl(var, type) type dml_get_##var(struct display_mode_lib_st *mode_lib)
+#define dml_get_per_surface_var_decl(variable, type) type dml_get_ ## variable( \
+    struct display_mode_lib_st *mode_lib, dml_uint_t surface_idx)
+#define dml_get_var_decl(var, type) type dml_get_ ## var( \
+    struct display_mode_lib_st *mode_lib)
 
 dml_get_var_decl(wm_urgent, dml_float_t);
 dml_get_var_decl(wm_stutter_exit, dml_float_t);
@@ -151,7 +155,8 @@ dml_get_per_surface_var_decl(refcyc_per_req_delivery_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_req_delivery_pre_l_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_req_delivery_pre_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_cursor_req_delivery_in_us, dml_float_t);
-dml_get_per_surface_var_decl(refcyc_per_cursor_req_delivery_pre_in_us, dml_float_t);
+dml_get_per_surface_var_decl(refcyc_per_cursor_req_delivery_pre_in_us,
+    dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_nom_l_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_nom_c_in_us, dml_float_t);
 dml_get_per_surface_var_decl(refcyc_per_meta_chunk_vblank_l_in_us, dml_float_t);
@@ -191,7 +196,8 @@ dml_get_per_surface_var_decl(dcc_max_compressed_block_l, dml_uint_t);
 dml_get_per_surface_var_decl(dcc_max_compressed_block_c, dml_uint_t);
 dml_get_per_surface_var_decl(dcc_independent_block_l, dml_uint_t);
 dml_get_per_surface_var_decl(dcc_independent_block_c, dml_uint_t);
-dml_get_per_surface_var_decl(max_active_dram_clock_change_latency_supported, dml_uint_t);
+dml_get_per_surface_var_decl(max_active_dram_clock_change_latency_supported,
+    dml_uint_t);
 dml_get_per_surface_var_decl(pte_buffer_mode, dml_uint_t);
 dml_get_per_surface_var_decl(bigk_fragment_size, dml_uint_t);
 dml_get_per_surface_var_decl(dpte_bytes_per_row, dml_uint_t);

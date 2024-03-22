@@ -13,8 +13,8 @@
 
 /* Data structure for data-transfer protocol */
 struct arm_mhuv2_mbox_msg {
-	void *data;
-	size_t len;
+  void *data;
+  size_t len;
 };
 
 #endif /* _LINUX_ARM_MHUV2_MESSAGE_H_ */

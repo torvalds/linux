@@ -6,8 +6,8 @@
 
 #ifdef CONFIG_DWARF_UNWINDER
 struct mod_arch_specific {
-	struct list_head fde_list;
-	struct list_head cie_list;
+  struct list_head fde_list;
+  struct list_head cie_list;
 };
 #endif
 

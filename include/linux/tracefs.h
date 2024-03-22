@@ -60,44 +60,47 @@ struct eventfs_file;
  *     the tracefs or eventfs system or it will risk creating a deadlock.
  */
 typedef int (*eventfs_callback)(const char *name, umode_t *mode, void **data,
-				const struct file_operations **fops);
+    const struct file_operations **fops);
 
 /**
  * struct eventfs_entry - dynamically created eventfs file call back handler
- * @name:	Then name of the dynamic file in an eventfs directory
- * @callback:	The callback to get the fops of the file when it is created
+ * @name: Then name of the dynamic file in an eventfs directory
+ * @callback: The callback to get the fops of the file when it is created
  *
  * See evenfs_callback() typedef for how to set up @callback.
  */
 struct eventfs_entry {
-	const char			*name;
-	eventfs_callback		callback;
+  const char *name;
+  eventfs_callback callback;
 };
 
 struct eventfs_inode;
 
-struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry *parent,
-						const struct eventfs_entry *entries,
-						int size, void *data);
+struct eventfs_inode *eventfs_create_events_dir(const char *name,
+    struct dentry *parent,
+    const struct eventfs_entry *entries,
+    int size, void *data);
 
-struct eventfs_inode *eventfs_create_dir(const char *name, struct eventfs_inode *parent,
-					 const struct eventfs_entry *entries,
-					 int size, void *data);
+struct eventfs_inode *eventfs_create_dir(const char *name,
+    struct eventfs_inode *parent,
+    const struct eventfs_entry *entries,
+    int size, void *data);
 
 void eventfs_remove_events_dir(struct eventfs_inode *ei);
 void eventfs_remove_dir(struct eventfs_inode *ei);
 
 struct dentry *tracefs_create_file(const char *name, umode_t mode,
-				   struct dentry *parent, void *data,
-				   const struct file_operations *fops);
+    struct dentry *parent, void *data,
+    const struct file_operations *fops);
 
 struct dentry *tracefs_create_dir(const char *name, struct dentry *parent);
 
 void tracefs_remove(struct dentry *dentry);
 
-struct dentry *tracefs_create_instance_dir(const char *name, struct dentry *parent,
-					   int (*mkdir)(const char *name),
-					   int (*rmdir)(const char *name));
+struct dentry *tracefs_create_instance_dir(const char *name,
+    struct dentry *parent,
+    int (*mkdir)(const char *name),
+    int (*rmdir)(const char *name));
 
 bool tracefs_initialized(void);
 

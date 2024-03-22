@@ -26,19 +26,18 @@
 #include <nvif/class.h>
 
 static const struct nvkm_engine_func
-ad102_nvjpg = {
-	.sclass = {
-		{ -1, -1, NVC9D1_VIDEO_NVJPG },
-		{}
-	}
+    ad102_nvjpg = {
+  .sclass = {
+    { -1, -1, NVC9D1_VIDEO_NVJPG },
+    {}
+  }
 };
 
-int
-ad102_nvjpg_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-		struct nvkm_engine **pengine)
-{
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_nvjpg_new(&ad102_nvjpg, device, type, inst, pengine);
-
-	return -ENODEV;
+int ad102_nvjpg_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_engine **pengine) {
+  if (nvkm_gsp_rm(device->gsp)) {
+    return r535_nvjpg_new(&ad102_nvjpg, device, type, inst, pengine);
+  }
+  return -ENODEV;
 }

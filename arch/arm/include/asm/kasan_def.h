@@ -19,15 +19,15 @@
  * space to use as shadow memory for KASan as follows:
  *
  * +----+ 0xffffffff
- * |    |							\
+ * |    |             \
  * |    | |-> Static kernel image (vmlinux) BSS and page table
  * |    |/
  * +----+ PAGE_OFFSET
- * |    |							\
+ * |    |             \
  * |    | |->  Loadable kernel modules virtual address space area
  * |    |/
  * +----+ MODULES_VADDR = KASAN_SHADOW_END
- * |    |						\
+ * |    |           \
  * |    | |-> The shadow area of kernel virtual address.
  * |    |/
  * +----+->  TASK_SIZE (start of kernel space) = KASAN_SHADOW_START the
@@ -59,7 +59,7 @@
  *   This value is used to map an address to the corresponding shadow
  *   address by the following formula:
  *
- *	shadow_addr = (address >> 3) + KASAN_SHADOW_OFFSET;
+ *  shadow_addr = (address >> 3) + KASAN_SHADOW_OFFSET;
  *
  *  As you would expect, >> 3 is equal to dividing by 8, meaning each
  *  byte in the shadow memory covers 8 bytes of kernel memory, so one
@@ -71,10 +71,10 @@
  *  the shadow offset depending on this.
  */
 
-#define KASAN_SHADOW_SCALE_SHIFT	3
-#define KASAN_SHADOW_OFFSET	_AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
-#define KASAN_SHADOW_END	((UL(1) << (32 - KASAN_SHADOW_SCALE_SHIFT)) \
-				 + KASAN_SHADOW_OFFSET)
+#define KASAN_SHADOW_SCALE_SHIFT  3
+#define KASAN_SHADOW_OFFSET _AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
+#define KASAN_SHADOW_END  ((UL(1) << (32 - KASAN_SHADOW_SCALE_SHIFT)) \
+  + KASAN_SHADOW_OFFSET)
 #define KASAN_SHADOW_START      ((KASAN_SHADOW_END >> 3) + KASAN_SHADOW_OFFSET)
 
 #endif

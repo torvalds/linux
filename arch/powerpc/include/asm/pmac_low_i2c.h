@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-/* 
+/*
  *  include/asm-ppc/pmac_low_i2c.h
  *
  *  Copyright (C) 2003 Ben. Herrenschmidt (benh@kernel.crashing.org)
@@ -10,34 +10,34 @@
 
 /* i2c mode (based on the platform functions format) */
 enum {
-	pmac_i2c_mode_dumb	= 1,
-	pmac_i2c_mode_std	= 2,
-	pmac_i2c_mode_stdsub	= 3,
-	pmac_i2c_mode_combined	= 4,
+  pmac_i2c_mode_dumb = 1,
+  pmac_i2c_mode_std = 2,
+  pmac_i2c_mode_stdsub = 3,
+  pmac_i2c_mode_combined = 4,
 };
 
 /* RW bit in address */
 enum {
-	pmac_i2c_read		= 0x01,
-	pmac_i2c_write		= 0x00
+  pmac_i2c_read = 0x01,
+  pmac_i2c_write = 0x00
 };
 
 /* i2c bus type */
 enum {
-	pmac_i2c_bus_keywest	= 0,
-	pmac_i2c_bus_pmu	= 1,
-	pmac_i2c_bus_smu	= 2,
+  pmac_i2c_bus_keywest = 0,
+  pmac_i2c_bus_pmu = 1,
+  pmac_i2c_bus_smu = 2,
 };
 
 /* i2c bus features */
 enum {
-	/* can_largesub : supports >1 byte subaddresses (SMU only) */
-	pmac_i2c_can_largesub	= 0x00000001u,
+  /* can_largesub : supports >1 byte subaddresses (SMU only) */
+  pmac_i2c_can_largesub = 0x00000001u,
 
-	/* multibus : device node holds multiple busses, bus number is
-	 * encoded in bits 0xff00 of "reg" of a given device
-	 */
-	pmac_i2c_multibus	= 0x00000002u,
+  /* multibus : device node holds multiple busses, bus number is
+   * encoded in bits 0xff00 of "reg" of a given device
+   */
+  pmac_i2c_multibus = 0x00000002u,
 };
 
 /* i2c busses in the system */
@@ -76,8 +76,7 @@ extern struct pmac_i2c_bus *pmac_i2c_adapter_to_bus(struct i2c_adapter *adapter)
  * callbacks
  */
 extern int pmac_i2c_match_adapter(struct device_node *dev,
-				  struct i2c_adapter *adapter);
-
+    struct i2c_adapter *adapter);
 
 /* (legacy) Locking functions exposed to i2c-keywest */
 extern int pmac_low_i2c_lock(struct device_node *np);
@@ -88,7 +87,7 @@ extern int pmac_i2c_open(struct pmac_i2c_bus *bus, int polled);
 extern void pmac_i2c_close(struct pmac_i2c_bus *bus);
 extern int pmac_i2c_setmode(struct pmac_i2c_bus *bus, int mode);
 extern int pmac_i2c_xfer(struct pmac_i2c_bus *bus, u8 addrdir, int subsize,
-			 u32 subaddr, u8 *data,  int len);
+    u32 subaddr, u8 *data, int len);
 
 /* Suspend/resume code called by via-pmu directly for now */
 extern void pmac_pfunc_i2c_suspend(void);

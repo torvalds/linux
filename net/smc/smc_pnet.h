@@ -29,28 +29,27 @@ struct smc_link_group;
  * @pnetlist: List of PNETIDs
  */
 struct smc_pnettable {
-	struct mutex lock;
-	struct list_head pnetlist;
+  struct mutex lock;
+  struct list_head pnetlist;
 };
 
-struct smc_pnetids_ndev {	/* list of pnetids for net devices in UP state*/
-	struct list_head	list;
-	rwlock_t		lock;
+struct smc_pnetids_ndev { /* list of pnetids for net devices in UP state*/
+  struct list_head list;
+  rwlock_t lock;
 };
 
 struct smc_pnetids_ndev_entry {
-	struct list_head	list;
-	u8			pnetid[SMC_MAX_PNETID_LEN];
-	refcount_t		refcnt;
+  struct list_head list;
+  u8 pnetid[SMC_MAX_PNETID_LEN];
+  refcount_t refcnt;
 };
 
 static inline int smc_pnetid_by_dev_port(struct device *dev,
-					 unsigned short port, u8 *pnetid)
-{
+    unsigned short port, u8 *pnetid) {
 #if IS_ENABLED(CONFIG_HAVE_PNETID)
-	return pnet_id_by_dev_port(dev, port, pnetid);
+  return pnet_id_by_dev_port(dev, port, pnetid);
 #else
-	return -ENOENT;
+  return -ENOENT;
 #endif
 }
 
@@ -63,8 +62,8 @@ void smc_pnet_find_ism_resource(struct sock *sk, struct smc_init_info *ini);
 int smc_pnetid_by_table_ib(struct smc_ib_device *smcibdev, u8 ib_port);
 int smc_pnetid_by_table_smcd(struct smcd_dev *smcd);
 void smc_pnet_find_alt_roce(struct smc_link_group *lgr,
-			    struct smc_init_info *ini,
-			    struct smc_ib_device *known_dev);
+    struct smc_init_info *ini,
+    struct smc_ib_device *known_dev);
 bool smc_pnet_is_ndev_pnetid(struct net *net, u8 *pnetid);
 bool smc_pnet_is_pnetid_set(u8 *pnetid);
 #endif

@@ -9,7 +9,8 @@
 
 struct strset;
 
-struct strset *strset__new(size_t max_data_sz, const char *init_data, size_t init_data_sz);
+struct strset *strset__new(size_t max_data_sz, const char *init_data,
+    size_t init_data_sz);
 void strset__free(struct strset *set);
 
 const char *strset__data(const struct strset *set);

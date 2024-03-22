@@ -11,16 +11,15 @@
 /* Maximum address we can use for the control code buffer */
 #define KEXEC_CONTROL_MEMORY_LIMIT (-1UL)
 
-#define KEXEC_CONTROL_PAGE_SIZE	4096
+#define KEXEC_CONTROL_PAGE_SIZE 4096
 
 #define KEXEC_ARCH KEXEC_ARCH_68K
 
 #ifndef __ASSEMBLY__
 
 static inline void crash_setup_regs(struct pt_regs *newregs,
-				    struct pt_regs *oldregs)
-{
-	/* Dummy implementation for now */
+    struct pt_regs *oldregs) {
+  /* Dummy implementation for now */
 }
 
 #endif /* __ASSEMBLY__ */

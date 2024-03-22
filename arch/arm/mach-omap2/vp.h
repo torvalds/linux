@@ -19,8 +19,8 @@
 struct voltagedomain;
 
 /* XXX document */
-#define VP_IDLE_TIMEOUT		200
-#define VP_TRANXDONE_TIMEOUT	300
+#define VP_IDLE_TIMEOUT   200
+#define VP_TRANXDONE_TIMEOUT  300
 
 /**
  * struct omap_vp_ops - per-VP operations
@@ -28,8 +28,8 @@ struct voltagedomain;
  * @clear_txdone: clear VP transaction done status
  */
 struct omap_vp_ops {
-	u32 (*check_txdone)(u8 vp_id);
-	void (*clear_txdone)(u8 vp_id);
+  u32 (*check_txdone)(u8 vp_id);
+  void (*clear_txdone)(u8 vp_id);
 };
 
 /**
@@ -45,32 +45,34 @@ struct omap_vp_ops {
  * @vpconfig_errorgain_shift: ERRORGAIN field shift in PRM_VP*_CONFIG reg
  * @vpconfig_initvoltage_shift: INITVOLTAGE field shift in PRM_VP*_CONFIG reg
  * @vstepmin_stepmin_shift: VSTEPMIN field shift in the PRM_VP*_VSTEPMIN reg
- * @vstepmin_smpswaittimemin_shift: SMPSWAITTIMEMIN field shift in PRM_VP*_VSTEPMIN reg
+ * @vstepmin_smpswaittimemin_shift: SMPSWAITTIMEMIN field shift in
+ * PRM_VP*_VSTEPMIN reg
  * @vstepmax_stepmax_shift: VSTEPMAX field shift in the PRM_VP*_VSTEPMAX reg
- * @vstepmax_smpswaittimemax_shift: SMPSWAITTIMEMAX field shift in PRM_VP*_VSTEPMAX reg
+ * @vstepmax_smpswaittimemax_shift: SMPSWAITTIMEMAX field shift in
+ * PRM_VP*_VSTEPMAX reg
  * @vlimitto_vddmin_shift: VDDMIN field shift in PRM_VP*_VLIMITTO reg
  * @vlimitto_vddmax_shift: VDDMAX field shift in PRM_VP*_VLIMITTO reg
  * @vlimitto_timeout_shift: TIMEOUT field shift in PRM_VP*_VLIMITTO reg
  * @vpvoltage_mask: VPVOLTAGE field mask in PRM_VP*_VOLTAGE reg
  */
 struct omap_vp_common {
-	u32 vpconfig_erroroffset_mask;
-	u32 vpconfig_errorgain_mask;
-	u32 vpconfig_initvoltage_mask;
-	u8 vpconfig_timeouten;
-	u8 vpconfig_initvdd;
-	u8 vpconfig_forceupdate;
-	u8 vpconfig_vpenable;
-	u8 vstepmin_stepmin_shift;
-	u8 vstepmin_smpswaittimemin_shift;
-	u8 vstepmax_stepmax_shift;
-	u8 vstepmax_smpswaittimemax_shift;
-	u8 vlimitto_vddmin_shift;
-	u8 vlimitto_vddmax_shift;
-	u8 vlimitto_timeout_shift;
-	u8 vpvoltage_mask;
+  u32 vpconfig_erroroffset_mask;
+  u32 vpconfig_errorgain_mask;
+  u32 vpconfig_initvoltage_mask;
+  u8 vpconfig_timeouten;
+  u8 vpconfig_initvdd;
+  u8 vpconfig_forceupdate;
+  u8 vpconfig_vpenable;
+  u8 vstepmin_stepmin_shift;
+  u8 vstepmin_smpswaittimemin_shift;
+  u8 vstepmax_stepmax_shift;
+  u8 vstepmax_smpswaittimemax_shift;
+  u8 vlimitto_vddmin_shift;
+  u8 vlimitto_vddmax_shift;
+  u8 vlimitto_timeout_shift;
+  u8 vpvoltage_mask;
 
-	const struct omap_vp_ops *ops;
+  const struct omap_vp_ops *ops;
 };
 
 /**
@@ -87,15 +89,15 @@ struct omap_vp_common {
  * XXX vp_common is probably not needed since it is per-SoC
  */
 struct omap_vp_instance {
-	const struct omap_vp_common *common;
-	u8 vpconfig;
-	u8 vstepmin;
-	u8 vstepmax;
-	u8 vlimitto;
-	u8 vstatus;
-	u8 voltage;
-	u8 id;
-	bool enabled;
+  const struct omap_vp_common *common;
+  u8 vpconfig;
+  u8 vstepmin;
+  u8 vstepmax;
+  u8 vlimitto;
+  u8 vstatus;
+  u8 voltage;
+  u8 id;
+  bool enabled;
 };
 
 extern struct omap_vp_instance omap3_vp_mpu;
@@ -116,8 +118,8 @@ void omap_vp_init(struct voltagedomain *voltdm);
 void omap_vp_enable(struct voltagedomain *voltdm);
 void omap_vp_disable(struct voltagedomain *voltdm);
 int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
-			      unsigned long target_volt);
+    unsigned long target_volt);
 int omap_vp_update_errorgain(struct voltagedomain *voltdm,
-			     unsigned long target_volt);
+    unsigned long target_volt);
 
 #endif

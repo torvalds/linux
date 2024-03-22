@@ -110,11 +110,11 @@ typedef struct {
   uint32_t InS0i2             : 1;
   uint32_t InWhisperMode      : 1;
   uint32_t GfxOn              : 1;
-  uint32_t RsmuCalBusyDpmIndex: 8;
+  uint32_t RsmuCalBusyDpmIndex : 8;
   uint32_t DpmHandlerId       : 8;
   uint32_t DpmTimerId         : 4;
   // MP1_EXT_SCRATCH3
-  uint32_t ReadWriteSmnRegAddr: 32;
+  uint32_t ReadWriteSmnRegAddr : 32;
   // MP1_EXT_SCRATCH4
   uint32_t Reserved1;
   // MP1_EXT_SCRATCH5

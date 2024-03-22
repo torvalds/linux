@@ -11,22 +11,19 @@
 #include <asm/unwinder.h>
 #include <asm/ptrace.h>
 
-static void callchain_address(void *data, unsigned long addr, int reliable)
-{
-	struct perf_callchain_entry_ctx *entry = data;
-
-	if (reliable)
-		perf_callchain_store(entry, addr);
+static void callchain_address(void *data, unsigned long addr, int reliable) {
+  struct perf_callchain_entry_ctx *entry = data;
+  if (reliable) {
+    perf_callchain_store(entry, addr);
+  }
 }
 
 static const struct stacktrace_ops callchain_ops = {
-	.address	= callchain_address,
+  .address = callchain_address,
 };
 
-void
-perf_callchain_kernel(struct perf_callchain_entry_ctx *entry, struct pt_regs *regs)
-{
-	perf_callchain_store(entry, regs->pc);
-
-	unwind_stack(NULL, regs, NULL, &callchain_ops, entry);
+void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
+    struct pt_regs *regs) {
+  perf_callchain_store(entry, regs->pc);
+  unwind_stack(NULL, regs, NULL, &callchain_ops, entry);
 }

@@ -18,9 +18,9 @@ extern struct linux_romvec *romvec;
 
 extern int prom_flags;
 
-#define PROM_FLAG_ARCS			1
-#define PROM_FLAG_USE_AS_CONSOLE	2
-#define PROM_FLAG_DONT_FREE_TEMP	4
+#define PROM_FLAG_ARCS      1
+#define PROM_FLAG_USE_AS_CONSOLE  2
+#define PROM_FLAG_DONT_FREE_TEMP  4
 
 /* Simple char-by-char console I/O. */
 extern char prom_getchar(void);
@@ -29,7 +29,7 @@ extern char prom_getchar(void);
  * in chain is CURR is NULL.
  */
 extern struct linux_mdesc *prom_getmdesc(struct linux_mdesc *curr);
-#define PROM_NULL_MDESC	  ((struct linux_mdesc *) 0)
+#define PROM_NULL_MDESC   ((struct linux_mdesc *) 0)
 
 /* Called by prom_init to setup the physical memory pmemblock
  * array.

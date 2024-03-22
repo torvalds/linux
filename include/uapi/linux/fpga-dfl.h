@@ -41,7 +41,7 @@
  * Return: Driver API Version.
  */
 
-#define DFL_FPGA_GET_API_VERSION	_IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 0)
+#define DFL_FPGA_GET_API_VERSION  _IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 0)
 
 /**
  * DFL_FPGA_CHECK_EXTENSION - _IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 1)
@@ -50,7 +50,7 @@
  * Return: 0 if not supported, otherwise the extension is supported.
  */
 
-#define DFL_FPGA_CHECK_EXTENSION	_IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 1)
+#define DFL_FPGA_CHECK_EXTENSION  _IO(DFL_FPGA_MAGIC, DFL_FPGA_BASE + 1)
 
 /* IOCTLs for AFU file descriptor */
 
@@ -64,30 +64,30 @@
  * Return: 0 on success, -errno of failure
  */
 
-#define DFL_FPGA_PORT_RESET		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
+#define DFL_FPGA_PORT_RESET   _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 0)
 
 /**
  * DFL_FPGA_PORT_GET_INFO - _IOR(DFL_FPGA_MAGIC, DFL_PORT_BASE + 1,
- *						struct dfl_fpga_port_info)
+ *            struct dfl_fpga_port_info)
  *
  * Retrieve information about the fpga port.
  * Driver fills the info in provided struct dfl_fpga_port_info.
  * Return: 0 on success, -errno on failure.
  */
 struct dfl_fpga_port_info {
-	/* Input */
-	__u32 argsz;		/* Structure length */
-	/* Output */
-	__u32 flags;		/* Zero for now */
-	__u32 num_regions;	/* The number of supported regions */
-	__u32 num_umsgs;	/* The number of allocated umsgs */
+  /* Input */
+  __u32 argsz;    /* Structure length */
+  /* Output */
+  __u32 flags;    /* Zero for now */
+  __u32 num_regions;  /* The number of supported regions */
+  __u32 num_umsgs;  /* The number of allocated umsgs */
 };
 
-#define DFL_FPGA_PORT_GET_INFO		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 1)
+#define DFL_FPGA_PORT_GET_INFO    _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 1)
 
 /**
  * FPGA_PORT_GET_REGION_INFO - _IOWR(FPGA_MAGIC, PORT_BASE + 2,
- *					struct dfl_fpga_port_region_info)
+ *          struct dfl_fpga_port_region_info)
  *
  * Retrieve information about a device memory region.
  * Caller provides struct dfl_fpga_port_region_info with index value set.
@@ -95,28 +95,28 @@ struct dfl_fpga_port_info {
  * Return: 0 on success, -errno on failure.
  */
 struct dfl_fpga_port_region_info {
-	/* input */
-	__u32 argsz;		/* Structure length */
-	/* Output */
-	__u32 flags;		/* Access permission */
-#define DFL_PORT_REGION_READ	(1 << 0)	/* Region is readable */
-#define DFL_PORT_REGION_WRITE	(1 << 1)	/* Region is writable */
-#define DFL_PORT_REGION_MMAP	(1 << 2)	/* Can be mmaped to userspace */
-	/* Input */
-	__u32 index;		/* Region index */
-#define DFL_PORT_REGION_INDEX_AFU	0	/* AFU */
-#define DFL_PORT_REGION_INDEX_STP	1	/* Signal Tap */
-	__u32 padding;
-	/* Output */
-	__u64 size;		/* Region size (bytes) */
-	__u64 offset;		/* Region offset from start of device fd */
+  /* input */
+  __u32 argsz;    /* Structure length */
+  /* Output */
+  __u32 flags;    /* Access permission */
+#define DFL_PORT_REGION_READ  (1 << 0)  /* Region is readable */
+#define DFL_PORT_REGION_WRITE (1 << 1)  /* Region is writable */
+#define DFL_PORT_REGION_MMAP  (1 << 2)  /* Can be mmaped to userspace */
+  /* Input */
+  __u32 index;    /* Region index */
+#define DFL_PORT_REGION_INDEX_AFU 0 /* AFU */
+#define DFL_PORT_REGION_INDEX_STP 1 /* Signal Tap */
+  __u32 padding;
+  /* Output */
+  __u64 size;   /* Region size (bytes) */
+  __u64 offset;   /* Region offset from start of device fd */
 };
 
-#define DFL_FPGA_PORT_GET_REGION_INFO	_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 2)
+#define DFL_FPGA_PORT_GET_REGION_INFO _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 2)
 
 /**
  * DFL_FPGA_PORT_DMA_MAP - _IOWR(DFL_FPGA_MAGIC, DFL_PORT_BASE + 3,
- *						struct dfl_fpga_port_dma_map)
+ *            struct dfl_fpga_port_dma_map)
  *
  * Map the dma memory per user_addr and length which are provided by caller.
  * Driver fills the iova in provided struct afu_port_dma_map.
@@ -124,32 +124,32 @@ struct dfl_fpga_port_region_info {
  * Return: 0 on success, -errno on failure.
  */
 struct dfl_fpga_port_dma_map {
-	/* Input */
-	__u32 argsz;		/* Structure length */
-	__u32 flags;		/* Zero for now */
-	__u64 user_addr;        /* Process virtual address */
-	__u64 length;           /* Length of mapping (bytes)*/
-	/* Output */
-	__u64 iova;             /* IO virtual address */
+  /* Input */
+  __u32 argsz;    /* Structure length */
+  __u32 flags;    /* Zero for now */
+  __u64 user_addr;        /* Process virtual address */
+  __u64 length;           /* Length of mapping (bytes)*/
+  /* Output */
+  __u64 iova;             /* IO virtual address */
 };
 
-#define DFL_FPGA_PORT_DMA_MAP		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 3)
+#define DFL_FPGA_PORT_DMA_MAP   _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 3)
 
 /**
  * DFL_FPGA_PORT_DMA_UNMAP - _IOW(FPGA_MAGIC, PORT_BASE + 4,
- *						struct dfl_fpga_port_dma_unmap)
+ *            struct dfl_fpga_port_dma_unmap)
  *
  * Unmap the dma memory per iova provided by caller.
  * Return: 0 on success, -errno on failure.
  */
 struct dfl_fpga_port_dma_unmap {
-	/* Input */
-	__u32 argsz;		/* Structure length */
-	__u32 flags;		/* Zero for now */
-	__u64 iova;		/* IO virtual address */
+  /* Input */
+  __u32 argsz;    /* Structure length */
+  __u32 flags;    /* Zero for now */
+  __u64 iova;   /* IO virtual address */
 };
 
-#define DFL_FPGA_PORT_DMA_UNMAP		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 4)
+#define DFL_FPGA_PORT_DMA_UNMAP   _IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 4)
 
 /**
  * struct dfl_fpga_irq_set - the argument for DFL_FPGA_XXX_SET_IRQ ioctl.
@@ -159,62 +159,62 @@ struct dfl_fpga_port_dma_unmap {
  * @evtfds: Eventfd handlers.
  */
 struct dfl_fpga_irq_set {
-	__u32 start;
-	__u32 count;
-	__s32 evtfds[];
+  __u32 start;
+  __u32 count;
+  __s32 evtfds[];
 };
 
 /**
  * DFL_FPGA_PORT_ERR_GET_IRQ_NUM - _IOR(DFL_FPGA_MAGIC, DFL_PORT_BASE + 5,
- *								__u32 num_irqs)
+ *                __u32 num_irqs)
  *
  * Get the number of irqs supported by the fpga port error reporting private
  * feature. Currently hardware supports up to 1 irq.
  * Return: 0 on success, -errno on failure.
  */
-#define DFL_FPGA_PORT_ERR_GET_IRQ_NUM	_IOR(DFL_FPGA_MAGIC,	\
-					     DFL_PORT_BASE + 5, __u32)
+#define DFL_FPGA_PORT_ERR_GET_IRQ_NUM _IOR(DFL_FPGA_MAGIC,  \
+    DFL_PORT_BASE + 5, __u32)
 
 /**
  * DFL_FPGA_PORT_ERR_SET_IRQ - _IOW(DFL_FPGA_MAGIC, DFL_PORT_BASE + 6,
- *						struct dfl_fpga_irq_set)
+ *            struct dfl_fpga_irq_set)
  *
  * Set fpga port error reporting interrupt trigger if evtfds[n] is valid.
  * Unset related interrupt trigger if evtfds[n] is a negative value.
  * Return: 0 on success, -errno on failure.
  */
-#define DFL_FPGA_PORT_ERR_SET_IRQ	_IOW(DFL_FPGA_MAGIC,	\
-					     DFL_PORT_BASE + 6,	\
-					     struct dfl_fpga_irq_set)
+#define DFL_FPGA_PORT_ERR_SET_IRQ _IOW(DFL_FPGA_MAGIC,  \
+    DFL_PORT_BASE + 6, \
+    struct dfl_fpga_irq_set)
 
 /**
  * DFL_FPGA_PORT_UINT_GET_IRQ_NUM - _IOR(DFL_FPGA_MAGIC, DFL_PORT_BASE + 7,
- *								__u32 num_irqs)
+ *                __u32 num_irqs)
  *
  * Get the number of irqs supported by the fpga AFU interrupt private
  * feature.
  * Return: 0 on success, -errno on failure.
  */
-#define DFL_FPGA_PORT_UINT_GET_IRQ_NUM	_IOR(DFL_FPGA_MAGIC,	\
-					     DFL_PORT_BASE + 7, __u32)
+#define DFL_FPGA_PORT_UINT_GET_IRQ_NUM  _IOR(DFL_FPGA_MAGIC,  \
+    DFL_PORT_BASE + 7, __u32)
 
 /**
  * DFL_FPGA_PORT_UINT_SET_IRQ - _IOW(DFL_FPGA_MAGIC, DFL_PORT_BASE + 8,
- *						struct dfl_fpga_irq_set)
+ *            struct dfl_fpga_irq_set)
  *
  * Set fpga AFU interrupt trigger if evtfds[n] is valid.
  * Unset related interrupt trigger if evtfds[n] is a negative value.
  * Return: 0 on success, -errno on failure.
  */
-#define DFL_FPGA_PORT_UINT_SET_IRQ	_IOW(DFL_FPGA_MAGIC,	\
-					     DFL_PORT_BASE + 8,	\
-					     struct dfl_fpga_irq_set)
+#define DFL_FPGA_PORT_UINT_SET_IRQ  _IOW(DFL_FPGA_MAGIC,  \
+    DFL_PORT_BASE + 8, \
+    struct dfl_fpga_irq_set)
 
 /* IOCTLs for FME file descriptor */
 
 /**
  * DFL_FPGA_FME_PORT_PR - _IOW(DFL_FPGA_MAGIC, DFL_FME_BASE + 0,
- *						struct dfl_fpga_fme_port_pr)
+ *            struct dfl_fpga_fme_port_pr)
  *
  * Driver does Partial Reconfiguration based on Port ID and Buffer (Image)
  * provided by caller.
@@ -225,19 +225,19 @@ struct dfl_fpga_irq_set {
  */
 
 struct dfl_fpga_fme_port_pr {
-	/* Input */
-	__u32 argsz;		/* Structure length */
-	__u32 flags;		/* Zero for now */
-	__u32 port_id;
-	__u32 buffer_size;
-	__u64 buffer_address;	/* Userspace address to the buffer for PR */
+  /* Input */
+  __u32 argsz;    /* Structure length */
+  __u32 flags;    /* Zero for now */
+  __u32 port_id;
+  __u32 buffer_size;
+  __u64 buffer_address; /* Userspace address to the buffer for PR */
 };
 
-#define DFL_FPGA_FME_PORT_PR	_IO(DFL_FPGA_MAGIC, DFL_FME_BASE + 0)
+#define DFL_FPGA_FME_PORT_PR  _IO(DFL_FPGA_MAGIC, DFL_FME_BASE + 0)
 
 /**
  * DFL_FPGA_FME_PORT_RELEASE - _IOW(DFL_FPGA_MAGIC, DFL_FME_BASE + 1,
- *						int port_id)
+ *            int port_id)
  *
  * Driver releases the port per Port ID provided by caller.
  * Return: 0 on success, -errno on failure.
@@ -246,7 +246,7 @@ struct dfl_fpga_fme_port_pr {
 
 /**
  * DFL_FPGA_FME_PORT_ASSIGN - _IOW(DFL_FPGA_MAGIC, DFL_FME_BASE + 2,
- *						int port_id)
+ *            int port_id)
  *
  * Driver assigns the port back per Port ID provided by caller.
  * Return: 0 on success, -errno on failure.
@@ -255,25 +255,25 @@ struct dfl_fpga_fme_port_pr {
 
 /**
  * DFL_FPGA_FME_ERR_GET_IRQ_NUM - _IOR(DFL_FPGA_MAGIC, DFL_FME_BASE + 3,
- *							__u32 num_irqs)
+ *              __u32 num_irqs)
  *
  * Get the number of irqs supported by the fpga fme error reporting private
  * feature. Currently hardware supports up to 1 irq.
  * Return: 0 on success, -errno on failure.
  */
-#define DFL_FPGA_FME_ERR_GET_IRQ_NUM	_IOR(DFL_FPGA_MAGIC,	\
-					     DFL_FME_BASE + 3, __u32)
+#define DFL_FPGA_FME_ERR_GET_IRQ_NUM  _IOR(DFL_FPGA_MAGIC,  \
+    DFL_FME_BASE + 3, __u32)
 
 /**
  * DFL_FPGA_FME_ERR_SET_IRQ - _IOW(DFL_FPGA_MAGIC, DFL_FME_BASE + 4,
- *						struct dfl_fpga_irq_set)
+ *            struct dfl_fpga_irq_set)
  *
  * Set fpga fme error reporting interrupt trigger if evtfds[n] is valid.
  * Unset related interrupt trigger if evtfds[n] is a negative value.
  * Return: 0 on success, -errno on failure.
  */
-#define DFL_FPGA_FME_ERR_SET_IRQ	_IOW(DFL_FPGA_MAGIC,	\
-					     DFL_FME_BASE + 4,	\
-					     struct dfl_fpga_irq_set)
+#define DFL_FPGA_FME_ERR_SET_IRQ  _IOW(DFL_FPGA_MAGIC,  \
+    DFL_FME_BASE + 4,  \
+    struct dfl_fpga_irq_set)
 
 #endif /* _UAPI_LINUX_FPGA_DFL_H */

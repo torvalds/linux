@@ -19,46 +19,46 @@
  */
 #ifndef __ASSEMBLY__
 #ifndef PHYS_OFFSET
-#define PHYS_OFFSET	_UL(0)
+#define PHYS_OFFSET _UL(0)
 #endif
 extern unsigned long vm_map_base;
 #endif /* __ASSEMBLY__ */
 
 #ifndef IO_BASE
-#define IO_BASE			CSR_DMW0_BASE
+#define IO_BASE     CSR_DMW0_BASE
 #endif
 
 #ifndef CACHE_BASE
-#define CACHE_BASE		CSR_DMW1_BASE
+#define CACHE_BASE    CSR_DMW1_BASE
 #endif
 
 #ifndef UNCACHE_BASE
-#define UNCACHE_BASE		CSR_DMW0_BASE
+#define UNCACHE_BASE    CSR_DMW0_BASE
 #endif
 
-#define DMW_PABITS	48
-#define TO_PHYS_MASK	((1ULL << DMW_PABITS) - 1)
+#define DMW_PABITS  48
+#define TO_PHYS_MASK  ((1ULL << DMW_PABITS) - 1)
 
 /*
  * Memory above this physical address will be considered highmem.
  */
 #ifndef HIGHMEM_START
-#define HIGHMEM_START		(_UL(1) << _UL(DMW_PABITS))
+#define HIGHMEM_START   (_UL(1) << _UL(DMW_PABITS))
 #endif
 
-#define TO_PHYS(x)		(		((x) & TO_PHYS_MASK))
-#define TO_CACHE(x)		(CACHE_BASE   |	((x) & TO_PHYS_MASK))
-#define TO_UNCACHE(x)		(UNCACHE_BASE |	((x) & TO_PHYS_MASK))
+#define TO_PHYS(x)    (((x) & TO_PHYS_MASK))
+#define TO_CACHE(x)   (CACHE_BASE | ((x) & TO_PHYS_MASK))
+#define TO_UNCACHE(x)   (UNCACHE_BASE | ((x) & TO_PHYS_MASK))
 
 /*
  * This handles the memory map.
  */
 #ifndef PAGE_OFFSET
-#define PAGE_OFFSET		(CACHE_BASE + PHYS_OFFSET)
+#define PAGE_OFFSET   (CACHE_BASE + PHYS_OFFSET)
 #endif
 
 #ifndef FIXADDR_TOP
-#define FIXADDR_TOP		((unsigned long)(long)(int)0xfffe0000)
+#define FIXADDR_TOP   ((unsigned long) (long) (int) 0xfffe0000)
 #endif
 
 #ifdef __ASSEMBLY__
@@ -66,15 +66,15 @@ extern unsigned long vm_map_base;
 #define _ATYPE32_
 #define _ATYPE64_
 #else
-#define _ATYPE_		__PTRDIFF_TYPE__
-#define _ATYPE32_	int
-#define _ATYPE64_	__s64
+#define _ATYPE_   __PTRDIFF_TYPE__
+#define _ATYPE32_ int
+#define _ATYPE64_ __s64
 #endif
 
 #ifdef CONFIG_64BIT
-#define _CONST64_(x)	_UL(x)
+#define _CONST64_(x)  _UL(x)
 #else
-#define _CONST64_(x)	_ULL(x)
+#define _CONST64_(x)  _ULL(x)
 #endif
 
 /*
@@ -84,30 +84,30 @@ extern unsigned long vm_map_base;
 #define _ACAST32_
 #define _ACAST64_
 #else
-#define _ACAST32_		(_ATYPE_)(_ATYPE32_)	/* widen if necessary */
-#define _ACAST64_		(_ATYPE64_)		/* do _not_ narrow */
+#define _ACAST32_   (_ATYPE_) (_ATYPE32_)  /* widen if necessary */
+#define _ACAST64_   (_ATYPE64_)   /* do _not_ narrow */
 #endif
 
 #ifdef CONFIG_32BIT
 
-#define UVRANGE			0x00000000
-#define KPRANGE0		0x80000000
-#define KPRANGE1		0xa0000000
-#define KVRANGE			0xc0000000
+#define UVRANGE     0x00000000
+#define KPRANGE0    0x80000000
+#define KPRANGE1    0xa0000000
+#define KVRANGE     0xc0000000
 
 #else
 
-#define XUVRANGE		_CONST64_(0x0000000000000000)
-#define XSPRANGE		_CONST64_(0x4000000000000000)
-#define XKPRANGE		_CONST64_(0x8000000000000000)
-#define XKVRANGE		_CONST64_(0xc000000000000000)
+#define XUVRANGE    _CONST64_(0x0000000000000000)
+#define XSPRANGE    _CONST64_(0x4000000000000000)
+#define XKPRANGE    _CONST64_(0x8000000000000000)
+#define XKVRANGE    _CONST64_(0xc000000000000000)
 
 #endif
 
 /*
  * Returns the physical address of a KPRANGEx / XKPRANGE address
  */
-#define PHYSADDR(a)		((_ACAST64_(a)) & TO_PHYS_MASK)
+#define PHYSADDR(a)   ((_ACAST64_(a)) & TO_PHYS_MASK)
 
 /*
  * On LoongArch, I/O ports mappring is following:
@@ -120,11 +120,11 @@ extern unsigned long vm_map_base;
  * PCI_IOBASE ->|-----------------------|
  *              |         ....          |
  */
-#define PCI_IOBASE	((void __iomem *)(vm_map_base + (2 * PAGE_SIZE)))
-#define PCI_IOSIZE	SZ_32M
-#define ISA_IOSIZE	SZ_16K
-#define IO_SPACE_LIMIT	(PCI_IOSIZE - 1)
+#define PCI_IOBASE  ((void __iomem *) (vm_map_base + (2 * PAGE_SIZE)))
+#define PCI_IOSIZE  SZ_32M
+#define ISA_IOSIZE  SZ_16K
+#define IO_SPACE_LIMIT  (PCI_IOSIZE - 1)
 
-#define PHYS_LINK_KADDR	PHYSADDR(VMLINUX_LOAD_ADDRESS)
+#define PHYS_LINK_KADDR PHYSADDR(VMLINUX_LOAD_ADDRESS)
 
 #endif /* _ASM_ADDRSPACE_H */

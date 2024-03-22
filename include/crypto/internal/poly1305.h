@@ -19,16 +19,15 @@
  */
 
 void poly1305_core_setkey(struct poly1305_core_key *key,
-			  const u8 raw_key[POLY1305_BLOCK_SIZE]);
-static inline void poly1305_core_init(struct poly1305_state *state)
-{
-	*state = (struct poly1305_state){};
+    const u8 raw_key[POLY1305_BLOCK_SIZE]);
+static inline void poly1305_core_init(struct poly1305_state *state) {
+  *state = (struct poly1305_state){};
 }
 
 void poly1305_core_blocks(struct poly1305_state *state,
-			  const struct poly1305_core_key *key, const void *src,
-			  unsigned int nblocks, u32 hibit);
+    const struct poly1305_core_key *key, const void *src,
+    unsigned int nblocks, u32 hibit);
 void poly1305_core_emit(const struct poly1305_state *state, const u32 nonce[4],
-			void *dst);
+    void *dst);
 
 #endif

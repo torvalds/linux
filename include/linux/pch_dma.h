@@ -9,17 +9,17 @@
 #include <linux/dmaengine.h>
 
 enum pch_dma_width {
-	PCH_DMA_WIDTH_1_BYTE,
-	PCH_DMA_WIDTH_2_BYTES,
-	PCH_DMA_WIDTH_4_BYTES,
+  PCH_DMA_WIDTH_1_BYTE,
+  PCH_DMA_WIDTH_2_BYTES,
+  PCH_DMA_WIDTH_4_BYTES,
 };
 
 struct pch_dma_slave {
-	struct device		*dma_dev;
-	unsigned int		chan_id;
-	dma_addr_t		tx_reg;
-	dma_addr_t		rx_reg;
-	enum pch_dma_width	width;
+  struct device *dma_dev;
+  unsigned int chan_id;
+  dma_addr_t tx_reg;
+  dma_addr_t rx_reg;
+  enum pch_dma_width width;
 };
 
 #endif

@@ -22,7 +22,6 @@
 #include <asm/processor.h>
 #endif
 
-
 /* THREAD_SIZE is the size of the task_struct/kernel_stack combo.
  * normally, the stack is found by doing something like p + THREAD_SIZE
  * in or1k, a page is 8192 bytes, which seems like a sane size
@@ -41,15 +40,15 @@
 #ifndef __ASSEMBLY__
 
 struct thread_info {
-	struct task_struct	*task;		/* main task structure */
-	unsigned long		flags;		/* low level flags */
-	__u32			cpu;		/* current CPU */
-	__s32			preempt_count; /* 0 => preemptable, <0 => BUG */
+  struct task_struct *task;    /* main task structure */
+  unsigned long flags;    /* low level flags */
+  __u32 cpu;    /* current CPU */
+  __s32 preempt_count; /* 0 => preemptable, <0 => BUG */
 
-	__u8			supervisor_stack[0];
+  __u8 supervisor_stack[0];
 
-	/* saved context data */
-	unsigned long           ksp;
+  /* saved context data */
+  unsigned long ksp;
 };
 #endif
 
@@ -59,17 +58,17 @@ struct thread_info {
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #ifndef __ASSEMBLY__
-#define INIT_THREAD_INFO(tsk)				\
-{							\
-	.task		= &tsk,				\
-	.flags		= 0,				\
-	.cpu		= 0,				\
-	.preempt_count	= INIT_PREEMPT_COUNT,		\
-	.ksp            = 0,                            \
-}
+#define INIT_THREAD_INFO(tsk)       \
+  {             \
+    .task = &tsk,       \
+    .flags = 0,        \
+    .cpu = 0,        \
+    .preempt_count = INIT_PREEMPT_COUNT,   \
+    .ksp = 0,                            \
+  }
 
 /* how to get the thread information struct from C */
-register struct thread_info *current_thread_info_reg asm("r10");
+register struct thread_info *current_thread_info_reg asm ("r10");
 #define current_thread_info()   (current_thread_info_reg)
 
 #define get_thread_info(ti) get_task_struct((ti)->task)
@@ -84,32 +83,32 @@ register struct thread_info *current_thread_info_reg asm("r10");
  *   - pending work-to-be-done flags are in LSW
  *   - other flags in MSW
  */
-#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
-#define TIF_SIGPENDING		2	/* signal pending */
-#define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-#define TIF_SINGLESTEP		4	/* restore singlestep on return to user
-					 * mode
-					 */
-#define TIF_NOTIFY_SIGNAL	5	/* signal notifications exist */
+#define TIF_SYSCALL_TRACE 0 /* syscall trace active */
+#define TIF_NOTIFY_RESUME 1 /* resumption notification requested */
+#define TIF_SIGPENDING    2 /* signal pending */
+#define TIF_NEED_RESCHED  3 /* rescheduling necessary */
+#define TIF_SINGLESTEP    4 /* restore singlestep on return to user
+                             * mode
+                             */
+#define TIF_NOTIFY_SIGNAL 5 /* signal notifications exist */
 #define TIF_SYSCALL_TRACEPOINT  8       /* for ftrace syscall instrumentation */
 #define TIF_RESTORE_SIGMASK     9
-#define TIF_POLLING_NRFLAG	16	/* true if poll_idle() is polling						 * TIF_NEED_RESCHED
-					 */
+#define TIF_POLLING_NRFLAG  16  /* true if poll_idle() is polling            *
+                                 * TIF_NEED_RESCHED
+                                 */
 #define TIF_MEMDIE              17
 
-#define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
-#define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
-#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
-#define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
-#define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
-#define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
+#define _TIF_SYSCALL_TRACE  (1 << TIF_SYSCALL_TRACE)
+#define _TIF_NOTIFY_RESUME  (1 << TIF_NOTIFY_RESUME)
+#define _TIF_SIGPENDING   (1 << TIF_SIGPENDING)
+#define _TIF_NEED_RESCHED (1 << TIF_NEED_RESCHED)
+#define _TIF_SINGLESTEP   (1 << TIF_SINGLESTEP)
+#define _TIF_NOTIFY_SIGNAL  (1 << TIF_NOTIFY_SIGNAL)
+#define _TIF_POLLING_NRFLAG (1 << TIF_POLLING_NRFLAG)
 
-
-/* Work to do when returning from interrupt/exception */
-/* For OpenRISC, this is anything in the LSW other than syscall trace */
-#define _TIF_WORK_MASK (0xff & ~(_TIF_SYSCALL_TRACE|_TIF_SINGLESTEP))
+/* Work to do when returning from interrupt/exception
+ * For OpenRISC, this is anything in the LSW other than syscall trace*/
+#define _TIF_WORK_MASK (0xff & ~(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP))
 
 #endif /* __KERNEL__ */
 

@@ -30,37 +30,32 @@
  * Documentation/ABI/testing/debugfs-pfo-nx-crypto
  */
 
-void nx_debugfs_init(struct nx_crypto_driver *drv)
-{
-	struct dentry *root;
-
-	root = debugfs_create_dir(NX_NAME, NULL);
-	drv->dfs_root = root;
-
-	debugfs_create_u32("aes_ops", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.aes_ops.counter);
-	debugfs_create_u32("sha256_ops", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.sha256_ops.counter);
-	debugfs_create_u32("sha512_ops", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.sha512_ops.counter);
-	debugfs_create_u64("aes_bytes", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.aes_bytes.counter);
-	debugfs_create_u64("sha256_bytes", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.sha256_bytes.counter);
-	debugfs_create_u64("sha512_bytes", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.sha512_bytes.counter);
-	debugfs_create_u32("errors", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.errors.counter);
-	debugfs_create_u32("last_error", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.last_error.counter);
-	debugfs_create_u32("last_error_pid", S_IRUSR | S_IRGRP | S_IROTH,
-			   root, &drv->stats.last_error_pid.counter);
+void nx_debugfs_init(struct nx_crypto_driver *drv) {
+  struct dentry *root;
+  root = debugfs_create_dir(NX_NAME, NULL);
+  drv->dfs_root = root;
+  debugfs_create_u32("aes_ops", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.aes_ops.counter);
+  debugfs_create_u32("sha256_ops", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.sha256_ops.counter);
+  debugfs_create_u32("sha512_ops", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.sha512_ops.counter);
+  debugfs_create_u64("aes_bytes", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.aes_bytes.counter);
+  debugfs_create_u64("sha256_bytes", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.sha256_bytes.counter);
+  debugfs_create_u64("sha512_bytes", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.sha512_bytes.counter);
+  debugfs_create_u32("errors", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.errors.counter);
+  debugfs_create_u32("last_error", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.last_error.counter);
+  debugfs_create_u32("last_error_pid", S_IRUSR | S_IRGRP | S_IROTH,
+      root, &drv->stats.last_error_pid.counter);
 }
 
-void
-nx_debugfs_fini(struct nx_crypto_driver *drv)
-{
-	debugfs_remove_recursive(drv->dfs_root);
+void nx_debugfs_fini(struct nx_crypto_driver *drv) {
+  debugfs_remove_recursive(drv->dfs_root);
 }
 
 #endif

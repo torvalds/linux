@@ -11,6 +11,6 @@
 #define __ARCH_WANT_SYS_UTIME32
 #define __ARCH_WANT_SYS_GETPGRP
 
-#define NR_syscalls				__NR_syscalls
+#define NR_syscalls       __NR_syscalls
 
 #endif /* _XTENSA_UNISTD_H */

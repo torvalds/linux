@@ -30,11 +30,11 @@ extern __sum16 ip_fast_csum(const void *iph, unsigned int ihl);
 /*
  * Fold a partial checksum
  */
-static inline __sum16 csum_fold(__wsum csum)
-{
-	u32 sum = (__force u32)csum;
-	return (__force __sum16)((~sum - ror32(sum, 16)) >> 16);
+static inline __sum16 csum_fold(__wsum csum) {
+  u32 sum = (__force u32) csum;
+  return (__force __sum16) ((~sum - ror32(sum, 16)) >> 16);
 }
+
 #endif
 
 #ifndef csum_tcpudp_nofold
@@ -42,18 +42,16 @@ static inline __sum16 csum_fold(__wsum csum)
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-extern __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
-		   __u8 proto, __wsum sum);
+extern __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+    __u8 proto, __wsum sum);
 #endif
 
 #ifndef csum_tcpudp_magic
-static inline __sum16
-csum_tcpudp_magic(__be32 saddr, __be32 daddr, __u32 len,
-		  __u8 proto, __wsum sum)
-{
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr, __u32 len,
+    __u8 proto, __wsum sum) {
+  return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
 }
+
 #endif
 
 /*

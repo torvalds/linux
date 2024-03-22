@@ -15,13 +15,13 @@
 
 /**
  * struct iio_event_data - The actual event being pushed to userspace
- * @id:		event identifier
- * @timestamp:	best estimate of time of event occurrence (often from
- *		the interrupt handler)
+ * @id:   event identifier
+ * @timestamp:  best estimate of time of event occurrence (often from
+ *    the interrupt handler)
  */
 struct iio_event_data {
-	__u64	id;
-	__s64	timestamp;
+  __u64 id;
+  __s64 timestamp;
 };
 
 #define IIO_GET_EVENT_FD_IOCTL _IOR('i', 0x90, int)
@@ -34,8 +34,8 @@ struct iio_event_data {
 
 /* Event code number extraction depends on which type of event we have.
  * Perhaps review this function in the future*/
-#define IIO_EVENT_CODE_EXTRACT_CHAN(mask) ((__s16)(mask & 0xFFFF))
-#define IIO_EVENT_CODE_EXTRACT_CHAN2(mask) ((__s16)(((mask) >> 16) & 0xFFFF))
+#define IIO_EVENT_CODE_EXTRACT_CHAN(mask) ((__s16) (mask & 0xFFFF))
+#define IIO_EVENT_CODE_EXTRACT_CHAN2(mask) ((__s16) (((mask) >> 16) & 0xFFFF))
 
 #define IIO_EVENT_CODE_EXTRACT_MODIFIER(mask) ((mask >> 40) & 0xFF)
 #define IIO_EVENT_CODE_EXTRACT_DIFF(mask) (((mask) >> 55) & 0x1)

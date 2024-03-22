@@ -2,7 +2,6 @@
 #ifndef _LIBATA_TRANSPORT_H
 #define _LIBATA_TRANSPORT_H
 
-
 extern struct scsi_transport_template *ata_scsi_transport_template;
 
 int ata_tlink_add(struct ata_link *link);

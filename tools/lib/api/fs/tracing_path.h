@@ -19,5 +19,6 @@ void put_events_file(char *file);
 
 #define zput_events_file(ptr) ({ free(*ptr); *ptr = NULL; })
 
-int tracing_path__strerror_open_tp(int err, char *buf, size_t size, const char *sys, const char *name);
+int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
+    const char *sys, const char *name);
 #endif /* __API_FS_TRACING_PATH_H */

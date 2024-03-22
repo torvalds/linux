@@ -10,27 +10,24 @@
  * as output dev index.
  */
 SEC("lwt_xmit")
-int test_lwt_reroute(struct __sk_buff *skb)
-{
-	struct iphdr *iph = NULL;
-	void *start = (void *)(long)skb->data;
-	void *end = (void *)(long)skb->data_end;
-
-	/* set mark at most once */
-	if (skb->mark != 0)
-		return BPF_OK;
-
-	if (start + sizeof(*iph) > end)
-		return BPF_DROP;
-
-	iph = (struct iphdr *)start;
-	skb->mark = bpf_ntohl(iph->daddr) & 0xff;
-
-	/* do not reroute x.x.x.0 packets */
-	if (skb->mark == 0)
-		return BPF_OK;
-
-	return BPF_LWT_REROUTE;
+int test_lwt_reroute(struct __sk_buff *skb) {
+  struct iphdr *iph = NULL;
+  void *start = (void *) (long) skb->data;
+  void *end = (void *) (long) skb->data_end;
+  /* set mark at most once */
+  if (skb->mark != 0) {
+    return BPF_OK;
+  }
+  if (start + sizeof(*iph) > end) {
+    return BPF_DROP;
+  }
+  iph = (struct iphdr *) start;
+  skb->mark = bpf_ntohl(iph->daddr) & 0xff;
+  /* do not reroute x.x.x.0 packets */
+  if (skb->mark == 0) {
+    return BPF_OK;
+  }
+  return BPF_LWT_REROUTE;
 }
 
 char _license[] SEC("license") = "GPL";

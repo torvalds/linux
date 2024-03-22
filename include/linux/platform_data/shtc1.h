@@ -8,7 +8,7 @@
 #define __SHTC1_H_
 
 struct shtc1_platform_data {
-	bool blocking_io;
-	bool high_precision;
+  bool blocking_io;
+  bool high_precision;
 };
 #endif /* __SHTC1_H_ */

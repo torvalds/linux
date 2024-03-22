@@ -25,53 +25,53 @@ typedef void (*clear_func)(ia_css_ptr ptr);
 
 /*! \brief Function for initializing refcount list
  *
- * \param[in]	size		Size of the refcount list.
- * \return				ia_css_err
+ * \param[in] size    Size of the refcount list.
+ * \return        ia_css_err
  */
 int ia_css_refcount_init(uint32_t size);
 
 /*! \brief Function for de-initializing refcount list
  *
- * \return				None
+ * \return        None
  */
 void ia_css_refcount_uninit(void);
 
 /*! \brief Function for increasing reference by 1.
  *
- * \param[in]	id		ID of the object.
- * \param[in]	ptr		Data of the object (ptr).
- * \return				ia_css_ptr (saved address)
+ * \param[in] id    ID of the object.
+ * \param[in] ptr   Data of the object (ptr).
+ * \return        ia_css_ptr (saved address)
  */
 ia_css_ptr ia_css_refcount_increment(s32 id, ia_css_ptr ptr);
 
 /*! \brief Function for decrease reference by 1.
  *
- * \param[in]	id		ID of the object.
- * \param[in]	ptr		Data of the object (ptr).
+ * \param[in] id    ID of the object.
+ * \param[in] ptr   Data of the object (ptr).
  *
- *	- true, if it is successful.
- *	- false, otherwise.
+ *  - true, if it is successful.
+ *  - false, otherwise.
  */
 bool ia_css_refcount_decrement(s32 id, ia_css_ptr ptr);
 
 /*! \brief Function to check if reference count is 1.
  *
- * \param[in]	ptr		Data of the object (ptr).
+ * \param[in] ptr   Data of the object (ptr).
  *
- *	- true, if it is successful.
- *	- false, otherwise.
+ *  - true, if it is successful.
+ *  - false, otherwise.
  */
 bool ia_css_refcount_is_single(ia_css_ptr ptr);
 
 /*! \brief Function to clear reference list objects.
  *
- * \param[in]	id			ID of the object.
- * \param[in] clear_func	function to be run to free reference objects.
+ * \param[in] id      ID of the object.
+ * \param[in] clear_func  function to be run to free reference objects.
  *
- *  return				None
+ *  return        None
  */
 void ia_css_refcount_clear(s32 id,
-			   clear_func clear_func_ptr);
+    clear_func clear_func_ptr);
 
 /*! \brief Function to verify if object is valid
  *

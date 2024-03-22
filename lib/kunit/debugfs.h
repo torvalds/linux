@@ -17,13 +17,17 @@ void kunit_debugfs_cleanup(void);
 
 #else
 
-static inline void kunit_debugfs_create_suite(struct kunit_suite *suite) { }
+static inline void kunit_debugfs_create_suite(struct kunit_suite *suite) {
+}
 
-static inline void kunit_debugfs_destroy_suite(struct kunit_suite *suite) { }
+static inline void kunit_debugfs_destroy_suite(struct kunit_suite *suite) {
+}
 
-static inline void kunit_debugfs_init(void) { }
+static inline void kunit_debugfs_init(void) {
+}
 
-static inline void kunit_debugfs_cleanup(void) { }
+static inline void kunit_debugfs_cleanup(void) {
+}
 
 #endif /* CONFIG_KUNIT_DEBUGFS */
 

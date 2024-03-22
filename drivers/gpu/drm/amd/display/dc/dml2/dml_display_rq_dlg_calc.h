@@ -32,7 +32,8 @@ struct display_mode_lib_st;
 
 // Function: dml_rq_dlg_get_rq_reg
 //  Main entry point for test to get the register values out of this DML class.
-//  This function calls <get_rq_param> and <extract_rq_regs> fucntions to calculate
+//  This function calls <get_rq_param> and <extract_rq_regs> fucntions to
+// calculate
 //  and then populate the rq_regs struct
 // Input:
 //  Assume mode_program is already called
@@ -41,8 +42,8 @@ struct display_mode_lib_st;
 //            See also: <display_rq_regs_st>
 
 void dml_rq_dlg_get_rq_reg(dml_display_rq_regs_st *rq_regs,
-			struct display_mode_lib_st *mode_lib,
-			const dml_uint_t pipe_idx);
+    struct display_mode_lib_st *mode_lib,
+    const dml_uint_t pipe_idx);
 
 // Function: dml_rq_dlg_get_dlg_reg
 //   Calculate and return DLG and TTU register struct given the system setting
@@ -51,13 +52,15 @@ void dml_rq_dlg_get_rq_reg(dml_display_rq_regs_st *rq_regs,
 //  ttu_regs - output DLG TTU register struct
 // Input:
 //  Assume mode_program is already called
-//  pipe_idx - index that identifies the e2e_pipe_param that corresponding to this dlg
-void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st        *dlg_regs,
-				dml_display_ttu_regs_st        *ttu_regs,
-				struct display_mode_lib_st        *mode_lib,
-				const dml_uint_t            pipe_idx);
+//  pipe_idx - index that identifies the e2e_pipe_param that corresponding to
+// this dlg
+void dml_rq_dlg_get_dlg_reg(dml_display_dlg_regs_st *dlg_regs,
+    dml_display_ttu_regs_st *ttu_regs,
+    struct display_mode_lib_st *mode_lib,
+    const dml_uint_t pipe_idx);
 
 // Function: dml_rq_dlg_get_arb_params
-void dml_rq_dlg_get_arb_params(struct display_mode_lib_st *mode_lib, dml_display_arb_params_st *arb_param);
+void dml_rq_dlg_get_arb_params(struct display_mode_lib_st *mode_lib,
+    dml_display_arb_params_st *arb_param);
 
 #endif

@@ -17,25 +17,20 @@ void labpc_handle_dma_status(struct comedi_device *dev);
 #else
 
 static inline void labpc_init_dma_chan(struct comedi_device *dev,
-				       unsigned int dma_chan)
-{
+    unsigned int dma_chan) {
 }
 
-static inline void labpc_free_dma_chan(struct comedi_device *dev)
-{
+static inline void labpc_free_dma_chan(struct comedi_device *dev) {
 }
 
 static inline void labpc_setup_dma(struct comedi_device *dev,
-				   struct comedi_subdevice *s)
-{
+    struct comedi_subdevice *s) {
 }
 
-static inline void labpc_drain_dma(struct comedi_device *dev)
-{
+static inline void labpc_drain_dma(struct comedi_device *dev) {
 }
 
-static inline void labpc_handle_dma_status(struct comedi_device *dev)
-{
+static inline void labpc_handle_dma_status(struct comedi_device *dev) {
 }
 
 #endif

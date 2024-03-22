@@ -53,22 +53,22 @@ typedef const void *const_pvoid;
 typedef const char *const_pchar;
 
 typedef struct rgba_struct {
-    uint8 a;
-    uint8 r;
-    uint8 g;
-    uint8 b;
+  uint8 a;
+  uint8 r;
+  uint8 g;
+  uint8 b;
 } rgba_t;
 
 typedef struct {
-    uint8 blue;
-    uint8 green;
-    uint8 red;
-    uint8 alpha;
+  uint8 blue;
+  uint8 green;
+  uint8 red;
+  uint8 alpha;
 } gen_color_t;
 
 typedef union {
-	uint32		val;
-	gen_color_t f;
+  uint32 val;
+  gen_color_t f;
 } gen_color_u;
 
 //
@@ -77,13 +77,13 @@ typedef union {
 //
 #if 0
 typedef union {
-	uint32 i;
-	float f;
+  uint32 i;
+  float f;
 } uintfloat32;
 
 typedef union {
-	uint64 i;
-	double f;
+  uint64 i;
+  double f;
 } uintfloat64;
 
 #ifndef UNREFERENCED_PARAMETER

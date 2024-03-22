@@ -7,12 +7,12 @@
 /* External functions */
 int dfltcc_can_deflate(z_streamp strm);
 int dfltcc_deflate(z_streamp strm,
-                   int flush,
-                   block_state *result);
+    int flush,
+    block_state *result);
 void dfltcc_reset_deflate_state(z_streamp strm);
 
 #define DEFLATE_RESET_HOOK(strm) \
-    dfltcc_reset_deflate_state((strm))
+  dfltcc_reset_deflate_state((strm))
 
 #define DEFLATE_HOOK dfltcc_deflate
 

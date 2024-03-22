@@ -19,9 +19,9 @@
 #define CLK_CLUST_HEVC          36
 #define CLK_HWPE_HEVC           37
 #define CLK_FC_HEVC             38
-#define CLK_PROC_MIXER		39
-#define CLK_PROC_SC		40
-#define CLK_AVSP_HEVC		41
+#define CLK_PROC_MIXER    39
+#define CLK_PROC_SC   40
+#define CLK_AVSP_HEVC   41
 
 /* CLOCKGEN D2 */
 #undef CLK_PIX_PIP
@@ -30,6 +30,6 @@
 #undef CLK_PIX_GDP3
 #undef CLK_PIX_GDP4
 
-#define CLK_TMDS_HDMI_DIV2	5
-#define CLK_VP9			47
+#define CLK_TMDS_HDMI_DIV2  5
+#define CLK_VP9     47
 #endif

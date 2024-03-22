@@ -8,25 +8,23 @@
 extern const char *npe_names[];
 
 struct npe_regs {
-	u32 exec_addr, exec_data, exec_status_cmd, exec_count;
-	u32 action_points[4];
-	u32 watchpoint_fifo, watch_count;
-	u32 profile_count;
-	u32 messaging_status, messaging_control;
-	u32 mailbox_status, /*messaging_*/ in_out_fifo;
+  u32 exec_addr, exec_data, exec_status_cmd, exec_count;
+  u32 action_points[4];
+  u32 watchpoint_fifo, watch_count;
+  u32 profile_count;
+  u32 messaging_status, messaging_control;
+  u32 mailbox_status, /*messaging_*/ in_out_fifo;
 };
 
 struct npe {
-	struct npe_regs __iomem *regs;
-	struct regmap *rmap;
-	int id;
-	int valid;
+  struct npe_regs __iomem *regs;
+  struct regmap *rmap;
+  int id;
+  int valid;
 };
 
-
-static inline const char *npe_name(struct npe *npe)
-{
-	return npe_names[npe->id];
+static inline const char *npe_name(struct npe *npe) {
+  return npe_names[npe->id];
 }
 
 int npe_running(struct npe *npe);

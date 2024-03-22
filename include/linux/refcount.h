@@ -18,7 +18,7 @@
  * access the refcount concurrently, by placing REFCOUNT_SATURATED roughly
  * equidistant from 0 and INT_MAX we minimise the scope for error:
  *
- * 	                           INT_MAX     REFCOUNT_SATURATED   UINT_MAX
+ *                             INT_MAX     REFCOUNT_SATURATED   UINT_MAX
  *   0                          (0x7fff_ffff)    (0xc000_0000)    (0xffff_ffff)
  *   +--------------------------------+----------------+----------------+
  *                                     <---------- bad value! ---------->
@@ -29,10 +29,10 @@
  * As an example, consider a refcount_inc() operation that causes the counter
  * to overflow:
  *
- * 	int old = atomic_fetch_add_relaxed(r);
- *	// old is INT_MAX, refcount now INT_MIN (0x8000_0000)
- *	if (old < 0)
- *		atomic_set(r, REFCOUNT_SATURATED);
+ *  int old = atomic_fetch_add_relaxed(r);
+ *  // old is INT_MAX, refcount now INT_MIN (0x8000_0000)
+ *  if (old < 0)
+ *    atomic_set(r, REFCOUNT_SATURATED);
  *
  * If another thread also performs a refcount_inc() operation between the two
  * atomic operations, then the count will continue to edge closer to 0. If it
@@ -101,16 +101,16 @@
 
 struct mutex;
 
-#define REFCOUNT_INIT(n)	{ .refs = ATOMIC_INIT(n), }
-#define REFCOUNT_MAX		INT_MAX
-#define REFCOUNT_SATURATED	(INT_MIN / 2)
+#define REFCOUNT_INIT(n)  { .refs = ATOMIC_INIT(n), }
+#define REFCOUNT_MAX    INT_MAX
+#define REFCOUNT_SATURATED  (INT_MIN / 2)
 
 enum refcount_saturation_type {
-	REFCOUNT_ADD_NOT_ZERO_OVF,
-	REFCOUNT_ADD_OVF,
-	REFCOUNT_ADD_UAF,
-	REFCOUNT_SUB_UAF,
-	REFCOUNT_DEC_LEAK,
+  REFCOUNT_ADD_NOT_ZERO_OVF,
+  REFCOUNT_ADD_OVF,
+  REFCOUNT_ADD_UAF,
+  REFCOUNT_SUB_UAF,
+  REFCOUNT_DEC_LEAK,
 };
 
 void refcount_warn_saturate(refcount_t *r, enum refcount_saturation_type t);
@@ -120,9 +120,8 @@ void refcount_warn_saturate(refcount_t *r, enum refcount_saturation_type t);
  * @r: the refcount
  * @n: value to which the refcount will be set
  */
-static inline void refcount_set(refcount_t *r, int n)
-{
-	atomic_set(&r->refs, n);
+static inline void refcount_set(refcount_t *r, int n) {
+  atomic_set(&r->refs, n);
 }
 
 /**
@@ -131,28 +130,25 @@ static inline void refcount_set(refcount_t *r, int n)
  *
  * Return: the refcount's value
  */
-static inline unsigned int refcount_read(const refcount_t *r)
-{
-	return atomic_read(&r->refs);
+static inline unsigned int refcount_read(const refcount_t *r) {
+  return atomic_read(&r->refs);
 }
 
 static inline __must_check __signed_wrap
-bool __refcount_add_not_zero(int i, refcount_t *r, int *oldp)
-{
-	int old = refcount_read(r);
-
-	do {
-		if (!old)
-			break;
-	} while (!atomic_try_cmpxchg_relaxed(&r->refs, &old, old + i));
-
-	if (oldp)
-		*oldp = old;
-
-	if (unlikely(old < 0 || old + i < 0))
-		refcount_warn_saturate(r, REFCOUNT_ADD_NOT_ZERO_OVF);
-
-	return old;
+bool __refcount_add_not_zero(int i, refcount_t *r, int *oldp) {
+  int old = refcount_read(r);
+  do {
+    if (!old) {
+      break;
+    }
+  } while (!atomic_try_cmpxchg_relaxed(&r->refs, &old, old + i));
+  if (oldp) {
+    *oldp = old;
+  }
+  if (unlikely(old < 0 || old + i < 0)) {
+    refcount_warn_saturate(r, REFCOUNT_ADD_NOT_ZERO_OVF);
+  }
+  return old;
 }
 
 /**
@@ -173,23 +169,21 @@ bool __refcount_add_not_zero(int i, refcount_t *r, int *oldp)
  *
  * Return: false if the passed refcount is 0, true otherwise
  */
-static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r)
-{
-	return __refcount_add_not_zero(i, r, NULL);
+static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r) {
+  return __refcount_add_not_zero(i, r, NULL);
 }
 
 static inline __signed_wrap
-void __refcount_add(int i, refcount_t *r, int *oldp)
-{
-	int old = atomic_fetch_add_relaxed(i, &r->refs);
-
-	if (oldp)
-		*oldp = old;
-
-	if (unlikely(!old))
-		refcount_warn_saturate(r, REFCOUNT_ADD_UAF);
-	else if (unlikely(old < 0 || old + i < 0))
-		refcount_warn_saturate(r, REFCOUNT_ADD_OVF);
+void __refcount_add(int i, refcount_t *r, int *oldp) {
+  int old = atomic_fetch_add_relaxed(i, &r->refs);
+  if (oldp) {
+    *oldp = old;
+  }
+  if (unlikely(!old)) {
+    refcount_warn_saturate(r, REFCOUNT_ADD_UAF);
+  } else if (unlikely(old < 0 || old + i < 0)) {
+    refcount_warn_saturate(r, REFCOUNT_ADD_OVF);
+  }
 }
 
 /**
@@ -208,14 +202,13 @@ void __refcount_add(int i, refcount_t *r, int *oldp)
  * cases, refcount_inc(), or one of its variants, should instead be used to
  * increment a reference count.
  */
-static inline void refcount_add(int i, refcount_t *r)
-{
-	__refcount_add(i, r, NULL);
+static inline void refcount_add(int i, refcount_t *r) {
+  __refcount_add(i, r, NULL);
 }
 
-static inline __must_check bool __refcount_inc_not_zero(refcount_t *r, int *oldp)
-{
-	return __refcount_add_not_zero(1, r, oldp);
+static inline __must_check bool __refcount_inc_not_zero(refcount_t *r,
+    int *oldp) {
+  return __refcount_add_not_zero(1, r, oldp);
 }
 
 /**
@@ -231,14 +224,12 @@ static inline __must_check bool __refcount_inc_not_zero(refcount_t *r, int *oldp
  *
  * Return: true if the increment was successful, false otherwise
  */
-static inline __must_check bool refcount_inc_not_zero(refcount_t *r)
-{
-	return __refcount_inc_not_zero(r, NULL);
+static inline __must_check bool refcount_inc_not_zero(refcount_t *r) {
+  return __refcount_inc_not_zero(r, NULL);
 }
 
-static inline void __refcount_inc(refcount_t *r, int *oldp)
-{
-	__refcount_add(1, r, oldp);
+static inline void __refcount_inc(refcount_t *r, int *oldp) {
+  __refcount_add(1, r, oldp);
 }
 
 /**
@@ -253,28 +244,24 @@ static inline void __refcount_inc(refcount_t *r, int *oldp)
  * Will WARN if the refcount is 0, as this represents a possible use-after-free
  * condition.
  */
-static inline void refcount_inc(refcount_t *r)
-{
-	__refcount_inc(r, NULL);
+static inline void refcount_inc(refcount_t *r) {
+  __refcount_inc(r, NULL);
 }
 
 static inline __must_check __signed_wrap
-bool __refcount_sub_and_test(int i, refcount_t *r, int *oldp)
-{
-	int old = atomic_fetch_sub_release(i, &r->refs);
-
-	if (oldp)
-		*oldp = old;
-
-	if (old == i) {
-		smp_acquire__after_ctrl_dep();
-		return true;
-	}
-
-	if (unlikely(old < 0 || old - i < 0))
-		refcount_warn_saturate(r, REFCOUNT_SUB_UAF);
-
-	return false;
+bool __refcount_sub_and_test(int i, refcount_t *r, int *oldp) {
+  int old = atomic_fetch_sub_release(i, &r->refs);
+  if (oldp) {
+    *oldp = old;
+  }
+  if (old == i) {
+    smp_acquire__after_ctrl_dep();
+    return true;
+  }
+  if (unlikely(old < 0 || old - i < 0)) {
+    refcount_warn_saturate(r, REFCOUNT_SUB_UAF);
+  }
+  return false;
 }
 
 /**
@@ -297,14 +284,13 @@ bool __refcount_sub_and_test(int i, refcount_t *r, int *oldp)
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */
-static inline __must_check bool refcount_sub_and_test(int i, refcount_t *r)
-{
-	return __refcount_sub_and_test(i, r, NULL);
+static inline __must_check bool refcount_sub_and_test(int i, refcount_t *r) {
+  return __refcount_sub_and_test(i, r, NULL);
 }
 
-static inline __must_check bool __refcount_dec_and_test(refcount_t *r, int *oldp)
-{
-	return __refcount_sub_and_test(1, r, oldp);
+static inline __must_check bool __refcount_dec_and_test(refcount_t *r,
+    int *oldp) {
+  return __refcount_sub_and_test(1, r, oldp);
 }
 
 /**
@@ -320,20 +306,18 @@ static inline __must_check bool __refcount_dec_and_test(refcount_t *r, int *oldp
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */
-static inline __must_check bool refcount_dec_and_test(refcount_t *r)
-{
-	return __refcount_dec_and_test(r, NULL);
+static inline __must_check bool refcount_dec_and_test(refcount_t *r) {
+  return __refcount_dec_and_test(r, NULL);
 }
 
-static inline void __refcount_dec(refcount_t *r, int *oldp)
-{
-	int old = atomic_fetch_sub_release(1, &r->refs);
-
-	if (oldp)
-		*oldp = old;
-
-	if (unlikely(old <= 1))
-		refcount_warn_saturate(r, REFCOUNT_DEC_LEAK);
+static inline void __refcount_dec(refcount_t *r, int *oldp) {
+  int old = atomic_fetch_sub_release(1, &r->refs);
+  if (oldp) {
+    *oldp = old;
+  }
+  if (unlikely(old <= 1)) {
+    refcount_warn_saturate(r, REFCOUNT_DEC_LEAK);
+  }
 }
 
 /**
@@ -346,16 +330,18 @@ static inline void __refcount_dec(refcount_t *r, int *oldp)
  * Provides release memory ordering, such that prior loads and stores are done
  * before.
  */
-static inline void refcount_dec(refcount_t *r)
-{
-	__refcount_dec(r, NULL);
+static inline void refcount_dec(refcount_t *r) {
+  __refcount_dec(r, NULL);
 }
 
 extern __must_check bool refcount_dec_if_one(refcount_t *r);
 extern __must_check bool refcount_dec_not_one(refcount_t *r);
-extern __must_check bool refcount_dec_and_mutex_lock(refcount_t *r, struct mutex *lock) __cond_acquires(lock);
-extern __must_check bool refcount_dec_and_lock(refcount_t *r, spinlock_t *lock) __cond_acquires(lock);
+extern __must_check bool refcount_dec_and_mutex_lock(refcount_t *r,
+    struct mutex *lock)
+__cond_acquires(lock);
+extern __must_check bool refcount_dec_and_lock(refcount_t *r,
+    spinlock_t *lock) __cond_acquires(lock);
 extern __must_check bool refcount_dec_and_lock_irqsave(refcount_t *r,
-						       spinlock_t *lock,
-						       unsigned long *flags) __cond_acquires(lock);
+    spinlock_t *lock,
+    unsigned long *flags) __cond_acquires(lock);
 #endif /* _LINUX_REFCOUNT_H */

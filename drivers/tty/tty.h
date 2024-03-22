@@ -7,15 +7,15 @@
 #define _TTY_INTERNAL_H
 
 #define tty_msg(fn, tty, f, ...) \
-	fn("%s %s: " f, tty_driver_name(tty), tty_name(tty), ##__VA_ARGS__)
+  fn("%s %s: " f, tty_driver_name(tty), tty_name(tty), ## __VA_ARGS__)
 
-#define tty_debug(tty, f, ...)	tty_msg(pr_debug, tty, f, ##__VA_ARGS__)
-#define tty_notice(tty, f, ...)	tty_msg(pr_notice, tty, f, ##__VA_ARGS__)
-#define tty_warn(tty, f, ...)	tty_msg(pr_warn, tty, f, ##__VA_ARGS__)
-#define tty_err(tty, f, ...)	tty_msg(pr_err, tty, f, ##__VA_ARGS__)
+#define tty_debug(tty, f, ...)  tty_msg(pr_debug, tty, f, ## __VA_ARGS__)
+#define tty_notice(tty, f, ...) tty_msg(pr_notice, tty, f, ## __VA_ARGS__)
+#define tty_warn(tty, f, ...) tty_msg(pr_warn, tty, f, ## __VA_ARGS__)
+#define tty_err(tty, f, ...)  tty_msg(pr_err, tty, f, ## __VA_ARGS__)
 
 #define tty_info_ratelimited(tty, f, ...) \
-		tty_msg(pr_info_ratelimited, tty, f, ##__VA_ARGS__)
+  tty_msg(pr_info_ratelimited, tty, f, ## __VA_ARGS__)
 
 /*
  * Lock subclasses for tty locks
@@ -27,37 +27,35 @@
  * tty locks which use nested locking:
  *
  * legacy_mutex - Nested tty locks are necessary for releasing pty pairs.
- *		  The stable lock order is master pty first, then slave pty.
+ *      The stable lock order is master pty first, then slave pty.
  * termios_rwsem - The stable lock order is tty_buffer lock->termios_rwsem.
- *		   Subclassing this lock enables the slave pty to hold its
- *		   termios_rwsem when claiming the master tty_buffer lock.
+ *       Subclassing this lock enables the slave pty to hold its
+ *       termios_rwsem when claiming the master tty_buffer lock.
  * tty_buffer lock - slave ptys can claim nested buffer lock when handling
- *		     signal chars. The stable lock order is slave pty, then
- *		     master.
+ *         signal chars. The stable lock order is slave pty, then
+ *         master.
  */
 enum {
-	TTY_LOCK_NORMAL = 0,
-	TTY_LOCK_SLAVE,
+  TTY_LOCK_NORMAL = 0,
+  TTY_LOCK_SLAVE,
 };
 
 /* Values for tty->flow_change */
 enum tty_flow_change {
-	TTY_FLOW_NO_CHANGE,
-	TTY_THROTTLE_SAFE,
-	TTY_UNTHROTTLE_SAFE,
+  TTY_FLOW_NO_CHANGE,
+  TTY_THROTTLE_SAFE,
+  TTY_UNTHROTTLE_SAFE,
 };
 
 static inline void __tty_set_flow_change(struct tty_struct *tty,
-					 enum tty_flow_change val)
-{
-	tty->flow_change = val;
+    enum tty_flow_change val) {
+  tty->flow_change = val;
 }
 
 static inline void tty_set_flow_change(struct tty_struct *tty,
-				       enum tty_flow_change val)
-{
-	tty->flow_change = val;
-	smp_mb();
+    enum tty_flow_change val) {
+  tty->flow_change = val;
+  smp_mb();
 }
 
 int tty_ldisc_lock(struct tty_struct *tty, unsigned long timeout);
@@ -85,7 +83,7 @@ void tty_ldisc_hangup(struct tty_struct *tty, bool reset);
 int tty_ldisc_reinit(struct tty_struct *tty, int disc);
 long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 long tty_jobctrl_ioctl(struct tty_struct *tty, struct tty_struct *real_tty,
-		       struct file *file, unsigned int cmd, unsigned long arg);
+    struct file *file, unsigned int cmd, unsigned long arg);
 void tty_default_fops(struct file_operations *fops);
 struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx);
 int tty_alloc_file(struct file *file);
@@ -105,21 +103,21 @@ extern int tty_ldisc_autoload;
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
 void tty_audit_add_data(const struct tty_struct *tty, const void *data,
-			size_t size);
+    size_t size);
 void tty_audit_tiocsti(const struct tty_struct *tty, u8 ch);
 #else
 static inline void tty_audit_add_data(const struct tty_struct *tty,
-				      const void *data, size_t size)
-{
+    const void *data, size_t size) {
 }
-static inline void tty_audit_tiocsti(const struct tty_struct *tty, u8 ch)
-{
+
+static inline void tty_audit_tiocsti(const struct tty_struct *tty, u8 ch) {
 }
+
 #endif
 
 ssize_t redirected_tty_write(struct kiocb *, struct iov_iter *);
 
 int tty_insert_flip_string_and_push_buffer(struct tty_port *port,
-					   const u8 *chars, size_t cnt);
+    const u8 *chars, size_t cnt);
 
 #endif

@@ -9,8 +9,8 @@
 #ifndef __MT6358_H__
 #define __MT6358_H__
 
-/* Reg bit define */
-/* MT6358_DCXO_CW14 */
+/* Reg bit define
+ * MT6358_DCXO_CW14*/
 #define RG_XO_AUDIO_EN_M_SFT 13
 
 /* MT6358_DCXO_CW13 */
@@ -2089,11 +2089,11 @@
 #define MT6358_DRV_CON3            0x3c
 #define MT6358_GPIO_DIR0           0x88
 
-#define MT6358_GPIO_MODE2          0xd8	/* mosi */
+#define MT6358_GPIO_MODE2          0xd8 /* mosi */
 #define MT6358_GPIO_MODE2_SET      0xda
 #define MT6358_GPIO_MODE2_CLR      0xdc
 
-#define MT6358_GPIO_MODE3          0xde	/* miso */
+#define MT6358_GPIO_MODE3          0xde /* miso */
 #define MT6358_GPIO_MODE3_SET      0xe0
 #define MT6358_GPIO_MODE3_CLR      0xe2
 
@@ -2299,16 +2299,16 @@
 #define MT6358_MAX_REGISTER MT6358_ZCD_CON5
 
 enum {
-	MT6358_MTKAIF_PROTOCOL_1 = 0,
-	MT6358_MTKAIF_PROTOCOL_2,
-	MT6358_MTKAIF_PROTOCOL_2_CLK_P2,
+  MT6358_MTKAIF_PROTOCOL_1 = 0,
+  MT6358_MTKAIF_PROTOCOL_2,
+  MT6358_MTKAIF_PROTOCOL_2_CLK_P2,
 };
 
 /* set only during init */
 int mt6358_set_mtkaif_protocol(struct snd_soc_component *cmpnt,
-			       int mtkaif_protocol);
+    int mtkaif_protocol);
 int mt6358_mtkaif_calibration_enable(struct snd_soc_component *cmpnt);
 int mt6358_mtkaif_calibration_disable(struct snd_soc_component *cmpnt);
 int mt6358_set_mtkaif_calibration_phase(struct snd_soc_component *cmpnt,
-					int phase_1, int phase_2);
+    int phase_1, int phase_2);
 #endif /* __MT6358_H__ */

@@ -35,24 +35,23 @@ struct xvip_video_format;
  * @output: DMA engine at the output of the pipeline
  */
 struct xvip_pipeline {
-	struct media_pipeline pipe;
+  struct media_pipeline pipe;
 
-	struct mutex lock;
-	unsigned int use_count;
-	unsigned int stream_count;
+  struct mutex lock;
+  unsigned int use_count;
+  unsigned int stream_count;
 
-	unsigned int num_dmas;
-	struct xvip_dma *output;
+  unsigned int num_dmas;
+  struct xvip_dma *output;
 };
 
 static inline struct xvip_pipeline *to_xvip_pipeline(struct video_device *vdev)
 {
-	struct media_pipeline *pipe = video_device_pipeline(vdev);
-
-	if (!pipe)
-		return NULL;
-
-	return container_of(pipe, struct xvip_pipeline, pipe);
+  struct media_pipeline *pipe = video_device_pipeline(vdev);
+  if (!pipe) {
+    return NULL;
+  }
+  return container_of(pipe, struct xvip_pipeline, pipe);
 }
 
 /**
@@ -76,34 +75,34 @@ static inline struct xvip_pipeline *to_xvip_pipeline(struct video_device *vdev)
  * @sgl: data chunk structure for dma_interleaved_template
  */
 struct xvip_dma {
-	struct list_head list;
-	struct video_device video;
-	struct media_pad pad;
+  struct list_head list;
+  struct video_device video;
+  struct media_pad pad;
 
-	struct xvip_composite_device *xdev;
-	struct xvip_pipeline pipe;
-	unsigned int port;
+  struct xvip_composite_device *xdev;
+  struct xvip_pipeline pipe;
+  unsigned int port;
 
-	struct mutex lock;
-	struct v4l2_pix_format format;
-	const struct xvip_video_format *fmtinfo;
+  struct mutex lock;
+  struct v4l2_pix_format format;
+  const struct xvip_video_format *fmtinfo;
 
-	struct vb2_queue queue;
-	unsigned int sequence;
+  struct vb2_queue queue;
+  unsigned int sequence;
 
-	struct list_head queued_bufs;
-	spinlock_t queued_lock;
+  struct list_head queued_bufs;
+  spinlock_t queued_lock;
 
-	struct dma_chan *dma;
-	unsigned int align;
-	struct dma_interleaved_template xt;
-	struct data_chunk sgl[1];
+  struct dma_chan *dma;
+  unsigned int align;
+  struct dma_interleaved_template xt;
+  struct data_chunk sgl[1];
 };
 
-#define to_xvip_dma(vdev)	container_of(vdev, struct xvip_dma, video)
+#define to_xvip_dma(vdev) container_of(vdev, struct xvip_dma, video)
 
 int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
-		  enum v4l2_buf_type type, unsigned int port);
+    enum v4l2_buf_type type, unsigned int port);
 void xvip_dma_cleanup(struct xvip_dma *dma);
 
 #endif /* __XILINX_VIP_DMA_H__ */

@@ -5,9 +5,8 @@
 
 #include <asm/barrier.h>
 
-static __always_inline void sync_core(void)
-{
-	bcr_serialize();
+static __always_inline void sync_core(void) {
+  bcr_serialize();
 }
 
 void text_poke_sync(void);

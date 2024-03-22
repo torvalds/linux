@@ -45,39 +45,38 @@ extern char end_virt_trampolines[];
  * This assumes the kernel is never compiled -mcmodel=small or
  * the total .toc is always less than 64k.
  */
-static inline unsigned long kernel_toc_addr(void)
-{
+static inline unsigned long kernel_toc_addr(void) {
 #ifdef CONFIG_PPC_KERNEL_PCREL
-	BUILD_BUG();
-	return -1UL;
+  BUILD_BUG();
+  return -1UL;
 #else
-	unsigned long toc_ptr;
-
-	asm volatile("mr %0, 2" : "=r" (toc_ptr));
-	return toc_ptr;
+  unsigned long toc_ptr;
+  asm volatile ("mr %0, 2" : "=r" (toc_ptr));
+  return toc_ptr;
 #endif
 }
 
 static inline int overlaps_interrupt_vector_text(unsigned long start,
-							unsigned long end)
-{
-	unsigned long real_start, real_end;
-	real_start = __start_interrupts - _stext;
-	real_end = __end_interrupts - _stext;
-
-	return start < (unsigned long)__va(real_end) &&
-		(unsigned long)__va(real_start) < end;
+    unsigned long end) {
+  unsigned long real_start, real_end;
+  real_start = __start_interrupts - _stext;
+  real_end = __end_interrupts - _stext;
+  return start < (unsigned long) __va(real_end)
+    && (unsigned long) __va(real_start) < end;
 }
 
-static inline int overlaps_kernel_text(unsigned long start, unsigned long end)
-{
-	return start < (unsigned long)__init_end &&
-		(unsigned long)_stext < end;
+static inline int overlaps_kernel_text(unsigned long start, unsigned long end) {
+  return start < (unsigned long) __init_end
+    && (unsigned long) _stext < end;
 }
 
 #else
-static inline unsigned long kernel_toc_addr(void) { BUILD_BUG(); return -1UL; }
+static inline unsigned long kernel_toc_addr(void) {
+  BUILD_BUG();
+  return -1UL;
+}
+
 #endif
 
 #endif /* __KERNEL__ */
-#endif	/* _ASM_POWERPC_SECTIONS_H */
+#endif  /* _ASM_POWERPC_SECTIONS_H */

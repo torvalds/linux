@@ -25,39 +25,34 @@
 #include "smp.h"
 #include "mpc85xx.h"
 
-static void __init qemu_e500_pic_init(void)
-{
-	struct mpic *mpic;
-	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
-		MPIC_ENABLE_COREINT;
-
-	mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
-
-	BUG_ON(mpic == NULL);
-	mpic_init(mpic);
+static void __init qemu_e500_pic_init(void) {
+  struct mpic *mpic;
+  unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU
+      | MPIC_ENABLE_COREINT;
+  mpic = mpic_alloc(NULL, 0, flags, 0, 256, " OpenPIC  ");
+  BUG_ON(mpic == NULL);
+  mpic_init(mpic);
 }
 
-static void __init qemu_e500_setup_arch(void)
-{
-	ppc_md.progress("qemu_e500_setup_arch()", 0);
-
-	fsl_pci_assign_primary();
-	swiotlb_detect_4g();
-	mpc85xx_smp_init();
+static void __init qemu_e500_setup_arch(void) {
+  ppc_md.progress("qemu_e500_setup_arch()", 0);
+  fsl_pci_assign_primary();
+  swiotlb_detect_4g();
+  mpc85xx_smp_init();
 }
 
 machine_arch_initcall(qemu_e500, mpc85xx_common_publish_devices);
 
 define_machine(qemu_e500) {
-	.name			= "QEMU e500",
-	.compatible		= "fsl,qemu-e500",
-	.setup_arch		= qemu_e500_setup_arch,
-	.init_IRQ		= qemu_e500_pic_init,
+  .name = "QEMU e500",
+  .compatible = "fsl,qemu-e500",
+  .setup_arch = qemu_e500_setup_arch,
+  .init_IRQ = qemu_e500_pic_init,
 #ifdef CONFIG_PCI
-	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
-	.pcibios_fixup_phb      = fsl_pcibios_fixup_phb,
+  .pcibios_fixup_bus = fsl_pcibios_fixup_bus,
+  .pcibios_fixup_phb = fsl_pcibios_fixup_phb,
 #endif
-	.get_irq		= mpic_get_coreint_irq,
-	.progress		= udbg_progress,
-	.power_save		= e500_idle,
+  .get_irq = mpic_get_coreint_irq,
+  .progress = udbg_progress,
+  .power_save = e500_idle,
 };

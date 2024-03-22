@@ -29,17 +29,17 @@
 #include "link.h"
 
 /* Number of Host Routers per motherboard is 2 */
-#define MAX_HR_NUM			2
+#define MAX_HR_NUM      2
 /* Number of DPIA per host router is 2 */
-#define MAX_DPIA_NUM		(MAX_HR_NUM * 2)
+#define MAX_DPIA_NUM    (MAX_HR_NUM * 2)
 
 /*
  * Host Router BW type
  */
 enum bw_type {
-	HOST_ROUTER_BW_ESTIMATED,
-	HOST_ROUTER_BW_ALLOCATED,
-	HOST_ROUTER_BW_INVALID,
+  HOST_ROUTER_BW_ESTIMATED,
+  HOST_ROUTER_BW_ALLOCATED,
+  HOST_ROUTER_BW_INVALID,
 };
 
 /*
@@ -61,7 +61,8 @@ bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link);
  *
  * return: true if allocated successfully
  */
-bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw);
+bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link,
+    int req_bw);
 
 /*
  * Handle the USB4 BW Allocation related functionality here:
@@ -73,7 +74,8 @@ bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int r
  *
  * return: allocated bw else return 0
  */
-int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int peak_bw);
+int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link,
+    int peak_bw);
 
 /*
  * Handle function for when the status of the Request above is complete.
@@ -85,7 +87,8 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
  *
  * return: none
  */
-void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result);
+void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw,
+    uint8_t result);
 
 /*
  * Handle the validation of total BW here and confirm that the bw used by each
@@ -93,11 +96,14 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
  *
  * @link[]: array of link pointer to all possible DPIA links
  * @bw_needed[]: bw needed for each DPIA link based on timing
- * @num_dpias: Number of DPIAs for the above 2 arrays. Should always be <= MAX_DPIA_NUM
+ * @num_dpias: Number of DPIAs for the above 2 arrays. Should always be <=
+ *MAX_DPIA_NUM
  *
- * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
+ * return: TRUE if bw used by DPIAs doesn't exceed available BW else return
+ *FALSE
  */
-bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned int num_dpias);
+bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed,
+    const unsigned int num_dpias);
 
 /*
  * Obtain all the DP overheads in dp tunneling for the dpia link

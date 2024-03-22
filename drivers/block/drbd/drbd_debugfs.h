@@ -22,19 +22,39 @@ void drbd_debugfs_peer_device_add(struct drbd_peer_device *peer_device);
 void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device);
 #else
 
-static inline void __init drbd_debugfs_init(void) { }
-static inline void drbd_debugfs_cleanup(void) { }
+static inline void __init drbd_debugfs_init(void) {
+}
 
-static inline void drbd_debugfs_resource_add(struct drbd_resource *resource) { }
-static inline void drbd_debugfs_resource_cleanup(struct drbd_resource *resource) { }
+static inline void drbd_debugfs_cleanup(void) {
+}
 
-static inline void drbd_debugfs_connection_add(struct drbd_connection *connection) { }
-static inline void drbd_debugfs_connection_cleanup(struct drbd_connection *connection) { }
+static inline void drbd_debugfs_resource_add(struct drbd_resource *resource) {
+}
 
-static inline void drbd_debugfs_device_add(struct drbd_device *device) { }
-static inline void drbd_debugfs_device_cleanup(struct drbd_device *device) { }
+static inline void drbd_debugfs_resource_cleanup(struct drbd_resource *resource)
+{
+}
 
-static inline void drbd_debugfs_peer_device_add(struct drbd_peer_device *peer_device) { }
-static inline void drbd_debugfs_peer_device_cleanup(struct drbd_peer_device *peer_device) { }
+static inline void drbd_debugfs_connection_add(
+    struct drbd_connection *connection) {
+}
+
+static inline void drbd_debugfs_connection_cleanup(
+    struct drbd_connection *connection) {
+}
+
+static inline void drbd_debugfs_device_add(struct drbd_device *device) {
+}
+
+static inline void drbd_debugfs_device_cleanup(struct drbd_device *device) {
+}
+
+static inline void drbd_debugfs_peer_device_add(
+    struct drbd_peer_device *peer_device) {
+}
+
+static inline void drbd_debugfs_peer_device_cleanup(
+    struct drbd_peer_device *peer_device) {
+}
 
 #endif

@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2021 Gerhard Engleder <gerhard@engleder-embedded.com> */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2021 Gerhard Engleder <gerhard@engleder-embedded.com>*/
 
 /* Hardware definition of TSNEP and EtherCAT MAC device */
 
@@ -90,9 +90,9 @@
 #define TSNEP_MAC_SIZE 0x4000
 #define TSNEP_QUEUE_SIZE 0x1000
 #define TSNEP_QUEUE(n) ({ typeof(n) __n = (n); \
-			  (__n) == 0 ? \
-			  0 : \
-			  TSNEP_MAC_SIZE + TSNEP_QUEUE_SIZE * ((__n) - 1); })
+                          (__n) == 0   \
+                          ? 0   \
+                          : TSNEP_MAC_SIZE + TSNEP_QUEUE_SIZE * ((__n) - 1); })
 #define TSNEP_MAX_QUEUES 8
 #define TSNEP_MAX_FRAME_SIZE (2 * 1024) /* hardware supports actually 16k */
 #define TSNEP_DESC_SIZE 256
@@ -166,8 +166,8 @@
 
 /* tsnep gate control list operation */
 struct tsnep_gcl_operation {
-	u32 properties;
-	u32 interval;
+  u32 properties;
+  u32 interval;
 };
 
 #define TSNEP_GCL_COUNT (TSNEP_GCL_SIZE / sizeof(struct tsnep_gcl_operation))
@@ -181,8 +181,8 @@ struct tsnep_gcl_operation {
 #define TSNEP_DESC_SIZE 256
 #define TSNEP_DESC_SIZE_DATA_AFTER 2048
 #define TSNEP_DESC_OFFSET 128
-#define TSNEP_DESC_SIZE_DATA_AFTER_INLINE (64 - sizeof(struct tsnep_tx_desc) + \
-					   sizeof_field(struct tsnep_tx_desc, tx))
+#define TSNEP_DESC_SIZE_DATA_AFTER_INLINE (64 - sizeof(struct tsnep_tx_desc)   \
+  + sizeof_field(struct tsnep_tx_desc, tx))
 #define TSNEP_DESC_OWNER_COUNTER_MASK 0xC0000000
 #define TSNEP_DESC_OWNER_COUNTER_SHIFT 30
 #define TSNEP_DESC_LENGTH_MASK 0x00003FFF
@@ -192,11 +192,11 @@ struct tsnep_gcl_operation {
 
 /* tsnep TX descriptor */
 struct tsnep_tx_desc {
-	__le32 properties;
-	__le32 more_properties;
-	__le32 reserved[2];
-	__le64 next;
-	__le64 tx;
+  __le32 properties;
+  __le32 more_properties;
+  __le32 reserved[2];
+  __le64 next;
+  __le64 tx;
 };
 
 #define TSNEP_TX_DESC_OWNER_MASK 0xE0000000
@@ -206,12 +206,12 @@ struct tsnep_tx_desc {
 
 /* tsnep TX descriptor writeback */
 struct tsnep_tx_desc_wb {
-	__le32 properties;
-	__le32 reserved1;
-	__le64 counter;
-	__le64 timestamp;
-	__le32 dma_delay;
-	__le32 reserved2;
+  __le32 properties;
+  __le32 reserved1;
+  __le64 counter;
+  __le64 timestamp;
+  __le32 dma_delay;
+  __le32 reserved2;
 };
 
 #define TSNEP_TX_DESC_UNDERRUN_ERROR_FLAG 0x00010000
@@ -223,24 +223,24 @@ struct tsnep_tx_desc_wb {
 
 /* tsnep RX descriptor */
 struct tsnep_rx_desc {
-	__le32 properties;
-	__le32 reserved[3];
-	__le64 next;
-	__le64 rx;
+  __le32 properties;
+  __le32 reserved[3];
+  __le64 next;
+  __le64 rx;
 };
 
 #define TSNEP_RX_DESC_BUFFER_SIZE_MASK 0x00003FFC
 
 /* tsnep RX descriptor writeback */
 struct tsnep_rx_desc_wb {
-	__le32 properties;
-	__le32 reserved[7];
+  __le32 properties;
+  __le32 reserved[7];
 };
 
 /* tsnep RX inline meta */
 struct tsnep_rx_inline {
-	__le64 counter;
-	__le64 timestamp;
+  __le64 counter;
+  __le64 timestamp;
 };
 
 #define TSNEP_RX_INLINE_METADATA_SIZE (sizeof(struct tsnep_rx_inline))

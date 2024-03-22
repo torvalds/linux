@@ -24,55 +24,55 @@ DECLARE_PER_CPU(struct kvm_nvhe_init_params, kvm_init_params);
 
 #if defined(__KVM_VHE_HYPERVISOR__)
 
-#define read_sysreg_el0(r)	read_sysreg_s(r##_EL02)
-#define write_sysreg_el0(v,r)	write_sysreg_s(v, r##_EL02)
-#define read_sysreg_el1(r)	read_sysreg_s(r##_EL12)
-#define write_sysreg_el1(v,r)	write_sysreg_s(v, r##_EL12)
-#define read_sysreg_el2(r)	read_sysreg_s(r##_EL1)
-#define write_sysreg_el2(v,r)	write_sysreg_s(v, r##_EL1)
+#define read_sysreg_el0(r)  read_sysreg_s(r ## _EL02)
+#define write_sysreg_el0(v, r) write_sysreg_s(v, r ## _EL02)
+#define read_sysreg_el1(r)  read_sysreg_s(r ## _EL12)
+#define write_sysreg_el1(v, r) write_sysreg_s(v, r ## _EL12)
+#define read_sysreg_el2(r)  read_sysreg_s(r ## _EL1)
+#define write_sysreg_el2(v, r) write_sysreg_s(v, r ## _EL1)
 
 #else // !__KVM_VHE_HYPERVISOR__
 
 #if defined(__KVM_NVHE_HYPERVISOR__)
-#define VHE_ALT_KEY	ARM64_KVM_HVHE
+#define VHE_ALT_KEY ARM64_KVM_HVHE
 #else
-#define VHE_ALT_KEY	ARM64_HAS_VIRT_HOST_EXTN
+#define VHE_ALT_KEY ARM64_HAS_VIRT_HOST_EXTN
 #endif
 
-#define read_sysreg_elx(r,nvh,vh)					\
-	({								\
-		u64 reg;						\
-		asm volatile(ALTERNATIVE(__mrs_s("%0", r##nvh),		\
-					 __mrs_s("%0", r##vh),		\
-					 VHE_ALT_KEY)			\
-			     : "=r" (reg));				\
-		reg;							\
-	})
+#define read_sysreg_elx(r, nvh, vh)         \
+  ({                \
+    u64 reg;            \
+    asm volatile (ALTERNATIVE(__mrs_s("%0", r ## nvh),   \
+    __mrs_s("%0", r ## vh),    \
+    VHE_ALT_KEY)     \
+    : "=r" (reg));       \
+    reg;              \
+  })
 
-#define write_sysreg_elx(v,r,nvh,vh)					\
-	do {								\
-		u64 __val = (u64)(v);					\
-		asm volatile(ALTERNATIVE(__msr_s(r##nvh, "%x0"),	\
-					 __msr_s(r##vh, "%x0"),		\
-					 VHE_ALT_KEY)			\
-					 : : "rZ" (__val));		\
-	} while (0)
+#define write_sysreg_elx(v, r, nvh, vh)          \
+  do {                \
+    u64 __val = (u64) (v);         \
+    asm volatile (ALTERNATIVE(__msr_s(r ## nvh, "%x0"),  \
+    __msr_s(r ## vh, "%x0"),   \
+    VHE_ALT_KEY)     \
+    : : "rZ" (__val));   \
+  } while (0)
 
-#define read_sysreg_el0(r)	read_sysreg_elx(r, _EL0, _EL02)
-#define write_sysreg_el0(v,r)	write_sysreg_elx(v, r, _EL0, _EL02)
-#define read_sysreg_el1(r)	read_sysreg_elx(r, _EL1, _EL12)
-#define write_sysreg_el1(v,r)	write_sysreg_elx(v, r, _EL1, _EL12)
-#define read_sysreg_el2(r)	read_sysreg_elx(r, _EL2, _EL1)
-#define write_sysreg_el2(v,r)	write_sysreg_elx(v, r, _EL2, _EL1)
+#define read_sysreg_el0(r)  read_sysreg_elx(r, _EL0, _EL02)
+#define write_sysreg_el0(v, r) write_sysreg_elx(v, r, _EL0, _EL02)
+#define read_sysreg_el1(r)  read_sysreg_elx(r, _EL1, _EL12)
+#define write_sysreg_el1(v, r) write_sysreg_elx(v, r, _EL1, _EL12)
+#define read_sysreg_el2(r)  read_sysreg_elx(r, _EL2, _EL1)
+#define write_sysreg_el2(v, r) write_sysreg_elx(v, r, _EL2, _EL1)
 
-#endif	// __KVM_VHE_HYPERVISOR__
+#endif  // __KVM_VHE_HYPERVISOR__
 
 /*
  * Without an __arch_swab32(), we fall back to ___constant_swab32(), but the
  * static inline can allow the compiler to out-of-line this. KVM always wants
  * the macro version as it's always inlined.
  */
-#define __kvm_swab32(x)	___constant_swab32(x)
+#define __kvm_swab32(x) ___constant_swab32(x)
 
 int __vgic_v2_perform_cpuif_access(struct kvm_vcpu *vcpu);
 
@@ -119,14 +119,14 @@ bool kvm_host_psci_handler(struct kvm_cpu_context *host_ctxt, u32 func_id);
 
 #ifdef __KVM_NVHE_HYPERVISOR__
 void __noreturn __hyp_do_panic(struct kvm_cpu_context *host_ctxt, u64 spsr,
-			       u64 elr, u64 par);
+    u64 elr, u64 par);
 #endif
 
 #ifdef __KVM_NVHE_HYPERVISOR__
 void __pkvm_init_switch_pgd(phys_addr_t phys, unsigned long size,
-			    phys_addr_t pgd, void *sp, void *cont_fn);
+    phys_addr_t pgd, void *sp, void *cont_fn);
 int __pkvm_init(phys_addr_t phys, unsigned long size, unsigned long nr_cpus,
-		unsigned long *per_cpu_base, u32 hyp_va_bits);
+    unsigned long *per_cpu_base, u32 hyp_va_bits);
 void __noreturn __host_enter(struct kvm_cpu_context *host_ctxt);
 #endif
 

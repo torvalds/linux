@@ -17,75 +17,68 @@
 #include "tsc200x-core.h"
 
 static const struct input_id tsc2005_input_id = {
-	.bustype = BUS_SPI,
-	.product = 2005,
+  .bustype = BUS_SPI,
+  .product = 2005,
 };
 
-static int tsc2005_cmd(struct device *dev, u8 cmd)
-{
-	u8 tx = TSC200X_CMD | TSC200X_CMD_12BIT | cmd;
-	struct spi_transfer xfer = {
-		.tx_buf         = &tx,
-		.len            = 1,
-		.bits_per_word  = 8,
-	};
-	struct spi_message msg;
-	struct spi_device *spi = to_spi_device(dev);
-	int error;
-
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-
-	error = spi_sync(spi, &msg);
-	if (error) {
-		dev_err(dev, "%s: failed, command: %x, spi error: %d\n",
-			__func__, cmd, error);
-		return error;
-	}
-
-	return 0;
+static int tsc2005_cmd(struct device *dev, u8 cmd) {
+  u8 tx = TSC200X_CMD | TSC200X_CMD_12BIT | cmd;
+  struct spi_transfer xfer = {
+    .tx_buf = &tx,
+    .len = 1,
+    .bits_per_word = 8,
+  };
+  struct spi_message msg;
+  struct spi_device *spi = to_spi_device(dev);
+  int error;
+  spi_message_init(&msg);
+  spi_message_add_tail(&xfer, &msg);
+  error = spi_sync(spi, &msg);
+  if (error) {
+    dev_err(dev, "%s: failed, command: %x, spi error: %d\n",
+        __func__, cmd, error);
+    return error;
+  }
+  return 0;
 }
 
-static int tsc2005_probe(struct spi_device *spi)
-{
-	int error;
-
-	spi->mode = SPI_MODE_0;
-	spi->bits_per_word = 8;
-	if (!spi->max_speed_hz)
-		spi->max_speed_hz = TSC2005_SPI_MAX_SPEED_HZ;
-
-	error = spi_setup(spi);
-	if (error)
-		return error;
-
-	return tsc200x_probe(&spi->dev, spi->irq, &tsc2005_input_id,
-			     devm_regmap_init_spi(spi, &tsc200x_regmap_config),
-			     tsc2005_cmd);
+static int tsc2005_probe(struct spi_device *spi) {
+  int error;
+  spi->mode = SPI_MODE_0;
+  spi->bits_per_word = 8;
+  if (!spi->max_speed_hz) {
+    spi->max_speed_hz = TSC2005_SPI_MAX_SPEED_HZ;
+  }
+  error = spi_setup(spi);
+  if (error) {
+    return error;
+  }
+  return tsc200x_probe(&spi->dev, spi->irq, &tsc2005_input_id,
+      devm_regmap_init_spi(spi, &tsc200x_regmap_config),
+      tsc2005_cmd);
 }
 
-static void tsc2005_remove(struct spi_device *spi)
-{
-	tsc200x_remove(&spi->dev);
+static void tsc2005_remove(struct spi_device *spi) {
+  tsc200x_remove(&spi->dev);
 }
 
 #ifdef CONFIG_OF
 static const struct of_device_id tsc2005_of_match[] = {
-	{ .compatible = "ti,tsc2005" },
-	{ /* sentinel */ }
+  { .compatible = "ti,tsc2005" },
+  { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, tsc2005_of_match);
 #endif
 
 static struct spi_driver tsc2005_driver = {
-	.driver	= {
-		.name		= "tsc2005",
-		.dev_groups	= tsc200x_groups,
-		.of_match_table	= of_match_ptr(tsc2005_of_match),
-		.pm		= pm_sleep_ptr(&tsc200x_pm_ops),
-	},
-	.probe	= tsc2005_probe,
-	.remove	= tsc2005_remove,
+  .driver = {
+    .name = "tsc2005",
+    .dev_groups = tsc200x_groups,
+    .of_match_table = of_match_ptr(tsc2005_of_match),
+    .pm = pm_sleep_ptr(&tsc200x_pm_ops),
+  },
+  .probe = tsc2005_probe,
+  .remove = tsc2005_remove,
 };
 module_spi_driver(tsc2005_driver);
 

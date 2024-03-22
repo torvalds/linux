@@ -8,4 +8,3 @@
 #include <asm-generic/parport.h>
 #endif
 #endif
-

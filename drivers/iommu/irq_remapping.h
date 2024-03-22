@@ -25,23 +25,23 @@ extern int irq_remapping_enabled;
 extern int disable_irq_post;
 
 struct irq_remap_ops {
-	/* The supported capabilities */
-	int capability;
+  /* The supported capabilities */
+  int capability;
 
-	/* Initializes hardware and makes it ready for remapping interrupts */
-	int  (*prepare)(void);
+  /* Initializes hardware and makes it ready for remapping interrupts */
+  int (*prepare)(void);
 
-	/* Enables the remapping hardware */
-	int  (*enable)(void);
+  /* Enables the remapping hardware */
+  int (*enable)(void);
 
-	/* Disables the remapping hardware */
-	void (*disable)(void);
+  /* Disables the remapping hardware */
+  void (*disable)(void);
 
-	/* Reenables the remapping hardware */
-	int  (*reenable)(int);
+  /* Reenables the remapping hardware */
+  int (*reenable)(int);
 
-	/* Enable fault handling */
-	int  (*enable_faulting)(void);
+  /* Enable fault handling */
+  int (*enable_faulting)(void);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;

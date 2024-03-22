@@ -6,7 +6,7 @@
  * are not addressable by direct kernel virtual addresses.
  *
  * Copyright (C) 1999 Gerhard Wichert, Siemens AG
- *		      Gerhard.Wichert@pdb.siemens.de
+ *          Gerhard.Wichert@pdb.siemens.de
  *
  *
  * Redesigned the x86 32-bit VM architecture to deal with
@@ -39,22 +39,22 @@ extern pte_t *pkmap_page_table;
  * in case of 16K/64K/256K page sizes.
  */
 
-#define PKMAP_ORDER	PTE_SHIFT
-#define LAST_PKMAP	(1 << PKMAP_ORDER)
+#define PKMAP_ORDER PTE_SHIFT
+#define LAST_PKMAP  (1 << PKMAP_ORDER)
 
-#define PKMAP_BASE	((FIXADDR_START - PAGE_SIZE * (LAST_PKMAP + 1)) \
-								& PMD_MASK)
+#define PKMAP_BASE  ((FIXADDR_START - PAGE_SIZE * (LAST_PKMAP + 1)) \
+  & PMD_MASK)
 
-#define LAST_PKMAP_MASK	(LAST_PKMAP - 1)
+#define LAST_PKMAP_MASK (LAST_PKMAP - 1)
 #define PKMAP_NR(virt)  ((virt - PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
-#define flush_cache_kmaps()	{ flush_icache(); flush_dcache(); }
+#define flush_cache_kmaps() { flush_icache(); flush_dcache(); }
 
-#define arch_kmap_local_post_map(vaddr, pteval)	\
-	local_flush_tlb_page(NULL, vaddr);
-#define arch_kmap_local_post_unmap(vaddr)	\
-	local_flush_tlb_page(NULL, vaddr);
+#define arch_kmap_local_post_map(vaddr, pteval) \
+  local_flush_tlb_page(NULL, vaddr);
+#define arch_kmap_local_post_unmap(vaddr) \
+  local_flush_tlb_page(NULL, vaddr);
 
 #endif /* __KERNEL__ */
 

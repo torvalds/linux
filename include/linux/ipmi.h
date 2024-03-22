@@ -37,86 +37,86 @@ struct ipmi_user;
  * link to build a linked list, if it likes.
  */
 struct ipmi_recv_msg {
-	struct list_head link;
+  struct list_head link;
 
-	/*
-	 * The type of message as defined in the "Receive Types"
-	 * defines above.
-	 */
-	int              recv_type;
+  /*
+   * The type of message as defined in the "Receive Types"
+   * defines above.
+   */
+  int recv_type;
 
-	struct ipmi_user *user;
-	struct ipmi_addr addr;
-	long             msgid;
-	struct kernel_ipmi_msg  msg;
+  struct ipmi_user *user;
+  struct ipmi_addr addr;
+  long msgid;
+  struct kernel_ipmi_msg msg;
 
-	/*
-	 * The user_msg_data is the data supplied when a message was
-	 * sent, if this is a response to a sent message.  If this is
-	 * not a response to a sent message, then user_msg_data will
-	 * be NULL.  If the user above is NULL, then this will be the
-	 * intf.
-	 */
-	void             *user_msg_data;
+  /*
+   * The user_msg_data is the data supplied when a message was
+   * sent, if this is a response to a sent message.  If this is
+   * not a response to a sent message, then user_msg_data will
+   * be NULL.  If the user above is NULL, then this will be the
+   * intf.
+   */
+  void *user_msg_data;
 
-	/*
-	 * Call this when done with the message.  It will presumably free
-	 * the message and do any other necessary cleanup.
-	 */
-	void (*done)(struct ipmi_recv_msg *msg);
+  /*
+   * Call this when done with the message.  It will presumably free
+   * the message and do any other necessary cleanup.
+   */
+  void (*done)(struct ipmi_recv_msg *msg);
 
-	/*
-	 * Place-holder for the data, don't make any assumptions about
-	 * the size or existence of this, since it may change.
-	 */
-	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
+  /*
+   * Place-holder for the data, don't make any assumptions about
+   * the size or existence of this, since it may change.
+   */
+  unsigned char msg_data[IPMI_MAX_MSG_LENGTH];
 };
 
 #define INIT_IPMI_RECV_MSG(done_handler) \
-{					\
-	.done = done_handler		\
-}
+  {         \
+    .done = done_handler    \
+  }
 
 /* Allocate and free the receive message. */
 void ipmi_free_recv_msg(struct ipmi_recv_msg *msg);
 
 struct ipmi_user_hndl {
-	/*
-	 * Routine type to call when a message needs to be routed to
-	 * the upper layer.  This will be called with some locks held,
-	 * the only IPMI routines that can be called are ipmi_request
-	 * and the alloc/free operations.  The handler_data is the
-	 * variable supplied when the receive handler was registered.
-	 */
-	void (*ipmi_recv_hndl)(struct ipmi_recv_msg *msg,
-			       void                 *user_msg_data);
+  /*
+   * Routine type to call when a message needs to be routed to
+   * the upper layer.  This will be called with some locks held,
+   * the only IPMI routines that can be called are ipmi_request
+   * and the alloc/free operations.  The handler_data is the
+   * variable supplied when the receive handler was registered.
+   */
+  void (*ipmi_recv_hndl)(struct ipmi_recv_msg *msg,
+      void *user_msg_data);
 
-	/*
-	 * Called when the interface detects a watchdog pre-timeout.  If
-	 * this is NULL, it will be ignored for the user.
-	 */
-	void (*ipmi_watchdog_pretimeout)(void *handler_data);
+  /*
+   * Called when the interface detects a watchdog pre-timeout.  If
+   * this is NULL, it will be ignored for the user.
+   */
+  void (*ipmi_watchdog_pretimeout)(void *handler_data);
 
-	/*
-	 * If not NULL, called at panic time after the interface has
-	 * been set up to handle run to completion.
-	 */
-	void (*ipmi_panic_handler)(void *handler_data);
+  /*
+   * If not NULL, called at panic time after the interface has
+   * been set up to handle run to completion.
+   */
+  void (*ipmi_panic_handler)(void *handler_data);
 
-	/*
-	 * Called when the interface has been removed.  After this returns
-	 * the user handle will be invalid.  The interface may or may
-	 * not be usable when this is called, but it will return errors
-	 * if it is not usable.
-	 */
-	void (*shutdown)(void *handler_data);
+  /*
+   * Called when the interface has been removed.  After this returns
+   * the user handle will be invalid.  The interface may or may
+   * not be usable when this is called, but it will return errors
+   * if it is not usable.
+   */
+  void (*shutdown)(void *handler_data);
 };
 
 /* Create a new user of the IPMI layer on the given interface number. */
-int ipmi_create_user(unsigned int          if_num,
-		     const struct ipmi_user_hndl *handler,
-		     void                  *handler_data,
-		     struct ipmi_user      **user);
+int ipmi_create_user(unsigned int if_num,
+    const struct ipmi_user_hndl *handler,
+    void *handler_data,
+    struct ipmi_user **user);
 
 /*
  * Destroy the given user of the IPMI layer.  Note that after this
@@ -130,8 +130,8 @@ int ipmi_destroy_user(struct ipmi_user *user);
 
 /* Get the IPMI version of the BMC we are talking to. */
 int ipmi_get_version(struct ipmi_user *user,
-		     unsigned char *major,
-		     unsigned char *minor);
+    unsigned char *major,
+    unsigned char *minor);
 
 /*
  * Set and get the slave address and LUN that we will use for our
@@ -143,17 +143,17 @@ int ipmi_get_version(struct ipmi_user *user,
  * address.
  */
 int ipmi_set_my_address(struct ipmi_user *user,
-			unsigned int  channel,
-			unsigned char address);
+    unsigned int channel,
+    unsigned char address);
 int ipmi_get_my_address(struct ipmi_user *user,
-			unsigned int  channel,
-			unsigned char *address);
+    unsigned int channel,
+    unsigned char *address);
 int ipmi_set_my_LUN(struct ipmi_user *user,
-		    unsigned int  channel,
-		    unsigned char LUN);
+    unsigned int channel,
+    unsigned char LUN);
 int ipmi_get_my_LUN(struct ipmi_user *user,
-		    unsigned int  channel,
-		    unsigned char *LUN);
+    unsigned int channel,
+    unsigned char *LUN);
 
 /*
  * Like ipmi_request, but lets you specify the number of retries and
@@ -169,13 +169,13 @@ int ipmi_get_my_LUN(struct ipmi_user *user,
  * have unusual requirements.
  */
 int ipmi_request_settime(struct ipmi_user *user,
-			 struct ipmi_addr *addr,
-			 long             msgid,
-			 struct kernel_ipmi_msg  *msg,
-			 void             *user_msg_data,
-			 int              priority,
-			 int              max_retries,
-			 unsigned int     retry_time_ms);
+    struct ipmi_addr *addr,
+    long msgid,
+    struct kernel_ipmi_msg *msg,
+    void *user_msg_data,
+    int priority,
+    int max_retries,
+    unsigned int retry_time_ms);
 
 /*
  * Like ipmi_request, but with messages supplied.  This will not
@@ -186,14 +186,14 @@ int ipmi_request_settime(struct ipmi_user *user,
  * change as the system changes, so don't use it unless you REALLY
  * have to.
  */
-int ipmi_request_supply_msgs(struct ipmi_user     *user,
-			     struct ipmi_addr     *addr,
-			     long                 msgid,
-			     struct kernel_ipmi_msg *msg,
-			     void                 *user_msg_data,
-			     void                 *supplied_smi,
-			     struct ipmi_recv_msg *supplied_recv,
-			     int                  priority);
+int ipmi_request_supply_msgs(struct ipmi_user *user,
+    struct ipmi_addr *addr,
+    long msgid,
+    struct kernel_ipmi_msg *msg,
+    void *user_msg_data,
+    void *supplied_smi,
+    struct ipmi_recv_msg *supplied_recv,
+    int priority);
 
 /*
  * Poll the IPMI interface for the user.  This causes the IPMI code to
@@ -214,13 +214,13 @@ void ipmi_poll_interface(struct ipmi_user *user);
  * mean all channels.
  */
 int ipmi_register_for_cmd(struct ipmi_user *user,
-			  unsigned char netfn,
-			  unsigned char cmd,
-			  unsigned int  chans);
+    unsigned char netfn,
+    unsigned char cmd,
+    unsigned int chans);
 int ipmi_unregister_for_cmd(struct ipmi_user *user,
-			    unsigned char netfn,
-			    unsigned char cmd,
-			    unsigned int  chans);
+    unsigned char netfn,
+    unsigned char cmd,
+    unsigned int chans);
 
 /*
  * Go into a mode where the driver will not autonomously attempt to do
@@ -265,22 +265,22 @@ int ipmi_set_gets_events(struct ipmi_user *user, bool val);
  * ipmi_smi_watcher_register().
  */
 struct ipmi_smi_watcher {
-	struct list_head link;
+  struct list_head link;
 
-	/*
-	 * You must set the owner to the current module, if you are in
-	 * a module (generally just set it to "THIS_MODULE").
-	 */
-	struct module *owner;
+  /*
+   * You must set the owner to the current module, if you are in
+   * a module (generally just set it to "THIS_MODULE").
+   */
+  struct module *owner;
 
-	/*
-	 * These two are called with read locks held for the interface
-	 * the watcher list.  So you can add and remove users from the
-	 * IPMI interface, send messages, etc., but you cannot add
-	 * or remove SMI watchers or SMI interfaces.
-	 */
-	void (*new_smi)(int if_num, struct device *dev);
-	void (*smi_gone)(int if_num);
+  /*
+   * These two are called with read locks held for the interface
+   * the watcher list.  So you can add and remove users from the
+   * IPMI interface, send messages, etc., but you cannot add
+   * or remove SMI watchers or SMI interfaces.
+   */
+  void (*new_smi)(int if_num, struct device *dev);
+  void (*smi_gone)(int if_num);
 };
 
 int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher);
@@ -301,44 +301,44 @@ int ipmi_validate_addr(struct ipmi_addr *addr, int len);
  * How did the IPMI driver find out about the device?
  */
 enum ipmi_addr_src {
-	SI_INVALID = 0, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
-	SI_PCI,	SI_DEVICETREE, SI_PLATFORM, SI_LAST
+  SI_INVALID = 0, SI_HOTMOD, SI_HARDCODED, SI_SPMI, SI_ACPI, SI_SMBIOS,
+  SI_PCI, SI_DEVICETREE, SI_PLATFORM, SI_LAST
 };
 const char *ipmi_addr_src_to_str(enum ipmi_addr_src src);
 
 union ipmi_smi_info_union {
 #ifdef CONFIG_ACPI
-	/*
-	 * the acpi_info element is defined for the SI_ACPI
-	 * address type
-	 */
-	struct {
-		acpi_handle acpi_handle;
-	} acpi_info;
+  /*
+   * the acpi_info element is defined for the SI_ACPI
+   * address type
+   */
+  struct {
+    acpi_handle acpi_handle;
+  } acpi_info;
 #endif
 };
 
 struct ipmi_smi_info {
-	enum ipmi_addr_src addr_src;
+  enum ipmi_addr_src addr_src;
 
-	/*
-	 * Base device for the interface.  Don't forget to put this when
-	 * you are done.
-	 */
-	struct device *dev;
+  /*
+   * Base device for the interface.  Don't forget to put this when
+   * you are done.
+   */
+  struct device *dev;
 
-	/*
-	 * The addr_info provides more detailed info for some IPMI
-	 * devices, depending on the addr_src.  Currently only SI_ACPI
-	 * info is provided.
-	 */
-	union ipmi_smi_info_union addr_info;
+  /*
+   * The addr_info provides more detailed info for some IPMI
+   * devices, depending on the addr_src.  Currently only SI_ACPI
+   * info is provided.
+   */
+  union ipmi_smi_info_union addr_info;
 };
 
 /* This is to get the private info of struct ipmi_smi */
 extern int ipmi_get_smi_info(int if_num, struct ipmi_smi_info *data);
 
-#define GET_DEVICE_ID_MAX_RETRY		5
+#define GET_DEVICE_ID_MAX_RETRY   5
 
 /* Helper function for computing the IPMB checksum of some data. */
 unsigned char ipmb_checksum(unsigned char *data, int size);

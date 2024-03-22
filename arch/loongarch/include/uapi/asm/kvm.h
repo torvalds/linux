@@ -14,27 +14,27 @@
  * Some parts derived from the x86 version of this file.
  */
 
-#define KVM_COALESCED_MMIO_PAGE_OFFSET	1
-#define KVM_DIRTY_LOG_PAGE_OFFSET	64
+#define KVM_COALESCED_MMIO_PAGE_OFFSET  1
+#define KVM_DIRTY_LOG_PAGE_OFFSET 64
 
 /*
  * for KVM_GET_REGS and KVM_SET_REGS
  */
 struct kvm_regs {
-	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
-	__u64 gpr[32];
-	__u64 pc;
+  /* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
+  __u64 gpr[32];
+  __u64 pc;
 };
 
 /*
  * for KVM_GET_FPU and KVM_SET_FPU
  */
 struct kvm_fpu {
-	__u32 fcsr;
-	__u64 fcc;    /* 8x8 */
-	struct kvm_fpureg {
-		__u64 val64[4];
-	} fpr[32];
+  __u32 fcsr;
+  __u64 fcc;    /* 8x8 */
+  struct kvm_fpureg {
+    __u64 val64[4];
+  } fpr[32];
 };
 
 /*
@@ -57,27 +57,29 @@ struct kvm_fpu {
  * have its own identifier in bits[31..16].
  */
 
-#define KVM_REG_LOONGARCH_GPR		(KVM_REG_LOONGARCH | 0x00000ULL)
-#define KVM_REG_LOONGARCH_CSR		(KVM_REG_LOONGARCH | 0x10000ULL)
-#define KVM_REG_LOONGARCH_KVM		(KVM_REG_LOONGARCH | 0x20000ULL)
-#define KVM_REG_LOONGARCH_FPSIMD	(KVM_REG_LOONGARCH | 0x30000ULL)
-#define KVM_REG_LOONGARCH_CPUCFG	(KVM_REG_LOONGARCH | 0x40000ULL)
-#define KVM_REG_LOONGARCH_MASK		(KVM_REG_LOONGARCH | 0x70000ULL)
-#define KVM_CSR_IDX_MASK		0x7fff
-#define KVM_CPUCFG_IDX_MASK		0x7fff
+#define KVM_REG_LOONGARCH_GPR   (KVM_REG_LOONGARCH | 0x00000ULL)
+#define KVM_REG_LOONGARCH_CSR   (KVM_REG_LOONGARCH | 0x10000ULL)
+#define KVM_REG_LOONGARCH_KVM   (KVM_REG_LOONGARCH | 0x20000ULL)
+#define KVM_REG_LOONGARCH_FPSIMD  (KVM_REG_LOONGARCH | 0x30000ULL)
+#define KVM_REG_LOONGARCH_CPUCFG  (KVM_REG_LOONGARCH | 0x40000ULL)
+#define KVM_REG_LOONGARCH_MASK    (KVM_REG_LOONGARCH | 0x70000ULL)
+#define KVM_CSR_IDX_MASK    0x7fff
+#define KVM_CPUCFG_IDX_MASK   0x7fff
 
 /*
  * KVM_REG_LOONGARCH_KVM - KVM specific control registers.
  */
 
-#define KVM_REG_LOONGARCH_COUNTER	(KVM_REG_LOONGARCH_KVM | KVM_REG_SIZE_U64 | 1)
-#define KVM_REG_LOONGARCH_VCPU_RESET	(KVM_REG_LOONGARCH_KVM | KVM_REG_SIZE_U64 | 2)
+#define KVM_REG_LOONGARCH_COUNTER (KVM_REG_LOONGARCH_KVM | KVM_REG_SIZE_U64 | 1)
+#define KVM_REG_LOONGARCH_VCPU_RESET  (KVM_REG_LOONGARCH_KVM \
+  | KVM_REG_SIZE_U64 | 2)
 
-#define LOONGARCH_REG_SHIFT		3
-#define LOONGARCH_REG_64(TYPE, REG)	(TYPE | KVM_REG_SIZE_U64 | (REG << LOONGARCH_REG_SHIFT))
-#define KVM_IOC_CSRID(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CSR, REG)
-#define KVM_IOC_CPUCFG(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CPUCFG, REG)
-#define KVM_LOONGARCH_VCPU_CPUCFG	0
+#define LOONGARCH_REG_SHIFT   3
+#define LOONGARCH_REG_64(TYPE, \
+      REG) (TYPE | KVM_REG_SIZE_U64 | (REG << LOONGARCH_REG_SHIFT))
+#define KVM_IOC_CSRID(REG)    LOONGARCH_REG_64(KVM_REG_LOONGARCH_CSR, REG)
+#define KVM_IOC_CPUCFG(REG)   LOONGARCH_REG_64(KVM_REG_LOONGARCH_CPUCFG, REG)
+#define KVM_LOONGARCH_VCPU_CPUCFG 0
 
 struct kvm_debug_exit_arch {
 };
@@ -95,13 +97,13 @@ struct kvm_sregs {
 };
 
 struct kvm_iocsr_entry {
-	__u32 addr;
-	__u32 pad;
-	__u64 data;
+  __u32 addr;
+  __u32 pad;
+  __u64 data;
 };
 
-#define KVM_NR_IRQCHIPS		1
-#define KVM_IRQCHIP_NUM_PINS	64
-#define KVM_MAX_CORES		256
+#define KVM_NR_IRQCHIPS   1
+#define KVM_IRQCHIP_NUM_PINS  64
+#define KVM_MAX_CORES   256
 
 #endif /* __UAPI_ASM_LOONGARCH_KVM_H */

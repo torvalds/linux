@@ -31,9 +31,9 @@
  *     - enables FIQ.
  *  5. Owner B releases FIQ:
  *     - Owner A is asked to reacquire FIQ:
- *	 - inserts code.
- *	 - restores saved registers.
- *	 - enables FIQ.
+ *   - inserts code.
+ *   - restores saved registers.
+ *   - enables FIQ.
  *  6. Goto 3
  */
 #include <linux/module.h>
@@ -49,10 +49,10 @@
 #include <asm/irq.h>
 #include <asm/traps.h>
 
-#define FIQ_OFFSET ({					\
-		extern void *vector_fiq_offset;		\
-		(unsigned)&vector_fiq_offset;		\
-	})
+#define FIQ_OFFSET ({         \
+    extern void *vector_fiq_offset;   \
+    (unsigned) &vector_fiq_offset;   \
+  })
 
 static unsigned long dfl_fiq_insn;
 static struct pt_regs dfl_fiq_regs;
@@ -61,106 +61,92 @@ static struct pt_regs dfl_fiq_regs;
  * - we always relinquish FIQ control
  * - we always reacquire FIQ control
  */
-static int fiq_def_op(void *ref, int relinquish)
-{
-	if (!relinquish) {
-		/* Restore default handler and registers */
-		local_fiq_disable();
-		set_fiq_regs(&dfl_fiq_regs);
-		set_fiq_handler(&dfl_fiq_insn, sizeof(dfl_fiq_insn));
-		local_fiq_enable();
-
-		/* FIXME: notify irq controller to standard enable FIQs */
-	}
-
-	return 0;
+static int fiq_def_op(void *ref, int relinquish) {
+  if (!relinquish) {
+    /* Restore default handler and registers */
+    local_fiq_disable();
+    set_fiq_regs(&dfl_fiq_regs);
+    set_fiq_handler(&dfl_fiq_insn, sizeof(dfl_fiq_insn));
+    local_fiq_enable();
+    /* FIXME: notify irq controller to standard enable FIQs */
+  }
+  return 0;
 }
 
 static struct fiq_handler default_owner = {
-	.name	= "default",
-	.fiq_op = fiq_def_op,
+  .name = "default",
+  .fiq_op = fiq_def_op,
 };
 
 static struct fiq_handler *current_fiq = &default_owner;
 
-int show_fiq_list(struct seq_file *p, int prec)
-{
-	if (current_fiq != &default_owner)
-		seq_printf(p, "%*s:              %s\n", prec, "FIQ",
-			current_fiq->name);
-
-	return 0;
+int show_fiq_list(struct seq_file *p, int prec) {
+  if (current_fiq != &default_owner) {
+    seq_printf(p, "%*s:              %s\n", prec, "FIQ",
+        current_fiq->name);
+  }
+  return 0;
 }
 
-void set_fiq_handler(void *start, unsigned int length)
-{
-	void *base = vectors_page;
-	unsigned offset = FIQ_OFFSET;
-
-	memcpy(base + offset, start, length);
-	if (!cache_is_vipt_nonaliasing())
-		flush_icache_range((unsigned long)base + offset,
-				   (unsigned long)base + offset + length);
-	flush_icache_range(0xffff0000 + offset, 0xffff0000 + offset + length);
+void set_fiq_handler(void *start, unsigned int length) {
+  void *base = vectors_page;
+  unsigned offset = FIQ_OFFSET;
+  memcpy(base + offset, start, length);
+  if (!cache_is_vipt_nonaliasing()) {
+    flush_icache_range((unsigned long) base + offset,
+        (unsigned long) base + offset + length);
+  }
+  flush_icache_range(0xffff0000 + offset, 0xffff0000 + offset + length);
 }
 
-int claim_fiq(struct fiq_handler *f)
-{
-	int ret = 0;
-
-	if (current_fiq) {
-		ret = -EBUSY;
-
-		if (current_fiq->fiq_op != NULL)
-			ret = current_fiq->fiq_op(current_fiq->dev_id, 1);
-	}
-
-	if (!ret) {
-		f->next = current_fiq;
-		current_fiq = f;
-	}
-
-	return ret;
+int claim_fiq(struct fiq_handler *f) {
+  int ret = 0;
+  if (current_fiq) {
+    ret = -EBUSY;
+    if (current_fiq->fiq_op != NULL) {
+      ret = current_fiq->fiq_op(current_fiq->dev_id, 1);
+    }
+  }
+  if (!ret) {
+    f->next = current_fiq;
+    current_fiq = f;
+  }
+  return ret;
 }
 
-void release_fiq(struct fiq_handler *f)
-{
-	if (current_fiq != f) {
-		pr_err("%s FIQ trying to release %s FIQ\n",
-		       f->name, current_fiq->name);
-		dump_stack();
-		return;
-	}
-
-	do
-		current_fiq = current_fiq->next;
-	while (current_fiq->fiq_op(current_fiq->dev_id, 0));
+void release_fiq(struct fiq_handler *f) {
+  if (current_fiq != f) {
+    pr_err("%s FIQ trying to release %s FIQ\n",
+        f->name, current_fiq->name);
+    dump_stack();
+    return;
+  }
+  do {
+    current_fiq = current_fiq->next;
+  } while (current_fiq->fiq_op(current_fiq->dev_id, 0));
 }
 
 static int fiq_start;
 
-void enable_fiq(int fiq)
-{
-	enable_irq(fiq + fiq_start);
+void enable_fiq(int fiq) {
+  enable_irq(fiq + fiq_start);
 }
 
-void disable_fiq(int fiq)
-{
-	disable_irq(fiq + fiq_start);
+void disable_fiq(int fiq) {
+  disable_irq(fiq + fiq_start);
 }
 
 EXPORT_SYMBOL(set_fiq_handler);
-EXPORT_SYMBOL(__set_fiq_regs);	/* defined in fiqasm.S */
-EXPORT_SYMBOL(__get_fiq_regs);	/* defined in fiqasm.S */
+EXPORT_SYMBOL(__set_fiq_regs);  /* defined in fiqasm.S */
+EXPORT_SYMBOL(__get_fiq_regs);  /* defined in fiqasm.S */
 EXPORT_SYMBOL(claim_fiq);
 EXPORT_SYMBOL(release_fiq);
 EXPORT_SYMBOL(enable_fiq);
 EXPORT_SYMBOL(disable_fiq);
 
-void __init init_FIQ(int start)
-{
-	unsigned offset = FIQ_OFFSET;
-	dfl_fiq_insn = *(unsigned long *)(0xffff0000 + offset);
-	get_fiq_regs(&dfl_fiq_regs);
-	fiq_start = start;
+void __init init_FIQ(int start) {
+  unsigned offset = FIQ_OFFSET;
+  dfl_fiq_insn = *(unsigned long *) (0xffff0000 + offset);
+  get_fiq_regs(&dfl_fiq_regs);
+  fiq_start = start;
 }

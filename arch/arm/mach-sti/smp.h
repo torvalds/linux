@@ -3,7 +3,7 @@
  *  arch/arm/mach-sti/smp.h
  *
  * Copyright (C) 2013 STMicroelectronics (R&D) Limited.
- *		http://www.st.com
+ *    http://www.st.com
  */
 
 #ifndef __MACH_STI_SMP_H

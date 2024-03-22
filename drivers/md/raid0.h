@@ -3,10 +3,10 @@
 #define _RAID0_H
 
 struct strip_zone {
-	sector_t zone_end;	/* Start of the next zone (in sectors) */
-	sector_t dev_start;	/* Zone offset in real dev (in sectors) */
-	int	 nb_dev;	/* # of devices attached to the zone */
-	int	 disk_shift;	/* start disk for the original layout */
+  sector_t zone_end;  /* Start of the next zone (in sectors) */
+  sector_t dev_start; /* Zone offset in real dev (in sectors) */
+  int nb_dev;  /* # of devices attached to the zone */
+  int disk_shift;  /* start disk for the original layout */
 };
 
 /* Linux 3.14 (20d0189b101) made an unintended change to
@@ -19,15 +19,15 @@ struct strip_zone {
  */
 
 enum r0layout {
-	RAID0_ORIG_LAYOUT = 1,
-	RAID0_ALT_MULTIZONE_LAYOUT = 2,
+  RAID0_ORIG_LAYOUT = 1,
+  RAID0_ALT_MULTIZONE_LAYOUT = 2,
 };
 struct r0conf {
-	struct strip_zone	*strip_zone;
-	struct md_rdev		**devlist; /* lists of rdevs, pointed to
-					    * by strip_zone->dev */
-	int			nr_strip_zones;
-	enum r0layout		layout;
+  struct strip_zone *strip_zone;
+  struct md_rdev **devlist; /* lists of rdevs, pointed to
+                             * by strip_zone->dev */
+  int nr_strip_zones;
+  enum r0layout layout;
 };
 
 #endif

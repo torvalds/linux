@@ -3,7 +3,8 @@
 #define STACK_MAX_LEN 180
 
 /* llvm upstream commit at clang18
- *   https://github.com/llvm/llvm-project/commit/1a2e77cf9e11dbf56b5720c607313a566eebb16e
+ *
+ * https://github.com/llvm/llvm-project/commit/1a2e77cf9e11dbf56b5720c607313a566eebb16e
  * changed inlining behavior and caused compilation failure as some branch
  * target distance exceeded 16bit representation which is the maximum for
  * cpu v1/v2/v3. Macro __BPF_CPU_VERSION__ is later implemented in clang18

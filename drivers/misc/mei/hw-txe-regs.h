@@ -16,10 +16,10 @@
 #define RESET_CANCEL_WAIT_TIMEOUT          (1 * MSEC_PER_SEC)
 
 enum {
-	SEC_BAR,
-	BRIDGE_BAR,
+  SEC_BAR,
+  BRIDGE_BAR,
 
-	NUM_OF_MEM_BARS
+  NUM_OF_MEM_BARS
 };
 
 /* SeC FW Status Register
@@ -28,15 +28,15 @@ enum {
  * This register resides in PCI-E config space.
  */
 #define PCI_CFG_TXE_FW_STS0   0x40
-#  define PCI_CFG_TXE_FW_STS0_WRK_ST_MSK    0x0000000F
-#  define PCI_CFG_TXE_FW_STS0_OP_ST_MSK     0x000001C0
-#  define PCI_CFG_TXE_FW_STS0_FW_INIT_CMPLT 0x00000200
-#  define PCI_CFG_TXE_FW_STS0_ERR_CODE_MSK  0x0000F000
-#  define PCI_CFG_TXE_FW_STS0_OP_MODE_MSK   0x000F0000
-#  define PCI_CFG_TXE_FW_STS0_RST_CNT_MSK   0x00F00000
+#define PCI_CFG_TXE_FW_STS0_WRK_ST_MSK    0x0000000F
+#define PCI_CFG_TXE_FW_STS0_OP_ST_MSK     0x000001C0
+#define PCI_CFG_TXE_FW_STS0_FW_INIT_CMPLT 0x00000200
+#define PCI_CFG_TXE_FW_STS0_ERR_CODE_MSK  0x0000F000
+#define PCI_CFG_TXE_FW_STS0_OP_MODE_MSK   0x000F0000
+#define PCI_CFG_TXE_FW_STS0_RST_CNT_MSK   0x00F00000
 #define PCI_CFG_TXE_FW_STS1   0x48
 
-#define IPC_BASE_ADDR	0x80400 /* SeC IPC Base Address */
+#define IPC_BASE_ADDR 0x80400 /* SeC IPC Base Address */
 
 /* IPC Input Doorbell Register */
 #define SEC_IPC_INPUT_DOORBELL_REG       (0x0000 + IPC_BASE_ADDR)
@@ -48,7 +48,7 @@ enum {
  * until this indicates that the previous command has been processed.
  */
 #define SEC_IPC_INPUT_STATUS_REG         (0x0008 + IPC_BASE_ADDR)
-#  define SEC_IPC_INPUT_STATUS_RDY    BIT(0)
+#define SEC_IPC_INPUT_STATUS_RDY    BIT(0)
 
 /* IPC Host Interrupt Status Register */
 #define SEC_IPC_HOST_INT_STATUS_REG      (0x0010 + IPC_BASE_ADDR)
@@ -62,14 +62,14 @@ enum {
 
 /* Convenient mask for pending interrupts */
 #define   SEC_IPC_HOST_INT_STATUS_PENDING \
-		(SEC_IPC_HOST_INT_STATUS_OUT_DB| \
-		SEC_IPC_HOST_INT_STATUS_IN_RDY)
+  (SEC_IPC_HOST_INT_STATUS_OUT_DB  \
+  | SEC_IPC_HOST_INT_STATUS_IN_RDY)
 
 /* IPC Host Interrupt Mask Register */
 #define SEC_IPC_HOST_INT_MASK_REG        (0x0014 + IPC_BASE_ADDR)
 
-#  define SEC_IPC_HOST_INT_MASK_OUT_DB	BIT(0) /* Output Doorbell Int Mask */
-#  define SEC_IPC_HOST_INT_MASK_IN_RDY	BIT(1) /* Input Ready Int Mask */
+#define SEC_IPC_HOST_INT_MASK_OUT_DB  BIT(0) /* Output Doorbell Int Mask */
+#define SEC_IPC_HOST_INT_MASK_IN_RDY  BIT(1) /* Input Ready Int Mask */
 
 /* IPC Input Payload RAM */
 #define SEC_IPC_INPUT_PAYLOAD_REG        (0x0100 + IPC_BASE_ADDR)
@@ -81,15 +81,15 @@ enum {
  * This register resides also in SeC's PCI-E Memory space.
  */
 #define SATT2_CTRL_REG                   0x1040
-#  define SATT2_CTRL_VALID_MSK            BIT(0)
-#  define SATT2_CTRL_BR_BASE_ADDR_REG_SHIFT 8
-#  define SATT2_CTRL_BRIDGE_HOST_EN_MSK   BIT(12)
+#define SATT2_CTRL_VALID_MSK            BIT(0)
+#define SATT2_CTRL_BR_BASE_ADDR_REG_SHIFT 8
+#define SATT2_CTRL_BRIDGE_HOST_EN_MSK   BIT(12)
 
 /* SATT Table Entry 2 SAP Base Address Register */
 #define SATT2_SAP_BA_REG                 0x1044
 /* SATT Table Entry 2 SAP Size Register. */
 #define SATT2_SAP_SIZE_REG               0x1048
- /* SATT Table Entry 2 SAP Bridge Address - LSB Register */
+/* SATT Table Entry 2 SAP Bridge Address - LSB Register */
 #define SATT2_BRG_BA_LSB_REG             0x104C
 
 /* Host High-level Interrupt Status Register */
@@ -102,9 +102,9 @@ enum {
  * that arrive via IPC.
  */
 #define HHIER_REG                        0x2024
-#define   IPC_HHIER_SEC	BIT(0)
-#define   IPC_HHIER_BRIDGE	BIT(1)
-#define   IPC_HHIER_MSK	(IPC_HHIER_SEC | IPC_HHIER_BRIDGE)
+#define   IPC_HHIER_SEC BIT(0)
+#define   IPC_HHIER_BRIDGE  BIT(1)
+#define   IPC_HHIER_MSK (IPC_HHIER_SEC | IPC_HHIER_BRIDGE)
 
 /* Host High-level Interrupt Mask Register.
  *
@@ -129,8 +129,8 @@ enum {
 #define   HICR_SEC_IPC_READINESS_HOST_RDY  BIT(0)
 #define   HICR_SEC_IPC_READINESS_SEC_RDY   BIT(1)
 #define   HICR_SEC_IPC_READINESS_SYS_RDY     \
-	  (HICR_SEC_IPC_READINESS_HOST_RDY | \
-	   HICR_SEC_IPC_READINESS_SEC_RDY)
+  (HICR_SEC_IPC_READINESS_HOST_RDY   \
+  | HICR_SEC_IPC_READINESS_SEC_RDY)
 #define   HICR_SEC_IPC_READINESS_RDY_CLR   BIT(2)
 
 /* Host Interrupt Cause Register 1 - Aliveness Response */
@@ -167,7 +167,7 @@ enum {
 #define   HISR_INT_6_STS      BIT(6)
 #define   HISR_INT_7_STS      BIT(7)
 #define   HISR_INT_STS_MSK \
-	(HISR_INT_0_STS | HISR_INT_1_STS | HISR_INT_2_STS)
+  (HISR_INT_0_STS | HISR_INT_1_STS | HISR_INT_2_STS)
 
 /* Host Interrupt Enable Register. Resides in PCI memory space. */
 #define HIER_REG                         0x2064
@@ -181,8 +181,7 @@ enum {
 #define   HIER_INT_7_EN      BIT(7)
 
 #define   HIER_INT_EN_MSK \
-	 (HIER_INT_0_EN | HIER_INT_1_EN | HIER_INT_2_EN)
-
+  (HIER_INT_0_EN | HIER_INT_1_EN | HIER_INT_2_EN)
 
 /* SEC Memory Space IPC output payload.
  *
@@ -198,7 +197,6 @@ enum {
 #define SICR_HOST_ALIVENESS_REQ_REG      0x214C
 #define   SICR_HOST_ALIVENESS_REQ_REQUESTED    BIT(0)
 
-
 /* SeC Interrupt Cause Register - Host IPC Readiness
  *
  * This register is both an ICR to SeC and it is also exposed
@@ -208,12 +206,11 @@ enum {
  */
 #define SICR_HOST_IPC_READINESS_REQ_REG  0x2150
 
-
 #define SICR_HOST_IPC_READINESS_HOST_RDY  BIT(0)
 #define SICR_HOST_IPC_READINESS_SEC_RDY   BIT(1)
 #define SICR_HOST_IPC_READINESS_SYS_RDY     \
-	(SICR_HOST_IPC_READINESS_HOST_RDY | \
-	 SICR_HOST_IPC_READINESS_SEC_RDY)
+  (SICR_HOST_IPC_READINESS_HOST_RDY   \
+  | SICR_HOST_IPC_READINESS_SEC_RDY)
 #define SICR_HOST_IPC_READINESS_RDY_CLR   BIT(2)
 
 /* SeC Interrupt Cause Register - SeC IPC Output Status
@@ -224,9 +221,7 @@ enum {
  * register indicates that the previous command has been processed.
  */
 #define SICR_SEC_IPC_OUTPUT_STATUS_REG   0x2154
-#  define SEC_IPC_OUTPUT_STATUS_RDY BIT(0)
-
-
+#define SEC_IPC_OUTPUT_STATUS_RDY BIT(0)
 
 /*  MEI IPC Message payload size 64 bytes */
 #define PAYLOAD_SIZE        64
@@ -234,6 +229,4 @@ enum {
 /* MAX size for SATT range 32MB */
 #define SATT_RANGE_MAX     (32 << 20)
 
-
 #endif /* _MEI_HW_TXE_REGS_H_ */
-

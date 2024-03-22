@@ -27,9 +27,9 @@
  * @VDEC_HW_MAX : vdec supported max register index
  */
 enum mtk_vdec_hw_reg_idx {
-	VDEC_HW_SYS,
-	VDEC_HW_MISC,
-	VDEC_HW_MAX
+  VDEC_HW_SYS,
+  VDEC_HW_MISC,
+  VDEC_HW_MAX
 };
 
 /**
@@ -45,15 +45,15 @@ enum mtk_vdec_hw_reg_idx {
  * @hw_idx  : each hardware index
  */
 struct mtk_vdec_hw_dev {
-	struct platform_device *plat_dev;
-	struct mtk_vcodec_dec_dev *main_dev;
-	void __iomem *reg_base[VDEC_HW_MAX];
+  struct platform_device *plat_dev;
+  struct mtk_vcodec_dec_dev *main_dev;
+  void __iomem *reg_base[VDEC_HW_MAX];
 
-	struct mtk_vcodec_dec_ctx *curr_ctx;
+  struct mtk_vcodec_dec_ctx *curr_ctx;
 
-	int dec_irq;
-	struct mtk_vcodec_pm pm;
-	int hw_idx;
+  int dec_irq;
+  struct mtk_vcodec_pm pm;
+  int hw_idx;
 };
 
 #endif /* _MTK_VCODEC_DEC_HW_H_ */

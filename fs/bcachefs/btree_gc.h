@@ -33,50 +33,46 @@ int bch2_gc_thread_start(struct bch_fs *);
  */
 
 /* Position of (the start of) a gc phase: */
-static inline struct gc_pos gc_phase(enum gc_phase phase)
-{
-	return (struct gc_pos) {
-		.phase	= phase,
-		.pos	= POS_MIN,
-		.level	= 0,
-	};
+static inline struct gc_pos gc_phase(enum gc_phase phase) {
+  return (struct gc_pos) {
+      .phase = phase,
+      .pos = POS_MIN,
+      .level = 0,
+  };
 }
 
-static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r)
-{
-	return  cmp_int(l.phase, r.phase) ?:
-		bpos_cmp(l.pos, r.pos) ?:
-		cmp_int(l.level, r.level);
+static inline int gc_pos_cmp(struct gc_pos l, struct gc_pos r) {
+  return cmp_int(l.phase, r.phase)
+    ? : bpos_cmp(l.pos, r.pos)
+    ? : cmp_int(l.level, r.level);
 }
 
-static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id)
-{
-	switch (id) {
-#define x(name, v, ...) case BTREE_ID_##name: return GC_PHASE_BTREE_##name;
-	BCH_BTREE_IDS()
+static inline enum gc_phase btree_id_to_gc_phase(enum btree_id id) {
+  switch (id) {
+#define x(name, v, ...) case BTREE_ID_ ## name: \
+    return GC_PHASE_BTREE_ ## name;
+    BCH_BTREE_IDS()
 #undef x
-	default:
-		BUG();
-	}
+    default:
+      BUG();
+  }
 }
 
 static inline struct gc_pos gc_pos_btree(enum btree_id id,
-					 struct bpos pos, unsigned level)
-{
-	return (struct gc_pos) {
-		.phase	= btree_id_to_gc_phase(id),
-		.pos	= pos,
-		.level	= level,
-	};
+    struct bpos pos, unsigned level) {
+  return (struct gc_pos) {
+      .phase = btree_id_to_gc_phase(id),
+      .pos = pos,
+      .level = level,
+  };
 }
 
 /*
  * GC position of the pointers within a btree node: note, _not_ for &b->key
  * itself, that lives in the parent node:
  */
-static inline struct gc_pos gc_pos_btree_node(struct btree *b)
-{
-	return gc_pos_btree(b->c.btree_id, b->key.k.p, b->c.level);
+static inline struct gc_pos gc_pos_btree_node(struct btree *b) {
+  return gc_pos_btree(b->c.btree_id, b->key.k.p, b->c.level);
 }
 
 /*
@@ -86,29 +82,25 @@ static inline struct gc_pos gc_pos_btree_node(struct btree *b)
  * old root and thus have a greater gc position than the old root, but that
  * would be incorrect since once gc has marked the root it's not coming back.
  */
-static inline struct gc_pos gc_pos_btree_root(enum btree_id id)
-{
-	return gc_pos_btree(id, SPOS_MAX, BTREE_MAX_DEPTH);
+static inline struct gc_pos gc_pos_btree_root(enum btree_id id) {
+  return gc_pos_btree(id, SPOS_MAX, BTREE_MAX_DEPTH);
 }
 
-static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
-{
-	unsigned seq;
-	bool ret;
-
-	do {
-		seq = read_seqcount_begin(&c->gc_pos_lock);
-		ret = gc_pos_cmp(pos, c->gc_pos) <= 0;
-	} while (read_seqcount_retry(&c->gc_pos_lock, seq));
-
-	return ret;
+static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos) {
+  unsigned seq;
+  bool ret;
+  do {
+    seq = read_seqcount_begin(&c->gc_pos_lock);
+    ret = gc_pos_cmp(pos, c->gc_pos) <= 0;
+  } while (read_seqcount_retry(&c->gc_pos_lock, seq));
+  return ret;
 }
 
-static inline void bch2_do_gc_gens(struct bch_fs *c)
-{
-	atomic_inc(&c->kick_gc);
-	if (c->gc_thread)
-		wake_up_process(c->gc_thread);
+static inline void bch2_do_gc_gens(struct bch_fs *c) {
+  atomic_inc(&c->kick_gc);
+  if (c->gc_thread) {
+    wake_up_process(c->gc_thread);
+  }
 }
 
 #endif /* _BCACHEFS_BTREE_GC_H */

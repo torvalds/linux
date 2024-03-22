@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (C) 2012-2019 ARM Limited (or its affiliates).*/
 
 #ifndef __CC_DEBUGFS_H__
 #define __CC_DEBUGFS_H__
@@ -13,15 +13,18 @@ void cc_debugfs_fini(struct cc_drvdata *drvdata);
 
 #else
 
-static inline void cc_debugfs_global_init(void) {}
-static inline void cc_debugfs_global_fini(void) {}
-
-static inline int cc_debugfs_init(struct cc_drvdata *drvdata)
-{
-	return 0;
+static inline void cc_debugfs_global_init(void) {
 }
 
-static inline void cc_debugfs_fini(struct cc_drvdata *drvdata) {}
+static inline void cc_debugfs_global_fini(void) {
+}
+
+static inline int cc_debugfs_init(struct cc_drvdata *drvdata) {
+  return 0;
+}
+
+static inline void cc_debugfs_fini(struct cc_drvdata *drvdata) {
+}
 
 #endif
 

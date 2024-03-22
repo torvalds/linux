@@ -12,16 +12,16 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(pmic_pdcharger_ulog_msg,
-	TP_PROTO(char *msg),
-	TP_ARGS(msg),
-	TP_STRUCT__entry(
-		__string(msg, msg)
-	),
-	TP_fast_assign(
-		__assign_str(msg, msg);
-	),
-	TP_printk("%s", __get_str(msg))
-);
+    TP_PROTO(char *msg),
+    TP_ARGS(msg),
+    TP_STRUCT__entry(
+    __string(msg, msg)
+    ),
+    TP_fast_assign(
+    __assign_str(msg, msg);
+    ),
+    TP_printk("%s", __get_str(msg))
+    );
 
 #endif /* _TRACE_PMIC_PDCHARGER_ULOG_H */
 

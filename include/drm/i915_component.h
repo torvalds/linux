@@ -27,10 +27,10 @@
 #include "drm_audio_component.h"
 
 enum i915_component_type {
-	I915_COMPONENT_AUDIO = 1,
-	I915_COMPONENT_HDCP,
-	I915_COMPONENT_PXP,
-	I915_COMPONENT_GSC_PROXY,
+  I915_COMPONENT_AUDIO = 1,
+  I915_COMPONENT_HDCP,
+  I915_COMPONENT_PXP,
+  I915_COMPONENT_GSC_PROXY,
 };
 
 /* MAX_PORT is the number of port
@@ -39,18 +39,19 @@ enum i915_component_type {
 #define MAX_PORTS 9
 
 /**
- * struct i915_audio_component - Used for direct communication between i915 and hda drivers
+ * struct i915_audio_component - Used for direct communication between i915 and
+ * hda drivers
  */
 struct i915_audio_component {
-	/**
-	 * @base: the drm_audio_component base class
-	 */
-	struct drm_audio_component	base;
+  /**
+   * @base: the drm_audio_component base class
+   */
+  struct drm_audio_component base;
 
-	/**
-	 * @aud_sample_rate: the array of audio sample rate per port
-	 */
-	int aud_sample_rate[MAX_PORTS];
+  /**
+   * @aud_sample_rate: the array of audio sample rate per port
+   */
+  int aud_sample_rate[MAX_PORTS];
 };
 
 #endif /* _I915_COMPONENT_H_ */

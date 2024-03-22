@@ -21,28 +21,26 @@ __u32 got_fsverity;
 __u32 digest_matches;
 
 SEC("lsm.s/file_open")
-int BPF_PROG(test_file_open, struct file *f)
-{
-	struct bpf_dynptr digest_ptr;
-	__u32 pid;
-	int ret;
-	int i;
-
-	pid = bpf_get_current_pid_tgid() >> 32;
-	if (pid != monitored_pid)
-		return 0;
-
-	bpf_dynptr_from_mem(digest, sizeof(digest), 0, &digest_ptr);
-	ret = bpf_get_fsverity_digest(f, &digest_ptr);
-	if (ret < 0)
-		return 0;
-	got_fsverity = 1;
-
-	for (i = 0; i < (int)sizeof(digest); i++) {
-		if (digest[i] != expected_digest[i])
-			return 0;
-	}
-
-	digest_matches = 1;
-	return 0;
+int BPF_PROG(test_file_open, struct file *f) {
+  struct bpf_dynptr digest_ptr;
+  __u32 pid;
+  int ret;
+  int i;
+  pid = bpf_get_current_pid_tgid() >> 32;
+  if (pid != monitored_pid) {
+    return 0;
+  }
+  bpf_dynptr_from_mem(digest, sizeof(digest), 0, &digest_ptr);
+  ret = bpf_get_fsverity_digest(f, &digest_ptr);
+  if (ret < 0) {
+    return 0;
+  }
+  got_fsverity = 1;
+  for (i = 0; i < (int) sizeof(digest); i++) {
+    if (digest[i] != expected_digest[i]) {
+      return 0;
+    }
+  }
+  digest_matches = 1;
+  return 0;
 }

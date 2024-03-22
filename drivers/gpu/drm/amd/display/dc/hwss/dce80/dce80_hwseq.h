@@ -1,5 +1,5 @@
 /*
-* Copyright 2012-15 Advanced Micro Devices, Inc.
+ * Copyright 2012-15 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -34,4 +34,3 @@ struct dc;
 void dce80_hw_sequencer_construct(struct dc *dc);
 
 #endif /* __DC_HWSS_DCE80_H__ */
-

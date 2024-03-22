@@ -19,61 +19,53 @@
 #define _ATOMIC_H
 
 typedef struct {
-	volatile int val;
+  volatile int val;
 } atomic_t;
 
 #define ATOMIC_INITIALIZER { 0 }
 
 /**
  * atomic_cmpxchg() - Atomic compare and exchange
- * @uaddr:	The address of the futex to be modified
- * @oldval:	The expected value of the futex
- * @newval:	The new value to try and assign the futex
+ * @uaddr:  The address of the futex to be modified
+ * @oldval: The expected value of the futex
+ * @newval: The new value to try and assign the futex
  *
  * Return the old value of addr->val.
  */
-static inline int
-atomic_cmpxchg(atomic_t *addr, int oldval, int newval)
-{
-	return __sync_val_compare_and_swap(&addr->val, oldval, newval);
+static inline int atomic_cmpxchg(atomic_t *addr, int oldval, int newval) {
+  return __sync_val_compare_and_swap(&addr->val, oldval, newval);
 }
 
 /**
  * atomic_inc() - Atomic incrememnt
- * @addr:	Address of the variable to increment
+ * @addr: Address of the variable to increment
  *
  * Return the new value of addr->val.
  */
-static inline int
-atomic_inc(atomic_t *addr)
-{
-	return __sync_add_and_fetch(&addr->val, 1);
+static inline int atomic_inc(atomic_t *addr) {
+  return __sync_add_and_fetch(&addr->val, 1);
 }
 
 /**
  * atomic_dec() - Atomic decrement
- * @addr:	Address of the variable to decrement
+ * @addr: Address of the variable to decrement
  *
  * Return the new value of addr-val.
  */
-static inline int
-atomic_dec(atomic_t *addr)
-{
-	return __sync_sub_and_fetch(&addr->val, 1);
+static inline int atomic_dec(atomic_t *addr) {
+  return __sync_sub_and_fetch(&addr->val, 1);
 }
 
 /**
  * atomic_set() - Atomic set
- * @addr:	Address of the variable to set
- * @newval:	New value for the atomic_t
+ * @addr: Address of the variable to set
+ * @newval: New value for the atomic_t
  *
  * Return the new value of addr->val.
  */
-static inline int
-atomic_set(atomic_t *addr, int newval)
-{
-	addr->val = newval;
-	return newval;
+static inline int atomic_set(atomic_t *addr, int newval) {
+  addr->val = newval;
+  return newval;
 }
 
 #endif

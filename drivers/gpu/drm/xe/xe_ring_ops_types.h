@@ -15,8 +15,8 @@ struct xe_sched_job;
  * struct xe_ring_ops - Ring operations
  */
 struct xe_ring_ops {
-	/** @emit_job: Write job to ring */
-	void (*emit_job)(struct xe_sched_job *job);
+  /** @emit_job: Write job to ring */
+  void (*emit_job)(struct xe_sched_job *job);
 };
 
 #endif

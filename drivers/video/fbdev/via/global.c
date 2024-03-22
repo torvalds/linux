@@ -2,7 +2,7 @@
 /*
  * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
-
+ *
  */
 #include "global.h"
 int viafb_platform_epia_dvi = STATE_OFF;
@@ -17,7 +17,7 @@ int viafb_lcd_dsp_method = LCD_EXPANDSION;
 int viafb_lcd_mode = LCD_OPENLDI;
 int viafb_CRT_ON = 1;
 int viafb_DVI_ON;
-int viafb_LCD_ON ;
+int viafb_LCD_ON;
 int viafb_LCD2_ON;
 int viafb_SAMM_ON;
 int viafb_dual_fb;
@@ -33,4 +33,3 @@ struct fb_info *viafbinfo;
 struct fb_info *viafbinfo1;
 struct viafb_par *viaparinfo;
 struct viafb_par *viaparinfo1;
-

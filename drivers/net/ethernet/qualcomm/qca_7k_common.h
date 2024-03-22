@@ -48,70 +48,69 @@
 #define QCAFRM_ERR_BASE -1000
 
 enum qcafrm_state {
-	/* HW length is only available on SPI */
-	QCAFRM_HW_LEN0 = 0x8000,
-	QCAFRM_HW_LEN1 = QCAFRM_HW_LEN0 - 1,
-	QCAFRM_HW_LEN2 = QCAFRM_HW_LEN1 - 1,
-	QCAFRM_HW_LEN3 = QCAFRM_HW_LEN2 - 1,
+  /* HW length is only available on SPI */
+  QCAFRM_HW_LEN0 = 0x8000,
+  QCAFRM_HW_LEN1 = QCAFRM_HW_LEN0 - 1,
+  QCAFRM_HW_LEN2 = QCAFRM_HW_LEN1 - 1,
+  QCAFRM_HW_LEN3 = QCAFRM_HW_LEN2 - 1,
 
-	/*  Waiting first 0xAA of header */
-	QCAFRM_WAIT_AA1 = QCAFRM_HW_LEN3 - 1,
+  /*  Waiting first 0xAA of header */
+  QCAFRM_WAIT_AA1 = QCAFRM_HW_LEN3 - 1,
 
-	/*  Waiting second 0xAA of header */
-	QCAFRM_WAIT_AA2 = QCAFRM_WAIT_AA1 - 1,
+  /*  Waiting second 0xAA of header */
+  QCAFRM_WAIT_AA2 = QCAFRM_WAIT_AA1 - 1,
 
-	/*  Waiting third 0xAA of header */
-	QCAFRM_WAIT_AA3 = QCAFRM_WAIT_AA2 - 1,
+  /*  Waiting third 0xAA of header */
+  QCAFRM_WAIT_AA3 = QCAFRM_WAIT_AA2 - 1,
 
-	/*  Waiting fourth 0xAA of header */
-	QCAFRM_WAIT_AA4 = QCAFRM_WAIT_AA3 - 1,
+  /*  Waiting fourth 0xAA of header */
+  QCAFRM_WAIT_AA4 = QCAFRM_WAIT_AA3 - 1,
 
-	/*  Waiting Byte 0-1 of length (litte endian) */
-	QCAFRM_WAIT_LEN_BYTE0 = QCAFRM_WAIT_AA4 - 1,
-	QCAFRM_WAIT_LEN_BYTE1 = QCAFRM_WAIT_AA4 - 2,
+  /*  Waiting Byte 0-1 of length (litte endian) */
+  QCAFRM_WAIT_LEN_BYTE0 = QCAFRM_WAIT_AA4 - 1,
+  QCAFRM_WAIT_LEN_BYTE1 = QCAFRM_WAIT_AA4 - 2,
 
-	/* Reserved bytes */
-	QCAFRM_WAIT_RSVD_BYTE1 = QCAFRM_WAIT_AA4 - 3,
-	QCAFRM_WAIT_RSVD_BYTE2 = QCAFRM_WAIT_AA4 - 4,
+  /* Reserved bytes */
+  QCAFRM_WAIT_RSVD_BYTE1 = QCAFRM_WAIT_AA4 - 3,
+  QCAFRM_WAIT_RSVD_BYTE2 = QCAFRM_WAIT_AA4 - 4,
 
-	/*  The frame length is used as the state until
-	 *  the end of the Ethernet frame
-	 *  Waiting for first 0x55 of footer
-	 */
-	QCAFRM_WAIT_551 = 1,
+  /*  The frame length is used as the state until
+   *  the end of the Ethernet frame
+   *  Waiting for first 0x55 of footer
+   */
+  QCAFRM_WAIT_551 = 1,
 
-	/*  Waiting for second 0x55 of footer */
-	QCAFRM_WAIT_552 = QCAFRM_WAIT_551 - 1
+  /*  Waiting for second 0x55 of footer */
+  QCAFRM_WAIT_552 = QCAFRM_WAIT_551 - 1
 };
 
 /*   Structure to maintain the frame decoding during reception. */
 
 struct qcafrm_handle {
-	/*  Current decoding state */
-	enum qcafrm_state state;
-	/* Initial state depends on connection type */
-	enum qcafrm_state init;
+  /*  Current decoding state */
+  enum qcafrm_state state;
+  /* Initial state depends on connection type */
+  enum qcafrm_state init;
 
-	/* Offset in buffer (borrowed for length too) */
-	u16 offset;
+  /* Offset in buffer (borrowed for length too) */
+  u16 offset;
 };
 
 u16 qcafrm_create_header(u8 *buf, u16 len);
 
 u16 qcafrm_create_footer(u8 *buf);
 
-static inline void qcafrm_fsm_init_spi(struct qcafrm_handle *handle)
-{
-	handle->init = QCAFRM_HW_LEN0;
-	handle->state = handle->init;
+static inline void qcafrm_fsm_init_spi(struct qcafrm_handle *handle) {
+  handle->init = QCAFRM_HW_LEN0;
+  handle->state = handle->init;
 }
 
-static inline void qcafrm_fsm_init_uart(struct qcafrm_handle *handle)
-{
-	handle->init = QCAFRM_WAIT_AA1;
-	handle->state = handle->init;
+static inline void qcafrm_fsm_init_uart(struct qcafrm_handle *handle) {
+  handle->init = QCAFRM_WAIT_AA1;
+  handle->state = handle->init;
 }
 
-s32 qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_byte);
+s32 qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len,
+    u8 recv_byte);
 
 #endif /* _QCA_FRAMING_H */

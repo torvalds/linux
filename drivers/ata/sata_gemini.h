@@ -1,15 +1,15 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Header for the Gemini SATA bridge */
+/* SPDX-License-Identifier: GPL-2.0
+ * Header for the Gemini SATA bridge*/
 #ifndef SATA_GEMINI_H
 #define SATA_GEMINI_H
 
 struct sata_gemini;
 
 enum gemini_muxmode {
-	GEMINI_MUXMODE_0 = 0,
-	GEMINI_MUXMODE_1,
-	GEMINI_MUXMODE_2,
-	GEMINI_MUXMODE_3,
+  GEMINI_MUXMODE_0 = 0,
+  GEMINI_MUXMODE_1,
+  GEMINI_MUXMODE_2,
+  GEMINI_MUXMODE_3,
 };
 
 struct sata_gemini *gemini_sata_bridge_get(void);

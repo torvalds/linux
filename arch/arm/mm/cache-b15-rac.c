@@ -21,32 +21,32 @@
 extern void v7_flush_kern_cache_all(void);
 
 /* RAC register offsets, relative to the HIF_CPU_BIUCTRL register base */
-#define RAC_CONFIG0_REG			(0x78)
-#define  RACENPREF_MASK			(0x3)
-#define  RACPREFINST_SHIFT		(0)
-#define  RACENINST_SHIFT		(2)
-#define  RACPREFDATA_SHIFT		(4)
-#define  RACENDATA_SHIFT		(6)
-#define  RAC_CPU_SHIFT			(8)
-#define  RACCFG_MASK			(0xff)
-#define RAC_CONFIG1_REG			(0x7c)
+#define RAC_CONFIG0_REG     (0x78)
+#define  RACENPREF_MASK     (0x3)
+#define  RACPREFINST_SHIFT    (0)
+#define  RACENINST_SHIFT    (2)
+#define  RACPREFDATA_SHIFT    (4)
+#define  RACENDATA_SHIFT    (6)
+#define  RAC_CPU_SHIFT      (8)
+#define  RACCFG_MASK      (0xff)
+#define RAC_CONFIG1_REG     (0x7c)
 /* Brahma-B15 is a quad-core only design */
-#define B15_RAC_FLUSH_REG		(0x80)
+#define B15_RAC_FLUSH_REG   (0x80)
 /* Brahma-B53 is an octo-core design */
-#define B53_RAC_FLUSH_REG		(0x84)
-#define  FLUSH_RAC			(1 << 0)
+#define B53_RAC_FLUSH_REG   (0x84)
+#define  FLUSH_RAC      (1 << 0)
 
 /* Bitmask to enable instruction and data prefetching with a 256-bytes stride */
-#define RAC_DATA_INST_EN_MASK		(1 << RACPREFINST_SHIFT | \
-					 RACENPREF_MASK << RACENINST_SHIFT | \
-					 1 << RACPREFDATA_SHIFT | \
-					 RACENPREF_MASK << RACENDATA_SHIFT)
+#define RAC_DATA_INST_EN_MASK   (1 << RACPREFINST_SHIFT   \
+    | RACENPREF_MASK << RACENINST_SHIFT   \
+    | 1 << RACPREFDATA_SHIFT   \
+    | RACENPREF_MASK << RACENDATA_SHIFT)
 
-#define RAC_ENABLED			0
+#define RAC_ENABLED     0
 /* Special state where we want to bypass the spinlock and call directly
  * into the v7 cache maintenance operations during suspend/resume
  */
-#define RAC_SUSPENDED			1
+#define RAC_SUSPENDED     1
 
 static void __iomem *b15_rac_base;
 static DEFINE_SPINLOCK(rac_lock);
@@ -59,68 +59,62 @@ static u32 rac_flush_offset;
  */
 static unsigned long b15_rac_flags;
 
-static inline u32 __b15_rac_disable(void)
-{
-	u32 val = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
-	__raw_writel(0, b15_rac_base + RAC_CONFIG0_REG);
-	dmb();
-	return val;
+static inline u32 __b15_rac_disable(void) {
+  u32 val = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
+  __raw_writel(0, b15_rac_base + RAC_CONFIG0_REG);
+  dmb();
+  return val;
 }
 
-static inline void __b15_rac_flush(void)
-{
-	u32 reg;
-
-	__raw_writel(FLUSH_RAC, b15_rac_base + rac_flush_offset);
-	do {
-		/* This dmb() is required to force the Bus Interface Unit
-		 * to clean outstanding writes, and forces an idle cycle
-		 * to be inserted.
-		 */
-		dmb();
-		reg = __raw_readl(b15_rac_base + rac_flush_offset);
-	} while (reg & FLUSH_RAC);
+static inline void __b15_rac_flush(void) {
+  u32 reg;
+  __raw_writel(FLUSH_RAC, b15_rac_base + rac_flush_offset);
+  do {
+    /* This dmb() is required to force the Bus Interface Unit
+     * to clean outstanding writes, and forces an idle cycle
+     * to be inserted.
+     */
+    dmb();
+    reg = __raw_readl(b15_rac_base + rac_flush_offset);
+  } while (reg & FLUSH_RAC);
 }
 
-static inline u32 b15_rac_disable_and_flush(void)
-{
-	u32 reg;
-
-	reg = __b15_rac_disable();
-	__b15_rac_flush();
-	return reg;
+static inline u32 b15_rac_disable_and_flush(void) {
+  u32 reg;
+  reg = __b15_rac_disable();
+  __b15_rac_flush();
+  return reg;
 }
 
-static inline void __b15_rac_enable(u32 val)
-{
-	__raw_writel(val, b15_rac_base + RAC_CONFIG0_REG);
-	/* dsb() is required here to be consistent with __flush_icache_all() */
-	dsb();
+static inline void __b15_rac_enable(u32 val) {
+  __raw_writel(val, b15_rac_base + RAC_CONFIG0_REG);
+  /* dsb() is required here to be consistent with __flush_icache_all() */
+  dsb();
 }
 
-#define BUILD_RAC_CACHE_OP(name, bar)				\
-void b15_flush_##name(void)					\
-{								\
-	unsigned int do_flush;					\
-	u32 val = 0;						\
-								\
-	if (test_bit(RAC_SUSPENDED, &b15_rac_flags)) {		\
-		v7_flush_##name();				\
-		bar;						\
-		return;						\
-	}							\
-								\
-	spin_lock(&rac_lock);					\
-	do_flush = test_bit(RAC_ENABLED, &b15_rac_flags);	\
-	if (do_flush)						\
-		val = b15_rac_disable_and_flush();		\
-	v7_flush_##name();					\
-	if (!do_flush)						\
-		bar;						\
-	else							\
-		__b15_rac_enable(val);				\
-	spin_unlock(&rac_lock);					\
-}
+#define BUILD_RAC_CACHE_OP(name, bar)       \
+  void b15_flush_ ## name(void)         \
+  {               \
+    unsigned int do_flush;          \
+    u32 val = 0;            \
+                \
+    if (test_bit(RAC_SUSPENDED, &b15_rac_flags)) {    \
+      v7_flush_ ## name();        \
+      bar;            \
+      return;           \
+    }             \
+                \
+    spin_lock(&rac_lock);         \
+    do_flush = test_bit(RAC_ENABLED, &b15_rac_flags); \
+    if (do_flush)           \
+    val = b15_rac_disable_and_flush();    \
+    v7_flush_ ## name();          \
+    if (!do_flush)            \
+    bar;            \
+    else              \
+    __b15_rac_enable(val);        \
+    spin_unlock(&rac_lock);         \
+  }
 
 #define nobarrier
 
@@ -142,39 +136,34 @@ void b15_flush_##name(void)					\
  */
 BUILD_RAC_CACHE_OP(kern_cache_all, nobarrier);
 
-static void b15_rac_enable(void)
-{
-	unsigned int cpu;
-	u32 enable = 0;
-
-	for_each_possible_cpu(cpu)
-		enable |= (RAC_DATA_INST_EN_MASK << (cpu * RAC_CPU_SHIFT));
-
-	b15_rac_disable_and_flush();
-	__b15_rac_enable(enable);
+static void b15_rac_enable(void) {
+  unsigned int cpu;
+  u32 enable = 0;
+  for_each_possible_cpu(cpu)
+  enable |= (RAC_DATA_INST_EN_MASK << (cpu * RAC_CPU_SHIFT));
+  b15_rac_disable_and_flush();
+  __b15_rac_enable(enable);
 }
 
 static int b15_rac_reboot_notifier(struct notifier_block *nb,
-				   unsigned long action,
-				   void *data)
-{
-	/* During kexec, we are not yet migrated on the boot CPU, so we need to
-	 * make sure we are SMP safe here. Once the RAC is disabled, flag it as
-	 * suspended such that the hotplug notifier returns early.
-	 */
-	if (action == SYS_RESTART) {
-		spin_lock(&rac_lock);
-		b15_rac_disable_and_flush();
-		clear_bit(RAC_ENABLED, &b15_rac_flags);
-		set_bit(RAC_SUSPENDED, &b15_rac_flags);
-		spin_unlock(&rac_lock);
-	}
-
-	return NOTIFY_DONE;
+    unsigned long action,
+    void *data) {
+  /* During kexec, we are not yet migrated on the boot CPU, so we need to
+   * make sure we are SMP safe here. Once the RAC is disabled, flag it as
+   * suspended such that the hotplug notifier returns early.
+   */
+  if (action == SYS_RESTART) {
+    spin_lock(&rac_lock);
+    b15_rac_disable_and_flush();
+    clear_bit(RAC_ENABLED, &b15_rac_flags);
+    set_bit(RAC_SUSPENDED, &b15_rac_flags);
+    spin_unlock(&rac_lock);
+  }
+  return NOTIFY_DONE;
 }
 
 static struct notifier_block b15_rac_reboot_nb = {
-	.notifier_call	= b15_rac_reboot_notifier,
+  .notifier_call = b15_rac_reboot_notifier,
 };
 
 /* The CPU hotplug case is the most interesting one, we basically need to make
@@ -214,161 +203,140 @@ static struct notifier_block b15_rac_reboot_nb = {
  */
 
 /* Running on the dying CPU */
-static int b15_rac_dying_cpu(unsigned int cpu)
-{
-	/* During kexec/reboot, the RAC is disabled via the reboot notifier
-	 * return early here.
-	 */
-	if (test_bit(RAC_SUSPENDED, &b15_rac_flags))
-		return 0;
-
-	spin_lock(&rac_lock);
-
-	/* Indicate that we are starting a hotplug procedure */
-	__clear_bit(RAC_ENABLED, &b15_rac_flags);
-
-	/* Disable the readahead cache and save its value to a global */
-	rac_config0_reg = b15_rac_disable_and_flush();
-
-	spin_unlock(&rac_lock);
-
-	return 0;
+static int b15_rac_dying_cpu(unsigned int cpu) {
+  /* During kexec/reboot, the RAC is disabled via the reboot notifier
+   * return early here.
+   */
+  if (test_bit(RAC_SUSPENDED, &b15_rac_flags)) {
+    return 0;
+  }
+  spin_lock(&rac_lock);
+  /* Indicate that we are starting a hotplug procedure */
+  __clear_bit(RAC_ENABLED, &b15_rac_flags);
+  /* Disable the readahead cache and save its value to a global */
+  rac_config0_reg = b15_rac_disable_and_flush();
+  spin_unlock(&rac_lock);
+  return 0;
 }
 
 /* Running on a non-dying CPU */
-static int b15_rac_dead_cpu(unsigned int cpu)
-{
-	/* During kexec/reboot, the RAC is disabled via the reboot notifier
-	 * return early here.
-	 */
-	if (test_bit(RAC_SUSPENDED, &b15_rac_flags))
-		return 0;
-
-	spin_lock(&rac_lock);
-
-	/* And enable it */
-	__b15_rac_enable(rac_config0_reg);
-	__set_bit(RAC_ENABLED, &b15_rac_flags);
-
-	spin_unlock(&rac_lock);
-
-	return 0;
+static int b15_rac_dead_cpu(unsigned int cpu) {
+  /* During kexec/reboot, the RAC is disabled via the reboot notifier
+   * return early here.
+   */
+  if (test_bit(RAC_SUSPENDED, &b15_rac_flags)) {
+    return 0;
+  }
+  spin_lock(&rac_lock);
+  /* And enable it */
+  __b15_rac_enable(rac_config0_reg);
+  __set_bit(RAC_ENABLED, &b15_rac_flags);
+  spin_unlock(&rac_lock);
+  return 0;
 }
 
-static int b15_rac_suspend(void)
-{
-	/* Suspend the read-ahead cache oeprations, forcing our cache
-	 * implementation to fallback to the regular ARMv7 calls.
-	 *
-	 * We are guaranteed to be running on the boot CPU at this point and
-	 * with every other CPU quiesced, so setting RAC_SUSPENDED is not racy
-	 * here.
-	 */
-	rac_config0_reg = b15_rac_disable_and_flush();
-	set_bit(RAC_SUSPENDED, &b15_rac_flags);
-
-	return 0;
+static int b15_rac_suspend(void) {
+  /* Suspend the read-ahead cache oeprations, forcing our cache
+   * implementation to fallback to the regular ARMv7 calls.
+   *
+   * We are guaranteed to be running on the boot CPU at this point and
+   * with every other CPU quiesced, so setting RAC_SUSPENDED is not racy
+   * here.
+   */
+  rac_config0_reg = b15_rac_disable_and_flush();
+  set_bit(RAC_SUSPENDED, &b15_rac_flags);
+  return 0;
 }
 
-static void b15_rac_resume(void)
-{
-	/* Coming out of a S3 suspend/resume cycle, the read-ahead cache
-	 * register RAC_CONFIG0_REG will be restored to its default value, make
-	 * sure we re-enable it and set the enable flag, we are also guaranteed
-	 * to run on the boot CPU, so not racy again.
-	 */
-	__b15_rac_enable(rac_config0_reg);
-	clear_bit(RAC_SUSPENDED, &b15_rac_flags);
+static void b15_rac_resume(void) {
+  /* Coming out of a S3 suspend/resume cycle, the read-ahead cache
+   * register RAC_CONFIG0_REG will be restored to its default value, make
+   * sure we re-enable it and set the enable flag, we are also guaranteed
+   * to run on the boot CPU, so not racy again.
+   */
+  __b15_rac_enable(rac_config0_reg);
+  clear_bit(RAC_SUSPENDED, &b15_rac_flags);
 }
 
 static struct syscore_ops b15_rac_syscore_ops = {
-	.suspend	= b15_rac_suspend,
-	.resume		= b15_rac_resume,
+  .suspend = b15_rac_suspend,
+  .resume = b15_rac_resume,
 };
 
-static int __init b15_rac_init(void)
-{
-	struct device_node *dn, *cpu_dn;
-	int ret = 0, cpu;
-	u32 reg, en_mask = 0;
-
-	dn = of_find_compatible_node(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
-	if (!dn)
-		return -ENODEV;
-
-	if (WARN(num_possible_cpus() > 4, "RAC only supports 4 CPUs\n"))
-		goto out;
-
-	b15_rac_base = of_iomap(dn, 0);
-	if (!b15_rac_base) {
-		pr_err("failed to remap BIU control base\n");
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	cpu_dn = of_get_cpu_node(0, NULL);
-	if (!cpu_dn) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	if (of_device_is_compatible(cpu_dn, "brcm,brahma-b15"))
-		rac_flush_offset = B15_RAC_FLUSH_REG;
-	else if (of_device_is_compatible(cpu_dn, "brcm,brahma-b53"))
-		rac_flush_offset = B53_RAC_FLUSH_REG;
-	else {
-		pr_err("Unsupported CPU\n");
-		of_node_put(cpu_dn);
-		ret = -EINVAL;
-		goto out;
-	}
-	of_node_put(cpu_dn);
-
-	ret = register_reboot_notifier(&b15_rac_reboot_nb);
-	if (ret) {
-		pr_err("failed to register reboot notifier\n");
-		iounmap(b15_rac_base);
-		goto out;
-	}
-
-	if (IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
-		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DEAD,
-					"arm/cache-b15-rac:dead",
-					NULL, b15_rac_dead_cpu);
-		if (ret)
-			goto out_unmap;
-
-		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING,
-					"arm/cache-b15-rac:dying",
-					NULL, b15_rac_dying_cpu);
-		if (ret)
-			goto out_cpu_dead;
-	}
-
-	if (IS_ENABLED(CONFIG_PM_SLEEP))
-		register_syscore_ops(&b15_rac_syscore_ops);
-
-	spin_lock(&rac_lock);
-	reg = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
-	for_each_possible_cpu(cpu)
-		en_mask |= ((1 << RACPREFDATA_SHIFT) << (cpu * RAC_CPU_SHIFT));
-	WARN(reg & en_mask, "Read-ahead cache not previously disabled\n");
-
-	b15_rac_enable();
-	set_bit(RAC_ENABLED, &b15_rac_flags);
-	spin_unlock(&rac_lock);
-
-	pr_info("%pOF: Broadcom Brahma-B15 readahead cache\n", dn);
-
-	goto out;
-
+static int __init b15_rac_init(void) {
+  struct device_node *dn, *cpu_dn;
+  int ret = 0, cpu;
+  u32 reg, en_mask = 0;
+  dn = of_find_compatible_node(NULL, NULL, "brcm,brcmstb-cpu-biu-ctrl");
+  if (!dn) {
+    return -ENODEV;
+  }
+  if (WARN(num_possible_cpus() > 4, "RAC only supports 4 CPUs\n")) {
+    goto out;
+  }
+  b15_rac_base = of_iomap(dn, 0);
+  if (!b15_rac_base) {
+    pr_err("failed to remap BIU control base\n");
+    ret = -ENOMEM;
+    goto out;
+  }
+  cpu_dn = of_get_cpu_node(0, NULL);
+  if (!cpu_dn) {
+    ret = -ENODEV;
+    goto out;
+  }
+  if (of_device_is_compatible(cpu_dn, "brcm,brahma-b15")) {
+    rac_flush_offset = B15_RAC_FLUSH_REG;
+  } else if (of_device_is_compatible(cpu_dn, "brcm,brahma-b53")) {
+    rac_flush_offset = B53_RAC_FLUSH_REG;
+  } else {
+    pr_err("Unsupported CPU\n");
+    of_node_put(cpu_dn);
+    ret = -EINVAL;
+    goto out;
+  }
+  of_node_put(cpu_dn);
+  ret = register_reboot_notifier(&b15_rac_reboot_nb);
+  if (ret) {
+    pr_err("failed to register reboot notifier\n");
+    iounmap(b15_rac_base);
+    goto out;
+  }
+  if (IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
+    ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DEAD,
+        "arm/cache-b15-rac:dead",
+        NULL, b15_rac_dead_cpu);
+    if (ret) {
+      goto out_unmap;
+    }
+    ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING,
+        "arm/cache-b15-rac:dying",
+        NULL, b15_rac_dying_cpu);
+    if (ret) {
+      goto out_cpu_dead;
+    }
+  }
+  if (IS_ENABLED(CONFIG_PM_SLEEP)) {
+    register_syscore_ops(&b15_rac_syscore_ops);
+  }
+  spin_lock(&rac_lock);
+  reg = __raw_readl(b15_rac_base + RAC_CONFIG0_REG);
+  for_each_possible_cpu(cpu)
+  en_mask |= ((1 << RACPREFDATA_SHIFT) << (cpu * RAC_CPU_SHIFT));
+  WARN(reg & en_mask, "Read-ahead cache not previously disabled\n");
+  b15_rac_enable();
+  set_bit(RAC_ENABLED, &b15_rac_flags);
+  spin_unlock(&rac_lock);
+  pr_info("%pOF: Broadcom Brahma-B15 readahead cache\n", dn);
+  goto out;
 out_cpu_dead:
-	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING);
+  cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CACHE_B15_RAC_DYING);
 out_unmap:
-	unregister_reboot_notifier(&b15_rac_reboot_nb);
-	iounmap(b15_rac_base);
+  unregister_reboot_notifier(&b15_rac_reboot_nb);
+  iounmap(b15_rac_base);
 out:
-	of_node_put(dn);
-	return ret;
+  of_node_put(dn);
+  return ret;
 }
+
 arch_initcall(b15_rac_init);

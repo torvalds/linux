@@ -13,14 +13,14 @@
 #include <sound/simple_card_utils.h>
 
 struct simple_util_info {
-	const char *name;
-	const char *card;
-	const char *codec;
-	const char *platform;
+  const char *name;
+  const char *card;
+  const char *codec;
+  const char *platform;
 
-	unsigned int daifmt;
-	struct simple_util_dai cpu_dai;
-	struct simple_util_dai codec_dai;
+  unsigned int daifmt;
+  struct simple_util_dai cpu_dai;
+  struct simple_util_dai codec_dai;
 };
 
 #endif /* __SIMPLE_CARD_H */

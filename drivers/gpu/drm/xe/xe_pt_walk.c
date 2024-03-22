@@ -25,34 +25,27 @@
  * table walker should other drivers find use for it.
  */
 static u64 xe_pt_addr_end(u64 addr, u64 end, unsigned int level,
-			  const struct xe_pt_walk *walk)
-{
-	u64 size = 1ull << walk->shifts[level];
-	u64 tmp = round_up(addr + 1, size);
-
-	return min_t(u64, tmp, end);
+    const struct xe_pt_walk *walk) {
+  u64 size = 1ull << walk->shifts[level];
+  u64 tmp = round_up(addr + 1, size);
+  return min_t(u64, tmp, end);
 }
 
 static bool xe_pt_next(pgoff_t *offset, u64 *addr, u64 next, u64 end,
-		       unsigned int level, const struct xe_pt_walk *walk)
-{
-	pgoff_t step = 1;
-
-	/* Shared pt walk skips to the last pagetable */
-	if (unlikely(walk->shared_pt_mode)) {
-		unsigned int shift = walk->shifts[level];
-		u64 skip_to = round_down(end, 1ull << shift);
-
-		if (skip_to > next) {
-			step += (skip_to - next) >> shift;
-			next = skip_to;
-		}
-	}
-
-	*addr = next;
-	*offset += step;
-
-	return next != end;
+    unsigned int level, const struct xe_pt_walk *walk) {
+  pgoff_t step = 1;
+  /* Shared pt walk skips to the last pagetable */
+  if (unlikely(walk->shared_pt_mode)) {
+    unsigned int shift = walk->shifts[level];
+    u64 skip_to = round_down(end, 1ull << shift);
+    if (skip_to > next) {
+      step += (skip_to - next) >> shift;
+      next = skip_to;
+    }
+  }
+  *addr = next;
+  *offset += step;
+  return next != end;
 }
 
 /**
@@ -71,47 +64,45 @@ static bool xe_pt_next(pgoff_t *offset, u64 *addr, u64 next, u64 end,
  * propagated from the callback and on error the walk is terminated.
  */
 int xe_pt_walk_range(struct xe_ptw *parent, unsigned int level,
-		     u64 addr, u64 end, struct xe_pt_walk *walk)
-{
-	pgoff_t offset = xe_pt_offset(addr, level, walk);
-	struct xe_ptw **entries = parent->children ? parent->children : NULL;
-	const struct xe_pt_walk_ops *ops = walk->ops;
-	enum page_walk_action action;
-	struct xe_ptw *child;
-	int err = 0;
-	u64 next;
-
-	do {
-		next = xe_pt_addr_end(addr, end, level, walk);
-		if (walk->shared_pt_mode && xe_pt_covers(addr, next, level,
-							 walk))
-			continue;
+    u64 addr, u64 end, struct xe_pt_walk *walk) {
+  pgoff_t offset = xe_pt_offset(addr, level, walk);
+  struct xe_ptw **entries = parent->children ? parent->children : NULL;
+  const struct xe_pt_walk_ops *ops = walk->ops;
+  enum page_walk_action action;
+  struct xe_ptw *child;
+  int err = 0;
+  u64 next;
+  do {
+    next = xe_pt_addr_end(addr, end, level, walk);
+    if (walk->shared_pt_mode && xe_pt_covers(addr, next, level,
+        walk)) {
+      continue;
+    }
 again:
-		action = ACTION_SUBTREE;
-		child = entries ? entries[offset] : NULL;
-		err = ops->pt_entry(parent, offset, level, addr, next,
-				    &child, &action, walk);
-		if (err)
-			break;
-
-		/* Probably not needed yet for gpu pagetable walk. */
-		if (unlikely(action == ACTION_AGAIN))
-			goto again;
-
-		if (likely(!level || !child || action == ACTION_CONTINUE))
-			continue;
-
-		err = xe_pt_walk_range(child, level - 1, addr, next, walk);
-
-		if (!err && ops->pt_post_descend)
-			err = ops->pt_post_descend(parent, offset, level, addr,
-						   next, &child, &action, walk);
-		if (err)
-			break;
-
-	} while (xe_pt_next(&offset, &addr, next, end, level, walk));
-
-	return err;
+    action = ACTION_SUBTREE;
+    child = entries ? entries[offset] : NULL;
+    err = ops->pt_entry(parent, offset, level, addr, next,
+        &child, &action, walk);
+    if (err) {
+      break;
+    }
+    /* Probably not needed yet for gpu pagetable walk. */
+    if (unlikely(action == ACTION_AGAIN)) {
+      goto again;
+    }
+    if (likely(!level || !child || action == ACTION_CONTINUE)) {
+      continue;
+    }
+    err = xe_pt_walk_range(child, level - 1, addr, next, walk);
+    if (!err && ops->pt_post_descend) {
+      err = ops->pt_post_descend(parent, offset, level, addr,
+          next, &child, &action, walk);
+    }
+    if (err) {
+      break;
+    }
+  } while (xe_pt_next(&offset, &addr, next, end, level, walk));
+  return err;
 }
 
 /**
@@ -137,24 +128,21 @@ again:
  * this function.
  */
 int xe_pt_walk_shared(struct xe_ptw *parent, unsigned int level,
-		      u64 addr, u64 end, struct xe_pt_walk *walk)
-{
-	const struct xe_pt_walk_ops *ops = walk->ops;
-	enum page_walk_action action = ACTION_SUBTREE;
-	struct xe_ptw *child = parent;
-	int err;
-
-	walk->shared_pt_mode = true;
-	err = walk->ops->pt_entry(parent, 0, level + 1, addr, end,
-				  &child, &action, walk);
-
-	if (err || action != ACTION_SUBTREE)
-		return err;
-
-	err = xe_pt_walk_range(parent, level, addr, end, walk);
-	if (!err && ops->pt_post_descend) {
-		err = ops->pt_post_descend(parent, 0, level + 1, addr, end,
-					   &child, &action, walk);
-	}
-	return err;
+    u64 addr, u64 end, struct xe_pt_walk *walk) {
+  const struct xe_pt_walk_ops *ops = walk->ops;
+  enum page_walk_action action = ACTION_SUBTREE;
+  struct xe_ptw *child = parent;
+  int err;
+  walk->shared_pt_mode = true;
+  err = walk->ops->pt_entry(parent, 0, level + 1, addr, end,
+      &child, &action, walk);
+  if (err || action != ACTION_SUBTREE) {
+    return err;
+  }
+  err = xe_pt_walk_range(parent, level, addr, end, walk);
+  if (!err && ops->pt_post_descend) {
+    err = ops->pt_post_descend(parent, 0, level + 1, addr, end,
+        &child, &action, walk);
+  }
+  return err;
 }

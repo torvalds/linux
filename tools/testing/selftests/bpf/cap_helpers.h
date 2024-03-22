@@ -6,11 +6,11 @@
 #include <linux/capability.h>
 
 #ifndef CAP_PERFMON
-#define CAP_PERFMON		38
+#define CAP_PERFMON   38
 #endif
 
 #ifndef CAP_BPF
-#define CAP_BPF			39
+#define CAP_BPF     39
 #endif
 
 int cap_enable_effective(__u64 caps, __u64 *old_caps);

@@ -540,4 +540,4 @@
 #define NT_STATUS_NO_SUCH_JOB (0xC0000000 | 0xEDE)     /* scheduler */
 #define NT_STATUS_NO_PREAUTH_INTEGRITY_HASH_OVERLAP (0xC0000000 | 0x5D0000)
 #define NT_STATUS_PENDING 0x00000103
-#endif				/* _NTERR_H */
+#endif        /* _NTERR_H */

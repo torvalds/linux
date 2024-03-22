@@ -19,7 +19,6 @@ static bool nf_ct_tstamp __read_mostly;
 module_param_named(tstamp, nf_ct_tstamp, bool, 0644);
 MODULE_PARM_DESC(tstamp, "Enable connection tracking flow timestamping.");
 
-void nf_conntrack_tstamp_pernet_init(struct net *net)
-{
-	net->ct.sysctl_tstamp = nf_ct_tstamp;
+void nf_conntrack_tstamp_pernet_init(struct net *net) {
+  net->ct.sysctl_tstamp = nf_ct_tstamp;
 }

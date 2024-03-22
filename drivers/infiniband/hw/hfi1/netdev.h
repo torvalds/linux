@@ -20,9 +20,9 @@
  * @rcd:  ptr to receive context data
  */
 struct hfi1_netdev_rxq {
-	struct napi_struct napi;
-	struct hfi1_netdev_rx *rx;
-	struct hfi1_ctxtdata *rcd;
+  struct napi_struct napi;
+  struct hfi1_netdev_rx *rx;
+  struct hfi1_ctxtdata *rcd;
 };
 
 /*
@@ -36,57 +36,53 @@ struct hfi1_netdev_rxq {
 
 /**
  * struct hfi1_netdev_rx: data required to setup and run HFI netdev.
- * @rx_napi:	the dummy netdevice to support "polling" the receive contexts
- * @dd:		hfi1_devdata
- * @rxq:	pointer to dummy netdev receive queues.
- * @num_rx_q:	number of receive queues
- * @rmt_index:	first free index in RMT Array
+ * @rx_napi:  the dummy netdevice to support "polling" the receive contexts
+ * @dd:   hfi1_devdata
+ * @rxq:  pointer to dummy netdev receive queues.
+ * @num_rx_q: number of receive queues
+ * @rmt_index:  first free index in RMT Array
  * @msix_start: first free MSI-X interrupt vector.
- * @dev_tbl:	netdev table for unique identifier VNIC and IPoIb VLANs.
- * @enabled:	atomic counter of netdevs enabling receive queues.
- *		When 0 NAPI will be disabled.
- * @netdevs:	atomic counter of netdevs using dummy netdev.
- *		When 0 receive queues will be freed.
+ * @dev_tbl:  netdev table for unique identifier VNIC and IPoIb VLANs.
+ * @enabled:  atomic counter of netdevs enabling receive queues.
+ *    When 0 NAPI will be disabled.
+ * @netdevs:  atomic counter of netdevs using dummy netdev.
+ *    When 0 receive queues will be freed.
  */
 struct hfi1_netdev_rx {
-	struct net_device rx_napi;
-	struct hfi1_devdata *dd;
-	struct hfi1_netdev_rxq *rxq;
-	int num_rx_q;
-	int rmt_start;
-	struct xarray dev_tbl;
-	/* count of enabled napi polls */
-	atomic_t enabled;
-	/* count of netdevs on top */
-	atomic_t netdevs;
+  struct net_device rx_napi;
+  struct hfi1_devdata *dd;
+  struct hfi1_netdev_rxq *rxq;
+  int num_rx_q;
+  int rmt_start;
+  struct xarray dev_tbl;
+  /* count of enabled napi polls */
+  atomic_t enabled;
+  /* count of netdevs on top */
+  atomic_t netdevs;
 };
 
 static inline
-int hfi1_netdev_ctxt_count(struct hfi1_devdata *dd)
-{
-	return dd->netdev_rx->num_rx_q;
+int hfi1_netdev_ctxt_count(struct hfi1_devdata *dd) {
+  return dd->netdev_rx->num_rx_q;
 }
 
 static inline
-struct hfi1_ctxtdata *hfi1_netdev_get_ctxt(struct hfi1_devdata *dd, int ctxt)
-{
-	return dd->netdev_rx->rxq[ctxt].rcd;
+struct hfi1_ctxtdata *hfi1_netdev_get_ctxt(struct hfi1_devdata *dd, int ctxt) {
+  return dd->netdev_rx->rxq[ctxt].rcd;
 }
 
 static inline
-int hfi1_netdev_get_free_rmt_idx(struct hfi1_devdata *dd)
-{
-	return dd->netdev_rx->rmt_start;
+int hfi1_netdev_get_free_rmt_idx(struct hfi1_devdata *dd) {
+  return dd->netdev_rx->rmt_start;
 }
 
 static inline
-void hfi1_netdev_set_free_rmt_idx(struct hfi1_devdata *dd, int rmt_idx)
-{
-	dd->netdev_rx->rmt_start = rmt_idx;
+void hfi1_netdev_set_free_rmt_idx(struct hfi1_devdata *dd, int rmt_idx) {
+  dd->netdev_rx->rmt_start = rmt_idx;
 }
 
 u32 hfi1_num_netdev_contexts(struct hfi1_devdata *dd, u32 available_contexts,
-			     struct cpumask *cpu_mask);
+    struct cpumask *cpu_mask);
 
 void hfi1_netdev_enable_queues(struct hfi1_devdata *dd);
 void hfi1_netdev_disable_queues(struct hfi1_devdata *dd);

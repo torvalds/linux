@@ -12,8 +12,8 @@
 #include <linux/platform_device.h>
 
 struct intel_mid_wdt_pdata {
-	int irq;
-	int (*probe)(struct platform_device *pdev);
+  int irq;
+  int (*probe)(struct platform_device *pdev);
 };
 
 #endif /*__INTEL_MID_WDT_H__*/

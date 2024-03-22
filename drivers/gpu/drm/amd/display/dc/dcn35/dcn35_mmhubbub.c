@@ -28,32 +28,30 @@
 #include "reg_helper.h"
 
 #define REG(reg)                                                             \
-	((const struct dcn35_mmhubbub_registers *)(mcif_wb30->mcif_wb_regs)) \
-		->reg
+  ((const struct dcn35_mmhubbub_registers *) (mcif_wb30->mcif_wb_regs)) \
+  ->reg
 
 #define CTX mcif_wb30->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name)                                                \
-	((const struct dcn35_mmhubbub_shift *)(mcif_wb30->mcif_wb_shift))       \
-		->field_name,                                                   \
-		((const struct dcn35_mmhubbub_mask *)(mcif_wb30->mcif_wb_mask)) \
-			->field_name
+  ((const struct dcn35_mmhubbub_shift *) (mcif_wb30->mcif_wb_shift))       \
+  ->field_name,                                                   \
+  ((const struct dcn35_mmhubbub_mask *) (mcif_wb30->mcif_wb_mask)) \
+  ->field_name
 
 void dcn35_mmhubbub_construct(
-	struct dcn30_mmhubbub *mcif_wb30, struct dc_context *ctx,
-	const struct dcn35_mmhubbub_registers *mcif_wb_regs,
-	const struct dcn35_mmhubbub_shift *mcif_wb_shift,
-	const struct dcn35_mmhubbub_mask *mcif_wb_mask, int inst)
-{
-	dcn32_mmhubbub_construct(
-		mcif_wb30, ctx,
-		(const struct dcn30_mmhubbub_registers *)(mcif_wb_regs),
-		(const struct dcn30_mmhubbub_shift *)(mcif_wb_shift),
-		(const struct dcn30_mmhubbub_mask *)(mcif_wb_mask), inst);
+    struct dcn30_mmhubbub *mcif_wb30, struct dc_context *ctx,
+    const struct dcn35_mmhubbub_registers *mcif_wb_regs,
+    const struct dcn35_mmhubbub_shift *mcif_wb_shift,
+    const struct dcn35_mmhubbub_mask *mcif_wb_mask, int inst) {
+  dcn32_mmhubbub_construct(
+      mcif_wb30, ctx,
+      (const struct dcn30_mmhubbub_registers *) (mcif_wb_regs),
+      (const struct dcn30_mmhubbub_shift *) (mcif_wb_shift),
+      (const struct dcn30_mmhubbub_mask *) (mcif_wb_mask), inst);
 }
 
-void dcn35_mmhubbub_set_fgcg(struct dcn30_mmhubbub *mcif_wb30, bool enabled)
-{
-	REG_UPDATE(MMHUBBUB_CLOCK_CNTL, MMHUBBUB_FGCG_REP_DIS, !enabled);
+void dcn35_mmhubbub_set_fgcg(struct dcn30_mmhubbub *mcif_wb30, bool enabled) {
+  REG_UPDATE(MMHUBBUB_CLOCK_CNTL, MMHUBBUB_FGCG_REP_DIS, !enabled);
 }

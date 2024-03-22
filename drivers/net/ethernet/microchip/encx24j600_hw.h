@@ -8,55 +8,55 @@
 #define _ENCX24J600_HW_H
 
 struct encx24j600_context {
-	struct spi_device *spi;
-	struct regmap *regmap;
-	struct regmap *phymap;
-	struct mutex mutex; /* mutex to protect access to regmap */
-	int bank;
+  struct spi_device *spi;
+  struct regmap *regmap;
+  struct regmap *phymap;
+  struct mutex mutex; /* mutex to protect access to regmap */
+  int bank;
 };
 
 int devm_regmap_init_encx24j600(struct device *dev,
-				struct encx24j600_context *ctx);
+    struct encx24j600_context *ctx);
 
 /* Single-byte instructions */
 #define BANK_SELECT(bank) (0xC0 | ((bank & (BANK_MASK >> BANK_SHIFT)) << 1))
-#define B0SEL 0xC0		/* Bank 0 Select */
-#define B1SEL 0xC2		/* Bank 1 Select */
-#define B2SEL 0xC4		/* Bank 2 Select */
-#define B3SEL 0xC6		/* Bank 3 Select */
-#define SETETHRST 0xCA		/* System Reset */
-#define FCDISABLE 0xE0		/* Flow Control Disable */
-#define FCSINGLE 0xE2		/* Flow Control Single */
-#define FCMULTIPLE 0xE4		/* Flow Control Multiple */
-#define FCCLEAR 0xE6		/* Flow Control Clear */
-#define SETPKTDEC 0xCC		/* Decrement Packet Counter */
-#define DMASTOP 0xD2		/* DMA Stop */
-#define DMACKSUM 0xD8		/* DMA Start Checksum */
-#define DMACKSUMS 0xDA		/* DMA Start Checksum with Seed */
-#define DMACOPY 0xDC		/* DMA Start Copy */
-#define DMACOPYS 0xDE		/* DMA Start Copy and Checksum with Seed */
-#define SETTXRTS 0xD4		/* Request Packet Transmission */
-#define ENABLERX 0xE8		/* Enable RX */
-#define DISABLERX 0xEA		/* Disable RX */
-#define SETEIE 0xEC		/* Enable Interrupts */
-#define CLREIE 0xEE		/* Disable Interrupts */
+#define B0SEL 0xC0    /* Bank 0 Select */
+#define B1SEL 0xC2    /* Bank 1 Select */
+#define B2SEL 0xC4    /* Bank 2 Select */
+#define B3SEL 0xC6    /* Bank 3 Select */
+#define SETETHRST 0xCA    /* System Reset */
+#define FCDISABLE 0xE0    /* Flow Control Disable */
+#define FCSINGLE 0xE2   /* Flow Control Single */
+#define FCMULTIPLE 0xE4   /* Flow Control Multiple */
+#define FCCLEAR 0xE6    /* Flow Control Clear */
+#define SETPKTDEC 0xCC    /* Decrement Packet Counter */
+#define DMASTOP 0xD2    /* DMA Stop */
+#define DMACKSUM 0xD8   /* DMA Start Checksum */
+#define DMACKSUMS 0xDA    /* DMA Start Checksum with Seed */
+#define DMACOPY 0xDC    /* DMA Start Copy */
+#define DMACOPYS 0xDE   /* DMA Start Copy and Checksum with Seed */
+#define SETTXRTS 0xD4   /* Request Packet Transmission */
+#define ENABLERX 0xE8   /* Enable RX */
+#define DISABLERX 0xEA    /* Disable RX */
+#define SETEIE 0xEC   /* Enable Interrupts */
+#define CLREIE 0xEE   /* Disable Interrupts */
 
 /* Two byte instructions */
-#define RBSEL 0xC8		/* Read Bank Select */
+#define RBSEL 0xC8    /* Read Bank Select */
 
 /* Three byte instructions */
-#define WGPRDPT 0x60		/* Write EGPRDPT */
-#define RGPRDPT 0x62		/* Read EGPRDPT */
-#define WRXRDPT 0x64		/* Write ERXRDPT */
-#define RRXRDPT 0x66		/* Read ERXRDPT */
-#define WUDARDPT 0x68		/* Write EUDARDPT */
-#define RUDARDPT 0x6A		/* Read EUDARDPT */
-#define WGPWRPT 0x6C		/* Write EGPWRPT */
-#define RGPWRPT 0x6E		/* Read EGPWRPT */
-#define WRXWRPT 0x70		/* Write ERXWRPT */
-#define RRXWRPT 0x72		/* Read ERXWRPT */
-#define WUDAWRPT 0x74		/* Write EUDAWRPT */
-#define RUDAWRPT 0x76		/* Read EUDAWRPT */
+#define WGPRDPT 0x60    /* Write EGPRDPT */
+#define RGPRDPT 0x62    /* Read EGPRDPT */
+#define WRXRDPT 0x64    /* Write ERXRDPT */
+#define RRXRDPT 0x66    /* Read ERXRDPT */
+#define WUDARDPT 0x68   /* Write EUDARDPT */
+#define RUDARDPT 0x6A   /* Read EUDARDPT */
+#define WGPWRPT 0x6C    /* Write EGPWRPT */
+#define RGPWRPT 0x6E    /* Read EGPWRPT */
+#define WRXWRPT 0x70    /* Write ERXWRPT */
+#define RRXWRPT 0x72    /* Read ERXWRPT */
+#define WUDAWRPT 0x74   /* Write EUDAWRPT */
+#define RUDAWRPT 0x76   /* Read EUDAWRPT */
 
 /* n byte instructions */
 #define RCRCODE 0x00
@@ -65,20 +65,20 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define BFCCODE 0xA0
 #define RCR(addr) (RCRCODE | (addr & ADDR_MASK)) /* Read Control Register */
 #define WCR(addr) (WCRCODE | (addr & ADDR_MASK)) /* Write Control Register */
-#define RCRU 0x20		/* Read Control Register Unbanked */
-#define WCRU 0x22		/* Write Control Register Unbanked */
+#define RCRU 0x20   /* Read Control Register Unbanked */
+#define WCRU 0x22   /* Write Control Register Unbanked */
 #define BFS(addr) (BFSCODE | (addr & ADDR_MASK)) /* Bit Field Set */
 #define BFC(addr) (BFCCODE | (addr & ADDR_MASK)) /* Bit Field Clear */
-#define BFSU 0x24		/* Bit Field Set Unbanked */
-#define BFCU 0x26		/* Bit Field Clear Unbanked */
-#define RGPDATA 0x28		/* Read EGPDATA */
-#define WGPDATA 0x2A		/* Write EGPDATA */
-#define RRXDATA 0x2C		/* Read ERXDATA */
-#define WRXDATA 0x2E		/* Write ERXDATA */
-#define RUDADATA 0x30		/* Read EUDADATA */
-#define WUDADATA 0x32		/* Write EUDADATA */
+#define BFSU 0x24   /* Bit Field Set Unbanked */
+#define BFCU 0x26   /* Bit Field Clear Unbanked */
+#define RGPDATA 0x28    /* Read EGPDATA */
+#define WGPDATA 0x2A    /* Write EGPDATA */
+#define RRXDATA 0x2C    /* Read ERXDATA */
+#define WRXDATA 0x2E    /* Write ERXDATA */
+#define RUDADATA 0x30   /* Read EUDADATA */
+#define WUDADATA 0x32   /* Write EUDADATA */
 
-#define SFR_REG_COUNT	0xA0
+#define SFR_REG_COUNT 0xA0
 
 /* ENC424J600 Control Registers
  * Control register definitions are a combination of address
@@ -157,9 +157,8 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define EUDARDPT (0x0E | 0x80)
 #define EUDAWRPT (0x10 | 0x80)
 
-
-/* Register bit definitions */
-/* ESTAT */
+/* Register bit definitions
+ * ESTAT*/
 #define INT (1 << 15)
 #define FCIDLE (1 << 14)
 #define RXBUSY (1 << 13)
@@ -348,8 +347,8 @@ int devm_regmap_init_encx24j600(struct device *dev,
 #define SPDDPX_SHIFT 2
 #define SPDDPX_MASK (0x7 << SPDDPX_SHIFT)
 
-/* PHANA */
-/* Default value for PHY initialization*/
+/* PHANA
+ * Default value for PHY initialization*/
 #define PHANA_DEFAULT 0x05E1
 
 /* PHANE */
@@ -394,45 +393,44 @@ int devm_regmap_init_encx24j600(struct device *dev,
 /* Start of the receive buffer */
 #define ERXST_VAL (SRAM_SIZE - RX_BUFFER_SIZE)
 
-#define RSV_RXLONGEVDROPEV	16
-#define RSV_CARRIEREV		18
-#define RSV_CRCERROR		20
-#define RSV_LENCHECKERR		21
-#define RSV_LENOUTOFRANGE	22
-#define RSV_RXOK		23
-#define RSV_RXMULTICAST		24
-#define RSV_RXBROADCAST		25
-#define RSV_DRIBBLENIBBLE	26
-#define RSV_RXCONTROLFRAME	27
-#define RSV_RXPAUSEFRAME	28
-#define RSV_RXUNKNOWNOPCODE	29
-#define RSV_RXTYPEVLAN		30
+#define RSV_RXLONGEVDROPEV  16
+#define RSV_CARRIEREV   18
+#define RSV_CRCERROR    20
+#define RSV_LENCHECKERR   21
+#define RSV_LENOUTOFRANGE 22
+#define RSV_RXOK    23
+#define RSV_RXMULTICAST   24
+#define RSV_RXBROADCAST   25
+#define RSV_DRIBBLENIBBLE 26
+#define RSV_RXCONTROLFRAME  27
+#define RSV_RXPAUSEFRAME  28
+#define RSV_RXUNKNOWNOPCODE 29
+#define RSV_RXTYPEVLAN    30
 
-#define RSV_RUNTFILTERMATCH	31
-#define RSV_NOTMEFILTERMATCH	32
-#define RSV_HASHFILTERMATCH	33
-#define RSV_MAGICPKTFILTERMATCH	34
-#define RSV_PTRNMTCHFILTERMATCH	35
-#define RSV_UNICASTFILTERMATCH	36
+#define RSV_RUNTFILTERMATCH 31
+#define RSV_NOTMEFILTERMATCH  32
+#define RSV_HASHFILTERMATCH 33
+#define RSV_MAGICPKTFILTERMATCH 34
+#define RSV_PTRNMTCHFILTERMATCH 35
+#define RSV_UNICASTFILTERMATCH  36
 
-#define RSV_SIZE		8
-#define RSV_BITMASK(x)		(1 << ((x) - 16))
-#define RSV_GETBIT(x, y)	(((x) & RSV_BITMASK(y)) ? 1 : 0)
+#define RSV_SIZE    8
+#define RSV_BITMASK(x)    (1 << ((x) - 16))
+#define RSV_GETBIT(x, y)  (((x) & RSV_BITMASK(y)) ? 1 : 0)
 
 struct rsv {
-	u16 next_packet;
-	u16 len;
-	u32 rxstat;
+  u16 next_packet;
+  u16 len;
+  u32 rxstat;
 };
 
 /* Put RX buffer at 0 as suggested by the Errata datasheet */
 
-#define RXSTART_INIT		ERXST_VAL
-#define RXEND_INIT		0x5FFF
+#define RXSTART_INIT    ERXST_VAL
+#define RXEND_INIT    0x5FFF
 
 int regmap_encx24j600_spi_write(void *context, u8 reg, const u8 *data,
-				size_t count);
+    size_t count);
 int regmap_encx24j600_spi_read(void *context, u8 reg, u8 *data, size_t count);
-
 
 #endif

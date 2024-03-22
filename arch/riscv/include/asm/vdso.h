@@ -19,14 +19,14 @@
 #ifndef __ASSEMBLY__
 #include <generated/vdso-offsets.h>
 
-#define VDSO_SYMBOL(base, name)							\
-	(void __user *)((unsigned long)(base) + __vdso_##name##_offset)
+#define VDSO_SYMBOL(base, name)             \
+  (void __user *) ((unsigned long) (base) + __vdso_ ## name ## _offset)
 
 #ifdef CONFIG_COMPAT
 #include <generated/compat_vdso-offsets.h>
 
-#define COMPAT_VDSO_SYMBOL(base, name)						\
-	(void __user *)((unsigned long)(base) + compat__vdso_##name##_offset)
+#define COMPAT_VDSO_SYMBOL(base, name)            \
+  (void __user *) ((unsigned long) (base) + compat__vdso_ ## name ## _offset)
 
 extern char compat_vdso_start[], compat_vdso_end[];
 

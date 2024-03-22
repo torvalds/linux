@@ -5,10 +5,9 @@
 
 volatile __u64 test_fmod_ret = 0;
 SEC("fmod_ret/security_new_get_constant")
-int BPF_PROG(fmod_ret_test, long val, int ret)
-{
-	test_fmod_ret = 1;
-	return 120;
+int BPF_PROG(fmod_ret_test, long val, int ret) {
+  test_fmod_ret = 1;
+  return 120;
 }
 
 char _license[] SEC("license") = "GPL";

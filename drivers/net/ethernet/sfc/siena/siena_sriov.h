@@ -34,9 +34,9 @@
 /* Limit EVQs on VFs to be only 8k to reduce buffer table reservation */
 #define EFX_MAX_VF_EVQ_SIZE 8192UL
 /* The number of buffer table entries reserved for each VI on a VF */
-#define EFX_VF_BUFTBL_PER_VI					\
-	((EFX_MAX_VF_EVQ_SIZE + 2 * EFX_MAX_DMAQ_SIZE) *	\
-	 sizeof(efx_qword_t) / EFX_BUF_SIZE)
+#define EFX_VF_BUFTBL_PER_VI          \
+  ((EFX_MAX_VF_EVQ_SIZE + 2 * EFX_MAX_DMAQ_SIZE)    \
+  * sizeof(efx_qword_t) / EFX_BUF_SIZE)
 
 int efx_siena_sriov_configure(struct efx_nic *efx, int num_vfs);
 int efx_siena_sriov_init(struct efx_nic *efx);
@@ -48,26 +48,25 @@ void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr);
 
 int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf, const u8 *mac);
 int efx_siena_sriov_set_vf_vlan(struct efx_nic *efx, int vf,
-				u16 vlan, u8 qos);
+    u16 vlan, u8 qos);
 int efx_siena_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf,
-				    bool spoofchk);
+    bool spoofchk);
 int efx_siena_sriov_get_vf_config(struct efx_nic *efx, int vf,
-				  struct ifla_vf_info *ivf);
+    struct ifla_vf_info *ivf);
 
 #ifdef CONFIG_SFC_SIENA_SRIOV
 
-static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
-{
-	return efx->vf_init_count != 0;
+static inline bool efx_siena_sriov_enabled(struct efx_nic *efx) {
+  return efx->vf_init_count != 0;
 }
 
 int efx_init_sriov(void);
 void efx_fini_sriov(void);
 #else /* !CONFIG_SFC_SIENA_SRIOV */
-static inline bool efx_siena_sriov_enabled(struct efx_nic *efx)
-{
-	return false;
+static inline bool efx_siena_sriov_enabled(struct efx_nic *efx) {
+  return false;
 }
+
 #endif /* CONFIG_SFC_SIENA_SRIOV */
 
 void efx_siena_sriov_probe(struct efx_nic *efx);

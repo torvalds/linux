@@ -12,7 +12,7 @@
 
 #include <linux/compiler.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio.h>		/* FIXME: Shouldn't be here */
+#include <linux/gpio.h>   /* FIXME: Shouldn't be here */
 #include <linux/of.h>
 
 struct device_node;
@@ -20,7 +20,7 @@ struct device_node;
 #ifdef CONFIG_OF_GPIO
 
 extern int of_get_named_gpio(const struct device_node *np,
-			     const char *list_name, int index);
+    const char *list_name, int index);
 
 #else /* CONFIG_OF_GPIO */
 
@@ -28,9 +28,8 @@ extern int of_get_named_gpio(const struct device_node *np,
 
 /* Drivers may not strictly depend on the GPIO support, so let them link. */
 static inline int of_get_named_gpio(const struct device_node *np,
-                                   const char *propname, int index)
-{
-	return -ENOSYS;
+    const char *propname, int index) {
+  return -ENOSYS;
 }
 
 #endif /* CONFIG_OF_GPIO */

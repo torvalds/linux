@@ -12,9 +12,9 @@
 #include <linux/usb/cdc.h>
 
 struct f_phonet_opts {
-	struct usb_function_instance func_inst;
-	bool bound;
-	struct net_device *net;
+  struct usb_function_instance func_inst;
+  bool bound;
+  struct net_device *net;
 };
 
 struct net_device *gphonet_setup_default(void);

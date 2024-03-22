@@ -28,20 +28,22 @@
 #include "display_mode_core_structs.h"
 
 struct dml2_policy_build_synthetic_soc_states_params {
-	const struct soc_bounding_box_st *in_bbox;
-	struct soc_states_st *in_states;
-	struct soc_states_st *out_states;
-	int *dcfclk_stas_mhz;
-	int num_dcfclk_stas;
+  const struct soc_bounding_box_st *in_bbox;
+  struct soc_states_st *in_states;
+  struct soc_states_st *out_states;
+  int *dcfclk_stas_mhz;
+  int num_dcfclk_stas;
 };
 
 struct dml2_policy_build_synthetic_soc_states_scratch {
-	struct soc_state_bounding_box_st entry;
+  struct soc_state_bounding_box_st entry;
 };
 
-int dml2_policy_build_synthetic_soc_states(struct dml2_policy_build_synthetic_soc_states_scratch *s,
-	struct dml2_policy_build_synthetic_soc_states_params *p);
+int dml2_policy_build_synthetic_soc_states(
+  struct dml2_policy_build_synthetic_soc_states_scratch *s,
+  struct dml2_policy_build_synthetic_soc_states_params *p);
 
-void build_unoptimized_policy_settings(enum dml_project_id project, struct dml_mode_eval_policy_st *policy);
+void build_unoptimized_policy_settings(enum dml_project_id project,
+    struct dml_mode_eval_policy_st *policy);
 
 #endif

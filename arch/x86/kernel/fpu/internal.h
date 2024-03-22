@@ -5,20 +5,18 @@
 extern struct fpstate init_fpstate;
 
 /* CPU feature check wrappers */
-static __always_inline __pure bool use_xsave(void)
-{
-	return cpu_feature_enabled(X86_FEATURE_XSAVE);
+static __always_inline __pure bool use_xsave(void) {
+  return cpu_feature_enabled(X86_FEATURE_XSAVE);
 }
 
-static __always_inline __pure bool use_fxsr(void)
-{
-	return cpu_feature_enabled(X86_FEATURE_FXSR);
+static __always_inline __pure bool use_fxsr(void) {
+  return cpu_feature_enabled(X86_FEATURE_FXSR);
 }
 
 #ifdef CONFIG_X86_DEBUG_FPU
-# define WARN_ON_FPU(x) WARN_ON_ONCE(x)
+#define WARN_ON_FPU(x) WARN_ON_ONCE(x)
 #else
-# define WARN_ON_FPU(x) ({ (void)(x); 0; })
+#define WARN_ON_FPU(x) ({ (void) (x); 0; })
 #endif
 
 /* Used in init.c */

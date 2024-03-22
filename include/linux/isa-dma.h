@@ -8,7 +8,7 @@
 #if defined(CONFIG_PCI) && defined(CONFIG_X86_32)
 extern int isa_dma_bridge_buggy;
 #else
-#define isa_dma_bridge_buggy	(0)
+#define isa_dma_bridge_buggy  (0)
 #endif
 
 #endif /* __LINUX_ISA_DMA_H */

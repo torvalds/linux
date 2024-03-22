@@ -32,76 +32,69 @@
 #define MAX_XCP_PLATFORM_DEVICE 64
 
 struct xcp_device {
-	struct drm_device drm;
-	struct platform_device *pdev;
+  struct drm_device drm;
+  struct platform_device *pdev;
 };
 
 static const struct drm_driver amdgpu_xcp_driver = {
-	.driver_features = DRIVER_GEM | DRIVER_RENDER,
-	.name = "amdgpu_xcp_drv",
-	.major = 1,
-	.minor = 0,
+  .driver_features = DRIVER_GEM | DRIVER_RENDER,
+  .name = "amdgpu_xcp_drv",
+  .major = 1,
+  .minor = 0,
 };
 
 static int pdev_num;
 static struct xcp_device *xcp_dev[MAX_XCP_PLATFORM_DEVICE];
 
-int amdgpu_xcp_drm_dev_alloc(struct drm_device **ddev)
-{
-	struct platform_device *pdev;
-	struct xcp_device *pxcp_dev;
-	int ret;
-
-	if (pdev_num >= MAX_XCP_PLATFORM_DEVICE)
-		return -ENODEV;
-
-	pdev = platform_device_register_simple("amdgpu_xcp", pdev_num, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
-
-	if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
-		ret = -ENOMEM;
-		goto out_unregister;
-	}
-
-	pxcp_dev = devm_drm_dev_alloc(&pdev->dev, &amdgpu_xcp_driver, struct xcp_device, drm);
-	if (IS_ERR(pxcp_dev)) {
-		ret = PTR_ERR(pxcp_dev);
-		goto out_devres;
-	}
-
-	xcp_dev[pdev_num] = pxcp_dev;
-	xcp_dev[pdev_num]->pdev = pdev;
-	*ddev = &pxcp_dev->drm;
-	pdev_num++;
-
-	return 0;
-
+int amdgpu_xcp_drm_dev_alloc(struct drm_device **ddev) {
+  struct platform_device *pdev;
+  struct xcp_device *pxcp_dev;
+  int ret;
+  if (pdev_num >= MAX_XCP_PLATFORM_DEVICE) {
+    return -ENODEV;
+  }
+  pdev = platform_device_register_simple("amdgpu_xcp", pdev_num, NULL, 0);
+  if (IS_ERR(pdev)) {
+    return PTR_ERR(pdev);
+  }
+  if (!devres_open_group(&pdev->dev, NULL, GFP_KERNEL)) {
+    ret = -ENOMEM;
+    goto out_unregister;
+  }
+  pxcp_dev = devm_drm_dev_alloc(&pdev->dev, &amdgpu_xcp_driver,
+      struct xcp_device, drm);
+  if (IS_ERR(pxcp_dev)) {
+    ret = PTR_ERR(pxcp_dev);
+    goto out_devres;
+  }
+  xcp_dev[pdev_num] = pxcp_dev;
+  xcp_dev[pdev_num]->pdev = pdev;
+  *ddev = &pxcp_dev->drm;
+  pdev_num++;
+  return 0;
 out_devres:
-	devres_release_group(&pdev->dev, NULL);
+  devres_release_group(&pdev->dev, NULL);
 out_unregister:
-	platform_device_unregister(pdev);
-
-	return ret;
+  platform_device_unregister(pdev);
+  return ret;
 }
+
 EXPORT_SYMBOL(amdgpu_xcp_drm_dev_alloc);
 
-void amdgpu_xcp_drv_release(void)
-{
-	for (--pdev_num; pdev_num >= 0; --pdev_num) {
-		struct platform_device *pdev = xcp_dev[pdev_num]->pdev;
-
-		devres_release_group(&pdev->dev, NULL);
-		platform_device_unregister(pdev);
-		xcp_dev[pdev_num] = NULL;
-	}
-	pdev_num = 0;
+void amdgpu_xcp_drv_release(void) {
+  for (--pdev_num; pdev_num >= 0; --pdev_num) {
+    struct platform_device *pdev = xcp_dev[pdev_num]->pdev;
+    devres_release_group(&pdev->dev, NULL);
+    platform_device_unregister(pdev);
+    xcp_dev[pdev_num] = NULL;
+  }
+  pdev_num = 0;
 }
+
 EXPORT_SYMBOL(amdgpu_xcp_drv_release);
 
-static void __exit amdgpu_xcp_drv_exit(void)
-{
-	amdgpu_xcp_drv_release();
+static void __exit amdgpu_xcp_drv_exit(void) {
+  amdgpu_xcp_drv_release();
 }
 
 module_exit(amdgpu_xcp_drv_exit);

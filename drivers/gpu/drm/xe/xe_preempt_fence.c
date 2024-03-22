@@ -10,53 +10,43 @@
 #include "xe_exec_queue.h"
 #include "xe_vm.h"
 
-static void preempt_fence_work_func(struct work_struct *w)
-{
-	bool cookie = dma_fence_begin_signalling();
-	struct xe_preempt_fence *pfence =
-		container_of(w, typeof(*pfence), preempt_work);
-	struct xe_exec_queue *q = pfence->q;
-
-	if (pfence->error)
-		dma_fence_set_error(&pfence->base, pfence->error);
-	else
-		q->ops->suspend_wait(q);
-
-	dma_fence_signal(&pfence->base);
-	dma_fence_end_signalling(cookie);
-
-	xe_vm_queue_rebind_worker(q->vm);
-
-	xe_exec_queue_put(q);
+static void preempt_fence_work_func(struct work_struct *w) {
+  bool cookie = dma_fence_begin_signalling();
+  struct xe_preempt_fence *pfence
+    = container_of(w, typeof(*pfence), preempt_work);
+  struct xe_exec_queue *q = pfence->q;
+  if (pfence->error) {
+    dma_fence_set_error(&pfence->base, pfence->error);
+  } else {
+    q->ops->suspend_wait(q);
+  }
+  dma_fence_signal(&pfence->base);
+  dma_fence_end_signalling(cookie);
+  xe_vm_queue_rebind_worker(q->vm);
+  xe_exec_queue_put(q);
 }
 
-static const char *
-preempt_fence_get_driver_name(struct dma_fence *fence)
-{
-	return "xe";
+static const char *preempt_fence_get_driver_name(struct dma_fence *fence) {
+  return "xe";
 }
 
-static const char *
-preempt_fence_get_timeline_name(struct dma_fence *fence)
-{
-	return "preempt";
+static const char *preempt_fence_get_timeline_name(struct dma_fence *fence) {
+  return "preempt";
 }
 
-static bool preempt_fence_enable_signaling(struct dma_fence *fence)
-{
-	struct xe_preempt_fence *pfence =
-		container_of(fence, typeof(*pfence), base);
-	struct xe_exec_queue *q = pfence->q;
-
-	pfence->error = q->ops->suspend(q);
-	queue_work(system_unbound_wq, &pfence->preempt_work);
-	return true;
+static bool preempt_fence_enable_signaling(struct dma_fence *fence) {
+  struct xe_preempt_fence *pfence
+    = container_of(fence, typeof(*pfence), base);
+  struct xe_exec_queue *q = pfence->q;
+  pfence->error = q->ops->suspend(q);
+  queue_work(system_unbound_wq, &pfence->preempt_work);
+  return true;
 }
 
 static const struct dma_fence_ops preempt_fence_ops = {
-	.get_driver_name = preempt_fence_get_driver_name,
-	.get_timeline_name = preempt_fence_get_timeline_name,
-	.enable_signaling = preempt_fence_enable_signaling,
+  .get_driver_name = preempt_fence_get_driver_name,
+  .get_timeline_name = preempt_fence_get_timeline_name,
+  .enable_signaling = preempt_fence_enable_signaling,
 };
 
 /**
@@ -72,18 +62,15 @@ static const struct dma_fence_ops preempt_fence_ops = {
  * xe_preempt_fence_arm() or xe_preempt_fence_free().
  * An error pointer on error.
  */
-struct xe_preempt_fence *xe_preempt_fence_alloc(void)
-{
-	struct xe_preempt_fence *pfence;
-
-	pfence = kmalloc(sizeof(*pfence), GFP_KERNEL);
-	if (!pfence)
-		return ERR_PTR(-ENOMEM);
-
-	INIT_LIST_HEAD(&pfence->link);
-	INIT_WORK(&pfence->preempt_work, preempt_fence_work_func);
-
-	return pfence;
+struct xe_preempt_fence *xe_preempt_fence_alloc(void) {
+  struct xe_preempt_fence *pfence;
+  pfence = kmalloc(sizeof(*pfence), GFP_KERNEL);
+  if (!pfence) {
+    return ERR_PTR(-ENOMEM);
+  }
+  INIT_LIST_HEAD(&pfence->link);
+  INIT_WORK(&pfence->preempt_work, preempt_fence_work_func);
+  return pfence;
 }
 
 /**
@@ -93,10 +80,9 @@ struct xe_preempt_fence *xe_preempt_fence_alloc(void)
  *
  * Free a preempt fence that has not yet been armed.
  */
-void xe_preempt_fence_free(struct xe_preempt_fence *pfence)
-{
-	list_del(&pfence->link);
-	kfree(pfence);
+void xe_preempt_fence_free(struct xe_preempt_fence *pfence) {
+  list_del(&pfence->link);
+  kfree(pfence);
 }
 
 /**
@@ -109,21 +95,20 @@ void xe_preempt_fence_free(struct xe_preempt_fence *pfence)
  * @seqno: The dma-fence seqno used for arming.
  *
  * Inserts the preempt fence into @context's timeline, takes @link off any
- * list, and registers the struct xe_exec_queue as the xe_engine to be preempted.
+ * list, and registers the struct xe_exec_queue as the xe_engine to be
+ *preempted.
  *
  * Return: A pointer to a struct dma_fence embedded into the preempt fence.
  * This function doesn't error.
  */
-struct dma_fence *
-xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
-		     u64 context, u32 seqno)
-{
-	list_del_init(&pfence->link);
-	pfence->q = xe_exec_queue_get(q);
-	dma_fence_init(&pfence->base, &preempt_fence_ops,
-		      &q->compute.lock, context, seqno);
-
-	return &pfence->base;
+struct dma_fence *xe_preempt_fence_arm(struct xe_preempt_fence *pfence,
+    struct xe_exec_queue *q,
+    u64 context, u32 seqno) {
+  list_del_init(&pfence->link);
+  pfence->q = xe_exec_queue_get(q);
+  dma_fence_init(&pfence->base, &preempt_fence_ops,
+      &q->compute.lock, context, seqno);
+  return &pfence->base;
 }
 
 /**
@@ -139,20 +124,16 @@ xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
  * pointer on error. In particular if allocation fails it returns
  * ERR_PTR(-ENOMEM);
  */
-struct dma_fence *
-xe_preempt_fence_create(struct xe_exec_queue *q,
-			u64 context, u32 seqno)
-{
-	struct xe_preempt_fence *pfence;
-
-	pfence = xe_preempt_fence_alloc();
-	if (IS_ERR(pfence))
-		return ERR_CAST(pfence);
-
-	return xe_preempt_fence_arm(pfence, q, context, seqno);
+struct dma_fence *xe_preempt_fence_create(struct xe_exec_queue *q,
+    u64 context, u32 seqno) {
+  struct xe_preempt_fence *pfence;
+  pfence = xe_preempt_fence_alloc();
+  if (IS_ERR(pfence)) {
+    return ERR_CAST(pfence);
+  }
+  return xe_preempt_fence_arm(pfence, q, context, seqno);
 }
 
-bool xe_fence_is_xe_preempt(const struct dma_fence *fence)
-{
-	return fence->ops == &preempt_fence_ops;
+bool xe_fence_is_xe_preempt(const struct dma_fence *fence) {
+  return fence->ops == &preempt_fence_ops;
 }

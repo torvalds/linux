@@ -18,8 +18,8 @@
  */
 
 enum node_flags {
-	INTERNAL_NODE = 1,
-	LEAF_NODE = 1 << 1
+  INTERNAL_NODE = 1,
+  LEAF_NODE = 1 << 1
 };
 
 /*
@@ -27,30 +27,29 @@ enum node_flags {
  * of 8-bytes in size, otherwise the 64bit keys will be mis-aligned.
  */
 struct node_header {
-	__le32 csum;
-	__le32 flags;
-	__le64 blocknr; /* Block this node is supposed to live in. */
+  __le32 csum;
+  __le32 flags;
+  __le64 blocknr; /* Block this node is supposed to live in. */
 
-	__le32 nr_entries;
-	__le32 max_entries;
-	__le32 value_size;
-	__le32 padding;
+  __le32 nr_entries;
+  __le32 max_entries;
+  __le32 value_size;
+  __le32 padding;
 } __packed __aligned(8);
 
 struct btree_node {
-	struct node_header header;
-	__le64 keys[];
+  struct node_header header;
+  __le64 keys[];
 } __packed __aligned(8);
-
 
 /*
  * Locks a block using the btree node validator.
  */
 int bn_read_lock(struct dm_btree_info *info, dm_block_t b,
-		 struct dm_block **result);
+    struct dm_block **result);
 
 void inc_children(struct dm_transaction_manager *tm, struct btree_node *n,
-		  struct dm_btree_value_type *vt);
+    struct dm_btree_value_type *vt);
 
 int new_block(struct dm_btree_info *info, struct dm_block **result);
 void unlock_block(struct dm_btree_info *info, struct dm_block *b);
@@ -62,10 +61,10 @@ void unlock_block(struct dm_btree_info *info, struct dm_block *b);
  * on a shadow spine.
  */
 struct ro_spine {
-	struct dm_btree_info *info;
+  struct dm_btree_info *info;
 
-	int count;
-	struct dm_block *nodes[2];
+  int count;
+  struct dm_block *nodes[2];
 };
 
 void init_ro_spine(struct ro_spine *s, struct dm_btree_info *info);
@@ -75,19 +74,19 @@ void ro_pop(struct ro_spine *s);
 struct btree_node *ro_node(struct ro_spine *s);
 
 struct shadow_spine {
-	struct dm_btree_info *info;
+  struct dm_btree_info *info;
 
-	int count;
-	struct dm_block *nodes[2];
+  int count;
+  struct dm_block *nodes[2];
 
-	dm_block_t root;
+  dm_block_t root;
 };
 
 void init_shadow_spine(struct shadow_spine *s, struct dm_btree_info *info);
 void exit_shadow_spine(struct shadow_spine *s);
 
 int shadow_step(struct shadow_spine *s, dm_block_t b,
-		struct dm_btree_value_type *vt);
+    struct dm_btree_value_type *vt);
 
 /*
  * The spine must have at least one entry before calling this.
@@ -106,31 +105,25 @@ dm_block_t shadow_root(struct shadow_spine *s);
 /*
  * Some inlines.
  */
-static inline __le64 *key_ptr(struct btree_node *n, uint32_t index)
-{
-	return n->keys + index;
+static inline __le64 *key_ptr(struct btree_node *n, uint32_t index) {
+  return n->keys + index;
 }
 
-static inline void *value_base(struct btree_node *n)
-{
-	return &n->keys[le32_to_cpu(n->header.max_entries)];
+static inline void *value_base(struct btree_node *n) {
+  return &n->keys[le32_to_cpu(n->header.max_entries)];
 }
 
-static inline void *value_ptr(struct btree_node *n, uint32_t index)
-{
-	uint32_t value_size = le32_to_cpu(n->header.value_size);
-
-	return value_base(n) + (value_size * index);
+static inline void *value_ptr(struct btree_node *n, uint32_t index) {
+  uint32_t value_size = le32_to_cpu(n->header.value_size);
+  return value_base(n) + (value_size * index);
 }
 
 /*
  * Assumes the values are suitably-aligned and converts to core format.
  */
-static inline uint64_t value64(struct btree_node *n, uint32_t index)
-{
-	__le64 *values_le = value_base(n);
-
-	return le64_to_cpu(values_le[index]);
+static inline uint64_t value64(struct btree_node *n, uint32_t index) {
+  __le64 *values_le = value_base(n);
+  return le64_to_cpu(values_le[index]);
 }
 
 /*
@@ -144,7 +137,7 @@ extern struct dm_block_validator btree_node_validator;
  * Value type for upper levels of multi-level btrees.
  */
 extern void init_le64_type(struct dm_transaction_manager *tm,
-			   struct dm_btree_value_type *vt);
+    struct dm_btree_value_type *vt);
 
 /*
  * This returns a shadowed btree leaf that you may modify.  In practise
@@ -156,7 +149,7 @@ extern void init_le64_type(struct dm_transaction_manager *tm,
  * the tree, otherwise -EINVAL will be returned.
  */
 int btree_get_overwrite_leaf(struct dm_btree_info *info, dm_block_t root,
-			     uint64_t key, int *index,
-			     dm_block_t *new_root, struct dm_block **leaf);
+    uint64_t key, int *index,
+    dm_block_t *new_root, struct dm_block **leaf);
 
-#endif	/* DM_BTREE_INTERNAL_H */
+#endif  /* DM_BTREE_INTERNAL_H */

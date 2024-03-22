@@ -24,21 +24,21 @@
  * while holding the same spinlock as above.
  */
 struct vmci_datagram_queue_entry {
-	struct list_head list_item;	/* For queuing. */
-	size_t dg_size;		/* Size of datagram. */
-	struct vmci_datagram *dg;	/* Pending datagram. */
+  struct list_head list_item; /* For queuing. */
+  size_t dg_size;   /* Size of datagram. */
+  struct vmci_datagram *dg; /* Pending datagram. */
 };
 
 /* VMCIDatagramSendRecvInfo */
 struct vmci_datagram_snd_rcv_info {
-	u64 addr;
-	u32 len;
-	s32 result;
+  u64 addr;
+  u32 len;
+  s32 result;
 };
 
 /* Datagram API for non-public use. */
 int vmci_datagram_dispatch(u32 context_id, struct vmci_datagram *dg,
-			   bool from_guest);
+    bool from_guest);
 int vmci_datagram_invoke_guest_handler(struct vmci_datagram *dg);
 
 #endif /* _VMCI_DATAGRAM_H_ */

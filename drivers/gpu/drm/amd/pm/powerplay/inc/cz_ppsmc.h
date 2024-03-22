@@ -31,29 +31,30 @@
 #define FDO_MODE_PIECE_WISE_LINEAR 1
 
 enum FAN_CONTROL {
-    FAN_CONTROL_FUZZY,
-    FAN_CONTROL_TABLE
+  FAN_CONTROL_FUZZY,
+  FAN_CONTROL_TABLE
 };
 
 enum DPM_ARRAY {
-    DPM_ARRAY_HARD_MAX,
-    DPM_ARRAY_HARD_MIN,
-    DPM_ARRAY_SOFT_MAX,
-    DPM_ARRAY_SOFT_MIN
+  DPM_ARRAY_HARD_MAX,
+  DPM_ARRAY_HARD_MIN,
+  DPM_ARRAY_SOFT_MAX,
+  DPM_ARRAY_SOFT_MIN
 };
 
 /*
  * Return codes for driver to SMC communication.
- * Leave these #define-s, enums might not be exactly 8-bits on the microcontroller.
+ * Leave these #define-s, enums might not be exactly 8-bits on the
+ *microcontroller.
  */
-#define PPSMC_Result_OK             ((uint16_t)0x01)
-#define PPSMC_Result_NoMore         ((uint16_t)0x02)
-#define PPSMC_Result_NotNow         ((uint16_t)0x03)
-#define PPSMC_Result_Failed         ((uint16_t)0xFF)
-#define PPSMC_Result_UnknownCmd     ((uint16_t)0xFE)
-#define PPSMC_Result_UnknownVT      ((uint16_t)0xFD)
+#define PPSMC_Result_OK             ((uint16_t) 0x01)
+#define PPSMC_Result_NoMore         ((uint16_t) 0x02)
+#define PPSMC_Result_NotNow         ((uint16_t) 0x03)
+#define PPSMC_Result_Failed         ((uint16_t) 0xFF)
+#define PPSMC_Result_UnknownCmd     ((uint16_t) 0xFE)
+#define PPSMC_Result_UnknownVT      ((uint16_t) 0xFD)
 
-#define PPSMC_isERROR(x)            ((uint16_t)0x80 & (x))
+#define PPSMC_isERROR(x)            ((uint16_t) 0x80 & (x))
 
 /*
  * Supported driver messages

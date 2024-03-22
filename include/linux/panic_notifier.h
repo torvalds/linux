@@ -9,4 +9,4 @@ extern struct atomic_notifier_head panic_notifier_list;
 
 extern bool crash_kexec_post_notifiers;
 
-#endif	/* _LINUX_PANIC_NOTIFIERS_H */
+#endif  /* _LINUX_PANIC_NOTIFIERS_H */

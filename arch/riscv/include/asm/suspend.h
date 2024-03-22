@@ -10,15 +10,15 @@
 #include <asm/ptrace.h>
 
 struct suspend_context {
-	/* Saved and restored by low-level functions */
-	struct pt_regs regs;
-	/* Saved and restored by high-level functions */
-	unsigned long scratch;
-	unsigned long envcfg;
-	unsigned long tvec;
-	unsigned long ie;
+  /* Saved and restored by low-level functions */
+  struct pt_regs regs;
+  /* Saved and restored by high-level functions */
+  unsigned long scratch;
+  unsigned long envcfg;
+  unsigned long tvec;
+  unsigned long ie;
 #ifdef CONFIG_MMU
-	unsigned long satp;
+  unsigned long satp;
 #endif
 };
 
@@ -32,9 +32,9 @@ int __cpu_suspend_enter(struct suspend_context *context);
 
 /* High-level CPU suspend which will save context and call finish() */
 int cpu_suspend(unsigned long arg,
-		int (*finish)(unsigned long arg,
-			      unsigned long entry,
-			      unsigned long context));
+    int (*finish)(unsigned long arg,
+    unsigned long entry,
+    unsigned long context));
 
 /* Low-level CPU resume entry function */
 int __cpu_resume_enter(unsigned long hartid, unsigned long context);
@@ -53,7 +53,8 @@ int __hibernate_cpu_resume(void);
 /* Used to resume on the CPU we hibernated on */
 int hibernate_resume_nonboot_cpu_disable(void);
 
-asmlinkage void hibernate_restore_image(unsigned long resume_satp, unsigned long satp_temp,
-					unsigned long cpu_resume);
+asmlinkage void hibernate_restore_image(unsigned long resume_satp,
+    unsigned long satp_temp,
+    unsigned long cpu_resume);
 asmlinkage int hibernate_core_restore_code(void);
 #endif

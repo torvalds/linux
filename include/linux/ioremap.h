@@ -14,17 +14,16 @@
 #define IOREMAP_START   VMALLOC_START
 #define IOREMAP_END     VMALLOC_END
 #endif
-static inline bool is_ioremap_addr(const void *x)
-{
-	unsigned long addr = (unsigned long)kasan_reset_tag(x);
+static inline bool is_ioremap_addr(const void *x) {
+  unsigned long addr = (unsigned long) kasan_reset_tag(x);
+  return addr >= IOREMAP_START && addr < IOREMAP_END;
+}
 
-	return addr >= IOREMAP_START && addr < IOREMAP_END;
-}
 #else
-static inline bool is_ioremap_addr(const void *x)
-{
-	return false;
+static inline bool is_ioremap_addr(const void *x) {
+  return false;
 }
+
 #endif
 
 #endif /* _LINUX_IOREMAP_H */

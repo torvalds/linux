@@ -36,55 +36,55 @@
  * NOTE: These events can be OR'ed together when passed into handler.
  */
 
-#define REGULATOR_EVENT_UNDER_VOLTAGE		0x01
-#define REGULATOR_EVENT_OVER_CURRENT		0x02
-#define REGULATOR_EVENT_REGULATION_OUT		0x04
-#define REGULATOR_EVENT_FAIL			0x08
-#define REGULATOR_EVENT_OVER_TEMP		0x10
-#define REGULATOR_EVENT_FORCE_DISABLE		0x20
-#define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
-#define REGULATOR_EVENT_DISABLE			0x80
-#define REGULATOR_EVENT_PRE_VOLTAGE_CHANGE	0x100
-#define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE	0x200
-#define REGULATOR_EVENT_PRE_DISABLE		0x400
-#define REGULATOR_EVENT_ABORT_DISABLE		0x800
-#define REGULATOR_EVENT_ENABLE			0x1000
+#define REGULATOR_EVENT_UNDER_VOLTAGE   0x01
+#define REGULATOR_EVENT_OVER_CURRENT    0x02
+#define REGULATOR_EVENT_REGULATION_OUT    0x04
+#define REGULATOR_EVENT_FAIL      0x08
+#define REGULATOR_EVENT_OVER_TEMP   0x10
+#define REGULATOR_EVENT_FORCE_DISABLE   0x20
+#define REGULATOR_EVENT_VOLTAGE_CHANGE    0x40
+#define REGULATOR_EVENT_DISABLE     0x80
+#define REGULATOR_EVENT_PRE_VOLTAGE_CHANGE  0x100
+#define REGULATOR_EVENT_ABORT_VOLTAGE_CHANGE  0x200
+#define REGULATOR_EVENT_PRE_DISABLE   0x400
+#define REGULATOR_EVENT_ABORT_DISABLE   0x800
+#define REGULATOR_EVENT_ENABLE      0x1000
 /*
  * Following notifications should be emitted only if detected condition
  * is such that the HW is likely to still be working but consumers should
  * take a recovery action to prevent problems escalating into errors.
  */
-#define REGULATOR_EVENT_UNDER_VOLTAGE_WARN	0x2000
-#define REGULATOR_EVENT_OVER_CURRENT_WARN	0x4000
-#define REGULATOR_EVENT_OVER_VOLTAGE_WARN	0x8000
-#define REGULATOR_EVENT_OVER_TEMP_WARN		0x10000
-#define REGULATOR_EVENT_WARN_MASK		0x1E000
+#define REGULATOR_EVENT_UNDER_VOLTAGE_WARN  0x2000
+#define REGULATOR_EVENT_OVER_CURRENT_WARN 0x4000
+#define REGULATOR_EVENT_OVER_VOLTAGE_WARN 0x8000
+#define REGULATOR_EVENT_OVER_TEMP_WARN    0x10000
+#define REGULATOR_EVENT_WARN_MASK   0x1E000
 
 struct reg_genl_event {
-	char reg_name[32];
-	uint64_t event;
+  char reg_name[32];
+  uint64_t event;
 };
 
 /* attributes of reg_genl_family */
 enum {
-	REG_GENL_ATTR_UNSPEC,
-	REG_GENL_ATTR_EVENT,	/* reg event info needed by user space */
-	__REG_GENL_ATTR_MAX,
+  REG_GENL_ATTR_UNSPEC,
+  REG_GENL_ATTR_EVENT,  /* reg event info needed by user space */
+  __REG_GENL_ATTR_MAX,
 };
 
 #define REG_GENL_ATTR_MAX (__REG_GENL_ATTR_MAX - 1)
 
 /* commands supported by the reg_genl_family */
 enum {
-	REG_GENL_CMD_UNSPEC,
-	REG_GENL_CMD_EVENT,	/* kernel->user notifications for reg events */
-	__REG_GENL_CMD_MAX,
+  REG_GENL_CMD_UNSPEC,
+  REG_GENL_CMD_EVENT, /* kernel->user notifications for reg events */
+  __REG_GENL_CMD_MAX,
 };
 
 #define REG_GENL_CMD_MAX (__REG_GENL_CMD_MAX - 1)
 
-#define REG_GENL_FAMILY_NAME		"reg_event"
-#define REG_GENL_VERSION		0x01
-#define REG_GENL_MCAST_GROUP_NAME	"reg_mc_group"
+#define REG_GENL_FAMILY_NAME    "reg_event"
+#define REG_GENL_VERSION    0x01
+#define REG_GENL_MCAST_GROUP_NAME "reg_mc_group"
 
 #endif /* _UAPI_REGULATOR_H */

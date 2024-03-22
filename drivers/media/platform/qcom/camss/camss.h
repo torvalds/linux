@@ -23,122 +23,122 @@
 #include "camss-ispif.h"
 #include "camss-vfe.h"
 
-#define to_camss(ptr_module)	\
-	container_of(ptr_module, struct camss, ptr_module)
+#define to_camss(ptr_module)  \
+  container_of(ptr_module, struct camss, ptr_module)
 
-#define to_device(ptr_module)	\
-	(to_camss(ptr_module)->dev)
+#define to_device(ptr_module) \
+  (to_camss(ptr_module)->dev)
 
-#define module_pointer(ptr_module, index)	\
-	((const struct ptr_module##_device (*)[]) &(ptr_module[-(index)]))
+#define module_pointer(ptr_module, index) \
+  ((const struct ptr_module ## _device(*)[]) & (ptr_module[-(index)]))
 
-#define to_camss_index(ptr_module, index)	\
-	container_of(module_pointer(ptr_module, index),	\
-		     struct camss, ptr_module)
+#define to_camss_index(ptr_module, index) \
+  container_of(module_pointer(ptr_module, index), \
+    struct camss, ptr_module)
 
-#define to_device_index(ptr_module, index)	\
-	(to_camss_index(ptr_module, index)->dev)
+#define to_device_index(ptr_module, index)  \
+  (to_camss_index(ptr_module, index)->dev)
 
 #define CAMSS_RES_MAX 17
 
 struct camss_subdev_resources {
-	char *regulators[CAMSS_RES_MAX];
-	char *clock[CAMSS_RES_MAX];
-	char *clock_for_reset[CAMSS_RES_MAX];
-	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
-	char *reg[CAMSS_RES_MAX];
-	char *interrupt[CAMSS_RES_MAX];
-	char *pd_name;
-	u8 line_num;
-	bool has_pd;
-	bool is_lite;
-	const void *ops;
+  char *regulators[CAMSS_RES_MAX];
+  char *clock[CAMSS_RES_MAX];
+  char *clock_for_reset[CAMSS_RES_MAX];
+  u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
+  char *reg[CAMSS_RES_MAX];
+  char *interrupt[CAMSS_RES_MAX];
+  char *pd_name;
+  u8 line_num;
+  bool has_pd;
+  bool is_lite;
+  const void *ops;
 };
 
 struct icc_bw_tbl {
-	u32 avg;
-	u32 peak;
+  u32 avg;
+  u32 peak;
 };
 
 struct resources_icc {
-	char *name;
-	struct icc_bw_tbl icc_bw_tbl;
+  char *name;
+  struct icc_bw_tbl icc_bw_tbl;
 };
 
 enum pm_domain {
-	PM_DOMAIN_VFE0 = 0,
-	PM_DOMAIN_VFE1 = 1,
-	PM_DOMAIN_VFELITE = 2,		/* VFELITE / TOP GDSC */
+  PM_DOMAIN_VFE0 = 0,
+  PM_DOMAIN_VFE1 = 1,
+  PM_DOMAIN_VFELITE = 2,    /* VFELITE / TOP GDSC */
 };
 
 enum camss_version {
-	CAMSS_8x16,
-	CAMSS_8x96,
-	CAMSS_660,
-	CAMSS_845,
-	CAMSS_8250,
+  CAMSS_8x16,
+  CAMSS_8x96,
+  CAMSS_660,
+  CAMSS_845,
+  CAMSS_8250,
 };
 
 enum icc_count {
-	ICC_DEFAULT_COUNT = 0,
-	ICC_SM8250_COUNT = 4,
+  ICC_DEFAULT_COUNT = 0,
+  ICC_SM8250_COUNT = 4,
 };
 
 struct camss_resources {
-	enum camss_version version;
-	const char *pd_name;
-	const struct camss_subdev_resources *csiphy_res;
-	const struct camss_subdev_resources *csid_res;
-	const struct camss_subdev_resources *ispif_res;
-	const struct camss_subdev_resources *vfe_res;
-	const struct resources_icc *icc_res;
-	const unsigned int icc_path_num;
-	const unsigned int csiphy_num;
-	const unsigned int csid_num;
-	const unsigned int vfe_num;
+  enum camss_version version;
+  const char *pd_name;
+  const struct camss_subdev_resources *csiphy_res;
+  const struct camss_subdev_resources *csid_res;
+  const struct camss_subdev_resources *ispif_res;
+  const struct camss_subdev_resources *vfe_res;
+  const struct resources_icc *icc_res;
+  const unsigned int icc_path_num;
+  const unsigned int csiphy_num;
+  const unsigned int csid_num;
+  const unsigned int vfe_num;
 };
 
 struct camss {
-	struct v4l2_device v4l2_dev;
-	struct v4l2_async_notifier notifier;
-	struct media_device media_dev;
-	struct device *dev;
-	struct csiphy_device *csiphy;
-	struct csid_device *csid;
-	struct ispif_device *ispif;
-	struct vfe_device *vfe;
-	atomic_t ref_count;
-	int genpd_num;
-	struct device *genpd;
-	struct device_link *genpd_link;
-	struct icc_path *icc_path[ICC_SM8250_COUNT];
-	const struct camss_resources *res;
+  struct v4l2_device v4l2_dev;
+  struct v4l2_async_notifier notifier;
+  struct media_device media_dev;
+  struct device *dev;
+  struct csiphy_device *csiphy;
+  struct csid_device *csid;
+  struct ispif_device *ispif;
+  struct vfe_device *vfe;
+  atomic_t ref_count;
+  int genpd_num;
+  struct device *genpd;
+  struct device_link *genpd_link;
+  struct icc_path *icc_path[ICC_SM8250_COUNT];
+  const struct camss_resources *res;
 };
 
 struct camss_camera_interface {
-	u8 csiphy_id;
-	struct csiphy_csi2_cfg csi2;
+  u8 csiphy_id;
+  struct csiphy_csi2_cfg csi2;
 };
 
 struct camss_async_subdev {
-	struct v4l2_async_connection asd; /* must be first */
-	struct camss_camera_interface interface;
+  struct v4l2_async_connection asd; /* must be first */
+  struct camss_camera_interface interface;
 };
 
 struct camss_clock {
-	struct clk *clk;
-	const char *name;
-	u32 *freq;
-	u32 nfreqs;
+  struct clk *clk;
+  const char *name;
+  u32 *freq;
+  u32 nfreqs;
 };
 
 void camss_add_clock_margin(u64 *rate);
 int camss_enable_clocks(int nclocks, struct camss_clock *clock,
-			struct device *dev);
+    struct device *dev);
 void camss_disable_clocks(int nclocks, struct camss_clock *clock);
 struct media_entity *camss_find_sensor(struct media_entity *entity);
 s64 camss_get_link_freq(struct media_entity *entity, unsigned int bpp,
-			unsigned int lanes);
+    unsigned int lanes);
 int camss_get_pixel_clock(struct media_entity *entity, u64 *pixel_clock);
 int camss_pm_domain_on(struct camss *camss, int id);
 void camss_pm_domain_off(struct camss *camss, int id);

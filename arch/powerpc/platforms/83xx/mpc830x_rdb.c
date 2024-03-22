@@ -21,29 +21,28 @@
 /*
  * Setup the architecture
  */
-static void __init mpc830x_rdb_setup_arch(void)
-{
-	mpc83xx_setup_arch();
-	mpc831x_usb_cfg();
+static void __init mpc830x_rdb_setup_arch(void) {
+  mpc83xx_setup_arch();
+  mpc831x_usb_cfg();
 }
 
 static const char *board[] __initdata = {
-	"MPC8308RDB",
-	"fsl,mpc8308rdb",
-	"denx,mpc8308_p1m",
-	NULL
+  "MPC8308RDB",
+  "fsl,mpc8308rdb",
+  "denx,mpc8308_p1m",
+  NULL
 };
 
 machine_device_initcall(mpc830x_rdb, mpc83xx_declare_of_platform_devices);
 
 define_machine(mpc830x_rdb) {
-	.name			= "MPC830x RDB",
-	.compatibles		= board,
-	.setup_arch		= mpc830x_rdb_setup_arch,
-	.discover_phbs		= mpc83xx_setup_pci,
-	.init_IRQ		= mpc83xx_ipic_init_IRQ,
-	.get_irq		= ipic_get_irq,
-	.restart		= mpc83xx_restart,
-	.time_init		= mpc83xx_time_init,
-	.progress		= udbg_progress,
+  .name = "MPC830x RDB",
+  .compatibles = board,
+  .setup_arch = mpc830x_rdb_setup_arch,
+  .discover_phbs = mpc83xx_setup_pci,
+  .init_IRQ = mpc83xx_ipic_init_IRQ,
+  .get_irq = ipic_get_irq,
+  .restart = mpc83xx_restart,
+  .time_init = mpc83xx_time_init,
+  .progress = udbg_progress,
 };

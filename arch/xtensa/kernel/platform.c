@@ -22,23 +22,20 @@
  * (Please, refer to arch/xtensa/include/asm/platform.h for more information)
  */
 
-void __weak __init platform_init(bp_tag_t *first)
-{
+void __weak __init platform_init(bp_tag_t *first) {
 }
 
-void __weak __init platform_setup(char **cmd)
-{
+void __weak __init platform_setup(char **cmd) {
 }
 
-void __weak platform_idle(void)
-{
-	__asm__ __volatile__ ("waiti 0" ::: "memory");
+void __weak platform_idle(void) {
+  __asm__ __volatile__ ("waiti 0" ::: "memory");
 }
 
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
-void __weak platform_calibrate_ccount(void)
-{
-	pr_err("ERROR: Cannot calibrate cpu frequency! Assuming 10MHz.\n");
-	ccount_freq = 10 * 1000000UL;
+void __weak platform_calibrate_ccount(void) {
+  pr_err("ERROR: Cannot calibrate cpu frequency! Assuming 10MHz.\n");
+  ccount_freq = 10 * 1000000UL;
 }
+
 #endif

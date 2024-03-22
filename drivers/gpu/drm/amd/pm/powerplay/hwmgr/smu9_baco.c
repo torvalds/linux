@@ -28,38 +28,33 @@
 #include "vega10_inc.h"
 #include "smu9_baco.h"
 
-bool smu9_baco_get_capability(struct pp_hwmgr *hwmgr)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
-	uint32_t reg, data;
-
-	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_BACO))
-		return false;
-
-	WREG32(0x12074, 0xFFF0003B);
-	data = RREG32(0x12075);
-
-	if (data == 0x1) {
-		reg = RREG32_SOC15(NBIF, 0, mmRCC_BIF_STRAP0);
-
-		if (reg & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
-			return true;
-	}
-
-	return false;
+bool smu9_baco_get_capability(struct pp_hwmgr *hwmgr) {
+  struct amdgpu_device *adev = (struct amdgpu_device *) (hwmgr->adev);
+  uint32_t reg, data;
+  if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+      PHM_PlatformCaps_BACO)) {
+    return false;
+  }
+  WREG32(0x12074, 0xFFF0003B);
+  data = RREG32(0x12075);
+  if (data == 0x1) {
+    reg = RREG32_SOC15(NBIF, 0, mmRCC_BIF_STRAP0);
+    if (reg & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) {
+      return true;
+    }
+  }
+  return false;
 }
 
-int smu9_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
-	uint32_t reg;
-
-	reg = RREG32_SOC15(NBIF, 0, mmBACO_CNTL);
-
-	if (reg & BACO_CNTL__BACO_MODE_MASK)
-		/* gfx has already entered BACO state */
-		*state = BACO_STATE_IN;
-	else
-		*state = BACO_STATE_OUT;
-	return 0;
+int smu9_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state) {
+  struct amdgpu_device *adev = (struct amdgpu_device *) (hwmgr->adev);
+  uint32_t reg;
+  reg = RREG32_SOC15(NBIF, 0, mmBACO_CNTL);
+  if (reg & BACO_CNTL__BACO_MODE_MASK) {
+    /* gfx has already entered BACO state */
+    *state = BACO_STATE_IN;
+  } else {
+    *state = BACO_STATE_OUT;
+  }
+  return 0;
 }

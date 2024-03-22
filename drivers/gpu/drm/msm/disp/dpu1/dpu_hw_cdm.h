@@ -25,15 +25,15 @@ struct dpu_hw_cdm;
  *  @pp_id:                ping-pong block to which CDM is bound to
  */
 struct dpu_hw_cdm_cfg {
-	u32 output_width;
-	u32 output_height;
-	u32 output_bit_depth;
-	u32 h_cdwn_type;
-	u32 v_cdwn_type;
-	const struct dpu_format *output_fmt;
-	const struct dpu_csc_cfg *csc_cfg;
-	u32 output_type;
-	int pp_id;
+  u32 output_width;
+  u32 output_height;
+  u32 output_bit_depth;
+  u32 h_cdwn_type;
+  u32 v_cdwn_type;
+  const struct dpu_format *output_fmt;
+  const struct dpu_csc_cfg *csc_cfg;
+  u32 output_type;
+  int pp_id;
 };
 
 /*
@@ -41,11 +41,11 @@ struct dpu_hw_cdm_cfg {
  * in the horizontal/vertical direction for the CDM block.
  */
 enum dpu_hw_cdwn_type {
-	CDM_CDWN_DISABLE,
-	CDM_CDWN_PIXEL_DROP,
-	CDM_CDWN_AVG,
-	CDM_CDWN_COSITE,
-	CDM_CDWN_OFFSITE,
+  CDM_CDWN_DISABLE,
+  CDM_CDWN_PIXEL_DROP,
+  CDM_CDWN_AVG,
+  CDM_CDWN_COSITE,
+  CDM_CDWN_OFFSITE,
 };
 
 /*
@@ -53,8 +53,8 @@ enum dpu_hw_cdwn_type {
  * the input with which the CDM block is paired.
  */
 enum dpu_hw_cdwn_output_type {
-	CDM_CDWN_OUTPUT_HDMI,
-	CDM_CDWN_OUTPUT_WB,
+  CDM_CDWN_OUTPUT_HDMI,
+  CDM_CDWN_OUTPUT_WB,
 };
 
 /*
@@ -62,8 +62,8 @@ enum dpu_hw_cdwn_output_type {
  * are used to indicate the output bit depth of CDM block
  */
 enum dpu_hw_cdwn_output_bit_depth {
-	CDM_CDWN_OUTPUT_8BIT,
-	CDM_CDWN_OUTPUT_10BIT,
+  CDM_CDWN_OUTPUT_8BIT,
+  CDM_CDWN_OUTPUT_10BIT,
 };
 
 /*
@@ -72,10 +72,10 @@ enum dpu_hw_cdwn_output_bit_depth {
  * either in the horizontal or vertical direction.
  */
 enum dpu_hw_cdwn_op_mode_method_h_v {
-	CDM_CDWN2_METHOD_PIXEL_DROP,
-	CDM_CDWN2_METHOD_AVG,
-	CDM_CDWN2_METHOD_COSITE,
-	CDM_CDWN2_METHOD_OFFSITE
+  CDM_CDWN2_METHOD_PIXEL_DROP,
+  CDM_CDWN2_METHOD_AVG,
+  CDM_CDWN2_METHOD_COSITE,
+  CDM_CDWN2_METHOD_OFFSITE
 };
 
 /**
@@ -88,18 +88,18 @@ enum dpu_hw_cdwn_op_mode_method_h_v {
  *                         will feed pixels to this cdm
  */
 struct dpu_hw_cdm_ops {
-	/**
-	 * Enable the CDM module
-	 * @cdm         Pointer to chroma down context
-	 */
-	int (*enable)(struct dpu_hw_cdm *cdm, struct dpu_hw_cdm_cfg *cfg);
+  /**
+   * Enable the CDM module
+   * @cdm         Pointer to chroma down context
+   */
+  int (*enable)(struct dpu_hw_cdm *cdm, struct dpu_hw_cdm_cfg *cfg);
 
-	/**
-	 * Enable/disable the connection with pingpong
-	 * @cdm         Pointer to chroma down context
-	 * @pp          pingpong block id.
-	 */
-	void (*bind_pingpong_blk)(struct dpu_hw_cdm *cdm, const enum dpu_pingpong pp);
+  /**
+   * Enable/disable the connection with pingpong
+   * @cdm         Pointer to chroma down context
+   * @pp          pingpong block id.
+   */
+  void (*bind_pingpong_blk)(struct dpu_hw_cdm *cdm, const enum dpu_pingpong pp);
 };
 
 /**
@@ -111,15 +111,15 @@ struct dpu_hw_cdm_ops {
  * @ops: handle to operations possible for this CDM
  */
 struct dpu_hw_cdm {
-	struct dpu_hw_blk base;
-	struct dpu_hw_blk_reg_map hw;
+  struct dpu_hw_blk base;
+  struct dpu_hw_blk_reg_map hw;
 
-	/* chroma down */
-	const struct dpu_cdm_cfg *caps;
-	enum  dpu_cdm  idx;
+  /* chroma down */
+  const struct dpu_cdm_cfg *caps;
+  enum  dpu_cdm idx;
 
-	/* ops */
-	struct dpu_hw_cdm_ops ops;
+  /* ops */
+  struct dpu_hw_cdm_ops ops;
 };
 
 /**
@@ -131,12 +131,11 @@ struct dpu_hw_cdm {
  * @mdss_rev: mdss hw core revision
  */
 struct dpu_hw_cdm *dpu_hw_cdm_init(struct drm_device *dev,
-				   const struct dpu_cdm_cfg *cdm, void __iomem *addr,
-				   const struct dpu_mdss_version *mdss_rev);
+    const struct dpu_cdm_cfg *cdm, void __iomem *addr,
+    const struct dpu_mdss_version *mdss_rev);
 
-static inline struct dpu_hw_cdm *to_dpu_hw_cdm(struct dpu_hw_blk *hw)
-{
-	return container_of(hw, struct dpu_hw_cdm, base);
+static inline struct dpu_hw_cdm *to_dpu_hw_cdm(struct dpu_hw_blk *hw) {
+  return container_of(hw, struct dpu_hw_cdm, base);
 }
 
 #endif /*_DPU_HW_CDM_H */

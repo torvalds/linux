@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* 
+/*
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  */
 
@@ -9,14 +9,12 @@
 extern int phys_mapping(unsigned long phys, unsigned long long *offset_out);
 
 extern unsigned long uml_physmem;
-static inline unsigned long uml_to_phys(void *virt)
-{
-	return(((unsigned long) virt) - uml_physmem);
+static inline unsigned long uml_to_phys(void *virt) {
+  return ((unsigned long) virt) - uml_physmem;
 }
 
-static inline void *uml_to_virt(unsigned long phys)
-{
-	return((void *) uml_physmem + phys);
+static inline void *uml_to_virt(unsigned long phys) {
+  return (void *) uml_physmem + phys;
 }
 
 #endif

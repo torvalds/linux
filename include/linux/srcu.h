@@ -6,10 +6,10 @@
  * Copyright (C) Fujitsu, 2012
  *
  * Author: Paul McKenney <paulmck@linux.ibm.com>
- *	   Lai Jiangshan <laijs@cn.fujitsu.com>
+ *     Lai Jiangshan <laijs@cn.fujitsu.com>
  *
  * For detailed explanation of Read-Copy Update mechanism see -
- *		Documentation/RCU/ *.txt
+ *    Documentation/RCU/ *.txt
  *
  */
 
@@ -26,16 +26,16 @@ struct srcu_struct;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 
 int __init_srcu_struct(struct srcu_struct *ssp, const char *name,
-		       struct lock_class_key *key);
+    struct lock_class_key *key);
 
 #define init_srcu_struct(ssp) \
-({ \
-	static struct lock_class_key __srcu_key; \
-	\
-	__init_srcu_struct((ssp), #ssp, &__srcu_key); \
-})
+  ({ \
+    static struct lock_class_key __srcu_key; \
+  \
+    __init_srcu_struct((ssp), #ssp, &__srcu_key); \
+  })
 
-#define __SRCU_DEP_MAP_INIT(srcu_name)	.dep_map = { .name = #srcu_name },
+#define __SRCU_DEP_MAP_INIT(srcu_name)  .dep_map = { .name = #srcu_name },
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 int init_srcu_struct(struct srcu_struct *ssp);
@@ -52,7 +52,7 @@ int init_srcu_struct(struct srcu_struct *ssp);
 #endif
 
 void call_srcu(struct srcu_struct *ssp, struct rcu_head *head,
-		void (*func)(struct rcu_head *head));
+    void (*func)(struct rcu_head *head));
 void cleanup_srcu_struct(struct srcu_struct *ssp);
 int __srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp);
 void __srcu_read_unlock(struct srcu_struct *ssp, int idx) __releases(ssp);
@@ -63,16 +63,18 @@ bool poll_state_synchronize_srcu(struct srcu_struct *ssp, unsigned long cookie);
 
 #ifdef CONFIG_NEED_SRCU_NMI_SAFE
 int __srcu_read_lock_nmisafe(struct srcu_struct *ssp) __acquires(ssp);
-void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx) __releases(ssp);
+void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp,
+    int idx) __releases(ssp);
 #else
-static inline int __srcu_read_lock_nmisafe(struct srcu_struct *ssp)
-{
-	return __srcu_read_lock(ssp);
+static inline int __srcu_read_lock_nmisafe(struct srcu_struct *ssp) {
+  return __srcu_read_lock(ssp);
 }
-static inline void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx)
-{
-	__srcu_read_unlock(ssp, idx);
+
+static inline void __srcu_read_unlock_nmisafe(struct srcu_struct *ssp,
+    int idx) {
+  __srcu_read_unlock(ssp, idx);
 }
+
 #endif /* CONFIG_NEED_SRCU_NMI_SAFE */
 
 void srcu_init(void);
@@ -95,11 +97,11 @@ void srcu_init(void);
  * relies on normal RCU, it can be called from the CPU which
  * is in the idle loop from an RCU point of view or offline.
  */
-static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
-{
-	if (!debug_lockdep_rcu_enabled())
-		return 1;
-	return lock_is_held(&ssp->dep_map);
+static inline int srcu_read_lock_held(const struct srcu_struct *ssp) {
+  if (!debug_lockdep_rcu_enabled()) {
+    return 1;
+  }
+  return lock_is_held(&ssp->dep_map);
 }
 
 /*
@@ -111,53 +113,50 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
  */
 
 /* Annotates a srcu_read_lock() */
-static inline void srcu_lock_acquire(struct lockdep_map *map)
-{
-	lock_map_acquire_read(map);
+static inline void srcu_lock_acquire(struct lockdep_map *map) {
+  lock_map_acquire_read(map);
 }
 
 /* Annotates a srcu_read_lock() */
-static inline void srcu_lock_release(struct lockdep_map *map)
-{
-	lock_map_release(map);
+static inline void srcu_lock_release(struct lockdep_map *map) {
+  lock_map_release(map);
 }
 
 /* Annotates a synchronize_srcu() */
-static inline void srcu_lock_sync(struct lockdep_map *map)
-{
-	lock_map_sync(map);
+static inline void srcu_lock_sync(struct lockdep_map *map) {
+  lock_map_sync(map);
 }
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
-{
-	return 1;
+static inline int srcu_read_lock_held(const struct srcu_struct *ssp) {
+  return 1;
 }
 
-#define srcu_lock_acquire(m) do { } while (0)
-#define srcu_lock_release(m) do { } while (0)
-#define srcu_lock_sync(m) do { } while (0)
+#define srcu_lock_acquire(m) do {} while (0)
+#define srcu_lock_release(m) do {} while (0)
+#define srcu_lock_sync(m) do {} while (0)
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-#define SRCU_NMI_UNKNOWN	0x0
-#define SRCU_NMI_UNSAFE		0x1
-#define SRCU_NMI_SAFE		0x2
+#define SRCU_NMI_UNKNOWN  0x0
+#define SRCU_NMI_UNSAFE   0x1
+#define SRCU_NMI_SAFE   0x2
 
 #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_TREE_SRCU)
 void srcu_check_nmi_safety(struct srcu_struct *ssp, bool nmi_safe);
 #else
 static inline void srcu_check_nmi_safety(struct srcu_struct *ssp,
-					 bool nmi_safe) { }
-#endif
+    bool nmi_safe) {
+}
 
+#endif
 
 /**
  * srcu_dereference_check - fetch SRCU-protected pointer for later dereferencing
  * @p: the pointer to fetch and protect for later dereferencing
  * @ssp: pointer to the srcu_struct, which is used to check that we
- *	really are in an SRCU read-side critical section.
+ *  really are in an SRCU read-side critical section.
  * @c: condition to check for update-side use
  *
  * If PROVE_RCU is enabled, invoking this outside of an RCU read-side
@@ -166,14 +165,14 @@ static inline void srcu_check_nmi_safety(struct srcu_struct *ssp,
  * lockdep_is_held() calls.
  */
 #define srcu_dereference_check(p, ssp, c) \
-	__rcu_dereference_check((p), __UNIQUE_ID(rcu), \
-				(c) || srcu_read_lock_held(ssp), __rcu)
+  __rcu_dereference_check((p), __UNIQUE_ID(rcu), \
+    (c) || srcu_read_lock_held(ssp), __rcu)
 
 /**
  * srcu_dereference - fetch SRCU-protected pointer for later dereferencing
  * @p: the pointer to fetch and protect for later dereferencing
  * @ssp: pointer to the srcu_struct, which is used to check that we
- *	really are in an SRCU read-side critical section.
+ *  really are in an SRCU read-side critical section.
  *
  * Makes rcu_dereference_check() do the dirty work.  If PROVE_RCU
  * is enabled, invoking this outside of an RCU read-side critical
@@ -185,7 +184,7 @@ static inline void srcu_check_nmi_safety(struct srcu_struct *ssp,
  * srcu_dereference_notrace - no tracing and no lockdep calls from here
  * @p: the pointer to fetch and protect for later dereferencing
  * @ssp: pointer to the srcu_struct, which is used to check that we
- *	really are in an SRCU read-side critical section.
+ *  really are in an SRCU read-side critical section.
  */
 #define srcu_dereference_notrace(p, ssp) srcu_dereference_check((p), (ssp), 1)
 
@@ -208,16 +207,17 @@ static inline void srcu_check_nmi_safety(struct srcu_struct *ssp,
  */
 static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
 {
-	int retval;
+  int retval;
 
-	srcu_check_nmi_safety(ssp, false);
-	retval = __srcu_read_lock(ssp);
-	srcu_lock_acquire(&ssp->dep_map);
-	return retval;
+  srcu_check_nmi_safety(ssp, false);
+  retval = __srcu_read_lock(ssp);
+  srcu_lock_acquire(&ssp->dep_map);
+  return retval;
 }
 
 /**
- * srcu_read_lock_nmisafe - register a new reader for an SRCU-protected structure.
+ * srcu_read_lock_nmisafe - register a new reader for an SRCU-protected
+ * structure.
  * @ssp: srcu_struct in which to register the new reader.
  *
  * Enter an SRCU read-side critical section, but in an NMI-safe manner.
@@ -225,23 +225,23 @@ static inline int srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp)
  */
 static inline int srcu_read_lock_nmisafe(struct srcu_struct *ssp) __acquires(ssp)
 {
-	int retval;
+  int retval;
 
-	srcu_check_nmi_safety(ssp, true);
-	retval = __srcu_read_lock_nmisafe(ssp);
-	rcu_try_lock_acquire(&ssp->dep_map);
-	return retval;
+  srcu_check_nmi_safety(ssp, true);
+  retval = __srcu_read_lock_nmisafe(ssp);
+  rcu_try_lock_acquire(&ssp->dep_map);
+  return retval;
 }
 
 /* Used by tracing, cannot be traced and cannot invoke lockdep. */
-static inline notrace int
-srcu_read_lock_notrace(struct srcu_struct *ssp) __acquires(ssp)
+static inline notrace int srcu_read_lock_notrace(struct srcu_struct *ssp)
+__acquires(ssp)
 {
-	int retval;
+  int retval;
 
-	srcu_check_nmi_safety(ssp, false);
-	retval = __srcu_read_lock(ssp);
-	return retval;
+  srcu_check_nmi_safety(ssp, false);
+  retval = __srcu_read_lock(ssp);
+  return retval;
 }
 
 /**
@@ -267,9 +267,9 @@ srcu_read_lock_notrace(struct srcu_struct *ssp) __acquires(ssp)
  */
 static inline int srcu_down_read(struct srcu_struct *ssp) __acquires(ssp)
 {
-	WARN_ON_ONCE(in_nmi());
-	srcu_check_nmi_safety(ssp, false);
-	return __srcu_read_lock(ssp);
+  WARN_ON_ONCE(in_nmi());
+  srcu_check_nmi_safety(ssp, false);
+  return __srcu_read_lock(ssp);
 }
 
 /**
@@ -280,36 +280,37 @@ static inline int srcu_down_read(struct srcu_struct *ssp) __acquires(ssp)
  * Exit an SRCU read-side critical section.
  */
 static inline void srcu_read_unlock(struct srcu_struct *ssp, int idx)
-	__releases(ssp)
+__releases(ssp)
 {
-	WARN_ON_ONCE(idx & ~0x1);
-	srcu_check_nmi_safety(ssp, false);
-	srcu_lock_release(&ssp->dep_map);
-	__srcu_read_unlock(ssp, idx);
+  WARN_ON_ONCE(idx & ~0x1);
+  srcu_check_nmi_safety(ssp, false);
+  srcu_lock_release(&ssp->dep_map);
+  __srcu_read_unlock(ssp, idx);
 }
 
 /**
- * srcu_read_unlock_nmisafe - unregister a old reader from an SRCU-protected structure.
+ * srcu_read_unlock_nmisafe - unregister a old reader from an SRCU-protected
+ * structure.
  * @ssp: srcu_struct in which to unregister the old reader.
  * @idx: return value from corresponding srcu_read_lock().
  *
  * Exit an SRCU read-side critical section, but in an NMI-safe manner.
  */
 static inline void srcu_read_unlock_nmisafe(struct srcu_struct *ssp, int idx)
-	__releases(ssp)
+__releases(ssp)
 {
-	WARN_ON_ONCE(idx & ~0x1);
-	srcu_check_nmi_safety(ssp, true);
-	rcu_lock_release(&ssp->dep_map);
-	__srcu_read_unlock_nmisafe(ssp, idx);
+  WARN_ON_ONCE(idx & ~0x1);
+  srcu_check_nmi_safety(ssp, true);
+  rcu_lock_release(&ssp->dep_map);
+  __srcu_read_unlock_nmisafe(ssp, idx);
 }
 
 /* Used by tracing, cannot be traced and cannot call lockdep. */
-static inline notrace void
-srcu_read_unlock_notrace(struct srcu_struct *ssp, int idx) __releases(ssp)
+static inline notrace void srcu_read_unlock_notrace(struct srcu_struct *ssp,
+    int idx) __releases(ssp)
 {
-	srcu_check_nmi_safety(ssp, false);
-	__srcu_read_unlock(ssp, idx);
+  srcu_check_nmi_safety(ssp, false);
+  __srcu_read_unlock(ssp, idx);
 }
 
 /**
@@ -321,12 +322,12 @@ srcu_read_unlock_notrace(struct srcu_struct *ssp, int idx) __releases(ssp)
  * the same context as the maching srcu_down_read().
  */
 static inline void srcu_up_read(struct srcu_struct *ssp, int idx)
-	__releases(ssp)
+__releases(ssp)
 {
-	WARN_ON_ONCE(idx & ~0x1);
-	WARN_ON_ONCE(in_nmi());
-	srcu_check_nmi_safety(ssp, false);
-	__srcu_read_unlock(ssp, idx);
+  WARN_ON_ONCE(idx & ~0x1);
+  WARN_ON_ONCE(in_nmi());
+  srcu_check_nmi_safety(ssp, false);
+  __srcu_read_unlock(ssp, idx);
 }
 
 /**
@@ -338,14 +339,13 @@ static inline void srcu_up_read(struct srcu_struct *ssp, int idx)
  * that occur after smp_mb__after_srcu_read_unlock will appear to happen after
  * the preceding srcu_read_unlock.
  */
-static inline void smp_mb__after_srcu_read_unlock(void)
-{
-	/* __srcu_read_unlock has smp_mb() internally so nothing to do here. */
+static inline void smp_mb__after_srcu_read_unlock(void) {
+  /* __srcu_read_unlock has smp_mb() internally so nothing to do here. */
 }
 
 DEFINE_LOCK_GUARD_1(srcu, struct srcu_struct,
-		    _T->idx = srcu_read_lock(_T->lock),
-		    srcu_read_unlock(_T->lock, _T->idx),
-		    int idx)
+    _T->idx = srcu_read_lock(_T->lock),
+    srcu_read_unlock(_T->lock, _T->idx),
+    int idx)
 
 #endif

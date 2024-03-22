@@ -20,12 +20,11 @@ extern struct user_namespace init_user_ns;
 typedef __kernel_uid32_t projid_t;
 
 typedef struct {
-	projid_t val;
+  projid_t val;
 } kprojid_t;
 
-static inline projid_t __kprojid_val(kprojid_t projid)
-{
-	return projid.val;
+static inline projid_t __kprojid_val(kprojid_t projid) {
+  return projid.val;
 }
 
 #define KPROJIDT_INIT(value) (kprojid_t){ value }
@@ -33,19 +32,16 @@ static inline projid_t __kprojid_val(kprojid_t projid)
 #define INVALID_PROJID KPROJIDT_INIT(-1)
 #define OVERFLOW_PROJID 65534
 
-static inline bool projid_eq(kprojid_t left, kprojid_t right)
-{
-	return __kprojid_val(left) == __kprojid_val(right);
+static inline bool projid_eq(kprojid_t left, kprojid_t right) {
+  return __kprojid_val(left) == __kprojid_val(right);
 }
 
-static inline bool projid_lt(kprojid_t left, kprojid_t right)
-{
-	return __kprojid_val(left) < __kprojid_val(right);
+static inline bool projid_lt(kprojid_t left, kprojid_t right) {
+  return __kprojid_val(left) < __kprojid_val(right);
 }
 
-static inline bool projid_valid(kprojid_t projid)
-{
-	return !projid_eq(projid, INVALID_PROJID);
+static inline bool projid_valid(kprojid_t projid) {
+  return !projid_eq(projid, INVALID_PROJID);
 }
 
 #ifdef CONFIG_USER_NS
@@ -53,36 +49,38 @@ static inline bool projid_valid(kprojid_t projid)
 extern kprojid_t make_kprojid(struct user_namespace *from, projid_t projid);
 
 extern projid_t from_kprojid(struct user_namespace *to, kprojid_t projid);
-extern projid_t from_kprojid_munged(struct user_namespace *to, kprojid_t projid);
+extern projid_t from_kprojid_munged(struct user_namespace *to,
+    kprojid_t projid);
 
-static inline bool kprojid_has_mapping(struct user_namespace *ns, kprojid_t projid)
-{
-	return from_kprojid(ns, projid) != (projid_t)-1;
+static inline bool kprojid_has_mapping(struct user_namespace *ns,
+    kprojid_t projid) {
+  return from_kprojid(ns, projid) != (projid_t) -1;
 }
 
 #else
 
-static inline kprojid_t make_kprojid(struct user_namespace *from, projid_t projid)
-{
-	return KPROJIDT_INIT(projid);
+static inline kprojid_t make_kprojid(struct user_namespace *from,
+    projid_t projid) {
+  return KPROJIDT_INIT(projid);
 }
 
-static inline projid_t from_kprojid(struct user_namespace *to, kprojid_t kprojid)
-{
-	return __kprojid_val(kprojid);
+static inline projid_t from_kprojid(struct user_namespace *to,
+    kprojid_t kprojid) {
+  return __kprojid_val(kprojid);
 }
 
-static inline projid_t from_kprojid_munged(struct user_namespace *to, kprojid_t kprojid)
-{
-	projid_t projid = from_kprojid(to, kprojid);
-	if (projid == (projid_t)-1)
-		projid = OVERFLOW_PROJID;
-	return projid;
+static inline projid_t from_kprojid_munged(struct user_namespace *to,
+    kprojid_t kprojid) {
+  projid_t projid = from_kprojid(to, kprojid);
+  if (projid == (projid_t) -1) {
+    projid = OVERFLOW_PROJID;
+  }
+  return projid;
 }
 
-static inline bool kprojid_has_mapping(struct user_namespace *ns, kprojid_t projid)
-{
-	return true;
+static inline bool kprojid_has_mapping(struct user_namespace *ns,
+    kprojid_t projid) {
+  return true;
 }
 
 #endif /* CONFIG_USER_NS */

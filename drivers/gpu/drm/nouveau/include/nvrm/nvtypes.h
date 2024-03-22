@@ -3,7 +3,7 @@
 #define __NVRM_NVTYPES_H__
 
 #define NV_ALIGN_BYTES(a) __attribute__ ((__aligned__(a)))
-#define NV_DECLARE_ALIGNED(f,a) f __attribute__ ((__aligned__(a)))
+#define NV_DECLARE_ALIGNED(f, a) f __attribute__ ((__aligned__(a)))
 
 typedef u32 NvV32;
 
@@ -12,7 +12,7 @@ typedef u16 NvU16;
 typedef u32 NvU32;
 typedef u64 NvU64;
 
-typedef void* NvP64;
+typedef void *NvP64;
 
 typedef NvU8 NvBool;
 typedef NvU32 NvHandle;

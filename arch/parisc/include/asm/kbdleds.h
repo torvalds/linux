@@ -8,12 +8,11 @@
  * we can safely turn on the NUMLOCK bit.
  */
 
-static inline int kbd_defleds(void)
-{
+static inline int kbd_defleds(void) {
 #if defined(CONFIG_KEYBOARD_HIL) || defined(CONFIG_KEYBOARD_HIL_OLD)
-	return 1 << VC_NUMLOCK;
+  return 1 << VC_NUMLOCK;
 #else
-	return 0;
+  return 0;
 #endif
 }
 

@@ -48,83 +48,77 @@
  * Must be kept aligned both regarding field positions and size.
  */
 struct tipc_uaddr {
-	unsigned short family;
-	unsigned char addrtype;
-	signed char scope;
-	union {
-		struct {
-			struct tipc_service_addr sa;
-			u32 lookup_node;
-		};
-		struct tipc_service_range sr;
-		struct tipc_socket_addr sk;
-	};
+  unsigned short family;
+  unsigned char addrtype;
+  signed char scope;
+  union {
+    struct {
+      struct tipc_service_addr sa;
+      u32 lookup_node;
+    };
+    struct tipc_service_range sr;
+    struct tipc_socket_addr sk;
+  };
 };
 
 static inline void tipc_uaddr(struct tipc_uaddr *ua, u32 atype, u32 scope,
-			      u32 type, u32 lower, u32 upper)
-{
-	ua->family = AF_TIPC;
-	ua->addrtype = atype;
-	ua->scope = scope;
-	ua->sr.type = type;
-	ua->sr.lower = lower;
-	ua->sr.upper = upper;
+    u32 type, u32 lower, u32 upper) {
+  ua->family = AF_TIPC;
+  ua->addrtype = atype;
+  ua->scope = scope;
+  ua->sr.type = type;
+  ua->sr.lower = lower;
+  ua->sr.upper = upper;
 }
 
-static inline bool tipc_uaddr_valid(struct tipc_uaddr *ua, int len)
-{
-	u32 atype;
-
-	if (len < sizeof(struct sockaddr_tipc))
-		return false;
-	atype = ua->addrtype;
-	if (ua->family != AF_TIPC)
-		return false;
-	if (atype == TIPC_SERVICE_ADDR || atype == TIPC_SOCKET_ADDR)
-		return true;
-	if (atype == TIPC_SERVICE_RANGE)
-		return ua->sr.upper >= ua->sr.lower;
-	return false;
+static inline bool tipc_uaddr_valid(struct tipc_uaddr *ua, int len) {
+  u32 atype;
+  if (len < sizeof(struct sockaddr_tipc)) {
+    return false;
+  }
+  atype = ua->addrtype;
+  if (ua->family != AF_TIPC) {
+    return false;
+  }
+  if (atype == TIPC_SERVICE_ADDR || atype == TIPC_SOCKET_ADDR) {
+    return true;
+  }
+  if (atype == TIPC_SERVICE_RANGE) {
+    return ua->sr.upper >= ua->sr.lower;
+  }
+  return false;
 }
 
-static inline u32 tipc_own_addr(struct net *net)
-{
-	return tipc_net(net)->node_addr;
+static inline u32 tipc_own_addr(struct net *net) {
+  return tipc_net(net)->node_addr;
 }
 
-static inline u8 *tipc_own_id(struct net *net)
-{
-	struct tipc_net *tn = tipc_net(net);
-
-	if (!strlen(tn->node_id_string))
-		return NULL;
-	return tn->node_id;
+static inline u8 *tipc_own_id(struct net *net) {
+  struct tipc_net *tn = tipc_net(net);
+  if (!strlen(tn->node_id_string)) {
+    return NULL;
+  }
+  return tn->node_id;
 }
 
-static inline char *tipc_own_id_string(struct net *net)
-{
-	return tipc_net(net)->node_id_string;
+static inline char *tipc_own_id_string(struct net *net) {
+  return tipc_net(net)->node_id_string;
 }
 
-static inline u32 tipc_cluster_mask(u32 addr)
-{
-	return addr & TIPC_ZONE_CLUSTER_MASK;
+static inline u32 tipc_cluster_mask(u32 addr) {
+  return addr & TIPC_ZONE_CLUSTER_MASK;
 }
 
-static inline int tipc_node2scope(u32 node)
-{
-	return node ? TIPC_NODE_SCOPE : TIPC_CLUSTER_SCOPE;
+static inline int tipc_node2scope(u32 node) {
+  return node ? TIPC_NODE_SCOPE : TIPC_CLUSTER_SCOPE;
 }
 
-static inline int tipc_scope2node(struct net *net, int sc)
-{
-	return sc != TIPC_NODE_SCOPE ? 0 : tipc_own_addr(net);
+static inline int tipc_scope2node(struct net *net, int sc) {
+  return sc != TIPC_NODE_SCOPE ? 0 : tipc_own_addr(net);
 }
 
-static inline int in_own_node(struct net *net, u32 addr)
-{
-	return addr == tipc_own_addr(net) || !addr;
+static inline int in_own_node(struct net *net, u32 addr) {
+  return addr == tipc_own_addr(net) || !addr;
 }
 
 bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr);

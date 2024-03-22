@@ -12,10 +12,10 @@
  */
 #ifdef _DECLARE_GLOBALS
 #define EXTERN
-#define INIT_GLOBAL(a,b)        a=b
+#define INIT_GLOBAL(a, b)        a = b
 #else
 #define EXTERN                  extern
-#define INIT_GLOBAL(a,b)        a
+#define INIT_GLOBAL(a, b)        a
 #endif
 
 #include <acpi/acpi.h>
@@ -37,8 +37,8 @@ EXTERN u64 INIT_GLOBAL(gbl_rsdp_base, 0);
 /* Action table used to defer requested options */
 
 struct ap_dump_action {
-	char *argument;
-	u32 to_be_done;
+  char *argument;
+  u32 to_be_done;
 };
 
 #define AP_MAX_ACTIONS              32
@@ -48,14 +48,14 @@ struct ap_dump_action {
 #define AP_DUMP_TABLE_BY_NAME       2
 #define AP_DUMP_TABLE_BY_FILE       3
 
-#define AP_MAX_ACPI_FILES           256	/* Prevent infinite loops */
+#define AP_MAX_ACPI_FILES           256 /* Prevent infinite loops */
 
 /* Minimum FADT sizes for various table addresses */
 
-#define MIN_FADT_FOR_DSDT           (ACPI_FADT_OFFSET (dsdt) + sizeof (u32))
-#define MIN_FADT_FOR_FACS           (ACPI_FADT_OFFSET (facs) + sizeof (u32))
-#define MIN_FADT_FOR_XDSDT          (ACPI_FADT_OFFSET (Xdsdt) + sizeof (u64))
-#define MIN_FADT_FOR_XFACS          (ACPI_FADT_OFFSET (Xfacs) + sizeof (u64))
+#define MIN_FADT_FOR_DSDT           (ACPI_FADT_OFFSET(dsdt) + sizeof(u32))
+#define MIN_FADT_FOR_FACS           (ACPI_FADT_OFFSET(facs) + sizeof(u32))
+#define MIN_FADT_FOR_XDSDT          (ACPI_FADT_OFFSET(Xdsdt) + sizeof(u64))
+#define MIN_FADT_FOR_XFACS          (ACPI_FADT_OFFSET(Xfacs) + sizeof(u64))
 
 /*
  * apdump - Table get/dump routines
@@ -82,4 +82,4 @@ int ap_open_output_file(char *pathname);
 int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance);
 
 struct acpi_table_header *ap_get_table_from_file(char *pathname,
-						 u32 *file_size);
+    u32 *file_size);

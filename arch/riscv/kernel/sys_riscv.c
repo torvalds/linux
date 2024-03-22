@@ -10,36 +10,35 @@
 #include <asm-generic/mman-common.h>
 
 static long riscv_sys_mmap(unsigned long addr, unsigned long len,
-			   unsigned long prot, unsigned long flags,
-			   unsigned long fd, off_t offset,
-			   unsigned long page_shift_offset)
-{
-	if (unlikely(offset & (~PAGE_MASK >> page_shift_offset)))
-		return -EINVAL;
-
-	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
-			       offset >> (PAGE_SHIFT - page_shift_offset));
+    unsigned long prot, unsigned long flags,
+    unsigned long fd, off_t offset,
+    unsigned long page_shift_offset) {
+  if (unlikely(offset & (~PAGE_MASK >> page_shift_offset))) {
+    return -EINVAL;
+  }
+  return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+      offset >> (PAGE_SHIFT - page_shift_offset));
 }
 
 #ifdef CONFIG_64BIT
 SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
-	unsigned long, prot, unsigned long, flags,
-	unsigned long, fd, off_t, offset)
+    unsigned long, prot, unsigned long, flags,
+    unsigned long, fd, off_t, offset)
 {
-	return riscv_sys_mmap(addr, len, prot, flags, fd, offset, 0);
+  return riscv_sys_mmap(addr, len, prot, flags, fd, offset, 0);
 }
 #endif
 
 #if defined(CONFIG_32BIT) || defined(CONFIG_COMPAT)
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
-	unsigned long, prot, unsigned long, flags,
-	unsigned long, fd, off_t, offset)
+    unsigned long, prot, unsigned long, flags,
+    unsigned long, fd, off_t, offset)
 {
-	/*
-	 * Note that the shift for mmap2 is constant (12),
-	 * regardless of PAGE_SIZE
-	 */
-	return riscv_sys_mmap(addr, len, prot, flags, fd, offset, 12);
+  /*
+   * Note that the shift for mmap2 is constant (12),
+   * regardless of PAGE_SIZE
+   */
+  return riscv_sys_mmap(addr, len, prot, flags, fd, offset, 12);
 }
 #endif
 
@@ -58,19 +57,19 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
  * in there for forwards compatibility.
  */
 SYSCALL_DEFINE3(riscv_flush_icache, uintptr_t, start, uintptr_t, end,
-	uintptr_t, flags)
+    uintptr_t, flags)
 {
-	/* Check the reserved flags. */
-	if (unlikely(flags & ~SYS_RISCV_FLUSH_ICACHE_ALL))
-		return -EINVAL;
+  /* Check the reserved flags. */
+  if (unlikely(flags & ~SYS_RISCV_FLUSH_ICACHE_ALL)) {
+    return -EINVAL;
+  }
 
-	flush_icache_mm(current->mm, flags & SYS_RISCV_FLUSH_ICACHE_LOCAL);
+  flush_icache_mm(current->mm, flags & SYS_RISCV_FLUSH_ICACHE_LOCAL);
 
-	return 0;
+  return 0;
 }
 
 /* Not defined using SYSCALL_DEFINE0 to avoid error injection */
-asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *__unused)
-{
-	return -ENOSYS;
+asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *__unused) {
+  return -ENOSYS;
 }

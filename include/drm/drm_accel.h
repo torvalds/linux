@@ -10,8 +10,8 @@
 
 #include <drm/drm_file.h>
 
-#define ACCEL_MAJOR		261
-#define ACCEL_MAX_MINORS	256
+#define ACCEL_MAJOR   261
+#define ACCEL_MAX_MINORS  256
 
 /**
  * DRM_ACCEL_FOPS - Default drm accelerators file operations
@@ -21,20 +21,22 @@
  * DEFINE_DRM_ACCEL_FOPS instead.
  */
 #define DRM_ACCEL_FOPS \
-	.open		= accel_open,\
-	.release	= drm_release,\
-	.unlocked_ioctl	= drm_ioctl,\
-	.compat_ioctl	= drm_compat_ioctl,\
-	.poll		= drm_poll,\
-	.read		= drm_read,\
-	.llseek		= noop_llseek, \
-	.mmap		= drm_gem_mmap
+  .open = accel_open, \
+  .release = drm_release, \
+  .unlocked_ioctl = drm_ioctl, \
+  .compat_ioctl = drm_compat_ioctl, \
+  .poll = drm_poll, \
+  .read = drm_read, \
+  .llseek = noop_llseek, \
+  .mmap = drm_gem_mmap
 
 /**
- * DEFINE_DRM_ACCEL_FOPS() - macro to generate file operations for accelerators drivers
+ * DEFINE_DRM_ACCEL_FOPS() - macro to generate file operations for accelerators
+ * drivers
  * @name: name for the generated structure
  *
- * This macro autogenerates a suitable &struct file_operations for accelerators based
+ * This macro autogenerates a suitable &struct file_operations for accelerators
+ * based
  * drivers, which can be assigned to &drm_driver.fops. Note that this structure
  * cannot be shared between drivers, because it contains a reference to the
  * current module using THIS_MODULE.
@@ -44,10 +46,10 @@
  * THIS_MODULE reference by accident.
  */
 #define DEFINE_DRM_ACCEL_FOPS(name) \
-	static const struct file_operations name = {\
-		.owner		= THIS_MODULE,\
-		DRM_ACCEL_FOPS,\
-	}
+  static const struct file_operations name = { \
+    .owner = THIS_MODULE, \
+    DRM_ACCEL_FOPS, \
+  }
 
 #if IS_ENABLED(CONFIG_DRM_ACCEL)
 
@@ -63,39 +65,32 @@ void accel_debugfs_register(struct drm_device *dev);
 
 #else
 
-static inline void accel_core_exit(void)
-{
+static inline void accel_core_exit(void) {
 }
 
-static inline int __init accel_core_init(void)
-{
-	/* Return 0 to allow drm_core_init to complete successfully */
-	return 0;
+static inline int __init accel_core_init(void) {
+  /* Return 0 to allow drm_core_init to complete successfully */
+  return 0;
 }
 
-static inline void accel_minor_remove(int index)
-{
+static inline void accel_minor_remove(int index) {
 }
 
-static inline int accel_minor_alloc(void)
-{
-	return -EOPNOTSUPP;
+static inline int accel_minor_alloc(void) {
+  return -EOPNOTSUPP;
 }
 
-static inline void accel_minor_replace(struct drm_minor *minor, int index)
-{
+static inline void accel_minor_replace(struct drm_minor *minor, int index) {
 }
 
-static inline void accel_set_device_instance_params(struct device *kdev, int index)
-{
+static inline void accel_set_device_instance_params(struct device *kdev,
+    int index) {
 }
 
-static inline void accel_debugfs_init(struct drm_device *dev)
-{
+static inline void accel_debugfs_init(struct drm_device *dev) {
 }
 
-static inline void accel_debugfs_register(struct drm_device *dev)
-{
+static inline void accel_debugfs_register(struct drm_device *dev) {
 }
 
 #endif /* IS_ENABLED(CONFIG_DRM_ACCEL) */

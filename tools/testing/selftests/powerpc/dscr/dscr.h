@@ -26,64 +26,56 @@
 #include "reg.h"
 #include "utils.h"
 
-#define THREADS		100	/* Max threads */
-#define COUNT		100	/* Max iterations */
-#define DSCR_MAX	16	/* Max DSCR value */
-#define LEN_MAX		100	/* Max name length */
+#define THREADS   100 /* Max threads */
+#define COUNT   100 /* Max iterations */
+#define DSCR_MAX  16  /* Max DSCR value */
+#define LEN_MAX   100 /* Max name length */
 
-#define DSCR_DEFAULT	"/sys/devices/system/cpu/dscr_default"
-#define CPU_PATH	"/sys/devices/system/cpu/"
+#define DSCR_DEFAULT  "/sys/devices/system/cpu/dscr_default"
+#define CPU_PATH  "/sys/devices/system/cpu/"
 
-#define rmb()  asm volatile("lwsync":::"memory")
-#define wmb()  asm volatile("lwsync":::"memory")
+#define rmb()  asm volatile ("lwsync" ::: "memory")
+#define wmb()  asm volatile ("lwsync" ::: "memory")
 
-#define READ_ONCE(x) (*(volatile typeof(x) *)&(x))
+#define READ_ONCE(x) (*(volatile typeof(x) *) & (x))
 
 /* Prilvilege state DSCR access */
-inline unsigned long get_dscr(void)
-{
-	return mfspr(SPRN_DSCR_PRIV);
+inline unsigned long get_dscr(void) {
+  return mfspr(SPRN_DSCR_PRIV);
 }
 
-inline void set_dscr(unsigned long val)
-{
-	mtspr(SPRN_DSCR_PRIV, val);
+inline void set_dscr(unsigned long val) {
+  mtspr(SPRN_DSCR_PRIV, val);
 }
 
 /* Problem state DSCR access */
-inline unsigned long get_dscr_usr(void)
-{
-	return mfspr(SPRN_DSCR);
+inline unsigned long get_dscr_usr(void) {
+  return mfspr(SPRN_DSCR);
 }
 
-inline void set_dscr_usr(unsigned long val)
-{
-	mtspr(SPRN_DSCR, val);
+inline void set_dscr_usr(unsigned long val) {
+  mtspr(SPRN_DSCR, val);
 }
 
 /* Default DSCR access */
-unsigned long get_default_dscr(void)
-{
-	int err;
-	unsigned long val;
-
-	err = read_ulong(DSCR_DEFAULT, &val, 16);
-	if (err) {
-		perror("read() failed");
-		exit(1);
-	}
-	return val;
+unsigned long get_default_dscr(void) {
+  int err;
+  unsigned long val;
+  err = read_ulong(DSCR_DEFAULT, &val, 16);
+  if (err) {
+    perror("read() failed");
+    exit(1);
+  }
+  return val;
 }
 
-void set_default_dscr(unsigned long val)
-{
-	int err;
-
-	err = write_ulong(DSCR_DEFAULT, val, 16);
-	if (err) {
-		perror("write() failed");
-		exit(1);
-	}
+void set_default_dscr(unsigned long val) {
+  int err;
+  err = write_ulong(DSCR_DEFAULT, val, 16);
+  if (err) {
+    perror("write() failed");
+    exit(1);
+  }
 }
 
-#endif	/* _SELFTESTS_POWERPC_DSCR_DSCR_H */
+#endif  /* _SELFTESTS_POWERPC_DSCR_DSCR_H */

@@ -13,13 +13,13 @@ struct snd_sof_dev;
 
 /*DSP clock*/
 enum adsp_clk_id {
-	CLK_TOP_ADSP,
-	CLK_TOP_CLK26M,
-	CLK_TOP_AUDIO_LOCAL_BUS,
-	CLK_TOP_MAINPLL_D7_D2,
-	CLK_SCP_ADSP_AUDIODSP,
-	CLK_TOP_AUDIO_H,
-	ADSP_CLK_MAX
+  CLK_TOP_ADSP,
+  CLK_TOP_CLK26M,
+  CLK_TOP_AUDIO_LOCAL_BUS,
+  CLK_TOP_MAINPLL_D7_D2,
+  CLK_SCP_ADSP_AUDIODSP,
+  CLK_TOP_AUDIO_H,
+  ADSP_CLK_MAX
 };
 
 int mt8195_adsp_init_clock(struct snd_sof_dev *sdev);

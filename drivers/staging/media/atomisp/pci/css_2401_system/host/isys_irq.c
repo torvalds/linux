@@ -28,16 +28,14 @@
 #endif
 
 /* Public interface */
-void isys_irqc_status_enable(const isys_irq_ID_t	isys_irqc_id)
-{
-	assert(isys_irqc_id < N_ISYS_IRQ_ID);
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "Setting irq mask for port %u\n",
-			    isys_irqc_id);
-	isys_irqc_reg_store(isys_irqc_id, ISYS_IRQ_MASK_REG_IDX,
-			    ISYS_IRQ_MASK_REG_VALUE);
-	isys_irqc_reg_store(isys_irqc_id, ISYS_IRQ_CLEAR_REG_IDX,
-			    ISYS_IRQ_CLEAR_REG_VALUE);
-	isys_irqc_reg_store(isys_irqc_id, ISYS_IRQ_ENABLE_REG_IDX,
-			    ISYS_IRQ_ENABLE_REG_VALUE);
+void isys_irqc_status_enable(const isys_irq_ID_t isys_irqc_id) {
+  assert(isys_irqc_id < N_ISYS_IRQ_ID);
+  ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "Setting irq mask for port %u\n",
+      isys_irqc_id);
+  isys_irqc_reg_store(isys_irqc_id, ISYS_IRQ_MASK_REG_IDX,
+      ISYS_IRQ_MASK_REG_VALUE);
+  isys_irqc_reg_store(isys_irqc_id, ISYS_IRQ_CLEAR_REG_IDX,
+      ISYS_IRQ_CLEAR_REG_VALUE);
+  isys_irqc_reg_store(isys_irqc_id, ISYS_IRQ_ENABLE_REG_IDX,
+      ISYS_IRQ_ENABLE_REG_VALUE);
 }

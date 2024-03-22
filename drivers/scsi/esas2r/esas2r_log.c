@@ -67,7 +67,7 @@ static long event_log_level = ESAS2R_LOG_DFLT;
 
 module_param(event_log_level, long, S_IRUGO | S_IRUSR);
 MODULE_PARM_DESC(event_log_level,
-		 "Specifies the level of events to report to the system log.  Critical and warning level events are logged by default.");
+    "Specifies the level of events to report to the system log.  Critical and warning level events are logged by default.");
 
 /* A shared buffer to use for formatting messages. */
 static char event_buffer[EVENT_LOG_BUFF_SIZE];
@@ -82,23 +82,19 @@ static DEFINE_SPINLOCK(event_buffer_lock);
  *
  * @return the corresponding kernel logging level.
  */
-static const char *translate_esas2r_event_level_to_kernel(const long level)
-{
-	switch (level) {
-	case ESAS2R_LOG_CRIT:
-		return KERN_CRIT;
-
-	case ESAS2R_LOG_WARN:
-		return KERN_WARNING;
-
-	case ESAS2R_LOG_INFO:
-		return KERN_INFO;
-
-	case ESAS2R_LOG_DEBG:
-	case ESAS2R_LOG_TRCE:
-	default:
-		return KERN_DEBUG;
-	}
+static const char *translate_esas2r_event_level_to_kernel(const long level) {
+  switch (level) {
+    case ESAS2R_LOG_CRIT:
+      return KERN_CRIT;
+    case ESAS2R_LOG_WARN:
+      return KERN_WARNING;
+    case ESAS2R_LOG_INFO:
+      return KERN_INFO;
+    case ESAS2R_LOG_DEBG:
+    case ESAS2R_LOG_TRCE:
+    default:
+      return KERN_DEBUG;
+  }
 }
 
 #pragma GCC diagnostic push
@@ -119,60 +115,50 @@ static const char *translate_esas2r_event_level_to_kernel(const long level)
  * @return 0 on success, or -1 if an error occurred.
  */
 static int esas2r_log_master(const long level,
-			     const struct device *dev,
-			     const char *format,
-			     va_list args)
-{
-	if (level <= event_log_level) {
-		unsigned long flags = 0;
-		int retval = 0;
-		char *buffer = event_buffer;
-		size_t buflen = EVENT_LOG_BUFF_SIZE;
-		const char *fmt_nodev = "%s%s: ";
-		const char *fmt_dev = "%s%s [%s, %s, %s]";
-		const char *slevel =
-			translate_esas2r_event_level_to_kernel(level);
-
-		spin_lock_irqsave(&event_buffer_lock, flags);
-
-		memset(buffer, 0, buflen);
-
-		/*
-		 * format the level onto the beginning of the string and do
-		 * some pointer arithmetic to move the pointer to the point
-		 * where the actual message can be inserted.
-		 */
-
-		if (dev == NULL) {
-			snprintf(buffer, buflen, fmt_nodev, slevel,
-				 ESAS2R_DRVR_NAME);
-		} else {
-			snprintf(buffer, buflen, fmt_dev, slevel,
-				 ESAS2R_DRVR_NAME,
-				 (dev->driver ? dev->driver->name : "unknown"),
-				 (dev->bus ? dev->bus->name : "unknown"),
-				 dev_name(dev));
-		}
-
-		buffer += strlen(event_buffer);
-		buflen -= strlen(event_buffer);
-
-		retval = vsnprintf(buffer, buflen, format, args);
-		if (retval < 0) {
-			spin_unlock_irqrestore(&event_buffer_lock, flags);
-			return -1;
-		}
-
-		/*
-		 * Put a line break at the end of the formatted string so that
-		 * we don't wind up with run-on messages.
-		 */
-		printk("%s\n", event_buffer);
-
-		spin_unlock_irqrestore(&event_buffer_lock, flags);
-	}
-
-	return 0;
+    const struct device *dev,
+    const char *format,
+    va_list args) {
+  if (level <= event_log_level) {
+    unsigned long flags = 0;
+    int retval = 0;
+    char *buffer = event_buffer;
+    size_t buflen = EVENT_LOG_BUFF_SIZE;
+    const char *fmt_nodev = "%s%s: ";
+    const char *fmt_dev = "%s%s [%s, %s, %s]";
+    const char *slevel
+      = translate_esas2r_event_level_to_kernel(level);
+    spin_lock_irqsave(&event_buffer_lock, flags);
+    memset(buffer, 0, buflen);
+    /*
+     * format the level onto the beginning of the string and do
+     * some pointer arithmetic to move the pointer to the point
+     * where the actual message can be inserted.
+     */
+    if (dev == NULL) {
+      snprintf(buffer, buflen, fmt_nodev, slevel,
+          ESAS2R_DRVR_NAME);
+    } else {
+      snprintf(buffer, buflen, fmt_dev, slevel,
+          ESAS2R_DRVR_NAME,
+          (dev->driver ? dev->driver->name : "unknown"),
+          (dev->bus ? dev->bus->name : "unknown"),
+          dev_name(dev));
+    }
+    buffer += strlen(event_buffer);
+    buflen -= strlen(event_buffer);
+    retval = vsnprintf(buffer, buflen, format, args);
+    if (retval < 0) {
+      spin_unlock_irqrestore(&event_buffer_lock, flags);
+      return -1;
+    }
+    /*
+     * Put a line break at the end of the formatted string so that
+     * we don't wind up with run-on messages.
+     */
+    printk("%s\n", event_buffer);
+    spin_unlock_irqrestore(&event_buffer_lock, flags);
+  }
+  return 0;
 }
 
 #pragma GCC diagnostic pop
@@ -186,18 +172,13 @@ static int esas2r_log_master(const long level,
  *
  * @return 0 on success, or -1 if an error occurred.
  */
-int esas2r_log(const long level, const char *format, ...)
-{
-	int retval = 0;
-	va_list args;
-
-	va_start(args, format);
-
-	retval = esas2r_log_master(level, NULL, format, args);
-
-	va_end(args);
-
-	return retval;
+int esas2r_log(const long level, const char *format, ...) {
+  int retval = 0;
+  va_list args;
+  va_start(args, format);
+  retval = esas2r_log_master(level, NULL, format, args);
+  va_end(args);
+  return retval;
 }
 
 /*
@@ -212,20 +193,15 @@ int esas2r_log(const long level, const char *format, ...)
  * @return 0 on success, or -1 if an error occurred.
  */
 int esas2r_log_dev(const long level,
-		   const struct device *dev,
-		   const char *format,
-		   ...)
-{
-	int retval = 0;
-	va_list args;
-
-	va_start(args, format);
-
-	retval = esas2r_log_master(level, dev, format, args);
-
-	va_end(args);
-
-	return retval;
+    const struct device *dev,
+    const char *format,
+    ...) {
+  int retval = 0;
+  va_list args;
+  va_start(args, format);
+  retval = esas2r_log_master(level, dev, format, args);
+  va_end(args);
+  return retval;
 }
 
 /*
@@ -239,14 +215,12 @@ int esas2r_log_dev(const long level,
  * @return 0 on success, or -1 if an error occurred.
  */
 int esas2r_log_hexdump(const long level,
-		       const void *buf,
-		       size_t len)
-{
-	if (level <= event_log_level) {
-		print_hex_dump(translate_esas2r_event_level_to_kernel(level),
-			       "", DUMP_PREFIX_OFFSET, 16, 1, buf,
-			       len, true);
-	}
-
-	return 1;
+    const void *buf,
+    size_t len) {
+  if (level <= event_log_level) {
+    print_hex_dump(translate_esas2r_event_level_to_kernel(level),
+        "", DUMP_PREFIX_OFFSET, 16, 1, buf,
+        len, true);
+  }
+  return 1;
 }

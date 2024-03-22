@@ -16,23 +16,23 @@
 #include <linux/percpu.h>
 
 #define __ARCH_WANT_KPROBES_INSN_SLOT
-#define MAX_INSN_SIZE			2
+#define MAX_INSN_SIZE     2
 
-#define flush_insn_slot(p)		do { } while (0)
-#define kretprobe_blacklist_size	0
+#define flush_insn_slot(p)    do {} while (0)
+#define kretprobe_blacklist_size  0
 
 #include <asm/probes.h>
 
 struct prev_kprobe {
-	struct kprobe *kp;
-	unsigned int status;
+  struct kprobe *kp;
+  unsigned int status;
 };
 
 /* per-cpu kprobe control block */
 struct kprobe_ctlblk {
-	unsigned int kprobe_status;
-	unsigned long saved_irqflag;
-	struct prev_kprobe prev_kprobe;
+  unsigned int kprobe_status;
+  unsigned long saved_irqflag;
+  struct prev_kprobe prev_kprobe;
 };
 
 void arch_remove_kprobe(struct kprobe *);

@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 void control_init(const char *control_host, const char *control_port,
-		  bool server);
+    bool server);
 void control_cleanup(void);
 void control_writeln(const char *str);
 char *control_readln(void);

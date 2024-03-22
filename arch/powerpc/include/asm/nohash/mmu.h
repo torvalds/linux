@@ -11,7 +11,7 @@
 #elif defined(CONFIG_PPC_E500)
 /* Freescale Book-E software loaded TLB or Book-3e (ISA 2.06+) MMU */
 #include <asm/nohash/mmu-e500.h>
-#elif defined (CONFIG_PPC_8xx)
+#elif defined(CONFIG_PPC_8xx)
 /* Motorola/Freescale 8xx software loaded TLB */
 #include <asm/nohash/32/mmu-8xx.h>
 #endif

@@ -13,22 +13,21 @@
 #include <linux/bio.h>
 
 struct squashfs_decompressor {
-	void	*(*init)(struct squashfs_sb_info *, void *);
-	void	*(*comp_opts)(struct squashfs_sb_info *, void *, int);
-	void	(*free)(void *);
-	int	(*decompress)(struct squashfs_sb_info *, void *,
-		struct bio *, int, int, struct squashfs_page_actor *);
-	int	id;
-	char	*name;
-	int	alloc_buffer;
-	int	supported;
+  void *(*init)(struct squashfs_sb_info *, void *);
+  void *(*comp_opts)(struct squashfs_sb_info *, void *, int);
+  void (*free)(void *);
+  int (*decompress)(struct squashfs_sb_info *, void *,
+      struct bio *, int, int, struct squashfs_page_actor *);
+  int id;
+  char *name;
+  int alloc_buffer;
+  int supported;
 };
 
 static inline void *squashfs_comp_opts(struct squashfs_sb_info *msblk,
-							void *buff, int length)
-{
-	return msblk->decompressor->comp_opts ?
-		msblk->decompressor->comp_opts(msblk, buff, length) : NULL;
+    void *buff, int length) {
+  return msblk->decompressor->comp_opts
+    ? msblk->decompressor->comp_opts(msblk, buff, length) : NULL;
 }
 
 #ifdef CONFIG_SQUASHFS_XZ

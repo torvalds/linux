@@ -9,7 +9,7 @@
 #include "thread-registry.h"
 
 void vdo_register_thread_device_id(struct registered_thread *new_thread,
-				   unsigned int *id_ptr);
+    unsigned int *id_ptr);
 
 void vdo_unregister_thread_device_id(void);
 

@@ -5,12 +5,13 @@
 #include "priv.h"
 
 struct nv20_gr {
-	struct nvkm_gr base;
-	struct nvkm_memory *ctxtab;
+  struct nvkm_gr base;
+  struct nvkm_memory *ctxtab;
 };
 
-int nv20_gr_new_(const struct nvkm_gr_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		 struct nvkm_gr **);
+int nv20_gr_new_(const struct nvkm_gr_func *, struct nvkm_device *,
+    enum nvkm_subdev_type, int,
+    struct nvkm_gr **);
 void *nv20_gr_dtor(struct nvkm_gr *);
 int nv20_gr_oneinit(struct nvkm_gr *);
 int nv20_gr_init(struct nvkm_gr *);
@@ -23,10 +24,10 @@ int nv30_gr_init(struct nvkm_gr *);
 #include <core/object.h>
 
 struct nv20_gr_chan {
-	struct nvkm_object object;
-	struct nv20_gr *gr;
-	int chid;
-	struct nvkm_memory *inst;
+  struct nvkm_object object;
+  struct nv20_gr *gr;
+  int chid;
+  struct nvkm_memory *inst;
 };
 
 void *nv20_gr_chan_dtor(struct nvkm_object *);

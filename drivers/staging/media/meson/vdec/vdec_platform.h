@@ -12,17 +12,17 @@
 struct amvdec_format;
 
 enum vdec_revision {
-	VDEC_REVISION_GXBB,
-	VDEC_REVISION_GXL,
-	VDEC_REVISION_GXM,
-	VDEC_REVISION_G12A,
-	VDEC_REVISION_SM1,
+  VDEC_REVISION_GXBB,
+  VDEC_REVISION_GXL,
+  VDEC_REVISION_GXM,
+  VDEC_REVISION_G12A,
+  VDEC_REVISION_SM1,
 };
 
 struct vdec_platform {
-	const struct amvdec_format *formats;
-	const u32 num_formats;
-	enum vdec_revision revision;
+  const struct amvdec_format *formats;
+  const u32 num_formats;
+  enum vdec_revision revision;
 };
 
 extern const struct vdec_platform vdec_platform_gxbb;

@@ -22,43 +22,38 @@
  */
 static unsigned int slot4en __initdata;
 
-char *__init pcibios_setup(char *str)
-{
-	if (strcmp(str, "slot4en") == 0) {
-		slot4en = 1;
-		return NULL;
-	}
-
-	return str;
+char *__init pcibios_setup(char *str) {
+  if (strcmp(str, "slot4en") == 0) {
+    slot4en = 1;
+    return NULL;
+  }
+  return str;
 }
 
-static int __init sdk7786_pci_init(void)
-{
-	u16 data = fpga_read_reg(PCIECR);
-
-	/*
-	 * Enable slot #4 if it's been specified on the command line.
-	 *
-	 * Optionally reroute if slot #4 has a card present while slot #3
-	 * does not, regardless of command line value.
-	 *
-	 * Card presence is logically inverted.
-	 */
-	slot4en ?: (!(data & PCIECR_PRST4) && (data & PCIECR_PRST3));
-	if (slot4en) {
-		pr_info("Activating PCIe slot#4 (disabling slot#3)\n");
-
-		data &= ~PCIECR_PCIEMUX1;
-		fpga_write_reg(data, PCIECR);
-
-		/* Warn about forced rerouting if slot#3 is occupied */
-		if ((data & PCIECR_PRST3) == 0) {
-			pr_warn("Unreachable card detected in slot#3\n");
-			return -EBUSY;
-		}
-	} else
-		pr_info("PCIe slot#4 disabled\n");
-
-	return 0;
+static int __init sdk7786_pci_init(void) {
+  u16 data = fpga_read_reg(PCIECR);
+  /*
+   * Enable slot #4 if it's been specified on the command line.
+   *
+   * Optionally reroute if slot #4 has a card present while slot #3
+   * does not, regardless of command line value.
+   *
+   * Card presence is logically inverted.
+   */
+  slot4en ? : (!(data & PCIECR_PRST4) && (data & PCIECR_PRST3));
+  if (slot4en) {
+    pr_info("Activating PCIe slot#4 (disabling slot#3)\n");
+    data &= ~PCIECR_PCIEMUX1;
+    fpga_write_reg(data, PCIECR);
+    /* Warn about forced rerouting if slot#3 is occupied */
+    if ((data & PCIECR_PRST3) == 0) {
+      pr_warn("Unreachable card detected in slot#3\n");
+      return -EBUSY;
+    }
+  } else {
+    pr_info("PCIe slot#4 disabled\n");
+  }
+  return 0;
 }
+
 postcore_initcall(sdk7786_pci_init);

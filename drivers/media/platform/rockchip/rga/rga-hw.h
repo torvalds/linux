@@ -96,9 +96,9 @@
 #define RGA_COLOR_FMT_MASK 15
 
 #define RGA_COLOR_FMT_IS_YUV(fmt) \
-	(((fmt) >= RGA_COLOR_FMT_YUV422SP) && ((fmt) < RGA_COLOR_FMT_CP_1BPP))
+  (((fmt) >= RGA_COLOR_FMT_YUV422SP) && ((fmt) < RGA_COLOR_FMT_CP_1BPP))
 #define RGA_COLOR_FMT_IS_RGB(fmt) \
-	((fmt) < RGA_COLOR_FMT_YUV422SP)
+  ((fmt) < RGA_COLOR_FMT_YUV422SP)
 
 #define RGA_COLOR_NONE_SWAP 0
 #define RGA_COLOR_RB_SWAP 1
@@ -180,255 +180,255 @@
 
 /* Registers union */
 union rga_mode_ctrl {
-	unsigned int val;
-	struct {
-		/* [0:2] */
-		unsigned int render:3;
-		/* [3:6] */
-		unsigned int bitblt:1;
-		unsigned int cf_rop4_pat:1;
-		unsigned int alpha_zero_key:1;
-		unsigned int gradient_sat:1;
-		/* [7:31] */
-		unsigned int reserved:25;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:2] */
+    unsigned int render : 3;
+    /* [3:6] */
+    unsigned int bitblt : 1;
+    unsigned int cf_rop4_pat : 1;
+    unsigned int alpha_zero_key : 1;
+    unsigned int gradient_sat : 1;
+    /* [7:31] */
+    unsigned int reserved : 25;
+  } data;
 };
 
 union rga_src_info {
-	unsigned int val;
-	struct {
-		/* [0:3] */
-		unsigned int format:4;
-		/* [4:7] */
-		unsigned int swap:3;
-		unsigned int cp_endian:1;
-		/* [8:17] */
-		unsigned int csc_mode:2;
-		unsigned int rot_mode:2;
-		unsigned int mir_mode:2;
-		unsigned int hscl_mode:2;
-		unsigned int vscl_mode:2;
-		/* [18:22] */
-		unsigned int trans_mode:1;
-		unsigned int trans_enable:4;
-		/* [23:25] */
-		unsigned int dither_up_en:1;
-		unsigned int bic_coe_sel:2;
-		/* [26:31] */
-		unsigned int reserved:6;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:3] */
+    unsigned int format : 4;
+    /* [4:7] */
+    unsigned int swap : 3;
+    unsigned int cp_endian : 1;
+    /* [8:17] */
+    unsigned int csc_mode : 2;
+    unsigned int rot_mode : 2;
+    unsigned int mir_mode : 2;
+    unsigned int hscl_mode : 2;
+    unsigned int vscl_mode : 2;
+    /* [18:22] */
+    unsigned int trans_mode : 1;
+    unsigned int trans_enable : 4;
+    /* [23:25] */
+    unsigned int dither_up_en : 1;
+    unsigned int bic_coe_sel : 2;
+    /* [26:31] */
+    unsigned int reserved : 6;
+  } data;
 };
 
 union rga_src_vir_info {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int vir_width:15;
-		unsigned int reserved:1;
-		/* [16:25] */
-		unsigned int vir_stride:10;
-		/* [26:31] */
-		unsigned int reserved1:6;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int vir_width : 15;
+    unsigned int reserved : 1;
+    /* [16:25] */
+    unsigned int vir_stride : 10;
+    /* [26:31] */
+    unsigned int reserved1 : 6;
+  } data;
 };
 
 union rga_src_act_info {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int act_width:13;
-		unsigned int reserved:3;
-		/* [16:31] */
-		unsigned int act_height:13;
-		unsigned int reserved1:3;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int act_width : 13;
+    unsigned int reserved : 3;
+    /* [16:31] */
+    unsigned int act_height : 13;
+    unsigned int reserved1 : 3;
+  } data;
 };
 
 union rga_src_x_factor {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int down_scale_factor:16;
-		/* [16:31] */
-		unsigned int up_scale_factor:16;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int down_scale_factor : 16;
+    /* [16:31] */
+    unsigned int up_scale_factor : 16;
+  } data;
 };
 
 union rga_src_y_factor {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int down_scale_factor:16;
-		/* [16:31] */
-		unsigned int up_scale_factor:16;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int down_scale_factor : 16;
+    /* [16:31] */
+    unsigned int up_scale_factor : 16;
+  } data;
 };
 
 /* Alpha / Red / Green / Blue */
 union rga_src_cp_gr_color {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int gradient_x:16;
-		/* [16:31] */
-		unsigned int gradient_y:16;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int gradient_x : 16;
+    /* [16:31] */
+    unsigned int gradient_y : 16;
+  } data;
 };
 
 union rga_src_transparency_color0 {
-	unsigned int val;
-	struct {
-		/* [0:7] */
-		unsigned int trans_rmin:8;
-		/* [8:15] */
-		unsigned int trans_gmin:8;
-		/* [16:23] */
-		unsigned int trans_bmin:8;
-		/* [24:31] */
-		unsigned int trans_amin:8;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:7] */
+    unsigned int trans_rmin : 8;
+    /* [8:15] */
+    unsigned int trans_gmin : 8;
+    /* [16:23] */
+    unsigned int trans_bmin : 8;
+    /* [24:31] */
+    unsigned int trans_amin : 8;
+  } data;
 };
 
 union rga_src_transparency_color1 {
-	unsigned int val;
-	struct {
-		/* [0:7] */
-		unsigned int trans_rmax:8;
-		/* [8:15] */
-		unsigned int trans_gmax:8;
-		/* [16:23] */
-		unsigned int trans_bmax:8;
-		/* [24:31] */
-		unsigned int trans_amax:8;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:7] */
+    unsigned int trans_rmax : 8;
+    /* [8:15] */
+    unsigned int trans_gmax : 8;
+    /* [16:23] */
+    unsigned int trans_bmax : 8;
+    /* [24:31] */
+    unsigned int trans_amax : 8;
+  } data;
 };
 
 union rga_dst_info {
-	unsigned int val;
-	struct {
-		/* [0:3] */
-		unsigned int format:4;
-		/* [4:6] */
-		unsigned int swap:3;
-		/* [7:9] */
-		unsigned int src1_format:3;
-		/* [10:11] */
-		unsigned int src1_swap:2;
-		/* [12:15] */
-		unsigned int dither_up_en:1;
-		unsigned int dither_down_en:1;
-		unsigned int dither_down_mode:2;
-		/* [16:18] */
-		unsigned int csc_mode:2;
-		unsigned int csc_clip:1;
-		/* [19:31] */
-		unsigned int reserved:13;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:3] */
+    unsigned int format : 4;
+    /* [4:6] */
+    unsigned int swap : 3;
+    /* [7:9] */
+    unsigned int src1_format : 3;
+    /* [10:11] */
+    unsigned int src1_swap : 2;
+    /* [12:15] */
+    unsigned int dither_up_en : 1;
+    unsigned int dither_down_en : 1;
+    unsigned int dither_down_mode : 2;
+    /* [16:18] */
+    unsigned int csc_mode : 2;
+    unsigned int csc_clip : 1;
+    /* [19:31] */
+    unsigned int reserved : 13;
+  } data;
 };
 
 union rga_dst_vir_info {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int vir_stride:15;
-		unsigned int reserved:1;
-		/* [16:31] */
-		unsigned int src1_vir_stride:15;
-		unsigned int reserved1:1;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int vir_stride : 15;
+    unsigned int reserved : 1;
+    /* [16:31] */
+    unsigned int src1_vir_stride : 15;
+    unsigned int reserved1 : 1;
+  } data;
 };
 
 union rga_dst_act_info {
-	unsigned int val;
-	struct {
-		/* [0:15] */
-		unsigned int act_width:12;
-		unsigned int reserved:4;
-		/* [16:31] */
-		unsigned int act_height:12;
-		unsigned int reserved1:4;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:15] */
+    unsigned int act_width : 12;
+    unsigned int reserved : 4;
+    /* [16:31] */
+    unsigned int act_height : 12;
+    unsigned int reserved1 : 4;
+  } data;
 };
 
 union rga_alpha_ctrl0 {
-	unsigned int val;
-	struct {
-		/* [0:3] */
-		unsigned int rop_en:1;
-		unsigned int rop_select:1;
-		unsigned int rop_mode:2;
-		/* [4:11] */
-		unsigned int src_fading_val:8;
-		/* [12:20] */
-		unsigned int dst_fading_val:8;
-		unsigned int mask_endian:1;
-		/* [21:31] */
-		unsigned int reserved:11;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:3] */
+    unsigned int rop_en : 1;
+    unsigned int rop_select : 1;
+    unsigned int rop_mode : 2;
+    /* [4:11] */
+    unsigned int src_fading_val : 8;
+    /* [12:20] */
+    unsigned int dst_fading_val : 8;
+    unsigned int mask_endian : 1;
+    /* [21:31] */
+    unsigned int reserved : 11;
+  } data;
 };
 
 union rga_alpha_ctrl1 {
-	unsigned int val;
-	struct {
-		/* [0:1] */
-		unsigned int dst_color_m0:1;
-		unsigned int src_color_m0:1;
-		/* [2:7] */
-		unsigned int dst_factor_m0:3;
-		unsigned int src_factor_m0:3;
-		/* [8:9] */
-		unsigned int dst_alpha_cal_m0:1;
-		unsigned int src_alpha_cal_m0:1;
-		/* [10:13] */
-		unsigned int dst_blend_m0:2;
-		unsigned int src_blend_m0:2;
-		/* [14:15] */
-		unsigned int dst_alpha_m0:1;
-		unsigned int src_alpha_m0:1;
-		/* [16:21] */
-		unsigned int dst_factor_m1:3;
-		unsigned int src_factor_m1:3;
-		/* [22:23] */
-		unsigned int dst_alpha_cal_m1:1;
-		unsigned int src_alpha_cal_m1:1;
-		/* [24:27] */
-		unsigned int dst_blend_m1:2;
-		unsigned int src_blend_m1:2;
-		/* [28:29] */
-		unsigned int dst_alpha_m1:1;
-		unsigned int src_alpha_m1:1;
-		/* [30:31] */
-		unsigned int reserved:2;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:1] */
+    unsigned int dst_color_m0 : 1;
+    unsigned int src_color_m0 : 1;
+    /* [2:7] */
+    unsigned int dst_factor_m0 : 3;
+    unsigned int src_factor_m0 : 3;
+    /* [8:9] */
+    unsigned int dst_alpha_cal_m0 : 1;
+    unsigned int src_alpha_cal_m0 : 1;
+    /* [10:13] */
+    unsigned int dst_blend_m0 : 2;
+    unsigned int src_blend_m0 : 2;
+    /* [14:15] */
+    unsigned int dst_alpha_m0 : 1;
+    unsigned int src_alpha_m0 : 1;
+    /* [16:21] */
+    unsigned int dst_factor_m1 : 3;
+    unsigned int src_factor_m1 : 3;
+    /* [22:23] */
+    unsigned int dst_alpha_cal_m1 : 1;
+    unsigned int src_alpha_cal_m1 : 1;
+    /* [24:27] */
+    unsigned int dst_blend_m1 : 2;
+    unsigned int src_blend_m1 : 2;
+    /* [28:29] */
+    unsigned int dst_alpha_m1 : 1;
+    unsigned int src_alpha_m1 : 1;
+    /* [30:31] */
+    unsigned int reserved : 2;
+  } data;
 };
 
 union rga_fading_ctrl {
-	unsigned int val;
-	struct {
-		/* [0:7] */
-		unsigned int fading_offset_r:8;
-		/* [8:15] */
-		unsigned int fading_offset_g:8;
-		/* [16:23] */
-		unsigned int fading_offset_b:8;
-		/* [24:31] */
-		unsigned int fading_en:1;
-		unsigned int reserved:7;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:7] */
+    unsigned int fading_offset_r : 8;
+    /* [8:15] */
+    unsigned int fading_offset_g : 8;
+    /* [16:23] */
+    unsigned int fading_offset_b : 8;
+    /* [24:31] */
+    unsigned int fading_en : 1;
+    unsigned int reserved : 7;
+  } data;
 };
 
 union rga_pat_con {
-	unsigned int val;
-	struct {
-		/* [0:7] */
-		unsigned int width:8;
-		/* [8:15] */
-		unsigned int height:8;
-		/* [16:23] */
-		unsigned int offset_x:8;
-		/* [24:31] */
-		unsigned int offset_y:8;
-	} data;
+  unsigned int val;
+  struct {
+    /* [0:7] */
+    unsigned int width : 8;
+    /* [8:15] */
+    unsigned int height : 8;
+    /* [16:23] */
+    unsigned int offset_x : 8;
+    /* [24:31] */
+    unsigned int offset_y : 8;
+  } data;
 };
 
 #endif

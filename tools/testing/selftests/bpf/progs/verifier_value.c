@@ -8,24 +8,24 @@
 #define MAX_ENTRIES 11
 
 struct test_val {
-	unsigned int index;
-	int foo[MAX_ENTRIES];
+  unsigned int index;
+  int foo[MAX_ENTRIES];
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_HASH);
-	__uint(max_entries, 1);
-	__type(key, long long);
-	__type(value, struct test_val);
+  __uint(type, BPF_MAP_TYPE_HASH);
+  __uint(max_entries, 1);
+  __type(key, long long);
+  __type(value, struct test_val);
 } map_hash_48b SEC(".maps");
 
 SEC("socket")
 __description("map element value store of cleared call register")
 __failure __msg("R1 !read_ok")
 __failure_unpriv __msg_unpriv("R1 !read_ok")
-__naked void store_of_cleared_call_register(void)
-{
-	asm volatile ("					\
+__naked void store_of_cleared_call_register(void) {
+  asm volatile (
+    "					\
 	r2 = r10;					\
 	r2 += -8;					\
 	r1 = 0;						\
@@ -35,19 +35,19 @@ __naked void store_of_cleared_call_register(void)
 	if r0 == 0 goto l0_%=;				\
 	*(u64*)(r0 + 0) = r1;				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map element value with unaligned store")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void element_value_with_unaligned_store(void)
-{
-	asm volatile ("					\
+__naked void element_value_with_unaligned_store(void) {
+  asm volatile (
+    "					\
 	r2 = r10;					\
 	r2 += -8;					\
 	r1 = 0;						\
@@ -85,19 +85,19 @@ __naked void element_value_with_unaligned_store(void)
 	r1 = 24;					\
 	*(u64*)(r7 - 4) = r1;				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map element value with unaligned load")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void element_value_with_unaligned_load(void)
-{
-	asm volatile ("					\
+__naked void element_value_with_unaligned_load(void) {
+  asm volatile (
+    "					\
 	r2 = r10;					\
 	r2 += -8;					\
 	r1 = 0;						\
@@ -117,20 +117,20 @@ __naked void element_value_with_unaligned_load(void)
 	r7 = *(u64*)(r0 + 0);				\
 	r7 = *(u64*)(r0 + 4);				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b),
-	  __imm_const(max_entries, MAX_ENTRIES)
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b),
+    __imm_const(max_entries, MAX_ENTRIES)
+    : __clobber_all);
 }
 
 SEC("socket")
 __description("map element value is preserved across register spilling")
 __success __failure_unpriv __msg_unpriv("R0 leaks addr")
 __retval(0) __flag(BPF_F_ANY_ALIGNMENT)
-__naked void is_preserved_across_register_spilling(void)
-{
-	asm volatile ("					\
+__naked void is_preserved_across_register_spilling(void) {
+  asm volatile (
+    "					\
 	r2 = r10;					\
 	r2 += -8;					\
 	r1 = 0;						\
@@ -148,11 +148,11 @@ __naked void is_preserved_across_register_spilling(void)
 	r1 = 42;					\
 	*(u64*)(r3 + 0) = r1;				\
 l0_%=:	exit;						\
-"	:
-	: __imm(bpf_map_lookup_elem),
-	  __imm_addr(map_hash_48b),
-	  __imm_const(test_val_foo, offsetof(struct test_val, foo))
-	: __clobber_all);
+" :
+    : __imm(bpf_map_lookup_elem),
+    __imm_addr(map_hash_48b),
+    __imm_const(test_val_foo, offsetof(struct test_val, foo))
+    : __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

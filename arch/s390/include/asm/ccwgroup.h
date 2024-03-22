@@ -14,18 +14,18 @@ struct ccw_driver;
  * @ungroup_work: used to ungroup the ccwgroup device
  */
 struct ccwgroup_device {
-	enum {
-		CCWGROUP_OFFLINE,
-		CCWGROUP_ONLINE,
-	} state;
-/* private: */
-	atomic_t onoff;
-	struct mutex reg_mutex;
-/* public: */
-	unsigned int count;
-	struct device	dev;
-	struct work_struct ungroup_work;
-	struct ccw_device *cdev[];
+  enum {
+    CCWGROUP_OFFLINE,
+    CCWGROUP_ONLINE,
+  } state;
+  /* private: */
+  atomic_t onoff;
+  struct mutex reg_mutex;
+  /* public: */
+  unsigned int count;
+  struct device dev;
+  struct work_struct ungroup_work;
+  struct ccw_device *cdev[];
 };
 
 /**
@@ -39,20 +39,20 @@ struct ccwgroup_device {
  * @ccw_driver: supported ccw_driver (optional)
  */
 struct ccwgroup_driver {
-	int (*setup) (struct ccwgroup_device *);
-	void (*remove) (struct ccwgroup_device *);
-	int (*set_online) (struct ccwgroup_device *);
-	int (*set_offline) (struct ccwgroup_device *);
-	void (*shutdown)(struct ccwgroup_device *);
+  int (*setup)(struct ccwgroup_device *);
+  void (*remove)(struct ccwgroup_device *);
+  int (*set_online)(struct ccwgroup_device *);
+  int (*set_offline)(struct ccwgroup_device *);
+  void (*shutdown)(struct ccwgroup_device *);
 
-	struct device_driver driver;
-	struct ccw_driver *ccw_driver;
+  struct device_driver driver;
+  struct ccw_driver *ccw_driver;
 };
 
-extern int  ccwgroup_driver_register   (struct ccwgroup_driver *cdriver);
-extern void ccwgroup_driver_unregister (struct ccwgroup_driver *cdriver);
+extern int ccwgroup_driver_register(struct ccwgroup_driver *cdriver);
+extern void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver);
 int ccwgroup_create_dev(struct device *root, struct ccwgroup_driver *gdrv,
-			int num_devices, const char *buf);
+    int num_devices, const char *buf);
 
 extern int ccwgroup_set_online(struct ccwgroup_device *gdev);
 int ccwgroup_set_offline(struct ccwgroup_device *gdev, bool call_gdrv);
@@ -66,10 +66,10 @@ extern void ccwgroup_remove_ccwdev(struct ccw_device *cdev);
 #if IS_ENABLED(CONFIG_CCWGROUP)
 bool dev_is_ccwgroup(struct device *dev);
 #else /* CONFIG_CCWGROUP */
-static inline bool dev_is_ccwgroup(struct device *dev)
-{
-	return false;
+static inline bool dev_is_ccwgroup(struct device *dev) {
+  return false;
 }
+
 #endif /* CONFIG_CCWGROUP */
 
 #endif

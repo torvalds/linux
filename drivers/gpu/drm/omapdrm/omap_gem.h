@@ -43,18 +43,18 @@ void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 
 /* GEM Object Creation and Deletion */
 struct drm_gem_object *omap_gem_new(struct drm_device *dev,
-		union omap_gem_size gsize, u32 flags);
+    union omap_gem_size gsize, u32 flags);
 struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
-		struct sg_table *sgt);
+    struct sg_table *sgt);
 int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
-		union omap_gem_size gsize, u32 flags, u32 *handle);
+    union omap_gem_size gsize, u32 flags, u32 *handle);
 void *omap_gem_vaddr(struct drm_gem_object *obj);
 
 /* Dumb Buffers Interface */
 int omap_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-		u32 handle, u64 *offset);
+    u32 handle, u64 *offset);
 int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
-		struct drm_mode_create_dumb *args);
+    struct drm_mode_create_dumb *args);
 
 /* mmap() Interface */
 u64 omap_gem_mmap_offset(struct drm_gem_object *obj);
@@ -63,24 +63,24 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj);
 /* PRIME Interface */
 struct dma_buf *omap_gem_prime_export(struct drm_gem_object *obj, int flags);
 struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
-		struct dma_buf *buffer);
+    struct dma_buf *buffer);
 
 int omap_gem_roll(struct drm_gem_object *obj, u32 roll);
 void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff);
 void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
-		enum dma_data_direction dir);
+    enum dma_data_direction dir);
 int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr);
 void omap_gem_unpin(struct drm_gem_object *obj);
 int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
-		bool remap);
+    bool remap);
 int omap_gem_put_pages(struct drm_gem_object *obj);
 
 u32 omap_gem_flags(struct drm_gem_object *obj);
 int omap_gem_rotated_dma_addr(struct drm_gem_object *obj, u32 orient,
-		int x, int y, dma_addr_t *dma_addr);
+    int x, int y, dma_addr_t *dma_addr);
 int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient);
 struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj,
-		enum dma_data_direction dir);
+    enum dma_data_direction dir);
 void omap_gem_put_sg(struct drm_gem_object *obj, struct sg_table *sgt);
 
 #endif /* __OMAPDRM_GEM_H__ */

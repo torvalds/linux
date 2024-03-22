@@ -15,16 +15,16 @@
 #define FWIO_H_INCLUDED
 
 #define BOOTLOADER_CW1X60       "boot_cw1x60.bin"
-#define FIRMWARE_CW1X60		"wsm_cw1x60.bin"
-#define FIRMWARE_CUT22		"wsm_22.bin"
-#define FIRMWARE_CUT20		"wsm_20.bin"
-#define FIRMWARE_CUT11		"wsm_11.bin"
-#define FIRMWARE_CUT10		"wsm_10.bin"
-#define SDD_FILE_CW1X60		"sdd_cw1x60.bin"
-#define SDD_FILE_22		"sdd_22.bin"
-#define SDD_FILE_20		"sdd_20.bin"
-#define SDD_FILE_11		"sdd_11.bin"
-#define SDD_FILE_10		"sdd_10.bin"
+#define FIRMWARE_CW1X60   "wsm_cw1x60.bin"
+#define FIRMWARE_CUT22    "wsm_22.bin"
+#define FIRMWARE_CUT20    "wsm_20.bin"
+#define FIRMWARE_CUT11    "wsm_11.bin"
+#define FIRMWARE_CUT10    "wsm_10.bin"
+#define SDD_FILE_CW1X60   "sdd_cw1x60.bin"
+#define SDD_FILE_22   "sdd_22.bin"
+#define SDD_FILE_20   "sdd_20.bin"
+#define SDD_FILE_11   "sdd_11.bin"
+#define SDD_FILE_10   "sdd_10.bin"
 
 int cw1200_load_firmware(struct cw1200_common *priv);
 

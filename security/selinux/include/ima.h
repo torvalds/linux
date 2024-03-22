@@ -17,12 +17,12 @@
 extern void selinux_ima_measure_state(void);
 extern void selinux_ima_measure_state_locked(void);
 #else
-static inline void selinux_ima_measure_state(void)
-{
+static inline void selinux_ima_measure_state(void) {
 }
-static inline void selinux_ima_measure_state_locked(void)
-{
+
+static inline void selinux_ima_measure_state_locked(void) {
 }
+
 #endif
 
 #endif /* _SELINUX_IMA_H_ */

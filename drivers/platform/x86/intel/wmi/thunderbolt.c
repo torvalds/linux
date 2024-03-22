@@ -20,50 +20,48 @@
 #define INTEL_WMI_THUNDERBOLT_GUID "86CCFD48-205E-4A77-9C48-2021CBEDE341"
 
 static ssize_t force_power_store(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct acpi_buffer input;
-	acpi_status status;
-	u8 mode;
-
-	input.length = sizeof(u8);
-	input.pointer = &mode;
-	mode = hex_to_bin(buf[0]);
-	dev_dbg(dev, "force_power: storing %#x\n", mode);
-	if (mode == 0 || mode == 1) {
-		status = wmidev_evaluate_method(to_wmi_device(dev), 0, 1, &input, NULL);
-		if (ACPI_FAILURE(status)) {
-			dev_dbg(dev, "force_power: failed to evaluate ACPI method\n");
-			return -ENODEV;
-		}
-	} else {
-		dev_dbg(dev, "force_power: unsupported mode\n");
-		return -EINVAL;
-	}
-	return count;
+    struct device_attribute *attr,
+    const char *buf, size_t count) {
+  struct acpi_buffer input;
+  acpi_status status;
+  u8 mode;
+  input.length = sizeof(u8);
+  input.pointer = &mode;
+  mode = hex_to_bin(buf[0]);
+  dev_dbg(dev, "force_power: storing %#x\n", mode);
+  if (mode == 0 || mode == 1) {
+    status = wmidev_evaluate_method(to_wmi_device(dev), 0, 1, &input, NULL);
+    if (ACPI_FAILURE(status)) {
+      dev_dbg(dev, "force_power: failed to evaluate ACPI method\n");
+      return -ENODEV;
+    }
+  } else {
+    dev_dbg(dev, "force_power: unsupported mode\n");
+    return -EINVAL;
+  }
+  return count;
 }
 
 static DEVICE_ATTR_WO(force_power);
 
 static struct attribute *tbt_attrs[] = {
-	&dev_attr_force_power.attr,
-	NULL
+  &dev_attr_force_power.attr,
+  NULL
 };
 ATTRIBUTE_GROUPS(tbt);
 
 static const struct wmi_device_id intel_wmi_thunderbolt_id_table[] = {
-	{ .guid_string = INTEL_WMI_THUNDERBOLT_GUID },
-	{ },
+  { .guid_string = INTEL_WMI_THUNDERBOLT_GUID },
+  {},
 };
 
 static struct wmi_driver intel_wmi_thunderbolt_driver = {
-	.driver = {
-		.name = "intel-wmi-thunderbolt",
-		.dev_groups = tbt_groups,
-	},
-	.id_table = intel_wmi_thunderbolt_id_table,
-	.no_singleton = true,
+  .driver = {
+    .name = "intel-wmi-thunderbolt",
+    .dev_groups = tbt_groups,
+  },
+  .id_table = intel_wmi_thunderbolt_id_table,
+  .no_singleton = true,
 };
 
 module_wmi_driver(intel_wmi_thunderbolt_driver);

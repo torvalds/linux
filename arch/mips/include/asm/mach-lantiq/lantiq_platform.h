@@ -11,8 +11,8 @@
 
 /* struct used to pass info to network drivers */
 struct ltq_eth_data {
-	struct sockaddr mac;
-	int mii_mode;
+  struct sockaddr mac;
+  int mii_mode;
 };
 
 #endif

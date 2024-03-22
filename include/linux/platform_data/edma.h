@@ -8,15 +8,15 @@
 /*
  * This EDMA3 programming framework exposes two basic kinds of resource:
  *
- *  Channel	Triggers transfers, usually from a hardware event but
- *		also manually or by "chaining" from DMA completions.
- *		Each channel is coupled to a Parameter RAM (PaRAM) slot.
+ *  Channel Triggers transfers, usually from a hardware event but
+ *    also manually or by "chaining" from DMA completions.
+ *    Each channel is coupled to a Parameter RAM (PaRAM) slot.
  *
- *  Slot	Each PaRAM slot holds a DMA transfer descriptor (PaRAM
- *		"set"), source and destination addresses, a link to a
- *		next PaRAM slot (if any), options for the transfer, and
- *		instructions for updating those addresses.  There are
- *		more than twice as many slots as event channels.
+ *  Slot  Each PaRAM slot holds a DMA transfer descriptor (PaRAM
+ *    "set"), source and destination addresses, a link to a
+ *    next PaRAM slot (if any), options for the transfer, and
+ *    instructions for updating those addresses.  There are
+ *    more than twice as many slots as event channels.
  *
  * Each PaRAM set describes a sequence of transfers, either for one large
  * buffer or for several discontiguous smaller buffers.  An EDMA transfer
@@ -38,47 +38,46 @@
 #define EDMA_H_
 
 enum dma_event_q {
-	EVENTQ_0 = 0,
-	EVENTQ_1 = 1,
-	EVENTQ_2 = 2,
-	EVENTQ_3 = 3,
-	EVENTQ_DEFAULT = -1
+  EVENTQ_0 = 0,
+  EVENTQ_1 = 1,
+  EVENTQ_2 = 2,
+  EVENTQ_3 = 3,
+  EVENTQ_DEFAULT = -1
 };
 
-#define EDMA_CTLR_CHAN(ctlr, chan)	(((ctlr) << 16) | (chan))
-#define EDMA_CTLR(i)			((i) >> 16)
-#define EDMA_CHAN_SLOT(i)		((i) & 0xffff)
+#define EDMA_CTLR_CHAN(ctlr, chan)  (((ctlr) << 16) | (chan))
+#define EDMA_CTLR(i)      ((i) >> 16)
+#define EDMA_CHAN_SLOT(i)   ((i) & 0xffff)
 
-#define EDMA_FILTER_PARAM(ctlr, chan)	((int[]) { EDMA_CTLR_CHAN(ctlr, chan) })
+#define EDMA_FILTER_PARAM(ctlr, chan) ((int[]) { EDMA_CTLR_CHAN(ctlr, chan) })
 
 struct edma_rsv_info {
-
-	const s16	(*rsv_chans)[2];
-	const s16	(*rsv_slots)[2];
+  const s16(*rsv_chans)[2];
+  const s16(*rsv_slots)[2];
 };
 
 struct dma_slave_map;
 
 /* platform_data for EDMA driver */
 struct edma_soc_info {
-	/*
-	 * Default queue is expected to be a low-priority queue.
-	 * This way, long transfers on the default queue started
-	 * by the codec engine will not cause audio defects.
-	 */
-	enum dma_event_q	default_queue;
+  /*
+   * Default queue is expected to be a low-priority queue.
+   * This way, long transfers on the default queue started
+   * by the codec engine will not cause audio defects.
+   */
+  enum dma_event_q default_queue;
 
-	/* Resource reservation for other cores */
-	struct edma_rsv_info	*rsv;
+  /* Resource reservation for other cores */
+  struct edma_rsv_info *rsv;
 
-	/* List of channels allocated for memcpy, terminated with -1 */
-	s32			*memcpy_channels;
+  /* List of channels allocated for memcpy, terminated with -1 */
+  s32 *memcpy_channels;
 
-	s8	(*queue_priority_mapping)[2];
-	const s16	(*xbar_chans)[2];
+  s8(*queue_priority_mapping)[2];
+  const s16(*xbar_chans)[2];
 
-	const struct dma_slave_map *slave_map;
-	int slavecnt;
+  const struct dma_slave_map *slave_map;
+  int slavecnt;
 };
 
 #endif

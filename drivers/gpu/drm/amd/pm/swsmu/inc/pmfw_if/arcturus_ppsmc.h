@@ -111,21 +111,22 @@
 #define PPSMC_MSG_SetMemoryChannelEnable         0x39
 
 //OOB
-#define PPSMC_MSG_SetNumBadHbmPagesRetired	 0x3A
+#define PPSMC_MSG_SetNumBadHbmPagesRetired   0x3A
 
-#define PPSMC_MSG_DFCstateControl		 0x3B
+#define PPSMC_MSG_DFCstateControl    0x3B
 #define PPSMC_MSG_GmiPwrDnControl                0x3D
 #define PPSMC_Message_Count                      0x3E
 
-#define PPSMC_MSG_ReadSerialNumTop32		 0x40
-#define PPSMC_MSG_ReadSerialNumBottom32		 0x41
+#define PPSMC_MSG_ReadSerialNumTop32     0x40
+#define PPSMC_MSG_ReadSerialNumBottom32    0x41
 
 /* parameter for MSG_LightSBR
- * 1 -- Enable light secondary bus reset, only do nbio respond without further handling,
+ * 1 -- Enable light secondary bus reset, only do nbio respond without further
+ *handling,
  *      leave driver to handle the real reset
  * 0 -- Disable LightSBR, default behavior, SMU will pass the reset to PSP
  */
-#define PPSMC_MSG_LightSBR			 0x42
+#define PPSMC_MSG_LightSBR       0x42
 
 typedef uint32_t PPSMC_Result;
 typedef uint32_t PPSMC_Msg;

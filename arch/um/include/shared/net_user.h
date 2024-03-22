@@ -8,25 +8,26 @@
 
 #define ETH_ADDR_LEN (6)
 #define ETH_HEADER_ETHERTAP (16)
-#define ETH_HEADER_OTHER (26) /* 14 for ethernet + VLAN + MPLS for crazy people */
+#define ETH_HEADER_OTHER (26) /* 14 for ethernet + VLAN + MPLS for crazy people
+                               * */
 #define ETH_MAX_PACKET (1500)
 
 #define UML_NET_VERSION (4)
 
 struct net_user_info {
-	int (*init)(void *, void *);
-	int (*open)(void *);
-	void (*close)(int, void *);
-	void (*remove)(void *);
-	void (*add_address)(unsigned char *, unsigned char *, void *);
-	void (*delete_address)(unsigned char *, unsigned char *, void *);
-	int max_packet;
-	int mtu;
+  int (*init)(void *, void *);
+  int (*open)(void *);
+  void (*close)(int, void *);
+  void (*remove)(void *);
+  void (*add_address)(unsigned char *, unsigned char *, void *);
+  void (*delete_address)(unsigned char *, unsigned char *, void *);
+  int max_packet;
+  int mtu;
 };
 
 extern void iter_addresses(void *d, void (*cb)(unsigned char *,
-					       unsigned char *, void *),
-			   void *arg);
+    unsigned char *, void *),
+    void *arg);
 
 extern void *get_output_buffer(int *len_out);
 extern void free_output_buffer(void *buffer);

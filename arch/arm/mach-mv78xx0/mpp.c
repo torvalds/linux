@@ -13,22 +13,18 @@
 #include "common.h"
 #include "mpp.h"
 
-static unsigned int __init mv78xx0_variant(void)
-{
-	u32 dev, rev;
-
-	mv78xx0_pcie_id(&dev, &rev);
-
-	if (dev == MV78100_DEV_ID && rev >= MV78100_REV_A0)
-		return MPP_78100_A0_MASK;
-
-	printk(KERN_ERR "MPP setup: unknown mv78x00 variant "
-			"(dev %#x rev %#x)\n", dev, rev);
-	return 0;
+static unsigned int __init mv78xx0_variant(void) {
+  u32 dev, rev;
+  mv78xx0_pcie_id(&dev, &rev);
+  if (dev == MV78100_DEV_ID && rev >= MV78100_REV_A0) {
+    return MPP_78100_A0_MASK;
+  }
+  printk(KERN_ERR "MPP setup: unknown mv78x00 variant "
+      "(dev %#x rev %#x)\n", dev, rev);
+  return 0;
 }
 
-void __init mv78xx0_mpp_conf(unsigned int *mpp_list)
-{
-	orion_mpp_conf(mpp_list, mv78xx0_variant(),
-		       MPP_MAX, DEV_BUS_VIRT_BASE);
+void __init mv78xx0_mpp_conf(unsigned int *mpp_list) {
+  orion_mpp_conf(mpp_list, mv78xx0_variant(),
+      MPP_MAX, DEV_BUS_VIRT_BASE);
 }

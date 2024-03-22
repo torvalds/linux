@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: LGPL-2.1+ */
-/* Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org> */
+/* SPDX-License-Identifier: LGPL-2.1+
+ * Copyright (C) 2022, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>*/
 #ifndef __THERMAL_TOOLS_MAINLOOP_H
 #define __THERMAL_TOOLS_MAINLOOP_H
 

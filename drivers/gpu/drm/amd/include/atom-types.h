@@ -31,7 +31,6 @@ typedef uint16_t USHORT;
 typedef uint32_t ULONG;
 typedef uint8_t UCHAR;
 
-
 #ifndef ATOM_BIG_ENDIAN
 #if defined(__BIG_ENDIAN)
 #define ATOM_BIG_ENDIAN 1

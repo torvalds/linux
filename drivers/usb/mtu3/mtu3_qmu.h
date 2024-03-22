@@ -10,12 +10,12 @@
 #ifndef __MTK_QMU_H__
 #define __MTK_QMU_H__
 
-#define MAX_GPD_NUM		64
-#define QMU_GPD_SIZE		(sizeof(struct qmu_gpd))
-#define QMU_GPD_RING_SIZE	(MAX_GPD_NUM * QMU_GPD_SIZE)
+#define MAX_GPD_NUM   64
+#define QMU_GPD_SIZE    (sizeof(struct qmu_gpd))
+#define QMU_GPD_RING_SIZE (MAX_GPD_NUM * QMU_GPD_SIZE)
 
-#define GPD_BUF_SIZE		65532
-#define GPD_BUF_SIZE_EL		1048572
+#define GPD_BUF_SIZE    65532
+#define GPD_BUF_SIZE_EL   1048572
 
 void mtu3_qmu_stop(struct mtu3_ep *mep);
 int mtu3_qmu_start(struct mtu3_ep *mep);

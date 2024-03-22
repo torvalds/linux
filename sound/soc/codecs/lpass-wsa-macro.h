@@ -8,8 +8,8 @@
  * for a given speaker mode
  */
 enum {
-	WSA_MACRO_SPKR_MODE_DEFAULT,
-	WSA_MACRO_SPKR_MODE_1, /* COMP Gain = 12dB, Smartboost Max = 5.5V */
+  WSA_MACRO_SPKR_MODE_DEFAULT,
+  WSA_MACRO_SPKR_MODE_1, /* COMP Gain = 12dB, Smartboost Max = 5.5V */
 };
 
 int wsa_macro_set_spkr_mode(struct snd_soc_component *component, int mode);

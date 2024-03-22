@@ -21,19 +21,19 @@
  */
 
 struct semid64_ds {
-	struct ipc64_perm sem_perm;	/* permissions .. see ipc.h */
+  struct ipc64_perm sem_perm; /* permissions .. see ipc.h */
 #ifndef __powerpc64__
-	unsigned long	sem_otime_high;
-	unsigned long	sem_otime;	/* last semop time */
-	unsigned long	sem_ctime_high;
-	unsigned long	sem_ctime;	/* last change time */
+  unsigned long sem_otime_high;
+  unsigned long sem_otime;  /* last semop time */
+  unsigned long sem_ctime_high;
+  unsigned long sem_ctime;  /* last change time */
 #else
-	long		sem_otime;	/* last semop time */
-	long		sem_ctime;	/* last change time */
+  long sem_otime;  /* last semop time */
+  long sem_ctime;  /* last change time */
 #endif
-	unsigned long	sem_nsems;	/* no. of semaphores in array */
-	unsigned long	__unused3;
-	unsigned long	__unused4;
+  unsigned long sem_nsems;  /* no. of semaphores in array */
+  unsigned long __unused3;
+  unsigned long __unused4;
 };
 
-#endif	/* _ASM_POWERPC_SEMBUF_H */
+#endif  /* _ASM_POWERPC_SEMBUF_H */

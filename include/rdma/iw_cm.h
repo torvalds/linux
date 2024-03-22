@@ -13,23 +13,23 @@
 struct iw_cm_id;
 
 enum iw_cm_event_type {
-	IW_CM_EVENT_CONNECT_REQUEST = 1, /* connect request received */
-	IW_CM_EVENT_CONNECT_REPLY,	 /* reply from active connect request */
-	IW_CM_EVENT_ESTABLISHED,	 /* passive side accept successful */
-	IW_CM_EVENT_DISCONNECT,		 /* orderly shutdown */
-	IW_CM_EVENT_CLOSE		 /* close complete */
+  IW_CM_EVENT_CONNECT_REQUEST = 1, /* connect request received */
+  IW_CM_EVENT_CONNECT_REPLY,   /* reply from active connect request */
+  IW_CM_EVENT_ESTABLISHED,   /* passive side accept successful */
+  IW_CM_EVENT_DISCONNECT,    /* orderly shutdown */
+  IW_CM_EVENT_CLOSE    /* close complete */
 };
 
 struct iw_cm_event {
-	enum iw_cm_event_type event;
-	int			 status;
-	struct sockaddr_storage local_addr;
-	struct sockaddr_storage remote_addr;
-	void *private_data;
-	void *provider_data;
-	u8 private_data_len;
-	u8 ord;
-	u8 ird;
+  enum iw_cm_event_type event;
+  int status;
+  struct sockaddr_storage local_addr;
+  struct sockaddr_storage remote_addr;
+  void *private_data;
+  void *provider_data;
+  u8 private_data_len;
+  u8 ord;
+  u8 ird;
 };
 
 /**
@@ -40,7 +40,7 @@ struct iw_cm_event {
  * @event: Pointer to the event structure.
  */
 typedef int (*iw_cm_handler)(struct iw_cm_id *cm_id,
-			     struct iw_cm_event *event);
+    struct iw_cm_event *event);
 
 /**
  * iw_event_handler - Function called by the provider when delivering provider
@@ -51,46 +51,45 @@ typedef int (*iw_cm_handler)(struct iw_cm_id *cm_id,
  * @event: Pointer to the event structure.
  */
 typedef int (*iw_event_handler)(struct iw_cm_id *cm_id,
-				 struct iw_cm_event *event);
+    struct iw_cm_event *event);
 
 struct iw_cm_id {
-	iw_cm_handler		cm_handler;      /* client callback function */
-	void		        *context;	 /* client cb context */
-	struct ib_device	*device;
-	struct sockaddr_storage local_addr;      /* local addr */
-	struct sockaddr_storage	remote_addr;
-	struct sockaddr_storage m_local_addr;	 /* nmapped local addr */
-	struct sockaddr_storage	m_remote_addr;	 /* nmapped rem addr */
-	void			*provider_data;	 /* provider private data */
-	iw_event_handler        event_handler;   /* cb for provider
-						    events */
-	/* Used by provider to add and remove refs on IW cm_id */
-	void (*add_ref)(struct iw_cm_id *);
-	void (*rem_ref)(struct iw_cm_id *);
-	u8  tos;
-	bool tos_set:1;
-	bool mapped:1;
-	bool afonly:1;
+  iw_cm_handler cm_handler;      /* client callback function */
+  void *context;  /* client cb context */
+  struct ib_device *device;
+  struct sockaddr_storage local_addr;      /* local addr */
+  struct sockaddr_storage remote_addr;
+  struct sockaddr_storage m_local_addr;  /* nmapped local addr */
+  struct sockaddr_storage m_remote_addr;   /* nmapped rem addr */
+  void *provider_data;  /* provider private data */
+  iw_event_handler event_handler;   /* cb for provider
+                                     * events */
+  /* Used by provider to add and remove refs on IW cm_id */
+  void (*add_ref)(struct iw_cm_id *);
+  void (*rem_ref)(struct iw_cm_id *);
+  u8 tos;
+  bool tos_set : 1;
+  bool mapped : 1;
+  bool afonly : 1;
 };
 
 struct iw_cm_conn_param {
-	const void *private_data;
-	u16 private_data_len;
-	u32 ord;
-	u32 ird;
-	u32 qpn;
+  const void *private_data;
+  u16 private_data_len;
+  u32 ord;
+  u32 ird;
+  u32 qpn;
 };
 
 enum iw_flags {
-
-	/*
-	 * This flag allows the iwcm and iwpmd to still advertise
-	 * mappings but the real and mapped port numbers are the
-	 * same.  Further, iwpmd will not bind any user socket to
-	 * reserve the port.  This is required for soft iwarp
-	 * to play in the port mapped iwarp space.
-	 */
-	IW_F_NO_PORT_MAP = (1 << 0),
+  /*
+   * This flag allows the iwcm and iwpmd to still advertise
+   * mappings but the real and mapped port numbers are the
+   * same.  Further, iwpmd will not bind any user socket to
+   * reserve the port.  This is required for soft iwarp
+   * to play in the port mapped iwarp space.
+   */
+  IW_F_NO_PORT_MAP = (1 << 0),
 };
 
 /**
@@ -102,7 +101,7 @@ enum iw_flags {
  * @context: User specified context associated with the id.
  */
 struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
-				 iw_cm_handler cm_handler, void *context);
+    iw_cm_handler cm_handler, void *context);
 
 /**
  * iw_destroy_cm_id - Destroy an IW CM identifier.
@@ -156,7 +155,7 @@ int iw_cm_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *iw_param);
  * buffer is available for reuse when this function returns.
  */
 int iw_cm_reject(struct iw_cm_id *cm_id, const void *private_data,
-		 u8 private_data_len);
+    u8 private_data_len);
 
 /**
  * iw_cm_connect - Called to request a connection to a remote peer.
@@ -194,7 +193,7 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt);
  *   valid.
  */
 int iw_cm_init_qp_attr(struct iw_cm_id *cm_id, struct ib_qp_attr *qp_attr,
-		       int *qp_attr_mask);
+    int *qp_attr_mask);
 
 /**
  * iwcm_reject_msg - return a pointer to a reject message string.

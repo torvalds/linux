@@ -9,7 +9,7 @@
 struct intel_context;
 
 struct intel_migrate {
-	struct intel_context *context;
+  struct intel_context *context;
 };
 
 #endif /* __INTEL_MIGRATE_TYPES__ */

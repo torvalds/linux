@@ -15,7 +15,7 @@ extern unsigned long isa_io_base;
 
 extern struct list_head hose_list;
 
-extern struct pci_dev *isa_bridge_pcidev;	/* may be NULL if no ISA bus */
+extern struct pci_dev *isa_bridge_pcidev; /* may be NULL if no ISA bus */
 
 /** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
 #define BUID_HI(buid) upper_32_bits(buid)
@@ -26,23 +26,26 @@ struct device_node;
 struct pci_dn;
 
 void *pci_traverse_device_nodes(struct device_node *start,
-				void *(*fn)(struct device_node *, void *),
-				void *data);
+    void *(*fn)(struct device_node *, void *),
+    void *data);
 extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 
-#if defined(CONFIG_IOMMU_API) && (defined(CONFIG_PPC_PSERIES) || \
-				  defined(CONFIG_PPC_POWERNV))
+#if defined(CONFIG_IOMMU_API) && (defined(CONFIG_PPC_PSERIES)    \
+  || defined(CONFIG_PPC_POWERNV))
 extern void ppc_iommu_register_device(struct pci_controller *phb);
 extern void ppc_iommu_unregister_device(struct pci_controller *phb);
 #else
-static inline void ppc_iommu_register_device(struct pci_controller *phb) { }
-static inline void ppc_iommu_unregister_device(struct pci_controller *phb) { }
+static inline void ppc_iommu_register_device(struct pci_controller *phb) {
+}
+
+static inline void ppc_iommu_unregister_device(struct pci_controller *phb) {
+}
+
 #endif
 
-
 /* From rtas_pci.h */
-extern void init_pci_config_tokens (void);
-extern unsigned long get_phb_buid (struct device_node *);
+extern void init_pci_config_tokens(void);
+extern unsigned long get_phb_buid(struct device_node *);
 extern int rtas_setup_phb(struct pci_controller *phb);
 
 int rtas_pci_dn_read_config(struct pci_dn *pdn, int where, int size, u32 *val);
@@ -75,11 +78,15 @@ void __init uli_init(void);
 #define PCI_BUSNO(bdfn) ((bdfn >> 8) & 0xff)
 
 #else /* CONFIG_PCI */
-static inline void init_pci_config_tokens(void) { }
+static inline void init_pci_config_tokens(void) {
+}
+
 #endif /* !CONFIG_PCI */
 
 #if !defined(CONFIG_PCI) || !defined(CONFIG_FSL_ULI1575)
-static inline void __init uli_init(void) {}
+static inline void __init uli_init(void) {
+}
+
 #endif /* !defined(CONFIG_PCI) || !defined(CONFIG_FSL_ULI1575) */
 
 #endif /* __KERNEL__ */

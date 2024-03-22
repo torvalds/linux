@@ -14,14 +14,14 @@
  * will not be enabled after the next soft reset. Non-zero errors are
  * returned as documented below.
  */
-#define MLXBF_BOOTCTL_SET_POST_RESET_WDOG	0x82000000
+#define MLXBF_BOOTCTL_SET_POST_RESET_WDOG 0x82000000
 
 /*
  * Query the status which has been requested for the on-chip watchdog
  * after the next chip soft reset. Returns the interval as set by
  * MLXBF_BOOTCTL_SET_POST_RESET_WDOG.
  */
-#define MLXBF_BOOTCTL_GET_POST_RESET_WDOG	0x82000001
+#define MLXBF_BOOTCTL_GET_POST_RESET_WDOG 0x82000001
 
 /*
  * Request that a specific boot action be taken at the next soft
@@ -32,14 +32,14 @@
  * invoked. See below for the available MLNX_BOOT_xxx parameter
  * values. Non-zero errors are returned as documented below.
  */
-#define MLXBF_BOOTCTL_SET_RESET_ACTION		0x82000002
+#define MLXBF_BOOTCTL_SET_RESET_ACTION    0x82000002
 
 /*
  * Return the specific boot action which will be taken at the next
  * soft reset. Returns the reset action (see below for the parameter
  * values for MLXBF_BOOTCTL_SET_RESET_ACTION).
  */
-#define MLXBF_BOOTCTL_GET_RESET_ACTION		0x82000003
+#define MLXBF_BOOTCTL_GET_RESET_ACTION    0x82000003
 
 /*
  * Request that a specific boot action be taken at the soft reset
@@ -54,26 +54,26 @@
  * This call does not affect the action to be taken at the next soft
  * reset. Non-zero errors are returned as documented below.
  */
-#define MLXBF_BOOTCTL_SET_SECOND_RESET_ACTION	0x82000004
+#define MLXBF_BOOTCTL_SET_SECOND_RESET_ACTION 0x82000004
 
 /*
  * Return the specific boot action which will be taken at the soft
  * reset after the next soft reset; this will be one of the valid
  * actions for MLXBF_BOOTCTL_SET_SECOND_RESET_ACTION.
  */
-#define MLXBF_BOOTCTL_GET_SECOND_RESET_ACTION	0x82000005
+#define MLXBF_BOOTCTL_GET_SECOND_RESET_ACTION 0x82000005
 
 /*
  * Return the fuse status of the current chip. The caller should specify
  * with the second argument if the state of the lifecycle fuses or the
  * version of secure boot fuse keys left should be returned.
  */
-#define MLXBF_BOOTCTL_GET_TBB_FUSE_STATUS	0x82000006
+#define MLXBF_BOOTCTL_GET_TBB_FUSE_STATUS 0x82000006
 
 /* Reset eMMC by programming the RST_N register. */
-#define MLXBF_BOOTCTL_SET_EMMC_RST_N		0x82000007
+#define MLXBF_BOOTCTL_SET_EMMC_RST_N    0x82000007
 
-#define MLXBF_BOOTCTL_GET_DIMM_INFO		0x82000008
+#define MLXBF_BOOTCTL_GET_DIMM_INFO   0x82000008
 
 /*
  * Initiate Firmware Reset via TYU. This might be invoked during the reset
@@ -104,29 +104,29 @@
 #define MLNX_HANDLE_OS_UP    0x82000014
 
 /* SMC function IDs for SiP Service queries */
-#define MLXBF_BOOTCTL_SIP_SVC_CALL_COUNT	0x8200ff00
-#define MLXBF_BOOTCTL_SIP_SVC_UID		0x8200ff01
-#define MLXBF_BOOTCTL_SIP_SVC_VERSION		0x8200ff03
+#define MLXBF_BOOTCTL_SIP_SVC_CALL_COUNT  0x8200ff00
+#define MLXBF_BOOTCTL_SIP_SVC_UID   0x8200ff01
+#define MLXBF_BOOTCTL_SIP_SVC_VERSION   0x8200ff03
 
 /* ARM Standard Service Calls version numbers */
-#define MLXBF_BOOTCTL_SVC_VERSION_MAJOR		0x0
-#define MLXBF_BOOTCTL_SVC_VERSION_MINOR		0x2
+#define MLXBF_BOOTCTL_SVC_VERSION_MAJOR   0x0
+#define MLXBF_BOOTCTL_SVC_VERSION_MINOR   0x2
 
 /* Number of svc calls defined. */
 #define MLXBF_BOOTCTL_NUM_SVC_CALLS 12
 
 /* Valid reset actions for MLXBF_BOOTCTL_SET_RESET_ACTION. */
-#define MLXBF_BOOTCTL_EXTERNAL	0 /* Not boot from eMMC */
-#define MLXBF_BOOTCTL_EMMC	1 /* From primary eMMC boot partition */
-#define MLNX_BOOTCTL_SWAP_EMMC	2 /* Swap eMMC boot partitions and reboot */
-#define MLXBF_BOOTCTL_EMMC_LEGACY	3 /* From primary eMMC in legacy mode */
+#define MLXBF_BOOTCTL_EXTERNAL  0 /* Not boot from eMMC */
+#define MLXBF_BOOTCTL_EMMC  1 /* From primary eMMC boot partition */
+#define MLNX_BOOTCTL_SWAP_EMMC  2 /* Swap eMMC boot partitions and reboot */
+#define MLXBF_BOOTCTL_EMMC_LEGACY 3 /* From primary eMMC in legacy mode */
 
 /* Valid arguments for requesting the fuse status. */
-#define MLXBF_BOOTCTL_FUSE_STATUS_LIFECYCLE	0 /* Return lifecycle status. */
-#define MLXBF_BOOTCTL_FUSE_STATUS_KEYS	1 /* Return secure boot key status */
+#define MLXBF_BOOTCTL_FUSE_STATUS_LIFECYCLE 0 /* Return lifecycle status. */
+#define MLXBF_BOOTCTL_FUSE_STATUS_KEYS  1 /* Return secure boot key status */
 
 /* Additional value to disable the MLXBF_BOOTCTL_SET_SECOND_RESET_ACTION. */
-#define MLXBF_BOOTCTL_NONE	0x7fffffff /* Don't change next boot action */
+#define MLXBF_BOOTCTL_NONE  0x7fffffff /* Don't change next boot action */
 
 #define MLXBF_LARGE_ICMC_MAX_STRING_SIZE 16
 #define MLXBF_LARGE_ICMC_SIZE_MIN        0x80

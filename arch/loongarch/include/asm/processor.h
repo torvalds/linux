@@ -19,9 +19,9 @@
 
 #ifdef CONFIG_32BIT
 
-#define TASK_SIZE	0x80000000UL
-#define TASK_SIZE_MIN	TASK_SIZE
-#define STACK_TOP_MAX	TASK_SIZE
+#define TASK_SIZE 0x80000000UL
+#define TASK_SIZE_MIN TASK_SIZE
+#define STACK_TOP_MAX TASK_SIZE
 
 #define TASK_IS_32BIT_ADDR 1
 
@@ -29,21 +29,22 @@
 
 #ifdef CONFIG_64BIT
 
-#define TASK_SIZE32	0x100000000UL
-#define TASK_SIZE64     (0x1UL << ((cpu_vabits > VA_BITS) ? VA_BITS : cpu_vabits))
+#define TASK_SIZE32 0x100000000UL
+#define TASK_SIZE64     (0x1UL << \
+    ((cpu_vabits > VA_BITS) ? VA_BITS : cpu_vabits))
 
-#define TASK_SIZE	(test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
-#define TASK_SIZE_MIN	TASK_SIZE32
-#define STACK_TOP_MAX	TASK_SIZE64
+#define TASK_SIZE (test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
+#define TASK_SIZE_MIN TASK_SIZE32
+#define STACK_TOP_MAX TASK_SIZE64
 
-#define TASK_SIZE_OF(tsk)						\
-	(test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
+#define TASK_SIZE_OF(tsk)           \
+  (test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
 
 #define TASK_IS_32BIT_ADDR test_thread_flag(TIF_32BIT_ADDR)
 
 #endif
 
-#define VDSO_RANDOMIZE_SIZE	(TASK_IS_32BIT_ADDR ? SZ_1M : SZ_64M)
+#define VDSO_RANDOMIZE_SIZE (TASK_IS_32BIT_ADDR ? SZ_1M : SZ_64M)
 
 unsigned long stack_top(void);
 #define STACK_TOP stack_top()
@@ -54,53 +55,53 @@ unsigned long stack_top(void);
  */
 #define TASK_UNMAPPED_BASE PAGE_ALIGN(TASK_SIZE / 3)
 
-#define FPU_REG_WIDTH		256
-#define FPU_ALIGN		__attribute__((aligned(32)))
+#define FPU_REG_WIDTH   256
+#define FPU_ALIGN   __attribute__((aligned(32)))
 
 union fpureg {
-	__u32	val32[FPU_REG_WIDTH / 32];
-	__u64	val64[FPU_REG_WIDTH / 64];
+  __u32 val32[FPU_REG_WIDTH / 32];
+  __u64 val64[FPU_REG_WIDTH / 64];
 };
 
-#define FPR_IDX(width, idx)	(idx)
+#define FPR_IDX(width, idx) (idx)
 
 #define BUILD_FPR_ACCESS(width) \
-static inline u##width get_fpr##width(union fpureg *fpr, unsigned idx)	\
-{									\
-	return fpr->val##width[FPR_IDX(width, idx)];			\
-}									\
-									\
-static inline void set_fpr##width(union fpureg *fpr, unsigned int idx,	\
-				  u##width val)				\
-{									\
-	fpr->val##width[FPR_IDX(width, idx)] = val;			\
-}
+  static inline u ## width get_fpr ## width(union fpureg *fpr, unsigned idx)  \
+  {                 \
+    return fpr->val ## width[FPR_IDX(width, idx)];      \
+  }                 \
+                  \
+  static inline void set_fpr ## width(union fpureg *fpr, unsigned int idx,  \
+    u ## width val)       \
+  {                 \
+    fpr->val ## width[FPR_IDX(width, idx)] = val;     \
+  }
 
 BUILD_FPR_ACCESS(32)
 BUILD_FPR_ACCESS(64)
 
 struct loongarch_fpu {
-	uint64_t	fcc;	/* 8x8 */
-	uint32_t	fcsr;
-	uint32_t	ftop;
-	union fpureg	fpr[NUM_FPU_REGS];
+  uint64_t fcc;  /* 8x8 */
+  uint32_t fcsr;
+  uint32_t ftop;
+  union fpureg fpr[NUM_FPU_REGS];
 };
 
 struct loongarch_lbt {
-	/* Scratch registers */
-	unsigned long scr0;
-	unsigned long scr1;
-	unsigned long scr2;
-	unsigned long scr3;
-	/* Eflags register */
-	unsigned long eflags;
+  /* Scratch registers */
+  unsigned long scr0;
+  unsigned long scr1;
+  unsigned long scr2;
+  unsigned long scr3;
+  /* Eflags register */
+  unsigned long eflags;
 };
 
 #define INIT_CPUMASK { \
-	{0,} \
+    {0, } \
 }
 
-#define ARCH_MIN_TASKALIGN	32
+#define ARCH_MIN_TASKALIGN  32
 
 struct loongarch_vdso_info;
 
@@ -108,105 +109,109 @@ struct loongarch_vdso_info;
  * If you change thread_struct remember to change the #defines below too!
  */
 struct thread_struct {
-	/* Main processor registers. */
-	unsigned long reg01, reg03, reg22; /* ra sp fp */
-	unsigned long reg23, reg24, reg25, reg26; /* s0-s3 */
-	unsigned long reg27, reg28, reg29, reg30, reg31; /* s4-s8 */
+  /* Main processor registers. */
+  unsigned long reg01, reg03, reg22; /* ra sp fp */
+  unsigned long reg23, reg24, reg25, reg26; /* s0-s3 */
+  unsigned long reg27, reg28, reg29, reg30, reg31; /* s4-s8 */
 
-	/* __schedule() return address / call frame address */
-	unsigned long sched_ra;
-	unsigned long sched_cfa;
+  /* __schedule() return address / call frame address */
+  unsigned long sched_ra;
+  unsigned long sched_cfa;
 
-	/* CSR registers */
-	unsigned long csr_prmd;
-	unsigned long csr_crmd;
-	unsigned long csr_euen;
-	unsigned long csr_ecfg;
-	unsigned long csr_badvaddr;	/* Last user fault */
+  /* CSR registers */
+  unsigned long csr_prmd;
+  unsigned long csr_crmd;
+  unsigned long csr_euen;
+  unsigned long csr_ecfg;
+  unsigned long csr_badvaddr; /* Last user fault */
 
-	/* Other stuff associated with the thread. */
-	unsigned long trap_nr;
-	unsigned long error_code;
-	unsigned long single_step; /* Used by PTRACE_SINGLESTEP */
-	struct loongarch_vdso_info *vdso;
+  /* Other stuff associated with the thread. */
+  unsigned long trap_nr;
+  unsigned long error_code;
+  unsigned long single_step; /* Used by PTRACE_SINGLESTEP */
+  struct loongarch_vdso_info *vdso;
 
-	/*
-	 * FPU & vector registers, must be at the last of inherited
-	 * context because they are conditionally copied at fork().
-	 */
-	struct loongarch_fpu fpu FPU_ALIGN;
-	struct loongarch_lbt lbt; /* Also conditionally copied */
+  /*
+   * FPU & vector registers, must be at the last of inherited
+   * context because they are conditionally copied at fork().
+   */
+  struct loongarch_fpu fpu FPU_ALIGN;
+  struct loongarch_lbt lbt; /* Also conditionally copied */
 
-	/* Hardware breakpoints pinned to this task. */
-	struct perf_event *hbp_break[LOONGARCH_MAX_BRP];
-	struct perf_event *hbp_watch[LOONGARCH_MAX_WRP];
+  /* Hardware breakpoints pinned to this task. */
+  struct perf_event *hbp_break[LOONGARCH_MAX_BRP];
+  struct perf_event *hbp_watch[LOONGARCH_MAX_WRP];
 };
 
-#define thread_saved_ra(tsk)	(tsk->thread.sched_ra)
-#define thread_saved_fp(tsk)	(tsk->thread.sched_cfa)
+#define thread_saved_ra(tsk)  (tsk->thread.sched_ra)
+#define thread_saved_fp(tsk)  (tsk->thread.sched_cfa)
 
-#define INIT_THREAD  {						\
-	/*							\
-	 * Main processor registers				\
-	 */							\
-	.reg01			= 0,				\
-	.reg03			= 0,				\
-	.reg22			= 0,				\
-	.reg23			= 0,				\
-	.reg24			= 0,				\
-	.reg25			= 0,				\
-	.reg26			= 0,				\
-	.reg27			= 0,				\
-	.reg28			= 0,				\
-	.reg29			= 0,				\
-	.reg30			= 0,				\
-	.reg31			= 0,				\
-	.sched_ra		= 0,				\
-	.sched_cfa		= 0,				\
-	.csr_crmd		= 0,				\
-	.csr_prmd		= 0,				\
-	.csr_euen		= 0,				\
-	.csr_ecfg		= 0,				\
-	.csr_badvaddr		= 0,				\
-	/*							\
-	 * Other stuff associated with the process		\
-	 */							\
-	.trap_nr		= 0,				\
-	.error_code		= 0,				\
-	/*							\
-	 * FPU & vector registers				\
-	 */							\
-	.fpu			= {				\
-		.fcc		= 0,				\
-		.fcsr		= 0,				\
-		.ftop		= 0,				\
-		.fpr		= {{{0,},},},			\
-	},							\
-	.hbp_break		= {0},				\
-	.hbp_watch		= {0},				\
+#define INIT_THREAD  {            \
+    /* \
+     * Main processor registers \
+     */           \
+    .reg01 = 0,        \
+    .reg03 = 0,        \
+    .reg22 = 0,        \
+    .reg23 = 0,        \
+    .reg24 = 0,        \
+    .reg25 = 0,        \
+    .reg26 = 0,        \
+    .reg27 = 0,        \
+    .reg28 = 0,        \
+    .reg29 = 0,        \
+    .reg30 = 0,        \
+    .reg31 = 0,        \
+    .sched_ra = 0,        \
+    .sched_cfa = 0,        \
+    .csr_crmd = 0,        \
+    .csr_prmd = 0,        \
+    .csr_euen = 0,        \
+    .csr_ecfg = 0,        \
+    .csr_badvaddr = 0,        \
+    /* \
+     * Other stuff associated with the process \
+     */           \
+    .trap_nr = 0,        \
+    .error_code = 0,        \
+    /* \
+     * FPU & vector registers \
+     */           \
+    .fpu = {       \
+      .fcc = 0,        \
+      .fcsr = 0,        \
+      .ftop = 0,        \
+      .fpr = {{{0, }, }, },     \
+    },              \
+    .hbp_break = {0},        \
+    .hbp_watch = {0},        \
 }
 
 struct task_struct;
 
-enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_HALT, IDLE_NOMWAIT, IDLE_POLL};
+enum idle_boot_override {
+  IDLE_NO_OVERRIDE = 0, IDLE_HALT, IDLE_NOMWAIT, IDLE_POLL
+};
 
-extern unsigned long		boot_option_idle_override;
+extern unsigned long boot_option_idle_override;
 /*
  * Do necessary setup to start up a newly executed thread.
  */
-extern void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp);
+extern void start_thread(struct pt_regs *regs, unsigned long pc,
+    unsigned long sp);
 
 unsigned long __get_wchan(struct task_struct *p);
 
-#define __KSTK_TOS(tsk) ((unsigned long)task_stack_page(tsk) + \
-			 THREAD_SIZE - sizeof(struct pt_regs))
-#define task_pt_regs(tsk) ((struct pt_regs *)__KSTK_TOS(tsk))
+#define __KSTK_TOS(tsk) ((unsigned long) task_stack_page(tsk)   \
+  + THREAD_SIZE - sizeof(struct pt_regs))
+#define task_pt_regs(tsk) ((struct pt_regs *) __KSTK_TOS(tsk))
 #define KSTK_EIP(tsk) (task_pt_regs(tsk)->csr_era)
 #define KSTK_ESP(tsk) (task_pt_regs(tsk)->regs[3])
 #define KSTK_EUEN(tsk) (task_pt_regs(tsk)->csr_euen)
 #define KSTK_ECFG(tsk) (task_pt_regs(tsk)->csr_ecfg)
 
-#define return_address() ({__asm__ __volatile__("":::"$1"); __builtin_return_address(0);})
+#define return_address() ({__asm__ __volatile__ ("" ::: "$1"); \
+                           __builtin_return_address(0);})
 
 #ifdef CONFIG_CPU_HAS_PREFETCH
 

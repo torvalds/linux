@@ -15,7 +15,9 @@ void intel_gt_init_clock_frequency(struct intel_gt *gt);
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 void intel_gt_check_clock_frequency(const struct intel_gt *gt);
 #else
-static inline void intel_gt_check_clock_frequency(const struct intel_gt *gt) {}
+static inline void intel_gt_check_clock_frequency(const struct intel_gt *gt) {
+}
+
 #endif
 
 u64 intel_gt_clock_interval_to_ns(const struct intel_gt *gt, u64 count);

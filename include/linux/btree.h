@@ -33,9 +33,9 @@
  * @height: current of the tree
  */
 struct btree_head {
-	unsigned long *node;
-	mempool_t *mempool;
-	int height;
+  unsigned long *node;
+  mempool_t *mempool;
+  int height;
 };
 
 /* btree geometry */
@@ -98,7 +98,7 @@ void btree_destroy(struct btree_head *head);
  * This function returns the value for the given key, or %NULL.
  */
 void *btree_lookup(struct btree_head *head, struct btree_geo *geo,
-		   unsigned long *key);
+    unsigned long *key);
 
 /**
  * btree_insert - insert an entry into the btree
@@ -113,7 +113,7 @@ void *btree_lookup(struct btree_head *head, struct btree_geo *geo,
  * error code if it failed (may fail due to memory pressure).
  */
 int __must_check btree_insert(struct btree_head *head, struct btree_geo *geo,
-			      unsigned long *key, void *val, gfp_t gfp);
+    unsigned long *key, void *val, gfp_t gfp);
 /**
  * btree_update - update an entry in the btree
  *
@@ -126,7 +126,7 @@ int __must_check btree_insert(struct btree_head *head, struct btree_geo *geo,
  * -%ENOENT if the key could not be found.
  */
 int btree_update(struct btree_head *head, struct btree_geo *geo,
-		 unsigned long *key, void *val);
+    unsigned long *key, void *val);
 /**
  * btree_remove - remove an entry from the btree
  *
@@ -138,7 +138,7 @@ int btree_update(struct btree_head *head, struct btree_geo *geo,
  * could not be found.
  */
 void *btree_remove(struct btree_head *head, struct btree_geo *geo,
-		   unsigned long *key);
+    unsigned long *key);
 
 /**
  * btree_merge - merge two btrees
@@ -156,7 +156,7 @@ void *btree_remove(struct btree_head *head, struct btree_geo *geo,
  * @victim to @target.
  */
 int btree_merge(struct btree_head *target, struct btree_head *victim,
-		struct btree_geo *geo, gfp_t gfp);
+    struct btree_geo *geo, gfp_t gfp);
 
 /**
  * btree_last - get last entry in btree
@@ -170,7 +170,7 @@ int btree_merge(struct btree_head *target, struct btree_head *victim,
  * key is not changed.
  */
 void *btree_last(struct btree_head *head, struct btree_geo *geo,
-		 unsigned long *key);
+    unsigned long *key);
 
 /**
  * btree_get_prev - get previous entry
@@ -184,25 +184,23 @@ void *btree_last(struct btree_head *head, struct btree_geo *geo,
  * entry with a key smaller than the given key.
  */
 void *btree_get_prev(struct btree_head *head, struct btree_geo *geo,
-		     unsigned long *key);
-
+    unsigned long *key);
 
 /* internal use, use btree_visitor{l,32,64,128} */
 size_t btree_visitor(struct btree_head *head, struct btree_geo *geo,
-		     unsigned long opaque,
-		     void (*func)(void *elem, unsigned long opaque,
-				  unsigned long *key, size_t index,
-				  void *func2),
-		     void *func2);
+    unsigned long opaque,
+    void (*func)(void *elem, unsigned long opaque,
+    unsigned long *key, size_t index,
+    void *func2),
+    void *func2);
 
 /* internal use, use btree_grim_visitor{l,32,64,128} */
 size_t btree_grim_visitor(struct btree_head *head, struct btree_geo *geo,
-			  unsigned long opaque,
-			  void (*func)(void *elem, unsigned long opaque,
-				       unsigned long *key,
-				       size_t index, void *func2),
-			  void *func2);
-
+    unsigned long opaque,
+    void (*func)(void *elem, unsigned long opaque,
+    unsigned long *key,
+    size_t index, void *func2),
+    void *func2);
 
 #include <linux/btree-128.h>
 
@@ -213,10 +211,10 @@ extern struct btree_geo btree_geo32;
 #define BTREE_KEYTYPE unsigned long
 #include <linux/btree-type.h>
 
-#define btree_for_each_safel(head, key, val)	\
-	for (val = btree_lastl(head, &key);	\
-	     val;				\
-	     val = btree_get_prevl(head, &key))
+#define btree_for_each_safel(head, key, val)  \
+  for (val = btree_lastl(head, &key); \
+      val;       \
+      val = btree_get_prevl(head, &key))
 
 #define BTREE_TYPE_SUFFIX 32
 #define BTREE_TYPE_BITS 32
@@ -224,10 +222,10 @@ extern struct btree_geo btree_geo32;
 #define BTREE_KEYTYPE u32
 #include <linux/btree-type.h>
 
-#define btree_for_each_safe32(head, key, val)	\
-	for (val = btree_last32(head, &key);	\
-	     val;				\
-	     val = btree_get_prev32(head, &key))
+#define btree_for_each_safe32(head, key, val) \
+  for (val = btree_last32(head, &key);  \
+      val;       \
+      val = btree_get_prev32(head, &key))
 
 extern struct btree_geo btree_geo64;
 #define BTREE_TYPE_SUFFIX 64
@@ -236,9 +234,9 @@ extern struct btree_geo btree_geo64;
 #define BTREE_KEYTYPE u64
 #include <linux/btree-type.h>
 
-#define btree_for_each_safe64(head, key, val)	\
-	for (val = btree_last64(head, &key);	\
-	     val;				\
-	     val = btree_get_prev64(head, &key))
+#define btree_for_each_safe64(head, key, val) \
+  for (val = btree_last64(head, &key);  \
+      val;       \
+      val = btree_get_prev64(head, &key))
 
 #endif

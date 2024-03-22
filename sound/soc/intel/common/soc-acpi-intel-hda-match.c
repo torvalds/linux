@@ -11,26 +11,26 @@
 #include "../skylake/skl.h"
 
 static struct skl_machine_pdata hda_pdata = {
-	.use_tplg_pcm = true,
+  .use_tplg_pcm = true,
 };
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_hda_machines[] = {
-	{
-		/* .id is not used in this file */
-		.drv_name = "skl_hda_dsp_generic",
+  {
+    /* .id is not used in this file */
+    .drv_name = "skl_hda_dsp_generic",
 
-		/* .fw_filename is dynamically set in skylake driver */
+    /* .fw_filename is dynamically set in skylake driver */
 
-		.sof_tplg_filename = "sof-hda-generic.tplg",
+    .sof_tplg_filename = "sof-hda-generic.tplg",
 
-		/*
-		 * .machine_quirk and .quirk_data are not used here but
-		 * can be used if we need a more complicated machine driver
-		 * combining HDA+other device (e.g. DMIC).
-		 */
-		.pdata = &hda_pdata,
-	},
-	{},
+    /*
+     * .machine_quirk and .quirk_data are not used here but
+     * can be used if we need a more complicated machine driver
+     * combining HDA+other device (e.g. DMIC).
+     */
+    .pdata = &hda_pdata,
+  },
+  {},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_hda_machines);
 

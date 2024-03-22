@@ -24,32 +24,30 @@ int scons_pwroff = 1;
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL(pm_power_off);
 
-void machine_power_off(void)
-{
-	if (!of_node_is_type(of_console_device, "serial") || scons_pwroff)
-		prom_halt_power_off();
-
-	prom_halt();
+void machine_power_off(void) {
+  if (!of_node_is_type(of_console_device, "serial") || scons_pwroff) {
+    prom_halt_power_off();
+  }
+  prom_halt();
 }
 
-void machine_halt(void)
-{
-	prom_halt();
-	panic("Halt failed!");
+void machine_halt(void) {
+  prom_halt();
+  panic("Halt failed!");
 }
 
-void machine_restart(char *cmd)
-{
-	char *p;
-
-	p = strchr(reboot_command, '\n');
-	if (p)
-		*p = 0;
-	if (cmd)
-		prom_reboot(cmd);
-	if (*reboot_command)
-		prom_reboot(reboot_command);
-	prom_reboot("");
-	panic("Reboot failed!");
+void machine_restart(char *cmd) {
+  char *p;
+  p = strchr(reboot_command, '\n');
+  if (p) {
+    *p = 0;
+  }
+  if (cmd) {
+    prom_reboot(cmd);
+  }
+  if (*reboot_command) {
+    prom_reboot(reboot_command);
+  }
+  prom_reboot("");
+  panic("Reboot failed!");
 }
-

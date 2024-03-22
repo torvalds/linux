@@ -18,29 +18,29 @@
  */
 
 enum cpu_usage_stat {
-	CPUTIME_USER,
-	CPUTIME_NICE,
-	CPUTIME_SYSTEM,
-	CPUTIME_SOFTIRQ,
-	CPUTIME_IRQ,
-	CPUTIME_IDLE,
-	CPUTIME_IOWAIT,
-	CPUTIME_STEAL,
-	CPUTIME_GUEST,
-	CPUTIME_GUEST_NICE,
+  CPUTIME_USER,
+  CPUTIME_NICE,
+  CPUTIME_SYSTEM,
+  CPUTIME_SOFTIRQ,
+  CPUTIME_IRQ,
+  CPUTIME_IDLE,
+  CPUTIME_IOWAIT,
+  CPUTIME_STEAL,
+  CPUTIME_GUEST,
+  CPUTIME_GUEST_NICE,
 #ifdef CONFIG_SCHED_CORE
-	CPUTIME_FORCEIDLE,
+  CPUTIME_FORCEIDLE,
 #endif
-	NR_STATS,
+  NR_STATS,
 };
 
 struct kernel_cpustat {
-	u64 cpustat[NR_STATS];
+  u64 cpustat[NR_STATS];
 };
 
 struct kernel_stat {
-	unsigned long irqs_sum;
-	unsigned int softirqs[NR_SOFTIRQS];
+  unsigned long irqs_sum;
+  unsigned int softirqs[NR_SOFTIRQS];
 };
 
 DECLARE_PER_CPU(struct kernel_stat, kstat);
@@ -58,25 +58,21 @@ extern unsigned long long nr_context_switches(void);
 extern unsigned int kstat_irqs_cpu(unsigned int irq, int cpu);
 extern void kstat_incr_irq_this_cpu(unsigned int irq);
 
-static inline void kstat_incr_softirqs_this_cpu(unsigned int irq)
-{
-	__this_cpu_inc(kstat.softirqs[irq]);
+static inline void kstat_incr_softirqs_this_cpu(unsigned int irq) {
+  __this_cpu_inc(kstat.softirqs[irq]);
 }
 
-static inline unsigned int kstat_softirqs_cpu(unsigned int irq, int cpu)
-{
-       return kstat_cpu(cpu).softirqs[irq];
+static inline unsigned int kstat_softirqs_cpu(unsigned int irq, int cpu) {
+  return kstat_cpu(cpu).softirqs[irq];
 }
 
-static inline unsigned int kstat_cpu_softirqs_sum(int cpu)
-{
-	int i;
-	unsigned int sum = 0;
-
-	for (i = 0; i < NR_SOFTIRQS; i++)
-		sum += kstat_softirqs_cpu(i, cpu);
-
-	return sum;
+static inline unsigned int kstat_cpu_softirqs_sum(int cpu) {
+  int i;
+  unsigned int sum = 0;
+  for (i = 0; i < NR_SOFTIRQS; i++) {
+    sum += kstat_softirqs_cpu(i, cpu);
+  }
+  return sum;
 }
 
 /*
@@ -87,25 +83,22 @@ extern unsigned int kstat_irqs_usr(unsigned int irq);
 /*
  * Number of interrupts per cpu, since bootup
  */
-static inline unsigned long kstat_cpu_irqs_sum(unsigned int cpu)
-{
-	return kstat_cpu(cpu).irqs_sum;
+static inline unsigned long kstat_cpu_irqs_sum(unsigned int cpu) {
+  return kstat_cpu(cpu).irqs_sum;
 }
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
 extern u64 kcpustat_field(struct kernel_cpustat *kcpustat,
-			  enum cpu_usage_stat usage, int cpu);
+    enum cpu_usage_stat usage, int cpu);
 extern void kcpustat_cpu_fetch(struct kernel_cpustat *dst, int cpu);
 #else
 static inline u64 kcpustat_field(struct kernel_cpustat *kcpustat,
-				 enum cpu_usage_stat usage, int cpu)
-{
-	return kcpustat->cpustat[usage];
+    enum cpu_usage_stat usage, int cpu) {
+  return kcpustat->cpustat[usage];
 }
 
-static inline void kcpustat_cpu_fetch(struct kernel_cpustat *dst, int cpu)
-{
-	*dst = kcpustat_cpu(cpu);
+static inline void kcpustat_cpu_fetch(struct kernel_cpustat *dst, int cpu) {
+  *dst = kcpustat_cpu(cpu);
 }
 
 #endif
@@ -114,16 +107,16 @@ extern void account_user_time(struct task_struct *, u64);
 extern void account_guest_time(struct task_struct *, u64);
 extern void account_system_time(struct task_struct *, int, u64);
 extern void account_system_index_time(struct task_struct *, u64,
-				      enum cpu_usage_stat);
+    enum cpu_usage_stat);
 extern void account_steal_time(u64);
 extern void account_idle_time(u64);
 extern u64 get_idle_time(struct kernel_cpustat *kcs, int cpu);
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-static inline void account_process_tick(struct task_struct *tsk, int user)
-{
-	vtime_flush(tsk);
+static inline void account_process_tick(struct task_struct *tsk, int user) {
+  vtime_flush(tsk);
 }
+
 #else
 extern void account_process_tick(struct task_struct *, int user);
 #endif

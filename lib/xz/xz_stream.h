@@ -11,10 +11,10 @@
 #define XZ_STREAM_H
 
 #if defined(__KERNEL__) && !XZ_INTERNAL_CRC32
-#	include <linux/crc32.h>
-#	undef crc32
-#	define xz_crc32(buf, size, crc) \
-		(~crc32_le(~(uint32_t)(crc), buf, size))
+#include <linux/crc32.h>
+#undef crc32
+#define xz_crc32(buf, size, crc) \
+  (~crc32_le(~(uint32_t) (crc), buf, size))
 #endif
 
 /*
@@ -42,18 +42,18 @@
  */
 typedef uint64_t vli_type;
 
-#define VLI_MAX ((vli_type)-1 / 2)
-#define VLI_UNKNOWN ((vli_type)-1)
+#define VLI_MAX ((vli_type) - 1 / 2)
+#define VLI_UNKNOWN ((vli_type) - 1)
 
 /* Maximum encoded size of a VLI */
 #define VLI_BYTES_MAX (sizeof(vli_type) * 8 / 7)
 
 /* Integrity Check types */
 enum xz_check {
-	XZ_CHECK_NONE = 0,
-	XZ_CHECK_CRC32 = 1,
-	XZ_CHECK_CRC64 = 4,
-	XZ_CHECK_SHA256 = 10
+  XZ_CHECK_NONE = 0,
+  XZ_CHECK_CRC32 = 1,
+  XZ_CHECK_CRC64 = 4,
+  XZ_CHECK_SHA256 = 10
 };
 
 /* Maximum possible Check ID */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- *	Network memory
+ *  Network memory
  *
- *	Author:	Mina Almasry <almasrymina@google.com>
+ *  Author: Mina Almasry <almasrymina@google.com>
  */
 
 #ifndef _NET_NETMEM_H
@@ -25,17 +25,15 @@ typedef unsigned long __bitwise netmem_ref;
  * Currently struct page is the only possible netmem, and this helper never
  * fails.
  */
-static inline struct page *netmem_to_page(netmem_ref netmem)
-{
-	return (__force struct page *)netmem;
+static inline struct page *netmem_to_page(netmem_ref netmem) {
+  return (__force struct page *) netmem;
 }
 
 /* Converting from page to netmem is always safe, because a page can always be
  * a netmem.
  */
-static inline netmem_ref page_to_netmem(struct page *page)
-{
-	return (__force netmem_ref)page;
+static inline netmem_ref page_to_netmem(struct page *page) {
+  return (__force netmem_ref) page;
 }
 
 #endif /* _NET_NETMEM_H */

@@ -9,25 +9,26 @@
 #include "usb.h"
 
 static const struct usb_device_id rtw_8723du_id_table[] = {
-	{ USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd723, 0xff, 0xff, 0xff),
-	  .driver_info = (kernel_ulong_t)&(rtw8723d_hw_spec) }, /* 8723DU 1*1 */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xd611, 0xff, 0xff, 0xff),
-	  .driver_info = (kernel_ulong_t)&(rtw8723d_hw_spec) }, /* Edimax EW-7611ULB V2 */
-	{ },
+  { USB_DEVICE_AND_INTERFACE_INFO(RTW_USB_VENDOR_ID_REALTEK, 0xd723, 0xff, 0xff,
+      0xff),
+    .driver_info = (kernel_ulong_t) &(rtw8723d_hw_spec) }, /* 8723DU 1*1 */
+  { USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xd611, 0xff, 0xff, 0xff),
+    .driver_info = (kernel_ulong_t) &(rtw8723d_hw_spec) }, /* Edimax EW-7611ULB
+                                                            * V2 */
+  {},
 };
 MODULE_DEVICE_TABLE(usb, rtw_8723du_id_table);
 
 static int rtw8723du_probe(struct usb_interface *intf,
-			   const struct usb_device_id *id)
-{
-	return rtw_usb_probe(intf, id);
+    const struct usb_device_id *id) {
+  return rtw_usb_probe(intf, id);
 }
 
 static struct usb_driver rtw_8723du_driver = {
-	.name = "rtw_8723du",
-	.id_table = rtw_8723du_id_table,
-	.probe = rtw8723du_probe,
-	.disconnect = rtw_usb_disconnect,
+  .name = "rtw_8723du",
+  .id_table = rtw_8723du_id_table,
+  .probe = rtw8723du_probe,
+  .disconnect = rtw_usb_disconnect,
 };
 module_usb_driver(rtw_8723du_driver);
 

@@ -29,81 +29,73 @@ static DEFINE_MUTEX(kpid_mutex);
 static unsigned int npids, npids_pending;
 static int klp_pids[NR_CPUS];
 module_param_array(klp_pids, int, &npids_pending, 0);
-MODULE_PARM_DESC(klp_pids, "Array of pids to be transitioned to livepatched state.");
+MODULE_PARM_DESC(klp_pids,
+    "Array of pids to be transitioned to livepatched state.");
 
 static ssize_t npids_show(struct kobject *kobj, struct kobj_attribute *attr,
-			  char *buf)
-{
-	return sprintf(buf, "%u\n", npids_pending);
+    char *buf) {
+  return sprintf(buf, "%u\n", npids_pending);
 }
 
 static struct kobj_attribute klp_attr = __ATTR_RO(npids);
 static struct kobject *klp_kobj;
 
-static asmlinkage long lp_sys_getpid(void)
-{
-	int i;
-
-	mutex_lock(&kpid_mutex);
-	if (npids_pending > 0) {
-		for (i = 0; i < npids; i++) {
-			if (current->pid == klp_pids[i]) {
-				klp_pids[i] = 0;
-				npids_pending--;
-				break;
-			}
-		}
-	}
-	mutex_unlock(&kpid_mutex);
-
-	return task_tgid_vnr(current);
+static asmlinkage long lp_sys_getpid(void) {
+  int i;
+  mutex_lock(&kpid_mutex);
+  if (npids_pending > 0) {
+    for (i = 0; i < npids; i++) {
+      if (current->pid == klp_pids[i]) {
+        klp_pids[i] = 0;
+        npids_pending--;
+        break;
+      }
+    }
+  }
+  mutex_unlock(&kpid_mutex);
+  return task_tgid_vnr(current);
 }
 
 static struct klp_func vmlinux_funcs[] = {
-	{
-		.old_name = __stringify(FN_PREFIX) "sys_getpid",
-		.new_func = lp_sys_getpid,
-	}, {}
+  {
+    .old_name = __stringify(FN_PREFIX) "sys_getpid",
+    .new_func = lp_sys_getpid,
+  }, {}
 };
 
 static struct klp_object objs[] = {
-	{
-		/* name being NULL means vmlinux */
-		.funcs = vmlinux_funcs,
-	}, {}
+  {
+    /* name being NULL means vmlinux */
+    .funcs = vmlinux_funcs,
+  }, {}
 };
 
 static struct klp_patch patch = {
-	.mod = THIS_MODULE,
-	.objs = objs,
+  .mod = THIS_MODULE,
+  .objs = objs,
 };
 
-static int livepatch_init(void)
-{
-	int ret;
-
-	klp_kobj = kobject_create_and_add("test_klp_syscall", kernel_kobj);
-	if (!klp_kobj)
-		return -ENOMEM;
-
-	ret = sysfs_create_file(klp_kobj, &klp_attr.attr);
-	if (ret) {
-		kobject_put(klp_kobj);
-		return ret;
-	}
-
-	/*
-	 * Save the number pids to transition to livepatched state before the
-	 * number of pending pids is decremented.
-	 */
-	npids = npids_pending;
-
-	return klp_enable_patch(&patch);
+static int livepatch_init(void) {
+  int ret;
+  klp_kobj = kobject_create_and_add("test_klp_syscall", kernel_kobj);
+  if (!klp_kobj) {
+    return -ENOMEM;
+  }
+  ret = sysfs_create_file(klp_kobj, &klp_attr.attr);
+  if (ret) {
+    kobject_put(klp_kobj);
+    return ret;
+  }
+  /*
+   * Save the number pids to transition to livepatched state before the
+   * number of pending pids is decremented.
+   */
+  npids = npids_pending;
+  return klp_enable_patch(&patch);
 }
 
-static void livepatch_exit(void)
-{
-	kobject_put(klp_kobj);
+static void livepatch_exit(void) {
+  kobject_put(klp_kobj);
 }
 
 module_init(livepatch_init);

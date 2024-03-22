@@ -10,60 +10,51 @@
 #include "clk-regmap.h"
 #include "clk-cpu-dyndiv.h"
 
-static inline struct meson_clk_cpu_dyndiv_data *
-meson_clk_cpu_dyndiv_data(struct clk_regmap *clk)
-{
-	return (struct meson_clk_cpu_dyndiv_data *)clk->data;
+static inline struct meson_clk_cpu_dyndiv_data *meson_clk_cpu_dyndiv_data(
+    struct clk_regmap *clk) {
+  return (struct meson_clk_cpu_dyndiv_data *) clk->data;
 }
 
 static unsigned long meson_clk_cpu_dyndiv_recalc_rate(struct clk_hw *hw,
-						      unsigned long prate)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
-
-	return divider_recalc_rate(hw, prate,
-				   meson_parm_read(clk->map, &data->div),
-				   NULL, 0, data->div.width);
+    unsigned long prate) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
+  return divider_recalc_rate(hw, prate,
+      meson_parm_read(clk->map, &data->div),
+      NULL, 0, data->div.width);
 }
 
 static int meson_clk_cpu_dyndiv_determine_rate(struct clk_hw *hw,
-					       struct clk_rate_request *req)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
-
-	return divider_determine_rate(hw, req, NULL, data->div.width, 0);
+    struct clk_rate_request *req) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
+  return divider_determine_rate(hw, req, NULL, data->div.width, 0);
 }
 
 static int meson_clk_cpu_dyndiv_set_rate(struct clk_hw *hw, unsigned long rate,
-					  unsigned long parent_rate)
-{
-	struct clk_regmap *clk = to_clk_regmap(hw);
-	struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
-	unsigned int val;
-	int ret;
-
-	ret = divider_get_val(rate, parent_rate, NULL, data->div.width, 0);
-	if (ret < 0)
-		return ret;
-
-	val = (unsigned int)ret << data->div.shift;
-
-	/* Write the SYS_CPU_DYN_ENABLE bit before changing the divider */
-	meson_parm_write(clk->map, &data->dyn, 1);
-
-	/* Update the divider while removing the SYS_CPU_DYN_ENABLE bit */
-	return regmap_update_bits(clk->map, data->div.reg_off,
-				  SETPMASK(data->div.width, data->div.shift) |
-				  SETPMASK(data->dyn.width, data->dyn.shift),
-				  val);
-};
+    unsigned long parent_rate) {
+  struct clk_regmap *clk = to_clk_regmap(hw);
+  struct meson_clk_cpu_dyndiv_data *data = meson_clk_cpu_dyndiv_data(clk);
+  unsigned int val;
+  int ret;
+  ret = divider_get_val(rate, parent_rate, NULL, data->div.width, 0);
+  if (ret < 0) {
+    return ret;
+  }
+  val = (unsigned int) ret << data->div.shift;
+  /* Write the SYS_CPU_DYN_ENABLE bit before changing the divider */
+  meson_parm_write(clk->map, &data->dyn, 1);
+  /* Update the divider while removing the SYS_CPU_DYN_ENABLE bit */
+  return regmap_update_bits(clk->map, data->div.reg_off,
+      SETPMASK(data->div.width, data->div.shift)
+      | SETPMASK(data->dyn.width, data->dyn.shift),
+      val);
+}
 
 const struct clk_ops meson_clk_cpu_dyndiv_ops = {
-	.recalc_rate = meson_clk_cpu_dyndiv_recalc_rate,
-	.determine_rate = meson_clk_cpu_dyndiv_determine_rate,
-	.set_rate = meson_clk_cpu_dyndiv_set_rate,
+  .recalc_rate = meson_clk_cpu_dyndiv_recalc_rate,
+  .determine_rate = meson_clk_cpu_dyndiv_determine_rate,
+  .set_rate = meson_clk_cpu_dyndiv_set_rate,
 };
 EXPORT_SYMBOL_GPL(meson_clk_cpu_dyndiv_ops);
 

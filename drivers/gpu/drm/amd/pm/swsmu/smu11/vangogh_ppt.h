@@ -24,7 +24,6 @@
 #ifndef __VANGOGH_PPT_H__
 #define __VANGOGH_PPT_H__
 
-
 extern void vangogh_set_ppt_funcs(struct smu_context *smu);
 
 /* UMD PState Vangogh Msg Parameters in MHz */

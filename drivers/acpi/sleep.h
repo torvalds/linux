@@ -9,10 +9,9 @@ extern struct mutex acpi_device_lock;
 
 extern void acpi_resume_power_resources(void);
 
-static inline acpi_status acpi_set_waking_vector(u32 wakeup_address)
-{
-	return acpi_set_firmware_waking_vector(
-				(acpi_physical_address)wakeup_address, 0);
+static inline acpi_status acpi_set_waking_vector(u32 wakeup_address) {
+  return acpi_set_firmware_waking_vector(
+      (acpi_physical_address) wakeup_address, 0);
 }
 
 extern int acpi_s2idle_begin(void);
@@ -29,5 +28,5 @@ extern void acpi_s2idle_setup(void);
 #ifdef CONFIG_ACPI_SLEEP
 extern bool acpi_sleep_default_s3;
 #else
-#define acpi_sleep_default_s3	(1)
+#define acpi_sleep_default_s3 (1)
 #endif

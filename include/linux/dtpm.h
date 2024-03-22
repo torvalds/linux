@@ -13,48 +13,47 @@
 #define MAX_DTPM_CONSTRAINTS 1
 
 struct dtpm {
-	struct powercap_zone zone;
-	struct dtpm *parent;
-	struct list_head sibling;
-	struct list_head children;
-	struct dtpm_ops *ops;
-	unsigned long flags;
-	u64 power_limit;
-	u64 power_max;
-	u64 power_min;
-	int weight;
+  struct powercap_zone zone;
+  struct dtpm *parent;
+  struct list_head sibling;
+  struct list_head children;
+  struct dtpm_ops *ops;
+  unsigned long flags;
+  u64 power_limit;
+  u64 power_max;
+  u64 power_min;
+  int weight;
 };
 
 struct dtpm_ops {
-	u64 (*set_power_uw)(struct dtpm *, u64);
-	u64 (*get_power_uw)(struct dtpm *);
-	int (*update_power_uw)(struct dtpm *);
-	void (*release)(struct dtpm *);
+  u64 (*set_power_uw)(struct dtpm *, u64);
+  u64 (*get_power_uw)(struct dtpm *);
+  int (*update_power_uw)(struct dtpm *);
+  void (*release)(struct dtpm *);
 };
 
 struct device_node;
 
 struct dtpm_subsys_ops {
-	const char *name;
-	int (*init)(void);
-	void (*exit)(void);
-	int (*setup)(struct dtpm *, struct device_node *);
+  const char *name;
+  int (*init)(void);
+  void (*exit)(void);
+  int (*setup)(struct dtpm *, struct device_node *);
 };
 
 enum DTPM_NODE_TYPE {
-	DTPM_NODE_VIRTUAL = 0,
-	DTPM_NODE_DT,
+  DTPM_NODE_VIRTUAL = 0,
+  DTPM_NODE_DT,
 };
 
 struct dtpm_node {
-	enum DTPM_NODE_TYPE type;
-	const char *name;
-	struct dtpm_node *parent;
+  enum DTPM_NODE_TYPE type;
+  const char *name;
+  struct dtpm_node *parent;
 };
 
-static inline struct dtpm *to_dtpm(struct powercap_zone *zone)
-{
-	return container_of(zone, struct dtpm, zone);
+static inline struct dtpm *to_dtpm(struct powercap_zone *zone) {
+  return container_of(zone, struct dtpm, zone);
 }
 
 int dtpm_update_power(struct dtpm *dtpm);

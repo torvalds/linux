@@ -10,13 +10,13 @@
  * specifics.
  */
 static const char *ixp4xx_of_board_compat[] = {
-	"intel,ixp42x",
-	"intel,ixp43x",
-	"intel,ixp45x",
-	"intel,ixp46x",
-	NULL,
+  "intel,ixp42x",
+  "intel,ixp43x",
+  "intel,ixp45x",
+  "intel,ixp46x",
+  NULL,
 };
 
 DT_MACHINE_START(IXP4XX_DT, "IXP4xx (Device Tree)")
-	.dt_compat	= ixp4xx_of_board_compat,
+.dt_compat = ixp4xx_of_board_compat,
 MACHINE_END

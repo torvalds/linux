@@ -9,8 +9,8 @@
 
 /**
  * struct sc18is602_platform_data - sc18is602 info
- * @clock_frequency		SC18IS603 oscillator frequency
+ * @clock_frequency   SC18IS603 oscillator frequency
  */
 struct sc18is602_platform_data {
-	u32 clock_frequency;
+  u32 clock_frequency;
 };

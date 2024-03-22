@@ -29,11 +29,11 @@ extern const struct phytbl_info dot11lcnphytbl_rx_gain_info_extlna_2G_rev2[];
 extern const struct phytbl_info dot11lcnphytbl_rx_gain_info_extlna_5G_rev2[];
 
 struct lcnphy_tx_gain_tbl_entry {
-	unsigned char gm;
-	unsigned char pga;
-	unsigned char pad;
-	unsigned char dac;
-	unsigned char bb_mult;
+  unsigned char gm;
+  unsigned char pga;
+  unsigned char pad;
+  unsigned char dac;
+  unsigned char bb_mult;
 };
 
 extern const struct lcnphy_tx_gain_tbl_entry dot11lcnphy_2GHz_gaintable_rev0[];

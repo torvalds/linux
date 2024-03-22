@@ -3,8 +3,8 @@
  * dz.h: Serial port driver for DECstations equipped
  *       with the DZ chipset.
  *
- * Copyright (C) 1998 Olivier A. D. Lebaillif 
- *             
+ * Copyright (C) 1998 Olivier A. D. Lebaillif
+ *
  * Email: olivier.lebaillif@ifrsys.com
  *
  * Copyright (C) 2004, 2006  Maciej W. Rozycki
@@ -37,8 +37,8 @@
 #define DZ_BREAK       0x0800                 /* BREAK event software flag */
 
 #define LINE(x) ((x & DZ_LINE_MASK) >> 8)     /* Get the line number
-                                                 from the input buffer */
-#define UCHAR(x) ((unsigned char)(x & DZ_RBUF_MASK))
+                                               * from the input buffer */
+#define UCHAR(x) ((unsigned char) (x & DZ_RBUF_MASK))
 
 /*
  * Definitions for the Transmit Control Register.
@@ -82,13 +82,14 @@
 #define DZ_MODEM         0x0002               /* line 2 = modem */
 #define DZ_PRINTER       0x0003               /* line 3 = printer */
 
-#define DZ_CSIZE         0x0018               /* Number of bits per byte (mask) */
+#define DZ_CSIZE         0x0018               /* Number of bits per byte (mask)
+                                               * */
 #define DZ_CS5           0x0000               /* 5 bits per byte */
 #define DZ_CS6           0x0008               /* 6 bits per byte */
 #define DZ_CS7           0x0010               /* 7 bits per byte */
 #define DZ_CS8           0x0018               /* 8 bits per byte */
 
-#define DZ_CSTOPB        0x0020               /* 2 stop bits instead of one */ 
+#define DZ_CSTOPB        0x0020               /* 2 stop bits instead of one */
 
 #define DZ_PARENB        0x0040               /* Parity enable */
 #define DZ_PARODD        0x0080               /* Odd parity instead of even */
@@ -101,7 +102,7 @@
 #define DZ_B150          0x0400
 #define DZ_B300          0x0500
 #define DZ_B600          0x0600
-#define DZ_B1200         0x0700 
+#define DZ_B1200         0x0700
 #define DZ_B1800         0x0800
 #define DZ_B2000         0x0900
 #define DZ_B2400         0x0A00
@@ -125,6 +126,6 @@
 #define DZ_NB_PORT 4
 
 #define DZ_XMIT_SIZE   4096                 /* buffer size */
-#define DZ_WAKEUP_CHARS   DZ_XMIT_SIZE/4
+#define DZ_WAKEUP_CHARS   DZ_XMIT_SIZE / 4
 
 #endif /* DZ_SERIAL_H */

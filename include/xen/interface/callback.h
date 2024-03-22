@@ -65,9 +65,9 @@
  */
 #define CALLBACKOP_register                0
 struct callback_register {
-	uint16_t type;
-	uint16_t flags;
-	xen_callback_t address;
+  uint16_t type;
+  uint16_t flags;
+  xen_callback_t address;
 };
 
 /*
@@ -78,8 +78,8 @@ struct callback_register {
  */
 #define CALLBACKOP_unregister              1
 struct callback_unregister {
-    uint16_t type;
-    uint16_t _unused;
+  uint16_t type;
+  uint16_t _unused;
 };
 
 #endif /* __XEN_PUBLIC_CALLBACK_H__ */

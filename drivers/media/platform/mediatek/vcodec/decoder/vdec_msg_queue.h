@@ -26,13 +26,14 @@ typedef int (*core_decode_cb_t)(struct vdec_lat_buf *lat_buf);
  * @CONTEXT_LIST_DEC_DONE: context decode done
  */
 enum core_ctx_status {
-	CONTEXT_LIST_EMPTY = 0,
-	CONTEXT_LIST_QUEUED,
-	CONTEXT_LIST_DEC_DONE,
+  CONTEXT_LIST_EMPTY = 0,
+  CONTEXT_LIST_QUEUED,
+  CONTEXT_LIST_DEC_DONE,
 };
 
 /**
- * struct vdec_msg_queue_ctx - represents a queue for buffers ready to be processed
+ * struct vdec_msg_queue_ctx - represents a queue for buffers ready to be
+ *processed
  * @ready_to_use: ready used queue used to signalize when get a job queue
  * @ready_queue: list of ready lat buffer queues
  * @ready_lock: spin lock to protect the lat buffer usage
@@ -40,20 +41,21 @@ enum core_ctx_status {
  * @hardware_index: hardware id that this queue is used for
  */
 struct vdec_msg_queue_ctx {
-	wait_queue_head_t ready_to_use;
-	struct list_head ready_queue;
-	/* protect lat buffer */
-	spinlock_t ready_lock;
-	int ready_num;
-	int hardware_index;
+  wait_queue_head_t ready_to_use;
+  struct list_head ready_queue;
+  /* protect lat buffer */
+  spinlock_t ready_lock;
+  int ready_num;
+  int hardware_index;
 };
 
 /**
- * struct vdec_lat_buf - lat buffer message used to store lat info for core decode
+ * struct vdec_lat_buf - lat buffer message used to store lat info for core
+ *decode
  * @wdma_err_addr: wdma error address used for lat hardware
  * @slice_bc_addr: slice bc address used for lat hardware
- * @rd_mv_addr:	mv addr for av1 lat hardware output, core hardware input
- * @tile_addr:	tile buffer for av1 core input
+ * @rd_mv_addr: mv addr for av1 lat hardware output, core hardware input
+ * @tile_addr:  tile buffer for av1 core input
  * @ts_info: need to set timestamp from output to capture
  * @src_buf_req: output buffer media request object
  *
@@ -66,20 +68,20 @@ struct vdec_msg_queue_ctx {
  * @is_last_frame: meaning this buffer is the last frame
  */
 struct vdec_lat_buf {
-	struct mtk_vcodec_mem wdma_err_addr;
-	struct mtk_vcodec_mem slice_bc_addr;
-	struct mtk_vcodec_mem rd_mv_addr;
-	struct mtk_vcodec_mem tile_addr;
-	struct vb2_v4l2_buffer ts_info;
-	struct media_request *src_buf_req;
+  struct mtk_vcodec_mem wdma_err_addr;
+  struct mtk_vcodec_mem slice_bc_addr;
+  struct mtk_vcodec_mem rd_mv_addr;
+  struct mtk_vcodec_mem tile_addr;
+  struct vb2_v4l2_buffer ts_info;
+  struct media_request *src_buf_req;
 
-	void *private_data;
-	struct mtk_vcodec_dec_ctx *ctx;
-	core_decode_cb_t core_decode;
-	struct list_head lat_list;
-	struct list_head core_list;
+  void *private_data;
+  struct mtk_vcodec_dec_ctx *ctx;
+  core_decode_cb_t core_decode;
+  struct list_head lat_list;
+  struct list_head core_list;
 
-	bool is_last_frame;
+  bool is_last_frame;
 };
 
 /**
@@ -101,23 +103,23 @@ struct vdec_lat_buf {
  * @ctx: mtk vcodec context information
  */
 struct vdec_msg_queue {
-	struct vdec_lat_buf lat_buf[NUM_BUFFER_COUNT];
+  struct vdec_lat_buf lat_buf[NUM_BUFFER_COUNT];
 
-	struct mtk_vcodec_mem wdma_addr;
-	u64 wdma_rptr_addr;
-	u64 wdma_wptr_addr;
+  struct mtk_vcodec_mem wdma_addr;
+  u64 wdma_rptr_addr;
+  u64 wdma_wptr_addr;
 
-	struct work_struct core_work;
-	struct vdec_msg_queue_ctx lat_ctx;
-	struct vdec_msg_queue_ctx core_ctx;
+  struct work_struct core_work;
+  struct vdec_msg_queue_ctx lat_ctx;
+  struct vdec_msg_queue_ctx core_ctx;
 
-	atomic_t lat_list_cnt;
-	atomic_t core_list_cnt;
-	bool flush_done;
-	struct vdec_lat_buf empty_lat_buf;
-	wait_queue_head_t core_dec_done;
-	int status;
-	struct mtk_vcodec_dec_ctx *ctx;
+  atomic_t lat_list_cnt;
+  atomic_t core_list_cnt;
+  bool flush_done;
+  struct vdec_lat_buf empty_lat_buf;
+  wait_queue_head_t core_dec_done;
+  int status;
+  struct mtk_vcodec_dec_ctx *ctx;
 };
 
 /**
@@ -130,15 +132,16 @@ struct vdec_msg_queue {
  * Return: returns 0 if init successfully, or fail.
  */
 int vdec_msg_queue_init(struct vdec_msg_queue *msg_queue,
-			struct mtk_vcodec_dec_ctx *ctx, core_decode_cb_t core_decode,
-			int private_size);
+    struct mtk_vcodec_dec_ctx *ctx, core_decode_cb_t core_decode,
+    int private_size);
 
 /**
  * vdec_msg_queue_init_ctx - used to init msg queue context information.
  * @ctx: message queue context
  * @hardware_index: hardware index
  */
-void vdec_msg_queue_init_ctx(struct vdec_msg_queue_ctx *ctx, int hardware_index);
+void vdec_msg_queue_init_ctx(struct vdec_msg_queue_ctx *ctx,
+    int hardware_index);
 
 /**
  * vdec_msg_queue_qbuf - enqueue lat buffer to queue list.
@@ -147,7 +150,8 @@ void vdec_msg_queue_init_ctx(struct vdec_msg_queue_ctx *ctx, int hardware_index)
  *
  * Return: returns 0 if qbuf successfully, or fail.
  */
-int vdec_msg_queue_qbuf(struct vdec_msg_queue_ctx *ctx, struct vdec_lat_buf *buf);
+int vdec_msg_queue_qbuf(struct vdec_msg_queue_ctx *ctx,
+    struct vdec_lat_buf *buf);
 
 /**
  * vdec_msg_queue_dqbuf - dequeue lat buffer from queue list.
@@ -162,14 +166,16 @@ struct vdec_lat_buf *vdec_msg_queue_dqbuf(struct vdec_msg_queue_ctx *ctx);
  * @msg_queue: used to store the lat buffer information
  * @ube_rptr: current ube read point
  */
-void vdec_msg_queue_update_ube_rptr(struct vdec_msg_queue *msg_queue, uint64_t ube_rptr);
+void vdec_msg_queue_update_ube_rptr(struct vdec_msg_queue *msg_queue,
+    uint64_t ube_rptr);
 
 /**
  * vdec_msg_queue_update_ube_wptr - used to updata the ube write point.
  * @msg_queue: used to store the lat buffer information
  * @ube_wptr: current ube write point
  */
-void vdec_msg_queue_update_ube_wptr(struct vdec_msg_queue *msg_queue, uint64_t ube_wptr);
+void vdec_msg_queue_update_ube_wptr(struct vdec_msg_queue *msg_queue,
+    uint64_t ube_wptr);
 
 /**
  * vdec_msg_queue_wait_lat_buf_full - used to check whether all lat buffer
@@ -186,6 +192,6 @@ bool vdec_msg_queue_wait_lat_buf_full(struct vdec_msg_queue *msg_queue);
  * @ctx: v4l2 ctx
  */
 void vdec_msg_queue_deinit(struct vdec_msg_queue *msg_queue,
-			   struct mtk_vcodec_dec_ctx *ctx);
+    struct mtk_vcodec_dec_ctx *ctx);
 
 #endif

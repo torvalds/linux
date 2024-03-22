@@ -125,21 +125,32 @@
  * Here the table that describes CSME's behavior upon ownership request:
  *
  * +-------------------+------------+--------------+-----------------------------+------------+
- * | State             | HW reg bit | Reply for    | Event                       | HW reg bit |
- * |                   | before     | WHO_OWNS_NIC |                             | after      |
+ * | State             | HW reg bit | Reply for    | Event
+ *                      | HW reg bit |
+ * |                   | before     | WHO_OWNS_NIC |
+ *                            | after      |
  * +===================+============+==============+=============================+============+
- * | WiAMT not         | 0          | Host         | HW register or              | 0          |
- * | operational       | Host owner |              | HOST_ASKS_FOR_NIC_OWNERSHIP | Host owner |
+ * | WiAMT not         | 0          | Host         | HW register or
+ *             | 0          |
+ * | operational       | Host owner |              | HOST_ASKS_FOR_NIC_OWNERSHIP
+ *| Host owner |
  * +-------------------+------------+--------------+-----------------------------+------------+
- * | Operational &     | 1          | N/A          | HW register                 | 0          |
- * | SAP down &        | CSME owner |              |                             | Host owner |
- * | no session active |            |              |                             |            |
+ * | Operational &     | 1          | N/A          | HW register
+ *                | 0          |
+ * | SAP down &        | CSME owner |              |
+ *                            | Host owner |
+ * | no session active |            |              |
+ *                            |            |
  * +-------------------+------------+--------------+-----------------------------+------------+
- * | Operational &     | 1          | CSME         | HW register                 | 1          |
- * | SAP up            | CSME owner |              |                             | CSME owner |
+ * | Operational &     | 1          | CSME         | HW register
+ *                | 1          |
+ * | SAP up            | CSME owner |              |
+ *                            | CSME owner |
  * +-------------------+------------+--------------+-----------------------------+------------+
- * | Operational &     | 1          | CSME         | HOST_ASKS_FOR_NIC_OWNERSHIP | 0          |
- * | SAP up            | CSME owner |              |                             | Host owner |
+ * | Operational &     | 1          | CSME         | HOST_ASKS_FOR_NIC_OWNERSHIP
+ *| 0          |
+ * | SAP up            | CSME owner |              |
+ *                            | Host owner |
  * +-------------------+------------+--------------+-----------------------------+------------+
  */
 
@@ -191,8 +202,8 @@
  * @MEI_NVM_CAPS_11AX_SUPPORT: 11AX is supported
  */
 enum iwl_mei_nvm_caps {
-	MEI_NVM_CAPS_LARI_SUPPORT	= BIT(0),
-	MEI_NVM_CAPS_11AX_SUPPORT	= BIT(1),
+  MEI_NVM_CAPS_LARI_SUPPORT = BIT(0),
+  MEI_NVM_CAPS_11AX_SUPPORT = BIT(1),
 };
 
 /**
@@ -208,13 +219,13 @@ enum iwl_mei_nvm_caps {
  * If a field is added, it must correspond to the SAP structure.
  */
 struct iwl_mei_nvm {
-	u8 hw_addr[ETH_ALEN];
-	u8 n_hw_addrs;
-	u8 reserved;
-	u32 radio_cfg;
-	u32 caps;
-	u32 nvm_version;
-	u32 channels[110];
+  u8 hw_addr[ETH_ALEN];
+  u8 n_hw_addrs;
+  u8 reserved;
+  u32 radio_cfg;
+  u32 caps;
+  u32 nvm_version;
+  u32 channels[110];
 };
 
 /**
@@ -228,11 +239,11 @@ struct iwl_mei_nvm {
  * Note that those values are dictated by the CSME firmware API (see sap.h)
  */
 enum iwl_mei_pairwise_cipher {
-	IWL_MEI_CIPHER_NONE	= 0,
-	IWL_MEI_CIPHER_TKIP	= 2,
-	IWL_MEI_CIPHER_CCMP	= 4,
-	IWL_MEI_CIPHER_GCMP	= 8,
-	IWL_MEI_CIPHER_GCMP_256 = 9,
+  IWL_MEI_CIPHER_NONE = 0,
+  IWL_MEI_CIPHER_TKIP = 2,
+  IWL_MEI_CIPHER_CCMP = 4,
+  IWL_MEI_CIPHER_GCMP = 8,
+  IWL_MEI_CIPHER_GCMP_256 = 9,
 };
 
 /**
@@ -245,10 +256,10 @@ enum iwl_mei_pairwise_cipher {
  * Note that those values are dictated by the CSME firmware API (see sap.h)
  */
 enum iwl_mei_akm_auth {
-	IWL_MEI_AKM_AUTH_OPEN		= 0,
-	IWL_MEI_AKM_AUTH_RSNA		= 6,
-	IWL_MEI_AKM_AUTH_RSNA_PSK	= 7,
-	IWL_MEI_AKM_AUTH_SAE		= 9,
+  IWL_MEI_AKM_AUTH_OPEN = 0,
+  IWL_MEI_AKM_AUTH_RSNA = 6,
+  IWL_MEI_AKM_AUTH_RSNA_PSK = 7,
+  IWL_MEI_AKM_AUTH_SAE = 9,
 };
 
 /**
@@ -263,14 +274,14 @@ enum iwl_mei_akm_auth {
  * @bssid: the BSSID
  */
 struct iwl_mei_conn_info {
-	u8 lp_state;
-	u8 auth_mode;
-	u8 ssid_len;
-	u8 channel;
-	u8 band;
-	u8 pairwise_cipher;
-	u8 bssid[ETH_ALEN];
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
+  u8 lp_state;
+  u8 auth_mode;
+  u8 ssid_len;
+  u8 channel;
+  u8 band;
+  u8 pairwise_cipher;
+  u8 bssid[ETH_ALEN];
+  u8 ssid[IEEE80211_MAX_SSID_LEN];
 };
 
 /**
@@ -279,8 +290,8 @@ struct iwl_mei_conn_info {
  * @bssid: the BSSID of the collocated AP
  */
 struct iwl_mei_colloc_info {
-	u8 channel;
-	u8 bssid[ETH_ALEN];
+  u8 channel;
+  u8 bssid[ETH_ALEN];
 };
 
 /*
@@ -290,21 +301,21 @@ struct iwl_mei_colloc_info {
  *
  * @me_conn_status: provide information about CSME's current connection.
  * @rfkill: called when the wifi driver should report a change in the rfkill
- *	status.
+ *  status.
  * @roaming_forbidden: indicates whether roaming is forbidden.
  * @sap_connected: indicate that SAP is now connected. Will be called in case
- *	the wifi driver registered to iwlmei before SAP connection succeeded or
- *	when the SAP connection is re-established.
+ *  the wifi driver registered to iwlmei before SAP connection succeeded or
+ *  when the SAP connection is re-established.
  * @nic_stolen: this means that device is no longer available. The device can
- *	still be used until the callback returns.
+ *  still be used until the callback returns.
  */
 struct iwl_mei_ops {
-	void (*me_conn_status)(void *priv,
-			       const struct iwl_mei_conn_info *conn_info);
-	void (*rfkill)(void *priv, bool blocked, bool csme_taking_ownership);
-	void (*roaming_forbidden)(void *priv, bool forbidden);
-	void (*sap_connected)(void *priv);
-	void (*nic_stolen)(void *priv);
+  void (*me_conn_status)(void *priv,
+      const struct iwl_mei_conn_info *conn_info);
+  void (*rfkill)(void *priv, bool blocked, bool csme_taking_ownership);
+  void (*roaming_forbidden)(void *priv, bool forbidden);
+  void (*sap_connected)(void *priv);
+  void (*nic_stolen)(void *priv);
 };
 
 #if IS_ENABLED(CONFIG_IWLMEI)
@@ -422,7 +433,7 @@ void iwl_mei_set_netdev(struct net_device *netdev);
  * the wifi driver.
  * @skb: the skb sent
  * @ivlen: the size of the IV that needs to be skipped after the MAC and
- *	before the SNAP header.
+ *  before the SNAP header.
  *
  * This function doesn't take any lock, it simply tries to catch DHCP
  * packets sent by the wifi driver. If the packet is a DHCP packet, it
@@ -437,10 +448,10 @@ void iwl_mei_tx_copy_to_csme(struct sk_buff *skb, unsigned int ivlen);
  * iwl_mei_host_associated() - must be called when iwlwifi associated.
  * @conn_info: pointer to the connection info structure.
  * @colloc_info: pointer to the collocated AP info. This is relevant only in
- *	case of UHB associated AP, otherwise set to NULL.
+ *  case of UHB associated AP, otherwise set to NULL.
  */
 void iwl_mei_host_associated(const struct iwl_mei_conn_info *conn_info,
-			     const struct iwl_mei_colloc_info *colloc_info);
+    const struct iwl_mei_colloc_info *colloc_info);
 
 /**
  * iwl_mei_host_disassociated() - must be called when iwlwifi disassociated.
@@ -457,72 +468,79 @@ void iwl_mei_device_state(bool up);
  * iwl_mei_pldr_req() - must be called before loading the fw
  *
  * Return: 0 if the PLDR flow was successful and the fw can be loaded, negative
- *	value otherwise.
+ *  value otherwise.
  */
 int iwl_mei_pldr_req(void);
 
 /**
  * iwl_mei_alive_notif() - must be called when alive notificaiton is received
  * @success: true if received alive notification, false if waiting for the
- *	notificaiton timed out.
+ *  notificaiton timed out.
  */
 void iwl_mei_alive_notif(bool success);
 
 #else
 
-static inline bool iwl_mei_is_connected(void)
-{ return false; }
+static inline bool iwl_mei_is_connected(void) {
+  return false;
+}
 
-static inline struct iwl_mei_nvm *iwl_mei_get_nvm(void)
-{ return NULL; }
+static inline struct iwl_mei_nvm *iwl_mei_get_nvm(void) {
+  return NULL;
+}
 
-static inline int iwl_mei_get_ownership(void)
-{ return 0; }
+static inline int iwl_mei_get_ownership(void) {
+  return 0;
+}
 
-static inline void iwl_mei_set_rfkill_state(bool hw_rfkill, bool sw_rfkill)
-{}
+static inline void iwl_mei_set_rfkill_state(bool hw_rfkill, bool sw_rfkill) {
+}
 
-static inline void iwl_mei_set_nic_info(const u8 *mac_address, const u8 *nvm_address)
-{}
+static inline void iwl_mei_set_nic_info(const u8 *mac_address,
+    const u8 *nvm_address) {
+}
 
-static inline void iwl_mei_set_country_code(u16 mcc)
-{}
+static inline void iwl_mei_set_country_code(u16 mcc) {
+}
 
-static inline void iwl_mei_set_power_limit(__le16 *power_limit)
-{}
+static inline void iwl_mei_set_power_limit(__le16 *power_limit) {
+}
 
 static inline int iwl_mei_register(void *priv,
-				   const struct iwl_mei_ops *ops)
-{ return -EOPNOTSUPP; }
+    const struct iwl_mei_ops *ops) {
+  return -EOPNOTSUPP;
+}
 
-static inline void iwl_mei_start_unregister(void)
-{}
+static inline void iwl_mei_start_unregister(void) {
+}
 
-static inline void iwl_mei_unregister_complete(void)
-{}
+static inline void iwl_mei_unregister_complete(void) {
+}
 
-static inline void iwl_mei_set_netdev(struct net_device *netdev)
-{}
+static inline void iwl_mei_set_netdev(struct net_device *netdev) {
+}
 
 static inline void iwl_mei_tx_copy_to_csme(struct sk_buff *skb,
-					   unsigned int ivlen)
-{}
+    unsigned int ivlen) {
+}
 
-static inline void iwl_mei_host_associated(const struct iwl_mei_conn_info *conn_info,
-					   const struct iwl_mei_colloc_info *colloc_info)
-{}
+static inline void iwl_mei_host_associated(
+    const struct iwl_mei_conn_info *conn_info,
+    const struct iwl_mei_colloc_info *colloc_info) {
+}
 
-static inline void iwl_mei_host_disassociated(void)
-{}
+static inline void iwl_mei_host_disassociated(void) {
+}
 
-static inline void iwl_mei_device_state(bool up)
-{}
+static inline void iwl_mei_device_state(bool up) {
+}
 
-static inline int iwl_mei_pldr_req(void)
-{ return 0; }
+static inline int iwl_mei_pldr_req(void) {
+  return 0;
+}
 
-static inline void iwl_mei_alive_notif(bool success)
-{}
+static inline void iwl_mei_alive_notif(bool success) {
+}
 
 #endif /* CONFIG_IWLMEI */
 

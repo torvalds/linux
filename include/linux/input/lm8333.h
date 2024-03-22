@@ -9,12 +9,12 @@
 struct lm8333;
 
 struct lm8333_platform_data {
-	/* Keymap data */
-	const struct matrix_keymap_data *matrix_data;
-	/* Active timeout before enter HALT mode in microseconds */
-	unsigned active_time;
-	/* Debounce interval in microseconds */
-	unsigned debounce_time;
+  /* Keymap data */
+  const struct matrix_keymap_data *matrix_data;
+  /* Active timeout before enter HALT mode in microseconds */
+  unsigned active_time;
+  /* Debounce interval in microseconds */
+  unsigned debounce_time;
 };
 
 extern int lm8333_read8(struct lm8333 *lm8333, u8 cmd);

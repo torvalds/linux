@@ -19,11 +19,12 @@ void arch_send_call_function_single_ipi(int cpu);
 
 void __init set_send_ipi(void (*func)(const struct cpumask *mask), int irq);
 
-#define raw_smp_processor_id()	(current_thread_info()->cpu)
+#define raw_smp_processor_id()  (current_thread_info()->cpu)
 
 int __cpu_disable(void);
 
-static inline void __cpu_die(unsigned int cpu) { }
+static inline void __cpu_die(unsigned int cpu) {
+}
 
 #endif /* CONFIG_SMP */
 

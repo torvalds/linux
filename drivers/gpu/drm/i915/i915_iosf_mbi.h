@@ -16,27 +16,30 @@
 
 struct notifier_block;
 
-static inline void iosf_mbi_punit_acquire(void) {}
-static inline void iosf_mbi_punit_release(void) {}
-static inline void iosf_mbi_assert_punit_acquired(void) {}
-
-static inline
-int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb)
-{
-	return 0;
+static inline void iosf_mbi_punit_acquire(void) {
 }
 
-static inline int
-iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(struct notifier_block *nb)
-{
-	return 0;
+static inline void iosf_mbi_punit_release(void) {
+}
+
+static inline void iosf_mbi_assert_punit_acquired(void) {
 }
 
 static inline
-int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
-{
-	return 0;
+int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb) {
+  return 0;
 }
+
+static inline int iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+    struct notifier_block *nb) {
+  return 0;
+}
+
+static inline
+int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb) {
+  return 0;
+}
+
 #endif
 
 #endif /* __I915_IOSF_MBI_H__ */

@@ -47,15 +47,15 @@ extern unsigned int prom_boot_mapping_mode;
 extern unsigned long prom_boot_mapping_phys_high, prom_boot_mapping_phys_low;
 
 struct linux_mlist_p1275 {
-	struct linux_mlist_p1275 *theres_more;
-	unsigned long start_adr;
-	unsigned long num_bytes;
+  struct linux_mlist_p1275 *theres_more;
+  unsigned long start_adr;
+  unsigned long num_bytes;
 };
 
 struct linux_mem_p1275 {
-	struct linux_mlist_p1275 **p1275_totphys;
-	struct linux_mlist_p1275 **p1275_prommap;
-	struct linux_mlist_p1275 **p1275_available; /* What we can use */
+  struct linux_mlist_p1275 **p1275_totphys;
+  struct linux_mlist_p1275 **p1275_prommap;
+  struct linux_mlist_p1275 **p1275_available; /* What we can use */
 };
 
 /* The functions... */
@@ -143,39 +143,40 @@ int prom_wakeupsystem(void);
 
 /* Get unique string identifying SIMM at given physical address. */
 int prom_getunumber(int syndrome_code,
-		    unsigned long phys_addr,
-		    char *buf, int buflen);
+    unsigned long phys_addr,
+    char *buf, int buflen);
 
 /* Retain physical memory to the caller across soft resets. */
 int prom_retain(const char *name, unsigned long size,
-		unsigned long align, unsigned long *paddr);
+    unsigned long align, unsigned long *paddr);
 
 /* Load explicit I/D TLB entries into the calling processor. */
 long prom_itlb_load(unsigned long index,
-		    unsigned long tte_data,
-		    unsigned long vaddr);
+    unsigned long tte_data,
+    unsigned long vaddr);
 
 long prom_dtlb_load(unsigned long index,
-		    unsigned long tte_data,
-		    unsigned long vaddr);
+    unsigned long tte_data,
+    unsigned long vaddr);
 
 /* Map/Unmap client program address ranges.  First the format of
  * the mapping mode argument.
  */
-#define PROM_MAP_WRITE	0x0001 /* Writable */
-#define PROM_MAP_READ	0x0002 /* Readable - sw */
-#define PROM_MAP_EXEC	0x0004 /* Executable - sw */
-#define PROM_MAP_LOCKED	0x0010 /* Locked, use i/dtlb load calls for this instead */
-#define PROM_MAP_CACHED	0x0020 /* Cacheable in both L1 and L2 caches */
-#define PROM_MAP_SE	0x0040 /* Side-Effects */
-#define PROM_MAP_GLOB	0x0080 /* Global */
-#define PROM_MAP_IE	0x0100 /* Invert-Endianness */
-#define PROM_MAP_DEFAULT (PROM_MAP_WRITE | PROM_MAP_READ | PROM_MAP_EXEC | PROM_MAP_CACHED)
+#define PROM_MAP_WRITE  0x0001 /* Writable */
+#define PROM_MAP_READ 0x0002 /* Readable - sw */
+#define PROM_MAP_EXEC 0x0004 /* Executable - sw */
+#define PROM_MAP_LOCKED 0x0010 /* Locked, use i/dtlb load calls for this instead
+                                * */
+#define PROM_MAP_CACHED 0x0020 /* Cacheable in both L1 and L2 caches */
+#define PROM_MAP_SE 0x0040 /* Side-Effects */
+#define PROM_MAP_GLOB 0x0080 /* Global */
+#define PROM_MAP_IE 0x0100 /* Invert-Endianness */
+#define PROM_MAP_DEFAULT (PROM_MAP_WRITE | PROM_MAP_READ | PROM_MAP_EXEC \
+  | PROM_MAP_CACHED)
 
 int prom_map(int mode, unsigned long size,
-	     unsigned long vaddr, unsigned long paddr);
+    unsigned long vaddr, unsigned long paddr);
 void prom_unmap(unsigned long size, unsigned long vaddr);
-
 
 /* PROM device tree traversal functions... */
 
@@ -196,7 +197,7 @@ int prom_getproplen(phandle thisnode, const char *property);
  * the number of bytes the prom put into your buffer or -1 on error.
  */
 int prom_getproperty(phandle thisnode, const char *property,
-		     char *prop_buffer, int propbuf_size);
+    char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
 int prom_getint(phandle node, const char *property);
@@ -209,7 +210,7 @@ int prom_getbool(phandle node, const char *prop);
 
 /* Acquire a string property, null string on error. */
 void prom_getstring(phandle node, const char *prop, char *buf,
-		    int bufsize);
+    int bufsize);
 
 /* Does the passed node have the given "name"? YES=1 NO=0 */
 int prom_nodematch(phandle thisnode, const char *name);
@@ -239,7 +240,7 @@ phandle prom_finddevice(const char *name);
  * Returns the number of bytes of your value that the prom took.
  */
 int prom_setprop(phandle node, const char *prop_name, char *prop_value,
-		 int value_size);
+    int value_size);
 
 phandle prom_inst2pkg(int);
 void prom_sun4v_guest_soft_state(void);

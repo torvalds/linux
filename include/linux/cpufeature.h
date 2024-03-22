@@ -14,20 +14,20 @@
 
 /*
  * Macros imported from <asm/cpufeature.h>:
- * - cpu_feature(x)		ordinal value of feature called 'x'
- * - cpu_have_feature(u32 n)	whether feature #n is available
- * - MAX_CPU_FEATURES		upper bound for feature ordinal values
+ * - cpu_feature(x)   ordinal value of feature called 'x'
+ * - cpu_have_feature(u32 n)  whether feature #n is available
+ * - MAX_CPU_FEATURES   upper bound for feature ordinal values
  * Optional:
- * - CPU_FEATURE_TYPEFMT	format string fragment for printing the cpu type
- * - CPU_FEATURE_TYPEVAL	set of values matching the format string above
+ * - CPU_FEATURE_TYPEFMT  format string fragment for printing the cpu type
+ * - CPU_FEATURE_TYPEVAL  set of values matching the format string above
  */
 
 #ifndef CPU_FEATURE_TYPEFMT
-#define CPU_FEATURE_TYPEFMT	"%s"
+#define CPU_FEATURE_TYPEFMT "%s"
 #endif
 
 #ifndef CPU_FEATURE_TYPEVAL
-#define CPU_FEATURE_TYPEVAL	ELF_PLATFORM
+#define CPU_FEATURE_TYPEVAL ELF_PLATFORM
 #endif
 
 /*
@@ -41,18 +41,18 @@
  * For a list of legal values for 'feature', please consult the file
  * 'asm/cpufeature.h' of your favorite architecture.
  */
-#define module_cpu_feature_match(x, __initfunc)			\
-static struct cpu_feature const __maybe_unused cpu_feature_match_ ## x[] = \
-	{ { .feature = cpu_feature(x) }, { } };			\
-MODULE_DEVICE_TABLE(cpu, cpu_feature_match_ ## x);		\
-								\
-static int __init cpu_feature_match_ ## x ## _init(void)	\
-{								\
-	if (!cpu_have_feature(cpu_feature(x)))			\
-		return -ENODEV;					\
-	return __initfunc();					\
-}								\
-module_init(cpu_feature_match_ ## x ## _init)
+#define module_cpu_feature_match(x, __initfunc)     \
+  static struct cpu_feature const __maybe_unused cpu_feature_match_ ## x[] = \
+  { { .feature = cpu_feature(x) }, {} };     \
+  MODULE_DEVICE_TABLE(cpu, cpu_feature_match_ ## x);    \
+                \
+  static int __init cpu_feature_match_ ## x ## _init(void)  \
+  {               \
+    if (!cpu_have_feature(cpu_feature(x)))      \
+    return -ENODEV;         \
+    return __initfunc();          \
+  }               \
+  module_init(cpu_feature_match_ ## x ## _init)
 
 #endif
 #endif

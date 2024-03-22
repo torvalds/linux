@@ -11,10 +11,10 @@
 #include <linux/list.h>
 
 struct syscore_ops {
-	struct list_head node;
-	int (*suspend)(void);
-	void (*resume)(void);
-	void (*shutdown)(void);
+  struct list_head node;
+  int (*suspend)(void);
+  void (*resume)(void);
+  void (*shutdown)(void);
 };
 
 extern void register_syscore_ops(struct syscore_ops *ops);

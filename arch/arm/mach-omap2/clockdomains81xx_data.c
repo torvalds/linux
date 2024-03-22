@@ -28,187 +28,186 @@
 /* Common for 81xx */
 
 static struct clockdomain alwon_l3_slow_81xx_clkdm = {
-	.name		= "alwon_l3s_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_ALWON_L3_SLOW_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "alwon_l3s_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_ALWON_L3_SLOW_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain alwon_l3_med_81xx_clkdm = {
-	.name		= "alwon_l3_med_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_ALWON_L3_MED_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "alwon_l3_med_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_ALWON_L3_MED_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain alwon_l3_fast_81xx_clkdm = {
-	.name		= "alwon_l3_fast_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_ALWON_L3_FAST_CLKDM,
-	.flags		= CLKDM_CAN_HWSUP_SWSUP,
+  .name = "alwon_l3_fast_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_ALWON_L3_FAST_CLKDM,
+  .flags = CLKDM_CAN_HWSUP_SWSUP,
 };
 
 static struct clockdomain alwon_ethernet_81xx_clkdm = {
-	.name		= "alwon_ethernet_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_ETHERNET_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "alwon_ethernet_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_ETHERNET_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain mmu_81xx_clkdm = {
-	.name		= "mmu_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_MMU_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "mmu_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_MMU_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain mmu_cfg_81xx_clkdm = {
-	.name		= "mmu_cfg_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_MMUCFG_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "mmu_cfg_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_MMUCFG_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain default_l3_slow_81xx_clkdm = {
-	.name		= "default_l3_slow_clkdm",
-	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
-	.clkdm_offs	= TI816X_CM_DEFAULT_L3_SLOW_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "default_l3_slow_clkdm",
+  .pwrdm = { .name = "default_pwrdm" },
+  .cm_inst = TI81XX_CM_DEFAULT_MOD,
+  .clkdm_offs = TI816X_CM_DEFAULT_L3_SLOW_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain default_sata_81xx_clkdm = {
-	.name		= "default_clkdm",
-	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
-	.clkdm_offs	= TI816X_CM_DEFAULT_SATA_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "default_clkdm",
+  .pwrdm = { .name = "default_pwrdm" },
+  .cm_inst = TI81XX_CM_DEFAULT_MOD,
+  .clkdm_offs = TI816X_CM_DEFAULT_SATA_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 /* 816x only */
 
 static struct clockdomain alwon_mpu_816x_clkdm = {
-	.name		= "alwon_mpu_clkdm",
-	.pwrdm		= { .name = "alwon_pwrdm" },
-	.cm_inst	= TI81XX_CM_ALWON_MOD,
-	.clkdm_offs	= TI81XX_CM_ALWON_MPU_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "alwon_mpu_clkdm",
+  .pwrdm = { .name = "alwon_pwrdm" },
+  .cm_inst = TI81XX_CM_ALWON_MOD,
+  .clkdm_offs = TI81XX_CM_ALWON_MPU_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain active_gem_816x_clkdm = {
-	.name		= "active_gem_clkdm",
-	.pwrdm		= { .name = "active_pwrdm" },
-	.cm_inst	= TI81XX_CM_ACTIVE_MOD,
-	.clkdm_offs	= TI816X_CM_ACTIVE_GEM_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "active_gem_clkdm",
+  .pwrdm = { .name = "active_pwrdm" },
+  .cm_inst = TI81XX_CM_ACTIVE_MOD,
+  .clkdm_offs = TI816X_CM_ACTIVE_GEM_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain ivahd0_816x_clkdm = {
-	.name		= "ivahd0_clkdm",
-	.pwrdm		= { .name = "ivahd0_pwrdm" },
-	.cm_inst	= TI816X_CM_IVAHD0_MOD,
-	.clkdm_offs	= TI816X_CM_IVAHD0_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "ivahd0_clkdm",
+  .pwrdm = { .name = "ivahd0_pwrdm" },
+  .cm_inst = TI816X_CM_IVAHD0_MOD,
+  .clkdm_offs = TI816X_CM_IVAHD0_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain ivahd1_816x_clkdm = {
-	.name		= "ivahd1_clkdm",
-	.pwrdm		= { .name = "ivahd1_pwrdm" },
-	.cm_inst	= TI816X_CM_IVAHD1_MOD,
-	.clkdm_offs	= TI816X_CM_IVAHD1_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "ivahd1_clkdm",
+  .pwrdm = { .name = "ivahd1_pwrdm" },
+  .cm_inst = TI816X_CM_IVAHD1_MOD,
+  .clkdm_offs = TI816X_CM_IVAHD1_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain ivahd2_816x_clkdm = {
-	.name		= "ivahd2_clkdm",
-	.pwrdm		= { .name = "ivahd2_pwrdm" },
-	.cm_inst	= TI816X_CM_IVAHD2_MOD,
-	.clkdm_offs	= TI816X_CM_IVAHD2_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "ivahd2_clkdm",
+  .pwrdm = { .name = "ivahd2_pwrdm" },
+  .cm_inst = TI816X_CM_IVAHD2_MOD,
+  .clkdm_offs = TI816X_CM_IVAHD2_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain sgx_816x_clkdm = {
-	.name		= "sgx_clkdm",
-	.pwrdm		= { .name = "sgx_pwrdm" },
-	.cm_inst	= TI81XX_CM_SGX_MOD,
-	.clkdm_offs	= TI816X_CM_SGX_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "sgx_clkdm",
+  .pwrdm = { .name = "sgx_pwrdm" },
+  .cm_inst = TI81XX_CM_SGX_MOD,
+  .clkdm_offs = TI816X_CM_SGX_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain default_l3_med_816x_clkdm = {
-	.name		= "default_l3_med_clkdm",
-	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
-	.clkdm_offs	= TI816X_CM_DEFAULT_L3_MED_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "default_l3_med_clkdm",
+  .pwrdm = { .name = "default_pwrdm" },
+  .cm_inst = TI81XX_CM_DEFAULT_MOD,
+  .clkdm_offs = TI816X_CM_DEFAULT_L3_MED_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain default_ducati_816x_clkdm = {
-	.name		= "default_ducati_clkdm",
-	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
-	.clkdm_offs	= TI816X_CM_DEFAULT_DUCATI_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "default_ducati_clkdm",
+  .pwrdm = { .name = "default_pwrdm" },
+  .cm_inst = TI81XX_CM_DEFAULT_MOD,
+  .clkdm_offs = TI816X_CM_DEFAULT_DUCATI_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain default_pci_816x_clkdm = {
-	.name		= "default_pci_clkdm",
-	.pwrdm		= { .name = "default_pwrdm" },
-	.cm_inst	= TI81XX_CM_DEFAULT_MOD,
-	.clkdm_offs	= TI816X_CM_DEFAULT_PCI_CLKDM,
-	.flags		= CLKDM_CAN_SWSUP,
+  .name = "default_pci_clkdm",
+  .pwrdm = { .name = "default_pwrdm" },
+  .cm_inst = TI81XX_CM_DEFAULT_MOD,
+  .clkdm_offs = TI816X_CM_DEFAULT_PCI_CLKDM,
+  .flags = CLKDM_CAN_SWSUP,
 };
 
 static struct clockdomain *clockdomains_ti814x[] __initdata = {
-	&alwon_l3_slow_81xx_clkdm,
-	&alwon_l3_med_81xx_clkdm,
-	&alwon_l3_fast_81xx_clkdm,
-	&alwon_ethernet_81xx_clkdm,
-	&mmu_81xx_clkdm,
-	&mmu_cfg_81xx_clkdm,
-	&default_l3_slow_81xx_clkdm,
-	&default_sata_81xx_clkdm,
-	NULL,
+  &alwon_l3_slow_81xx_clkdm,
+  &alwon_l3_med_81xx_clkdm,
+  &alwon_l3_fast_81xx_clkdm,
+  &alwon_ethernet_81xx_clkdm,
+  &mmu_81xx_clkdm,
+  &mmu_cfg_81xx_clkdm,
+  &default_l3_slow_81xx_clkdm,
+  &default_sata_81xx_clkdm,
+  NULL,
 };
 
-void __init ti814x_clockdomains_init(void)
-{
-	clkdm_register_platform_funcs(&am33xx_clkdm_operations);
-	clkdm_register_clkdms(clockdomains_ti814x);
-	clkdm_complete_init();
+void __init ti814x_clockdomains_init(void) {
+  clkdm_register_platform_funcs(&am33xx_clkdm_operations);
+  clkdm_register_clkdms(clockdomains_ti814x);
+  clkdm_complete_init();
 }
 
 static struct clockdomain *clockdomains_ti816x[] __initdata = {
-	&alwon_mpu_816x_clkdm,
-	&alwon_l3_slow_81xx_clkdm,
-	&alwon_l3_med_81xx_clkdm,
-	&alwon_l3_fast_81xx_clkdm,
-	&alwon_ethernet_81xx_clkdm,
-	&mmu_81xx_clkdm,
-	&mmu_cfg_81xx_clkdm,
-	&active_gem_816x_clkdm,
-	&ivahd0_816x_clkdm,
-	&ivahd1_816x_clkdm,
-	&ivahd2_816x_clkdm,
-	&sgx_816x_clkdm,
-	&default_l3_med_816x_clkdm,
-	&default_ducati_816x_clkdm,
-	&default_pci_816x_clkdm,
-	&default_l3_slow_81xx_clkdm,
-	&default_sata_81xx_clkdm,
-	NULL,
+  &alwon_mpu_816x_clkdm,
+  &alwon_l3_slow_81xx_clkdm,
+  &alwon_l3_med_81xx_clkdm,
+  &alwon_l3_fast_81xx_clkdm,
+  &alwon_ethernet_81xx_clkdm,
+  &mmu_81xx_clkdm,
+  &mmu_cfg_81xx_clkdm,
+  &active_gem_816x_clkdm,
+  &ivahd0_816x_clkdm,
+  &ivahd1_816x_clkdm,
+  &ivahd2_816x_clkdm,
+  &sgx_816x_clkdm,
+  &default_l3_med_816x_clkdm,
+  &default_ducati_816x_clkdm,
+  &default_pci_816x_clkdm,
+  &default_l3_slow_81xx_clkdm,
+  &default_sata_81xx_clkdm,
+  NULL,
 };
 
-void __init ti816x_clockdomains_init(void)
-{
-	clkdm_register_platform_funcs(&am33xx_clkdm_operations);
-	clkdm_register_clkdms(clockdomains_ti816x);
-	clkdm_complete_init();
+void __init ti816x_clockdomains_init(void) {
+  clkdm_register_platform_funcs(&am33xx_clkdm_operations);
+  clkdm_register_clkdms(clockdomains_ti816x);
+  clkdm_complete_init();
 }
+
 #endif

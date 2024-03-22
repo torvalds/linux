@@ -4,7 +4,7 @@
 #include <net/cfg80211.h>
 
 /*
- * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
+ * Copyright 2008-2011  Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright (C) 2019, 2023 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -21,9 +21,9 @@
  */
 
 enum ieee80211_regd_source {
-	REGD_SOURCE_INTERNAL_DB,
-	REGD_SOURCE_CRDA,
-	REGD_SOURCE_CACHED,
+  REGD_SOURCE_INTERNAL_DB,
+  REGD_SOURCE_CRDA,
+  REGD_SOURCE_CACHED,
 };
 
 extern const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
@@ -34,7 +34,7 @@ bool reg_supported_dfs_region(enum nl80211_dfs_regions dfs_region);
 enum nl80211_dfs_regions reg_get_dfs_region(struct wiphy *wiphy);
 
 int regulatory_hint_user(const char *alpha2,
-			 enum nl80211_user_reg_hint_type user_reg_hint_type);
+    enum nl80211_user_reg_hint_type user_reg_hint_type);
 
 /**
  * regulatory_hint_indoor - hint operation in indoor env. or not
@@ -57,10 +57,10 @@ int __init regulatory_init(void);
 void regulatory_exit(void);
 
 int set_regdom(const struct ieee80211_regdomain *rd,
-	       enum ieee80211_regd_source regd_src);
+    enum ieee80211_regd_source regd_src);
 
 unsigned int reg_get_max_bandwidth(const struct ieee80211_regdomain *rd,
-				   const struct ieee80211_reg_rule *rule);
+    const struct ieee80211_reg_rule *rule);
 
 bool reg_last_request_cell_base(void);
 
@@ -83,15 +83,15 @@ bool reg_last_request_cell_base(void);
  * set the wiphy->disable_beacon_hints to true.
  */
 int regulatory_hint_found_beacon(struct wiphy *wiphy,
-				 struct ieee80211_channel *beacon_chan,
-				 gfp_t gfp);
+    struct ieee80211_channel *beacon_chan,
+    gfp_t gfp);
 
 /**
  * regulatory_hint_country_ie - hints a country IE as a regulatory domain
  * @wiphy: the wireless device giving the hint (used only for reporting
- *	conflicts)
+ *  conflicts)
  * @band: the band on which the country IE was received on. This determines
- *	the band we'll process the country IE channel triplets for.
+ *  the band we'll process the country IE channel triplets for.
  * @country_ie: pointer to the country IE
  * @country_ie_len: length of the country IE
  *
@@ -108,9 +108,9 @@ int regulatory_hint_found_beacon(struct wiphy *wiphy,
  * information for a band the BSS is not present in it will be ignored.
  */
 void regulatory_hint_country_ie(struct wiphy *wiphy,
-			 enum nl80211_band band,
-			 const u8 *country_ie,
-			 u8 country_ie_len);
+    enum nl80211_band band,
+    const u8 *country_ie,
+    u8 country_ie_len);
 
 /**
  * regulatory_hint_disconnect - informs all devices have been disconnected
@@ -157,7 +157,7 @@ bool regulatory_indoor_allowed(void);
 /**
  * regulatory_propagate_dfs_state - Propagate DFS channel state to other wiphys
  * @wiphy: wiphy on which radar is detected and the event will be propagated
- *	to other available wiphys having the same DFS domain
+ *  to other available wiphys having the same DFS domain
  * @chandef: Channel definition of radar detected channel
  * @dfs_state: DFS channel state to be set
  * @event: Type of radar event which triggered this DFS state change
@@ -165,9 +165,9 @@ bool regulatory_indoor_allowed(void);
  * This function should be called with rtnl lock held.
  */
 void regulatory_propagate_dfs_state(struct wiphy *wiphy,
-				    struct cfg80211_chan_def *chandef,
-				    enum nl80211_dfs_state dfs_state,
-				    enum nl80211_radar_event event);
+    struct cfg80211_chan_def *chandef,
+    enum nl80211_dfs_state dfs_state,
+    enum nl80211_radar_event event);
 
 /**
  * reg_dfs_domain_same - Checks if both wiphy have same DFS domain configured

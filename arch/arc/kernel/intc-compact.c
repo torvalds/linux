@@ -10,8 +10,8 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
-#define NR_CPU_IRQS	32	/* number of irq lines coming in */
-#define TIMER0_IRQ	3	/* Fixed by ISA */
+#define NR_CPU_IRQS 32  /* number of irq lines coming in */
+#define TIMER0_IRQ  3 /* Fixed by ISA */
 
 /*
  * Early Hardware specific Interrupt setup
@@ -21,33 +21,28 @@
  * what it does ?
  * -Optionally, setup the High priority Interrupts as Level 2 IRQs
  */
-void arc_init_IRQ(void)
-{
-	unsigned int level_mask = 0, i;
-
-       /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
-	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
-
-	/*
-	 * Write to register, even if no LV2 IRQs configured to reset it
-	 * in case bootloader had mucked with it
-	 */
-	write_aux_reg(AUX_IRQ_LEV, level_mask);
-
-	if (level_mask)
-		pr_info("Level-2 interrupts bitset %x\n", level_mask);
-
-	/*
-	 * Disable all IRQ lines so faulty external hardware won't
-	 * trigger interrupt that kernel is not ready to handle.
-	 */
-	for (i = TIMER0_IRQ; i < NR_CPU_IRQS; i++) {
-		unsigned int ienb;
-
-		ienb = read_aux_reg(AUX_IENABLE);
-		ienb &= ~(1 << i);
-		write_aux_reg(AUX_IENABLE, ienb);
-	}
+void arc_init_IRQ(void) {
+  unsigned int level_mask = 0, i;
+  /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
+  level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
+  /*
+   * Write to register, even if no LV2 IRQs configured to reset it
+   * in case bootloader had mucked with it
+   */
+  write_aux_reg(AUX_IRQ_LEV, level_mask);
+  if (level_mask) {
+    pr_info("Level-2 interrupts bitset %x\n", level_mask);
+  }
+  /*
+   * Disable all IRQ lines so faulty external hardware won't
+   * trigger interrupt that kernel is not ready to handle.
+   */
+  for (i = TIMER0_IRQ; i < NR_CPU_IRQS; i++) {
+    unsigned int ienb;
+    ienb = read_aux_reg(AUX_IENABLE);
+    ienb &= ~(1 << i);
+    write_aux_reg(AUX_IENABLE, ienb);
+  }
 }
 
 /*
@@ -61,69 +56,61 @@ void arc_init_IRQ(void)
  * below, per IRQ.
  */
 
-static void arc_irq_mask(struct irq_data *data)
-{
-	unsigned int ienb;
-
-	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << data->hwirq);
-	write_aux_reg(AUX_IENABLE, ienb);
+static void arc_irq_mask(struct irq_data *data) {
+  unsigned int ienb;
+  ienb = read_aux_reg(AUX_IENABLE);
+  ienb &= ~(1 << data->hwirq);
+  write_aux_reg(AUX_IENABLE, ienb);
 }
 
-static void arc_irq_unmask(struct irq_data *data)
-{
-	unsigned int ienb;
-
-	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << data->hwirq);
-	write_aux_reg(AUX_IENABLE, ienb);
+static void arc_irq_unmask(struct irq_data *data) {
+  unsigned int ienb;
+  ienb = read_aux_reg(AUX_IENABLE);
+  ienb |= (1 << data->hwirq);
+  write_aux_reg(AUX_IENABLE, ienb);
 }
 
 static struct irq_chip onchip_intc = {
-	.name           = "ARC In-core Intc",
-	.irq_mask	= arc_irq_mask,
-	.irq_unmask	= arc_irq_unmask,
+  .name = "ARC In-core Intc",
+  .irq_mask = arc_irq_mask,
+  .irq_unmask = arc_irq_unmask,
 };
 
 static int arc_intc_domain_map(struct irq_domain *d, unsigned int irq,
-			       irq_hw_number_t hw)
-{
-	switch (hw) {
-	case TIMER0_IRQ:
-		irq_set_percpu_devid(irq);
-		irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
-		break;
-	default:
-		irq_set_chip_and_handler(irq, &onchip_intc, handle_level_irq);
-	}
-	return 0;
+    irq_hw_number_t hw) {
+  switch (hw) {
+    case TIMER0_IRQ:
+      irq_set_percpu_devid(irq);
+      irq_set_chip_and_handler(irq, &onchip_intc, handle_percpu_irq);
+      break;
+    default:
+      irq_set_chip_and_handler(irq, &onchip_intc, handle_level_irq);
+  }
+  return 0;
 }
 
 static const struct irq_domain_ops arc_intc_domain_ops = {
-	.xlate = irq_domain_xlate_onecell,
-	.map = arc_intc_domain_map,
+  .xlate = irq_domain_xlate_onecell,
+  .map = arc_intc_domain_map,
 };
 
-static int __init
-init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
-{
-	struct irq_domain *root_domain;
-
-	if (parent)
-		panic("DeviceTree incore intc not a root irq controller\n");
-
-	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS,
-					    &arc_intc_domain_ops, NULL);
-	if (!root_domain)
-		panic("root irq domain not avail\n");
-
-	/*
-	 * Needed for primary domain lookup to succeed
-	 * This is a primary irqchip, and can never have a parent
-	 */
-	irq_set_default_host(root_domain);
-
-	return 0;
+static int __init init_onchip_IRQ(struct device_node *intc,
+    struct device_node *parent) {
+  struct irq_domain *root_domain;
+  if (parent) {
+    panic("DeviceTree incore intc not a root irq controller\n");
+  }
+  root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS,
+      &arc_intc_domain_ops, NULL);
+  if (!root_domain) {
+    panic("root irq domain not avail\n");
+  }
+  /*
+   * Needed for primary domain lookup to succeed
+   * This is a primary irqchip, and can never have a parent
+   */
+  irq_set_default_host(root_domain);
+  return 0;
 }
 
 IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
@@ -152,18 +139,16 @@ IRQCHIP_DECLARE(arc_intc, "snps,arc700-intc", init_onchip_IRQ);
  *     over-written (this is deficiency in ARC700 Interrupt mechanism)
  */
 
-#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS	/* Complex version for 2 IRQ levels */
+#ifdef CONFIG_ARC_COMPACT_IRQ_LEVELS  /* Complex version for 2 IRQ levels */
 
-void arch_local_irq_enable(void)
-{
-	unsigned long flags = arch_local_save_flags();
-
-	if (flags & STATUS_A2_MASK)
-		flags |= STATUS_E2_MASK;
-	else if (flags & STATUS_A1_MASK)
-		flags |= STATUS_E1_MASK;
-
-	arch_local_irq_restore(flags);
+void arch_local_irq_enable(void) {
+  unsigned long flags = arch_local_save_flags();
+  if (flags & STATUS_A2_MASK) {
+    flags |= STATUS_E2_MASK;
+  } else if (flags & STATUS_A1_MASK) {
+    flags |= STATUS_E1_MASK;
+  }
+  arch_local_irq_restore(flags);
 }
 
 EXPORT_SYMBOL(arch_local_irq_enable);

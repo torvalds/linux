@@ -6,39 +6,42 @@
 #include "priv.h"
 
 struct nvkm_disp_chan {
-	const struct nvkm_disp_chan_func *func;
-	const struct nvkm_disp_chan_mthd *mthd;
-	struct nvkm_disp *disp;
+  const struct nvkm_disp_chan_func *func;
+  const struct nvkm_disp_chan_mthd *mthd;
+  struct nvkm_disp *disp;
 
-	struct {
-		int ctrl;
-		int user;
-	} chid;
-	int head;
+  struct {
+    int ctrl;
+    int user;
+  } chid;
+  int head;
 
-	struct nvkm_object object;
+  struct nvkm_object object;
 
-	struct nvkm_memory *memory;
-	u64 push;
+  struct nvkm_memory *memory;
+  u64 push;
 
-	u32 suspend_put;
+  u32 suspend_put;
 
-	struct {
-		struct nvkm_gsp_object object;
-	} rm;
+  struct {
+    struct nvkm_gsp_object object;
+  } rm;
 };
 
-int nvkm_disp_core_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_disp_chan_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
-int nvkm_disp_wndw_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+int nvkm_disp_core_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
+int nvkm_disp_chan_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
+int nvkm_disp_wndw_new(const struct nvkm_oclass *, void *, u32,
+    struct nvkm_object **);
 
 struct nvkm_disp_chan_func {
-	int (*push)(struct nvkm_disp_chan *, u64 object);
-	int (*init)(struct nvkm_disp_chan *);
-	void (*fini)(struct nvkm_disp_chan *);
-	void (*intr)(struct nvkm_disp_chan *, bool en);
-	u64 (*user)(struct nvkm_disp_chan *, u64 *size);
-	int (*bind)(struct nvkm_disp_chan *, struct nvkm_object *, u32 handle);
+  int (*push)(struct nvkm_disp_chan *, u64 object);
+  int (*init)(struct nvkm_disp_chan *);
+  void (*fini)(struct nvkm_disp_chan *);
+  void (*intr)(struct nvkm_disp_chan *, bool en);
+  u64 (*user)(struct nvkm_disp_chan *, u64 *size);
+  int (*bind)(struct nvkm_disp_chan *, struct nvkm_object *, u32 handle);
 };
 
 void nv50_disp_chan_intr(struct nvkm_disp_chan *, bool);
@@ -65,10 +68,10 @@ void gv100_disp_dmac_fini(struct nvkm_disp_chan *);
 int gv100_disp_dmac_bind(struct nvkm_disp_chan *, struct nvkm_object *, u32);
 
 struct nvkm_disp_chan_user {
-	const struct nvkm_disp_chan_func *func;
-	int ctrl;
-	int user;
-	const struct nvkm_disp_chan_mthd *mthd;
+  const struct nvkm_disp_chan_func *func;
+  int ctrl;
+  int user;
+  const struct nvkm_disp_chan_mthd *mthd;
 };
 
 extern const struct nvkm_disp_chan_user nv50_disp_oimm;
@@ -95,24 +98,24 @@ extern const struct nvkm_disp_chan_user gv100_disp_wndw;
 extern const struct nvkm_disp_chan_user gv100_disp_wimm;
 
 struct nvkm_disp_mthd_list {
-	u32 mthd;
-	u32 addr;
-	struct {
-		u32 mthd;
-		u32 addr;
-		const char *name;
-	} data[];
+  u32 mthd;
+  u32 addr;
+  struct {
+    u32 mthd;
+    u32 addr;
+    const char *name;
+  } data[];
 };
 
 struct nvkm_disp_chan_mthd {
-	const char *name;
-	u32 addr;
-	s32 prev;
-	struct {
-		const char *name;
-		int nr;
-		const struct nvkm_disp_mthd_list *mthd;
-	} data[];
+  const char *name;
+  u32 addr;
+  s32 prev;
+  struct {
+    const char *name;
+    int nr;
+    const struct nvkm_disp_mthd_list *mthd;
+  } data[];
 };
 
 void nv50_disp_chan_mthd(struct nvkm_disp_chan *, int debug);

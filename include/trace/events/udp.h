@@ -10,22 +10,22 @@
 
 TRACE_EVENT(udp_fail_queue_rcv_skb,
 
-	TP_PROTO(int rc, struct sock *sk),
+    TP_PROTO(int rc, struct sock *sk),
 
-	TP_ARGS(rc, sk),
+    TP_ARGS(rc, sk),
 
-	TP_STRUCT__entry(
-		__field(int, rc)
-		__field(__u16, lport)
-	),
+    TP_STRUCT__entry(
+    __field(int, rc)
+    __field(__u16, lport)
+    ),
 
-	TP_fast_assign(
-		__entry->rc = rc;
-		__entry->lport = inet_sk(sk)->inet_num;
-	),
+    TP_fast_assign(
+    __entry->rc = rc;
+    __entry->lport = inet_sk(sk)->inet_num;
+    ),
 
-	TP_printk("rc=%d port=%hu", __entry->rc, __entry->lport)
-);
+    TP_printk("rc=%d port=%hu", __entry->rc, __entry->lport)
+    );
 
 #endif /* _TRACE_UDP_H */
 

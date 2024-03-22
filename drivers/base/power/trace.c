@@ -83,76 +83,72 @@ EXPORT_SYMBOL_GPL(pm_trace_rtc_abused);
 
 static unsigned int dev_hash_value;
 
-static int set_magic_time(unsigned int user, unsigned int file, unsigned int device)
-{
-	unsigned int n = user + USERHASH*(file + FILEHASH*device);
-
-	// June 7th, 2006
-	static struct rtc_time time = {
-		.tm_sec = 0,
-		.tm_min = 0,
-		.tm_hour = 0,
-		.tm_mday = 7,
-		.tm_mon = 5,	// June - counting from zero
-		.tm_year = 106,
-		.tm_wday = 3,
-		.tm_yday = 160,
-		.tm_isdst = 1
-	};
-
-	time.tm_year = (n % 100);
-	n /= 100;
-	time.tm_mon = (n % 12);
-	n /= 12;
-	time.tm_mday = (n % 28) + 1;
-	n /= 28;
-	time.tm_hour = (n % 24);
-	n /= 24;
-	time.tm_min = (n % 20) * 3;
-	n /= 20;
-	mc146818_set_time(&time);
-	pm_trace_rtc_abused = true;
-	return n ? -1 : 0;
+static int set_magic_time(unsigned int user, unsigned int file,
+    unsigned int device) {
+  unsigned int n = user + USERHASH * (file + FILEHASH * device);
+  // June 7th, 2006
+  static struct rtc_time time = {
+    .tm_sec = 0,
+    .tm_min = 0,
+    .tm_hour = 0,
+    .tm_mday = 7,
+    .tm_mon = 5,  // June - counting from zero
+    .tm_year = 106,
+    .tm_wday = 3,
+    .tm_yday = 160,
+    .tm_isdst = 1
+  };
+  time.tm_year = (n % 100);
+  n /= 100;
+  time.tm_mon = (n % 12);
+  n /= 12;
+  time.tm_mday = (n % 28) + 1;
+  n /= 28;
+  time.tm_hour = (n % 24);
+  n /= 24;
+  time.tm_min = (n % 20) * 3;
+  n /= 20;
+  mc146818_set_time(&time);
+  pm_trace_rtc_abused = true;
+  return n ? -1 : 0;
 }
 
-static unsigned int read_magic_time(void)
-{
-	struct rtc_time time;
-	unsigned int val;
-
-	if (mc146818_get_time(&time, 1000) < 0) {
-		pr_err("Unable to read current time from RTC\n");
-		return 0;
-	}
-
-	pr_info("RTC time: %ptRt, date: %ptRd\n", &time, &time);
-	val = time.tm_year;				/* 100 years */
-	if (val > 100)
-		val -= 100;
-	val += time.tm_mon * 100;			/* 12 months */
-	val += (time.tm_mday-1) * 100 * 12;		/* 28 month-days */
-	val += time.tm_hour * 100 * 12 * 28;		/* 24 hours */
-	val += (time.tm_min / 3) * 100 * 12 * 28 * 24;	/* 20 3-minute intervals */
-	return val;
+static unsigned int read_magic_time(void) {
+  struct rtc_time time;
+  unsigned int val;
+  if (mc146818_get_time(&time, 1000) < 0) {
+    pr_err("Unable to read current time from RTC\n");
+    return 0;
+  }
+  pr_info("RTC time: %ptRt, date: %ptRd\n", &time, &time);
+  val = time.tm_year;       /* 100 years */
+  if (val > 100) {
+    val -= 100;
+  }
+  val += time.tm_mon * 100;     /* 12 months */
+  val += (time.tm_mday - 1) * 100 * 12;   /* 28 month-days */
+  val += time.tm_hour * 100 * 12 * 28;    /* 24 hours */
+  val += (time.tm_min / 3) * 100 * 12 * 28 * 24;  /* 20 3-minute intervals */
+  return val;
 }
 
 /*
  * This is just the sdbm hash function with a user-supplied
  * seed and final size parameter.
  */
-static unsigned int hash_string(unsigned int seed, const char *data, unsigned int mod)
-{
-	unsigned char c;
-	while ((c = *data++) != 0) {
-		seed = (seed << 16) + (seed << 6) - seed + c;
-	}
-	return seed % mod;
+static unsigned int hash_string(unsigned int seed, const char *data,
+    unsigned int mod) {
+  unsigned char c;
+  while ((c = *data++) != 0) {
+    seed = (seed << 16) + (seed << 6) - seed + c;
+  }
+  return seed % mod;
 }
 
-void set_trace_device(struct device *dev)
-{
-	dev_hash_value = hash_string(DEVSEED, dev_name(dev), DEVHASH);
+void set_trace_device(struct device *dev) {
+  dev_hash_value = hash_string(DEVSEED, dev_name(dev), DEVHASH);
 }
+
 EXPORT_SYMBOL(set_trace_device);
 
 /*
@@ -164,143 +160,134 @@ EXPORT_SYMBOL(set_trace_device);
  * it's not any guarantee, but it's a high _likelihood_ that
  * the match is valid).
  */
-void generate_pm_trace(const void *tracedata, unsigned int user)
-{
-	unsigned short lineno = *(unsigned short *)tracedata;
-	const char *file = *(const char **)(tracedata + 2);
-	unsigned int user_hash_value, file_hash_value;
-
-	if (!x86_platform.legacy.rtc)
-		return;
-
-	user_hash_value = user % USERHASH;
-	file_hash_value = hash_string(lineno, file, FILEHASH);
-	set_magic_time(user_hash_value, file_hash_value, dev_hash_value);
+void generate_pm_trace(const void *tracedata, unsigned int user) {
+  unsigned short lineno = *(unsigned short *) tracedata;
+  const char *file = *(const char **) (tracedata + 2);
+  unsigned int user_hash_value, file_hash_value;
+  if (!x86_platform.legacy.rtc) {
+    return;
+  }
+  user_hash_value = user % USERHASH;
+  file_hash_value = hash_string(lineno, file, FILEHASH);
+  set_magic_time(user_hash_value, file_hash_value, dev_hash_value);
 }
+
 EXPORT_SYMBOL(generate_pm_trace);
 
 extern char __tracedata_start[], __tracedata_end[];
-static int show_file_hash(unsigned int value)
-{
-	int match;
-	char *tracedata;
-
-	match = 0;
-	for (tracedata = __tracedata_start ; tracedata < __tracedata_end ;
-			tracedata += 2 + sizeof(unsigned long)) {
-		unsigned short lineno = *(unsigned short *)tracedata;
-		const char *file = *(const char **)(tracedata + 2);
-		unsigned int hash = hash_string(lineno, file, FILEHASH);
-		if (hash != value)
-			continue;
-		pr_info("  hash matches %s:%u\n", file, lineno);
-		match++;
-	}
-	return match;
+static int show_file_hash(unsigned int value) {
+  int match;
+  char *tracedata;
+  match = 0;
+  for (tracedata = __tracedata_start; tracedata < __tracedata_end;
+      tracedata += 2 + sizeof(unsigned long)) {
+    unsigned short lineno = *(unsigned short *) tracedata;
+    const char *file = *(const char **) (tracedata + 2);
+    unsigned int hash = hash_string(lineno, file, FILEHASH);
+    if (hash != value) {
+      continue;
+    }
+    pr_info("  hash matches %s:%u\n", file, lineno);
+    match++;
+  }
+  return match;
 }
 
-static int show_dev_hash(unsigned int value)
-{
-	int match = 0;
-	struct list_head *entry;
-
-	device_pm_lock();
-	entry = dpm_list.prev;
-	while (entry != &dpm_list) {
-		struct device * dev = to_device(entry);
-		unsigned int hash = hash_string(DEVSEED, dev_name(dev), DEVHASH);
-		if (hash == value) {
-			dev_info(dev, "hash matches\n");
-			match++;
-		}
-		entry = entry->prev;
-	}
-	device_pm_unlock();
-	return match;
+static int show_dev_hash(unsigned int value) {
+  int match = 0;
+  struct list_head *entry;
+  device_pm_lock();
+  entry = dpm_list.prev;
+  while (entry != &dpm_list) {
+    struct device *dev = to_device(entry);
+    unsigned int hash = hash_string(DEVSEED, dev_name(dev), DEVHASH);
+    if (hash == value) {
+      dev_info(dev, "hash matches\n");
+      match++;
+    }
+    entry = entry->prev;
+  }
+  device_pm_unlock();
+  return match;
 }
 
 static unsigned int hash_value_early_read;
 
-int show_trace_dev_match(char *buf, size_t size)
-{
-	unsigned int value = hash_value_early_read / (USERHASH * FILEHASH);
-	int ret = 0;
-	struct list_head *entry;
-
-	/*
-	 * It's possible that multiple devices will match the hash and we can't
-	 * tell which is the culprit, so it's best to output them all.
-	 */
-	device_pm_lock();
-	entry = dpm_list.prev;
-	while (size && entry != &dpm_list) {
-		struct device *dev = to_device(entry);
-		unsigned int hash = hash_string(DEVSEED, dev_name(dev),
-						DEVHASH);
-		if (hash == value) {
-			int len = snprintf(buf, size, "%s\n",
-					    dev_driver_string(dev));
-			if (len > size)
-				len = size;
-			buf += len;
-			ret += len;
-			size -= len;
-		}
-		entry = entry->prev;
-	}
-	device_pm_unlock();
-	return ret;
+int show_trace_dev_match(char *buf, size_t size) {
+  unsigned int value = hash_value_early_read / (USERHASH * FILEHASH);
+  int ret = 0;
+  struct list_head *entry;
+  /*
+   * It's possible that multiple devices will match the hash and we can't
+   * tell which is the culprit, so it's best to output them all.
+   */
+  device_pm_lock();
+  entry = dpm_list.prev;
+  while (size && entry != &dpm_list) {
+    struct device *dev = to_device(entry);
+    unsigned int hash = hash_string(DEVSEED, dev_name(dev),
+        DEVHASH);
+    if (hash == value) {
+      int len = snprintf(buf, size, "%s\n",
+          dev_driver_string(dev));
+      if (len > size) {
+        len = size;
+      }
+      buf += len;
+      ret += len;
+      size -= len;
+    }
+    entry = entry->prev;
+  }
+  device_pm_unlock();
+  return ret;
 }
 
-static int
-pm_trace_notify(struct notifier_block *nb, unsigned long mode, void *_unused)
-{
-	switch (mode) {
-	case PM_POST_HIBERNATION:
-	case PM_POST_SUSPEND:
-		if (pm_trace_rtc_abused) {
-			pm_trace_rtc_abused = false;
-			pr_warn("Possible incorrect RTC due to pm_trace, please use 'ntpdate' or 'rdate' to reset it.\n");
-		}
-		break;
-	default:
-		break;
-	}
-	return 0;
+static int pm_trace_notify(struct notifier_block *nb, unsigned long mode,
+    void *_unused) {
+  switch (mode) {
+    case PM_POST_HIBERNATION:
+    case PM_POST_SUSPEND:
+      if (pm_trace_rtc_abused) {
+        pm_trace_rtc_abused = false;
+        pr_warn(
+            "Possible incorrect RTC due to pm_trace, please use 'ntpdate' or 'rdate' to reset it.\n");
+      }
+      break;
+    default:
+      break;
+  }
+  return 0;
 }
 
 static struct notifier_block pm_trace_nb = {
-	.notifier_call = pm_trace_notify,
+  .notifier_call = pm_trace_notify,
 };
 
-static int __init early_resume_init(void)
-{
-	if (!x86_platform.legacy.rtc)
-		return 0;
-
-	hash_value_early_read = read_magic_time();
-	register_pm_notifier(&pm_trace_nb);
-	return 0;
+static int __init early_resume_init(void) {
+  if (!x86_platform.legacy.rtc) {
+    return 0;
+  }
+  hash_value_early_read = read_magic_time();
+  register_pm_notifier(&pm_trace_nb);
+  return 0;
 }
 
-static int __init late_resume_init(void)
-{
-	unsigned int val = hash_value_early_read;
-	unsigned int user, file, dev;
-
-	if (!x86_platform.legacy.rtc)
-		return 0;
-
-	user = val % USERHASH;
-	val = val / USERHASH;
-	file = val % FILEHASH;
-	val = val / FILEHASH;
-	dev = val /* % DEVHASH */;
-
-	pr_info("  Magic number: %d:%d:%d\n", user, file, dev);
-	show_file_hash(file);
-	show_dev_hash(dev);
-	return 0;
+static int __init late_resume_init(void) {
+  unsigned int val = hash_value_early_read;
+  unsigned int user, file, dev;
+  if (!x86_platform.legacy.rtc) {
+    return 0;
+  }
+  user = val % USERHASH;
+  val = val / USERHASH;
+  file = val % FILEHASH;
+  val = val / FILEHASH;
+  dev = val /* % DEVHASH */;
+  pr_info("  Magic number: %d:%d:%d\n", user, file, dev);
+  show_file_hash(file);
+  show_dev_hash(dev);
+  return 0;
 }
 
 core_initcall(early_resume_init);

@@ -13,8 +13,8 @@ struct device;
  * @write: write operation for ULPI register access
  */
 struct ulpi_ops {
-	int (*read)(struct device *dev, u8 addr);
-	int (*write)(struct device *dev, u8 addr, u8 val);
+  int (*read)(struct device *dev, u8 addr);
+  int (*write)(struct device *dev, u8 addr, u8 val);
 };
 
 struct ulpi *ulpi_register_interface(struct device *, const struct ulpi_ops *);

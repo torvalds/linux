@@ -47,7 +47,7 @@ extern int platform_check_for_tests(void);
  * y - Field to extract
  */
 #define EV_CODE_EXTRACT(x, y)   \
-	((x >> ev_shift_##y) & ev_mask_##y)
+  ((x >> ev_shift_ ## y) & ev_mask_ ## y)
 
 void *event_sample_buf_mmap(int fd, int mmap_pages);
 void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count);
@@ -58,175 +58,155 @@ int get_thresh_cmp_val(struct event event);
 bool check_for_generic_compat_pmu(void);
 bool check_for_compat_mode(void);
 
-static inline int get_mmcr0_fc56(u64 mmcr0, int pmc)
-{
-	return (mmcr0 & MMCR0_FC56);
+static inline int get_mmcr0_fc56(u64 mmcr0, int pmc) {
+  return mmcr0 & MMCR0_FC56;
 }
 
-static inline int get_mmcr0_pmccext(u64 mmcr0, int pmc)
-{
-	return (mmcr0 & MMCR0_PMCCEXT);
+static inline int get_mmcr0_pmccext(u64 mmcr0, int pmc) {
+  return mmcr0 & MMCR0_PMCCEXT;
 }
 
-static inline int get_mmcr0_pmao(u64 mmcr0, int pmc)
-{
-	return ((mmcr0 >> 7) & 0x1);
+static inline int get_mmcr0_pmao(u64 mmcr0, int pmc) {
+  return (mmcr0 >> 7) & 0x1;
 }
 
-static inline int get_mmcr0_cc56run(u64 mmcr0, int pmc)
-{
-	return ((mmcr0 >> 8) & 0x1);
+static inline int get_mmcr0_cc56run(u64 mmcr0, int pmc) {
+  return (mmcr0 >> 8) & 0x1;
 }
 
-static inline int get_mmcr0_pmcjce(u64 mmcr0, int pmc)
-{
-	return ((mmcr0 >> 14) & 0x1);
+static inline int get_mmcr0_pmcjce(u64 mmcr0, int pmc) {
+  return (mmcr0 >> 14) & 0x1;
 }
 
-static inline int get_mmcr0_pmc1ce(u64 mmcr0, int pmc)
-{
-	return ((mmcr0 >> 15) & 0x1);
+static inline int get_mmcr0_pmc1ce(u64 mmcr0, int pmc) {
+  return (mmcr0 >> 15) & 0x1;
 }
 
-static inline int get_mmcr0_pmae(u64 mmcr0, int pmc)
-{
-	return ((mmcr0 >> 27) & 0x1);
+static inline int get_mmcr0_pmae(u64 mmcr0, int pmc) {
+  return (mmcr0 >> 27) & 0x1;
 }
 
-static inline int get_mmcr1_pmcxsel(u64 mmcr1, int pmc)
-{
-	return ((mmcr1 >> ((24 - (((pmc) - 1) * 8))) & 0xff));
+static inline int get_mmcr1_pmcxsel(u64 mmcr1, int pmc) {
+  return mmcr1 >> ((24 - (((pmc) - 1) * 8))) & 0xff;
 }
 
-static inline int get_mmcr1_unit(u64 mmcr1, int pmc)
-{
-	return ((mmcr1 >> ((60 - (4 * ((pmc) - 1))))) & 0xf);
+static inline int get_mmcr1_unit(u64 mmcr1, int pmc) {
+  return (mmcr1 >> ((60 - (4 * ((pmc) - 1))))) & 0xf;
 }
 
-static inline int get_mmcr1_comb(u64 mmcr1, int pmc)
-{
-	return ((mmcr1 >> (38 - ((pmc - 1) * 2))) & 0x3);
+static inline int get_mmcr1_comb(u64 mmcr1, int pmc) {
+  return (mmcr1 >> (38 - ((pmc - 1) * 2))) & 0x3;
 }
 
-static inline int get_mmcr1_cache(u64 mmcr1, int pmc)
-{
-	return ((mmcr1 >> 46) & 0x3);
+static inline int get_mmcr1_cache(u64 mmcr1, int pmc) {
+  return (mmcr1 >> 46) & 0x3;
 }
 
-static inline int get_mmcr1_rsq(u64 mmcr1, int pmc)
-{
-	return mmcr1 & MMCR1_RSQ;
+static inline int get_mmcr1_rsq(u64 mmcr1, int pmc) {
+  return mmcr1 & MMCR1_RSQ;
 }
 
-static inline int get_mmcr2_fcs(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (63 - (((pmc) - 1) * 9)))) >> (63 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcs(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (63 - (((pmc) - 1) * 9)))) >>
+    (63 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcp(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (62 - (((pmc) - 1) * 9)))) >> (62 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcp(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (62 - (((pmc) - 1) * 9)))) >>
+    (62 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcpc(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (61 - (((pmc) - 1) * 9)))) >> (61 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcpc(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (61 - (((pmc) - 1) * 9)))) >>
+    (61 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcm1(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (60 - (((pmc) - 1) * 9)))) >> (60 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcm1(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (60 - (((pmc) - 1) * 9)))) >>
+    (60 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcm0(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (59 - (((pmc) - 1) * 9)))) >> (59 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcm0(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (59 - (((pmc) - 1) * 9)))) >>
+    (59 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcwait(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (58 - (((pmc) - 1) * 9)))) >> (58 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcwait(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (58 - (((pmc) - 1) * 9)))) >>
+    (58 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fch(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (57 - (((pmc) - 1) * 9)))) >> (57 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fch(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (57 - (((pmc) - 1) * 9)))) >>
+    (57 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcti(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (56 - (((pmc) - 1) * 9)))) >> (56 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcti(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (56 - (((pmc) - 1) * 9)))) >>
+    (56 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_fcta(u64 mmcr2, int pmc)
-{
-	return ((mmcr2 & (1ull << (55 - (((pmc) - 1) * 9)))) >> (55 - (((pmc) - 1) * 9)));
+static inline int get_mmcr2_fcta(u64 mmcr2, int pmc) {
+  return (mmcr2 & (1ull << (55 - (((pmc) - 1) * 9)))) >>
+    (55 - (((pmc) - 1) * 9));
 }
 
-static inline int get_mmcr2_l2l3(u64 mmcr2, int pmc)
-{
-	if (pvr == POWER10)
-		return ((mmcr2 & 0xf8) >> 3);
-	return 0;
+static inline int get_mmcr2_l2l3(u64 mmcr2, int pmc) {
+  if (pvr == POWER10) {
+    return (mmcr2 & 0xf8) >> 3;
+  }
+  return 0;
 }
 
-static inline int get_mmcr3_src(u64 mmcr3, int pmc)
-{
-	if (pvr != POWER10)
-		return 0;
-	return ((mmcr3 >> ((49 - (15 * ((pmc) - 1))))) & 0x7fff);
+static inline int get_mmcr3_src(u64 mmcr3, int pmc) {
+  if (pvr != POWER10) {
+    return 0;
+  }
+  return (mmcr3 >> ((49 - (15 * ((pmc) - 1))))) & 0x7fff;
 }
 
-static inline int get_mmcra_thd_cmp(u64 mmcra, int pmc)
-{
-	if (pvr == POWER10)
-		return ((mmcra >> 45) & 0x7ff);
-	return ((mmcra >> 45) & 0x3ff);
+static inline int get_mmcra_thd_cmp(u64 mmcra, int pmc) {
+  if (pvr == POWER10) {
+    return (mmcra >> 45) & 0x7ff;
+  }
+  return (mmcra >> 45) & 0x3ff;
 }
 
-static inline int get_mmcra_sm(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 42) & 0x3);
+static inline int get_mmcra_sm(u64 mmcra, int pmc) {
+  return (mmcra >> 42) & 0x3;
 }
 
-static inline u64 get_mmcra_bhrb_disable(u64 mmcra, int pmc)
-{
-	if (pvr == POWER10)
-		return mmcra & BHRB_DISABLE;
-	return 0;
+static inline u64 get_mmcra_bhrb_disable(u64 mmcra, int pmc) {
+  if (pvr == POWER10) {
+    return mmcra & BHRB_DISABLE;
+  }
+  return 0;
 }
 
-static inline int get_mmcra_ifm(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 30) & 0x3);
+static inline int get_mmcra_ifm(u64 mmcra, int pmc) {
+  return (mmcra >> 30) & 0x3;
 }
 
-static inline int get_mmcra_thd_sel(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 16) & 0x7);
+static inline int get_mmcra_thd_sel(u64 mmcra, int pmc) {
+  return (mmcra >> 16) & 0x7;
 }
 
-static inline int get_mmcra_thd_start(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 12) & 0xf);
+static inline int get_mmcra_thd_start(u64 mmcra, int pmc) {
+  return (mmcra >> 12) & 0xf;
 }
 
-static inline int get_mmcra_thd_stop(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 8) & 0xf);
+static inline int get_mmcra_thd_stop(u64 mmcra, int pmc) {
+  return (mmcra >> 8) & 0xf;
 }
 
-static inline int get_mmcra_rand_samp_elig(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 4) & 0x7);
+static inline int get_mmcra_rand_samp_elig(u64 mmcra, int pmc) {
+  return (mmcra >> 4) & 0x7;
 }
 
-static inline int get_mmcra_sample_mode(u64 mmcra, int pmc)
-{
-	return ((mmcra >> 1) & 0x3);
+static inline int get_mmcra_sample_mode(u64 mmcra, int pmc) {
+  return (mmcra >> 1) & 0x3;
 }
 
-static inline int get_mmcra_marked(u64 mmcra, int pmc)
-{
-	return mmcra & 0x1;
+static inline int get_mmcra_marked(u64 mmcra, int pmc) {
+  return mmcra & 0x1;
 }

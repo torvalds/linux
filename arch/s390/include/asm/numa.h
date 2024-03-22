@@ -18,7 +18,8 @@ void numa_setup(void);
 
 #else
 
-static inline void numa_setup(void) { }
+static inline void numa_setup(void) {
+}
 
 #endif /* CONFIG_NUMA */
 

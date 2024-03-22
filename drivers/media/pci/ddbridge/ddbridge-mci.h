@@ -90,164 +90,164 @@
 #define MCI_SUCCESS(status)      ((status & MCI_STATUS_UNSUPPORTED) == 0)
 
 struct mci_command {
-	union {
-		u32 command_word;
-		struct {
-			u8  command;
-			u8  tuner;
-			u8  demod;
-			u8  output;
-		};
-	};
-	union {
-		u32 params[31];
-		struct {
-			/*
-			 * Bit 0: DVB-S Enabled
-			 * Bit 1: DVB-S2 Enabled
-			 * Bit 7: InputStreamID
-			 */
-			u8  flags;
-			/*
-			 * Bit 0: QPSK,
-			 * Bit 1: 8PSK/8APSK
-			 * Bit 2: 16APSK
-			 * Bit 3: 32APSK
-			 * Bit 4: 64APSK
-			 * Bit 5: 128APSK
-			 * Bit 6: 256APSK
-			 */
-			u8  s2_modulation_mask;
-			u8  rsvd1;
-			u8  retry;
-			u32 frequency;
-			u32 symbol_rate;
-			u8  input_stream_id;
-			u8  rsvd2[3];
-			u32 scrambling_sequence_index;
-			u32 frequency_range;
-		} dvbs2_search;
+  union {
+    u32 command_word;
+    struct {
+      u8 command;
+      u8 tuner;
+      u8 demod;
+      u8 output;
+    };
+  };
+  union {
+    u32 params[31];
+    struct {
+      /*
+       * Bit 0: DVB-S Enabled
+       * Bit 1: DVB-S2 Enabled
+       * Bit 7: InputStreamID
+       */
+      u8 flags;
+      /*
+       * Bit 0: QPSK,
+       * Bit 1: 8PSK/8APSK
+       * Bit 2: 16APSK
+       * Bit 3: 32APSK
+       * Bit 4: 64APSK
+       * Bit 5: 128APSK
+       * Bit 6: 256APSK
+       */
+      u8 s2_modulation_mask;
+      u8 rsvd1;
+      u8 retry;
+      u32 frequency;
+      u32 symbol_rate;
+      u8 input_stream_id;
+      u8 rsvd2[3];
+      u32 scrambling_sequence_index;
+      u32 frequency_range;
+    } dvbs2_search;
 
-		struct {
-			u8  tap;
-			u8  rsvd;
-			u16 point;
-		} get_iq_symbol;
+    struct {
+      u8 tap;
+      u8 rsvd;
+      u16 point;
+    } get_iq_symbol;
 
-		struct {
-			/*
-			 * Bit 0: 0=VTM/1=SCAN
-			 * Bit 1: Set Gain
-			 */
-			u8  flags;
-			u8  roll_off;
-			u8  rsvd1;
-			u8  rsvd2;
-			u32 frequency;
-			u32 symbol_rate; /* Only in VTM mode */
-			u16 gain;
-		} sx8_start_iq;
+    struct {
+      /*
+       * Bit 0: 0=VTM/1=SCAN
+       * Bit 1: Set Gain
+       */
+      u8 flags;
+      u8 roll_off;
+      u8 rsvd1;
+      u8 rsvd2;
+      u32 frequency;
+      u32 symbol_rate; /* Only in VTM mode */
+      u16 gain;
+    } sx8_start_iq;
 
-		struct {
-			/*
-			 * Bit 1:0 = STVVGLNA Gain.
-			 *   0 = AGC, 1 = 0dB, 2 = Minimum, 3 = Maximum
-			 */
-			u8  flags;
-		} sx8_input_enable;
-	};
+    struct {
+      /*
+       * Bit 1:0 = STVVGLNA Gain.
+       *   0 = AGC, 1 = 0dB, 2 = Minimum, 3 = Maximum
+       */
+      u8 flags;
+    } sx8_input_enable;
+  };
 };
 
 struct mci_result {
-	union {
-		u32 status_word;
-		struct {
-			u8  status;
-			u8  mode;
-			u16 time;
-		};
-	};
-	union {
-		u32 result[27];
-		struct {
-			/* 1 = DVB-S, 2 = DVB-S2X */
-			u8  standard;
-			/* puncture rate for DVB-S */
-			u8  pls_code;
-			/* 2-0: rolloff */
-			u8  roll_off;
-			u8  rsvd;
-			/* actual frequency in Hz */
-			u32 frequency;
-			/* actual symbolrate in Hz */
-			u32 symbol_rate;
-			/* channel power in dBm x 100 */
-			s16 channel_power;
-			/* band power in dBm x 100 */
-			s16 band_power;
-			/*
-			 * SNR in dB x 100
-			 * Note: negative values are valid in DVB-S2
-			 */
-			s16 signal_to_noise;
-			s16 rsvd2;
-			/*
-			 * Counter for packet errors
-			 * (set to 0 on start command)
-			 */
-			u32 packet_errors;
-			/* Bit error rate: PreRS in DVB-S, PreBCH in DVB-S2X */
-			u32 ber_numerator;
-			u32 ber_denominator;
-		} dvbs2_signal_info;
+  union {
+    u32 status_word;
+    struct {
+      u8 status;
+      u8 mode;
+      u16 time;
+    };
+  };
+  union {
+    u32 result[27];
+    struct {
+      /* 1 = DVB-S, 2 = DVB-S2X */
+      u8 standard;
+      /* puncture rate for DVB-S */
+      u8 pls_code;
+      /* 2-0: rolloff */
+      u8 roll_off;
+      u8 rsvd;
+      /* actual frequency in Hz */
+      u32 frequency;
+      /* actual symbolrate in Hz */
+      u32 symbol_rate;
+      /* channel power in dBm x 100 */
+      s16 channel_power;
+      /* band power in dBm x 100 */
+      s16 band_power;
+      /*
+       * SNR in dB x 100
+       * Note: negative values are valid in DVB-S2
+       */
+      s16 signal_to_noise;
+      s16 rsvd2;
+      /*
+       * Counter for packet errors
+       * (set to 0 on start command)
+       */
+      u32 packet_errors;
+      /* Bit error rate: PreRS in DVB-S, PreBCH in DVB-S2X */
+      u32 ber_numerator;
+      u32 ber_denominator;
+    } dvbs2_signal_info;
 
-		struct {
-			s16 i;
-			s16 q;
-		} iq_symbol;
-	};
-	u32 version[4];
+    struct {
+      s16 i;
+      s16 q;
+    } iq_symbol;
+  };
+  u32 version[4];
 };
 
 struct mci_base {
-	struct list_head     mci_list;
-	void                *key;
-	struct ddb_link     *link;
-	struct completion    completion;
-	struct device       *dev;
-	struct mutex         tuner_lock; /* concurrent tuner access lock */
-	struct mutex         mci_lock; /* concurrent MCI access lock */
-	int                  count;
-	int                  type;
+  struct list_head mci_list;
+  void *key;
+  struct ddb_link *link;
+  struct completion completion;
+  struct device *dev;
+  struct mutex tuner_lock; /* concurrent tuner access lock */
+  struct mutex mci_lock; /* concurrent MCI access lock */
+  int count;
+  int type;
 };
 
 struct mci {
-	struct mci_base     *base;
-	struct dvb_frontend  fe;
-	int                  nr;
-	int                  demod;
-	int                  tuner;
+  struct mci_base *base;
+  struct dvb_frontend fe;
+  int nr;
+  int demod;
+  int tuner;
 };
 
 struct mci_cfg {
-	int                  type;
-	struct dvb_frontend_ops *fe_ops;
-	u32                  base_size;
-	u32                  state_size;
-	int (*init)(struct mci *mci);
-	int (*base_init)(struct mci_base *mci_base);
-	int (*set_input)(struct dvb_frontend *fe, int input);
+  int type;
+  struct dvb_frontend_ops *fe_ops;
+  u32 base_size;
+  u32 state_size;
+  int (*init)(struct mci *mci);
+  int (*base_init)(struct mci_base *mci_base);
+  int (*set_input)(struct dvb_frontend *fe, int input);
 };
 
 /* defined in ddbridge-sx8.c */
 extern const struct mci_cfg ddb_max_sx8_cfg;
 
 int ddb_mci_cmd(struct mci *state, struct mci_command *command,
-		struct mci_result *result);
+    struct mci_result *result);
 int ddb_mci_config(struct mci *state, u32 config);
 
 struct dvb_frontend
 *ddb_mci_attach(struct ddb_input *input, struct mci_cfg *cfg, int nr,
-		int (**fn_set_input)(struct dvb_frontend *fe, int input));
+    int(**fn_set_input) (struct dvb_frontend *fe, int input));
 
 #endif /* _DDBRIDGE_MCI_H_ */

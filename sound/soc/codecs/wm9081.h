@@ -87,9 +87,12 @@
 /*
  * R0 (0x00) - Software Reset
  */
-#define WM9081_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 - [15:0] */
-#define WM9081_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 - [15:0] */
-#define WM9081_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 - [15:0] */
+#define WM9081_SW_RST_DEV_ID1_MASK              0xFFFF  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
+#define WM9081_SW_RST_DEV_ID1_SHIFT                  0  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
+#define WM9081_SW_RST_DEV_ID1_WIDTH                 16  /* SW_RST_DEV_ID1 -
+                                                         * [15:0] */
 
 /*
  * R2 (0x02) - Analogue Lineout
@@ -102,9 +105,12 @@
 #define WM9081_LINEOUTZC_MASK                   0x0040  /* LINEOUTZC */
 #define WM9081_LINEOUTZC_SHIFT                       6  /* LINEOUTZC */
 #define WM9081_LINEOUTZC_WIDTH                       1  /* LINEOUTZC */
-#define WM9081_LINEOUT_VOL_MASK                 0x003F  /* LINEOUT_VOL - [5:0] */
-#define WM9081_LINEOUT_VOL_SHIFT                     0  /* LINEOUT_VOL - [5:0] */
-#define WM9081_LINEOUT_VOL_WIDTH                     6  /* LINEOUT_VOL - [5:0] */
+#define WM9081_LINEOUT_VOL_MASK                 0x003F  /* LINEOUT_VOL - [5:0]
+                                                         * */
+#define WM9081_LINEOUT_VOL_SHIFT                     0  /* LINEOUT_VOL - [5:0]
+                                                         * */
+#define WM9081_LINEOUT_VOL_WIDTH                     6  /* LINEOUT_VOL - [5:0]
+                                                         * */
 
 /*
  * R3 (0x03) - Analogue Speaker PGA
@@ -268,9 +274,12 @@
 /*
  * R12 (0x0C) - Clock Control 1
  */
-#define WM9081_CLK_OP_DIV_MASK                  0x1C00  /* CLK_OP_DIV - [12:10] */
-#define WM9081_CLK_OP_DIV_SHIFT                     10  /* CLK_OP_DIV - [12:10] */
-#define WM9081_CLK_OP_DIV_WIDTH                      3  /* CLK_OP_DIV - [12:10] */
+#define WM9081_CLK_OP_DIV_MASK                  0x1C00  /* CLK_OP_DIV - [12:10]
+                                                         * */
+#define WM9081_CLK_OP_DIV_SHIFT                     10  /* CLK_OP_DIV - [12:10]
+                                                         * */
+#define WM9081_CLK_OP_DIV_WIDTH                      3  /* CLK_OP_DIV - [12:10]
+                                                         * */
 #define WM9081_CLK_TO_DIV_MASK                  0x0300  /* CLK_TO_DIV - [9:8] */
 #define WM9081_CLK_TO_DIV_SHIFT                      8  /* CLK_TO_DIV - [9:8] */
 #define WM9081_CLK_TO_DIV_WIDTH                      2  /* CLK_TO_DIV - [9:8] */
@@ -282,12 +291,18 @@
 /*
  * R13 (0x0D) - Clock Control 2
  */
-#define WM9081_CLK_SYS_RATE_MASK                0x00F0  /* CLK_SYS_RATE - [7:4] */
-#define WM9081_CLK_SYS_RATE_SHIFT                    4  /* CLK_SYS_RATE - [7:4] */
-#define WM9081_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [7:4] */
-#define WM9081_SAMPLE_RATE_MASK                 0x000F  /* SAMPLE_RATE - [3:0] */
-#define WM9081_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [3:0] */
-#define WM9081_SAMPLE_RATE_WIDTH                     4  /* SAMPLE_RATE - [3:0] */
+#define WM9081_CLK_SYS_RATE_MASK                0x00F0  /* CLK_SYS_RATE - [7:4]
+                                                         * */
+#define WM9081_CLK_SYS_RATE_SHIFT                    4  /* CLK_SYS_RATE - [7:4]
+                                                         * */
+#define WM9081_CLK_SYS_RATE_WIDTH                    4  /* CLK_SYS_RATE - [7:4]
+                                                         * */
+#define WM9081_SAMPLE_RATE_MASK                 0x000F  /* SAMPLE_RATE - [3:0]
+                                                         * */
+#define WM9081_SAMPLE_RATE_SHIFT                     0  /* SAMPLE_RATE - [3:0]
+                                                         * */
+#define WM9081_SAMPLE_RATE_WIDTH                     4  /* SAMPLE_RATE - [3:0]
+                                                         * */
 
 /*
  * R14 (0x0E) - Clock Control 3
@@ -332,12 +347,18 @@
 /*
  * R17 (0x11) - FLL Control 2
  */
-#define WM9081_FLL_OUTDIV_MASK                  0x0700  /* FLL_OUTDIV - [10:8] */
-#define WM9081_FLL_OUTDIV_SHIFT                      8  /* FLL_OUTDIV - [10:8] */
-#define WM9081_FLL_OUTDIV_WIDTH                      3  /* FLL_OUTDIV - [10:8] */
-#define WM9081_FLL_CTRL_RATE_MASK               0x0070  /* FLL_CTRL_RATE - [6:4] */
-#define WM9081_FLL_CTRL_RATE_SHIFT                   4  /* FLL_CTRL_RATE - [6:4] */
-#define WM9081_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [6:4] */
+#define WM9081_FLL_OUTDIV_MASK                  0x0700  /* FLL_OUTDIV - [10:8]
+                                                         * */
+#define WM9081_FLL_OUTDIV_SHIFT                      8  /* FLL_OUTDIV - [10:8]
+                                                         * */
+#define WM9081_FLL_OUTDIV_WIDTH                      3  /* FLL_OUTDIV - [10:8]
+                                                         * */
+#define WM9081_FLL_CTRL_RATE_MASK               0x0070  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
+#define WM9081_FLL_CTRL_RATE_SHIFT                   4  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
+#define WM9081_FLL_CTRL_RATE_WIDTH                   3  /* FLL_CTRL_RATE - [6:4]
+                                                         * */
 #define WM9081_FLL_FRATIO_MASK                  0x0007  /* FLL_FRATIO - [2:0] */
 #define WM9081_FLL_FRATIO_SHIFT                      0  /* FLL_FRATIO - [2:0] */
 #define WM9081_FLL_FRATIO_WIDTH                      3  /* FLL_FRATIO - [2:0] */
@@ -362,12 +383,18 @@
 /*
  * R20 (0x14) - FLL Control 5
  */
-#define WM9081_FLL_CLK_REF_DIV_MASK             0x0018  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM9081_FLL_CLK_REF_DIV_SHIFT                 3  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM9081_FLL_CLK_REF_DIV_WIDTH                 2  /* FLL_CLK_REF_DIV - [4:3] */
-#define WM9081_FLL_CLK_SRC_MASK                 0x0003  /* FLL_CLK_SRC - [1:0] */
-#define WM9081_FLL_CLK_SRC_SHIFT                     0  /* FLL_CLK_SRC - [1:0] */
-#define WM9081_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [1:0] */
+#define WM9081_FLL_CLK_REF_DIV_MASK             0x0018  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM9081_FLL_CLK_REF_DIV_SHIFT                 3  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM9081_FLL_CLK_REF_DIV_WIDTH                 2  /* FLL_CLK_REF_DIV -
+                                                         * [4:3] */
+#define WM9081_FLL_CLK_SRC_MASK                 0x0003  /* FLL_CLK_SRC - [1:0]
+                                                         * */
+#define WM9081_FLL_CLK_SRC_SHIFT                     0  /* FLL_CLK_SRC - [1:0]
+                                                         * */
+#define WM9081_FLL_CLK_SRC_WIDTH                     2  /* FLL_CLK_SRC - [1:0]
+                                                         * */
 
 /*
  * R22 (0x16) - Audio Interface 1
@@ -376,12 +403,18 @@
 #define WM9081_AIFDAC_CHAN_MASK                 0x0040  /* AIFDAC_CHAN */
 #define WM9081_AIFDAC_CHAN_SHIFT                     6  /* AIFDAC_CHAN */
 #define WM9081_AIFDAC_CHAN_WIDTH                     1  /* AIFDAC_CHAN */
-#define WM9081_AIFDAC_TDM_SLOT_MASK             0x0030  /* AIFDAC_TDM_SLOT - [5:4] */
-#define WM9081_AIFDAC_TDM_SLOT_SHIFT                 4  /* AIFDAC_TDM_SLOT - [5:4] */
-#define WM9081_AIFDAC_TDM_SLOT_WIDTH                 2  /* AIFDAC_TDM_SLOT - [5:4] */
-#define WM9081_AIFDAC_TDM_MODE_MASK             0x000C  /* AIFDAC_TDM_MODE - [3:2] */
-#define WM9081_AIFDAC_TDM_MODE_SHIFT                 2  /* AIFDAC_TDM_MODE - [3:2] */
-#define WM9081_AIFDAC_TDM_MODE_WIDTH                 2  /* AIFDAC_TDM_MODE - [3:2] */
+#define WM9081_AIFDAC_TDM_SLOT_MASK             0x0030  /* AIFDAC_TDM_SLOT -
+                                                         * [5:4] */
+#define WM9081_AIFDAC_TDM_SLOT_SHIFT                 4  /* AIFDAC_TDM_SLOT -
+                                                         * [5:4] */
+#define WM9081_AIFDAC_TDM_SLOT_WIDTH                 2  /* AIFDAC_TDM_SLOT -
+                                                         * [5:4] */
+#define WM9081_AIFDAC_TDM_MODE_MASK             0x000C  /* AIFDAC_TDM_MODE -
+                                                         * [3:2] */
+#define WM9081_AIFDAC_TDM_MODE_SHIFT                 2  /* AIFDAC_TDM_MODE -
+                                                         * [3:2] */
+#define WM9081_AIFDAC_TDM_MODE_WIDTH                 2  /* AIFDAC_TDM_MODE -
+                                                         * [3:2] */
 #define WM9081_DAC_COMP                         0x0002  /* DAC_COMP */
 #define WM9081_DAC_COMP_MASK                    0x0002  /* DAC_COMP */
 #define WM9081_DAC_COMP_SHIFT                        1  /* DAC_COMP */
@@ -435,9 +468,12 @@
 /*
  * R25 (0x19) - Audio Interface 4
  */
-#define WM9081_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0] */
-#define WM9081_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0] */
-#define WM9081_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0] */
+#define WM9081_LRCLK_RATE_MASK                  0x07FF  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM9081_LRCLK_RATE_SHIFT                      0  /* LRCLK_RATE - [10:0]
+                                                         * */
+#define WM9081_LRCLK_RATE_WIDTH                     11  /* LRCLK_RATE - [10:0]
+                                                         * */
 
 /*
  * R26 (0x1A) - Interrupt Status
@@ -516,9 +552,12 @@
 #define WM9081_DRC_ENA_MASK                     0x8000  /* DRC_ENA */
 #define WM9081_DRC_ENA_SHIFT                        15  /* DRC_ENA */
 #define WM9081_DRC_ENA_WIDTH                         1  /* DRC_ENA */
-#define WM9081_DRC_STARTUP_GAIN_MASK            0x07C0  /* DRC_STARTUP_GAIN - [10:6] */
-#define WM9081_DRC_STARTUP_GAIN_SHIFT                6  /* DRC_STARTUP_GAIN - [10:6] */
-#define WM9081_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN - [10:6] */
+#define WM9081_DRC_STARTUP_GAIN_MASK            0x07C0  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
+#define WM9081_DRC_STARTUP_GAIN_SHIFT                6  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
+#define WM9081_DRC_STARTUP_GAIN_WIDTH                5  /* DRC_STARTUP_GAIN -
+                                                         * [10:6] */
 #define WM9081_DRC_FF_DLY                       0x0020  /* DRC_FF_DLY */
 #define WM9081_DRC_FF_DLY_MASK                  0x0020  /* DRC_FF_DLY */
 #define WM9081_DRC_FF_DLY_SHIFT                      5  /* DRC_FF_DLY */
@@ -547,32 +586,50 @@
 #define WM9081_DRC_QR_DCY_MASK                  0x0030  /* DRC_QR_DCY - [5:4] */
 #define WM9081_DRC_QR_DCY_SHIFT                      4  /* DRC_QR_DCY - [5:4] */
 #define WM9081_DRC_QR_DCY_WIDTH                      2  /* DRC_QR_DCY - [5:4] */
-#define WM9081_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2] */
-#define WM9081_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2] */
-#define WM9081_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2] */
-#define WM9081_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0] */
-#define WM9081_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0] */
-#define WM9081_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0] */
+#define WM9081_DRC_MINGAIN_MASK                 0x000C  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM9081_DRC_MINGAIN_SHIFT                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM9081_DRC_MINGAIN_WIDTH                     2  /* DRC_MINGAIN - [3:2]
+                                                         * */
+#define WM9081_DRC_MAXGAIN_MASK                 0x0003  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM9081_DRC_MAXGAIN_SHIFT                     0  /* DRC_MAXGAIN - [1:0]
+                                                         * */
+#define WM9081_DRC_MAXGAIN_WIDTH                     2  /* DRC_MAXGAIN - [1:0]
+                                                         * */
 
 /*
  * R34 (0x22) - DRC 3
  */
-#define WM9081_DRC_HI_COMP_MASK                 0x0038  /* DRC_HI_COMP - [5:3] */
-#define WM9081_DRC_HI_COMP_SHIFT                     3  /* DRC_HI_COMP - [5:3] */
-#define WM9081_DRC_HI_COMP_WIDTH                     3  /* DRC_HI_COMP - [5:3] */
-#define WM9081_DRC_LO_COMP_MASK                 0x0007  /* DRC_LO_COMP - [2:0] */
-#define WM9081_DRC_LO_COMP_SHIFT                     0  /* DRC_LO_COMP - [2:0] */
-#define WM9081_DRC_LO_COMP_WIDTH                     3  /* DRC_LO_COMP - [2:0] */
+#define WM9081_DRC_HI_COMP_MASK                 0x0038  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM9081_DRC_HI_COMP_SHIFT                     3  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM9081_DRC_HI_COMP_WIDTH                     3  /* DRC_HI_COMP - [5:3]
+                                                         * */
+#define WM9081_DRC_LO_COMP_MASK                 0x0007  /* DRC_LO_COMP - [2:0]
+                                                         * */
+#define WM9081_DRC_LO_COMP_SHIFT                     0  /* DRC_LO_COMP - [2:0]
+                                                         * */
+#define WM9081_DRC_LO_COMP_WIDTH                     3  /* DRC_LO_COMP - [2:0]
+                                                         * */
 
 /*
  * R35 (0x23) - DRC 4
  */
-#define WM9081_DRC_KNEE_IP_MASK                 0x07E0  /* DRC_KNEE_IP - [10:5] */
-#define WM9081_DRC_KNEE_IP_SHIFT                     5  /* DRC_KNEE_IP - [10:5] */
-#define WM9081_DRC_KNEE_IP_WIDTH                     6  /* DRC_KNEE_IP - [10:5] */
-#define WM9081_DRC_KNEE_OP_MASK                 0x001F  /* DRC_KNEE_OP - [4:0] */
-#define WM9081_DRC_KNEE_OP_SHIFT                     0  /* DRC_KNEE_OP - [4:0] */
-#define WM9081_DRC_KNEE_OP_WIDTH                     5  /* DRC_KNEE_OP - [4:0] */
+#define WM9081_DRC_KNEE_IP_MASK                 0x07E0  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM9081_DRC_KNEE_IP_SHIFT                     5  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM9081_DRC_KNEE_IP_WIDTH                     6  /* DRC_KNEE_IP - [10:5]
+                                                         * */
+#define WM9081_DRC_KNEE_OP_MASK                 0x001F  /* DRC_KNEE_OP - [4:0]
+                                                         * */
+#define WM9081_DRC_KNEE_OP_SHIFT                     0  /* DRC_KNEE_OP - [4:0]
+                                                         * */
+#define WM9081_DRC_KNEE_OP_WIDTH                     5  /* DRC_KNEE_OP - [4:0]
+                                                         * */
 
 /*
  * R38 (0x26) - Write Sequencer 1
@@ -589,16 +646,22 @@
 #define WM9081_WSEQ_START_MASK                  0x0100  /* WSEQ_START */
 #define WM9081_WSEQ_START_SHIFT                      8  /* WSEQ_START */
 #define WM9081_WSEQ_START_WIDTH                      1  /* WSEQ_START */
-#define WM9081_WSEQ_START_INDEX_MASK            0x007F  /* WSEQ_START_INDEX - [6:0] */
-#define WM9081_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX - [6:0] */
-#define WM9081_WSEQ_START_INDEX_WIDTH                7  /* WSEQ_START_INDEX - [6:0] */
+#define WM9081_WSEQ_START_INDEX_MASK            0x007F  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
+#define WM9081_WSEQ_START_INDEX_SHIFT                0  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
+#define WM9081_WSEQ_START_INDEX_WIDTH                7  /* WSEQ_START_INDEX -
+                                                         * [6:0] */
 
 /*
  * R39 (0x27) - Write Sequencer 2
  */
-#define WM9081_WSEQ_CURRENT_INDEX_MASK          0x07F0  /* WSEQ_CURRENT_INDEX - [10:4] */
-#define WM9081_WSEQ_CURRENT_INDEX_SHIFT              4  /* WSEQ_CURRENT_INDEX - [10:4] */
-#define WM9081_WSEQ_CURRENT_INDEX_WIDTH              7  /* WSEQ_CURRENT_INDEX - [10:4] */
+#define WM9081_WSEQ_CURRENT_INDEX_MASK          0x07F0  /* WSEQ_CURRENT_INDEX -
+                                                         * [10:4] */
+#define WM9081_WSEQ_CURRENT_INDEX_SHIFT              4  /* WSEQ_CURRENT_INDEX -
+                                                         * [10:4] */
+#define WM9081_WSEQ_CURRENT_INDEX_WIDTH              7  /* WSEQ_CURRENT_INDEX -
+                                                         * [10:4] */
 #define WM9081_WSEQ_BUSY                        0x0001  /* WSEQ_BUSY */
 #define WM9081_WSEQ_BUSY_MASK                   0x0001  /* WSEQ_BUSY */
 #define WM9081_WSEQ_BUSY_SHIFT                       0  /* WSEQ_BUSY */
@@ -627,12 +690,18 @@
 /*
  * R42 (0x2A) - EQ 1
  */
-#define WM9081_EQ_B1_GAIN_MASK                  0xF800  /* EQ_B1_GAIN - [15:11] */
-#define WM9081_EQ_B1_GAIN_SHIFT                     11  /* EQ_B1_GAIN - [15:11] */
-#define WM9081_EQ_B1_GAIN_WIDTH                      5  /* EQ_B1_GAIN - [15:11] */
-#define WM9081_EQ_B2_GAIN_MASK                  0x07C0  /* EQ_B2_GAIN - [10:6] */
-#define WM9081_EQ_B2_GAIN_SHIFT                      6  /* EQ_B2_GAIN - [10:6] */
-#define WM9081_EQ_B2_GAIN_WIDTH                      5  /* EQ_B2_GAIN - [10:6] */
+#define WM9081_EQ_B1_GAIN_MASK                  0xF800  /* EQ_B1_GAIN - [15:11]
+                                                         * */
+#define WM9081_EQ_B1_GAIN_SHIFT                     11  /* EQ_B1_GAIN - [15:11]
+                                                         * */
+#define WM9081_EQ_B1_GAIN_WIDTH                      5  /* EQ_B1_GAIN - [15:11]
+                                                         * */
+#define WM9081_EQ_B2_GAIN_MASK                  0x07C0  /* EQ_B2_GAIN - [10:6]
+                                                         * */
+#define WM9081_EQ_B2_GAIN_SHIFT                      6  /* EQ_B2_GAIN - [10:6]
+                                                         * */
+#define WM9081_EQ_B2_GAIN_WIDTH                      5  /* EQ_B2_GAIN - [10:6]
+                                                         * */
 #define WM9081_EQ_B4_GAIN_MASK                  0x003E  /* EQ_B4_GAIN - [5:1] */
 #define WM9081_EQ_B4_GAIN_SHIFT                      1  /* EQ_B4_GAIN - [5:1] */
 #define WM9081_EQ_B4_GAIN_WIDTH                      5  /* EQ_B4_GAIN - [5:1] */
@@ -644,12 +713,18 @@
 /*
  * R43 (0x2B) - EQ 2
  */
-#define WM9081_EQ_B3_GAIN_MASK                  0xF800  /* EQ_B3_GAIN - [15:11] */
-#define WM9081_EQ_B3_GAIN_SHIFT                     11  /* EQ_B3_GAIN - [15:11] */
-#define WM9081_EQ_B3_GAIN_WIDTH                      5  /* EQ_B3_GAIN - [15:11] */
-#define WM9081_EQ_B5_GAIN_MASK                  0x07C0  /* EQ_B5_GAIN - [10:6] */
-#define WM9081_EQ_B5_GAIN_SHIFT                      6  /* EQ_B5_GAIN - [10:6] */
-#define WM9081_EQ_B5_GAIN_WIDTH                      5  /* EQ_B5_GAIN - [10:6] */
+#define WM9081_EQ_B3_GAIN_MASK                  0xF800  /* EQ_B3_GAIN - [15:11]
+                                                         * */
+#define WM9081_EQ_B3_GAIN_SHIFT                     11  /* EQ_B3_GAIN - [15:11]
+                                                         * */
+#define WM9081_EQ_B3_GAIN_WIDTH                      5  /* EQ_B3_GAIN - [15:11]
+                                                         * */
+#define WM9081_EQ_B5_GAIN_MASK                  0x07C0  /* EQ_B5_GAIN - [10:6]
+                                                         * */
+#define WM9081_EQ_B5_GAIN_SHIFT                      6  /* EQ_B5_GAIN - [10:6]
+                                                         * */
+#define WM9081_EQ_B5_GAIN_WIDTH                      5  /* EQ_B5_GAIN - [10:6]
+                                                         * */
 
 /*
  * R44 (0x2C) - EQ 3
@@ -776,6 +851,5 @@
 #define WM9081_EQ_B5_PG_MASK                    0xFFFF  /* EQ_B5_PG - [15:0] */
 #define WM9081_EQ_B5_PG_SHIFT                        0  /* EQ_B5_PG - [15:0] */
 #define WM9081_EQ_B5_PG_WIDTH                       16  /* EQ_B5_PG - [15:0] */
-
 
 #endif

@@ -16,51 +16,38 @@
 
 static pte_t *kmap_coherent_pte;
 
-void __init kmap_coherent_init(void)
-{
-	unsigned long vaddr;
-
-	/* cache the first coherent kmap pte */
-	vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
-	kmap_coherent_pte = virt_to_kpte(vaddr);
+void __init kmap_coherent_init(void) {
+  unsigned long vaddr;
+  /* cache the first coherent kmap pte */
+  vaddr = __fix_to_virt(FIX_CMAP_BEGIN);
+  kmap_coherent_pte = virt_to_kpte(vaddr);
 }
 
-void *kmap_coherent(struct page *page, unsigned long addr)
-{
-	struct folio *folio = page_folio(page);
-	enum fixed_addresses idx;
-	unsigned long vaddr;
-
-	BUG_ON(!test_bit(PG_dcache_clean, &folio->flags));
-
-	preempt_disable();
-	pagefault_disable();
-
-	idx = FIX_CMAP_END -
-		(((addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1)) +
-		 (FIX_N_COLOURS * smp_processor_id()));
-
-	vaddr = __fix_to_virt(idx);
-
-	BUG_ON(!pte_none(*(kmap_coherent_pte - idx)));
-	set_pte(kmap_coherent_pte - idx, mk_pte(page, PAGE_KERNEL));
-
-	return (void *)vaddr;
+void *kmap_coherent(struct page *page, unsigned long addr) {
+  struct folio *folio = page_folio(page);
+  enum fixed_addresses idx;
+  unsigned long vaddr;
+  BUG_ON(!test_bit(PG_dcache_clean, &folio->flags));
+  preempt_disable();
+  pagefault_disable();
+  idx = FIX_CMAP_END
+      - (((addr >> PAGE_SHIFT) & (FIX_N_COLOURS - 1))
+      + (FIX_N_COLOURS * smp_processor_id()));
+  vaddr = __fix_to_virt(idx);
+  BUG_ON(!pte_none(*(kmap_coherent_pte - idx)));
+  set_pte(kmap_coherent_pte - idx, mk_pte(page, PAGE_KERNEL));
+  return (void *) vaddr;
 }
 
-void kunmap_coherent(void *kvaddr)
-{
-	if (kvaddr >= (void *)FIXADDR_START) {
-		unsigned long vaddr = (unsigned long)kvaddr & PAGE_MASK;
-		enum fixed_addresses idx = __virt_to_fix(vaddr);
-
-		/* XXX.. Kill this later, here for sanity at the moment.. */
-		__flush_purge_region((void *)vaddr, PAGE_SIZE);
-
-		pte_clear(&init_mm, vaddr, kmap_coherent_pte - idx);
-		local_flush_tlb_one(get_asid(), vaddr);
-	}
-
-	pagefault_enable();
-	preempt_enable();
+void kunmap_coherent(void *kvaddr) {
+  if (kvaddr >= (void *) FIXADDR_START) {
+    unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
+    enum fixed_addresses idx = __virt_to_fix(vaddr);
+    /* XXX.. Kill this later, here for sanity at the moment.. */
+    __flush_purge_region((void *) vaddr, PAGE_SIZE);
+    pte_clear(&init_mm, vaddr, kmap_coherent_pte - idx);
+    local_flush_tlb_one(get_asid(), vaddr);
+  }
+  pagefault_enable();
+  preempt_enable();
 }

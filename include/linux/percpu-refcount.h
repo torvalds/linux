@@ -34,8 +34,10 @@
  * After that, there can't be any new users of the kioctx (from lookup_ioctx())
  * and it's then safe to drop the initial ref with percpu_ref_put().
  *
- * Note that the free path, free_ioctx(), needs to go through explicit call_rcu()
- * to synchronize with RCU protected lookup_ioctx().  percpu_ref operations don't
+ * Note that the free path, free_ioctx(), needs to go through explicit
+ * call_rcu()
+ * to synchronize with RCU protected lookup_ioctx().  percpu_ref operations
+ * don't
  * imply RCU grace periods of any kind and if a user wants to combine percpu_ref
  * with RCU protection, it must be done explicitly.
  *
@@ -61,73 +63,73 @@ typedef void (percpu_ref_func_t)(struct percpu_ref *);
 
 /* flags set in the lower bits of percpu_ref->percpu_count_ptr */
 enum {
-	__PERCPU_REF_ATOMIC	= 1LU << 0,	/* operating in atomic mode */
-	__PERCPU_REF_DEAD	= 1LU << 1,	/* (being) killed */
-	__PERCPU_REF_ATOMIC_DEAD = __PERCPU_REF_ATOMIC | __PERCPU_REF_DEAD,
+  __PERCPU_REF_ATOMIC = 1LU << 0, /* operating in atomic mode */
+  __PERCPU_REF_DEAD = 1LU << 1, /* (being) killed */
+  __PERCPU_REF_ATOMIC_DEAD = __PERCPU_REF_ATOMIC | __PERCPU_REF_DEAD,
 
-	__PERCPU_REF_FLAG_BITS	= 2,
+  __PERCPU_REF_FLAG_BITS = 2,
 };
 
 /* @flags for percpu_ref_init() */
 enum {
-	/*
-	 * Start w/ ref == 1 in atomic mode.  Can be switched to percpu
-	 * operation using percpu_ref_switch_to_percpu().  If initialized
-	 * with this flag, the ref will stay in atomic mode until
-	 * percpu_ref_switch_to_percpu() is invoked on it.
-	 * Implies ALLOW_REINIT.
-	 */
-	PERCPU_REF_INIT_ATOMIC	= 1 << 0,
+  /*
+   * Start w/ ref == 1 in atomic mode.  Can be switched to percpu
+   * operation using percpu_ref_switch_to_percpu().  If initialized
+   * with this flag, the ref will stay in atomic mode until
+   * percpu_ref_switch_to_percpu() is invoked on it.
+   * Implies ALLOW_REINIT.
+   */
+  PERCPU_REF_INIT_ATOMIC = 1 << 0,
 
-	/*
-	 * Start dead w/ ref == 0 in atomic mode.  Must be revived with
-	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC and
-	 * ALLOW_REINIT.
-	 */
-	PERCPU_REF_INIT_DEAD	= 1 << 1,
+  /*
+   * Start dead w/ ref == 0 in atomic mode.  Must be revived with
+   * percpu_ref_reinit() before used.  Implies INIT_ATOMIC and
+   * ALLOW_REINIT.
+   */
+  PERCPU_REF_INIT_DEAD = 1 << 1,
 
-	/*
-	 * Allow switching from atomic mode to percpu mode.
-	 */
-	PERCPU_REF_ALLOW_REINIT	= 1 << 2,
+  /*
+   * Allow switching from atomic mode to percpu mode.
+   */
+  PERCPU_REF_ALLOW_REINIT = 1 << 2,
 };
 
 struct percpu_ref_data {
-	atomic_long_t		count;
-	percpu_ref_func_t	*release;
-	percpu_ref_func_t	*confirm_switch;
-	bool			force_atomic:1;
-	bool			allow_reinit:1;
-	struct rcu_head		rcu;
-	struct percpu_ref	*ref;
+  atomic_long_t count;
+  percpu_ref_func_t *release;
+  percpu_ref_func_t *confirm_switch;
+  bool force_atomic : 1;
+  bool allow_reinit : 1;
+  struct rcu_head rcu;
+  struct percpu_ref *ref;
 };
 
 struct percpu_ref {
-	/*
-	 * The low bit of the pointer indicates whether the ref is in percpu
-	 * mode; if set, then get/put will manipulate the atomic_t.
-	 */
-	unsigned long		percpu_count_ptr;
+  /*
+   * The low bit of the pointer indicates whether the ref is in percpu
+   * mode; if set, then get/put will manipulate the atomic_t.
+   */
+  unsigned long percpu_count_ptr;
 
-	/*
-	 * 'percpu_ref' is often embedded into user structure, and only
-	 * 'percpu_count_ptr' is required in fast path, move other fields
-	 * into 'percpu_ref_data', so we can reduce memory footprint in
-	 * fast path.
-	 */
-	struct percpu_ref_data  *data;
+  /*
+   * 'percpu_ref' is often embedded into user structure, and only
+   * 'percpu_count_ptr' is required in fast path, move other fields
+   * into 'percpu_ref_data', so we can reduce memory footprint in
+   * fast path.
+   */
+  struct percpu_ref_data *data;
 };
 
 int __must_check percpu_ref_init(struct percpu_ref *ref,
-				 percpu_ref_func_t *release, unsigned int flags,
-				 gfp_t gfp);
+    percpu_ref_func_t *release, unsigned int flags,
+    gfp_t gfp);
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
-				 percpu_ref_func_t *confirm_switch);
+    percpu_ref_func_t *confirm_switch);
 void percpu_ref_switch_to_atomic_sync(struct percpu_ref *ref);
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
-				 percpu_ref_func_t *confirm_kill);
+    percpu_ref_func_t *confirm_kill);
 void percpu_ref_resurrect(struct percpu_ref *ref);
 void percpu_ref_reinit(struct percpu_ref *ref);
 bool percpu_ref_is_zero(struct percpu_ref *ref);
@@ -144,9 +146,8 @@ bool percpu_ref_is_zero(struct percpu_ref *ref);
  *
  * There are no implied RCU grace periods between kill and release.
  */
-static inline void percpu_ref_kill(struct percpu_ref *ref)
-{
-	percpu_ref_kill_and_confirm(ref, NULL);
+static inline void percpu_ref_kill(struct percpu_ref *ref) {
+  percpu_ref_kill_and_confirm(ref, NULL);
 }
 
 /*
@@ -156,34 +157,31 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
  * branches as it can't assume that @ref->percpu_count is not NULL.
  */
 static inline bool __ref_is_percpu(struct percpu_ref *ref,
-					  unsigned long __percpu **percpu_countp)
-{
-	unsigned long percpu_ptr;
-
-	/*
-	 * The value of @ref->percpu_count_ptr is tested for
-	 * !__PERCPU_REF_ATOMIC, which may be set asynchronously, and then
-	 * used as a pointer.  If the compiler generates a separate fetch
-	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
-	 * between contaminating the pointer value, meaning that
-	 * READ_ONCE() is required when fetching it.
-	 *
-	 * The dependency ordering from the READ_ONCE() pairs
-	 * with smp_store_release() in __percpu_ref_switch_to_percpu().
-	 */
-	percpu_ptr = READ_ONCE(ref->percpu_count_ptr);
-
-	/*
-	 * Theoretically, the following could test just ATOMIC; however,
-	 * then we'd have to mask off DEAD separately as DEAD may be
-	 * visible without ATOMIC if we race with percpu_ref_kill().  DEAD
-	 * implies ATOMIC anyway.  Test them together.
-	 */
-	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC_DEAD))
-		return false;
-
-	*percpu_countp = (unsigned long __percpu *)percpu_ptr;
-	return true;
+    unsigned long __percpu **percpu_countp) {
+  unsigned long percpu_ptr;
+  /*
+   * The value of @ref->percpu_count_ptr is tested for
+   * !__PERCPU_REF_ATOMIC, which may be set asynchronously, and then
+   * used as a pointer.  If the compiler generates a separate fetch
+   * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
+   * between contaminating the pointer value, meaning that
+   * READ_ONCE() is required when fetching it.
+   *
+   * The dependency ordering from the READ_ONCE() pairs
+   * with smp_store_release() in __percpu_ref_switch_to_percpu().
+   */
+  percpu_ptr = READ_ONCE(ref->percpu_count_ptr);
+  /*
+   * Theoretically, the following could test just ATOMIC; however,
+   * then we'd have to mask off DEAD separately as DEAD may be
+   * visible without ATOMIC if we race with percpu_ref_kill().  DEAD
+   * implies ATOMIC anyway.  Test them together.
+   */
+  if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC_DEAD)) {
+    return false;
+  }
+  *percpu_countp = (unsigned long __percpu *) percpu_ptr;
+  return true;
 }
 
 /**
@@ -195,18 +193,16 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline void percpu_ref_get_many(struct percpu_ref *ref, unsigned long nr)
-{
-	unsigned long __percpu *percpu_count;
-
-	rcu_read_lock();
-
-	if (__ref_is_percpu(ref, &percpu_count))
-		this_cpu_add(*percpu_count, nr);
-	else
-		atomic_long_add(nr, &ref->data->count);
-
-	rcu_read_unlock();
+static inline void percpu_ref_get_many(struct percpu_ref *ref,
+    unsigned long nr) {
+  unsigned long __percpu *percpu_count;
+  rcu_read_lock();
+  if (__ref_is_percpu(ref, &percpu_count)) {
+    this_cpu_add(*percpu_count, nr);
+  } else {
+    atomic_long_add(nr, &ref->data->count);
+  }
+  rcu_read_unlock();
 }
 
 /**
@@ -217,9 +213,8 @@ static inline void percpu_ref_get_many(struct percpu_ref *ref, unsigned long nr)
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline void percpu_ref_get(struct percpu_ref *ref)
-{
-	percpu_ref_get_many(ref, 1);
+static inline void percpu_ref_get(struct percpu_ref *ref) {
+  percpu_ref_get_many(ref, 1);
 }
 
 /**
@@ -233,23 +228,18 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
  * This function is safe to call as long as @ref is between init and exit.
  */
 static inline bool percpu_ref_tryget_many(struct percpu_ref *ref,
-					  unsigned long nr)
-{
-	unsigned long __percpu *percpu_count;
-	bool ret;
-
-	rcu_read_lock();
-
-	if (__ref_is_percpu(ref, &percpu_count)) {
-		this_cpu_add(*percpu_count, nr);
-		ret = true;
-	} else {
-		ret = atomic_long_add_unless(&ref->data->count, nr, 0);
-	}
-
-	rcu_read_unlock();
-
-	return ret;
+    unsigned long nr) {
+  unsigned long __percpu *percpu_count;
+  bool ret;
+  rcu_read_lock();
+  if (__ref_is_percpu(ref, &percpu_count)) {
+    this_cpu_add(*percpu_count, nr);
+    ret = true;
+  } else {
+    ret = atomic_long_add_unless(&ref->data->count, nr, 0);
+  }
+  rcu_read_unlock();
+  return ret;
 }
 
 /**
@@ -261,9 +251,8 @@ static inline bool percpu_ref_tryget_many(struct percpu_ref *ref,
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline bool percpu_ref_tryget(struct percpu_ref *ref)
-{
-	return percpu_ref_tryget_many(ref, 1);
+static inline bool percpu_ref_tryget(struct percpu_ref *ref) {
+  return percpu_ref_tryget_many(ref, 1);
 }
 
 /**
@@ -272,20 +261,17 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline bool percpu_ref_tryget_live_rcu(struct percpu_ref *ref)
-{
-	unsigned long __percpu *percpu_count;
-	bool ret = false;
-
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	if (likely(__ref_is_percpu(ref, &percpu_count))) {
-		this_cpu_inc(*percpu_count);
-		ret = true;
-	} else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
-		ret = atomic_long_inc_not_zero(&ref->data->count);
-	}
-	return ret;
+static inline bool percpu_ref_tryget_live_rcu(struct percpu_ref *ref) {
+  unsigned long __percpu *percpu_count;
+  bool ret = false;
+  WARN_ON_ONCE(!rcu_read_lock_held());
+  if (likely(__ref_is_percpu(ref, &percpu_count))) {
+    this_cpu_inc(*percpu_count);
+    ret = true;
+  } else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
+    ret = atomic_long_inc_not_zero(&ref->data->count);
+  }
+  return ret;
 }
 
 /**
@@ -303,14 +289,12 @@ static inline bool percpu_ref_tryget_live_rcu(struct percpu_ref *ref)
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
-{
-	bool ret = false;
-
-	rcu_read_lock();
-	ret = percpu_ref_tryget_live_rcu(ref);
-	rcu_read_unlock();
-	return ret;
+static inline bool percpu_ref_tryget_live(struct percpu_ref *ref) {
+  bool ret = false;
+  rcu_read_lock();
+  ret = percpu_ref_tryget_live_rcu(ref);
+  rcu_read_unlock();
+  return ret;
 }
 
 /**
@@ -323,18 +307,16 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline void percpu_ref_put_many(struct percpu_ref *ref, unsigned long nr)
-{
-	unsigned long __percpu *percpu_count;
-
-	rcu_read_lock();
-
-	if (__ref_is_percpu(ref, &percpu_count))
-		this_cpu_sub(*percpu_count, nr);
-	else if (unlikely(atomic_long_sub_and_test(nr, &ref->data->count)))
-		ref->data->release(ref);
-
-	rcu_read_unlock();
+static inline void percpu_ref_put_many(struct percpu_ref *ref,
+    unsigned long nr) {
+  unsigned long __percpu *percpu_count;
+  rcu_read_lock();
+  if (__ref_is_percpu(ref, &percpu_count)) {
+    this_cpu_sub(*percpu_count, nr);
+  } else if (unlikely(atomic_long_sub_and_test(nr, &ref->data->count))) {
+    ref->data->release(ref);
+  }
+  rcu_read_unlock();
 }
 
 /**
@@ -346,9 +328,8 @@ static inline void percpu_ref_put_many(struct percpu_ref *ref, unsigned long nr)
  *
  * This function is safe to call as long as @ref is between init and exit.
  */
-static inline void percpu_ref_put(struct percpu_ref *ref)
-{
-	percpu_ref_put_many(ref, 1);
+static inline void percpu_ref_put(struct percpu_ref *ref) {
+  percpu_ref_put_many(ref, 1);
 }
 
 /**
@@ -360,9 +341,8 @@ static inline void percpu_ref_put(struct percpu_ref *ref)
  * This function is safe to call as long as @ref is between init and exit
  * and the caller is responsible for synchronizing against state changes.
  */
-static inline bool percpu_ref_is_dying(struct percpu_ref *ref)
-{
-	return ref->percpu_count_ptr & __PERCPU_REF_DEAD;
+static inline bool percpu_ref_is_dying(struct percpu_ref *ref) {
+  return ref->percpu_count_ptr & __PERCPU_REF_DEAD;
 }
 
 #endif

@@ -7,11 +7,11 @@
 /*
  * Return the base personality without flags.
  */
-#define personality(pers)	(pers & PER_MASK)
+#define personality(pers) (pers & PER_MASK)
 
 /*
  * Change personality of the currently running process.
  */
-#define set_personality(pers)	(current->personality = (pers))
+#define set_personality(pers) (current->personality = (pers))
 
 #endif /* _LINUX_PERSONALITY_H */

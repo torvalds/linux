@@ -20,11 +20,11 @@
 
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 
-#define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+#define ARCH_DMA_MINALIGN L1_CACHE_BYTES
 
 #define __read_mostly __section(".data..read_mostly")
 
-void parisc_cache_init(void);	/* initializes cache-flushing */
+void parisc_cache_init(void); /* initializes cache-flushing */
 void disable_sr_hashing_asm(int); /* low level support for above */
 void disable_sr_hashing(void);   /* turns off space register hashing */
 void free_sid(unsigned long);
@@ -40,22 +40,22 @@ extern struct pdc_cache_info cache_info;
 extern struct pdc_btlb_info btlb_info;
 void parisc_setup_cache_timing(void);
 
-#define pdtlb(sr, addr)	asm volatile("pdtlb 0(%%sr%0,%1)" \
-			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			: : "i"(sr), "r" (addr) : "memory")
-#define pitlb(sr, addr)	asm volatile("pitlb 0(%%sr%0,%1)" \
-			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			ALTERNATIVE(ALT_COND_NO_SPLIT_TLB, INSN_NOP) \
-			: : "i"(sr), "r" (addr) : "memory")
+#define pdtlb(sr, addr) asm volatile ("pdtlb 0(%%sr%0,%1)" \
+  ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
+  : : "i" (sr), "r" (addr) : "memory")
+#define pitlb(sr, addr) asm volatile ("pitlb 0(%%sr%0,%1)" \
+  ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
+  ALTERNATIVE(ALT_COND_NO_SPLIT_TLB, INSN_NOP) \
+  : : "i" (sr), "r" (addr) : "memory")
 
-#define asm_io_fdc(addr) asm volatile("fdc %%r0(%0)" \
-			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
-			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) \
-			: : "r" (addr) : "memory")
-#define asm_io_sync()	asm volatile("sync" \
-			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
-			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :::"memory")
-#define asm_syncdma()	asm volatile("syncdma" :::"memory")
+#define asm_io_fdc(addr) asm volatile ("fdc %%r0(%0)" \
+  ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
+  ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) \
+  : : "r" (addr) : "memory")
+#define asm_io_sync() asm volatile ("sync" \
+  ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
+  ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) ::: "memory")
+#define asm_syncdma() asm volatile ("syncdma" ::: "memory")
 
 #endif /* ! __ASSEMBLY__ */
 

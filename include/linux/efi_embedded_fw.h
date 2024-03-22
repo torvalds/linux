@@ -5,17 +5,17 @@
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
 
-#define EFI_EMBEDDED_FW_PREFIX_LEN		8
+#define EFI_EMBEDDED_FW_PREFIX_LEN    8
 
 /*
  * This struct is private to the efi-embedded fw implementation.
  * They are in this header for use by lib/test_firmware.c only!
  */
 struct efi_embedded_fw {
-	struct list_head list;
-	const char *name;
-	const u8 *data;
-	size_t length;
+  struct list_head list;
+  const char *name;
+  const u8 *data;
+  size_t length;
 };
 
 /**
@@ -28,10 +28,10 @@ struct efi_embedded_fw {
  * @sha256: SHA256 of the firmware
  */
 struct efi_embedded_fw_desc {
-	const char *name;
-	u8 prefix[EFI_EMBEDDED_FW_PREFIX_LEN];
-	u32 length;
-	u8 sha256[32];
+  const char *name;
+  u8 prefix[EFI_EMBEDDED_FW_PREFIX_LEN];
+  u32 length;
+  u8 sha256[32];
 };
 
 extern const struct dmi_system_id touchscreen_dmi_table[];

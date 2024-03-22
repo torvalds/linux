@@ -11,7 +11,7 @@
  * @status: LED status (on/off)
  */
 struct iwl_led_cmd {
-	__le32 status;
+  __le32 status;
 } __packed; /* LEDS_CMD_API_S_VER_2 */
 
 #endif /* __iwl_fw_api_led_h__ */

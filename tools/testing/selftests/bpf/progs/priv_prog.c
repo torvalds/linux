@@ -7,7 +7,6 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("kprobe")
-int kprobe_prog(void *ctx)
-{
-	return 1;
+int kprobe_prog(void *ctx) {
+  return 1;
 }

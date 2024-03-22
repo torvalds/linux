@@ -13,9 +13,9 @@ int bpf_map__fprintf(struct bpf_map *map, FILE *fp);
 
 #include <linux/compiler.h>
 
-static inline int bpf_map__fprintf(struct bpf_map *map __maybe_unused, FILE *fp __maybe_unused)
-{
-	return 0;
+static inline int bpf_map__fprintf(struct bpf_map *map __maybe_unused,
+    FILE *fp __maybe_unused) {
+  return 0;
 }
 
 #endif // HAVE_LIBBPF_SUPPORT

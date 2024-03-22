@@ -9,7 +9,6 @@
 #ifndef _UAPI_INPUT_H
 #define _UAPI_INPUT_H
 
-
 #ifndef __KERNEL__
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -26,41 +25,42 @@
  */
 
 struct input_event {
-#if (__BITS_PER_LONG != 32 || !defined(__USE_TIME_BITS64)) && !defined(__KERNEL__)
-	struct timeval time;
+#if (__BITS_PER_LONG != 32 || !defined(__USE_TIME_BITS64)) \
+  && !defined(__KERNEL__)
+  struct timeval time;
 #define input_event_sec time.tv_sec
 #define input_event_usec time.tv_usec
 #else
-	__kernel_ulong_t __sec;
+  __kernel_ulong_t __sec;
 #if defined(__sparc__) && defined(__arch64__)
-	unsigned int __usec;
-	unsigned int __pad;
+  unsigned int __usec;
+  unsigned int __pad;
 #else
-	__kernel_ulong_t __usec;
+  __kernel_ulong_t __usec;
 #endif
 #define input_event_sec  __sec
 #define input_event_usec __usec
 #endif
-	__u16 type;
-	__u16 code;
-	__s32 value;
+  __u16 type;
+  __u16 code;
+  __s32 value;
 };
 
 /*
  * Protocol version.
  */
 
-#define EV_VERSION		0x010001
+#define EV_VERSION    0x010001
 
 /*
  * IOCTLs (0x00 - 0x7f)
  */
 
 struct input_id {
-	__u16 bustype;
-	__u16 vendor;
-	__u16 product;
-	__u16 version;
+  __u16 bustype;
+  __u16 vendor;
+  __u16 product;
+  __u16 version;
 };
 
 /**
@@ -69,11 +69,11 @@ struct input_id {
  * @minimum: specifies minimum value for the axis.
  * @maximum: specifies maximum value for the axis.
  * @fuzz: specifies fuzz value that is used to filter noise from
- *	the event stream.
+ *  the event stream.
  * @flat: values that are within this value will be discarded by
- *	joydev interface and reported as 0 instead.
+ *  joydev interface and reported as 0 instead.
  * @resolution: specifies resolution for the values reported for
- *	the axis.
+ *  the axis.
  *
  * Note that input core does not clamp reported values to the
  * [minimum, maximum] limits, such task is left to userspace.
@@ -91,12 +91,12 @@ struct input_id {
  * (units/deg/s) for rotational axes (ABS_RX, ABS_RY, ABS_RZ).
  */
 struct input_absinfo {
-	__s32 value;
-	__s32 minimum;
-	__s32 maximum;
-	__s32 fuzz;
-	__s32 flat;
-	__s32 resolution;
+  __s32 value;
+  __s32 minimum;
+  __s32 maximum;
+  __s32 fuzz;
+  __s32 flat;
+  __s32 resolution;
 };
 
 /**
@@ -105,8 +105,8 @@ struct input_absinfo {
  * @len: length of the scancode that resides in @scancode buffer.
  * @index: index in the keymap, may be used instead of scancode
  * @flags: allows to specify how kernel should handle the request. For
- *	example, setting INPUT_KEYMAP_BY_INDEX flag indicates that kernel
- *	should perform lookup in keymap by @index instead of @scancode
+ *  example, setting INPUT_KEYMAP_BY_INDEX flag indicates that kernel
+ *  should perform lookup in keymap by @index instead of @scancode
  * @keycode: key code assigned to this scancode
  *
  * The structure is used to retrieve and modify keymap data. Users have
@@ -115,34 +115,40 @@ struct input_absinfo {
  * (depending on which element was used to perform lookup).
  */
 struct input_keymap_entry {
-#define INPUT_KEYMAP_BY_INDEX	(1 << 0)
-	__u8  flags;
-	__u8  len;
-	__u16 index;
-	__u32 keycode;
-	__u8  scancode[32];
+#define INPUT_KEYMAP_BY_INDEX (1 << 0)
+  __u8 flags;
+  __u8 len;
+  __u16 index;
+  __u32 keycode;
+  __u8 scancode[32];
 };
 
 struct input_mask {
-	__u32 type;
-	__u32 codes_size;
-	__u64 codes_ptr;
+  __u32 type;
+  __u32 codes_size;
+  __u64 codes_ptr;
 };
 
-#define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
-#define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
-#define EVIOCGREP		_IOR('E', 0x03, unsigned int[2])	/* get repeat settings */
-#define EVIOCSREP		_IOW('E', 0x03, unsigned int[2])	/* set repeat settings */
+#define EVIOCGVERSION   _IOR('E', 0x01, int)      /* get driver version */
+#define EVIOCGID    _IOR('E', 0x02, struct input_id)  /* get device ID */
+#define EVIOCGREP   _IOR('E', 0x03, unsigned int[2])  /* get repeat settings */
+#define EVIOCSREP   _IOW('E', 0x03, unsigned int[2])  /* set repeat settings */
 
-#define EVIOCGKEYCODE		_IOR('E', 0x04, unsigned int[2])        /* get keycode */
-#define EVIOCGKEYCODE_V2	_IOR('E', 0x04, struct input_keymap_entry)
-#define EVIOCSKEYCODE		_IOW('E', 0x04, unsigned int[2])        /* set keycode */
-#define EVIOCSKEYCODE_V2	_IOW('E', 0x04, struct input_keymap_entry)
+#define EVIOCGKEYCODE   _IOR('E', 0x04, unsigned int[2])        /* get keycode
+                                                                 * */
+#define EVIOCGKEYCODE_V2  _IOR('E', 0x04, struct input_keymap_entry)
+#define EVIOCSKEYCODE   _IOW('E', 0x04, unsigned int[2])        /* set keycode
+                                                                 * */
+#define EVIOCSKEYCODE_V2  _IOW('E', 0x04, struct input_keymap_entry)
 
-#define EVIOCGNAME(len)		_IOC(_IOC_READ, 'E', 0x06, len)		/* get device name */
-#define EVIOCGPHYS(len)		_IOC(_IOC_READ, 'E', 0x07, len)		/* get physical location */
-#define EVIOCGUNIQ(len)		_IOC(_IOC_READ, 'E', 0x08, len)		/* get unique identifier */
-#define EVIOCGPROP(len)		_IOC(_IOC_READ, 'E', 0x09, len)		/* get device properties */
+#define EVIOCGNAME(len)   _IOC(_IOC_READ, 'E', 0x06, len)   /* get device name
+                                                             * */
+#define EVIOCGPHYS(len)   _IOC(_IOC_READ, 'E', 0x07, len)   /* get physical
+                                                             * location */
+#define EVIOCGUNIQ(len)   _IOC(_IOC_READ, 'E', 0x08, len)   /* get unique
+                                                             * identifier */
+#define EVIOCGPROP(len)   _IOC(_IOC_READ, 'E', 0x09, len)   /* get device
+                                                             * properties */
 
 /**
  * EVIOCGMTSLOTS(len) - get MT slot values
@@ -151,8 +157,8 @@ struct input_mask {
  * The ioctl buffer argument should be binary equivalent to
  *
  * struct input_mt_request_layout {
- *	__u32 code;
- *	__s32 values[num_slots];
+ *  __u32 code;
+ *  __s32 values[num_slots];
  * };
  *
  * where num_slots is the (arbitrary) number of MT slots to extract.
@@ -168,23 +174,37 @@ struct input_mask {
  *
  * If the request code is not an ABS_MT value, -EINVAL is returned.
  */
-#define EVIOCGMTSLOTS(len)	_IOC(_IOC_READ, 'E', 0x0a, len)
+#define EVIOCGMTSLOTS(len)  _IOC(_IOC_READ, 'E', 0x0a, len)
 
-#define EVIOCGKEY(len)		_IOC(_IOC_READ, 'E', 0x18, len)		/* get global key state */
-#define EVIOCGLED(len)		_IOC(_IOC_READ, 'E', 0x19, len)		/* get all LEDs */
-#define EVIOCGSND(len)		_IOC(_IOC_READ, 'E', 0x1a, len)		/* get all sounds status */
-#define EVIOCGSW(len)		_IOC(_IOC_READ, 'E', 0x1b, len)		/* get all switch states */
+#define EVIOCGKEY(len)    _IOC(_IOC_READ, 'E', 0x18, len)   /* get global key
+                                                             * state */
+#define EVIOCGLED(len)    _IOC(_IOC_READ, 'E', 0x19, len)   /* get all LEDs */
+#define EVIOCGSND(len)    _IOC(_IOC_READ, 'E', 0x1a, len)   /* get all sounds
+                                                             * status */
+#define EVIOCGSW(len)   _IOC(_IOC_READ, 'E', 0x1b, len)   /* get all switch
+                                                           * states */
 
-#define EVIOCGBIT(ev,len)	_IOC(_IOC_READ, 'E', 0x20 + (ev), len)	/* get event bits */
-#define EVIOCGABS(abs)		_IOR('E', 0x40 + (abs), struct input_absinfo)	/* get abs value/limits */
-#define EVIOCSABS(abs)		_IOW('E', 0xc0 + (abs), struct input_absinfo)	/* set abs value/limits */
+#define EVIOCGBIT(ev, len) _IOC(_IOC_READ, 'E', 0x20 + (ev), len)  /* get event
+                                                                    * bits */
+#define EVIOCGABS(abs)    _IOR('E', 0x40 + (abs), struct input_absinfo) /* get
+                                                                         * abs
+                                                                         * value/limits
+                                                                         * */
+#define EVIOCSABS(abs)    _IOW('E', 0xc0 + (abs), struct input_absinfo) /* set
+                                                                         * abs
+                                                                         * value/limits
+                                                                         * */
 
-#define EVIOCSFF		_IOW('E', 0x80, struct ff_effect)	/* send a force effect to a force feedback device */
-#define EVIOCRMFF		_IOW('E', 0x81, int)			/* Erase a force effect */
-#define EVIOCGEFFECTS		_IOR('E', 0x84, int)			/* Report number of effects playable at the same time */
+#define EVIOCSFF    _IOW('E', 0x80, struct ff_effect) /* send a force effect to
+                                                       * a force feedback device
+                                                       * */
+#define EVIOCRMFF   _IOW('E', 0x81, int)      /* Erase a force effect */
+#define EVIOCGEFFECTS   _IOR('E', 0x84, int)      /* Report number of effects
+                                                   * playable at the same time
+                                                   * */
 
-#define EVIOCGRAB		_IOW('E', 0x90, int)			/* Grab/Release device */
-#define EVIOCREVOKE		_IOW('E', 0x91, int)			/* Revoke device access */
+#define EVIOCGRAB   _IOW('E', 0x90, int)      /* Grab/Release device */
+#define EVIOCREVOKE   _IOW('E', 0x91, int)      /* Revoke device access */
 
 /**
  * EVIOCGMASK - Retrieve current event mask
@@ -215,7 +235,7 @@ struct input_mask {
  * if the receive-buffer points to invalid memory, or EINVAL if the kernel
  * does not implement the ioctl.
  */
-#define EVIOCGMASK		_IOR('E', 0x92, struct input_mask)	/* Get event-masks */
+#define EVIOCGMASK    _IOR('E', 0x92, struct input_mask)  /* Get event-masks */
 
 /**
  * EVIOCSMASK - Set event mask
@@ -238,59 +258,60 @@ struct input_mask {
  * returned if the receive-buffer points to invalid memory. EINVAL is returned
  * if the kernel does not implement the ioctl.
  */
-#define EVIOCSMASK		_IOW('E', 0x93, struct input_mask)	/* Set event-masks */
+#define EVIOCSMASK    _IOW('E', 0x93, struct input_mask)  /* Set event-masks */
 
-#define EVIOCSCLOCKID		_IOW('E', 0xa0, int)			/* Set clockid to be used for timestamps */
+#define EVIOCSCLOCKID   _IOW('E', 0xa0, int)      /* Set clockid to be used for
+                                                   * timestamps */
 
 /*
  * IDs.
  */
 
-#define ID_BUS			0
-#define ID_VENDOR		1
-#define ID_PRODUCT		2
-#define ID_VERSION		3
+#define ID_BUS      0
+#define ID_VENDOR   1
+#define ID_PRODUCT    2
+#define ID_VERSION    3
 
-#define BUS_PCI			0x01
-#define BUS_ISAPNP		0x02
-#define BUS_USB			0x03
-#define BUS_HIL			0x04
-#define BUS_BLUETOOTH		0x05
-#define BUS_VIRTUAL		0x06
+#define BUS_PCI     0x01
+#define BUS_ISAPNP    0x02
+#define BUS_USB     0x03
+#define BUS_HIL     0x04
+#define BUS_BLUETOOTH   0x05
+#define BUS_VIRTUAL   0x06
 
-#define BUS_ISA			0x10
-#define BUS_I8042		0x11
-#define BUS_XTKBD		0x12
-#define BUS_RS232		0x13
-#define BUS_GAMEPORT		0x14
-#define BUS_PARPORT		0x15
-#define BUS_AMIGA		0x16
-#define BUS_ADB			0x17
-#define BUS_I2C			0x18
-#define BUS_HOST		0x19
-#define BUS_GSC			0x1A
-#define BUS_ATARI		0x1B
-#define BUS_SPI			0x1C
-#define BUS_RMI			0x1D
-#define BUS_CEC			0x1E
-#define BUS_INTEL_ISHTP		0x1F
-#define BUS_AMD_SFH		0x20
+#define BUS_ISA     0x10
+#define BUS_I8042   0x11
+#define BUS_XTKBD   0x12
+#define BUS_RS232   0x13
+#define BUS_GAMEPORT    0x14
+#define BUS_PARPORT   0x15
+#define BUS_AMIGA   0x16
+#define BUS_ADB     0x17
+#define BUS_I2C     0x18
+#define BUS_HOST    0x19
+#define BUS_GSC     0x1A
+#define BUS_ATARI   0x1B
+#define BUS_SPI     0x1C
+#define BUS_RMI     0x1D
+#define BUS_CEC     0x1E
+#define BUS_INTEL_ISHTP   0x1F
+#define BUS_AMD_SFH   0x20
 
 /*
  * MT_TOOL types
  */
-#define MT_TOOL_FINGER		0x00
-#define MT_TOOL_PEN		0x01
-#define MT_TOOL_PALM		0x02
-#define MT_TOOL_DIAL		0x0a
-#define MT_TOOL_MAX		0x0f
+#define MT_TOOL_FINGER    0x00
+#define MT_TOOL_PEN   0x01
+#define MT_TOOL_PALM    0x02
+#define MT_TOOL_DIAL    0x0a
+#define MT_TOOL_MAX   0x0f
 
 /*
  * Values describing the status of a force-feedback effect
  */
-#define FF_STATUS_STOPPED	0x00
-#define FF_STATUS_PLAYING	0x01
-#define FF_STATUS_MAX		0x01
+#define FF_STATUS_STOPPED 0x00
+#define FF_STATUS_PLAYING 0x01
+#define FF_STATUS_MAX   0x01
 
 /*
  * Structures used in ioctls to upload effects to a device
@@ -308,8 +329,8 @@ struct input_mask {
  * @delay: delay before effect should start playing
  */
 struct ff_replay {
-	__u16 length;
-	__u16 delay;
+  __u16 length;
+  __u16 delay;
 };
 
 /**
@@ -318,8 +339,8 @@ struct ff_replay {
  * @interval: controls how soon the effect can be re-triggered
  */
 struct ff_trigger {
-	__u16 button;
-	__u16 interval;
+  __u16 button;
+  __u16 interval;
 };
 
 /**
@@ -335,20 +356,21 @@ struct ff_trigger {
  * Valid range for the attack and fade levels is 0x0000 - 0x7fff
  */
 struct ff_envelope {
-	__u16 attack_length;
-	__u16 attack_level;
-	__u16 fade_length;
-	__u16 fade_level;
+  __u16 attack_length;
+  __u16 attack_level;
+  __u16 fade_length;
+  __u16 fade_level;
 };
 
 /**
- * struct ff_constant_effect - defines parameters of a constant force-feedback effect
+ * struct ff_constant_effect - defines parameters of a constant force-feedback
+ * effect
  * @level: strength of the effect; may be negative
  * @envelope: envelope data
  */
 struct ff_constant_effect {
-	__s16 level;
-	struct ff_envelope envelope;
+  __s16 level;
+  struct ff_envelope envelope;
 };
 
 /**
@@ -358,34 +380,36 @@ struct ff_constant_effect {
  * @envelope: envelope data
  */
 struct ff_ramp_effect {
-	__s16 start_level;
-	__s16 end_level;
-	struct ff_envelope envelope;
+  __s16 start_level;
+  __s16 end_level;
+  struct ff_envelope envelope;
 };
 
 /**
- * struct ff_condition_effect - defines a spring or friction force-feedback effect
+ * struct ff_condition_effect - defines a spring or friction force-feedback
+ * effect
  * @right_saturation: maximum level when joystick moved all way to the right
  * @left_saturation: same for the left side
  * @right_coeff: controls how fast the force grows when the joystick moves
- *	to the right
+ *  to the right
  * @left_coeff: same for the left side
  * @deadband: size of the dead zone, where no force is produced
  * @center: position of the dead zone
  */
 struct ff_condition_effect {
-	__u16 right_saturation;
-	__u16 left_saturation;
+  __u16 right_saturation;
+  __u16 left_saturation;
 
-	__s16 right_coeff;
-	__s16 left_coeff;
+  __s16 right_coeff;
+  __s16 left_coeff;
 
-	__u16 deadband;
-	__s16 center;
+  __u16 deadband;
+  __s16 center;
 };
 
 /**
- * struct ff_periodic_effect - defines parameters of a periodic force-feedback effect
+ * struct ff_periodic_effect - defines parameters of a periodic force-feedback
+ * effect
  * @waveform: kind of the effect (wave)
  * @period: period of the wave (ms)
  * @magnitude: peak value
@@ -403,20 +427,21 @@ struct ff_condition_effect {
  * You can therefore dispose of the memory after the upload/update.
  */
 struct ff_periodic_effect {
-	__u16 waveform;
-	__u16 period;
-	__s16 magnitude;
-	__s16 offset;
-	__u16 phase;
+  __u16 waveform;
+  __u16 period;
+  __s16 magnitude;
+  __s16 offset;
+  __u16 phase;
 
-	struct ff_envelope envelope;
+  struct ff_envelope envelope;
 
-	__u32 custom_len;
-	__s16 __user *custom_data;
+  __u32 custom_len;
+  __s16 __user *custom_data;
 };
 
 /**
- * struct ff_rumble_effect - defines parameters of a periodic force-feedback effect
+ * struct ff_rumble_effect - defines parameters of a periodic force-feedback
+ * effect
  * @strong_magnitude: magnitude of the heavy motor
  * @weak_magnitude: magnitude of the light one
  *
@@ -424,21 +449,21 @@ struct ff_periodic_effect {
  * represents the magnitude of the vibration generated by the heavy one.
  */
 struct ff_rumble_effect {
-	__u16 strong_magnitude;
-	__u16 weak_magnitude;
+  __u16 strong_magnitude;
+  __u16 weak_magnitude;
 };
 
 /**
  * struct ff_effect - defines force feedback effect
  * @type: type of the effect (FF_CONSTANT, FF_PERIODIC, FF_RAMP, FF_SPRING,
- *	FF_FRICTION, FF_DAMPER, FF_RUMBLE, FF_INERTIA, or FF_CUSTOM)
+ *  FF_FRICTION, FF_DAMPER, FF_RUMBLE, FF_INERTIA, or FF_CUSTOM)
  * @id: an unique id assigned to an effect
  * @direction: direction of the effect
  * @trigger: trigger conditions (struct ff_trigger)
  * @replay: scheduling of the effect (struct ff_replay)
  * @u: effect-specific structure (one of ff_constant_effect, ff_ramp_effect,
- *	ff_periodic_effect, ff_condition_effect, ff_rumble_effect) further
- *	defining effect parameters
+ *  ff_periodic_effect, ff_condition_effect, ff_rumble_effect) further
+ *  defining effect parameters
  *
  * This structure is sent through ioctl from the application to the driver.
  * To create a new effect application should set its @id to -1; the kernel
@@ -446,63 +471,63 @@ struct ff_rumble_effect {
  * this effect.
  *
  * Direction of the effect is encoded as follows:
- *	0 deg -> 0x0000 (down)
- *	90 deg -> 0x4000 (left)
- *	180 deg -> 0x8000 (up)
- *	270 deg -> 0xC000 (right)
+ *  0 deg -> 0x0000 (down)
+ *  90 deg -> 0x4000 (left)
+ *  180 deg -> 0x8000 (up)
+ *  270 deg -> 0xC000 (right)
  */
 struct ff_effect {
-	__u16 type;
-	__s16 id;
-	__u16 direction;
-	struct ff_trigger trigger;
-	struct ff_replay replay;
+  __u16 type;
+  __s16 id;
+  __u16 direction;
+  struct ff_trigger trigger;
+  struct ff_replay replay;
 
-	union {
-		struct ff_constant_effect constant;
-		struct ff_ramp_effect ramp;
-		struct ff_periodic_effect periodic;
-		struct ff_condition_effect condition[2]; /* One for each axis */
-		struct ff_rumble_effect rumble;
-	} u;
+  union {
+    struct ff_constant_effect constant;
+    struct ff_ramp_effect ramp;
+    struct ff_periodic_effect periodic;
+    struct ff_condition_effect condition[2]; /* One for each axis */
+    struct ff_rumble_effect rumble;
+  } u;
 };
 
 /*
  * Force feedback effect types
  */
 
-#define FF_RUMBLE	0x50
-#define FF_PERIODIC	0x51
-#define FF_CONSTANT	0x52
-#define FF_SPRING	0x53
-#define FF_FRICTION	0x54
-#define FF_DAMPER	0x55
-#define FF_INERTIA	0x56
-#define FF_RAMP		0x57
+#define FF_RUMBLE 0x50
+#define FF_PERIODIC 0x51
+#define FF_CONSTANT 0x52
+#define FF_SPRING 0x53
+#define FF_FRICTION 0x54
+#define FF_DAMPER 0x55
+#define FF_INERTIA  0x56
+#define FF_RAMP   0x57
 
-#define FF_EFFECT_MIN	FF_RUMBLE
-#define FF_EFFECT_MAX	FF_RAMP
+#define FF_EFFECT_MIN FF_RUMBLE
+#define FF_EFFECT_MAX FF_RAMP
 
 /*
  * Force feedback periodic effect types
  */
 
-#define FF_SQUARE	0x58
-#define FF_TRIANGLE	0x59
-#define FF_SINE		0x5a
-#define FF_SAW_UP	0x5b
-#define FF_SAW_DOWN	0x5c
-#define FF_CUSTOM	0x5d
+#define FF_SQUARE 0x58
+#define FF_TRIANGLE 0x59
+#define FF_SINE   0x5a
+#define FF_SAW_UP 0x5b
+#define FF_SAW_DOWN 0x5c
+#define FF_CUSTOM 0x5d
 
-#define FF_WAVEFORM_MIN	FF_SQUARE
-#define FF_WAVEFORM_MAX	FF_CUSTOM
+#define FF_WAVEFORM_MIN FF_SQUARE
+#define FF_WAVEFORM_MAX FF_CUSTOM
 
 /*
  * Set ff device properties
  */
 
-#define FF_GAIN		0x60
-#define FF_AUTOCENTER	0x61
+#define FF_GAIN   0x60
+#define FF_AUTOCENTER 0x61
 
 /*
  * ff->playback(effect_id = FF_GAIN) is the first effect_id to
@@ -510,9 +535,9 @@ struct ff_effect {
  * Therefore the greatest safe value for effect_id is FF_GAIN - 1,
  * and thus the total number of effects should never exceed FF_GAIN.
  */
-#define FF_MAX_EFFECTS	FF_GAIN
+#define FF_MAX_EFFECTS  FF_GAIN
 
-#define FF_MAX		0x7f
-#define FF_CNT		(FF_MAX+1)
+#define FF_MAX    0x7f
+#define FF_CNT    (FF_MAX + 1)
 
 #endif /* _UAPI_INPUT_H */

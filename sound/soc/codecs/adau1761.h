@@ -15,7 +15,7 @@
 struct device;
 
 int adau1761_probe(struct device *dev, struct regmap *regmap,
-	enum adau17x1_type type, void (*switch_mode)(struct device *dev));
+    enum adau17x1_type type, void (*switch_mode)(struct device *dev));
 
 extern const struct regmap_config adau1761_regmap_config;
 

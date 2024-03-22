@@ -5,9 +5,9 @@
 #include <linux/const.h>
 
 /* MONITOR/MWAIT enabled in Ring 3 */
-#define HWCAP2_RING3MWAIT		_BITUL(0)
+#define HWCAP2_RING3MWAIT   _BITUL(0)
 
 /* Kernel allows FSGSBASE instructions available in Ring 3 */
-#define HWCAP2_FSGSBASE			_BITUL(1)
+#define HWCAP2_FSGSBASE     _BITUL(1)
 
 #endif

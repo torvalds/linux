@@ -66,9 +66,9 @@
  * from xxhash and zstd from being exported by the EXPORT_SYMBOL macro.
  */
 #ifdef STATIC
-# define UNZSTD_PREBOOT
-# include "xxhash.c"
-# include "zstd/decompress_sources.h"
+#define UNZSTD_PREBOOT
+#include "xxhash.c"
+#include "zstd/decompress_sources.h"
 #else
 #include <linux/decompress/unzstd.h>
 #endif
@@ -78,43 +78,41 @@
 #include <linux/zstd.h>
 
 /* 128MB is the maximum window size supported by zstd. */
-#define ZSTD_WINDOWSIZE_MAX	(1 << ZSTD_WINDOWLOG_MAX)
+#define ZSTD_WINDOWSIZE_MAX (1 << ZSTD_WINDOWLOG_MAX)
 /*
  * Size of the input and output buffers in multi-call mode.
  * Pick a larger size because it isn't used during kernel decompression,
  * since that is single pass, and we have to allocate a large buffer for
  * zstd's window anyway. The larger size speeds up initramfs decompression.
  */
-#define ZSTD_IOBUF_SIZE		(1 << 17)
+#define ZSTD_IOBUF_SIZE   (1 << 17)
 
-static int INIT handle_zstd_error(size_t ret, void (*error)(char *x))
-{
-	const zstd_error_code err = zstd_get_error_code(ret);
-
-	if (!zstd_is_error(ret))
-		return 0;
-
-	/*
-	 * zstd_get_error_name() cannot be used because error takes a char *
-	 * not a const char *
-	 */
-	switch (err) {
-	case ZSTD_error_memory_allocation:
-		error("ZSTD decompressor ran out of memory");
-		break;
-	case ZSTD_error_prefix_unknown:
-		error("Input is not in the ZSTD format (wrong magic bytes)");
-		break;
-	case ZSTD_error_dstSize_tooSmall:
-	case ZSTD_error_corruption_detected:
-	case ZSTD_error_checksum_wrong:
-		error("ZSTD-compressed data is corrupt");
-		break;
-	default:
-		error("ZSTD-compressed data is probably corrupt");
-		break;
-	}
-	return -1;
+static int INIT handle_zstd_error(size_t ret, void (*error)(char *x)) {
+  const zstd_error_code err = zstd_get_error_code(ret);
+  if (!zstd_is_error(ret)) {
+    return 0;
+  }
+  /*
+   * zstd_get_error_name() cannot be used because error takes a char *
+   * not a const char *
+   */
+  switch (err) {
+    case ZSTD_error_memory_allocation:
+      error("ZSTD decompressor ran out of memory");
+      break;
+    case ZSTD_error_prefix_unknown:
+      error("Input is not in the ZSTD format (wrong magic bytes)");
+      break;
+    case ZSTD_error_dstSize_tooSmall:
+    case ZSTD_error_corruption_detected:
+    case ZSTD_error_checksum_wrong:
+      error("ZSTD-compressed data is corrupt");
+      break;
+    default:
+      error("ZSTD-compressed data is probably corrupt");
+      break;
+  }
+  return -1;
 }
 
 /*
@@ -123,230 +121,231 @@ static int INIT handle_zstd_error(size_t ret, void (*error)(char *x))
  * and avoid some memcpy() calls.
  */
 static int INIT decompress_single(const u8 *in_buf, long in_len, u8 *out_buf,
-				  long out_len, long *in_pos,
-				  void (*error)(char *x))
-{
-	const size_t wksp_size = zstd_dctx_workspace_bound();
-	void *wksp = large_malloc(wksp_size);
-	zstd_dctx *dctx = zstd_init_dctx(wksp, wksp_size);
-	int err;
-	size_t ret;
-
-	if (dctx == NULL) {
-		error("Out of memory while allocating zstd_dctx");
-		err = -1;
-		goto out;
-	}
-	/*
-	 * Find out how large the frame actually is, there may be junk at
-	 * the end of the frame that zstd_decompress_dctx() can't handle.
-	 */
-	ret = zstd_find_frame_compressed_size(in_buf, in_len);
-	err = handle_zstd_error(ret, error);
-	if (err)
-		goto out;
-	in_len = (long)ret;
-
-	ret = zstd_decompress_dctx(dctx, out_buf, out_len, in_buf, in_len);
-	err = handle_zstd_error(ret, error);
-	if (err)
-		goto out;
-
-	if (in_pos != NULL)
-		*in_pos = in_len;
-
-	err = 0;
+    long out_len, long *in_pos,
+    void (*error)(char *x)) {
+  const size_t wksp_size = zstd_dctx_workspace_bound();
+  void *wksp = large_malloc(wksp_size);
+  zstd_dctx *dctx = zstd_init_dctx(wksp, wksp_size);
+  int err;
+  size_t ret;
+  if (dctx == NULL) {
+    error("Out of memory while allocating zstd_dctx");
+    err = -1;
+    goto out;
+  }
+  /*
+   * Find out how large the frame actually is, there may be junk at
+   * the end of the frame that zstd_decompress_dctx() can't handle.
+   */
+  ret = zstd_find_frame_compressed_size(in_buf, in_len);
+  err = handle_zstd_error(ret, error);
+  if (err) {
+    goto out;
+  }
+  in_len = (long) ret;
+  ret = zstd_decompress_dctx(dctx, out_buf, out_len, in_buf, in_len);
+  err = handle_zstd_error(ret, error);
+  if (err) {
+    goto out;
+  }
+  if (in_pos != NULL) {
+    *in_pos = in_len;
+  }
+  err = 0;
 out:
-	if (wksp != NULL)
-		large_free(wksp);
-	return err;
+  if (wksp != NULL) {
+    large_free(wksp);
+  }
+  return err;
 }
 
 static int INIT __unzstd(unsigned char *in_buf, long in_len,
-			 long (*fill)(void*, unsigned long),
-			 long (*flush)(void*, unsigned long),
-			 unsigned char *out_buf, long out_len,
-			 long *in_pos,
-			 void (*error)(char *x))
-{
-	zstd_in_buffer in;
-	zstd_out_buffer out;
-	zstd_frame_header header;
-	void *in_allocated = NULL;
-	void *out_allocated = NULL;
-	void *wksp = NULL;
-	size_t wksp_size;
-	zstd_dstream *dstream;
-	int err;
-	size_t ret;
-
-	/*
-	 * ZSTD decompression code won't be happy if the buffer size is so big
-	 * that its end address overflows. When the size is not provided, make
-	 * it as big as possible without having the end address overflow.
-	 */
-	if (out_len == 0)
-		out_len = UINTPTR_MAX - (uintptr_t)out_buf;
-
-	if (fill == NULL && flush == NULL)
-		/*
-		 * We can decompress faster and with less memory when we have a
-		 * single chunk.
-		 */
-		return decompress_single(in_buf, in_len, out_buf, out_len,
-					 in_pos, error);
-
-	/*
-	 * If in_buf is not provided, we must be using fill(), so allocate
-	 * a large enough buffer. If it is provided, it must be at least
-	 * ZSTD_IOBUF_SIZE large.
-	 */
-	if (in_buf == NULL) {
-		in_allocated = large_malloc(ZSTD_IOBUF_SIZE);
-		if (in_allocated == NULL) {
-			error("Out of memory while allocating input buffer");
-			err = -1;
-			goto out;
-		}
-		in_buf = in_allocated;
-		in_len = 0;
-	}
-	/* Read the first chunk, since we need to decode the frame header. */
-	if (fill != NULL)
-		in_len = fill(in_buf, ZSTD_IOBUF_SIZE);
-	if (in_len < 0) {
-		error("ZSTD-compressed data is truncated");
-		err = -1;
-		goto out;
-	}
-	/* Set the first non-empty input buffer. */
-	in.src = in_buf;
-	in.pos = 0;
-	in.size = in_len;
-	/* Allocate the output buffer if we are using flush(). */
-	if (flush != NULL) {
-		out_allocated = large_malloc(ZSTD_IOBUF_SIZE);
-		if (out_allocated == NULL) {
-			error("Out of memory while allocating output buffer");
-			err = -1;
-			goto out;
-		}
-		out_buf = out_allocated;
-		out_len = ZSTD_IOBUF_SIZE;
-	}
-	/* Set the output buffer. */
-	out.dst = out_buf;
-	out.pos = 0;
-	out.size = out_len;
-
-	/*
-	 * We need to know the window size to allocate the zstd_dstream.
-	 * Since we are streaming, we need to allocate a buffer for the sliding
-	 * window. The window size varies from 1 KB to ZSTD_WINDOWSIZE_MAX
-	 * (8 MB), so it is important to use the actual value so as not to
-	 * waste memory when it is smaller.
-	 */
-	ret = zstd_get_frame_header(&header, in.src, in.size);
-	err = handle_zstd_error(ret, error);
-	if (err)
-		goto out;
-	if (ret != 0) {
-		error("ZSTD-compressed data has an incomplete frame header");
-		err = -1;
-		goto out;
-	}
-	if (header.windowSize > ZSTD_WINDOWSIZE_MAX) {
-		error("ZSTD-compressed data has too large a window size");
-		err = -1;
-		goto out;
-	}
-
-	/*
-	 * Allocate the zstd_dstream now that we know how much memory is
-	 * required.
-	 */
-	wksp_size = zstd_dstream_workspace_bound(header.windowSize);
-	wksp = large_malloc(wksp_size);
-	dstream = zstd_init_dstream(header.windowSize, wksp, wksp_size);
-	if (dstream == NULL) {
-		error("Out of memory while allocating ZSTD_DStream");
-		err = -1;
-		goto out;
-	}
-
-	/*
-	 * Decompression loop:
-	 * Read more data if necessary (error if no more data can be read).
-	 * Call the decompression function, which returns 0 when finished.
-	 * Flush any data produced if using flush().
-	 */
-	if (in_pos != NULL)
-		*in_pos = 0;
-	do {
-		/*
-		 * If we need to reload data, either we have fill() and can
-		 * try to get more data, or we don't and the input is truncated.
-		 */
-		if (in.pos == in.size) {
-			if (in_pos != NULL)
-				*in_pos += in.pos;
-			in_len = fill ? fill(in_buf, ZSTD_IOBUF_SIZE) : -1;
-			if (in_len < 0) {
-				error("ZSTD-compressed data is truncated");
-				err = -1;
-				goto out;
-			}
-			in.pos = 0;
-			in.size = in_len;
-		}
-		/* Returns zero when the frame is complete. */
-		ret = zstd_decompress_stream(dstream, &out, &in);
-		err = handle_zstd_error(ret, error);
-		if (err)
-			goto out;
-		/* Flush all of the data produced if using flush(). */
-		if (flush != NULL && out.pos > 0) {
-			if (out.pos != flush(out.dst, out.pos)) {
-				error("Failed to flush()");
-				err = -1;
-				goto out;
-			}
-			out.pos = 0;
-		}
-	} while (ret != 0);
-
-	if (in_pos != NULL)
-		*in_pos += in.pos;
-
-	err = 0;
+    long (*fill)(void *, unsigned long),
+    long (*flush)(void *, unsigned long),
+    unsigned char *out_buf, long out_len,
+    long *in_pos,
+    void (*error)(char *x)) {
+  zstd_in_buffer in;
+  zstd_out_buffer out;
+  zstd_frame_header header;
+  void *in_allocated = NULL;
+  void *out_allocated = NULL;
+  void *wksp = NULL;
+  size_t wksp_size;
+  zstd_dstream *dstream;
+  int err;
+  size_t ret;
+  /*
+   * ZSTD decompression code won't be happy if the buffer size is so big
+   * that its end address overflows. When the size is not provided, make
+   * it as big as possible without having the end address overflow.
+   */
+  if (out_len == 0) {
+    out_len = UINTPTR_MAX - (uintptr_t) out_buf;
+  }
+  if (fill == NULL && flush == NULL) {
+    /*
+     * We can decompress faster and with less memory when we have a
+     * single chunk.
+     */
+    return decompress_single(in_buf, in_len, out_buf, out_len,
+        in_pos, error);
+  }
+  /*
+   * If in_buf is not provided, we must be using fill(), so allocate
+   * a large enough buffer. If it is provided, it must be at least
+   * ZSTD_IOBUF_SIZE large.
+   */
+  if (in_buf == NULL) {
+    in_allocated = large_malloc(ZSTD_IOBUF_SIZE);
+    if (in_allocated == NULL) {
+      error("Out of memory while allocating input buffer");
+      err = -1;
+      goto out;
+    }
+    in_buf = in_allocated;
+    in_len = 0;
+  }
+  /* Read the first chunk, since we need to decode the frame header. */
+  if (fill != NULL) {
+    in_len = fill(in_buf, ZSTD_IOBUF_SIZE);
+  }
+  if (in_len < 0) {
+    error("ZSTD-compressed data is truncated");
+    err = -1;
+    goto out;
+  }
+  /* Set the first non-empty input buffer. */
+  in.src = in_buf;
+  in.pos = 0;
+  in.size = in_len;
+  /* Allocate the output buffer if we are using flush(). */
+  if (flush != NULL) {
+    out_allocated = large_malloc(ZSTD_IOBUF_SIZE);
+    if (out_allocated == NULL) {
+      error("Out of memory while allocating output buffer");
+      err = -1;
+      goto out;
+    }
+    out_buf = out_allocated;
+    out_len = ZSTD_IOBUF_SIZE;
+  }
+  /* Set the output buffer. */
+  out.dst = out_buf;
+  out.pos = 0;
+  out.size = out_len;
+  /*
+   * We need to know the window size to allocate the zstd_dstream.
+   * Since we are streaming, we need to allocate a buffer for the sliding
+   * window. The window size varies from 1 KB to ZSTD_WINDOWSIZE_MAX
+   * (8 MB), so it is important to use the actual value so as not to
+   * waste memory when it is smaller.
+   */
+  ret = zstd_get_frame_header(&header, in.src, in.size);
+  err = handle_zstd_error(ret, error);
+  if (err) {
+    goto out;
+  }
+  if (ret != 0) {
+    error("ZSTD-compressed data has an incomplete frame header");
+    err = -1;
+    goto out;
+  }
+  if (header.windowSize > ZSTD_WINDOWSIZE_MAX) {
+    error("ZSTD-compressed data has too large a window size");
+    err = -1;
+    goto out;
+  }
+  /*
+   * Allocate the zstd_dstream now that we know how much memory is
+   * required.
+   */
+  wksp_size = zstd_dstream_workspace_bound(header.windowSize);
+  wksp = large_malloc(wksp_size);
+  dstream = zstd_init_dstream(header.windowSize, wksp, wksp_size);
+  if (dstream == NULL) {
+    error("Out of memory while allocating ZSTD_DStream");
+    err = -1;
+    goto out;
+  }
+  /*
+   * Decompression loop:
+   * Read more data if necessary (error if no more data can be read).
+   * Call the decompression function, which returns 0 when finished.
+   * Flush any data produced if using flush().
+   */
+  if (in_pos != NULL) {
+    *in_pos = 0;
+  }
+  do {
+    /*
+     * If we need to reload data, either we have fill() and can
+     * try to get more data, or we don't and the input is truncated.
+     */
+    if (in.pos == in.size) {
+      if (in_pos != NULL) {
+        *in_pos += in.pos;
+      }
+      in_len = fill ? fill(in_buf, ZSTD_IOBUF_SIZE) : -1;
+      if (in_len < 0) {
+        error("ZSTD-compressed data is truncated");
+        err = -1;
+        goto out;
+      }
+      in.pos = 0;
+      in.size = in_len;
+    }
+    /* Returns zero when the frame is complete. */
+    ret = zstd_decompress_stream(dstream, &out, &in);
+    err = handle_zstd_error(ret, error);
+    if (err) {
+      goto out;
+    }
+    /* Flush all of the data produced if using flush(). */
+    if (flush != NULL && out.pos > 0) {
+      if (out.pos != flush(out.dst, out.pos)) {
+        error("Failed to flush()");
+        err = -1;
+        goto out;
+      }
+      out.pos = 0;
+    }
+  } while (ret != 0);
+  if (in_pos != NULL) {
+    *in_pos += in.pos;
+  }
+  err = 0;
 out:
-	if (in_allocated != NULL)
-		large_free(in_allocated);
-	if (out_allocated != NULL)
-		large_free(out_allocated);
-	if (wksp != NULL)
-		large_free(wksp);
-	return err;
+  if (in_allocated != NULL) {
+    large_free(in_allocated);
+  }
+  if (out_allocated != NULL) {
+    large_free(out_allocated);
+  }
+  if (wksp != NULL) {
+    large_free(wksp);
+  }
+  return err;
 }
 
 #ifndef UNZSTD_PREBOOT
 STATIC int INIT unzstd(unsigned char *buf, long len,
-		       long (*fill)(void*, unsigned long),
-		       long (*flush)(void*, unsigned long),
-		       unsigned char *out_buf,
-		       long *pos,
-		       void (*error)(char *x))
-{
-	return __unzstd(buf, len, fill, flush, out_buf, 0, pos, error);
+    long (*fill)(void *, unsigned long),
+    long (*flush)(void *, unsigned long),
+    unsigned char *out_buf,
+    long *pos,
+    void (*error)(char *x)) {
+  return __unzstd(buf, len, fill, flush, out_buf, 0, pos, error);
 }
+
 #else
 STATIC int INIT __decompress(unsigned char *buf, long len,
-			     long (*fill)(void*, unsigned long),
-			     long (*flush)(void*, unsigned long),
-			     unsigned char *out_buf, long out_len,
-			     long *pos,
-			     void (*error)(char *x))
-{
-	return __unzstd(buf, len, fill, flush, out_buf, out_len, pos, error);
+    long (*fill)(void *, unsigned long),
+    long (*flush)(void *, unsigned long),
+    unsigned char *out_buf, long out_len,
+    long *pos,
+    void (*error)(char *x)) {
+  return __unzstd(buf, len, fill, flush, out_buf, out_len, pos, error);
 }
+
 #endif

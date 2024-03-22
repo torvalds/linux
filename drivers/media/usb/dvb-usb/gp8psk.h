@@ -18,9 +18,9 @@
 #include "dvb-usb.h"
 
 extern int dvb_usb_gp8psk_debug;
-#define deb_info(args...) dprintk(dvb_usb_gp8psk_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_gp8psk_debug,0x02,args)
-#define deb_rc(args...)   dprintk(dvb_usb_gp8psk_debug,0x04,args)
+#define deb_info(args ...) dprintk(dvb_usb_gp8psk_debug, 0x01, args)
+#define deb_xfer(args ...) dprintk(dvb_usb_gp8psk_debug, 0x02, args)
+#define deb_rc(args ...)   dprintk(dvb_usb_gp8psk_debug, 0x04, args)
 
 #define GET_USB_SPEED                     0x07
 

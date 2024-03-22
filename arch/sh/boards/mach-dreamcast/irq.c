@@ -60,96 +60,84 @@
  */
 
 /* Disable the hardware event by masking its bit in its EMR */
-static inline void disable_systemasic_irq(struct irq_data *data)
-{
-	unsigned int irq = data->irq;
-	__u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
-	__u32 mask;
-
-	mask = inl(emr);
-	mask &= ~(1 << EVENT_BIT(irq));
-	outl(mask, emr);
+static inline void disable_systemasic_irq(struct irq_data *data) {
+  unsigned int irq = data->irq;
+  __u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
+  __u32 mask;
+  mask = inl(emr);
+  mask &= ~(1 << EVENT_BIT(irq));
+  outl(mask, emr);
 }
 
 /* Enable the hardware event by setting its bit in its EMR */
-static inline void enable_systemasic_irq(struct irq_data *data)
-{
-	unsigned int irq = data->irq;
-	__u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
-	__u32 mask;
-
-	mask = inl(emr);
-	mask |= (1 << EVENT_BIT(irq));
-	outl(mask, emr);
+static inline void enable_systemasic_irq(struct irq_data *data) {
+  unsigned int irq = data->irq;
+  __u32 emr = EMR_BASE + (LEVEL(irq) << 4) + (LEVEL(irq) << 2);
+  __u32 mask;
+  mask = inl(emr);
+  mask |= (1 << EVENT_BIT(irq));
+  outl(mask, emr);
 }
 
 /* Acknowledge a hardware event by writing its bit back to its ESR */
-static void mask_ack_systemasic_irq(struct irq_data *data)
-{
-	unsigned int irq = data->irq;
-	__u32 esr = ESR_BASE + (LEVEL(irq) << 2);
-	disable_systemasic_irq(data);
-	outl((1 << EVENT_BIT(irq)), esr);
+static void mask_ack_systemasic_irq(struct irq_data *data) {
+  unsigned int irq = data->irq;
+  __u32 esr = ESR_BASE + (LEVEL(irq) << 2);
+  disable_systemasic_irq(data);
+  outl((1 << EVENT_BIT(irq)), esr);
 }
 
 struct irq_chip systemasic_int = {
-	.name		= "System ASIC",
-	.irq_mask	= disable_systemasic_irq,
-	.irq_mask_ack	= mask_ack_systemasic_irq,
-	.irq_unmask	= enable_systemasic_irq,
+  .name = "System ASIC",
+  .irq_mask = disable_systemasic_irq,
+  .irq_mask_ack = mask_ack_systemasic_irq,
+  .irq_unmask = enable_systemasic_irq,
 };
 
 /*
  * Map the hardware event indicated by the processor IRQ to a virtual IRQ.
  */
-int systemasic_irq_demux(int irq)
-{
-	__u32 emr, esr, status, level;
-	__u32 j, bit;
-
-	switch (irq) {
-	case 13 + 16:
-		level = 0;
-		break;
-	case 11 + 16:
-		level = 1;
-		break;
-	case 9 + 16:
-		level = 2;
-		break;
-	default:
-		return irq;
-	}
-	emr = EMR_BASE + (level << 4) + (level << 2);
-	esr = ESR_BASE + (level << 2);
-
-	/* Mask the ESR to filter any spurious, unwanted interrupts */
-	status = inl(esr);
-	status &= inl(emr);
-
-	/* Now scan and find the first set bit as the event to map */
-	for (bit = 1, j = 0; j < 32; bit <<= 1, j++) {
-		if (status & bit) {
-			irq = HW_EVENT_IRQ_BASE + j + (level << 5);
-			return irq;
-		}
-	}
-
-	/* Not reached */
-	return irq;
+int systemasic_irq_demux(int irq) {
+  __u32 emr, esr, status, level;
+  __u32 j, bit;
+  switch (irq) {
+    case 13 + 16:
+      level = 0;
+      break;
+    case 11 + 16:
+      level = 1;
+      break;
+    case 9 + 16:
+      level = 2;
+      break;
+    default:
+      return irq;
+  }
+  emr = EMR_BASE + (level << 4) + (level << 2);
+  esr = ESR_BASE + (level << 2);
+  /* Mask the ESR to filter any spurious, unwanted interrupts */
+  status = inl(esr);
+  status &= inl(emr);
+  /* Now scan and find the first set bit as the event to map */
+  for (bit = 1, j = 0; j < 32; bit <<= 1, j++) {
+    if (status & bit) {
+      irq = HW_EVENT_IRQ_BASE + j + (level << 5);
+      return irq;
+    }
+  }
+  /* Not reached */
+  return irq;
 }
 
-void systemasic_irq_init(void)
-{
-	int irq_base, i;
-
-	irq_base = irq_alloc_descs(HW_EVENT_IRQ_BASE, HW_EVENT_IRQ_BASE,
-				   HW_EVENT_IRQ_MAX - HW_EVENT_IRQ_BASE, -1);
-	if (IS_ERR_VALUE(irq_base)) {
-		pr_err("%s: failed hooking irqs\n", __func__);
-		return;
-	}
-
-	for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++)
-		irq_set_chip_and_handler(i, &systemasic_int, handle_level_irq);
+void systemasic_irq_init(void) {
+  int irq_base, i;
+  irq_base = irq_alloc_descs(HW_EVENT_IRQ_BASE, HW_EVENT_IRQ_BASE,
+      HW_EVENT_IRQ_MAX - HW_EVENT_IRQ_BASE, -1);
+  if (IS_ERR_VALUE(irq_base)) {
+    pr_err("%s: failed hooking irqs\n", __func__);
+    return;
+  }
+  for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++) {
+    irq_set_chip_and_handler(i, &systemasic_int, handle_level_irq);
+  }
 }

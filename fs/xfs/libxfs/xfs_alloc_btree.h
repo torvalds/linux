@@ -4,7 +4,7 @@
  * All Rights Reserved.
  */
 #ifndef __XFS_ALLOC_BTREE_H__
-#define	__XFS_ALLOC_BTREE_H__
+#define __XFS_ALLOC_BTREE_H__
 
 /*
  * Freespace on-disk structures
@@ -20,8 +20,8 @@ struct xbtree_afakeroot;
  * Btree block header size depends on a superblock flag.
  */
 #define XFS_ALLOC_BLOCK_LEN(mp) \
-	(xfs_has_crc(((mp))) ? \
-		XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
+  (xfs_has_crc(((mp)))   \
+  ? XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
 
 /*
  * Record, key, and pointer address macros for btree blocks.
@@ -29,40 +29,40 @@ struct xbtree_afakeroot;
  * (note that some of these may appear unused, but they are used in userspace)
  */
 #define XFS_ALLOC_REC_ADDR(mp, block, index) \
-	((xfs_alloc_rec_t *) \
-		((char *)(block) + \
-		 XFS_ALLOC_BLOCK_LEN(mp) + \
-		 (((index) - 1) * sizeof(xfs_alloc_rec_t))))
+  ((xfs_alloc_rec_t *) \
+  ((char *) (block)   \
+  + XFS_ALLOC_BLOCK_LEN(mp)   \
+  + (((index) - 1) * sizeof(xfs_alloc_rec_t))))
 
 #define XFS_ALLOC_KEY_ADDR(mp, block, index) \
-	((xfs_alloc_key_t *) \
-		((char *)(block) + \
-		 XFS_ALLOC_BLOCK_LEN(mp) + \
-		 ((index) - 1) * sizeof(xfs_alloc_key_t)))
+  ((xfs_alloc_key_t *) \
+  ((char *) (block)   \
+  + XFS_ALLOC_BLOCK_LEN(mp)   \
+  + ((index) - 1) * sizeof(xfs_alloc_key_t)))
 
 #define XFS_ALLOC_PTR_ADDR(mp, block, index, maxrecs) \
-	((xfs_alloc_ptr_t *) \
-		((char *)(block) + \
-		 XFS_ALLOC_BLOCK_LEN(mp) + \
-		 (maxrecs) * sizeof(xfs_alloc_key_t) + \
-		 ((index) - 1) * sizeof(xfs_alloc_ptr_t)))
+  ((xfs_alloc_ptr_t *) \
+  ((char *) (block)   \
+  + XFS_ALLOC_BLOCK_LEN(mp)   \
+  + (maxrecs) * sizeof(xfs_alloc_key_t)   \
+  + ((index) - 1) * sizeof(xfs_alloc_ptr_t)))
 
 struct xfs_btree_cur *xfs_bnobt_init_cursor(struct xfs_mount *mp,
-		struct xfs_trans *tp, struct xfs_buf *bp,
-		struct xfs_perag *pag);
+    struct xfs_trans *tp, struct xfs_buf *bp,
+    struct xfs_perag *pag);
 struct xfs_btree_cur *xfs_cntbt_init_cursor(struct xfs_mount *mp,
-		struct xfs_trans *tp, struct xfs_buf *bp,
-		struct xfs_perag *pag);
+    struct xfs_trans *tp, struct xfs_buf *bp,
+    struct xfs_perag *pag);
 extern int xfs_allocbt_maxrecs(struct xfs_mount *, int, int);
 extern xfs_extlen_t xfs_allocbt_calc_size(struct xfs_mount *mp,
-		unsigned long long len);
+    unsigned long long len);
 
 void xfs_allocbt_commit_staged_btree(struct xfs_btree_cur *cur,
-		struct xfs_trans *tp, struct xfs_buf *agbp);
+    struct xfs_trans *tp, struct xfs_buf *agbp);
 
 unsigned int xfs_allocbt_maxlevels_ondisk(void);
 
 int __init xfs_allocbt_init_cur_cache(void);
 void xfs_allocbt_destroy_cur_cache(void);
 
-#endif	/* __XFS_ALLOC_BTREE_H__ */
+#endif  /* __XFS_ALLOC_BTREE_H__ */

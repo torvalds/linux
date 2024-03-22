@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/* Copyright (c) 2017 Maxim Integrated */
+/* SPDX-License-Identifier: GPL-2.0-only
+ * Copyright (c) 2017 Maxim Integrated*/
 
 #ifndef _MAX98373_H
 #define _MAX98373_H
@@ -31,7 +31,7 @@
 #define MAX98373_R2021_PCM_TX_HIZ_EN_2 0x2021
 #define MAX98373_R2022_PCM_TX_SRC_1 0x2022
 #define MAX98373_R2023_PCM_TX_SRC_2 0x2023
-#define MAX98373_R2024_PCM_DATA_FMT_CFG	0x2024
+#define MAX98373_R2024_PCM_DATA_FMT_CFG 0x2024
 #define MAX98373_R2025_AUDIO_IF_MODE 0x2025
 #define MAX98373_R2026_PCM_CLOCK_RATIO 0x2026
 #define MAX98373_R2027_PCM_SR_SETUP_1 0x2027
@@ -173,8 +173,8 @@
 #define MAX98373_BDE_EN_SHIFT (0)
 
 /* MAX98373_R20D1_DHT_CFG */
-#define MAX98373_DHT_SPK_GAIN_MIN_SHIFT	(4)
-#define MAX98373_DHT_ROT_PNT_SHIFT	(0)
+#define MAX98373_DHT_SPK_GAIN_MIN_SHIFT (4)
+#define MAX98373_DHT_ROT_PNT_SHIFT  (0)
 
 /* MAX98373_R20D2_DHT_ATTACK_CFG */
 #define MAX98373_DHT_ATTACK_STEP_SHIFT (3)
@@ -207,28 +207,28 @@
 #define MAX98373_SOFT_RESET (0x1 << 0)
 
 struct max98373_cache {
-	u32 reg;
-	u32 val;
+  u32 reg;
+  u32 val;
 };
 
 struct max98373_priv {
-	struct regmap *regmap;
-	struct gpio_desc *reset;
-	unsigned int v_slot;
-	unsigned int i_slot;
-	unsigned int spkfb_slot;
-	bool interleave_mode;
-	unsigned int ch_size;
-	bool tdm_mode;
-	/* cache for reading a valid fake feedback value */
-	struct max98373_cache *cache;
-	int cache_num;
-	/* variables to support soundwire */
-	struct sdw_slave *slave;
-	bool hw_init;
-	bool first_hw_init;
-	int slot;
-	unsigned int rx_mask;
+  struct regmap *regmap;
+  struct gpio_desc *reset;
+  unsigned int v_slot;
+  unsigned int i_slot;
+  unsigned int spkfb_slot;
+  bool interleave_mode;
+  unsigned int ch_size;
+  bool tdm_mode;
+  /* cache for reading a valid fake feedback value */
+  struct max98373_cache *cache;
+  int cache_num;
+  /* variables to support soundwire */
+  struct sdw_slave *slave;
+  bool hw_init;
+  bool first_hw_init;
+  int slot;
+  unsigned int rx_mask;
 };
 
 extern const struct snd_soc_component_driver soc_codec_dev_max98373;
@@ -236,5 +236,5 @@ extern const struct snd_soc_component_driver soc_codec_dev_max98373_sdw;
 
 void max98373_reset(struct max98373_priv *max98373, struct device *dev);
 void max98373_slot_config(struct device *dev,
-			  struct max98373_priv *max98373);
+    struct max98373_priv *max98373);
 #endif

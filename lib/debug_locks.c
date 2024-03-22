@@ -36,14 +36,14 @@ EXPORT_SYMBOL_GPL(debug_locks_silent);
 /*
  * Generic 'turn off all lock debugging' function:
  */
-int debug_locks_off(void)
-{
-	if (debug_locks && __debug_locks_off()) {
-		if (!debug_locks_silent) {
-			console_verbose();
-			return 1;
-		}
-	}
-	return 0;
+int debug_locks_off(void) {
+  if (debug_locks && __debug_locks_off()) {
+    if (!debug_locks_silent) {
+      console_verbose();
+      return 1;
+    }
+  }
+  return 0;
 }
+
 EXPORT_SYMBOL_GPL(debug_locks_off);

@@ -15,9 +15,9 @@
 #ifndef _LINUX_DIO_H
 #define _LINUX_DIO_H
 
-/* The DIO boards in a system are distinguished by 'select codes' which 
- * range from 0-63 (DIO) and 132-255 (DIO-II). 
- * The DIO board with select code sc is located at physical address 
+/* The DIO boards in a system are distinguished by 'select codes' which
+ * range from 0-63 (DIO) and 132-255 (DIO-II).
+ * The DIO board with select code sc is located at physical address
  *     0x600000 + sc * 0x10000
  * So DIO cards cover [0x600000-0x800000); the areas [0x200000-0x400000) and
  * [0x800000-0x1000000) are for additional space required by things
@@ -26,7 +26,7 @@
  * at 0xf0000000 on bootup.
  * DIO-II boards are at 0x1000000 + (sc - 132) * 0x400000
  * which is address range [0x1000000-0x20000000) -- too big to map completely,
- * so currently we just don't handle DIO-II boards.  It wouldn't be hard to 
+ * so currently we just don't handle DIO-II boards.  It wouldn't be hard to
  * do with ioremap() though.
  */
 
@@ -38,59 +38,60 @@
 
 typedef __u16 dio_id;
 
-    /*
-     *  DIO devices
-     */
+/*
+ *  DIO devices
+ */
 
 struct dio_dev {
-	struct dio_bus *bus;
-	dio_id id;
-	int scode;
-	struct dio_driver *driver;	/* which driver has allocated this device */
-	struct device dev;		/* Generic device interface */
-	u8 ipl;
-	char name[64];
-	struct resource resource;
+  struct dio_bus *bus;
+  dio_id id;
+  int scode;
+  struct dio_driver *driver;  /* which driver has allocated this device */
+  struct device dev;    /* Generic device interface */
+  u8 ipl;
+  char name[64];
+  struct resource resource;
 };
 
 #define to_dio_dev(n) container_of(n, struct dio_dev, dev)
 
-    /*
-     *  DIO bus
-     */
+/*
+ *  DIO bus
+ */
 
 struct dio_bus {
-	struct list_head devices;           /* list of devices on this bus */
-	unsigned int num_resources;         /* number of resources */
-	struct resource resources[2];       /* address space routed to this bus */
-	struct device dev;
-	char name[10];
+  struct list_head devices;           /* list of devices on this bus */
+  unsigned int num_resources;         /* number of resources */
+  struct resource resources[2];       /* address space routed to this bus */
+  struct device dev;
+  char name[10];
 };
 
 extern struct dio_bus dio_bus;      /* Single DIO bus */
 extern const struct bus_type dio_bus_type;
 
-    /*
-     *  DIO device IDs
-     */
+/*
+ *  DIO device IDs
+ */
 
 struct dio_device_id {
-	dio_id id;                    /* Device ID or DIO_WILDCARD */
-	unsigned long driver_data;    /* Data private to the driver */
+  dio_id id;                    /* Device ID or DIO_WILDCARD */
+  unsigned long driver_data;    /* Data private to the driver */
 };
 
-    /*
-     *  DIO device drivers
-     */
+/*
+ *  DIO device drivers
+ */
 
 struct dio_driver {
-	struct list_head node;
-	char *name;
-	const struct dio_device_id *id_table;     /* NULL if wants all devices */
-	int (*probe)(struct dio_dev *z, const struct dio_device_id *id);
-/* New device inserted */
-	void (*remove)(struct dio_dev *z);        /* Device removed (NULL if not a hot-plug capable driver) */
-	struct device_driver driver;
+  struct list_head node;
+  char *name;
+  const struct dio_device_id *id_table;     /* NULL if wants all devices */
+  int (*probe)(struct dio_dev *z, const struct dio_device_id *id);
+  /* New device inserted */
+  void (*remove)(struct dio_dev *z);        /* Device removed (NULL if not a
+                                             * hot-plug capable driver) */
+  struct device_driver driver;
 };
 
 #define to_dio_driver(drv)    container_of(drv, struct dio_driver, driver)
@@ -133,14 +134,15 @@ struct dio_driver {
 #define DIOII_SIZE(baseaddr) ((in_8((baseaddr) + DIOII_SIZEOFF) + 1) * 0x100000)
 
 /* general purpose macro for both DIO and DIO-II */
-#define DIO_SIZE(scode, base) (DIO_ISDIOII((scode)) ? DIOII_SIZE((base)) : DIO_DEVSIZE)
+#define DIO_SIZE(scode, \
+      base) (DIO_ISDIOII((scode)) ? DIOII_SIZE((base)) : DIO_DEVSIZE)
 
 /* The hardware has primary and secondary IDs; we encode these in a single
  * int as PRIMARY ID & (SECONDARY ID << 8).
  * In practice this is only important for framebuffers,
  * and everybody else just sets ID fields equal to the DIO_ID_FOO value.
  */
-#define DIO_ENCODE_ID(pr,sec) ((((int)sec & 0xff) << 8) | ((int)pr & 0xff))
+#define DIO_ENCODE_ID(pr, sec) ((((int) sec & 0xff) << 8) | ((int) pr & 0xff))
 /* macro to determine whether a given primary ID requires a secondary ID byte */
 #define DIO_NEEDSSECID(id) ((id) == DIO_ID_FBUFFER)
 #define DIO_WILDCARD 0xff
@@ -172,9 +174,11 @@ struct dio_driver {
 #define DIO_DESC_SCSI2 "98265A SCSI2"
 #define DIO_ID_SCSI3    0x67 /* ditto */
 #define DIO_DESC_SCSI3 "98265A SCSI3"
-#define DIO_ID_FBUFFER  0x39 /* framebuffer: flavour is distinguished by secondary ID */
+#define DIO_ID_FBUFFER  0x39 /* framebuffer: flavour is distinguished by
+                              * secondary ID */
 #define DIO_DESC_FBUFFER "bitmapped display"
-/* the NetBSD kernel source is a bit unsure as to what these next IDs actually do :-> */
+/* the NetBSD kernel source is a bit unsure as to what these next IDs actually
+ * do :-> */
 #define DIO_ID_MISC0    0x03 /* 98622A */
 #define DIO_DESC_MISC0 "98622A"
 #define DIO_ID_MISC1    0x04 /* 98623A */
@@ -254,22 +258,20 @@ extern void dio_unregister_driver(struct dio_driver *);
 #define dio_resource_flags(d) ((d)->resource.flags)
 
 #define dio_request_device(d, name) \
-    request_mem_region(dio_resource_start(d), dio_resource_len(d), name)
+  request_mem_region(dio_resource_start(d), dio_resource_len(d), name)
 #define dio_release_device(d) \
-    release_mem_region(dio_resource_start(d), dio_resource_len(d))
+  release_mem_region(dio_resource_start(d), dio_resource_len(d))
 
 /* Similar to the helpers above, these manipulate per-dio_dev
  * driver-specific data.  They are really just a wrapper around
  * the generic device structure functions of these calls.
  */
-static inline void *dio_get_drvdata (struct dio_dev *d)
-{
-	return dev_get_drvdata(&d->dev);
+static inline void *dio_get_drvdata(struct dio_dev *d) {
+  return dev_get_drvdata(&d->dev);
 }
 
-static inline void dio_set_drvdata (struct dio_dev *d, void *data)
-{
-	dev_set_drvdata(&d->dev, data);
+static inline void dio_set_drvdata(struct dio_dev *d, void *data) {
+  dev_set_drvdata(&d->dev, data);
 }
 
 #endif /* __KERNEL__ */

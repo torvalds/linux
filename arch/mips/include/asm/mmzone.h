@@ -9,7 +9,7 @@
 #include <asm/page.h>
 
 #ifdef CONFIG_NUMA
-# include <mmzone.h>
+#include <mmzone.h>
 #endif
 
 #ifndef pa_to_nid

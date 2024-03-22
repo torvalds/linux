@@ -15,20 +15,20 @@ long long __ashlti3(long long a, int b);
 asmlinkage int enter_vector_usercopy(void *dst, void *src, size_t n);
 #endif /* CONFIG_MMU  */
 
-void xor_regs_2_(unsigned long bytes, unsigned long *__restrict p1,
-		 const unsigned long *__restrict p2);
-void xor_regs_3_(unsigned long bytes, unsigned long *__restrict p1,
-		 const unsigned long *__restrict p2,
-		 const unsigned long *__restrict p3);
-void xor_regs_4_(unsigned long bytes, unsigned long *__restrict p1,
-		 const unsigned long *__restrict p2,
-		 const unsigned long *__restrict p3,
-		 const unsigned long *__restrict p4);
-void xor_regs_5_(unsigned long bytes, unsigned long *__restrict p1,
-		 const unsigned long *__restrict p2,
-		 const unsigned long *__restrict p3,
-		 const unsigned long *__restrict p4,
-		 const unsigned long *__restrict p5);
+void xor_regs_2_(unsigned long bytes, unsigned long * __restrict p1,
+    const unsigned long * __restrict p2);
+void xor_regs_3_(unsigned long bytes, unsigned long * __restrict p1,
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3);
+void xor_regs_4_(unsigned long bytes, unsigned long * __restrict p1,
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3,
+    const unsigned long * __restrict p4);
+void xor_regs_5_(unsigned long bytes, unsigned long * __restrict p1,
+    const unsigned long * __restrict p2,
+    const unsigned long * __restrict p3,
+    const unsigned long * __restrict p4,
+    const unsigned long * __restrict p5);
 
 #ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
 asmlinkage void riscv_v_context_nesting_start(struct pt_regs *regs);
@@ -37,7 +37,7 @@ asmlinkage void riscv_v_context_nesting_end(struct pt_regs *regs);
 
 #endif /* CONFIG_RISCV_ISA_V */
 
-#define DECLARE_DO_ERROR_INFO(name)	asmlinkage void name(struct pt_regs *regs)
+#define DECLARE_DO_ERROR_INFO(name) asmlinkage void name(struct pt_regs *regs)
 
 DECLARE_DO_ERROR_INFO(do_trap_unknown);
 DECLARE_DO_ERROR_INFO(do_trap_insn_misaligned);

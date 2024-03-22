@@ -5,9 +5,8 @@
 extern int bpf_testmod_ksym_percpu __ksym;
 
 SEC("tc")
-int ksym_fail(struct __sk_buff *ctx)
-{
-	return *(int *)bpf_this_cpu_ptr(&bpf_testmod_ksym_percpu);
+int ksym_fail(struct __sk_buff *ctx) {
+  return *(int *) bpf_this_cpu_ptr(&bpf_testmod_ksym_percpu);
 }
 
 char _license[] SEC("license") = "GPL";

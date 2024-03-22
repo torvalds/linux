@@ -22,11 +22,11 @@ struct dma_resv;
  * @gfp: Allocation mode.
  */
 struct i915_deps {
-	struct dma_fence *single;
-	struct dma_fence **fences;
-	unsigned int num_deps;
-	unsigned int fences_size;
-	gfp_t gfp;
+  struct dma_fence *single;
+  struct dma_fence **fences;
+  unsigned int num_deps;
+  unsigned int fences_size;
+  gfp_t gfp;
 };
 
 void i915_deps_init(struct i915_deps *deps, gfp_t gfp);
@@ -34,12 +34,12 @@ void i915_deps_init(struct i915_deps *deps, gfp_t gfp);
 void i915_deps_fini(struct i915_deps *deps);
 
 int i915_deps_add_dependency(struct i915_deps *deps,
-			     struct dma_fence *fence,
-			     const struct ttm_operation_ctx *ctx);
+    struct dma_fence *fence,
+    const struct ttm_operation_ctx *ctx);
 
 int i915_deps_add_resv(struct i915_deps *deps, struct dma_resv *resv,
-		       const struct ttm_operation_ctx *ctx);
+    const struct ttm_operation_ctx *ctx);
 
 int i915_deps_sync(const struct i915_deps *deps,
-		   const struct ttm_operation_ctx *ctx);
+    const struct ttm_operation_ctx *ctx);
 #endif

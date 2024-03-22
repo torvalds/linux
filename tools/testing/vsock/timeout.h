@@ -3,8 +3,8 @@
 #define TIMEOUT_H
 
 enum {
-	/* Default timeout */
-	TIMEOUT = 10 /* seconds */
+  /* Default timeout */
+  TIMEOUT = 10 /* seconds */
 };
 
 void sigalrm(int signo);

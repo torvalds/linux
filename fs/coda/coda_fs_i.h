@@ -22,14 +22,14 @@
  * c_fid is set when the inode is created and should be considered immutable.
  */
 struct coda_inode_info {
-	struct CodaFid	   c_fid;	/* Coda identifier */
-	u_short	           c_flags;     /* flags (see below) */
-	unsigned int	   c_mapcount;  /* nr of times this inode is mapped */
-	unsigned int	   c_cached_epoch; /* epoch for cached permissions */
-	kuid_t		   c_uid;	/* fsuid for cached permissions */
-	unsigned int       c_cached_perm; /* cached access permissions */
-	spinlock_t	   c_lock;
-	struct inode	   vfs_inode;
+  struct CodaFid c_fid; /* Coda identifier */
+  u_short c_flags;     /* flags (see below) */
+  unsigned int c_mapcount;  /* nr of times this inode is mapped */
+  unsigned int c_cached_epoch; /* epoch for cached permissions */
+  kuid_t c_uid; /* fsuid for cached permissions */
+  unsigned int c_cached_perm; /* cached access permissions */
+  spinlock_t c_lock;
+  struct inode vfs_inode;
 };
 
 /*
@@ -37,10 +37,10 @@ struct coda_inode_info {
  */
 #define CODA_MAGIC 0xC0DAC0DA
 struct coda_file_info {
-	int		   cfi_magic;	  /* magic number */
-	struct file	  *cfi_container; /* container file for this cnode */
-	unsigned int	   cfi_mapcount;  /* nr of times this file is mapped */
-	bool		   cfi_access_intent; /* is access intent supported */
+  int cfi_magic;   /* magic number */
+  struct file *cfi_container; /* container file for this cnode */
+  unsigned int cfi_mapcount;  /* nr of times this file is mapped */
+  bool cfi_access_intent; /* is access intent supported */
 };
 
 /* flags */
@@ -50,7 +50,8 @@ struct coda_file_info {
 #define C_PURGE       0x8
 
 struct inode *coda_cnode_make(struct CodaFid *, struct super_block *);
-struct inode *coda_iget(struct super_block *sb, struct CodaFid *fid, struct coda_vattr *attr);
+struct inode *coda_iget(struct super_block *sb, struct CodaFid *fid,
+    struct coda_vattr *attr);
 struct inode *coda_cnode_makectl(struct super_block *sb);
 struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb);
 struct coda_file_info *coda_ftoc(struct file *file);

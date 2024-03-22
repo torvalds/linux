@@ -36,73 +36,66 @@
  * variables.
  *
  * Assumes:
- *	_init_sp global contains the address in the stack pointer when the
- *	kernel starts (see head.S::_start)
+ *  _init_sp global contains the address in the stack pointer when the
+ *  kernel starts (see head.S::_start)
  *
- *	U-Boot calling convention:
- *	(*kernel) (kbd, initrd_start, initrd_end, cmd_start, cmd_end);
+ *  U-Boot calling convention:
+ *  (*kernel) (kbd, initrd_start, initrd_end, cmd_start, cmd_end);
  *
- *	_init_sp can be parsed as such
+ *  _init_sp can be parsed as such
  *
- *	_init_sp+00 = u-boot cmd after jsr into kernel (skip)
- *	_init_sp+04 = &kernel board_info (residual data)
- *	_init_sp+08 = &initrd_start
- *	_init_sp+12 = &initrd_end
- *	_init_sp+16 = &cmd_start
- *	_init_sp+20 = &cmd_end
+ *  _init_sp+00 = u-boot cmd after jsr into kernel (skip)
+ *  _init_sp+04 = &kernel board_info (residual data)
+ *  _init_sp+08 = &initrd_start
+ *  _init_sp+12 = &initrd_end
+ *  _init_sp+16 = &cmd_start
+ *  _init_sp+20 = &cmd_end
  *
- *	This also assumes that the memory locations pointed to are still
- *	unmodified. U-boot places them near the end of external SDRAM.
+ *  This also assumes that the memory locations pointed to are still
+ *  unmodified. U-boot places them near the end of external SDRAM.
  *
  * Argument(s):
- *	commandp = the linux commandline arg container to fill.
- *	size     = the sizeof commandp.
+ *  commandp = the linux commandline arg container to fill.
+ *  size     = the sizeof commandp.
  *
  * Returns:
  */
-static void __init parse_uboot_commandline(char *commandp, int size)
-{
-	extern unsigned long _init_sp;
-	unsigned long *sp;
-	unsigned long uboot_cmd_start, uboot_cmd_end;
+static void __init parse_uboot_commandline(char *commandp, int size) {
+  extern unsigned long _init_sp;
+  unsigned long *sp;
+  unsigned long uboot_cmd_start, uboot_cmd_end;
 #if defined(CONFIG_BLK_DEV_INITRD)
-	unsigned long uboot_initrd_start, uboot_initrd_end;
+  unsigned long uboot_initrd_start, uboot_initrd_end;
 #endif /* if defined(CONFIG_BLK_DEV_INITRD) */
-
-	sp = (unsigned long *)_init_sp;
-	uboot_cmd_start = sp[4];
-	uboot_cmd_end = sp[5];
-
-	if (uboot_cmd_start && uboot_cmd_end)
-		strncpy(commandp, (const char *)uboot_cmd_start, size);
-
+  sp = (unsigned long *) _init_sp;
+  uboot_cmd_start = sp[4];
+  uboot_cmd_end = sp[5];
+  if (uboot_cmd_start && uboot_cmd_end) {
+    strncpy(commandp, (const char *) uboot_cmd_start, size);
+  }
 #if defined(CONFIG_BLK_DEV_INITRD)
-	uboot_initrd_start = sp[2];
-	uboot_initrd_end = sp[3];
-
-	if (uboot_initrd_start && uboot_initrd_end &&
-	    (uboot_initrd_end > uboot_initrd_start)) {
-		initrd_start = uboot_initrd_start;
-		initrd_end = uboot_initrd_end;
-		ROOT_DEV = Root_RAM0;
-		pr_info("initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
-	}
+  uboot_initrd_start = sp[2];
+  uboot_initrd_end = sp[3];
+  if (uboot_initrd_start && uboot_initrd_end
+      && (uboot_initrd_end > uboot_initrd_start)) {
+    initrd_start = uboot_initrd_start;
+    initrd_end = uboot_initrd_end;
+    ROOT_DEV = Root_RAM0;
+    pr_info("initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+  }
 #endif /* if defined(CONFIG_BLK_DEV_INITRD) */
 }
 
-__init void process_uboot_commandline(char *commandp, int size)
-{
-	int len, n;
-
-	n = strnlen(commandp, size);
-	commandp += n;
-	len = size - n;
-	if (len) {
-		/* Add the whitespace separator */
-		*commandp++ = ' ';
-		len--;
-	}
-
-	parse_uboot_commandline(commandp, len);
-	commandp[len - 1] = 0;
+__init void process_uboot_commandline(char *commandp, int size) {
+  int len, n;
+  n = strnlen(commandp, size);
+  commandp += n;
+  len = size - n;
+  if (len) {
+    /* Add the whitespace separator */
+    *commandp++ = ' ';
+    len--;
+  }
+  parse_uboot_commandline(commandp, len);
+  commandp[len - 1] = 0;
 }

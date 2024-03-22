@@ -13,7 +13,7 @@
  * Stefan Roese <sr@denx.de>
  *
  * Based on original work by
- * 	Kumar Gala <kumar.gala@freescale.com>
+ *  Kumar Gala <kumar.gala@freescale.com>
  *      Copyright 2004 Freescale Semiconductor Inc.
  */
 
@@ -38,42 +38,38 @@
 #include "mpc85xx.h"
 #include "socrates_fpga_pic.h"
 
-static void __init socrates_pic_init(void)
-{
-	struct device_node *np;
-
-	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
-			0, 256, " OpenPIC  ");
-	BUG_ON(mpic == NULL);
-	mpic_init(mpic);
-
-	np = of_find_compatible_node(NULL, NULL, "abb,socrates-fpga-pic");
-	if (!np) {
-		printk(KERN_ERR "Could not find socrates-fpga-pic node\n");
-		return;
-	}
-	socrates_fpga_pic_init(np);
-	of_node_put(np);
+static void __init socrates_pic_init(void) {
+  struct device_node *np;
+  struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
+      0, 256, " OpenPIC  ");
+  BUG_ON(mpic == NULL);
+  mpic_init(mpic);
+  np = of_find_compatible_node(NULL, NULL, "abb,socrates-fpga-pic");
+  if (!np) {
+    printk(KERN_ERR "Could not find socrates-fpga-pic node\n");
+    return;
+  }
+  socrates_fpga_pic_init(np);
+  of_node_put(np);
 }
 
 /*
  * Setup the architecture
  */
-static void __init socrates_setup_arch(void)
-{
-	if (ppc_md.progress)
-		ppc_md.progress("socrates_setup_arch()", 0);
-
-	fsl_pci_assign_primary();
+static void __init socrates_setup_arch(void) {
+  if (ppc_md.progress) {
+    ppc_md.progress("socrates_setup_arch()", 0);
+  }
+  fsl_pci_assign_primary();
 }
 
 machine_arch_initcall(socrates, mpc85xx_common_publish_devices);
 
 define_machine(socrates) {
-	.name			= "Socrates",
-	.compatible		= "abb,socrates",
-	.setup_arch		= socrates_setup_arch,
-	.init_IRQ		= socrates_pic_init,
-	.get_irq		= mpic_get_irq,
-	.progress		= udbg_progress,
+  .name = "Socrates",
+  .compatible = "abb,socrates",
+  .setup_arch = socrates_setup_arch,
+  .init_IRQ = socrates_pic_init,
+  .get_irq = mpic_get_irq,
+  .progress = udbg_progress,
 };

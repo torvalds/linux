@@ -37,7 +37,8 @@
 // At which vstartup the DML start to try if the mode can be supported
 #define __DML_VBA_MIN_VSTARTUP__    9
 
-// Delay in DCFCLK from ARB to DET (1st num is ARB to SDPIF, 2nd number is SDPIF to DET)
+// Delay in DCFCLK from ARB to DET (1st num is ARB to SDPIF, 2nd number is SDPIF
+// to DET)
 #define __DML_ARB_TO_RET_DELAY__    7 + 95
 
 // fudge factor for min dcfclk calclation
@@ -58,7 +59,8 @@
 
 struct display_mode_lib;
 
-void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib);
+void dml32_ModeSupportAndSystemConfigurationFull(
+  struct display_mode_lib *mode_lib);
 void dml32_recalculate(struct display_mode_lib *mode_lib);
 
 #endif

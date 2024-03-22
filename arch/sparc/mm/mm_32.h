@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* fault_32.c - visible as they are called from assembler */
+/* SPDX-License-Identifier: GPL-2.0
+ * fault_32.c - visible as they are called from assembler*/
 asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
-                               unsigned long address);
+    unsigned long address);
 
 void window_overflow_fault(void);
 void window_underflow_fault(unsigned long sp);

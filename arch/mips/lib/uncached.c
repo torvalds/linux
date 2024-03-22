@@ -4,10 +4,9 @@
  * for more details.
  *
  * Copyright (C) 2005 Thiemo Seufer
- * Copyright (C) 2005  MIPS Technologies, Inc.	All rights reserved.
- *	Author: Maciej W. Rozycki <macro@mips.com>
+ * Copyright (C) 2005  MIPS Technologies, Inc.  All rights reserved.
+ *  Author: Maciej W. Rozycki <macro@mips.com>
  */
-
 
 #include <asm/addrspace.h>
 #include <asm/bug.h>
@@ -35,48 +34,47 @@
  * values, so we can avoid sharing the same stack area between a cached
  * and the uncached mode.
  */
-unsigned long run_uncached(void *func)
-{
-	register long ret __asm__("$2");
-	long lfunc = (long)func, ufunc;
-	long usp;
-	long sp;
-
-	__asm__("move %0, $sp" : "=r" (sp));
-
-	if (sp >= (long)CKSEG0 && sp < (long)CKSEG2)
-		usp = CKSEG1ADDR(sp);
+unsigned long run_uncached(void *func) {
+  register long ret __asm__ ("$2");
+  long lfunc = (long) func, ufunc;
+  long usp;
+  long sp;
+  __asm__ ("move %0, $sp" : "=r" (sp));
+  if (sp >= (long) CKSEG0 && sp < (long) CKSEG2) {
+    usp = CKSEG1ADDR(sp);
+  }
 #ifdef CONFIG_64BIT
-	else if ((long long)sp >= (long long)PHYS_TO_XKPHYS(0, 0) &&
-		 (long long)sp < (long long)PHYS_TO_XKPHYS(8, 0))
-		usp = PHYS_TO_XKPHYS(K_CALG_UNCACHED,
-				     XKPHYS_TO_PHYS((long long)sp));
+  else if ((long long) sp >= (long long) PHYS_TO_XKPHYS(0, 0)
+      && (long long) sp < (long long) PHYS_TO_XKPHYS(8, 0)) {
+    usp = PHYS_TO_XKPHYS(K_CALG_UNCACHED,
+        XKPHYS_TO_PHYS((long long) sp));
+  }
 #endif
-	else {
-		BUG();
-		usp = sp;
-	}
-	if (lfunc >= (long)CKSEG0 && lfunc < (long)CKSEG2)
-		ufunc = CKSEG1ADDR(lfunc);
+  else {
+    BUG();
+    usp = sp;
+  }
+  if (lfunc >= (long) CKSEG0 && lfunc < (long) CKSEG2) {
+    ufunc = CKSEG1ADDR(lfunc);
+  }
 #ifdef CONFIG_64BIT
-	else if ((long long)lfunc >= (long long)PHYS_TO_XKPHYS(0, 0) &&
-		 (long long)lfunc < (long long)PHYS_TO_XKPHYS(8, 0))
-		ufunc = PHYS_TO_XKPHYS(K_CALG_UNCACHED,
-				       XKPHYS_TO_PHYS((long long)lfunc));
+  else if ((long long) lfunc >= (long long) PHYS_TO_XKPHYS(0, 0)
+      && (long long) lfunc < (long long) PHYS_TO_XKPHYS(8, 0)) {
+    ufunc = PHYS_TO_XKPHYS(K_CALG_UNCACHED,
+        XKPHYS_TO_PHYS((long long) lfunc));
+  }
 #endif
-	else {
-		BUG();
-		ufunc = lfunc;
-	}
-
-	__asm__ __volatile__ (
-		"	move	$16, $sp\n"
-		"	move	$sp, %1\n"
-		"	jalr	%2\n"
-		"	move	$sp, $16"
-		: "=r" (ret)
-		: "r" (usp), "r" (ufunc)
-		: "$16", "$31");
-
-	return ret;
+  else {
+    BUG();
+    ufunc = lfunc;
+  }
+  __asm__ __volatile__ (
+    "	move	$16, $sp\n"
+    "	move	$sp, %1\n"
+    "	jalr	%2\n"
+    "	move	$sp, $16"
+    : "=r" (ret)
+    : "r" (usp), "r" (ufunc)
+    : "$16", "$31");
+  return ret;
 }

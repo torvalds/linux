@@ -23,34 +23,34 @@
 #define APPLE_RTKIT_MAX_ENDPOINTS 0x100
 
 struct apple_rtkit {
-	void *cookie;
-	const struct apple_rtkit_ops *ops;
-	struct device *dev;
+  void *cookie;
+  const struct apple_rtkit_ops *ops;
+  struct device *dev;
 
-	struct apple_mbox *mbox;
+  struct apple_mbox *mbox;
 
-	struct completion epmap_completion;
-	struct completion iop_pwr_ack_completion;
-	struct completion ap_pwr_ack_completion;
+  struct completion epmap_completion;
+  struct completion iop_pwr_ack_completion;
+  struct completion ap_pwr_ack_completion;
 
-	int boot_result;
-	int version;
+  int boot_result;
+  int version;
 
-	unsigned int iop_power_state;
-	unsigned int ap_power_state;
-	bool crashed;
+  unsigned int iop_power_state;
+  unsigned int ap_power_state;
+  bool crashed;
 
-	DECLARE_BITMAP(endpoints, APPLE_RTKIT_MAX_ENDPOINTS);
+  DECLARE_BITMAP(endpoints, APPLE_RTKIT_MAX_ENDPOINTS);
 
-	struct apple_rtkit_shmem ioreport_buffer;
-	struct apple_rtkit_shmem crashlog_buffer;
+  struct apple_rtkit_shmem ioreport_buffer;
+  struct apple_rtkit_shmem crashlog_buffer;
 
-	struct apple_rtkit_shmem syslog_buffer;
-	char *syslog_msg_buffer;
-	size_t syslog_n_entries;
-	size_t syslog_msg_size;
+  struct apple_rtkit_shmem syslog_buffer;
+  char *syslog_msg_buffer;
+  size_t syslog_n_entries;
+  size_t syslog_msg_size;
 
-	struct workqueue_struct *wq;
+  struct workqueue_struct *wq;
 };
 
 void apple_rtkit_crashlog_dump(struct apple_rtkit *rtk, u8 *bfr, size_t size);

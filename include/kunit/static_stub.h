@@ -11,7 +11,7 @@
 #if !IS_ENABLED(CONFIG_KUNIT)
 
 /* If CONFIG_KUNIT is not enabled, these stubs quietly disappear. */
-#define KUNIT_STATIC_STUB_REDIRECT(real_fn_name, args...) do {} while (0)
+#define KUNIT_STATIC_STUB_REDIRECT(real_fn_name, args ...) do {} while (0)
 
 #else
 
@@ -20,7 +20,6 @@
 
 #include <linux/compiler.h> /* for {un,}likely() */
 #include <linux/sched.h> /* for task_struct */
-
 
 /**
  * KUNIT_STATIC_STUB_REDIRECT() - call a replacement 'static stub' if one exists
@@ -38,45 +37,45 @@
  *
  * .. code-block:: c
  *
- *	int real_func(int n)
- *	{
- *		KUNIT_STATIC_STUB_REDIRECT(real_func, n);
- *		return 0;
- *	}
+ *  int real_func(int n)
+ *  {
+ *    KUNIT_STATIC_STUB_REDIRECT(real_func, n);
+ *    return 0;
+ *  }
  *
- *	int replacement_func(int n)
- *	{
- *		return 42;
- *	}
+ *  int replacement_func(int n)
+ *  {
+ *    return 42;
+ *  }
  *
- *	void example_test(struct kunit *test)
- *	{
- *		kunit_activate_static_stub(test, real_func, replacement_func);
- *		KUNIT_EXPECT_EQ(test, real_func(1), 42);
- *	}
+ *  void example_test(struct kunit *test)
+ *  {
+ *    kunit_activate_static_stub(test, real_func, replacement_func);
+ *    KUNIT_EXPECT_EQ(test, real_func(1), 42);
+ *  }
  *
  */
-#define KUNIT_STATIC_STUB_REDIRECT(real_fn_name, args...)		\
-do {									\
-	typeof(&real_fn_name) replacement;				\
-	struct kunit *current_test = kunit_get_current_test();		\
-									\
-	if (likely(!current_test))					\
-		break;							\
-									\
-	replacement = kunit_hooks.get_static_stub_address(current_test,	\
-							&real_fn_name);	\
-									\
-	if (unlikely(replacement))					\
-		return replacement(args);				\
-} while (0)
+#define KUNIT_STATIC_STUB_REDIRECT(real_fn_name, args ...)   \
+  do {                  \
+    typeof(&real_fn_name) replacement;        \
+    struct kunit *current_test = kunit_get_current_test();    \
+                  \
+    if (likely(!current_test))          \
+    break;              \
+                  \
+    replacement = kunit_hooks.get_static_stub_address(current_test, \
+    &real_fn_name); \
+                  \
+    if (unlikely(replacement))          \
+    return replacement(args);       \
+  } while (0)
 
 /* Helper function for kunit_activate_static_stub(). The macro does
  * typechecking, so use it instead.
  */
 void __kunit_activate_static_stub(struct kunit *test,
-				  void *real_fn_addr,
-				  void *replacement_addr);
+    void *real_fn_addr,
+    void *replacement_addr);
 
 /**
  * kunit_activate_static_stub() - replace a function using static stubs.
@@ -92,11 +91,10 @@ void __kunit_activate_static_stub(struct kunit *test,
  *
  * The redirection can be disabled again with kunit_deactivate_static_stub().
  */
-#define kunit_activate_static_stub(test, real_fn_addr, replacement_addr) do {	\
-	typecheck_fn(typeof(&replacement_addr), real_fn_addr);			\
-	__kunit_activate_static_stub(test, real_fn_addr, replacement_addr);	\
+#define kunit_activate_static_stub(test, real_fn_addr, replacement_addr) do { \
+    typecheck_fn(typeof(&replacement_addr), real_fn_addr);      \
+    __kunit_activate_static_stub(test, real_fn_addr, replacement_addr); \
 } while (0)
-
 
 /**
  * kunit_deactivate_static_stub() - disable a function redirection

@@ -8,8 +8,8 @@
 struct device;
 
 struct bd6107_platform_data {
-	struct device *dev;
-	unsigned int def_value;
+  struct device *dev;
+  unsigned int def_value;
 };
 
 #endif

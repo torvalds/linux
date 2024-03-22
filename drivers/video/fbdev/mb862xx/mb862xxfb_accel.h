@@ -13,12 +13,12 @@
 #define GDC_REG_DDA_STATUS          0x00000410L
 #define GDC_REG_ENGINE_STATUS       0x00000414L
 #define GDC_REG_ERROR_STATUS        0x00000418L
-#define GDC_REG_MODE_MISC           0x00000420L	/* MDR0 */
-#define GDC_REG_MODE_LINE           0x00000424L	/* MDR1 */
-#define GDC_REG_MODE_POLYGON        0x00000428L	/* MDR2 */
-#define GDC_REG_MODE_TEXTURE        0x0000042CL	/* MDR3 */
-#define GDC_REG_MODE_BITMAP         0x00000430L	/* MDR4 */
-#define GDC_REG_MODE_EXTENSION      0x0000043CL	/* MDR7 */
+#define GDC_REG_MODE_MISC           0x00000420L /* MDR0 */
+#define GDC_REG_MODE_LINE           0x00000424L /* MDR1 */
+#define GDC_REG_MODE_POLYGON        0x00000428L /* MDR2 */
+#define GDC_REG_MODE_TEXTURE        0x0000042CL /* MDR3 */
+#define GDC_REG_MODE_BITMAP         0x00000430L /* MDR4 */
+#define GDC_REG_MODE_EXTENSION      0x0000043CL /* MDR7 */
 
 /* Configuration Registers */
 #define GDC_REG_DRAW_BASE           0x00000440L
@@ -35,7 +35,7 @@
 #define GDC_REG_TEX_BUF_OFFSET      0x0000046CL
 
 /* for MB86293 or later */
-#define GDC_REG_ALPHA_MAP_BASE      0x00000474L	/* ABR */
+#define GDC_REG_ALPHA_MAP_BASE      0x00000474L /* ABR */
 
 /* Constant Registers */
 #define GDC_REG_FOREGROUND_COLOR    0x00000480L
@@ -125,8 +125,8 @@
 #define GDC_CMD_OVERLAP_Z_NON_TOPLEFT           0x00000001L
 #define GDC_CMD_OVERLAP_Z_BORDER                0x00000002L
 #define GDC_CMD_OVERLAP_Z_SHADOW                0x00000003L
-#define GDC_CMD_BLTCOPY_ALT_ALPHA               0x00000000L	/* Reserverd */
-#define GDC_CMD_DC_LOGOUT                       0x00000000L	/* Reserverd */
+#define GDC_CMD_BLTCOPY_ALT_ALPHA               0x00000000L /* Reserverd */
+#define GDC_CMD_DC_LOGOUT                       0x00000000L /* Reserverd */
 #define GDC_CMD_BODY_FORE_COLOR                 0x00000000L
 #define GDC_CMD_BODY_BACK_COLOR                 0x00000001L
 #define GDC_CMD_SHADOW_FORE_COLOR               0x00000002L

@@ -26,8 +26,16 @@ void cbe_cpufreq_pmi_init(void);
 void cbe_cpufreq_pmi_exit(void);
 #else
 #define cbe_cpufreq_has_pmi (0)
-static inline void cbe_cpufreq_pmi_policy_init(struct cpufreq_policy *policy) {}
-static inline void cbe_cpufreq_pmi_policy_exit(struct cpufreq_policy *policy) {}
-static inline void cbe_cpufreq_pmi_init(void) {}
-static inline void cbe_cpufreq_pmi_exit(void) {}
+static inline void cbe_cpufreq_pmi_policy_init(struct cpufreq_policy *policy) {
+}
+
+static inline void cbe_cpufreq_pmi_policy_exit(struct cpufreq_policy *policy) {
+}
+
+static inline void cbe_cpufreq_pmi_init(void) {
+}
+
+static inline void cbe_cpufreq_pmi_exit(void) {
+}
+
 #endif

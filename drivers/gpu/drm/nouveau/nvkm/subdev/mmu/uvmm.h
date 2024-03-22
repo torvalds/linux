@@ -5,10 +5,10 @@
 #include "vmm.h"
 
 struct nvkm_uvmm {
-	struct nvkm_object object;
-	struct nvkm_vmm *vmm;
+  struct nvkm_object object;
+  struct nvkm_vmm *vmm;
 };
 
 int nvkm_uvmm_new(const struct nvkm_oclass *, void *argv, u32 argc,
-		  struct nvkm_object **);
+    struct nvkm_object **);
 #endif

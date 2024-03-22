@@ -43,11 +43,11 @@
 #define CFG_PIX_FMT_MASK                GENMASK(2, 0)
 
 enum lsdc_pixel_format {
-	LSDC_PF_NONE = 0,
-	LSDC_PF_XRGB444 = 1,    /* [12 bits] */
-	LSDC_PF_XRGB555 = 2,    /* [15 bits] */
-	LSDC_PF_XRGB565 = 3,    /* RGB [16 bits] */
-	LSDC_PF_XRGB8888 = 4,   /* XRGB [32 bits] */
+  LSDC_PF_NONE = 0,
+  LSDC_PF_XRGB444 = 1,    /* [12 bits] */
+  LSDC_PF_XRGB555 = 2,    /* [15 bits] */
+  LSDC_PF_XRGB565 = 3,    /* RGB [16 bits] */
+  LSDC_PF_XRGB8888 = 4,   /* XRGB [32 bits] */
 };
 
 /*
@@ -79,10 +79,10 @@ enum lsdc_pixel_format {
 #define CFG_DMA_STEP_MASK              GENMASK(17, 16)
 #define CFG_DMA_STEP_SHIFT             16
 enum lsdc_dma_steps {
-	LSDC_DMA_STEP_256_BYTES = 0,
-	LSDC_DMA_STEP_128_BYTES = 1,
-	LSDC_DMA_STEP_64_BYTES = 2,
-	LSDC_DMA_STEP_32_BYTES = 3,
+  LSDC_DMA_STEP_256_BYTES = 0,
+  LSDC_DMA_STEP_128_BYTES = 1,
+  LSDC_DMA_STEP_64_BYTES = 2,
+  LSDC_DMA_STEP_32_BYTES = 3,
 };
 
 #define CFG_VALID_BITS_MASK             GENMASK(20, 0)
@@ -178,9 +178,9 @@ enum lsdc_dma_steps {
 #define CURSOR_FORMAT_MASK              GENMASK(1, 0)
 #define CURSOR_FORMAT_SHIFT             0
 enum lsdc_cursor_format {
-	CURSOR_FORMAT_DISABLE = 0,
-	CURSOR_FORMAT_MONOCHROME = 1,   /* masked */
-	CURSOR_FORMAT_ARGB8888 = 2,     /* A8R8G8B8 */
+  CURSOR_FORMAT_DISABLE = 0,
+  CURSOR_FORMAT_MONOCHROME = 1,   /* masked */
+  CURSOR_FORMAT_ARGB8888 = 2,     /* A8R8G8B8 */
 };
 
 /*
@@ -190,14 +190,14 @@ enum lsdc_cursor_format {
  */
 #define CURSOR_SIZE_SHIFT               2
 enum lsdc_cursor_size {
-	CURSOR_SIZE_32X32 = 0,
-	CURSOR_SIZE_64X64 = 1,
+  CURSOR_SIZE_32X32 = 0,
+  CURSOR_SIZE_64X64 = 1,
 };
 
 #define CURSOR_LOCATION_SHIFT           4
 enum lsdc_cursor_location {
-	CURSOR_ON_CRTC0 = 0,
-	CURSOR_ON_CRTC1 = 1,
+  CURSOR_ON_CRTC0 = 0,
+  CURSOR_ON_CRTC1 = 1,
 };
 
 #define LSDC_CURSOR0_CFG_REG            0x1520

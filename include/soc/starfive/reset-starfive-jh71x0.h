@@ -7,11 +7,11 @@
 #include <linux/container_of.h>
 
 struct jh71x0_reset_adev {
-	void __iomem *base;
-	struct auxiliary_device adev;
+  void __iomem *base;
+  struct auxiliary_device adev;
 };
 
 #define to_jh71x0_reset_adev(_adev) \
-	container_of((_adev), struct jh71x0_reset_adev, adev)
+  container_of((_adev), struct jh71x0_reset_adev, adev)
 
 #endif

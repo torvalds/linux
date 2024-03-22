@@ -42,42 +42,38 @@ __u32 sig_size;
 __u32 user_keyring_serial;
 
 SEC("lsm.s/file_open")
-int BPF_PROG(test_file_open, struct file *f)
-{
-	struct bpf_dynptr digest_ptr, sig_ptr;
-	struct bpf_key *trusted_keyring;
-	__u32 pid;
-	int ret;
-
-	pid = bpf_get_current_pid_tgid() >> 32;
-	if (pid != monitored_pid)
-		return 0;
-
-	/* digest_ptr points to fsverity_digest */
-	bpf_dynptr_from_mem(digest + MAGIC_SIZE, sizeof(digest) - MAGIC_SIZE, 0, &digest_ptr);
-
-	ret = bpf_get_fsverity_digest(f, &digest_ptr);
-	/* No verity, allow access */
-	if (ret < 0)
-		return 0;
-
-	/* Move digest_ptr to fsverity_formatted_digest */
-	bpf_dynptr_from_mem(digest, sizeof(digest), 0, &digest_ptr);
-
-	/* Read signature from xattr */
-	bpf_dynptr_from_mem(sig, sizeof(sig), 0, &sig_ptr);
-	ret = bpf_get_file_xattr(f, "user.sig", &sig_ptr);
-	/* No signature, reject access */
-	if (ret < 0)
-		return -EPERM;
-
-	trusted_keyring = bpf_lookup_user_key(user_keyring_serial, 0);
-	if (!trusted_keyring)
-		return -ENOENT;
-
-	/* Verify signature */
-	ret = bpf_verify_pkcs7_signature(&digest_ptr, &sig_ptr, trusted_keyring);
-
-	bpf_key_put(trusted_keyring);
-	return ret;
+int BPF_PROG(test_file_open, struct file *f) {
+  struct bpf_dynptr digest_ptr, sig_ptr;
+  struct bpf_key *trusted_keyring;
+  __u32 pid;
+  int ret;
+  pid = bpf_get_current_pid_tgid() >> 32;
+  if (pid != monitored_pid) {
+    return 0;
+  }
+  /* digest_ptr points to fsverity_digest */
+  bpf_dynptr_from_mem(digest + MAGIC_SIZE, sizeof(digest) - MAGIC_SIZE, 0,
+      &digest_ptr);
+  ret = bpf_get_fsverity_digest(f, &digest_ptr);
+  /* No verity, allow access */
+  if (ret < 0) {
+    return 0;
+  }
+  /* Move digest_ptr to fsverity_formatted_digest */
+  bpf_dynptr_from_mem(digest, sizeof(digest), 0, &digest_ptr);
+  /* Read signature from xattr */
+  bpf_dynptr_from_mem(sig, sizeof(sig), 0, &sig_ptr);
+  ret = bpf_get_file_xattr(f, "user.sig", &sig_ptr);
+  /* No signature, reject access */
+  if (ret < 0) {
+    return -EPERM;
+  }
+  trusted_keyring = bpf_lookup_user_key(user_keyring_serial, 0);
+  if (!trusted_keyring) {
+    return -ENOENT;
+  }
+  /* Verify signature */
+  ret = bpf_verify_pkcs7_signature(&digest_ptr, &sig_ptr, trusted_keyring);
+  bpf_key_put(trusted_keyring);
+  return ret;
 }

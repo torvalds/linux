@@ -19,12 +19,12 @@ typedef u16 kprobe_opcode_t;
 #define MAX_STACK_SIZE  64
 
 struct arch_specific_insn {
-	int is_short;
-	kprobe_opcode_t *t1_addr, *t2_addr;
-	kprobe_opcode_t t1_opcode, t2_opcode;
+  int is_short;
+  kprobe_opcode_t *t1_addr, *t2_addr;
+  kprobe_opcode_t t1_opcode, t2_opcode;
 };
 
-#define flush_insn_slot(p)  do {  } while (0)
+#define flush_insn_slot(p)  do {} while (0)
 
 #define kretprobe_blacklist_size    0
 
@@ -33,13 +33,13 @@ struct kprobe;
 void arch_remove_kprobe(struct kprobe *p);
 
 struct prev_kprobe {
-	struct kprobe *kp;
-	unsigned long status;
+  struct kprobe *kp;
+  unsigned long status;
 };
 
 struct kprobe_ctlblk {
-	unsigned int kprobe_status;
-	struct prev_kprobe prev_kprobe;
+  unsigned int kprobe_status;
+  struct prev_kprobe prev_kprobe;
 };
 
 int kprobe_fault_handler(struct pt_regs *regs, unsigned long cause);

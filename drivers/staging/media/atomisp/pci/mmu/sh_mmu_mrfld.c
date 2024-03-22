@@ -22,32 +22,27 @@
 #include "mmu/sh_mmu_mrfld.h"
 #include "atomisp_compat.h"
 
-#define MERR_VALID_PTE_MASK	0x80000000
+#define MERR_VALID_PTE_MASK 0x80000000
 
 /*
  * include SH header file here
  */
 
 static unsigned int sh_phys_to_pte(struct isp_mmu *mmu,
-				   phys_addr_t phys)
-{
-	return phys >> ISP_PAGE_OFFSET;
+    phys_addr_t phys) {
+  return phys >> ISP_PAGE_OFFSET;
 }
 
 static phys_addr_t sh_pte_to_phys(struct isp_mmu *mmu,
-				  unsigned int pte)
-{
-	unsigned int mask = mmu->driver->pte_valid_mask;
-
-	return (phys_addr_t)((pte & ~mask) << ISP_PAGE_OFFSET);
+    unsigned int pte) {
+  unsigned int mask = mmu->driver->pte_valid_mask;
+  return (phys_addr_t) ((pte & ~mask) << ISP_PAGE_OFFSET);
 }
 
 static unsigned int sh_get_pd_base(struct isp_mmu *mmu,
-				   phys_addr_t phys)
-{
-	unsigned int pte = sh_phys_to_pte(mmu, phys);
-
-	return HOST_ADDRESS(pte);
+    phys_addr_t phys) {
+  unsigned int pte = sh_phys_to_pte(mmu, phys);
+  return HOST_ADDRESS(pte);
 }
 
 /*
@@ -61,17 +56,16 @@ static unsigned int sh_get_pd_base(struct isp_mmu *mmu,
  * tlb_flush_all is must be provided. if tlb_flush_range is
  * not valid, it will set to tlb_flush_all by default.
  */
-static void sh_tlb_flush(struct isp_mmu *mmu)
-{
-	ia_css_mmu_invalidate_cache();
+static void sh_tlb_flush(struct isp_mmu *mmu) {
+  ia_css_mmu_invalidate_cache();
 }
 
 struct isp_mmu_client sh_mmu_mrfld = {
-	.name = "Silicon Hive ISP3000 MMU",
-	.pte_valid_mask = MERR_VALID_PTE_MASK,
-	.null_pte = ~MERR_VALID_PTE_MASK,
-	.get_pd_base = sh_get_pd_base,
-	.tlb_flush_all = sh_tlb_flush,
-	.phys_to_pte = sh_phys_to_pte,
-	.pte_to_phys = sh_pte_to_phys,
+  .name = "Silicon Hive ISP3000 MMU",
+  .pte_valid_mask = MERR_VALID_PTE_MASK,
+  .null_pte = ~MERR_VALID_PTE_MASK,
+  .get_pd_base = sh_get_pd_base,
+  .tlb_flush_all = sh_tlb_flush,
+  .phys_to_pte = sh_phys_to_pte,
+  .pte_to_phys = sh_pte_to_phys,
 };

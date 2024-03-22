@@ -15,5 +15,4 @@ extern void *memcpy(void *__to, __const__ void *__from, size_t __n);
 extern void *memset(void *__to, int c, size_t __n);
 #endif
 
-
 #endif /* _ASM_STRING_H_ */

@@ -13,10 +13,10 @@
 
 /* Generic MKHI header */
 struct gsc_mkhi_header {
-	u8  group_id;
-	u8  command;
-	u8  reserved;
-	u8  result;
+  u8 group_id;
+  u8 command;
+  u8 reserved;
+  u8 result;
 } __packed;
 
 /* GFX_SRV commands */
@@ -25,15 +25,15 @@ struct gsc_mkhi_header {
 #define MKHI_GFX_SRV_GET_HOST_COMPATIBILITY_VERSION (0x42)
 
 struct gsc_get_compatibility_version_in {
-	struct gsc_mkhi_header header;
+  struct gsc_mkhi_header header;
 } __packed;
 
 struct gsc_get_compatibility_version_out {
-	struct gsc_mkhi_header header;
-	u16 proj_major;
-	u16 compat_major;
-	u16 compat_minor;
-	u16 reserved[5];
+  struct gsc_mkhi_header header;
+  u16 proj_major;
+  u16 compat_major;
+  u16 compat_minor;
+  u16 reserved[5];
 } __packed;
 
 #endif

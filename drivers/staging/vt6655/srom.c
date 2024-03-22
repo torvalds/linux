@@ -57,38 +57,36 @@
  *
  */
 unsigned char SROMbyReadEmbedded(void __iomem *iobase,
-				 unsigned char contnt_offset)
-{
-	unsigned short wDelay, wNoACK;
-	unsigned char byWait;
-	unsigned char byData;
-	unsigned char byOrg;
-
-	byData = 0xFF;
-	byOrg = ioread8(iobase + MAC_REG_I2MCFG);
-	/* turn off hardware retry for getting NACK */
-	iowrite8(byOrg & (~I2MCFG_NORETRY), iobase + MAC_REG_I2MCFG);
-	for (wNoACK = 0; wNoACK < W_MAX_I2CRETRY; wNoACK++) {
-		iowrite8(EEP_I2C_DEV_ID, iobase + MAC_REG_I2MTGID);
-		iowrite8(contnt_offset, iobase + MAC_REG_I2MTGAD);
-
-		/* issue read command */
-		iowrite8(I2MCSR_EEMR, iobase + MAC_REG_I2MCSR);
-		/* wait DONE be set */
-		for (wDelay = 0; wDelay < W_MAX_TIMEOUT; wDelay++) {
-			byWait = ioread8(iobase + MAC_REG_I2MCSR);
-			if (byWait & (I2MCSR_DONE | I2MCSR_NACK))
-				break;
-			udelay(CB_DELAY_LOOP_WAIT);
-		}
-		if ((wDelay < W_MAX_TIMEOUT) &&
-		    (!(byWait & I2MCSR_NACK))) {
-			break;
-		}
-	}
-	byData = ioread8(iobase + MAC_REG_I2MDIPT);
-	iowrite8(byOrg, iobase + MAC_REG_I2MCFG);
-	return byData;
+    unsigned char contnt_offset) {
+  unsigned short wDelay, wNoACK;
+  unsigned char byWait;
+  unsigned char byData;
+  unsigned char byOrg;
+  byData = 0xFF;
+  byOrg = ioread8(iobase + MAC_REG_I2MCFG);
+  /* turn off hardware retry for getting NACK */
+  iowrite8(byOrg & (~I2MCFG_NORETRY), iobase + MAC_REG_I2MCFG);
+  for (wNoACK = 0; wNoACK < W_MAX_I2CRETRY; wNoACK++) {
+    iowrite8(EEP_I2C_DEV_ID, iobase + MAC_REG_I2MTGID);
+    iowrite8(contnt_offset, iobase + MAC_REG_I2MTGAD);
+    /* issue read command */
+    iowrite8(I2MCSR_EEMR, iobase + MAC_REG_I2MCSR);
+    /* wait DONE be set */
+    for (wDelay = 0; wDelay < W_MAX_TIMEOUT; wDelay++) {
+      byWait = ioread8(iobase + MAC_REG_I2MCSR);
+      if (byWait & (I2MCSR_DONE | I2MCSR_NACK)) {
+        break;
+      }
+      udelay(CB_DELAY_LOOP_WAIT);
+    }
+    if ((wDelay < W_MAX_TIMEOUT)
+        && (!(byWait & I2MCSR_NACK))) {
+      break;
+    }
+  }
+  byData = ioread8(iobase + MAC_REG_I2MDIPT);
+  iowrite8(byOrg, iobase + MAC_REG_I2MCFG);
+  return byData;
 }
 
 /*
@@ -103,16 +101,14 @@ unsigned char SROMbyReadEmbedded(void __iomem *iobase,
  * Return Value: none
  *
  */
-void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs)
-{
-	int     ii;
-
-	/* ii = Rom Address */
-	for (ii = 0; ii < EEP_MAX_CONTEXT_SIZE; ii++) {
-		*pbyEepromRegs = SROMbyReadEmbedded(iobase,
-						    (unsigned char)ii);
-		pbyEepromRegs++;
-	}
+void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs) {
+  int ii;
+  /* ii = Rom Address */
+  for (ii = 0; ii < EEP_MAX_CONTEXT_SIZE; ii++) {
+    *pbyEepromRegs = SROMbyReadEmbedded(iobase,
+        (unsigned char) ii);
+    pbyEepromRegs++;
+  }
 }
 
 /*
@@ -128,13 +124,11 @@ void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs)
  *
  */
 void SROMvReadEtherAddress(void __iomem *iobase,
-			   unsigned char *pbyEtherAddress)
-{
-	unsigned char ii;
-
-	/* ii = Rom Address */
-	for (ii = 0; ii < ETH_ALEN; ii++) {
-		*pbyEtherAddress = SROMbyReadEmbedded(iobase, ii);
-		pbyEtherAddress++;
-	}
+    unsigned char *pbyEtherAddress) {
+  unsigned char ii;
+  /* ii = Rom Address */
+  for (ii = 0; ii < ETH_ALEN; ii++) {
+    *pbyEtherAddress = SROMbyReadEmbedded(iobase, ii);
+    pbyEtherAddress++;
+  }
 }

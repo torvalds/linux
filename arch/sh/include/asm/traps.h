@@ -4,7 +4,7 @@
 
 #include <linux/compiler.h>
 
-# include <asm/traps_32.h>
+#include <asm/traps_32.h>
 
 BUILD_TRAP_HANDLER(address_error);
 BUILD_TRAP_HANDLER(debug);

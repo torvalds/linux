@@ -20,26 +20,22 @@
 #include <asm/rtc.h>
 #include <asm/platform_early.h>
 
-static void __init sh_late_time_init(void)
-{
-	/*
-	 * Make sure all compiled-in early timers register themselves.
-	 *
-	 * Run probe() for two "earlytimer" devices, these will be the
-	 * clockevents and clocksource devices respectively. In the event
-	 * that only a clockevents device is available, we -ENODEV on the
-	 * clocksource and the jiffies clocksource is used transparently
-	 * instead. No error handling is necessary here.
-	 */
-	sh_early_platform_driver_register_all("earlytimer");
-	sh_early_platform_driver_probe("earlytimer", 2, 0);
+static void __init sh_late_time_init(void) {
+  /*
+   * Make sure all compiled-in early timers register themselves.
+   *
+   * Run probe() for two "earlytimer" devices, these will be the
+   * clockevents and clocksource devices respectively. In the event
+   * that only a clockevents device is available, we -ENODEV on the
+   * clocksource and the jiffies clocksource is used transparently
+   * instead. No error handling is necessary here.
+   */
+  sh_early_platform_driver_register_all("earlytimer");
+  sh_early_platform_driver_probe("earlytimer", 2, 0);
 }
 
-void __init time_init(void)
-{
-	timer_probe();
-
-	clk_init();
-
-	late_time_init = sh_late_time_init;
+void __init time_init(void) {
+  timer_probe();
+  clk_init();
+  late_time_init = sh_late_time_init;
 }

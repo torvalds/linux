@@ -15,26 +15,26 @@
 
 /* LCD controller private state. */
 struct mmpfb_info {
-	struct device	*dev;
-	int	id;
-	const char	*name;
+  struct device *dev;
+  int id;
+  const char *name;
 
-	struct fb_info	*fb_info;
-	/* basicaly videomode is for output */
-	struct fb_videomode	mode;
-	int	pix_fmt;
+  struct fb_info *fb_info;
+  /* basicaly videomode is for output */
+  struct fb_videomode mode;
+  int pix_fmt;
 
-	void	*fb_start;
-	int	fb_size;
-	dma_addr_t	fb_start_dma;
+  void *fb_start;
+  int fb_size;
+  dma_addr_t fb_start_dma;
 
-	struct mmp_overlay	*overlay;
-	struct mmp_path	*path;
+  struct mmp_overlay *overlay;
+  struct mmp_path *path;
 
-	struct mutex	access_ok;
+  struct mutex access_ok;
 
-	unsigned int		pseudo_palette[16];
-	int output_fmt;
+  unsigned int pseudo_palette[16];
+  int output_fmt;
 };
 
 #define MMPFB_DEFAULT_SIZE (PAGE_ALIGN(1920 * 1080 * 4 * 2))

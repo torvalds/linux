@@ -73,7 +73,7 @@
 #define FIS_DATA            0x46
 
 /**************************************************************************/
-#define SSP_RESP_IU_MAX_SIZE	280
+#define SSP_RESP_IU_MAX_SIZE  280
 
 /*
  * contents of the SSP COMMAND INFORMATION UNIT.
@@ -82,16 +82,16 @@
  * XXX: This needs to go into <scsi/sas.h>
  */
 struct ssp_cmd_iu {
-	u8 LUN[8];
-	u8 add_cdb_len:6;
-	u8 _r_a:2;
-	u8 _r_b;
-	u8 en_fburst:1;
-	u8 task_prio:4;
-	u8 task_attr:3;
-	u8 _r_c;
+  u8 LUN[8];
+  u8 add_cdb_len : 6;
+  u8 _r_a : 2;
+  u8 _r_b;
+  u8 en_fburst : 1;
+  u8 task_prio : 4;
+  u8 task_attr : 3;
+  u8 _r_c;
 
-	u8 cdb[16];
+  u8 cdb[16];
 }  __packed;
 
 /*
@@ -101,14 +101,13 @@ struct ssp_cmd_iu {
  * XXX: This needs to go into <scsi/sas.h>
  */
 struct ssp_task_iu {
-	u8 LUN[8];
-	u8 _r_a;
-	u8 task_func;
-	u8 _r_b[4];
-	u16 task_tag;
-	u8 _r_c[12];
+  u8 LUN[8];
+  u8 _r_a;
+  u8 task_func;
+  u8 _r_b[4];
+  u16 task_tag;
+  u8 _r_c[12];
 }  __packed;
-
 
 /*
  * struct smp_req_phy_id - This structure defines the contents of
@@ -120,14 +119,14 @@ struct ssp_task_iu {
  * the SAS specification.
  */
 struct smp_req_phy_id {
-	u8 _r_a[4];		/* bytes 4-7 */
+  u8 _r_a[4];   /* bytes 4-7 */
 
-	u8 ign_zone_grp:1;	/* byte 8 */
-	u8 _r_b:7;
+  u8 ign_zone_grp : 1;  /* byte 8 */
+  u8 _r_b : 7;
 
-	u8 phy_id;		/* byte 9 */
-	u8 _r_c;		/* byte 10 */
-	u8 _r_d;		/* byte 11 */
+  u8 phy_id;    /* byte 9 */
+  u8 _r_c;    /* byte 10 */
+  u8 _r_d;    /* byte 11 */
 }  __packed;
 
 /*
@@ -138,20 +137,20 @@ struct smp_req_phy_id {
  * the SAS specification.
  */
 struct smp_req_conf_rtinfo {
-	u16 exp_change_cnt;		/* bytes 4-5 */
-	u8 exp_rt_idx_hi;		/* byte 6 */
-	u8 exp_rt_idx;			/* byte 7 */
+  u16 exp_change_cnt;   /* bytes 4-5 */
+  u8 exp_rt_idx_hi;   /* byte 6 */
+  u8 exp_rt_idx;      /* byte 7 */
 
-	u8 _r_a;			/* byte 8 */
-	u8 phy_id;			/* byte 9 */
-	u16 _r_b;			/* bytes 10-11 */
+  u8 _r_a;      /* byte 8 */
+  u8 phy_id;      /* byte 9 */
+  u16 _r_b;     /* bytes 10-11 */
 
-	u8 _r_c:7;			/* byte 12 */
-	u8 dis_rt_entry:1;
-	u8 _r_d[3];			/* bytes 13-15 */
+  u8 _r_c : 7;      /* byte 12 */
+  u8 dis_rt_entry : 1;
+  u8 _r_d[3];     /* bytes 13-15 */
 
-	u8 rt_sas_addr[8];		/* bytes 16-23 */
-	u8 _r_e[16];			/* bytes 24-39 */
+  u8 rt_sas_addr[8];    /* bytes 16-23 */
+  u8 _r_e[16];      /* bytes 24-39 */
 }  __packed;
 
 /*
@@ -162,32 +161,32 @@ struct smp_req_conf_rtinfo {
  * the SAS specification.
  */
 struct smp_req_phycntl {
-	u16 exp_change_cnt;		/* byte 4-5 */
+  u16 exp_change_cnt;   /* byte 4-5 */
 
-	u8 _r_a[3];			/* bytes 6-8 */
+  u8 _r_a[3];     /* bytes 6-8 */
 
-	u8 phy_id;			/* byte 9 */
-	u8 phy_op;			/* byte 10 */
+  u8 phy_id;      /* byte 9 */
+  u8 phy_op;      /* byte 10 */
 
-	u8 upd_pathway:1;		/* byte 11 */
-	u8 _r_b:7;
+  u8 upd_pathway : 1;   /* byte 11 */
+  u8 _r_b : 7;
 
-	u8 _r_c[12];			/* byte 12-23 */
+  u8 _r_c[12];      /* byte 12-23 */
 
-	u8 att_dev_name[8];             /* byte 24-31 */
+  u8 att_dev_name[8];             /* byte 24-31 */
 
-	u8 _r_d:4;			/* byte 32 */
-	u8 min_linkrate:4;
+  u8 _r_d : 4;      /* byte 32 */
+  u8 min_linkrate : 4;
 
-	u8 _r_e:4;			/* byte 33 */
-	u8 max_linkrate:4;
+  u8 _r_e : 4;      /* byte 33 */
+  u8 max_linkrate : 4;
 
-	u8 _r_f[2];			/* byte 34-35 */
+  u8 _r_f[2];     /* byte 34-35 */
 
-	u8 pathway:4;			/* byte 36 */
-	u8 _r_g:4;
+  u8 pathway : 4;     /* byte 36 */
+  u8 _r_g : 4;
 
-	u8 _r_h[3];			/* bytes 37-39 */
+  u8 _r_h[3];     /* bytes 37-39 */
 }  __packed;
 
 /*
@@ -197,11 +196,11 @@ struct smp_req_phycntl {
  * XXX: This data structure may need to go to scsi/sas.h
  */
 struct smp_req {
-	u8 type;		/* byte 0 */
-	u8 func;		/* byte 1 */
-	u8 alloc_resp_len;	/* byte 2 */
-	u8 req_len;		/* byte 3 */
-	u8 req_data[];
+  u8 type;    /* byte 0 */
+  u8 func;    /* byte 1 */
+  u8 alloc_resp_len;  /* byte 2 */
+  u8 req_len;   /* byte 3 */
+  u8 req_data[];
 }  __packed;
 
 /*
@@ -211,7 +210,7 @@ struct smp_req {
  *
  */
 struct sci_sas_address {
-	u32 high;
-	u32 low;
+  u32 high;
+  u32 low;
 };
 #endif

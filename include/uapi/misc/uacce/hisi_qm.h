@@ -10,8 +10,8 @@
  * @qc_type: Accelerator algorithm type
  */
 struct hisi_qp_ctx {
-	__u16 id;
-	__u16 qc_type;
+  __u16 id;
+  __u16 qc_type;
 };
 
 /**
@@ -22,10 +22,10 @@ struct hisi_qp_ctx {
  * @reserved: Reserved data
  */
 struct hisi_qp_info {
-	__u32 sqe_size;
-	__u16 sq_depth;
-	__u16 cq_depth;
-	__u64 reserved;
+  __u32 sqe_size;
+  __u16 sq_depth;
+  __u16 cq_depth;
+  __u64 reserved;
 };
 
 #define HISI_QM_API_VER_BASE "hisi_qm_v1"
@@ -33,7 +33,7 @@ struct hisi_qp_info {
 #define HISI_QM_API_VER3_BASE "hisi_qm_v3"
 
 /* UACCE_CMD_QM_SET_QP_CTX: Set qp algorithm type */
-#define UACCE_CMD_QM_SET_QP_CTX	_IOWR('H', 10, struct hisi_qp_ctx)
+#define UACCE_CMD_QM_SET_QP_CTX _IOWR('H', 10, struct hisi_qp_ctx)
 /* UACCE_CMD_QM_SET_QP_INFO: Set qp depth and BD size */
 #define UACCE_CMD_QM_SET_QP_INFO _IOWR('H', 11, struct hisi_qp_info)
 #endif

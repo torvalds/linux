@@ -10,7 +10,7 @@ extern void check_writebuffer_bugs(void);
 #ifdef CONFIG_MMU
 extern void check_other_bugs(void);
 #else
-#define check_other_bugs() do { } while (0)
+#define check_other_bugs() do {} while (0)
 #endif
 
 #endif

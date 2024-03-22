@@ -62,21 +62,22 @@
 #define __IWL_MVM_TESTMODE_H__
 
 /**
- * enum iwl_mvm_testmode_attrs - testmode attributes inside NL80211_ATTR_TESTDATA
+ * enum iwl_mvm_testmode_attrs - testmode attributes inside
+ * NL80211_ATTR_TESTDATA
  * @IWL_MVM_TM_ATTR_UNSPEC: (invalid attribute)
  * @IWL_MVM_TM_ATTR_CMD: sub command, see &enum iwl_mvm_testmode_commands (u32)
  * @IWL_MVM_TM_ATTR_NOA_DURATION: requested NoA duration (u32)
  * @IWL_MVM_TM_ATTR_BEACON_FILTER_STATE: beacon filter state (0 or 1, u32)
  */
 enum iwl_mvm_testmode_attrs {
-	IWL_MVM_TM_ATTR_UNSPEC,
-	IWL_MVM_TM_ATTR_CMD,
-	IWL_MVM_TM_ATTR_NOA_DURATION,
-	IWL_MVM_TM_ATTR_BEACON_FILTER_STATE,
+  IWL_MVM_TM_ATTR_UNSPEC,
+  IWL_MVM_TM_ATTR_CMD,
+  IWL_MVM_TM_ATTR_NOA_DURATION,
+  IWL_MVM_TM_ATTR_BEACON_FILTER_STATE,
 
-	/* keep last */
-	NUM_IWL_MVM_TM_ATTRS,
-	IWL_MVM_TM_ATTR_MAX = NUM_IWL_MVM_TM_ATTRS - 1,
+  /* keep last */
+  NUM_IWL_MVM_TM_ATTRS,
+  IWL_MVM_TM_ATTR_MAX = NUM_IWL_MVM_TM_ATTRS - 1,
 };
 
 /**
@@ -85,8 +86,8 @@ enum iwl_mvm_testmode_attrs {
  * @IWL_MVM_TM_CMD_SET_BEACON_FILTER: turn beacon filtering off/on
  */
 enum iwl_mvm_testmode_commands {
-	IWL_MVM_TM_CMD_SET_NOA,
-	IWL_MVM_TM_CMD_SET_BEACON_FILTER,
+  IWL_MVM_TM_CMD_SET_NOA,
+  IWL_MVM_TM_CMD_SET_BEACON_FILTER,
 };
 
 #endif /* __IWL_MVM_TESTMODE_H__ */

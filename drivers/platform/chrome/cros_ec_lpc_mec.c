@@ -24,10 +24,9 @@ static u16 mec_emi_base, mec_emi_end;
  * @access_type: Type of access, typically 32-bit auto-increment
  */
 static void cros_ec_lpc_mec_emi_write_address(u16 addr,
-			enum cros_ec_lpc_mec_emi_access_mode access_type)
-{
-	outb((addr & 0xfc) | access_type, MEC_EMI_EC_ADDRESS_B0(mec_emi_base));
-	outb((addr >> 8) & 0x7f, MEC_EMI_EC_ADDRESS_B1(mec_emi_base));
+    enum cros_ec_lpc_mec_emi_access_mode access_type) {
+  outb((addr & 0xfc) | access_type, MEC_EMI_EC_ADDRESS_B0(mec_emi_base));
+  outb((addr >> 8) & 0x7f, MEC_EMI_EC_ADDRESS_B1(mec_emi_base));
 }
 
 /**
@@ -39,24 +38,23 @@ static void cros_ec_lpc_mec_emi_write_address(u16 addr,
  * Return: 1 if in range, 0 if not, and -EINVAL on failure
  *         such as the mec range not being initialized
  */
-int cros_ec_lpc_mec_in_range(unsigned int offset, unsigned int length)
-{
-	if (length == 0)
-		return -EINVAL;
-
-	if (WARN_ON(mec_emi_base == 0 || mec_emi_end == 0))
-		return -EINVAL;
-
-	if (offset >= mec_emi_base && offset < mec_emi_end) {
-		if (WARN_ON(offset + length - 1 >= mec_emi_end))
-			return -EINVAL;
-		return 1;
-	}
-
-	if (WARN_ON(offset + length > mec_emi_base && offset < mec_emi_end))
-		return -EINVAL;
-
-	return 0;
+int cros_ec_lpc_mec_in_range(unsigned int offset, unsigned int length) {
+  if (length == 0) {
+    return -EINVAL;
+  }
+  if (WARN_ON(mec_emi_base == 0 || mec_emi_end == 0)) {
+    return -EINVAL;
+  }
+  if (offset >= mec_emi_base && offset < mec_emi_end) {
+    if (WARN_ON(offset + length - 1 >= mec_emi_end)) {
+      return -EINVAL;
+    }
+    return 1;
+  }
+  if (WARN_ON(offset + length > mec_emi_base && offset < mec_emi_end)) {
+    return -EINVAL;
+  }
+  return 0;
 }
 
 /**
@@ -70,79 +68,72 @@ int cros_ec_lpc_mec_in_range(unsigned int offset, unsigned int length)
  * Return: 8-bit checksum of all bytes read / written
  */
 u8 cros_ec_lpc_io_bytes_mec(enum cros_ec_lpc_mec_io_type io_type,
-			    unsigned int offset, unsigned int length,
-			    u8 *buf)
-{
-	int i = 0;
-	int io_addr;
-	u8 sum = 0;
-	enum cros_ec_lpc_mec_emi_access_mode access, new_access;
-
-	/* Return checksum of 0 if window is not initialized */
-	WARN_ON(mec_emi_base == 0 || mec_emi_end == 0);
-	if (mec_emi_base == 0 || mec_emi_end == 0)
-		return 0;
-
-	/*
-	 * Long access cannot be used on misaligned data since reading B0 loads
-	 * the data register and writing B3 flushes.
-	 */
-	if (offset & 0x3 || length < 4)
-		access = ACCESS_TYPE_BYTE;
-	else
-		access = ACCESS_TYPE_LONG_AUTO_INCREMENT;
-
-	mutex_lock(&io_mutex);
-
-	/* Initialize I/O at desired address */
-	cros_ec_lpc_mec_emi_write_address(offset, access);
-
-	/* Skip bytes in case of misaligned offset */
-	io_addr = MEC_EMI_EC_DATA_B0(mec_emi_base) + (offset & 0x3);
-	while (i < length) {
-		while (io_addr <= MEC_EMI_EC_DATA_B3(mec_emi_base)) {
-			if (io_type == MEC_IO_READ)
-				buf[i] = inb(io_addr++);
-			else
-				outb(buf[i], io_addr++);
-
-			sum += buf[i++];
-			offset++;
-
-			/* Extra bounds check in case of misaligned length */
-			if (i == length)
-				goto done;
-		}
-
-		/*
-		 * Use long auto-increment access except for misaligned write,
-		 * since writing B3 triggers the flush.
-		 */
-		if (length - i < 4 && io_type == MEC_IO_WRITE)
-			new_access = ACCESS_TYPE_BYTE;
-		else
-			new_access = ACCESS_TYPE_LONG_AUTO_INCREMENT;
-
-		if (new_access != access ||
-		    access != ACCESS_TYPE_LONG_AUTO_INCREMENT) {
-			access = new_access;
-			cros_ec_lpc_mec_emi_write_address(offset, access);
-		}
-
-		/* Access [B0, B3] on each loop pass */
-		io_addr = MEC_EMI_EC_DATA_B0(mec_emi_base);
-	}
-
+    unsigned int offset, unsigned int length,
+    u8 *buf) {
+  int i = 0;
+  int io_addr;
+  u8 sum = 0;
+  enum cros_ec_lpc_mec_emi_access_mode access, new_access;
+  /* Return checksum of 0 if window is not initialized */
+  WARN_ON(mec_emi_base == 0 || mec_emi_end == 0);
+  if (mec_emi_base == 0 || mec_emi_end == 0) {
+    return 0;
+  }
+  /*
+   * Long access cannot be used on misaligned data since reading B0 loads
+   * the data register and writing B3 flushes.
+   */
+  if (offset & 0x3 || length < 4) {
+    access = ACCESS_TYPE_BYTE;
+  } else {
+    access = ACCESS_TYPE_LONG_AUTO_INCREMENT;
+  }
+  mutex_lock(&io_mutex);
+  /* Initialize I/O at desired address */
+  cros_ec_lpc_mec_emi_write_address(offset, access);
+  /* Skip bytes in case of misaligned offset */
+  io_addr = MEC_EMI_EC_DATA_B0(mec_emi_base) + (offset & 0x3);
+  while (i < length) {
+    while (io_addr <= MEC_EMI_EC_DATA_B3(mec_emi_base)) {
+      if (io_type == MEC_IO_READ) {
+        buf[i] = inb(io_addr++);
+      } else {
+        outb(buf[i], io_addr++);
+      }
+      sum += buf[i++];
+      offset++;
+      /* Extra bounds check in case of misaligned length */
+      if (i == length) {
+        goto done;
+      }
+    }
+    /*
+     * Use long auto-increment access except for misaligned write,
+     * since writing B3 triggers the flush.
+     */
+    if (length - i < 4 && io_type == MEC_IO_WRITE) {
+      new_access = ACCESS_TYPE_BYTE;
+    } else {
+      new_access = ACCESS_TYPE_LONG_AUTO_INCREMENT;
+    }
+    if (new_access != access
+        || access != ACCESS_TYPE_LONG_AUTO_INCREMENT) {
+      access = new_access;
+      cros_ec_lpc_mec_emi_write_address(offset, access);
+    }
+    /* Access [B0, B3] on each loop pass */
+    io_addr = MEC_EMI_EC_DATA_B0(mec_emi_base);
+  }
 done:
-	mutex_unlock(&io_mutex);
-
-	return sum;
+  mutex_unlock(&io_mutex);
+  return sum;
 }
+
 EXPORT_SYMBOL(cros_ec_lpc_io_bytes_mec);
 
-void cros_ec_lpc_mec_init(unsigned int base, unsigned int end)
-{
-	mec_emi_base = base;
-	mec_emi_end = end;
+void cros_ec_lpc_mec_init(unsigned int base, unsigned int end) {
+  mec_emi_base = base;
+  mec_emi_end = end;
 }
+
 EXPORT_SYMBOL(cros_ec_lpc_mec_init);

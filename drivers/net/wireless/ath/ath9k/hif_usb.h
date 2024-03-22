@@ -27,14 +27,14 @@
 /* minimal and maximal supported Minor FW version. */
 #define FIRMWARE_MINOR_IDX_MAX  4
 #define FIRMWARE_MINOR_IDX_MIN  3
-#define HTC_FW_PATH	"ath9k_htc"
+#define HTC_FW_PATH "ath9k_htc"
 
 #define HTC_9271_MODULE_FW  HTC_FW_PATH "/htc_9271-" \
-			__stringify(MAJOR_VERSION_REQ) \
-			"." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
+  __stringify(MAJOR_VERSION_REQ) \
+  "." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
 #define HTC_7010_MODULE_FW  HTC_FW_PATH "/htc_7010-" \
-			__stringify(MAJOR_VERSION_REQ) \
-			"." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
+  __stringify(MAJOR_VERSION_REQ) \
+  "." __stringify(FIRMWARE_MINOR_IDX_MAX) ".0.fw"
 
 extern int htc_use_dev_fw;
 
@@ -77,63 +77,63 @@ extern int htc_use_dev_fw;
 #define HIF_USB_MAX_TXPIPES 4
 
 struct tx_buf {
-	u8 *buf;
-	u16 len;
-	u16 offset;
-	struct urb *urb;
-	struct sk_buff_head skb_queue;
-	struct hif_device_usb *hif_dev;
-	struct list_head list;
+  u8 *buf;
+  u16 len;
+  u16 offset;
+  struct urb *urb;
+  struct sk_buff_head skb_queue;
+  struct hif_device_usb *hif_dev;
+  struct list_head list;
 };
 
 struct rx_buf {
-	struct sk_buff *skb;
-	struct hif_device_usb *hif_dev;
+  struct sk_buff *skb;
+  struct hif_device_usb *hif_dev;
 };
 
 #define HIF_USB_TX_STOP  BIT(0)
 #define HIF_USB_TX_FLUSH BIT(1)
 
 struct hif_usb_tx {
-	u8 flags;
-	u8 tx_buf_cnt;
-	u16 tx_skb_cnt;
-	struct sk_buff_head tx_skb_queue;
-	struct list_head tx_buf;
-	struct list_head tx_pending;
-	spinlock_t tx_lock;
+  u8 flags;
+  u8 tx_buf_cnt;
+  u16 tx_skb_cnt;
+  struct sk_buff_head tx_skb_queue;
+  struct list_head tx_buf;
+  struct list_head tx_pending;
+  spinlock_t tx_lock;
 };
 
 struct cmd_buf {
-	struct sk_buff *skb;
-	struct hif_device_usb *hif_dev;
+  struct sk_buff *skb;
+  struct hif_device_usb *hif_dev;
 };
 
 #define HIF_USB_START BIT(0)
 #define HIF_USB_READY BIT(1)
 
 struct hif_device_usb {
-	struct usb_device *udev;
-	struct usb_interface *interface;
-	const struct usb_device_id *usb_device_id;
-	const void *fw_data;
-	size_t fw_size;
-	struct completion fw_done;
-	struct htc_target *htc_handle;
-	struct hif_usb_tx tx;
-	struct usb_anchor regout_submitted;
-	struct usb_anchor rx_submitted;
-	struct usb_anchor reg_in_submitted;
-	struct usb_anchor mgmt_submitted;
-	struct sk_buff *remain_skb;
-	char fw_name[64];
-	int fw_minor_index;
-	int rx_remain_len;
-	int rx_pkt_len;
-	int rx_transfer_len;
-	int rx_pad_len;
-	spinlock_t rx_lock;
-	u8 flags; /* HIF_USB_* */
+  struct usb_device *udev;
+  struct usb_interface *interface;
+  const struct usb_device_id *usb_device_id;
+  const void *fw_data;
+  size_t fw_size;
+  struct completion fw_done;
+  struct htc_target *htc_handle;
+  struct hif_usb_tx tx;
+  struct usb_anchor regout_submitted;
+  struct usb_anchor rx_submitted;
+  struct usb_anchor reg_in_submitted;
+  struct usb_anchor mgmt_submitted;
+  struct sk_buff *remain_skb;
+  char fw_name[64];
+  int fw_minor_index;
+  int rx_remain_len;
+  int rx_pkt_len;
+  int rx_transfer_len;
+  int rx_pad_len;
+  spinlock_t rx_lock;
+  u8 flags; /* HIF_USB_* */
 };
 
 int ath9k_hif_usb_init(void);

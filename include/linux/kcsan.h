@@ -20,44 +20,44 @@
  * task_struct, and interrupts access internal per-CPU storage.
  */
 struct kcsan_ctx {
-	int disable_count; /* disable counter */
-	int disable_scoped; /* disable scoped access counter */
-	int atomic_next; /* number of following atomic ops */
+  int disable_count; /* disable counter */
+  int disable_scoped; /* disable scoped access counter */
+  int atomic_next; /* number of following atomic ops */
 
-	/*
-	 * We distinguish between: (a) nestable atomic regions that may contain
-	 * other nestable regions; and (b) flat atomic regions that do not keep
-	 * track of nesting. Both (a) and (b) are entirely independent of each
-	 * other, and a flat region may be started in a nestable region or
-	 * vice-versa.
-	 *
-	 * This is required because, for example, in the annotations for
-	 * seqlocks, we declare seqlock writer critical sections as (a) nestable
-	 * atomic regions, but reader critical sections as (b) flat atomic
-	 * regions, but have encountered cases where seqlock reader critical
-	 * sections are contained within writer critical sections (the opposite
-	 * may be possible, too).
-	 *
-	 * To support these cases, we independently track the depth of nesting
-	 * for (a), and whether the leaf level is flat for (b).
-	 */
-	int atomic_nest_count;
-	bool in_flat_atomic;
+  /*
+   * We distinguish between: (a) nestable atomic regions that may contain
+   * other nestable regions; and (b) flat atomic regions that do not keep
+   * track of nesting. Both (a) and (b) are entirely independent of each
+   * other, and a flat region may be started in a nestable region or
+   * vice-versa.
+   *
+   * This is required because, for example, in the annotations for
+   * seqlocks, we declare seqlock writer critical sections as (a) nestable
+   * atomic regions, but reader critical sections as (b) flat atomic
+   * regions, but have encountered cases where seqlock reader critical
+   * sections are contained within writer critical sections (the opposite
+   * may be possible, too).
+   *
+   * To support these cases, we independently track the depth of nesting
+   * for (a), and whether the leaf level is flat for (b).
+   */
+  int atomic_nest_count;
+  bool in_flat_atomic;
 
-	/*
-	 * Access mask for all accesses if non-zero.
-	 */
-	unsigned long access_mask;
+  /*
+   * Access mask for all accesses if non-zero.
+   */
+  unsigned long access_mask;
 
-	/* List of scoped accesses; likely to be empty. */
-	struct list_head scoped_accesses;
+  /* List of scoped accesses; likely to be empty. */
+  struct list_head scoped_accesses;
 
 #ifdef CONFIG_KCSAN_WEAK_MEMORY
-	/*
-	 * Scoped access for modeling access reordering to detect missing memory
-	 * barriers; only keep 1 to keep fast-path complexity manageable.
-	 */
-	struct kcsan_scoped_access reorder_access;
+  /*
+   * Scoped access for modeling access reordering to detect missing memory
+   * barriers; only keep 1 to keep fast-path complexity manageable.
+   */
+  struct kcsan_scoped_access reorder_access;
 #endif
 };
 
@@ -68,7 +68,8 @@ void kcsan_init(void);
 
 #else /* CONFIG_KCSAN */
 
-static inline void kcsan_init(void)			{ }
+static inline void kcsan_init(void) {
+}
 
 #endif /* CONFIG_KCSAN */
 

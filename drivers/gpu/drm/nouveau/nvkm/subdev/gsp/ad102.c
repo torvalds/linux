@@ -22,36 +22,35 @@
 #include "priv.h"
 
 static const struct nvkm_gsp_func
-ad102_gsp_r535_113_01 = {
-	.flcn = &ga102_gsp_flcn,
-	.fwsec = &ga102_gsp_fwsec,
+    ad102_gsp_r535_113_01 = {
+  .flcn = &ga102_gsp_flcn,
+  .fwsec = &ga102_gsp_fwsec,
 
-	.sig_section = ".fwsignature_ad10x",
+  .sig_section = ".fwsignature_ad10x",
 
-	.wpr_heap.os_carveout_size = 20 << 20,
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 84 << 20,
+  .wpr_heap.os_carveout_size = 20 << 20,
+    .wpr_heap.base_size = 8 << 20,
+    .wpr_heap.min_size = 84 << 20,
 
-	.booter.ctor = ga102_gsp_booter_ctor,
+    .booter.ctor = ga102_gsp_booter_ctor,
 
-	.dtor = r535_gsp_dtor,
-	.oneinit = tu102_gsp_oneinit,
-	.init = r535_gsp_init,
-	.fini = r535_gsp_fini,
-	.reset = ga102_gsp_reset,
+    .dtor = r535_gsp_dtor,
+    .oneinit = tu102_gsp_oneinit,
+    .init = r535_gsp_init,
+    .fini = r535_gsp_fini,
+    .reset = ga102_gsp_reset,
 
-	.rm = &r535_gsp_rm,
+    .rm = &r535_gsp_rm,
 };
 
 static struct nvkm_gsp_fwif
-ad102_gsps[] = {
-	{ 0, r535_gsp_load, &ad102_gsp_r535_113_01, "535.113.01", true },
-	{}
+    ad102_gsps[] = {
+  { 0, r535_gsp_load, &ad102_gsp_r535_113_01, "535.113.01", true },
+  {}
 };
 
-int
-ad102_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	      struct nvkm_gsp **pgsp)
-{
-	return nvkm_gsp_new_(ad102_gsps, device, type, inst, pgsp);
+int ad102_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_gsp **pgsp) {
+  return nvkm_gsp_new_(ad102_gsps, device, type, inst, pgsp);
 }

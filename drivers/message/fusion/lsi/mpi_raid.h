@@ -44,35 +44,31 @@
 #ifndef MPI_RAID_H
 #define MPI_RAID_H
 
-
 /******************************************************************************
-*
-*        R A I D    M e s s a g e s
-*
-*******************************************************************************/
+ *
+ *        R A I D    M e s s a g e s
+ *
+ *******************************************************************************/
 
+/* **************************************************************************
+ * RAID Action Request
+ ****************************************************************************/
 
-/****************************************************************************/
-/* RAID Action Request                                                      */
-/****************************************************************************/
-
-typedef struct _MSG_RAID_ACTION
-{
-    U8                      Action;             /* 00h */
-    U8                      Reserved1;          /* 01h */
-    U8                      ChainOffset;        /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      VolumeID;           /* 04h */
-    U8                      VolumeBus;          /* 05h */
-    U8                      PhysDiskNum;        /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U32                     Reserved2;          /* 0Ch */
-    U32                     ActionDataWord;     /* 10h */
-    SGE_SIMPLE_UNION        ActionDataSGE;      /* 14h */
+typedef struct _MSG_RAID_ACTION {
+  U8 Action;             /* 00h */
+  U8 Reserved1;          /* 01h */
+  U8 ChainOffset;        /* 02h */
+  U8 Function;           /* 03h */
+  U8 VolumeID;           /* 04h */
+  U8 VolumeBus;          /* 05h */
+  U8 PhysDiskNum;        /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U32 Reserved2;          /* 0Ch */
+  U32 ActionDataWord;     /* 10h */
+  SGE_SIMPLE_UNION ActionDataSGE;      /* 14h */
 } MSG_RAID_ACTION_REQUEST, MPI_POINTER PTR_MSG_RAID_ACTION_REQUEST,
-  MpiRaidActionRequest_t , MPI_POINTER pMpiRaidActionRequest_t;
-
+MpiRaidActionRequest_t, MPI_POINTER pMpiRaidActionRequest_t;
 
 /* RAID Action request Action values */
 
@@ -119,36 +115,35 @@ typedef struct _MSG_RAID_ACTION
 /* ActionDataWord defines for use with MPI_RAID_ACTION_SET_RESYNC_RATE action */
 #define MPI_RAID_ACTION_ADATA_RESYNC_RATE_MASK      (0x000000FF)
 
-/* ActionDataWord defines for use with MPI_RAID_ACTION_SET_DATA_SCRUB_RATE action */
+/* ActionDataWord defines for use with MPI_RAID_ACTION_SET_DATA_SCRUB_RATE
+ * action */
 #define MPI_RAID_ACTION_ADATA_DATA_SCRUB_RATE_MASK  (0x000000FF)
 
-/* ActionDataWord defines for use with MPI_RAID_ACTION_DEVICE_FW_UPDATE_MODE action */
+/* ActionDataWord defines for use with MPI_RAID_ACTION_DEVICE_FW_UPDATE_MODE
+ * action */
 #define MPI_RAID_ACTION_ADATA_ENABLE_FW_UPDATE          (0x00000001)
 #define MPI_RAID_ACTION_ADATA_MASK_FW_UPDATE_TIMEOUT    (0x0000FF00)
 #define MPI_RAID_ACTION_ADATA_SHIFT_FW_UPDATE_TIMEOUT   (8)
 
-
 /* RAID Action reply message */
 
-typedef struct _MSG_RAID_ACTION_REPLY
-{
-    U8                      Action;             /* 00h */
-    U8                      Reserved;           /* 01h */
-    U8                      MsgLength;          /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      VolumeID;           /* 04h */
-    U8                      VolumeBus;          /* 05h */
-    U8                      PhysDiskNum;        /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U16                     ActionStatus;       /* 0Ch */
-    U16                     IOCStatus;          /* 0Eh */
-    U32                     IOCLogInfo;         /* 10h */
-    U32                     VolumeStatus;       /* 14h */
-    U32                     ActionData;         /* 18h */
+typedef struct _MSG_RAID_ACTION_REPLY {
+  U8 Action;             /* 00h */
+  U8 Reserved;           /* 01h */
+  U8 MsgLength;          /* 02h */
+  U8 Function;           /* 03h */
+  U8 VolumeID;           /* 04h */
+  U8 VolumeBus;          /* 05h */
+  U8 PhysDiskNum;        /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U16 ActionStatus;       /* 0Ch */
+  U16 IOCStatus;          /* 0Eh */
+  U32 IOCLogInfo;         /* 10h */
+  U32 VolumeStatus;       /* 14h */
+  U32 ActionData;         /* 18h */
 } MSG_RAID_ACTION_REPLY, MPI_POINTER PTR_MSG_RAID_ACTION_REPLY,
-  MpiRaidActionReply_t, MPI_POINTER pMpiRaidActionReply_t;
-
+MpiRaidActionReply_t, MPI_POINTER pMpiRaidActionReply_t;
 
 /* RAID Volume reply ActionStatus values */
 
@@ -157,104 +152,91 @@ typedef struct _MSG_RAID_ACTION_REPLY
 #define MPI_RAID_ACTION_ASTATUS_FAILURE             (0x0002)
 #define MPI_RAID_ACTION_ASTATUS_IN_PROGRESS         (0x0003)
 
-
 /* RAID Volume reply RAID Volume Indicator structure */
 
-typedef struct _MPI_RAID_VOL_INDICATOR
-{
-    U64                     TotalBlocks;        /* 00h */
-    U64                     BlocksRemaining;    /* 08h */
+typedef struct _MPI_RAID_VOL_INDICATOR {
+  U64 TotalBlocks;        /* 00h */
+  U64 BlocksRemaining;    /* 08h */
 } MPI_RAID_VOL_INDICATOR, MPI_POINTER PTR_MPI_RAID_VOL_INDICATOR,
-  MpiRaidVolIndicator_t, MPI_POINTER pMpiRaidVolIndicator_t;
+MpiRaidVolIndicator_t, MPI_POINTER pMpiRaidVolIndicator_t;
 
+/* **************************************************************************
+ * SCSI IO RAID Passthrough Request
+ ****************************************************************************/
 
-/****************************************************************************/
-/* SCSI IO RAID Passthrough Request                                         */
-/****************************************************************************/
-
-typedef struct _MSG_SCSI_IO_RAID_PT_REQUEST
-{
-    U8                      PhysDiskNum;        /* 00h */
-    U8                      Reserved1;          /* 01h */
-    U8                      ChainOffset;        /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      CDBLength;          /* 04h */
-    U8                      SenseBufferLength;  /* 05h */
-    U8                      Reserved2;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      LUN[8];             /* 0Ch */
-    U32                     Control;            /* 14h */
-    U8                      CDB[16];            /* 18h */
-    U32                     DataLength;         /* 28h */
-    U32                     SenseBufferLowAddr; /* 2Ch */
-    SGE_IO_UNION            SGL;                /* 30h */
+typedef struct _MSG_SCSI_IO_RAID_PT_REQUEST {
+  U8 PhysDiskNum;        /* 00h */
+  U8 Reserved1;          /* 01h */
+  U8 ChainOffset;        /* 02h */
+  U8 Function;           /* 03h */
+  U8 CDBLength;          /* 04h */
+  U8 SenseBufferLength;  /* 05h */
+  U8 Reserved2;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U8 LUN[8];             /* 0Ch */
+  U32 Control;            /* 14h */
+  U8 CDB[16];            /* 18h */
+  U32 DataLength;         /* 28h */
+  U32 SenseBufferLowAddr; /* 2Ch */
+  SGE_IO_UNION SGL;                /* 30h */
 } MSG_SCSI_IO_RAID_PT_REQUEST, MPI_POINTER PTR_MSG_SCSI_IO_RAID_PT_REQUEST,
-  SCSIIORaidPassthroughRequest_t, MPI_POINTER pSCSIIORaidPassthroughRequest_t;
-
+SCSIIORaidPassthroughRequest_t, MPI_POINTER pSCSIIORaidPassthroughRequest_t;
 
 /* SCSI IO RAID Passthrough reply structure */
 
-typedef struct _MSG_SCSI_IO_RAID_PT_REPLY
-{
-    U8                      PhysDiskNum;        /* 00h */
-    U8                      Reserved1;          /* 01h */
-    U8                      MsgLength;          /* 02h */
-    U8                      Function;           /* 03h */
-    U8                      CDBLength;          /* 04h */
-    U8                      SenseBufferLength;  /* 05h */
-    U8                      Reserved2;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U8                      SCSIStatus;         /* 0Ch */
-    U8                      SCSIState;          /* 0Dh */
-    U16                     IOCStatus;          /* 0Eh */
-    U32                     IOCLogInfo;         /* 10h */
-    U32                     TransferCount;      /* 14h */
-    U32                     SenseCount;         /* 18h */
-    U32                     ResponseInfo;       /* 1Ch */
+typedef struct _MSG_SCSI_IO_RAID_PT_REPLY {
+  U8 PhysDiskNum;        /* 00h */
+  U8 Reserved1;          /* 01h */
+  U8 MsgLength;          /* 02h */
+  U8 Function;           /* 03h */
+  U8 CDBLength;          /* 04h */
+  U8 SenseBufferLength;  /* 05h */
+  U8 Reserved2;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U8 SCSIStatus;         /* 0Ch */
+  U8 SCSIState;          /* 0Dh */
+  U16 IOCStatus;          /* 0Eh */
+  U32 IOCLogInfo;         /* 10h */
+  U32 TransferCount;      /* 14h */
+  U32 SenseCount;         /* 18h */
+  U32 ResponseInfo;       /* 1Ch */
 } MSG_SCSI_IO_RAID_PT_REPLY, MPI_POINTER PTR_MSG_SCSI_IO_RAID_PT_REPLY,
-  SCSIIORaidPassthroughReply_t, MPI_POINTER pSCSIIORaidPassthroughReply_t;
+SCSIIORaidPassthroughReply_t, MPI_POINTER pSCSIIORaidPassthroughReply_t;
 
+/* **************************************************************************
+ * Mailbox reqeust structure
+ ****************************************************************************/
 
-/****************************************************************************/
-/* Mailbox reqeust structure */
-/****************************************************************************/
-
-typedef struct _MSG_MAILBOX_REQUEST
-{
-    U16                     Reserved1;
-    U8                      ChainOffset;
-    U8                      Function;
-    U16                     Reserved2;
-    U8                      Reserved3;
-    U8                      MsgFlags;
-    U32                     MsgContext;
-    U8                      Command[10];
-    U16                     Reserved4;
-    SGE_IO_UNION            SGL;
+typedef struct _MSG_MAILBOX_REQUEST {
+  U16 Reserved1;
+  U8 ChainOffset;
+  U8 Function;
+  U16 Reserved2;
+  U8 Reserved3;
+  U8 MsgFlags;
+  U32 MsgContext;
+  U8 Command[10];
+  U16 Reserved4;
+  SGE_IO_UNION SGL;
 } MSG_MAILBOX_REQUEST, MPI_POINTER PTR_MSG_MAILBOX_REQUEST,
-  MailboxRequest_t, MPI_POINTER pMailboxRequest_t;
-
+MailboxRequest_t, MPI_POINTER pMailboxRequest_t;
 
 /* Mailbox reply structure */
-typedef struct _MSG_MAILBOX_REPLY
-{
-    U16                     Reserved1;          /* 00h */
-    U8                      MsgLength;          /* 02h */
-    U8                      Function;           /* 03h */
-    U16                     Reserved2;          /* 04h */
-    U8                      Reserved3;          /* 06h */
-    U8                      MsgFlags;           /* 07h */
-    U32                     MsgContext;         /* 08h */
-    U16                     MailboxStatus;      /* 0Ch */
-    U16                     IOCStatus;          /* 0Eh */
-    U32                     IOCLogInfo;         /* 10h */
-    U32                     Reserved4;          /* 14h */
+typedef struct _MSG_MAILBOX_REPLY {
+  U16 Reserved1;          /* 00h */
+  U8 MsgLength;          /* 02h */
+  U8 Function;           /* 03h */
+  U16 Reserved2;          /* 04h */
+  U8 Reserved3;          /* 06h */
+  U8 MsgFlags;           /* 07h */
+  U32 MsgContext;         /* 08h */
+  U16 MailboxStatus;      /* 0Ch */
+  U16 IOCStatus;          /* 0Eh */
+  U32 IOCLogInfo;         /* 10h */
+  U32 Reserved4;          /* 14h */
 } MSG_MAILBOX_REPLY, MPI_POINTER PTR_MSG_MAILBOX_REPLY,
-  MailboxReply_t, MPI_POINTER pMailboxReply_t;
+MailboxReply_t, MPI_POINTER pMailboxReply_t;
 
 #endif
-
-
-

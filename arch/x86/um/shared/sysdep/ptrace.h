@@ -45,26 +45,26 @@
 #endif
 
 struct syscall_args {
-	unsigned long args[6];
+  unsigned long args[6];
 };
 
 #define SYSCALL_ARGS(r) ((struct syscall_args) \
-			 { .args = { UPT_SYSCALL_ARG1(r),	 \
-				     UPT_SYSCALL_ARG2(r),	 \
-				     UPT_SYSCALL_ARG3(r),	 \
-				     UPT_SYSCALL_ARG4(r),	 \
-				     UPT_SYSCALL_ARG5(r),	 \
-				     UPT_SYSCALL_ARG6(r) } } )
+  { .args = { UPT_SYSCALL_ARG1(r),  \
+              UPT_SYSCALL_ARG2(r),  \
+              UPT_SYSCALL_ARG3(r),  \
+              UPT_SYSCALL_ARG4(r),  \
+              UPT_SYSCALL_ARG5(r),  \
+              UPT_SYSCALL_ARG6(r) } })
 
 struct uml_pt_regs {
-	unsigned long gp[MAX_REG_NR];
-	unsigned long fp[MAX_FP_NR];
-	struct faultinfo faultinfo;
-	long syscall;
-	int is_user;
+  unsigned long gp[MAX_REG_NR];
+  unsigned long fp[MAX_FP_NR];
+  struct faultinfo faultinfo;
+  long syscall;
+  int is_user;
 };
 
-#define EMPTY_UML_PT_REGS { }
+#define EMPTY_UML_PT_REGS {}
 
 #define UPT_SYSCALL_NR(r) ((r)->syscall)
 #define UPT_FAULTINFO(r) (&(r)->faultinfo)

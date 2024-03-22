@@ -31,59 +31,59 @@
 #define IMAGE_1600  3
 
 struct sd_gl860 {
-	u16 backlight;
-	u16 brightness;
-	u16 sharpness;
-	u16 contrast;
-	u16 gamma;
-	u16 hue;
-	u16 saturation;
-	u16 whitebal;
-	u8  mirror;
-	u8  flip;
-	u8  AC50Hz;
+  u16 backlight;
+  u16 brightness;
+  u16 sharpness;
+  u16 contrast;
+  u16 gamma;
+  u16 hue;
+  u16 saturation;
+  u16 whitebal;
+  u8 mirror;
+  u8 flip;
+  u8 AC50Hz;
 };
 
 /* Specific webcam descriptor */
 struct sd {
-	struct gspca_dev gspca_dev;	/* !! must be the first item */
+  struct gspca_dev gspca_dev; /* !! must be the first item */
 
-	struct sd_gl860 vcur;
-	struct sd_gl860 vold;
-	struct sd_gl860 vmax;
+  struct sd_gl860 vcur;
+  struct sd_gl860 vold;
+  struct sd_gl860 vmax;
 
-	int  (*dev_configure_alt)  (struct gspca_dev *);
-	int  (*dev_init_at_startup)(struct gspca_dev *);
-	int  (*dev_init_pre_alt)   (struct gspca_dev *);
-	void (*dev_post_unset_alt) (struct gspca_dev *);
-	int  (*dev_camera_settings)(struct gspca_dev *);
+  int (*dev_configure_alt)(struct gspca_dev *);
+  int (*dev_init_at_startup)(struct gspca_dev *);
+  int (*dev_init_pre_alt)(struct gspca_dev *);
+  void (*dev_post_unset_alt)(struct gspca_dev *);
+  int (*dev_camera_settings)(struct gspca_dev *);
 
-	u8   swapRB;
-	u8   mirrorMask;
-	u8   sensor;
-	s32  nbIm;
-	s32  nbRightUp;
-	u8   waitSet;
+  u8 swapRB;
+  u8 mirrorMask;
+  u8 sensor;
+  s32 nbIm;
+  s32 nbRightUp;
+  u8 waitSet;
 };
 
 struct validx {
-	u16 val;
-	u16 idx;
+  u16 val;
+  u16 idx;
 };
 
 struct idxdata {
-	u8 idx;
-	u8 data[3];
+  u8 idx;
+  u8 data[3];
 };
 
 int fetch_validx(struct gspca_dev *gspca_dev, struct validx *tbl, int len);
 int keep_on_fetching_validx(struct gspca_dev *gspca_dev, struct validx *tbl,
-				int len, int n);
+    int len, int n);
 void fetch_idxdata(struct gspca_dev *gspca_dev, struct idxdata *tbl, int len);
 
 int gl860_RTx(struct gspca_dev *gspca_dev,
-			unsigned char pref, u32 req, u16 val, u16 index,
-			s32 len, void *pdata);
+    unsigned char pref, u32 req, u16 val, u16 index,
+    s32 len, void *pdata);
 
 void mi1320_init_settings(struct gspca_dev *);
 void ov2640_init_settings(struct gspca_dev *);

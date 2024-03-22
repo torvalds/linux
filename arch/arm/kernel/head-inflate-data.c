@@ -2,8 +2,8 @@
 /*
  * XIP kernel .data segment decompressor
  *
- * Created by:	Nicolas Pitre, August 2017
- * Copyright:	(C) 2017  Linaro Limited
+ * Created by:  Nicolas Pitre, August 2017
+ * Copyright: (C) 2017  Linaro Limited
  */
 
 #include <linux/init.h>
@@ -29,28 +29,27 @@
  * stack then there is no need to clean up before returning.
  */
 
-int __init __inflate_kernel_data(void)
-{
-	struct z_stream_s stream, *strm = &stream;
-	struct inflate_state state;
-	char *in = __data_loc;
-	int rc;
-
-	/* Check and skip gzip header (assume no filename) */
-	if (in[0] != 0x1f || in[1] != 0x8b || in[2] != 0x08 || in[3] & ~3)
-		return -1;
-	in += 10;
-
-	strm->workspace = &state;
-	strm->next_in = in;
-	strm->avail_in = _edata_loc - __data_loc;  /* upper bound */
-	strm->next_out = _sdata;
-	strm->avail_out = _edata_loc - __data_loc;
-	zlib_inflateInit2(strm, -MAX_WBITS);
-	WS(strm)->inflate_state.wsize = 0;
-	WS(strm)->inflate_state.window = NULL;
-	rc = zlib_inflate(strm, Z_FINISH);
-	if (rc == Z_OK || rc == Z_STREAM_END)
-		rc = strm->avail_out;  /* should be 0 */
-	return rc;
+int __init __inflate_kernel_data(void) {
+  struct z_stream_s stream, *strm = &stream;
+  struct inflate_state state;
+  char *in = __data_loc;
+  int rc;
+  /* Check and skip gzip header (assume no filename) */
+  if (in[0] != 0x1f || in[1] != 0x8b || in[2] != 0x08 || in[3] & ~3) {
+    return -1;
+  }
+  in += 10;
+  strm->workspace = &state;
+  strm->next_in = in;
+  strm->avail_in = _edata_loc - __data_loc;  /* upper bound */
+  strm->next_out = _sdata;
+  strm->avail_out = _edata_loc - __data_loc;
+  zlib_inflateInit2(strm, -MAX_WBITS);
+  WS(strm)->inflate_state.wsize = 0;
+  WS(strm)->inflate_state.window = NULL;
+  rc = zlib_inflate(strm, Z_FINISH);
+  if (rc == Z_OK || rc == Z_STREAM_END) {
+    rc = strm->avail_out;  /* should be 0 */
+  }
+  return rc;
 }

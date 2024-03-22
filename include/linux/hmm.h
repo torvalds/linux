@@ -15,7 +15,7 @@ struct mmu_interval_notifier;
 
 /*
  * On output:
- * 0             - The page is faultable and a future call with 
+ * 0             - The page is faultable and a future call with
  *                 HMM_PFN_REQ_FAULT could succeed.
  * HMM_PFN_VALID - the pfn field points to a valid PFN. This PFN is at
  *                 least readable. If dev_private_owner is !NULL then this could
@@ -32,17 +32,17 @@ struct mmu_interval_notifier;
  *                     will fail. Must be combined with HMM_PFN_REQ_FAULT.
  */
 enum hmm_pfn_flags {
-	/* Output fields and flags */
-	HMM_PFN_VALID = 1UL << (BITS_PER_LONG - 1),
-	HMM_PFN_WRITE = 1UL << (BITS_PER_LONG - 2),
-	HMM_PFN_ERROR = 1UL << (BITS_PER_LONG - 3),
-	HMM_PFN_ORDER_SHIFT = (BITS_PER_LONG - 8),
+  /* Output fields and flags */
+  HMM_PFN_VALID = 1UL << (BITS_PER_LONG - 1),
+  HMM_PFN_WRITE = 1UL << (BITS_PER_LONG - 2),
+  HMM_PFN_ERROR = 1UL << (BITS_PER_LONG - 3),
+  HMM_PFN_ORDER_SHIFT = (BITS_PER_LONG - 8),
 
-	/* Input flags */
-	HMM_PFN_REQ_FAULT = HMM_PFN_VALID,
-	HMM_PFN_REQ_WRITE = HMM_PFN_WRITE,
+  /* Input flags */
+  HMM_PFN_REQ_FAULT = HMM_PFN_VALID,
+  HMM_PFN_REQ_WRITE = HMM_PFN_WRITE,
 
-	HMM_PFN_FLAGS = 0xFFUL << HMM_PFN_ORDER_SHIFT,
+  HMM_PFN_FLAGS = 0xFFUL << HMM_PFN_ORDER_SHIFT,
 };
 
 /*
@@ -52,9 +52,8 @@ enum hmm_pfn_flags {
  * mmu_interval_read_begin(). The caller must have tested for HMM_PFN_VALID
  * already.
  */
-static inline struct page *hmm_pfn_to_page(unsigned long hmm_pfn)
-{
-	return pfn_to_page(hmm_pfn & ~HMM_PFN_FLAGS);
+static inline struct page *hmm_pfn_to_page(unsigned long hmm_pfn) {
+  return pfn_to_page(hmm_pfn & ~HMM_PFN_FLAGS);
 }
 
 /*
@@ -71,9 +70,8 @@ static inline struct page *hmm_pfn_to_page(unsigned long hmm_pfn)
  * mmu_interval_read_begin(). The caller must have tested for HMM_PFN_VALID
  * already.
  */
-static inline unsigned int hmm_pfn_to_map_order(unsigned long hmm_pfn)
-{
-	return (hmm_pfn >> HMM_PFN_ORDER_SHIFT) & 0x1F;
+static inline unsigned int hmm_pfn_to_map_order(unsigned long hmm_pfn) {
+  return (hmm_pfn >> HMM_PFN_ORDER_SHIFT) & 0x1F;
 }
 
 /*
@@ -89,14 +87,14 @@ static inline unsigned int hmm_pfn_to_map_order(unsigned long hmm_pfn)
  * @dev_private_owner: owner of device private pages
  */
 struct hmm_range {
-	struct mmu_interval_notifier *notifier;
-	unsigned long		notifier_seq;
-	unsigned long		start;
-	unsigned long		end;
-	unsigned long		*hmm_pfns;
-	unsigned long		default_flags;
-	unsigned long		pfn_flags_mask;
-	void			*dev_private_owner;
+  struct mmu_interval_notifier *notifier;
+  unsigned long notifier_seq;
+  unsigned long start;
+  unsigned long end;
+  unsigned long *hmm_pfns;
+  unsigned long default_flags;
+  unsigned long pfn_flags_mask;
+  void *dev_private_owner;
 };
 
 /*

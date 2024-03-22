@@ -5,11 +5,11 @@
 #include <linux/path.h>
 
 struct umd_info {
-	const char *driver_name;
-	struct file *pipe_to_umh;
-	struct file *pipe_from_umh;
-	struct path wd;
-	struct pid *tgid;
+  const char *driver_name;
+  struct file *pipe_to_umh;
+  struct file *pipe_from_umh;
+  struct path wd;
+  struct pid *tgid;
 };
 int umd_load_blob(struct umd_info *info, const void *data, size_t len);
 int umd_unload_blob(struct umd_info *info);

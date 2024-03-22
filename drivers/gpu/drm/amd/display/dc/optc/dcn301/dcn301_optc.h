@@ -31,6 +31,7 @@
 
 void dcn301_timing_generator_init(struct optc *optc1);
 void optc301_setup_manual_trigger(struct timing_generator *optc);
-void optc301_set_drr(struct timing_generator *optc, const struct drr_params *params);
+void optc301_set_drr(struct timing_generator *optc,
+    const struct drr_params *params);
 
 #endif /* __DC_OPTC_DCN301_H__ */

@@ -9,7 +9,8 @@
 #include <asm/irq.h>
 
 /* Arch specific watchdogs might need to share extra watchdog-related APIs. */
-#if defined(CONFIG_HARDLOCKUP_DETECTOR_ARCH) || defined(CONFIG_HARDLOCKUP_DETECTOR_SPARC64)
+#if defined(CONFIG_HARDLOCKUP_DETECTOR_ARCH) \
+  || defined(CONFIG_HARDLOCKUP_DETECTOR_SPARC64)
 #include <asm/nmi.h>
 #endif
 
@@ -34,10 +35,18 @@ extern int sysctl_hardlockup_all_cpu_backtrace;
 #endif /* !CONFIG_SMP */
 
 #else /* CONFIG_LOCKUP_DETECTOR */
-static inline void lockup_detector_init(void) { }
-static inline void lockup_detector_retry_init(void) { }
-static inline void lockup_detector_soft_poweroff(void) { }
-static inline void lockup_detector_cleanup(void) { }
+static inline void lockup_detector_init(void) {
+}
+
+static inline void lockup_detector_retry_init(void) {
+}
+
+static inline void lockup_detector_soft_poweroff(void) {
+}
+
+static inline void lockup_detector_cleanup(void) {
+}
+
 #endif /* !CONFIG_LOCKUP_DETECTOR */
 
 #ifdef CONFIG_SOFTLOCKUP_DETECTOR
@@ -45,24 +54,33 @@ extern void touch_softlockup_watchdog_sched(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_softlockup_watchdog_sync(void);
 extern void touch_all_softlockup_watchdogs(void);
-extern unsigned int  softlockup_panic;
+extern unsigned int softlockup_panic;
 
 extern int lockup_detector_online_cpu(unsigned int cpu);
 extern int lockup_detector_offline_cpu(unsigned int cpu);
 #else /* CONFIG_SOFTLOCKUP_DETECTOR */
-static inline void touch_softlockup_watchdog_sched(void) { }
-static inline void touch_softlockup_watchdog(void) { }
-static inline void touch_softlockup_watchdog_sync(void) { }
-static inline void touch_all_softlockup_watchdogs(void) { }
+static inline void touch_softlockup_watchdog_sched(void) {
+}
 
-#define lockup_detector_online_cpu	NULL
-#define lockup_detector_offline_cpu	NULL
+static inline void touch_softlockup_watchdog(void) {
+}
+
+static inline void touch_softlockup_watchdog_sync(void) {
+}
+
+static inline void touch_all_softlockup_watchdogs(void) {
+}
+
+#define lockup_detector_online_cpu  NULL
+#define lockup_detector_offline_cpu NULL
 #endif /* CONFIG_SOFTLOCKUP_DETECTOR */
 
 #ifdef CONFIG_DETECT_HUNG_TASK
 void reset_hung_task_detector(void);
 #else
-static inline void reset_hung_task_detector(void) { }
+static inline void reset_hung_task_detector(void) {
+}
+
 #endif
 
 /*
@@ -86,14 +104,19 @@ static inline void reset_hung_task_detector(void) { }
 extern void hardlockup_detector_disable(void);
 extern unsigned int hardlockup_panic;
 #else
-static inline void hardlockup_detector_disable(void) {}
+static inline void hardlockup_detector_disable(void) {
+}
+
 #endif
 
 /* Sparc64 has special implemetantion that is always enabled. */
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) || defined(CONFIG_HARDLOCKUP_DETECTOR_SPARC64)
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) \
+  || defined(CONFIG_HARDLOCKUP_DETECTOR_SPARC64)
 void arch_touch_nmi_watchdog(void);
 #else
-static inline void arch_touch_nmi_watchdog(void) { }
+static inline void arch_touch_nmi_watchdog(void) {
+}
+
 #endif
 
 #if defined(CONFIG_HARDLOCKUP_DETECTOR_COUNTS_HRTIMER)
@@ -106,9 +129,15 @@ extern void hardlockup_detector_perf_stop(void);
 extern void hardlockup_detector_perf_restart(void);
 extern void hardlockup_detector_perf_cleanup(void);
 #else
-static inline void hardlockup_detector_perf_stop(void) { }
-static inline void hardlockup_detector_perf_restart(void) { }
-static inline void hardlockup_detector_perf_cleanup(void) { }
+static inline void hardlockup_detector_perf_stop(void) {
+}
+
+static inline void hardlockup_detector_perf_restart(void) {
+}
+
+static inline void hardlockup_detector_perf_cleanup(void) {
+}
+
 #endif
 
 void watchdog_hardlockup_stop(void);
@@ -122,7 +151,9 @@ void lockup_detector_reconfigure(void);
 #ifdef CONFIG_HARDLOCKUP_DETECTOR_BUDDY
 void watchdog_buddy_check_hardlockup(int hrtimer_interrupts);
 #else
-static inline void watchdog_buddy_check_hardlockup(int hrtimer_interrupts) {}
+static inline void watchdog_buddy_check_hardlockup(int hrtimer_interrupts) {
+}
+
 #endif
 
 /**
@@ -136,17 +167,15 @@ static inline void watchdog_buddy_check_hardlockup(int hrtimer_interrupts) {}
  * not be backed by NMIs. This function will likely be renamed to
  * touch_hardlockup_watchdog() in the future.
  */
-static inline void touch_nmi_watchdog(void)
-{
-	/*
-	 * Pass on to the hardlockup detector selected via CONFIG_. Note that
-	 * the hardlockup detector may not be arch-specific nor using NMIs
-	 * and the arch_touch_nmi_watchdog() function will likely be renamed
-	 * in the future.
-	 */
-	arch_touch_nmi_watchdog();
-
-	touch_softlockup_watchdog();
+static inline void touch_nmi_watchdog(void) {
+  /*
+   * Pass on to the hardlockup detector selected via CONFIG_. Note that
+   * the hardlockup detector may not be arch-specific nor using NMIs
+   * and the arch_touch_nmi_watchdog() function will likely be renamed
+   * in the future.
+   */
+  arch_touch_nmi_watchdog();
+  touch_softlockup_watchdog();
 }
 
 /*
@@ -155,53 +184,49 @@ static inline void touch_nmi_watchdog(void)
  * to allow calling code to fall back to some other mechanism:
  */
 #ifdef arch_trigger_cpumask_backtrace
-static inline bool trigger_all_cpu_backtrace(void)
-{
-	arch_trigger_cpumask_backtrace(cpu_online_mask, -1);
-	return true;
+static inline bool trigger_all_cpu_backtrace(void) {
+  arch_trigger_cpumask_backtrace(cpu_online_mask, -1);
+  return true;
 }
 
-static inline bool trigger_allbutcpu_cpu_backtrace(int exclude_cpu)
-{
-	arch_trigger_cpumask_backtrace(cpu_online_mask, exclude_cpu);
-	return true;
+static inline bool trigger_allbutcpu_cpu_backtrace(int exclude_cpu) {
+  arch_trigger_cpumask_backtrace(cpu_online_mask, exclude_cpu);
+  return true;
 }
 
-static inline bool trigger_cpumask_backtrace(struct cpumask *mask)
-{
-	arch_trigger_cpumask_backtrace(mask, -1);
-	return true;
+static inline bool trigger_cpumask_backtrace(struct cpumask *mask) {
+  arch_trigger_cpumask_backtrace(mask, -1);
+  return true;
 }
 
-static inline bool trigger_single_cpu_backtrace(int cpu)
-{
-	arch_trigger_cpumask_backtrace(cpumask_of(cpu), -1);
-	return true;
+static inline bool trigger_single_cpu_backtrace(int cpu) {
+  arch_trigger_cpumask_backtrace(cpumask_of(cpu), -1);
+  return true;
 }
 
 /* generic implementation */
 void nmi_trigger_cpumask_backtrace(const cpumask_t *mask,
-				   int exclude_cpu,
-				   void (*raise)(cpumask_t *mask));
+    int exclude_cpu,
+    void (*raise)(cpumask_t *mask));
 bool nmi_cpu_backtrace(struct pt_regs *regs);
 
 #else
-static inline bool trigger_all_cpu_backtrace(void)
-{
-	return false;
+static inline bool trigger_all_cpu_backtrace(void) {
+  return false;
 }
-static inline bool trigger_allbutcpu_cpu_backtrace(int exclude_cpu)
-{
-	return false;
+
+static inline bool trigger_allbutcpu_cpu_backtrace(int exclude_cpu) {
+  return false;
 }
-static inline bool trigger_cpumask_backtrace(struct cpumask *mask)
-{
-	return false;
+
+static inline bool trigger_cpumask_backtrace(struct cpumask *mask) {
+  return false;
 }
-static inline bool trigger_single_cpu_backtrace(int cpu)
-{
-	return false;
+
+static inline bool trigger_single_cpu_backtrace(int cpu) {
+  return false;
 }
+
 #endif
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR_PERF
@@ -209,11 +234,13 @@ u64 hw_nmi_get_sample_period(int watchdog_thresh);
 bool arch_perf_nmi_is_available(void);
 #endif
 
-#if defined(CONFIG_HARDLOCKUP_CHECK_TIMESTAMP) && \
-    defined(CONFIG_HARDLOCKUP_DETECTOR_PERF)
+#if defined(CONFIG_HARDLOCKUP_CHECK_TIMESTAMP)    \
+  && defined(CONFIG_HARDLOCKUP_DETECTOR_PERF)
 void watchdog_update_hrtimer_threshold(u64 period);
 #else
-static inline void watchdog_update_hrtimer_threshold(u64 period) { }
+static inline void watchdog_update_hrtimer_threshold(u64 period) {
+}
+
 #endif
 
 #ifdef CONFIG_HAVE_ACPI_APEI_NMI
@@ -224,8 +251,12 @@ static inline void watchdog_update_hrtimer_threshold(u64 period) { }
 void nmi_backtrace_stall_snap(const struct cpumask *btp);
 void nmi_backtrace_stall_check(const struct cpumask *btp);
 #else
-static inline void nmi_backtrace_stall_snap(const struct cpumask *btp) {}
-static inline void nmi_backtrace_stall_check(const struct cpumask *btp) {}
+static inline void nmi_backtrace_stall_snap(const struct cpumask *btp) {
+}
+
+static inline void nmi_backtrace_stall_check(const struct cpumask *btp) {
+}
+
 #endif
 
 #endif

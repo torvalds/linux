@@ -5,13 +5,13 @@
  */
 
 int read_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
-			   u16 data_len);
+    u16 data_len);
 
 int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
-			  u16 data_len);
+    u16 data_len);
 
 int read_def_runtime_config(struct sock *sk, struct hci_dev *hdev, void *data,
-			    u16 data_len);
+    u16 data_len);
 
 int set_def_runtime_config(struct sock *sk, struct hci_dev *hdev, void *data,
-			   u16 data_len);
+    u16 data_len);

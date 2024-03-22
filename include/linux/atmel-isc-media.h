@@ -37,22 +37,22 @@
  */
 
 enum atmel_isc_ctrl_id {
-	/* Red component gain control */
-	ISC_CID_R_GAIN = (V4L2_CID_USER_ATMEL_ISC_BASE + 0),
-	/* Blue component gain control */
-	ISC_CID_B_GAIN,
-	/* Green Red component gain control */
-	ISC_CID_GR_GAIN,
-	/* Green Blue gain control */
-	ISC_CID_GB_GAIN,
-	/* Red component offset control */
-	ISC_CID_R_OFFSET,
-	/* Blue component offset control */
-	ISC_CID_B_OFFSET,
-	/* Green Red component offset control */
-	ISC_CID_GR_OFFSET,
-	/* Green Blue component offset control */
-	ISC_CID_GB_OFFSET,
+  /* Red component gain control */
+  ISC_CID_R_GAIN = (V4L2_CID_USER_ATMEL_ISC_BASE + 0),
+  /* Blue component gain control */
+  ISC_CID_B_GAIN,
+  /* Green Red component gain control */
+  ISC_CID_GR_GAIN,
+  /* Green Blue gain control */
+  ISC_CID_GB_GAIN,
+  /* Red component offset control */
+  ISC_CID_R_OFFSET,
+  /* Blue component offset control */
+  ISC_CID_B_OFFSET,
+  /* Green Red component offset control */
+  ISC_CID_GR_OFFSET,
+  /* Green Blue component offset control */
+  ISC_CID_GB_OFFSET,
 };
 
 #endif

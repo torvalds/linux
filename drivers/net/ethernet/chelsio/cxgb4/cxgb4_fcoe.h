@@ -37,16 +37,16 @@
 
 #ifdef CONFIG_CHELSIO_T4_FCOE
 
-#define CXGB_FCOE_TXPKT_CSUM_START	28
-#define CXGB_FCOE_TXPKT_CSUM_END	8
+#define CXGB_FCOE_TXPKT_CSUM_START  28
+#define CXGB_FCOE_TXPKT_CSUM_END  8
 
 /* fcoe flags */
 enum {
-	CXGB_FCOE_ENABLED     = (1 << 0),
+  CXGB_FCOE_ENABLED = (1 << 0),
 };
 
 struct cxgb_fcoe {
-	u8	flags;
+  u8 flags;
 };
 
 int cxgb_fcoe_enable(struct net_device *);

@@ -21,57 +21,71 @@ ssize_t crash_get_memory_size(void);
  * Provide an empty default implementation here -- architecture
  * code may override this
  */
-static inline void arch_kexec_protect_crashkres(void) { }
+static inline void arch_kexec_protect_crashkres(void) {
+}
+
 #endif
 
 #ifndef arch_kexec_unprotect_crashkres
-static inline void arch_kexec_unprotect_crashkres(void) { }
+static inline void arch_kexec_unprotect_crashkres(void) {
+}
+
 #endif
 
-
-
 #ifndef arch_crash_handle_hotplug_event
-static inline void arch_crash_handle_hotplug_event(struct kimage *image) { }
+static inline void arch_crash_handle_hotplug_event(struct kimage *image) {
+}
+
 #endif
 
 int crash_check_update_elfcorehdr(void);
 
 #ifndef crash_hotplug_cpu_support
-static inline int crash_hotplug_cpu_support(void) { return 0; }
+static inline int crash_hotplug_cpu_support(void) {
+  return 0;
+}
+
 #endif
 
 #ifndef crash_hotplug_memory_support
-static inline int crash_hotplug_memory_support(void) { return 0; }
+static inline int crash_hotplug_memory_support(void) {
+  return 0;
+}
+
 #endif
 
 #ifndef crash_get_elfcorehdr_size
-static inline unsigned int crash_get_elfcorehdr_size(void) { return 0; }
+static inline unsigned int crash_get_elfcorehdr_size(void) {
+  return 0;
+}
+
 #endif
 
 /* Alignment required for elf header segment */
 #define ELF_CORE_HEADER_ALIGN   4096
 
 struct crash_mem {
-	unsigned int max_nr_ranges;
-	unsigned int nr_ranges;
-	struct range ranges[] __counted_by(max_nr_ranges);
+  unsigned int max_nr_ranges;
+  unsigned int nr_ranges;
+  struct range ranges[] __counted_by(max_nr_ranges);
 };
 
 extern int crash_exclude_mem_range(struct crash_mem *mem,
-				   unsigned long long mstart,
-				   unsigned long long mend);
-extern int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_map,
-				       void **addr, unsigned long *sz);
+    unsigned long long mstart,
+    unsigned long long mend);
+extern int crash_prepare_elf64_headers(struct crash_mem *mem,
+    int need_kernel_map,
+    void **addr, unsigned long *sz);
 
 struct kimage;
 struct kexec_segment;
 
-#define KEXEC_CRASH_HP_NONE			0
-#define KEXEC_CRASH_HP_ADD_CPU			1
-#define KEXEC_CRASH_HP_REMOVE_CPU		2
-#define KEXEC_CRASH_HP_ADD_MEMORY		3
-#define KEXEC_CRASH_HP_REMOVE_MEMORY		4
-#define KEXEC_CRASH_HP_INVALID_CPU		-1U
+#define KEXEC_CRASH_HP_NONE     0
+#define KEXEC_CRASH_HP_ADD_CPU      1
+#define KEXEC_CRASH_HP_REMOVE_CPU   2
+#define KEXEC_CRASH_HP_ADD_MEMORY   3
+#define KEXEC_CRASH_HP_REMOVE_MEMORY    4
+#define KEXEC_CRASH_HP_INVALID_CPU    -1U
 
 extern void __crash_kexec(struct pt_regs *regs);
 extern void crash_kexec(struct pt_regs *regs);
@@ -84,12 +98,27 @@ extern int kimage_crash_copy_vmcoreinfo(struct kimage *image);
 struct pt_regs;
 struct task_struct;
 struct kimage;
-static inline void __crash_kexec(struct pt_regs *regs) { }
-static inline void crash_kexec(struct pt_regs *regs) { }
-static inline int kexec_should_crash(struct task_struct *p) { return 0; }
-static inline int kexec_crash_loaded(void) { return 0; }
-static inline void crash_save_cpu(struct pt_regs *regs, int cpu) {};
-static inline int kimage_crash_copy_vmcoreinfo(struct kimage *image) { return 0; };
+static inline void __crash_kexec(struct pt_regs *regs) {
+}
+
+static inline void crash_kexec(struct pt_regs *regs) {
+}
+
+static inline int kexec_should_crash(struct task_struct *p) {
+  return 0;
+}
+
+static inline int kexec_crash_loaded(void) {
+  return 0;
+}
+
+static inline void crash_save_cpu(struct pt_regs *regs, int cpu) {
+}
+
+static inline int kimage_crash_copy_vmcoreinfo(struct kimage *image) {
+  return 0;
+}
+
 #endif /* CONFIG_CRASH_DUMP*/
 
 #endif /* LINUX_CRASH_CORE_H */

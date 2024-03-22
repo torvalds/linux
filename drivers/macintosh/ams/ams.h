@@ -11,54 +11,54 @@
 #include <linux/types.h>
 
 enum ams_irq {
-	AMS_IRQ_FREEFALL = 0x01,
-	AMS_IRQ_SHOCK = 0x02,
-	AMS_IRQ_GLOBAL = 0x04,
-	AMS_IRQ_ALL =
-		AMS_IRQ_FREEFALL |
-		AMS_IRQ_SHOCK |
-		AMS_IRQ_GLOBAL,
+  AMS_IRQ_FREEFALL = 0x01,
+  AMS_IRQ_SHOCK = 0x02,
+  AMS_IRQ_GLOBAL = 0x04,
+  AMS_IRQ_ALL
+    = AMS_IRQ_FREEFALL
+      | AMS_IRQ_SHOCK
+      | AMS_IRQ_GLOBAL,
 };
 
 struct ams {
-	/* Locks */
-	spinlock_t irq_lock;
-	struct mutex lock;
+  /* Locks */
+  spinlock_t irq_lock;
+  struct mutex lock;
 
-	/* General properties */
-	struct device_node *of_node;
-	struct platform_device *of_dev;
-	char has_device;
-	char vflag;
-	u32 orient1;
-	u32 orient2;
+  /* General properties */
+  struct device_node *of_node;
+  struct platform_device *of_dev;
+  char has_device;
+  char vflag;
+  u32 orient1;
+  u32 orient2;
 
-	/* Interrupt worker */
-	struct work_struct worker;
-	u8 worker_irqs;
+  /* Interrupt worker */
+  struct work_struct worker;
+  u8 worker_irqs;
 
-	/* Implementation
-	 *
-	 * Only call these functions with the main lock held.
-	 */
-	void (*exit)(void);
+  /* Implementation
+   *
+   * Only call these functions with the main lock held.
+   */
+  void (*exit)(void);
 
-	void (*get_xyz)(s8 *x, s8 *y, s8 *z);
-	u8 (*get_vendor)(void);
+  void (*get_xyz)(s8 *x, s8 *y, s8 *z);
+  u8 (*get_vendor)(void);
 
-	void (*clear_irq)(enum ams_irq reg);
+  void (*clear_irq)(enum ams_irq reg);
 
 #ifdef CONFIG_SENSORS_AMS_I2C
-	/* I2C properties */
-	struct i2c_client *i2c_client;
+  /* I2C properties */
+  struct i2c_client *i2c_client;
 #endif
 
-	/* Joystick emulation */
-	struct input_dev *idev;
-	__u16 bustype;
+  /* Joystick emulation */
+  struct input_dev *idev;
+  __u16 bustype;
 
-	/* calibrated null values */
-	int xcalib, ycalib, zcalib;
+  /* calibrated null values */
+  int xcalib, ycalib, zcalib;
 };
 
 extern struct ams ams_info;

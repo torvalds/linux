@@ -23,7 +23,7 @@ struct usb_device;
 /**
  * v4l2_mc_create_media_graph() - create Media Controller links at the graph.
  *
- * @mdev:	pointer to the &media_device struct.
+ * @mdev: pointer to the &media_device struct.
  *
  * Add links between the entities commonly found on PC customer's hardware at
  * the V4L2 side: camera sensors, audio and video PLL-IF decoders, tuners,
@@ -35,15 +35,16 @@ struct usb_device;
  *    connected directly to the I/O entity. All dirty details, like
  *    scaler and crop HW are hidden. While such mapping is enough for v4l2
  *    interface centric PC-consumer's hardware, V4L2 subdev centric camera
- *    hardware should not use this routine, as it will not build the right graph.
+ *    hardware should not use this routine, as it will not build the right
+ * graph.
  */
 int v4l2_mc_create_media_graph(struct media_device *mdev);
 
 /**
- * v4l_enable_media_source() -	Hold media source for exclusive use
- *				if free
+ * v4l_enable_media_source() -  Hold media source for exclusive use
+ *        if free
  *
- * @vdev:	pointer to struct video_device
+ * @vdev: pointer to struct video_device
  *
  * This interface calls enable_source handler to determine if
  * media source is free for use. The enable_source handler is
@@ -58,9 +59,9 @@ int v4l2_mc_create_media_graph(struct media_device *mdev);
 int v4l_enable_media_source(struct video_device *vdev);
 
 /**
- * v4l_disable_media_source() -	Release media source
+ * v4l_disable_media_source() - Release media source
  *
- * @vdev:	pointer to struct video_device
+ * @vdev: pointer to struct video_device
  *
  * This interface calls disable_source handler to release
  * the media source. The disable_source handler stops the
@@ -73,7 +74,7 @@ void v4l_disable_media_source(struct video_device *vdev);
 
 /*
  * v4l_vb2q_enable_media_tuner -  Hold media source for exclusive use
- *				  if free.
+ *          if free.
  * @q - pointer to struct vb2_queue
  *
  * Wrapper for v4l_enable_media_source(). This function should
@@ -113,7 +114,7 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
  * Return 0 on success or a negative error code on failure.
  */
 int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
-				    struct media_pad *sink, u32 flags);
+    struct media_pad *sink, u32 flags);
 
 /**
  * v4l2_create_fwnode_links - Create fwnode-based links from a source
@@ -137,7 +138,7 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
  * Return 0 on success or a negative error code on failure.
  */
 int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
-			     struct v4l2_subdev *sink_sd);
+    struct v4l2_subdev *sink_sd);
 
 /**
  * v4l2_pipeline_pm_get - Increase the use count of a pipeline
@@ -171,7 +172,6 @@ int v4l2_pipeline_pm_get(struct media_entity *entity);
  */
 void v4l2_pipeline_pm_put(struct media_entity *entity);
 
-
 /**
  * v4l2_pipeline_link_notify - Link management notification callback
  * @link: The link
@@ -188,41 +188,35 @@ void v4l2_pipeline_pm_put(struct media_entity *entity);
  * events.
  */
 int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-			      unsigned int notification);
+    unsigned int notification);
 
 #else /* CONFIG_MEDIA_CONTROLLER */
 
-static inline int v4l2_mc_create_media_graph(struct media_device *mdev)
-{
-	return 0;
+static inline int v4l2_mc_create_media_graph(struct media_device *mdev) {
+  return 0;
 }
 
-static inline int v4l_enable_media_source(struct video_device *vdev)
-{
-	return 0;
+static inline int v4l_enable_media_source(struct video_device *vdev) {
+  return 0;
 }
 
-static inline void v4l_disable_media_source(struct video_device *vdev)
-{
+static inline void v4l_disable_media_source(struct video_device *vdev) {
 }
 
-static inline int v4l_vb2q_enable_media_source(struct vb2_queue *q)
-{
-	return 0;
+static inline int v4l_vb2q_enable_media_source(struct vb2_queue *q) {
+  return 0;
 }
 
-static inline int v4l2_pipeline_pm_get(struct media_entity *entity)
-{
-	return 0;
+static inline int v4l2_pipeline_pm_get(struct media_entity *entity) {
+  return 0;
 }
 
-static inline void v4l2_pipeline_pm_put(struct media_entity *entity)
-{}
+static inline void v4l2_pipeline_pm_put(struct media_entity *entity) {
+}
 
 static inline int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-					    unsigned int notification)
-{
-	return 0;
+    unsigned int notification) {
+  return 0;
 }
 
 #endif /* CONFIG_MEDIA_CONTROLLER */

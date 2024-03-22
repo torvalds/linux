@@ -6,9 +6,9 @@
 #include <stdarg.h>
 
 struct ui_helpline {
-	void (*pop)(void);
-	void (*push)(const char *msg);
-	int  (*show)(const char *fmt, va_list ap);
+  void (*pop)(void);
+  void (*push)(const char *msg);
+  int (*show)(const char *fmt, va_list ap);
 };
 
 extern struct ui_helpline *helpline_fns;
@@ -21,7 +21,7 @@ void ui_helpline__vpush(const char *fmt, va_list ap);
 void ui_helpline__fpush(const char *fmt, ...);
 void ui_helpline__puts(const char *msg);
 void ui_helpline__printf(const char *fmt, ...);
-int  ui_helpline__vshow(const char *fmt, va_list ap);
+int ui_helpline__vshow(const char *fmt, va_list ap);
 
 extern char ui_helpline__current[512];
 extern char ui_helpline__last_msg[];

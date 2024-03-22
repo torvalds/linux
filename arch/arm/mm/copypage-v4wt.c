@@ -17,11 +17,10 @@
  * dirty data in the cache.  However, we do have to ensure that
  * subsequent reads are up to date.
  */
-static void v4wt_copy_user_page(void *kto, const void *kfrom)
-{
-	int tmp;
-
-	asm volatile ("\
+static void v4wt_copy_user_page(void *kto, const void *kfrom) {
+  int tmp;
+  asm volatile (
+    "\
 	.syntax unified\n\
 	ldmia	%1!, {r3, r4, ip, lr}		@ 4\n\
 1:	stmia	%0!, {r3, r4, ip, lr}		@ 4\n\
@@ -34,22 +33,20 @@ static void v4wt_copy_user_page(void *kto, const void *kfrom)
 	stmia	%0!, {r3, r4, ip, lr}		@ 4\n\
 	ldmiane	%1!, {r3, r4, ip, lr}		@ 4\n\
 	bne	1b				@ 1\n\
-	mcr	p15, 0, %2, c7, c7, 0		@ flush ID cache"
-	: "+&r" (kto), "+&r" (kfrom), "=&r" (tmp)
-	: "2" (PAGE_SIZE / 64)
-	: "r3", "r4", "ip", "lr");
+	mcr	p15, 0, %2, c7, c7, 0		@ flush ID cache" : "+&r" (kto), "+&r" (kfrom),
+    "=&r" (tmp)
+    : "2" (PAGE_SIZE / 64)
+    : "r3", "r4", "ip", "lr");
 }
 
 void v4wt_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr, struct vm_area_struct *vma)
-{
-	void *kto, *kfrom;
-
-	kto = kmap_atomic(to);
-	kfrom = kmap_atomic(from);
-	v4wt_copy_user_page(kto, kfrom);
-	kunmap_atomic(kfrom);
-	kunmap_atomic(kto);
+    unsigned long vaddr, struct vm_area_struct *vma) {
+  void *kto, *kfrom;
+  kto = kmap_atomic(to);
+  kfrom = kmap_atomic(from);
+  v4wt_copy_user_page(kto, kfrom);
+  kunmap_atomic(kfrom);
+  kunmap_atomic(kto);
 }
 
 /*
@@ -57,10 +54,10 @@ void v4wt_copy_user_highpage(struct page *to, struct page *from,
  *
  * Same story as above.
  */
-void v4wt_clear_user_highpage(struct page *page, unsigned long vaddr)
-{
-	void *ptr, *kaddr = kmap_atomic(page);
-	asm volatile("\
+void v4wt_clear_user_highpage(struct page *page, unsigned long vaddr) {
+  void *ptr, *kaddr = kmap_atomic(page);
+  asm volatile (
+    "\
 	mov	r1, %2				@ 1\n\
 	mov	r2, #0				@ 1\n\
 	mov	r3, #0				@ 1\n\
@@ -72,14 +69,13 @@ void v4wt_clear_user_highpage(struct page *page, unsigned long vaddr)
 	stmia	%0!, {r2, r3, ip, lr}		@ 4\n\
 	subs	r1, r1, #1			@ 1\n\
 	bne	1b				@ 1\n\
-	mcr	p15, 0, r2, c7, c7, 0		@ flush ID cache"
-	: "=r" (ptr)
-	: "0" (kaddr), "I" (PAGE_SIZE / 64)
-	: "r1", "r2", "r3", "ip", "lr");
-	kunmap_atomic(kaddr);
+	mcr	p15, 0, r2, c7, c7, 0		@ flush ID cache" : "=r" (ptr)
+    : "0" (kaddr), "I" (PAGE_SIZE / 64)
+    : "r1", "r2", "r3", "ip", "lr");
+  kunmap_atomic(kaddr);
 }
 
 struct cpu_user_fns v4wt_user_fns __initdata = {
-	.cpu_clear_user_highpage = v4wt_clear_user_highpage,
-	.cpu_copy_user_highpage	= v4wt_copy_user_highpage,
+  .cpu_clear_user_highpage = v4wt_clear_user_highpage,
+  .cpu_copy_user_highpage = v4wt_copy_user_highpage,
 };

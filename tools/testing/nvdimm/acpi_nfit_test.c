@@ -9,8 +9,7 @@
 nfit_test_watermark(acpi_nfit);
 
 /* strong / override definition of nfit_intel_shutdown_status */
-void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem)
-{
-	set_bit(NFIT_MEM_DIRTY_COUNT, &nfit_mem->flags);
-	nfit_mem->dirty_shutdown = 42;
+void nfit_intel_shutdown_status(struct nfit_mem *nfit_mem) {
+  set_bit(NFIT_MEM_DIRTY_COUNT, &nfit_mem->flags);
+  nfit_mem->dirty_shutdown = 42;
 }

@@ -6,7 +6,6 @@
 char _license[] SEC("license") = "GPL";
 
 SEC("kprobe.multi/")
-int test_kprobe_empty(struct pt_regs *ctx)
-{
-	return 0;
+int test_kprobe_empty(struct pt_regs *ctx) {
+  return 0;
 }

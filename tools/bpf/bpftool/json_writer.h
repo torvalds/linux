@@ -5,7 +5,7 @@
  * This takes care of the annoying bits of JSON syntax like the commas
  * after elements
  *
- * Authors:	Stephen Hemminger <stephen@networkplumber.org>
+ * Authors: Stephen Hemminger <stephen@networkplumber.org>
  */
 
 #ifndef _JSON_WRITER_H_
@@ -35,9 +35,9 @@ void jsonw_reset(json_writer_t *self);
 void jsonw_name(json_writer_t *self, const char *name);
 
 /* Add value  */
-void __printf(2, 0) jsonw_vprintf_enquote(json_writer_t *self, const char *fmt,
-					  va_list ap);
-void __printf(2, 3) jsonw_printf(json_writer_t *self, const char *fmt, ...);
+void __printf(2, 0) jsonw_vprintf_enquote(json_writer_t * self, const char *fmt,
+    va_list ap);
+void __printf(2, 3) jsonw_printf(json_writer_t * self, const char *fmt, ...);
 void jsonw_string(json_writer_t *self, const char *value);
 void jsonw_bool(json_writer_t *self, bool value);
 void jsonw_float(json_writer_t *self, double number);
@@ -57,9 +57,9 @@ void jsonw_hu_field(json_writer_t *self, const char *prop, unsigned short num);
 void jsonw_int_field(json_writer_t *self, const char *prop, int64_t num);
 void jsonw_null_field(json_writer_t *self, const char *prop);
 void jsonw_lluint_field(json_writer_t *self, const char *prop,
-			unsigned long long int num);
+    unsigned long long int num);
 void jsonw_float_field_fmt(json_writer_t *self, const char *prop,
-			   const char *fmt, double val);
+    const char *fmt, double val);
 
 /* Collections */
 void jsonw_start_object(json_writer_t *self);

@@ -14,21 +14,21 @@ struct task_struct;
 
 void show_regs(struct pt_regs *regs);
 void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs,
-		     const char *loglvl);
+    const char *loglvl);
 void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
-			    unsigned long address);
+    unsigned long address);
 void die(const char *str, struct pt_regs *regs, unsigned long address);
 
-#define BUG()	do {								\
-	pr_warn("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
-	barrier_before_unreachable();						\
-	__builtin_trap();							\
+#define BUG() do {                \
+    pr_warn("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
+    barrier_before_unreachable();           \
+    __builtin_trap();             \
 } while (0)
 
 #define HAVE_ARCH_BUG
 
 #include <asm-generic/bug.h>
 
-#endif	/* !__ASSEMBLY__ */
+#endif  /* !__ASSEMBLY__ */
 
 #endif

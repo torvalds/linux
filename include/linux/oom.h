@@ -2,7 +2,6 @@
 #ifndef __INCLUDE_LINUX_OOM_H
 #define __INCLUDE_LINUX_OOM_H
 
-
 #include <linux/sched/signal.h>
 #include <linux/types.h>
 #include <linux/nodemask.h>
@@ -16,10 +15,10 @@ struct mem_cgroup;
 struct task_struct;
 
 enum oom_constraint {
-	CONSTRAINT_NONE,
-	CONSTRAINT_CPUSET,
-	CONSTRAINT_MEMORY_POLICY,
-	CONSTRAINT_MEMCG,
+  CONSTRAINT_NONE,
+  CONSTRAINT_CPUSET,
+  CONSTRAINT_MEMORY_POLICY,
+  CONSTRAINT_MEMCG,
 };
 
 /*
@@ -27,54 +26,50 @@ enum oom_constraint {
  * determine what should be killed.
  */
 struct oom_control {
-	/* Used to determine cpuset */
-	struct zonelist *zonelist;
+  /* Used to determine cpuset */
+  struct zonelist *zonelist;
 
-	/* Used to determine mempolicy */
-	nodemask_t *nodemask;
+  /* Used to determine mempolicy */
+  nodemask_t *nodemask;
 
-	/* Memory cgroup in which oom is invoked, or NULL for global oom */
-	struct mem_cgroup *memcg;
+  /* Memory cgroup in which oom is invoked, or NULL for global oom */
+  struct mem_cgroup *memcg;
 
-	/* Used to determine cpuset and node locality requirement */
-	const gfp_t gfp_mask;
+  /* Used to determine cpuset and node locality requirement */
+  const gfp_t gfp_mask;
 
-	/*
-	 * order == -1 means the oom kill is required by sysrq, otherwise only
-	 * for display purposes.
-	 */
-	const int order;
+  /*
+   * order == -1 means the oom kill is required by sysrq, otherwise only
+   * for display purposes.
+   */
+  const int order;
 
-	/* Used by oom implementation, do not set */
-	unsigned long totalpages;
-	struct task_struct *chosen;
-	long chosen_points;
+  /* Used by oom implementation, do not set */
+  unsigned long totalpages;
+  struct task_struct *chosen;
+  long chosen_points;
 
-	/* Used to print the constraint info. */
-	enum oom_constraint constraint;
+  /* Used to print the constraint info. */
+  enum oom_constraint constraint;
 };
 
 extern struct mutex oom_lock;
 extern struct mutex oom_adj_mutex;
 
-static inline void set_current_oom_origin(void)
-{
-	current->signal->oom_flag_origin = true;
+static inline void set_current_oom_origin(void) {
+  current->signal->oom_flag_origin = true;
 }
 
-static inline void clear_current_oom_origin(void)
-{
-	current->signal->oom_flag_origin = false;
+static inline void clear_current_oom_origin(void) {
+  current->signal->oom_flag_origin = false;
 }
 
-static inline bool oom_task_origin(const struct task_struct *p)
-{
-	return p->signal->oom_flag_origin;
+static inline bool oom_task_origin(const struct task_struct *p) {
+  return p->signal->oom_flag_origin;
 }
 
-static inline bool tsk_is_oom_victim(struct task_struct * tsk)
-{
-	return tsk->signal->oom_mm;
+static inline bool tsk_is_oom_victim(struct task_struct *tsk) {
+  return tsk->signal->oom_mm;
 }
 
 /*
@@ -90,15 +85,15 @@ static inline bool tsk_is_oom_victim(struct task_struct * tsk)
  *
  * Return 0 when the PF is safe VM_FAULT_SIGBUS otherwise.
  */
-static inline vm_fault_t check_stable_address_space(struct mm_struct *mm)
-{
-	if (unlikely(test_bit(MMF_UNSTABLE, &mm->flags)))
-		return VM_FAULT_SIGBUS;
-	return 0;
+static inline vm_fault_t check_stable_address_space(struct mm_struct *mm) {
+  if (unlikely(test_bit(MMF_UNSTABLE, &mm->flags))) {
+    return VM_FAULT_SIGBUS;
+  }
+  return 0;
 }
 
 long oom_badness(struct task_struct *p,
-		unsigned long totalpages);
+    unsigned long totalpages);
 
 extern bool out_of_memory(struct oom_control *oc);
 

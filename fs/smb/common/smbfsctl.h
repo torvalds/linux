@@ -52,7 +52,6 @@
 #define FSCTL_DEVICE_METHOD_NEITHER    0x03
 #define FSCTL_DEVICE_METHOD_MASK       0x00000003
 
-
 #define FSCTL_DFS_GET_REFERRALS      0x00060194
 #define FSCTL_DFS_GET_REFERRALS_EX   0x000601B0
 #define FSCTL_REQUEST_OPLOCK_LEVEL_1 0x00090000
@@ -88,7 +87,7 @@
 #define FSCTL_READ_RAW_ENCRYPTED     0x000900E3 /* BB add struct */
 #define FSCTL_READ_FILE_USN_DATA     0x000900EB /* BB add struct */
 #define FSCTL_WRITE_USN_CLOSE_RECORD 0x000900EF /* BB add struct */
-#define FSCTL_MARK_HANDLE	     0x000900FC /* BB add struct */
+#define FSCTL_MARK_HANDLE      0x000900FC /* BB add struct */
 #define FSCTL_SIS_COPYFILE           0x00090100 /* BB add struct */
 #define FSCTL_RECALL_FILE            0x00090117 /* BB add struct */
 #define FSCTL_QUERY_SPARING_INFO     0x00090138 /* BB add struct */
@@ -103,8 +102,8 @@
 #define FSCTL_GET_RETRIEVAL_POINTER_COUNT 0x0009042b
 #define FSCTL_REFS_STREAM_SNAPSHOT_MANAGEMENT 0x00090440
 #define FSCTL_QUERY_ALLOCATED_RANGES 0x000940CF
-#define FSCTL_OFFLOAD_READ	0x00094264 /* BB add struct */
-#define FSCTL_OFFLOAD_WRITE	0x00098268 /* BB add struct */
+#define FSCTL_OFFLOAD_READ  0x00094264 /* BB add struct */
+#define FSCTL_OFFLOAD_WRITE 0x00098268 /* BB add struct */
 #define FSCTL_SET_DEFECT_MANAGEMENT  0x00098134 /* BB add struct */
 #define FSCTL_FILE_LEVEL_TRIM        0x00098208 /* BB add struct */
 #define FSCTL_DUPLICATE_EXTENTS_TO_FILE 0x00098344
@@ -143,7 +142,7 @@
 /* See section MS-FSCC 2.1.2.4 */
 #define IO_REPARSE_TAG_SYMLINK       0xA000000C
 #define IO_REPARSE_TAG_DEDUP         0x80000013
-#define IO_REPARSE_APPXSTREAM	     0xC0000014
+#define IO_REPARSE_APPXSTREAM      0xC0000014
 /* NFS symlinks, Win 8/SMB3 and later */
 #define IO_REPARSE_TAG_NFS           0x80000014
 /*
@@ -153,12 +152,12 @@
 #define IO_REPARSE_TAG_AZ_FILE_SYNC  0x8000001e
 /* WSL reparse tags */
 #define IO_REPARSE_TAG_LX_SYMLINK    0xA000001D
-#define IO_REPARSE_TAG_AF_UNIX	     0x80000023
-#define IO_REPARSE_TAG_LX_FIFO	     0x80000024
-#define IO_REPARSE_TAG_LX_CHR	     0x80000025
-#define IO_REPARSE_TAG_LX_BLK	     0x80000026
+#define IO_REPARSE_TAG_AF_UNIX       0x80000023
+#define IO_REPARSE_TAG_LX_FIFO       0x80000024
+#define IO_REPARSE_TAG_LX_CHR      0x80000025
+#define IO_REPARSE_TAG_LX_BLK      0x80000026
 
-/* fsctl flags */
-/* If Flags is set to this value, the request is an FSCTL not ioctl request */
-#define SMB2_0_IOCTL_IS_FSCTL		0x00000001
+/* fsctl flags
+ * If Flags is set to this value, the request is an FSCTL not ioctl request*/
+#define SMB2_0_IOCTL_IS_FSCTL   0x00000001
 #endif /* __SMBFSCTL_H */

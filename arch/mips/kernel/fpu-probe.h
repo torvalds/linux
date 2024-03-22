@@ -17,24 +17,20 @@ void cpu_set_nofpu_opts(struct cpuinfo_mips *c);
 
 #define mips_fpu_disabled 1
 
-static inline unsigned long cpu_get_fpu_id(void)
-{
-	return FPIR_IMP_NONE;
+static inline unsigned long cpu_get_fpu_id(void) {
+  return FPIR_IMP_NONE;
 }
 
-static inline int __cpu_has_fpu(void)
-{
-	return 0;
+static inline int __cpu_has_fpu(void) {
+  return 0;
 }
 
-static inline void cpu_set_fpu_opts(struct cpuinfo_mips *c)
-{
-	/* no-op */
+static inline void cpu_set_fpu_opts(struct cpuinfo_mips *c) {
+  /* no-op */
 }
 
-static inline void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
-{
-	/* no-op */
+static inline void cpu_set_nofpu_opts(struct cpuinfo_mips *c) {
+  /* no-op */
 }
 
 #endif /* CONFIG_MIPS_FP_SUPPORT */

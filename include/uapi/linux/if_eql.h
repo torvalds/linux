@@ -6,9 +6,9 @@
  * NCM: Network and Communications Management, Inc.
  *
  *
- *	This software may be used and distributed according to the terms
- *	of the GNU General Public License, incorporated herein by reference.
- * 
+ *  This software may be used and distributed according to the terms
+ *  of the GNU General Public License, incorporated herein by reference.
+ *
  * The author may be reached as simon@ncm.com, or C/O
  *    NCM
  *    Attn: Simon Janes
@@ -34,22 +34,20 @@
 #define EQL_GETMASTRCFG (SIOCDEVPRIVATE + 4)
 #define EQL_SETMASTRCFG (SIOCDEVPRIVATE + 5)
 
-
 typedef struct master_config {
-	char	master_name[16];
-	int	max_slaves;
-	int	min_slaves;
+  char master_name[16];
+  int max_slaves;
+  int min_slaves;
 } master_config_t;
 
 typedef struct slave_config {
-	char	slave_name[16];
-	long	priority;
+  char slave_name[16];
+  long priority;
 } slave_config_t;
 
 typedef struct slaving_request {
-	char	slave_name[16];
-	long	priority;
+  char slave_name[16];
+  long priority;
 } slaving_request_t;
-
 
 #endif /* _UAPI_LINUX_IF_EQL_H */

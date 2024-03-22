@@ -29,149 +29,139 @@
 #include "dcn31_panel_cntl.h"
 #include "atom.h"
 
-#define TO_DCN31_PANEL_CNTL(panel_cntl)\
-	container_of(panel_cntl, struct dcn31_panel_cntl, base)
+#define TO_DCN31_PANEL_CNTL(panel_cntl) \
+  container_of(panel_cntl, struct dcn31_panel_cntl, base)
 
 #define CTX \
-	dcn31_panel_cntl->base.ctx
+  dcn31_panel_cntl->base.ctx
 
 #define DC_LOGGER \
-	dcn31_panel_cntl->base.ctx->logger
+  dcn31_panel_cntl->base.ctx->logger
 
-static bool dcn31_query_backlight_info(struct panel_cntl *panel_cntl, union dmub_rb_cmd *cmd)
-{
-	struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(panel_cntl);
-	struct dc_dmub_srv *dc_dmub_srv = panel_cntl->ctx->dmub_srv;
-
-	if (!dc_dmub_srv)
-		return false;
-
-	memset(cmd, 0, sizeof(*cmd));
-	cmd->panel_cntl.header.type = DMUB_CMD__PANEL_CNTL;
-	cmd->panel_cntl.header.sub_type = DMUB_CMD__PANEL_CNTL_QUERY_BACKLIGHT_INFO;
-	cmd->panel_cntl.header.payload_bytes = sizeof(cmd->panel_cntl.data);
-	cmd->panel_cntl.data.pwrseq_inst = dcn31_panel_cntl->base.pwrseq_inst;
-
-	return dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY);
+static bool dcn31_query_backlight_info(struct panel_cntl *panel_cntl,
+    union dmub_rb_cmd *cmd) {
+  struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(panel_cntl);
+  struct dc_dmub_srv *dc_dmub_srv = panel_cntl->ctx->dmub_srv;
+  if (!dc_dmub_srv) {
+    return false;
+  }
+  memset(cmd, 0, sizeof(*cmd));
+  cmd->panel_cntl.header.type = DMUB_CMD__PANEL_CNTL;
+  cmd->panel_cntl.header.sub_type = DMUB_CMD__PANEL_CNTL_QUERY_BACKLIGHT_INFO;
+  cmd->panel_cntl.header.payload_bytes = sizeof(cmd->panel_cntl.data);
+  cmd->panel_cntl.data.pwrseq_inst = dcn31_panel_cntl->base.pwrseq_inst;
+  return dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, cmd,
+      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY);
 }
 
-static uint32_t dcn31_get_16_bit_backlight_from_pwm(struct panel_cntl *panel_cntl)
-{
-	union dmub_rb_cmd cmd;
-
-	if (!dcn31_query_backlight_info(panel_cntl, &cmd))
-		return 0;
-
-	return cmd.panel_cntl.data.current_backlight;
+static uint32_t dcn31_get_16_bit_backlight_from_pwm(
+    struct panel_cntl *panel_cntl) {
+  union dmub_rb_cmd cmd;
+  if (!dcn31_query_backlight_info(panel_cntl, &cmd)) {
+    return 0;
+  }
+  return cmd.panel_cntl.data.current_backlight;
 }
 
-static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
-{
-	struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(panel_cntl);
-	struct dc_dmub_srv *dc_dmub_srv = panel_cntl->ctx->dmub_srv;
-	union dmub_rb_cmd cmd;
-
-	if (!dc_dmub_srv)
-		return 0;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.panel_cntl.header.type = DMUB_CMD__PANEL_CNTL;
-	cmd.panel_cntl.header.sub_type = DMUB_CMD__PANEL_CNTL_HW_INIT;
-	cmd.panel_cntl.header.payload_bytes = sizeof(cmd.panel_cntl.data);
-	cmd.panel_cntl.data.pwrseq_inst = dcn31_panel_cntl->base.pwrseq_inst;
-	cmd.panel_cntl.data.bl_pwm_cntl = panel_cntl->stored_backlight_registers.BL_PWM_CNTL;
-	cmd.panel_cntl.data.bl_pwm_period_cntl = panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL;
-	cmd.panel_cntl.data.bl_pwm_ref_div1 =
-		panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-	cmd.panel_cntl.data.bl_pwm_ref_div2 =
-		panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2;
-	if (!dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
-		return 0;
-
-	panel_cntl->stored_backlight_registers.BL_PWM_CNTL = cmd.panel_cntl.data.bl_pwm_cntl;
-	panel_cntl->stored_backlight_registers.BL_PWM_CNTL2 = 0; /* unused */
-	panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL = cmd.panel_cntl.data.bl_pwm_period_cntl;
-	panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV =
-		cmd.panel_cntl.data.bl_pwm_ref_div1;
-	panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2 =
-		cmd.panel_cntl.data.bl_pwm_ref_div2;
-
-	return cmd.panel_cntl.data.current_backlight;
+static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl) {
+  struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(panel_cntl);
+  struct dc_dmub_srv *dc_dmub_srv = panel_cntl->ctx->dmub_srv;
+  union dmub_rb_cmd cmd;
+  if (!dc_dmub_srv) {
+    return 0;
+  }
+  memset(&cmd, 0, sizeof(cmd));
+  cmd.panel_cntl.header.type = DMUB_CMD__PANEL_CNTL;
+  cmd.panel_cntl.header.sub_type = DMUB_CMD__PANEL_CNTL_HW_INIT;
+  cmd.panel_cntl.header.payload_bytes = sizeof(cmd.panel_cntl.data);
+  cmd.panel_cntl.data.pwrseq_inst = dcn31_panel_cntl->base.pwrseq_inst;
+  cmd.panel_cntl.data.bl_pwm_cntl
+    = panel_cntl->stored_backlight_registers.BL_PWM_CNTL;
+  cmd.panel_cntl.data.bl_pwm_period_cntl
+    = panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL;
+  cmd.panel_cntl.data.bl_pwm_ref_div1
+    = panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
+  cmd.panel_cntl.data.bl_pwm_ref_div2
+    = panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2;
+  if (!dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd,
+      DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
+    return 0;
+  }
+  panel_cntl->stored_backlight_registers.BL_PWM_CNTL
+    = cmd.panel_cntl.data.bl_pwm_cntl;
+  panel_cntl->stored_backlight_registers.BL_PWM_CNTL2 = 0; /* unused */
+  panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL
+    = cmd.panel_cntl.data.bl_pwm_period_cntl;
+  panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV
+    = cmd.panel_cntl.data.bl_pwm_ref_div1;
+  panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2
+    = cmd.panel_cntl.data.bl_pwm_ref_div2;
+  return cmd.panel_cntl.data.current_backlight;
 }
 
-static void dcn31_panel_cntl_destroy(struct panel_cntl **panel_cntl)
-{
-	struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(*panel_cntl);
-
-	kfree(dcn31_panel_cntl);
-	*panel_cntl = NULL;
+static void dcn31_panel_cntl_destroy(struct panel_cntl **panel_cntl) {
+  struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(*panel_cntl);
+  kfree(dcn31_panel_cntl);
+  *panel_cntl = NULL;
 }
 
-static bool dcn31_is_panel_backlight_on(struct panel_cntl *panel_cntl)
-{
-	union dmub_rb_cmd cmd;
-
-	if (!dcn31_query_backlight_info(panel_cntl, &cmd))
-		return false;
-
-	return cmd.panel_cntl.data.is_backlight_on;
+static bool dcn31_is_panel_backlight_on(struct panel_cntl *panel_cntl) {
+  union dmub_rb_cmd cmd;
+  if (!dcn31_query_backlight_info(panel_cntl, &cmd)) {
+    return false;
+  }
+  return cmd.panel_cntl.data.is_backlight_on;
 }
 
-static bool dcn31_is_panel_powered_on(struct panel_cntl *panel_cntl)
-{
-	union dmub_rb_cmd cmd;
-
-	if (!dcn31_query_backlight_info(panel_cntl, &cmd))
-		return false;
-
-	return cmd.panel_cntl.data.is_powered_on;
+static bool dcn31_is_panel_powered_on(struct panel_cntl *panel_cntl) {
+  union dmub_rb_cmd cmd;
+  if (!dcn31_query_backlight_info(panel_cntl, &cmd)) {
+    return false;
+  }
+  return cmd.panel_cntl.data.is_powered_on;
 }
 
-static void dcn31_store_backlight_level(struct panel_cntl *panel_cntl)
-{
-	union dmub_rb_cmd cmd;
-
-	if (!dcn31_query_backlight_info(panel_cntl, &cmd))
-		return;
-
-	panel_cntl->stored_backlight_registers.BL_PWM_CNTL = cmd.panel_cntl.data.bl_pwm_cntl;
-	panel_cntl->stored_backlight_registers.BL_PWM_CNTL2 = 0; /* unused */
-	panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL = cmd.panel_cntl.data.bl_pwm_period_cntl;
-	panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV =
-		cmd.panel_cntl.data.bl_pwm_ref_div1;
+static void dcn31_store_backlight_level(struct panel_cntl *panel_cntl) {
+  union dmub_rb_cmd cmd;
+  if (!dcn31_query_backlight_info(panel_cntl, &cmd)) {
+    return;
+  }
+  panel_cntl->stored_backlight_registers.BL_PWM_CNTL
+    = cmd.panel_cntl.data.bl_pwm_cntl;
+  panel_cntl->stored_backlight_registers.BL_PWM_CNTL2 = 0; /* unused */
+  panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL
+    = cmd.panel_cntl.data.bl_pwm_period_cntl;
+  panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV
+    = cmd.panel_cntl.data.bl_pwm_ref_div1;
 }
 
 static const struct panel_cntl_funcs dcn31_link_panel_cntl_funcs = {
-	.destroy = dcn31_panel_cntl_destroy,
-	.hw_init = dcn31_panel_cntl_hw_init,
-	.is_panel_backlight_on = dcn31_is_panel_backlight_on,
-	.is_panel_powered_on = dcn31_is_panel_powered_on,
-	.store_backlight_level = dcn31_store_backlight_level,
-	.get_current_backlight = dcn31_get_16_bit_backlight_from_pwm,
+  .destroy = dcn31_panel_cntl_destroy,
+  .hw_init = dcn31_panel_cntl_hw_init,
+  .is_panel_backlight_on = dcn31_is_panel_backlight_on,
+  .is_panel_powered_on = dcn31_is_panel_powered_on,
+  .store_backlight_level = dcn31_store_backlight_level,
+  .get_current_backlight = dcn31_get_16_bit_backlight_from_pwm,
 };
 
 void dcn31_panel_cntl_construct(
-	struct dcn31_panel_cntl *dcn31_panel_cntl,
-	const struct panel_cntl_init_data *init_data)
-{
-	uint8_t pwrseq_inst = 0xF;
-
-	dcn31_panel_cntl->base.funcs = &dcn31_link_panel_cntl_funcs;
-	dcn31_panel_cntl->base.ctx = init_data->ctx;
-	dcn31_panel_cntl->base.inst = init_data->inst;
-
-	switch (init_data->eng_id) {
-	case ENGINE_ID_DIGA:
-		pwrseq_inst = 0;
-		break;
-	case ENGINE_ID_DIGB:
-		pwrseq_inst = 1;
-		break;
-	default:
-		DC_LOG_WARNING("Unsupported pwrseq engine id: %d!\n", init_data->eng_id);
-		ASSERT(false);
-		break;
-	}
-
-	dcn31_panel_cntl->base.pwrseq_inst = pwrseq_inst;
+    struct dcn31_panel_cntl *dcn31_panel_cntl,
+    const struct panel_cntl_init_data *init_data) {
+  uint8_t pwrseq_inst = 0xF;
+  dcn31_panel_cntl->base.funcs = &dcn31_link_panel_cntl_funcs;
+  dcn31_panel_cntl->base.ctx = init_data->ctx;
+  dcn31_panel_cntl->base.inst = init_data->inst;
+  switch (init_data->eng_id) {
+    case ENGINE_ID_DIGA:
+      pwrseq_inst = 0;
+      break;
+    case ENGINE_ID_DIGB:
+      pwrseq_inst = 1;
+      break;
+    default:
+      DC_LOG_WARNING("Unsupported pwrseq engine id: %d!\n", init_data->eng_id);
+      ASSERT(false);
+      break;
+  }
+  dcn31_panel_cntl->base.pwrseq_inst = pwrseq_inst;
 }

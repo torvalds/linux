@@ -25,29 +25,29 @@
 #ifndef _TTM_CACHING_H_
 #define _TTM_CACHING_H_
 
-#define TTM_NUM_CACHING_TYPES	3
+#define TTM_NUM_CACHING_TYPES 3
 
 /**
  * enum ttm_caching - CPU caching and BUS snooping behavior.
  */
 enum ttm_caching {
-	/**
-	 * @ttm_uncached: Most defensive option for device mappings,
-	 * don't even allow write combining.
-	 */
-	ttm_uncached,
+  /**
+   * @ttm_uncached: Most defensive option for device mappings,
+   * don't even allow write combining.
+   */
+  ttm_uncached,
 
-	/**
-	 * @ttm_write_combined: Don't cache read accesses, but allow at least
-	 * writes to be combined.
-	 */
-	ttm_write_combined,
+  /**
+   * @ttm_write_combined: Don't cache read accesses, but allow at least
+   * writes to be combined.
+   */
+  ttm_write_combined,
 
-	/**
-	 * @ttm_cached: Fully cached like normal system memory, requires that
-	 * devices snoop the CPU cache on accesses.
-	 */
-	ttm_cached
+  /**
+   * @ttm_cached: Fully cached like normal system memory, requires that
+   * devices snoop the CPU cache on accesses.
+   */
+  ttm_cached
 };
 
 pgprot_t ttm_prot_from_caching(enum ttm_caching caching, pgprot_t tmp);

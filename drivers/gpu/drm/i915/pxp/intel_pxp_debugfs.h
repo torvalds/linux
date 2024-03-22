@@ -12,10 +12,9 @@ struct dentry;
 #ifdef CONFIG_DRM_I915_PXP
 void intel_pxp_debugfs_register(struct intel_pxp *pxp);
 #else
-static inline void
-intel_pxp_debugfs_register(struct intel_pxp *pxp)
-{
+static inline void intel_pxp_debugfs_register(struct intel_pxp *pxp) {
 }
+
 #endif
 
 #endif /* __INTEL_PXP_DEBUGFS_H__ */

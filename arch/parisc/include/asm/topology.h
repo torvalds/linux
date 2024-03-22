@@ -8,9 +8,14 @@
 
 #else
 
-static inline void init_cpu_topology(void) { }
-static inline void store_cpu_topology(unsigned int cpuid) { }
-static inline void reset_cpu_topology(void) { }
+static inline void init_cpu_topology(void) {
+}
+
+static inline void store_cpu_topology(unsigned int cpuid) {
+}
+
+static inline void reset_cpu_topology(void) {
+}
 
 #endif
 

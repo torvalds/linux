@@ -12,9 +12,9 @@
 
 struct rw_semaphore {
 #if RWS_ERRORCHECK
-	struct mutex mtx;
+  struct mutex mtx;
 #else
-	pthread_rwlock_t lock;
+  pthread_rwlock_t lock;
 #endif
 };
 

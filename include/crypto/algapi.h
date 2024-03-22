@@ -19,10 +19,10 @@
  * static buffers that are big enough for any combination of
  * algs and architectures. Ciphers have a lower maximum size.
  */
-#define MAX_ALGAPI_BLOCKSIZE		160
-#define MAX_ALGAPI_ALIGNMASK		127
-#define MAX_CIPHER_BLOCKSIZE		16
-#define MAX_CIPHER_ALIGNMASK		15
+#define MAX_ALGAPI_BLOCKSIZE    160
+#define MAX_ALGAPI_ALIGNMASK    127
+#define MAX_CIPHER_BLOCKSIZE    16
+#define MAX_CIPHER_ALIGNMASK    15
 
 #ifdef ARCH_DMA_MINALIGN
 #define CRYPTO_DMA_ALIGN ARCH_DMA_MINALIGN
@@ -41,9 +41,9 @@
  * expands twice on the same line. Instead, use a separate base name for the
  * alias.
  */
-#define MODULE_ALIAS_CRYPTO(name)	\
-		__MODULE_INFO(alias, alias_userspace, name);	\
-		__MODULE_INFO(alias, alias_crypto, "crypto-" name)
+#define MODULE_ALIAS_CRYPTO(name) \
+  __MODULE_INFO(alias, alias_userspace, name);  \
+  __MODULE_INFO(alias, alias_crypto, "crypto-" name)
 
 struct crypto_aead;
 struct crypto_instance;
@@ -55,84 +55,84 @@ struct seq_file;
 struct sk_buff;
 
 struct crypto_type {
-	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
-	unsigned int (*extsize)(struct crypto_alg *alg);
-	int (*init_tfm)(struct crypto_tfm *tfm);
-	void (*show)(struct seq_file *m, struct crypto_alg *alg);
-	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
-	void (*free)(struct crypto_instance *inst);
+  unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
+  unsigned int (*extsize)(struct crypto_alg *alg);
+  int (*init_tfm)(struct crypto_tfm *tfm);
+  void (*show)(struct seq_file *m, struct crypto_alg *alg);
+  int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
+  void (*free)(struct crypto_instance *inst);
 #ifdef CONFIG_CRYPTO_STATS
-	int (*report_stat)(struct sk_buff *skb, struct crypto_alg *alg);
+  int (*report_stat)(struct sk_buff *skb, struct crypto_alg *alg);
 #endif
 
-	unsigned int type;
-	unsigned int maskclear;
-	unsigned int maskset;
-	unsigned int tfmsize;
+  unsigned int type;
+  unsigned int maskclear;
+  unsigned int maskset;
+  unsigned int tfmsize;
 };
 
 struct crypto_instance {
-	struct crypto_alg alg;
+  struct crypto_alg alg;
 
-	struct crypto_template *tmpl;
+  struct crypto_template *tmpl;
 
-	union {
-		/* Node in list of instances after registration. */
-		struct hlist_node list;
-		/* List of attached spawns before registration. */
-		struct crypto_spawn *spawns;
-	};
+  union {
+    /* Node in list of instances after registration. */
+    struct hlist_node list;
+    /* List of attached spawns before registration. */
+    struct crypto_spawn *spawns;
+  };
 
-	struct work_struct free_work;
+  struct work_struct free_work;
 
-	void *__ctx[] CRYPTO_MINALIGN_ATTR;
+  void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
 struct crypto_template {
-	struct list_head list;
-	struct hlist_head instances;
-	struct module *module;
+  struct list_head list;
+  struct hlist_head instances;
+  struct module *module;
 
-	int (*create)(struct crypto_template *tmpl, struct rtattr **tb);
+  int (*create)(struct crypto_template *tmpl, struct rtattr **tb);
 
-	char name[CRYPTO_MAX_ALG_NAME];
+  char name[CRYPTO_MAX_ALG_NAME];
 };
 
 struct crypto_spawn {
-	struct list_head list;
-	struct crypto_alg *alg;
-	union {
-		/* Back pointer to instance after registration.*/
-		struct crypto_instance *inst;
-		/* Spawn list pointer prior to registration. */
-		struct crypto_spawn *next;
-	};
-	const struct crypto_type *frontend;
-	u32 mask;
-	bool dead;
-	bool registered;
+  struct list_head list;
+  struct crypto_alg *alg;
+  union {
+    /* Back pointer to instance after registration.*/
+    struct crypto_instance *inst;
+    /* Spawn list pointer prior to registration. */
+    struct crypto_spawn *next;
+  };
+  const struct crypto_type *frontend;
+  u32 mask;
+  bool dead;
+  bool registered;
 };
 
 struct crypto_queue {
-	struct list_head list;
-	struct list_head *backlog;
+  struct list_head list;
+  struct list_head *backlog;
 
-	unsigned int qlen;
-	unsigned int max_qlen;
+  unsigned int qlen;
+  unsigned int max_qlen;
 };
 
 struct scatter_walk {
-	struct scatterlist *sg;
-	unsigned int offset;
+  struct scatterlist *sg;
+  unsigned int offset;
 };
 
 struct crypto_attr_alg {
-	char name[CRYPTO_MAX_ALG_NAME];
+  char name[CRYPTO_MAX_ALG_NAME];
 };
 
 struct crypto_attr_type {
-	u32 type;
-	u32 mask;
+  u32 type;
+  u32 mask;
 };
 
 /*
@@ -152,85 +152,75 @@ void crypto_unregister_templates(struct crypto_template *tmpls, int count);
 struct crypto_template *crypto_lookup_template(const char *name);
 
 int crypto_register_instance(struct crypto_template *tmpl,
-			     struct crypto_instance *inst);
+    struct crypto_instance *inst);
 void crypto_unregister_instance(struct crypto_instance *inst);
 
 int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
-		      const char *name, u32 type, u32 mask);
+    const char *name, u32 type, u32 mask);
 void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
-				    u32 mask);
+    u32 mask);
 void *crypto_spawn_tfm2(struct crypto_spawn *spawn);
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret);
 const char *crypto_attr_alg_name(struct rtattr *rta);
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
-			struct crypto_alg *alg);
+    struct crypto_alg *alg);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
-			   struct crypto_async_request *request);
+    struct crypto_async_request *request);
 void crypto_enqueue_request_head(struct crypto_queue *queue,
-				 struct crypto_async_request *request);
+    struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
-static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
-{
-	return queue->qlen;
+static inline unsigned int crypto_queue_len(struct crypto_queue *queue) {
+  return queue->qlen;
 }
 
 void crypto_inc(u8 *a, unsigned int size);
 
-static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
-{
-	return tfm->__crt_ctx;
+static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm) {
+  return tfm->__crt_ctx;
 }
 
 static inline void *crypto_tfm_ctx_align(struct crypto_tfm *tfm,
-					 unsigned int align)
-{
-	if (align <= crypto_tfm_ctx_alignment())
-		align = 1;
-
-	return PTR_ALIGN(crypto_tfm_ctx(tfm), align);
+    unsigned int align) {
+  if (align <= crypto_tfm_ctx_alignment()) {
+    align = 1;
+  }
+  return PTR_ALIGN(crypto_tfm_ctx(tfm), align);
 }
 
-static inline unsigned int crypto_dma_align(void)
-{
-	return CRYPTO_DMA_ALIGN;
+static inline unsigned int crypto_dma_align(void) {
+  return CRYPTO_DMA_ALIGN;
 }
 
-static inline unsigned int crypto_dma_padding(void)
-{
-	return (crypto_dma_align() - 1) & ~(crypto_tfm_ctx_alignment() - 1);
+static inline unsigned int crypto_dma_padding(void) {
+  return (crypto_dma_align() - 1) & ~(crypto_tfm_ctx_alignment() - 1);
 }
 
-static inline void *crypto_tfm_ctx_dma(struct crypto_tfm *tfm)
-{
-	return crypto_tfm_ctx_align(tfm, crypto_dma_align());
+static inline void *crypto_tfm_ctx_dma(struct crypto_tfm *tfm) {
+  return crypto_tfm_ctx_align(tfm, crypto_dma_align());
 }
 
 static inline struct crypto_instance *crypto_tfm_alg_instance(
-	struct crypto_tfm *tfm)
-{
-	return container_of(tfm->__crt_alg, struct crypto_instance, alg);
+    struct crypto_tfm *tfm) {
+  return container_of(tfm->__crt_alg, struct crypto_instance, alg);
 }
 
-static inline void *crypto_instance_ctx(struct crypto_instance *inst)
-{
-	return inst->__ctx;
+static inline void *crypto_instance_ctx(struct crypto_instance *inst) {
+  return inst->__ctx;
 }
 
 static inline struct crypto_async_request *crypto_get_backlog(
-	struct crypto_queue *queue)
-{
-	return queue->backlog == &queue->list ? NULL :
-	       container_of(queue->backlog, struct crypto_async_request, list);
+    struct crypto_queue *queue) {
+  return queue->backlog == &queue->list ? NULL
+    : container_of(queue->backlog, struct crypto_async_request, list);
 }
 
-static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off)
-{
-	return (algt->type ^ off) & algt->mask & off;
+static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off) {
+  return (algt->type ^ off) & algt->mask & off;
 }
 
 /*
@@ -238,9 +228,9 @@ static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off)
  * template), these are the flags that should always be set on the "outer"
  * algorithm if any "inner" algorithm has them set.
  */
-#define CRYPTO_ALG_INHERITED_FLAGS	\
-	(CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK |	\
-	 CRYPTO_ALG_ALLOCATES_MEMORY)
+#define CRYPTO_ALG_INHERITED_FLAGS  \
+  (CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK    \
+  | CRYPTO_ALG_ALLOCATES_MEMORY)
 
 /*
  * Given the type and mask that specify the flags restrictions on a template
@@ -248,9 +238,8 @@ static inline u32 crypto_requires_off(struct crypto_attr_type *algt, u32 off)
  * crypto_grab_*() (along with type=0) to honor any request the user made to
  * have any of the CRYPTO_ALG_INHERITED_FLAGS clear.
  */
-static inline u32 crypto_algt_inherited_mask(struct crypto_attr_type *algt)
-{
-	return crypto_requires_off(algt, CRYPTO_ALG_INHERITED_FLAGS);
+static inline u32 crypto_algt_inherited_mask(struct crypto_attr_type *algt) {
+  return crypto_requires_off(algt, CRYPTO_ALG_INHERITED_FLAGS);
 }
 
 int crypto_register_notifier(struct notifier_block *nb);
@@ -258,20 +247,18 @@ int crypto_unregister_notifier(struct notifier_block *nb);
 
 /* Crypto notification events. */
 enum {
-	CRYPTO_MSG_ALG_REQUEST,
-	CRYPTO_MSG_ALG_REGISTER,
-	CRYPTO_MSG_ALG_LOADED,
+  CRYPTO_MSG_ALG_REQUEST,
+  CRYPTO_MSG_ALG_REGISTER,
+  CRYPTO_MSG_ALG_LOADED,
 };
 
 static inline void crypto_request_complete(struct crypto_async_request *req,
-					   int err)
-{
-	req->complete(req->data, err);
+    int err) {
+  req->complete(req->data, err);
 }
 
-static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
-{
-	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
+static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm) {
+  return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
 }
 
-#endif	/* _CRYPTO_ALGAPI_H */
+#endif  /* _CRYPTO_ALGAPI_H */

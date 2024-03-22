@@ -13,17 +13,17 @@
  * time.  Order of access is not guaranteed, nor is a memory barrier
  * performed afterwards.
  */
-void __ioread64_copy(void *to, const void __iomem *from, size_t count)
-{
+void __ioread64_copy(void *to, const void __iomem *from, size_t count) {
 #ifdef CONFIG_64BIT
-	u64 *dst = to;
-	const u64 __iomem *src = from;
-	const u64 __iomem *end = src + count;
-
-	while (src < end)
-		*dst++ = __raw_readq(src++);
+  u64 *dst = to;
+  const u64 __iomem *src = from;
+  const u64 __iomem *end = src + count;
+  while (src < end) {
+    *dst++ = __raw_readq(src++);
+  }
 #else
-	__ioread32_copy(to, from, count * 2);
+  __ioread32_copy(to, from, count * 2);
 #endif
 }
+
 EXPORT_SYMBOL_GPL(__ioread64_copy);

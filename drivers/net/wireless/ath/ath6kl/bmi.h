@@ -183,7 +183,6 @@
  * Response format: none
  */
 
-
 #define BMI_LZ_STREAM_START                13
 /*
  * Semantics: Begin an LZ-compressed stream of input
@@ -218,34 +217,34 @@
 
 struct ath6kl;
 struct ath6kl_bmi_target_info {
-	__le32 byte_count;   /* size of this structure */
-	__le32 version;      /* target version id */
-	__le32 type;         /* target type */
+  __le32 byte_count;   /* size of this structure */
+  __le32 version;      /* target version id */
+  __le32 type;         /* target type */
 } __packed;
 
-#define ath6kl_bmi_write_hi32(ar, item, val)				\
-	({								\
-		u32 addr;						\
-		__le32 v;						\
-									\
-		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
-		v = cpu_to_le32(val);					\
-		ath6kl_bmi_write(ar, addr, (u8 *) &v, sizeof(v));	\
-	})
+#define ath6kl_bmi_write_hi32(ar, item, val)        \
+  ({                \
+    u32 addr;           \
+    __le32 v;           \
+                  \
+    addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));  \
+    v = cpu_to_le32(val);         \
+    ath6kl_bmi_write(ar, addr, (u8 *) &v, sizeof(v)); \
+  })
 
-#define ath6kl_bmi_read_hi32(ar, item, val)				\
-	({								\
-		u32 addr, *check_type = val;				\
-		__le32 tmp;						\
-		int ret;						\
-									\
-		(void) (check_type == val);				\
-		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
-		ret = ath6kl_bmi_read(ar, addr, (u8 *) &tmp, 4);	\
-		if (!ret)						\
-			*val = le32_to_cpu(tmp);			\
-		ret;							\
-	})
+#define ath6kl_bmi_read_hi32(ar, item, val)       \
+  ({                \
+    u32 addr, *check_type = val;        \
+    __le32 tmp;           \
+    int ret;            \
+                  \
+    (void) (check_type == val);       \
+    addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));  \
+    ret = ath6kl_bmi_read(ar, addr, (u8 *) &tmp, 4);  \
+    if (!ret)           \
+    *val = le32_to_cpu(tmp);      \
+    ret;              \
+  })
 
 int ath6kl_bmi_init(struct ath6kl *ar);
 void ath6kl_bmi_cleanup(struct ath6kl *ar);
@@ -253,19 +252,19 @@ void ath6kl_bmi_reset(struct ath6kl *ar);
 
 int ath6kl_bmi_done(struct ath6kl *ar);
 int ath6kl_bmi_get_target_info(struct ath6kl *ar,
-			       struct ath6kl_bmi_target_info *targ_info);
+    struct ath6kl_bmi_target_info *targ_info);
 int ath6kl_bmi_read(struct ath6kl *ar, u32 addr, u8 *buf, u32 len);
 int ath6kl_bmi_write(struct ath6kl *ar, u32 addr, u8 *buf, u32 len);
 int ath6kl_bmi_execute(struct ath6kl *ar,
-		       u32 addr, u32 *param);
+    u32 addr, u32 *param);
 int ath6kl_bmi_set_app_start(struct ath6kl *ar,
-			     u32 addr);
+    u32 addr);
 int ath6kl_bmi_reg_read(struct ath6kl *ar, u32 addr, u32 *param);
 int ath6kl_bmi_reg_write(struct ath6kl *ar, u32 addr, u32 param);
 int ath6kl_bmi_lz_data(struct ath6kl *ar,
-		       u8 *buf, u32 len);
+    u8 *buf, u32 len);
 int ath6kl_bmi_lz_stream_start(struct ath6kl *ar,
-			       u32 addr);
+    u32 addr);
 int ath6kl_bmi_fast_download(struct ath6kl *ar,
-			     u32 addr, u8 *buf, u32 len);
+    u32 addr, u8 *buf, u32 len);
 #endif

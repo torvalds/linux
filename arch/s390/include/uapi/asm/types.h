@@ -16,13 +16,13 @@ typedef unsigned long addr_t;
 typedef __signed__ long saddr_t;
 
 typedef struct {
-	union {
-		struct {
-			__u64 high;
-			__u64 low;
-		};
-		__u32 u[4];
-	};
+  union {
+    struct {
+      __u64 high;
+      __u64 low;
+    };
+    __u32 u[4];
+  };
 } __attribute__((packed, aligned(4))) __vector128;
 
 #endif /* __ASSEMBLY__ */

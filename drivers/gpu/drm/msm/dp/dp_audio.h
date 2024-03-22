@@ -18,8 +18,8 @@
  * @bw_code: link rate's bandwidth code for current session
  */
 struct dp_audio {
-	u32 lane_count;
-	u32 bw_code;
+  u32 lane_count;
+  u32 bw_code;
 };
 
 /**
@@ -35,8 +35,8 @@ struct dp_audio {
  * an instance of newly created dp_module.
  */
 struct dp_audio *dp_audio_get(struct platform_device *pdev,
-			struct dp_panel *panel,
-			struct dp_catalog *catalog);
+    struct dp_panel *panel,
+    struct dp_catalog *catalog);
 
 /**
  * dp_register_audio_driver()
@@ -51,7 +51,7 @@ struct dp_audio *dp_audio_get(struct platform_device *pdev,
  * zero on success.
  */
 int dp_register_audio_driver(struct device *dev,
-		struct dp_audio *dp_audio);
+    struct dp_audio *dp_audio);
 
 void dp_unregister_audio_driver(struct device *dev, struct dp_audio *dp_audio);
 
@@ -65,10 +65,8 @@ void dp_unregister_audio_driver(struct device *dev, struct dp_audio *dp_audio);
 void dp_audio_put(struct dp_audio *dp_audio);
 
 int dp_audio_hw_params(struct device *dev,
-	void *data,
-	struct hdmi_codec_daifmt *daifmt,
-	struct hdmi_codec_params *params);
+    void *data,
+    struct hdmi_codec_daifmt *daifmt,
+    struct hdmi_codec_params *params);
 
 #endif /* _DP_AUDIO_H_ */
-
-

@@ -84,8 +84,8 @@
 #define ISP_SRU_GUARDING                       1
 #define ISP_VLSU_GUARDING                      1
 
-#define ISP_VRF_RAM			     1
-#define ISP_SRF_RAM			     1
+#define ISP_VRF_RAM          1
+#define ISP_SRF_RAM          1
 
 #define ISP_SPLIT_VMUL_VADD_IS                 0
 #define ISP_RFSPLIT_FPGA                       0

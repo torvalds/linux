@@ -12,18 +12,18 @@
 #include <asm/smp.h>
 
 #ifdef CONFIG_PPC_KUAP
-void setup_kuap(bool disabled)
-{
-	if (disabled) {
-		if (IS_ENABLED(CONFIG_40x))
-			disable_kuep = true;
-		if (smp_processor_id() == boot_cpuid)
-			cur_cpu_spec->mmu_features &= ~MMU_FTR_KUAP;
-		return;
-	}
-
-	pr_info("Activating Kernel Userspace Access Protection\n");
-
-	prevent_user_access(KUAP_READ_WRITE);
+void setup_kuap(bool disabled) {
+  if (disabled) {
+    if (IS_ENABLED(CONFIG_40x)) {
+      disable_kuep = true;
+    }
+    if (smp_processor_id() == boot_cpuid) {
+      cur_cpu_spec->mmu_features &= ~MMU_FTR_KUAP;
+    }
+    return;
+  }
+  pr_info("Activating Kernel Userspace Access Protection\n");
+  prevent_user_access(KUAP_READ_WRITE);
 }
+
 #endif

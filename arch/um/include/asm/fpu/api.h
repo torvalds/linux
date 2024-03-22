@@ -8,13 +8,11 @@
  * of x86 optimized copy, xor, etc routines into the
  * UML code tree. */
 
-#define kernel_fpu_begin() (void)0
-#define kernel_fpu_end() (void)0
+#define kernel_fpu_begin() (void) 0
+#define kernel_fpu_end() (void) 0
 
-static inline bool irq_fpu_usable(void)
-{
-	return true;
+static inline bool irq_fpu_usable(void) {
+  return true;
 }
-
 
 #endif

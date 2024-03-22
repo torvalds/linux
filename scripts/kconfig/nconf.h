@@ -22,15 +22,15 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define max(a, b) ({\
-		typeof(a) _a = a;\
-		typeof(b) _b = b;\
-		_a > _b ? _a : _b; })
+#define max(a, b) ({ \
+    typeof(a) _a = a; \
+    typeof(b) _b = b; \
+    _a > _b ? _a : _b; })
 
-#define min(a, b) ({\
-		typeof(a) _a = a;\
-		typeof(b) _b = b;\
-		_a < _b ? _a : _b; })
+#define min(a, b) ({ \
+    typeof(a) _a = a; \
+    typeof(b) _b = b; \
+    _a < _b ? _a : _b; })
 
 extern int attr_normal;
 extern int attr_main_heading;
@@ -54,15 +54,15 @@ extern int attr_function_text;
 extern int attr_function_highlight;
 
 typedef enum {
-	F_HELP = 1,
-	F_SYMBOL = 2,
-	F_INSTS = 3,
-	F_CONF = 4,
-	F_BACK = 5,
-	F_SAVE = 6,
-	F_LOAD = 7,
-	F_SEARCH = 8,
-	F_EXIT = 9,
+  F_HELP = 1,
+  F_SYMBOL = 2,
+  F_INSTS = 3,
+  F_CONF = 4,
+  F_BACK = 5,
+  F_SAVE = 6,
+  F_LOAD = 7,
+  F_SEARCH = 8,
+  F_EXIT = 9,
 } function_key;
 
 void set_colors(void);
@@ -77,12 +77,12 @@ const char *get_line(const char *text, int line_no);
 void fill_window(WINDOW *win, const char *text);
 int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...);
 int dialog_inputbox(WINDOW *main_window,
-		const char *title, const char *prompt,
-		const char *init, char **resultp, int *result_len);
+    const char *title, const char *prompt,
+    const char *init, char **resultp, int *result_len);
 void refresh_all_windows(WINDOW *main_window);
 int show_scroll_win_ext(WINDOW *main_window, const char *title, char *text,
-			int *vscroll, int *hscroll,
-			extra_key_cb_fn extra_key_cb, void *data);
+    int *vscroll, int *hscroll,
+    extra_key_cb_fn extra_key_cb, void *data);
 void show_scroll_win(WINDOW *main_window,
-		const char *title,
-		const char *text);
+    const char *title,
+    const char *text);

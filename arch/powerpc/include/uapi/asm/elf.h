@@ -10,7 +10,6 @@
 #ifndef _UAPI_ASM_POWERPC_ELF_H
 #define _UAPI_ASM_POWERPC_ELF_H
 
-
 #include <linux/types.h>
 
 #include <asm/ptrace.h>
@@ -18,88 +17,87 @@
 #include <asm/auxvec.h>
 
 /* PowerPC relocations defined by the ABIs */
-#define R_PPC_NONE		0
-#define R_PPC_ADDR32		1	/* 32bit absolute address */
-#define R_PPC_ADDR24		2	/* 26bit address, 2 bits ignored.  */
-#define R_PPC_ADDR16		3	/* 16bit absolute address */
-#define R_PPC_ADDR16_LO		4	/* lower 16bit of absolute address */
-#define R_PPC_ADDR16_HI		5	/* high 16bit of absolute address */
-#define R_PPC_ADDR16_HA		6	/* adjusted high 16bit */
-#define R_PPC_ADDR14		7	/* 16bit address, 2 bits ignored */
-#define R_PPC_ADDR14_BRTAKEN	8
-#define R_PPC_ADDR14_BRNTAKEN	9
-#define R_PPC_REL24		10	/* PC relative 26 bit */
-#define R_PPC_REL14		11	/* PC relative 16 bit */
-#define R_PPC_REL14_BRTAKEN	12
-#define R_PPC_REL14_BRNTAKEN	13
-#define R_PPC_GOT16		14
-#define R_PPC_GOT16_LO		15
-#define R_PPC_GOT16_HI		16
-#define R_PPC_GOT16_HA		17
-#define R_PPC_PLTREL24		18
-#define R_PPC_COPY		19
-#define R_PPC_GLOB_DAT		20
-#define R_PPC_JMP_SLOT		21
-#define R_PPC_RELATIVE		22
-#define R_PPC_LOCAL24PC		23
-#define R_PPC_UADDR32		24
-#define R_PPC_UADDR16		25
-#define R_PPC_REL32		26
-#define R_PPC_PLT32		27
-#define R_PPC_PLTREL32		28
-#define R_PPC_PLT16_LO		29
-#define R_PPC_PLT16_HI		30
-#define R_PPC_PLT16_HA		31
-#define R_PPC_SDAREL16		32
-#define R_PPC_SECTOFF		33
-#define R_PPC_SECTOFF_LO	34
-#define R_PPC_SECTOFF_HI	35
-#define R_PPC_SECTOFF_HA	36
+#define R_PPC_NONE    0
+#define R_PPC_ADDR32    1 /* 32bit absolute address */
+#define R_PPC_ADDR24    2 /* 26bit address, 2 bits ignored.  */
+#define R_PPC_ADDR16    3 /* 16bit absolute address */
+#define R_PPC_ADDR16_LO   4 /* lower 16bit of absolute address */
+#define R_PPC_ADDR16_HI   5 /* high 16bit of absolute address */
+#define R_PPC_ADDR16_HA   6 /* adjusted high 16bit */
+#define R_PPC_ADDR14    7 /* 16bit address, 2 bits ignored */
+#define R_PPC_ADDR14_BRTAKEN  8
+#define R_PPC_ADDR14_BRNTAKEN 9
+#define R_PPC_REL24   10  /* PC relative 26 bit */
+#define R_PPC_REL14   11  /* PC relative 16 bit */
+#define R_PPC_REL14_BRTAKEN 12
+#define R_PPC_REL14_BRNTAKEN  13
+#define R_PPC_GOT16   14
+#define R_PPC_GOT16_LO    15
+#define R_PPC_GOT16_HI    16
+#define R_PPC_GOT16_HA    17
+#define R_PPC_PLTREL24    18
+#define R_PPC_COPY    19
+#define R_PPC_GLOB_DAT    20
+#define R_PPC_JMP_SLOT    21
+#define R_PPC_RELATIVE    22
+#define R_PPC_LOCAL24PC   23
+#define R_PPC_UADDR32   24
+#define R_PPC_UADDR16   25
+#define R_PPC_REL32   26
+#define R_PPC_PLT32   27
+#define R_PPC_PLTREL32    28
+#define R_PPC_PLT16_LO    29
+#define R_PPC_PLT16_HI    30
+#define R_PPC_PLT16_HA    31
+#define R_PPC_SDAREL16    32
+#define R_PPC_SECTOFF   33
+#define R_PPC_SECTOFF_LO  34
+#define R_PPC_SECTOFF_HI  35
+#define R_PPC_SECTOFF_HA  36
 
 /* PowerPC relocations defined for the TLS access ABI.  */
-#define R_PPC_TLS		67 /* none	(sym+add)@tls */
-#define R_PPC_DTPMOD32		68 /* word32	(sym+add)@dtpmod */
-#define R_PPC_TPREL16		69 /* half16*	(sym+add)@tprel */
-#define R_PPC_TPREL16_LO	70 /* half16	(sym+add)@tprel@l */
-#define R_PPC_TPREL16_HI	71 /* half16	(sym+add)@tprel@h */
-#define R_PPC_TPREL16_HA	72 /* half16	(sym+add)@tprel@ha */
-#define R_PPC_TPREL32		73 /* word32	(sym+add)@tprel */
-#define R_PPC_DTPREL16		74 /* half16*	(sym+add)@dtprel */
-#define R_PPC_DTPREL16_LO	75 /* half16	(sym+add)@dtprel@l */
-#define R_PPC_DTPREL16_HI	76 /* half16	(sym+add)@dtprel@h */
-#define R_PPC_DTPREL16_HA	77 /* half16	(sym+add)@dtprel@ha */
-#define R_PPC_DTPREL32		78 /* word32	(sym+add)@dtprel */
-#define R_PPC_GOT_TLSGD16	79 /* half16*	(sym+add)@got@tlsgd */
-#define R_PPC_GOT_TLSGD16_LO	80 /* half16	(sym+add)@got@tlsgd@l */
-#define R_PPC_GOT_TLSGD16_HI	81 /* half16	(sym+add)@got@tlsgd@h */
-#define R_PPC_GOT_TLSGD16_HA	82 /* half16	(sym+add)@got@tlsgd@ha */
-#define R_PPC_GOT_TLSLD16	83 /* half16*	(sym+add)@got@tlsld */
-#define R_PPC_GOT_TLSLD16_LO	84 /* half16	(sym+add)@got@tlsld@l */
-#define R_PPC_GOT_TLSLD16_HI	85 /* half16	(sym+add)@got@tlsld@h */
-#define R_PPC_GOT_TLSLD16_HA	86 /* half16	(sym+add)@got@tlsld@ha */
-#define R_PPC_GOT_TPREL16	87 /* half16*	(sym+add)@got@tprel */
-#define R_PPC_GOT_TPREL16_LO	88 /* half16	(sym+add)@got@tprel@l */
-#define R_PPC_GOT_TPREL16_HI	89 /* half16	(sym+add)@got@tprel@h */
-#define R_PPC_GOT_TPREL16_HA	90 /* half16	(sym+add)@got@tprel@ha */
-#define R_PPC_GOT_DTPREL16	91 /* half16*	(sym+add)@got@dtprel */
-#define R_PPC_GOT_DTPREL16_LO	92 /* half16*	(sym+add)@got@dtprel@l */
-#define R_PPC_GOT_DTPREL16_HI	93 /* half16*	(sym+add)@got@dtprel@h */
-#define R_PPC_GOT_DTPREL16_HA	94 /* half16*	(sym+add)@got@dtprel@ha */
+#define R_PPC_TLS   67 /* none  (sym+add)@tls */
+#define R_PPC_DTPMOD32    68 /* word32  (sym+add)@dtpmod */
+#define R_PPC_TPREL16   69 /* half16* (sym+add)@tprel */
+#define R_PPC_TPREL16_LO  70 /* half16  (sym+add)@tprel@l */
+#define R_PPC_TPREL16_HI  71 /* half16  (sym+add)@tprel@h */
+#define R_PPC_TPREL16_HA  72 /* half16  (sym+add)@tprel@ha */
+#define R_PPC_TPREL32   73 /* word32  (sym+add)@tprel */
+#define R_PPC_DTPREL16    74 /* half16* (sym+add)@dtprel */
+#define R_PPC_DTPREL16_LO 75 /* half16  (sym+add)@dtprel@l */
+#define R_PPC_DTPREL16_HI 76 /* half16  (sym+add)@dtprel@h */
+#define R_PPC_DTPREL16_HA 77 /* half16  (sym+add)@dtprel@ha */
+#define R_PPC_DTPREL32    78 /* word32  (sym+add)@dtprel */
+#define R_PPC_GOT_TLSGD16 79 /* half16* (sym+add)@got@tlsgd */
+#define R_PPC_GOT_TLSGD16_LO  80 /* half16  (sym+add)@got@tlsgd@l */
+#define R_PPC_GOT_TLSGD16_HI  81 /* half16  (sym+add)@got@tlsgd@h */
+#define R_PPC_GOT_TLSGD16_HA  82 /* half16  (sym+add)@got@tlsgd@ha */
+#define R_PPC_GOT_TLSLD16 83 /* half16* (sym+add)@got@tlsld */
+#define R_PPC_GOT_TLSLD16_LO  84 /* half16  (sym+add)@got@tlsld@l */
+#define R_PPC_GOT_TLSLD16_HI  85 /* half16  (sym+add)@got@tlsld@h */
+#define R_PPC_GOT_TLSLD16_HA  86 /* half16  (sym+add)@got@tlsld@ha */
+#define R_PPC_GOT_TPREL16 87 /* half16* (sym+add)@got@tprel */
+#define R_PPC_GOT_TPREL16_LO  88 /* half16  (sym+add)@got@tprel@l */
+#define R_PPC_GOT_TPREL16_HI  89 /* half16  (sym+add)@got@tprel@h */
+#define R_PPC_GOT_TPREL16_HA  90 /* half16  (sym+add)@got@tprel@ha */
+#define R_PPC_GOT_DTPREL16  91 /* half16* (sym+add)@got@dtprel */
+#define R_PPC_GOT_DTPREL16_LO 92 /* half16* (sym+add)@got@dtprel@l */
+#define R_PPC_GOT_DTPREL16_HI 93 /* half16* (sym+add)@got@dtprel@h */
+#define R_PPC_GOT_DTPREL16_HA 94 /* half16* (sym+add)@got@dtprel@ha */
 
 /* keep this the last entry. */
-#define R_PPC_NUM		95
+#define R_PPC_NUM   95
 
-
-#define ELF_NGREG	48	/* includes nip, msr, lr, etc. */
-#define ELF_NFPREG	33	/* includes fpscr */
-#define ELF_NVMX	34	/* includes all vector registers */
-#define ELF_NVSX	32	/* includes all VSX registers */
-#define ELF_NTMSPRREG	3	/* include tfhar, tfiar, texasr */
-#define ELF_NEBB	3	/* includes ebbrr, ebbhr, bescr */
-#define ELF_NPMU	5	/* includes siar, sdar, sier, mmcr2, mmcr0 */
-#define ELF_NPKEY	3	/* includes amr, iamr, uamor */
-#define ELF_NDEXCR	2	/* includes dexcr, hdexcr */
-#define ELF_NHASHKEYR	1	/* includes hashkeyr */
+#define ELF_NGREG 48  /* includes nip, msr, lr, etc. */
+#define ELF_NFPREG  33  /* includes fpscr */
+#define ELF_NVMX  34  /* includes all vector registers */
+#define ELF_NVSX  32  /* includes all VSX registers */
+#define ELF_NTMSPRREG 3 /* include tfhar, tfiar, texasr */
+#define ELF_NEBB  3 /* includes ebbrr, ebbhr, bescr */
+#define ELF_NPMU  5 /* includes siar, sdar, sier, mmcr2, mmcr0 */
+#define ELF_NPKEY 3 /* includes amr, iamr, uamor */
+#define ELF_NDEXCR  2 /* includes dexcr, hdexcr */
+#define ELF_NHASHKEYR 1 /* includes hashkeyr */
 
 typedef unsigned long elf_greg_t64;
 typedef elf_greg_t64 elf_gregset_t64[ELF_NGREG];
@@ -112,28 +110,28 @@ typedef elf_gregset_t32 compat_elf_gregset_t;
  * ELF_ARCH, CLASS, and DATA are used to set parameters in the core dumps.
  */
 #ifdef __powerpc64__
-# define ELF_NVRREG32	33	/* includes vscr & vrsave stuffed together */
-# define ELF_NVRREG	34	/* includes vscr & vrsave in split vectors */
-# define ELF_NVSRHALFREG 32	/* Half the vsx registers */
-# define ELF_GREG_TYPE	elf_greg_t64
-# define ELF_ARCH	EM_PPC64
-# define ELF_CLASS	ELFCLASS64
+#define ELF_NVRREG32 33  /* includes vscr & vrsave stuffed together */
+#define ELF_NVRREG 34  /* includes vscr & vrsave in split vectors */
+#define ELF_NVSRHALFREG 32 /* Half the vsx registers */
+#define ELF_GREG_TYPE  elf_greg_t64
+#define ELF_ARCH EM_PPC64
+#define ELF_CLASS  ELFCLASS64
 typedef elf_greg_t64 elf_greg_t;
 typedef elf_gregset_t64 elf_gregset_t;
 #else
-# define ELF_NEVRREG	34	/* includes acc (as 2) */
-# define ELF_NVRREG	33	/* includes vscr */
-# define ELF_GREG_TYPE	elf_greg_t32
-# define ELF_ARCH	EM_PPC
-# define ELF_CLASS	ELFCLASS32
+#define ELF_NEVRREG  34  /* includes acc (as 2) */
+#define ELF_NVRREG 33  /* includes vscr */
+#define ELF_GREG_TYPE  elf_greg_t32
+#define ELF_ARCH EM_PPC
+#define ELF_CLASS  ELFCLASS32
 typedef elf_greg_t32 elf_greg_t;
 typedef elf_gregset_t32 elf_gregset_t;
 #endif /* __powerpc64__ */
 
 #ifdef __BIG_ENDIAN__
-#define ELF_DATA	ELFDATA2MSB
+#define ELF_DATA  ELFDATA2MSB
 #else
-#define ELF_DATA	ELFDATA2LSB
+#define ELF_DATA  ELFDATA2LSB
 #endif
 
 /* Floating point registers */
@@ -142,18 +140,18 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 /* Altivec registers */
 /*
- * The entries with indexes 0-31 contain the corresponding vector registers. 
- * The entry with index 32 contains the vscr as the last word (offset 12) 
- * within the quadword.  This allows the vscr to be stored as either a 
- * quadword (since it must be copied via a vector register to/from storage) 
- * or as a word.  
+ * The entries with indexes 0-31 contain the corresponding vector registers.
+ * The entry with index 32 contains the vscr as the last word (offset 12)
+ * within the quadword.  This allows the vscr to be stored as either a
+ * quadword (since it must be copied via a vector register to/from storage)
+ * or as a word.
  *
- * 64-bit kernel notes: The entry at index 33 contains the vrsave as the first  
+ * 64-bit kernel notes: The entry at index 33 contains the vrsave as the first
  * word (offset 0) within the quadword.
  *
- * This definition of the VMX state is compatible with the current PPC32 
- * ptrace interface.  This allows signal handling and ptrace to use the same 
- * structures.  This also simplifies the implementation of a bi-arch 
+ * This definition of the VMX state is compatible with the current PPC32
+ * ptrace interface.  This allows signal handling and ptrace to use the same
+ * structures.  This also simplifies the implementation of a bi-arch
  * (combined (32- and 64-bit) gdb.
  *
  * Note that it's _not_ compatible with 32 bits ucontext which stuffs the
@@ -237,62 +235,62 @@ typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
 #define R_PPC64_PLTGOT16_LO_DS 66 /* half16ds  #lo(M + A) >> 2.  */
 
 /* PowerPC64 relocations defined for the TLS access ABI.  */
-#define R_PPC64_TLS		67 /* none	(sym+add)@tls */
-#define R_PPC64_DTPMOD64	68 /* doubleword64 (sym+add)@dtpmod */
-#define R_PPC64_TPREL16		69 /* half16*	(sym+add)@tprel */
-#define R_PPC64_TPREL16_LO	70 /* half16	(sym+add)@tprel@l */
-#define R_PPC64_TPREL16_HI	71 /* half16	(sym+add)@tprel@h */
-#define R_PPC64_TPREL16_HA	72 /* half16	(sym+add)@tprel@ha */
-#define R_PPC64_TPREL64		73 /* doubleword64 (sym+add)@tprel */
-#define R_PPC64_DTPREL16	74 /* half16*	(sym+add)@dtprel */
-#define R_PPC64_DTPREL16_LO	75 /* half16	(sym+add)@dtprel@l */
-#define R_PPC64_DTPREL16_HI	76 /* half16	(sym+add)@dtprel@h */
-#define R_PPC64_DTPREL16_HA	77 /* half16	(sym+add)@dtprel@ha */
-#define R_PPC64_DTPREL64	78 /* doubleword64 (sym+add)@dtprel */
-#define R_PPC64_GOT_TLSGD16	79 /* half16*	(sym+add)@got@tlsgd */
-#define R_PPC64_GOT_TLSGD16_LO	80 /* half16	(sym+add)@got@tlsgd@l */
-#define R_PPC64_GOT_TLSGD16_HI	81 /* half16	(sym+add)@got@tlsgd@h */
-#define R_PPC64_GOT_TLSGD16_HA	82 /* half16	(sym+add)@got@tlsgd@ha */
-#define R_PPC64_GOT_TLSLD16	83 /* half16*	(sym+add)@got@tlsld */
-#define R_PPC64_GOT_TLSLD16_LO	84 /* half16	(sym+add)@got@tlsld@l */
-#define R_PPC64_GOT_TLSLD16_HI	85 /* half16	(sym+add)@got@tlsld@h */
-#define R_PPC64_GOT_TLSLD16_HA	86 /* half16	(sym+add)@got@tlsld@ha */
-#define R_PPC64_GOT_TPREL16_DS	87 /* half16ds*	(sym+add)@got@tprel */
+#define R_PPC64_TLS   67 /* none  (sym+add)@tls */
+#define R_PPC64_DTPMOD64  68 /* doubleword64 (sym+add)@dtpmod */
+#define R_PPC64_TPREL16   69 /* half16* (sym+add)@tprel */
+#define R_PPC64_TPREL16_LO  70 /* half16  (sym+add)@tprel@l */
+#define R_PPC64_TPREL16_HI  71 /* half16  (sym+add)@tprel@h */
+#define R_PPC64_TPREL16_HA  72 /* half16  (sym+add)@tprel@ha */
+#define R_PPC64_TPREL64   73 /* doubleword64 (sym+add)@tprel */
+#define R_PPC64_DTPREL16  74 /* half16* (sym+add)@dtprel */
+#define R_PPC64_DTPREL16_LO 75 /* half16  (sym+add)@dtprel@l */
+#define R_PPC64_DTPREL16_HI 76 /* half16  (sym+add)@dtprel@h */
+#define R_PPC64_DTPREL16_HA 77 /* half16  (sym+add)@dtprel@ha */
+#define R_PPC64_DTPREL64  78 /* doubleword64 (sym+add)@dtprel */
+#define R_PPC64_GOT_TLSGD16 79 /* half16* (sym+add)@got@tlsgd */
+#define R_PPC64_GOT_TLSGD16_LO  80 /* half16  (sym+add)@got@tlsgd@l */
+#define R_PPC64_GOT_TLSGD16_HI  81 /* half16  (sym+add)@got@tlsgd@h */
+#define R_PPC64_GOT_TLSGD16_HA  82 /* half16  (sym+add)@got@tlsgd@ha */
+#define R_PPC64_GOT_TLSLD16 83 /* half16* (sym+add)@got@tlsld */
+#define R_PPC64_GOT_TLSLD16_LO  84 /* half16  (sym+add)@got@tlsld@l */
+#define R_PPC64_GOT_TLSLD16_HI  85 /* half16  (sym+add)@got@tlsld@h */
+#define R_PPC64_GOT_TLSLD16_HA  86 /* half16  (sym+add)@got@tlsld@ha */
+#define R_PPC64_GOT_TPREL16_DS  87 /* half16ds* (sym+add)@got@tprel */
 #define R_PPC64_GOT_TPREL16_LO_DS 88 /* half16ds (sym+add)@got@tprel@l */
-#define R_PPC64_GOT_TPREL16_HI	89 /* half16	(sym+add)@got@tprel@h */
-#define R_PPC64_GOT_TPREL16_HA	90 /* half16	(sym+add)@got@tprel@ha */
-#define R_PPC64_GOT_DTPREL16_DS	91 /* half16ds*	(sym+add)@got@dtprel */
+#define R_PPC64_GOT_TPREL16_HI  89 /* half16  (sym+add)@got@tprel@h */
+#define R_PPC64_GOT_TPREL16_HA  90 /* half16  (sym+add)@got@tprel@ha */
+#define R_PPC64_GOT_DTPREL16_DS 91 /* half16ds* (sym+add)@got@dtprel */
 #define R_PPC64_GOT_DTPREL16_LO_DS 92 /* half16ds (sym+add)@got@dtprel@l */
-#define R_PPC64_GOT_DTPREL16_HI	93 /* half16	(sym+add)@got@dtprel@h */
-#define R_PPC64_GOT_DTPREL16_HA	94 /* half16	(sym+add)@got@dtprel@ha */
-#define R_PPC64_TPREL16_DS	95 /* half16ds*	(sym+add)@tprel */
-#define R_PPC64_TPREL16_LO_DS	96 /* half16ds	(sym+add)@tprel@l */
-#define R_PPC64_TPREL16_HIGHER	97 /* half16	(sym+add)@tprel@higher */
-#define R_PPC64_TPREL16_HIGHERA	98 /* half16	(sym+add)@tprel@highera */
-#define R_PPC64_TPREL16_HIGHEST	99 /* half16	(sym+add)@tprel@highest */
-#define R_PPC64_TPREL16_HIGHESTA 100 /* half16	(sym+add)@tprel@highesta */
-#define R_PPC64_DTPREL16_DS	101 /* half16ds* (sym+add)@dtprel */
-#define R_PPC64_DTPREL16_LO_DS	102 /* half16ds	(sym+add)@dtprel@l */
-#define R_PPC64_DTPREL16_HIGHER	103 /* half16	(sym+add)@dtprel@higher */
-#define R_PPC64_DTPREL16_HIGHERA 104 /* half16	(sym+add)@dtprel@highera */
-#define R_PPC64_DTPREL16_HIGHEST 105 /* half16	(sym+add)@dtprel@highest */
-#define R_PPC64_DTPREL16_HIGHESTA 106 /* half16	(sym+add)@dtprel@highesta */
-#define R_PPC64_TLSGD		107
-#define R_PPC64_TLSLD		108
-#define R_PPC64_TOCSAVE		109
+#define R_PPC64_GOT_DTPREL16_HI 93 /* half16  (sym+add)@got@dtprel@h */
+#define R_PPC64_GOT_DTPREL16_HA 94 /* half16  (sym+add)@got@dtprel@ha */
+#define R_PPC64_TPREL16_DS  95 /* half16ds* (sym+add)@tprel */
+#define R_PPC64_TPREL16_LO_DS 96 /* half16ds  (sym+add)@tprel@l */
+#define R_PPC64_TPREL16_HIGHER  97 /* half16  (sym+add)@tprel@higher */
+#define R_PPC64_TPREL16_HIGHERA 98 /* half16  (sym+add)@tprel@highera */
+#define R_PPC64_TPREL16_HIGHEST 99 /* half16  (sym+add)@tprel@highest */
+#define R_PPC64_TPREL16_HIGHESTA 100 /* half16  (sym+add)@tprel@highesta */
+#define R_PPC64_DTPREL16_DS 101 /* half16ds* (sym+add)@dtprel */
+#define R_PPC64_DTPREL16_LO_DS  102 /* half16ds (sym+add)@dtprel@l */
+#define R_PPC64_DTPREL16_HIGHER 103 /* half16 (sym+add)@dtprel@higher */
+#define R_PPC64_DTPREL16_HIGHERA 104 /* half16  (sym+add)@dtprel@highera */
+#define R_PPC64_DTPREL16_HIGHEST 105 /* half16  (sym+add)@dtprel@highest */
+#define R_PPC64_DTPREL16_HIGHESTA 106 /* half16 (sym+add)@dtprel@highesta */
+#define R_PPC64_TLSGD   107
+#define R_PPC64_TLSLD   108
+#define R_PPC64_TOCSAVE   109
 
-#define R_PPC64_REL24_NOTOC	116
-#define R_PPC64_ENTRY		118
+#define R_PPC64_REL24_NOTOC 116
+#define R_PPC64_ENTRY   118
 
-#define R_PPC64_PCREL34		132
-#define R_PPC64_GOT_PCREL34	133
+#define R_PPC64_PCREL34   132
+#define R_PPC64_GOT_PCREL34 133
 
-#define R_PPC64_REL16		249
-#define R_PPC64_REL16_LO	250
-#define R_PPC64_REL16_HI	251
-#define R_PPC64_REL16_HA	252
+#define R_PPC64_REL16   249
+#define R_PPC64_REL16_LO  250
+#define R_PPC64_REL16_HI  251
+#define R_PPC64_REL16_HA  252
 
 /* Keep this the last entry.  */
-#define R_PPC64_NUM		253
+#define R_PPC64_NUM   253
 
 #endif /* _UAPI_ASM_POWERPC_ELF_H */

@@ -26,14 +26,14 @@
 #include <asm/prom.h>
 
 struct linux_pbm_info {
-	int		prom_node;
-	char		prom_name[64];
-	/* struct linux_prom_pci_ranges	pbm_ranges[PROMREG_MAX]; */
-	/* int		num_pbm_ranges; */
+  int prom_node;
+  char prom_name[64];
+  /* struct linux_prom_pci_ranges pbm_ranges[PROMREG_MAX];
+   * int    num_pbm_ranges;*/
 
-	/* Now things for the actual PCI bus probes. */
-	unsigned int	pci_first_busno;	/* Can it be nonzero? */
-	struct pci_bus	*pci_bus;		/* Was inline, MJ allocs now */
+  /* Now things for the actual PCI bus probes. */
+  unsigned int pci_first_busno;  /* Can it be nonzero? */
+  struct pci_bus *pci_bus;   /* Was inline, MJ allocs now */
 };
 
 /* PCI devices which are not bridges have this placed in their pci_dev
@@ -41,8 +41,8 @@ struct linux_pbm_info {
  * code.
  */
 struct pcidev_cookie {
-	struct linux_pbm_info		*pbm;
-	struct device_node		*prom_node;
+  struct linux_pbm_info *pbm;
+  struct device_node *prom_node;
 };
 
 #endif /* !(__SPARC_PBM_H) */

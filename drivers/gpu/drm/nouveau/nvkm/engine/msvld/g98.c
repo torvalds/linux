@@ -25,26 +25,23 @@
 
 #include <nvif/class.h>
 
-void
-g98_msvld_init(struct nvkm_falcon *msvld)
-{
-	struct nvkm_device *device = msvld->engine.subdev.device;
-	nvkm_wr32(device, 0x084010, 0x0000ffd2);
-	nvkm_wr32(device, 0x08401c, 0x0000fff2);
+void g98_msvld_init(struct nvkm_falcon *msvld) {
+  struct nvkm_device *device = msvld->engine.subdev.device;
+  nvkm_wr32(device, 0x084010, 0x0000ffd2);
+  nvkm_wr32(device, 0x08401c, 0x0000fff2);
 }
 
 static const struct nvkm_falcon_func
-g98_msvld = {
-	.init = g98_msvld_init,
-	.sclass = {
-		{ -1, -1, G98_MSVLD },
-		{}
-	}
+    g98_msvld = {
+  .init = g98_msvld_init,
+  .sclass = {
+    { -1, -1, G98_MSVLD },
+    {}
+  }
 };
 
-int
-g98_msvld_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	      struct nvkm_engine **pengine)
-{
-	return nvkm_msvld_new_(&g98_msvld, device, type, inst, pengine);
+int g98_msvld_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_engine **pengine) {
+  return nvkm_msvld_new_(&g98_msvld, device, type, inst, pengine);
 }

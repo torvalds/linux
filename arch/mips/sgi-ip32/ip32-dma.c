@@ -18,20 +18,18 @@
 
 #define RAM_OFFSET_MASK 0x3fffffffUL
 
-dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr)
-{
-	dma_addr_t dma_addr = paddr & RAM_OFFSET_MASK;
-
-	if (!dev)
-		dma_addr += CRIME_HI_MEM_BASE;
-	return dma_addr;
+dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr) {
+  dma_addr_t dma_addr = paddr & RAM_OFFSET_MASK;
+  if (!dev) {
+    dma_addr += CRIME_HI_MEM_BASE;
+  }
+  return dma_addr;
 }
 
-phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dma_addr)
-{
-	phys_addr_t paddr = dma_addr & RAM_OFFSET_MASK;
-
-	if (dma_addr >= 256*1024*1024)
-		paddr += CRIME_HI_MEM_BASE;
-	return paddr;
+phys_addr_t dma_to_phys(struct device *dev, dma_addr_t dma_addr) {
+  phys_addr_t paddr = dma_addr & RAM_OFFSET_MASK;
+  if (dma_addr >= 256 * 1024 * 1024) {
+    paddr += CRIME_HI_MEM_BASE;
+  }
+  return paddr;
 }

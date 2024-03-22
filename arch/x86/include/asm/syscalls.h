@@ -8,8 +8,8 @@
 #ifndef _ASM_X86_SYSCALLS_H
 #define _ASM_X86_SYSCALLS_H
 
-/* Common in X86_32 and X86_64 */
-/* kernel/ioport.c */
+/* Common in X86_32 and X86_64
+ * kernel/ioport.c*/
 long ksys_ioperm(unsigned long from, unsigned long num, int turn_on);
 
 #endif /* _ASM_X86_SYSCALLS_H */

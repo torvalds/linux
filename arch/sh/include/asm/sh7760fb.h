@@ -3,7 +3,7 @@
  * sh7760fb.h -- platform data for SH7760/SH7763 LCDC framebuffer driver.
  *
  * (c) 2006-2008 MSC Vertriebsges.m.b.H.,
- * 			Manuel Lauss <mano@roarinelk.homelinux.net>
+ *      Manuel Lauss <mano@roarinelk.homelinux.net>
  * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
  */
 
@@ -51,25 +51,25 @@
 #define LDCNTR_DON2 (1 << 4)
 
 #ifdef CONFIG_CPU_SUBTYPE_SH7763
-# define LDLIRNR       0x440
+#define LDLIRNR       0x440
 /* LDINTR bit */
-# define LDINTR_MINTEN (1 << 15)
-# define LDINTR_FINTEN (1 << 14)
-# define LDINTR_VSINTEN (1 << 13)
-# define LDINTR_VEINTEN (1 << 12)
-# define LDINTR_MINTS (1 << 11)
-# define LDINTR_FINTS (1 << 10)
-# define LDINTR_VSINTS (1 << 9)
-# define LDINTR_VEINTS (1 << 8)
-# define VINT_START (LDINTR_VSINTEN)
-# define VINT_CHECK (LDINTR_VSINTS)
+#define LDINTR_MINTEN (1 << 15)
+#define LDINTR_FINTEN (1 << 14)
+#define LDINTR_VSINTEN (1 << 13)
+#define LDINTR_VEINTEN (1 << 12)
+#define LDINTR_MINTS (1 << 11)
+#define LDINTR_FINTS (1 << 10)
+#define LDINTR_VSINTS (1 << 9)
+#define LDINTR_VEINTS (1 << 8)
+#define VINT_START (LDINTR_VSINTEN)
+#define VINT_CHECK (LDINTR_VSINTS)
 #else
 /* LDINTR bit */
-# define LDINTR_VINTSEL (1 << 12)
-# define LDINTR_VINTE (1 << 8)
-# define LDINTR_VINTS (1 << 0)
-# define VINT_START (LDINTR_VINTSEL)
-# define VINT_CHECK (LDINTR_VINTS)
+#define LDINTR_VINTSEL (1 << 12)
+#define LDINTR_VINTE (1 << 8)
+#define LDINTR_VINTS (1 << 0)
+#define VINT_START (LDINTR_VINTSEL)
+#define VINT_CHECK (LDINTR_VINTS)
 #endif
 
 /* HSYNC polarity inversion */
@@ -123,76 +123,75 @@
 #define LCDC_CLKSRC_EXTERNAL 2
 
 #define LDICKR_CLKSRC(x) \
-       (((x) & 3) << 12)
+  (((x) & 3) << 12)
 
 /* LCDC pixclock input divider. Set to 1 at a minimum! */
 #define LDICKR_CLKDIV(x) \
-       ((x) & 0x1f)
+  ((x) & 0x1f)
 
 struct sh7760fb_platdata {
+  /* Set this member to a valid fb_videmode for the display you
+   * wish to use.  The following members must be initialized:
+   * xres, yres, hsync_len, vsync_len, sync,
+   * {left,right,upper,lower}_margin.
+   * The driver uses the above members to calculate register values
+   * and memory requirements. Other members are ignored but may
+   * be used by other framebuffer layer components.
+   */
+  struct fb_videomode *def_mode;
 
-	/* Set this member to a valid fb_videmode for the display you
-	 * wish to use.  The following members must be initialized:
-	 * xres, yres, hsync_len, vsync_len, sync,
-	 * {left,right,upper,lower}_margin.
-	 * The driver uses the above members to calculate register values
-	 * and memory requirements. Other members are ignored but may
-	 * be used by other framebuffer layer components.
-	 */
-	struct fb_videomode *def_mode;
+  /* LDMTR includes display type and signal polarity.  The
+   * HSYNC/VSYNC polarities are derived from the fb_var_screeninfo
+   * data above; however the polarities of the following signals
+   * must be encoded in the ldmtr member:
+   * Display Enable signal (default high-active)  DISPEN_LOWACT
+   * Display Data signals (default high-active)   DPOL_LOWACT
+   * AC Modulation signal (default off)           MCNT
+   * Hsync-During-Vsync suppression (default off) CL1CNT
+   * Vsync-during-vsync suppression (default off) CL2CNT
+   * NOTE: also set a display type!
+   * (one of LDMTR_{STN,DSTN,TFT}_{MONO,COLOR}_{4,8,12,16})
+   */
+  u16 ldmtr;
 
-	/* LDMTR includes display type and signal polarity.  The
-	 * HSYNC/VSYNC polarities are derived from the fb_var_screeninfo
-	 * data above; however the polarities of the following signals
-	 * must be encoded in the ldmtr member:
-	 * Display Enable signal (default high-active)  DISPEN_LOWACT
-	 * Display Data signals (default high-active)   DPOL_LOWACT
-	 * AC Modulation signal (default off)           MCNT
-	 * Hsync-During-Vsync suppression (default off) CL1CNT
-	 * Vsync-during-vsync suppression (default off) CL2CNT
-	 * NOTE: also set a display type!
-	 * (one of LDMTR_{STN,DSTN,TFT}_{MONO,COLOR}_{4,8,12,16})
-	 */
-	u16 ldmtr;
+  /* LDDFR controls framebuffer image format (depth, organization)
+   * Use ONE of the LDDFR_?BPP_* macros!
+   */
+  u16 lddfr;
 
-	/* LDDFR controls framebuffer image format (depth, organization)
-	 * Use ONE of the LDDFR_?BPP_* macros!
-	 */
-	u16 lddfr;
+  /* LDPMMR and LDPSPR control the timing of the power signals
+   * for the display. Please read the SH7760 Hardware Manual,
+   * Chapters 30.3.17, 30.3.18 and 30.4.6!
+   */
+  u16 ldpmmr;
+  u16 ldpspr;
 
-	/* LDPMMR and LDPSPR control the timing of the power signals
-	 * for the display. Please read the SH7760 Hardware Manual,
-	 * Chapters 30.3.17, 30.3.18 and 30.4.6!
-	 */
-	u16 ldpmmr;
-	u16 ldpspr;
+  /* LDACLNR contains the line numbers after which the AC modulation
+   * signal is to toggle. Set to ZERO for TFTs or displays which
+   * do not need it. (Chapter 30.3.15 in SH7760 Hardware Manual).
+   */
+  u16 ldaclnr;
 
-	/* LDACLNR contains the line numbers after which the AC modulation
-	 * signal is to toggle. Set to ZERO for TFTs or displays which
-	 * do not need it. (Chapter 30.3.15 in SH7760 Hardware Manual).
-	 */
-	u16 ldaclnr;
+  /* LDICKR contains information on pixelclock source and config.
+   * Please use the LDICKR_CLKSRC() and LDICKR_CLKDIV() macros.
+   * minimal value for CLKDIV() must be 1!.
+   */
+  u16 ldickr;
 
-	/* LDICKR contains information on pixelclock source and config.
-	 * Please use the LDICKR_CLKSRC() and LDICKR_CLKDIV() macros.
-	 * minimal value for CLKDIV() must be 1!.
-	 */
-	u16 ldickr;
+  /* set this member to 1 if you wish to use the LCDC's hardware
+   * rotation function.  This is limited to displays <= 320x200
+   * pixels resolution!
+   */
+  int rotate;   /* set to 1 to rotate 90 CCW */
 
-	/* set this member to 1 if you wish to use the LCDC's hardware
-	 * rotation function.  This is limited to displays <= 320x200
-	 * pixels resolution!
-	 */
-	int rotate;		/* set to 1 to rotate 90 CCW */
+  /* set this to 1 to suppress vsync irq use. */
+  int novsync;
 
-	/* set this to 1 to suppress vsync irq use. */
-	int novsync;
-
-	/* blanking hook for platform. Set this if your platform can do
-	 * more than the LCDC in terms of blanking (e.g. disable clock
-	 * generator / backlight power supply / etc.
-	 */
-	void (*blank) (int);
+  /* blanking hook for platform. Set this if your platform can do
+   * more than the LCDC in terms of blanking (e.g. disable clock
+   * generator / backlight power supply / etc.
+   */
+  void (*blank)(int);
 };
 
 #endif /* _ASM_SH_SH7760FB_H */

@@ -40,8 +40,8 @@
 
 #define VERSION_STR "0.9.1"
 
-#define DEFAULT_IOFENCE_MARGIN 60	/* Default fudge factor, in seconds */
-#define DEFAULT_IOFENCE_TICK 180	/* Default timer timeout, in seconds */
+#define DEFAULT_IOFENCE_MARGIN 60 /* Default fudge factor, in seconds */
+#define DEFAULT_IOFENCE_TICK 180  /* Default timer timeout, in seconds */
 
 static int hangcheck_tick = DEFAULT_IOFENCE_TICK;
 static int hangcheck_margin = DEFAULT_IOFENCE_MARGIN;
@@ -52,50 +52,54 @@ static int hangcheck_dump_tasks;  /* Defaults to not dumping SysRQ T */
 module_param(hangcheck_tick, int, 0);
 MODULE_PARM_DESC(hangcheck_tick, "Timer delay.");
 module_param(hangcheck_margin, int, 0);
-MODULE_PARM_DESC(hangcheck_margin, "If the hangcheck timer has been delayed more than hangcheck_margin seconds, the driver will fire.");
+MODULE_PARM_DESC(hangcheck_margin,
+    "If the hangcheck timer has been delayed more than hangcheck_margin seconds, the driver will fire.");
 module_param(hangcheck_reboot, int, 0);
-MODULE_PARM_DESC(hangcheck_reboot, "If nonzero, the machine will reboot when the timer margin is exceeded.");
+MODULE_PARM_DESC(hangcheck_reboot,
+    "If nonzero, the machine will reboot when the timer margin is exceeded.");
 module_param(hangcheck_dump_tasks, int, 0);
-MODULE_PARM_DESC(hangcheck_dump_tasks, "If nonzero, the machine will dump the system task state when the timer margin is exceeded.");
+MODULE_PARM_DESC(hangcheck_dump_tasks,
+    "If nonzero, the machine will dump the system task state when the timer margin is exceeded.");
 
 MODULE_AUTHOR("Oracle");
-MODULE_DESCRIPTION("Hangcheck-timer detects when the system has gone out to lunch past a certain margin.");
+MODULE_DESCRIPTION(
+    "Hangcheck-timer detects when the system has gone out to lunch past a certain margin.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VERSION_STR);
 
 /* options - nonmodular */
 #ifndef MODULE
 
-static int __init hangcheck_parse_tick(char *str)
-{
-	int par;
-	if (get_option(&str,&par))
-		hangcheck_tick = par;
-	return 1;
+static int __init hangcheck_parse_tick(char *str) {
+  int par;
+  if (get_option(&str, &par)) {
+    hangcheck_tick = par;
+  }
+  return 1;
 }
 
-static int __init hangcheck_parse_margin(char *str)
-{
-	int par;
-	if (get_option(&str,&par))
-		hangcheck_margin = par;
-	return 1;
+static int __init hangcheck_parse_margin(char *str) {
+  int par;
+  if (get_option(&str, &par)) {
+    hangcheck_margin = par;
+  }
+  return 1;
 }
 
-static int __init hangcheck_parse_reboot(char *str)
-{
-	int par;
-	if (get_option(&str,&par))
-		hangcheck_reboot = par;
-	return 1;
+static int __init hangcheck_parse_reboot(char *str) {
+  int par;
+  if (get_option(&str, &par)) {
+    hangcheck_reboot = par;
+  }
+  return 1;
 }
 
-static int __init hangcheck_parse_dump_tasks(char *str)
-{
-	int par;
-	if (get_option(&str,&par))
-		hangcheck_dump_tasks = par;
-	return 1;
+static int __init hangcheck_parse_dump_tasks(char *str) {
+  int par;
+  if (get_option(&str, &par)) {
+    hangcheck_dump_tasks = par;
+  }
+  return 1;
 }
 
 __setup("hcheck_tick", hangcheck_parse_tick);
@@ -113,62 +117,54 @@ static void hangcheck_fire(struct timer_list *);
 
 static DEFINE_TIMER(hangcheck_ticktock, hangcheck_fire);
 
-static void hangcheck_fire(struct timer_list *unused)
-{
-	unsigned long long cur_tsc, tsc_diff;
-
-	cur_tsc = ktime_get_ns();
-
-	if (cur_tsc > hangcheck_tsc)
-		tsc_diff = cur_tsc - hangcheck_tsc;
-	else
-		tsc_diff = (cur_tsc + (~0ULL - hangcheck_tsc)); /* or something */
-
-	if (tsc_diff > hangcheck_tsc_margin) {
-		if (hangcheck_dump_tasks) {
-			printk(KERN_CRIT "Hangcheck: Task state:\n");
+static void hangcheck_fire(struct timer_list *unused) {
+  unsigned long long cur_tsc, tsc_diff;
+  cur_tsc = ktime_get_ns();
+  if (cur_tsc > hangcheck_tsc) {
+    tsc_diff = cur_tsc - hangcheck_tsc;
+  } else {
+    tsc_diff = (cur_tsc + (~0ULL - hangcheck_tsc)); /* or something */
+  }
+  if (tsc_diff > hangcheck_tsc_margin) {
+    if (hangcheck_dump_tasks) {
+      printk(KERN_CRIT "Hangcheck: Task state:\n");
 #ifdef CONFIG_MAGIC_SYSRQ
-			handle_sysrq('t');
+      handle_sysrq('t');
 #endif  /* CONFIG_MAGIC_SYSRQ */
-		}
-		if (hangcheck_reboot) {
-			printk(KERN_CRIT "Hangcheck: hangcheck is restarting the machine.\n");
-			emergency_restart();
-		} else {
-			printk(KERN_CRIT "Hangcheck: hangcheck value past margin!\n");
-		}
-	}
+    }
+    if (hangcheck_reboot) {
+      printk(KERN_CRIT "Hangcheck: hangcheck is restarting the machine.\n");
+      emergency_restart();
+    } else {
+      printk(KERN_CRIT "Hangcheck: hangcheck value past margin!\n");
+    }
+  }
 #if 0
-	/*
-	 * Enable to investigate delays in detail
-	 */
-	printk("Hangcheck: called %Ld ns since last time (%Ld ns overshoot)\n",
-			tsc_diff, tsc_diff - hangcheck_tick*TIMER_FREQ);
+  /*
+   * Enable to investigate delays in detail
+   */
+  printk("Hangcheck: called %Ld ns since last time (%Ld ns overshoot)\n",
+      tsc_diff, tsc_diff - hangcheck_tick * TIMER_FREQ);
 #endif
-	mod_timer(&hangcheck_ticktock, jiffies + (hangcheck_tick*HZ));
-	hangcheck_tsc = ktime_get_ns();
+  mod_timer(&hangcheck_ticktock, jiffies + (hangcheck_tick * HZ));
+  hangcheck_tsc = ktime_get_ns();
 }
 
-
-static int __init hangcheck_init(void)
-{
-	printk("Hangcheck: starting hangcheck timer %s (tick is %d seconds, margin is %d seconds).\n",
-	       VERSION_STR, hangcheck_tick, hangcheck_margin);
-	hangcheck_tsc_margin =
-		(unsigned long long)hangcheck_margin + hangcheck_tick;
-	hangcheck_tsc_margin *= TIMER_FREQ;
-
-	hangcheck_tsc = ktime_get_ns();
-	mod_timer(&hangcheck_ticktock, jiffies + (hangcheck_tick*HZ));
-
-	return 0;
+static int __init hangcheck_init(void) {
+  printk(
+      "Hangcheck: starting hangcheck timer %s (tick is %d seconds, margin is %d seconds).\n",
+      VERSION_STR, hangcheck_tick, hangcheck_margin);
+  hangcheck_tsc_margin
+    = (unsigned long long) hangcheck_margin + hangcheck_tick;
+  hangcheck_tsc_margin *= TIMER_FREQ;
+  hangcheck_tsc = ktime_get_ns();
+  mod_timer(&hangcheck_ticktock, jiffies + (hangcheck_tick * HZ));
+  return 0;
 }
 
-
-static void __exit hangcheck_exit(void)
-{
-	del_timer_sync(&hangcheck_ticktock);
-        printk("Hangcheck: Stopped hangcheck timer.\n");
+static void __exit hangcheck_exit(void) {
+  del_timer_sync(&hangcheck_ticktock);
+  printk("Hangcheck: Stopped hangcheck timer.\n");
 }
 
 module_init(hangcheck_init);

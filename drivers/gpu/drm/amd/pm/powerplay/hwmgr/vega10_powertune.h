@@ -24,17 +24,17 @@
 #define _VEGA10_POWERTUNE_H_
 
 enum vega10_pt_config_reg_type {
-	VEGA10_CONFIGREG_MMR = 0,
-	VEGA10_CONFIGREG_SMC_IND,
-	VEGA10_CONFIGREG_DIDT_IND,
-	VEGA10_CONFIGREG_CACHE,
-	VEGA10_CONFIGREG_MAX
+  VEGA10_CONFIGREG_MMR = 0,
+  VEGA10_CONFIGREG_SMC_IND,
+  VEGA10_CONFIGREG_DIDT_IND,
+  VEGA10_CONFIGREG_CACHE,
+  VEGA10_CONFIGREG_MAX
 };
 
 enum vega10_didt_config_reg_type {
-	VEGA10_CONFIGREG_DIDT = 0,
-	VEGA10_CONFIGREG_GCCAC,
-	VEGA10_CONFIGREG_SECAC
+  VEGA10_CONFIGREG_DIDT = 0,
+  VEGA10_CONFIGREG_GCCAC,
+  VEGA10_CONFIGREG_SECAC
 };
 
 /* PowerContainment Features */
@@ -43,27 +43,27 @@ enum vega10_didt_config_reg_type {
 #define POWERCONTAINMENT_FEATURE_PkgPwrLimit     0x00000004
 
 struct vega10_pt_config_reg {
-	uint32_t                           offset;
-	uint32_t                           mask;
-	uint32_t                           shift;
-	uint32_t                           value;
-	enum vega10_pt_config_reg_type       type;
+  uint32_t offset;
+  uint32_t mask;
+  uint32_t shift;
+  uint32_t value;
+  enum vega10_pt_config_reg_type type;
 };
 
 struct vega10_didt_config_reg {
-	uint32_t		offset;
-	uint32_t		mask;
-	uint32_t		shift;
-	uint32_t		value;
+  uint32_t offset;
+  uint32_t mask;
+  uint32_t shift;
+  uint32_t value;
 };
 
 struct vega10_pt_defaults {
-    uint8_t   SviLoadLineEn;
-    uint8_t   SviLoadLineVddC;
-    uint8_t   TDC_VDDC_ThrottleReleaseLimitPerc;
-    uint8_t   TDC_MAWt;
-    uint8_t   TdcWaterfallCtl;
-    uint8_t   DTEAmbientTempBase;
+  uint8_t SviLoadLineEn;
+  uint8_t SviLoadLineVddC;
+  uint8_t TDC_VDDC_ThrottleReleaseLimitPerc;
+  uint8_t TDC_MAWt;
+  uint8_t TdcWaterfallCtl;
+  uint8_t DTEAmbientTempBase;
 };
 
 void vega10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr);
@@ -79,4 +79,3 @@ int vega10_enable_didt_config(struct pp_hwmgr *hwmgr);
 int vega10_disable_didt_config(struct pp_hwmgr *hwmgr);
 
 #endif  /* _VEGA10_POWERTUNE_H_ */
-

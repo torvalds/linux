@@ -23,18 +23,17 @@ extern unsigned long __stack_chk_guard;
  * NOTE: this must only be called from functions that never return,
  * and it must always be inlined.
  */
-static __always_inline void boot_init_stack_canary(void)
-{
+static __always_inline void boot_init_stack_canary(void) {
 #if defined(CONFIG_STACKPROTECTOR)
-	unsigned long canary = get_random_canary();
-
-	current->stack_canary = canary;
-	if (!IS_ENABLED(CONFIG_STACKPROTECTOR_PER_TASK))
-		__stack_chk_guard = current->stack_canary;
+  unsigned long canary = get_random_canary();
+  current->stack_canary = canary;
+  if (!IS_ENABLED(CONFIG_STACKPROTECTOR_PER_TASK)) {
+    __stack_chk_guard = current->stack_canary;
+  }
 #endif
-	ptrauth_thread_init_kernel(current);
-	ptrauth_thread_switch_kernel(current);
-	ptrauth_enable();
+  ptrauth_thread_init_kernel(current);
+  ptrauth_thread_switch_kernel(current);
+  ptrauth_enable();
 }
 
-#endif	/* _ASM_STACKPROTECTOR_H */
+#endif  /* _ASM_STACKPROTECTOR_H */

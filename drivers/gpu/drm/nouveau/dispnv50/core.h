@@ -6,42 +6,42 @@
 #include <nouveau_encoder.h>
 
 struct nv50_core {
-	const struct nv50_core_func *func;
-	struct nv50_dmac chan;
-	bool assign_windows;
+  const struct nv50_core_func *func;
+  struct nv50_dmac chan;
+  bool assign_windows;
 };
 
 int nv50_core_new(struct nouveau_drm *, struct nv50_core **);
 void nv50_core_del(struct nv50_core **);
 
 struct nv50_core_func {
-	int (*init)(struct nv50_core *);
-	void (*ntfy_init)(struct nouveau_bo *, u32 offset);
-	int (*caps_init)(struct nouveau_drm *, struct nv50_disp *);
-	int (*ntfy_wait_done)(struct nouveau_bo *, u32 offset,
-			      struct nvif_device *);
-	int (*update)(struct nv50_core *, u32 *interlock, bool ntfy);
+  int (*init)(struct nv50_core *);
+  void (*ntfy_init)(struct nouveau_bo *, u32 offset);
+  int (*caps_init)(struct nouveau_drm *, struct nv50_disp *);
+  int (*ntfy_wait_done)(struct nouveau_bo *, u32 offset,
+      struct nvif_device *);
+  int (*update)(struct nv50_core *, u32 *interlock, bool ntfy);
 
-	struct {
-		int (*owner)(struct nv50_core *);
-	} wndw;
+  struct {
+    int (*owner)(struct nv50_core *);
+  } wndw;
 
-	const struct nv50_head_func *head;
+  const struct nv50_head_func *head;
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-	const struct nv50_crc_func *crc;
+  const struct nv50_crc_func *crc;
 #endif
-	const struct nv50_outp_func {
-		int (*ctrl)(struct nv50_core *, int or, u32 ctrl,
-			     struct nv50_head_atom *);
-		/* XXX: Only used by SORs and PIORs for now */
-		void (*get_caps)(struct nv50_disp *,
-				 struct nouveau_encoder *, int or);
-	} *dac, *pior, *sor;
+  const struct nv50_outp_func {
+    int (*ctrl)(struct nv50_core *, int or, u32 ctrl,
+        struct nv50_head_atom *);
+    /* XXX: Only used by SORs and PIORs for now */
+    void (*get_caps)(struct nv50_disp *,
+        struct nouveau_encoder *, int or);
+  } *dac, *pior, *sor;
 };
 
 int core507d_new(struct nouveau_drm *, s32, struct nv50_core **);
 int core507d_new_(const struct nv50_core_func *, struct nouveau_drm *, s32,
-		  struct nv50_core **);
+    struct nv50_core **);
 int core507d_init(struct nv50_core *);
 void core507d_ntfy_init(struct nouveau_bo *, u32);
 int core507d_read_caps(struct nv50_disp *disp);

@@ -8,8 +8,7 @@ char _license[] SEC("license") = "GPL";
 int count;
 
 SEC("uprobe.multi/./uprobe_multi:uprobe_multi_func_*")
-int uprobe_bench(struct pt_regs *ctx)
-{
-	count++;
-	return 0;
+int uprobe_bench(struct pt_regs *ctx) {
+  count++;
+  return 0;
 }

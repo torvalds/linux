@@ -6,35 +6,32 @@
 
 /* TSB flush operations. */
 
-#define TLB_BATCH_NR	192
+#define TLB_BATCH_NR  192
 
 struct tlb_batch {
-	unsigned int hugepage_shift;
-	struct mm_struct *mm;
-	unsigned long tlb_nr;
-	unsigned long active;
-	unsigned long vaddrs[TLB_BATCH_NR];
+  unsigned int hugepage_shift;
+  struct mm_struct *mm;
+  unsigned long tlb_nr;
+  unsigned long active;
+  unsigned long vaddrs[TLB_BATCH_NR];
 };
 
 void flush_tsb_kernel_range(unsigned long start, unsigned long end);
 void flush_tsb_user(struct tlb_batch *tb);
 void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr,
-			 unsigned int hugepage_shift);
+    unsigned int hugepage_shift);
 
 /* TLB flush operations. */
 
-static inline void flush_tlb_mm(struct mm_struct *mm)
-{
+static inline void flush_tlb_mm(struct mm_struct *mm) {
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
-				  unsigned long vmaddr)
-{
+    unsigned long vmaddr) {
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
-				   unsigned long start, unsigned long end)
-{
+    unsigned long start, unsigned long end) {
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end);
@@ -53,9 +50,9 @@ void __flush_tlb_kernel_range(unsigned long start, unsigned long end);
 
 #ifndef CONFIG_SMP
 
-static inline void global_flush_tlb_page(struct mm_struct *mm, unsigned long vaddr)
-{
-	__flush_tlb_page(CTX_HWBITS(mm->context), vaddr);
+static inline void global_flush_tlb_page(struct mm_struct *mm,
+    unsigned long vaddr) {
+  __flush_tlb_page(CTX_HWBITS(mm->context), vaddr);
 }
 
 #else /* CONFIG_SMP */
@@ -64,7 +61,7 @@ void smp_flush_tlb_kernel_range(unsigned long start, unsigned long end);
 void smp_flush_tlb_page(struct mm_struct *mm, unsigned long vaddr);
 
 #define global_flush_tlb_page(mm, vaddr) \
-	smp_flush_tlb_page(mm, vaddr)
+  smp_flush_tlb_page(mm, vaddr)
 
 #endif /* ! CONFIG_SMP */
 

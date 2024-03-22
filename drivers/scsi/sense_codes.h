@@ -49,9 +49,11 @@ SENSE_CODE(0x0406, "Logical unit not ready, recalculation in progress")
 SENSE_CODE(0x0407, "Logical unit not ready, operation in progress")
 SENSE_CODE(0x0408, "Logical unit not ready, long write in progress")
 SENSE_CODE(0x0409, "Logical unit not ready, self-test in progress")
-SENSE_CODE(0x040A, "Logical unit not accessible, asymmetric access state transition")
+SENSE_CODE(0x040A,
+    "Logical unit not accessible, asymmetric access state transition")
 SENSE_CODE(0x040B, "Logical unit not accessible, target port in standby state")
-SENSE_CODE(0x040C, "Logical unit not accessible, target port in unavailable state")
+SENSE_CODE(0x040C,
+    "Logical unit not accessible, target port in unavailable state")
 SENSE_CODE(0x040D, "Logical unit not ready, structure check required")
 SENSE_CODE(0x040E, "Logical unit not ready, security session in progress")
 SENSE_CODE(0x0410, "Logical unit not ready, auxiliary memory not accessible")
@@ -64,9 +66,11 @@ SENSE_CODE(0x0416, "Logical unit not ready, configuration required")
 SENSE_CODE(0x0417, "Logical unit not ready, calibration required")
 SENSE_CODE(0x0418, "Logical unit not ready, a door is open")
 SENSE_CODE(0x0419, "Logical unit not ready, operating in sequential mode")
-SENSE_CODE(0x041A, "Logical unit not ready, start stop unit command in progress")
+SENSE_CODE(0x041A,
+    "Logical unit not ready, start stop unit command in progress")
 SENSE_CODE(0x041B, "Logical unit not ready, sanitize in progress")
-SENSE_CODE(0x041C, "Logical unit not ready, additional power use not yet granted")
+SENSE_CODE(0x041C,
+    "Logical unit not ready, additional power use not yet granted")
 SENSE_CODE(0x041D, "Logical unit not ready, configuration in progress")
 SENSE_CODE(0x041E, "Logical unit not ready, microcode activation required")
 SENSE_CODE(0x041F, "Logical unit not ready, microcode download required")
@@ -279,7 +283,8 @@ SENSE_CODE(0x2200, "Illegal function (use 20 00, 24 00, or 26 00)")
 SENSE_CODE(0x2300, "Invalid token operation, cause not reportable")
 SENSE_CODE(0x2301, "Invalid token operation, unsupported token type")
 SENSE_CODE(0x2302, "Invalid token operation, remote token usage not supported")
-SENSE_CODE(0x2303, "Invalid token operation, remote rod token creation not supported")
+SENSE_CODE(0x2303,
+    "Invalid token operation, remote rod token creation not supported")
 SENSE_CODE(0x2304, "Invalid token operation, token unknown")
 SENSE_CODE(0x2305, "Invalid token operation, token corrupt")
 SENSE_CODE(0x2306, "Invalid token operation, token revoked")
@@ -365,7 +370,8 @@ SENSE_CODE(0x2A0C, "Error recovery attributes have changed")
 SENSE_CODE(0x2A0D, "Data encryption capabilities changed")
 SENSE_CODE(0x2A10, "Timestamp changed")
 SENSE_CODE(0x2A11, "Data encryption parameters changed by another i_t nexus")
-SENSE_CODE(0x2A12, "Data encryption parameters changed by vendor specific event")
+SENSE_CODE(0x2A12,
+    "Data encryption parameters changed by vendor specific event")
 SENSE_CODE(0x2A13, "Data encryption key instance counter has changed")
 SENSE_CODE(0x2A14, "SA creation capabilities data has changed")
 SENSE_CODE(0x2A15, "Medium removal prevention preempted")
@@ -531,10 +537,10 @@ SENSE_CODE(0x3F19, "Bind redirected")
 SENSE_CODE(0x3F1A, "Subsidiary binding changed")
 
 /*
- *	SENSE_CODE(0x40NN, "Ram failure")
- *	SENSE_CODE(0x40NN, "Diagnostic failure on component nn")
- *	SENSE_CODE(0x41NN, "Data path failure")
- *	SENSE_CODE(0x42NN, "Power-on or self-test failure")
+ *  SENSE_CODE(0x40NN, "Ram failure")
+ *  SENSE_CODE(0x40NN, "Diagnostic failure on component nn")
+ *  SENSE_CODE(0x41NN, "Data path failure")
+ *  SENSE_CODE(0x42NN, "Power-on or self-test failure")
  */
 SENSE_CODE(0x4300, "Message error")
 
@@ -586,7 +592,7 @@ SENSE_CODE(0x4B15, "PCIe tlp prefix blocked")
 
 SENSE_CODE(0x4C00, "Logical unit failed self-configuration")
 /*
- *	SENSE_CODE(0x4DNN, "Tagged overlapped commands (nn = queue tag)")
+ *  SENSE_CODE(0x4DNN, "Tagged overlapped commands (nn = queue tag)")
  */
 SENSE_CODE(0x4E00, "Overlapped commands attempted")
 
@@ -697,7 +703,8 @@ SENSE_CODE(0x5D38, "Data channel impending failure controller detected")
 SENSE_CODE(0x5D39, "Data channel impending failure throughput performance")
 SENSE_CODE(0x5D3A, "Data channel impending failure seek time performance")
 SENSE_CODE(0x5D3B, "Data channel impending failure spin-up retry count")
-SENSE_CODE(0x5D3C, "Data channel impending failure drive calibration retry count")
+SENSE_CODE(0x5D3C,
+    "Data channel impending failure drive calibration retry count")
 SENSE_CODE(0x5D40, "Servo impending failure general hard drive failure")
 SENSE_CODE(0x5D41, "Servo impending failure drive error rate too high")
 SENSE_CODE(0x5D42, "Servo impending failure data error rate too high")
@@ -812,7 +819,8 @@ SENSE_CODE(0x6D00, "Recalculate failure occurred")
 
 SENSE_CODE(0x6E00, "Command to logical unit failed")
 
-SENSE_CODE(0x6F00, "Copy protection key exchange failure - authentication failure")
+SENSE_CODE(0x6F00,
+    "Copy protection key exchange failure - authentication failure")
 SENSE_CODE(0x6F01, "Copy protection key exchange failure - key not present")
 SENSE_CODE(0x6F02, "Copy protection key exchange failure - key not established")
 SENSE_CODE(0x6F03, "Read of scrambled sector without authentication")
@@ -825,7 +833,7 @@ SENSE_CODE(0x6F09, "Invalid drive-host pairing server")
 SENSE_CODE(0x6F0A, "Drive-host pairing suspended")
 
 /*
- *	SENSE_CODE(0x70NN, "Decompression exception short algorithm id of nn")
+ *  SENSE_CODE(0x70NN, "Decompression exception short algorithm id of nn")
  */
 SENSE_CODE(0x7100, "Decompression exception long algorithm id")
 

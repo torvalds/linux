@@ -8,13 +8,14 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/threads.h>	/* NR_CPUS */
+#include <linux/threads.h>  /* NR_CPUS */
 
 typedef struct {
-	unsigned long asid[NR_CPUS];	/* 8 bit MMU PID + Generation cycle */
+  unsigned long asid[NR_CPUS];  /* 8 bit MMU PID + Generation cycle */
 } mm_context_t;
 
-extern void do_tlb_overlap_fault(unsigned long, unsigned long, struct pt_regs *);
+extern void do_tlb_overlap_fault(unsigned long, unsigned long,
+    struct pt_regs *);
 
 #endif
 

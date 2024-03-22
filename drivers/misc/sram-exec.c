@@ -3,7 +3,7 @@
  * SRAM protect-exec region helper functions
  *
  * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com/
- *	Dave Gerlach
+ *  Dave Gerlach
  */
 
 #include <linux/device.h>
@@ -20,27 +20,22 @@ static DEFINE_MUTEX(exec_pool_list_mutex);
 static LIST_HEAD(exec_pool_list);
 
 int sram_check_protect_exec(struct sram_dev *sram, struct sram_reserve *block,
-			    struct sram_partition *part)
-{
-	unsigned long base = (unsigned long)part->base;
-	unsigned long end = base + block->size;
-
-	if (!PAGE_ALIGNED(base) || !PAGE_ALIGNED(end)) {
-		dev_err(sram->dev,
-			"SRAM pool marked with 'protect-exec' is not page aligned and will not be created.\n");
-		return -ENOMEM;
-	}
-
-	return 0;
+    struct sram_partition *part) {
+  unsigned long base = (unsigned long) part->base;
+  unsigned long end = base + block->size;
+  if (!PAGE_ALIGNED(base) || !PAGE_ALIGNED(end)) {
+    dev_err(sram->dev,
+        "SRAM pool marked with 'protect-exec' is not page aligned and will not be created.\n");
+    return -ENOMEM;
+  }
+  return 0;
 }
 
-int sram_add_protect_exec(struct sram_partition *part)
-{
-	mutex_lock(&exec_pool_list_mutex);
-	list_add_tail(&part->list, &exec_pool_list);
-	mutex_unlock(&exec_pool_list_mutex);
-
-	return 0;
+int sram_add_protect_exec(struct sram_partition *part) {
+  mutex_lock(&exec_pool_list_mutex);
+  list_add_tail(&part->list, &exec_pool_list);
+  mutex_unlock(&exec_pool_list_mutex);
+  return 0;
 }
 
 /**
@@ -52,7 +47,7 @@ int sram_add_protect_exec(struct sram_partition *part)
  * @size: Size of copy to perform, which starting from dst, must reside in pool
  *
  * Return: Address for copied data that can safely be called through function
- *	   pointer, or NULL if problem.
+ *     pointer, or NULL if problem.
  *
  * This helper function allows sram driver to act as central control location
  * of 'protect-exec' pools which are normal sram pools but are always set
@@ -71,51 +66,46 @@ int sram_add_protect_exec(struct sram_partition *part)
  * pointer.
  */
 void *sram_exec_copy(struct gen_pool *pool, void *dst, void *src,
-		     size_t size)
-{
-	struct sram_partition *part = NULL, *p;
-	unsigned long base;
-	int pages;
-	void *dst_cpy;
-	int ret;
-
-	mutex_lock(&exec_pool_list_mutex);
-	list_for_each_entry(p, &exec_pool_list, list) {
-		if (p->pool == pool)
-			part = p;
-	}
-	mutex_unlock(&exec_pool_list_mutex);
-
-	if (!part)
-		return NULL;
-
-	if (!gen_pool_has_addr(pool, (unsigned long)dst, size))
-		return NULL;
-
-	base = (unsigned long)part->base;
-	pages = PAGE_ALIGN(size) / PAGE_SIZE;
-
-	mutex_lock(&part->lock);
-
-	ret = set_memory_nx((unsigned long)base, pages);
-	if (ret)
-		goto error_out;
-	ret = set_memory_rw((unsigned long)base, pages);
-	if (ret)
-		goto error_out;
-
-	dst_cpy = fncpy(dst, src, size);
-
-	ret = set_memory_rox((unsigned long)base, pages);
-	if (ret)
-		goto error_out;
-
-	mutex_unlock(&part->lock);
-
-	return dst_cpy;
-
+    size_t size) {
+  struct sram_partition *part = NULL, *p;
+  unsigned long base;
+  int pages;
+  void *dst_cpy;
+  int ret;
+  mutex_lock(&exec_pool_list_mutex);
+  list_for_each_entry(p, &exec_pool_list, list) {
+    if (p->pool == pool) {
+      part = p;
+    }
+  }
+  mutex_unlock(&exec_pool_list_mutex);
+  if (!part) {
+    return NULL;
+  }
+  if (!gen_pool_has_addr(pool, (unsigned long) dst, size)) {
+    return NULL;
+  }
+  base = (unsigned long) part->base;
+  pages = PAGE_ALIGN(size) / PAGE_SIZE;
+  mutex_lock(&part->lock);
+  ret = set_memory_nx((unsigned long) base, pages);
+  if (ret) {
+    goto error_out;
+  }
+  ret = set_memory_rw((unsigned long) base, pages);
+  if (ret) {
+    goto error_out;
+  }
+  dst_cpy = fncpy(dst, src, size);
+  ret = set_memory_rox((unsigned long) base, pages);
+  if (ret) {
+    goto error_out;
+  }
+  mutex_unlock(&part->lock);
+  return dst_cpy;
 error_out:
-	mutex_unlock(&part->lock);
-	return NULL;
+  mutex_unlock(&part->lock);
+  return NULL;
 }
+
 EXPORT_SYMBOL_GPL(sram_exec_copy);

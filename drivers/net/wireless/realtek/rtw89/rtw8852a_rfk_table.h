@@ -79,7 +79,8 @@ extern const struct rtw89_rfk_tbl rtw8852a_rfk_dpk_pas_read_defs_tbl;
 extern const struct rtw89_rfk_tbl rtw8852a_rfk_iqk_set_defs_nondbcc_path01_tbl;
 extern const struct rtw89_rfk_tbl rtw8852a_rfk_iqk_set_defs_dbcc_path0_tbl;
 extern const struct rtw89_rfk_tbl rtw8852a_rfk_iqk_set_defs_dbcc_path1_tbl;
-extern const struct rtw89_rfk_tbl rtw8852a_rfk_iqk_restore_defs_nondbcc_path01_tbl;
+extern const struct rtw89_rfk_tbl
+    rtw8852a_rfk_iqk_restore_defs_nondbcc_path01_tbl;
 extern const struct rtw89_rfk_tbl rtw8852a_rfk_iqk_restore_defs_dbcc_path0_tbl;
 extern const struct rtw89_rfk_tbl rtw8852a_rfk_iqk_restore_defs_dbcc_path1_tbl;
 

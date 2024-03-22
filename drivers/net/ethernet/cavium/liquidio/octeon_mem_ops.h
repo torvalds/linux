@@ -1,21 +1,21 @@
 /**********************************************************************
- * Author: Cavium, Inc.
- *
- * Contact: support@cavium.com
- *          Please include "LiquidIO" in the subject.
- *
- * Copyright (c) 2003-2016 Cavium, Inc.
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
- *
- * This file is distributed in the hope that it will be useful, but
- * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
- * NONINFRINGEMENT.  See the GNU General Public License for more
- * details.
- **********************************************************************/
+* Author: Cavium, Inc.
+*
+* Contact: support@cavium.com
+*          Please include "LiquidIO" in the subject.
+*
+* Copyright (c) 2003-2016 Cavium, Inc.
+*
+* This file is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License, Version 2, as
+* published by the Free Software Foundation.
+*
+* This file is distributed in the hope that it will be useful, but
+* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+* NONINFRINGEMENT.  See the GNU General Public License for more
+* details.
+**********************************************************************/
 
 /*!  \file octeon_mem_ops.h
  *   \brief Host Driver: Routines used to read/write Octeon memory.
@@ -48,25 +48,22 @@ u32 octeon_read_device_mem32(struct octeon_device *oct, u64 core_addr);
  *   @param  core_addr  -  the address to write to.
  *   @param  val        -  32-bit value to write.
  */
-void
-octeon_write_device_mem32(struct octeon_device *oct,
-			  u64 core_addr,
-			  u32 val);
+void octeon_write_device_mem32(struct octeon_device *oct,
+    u64 core_addr,
+    u32 val);
 
 /** Read multiple bytes from Octeon memory.
  */
-void
-octeon_pci_read_core_mem(struct octeon_device *oct,
-			 u64 coreaddr,
-			 u8 *buf,
-			 u32 len);
+void octeon_pci_read_core_mem(struct octeon_device *oct,
+    u64 coreaddr,
+    u8 *buf,
+    u32 len);
 
 /** Write multiple bytes into Octeon memory.
  */
-void
-octeon_pci_write_core_mem(struct octeon_device *oct,
-			  u64 coreaddr,
-			  const u8 *buf,
-			  u32 len);
+void octeon_pci_write_core_mem(struct octeon_device *oct,
+    u64 coreaddr,
+    const u8 *buf,
+    u32 len);
 
 #endif

@@ -7,28 +7,28 @@
 
 struct io_async_msghdr {
 #if defined(CONFIG_NET)
-	union {
-		struct iovec		fast_iov[UIO_FASTIOV];
-		struct {
-			struct iovec	fast_iov_one;
-			__kernel_size_t	controllen;
-			int		namelen;
-			__kernel_size_t	payloadlen;
-		};
-		struct io_cache_entry	cache;
-	};
-	/* points to an allocated iov, if NULL we use fast_iov instead */
-	struct iovec			*free_iov;
-	struct sockaddr __user		*uaddr;
-	struct msghdr			msg;
-	struct sockaddr_storage		addr;
+  union {
+    struct iovec fast_iov[UIO_FASTIOV];
+    struct {
+      struct iovec fast_iov_one;
+      __kernel_size_t controllen;
+      int namelen;
+      __kernel_size_t payloadlen;
+    };
+    struct io_cache_entry cache;
+  };
+  /* points to an allocated iov, if NULL we use fast_iov instead */
+  struct iovec *free_iov;
+  struct sockaddr __user *uaddr;
+  struct msghdr msg;
+  struct sockaddr_storage addr;
 #endif
 };
 
 #if defined(CONFIG_NET)
 
 struct io_async_connect {
-	struct sockaddr_storage		address;
+  struct sockaddr_storage address;
 };
 
 int io_shutdown_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
@@ -66,7 +66,7 @@ void io_send_zc_cleanup(struct io_kiocb *req);
 
 void io_netmsg_cache_free(struct io_cache_entry *entry);
 #else
-static inline void io_netmsg_cache_free(struct io_cache_entry *entry)
-{
+static inline void io_netmsg_cache_free(struct io_cache_entry *entry) {
 }
+
 #endif

@@ -18,58 +18,58 @@ struct drm_dp_link;
  * struct drm_dp_link_caps - DP link capabilities
  */
 struct drm_dp_link_caps {
-	/**
-	 * @enhanced_framing:
-	 *
-	 * enhanced framing capability (mandatory as of DP 1.2)
-	 */
-	bool enhanced_framing;
+  /**
+   * @enhanced_framing:
+   *
+   * enhanced framing capability (mandatory as of DP 1.2)
+   */
+  bool enhanced_framing;
 
-	/**
-	 * tps3_supported:
-	 *
-	 * training pattern sequence 3 supported for equalization
-	 */
-	bool tps3_supported;
+  /**
+   * tps3_supported:
+   *
+   * training pattern sequence 3 supported for equalization
+   */
+  bool tps3_supported;
 
-	/**
-	 * @fast_training:
-	 *
-	 * AUX CH handshake not required for link training
-	 */
-	bool fast_training;
+  /**
+   * @fast_training:
+   *
+   * AUX CH handshake not required for link training
+   */
+  bool fast_training;
 
-	/**
-	 * @channel_coding:
-	 *
-	 * ANSI 8B/10B channel coding capability
-	 */
-	bool channel_coding;
+  /**
+   * @channel_coding:
+   *
+   * ANSI 8B/10B channel coding capability
+   */
+  bool channel_coding;
 
-	/**
-	 * @alternate_scrambler_reset:
-	 *
-	 * eDP alternate scrambler reset capability
-	 */
-	bool alternate_scrambler_reset;
+  /**
+   * @alternate_scrambler_reset:
+   *
+   * eDP alternate scrambler reset capability
+   */
+  bool alternate_scrambler_reset;
 };
 
 void drm_dp_link_caps_copy(struct drm_dp_link_caps *dest,
-			   const struct drm_dp_link_caps *src);
+    const struct drm_dp_link_caps *src);
 
 /**
  * struct drm_dp_link_ops - DP link operations
  */
 struct drm_dp_link_ops {
-	/**
-	 * @apply_training:
-	 */
-	int (*apply_training)(struct drm_dp_link *link);
+  /**
+   * @apply_training:
+   */
+  int (*apply_training)(struct drm_dp_link *link);
 
-	/**
-	 * @configure:
-	 */
-	int (*configure)(struct drm_dp_link *link);
+  /**
+   * @configure:
+   */
+  int (*configure)(struct drm_dp_link *link);
 };
 
 #define DP_TRAIN_VOLTAGE_SWING_LEVEL(x) ((x) << 0)
@@ -83,9 +83,9 @@ struct drm_dp_link_ops {
  * @post_cursor: per-lane post-cursor
  */
 struct drm_dp_link_train_set {
-	unsigned int voltage_swing[4];
-	unsigned int pre_emphasis[4];
-	unsigned int post_cursor[4];
+  unsigned int voltage_swing[4];
+  unsigned int pre_emphasis[4];
+  unsigned int post_cursor[4];
 };
 
 /**
@@ -97,13 +97,13 @@ struct drm_dp_link_train_set {
  * @channel_equalized: flag to track if channel equalization has completed
  */
 struct drm_dp_link_train {
-	struct drm_dp_link_train_set request;
-	struct drm_dp_link_train_set adjust;
+  struct drm_dp_link_train_set request;
+  struct drm_dp_link_train_set adjust;
 
-	unsigned int pattern;
+  unsigned int pattern;
 
-	bool clock_recovered;
-	bool channel_equalized;
+  bool clock_recovered;
+  bool channel_equalized;
 };
 
 /**
@@ -120,43 +120,43 @@ struct drm_dp_link_train {
  * @num_rates: number of additional supported link rates (eDP 1.4)
  */
 struct drm_dp_link {
-	unsigned char revision;
-	unsigned int max_rate;
-	unsigned int max_lanes;
+  unsigned char revision;
+  unsigned int max_rate;
+  unsigned int max_lanes;
 
-	struct drm_dp_link_caps caps;
+  struct drm_dp_link_caps caps;
 
-	/**
-	 * @cr: clock recovery read interval
-	 * @ce: channel equalization read interval
-	 */
-	struct {
-		unsigned int cr;
-		unsigned int ce;
-	} aux_rd_interval;
+  /**
+   * @cr: clock recovery read interval
+   * @ce: channel equalization read interval
+   */
+  struct {
+    unsigned int cr;
+    unsigned int ce;
+  } aux_rd_interval;
 
-	unsigned char edp;
+  unsigned char edp;
 
-	unsigned int rate;
-	unsigned int lanes;
+  unsigned int rate;
+  unsigned int lanes;
 
-	unsigned long rates[DP_MAX_SUPPORTED_RATES];
-	unsigned int num_rates;
+  unsigned long rates[DP_MAX_SUPPORTED_RATES];
+  unsigned int num_rates;
 
-	/**
-	 * @ops: DP link operations
-	 */
-	const struct drm_dp_link_ops *ops;
+  /**
+   * @ops: DP link operations
+   */
+  const struct drm_dp_link_ops *ops;
 
-	/**
-	 * @aux: DP AUX channel
-	 */
-	struct drm_dp_aux *aux;
+  /**
+   * @aux: DP AUX channel
+   */
+  struct drm_dp_aux *aux;
 
-	/**
-	 * @train: DP link training state
-	 */
-	struct drm_dp_link_train train;
+  /**
+   * @train: DP link training state
+   */
+  struct drm_dp_link_train train;
 };
 
 int drm_dp_link_add_rate(struct drm_dp_link *link, unsigned long rate);
@@ -168,8 +168,8 @@ int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_choose(struct drm_dp_link *link,
-		       const struct drm_display_mode *mode,
-		       const struct drm_display_info *info);
+    const struct drm_display_mode *mode,
+    const struct drm_display_info *info);
 
 void drm_dp_link_train_init(struct drm_dp_link_train *train);
 int drm_dp_link_train(struct drm_dp_link *link);

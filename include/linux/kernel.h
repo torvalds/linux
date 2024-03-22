@@ -39,20 +39,20 @@
 
 #include <uapi/linux/kernel.h>
 
-#define STACK_MAGIC	0xdeadbeef
+#define STACK_MAGIC 0xdeadbeef
 
 /* generic data direction definitions */
-#define READ			0
-#define WRITE			1
+#define READ      0
+#define WRITE     1
 
-#define PTR_IF(cond, ptr)	((cond) ? (ptr) : NULL)
+#define PTR_IF(cond, ptr) ((cond) ? (ptr) : NULL)
 
-#define u64_to_user_ptr(x) (		\
-{					\
-	typecheck(u64, (x));		\
-	(void __user *)(uintptr_t)(x);	\
-}					\
-)
+#define u64_to_user_ptr(x) (    \
+  {         \
+    typecheck(u64, (x));    \
+    (void __user *) (uintptr_t) (x);  \
+  }         \
+    )
 
 struct completion;
 struct user;
@@ -60,27 +60,28 @@ struct user;
 #ifdef CONFIG_PREEMPT_VOLUNTARY_BUILD
 
 extern int __cond_resched(void);
-# define might_resched() __cond_resched()
+#define might_resched() __cond_resched()
 
-#elif defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
+#elif defined(CONFIG_PREEMPT_DYNAMIC) \
+  && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
 
 extern int __cond_resched(void);
 
 DECLARE_STATIC_CALL(might_resched, __cond_resched);
 
-static __always_inline void might_resched(void)
-{
-	static_call_mod(might_resched)();
+static __always_inline void might_resched(void) {
+  static_call_mod(might_resched) ();
 }
 
-#elif defined(CONFIG_PREEMPT_DYNAMIC) && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_KEY)
+#elif defined(CONFIG_PREEMPT_DYNAMIC) \
+  && defined(CONFIG_HAVE_PREEMPT_DYNAMIC_KEY)
 
 extern int dynamic_might_resched(void);
-# define might_resched() dynamic_might_resched()
+#define might_resched() dynamic_might_resched()
 
 #else
 
-# define might_resched() do { } while (0)
+#define might_resched() do {} while (0)
 
 #endif /* CONFIG_PREEMPT_* */
 
@@ -102,27 +103,27 @@ extern void __cant_migrate(const char *file, int line);
  * be bitten later when the calling function happens to sleep when it is not
  * supposed to.
  */
-# define might_sleep() \
-	do { __might_sleep(__FILE__, __LINE__); might_resched(); } while (0)
+#define might_sleep() \
+  do { __might_sleep(__FILE__, __LINE__); might_resched(); } while (0)
 /**
  * cant_sleep - annotation for functions that cannot sleep
  *
  * this macro will print a stack trace if it is executed with preemption enabled
  */
-# define cant_sleep() \
-	do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
-# define sched_annotate_sleep()	(current->task_state_change = 0)
+#define cant_sleep() \
+  do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
+#define sched_annotate_sleep() (current->task_state_change = 0)
 
 /**
  * cant_migrate - annotation for functions that cannot migrate
  *
  * Will print a stack trace if executed in code which is migratable
  */
-# define cant_migrate()							\
-	do {								\
-		if (IS_ENABLED(CONFIG_SMP))				\
-			__cant_migrate(__FILE__, __LINE__);		\
-	} while (0)
+#define cant_migrate()             \
+  do {                \
+    if (IS_ENABLED(CONFIG_SMP))       \
+    __cant_migrate(__FILE__, __LINE__);   \
+  } while (0)
 
 /**
  * non_block_start - annotate the start of section where sleeping is prohibited
@@ -134,33 +135,39 @@ extern void __cant_migrate(const char *file, int line);
  * that memory allocation. Other blocking calls like wait_event() pose similar
  * issues.
  */
-# define non_block_start() (current->non_block_count++)
+#define non_block_start() (current->non_block_count++)
 /**
  * non_block_end - annotate the end of section where sleeping is prohibited
  *
  * Closes a section opened by non_block_start().
  */
-# define non_block_end() WARN_ON(current->non_block_count-- == 0)
+#define non_block_end() WARN_ON(current->non_block_count-- == 0)
 #else
-  static inline void __might_resched(const char *file, int line,
-				     unsigned int offsets) { }
-static inline void __might_sleep(const char *file, int line) { }
-# define might_sleep() do { might_resched(); } while (0)
-# define cant_sleep() do { } while (0)
-# define cant_migrate()		do { } while (0)
-# define sched_annotate_sleep() do { } while (0)
-# define non_block_start() do { } while (0)
-# define non_block_end() do { } while (0)
+static inline void __might_resched(const char *file, int line,
+    unsigned int offsets) {
+}
+
+static inline void __might_sleep(const char *file, int line) {
+}
+
+#define might_sleep() do { might_resched(); } while (0)
+#define cant_sleep() do {} while (0)
+#define cant_migrate()   do {} while (0)
+#define sched_annotate_sleep() do {} while (0)
+#define non_block_start() do {} while (0)
+#define non_block_end() do {} while (0)
 #endif
 
 #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
 
-#if defined(CONFIG_MMU) && \
-	(defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP))
+#if defined(CONFIG_MMU)    \
+  && (defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_DEBUG_ATOMIC_SLEEP))
 #define might_fault() __might_fault(__FILE__, __LINE__)
 void __might_fault(const char *file, int line);
 #else
-static inline void might_fault(void) { }
+static inline void might_fault(void) {
+}
+
 #endif
 
 void do_exit(long error_code) __noreturn;
@@ -181,14 +188,14 @@ extern bool early_boot_irqs_disabled;
  * as code checks for <, <=, >, >= STATE.
  */
 extern enum system_states {
-	SYSTEM_BOOTING,
-	SYSTEM_SCHEDULING,
-	SYSTEM_FREEING_INITMEM,
-	SYSTEM_RUNNING,
-	SYSTEM_HALT,
-	SYSTEM_POWER_OFF,
-	SYSTEM_RESTART,
-	SYSTEM_SUSPEND,
+  SYSTEM_BOOTING,
+  SYSTEM_SCHEDULING,
+  SYSTEM_FREEING_INITMEM,
+  SYSTEM_RUNNING,
+  SYSTEM_HALT,
+  SYSTEM_POWER_OFF,
+  SYSTEM_RESTART,
+  SYSTEM_SUSPEND,
 } system_state;
 
 /*
@@ -212,10 +219,10 @@ extern enum system_states {
  */
 
 enum ftrace_dump_mode {
-	DUMP_NONE,
-	DUMP_ALL,
-	DUMP_ORIG,
-	DUMP_PARAM,
+  DUMP_NONE,
+  DUMP_ALL,
+  DUMP_ORIG,
+  DUMP_PARAM,
 };
 
 #ifdef CONFIG_TRACING
@@ -229,14 +236,14 @@ extern void tracing_start(void);
 extern void tracing_stop(void);
 
 static inline __printf(1, 2)
-void ____trace_printk_check_format(const char *fmt, ...)
-{
+void ____trace_printk_check_format(const char *fmt, ...) {
 }
-#define __trace_printk_check_format(fmt, args...)			\
-do {									\
-	if (0)								\
-		____trace_printk_check_format(fmt, ##args);		\
-} while (0)
+
+#define __trace_printk_check_format(fmt, args ...)     \
+  do {                  \
+    if (0)                \
+    ____trace_printk_check_format(fmt, ## args);   \
+  } while (0)
 
 /**
  * trace_printk - printf formatting in the ftrace buffer
@@ -268,28 +275,28 @@ do {									\
  * let gcc optimize the rest.
  */
 
-#define trace_printk(fmt, ...)				\
-do {							\
-	char _______STR[] = __stringify((__VA_ARGS__));	\
-	if (sizeof(_______STR) > 3)			\
-		do_trace_printk(fmt, ##__VA_ARGS__);	\
-	else						\
-		trace_puts(fmt);			\
-} while (0)
+#define trace_printk(fmt, ...)        \
+  do {              \
+    char _______STR[] = __stringify((__VA_ARGS__)); \
+    if (sizeof(_______STR) > 3)     \
+    do_trace_printk(fmt, ## __VA_ARGS__);  \
+    else            \
+    trace_puts(fmt);      \
+  } while (0)
 
-#define do_trace_printk(fmt, args...)					\
-do {									\
-	static const char *trace_printk_fmt __used			\
-		__section("__trace_printk_fmt") =			\
-		__builtin_constant_p(fmt) ? fmt : NULL;			\
-									\
-	__trace_printk_check_format(fmt, ##args);			\
-									\
-	if (__builtin_constant_p(fmt))					\
-		__trace_bprintk(_THIS_IP_, trace_printk_fmt, ##args);	\
-	else								\
-		__trace_printk(_THIS_IP_, fmt, ##args);			\
-} while (0)
+#define do_trace_printk(fmt, args ...)         \
+  do {                  \
+    static const char *trace_printk_fmt __used      \
+    __section("__trace_printk_fmt")       \
+      = __builtin_constant_p(fmt) ? fmt : NULL;     \
+                  \
+    __trace_printk_check_format(fmt, ## args);     \
+                  \
+    if (__builtin_constant_p(fmt))          \
+    __trace_bprintk(_THIS_IP_, trace_printk_fmt, ## args); \
+    else                \
+    __trace_printk(_THIS_IP_, fmt, ## args);     \
+  } while (0)
 
 extern __printf(2, 3)
 int __trace_bprintk(unsigned long ip, const char *fmt, ...);
@@ -322,16 +329,16 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  *  (1 when __trace_bputs is used, strlen(str) when __trace_puts is used)
  */
 
-#define trace_puts(str) ({						\
-	static const char *trace_printk_fmt __used			\
-		__section("__trace_printk_fmt") =			\
-		__builtin_constant_p(str) ? str : NULL;			\
-									\
-	if (__builtin_constant_p(str))					\
-		__trace_bputs(_THIS_IP_, trace_printk_fmt);		\
-	else								\
-		__trace_puts(_THIS_IP_, str, strlen(str));		\
-})
+#define trace_puts(str) ({            \
+    static const char *trace_printk_fmt __used      \
+    __section("__trace_printk_fmt")       \
+      = __builtin_constant_p(str) ? str : NULL;     \
+                  \
+    if (__builtin_constant_p(str))          \
+    __trace_bputs(_THIS_IP_, trace_printk_fmt);   \
+    else                \
+    __trace_puts(_THIS_IP_, str, strlen(str));    \
+  })
 extern int __trace_bputs(unsigned long ip, const char *str);
 extern int __trace_puts(unsigned long ip, const char *str, int size);
 
@@ -342,64 +349,80 @@ extern void trace_dump_stack(int skip);
  * if we try to allocate the static variable to fmt if it is not a
  * constant. Even with the outer if statement.
  */
-#define ftrace_vprintk(fmt, vargs)					\
-do {									\
-	if (__builtin_constant_p(fmt)) {				\
-		static const char *trace_printk_fmt __used		\
-		  __section("__trace_printk_fmt") =			\
-			__builtin_constant_p(fmt) ? fmt : NULL;		\
-									\
-		__ftrace_vbprintk(_THIS_IP_, trace_printk_fmt, vargs);	\
-	} else								\
-		__ftrace_vprintk(_THIS_IP_, fmt, vargs);		\
-} while (0)
+#define ftrace_vprintk(fmt, vargs)          \
+  do {                  \
+    if (__builtin_constant_p(fmt)) {        \
+      static const char *trace_printk_fmt __used    \
+      __section("__trace_printk_fmt")       \
+        = __builtin_constant_p(fmt) ? fmt : NULL;   \
+                  \
+      __ftrace_vbprintk(_THIS_IP_, trace_printk_fmt, vargs);  \
+    } else                \
+    __ftrace_vprintk(_THIS_IP_, fmt, vargs);    \
+  } while (0)
 
-extern __printf(2, 0) int
-__ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap);
+extern __printf(2, 0) int __ftrace_vbprintk(unsigned long ip, const char *fmt,
+    va_list ap);
 
-extern __printf(2, 0) int
-__ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
+extern __printf(2, 0) int __ftrace_vprintk(unsigned long ip, const char *fmt,
+    va_list ap);
 
 extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 #else
-static inline void tracing_start(void) { }
-static inline void tracing_stop(void) { }
-static inline void trace_dump_stack(int skip) { }
+static inline void tracing_start(void) {
+}
 
-static inline void tracing_on(void) { }
-static inline void tracing_off(void) { }
-static inline int tracing_is_on(void) { return 0; }
-static inline void tracing_snapshot(void) { }
-static inline void tracing_snapshot_alloc(void) { }
+static inline void tracing_stop(void) {
+}
+
+static inline void trace_dump_stack(int skip) {
+}
+
+static inline void tracing_on(void) {
+}
+
+static inline void tracing_off(void) {
+}
+
+static inline int tracing_is_on(void) {
+  return 0;
+}
+
+static inline void tracing_snapshot(void) {
+}
+
+static inline void tracing_snapshot_alloc(void) {
+}
 
 static inline __printf(1, 2)
-int trace_printk(const char *fmt, ...)
-{
-	return 0;
+int trace_printk(const char *fmt, ...) {
+  return 0;
 }
-static __printf(1, 0) inline int
-ftrace_vprintk(const char *fmt, va_list ap)
-{
-	return 0;
+
+static __printf(1, 0) inline int ftrace_vprintk(const char *fmt, va_list ap) {
+  return 0;
 }
-static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
+
+static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) {
+}
+
 #endif /* CONFIG_TRACING */
 
 /* Rebuild everything on CONFIG_FTRACE_MCOUNT_RECORD */
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
-# define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
+#define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
 #endif
 
 /* Permissions on a sysfs file: you didn't miss the 0 prefix did you? */
-#define VERIFY_OCTAL_PERMISSIONS(perms)						\
-	(BUILD_BUG_ON_ZERO((perms) < 0) +					\
-	 BUILD_BUG_ON_ZERO((perms) > 0777) +					\
-	 /* USER_READABLE >= GROUP_READABLE >= OTHER_READABLE */		\
-	 BUILD_BUG_ON_ZERO((((perms) >> 6) & 4) < (((perms) >> 3) & 4)) +	\
-	 BUILD_BUG_ON_ZERO((((perms) >> 3) & 4) < ((perms) & 4)) +		\
-	 /* USER_WRITABLE >= GROUP_WRITABLE */					\
-	 BUILD_BUG_ON_ZERO((((perms) >> 6) & 2) < (((perms) >> 3) & 2)) +	\
-	 /* OTHER_WRITABLE?  Generally considered a bad idea. */		\
-	 BUILD_BUG_ON_ZERO((perms) & 2) +					\
-	 (perms))
+#define VERIFY_OCTAL_PERMISSIONS(perms)           \
+  (BUILD_BUG_ON_ZERO((perms) < 0)           \
+  + BUILD_BUG_ON_ZERO((perms) > 0777)            \
+  + /* USER_READABLE >= GROUP_READABLE >= OTHER_READABLE */    \
+  BUILD_BUG_ON_ZERO((((perms) >> 6) & 4) < (((perms) >> 3) & 4))   \
+  + BUILD_BUG_ON_ZERO((((perms) >> 3) & 4) < ((perms) & 4))      \
+  + /* USER_WRITABLE >= GROUP_WRITABLE */          \
+  BUILD_BUG_ON_ZERO((((perms) >> 6) & 2) < (((perms) >> 3) & 2))   \
+  + /* OTHER_WRITABLE?  Generally considered a bad idea. */    \
+  BUILD_BUG_ON_ZERO((perms) & 2)           \
+  + (perms))
 #endif

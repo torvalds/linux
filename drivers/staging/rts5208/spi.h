@@ -13,29 +13,29 @@
 #define __REALTEK_RTSX_SPI_H
 
 /* SPI operation error */
-#define SPI_NO_ERR		0x00
-#define SPI_HW_ERR		0x01
-#define SPI_INVALID_COMMAND	0x02
-#define SPI_READ_ERR		0x03
-#define SPI_WRITE_ERR		0x04
-#define SPI_ERASE_ERR		0x05
-#define SPI_BUSY_ERR		0x06
+#define SPI_NO_ERR    0x00
+#define SPI_HW_ERR    0x01
+#define SPI_INVALID_COMMAND 0x02
+#define SPI_READ_ERR    0x03
+#define SPI_WRITE_ERR   0x04
+#define SPI_ERASE_ERR   0x05
+#define SPI_BUSY_ERR    0x06
 
 /* Serial flash instruction */
-#define SPI_READ		0x03
-#define SPI_FAST_READ		0x0B
-#define SPI_WREN		0x06
-#define SPI_WRDI		0x04
-#define SPI_RDSR		0x05
+#define SPI_READ    0x03
+#define SPI_FAST_READ   0x0B
+#define SPI_WREN    0x06
+#define SPI_WRDI    0x04
+#define SPI_RDSR    0x05
 
-#define SF_PAGE_LEN		256
+#define SF_PAGE_LEN   256
 
-#define BYTE_PROGRAM		0
-#define AAI_PROGRAM		1
-#define PAGE_PROGRAM		2
+#define BYTE_PROGRAM    0
+#define AAI_PROGRAM   1
+#define PAGE_PROGRAM    2
 
-#define PAGE_ERASE		0
-#define CHIP_ERASE		1
+#define PAGE_ERASE    0
+#define CHIP_ERASE    1
 
 int spi_erase_eeprom_chip(struct rtsx_chip *chip);
 int spi_erase_eeprom_byte(struct rtsx_chip *chip, u16 addr);

@@ -16,17 +16,17 @@ struct key_preparsed_payload;
  * Key data parser.  Called during key instantiation.
  */
 struct asymmetric_key_parser {
-	struct list_head	link;
-	struct module		*owner;
-	const char		*name;
+  struct list_head link;
+  struct module *owner;
+  const char *name;
 
-	/* Attempt to parse a key from the data blob passed to add_key() or
-	 * keyctl_instantiate().  Should also generate a proposed description
-	 * that the caller can optionally use for the key.
-	 *
-	 * Return EBADMSG if not recognised.
-	 */
-	int (*parse)(struct key_preparsed_payload *prep);
+  /* Attempt to parse a key from the data blob passed to add_key() or
+   * keyctl_instantiate().  Should also generate a proposed description
+   * that the caller can optionally use for the key.
+   *
+   * Return EBADMSG if not recognised.
+   */
+  int (*parse)(struct key_preparsed_payload *prep);
 };
 
 extern int register_asymmetric_key_parser(struct asymmetric_key_parser *);

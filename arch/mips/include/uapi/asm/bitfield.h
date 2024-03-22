@@ -13,15 +13,15 @@
  *  * Damn ...  bitfields depend from byteorder :-(
  *   */
 #ifdef __MIPSEB__
-#define __BITFIELD_FIELD(field, more)					\
-	field;								\
-	more
+#define __BITFIELD_FIELD(field, more)         \
+  field;                \
+  more
 
 #elif defined(__MIPSEL__)
 
-#define __BITFIELD_FIELD(field, more)					\
-	more								\
-	field;
+#define __BITFIELD_FIELD(field, more)         \
+  more                \
+  field;
 
 #else /* !defined (__MIPSEB__) && !defined (__MIPSEL__) */
 #error "MIPS but neither __MIPSEL__ nor __MIPSEB__?"

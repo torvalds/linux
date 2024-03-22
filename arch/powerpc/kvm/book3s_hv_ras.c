@@ -18,173 +18,155 @@
 #include <asm/kvm_ppc.h>
 
 /* SRR1 bits for machine check on POWER7 */
-#define SRR1_MC_LDSTERR		(1ul << (63-42))
-#define SRR1_MC_IFETCH_SH	(63-45)
-#define SRR1_MC_IFETCH_MASK	0x7
-#define SRR1_MC_IFETCH_SLBPAR		2	/* SLB parity error */
-#define SRR1_MC_IFETCH_SLBMULTI		3	/* SLB multi-hit */
-#define SRR1_MC_IFETCH_SLBPARMULTI	4	/* SLB parity + multi-hit */
-#define SRR1_MC_IFETCH_TLBMULTI		5	/* I-TLB multi-hit */
+#define SRR1_MC_LDSTERR   (1ul << (63 - 42))
+#define SRR1_MC_IFETCH_SH (63 - 45)
+#define SRR1_MC_IFETCH_MASK 0x7
+#define SRR1_MC_IFETCH_SLBPAR   2 /* SLB parity error */
+#define SRR1_MC_IFETCH_SLBMULTI   3 /* SLB multi-hit */
+#define SRR1_MC_IFETCH_SLBPARMULTI  4 /* SLB parity + multi-hit */
+#define SRR1_MC_IFETCH_TLBMULTI   5 /* I-TLB multi-hit */
 
 /* DSISR bits for machine check on POWER7 */
-#define DSISR_MC_DERAT_MULTI	0x800		/* D-ERAT multi-hit */
-#define DSISR_MC_TLB_MULTI	0x400		/* D-TLB multi-hit */
-#define DSISR_MC_SLB_PARITY	0x100		/* SLB parity error */
-#define DSISR_MC_SLB_MULTI	0x080		/* SLB multi-hit */
-#define DSISR_MC_SLB_PARMULTI	0x040		/* SLB parity + multi-hit */
+#define DSISR_MC_DERAT_MULTI  0x800   /* D-ERAT multi-hit */
+#define DSISR_MC_TLB_MULTI  0x400   /* D-TLB multi-hit */
+#define DSISR_MC_SLB_PARITY 0x100   /* SLB parity error */
+#define DSISR_MC_SLB_MULTI  0x080   /* SLB multi-hit */
+#define DSISR_MC_SLB_PARMULTI 0x040   /* SLB parity + multi-hit */
 
 /* POWER7 SLB flush and reload */
-static void reload_slb(struct kvm_vcpu *vcpu)
-{
-	struct slb_shadow *slb;
-	unsigned long i, n;
-
-	/* First clear out SLB */
-	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
-
-	/* Do they have an SLB shadow buffer registered? */
-	slb = vcpu->arch.slb_shadow.pinned_addr;
-	if (!slb)
-		return;
-
-	/* Sanity check */
-	n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
-	if ((void *) &slb->save_area[n] > vcpu->arch.slb_shadow.pinned_end)
-		return;
-
-	/* Load up the SLB from that */
-	for (i = 0; i < n; ++i) {
-		unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
-		unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
-
-		rb = (rb & ~0xFFFul) | i;	/* insert entry number */
-		asm volatile("slbmte %0,%1" : : "r" (rs), "r" (rb));
-	}
+static void reload_slb(struct kvm_vcpu *vcpu) {
+  struct slb_shadow *slb;
+  unsigned long i, n;
+  /* First clear out SLB */
+  asm volatile ("slbmte %0,%0; slbia" : : "r" (0));
+  /* Do they have an SLB shadow buffer registered? */
+  slb = vcpu->arch.slb_shadow.pinned_addr;
+  if (!slb) {
+    return;
+  }
+  /* Sanity check */
+  n = min_t(u32, be32_to_cpu(slb->persistent), SLB_MIN_SIZE);
+  if ((void *) &slb->save_area[n] > vcpu->arch.slb_shadow.pinned_end) {
+    return;
+  }
+  /* Load up the SLB from that */
+  for (i = 0; i < n; ++i) {
+    unsigned long rb = be64_to_cpu(slb->save_area[i].esid);
+    unsigned long rs = be64_to_cpu(slb->save_area[i].vsid);
+    rb = (rb & ~0xFFFul) | i; /* insert entry number */
+    asm volatile ("slbmte %0,%1" : : "r" (rs), "r" (rb));
+  }
 }
 
 /*
  * On POWER7, see if we can handle a machine check that occurred inside
  * the guest in real mode, without switching to the host partition.
  */
-static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
-{
-	unsigned long srr1 = vcpu->arch.shregs.msr;
-	long handled = 1;
-
-	if (srr1 & SRR1_MC_LDSTERR) {
-		/* error on load/store */
-		unsigned long dsisr = vcpu->arch.shregs.dsisr;
-
-		if (dsisr & (DSISR_MC_SLB_PARMULTI | DSISR_MC_SLB_MULTI |
-			     DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI)) {
-			/* flush and reload SLB; flushes D-ERAT too */
-			reload_slb(vcpu);
-			dsisr &= ~(DSISR_MC_SLB_PARMULTI | DSISR_MC_SLB_MULTI |
-				   DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI);
-		}
-		if (dsisr & DSISR_MC_TLB_MULTI) {
-			tlbiel_all_lpid(vcpu->kvm->arch.radix);
-			dsisr &= ~DSISR_MC_TLB_MULTI;
-		}
-		/* Any other errors we don't understand? */
-		if (dsisr & 0xffffffffUL)
-			handled = 0;
-	}
-
-	switch ((srr1 >> SRR1_MC_IFETCH_SH) & SRR1_MC_IFETCH_MASK) {
-	case 0:
-		break;
-	case SRR1_MC_IFETCH_SLBPAR:
-	case SRR1_MC_IFETCH_SLBMULTI:
-	case SRR1_MC_IFETCH_SLBPARMULTI:
-		reload_slb(vcpu);
-		break;
-	case SRR1_MC_IFETCH_TLBMULTI:
-		tlbiel_all_lpid(vcpu->kvm->arch.radix);
-		break;
-	default:
-		handled = 0;
-	}
-
-	return handled;
+static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu) {
+  unsigned long srr1 = vcpu->arch.shregs.msr;
+  long handled = 1;
+  if (srr1 & SRR1_MC_LDSTERR) {
+    /* error on load/store */
+    unsigned long dsisr = vcpu->arch.shregs.dsisr;
+    if (dsisr & (DSISR_MC_SLB_PARMULTI | DSISR_MC_SLB_MULTI
+        | DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI)) {
+      /* flush and reload SLB; flushes D-ERAT too */
+      reload_slb(vcpu);
+      dsisr &= ~(DSISR_MC_SLB_PARMULTI | DSISR_MC_SLB_MULTI
+          | DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI);
+    }
+    if (dsisr & DSISR_MC_TLB_MULTI) {
+      tlbiel_all_lpid(vcpu->kvm->arch.radix);
+      dsisr &= ~DSISR_MC_TLB_MULTI;
+    }
+    /* Any other errors we don't understand? */
+    if (dsisr & 0xffffffffUL) {
+      handled = 0;
+    }
+  }
+  switch ((srr1 >> SRR1_MC_IFETCH_SH) & SRR1_MC_IFETCH_MASK) {
+    case 0:
+      break;
+    case SRR1_MC_IFETCH_SLBPAR:
+    case SRR1_MC_IFETCH_SLBMULTI:
+    case SRR1_MC_IFETCH_SLBPARMULTI:
+      reload_slb(vcpu);
+      break;
+    case SRR1_MC_IFETCH_TLBMULTI:
+      tlbiel_all_lpid(vcpu->kvm->arch.radix);
+      break;
+    default:
+      handled = 0;
+  }
+  return handled;
 }
 
-void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
-{
-	struct machine_check_event mce_evt;
-	long handled;
-
-	if (vcpu->kvm->arch.fwnmi_enabled) {
-		/* FWNMI guests handle their own recovery */
-		handled = 0;
-	} else {
-		handled = kvmppc_realmode_mc_power7(vcpu);
-	}
-
-	/*
-	 * Now get the event and stash it in the vcpu struct so it can
-	 * be handled by the primary thread in virtual mode.  We can't
-	 * call machine_check_queue_event() here if we are running on
-	 * an offline secondary thread.
-	 */
-	if (get_mce_event(&mce_evt, MCE_EVENT_RELEASE)) {
-		if (handled && mce_evt.version == MCE_V1)
-			mce_evt.disposition = MCE_DISPOSITION_RECOVERED;
-	} else {
-		memset(&mce_evt, 0, sizeof(mce_evt));
-	}
-
-	vcpu->arch.mce_evt = mce_evt;
+void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu) {
+  struct machine_check_event mce_evt;
+  long handled;
+  if (vcpu->kvm->arch.fwnmi_enabled) {
+    /* FWNMI guests handle their own recovery */
+    handled = 0;
+  } else {
+    handled = kvmppc_realmode_mc_power7(vcpu);
+  }
+  /*
+   * Now get the event and stash it in the vcpu struct so it can
+   * be handled by the primary thread in virtual mode.  We can't
+   * call machine_check_queue_event() here if we are running on
+   * an offline secondary thread.
+   */
+  if (get_mce_event(&mce_evt, MCE_EVENT_RELEASE)) {
+    if (handled && mce_evt.version == MCE_V1) {
+      mce_evt.disposition = MCE_DISPOSITION_RECOVERED;
+    }
+  } else {
+    memset(&mce_evt, 0, sizeof(mce_evt));
+  }
+  vcpu->arch.mce_evt = mce_evt;
 }
 
-
-long kvmppc_p9_realmode_hmi_handler(struct kvm_vcpu *vcpu)
-{
-	struct kvmppc_vcore *vc = vcpu->arch.vcore;
-	long ret = 0;
-
-	/*
-	 * Unapply and clear the offset first. That way, if the TB was not
-	 * resynced then it will remain in host-offset, and if it was resynced
-	 * then it is brought into host-offset. Then the tb offset is
-	 * re-applied before continuing with the KVM exit.
-	 *
-	 * This way, we don't need to actually know whether not OPAL resynced
-	 * the timebase or do any of the complicated dance that the P7/8
-	 * path requires.
-	 */
-	if (vc->tb_offset_applied) {
-		u64 new_tb = mftb() - vc->tb_offset_applied;
-		mtspr(SPRN_TBU40, new_tb);
-		if ((mftb() & 0xffffff) < (new_tb & 0xffffff)) {
-			new_tb += 0x1000000;
-			mtspr(SPRN_TBU40, new_tb);
-		}
-		vc->tb_offset_applied = 0;
-	}
-
-	local_paca->hmi_irqs++;
-
-	if (hmi_handle_debugtrig(NULL) >= 0) {
-		ret = 1;
-		goto out;
-	}
-
-	if (ppc_md.hmi_exception_early)
-		ppc_md.hmi_exception_early(NULL);
-
+long kvmppc_p9_realmode_hmi_handler(struct kvm_vcpu *vcpu) {
+  struct kvmppc_vcore *vc = vcpu->arch.vcore;
+  long ret = 0;
+  /*
+   * Unapply and clear the offset first. That way, if the TB was not
+   * resynced then it will remain in host-offset, and if it was resynced
+   * then it is brought into host-offset. Then the tb offset is
+   * re-applied before continuing with the KVM exit.
+   *
+   * This way, we don't need to actually know whether not OPAL resynced
+   * the timebase or do any of the complicated dance that the P7/8
+   * path requires.
+   */
+  if (vc->tb_offset_applied) {
+    u64 new_tb = mftb() - vc->tb_offset_applied;
+    mtspr(SPRN_TBU40, new_tb);
+    if ((mftb() & 0xffffff) < (new_tb & 0xffffff)) {
+      new_tb += 0x1000000;
+      mtspr(SPRN_TBU40, new_tb);
+    }
+    vc->tb_offset_applied = 0;
+  }
+  local_paca->hmi_irqs++;
+  if (hmi_handle_debugtrig(NULL) >= 0) {
+    ret = 1;
+    goto out;
+  }
+  if (ppc_md.hmi_exception_early) {
+    ppc_md.hmi_exception_early(NULL);
+  }
 out:
-	if (kvmppc_get_tb_offset(vcpu)) {
-		u64 new_tb = mftb() + vc->tb_offset;
-		mtspr(SPRN_TBU40, new_tb);
-		if ((mftb() & 0xffffff) < (new_tb & 0xffffff)) {
-			new_tb += 0x1000000;
-			mtspr(SPRN_TBU40, new_tb);
-		}
-		vc->tb_offset_applied = kvmppc_get_tb_offset(vcpu);
-	}
-
-	return ret;
+  if (kvmppc_get_tb_offset(vcpu)) {
+    u64 new_tb = mftb() + vc->tb_offset;
+    mtspr(SPRN_TBU40, new_tb);
+    if ((mftb() & 0xffffff) < (new_tb & 0xffffff)) {
+      new_tb += 0x1000000;
+      mtspr(SPRN_TBU40, new_tb);
+    }
+    vc->tb_offset_applied = kvmppc_get_tb_offset(vcpu);
+  }
+  return ret;
 }
 
 /*
@@ -192,49 +174,42 @@ out:
  */
 
 /* Check if dynamic split is in force and return subcore size accordingly. */
-static inline int kvmppc_cur_subcore_size(void)
-{
-	if (local_paca->kvm_hstate.kvm_split_mode)
-		return local_paca->kvm_hstate.kvm_split_mode->subcore_size;
-
-	return threads_per_subcore;
+static inline int kvmppc_cur_subcore_size(void) {
+  if (local_paca->kvm_hstate.kvm_split_mode) {
+    return local_paca->kvm_hstate.kvm_split_mode->subcore_size;
+  }
+  return threads_per_subcore;
 }
 
-void kvmppc_subcore_enter_guest(void)
-{
-	int thread_id, subcore_id;
-
-	thread_id = cpu_thread_in_core(local_paca->paca_index);
-	subcore_id = thread_id / kvmppc_cur_subcore_size();
-
-	local_paca->sibling_subcore_state->in_guest[subcore_id] = 1;
+void kvmppc_subcore_enter_guest(void) {
+  int thread_id, subcore_id;
+  thread_id = cpu_thread_in_core(local_paca->paca_index);
+  subcore_id = thread_id / kvmppc_cur_subcore_size();
+  local_paca->sibling_subcore_state->in_guest[subcore_id] = 1;
 }
+
 EXPORT_SYMBOL_GPL(kvmppc_subcore_enter_guest);
 
-void kvmppc_subcore_exit_guest(void)
-{
-	int thread_id, subcore_id;
-
-	thread_id = cpu_thread_in_core(local_paca->paca_index);
-	subcore_id = thread_id / kvmppc_cur_subcore_size();
-
-	local_paca->sibling_subcore_state->in_guest[subcore_id] = 0;
+void kvmppc_subcore_exit_guest(void) {
+  int thread_id, subcore_id;
+  thread_id = cpu_thread_in_core(local_paca->paca_index);
+  subcore_id = thread_id / kvmppc_cur_subcore_size();
+  local_paca->sibling_subcore_state->in_guest[subcore_id] = 0;
 }
+
 EXPORT_SYMBOL_GPL(kvmppc_subcore_exit_guest);
 
-static bool kvmppc_tb_resync_required(void)
-{
-	if (test_and_set_bit(CORE_TB_RESYNC_REQ_BIT,
-				&local_paca->sibling_subcore_state->flags))
-		return false;
-
-	return true;
+static bool kvmppc_tb_resync_required(void) {
+  if (test_and_set_bit(CORE_TB_RESYNC_REQ_BIT,
+      &local_paca->sibling_subcore_state->flags)) {
+    return false;
+  }
+  return true;
 }
 
-static void kvmppc_tb_resync_done(void)
-{
-	clear_bit(CORE_TB_RESYNC_REQ_BIT,
-			&local_paca->sibling_subcore_state->flags);
+static void kvmppc_tb_resync_done(void) {
+  clear_bit(CORE_TB_RESYNC_REQ_BIT,
+      &local_paca->sibling_subcore_state->flags);
 }
 
 /*
@@ -304,74 +279,67 @@ static void kvmppc_tb_resync_done(void)
  * Returns 1 if the timebase offset should be applied, 0 if not.
  */
 
-long kvmppc_realmode_hmi_handler(void)
-{
-	bool resync_req;
-
-	local_paca->hmi_irqs++;
-
-	if (hmi_handle_debugtrig(NULL) >= 0)
-		return 1;
-
-	/*
-	 * By now primary thread has already completed guest->host
-	 * partition switch but haven't signaled secondaries yet.
-	 * All the secondary threads on this subcore is waiting
-	 * for primary thread to signal them to go ahead.
-	 *
-	 * For threads from subcore which isn't in guest, they all will
-	 * wait until all other subcores on this core exit the guest.
-	 *
-	 * Now set the resync required bit. If you are the first to
-	 * set this bit then kvmppc_tb_resync_required() function will
-	 * return true. For rest all other subcores
-	 * kvmppc_tb_resync_required() will return false.
-	 *
-	 * If resync_req == true, then this thread is responsible to
-	 * initiate TB resync after hmi handler has completed.
-	 * All other threads on this core will wait until this thread
-	 * clears the resync required bit flag.
-	 */
-	resync_req = kvmppc_tb_resync_required();
-
-	/* Reset the subcore status to indicate it has exited guest */
-	kvmppc_subcore_exit_guest();
-
-	/*
-	 * Wait for other subcores on this core to exit the guest.
-	 * All the primary threads and threads from subcore that are
-	 * not in guest will wait here until all subcores are out
-	 * of guest context.
-	 */
-	wait_for_subcore_guest_exit();
-
-	/*
-	 * At this point we are sure that primary threads from each
-	 * subcore on this core have completed guest->host partition
-	 * switch. Now it is safe to call HMI handler.
-	 */
-	if (ppc_md.hmi_exception_early)
-		ppc_md.hmi_exception_early(NULL);
-
-	/*
-	 * Check if this thread is responsible to resync TB.
-	 * All other threads will wait until this thread completes the
-	 * TB resync.
-	 */
-	if (resync_req) {
-		opal_resync_timebase();
-		/* Reset TB resync req bit */
-		kvmppc_tb_resync_done();
-	} else {
-		wait_for_tb_resync();
-	}
-
-	/*
-	 * Reset tb_offset_applied so the guest exit code won't try
-	 * to subtract the previous timebase offset from the timebase.
-	 */
-	if (local_paca->kvm_hstate.kvm_vcore)
-		local_paca->kvm_hstate.kvm_vcore->tb_offset_applied = 0;
-
-	return 0;
+long kvmppc_realmode_hmi_handler(void) {
+  bool resync_req;
+  local_paca->hmi_irqs++;
+  if (hmi_handle_debugtrig(NULL) >= 0) {
+    return 1;
+  }
+  /*
+   * By now primary thread has already completed guest->host
+   * partition switch but haven't signaled secondaries yet.
+   * All the secondary threads on this subcore is waiting
+   * for primary thread to signal them to go ahead.
+   *
+   * For threads from subcore which isn't in guest, they all will
+   * wait until all other subcores on this core exit the guest.
+   *
+   * Now set the resync required bit. If you are the first to
+   * set this bit then kvmppc_tb_resync_required() function will
+   * return true. For rest all other subcores
+   * kvmppc_tb_resync_required() will return false.
+   *
+   * If resync_req == true, then this thread is responsible to
+   * initiate TB resync after hmi handler has completed.
+   * All other threads on this core will wait until this thread
+   * clears the resync required bit flag.
+   */
+  resync_req = kvmppc_tb_resync_required();
+  /* Reset the subcore status to indicate it has exited guest */
+  kvmppc_subcore_exit_guest();
+  /*
+   * Wait for other subcores on this core to exit the guest.
+   * All the primary threads and threads from subcore that are
+   * not in guest will wait here until all subcores are out
+   * of guest context.
+   */
+  wait_for_subcore_guest_exit();
+  /*
+   * At this point we are sure that primary threads from each
+   * subcore on this core have completed guest->host partition
+   * switch. Now it is safe to call HMI handler.
+   */
+  if (ppc_md.hmi_exception_early) {
+    ppc_md.hmi_exception_early(NULL);
+  }
+  /*
+   * Check if this thread is responsible to resync TB.
+   * All other threads will wait until this thread completes the
+   * TB resync.
+   */
+  if (resync_req) {
+    opal_resync_timebase();
+    /* Reset TB resync req bit */
+    kvmppc_tb_resync_done();
+  } else {
+    wait_for_tb_resync();
+  }
+  /*
+   * Reset tb_offset_applied so the guest exit code won't try
+   * to subtract the previous timebase offset from the timebase.
+   */
+  if (local_paca->kvm_hstate.kvm_vcore) {
+    local_paca->kvm_hstate.kvm_vcore->tb_offset_applied = 0;
+  }
+  return 0;
 }

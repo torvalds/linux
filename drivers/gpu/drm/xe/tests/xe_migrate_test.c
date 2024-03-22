@@ -8,13 +8,13 @@
 #include <kunit/test.h>
 
 static struct kunit_case xe_migrate_tests[] = {
-	KUNIT_CASE(xe_migrate_sanity_kunit),
-	{}
+  KUNIT_CASE(xe_migrate_sanity_kunit),
+  {}
 };
 
 static struct kunit_suite xe_migrate_test_suite = {
-	.name = "xe_migrate",
-	.test_cases = xe_migrate_tests,
+  .name = "xe_migrate",
+  .test_cases = xe_migrate_tests,
 };
 
 kunit_test_suite(xe_migrate_test_suite);

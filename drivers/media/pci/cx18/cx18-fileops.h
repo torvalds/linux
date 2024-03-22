@@ -10,9 +10,9 @@
 /* Testing/Debugging */
 int cx18_v4l2_open(struct file *filp);
 ssize_t cx18_v4l2_read(struct file *filp, char __user *buf, size_t count,
-		      loff_t *pos);
+    loff_t *pos);
 ssize_t cx18_v4l2_write(struct file *filp, const char __user *buf, size_t count,
-		       loff_t *pos);
+    loff_t *pos);
 int cx18_v4l2_close(struct file *filp);
 __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait);
 int cx18_start_capture(struct cx18_open_id *id);

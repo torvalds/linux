@@ -4,8 +4,10 @@
  *
  * Copyright (c) 2023 Petre Rodan <petre.rodan@subdimension.ro>
  *
- * Datasheet: https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/common/documents/sps-siot-spi-comms-digital-ouptu-pressure-sensors-tn-008202-3-en-ciid-45843.pdf
- * Datasheet: https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/common/documents/sps-siot-sleep-mode-technical-note-008286-1-en-ciid-155793.pdf
+ * Datasheet:
+ *https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/common/documents/sps-siot-spi-comms-digital-ouptu-pressure-sensors-tn-008202-3-en-ciid-45843.pdf
+ * Datasheet:
+ *https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/common/documents/sps-siot-sleep-mode-technical-note-008286-1-en-ciid-155793.pdf
  */
 
 #include <linux/delay.h>
@@ -20,43 +22,40 @@
 
 #include "hsc030pa.h"
 
-static int hsc_spi_recv(struct hsc_data *data)
-{
-	struct spi_device *spi = to_spi_device(data->dev);
-	struct spi_transfer xfer = {
-		.tx_buf = NULL,
-		.rx_buf = data->buffer,
-		.len = HSC_REG_MEASUREMENT_RD_SIZE,
-	};
-
-	msleep_interruptible(HSC_RESP_TIME_MS);
-	return spi_sync_transfer(spi, &xfer, 1);
+static int hsc_spi_recv(struct hsc_data *data) {
+  struct spi_device *spi = to_spi_device(data->dev);
+  struct spi_transfer xfer = {
+    .tx_buf = NULL,
+    .rx_buf = data->buffer,
+    .len = HSC_REG_MEASUREMENT_RD_SIZE,
+  };
+  msleep_interruptible(HSC_RESP_TIME_MS);
+  return spi_sync_transfer(spi, &xfer, 1);
 }
 
-static int hsc_spi_probe(struct spi_device *spi)
-{
-	return hsc_common_probe(&spi->dev, hsc_spi_recv);
+static int hsc_spi_probe(struct spi_device *spi) {
+  return hsc_common_probe(&spi->dev, hsc_spi_recv);
 }
 
 static const struct of_device_id hsc_spi_match[] = {
-	{ .compatible = "honeywell,hsc030pa" },
-	{}
+  { .compatible = "honeywell,hsc030pa" },
+  {}
 };
 MODULE_DEVICE_TABLE(of, hsc_spi_match);
 
 static const struct spi_device_id hsc_spi_id[] = {
-	{ "hsc030pa" },
-	{}
+  { "hsc030pa" },
+  {}
 };
 MODULE_DEVICE_TABLE(spi, hsc_spi_id);
 
 static struct spi_driver hsc_spi_driver = {
-	.driver = {
-		.name = "hsc030pa",
-		.of_match_table = hsc_spi_match,
-	},
-	.probe = hsc_spi_probe,
-	.id_table = hsc_spi_id,
+  .driver = {
+    .name = "hsc030pa",
+    .of_match_table = hsc_spi_match,
+  },
+  .probe = hsc_spi_probe,
+  .id_table = hsc_spi_id,
 };
 module_spi_driver(hsc_spi_driver);
 

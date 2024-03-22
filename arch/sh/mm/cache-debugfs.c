@@ -17,93 +17,79 @@
 #include <asm/io.h>
 
 enum cache_type {
-	CACHE_TYPE_ICACHE,
-	CACHE_TYPE_DCACHE,
-	CACHE_TYPE_UNIFIED,
+  CACHE_TYPE_ICACHE,
+  CACHE_TYPE_DCACHE,
+  CACHE_TYPE_UNIFIED,
 };
 
-static int cache_debugfs_show(struct seq_file *file, void *iter)
-{
-	unsigned int cache_type = (unsigned int)file->private;
-	struct cache_info *cache;
-	unsigned int waysize, way;
-	unsigned long ccr;
-	unsigned long addrstart = 0;
-
-	/*
-	 * Go uncached immediately so we don't skew the results any
-	 * more than we already are..
-	 */
-	jump_to_uncached();
-
-	ccr = __raw_readl(SH_CCR);
-	if ((ccr & CCR_CACHE_ENABLE) == 0) {
-		back_to_cached();
-
-		seq_printf(file, "disabled\n");
-		return 0;
-	}
-
-	if (cache_type == CACHE_TYPE_DCACHE) {
-		addrstart = CACHE_OC_ADDRESS_ARRAY;
-		cache = &current_cpu_data.dcache;
-	} else {
-		addrstart = CACHE_IC_ADDRESS_ARRAY;
-		cache = &current_cpu_data.icache;
-	}
-
-	waysize = cache->sets;
-
-	/*
-	 * If the OC is already in RAM mode, we only have
-	 * half of the entries to consider..
-	 */
-	if ((ccr & CCR_CACHE_ORA) && cache_type == CACHE_TYPE_DCACHE)
-		waysize >>= 1;
-
-	waysize <<= cache->entry_shift;
-
-	for (way = 0; way < cache->ways; way++) {
-		unsigned long addr;
-		unsigned int line;
-
-		seq_printf(file, "-----------------------------------------\n");
-		seq_printf(file, "Way %d\n", way);
-		seq_printf(file, "-----------------------------------------\n");
-
-		for (addr = addrstart, line = 0;
-		     addr < addrstart + waysize;
-		     addr += cache->linesz, line++) {
-			unsigned long data = __raw_readl(addr);
-
-			/* Check the V bit, ignore invalid cachelines */
-			if ((data & 1) == 0)
-				continue;
-
-			/* U: Dirty, cache tag is 10 bits up */
-			seq_printf(file, "%3d: %c 0x%lx\n",
-				   line, data & 2 ? 'U' : ' ',
-				   data & 0x1ffffc00);
-		}
-
-		addrstart += cache->way_incr;
-	}
-
-	back_to_cached();
-
-	return 0;
+static int cache_debugfs_show(struct seq_file *file, void *iter) {
+  unsigned int cache_type = (unsigned int) file->private;
+  struct cache_info *cache;
+  unsigned int waysize, way;
+  unsigned long ccr;
+  unsigned long addrstart = 0;
+  /*
+   * Go uncached immediately so we don't skew the results any
+   * more than we already are..
+   */
+  jump_to_uncached();
+  ccr = __raw_readl(SH_CCR);
+  if ((ccr & CCR_CACHE_ENABLE) == 0) {
+    back_to_cached();
+    seq_printf(file, "disabled\n");
+    return 0;
+  }
+  if (cache_type == CACHE_TYPE_DCACHE) {
+    addrstart = CACHE_OC_ADDRESS_ARRAY;
+    cache = &current_cpu_data.dcache;
+  } else {
+    addrstart = CACHE_IC_ADDRESS_ARRAY;
+    cache = &current_cpu_data.icache;
+  }
+  waysize = cache->sets;
+  /*
+   * If the OC is already in RAM mode, we only have
+   * half of the entries to consider..
+   */
+  if ((ccr & CCR_CACHE_ORA) && cache_type == CACHE_TYPE_DCACHE) {
+    waysize >>= 1;
+  }
+  waysize <<= cache->entry_shift;
+  for (way = 0; way < cache->ways; way++) {
+    unsigned long addr;
+    unsigned int line;
+    seq_printf(file, "-----------------------------------------\n");
+    seq_printf(file, "Way %d\n", way);
+    seq_printf(file, "-----------------------------------------\n");
+    for (addr = addrstart, line = 0;
+        addr < addrstart + waysize;
+        addr += cache->linesz, line++) {
+      unsigned long data = __raw_readl(addr);
+      /* Check the V bit, ignore invalid cachelines */
+      if ((data & 1) == 0) {
+        continue;
+      }
+      /* U: Dirty, cache tag is 10 bits up */
+      seq_printf(file, "%3d: %c 0x%lx\n",
+          line, data & 2 ? 'U' : ' ',
+          data & 0x1ffffc00);
+    }
+    addrstart += cache->way_incr;
+  }
+  back_to_cached();
+  return 0;
 }
 
 DEFINE_SHOW_ATTRIBUTE(cache_debugfs);
 
-static int __init cache_debugfs_init(void)
-{
-	debugfs_create_file("dcache", S_IRUSR, arch_debugfs_dir,
-			    (void *)CACHE_TYPE_DCACHE, &cache_debugfs_fops);
-	debugfs_create_file("icache", S_IRUSR, arch_debugfs_dir,
-			    (void *)CACHE_TYPE_ICACHE, &cache_debugfs_fops);
-	return 0;
+static int __init cache_debugfs_init(void) {
+  debugfs_create_file("dcache", S_IRUSR, arch_debugfs_dir,
+      (void *) CACHE_TYPE_DCACHE, &cache_debugfs_fops);
+  debugfs_create_file("icache", S_IRUSR, arch_debugfs_dir,
+      (void *) CACHE_TYPE_ICACHE, &cache_debugfs_fops);
+  return 0;
 }
+
 module_init(cache_debugfs_init);
 
 MODULE_LICENSE("GPL v2");

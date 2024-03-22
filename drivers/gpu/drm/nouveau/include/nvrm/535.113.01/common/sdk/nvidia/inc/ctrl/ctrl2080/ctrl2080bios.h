@@ -1,10 +1,12 @@
 #ifndef __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080bios_h__
 #define __src_common_sdk_nvidia_inc_ctrl_ctrl2080_ctrl2080bios_h__
 
-/* Excerpt of RM headers from https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
+/* Excerpt of RM headers from
+ * https://github.com/NVIDIA/open-gpu-kernel-modules/tree/535.113.01 */
 
 /*
- * SPDX-FileCopyrightText: Copyright (c) 2005-2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2021 NVIDIA CORPORATION &
+ *AFFILIATES. All rights reserved.
  * SPDX-License-Identifier: MIT
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,14 +29,14 @@
  */
 
 typedef struct NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS {
-    NvU32 BoardID;
-    char  chipSKU[4];
-    char  chipSKUMod[2];
-    char  project[5];
-    char  projectSKU[5];
-    char  CDP[6];
-    char  projectSKUMod[2];
-    NvU32 businessCycle;
+  NvU32 BoardID;
+  char chipSKU[4];
+  char chipSKUMod[2];
+  char project[5];
+  char projectSKU[5];
+  char CDP[6];
+  char projectSKUMod[2];
+  NvU32 businessCycle;
 } NV2080_CTRL_BIOS_GET_SKU_INFO_PARAMS;
 
 #endif

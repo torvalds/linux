@@ -8,5 +8,4 @@
 #include <sound/ac97/controller.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <sound/soc.h>	/* For compat_ac97_* */
-
+#include <sound/soc.h>  /* For compat_ac97_* */

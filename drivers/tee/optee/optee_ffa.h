@@ -27,12 +27,12 @@
  * w3-w7: Implementation defined, free to be used below
  */
 
-#define OPTEE_FFA_VERSION_MAJOR	1
-#define OPTEE_FFA_VERSION_MINOR	0
+#define OPTEE_FFA_VERSION_MAJOR 1
+#define OPTEE_FFA_VERSION_MINOR 0
 
-#define OPTEE_FFA_BLOCKING_CALL(id)	(id)
-#define OPTEE_FFA_YIELDING_CALL_BIT	31
-#define OPTEE_FFA_YIELDING_CALL(id)	((id) | BIT(OPTEE_FFA_YIELDING_CALL_BIT))
+#define OPTEE_FFA_BLOCKING_CALL(id) (id)
+#define OPTEE_FFA_YIELDING_CALL_BIT 31
+#define OPTEE_FFA_YIELDING_CALL(id) ((id) | BIT(OPTEE_FFA_YIELDING_CALL_BIT))
 
 /*
  * Returns the API version implemented, currently follows the FF-A version.
@@ -45,7 +45,7 @@
  * w4:    OPTEE_FFA_VERSION_MINOR
  * w5-w7: Not used (MBZ)
  */
-#define OPTEE_FFA_GET_API_VERSION	OPTEE_FFA_BLOCKING_CALL(0)
+#define OPTEE_FFA_GET_API_VERSION OPTEE_FFA_BLOCKING_CALL(0)
 
 /*
  * Returns the revision of OP-TEE.
@@ -63,7 +63,7 @@
  * w4:    CFG_OPTEE_REVISION_MINOR
  * w5:    TEE_IMPL_GIT_SHA1 (or zero if not supported)
  */
-#define OPTEE_FFA_GET_OS_VERSION	OPTEE_FFA_BLOCKING_CALL(1)
+#define OPTEE_FFA_GET_OS_VERSION  OPTEE_FFA_BLOCKING_CALL(1)
 
 /*
  * Exchange capabilities between normal world and secure world.
@@ -81,17 +81,17 @@
  *                   as the second MSG arg struct for
  *                   OPTEE_FFA_YIELDING_CALL_WITH_ARG.
  *        Bit[31:8]: Reserved (MBZ)
- * w5:	  Bitfield of secure world capabilities OPTEE_FFA_SEC_CAP_* below,
- * w6:	  The maximum secure world notification number
- * w7:	  Not used (MBZ)
+ * w5:    Bitfield of secure world capabilities OPTEE_FFA_SEC_CAP_* below,
+ * w6:    The maximum secure world notification number
+ * w7:    Not used (MBZ)
  */
 /*
  * Secure world supports giving an offset into the argument shared memory
  * object, see also OPTEE_FFA_YIELDING_CALL_WITH_ARG
  */
-#define OPTEE_FFA_SEC_CAP_ARG_OFFSET	BIT(0)
+#define OPTEE_FFA_SEC_CAP_ARG_OFFSET  BIT(0)
 /* OP-TEE supports asynchronous notification via FF-A */
-#define OPTEE_FFA_SEC_CAP_ASYNC_NOTIF	BIT(1)
+#define OPTEE_FFA_SEC_CAP_ASYNC_NOTIF BIT(1)
 
 #define OPTEE_FFA_EXCHANGE_CAPABILITIES OPTEE_FFA_BLOCKING_CALL(2)
 
@@ -108,7 +108,7 @@
  * w3:    Error code, 0 on success
  * w4-w7: Note used (MBZ)
  */
-#define OPTEE_FFA_UNREGISTER_SHM	OPTEE_FFA_BLOCKING_CALL(3)
+#define OPTEE_FFA_UNREGISTER_SHM  OPTEE_FFA_BLOCKING_CALL(3)
 
 /*
  * Inform OP-TEE that the normal world is able to receive asynchronous
@@ -116,15 +116,15 @@
  *
  * Call register usage:
  * w3:    Service ID, OPTEE_FFA_ENABLE_ASYNC_NOTIF
- * w4:	  Notification value to request bottom half processing, should be
- *	  less than OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE.
+ * w4:    Notification value to request bottom half processing, should be
+ *    less than OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE.
  * w5-w7: Not used (MBZ)
  *
  * Return register usage:
  * w3:    Error code, 0 on success
  * w4-w7: Note used (MBZ)
  */
-#define OPTEE_FFA_ENABLE_ASYNC_NOTIF	OPTEE_FFA_BLOCKING_CALL(5)
+#define OPTEE_FFA_ENABLE_ASYNC_NOTIF  OPTEE_FFA_BLOCKING_CALL(5)
 
 #define OPTEE_FFA_MAX_ASYNC_NOTIF_VALUE 64
 
@@ -136,12 +136,12 @@
  * w4:    Lower 32 bits of a 64-bit Shared memory handle
  * w5:    Upper 32 bits of a 64-bit Shared memory handle
  * w6:    Offset into shared memory pointing to a struct optee_msg_arg
- *	  right after the parameters of this struct (at offset
- *	  OPTEE_MSG_GET_ARG_SIZE(num_params) follows a struct optee_msg_arg
- *	  for RPC, this struct has reserved space for the number of RPC
- *	  parameters as returned by OPTEE_FFA_EXCHANGE_CAPABILITIES.
- *	  MBZ unless the bit OPTEE_FFA_SEC_CAP_ARG_OFFSET is received with
- *	  OPTEE_FFA_EXCHANGE_CAPABILITIES.
+ *    right after the parameters of this struct (at offset
+ *    OPTEE_MSG_GET_ARG_SIZE(num_params) follows a struct optee_msg_arg
+ *    for RPC, this struct has reserved space for the number of RPC
+ *    parameters as returned by OPTEE_FFA_EXCHANGE_CAPABILITIES.
+ *    MBZ unless the bit OPTEE_FFA_SEC_CAP_ARG_OFFSET is received with
+ *    OPTEE_FFA_EXCHANGE_CAPABILITIES.
  * w7:    Not used (MBZ)
  * Resume from RPC. Register usage:
  * w3:    Service ID, OPTEE_FFA_YIELDING_CALL_RESUME
@@ -173,11 +173,11 @@
  * Possible error codes for OPTEE_FFA_YIELDING_CALL_RESUME
  * FFA_INVALID_PARAMETER:  Bad resume info
  */
-#define OPTEE_FFA_YIELDING_CALL_WITH_ARG	OPTEE_FFA_YIELDING_CALL(0)
-#define OPTEE_FFA_YIELDING_CALL_RESUME		OPTEE_FFA_YIELDING_CALL(1)
+#define OPTEE_FFA_YIELDING_CALL_WITH_ARG  OPTEE_FFA_YIELDING_CALL(0)
+#define OPTEE_FFA_YIELDING_CALL_RESUME    OPTEE_FFA_YIELDING_CALL(1)
 
-#define OPTEE_FFA_YIELDING_CALL_RETURN_DONE		0
-#define OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD		1
-#define OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT	2
+#define OPTEE_FFA_YIELDING_CALL_RETURN_DONE   0
+#define OPTEE_FFA_YIELDING_CALL_RETURN_RPC_CMD    1
+#define OPTEE_FFA_YIELDING_CALL_RETURN_INTERRUPT  2
 
 #endif /*__OPTEE_FFA_H*/

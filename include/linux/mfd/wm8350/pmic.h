@@ -441,8 +441,7 @@
 #define WM8350_LDO1_HIB_MODE_MASK               0x3000
 #define WM8350_LDO1_HIB_TRIG_MASK               0x0300
 #define WM8350_LDO1_VIMG_MASK                   0x001F
-#define WM8350_LDO1_HIB_MODE_DIS		(0x1 << 12)
-
+#define WM8350_LDO1_HIB_MODE_DIS    (0x1 << 12)
 
 /*
  * R203 (0xCB) - LDO2 Control
@@ -594,106 +593,106 @@
 /*
  * DCDC's
  */
-#define WM8350_DCDC_1				0
-#define WM8350_DCDC_2				1
-#define WM8350_DCDC_3				2
-#define WM8350_DCDC_4				3
-#define WM8350_DCDC_5				4
-#define WM8350_DCDC_6				5
+#define WM8350_DCDC_1       0
+#define WM8350_DCDC_2       1
+#define WM8350_DCDC_3       2
+#define WM8350_DCDC_4       3
+#define WM8350_DCDC_5       4
+#define WM8350_DCDC_6       5
 
 /* DCDC modes */
-#define WM8350_DCDC_ACTIVE_STANDBY		0
-#define WM8350_DCDC_ACTIVE_PULSE		1
-#define WM8350_DCDC_SLEEP_NORMAL		0
-#define WM8350_DCDC_SLEEP_LOW			1
+#define WM8350_DCDC_ACTIVE_STANDBY    0
+#define WM8350_DCDC_ACTIVE_PULSE    1
+#define WM8350_DCDC_SLEEP_NORMAL    0
+#define WM8350_DCDC_SLEEP_LOW     1
 
 /* DCDC Low power (Hibernate) mode */
-#define WM8350_DCDC_HIB_MODE_CUR		(0 << 12)
-#define WM8350_DCDC_HIB_MODE_IMAGE		(1 << 12)
-#define WM8350_DCDC_HIB_MODE_STANDBY		(2 << 12)
-#define WM8350_DCDC_HIB_MODE_LDO		(4 << 12)
-#define WM8350_DCDC_HIB_MODE_LDO_IM		(5 << 12)
-#define WM8350_DCDC_HIB_MODE_DIS		(7 << 12)
-#define WM8350_DCDC_HIB_MODE_MASK		(7 << 12)
+#define WM8350_DCDC_HIB_MODE_CUR    (0 << 12)
+#define WM8350_DCDC_HIB_MODE_IMAGE    (1 << 12)
+#define WM8350_DCDC_HIB_MODE_STANDBY    (2 << 12)
+#define WM8350_DCDC_HIB_MODE_LDO    (4 << 12)
+#define WM8350_DCDC_HIB_MODE_LDO_IM   (5 << 12)
+#define WM8350_DCDC_HIB_MODE_DIS    (7 << 12)
+#define WM8350_DCDC_HIB_MODE_MASK   (7 << 12)
 
 /* DCDC Low Power (Hibernate) signal */
-#define WM8350_DCDC_HIB_SIG_REG			(0 << 8)
-#define WM8350_DCDC_HIB_SIG_LPWR1		(1 << 8)
-#define WM8350_DCDC_HIB_SIG_LPWR2		(2 << 8)
-#define WM8350_DCDC_HIB_SIG_LPWR3		(3 << 8)
+#define WM8350_DCDC_HIB_SIG_REG     (0 << 8)
+#define WM8350_DCDC_HIB_SIG_LPWR1   (1 << 8)
+#define WM8350_DCDC_HIB_SIG_LPWR2   (2 << 8)
+#define WM8350_DCDC_HIB_SIG_LPWR3   (3 << 8)
 
 /* LDO Low power (Hibernate) mode */
-#define WM8350_LDO_HIB_MODE_IMAGE		(0 << 0)
-#define WM8350_LDO_HIB_MODE_DIS			(1 << 0)
+#define WM8350_LDO_HIB_MODE_IMAGE   (0 << 0)
+#define WM8350_LDO_HIB_MODE_DIS     (1 << 0)
 
 /* LDO Low Power (Hibernate) signal */
-#define WM8350_LDO_HIB_SIG_REG			(0 << 8)
-#define WM8350_LDO_HIB_SIG_LPWR1		(1 << 8)
-#define WM8350_LDO_HIB_SIG_LPWR2		(2 << 8)
-#define WM8350_LDO_HIB_SIG_LPWR3		(3 << 8)
+#define WM8350_LDO_HIB_SIG_REG      (0 << 8)
+#define WM8350_LDO_HIB_SIG_LPWR1    (1 << 8)
+#define WM8350_LDO_HIB_SIG_LPWR2    (2 << 8)
+#define WM8350_LDO_HIB_SIG_LPWR3    (3 << 8)
 
 /*
  * LDOs
  */
-#define WM8350_LDO_1				6
-#define WM8350_LDO_2				7
-#define WM8350_LDO_3				8
-#define WM8350_LDO_4				9
+#define WM8350_LDO_1        6
+#define WM8350_LDO_2        7
+#define WM8350_LDO_3        8
+#define WM8350_LDO_4        9
 
 /*
  * ISINKs
  */
-#define WM8350_ISINK_A				10
-#define WM8350_ISINK_B				11
+#define WM8350_ISINK_A        10
+#define WM8350_ISINK_B        11
 
-#define WM8350_ISINK_MODE_BOOST			0
-#define WM8350_ISINK_MODE_SWITCH		1
-#define WM8350_ISINK_ILIM_NORMAL		0
-#define WM8350_ISINK_ILIM_LOW			1
+#define WM8350_ISINK_MODE_BOOST     0
+#define WM8350_ISINK_MODE_SWITCH    1
+#define WM8350_ISINK_ILIM_NORMAL    0
+#define WM8350_ISINK_ILIM_LOW     1
 
-#define WM8350_ISINK_FLASH_DISABLE		0
-#define WM8350_ISINK_FLASH_ENABLE		1
-#define WM8350_ISINK_FLASH_TRIG_BIT		0
-#define WM8350_ISINK_FLASH_TRIG_GPIO		1
-#define WM8350_ISINK_FLASH_MODE_EN		(1 << 13)
-#define WM8350_ISINK_FLASH_MODE_DIS		(0 << 13)
-#define WM8350_ISINK_FLASH_DUR_32MS		(0 << 8)
-#define WM8350_ISINK_FLASH_DUR_64MS		(1 << 8)
-#define WM8350_ISINK_FLASH_DUR_96MS		(2 << 8)
-#define WM8350_ISINK_FLASH_DUR_1024MS		(3 << 8)
-#define WM8350_ISINK_FLASH_ON_INSTANT		(0 << 0)
-#define WM8350_ISINK_FLASH_ON_0_25S		(1 << 0)
-#define WM8350_ISINK_FLASH_ON_0_50S		(2 << 0)
-#define WM8350_ISINK_FLASH_ON_1_00S		(3 << 0)
-#define WM8350_ISINK_FLASH_ON_1_95S		(1 << 0)
-#define WM8350_ISINK_FLASH_ON_3_91S		(2 << 0)
-#define WM8350_ISINK_FLASH_ON_7_80S		(3 << 0)
-#define WM8350_ISINK_FLASH_OFF_INSTANT		(0 << 4)
-#define WM8350_ISINK_FLASH_OFF_0_25S		(1 << 4)
-#define WM8350_ISINK_FLASH_OFF_0_50S		(2 << 4)
-#define WM8350_ISINK_FLASH_OFF_1_00S		(3 << 4)
-#define WM8350_ISINK_FLASH_OFF_1_95S		(1 << 4)
-#define WM8350_ISINK_FLASH_OFF_3_91S		(2 << 4)
-#define WM8350_ISINK_FLASH_OFF_7_80S		(3 << 4)
+#define WM8350_ISINK_FLASH_DISABLE    0
+#define WM8350_ISINK_FLASH_ENABLE   1
+#define WM8350_ISINK_FLASH_TRIG_BIT   0
+#define WM8350_ISINK_FLASH_TRIG_GPIO    1
+#define WM8350_ISINK_FLASH_MODE_EN    (1 << 13)
+#define WM8350_ISINK_FLASH_MODE_DIS   (0 << 13)
+#define WM8350_ISINK_FLASH_DUR_32MS   (0 << 8)
+#define WM8350_ISINK_FLASH_DUR_64MS   (1 << 8)
+#define WM8350_ISINK_FLASH_DUR_96MS   (2 << 8)
+#define WM8350_ISINK_FLASH_DUR_1024MS   (3 << 8)
+#define WM8350_ISINK_FLASH_ON_INSTANT   (0 << 0)
+#define WM8350_ISINK_FLASH_ON_0_25S   (1 << 0)
+#define WM8350_ISINK_FLASH_ON_0_50S   (2 << 0)
+#define WM8350_ISINK_FLASH_ON_1_00S   (3 << 0)
+#define WM8350_ISINK_FLASH_ON_1_95S   (1 << 0)
+#define WM8350_ISINK_FLASH_ON_3_91S   (2 << 0)
+#define WM8350_ISINK_FLASH_ON_7_80S   (3 << 0)
+#define WM8350_ISINK_FLASH_OFF_INSTANT    (0 << 4)
+#define WM8350_ISINK_FLASH_OFF_0_25S    (1 << 4)
+#define WM8350_ISINK_FLASH_OFF_0_50S    (2 << 4)
+#define WM8350_ISINK_FLASH_OFF_1_00S    (3 << 4)
+#define WM8350_ISINK_FLASH_OFF_1_95S    (1 << 4)
+#define WM8350_ISINK_FLASH_OFF_3_91S    (2 << 4)
+#define WM8350_ISINK_FLASH_OFF_7_80S    (3 << 4)
 
 /*
  * Regulator Interrupts.
  */
-#define WM8350_IRQ_CS1				13
-#define WM8350_IRQ_CS2				14
-#define WM8350_IRQ_UV_LDO4			25
-#define WM8350_IRQ_UV_LDO3			26
-#define WM8350_IRQ_UV_LDO2			27
-#define WM8350_IRQ_UV_LDO1			28
-#define WM8350_IRQ_UV_DC6			29
-#define WM8350_IRQ_UV_DC5			30
-#define WM8350_IRQ_UV_DC4			31
-#define WM8350_IRQ_UV_DC3			32
-#define WM8350_IRQ_UV_DC2			33
-#define WM8350_IRQ_UV_DC1			34
-#define WM8350_IRQ_OC_LS			35
+#define WM8350_IRQ_CS1        13
+#define WM8350_IRQ_CS2        14
+#define WM8350_IRQ_UV_LDO4      25
+#define WM8350_IRQ_UV_LDO3      26
+#define WM8350_IRQ_UV_LDO2      27
+#define WM8350_IRQ_UV_LDO1      28
+#define WM8350_IRQ_UV_DC6     29
+#define WM8350_IRQ_UV_DC5     30
+#define WM8350_IRQ_UV_DC4     31
+#define WM8350_IRQ_UV_DC3     32
+#define WM8350_IRQ_UV_DC2     33
+#define WM8350_IRQ_UV_DC1     34
+#define WM8350_IRQ_OC_LS      35
 
-#define NUM_WM8350_REGULATORS			12
+#define NUM_WM8350_REGULATORS     12
 
 struct wm8350;
 struct platform_device;
@@ -703,62 +702,62 @@ struct regulator_init_data;
  * WM8350 LED platform data
  */
 struct wm8350_led_platform_data {
-	const char *name;
-	const char *default_trigger;
-	int max_uA;
+  const char *name;
+  const char *default_trigger;
+  int max_uA;
 };
 
 struct wm8350_led {
-	struct platform_device *pdev;
-	struct work_struct work;
-	spinlock_t value_lock;
-	enum led_brightness value;
-	struct led_classdev cdev;
-	int max_uA_index;
-	int enabled;
+  struct platform_device *pdev;
+  struct work_struct work;
+  spinlock_t value_lock;
+  enum led_brightness value;
+  struct led_classdev cdev;
+  int max_uA_index;
+  int enabled;
 
-	struct regulator *isink;
-	struct regulator_consumer_supply isink_consumer;
-	struct regulator_init_data isink_init;
-	struct regulator *dcdc;
-	struct regulator_consumer_supply dcdc_consumer;
-	struct regulator_init_data dcdc_init;
+  struct regulator *isink;
+  struct regulator_consumer_supply isink_consumer;
+  struct regulator_init_data isink_init;
+  struct regulator *dcdc;
+  struct regulator_consumer_supply dcdc_consumer;
+  struct regulator_init_data dcdc_init;
 };
 
 struct wm8350_pmic {
-	/* Number of regulators of each type on this device */
-	int max_dcdc;
-	int max_isink;
+  /* Number of regulators of each type on this device */
+  int max_dcdc;
+  int max_isink;
 
-	/* ISINK to DCDC mapping */
-	int isink_A_dcdc;
-	int isink_B_dcdc;
+  /* ISINK to DCDC mapping */
+  int isink_A_dcdc;
+  int isink_B_dcdc;
 
-	/* hibernate configs */
-	u16 dcdc1_hib_mode;
-	u16 dcdc3_hib_mode;
-	u16 dcdc4_hib_mode;
-	u16 dcdc6_hib_mode;
+  /* hibernate configs */
+  u16 dcdc1_hib_mode;
+  u16 dcdc3_hib_mode;
+  u16 dcdc4_hib_mode;
+  u16 dcdc6_hib_mode;
 
-	/* regulator devices */
-	struct platform_device *pdev[NUM_WM8350_REGULATORS];
+  /* regulator devices */
+  struct platform_device *pdev[NUM_WM8350_REGULATORS];
 
-	/* LED devices */
-	struct wm8350_led led[2];
+  /* LED devices */
+  struct wm8350_led led[2];
 };
 
 int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
-			      struct regulator_init_data *initdata);
+    struct regulator_init_data *initdata);
 int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
-			struct wm8350_led_platform_data *pdata);
+    struct wm8350_led_platform_data *pdata);
 
 /*
  * Additional DCDC control not supported via regulator API
  */
 int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
-			 u16 stop, u16 fault);
+    u16 stop, u16 fault);
 int wm8350_dcdc25_set_mode(struct wm8350 *wm8350, int dcdc, u16 mode,
-			   u16 ilim, u16 ramp, u16 feedback);
+    u16 ilim, u16 ramp, u16 feedback);
 
 /*
  * Additional LDO control not supported via regulator API
@@ -769,7 +768,7 @@ int wm8350_ldo_set_slot(struct wm8350 *wm8350, int ldo, u16 start, u16 stop);
  * Additional ISINK control not supported via regulator API
  */
 int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
-			   u16 trigger, u16 duration, u16 on_ramp,
-			   u16 off_ramp, u16 drive);
+    u16 trigger, u16 duration, u16 on_ramp,
+    u16 off_ramp, u16 drive);
 
 #endif

@@ -10,23 +10,23 @@
 #include <linux/platform_device.h>
 
 struct ath10k_ahb {
-	struct platform_device *pdev;
-	void __iomem *mem;
-	unsigned long mem_len;
-	void __iomem *gcc_mem;
-	void __iomem *tcsr_mem;
+  struct platform_device *pdev;
+  void __iomem *mem;
+  unsigned long mem_len;
+  void __iomem *gcc_mem;
+  void __iomem *tcsr_mem;
 
-	int irq;
+  int irq;
 
-	struct clk *cmd_clk;
-	struct clk *ref_clk;
-	struct clk *rtc_clk;
+  struct clk *cmd_clk;
+  struct clk *ref_clk;
+  struct clk *rtc_clk;
 
-	struct reset_control *core_cold_rst;
-	struct reset_control *radio_cold_rst;
-	struct reset_control *radio_warm_rst;
-	struct reset_control *radio_srif_rst;
-	struct reset_control *cpu_init_rst;
+  struct reset_control *core_cold_rst;
+  struct reset_control *radio_cold_rst;
+  struct reset_control *radio_warm_rst;
+  struct reset_control *radio_srif_rst;
+  struct reset_control *cpu_init_rst;
 };
 
 #ifdef CONFIG_ATH10K_AHB
@@ -62,13 +62,11 @@ void ath10k_ahb_exit(void);
 
 #else /* CONFIG_ATH10K_AHB */
 
-static inline int ath10k_ahb_init(void)
-{
-	return 0;
+static inline int ath10k_ahb_init(void) {
+  return 0;
 }
 
-static inline void ath10k_ahb_exit(void)
-{
+static inline void ath10k_ahb_exit(void) {
 }
 
 #endif /* CONFIG_ATH10K_AHB */

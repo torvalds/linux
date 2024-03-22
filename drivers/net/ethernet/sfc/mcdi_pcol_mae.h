@@ -19,6 +19,7 @@
  * following value is needed as an argument to MC_CMD_MAE_ACTION_SET_ALLOC.
  */
 /* enum: A counter ID that is guaranteed never to represent a real counter */
-#define          MC_CMD_MAE_COUNTER_LIST_ALLOC_OUT_COUNTER_LIST_ID_NULL 0xffffffff
+#define          MC_CMD_MAE_COUNTER_LIST_ALLOC_OUT_COUNTER_LIST_ID_NULL \
+  0xffffffff
 
 #endif /* MCDI_PCOL_MAE_H */

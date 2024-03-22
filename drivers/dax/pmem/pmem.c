@@ -6,5 +6,3 @@
 #include <linux/pfn_t.h>
 #include <linux/nd.h>
 #include "../bus.h"
-
-

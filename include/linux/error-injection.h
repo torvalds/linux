@@ -13,14 +13,12 @@ extern int get_injectable_error_type(unsigned long addr);
 
 #else /* !CONFIG_FUNCTION_ERROR_INJECTION */
 
-static inline bool within_error_injection_list(unsigned long addr)
-{
-	return false;
+static inline bool within_error_injection_list(unsigned long addr) {
+  return false;
 }
 
-static inline int get_injectable_error_type(unsigned long addr)
-{
-	return -EOPNOTSUPP;
+static inline int get_injectable_error_type(unsigned long addr) {
+  return -EOPNOTSUPP;
 }
 
 #endif

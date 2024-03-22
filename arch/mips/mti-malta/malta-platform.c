@@ -27,49 +27,48 @@
 #include <linux/platform_device.h>
 #include <asm/mips-boards/maltaint.h>
 
-#define SMC_PORT(base, int)						\
-{									\
-	.iobase		= base,						\
-	.irq		= int,						\
-	.uartclk	= 1843200,					\
-	.iotype		= UPIO_PORT,					\
-	.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |		\
-			  UPF_MAGIC_MULTIPLIER,				\
-	.regshift	= 0,						\
-}
+#define SMC_PORT(base, int)           \
+  {                 \
+    .iobase = base,           \
+    .irq = int,            \
+    .uartclk = 1843200,          \
+    .iotype = UPIO_PORT,          \
+    .flags = UPF_BOOT_AUTOCONF | UPF_SKIP_TEST     \
+        | UPF_MAGIC_MULTIPLIER,       \
+    .regshift = 0,            \
+  }
 
 #define CBUS_UART_FLAGS (UPF_BOOT_AUTOCONF | UPF_SKIP_TEST | UPF_IOREMAP)
 
 static struct plat_serial8250_port uart8250_data[] = {
-	SMC_PORT(0x3F8, 4),
-	SMC_PORT(0x2F8, 3),
-	{
-		.mapbase	= 0x1f000900,	/* The CBUS UART */
-		.irq		= MIPS_CPU_IRQ_BASE + MIPSCPU_INT_MB2,
-		.uartclk	= 3686400,	/* Twice the usual clk! */
-		.iotype		= IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) ?
-				  UPIO_MEM32BE : UPIO_MEM32,
-		.flags		= CBUS_UART_FLAGS,
-		.regshift	= 3,
-	},
-	{ },
+  SMC_PORT(0x3F8, 4),
+  SMC_PORT(0x2F8, 3),
+  {
+    .mapbase = 0x1f000900, /* The CBUS UART */
+    .irq = MIPS_CPU_IRQ_BASE + MIPSCPU_INT_MB2,
+    .uartclk = 3686400,  /* Twice the usual clk! */
+    .iotype = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
+        ? UPIO_MEM32BE : UPIO_MEM32,
+    .flags = CBUS_UART_FLAGS,
+    .regshift = 3,
+  },
+  {},
 };
 
 static struct platform_device malta_uart8250_device = {
-	.name			= "serial8250",
-	.id			= PLAT8250_DEV_PLATFORM,
-	.dev			= {
-		.platform_data	= uart8250_data,
-	},
+  .name = "serial8250",
+  .id = PLAT8250_DEV_PLATFORM,
+  .dev = {
+    .platform_data = uart8250_data,
+  },
 };
 
 static struct platform_device *malta_devices[] __initdata = {
-	&malta_uart8250_device,
+  &malta_uart8250_device,
 };
 
-static int __init malta_add_devices(void)
-{
-	return platform_add_devices(malta_devices, ARRAY_SIZE(malta_devices));
+static int __init malta_add_devices(void) {
+  return platform_add_devices(malta_devices, ARRAY_SIZE(malta_devices));
 }
 
 device_initcall(malta_add_devices);

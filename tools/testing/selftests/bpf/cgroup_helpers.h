@@ -7,14 +7,14 @@
 
 #define clean_errno() (errno == 0 ? "None" : strerror(errno))
 #define log_err(MSG, ...) fprintf(stderr, "(%s:%d: errno: %s) " MSG "\n", \
-	__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+    __FILE__, __LINE__, clean_errno(), ## __VA_ARGS__)
 
 /* cgroupv2 related */
 int enable_controllers(const char *relative_path, const char *controllers);
 int write_cgroup_file(const char *relative_path, const char *file,
-		      const char *buf);
+    const char *buf);
 int write_cgroup_file_parent(const char *relative_path, const char *file,
-			     const char *buf);
+    const char *buf);
 int cgroup_setup_and_join(const char *relative_path);
 int get_root_cgroup(void);
 int create_and_get_cgroup(const char *relative_path);

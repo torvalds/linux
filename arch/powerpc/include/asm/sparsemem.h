@@ -5,8 +5,8 @@
 
 #ifdef CONFIG_SPARSEMEM
 /*
- * SECTION_SIZE_BITS		2^N: how big each section will be
- * MAX_PHYSMEM_BITS		2^N: how much memory we can have in that space
+ * SECTION_SIZE_BITS    2^N: how big each section will be
+ * MAX_PHYSMEM_BITS   2^N: how much memory we can have in that space
  */
 #define SECTION_SIZE_BITS       24
 
@@ -20,10 +20,10 @@ extern int memory_add_physaddr_to_nid(u64 start);
 #ifdef CONFIG_NUMA
 extern int hot_add_scn_to_nid(unsigned long scn_addr);
 #else
-static inline int hot_add_scn_to_nid(unsigned long scn_addr)
-{
-	return 0;
+static inline int hot_add_scn_to_nid(unsigned long scn_addr) {
+  return 0;
 }
+
 #endif /* CONFIG_NUMA */
 #endif /* CONFIG_MEMORY_HOTPLUG */
 #endif /* __KERNEL__ */

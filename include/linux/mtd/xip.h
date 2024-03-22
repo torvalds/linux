@@ -2,9 +2,9 @@
 /*
  * MTD primitives for XIP support
  *
- * Author:	Nicolas Pitre
- * Created:	Nov 2, 2004
- * Copyright:	(C) 2004 MontaVista Software, Inc.
+ * Author:  Nicolas Pitre
+ * Created: Nov 2, 2004
+ * Copyright: (C) 2004 MontaVista Software, Inc.
  *
  * This XIP support for MTD has been loosely inspired
  * by an earlier patch authored by David Woodhouse.
@@ -12,7 +12,6 @@
 
 #ifndef __LINUX_MTD_XIP_H__
 #define __LINUX_MTD_XIP_H__
-
 
 #ifdef CONFIG_MTD_XIP
 
@@ -38,27 +37,27 @@
  *
  * xip_irqpending()
  *
- * 	return non zero when any hardware interrupt is pending.
+ *  return non zero when any hardware interrupt is pending.
  *
  * xip_currtime()
  *
- * 	return a platform specific time reference to be used with
- * 	xip_elapsed_since().
+ *  return a platform specific time reference to be used with
+ *  xip_elapsed_since().
  *
  * xip_elapsed_since(x)
  *
- * 	return in usecs the elapsed timebetween now and the reference x as
- * 	returned by xip_currtime().
+ *  return in usecs the elapsed timebetween now and the reference x as
+ *  returned by xip_currtime().
  *
- * 	note 1: conversion to usec can be approximated, as long as the
- * 		returned value is <= the real elapsed time.
- * 	note 2: this should be able to cope with a few seconds without
- * 		overflowing.
+ *  note 1: conversion to usec can be approximated, as long as the
+ *    returned value is <= the real elapsed time.
+ *  note 2: this should be able to cope with a few seconds without
+ *    overflowing.
  *
  * xip_iprefetch()
  *
  *      Macro to fill instruction prefetch
- *	e.g. a series of nops:  asm volatile (".rep 8; nop; .endr");
+ *  e.g. a series of nops:  asm volatile (".rep 8; nop; .endr");
  */
 
 #include <asm/mtd-xip.h>
@@ -67,16 +66,17 @@
 
 #warning "missing IRQ and timer primitives for XIP MTD support"
 #warning "some of the XIP MTD support code will be disabled"
-#warning "your system will therefore be unresponsive when writing or erasing flash"
+#warning \
+  "your system will therefore be unresponsive when writing or erasing flash"
 
-#define xip_irqpending()	(0)
-#define xip_currtime()		(0)
-#define xip_elapsed_since(x)	(0)
+#define xip_irqpending()  (0)
+#define xip_currtime()    (0)
+#define xip_elapsed_since(x)  (0)
 
 #endif
 
 #ifndef xip_iprefetch
-#define xip_iprefetch()		do { } while (0)
+#define xip_iprefetch()   do {} while (0)
 #endif
 
 /*
@@ -86,7 +86,7 @@
  * This should not rely upon standard kernel code.
  */
 #ifndef xip_cpu_idle
-#define xip_cpu_idle()  do { } while (0)
+#define xip_cpu_idle()  do {} while (0)
 #endif
 
 #endif /* CONFIG_MTD_XIP */

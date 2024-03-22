@@ -31,25 +31,24 @@ int loongson_cpu_disable(void);
 void loongson_cpu_die(unsigned int cpu);
 #endif
 
-static inline void plat_smp_setup(void)
-{
-	loongson_smp_setup();
+static inline void plat_smp_setup(void) {
+  loongson_smp_setup();
 }
 
-static inline int raw_smp_processor_id(void)
-{
+static inline int raw_smp_processor_id(void) {
 #if defined(__VDSO__)
-	extern int vdso_smp_processor_id(void)
-		__compiletime_error("VDSO should not call smp_processor_id()");
-	return vdso_smp_processor_id();
+  extern int vdso_smp_processor_id(void)
+  __compiletime_error("VDSO should not call smp_processor_id()");
+  return vdso_smp_processor_id();
 #else
-	return current_thread_info()->cpu;
+  return current_thread_info()->cpu;
 #endif
 }
+
 #define raw_smp_processor_id raw_smp_processor_id
 
 /* Map from cpu id to sequential logical cpu number.  This will only
- * not be idempotent when cpus failed to come on-line.	*/
+ * not be idempotent when cpus failed to come on-line.  */
 extern int __cpu_number_map[NR_CPUS];
 #define cpu_number_map(cpu)  __cpu_number_map[cpu]
 
@@ -57,15 +56,15 @@ extern int __cpu_number_map[NR_CPUS];
 extern int __cpu_logical_map[NR_CPUS];
 #define cpu_logical_map(cpu)  __cpu_logical_map[cpu]
 
-#define cpu_physical_id(cpu)	cpu_logical_map(cpu)
+#define cpu_physical_id(cpu)  cpu_logical_map(cpu)
 
-#define SMP_BOOT_CPU		0x1
-#define SMP_RESCHEDULE		0x2
-#define SMP_CALL_FUNCTION	0x4
+#define SMP_BOOT_CPU    0x1
+#define SMP_RESCHEDULE    0x2
+#define SMP_CALL_FUNCTION 0x4
 
 struct secondary_data {
-	unsigned long stack;
-	unsigned long thread_info;
+  unsigned long stack;
+  unsigned long thread_info;
 };
 extern struct secondary_data cpuboot_data;
 
@@ -79,26 +78,24 @@ extern void calculate_cpu_foreign_map(void);
  */
 extern void show_ipi_list(struct seq_file *p, int prec);
 
-static inline void arch_send_call_function_single_ipi(int cpu)
-{
-	loongson_send_ipi_single(cpu, SMP_CALL_FUNCTION);
+static inline void arch_send_call_function_single_ipi(int cpu) {
+  loongson_send_ipi_single(cpu, SMP_CALL_FUNCTION);
 }
 
 static inline void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	loongson_send_ipi_mask(mask, SMP_CALL_FUNCTION);
+  loongson_send_ipi_mask(mask, SMP_CALL_FUNCTION);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static inline int __cpu_disable(void)
-{
-	return loongson_cpu_disable();
+static inline int __cpu_disable(void) {
+  return loongson_cpu_disable();
 }
 
-static inline void __cpu_die(unsigned int cpu)
-{
-	loongson_cpu_die(cpu);
+static inline void __cpu_die(unsigned int cpu) {
+  loongson_cpu_die(cpu);
 }
+
 #endif
 
 #endif /* __ASM_SMP_H */

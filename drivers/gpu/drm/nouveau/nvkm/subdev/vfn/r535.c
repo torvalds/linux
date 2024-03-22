@@ -21,30 +21,24 @@
  */
 #include "priv.h"
 
-static void
-r535_vfn_dtor(struct nvkm_vfn *vfn)
-{
-	kfree(vfn->func);
+static void r535_vfn_dtor(struct nvkm_vfn *vfn) {
+  kfree(vfn->func);
 }
 
-int
-r535_vfn_new(const struct nvkm_vfn_func *hw,
-	     struct nvkm_device *device, enum nvkm_subdev_type type, int inst, u32 addr,
-	     struct nvkm_vfn **pvfn)
-{
-	struct nvkm_vfn_func *rm;
-	int ret;
-
-	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
-		return -ENOMEM;
-
-	rm->dtor = r535_vfn_dtor;
-	rm->intr = hw->intr;
-	rm->user = hw->user;
-
-	ret = nvkm_vfn_new_(rm, device, type, inst, addr, pvfn);
-	if (ret)
-		kfree(rm);
-
-	return ret;
+int r535_vfn_new(const struct nvkm_vfn_func *hw,
+    struct nvkm_device *device, enum nvkm_subdev_type type, int inst, u32 addr,
+    struct nvkm_vfn **pvfn) {
+  struct nvkm_vfn_func *rm;
+  int ret;
+  if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL))) {
+    return -ENOMEM;
+  }
+  rm->dtor = r535_vfn_dtor;
+  rm->intr = hw->intr;
+  rm->user = hw->user;
+  ret = nvkm_vfn_new_(rm, device, type, inst, addr, pvfn);
+  if (ret) {
+    kfree(rm);
+  }
+  return ret;
 }

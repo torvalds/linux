@@ -45,28 +45,28 @@ struct cpl_smt_write_rpl;
 /* SMT related handling. Heavily adapted based on l2t ops in l2t.h/l2t.c
  */
 enum {
-	SMT_STATE_SWITCHING,
-	SMT_STATE_UNUSED,
-	SMT_STATE_ERROR
+  SMT_STATE_SWITCHING,
+  SMT_STATE_UNUSED,
+  SMT_STATE_ERROR
 };
 
 enum {
-	SMT_SIZE = 256
+  SMT_SIZE = 256
 };
 
 struct smt_entry {
-	u16 state;
-	u16 idx;
-	u16 pfvf;
-	u8 src_mac[ETH_ALEN];
-	int refcnt;
-	spinlock_t lock;	/* protect smt entry add,removal */
+  u16 state;
+  u16 idx;
+  u16 pfvf;
+  u8 src_mac[ETH_ALEN];
+  int refcnt;
+  spinlock_t lock;  /* protect smt entry add,removal */
 };
 
 struct smt_data {
-	unsigned int smt_size;
-	rwlock_t lock;
-	struct smt_entry smtab[] __counted_by(smt_size);
+  unsigned int smt_size;
+  rwlock_t lock;
+  struct smt_entry smtab[] __counted_by(smt_size);
 };
 
 struct smt_data *t4_init_smt(void);

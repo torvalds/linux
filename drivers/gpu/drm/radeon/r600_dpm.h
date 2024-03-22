@@ -102,28 +102,28 @@
 #define FDO_PWM_MODE_STATIC_RPM 5
 
 enum r600_power_level {
-	R600_POWER_LEVEL_LOW = 0,
-	R600_POWER_LEVEL_MEDIUM = 1,
-	R600_POWER_LEVEL_HIGH = 2,
-	R600_POWER_LEVEL_CTXSW = 3,
+  R600_POWER_LEVEL_LOW = 0,
+  R600_POWER_LEVEL_MEDIUM = 1,
+  R600_POWER_LEVEL_HIGH = 2,
+  R600_POWER_LEVEL_CTXSW = 3,
 };
 
 enum r600_td {
-	R600_TD_AUTO,
-	R600_TD_UP,
-	R600_TD_DOWN,
+  R600_TD_AUTO,
+  R600_TD_UP,
+  R600_TD_DOWN,
 };
 
 enum r600_display_watermark {
-	R600_DISPLAY_WATERMARK_LOW = 0,
-	R600_DISPLAY_WATERMARK_HIGH = 1,
+  R600_DISPLAY_WATERMARK_LOW = 0,
+  R600_DISPLAY_WATERMARK_HIGH = 1,
 };
 
 enum r600_display_gap {
-    R600_PM_DISPLAY_GAP_VBLANK_OR_WM = 0,
-    R600_PM_DISPLAY_GAP_VBLANK       = 1,
-    R600_PM_DISPLAY_GAP_WATERMARK    = 2,
-    R600_PM_DISPLAY_GAP_IGNORE       = 3,
+  R600_PM_DISPLAY_GAP_VBLANK_OR_WM = 0,
+  R600_PM_DISPLAY_GAP_VBLANK = 1,
+  R600_PM_DISPLAY_GAP_WATERMARK = 2,
+  R600_PM_DISPLAY_GAP_IGNORE = 3,
 };
 
 extern const u32 r600_utc[R600_PM_NUMBER_OF_TC];
@@ -132,12 +132,12 @@ extern const u32 r600_dtc[R600_PM_NUMBER_OF_TC];
 void r600_dpm_print_class_info(u32 class, u32 class2);
 void r600_dpm_print_cap_info(u32 caps);
 void r600_dpm_print_ps_status(struct radeon_device *rdev,
-			      struct radeon_ps *rps);
+    struct radeon_ps *rps);
 u32 r600_dpm_get_vblank_time(struct radeon_device *rdev);
 u32 r600_dpm_get_vrefresh(struct radeon_device *rdev);
 bool r600_is_uvd_state(u32 class, u32 class2);
 void r600_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
-			    u32 *p, u32 *u);
+    u32 *p, u32 *u);
 int r600_calculate_at(u32 t, u32 h, u32 fh, u32 fl, u32 *tl, u32 *th);
 void r600_gfx_clockgating_enable(struct radeon_device *rdev, bool enable);
 void r600_dynamicpm_enable(struct radeon_device *rdev, bool enable);
@@ -151,8 +151,8 @@ void r600_enable_spll_bypass(struct radeon_device *rdev, bool enable);
 void r600_wait_for_spll_change(struct radeon_device *rdev);
 void r600_set_bsp(struct radeon_device *rdev, u32 u, u32 p);
 void r600_set_at(struct radeon_device *rdev,
-		 u32 l_to_m, u32 m_to_h,
-		 u32 h_to_m, u32 m_to_l);
+    u32 l_to_m, u32 m_to_h,
+    u32 h_to_m, u32 m_to_l);
 void r600_set_tc(struct radeon_device *rdev, u32 index, u32 u_t, u32 d_t);
 void r600_select_td(struct radeon_device *rdev, enum r600_td td);
 void r600_set_vrc(struct radeon_device *rdev, u32 vrv);
@@ -171,49 +171,51 @@ void r600_set_vddc3d_oorsdc(struct radeon_device *rdev, u32 s);
 void r600_set_mpll_lock_time(struct radeon_device *rdev, u32 lock_time);
 void r600_set_mpll_reset_time(struct radeon_device *rdev, u32 reset_time);
 void r600_engine_clock_entry_enable(struct radeon_device *rdev,
-				    u32 index, bool enable);
+    u32 index, bool enable);
 void r600_engine_clock_entry_enable_pulse_skipping(struct radeon_device *rdev,
-						   u32 index, bool enable);
+    u32 index, bool enable);
 void r600_engine_clock_entry_enable_post_divider(struct radeon_device *rdev,
-						 u32 index, bool enable);
+    u32 index, bool enable);
 void r600_engine_clock_entry_set_post_divider(struct radeon_device *rdev,
-					      u32 index, u32 divider);
+    u32 index, u32 divider);
 void r600_engine_clock_entry_set_reference_divider(struct radeon_device *rdev,
-						   u32 index, u32 divider);
+    u32 index, u32 divider);
 void r600_engine_clock_entry_set_feedback_divider(struct radeon_device *rdev,
-						  u32 index, u32 divider);
+    u32 index, u32 divider);
 void r600_engine_clock_entry_set_step_time(struct radeon_device *rdev,
-					   u32 index, u32 step_time);
+    u32 index, u32 step_time);
 void r600_vid_rt_set_ssu(struct radeon_device *rdev, u32 u);
 void r600_vid_rt_set_vru(struct radeon_device *rdev, u32 u);
 void r600_vid_rt_set_vrt(struct radeon_device *rdev, u32 rt);
 void r600_voltage_control_enable_pins(struct radeon_device *rdev,
-				      u64 mask);
+    u64 mask);
 void r600_voltage_control_program_voltages(struct radeon_device *rdev,
-					   enum r600_power_level index, u64 pins);
+    enum r600_power_level index, u64 pins);
 void r600_voltage_control_deactivate_static_control(struct radeon_device *rdev,
-						    u64 mask);
+    u64 mask);
 void r600_power_level_enable(struct radeon_device *rdev,
-			     enum r600_power_level index, bool enable);
+    enum r600_power_level index, bool enable);
 void r600_power_level_set_voltage_index(struct radeon_device *rdev,
-					enum r600_power_level index, u32 voltage_index);
+    enum r600_power_level index, u32 voltage_index);
 void r600_power_level_set_mem_clock_index(struct radeon_device *rdev,
-					  enum r600_power_level index, u32 mem_clock_index);
+    enum r600_power_level index, u32 mem_clock_index);
 void r600_power_level_set_eng_clock_index(struct radeon_device *rdev,
-					  enum r600_power_level index, u32 eng_clock_index);
+    enum r600_power_level index, u32 eng_clock_index);
 void r600_power_level_set_watermark_id(struct radeon_device *rdev,
-				       enum r600_power_level index,
-				       enum r600_display_watermark watermark_id);
+    enum r600_power_level index,
+    enum r600_display_watermark watermark_id);
 void r600_power_level_set_pcie_gen2(struct radeon_device *rdev,
-				    enum r600_power_level index, bool compatible);
-enum r600_power_level r600_power_level_get_current_index(struct radeon_device *rdev);
-enum r600_power_level r600_power_level_get_target_index(struct radeon_device *rdev);
+    enum r600_power_level index, bool compatible);
+enum r600_power_level r600_power_level_get_current_index(
+  struct radeon_device *rdev);
+enum r600_power_level r600_power_level_get_target_index(
+  struct radeon_device *rdev);
 void r600_power_level_set_enter_index(struct radeon_device *rdev,
-				      enum r600_power_level index);
+    enum r600_power_level index);
 void r600_wait_for_power_level_unequal(struct radeon_device *rdev,
-				       enum r600_power_level index);
+    enum r600_power_level index);
 void r600_wait_for_power_level(struct radeon_device *rdev,
-			       enum r600_power_level index);
+    enum r600_power_level index);
 void r600_start_dpm(struct radeon_device *rdev);
 void r600_stop_dpm(struct radeon_device *rdev);
 
@@ -225,13 +227,13 @@ int r600_parse_extended_power_table(struct radeon_device *rdev);
 void r600_free_extended_power_table(struct radeon_device *rdev);
 
 enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
-					       u32 sys_mask,
-					       enum radeon_pcie_gen asic_gen,
-					       enum radeon_pcie_gen default_gen);
+    u32 sys_mask,
+    enum radeon_pcie_gen asic_gen,
+    enum radeon_pcie_gen default_gen);
 
 u16 r600_get_pcie_lane_support(struct radeon_device *rdev,
-			       u16 asic_lanes,
-			       u16 default_lanes);
+    u16 asic_lanes,
+    u16 default_lanes);
 u8 r600_encode_pci_lane_width(u32 lanes);
 
 #endif

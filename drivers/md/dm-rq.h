@@ -26,9 +26,9 @@ struct mapped_device;
  * struct.
  */
 struct dm_rq_clone_bio_info {
-	struct bio *orig;
-	struct dm_rq_target_io *tio;
-	struct bio clone;
+  struct bio *orig;
+  struct dm_rq_target_io *tio;
+  struct bio clone;
 };
 
 int dm_mq_init_request_queue(struct mapped_device *md, struct dm_table *t);
@@ -41,8 +41,9 @@ void dm_mq_kick_requeue_list(struct mapped_device *md);
 
 unsigned int dm_get_reserved_rq_based_ios(void);
 
-ssize_t dm_attr_rq_based_seq_io_merge_deadline_show(struct mapped_device *md, char *buf);
+ssize_t dm_attr_rq_based_seq_io_merge_deadline_show(struct mapped_device *md,
+    char *buf);
 ssize_t dm_attr_rq_based_seq_io_merge_deadline_store(struct mapped_device *md,
-						     const char *buf, size_t count);
+    const char *buf, size_t count);
 
 #endif

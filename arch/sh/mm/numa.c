@@ -23,34 +23,27 @@ EXPORT_SYMBOL_GPL(node_data);
  * latency. Each node's pgdat is node-local at the beginning of the node,
  * immediately followed by the node mem map.
  */
-void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
-{
-	unsigned long start_pfn, end_pfn;
-
-	/* Don't allow bogus node assignment */
-	BUG_ON(nid >= MAX_NUMNODES || nid <= 0);
-
-	start_pfn = PFN_DOWN(start);
-	end_pfn = PFN_DOWN(end);
-
-	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
-			 PAGE_KERNEL);
-
-	memblock_add(start, end - start);
-
-	__add_active_range(nid, start_pfn, end_pfn);
-
-	/* Node-local pgdat */
-	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
-					     SMP_CACHE_BYTES, nid);
-	if (!NODE_DATA(nid))
-		panic("%s: Failed to allocate %zu bytes align=0x%x nid=%d\n",
-		      __func__, sizeof(struct pglist_data), SMP_CACHE_BYTES,
-		      nid);
-
-	NODE_DATA(nid)->node_start_pfn = start_pfn;
-	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
-
-	/* It's up */
-	node_set_online(nid);
+void __init setup_bootmem_node(int nid, unsigned long start,
+    unsigned long end) {
+  unsigned long start_pfn, end_pfn;
+  /* Don't allow bogus node assignment */
+  BUG_ON(nid >= MAX_NUMNODES || nid <= 0);
+  start_pfn = PFN_DOWN(start);
+  end_pfn = PFN_DOWN(end);
+  pmb_bolt_mapping((unsigned long) __va(start), start, end - start,
+      PAGE_KERNEL);
+  memblock_add(start, end - start);
+  __add_active_range(nid, start_pfn, end_pfn);
+  /* Node-local pgdat */
+  NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
+      SMP_CACHE_BYTES, nid);
+  if (!NODE_DATA(nid)) {
+    panic("%s: Failed to allocate %zu bytes align=0x%x nid=%d\n",
+        __func__, sizeof(struct pglist_data), SMP_CACHE_BYTES,
+        nid);
+  }
+  NODE_DATA(nid)->node_start_pfn = start_pfn;
+  NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
+  /* It's up */
+  node_set_online(nid);
 }

@@ -34,31 +34,26 @@
  * module.  In this sense, it's rather similar to the I2C custom reset
  * function.  Returns 0.
  */
-int omap_hdq1w_reset(struct omap_hwmod *oh)
-{
-	u32 v;
-	int c = 0;
-
-	/* Write to the SOFTRESET bit */
-	omap_hwmod_softreset(oh);
-
-	/* Enable the module's internal clocks */
-	v = omap_hwmod_read(oh, HDQ_CTRL_STATUS_OFFSET);
-	v |= 1 << HDQ_CTRL_STATUS_CLOCKENABLE_SHIFT;
-	omap_hwmod_write(v, oh, HDQ_CTRL_STATUS_OFFSET);
-
-	/* Poll on RESETDONE bit */
-	omap_test_timeout((omap_hwmod_read(oh,
-					   oh->class->sysc->syss_offs)
-			   & SYSS_RESETDONE_MASK),
-			  MAX_MODULE_SOFTRESET_WAIT, c);
-
-	if (c == MAX_MODULE_SOFTRESET_WAIT)
-		pr_warn("%s: %s: softreset failed (waited %d usec)\n",
-			__func__, oh->name, MAX_MODULE_SOFTRESET_WAIT);
-	else
-		pr_debug("%s: %s: softreset in %d usec\n", __func__,
-			 oh->name, c);
-
-	return 0;
+int omap_hdq1w_reset(struct omap_hwmod *oh) {
+  u32 v;
+  int c = 0;
+  /* Write to the SOFTRESET bit */
+  omap_hwmod_softreset(oh);
+  /* Enable the module's internal clocks */
+  v = omap_hwmod_read(oh, HDQ_CTRL_STATUS_OFFSET);
+  v |= 1 << HDQ_CTRL_STATUS_CLOCKENABLE_SHIFT;
+  omap_hwmod_write(v, oh, HDQ_CTRL_STATUS_OFFSET);
+  /* Poll on RESETDONE bit */
+  omap_test_timeout((omap_hwmod_read(oh,
+      oh->class->sysc->syss_offs)
+      & SYSS_RESETDONE_MASK),
+      MAX_MODULE_SOFTRESET_WAIT, c);
+  if (c == MAX_MODULE_SOFTRESET_WAIT) {
+    pr_warn("%s: %s: softreset failed (waited %d usec)\n",
+        __func__, oh->name, MAX_MODULE_SOFTRESET_WAIT);
+  } else {
+    pr_debug("%s: %s: softreset in %d usec\n", __func__,
+        oh->name, c);
+  }
+  return 0;
 }

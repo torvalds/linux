@@ -8,10 +8,10 @@
  * assume GCC is being used.
  */
 
-typedef unsigned int	__kernel_ino_t;
+typedef unsigned int __kernel_ino_t;
 #define __kernel_ino_t __kernel_ino_t
 
-typedef unsigned long	__kernel_sigset_t;	/* at least 32 bits */
+typedef unsigned long __kernel_sigset_t;  /* at least 32 bits */
 
 #include <asm-generic/posix_types.h>
 

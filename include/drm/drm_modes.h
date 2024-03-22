@@ -35,7 +35,8 @@
 struct videomode;
 
 /*
- * Note on terminology:  here, for brevity and convenience, we refer to connector
+ * Note on terminology:  here, for brevity and convenience, we refer to
+ * connector
  * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
  * DVI, etc.  And 'screen' refers to the whole of the visible display, which
  * may span multiple monitors (and therefore multiple CRTC and connector
@@ -89,69 +90,69 @@ struct videomode;
  * combination.
  */
 enum drm_mode_status {
-	MODE_OK = 0,
-	MODE_HSYNC,
-	MODE_VSYNC,
-	MODE_H_ILLEGAL,
-	MODE_V_ILLEGAL,
-	MODE_BAD_WIDTH,
-	MODE_NOMODE,
-	MODE_NO_INTERLACE,
-	MODE_NO_DBLESCAN,
-	MODE_NO_VSCAN,
-	MODE_MEM,
-	MODE_VIRTUAL_X,
-	MODE_VIRTUAL_Y,
-	MODE_MEM_VIRT,
-	MODE_NOCLOCK,
-	MODE_CLOCK_HIGH,
-	MODE_CLOCK_LOW,
-	MODE_CLOCK_RANGE,
-	MODE_BAD_HVALUE,
-	MODE_BAD_VVALUE,
-	MODE_BAD_VSCAN,
-	MODE_HSYNC_NARROW,
-	MODE_HSYNC_WIDE,
-	MODE_HBLANK_NARROW,
-	MODE_HBLANK_WIDE,
-	MODE_VSYNC_NARROW,
-	MODE_VSYNC_WIDE,
-	MODE_VBLANK_NARROW,
-	MODE_VBLANK_WIDE,
-	MODE_PANEL,
-	MODE_INTERLACE_WIDTH,
-	MODE_ONE_WIDTH,
-	MODE_ONE_HEIGHT,
-	MODE_ONE_SIZE,
-	MODE_NO_REDUCED,
-	MODE_NO_STEREO,
-	MODE_NO_420,
-	MODE_STALE = -3,
-	MODE_BAD = -2,
-	MODE_ERROR = -1
+  MODE_OK = 0,
+  MODE_HSYNC,
+  MODE_VSYNC,
+  MODE_H_ILLEGAL,
+  MODE_V_ILLEGAL,
+  MODE_BAD_WIDTH,
+  MODE_NOMODE,
+  MODE_NO_INTERLACE,
+  MODE_NO_DBLESCAN,
+  MODE_NO_VSCAN,
+  MODE_MEM,
+  MODE_VIRTUAL_X,
+  MODE_VIRTUAL_Y,
+  MODE_MEM_VIRT,
+  MODE_NOCLOCK,
+  MODE_CLOCK_HIGH,
+  MODE_CLOCK_LOW,
+  MODE_CLOCK_RANGE,
+  MODE_BAD_HVALUE,
+  MODE_BAD_VVALUE,
+  MODE_BAD_VSCAN,
+  MODE_HSYNC_NARROW,
+  MODE_HSYNC_WIDE,
+  MODE_HBLANK_NARROW,
+  MODE_HBLANK_WIDE,
+  MODE_VSYNC_NARROW,
+  MODE_VSYNC_WIDE,
+  MODE_VBLANK_NARROW,
+  MODE_VBLANK_WIDE,
+  MODE_PANEL,
+  MODE_INTERLACE_WIDTH,
+  MODE_ONE_WIDTH,
+  MODE_ONE_HEIGHT,
+  MODE_ONE_SIZE,
+  MODE_NO_REDUCED,
+  MODE_NO_STEREO,
+  MODE_NO_420,
+  MODE_STALE = -3,
+  MODE_BAD = -2,
+  MODE_ERROR = -1
 };
 
 #define DRM_MODE(nm, t, c, hd, hss, hse, ht, hsk, vd, vss, vse, vt, vs, f) \
-	.name = nm, .status = 0, .type = (t), .clock = (c), \
-	.hdisplay = (hd), .hsync_start = (hss), .hsync_end = (hse), \
-	.htotal = (ht), .hskew = (hsk), .vdisplay = (vd), \
-	.vsync_start = (vss), .vsync_end = (vse), .vtotal = (vt), \
-	.vscan = (vs), .flags = (f)
+  .name = nm, .status = 0, .type = (t), .clock = (c), \
+  .hdisplay = (hd), .hsync_start = (hss), .hsync_end = (hse), \
+  .htotal = (ht), .hskew = (hsk), .vdisplay = (vd), \
+  .vsync_start = (vss), .vsync_end = (vse), .vtotal = (vt), \
+  .vscan = (vs), .flags = (f)
 
 /**
  * DRM_MODE_RES_MM - Calculates the display size from resolution and DPI
  * @res: The resolution in pixel
  * @dpi: The number of dots per inch
  */
-#define DRM_MODE_RES_MM(res, dpi)	\
-	(((res) * 254ul) / ((dpi) * 10ul))
+#define DRM_MODE_RES_MM(res, dpi) \
+  (((res) * 254ul) / ((dpi) * 10ul))
 
 #define __DRM_MODE_INIT(pix, hd, vd, hd_mm, vd_mm) \
-	.type = DRM_MODE_TYPE_DRIVER, .clock = (pix), \
-	.hdisplay = (hd), .hsync_start = (hd), .hsync_end = (hd), \
-	.htotal = (hd), .vdisplay = (vd), .vsync_start = (vd), \
-	.vsync_end = (vd), .vtotal = (vd), .width_mm = (hd_mm), \
-	.height_mm = (vd_mm)
+  .type = DRM_MODE_TYPE_DRIVER, .clock = (pix), \
+  .hdisplay = (hd), .hsync_start = (hd), .hsync_end = (hd), \
+  .htotal = (hd), .vdisplay = (vd), .vsync_start = (vd), \
+  .vsync_end = (vd), .vtotal = (vd), .width_mm = (hd_mm), \
+  .height_mm = (vd_mm)
 
 /**
  * DRM_MODE_INIT - Initialize display mode
@@ -165,7 +166,7 @@ enum drm_mode_status {
  * refresh rate, resolution and physical size.
  */
 #define DRM_MODE_INIT(hz, hd, vd, hd_mm, vd_mm) \
-	__DRM_MODE_INIT((hd) * (vd) * (hz) / 1000 /* kHz */, hd, vd, hd_mm, vd_mm)
+  __DRM_MODE_INIT((hd) * (vd) * (hz) / 1000 /* kHz */, hd, vd, hd_mm, vd_mm)
 
 /**
  * DRM_SIMPLE_MODE - Simple display mode
@@ -178,15 +179,16 @@ enum drm_mode_status {
  * resolution and physical size.
  */
 #define DRM_SIMPLE_MODE(hd, vd, hd_mm, vd_mm) \
-	__DRM_MODE_INIT(1 /* pass validation */, hd, vd, hd_mm, vd_mm)
+  __DRM_MODE_INIT(1 /* pass validation */, hd, vd, hd_mm, vd_mm)
 
-#define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
-#define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
-#define CRTC_NO_DBLSCAN		(1 << 2) /* don't adjust doublescan */
-#define CRTC_NO_VSCAN		(1 << 3) /* don't adjust doublescan */
-#define CRTC_STEREO_DOUBLE_ONLY	(CRTC_STEREO_DOUBLE | CRTC_NO_DBLSCAN | CRTC_NO_VSCAN)
+#define CRTC_INTERLACE_HALVE_V  (1 << 0) /* halve V values for interlacing */
+#define CRTC_STEREO_DOUBLE  (1 << 1) /* adjust timings for stereo modes */
+#define CRTC_NO_DBLSCAN   (1 << 2) /* don't adjust doublescan */
+#define CRTC_NO_VSCAN   (1 << 3) /* don't adjust doublescan */
+#define CRTC_STEREO_DOUBLE_ONLY (CRTC_STEREO_DOUBLE | CRTC_NO_DBLSCAN \
+  | CRTC_NO_VSCAN)
 
-#define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
+#define DRM_MODE_FLAG_3D_MAX  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
 #define DRM_MODE_MATCH_TIMINGS (1 << 0)
 #define DRM_MODE_MATCH_CLOCK (1 << 1)
@@ -230,15 +232,18 @@ enum drm_mode_status {
  *
  *               Active                 Front           Sync           Back
  *              Region                 Porch                          Porch
- *     <-----------------------><----------------><-------------><-------------->
+ *
+ *   <-----------------------><----------------><-------------><-------------->
  *       //////////////////////|
  *      ////////////////////// |
- *     //////////////////////  |..................               ................
+ *     //////////////////////  |..................
+ *              ................
  *                                                _______________
  *     <----- [hv]display ----->
  *     <------------- [hv]sync_start ------------>
  *     <--------------------- [hv]sync_end --------------------->
- *     <-------------------------------- [hv]total ----------------------------->*
+ *     <-------------------------------- [hv]total
+ *----------------------------->*
  *
  * This structure contains two copies of timings. First are the plain timings,
  * which specify the logical mode, as it would be for a progressive 1:1 scanout
@@ -250,173 +255,172 @@ enum drm_mode_status {
  * For printing you can use %DRM_MODE_FMT and DRM_MODE_ARG().
  */
 struct drm_display_mode {
-	/**
-	 * @clock:
-	 *
-	 * Pixel clock in kHz.
-	 */
-	int clock;		/* in kHz */
-	u16 hdisplay;
-	u16 hsync_start;
-	u16 hsync_end;
-	u16 htotal;
-	u16 hskew;
-	u16 vdisplay;
-	u16 vsync_start;
-	u16 vsync_end;
-	u16 vtotal;
-	u16 vscan;
-	/**
-	 * @flags:
-	 *
-	 * Sync and timing flags:
-	 *
-	 *  - DRM_MODE_FLAG_PHSYNC: horizontal sync is active high.
-	 *  - DRM_MODE_FLAG_NHSYNC: horizontal sync is active low.
-	 *  - DRM_MODE_FLAG_PVSYNC: vertical sync is active high.
-	 *  - DRM_MODE_FLAG_NVSYNC: vertical sync is active low.
-	 *  - DRM_MODE_FLAG_INTERLACE: mode is interlaced.
-	 *  - DRM_MODE_FLAG_DBLSCAN: mode uses doublescan.
-	 *  - DRM_MODE_FLAG_CSYNC: mode uses composite sync.
-	 *  - DRM_MODE_FLAG_PCSYNC: composite sync is active high.
-	 *  - DRM_MODE_FLAG_NCSYNC: composite sync is active low.
-	 *  - DRM_MODE_FLAG_HSKEW: hskew provided (not used?).
-	 *  - DRM_MODE_FLAG_BCAST: <deprecated>
-	 *  - DRM_MODE_FLAG_PIXMUX: <deprecated>
-	 *  - DRM_MODE_FLAG_DBLCLK: double-clocked mode.
-	 *  - DRM_MODE_FLAG_CLKDIV2: half-clocked mode.
-	 *
-	 * Additionally there's flags to specify how 3D modes are packed:
-	 *
-	 *  - DRM_MODE_FLAG_3D_NONE: normal, non-3D mode.
-	 *  - DRM_MODE_FLAG_3D_FRAME_PACKING: 2 full frames for left and right.
-	 *  - DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE: interleaved like fields.
-	 *  - DRM_MODE_FLAG_3D_LINE_ALTERNATIVE: interleaved lines.
-	 *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL: side-by-side full frames.
-	 *  - DRM_MODE_FLAG_3D_L_DEPTH: ?
-	 *  - DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH: ?
-	 *  - DRM_MODE_FLAG_3D_TOP_AND_BOTTOM: frame split into top and bottom
-	 *    parts.
-	 *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF: frame split into left and
-	 *    right parts.
-	 */
-	u32 flags;
+  /**
+   * @clock:
+   *
+   * Pixel clock in kHz.
+   */
+  int clock;    /* in kHz */
+  u16 hdisplay;
+  u16 hsync_start;
+  u16 hsync_end;
+  u16 htotal;
+  u16 hskew;
+  u16 vdisplay;
+  u16 vsync_start;
+  u16 vsync_end;
+  u16 vtotal;
+  u16 vscan;
+  /**
+   * @flags:
+   *
+   * Sync and timing flags:
+   *
+   *  - DRM_MODE_FLAG_PHSYNC: horizontal sync is active high.
+   *  - DRM_MODE_FLAG_NHSYNC: horizontal sync is active low.
+   *  - DRM_MODE_FLAG_PVSYNC: vertical sync is active high.
+   *  - DRM_MODE_FLAG_NVSYNC: vertical sync is active low.
+   *  - DRM_MODE_FLAG_INTERLACE: mode is interlaced.
+   *  - DRM_MODE_FLAG_DBLSCAN: mode uses doublescan.
+   *  - DRM_MODE_FLAG_CSYNC: mode uses composite sync.
+   *  - DRM_MODE_FLAG_PCSYNC: composite sync is active high.
+   *  - DRM_MODE_FLAG_NCSYNC: composite sync is active low.
+   *  - DRM_MODE_FLAG_HSKEW: hskew provided (not used?).
+   *  - DRM_MODE_FLAG_BCAST: <deprecated>
+   *  - DRM_MODE_FLAG_PIXMUX: <deprecated>
+   *  - DRM_MODE_FLAG_DBLCLK: double-clocked mode.
+   *  - DRM_MODE_FLAG_CLKDIV2: half-clocked mode.
+   *
+   * Additionally there's flags to specify how 3D modes are packed:
+   *
+   *  - DRM_MODE_FLAG_3D_NONE: normal, non-3D mode.
+   *  - DRM_MODE_FLAG_3D_FRAME_PACKING: 2 full frames for left and right.
+   *  - DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE: interleaved like fields.
+   *  - DRM_MODE_FLAG_3D_LINE_ALTERNATIVE: interleaved lines.
+   *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_FULL: side-by-side full frames.
+   *  - DRM_MODE_FLAG_3D_L_DEPTH: ?
+   *  - DRM_MODE_FLAG_3D_L_DEPTH_GFX_GFX_DEPTH: ?
+   *  - DRM_MODE_FLAG_3D_TOP_AND_BOTTOM: frame split into top and bottom
+   *    parts.
+   *  - DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF: frame split into left and
+   *    right parts.
+   */
+  u32 flags;
 
-	/**
-	 * @crtc_clock:
-	 *
-	 * Actual pixel or dot clock in the hardware. This differs from the
-	 * logical @clock when e.g. using interlacing, double-clocking, stereo
-	 * modes or other fancy stuff that changes the timings and signals
-	 * actually sent over the wire.
-	 *
-	 * This is again in kHz.
-	 *
-	 * Note that with digital outputs like HDMI or DP there's usually a
-	 * massive confusion between the dot clock and the signal clock at the
-	 * bit encoding level. Especially when a 8b/10b encoding is used and the
-	 * difference is exactly a factor of 10.
-	 */
-	int crtc_clock;
-	u16 crtc_hdisplay;
-	u16 crtc_hblank_start;
-	u16 crtc_hblank_end;
-	u16 crtc_hsync_start;
-	u16 crtc_hsync_end;
-	u16 crtc_htotal;
-	u16 crtc_hskew;
-	u16 crtc_vdisplay;
-	u16 crtc_vblank_start;
-	u16 crtc_vblank_end;
-	u16 crtc_vsync_start;
-	u16 crtc_vsync_end;
-	u16 crtc_vtotal;
+  /**
+   * @crtc_clock:
+   *
+   * Actual pixel or dot clock in the hardware. This differs from the
+   * logical @clock when e.g. using interlacing, double-clocking, stereo
+   * modes or other fancy stuff that changes the timings and signals
+   * actually sent over the wire.
+   *
+   * This is again in kHz.
+   *
+   * Note that with digital outputs like HDMI or DP there's usually a
+   * massive confusion between the dot clock and the signal clock at the
+   * bit encoding level. Especially when a 8b/10b encoding is used and the
+   * difference is exactly a factor of 10.
+   */
+  int crtc_clock;
+  u16 crtc_hdisplay;
+  u16 crtc_hblank_start;
+  u16 crtc_hblank_end;
+  u16 crtc_hsync_start;
+  u16 crtc_hsync_end;
+  u16 crtc_htotal;
+  u16 crtc_hskew;
+  u16 crtc_vdisplay;
+  u16 crtc_vblank_start;
+  u16 crtc_vblank_end;
+  u16 crtc_vsync_start;
+  u16 crtc_vsync_end;
+  u16 crtc_vtotal;
 
-	/**
-	 * @width_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	u16 width_mm;
+  /**
+   * @width_mm:
+   *
+   * Addressable size of the output in mm, projectors should set this to
+   * 0.
+   */
+  u16 width_mm;
 
-	/**
-	 * @height_mm:
-	 *
-	 * Addressable size of the output in mm, projectors should set this to
-	 * 0.
-	 */
-	u16 height_mm;
+  /**
+   * @height_mm:
+   *
+   * Addressable size of the output in mm, projectors should set this to
+   * 0.
+   */
+  u16 height_mm;
 
-	/**
-	 * @type:
-	 *
-	 * A bitmask of flags, mostly about the source of a mode. Possible flags
-	 * are:
-	 *
-	 *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
-	 *    resolution of an LCD panel. There should only be one preferred
-	 *    mode per connector at any given time.
-	 *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
-	 *    them really. Drivers must set this bit for all modes they create
-	 *    and expose to userspace.
-	 *  - DRM_MODE_TYPE_USERDEF: Mode defined or selected via the kernel
-	 *    command line.
-	 *
-	 * Plus a big list of flags which shouldn't be used at all, but are
-	 * still around since these flags are also used in the userspace ABI.
-	 * We no longer accept modes with these types though:
-	 *
-	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
-	 *    Use DRM_MODE_TYPE_DRIVER instead.
-	 *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
-	 *    DRM_MODE_TYPE_PREFERRED instead.
-	 *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
-	 *    which are stuck around for hysterical raisins only. No one has an
-	 *    idea what they were meant for. Don't use.
-	 */
-	u8 type;
+  /**
+   * @type:
+   *
+   * A bitmask of flags, mostly about the source of a mode. Possible flags
+   * are:
+   *
+   *  - DRM_MODE_TYPE_PREFERRED: Preferred mode, usually the native
+   *    resolution of an LCD panel. There should only be one preferred
+   *    mode per connector at any given time.
+   *  - DRM_MODE_TYPE_DRIVER: Mode created by the driver, which is all of
+   *    them really. Drivers must set this bit for all modes they create
+   *    and expose to userspace.
+   *  - DRM_MODE_TYPE_USERDEF: Mode defined or selected via the kernel
+   *    command line.
+   *
+   * Plus a big list of flags which shouldn't be used at all, but are
+   * still around since these flags are also used in the userspace ABI.
+   * We no longer accept modes with these types though:
+   *
+   *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
+   *    Use DRM_MODE_TYPE_DRIVER instead.
+   *  - DRM_MODE_TYPE_DEFAULT: Again a leftover, use
+   *    DRM_MODE_TYPE_PREFERRED instead.
+   *  - DRM_MODE_TYPE_CLOCK_C and DRM_MODE_TYPE_CRTC_C: Define leftovers
+   *    which are stuck around for hysterical raisins only. No one has an
+   *    idea what they were meant for. Don't use.
+   */
+  u8 type;
 
-	/**
-	 * @expose_to_userspace:
-	 *
-	 * Indicates whether the mode is to be exposed to the userspace.
-	 * This is to maintain a set of exposed modes while preparing
-	 * user-mode's list in drm_mode_getconnector ioctl. The purpose of
-	 * this only lies in the ioctl function, and is not to be used
-	 * outside the function.
-	 */
-	bool expose_to_userspace;
+  /**
+   * @expose_to_userspace:
+   *
+   * Indicates whether the mode is to be exposed to the userspace.
+   * This is to maintain a set of exposed modes while preparing
+   * user-mode's list in drm_mode_getconnector ioctl. The purpose of
+   * this only lies in the ioctl function, and is not to be used
+   * outside the function.
+   */
+  bool expose_to_userspace;
 
-	/**
-	 * @head:
-	 *
-	 * struct list_head for mode lists.
-	 */
-	struct list_head head;
+  /**
+   * @head:
+   *
+   * struct list_head for mode lists.
+   */
+  struct list_head head;
 
-	/**
-	 * @name:
-	 *
-	 * Human-readable name of the mode, filled out with drm_mode_set_name().
-	 */
-	char name[DRM_DISPLAY_MODE_LEN];
+  /**
+   * @name:
+   *
+   * Human-readable name of the mode, filled out with drm_mode_set_name().
+   */
+  char name[DRM_DISPLAY_MODE_LEN];
 
-	/**
-	 * @status:
-	 *
-	 * Status of the mode, used to filter out modes not supported by the
-	 * hardware. See enum &drm_mode_status.
-	 */
-	enum drm_mode_status status;
+  /**
+   * @status:
+   *
+   * Status of the mode, used to filter out modes not supported by the
+   * hardware. See enum &drm_mode_status.
+   */
+  enum drm_mode_status status;
 
-	/**
-	 * @picture_aspect_ratio:
-	 *
-	 * Field for setting the HDMI picture aspect ratio of a mode.
-	 */
-	enum hdmi_picture_aspect picture_aspect_ratio;
-
+  /**
+   * @picture_aspect_ratio:
+   *
+   * Field for setting the HDMI picture aspect ratio of a mode.
+   */
+  enum hdmi_picture_aspect picture_aspect_ratio;
 };
 
 /**
@@ -429,10 +433,10 @@ struct drm_display_mode {
  * @m: display mode
  */
 #define DRM_MODE_ARG(m) \
-	(m)->name, drm_mode_vrefresh(m), (m)->clock, \
-	(m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
-	(m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
-	(m)->type, (m)->flags
+  (m)->name, drm_mode_vrefresh(m), (m)->clock, \
+  (m)->hdisplay, (m)->hsync_start, (m)->hsync_end, (m)->htotal, \
+  (m)->vdisplay, (m)->vsync_start, (m)->vsync_end, (m)->vtotal, \
+  (m)->type, (m)->flags
 
 #define obj_to_mode(x) container_of(x, struct drm_display_mode, base)
 
@@ -444,9 +448,8 @@ struct drm_display_mode {
  * True if the mode is one of the stereo modes (like side-by-side), false if
  * not.
  */
-static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
-{
-	return mode->flags & DRM_MODE_FLAG_3D_MASK;
+static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode) {
+  return mode->flags & DRM_MODE_FLAG_3D_MASK;
 }
 
 struct drm_connector;
@@ -455,121 +458,122 @@ struct drm_cmdline_mode;
 struct drm_display_mode *drm_mode_create(struct drm_device *dev);
 void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode);
 void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
-			       const struct drm_display_mode *in);
+    const struct drm_display_mode *in);
 int drm_mode_convert_umode(struct drm_device *dev,
-			   struct drm_display_mode *out,
-			   const struct drm_mode_modeinfo *in);
-void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
+    struct drm_display_mode *out,
+    const struct drm_mode_modeinfo *in);
+void drm_mode_probed_add(struct drm_connector *connector,
+    struct drm_display_mode *mode);
 void drm_mode_debug_printmodeline(const struct drm_display_mode *mode);
 bool drm_mode_is_420_only(const struct drm_display_info *display,
-			  const struct drm_display_mode *mode);
+    const struct drm_display_mode *mode);
 bool drm_mode_is_420_also(const struct drm_display_info *display,
-			  const struct drm_display_mode *mode);
+    const struct drm_display_mode *mode);
 bool drm_mode_is_420(const struct drm_display_info *display,
-		     const struct drm_display_mode *mode);
+    const struct drm_display_mode *mode);
 void drm_set_preferred_mode(struct drm_connector *connector,
-			    int hpref, int vpref);
+    int hpref, int vpref);
 
 struct drm_display_mode *drm_analog_tv_mode(struct drm_device *dev,
-					    enum drm_connector_tv_mode mode,
-					    unsigned long pixel_clock_hz,
-					    unsigned int hdisplay,
-					    unsigned int vdisplay,
-					    bool interlace);
+    enum drm_connector_tv_mode mode,
+    unsigned long pixel_clock_hz,
+    unsigned int hdisplay,
+    unsigned int vdisplay,
+    bool interlace);
 
-static inline struct drm_display_mode *drm_mode_analog_ntsc_480i(struct drm_device *dev)
-{
-	return drm_analog_tv_mode(dev, DRM_MODE_TV_MODE_NTSC, 13500000, 720, 480, true);
+static inline struct drm_display_mode *drm_mode_analog_ntsc_480i(
+    struct drm_device *dev) {
+  return drm_analog_tv_mode(dev, DRM_MODE_TV_MODE_NTSC, 13500000, 720, 480,
+      true);
 }
 
-static inline struct drm_display_mode *drm_mode_analog_pal_576i(struct drm_device *dev)
-{
-	return drm_analog_tv_mode(dev, DRM_MODE_TV_MODE_PAL, 13500000, 720, 576, true);
+static inline struct drm_display_mode *drm_mode_analog_pal_576i(
+    struct drm_device *dev) {
+  return drm_analog_tv_mode(dev, DRM_MODE_TV_MODE_PAL, 13500000, 720, 576,
+      true);
 }
 
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
-				      int hdisplay, int vdisplay, int vrefresh,
-				      bool reduced, bool interlaced,
-				      bool margins);
+    int hdisplay, int vdisplay, int vrefresh,
+    bool reduced, bool interlaced,
+    bool margins);
 struct drm_display_mode *drm_gtf_mode(struct drm_device *dev,
-				      int hdisplay, int vdisplay, int vrefresh,
-				      bool interlaced, int margins);
+    int hdisplay, int vdisplay, int vrefresh,
+    bool interlaced, int margins);
 struct drm_display_mode *drm_gtf_mode_complex(struct drm_device *dev,
-					      int hdisplay, int vdisplay,
-					      int vrefresh, bool interlaced,
-					      int margins,
-					      int GTF_M, int GTF_2C,
-					      int GTF_K, int GTF_2J);
+    int hdisplay, int vdisplay,
+    int vrefresh, bool interlaced,
+    int margins,
+    int GTF_M, int GTF_2C,
+    int GTF_K, int GTF_2J);
 void drm_display_mode_from_videomode(const struct videomode *vm,
-				     struct drm_display_mode *dmode);
+    struct drm_display_mode *dmode);
 void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
-				   struct videomode *vm);
+    struct videomode *vm);
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags);
 
 #if defined(CONFIG_OF)
 int of_get_drm_display_mode(struct device_node *np,
-			    struct drm_display_mode *dmode, u32 *bus_flags,
-			    int index);
+    struct drm_display_mode *dmode, u32 *bus_flags,
+    int index);
 int of_get_drm_panel_display_mode(struct device_node *np,
-				  struct drm_display_mode *dmode, u32 *bus_flags);
+    struct drm_display_mode *dmode, u32 *bus_flags);
 #else
 static inline int of_get_drm_display_mode(struct device_node *np,
-					  struct drm_display_mode *dmode,
-					  u32 *bus_flags, int index)
-{
-	return -EINVAL;
+    struct drm_display_mode *dmode,
+    u32 *bus_flags, int index) {
+  return -EINVAL;
 }
 
 static inline int of_get_drm_panel_display_mode(struct device_node *np,
-						struct drm_display_mode *dmode, u32 *bus_flags)
-{
-	return -EINVAL;
+    struct drm_display_mode *dmode, u32 *bus_flags) {
+  return -EINVAL;
 }
+
 #endif
 
 void drm_mode_set_name(struct drm_display_mode *mode);
 int drm_mode_vrefresh(const struct drm_display_mode *mode);
 void drm_mode_get_hv_timing(const struct drm_display_mode *mode,
-			    int *hdisplay, int *vdisplay);
+    int *hdisplay, int *vdisplay);
 
 void drm_mode_set_crtcinfo(struct drm_display_mode *p,
-			   int adjust_flags);
+    int adjust_flags);
 void drm_mode_copy(struct drm_display_mode *dst,
-		   const struct drm_display_mode *src);
+    const struct drm_display_mode *src);
 void drm_mode_init(struct drm_display_mode *dst,
-		   const struct drm_display_mode *src);
+    const struct drm_display_mode *src);
 struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
-					    const struct drm_display_mode *mode);
+    const struct drm_display_mode *mode);
 bool drm_mode_match(const struct drm_display_mode *mode1,
-		    const struct drm_display_mode *mode2,
-		    unsigned int match_flags);
+    const struct drm_display_mode *mode2,
+    unsigned int match_flags);
 bool drm_mode_equal(const struct drm_display_mode *mode1,
-		    const struct drm_display_mode *mode2);
+    const struct drm_display_mode *mode2);
 bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
-			      const struct drm_display_mode *mode2);
+    const struct drm_display_mode *mode2);
 bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
-					const struct drm_display_mode *mode2);
+    const struct drm_display_mode *mode2);
 
 /* for use by the crtc helper probe functions */
 enum drm_mode_status drm_mode_validate_driver(struct drm_device *dev,
-					      const struct drm_display_mode *mode);
+    const struct drm_display_mode *mode);
 enum drm_mode_status drm_mode_validate_size(const struct drm_display_mode *mode,
-					    int maxX, int maxY);
-enum drm_mode_status
-drm_mode_validate_ycbcr420(const struct drm_display_mode *mode,
-			   struct drm_connector *connector);
+    int maxX, int maxY);
+enum drm_mode_status drm_mode_validate_ycbcr420(
+  const struct drm_display_mode *mode,
+  struct drm_connector *connector);
 void drm_mode_prune_invalid(struct drm_device *dev,
-			    struct list_head *mode_list, bool verbose);
+    struct list_head *mode_list, bool verbose);
 void drm_mode_sort(struct list_head *mode_list);
 void drm_connector_list_update(struct drm_connector *connector);
 
 /* parsing cmdline modes */
-bool
-drm_mode_parse_command_line_for_connector(const char *mode_option,
-					  const struct drm_connector *connector,
-					  struct drm_cmdline_mode *mode);
-struct drm_display_mode *
-drm_mode_create_from_cmdline_mode(struct drm_device *dev,
-				  struct drm_cmdline_mode *cmd);
+bool drm_mode_parse_command_line_for_connector(const char *mode_option,
+    const struct drm_connector *connector,
+    struct drm_cmdline_mode *mode);
+struct drm_display_mode *drm_mode_create_from_cmdline_mode(
+  struct drm_device *dev,
+  struct drm_cmdline_mode *cmd);
 
 #endif /* __DRM_MODES_H__ */

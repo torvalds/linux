@@ -12,12 +12,12 @@ int mlx5_hwmon_dev_register(struct mlx5_core_dev *mdev);
 void mlx5_hwmon_dev_unregister(struct mlx5_core_dev *mdev);
 
 #else
-static inline int mlx5_hwmon_dev_register(struct mlx5_core_dev *mdev)
-{
-	return 0;
+static inline int mlx5_hwmon_dev_register(struct mlx5_core_dev *mdev) {
+  return 0;
 }
 
-static inline void mlx5_hwmon_dev_unregister(struct mlx5_core_dev *mdev) {}
+static inline void mlx5_hwmon_dev_unregister(struct mlx5_core_dev *mdev) {
+}
 
 #endif
 

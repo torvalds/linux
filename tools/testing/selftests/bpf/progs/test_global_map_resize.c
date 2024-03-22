@@ -32,31 +32,27 @@ int my_int_last SEC(".data.array_not_last");
 int percpu_arr[1] SEC(".data.percpu_arr");
 
 SEC("tp/syscalls/sys_enter_getpid")
-int bss_array_sum(void *ctx)
-{
-	if (pid != (bpf_get_current_pid_tgid() >> 32))
-		return 0;
-
-	/* this will be zero, we just rely on verifier not rejecting this */
-	sum = percpu_arr[bpf_get_smp_processor_id()];
-
-	for (size_t i = 0; i < bss_array_len; ++i)
-		sum += array[i];
-
-	return 0;
+int bss_array_sum(void *ctx) {
+  if (pid != (bpf_get_current_pid_tgid() >> 32)) {
+    return 0;
+  }
+  /* this will be zero, we just rely on verifier not rejecting this */
+  sum = percpu_arr[bpf_get_smp_processor_id()];
+  for (size_t i = 0; i < bss_array_len; ++i) {
+    sum += array[i];
+  }
+  return 0;
 }
 
 SEC("tp/syscalls/sys_enter_getuid")
-int data_array_sum(void *ctx)
-{
-	if (pid != (bpf_get_current_pid_tgid() >> 32))
-		return 0;
-
-	/* this will be zero, we just rely on verifier not rejecting this */
-	sum = percpu_arr[bpf_get_smp_processor_id()];
-
-	for (size_t i = 0; i < data_array_len; ++i)
-		sum += my_array[i];
-
-	return 0;
+int data_array_sum(void *ctx) {
+  if (pid != (bpf_get_current_pid_tgid() >> 32)) {
+    return 0;
+  }
+  /* this will be zero, we just rely on verifier not rejecting this */
+  sum = percpu_arr[bpf_get_smp_processor_id()];
+  for (size_t i = 0; i < data_array_len; ++i) {
+    sum += my_array[i];
+  }
+  return 0;
 }

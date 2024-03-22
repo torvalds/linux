@@ -11,5 +11,6 @@ struct pci_dev;
 
 struct uart_8250_port;
 
-int serial8250_pci_setup_port(struct pci_dev *dev, struct uart_8250_port *port, u8 bar,
-		   unsigned int offset, int regshift);
+int serial8250_pci_setup_port(struct pci_dev *dev, struct uart_8250_port *port,
+    u8 bar,
+    unsigned int offset, int regshift);

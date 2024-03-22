@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
-/* Copyright (c) 2023 Imagination Technologies Ltd. */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT
+ * Copyright (c) 2023 Imagination Technologies Ltd.*/
 
 #ifndef PVR_ROGUE_META_H
 #define PVR_ROGUE_META_H
@@ -29,7 +29,7 @@
 #define META_CR_PERF_COUNT_CTRL_DCACHEHITS (8 << META_CR_PERF_COUNT_CTRL_SHIFT)
 #define META_CR_PERF_COUNT_CTRL_ICACHEHITS (9 << META_CR_PERF_COUNT_CTRL_SHIFT)
 #define META_CR_PERF_COUNT_CTRL_ICACHEMISS \
-	(0xA << META_CR_PERF_COUNT_CTRL_SHIFT)
+  (0xA << META_CR_PERF_COUNT_CTRL_SHIFT)
 #define META_CR_PERF_COUNT_CTRL_ICORE (0xD << META_CR_PERF_COUNT_CTRL_SHIFT)
 #define META_CR_PERF_COUNT_THR_SHIFT (24)
 #define META_CR_PERF_COUNT_THR_MASK (0x0F000000)
@@ -42,8 +42,8 @@
 #define META_CR_PERF_ICORE_DCACHEMISS (0x8)
 
 #define META_CR_PERF_COUNT(ctrl, thr)                                        \
-	((META_CR_PERF_COUNT_CTRL_##ctrl << META_CR_PERF_COUNT_CTRL_SHIFT) | \
-	 ((thr) << META_CR_PERF_COUNT_THR_SHIFT))
+  ((META_CR_PERF_COUNT_CTRL_ ## ctrl << META_CR_PERF_COUNT_CTRL_SHIFT)   \
+  | ((thr) << META_CR_PERF_COUNT_THR_SHIFT))
 
 #define META_CR_TXUXXRXDT_OFFSET (META_CR_CTRLREG_BASE(0U) + 0x0000FFF0U)
 #define META_CR_TXUXXRXRQ_OFFSET (META_CR_CTRLREG_BASE(0U) + 0x0000FFF8U)
@@ -71,9 +71,9 @@
 
 /* Macros to calculate register access values. */
 #define META_CR_CORE_REG(thr, reg_num, unit)          \
-	(((u32)(thr) << META_CR_TXUXXRXRQ_TX_S) |     \
-	 ((u32)(reg_num) << META_CR_TXUXXRXRQ_RX_S) | \
-	 ((u32)(unit) << META_CR_TXUXXRXRQ_UXX_S))
+  (((u32) (thr) << META_CR_TXUXXRXRQ_TX_S)       \
+  | ((u32) (reg_num) << META_CR_TXUXXRXRQ_RX_S)   \
+  | ((u32) (unit) << META_CR_TXUXXRXRQ_UXX_S))
 
 #define META_CR_THR0_PC META_CR_CORE_REG(0, 0, META_CR_TXUPC_ID)
 #define META_CR_THR0_PCX META_CR_CORE_REG(0, 1, META_CR_TXUPC_ID)
@@ -92,20 +92,20 @@
 #define META_CR_COREREG_PRIVEXT (0x00000E8U)
 
 #define META_CR_T0ENABLE_OFFSET \
-	(META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_ENABLE)
+  (META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_ENABLE)
 #define META_CR_T0STATUS_OFFSET \
-	(META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_STATUS)
+  (META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_STATUS)
 #define META_CR_T0DEFR_OFFSET (META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_DEFR)
 #define META_CR_T0PRIVEXT_OFFSET \
-	(META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_PRIVEXT)
+  (META_CR_CTRLREG_BASE(0U) + META_CR_COREREG_PRIVEXT)
 
 #define META_CR_T1ENABLE_OFFSET \
-	(META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_ENABLE)
+  (META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_ENABLE)
 #define META_CR_T1STATUS_OFFSET \
-	(META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_STATUS)
+  (META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_STATUS)
 #define META_CR_T1DEFR_OFFSET (META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_DEFR)
 #define META_CR_T1PRIVEXT_OFFSET \
-	(META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_PRIVEXT)
+  (META_CR_CTRLREG_BASE(1U) + META_CR_COREREG_PRIVEXT)
 
 #define META_CR_TXENABLE_ENABLE_BIT (0x00000001U) /* Set if running */
 #define META_CR_TXSTATUS_PRIV (0x00020000U)
@@ -137,37 +137,38 @@
  */
 /* Block header structure. */
 struct rogue_meta_ldr_block_hdr {
-	u32 dev_id;
-	u32 sl_code;
-	u32 sl_data;
-	u16 pc_ctrl;
-	u16 crc;
+  u32 dev_id;
+  u32 sl_code;
+  u32 sl_data;
+  u16 pc_ctrl;
+  u16 crc;
 };
 
 /* High level data stream block structure. */
 struct rogue_meta_ldr_l1_data_blk {
-	u16 cmd;
-	u16 length;
-	u32 next;
-	u32 cmd_data[4];
+  u16 cmd;
+  u16 length;
+  u32 next;
+  u32 cmd_data[4];
 };
 
 /* High level data stream block structure. */
 struct rogue_meta_ldr_l2_data_blk {
-	u16 tag;
-	u16 length;
-	u32 block_data[4];
+  u16 tag;
+  u16 length;
+  u32 block_data[4];
 };
 
 /* Config command structure. */
 struct rogue_meta_ldr_cfg_blk {
-	u32 type;
-	u32 block_data[4];
+  u32 type;
+  u32 block_data[4];
 };
 
 /* Block type definitions */
 #define ROGUE_META_LDR_COMMENT_TYPE_MASK (0x0010U)
-#define ROGUE_META_LDR_BLK_IS_COMMENT(x) (((x) & ROGUE_META_LDR_COMMENT_TYPE_MASK) != 0U)
+#define ROGUE_META_LDR_BLK_IS_COMMENT(x) (((x) \
+  & ROGUE_META_LDR_COMMENT_TYPE_MASK) != 0U)
 
 /*
  * Command definitions
@@ -215,7 +216,7 @@ struct rogue_meta_ldr_cfg_blk {
 #define ROGUE_FW_SEGMMU_WRITEABLE (0x1U << 1U)
 /* All threads can access and writable. */
 #define ROGUE_FW_SEGMMU_ALLTHRS_WRITEABLE \
-	(ROGUE_FW_SEGMMU_ALLTHRS | ROGUE_FW_SEGMMU_WRITEABLE)
+  (ROGUE_FW_SEGMMU_ALLTHRS | ROGUE_FW_SEGMMU_WRITEABLE)
 
 /* Direct map region 10 used for mapping GPU memory - max 8MB. */
 #define ROGUE_FW_SEGMMU_DMAP_GPU_ID (10U)
@@ -235,19 +236,19 @@ struct rogue_meta_ldr_cfg_blk {
  * The bifdm argument is ignored (no longer relevant) in S7 and volcanic.
  */
 #define ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC(pers, slc_policy, mmu_ctx)  \
-	((((u64)((pers) & 0x3)) << 52) | (((u64)((mmu_ctx) & 0xFF)) << 44) | \
-	 (((u64)((slc_policy) & 0x1)) << 40))
+  ((((u64) ((pers) & 0x3)) << 52) | (((u64) ((mmu_ctx) & 0xFF)) << 44)   \
+  | (((u64) ((slc_policy) & 0x1)) << 40))
 #define ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC_CACHED(mmu_ctx) \
-	ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x3, 0x0, mmu_ctx)
+  ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x3, 0x0, mmu_ctx)
 #define ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC_UNCACHED(mmu_ctx) \
-	ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x0, 0x1, mmu_ctx)
+  ROGUE_FW_SEGMMU_OUTADDR_TOP_VIVT_SLC(0x0, 0x1, mmu_ctx)
 
 /*
  * To configure the Page Catalog and BIF-DM fed into the BIF for Garten
  * accesses through this segment.
  */
 #define ROGUE_FW_SEGMMU_OUTADDR_TOP_SLC(pc, bifdm) \
-	(((u64)((u64)(pc) & 0xFU) << 44U) | ((u64)((u64)(bifdm) & 0xFU) << 40U))
+  (((u64) ((u64) (pc) & 0xFU) << 44U) | ((u64) ((u64) (bifdm) & 0xFU) << 40U))
 
 #define ROGUE_FW_SEGMMU_META_BIFDM_ID (0x7U)
 
@@ -291,8 +292,8 @@ struct rogue_meta_ldr_cfg_blk {
 #define ROGUE_FW_BOOTLDR_DEVV_ADDR_0 (0xC0000000U)
 #define ROGUE_FW_BOOTLDR_DEVV_ADDR_1 (0x000000E1)
 #define ROGUE_FW_BOOTLDR_DEVV_ADDR                     \
-	((((u64)ROGUE_FW_BOOTLDR_DEVV_ADDR_1) << 32) | \
-	 ROGUE_FW_BOOTLDR_DEVV_ADDR_0)
+  ((((u64) ROGUE_FW_BOOTLDR_DEVV_ADDR_1) << 32)   \
+  | ROGUE_FW_BOOTLDR_DEVV_ADDR_0)
 #define ROGUE_FW_BOOTLDR_LIMIT (0x1FFFF000)
 #define ROGUE_FW_MAX_BOOTLDR_OFFSET (0x1000)
 
@@ -317,17 +318,17 @@ struct rogue_meta_ldr_cfg_blk {
 #define ROGUE_META_COREMEM_OFFSET_MASK (0x01ffffffU)
 
 #define ROGUE_META_IS_COREMEM_CODE(a, b)                                \
-	({                                                              \
-		u32 _a = (a), _b = (b);                                 \
-		((_a) >= ROGUE_META_COREMEM_CODE_ADDR) &&               \
-			((_a) < (ROGUE_META_COREMEM_CODE_ADDR + (_b))); \
-	})
+  ({                                                              \
+    u32 _a = (a), _b = (b);                                 \
+    ((_a) >= ROGUE_META_COREMEM_CODE_ADDR)                  \
+    && ((_a) < (ROGUE_META_COREMEM_CODE_ADDR + (_b))); \
+  })
 #define ROGUE_META_IS_COREMEM_DATA(a, b)                                \
-	({                                                              \
-		u32 _a = (a), _b = (b);                                 \
-		((_a) >= ROGUE_META_COREMEM_DATA_ADDR) &&               \
-			((_a) < (ROGUE_META_COREMEM_DATA_ADDR + (_b))); \
-	})
+  ({                                                              \
+    u32 _a = (a), _b = (b);                                 \
+    ((_a) >= ROGUE_META_COREMEM_DATA_ADDR)                  \
+    && ((_a) < (ROGUE_META_COREMEM_DATA_ADDR + (_b))); \
+  })
 /*
  ******************************************************************************
  * 2nd thread

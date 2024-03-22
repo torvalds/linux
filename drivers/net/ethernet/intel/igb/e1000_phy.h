@@ -1,60 +1,60 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2007 - 2018 Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright(c) 2007 - 2018 Intel Corporation.*/
 
 #ifndef _E1000_PHY_H_
 #define _E1000_PHY_H_
 
 enum e1000_ms_type {
-	e1000_ms_hw_default = 0,
-	e1000_ms_force_master,
-	e1000_ms_force_slave,
-	e1000_ms_auto
+  e1000_ms_hw_default = 0,
+  e1000_ms_force_master,
+  e1000_ms_force_slave,
+  e1000_ms_auto
 };
 
 enum e1000_smart_speed {
-	e1000_smart_speed_default = 0,
-	e1000_smart_speed_on,
-	e1000_smart_speed_off
+  e1000_smart_speed_default = 0,
+  e1000_smart_speed_on,
+  e1000_smart_speed_off
 };
 
-s32  igb_check_downshift(struct e1000_hw *hw);
-s32  igb_check_reset_block(struct e1000_hw *hw);
-s32  igb_copper_link_setup_igp(struct e1000_hw *hw);
-s32  igb_copper_link_setup_m88(struct e1000_hw *hw);
-s32  igb_copper_link_setup_m88_gen2(struct e1000_hw *hw);
-s32  igb_phy_force_speed_duplex_igp(struct e1000_hw *hw);
-s32  igb_phy_force_speed_duplex_m88(struct e1000_hw *hw);
-s32  igb_get_cable_length_m88(struct e1000_hw *hw);
-s32  igb_get_cable_length_m88_gen2(struct e1000_hw *hw);
-s32  igb_get_cable_length_igp_2(struct e1000_hw *hw);
-s32  igb_get_phy_id(struct e1000_hw *hw);
-s32  igb_get_phy_info_igp(struct e1000_hw *hw);
-s32  igb_get_phy_info_m88(struct e1000_hw *hw);
-s32  igb_phy_sw_reset(struct e1000_hw *hw);
-s32  igb_phy_hw_reset(struct e1000_hw *hw);
-s32  igb_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data);
-s32  igb_set_d3_lplu_state(struct e1000_hw *hw, bool active);
-s32  igb_setup_copper_link(struct e1000_hw *hw);
-s32  igb_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data);
-s32  igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
-				u32 usec_interval, bool *success);
+s32 igb_check_downshift(struct e1000_hw *hw);
+s32 igb_check_reset_block(struct e1000_hw *hw);
+s32 igb_copper_link_setup_igp(struct e1000_hw *hw);
+s32 igb_copper_link_setup_m88(struct e1000_hw *hw);
+s32 igb_copper_link_setup_m88_gen2(struct e1000_hw *hw);
+s32 igb_phy_force_speed_duplex_igp(struct e1000_hw *hw);
+s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw);
+s32 igb_get_cable_length_m88(struct e1000_hw *hw);
+s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw);
+s32 igb_get_cable_length_igp_2(struct e1000_hw *hw);
+s32 igb_get_phy_id(struct e1000_hw *hw);
+s32 igb_get_phy_info_igp(struct e1000_hw *hw);
+s32 igb_get_phy_info_m88(struct e1000_hw *hw);
+s32 igb_phy_sw_reset(struct e1000_hw *hw);
+s32 igb_phy_hw_reset(struct e1000_hw *hw);
+s32 igb_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data);
+s32 igb_set_d3_lplu_state(struct e1000_hw *hw, bool active);
+s32 igb_setup_copper_link(struct e1000_hw *hw);
+s32 igb_write_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 data);
+s32 igb_phy_has_link(struct e1000_hw *hw, u32 iterations,
+    u32 usec_interval, bool *success);
 void igb_power_up_phy_copper(struct e1000_hw *hw);
 void igb_power_down_phy_copper(struct e1000_hw *hw);
-s32  igb_phy_init_script_igp3(struct e1000_hw *hw);
-s32  igb_initialize_M88E1512_phy(struct e1000_hw *hw);
-s32  igb_initialize_M88E1543_phy(struct e1000_hw *hw);
-s32  igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
-s32  igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
-s32  igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);
-s32  igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data);
-s32  igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data);
-s32  igb_copper_link_setup_82580(struct e1000_hw *hw);
-s32  igb_get_phy_info_82580(struct e1000_hw *hw);
-s32  igb_phy_force_speed_duplex_82580(struct e1000_hw *hw);
-s32  igb_get_cable_length_82580(struct e1000_hw *hw);
-s32  igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data);
-s32  igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data);
-s32  igb_check_polarity_m88(struct e1000_hw *hw);
+s32 igb_phy_init_script_igp3(struct e1000_hw *hw);
+s32 igb_initialize_M88E1512_phy(struct e1000_hw *hw);
+s32 igb_initialize_M88E1543_phy(struct e1000_hw *hw);
+s32 igb_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data);
+s32 igb_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data);
+s32 igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data);
+s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data);
+s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data);
+s32 igb_copper_link_setup_82580(struct e1000_hw *hw);
+s32 igb_get_phy_info_82580(struct e1000_hw *hw);
+s32 igb_phy_force_speed_duplex_82580(struct e1000_hw *hw);
+s32 igb_get_cable_length_82580(struct e1000_hw *hw);
+s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data);
+s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data);
+s32 igb_check_polarity_m88(struct e1000_hw *hw);
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG        0x10 /* Port Config */
@@ -99,11 +99,11 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define I82580_DSTATUS_CABLE_LENGTH_SHIFT 2
 
 /* 82580 PHY Power Management */
-#define E1000_82580_PHY_POWER_MGMT	0xE14
-#define E1000_82580_PM_SPD		0x0001 /* Smart Power Down */
-#define E1000_82580_PM_D0_LPLU		0x0002 /* For D0a states */
-#define E1000_82580_PM_D3_LPLU		0x0004 /* For all other states */
-#define E1000_82580_PM_GO_LINKD		0x0020 /* Go Link Disconnect */
+#define E1000_82580_PHY_POWER_MGMT  0xE14
+#define E1000_82580_PM_SPD    0x0001 /* Smart Power Down */
+#define E1000_82580_PM_D0_LPLU    0x0002 /* For D0a states */
+#define E1000_82580_PM_D3_LPLU    0x0004 /* For all other states */
+#define E1000_82580_PM_GO_LINKD   0x0020 /* Go Link Disconnect */
 
 /* Enable flexible speed on link-up */
 #define IGP02E1000_PM_D0_LPLU             0x0002 /* For D0a states */
@@ -125,21 +125,21 @@ s32  igb_check_polarity_m88(struct e1000_hw *hw);
 #define E1000_CABLE_LENGTH_UNDEFINED      0xFF
 
 /* SFP modules ID memory locations */
-#define E1000_SFF_IDENTIFIER_OFFSET	0x00
-#define E1000_SFF_IDENTIFIER_SFF	0x02
-#define E1000_SFF_IDENTIFIER_SFP	0x03
+#define E1000_SFF_IDENTIFIER_OFFSET 0x00
+#define E1000_SFF_IDENTIFIER_SFF  0x02
+#define E1000_SFF_IDENTIFIER_SFP  0x03
 
-#define E1000_SFF_ETH_FLAGS_OFFSET	0x06
+#define E1000_SFF_ETH_FLAGS_OFFSET  0x06
 /* Flags for SFP modules compatible with ETH up to 1Gb */
 struct e1000_sfp_flags {
-	u8 e1000_base_sx:1;
-	u8 e1000_base_lx:1;
-	u8 e1000_base_cx:1;
-	u8 e1000_base_t:1;
-	u8 e100_base_lx:1;
-	u8 e100_base_fx:1;
-	u8 e10_base_bx10:1;
-	u8 e10_base_px:1;
+  u8 e1000_base_sx : 1;
+  u8 e1000_base_lx : 1;
+  u8 e1000_base_cx : 1;
+  u8 e1000_base_t : 1;
+  u8 e100_base_lx : 1;
+  u8 e100_base_fx : 1;
+  u8 e10_base_bx10 : 1;
+  u8 e10_base_px : 1;
 };
 
 #endif

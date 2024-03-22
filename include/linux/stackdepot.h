@@ -36,44 +36,44 @@ typedef u32 depot_stack_handle_t;
 #define DEPOT_POOL_SIZE (1LL << (PAGE_SHIFT + DEPOT_POOL_ORDER))
 #define DEPOT_STACK_ALIGN 4
 #define DEPOT_OFFSET_BITS (DEPOT_POOL_ORDER + PAGE_SHIFT - DEPOT_STACK_ALIGN)
-#define DEPOT_POOL_INDEX_BITS (DEPOT_HANDLE_BITS - DEPOT_OFFSET_BITS - \
-			       STACK_DEPOT_EXTRA_BITS)
+#define DEPOT_POOL_INDEX_BITS (DEPOT_HANDLE_BITS - DEPOT_OFFSET_BITS   \
+  - STACK_DEPOT_EXTRA_BITS)
 
 #ifdef CONFIG_STACKDEPOT
 /* Compact structure that stores a reference to a stack. */
 union handle_parts {
-	depot_stack_handle_t handle;
-	struct {
-		/* pool_index is offset by 1 */
-		u32 pool_index	: DEPOT_POOL_INDEX_BITS;
-		u32 offset	: DEPOT_OFFSET_BITS;
-		u32 extra	: STACK_DEPOT_EXTRA_BITS;
-	};
+  depot_stack_handle_t handle;
+  struct {
+    /* pool_index is offset by 1 */
+    u32 pool_index  : DEPOT_POOL_INDEX_BITS;
+    u32 offset  : DEPOT_OFFSET_BITS;
+    u32 extra : STACK_DEPOT_EXTRA_BITS;
+  };
 };
 
 struct stack_record {
-	struct list_head hash_list;	/* Links in the hash table */
-	u32 hash;			/* Hash in hash table */
-	u32 size;			/* Number of stored frames */
-	union handle_parts handle;	/* Constant after initialization */
-	refcount_t count;
-	union {
-		unsigned long entries[CONFIG_STACKDEPOT_MAX_FRAMES];	/* Frames */
-		struct {
-			/*
-			 * An important invariant of the implementation is to
-			 * only place a stack record onto the freelist iff its
-			 * refcount is zero. Because stack records with a zero
-			 * refcount are never considered as valid, it is safe to
-			 * union @entries and freelist management state below.
-			 * Conversely, as soon as an entry is off the freelist
-			 * and its refcount becomes non-zero, the below must not
-			 * be accessed until being placed back on the freelist.
-			 */
-			struct list_head free_list;	/* Links in the freelist */
-			unsigned long rcu_state;	/* RCU cookie */
-		};
-	};
+  struct list_head hash_list; /* Links in the hash table */
+  u32 hash;     /* Hash in hash table */
+  u32 size;     /* Number of stored frames */
+  union handle_parts handle;  /* Constant after initialization */
+  refcount_t count;
+  union {
+    unsigned long entries[CONFIG_STACKDEPOT_MAX_FRAMES];  /* Frames */
+    struct {
+      /*
+       * An important invariant of the implementation is to
+       * only place a stack record onto the freelist iff its
+       * refcount is zero. Because stack records with a zero
+       * refcount are never considered as valid, it is safe to
+       * union @entries and freelist management state below.
+       * Conversely, as soon as an entry is off the freelist
+       * and its refcount becomes non-zero, the below must not
+       * be accessed until being placed back on the freelist.
+       */
+      struct list_head free_list; /* Links in the freelist */
+      unsigned long rcu_state;  /* RCU cookie */
+    };
+  };
 };
 #endif
 
@@ -83,11 +83,12 @@ typedef u32 depot_flags_t;
  * Flags that can be passed to stack_depot_save_flags(); see the comment next
  * to its declaration for more details.
  */
-#define STACK_DEPOT_FLAG_CAN_ALLOC	((depot_flags_t)0x0001)
-#define STACK_DEPOT_FLAG_GET		((depot_flags_t)0x0002)
+#define STACK_DEPOT_FLAG_CAN_ALLOC  ((depot_flags_t) 0x0001)
+#define STACK_DEPOT_FLAG_GET    ((depot_flags_t) 0x0002)
 
-#define STACK_DEPOT_FLAGS_NUM	2
-#define STACK_DEPOT_FLAGS_MASK	((depot_flags_t)((1 << STACK_DEPOT_FLAGS_NUM) - 1))
+#define STACK_DEPOT_FLAGS_NUM 2
+#define STACK_DEPOT_FLAGS_MASK  ((depot_flags_t) ((1 << \
+    STACK_DEPOT_FLAGS_NUM) - 1))
 
 /*
  * Using stack depot requires its initialization, which can be done in 3 ways:
@@ -118,20 +119,26 @@ void __init stack_depot_request_early_init(void);
 /* Must be only called from mm_init(). */
 int __init stack_depot_early_init(void);
 #else
-static inline int stack_depot_init(void) { return 0; }
+static inline int stack_depot_init(void) {
+  return 0;
+}
 
-static inline void stack_depot_request_early_init(void) { }
+static inline void stack_depot_request_early_init(void) {
+}
 
-static inline int stack_depot_early_init(void)	{ return 0; }
+static inline int stack_depot_early_init(void) {
+  return 0;
+}
+
 #endif
 
 /**
  * stack_depot_save_flags - Save a stack trace to stack depot
  *
- * @entries:		Pointer to the stack trace
- * @nr_entries:		Number of frames in the stack
- * @alloc_flags:	Allocation GFP flags
- * @depot_flags:	Stack depot flags
+ * @entries:    Pointer to the stack trace
+ * @nr_entries:   Number of frames in the stack
+ * @alloc_flags:  Allocation GFP flags
+ * @depot_flags:  Stack depot flags
  *
  * Saves a stack trace from @entries array of size @nr_entries.
  *
@@ -156,16 +163,16 @@ static inline int stack_depot_early_init(void)	{ return 0; }
  * Return: Handle of the stack struct stored in depot, 0 on failure
  */
 depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
-					    unsigned int nr_entries,
-					    gfp_t gfp_flags,
-					    depot_flags_t depot_flags);
+    unsigned int nr_entries,
+    gfp_t gfp_flags,
+    depot_flags_t depot_flags);
 
 /**
  * stack_depot_save - Save a stack trace to stack depot
  *
- * @entries:		Pointer to the stack trace
- * @nr_entries:		Number of frames in the stack
- * @alloc_flags:	Allocation GFP flags
+ * @entries:    Pointer to the stack trace
+ * @nr_entries:   Number of frames in the stack
+ * @alloc_flags:  Allocation GFP flags
  *
  * Does not increment the refcount on the saved stack trace; see
  * stack_depot_save_flags() for more details.
@@ -176,7 +183,7 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
  * Return: Handle of the stack trace stored in depot, 0 on failure
  */
 depot_stack_handle_t stack_depot_save(unsigned long *entries,
-				      unsigned int nr_entries, gfp_t gfp_flags);
+    unsigned int nr_entries, gfp_t gfp_flags);
 
 /**
  * __stack_depot_get_stack_record - Get a pointer to a stack_record struct
@@ -187,43 +194,44 @@ depot_stack_handle_t stack_depot_save(unsigned long *entries,
  *
  * Return: Returns a pointer to a stack_record struct
  */
-struct stack_record *__stack_depot_get_stack_record(depot_stack_handle_t handle);
+struct stack_record *__stack_depot_get_stack_record(
+  depot_stack_handle_t handle);
 
 /**
  * stack_depot_fetch - Fetch a stack trace from stack depot
  *
- * @handle:	Stack depot handle returned from stack_depot_save()
- * @entries:	Pointer to store the address of the stack trace
+ * @handle: Stack depot handle returned from stack_depot_save()
+ * @entries:  Pointer to store the address of the stack trace
  *
  * Return: Number of frames for the fetched stack
  */
 unsigned int stack_depot_fetch(depot_stack_handle_t handle,
-			       unsigned long **entries);
+    unsigned long **entries);
 
 /**
  * stack_depot_print - Print a stack trace from stack depot
  *
- * @stack:	Stack depot handle returned from stack_depot_save()
+ * @stack:  Stack depot handle returned from stack_depot_save()
  */
 void stack_depot_print(depot_stack_handle_t stack);
 
 /**
  * stack_depot_snprint - Print a stack trace from stack depot into a buffer
  *
- * @handle:	Stack depot handle returned from stack_depot_save()
- * @buf:	Pointer to the print buffer
- * @size:	Size of the print buffer
- * @spaces:	Number of leading spaces to print
+ * @handle: Stack depot handle returned from stack_depot_save()
+ * @buf:  Pointer to the print buffer
+ * @size: Size of the print buffer
+ * @spaces: Number of leading spaces to print
  *
- * Return:	Number of bytes printed
+ * Return:  Number of bytes printed
  */
 int stack_depot_snprint(depot_stack_handle_t handle, char *buf, size_t size,
-		       int spaces);
+    int spaces);
 
 /**
  * stack_depot_put - Drop a reference to a stack trace from stack depot
  *
- * @handle:	Stack depot handle returned from stack_depot_save()
+ * @handle: Stack depot handle returned from stack_depot_save()
  *
  * The stack trace is evicted from stack depot once all references to it have
  * been dropped (once the number of stack_depot_evict() calls matches the
@@ -235,8 +243,8 @@ void stack_depot_put(depot_stack_handle_t handle);
 /**
  * stack_depot_set_extra_bits - Set extra bits in a stack depot handle
  *
- * @handle:	Stack depot handle returned from stack_depot_save()
- * @extra_bits:	Value to set the extra bits
+ * @handle: Stack depot handle returned from stack_depot_save()
+ * @extra_bits: Value to set the extra bits
  *
  * Return: Stack depot handle with extra bits set
  *
@@ -244,12 +252,12 @@ void stack_depot_put(depot_stack_handle_t handle);
  * user-specific information. These bits are transparent to the stack depot.
  */
 depot_stack_handle_t __must_check stack_depot_set_extra_bits(
-			depot_stack_handle_t handle, unsigned int extra_bits);
+  depot_stack_handle_t handle, unsigned int extra_bits);
 
 /**
  * stack_depot_get_extra_bits - Retrieve extra bits from a stack depot handle
  *
- * @handle:	Stack depot handle with extra bits saved
+ * @handle: Stack depot handle with extra bits saved
  *
  * Return: Extra bits retrieved from the stack depot handle
  */

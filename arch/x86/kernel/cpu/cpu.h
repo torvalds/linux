@@ -9,52 +9,52 @@
 
 /* attempt to consolidate cpu attributes */
 struct cpu_dev {
-	const char	*c_vendor;
+  const char *c_vendor;
 
-	/* some have two possibilities for cpuid string */
-	const char	*c_ident[2];
+  /* some have two possibilities for cpuid string */
+  const char *c_ident[2];
 
-	void            (*c_early_init)(struct cpuinfo_x86 *);
-	void		(*c_bsp_init)(struct cpuinfo_x86 *);
-	void		(*c_init)(struct cpuinfo_x86 *);
-	void		(*c_identify)(struct cpuinfo_x86 *);
-	void		(*c_detect_tlb)(struct cpuinfo_x86 *);
-	int		c_x86_vendor;
+  void (*c_early_init)(struct cpuinfo_x86 *);
+  void (*c_bsp_init)(struct cpuinfo_x86 *);
+  void (*c_init)(struct cpuinfo_x86 *);
+  void (*c_identify)(struct cpuinfo_x86 *);
+  void (*c_detect_tlb)(struct cpuinfo_x86 *);
+  int c_x86_vendor;
 #ifdef CONFIG_X86_32
-	/* Optional vendor specific routine to obtain the cache size. */
-	unsigned int	(*legacy_cache_size)(struct cpuinfo_x86 *,
-					     unsigned int);
+  /* Optional vendor specific routine to obtain the cache size. */
+  unsigned int (*legacy_cache_size)(struct cpuinfo_x86 *,
+      unsigned int);
 
-	/* Family/stepping-based lookup table for model names. */
-	struct legacy_cpu_model_info {
-		int		family;
-		const char	*model_names[16];
-	}		legacy_models[5];
+  /* Family/stepping-based lookup table for model names. */
+  struct legacy_cpu_model_info {
+    int family;
+    const char *model_names[16];
+  }   legacy_models[5];
 #endif
 };
 
 struct _tlb_table {
-	unsigned char descriptor;
-	char tlb_type;
-	unsigned int entries;
-	/* unsigned int ways; */
-	char info[128];
+  unsigned char descriptor;
+  char tlb_type;
+  unsigned int entries;
+  /* unsigned int ways; */
+  char info[128];
 };
 
 #define cpu_dev_register(cpu_devX) \
-	static const struct cpu_dev *const __cpu_dev_##cpu_devX __used \
-	__section(".x86_cpu_dev.init") = \
-	&cpu_devX;
+  static const struct cpu_dev * const __cpu_dev_ ## cpu_devX __used \
+  __section(".x86_cpu_dev.init")   \
+    = &cpu_devX;
 
-extern const struct cpu_dev *const __x86_cpu_dev_start[],
-			    *const __x86_cpu_dev_end[];
+extern const struct cpu_dev * const __x86_cpu_dev_start[],
+* const __x86_cpu_dev_end[];
 
 #ifdef CONFIG_CPU_SUP_INTEL
 enum tsx_ctrl_states {
-	TSX_CTRL_ENABLE,
-	TSX_CTRL_DISABLE,
-	TSX_CTRL_RTM_ALWAYS_ABORT,
-	TSX_CTRL_NOT_SUPPORTED,
+  TSX_CTRL_ENABLE,
+  TSX_CTRL_DISABLE,
+  TSX_CTRL_RTM_ALWAYS_ABORT,
+  TSX_CTRL_NOT_SUPPORTED,
 };
 
 extern __ro_after_init enum tsx_ctrl_states tsx_ctrl_state;
@@ -62,8 +62,12 @@ extern __ro_after_init enum tsx_ctrl_states tsx_ctrl_state;
 extern void __init tsx_init(void);
 void tsx_ap_init(void);
 #else
-static inline void tsx_init(void) { }
-static inline void tsx_ap_init(void) { }
+static inline void tsx_init(void) {
+}
+
+static inline void tsx_ap_init(void) {
+}
+
 #endif /* CONFIG_CPU_SUP_INTEL */
 
 extern void init_spectral_chicken(struct cpuinfo_x86 *c);
@@ -90,11 +94,10 @@ extern void update_gds_msr(void);
 
 extern enum spectre_v2_mitigation spectre_v2_enabled;
 
-static inline bool spectre_v2_in_eibrs_mode(enum spectre_v2_mitigation mode)
-{
-	return mode == SPECTRE_V2_EIBRS ||
-	       mode == SPECTRE_V2_EIBRS_RETPOLINE ||
-	       mode == SPECTRE_V2_EIBRS_LFENCE;
+static inline bool spectre_v2_in_eibrs_mode(enum spectre_v2_mitigation mode) {
+  return mode == SPECTRE_V2_EIBRS
+    || mode == SPECTRE_V2_EIBRS_RETPOLINE
+    || mode == SPECTRE_V2_EIBRS_LFENCE;
 }
 
 #endif /* ARCH_X86_CPU_H */

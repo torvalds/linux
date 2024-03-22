@@ -31,7 +31,7 @@
 
 struct dc_plane_state *dc_create_plane_state(struct dc *dc);
 const struct dc_plane_status *dc_plane_get_status(
-		const struct dc_plane_state *plane_state);
+  const struct dc_plane_state *plane_state);
 void dc_plane_state_retain(struct dc_plane_state *plane_state);
 void dc_plane_state_release(struct dc_plane_state *plane_state);
 

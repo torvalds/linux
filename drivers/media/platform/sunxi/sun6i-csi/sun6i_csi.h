@@ -15,49 +15,49 @@
 #include "sun6i_csi_bridge.h"
 #include "sun6i_csi_capture.h"
 
-#define SUN6I_CSI_NAME		"sun6i-csi"
-#define SUN6I_CSI_DESCRIPTION	"Allwinner A31 CSI Device"
+#define SUN6I_CSI_NAME    "sun6i-csi"
+#define SUN6I_CSI_DESCRIPTION "Allwinner A31 CSI Device"
 
 enum sun6i_csi_port {
-	SUN6I_CSI_PORT_PARALLEL		= 0,
-	SUN6I_CSI_PORT_MIPI_CSI2	= 1,
-	SUN6I_CSI_PORT_ISP		= 2,
+  SUN6I_CSI_PORT_PARALLEL = 0,
+  SUN6I_CSI_PORT_MIPI_CSI2 = 1,
+  SUN6I_CSI_PORT_ISP = 2,
 };
 
 struct sun6i_csi_buffer {
-	struct vb2_v4l2_buffer		v4l2_buffer;
-	struct list_head		list;
+  struct vb2_v4l2_buffer v4l2_buffer;
+  struct list_head list;
 };
 
 struct sun6i_csi_v4l2 {
-	struct v4l2_device		v4l2_dev;
-	struct media_device		media_dev;
+  struct v4l2_device v4l2_dev;
+  struct media_device media_dev;
 };
 
 struct sun6i_csi_device {
-	struct device			*dev;
-	struct v4l2_device		*v4l2_dev;
-	struct media_device		*media_dev;
+  struct device *dev;
+  struct v4l2_device *v4l2_dev;
+  struct media_device *media_dev;
 
-	struct sun6i_csi_v4l2		v4l2;
-	struct sun6i_csi_bridge		bridge;
-	struct sun6i_csi_capture	capture;
+  struct sun6i_csi_v4l2 v4l2;
+  struct sun6i_csi_bridge bridge;
+  struct sun6i_csi_capture capture;
 
-	struct regmap			*regmap;
-	struct clk			*clock_mod;
-	struct clk			*clock_ram;
-	struct reset_control		*reset;
+  struct regmap *regmap;
+  struct clk *clock_mod;
+  struct clk *clock_ram;
+  struct reset_control *reset;
 
-	bool				isp_available;
+  bool isp_available;
 };
 
 struct sun6i_csi_variant {
-	unsigned long	clock_mod_rate;
+  unsigned long clock_mod_rate;
 };
 
 /* ISP */
 
 int sun6i_csi_isp_complete(struct sun6i_csi_device *csi_dev,
-			   struct v4l2_device *v4l2_dev);
+    struct v4l2_device *v4l2_dev);
 
 #endif

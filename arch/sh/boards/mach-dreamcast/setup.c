@@ -10,8 +10,8 @@
  * This file is part of the LinuxDC project (www.linuxdc.org)
  *
  * This file originally bore the message (with enclosed-$):
- *	Id: setup_dc.c,v 1.5 2001/05/24 05:09:16 mrbrown Exp
- *	SEGA Dreamcast support
+ *  Id: setup_dc.c,v 1.5 2001/05/24 05:09:16 mrbrown Exp
+ *  SEGA Dreamcast support
  */
 
 #include <linux/sched.h>
@@ -27,13 +27,12 @@
 #include <asm/machvec.h>
 #include <mach/sysasic.h>
 
-static void __init dreamcast_setup(char **cmdline_p)
-{
+static void __init dreamcast_setup(char **cmdline_p) {
 }
 
 static struct sh_machine_vector mv_dreamcast __initmv = {
-	.mv_name		= "Sega Dreamcast",
-	.mv_setup		= dreamcast_setup,
-	.mv_irq_demux		= systemasic_irq_demux,
-	.mv_init_irq		= systemasic_irq_init,
+  .mv_name = "Sega Dreamcast",
+  .mv_setup = dreamcast_setup,
+  .mv_irq_demux = systemasic_irq_demux,
+  .mv_init_irq = systemasic_irq_init,
 };

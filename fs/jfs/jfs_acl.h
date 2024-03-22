@@ -9,16 +9,15 @@
 
 struct posix_acl *jfs_get_acl(struct inode *inode, int type, bool rcu);
 int jfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct posix_acl *acl, int type);
+    struct posix_acl *acl, int type);
 int jfs_init_acl(tid_t, struct inode *, struct inode *);
 
 #else
 
 static inline int jfs_init_acl(tid_t tid, struct inode *inode,
-			       struct inode *dir)
-{
-	return 0;
+    struct inode *dir) {
+  return 0;
 }
 
 #endif
-#endif		/* _H_JFS_ACL */
+#endif    /* _H_JFS_ACL */

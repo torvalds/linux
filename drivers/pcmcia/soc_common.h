@@ -22,42 +22,42 @@ struct pcmcia_low_level;
 struct regulator;
 
 struct skt_dev_info {
-	int nskt;
-	struct soc_pcmcia_socket skt[];
+  int nskt;
+  struct soc_pcmcia_socket skt[];
 };
 
 struct soc_pcmcia_timing {
-	unsigned short io;
-	unsigned short mem;
-	unsigned short attr;
+  unsigned short io;
+  unsigned short mem;
+  unsigned short attr;
 };
 
-extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *, struct soc_pcmcia_timing *);
+extern void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *,
+    struct soc_pcmcia_timing *);
 
 void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
-	const struct pcmcia_low_level *ops, struct device *dev);
+    const struct pcmcia_low_level *ops, struct device *dev);
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt);
 int soc_pcmcia_request_gpiods(struct soc_pcmcia_socket *skt);
 
 void soc_common_cf_socket_state(struct soc_pcmcia_socket *skt,
-	struct pcmcia_state *state);
+    struct pcmcia_state *state);
 
 int soc_pcmcia_regulator_set(struct soc_pcmcia_socket *skt,
-	struct soc_pcmcia_regulator *r, int v);
+    struct soc_pcmcia_regulator *r, int v);
 
 #ifdef CONFIG_PCMCIA_DEBUG
 
 extern void soc_pcmcia_debug(struct soc_pcmcia_socket *skt, const char *func,
-			     int lvl, const char *fmt, ...);
+    int lvl, const char *fmt, ...);
 
-#define debug(skt, lvl, fmt, arg...) \
-	soc_pcmcia_debug(skt, __func__, lvl, fmt , ## arg)
+#define debug(skt, lvl, fmt, arg ...) \
+  soc_pcmcia_debug(skt, __func__, lvl, fmt, ## arg)
 
 #else
-#define debug(skt, lvl, fmt, arg...) do { } while (0)
+#define debug(skt, lvl, fmt, arg ...) do {} while (0)
 #endif
-
 
 /*
  * The PC Card Standard, Release 7, section 4.13.4, says that twIORD
@@ -76,17 +76,16 @@ extern void soc_pcmcia_debug(struct soc_pcmcia_socket *skt, const char *func,
  * and memory command width time is 150ns; the PCMCIA 3.3V attribute and
  * memory command width time is 300ns.
  */
-#define SOC_PCMCIA_IO_ACCESS		(165)
-#define SOC_PCMCIA_5V_MEM_ACCESS	(150)
-#define SOC_PCMCIA_3V_MEM_ACCESS	(300)
-#define SOC_PCMCIA_ATTR_MEM_ACCESS	(300)
+#define SOC_PCMCIA_IO_ACCESS    (165)
+#define SOC_PCMCIA_5V_MEM_ACCESS  (150)
+#define SOC_PCMCIA_3V_MEM_ACCESS  (300)
+#define SOC_PCMCIA_ATTR_MEM_ACCESS  (300)
 
 /*
  * The socket driver actually works nicely in interrupt-driven form,
  * so the (relatively infrequent) polling is "just to be sure."
  */
-#define SOC_PCMCIA_POLL_PERIOD    (2*HZ)
-
+#define SOC_PCMCIA_POLL_PERIOD    (2 * HZ)
 
 /* I/O pins replacing memory pins
  * (PCMCIA System Architecture, 2nd ed., by Don Anderson, p.75)

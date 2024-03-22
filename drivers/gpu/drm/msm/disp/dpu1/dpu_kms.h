@@ -31,94 +31,95 @@
  * @fmt: Pointer to format string
  */
 #define DPU_DEBUG(fmt, ...)                                                \
-	do {                                                               \
-		if (drm_debug_enabled(DRM_UT_KMS))                         \
-			DRM_DEBUG(fmt, ##__VA_ARGS__); \
-		else                                                       \
-			pr_debug(fmt, ##__VA_ARGS__);                      \
-	} while (0)
+  do {                                                               \
+    if (drm_debug_enabled(DRM_UT_KMS))                         \
+    DRM_DEBUG(fmt, ## __VA_ARGS__); \
+    else                                                       \
+    pr_debug(fmt, ## __VA_ARGS__);                      \
+  } while (0)
 
 /**
  * DPU_DEBUG_DRIVER - macro for hardware driver logging
  * @fmt: Pointer to format string
  */
 #define DPU_DEBUG_DRIVER(fmt, ...)                                         \
-	do {                                                               \
-		if (drm_debug_enabled(DRM_UT_DRIVER))                      \
-			DRM_ERROR(fmt, ##__VA_ARGS__); \
-		else                                                       \
-			pr_debug(fmt, ##__VA_ARGS__);                      \
-	} while (0)
+  do {                                                               \
+    if (drm_debug_enabled(DRM_UT_DRIVER))                      \
+    DRM_ERROR(fmt, ## __VA_ARGS__); \
+    else                                                       \
+    pr_debug(fmt, ## __VA_ARGS__);                      \
+  } while (0)
 
-#define DPU_ERROR(fmt, ...) pr_err("[dpu error]" fmt, ##__VA_ARGS__)
-#define DPU_ERROR_RATELIMITED(fmt, ...) pr_err_ratelimited("[dpu error]" fmt, ##__VA_ARGS__)
+#define DPU_ERROR(fmt, ...) pr_err("[dpu error]" fmt, ## __VA_ARGS__)
+#define DPU_ERROR_RATELIMITED(fmt, ...) pr_err_ratelimited("[dpu error]" fmt, \
+    ## __VA_ARGS__)
 
 /**
  * ktime_compare_safe - compare two ktime structures
- *	This macro is similar to the standard ktime_compare() function, but
- *	attempts to also handle ktime overflows.
+ *  This macro is similar to the standard ktime_compare() function, but
+ *  attempts to also handle ktime overflows.
  * @A: First ktime value
  * @B: Second ktime value
  * Returns: -1 if A < B, 0 if A == B, 1 if A > B
  */
 #define ktime_compare_safe(A, B) \
-	ktime_compare(ktime_sub((A), (B)), ktime_set(0, 0))
+  ktime_compare(ktime_sub((A), (B)), ktime_set(0, 0))
 
 struct dpu_kms {
-	struct msm_kms base;
-	struct drm_device *dev;
-	const struct dpu_mdss_cfg *catalog;
-	const struct msm_mdss_data *mdss;
+  struct msm_kms base;
+  struct drm_device *dev;
+  const struct dpu_mdss_cfg *catalog;
+  const struct msm_mdss_data *mdss;
 
-	/* io/register spaces: */
-	void __iomem *mmio, *vbif[VBIF_MAX];
+  /* io/register spaces: */
+  void __iomem *mmio, *vbif[VBIF_MAX];
 
-	struct regulator *vdd;
-	struct regulator *mmagic;
-	struct regulator *venus;
+  struct regulator *vdd;
+  struct regulator *mmagic;
+  struct regulator *venus;
 
-	struct dpu_hw_intr *hw_intr;
+  struct dpu_hw_intr *hw_intr;
 
-	struct dpu_core_perf perf;
+  struct dpu_core_perf perf;
 
-	/*
-	 * Global private object state, Do not access directly, use
-	 * dpu_kms_global_get_state()
-	 */
-	struct drm_private_obj global_state;
+  /*
+   * Global private object state, Do not access directly, use
+   * dpu_kms_global_get_state()
+   */
+  struct drm_private_obj global_state;
 
-	struct dpu_rm rm;
+  struct dpu_rm rm;
 
-	struct dpu_hw_vbif *hw_vbif[VBIF_MAX];
-	struct dpu_hw_mdp *hw_mdp;
+  struct dpu_hw_vbif *hw_vbif[VBIF_MAX];
+  struct dpu_hw_mdp *hw_mdp;
 
-	bool has_danger_ctrl;
+  bool has_danger_ctrl;
 
-	struct platform_device *pdev;
-	bool rpm_enabled;
+  struct platform_device *pdev;
+  bool rpm_enabled;
 
-	struct clk_bulk_data *clocks;
-	size_t num_clocks;
+  struct clk_bulk_data *clocks;
+  size_t num_clocks;
 
-	/* reference count bandwidth requests, so we know when we can
-	 * release bandwidth.  Each atomic update increments, and frame-
-	 * done event decrements.  Additionally, for video mode, the
-	 * reference is incremented when crtc is enabled, and decremented
-	 * when disabled.
-	 */
-	atomic_t bandwidth_ref;
-	struct icc_path *path[2];
-	u32 num_paths;
+  /* reference count bandwidth requests, so we know when we can
+   * release bandwidth.  Each atomic update increments, and frame-
+   * done event decrements.  Additionally, for video mode, the
+   * reference is incremented when crtc is enabled, and decremented
+   * when disabled.
+   */
+  atomic_t bandwidth_ref;
+  struct icc_path *path[2];
+  u32 num_paths;
 };
 
 struct vsync_info {
-	u32 frame_count;
-	u32 line_count;
+  u32 frame_count;
+  u32 line_count;
 };
 
 #define DPU_ENC_WR_PTR_START_TIMEOUT_US 20000
 
-#define DPU_ENC_MAX_POLL_TIMEOUT_US	2000
+#define DPU_ENC_MAX_POLL_TIMEOUT_US 2000
 
 #define to_dpu_kms(x) container_of(x, struct dpu_kms, base)
 
@@ -128,20 +129,20 @@ struct vsync_info {
  * multiple kms objects (planes/crtcs/etc).
  */
 struct dpu_global_state {
-	struct drm_private_state base;
+  struct drm_private_state base;
 
-	uint32_t pingpong_to_enc_id[PINGPONG_MAX - PINGPONG_0];
-	uint32_t mixer_to_enc_id[LM_MAX - LM_0];
-	uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
-	uint32_t dspp_to_enc_id[DSPP_MAX - DSPP_0];
-	uint32_t dsc_to_enc_id[DSC_MAX - DSC_0];
-	uint32_t cdm_to_enc_id;
+  uint32_t pingpong_to_enc_id[PINGPONG_MAX - PINGPONG_0];
+  uint32_t mixer_to_enc_id[LM_MAX - LM_0];
+  uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
+  uint32_t dspp_to_enc_id[DSPP_MAX - DSPP_0];
+  uint32_t dsc_to_enc_id[DSC_MAX - DSC_0];
+  uint32_t cdm_to_enc_id;
 };
 
 struct dpu_global_state
-	*dpu_kms_get_existing_global_state(struct dpu_kms *dpu_kms);
+*dpu_kms_get_existing_global_state(struct dpu_kms *dpu_kms);
 struct dpu_global_state
-	*__must_check dpu_kms_get_global_state(struct drm_atomic_state *s);
+*__must_check dpu_kms_get_global_state(struct drm_atomic_state *s);
 
 /**
  * Debugfs functions - extra helper functions for debugfs support
@@ -169,8 +170,8 @@ struct dpu_global_state
  * @dpu_kms: pointer to dpu kms structure
  */
 void dpu_debugfs_create_regset32(const char *name, umode_t mode,
-		void *parent,
-		uint32_t offset, uint32_t length, struct dpu_kms *dpu_kms);
+    void *parent,
+    uint32_t offset, uint32_t length, struct dpu_kms *dpu_kms);
 
 /**
  * dpu_debugfs_get_root - Return root directory entry for KMS's debugfs
@@ -189,7 +190,7 @@ void *dpu_debugfs_get_root(struct dpu_kms *dpu_kms);
  * These functions/definitions allow for building up a 'dpu_info' structure
  * containing one or more "key=value\n" entries.
  */
-#define DPU_KMS_INFO_MAX_SIZE	4096
+#define DPU_KMS_INFO_MAX_SIZE 4096
 
 /**
  * Vblank enable/disable functions

@@ -23,23 +23,23 @@
  * Some devices have misconfigured clock divider due to a firmware bug.
  * Set this to force the clock divider to 1:1 ratio.
  */
-#define QUIRK_CLOCK_DIVIDER_UNITY		BIT(1)
+#define QUIRK_CLOCK_DIVIDER_UNITY   BIT(1)
 
 struct device;
 struct resource;
 struct software_node;
 
 struct intel_lpss_platform_info {
-	struct resource *mem;
-	int irq;
-	unsigned int quirks;
-	unsigned long clk_rate;
-	const char *clk_con_id;
-	const struct software_node *swnode;
+  struct resource *mem;
+  int irq;
+  unsigned int quirks;
+  unsigned long clk_rate;
+  const char *clk_con_id;
+  const struct software_node *swnode;
 };
 
 int intel_lpss_probe(struct device *dev,
-		     const struct intel_lpss_platform_info *info);
+    const struct intel_lpss_platform_info *info);
 void intel_lpss_remove(struct device *dev);
 
 extern const struct dev_pm_ops intel_lpss_pm_ops;

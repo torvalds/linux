@@ -22,22 +22,21 @@
 #include "common.h"
 #include "sh73a0.h"
 
-static void __init sh73a0_generic_init(void)
-{
+static void __init sh73a0_generic_init(void) {
 #ifdef CONFIG_CACHE_L2X0
-	/* Shared attribute override enable, 64K*8way */
-	l2x0_init(ioremap(0xf0100000, PAGE_SIZE), 0x00400000, 0xc20f0fff);
+  /* Shared attribute override enable, 64K*8way */
+  l2x0_init(ioremap(0xf0100000, PAGE_SIZE), 0x00400000, 0xc20f0fff);
 #endif
 }
 
-static const char *const sh73a0_boards_compat_dt[] __initconst = {
-	"renesas,sh73a0",
-	NULL
+static const char * const sh73a0_boards_compat_dt[] __initconst = {
+  "renesas,sh73a0",
+  NULL
 };
 
 DT_MACHINE_START(SH73A0_DT, "Generic SH73A0 (Flattened Device Tree)")
-	.smp		= smp_ops(sh73a0_smp_ops),
-	.init_machine	= sh73a0_generic_init,
-	.init_late	= shmobile_init_late,
-	.dt_compat	= sh73a0_boards_compat_dt,
+.smp = smp_ops(sh73a0_smp_ops),
+.init_machine = sh73a0_generic_init,
+.init_late = shmobile_init_late,
+.dt_compat = sh73a0_boards_compat_dt,
 MACHINE_END

@@ -2,7 +2,8 @@
 /*
  * vivid-kthread-cap.h - video/vbi capture thread support functions.
  *
- * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
+ * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights
+ *reserved.
  */
 
 #ifndef _VIVID_KTHREAD_CAP_H_

@@ -8,7 +8,7 @@
 #define _NET_BATMAN_ADV_MAIN_H_
 
 #define BATADV_DRIVER_AUTHOR "Marek Lindner <mareklindner@neomailbox.ch>, " \
-			     "Simon Wunderlich <sw@simonwunderlich.de>"
+  "Simon Wunderlich <sw@simonwunderlich.de>"
 #define BATADV_DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
@@ -79,11 +79,11 @@
  * used for communication which originated locally (i.e. is not forwarded)
  * or where special forwarding is not desired/necessary.
  */
-#define BATADV_IF_DEFAULT	((struct batadv_hard_iface *)NULL)
+#define BATADV_IF_DEFAULT ((struct batadv_hard_iface *) NULL)
 
 #define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 
-#define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
+#define BATADV_LOG_BUF_LEN 8192   /* has to be a power of 2 */
 
 /* number of packets to send for broadcasts on different interface types */
 #define BATADV_NUM_BCASTS_DEFAULT 1
@@ -108,18 +108,18 @@
 #define BATADV_MAX_AGGREGATION_BYTES 512
 #define BATADV_MAX_AGGREGATION_MS 100
 
-#define BATADV_BLA_PERIOD_LENGTH	10000	/* 10 seconds */
-#define BATADV_BLA_BACKBONE_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 6)
-#define BATADV_BLA_CLAIM_TIMEOUT	(BATADV_BLA_PERIOD_LENGTH * 10)
-#define BATADV_BLA_WAIT_PERIODS		3
-#define BATADV_BLA_LOOPDETECT_PERIODS	6
-#define BATADV_BLA_LOOPDETECT_TIMEOUT	3000	/* 3 seconds */
+#define BATADV_BLA_PERIOD_LENGTH  10000 /* 10 seconds */
+#define BATADV_BLA_BACKBONE_TIMEOUT (BATADV_BLA_PERIOD_LENGTH * 6)
+#define BATADV_BLA_CLAIM_TIMEOUT  (BATADV_BLA_PERIOD_LENGTH * 10)
+#define BATADV_BLA_WAIT_PERIODS   3
+#define BATADV_BLA_LOOPDETECT_PERIODS 6
+#define BATADV_BLA_LOOPDETECT_TIMEOUT 3000  /* 3 seconds */
 
-#define BATADV_DUPLIST_SIZE		16
-#define BATADV_DUPLIST_TIMEOUT		500	/* 500 ms */
+#define BATADV_DUPLIST_SIZE   16
+#define BATADV_DUPLIST_TIMEOUT    500 /* 500 ms */
 /* don't reset again within 30 seconds */
 #define BATADV_RESET_PROTECTION_MS 30000
-#define BATADV_EXPECTED_SEQNO_RANGE	65536
+#define BATADV_EXPECTED_SEQNO_RANGE 65536
 
 #define BATADV_NC_NODE_TIMEOUT 10000 /* Milliseconds */
 
@@ -132,56 +132,56 @@
  * enum batadv_mesh_state - State of a soft interface
  */
 enum batadv_mesh_state {
-	/** @BATADV_MESH_INACTIVE: soft interface is not yet running */
-	BATADV_MESH_INACTIVE,
+  /** @BATADV_MESH_INACTIVE: soft interface is not yet running */
+  BATADV_MESH_INACTIVE,
 
-	/** @BATADV_MESH_ACTIVE: interface is up and running */
-	BATADV_MESH_ACTIVE,
+  /** @BATADV_MESH_ACTIVE: interface is up and running */
+  BATADV_MESH_ACTIVE,
 
-	/** @BATADV_MESH_DEACTIVATING: interface is getting shut down */
-	BATADV_MESH_DEACTIVATING,
+  /** @BATADV_MESH_DEACTIVATING: interface is getting shut down */
+  BATADV_MESH_DEACTIVATING,
 };
 
-#define BATADV_BCAST_QUEUE_LEN		256
-#define BATADV_BATMAN_QUEUE_LEN	256
+#define BATADV_BCAST_QUEUE_LEN    256
+#define BATADV_BATMAN_QUEUE_LEN 256
 
 /**
  * enum batadv_uev_action - action type of uevent
  */
 enum batadv_uev_action {
-	/** @BATADV_UEV_ADD: gateway was selected (after none was selected) */
-	BATADV_UEV_ADD = 0,
+  /** @BATADV_UEV_ADD: gateway was selected (after none was selected) */
+  BATADV_UEV_ADD = 0,
 
-	/**
-	 * @BATADV_UEV_DEL: selected gateway was removed and none is selected
-	 * anymore
-	 */
-	BATADV_UEV_DEL,
+  /**
+   * @BATADV_UEV_DEL: selected gateway was removed and none is selected
+   * anymore
+   */
+  BATADV_UEV_DEL,
 
-	/**
-	 * @BATADV_UEV_CHANGE: a different gateway was selected as based gateway
-	 */
-	BATADV_UEV_CHANGE,
+  /**
+   * @BATADV_UEV_CHANGE: a different gateway was selected as based gateway
+   */
+  BATADV_UEV_CHANGE,
 
-	/**
-	 * @BATADV_UEV_LOOPDETECT: loop was detected which cannot be handled by
-	 * bridge loop avoidance
-	 */
-	BATADV_UEV_LOOPDETECT,
+  /**
+   * @BATADV_UEV_LOOPDETECT: loop was detected which cannot be handled by
+   * bridge loop avoidance
+   */
+  BATADV_UEV_LOOPDETECT,
 };
 
 /**
  * enum batadv_uev_type - Type of uevent
  */
 enum batadv_uev_type {
-	/** @BATADV_UEV_GW: selected gateway was modified */
-	BATADV_UEV_GW = 0,
+  /** @BATADV_UEV_GW: selected gateway was modified */
+  BATADV_UEV_GW = 0,
 
-	/** @BATADV_UEV_BLA: bridge loop avoidance event */
-	BATADV_UEV_BLA,
+  /** @BATADV_UEV_BLA: bridge loop avoidance event */
+  BATADV_UEV_BLA,
 };
 
-#define BATADV_GW_THRESHOLD	50
+#define BATADV_GW_THRESHOLD 50
 
 /* Number of fragment chains for each orig_node */
 #define BATADV_FRAG_BUFFER_COUNT 8
@@ -192,8 +192,8 @@ enum batadv_uev_type {
 /* Time to keep fragments while waiting for rest of the fragments */
 #define BATADV_FRAG_TIMEOUT 10000
 
-#define BATADV_DAT_CANDIDATE_NOT_FOUND	0
-#define BATADV_DAT_CANDIDATE_ORIG	1
+#define BATADV_DAT_CANDIDATE_NOT_FOUND  0
+#define BATADV_DAT_CANDIDATE_ORIG 1
 
 /* Debug Messages */
 #ifdef pr_fmt
@@ -224,12 +224,12 @@ enum batadv_uev_type {
  *
  * Return: -1 when no VLAN is used, VLAN id otherwise
  */
-static inline int batadv_print_vid(unsigned short vid)
-{
-	if (vid & BATADV_VLAN_HAS_TAG)
-		return (int)(vid & VLAN_VID_MASK);
-	else
-		return -1;
+static inline int batadv_print_vid(unsigned short vid) {
+  if (vid & BATADV_VLAN_HAS_TAG) {
+    return (int) (vid & VLAN_VID_MASK);
+  } else {
+    return -1;
+  }
 }
 
 extern struct list_head batadv_hardif_list;
@@ -244,12 +244,11 @@ bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr);
 int batadv_max_header_len(void);
 void batadv_skb_set_priority(struct sk_buff *skb, int offset);
 int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
-			   struct packet_type *ptype,
-			   struct net_device *orig_dev);
-int
-batadv_recv_handler_register(u8 packet_type,
-			     int (*recv_handler)(struct sk_buff *,
-						 struct batadv_hard_iface *));
+    struct packet_type *ptype,
+    struct net_device *orig_dev);
+int batadv_recv_handler_register(u8 packet_type,
+    int (*recv_handler)(struct sk_buff *,
+    struct batadv_hard_iface *));
 void batadv_recv_handler_unregister(u8 packet_type);
 __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
 
@@ -262,23 +261,21 @@ __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
  *
  * Return: true if they are the same ethernet addr
  */
-static inline bool batadv_compare_eth(const void *data1, const void *data2)
-{
-	return ether_addr_equal_unaligned(data1, data2);
+static inline bool batadv_compare_eth(const void *data1, const void *data2) {
+  return ether_addr_equal_unaligned(data1, data2);
 }
 
 /**
  * batadv_has_timed_out() - compares current time (jiffies) and timestamp +
  *  timeout
- * @timestamp:		base value to compare with (in jiffies)
- * @timeout:		added to base value before comparing (in milliseconds)
+ * @timestamp:    base value to compare with (in jiffies)
+ * @timeout:    added to base value before comparing (in milliseconds)
  *
  * Return: true if current time is after timestamp + timeout
  */
 static inline bool batadv_has_timed_out(unsigned long timestamp,
-					unsigned int timeout)
-{
-	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
+    unsigned int timeout) {
+  return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
 }
 
 /**
@@ -287,7 +284,7 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  *
  * Return: non-zero if v was not 0, and zero otherwise.
  */
-#define batadv_atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
+#define batadv_atomic_dec_not_zero(v) atomic_add_unless((v), -1, 0)
 
 /**
  * batadv_smallest_signed_int() - Returns the smallest signed integer in two's
@@ -317,12 +314,12 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  * Return: true when x is a predecessor of y, false otherwise
  */
 #define batadv_seq_before(x, y) ({ \
-	typeof(x)_d1 = (x); \
-	typeof(y)_d2 = (y); \
-	typeof(x)_dummy = (_d1 - _d2); \
-	(void)(&_d1 == &_d2); \
-	_dummy > batadv_smallest_signed_int(_dummy); \
-})
+    typeof(x) _d1 = (x); \
+    typeof(y) _d2 = (y); \
+    typeof(x) _dummy = (_d1 - _d2); \
+    (void) (&_d1 == &_d2); \
+    _dummy > batadv_smallest_signed_int(_dummy); \
+  })
 
 /**
  * batadv_seq_after() - Checks if a sequence number x is a successor of y
@@ -353,9 +350,8 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
  * Stop preemption on local cpu while incrementing the counter
  */
 static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
-				      size_t count)
-{
-	this_cpu_add(bat_priv->bat_counters[idx], count);
+    size_t count) {
+  this_cpu_add(bat_priv->bat_counters[idx], count);
 }
 
 /**
@@ -374,11 +370,11 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
  *
  * Return: pointer to the batadv_skb_cb of the skb
  */
-#define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
+#define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *) &((__skb)->cb[0]))
 
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
 bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
 int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
-			enum batadv_uev_action action, const char *data);
+    enum batadv_uev_action action, const char *data);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

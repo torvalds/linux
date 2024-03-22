@@ -16,7 +16,7 @@
  * assign it to the location counter.
  */
 
-#define PAGE_OFFSET			_AC(0xc0000000, UL)
+#define PAGE_OFFSET     _AC(0xc0000000, UL)
 
 /*
  * Compiling for a platform that needs a crazy physical offset
@@ -26,29 +26,29 @@
 
 #ifdef CONFIG_HEXAGON_PHYS_OFFSET
 #ifndef __ASSEMBLY__
-extern unsigned long	__phys_offset;
+extern unsigned long __phys_offset;
 #endif
-#define PHYS_OFFSET	__phys_offset
+#define PHYS_OFFSET __phys_offset
 #endif
 
 #ifndef PHYS_OFFSET
-#define PHYS_OFFSET	0
+#define PHYS_OFFSET 0
 #endif
 
-#define PHYS_PFN_OFFSET	(PHYS_OFFSET >> PAGE_SHIFT)
-#define ARCH_PFN_OFFSET	PHYS_PFN_OFFSET
+#define PHYS_PFN_OFFSET (PHYS_OFFSET >> PAGE_SHIFT)
+#define ARCH_PFN_OFFSET PHYS_PFN_OFFSET
 
-#define TASK_SIZE			(PAGE_OFFSET)
+#define TASK_SIZE     (PAGE_OFFSET)
 
 /*  not sure how these are used yet  */
-#define STACK_TOP			TASK_SIZE
-#define STACK_TOP_MAX			TASK_SIZE
+#define STACK_TOP     TASK_SIZE
+#define STACK_TOP_MAX     TASK_SIZE
 
 #ifndef __ASSEMBLY__
 enum fixed_addresses {
-	FIX_KMAP_BEGIN,
-	FIX_KMAP_END,  /*  check for per-cpuism  */
-	__end_of_fixed_addresses
+  FIX_KMAP_BEGIN,
+  FIX_KMAP_END,  /*  check for per-cpuism  */
+  __end_of_fixed_addresses
 };
 
 #define MIN_KERNEL_SEG (PAGE_OFFSET >> PGDIR_SHIFT)   /* L1 shift is 22 bits */
@@ -81,10 +81,10 @@ extern int max_kernel_seg;
  * high-memory page frames into the kernel address space.
  */
 
-#define LAST_PKMAP	PTRS_PER_PTE
-#define LAST_PKMAP_MASK	(LAST_PKMAP - 1)
-#define PKMAP_NR(virt)	((virt - PKMAP_BASE) >> PAGE_SHIFT)
-#define PKMAP_ADDR(nr)	(PKMAP_BASE + ((nr) << PAGE_SHIFT))
+#define LAST_PKMAP  PTRS_PER_PTE
+#define LAST_PKMAP_MASK (LAST_PKMAP - 1)
+#define PKMAP_NR(virt)  ((virt - PKMAP_BASE) >> PAGE_SHIFT)
+#define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
 /*
  * To the "left" of the fixed map space is the kmap space
@@ -94,14 +94,13 @@ extern int max_kernel_seg;
  * Need to check the alignment/shift usage; some archs use
  * PMD_MASK on this value
  */
-#define PKMAP_BASE (FIXADDR_START-PAGE_SIZE*LAST_PKMAP)
+#define PKMAP_BASE (FIXADDR_START - PAGE_SIZE * LAST_PKMAP)
 
 /*
  * 2 pages of guard gap between where vmalloc area ends
  * and pkmap_base begins.
  */
-#define VMALLOC_END (PKMAP_BASE-PAGE_SIZE*2)
+#define VMALLOC_END (PKMAP_BASE - PAGE_SIZE * 2)
 #endif /*  !__ASSEMBLY__  */
-
 
 #endif /* _ASM_HEXAGON_MEM_LAYOUT_H */

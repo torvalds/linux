@@ -33,17 +33,17 @@ void paging_init(void);
 void sync_initial_page_table(void);
 
 #ifdef CONFIG_X86_PAE
-# include <asm/pgtable-3level.h>
+#include <asm/pgtable-3level.h>
 #else
-# include <asm/pgtable-2level.h>
+#include <asm/pgtable-2level.h>
 #endif
 
 /* Clear a kernel PTE and flush it from the TLB */
-#define kpte_clear_flush(ptep, vaddr)		\
-do {						\
-	pte_clear(&init_mm, (vaddr), (ptep));	\
-	flush_tlb_one_kernel((vaddr));		\
-} while (0)
+#define kpte_clear_flush(ptep, vaddr)   \
+  do {            \
+    pte_clear(&init_mm, (vaddr), (ptep)); \
+    flush_tlb_one_kernel((vaddr));    \
+  } while (0)
 
 #endif /* !__ASSEMBLY__ */
 
@@ -70,6 +70,6 @@ do {						\
  * with only a host target support using a 32-bit type for internal
  * representation.
  */
-#define LOWMEM_PAGES ((((_ULL(2)<<31) - __PAGE_OFFSET) >> PAGE_SHIFT))
+#define LOWMEM_PAGES ((((_ULL(2) << 31) - __PAGE_OFFSET) >> PAGE_SHIFT))
 
 #endif /* _ASM_X86_PGTABLE_32_H */

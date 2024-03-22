@@ -27,7 +27,7 @@ struct constraint_expr {
 #define CEXPR_OR    3 /* expr or expr */
 #define CEXPR_ATTR  4 /* attr op attr */
 #define CEXPR_NAMES 5 /* attr op names */
-	u32 expr_type; /* expression type */
+  u32 expr_type; /* expression type */
 
 #define CEXPR_USER    1 /* user */
 #define CEXPR_ROLE    2 /* role */
@@ -40,25 +40,25 @@ struct constraint_expr {
 #define CEXPR_H1H2    256 /* high level 1 vs. high level 2 */
 #define CEXPR_L1H1    512 /* low level 1 vs. high level 1 */
 #define CEXPR_L2H2    1024 /* low level 2 vs. high level 2 */
-	u32 attr; /* attribute */
+  u32 attr; /* attribute */
 
 #define CEXPR_EQ     1 /* == or eq */
 #define CEXPR_NEQ    2 /* != */
 #define CEXPR_DOM    3 /* dom */
 #define CEXPR_DOMBY  4 /* domby  */
 #define CEXPR_INCOMP 5 /* incomp */
-	u32 op; /* operator */
+  u32 op; /* operator */
 
-	struct ebitmap names; /* names */
-	struct type_set *type_names;
+  struct ebitmap names; /* names */
+  struct type_set *type_names;
 
-	struct constraint_expr *next; /* next expression */
+  struct constraint_expr *next; /* next expression */
 };
 
 struct constraint_node {
-	u32 permissions; /* constrained permissions */
-	struct constraint_expr *expr; /* constraint on permissions */
-	struct constraint_node *next; /* next constraint */
+  u32 permissions; /* constrained permissions */
+  struct constraint_expr *expr; /* constraint on permissions */
+  struct constraint_node *next; /* next constraint */
 };
 
 #endif /* _SS_CONSTRAINT_H_ */

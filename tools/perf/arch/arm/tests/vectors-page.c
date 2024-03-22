@@ -9,17 +9,15 @@
 
 #define VECTORS__MAP_NAME "[vectors]"
 
-static int test__vectors_page(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
-{
-	void *start, *end;
-
-	if (find_map(&start, &end, VECTORS__MAP_NAME)) {
-		pr_err("%s not found, is CONFIG_KUSER_HELPERS enabled?\n",
-		       VECTORS__MAP_NAME);
-		return TEST_FAIL;
-	}
-
-	return TEST_OK;
+static int test__vectors_page(struct test_suite *test __maybe_unused,
+    int subtest __maybe_unused) {
+  void *start, *end;
+  if (find_map(&start, &end, VECTORS__MAP_NAME)) {
+    pr_err("%s not found, is CONFIG_KUSER_HELPERS enabled?\n",
+        VECTORS__MAP_NAME);
+    return TEST_FAIL;
+  }
+  return TEST_OK;
 }
 
 DEFINE_SUITE("Vectors page", vectors_page);

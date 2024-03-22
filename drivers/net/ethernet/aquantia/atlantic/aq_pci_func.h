@@ -14,15 +14,15 @@
 #include "aq_nic.h"
 
 struct aq_board_revision_s {
-	unsigned short devid;
-	unsigned short revision;
-	const struct aq_hw_ops *ops;
-	const struct aq_hw_caps_s *caps;
+  unsigned short devid;
+  unsigned short revision;
+  const struct aq_hw_ops *ops;
+  const struct aq_hw_caps_s *caps;
 };
 
 int aq_pci_func_alloc_irq(struct aq_nic_s *self, unsigned int i,
-			  char *name, irq_handler_t irq_handler,
-			  void *irq_arg, cpumask_t *affinity_mask);
+    char *name, irq_handler_t irq_handler,
+    void *irq_arg, cpumask_t *affinity_mask);
 void aq_pci_func_free_irqs(struct aq_nic_s *self);
 unsigned int aq_pci_func_get_irq_type(struct aq_nic_s *self);
 

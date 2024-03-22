@@ -35,47 +35,49 @@
  */
 
 bool __bitmap_equal(const unsigned long *bitmap1,
-		    const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k, lim = bits/BITS_PER_LONG;
-	for (k = 0; k < lim; ++k)
-		if (bitmap1[k] != bitmap2[k])
-			return false;
-
-	if (bits % BITS_PER_LONG)
-		if ((bitmap1[k] ^ bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
-			return false;
-
-	return true;
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k, lim = bits / BITS_PER_LONG;
+  for (k = 0; k < lim; ++k) {
+    if (bitmap1[k] != bitmap2[k]) {
+      return false;
+    }
+  }
+  if (bits % BITS_PER_LONG) {
+    if ((bitmap1[k] ^ bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits)) {
+      return false;
+    }
+  }
+  return true;
 }
+
 EXPORT_SYMBOL(__bitmap_equal);
 
 bool __bitmap_or_equal(const unsigned long *bitmap1,
-		       const unsigned long *bitmap2,
-		       const unsigned long *bitmap3,
-		       unsigned int bits)
-{
-	unsigned int k, lim = bits / BITS_PER_LONG;
-	unsigned long tmp;
-
-	for (k = 0; k < lim; ++k) {
-		if ((bitmap1[k] | bitmap2[k]) != bitmap3[k])
-			return false;
-	}
-
-	if (!(bits % BITS_PER_LONG))
-		return true;
-
-	tmp = (bitmap1[k] | bitmap2[k]) ^ bitmap3[k];
-	return (tmp & BITMAP_LAST_WORD_MASK(bits)) == 0;
+    const unsigned long *bitmap2,
+    const unsigned long *bitmap3,
+    unsigned int bits) {
+  unsigned int k, lim = bits / BITS_PER_LONG;
+  unsigned long tmp;
+  for (k = 0; k < lim; ++k) {
+    if ((bitmap1[k] | bitmap2[k]) != bitmap3[k]) {
+      return false;
+    }
+  }
+  if (!(bits % BITS_PER_LONG)) {
+    return true;
+  }
+  tmp = (bitmap1[k] | bitmap2[k]) ^ bitmap3[k];
+  return (tmp & BITMAP_LAST_WORD_MASK(bits)) == 0;
 }
 
-void __bitmap_complement(unsigned long *dst, const unsigned long *src, unsigned int bits)
-{
-	unsigned int k, lim = BITS_TO_LONGS(bits);
-	for (k = 0; k < lim; ++k)
-		dst[k] = ~src[k];
+void __bitmap_complement(unsigned long *dst, const unsigned long *src,
+    unsigned int bits) {
+  unsigned int k, lim = BITS_TO_LONGS(bits);
+  for (k = 0; k < lim; ++k) {
+    dst[k] = ~src[k];
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_complement);
 
 /**
@@ -90,37 +92,38 @@ EXPORT_SYMBOL(__bitmap_complement);
  * LS bits shifted off the bottom are lost.
  */
 void __bitmap_shift_right(unsigned long *dst, const unsigned long *src,
-			unsigned shift, unsigned nbits)
-{
-	unsigned k, lim = BITS_TO_LONGS(nbits);
-	unsigned off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
-	unsigned long mask = BITMAP_LAST_WORD_MASK(nbits);
-	for (k = 0; off + k < lim; ++k) {
-		unsigned long upper, lower;
-
-		/*
-		 * If shift is not word aligned, take lower rem bits of
-		 * word above and make them the top rem bits of result.
-		 */
-		if (!rem || off + k + 1 >= lim)
-			upper = 0;
-		else {
-			upper = src[off + k + 1];
-			if (off + k + 1 == lim - 1)
-				upper &= mask;
-			upper <<= (BITS_PER_LONG - rem);
-		}
-		lower = src[off + k];
-		if (off + k == lim - 1)
-			lower &= mask;
-		lower >>= rem;
-		dst[k] = lower | upper;
-	}
-	if (off)
-		memset(&dst[lim - off], 0, off*sizeof(unsigned long));
+    unsigned shift, unsigned nbits) {
+  unsigned k, lim = BITS_TO_LONGS(nbits);
+  unsigned off = shift / BITS_PER_LONG, rem = shift % BITS_PER_LONG;
+  unsigned long mask = BITMAP_LAST_WORD_MASK(nbits);
+  for (k = 0; off + k < lim; ++k) {
+    unsigned long upper, lower;
+    /*
+     * If shift is not word aligned, take lower rem bits of
+     * word above and make them the top rem bits of result.
+     */
+    if (!rem || off + k + 1 >= lim) {
+      upper = 0;
+    } else {
+      upper = src[off + k + 1];
+      if (off + k + 1 == lim - 1) {
+        upper &= mask;
+      }
+      upper <<= (BITS_PER_LONG - rem);
+    }
+    lower = src[off + k];
+    if (off + k == lim - 1) {
+      lower &= mask;
+    }
+    lower >>= rem;
+    dst[k] = lower | upper;
+  }
+  if (off) {
+    memset(&dst[lim - off], 0, off * sizeof(unsigned long));
+  }
 }
-EXPORT_SYMBOL(__bitmap_shift_right);
 
+EXPORT_SYMBOL(__bitmap_shift_right);
 
 /**
  * __bitmap_shift_left - logical left shift of the bits in a bitmap
@@ -135,28 +138,29 @@ EXPORT_SYMBOL(__bitmap_shift_right);
  */
 
 void __bitmap_shift_left(unsigned long *dst, const unsigned long *src,
-			unsigned int shift, unsigned int nbits)
-{
-	int k;
-	unsigned int lim = BITS_TO_LONGS(nbits);
-	unsigned int off = shift/BITS_PER_LONG, rem = shift % BITS_PER_LONG;
-	for (k = lim - off - 1; k >= 0; --k) {
-		unsigned long upper, lower;
-
-		/*
-		 * If shift is not word aligned, take upper rem bits of
-		 * word below and make them the bottom rem bits of result.
-		 */
-		if (rem && k > 0)
-			lower = src[k - 1] >> (BITS_PER_LONG - rem);
-		else
-			lower = 0;
-		upper = src[k] << rem;
-		dst[k + off] = lower | upper;
-	}
-	if (off)
-		memset(dst, 0, off*sizeof(unsigned long));
+    unsigned int shift, unsigned int nbits) {
+  int k;
+  unsigned int lim = BITS_TO_LONGS(nbits);
+  unsigned int off = shift / BITS_PER_LONG, rem = shift % BITS_PER_LONG;
+  for (k = lim - off - 1; k >= 0; --k) {
+    unsigned long upper, lower;
+    /*
+     * If shift is not word aligned, take upper rem bits of
+     * word below and make them the bottom rem bits of result.
+     */
+    if (rem && k > 0) {
+      lower = src[k - 1] >> (BITS_PER_LONG - rem);
+    } else {
+      lower = 0;
+    }
+    upper = src[k] << rem;
+    dst[k + off] = lower | upper;
+  }
+  if (off) {
+    memset(dst, 0, off * sizeof(unsigned long));
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_shift_left);
 
 /**
@@ -197,204 +201,206 @@ EXPORT_SYMBOL(__bitmap_shift_left);
  * for the compiler.
  */
 void bitmap_cut(unsigned long *dst, const unsigned long *src,
-		unsigned int first, unsigned int cut, unsigned int nbits)
-{
-	unsigned int len = BITS_TO_LONGS(nbits);
-	unsigned long keep = 0, carry;
-	int i;
-
-	if (first % BITS_PER_LONG) {
-		keep = src[first / BITS_PER_LONG] &
-		       (~0UL >> (BITS_PER_LONG - first % BITS_PER_LONG));
-	}
-
-	memmove(dst, src, len * sizeof(*dst));
-
-	while (cut--) {
-		for (i = first / BITS_PER_LONG; i < len; i++) {
-			if (i < len - 1)
-				carry = dst[i + 1] & 1UL;
-			else
-				carry = 0;
-
-			dst[i] = (dst[i] >> 1) | (carry << (BITS_PER_LONG - 1));
-		}
-	}
-
-	dst[first / BITS_PER_LONG] &= ~0UL << (first % BITS_PER_LONG);
-	dst[first / BITS_PER_LONG] |= keep;
+    unsigned int first, unsigned int cut, unsigned int nbits) {
+  unsigned int len = BITS_TO_LONGS(nbits);
+  unsigned long keep = 0, carry;
+  int i;
+  if (first % BITS_PER_LONG) {
+    keep = src[first / BITS_PER_LONG]
+        & (~0UL >> (BITS_PER_LONG - first % BITS_PER_LONG));
+  }
+  memmove(dst, src, len * sizeof(*dst));
+  while (cut--) {
+    for (i = first / BITS_PER_LONG; i < len; i++) {
+      if (i < len - 1) {
+        carry = dst[i + 1] & 1UL;
+      } else {
+        carry = 0;
+      }
+      dst[i] = (dst[i] >> 1) | (carry << (BITS_PER_LONG - 1));
+    }
+  }
+  dst[first / BITS_PER_LONG] &= ~0UL << (first % BITS_PER_LONG);
+  dst[first / BITS_PER_LONG] |= keep;
 }
+
 EXPORT_SYMBOL(bitmap_cut);
 
 bool __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
-				const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k;
-	unsigned int lim = bits/BITS_PER_LONG;
-	unsigned long result = 0;
-
-	for (k = 0; k < lim; k++)
-		result |= (dst[k] = bitmap1[k] & bitmap2[k]);
-	if (bits % BITS_PER_LONG)
-		result |= (dst[k] = bitmap1[k] & bitmap2[k] &
-			   BITMAP_LAST_WORD_MASK(bits));
-	return result != 0;
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k;
+  unsigned int lim = bits / BITS_PER_LONG;
+  unsigned long result = 0;
+  for (k = 0; k < lim; k++) {
+    result |= (dst[k] = bitmap1[k] & bitmap2[k]);
+  }
+  if (bits % BITS_PER_LONG) {
+    result |= (dst[k] = bitmap1[k] & bitmap2[k]
+        & BITMAP_LAST_WORD_MASK(bits));
+  }
+  return result != 0;
 }
+
 EXPORT_SYMBOL(__bitmap_and);
 
 void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
-				const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k;
-	unsigned int nr = BITS_TO_LONGS(bits);
-
-	for (k = 0; k < nr; k++)
-		dst[k] = bitmap1[k] | bitmap2[k];
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k;
+  unsigned int nr = BITS_TO_LONGS(bits);
+  for (k = 0; k < nr; k++) {
+    dst[k] = bitmap1[k] | bitmap2[k];
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_or);
 
 void __bitmap_xor(unsigned long *dst, const unsigned long *bitmap1,
-				const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k;
-	unsigned int nr = BITS_TO_LONGS(bits);
-
-	for (k = 0; k < nr; k++)
-		dst[k] = bitmap1[k] ^ bitmap2[k];
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k;
+  unsigned int nr = BITS_TO_LONGS(bits);
+  for (k = 0; k < nr; k++) {
+    dst[k] = bitmap1[k] ^ bitmap2[k];
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_xor);
 
 bool __bitmap_andnot(unsigned long *dst, const unsigned long *bitmap1,
-				const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k;
-	unsigned int lim = bits/BITS_PER_LONG;
-	unsigned long result = 0;
-
-	for (k = 0; k < lim; k++)
-		result |= (dst[k] = bitmap1[k] & ~bitmap2[k]);
-	if (bits % BITS_PER_LONG)
-		result |= (dst[k] = bitmap1[k] & ~bitmap2[k] &
-			   BITMAP_LAST_WORD_MASK(bits));
-	return result != 0;
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k;
+  unsigned int lim = bits / BITS_PER_LONG;
+  unsigned long result = 0;
+  for (k = 0; k < lim; k++) {
+    result |= (dst[k] = bitmap1[k] & ~bitmap2[k]);
+  }
+  if (bits % BITS_PER_LONG) {
+    result |= (dst[k] = bitmap1[k] & ~bitmap2[k]
+        & BITMAP_LAST_WORD_MASK(bits));
+  }
+  return result != 0;
 }
+
 EXPORT_SYMBOL(__bitmap_andnot);
 
 void __bitmap_replace(unsigned long *dst,
-		      const unsigned long *old, const unsigned long *new,
-		      const unsigned long *mask, unsigned int nbits)
-{
-	unsigned int k;
-	unsigned int nr = BITS_TO_LONGS(nbits);
-
-	for (k = 0; k < nr; k++)
-		dst[k] = (old[k] & ~mask[k]) | (new[k] & mask[k]);
+    const unsigned long *old, const unsigned long *new,
+    const unsigned long *mask, unsigned int nbits) {
+  unsigned int k;
+  unsigned int nr = BITS_TO_LONGS(nbits);
+  for (k = 0; k < nr; k++) {
+    dst[k] = (old[k] & ~mask[k]) | (new[k] & mask[k]);
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_replace);
 
 bool __bitmap_intersects(const unsigned long *bitmap1,
-			 const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k, lim = bits/BITS_PER_LONG;
-	for (k = 0; k < lim; ++k)
-		if (bitmap1[k] & bitmap2[k])
-			return true;
-
-	if (bits % BITS_PER_LONG)
-		if ((bitmap1[k] & bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
-			return true;
-	return false;
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k, lim = bits / BITS_PER_LONG;
+  for (k = 0; k < lim; ++k) {
+    if (bitmap1[k] & bitmap2[k]) {
+      return true;
+    }
+  }
+  if (bits % BITS_PER_LONG) {
+    if ((bitmap1[k] & bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits)) {
+      return true;
+    }
+  }
+  return false;
 }
+
 EXPORT_SYMBOL(__bitmap_intersects);
 
 bool __bitmap_subset(const unsigned long *bitmap1,
-		     const unsigned long *bitmap2, unsigned int bits)
-{
-	unsigned int k, lim = bits/BITS_PER_LONG;
-	for (k = 0; k < lim; ++k)
-		if (bitmap1[k] & ~bitmap2[k])
-			return false;
-
-	if (bits % BITS_PER_LONG)
-		if ((bitmap1[k] & ~bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits))
-			return false;
-	return true;
+    const unsigned long *bitmap2, unsigned int bits) {
+  unsigned int k, lim = bits / BITS_PER_LONG;
+  for (k = 0; k < lim; ++k) {
+    if (bitmap1[k] & ~bitmap2[k]) {
+      return false;
+    }
+  }
+  if (bits % BITS_PER_LONG) {
+    if ((bitmap1[k] & ~bitmap2[k]) & BITMAP_LAST_WORD_MASK(bits)) {
+      return false;
+    }
+  }
+  return true;
 }
+
 EXPORT_SYMBOL(__bitmap_subset);
 
-#define BITMAP_WEIGHT(FETCH, bits)	\
-({										\
-	unsigned int __bits = (bits), idx, w = 0;				\
-										\
-	for (idx = 0; idx < __bits / BITS_PER_LONG; idx++)			\
-		w += hweight_long(FETCH);					\
-										\
-	if (__bits % BITS_PER_LONG)						\
-		w += hweight_long((FETCH) & BITMAP_LAST_WORD_MASK(__bits));	\
-										\
-	w;									\
-})
+#define BITMAP_WEIGHT(FETCH, bits)  \
+  ({                    \
+    unsigned int __bits = (bits), idx, w = 0;       \
+                    \
+    for (idx = 0; idx < __bits / BITS_PER_LONG; idx++)      \
+    w += hweight_long(FETCH);         \
+                    \
+    if (__bits % BITS_PER_LONG)           \
+    w += hweight_long((FETCH) &BITMAP_LAST_WORD_MASK(__bits)); \
+                    \
+    w;                  \
+  })
 
-unsigned int __bitmap_weight(const unsigned long *bitmap, unsigned int bits)
-{
-	return BITMAP_WEIGHT(bitmap[idx], bits);
+unsigned int __bitmap_weight(const unsigned long *bitmap, unsigned int bits) {
+  return BITMAP_WEIGHT(bitmap[idx], bits);
 }
+
 EXPORT_SYMBOL(__bitmap_weight);
 
 unsigned int __bitmap_weight_and(const unsigned long *bitmap1,
-				const unsigned long *bitmap2, unsigned int bits)
-{
-	return BITMAP_WEIGHT(bitmap1[idx] & bitmap2[idx], bits);
+    const unsigned long *bitmap2, unsigned int bits) {
+  return BITMAP_WEIGHT(bitmap1[idx] & bitmap2[idx], bits);
 }
+
 EXPORT_SYMBOL(__bitmap_weight_and);
 
 unsigned int __bitmap_weight_andnot(const unsigned long *bitmap1,
-				const unsigned long *bitmap2, unsigned int bits)
-{
-	return BITMAP_WEIGHT(bitmap1[idx] & ~bitmap2[idx], bits);
+    const unsigned long *bitmap2, unsigned int bits) {
+  return BITMAP_WEIGHT(bitmap1[idx] & ~bitmap2[idx], bits);
 }
+
 EXPORT_SYMBOL(__bitmap_weight_andnot);
 
-void __bitmap_set(unsigned long *map, unsigned int start, int len)
-{
-	unsigned long *p = map + BIT_WORD(start);
-	const unsigned int size = start + len;
-	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
-	unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
-
-	while (len - bits_to_set >= 0) {
-		*p |= mask_to_set;
-		len -= bits_to_set;
-		bits_to_set = BITS_PER_LONG;
-		mask_to_set = ~0UL;
-		p++;
-	}
-	if (len) {
-		mask_to_set &= BITMAP_LAST_WORD_MASK(size);
-		*p |= mask_to_set;
-	}
+void __bitmap_set(unsigned long *map, unsigned int start, int len) {
+  unsigned long *p = map + BIT_WORD(start);
+  const unsigned int size = start + len;
+  int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
+  unsigned long mask_to_set = BITMAP_FIRST_WORD_MASK(start);
+  while (len - bits_to_set >= 0) {
+    *p |= mask_to_set;
+    len -= bits_to_set;
+    bits_to_set = BITS_PER_LONG;
+    mask_to_set = ~0UL;
+    p++;
+  }
+  if (len) {
+    mask_to_set &= BITMAP_LAST_WORD_MASK(size);
+    *p |= mask_to_set;
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_set);
 
-void __bitmap_clear(unsigned long *map, unsigned int start, int len)
-{
-	unsigned long *p = map + BIT_WORD(start);
-	const unsigned int size = start + len;
-	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
-	unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
-
-	while (len - bits_to_clear >= 0) {
-		*p &= ~mask_to_clear;
-		len -= bits_to_clear;
-		bits_to_clear = BITS_PER_LONG;
-		mask_to_clear = ~0UL;
-		p++;
-	}
-	if (len) {
-		mask_to_clear &= BITMAP_LAST_WORD_MASK(size);
-		*p &= ~mask_to_clear;
-	}
+void __bitmap_clear(unsigned long *map, unsigned int start, int len) {
+  unsigned long *p = map + BIT_WORD(start);
+  const unsigned int size = start + len;
+  int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
+  unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
+  while (len - bits_to_clear >= 0) {
+    *p &= ~mask_to_clear;
+    len -= bits_to_clear;
+    bits_to_clear = BITS_PER_LONG;
+    mask_to_clear = ~0UL;
+    p++;
+  }
+  if (len) {
+    mask_to_clear &= BITMAP_LAST_WORD_MASK(size);
+    *p &= ~mask_to_clear;
+  }
 }
+
 EXPORT_SYMBOL(__bitmap_clear);
 
 /**
@@ -411,36 +417,35 @@ EXPORT_SYMBOL(__bitmap_clear);
  * is multiple of that power of 2.
  */
 unsigned long bitmap_find_next_zero_area_off(unsigned long *map,
-					     unsigned long size,
-					     unsigned long start,
-					     unsigned int nr,
-					     unsigned long align_mask,
-					     unsigned long align_offset)
-{
-	unsigned long index, end, i;
+    unsigned long size,
+    unsigned long start,
+    unsigned int nr,
+    unsigned long align_mask,
+    unsigned long align_offset) {
+  unsigned long index, end, i;
 again:
-	index = find_next_zero_bit(map, size, start);
-
-	/* Align allocation */
-	index = __ALIGN_MASK(index + align_offset, align_mask) - align_offset;
-
-	end = index + nr;
-	if (end > size)
-		return end;
-	i = find_next_bit(map, end, index);
-	if (i < end) {
-		start = i + 1;
-		goto again;
-	}
-	return index;
+  index = find_next_zero_bit(map, size, start);
+  /* Align allocation */
+  index = __ALIGN_MASK(index + align_offset, align_mask) - align_offset;
+  end = index + nr;
+  if (end > size) {
+    return end;
+  }
+  i = find_next_bit(map, end, index);
+  if (i < end) {
+    start = i + 1;
+    goto again;
+  }
+  return index;
 }
+
 EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
 
 /**
  * bitmap_pos_to_ord - find ordinal of set bit at given position in bitmap
- *	@buf: pointer to a bitmap
- *	@pos: a bit position in @buf (0 <= @pos < @nbits)
- *	@nbits: number of valid bit positions in @buf
+ *  @buf: pointer to a bitmap
+ *  @pos: a bit position in @buf (0 <= @pos < @nbits)
+ *  @nbits: number of valid bit positions in @buf
  *
  * Map the bit at position @pos in @buf (of length @nbits) to the
  * ordinal of which set bit it is.  If it is not set or if @pos
@@ -454,21 +459,21 @@ EXPORT_SYMBOL(bitmap_find_next_zero_area_off);
  *
  * The bit positions 0 through @bits are valid positions in @buf.
  */
-static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos, unsigned int nbits)
-{
-	if (pos >= nbits || !test_bit(pos, buf))
-		return -1;
-
-	return bitmap_weight(buf, pos);
+static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos,
+    unsigned int nbits) {
+  if (pos >= nbits || !test_bit(pos, buf)) {
+    return -1;
+  }
+  return bitmap_weight(buf, pos);
 }
 
 /**
  * bitmap_remap - Apply map defined by a pair of bitmaps to another bitmap
- *	@dst: remapped result
- *	@src: subset to be remapped
- *	@old: defines domain of map
- *	@new: defines range of map
- *	@nbits: number of bits in each of these bitmaps
+ *  @dst: remapped result
+ *  @src: subset to be remapped
+ *  @old: defines domain of map
+ *  @new: defines range of map
+ *  @nbits: number of bits in each of these bitmaps
  *
  * Let @old and @new define a mapping of bit positions, such that
  * whatever position is held by the n-th set bit in @old is mapped
@@ -495,33 +500,32 @@ static int bitmap_pos_to_ord(const unsigned long *buf, unsigned int pos, unsigne
  * 13 and 15 set.
  */
 void bitmap_remap(unsigned long *dst, const unsigned long *src,
-		const unsigned long *old, const unsigned long *new,
-		unsigned int nbits)
-{
-	unsigned int oldbit, w;
-
-	if (dst == src)		/* following doesn't handle inplace remaps */
-		return;
-	bitmap_zero(dst, nbits);
-
-	w = bitmap_weight(new, nbits);
-	for_each_set_bit(oldbit, src, nbits) {
-		int n = bitmap_pos_to_ord(old, oldbit, nbits);
-
-		if (n < 0 || w == 0)
-			set_bit(oldbit, dst);	/* identity map */
-		else
-			set_bit(find_nth_bit(new, nbits, n % w), dst);
-	}
+    const unsigned long *old, const unsigned long *new,
+    unsigned int nbits) {
+  unsigned int oldbit, w;
+  if (dst == src) { /* following doesn't handle inplace remaps */
+    return;
+  }
+  bitmap_zero(dst, nbits);
+  w = bitmap_weight(new, nbits);
+  for_each_set_bit(oldbit, src, nbits) {
+    int n = bitmap_pos_to_ord(old, oldbit, nbits);
+    if (n < 0 || w == 0) {
+      set_bit(oldbit, dst); /* identity map */
+    } else {
+      set_bit(find_nth_bit(new, nbits, n % w), dst);
+    }
+  }
 }
+
 EXPORT_SYMBOL(bitmap_remap);
 
 /**
  * bitmap_bitremap - Apply map defined by a pair of bitmaps to a single bit
- *	@oldbit: bit position to be mapped
- *	@old: defines domain of map
- *	@new: defines range of map
- *	@bits: number of bits in each of these bitmaps
+ *  @oldbit: bit position to be mapped
+ *  @old: defines domain of map
+ *  @new: defines range of map
+ *  @bits: number of bits in each of these bitmaps
  *
  * Let @old and @new define a mapping of bit positions, such that
  * whatever position is held by the n-th set bit in @old is mapped
@@ -543,24 +547,25 @@ EXPORT_SYMBOL(bitmap_remap);
  * returns 13.
  */
 int bitmap_bitremap(int oldbit, const unsigned long *old,
-				const unsigned long *new, int bits)
-{
-	int w = bitmap_weight(new, bits);
-	int n = bitmap_pos_to_ord(old, oldbit, bits);
-	if (n < 0 || w == 0)
-		return oldbit;
-	else
-		return find_nth_bit(new, bits, n % w);
+    const unsigned long *new, int bits) {
+  int w = bitmap_weight(new, bits);
+  int n = bitmap_pos_to_ord(old, oldbit, bits);
+  if (n < 0 || w == 0) {
+    return oldbit;
+  } else {
+    return find_nth_bit(new, bits, n % w);
+  }
 }
+
 EXPORT_SYMBOL(bitmap_bitremap);
 
 #ifdef CONFIG_NUMA
 /**
  * bitmap_onto - translate one bitmap relative to another
- *	@dst: resulting translated bitmap
- * 	@orig: original untranslated bitmap
- * 	@relmap: bitmap relative to which translated
- *	@bits: number of bits in each of these bitmaps
+ *  @dst: resulting translated bitmap
+ *  @orig: original untranslated bitmap
+ *  @relmap: bitmap relative to which translated
+ *  @bits: number of bits in each of these bitmaps
  *
  * Set the n-th bit of @dst iff there exists some m such that the
  * n-th bit of @relmap is set, the m-th bit of @orig is set, and
@@ -612,7 +617,7 @@ EXPORT_SYMBOL(bitmap_bitremap);
  * Example [2] for bitmap_fold() + bitmap_onto():
  *  Let's say @relmap has these ten bits set::
  *
- *		40 41 42 43 45 48 53 61 74 95
+ *    40 41 42 43 45 48 53 61 74 95
  *
  *  (for the curious, that's 40 plus the first ten terms of the
  *  Fibonacci sequence.)
@@ -621,10 +626,10 @@ EXPORT_SYMBOL(bitmap_bitremap);
  *  bitmap_fold() then bitmap_onto, as suggested above to
  *  avoid the possibility of an empty @dst result::
  *
- *	unsigned long *tmp;	// a temporary bitmap's bits
+ *  unsigned long *tmp; // a temporary bitmap's bits
  *
- *	bitmap_fold(tmp, orig, bitmap_weight(relmap, bits), bits);
- *	bitmap_onto(dst, tmp, relmap, bits);
+ *  bitmap_fold(tmp, orig, bitmap_weight(relmap, bits), bits);
+ *  bitmap_onto(dst, tmp, relmap, bits);
  *
  *  Then this table shows what various values of @dst would be, for
  *  various @orig's.  I list the zero-based positions of each set bit.
@@ -662,221 +667,218 @@ EXPORT_SYMBOL(bitmap_bitremap);
  * All bits in @dst not set by the above rule are cleared.
  */
 void bitmap_onto(unsigned long *dst, const unsigned long *orig,
-			const unsigned long *relmap, unsigned int bits)
-{
-	unsigned int n, m;	/* same meaning as in above comment */
-
-	if (dst == orig)	/* following doesn't handle inplace mappings */
-		return;
-	bitmap_zero(dst, bits);
-
-	/*
-	 * The following code is a more efficient, but less
-	 * obvious, equivalent to the loop:
-	 *	for (m = 0; m < bitmap_weight(relmap, bits); m++) {
-	 *		n = find_nth_bit(orig, bits, m);
-	 *		if (test_bit(m, orig))
-	 *			set_bit(n, dst);
-	 *	}
-	 */
-
-	m = 0;
-	for_each_set_bit(n, relmap, bits) {
-		/* m == bitmap_pos_to_ord(relmap, n, bits) */
-		if (test_bit(m, orig))
-			set_bit(n, dst);
-		m++;
-	}
+    const unsigned long *relmap, unsigned int bits) {
+  unsigned int n, m;  /* same meaning as in above comment */
+  if (dst == orig) { /* following doesn't handle inplace mappings */
+    return;
+  }
+  bitmap_zero(dst, bits);
+  /*
+   * The following code is a more efficient, but less
+   * obvious, equivalent to the loop:
+   *  for (m = 0; m < bitmap_weight(relmap, bits); m++) {
+   *    n = find_nth_bit(orig, bits, m);
+   *    if (test_bit(m, orig))
+   *      set_bit(n, dst);
+   *  }
+   */
+  m = 0;
+  for_each_set_bit(n, relmap, bits) {
+    /* m == bitmap_pos_to_ord(relmap, n, bits) */
+    if (test_bit(m, orig)) {
+      set_bit(n, dst);
+    }
+    m++;
+  }
 }
 
 /**
  * bitmap_fold - fold larger bitmap into smaller, modulo specified size
- *	@dst: resulting smaller bitmap
- *	@orig: original larger bitmap
- *	@sz: specified size
- *	@nbits: number of bits in each of these bitmaps
+ *  @dst: resulting smaller bitmap
+ *  @orig: original larger bitmap
+ *  @sz: specified size
+ *  @nbits: number of bits in each of these bitmaps
  *
  * For each bit oldbit in @orig, set bit oldbit mod @sz in @dst.
  * Clear all other bits in @dst.  See further the comment and
  * Example [2] for bitmap_onto() for why and how to use this.
  */
 void bitmap_fold(unsigned long *dst, const unsigned long *orig,
-			unsigned int sz, unsigned int nbits)
-{
-	unsigned int oldbit;
-
-	if (dst == orig)	/* following doesn't handle inplace mappings */
-		return;
-	bitmap_zero(dst, nbits);
-
-	for_each_set_bit(oldbit, orig, nbits)
-		set_bit(oldbit % sz, dst);
+    unsigned int sz, unsigned int nbits) {
+  unsigned int oldbit;
+  if (dst == orig) { /* following doesn't handle inplace mappings */
+    return;
+  }
+  bitmap_zero(dst, nbits);
+  for_each_set_bit(oldbit, orig, nbits)
+  set_bit(oldbit % sz, dst);
 }
+
 #endif /* CONFIG_NUMA */
 
-unsigned long *bitmap_alloc(unsigned int nbits, gfp_t flags)
-{
-	return kmalloc_array(BITS_TO_LONGS(nbits), sizeof(unsigned long),
-			     flags);
+unsigned long *bitmap_alloc(unsigned int nbits, gfp_t flags) {
+  return kmalloc_array(BITS_TO_LONGS(nbits), sizeof(unsigned long),
+      flags);
 }
+
 EXPORT_SYMBOL(bitmap_alloc);
 
-unsigned long *bitmap_zalloc(unsigned int nbits, gfp_t flags)
-{
-	return bitmap_alloc(nbits, flags | __GFP_ZERO);
+unsigned long *bitmap_zalloc(unsigned int nbits, gfp_t flags) {
+  return bitmap_alloc(nbits, flags | __GFP_ZERO);
 }
+
 EXPORT_SYMBOL(bitmap_zalloc);
 
-unsigned long *bitmap_alloc_node(unsigned int nbits, gfp_t flags, int node)
-{
-	return kmalloc_array_node(BITS_TO_LONGS(nbits), sizeof(unsigned long),
-				  flags, node);
+unsigned long *bitmap_alloc_node(unsigned int nbits, gfp_t flags, int node) {
+  return kmalloc_array_node(BITS_TO_LONGS(nbits), sizeof(unsigned long),
+      flags, node);
 }
+
 EXPORT_SYMBOL(bitmap_alloc_node);
 
-unsigned long *bitmap_zalloc_node(unsigned int nbits, gfp_t flags, int node)
-{
-	return bitmap_alloc_node(nbits, flags | __GFP_ZERO, node);
+unsigned long *bitmap_zalloc_node(unsigned int nbits, gfp_t flags, int node) {
+  return bitmap_alloc_node(nbits, flags | __GFP_ZERO, node);
 }
+
 EXPORT_SYMBOL(bitmap_zalloc_node);
 
-void bitmap_free(const unsigned long *bitmap)
-{
-	kfree(bitmap);
+void bitmap_free(const unsigned long *bitmap) {
+  kfree(bitmap);
 }
+
 EXPORT_SYMBOL(bitmap_free);
 
-static void devm_bitmap_free(void *data)
-{
-	unsigned long *bitmap = data;
-
-	bitmap_free(bitmap);
+static void devm_bitmap_free(void *data) {
+  unsigned long *bitmap = data;
+  bitmap_free(bitmap);
 }
 
 unsigned long *devm_bitmap_alloc(struct device *dev,
-				 unsigned int nbits, gfp_t flags)
-{
-	unsigned long *bitmap;
-	int ret;
-
-	bitmap = bitmap_alloc(nbits, flags);
-	if (!bitmap)
-		return NULL;
-
-	ret = devm_add_action_or_reset(dev, devm_bitmap_free, bitmap);
-	if (ret)
-		return NULL;
-
-	return bitmap;
+    unsigned int nbits, gfp_t flags) {
+  unsigned long *bitmap;
+  int ret;
+  bitmap = bitmap_alloc(nbits, flags);
+  if (!bitmap) {
+    return NULL;
+  }
+  ret = devm_add_action_or_reset(dev, devm_bitmap_free, bitmap);
+  if (ret) {
+    return NULL;
+  }
+  return bitmap;
 }
+
 EXPORT_SYMBOL_GPL(devm_bitmap_alloc);
 
 unsigned long *devm_bitmap_zalloc(struct device *dev,
-				  unsigned int nbits, gfp_t flags)
-{
-	return devm_bitmap_alloc(dev, nbits, flags | __GFP_ZERO);
+    unsigned int nbits, gfp_t flags) {
+  return devm_bitmap_alloc(dev, nbits, flags | __GFP_ZERO);
 }
+
 EXPORT_SYMBOL_GPL(devm_bitmap_zalloc);
 
 #if BITS_PER_LONG == 64
 /**
  * bitmap_from_arr32 - copy the contents of u32 array of bits to bitmap
- *	@bitmap: array of unsigned longs, the destination bitmap
- *	@buf: array of u32 (in host byte order), the source bitmap
- *	@nbits: number of bits in @bitmap
+ *  @bitmap: array of unsigned longs, the destination bitmap
+ *  @buf: array of u32 (in host byte order), the source bitmap
+ *  @nbits: number of bits in @bitmap
  */
-void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf, unsigned int nbits)
-{
-	unsigned int i, halfwords;
-
-	halfwords = DIV_ROUND_UP(nbits, 32);
-	for (i = 0; i < halfwords; i++) {
-		bitmap[i/2] = (unsigned long) buf[i];
-		if (++i < halfwords)
-			bitmap[i/2] |= ((unsigned long) buf[i]) << 32;
-	}
-
-	/* Clear tail bits in last word beyond nbits. */
-	if (nbits % BITS_PER_LONG)
-		bitmap[(halfwords - 1) / 2] &= BITMAP_LAST_WORD_MASK(nbits);
+void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
+    unsigned int nbits) {
+  unsigned int i, halfwords;
+  halfwords = DIV_ROUND_UP(nbits, 32);
+  for (i = 0; i < halfwords; i++) {
+    bitmap[i / 2] = (unsigned long) buf[i];
+    if (++i < halfwords) {
+      bitmap[i / 2] |= ((unsigned long) buf[i]) << 32;
+    }
+  }
+  /* Clear tail bits in last word beyond nbits. */
+  if (nbits % BITS_PER_LONG) {
+    bitmap[(halfwords - 1) / 2] &= BITMAP_LAST_WORD_MASK(nbits);
+  }
 }
+
 EXPORT_SYMBOL(bitmap_from_arr32);
 
 /**
  * bitmap_to_arr32 - copy the contents of bitmap to a u32 array of bits
- *	@buf: array of u32 (in host byte order), the dest bitmap
- *	@bitmap: array of unsigned longs, the source bitmap
- *	@nbits: number of bits in @bitmap
+ *  @buf: array of u32 (in host byte order), the dest bitmap
+ *  @bitmap: array of unsigned longs, the source bitmap
+ *  @nbits: number of bits in @bitmap
  */
-void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap, unsigned int nbits)
-{
-	unsigned int i, halfwords;
-
-	halfwords = DIV_ROUND_UP(nbits, 32);
-	for (i = 0; i < halfwords; i++) {
-		buf[i] = (u32) (bitmap[i/2] & UINT_MAX);
-		if (++i < halfwords)
-			buf[i] = (u32) (bitmap[i/2] >> 32);
-	}
-
-	/* Clear tail bits in last element of array beyond nbits. */
-	if (nbits % BITS_PER_LONG)
-		buf[halfwords - 1] &= (u32) (UINT_MAX >> ((-nbits) & 31));
+void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap,
+    unsigned int nbits) {
+  unsigned int i, halfwords;
+  halfwords = DIV_ROUND_UP(nbits, 32);
+  for (i = 0; i < halfwords; i++) {
+    buf[i] = (u32) (bitmap[i / 2] & UINT_MAX);
+    if (++i < halfwords) {
+      buf[i] = (u32) (bitmap[i / 2] >> 32);
+    }
+  }
+  /* Clear tail bits in last element of array beyond nbits. */
+  if (nbits % BITS_PER_LONG) {
+    buf[halfwords - 1] &= (u32) (UINT_MAX >> ((-nbits) & 31));
+  }
 }
+
 EXPORT_SYMBOL(bitmap_to_arr32);
 #endif
 
 #if BITS_PER_LONG == 32
 /**
  * bitmap_from_arr64 - copy the contents of u64 array of bits to bitmap
- *	@bitmap: array of unsigned longs, the destination bitmap
- *	@buf: array of u64 (in host byte order), the source bitmap
- *	@nbits: number of bits in @bitmap
+ *  @bitmap: array of unsigned longs, the destination bitmap
+ *  @buf: array of u64 (in host byte order), the source bitmap
+ *  @nbits: number of bits in @bitmap
  */
-void bitmap_from_arr64(unsigned long *bitmap, const u64 *buf, unsigned int nbits)
-{
-	int n;
-
-	for (n = nbits; n > 0; n -= 64) {
-		u64 val = *buf++;
-
-		*bitmap++ = val;
-		if (n > 32)
-			*bitmap++ = val >> 32;
-	}
-
-	/*
-	 * Clear tail bits in the last word beyond nbits.
-	 *
-	 * Negative index is OK because here we point to the word next
-	 * to the last word of the bitmap, except for nbits == 0, which
-	 * is tested implicitly.
-	 */
-	if (nbits % BITS_PER_LONG)
-		bitmap[-1] &= BITMAP_LAST_WORD_MASK(nbits);
+void bitmap_from_arr64(unsigned long *bitmap, const u64 *buf,
+    unsigned int nbits) {
+  int n;
+  for (n = nbits; n > 0; n -= 64) {
+    u64 val = *buf++;
+    *bitmap++ = val;
+    if (n > 32) {
+      *bitmap++ = val >> 32;
+    }
+  }
+  /*
+   * Clear tail bits in the last word beyond nbits.
+   *
+   * Negative index is OK because here we point to the word next
+   * to the last word of the bitmap, except for nbits == 0, which
+   * is tested implicitly.
+   */
+  if (nbits % BITS_PER_LONG) {
+    bitmap[-1] &= BITMAP_LAST_WORD_MASK(nbits);
+  }
 }
+
 EXPORT_SYMBOL(bitmap_from_arr64);
 
 /**
  * bitmap_to_arr64 - copy the contents of bitmap to a u64 array of bits
- *	@buf: array of u64 (in host byte order), the dest bitmap
- *	@bitmap: array of unsigned longs, the source bitmap
- *	@nbits: number of bits in @bitmap
+ *  @buf: array of u64 (in host byte order), the dest bitmap
+ *  @bitmap: array of unsigned longs, the source bitmap
+ *  @nbits: number of bits in @bitmap
  */
-void bitmap_to_arr64(u64 *buf, const unsigned long *bitmap, unsigned int nbits)
-{
-	const unsigned long *end = bitmap + BITS_TO_LONGS(nbits);
-
-	while (bitmap < end) {
-		*buf = *bitmap++;
-		if (bitmap < end)
-			*buf |= (u64)(*bitmap++) << 32;
-		buf++;
-	}
-
-	/* Clear tail bits in the last element of array beyond nbits. */
-	if (nbits % 64)
-		buf[-1] &= GENMASK_ULL((nbits - 1) % 64, 0);
+void bitmap_to_arr64(u64 *buf, const unsigned long *bitmap,
+    unsigned int nbits) {
+  const unsigned long *end = bitmap + BITS_TO_LONGS(nbits);
+  while (bitmap < end) {
+    *buf = *bitmap++;
+    if (bitmap < end) {
+      *buf |= (u64) (*bitmap++) << 32;
+    }
+    buf++;
+  }
+  /* Clear tail bits in the last element of array beyond nbits. */
+  if (nbits % 64) {
+    buf[-1] &= GENMASK_ULL((nbits - 1) % 64, 0);
+  }
 }
+
 EXPORT_SYMBOL(bitmap_to_arr64);
 #endif

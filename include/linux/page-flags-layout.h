@@ -24,13 +24,13 @@
 #error ZONES_SHIFT "Too many zones configured"
 #endif
 
-#define ZONES_WIDTH		ZONES_SHIFT
+#define ZONES_WIDTH   ZONES_SHIFT
 
 #ifdef CONFIG_SPARSEMEM
 #include <asm/sparsemem.h>
-#define SECTIONS_SHIFT	(MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
+#define SECTIONS_SHIFT  (MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
 #else
-#define SECTIONS_SHIFT	0
+#define SECTIONS_SHIFT  0
 #endif
 
 #ifndef BUILD_VDSO32_64
@@ -43,25 +43,29 @@
  * The last is when there is insufficient space in page->flags and a separate
  * lookup is necessary.
  *
- * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE |             ... | FLAGS |
- *      " plus space for last_cpupid: |       NODE     | ZONE | LAST_CPUPID ... | FLAGS |
- * classic sparse with space for node:| SECTION | NODE | ZONE |             ... | FLAGS |
- *      " plus space for last_cpupid: | SECTION | NODE | ZONE | LAST_CPUPID ... | FLAGS |
+ * No sparsemem or sparsemem vmemmap: |       NODE     | ZONE |             ...
+ *| FLAGS |
+ *      " plus space for last_cpupid: |       NODE     | ZONE | LAST_CPUPID ...
+ *| FLAGS |
+ * classic sparse with space for node:| SECTION | NODE | ZONE |             ...
+ *| FLAGS |
+ *      " plus space for last_cpupid: | SECTION | NODE | ZONE | LAST_CPUPID ...
+ *| FLAGS |
  * classic sparse no space for node:  | SECTION |     ZONE    | ... | FLAGS |
  */
 #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
-#define SECTIONS_WIDTH		SECTIONS_SHIFT
+#define SECTIONS_WIDTH    SECTIONS_SHIFT
 #else
-#define SECTIONS_WIDTH		0
+#define SECTIONS_WIDTH    0
 #endif
 
 #if ZONES_WIDTH + LRU_GEN_WIDTH + SECTIONS_WIDTH + NODES_SHIFT \
-	<= BITS_PER_LONG - NR_PAGEFLAGS
-#define NODES_WIDTH		NODES_SHIFT
+  <= BITS_PER_LONG - NR_PAGEFLAGS
+#define NODES_WIDTH   NODES_SHIFT
 #elif defined(CONFIG_SPARSEMEM_VMEMMAP)
 #error "Vmemmap: No space for nodes field in page flags"
 #else
-#define NODES_WIDTH		0
+#define NODES_WIDTH   0
 #endif
 
 /*
@@ -69,7 +73,7 @@
  * the IS_ENABLED() macro.
  */
 #if NODES_SHIFT != 0 && NODES_WIDTH == 0
-#define NODE_NOT_IN_PAGE_FLAGS	1
+#define NODE_NOT_IN_PAGE_FLAGS  1
 #endif
 
 #if defined(CONFIG_KASAN_SW_TAGS) || defined(CONFIG_KASAN_HW_TAGS)
@@ -80,18 +84,18 @@
 
 #ifdef CONFIG_NUMA_BALANCING
 #define LAST__PID_SHIFT 8
-#define LAST__PID_MASK  ((1 << LAST__PID_SHIFT)-1)
+#define LAST__PID_MASK  ((1 << LAST__PID_SHIFT) - 1)
 
 #define LAST__CPU_SHIFT NR_CPUS_BITS
-#define LAST__CPU_MASK  ((1 << LAST__CPU_SHIFT)-1)
+#define LAST__CPU_MASK  ((1 << LAST__CPU_SHIFT) - 1)
 
-#define LAST_CPUPID_SHIFT (LAST__PID_SHIFT+LAST__CPU_SHIFT)
+#define LAST_CPUPID_SHIFT (LAST__PID_SHIFT + LAST__CPU_SHIFT)
 #else
 #define LAST_CPUPID_SHIFT 0
 #endif
 
-#if ZONES_WIDTH + LRU_GEN_WIDTH + SECTIONS_WIDTH + NODES_WIDTH + \
-	KASAN_TAG_WIDTH + LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+#if ZONES_WIDTH + LRU_GEN_WIDTH + SECTIONS_WIDTH + NODES_WIDTH   \
+  + KASAN_TAG_WIDTH + LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
 #define LAST_CPUPID_WIDTH LAST_CPUPID_SHIFT
 #else
 #define LAST_CPUPID_WIDTH 0
@@ -101,15 +105,15 @@
 #define LAST_CPUPID_NOT_IN_PAGE_FLAGS
 #endif
 
-#if ZONES_WIDTH + LRU_GEN_WIDTH + SECTIONS_WIDTH + NODES_WIDTH + \
-	KASAN_TAG_WIDTH + LAST_CPUPID_WIDTH > BITS_PER_LONG - NR_PAGEFLAGS
+#if ZONES_WIDTH + LRU_GEN_WIDTH + SECTIONS_WIDTH + NODES_WIDTH   \
+  + KASAN_TAG_WIDTH + LAST_CPUPID_WIDTH > BITS_PER_LONG - NR_PAGEFLAGS
 #error "Not enough bits in page flags"
 #endif
 
 /* see the comment on MAX_NR_TIERS */
-#define LRU_REFS_WIDTH	min(__LRU_REFS_WIDTH, BITS_PER_LONG - NR_PAGEFLAGS - \
-			    ZONES_WIDTH - LRU_GEN_WIDTH - SECTIONS_WIDTH - \
-			    NODES_WIDTH - KASAN_TAG_WIDTH - LAST_CPUPID_WIDTH)
+#define LRU_REFS_WIDTH  min(__LRU_REFS_WIDTH, BITS_PER_LONG - NR_PAGEFLAGS   \
+    - ZONES_WIDTH - LRU_GEN_WIDTH - SECTIONS_WIDTH   \
+    - NODES_WIDTH - KASAN_TAG_WIDTH - LAST_CPUPID_WIDTH)
 
 #endif
 #endif /* _LINUX_PAGE_FLAGS_LAYOUT */

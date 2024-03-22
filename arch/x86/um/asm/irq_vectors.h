@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -7,4 +7,3 @@
 #define __UM_IRQ_VECTORS_H
 
 #endif
-

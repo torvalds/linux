@@ -12,12 +12,12 @@
 #include <linux/types.h>
 
 struct tnum {
-	u64 value;
-	u64 mask;
+  u64 value;
+  u64 mask;
 };
 
-/* Constructors */
-/* Represent a known constant as a tnum. */
+/* Constructors
+ * Represent a known constant as a tnum.*/
 struct tnum tnum_const(u64 value);
 /* A completely unknown value */
 extern const struct tnum tnum_unknown;
@@ -29,8 +29,8 @@ extern const struct tnum tnum_unknown;
  */
 struct tnum tnum_range(u64 min, u64 max);
 
-/* Arithmetic and logical ops */
-/* Shift a tnum left (by a fixed shift) */
+/* Arithmetic and logical ops
+ * Shift a tnum left (by a fixed shift)*/
 struct tnum tnum_lshift(struct tnum a, u8 shift);
 /* Shift (rsh) a tnum right (by a fixed shift) */
 struct tnum tnum_rshift(struct tnum a, u8 shift);
@@ -56,21 +56,18 @@ struct tnum tnum_intersect(struct tnum a, struct tnum b);
 struct tnum tnum_cast(struct tnum a, u8 size);
 
 /* Returns true if @a is a known constant */
-static inline bool tnum_is_const(struct tnum a)
-{
-	return !a.mask;
+static inline bool tnum_is_const(struct tnum a) {
+  return !a.mask;
 }
 
 /* Returns true if @a == tnum_const(@b) */
-static inline bool tnum_equals_const(struct tnum a, u64 b)
-{
-	return tnum_is_const(a) && a.value == b;
+static inline bool tnum_equals_const(struct tnum a, u64 b) {
+  return tnum_is_const(a) && a.value == b;
 }
 
 /* Returns true if @a is completely unknown */
-static inline bool tnum_is_unknown(struct tnum a)
-{
-	return !~a.mask;
+static inline bool tnum_is_unknown(struct tnum a) {
+  return !~a.mask;
 }
 
 /* Returns true if @a is known to be a multiple of @size.
@@ -113,9 +110,8 @@ struct tnum tnum_with_subreg(struct tnum reg, struct tnum subreg);
 /* Returns the tnum with the lower 32-bit subreg set to value */
 struct tnum tnum_const_subreg(struct tnum a, u32 value);
 /* Returns true if 32-bit subreg @a is a known constant*/
-static inline bool tnum_subreg_is_const(struct tnum a)
-{
-	return !(tnum_subreg(a)).mask;
+static inline bool tnum_subreg_is_const(struct tnum a) {
+  return !(tnum_subreg(a)).mask;
 }
 
 #endif /* _LINUX_TNUM_H */

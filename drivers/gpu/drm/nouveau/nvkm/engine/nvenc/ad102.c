@@ -26,19 +26,18 @@
 #include <nvif/class.h>
 
 static const struct nvkm_engine_func
-ad102_nvenc = {
-	.sclass = {
-		{ -1, -1, NVC9B7_VIDEO_ENCODER },
-		{}
-	}
+    ad102_nvenc = {
+  .sclass = {
+    { -1, -1, NVC9B7_VIDEO_ENCODER },
+    {}
+  }
 };
 
-int
-ad102_nvenc_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-		struct nvkm_nvenc **pnvenc)
-{
-	if (nvkm_gsp_rm(device->gsp))
-		return r535_nvenc_new(&ad102_nvenc, device, type, inst, pnvenc);
-
-	return -ENODEV;
+int ad102_nvenc_new(struct nvkm_device *device, enum nvkm_subdev_type type,
+    int inst,
+    struct nvkm_nvenc **pnvenc) {
+  if (nvkm_gsp_rm(device->gsp)) {
+    return r535_nvenc_new(&ad102_nvenc, device, type, inst, pnvenc);
+  }
+  return -ENODEV;
 }

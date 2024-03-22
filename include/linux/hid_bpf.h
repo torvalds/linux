@@ -37,24 +37,27 @@ struct hid_device;
  *                  ``4096`` (4 KB)
  * @size: Valid data in the data field.
  *
- *        Programs can get the available valid size in data by fetching this field.
- *        Programs can also change this value by returning a positive number in the
+ *        Programs can get the available valid size in data by fetching this
+ * field.
+ *        Programs can also change this value by returning a positive number in
+ * the
  *        program.
  *        To discard the event, return a negative error code.
  *
- *        ``size`` must always be less or equal than ``allocated_size`` (it is enforced
+ *        ``size`` must always be less or equal than ``allocated_size`` (it is
+ * enforced
  *        once all BPF programs have been run).
  * @retval: Return value of the previous program.
  */
 struct hid_bpf_ctx {
-	__u32 index;
-	const struct hid_device *hid;
-	__u32 allocated_size;
-	enum hid_report_type report_type;
-	union {
-		__s32 retval;
-		__s32 size;
-	};
+  __u32 index;
+  const struct hid_device *hid;
+  __u32 allocated_size;
+  enum hid_report_type report_type;
+  union {
+    __s32 retval;
+    __s32 size;
+  };
 };
 
 /**
@@ -68,9 +71,9 @@ struct hid_bpf_ctx {
  * @HID_BPF_FLAG_MAX: sentinel value, not to be used by the callers
  */
 enum hid_bpf_attach_flags {
-	HID_BPF_FLAG_NONE = 0,
-	HID_BPF_FLAG_INSERT_HEAD = _BITUL(0),
-	HID_BPF_FLAG_MAX,
+  HID_BPF_FLAG_NONE = 0,
+  HID_BPF_FLAG_INSERT_HEAD = _BITUL(0),
+  HID_BPF_FLAG_MAX,
 };
 
 /* Following functions are tracepoints that BPF programs can attach to */
@@ -89,69 +92,86 @@ int __hid_bpf_tail_call(struct hid_bpf_ctx *ctx);
 
 /* types of HID programs to attach to */
 enum hid_bpf_prog_type {
-	HID_BPF_PROG_TYPE_UNDEF = -1,
-	HID_BPF_PROG_TYPE_DEVICE_EVENT,			/* an event is emitted from the device */
-	HID_BPF_PROG_TYPE_RDESC_FIXUP,
-	HID_BPF_PROG_TYPE_MAX,
+  HID_BPF_PROG_TYPE_UNDEF = -1,
+  HID_BPF_PROG_TYPE_DEVICE_EVENT,     /* an event is emitted from the device */
+  HID_BPF_PROG_TYPE_RDESC_FIXUP,
+  HID_BPF_PROG_TYPE_MAX,
 };
 
 struct hid_report_enum;
 
 struct hid_bpf_ops {
-	struct hid_report *(*hid_get_report)(struct hid_report_enum *report_enum, const u8 *data);
-	int (*hid_hw_raw_request)(struct hid_device *hdev,
-				  unsigned char reportnum, __u8 *buf,
-				  size_t len, enum hid_report_type rtype,
-				  enum hid_class_request reqtype);
-	struct module *owner;
-	const struct bus_type *bus_type;
+  struct hid_report *(*hid_get_report)(struct hid_report_enum *report_enum,
+      const u8 *data);
+  int (*hid_hw_raw_request)(struct hid_device *hdev,
+      unsigned char reportnum, __u8 *buf,
+      size_t len, enum hid_report_type rtype,
+      enum hid_class_request reqtype);
+  struct module *owner;
+  const struct bus_type *bus_type;
 };
 
 extern struct hid_bpf_ops *hid_bpf_ops;
 
 struct hid_bpf_prog_list {
-	u16 prog_idx[HID_BPF_MAX_PROGS_PER_DEV];
-	u8 prog_cnt;
+  u16 prog_idx[HID_BPF_MAX_PROGS_PER_DEV];
+  u8 prog_cnt;
 };
 
 /* stored in each device */
 struct hid_bpf {
-	u8 *device_data;		/* allocated when a bpf program of type
-					 * SEC(f.../hid_bpf_device_event) has been attached
-					 * to this HID device
-					 */
-	u32 allocated_data;
+  u8 *device_data;    /* allocated when a bpf program of type
+                       * SEC(f.../hid_bpf_device_event) has been attached
+                       * to this HID device
+                       */
+  u32 allocated_data;
 
-	struct hid_bpf_prog_list __rcu *progs[HID_BPF_PROG_TYPE_MAX];	/* attached BPF progs */
-	bool destroyed;			/* prevents the assignment of any progs */
+  struct hid_bpf_prog_list __rcu *progs[HID_BPF_PROG_TYPE_MAX]; /* attached BPF
+                                                                 * progs */
+  bool destroyed;     /* prevents the assignment of any progs */
 
-	spinlock_t progs_lock;		/* protects RCU update of progs */
+  spinlock_t progs_lock;    /* protects RCU update of progs */
 };
 
 /* specific HID-BPF link when a program is attached to a device */
 struct hid_bpf_link {
-	struct bpf_link link;
-	int hid_table_index;
+  struct bpf_link link;
+  int hid_table_index;
 };
 
 #ifdef CONFIG_HID_BPF
-u8 *dispatch_hid_bpf_device_event(struct hid_device *hid, enum hid_report_type type, u8 *data,
-				  u32 *size, int interrupt);
+u8 *dispatch_hid_bpf_device_event(struct hid_device *hid,
+    enum hid_report_type type, u8 *data,
+    u32 *size, int interrupt);
 int hid_bpf_connect_device(struct hid_device *hdev);
 void hid_bpf_disconnect_device(struct hid_device *hdev);
 void hid_bpf_destroy_device(struct hid_device *hid);
 void hid_bpf_device_init(struct hid_device *hid);
-u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size);
+u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc,
+    unsigned int *size);
 #else /* CONFIG_HID_BPF */
-static inline u8 *dispatch_hid_bpf_device_event(struct hid_device *hid, enum hid_report_type type,
-						u8 *data, u32 *size, int interrupt) { return data; }
-static inline int hid_bpf_connect_device(struct hid_device *hdev) { return 0; }
-static inline void hid_bpf_disconnect_device(struct hid_device *hdev) {}
-static inline void hid_bpf_destroy_device(struct hid_device *hid) {}
-static inline void hid_bpf_device_init(struct hid_device *hid) {}
-static inline u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *size)
-{
-	return kmemdup(rdesc, *size, GFP_KERNEL);
+static inline u8 *dispatch_hid_bpf_device_event(struct hid_device *hid,
+    enum hid_report_type type,
+    u8 *data, u32 *size, int interrupt) {
+  return data;
+}
+
+static inline int hid_bpf_connect_device(struct hid_device *hdev) {
+  return 0;
+}
+
+static inline void hid_bpf_disconnect_device(struct hid_device *hdev) {
+}
+
+static inline void hid_bpf_destroy_device(struct hid_device *hid) {
+}
+
+static inline void hid_bpf_device_init(struct hid_device *hid) {
+}
+
+static inline u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc,
+    unsigned int *size) {
+  return kmemdup(rdesc, *size, GFP_KERNEL);
 }
 
 #endif /* CONFIG_HID_BPF */

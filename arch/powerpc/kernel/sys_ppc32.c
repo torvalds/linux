@@ -22,9 +22,9 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/fs.h> 
-#include <linux/mm.h> 
-#include <linux/file.h> 
+#include <linux/fs.h>
+#include <linux/mm.h>
+#include <linux/file.h>
 #include <linux/signal.h>
 #include <linux/resource.h>
 #include <linux/times.h>
@@ -58,78 +58,78 @@
 #include <asm/switch_to.h>
 
 #ifdef CONFIG_PPC32
-#define PPC32_SYSCALL_DEFINE4	SYSCALL_DEFINE4
-#define PPC32_SYSCALL_DEFINE5	SYSCALL_DEFINE5
-#define PPC32_SYSCALL_DEFINE6	SYSCALL_DEFINE6
+#define PPC32_SYSCALL_DEFINE4 SYSCALL_DEFINE4
+#define PPC32_SYSCALL_DEFINE5 SYSCALL_DEFINE5
+#define PPC32_SYSCALL_DEFINE6 SYSCALL_DEFINE6
 #else
-#define PPC32_SYSCALL_DEFINE4	COMPAT_SYSCALL_DEFINE4
-#define PPC32_SYSCALL_DEFINE5	COMPAT_SYSCALL_DEFINE5
-#define PPC32_SYSCALL_DEFINE6	COMPAT_SYSCALL_DEFINE6
+#define PPC32_SYSCALL_DEFINE4 COMPAT_SYSCALL_DEFINE4
+#define PPC32_SYSCALL_DEFINE5 COMPAT_SYSCALL_DEFINE5
+#define PPC32_SYSCALL_DEFINE6 COMPAT_SYSCALL_DEFINE6
 #endif
 
 PPC32_SYSCALL_DEFINE6(ppc_pread64,
-		       unsigned int, fd,
-		       char __user *, ubuf, compat_size_t, count,
-		       u32, reg6, u32, pos1, u32, pos2)
+    unsigned int, fd,
+    char __user *, ubuf, compat_size_t, count,
+    u32, reg6, u32, pos1, u32, pos2)
 {
-	return ksys_pread64(fd, ubuf, count, merge_64(pos1, pos2));
+  return ksys_pread64(fd, ubuf, count, merge_64(pos1, pos2));
 }
 
 PPC32_SYSCALL_DEFINE6(ppc_pwrite64,
-		       unsigned int, fd,
-		       const char __user *, ubuf, compat_size_t, count,
-		       u32, reg6, u32, pos1, u32, pos2)
+    unsigned int, fd,
+    const char __user *, ubuf, compat_size_t, count,
+    u32, reg6, u32, pos1, u32, pos2)
 {
-	return ksys_pwrite64(fd, ubuf, count, merge_64(pos1, pos2));
+  return ksys_pwrite64(fd, ubuf, count, merge_64(pos1, pos2));
 }
 
 PPC32_SYSCALL_DEFINE5(ppc_readahead,
-		       int, fd, u32, r4,
-		       u32, offset1, u32, offset2, u32, count)
+    int, fd, u32, r4,
+    u32, offset1, u32, offset2, u32, count)
 {
-	return ksys_readahead(fd, merge_64(offset1, offset2), count);
+  return ksys_readahead(fd, merge_64(offset1, offset2), count);
 }
 
 PPC32_SYSCALL_DEFINE4(ppc_truncate64,
-		       const char __user *, path, u32, reg4,
-		       unsigned long, len1, unsigned long, len2)
+    const char __user *, path, u32, reg4,
+    unsigned long, len1, unsigned long, len2)
 {
-	return ksys_truncate(path, merge_64(len1, len2));
+  return ksys_truncate(path, merge_64(len1, len2));
 }
 
 PPC32_SYSCALL_DEFINE4(ppc_ftruncate64,
-		       unsigned int, fd, u32, reg4,
-		       unsigned long, len1, unsigned long, len2)
+    unsigned int, fd, u32, reg4,
+    unsigned long, len1, unsigned long, len2)
 {
-	return ksys_ftruncate(fd, merge_64(len1, len2));
+  return ksys_ftruncate(fd, merge_64(len1, len2));
 }
 
 PPC32_SYSCALL_DEFINE6(ppc32_fadvise64,
-		       int, fd, u32, unused, u32, offset1, u32, offset2,
-		       size_t, len, int, advice)
+    int, fd, u32, unused, u32, offset1, u32, offset2,
+    size_t, len, int, advice)
 {
-	return ksys_fadvise64_64(fd, merge_64(offset1, offset2), len,
-				 advice);
+  return ksys_fadvise64_64(fd, merge_64(offset1, offset2), len,
+      advice);
 }
 
 PPC32_SYSCALL_DEFINE6(ppc_sync_file_range2,
-		       int, fd, unsigned int, flags,
-		       unsigned int, offset1, unsigned int, offset2,
-		       unsigned int, nbytes1, unsigned int, nbytes2)
+    int, fd, unsigned int, flags,
+    unsigned int, offset1, unsigned int, offset2,
+    unsigned int, nbytes1, unsigned int, nbytes2)
 {
-	loff_t offset = merge_64(offset1, offset2);
-	loff_t nbytes = merge_64(nbytes1, nbytes2);
+  loff_t offset = merge_64(offset1, offset2);
+  loff_t nbytes = merge_64(nbytes1, nbytes2);
 
-	return ksys_sync_file_range(fd, offset, nbytes, flags);
+  return ksys_sync_file_range(fd, offset, nbytes, flags);
 }
 
 #ifdef CONFIG_PPC32
 SYSCALL_DEFINE6(ppc_fallocate,
-		int, fd, int, mode,
-		u32, offset1, u32, offset2, u32, len1, u32, len2)
+    int, fd, int, mode,
+    u32, offset1, u32, offset2, u32, len1, u32, len2)
 {
-	return ksys_fallocate(fd, mode,
-			      merge_64(offset1, offset2),
-			      merge_64(len1, len2));
+  return ksys_fallocate(fd, mode,
+      merge_64(offset1, offset2),
+      merge_64(len1, len2));
 }
 #endif

@@ -11,22 +11,21 @@
 
 #include "utils.h"
 
-
 struct event {
-	struct perf_event_attr attr;
-	char *name;
-	int fd;
-	/* This must match the read_format we use */
-	struct {
-		u64 value;
-		u64 running;
-		u64 enabled;
-	} result;
-	/*
-	 * mmap buffer used while recording sample.
-	 * Accessed as "struct perf_event_mmap_page"
-	 */
-	void *mmap_buffer;
+  struct perf_event_attr attr;
+  char *name;
+  int fd;
+  /* This must match the read_format we use */
+  struct {
+    u64 value;
+    u64 running;
+    u64 enabled;
+  } result;
+  /*
+   * mmap buffer used while recording sample.
+   * Accessed as "struct perf_event_mmap_page"
+   */
+  void *mmap_buffer;
 };
 
 void event_init(struct event *e, u64 config);

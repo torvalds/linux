@@ -11,6 +11,6 @@
 #include "hfi.h"
 
 int read_hfi1_efi_var(struct hfi1_devdata *dd, const char *kind,
-		      unsigned long *size, void **return_data);
+    unsigned long *size, void **return_data);
 
 #endif /* _HFI1_EFIVAR_H */

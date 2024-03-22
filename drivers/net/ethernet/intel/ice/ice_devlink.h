@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2019, Intel Corporation. */
+/* SPDX-License-Identifier: GPL-2.0
+ * Copyright (c) 2019, Intel Corporation.*/
 
 #ifndef _ICE_DEVLINK_H_
 #define _ICE_DEVLINK_H_
@@ -18,7 +18,8 @@ void ice_devlink_destroy_vf_port(struct ice_vf *vf);
 void ice_devlink_init_regions(struct ice_pf *pf);
 void ice_devlink_destroy_regions(struct ice_pf *pf);
 
-int ice_devlink_rate_init_tx_topology(struct devlink *devlink, struct ice_vsi *vsi);
+int ice_devlink_rate_init_tx_topology(struct devlink *devlink,
+    struct ice_vsi *vsi);
 void ice_tear_down_devlink_rate_tree(struct ice_pf *pf);
 void ice_devlink_rate_clear_tx_topology(struct ice_vsi *vsi);
 

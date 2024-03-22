@@ -12,21 +12,21 @@
 #include <cpu/pfc.h>
 
 static struct resource sh7734_pfc_resources[] = {
-	[0] = { /* PFC */
-		.start	= 0xFFFC0000,
-		.end	= 0xFFFC011C,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = { /* GPIO */
-		.start	= 0xFFC40000,
-		.end	= 0xFFC4502B,
-		.flags	= IORESOURCE_MEM,
-	}
+  [0] = { /* PFC */
+    .start = 0xFFFC0000,
+    .end = 0xFFFC011C,
+    .flags = IORESOURCE_MEM,
+  },
+  [1] = { /* GPIO */
+    .start = 0xFFC40000,
+    .end = 0xFFC4502B,
+    .flags = IORESOURCE_MEM,
+  }
 };
 
-static int __init plat_pinmux_setup(void)
-{
-	return sh_pfc_register("pfc-sh7734", sh7734_pfc_resources,
-			       ARRAY_SIZE(sh7734_pfc_resources));
+static int __init plat_pinmux_setup(void) {
+  return sh_pfc_register("pfc-sh7734", sh7734_pfc_resources,
+      ARRAY_SIZE(sh7734_pfc_resources));
 }
+
 arch_initcall(plat_pinmux_setup);

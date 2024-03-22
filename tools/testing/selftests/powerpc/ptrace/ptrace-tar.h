@@ -27,20 +27,19 @@ char *ptrace_read_ckpt = "[Ptrace Read (Checkpointed)]";
 char *ptrace_write_ckpt = "[Ptrace Write (Checkpointed)]";
 
 int validate_tar_registers(unsigned long *reg, unsigned long tar,
-				unsigned long ppr, unsigned long dscr)
-{
-	int match = 1;
-
-	if (reg[0] != tar)
-		match = 0;
-
-	if (reg[1] != ppr)
-		match = 0;
-
-	if (reg[2] != dscr)
-		match = 0;
-
-	if (!match)
-		return TEST_FAIL;
-	return TEST_PASS;
+    unsigned long ppr, unsigned long dscr) {
+  int match = 1;
+  if (reg[0] != tar) {
+    match = 0;
+  }
+  if (reg[1] != ppr) {
+    match = 0;
+  }
+  if (reg[2] != dscr) {
+    match = 0;
+  }
+  if (!match) {
+    return TEST_FAIL;
+  }
+  return TEST_PASS;
 }

@@ -15,31 +15,31 @@ struct dmfc_channel;
 struct ipu_dp;
 
 struct ipu_plane {
-	struct drm_plane	base;
+  struct drm_plane base;
 
-	struct ipu_soc		*ipu;
-	struct ipuv3_channel	*ipu_ch;
-	struct ipuv3_channel	*alpha_ch;
-	struct dmfc_channel	*dmfc;
-	struct ipu_dp		*dp;
+  struct ipu_soc *ipu;
+  struct ipuv3_channel *ipu_ch;
+  struct ipuv3_channel *alpha_ch;
+  struct dmfc_channel *dmfc;
+  struct ipu_dp *dp;
 
-	int			dma;
-	int			dp_flow;
+  int dma;
+  int dp_flow;
 
-	bool			disabling;
+  bool disabling;
 };
 
 struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
-				 int dma, int dp, unsigned int possible_crtcs,
-				 enum drm_plane_type type);
+    int dma, int dp, unsigned int possible_crtcs,
+    enum drm_plane_type type);
 
 /* Init IDMAC, DMFC, DP */
 int ipu_plane_mode_set(struct ipu_plane *plane, struct drm_crtc *crtc,
-		       struct drm_display_mode *mode,
-		       struct drm_framebuffer *fb, int crtc_x, int crtc_y,
-		       unsigned int crtc_w, unsigned int crtc_h,
-		       uint32_t src_x, uint32_t src_y, uint32_t src_w,
-		       uint32_t src_h, bool interlaced);
+    struct drm_display_mode *mode,
+    struct drm_framebuffer *fb, int crtc_x, int crtc_y,
+    unsigned int crtc_w, unsigned int crtc_h,
+    uint32_t src_x, uint32_t src_y, uint32_t src_w,
+    uint32_t src_h, bool interlaced);
 
 int ipu_plane_irq(struct ipu_plane *plane);
 

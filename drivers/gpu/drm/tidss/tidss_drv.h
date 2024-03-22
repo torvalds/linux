@@ -15,22 +15,22 @@
 typedef u32 dispc_irq_t;
 
 struct tidss_device {
-	struct drm_device ddev;		/* DRM device for DSS */
-	struct device *dev;		/* Underlying DSS device */
+  struct drm_device ddev;   /* DRM device for DSS */
+  struct device *dev;   /* Underlying DSS device */
 
-	const struct dispc_features *feat;
-	struct dispc_device *dispc;
+  const struct dispc_features *feat;
+  struct dispc_device *dispc;
 
-	unsigned int num_crtcs;
-	struct drm_crtc *crtcs[TIDSS_MAX_PORTS];
+  unsigned int num_crtcs;
+  struct drm_crtc *crtcs[TIDSS_MAX_PORTS];
 
-	unsigned int num_planes;
-	struct drm_plane *planes[TIDSS_MAX_PLANES];
+  unsigned int num_planes;
+  struct drm_plane *planes[TIDSS_MAX_PLANES];
 
-	unsigned int irq;
+  unsigned int irq;
 
-	spinlock_t wait_lock;	/* protects the irq masks */
-	dispc_irq_t irq_mask;	/* enabled irqs in addition to wait_list */
+  spinlock_t wait_lock; /* protects the irq masks */
+  dispc_irq_t irq_mask; /* enabled irqs in addition to wait_list */
 };
 
 #define to_tidss(__dev) container_of(__dev, struct tidss_device, ddev)

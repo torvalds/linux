@@ -18,30 +18,29 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg);
 void __io_napi_add(struct io_ring_ctx *ctx, struct socket *sock);
 
 void __io_napi_adjust_timeout(struct io_ring_ctx *ctx,
-		struct io_wait_queue *iowq, struct timespec64 *ts);
+    struct io_wait_queue *iowq, struct timespec64 *ts);
 void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq);
 int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx);
 
-static inline bool io_napi(struct io_ring_ctx *ctx)
-{
-	return !list_empty(&ctx->napi_list);
+static inline bool io_napi(struct io_ring_ctx *ctx) {
+  return !list_empty(&ctx->napi_list);
 }
 
 static inline void io_napi_adjust_timeout(struct io_ring_ctx *ctx,
-					  struct io_wait_queue *iowq,
-					  struct timespec64 *ts)
-{
-	if (!io_napi(ctx))
-		return;
-	__io_napi_adjust_timeout(ctx, iowq, ts);
+    struct io_wait_queue *iowq,
+    struct timespec64 *ts) {
+  if (!io_napi(ctx)) {
+    return;
+  }
+  __io_napi_adjust_timeout(ctx, iowq, ts);
 }
 
 static inline void io_napi_busy_loop(struct io_ring_ctx *ctx,
-				     struct io_wait_queue *iowq)
-{
-	if (!io_napi(ctx))
-		return;
-	__io_napi_busy_loop(ctx, iowq);
+    struct io_wait_queue *iowq) {
+  if (!io_napi(ctx)) {
+    return;
+  }
+  __io_napi_busy_loop(ctx, iowq);
 }
 
 /*
@@ -50,55 +49,55 @@ static inline void io_napi_busy_loop(struct io_ring_ctx *ctx,
  *
  * Add the napi id of the socket to the napi busy poll list and hash table.
  */
-static inline void io_napi_add(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	struct socket *sock;
-
-	if (!READ_ONCE(ctx->napi_busy_poll_to))
-		return;
-
-	sock = sock_from_file(req->file);
-	if (sock)
-		__io_napi_add(ctx, sock);
+static inline void io_napi_add(struct io_kiocb *req) {
+  struct io_ring_ctx *ctx = req->ctx;
+  struct socket *sock;
+  if (!READ_ONCE(ctx->napi_busy_poll_to)) {
+    return;
+  }
+  sock = sock_from_file(req->file);
+  if (sock) {
+    __io_napi_add(ctx, sock);
+  }
 }
 
 #else
 
-static inline void io_napi_init(struct io_ring_ctx *ctx)
-{
+static inline void io_napi_init(struct io_ring_ctx *ctx) {
 }
-static inline void io_napi_free(struct io_ring_ctx *ctx)
-{
+
+static inline void io_napi_free(struct io_ring_ctx *ctx) {
 }
-static inline int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
-{
-	return -EOPNOTSUPP;
+
+static inline int io_register_napi(struct io_ring_ctx *ctx, void __user *arg) {
+  return -EOPNOTSUPP;
 }
-static inline int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
-{
-	return -EOPNOTSUPP;
+
+static inline int io_unregister_napi(struct io_ring_ctx *ctx,
+    void __user *arg) {
+  return -EOPNOTSUPP;
 }
-static inline bool io_napi(struct io_ring_ctx *ctx)
-{
-	return false;
+
+static inline bool io_napi(struct io_ring_ctx *ctx) {
+  return false;
 }
-static inline void io_napi_add(struct io_kiocb *req)
-{
+
+static inline void io_napi_add(struct io_kiocb *req) {
 }
+
 static inline void io_napi_adjust_timeout(struct io_ring_ctx *ctx,
-					  struct io_wait_queue *iowq,
-					  struct timespec64 *ts)
-{
+    struct io_wait_queue *iowq,
+    struct timespec64 *ts) {
 }
+
 static inline void io_napi_busy_loop(struct io_ring_ctx *ctx,
-				     struct io_wait_queue *iowq)
-{
+    struct io_wait_queue *iowq) {
 }
-static inline int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx)
-{
-	return 0;
+
+static inline int io_napi_sqpoll_busy_poll(struct io_ring_ctx *ctx) {
+  return 0;
 }
+
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
 #endif

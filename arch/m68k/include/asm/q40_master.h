@@ -2,7 +2,7 @@
 /*
  * Q40 master Chip Control
  * RTC stuff merged for compactness.
-*/
+ */
 
 #ifndef _Q40_MASTER_H
 #define _Q40_MASTER_H
@@ -19,8 +19,8 @@
 #define FRAME_CLEAR_REG     0x24
 #define LED_REG             0x30
 
-#define Q40_LED_ON()        master_outb(1,LED_REG)
-#define Q40_LED_OFF()       master_outb(0,LED_REG)
+#define Q40_LED_ON()        master_outb(1, LED_REG)
+#define Q40_LED_OFF()       master_outb(0, LED_REG)
 
 #define INTERRUPT_REG       IIRQ_REG  /* "native" ints */
 #define KEY_IRQ_ENABLE_REG  0x08      /**/
@@ -39,22 +39,22 @@
 #endif
 #define EXT_ENABLE_REG      0x10      /* ... rest of the ISA ints ... */
 
-
-#define master_inb(_reg_)      in_8((unsigned char *)q40_master_addr+_reg_)
-#define master_outb(_b_,_reg_)  out_8((unsigned char *)q40_master_addr+_reg_,_b_)
+#define master_inb(_reg_)      in_8((unsigned char *) q40_master_addr + _reg_)
+#define master_outb(_b_, _reg_)  out_8( \
+    (unsigned char *) q40_master_addr + _reg_, _b_)
 
 /* RTC defines */
 
-#define Q40_RTC_BASE	    (0xff021ffc)
+#define Q40_RTC_BASE      (0xff021ffc)
 
-#define Q40_RTC_YEAR        (*(volatile unsigned char *)(Q40_RTC_BASE+0))
-#define Q40_RTC_MNTH        (*(volatile unsigned char *)(Q40_RTC_BASE-4))
-#define Q40_RTC_DATE        (*(volatile unsigned char *)(Q40_RTC_BASE-8))
-#define Q40_RTC_DOW         (*(volatile unsigned char *)(Q40_RTC_BASE-12))
-#define Q40_RTC_HOUR        (*(volatile unsigned char *)(Q40_RTC_BASE-16))
-#define Q40_RTC_MINS        (*(volatile unsigned char *)(Q40_RTC_BASE-20))
-#define Q40_RTC_SECS        (*(volatile unsigned char *)(Q40_RTC_BASE-24))
-#define Q40_RTC_CTRL        (*(volatile unsigned char *)(Q40_RTC_BASE-28))
+#define Q40_RTC_YEAR        (*(volatile unsigned char *) (Q40_RTC_BASE + 0))
+#define Q40_RTC_MNTH        (*(volatile unsigned char *) (Q40_RTC_BASE - 4))
+#define Q40_RTC_DATE        (*(volatile unsigned char *) (Q40_RTC_BASE - 8))
+#define Q40_RTC_DOW         (*(volatile unsigned char *) (Q40_RTC_BASE - 12))
+#define Q40_RTC_HOUR        (*(volatile unsigned char *) (Q40_RTC_BASE - 16))
+#define Q40_RTC_MINS        (*(volatile unsigned char *) (Q40_RTC_BASE - 20))
+#define Q40_RTC_SECS        (*(volatile unsigned char *) (Q40_RTC_BASE - 24))
+#define Q40_RTC_CTRL        (*(volatile unsigned char *) (Q40_RTC_BASE - 28))
 
 /* some control bits */
 #define Q40_RTC_READ   64  /* prepare for reading */
@@ -64,7 +64,7 @@
 #include <asm/q40ints.h>
 
 /* misc defs */
-#define DAC_LEFT  ((unsigned char *)0xff008000)
-#define DAC_RIGHT ((unsigned char *)0xff008004)
+#define DAC_LEFT  ((unsigned char *) 0xff008000)
+#define DAC_RIGHT ((unsigned char *) 0xff008004)
 
 #endif /* _Q40_MASTER_H */

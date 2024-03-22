@@ -6,13 +6,13 @@ struct qcom_iris;
 struct qcom_wcnss;
 
 struct wcnss_vreg_info {
-	const char * const name;
-	int min_voltage;
-	int max_voltage;
+  const char * const name;
+  int min_voltage;
+  int max_voltage;
 
-	int load_uA;
+  int load_uA;
 
-	bool super_turbo;
+  bool super_turbo;
 };
 
 struct qcom_iris *qcom_iris_probe(struct device *parent, bool *use_48mhz_xo);

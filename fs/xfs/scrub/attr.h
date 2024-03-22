@@ -10,15 +10,15 @@
  * Temporary storage for online scrub and repair of extended attributes.
  */
 struct xchk_xattr_buf {
-	/* Bitmap of used space in xattr leaf blocks and shortform forks. */
-	unsigned long		*usedmap;
+  /* Bitmap of used space in xattr leaf blocks and shortform forks. */
+  unsigned long *usedmap;
 
-	/* Bitmap of free space in xattr leaf blocks. */
-	unsigned long		*freemap;
+  /* Bitmap of free space in xattr leaf blocks. */
+  unsigned long *freemap;
 
-	/* Memory buffer used to extract xattr values. */
-	void			*value;
-	size_t			value_sz;
+  /* Memory buffer used to extract xattr values. */
+  void *value;
+  size_t value_sz;
 };
 
-#endif	/* __XFS_SCRUB_ATTR_H__ */
+#endif  /* __XFS_SCRUB_ATTR_H__ */

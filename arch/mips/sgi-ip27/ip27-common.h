@@ -18,5 +18,4 @@ extern void per_cpu_init(void);
 extern void replicate_kernel_text(void);
 extern void setup_replication_mask(void);
 
-
 #endif /* __IP27_COMMON_H */

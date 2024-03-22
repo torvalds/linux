@@ -43,229 +43,250 @@
  * Do a signal return; undo the signal stack.
  */
 struct sigframe {
-	struct sigcontext sc;
-	unsigned long extramask[_NSIG_WORDS-1];
-	unsigned long tramp[2];	/* signal trampoline */
+  struct sigcontext sc;
+  unsigned long extramask[_NSIG_WORDS - 1];
+  unsigned long tramp[2]; /* signal trampoline */
 };
 
 struct rt_sigframe {
-	struct siginfo info;
-	struct ucontext uc;
-	unsigned long tramp[2];	/* signal trampoline */
+  struct siginfo info;
+  struct ucontext uc;
+  unsigned long tramp[2]; /* signal trampoline */
 };
 
 static int restore_sigcontext(struct pt_regs *regs,
-				struct sigcontext __user *sc, int *rval_p)
-{
-	unsigned int err = 0;
-
-#define COPY(x)		{err |= __get_user(regs->x, &sc->regs.x); }
-	COPY(r0);
-	COPY(r1);
-	COPY(r2);	COPY(r3);	COPY(r4);	COPY(r5);
-	COPY(r6);	COPY(r7);	COPY(r8);	COPY(r9);
-	COPY(r10);	COPY(r11);	COPY(r12);	COPY(r13);
-	COPY(r14);	COPY(r15);	COPY(r16);	COPY(r17);
-	COPY(r18);	COPY(r19);	COPY(r20);	COPY(r21);
-	COPY(r22);	COPY(r23);	COPY(r24);	COPY(r25);
-	COPY(r26);	COPY(r27);	COPY(r28);	COPY(r29);
-	COPY(r30);	COPY(r31);
-	COPY(pc);	COPY(ear);	COPY(esr);	COPY(fsr);
+    struct sigcontext __user *sc, int *rval_p) {
+  unsigned int err = 0;
+#define COPY(x)   {err |= __get_user(regs->x, &sc->regs.x); }
+  COPY(r0);
+  COPY(r1);
+  COPY(r2);
+  COPY(r3);
+  COPY(r4);
+  COPY(r5);
+  COPY(r6);
+  COPY(r7);
+  COPY(r8);
+  COPY(r9);
+  COPY(r10);
+  COPY(r11);
+  COPY(r12);
+  COPY(r13);
+  COPY(r14);
+  COPY(r15);
+  COPY(r16);
+  COPY(r17);
+  COPY(r18);
+  COPY(r19);
+  COPY(r20);
+  COPY(r21);
+  COPY(r22);
+  COPY(r23);
+  COPY(r24);
+  COPY(r25);
+  COPY(r26);
+  COPY(r27);
+  COPY(r28);
+  COPY(r29);
+  COPY(r30);
+  COPY(r31);
+  COPY(pc);
+  COPY(ear);
+  COPY(esr);
+  COPY(fsr);
 #undef COPY
-
-	*rval_p = regs->r3;
-
-	return err;
+  *rval_p = regs->r3;
+  return err;
 }
 
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
-{
-	struct rt_sigframe __user *frame =
-		(struct rt_sigframe __user *)(regs->r1);
-
-	sigset_t set;
-	int rval;
-
-	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
-
-	if (!access_ok(frame, sizeof(*frame)))
-		goto badframe;
-
-	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
-		goto badframe;
-
-	set_current_blocked(&set);
-
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &rval))
-		goto badframe;
-
-	if (restore_altstack(&frame->uc.uc_stack))
-		goto badframe;
-
-	return rval;
-
+asmlinkage long sys_rt_sigreturn(struct pt_regs *regs) {
+  struct rt_sigframe __user *frame
+    = (struct rt_sigframe __user *) (regs->r1);
+  sigset_t set;
+  int rval;
+  /* Always make any pending restarted system calls return -EINTR */
+  current->restart_block.fn = do_no_restart_syscall;
+  if (!access_ok(frame, sizeof(*frame))) {
+    goto badframe;
+  }
+  if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set))) {
+    goto badframe;
+  }
+  set_current_blocked(&set);
+  if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &rval)) {
+    goto badframe;
+  }
+  if (restore_altstack(&frame->uc.uc_stack)) {
+    goto badframe;
+  }
+  return rval;
 badframe:
-	force_sig(SIGSEGV);
-	return 0;
+  force_sig(SIGSEGV);
+  return 0;
 }
 
 /*
  * Set up a signal frame.
  */
 
-static int
-setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
-		unsigned long mask)
-{
-	int err = 0;
-
-#define COPY(x)		{err |= __put_user(regs->x, &sc->regs.x); }
-	COPY(r0);
-	COPY(r1);
-	COPY(r2);	COPY(r3);	COPY(r4);	COPY(r5);
-	COPY(r6);	COPY(r7);	COPY(r8);	COPY(r9);
-	COPY(r10);	COPY(r11);	COPY(r12);	COPY(r13);
-	COPY(r14);	COPY(r15);	COPY(r16);	COPY(r17);
-	COPY(r18);	COPY(r19);	COPY(r20);	COPY(r21);
-	COPY(r22);	COPY(r23);	COPY(r24);	COPY(r25);
-	COPY(r26);	COPY(r27);	COPY(r28);	COPY(r29);
-	COPY(r30);	COPY(r31);
-	COPY(pc);	COPY(ear);	COPY(esr);	COPY(fsr);
+static int setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
+    unsigned long mask) {
+  int err = 0;
+#define COPY(x)   {err |= __put_user(regs->x, &sc->regs.x); }
+  COPY(r0);
+  COPY(r1);
+  COPY(r2);
+  COPY(r3);
+  COPY(r4);
+  COPY(r5);
+  COPY(r6);
+  COPY(r7);
+  COPY(r8);
+  COPY(r9);
+  COPY(r10);
+  COPY(r11);
+  COPY(r12);
+  COPY(r13);
+  COPY(r14);
+  COPY(r15);
+  COPY(r16);
+  COPY(r17);
+  COPY(r18);
+  COPY(r19);
+  COPY(r20);
+  COPY(r21);
+  COPY(r22);
+  COPY(r23);
+  COPY(r24);
+  COPY(r25);
+  COPY(r26);
+  COPY(r27);
+  COPY(r28);
+  COPY(r29);
+  COPY(r30);
+  COPY(r31);
+  COPY(pc);
+  COPY(ear);
+  COPY(esr);
+  COPY(fsr);
 #undef COPY
-
-	err |= __put_user(mask, &sc->oldmask);
-
-	return err;
+  err |= __put_user(mask, &sc->oldmask);
+  return err;
 }
 
 /*
  * Determine which stack to use..
  */
-static inline void __user *
-get_sigframe(struct ksignal *ksig, struct pt_regs *regs, size_t frame_size)
-{
-	/* Default to using normal stack */
-	unsigned long sp = sigsp(regs->r1, ksig);
-
-	return (void __user *)((sp - frame_size) & -8UL);
+static inline void __user *get_sigframe(struct ksignal *ksig,
+    struct pt_regs *regs,
+    size_t frame_size) {
+  /* Default to using normal stack */
+  unsigned long sp = sigsp(regs->r1, ksig);
+  return (void __user *) ((sp - frame_size) & -8UL);
 }
 
 static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
-			  struct pt_regs *regs)
-{
-	struct rt_sigframe __user *frame;
-	int err = 0, sig = ksig->sig;
-	unsigned long address = 0;
-	pmd_t *pmdp;
-	pte_t *ptep;
-
-	frame = get_sigframe(ksig, regs, sizeof(*frame));
-
-	if (!access_ok(frame, sizeof(*frame)))
-		return -EFAULT;
-
-	if (ksig->ka.sa.sa_flags & SA_SIGINFO)
-		err |= copy_siginfo_to_user(&frame->info, &ksig->info);
-
-	/* Create the ucontext. */
-	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(NULL, &frame->uc.uc_link);
-	err |= __save_altstack(&frame->uc.uc_stack, regs->r1);
-	err |= setup_sigcontext(&frame->uc.uc_mcontext,
-			regs, set->sig[0]);
-	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-
-	/* Set up to return from userspace. If provided, use a stub
-	 already in userspace. */
-	/* minus 8 is offset to cater for "rtsd r15,8" */
-	/* addi r12, r0, __NR_sigreturn */
-	err |= __put_user(0x31800000 | __NR_rt_sigreturn ,
-			frame->tramp + 0);
-	/* brki r14, 0x8 */
-	err |= __put_user(0xb9cc0008, frame->tramp + 1);
-
-	/* Return from sighandler will jump to the tramp.
-	 Negative 8 offset because return is rtsd r15, 8 */
-	regs->r15 = ((unsigned long)frame->tramp)-8;
-
-	address = ((unsigned long)frame->tramp);
-	pmdp = pmd_off(current->mm, address);
-
-	preempt_disable();
-	ptep = pte_offset_map(pmdp, address);
-	if (ptep && pte_present(*ptep)) {
-		address = (unsigned long) page_address(pte_page(*ptep));
-		/* MS: I need add offset in page */
-		address += ((unsigned long)frame->tramp) & ~PAGE_MASK;
-		/* MS address is virtual */
-		address = __virt_to_phys(address);
-		invalidate_icache_range(address, address + 8);
-		flush_dcache_range(address, address + 8);
-	}
-	if (ptep)
-		pte_unmap(ptep);
-	preempt_enable();
-	if (err)
-		return -EFAULT;
-
-	/* Set up registers for signal handler */
-	regs->r1 = (unsigned long) frame;
-
-	/* Signal handler args: */
-	regs->r5 = sig; /* arg 0: signum */
-	regs->r6 = (unsigned long) &frame->info; /* arg 1: siginfo */
-	regs->r7 = (unsigned long) &frame->uc; /* arg2: ucontext */
-	/* Offset to handle microblaze rtid r14, 0 */
-	regs->pc = (unsigned long)ksig->ka.sa.sa_handler;
-
+    struct pt_regs *regs) {
+  struct rt_sigframe __user *frame;
+  int err = 0, sig = ksig->sig;
+  unsigned long address = 0;
+  pmd_t *pmdp;
+  pte_t *ptep;
+  frame = get_sigframe(ksig, regs, sizeof(*frame));
+  if (!access_ok(frame, sizeof(*frame))) {
+    return -EFAULT;
+  }
+  if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
+    err |= copy_siginfo_to_user(&frame->info, &ksig->info);
+  }
+  /* Create the ucontext. */
+  err |= __put_user(0, &frame->uc.uc_flags);
+  err |= __put_user(NULL, &frame->uc.uc_link);
+  err |= __save_altstack(&frame->uc.uc_stack, regs->r1);
+  err |= setup_sigcontext(&frame->uc.uc_mcontext,
+      regs, set->sig[0]);
+  err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
+  /* Set up to return from userspace. If provided, use a stub
+   * already in userspace. */
+  /* minus 8 is offset to cater for "rtsd r15,8"
+   * addi r12, r0, __NR_sigreturn*/
+  err |= __put_user(0x31800000 | __NR_rt_sigreturn,
+      frame->tramp + 0);
+  /* brki r14, 0x8 */
+  err |= __put_user(0xb9cc0008, frame->tramp + 1);
+  /* Return from sighandler will jump to the tramp.
+   * Negative 8 offset because return is rtsd r15, 8 */
+  regs->r15 = ((unsigned long) frame->tramp) - 8;
+  address = ((unsigned long) frame->tramp);
+  pmdp = pmd_off(current->mm, address);
+  preempt_disable();
+  ptep = pte_offset_map(pmdp, address);
+  if (ptep && pte_present(*ptep)) {
+    address = (unsigned long) page_address(pte_page(*ptep));
+    /* MS: I need add offset in page */
+    address += ((unsigned long) frame->tramp) & ~PAGE_MASK;
+    /* MS address is virtual */
+    address = __virt_to_phys(address);
+    invalidate_icache_range(address, address + 8);
+    flush_dcache_range(address, address + 8);
+  }
+  if (ptep) {
+    pte_unmap(ptep);
+  }
+  preempt_enable();
+  if (err) {
+    return -EFAULT;
+  }
+  /* Set up registers for signal handler */
+  regs->r1 = (unsigned long) frame;
+  /* Signal handler args: */
+  regs->r5 = sig; /* arg 0: signum */
+  regs->r6 = (unsigned long) &frame->info; /* arg 1: siginfo */
+  regs->r7 = (unsigned long) &frame->uc; /* arg2: ucontext */
+  /* Offset to handle microblaze rtid r14, 0 */
+  regs->pc = (unsigned long) ksig->ka.sa.sa_handler;
 #ifdef DEBUG_SIG
-	pr_info("SIG deliver (%s:%d): sp=%p pc=%08lx\n",
-		current->comm, current->pid, frame, regs->pc);
+  pr_info("SIG deliver (%s:%d): sp=%p pc=%08lx\n",
+      current->comm, current->pid, frame, regs->pc);
 #endif
-
-	return 0;
+  return 0;
 }
 
 /* Handle restarting system calls */
-static inline void
-handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
-{
-	switch (regs->r3) {
-	case -ERESTART_RESTARTBLOCK:
-	case -ERESTARTNOHAND:
-		if (!has_handler)
-			goto do_restart;
-		regs->r3 = -EINTR;
-		break;
-	case -ERESTARTSYS:
-		if (has_handler && !(ka->sa.sa_flags & SA_RESTART)) {
-			regs->r3 = -EINTR;
-			break;
-	}
-		fallthrough;
-	case -ERESTARTNOINTR:
+static inline void handle_restart(struct pt_regs *regs, struct k_sigaction *ka,
+    int has_handler) {
+  switch (regs->r3) {
+    case -ERESTART_RESTARTBLOCK:
+    case -ERESTARTNOHAND:
+      if (!has_handler) {
+        goto do_restart;
+      }
+      regs->r3 = -EINTR;
+      break;
+    case -ERESTARTSYS:
+      if (has_handler && !(ka->sa.sa_flags & SA_RESTART)) {
+        regs->r3 = -EINTR;
+        break;
+      }
+      fallthrough;
+    case -ERESTARTNOINTR:
 do_restart:
-		/* offset of 4 bytes to re-execute trap (brki) instruction */
-		regs->pc -= 4;
-		break;
-	}
+      /* offset of 4 bytes to re-execute trap (brki) instruction */
+      regs->pc -= 4;
+      break;
+  }
 }
 
 /*
  * OK, we're invoking a handler
  */
 
-static void
-handle_signal(struct ksignal *ksig, struct pt_regs *regs)
-{
-	sigset_t *oldset = sigmask_to_save();
-	int ret;
-
-	/* Set up the stack frame */
-	ret = setup_rt_frame(ksig, oldset, regs);
-
-	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
+static void handle_signal(struct ksignal *ksig, struct pt_regs *regs) {
+  sigset_t *oldset = sigmask_to_save();
+  int ret;
+  /* Set up the stack frame */
+  ret = setup_rt_frame(ksig, oldset, regs);
+  signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -277,40 +298,37 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-static void do_signal(struct pt_regs *regs, int in_syscall)
-{
-	struct ksignal ksig;
-
+static void do_signal(struct pt_regs *regs, int in_syscall) {
+  struct ksignal ksig;
 #ifdef DEBUG_SIG
-	pr_info("do signal: %p %d\n", regs, in_syscall);
-	pr_info("do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
-			regs->r12, read_thread_flags());
+  pr_info("do signal: %p %d\n", regs, in_syscall);
+  pr_info("do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
+      regs->r12, read_thread_flags());
 #endif
-
-	if (get_signal(&ksig)) {
-		/* Whee! Actually deliver the signal. */
-		if (in_syscall)
-			handle_restart(regs, &ksig.ka, 1);
-		handle_signal(&ksig, regs);
-		return;
-	}
-
-	if (in_syscall)
-		handle_restart(regs, NULL, 0);
-
-	/*
-	 * If there's no signal to deliver, we just put the saved sigmask
-	 * back.
-	 */
-	restore_saved_sigmask();
+  if (get_signal(&ksig)) {
+    /* Whee! Actually deliver the signal. */
+    if (in_syscall) {
+      handle_restart(regs, &ksig.ka, 1);
+    }
+    handle_signal(&ksig, regs);
+    return;
+  }
+  if (in_syscall) {
+    handle_restart(regs, NULL, 0);
+  }
+  /*
+   * If there's no signal to deliver, we just put the saved sigmask
+   * back.
+   */
+  restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
-{
-	if (test_thread_flag(TIF_SIGPENDING) ||
-	    test_thread_flag(TIF_NOTIFY_SIGNAL))
-		do_signal(regs, in_syscall);
-
-	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		resume_user_mode_work(regs);
+asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall) {
+  if (test_thread_flag(TIF_SIGPENDING)
+      || test_thread_flag(TIF_NOTIFY_SIGNAL)) {
+    do_signal(regs, in_syscall);
+  }
+  if (test_thread_flag(TIF_NOTIFY_RESUME)) {
+    resume_user_mode_work(regs);
+  }
 }

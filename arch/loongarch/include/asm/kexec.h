@@ -15,7 +15,7 @@
 #define KEXEC_SOURCE_MEMORY_LIMIT (-1UL)
 /* Maximum address we can reach in physical address mode */
 #define KEXEC_DESTINATION_MEMORY_LIMIT (-1UL)
- /* Maximum address we can use for the control code buffer */
+/* Maximum address we can use for the control code buffer */
 #define KEXEC_CONTROL_MEMORY_LIMIT (-1UL)
 
 /* Reserve a page for the control code buffer */
@@ -25,27 +25,27 @@
 #define KEXEC_ARCH KEXEC_ARCH_LOONGARCH
 
 static inline void crash_setup_regs(struct pt_regs *newregs,
-				    struct pt_regs *oldregs)
-{
-	if (oldregs)
-		memcpy(newregs, oldregs, sizeof(*newregs));
-	else
-		prepare_frametrace(newregs);
+    struct pt_regs *oldregs) {
+  if (oldregs) {
+    memcpy(newregs, oldregs, sizeof(*newregs));
+  } else {
+    prepare_frametrace(newregs);
+  }
 }
 
 #define ARCH_HAS_KIMAGE_ARCH
 
 struct kimage_arch {
-	unsigned long efi_boot;
-	unsigned long cmdline_ptr;
-	unsigned long systable_ptr;
+  unsigned long efi_boot;
+  unsigned long cmdline_ptr;
+  unsigned long systable_ptr;
 };
 
 typedef void (*do_kexec_t)(unsigned long efi_boot,
-			   unsigned long cmdline_ptr,
-			   unsigned long systable_ptr,
-			   unsigned long start_addr,
-			   unsigned long first_ind_entry);
+    unsigned long cmdline_ptr,
+    unsigned long systable_ptr,
+    unsigned long start_addr,
+    unsigned long first_ind_entry);
 
 struct kimage;
 extern const unsigned char relocate_new_kernel[];

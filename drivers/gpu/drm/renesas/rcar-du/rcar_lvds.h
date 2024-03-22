@@ -14,28 +14,28 @@ struct drm_bridge;
 
 #if IS_ENABLED(CONFIG_DRM_RCAR_LVDS)
 int rcar_lvds_pclk_enable(struct drm_bridge *bridge, unsigned long freq,
-			  bool dot_clk_only);
+    bool dot_clk_only);
 void rcar_lvds_pclk_disable(struct drm_bridge *bridge, bool dot_clk_only);
 bool rcar_lvds_dual_link(struct drm_bridge *bridge);
 bool rcar_lvds_is_connected(struct drm_bridge *bridge);
 #else
 static inline int rcar_lvds_pclk_enable(struct drm_bridge *bridge,
-					unsigned long freq, bool dot_clk_only)
-{
-	return -ENOSYS;
+    unsigned long freq, bool dot_clk_only) {
+  return -ENOSYS;
 }
+
 static inline void rcar_lvds_pclk_disable(struct drm_bridge *bridge,
-					  bool dot_clock_only)
-{
+    bool dot_clock_only) {
 }
-static inline bool rcar_lvds_dual_link(struct drm_bridge *bridge)
-{
-	return false;
+
+static inline bool rcar_lvds_dual_link(struct drm_bridge *bridge) {
+  return false;
 }
-static inline bool rcar_lvds_is_connected(struct drm_bridge *bridge)
-{
-	return false;
+
+static inline bool rcar_lvds_is_connected(struct drm_bridge *bridge) {
+  return false;
 }
+
 #endif /* CONFIG_DRM_RCAR_LVDS */
 
 #endif /* __RCAR_LVDS_H__ */

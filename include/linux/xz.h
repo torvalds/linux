@@ -12,16 +12,16 @@
 #define XZ_H
 
 #ifdef __KERNEL__
-#	include <linux/stddef.h>
-#	include <linux/types.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
 #else
-#	include <stddef.h>
-#	include <stdint.h>
+#include <stddef.h>
+#include <stdint.h>
 #endif
 
 /* In Linux, this is used to make extern functions static when needed. */
 #ifndef XZ_EXTERN
-#	define XZ_EXTERN extern
+#define XZ_EXTERN extern
 #endif
 
 /**
@@ -50,9 +50,9 @@
  * be built with fewer features to minimize code size.
  */
 enum xz_mode {
-	XZ_SINGLE,
-	XZ_PREALLOC,
-	XZ_DYNALLOC
+  XZ_SINGLE,
+  XZ_PREALLOC,
+  XZ_DYNALLOC
 };
 
 /**
@@ -106,15 +106,15 @@ enum xz_mode {
  * is used instead of XZ_BUF_ERROR.
  */
 enum xz_ret {
-	XZ_OK,
-	XZ_STREAM_END,
-	XZ_UNSUPPORTED_CHECK,
-	XZ_MEM_ERROR,
-	XZ_MEMLIMIT_ERROR,
-	XZ_FORMAT_ERROR,
-	XZ_OPTIONS_ERROR,
-	XZ_DATA_ERROR,
-	XZ_BUF_ERROR
+  XZ_OK,
+  XZ_STREAM_END,
+  XZ_UNSUPPORTED_CHECK,
+  XZ_MEM_ERROR,
+  XZ_MEMLIMIT_ERROR,
+  XZ_FORMAT_ERROR,
+  XZ_OPTIONS_ERROR,
+  XZ_DATA_ERROR,
+  XZ_BUF_ERROR
 };
 
 /**
@@ -134,13 +134,13 @@ enum xz_ret {
  * the variables in_pos and out_pos are modified by the XZ code.
  */
 struct xz_buf {
-	const uint8_t *in;
-	size_t in_pos;
-	size_t in_size;
+  const uint8_t *in;
+  size_t in_pos;
+  size_t in_size;
 
-	uint8_t *out;
-	size_t out_pos;
-	size_t out_size;
+  uint8_t *out;
+  size_t out_pos;
+  size_t out_size;
 };
 
 /**
@@ -273,7 +273,7 @@ struct xz_dec_microlzma;
  * by others too.
  */
 extern struct xz_dec_microlzma *xz_dec_microlzma_alloc(enum xz_mode mode,
-						       uint32_t dict_size);
+    uint32_t dict_size);
 
 /**
  * xz_dec_microlzma_reset() - Reset the MicroLZMA decoder state
@@ -290,8 +290,8 @@ extern struct xz_dec_microlzma *xz_dec_microlzma_alloc(enum xz_mode mode,
  *              When this is set to false, error detection is weaker.
  */
 extern void xz_dec_microlzma_reset(struct xz_dec_microlzma *s,
-				   uint32_t comp_size, uint32_t uncomp_size,
-				   int uncomp_size_is_exact);
+    uint32_t comp_size, uint32_t uncomp_size,
+    int uncomp_size_is_exact);
 
 /**
  * xz_dec_microlzma_run() - Run the MicroLZMA decoder
@@ -330,7 +330,7 @@ extern void xz_dec_microlzma_reset(struct xz_dec_microlzma *s,
  * provided from non-contiguous memory.
  */
 extern enum xz_ret xz_dec_microlzma_run(struct xz_dec_microlzma *s,
-					struct xz_buf *b);
+    struct xz_buf *b);
 
 /**
  * xz_dec_microlzma_end() - Free the memory allocated for the decoder state
@@ -346,11 +346,11 @@ extern void xz_dec_microlzma_end(struct xz_dec_microlzma *s);
  * care about the functions below.
  */
 #ifndef XZ_INTERNAL_CRC32
-#	ifdef __KERNEL__
-#		define XZ_INTERNAL_CRC32 0
-#	else
-#		define XZ_INTERNAL_CRC32 1
-#	endif
+#ifdef __KERNEL__
+#define XZ_INTERNAL_CRC32 0
+#else
+#define XZ_INTERNAL_CRC32 1
+#endif
 #endif
 
 #if XZ_INTERNAL_CRC32

@@ -14,95 +14,95 @@
 #include "common.h"
 
 /*
- *	struct
+ *  struct
  */
 struct usbhs_irq_state {
-	u16 intsts0;
-	u16 intsts1;
-	u16 brdysts;
-	u16 nrdysts;
-	u16 bempsts;
+  u16 intsts0;
+  u16 intsts1;
+  u16 brdysts;
+  u16 nrdysts;
+  u16 bempsts;
 };
 
 struct usbhs_mod {
-	char *name;
+  char *name;
 
-	/*
-	 * entry point from common.c
-	 */
-	int (*start)(struct usbhs_priv *priv);
-	int (*stop)(struct usbhs_priv *priv);
+  /*
+   * entry point from common.c
+   */
+  int (*start)(struct usbhs_priv *priv);
+  int (*stop)(struct usbhs_priv *priv);
 
-	/*
-	 * INTSTS0
-	 */
+  /*
+   * INTSTS0
+   */
 
-	/* DVST (DVSQ) */
-	int (*irq_dev_state)(struct usbhs_priv *priv,
-			     struct usbhs_irq_state *irq_state);
+  /* DVST (DVSQ) */
+  int (*irq_dev_state)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	/* CTRT (CTSQ) */
-	int (*irq_ctrl_stage)(struct usbhs_priv *priv,
-			      struct usbhs_irq_state *irq_state);
+  /* CTRT (CTSQ) */
+  int (*irq_ctrl_stage)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	/* BEMP / BEMPSTS */
-	int (*irq_empty)(struct usbhs_priv *priv,
-			 struct usbhs_irq_state *irq_state);
-	u16 irq_bempsts;
+  /* BEMP / BEMPSTS */
+  int (*irq_empty)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
+  u16 irq_bempsts;
 
-	/* BRDY / BRDYSTS */
-	int (*irq_ready)(struct usbhs_priv *priv,
-			 struct usbhs_irq_state *irq_state);
-	u16 irq_brdysts;
+  /* BRDY / BRDYSTS */
+  int (*irq_ready)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
+  u16 irq_brdysts;
 
-	/*
-	 * INTSTS1
-	 */
+  /*
+   * INTSTS1
+   */
 
-	/* ATTCHE */
-	int (*irq_attch)(struct usbhs_priv *priv,
-			 struct usbhs_irq_state *irq_state);
+  /* ATTCHE */
+  int (*irq_attch)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	/* DTCHE */
-	int (*irq_dtch)(struct usbhs_priv *priv,
-			struct usbhs_irq_state *irq_state);
+  /* DTCHE */
+  int (*irq_dtch)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	/* SIGN */
-	int (*irq_sign)(struct usbhs_priv *priv,
-			struct usbhs_irq_state *irq_state);
+  /* SIGN */
+  int (*irq_sign)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	/* SACK */
-	int (*irq_sack)(struct usbhs_priv *priv,
-			struct usbhs_irq_state *irq_state);
+  /* SACK */
+  int (*irq_sack)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	struct usbhs_priv *priv;
+  struct usbhs_priv *priv;
 };
 
 struct usbhs_mod_info {
-	struct usbhs_mod *mod[USBHS_MAX];
-	struct usbhs_mod *curt; /* current mod */
+  struct usbhs_mod *mod[USBHS_MAX];
+  struct usbhs_mod *curt; /* current mod */
 
-	/*
-	 * INTSTS0 :: VBINT
-	 *
-	 * This function will be used as autonomy mode (runtime_pwctrl == 0)
-	 * when the platform doesn't have own get_vbus function.
-	 *
-	 * This callback cannot be member of "struct usbhs_mod" because it
-	 * will be used even though host/gadget has not been selected.
-	 */
-	int (*irq_vbus)(struct usbhs_priv *priv,
-			struct usbhs_irq_state *irq_state);
+  /*
+   * INTSTS0 :: VBINT
+   *
+   * This function will be used as autonomy mode (runtime_pwctrl == 0)
+   * when the platform doesn't have own get_vbus function.
+   *
+   * This callback cannot be member of "struct usbhs_mod" because it
+   * will be used even though host/gadget has not been selected.
+   */
+  int (*irq_vbus)(struct usbhs_priv *priv,
+      struct usbhs_irq_state *irq_state);
 
-	/*
-	 * This function will be used on any gadget mode. To simplify the code,
-	 * this member is in here.
-	 */
-	int (*get_vbus)(struct platform_device *pdev);
+  /*
+   * This function will be used on any gadget mode. To simplify the code,
+   * this member is in here.
+   */
+  int (*get_vbus)(struct platform_device *pdev);
 };
 
 /*
- *		for host/gadget module
+ *    for host/gadget module
  */
 struct usbhs_mod *usbhs_mod_get(struct usbhs_priv *priv, int id);
 struct usbhs_mod *usbhs_mod_get_current(struct usbhs_priv *priv);
@@ -116,64 +116,63 @@ void usbhs_mod_autonomy_mode(struct usbhs_priv *priv);
 void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv);
 
 /*
- *		status functions
+ *    status functions
  */
 int usbhs_status_get_device_state(struct usbhs_irq_state *irq_state);
 int usbhs_status_get_ctrl_stage(struct usbhs_irq_state *irq_state);
 
 /*
- *		callback functions
+ *    callback functions
  */
 void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod);
 
-
-#define usbhs_mod_call(priv, func, param...)		\
-	({						\
-		struct usbhs_mod *mod;			\
-		mod = usbhs_mod_get_current(priv);	\
-		!mod		? -ENODEV :		\
-		!mod->func	? 0 :			\
-		 mod->func(param);			\
-	})
+#define usbhs_mod_call(priv, func, param ...)    \
+  ({            \
+    struct usbhs_mod *mod;      \
+    mod = usbhs_mod_get_current(priv);  \
+    !mod ? -ENODEV     \
+    : !mod->func ? 0       \
+    : mod->func(param);      \
+  })
 
 #define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
-#define usbhs_mod_info_call(priv, func, param...)	\
-({							\
-	struct usbhs_mod_info *info;			\
-	info = usbhs_priv_to_modinfo(priv);		\
-	!info->func ? 0 :				\
-	 info->func(param);				\
-})
+#define usbhs_mod_info_call(priv, func, param ...) \
+  ({              \
+    struct usbhs_mod_info *info;      \
+    info = usbhs_priv_to_modinfo(priv);   \
+    !info->func ? 0         \
+    : info->func(param);       \
+  })
 
 /*
  * host / gadget control
  */
-#if	defined(CONFIG_USB_RENESAS_USBHS_HCD) || \
-	defined(CONFIG_USB_RENESAS_USBHS_HCD_MODULE)
+#if defined(CONFIG_USB_RENESAS_USBHS_HCD)    \
+  || defined(CONFIG_USB_RENESAS_USBHS_HCD_MODULE)
 extern int usbhs_mod_host_probe(struct usbhs_priv *priv);
 extern int usbhs_mod_host_remove(struct usbhs_priv *priv);
 #else
-static inline int usbhs_mod_host_probe(struct usbhs_priv *priv)
-{
-	return 0;
+static inline int usbhs_mod_host_probe(struct usbhs_priv *priv) {
+  return 0;
 }
-static inline void usbhs_mod_host_remove(struct usbhs_priv *priv)
-{
+
+static inline void usbhs_mod_host_remove(struct usbhs_priv *priv) {
 }
+
 #endif
 
-#if	defined(CONFIG_USB_RENESAS_USBHS_UDC) || \
-	defined(CONFIG_USB_RENESAS_USBHS_UDC_MODULE)
+#if defined(CONFIG_USB_RENESAS_USBHS_UDC)    \
+  || defined(CONFIG_USB_RENESAS_USBHS_UDC_MODULE)
 extern int usbhs_mod_gadget_probe(struct usbhs_priv *priv);
 extern void usbhs_mod_gadget_remove(struct usbhs_priv *priv);
 #else
-static inline int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
-{
-	return 0;
+static inline int usbhs_mod_gadget_probe(struct usbhs_priv *priv) {
+  return 0;
 }
-static inline void usbhs_mod_gadget_remove(struct usbhs_priv *priv)
-{
+
+static inline void usbhs_mod_gadget_remove(struct usbhs_priv *priv) {
 }
+
 #endif
 
 #endif /* RENESAS_USB_MOD_H */

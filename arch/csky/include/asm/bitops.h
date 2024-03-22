@@ -9,52 +9,47 @@
 /*
  * asm-generic/bitops/ffs.h
  */
-static inline int ffs(int x)
-{
-	if (!x)
-		return 0;
-
-	asm volatile (
-		"brev %0\n"
-		"ff1  %0\n"
-		"addi %0, 1\n"
-		: "=&r"(x)
-		: "0"(x));
-	return x;
+static inline int ffs(int x) {
+  if (!x) {
+    return 0;
+  }
+  asm volatile (
+    "brev %0\n"
+    "ff1  %0\n"
+    "addi %0, 1\n"
+    : "=&r" (x)
+    : "0" (x));
+  return x;
 }
 
 /*
  * asm-generic/bitops/__ffs.h
  */
-static __always_inline unsigned long __ffs(unsigned long x)
-{
-	asm volatile (
-		"brev %0\n"
-		"ff1  %0\n"
-		: "=&r"(x)
-		: "0"(x));
-	return x;
+static __always_inline unsigned long __ffs(unsigned long x) {
+  asm volatile (
+    "brev %0\n"
+    "ff1  %0\n"
+    : "=&r" (x)
+    : "0" (x));
+  return x;
 }
 
 /*
  * asm-generic/bitops/fls.h
  */
-static __always_inline int fls(unsigned int x)
-{
-	asm volatile(
-		"ff1 %0\n"
-		: "=&r"(x)
-		: "0"(x));
-
-	return (32 - x);
+static __always_inline int fls(unsigned int x) {
+  asm volatile (
+    "ff1 %0\n"
+    : "=&r" (x)
+    : "0" (x));
+  return 32 - x;
 }
 
 /*
  * asm-generic/bitops/__fls.h
  */
-static __always_inline unsigned long __fls(unsigned long x)
-{
-	return fls(x) - 1;
+static __always_inline unsigned long __fls(unsigned long x) {
+  return fls(x) - 1;
 }
 
 #include <asm-generic/bitops/ffz.h>

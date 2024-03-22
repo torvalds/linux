@@ -31,40 +31,34 @@
 
 /* Identify device by flashing LEDs */
 static int efx_ethtool_phys_id(struct net_device *net_dev,
-			       enum ethtool_phys_id_state state)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	enum efx_led_mode mode = EFX_LED_DEFAULT;
-
-	switch (state) {
-	case ETHTOOL_ID_ON:
-		mode = EFX_LED_ON;
-		break;
-	case ETHTOOL_ID_OFF:
-		mode = EFX_LED_OFF;
-		break;
-	case ETHTOOL_ID_INACTIVE:
-		mode = EFX_LED_DEFAULT;
-		break;
-	case ETHTOOL_ID_ACTIVE:
-		return 1;	/* cycle on/off once per second */
-	}
-
-	return efx_mcdi_set_id_led(efx, mode);
+    enum ethtool_phys_id_state state) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  enum efx_led_mode mode = EFX_LED_DEFAULT;
+  switch (state) {
+    case ETHTOOL_ID_ON:
+      mode = EFX_LED_ON;
+      break;
+    case ETHTOOL_ID_OFF:
+      mode = EFX_LED_OFF;
+      break;
+    case ETHTOOL_ID_INACTIVE:
+      mode = EFX_LED_DEFAULT;
+      break;
+    case ETHTOOL_ID_ACTIVE:
+      return 1; /* cycle on/off once per second */
+  }
+  return efx_mcdi_set_id_led(efx, mode);
 }
 
-static int efx_ethtool_get_regs_len(struct net_device *net_dev)
-{
-	return efx_nic_get_regs_len(efx_netdev_priv(net_dev));
+static int efx_ethtool_get_regs_len(struct net_device *net_dev) {
+  return efx_nic_get_regs_len(efx_netdev_priv(net_dev));
 }
 
 static void efx_ethtool_get_regs(struct net_device *net_dev,
-				 struct ethtool_regs *regs, void *buf)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-
-	regs->version = efx->type->revision;
-	efx_nic_get_regs(efx, buf);
+    struct ethtool_regs *regs, void *buf) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  regs->version = efx->type->revision;
+  efx_nic_get_regs(efx, buf);
 }
 
 /*
@@ -97,185 +91,162 @@ static void efx_ethtool_get_regs(struct net_device *net_dev,
  */
 
 static int efx_ethtool_get_coalesce(struct net_device *net_dev,
-				    struct ethtool_coalesce *coalesce,
-				    struct kernel_ethtool_coalesce *kernel_coal,
-				    struct netlink_ext_ack *extack)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	unsigned int tx_usecs, rx_usecs;
-	bool rx_adaptive;
-
-	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &rx_adaptive);
-
-	coalesce->tx_coalesce_usecs = tx_usecs;
-	coalesce->tx_coalesce_usecs_irq = tx_usecs;
-	coalesce->rx_coalesce_usecs = rx_usecs;
-	coalesce->rx_coalesce_usecs_irq = rx_usecs;
-	coalesce->use_adaptive_rx_coalesce = rx_adaptive;
-
-	return 0;
+    struct ethtool_coalesce *coalesce,
+    struct kernel_ethtool_coalesce *kernel_coal,
+    struct netlink_ext_ack *extack) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  unsigned int tx_usecs, rx_usecs;
+  bool rx_adaptive;
+  efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &rx_adaptive);
+  coalesce->tx_coalesce_usecs = tx_usecs;
+  coalesce->tx_coalesce_usecs_irq = tx_usecs;
+  coalesce->rx_coalesce_usecs = rx_usecs;
+  coalesce->rx_coalesce_usecs_irq = rx_usecs;
+  coalesce->use_adaptive_rx_coalesce = rx_adaptive;
+  return 0;
 }
 
 static int efx_ethtool_set_coalesce(struct net_device *net_dev,
-				    struct ethtool_coalesce *coalesce,
-				    struct kernel_ethtool_coalesce *kernel_coal,
-				    struct netlink_ext_ack *extack)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	struct efx_channel *channel;
-	unsigned int tx_usecs, rx_usecs;
-	bool adaptive, rx_may_override_tx;
-	int rc;
-
-	efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
-
-	if (coalesce->rx_coalesce_usecs != rx_usecs)
-		rx_usecs = coalesce->rx_coalesce_usecs;
-	else
-		rx_usecs = coalesce->rx_coalesce_usecs_irq;
-
-	adaptive = coalesce->use_adaptive_rx_coalesce;
-
-	/* If channels are shared, TX IRQ moderation can be quietly
-	 * overridden unless it is changed from its old value.
-	 */
-	rx_may_override_tx = (coalesce->tx_coalesce_usecs == tx_usecs &&
-			      coalesce->tx_coalesce_usecs_irq == tx_usecs);
-	if (coalesce->tx_coalesce_usecs != tx_usecs)
-		tx_usecs = coalesce->tx_coalesce_usecs;
-	else
-		tx_usecs = coalesce->tx_coalesce_usecs_irq;
-
-	rc = efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive,
-				     rx_may_override_tx);
-	if (rc != 0)
-		return rc;
-
-	efx_for_each_channel(channel, efx)
-		efx->type->push_irq_moderation(channel);
-
-	return 0;
+    struct ethtool_coalesce *coalesce,
+    struct kernel_ethtool_coalesce *kernel_coal,
+    struct netlink_ext_ack *extack) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  struct efx_channel *channel;
+  unsigned int tx_usecs, rx_usecs;
+  bool adaptive, rx_may_override_tx;
+  int rc;
+  efx_get_irq_moderation(efx, &tx_usecs, &rx_usecs, &adaptive);
+  if (coalesce->rx_coalesce_usecs != rx_usecs) {
+    rx_usecs = coalesce->rx_coalesce_usecs;
+  } else {
+    rx_usecs = coalesce->rx_coalesce_usecs_irq;
+  }
+  adaptive = coalesce->use_adaptive_rx_coalesce;
+  /* If channels are shared, TX IRQ moderation can be quietly
+   * overridden unless it is changed from its old value.
+   */
+  rx_may_override_tx = (coalesce->tx_coalesce_usecs == tx_usecs
+      && coalesce->tx_coalesce_usecs_irq == tx_usecs);
+  if (coalesce->tx_coalesce_usecs != tx_usecs) {
+    tx_usecs = coalesce->tx_coalesce_usecs;
+  } else {
+    tx_usecs = coalesce->tx_coalesce_usecs_irq;
+  }
+  rc = efx_init_irq_moderation(efx, tx_usecs, rx_usecs, adaptive,
+      rx_may_override_tx);
+  if (rc != 0) {
+    return rc;
+  }
+  efx_for_each_channel(channel, efx)
+  efx->type->push_irq_moderation(channel);
+  return 0;
 }
 
-static void
-efx_ethtool_get_ringparam(struct net_device *net_dev,
-			  struct ethtool_ringparam *ring,
-			  struct kernel_ethtool_ringparam *kernel_ring,
-			  struct netlink_ext_ack *extack)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-
-	ring->rx_max_pending = EFX_MAX_DMAQ_SIZE;
-	ring->tx_max_pending = EFX_TXQ_MAX_ENT(efx);
-	ring->rx_pending = efx->rxq_entries;
-	ring->tx_pending = efx->txq_entries;
+static void efx_ethtool_get_ringparam(struct net_device *net_dev,
+    struct ethtool_ringparam *ring,
+    struct kernel_ethtool_ringparam *kernel_ring,
+    struct netlink_ext_ack *extack) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  ring->rx_max_pending = EFX_MAX_DMAQ_SIZE;
+  ring->tx_max_pending = EFX_TXQ_MAX_ENT(efx);
+  ring->rx_pending = efx->rxq_entries;
+  ring->tx_pending = efx->txq_entries;
 }
 
-static int
-efx_ethtool_set_ringparam(struct net_device *net_dev,
-			  struct ethtool_ringparam *ring,
-			  struct kernel_ethtool_ringparam *kernel_ring,
-			  struct netlink_ext_ack *extack)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	u32 txq_entries;
-
-	if (ring->rx_mini_pending || ring->rx_jumbo_pending ||
-	    ring->rx_pending > EFX_MAX_DMAQ_SIZE ||
-	    ring->tx_pending > EFX_TXQ_MAX_ENT(efx))
-		return -EINVAL;
-
-	if (ring->rx_pending < EFX_RXQ_MIN_ENT) {
-		netif_err(efx, drv, efx->net_dev,
-			  "RX queues cannot be smaller than %u\n",
-			  EFX_RXQ_MIN_ENT);
-		return -EINVAL;
-	}
-
-	txq_entries = max(ring->tx_pending, EFX_TXQ_MIN_ENT(efx));
-	if (txq_entries != ring->tx_pending)
-		netif_warn(efx, drv, efx->net_dev,
-			   "increasing TX queue size to minimum of %u\n",
-			   txq_entries);
-
-	return efx_realloc_channels(efx, ring->rx_pending, txq_entries);
+static int efx_ethtool_set_ringparam(struct net_device *net_dev,
+    struct ethtool_ringparam *ring,
+    struct kernel_ethtool_ringparam *kernel_ring,
+    struct netlink_ext_ack *extack) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  u32 txq_entries;
+  if (ring->rx_mini_pending || ring->rx_jumbo_pending
+      || ring->rx_pending > EFX_MAX_DMAQ_SIZE
+      || ring->tx_pending > EFX_TXQ_MAX_ENT(efx)) {
+    return -EINVAL;
+  }
+  if (ring->rx_pending < EFX_RXQ_MIN_ENT) {
+    netif_err(efx, drv, efx->net_dev,
+        "RX queues cannot be smaller than %u\n",
+        EFX_RXQ_MIN_ENT);
+    return -EINVAL;
+  }
+  txq_entries = max(ring->tx_pending, EFX_TXQ_MIN_ENT(efx));
+  if (txq_entries != ring->tx_pending) {
+    netif_warn(efx, drv, efx->net_dev,
+        "increasing TX queue size to minimum of %u\n",
+        txq_entries);
+  }
+  return efx_realloc_channels(efx, ring->rx_pending, txq_entries);
 }
 
 static void efx_ethtool_get_wol(struct net_device *net_dev,
-				struct ethtool_wolinfo *wol)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	return efx->type->get_wol(efx, wol);
+    struct ethtool_wolinfo *wol) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  return efx->type->get_wol(efx, wol);
 }
 
-
 static int efx_ethtool_set_wol(struct net_device *net_dev,
-			       struct ethtool_wolinfo *wol)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	return efx->type->set_wol(efx, wol->wolopts);
+    struct ethtool_wolinfo *wol) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  return efx->type->set_wol(efx, wol->wolopts);
 }
 
 static void efx_ethtool_get_fec_stats(struct net_device *net_dev,
-				      struct ethtool_fec_stats *fec_stats)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-
-	if (efx->type->get_fec_stats)
-		efx->type->get_fec_stats(efx, fec_stats);
+    struct ethtool_fec_stats *fec_stats) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  if (efx->type->get_fec_stats) {
+    efx->type->get_fec_stats(efx, fec_stats);
+  }
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
-				   struct ethtool_ts_info *ts_info)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-
-	/* Software capabilities */
-	ts_info->so_timestamping = (SOF_TIMESTAMPING_RX_SOFTWARE |
-				    SOF_TIMESTAMPING_SOFTWARE);
-	ts_info->phc_index = -1;
-
-	efx_ptp_get_ts_info(efx, ts_info);
-	return 0;
+    struct ethtool_ts_info *ts_info) {
+  struct efx_nic *efx = efx_netdev_priv(net_dev);
+  /* Software capabilities */
+  ts_info->so_timestamping = (SOF_TIMESTAMPING_RX_SOFTWARE
+      | SOF_TIMESTAMPING_SOFTWARE);
+  ts_info->phc_index = -1;
+  efx_ptp_get_ts_info(efx, ts_info);
+  return 0;
 }
 
 const struct ethtool_ops efx_ethtool_ops = {
-	.cap_rss_ctx_supported	= true,
-	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
-				     ETHTOOL_COALESCE_USECS_IRQ |
-				     ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
-	.get_drvinfo		= efx_ethtool_get_drvinfo,
-	.get_regs_len		= efx_ethtool_get_regs_len,
-	.get_regs		= efx_ethtool_get_regs,
-	.get_msglevel		= efx_ethtool_get_msglevel,
-	.set_msglevel		= efx_ethtool_set_msglevel,
-	.get_link		= ethtool_op_get_link,
-	.get_coalesce		= efx_ethtool_get_coalesce,
-	.set_coalesce		= efx_ethtool_set_coalesce,
-	.get_ringparam		= efx_ethtool_get_ringparam,
-	.set_ringparam		= efx_ethtool_set_ringparam,
-	.get_pauseparam         = efx_ethtool_get_pauseparam,
-	.set_pauseparam         = efx_ethtool_set_pauseparam,
-	.get_sset_count		= efx_ethtool_get_sset_count,
-	.self_test		= efx_ethtool_self_test,
-	.get_strings		= efx_ethtool_get_strings,
-	.set_phys_id		= efx_ethtool_phys_id,
-	.get_ethtool_stats	= efx_ethtool_get_stats,
-	.get_wol                = efx_ethtool_get_wol,
-	.set_wol                = efx_ethtool_set_wol,
-	.reset			= efx_ethtool_reset,
-	.get_rxnfc		= efx_ethtool_get_rxnfc,
-	.set_rxnfc		= efx_ethtool_set_rxnfc,
-	.get_rxfh_indir_size	= efx_ethtool_get_rxfh_indir_size,
-	.get_rxfh_key_size	= efx_ethtool_get_rxfh_key_size,
-	.get_rxfh		= efx_ethtool_get_rxfh,
-	.set_rxfh		= efx_ethtool_set_rxfh,
-	.get_ts_info		= efx_ethtool_get_ts_info,
-	.get_module_info	= efx_ethtool_get_module_info,
-	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
-	.get_link_ksettings	= efx_ethtool_get_link_ksettings,
-	.set_link_ksettings	= efx_ethtool_set_link_ksettings,
-	.get_fec_stats		= efx_ethtool_get_fec_stats,
-	.get_fecparam		= efx_ethtool_get_fecparam,
-	.set_fecparam		= efx_ethtool_set_fecparam,
+  .cap_rss_ctx_supported = true,
+  .supported_coalesce_params = ETHTOOL_COALESCE_USECS
+      | ETHTOOL_COALESCE_USECS_IRQ
+      | ETHTOOL_COALESCE_USE_ADAPTIVE_RX,
+  .get_drvinfo = efx_ethtool_get_drvinfo,
+  .get_regs_len = efx_ethtool_get_regs_len,
+  .get_regs = efx_ethtool_get_regs,
+  .get_msglevel = efx_ethtool_get_msglevel,
+  .set_msglevel = efx_ethtool_set_msglevel,
+  .get_link = ethtool_op_get_link,
+  .get_coalesce = efx_ethtool_get_coalesce,
+  .set_coalesce = efx_ethtool_set_coalesce,
+  .get_ringparam = efx_ethtool_get_ringparam,
+  .set_ringparam = efx_ethtool_set_ringparam,
+  .get_pauseparam = efx_ethtool_get_pauseparam,
+  .set_pauseparam = efx_ethtool_set_pauseparam,
+  .get_sset_count = efx_ethtool_get_sset_count,
+  .self_test = efx_ethtool_self_test,
+  .get_strings = efx_ethtool_get_strings,
+  .set_phys_id = efx_ethtool_phys_id,
+  .get_ethtool_stats = efx_ethtool_get_stats,
+  .get_wol = efx_ethtool_get_wol,
+  .set_wol = efx_ethtool_set_wol,
+  .reset = efx_ethtool_reset,
+  .get_rxnfc = efx_ethtool_get_rxnfc,
+  .set_rxnfc = efx_ethtool_set_rxnfc,
+  .get_rxfh_indir_size = efx_ethtool_get_rxfh_indir_size,
+  .get_rxfh_key_size = efx_ethtool_get_rxfh_key_size,
+  .get_rxfh = efx_ethtool_get_rxfh,
+  .set_rxfh = efx_ethtool_set_rxfh,
+  .get_ts_info = efx_ethtool_get_ts_info,
+  .get_module_info = efx_ethtool_get_module_info,
+  .get_module_eeprom = efx_ethtool_get_module_eeprom,
+  .get_link_ksettings = efx_ethtool_get_link_ksettings,
+  .set_link_ksettings = efx_ethtool_set_link_ksettings,
+  .get_fec_stats = efx_ethtool_get_fec_stats,
+  .get_fecparam = efx_ethtool_get_fecparam,
+  .set_fecparam = efx_ethtool_set_fecparam,
 };

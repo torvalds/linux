@@ -15,11 +15,11 @@ struct wfx_dev;
 struct wfx_vif;
 
 struct wfx_queue {
-	struct sk_buff_head normal;
-	struct sk_buff_head cab; /* Content After (DTIM) Beacon */
-	struct sk_buff_head offchan;
-	atomic_t            pending_frames;
-	int                 priority;
+  struct sk_buff_head normal;
+  struct sk_buff_head cab; /* Content After (DTIM) Beacon */
+  struct sk_buff_head offchan;
+  atomic_t pending_frames;
+  int priority;
 };
 
 void wfx_tx_lock(struct wfx_dev *wdev);
@@ -35,11 +35,12 @@ struct wfx_hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev);
 
 bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue);
 void wfx_tx_queue_drop(struct wfx_vif *wvif, struct wfx_queue *queue,
-		       struct sk_buff_head *dropped);
+    struct sk_buff_head *dropped);
 
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id);
 void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped);
-unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev, struct sk_buff *skb);
+unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
+    struct sk_buff *skb);
 void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms);
 
 #endif

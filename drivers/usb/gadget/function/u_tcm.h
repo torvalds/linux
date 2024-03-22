@@ -5,7 +5,7 @@
  * Utility definitions for the tcm function
  *
  * Copyright (c) 2015 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *    http://www.samsung.com
  *
  * Author: Andrzej Pietrasiewicz <andrzej.p@xxxxxxxxxxx>
  */
@@ -26,22 +26,22 @@
  *
  */
 struct f_tcm_opts {
-	struct usb_function_instance	func_inst;
-	struct module			*dependent;
-	struct mutex			dep_lock;
-	bool				ready;
-	bool				can_attach;
-	bool				has_dep;
+  struct usb_function_instance func_inst;
+  struct module *dependent;
+  struct mutex dep_lock;
+  bool ready;
+  bool can_attach;
+  bool has_dep;
 
-	/*
-	 * Callbacks to be removed when legacy tcm gadget disappears.
-	 *
-	 * If you use the new function registration interface
-	 * programmatically, you MUST set these callbacks to
-	 * something sensible (e.g. probe/remove the composite).
-	 */
-	int (*tcm_register_callback)(struct usb_function_instance *);
-	void (*tcm_unregister_callback)(struct usb_function_instance *);
+  /*
+   * Callbacks to be removed when legacy tcm gadget disappears.
+   *
+   * If you use the new function registration interface
+   * programmatically, you MUST set these callbacks to
+   * something sensible (e.g. probe/remove the composite).
+   */
+  int (*tcm_register_callback)(struct usb_function_instance *);
+  void (*tcm_unregister_callback)(struct usb_function_instance *);
 };
 
 #endif /* U_TCM_H */

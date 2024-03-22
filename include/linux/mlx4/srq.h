@@ -11,14 +11,14 @@
  *     without modification, are permitted provided that the following
  *     conditions are met:
  *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
+ *  - Redistributions of source code must retain the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer.
  *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
+ *  - Redistributions in binary form must reproduce the above
+ *    copyright notice, this list of conditions and the following
+ *    disclaimer in the documentation and/or other materials
+ *    provided with the distribution.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
@@ -34,9 +34,9 @@
 #define MLX4_SRQ_H
 
 struct mlx4_wqe_srq_next_seg {
-	u16			reserved1;
-	__be16			next_wqe_index;
-	u32			reserved2[3];
+  u16 reserved1;
+  __be16 next_wqe_index;
+  u32 reserved2[3];
 };
 
 struct mlx4_srq *mlx4_srq_lookup(struct mlx4_dev *dev, u32 srqn);

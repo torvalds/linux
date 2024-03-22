@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * File:	m54xxgpt.h
- * Purpose:	Register and bit definitions for the MCF54XX
+ * File:  m54xxgpt.h
+ * Purpose: Register and bit definitions for the MCF54XX
  *
  * Notes:
  *
@@ -39,16 +39,16 @@
 #define MCF_GPT_GSR(x)     (MCF_MBAR + 0x00080C + ((x) * 0x010))
 
 /* Bit definitions and macros for MCF_GPT_GMS */
-#define MCF_GPT_GMS_TMS(x)         (((x)&0x00000007)<<0)
-#define MCF_GPT_GMS_GPIO(x)        (((x)&0x00000003)<<4)
+#define MCF_GPT_GMS_TMS(x)         (((x) & 0x00000007) << 0)
+#define MCF_GPT_GMS_GPIO(x)        (((x) & 0x00000003) << 4)
 #define MCF_GPT_GMS_IEN            (0x00000100)
 #define MCF_GPT_GMS_OD             (0x00000200)
 #define MCF_GPT_GMS_SC             (0x00000400)
 #define MCF_GPT_GMS_CE             (0x00001000)
 #define MCF_GPT_GMS_WDEN           (0x00008000)
-#define MCF_GPT_GMS_ICT(x)         (((x)&0x00000003)<<16)
-#define MCF_GPT_GMS_OCT(x)         (((x)&0x00000003)<<20)
-#define MCF_GPT_GMS_OCPW(x)        (((x)&0x000000FF)<<24)
+#define MCF_GPT_GMS_ICT(x)         (((x) & 0x00000003) << 16)
+#define MCF_GPT_GMS_OCT(x)         (((x) & 0x00000003) << 20)
+#define MCF_GPT_GMS_OCPW(x)        (((x) & 0x000000FF) << 24)
 #define MCF_GPT_GMS_OCT_FRCLOW     (0x00000000)
 #define MCF_GPT_GMS_OCT_PULSEHI    (0x00100000)
 #define MCF_GPT_GMS_OCT_PULSELO    (0x00200000)
@@ -69,13 +69,13 @@
 #define MCF_GPT_GMS_TMS_MASK       (0x00000007)
 
 /* Bit definitions and macros for MCF_GPT_GCIR */
-#define MCF_GPT_GCIR_CNT(x)        (((x)&0x0000FFFF)<<0)
-#define MCF_GPT_GCIR_PRE(x)        (((x)&0x0000FFFF)<<16)
+#define MCF_GPT_GCIR_CNT(x)        (((x) & 0x0000FFFF) << 0)
+#define MCF_GPT_GCIR_PRE(x)        (((x) & 0x0000FFFF) << 16)
 
 /* Bit definitions and macros for MCF_GPT_GPWM */
 #define MCF_GPT_GPWM_LOAD          (0x00000001)
 #define MCF_GPT_GPWM_PWMOP         (0x00000100)
-#define MCF_GPT_GPWM_WIDTH(x)      (((x)&0x0000FFFF)<<16)
+#define MCF_GPT_GPWM_WIDTH(x)      (((x) & 0x0000FFFF) << 16)
 
 /* Bit definitions and macros for MCF_GPT_GSR */
 #define MCF_GPT_GSR_CAPT           (0x00000001)
@@ -83,8 +83,8 @@
 #define MCF_GPT_GSR_PWMP           (0x00000004)
 #define MCF_GPT_GSR_TEXP           (0x00000008)
 #define MCF_GPT_GSR_PIN            (0x00000100)
-#define MCF_GPT_GSR_OVF(x)         (((x)&0x00000007)<<12)
-#define MCF_GPT_GSR_CAPTURE(x)     (((x)&0x0000FFFF)<<16)
+#define MCF_GPT_GSR_OVF(x)         (((x) & 0x00000007) << 12)
+#define MCF_GPT_GSR_CAPTURE(x)     (((x) & 0x0000FFFF) << 16)
 
 /********************************************************************/
 

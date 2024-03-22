@@ -24,9 +24,9 @@
  * @quirk: device quirk
  */
 struct ufs_dev_quirk {
-	u16 wmanufacturerid;
-	const u8 *model;
-	unsigned int quirk;
+  u16 wmanufacturerid;
+  const u8 *model;
+  unsigned int quirk;
 };
 
 /*
@@ -61,7 +61,7 @@ struct ufs_dev_quirk {
  * To workaround this issue, host should set its PA_TACTIVATE time to 1ms even
  * if device advertises RX_MIN_ACTIVATETIME_CAPABILITY less than 1ms.
  */
-#define UFS_DEVICE_QUIRK_PA_TACTIVATE	(1 << 4)
+#define UFS_DEVICE_QUIRK_PA_TACTIVATE (1 << 4)
 
 /*
  * It seems some UFS devices may keep drawing more than sleep current
@@ -69,13 +69,13 @@ struct ufs_dev_quirk {
  * To avoid this situation, add 2ms delay before putting these UFS
  * rails in LPM mode.
  */
-#define UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM	(1 << 6)
+#define UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM (1 << 6)
 
 /*
  * Some UFS devices require host PA_TACTIVATE to be lower than device
  * PA_TACTIVATE, enabling this quirk ensure this.
  */
-#define UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE	(1 << 7)
+#define UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE  (1 << 7)
 
 /*
  * The max. value PA_SaveConfigTime is 250 (10us) but this is not enough for
@@ -85,13 +85,13 @@ struct ufs_dev_quirk {
  * software delay will not help on this case so we need to increase
  * PA_SaveConfigTime to >32us as per vendor recommendation.
  */
-#define UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME	(1 << 8)
+#define UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME (1 << 8)
 
 /*
  * Some UFS devices require VS_DebugSaveConfigTime is 0x10,
  * enabling this quirk ensure this.
  */
-#define UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME	(1 << 9)
+#define UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME  (1 << 9)
 
 /*
  * Some pre-3.1 UFS devices can support extended features by upgrading

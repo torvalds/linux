@@ -38,8 +38,8 @@
 #define RSR_ADDRBROAD       BIT(7)
 #define RSR_ADDRMULTI       BIT(6)
 #define RSR_ADDRUNI         0x00
-#define RSR_IVLDTYP         BIT(5)	/* invalid packet type */
-#define RSR_IVLDLEN         BIT(4)	/* invalid len (> 2312 byte) */
+#define RSR_IVLDTYP         BIT(5)  /* invalid packet type */
+#define RSR_IVLDLEN         BIT(4)  /* invalid len (> 2312 byte) */
 #define RSR_BSSIDOK         BIT(3)
 #define RSR_CRCOK           BIT(2)
 #define RSR_BCNSSIDOK       BIT(1)

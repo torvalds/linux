@@ -10,12 +10,16 @@ void __init acpi_viot_early_init(void);
 void __init acpi_viot_init(void);
 int viot_iommu_configure(struct device *dev);
 #else
-static inline void acpi_viot_early_init(void) {}
-static inline void acpi_viot_init(void) {}
-static inline int viot_iommu_configure(struct device *dev)
-{
-	return -ENODEV;
+static inline void acpi_viot_early_init(void) {
 }
+
+static inline void acpi_viot_init(void) {
+}
+
+static inline int viot_iommu_configure(struct device *dev) {
+  return -ENODEV;
+}
+
 #endif
 
 #endif /* __ACPI_VIOT_H__ */

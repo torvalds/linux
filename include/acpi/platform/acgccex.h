@@ -21,4 +21,4 @@
 #undef strchr
 #endif
 
-#endif				/* __ACGCCEX_H__ */
+#endif        /* __ACGCCEX_H__ */

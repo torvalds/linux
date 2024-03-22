@@ -13,10 +13,9 @@
 
 #include <uapi/linux/dlm.h>
 
-
 struct dlm_slot {
-	int nodeid; /* 1 to MAX_INT */
-	int slot;   /* 1 to MAX_INT */
+  int nodeid; /* 1 to MAX_INT */
+  int slot;   /* 1 to MAX_INT */
 };
 
 /*
@@ -29,10 +28,10 @@ struct dlm_slot {
  */
 
 struct dlm_lockspace_ops {
-	void (*recover_prep) (void *ops_arg);
-	void (*recover_slot) (void *ops_arg, struct dlm_slot *slot);
-	void (*recover_done) (void *ops_arg, struct dlm_slot *slots,
-			      int num_slots, int our_slot, uint32_t generation);
+  void (*recover_prep)(void *ops_arg);
+  void (*recover_slot)(void *ops_arg, struct dlm_slot *slot);
+  void (*recover_done)(void *ops_arg, struct dlm_slot *slots,
+      int num_slots, int our_slot, uint32_t generation);
 };
 
 /*
@@ -75,9 +74,9 @@ struct dlm_lockspace_ops {
  */
 
 int dlm_new_lockspace(const char *name, const char *cluster,
-		      uint32_t flags, int lvblen,
-		      const struct dlm_lockspace_ops *ops, void *ops_arg,
-		      int *ops_result, dlm_lockspace_t **lockspace);
+    uint32_t flags, int lvblen,
+    const struct dlm_lockspace_ops *ops, void *ops_arg,
+    int *ops_result, dlm_lockspace_t **lockspace);
 
 /*
  * dlm_release_lockspace
@@ -125,15 +124,15 @@ int dlm_release_lockspace(dlm_lockspace_t *lockspace, int force);
  */
 
 int dlm_lock(dlm_lockspace_t *lockspace,
-	     int mode,
-	     struct dlm_lksb *lksb,
-	     uint32_t flags,
-	     const void *name,
-	     unsigned int namelen,
-	     uint32_t parent_lkid,
-	     void (*lockast) (void *astarg),
-	     void *astarg,
-	     void (*bast) (void *astarg, int mode));
+    int mode,
+    struct dlm_lksb *lksb,
+    uint32_t flags,
+    const void *name,
+    unsigned int namelen,
+    uint32_t parent_lkid,
+    void (*lockast)(void *astarg),
+    void *astarg,
+    void (*bast)(void *astarg, int mode));
 
 /*
  * dlm_unlock
@@ -156,9 +155,9 @@ int dlm_lock(dlm_lockspace_t *lockspace,
  */
 
 int dlm_unlock(dlm_lockspace_t *lockspace,
-	       uint32_t lkid,
-	       uint32_t flags,
-	       struct dlm_lksb *lksb,
-	       void *astarg);
+    uint32_t lkid,
+    uint32_t flags,
+    struct dlm_lksb *lksb,
+    void *astarg);
 
-#endif				/* __DLM_DOT_H__ */
+#endif        /* __DLM_DOT_H__ */

@@ -6,9 +6,9 @@
  */
 
 /************************************
- ** This is an auto-generated file **
- **       DO NOT EDIT BELOW        **
- ************************************/
+** This is an auto-generated file **
+**       DO NOT EDIT BELOW        **
+************************************/
 
 #ifndef ASIC_REG_PSOC_RESET_CONF_MASKS_H_
 #define ASIC_REG_PSOC_RESET_CONF_MASKS_H_
